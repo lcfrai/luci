@@ -240,3 +240,55 @@ parity row alone; it is the floor under L-101, L-113 and L-225, and L-36's undo 
 claim** a screen-reader test with a real reader (NVDA or Narrator by the owner is **UNVERIFIED**),
 or WCAG conformance.
 
+**67 — issue chips in Develop and Merge.** Deltas on phase 4's and phase 3's desktop files (rule
+H2: the owner's file wins, and this task waits for it on the sync base). Files:
+`desktop/src/provenance/ContextChip.tsx` (P4 task 17, P4 plan `:332`; **UNVERIFIED until merge**)
+gains the `kind: "issue"` arm of `ProvenanceRef` (task 18's `Ref.Kind`), rendering the display alias
+and revision in mono (`EP-142@3`, `--t-fact`) with `<ThreadNode/>` (SW.14) lit for its criterion
+by `useThreadLit`; `desktop/src/components/develop/SessionPaneHeader.tsx` ⚑ (P4 plan `:364` mounts
+the brief chip there) mounts the issue chip **beside** the brief chip, fed by the loader's second
+key source (task 19, `Session.IssueRef`); `desktop/src/components/lens/merge/LaneCard.tsx` (P3
+task 19, P3 plan `:556-558`; **UNVERIFIED until merge**) names each lane's issue from the lane
+index (task 21). Every chip opens the **one** issue view (tasks 46-48) at the revision the chip
+names, not the head (05 §4.5 rule 1); a revision older than the head says so (*"EP-142@3 · head
+is @4"*); an erased issue resolves as *erased* (hub-contract §7.12) and still opens. **Tests
+first:** (1) a session with `issue:is-…@3` renders `EP-142@3` beside the brief chip (mutant: the
+issue chip replaces the brief chip); (2) clicking it opens the issue view at `@3` while the head is
+`@4` (mutant: opens the head); (3) an erased ref renders *erased* and no title (mutant: a stale
+cached title); (4) a session with no `IssueRef` renders no issue chip and no empty slot (mutant:
+a placeholder chip); (5) a lane row names `EP-142` from the lane index, not from the branch name
+(mutant: parses the branch, which AU-only projects keep title-free, Q8); (6) the alias follows a
+project-key change without the key changing (mutant: the alias cached as a key, 05 §3.6);
+(7) `expectNoPrediction` on the pane header. **Depends on** 48; P4-17, P3-19 (and 18, 19, 21
+through their seams). **Design:** 05 §4.5 (Develop and Merge rows, rule 1 and rule 4), §3.6; 04
+§5.1. **Closes** L-191's visible half (what the agent was told, with task 19) and L-98's
+revision-pinned link inside the app (with task 47; https links are task 93); **serves** L-201.
+**Does not claim** Deploy's chip (task 71), Design's `implements` (later, 05 §5.5), or proposed
+evidence under each criterion (W3, task 104).
+
+**68 — create an issue from any list, a Desk row, a span or a hunk.** Files:
+`desktop/src/components/work/NewIssue.tsx` (+ test, a composer in `Popover.tsx` beside the focused
+row, never a modal over the work), `desktop/src/work/keys/keymap.ts` (the `C` binding, task 53's
+map), `desktop/src/components/palette/commands.ts` ⚑ (*New issue*, with its chord; after task 59),
+and the span and hunk surfaces that offer it: task 60's peek (`peek.span`, `peek.hunk`) and phase
+3's `components/lens/files/SpanDrawer.tsx` and `PathDiff.tsx` (P3 task 21; **UNVERIFIED until
+merge**, and absent until then, so their entry points are added only if they exist on the sync
+base). The write is `CreateIssueRequest` (SW.1) through `mutate` (SW.16): title and description as
+`AuthoredText` of author class `text·H` (L-124); state from `TeamPolicy.defaultState` (L-9; intake,
+not a member, lands in `triage`); `serves` optional, pickable with `T`. **The link to its origin**:
+from a Desk row about an issue, a `relates` relation to it; from a span or a hunk, an origin
+`{kind: "span" | "hunk", ref}` shown in the issue view (AX §8.2). SW.1's `CreateIssueRequest` has no
+origin field, so this task adds `origin *IssueOrigin{kind, ref}` as an **added field** under WS0's
+rule (reported as a skeleton gap; the Hub's store keeps it verbatim and never renders a span's text
+into the issue). `C` fires only with list focus (05 §4.3 rule 1). **Tests first:** (1) `C` in a list
+opens the composer; `C` in a text field types `c` and in a terminal reaches xterm (mutant: a
+`document` listener); (2) from a Desk row about EP-142 the request carries a `relates` to it
+(mutant: the link dropped); (3) from a span the request carries `origin.kind: "span"` and its ref
+(mutant: the ref pasted into the description as text); (4) a team whose `defaultState` is
+`backlog` creates in `backlog` (mutant: hard-coded `triage`); (5) the body is `text·H` (mutant: no
+author class); (6) a 422 keeps the composer open with the Hub's reason and leaves no ghost row
+(mutant: the optimistic row stays); (7) `expectNoPrediction` on the composer. **Depends on** 46, 53
+(and 55 through SW.16). **Design:** 05 §1 row L-29, §4.3 (`C`), §4.5 rule 3; AX §8.2. **Closes**
+L-29 and L-9's create half; **serves** L-124. **Does not claim** templates (task 78/89), the
+prefill deep link (task 93), drafts (task 80/92), or create from Discover's criteria (W4).
+
