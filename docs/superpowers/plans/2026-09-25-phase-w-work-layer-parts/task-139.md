@@ -472,3 +472,163 @@ comment whose `Kind` is not a plain comment (so an `edit_proposal` of task 141 o
 enters a summary), and keeps the newest `maxThreadComments`. The model's cite is a local key; a key
 it invents, or an `ic-` id it copies from a body, is not in `local` and drops the line. No write
 follows: the service holds no store, and the route test counts the fake Hub's writes.
+
+#### Interfaces — complete: the routes, appended to `control-plane/internal/api/workassist.go` ⚑
+
+```go
+// Task 139: the digest, the drafted update, the thread summary. Registered in
+// task 136's registerWorkAssist beside its triage route, on *routes, so the
+// audit sees them (api.go:218-262).
+func (a *API) registerWorkDrafts(rs *routes) {
+	rs.HandleFunc("POST /v1/work/assist/facts", a.postWorkFacts)
+	rs.HandleFunc("POST /v1/work/assist/draft-update", a.postDraftUpdate)
+	rs.HandleFunc("POST /v1/work/assist/summarise-thread", a.postSummariseThread)
+}
+
+// postWorkFacts is POST, not GET: it pages the Hub on the caller's behalf, and
+// contract §10a keeps GET for reads of our own state. It never touches the
+// gateway, so the kill switch does not apply to it (decision 1).
+func (a *API) postWorkFacts(w http.ResponseWriter, r *http.Request) {
+	var req workassist.DraftUpdateRequest
+	if !httpx.DecodeJSON(w, r, &req) {
+		return
+	}
+	if !a.readableFeature(w, r, req.FeatureID) {
+		return
+	}
+	res, err := a.deps.WorkAssist.Facts(r.Context(), req.FeatureID, req.After)
+	if err != nil {
+		a.assistProblem(w, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, res)
+}
+
+func (a *API) postDraftUpdate(w http.ResponseWriter, r *http.Request) {
+	var req workassist.DraftUpdateRequest
+	if !httpx.DecodeJSON(w, r, &req) {
+		return
+	}
+	projectID, ok := a.featureProject(w, r, req.FeatureID)
+	if !ok {
+		return
+	}
+	res, err := a.deps.WorkAssist.DraftUpdate(r.Context(), projectID, req)
+	if err != nil {
+		a.assistProblem(w, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, res)
+}
+
+func (a *API) postSummariseThread(w http.ResponseWriter, r *http.Request) {
+	var req workassist.ThreadSummaryRequest
+	if !httpx.DecodeJSON(w, r, &req) {
+		return
+	}
+	projectID, ok := a.issueProject(w, r, req.IssueID)
+	if !ok {
+		return
+	}
+	res, err := a.deps.WorkAssist.SummariseThread(r.Context(), projectID, req)
+	if errors.Is(err, workassist.ErrThreadTooShort) {
+		httpx.WriteProblem(w, http.StatusConflict, "thread_too_short",
+			"a thread needs more than 12 comments to summarise", nil)
+		return
+	}
+	if err != nil {
+		a.assistProblem(w, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, res)
+}
+```
+
+`readableFeature`, `featureProject`, `issueProject` and `assistProblem` are task 136's helpers
+(**UNVERIFIED** names): the first two read the feature through the Hub relay **as the caller** and
+answer the Hub's own 404 for an unreadable one, so a feature of another team is not even confirmed
+to exist; `assistProblem` maps `ErrAssistsOff` to `503 assists_off` and `ErrGatewayDown` to `502
+gateway_unavailable`, and every other error to the relay's problem. `thread_too_short` is a new
+problem code, appended to `httpx`'s code list (`problem.go`, the sixteen-codes test,
+`problem_test.go:35`, becomes one more). No handler logs a request or a reply body (task 136's
+rule: the control plane logs no issue text). `routes_audit_test.go` gains the three patterns, each
+`POST`, so §10a's no-side-effecting-GET check holds.
+
+#### Interfaces — complete: `desktop/src/api/work.ts` ⚑, appended
+
+```ts
+// Task 139: drafts, part 1. Mirrors control-plane/internal/workassist.
+export type FactKind = "landed" | "evidence" | "criterion_word" | "scope" | "blocker" | "property";
+export interface Fact {
+  key: string; kind: FactKind; seq: string; at: string;
+  subject: string; alias: string; line: string; by: string; count: number;
+}
+export interface FactsResult { featureId: string; after: string; facts: Fact[]; truncated: boolean }
+export interface DraftSentence { text: string; cites: string[] }
+/** No health field, on purpose (decision 5). */
+export interface DraftUpdateResponse {
+  facts: FactsResult; sentences: DraftSentence[]; dropped: number; route: "global" | "au";
+}
+export interface SummaryLine { text: string; comments: string[] }
+export interface ThreadSummary {
+  issueId: string; rootId: string; lines: SummaryLine[]; dropped: number; route: "global" | "au";
+}
+
+// WorkClient gains three calls (the interface is task 37's; appended, not reordered).
+export interface WorkDraftsClient {
+  workFacts(featureId: string, after: string): Promise<FactsResult>;
+  draftUpdate(featureId: string, after: string): Promise<DraftUpdateResponse>;
+  summariseThread(issueId: string, rootId: string): Promise<ThreadSummary>;
+}
+```
+
+`WorkClient` extends `WorkDraftsClient`; each call is a `POST` through task 37's client to the
+control plane's `/v1/work/assist/*` (not the Hub relay), and a problem arrives as `ApiError` with
+its `code` (`client.ts:58`), so the desktop tells `assists_off` from `gateway_unavailable` by
+code, never by message.
+
+#### Interfaces — complete: `desktop/src/components/editor/authorClass.ts` ⚑, appended
+
+```ts
+/** Each drafted range still holding agent text, merged, in document order (decision 6). */
+export function draftedRanges(spans: readonly AuthorSpan[]): AuthorSpan[] {
+  const a = spans.filter((s) => s.cls === "text·A" && s.to > s.from).slice().sort((x, y) => x.from - y.from);
+  const out: AuthorSpan[] = [];
+  for (const s of a) {
+    const last = out[out.length - 1];
+    if (last && s.from <= last.to) last.to = Math.max(last.to, s.to);
+    else out.push({ ...s });
+  }
+  return out;
+}
+
+/** "Keep as mine": the person adopts exactly [from, to). Only this range loses its mark. */
+export function keepAsMine(d: MarkdownDoc, from: number, to: number): MarkdownDoc {
+  const authorship: AuthorSpan[] = [];
+  for (const s of d.authorship) {
+    if (s.to <= from || s.from >= to) { authorship.push(s); continue; }
+    if (s.from < from) authorship.push({ ...s, to: from });
+    if (s.to > to) authorship.push({ ...s, from: to });
+  }
+  return { markdown: d.markdown, authorship };
+}
+
+/** A drafted sentence's text, placed after the person's text, marked agent. */
+export function appendDrafted(d: MarkdownDoc, sentences: readonly string[]): MarkdownDoc {
+  let markdown = d.markdown;
+  const authorship = [...d.authorship];
+  for (const t of sentences) {
+    const sep = markdown === "" ? "" : "\n\n";
+    const from = markdown.length + sep.length;
+    markdown = markdown + sep + t;
+    authorship.push({ from, to: from + t.length, cls: "text·A" });
+  }
+  return { markdown, authorship };
+}
+```
+
+`keepAsMine` runs as an editor command (the gutter's *Keep as mine* control dispatches a
+transaction removing the `agent` mark over the one range); the functions above are its pure form
+and what the tests pin. The person's typing inside a drafted sentence already removes the mark from
+what they typed (task 49's `personTyped` plugin, `task-49.md:129`); an untouched remainder keeps
+it, so `fieldAuthor` stays `A` and task 127's `canPost` stays false until every range is resolved.
