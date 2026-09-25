@@ -672,3 +672,70 @@ the honest *not yet reviewed* state, not a pass). It does **not** claim the owne
 real issue view (46-48) or the Desk frame (62). Design: 05 §2.1, §4.2, §5.3 rows 10 and 12; `OD-1`,
 `OD-12`, `OD-28`. Parity: none closed; the check before L-112 to L-114 and L-34 are built.
 
+**40 — the Work lens: the list grouped by criterion, one agent line, coarse liveness.** Stream WD1,
+3 h, **as resized by task 39's review** (a part written before the review marks its size
+provisional). Depends on 39; it reads Hub records through seam **SW.16**'s `useWork(selector)`,
+which tasks 55-58 build, so until task 55 lands it runs on a fixture-backed `useWork` from task 20
+(the skeleton lists SW.16's consumers as 40-69 but gives task 40 no dependency on 55). Files: new
+`desktop/src/components/work/WorkLens.tsx`, `CriterionGroup.tsx`, `IssueRow.tsx`, `AgentLine.tsx`,
+`work.css` and tests (`HeldLine.tsx` is task 41's); ⚑ `desktop/src/components/AppShell.tsx` mounts
+`WorkLens` for `lens === "work"` in place of task 38's prototype, which this task removes after
+promoting what the owner kept. **Complete props:** `WorkLens(props: { projectId: string; branch:
+string })`; `CriterionGroup(props: { criterion: { id: string; text: string; word: "settled" |
+"open" | "contested" | "drifting" | "uncovered" } | null; issueIds: string[] })`, where `null` is
+*Serves no criterion*; `IssueRow(props: { issueId: string; selected: boolean; cursor: boolean })`;
+`AgentLine(props: { sessionId: string; whoLabel: string })`. **What it shows** (05 §4.1): the
+`ViewHeader` (SW.13); groups by criterion by default, each header the criterion's words in sans,
+its convergence word and a plain size only (Q1); rows under a `ThreadLine` with a `ThreadNode` each;
+the `StateGlyph` column (the workflow state is a column, never the grouping); the alias from
+`DisplayAlias` in mono as display only, every React key and selection the `is-` id, so a project
+key change keeps row identity (05 §3.6); the assignee, always a person. **One agent line per row,
+the reader's only:** the lead agent's `who.label` in mono (`dylan · agent 1`), a meaning in sans
+built from **observed facts** only (the session's status and its lane's newest changed path, as
+*editing upload.go*, from phase 3's convergence data where merged, else the status alone; never PTY
+bytes, `OD-8`), and one `AgentGlyph`; other agents on the issue are one `Space` away (task 60),
+never counted. A teammate's issue shows the person and no dot; the *touching …* line needs Fleet
+and arrives in W3. **Liveness coarsens** (07 D I10): from `Session.lastOutputAt`
+(`store/types.ts:136-160`), `live` under 10 s, then `quiet 2m`, `quiet 14m`, recomputed only on the
+one heartbeat (`useHeartbeat`, `hooks/heartbeat.ts:64`), so only quiet rows change. Rows use
+`--row-h` (28px in `compact`); lists over 50 rows virtualise (`docs/DESIGN-SYSTEM.md:90`); grid roles
+are task 66's. **Tests first:** `expectNoPrediction(container)` (kills any `%`, bar, ETA or "N of
+M"); `it("groups by criterion by default")` (kills grouping by state, 05 §4.4 C13);
+`it("puts Serves no criterion last")`; `it("shows only a plain size in a group header")` (kills
+`1 of 3`); `it("draws one agent line and one glyph with three agents on the issue")` (kills a dot
+per agent or a count); `it("draws a teammate's issue with no glyph")` (kills `+2`); `it("builds
+the meaning from observed facts only")` (`AgentLine` takes no transcript input, a type test; kills
+a parsed PTY line); `it("coarsens liveness on the beat")` (a fake beat at 5 s shows `live`, at 130 s
+`quiet 2m`, with no change between beats; kills a per-row timer); `it("keys rows by id, not
+alias")` (renaming the project key keeps focus and selection; kills the alias as a key);
+`it("virtualises past fifty rows")` (500 fixture rows mount fewer than 60; kills rendering all).
+**Acceptance:** `npm --prefix desktop test -- work` passes; typecheck is clean. It does **not**
+claim `arrivals.hold`, `moves.hold` or departures (task 41), Triage (42), the board (43), display
+options (44), keys (53-54), or real Hub data before task 55. Design: 05 §4.1 (the drawing and every
+bullet), §4.4 (C4, C10, rule 3), §2.1 point 2; 07 D C1, D C3, D I10. Parity: closes the W1 parts of
+**L-101** (the list) and **L-102** (grouping, by criterion); gives **L-186**'s one live line its
+local-mode form (W3 closes it); shows **L-3**'s alias with tasks 02 and 08.
+
+---
+
+**Skeleton gaps found while scoping 21-40** (the skeleton is not edited here; the orchestrator
+decides):
+
+1. SW.9's value is the bare `is-` id; 04 §5.2 writes `issue:is-…@r`. Task 21 follows the skeleton and
+   recovers the revision through `Panacea-Session`.
+2. The lane index is phase 3's `internal/lanes` (P3-03), not `converge` as the delta table says.
+3. Observed evidence needs two added fields the Hub does not have: an issue citation and an
+   observed mark on hub-contract §7.10's evidence body, and a per-criterion `Check` in SW.1. No task
+   row names them; task 23 assumes tasks 10 and 03 carry them.
+4. *Undo Start* moves an issue back out of `started`; SW.4 (task 10) must accept that one backward
+   cause, `start_undone`.
+5. File-map omissions: `lanes/issuebranch.go` (21), `converge/issuefacts.go` (22),
+   `evidence/{issuedone,observe}.go` (23), `common/StatusDot.tsx` (29), `subrail/subrail.css` (31),
+   `App.tsx` (32), `devtools/GrainMeter.tsx` (33, 35), `tokens.css` and `forced-colors.css` for 36,
+   `prototype/work/` and `AppShell.tsx` for 38-39.
+6. Task 35's measurement has no results home; it writes a *Grain* section in the phase results file.
+7. Task 40 consumes SW.16 but does not depend on 55.
+8. 02 C4 names `--s-1 … --s-8` but gives six values; task 26 declares six.
+9. The home of a project's data class is unverified (Phase T says the same); tasks 21 and 24 fail
+   safe to AU when it is unknown.
+
