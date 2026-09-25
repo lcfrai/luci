@@ -72,3 +72,129 @@ on, without leaving the list and without marking anything seen.
    `addComment({anchor})` yields to task 51's part. The `ref` for a span is `session:<id>@<rfc3339>`
    of the fact; for a hunk it is `commit:<sha>:<path>:<oldStart>`; both are stored verbatim
    (`task-51.md:158`).
+
+**Files** (the skeleton's File map lists `Peek.tsx` for task 60, `:306`; it omits `peek.ts`, gap 1):
+
+- `desktop/src/work/peek.ts` — `PeekKind`, `peekFor`, `spanFacts`, `personIssues`, `HunkSource` (new)
+- `desktop/src/work/peek.test.ts` — the pure choices (new)
+- `desktop/src/components/work/Peek.tsx` — `usePeekController`, `Peek`, the four bodies (new)
+- `desktop/src/components/work/Peek.test.tsx` — keys, surfaces, source guards (new)
+- `desktop/src/components/work/IssueRow.tsx` (task 40's) — `data-row-id`, and no machine id on the
+  row (modified)
+- `desktop/src/components/work/BoardView.tsx` (task 43's) — mounts the controller over its cards
+  (modified)
+- `desktop/src/components/work/WorkLens.tsx` (task 40's) — mounts the controller over the list
+  (modified)
+- `desktop/src/components/work/work.css` (task 40's) — the `.pk-*` rules, appended (modified)
+
+#### Interfaces — complete: `desktop/src/work/peek.ts`, part 1: the kind and the span facts
+
+```ts
+// Peek chooses what a decision about a row rests on. No JSX, no fetch, no store import: the
+// caller hands in the head, the reader and the sessions, so every rule is tested without a DOM.
+// Nothing here reads a transcript or a terminal (OD-8); the span facts are record fields only.
+import type { IssueHead, User } from "../api/work";
+import type { Session } from "../store/types";
+
+export type PeekKind = "issue" | "span" | "hunk" | "person";
+
+/** Sessions of `me` bound to this issue, oldest first; the test task 48 uses (task-48.md:338). */
+export function mySessionsOn(head: IssueHead, sessions: readonly Session[]): Session[] {
+  return sessions
+    .filter((s) => s.issueRef.startsWith(`issue:${head.id}@`))
+    .sort((x, y) => x.createdAt.localeCompare(y.createdAt));
+}
+
+/** Decision 1's order: hunk, span, person, issue. */
+export function peekFor(head: IssueHead, me: User, sessions: readonly Session[]): PeekKind {
+  if ((head.state === "landed" || head.state === "done") && head.landCommit !== "") return "hunk";
+  if (mySessionsOn(head, sessions).length > 0) return "span";
+  if (head.assignee !== null && head.assignee.id !== me.id) return "person";
+  return "issue";
+}
+
+/** One observed fact behind an agent line: when, what, and which record said so. */
+export interface SpanFact {
+  at: string;                 // RFC 3339, from the record; formatted only at display
+  what: string;               // "status running", "last output", "exit · process exited"
+  source: "session record" | "lane record";
+  ref: string;                // the comment anchor ref: `session:<id>@<at>` (decision 8)
+}
+
+/** The session record's own fields, newest last. A zero time ("" or year 1) is no fact. */
+export function spanFacts(s: Session): SpanFact[] {
+  const ref = (at: string) => `session:${s.id}@${at}`;
+  const out: SpanFact[] = [{ at: s.createdAt, what: "created", source: "session record", ref: ref(s.createdAt) }];
+  if (isTime(s.updatedAt) && s.updatedAt !== s.createdAt) {
+    out.push({ at: s.updatedAt, what: `status ${s.status}`, source: "session record", ref: ref(s.updatedAt) });
+  }
+  if (isTime(s.lastOutputAt)) {
+    out.push({ at: s.lastOutputAt, what: "last output", source: "session record", ref: ref(s.lastOutputAt) });
+  }
+  if (s.status === "exited" && s.exitReason !== "") {
+    out.push({ at: s.updatedAt, what: `exit · ${s.exitReason}`, source: "session record", ref: ref(s.updatedAt) });
+  }
+  return out.sort((a, b) => a.at.localeCompare(b.at));
+}
+
+/** Go's zero time marshals as "0001-01-01T00:00:00Z" (registry/session.go:99's LastOutputAt). */
+function isTime(t: string): boolean {
+  return t !== "" && !t.startsWith("0001-");
+}
+```
+
+`Session.issueRef` is task 19's addition to `desktop/src/store/types.ts` (`task-19.md:70`); the
+type on the tree today (`types.ts:136-164`) has `contextRef` and not yet `issueRef`.
+
+#### Interfaces — complete: `peek.ts`, part 2: the person and the hunks
+
+```ts
+/** One line of `peek.person`: an issue, its state and reason. No session field exists here. */
+export interface PersonIssue {
+  alias: string; title: string; state: IssueHead["state"]; stateReason: string;
+  files: string[];            // only paths an observed fact named (a lane record); [] in W1
+}
+
+/** That person's issues in this project, open first, then newest update. */
+export function personIssues(
+  heads: readonly IssueHead[], titleOf: (id: string) => string, personId: string, projectId: string,
+): PersonIssue[] {
+  const closed = new Set<IssueHead["state"]>(["done", "cancelled", "duplicate"]);
+  return heads
+    .filter((h) => h.projectId === projectId && h.assignee?.id === personId)
+    .sort((a, b) => Number(closed.has(a.state)) - Number(closed.has(b.state))
+      || b.updatedAt.localeCompare(a.updatedAt))
+    .map((h) => ({ alias: h.alias, title: titleOf(h.id), state: h.state, stateReason: h.stateReason, files: [] }));
+}
+
+/** One hunk of the land commit. `spanRef` is the session fact that wrote it, where one exists. */
+export interface LandHunk {
+  path: string; oldStart: number; oldLines: number; newStart: number; newLines: number;
+  lines: string[];            // each starts " ", "+" or "-", as git prints them
+  spanRef: string | null;
+}
+
+/** Phase 3's diff record fills this (UNVERIFIED until merge, rule H2). A rejection is shown as
+ *  its reason, in place; it is never retried by a timer. */
+export interface HunkSource { hunksOf(landCommit: string): Promise<LandHunk[]> }
+
+let hunkSource: HunkSource = {
+  hunksOf: () => Promise.reject(new Error("the land diff is not on this build yet")),
+};
+export function setHunkSource(s: HunkSource): void { hunkSource = s; }
+export function getHunkSource(): HunkSource { return hunkSource; }
+
+/** Decision 8: the anchor refs, stored verbatim by task 12. */
+export function hunkRef(sha: string, h: LandHunk): string {
+  return `commit:${sha}:${h.path}:${h.oldStart}`;
+}
+```
+
+`LandHunk.lines` is display text only; peek never derives meaning from it and never feeds it to
+a model. The default `HunkSource` rejects with a plain reason, so before phase 3 lands a landed row
+peeks the commit sha and *"the land diff is not on this build yet"*: a fact, not a placeholder that
+pretends to be data.
+
+`IssueHead` carries no `title` in task 37's type (`task-37.md:121-128`; task 58's gap 2): the title
+comes from the head revision, `r.get(id)?.revision.content.title.text`, which the caller passes as
+`titleOf`.
