@@ -9,10 +9,19 @@ when one changes** does the desktop make one more request — `GET /v1/hub/chang
 `GET /v1/auth/status` for the auth state. Nothing here is persisted (ADR-H1 §5.4: nothing
 Hub-derived on the user's machine).
 
+**OD-30** (main `docs/superpowers/planning/2026-09-25-identity-keycloak-broker.md` §3; Hub contract §17
+§6.1-§6.2). Sign-in is zero clicks through a Keycloak realm brokering Entra. **Nothing in the desktop
+starts a sign-in at launch**: the control plane redeems the stored token silently, and on `invalid_grant`
+opens the system browser itself (tasks 30-32). `signIn()` stays, for the sign-in action task 41 shows
+after a mid-session `reauth_required`. The browser tab ends on the control plane's loopback page
+("Signed in. You can return to PanaceaApp.", task 30), and this task then **brings the window to the
+front** once (ruling §3 "Bringing the app to the front"; U-11: Windows' foreground lock may refuse it).
+
 **Files:**
 - `desktop/src/store/types.ts` — the new wire types (modify ⚑: appended)
 - `desktop/src/api/client.ts` + `client.test.ts` — the functions; the header capture (modify ⚑)
 - `desktop/src/api/hubFeed.ts` + `hubFeed.test.ts` (new)
+- `desktop/src/api/foreground.ts` + `foreground.test.ts` — `bringToFront`, over Tauri's window API (new; OD-30)
 - `desktop/src/api/poller.ts` + `poller.test.ts` — the header hook (modify ⚑)
 - `desktop/src/store/slices/authSlice.ts` (new); `desktop/src/store/store.ts` + `store.test.ts` — compose it, never persist it (modify ⚑)
 - `desktop/src/App.tsx` — pass the hook to `startPolling` (modify ⚑: one line)
@@ -27,7 +36,7 @@ export type AuthState = "signed_out" | "signing_in" | "signed_in";
 
 export interface AuthStatus {
   state: AuthState;
-  /** "" | "timeout" | "entra_error" | "exchange_failed" | "reauth_required" | "tenant_not_enrolled" */
+  /** "" | "timeout" | "entra_error" | "exchange_failed" | "reauth_required" | "tenant_not_enrolled" | "offline" (task 30, OD-30) */
   reason: string;
   account: { tenantId: string; name: string; username: string } | null;
   hubConfigured: boolean;
@@ -56,7 +65,7 @@ export interface HubLink {
 
 export type CredentialKind = "github" | "azure-devops" | "panacea"; // task 39's kinds; "azure-devops" is review I10
 /** Metadata only. There is no token field, by design: no route returns one (Hub plan task 39). */
-export interface CredentialEntry { kind: CredentialKind | "entra"; scope: string; subject: string; savedAt: string }
+export interface CredentialEntry { kind: CredentialKind | "oidc"; scope: string; subject: string; savedAt: string } // "oidc": the sign-in's account, scope "<issuer host>/<realm>" (task 29, OD-30)
 
 export interface HubEvent {
   seq: number; at: string; kind: string;
@@ -123,7 +132,22 @@ export interface HubFeed {
   noteSignedOut(): void;
 }
 
-export function createHubFeed(client: CockpitClient, store: typeof useCockpit): HubFeed;
+export function createHubFeed(
+  client: CockpitClient,
+  store: typeof useCockpit,
+  onSignedIn?: () => void, // App.tsx passes bringToFront; called once per signing_in → signed_in
+): HubFeed;
+
+// desktop/src/api/foreground.ts (OD-30 ruling §3). win is Tauri's getCurrentWindow(), injected
+// for tests. unminimize(), then setFocus(); if isFocused() is then false (Windows' foreground
+// lock), requestUserAttention(UserAttentionType.Informational), which flashes the taskbar
+// button. It never calls setFocus a second time. Every failure is swallowed: bringing the
+// window forward is a courtesy, never an error the user sees.
+export interface TauriWindowLike { // the subset of @tauri-apps/api/window's Window used here
+  unminimize(): Promise<void>; setFocus(): Promise<void>; isFocused(): Promise<boolean>;
+  requestUserAttention(t: UserAttentionType | null): Promise<void>;
+}
+export async function bringToFront(win: TauriWindowLike): Promise<void>;
 ```
 
 **`noteHeaders`' rules:** the **first** `cursors.hub` seen is remembered and nothing is fetched — every
@@ -179,6 +203,8 @@ export function startPolling(
 | `hubFeed: a failed read is retried` | the read rejects → the next change reads from the same `last` | events lost to one network blip |
 | `hubFeed: an auth change reads status once` | `authState` `signing_in` → `signed_in` → one `authStatus()`; `store.auth` updated | a sign-in that the window never notices finished |
 | `hubFeed: noteSignedOut re-reads status` | → one `authStatus()` | a stale "signed in" after the refresh token died |
+| `hubFeed: a finished sign-in brings the window forward once` | `signing_in` → `signed_in` → `onSignedIn` called once; a second `signed_in` read, or a launch that starts `signed_in` (the silent refresh, no browser), → not called | focus stolen on every status read; the window jumping forward at a launch that opened no browser |
+| `foreground: focus, then a flash only if refused` | a fake window: `unminimize` then `setFocus`, in order; `isFocused` true → no `requestUserAttention`; false → one `requestUserAttention(Informational)` and no second `setFocus`; a rejecting `setFocus` → no throw | a focus loop against the foreground lock; an error toast for a courtesy (ruling §3, U-11) |
 | `poller: the header hook runs after good ticks only` | a good tick → hook called with the headers; a failed tick → not | a hook fed stale headers after an outage |
 | `store: auth is never persisted` | after `setAuth`, `partialize(state)` has no `auth` key and `localStorage[PERSIST_KEY]` has no `"auth"` | Hub-derived data on disk (A5 widened) |
 | `types: no token field` | a source-text test: `types.ts` declares no property named `token` in the appended block | a type that invites putting a secret in state |
@@ -189,7 +215,8 @@ export function startPolling(
   `poller.ts`, `store.ts` as they stand.
 - [ ] **Step 2:** Tests; they fail. Then the types, the functions, `hubFeed.ts`, `authSlice.ts`,
   the poller parameter, the store composition, and the one `App.tsx` line
-  (`startPolling(api, useCockpit, catalogue.retry, hubFeed.noteHeaders)`).
+  (`startPolling(api, useCockpit, catalogue.retry, hubFeed.noteHeaders)`), with `hubFeed` built as
+  `createHubFeed(api, useCockpit, () => void bringToFront(getCurrentWindow()))` (OD-30).
 - [ ] **Step 3:** `cd desktop && npm test && npm run typecheck`. Commit by pathspec.
 
 #### Acceptance
