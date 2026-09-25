@@ -4,13 +4,14 @@ This task answers one question for the gatekeeper (task 10, on every request) an
 
 **The one thing this task must not get wrong is that the effective route is computed, never read.** A record says `inferenceRoute`, and a record can be wrong: written before a reclassification, hand-edited in local mode, or written by a Hub build that predates ask H-1. So every source computes `Effective` as `dataclass.Decide(record.DataClass, record.InferenceRoute)` (task 01), and a record that `Decide` refuses is a refusal here. A project whose class says `au-only` is served AU whatever its route field says.
 
-Five decisions where the skeleton is silent:
+Six decisions where the skeleton is silent:
 
 - **(a) Two kinds of failure, one sentinel for callers.** A *definitive* answer (the Hub says 404, or the record has no valid class or route) and an *outage* (a 5xx, a 429, a refused or failed token, a network error, a missing file) are different: an outage may be bridged by a recent cached answer, a definitive refusal may not. So `ErrUnavailable` is declared as wrapping `wire.ErrRouteUnknown`. Every error any source returns satisfies `errors.Is(err, wire.ErrRouteUnknown)`, so tasks 07 and 10 map one sentinel to `503 route_unknown`, and only `Cache` looks at the difference.
 - **(b) A definitive refusal evicts, and is never cached.** A project whose record turns invalid is refused at the next inner call even if a good entry is cached. No negative caching: the project id comes from a binding, not from the request, so a sandbox cannot make the gatekeeper hammer the Hub with made-up ids.
 - **(c) Misses are single-flight.** When an entry expires under load, twenty concurrent requests for one project make one Hub call, and the call runs on a context detached from the first caller's (the Panacea shared-deadline lesson, skeleton pitfall 3), bounded by the `Hub` client's own 3-second timeout.
 - **(d) `Version` is a content hash.** The Hub's `Project` object has no version field (`hub-contract.md:637-639`), so `Version` is the first 16 hex characters of the SHA-256 of the canonical fields JSON. It changes exactly when the class, the route or the change stamp changes, and it is the same for the same fields from either source.
 - **(e) The Hub source refuses redirects and sends no `Origin`.** The Hub refuses any request carrying `Origin` before authentication (`hub-contract.md:38-39`), and a redirect is a way to send the bearer somewhere else. The client's `CheckRedirect` returns an error, and the request sets exactly `Authorization` and `Accept`.
+- **(f) The Hub source reports the record's team** (review I-7). The `Project` object carries `teamId`, never null (`hub-contract.md:637-639`), and keysmith budgets and attributes by the team (task 07 decision (i)), so `Hub` sets `ProjectInference.TeamID` from it (task 03 decision (h)). A record whose `teamId` is missing or is not an id (`validID`) is refused definitively, like one with no class: there is no team to charge. `File` has no teams and leaves `TeamID` `""`. `Version` stays the hash of the inference fields alone, because a project's team is not an inference field and does not change the route.
 
 **Files:**
 - `control-plane/internal/routesource/cache.go` — package doc, `ErrUnavailable`, `fromFields` (the one place `Effective` is computed), `Cache`, `NewCache` (new)
@@ -31,7 +32,7 @@ Five decisions where the skeleton is silent:
 - Consumes: `dataclass.Decide`, `DecodeFields`, `FieldsFromRecord`, `ProjectInferenceFields`, `RouteAU`, `RouteGlobal` (task 01, `task-01.md:29-37`); `wire.ProjectInference`, `wire.RouteSource`, `wire.ErrRouteUnknown` (task 03); `httpx.MaxBodyBytes` (`control-plane/internal/httpx/problem.go:22`).
 - Required by: task 07 (keysmith's `Deps.Routes`), task 08 and task 12 (each binary builds `Cache` over `Hub` or `File` from `PANACEA_APP_GATEWAY_ROUTE_SOURCE`), task 17 (`projects.json`), task 21 (writes the file `File` reads).
 
-**The assumed wire shape.** Task 03 fixes `wire.ProjectInference`; this part assumes, and its tests pin, `ProjectInference{ProjectID string; DataClass dataclass.Class; Route, Effective dataclass.Route; Version string}`. If task 03 types `Version` otherwise, `fromFields` is the one line to change.
+**The assumed wire shape.** Task 03 fixes `wire.ProjectInference`; this part assumes, and its tests pin, `ProjectInference{ProjectID, TeamID string; DataClass dataclass.Class; Route, Effective dataclass.Route; Version string}`. If task 03 types `Version` otherwise, `fromFields` is the one line to change.
 
 - [ ] **Step 1: Write the failing cache tests**
 
@@ -253,9 +254,19 @@ import (
 const projectBase = `{"id":"pj-00000000000000b2","teamId":"tm-00000000000000c3","name":"Portal","remotes":[],` +
 	`"createdAt":"2026-09-25T00:00:00.000Z","createdBy":null`
 
-// An au-only project whose stored route says global: after H-1, as it may be wrongly written.
-const recordAUOnlySayingGlobal = projectBase + `,"dataClass":{"level":"confidential","residency":"au-only"},` +
+// H-1's fields for an au-only project whose stored route says global, as it may be wrongly written.
+const h1AUOnlyGlobal = `,"dataClass":{"level":"confidential","residency":"au-only"},` +
 	`"inferenceRoute":"global","routeChangedBy":null,"routeChangedAt":null}`
+
+const recordAUOnlySayingGlobal = projectBase + h1AUOnlyGlobal
+
+// After H-1, but with no team or one that is not an id (review I-7, decision (f)).
+const (
+	recordNoTeam = `{"id":"pj-00000000000000b2","name":"Portal","remotes":[],` +
+		`"createdAt":"2026-09-25T00:00:00.000Z","createdBy":null` + h1AUOnlyGlobal
+	recordBadTeam = `{"id":"pj-00000000000000b2","teamId":"tm/../c3","name":"Portal","remotes":[],` +
+		`"createdAt":"2026-09-25T00:00:00.000Z","createdBy":null` + h1AUOnlyGlobal
+)
 
 // The record the Hub returns today, before ask H-1.
 const recordBeforeH1 = projectBase + `}`
@@ -300,12 +311,16 @@ func definitive(err error) bool {
 	return errors.Is(err, wire.ErrRouteUnknown) && !errors.Is(err, ErrUnavailable)
 }
 
-// Kills trusting the record's route: the class forces AU.
+// Kills trusting the record's route: the class forces AU. Kills dropping the
+// record's team, which keysmith checks the caller's against (review I-7).
 func TestHubEffectiveRouteIsDecidedNotRead(t *testing.T) {
 	hub, _ := hubAt(t, nil, answer(200, recordAUOnlySayingGlobal))
 	got, err := hub.Project(context.Background(), "pj-00000000000000b2")
 	if err != nil {
 		t.Fatal(err)
+	}
+	if got.TeamID != "tm-00000000000000c3" {
+		t.Errorf("TeamID = %q, want the record's tm-00000000000000c3", got.TeamID)
 	}
 	if got.ProjectID != "pj-00000000000000b2" || got.DataClass != auOnly ||
 		got.Route != dataclass.RouteGlobal || got.Effective != dataclass.RouteAU || len(got.Version) != 16 {
@@ -322,6 +337,8 @@ The refusals, the outages and the request itself:
 func TestHubRefusalsAreDefinitive(t *testing.T) {
 	for name, h := range map[string]http.HandlerFunc{
 		"record before H-1": answer(200, recordBeforeH1),
+		"no team":           answer(200, recordNoTeam),
+		"a team not an id":  answer(200, recordBadTeam),
 		"unknown project":   answer(404, `{"error":"project_not_found","message":"No such project."}`),
 		"not a record":      answer(200, `[]`),
 	} {
@@ -788,6 +805,7 @@ package routesource
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -864,7 +882,32 @@ func (h *Hub) Project(ctx context.Context, id string) (wire.ProjectInference, er
 	if err != nil {
 		return wire.ProjectInference{}, fmt.Errorf("%w: project %s: %v", wire.ErrRouteUnknown, id, err)
 	}
-	return fromFields(id, f)
+	team, err := teamOf(body)
+	if err != nil {
+		return wire.ProjectInference{}, fmt.Errorf("%w: project %s: %v", wire.ErrRouteUnknown, id, err)
+	}
+	pi, err := fromFields(id, f)
+	if err != nil {
+		return wire.ProjectInference{}, err
+	}
+	pi.TeamID = team
+	return pi, nil
+}
+
+// teamOf is the record's teamId (hub-contract.md:637-639, never null), the
+// team keysmith charges and attributes by (decision (f), review I-7). A record
+// without a valid one is refused, definitively: there is no team to charge.
+func teamOf(body []byte) (string, error) {
+	var rec struct {
+		TeamID string `json:"teamId"`
+	}
+	if err := json.Unmarshal(body, &rec); err != nil {
+		return "", err
+	}
+	if !validID.MatchString(rec.TeamID) {
+		return "", errors.New("the record has no valid teamId")
+	}
+	return rec.TeamID, nil
 }
 ```
 
@@ -1092,7 +1135,7 @@ go test -race -count=1 ./internal/routesource/                                 #
 go test -count=1 -v ./internal/routesource/ | grep -c '^--- PASS: Test'        # expect 18
 ```
 
-- [ ] **Step 11: Kill four mutants by hand**
+- [ ] **Step 11: Kill six mutants by hand**
 
 | Edit | Test that must fail |
 |---|---|
@@ -1100,6 +1143,8 @@ go test -count=1 -v ./internal/routesource/ | grep -c '^--- PASS: Test'        #
 | `fill`: the `case isDefinitive(err):` arm deleted (a refusal falls to the stale arm) | `TestCacheDefinitiveRefusalEvicts` |
 | `fill`: `case e != nil && now.Sub(e.fetched) < c.staleMax:` → `case e != nil:` | `TestCacheBridgesAnOutageOnlyInsideStaleMax` |
 | `fill`: `context.Background()` → the caller's `ctx`, passed in from `Project` | `TestCacheMissesAreSingleFlightOnADetachedContext` |
+| `Hub.Project`: delete the `teamOf` call and `pi.TeamID = team` (review I-7) | `TestHubEffectiveRouteIsDecidedNotRead` (`TeamID` empty), `TestHubRefusalsAreDefinitive` (`no team`) |
+| `teamOf`: `!validID.MatchString(rec.TeamID)` → `rec.TeamID == ""` | `TestHubRefusalsAreDefinitive` (`a team not an id`) |
 
 - [ ] **Step 12: Vet, format, and confirm the import set**
 
@@ -1118,9 +1163,9 @@ git add control-plane/internal/routesource/cache.go control-plane/internal/route
 git commit -F <message file> -- control-plane/internal/routesource/
 ```
 
-Message: `feat(routesource): the live project route from the Hub or a file, cached and failing closed (phase 6 task 13)`, a body naming decisions (a) to (e), and the attribution line.
+Message: `feat(routesource): the live project route from the Hub or a file, cached and failing closed (phase 6 task 13)`, a body naming decisions (a) to (f), and the attribution line.
 
-**Acceptance:** step 10 prints `ok` and `18`; step 11's four edits each fail the named tests; step 12 prints nothing and then the four packages.
+**Acceptance:** step 10 prints `ok` and `18`; step 11's six edits each fail the named tests; step 12 prints nothing and then the four packages.
 
 **What this task does not claim:**
 
@@ -1137,3 +1182,4 @@ Message: `feat(routesource): the live project route from the Hub or a file, cach
 2. `wire.ProjectInference.Version` is a `string` in task 03's part (`task-03.md:517-523`), which this part fills with the content hash of decision (d).
 3. The skeleton's `Hub{BaseURL; Tokens; HTTP}` literal is replaced by `NewHub` with private fields (step 7 says why). `File` and `Cache` likewise have constructors.
 4. `ROUTE_SOURCE=file:<path>` and `hub` are parsed by tasks 08 and 12, not here; both binaries build `Cache` over the source with `ROUTE_CACHE_TTL` and `ROUTE_STALE_MAX`, so keysmith and the gatekeeper can disagree for at most one TTL. keysmith's disagreement is harmless: task 10 takes the tighter of the live route and the route at mint.
+5. **`ProjectInference.TeamID` is filled here** (decision (f), review I-7; task 03 decision (h)). keysmith refuses a mint whose caller-asserted team differs (task 07 decision (i)). Only `Hub` has teams; `File`'s `""` lets the caller's team stand, which is right for local mode alone. Task 19's chart sets `PANACEA_APP_GATEWAY_ROUTE_SOURCE=hub` for both keysmith and the gatekeeper (`task-19.md:484`, `:549`), so the cloud never runs on `File`.
