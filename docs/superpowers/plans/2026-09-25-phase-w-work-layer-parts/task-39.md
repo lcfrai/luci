@@ -414,3 +414,105 @@ shadow, DESIGN-SYSTEM's elevation rule) and `--r-card`; a row takes `--r-ctl`, a
 `--r-chip`, so the radius follows the element's size. The Desk's section words are uppercase in the
 source, as 05 §4.2 writes them; no `text-transform`.
 
+#### Tests to write first — `desktop/src/prototype/work/IssueDesk.test.tsx`
+
+```tsx
+// desktop/src/prototype/work/IssueDesk.test.tsx — task 39. Each test names the mutant it kills.
+import { fireEvent, render, screen } from "@testing-library/react";
+import { beforeEach, expect, it } from "vitest";
+import { resetFlags } from "../../lib/flags";
+import { resetCockpit } from "../../store/store";
+import { expectNoPrediction } from "../../test/expectNoPrediction";
+import { WORK_IDS, workScenario } from "../../test/workFixtures";
+import { DESK_ORDER, DeskPrototype, ZERO_LINE } from "./DeskPrototype";
+import { IssuePrototype } from "./IssuePrototype";
+import css from "./prototype.css?raw";
+
+beforeEach(() => { localStorage.clear(); resetCockpit(); resetFlags(); });
+
+/** The body of the first rule whose selector list names `sel`. */
+const rule = (sel: string) => css.match(new RegExp(`${sel.replace(/\./g, "\\.")}[^{]*\\{([^}]*)\\}`))![1];
+const openNotProven = () => fireEvent.click(screen.getByRole("button", { name: "EP-161" }));
+
+// Kills a %, a bar, an ETA or "N of M" on either issue, the Desk, or its zero state.
+it("makes no prediction on the issue view or the Desk", () => {
+  const issue = render(<IssuePrototype />);
+  expectNoPrediction(issue.container);
+  openNotProven();
+  expectNoPrediction(issue.container);
+  issue.unmount();
+  const desk = render(<DeskPrototype />);
+  expectNoPrediction(desk.container);
+  fireEvent.click(screen.getByRole("button", { name: "Show the zero state" }));
+  expectNoPrediction(desk.container);
+});
+
+// Kills a re-ranked section order (by row count, by recency) and a dropped empty section.
+it("keeps the Desk's section order fixed", () => {
+  const { container } = render(<DeskPrototype />);
+  const order = [...container.querySelectorAll<HTMLElement>(".pw-desk-sec")].map((s) => s.dataset.section);
+  expect(order).toEqual([...DESK_ORDER]);
+  const decided = container.querySelector('[data-section="DECIDED WITHOUT YOU"]')!;
+  expect(decided.querySelector(".pw-desk-none")!.textContent).toBe("None");
+});
+
+// Kills the mark drawn without its reason, and the mark on an issue that is proven or open.
+it("shows done, not proven with its reason", () => {
+  const { container } = render(<IssuePrototype />);
+  expect(container.querySelector(".pw-iv-np")).toBeNull();          // EP-167 is started
+  openNotProven();
+  const np = container.querySelector(".pw-iv-np")!;
+  expect(np.querySelector(".pw-iv-np-mark")!.textContent).toBe("done, not proven");
+  expect(np.querySelector(".pw-iv-np-reason")!.textContent)
+    .toBe(workScenario().issues.find((h) => h.id === WORK_IDS.ep161)!.stateReason);
+  expect(container.querySelector(".pw-iv-head > svg")!.getAttribute("data-glyph")).toBe("done_not_proven");
+});
+
+// Kills an illustration, a second line, or a projection with no rule in the zero state.
+it("draws the zero state as one line of fact", () => {
+  const { container } = render(<DeskPrototype />);
+  fireEvent.click(screen.getByRole("button", { name: "Show the zero state" }));
+  const desk = container.querySelector('[data-screen="desk"]')!;
+  expect(desk.querySelectorAll(".pw-desk-sec")).toHaveLength(0);
+  const lines = desk.querySelectorAll("p");
+  expect(lines).toHaveLength(1);
+  expect(lines[0].textContent).toBe(ZERO_LINE);
+  expect(desk.querySelectorAll("svg, img")).toHaveLength(0);
+});
+
+// Kills the split reversed: the key set in sans, or the criterion's words in mono.
+it("sets the criterion's words sans and its key mono", () => {
+  const { container } = render(<IssuePrototype />);
+  const serves = container.querySelector(".pw-iv-serves")!;
+  expect(serves.querySelector(".pw-iv-key")!.textContent).toBe(`brief:${WORK_IDS.brief}@2 › ${WORK_IDS.criterionResume}`);
+  expect(serves.querySelector(".pw-iv-words")!.textContent).toBe(workScenario().criteria[0].text);
+  expect(serves.querySelector(".thr-node")).not.toBeNull();
+  expect(rule(".pw-iv-key")).toMatch(/font-family:\s*var\(--mono\)/);
+  expect(rule(".pw-iv-words")).toMatch(/var\(--sans\)/);
+  expect(rule(".pw-iv-words")).not.toMatch(/--mono/);
+});
+
+// Kills a card per agent (RUNNING never folds) and a fold that navigates instead of expanding.
+it("folds the steady agents and cards only the changed one", () => {
+  const { container } = render(<DeskPrototype />);
+  const running = container.querySelector('[data-section="RUNNING"]')!;
+  expect(running.querySelectorAll(".pw-desk-card")).toHaveLength(1);
+  const fold = screen.getByRole("button", { name: "1 steady, all live" });
+  expect(fold.getAttribute("aria-expanded")).toBe("false");
+  expect(running.querySelectorAll(".pw-agent")).toHaveLength(0);
+  fireEvent.click(fold);
+  expect(running.querySelectorAll(".pw-agent")).toHaveLength(1);
+});
+
+// Kills 05 §2.1's drawing copied whole: W3's proposal, Record and the Orchestrator note.
+it("shows nothing from W3 on the issue view", () => {
+  const { container } = render(<IssuePrototype />);
+  expect(container.textContent).not.toMatch(/proposed evidence|Record|note \(/);
+  expect(screen.queryByRole("button", { name: "Record" })).toBeNull();
+});
+```
+
+`?raw` is how `components/common/StatusDot.test.tsx:7` already reads CSS as text (task 36,
+decision 6). The test file's name holds no `prototype`, but its path does, so
+`npm --prefix desktop test -- prototype` selects it with task 38's file.
+
