@@ -1,5 +1,7 @@
 ### Task 21b: `machined` bundles — lane work in and product commits out, as files in its owned root
 
+HELD until task 21 lands (itself held on phase 3's tasks 02 and 03 and S8-P3.6) and phase 3 answers S8-P3.4 (`lanegit.Bundles`; `.superpowers/sdd/env/held.md`): the build stream skips this task until then.
+
 Phase 3's ruling R4.4 moves lane work across as a `git bundle`, which is data, verified and
 fetched in the project under §HGH. On a cloud machine the project is on the machine disk and the
 lane's runner is `sandboxd` in another pod (env ruling 2), so the bundle needs a home the project
@@ -58,6 +60,7 @@ const (
 	MaxLiveBundles = 2                 // reserved or stored ids at once (ruling 3)
 	BundleSweep    = 60 * time.Second  // how often the sweep runs
 	BundleMaxAge   = 2 * BundleTimeout // a live id older than this is removed by the sweep
+	BundleSizePoll = 250 * time.Millisecond // how often a reserved bundle create is stat'ed (review-2 M5)
 	BundleDir      = "bundles"         // under machined's OwnedRoot: /tmp/machined-git/bundles
 )
 
@@ -98,6 +101,17 @@ const (
 - `?reserve=1` makes a live id and no file, for SendBranch's `bundle create` (ruling 3,
   "Project to lane"). Git then writes the file, with git's own mode inside the `0700`
   directory.
+- **A reserved bundle is capped too** (review-2 M5). While an admitted `bundle create` runs,
+  `machined` stats the reserved path and `<path>.lock` every `BundleSizePoll` (250 ms) and kills
+  git's process group once either passes `MaxBundleBytes`. After git exits it stats the path
+  once more. Past the cap either way, it removes both files, drops the id, and answers `413
+  too_large` in place of git's result. That git writes through `<path>.lock` and renames is
+  **UNVERIFIED** (training knowledge of `bundle.c`), so the poll watches both names. The sweep
+  counts `<id>.bundle.lock` as named by `<id>`.
+- **The arithmetic** (restating ruling 3 `:132-133`). The 429 keeps at most two ids live, so
+  `/tmp/machined-git/bundles` peaks at two bundles of `MaxBundleBytes` (2 GiB), plus one poll's
+  overshoot on a create. That leaves under 1 GiB of the 3Gi `sizeLimit` for clone scratch. The
+  write rate, and so the overshoot, is **UNVERIFIED** (task 32 measures `/tmp`).
 - The sweep runs every `BundleSweep`: it removes any live id older than `BundleMaxAge`, with its
   file, and any file in the directory that no live id names.
 
@@ -121,6 +135,7 @@ source are injected.
 | `TestBundlePostOverTheCapIs413AndLeavesNoFile` | cap 1024: 1024 bytes → 201; 1025 → 413 `too_large`, no file, no live id | an off-by-one cap; a partial file left in the 3 GiB `/tmp` |
 | `TestBundlePostSlowBodyIs504` | `BundleTimeout` 50 ms and a body that stalls → 504 `git_timeout`, no file, no live id | a stalled relay that holds a slot and a partial file forever |
 | `TestBundleThirdLiveIDIs429` | two live (one stored, one reserved) → a third `POST` 429 `bundle_busy` before its body is read; after one `DELETE` → 201 | a count of files only, so reserved ids let a third bundle in |
+| `TestBundleReservedCreateOverTheCapIs413` | real git, cap 1024 and `BundleSizePoll` 10 ms: `bundle create` of a history over 1024 bytes into a reserved path → 413 `too_large`, neither `<id>.bundle` nor `<id>.bundle.lock` remains, the id is not live; under the cap → 200 and the file stays | a cap on `POST`ed bodies only, so SendBranch grows a bundle past 3Gi and kubelet evicts the pod |
 | `TestBundleReserveMakesAnIDAndNoFile` | `?reserve=1` → 201 and no file; `?reserve=1` with a body → 400; `GET` of the reserved id → 404 `bundle_not_found` | a reserve that plants an empty file `bundle create` then refuses |
 | `TestBundleGetStreamsAndDeleteIsIdempotent` | `GET` → the bytes; `DELETE` → 204, again → 204; `GET` after → 404; `id` `../x` → 400 | a `DELETE` the laptop's deferred retry turns into an error; a path built from an unchecked id |
 | `TestBundleArgumentIsExactlyALivePath` | real git, `projects/a`. Admitted: `bundle create <path(reserved)> main`, then `bundle verify`, `bundle list-heads` and `fetch <path> +refs/heads/main:refs/panacea/lanes/x/main` on a stored id → 200. Each 400, git never ran: a path for a dead id; `<dir>/../clone/x`; `/tmp/machined-git/no-hooks/x`; the live path on `status`; the live path with `Scope: "none"`; `bundle create` on a stored id | a prefix check on `/tmp/machined-git/`, which lets git write into `no-hooks` or `clone`; an op list left open |
@@ -139,7 +154,8 @@ source are injected.
   (4) `MaxLiveBundles` counting files only → `TestBundleThirdLiveIDIs429`;
   (5) the argument check made a prefix match on `<OwnedRoot>/bundles/` → `TestBundleArgumentIsExactlyALivePath`, on its dead-id and `../clone` rows;
   (6) the op list opened to any subcommand → `TestBundleArgumentIsExactlyALivePath`, on its `status` row;
-  (7) the sweep's stray-file pass removed → `TestBundleSweepRemovesStaleAndStartEmpties`.
+  (7) the sweep's stray-file pass removed → `TestBundleSweepRemovesStaleAndStartEmpties`;
+  (8) the reserved-create size poll removed → `TestBundleReservedCreateOverTheCapIs413`.
   The two named beforehand as likeliest to survive are (4), because a reserve alone makes no
   file, and (7), because every id the store made is also swept by age. Each is killed only by
   the row named beside it: one stored and one reserved id, and a file the store never made.
