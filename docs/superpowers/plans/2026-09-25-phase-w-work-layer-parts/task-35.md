@@ -128,3 +128,97 @@ export const GRAINS: readonly FlagOption<Grain>[] = [
 ```
 
 `Grain` joins the type import from `../../lib/flags` in `FlagCompare.tsx`.
+
+#### Interfaces — complete: `desktop/src/components/devtools/GrainMeter.tsx`
+
+```tsx
+// desktop/src/components/devtools/GrainMeter.tsx
+//
+// Grain, measured (Phase W task 35; 05 §4.4 work rule 6; 07 D M6). Scrolls a 500-row fixture by
+// requestAnimationFrame for 5 s with grain, then 5 s without, records each frame's interval, and
+// prints p50 and p95 with the device pixel ratio it ran at. Run it inside the Tauri app, in
+// WebView2, at the laptop's own Windows scaling. The fixture is deliberately NOT virtualised: it
+// is a load for the compositor, not a product list (DESIGN-SYSTEM's 50-row rule is for those).
+
+import type { JSX } from "react";
+import { useRef, useState } from "react";
+import { getFlags, setFlag } from "../../lib/flags";
+
+export const PASS_MS = 5000;
+export const ROWS = 500;
+export const STEP_PX = 12;
+
+export interface FrameSummary {
+  frames: number;
+  p50: number;
+  p95: number;
+}
+
+/** Nearest rank: the smallest recorded interval with at least p % of intervals at or below it. */
+export function percentile(sorted: readonly number[], p: number): number {
+  if (sorted.length === 0) return Number.NaN;
+  const rank = Math.min(sorted.length, Math.max(1, Math.ceil((p / 100) * sorted.length)));
+  return sorted[rank - 1];
+}
+
+export function summarise(intervals: readonly number[]): FrameSummary {
+  const sorted = [...intervals].sort((a, b) => a - b);
+  return { frames: sorted.length, p50: percentile(sorted, 50), p95: percentile(sorted, 95) };
+}
+
+/** 02 C8's rule, recorded rather than asserted: the owner accepts the numbers either way. */
+export function grainRule(on: FrameSummary, off: FrameSummary): "grain stays" | "to the owner" {
+  return on.p95 - off.p95 <= 1 && on.p95 < 16.7 ? "grain stays" : "to the owner";
+}
+
+export function resultLine(pass: "grain on" | "grain off", s: FrameSummary, dpr: number): string {
+  return `${pass}  p50 ${s.p50.toFixed(1)} ms  p95 ${s.p95.toFixed(1)} ms  frames ${String(s.frames)}  dpr ${String(dpr)}`;
+}
+
+/** One pass: one scroll step per frame, bouncing at the ends, for `ms`. The interval is the
+ *  frame timestamp rAF hands in, so the page's own work between frames is inside it. */
+export function scrollPass(
+  list: HTMLElement,
+  ms: number,
+  raf: (cb: (t: number) => void) => unknown = requestAnimationFrame,
+): Promise<number[]> {
+  return new Promise((resolve) => {
+    const intervals: number[] = [];
+    let start = -1;
+    let last = -1;
+    let dir = 1;
+    const tick = (t: number): void => {
+      if (start < 0) {
+        start = t;
+      } else {
+        intervals.push(t - last);
+      }
+      last = t;
+      const max = list.scrollHeight - list.clientHeight;
+      if (list.scrollTop >= max) dir = -1;
+      else if (list.scrollTop <= 0) dir = 1;
+      list.scrollTop += dir * STEP_PX;
+      if (t - start >= ms) resolve(intervals);
+      else raf(tick);
+    };
+    raf(tick);
+  });
+}
+
+/** Grain on, then off, through the flag; the flag goes back to what it was, even on a throw. */
+export async function measureGrain(
+  list: HTMLElement,
+  pass: (list: HTMLElement) => Promise<number[]> = (l) => scrollPass(l, PASS_MS),
+): Promise<{ on: FrameSummary; off: FrameSummary }> {
+  const before = getFlags().grain;
+  try {
+    setFlag("grain", "on");
+    const on = summarise(await pass(list));
+    setFlag("grain", "off");
+    const off = summarise(await pass(list));
+    return { on, off };
+  } finally {
+    setFlag("grain", before);
+  }
+}
+```
