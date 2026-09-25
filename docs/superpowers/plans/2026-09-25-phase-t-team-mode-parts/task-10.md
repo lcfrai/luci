@@ -217,3 +217,162 @@ type PolicyVersion struct {
 
 `TurnClaim` carries `Org` where task 26's `ClaimRow` does not: every row in this schema is keyed
 by org, and task 26's three-line adapter (`task-26.md:107-109`) fills it from the agent.
+
+#### `migrations/0001_fleet.sql` — complete
+
+```sql
+-- Fleet's own state (05-design.md §3.2). No Hub record is stored here except
+-- as an outbox payload (ADR-H1:467-474). No column holds free text but the
+-- outbox payload, which is the exact Hub request body.
+CREATE SCHEMA IF NOT EXISTS fleet;
+
+CREATE TABLE fleet.agents (
+  org_id      text        NOT NULL,
+  agent_id    text        NOT NULL CHECK (agent_id LIKE 'ag-%'),  -- memstore checks the same prefix
+  project_id  text        NOT NULL,
+  owner       text        NOT NULL,                 -- u-…
+  class       text        NOT NULL CHECK (class IN ('orchestrator','worker','mirror')),
+  parent      text        NOT NULL DEFAULT '',      -- ag-… of the Orchestrator, '' for one
+  task_id     text        NOT NULL DEFAULT '',
+  delegation  text        NOT NULL DEFAULT '',      -- dl-… it was started under
+  status      text        NOT NULL CHECK (status IN ('starting','working','waiting','idle','ended')),
+  waiting_on  text        NOT NULL DEFAULT '' CHECK (waiting_on IN ('','lease','peer','human')),
+  started_at  timestamptz NOT NULL,
+  ended_at    timestamptz,
+  exit_class  text        NOT NULL DEFAULT ''
+              CHECK (exit_class IN ('','done','stopped','failed','access_removed','lapsed')),
+  PRIMARY KEY (org_id, agent_id),
+  CHECK ((status = 'ended') = (ended_at IS NOT NULL))
+);
+CREATE INDEX agents_by_project ON fleet.agents (org_id, project_id) WHERE status <> 'ended';
+
+CREATE TABLE fleet.leases (
+  org_id        text        NOT NULL,
+  lease_id      text        NOT NULL,
+  project_id    text        NOT NULL,
+  holder        text        NOT NULL,
+  owner         text        NOT NULL,
+  task_id       text        NOT NULL DEFAULT '',
+  globs         text[]      NOT NULL CHECK (cardinality(globs) BETWEEN 1 AND 20),
+  mode          text        NOT NULL CHECK (mode IN ('intent','hold','bulk')),
+  state         text        NOT NULL CHECK (state IN ('requested','granted','contested',
+                  'yielded','released','expired','admin-released')),
+  seq           integer     NOT NULL CHECK (seq >= 1),
+  tracked_files integer     NOT NULL DEFAULT 0,
+  expires_at    timestamptz,                         -- NULL for an intent
+  updated_at    timestamptz NOT NULL,
+  PRIMARY KEY (org_id, lease_id),
+  FOREIGN KEY (org_id, holder) REFERENCES fleet.agents (org_id, agent_id)
+);
+CREATE INDEX leases_live ON fleet.leases (org_id, project_id)
+  WHERE state IN ('requested','granted','contested');
+
+-- The per-path clock a hold lapses on: 30 min after the last edit TO THAT PATH (§3.3).
+CREATE TABLE fleet.lease_paths (
+  org_id        text        NOT NULL,
+  lease_id      text        NOT NULL,
+  path          text        NOT NULL CHECK (char_length(path) <= 200),
+  last_edit_at  timestamptz NOT NULL,
+  PRIMARY KEY (org_id, lease_id, path),
+  FOREIGN KEY (org_id, lease_id) REFERENCES fleet.leases (org_id, lease_id) ON DELETE CASCADE
+);
+
+CREATE SEQUENCE fleet.outbox_seq;
+CREATE TABLE fleet.outbox (
+  seq           bigint      NOT NULL DEFAULT nextval('fleet.outbox_seq'),
+  id            text        PRIMARY KEY,             -- also the Idempotency-Key
+  org_id        text        NOT NULL,
+  owner         text        NOT NULL CHECK (owner <> ''),   -- Fleet never writes as itself
+  project_id    text        NOT NULL,
+  class         text        NOT NULL CHECK (class IN ('orchestrator','worker')),
+  op            text        NOT NULL,
+  subject       text        NOT NULL DEFAULT '',
+  payload       bytea       NOT NULL,                -- the exact bytes; jsonb would reorder keys
+  created_at    timestamptz NOT NULL,
+  state         text        NOT NULL CHECK (state IN ('pending','sent','dead')),
+  attempts      integer     NOT NULL DEFAULT 0,
+  next_at       timestamptz NOT NULL,
+  failing_since timestamptz,
+  problem       jsonb,
+  sent_at       timestamptz
+);
+CREATE UNIQUE INDEX outbox_order ON fleet.outbox (org_id, seq);
+CREATE INDEX outbox_pending ON fleet.outbox (org_id, seq) WHERE state = 'pending';
+
+-- The per-Orchestrator queue (task 26, task-26.md:758-799, adopted here so that
+-- task 26 needs no migration). No text column exists.
+CREATE TABLE fleet.turn_events (
+  org_id        text        NOT NULL,
+  event_id      text        NOT NULL,
+  orchestrator  text        NOT NULL,
+  kind          text        NOT NULL CHECK (kind IN ('human.message','peer.message',
+                  'conflict.opened','worker.done','worker.blocked','worker.assumed',
+                  'lease.contested','lease.expiring','escalation.answered')),
+  ref           text        NOT NULL,
+  author        text        NOT NULL DEFAULT '',     -- u-… of a human.message, else ''
+  at            timestamptz NOT NULL,
+  turn_id       text,                                -- NULL until batched
+  retried       boolean     NOT NULL DEFAULT false,
+  PRIMARY KEY (org_id, event_id)
+);
+CREATE INDEX turn_events_open ON fleet.turn_events (orchestrator, at) WHERE turn_id IS NULL;
+
+-- At most one live claim per Orchestrator: the primary key IS the two-replica guard.
+CREATE TABLE fleet.turn_claims (
+  orchestrator  text        PRIMARY KEY,
+  org_id        text        NOT NULL,
+  turn_id       text        NOT NULL UNIQUE,
+  nonce         text        NOT NULL,
+  origin        text        NOT NULL CHECK (origin IN ('human','fleet')),
+  event_ids     text[]      NOT NULL,
+  issued        text[]      NOT NULL DEFAULT '{}',
+  mode          text        NOT NULL CHECK (mode IN ('new','resume')),
+  session_id    uuid        NOT NULL,
+  sandbox_id    text        NOT NULL,
+  began         timestamptz NOT NULL,
+  until         timestamptz NOT NULL
+);
+
+CREATE TABLE fleet.orch_sessions (
+  orchestrator  text        PRIMARY KEY,
+  org_id        text        NOT NULL,
+  session_id    uuid,
+  sandbox_id    text        NOT NULL DEFAULT '',
+  turns         integer     NOT NULL DEFAULT 0
+);
+
+-- OD-23: versioned, append-only managed settings per org (project '') and project.
+CREATE TABLE fleet.policy_versions (
+  org_id      text        NOT NULL,
+  project_id  text        NOT NULL DEFAULT '',
+  class       text        NOT NULL CHECK (class IN ('orchestrator','worker','mirror')),
+  version     integer     NOT NULL CHECK (version >= 1),
+  digest      text        NOT NULL CHECK (digest ~ '^sha256:[0-9a-f]{64}$'),
+  body        bytea       NOT NULL,
+  created_by  text        NOT NULL,
+  created_at  timestamptz NOT NULL,
+  PRIMARY KEY (org_id, project_id, class, version)
+);
+
+-- Task 37: one row per peer-triggered turn, counted over a window.
+CREATE TABLE fleet.counterpart_turns (
+  org_id       text        NOT NULL,
+  owner        text        NOT NULL,
+  counterpart  text        NOT NULL,
+  at           timestamptz NOT NULL
+);
+CREATE INDEX counterpart_turns_window ON fleet.counterpart_turns (org_id, owner, counterpart, at);
+
+-- Append-only, by grant: Fleet's runtime role may not rewrite a policy version.
+REVOKE UPDATE, DELETE ON fleet.policy_versions FROM PUBLIC;
+```
+
+**Three choices worth naming.** `payload` is `bytea`, not `jsonb`: the Hub compares request
+bodies byte for byte under one idempotency key (`task-11.md:161-162`), and `jsonb` normalises key
+order and whitespace, so a retried row would be a different body. `turn_events.author` is one
+`u-…` column, not task 26's `author_tid`/`author_oid` pair (`task-26.md:765-766`), because
+`model.Event.Author` is a `model.Owner` and task 26's own queue compares it with `a.Owner`
+(`task-26.md:431`); task 26's `pgstore` code follows this. And the `REVOKE` is the grant half of
+append-only: the runtime role Fleet connects as (task 32) is granted `INSERT, SELECT` only on
+`policy_versions`; **which role that is, and whether it is not the migration owner, is
+UNVERIFIED** until task 32 writes the chart and the database identity.
