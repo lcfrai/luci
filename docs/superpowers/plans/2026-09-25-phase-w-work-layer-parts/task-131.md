@@ -708,3 +708,281 @@ shipped to one environment reaches another, the row names the new one: *"EP-142 
 production, 14:02"* after *"… staging, 09:40"*. The ranking and the hold are task 62's. `.is-at` is
 mono with `tabular-nums`.
 
+#### Tests to write first — `control-plane/internal/deploy/notes/notes_test.go`
+
+```go
+package notes
+
+import (
+	"context"
+	"encoding/json"
+	"os/exec"
+	"strings"
+	"testing"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/briefref"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/deploy/sessions"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/evidence"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubapi"
+)
+
+const pin = "brief:bf-1a2b3c4d5e6f7a8b@6"
+
+// fixture: done:1 settled at both commits; done:2 settled only at Commit; EP-142 serves done:2,
+// EP-150 serves nothing, EP-160 serves done:1.
+func fixture() Deps {
+	st := func(id, s string, ev ...string) evidence.State {
+		return evidence.State{CriterionID: id, State: s, Evidence: ev}
+	}
+	return Deps{
+		Walk: func(context.Context, sessions.Range) (sessions.IssueResult, error) {
+			return sessions.IssueResult{State: "ok", Issues: []sessions.ReleaseIssue{
+				{IssueID: "is-142"}, {IssueID: "is-150"}, {IssueID: "is-160"}}}, nil
+		},
+		States: func(_ context.Context, at string, _ []briefref.Criterion) ([]evidence.State, error) {
+			if at == "c-from" {
+				return []evidence.State{st("done:1", "settled"), st("done:2", "open")}, nil
+			}
+			return []evidence.State{st("done:1", "settled", "ev-1"), st("done:2", "settled", "ev-2", "ev-9")}, nil
+		},
+		Criteria: func(context.Context, string) ([]PinnedCriterion, error) {
+			return []PinnedCriterion{{briefref.Criterion{ID: "done:1"}, "the resume test passes"},
+				{briefref.Criterion{ID: "done:2"}, "Uploads survive a dropped connection"}}, nil
+		},
+		Heads: func(context.Context, []string) (map[string]IssueFacts, error) {
+			return map[string]IssueFacts{
+				"is-142": {Alias: "EP-142", Title: "Resume uploads", Serves: []hubapi.Serve{{BriefKey: "brief:bf-1a2b3c4d5e6f7a8b@5", CriterionID: "done:2"}}},
+				"is-150": {Alias: "EP-150", Title: "Fix footer spacing", Serves: []hubapi.Serve{}},
+				"is-160": {Alias: "EP-160", Title: "Resume test", Serves: []hubapi.Serve{{BriefKey: pin, CriterionID: "done:1"}}},
+			}, nil
+		},
+		RecordIssues: func(context.Context, []string) (map[string]string, error) {
+			return map[string]string{"ev-2": "is-142", "ev-9": "is-777"}, nil
+		},
+	}
+}
+
+func build(t *testing.T, from string) Notes {
+	t.Helper()
+	n, err := Build(context.Background(), fixture(), sessions.Range{From: from, Commit: "c-now"}, "d-1", pin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return n
+}
+
+// mutant killed: "every settled criterion" (done:1 was settled at the previous release)
+func TestOnlyCriteriaThisReleaseSettledAreListed(t *testing.T) {
+	n := build(t, "c-from")
+	if len(n.Settled) != 1 || n.Settled[0].CriterionID != "done:2" {
+		t.Fatalf("settled = %+v, want only done:2", n.Settled)
+	}
+	if got := n.Settled[0].Issues; len(got) != 1 || got[0].Alias != "EP-142" ||
+		strings.Join(got[0].Evidence, ",") != "evidence:ev-2" { // ev-9 cites another issue
+		t.Fatalf("issues = %+v", got)
+	}
+	if first := build(t, ""); len(first.Settled) != 2 { // no earlier release: both listed
+		t.Fatalf("From \"\": %d settled, want 2", len(first.Settled))
+	}
+}
+
+// mutant killed: "unserved work vanishes" (EP-150 serves nothing; EP-160's criterion was settled before)
+func TestEveryShippedIssueAppearsOnce(t *testing.T) {
+	n := build(t, "c-from")
+	var also []string
+	for _, i := range n.AlsoShipped {
+		also = append(also, i.Alias)
+	}
+	if strings.Join(also, ",") != "EP-150,EP-160" {
+		t.Fatalf("alsoShipped = %v, want EP-150,EP-160", also)
+	}
+}
+
+// mutant killed: "a drafted line passed off as text·H" — the JSON has exactly the fact keys, and
+// the package cannot reach the gateway.
+func TestNotesCarryNoModelText(t *testing.T) {
+	b, _ := json.Marshal(build(t, "c-from"))
+	var top map[string]json.RawMessage
+	_ = json.Unmarshal(b, &top)
+	want := "alsoShipped,commit,deploymentId,from,message,pinnedBrief,settled,state,truncated"
+	var got []string
+	for k := range top {
+		got = append(got, k)
+	}
+	if strings.Join(sorted(got), ",") != want {
+		t.Fatalf("keys = %v", sorted(got))
+	}
+	out, err := exec.Command("go", "list", "-deps", ".").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(out), "/gateway") || strings.Contains(string(out), "/inference") {
+		t.Fatal("notes imports a gateway or inference package")
+	}
+}
+
+func sorted(s []string) []string { // tiny insertion sort: no sort import for one test
+	for i := 1; i < len(s); i++ {
+		for j := i; j > 0 && s[j] < s[j-1]; j-- {
+			s[j], s[j-1] = s[j-1], s[j]
+		}
+	}
+	return s
+}
+```
+
+#### Tests to write first — the table: `filter_test.go`, ⚑ `sessions_test.go`, ⚑ `ship_test.go`, the routes
+
+| Test | Setup and expectation | Mutant killed |
+|---|---|---|
+| `TestFilterDropsCommitsOutsideItsPaths` (sessions) | a temp repo; `.panacea/release.yaml` `paths: ["api/**"]` at `Commit`; commit A touches `web/x.ts` with `Panacea-Issue: is-…01`, B touches `api/y.go` with `…02` → `Issues` is `[…02]`, `Filtered` 1 | filter ignored |
+| `TestNoFilterFileMeansNoFilter` (sessions) | the same repo without the file → both issues, `Filtered` 0 | no file ships nothing |
+| `TestABadFilterNamesItself` (sessions) | `paths: ["[a-"]` → `State "filter_invalid"`, `Message` starts `release.yaml:`, no `git log` run (the runner's call log) | a bad glob silently matching nothing |
+| `TestDoubleStarMatchesZeroOrMoreSegments` (filter) | `api/**` matches `api/y.go`, `api/v1/y.go` and not `apix/y.go`; `**/*.sql` matches `db.sql` and `a/b/db.sql` | `**` as one segment; prefix match |
+| `TestShipToAFrozenEnvironmentCallsNothing` (ship) | `Freezes` answers a freeze for `production`; Ship → `*FrozenError`, 409 `deploy_frozen`, `details.environment "production"`; the Hub fake's reserve count and the Panacea fake's call count are 0 | freeze checked after deploy |
+| `TestAnUnreadFreezeFailsClosed` (ship) | `Freezes` errors → 503 `upstream_unavailable` `details.upstream "hub"`; nothing reserved | shipping past a freeze nobody read |
+| `TestReadinessSaysFrozen` (ship) | `Environment` resolved and frozen → `Ready false`, `Reason "frozen"` | the button enabled until the click |
+| `TestShippedNamesEachEnvironment` (route) | staging reached 09:40, production 14:02 → two rows, production first, each its own `environment`; an issue in staging only → one row, `staging` | first environment wins |
+| `TestShippedAfterARollback` (route) | production reached at d2, then a rollback to d1 → `servingNow false` | shipped read as serving |
+| the catalog test (⚑ `routes_audit_test.go`) | both `GET`s have a `catalogReadOnlyRoutes` line | an undocumented read route |
+
+The Ship harness is P7 task 09's (`task-09.md:440-460`, **UNVERIFIED** helper names); each row
+reuses it and adds only `Config.Freezes`.
+
+#### Tests to write first — `ReleaseNotes.test.tsx`, `FreezeToggle.test.tsx`, `IssueShipped.test.tsx`
+
+```tsx
+import { render, screen } from "@testing-library/react";
+import { expect, it } from "vitest";
+import { expectNoPrediction } from "../test/expectNoPrediction";
+import { ReleaseNotes, notesMarkdown } from "./ReleaseNotes";
+import { FreezeToggle, frozenLine } from "./FreezeToggle";
+import { IssueShipped } from "./IssueShipped";
+import type { EnvironmentFreeze, ReleaseNotes as Notes } from "./types";
+
+const notes: Notes = { state: "ok", message: "", deploymentId: "d-1", pinnedBrief: "brief:bf-1@6",
+  from: "a".repeat(40), commit: "b".repeat(40), truncated: false,
+  settled: [{ criterionId: "done:2", text: "Uploads survive a dropped connection",
+    issues: [{ issueId: "is-142", alias: "EP-142", title: "Resume uploads", evidence: ["evidence:ev-2"] }] }],
+  alsoShipped: [{ issueId: "is-150", alias: "EP-150", title: "Fix footer spacing" }] };
+const hhmm = (iso: string) => iso.slice(11, 16);
+const PRIYA = { id: "u-1", name: "Priya" } as never;
+const freeze: EnvironmentFreeze = { projectId: "pj-1", environment: "production",
+  reason: { text: "release week", author: "human" } as never, by: PRIYA, at: "2026-09-26T09:10:00Z" };
+
+// mutant killed: "unserved work vanishes" on the desktop, and a prediction in the block
+it("lists the settled criterion with its issue, and the unserved issue under Also shipped", () => {
+  const { container } = render(<ReleaseNotes notes={notes} />);
+  expect(screen.getByText("Uploads survive a dropped connection")).toBeTruthy();
+  expect(screen.getByText("Also shipped")).toBeTruthy();
+  expect(container.textContent).toContain("EP-150");
+  expectNoPrediction(container);
+});
+
+it("copied Markdown carries each issue's Hub key and no drafted line", () => {
+  const md = notesMarkdown(notes);
+  expect(md).toContain("(issue:is-142)");
+  expect(md).toContain("(issue:is-150)");
+  expect(md.split("\n").every((l) => l === "" || /issue:|^## |^Release notes|settled by work/.test(l))).toBe(true);
+});
+
+it("previous_unknown lists nothing as settled and shows task 19's sentence", () => {
+  const { container } = render(<ReleaseNotes notes={{ ...notes, state: "previous_unknown",
+    message: "The cockpit cannot tell which release was serving before this one.", settled: [], alsoShipped: [] }} />);
+  expect(container.textContent).toContain("cannot tell");
+  expect(container.querySelector(".rn-crit")).toBeNull();
+});
+
+// mutant killed: "anyone unfreezes" (offered to a non-admin)
+it("a non-admin sees who froze it and no Lift control", () => {
+  const api = { freezes: async () => [], set: async () => freeze, clear: async () => {} };
+  const { container } = render(<FreezeToggle api={api} hubProjectId="pj-1" environment="production"
+    freeze={freeze} isAdmin={false} hhmm={hhmm} onChanged={() => {}} />);
+  expect(screen.getByText(frozenLine(freeze, hhmm))).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Lift freeze" })).toBeNull();
+  expectNoPrediction(container);
+});
+
+it("with no Hub freeze record, the panel says so and draws no switch", () => {
+  render(<FreezeToggle api={null} hubProjectId="pj-1" environment="production" freeze={null}
+    isAdmin hhmm={hhmm} onChanged={() => {}} />);
+  expect(screen.getByText(/not available yet/)).toBeTruthy();
+  expect(screen.queryByRole("button")).toBeNull();
+});
+
+// mutant killed: "first environment wins" (staging read as production)
+it("each environment is named as itself, newest first", () => {
+  const env = (environment: string, reachedAt: string) => ({ environment, reachedAt,
+    deploymentId: environment, pinnedBrief: "brief:bf-1@6", commit: "c".repeat(40), servingNow: true });
+  const { container } = render(<IssueShipped hhmm={hhmm} s={{ issueId: "is-142", state: "ok", message: "",
+    environments: [env("production", "2026-09-26T14:02:00Z"), env("staging", "2026-09-26T09:40:00Z")] }} />);
+  const rows = [...container.querySelectorAll("li")].map((li) => li.textContent);
+  expect(rows[0]).toMatch(/^shipped to production, 14:02/);
+  expect(rows[1]).toMatch(/^shipped to staging, 09:40/);
+  render(<IssueShipped hhmm={hhmm} s={{ issueId: "is-150", state: "ok", message: "",
+    environments: [env("staging", "2026-09-26T09:40:00Z")] }} />);
+  expect(screen.queryAllByText(/production/).length).toBe(1);   // only the first render's row
+});
+```
+
+The block is written as one for reading; it is split by component into the three files, each
+repeating the fixtures it uses (three, two and one tests).
+
+#### Steps
+
+1. Sync-merge `feat/phase-7-deploy` and task 71's branch (rule H2). Re-read every ⚑ phase 7 file;
+   where its names differ from this part's, phase 7's win and this part's code follows them.
+2. Write `filter_test.go` and `notes_test.go`; run them; they fail. Write `filter/filter.go`, then
+   `notes.go`; they pass.
+3. Add the three `sessions` rows; extend ⚑ `sessions.go` with `ReadIssues`'s filter step and the
+   `--name-only` form; they pass, and task 19's and task 71's tests pass unchanged.
+4. Add the three `ship` rows; add `Freezes`, `FrozenError`, `checkFreeze` to ⚑ `ship.go` between
+   step 4 and the reserve, and `Reason "frozen"` to `Readiness`; the P7 task 09 suite passes.
+5. Add both routes to ⚑ `deploy_drill.go` with task 19's `deploymentId` check and range rule, and
+   their two catalog lines; the route rows pass.
+6. Write the three desktop tests; write the three components; mount `ReleaseNotes` in ⚑
+   `ReleaseDrawer.tsx` above task 19's sessions, `FreezeToggle` per environment in ⚑
+   `GovernancePanel.tsx` with `api={null}` until gap 1 closes, the frozen line in ⚑ `ShipBar.tsx`,
+   `IssueShipped` under task 71's head line in ⚑ `IssueView.tsx`; add the Desk case.
+7. Run the acceptance; commit.
+
+#### Acceptance
+
+```bash
+cd control-plane && go test ./internal/deploy/notes/... ./internal/deploy/sessions/... \
+  ./internal/deploy/ship/... ./internal/api/ -run 'Notes|Filter|DoubleStar|Frozen|Freeze|Shipped|Catalog|Readiness'
+# expect: ok for each package; 3 notes tests, 4 filter rows, 3 ship rows, 2 route rows passed
+cd control-plane && go vet ./internal/deploy/... && go list -deps ./internal/deploy/notes | grep -c -E "gateway|inference"
+# expect: vet exit 0; the count is 0
+cd desktop && npx vitest run src/deploy/ReleaseNotes.test.tsx src/deploy/FreezeToggle.test.tsx \
+  src/deploy/IssueShipped.test.tsx && npx tsc --noEmit
+# expect: 3 files, 6 tests passed; tsc exit 0
+```
+
+#### What this task does NOT claim
+
+- Drafted release prose (task 139), requester updates (task 149), webhooks (task 156), the CLI
+  (task 164).
+- **That any environment can be frozen today.** With no Hub record (gap 1), `Freezes` is nil,
+  nothing is frozen, and the panel says so. L-144 is closed only when 114, 116 and 124 land it.
+- That the notes' *settled* is at the branch head: it is at the released commit, by phase 3's
+  evaluator, and is only as good as the evidence recorded there.
+- *Shipped* past task 08's 200-row history, or for commits this clone does not have
+  (`commit_not_local`).
+- That `.panacea/release.yaml` is the right home for the filter (**UNVERIFIED pending the owner's
+  review**), or that a filter covers several repositories: each repository's own file filters its
+  own releases (the Hub's `remotes`, `hub-contract.md:698-734`, **UNVERIFIED** line range here).
+
+#### Gaps found while writing this part
+
+1. **No freeze record in SW.20.** The scope names it; the proposed `EnvironmentFreeze`, its three
+   routes and two events are above, for tasks 114 (types, routes), 116 (the table), 115 (the fake)
+   and 124/125 (the relay rows and `FreezeApi`). Until then this task ships the check wired to nil.
+2. **The notes route follows phase 7, not the scope.** `GET {P}/notes?deploymentId=…` replaces
+   the scope's `…/releases/{releaseId}/notes` (decision 1).
+3. **The scope's phase 7 line numbers are stale** by 7-8 lines (verified list at the top).
+4. **`IssueShipped.tsx`, `types.ts` and `ShipBar.tsx` are not in the scope's file list**, and
+   `GET {P}/shipped` is not named by it; L-148's list needs all four.
+5. **No part for tasks 71, 21 or 92** on this tree: `ReleaseIssue`, `gitx.TrailerIssue` and
+   `copyMarkdown` are their scopes' names here.
+
