@@ -48,3 +48,80 @@ latest update per subject (`task-119.md:212-226`, `UpdateMetaRow`); task 120's
    an initiative's state by itself, and `done` needs no condition (a person's word, like a
    feature's).
 7. **List order** is newest first by `created_at`, through H's `Page` (`types.go:196-205`).
+
+#### Files
+
+| Path (under `control-plane/internal/hub/`) | Change |
+|---|---|
+| `store/work_initiatives.go` (+ `_integration_test.go`) | new: the rows, the span read, the feature link |
+| `server/work_initiatives.go` | new: five routes and the view |
+| `server/work_initiatives_integration_test.go` | new: the tests below |
+| `server/work_matrix_rows_integration_test.go` ⚑ | the `"118"` rows; `"118"` added to `workMatrixLive` |
+
+#### The routes (SW.20; paths are task 124's rows, `task-124.md:103-107`)
+
+| Route | Body → reply | Who | Refusals |
+|---|---|---|---|
+| `POST /v1/teams/{teamId}/initiatives` | `CreateInitiativeRequest` → 201 `Initiative` | member of the team | 400 by `Validate`; 400 `ownerId` (not a member); 404 `team_not_found` |
+| `GET /v1/teams/{teamId}/initiatives` | → 200 `Page[Initiative]`, newest first | viewer of the team | 404 `team_not_found` |
+| `GET /v1/initiatives/{initiativeId}` | → 200 `InitiativeView` | viewer of the owning team or a spanned team | 404 `initiative_not_found` |
+| `PATCH /v1/initiatives/{initiativeId}` | `PatchInitiativeRequest` → 200 `Initiative` | member of the owning team | 400; 403 (a spanned team's member); 404 |
+| `PUT /v1/features/{featureId}/initiative` | `SetFeatureInitiativeRequest{initiativeId \| null}` → 200 `Feature` | member of the feature's team | 404 `feature_not_found`, `initiative_not_found`; 422 `bad_request` `initiativeId` (the feature's team is not in the span) |
+
+Events, each in the write's transaction: `work.initiative_created` (`{initiativeId, state}`),
+`work.initiative_updated` (`{initiativeId, fields}`, the changed field names, never their values),
+`work.feature_initiative_set` (`{featureId, initiativeId}`, `""` when detached). Scope: the owning
+team (`TeamID` on the event), so the feed's team rule shows them to its members.
+
+#### `store/work_initiatives.go`, complete (signatures, and the view's one query)
+
+```go
+package store
+
+type InitiativeRow struct {
+	ID, OrgID, TeamID, Name, OwnerID, State, CreatedBy string
+	TargetDate                                          *string // YYYY-MM-DD
+	CreatedAt, UpdatedAt                                time.Time
+}
+
+// InsertInitiative writes the row and its span's first entry (the owning team, ord 0).
+func InsertInitiative(ctx context.Context, tx pgx.Tx, r InitiativeRow) error
+// InitiativeByID is the row under RLS; found is false for absent or another org's.
+// Task 117's span route and task 119's initiative updates call it.
+func InitiativeByID(ctx context.Context, q Querier, id string) (r InitiativeRow, found bool, err error)
+// InitiativesOf pages a team's initiatives, newest first.
+func InitiativesOf(ctx context.Context, q Querier, teamID string, page hubapi.PageRequest) ([]InitiativeRow, *string, error)
+// PatchInitiative applies the non-nil fields; changed names the columns written.
+func PatchInitiative(ctx context.Context, tx pgx.Tx, id string, p InitiativePatch, at time.Time) (changed []string, err error)
+// SpanOf is work_initiative_teams in ord order: the owning team first.
+func SpanOf(ctx context.Context, q Querier, initiativeID string) ([]string, error)
+// SetFeatureInitiative writes features.initiative_id (nil clears).
+func SetFeatureInitiative(ctx context.Context, tx pgx.Tx, featureID string, initiativeID *string) error
+
+type InitiativePatch struct {
+	Name, OwnerID, State *string
+	TargetDate           **string // nil: unchanged; &nil: cleared
+}
+
+// FeatureRowsOf lists the features pointing at the initiative, with each
+// feature's project and lead, oldest first. The handler drops the rows the
+// caller may not read (decision 4) before any other field is looked at.
+func FeatureRowsOf(ctx context.Context, q Querier, initiativeID string) ([]InitiativeFeatureRow, error) {
+	rows, err := q.Query(ctx, `
+		SELECT f.id, f.project_id, f.name, f.lead_id, f.brief_id
+		  FROM hub.features f
+		 WHERE f.initiative_id = $1
+		 ORDER BY f.created_at, f.id`, initiativeID)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, pgx.RowToStructByPos[InitiativeFeatureRow])
+}
+
+type InitiativeFeatureRow struct {
+	ID, ProjectID, Name, LeadID, BriefID string
+}
+```
+
+`features.lead_id`, `brief_id`, `created_at` are task 74's column names (**UNVERIFIED** until its
+part); `pgx.CollectRows` and `RowToStructByPos` are `pgx/v5`'s, as task 08's store uses pgx.
