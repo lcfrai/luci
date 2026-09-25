@@ -229,8 +229,8 @@ func Collapse(paths []string, max int) []string
 
 **`Collapse` cannot always stay under 20 without reaching the root.** Twenty-one top-level
 directories each with one edited file already need 21 globs; then `Collapse` keeps the 20 largest
-groups and the rest become one glob per remaining top-level directory, cut at `max`, and the bulk
-lease's Hub event says `truncated` in its `trackedFiles` count (the real number of paths). A bulk
+groups and drops the rest, and the bulk lease's Hub event carries the real number of edited paths
+as `trackedFiles`, so the record shows more paths than the globs cover. A bulk
 lease is advisory and ranked last, so an under-covering bulk lease loses nothing a hold would have
 protected: the paths it misses keep their own per-path holds.
 
@@ -296,3 +296,60 @@ fake `Lanes`, a fake queue and a fixed clock.
 | `TestEveryEndReleases` | a worker with a hold, a bulk lease and an intent: `EndAgent` releases hold and bulk, `EndTask` the intent; a lapsed delegation (task 11's path) expires the rest; a `lease.admin_released` feed item moves a live lease to `admin-released` with no second Hub event | one end path forgetting observed leases |
 | `TestPresenceTTLAndOwner` | a beat at t0 → online until t0+90 s; a body naming a project the principal is not in → 403; the owner is the token's | presence set from a body field; no expiry |
 | `TestCollapseNeverRoot` | 40 paths under `src/` and `test/` → `["src/**", "test/**"]`-shaped, never `**`, ≤ 20 | a bulk lease on the whole repository |
+
+Run: `cd control-plane && go test ./internal/fleet/activity/ ./internal/fleet/leases/ -run
+'Formatter|AnotherPath|FirstEdit|OwnIntent|Unchanged|Commit|Restart|Singleton|Unknown|Recheck|TTL|EveryEnd|Presence|Collapse'`.
+Expected: compile failure (`undefined: Table`, `undefined: Edit`).
+
+- [ ] **Step 2:** `model.EventLeaseBulk` and its place in task 09's kinds list; task 26's queue
+  treats it as non-immediate (it coalesces), which needs no change there.
+- [ ] **Step 3:** `leases/observed.go`: `Edit`, `Observe`, `Bulk`, `ExpireDue`, `AdminReleased`,
+  `Collapse`. Task 23's transition-table test still passes: every move here is a row it already
+  lists (`task-23.md:156-164`).
+- [ ] **Step 4:** `activity/activity.go` and `poller.go`; wire `Sources.Activity` and task 23's
+  `Contested` `lastEdit` to `Table.LastEdit`.
+- [ ] **Step 5:** `presence.go`, the Fleet route, the local relay, the desktop call.
+- [ ] **Step 6: Acceptance.**
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/control-plane && go vet ./... && go test ./internal/fleet/... ./internal/api/... -count=1 -race
+```
+Expected: `ok` for every package, `activity` and `leases` among them.
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/desktop && npm run typecheck && npm test
+```
+Expected: both pass; `putPresence` has one test that it sends the open project ids only.
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team && grep -rn "pgx\|INSERT\|CREATE TABLE" control-plane/internal/fleet/activity/
+```
+Expected: no output: activity and presence are in memory only (global constraint 1).
+
+- [ ] **Step 7: Commit** after `git add` of the new files: `git commit -F
+  .superpowers/sdd/team/msg/t35.txt -- control-plane/internal/fleet control-plane/internal/api
+  control-plane/cmd/fleetd desktop/src/api/client.ts`.
+
+**What this task does not claim:**
+
+- **That observed holds are timely.** They lag a sweep (5 to 10 s) plus a poll (5 s), and a
+  guest write's visibility to `machined` is **UNVERIFIED** (task 34, task 47). Two workers can
+  both edit a path inside that window; the second one's hold is `contested`, which is what the land
+  review and task 36's tier H then see.
+- **That a lease stops an edit.** Leases stay advisory (P7).
+- **That bulk is always a formatter.** Any 26 paths in a minute is bulk; a real refactor is
+  flagged the same way, which ranks it last on right of way, and the owner's Orchestrator is told.
+- **The admin's Hub route and view**: task 44 and the cockpit tasks. **Tier-H forecasts** from the
+  hunks: task 36.
+
+**Gaps against the skeleton and sibling parts, raised here:**
+
+- **G35-1.** Fleet cannot map a sample's `(projectId, worktreeId)` to a worker, or a worker to its
+  machine, without task 20 recording both; task 20's own gap S20-3 says the worker's worktree is
+  not wired in TM1-α (`task-20.md:538-540`).
+- **G35-2.** The skeleton lists no event kind for bulk; this task adds `lease.bulk` to task 09's
+  model, and task 41's instructions must say what an Orchestrator does with it.
+- **G35-3.** The skeleton gives the admin's release to task 35, task 23 gives the transition to
+  task 44 (`task-23.md:164`); this task builds Fleet's half and names the Hub route as task 44's.
+- **G35-4.** The desktop's presence call is a desktop change in a task the skeleton lists as
+  Fleet-only; it is one function on the global heartbeat, and task 52's client should absorb it.
