@@ -310,3 +310,106 @@ The trigger's `SELECT` on `audit_heads` runs as `hub_app`, which holds `SELECT` 
 14's `LockHead` reads it through `hub.lock_audit_head()`; that `hub_app` may `SELECT` it directly
 is **UNVERIFIED until merge**; if not, the function is `SECURITY DEFINER` owned by the migrate role,
 as task 07b's functions are).
+
+```go
+// control-plane/internal/hub/store/auditstream.go
+package store
+
+// StreamCursor reads (inserting at 0 if absent) the session org's cursor.
+func StreamCursor(ctx context.Context, tx pgx.Tx, orgID string) (streamed int64, anchoredAt *time.Time, err error)
+
+// AdvanceStream sets streamed_seq = to (forward only; the trigger refuses
+// anything else) and updated_at = now.
+func AdvanceStream(ctx context.Context, tx pgx.Tx, orgID string, to int64, now time.Time) error
+
+// MarkAnchored sets anchored_at = now.
+func MarkAnchored(ctx context.Context, tx pgx.Tx, orgID string, now time.Time) error
+
+// StreamRow is what the streamer reads: never more than the columns FromRow needs.
+type StreamRow struct {
+	Seq            int64
+	Canonical      []byte
+	Hash, PrevHash [32]byte
+	Feed           bool
+}
+
+// EventsAfter reads rows seq > after, ascending, at most limit (≤ 500).
+func EventsAfter(ctx context.Context, tx pgx.Tx, after int64, limit int) ([]StreamRow, error)
+
+// HeadOf reads the session org's audit_heads row without locking it.
+func HeadOf(ctx context.Context, tx pgx.Tx) (Head, error)
+
+// RowHash reads one row's hash; ok false when no row has that seq.
+func RowHash(ctx context.Context, tx pgx.Tx, seq int64) (hash [32]byte, ok bool, err error)
+```
+
+#### The loops — complete source
+
+```go
+// control-plane/internal/hub/server/auditstream.go
+package server
+
+// StreamConfig: Every 15 s; Anchor 1 h; Batch 500.
+type StreamConfig struct {
+	Every, Anchor time.Duration
+	Batch         int
+	Replica       string // the pod name
+	Now           func() time.Time
+	Log           *slog.Logger
+}
+
+// RunAuditStream and RunAuditAnchor are Hub task 24's loop shape, one lock
+// each, so a slow Azure call in one does not delay the other. Neither emits an
+// audit event and neither takes the audit head lock: reading committed rows
+// and advancing a delivery cursor changes no record (contract §8's rule is
+// one event per changed record).
+func RunAuditStream(ctx context.Context, s *Server, sink auditsink.Sink, c StreamConfig) error
+func RunAuditAnchor(ctx context.Context, s *Server, sink auditsink.Sink, c StreamConfig) error
+
+// StreamOnce, for each org of hub.org_ids(): in one transaction with
+// set_config('hub.org_id', org, true), read the cursor and EventsAfter(cursor,
+// Batch); map each row with auditsink.FromRow; COMMIT (the read transaction
+// ends before the network call); sink.SendEvents; on nil, a second short
+// transaction AdvanceStream(to = the last seq sent). A mapping error is a
+// FAULT logged with org and seq, and the org stops streaming until hub verify
+// is run, because an unparseable row is itself evidence of an edit. It
+// returns the number of records sent this round.
+func (s *Server) StreamOnce(ctx context.Context, sink auditsink.Sink, c StreamConfig) (sent int, err error)
+
+// AnchorOnce, for each org: read HeadOf and the cursor in one transaction;
+// sink.SendAnchors({Seq, Hash, StreamedSeq, Replica, TimeGenerated: now});
+// on nil, MarkAnchored. Orgs are batched into one send per round.
+func (s *Server) AnchorOnce(ctx context.Context, sink auditsink.Sink, c StreamConfig) (anchored int, err error)
+
+// TeamModeAllowed is nil only when the sink is "logs". The write that sets a
+// project's mode to team calls it first (Gap 1).
+func (s *Server) TeamModeAllowed() error {
+	if s.cfg.AuditSink != AuditSinkLogs {
+		return Refuse(http.StatusServiceUnavailable, hubapi.CodeUnavailable,
+			"Team projects need the audit to leave the Hub first; it is not configured.",
+			map[string]string{"reason": "audit_not_streaming"})
+	}
+	return nil
+}
+```
+
+`hub_audit_stream_lag_seconds{org}` (now minus the oldest unsent event's `at`, 0 when none) and
+`hub_audit_anchor_age_seconds{org}` are exported on Hub task 08's metrics endpoint.
+
+#### The `anchor` check
+
+Registered in `cmd/hub/verify.go` after Hub task 27's `audit`, so the in-database chain is known to
+link before it is compared with the outside. It needs `auditsink.Anchors` (the `logs` reader in
+the cluster, the `Fake` in tests) and `PANACEA_APP_HUB_VERIFY_SINCE` (default 30 days, the
+workspace's dev retention, phase 8 `task-04.md:37-44`). For each org of `hub.org_ids()`:
+
+1. **A1:** every anchor's `Hash` equals `RowHash(anchor.Seq)`; an anchor with `Seq` 0 needs no row.
+2. **A2:** `HeadOf.Seq` ≥ the largest anchored `Seq` (a truncated chain).
+3. **A3:** anchors in time order have non-decreasing `Seq` (a head that went back).
+4. **A4:** every streamed event (de-duplicated on `Seq`) with `Seq` ≤ head has `Hash` equal to the
+   row's, and `PrevHash` equal to the row's `prev_hash`.
+5. **A5:** at least one anchor exists for an org whose head `Seq` > 0 and whose first event is older
+   than two anchor periods (a Hub that never anchored).
+
+The first fault prints `FAULT anchor: org <id> seq <n>: <rule>` and exits 1; a healthy run prints
+`ok anchor (<a> anchors, <e> events in <m> orgs)`.
