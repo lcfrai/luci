@@ -48,8 +48,9 @@ byte, so the golden vectors in `hubapi/canonical_test.go` (contract §3.5) do no
 - `docs/superpowers/contracts/2026-09-23-hub-contract.md` — §3.1 prefix rows; §3.6 the audit
   event v2; §4.2 fifteen codes (the scope's six; `delegation_revoked`, so Fleet can tell
   *renew* from *stop*; seven `*_not_found`; `team_state`); §5.1 the delegated step; §5.2 two org
-  capabilities; §5.3 the team rows; §7.0 a team routes table, rows 46 to 79;
-  new **§7.13 to §7.26**; §8 the team events; §12.2 two variables (modified)
+  capabilities; §5.3 the team rows; §7.0 a team routes table, rows 46 to 79 and 87; §7.4 a
+  project's `mode` and route 87 (fix batch b01, X-C1);
+  new **§7.13 to §7.26**; §8 the team events; §12.2 three variables (modified)
 - `docs/superpowers/contracts/team-records-fieldcheck.txt` — one line per `05-design.md` §3.3
   field, the acceptance script's input (new)
 
@@ -71,7 +72,11 @@ number below was read there on that date; step 1 re-reads them after the merge.
   - the app roles `Hub.Fleet`, `Hub.Auditor`, `Hub.Compliance`
   - **Id minting:** the Hub mints `dl`, `hm`, `nt`; Fleet mints the other nine with `ids.Wide`
     and sends each as the body's `id` (Step 4)
-  - `PANACEA_APP_HUB_FLEET_CLIENT_ID`, `PANACEA_APP_HUB_DELEGATION_TTL` (contract §12.2)
+  - `PANACEA_APP_HUB_FLEET_CLIENT_ID`, `PANACEA_APP_HUB_DELEGATION_TTL`,
+    `PANACEA_APP_HUB_TEAM_MODE_UNSTREAMED` (contract §12.2)
+  - (fix batch b01, X-C1) `Project.mode`, route 87 and the `project.mode_set` event (§7.4, §7.0,
+    §8), which task 03 turns into `hubapi.Project.Mode`, task 04 into a `team_event_kinds` row and
+    task 06 into the handler
 - Consumes: the Hub's ADR and contract as merged; `05-design.md` §2.4, §3.3, §3.4, §11.1.
 - Amends: `ADR-H1:253`, `:369`, `:370`, `:372`, `:434-435`, and contract §3.6's audit-event row.
   Both are locked documents; the owner accepts this amendment before task 03 starts
@@ -232,14 +237,15 @@ served only on the owner's own `GET`/`renew`/`DELETE` routes (§7.13).
 rules 2, 3 and 6: resolve the named delegation, refuse it or take its owner as the principal and its
 org as `hub.org_id`. Step 5 then resolves the **owner**, never Fleet."*
 
-**§12.2**, append two rows:
+**§12.2**, append three rows (the third is fix batch b01's, X-C1; task 06 reads it):
 
 ```markdown
 | `PANACEA_APP_HUB_FLEET_CLIENT_ID` | `""` (Fleet disabled) | Fleet's workload-identity client id. Empty refuses every app-only token, as before this amendment |
 | `PANACEA_APP_HUB_DELEGATION_TTL` | `24h` | a delegation's life from creation or renewal; a Go duration, at most `24h` |
+| `PANACEA_APP_HUB_TEAM_MODE_UNSTREAMED` | `false` | `true` lets route 87 make a team project while the audit is not streamed out of the Hub. A start-up error unless `ENV` is `local` or `dev`. Development only: the audit then stays where an owner-role credential can rewrite it (T5) |
 ```
 
-- [ ] **Step 5: Contract §7.0 — rows 46 to 78, and the delegable route names**
+- [ ] **Step 5: Contract §7.0 — rows 46 to 79 and 87, and the delegable route names**
 
 Add a second table to §7.0, directly under the first, headed **Team routes (Phase T)**; it has one
 more column than the first, so it is a table of its own, not appended rows. Its numbering
@@ -284,7 +290,10 @@ token. The **route name** is what a delegation lists; a route with no name canno
 | 77 | GET | `/v1/projects/{projectId}/usage` | A (every member), M (own) | — | T66 | §7.25 |
 | 78 | GET | `/v1/orgs/{orgId}/changes?after=&kinds=` | Fleet, **no delegation** (§5.10 rule 7) | — | T08 | §7.26 |
 | 79 | POST | `/v1/projects/{projectId}/team-policy/route` | desk: M raises to `au`; only org *compliance* lowers to `global` | — | T43 | §7.24 |
+| 87 | POST | `/v1/projects/{projectId}/mode` | desk, A; one way, `solo` to `team`, behind the audit gate | — | T06 | §7.4 |
 ```
+
+Row 87 is fix batch b01's (X-C1). Rows 80 to 86 are left to the later tasks that add them.
 
 `T06` means Phase T task 06. §7.0's closing sentence becomes *"Nothing else is routed than these two
 tables."*
@@ -499,9 +508,21 @@ the caller rule is Phase T task 66's to write, as a §5.10 rule 9, before any co
 
 **§7.26 Fleet's feed.** `GET /v1/orgs/{orgId}/changes?after=&kinds=`, Fleet only, no delegation.
 The same response and cursor as §7.11, over **team projects only** (a project whose mode is
-`team`, set by Share, `05-design.md` §2.3, §10.1), plus `team.member_removed` and every
-`delegation.*` event of the org. `kinds` is an optional comma list of §8 kinds. `orgId` must be
+`team`, set by route 87 of §7.4, which Share calls, `05-design.md` §2.3, §10.1), plus
+`team.member_removed` and every `delegation.*` event of the org. `kinds` is an optional comma list of §8 kinds. `orgId` must be
 the org of Fleet's token `tid`, else 404 `route_not_found`. Metadata only, as every feed row.
+
+**§7.4, amended (fix batch b01, X-C1): a project's mode.** Append to §7.4: *"A `Project` carries
+`"mode": "solo" | "team"`, `solo` when created; every response that returns a `Project` carries
+it. **`POST /v1/projects/{projectId}/mode`** (route 87), body `{"mode": "team"}`, desktop only, an
+A of the project's team; no route name, so no delegation reaches it. It is **one way**: any other
+value, `"solo"` included, is 400 `bad_request` with `details.field = "mode"`. It is gated on the
+audit leaving the Hub: until the audit sink streams (Phase T task 45) it is 503 `unavailable`,
+`details.reason = "audit_not_streaming"`, and nothing is written, unless
+`PANACEA_APP_HUB_TEAM_MODE_UNSTREAMED` (§12.2) admits it in `local` or `dev`. A project already
+`team` answers 200 with no event. The move writes one `project.mode_set` (§8) and answers
+`200 Project`. A delegation (route 46) is 409 `conflict`, `details.reason = "not_team_project"`, on a
+`solo` project, so every team record sits behind this route."*
 
 - [ ] **Step 9: Contract §8 — the team events**
 
@@ -533,7 +554,12 @@ audit row's new `fleet_feed` flag, task 04), `no` (audit only). `data` never hol
 | `team_policy.updated` | ✓ | ✓ | project id | `{"revision"}` | yes |
 | `team_policy.route_changed` | ✓ | ✓ | project id | `{"route","by"}`; `by` is `member` or `compliance` | yes |
 | `usage.rolled_up` | — | — | org id | `{"day","rows"}` | no |
+| `project.mode_set` | ✓ | ✓ | project id | `{"from","to"}` | yes |
 ```
+
+`project.mode_set` (fix batch b01, X-C1) is a desktop write by the team admin, so `v: 1` and no
+delegation. It is `yes` so that it is the first row of a new team project on Fleet's feed (§7.26),
+which is how Fleet learns the project exists (`05-design.md` §10.1 step 2).
 
 **`data` values are strings, integers and booleans only** (`hubapi.AuditEnvelope.check`,
 `hubapi/envelope.go:287-311`), so no event carries a list: a thread's two participants are two
@@ -578,6 +604,7 @@ route).
 | write a human message (70) | 403 | ✓ | — | ✓ own | 404 | 404 | 404 | 403 | 401d | 403 | 403 |
 | write a note (72) | 403 | ✓ | ✓ | ✓ | 404 | 404 | 404 | 403 | 401d | 403 | 403 |
 | set team policy (75) | 403 | 403 | 403 | ✓ | 404 | 404 | 404 | 403 | 401d | 403 | 403 |
+| make the project a team project (87) | 403 | 403 | 403 | ✓ | 404 | 404 | 404 | 403 | 401d | 403 | 403 |
 | read tasks, agents, conflicts, notes, policy (52, 55, 59, 73, 74) | ✓ | ✓ | ✓ | ✓ | 404 | 404 | 404 | ✓ | 401d | ✓ | 403 |
 ```
 
@@ -696,6 +723,11 @@ echo "bad event kinds: $bad"; [ "$bad" = 0 ] || fail=1
 [ "$(grep -c '^| R12 |' "$A")" = 1 ] || { echo "NO R12"; fail=1; }
 [ "$(grep -c '→ §5.10 for Fleet' "$A")" = 3 ] || { echo "REPLACED ROWS NOT MARKED"; fail=1; }
 [ "$(grep -cE '^### 7\.(1[3-9]|2[0-6]) ' "$C")" = 14 ] || { echo "NOT 14 TEAM SECTIONS"; fail=1; }
+# fix batch b01 (X-C1): the one writer of projects.mode, in 7.4, 7.0 and 8
+M=$(awk '/^### 7\.4 /,/^### 7\.5 /' "$C")
+printf '%s\n' "$M" | grep -qF 'POST /v1/projects/{projectId}/mode' || { echo "NO MODE ROUTE"; fail=1; }
+grep -qE '^\| 87 \| POST \| `/v1/projects/\{projectId\}/mode`' "$C" || { echo "NO ROW 87"; fail=1; }
+printf '%s\n' "$E" | grep -qF '| `project.mode_set` |' || { echo "NO MODE EVENT"; fail=1; }
 echo "result: $([ "$fail" = 0 ] && echo PASS || echo FAIL)"
 exit "$fail"
 ```
@@ -707,7 +739,9 @@ Run it **now, before Steps 2 to 10 are written into the two documents**:
 ```
 
 Expected: `MISSING` lines for every field, `NO 5.10`, `NO R12`, `REPLACED ROWS NOT MARKED`,
-`NOT 14 TEAM SECTIONS`, and `result: FAIL`. That is the failing test.
+`NOT 14 TEAM SECTIONS`, `NO MODE ROUTE`, `NO ROW 87`, `NO MODE EVENT`, and `result: FAIL`. That
+is the failing test. The last three kill the b01 mutant "§7.4's mode amendment dropped", which
+would leave `projects.mode` with a column and no writer (review X-C1).
 
 - [ ] **Step 12: Write Steps 2 to 10 into the documents, then run the check to green**
 
