@@ -147,3 +147,199 @@ func (o *Orchestrator) checkFreeze(ctx context.Context, hubProjectID, env string
 `deploy.Error`'s field names are P7 task 04's (**UNVERIFIED**; the pattern is `task-09.md:480`'s
 error mapping). The message's time is the person's zone in the desktop; the Go sentence is the
 log's and uses the control plane's.
+
+#### Interfaces — complete: `control-plane/internal/deploy/notes/notes.go`
+
+```go
+// Package notes builds a release's notes by criterion (05 §1 K, L-147) from facts only: phase
+// 3's criterion states at two commits, task 71's issue walk, and Hub issue heads. No model text.
+package notes
+
+import (
+	"context"
+	"strings"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/briefref"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/deploy/sessions"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/evidence"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubapi"
+)
+
+type Notes struct {
+	State        string             `json:"state"`   // "ok" | task 19's states | "filter_invalid" | "no_pin"
+	Message      string             `json:"message"` // "" for ok
+	DeploymentID string             `json:"deploymentId"`
+	PinnedBrief  string             `json:"pinnedBrief"` // "brief:bf-…@6"; "" when the release pinned none
+	From         string             `json:"from"`
+	Commit       string             `json:"commit"`
+	Settled      []SettledCriterion `json:"settled"`     // brief order; [] never null
+	AlsoShipped  []IssueRef         `json:"alsoShipped"` // walk order; [] never null
+	Truncated    bool               `json:"truncated"`   // task 19's MaxCommits reached
+}
+
+// SettledCriterion is settled at Commit and was not at From (decision 2).
+type SettledCriterion struct {
+	CriterionID string         `json:"criterionId"`
+	Text        string         `json:"text"`   // the pinned revision's criterion text, text·H
+	Issues      []ServingIssue `json:"issues"` // [] when settled by work no shipped issue serves
+}
+
+type ServingIssue struct {
+	IssueRef
+	Evidence []string `json:"evidence"` // "evidence:<id>" keys of the deciding records this issue filed
+}
+
+type IssueRef struct {
+	IssueID string `json:"issueId"` // is-…
+	Alias   string `json:"alias"`   // EP-142
+	Title   string `json:"title"`   // the head revision's title text, read now (decision 3)
+}
+
+// The four reads Build makes; each is an existing seam, named by its owner.
+type (
+	// Walk is task 71's trailer walk over task 19's range, with task 131's filter.
+	Walk func(ctx context.Context, r sessions.Range) (sessions.IssueResult, error)
+	// States is phase 3's Evaluator.States (P3 task-15.md:159).
+	States func(ctx context.Context, subject string, criteria []briefref.Criterion) ([]evidence.State, error)
+	// Criteria resolves the pinned brief revision to its criteria in brief order, with text
+	// (phase 4's resolver, as task 23 calls it; briefref.Criterion is {ID, Digest}, P3 task-03.md:509).
+	Criteria func(ctx context.Context, briefKey string) ([]PinnedCriterion, error)
+	// Heads reads Hub issue heads and head revisions for the ids.
+	Heads func(ctx context.Context, ids []string) (map[string]IssueFacts, error)
+	// RecordIssues maps deciding record ids to the issue each cites (task 23's Record.IssueID).
+	RecordIssues func(ctx context.Context, recordIDs []string) (map[string]string, error)
+)
+
+type PinnedCriterion struct {
+	briefref.Criterion
+	Text string
+}
+
+type IssueFacts struct {
+	Alias  string
+	Title  string
+	Serves []hubapi.Serve // the head revision's, SW.1 (task-02.md:232)
+}
+
+type Deps struct {
+	Walk         Walk
+	States       States
+	Criteria     Criteria
+	Heads        Heads
+	RecordIssues RecordIssues
+}
+
+// Build answers the notes for one release row. r is task 19's range, found by task 19's rule.
+func Build(ctx context.Context, d Deps, r sessions.Range, deploymentID, pinnedBrief string) (Notes, error) {
+	n := Notes{State: "ok", DeploymentID: deploymentID, PinnedBrief: pinnedBrief, From: r.From,
+		Commit: r.Commit, Settled: []SettledCriterion{}, AlsoShipped: []IssueRef{}}
+	walk, err := d.Walk(ctx, r)
+	if err != nil {
+		return n, err
+	}
+	n.Truncated = walk.Truncated
+	if walk.State != "ok" { // previous_unknown, commit_not_local, filter_invalid: nothing guessed
+		n.State, n.Message = walk.State, walk.Message
+		return n, nil
+	}
+	ids := make([]string, 0, len(walk.Issues))
+	for _, ri := range walk.Issues {
+		ids = append(ids, ri.IssueID)
+	}
+	heads, err := d.Heads(ctx, ids)
+	if err != nil {
+		return n, err
+	}
+	ref := func(id string) IssueRef { h := heads[id]; return IssueRef{IssueID: id, Alias: h.Alias, Title: h.Title} }
+	listed := map[string]bool{}
+	if pinnedBrief == "" {
+		n.State, n.Message = "no_pin", "This release pinned no brief, so nothing is listed by criterion."
+	} else if err := settled(ctx, d, r, pinnedBrief, ids, heads, ref, listed, &n); err != nil {
+		return n, err
+	}
+	for _, id := range ids { // decision 3: every shipped issue appears once
+		if !listed[id] {
+			n.AlsoShipped = append(n.AlsoShipped, ref(id))
+		}
+	}
+	return n, nil
+}
+
+func settled(ctx context.Context, d Deps, r sessions.Range, pin string, ids []string,
+	heads map[string]IssueFacts, ref func(string) IssueRef, listed map[string]bool, n *Notes) error {
+	crit, err := d.Criteria(ctx, pin)
+	if err != nil {
+		return err
+	}
+	bare := make([]briefref.Criterion, len(crit))
+	for i, c := range crit {
+		bare[i] = c.Criterion
+	}
+	now, err := d.States(ctx, r.Commit, bare)
+	if err != nil {
+		return err
+	}
+	before := map[string]string{}
+	if r.From != "" {
+		prev, err := d.States(ctx, r.From, bare)
+		if err != nil {
+			return err
+		}
+		for _, s := range prev {
+			before[s.CriterionID] = s.State
+		}
+	}
+	at := map[string]evidence.State{}
+	var recs []string
+	for _, s := range now {
+		at[s.CriterionID] = s
+		recs = append(recs, s.Evidence...)
+	}
+	cites, err := d.RecordIssues(ctx, recs)
+	if err != nil {
+		return err
+	}
+	briefID := briefIDOf(pin)
+	for _, c := range crit { // brief order
+		s, ok := at[c.ID]
+		if !ok || s.State != "settled" || before[c.ID] == "settled" { // decision 2
+			continue
+		}
+		sc := SettledCriterion{CriterionID: c.ID, Text: c.Text, Issues: []ServingIssue{}}
+		for _, id := range ids {
+			if !serves(heads[id].Serves, briefID, c.ID) {
+				continue
+			}
+			ev := []string{}
+			for _, rec := range s.Evidence {
+				if cites[rec] == id {
+					ev = append(ev, "evidence:"+rec)
+				}
+			}
+			sc.Issues = append(sc.Issues, ServingIssue{IssueRef: ref(id), Evidence: ev})
+			listed[id] = true
+		}
+		n.Settled = append(n.Settled, sc)
+	}
+	return nil
+}
+
+// briefIDOf("brief:bf-1a2b@6") == "bf-1a2b". A serve of any revision of the pinned brief counts:
+// criterion ids are positional, and an edited criterion gets a new id (05:754-756).
+func briefIDOf(key string) string {
+	k := strings.TrimPrefix(key, "brief:")
+	if i := strings.IndexByte(k, '@'); i >= 0 {
+		k = k[:i]
+	}
+	return k
+}
+
+func serves(ss []hubapi.Serve, briefID, criterionID string) bool {
+	for _, s := range ss {
+		if briefIDOf(s.BriefKey) == briefID && s.CriterionID == criterionID {
+			return true
+		}
+	}
+	return false
+}
+```
