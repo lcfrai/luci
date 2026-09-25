@@ -1619,3 +1619,99 @@ func wTextAnchorsCountUTF16(t *testing.T, e WorkEnv) {
 
 `é😀x` is where the three counts differ: a code-point counter refuses `end: 4`, and a byte
 counter accepts `end: 5`, so either mutant fails `wTextAnchorsCountUTF16`.
+
+Block 5: reactions, subscriptions and import.
+
+```go
+func wReactionsAreIdempotent(t *testing.T, e WorkEnv) {
+	iw := e.issue(t, e.project(t, "Portal", ""), "one")
+	c, err := wSay(e.Member, iw.Head.ID, "top", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	from := wHead(t, e.Member)
+	for _, on := range []bool{true, true, false, false} {
+		if _, err := e.Admin.React(wctx, c.ID, hubapi.ReactRequest{Emoji: "👍", On: on}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := wKinds(t, e.Member, from, "comment.reacted"); len(got) != 2 {
+		t.Errorf("comment.reacted events = %d, want 2: one on, one off", len(got))
+	}
+	_, err = e.Admin.React(wctx, c.ID, hubapi.ReactRequest{Emoji: ":+1:", On: true})
+	wRefused(t, err, 400, hubapi.CodeBadRequest, "field", "emoji")
+}
+
+// wSub is view's own row for issueID, or ok false.
+func wSub(t *testing.T, view hubclient.Hub, issueID string) (hubapi.Subscription, bool) {
+	t.Helper()
+	page, err := view.Subscriptions(wctx, hubapi.PageRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	i := slices.IndexFunc(page.Items, func(s hubapi.Subscription) bool { return s.IssueID == issueID })
+	if i < 0 {
+		return hubapi.Subscription{}, false
+	}
+	return page.Items[i], true
+}
+
+func wSubscriptionsFollowTriggers(t *testing.T, e WorkEnv) {
+	iw := e.issue(t, e.project(t, "Portal", ""), "one")
+	if s, ok := wSub(t, e.Member, iw.Head.ID); !ok || s.Cause != hubapi.SubscribeCreate || !s.Subscribed {
+		t.Fatalf("creator's row = %+v %v, want create, subscribed", s, ok)
+	}
+	for range 2 { // the second is unchanged: no event
+		if _, err := e.Member.Subscribe(wctx, iw.Head.ID, hubapi.SubscribeRequest{Subscribed: false}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	from := wHead(t, e.Member)
+	viewer, err := e.Viewer.Me(wctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := wSay(e.Member, iw.Head.ID, "ping", nil, nil, viewer.User.ID); err != nil {
+		t.Fatal(err)
+	}
+	if s, _ := wSub(t, e.Member, iw.Head.ID); s.Subscribed || s.Cause != hubapi.SubscribeManual {
+		t.Errorf("after commenting: %+v; a trigger changed a manual row", s)
+	}
+	if s, ok := wSub(t, e.Viewer, iw.Head.ID); !ok || s.Cause != hubapi.SubscribeMention {
+		t.Errorf("the mentioned viewer = %+v %v, want mention", s, ok)
+	}
+	if got := wKinds(t, e.Member, from, "subscription.set"); len(got) != 1 {
+		t.Errorf("subscription.set events = %d, want 1 (the viewer's)", len(got))
+	}
+}
+
+func wImportIsIdempotent(t *testing.T, e WorkEnv) {
+	p := e.project(t, "Portal", "")
+	if _, err := e.Admin.CreateLabel(wctx, e.TeamID, hubapi.CreateLabelRequest{Name: "Bug", Color: "fail"}); err != nil {
+		t.Fatal(err)
+	}
+	batch := hubapi.ImportBatch{Source: hubapi.ImportSourceCSV, Items: []hubapi.ImportItem{
+		{ExternalID: "1", Title: "one", Labels: []string{"BUG", "nope"}},
+		{ExternalID: "2", Title: "two", Priority: hubapi.PriorityHigh, Labels: []string{}}}}
+	first, err := e.Member.ImportBatch(wctx, p.ID, batch)
+	if err != nil || len(first.Created) != 2 || !slices.Equal(first.UnmatchedLabels, []string{"nope"}) {
+		t.Fatalf("import = %+v, %v; want 2 created, nope unmatched", first, err)
+	}
+	from := wHead(t, e.Member)
+	again, err := e.Member.ImportBatch(wctx, p.ID, batch)
+	if err != nil || len(again.Created) != 0 || len(again.Existing) != 2 || again.Existing[0].IssueID != first.Created[0].IssueID {
+		t.Errorf("re-run = %+v, %v; want the same two under existing", again, err)
+	}
+	if got := wKinds(t, e.Member, from, "issue."); len(got) != 0 {
+		t.Errorf("a re-run wrote %v", got)
+	}
+	one, _ := e.Member.Issue(wctx, first.Created[0].IssueID)
+	h := one.Head
+	if h.State != hubapi.StateTriage || h.Source != hubapi.SourceIntake || h.ThreadState.Reason != hubapi.NotTiedImported || len(h.Labels) != 1 {
+		t.Errorf("imported head = %+v; want triage, intake, not_tied imported, one label", h)
+	}
+	if _, ok := wSub(t, e.Member, h.ID); ok {
+		t.Errorf("the importer was subscribed; an import subscribes nobody")
+	}
+}
+```
