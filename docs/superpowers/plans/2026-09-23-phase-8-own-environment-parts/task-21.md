@@ -12,7 +12,7 @@ re-plan rulings order (`.superpowers/sdd/env/r4-env-rulings.md`, rulings 2 and 4
   project-only `gitx.Machine`, whose `CloneRoot()` is `/machine/lanes`.
 - **Lane creation** is the one host git that names a lane (R4.5): phase 3's `lanes.Creator`
   clones the lane *from the project*, then writes its config in the new clone before any
-  sandbox mounts it (phase-3 `task-03.md:148-199`). `machined` admits exactly those calls, and
+  sandbox mounts it (phase-3 `task-03.md:148-207`). `machined` admits exactly those calls, and
   holds each new lane in an in-memory **creating set** until the laptop seals it. It also serves
   the three filesystem steps of a create that would otherwise touch the laptop's disk, as seam
   S8-P3.6's `gitx.MachineFS` (ruling 4).
@@ -36,10 +36,10 @@ reaches), 3 (bundles, task 21b) and 4 (the create shape, below).
 **Depends on, all in phase 3 (sibling `phase-3` worktree, parts read at `339b607`):**
 - **task 02 with §HGH** (`internal/gitx`: `Call` with `Scope`, `RemoteURL` and `NewLane`,
   `Result`, `Runner`, `Exec`, `Hardening` with `LaneRoot`, `MachineHardening`, `UntrustedConfig`,
-  `ErrCallShape`, `ErrLaneDir`, `Error`, `Class`, `Machine`; `task-02.md:85-96`, `:242-250`,
+  `ErrCallShape`, `ErrLaneDir`, `Error`, `Class`, `Machine`; `task-02.md:85-96`, `:242-260`,
   `:529-534`);
 - **task 03** (`lanes`: `NoFetchURL`, `NoPushURL`, `NoFilterEnv`, `CopyableHooksPath`,
-  `CopyGeneratedHooks`, `RemoveTree`, and `Create`'s steps; `task-03.md:148-268`);
+  `CopyGeneratedHooks`, `RemoveTree`, and `Create`'s steps; `task-03.md:148-280`);
 - **seam S8-P3.6's `gitx.MachineFS`** (ruling 4): an ask of phase 3, answered in its plan
   (phase-3 `task-02.md:286-299`, `task-03.md:293-303`) and pending as code. Without
   it a cloud machine cannot create lanes, so it is a blocker, not a fallback.
@@ -80,7 +80,7 @@ import "time"
 // it, and it is 400 like any unknown value. RemoteURL is gitx.Call.RemoteURL:
 // required for Class "remote", an https URL.
 // NewLane is gitx.Call.NewLane (phase-3 task-02.md:90-96): "" on every call but
-// a lane create's writes in its new clone (task-03.md:169-181), where it equals
+// a lane create's writes in its new clone (task-03.md:166-195), where it equals
 // Dir and names a lane in machined's creating set.
 // Stdin is base64 in JSON ([]byte). Env is an explicit allowlist (below), not a
 // prefix match; values may be secrets (phase 3 task 13's PushEnv passes a
@@ -245,7 +245,7 @@ driver here would run it beside all of that. Phase 3 closes this for the laptop'
    `h = gitx.MachineHardening(ctx, "/tmp/machined-git")` and then `h.LaneRoot = <root>/lanes`,
    as phase 3's task 04 sets `LaneRoot` to its Machine's `CloneRoot()` (phase-3
    `task-02.md:115`, `:120-121`). Phase 3's own `ErrLaneDir` then refuses any call that runs in a
-   lane but a create's `NewLane` call (`task-02.md:139-149`, `:523-524`), under `machined`'s own
+   lane but a create's `NewLane` call (`task-02.md:139-149`, `:572-574`), under `machined`'s own
    check (item 2). The owned root is on the machine pod's `emptyDir` `/tmp` (task 19), never on
    the disk, so no pod can reach its `no-hooks` directory. Every call then gets:
    - H1's command-scope prefix: hooks, `core.fsmonitor`, `core.sshCommand`, every transport but
@@ -255,13 +255,13 @@ driver here would run it beside all of that. Phase 3 closes this for the laptop'
    - H3's `git config --local --no-includes --list -z` check before git acts, on every
      `Scope: Project` call: the refusal list, which refuses `filter.*`, `diff.*.textconv`,
      `diff.*.command`, `diff.external`, `merge.*.driver`, `include.*`, `includeIf.*` and
-     `extensions.worktreeConfig`, among others. `Scope: None` has no check (`task-02.md:534`).
+     `extensions.worktreeConfig`, among others. `Scope: None` has no check (`task-02.md:583`).
      `machined` admits it for `version`, for the add-project clone (no repository exists yet),
      and for a create's `NewLane` writes, whose config at that moment holds only the six keys
      the clone's `--config` wrote and the closed writes before it (item 2);
-   - H5's layout pin (`task-02.md:562-570`): Exec sets `GIT_DIR`, `GIT_COMMON_DIR` and
+   - H5's layout pin (`task-02.md:611`): Exec sets `GIT_DIR`, `GIT_COMMON_DIR` and
      `GIT_WORK_TREE` itself, so a planted `commondir` cannot swap the config that H3 checked.
-     H5's read-only `.git/config` bind is hygiene (`task-02.md:556-560`), and `machined` does
+     H5's read-only `.git/config` bind is hygiene (`task-02.md:605`), and `machined` does
      not depend on it: no agent can write a config this route reads, because no pod mounts a
      project (R4.1), and no pod mounts a lane in the creating set (task 20's path route answers
      `409 lane_creating` for it, below).
@@ -277,7 +277,7 @@ driver here would run it beside all of that. Phase 3 closes this for the laptop'
      creates at start beside phase 3's `no-hooks`, as phase 3's `GitHelper` runs in
      `<OwnedRoot>/credential` (phase-3 `task-13.md:108`). It is a subdirectory, not `OwnedRoot`
      itself, because phase 3's `None` rule admits "a `Dir` under `Hardening.OwnedRoot`"
-     (`task-02.md:523`, `:534`), which does not settle whether the root itself counts. It is
+     (`task-02.md:572`, `:583`), which does not settle whether the root itself counts. It is
      admitted for exactly two shapes: `Args == ["version"]`, and the add-project clone below.
    - **`lanes/<p>/<d>`**: task 20's lane-path check first (three segments, no `..`, each an
      `Lstat` directory; otherwise `409 lane_path_invalid`). Then `Scope` must be `"none"`,
@@ -291,12 +291,12 @@ driver here would run it beside all of that. Phase 3 closes this for the laptop'
    them; any other `clone` is `400`, naming the argument:
    - `Scope: "none"`: the add-project clone below.
    - `Scope: "project"`: **phase 3's lane create**, its `lanes.Creator` step 4 (phase-3
-     `task-03.md:161-168`, built by the unexported `cloneArgv`, `:392`), exactly as env ruling 4
+     `task-03.md:166-173`, built by the unexported `cloneArgv`, `:427`), exactly as env ruling 4
      states it. It is admitted when all of these hold:
      - `Dir` is `projects/<name>`, `Class` is `"local"` and `NewLane` is `""`;
      - `Env` **equals `lanes.NoFilterEnv`**, key for key and value for value, imported from
        phase 3 and never copied (`GIT_CONFIG_COUNT=3`, `filter.lfs.smudge=""`,
-       `filter.lfs.process=""`, `filter.lfs.required=false`; `task-03.md:212-218`);
+       `filter.lfs.process=""`, `filter.lfs.required=false`; `task-03.md:220-226`);
      - the options before `--` are exactly this set, each once, in any order: `--no-hardlinks`,
        `--branch <b>` with `<b>` not starting with `-`, `--origin origin`, and `--config` for
        exactly `core.autocrlf=false`, `core.eol=lf`, `core.checkStat=minimal`,
@@ -316,7 +316,7 @@ driver here would run it beside all of that. Phase 3 closes this for the laptop'
      destination joins the creating set (below). A change to phase 3's `cloneArgv` needs the
      matching change here first (seam S8-P3.3, task 33).
 
-   **A create's writes in its new lane** (R4.5's window; `task-03.md:169-181`, `:191-198`).
+   **A create's writes in its new lane** (R4.5's window; `task-03.md:166-195`, `:197-203`).
    `Dir == NewLane`, a lane in the creating set, `Scope` `"none"`, `Env` empty, and `Args`
    exactly one of these; any other is `400`:
    - `config remote.origin.url <v>` with `v == lanes.NoFetchURL`, and
@@ -425,7 +425,7 @@ adds only the confinement, and runs no git:
   no set entry: Create's step 3 runs before the clone.
 - **`remove-tree`.** `Root` is `lanes` or a lane, and `Path` is under `Root`, else `400`. `Path`
   is a whole lane (the shape and parent checks of `lstat`), or a
-  path below a lane in the creating set (CopyGeneratedHooks' take-back, `task-03.md:253-256`),
+  path below a lane in the creating set (CopyGeneratedHooks' take-back, `task-03.md:272`),
   else `409 lane_not_creating`. A whole lane is admitted in or out of the set, because phase 3
   task 11's Remove deletes a sealed lane with `RemoveTree` after its step 2a destroyed any
   runner-only sandbox (phase-3 `task-11.md:195-201`); env ruling 4 confines the route to
@@ -472,7 +472,7 @@ with a fake `git` first on `PATH` that writes a marker on any start. A marker sc
 | `TestGitCloneOutsideItsTwoShapesIsRefused` | table, each `Scope: "project"`, `Dir: "projects/a"` → 400 and git never ran: destination `/machine/projects/b`; destination `/tmp/machined-git/x`; destination `/machine/lanes/p-1` (one element); destination `/machine/lanes/p-1/../../projects/b`; an existing destination; source `/machine/projects/b` (not the call's `Dir`); `--config filter.x.smudge=<marker script>`; `--template=/machine/projects/a`; `--separate-git-dir=/tmp/x`; the pre-R4 four `--config` keys only; `core.symlinks=true`; `core.eol=lf` twice; a seventh `--config core.fsmonitor=<marker script>`; `Class: "remote"`; `Env` empty; `Env` `NoFilterEnv` plus one host-scoped header pair; `NoFilterEnv` with `filter.lfs.required=true`; `NewLane` set to the destination | a lane create that plants a repository where H3 reads it under the wrong rule or not at all; a clone-time filter run before H3 first reads the clone; the user's token in a lane create |
 | `TestGitNewLaneWritesAreAClosedList` | a creating lane `L` (made by an admitted clone). Admitted, each 200 and the value then read back: `config remote.origin.url <NoFetchURL>`, `config remote.origin.pushurl <NoPushURL>`, `config user.name "A B"`, `config user.email a@b.invalid`, `config core.hooksPath .husky/_`, `ls-files --others --exclude-standard -- .husky/_`. Refused, each 400 and git never ran: `config remote.origin.url https://x.invalid/r`, `config filter.x.smudge <marker script>`, `config core.fsmonitor x`, `config core.hooksPath ../x`, `config user.name -x`, `config user.email` with a newline, `status`, `ls-files -- ../x`, any admitted shape with a non-empty `Env`, `Scope: "project"` | a `NewLane` that opens any git in a lane, where `None` skips H3; a create write that plants a driver the sandbox then runs |
 | `TestGitLaneDirOutsideTheCreatingSetIsRefused` | each 409 `lane_not_creating`, git never ran: an admitted write shape on a lane never cloned by this `machined`; on `L` after `sealed`; on `L` after its deadline (fake clock); on `L` after a restart. `NewLane` ≠ `Dir` → 400. A creating lane whose `lanes/p-1` was swapped for a symlink → 409 `lane_path_invalid` | a creating set that never closes, so the host runs git in a lane an agent has mounted (R4.2, R4.5) |
-| `TestGitServesPhase3sCreateSequence` | real git: phase 3's Create call sequence for `ui` on `projects/a` (a husky project with `core.hooksPath .husky/_`), replayed as wire calls in `task-03.md:148-198`'s order: `rev-parse --verify --quiet`; `fs/lstat`; the clone; step 4a's two writes; `var GIT_AUTHOR_IDENT`; step 5's two writes; `config --local --get core.hooksPath`; its write; `fs/copy-hooks`; `ls-files`; `sealed` → each 200 or 204; the lane's origin is `NoFetchURL`, its `.husky/_` files match the project's, and task 20's path route then answers the lane path | one shape that refuses a step of phase 3's real create, which only a full sequence shows |
+| `TestGitServesPhase3sCreateSequence` | real git: phase 3's Create call sequence for `ui` on `projects/a` (a husky project with `core.hooksPath .husky/_`), replayed as wire calls in `task-03.md:148-207`'s order: `rev-parse --verify --quiet`; `fs/lstat`; the clone; step 4a's two writes; `var GIT_AUTHOR_IDENT`; step 5's two writes; `config --local --get core.hooksPath`; its write; `fs/copy-hooks`; `ls-files`; `sealed` → each 200 or 204; the lane's origin is `NoFetchURL`, its `.husky/_` files match the project's, and task 20's path route then answers the lane path | one shape that refuses a step of phase 3's real create, which only a full sequence shows |
 | `TestGitFailureIsGitFailedWithGitsOwnSentence` | `rev-parse nosuchref` → 422, `details.gitSays` begins `fatal:`, `exitCode` non-zero, no `args` in details | a generic 500; argv (which may hold a URL) in the body |
 | `TestGitOKExitIsAnAnswer` | a `merge-tree --write-tree` conflict with `OKExit: [1]` → 200, `exitCode: 1` | a forecast conflict reported as a failure |
 | `TestGitStdinReachesGit` | `hash-object --stdin` with stdin `x` → the known hash | stdin dropped (commit-tree -F - in phase 3) |
@@ -569,7 +569,7 @@ go test ./sandboxd/... ./control-plane/... -race -count=1                       
   reading of git's documented layout.
 - That phase 3 accepts seam S8-P3.6 as shaped here, `Seal` and `dir` included (**UNVERIFIED**; step 1
   greps). Or that phase 3's local `RemoveTree` follows no symlink on Linux: its doc says it
-  clears read-only attributes during the walk (phase-3 `task-03.md:264-268`), and
+  clears read-only attributes during the walk (phase-3 `task-03.md:276-280`), and
   `TestLaneFSRemoveTreeNeverFollowsASymlink` is the first place that is checked.
 - That the creating set survives a restart. It does not; the create in flight fails, and cleans
   up through `remove-tree`.

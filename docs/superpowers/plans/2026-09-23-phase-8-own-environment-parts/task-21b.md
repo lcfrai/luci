@@ -101,7 +101,7 @@ const (
   a remove fails and the user runs it again, which now succeeds once either slot frees, because
   no caller rebuilds the same two bundles at once.
 - `POST` with a body opens `<id>.bundle` with `O_CREATE|O_EXCL`, mode `0600` (phase 3's rule,
-  `task-24.md:705-708`). An id whose file exists is drawn again, never reused. It copies the
+  `task-24.md:784`). An id whose file exists is drawn again, never reused. It copies the
   body through `io.LimitReader(body, MaxBundleBytes+1)` under a `BundleTimeout` deadline, and
   never holds the bundle in memory. Past the cap it is `413`; at the deadline, `504`. Either
   way the partial file is removed and the id is not live.
@@ -187,5 +187,5 @@ go test ./control-plane/... -race -count=1                                      
 - That `/tmp` is node disk and not guest memory under Kata (ruling 3; **UNVERIFIED**, task 32's
   probe). If it is memory, two 1 GiB bundles cannot fit a pod limited to 1 GiB (the plan's P8-D6).
 - That a bundle is safe to fetch: that is phase 3's `FetchLane` checks, run by the laptop over
-  `POST /v1/git` (phase-3 `task-24.md:748-758` and `:760` on). This task stores bytes and
+  `POST /v1/git` (phase-3 `task-24.md:841-867` and `:868` on). This task stores bytes and
   names a path.

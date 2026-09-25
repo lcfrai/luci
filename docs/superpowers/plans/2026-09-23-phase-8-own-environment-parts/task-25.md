@@ -5,16 +5,16 @@ HELD until phase 3's tasks 02 to 04 and 11 are sync-merged into feat/env, with p
 Re-planned onto phase 3's ruling R4 by the env rulings of 2026-09-25
 (`.superpowers/sdd/env/r4-env-rulings.md`, "What each task changes", task 25). A cloud machine meets
 phase 3 at three seams. This task builds the laptop's half of all three; lane git is task 25b's.
-- **`gitx.Machine`** (`ID`, `Git`, `CloneRoot`; phase-3 `task-02.md:242-250`) runs **project** git
+- **`gitx.Machine`** (`ID`, `Git`, `CloneRoot`, `Join`, `FS`; phase-3 `task-02.md:242-260`) runs **project** git
   only (R4.2). `machines.Remote` below is its cloud implementation, over task 21's `POST /v1/git`.
   It lives in phase 8's `machines`, not phase 3's `gitx`, so `gitx` never imports `machineapi`
   (review r4-1 M4). Its `CloneRoot()` is `/machine/lanes` (ruling 4).
 - **`gitx.MachineFS`** (seam S8-P3.6, asked of phase 3; ruling 4) is the filesystem half of lane
   create that `Machine` lacks: step 3's `os.Lstat` (phase-3 `task-03.md:153`), the failure path's
-  `RemoveTree` (`task-03.md:264-268`) and `CopyGeneratedHooks`' copy (`task-03.md:227-262`).
+  `RemoveTree` (`task-03.md:276-280`) and `CopyGeneratedHooks`' copy (`task-03.md:235-274`).
   `Remote.FS()` is its cloud implementation, over task 21's `/v1/fs/…` routes and
   `POST /v1/lanes/sealed`.
-- **The catalog.** Phase 3's `lanes.Catalog` (`task-03.md:406-425`) composes a `Source` (phase 2's
+- **The catalog.** Phase 3's `lanes.Catalog` (`task-03.md:433-445`) composes a `Source` (phase 2's
   enumeration) with the lane index (`Store`). The lane index is on the laptop (P3A-2), so for a
   cloud machine the composition runs **on the laptop**: `Source` is task 24b's agent catalog,
   which is `machined`'s phase 2 Scanner, and `Store` is the laptop's index for that machine. Lanes
@@ -22,7 +22,7 @@ phase 3 at three seams. This task builds the laptop's half of all three; lane gi
 
 Retired by R4 and absent here: `Scope` `"clone"` on the wire, `clone_config_untrusted`,
 `*UntrustedConfig{Scope: Clone}`, a project call whose `Dir` is under `lanes/`, and `FetchURL`
-(phase 3 removed it from `Machine`, `task-02.md:507-511`; the fetch-back reads a bundle, task
+(phase 3 removed it from `Machine`, `task-02.md:559`; the fetch-back reads a bundle, task
 25b). Survives: P3A-1 (`Join`), P3A-2, and the `git_failed` and unreachable-agent mappings.
 
 **Correction to the rulings.** They say task 25 "covers … the catalog switch to phase 3's composite
@@ -177,7 +177,7 @@ The catalog for a cloud machine, on the laptop:
 package machines
 
 // CatalogSource is task 24b's agent catalog for one machine as a lanes.Source (phase-3
-// task-03.md:398-404): Projects, Branches, Worktrees and Path over the agent's catalog routes.
+// task-03.md:433-440): Projects, Branches, Worktrees and Path over the agent's catalog routes.
 type CatalogSource struct {
 	Agent     *Agent
 	MachineID string
@@ -207,7 +207,7 @@ var _ lanes.Source = CatalogSource{}
 | `TestRemoteSendsDirRelativeToTheMachineRoot` | `Call{Dir: "/machine/projects/app", Scope: Project}` → `GitCall{Dir: "projects/app", Scope: "project"}` | an absolute path the agent refuses, or a host path sent |
 | `TestRemoteRefusesADirOutsideTheRoot` | `"C:\\Users\\x"`, `"/etc"`, `"/machine/../etc"`, and `"/machine"` with `Scope Project` → `ErrCallShape`, no request | a laptop path leaking to the machine |
 | `TestRemoteRefusesAProjectCallInALane` | `Scope Project`, `Dir: "/machine/lanes/p/app-0a1b2c"` → `ErrLaneDir`, no request | the host running git in a sandbox-writable directory (R4.2) |
-| `TestRemoteSendsOnlyTheNewLaneWrites` | phase 3's `TestExecAdmitsTheNewLaneOnly` cases (`task-02.md:605`): `Dir == NewLane == L`, `Scope None` → sent with both relative; `Dir: L2` → `ErrLaneDir`; `NewLane: L` with `Scope Project` → `ErrCallShape` | a NewLane that opens every lane, or any scope |
+| `TestRemoteSendsOnlyTheNewLaneWrites` | phase 3's `TestExecAdmitsTheNewLaneOnly` cases (`task-02.md:654`): `Dir == NewLane == L`, `Scope None` → sent with both relative; `Dir: L2` → `ErrLaneDir`; `NewLane: L` with `Scope Project` → `ErrCallShape` | a NewLane that opens every lane, or any scope |
 | `TestRemoteSendsTheCreateCloneAsAProjectCall` | task 03 step 4's call (`Dir` the project, `Scope Project`, `Class Local`, `NewLane ""`, `Env` = `NoFilterEnv`, the clone's destination under `lanes/` as a positional) → sent unchanged | an unmarked clone refused, or a clone marked `NewLane`, which machined refuses (ruling 4) |
 | `TestRemoteSendsAnEmptyDirOnlyForScopeNone` | `Scope None, Dir ""` → `Dir ""`; `Scope None, Dir "/machine"` and `Scope Project, Dir ""` → `ErrCallShape` | `/machine` sent to mean machined's owned root, which machined reads as the disk root |
 | `TestRemoteRefusesAnUnsetScope` | `Scope Unset` → `ErrCallShape`, no request | a call the machine must guess the scope of |

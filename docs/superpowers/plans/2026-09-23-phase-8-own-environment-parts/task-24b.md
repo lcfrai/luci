@@ -98,7 +98,7 @@ func AsNotALane(err error) (machineapi.NotALane, bool)
 package api
 
 // laneCreator is the one method of phase 3's *lanes.Creator this task calls
-// (phase-3 task-03.md:199), so a test can pass a fake that records the request.
+// (phase-3 task-03.md:139-140), so a test can pass a fake that records the request.
 type laneCreator interface {
 	Create(ctx context.Context, req lanes.CreateRequest) (lanes.Lane, error)
 }
@@ -338,7 +338,7 @@ git grep -n '"projects/' -- control-plane/internal/api/cloudlane.go control-plan
 - **The hygiene bind is on sessions only, and nothing rests on it.** A session binds
   `.git/config` read-only (`cloudMounts` item 2); a runner-only pod mounts the lane alone (env
   ruling 2, "Mounts"; task 25b), exactly as phase 3's local runner-only pod does (one mount of
-  `lane.Path`, phase-3 `task-24.md:918`). The asymmetry is phase 3's, not a cloud twin. The bind
+  `lane.Path`, phase-3 `task-24.md:729`). The asymmetry is phase 3's, not a cloud twin. The bind
   is hygiene, as phase 3's is (plan P3A-3): R4's boundary is that no host git reads a lane, not
   the bind, so no claim here depends on whether it holds.
 - **UNVERIFIED, and recorded only:** that a Kata guest enforces a `readOnly` `subPath` **file**
