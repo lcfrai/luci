@@ -470,7 +470,70 @@ func (c *Client) ChangeRoute(ctx context.Context, projectID string, r hubapi.Rou
 
 Fleet reads route 74 at rebuild (task 11) and again on each `team_policy.updated` or
 `team_policy.route_changed` in its per-org feed (task 08's kinds), and holds the result in memory
-only: quotas and turns for task 37, budgets for task 28, floors for task 30. A Fleet that cannot
-read the policy uses `DefaultTeamPolicy`'s numbers **and** the AU route whenever the project's
-route is unknown: fail closed toward AU, never toward Global (phase 6's P6-D5,
-`phase-6-gateway.md:69`).
+only: quotas and turns for task 37, budgets for task 28, floors for task 30. A Fleet that has never
+read a project's policy launches nothing on it: an unknown route is a refusal, never Global (phase
+6's P6-D5, `phase-6-gateway.md:69`). Once read, a later read failure keeps the last numbers for
+sessions already running and is logged; it never falls back to looser ones.
+
+#### Steps
+
+- [ ] **Step 1: Read, after the sync-merge.** Hub task 16b's harness as merged; Hub task 13's
+  `auth.go` and task 07's `Auditor`; task 04's migration (does it already hold `team_policies`?);
+  the merged project record (does it carry `dataClass` and `inferenceRoute`, ask H-1?); phase 6's
+  `dataclass` package, if merged. Write down every name that differs from this part.
+- [ ] **Step 2: Tests.** The matrix types and `rowsT43`, `orgRows`, and the fourteen tests; run
+  them; they fail (no routes 74, 75, 79; no `Compliance`; no `Can`).
+- [ ] **Step 3: Generate `rowsT06`, `rowsT07`.** From `everyTeamWrite` and task 07's list, with
+  task 01's cells; run the matrix; every row for 46–73 passes against tasks 06 and 07's handlers.
+  **A failing cell is a real finding**: fix the handler in its own task's files, never the row.
+- [ ] **Step 4: Auth.** `Claims.Compliance`, `Principal.Compliance`, `AuthConfig.ComplianceRole`;
+  Priya in `dev-tenant.json`; `TestComplianceIsNotMembership` passes.
+- [ ] **Step 5: Migration and store.** `00NN_team_policy.sql`, `store/teampolicy.go`.
+- [ ] **Step 6: Routes.** `teamcaps.go`, `teampolicy.go`, `DefaultTeamPolicy`, the two codes; the
+  policy tests pass.
+- [ ] **Step 7: Client.** `TeamPolicy`, `PutTeamPolicy`, `ChangeRoute`, the fake's half, and
+  task 08's conformance rows for them.
+- [ ] **Step 8: Contract.** §5.3 team rows for 74, 75, 79 and the org rows; §7.24's two codes in
+  §4.2; `go test ./internal/hub/hubapi/ -run Contract` passes.
+- [ ] **Step 9: Commit.** `git add` the new files; `git commit -F <msg> -- <paths>`.
+
+#### Acceptance
+
+```bash
+cd control-plane
+go test -tags integration ./internal/hub/server/ -run 'TestTeamAuthorisationMatrix|TestAMemberLowering|TestAFloorThat|TestCompliance|TestTheDefaults|TestPolicyBounds|TestAStalePut|TestDataClassIs|TestTheAuditor|TestNoWriteRow|TestCapTable|TestEveryTeamWrite|TestEveryRouteHasAMatrixRow|TestTheXColumn' -count=1
+# ok  	github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/server	…
+go test ./internal/hub/hubapi/ ./internal/hub/hubclient/... -count=1 && go vet ./...
+# ok  	…/internal/hub/hubapi	…
+# ok  	…/internal/hub/hubclient	…   (and no vet output)
+```
+
+#### What this task does not claim
+
+- **Not KPMG's data classes.** It reads whatever class the project record carries (phase 6's
+  proposed `Level` list, `phase-6-gateway.md:216`, is not KPMG's scheme).
+- **Not that the Entra app roles exist in KPMG's tenant.** `Hub.Auditor` and `Hub.Compliance` are
+  app roles the dev issuer mints; who holds them in the real tenant is an owner and InfoSec act.
+- **Not the stale-lease release.** `CapReleaseStale` is in the table for completeness; the route
+  is task 06's and its matrix row comes with `rowsT06`.
+- **Not the gateway's enforcement.** The route written here is read by phase 6's gateway; that
+  an AU project never makes a Global call is phase 6's and task 47's.
+- **Not a UI.** The admin view is task 67; the route badge task 56.
+
+#### Gaps found in the skeleton
+
+1. **Who creates `team_policies`.** The file map gives migrations to task 04, whose part is not
+   written, and routes 74, 75, 79 to this task (`task-01.md:279-284`). This part owns the table in
+   its own migration; if task 04's lands with one, Step 1 drops this migration and keeps the
+   `CHECK`s.
+2. **Two data-class shapes.** Task 03's `hubapi.DataClass` is a string with a grammar
+   (`task-03.md:433-467`); phase 6's is `dataclass.Class{Level, Residency}` with a ratchet
+   (`phase-6-gateway.md:216`). This part reads the project record's value through phase 6's type
+   and leaves `TeamPolicy.DataClass` as the string form; task 03's writer and phase 6's should
+   settle one wire shape before merge.
+3. **§3.4 lets the auditor see the team strip; task 01's matrix does not** (`05-design.md:349` vs
+   `task-01.md:579`). This part follows task 01. The owner should confirm.
+4. **Route 79 and ask H-1 may both write the route.** If the Hub gains a project route-change
+   route for solo projects, route 79 becomes its team-project door, sharing one store function.
+5. **`CodeBadRequest` and `CodeProjectNotFound` in `hubapi`** are assumed to exist under those
+   names in the merged Hub (**UNVERIFIED**).
