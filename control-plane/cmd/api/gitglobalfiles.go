@@ -26,7 +26,9 @@ import (
 // unchanged. An empty answer, `excludesFile =`, is "" because git then reads
 // no file. A relative answer is passed on as git gave it: git reads it against
 // each repository, a directory the agent writes, so it names no host file, and
-// the session refuses it. Whether a file is there is the caller's question.
+// the session never mounts it: inside the repository the sandbox gets it as it
+// is, and outside it fails the create (X-1 review m-4). Whether a file is
+// there is the caller's question.
 func gitGlobalFilesResolver(host hostGit) func(context.Context) (api.GitGlobalFiles, error) {
 	return func(ctx context.Context) (api.GitGlobalFiles, error) {
 		excludes, err := gitGlobalFile(ctx, host, "core.excludesFile", "ignore")

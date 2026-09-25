@@ -911,7 +911,9 @@ func (b *Backend) Kind() backend.Kind { return backend.KindKata }
   same shape as the CA bundle, or refuse. `Deps.GitGlobalFiles` asks the host's git about a host
   path too, and Phase 8 answers it for the user whose clone it is (AMENDED by X-1, 2026-09-25:
   from the user's own config, never the clone's; see the amendment above). The `core.excludesFile` and
-  `core.attributesFile` pairs are `Spec.Env`, and name `/dev/null` when there is no file.
+  `core.attributesFile` pairs are `Spec.Env`, and name `/dev/null` when there is no file
+  (AMENDED by the X-1 fix round, 2026-09-25, review m-4: or the user's own relative path, with
+  no volume, when it stays inside the repository; §5.1 step 5).
 - `Endpoint` is `net.JoinHostPort(pod.Status.PodIP, "8080")`. An empty `PodIP` means
   the pod is not scheduled yet: `StateStarting`, empty `Endpoint`.
 - `State` maps `pod.Status.Phase`: `Pending` → `StateStarting`, `Running` →
@@ -2381,7 +2383,12 @@ Exactly one place: the `POST /v1/sessions` handler, in this order.
    global and system config**, and no longer "for that worktree". No resolver in `Deps` takes a
    worktree path, and cmd/api's `hostGit` runs every git in a directory the control plane made,
    outside every repository (`GIT_CEILING_DIRECTORIES` is its parent), never with `-C`,
-   `--git-dir` or `--work-tree`. Each key is read from the scope git takes it from: `git config
+   `--git-dir` or `--work-tree`. AMENDED by the X-1 fix round (2026-09-25, review I-1; was one
+   directory, made by `serve()` at startup and kept for the life of the process): each git gets
+   its own directory, made with `os.MkdirTemp` in the OS temp directory just before it runs and
+   removed when it is done, and the ceiling is the temp directory, made absolute. A directory kept
+   for the life of the process is what temp reapers remove, and every create and restart after
+   that failed with 500. Each key is read from the scope git takes it from: `git config
    --get --global --includes --default <unset marker> <key>` says whether the global scope sets
    it, and then `git config --get --global|--system --includes <the question above> <key>` answers
    it. `--includes` because naming a scope turns `include.path` off, and the system scope is
@@ -2424,7 +2431,14 @@ Exactly one place: the `POST /v1/sessions` handler, in this order.
    sandbox at the next create or restart. Now a repository's own value is never read, and the
    user's global file is still mounted. A relative answer is passed on as git gave it, and it
    fails the create below: git reads it against each repository, so it names a file in the
-   worktree, not one of the host's. A path that is a **regular file** on
+   worktree, not one of the host's. AMENDED by the X-1 fix round (2026-09-25, review m-4; was
+   "it fails the create"): a relative answer is never mounted. One that stays inside the
+   repository (Go's `filepath.IsLocal`) is the pair's value itself, cleaned and in slash form,
+   and the sandbox's git reads it against the same repository in its mount, as the host's git
+   does (measured with git 2.53: read against the worktree's top from a subdirectory, at command
+   scope too). One that leaves the repository (`..`, or a Windows drive- or root-relative path)
+   names a file no sandbox can see, so it still fails the create, and the 500 says to make it
+   absolute or a path inside the repository. A path that is a **regular file** on
    the host, following a link as git does, is mounted from the file it resolves to, so what a
    Docker host does with a link as a mount source never matters (dotfile managers link
    `~/.config/git/ignore`), **read-only** at `/etc/panacea-app/git/ignore` or
@@ -2433,7 +2447,9 @@ Exactly one place: the `POST /v1/sessions` handler, in this order.
    because the host's git reads no patterns there. The pair is never left unset, since then the
    sandbox's git would read its own `~/.config/git` default, which the host never reads and an
    agent can write. An error from the resolver, or a relative path from it, fails the create or
-   restart with 500 before step 4 and before the restart's destroy. The **system** attributes
+   restart with 500 before step 4 and before the restart's destroy (AMENDED by the X-1 fix round,
+   review m-4: a relative path that leaves the repository; one inside it is passed on, above).
+   The **system** attributes
    file (`$(prefix)/etc/gitattributes`) is not forwarded: git has no key that names it, and Git
    for Windows' own holds only `diff=astextplain` lines, which change how a diff is shown and not
    what a commit holds. Failure → `store.Update` to

@@ -313,10 +313,20 @@ const (
 const sessionGitNoFile = "/dev/null"
 
 // sessionGitFiles is the host's global excludes and attributes files a sandbox
-// sees: each a host path to mount, or "" when the host's git reads none.
+// sees.
 type sessionGitFiles struct {
-	excludes   string
-	attributes string
+	excludes   sessionGitFile
+	attributes sessionGitFile
+}
+
+// sessionGitFile is one of them: mount, a host file mounted read-only at its
+// container path; or inRepo, a relative path inside the repository, which the
+// host's git reads against the repository's top and the sandbox's git reads
+// against the same repository in its mount, so nothing is mounted (X-1 review
+// m-4); or neither, when the host's git reads no such file.
+type sessionGitFile struct {
+	mount  string
+	inRepo string
 }
 
 // sessionMounts is everything of the host a sandbox sees: its worktree; a
@@ -341,11 +351,11 @@ func sessionMounts(worktreePath, worktreeAdmin, conversationStore string, carrie
 	if caBundle != "" {
 		mounts = append(mounts, backend.Mount{HostPath: caBundle, ContainerPath: sessionCABundlePath, ReadOnly: true})
 	}
-	if git.excludes != "" {
-		mounts = append(mounts, backend.Mount{HostPath: git.excludes, ContainerPath: sessionGitExcludesPath, ReadOnly: true})
+	if git.excludes.mount != "" {
+		mounts = append(mounts, backend.Mount{HostPath: git.excludes.mount, ContainerPath: sessionGitExcludesPath, ReadOnly: true})
 	}
-	if git.attributes != "" {
-		mounts = append(mounts, backend.Mount{HostPath: git.attributes, ContainerPath: sessionGitAttributesPath, ReadOnly: true})
+	if git.attributes.mount != "" {
+		mounts = append(mounts, backend.Mount{HostPath: git.attributes.mount, ContainerPath: sessionGitAttributesPath, ReadOnly: true})
 	}
 	return mounts
 }
@@ -398,7 +408,9 @@ func sessionMounts(worktreePath, worktreeAdmin, conversationStore string, carrie
 //     the host's global and system config name them and never a worktree's
 //     (X-1: a worktree's core.excludesFile named an SSH key, and it was
 //     mounted), from Deps.GitGlobalFiles, mounted read-only at sessionGitExcludesPath and
-//     sessionGitAttributesPath, or sessionGitNoFile when the host's git reads
+//     sessionGitAttributesPath, or the host's own relative value when it
+//     names a path inside the repository, with nothing mounted (X-1 review
+//     m-4), or sessionGitNoFile when the host's git reads
 //     none (gitfix-rereview I-A). Git reads ~/.config/git/ignore even with
 //     core.excludesFile unset, and this HOME has none, so without the first an
 //     agent's `git add -A` commits what the host's git ignores:
@@ -463,12 +475,16 @@ func (a *API) sessionGitLineEndings(ctx context.Context) (GitLineEndings, error)
 }
 
 // sessionGitFileIn is the path a sandbox's git reads for one of the host's
-// global files: where it is mounted when the host has it, else sessionGitNoFile.
-func sessionGitFileIn(hostPath, containerPath string) string {
-	if hostPath == "" {
-		return sessionGitNoFile
+// global files: where it is mounted when the host has it, the relative path
+// itself when it is inside the repository, else sessionGitNoFile.
+func sessionGitFileIn(f sessionGitFile, containerPath string) string {
+	switch {
+	case f.mount != "":
+		return containerPath
+	case f.inRepo != "":
+		return f.inRepo
 	}
-	return containerPath
+	return sessionGitNoFile
 }
 
 // sessionGitGlobalFiles asks Deps.GitGlobalFiles where the host's own config
@@ -498,15 +514,24 @@ func (a *API) sessionGitGlobalFiles(ctx context.Context, worktreeID string) (ses
 // following a link as git does), and "" otherwise, the way git itself treats
 // it. Nothing there: git skips the path silently. Something git cannot read,
 // or a directory: git reads no patterns from it and at most warns, so the
-// sandbox reads none either, and the cause goes to the log. A relative path
-// is an error: git reads it against each repository, so it names a file in
-// the worktree, which the agent writes, and not one of the host's (X-1).
-func (a *API) sessionGitGlobalFile(worktreeID, key, hostPath string) (string, error) {
+// sandbox reads none either, and the cause goes to the log.
+//
+// A relative path is never mounted: git reads it against each repository's
+// top, so it names a file in the worktree, which the agent writes, and not
+// one of the host's (X-1). One that stays inside the repository goes to the
+// sandbox as it is, in slash form, and the sandbox's git reads the same file
+// in its mount (X-1 review m-4). One that leaves the repository (`..`, or a
+// Windows drive- or root-relative path) names a file no sandbox can see, so
+// it fails the create, with the fix in the sentence.
+func (a *API) sessionGitGlobalFile(worktreeID, key, hostPath string) (sessionGitFile, error) {
 	if hostPath == "" {
-		return "", nil
+		return sessionGitFile{}, nil
 	}
 	if !filepath.IsAbs(hostPath) {
-		return "", fmt.Errorf("the git global-files resolver answered %s %q, which is not an absolute path", key, hostPath)
+		if filepath.IsLocal(hostPath) {
+			return sessionGitFile{inRepo: filepath.ToSlash(filepath.Clean(hostPath))}, nil
+		}
+		return sessionGitFile{}, fmt.Errorf("the host's git config sets %s to %q, a relative path that leaves the repository, so no sandbox can read the file the host's git reads there: set it to an absolute path, or to a path inside the repository", key, hostPath)
 	}
 	info, err := os.Stat(hostPath)
 	if err != nil {
@@ -514,10 +539,10 @@ func (a *API) sessionGitGlobalFile(worktreeID, key, hostPath string) (string, er
 			a.sessionLog().Warn("the host's git cannot read this file either, so the sandbox's git reads none",
 				"worktreeId", worktreeID, "key", key, "path", hostPath, "err", err)
 		}
-		return "", nil
+		return sessionGitFile{}, nil
 	}
 	if !info.Mode().IsRegular() {
-		return "", nil
+		return sessionGitFile{}, nil
 	}
 	// The mount's source is the file, not a link to it. Dotfile managers
 	// link ~/.config/git/ignore, and what a Docker host does with a link as
@@ -526,7 +551,7 @@ func (a *API) sessionGitGlobalFile(worktreeID, key, hostPath string) (string, er
 	if resolved, err := filepath.EvalSymlinks(hostPath); err == nil {
 		hostPath = resolved
 	}
-	return hostPath, nil
+	return sessionGitFile{mount: hostPath}, nil
 }
 
 // sessionWorktreeAdmin returns the host path of a primary worktree's

@@ -164,17 +164,43 @@ func TestTheHostsGlobalGitFilesReachTheSandboxReadOnlyAndOnlyWhenTheHostsGitRead
 	}
 }
 
-// With no answer, or a relative path, which names a file in the worktree
-// rather than one of the host's (git reads it against each repository), the
-// create fails before anything
-// exists: no record, and no sandbox whose `git add -A` commits what the host
-// ignores.
+// A relative answer that stays inside the repository (X-1 review m-4). The
+// host's git reads it against the repository's top, from any subdirectory
+// and at command scope (measured, git 2.53), and the sandbox's git reads it
+// against the same repository in its mount. So the sandbox gets the value
+// itself, in slash form, and nothing is mounted: it names no host file.
+func TestARelativeGlobalFileInsideTheRepositoryReachesTheSandboxUnmounted(t *testing.T) {
+	for _, body := range []string{sessionsCreateBody, sandboxEnvShellBody} {
+		host := &sandboxEnvGlobalFiles{files: GitGlobalFiles{
+			Excludes:   filepath.Join("git", "ignore"),
+			Attributes: filepath.Join(".", "tools", "..", "attrs"),
+		}}
+		env := sandboxEnvNew(t, func(d *Deps) { d.GitGlobalFiles = host.resolve })
+		spec := sandboxEnvCreate(t, env, body)
+		cfg := sandboxEnvGitConfig(t, spec.Env)
+		for key, want := range map[string]string{"core.excludesFile": "git/ignore", "core.attributesFile": "attrs"} {
+			if cfg[key] != want {
+				t.Errorf("%s = %q, want %q, read against the sandbox's own repository as on the host", key, cfg[key], want)
+			}
+		}
+		for _, at := range []string{sessionGitExcludesPath, sessionGitAttributesPath} {
+			if got := sandboxEnvMountsAt(spec, at); len(got) != 0 {
+				t.Errorf("mounts at %s = %#v, want none: a relative answer names no host file", at, got)
+			}
+		}
+	}
+}
+
+// With no answer, or a relative path that leaves the repository, which the
+// host's git reads beside the worktree and no sandbox can see, the create
+// fails before anything exists: no record, and no sandbox whose `git add -A`
+// commits what the host ignores.
 func TestAGlobalFilesAnswerTheSandboxCannotUseFailsTheCreateAndLeavesNothing(t *testing.T) {
 	for name, host := range map[string]*sandboxEnvGlobalFiles{
-		"an error":                 {err: errors.New("git config --get --type=path core.excludesFile in C:\\work: exit status 128: fatal: bad config line 3")},
-		"a relative excludes path": {files: GitGlobalFiles{Excludes: filepath.Join("git", "ignore")}},
-		"a relative attributes":    {files: GitGlobalFiles{Attributes: filepath.Join("git", "attributes")}},
-		"half and an error":        {files: GitGlobalFiles{Excludes: filepath.Join(t.TempDir(), "ignore")}, err: errors.New("git config: exit status 128")},
+		"an error":                           {err: errors.New("git config --get --type=path core.excludesFile in C:\\work: exit status 128: fatal: bad config line 3")},
+		"a relative excludes path outside":   {files: GitGlobalFiles{Excludes: filepath.Join("..", "ignore")}},
+		"a relative attributes path outside": {files: GitGlobalFiles{Attributes: filepath.Join("git", "..", "..", "attributes")}},
+		"half and an error":                  {files: GitGlobalFiles{Excludes: filepath.Join(t.TempDir(), "ignore")}, err: errors.New("git config: exit status 128")},
 	} {
 		t.Run(name, func(t *testing.T) {
 			env := sandboxEnvNew(t, func(d *Deps) { d.GitGlobalFiles = host.resolve })

@@ -167,7 +167,8 @@ type Deps struct {
 	// (gitfix-rereview I-A). Every one is mounted, so no worktree's config may
 	// name one (X-1). Sessions call it at
 	// every create and restart, and sessionEnv hands the sandbox's git the
-	// ones that exist, mounted read-only, and /dev/null for the rest.
+	// ones that exist, mounted read-only, a relative one inside the
+	// repository as it is, and /dev/null for the rest.
 	//
 	// It is required, and an error fails the create or restart before anything
 	// is recorded or destroyed, like GitLineEndings. Git reads
@@ -213,9 +214,12 @@ type GitLineEndings struct {
 //   - Attributes is core.attributesFile, else $XDG_CONFIG_HOME/git/attributes
 //     or ~/.config/git/attributes.
 //
-// Each is an absolute host path, and names the file git would read whether or
-// not one is there: git skips a missing file silently, and sessions do the
-// same. The resolver answers the question; sessions look at the file.
+// Each names the file git would read whether or not one is there: git skips
+// a missing file silently, and sessions do the same. An absolute host path is
+// mounted when it is a file. A relative one is git's own answer, read against
+// each repository: inside the repository it goes to the sandbox unmounted,
+// and outside it fails the create (X-1 review m-4). The resolver answers the
+// question; sessions look at the file.
 type GitGlobalFiles struct {
 	Excludes   string
 	Attributes string
