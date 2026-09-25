@@ -629,7 +629,7 @@ routes with an empty, `team: false` body and the write routes with `409 not_team
 | `GET /v1/projects/{projectId}/orchestrator/threads/{threadId}` | Fleet `…/threads/{th}/messages` | `ThreadView` |
 | `GET /v1/projects/{projectId}/team/settings` | Hub 74; task 37's split (gap G52-5) | `TeamSettings` |
 | `POST /v1/projects/{projectId}/orchestrator/messages` | Hub 70, `toAgentId` = the viewer's own Orchestrator | `201 Created` |
-| `POST /v1/team/escalations/{escalationId}/answer` | Hub 65 | `200 DecideItem` answered, or `409 already_answered` |
+| `POST /v1/team/escalations/{escalationId}/answer` | Hub 65 | `200 DecideItem` answered; a second answer is the Hub's `409 conflict` (`task-01.md:427`), relayed |
 | `POST /v1/team/decided/{escalationId}/undo` | Hub 70, the fixed Undo template | `201 Created`; `409 not_reversible` |
 | `POST /v1/projects/{projectId}/notes` | Hub 72 (task 46) | `201 Created` |
 | `POST /v1/projects/{projectId}/team/route/raise` | Hub 79, `{"route":"au"}` | `200 TeamSettings` |

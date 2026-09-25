@@ -63,3 +63,87 @@ band's own *"mark all seen"* (W-62's control) calls `markTeamSeen(generatedAt)` 
 *"in 18 min"*: a countdown is a live ETA in all but name (OD-27). Aging uses phase 2's existing
 `formatWaiting` (`lib/time.ts:49`), *"waiting 5h 51m"*, which `docs/AGENTIC-UX.md` §6 item 7 asks
 for and OD-27 allows (it is a measured duration, not a prediction).
+
+**(f) A decide past its deadline is shown as defaulted, not hidden.** The Hub reads an unanswered
+escalation past its deadline as defaulted (`task-01.md:428`). The row then reads *"The default
+applied at 04:40: Let Alice go first"* with no buttons, and an answer the Hub refuses with `409
+conflict` inside the Undo window lands the row in the same state, never in an error.
+
+**Files:**
+- `desktop/src/components/desk/teamRows.tsx` — the four `registerDeskRow` calls and the one
+  `registerDeskSource`, run once at module load; `registerTeamDeskRows()` for tests (new)
+- `desktop/src/components/desk/teamHorizon.tsx`, `teamDecide.tsx`, `teamSince.tsx`,
+  `teamDecided.tsx` — one row component each (new)
+- `desktop/src/components/desk/teamDesk.ts` — `teamDeskItems(snap)`, pure, and `useTeamDesk()`,
+  the one fetch on Desk entry (new)
+- `desktop/src/components/desk/teamRows.test.tsx` (new)
+- `desktop/src/components/desk/teamDesk.css` — the rows' layout, importing the token layer first;
+  not merged into W-62's `desk.css`, so neither task edits the other's stylesheet (new)
+- `desktop/src/main.tsx` — one side-effect import, `import "./components/desk/teamRows";`, beside
+  W-62's own registrations (modify; anchored on W-62's import, **UNVERIFIED until merge**)
+
+**Interfaces:**
+- Consumes: SW.17 (decision a); ST.8's `TeamDesk`, `HorizonItem`, `DecideItem`, `SinceItem`,
+  `DecidedItem` (task 52); `teamSlice.teamDesk`, `setTeamDesk`, `teamSeenAt`, `markTeamSeen`,
+  `beginAnswer`, `endAnswer`; `TeamClient.desk`, `.answer`, `.undo`; `AuthoredText` (task 53);
+  `formatWaiting` (`lib/time.ts:49`).
+- Produces: the four kinds, registered; nothing else reads them.
+
+#### `teamDesk.ts` (complete)
+
+```ts
+import type { DeskItem } from "./deskModel"; // W-62, SW.17
+import type { DecideItem, DecidedItem, HorizonItem, SinceItem, TeamDesk } from "../../store/types";
+
+export type TeamKind = "team.horizon" | "team.decide" | "team.since" | "team.decided";
+
+/** One project's batch of SINCE YOU LAST LOOKED items (decision d). */
+export interface SinceBatch { projectId: string; since: string; items: SinceItem[]; }
+
+/** Maps the snapshot's TeamDesk to DeskItems. Pure: same desk, same items, same order.
+ *  ids are the record ids (es-…, cf-…) or "since:<projectId>", so an item keeps its identity
+ *  across snapshots and the frame's hold line can tell a new arrival from a repeat. */
+export function teamDeskItems(desk: TeamDesk | null): DeskItem<
+  HorizonItem | DecideItem | SinceBatch | DecidedItem
+>[];
+
+/** Fetches desk(teamSeenAt) once when the Desk is entered and stores it with setTeamDesk.
+ *  No interval: the frame takes one snapshot per visit and never re-ranks while open
+ *  (W-62), so polling here would only build a hold line nobody asked for. */
+export function useTeamDesk(client?: TeamClient): void;
+```
+
+`DeskItem` fields for each kind, fixed here:
+
+| Kind | `id` | `arrivedAt` | `rankReason` | `ifNothing` |
+|---|---|---|---|---|
+| `team.horizon` | `conflictId` | `at` | *"two agents converge"* | *"the conflict thread continues between the two Orchestrators"* |
+| `team.decide` | `escalationId` | `at` | *"blocks your worker"* | *"if you do nothing: <default label>, at <HH:MM>"* |
+| `team.since` | `since:<projectId>` | newest item's `at` | *"from your Orchestrator"* | `""` |
+| `team.decided` | `escalationId` | `at` | *"decided without you"* | *"it stands"* |
+
+#### Row components (complete props)
+
+```tsx
+export function TeamHorizonRow(props: { item: DeskItem<HorizonItem> }): JSX.Element;
+
+/** Options as buttons, in the Hub's order; the default carries "(default)". A text answer
+ *  is not offered in TM1 (the Hub allows one, <= 300; task 55's panel is where you write). */
+export function TeamDecideRow(props: {
+  item: DeskItem<DecideItem>;
+  client?: TeamClient;
+  /** Injected for tests; 6000 in the product (decision c). */
+  undoMs?: number;
+}): JSX.Element;
+
+export function TeamSinceRow(props: { item: DeskItem<SinceBatch> }): JSX.Element;
+
+/** [Undo] calls client.undo(escalationId) once and then reads "Asked your Orchestrator to
+ *  reopen cf-…"; it never touches the other side (task 52 decision d). */
+export function TeamDecidedRow(props: { item: DeskItem<DecidedItem>; client?: TeamClient }): JSX.Element;
+```
+
+`TeamDecideRow`'s states, in order: **open** (buttons) → **chosen** (*"You chose: X · Undo"*, the
+window) → **sent** (*"You chose X at 04:12"*) or **defaulted** (decision f). A text value in any
+of these is `AuthoredText`; the option labels and consequences are `text·A`, so each carries the
+label *"Your Orchestrator (agent)"* once per row, not once per option (one agent wrote them all).
