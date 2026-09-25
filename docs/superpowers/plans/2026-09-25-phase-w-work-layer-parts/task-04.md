@@ -507,4 +507,85 @@ func (f *Fake) CreateIssue(_ context.Context, projectID string, req hubapi.Creat
 	if err := w.checkIssueLabels(p.teamID, "labels", req.Labels); err != nil {
 		return zero, err
 	}
+	id := ids.Wide(hubapi.PrefixIssue)
+	env := hubapi.IssueRevisionEnvelope{IssueID: id, Revision: 1, ProjectID: projectID, Content: content}
+	digest, _, err := hubapi.IssueRevisionDigest(env)
+	if err != nil { // past MaxEnvelopeBytes: still before the number is taken
+		return zero, contentError("", err)
+	}
+	wk := w.wk()
+	wk.numbers[projectID]++ // the last check has passed: decision (h)
+	now := w.stamp()
+	is := &fakeIssue{teamID: p.teamID, createdBy: me, notTied: req.NotTiedReason, seq: w.next(),
+		head: hubapi.IssueHead{ID: id, ProjectID: projectID, Number: wk.numbers[projectID],
+			State: state, Priority: priority, Labels: slices.Clone(req.Labels), HeadRevision: 1,
+			Source: hubapi.SourcePerson, CreatedAt: now, UpdatedAt: now}}
+	if req.AssigneeID != nil {
+		is.assignee = *req.AssigneeID
+	}
+	is.revisions = []*hubapi.IssueRevision{{IssueID: id, Revision: 1,
+		Key: hubapi.IssueKey{IssueID: id, Revision: 1}.String(), Digest: digest, ProjectID: projectID,
+		Content: content, WrittenAt: now, WrittenBy: *w.userRef(me)}}
+	wk.issues[id] = is
+	w.workEvent(me, fkEventIssueCreated, p.teamID, projectID, id, map[string]any{
+		"number": int64(is.head.Number), "key": is.revisions[0].Key, "digest": digest.String(),
+		"state": string(state), "source": string(hubapi.SourcePerson)})
+	w.subscribeOn(is, me, hubapi.SubscribeCreate)
+	if is.assignee != "" && is.assignee != me {
+		w.subscribeOn(is, is.assignee, hubapi.SubscribeAssign)
+	}
+	return w.withRevision(is), nil
+}
+```
+
+`checkIssueLabels`, `defaultState` and `subscribeOn` are part 2's rules. In this task they are
+`fake_work_stub.go`'s part-1 bodies (labels must be `[]`, as task 08's decision 8; the default
+state is `triage`; no subscription is kept); task 05 deletes that file and gives each its rule in
+`fake_work_social.go`, so no line of this block changes. `source` is `person` for every
+`CreateIssue`: task 08 names no other source for this route, and `intake` is `ImportBatch`'s
+(task 05, task 15). Whether an Orchestrator's create reads `orchestrator` is task 19's to ask of
+task 08 (UNVERIFIED; a gap below).
+
+Block 4: the reads and the head write.
+
+```go
+func (f *Fake) Issue(_ context.Context, issueID string) (hubapi.IssueWithRevision, error) {
+	w := f.w
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	me, err := f.enter("Issue", issueID)
+	if err != nil {
+		return hubapi.IssueWithRevision{}, err
+	}
+	is, _, err := w.issueOf(issueID, me)
+	if err != nil {
+		return hubapi.IssueWithRevision{}, err
+	}
+	return w.withRevision(is), nil
+}
+
+// IssueByNumber answers the same 404 for a number never taken and a project
+// the caller cannot read, as the Hub does.
+func (f *Fake) IssueByNumber(_ context.Context, projectID string, number int) (hubapi.IssueWithRevision, error) {
+	w := f.w
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	me, err := f.enter("IssueByNumber", projectID, number)
+	if err != nil {
+		return hubapi.IssueWithRevision{}, err
+	}
+	if number < 1 {
+		return hubapi.IssueWithRevision{}, badRequest("number", "An issue number is 1 or more.")
+	}
+	if _, _, err := w.projectOf(projectID, me); err != nil {
+		return hubapi.IssueWithRevision{}, err
+	}
+	for _, is := range w.wk().issues {
+		if is.head.ProjectID == projectID && is.head.Number == number {
+			return w.withRevision(is), nil
+		}
+	}
+	return hubapi.IssueWithRevision{}, problem(404, fkIssueNotFound, "There is no such issue that you can see.",
+		"number", strconv.Itoa(number))
+}
 ```
