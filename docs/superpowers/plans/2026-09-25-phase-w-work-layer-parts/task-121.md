@@ -30,26 +30,30 @@ Seven decisions the scope left open, made here.
    31st* runs on 30 September. Local wall time becomes an instant through `time.Date(…, loc)`; an
    `at` inside the hour a daylight-saving start skips runs at the first minute after it (Go leaves
    that choice unspecified, so the code normalises it and a test pins it).
-3. **Setting a schedule never backfills.** `PUT …/schedule` stores `last_run_at` as the latest
-   occurrence at or before `now`, so the first issue comes at the **next** occurrence; a person who
+3. **Setting a schedule never backfills.** `PUT …/schedule` stores `last_fired_on` (task 116's
+   column) as the local date of the latest occurrence at or before `now`, so the first issue comes at the **next** occurrence; a person who
    sets a weekly schedule on a Wednesday does not get last Monday's issue.
 4. **Missed periods make one issue.** When the Hub was down across several occurrences, the pass
    creates **one** issue, for the latest occurrence passed, and its run event says `skipped: n`
-   (the occurrences not created). The run key is `(scheduleId, occurrenceAt)`: the pass moves
-   `last_run_at` to the occurrence in the same transaction as the create, so a second run finds
-   nothing due.
+   (the occurrences not created). The run key is `(scheduleId, occurrenceAt)`, held as task 116's
+   `last_fired_on date`: every unit is a day or longer, so no two occurrences share a local date,
+   and the date names the occurrence exactly. The pass moves `last_fired_on` to the occurrence's
+   local date in the same transaction as the create, so a second run finds nothing due; `after`
+   for `dueOccurrence` is the occurrence instant on that date.
 5. **One event per changed record, and whose rule it was.** A recurring create changes two
    records, the issue and the schedule, so it appends two events: task 13's `issue.created`
    (`source: "recurring"`, `actor: null`) and `template.schedule_ran {templateId, issueId,
    occurrenceAt, skipped, by}` on the schedule, where `by` is the person who set it. The scope asks
    for *"the author in `data`"* of the created issue's event; `IssueCreatedData` is W1's
    (`task-13.md:142-148`) and has no such field, so the author rides on the schedule's event
-   instead of changing a W1 type. A reminder changes the policy (`last_reminded_at`) and appends
+   instead of changing a W1 type. A reminder changes the policy (116's `last_reminded_on`) and appends
    `update.reminder`; a handover changes the rotation (`last_handover_on`) and appends
    `triage.handover`. Every janitor event has `actor: null` (the Hub's rule, `H24:92`).
 6. **Days are whole 24-hour spans for reminders, local dates for the rotation.** `daysSince` is
    `floor((now − since) / 24 h)`, with `since` the subject's latest update (task 119's
-   `LatestUpdateAt`, erased updates included) or the policy's creation when there is none. A
+   `LatestUpdateAt`, erased updates included) or, when there is none, the policy's `updated_at`
+   (116 keeps no `created_at`, so re-setting a policy restarts its clock, which is what a person
+   re-setting it means). A
    rotation's period boundaries are local midnights; T114's `TriageRotation` has no zone, so
    **G1** also adds `tz` (optional, default `"UTC"`).
 7. **Duty is derived on read over current members.** `members` filtered to those still in the team,
@@ -107,10 +111,12 @@ everything it makes. Decisions 3 and 4 and the per-period `last_*` columns are t
 | `triage.rotation_set` | team | `tm-` | `{members, periodDays, startsOn, tz}` (`members` a count) |
 | `triage.handover` | team | `tm-` | `{from, to, skipped, by}` |
 
-**G3, task 116:** the three tables must carry `work_template_schedules.last_run_at timestamptz`
-(the scope says so), `work_reminder_policies.last_reminded_at timestamptz NULL` and
-`created_at`, and `work_triage_rotations.last_handover_on date NULL`. If 116's part omits them,
-116 adds them; this task appends no migration.
+**G3, task 116.** 116's part (in progress at this writing) already carries
+`work_template_schedules.last_fired_on date` and `updated_by`, and
+`work_reminder_policies.last_reminded_on date` and `updated_by`; this part uses them as named.
+It lacks two columns this task needs: `work_template_schedules.starts_on date` (G1's anchor) and
+`work_triage_rotations.last_handover_on date NULL` and `tz text` (decisions 6 and 7). 116 adds
+them; this task appends no migration.
 
 #### The occurrence rule (`server/recur.go`, complete)
 
@@ -202,18 +208,20 @@ func sweepWorkW4(ctx context.Context, tx *Tx, org string, now time.Time, r *Swee
 }
 
 // passRecurring: for each schedule of a live issue template, dueOccurrence
-// after last_run_at. If due: task 78's prefill copy of the template into task
-// 08's create, state "triage", source "recurring", created_by the schedule's
-// author, Actor nil; emit issue.created; UPDATE last_run_at = the occurrence;
-// emit template.schedule_ran{issueId, occurrenceAt, skipped, by}. A template
-// archived since the schedule was set is skipped, and the schedule stays.
+// after the occurrence on last_fired_on. If due: task 78's prefill copy of the
+// template into task 08's create, state "triage", source "recurring",
+// created_by the schedule's updated_by, Actor nil; emit issue.created; UPDATE
+// last_fired_on = the occurrence's local date; emit template.schedule_ran
+// {issueId, occurrenceAt, skipped, by}. A template archived since the schedule
+// was set is skipped, and the schedule stays.
 func passRecurring(ctx context.Context, tx *Tx, now time.Time, r *SweepReport) error
 
 // passReminders: for each policy, since = LatestUpdateAt(subject) or the
-// policy's created_at; daysSince = floor(now−since / 24h). Due when
-// daysSince >= everyDays and (last_reminded_at is null or last_reminded_at <
-// since or now − last_reminded_at >= everyDays·24h). If due: UPDATE
-// last_reminded_at = now; emit update.reminder{subjectKind, lead, daysSince, by}.
+// policy's updated_at; daysSince = floor(now−since / 24h). Due when
+// daysSince >= everyDays and (last_reminded_on is null, or before since's
+// UTC date, or at least everyDays days before today's UTC date). If due:
+// UPDATE last_reminded_on = today (UTC); emit update.reminder{subjectKind,
+// lead, daysSince, by}.
 // The lead is the feature's lead (task 76) or the initiative's owner (task 118);
 // a subject that is done or cancelled is skipped, and its policy stays.
 func passReminders(ctx context.Context, tx *Tx, now time.Time, r *SweepReport) error
@@ -257,26 +265,28 @@ Task 124 names it `server.RunJanitorOnce(ctx, clk.Now())`; its end to end must b
 ```go
 package store
 
+// Field names follow task 116's columns: every_n, every_unit, at_time, tz,
+// last_fired_on, updated_at, updated_by (By), and G3's starts_on.
 type ScheduleRow struct {
 	TemplateID, TeamID, By string
 	N                      int
-	Unit, At, TZ, StartsOn string
-	LastRunAt              time.Time
+	Unit, At, TZ, StartsOn string  // At "HH:MM"; StartsOn "YYYY-MM-DD"
+	LastFiredOn            *string // "YYYY-MM-DD" in TZ; nil before the first occurrence
 }
 func PutSchedule(ctx context.Context, tx pgx.Tx, s ScheduleRow) error // upsert on template_id
 func DeleteSchedule(ctx context.Context, tx pgx.Tx, templateID string) (deleted bool, err error)
 func DueSchedules(ctx context.Context, q Querier) ([]ScheduleRow, error) // every row of the org; the pass filters
-func SetLastRun(ctx context.Context, tx pgx.Tx, templateID string, at time.Time) error
+func SetLastFired(ctx context.Context, tx pgx.Tx, templateID, localDate string) error
 
 type ReminderRow struct {
 	SubjectKind, SubjectID, TeamID, ProjectID, By string // ProjectID "" for an initiative
 	EveryDays                                     int
-	CreatedAt                                     time.Time
-	LastRemindedAt                                *time.Time
+	UpdatedAt                                     time.Time
+	LastRemindedOn                                *string // "YYYY-MM-DD", UTC
 }
 func PutReminderPolicy(ctx context.Context, tx pgx.Tx, r ReminderRow) error // upsert on the subject
 func ReminderPolicies(ctx context.Context, q Querier) ([]ReminderRow, error)
-func SetLastReminded(ctx context.Context, tx pgx.Tx, subjectKind, subjectID string, at time.Time) error
+func SetLastReminded(ctx context.Context, tx pgx.Tx, subjectKind, subjectID, utcDate string) error
 
 type RotationRow struct {
 	TeamID, By, StartsOn, TZ string
@@ -305,14 +315,14 @@ mux.HandleFunc("GET /v1/teams/{teamId}/triage-rotation", s.getRotation)
   "templateId"`, `reason` `org_template` or `not_issue_template` (a recurring issue needs one team
   and an issue shape); the caller a team admin (403 `required: admin`); `TemplateSchedule` decoded,
   `templateId` absent or equal to the path; T114's `Validate`; `time.LoadLocation(tz)` succeeds
-  (else 422 `field: "tz"`); `startsOn` defaulted (decision 2); `last_run_at` set by decision 3;
+  (else 422 `field: "tz"`); `startsOn` defaulted (decision 2); `last_fired_on` set by decision 3;
   `PutSchedule`; one `template.schedule_set`; 200 `TemplateSchedule`. **`deleteSchedule`**: the
   same read and admin checks; deleted → one `template.schedule_cleared`, 204; absent → 204, no
   event.
 - **`putReminderPolicy`**: the subject readable as a member (404 `feature_not_found` or
   `initiative_not_found`); the caller the feature's lead, the initiative's owner or a team admin
   (403 `required: lead`); `everyDays` 1-90 (T114); `PutReminderPolicy` (an existing policy is
-  replaced and its `last_reminded_at` kept); one `reminder.policy_set`; 200 `ReminderPolicy`.
+  replaced and its `last_reminded_on` kept); one `reminder.policy_set`; 200 `ReminderPolicy`.
   There is no delete route in T114's table; a policy is paused by setting `everyDays: 90`, and a
   delete route is a gap listed below.
 - **`putRotation`**: team admin; every member a **current** member of the team (422
@@ -420,6 +430,7 @@ does at compile time, this one becomes `TestTheW4JanitorRespectsTheOrg` and the 
 
 **Gaps for the skeleton and siblings:** G1 (`TemplateSchedule.startsOn`, `TriageRotation.tz`,
 `TriageRotationView.onDuty` as a pointer, `rotation_not_found`) and G2 (seven kinds) belong to task
-114; G3 (`last_run_at`, `last_reminded_at`, `created_at`, `last_handover_on`) to task 116; T114 has
+114; G3 (`work_template_schedules.starts_on`, `work_triage_rotations.last_handover_on` and `tz`)
+to task 116, which already carries `last_fired_on` and `last_reminded_on`; T114 has
 no route to delete a reminder policy; task 124's `RunJanitorOnce` call needs `st` and `blobs` or a
 package-`server` test.

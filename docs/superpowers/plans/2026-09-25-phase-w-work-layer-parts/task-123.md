@@ -154,7 +154,7 @@ func Cursor(ctx context.Context, q Querier, userID string, s hubapi.ScopeRef) (i
 
 // AdvanceCursor is decision 2 in one statement:
 //   INSERT INTO work_read_cursors (org_id, user_id, scope_kind, scope_id, seq, updated_at)
-//   VALUES (…) ON CONFLICT (org_id, user_id, scope_kind, scope_id)
+//   VALUES (…) ON CONFLICT (user_id, scope_kind, scope_id)   -- task 116's primary key
 //   DO UPDATE SET seq = GREATEST(work_read_cursors.seq, EXCLUDED.seq),
 //                 updated_at = CASE WHEN EXCLUDED.seq > work_read_cursors.seq
 //                                   THEN EXCLUDED.updated_at ELSE work_read_cursors.updated_at END

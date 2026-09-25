@@ -119,8 +119,8 @@ CREATE TABLE work_update_pins (
   org_id       text NOT NULL,
   note_id      text NOT NULL REFERENCES work_update_meta (note_id),
   ord          int  NOT NULL CHECK (ord >= 0 AND ord < 50),
-  feature_id   text NOT NULL REFERENCES work_features (id),
-  pinned_brief text NOT NULL CHECK (pinned_brief ~ '^brief:bf-[0-9a-f]{16}@[1-9][0-9]*$'),
+  feature_id   text NOT NULL REFERENCES features (id),
+  pinned_brief text NOT NULL CHECK (pinned_brief ~ '^brief:bf-[0-9a-f]{16}@[1-9][0-9]{0,8}$'),
   PRIMARY KEY (org_id, note_id, ord),
   UNIQUE (org_id, note_id, feature_id)
 );
@@ -137,10 +137,11 @@ CREATE TRIGGER work_update_pins_immutable
   FOR EACH ROW EXECUTE FUNCTION guard_work_update_meta();
 ```
 
-The table name `work_features`, the key regex and the guard function's name
-`guard_work_update_meta` are task 116's and task 02's (`brief:` keys: Hub key grammar, `bf-` + 16
-hex, **UNVERIFIED** against `hubapi/keys.go` until the build) and are renamed mechanically at build
-time if those parts chose others. No `DELETE` grant: an update and its pins are never deleted, and
+The table `features`, the key regex and the guard `guard_work_update_meta` are read from task
+116's part (in progress at this writing: its `work_update_meta` uses the same regex and
+`REFERENCES features (id)`); the key shape is the Hub's (`bf-` + 16 hex, **UNVERIFIED** against
+`hubapi/keys.go` until the build). Names are renamed mechanically at build time if 116 changes
+them. No `DELETE` grant: an update and its pins are never deleted, and
 erase touches only the note's text (`TM46:191`). `org_id` is written from `hub.org_id` by the store,
 as every Hub table.
 
