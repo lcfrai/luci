@@ -14,7 +14,9 @@ a frame: it copies them, as the control plane does (`internal/api/attach.go:212-
 **Files:**
 - `control-plane/internal/brokerapi/wire.go` — request/response types (new)
 - `control-plane/cmd/broker/sandboxes.go`, `attach.go`, `machinecheck.go`, `capacity.go` and their tests (new)
-- `control-plane/cmd/broker/server.go` — the five routes join the table (modify)
+- `control-plane/cmd/broker/sandboxgit.go`, `sandboxgit_test.go` — the sandbox git route (env R4
+  ruling 1) and the runner-only admission (ruling 2) (new)
+- `control-plane/cmd/broker/server.go` — the six routes join the table (modify)
 - `control-plane/internal/backend/backend.go` — `KubeLabelControlPlane`, `Spec.ControlPlane` and
   its `ValidateSpec` rule (modify; review I6), and the `MaxMessageBytes` comment at `:29-37`, which
   step 3 updates to name five sites (review m3)
@@ -122,6 +124,37 @@ destroy the first laptop's running cloud sessions within one reap interval.
 | `GET /v1/sandboxes/{id}` | `200` + `Sandbox` | `sandbox_not_found` 404 — also for another owner's id |
 | `DELETE /v1/sandboxes/{id}` | `204`, also when it did not exist (katabe's `Destroy` is idempotent, `kata.go:243-257`) | `backend_unavailable` 503 |
 | `GET /v1/sandboxes/{id}/attach` | `101` WebSocket, then frames both ways | before the upgrade, as HTTP: `bad_request` 400 (no `Panacea-Attach-Token`) · `sandbox_not_found` 404 · `sandbox_not_running` 409 · `attach_rejected` 403 (sandboxd said 401) · `backend_unavailable` 503 |
+| `POST /v1/sandboxes/{id}/git/v1/{op}` (env R4 ruling 1) | the runner's answer as received: status, `Content-Type`, body | before the proxy, as attach's: `bad_request` 400 (no `Panacea-Attach-Token`, or `{op}` not one segment of `^[a-z-]{1,16}$`) · `sandbox_not_found` 404 (another owner's id too) · `sandbox_not_running` 409 · `attach_rejected` 403 (sandboxd said 401) · `backend_unavailable` 503. In the **runner's** envelope (`{"code":…}`, phase-3 `task-24.md:194-202`): `413 too_large` (a request past its cap) · `504 git_timeout` (the deadline, before any header) |
+
+**Sandbox git, in order (env R4 ruling 1, `.superpowers/sdd/env/r4-env-rulings.md`).** Lane git
+reaches phase 3's runner, `sandboxd`'s `/git/v1/`, in the one pod that mounts the lane.
+1. Steps 1 and 2 of attach below: the token header, then owner-scoped `katabe` lookup, so another
+   owner's id is 404 and the pod sees nothing.
+2. `POST http://<podIP>:8080/git/v1/<op>` with `Authorization: Bearer <attach token>` and the
+   caller's `Content-Type`; no other caller header, the realm token never. The request names no
+   directory, and the broker adds none (phase-3 `task-24.md:91-94`).
+3. **Caps, per direction** (phase-3 `task-24.md:91-93`, `:365-370`): `fetch` request
+   `MaxBundleBytes`, response `MaxJSONBytes`; `bundle` request `MaxJSONBytes`, response
+   `MaxBundleBytes`; every other op `MaxJSONBytes` both ways. The values are phase 3's host copies
+   (`lanegit`, which declares the same four, `:361`); tests lower them through the handler's
+   fields. Both directions stream through `io.Copy` over an `io.LimitReader` of cap + 1, never
+   buffered. A request past its cap is `413` in the runner's envelope, so phase 3's client
+   decodes a `RunnerError{413, "too_large"}` (`:388`), not "the runner did not answer"
+   (`:582-583`). A response past its cap is cut: the status is sent, so the broker stops and
+   aborts the stream; phase 3's client stops at the same cap (`:568-569`).
+4. Deadline: the op's timeout (`ReadTimeout`, or `BundleTimeout` for `bundle` and `fetch`) plus
+   5 s (`:366-369`, `:577-578`). Past it before a header, `504` `{"code":"git_timeout"}`.
+5. sandboxd's `401` is `403 attach_rejected`; every other answer passes through unchanged.
+
+**Runner-only admission (env R4 ruling 2).** A create with `SessionID` `""`, `Machine` set, and
+`MachineMounts` exactly one `lanes/<p>/<d>` at `/home/dev/work`, not read-only, is a runner-only
+pod (phase 3's pool step 2, phase-3 `task-24.md:678-684`, sent by task 25b). It runs the same
+image, affinity and fresh attach token as a session. Its resources are two new `Cfg` fields read
+where `SESSION_*` is, `PANACEA_APP_BROKER_RUNNER_CPU_MILLIS` and `…_RUNNER_MEMORY_MIB`, default
+`500` and `1024`, whatever the body asks: the smallest the broker admits (arithmetic,
+**UNVERIFIED**; task 32's P07 measures). It counts against the per-user cap
+and `machine_full` like any pod. A `projects/…` mount is `400 bad_request` from `ValidateSpec`
+(task 15, R4.1), for sessions and runners alike.
 
 **Create, in order:** decode → owner from the principal → `Image` "" or equal to the configured
 digest, then set to it → resources: 0 means the default (`Cfg`'s `SESSION_*`, the balloon's size,
@@ -346,6 +379,19 @@ the key).
 | `TestKeepalivePingsTheCaller` | with a 50 ms test interval, the caller observes pings while idle | idle sockets cut by the edge |
 | `TestShutdownClosesRelaysWith1001` | cancelling the server context → the caller sees status 1001 | a silent drop remotebe cannot tell from a crash |
 
+`sandboxgit_test.go` (a stand-in sandboxd on `httptest`, recording each request; caps and
+timeouts lowered through the handler's fields):
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestSandboxGitRelaysByteForByte` | a `fetch` with a 64 KiB random body: the stand-in saw `POST /git/v1/fetch`, those bytes, the `Content-Type`, and `Authorization: Bearer <attach token>` only; its `422 {"code":"git_failed","gitSays":"fatal: x"}` answer and a `bundle`'s 64 KiB body reach the caller unchanged, status and bytes | a re-mapped runner error; a body rewritten or truncated; the realm token forwarded |
+| `TestSandboxGitAnotherOwnersIdIs404` | owner B on A's running id → `404 sandbox_not_found`; the stand-in saw nothing | the owner filter skipped on the git route |
+| `TestSandboxGitRefusesBeforeTheProxy` | no token header → 400; `{op}` `../healthz` or `a/b` → 400; a stopped sandbox → `409 sandbox_not_running`; the stand-in saw nothing | a path smuggled into the pod; a proxy to a pod that is not running |
+| `TestSandboxGitRejectedTokenIs403` | the stand-in answers 401 → `403 attach_rejected` | sandboxd's 401 passed through, where it reads as the broker's own 401 |
+| `TestSandboxGitCapsEachDirection` | cap `C`: a `fetch` body of `C` → proxied, `C + 1` → `413 {"code":"too_large"}`, `application/json`; a `status` body past the JSON cap → the same 413; a `bundle` answer of `C + 1` → the caller reads at most `C` bytes, then an error; a `fetch` answer past the JSON cap → cut the same way | the bundle cap on the wrong direction; a 413 in the httpx envelope, which phase 3's client reads as "did not answer" |
+| `TestSandboxGitDeadlineIsTheOpsTimeoutPlusFive` | with `ReadTimeout` 50 ms and the 5 s slack lowered to 50 ms, a stand-in that never answers `status` → `504 {"code":"git_timeout"}` between 100 ms and 1 s; `fetch` waits `BundleTimeout` + slack | one deadline for every op; no deadline |
+| `TestCreateAdmitsARunnerOnlySpecAtRunnerSize` | `SessionID ""`, `Machine` set, one `lanes/p-1/d-0a1b2c` mount at `/home/dev/work` → 201, the pod's requests and limits are `500m` / `1024Mi` though the body asked more; the same with a second (`conversations/…`) mount → the session size; a `projects/app` mount → `400 bad_request` naming R4.1 | a runner-only pod sized as a session, taking a session's place on the machine; detection keyed on `SessionID` alone |
+
 #### Steps
 
 - [ ] **Step 1:** `wire.go`; the tests; they fail to compile.
@@ -381,6 +427,19 @@ the key).
   `TestCreateWithoutAControlPlaneIs400`; the `?controlPlane` selector dropped →
   `TestListFiltersByControlPlane`; the label written on the Secret only, not the pod →
   `TestCreateStampsTheControlPlane`.
+- [ ] **Step 2c (env R4 review 1, C2):** `sandboxgit.go` after its tests, each shown red first.
+  Mutation check, the same way: the owner-scoped lookup replaced by an unscoped one →
+  `TestSandboxGitAnotherOwnersIdIs404`; sandboxd's 401 passed through →
+  `TestSandboxGitRejectedTokenIs403`; the bundle cap applied to `fetch`'s response instead of its
+  request → `TestSandboxGitCapsEachDirection`; the request 413 written with `httpx` →
+  the same test (its content check); one deadline for every op →
+  `TestSandboxGitDeadlineIsTheOpsTimeoutPlusFive`; runner-only detection on `SessionID ""` alone →
+  `TestCreateAdmitsARunnerOnlySpecAtRunnerSize`. The two named beforehand as likeliest to survive:
+  a body buffered with `io.ReadAll` before the cap (every test body fits in memory; nothing but a
+  heap profile sees it, so it is closed by review of `sandboxgit.go`, which must hold no
+  `ReadAll`: `git grep -n ReadAll -- control-plane/cmd/broker/sandboxgit.go` prints nothing), and
+  the `{op}` segment check (the pod's own mux would 404 `../healthz` anyway), killed only by the
+  stand-in's "saw nothing" assertion.
 - [ ] **Step 3:** Update the `MaxMessageBytes` comment in `backend.go:29-37` to name five sites.
 - [ ] **Step 4:** Full test run under `-race`; commit.
 
