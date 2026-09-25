@@ -1336,3 +1336,91 @@ func move(to hubapi.IssueState, cause hubapi.MoveCause) hubapi.StateMove {
 
 const commitA, commitB = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 ```
+
+Block 2: numbers, roles, the key, and the one event of a create.
+
+```go
+// Mutant: the counter read or bumped outside the lock (a number repeats or is
+// skipped); and a refused create that takes a number anyway.
+func TestIssueNumbersAreGaplessUnderRace(t *testing.T) {
+	r := newWorkRig(t)
+	bad := chore("elsewhere")
+	bad.Serves, bad.NotTiedReason = []hubapi.Serve{{BriefKey: "brief:bf-0000000000000000@1", CriterionID: "c1"}}, ""
+	_, err := r.grace.CreateIssue(bg, r.p.ID, bad)
+	wantProblem(t, err, 422, hubapi.CodeKeyUnresolvable, "field", "serves[0]")
+	got, errs := make([]int, 20), make([]error, 20)
+	var wg sync.WaitGroup
+	for i := range got {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			iw, err := r.grace.CreateIssue(bg, r.p.ID, chore("n"))
+			got[i], errs[i] = iw.Head.Number, err
+		}()
+	}
+	wg.Wait()
+	noErr(t, errors.Join(errs...))
+	slices.Sort(got)
+	for i, n := range got {
+		if n != i+1 {
+			t.Fatalf("numbers = %v, want 1 to 20, each once", got)
+		}
+	}
+}
+
+// Mutant: a missing role check on create, on the key, or a 403 that tells an
+// outsider the issue exists.
+func TestWorkRolesAreChecked(t *testing.T) {
+	r := newWorkRig(t)
+	_, err := r.linus.CreateIssue(bg, r.p.ID, chore("viewer"))
+	wantProblem(t, err, 403, hubapi.CodeForbidden, "required", "member")
+	_, err = r.grace.SetProjectKey(bg, r.p.ID, "EP")
+	wantProblem(t, err, 403, hubapi.CodeForbidden, "required", "admin")
+	is := must(r.grace.CreateIssue(bg, r.p.ID, chore("mine")))(t)
+	out := r.f.As(FakeUser{ID: "u-00000000000000a4", DisplayName: "Out Sider", Email: "out@example.test"})
+	_, err = out.Issue(bg, is.Head.ID)
+	wantProblem(t, err, 404, fkIssueNotFound, "issueId", is.Head.ID)
+}
+
+// Mutant: a stored alias (a key change leaves PAY-142 reading EP-142), or a key
+// change that rewrites a revision key; and a second key event for the same key.
+func TestAKeyChangeChangesAliasesNotKeys(t *testing.T) {
+	r := newWorkRig(t)
+	must(r.ada.SetProjectKey(bg, r.p.ID, "EP"))(t)
+	var last hubapi.IssueWithRevision
+	for range 142 {
+		last = must(r.grace.CreateIssue(bg, r.p.ID, chore("n")))(t)
+	}
+	if last.Head.Alias != "EP-142" {
+		t.Fatalf("alias = %q, want EP-142", last.Head.Alias)
+	}
+	must(r.ada.SetProjectKey(bg, r.p.ID, "PAY"))(t)
+	must(r.ada.SetProjectKey(bg, r.p.ID, "PAY"))(t) // the same key: no write
+	got := must(r.grace.IssueByNumber(bg, r.p.ID, 142))(t)
+	if got.Head.Alias != "PAY-142" || got.Revision.Key != last.Revision.Key || got.Head.HeadKey != last.Head.HeadKey {
+		t.Errorf("after the rename: alias %q, key %q, headKey %q; want PAY-142 and the keys unchanged",
+			got.Head.Alias, got.Revision.Key, got.Head.HeadKey)
+	}
+	if n := len(eventsOf(t, r.ada, "project.key_set")); n != 2 {
+		t.Errorf("project.key_set events = %d, want 2", n)
+	}
+	other := withProject(t, r.ada, r.team.ID, "Refunds")
+	_, err := r.ada.SetProjectKey(bg, other.ID, "PAY")
+	wantProblem(t, err, 409, fkProjectKeyTaken, "key", "PAY", "projectId", r.p.ID)
+}
+
+// Mutant: head and revision 1 emitted as two events (issue.created and
+// issue.revised), or an event whose key is the alias.
+func TestACreateIsOneIssueEvent(t *testing.T) {
+	r := newWorkRig(t)
+	must(r.ada.SetProjectKey(bg, r.p.ID, "EP"))(t)
+	is := must(r.grace.CreateIssue(bg, r.p.ID, chore("one")))(t)
+	evs := eventsOf(t, r.ada, "issue.")
+	if len(evs) != 1 || evs[0].Kind != fkEventIssueCreated || evs[0].Subject != is.Head.ID {
+		t.Fatalf("issue events = %+v, want one issue.created for %s", evs, is.Head.ID)
+	}
+	if evs[0].Data["key"] != is.Revision.Key || evs[0].Data["digest"] != is.Revision.Digest.String() {
+		t.Errorf("data = %v, want the revision key and digest", evs[0].Data)
+	}
+}
+```
