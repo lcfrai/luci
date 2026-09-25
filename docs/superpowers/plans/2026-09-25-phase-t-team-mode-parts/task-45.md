@@ -90,7 +90,8 @@ exactly, so a later role added to `id-hub` fails the plan.
   (Hub `task-14.md:140-178`); Hub task 27's `audit` verify check and its org walk by
   `hub.org_ids()` (Hub `task-27.md:48-61`); Hub task 24's advisory-lock loop; Hub task 08's verify
   runner (`ok <name>` / `FAULT <name>: <what>`, Hub `task-08.md:264-266`); `hubapi.AuditEnvelope`
-  and `ParseAuditEnvelope` (real, `hubapi/envelope.go:264-276` at `9f2fa31`); phase 8 task 04's
+  and `ParseAuditEnvelope` and `ChainHash` (real: `hubapi/envelope.go:266`, `:337`, `:380` at
+  `9f2fa31`); phase 8 task 04's
   workspace and task 10's `id-hub`.
 - Produces: `auditsink.Sink`, `auditsink.Anchors`, `auditsink.Fake`, `auditsink.EventRecord`,
   `auditsink.AnchorRecord`, `auditsink.FromRow`; `server.StreamOnce`, `server.AnchorOnce`,
@@ -135,4 +136,94 @@ type AnchorRecord struct {
 	StreamedSeq   int64  `json:"StreamedSeq"` // the stream cursor at the same moment
 	Replica       string `json:"Replica"`     // the pod name, for the missing-anchor rule
 }
+
+// StreamEnums is every (kind, key) whose string value may leave. Each value is
+// an enum or a GUID in the contract (§8, Phase T task 01's rows). Anything not
+// here leaves as its key's name only. Adding a pair needs the contract row
+// that makes its value an enum, cited in the comment beside it.
+var StreamEnums = map[string][]string{
+	"team.member_set":       {"role"},                               // §8: {"role"}
+	"team.invite_bound":     {"role"},                               // §8: {"userId","role"}
+	"brief.revised":         {"status"},                             // §8: {…,"status"}
+	"brief.created":         {"scope"},                              // §8: {"scope","branchRef"}
+	"release.reserved":      {"kind", "environment", "pinStatus"},   // §8
+	"evidence.recorded":     {"verdict"},                            // §8
+	"auth.user_provisioned": {"tenantId"},                           // §8: a GUID
+	"auth.forbidden":        {"required"},                           // §8: a role name
+	"delegation.revoked":    {"reason"},                             // task 01: RevokeReason, task-03.md:110-115
+}
+
+// enumValue is the grammar an allowed string must also match: a lowercase
+// word or words with "_" or "-", at most 40, or a GUID. A value outside it is
+// withheld and counted, so a contract change that puts text in an "enum" key
+// leaks nothing and shows up as Dropped > 0.
+var enumValue = regexp.MustCompile(`^([a-z][a-z0-9_-]{0,39}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$`)
+
+// FromRow maps one committed audit row. It parses canonical with
+// hubapi.ParseAuditEnvelope only to read Data; the envelope's text never
+// reaches the record. hash and prevHash are the row's columns.
+func FromRow(canonical []byte, hash, prevHash [32]byte, feed bool) (EventRecord, error) {
+	e, err := hubapi.ParseAuditEnvelope(canonical)
+	if err != nil {
+		return EventRecord{}, err
+	}
+	r := EventRecord{
+		TimeGenerated: e.At, OrgID: e.OrgID, Seq: e.Seq, Kind: e.Event, Feed: feed,
+		TeamID: e.TeamID, ProjectID: e.ProjectID, Subject: e.Subject, ActorUserID: e.ActorUserID,
+		Hash: hex.EncodeToString(hash[:]), PrevHash: hex.EncodeToString(prevHash[:]),
+		DataKeys: slices.Sorted(maps.Keys(e.Data)), DataValues: map[string]any{},
+	}
+	allowed := StreamEnums[e.Event]
+	for k, v := range e.Data {
+		switch v := v.(type) {
+		case int64, bool:
+			r.DataValues[k] = v
+		case string:
+			if slices.Contains(allowed, k) && enumValue.MatchString(v) {
+				r.DataValues[k] = v
+			} else {
+				r.Dropped++
+			}
+		default:
+			r.Dropped++
+		}
+	}
+	return r, nil
+}
+```
+
+`Subject` leaves as it is: contract §8 makes it an id, a route pattern or a `sha256:` digest for
+every kind (Hub contract `:1137-1163`), never text. `TestEverySubjectIsAnIdentifier` below holds
+that against every kind a test run emits.
+
+```go
+// control-plane/internal/hub/auditsink/sink.go
+package auditsink
+
+// Sink sends records to one stream. It returns nil only on a 2xx for the
+// whole batch; the caller does not advance its cursor otherwise.
+type Sink interface {
+	SendEvents(ctx context.Context, recs []EventRecord) error
+	SendAnchors(ctx context.Context, recs []AnchorRecord) error
+}
+
+// Anchors reads back what was sent, for hub verify. since bounds the window
+// to the workspace's retention.
+type Anchors interface {
+	AnchorsOf(ctx context.Context, orgID string, since time.Time) ([]AnchorRecord, error)
+	EventsOf(ctx context.Context, orgID string, since time.Time) ([]EventRecord, error)
+}
+
+// Fake keeps everything in memory, is both a Sink and Anchors, and can fail
+// on demand. Sent records are stored as their JSON, so a test can search the
+// exact bytes that would have left the Hub.
+type Fake struct {
+	mu      sync.Mutex
+	Events  []EventRecord
+	Anchs   []AnchorRecord
+	Wire    [][]byte // every batch body as marshalled
+	FailN   int      // the next FailN sends return an error
+}
+
+func NewFake() *Fake
 ```
