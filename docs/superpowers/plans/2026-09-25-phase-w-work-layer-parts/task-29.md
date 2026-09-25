@@ -116,7 +116,7 @@ export function AgentGlyph(props: { status: AgentStatus; size?: GlyphSize; label
         <path
           key={s.d}
           d={s.d}
-          className={s.part === "fill" && live ? "gl-agent-core gl-agent-live" : `gl-agent-${s.part}`}
+          className={s.part === "fill" && live ? "gl-agent-fill gl-agent-live" : `gl-agent-${s.part}`}
           style={s.part === "fill" && live ? beatDelayStyle() : undefined}
           aria-hidden={s.part === "fill" && live ? true : undefined}
         />
@@ -126,7 +126,102 @@ export function AgentGlyph(props: { status: AgentStatus; size?: GlyphSize; label
 }
 ```
 
-The whole `<svg>` is the image and its `label` is its text; the breathing core carries
+Each part is `ring` (stroked, no fill) or `fill` (solid, no stroke); only a running glyph's fill
+part, its core disc, breathes. The whole `<svg>` is the image and its `label` is its text; the
+breathing core carries
 `aria-hidden` as well, so no assistive technology reading the tree child by child announces a
 pulse. The component calls `beatDelayStyle()` once per render and never subscribes to the
 heartbeat, so a running glyph re-renders only when its props change.
+
+#### Interfaces — complete: `MarkGlyph.tsx`
+
+```tsx
+import type { JSX } from "react";
+import { MARK_PATHS } from "./paths";
+import type { GlyphSize } from "./StateGlyph";
+import "./glyphs.css";
+
+/** SW.12. Three marks that are not states: a selection, an escalation, a thread node. */
+export type MarkKind = "selected" | "needs_you" | "thread_node";
+
+const MARK_CLASS: Record<MarkKind, string> = {
+  selected: "gl-mark-selected",
+  needs_you: "gl-mark-need",
+  thread_node: "gl-mark-node",
+};
+const MARK_LABEL: Record<MarkKind, string> = {
+  selected: "Selected",
+  needs_you: "Needs you",
+  thread_node: "Provenance thread",
+};
+
+export function MarkGlyph(props: { kind: MarkKind; size?: GlyphSize; lit?: boolean }): JSX.Element {
+  const { kind, size = 16, lit = false } = props;
+  const classes = ["gl", `gl-${size}`, "gl-mark", MARK_CLASS[kind]];
+  // Lit means "this carries the thread you are pointing at" (02 C2); only a node can be lit.
+  if (lit && kind === "thread_node") classes.push("gl-mark-lit");
+  return (
+    <svg
+      className={classes.join(" ")}
+      width={size}
+      height={size}
+      viewBox={`0 0 ${size} ${size}`}
+      role="img"
+      aria-label={MARK_LABEL[kind]}
+      data-glyph={`mark:${kind}`}
+      focusable="false"
+    >
+      {MARK_PATHS[size][kind].map((s) => <path key={s.d} d={s.d} />)}
+    </svg>
+  );
+}
+```
+
+A mark has no `label` prop because each means one thing. Its caller adds the words the mark
+stands beside: "Needs you: approve the migration" is the row's text, and the mark is its shape.
+
+#### Interfaces — complete: appended to `paths.ts`
+
+`AgentStatus` and `MarkKind` join the file's type imports. Every path below was drawn with the
+issue set, from the same clean-room rule, and shares no `d` string with it (a test holds that).
+
+```ts
+/** One part of an agent glyph: a stroked ring, or a solid fill. */
+export interface AgentPart { d: string; part: "ring" | "fill" }
+
+export const AGENT_PATHS: Record<GlyphSize, Record<AgentStatus, readonly AgentPart[]>> = {
+  16: {
+    starting: [{ part: "ring", d: "M3.5 8a4.5 4.5 0 1 0 9 0a4.5 4.5 0 1 0-9 0" }],
+    running:  [{ part: "ring", d: "M2.75 8a5.25 5.25 0 1 0 10.5 0a5.25 5.25 0 1 0-10.5 0" },  // 1px, gap 1.75
+               { part: "fill", d: "M5 8a3 3 0 1 0 6 0a3 3 0 1 0-6 0" }],
+    idle:     [{ part: "fill", d: "M4 8a4 4 0 1 0 8 0a4 4 0 1 0-8 0" }],
+    exited:   [{ part: "fill", d: "M5 4h6a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z" }],
+    failed:   [{ part: "fill", d: "M5 4h4l3 3v4a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z" }],
+  },
+  14: {
+    starting: [{ part: "ring", d: "M3.1 7a3.9 3.9 0 1 0 7.8 0a3.9 3.9 0 1 0-7.8 0" }],
+    running:  [{ part: "ring", d: "M2.4 7a4.6 4.6 0 1 0 9.2 0a4.6 4.6 0 1 0-9.2 0" },          // 1px, gap 1.5
+               { part: "fill", d: "M4.4 7a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0-5.2 0" }],
+    idle:     [{ part: "fill", d: "M3.5 7a3.5 3.5 0 1 0 7 0a3.5 3.5 0 1 0-7 0" }],
+    exited:   [{ part: "fill", d: "M4.4 3.5h5.2a.9.9 0 0 1 .9.9v5.2a.9.9 0 0 1-.9.9H4.4a.9.9 0 0 1-.9-.9V4.4a.9.9 0 0 1 .9-.9Z" }],
+    failed:   [{ part: "fill", d: "M4.4 3.5h3.6l2.5 2.5v3.6a.9.9 0 0 1-.9.9H4.4a.9.9 0 0 1-.9-.9V4.4a.9.9 0 0 1 .9-.9Z" }],
+  },
+};
+
+export const MARK_PATHS: Record<GlyphSize, Record<MarkKind, readonly Stroke[]>> = {
+  16: {
+    selected:    [{ d: "M3.75 8.5 6.5 11.25 12.25 5" }],
+    needs_you:   [{ d: "M8 3.25v6M8 12.4v.2" }],        // a bar and a round-capped dot: "!"
+    thread_node: [{ d: "M6 8a2 2 0 1 0 4 0a2 2 0 1 0-4 0" }],  // 5px across at a 1px stroke
+  },
+  14: {
+    selected:    [{ d: "M3.25 7.4 5.7 9.85 10.75 4.4" }],
+    needs_you:   [{ d: "M7 2.75v5.25M7 10.9v.2" }],
+    thread_node: [{ d: "M5 7a2 2 0 1 0 4 0a2 2 0 1 0-4 0" }],  // the node is 5px at both sizes
+  },
+};
+```
+
+The running ring's gap (ring inner edge to core) is 1.75 units at 16px and 1.5 at 14px, so the
+two parts never touch at either size; that is what makes it a ring round a disc and not a thick
+disc. The failed square's cut is its top-right corner, 3 units at 16px and 2.5 at 14px.
