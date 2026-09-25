@@ -757,4 +757,88 @@ func (f *Fake) WriteIssueRevision(_ context.Context, issueID string, req hubapi.
 	}
 	return *rev, nil
 }
+
+// IssueRevisions is oldest first; after is the last revision number seen.
+func (f *Fake) IssueRevisions(_ context.Context, issueID string, page hubapi.PageRequest) (hubapi.Page[hubapi.IssueRevision], error) {
+	w := f.w
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	var zero hubapi.Page[hubapi.IssueRevision]
+	me, err := f.enter("IssueRevisions", issueID, page)
+	if err != nil {
+		return zero, err
+	}
+	is, _, err := w.issueOf(issueID, me)
+	if err != nil {
+		return zero, err
+	}
+	limit, err := pageLimit(page.Limit)
+	if err != nil {
+		return zero, err
+	}
+	after := 0
+	if page.After != "" {
+		if after, err = strconv.Atoi(page.After); err != nil || after < 1 {
+			return zero, badRequest("after", "A cursor is a number the list gave you.")
+		}
+	}
+	rows := is.revisions[min(after, len(is.revisions)):]
+	return pageOf(rows, limit, func(r *hubapi.IssueRevision) string { return strconv.Itoa(r.Revision) },
+		func(r *hubapi.IssueRevision) hubapi.IssueRevision { return *r }), nil
+}
+
+// IssueRevisionAt answers issue_not_found for a revision that does not exist,
+// as task 09's route does.
+func (f *Fake) IssueRevisionAt(_ context.Context, issueID string, rev int) (hubapi.IssueRevision, error) {
+	w := f.w
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	me, err := f.enter("IssueRevisionAt", issueID, rev)
+	if err != nil {
+		return hubapi.IssueRevision{}, err
+	}
+	is, _, err := w.issueOf(issueID, me)
+	if err != nil {
+		return hubapi.IssueRevision{}, err
+	}
+	if rev < 1 || rev > len(is.revisions) {
+		return hubapi.IssueRevision{}, problem(404, fkIssueNotFound, "There is no such issue revision that you can see.",
+			"issueId", issueID)
+	}
+	return *is.revisions[rev-1], nil
+}
+
+// RestoreIssueRevision writes a NEW revision with FromRevision's content and
+// restoredFrom set; the old revision is never touched (task 09's decision 2).
+// Task 09 adds baseRevision's 409 here with its field (decision 3).
+func (f *Fake) RestoreIssueRevision(_ context.Context, issueID string, req hubapi.RestoreRevisionRequest) (hubapi.IssueRevision, error) {
+	w := f.w
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	me, err := f.enter("RestoreIssueRevision", issueID, req)
+	if err != nil {
+		return hubapi.IssueRevision{}, err
+	}
+	is, role, err := w.issueOf(issueID, me)
+	if err != nil {
+		return hubapi.IssueRevision{}, err
+	}
+	if err := need(role, hubapi.RoleMember); err != nil {
+		return hubapi.IssueRevision{}, err
+	}
+	from := req.FromRevision
+	if from < 1 || from > len(is.revisions) {
+		return hubapi.IssueRevision{}, problem(404, fkIssueNotFound, "There is no such issue revision that you can see.",
+			"issueId", issueID)
+	}
+	old := is.revisions[from-1]
+	if old.ErasedAt != nil {
+		return hubapi.IssueRevision{}, problem(409, "revision_erased", "That revision was erased.", "revision", strconv.Itoa(from))
+	}
+	rev, err := w.appendRevision(me, is, old.Content, from)
+	if err != nil {
+		return hubapi.IssueRevision{}, err
+	}
+	return *rev, nil
+}
 ```
