@@ -21,13 +21,14 @@ harness, and its rows for these three routes.
 | 12 | `DELETE /v1/teams/{teamId}/invites/{inviteId}` | A | `204`; the row stays, `state: revoked` | 404 `team_not_found`; 403; 404 `invite_not_found`; 409 `conflict` (already `bound`) | `team.invite_revoked {}` |
 | 3 | `GET /v1/me` — **binding** | any | `invitesBound`: the number bound by this call | — | per bound invite: `team.invite_bound {"userId","role"}`; then, if membership changed, `team.member_set {"role"}` |
 
-**Binding** (contract §7.2, as correction A15 amends it): every `pending` invite **in the caller's
-org** whose `email` equals the caller's **`Claims.BindEmail`** (task 13) becomes `bound`, with
-`bound_user_id` and `bound_at`. `BindEmail` is the `email` claim alone, lowercased, and only when
-this token shows a member account (`acct == 0`) or a verified email domain owner
-(`xms_edov == true`); otherwise it is `""` and **nothing binds** — `invitesBound: 0`, the invites
-stay `pending`, and no event is written. It is never `preferred_username` (mutable, and not
-verified by the tenant for a B2B guest; Microsoft says not to authorise by it or by `email`), and
+**Binding** (contract §7.2, as correction A15 amends it and OD-30 replaces A15's gate: contract §17
+§5.1, main ruling §4 `:197`): every `pending` invite **in the caller's org** whose `email` equals the
+caller's **`Claims.BindEmail`** (task 13) becomes `bound`, with `bound_user_id` and `bound_at`.
+`BindEmail` is the `email` claim alone, lowercased, and only when this token has `email_verified`
+the JSON boolean `true` and `azp == panacea-app-desktop` (the realm makes `email` admin-edit only and
+rewrites it from Entra at each login, ruling K3/K4); otherwise it is `""` and **nothing binds** —
+`invitesBound: 0`, the invites stay `pending`, and no event is written. It is never
+`preferred_username` (mutable, and not how the realm proves an address), and
 never the `users` row's stored `email`, which stays display text (review I12). When a binding
 happens, the caller becomes a member with the invite's role, **or keeps a higher role already
 held**. `/v1/me` runs under `Write` (task 14) so binding takes the org's audit lock; it sends no
@@ -35,7 +36,7 @@ held**. `/v1/me` runs under `Write` (task 14) so binding takes the org's audit l
 is no longer pending.
 
 **A limitation, stated (plan re-review b05 m2).** A caller whose token cannot bind — a member
-with no `email` claim, or a B2B guest without `xms_edov: true` — has **no in-product remedy in
+with no `email` claim, or with `email_verified` not `true` — has **no in-product remedy in
 v1**. Task 15's `PUT …/members/{userId}` needs their `u-…` id, and no v1 route lists an org's
 users, and no v1 surface shows a user their own id: `GET /v1/me` returns it only to the control
 plane that calls it, and `GET /v1/auth/status` carries no Hub user id (task 32). So the fallback is
