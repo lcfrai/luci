@@ -477,3 +477,85 @@ fails with `{State: "unknown", Code: "git_failed"}` for that pair alone, logging
 refused` with the pair's lane keys and the validation error, never the answer's bytes. A
 `len(results) != len(pairs)` answer is an error for the whole call.
 
+- [ ] **Step 1: Preflight** (after the phase 3 sync-merge)
+
+```bash
+cd control-plane
+grep -n "func ForecastQueue\|func ParseMergeTree\|var MergeTreeArgs" internal/converge/*.go   # task 07/08 merged
+grep -n "func FetchLane\|type BundleRefused\|MaxBundleBytes" internal/lanegit/*.go            # task 24 merged
+grep -n "type Scope\|ScopeProject\|ErrLaneDir" internal/gitx/harden.go                         # read: does Project admit a bare repo?
+git --version                                                                                  # ≥ task-02's MinVersion; merge-tree --write-tree needs 2.38
+```
+
+- [ ] **Step 2: Write the failing tests**
+
+Real git in `t.TempDir()` repositories, as phase 3's git tests do (task 01's behaviour pins); a
+helper `twoLanes(t)` builds a bare mirror with a base commit and two lanes of different owners.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| gitforecast · `TestQueueTestsPassUnchanged` | phase 3's `forecast_test.go` cases, moved, all pass against `gitforecast.ForecastQueue` | the move changing behaviour |
+| converge · `TestForecastCacheSkipsGit` | unchanged, still in `converge` | the cache lost in the move |
+| gitforecast · `TestPairConflictHasBaseLines` | both lanes rewrite lines 10-12 of `a.go` → `conflicts`; `a.go` has `Conflicted`, `BaseBlob` = the base's blob, `Lines == [[10,12]]` | ranges on the merged file or on one side, not the base |
+| gitforecast · `TestPairCleanOverlapIsListed` | A edits line 3, B edits line 40 of `b.go` → `clean`, `b.go` listed with `Conflicted: false` and `Lines == []` | dropping paths both changed when the text merges (task 60 needs them) |
+| gitforecast · `TestPairAdjacentLinesOverlap` | A edits 10, B edits 11 → `Lines == [[10,11]]` | strict intersection, missing task 36's rule (a) |
+| gitforecast · `TestPairInsertionIsAPoint` | A inserts after line 5 (`@@ -5,0 …`), B edits line 5 → `[[5,5]]` | a zero-count hunk read as the empty range |
+| gitforecast · `TestPairIgnoresDiffDrivers` | both lanes add `.gitattributes` `*.go diff=evil`; the test itself sets `diff.evil.command` in the repository's config to a script that writes a marker file (the worst case: a driver defined); after `PairForecast` the marker does not exist | `diff` run without `--no-ext-diff`/`--no-textconv`, relying on the config having no driver |
+| gitforecast · `TestPairNoMergeBase` | two unrelated roots → `unknown`, `no_merge_base` | a merge-tree over unrelated histories reported as conflicts |
+| gitforecast · `TestIngestRefusesAnUnverifiedBundle` | a truncated bundle → `*BundleRefused`, no ref under `refs/panacea/` moved | fetching before `bundle verify` |
+| gitforecast · `TestIngestReportsNeedBase` | a lane bundle whose prerequisite the mirror lacks → `*ErrNeedBase{Missing: [that sha]}`; then a base bundle, then the lane bundle → fetched | a missing base treated as a hostile bundle, so no team project ever forecasts |
+| gitforecast · `TestIngestRefusesACorruptObject` | a bundle holding a tree with a duplicate entry (phase 3's fsck fixture, `task-24.md:952`) → `*BundleRefused` with fsck's sentence, no ref moved | `transfer.fsckObjects` not in `Call.Env` |
+| gitforecast · `TestIngestHeadsMustMatch` | a bundle carrying two heads, or `HEAD` → refused | a bundle that writes a second ref |
+| lanegit · `TestFetchLaneUnchanged` | phase 3's `FetchLane` tests pass; a missing prerequisite is still `*BundleRefused` for `FetchLane` | the need-base split leaking into phase 3's answer |
+| mirror · `TestResultCarriesNoContent` | the golden `testdata/mirror/v1/pair-conflict.json` decodes with `DisallowUnknownFields`, and a copy with an added `"hunk": "…"` field is refused | an answer shape with room for content |
+| mirror · `TestValidateRefusesAPathWithANewline` | a `path` of `"a.go\n+secret"` → refused, and `Pairs` turns that one result into `unknown` | a path used to smuggle a line of content |
+| mirror · `TestValidateStateMustMatchPaths` | `state: "clean"` with a conflicted path → refused | a runner that says clean over a conflict |
+| mirror · `TestValidateNeedsTheAskedPair` | the answer names lanes other than those asked → refused | answers mismatched to questions |
+| runner · `TestUnverifiedBundleIsDroppedAndReported` | over a real WebSocket to `serve` with a `twoLanes` repo: a truncated bundle → `{"state":"refused","code":"bundle_unverified"}`, the spool directory is empty after | a refused bundle left on the disk |
+| runner · `TestControlNeedsTheBearer` | no token, a wrong token, a right token → 401, 401, 101 | an open control route |
+| runner · `TestPruneOwnerRemovesRefsAndObjects` | a leaver's lane holding a unique blob → after `prune-owner`, `cat-file -e <blob>` fails; another owner's lane is untouched | refs deleted and the leaver's objects kept on disk |
+| runner · `TestLogsHoldNoPath` | every log line for a pairs request over `secret-plan.md` lacks the string `secret-plan` | a path in the operator's logs |
+
+- [ ] **Step 3: The library.** Move task 08's code into `gitforecast`, add `pair.go` and
+  `ingest.go`, write the `converge` aliases and the `lanegit` call. `go test ./internal/gitforecast/
+  ./internal/converge/ ./internal/lanegit/ -count=1` → `ok` three times.
+
+- [ ] **Step 4: ST.7 and the client.** `result.go`, `client.go`, the goldens. `go test
+  ./internal/fleet/mirror/ -count=1` → `ok`.
+
+- [ ] **Step 5: The runner.** `cmd/panacea-mirror`. `go test ./cmd/panacea-mirror/ -count=1` → `ok`;
+  `CGO_ENABLED=0 go build -o ../images/mirror/panacea-mirror ./cmd/panacea-mirror` → a static
+  binary for task 58's image.
+
+- [ ] **Step 6: Acceptance**
+
+```bash
+cd control-plane
+go vet ./internal/gitforecast/ ./internal/converge/ ./internal/lanegit/ ./internal/fleet/mirror/ ./cmd/panacea-mirror/
+go test ./internal/gitforecast/ ./internal/converge/ ./internal/lanegit/ ./internal/fleet/mirror/ ./cmd/panacea-mirror/ -count=1 -race
+go list -deps ./cmd/panacea-mirror | grep -c "k8s.io\|internal/hub\|internal/api"   # 0: the mirror links no cluster, Hub or API code
+```
+
+**Deferred to task 69:** the runner inside the real mirror pod, fed by a real `machined`; its
+memory under a large repository's `merge-tree`.
+
+- [ ] **Step 7: Commit** by pathspec, one commit per step 3 to 5.
+
+**What this task does NOT claim:**
+- That line ranges on the merge base are what a reviewer would draw. They are hunk headers, the
+  same unit as tier H; a rename splits a path in two (`--no-renames`).
+- That `gitx.Exec` runs in a bare repository unchanged (**UNVERIFIED until merge**; the fallback is
+  in the wire section).
+- That fsck catches every hostile object. It catches what git's fsck checks; a parser bug in
+  `merge-tree` itself is contained by the pod (task 58), not by this task.
+- That the solo control plane's forecast is faster or slower: it is the same code behind aliases.
+- That the mirror is fed. Task 60 sends the bundles.
+
+**Gaps found in the skeleton and in sibling parts:**
+1. The file map puts the runner at `sbx/cmd/panacea-mirror/main.go`; decision (a) builds it from
+   `control-plane/cmd/panacea-mirror`. Task 58's image note is updated to match.
+2. The file map has no row for `control-plane/internal/gitforecast/`, nor for the edits to phase
+   3's `converge`, `lanegit` and their tests.
+3. The skeleton's scope says the mirror fetches the customer's remote; task 58 decision (b) and
+   this task's decision (d) replace that with base bundles from `machined`.
+
