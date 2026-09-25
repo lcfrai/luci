@@ -759,4 +759,69 @@ desktop's calls (task 37), Start (24) or import adapters (25). Parity rows serve
 it carries every W1 Hub row to the desktop and serves **L-248** (the public API is the app's own
 API).
 
+**17 — W1's Hub end to end through `devissuer`.** W1, stream WH; no seam; depends on 10, 13, 14,
+16 and Hub task H43 (the Hub's own end-to-end proof through `devissuer`, its harness and results
+record). One new file, `control-plane/internal/hub/work_e2e_integration_test.go` (`-tags
+integration`, against `control-plane/cmd/hub/compose.yaml` and `devissuer`, H-tasks 11-12), built
+on H43's harness (**UNVERIFIED until merge**: the part reads its helper names on the sync base). It
+signs in, as real PKCE tokens from `devissuer`, four people: Dylan and Alice (members of team T),
+an org admin who is not a member, and Bea (a member of team U in the same org); it drives the Hub
+through **task 16's `hubclient` over HTTP**, never the store, and asserts after each step both the
+response and the exact event appended. **The story** (05 §5.3's demo, Hub half): an admin sets
+`EP` on project P; Dylan creates a project brief and a branch brief with criterion `c-…` through
+`Briefs`; Dylan imports a 142-item CSV batch (task 15) so the last item is **EP-142**, and every
+item reads `triage` and `not_tied · imported`; under `priorityToLeaveTriage` he sets priority,
+then accepts EP-142 into `todo`; he writes revision 2 with `serves [{briefKey, criterionId}]`, and
+its thread state reads `on_thread`; Alice comments with a mention of Dylan, reacts, and is
+subscribed by commenting while Dylan is subscribed by the mention; the moves `lane_bound` →
+`started`, `lane_queued` → `in_review` and `land_trailer` (with a 40-hex `landCommit`) → `landed`
+are made as Dylan; an evidence record is posted through `/v1/evidence` (H25) at `landCommit` for
+the served criterion, then `evidence_observed` moves EP-142 to `done` with `proof: proven`; a
+second issue with empty `serves` lands straight at `done` with `proof: no_criteria`; `GET
+/v1/issues/search?q=EP-142` finds it; `/v1/refs` resolves `issue:is-…@2`; the org admin erases the
+second issue, which then resolves `erased`; and `hub verify` passes at the end. **Tests**, each with
+its mutant: the full sequence of Work event kinds in Dylan's `/v1/changes` equals one expected list,
+in order (kills a route that appends two events, or none); Bea's feed over the same run holds **no**
+Work event and her `GET` of EP-142 is 404 (kills a readability hole across teams); the `done` move
+tried before the evidence is posted is 422 and EP-142 stays `landed` with `proof: waiting` (kills a
+done rule that trusts the cause alone); a `done` move carrying the evidence of the other issue is 422
+(kills sibling evidence); the canary title of the erased issue appears in no feed page and no
+`/v1/refs` answer (kills erase leaving text); every event's `actor` is the person who acted, and
+no Work event has `actor: null` in W1 (kills writes as "the system", 05 §3.6). Acceptance: `go test
+./control-plane/internal/hub/... -tags integration -race -count=1 -run WorkE2E -v` passes, and its
+output lists each step. It **does not claim** the desktop, the control plane's phase 3 and 4
+deltas, a real Entra tenant (H43's checklist covers that), or any cloud run. Parity rows served: it
+proves, against the real Hub, the Hub halves of L-3, L-8, L-9, L-13, L-17, L-24, L-34, L-38, L-41,
+L-42, L-46, L-48, L-106, L-117, L-220 and L-229; task 70 records them with the desktop halves.
+
+**18 — phase 4 delta: `issue:` in `provenance/key.go`; `Ref.Kind` `"issue"`.** W1, stream WP,
+seam **SW.1** (the parser side); depends on 02 (the grammar and `hubapi.KeyIssue`) and phase 4 task
+06 (`provenance/key.go` and `ref.go`, the only key parser, P5; phase 4 plan `:312-313`, **planned,
+not on the `feat/phase-4` tree at `6ffa6bf`**: the package directory is absent there). Under rule
+H2 the task **waits** until P4-06 is on the sync base, never writes a second copy, and the owner's
+file wins every conflict. Files: `control-plane/internal/provenance/key.go` ⚑ and `key_test.go` ⚑,
+`ref.go` ⚑ and `ref_test.go` ⚑; `desktop/src/api/discover.ts` ⚑ (phase 4 task 15's mirror of the
+wire, **planned**) gains `kind` on its `ProvenanceRef` type if that type mirrors `Ref`. **In
+`key.go`** (P4 task-06 part, `task-06.md:24-54`): `KindIssue Kind = "issue"` beside `KindBrief`,
+`KindDesign`, `KindNone`; the grammar comment gains `issue ^issue:(is-[0-9a-f]{16})@([1-9][0-9]{0,8})$`,
+verbatim the Hub's (task 02; hub-contract §3.2 once 01's proposal lands); `Parse` fills `Key{Kind:
+KindIssue, ID: "is-…", Revision: r}`; `String` round-trips; one constructor `IssueKey(issueID
+string, revision int) string` that panics on a bad id or revision below 1, as `BriefKey` does
+(`task-06.md:54`). **In `ref.go`**: `Ref` (`task-06.md:122-148`) has **no** kind field today, so
+this task adds `Kind Kind "kind"`, set by every constructor (`Build`, `MissingRef`, `InvalidRef`,
+`UnavailableRef`, `NoneRef`, `ErasedRef`; `""` only for `InvalidRef`, as hub `RefResult.kind` is
+null exactly when invalid) and one field group for an issue: `IssueID`, `IssueNumber`,
+`IssueAlias`, `Serves []Serve` (the revision's `serves`, as `{briefKey, criterionId}`), filled from
+`hubapi.RefResult.Issue` (task 09); an issue ref carries no brief sections. **Tests**, each with its
+mutant: `Parse("issue:is-3f2a91c07b1e4d2a@3")` gives `KindIssue` with ID and revision, and
+`String` returns the input (kills a missing case); `issue:is-…@0`, upper-case hex and `EP-142` are
+`ErrInvalidKey` (kills a looser grammar than the Hub's, which P5 forbids); a table test feeds every
+golden key of `hubapi`'s tests and of this package to both parsers and requires the same verdict
+(kills the two grammars drifting); every constructor sets `Kind` and a JSON test finds `"kind"` on
+each (kills a zero-valued kind the desktop would read as a brief); `IssueKey("bf-…", 1)` panics;
+phase 4's own tests still pass unchanged (kills an edit that breaks the owner's behaviour). It
+**does not claim** the Materialiser, `Session.IssueRef` or the loader (task 19), nor any surface.
+Parity rows served: the parser half of **L-191** (what the agent was told is named by key; closed
+with 19) and of 05 §2.3's thread; no L row alone.
+
 
