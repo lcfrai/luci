@@ -806,5 +806,151 @@ func w4UpdateNeverChanges(t *testing.T, e WorkEnv) {
 		t.Fatalf("first update changed or lost: %v %+v", err, page.Items)
 	}
 }
+
+// W4-07: the granted team tries every W1-W3 write on the granted project and
+// is refused each time; its one allowed write, a comment, succeeds.
+func w4GrantWritesRefused(t *testing.T, e WorkEnv) {
+	p := e.project(t, "Payments", "PAY")
+	iw := e.issue(t, p, "Refund rounding")
+	if _, err := e.Admin.GrantProject(wctx, p.ID, e.OtherTeamID); err != nil {
+		t.Fatal(err)
+	}
+	g := e.OtherMember // a member of the granted team only
+	if _, err := g.Issue(wctx, iw.Head.ID); err != nil {
+		t.Fatalf("granted read refused: %v", err)
+	}
+	if _, err := g.CreateComment(wctx, iw.Head.ID, wComment("Seen from Risk.")); err != nil {
+		t.Fatalf("granted comment refused: %v", err)
+	}
+	for name, write := range w4EveryWrite(p, iw) { // W1-W3's writes, one closure each
+		if err := write(g); err == nil {
+			t.Errorf("%s: a granted member wrote", name)
+		} else {
+			wRefused(t, err, 403, hubapi.CodeForbidden)
+		}
+	}
+}
+
+// W4-11: 7 then 5 leaves 7; 9 moves it to 9. No event either way.
+func w4CursorOnlyAdvances(t *testing.T, e WorkEnv) {
+	p := e.project(t, "Cursor", "")
+	s := hubapi.ReadScope{Kind: "project", ID: p.ID}
+	head := wHead(t, e.Member)
+	for _, step := range []struct{ send, want int64 }{{7, 7}, {5, 7}, {9, 9}} {
+		c, err := e.Member.AdvanceReadCursor(wctx, s, step.send)
+		if err != nil || c.Seq != step.want {
+			t.Fatalf("advance %d: %v seq %d, want %d", step.send, err, c.Seq, step.want)
+		}
+	}
+	if k := wKinds(t, e.Member, head, "work."); len(k) != 0 {
+		t.Errorf("a cursor move appended %v", k)
+	}
+}
+
+// W4-12: with no landed issue, groups are empty and no percentile exists.
+func w4InsightsMeasuredOnly(t *testing.T, e WorkEnv) {
+	p := e.project(t, "Quiet", "")
+	e.issue(t, p, "Never started")
+	q := hubapi.InsightsQuery{TeamID: e.TeamID, From: "2026-01-01T00:00:00Z", To: "2026-12-31T00:00:00Z",
+		Measure: hubapi.MeasureCycleTime}
+	r, err := e.Viewer.QueryInsights(wctx, e.TeamID, q)
+	if err != nil || len(r.Points) != 0 || r.P50Ms != nil || r.P75Ms != nil || r.P90Ms != nil {
+		t.Fatalf("invented a measure: %v %+v", err, r)
+	}
+}
 ```
+
+`w4EveryWrite` is a map of eighteen closures, one per Work write a member may make in W1-W3:
+`CreateIssue`, `PatchIssue`, `WriteIssueRevision`, `MoveIssueState` (to `todo`), `AddRelation`,
+`React`, `ResolveComment`, `Subscribe`, `AttachBlob`, `ImportBatch` (tasks 04-05); `PatchIssuePlan`,
+`Rank`, `SetParent`, `SetCycle`, `SetFeature`, `MoveIssue` and `CreateFeature` (task 72's names,
+**UNVERIFIED**); `CreateMilestone` (this phase). A W3 write (task 99's comment kinds) is a
+`CreateComment` with a kind other than `note`; its closure is the nineteenth and expects 403.
+`Subscribe` is a write the scope does not name; a granted member **is** refused it, because a
+subscription is a Work object of the caller's own team (a gap for task 133 if the owner wants
+granted watchers). `WorkEnv.OtherTeamID` and `OtherMember` are the second team's (task 05's
+`Env` fields, **UNVERIFIED**; Step 1 adds them to `WorkEnv` if H05's `Env` lacks them).
+
+#### Tests first: the rows, each with the mutant it kills
+
+Each row is written before the method it exercises and fails on the stub's 501; then it fails
+again on its mutant, applied by hand once at Step 4.
+
+| Row | Asserts | Mutant it kills |
+|---|---|---|
+| `W4-01 update_never_changes` | no `WorkRoadmap` method but `PostUpdate`/`Updates` names an update; the first update reads `DeepEqual` after a second post | an update-edit method; a post that rewrites the previous one |
+| `W4-02 update_pins_its_brief` | a feature post with `pinnedBrief: ""` stores the head key; a pin to another brief, or `@head+1`, is 422 `field: pinnedBrief`; an initiative post with a feature not in it is 422 on `featurePins[0]` | an unpinned update; a pin to any brief |
+| `W4-03 cites_resolve_for_the_author` | a cite of a brief in team U's project, by a member of T only, is 422 `field: cites`, `index: 0`; the same cite by a member of both succeeds; a cite readable only through a grant is refused | cites leak; a grant widening `/v1/refs` |
+| `W4-04 milestone_criteria_on_brief` | a criterion id not on the feature's head brief is 422 `criterion_not_on_brief`, `field: criterionIds[1]` | milestones over any criterion |
+| `W4-05 dependency_cycle_refused` | A→B, B→C, then C→A is 422 `dependency_cycle` `from: C`; A→A is 400; a repeat A→B appends no second event | a cycle accepted; a self-edge; a duplicate event |
+| `W4-06 grant_is_read_and_comment` | after `GrantProject(p, U)`, U's member reads the issue, the feature, its milestones and updates, and comments | grant not consulted |
+| `W4-07 grant_writes_refused` | every one of the nineteen writes as U's member is 403 `forbidden` | grant is write |
+| `W4-08 revoke_is_immediate` | after `RevokeProjectGrant`, U's next read is 404 and `ScopedChanges` on the project is 404, with no call between | revocation ignored; a cached grant |
+| `W4-09 initiative_names_linked_teams` | `SetInitiativeTeams([T, U])` without a grant is 422 `teamIds[1]`; with a grant either way it succeeds; `[U, T]` is 400; a member is 403 | spans over any team; owner not first |
+| `W4-10 initiative_view_hides_unreadable` | U's feature in T's initiative: T's member sees it only while U has granted T; the view never holds its id or name otherwise | an unreadable feature's name leaks |
+| `W4-11 cursor_only_advances` | 7, 5, 9 gives 7, 7, 9 and no `work.` event | cursor moves back; a cursor event |
+| `W4-12 insights_measured_only` | no landed issue: no points, three `null` percentiles | an invented p50 |
+| `W4-13 one_event_per_write` | each of the sixteen W4 writes appends exactly one event of its kind (task 114's table); no read appends | a silent write; two events |
+| `W4-14 latest_update_null_not_default` | a feature with no update reads `latestUpdate: null` in `InitiativeView`; after one `at_risk` post it reads `at_risk` and that post's `at` | defaults to `on_track`; a computed health |
+
+`fake_work_roadmap_test.go`, fake-only: `TestPercentileNearestRank` (`[10 20 30 40]` gives 20, 30,
+40 for 50, 75, 90; `[]` gives `nil`; kills "interpolated percentile" and "zero for empty");
+`TestRoadmapStateIsPerWorld` (two `NewFake()` share nothing; kills a package-level map);
+`TestFakeSatisfiesWorkRoadmap`, the compile-time line `var _ WorkRoadmap = (*Fake)(nil)` and a
+check that `fake_work_roadmap_stub.go` is gone (`os.Stat` → not exist; kills "stub left beside the
+real methods", which would not compile anyway, so the check is the reminder).
+
+#### Steps
+
+- [ ] **Step 1: Sync and bind (20 min).** Sync-merge `feat/hub` (rule H1). Bind the adapters to the
+  merged names: `planFeature`, `planTemplate` (task 73), `briefCriterionIDs`, `criterionWord`,
+  `settledWord` (task 10), `issueOfKey` (task 09), `feedEvents` (H05), `EraseNote` (TM-46), and
+  `WorkEnv`'s second team. A missing name is a gap: write it into the commit and stop.
+- [ ] **Step 2: Rows first (45 min).** Write `conformance/work_roadmap.go` and
+  `work_roadmap_fake_test.go`; run them; all fourteen fail with 501 `not_in_fake_yet`.
+- [ ] **Step 3: The fake (90 min).** Delete the stub; write `fake_work_roadmap.go`; make the two ⚑
+  edits and task 73's switch to `workProjectOf`. Run the rows until green, then every W1-W3 row
+  (`WorkRowsW1`, task 73's, task 99's) to prove the grant fallback opened nothing.
+- [ ] **Step 4: Mutants (20 min).** Apply each mutant in the table once, see its row fail, revert.
+- [ ] **Step 5: Commit by pathspec (5 min)**, the files in *Files*, `feat(hub-w4): the fake's W4
+  rules and WorkRowsW4`, ending with the attribution line.
+
+#### Acceptance
+
+```bash
+go build ./control-plane/...
+# (no output)
+test ! -e control-plane/internal/hub/hubclient/fake_work_roadmap_stub.go && echo gone
+# gone
+go test ./control-plane/internal/hub/hubclient/conformance/ -race -count=1 -run 'TestWorkRoadmapFake' -v 2>&1 | grep -c -- '--- PASS: TestWorkRoadmapFake/work/W4-'
+# 14
+go test ./control-plane/internal/hub/hubclient/... -race -count=1
+# ok for every package: W1-W3's rows unchanged
+```
+
+#### What this task does not claim
+
+- **Not that the real Hub passes these rows.** Task 124 runs `WorkRowsW4` through the HTTP client
+  against the Hub; until then the rows prove only the fake.
+- **Not the 409 `update_immutable` answer.** The fake has no route; task 119's HTTP test owns it.
+- **Not that an agent principal is refused an update.** The fake has no principal kinds; task
+  119's `RequireDesktop` test owns it.
+- **Not the brief's cross-team read.** A grant here opens Work objects only; the brief stays
+  team-only until the owner decides task 117's contract proposal.
+- **No measured cost.** The fake's insights walk the whole feed per query; nobody timed it.
+
+**Parity rows:** closes none; it is the rule set behind L-67, L-72, L-74, L-76, L-83 to L-88,
+L-118 and L-150, which tasks 117-123 and 125-133 close.
+
+#### Gaps found
+
+1. **The pin and cite refusal code.** Task 119 writes 422 `bad_request`; the Hub's `bad_request`
+   is 400 (`codes.go:9`, httpx), and 422 `key_unresolvable` (`task-04.md:391`) is the code the fake
+   already uses for an unresolvable served key. This part copies 119; the owner of 119 should pick
+   one, and this table follows.
+2. **"Teams its owner's team may name"** has no definition in 05 or the scope; decision 5 is this
+   part's reading.
+3. **A granted member's subscription** is refused (W4-07); the scope does not say.
+4. **Five adapters name other parts' private helpers** that no part has written yet (task 73's,
+   task 10's, task 09's, H05's, TM-46's); each is a Step 1 bind, and each is **UNVERIFIED**.
 
