@@ -216,9 +216,11 @@ func SetHeadTitle(ctx context.Context, tx pgx.Tx, issueID, title string) error
 //    ORDER BY i.created_at DESC, i.id DESC LIMIT $4
 func SearchIssueTitles(ctx context.Context, q Querier, userID, projectID, escapedQ string, limit int) ([]IssueRow, error)
 
-// IssueByAlias resolves "KEY-N" through project_keys at query time, inside the
-// caller's readable teams. It is never stored and never treated as a key.
-func IssueByAlias(ctx context.Context, q Querier, userID, projectID, key string, n int) (IssueRow, bool, error)
+// IssuesByAlias compares q with each readable issue's alias as DisplayAlias
+// formats it, through project_keys at query time; it never parses q (task 02).
+//   … JOIN project_keys k ON k.project_id = i.project_id
+//    WHERE (k.key || '-' || i.number::text) = $3 AND <the readability join> AND i.erased_at IS NULL
+func IssuesByAlias(ctx context.Context, q Querier, userID, projectID, alias string) ([]IssueRow, error)
 ```
 
 The readability join is the one the change feed uses (`H26:27-28`): a team the caller is in, or a
@@ -265,12 +267,13 @@ code lands; this task adds its two kinds to whichever it is. `IssueErasedData` i
 `field: "q"`; `limit` 1-50, 0 or absent meaning 50 → else 400 `field: "limit"`; `projectId`, when
 set, a project the caller can read → else 404 `project_not_found`. Then:
 
-1. **The alias first.** When `q` matches `^([A-Z]{2,5})-([1-9][0-9]{0,8})$` after trimming, and the
-   key part satisfies task 02's `ValidProjectKey` (`task-02.md:167`), `IssueByAlias` looks it up
-   in the caller's readable projects **through `project_keys` now**; a hit goes first. The alias
-   is matched case-sensitively, as `DisplayAlias` writes it (`task-02.md:179`); `ep-142` is a
-   title search. An alias is never stored, never parsed as a key, and a key that moved (`EP` →
-   `PAY`) finds the issue under `PAY-142` and not `EP-142`.
+1. **The alias first, by formatting, never by parsing.** Task 02 forbids an alias parser (*"No
+   parser for an alias exists or may be written"*, `task-02.md:176-178`). So `q` is not split: the
+   query **formats** each readable issue's alias from `project_keys` now, `k.key || '-' ||
+   i.number`, exactly as `DisplayAlias` does (`task-02.md:179-181`), and compares it with `q`
+   (`IssuesByAlias`). A hit goes first; two teams may both use `EP`, so there can be more than one,
+   newest first. The comparison is case-sensitive, as the alias is written; `ep-142` is a title
+   search. A key that moved (`EP` → `PAY`) finds the issue under `PAY-142` and not `EP-142`.
 2. **Then the titles.** `SearchIssueTitles` with `EscapeLike(q)`; the alias hit, if any, is
    dropped from this list so it appears once.
 3. `Page[IssueHead]` with `next: null` (search does not page in W1: at most 50, the desktop narrows
