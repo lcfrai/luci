@@ -11,10 +11,11 @@
 #                                   paths.include; "none" only in the manual pipelines,
 #                                   infra-plan.yml and deploy.yml (task 30)
 #   R2 tools                        no tool is installed outside templates/tools.yml: no curl, wget,
-#                                   Invoke-WebRequest, go/pip/apt/choco/brew/cargo/gem/dotnet/winget
-#                                   install, global npm install, helm plugin install, tflint --init,
-#                                   rustup, or *Installer@ task, and install-tool.sh is called only by
-#                                   the template (GoTool@0 and NodeTool@0 are the two runtimes allowed)
+#                                   Invoke-WebRequest, Invoke-RestMethod (irm),
+#                                   go/pip/apt/choco/brew/cargo/gem/dotnet/winget install, global npm
+#                                   install, helm plugin install, tflint --init, rustup, *Installer@
+#                                   or Use*@ task, and install-tool.sh is called only by the template
+#                                   (GoTool@0 and NodeTool@0 are the two runtimes allowed)
 #   R3 no-drift                     no "latest", no "*" or "N.x" version, and no download piped
 #                                   into a shell, anywhere under pipelines/ or in azure-pipelines.yml
 #   R4 connections-are-variables    every service-connection input (azureSubscription,
@@ -192,11 +193,12 @@ FNR == 1 { endfile(); cur = FILENAME; curkind = kind; reset() }
   # R2: no tool installed outside the tools template
   if (cur !~ /(^|\/)pipelines\/templates\/tools\.yml$/) {
     what = ""
-    if (code ~ (W "(curl|wget|iwr|Invoke-WebRequest|Start-BitsTransfer|rustup)" E)) what = "a download or toolchain install"
+    if (code ~ (W "(curl|wget|iwr|irm|Invoke-WebRequest|Invoke-RestMethod|Start-BitsTransfer|rustup)" E)) what = "a download or toolchain install"
     else if (code ~ (W "(go|pip|pip3|apt|apt-get|choco|brew|cargo|gem|winget|snap)[ \t]+(install|get)" E)) what = "a package-manager install"
     else if (code ~ (W "dotnet[ \t]+tool[ \t]+install") || code ~ (W "(npm|pnpm|yarn)[ \t]+(install|i|add)[ \t].*(-g|--global)" E) || code ~ (W "yarn[ \t]+global[ \t]+add")) what = "a global install"
     else if (code ~ /helm[ \t]+plugin[ \t]+install/ || code ~ /tflint[ \t]+--init/) what = "a plugin install"
     else if (code ~ /task[ \t]*:[ \t]*[A-Za-z]*Installer@/) what = "an installer task"
+    else if (code ~ /task[ \t]*:[ \t]*Use[A-Za-z]*@/) what = "a runtime task"   # UseNode@1, UsePythonVersion@0, UseDotNet@2
     else if (code ~ /install-tool\.sh/ && code !~ /^[ \t]*-[ \t]+["']?[^ \t"']+["']?[ \t]*$/)
       what = "a call to install-tool.sh"   # a bare path in a list (a trigger path) is not a call
     if (what != "") emit("R2", cur ":" FNR ": " what " outside templates/tools.yml (" trim(code) ")")

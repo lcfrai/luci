@@ -18,6 +18,7 @@ trap 'rm -rf "$WORK"' EXIT
 REPO="$WORK/repo"
 
 g() { git -C "$REPO" -c user.name=fixture -c user.email=fixture@example.invalid -c commit.gpgsign=false "$@"; }
+# shellcheck disable=SC2016  # the stub's $* and ${…} are its own, expanded when it runs
 build() {
   mkdir -p "$WORK/bin" &&
     printf '%s\n' '#!/bin/sh' 'echo "stub gitleaks: $*"' 'exit "${STUB_GITLEAKS_EXIT:-0}"' > "$WORK/bin/gitleaks" &&

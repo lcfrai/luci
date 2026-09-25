@@ -162,7 +162,7 @@ call**. It does not prove the recorded licence is right; that is the reviewer's 
 ```bash
 bash pipelines/scripts/lint.sh                   # lint: 8 of 8 rules pass over 6 pipeline files (images.yml, task 27, comes after)
 bash pipelines/scripts/install-tool.sh gitleaks && gitleaks detect --no-banner   # no leaks found
-bash pipelines/scripts/chart-licences_test.sh    # chart-licences_test: 9 of 9 cases passed (the eight below, and a ninth: As built)
+bash pipelines/scripts/chart-licences_test.sh    # chart-licences_test: 10 of 10 cases passed (the eight below, a ninth and a tenth: As built)
 bash pipelines/scripts/chart-licences.sh         # 0 chart dependencies (task 13 adds the first)
 ```
 
@@ -220,6 +220,30 @@ Departures from the text above, each for the root cause named:
 - **deploy.yml's R8 attribution**: the outputs-only job must be named `outputs` (PLAN); stage
   `apply` INFRA; `cluster` and `smoke` CLUSTER; any other stage PLAN; outside a stage, none.
   Templates name no connection. Task 30 amends this row if its layout differs.
+
+Fix round 1 (review `task-28-review.md`, 2026-09-25):
+
+- **`tools.yml`'s comment** says the SHA-256 is pinned in `install-tool.sh` (a steps template
+  holds none) and lists 15 tools; its `parameters:` and `steps:` are byte-identical to the
+  contract block above (review m3).
+- **A tenth chart-licences case, `repository_changed`**: a `Chart.lock` entry whose repository
+  differs from the only row's fails as "no row" (and the row as stale), so a chart moved to a fork
+  under the same name and version cannot pass on another repository's licence (review I1).
+- **`licences_test.sh` covers Go and Cargo** through stub `go`, `go-licenses`, `cargo` and
+  `cargo-deny` on PATH (`testdata/licences/stubs/`): the Go CSV judged, our modules `--ignore`d,
+  and the written `deny.toml` (`exclude-dev`, `[licenses.private] ignore`, the allow list equal to
+  `allow.yaml`, each cargo exception's ids). **A Go or npm report that yields no package is exit
+  2**, never "0 dependencies, all allowed" (review I2).
+- **`secrets.yml`'s PR scan fetches nothing**: `pipelines/scripts/secrets-pr.sh` (with
+  `secrets-pr_test.sh`, run first in the same job) scans `<merge base>..HEAD` from the refs the
+  full-depth checkout left, and fails closed if `origin/<target>` is missing. The checkout keeps no
+  credential, so the old second `git fetch` would fail on a private repository (review I3; ADO
+  behaviour UNVERIFIED, task 31 step 3 checks the first run).
+- **`infra.yml` reads `images/**`**: the path lists name `images/**` and shellcheck reads
+  `images/**/*.sh`, so `images/sandbox/entrypoint.sh` (shipped) is checked, not only a future
+  `images/*.sh` (review m1).
+- **R2 also refuses `Use*@` runtime tasks** (`UseNode@1`, `UsePythonVersion@0`, …) and
+  `irm`/`Invoke-RestMethod`; GoTool@0 and NodeTool@0 stay the two runtimes allowed (review m4).
 
 What the first local runs found (step 3), recorded in the commit that adds `licences/`:
 Go 66 packages and npm 8 production packages, all allowed; **Cargo 26 crates outside the list**

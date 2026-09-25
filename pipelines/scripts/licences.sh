@@ -18,7 +18,9 @@
 # Output: one "licences: FAIL <eco> <package>: <why>" per problem, then
 #         licences: <eco>: <n> dependencies, all allowed           exit 0
 #         licences: <eco>: <n> dependencies, <k> problems          exit 1
-# A tool that is missing or a report that fails is exit 2.
+# A tool that is missing or a report that fails is exit 2, and so is a Go or npm report that
+# yields no package at all (review I2: our graphs are never empty, so that is a parse failure).
+# licences_test.sh proves all three against fixture trees, Go and Cargo through stub tools.
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -52,13 +54,14 @@ go_report() {
   # standard-library package as one with no module info (seen on 2026-09-25); name it.
   GOROOT="$(go env GOROOT)" || exit 2
   export GOROOT
-  local mods m own out err ignore=()
+  local mods m own out err ignore=() k=0
   mods="$(awk '/^use[ \t]*\(/ {u = 1; next} u && /^\)/ {u = 0} u {gsub(/[ \t\r]/, ""); if ($0 != "") print}
                /^use[ \t]+[^( \t]/ {print $2}' go.work)" || exit 2
   [ -n "$mods" ] || { echo "licences: go.work names no module"; exit 2; }
   for m in $mods; do
     own="$(awk '$1 == "module" {print $2; exit}' "${m#./}/go.mod")" || exit 2
     ignore+=(--ignore "${own%$'\r'}")   # our own modules, whichever of them a module imports
+    k=$((k + 1))
   done
   err="$(mktemp)" || exit 2
   for m in $mods; do
@@ -71,6 +74,16 @@ go_report() {
     done <<< "$out"
   done
   rm -f "$err"
+  nothing_read go "go-licenses reported no package for the $k modules in go.work"
+}
+
+# nothing_read <eco> <what>: our graphs are never empty (Go 66 packages, npm 8, on 2026-09-25), so
+# a report that yields no package is a report or parse failure, for example an output format that
+# changed with a pin bump, and never "0 dependencies, all allowed" (task 28 review I2). Exit 2.
+nothing_read() {
+  [ "$n" -gt 0 ] && return 0
+  echo "licences: $1: $2: a report that reads nothing is a failure, not a clean graph"
+  exit 2
 }
 
 npm_report() {
@@ -83,6 +96,7 @@ npm_report() {
   while IFS='|' read -r key ver lic; do
     [ -n "$key" ] && judge npm "${key##*node_modules/}" "${lic%$'\r'}" "@$ver"
   done <<< "$out"
+  nothing_read npm "$lock has no production package"
 }
 
 cargo_report() {

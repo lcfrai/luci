@@ -18,7 +18,7 @@ trigger:
       - infra/**
       - pipelines/**
       - azure-pipelines.yml
-      - images/*.sh
+      - images/**
 pr:
   branches:
     include: ['*']
@@ -27,7 +27,7 @@ pr:
       - infra/**
       - pipelines/**
       - azure-pipelines.yml
-      - images/*.sh
+      - images/**
 
 pool:
   vmImage: ubuntu-24.04
@@ -54,7 +54,7 @@ jobs:
       - script: |
           set -euo pipefail
           shopt -s globstar nullglob
-          shellcheck -x infra/**/*.sh images/*.sh pipelines/scripts/*.sh pipelines/scripts/lib/*.sh
+          shellcheck -x infra/**/*.sh images/**/*.sh pipelines/scripts/*.sh pipelines/scripts/lib/*.sh
         displayName: shellcheck
       - script: tflint --chdir=infra/terraform --recursive --config="$(Build.SourcesDirectory)/pipelines/tflint.hcl"
         displayName: tflint (azurerm ruleset)
