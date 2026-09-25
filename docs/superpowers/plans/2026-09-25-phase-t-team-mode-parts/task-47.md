@@ -70,3 +70,87 @@ the skeleton says (gap 1). Its rows are P01–P16 and P20–P22; this task adds 
 - Required by: task 57 (TM1 proof reads P23–P28's results), task 33's runbook (runs P23 and P25
   during the scripted conflict), task 56 (the route badge's `AU · required` is only honest if P28
   passed; the badge task states so).
+
+#### The chart — complete source
+
+```yaml
+# deploy/charts/platform/values.yaml (append under sandboxes:)
+  auEgress:
+    # 05-design.md §2.5: an AU project's session pods reach these names on 443 and nothing
+    # else on the internet. Package registries and the two git hosts (OD-4) only. A name here
+    # is exact (matchName); a pattern is one leading "*." label (matchPattern). No bare "*".
+    fqdns:
+      - registry.npmjs.org
+      - registry.yarnpkg.com
+      - pypi.org
+      - files.pythonhosted.org
+      - proxy.golang.org
+      - sum.golang.org
+      - crates.io
+      - static.crates.io
+      - index.crates.io
+      - repo.maven.apache.org
+      - api.nuget.org
+      - github.com
+      - codeload.github.com
+      - objects.githubusercontent.com
+      - dev.azure.com
+    patterns:
+      - "*.visualstudio.com"
+```
+
+`values.schema.json` gains `sandboxes.auEgress` as a required object, `additionalProperties:
+false`; `fqdns` a non-empty array of `"pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$"`;
+`patterns` an array of `"pattern": "^\\*\\.[a-z0-9-]+(\\.[a-z0-9-]+)+$"`. So `*`, `*.com` and a
+name with a path are refused at `helm lint`. **The list is a starting set from knowledge; which
+registries AU projects need is the owner's call (gap 3).** It has no model provider: an AU
+sandbox reaches inference only through the gateway's private path (task 32), never
+`api.anthropic.com`, which is the Global route.
+
+```yaml
+# deploy/charts/platform/templates/networkpolicy-sandboxes.yaml (replace egress-internet)
+{{- $n := .Values.namespaces.sandboxes }}
+{{- define "platform.internetExcept" }}
+          except:
+            - 169.254.169.254/32
+            - 168.63.129.16/32
+            - 10.0.0.0/8
+            - 172.16.0.0/12
+            - 192.168.0.0/16
+{{- end }}
+---
+# Machines and balloons: unchanged from phase 8 task 11. machined fetches with the project's
+# read-only credential (task 48); it runs no agent code.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: egress-internet-infra, namespace: {{ $n }} }
+spec:
+  podSelector:
+    matchExpressions:
+      - { key: panacea-app/component, operator: In, values: [machine, balloon] }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+{{- include "platform.internetExcept" . }}
+---
+# Session pods of a Global project, and every solo session (the broker stamps "global" when a
+# create names no route). A session pod with no route label matches nothing here.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: egress-internet, namespace: {{ $n }} }
+spec:
+  podSelector:
+    matchLabels: { panacea-app/component: sandbox, panacea-app/route: global }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+{{- include "platform.internetExcept" . }}
+```
+
+Task 11's `each of network.* if it lies outside those` entries of the `except` list are kept in
+`platform.internetExcept` exactly as task 11 renders them (the helper above shows the five fixed
+entries only). `networkpolicy-defaults.yaml`, `allow-dns` and both ingress policies are untouched.
