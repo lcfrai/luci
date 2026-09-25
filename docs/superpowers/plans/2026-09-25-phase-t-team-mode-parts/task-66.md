@@ -1097,8 +1097,8 @@ rule 9 hunk above, and one closes gap 2.
 
 **What replaces the rule 9 hunk.** Every name below is task 05's where task 05 has one.
 
-`hubapi` (task 03's file, one anchored hunk after `AppRoleCompliance` and after `RoutePolicyRead`,
-`task-03.md:357-359`, `:388`):
+`hubapi` (task 03's file, two anchored hunks: the first two after `AppRoleCompliance`, the route
+names after `RoutePolicyRead`, `task-03.md:357-359`, `:388`):
 
 ```go
 	// AppRoleGateway is the gateway's workload identity (§5.10 rule 9).
@@ -1137,4 +1137,123 @@ func appCallers(cfg Config) ([]entra.AppCaller, error) {
 ```
 
 `cfg.GatewayClientID` is `PANACEA_APP_HUB_GATEWAY_CLIENT_ID`, read beside task 05's Fleet id.
+
+`server/auth.go`, three hunks on task 05's additions (`task-05.md:219-277`):
+
+```go
+// Claims gains, after FleetFeed:
+
+	// Gateway: AppOnly, azp is the configured gateway id and roles hold
+	// Hub.Gateway (§5.10 rule 9). Never set with DelegationID or FleetFeed.
+	Gateway bool
+
+// Authenticate, where task 05 copies entra.Claims.AppOnly (e is the entra.Claims):
+
+	c.Gateway = e.AppOnly && s.cfg.GatewayClientID != "" &&
+		strings.EqualFold(e.ClientID, s.cfg.GatewayClientID) &&
+		slices.Contains(e.Roles, hubapi.AppRoleGateway)
+
+// delegationHeader, two cases straight after `case !c.AppOnly: return nil`,
+// ahead of the feed and the 401 (fact 3):
+
+	case c.Gateway && len(vals) > 0:
+		return Refuse(403, hubapi.CodeForbidden, "Only Fleet may name a delegation.",
+			map[string]string{"required": "fleet"})
+	case c.Gateway:
+		return nil // rule 9: the gateway acts as no one, so it names no delegation
+
+// userKey, a case ahead of FleetFeed:
+
+	case c.Gateway:
+		return "gateway/" + c.TenantID
+```
+
+`server/delegation.go`: `resolveCaller` gains `case c.Gateway: return s.resolveGateway(ctx, tx, c)`
+ahead of `case c.FleetFeed` (`task-05.md:352`), and:
+
+```go
+// gatewayRoutes is rule 9's whole list, by contract §7.0 name, so a new route
+// is closed to the gateway until it is added here and to the matrix test.
+var gatewayRoutes = map[hubapi.RouteName]bool{
+	hubapi.RoutePolicyRead:       true, // 74
+	hubapi.RouteOrgQuotasRead:    true, // 80
+	hubapi.RouteUsageRollupsPost: true, // 76
+}
+
+// resolveGateway is rule 9: the tenant's org, no user, via "gateway". The
+// principal is built before the route check, as resolveDelegated builds it,
+// so the 403 records auth.forbidden with an org.
+func (s *Server) resolveGateway(ctx context.Context, tx pgx.Tx, c Claims) (Principal, bool, error) {
+	org, err := store.FleetOrg(ctx, tx, c.TenantID) // fleet_org: tenant to org, nothing Fleet-only
+	if err != nil {
+		return Principal{}, false, err // ErrNotEnrolled: 403, as task 05 maps it
+	}
+	p := Principal{OrgID: org, TenantID: c.TenantID, Via: hubapi.ViaGateway}
+	if name, ok := RouteFrom(ctx); !ok || !gatewayRoutes[name] {
+		return p, false, Forbidden("member")
+	}
+	return p, false, nil
+}
+```
+
+`fleet_org` is `SELECT o.id FROM hub.orgs o WHERE o.entra_tenant_id = p_tenant`
+(`task-04.md:803-805`), so it serves the gateway unchanged. Route 80 registers as
+`Delegable(hubapi.RouteOrgQuotasRead, …)` and route 76 as `Delegable(hubapi.RouteUsageRollupsPost,
+…)`; route 74 is task 43's under `policy.read` (`task-43.md:254`). `Delegable` only names a route:
+Fleet still needs the name in its delegation and its class (`task-05.md:397-401`), and neither new
+name is in a class.
+
+**Names in this part's handlers.** `tx.P.Caller == CallerGateway` reads `tx.P.Via ==
+hubapi.ViaGateway`, and `CallerDesk` reads `tx.P.Via == ""` (the route 80, 81, 76 and 75 hunks
+above). `Principal.Caller`, `CallerGateway`, `CallerDesk`, `hasRole` and `s.orgOf` are not added.
+
+**Rule 9's first sentence becomes:** *"An app-only token (rule 1: no `scp`) is also accepted when
+its `azp` equals `PANACEA_APP_HUB_GATEWAY_CLIENT_ID`, which may not be Fleet's, and its `roles`
+contain `Hub.Gateway`."* The rest of rule 9 stands; its three routes are the names `policy.read`,
+`org_quotas.read` and `usage_rollups.post`.
+
+**`devissuer`** gains a `gateway` client, `Confidential: true`, whose `AppRoles` for the Hub API
+hold `Hub.Gateway` (task 05's `Client` fields, `task-05.md:538-559`). The file it is listed in is
+Hub tasks 11–12's, **UNVERIFIED until merge**.
+
+**Tests this reconciliation adds** (`server/gateway_test.go`, new; `cmd/hub/serve_test.go` and
+`hubapi/team_test.go`, one test each), written first, each failing against the superseded hunk or
+its own mutant:
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestGatewayAdmittedWithoutIdtyp` | `devissuer`'s gateway token, which has no `idtyp`, reads route 80: 200 | the `idtyp == "app"` check restored (fact 1) |
+| `TestGatewayNeverAskedForADelegation` | no header, route 74: 200, never 401 `delegation_required` | the two gateway cases placed after `len(vals) == 0` (fact 3) |
+| `TestGatewayRoutedByNameThroughTheMux` | through the Hub's real handler chain, 74, 80 and 76 answer; route 75 is 403, `required` `member` | the route check reading `r.Pattern` in `Authenticate` (fact 2) |
+| `TestGatewayOnTheFeedRefused` | a gateway `GET /v1/orgs/{o}/changes`: 403 `member`, and no `FleetFeed` | the gateway falling into the feed branch |
+| `TestFleetRefusedOnGatewayNames` | a worker delegation row written directly (around task 06) listing `org_quotas.read`, route 80: 403 `org_quotas.read` | a new name added to a class's set |
+| `TestAppCallersRefusesOneIDForBoth` | equal Fleet and gateway ids: an error, the Hub does not start | the equality check removed (a Fleet call without a header would then pass as the gateway) |
+| `TestDefaultTeamPolicyUsesDefaultQuotas` | `DefaultTeamPolicy(…).Quotas == DefaultQuotas` | task 43's literal left in place and one side edited alone |
+
+`TestGatewayRefusedOffItsThreeRoutes` and `TestGatewayRoleAndAzpBothRequired` stand as written.
+The second's two refusals now come from `entra`: the right `azp` without the role matches no
+app-caller pair and has no `scp`, so `ErrClient`, 401; the role under another `azp` likewise. A
+token on Fleet's `azp` holding both roles is Fleet, not the gateway, because `c.Gateway` compares
+the id.
+
+**Acceptance, added to the list above:**
+
+```bash
+cd control-plane
+go test ./internal/hub/server/ -run 'Gateway|FleetRefusedOnGatewayNames' -count=1   # expect ok
+go test ./internal/hub/hubapi/ -run DefaultTeamPolicyUsesDefaultQuotas -count=1      # expect ok
+go test ./cmd/hub/ -run AppCallers -count=1                                          # expect ok
+grep -rn 'Idtyp\|idtyp\|r\.Pattern\|CallerGateway' internal/hub/server               # expect no output
+```
+
+**The gaps above, as they now stand.**
+
+- **Gap 2 is closed.** Task 43 creates every policy through `DefaultTeamPolicy`
+  (`task-43.md:254`), which now takes `DefaultQuotas`.
+- **Gap 5 is half closed.** Task 05 is on disk and this hunk follows it. Still open: the
+  `Hub.Gateway` app role on the Hub's Entra registration, and its assignment to the gateway's
+  workload identity, an infrastructure step no task lists.
+- **New, gap 7.** This reconciliation edits task 03's `hubapi` constants, task 43's
+  `DefaultTeamPolicy` and task 05's `serve.go`, `auth.go` and `delegation.go`, each by one anchored
+  hunk. The skeleton's file map should list them under task 66.
 
