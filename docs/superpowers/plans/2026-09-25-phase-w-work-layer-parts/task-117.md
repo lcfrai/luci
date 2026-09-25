@@ -155,7 +155,9 @@ func (a WorkAccess) Write(want hubapi.Role, notFound error) error {
 
 // grantedFeedKinds: an event of a granted project reaches the granted team
 // only if its kind is one of these prefixes (decision 3).
-var grantedFeedKinds = []string{"issue.", "comment.", "feature.", "work.milestone_",
+// "milestone." and "feature." also cover task 120's spelling of its kinds
+// (task-120.md:99-100), which differs from task 114's work.* table (a gap).
+var grantedFeedKinds = []string{"issue.", "comment.", "feature.", "milestone.", "work.milestone_",
 	"work.dependency_", "work.update_posted"}
 
 func grantedKind(kind string) bool {
