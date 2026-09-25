@@ -168,7 +168,9 @@ export function Picker(props: {
   label: string;
   items: readonly PickerItem[];
   multi?: boolean;
-  onChoose(id: string): void;
+  /** Return "stay" when the choice opens a next step in the same popover (duplicate-of, the
+   *  reason step, a relation's other issue); anything else closes a single-choice picker. */
+  onChoose(id: string): void | "stay";
   onClose(): void;
 }): JSX.Element {
   const { label, items, multi = false, onChoose, onClose } = props;
@@ -186,8 +188,7 @@ export function Picker(props: {
   useEffect(() => q.current?.focus(), []);
   const choose = (item: PickerItem | undefined) => {
     if (!item || item.disabled) return;          // a fact state or a needs-reason done: nothing sent
-    onChoose(item.id);
-    if (!multi) onClose();
+    if (onChoose(item.id) !== "stay" && !multi) onClose();
   };
   const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "ArrowDown") { e.preventDefault(); setActive(Math.min(at + 1, shown.length - 1)); }
@@ -266,21 +267,19 @@ export function StatePicker(props: {
     // Task 48 turns needs_reason into its reason step; until then it is shown and never sent.
     disabled: o.kind === "fact" || o.kind === "needs_reason",
   }));
-  const onChoose = (id: string) => {
+  const onChoose = (id: string): void | "stay" => {
     const to = id as IssueState;
     if (to === state) return;
-    if (to === "duplicate") { setDupOf(true); return; }
+    if (to === "duplicate") { setDupOf(true); return "stay"; }
     mutate({ kind: "setState", issueId, move: handMove(to) });
   };
-  return (
-    <Picker label="Change state" items={items} onChoose={onChoose}
-      onClose={() => { if (!dupOf) onClose(); }} />
-  );
+  return <Picker label="Change state" items={items} onChoose={onChoose} onClose={onClose} />;
 }
 ```
 
-`Picker` calls `onClose` after a single choice; the wrapper swallows it when *Duplicate* was chosen,
-so the second picker opens in place of the first.
+Choosing *Duplicate* returns `"stay"`, so `Picker` does not close the popover and the second
+picker opens in its place. (A wrapper that swallowed `onClose` by reading `dupOf` would read the
+value from before the choice, a stale closure, and close the popover anyway.)
 
 #### Interfaces — complete: `desktop/src/components/issue/pickers/DuplicateOfPicker.tsx`
 
@@ -296,11 +295,12 @@ export function DuplicateOfPicker(props: { issueId: string; onClose(): void }): 
   const { issueId, onClose } = props;
   const others = useWork((r) => search(r, "").filter((h) => h.id !== issueId));
   const items = others.map((h) => ({ id: h.id, label: `${h.alias} ${h.title}` }));
-  const onChoose = (otherId: string) =>
+  const onChoose = (otherId: string): void => {
     mutate([
       { kind: "relation", issueId, add: { kind: "duplicates", issueId: otherId } },
       { kind: "setState", issueId, move: handMove("duplicate") },
     ]);
+  };
   return <Picker label="Duplicate of" items={items} onChoose={onChoose} onClose={onClose} />;
 }
 ```
@@ -420,10 +420,11 @@ export function LabelPicker(props: {
       id: l.id, label: l.name, selected: on.has(l.id),
       lead: <span className="iv-label-dot" data-color={l.color} />,
     }));
-  const onChoose = (id: string) =>
+  const onChoose = (id: string): void => {
     mutate(on.has(id)
       ? { kind: "labels", issueId, add: [], remove: [id] }
       : { kind: "labels", issueId, add: [id], remove: [] });
+  };
   return <Picker label="Labels" multi items={items} onChoose={onChoose} onClose={onClose} />;
 }
 ```

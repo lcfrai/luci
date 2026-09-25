@@ -286,7 +286,7 @@ export function Relations(props: { head: IssueHead; me: User }): JSX.Element {
         onClick={() => setAdding("choose")}>Add a relation</button>
       {adding === "choose" ? (
         <Picker label="Relation" items={ADD_ORDER.map((k) => ({ id: k, label: RELATION_LABEL[k] }))}
-          onChoose={(k) => setAdding(k as AddKind)} onClose={() => {}} />
+          onChoose={(k) => { setAdding(k as AddKind); return "stay"; }} onClose={() => setAdding(null)} />
       ) : null}
       {adding !== null && adding !== "choose" ? (
         <OtherIssuePicker subject={head.id} kind={adding} onClose={() => setAdding(null)} />
@@ -301,7 +301,7 @@ function OtherIssuePicker(props: { subject: string; kind: AddKind; onClose(): vo
   return (
     <Picker label={`${RELATION_LABEL[kind]} which issue`} onClose={onClose}
       items={hits.map((h) => ({ id: h.id, label: `${h.alias} ${h.title}` }))}
-      onChoose={(other) => mutate(relationOp(subject, kind, other))} />
+      onChoose={(other) => { mutate(relationOp(subject, kind, other)); }} />
   );
 }
 ```
@@ -309,8 +309,8 @@ function OtherIssuePicker(props: { subject: string; kind: AddKind; onClose(): vo
 `r.kind as RelationWord` is safe because task 11 widens `RelationKind` to the five words, and
 SW.15's desktop `Relation.kind` mirrors it (task 37); task 20's fixture type lists only the
 three writable words (`task-20.md:178`), so the fixtures need the two inverse words too (a gap).
-The first `Picker`'s `onClose` does nothing because its single choice immediately swaps it for the
-second; the second closes the whole add. `useHeartbeat` is the one clock (`heartbeat.ts:64`, a
+The first `Picker` returns `"stay"` (task 46's `Picker` contract) so its choice swaps it for the
+second instead of closing; `Esc` on either closes the whole add. `useHeartbeat` is the one clock (`heartbeat.ts:64`, a
 1 Hz tick shared by the window): no component in this part starts a timer, so a *waiting* figure
 changes only on the beat.
 
@@ -395,15 +395,14 @@ export function StatePicker(props: {
     lead: <StateGlyph state={o.state} size={14} />,
     disabled: o.kind === "fact",                 // needs_reason is now enabled: it opens the step
   }));
-  const onChoose = (id: string) => {
+  const onChoose = (id: string): void | "stay" => {
     const opt = stateOptions(state, serving).find((o) => o.state === id);
     if (!opt || opt.current) return;
-    if (opt.kind === "pick_duplicate") { setStep("duplicate"); return; }
-    if (opt.kind === "needs_reason") { setStep("reason"); return; }
+    if (opt.kind === "pick_duplicate") { setStep("duplicate"); return "stay"; }
+    if (opt.kind === "needs_reason") { setStep("reason"); return "stay"; }
     mutate({ kind: "setState", issueId, move: handMove(opt.state) });
   };
-  return <Picker label="Change state" items={items} onChoose={onChoose}
-    onClose={() => { if (step === "list") onClose(); }} />;
+  return <Picker label="Change state" items={items} onChoose={onChoose} onClose={onClose} />;
 }
 
 /** Decision 5: one line, trimmed, required. Enter sends; Esc goes back to the list. */
@@ -433,8 +432,8 @@ function ReasonStep(props: { issueId: string; onBack(): void; onDone(): void }):
 }
 ```
 
-The picker closes over `step` in its `onClose` because `Picker` calls `onClose` after every single
-choice; a choice that opens a step must not close the popover. The input's `id` joins the `is-` id,
+A choice that opens a step returns `"stay"` (task 46's `Picker` contract), so the popover stays
+open and the step replaces the list. The input's `id` joins the `is-` id,
 never the alias. Nothing in this step changes the glyph by itself: the replica's optimistic write
 (task 56) sets `state: "done"`, and `proof: "not_proven"` arrives with the Hub's head, so until the
 answer the row draws an ordinary done for a moment. That is the Hub deciding the word, as SW.4
@@ -499,5 +498,80 @@ export function proofHeadOf(head: IssueHead): ProofHead {
 No rule here names `--need`, `--fail` or a status hue: *done, not proven* is a shape (task 28's
 open ring) and a sentence, and the stalled line is a fact in mono, not an alarm. The Desk (task
 63) is where a wait earns amber.
+
+#### Tests to write first — `pickers/reason.test.tsx` and `glyphOf.test.ts`
+
+```tsx
+// desktop/src/components/issue/pickers/reason.test.tsx
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { WORK_IDS } from "../../../test/workFixtures";
+import { mutate } from "../../../work/replica/ops";
+import { StatePicker, handMove } from "./StatePicker";
+
+vi.mock("../../../work/replica/ops", () => ({ mutate: vi.fn() }));
+vi.mock("../../../work/replica/replica", () => ({ useWork: vi.fn(() => []), search: vi.fn(() => []) }));
+const sent = () => vi.mocked(mutate).mock.calls.map((c) => c[0]);
+beforeEach(() => vi.mocked(mutate).mockClear());
+
+describe("the hand-done reason step", () => {
+  it("cannot send a hand-done on a serving issue without a reason", async () => {
+    const user = userEvent.setup();
+    render(<StatePicker issueId={WORK_IDS.ep142} state="landed" serving onClose={() => {}} />);
+    await user.click(screen.getByRole("option", { name: /Done/ }));
+    const box = screen.getByRole("textbox");
+    await user.type(box, "   {Enter}");
+    expect(sent()).toEqual([]);
+    expect((screen.getByRole("button", { name: "Mark done, not proven" }) as HTMLButtonElement).disabled).toBe(true);
+  });
+  it("sends the trimmed reason with cause hand", async () => {
+    const user = userEvent.setup();
+    render(<StatePicker issueId={WORK_IDS.ep142} state="landed" serving onClose={() => {}} />);
+    await user.click(screen.getByRole("option", { name: /Done/ }));
+    await user.type(screen.getByRole("textbox"), "  shipped behind a flag  {Enter}");
+    expect(sent()).toEqual([{ kind: "setState", issueId: WORK_IDS.ep142, move: handMove("done", "shipped behind a flag") }]);
+  });
+  it("sends a plain done, with no step, on an issue that serves nothing", async () => {
+    const user = userEvent.setup();
+    render(<StatePicker issueId={WORK_IDS.ep142} state="landed" serving={false} onClose={() => {}} />);
+    await user.click(screen.getByRole("option", { name: /Done/ }));
+    expect(sent()).toEqual([{ kind: "setState", issueId: WORK_IDS.ep142, move: handMove("done") }]);
+  });
+});
+```
+
+```ts
+// desktop/src/components/issue/glyphOf.test.ts
+import { describe, expect, it } from "vitest";
+import { makeIssueHead } from "../../test/workFixtures";
+import { glyphPropsOf } from "./glyphOf";
+import headSrc from "./IssueHead.tsx?raw";
+import rowSrc from "../work/IssueRow.tsx?raw";
+import boardSrc from "../work/BoardView.tsx?raw";
+
+describe("glyphPropsOf (decision 8)", () => {
+  it("draws not proven from the Hub's word, on done only", () => {
+    expect(glyphPropsOf(makeIssueHead({ state: "done", proof: "not_proven" })).notProven).toBe(true);
+    expect(glyphPropsOf(makeIssueHead({ state: "done", proof: "proven" })).notProven).toBe(false);
+    expect(glyphPropsOf(makeIssueHead({ state: "done", proof: "proven_self_attested" })).notProven).toBe(false);
+    expect(glyphPropsOf(makeIssueHead({ state: "todo", proof: "not_proven" })).notProven).toBe(false);
+  });
+  it("is the one rule in the view, the row and the board card", () => {
+    for (const src of [headSrc, rowSrc, boardSrc]) {
+      expect(src).toContain("glyphPropsOf(");
+      expect(src).not.toMatch(/notProven=\{/);          // nobody passes the flag by hand
+    }
+  });
+});
+```
+
+| Test | Mutant it kills |
+|---|---|
+| cannot send without a reason | a done without reason, by Enter or by the button |
+| sends the trimmed reason | an untrimmed reason; a cause other than `hand` |
+| plain done when serving nothing | a reason demanded where the Hub wants none (`no_criteria`) |
+| not proven from the word | an ordinary done glyph on a hand-set done; *proven, self-attested* drawn as not proven |
+| one rule in three places | the row or the board card drawing an ordinary done glyph |
 
 
