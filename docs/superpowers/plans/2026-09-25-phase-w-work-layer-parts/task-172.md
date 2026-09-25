@@ -471,3 +471,52 @@ the tick for test 7; `FIXED_NOW` is task 20's.
    `transition: all`, and a new run row enters with `opacity` only.
 6. Mount `LoopList` in the person's settings (gap 1); `npm --prefix desktop run typecheck`;
    commit with `git commit -F <msgfile> -- <paths>`.
+
+#### Acceptance
+
+```bash
+npm --prefix desktop test -- src/components/loops/
+# expect: loopModel.test.ts 7 passed; LoopEditor.test.tsx, LoopList.test.tsx, LoopVersions.test.tsx
+#         and LoopRuns.test.tsx together 10 passed; no failed
+npm --prefix desktop run typecheck
+# expect: exit 0
+grep -rn -i -E "spinner|aria-busy|interruption|per hour" desktop/src/components/loops --exclude=*.test.*
+# expect: no output, exit 1
+```
+
+Visual acceptance is the owner's eyes: the editor with a greyed inherited row and a disabled
+level, a version diff, and a run log holding each of the six outcome words, opened in the
+running app against the fake client.
+
+#### What this task does NOT claim
+
+- That a loop has run for a real Orchestrator: the fake answers `queued` and then the outcome a
+  test seeds; task 162-163's janitor and Fleet delta are **UNVERIFIED until Phase T merges**.
+- That the grid the editor caps against is the owner's real grid (gap 2); decision 10's fallback
+  is narrower than any real grid, never wider.
+- That *skipped: budget spent* reflects TM-37's real budget: the desktop shows the outcome the
+  Hub recorded.
+- Any count of how often a loop will fire or interrupt: the only numbers shown are the limit the
+  owner set (*at most 6 turns a day*) and measured times.
+
+#### Gaps found while writing this part
+
+1. **No home for loops, and no person-settings host.** The File map's
+   `src/components/{plan,roadmap,intake,admin}/*` row has no `loops/`; this part adds it. No part
+   on the tree names where *Settings* is drawn (task 176 also says only "settings"); step 6 mounts
+   `LoopList` wherever the File map settles it.
+2. **Where the owner's own grid lives.** Task 162's scope (`tasks-161-180.md:109-110`) marks it
+   **UNVERIFIED**, and a grep of the team worktree's plans for an autonomy-grid route finds none.
+   The editor needs a read, for example `GET /v1/me/autonomy` answering
+   `Record<ActionClass, AutonomyLevel>`, owned by Phase T; until then `ownerGrid` is `null` and
+   decision 10 applies.
+3. **No cloud-or-local signal is named.** No module on the tree or part exports whether the
+   desktop is signed in to a team Hub; `LoopList` takes `hub: "cloud" | "local"` from its host.
+4. **No rename.** Task 162's `PATCH /v1/work/loops/{loopId}` carries `{state}` only, and `name` is
+   on the head, so a loop cannot be renamed; the field is read-only after create. A rename is
+   one field on that PATCH (owner only) and one row in task 169's relay.
+5. **The event list is this part's.** Task 162 checks *SW.5 and SW.21 feed kinds only* but names
+   no list and does not refuse `loop.*` or `work.loop_fired`; decision 9 asks it to, so a loop
+   cannot chain another on the Hub either.
+6. **Two codes for one refusal.** `loop_bound_exceeds_owner` (task 162) and `loop_outside_grid`
+   (task 143) are both drawn under the grid the same way; task 169's G1 decides which survives.
