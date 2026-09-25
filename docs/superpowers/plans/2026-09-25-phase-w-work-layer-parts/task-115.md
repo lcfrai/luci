@@ -80,12 +80,11 @@ package hubclient
 
 import (
 	"context"
-	"reflect"
 	"slices"
 	"sort"
 	"strconv"
 	"sync"
-	"time"
+	"time" // QueryInsights parses each event's At
 
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubapi"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/ids"
@@ -735,4 +734,77 @@ is `started` to the latest move whose `to` is `done` (and no later move out of `
 first move whose `from` is `triage`. Each measured issue is one `InsightPoint`; `P50Ms`, `P75Ms`
 and `P90Ms` are `percentile` over the sorted points. An issue that never reached the end event
 gives no point; nothing is estimated for it.
+
+**The rest, by rule.** `SetTemplateSchedule` and `ClearTemplateSchedule` need admin of the
+template's team (task 78's template state, **UNVERIFIED** name `w.planTemplate`) and a template of
+`kind: "issue"` (a brief template does not recur; 422 `bad_request`, `field: "templateId"`).
+`SetReminderPolicy` needs the feature's lead, the initiative's owner, or a team admin, else 403
+`forbidden`, `required: "lead_or_owner"`. `SetTriageRotation` needs admin and every member to be a
+member of the team (`members[i]`, 422 `bad_request`); `TriageRotation` returns the view with
+`OnDuty = Members[(days since StartsOn / PeriodDays) mod len]` and `NextHandoverOn` the next
+period boundary, both computed from the stored policy and `w.now()`, never a forecast.
+`CreateFeatureFromTemplate` calls task 73's feature create and H's brief create **inside one lock
+hold** and one issue create per issue template, each serving the criterion its template maps to;
+any refusal leaves nothing written (the fake builds all three in locals and commits the maps last).
+Every write above appends its one kind from task 114's table.
+
+#### `conformance/work_roadmap.go`, the head and three rows complete
+
+```go
+package conformance
+
+import (
+	"reflect"
+	"strings"
+	"testing"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubapi"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubclient"
+)
+
+// WorkRowsW4 run against NewFake() here and the real Hub in task 124. Env's
+// team T; WorkEnv.Other is a member of team U only (task 05's Env, fields
+// UNVERIFIED: Admin, Member, Viewer, Outsider, OtherAdmin).
+var WorkRowsW4 = []WorkRow{
+	{"W4-01", "update_never_changes", w4UpdateNeverChanges},
+	{"W4-02", "update_pins_its_brief", w4UpdatePinsItsBrief},
+	{"W4-03", "cites_resolve_for_the_author", w4CitesResolve},
+	{"W4-04", "milestone_criteria_on_brief", w4MilestoneOnBrief},
+	{"W4-05", "dependency_cycle_refused", w4DependencyCycle},
+	{"W4-06", "grant_is_read_and_comment", w4GrantIsReadAndComment},
+	{"W4-07", "grant_writes_refused", w4GrantWritesRefused},
+	{"W4-08", "revoke_is_immediate", w4RevokeIsImmediate},
+	{"W4-09", "initiative_names_linked_teams", w4InitiativeTeams},
+	{"W4-10", "initiative_view_hides_unreadable", w4InitiativeViewHides},
+	{"W4-11", "cursor_only_advances", w4CursorOnlyAdvances},
+	{"W4-12", "insights_measured_only", w4InsightsMeasuredOnly},
+	{"W4-13", "one_event_per_write", w4OneEventPerWrite},
+	{"W4-14", "latest_update_null_not_default", w4LatestUpdateNull},
+}
+
+// W4-01: no WorkRoadmap method rewrites an update (decision 3), and a
+// posted update reads byte-equal after later writes.
+func w4UpdateNeverChanges(t *testing.T, e WorkEnv) {
+	rt := reflect.TypeOf((*hubclient.WorkRoadmap)(nil)).Elem()
+	for i := 0; i < rt.NumMethod(); i++ {
+		n := rt.Method(i).Name
+		if n != "PostUpdate" && n != "Updates" && strings.Contains(n, "Update") {
+			t.Errorf("WorkRoadmap.%s may write an existing update", n)
+		}
+	}
+	ft := e.feature(t, "Checkout") // task 73's row helper (UNVERIFIED name)
+	s := hubapi.UpdateSubject{Kind: hubapi.UpdateSubjectFeature, ID: ft.ID}
+	u, err := e.Member.PostUpdate(wctx, s, w4Post(hubapi.HealthAtRisk))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.Member.PostUpdate(wctx, s, w4Post(hubapi.HealthOnTrack)); err != nil {
+		t.Fatal(err)
+	}
+	page, err := e.Viewer.Updates(wctx, s, hubapi.PageRequest{Limit: 10})
+	if err != nil || len(page.Items) != 2 || !reflect.DeepEqual(page.Items[1], u) {
+		t.Fatalf("first update changed or lost: %v %+v", err, page.Items)
+	}
+}
+```
 
