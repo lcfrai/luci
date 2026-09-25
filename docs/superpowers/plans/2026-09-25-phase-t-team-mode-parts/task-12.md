@@ -844,14 +844,16 @@ func run(ctx context.Context, getenv func(string) string, stderr io.Writer) int 
 	}
 
 	cache := delegation.NewCache()
-	deliver := outbox.New(st, delegation.Sender{Client: delegation.NewClient(cache, time.Now), Hub: hub}, time.Now)
+	deliver := outbox.New(outbox.StoreQueue{S: st}, delegation.Sender{Client: delegation.NewClient(cache, time.Now), Hub: hub}, time.Now)
 	feedLock := server.NewSingleton(st.Pool(), "feed", log)
 	outboxLock := server.NewSingleton(st.Pool(), "outbox", log)
 	revokers := &fanout{log: log} // tasks 20, 23, 39 add theirs: revokers.add(r)
 	feed := delegation.NewFeed(hub, hub, cache, revokers, feedLock.Held, time.Now)
 	state := delegation.NewHubState()
 	kinds := slices.Clone(delegation.FeedKinds) // tasks 22-25 append their kinds
-	rebuild := func(c context.Context) error { return delegation.Rebuild(c, st, hub, hub, feed, state) }
+	rebuild := func(c context.Context) error {
+		return delegation.Rebuild(c, delegation.StoreInUse{S: st}, hub, hub, feed, state)
+	}
 
 	go readFeed(ctx, log, srv, feed, rebuild, kinds)
 	go feedLock.Run(ctx, func(c context.Context) error { feed.Reset(); return rebuild(c) },

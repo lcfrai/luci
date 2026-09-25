@@ -74,6 +74,7 @@ own (task 10), and task 01's table has no thread list route either.
 - `control-plane/internal/fleet/delegation/feed.go` — `Revoker`, `Feed`, the 10-second poll and the expiry sweep (new)
 - `control-plane/internal/fleet/delegation/rebuild.go` — `HubState`, `Rebuild` (new)
 - `control-plane/internal/fleet/delegation/delegation_test.go` — the cache, the header, revocation by feed and by clock, the gapless rebuild (new)
+- `control-plane/internal/fleet/outbox/store.go`, `control-plane/internal/fleet/delegation/store.go` — the two adapters to task 10's row types (new; task 10's handoff, `task-10.md:562-567`)
 
 **Interfaces:**
 - Produces:
@@ -82,7 +83,7 @@ own (task 10), and task 01's table has no thread list route either.
   - `delegation.Revoker`, `delegation.Reason` (`revoked`, `lapsed`), `delegation.Feed` with `Poll`, `delegation.PollEvery` (10 s)
   - `delegation.HubState`, `delegation.Rebuild`
 - Consumes:
-  - task 10 — `store.Store` and its `Tx(ctx, func(store.Tx) error) error`; the store implements `outbox.Queue` (the outbox **owns** `Item`; the store imports `outbox`, never the reverse), and `store.Tx` has `AppendOutbox(ctx, outbox.Item) error`; `store.Store.DelegationsInUse(ctx) ([]delegation.Use, error)` for the rebuild — every `dl-…` a live agent row of Fleet's was started under, with its key (task 20 writes the `dl-…` on the agent row; if task 10's agent row has no delegation column, this task's gap list says so)
+  - task 10 — `store.Store` and its `Tx(ctx, func(store.Tx) error) error`; the outbox methods `OutboxHeads`, `OutboxMarkSent`, `OutboxMarkRetry`, `OutboxMarkDead`, `OutboxFailingSince`, `OutboxDeleteSentBefore`, `Tx.AppendOutbox(ctx, store.OutboxRow)`, `store.OutboxRow`, `Store.DelegationsInUse(ctx) ([]store.DelegationUse, error)` (`task-10.md:95-110,146-170,196-202`). Task 10 is built first and does not import `outbox` (`task-10.md:562-567`), so **this task's `store.go` files convert**: `outbox.StoreQueue`, `outbox.TxAppender` and `delegation.StoreInUse`, below
   - task 08 — `hubclient.Team` (one method per task 06–07 route), `hubclient.OrgFeed` with `OrgChanges(ctx, org, after string, kinds []string, limit int) (hubapi.ChangesPage, error)` (the per-org twin of the built `Feed.Changes`, `hubclient.go:96-99`; `hubapi.Event` and `hubapi.ChangesPage` are built, `hubapi/types.go:536-551`), `Team.Delegation(ctx, id) (hubapi.Delegation, error)` (route 47, `delegations.read`), `Team.Tasks(ctx, projectID, hubapi.TaskQuery) (hubapi.Page[hubapi.Task], error)` (route 52; `TaskQuery{State []TaskState; hubapi.PageRequest}`, `task-08.md:94,137-139`, where task 08 names this change), `Team.Conflicts(ctx, projectID, hubapi.ConflictQuery) (hubapi.Page[hubapi.Conflict], error)` (route 59; `ConflictQuery{State string; hubapi.PageRequest}` from task 03), `hubclient.WithDelegation(ctx, dl string) context.Context`, `hubclient.WithIdempotencyKey(ctx, key string) context.Context`, and the fake's team half
   - task 09 — `model.Owner`, `model.Class`. **Assumed:** `model.Owner` is a string type holding the Hub user id (`us-…`), because every Hub team record names its owner that way (`task-06.md:84,111`); if task 09 makes it `(tid, oid)`, `FromHub` and the feed's decode are the two places that change
   - task 03 — `hubapi.Delegation` (`ID`, `OrgID`, `OwnerID`, `ProjectID`, `Class`, `Routes`, `ExpiresAt`, `RevokedAt`, as `task-06.md:84-86` shows the wire), the list types for tasks, threads and escalations, and the feed kinds `delegation.created`, `delegation.renewed`, `delegation.revoked`
@@ -181,8 +182,8 @@ type Item struct {
 	Problem      json.RawMessage // the Hub's problem body, on StateDead only
 }
 
-// Queue is the outbox table. Task 10's Store implements it; Enqueue itself
-// goes through store.Tx.AppendOutbox so it shares the state change's commit.
+// Queue is the outbox table. StoreQueue (store.go) adapts task 10's Store to
+// it; Enqueue goes through TxAppender so it shares the state change's commit.
 type Queue interface {
 	// Heads returns, per org, the lowest-Seq pending row whose NextAt <= now.
 	Heads(ctx context.Context, now time.Time, limit int) ([]Item, error)
@@ -943,6 +944,101 @@ be applied, and the delegation would stay cached as live until its expiry, up to
 the head first puts that revocation after the cursor, so the next `Poll` applies it.
 `TestAdoptReadsTheHeadBeforeTheRecord` pins the order with a fake that revokes between the calls.
 
+**The two adapters to task 10's store, complete.** Task 10 is built first and cannot import
+these packages, so it keeps its own row types (`task-10.md:146-170,196-202`) and these files
+convert, field for field. They are the only files here that import `internal/fleet/store`.
+
+`control-plane/internal/fleet/outbox/store.go`:
+
+```go
+package outbox
+
+import (
+	"context"
+	"encoding/json"
+	"time"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/fleet/store"
+)
+
+// StoreQueue is Queue over task 10's Store.
+type StoreQueue struct{ S store.Store }
+
+func (q StoreQueue) Heads(ctx context.Context, now time.Time, limit int) ([]Item, error) {
+	rows, err := q.S.OutboxHeads(ctx, now, limit)
+	out := make([]Item, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, fromRow(r))
+	}
+	return out, err
+}
+func (q StoreQueue) MarkSent(ctx context.Context, id string, at time.Time) error {
+	return q.S.OutboxMarkSent(ctx, id, at)
+}
+func (q StoreQueue) MarkRetry(ctx context.Context, id string, n int, next, since time.Time) error {
+	return q.S.OutboxMarkRetry(ctx, id, n, next, since)
+}
+func (q StoreQueue) MarkDead(ctx context.Context, id string, p json.RawMessage) error {
+	return q.S.OutboxMarkDead(ctx, id, p)
+}
+func (q StoreQueue) FailingSince(ctx context.Context) (map[string]time.Time, error) {
+	return q.S.OutboxFailingSince(ctx)
+}
+func (q StoreQueue) DeleteSentBefore(ctx context.Context, t time.Time) (int, error) {
+	return q.S.OutboxDeleteSentBefore(ctx, t)
+}
+
+// TxAppender is Appender over one task 10 transaction: Enqueue(ctx, TxAppender{tx}, it).
+type TxAppender struct{ Tx store.Tx }
+
+func (a TxAppender) AppendOutbox(ctx context.Context, it Item) error {
+	return a.Tx.AppendOutbox(ctx, toRow(it))
+}
+
+func toRow(it Item) store.OutboxRow {
+	return store.OutboxRow{Seq: it.Seq, ID: it.ID, OrgID: it.OrgID, Owner: it.Owner,
+		ProjectID: it.ProjectID, Class: it.Class, Op: string(it.Op), Subject: it.Subject,
+		Payload: it.Payload, CreatedAt: it.CreatedAt, State: string(it.State), Attempts: it.Attempts,
+		NextAt: it.NextAt, FailingSince: it.FailingSince, Problem: it.Problem}
+}
+
+func fromRow(r store.OutboxRow) Item {
+	return Item{Seq: r.Seq, ID: r.ID, OrgID: r.OrgID, Owner: r.Owner, ProjectID: r.ProjectID,
+		Class: r.Class, Op: Op(r.Op), Subject: r.Subject, Payload: r.Payload, CreatedAt: r.CreatedAt,
+		State: State(r.State), Attempts: r.Attempts, NextAt: r.NextAt, FailingSince: r.FailingSince,
+		Problem: r.Problem}
+}
+```
+
+`control-plane/internal/fleet/delegation/store.go`:
+
+```go
+package delegation
+
+import (
+	"context"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/fleet/store"
+)
+
+// StoreInUse is InUse over task 10's Store.
+type StoreInUse struct{ S store.Store }
+
+func (s StoreInUse) DelegationsInUse(ctx context.Context) ([]Use, error) {
+	rows, err := s.S.DelegationsInUse(ctx)
+	out := make([]Use, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, Use{ID: r.ID, Key: Key{OrgID: r.OrgID, Owner: r.Owner, ProjectID: r.ProjectID, Class: r.Class}})
+	}
+	return out, err
+}
+```
+
+`TestRowsRoundTrip` (in `outbox`) fills every `Item` field with a distinct value and asserts
+`fromRow(toRow(it))` deep-equals `it`; the mutant is a field dropped in one direction, which a
+retry would then send without its `FailingSince` and un-pause the org. `OutboxRow`'s field set is
+`task-10.md:146-170`; if a field is added there, the round-trip test fails until it is added here.
+
 - [ ] **Step 1: Write the failing outbox tests**
 
 `control-plane/internal/fleet/outbox/outbox_test.go`, package `outbox`. The fixture is a
@@ -1116,12 +1212,13 @@ cd control-plane
 go vet ./internal/fleet/... ./internal/hub/hubclient/...
 go test ./internal/fleet/outbox/ ./internal/fleet/delegation/ ./internal/hub/hubclient/... -count=1 -race
 grep -rn "time.Sleep" internal/fleet/outbox internal/fleet/delegation
-grep -rn "internal/fleet/store" internal/fleet/outbox internal/fleet/delegation
+grep -rln "internal/fleet/store" internal/fleet/outbox internal/fleet/delegation
 ```
 
 Expected: `go vet` prints nothing; three `ok` lines (the `-race` run matters: `Paused` is read from
 request goroutines while `RunOnce` writes); both `grep`s print nothing — no test sleeps, and
-neither package imports task 10's store (the store imports them).
+the second lists exactly `internal/fleet/outbox/store.go` and `internal/fleet/delegation/store.go`:
+the two adapters are the only files that know task 10's types.
 
 **What this task does not claim.**
 - Nothing here runs a loop. Task 12 owns the goroutines, the 500 ms delivery tick, the 10 s poll and
