@@ -275,7 +275,7 @@ func (s *Sessions) spec(a model.Agent, r LaunchRequest, pv store.PolicyVersion, 
 		// Task 15 adds Class and PolicyFile to SandboxSpec; the broker writes
 		// PolicyFile into the per-pod Secret "<pod>-policy" and moves
 		// PANACEA_APP_CONTROL_TOKEN from Env into that pod's attach Secret, as
-		// it does AttachToken (env task-18.md:52), so neither is in the pod spec.
+		// it does AttachToken (phase 8 task-18.md:53), so neither is in the pod spec.
 		Class: string(a.Class), PolicyFile: pv.Body,
 	}
 }
@@ -295,7 +295,7 @@ prepares the clone.
 | `DELETE /v1/agents/{ag}` | `server.VerbSessionsOwn` | the caller's own agent only, else `404 agent_not_found`; `Stop(…, stopped)`; `204` |
 
 `AgentJSON` is built from `model.Agent` and holds no args, token, pod address or node (task 21's
-`TestAgentJSONHasNoArgs`, `task-21.md:131-133`). `GET /v1/agents/{ag}/attach` stays task 39's.
+`TestAgentJSONHasNoArgs`, `task-21.md:132-135`, `:390`). `GET /v1/agents/{ag}/attach` stays task 39's.
 
 **Configuration** (task 12's `config.go`, a bad value fails start naming it):
 `PANACEA_APP_FLEET_INSTALL_ID` (32 lower-case hex), `PANACEA_APP_FLEET_GATEWAY_BASE_URL` (http(s), the
@@ -312,3 +312,62 @@ Consumes: task 09 `model.*`; task 10 `store.Tx.PutAgent`, `EndAgent`, `AppendOut
 `RouteSource`; phase 8 `remotebe.Client`, `brokerapi.SandboxSpec`. Consumed by: task 19 (`Live`), task
 24 (`worker spawn|stop` call `Launch` and `Stop`), task 26 (`Current`), task 11 (`Revoke`, `Resume`),
 task 21 (the routes), task 37 (the counterpart tag), task 39 (`attachToken`).
+
+- [ ] **Step 1: Write the failing tests**
+
+The harness: task 10's `memstore`, task 11's `delegation.Cache` holding `dl-a-w` (Alice, `pj-shop`,
+`worker`) and `dl-a-o` (Alice, `pj-shop`, `orchestrator`), a fake broker that records every create
+and destroy and answers `source` with `10.244.3.17`, a fake keysmith (`Minter`) that records every
+`MintRequest` and answers with a route it is told to, a fake `RouteSource`, a fake `Streams` sink that
+records `Send`, and a settable clock. Principals: Alice as `member`, Vic as `viewer`.
+
+| Test | What it checks | Mutant it kills |
+|---|---|---|
+| `TestSecondOrchestratorLaunchReturnsTheFirst` | two `EnsureOrchestrator` calls for Alice, `pj-shop`: one agent row, one broker create, both return the same `ag-…`; the second's `created` is false | an Orchestrator per launch |
+| `TestConcurrentOrchestratorLaunchesMakeOne` | 8 goroutines call `EnsureOrchestrator` at once on `memstore` (which enforces the same partial unique rule as `0003`): one row, one create | a check-then-insert race |
+| `TestViewersLaunchIs403` | Vic's `Launch` → `ErrViewer`; no row, no create, no Orchestrator; over HTTP `403 role_forbids` | relying on task 12's route check alone, or creating a viewer's Orchestrator |
+| `TestFirstWorkerLaunchCreatesTheOrchestrator` | with `dl-a-o` live, Alice's first worker launch creates her Orchestrator; `OrchestratorState == "created"`; the second worker launch says `"live"` | an Orchestrator only on explicit request |
+| `TestNoOrchestratorDelegationWorkerRunsAlone` | with `dl-a-o` absent: the worker launches, no Orchestrator create, `"awaiting-delegation"` | creating an Orchestrator under a worker delegation |
+| `TestAUProjectNeverMintsOnGlobal` | route source says `au`; fake keysmith answers `Route: global` → the key is revoked (`RevokeSession` recorded), nothing is `Send`-ed, the agent ends `failed` with `gateway_route_mismatch` | trusting keysmith's answer |
+| `TestAURouteDownFailsClosed` | route source errors → no broker create, no mint, launch fails; keysmith `503 route_unknown` after create → no token, no second mint with other parameters | a fallback of any kind |
+| `TestMintCarriesTheTeamTags` | a worker's first `MintRequest` has `Owner{tid,oid}` of the delegation owner, `TeamID`, `ProjectID`, `AgentID` = the `ag-…`, `SessionClass: worker`, `PodAddr: 10.244.3.17`, `Counterpart: ""` | Fleet's own identity in the tags, or a missing field |
+| `TestEachOrchestratorTurnMintsAFreshKey` | two `turn.begin` pushes through `BeforeTurn`: two mints, generations 1 and 2, each `Send` precedes its turn; a peer-triggered turn carries `Counterpart` = Bob | one key per session for an Orchestrator |
+| `TestLaunchReturnsBeforeTheSandboxIsReady` | the fake broker's create blocks 2 s; `Launch` returns in < 200 ms with status `starting` | the shared-deadline chain |
+| `TestAgentStartIsInTheSameTx` | after `Launch`, the store holds the agent row **and** an outbox row `agents.start` whose payload matches `task-01.md:352-356`'s shape with `policy.version` and `digest` from `Effective`; a `Tx` that fails leaves neither | two writes that can diverge |
+| `TestOpeningPromptStaysInTheSpec` | args `["-p","PROMPT-MARKER-7"]`: the marker is in the broker's recorded spec and absent from the agent row, the outbox payload, every log line and `AgentJSON` | persisting the private prompt (OD-24) |
+| `TestSpecCarriesNoOrgKey` | the recorded spec's env has no `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN` or `CLAUDE_CODE_USE_BEDROCK`, and `ANTHROPIC_BASE_URL` is the gatekeeper | a key in the environment (§2.5 constraint 9) |
+| `TestRevokeDestroysAndEnds` | `Revoke(dl-a-w, Revoked)`: every sandbox of that delegation destroyed, `RevokeSession` for each, each agent ended `access_removed` with an outbox `agents.end` | stranded pods after a revocation |
+| `TestLapseMintsNothingMore` | `Revoke(dl-a-w, Lapsed)` then a refresh tick: no mint; `Resume` → the next tick mints | minting for a lapsed delegation |
+
+The three the scope names, in full:
+
+```go
+func TestSecondOrchestratorLaunchReturnsTheFirst(t *testing.T) {
+	h := newHarness(t)
+	a1, created1, err1 := h.s.EnsureOrchestrator(ctx, h.alice, "pj-shop", "dl-a-o")
+	a2, created2, err2 := h.s.EnsureOrchestrator(ctx, h.alice, "pj-shop", "dl-a-o")
+	if err1 != nil || err2 != nil || !created1 || created2 || a1.ID != a2.ID || h.broker.creates() != 1 {
+		t.Fatalf("got %s/%v %s/%v, creates %d; want one Orchestrator", a1.ID, created1, a2.ID, created2, h.broker.creates())
+	}
+}
+
+func TestViewersLaunchIs403(t *testing.T) {
+	h := newHarness(t)
+	_, err := h.s.Launch(ctx, h.req(h.vic, model.ClassWorker, "dl-v-w"))
+	if !errors.Is(err, ErrViewer) || h.broker.creates() != 0 || h.store.count(t) != 0 {
+		t.Fatalf("err %v, creates %d; want ErrViewer and nothing made", err, h.broker.creates())
+	}
+}
+
+func TestAUProjectNeverMintsOnGlobal(t *testing.T) {
+	h := newHarness(t)
+	h.routes.set("pj-shop", "au")
+	h.keysmith.answerRoute("global") // a keysmith bug, or a lowered class mid-flight
+	l, _ := h.s.Launch(ctx, h.req(h.alice, model.ClassWorker, "dl-a-w"))
+	h.waitEnded(t, l.Agent.ID)
+	if h.streams.sent(l.Agent.ID, "token") != 0 || !h.keysmith.revoked(string(l.Agent.ID)) ||
+		h.store.exit(t, l.Agent.ID) != model.ExitFailed {
+		t.Fatal("an AU project's session received or kept a Global key")
+	}
+}
+```
