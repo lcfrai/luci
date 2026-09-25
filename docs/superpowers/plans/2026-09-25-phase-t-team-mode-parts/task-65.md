@@ -244,3 +244,67 @@ gate_field() {  # every value is from gate_write's alphabet, so no quote or back
   sed -n "s/.*\"$2\":\"\\([^\"]*\\)\".*/\\1/p" "$1" 2>/dev/null | head -n 1
 }
 ```
+
+**`images/build.sh`, the changed lines** (task 27's header, `parts/task-27.md:37-47`, steps 2, 3a, 5):
+
+```bash
+#   2. docker build images/sandbox --build-arg CLAUDE_CODE_VERSION="$(cat images/sandbox/claude-code.version)"
+#      (refused first unless the file is one MAJOR.MINOR.PATCH line)
+#   3a. docker build images/mirror (task 58's Dockerfile, its own pinned base)
+#   5. with --push: docker push each, then write images/.out/digests.json, ONE line, this key order:
+#        {"sandbox":"…@sha256:…","machine":…,"broker":…,"hub":…,"mirror":…,"claudeCode":"<label>"}
+#      <label> is docker image inspect's .Config.Labels.PANACEA_APP_CLAUDE_VERSION of the sandbox
+#      image built in step 2: the build's own record, never the CLI's output.
+```
+
+`digests.json` stays task 27's file; `gate_field` reads it too, which is why it is one line with
+no spaces inside a value.
+
+**`pipelines/scripts/publish-digests.sh`, complete.** The only step that writes the artefact.
+
+```bash
+#!/usr/bin/env bash
+# pipelines/scripts/publish-digests.sh <digests.json> <gates dir> <last published claudeCode, or "">
+#   Copies <digests.json> to images/.out/publish/digests.json (the artefact image-digests) iff every
+#   gate judged THIS sandbox digest and THIS CLI version and passed. Otherwise it writes nothing.
+#   "" as the last version (no earlier artefact on the branch) counts as a CLI change.
+# Output: publish: <sandbox digest> claudeCode <v> (change|same)                     exit 0
+#         publish: refused: <why>                                                    exit 2
+set -euo pipefail
+here="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=lib/gate.sh
+. "$here/lib/gate.sh"
+digests="$1" gates="$2" last="${3:-}"
+refuse() { echo "publish: refused: $*"; exit 2; }
+
+[ -s "$digests" ] || refuse "$digests is missing or empty"
+for k in sandbox machine broker hub mirror; do
+  v="$(gate_field "$digests" "$k")"
+  [[ "$v" =~ $GATE_IMAGE_RE ]] || refuse "$k is not a digest: ${v:-<absent>}"
+done
+sandbox="$(gate_field "$digests" sandbox)"
+cc="$(gate_field "$digests" claudeCode)"
+[[ "$cc" =~ $GATE_VERSION_RE ]] || refuse "claudeCode is not MAJOR.MINOR.PATCH: ${cc:-<absent>}"
+if [ "$cc" = "$last" ]; then change=same; else change=change; fi
+
+for g in $GATE_NAMES; do
+  f="$gates/$g.json"
+  [ -s "$f" ] || refuse "gate $g wrote nothing"
+  [ "$(gate_field "$f" image)" = "$sandbox" ] || refuse "gate $g judged another image"
+  [ "$(gate_field "$f" claudeCode)" = "$cc" ] || refuse "gate $g judged another CLI version"
+  r="$(gate_field "$f" result)"
+  case "$g:$r:$change" in
+    *:pass:*) ;;
+    canary:skipped:same) ;;       # task 27's rule stands only when the CLI did not move
+    g9:not-required:same) ;;
+    *) refuse "gate $g is $r on a $change of CLI: $(gate_field "$f" reason)" ;;
+  esac
+done
+mkdir -p images/.out/publish
+cp "$digests" images/.out/publish/digests.json
+echo "publish: $sandbox claudeCode $cc ($change)"
+```
+
+`last` comes from the previous `image-digests` of the same branch (the `publish` job below). A
+first publish on a branch has none, so it needs all four gates to `pass`: until phase 3 task 17's
+canary exists, **no image publishes on a fresh branch** (gap 3).
