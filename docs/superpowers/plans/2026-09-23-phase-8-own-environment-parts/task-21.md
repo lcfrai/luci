@@ -182,6 +182,10 @@ type MachineFS interface {
 	// guards, its SameFile check and its 64-file / 1 MiB budget. Its ls-files check and
 	// the take-back stay in lanes.CopyGeneratedHooks, over m.Git() and RemoveTree.
 	CopyGeneratedHooks(ctx context.Context, projectTop, cloneTop, rel string) (int, error)
+	// Sealed ends R4.5's window for path: Create calls it after step 6, before Store.Add.
+	// Locally it does nothing; on a cloud machine it closes machined's creating-set entry.
+	// Env ruling 4 names the seal but not its caller; this method is this task's reading.
+	Sealed(ctx context.Context, path string) error
 }
 ```
 
@@ -323,7 +327,9 @@ driver here would run it beside all of that. Phase 3 closes this for the laptop'
    - `GIT_CONFIG_KEY_<n>` and `GIT_CONFIG_VALUE_<n>`, both present, for each `n` below the count.
      Every `KEY_<n>` must be `http.https://<host>[:<port>]/.extraHeader` (compared lowercased),
      the form phase 3's `PushEnv` writes (phase 3 task 13, `PushEnv`), and `<host>` must be
-     `RemoteURL`'s host;
+     `RemoteURL`'s host. The one other `GIT_CONFIG_*` set admitted is exactly
+     `lanes.NoFilterEnv`, and only on the lane-create clone (item 2), where no other key may join
+     it;
    - the six commit identity keys, `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_AUTHOR_DATE`,
      `GIT_COMMITTER_NAME`, `GIT_COMMITTER_EMAIL` and `GIT_COMMITTER_DATE`. Each is data that
      names no program and no path, so any value is admitted but one holding a NUL or a newline;
@@ -338,11 +344,11 @@ driver here would run it beside all of that. Phase 3 closes this for the laptop'
    needs a matching row here before it can run on a cloud machine; task 33 records that
    dependency as seam S8-P3.3.
 
-   Any `GIT_CONFIG_*` key is **credential `Env`**. A `clone`-scope call that carries one is `400`,
-   so a lane, where every config key is the agent's, never receives the token. A lane needs none:
-   phase 3 fetches a lane back into its project by the lane's literal path (H2), a local fetch.
-   Credential `Env` is admitted only on a `project`-scope Remote call, where H3's Remote rule also
-   refuses every `http.*` key and every `credential.*` key but four, and on the add-project clone.
+   A header pair is **credential `Env`**. It is admitted only on a `project`-scope Remote call,
+   where H3's Remote rule also refuses every `http.*` key and every `credential.*` key but four,
+   and on the add-project clone. A lane create carries none: its clone's `Env` is exactly
+   `NoFilterEnv` and its writes' `Env` is empty, so a lane never receives the token. A lane needs
+   none: its work reaches the project as a bundle (task 21b), a local fetch of a file.
 4. **A scrubbed environment.** Phase 3's Exec starts git with `os.Environ()` plus the call's
    `Env` (its `Call.Env` comment). `machined`'s own environment holds
    `PANACEA_APP_MACHINED_TOKEN`, the bearer that drives every route on this machine. So
@@ -352,7 +358,8 @@ driver here would run it beside all of that. Phase 3 closes this for the laptop'
    covers every child it starts and asks phase 3 for nothing. **Limit, stated:** a process that
    already runs as the pod's uid can still read `/proc/1/environ`, which keeps the variables
    `machined` was started with. The scrub stops inheritance. Stopping code from running in the
-   first place is the job of items 1 to 3.
+   first place is the job of items 1 to 3, and of ruling 2: no lane git, so no agent-defined
+   filter, hook or config, ever runs in this pod.
 
 The binary is fixed (`git` on the image's `PATH`), and nothing but git ever runs.
 
@@ -370,6 +377,33 @@ call in the new repository is a `project`-scope call, and H3 checks it then. Any
 `none`-scope call is `400`. The only other `clone` admitted is phase 3's lane create, a
 `project`-scope call (item 2). No clone-specific route exists; the cockpit surface
 that starts it belongs to whichever phase owns "add project" (recorded as seam S8-P3.2, task 33).
+
+**The lane filesystem routes (`lanefs.go`, S8-P3.3's cloud half).** Each takes `machined`'s
+bearer and a path relative to the root, and serves it through phase 3's **local** `MachineFS`
+(the `os` one) on `/machine/<path>`, so every guard is phase 3's code, not a copy. `machined`
+adds only the confinement, and runs no git:
+- **`exists`.** `Path` must pass task 20's `LanePathShapeOK`, else `400`. Each of `lanes` and
+  `lanes/<p>` that exists must be a real directory by `Lstat`, else `409 lane_path_invalid`; an
+  absent `lanes/<p>` answers `exists: false`. The leaf is `Lstat`ed, so anything there, a
+  symlink too, is `true`. It needs no set entry: Create's step 3 runs before the clone.
+- **`remove-tree`.** `Path` is a whole lane (the shape and parent checks of `exists`), or a
+  path below a lane in the creating set (CopyGeneratedHooks' take-back, `task-03.md:253-256`),
+  else `409 lane_not_creating`. A whole lane is admitted in or out of the set, because phase 3
+  task 11's Remove deletes a sealed lane with `RemoveTree` after its step 2a destroyed any
+  runner-only sandbox (phase-3 `task-11.md:195-201`); env ruling 4 confines the route to
+  `lanes/` and is silent on that caller. It closes the lane's entry. Nothing there is `204`. It
+  must never follow a symlink, neither to delete nor to clear a mode.
+- **`copy-hooks`.** `Project` is `projects/<name>` and a real directory, `Lane` is a lane in the
+  creating set (else `409 lane_not_creating`), and `Rel` passes `lanes.CopyableHooksPath`, else
+  `400`. The copy is phase 3's `CopyGeneratedHooks` half, with all its guards (`:227-252`).
+- **`sealed`.** `Path` must pass the shape check. It closes the entry, and is `204` whether or
+  not one was open. Phase 3's Create sends it through `MachineFS.Sealed` after step 6 and
+  before `Store.Add` (the seam's fourth method, above).
+
+**The path route (`catalog.go`).** Task 20's `GET /v1/worktrees/{worktreeId}/path` answers
+`409 conflict`, `details.reason "lane_creating"`, when the lane it resolved is in the creating
+set, as a step between its shape check and its answer. So no pod mounts a lane while `machined`
+may still run git in it, and a sealed lane is never run in again.
 
 #### Tests to write first (`git_test.go`; real `git`, skipped with a message if absent)
 
