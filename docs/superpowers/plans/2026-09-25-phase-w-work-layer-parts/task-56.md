@@ -213,3 +213,98 @@ export function revertLocal(view: ReplicaWriteView, op: WorkOp, before: Snapshot
 `fieldsOf` needs only the op: a `revise` touches only the content keys its `patch` names, and a
 `labels` op touches one path per added or removed name. `revertLocal` returns the paths it wrote
 back, so the test can say which fields a rollback touched.
+
+#### Interfaces — complete: `ops.ts`, part 2: the inverse and the send
+
+```ts
+/** A hand move may go only into these (hubapi.MoveAllowed, task-10.md decision 1). */
+const HAND_INTO: ReadonlySet<string> = new Set(["triage", "backlog", "todo", "cancelled", "duplicate", "done"]);
+/** A move OUT of these has no hand inverse: fact states, and done, whose proof a reopen clears. */
+const NO_HAND_RETURN: ReadonlySet<string> = new Set(["started", "in_review", "landed", "done"]);
+
+/** Whether `mutate` offers an undo for this op, decided when it is painted (decision 6). */
+export function undoable(op: WorkOp, before: Snapshot): boolean {
+  if (op.kind === "comment") return false;
+  if (op.kind === "setState") return !NO_HAND_RETURN.has(String(before.get("state")));
+  return true;
+}
+
+/** The person's own inverse, built when it reaches the head of its issue's queue, so a revise's
+ *  baseRev is the revision the op wrote. null when nothing would change (decision 5). */
+export function inverseOf(op: WorkOp, before: Snapshot, view: ReplicaReadView): WorkOp | null {
+  switch (op.kind) {
+    case "setState": {
+      const from = String(before.get("state"));
+      if (!HAND_INTO.has(from) || NO_HAND_RETURN.has(from)) return null;
+      return { kind: "setState", issueId: op.issueId,
+        move: { to: from as StateMove["to"], cause: "hand", reason: "", landCommit: "", evidence: [] } };
+    }
+    case "setPriority":
+      return { kind: "setPriority", issueId: op.issueId, priority: before.get("priority") as Priority };
+    case "setAssignee":
+      return { kind: "setAssignee", issueId: op.issueId, assignee: before.get("assignee") as User | null };
+    case "labels": {
+      const add = op.remove.filter((n) => before.get(`label:${n}`) === true);
+      const remove = op.add.filter((n) => before.get(`label:${n}`) === false);
+      return add.length + remove.length === 0 ? null : { kind: "labels", issueId: op.issueId, add, remove };
+    }
+    case "revise": {
+      const rev = view.revision(op.issueId);
+      if (!rev) return null;
+      const patch: Partial<IssueRevisionContent> = {};
+      for (const k of Object.keys(op.patch) as (keyof IssueRevisionContent)[]) {
+        (patch as Record<string, unknown>)[k] = before.get(k);
+      }
+      return { kind: "revise", issueId: op.issueId, baseRev: rev.revision, patch };
+    }
+    case "relation": {
+      const path = `relation:${op.relation.kind}:${op.relation.issueId}` as const;
+      const was = before.get(path) === true;
+      if (was === (op.change === "add")) return null;
+      return { ...op, change: was ? "add" : "remove" };
+    }
+    case "comment":
+      return null;
+    case "reaction": {
+      const was = before.get(`reaction:${op.commentId}:${op.emoji}`) === true;
+      return was === op.on ? null : { ...op, on: was };
+    }
+    case "resolve": {
+      const was = before.get(`resolved:${op.commentId}`) === true;
+      return was === op.resolved ? null : { ...op, resolved: was };
+    }
+    case "subscribe": {
+      const was = before.get("subscribed") === true;
+      return was === op.subscribed ? null : { ...op, subscribed: was };
+    }
+  }
+}
+
+/** What the Hub answered, in the replica's terms. */
+export type Settled =
+  | { head: IssueHead } | { revision: IssueRevision }
+  | { comment: IssueComment; replacesLocal?: string } | { subscribed: boolean };
+
+/** One attempt. `client` is already keyed(op id); a retry calls this again with the same client.
+ *  A labels op sends the replica's list AT SEND TIME (decision 2). */
+export async function sendOp(op: WorkOp, client: WorkClient, view: ReplicaReadView): Promise<Settled> {
+  const id = op.issueId;
+  switch (op.kind) {
+    case "setState": return { head: await client.moveIssueState(id, op.move) };
+    case "setPriority": return { head: await client.patchIssue(id, { priority: op.priority }) };
+    case "setAssignee": return { head: await client.patchIssue(id, { assigneeId: op.assignee?.id ?? null }) };
+    case "labels": return { head: await client.patchIssue(id, { labels: [...(view.head(id)?.labels ?? [])] }) };
+    case "revise": {
+      const content = view.revision(id)!.content;          // painted: already carries op.patch
+      return { revision: await client.writeIssueRevision(id, { baseRevision: op.baseRev, content }) };
+    }
+    case "relation": return { head: op.change === "add"
+      ? await client.addRelation(id, op.relation)
+      : await client.removeRelation(id, op.relation.kind, op.relation.issueId) };
+    case "comment": return { comment: await client.createComment(id, op.req), replacesLocal: op.localId };
+    case "reaction": return { comment: await client.react(op.commentId, op.emoji, op.on) };
+    case "resolve": return { comment: await client.resolveComment(op.commentId, op.resolved) };
+    case "subscribe": return { subscribed: (await client.subscribe(id, op.subscribed)).subscribed };
+  }
+}
+```
