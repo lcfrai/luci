@@ -61,3 +61,124 @@ Seven decisions the scope left open, made here.
 and creates twelve issues, or reminds a lead on every sixty-second sweep, teaches a team to ignore
 everything it makes. Decisions 3 and 4 and the per-period `last_*` columns are the guard, and
 `TestTwoJanitorsCreateOneIssue` and `TestASameDayRerunRemindsNobody` hold it.
+
+**Files:**
+
+- `control-plane/internal/hub/server/janitor.go` ⚑ (Hub task 24's file; task 77's passes before
+  this): one call, `sweepWorkW4(ctx, tx, org, now, &report)`, after task 77's, and three counters on
+  `SweepReport`
+- `control-plane/internal/hub/server/janitor_w4.go` (new): the three passes
+- `control-plane/internal/hub/server/recur.go`, `recur_test.go` (new): the pure occurrence rule,
+  and `import _ "time/tzdata"`, so an IANA zone loads in an image with no `/usr/share/zoneinfo`
+  (whether the Hub image carries one is **UNVERIFIED**; the import makes it not matter, at about
+  450 KB of binary, per the `time/tzdata` package doc)
+- `control-plane/internal/hub/store/work_schedules.go`, `server/work_schedules.go` (new): the
+  policy store and its five routes
+- `control-plane/internal/hub/server/janitor_w4_export_test.go` (new): `RunJanitorOnce`
+- `control-plane/internal/hub/server/janitor_w4_integration_test.go` (new, `-tags integration`)
+- `control-plane/internal/hub/server/matrix_integration_test.go` ⚑: the `"121"` rows
+
+**Interfaces:**
+
+- Produces: routes `PUT` and `DELETE /v1/templates/{templateId}/schedule`, `PUT
+  /v1/reminder-policies`, `PUT` and `GET /v1/teams/{teamId}/triage-rotation` (T114's route table);
+  `server.RunJanitorOnce` (tests only); the kinds of G2 below; `SweepReport.Recurring`,
+  `.Reminded`, `.HandedOver`
+- Consumes: T114's `TemplateSchedule`, `Every`, `ReminderPolicy`, `TriageRotation`,
+  `TriageRotationView`, `SubjectRef`; task 116's `work_template_schedules`,
+  `work_reminder_policies`, `work_triage_rotations`; task 78's issue template row and its prefill
+  copy; task 08's issue create; task 119's `store.LatestUpdateAt`; task 76's feature `lead_id` and
+  task 118's initiative `owner`; task 13's `emitWork`; Hub task 24's `Sweep`, `SweepReport`,
+  `JanitorConfig.Now`
+- Consumed by: task 81's digest builder (it reads `update.reminder` into the lead's Desk digest),
+  task 124 (the methods over HTTP; `RunJanitorOnce` in its end to end), task 127 (the reminder
+  row), task 134 (the settings surfaces)
+
+**Gaps.** **G1, task 114:** `TemplateSchedule.StartsOn` and `TriageRotation.TZ` (decisions 2 and
+6). **G2, task 114:** the seven kinds, none in T114 at this writing (task 119 names the same gap):
+
+| Kind | Scope | `subject` | `data` (scalars only) |
+|---|---|---|---|
+| `template.schedule_set` | team | `tp-` | `{every, at, tz, startsOn}` (`every` as `"2 week"`) |
+| `template.schedule_cleared` | team | `tp-` | `{}` |
+| `template.schedule_ran` | team | `tp-` | `{issueId, occurrenceAt, skipped, by}` |
+| `reminder.policy_set` | project, or team for an initiative | `ft-` or `in-` | `{subjectKind, everyDays}` |
+| `update.reminder` | project, or team for an initiative | `ft-` or `in-` | `{subjectKind, lead, daysSince, by}` |
+| `triage.rotation_set` | team | `tm-` | `{members, periodDays, startsOn, tz}` (`members` a count) |
+| `triage.handover` | team | `tm-` | `{from, to, skipped, by}` |
+
+**G3, task 116:** the three tables must carry `work_template_schedules.last_run_at timestamptz`
+(the scope says so), `work_reminder_policies.last_reminded_at timestamptz NULL` and
+`created_at`, and `work_triage_rotations.last_handover_on date NULL`. If 116's part omits them,
+116 adds them; this task appends no migration.
+
+#### The occurrence rule (`server/recur.go`, complete)
+
+```go
+package server
+
+import (
+	"time"
+	_ "time/tzdata" // IANA zones without the host's zoneinfo
+)
+
+// Occurrence k of a schedule: startsOn plus k·n units, at hh:mm local in loc.
+// A month without the anchor day uses its last day. A wall time that a
+// daylight-saving start skips moves forward to the first instant after the gap.
+func occurrence(startsOn time.Time, n int, unit string, hh, mm int, loc *time.Location, k int) time.Time {
+	y, m, d := startsOn.Date()
+	switch unit {
+	case "day":
+		y, m, d = time.Date(y, m, d+k*n, 12, 0, 0, 0, time.UTC).Date()
+	case "week":
+		y, m, d = time.Date(y, m, d+7*k*n, 12, 0, 0, 0, time.UTC).Date()
+	case "month":
+		first := time.Date(y, m+time.Month(k*n), 1, 12, 0, 0, 0, time.UTC)
+		last := first.AddDate(0, 1, -1).Day()
+		y, m = first.Year(), first.Month()
+		if d > last {
+			d = last
+		}
+	}
+	t := time.Date(y, m, d, hh, mm, 0, 0, loc)
+	if h, mi, _ := t.Clock(); h == hh && mi == mm {
+		return t
+	}
+	// The gap: step the asked wall time forward a minute at a time until Go
+	// returns the wall time asked for; that is the first minute after the gap.
+	for i := 1; i <= 180; i++ {
+		w := time.Date(y, m, d, hh, mm+i, 0, 0, loc)
+		want := (hh*60 + mm + i) % (24 * 60)
+		if h, mi, _ := w.Clock(); h*60+mi == want {
+			return w
+		}
+	}
+	return t // unreachable for every zone in the IANA database (gaps are at most 2 h)
+}
+
+// dueOccurrence is decision 4: the latest occurrence in (after, now], and how
+// many earlier ones in that window it stands for. ok is false when none is due.
+func dueOccurrence(after, now, startsOn time.Time, n int, unit string, hh, mm int, loc *time.Location) (at time.Time, skipped int, ok bool) {
+	for k := 0; k < 10000; k++ { // a bound: 10,000 daily occurrences is 27 years
+		t := occurrence(startsOn, n, unit, hh, mm, loc, k)
+		if t.After(now) {
+			break
+		}
+		if t.After(after) {
+			if ok {
+				skipped++
+			}
+			at, ok = t, true
+		}
+	}
+	return at, skipped, ok
+}
+```
+
+The date arithmetic runs at noon UTC so a day never crosses a boundary; only the final
+`time.Date(…, loc)` is local. The gap rule compares the wall clock Go returned with the one asked
+for, which is the documented way to detect the non-existent time (`time.Date`'s doc: *"the choice
+of time zone, and therefore the time, is not guaranteed"*); the forward walk then lands on the
+first real minute, 03:00 on 2026-10-04 in Sydney for an `at` of `02:30`. That a zone's gaps are at
+most two hours is from knowledge of the IANA data, **UNVERIFIED** here; the loop's bound is three. The linear scan from `k = 0` is simple and bounded;
+an index from `after` is a later optimisation if a profile asks.
