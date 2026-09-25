@@ -143,7 +143,10 @@ is a separate process that must block on them. `sandboxd` queues every pushed ev
 (standard library `syscall.GetsockoptUcred`, Linux) must equal the pid `sandboxd` started — because a
 `turn.begin` carries the turn's nonce (task 26 (c)) and the harness the runner spawns is a grandchild
 that must never read it. Every other caller gets `forbidden`. On a non-Linux build `events.wait` is
-always `forbidden`; `sandboxd` in the cloud is Linux.
+always `forbidden`; `sandboxd` in the cloud is Linux. **`turn.end` gets the same pid gate** (task 27
+(a), `task-27.md:106-107`): it is forwarded to Fleet like any verb, but only when the peer pid is the
+runner's, so the harness cannot end its own turn early. This task builds the condition for both verbs
+in `serveConn`, so task 27's step 5 finds it present and only adds its test row.
 
 The shapes this task adds. They are ST.1 frames that task 09's list does not carry (*Gap S16-2*), so
 they are written here in full, in the sandbox copy, and task 19 writes the Fleet copy against the same
@@ -163,6 +166,9 @@ const DefaultSnapshotPath = "/panacea/team.json"
 
 // VerbEventsWait is answered by sandboxd itself and never forwarded.
 const VerbEventsWait = "events.wait"
+
+// VerbTurnEnd is forwarded, but only from the runner's pid (task 26 (c), task 27 (a)).
+const VerbTurnEnd = "turn.end"
 
 // CodeForbidden is sandboxd's refusal of events.wait from any process but the
 // PTY's own. Task 09 owns the code list; this is the one code this task adds
@@ -880,8 +886,11 @@ func (s *Server) serveConn(c net.Conn) {
 		r = badRequest("", "unreadable request")
 	case dec.Decode(&in) != nil || in.V != 1 || in.ID == "" || len(in.ID) > 64 || in.Verb == "":
 		r = badRequest(in.ID, "not a panacea control v1 request")
+	case (in.Verb == VerbEventsWait || in.Verb == VerbTurnEnd) && !s.fromRunner(c):
+		r = Response{ID: in.ID, Error: &Error{Code: CodeForbidden,
+			Message: in.Verb + " is for the session runner only"}}
 	case in.Verb == VerbEventsWait:
-		r = s.waitEvent(c, in.ID)
+		r = s.waitEvent(in.ID)
 	default:
 		r = s.forward(context.Background(), Request{V: 1, ID: in.ID, Verb: in.Verb, Args: in.Args})
 	}
@@ -915,12 +924,14 @@ func (s *Server) enqueue(kind string, b []byte) {
 	}
 }
 
-func (s *Server) waitEvent(c net.Conn, id string) Response {
+// fromRunner is true only when the socket's peer is the PTY's own process.
+// VerbTurnEnd = "turn.end" is task 26's constant, mirrored here.
+func (s *Server) fromRunner(c net.Conn) bool {
 	pid, err := peerPid(c)
-	if err != nil || pid != s.cfg.RunnerPid() {
-		return Response{ID: id, Error: &Error{Code: CodeForbidden,
-			Message: "events.wait is for the session runner only"}}
-	}
+	return err == nil && pid == s.cfg.RunnerPid()
+}
+
+func (s *Server) waitEvent(id string) Response {
 	t := time.NewTimer(50 * time.Second)
 	defer t.Stop()
 	select {
