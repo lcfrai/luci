@@ -147,3 +147,86 @@ export function TeamDecidedRow(props: { item: DeskItem<DecidedItem>; client?: Te
 window) → **sent** (*"You chose X at 04:12"*) or **defaulted** (decision f). A text value in any
 of these is `AuthoredText`; the option labels and consequences are `text·A`, so each carries the
 label *"Your Orchestrator (agent)"* once per row, not once per option (one agent wrote them all).
+
+- [ ] **Step 1: Write the failing tests first**
+
+Vitest + RTL, with task 52's `desk.json` fixture through the real store, a fake `TeamClient`
+recording every call, fake timers, and W-62's frame mounted (its `Desk` component, **UNVERIFIED
+until merge**; before it, the same tests run against a two-line test double of
+`registerDeskRow`/`registerDeskSource` that records registrations, which is enough for every row
+below but the last).
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `registers four kinds in their places` | the registry holds exactly `team.horizon`→`horizon`, `team.decide`→`needs_you`, `team.since`→`since`, `team.decided`→`decided_without_you` | a team row in FAILED or RUNNING, or a new section |
+| `answering calls the route once` | click option 0, advance 6 s: `answer("es-51aa", 0)` called **once**; a second click in the window and a double click both leave it at one | a double answer, which the Hub refuses with `409` |
+| `undo in the window sends nothing` | click, then Undo at 3 s, advance 10 s: `answer` never called; the row is open again | an Undo that only hides the row |
+| `answering never navigates` | the lens and `selection` are unchanged after answering | a decide that jumps to the project view (`docs/AGENTIC-UX.md` §5) |
+| `a refused answer reads as defaulted` | the fake answers `409 conflict`: the row reads *"The default applied at 04:40: Let Alice go first"*, no error line, no toast | a stale-answer error shown for Fleet's own default |
+| `the deadline is a clock time` | the row contains `04:40` inside an element with `font-variant-numeric: tabular-nums` (computed), and no `/\bin \d+ ?(min|m|h)\b/` text | a countdown (OD-27) |
+| `options carry their consequences and the default` | two options, each with its consequence; option 0 has *"(default)"*; the label *"Your Orchestrator (agent)"* appears once in the row | a decide without consequences, or with no author class |
+| `informs batch` | a desk with five informs and one answer on one project and one inform on another: two `team.since` items, of six and one lines | one row per inform, the firehose AX §6 item 8 forbids |
+| `no toast is created` | after rendering every fixture row, answering, undoing and marking seen, `store.toasts` is still `[]` | a toast per inform or per answer |
+| `mark all seen moves the cursor` | the band's control: `teamSeenAt` equals the desk's `generatedAt`; the next `desk()` call sends it | a cursor that never moves, so every visit is all new |
+| `horizon has no time and keeps accepted` | an `accepted` item renders; its text has no `min`, `~`, `ETA` or clock time | OD-27's ETA, or dropping HORIZON on `accepted` (§9.3) |
+| `decided shows Fleet's summary and Undo only when reversible` | `undo.available` false: no Undo button; true: one, which calls `undo("es-51ac")` once and then reads *"Asked your Orchestrator to reopen cf-2b70"* | an Undo on a landed lane, or one that reaches the other side |
+| `nothing comes from a teammate` | `teamDeskItems` over a desk whose fixture also has `strip` people with waiting agents: no item's payload references a teammate's `ag-…` except as `theirs.agentId` or `other` | a teammate's agent reaching your Desk by itself (§9.3) |
+| `frame order holds` (W-62 mounted) | with an issue row (W-63) and a team decide both in NEEDS YOU, the frame orders them by W-62's rank rule, and opening the Desk twice keeps the same order | the team rows sorting themselves |
+
+```bash
+cd desktop && npm test -- teamRows 2>&1 | tail -5
+```
+
+Expected: the file fails to import `./teamRows`. That is the red.
+
+- [ ] **Step 2: `teamDesk.ts`**
+
+`teamDeskItems` first, table-tested on the fixture without rendering. `useTeamDesk` calls
+`desk(teamSeenAt || "1970-01-01T00:00:00.000Z")` once per mount.
+
+- [ ] **Step 3: The four rows**
+
+Each row is layout on tokens and `AuthoredText`; `TeamDecideRow` holds its state machine in one
+`useReducer`, and its one timer is the Undo window, started on choose and cleared on Undo or
+unmount. `teamDesk.css` adds no transition and no animation.
+
+- [ ] **Step 4: Register**
+
+`teamRows.tsx` calls `registerDeskRow` four times and `registerDeskSource` once, for the kind
+prefix `team.`; the side-effect import joins `main.tsx` next to W-62's.
+
+- [ ] **Step 5: Acceptance**
+
+```bash
+cd desktop && npm run typecheck && npm test
+```
+
+Expected: `tsc` prints nothing; every file passes, `src/styles/designsystem.test.ts` and W-62's
+own Desk tests (including its `expectNoPrediction` check on a full fixture Desk,
+`tasks-61-80.md:95`) unchanged. Visual acceptance against task 51's state `6` is the owner's.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add desktop/src/components/desk/team*.tsx desktop/src/components/desk/teamDesk.ts \
+  desktop/src/components/desk/teamDesk.css desktop/src/components/desk/teamRows.test.tsx
+git commit -F <msgfile> -- desktop/src/components/desk desktop/src/main.tsx
+```
+
+**What this task does NOT claim.**
+- That the Desk exists on this branch. It is phase W task 62's; until its merge only the
+  registration double runs, and the Desk shows nothing of team mode.
+- That the horizon bar's panic controls (quiet mode, pause all) exist. W-62 does not claim them
+  either (`tasks-61-80.md:98-99`).
+- That a decide can be answered with free text here. The Hub allows it; TM1 answers by option only.
+- That the read cursor follows the user between devices (task 52 decision e).
+
+**Gaps (for the skeleton's owner).**
+- **G54-1.** Task 54 depends on phase W task 62's Desk frame (SW.17), which the skeleton's row
+  (`2026-09-25-phase-t-team-mode.md:372`, dependsOn `52, 53`) does not list, and which sits
+  uneasily with OD-25 as the skeleton reads it (*"Nothing here waits on W"*, `:102`). Either
+  dependsOn gains `W-62`, or the frame moves into this plan; W's plan says the former
+  (`2026-09-25-phase-w-work-layer.md:100-101`, *"team mode adds rows to the frame task 62
+  builds, never a second Desk"*).
+- **G54-2.** `DeskSnapshot` (SW.17) is not yet written by W-62's part; decision (a) assumes it
+  exposes store state.
