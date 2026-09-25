@@ -267,3 +267,319 @@ type Turn struct {
 	EndedAt      time.Time // zero while running
 }
 ```
+
+```go
+// control-plane/internal/fleet/model/verbs.go
+package model
+
+// Verb is one row of §5.2's table. Local verbs are answered inside the pod and
+// never reach Fleet: token by phase 6's apiKeyHelper (P6-14), events.wait by
+// sandboxd (task 16, decision 10). Fleet's dispatcher (task 19) refuses a local
+// verb as unknown_verb if one ever arrives.
+type Verb struct {
+	Name    string
+	Classes []Class
+	Local   bool
+}
+
+// Verbs is §5.2 as data. The mirror class has no row: it calls nothing.
+var Verbs = []Verb{
+	{Name: "team", Classes: []Class{ClassOrchestrator, ClassWorker}},
+	{Name: "check", Classes: []Class{ClassOrchestrator, ClassWorker}},
+	{Name: "lease", Classes: []Class{ClassOrchestrator, ClassWorker}},
+	{Name: "report", Classes: []Class{ClassWorker}},
+	{Name: "files", Classes: []Class{ClassOrchestrator}},
+	{Name: "show", Classes: []Class{ClassOrchestrator}},
+	{Name: "task", Classes: []Class{ClassOrchestrator}},
+	{Name: "worker", Classes: []Class{ClassOrchestrator}},
+	{Name: "direct", Classes: []Class{ClassOrchestrator}},
+	{Name: "inbox", Classes: []Class{ClassOrchestrator}},
+	{Name: "peer", Classes: []Class{ClassOrchestrator}},
+	{Name: "human", Classes: []Class{ClassOrchestrator}},
+	{Name: "lane", Classes: []Class{ClassOrchestrator}},
+	{Name: "turn.end", Classes: []Class{ClassOrchestrator}}, // the runner only (task 16's pid gate)
+	{Name: "token", Classes: []Class{ClassOrchestrator, ClassWorker}, Local: true},
+	{Name: "events.wait", Classes: []Class{ClassOrchestrator}, Local: true},
+}
+
+// ClassMay reports whether class c may send verb to Fleet. A local verb is never
+// sent, so ClassMay is false for it whatever the class.
+func ClassMay(c Class, verb string) bool {
+	for _, v := range Verbs {
+		if v.Name != verb {
+			continue
+		}
+		if v.Local {
+			return false
+		}
+		for _, k := range v.Classes {
+			if k == c {
+				return true
+			}
+		}
+		return false
+	}
+	return false
+}
+
+// LocalVerb reports whether verb is answered in the pod.
+func LocalVerb(verb string) bool {
+	for _, v := range Verbs {
+		if v.Name == verb {
+			return v.Local
+		}
+	}
+	return false
+}
+```
+
+**Two rows are decisions, not transcriptions.** `lease` is open to the Orchestrator as well as
+workers: §5.2 says "all", and task 24 takes intent leases at plan time from the Orchestrator's
+`task` call. `report` is workers only: an Orchestrator has no Orchestrator to report to. The table
+is a slice, not a map, so its order is §5.2's and `panacea` usage output (task 18) can print it
+as written.
+
+#### The wire — complete source, Fleet copy
+
+```go
+// control-plane/internal/fleet/wire/control.go
+
+// Package wire is the panacea control protocol, v1 (ST.1). sandboxd/internal/control/wire.go
+// is the same declarations in package control; testdata/panacea-control/v1 pins both.
+// Frames are single JSON objects; the transport (task 16's socket, task 19's stream)
+// is not this package's.
+package wire
+
+import (
+	"encoding/json"
+	"time"
+)
+
+const Version = 1
+
+// MaxRequestID bounds Request.ID; the id is opaque, echoed back, ^[A-Za-z0-9_-]{1,64}$.
+// The CLI uses rq-<n> (task 18); sandboxd re-stamps it c-<n> (task 16).
+const MaxRequestID = 64
+
+// Request is what a sandbox sends. Args is always a JSON object, {} when empty;
+// its shape is the verb handler's (tasks 22 to 31), decoded strictly there.
+type Request struct {
+	V    int             `json:"v"`
+	ID   string          `json:"id"`
+	Verb string          `json:"verb"`
+	Args json.RawMessage `json:"args"`
+}
+
+// Response answers one Request. OK true carries Result (JSON null allowed:
+// events.wait's empty answer, task 16); OK false carries Error.
+type Response struct {
+	ID     string          `json:"id"`
+	OK     bool            `json:"ok"`
+	Result json.RawMessage `json:"result,omitempty"`
+	Error  *Error          `json:"error,omitempty"`
+}
+
+// Error is the one error shape. Since is set with CodeUnavailable only; RetryAfter
+// with CodeRateLimited only (task 28); Details carries typed context (task 24's
+// {"from","to"} on CodeConflict), strings only, never free text from a peer.
+type Error struct {
+	Code       string            `json:"code"`
+	Message    string            `json:"message"`
+	Since      *time.Time        `json:"since,omitempty"`
+	RetryAfter *time.Time        `json:"retryAfter,omitempty"`
+	Details    map[string]string `json:"details,omitempty"`
+}
+
+// Pushed event names this task owns. turn.begin is task 26's (wire/turn.go);
+// snapshot is task 16's. Every pushed frame is one object whose "event" key names it.
+const (
+	EventNudge = "nudge"
+	EventStop  = "stop"
+)
+
+// Nudge tells a pod that its team view changed; the pod's delivery rung decides
+// what, if anything, to do (task 38). It carries nothing else in v1.
+type Nudge struct {
+	Event string `json:"event"` // "nudge"
+}
+
+// Stop tells an Orchestrator runner (task 27) to end after its current turn.
+type Stop struct {
+	Event  string `json:"event"`  // "stop"
+	Reason string `json:"reason"` // StopRotate | StopAccessRemoved | StopLapsed | StopByOwner
+}
+
+const (
+	StopRotate        = "rotate"         // task 40: a new session, seeded from typed state
+	StopAccessRemoved = "access_removed" // task 11's Revoker
+	StopLapsed        = "lapsed"         // the delegation lapsed
+	StopByOwner       = "by_owner"       // the owner stopped it from the panel
+)
+```
+
+```go
+// control-plane/internal/fleet/wire/codes.go — the one code list (ST.1)
+package wire
+
+const (
+	// Dispatch (task 19): the frame, the session, the class table.
+	CodeBadRequest     = "bad_request"
+	CodeTooLarge       = "too_large"
+	CodeStampMismatch  = "stamp_mismatch"
+	CodeUnknownSession = "unknown_session"
+	CodeUnknownVerb    = "unknown_verb"
+	CodeForbiddenClass = "forbidden_class"
+	CodeInternal       = "internal"
+	// Availability: every verb, when Fleet or the Hub path is down (§5.2).
+	CodeUnavailable = "unavailable"
+	// Ownership and objects (tasks 19, 22 to 24). One code for "not yours" and
+	// "no such object of yours", so existence never leaks.
+	CodeAgentNotOwner = "agent_not_owner"
+	CodeNotFound      = "not_found"
+	CodeConflict      = "conflict"
+	CodeTaskHasWorkers = "task_has_workers"
+	// Text and globs (task 02, as the Hub's task-01.md:197-199).
+	CodeTextRefused     = "text_refused"
+	CodeGlobRefused     = "glob_refused"
+	CodeBreadthExceeded = "breadth_exceeded"
+	CodeBreadthUnknown  = "breadth_unknown"
+	// Turns (task 26).
+	CodeTurnMismatch = "turn_mismatch"
+	// Protocol limits (task 28).
+	CodeRoundsExhausted    = "rounds_exhausted"
+	CodeRateLimited        = "rate_limited"
+	CodeThreadClosed       = "thread_closed"
+	CodeKindNotEnabled     = "kind_not_enabled"
+	CodePermissionRequired = "permission_required"
+	CodeNotParticipant     = "not_participant"
+)
+
+// Codes is every code above; a code outside it is a bug the round-trip test finds.
+var Codes = []string{CodeBadRequest, CodeTooLarge, CodeStampMismatch, CodeUnknownSession,
+	CodeUnknownVerb, CodeForbiddenClass, CodeInternal, CodeUnavailable, CodeAgentNotOwner,
+	CodeNotFound, CodeConflict, CodeTaskHasWorkers, CodeTextRefused, CodeGlobRefused,
+	CodeBreadthExceeded, CodeBreadthUnknown, CodeTurnMismatch, CodeRoundsExhausted,
+	CodeRateLimited, CodeThreadClosed, CodeKindNotEnabled, CodePermissionRequired,
+	CodeNotParticipant}
+
+// Refusal is a handler's typed refusal. Dispatch (task 19) turns it into Error;
+// any other error becomes CodeInternal with a fixed message, so a Go error string
+// (which may hold a path or a peer's text) never reaches a sandbox.
+type Refusal struct {
+	Code    string
+	Message string // one product-written sentence
+	Details map[string]string
+}
+
+func (r *Refusal) Error() string { return r.Code + ": " + r.Message }
+
+// Refuse is what handlers return: `return nil, wire.Refuse(wire.CodeNotFound, "No such lease.")`.
+func Refuse(code, message string) error { return &Refusal{Code: code, Message: message} }
+
+// RefuseWith is Refuse with details.
+func RefuseWith(code, message string, details map[string]string) error {
+	return &Refusal{Code: code, Message: message, Details: details}
+}
+```
+
+The sandbox copy carries the same list plus task 16's `CodeForbidden` (`task-16.md:173-176`),
+which only `sandboxd` sends. `Codes` in the sandbox copy therefore has one more entry, and the
+test below allows exactly that one difference.
+
+```go
+// control-plane/internal/fleet/wire/decode.go
+package wire
+
+import (
+	"bytes"
+	"encoding/json"
+	"errors"
+	"regexp"
+)
+
+var idRe = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
+
+var (
+	ErrVersion = errors.New("wire: v is not 1")
+	ErrID      = errors.New("wire: id is not 1-64 of [A-Za-z0-9_-]")
+	ErrVerb    = errors.New("wire: verb is empty")
+	ErrArgs    = errors.New("wire: args is not a JSON object")
+	ErrShape   = errors.New("wire: ok and result/error disagree")
+)
+
+// strict decodes exactly one JSON value into dst, refusing unknown fields (G2)
+// and trailing data.
+func strict(b []byte, dst any) error {
+	d := json.NewDecoder(bytes.NewReader(b))
+	d.DisallowUnknownFields()
+	if err := d.Decode(dst); err != nil {
+		return err
+	}
+	if d.More() {
+		return errors.New("wire: trailing data")
+	}
+	return nil
+}
+
+func DecodeRequest(b []byte) (Request, error) {
+	var r Request
+	if err := strict(b, &r); err != nil {
+		return Request{}, err
+	}
+	switch {
+	case r.V != Version:
+		return Request{}, ErrVersion
+	case !idRe.MatchString(r.ID):
+		return Request{}, ErrID
+	case r.Verb == "":
+		return Request{}, ErrVerb
+	case len(bytes.TrimSpace(r.Args)) == 0 || bytes.TrimSpace(r.Args)[0] != '{':
+		return Request{}, ErrArgs
+	}
+	return r, nil
+}
+
+func DecodeResponse(b []byte) (Response, error) {
+	var r Response
+	if err := strict(b, &r); err != nil {
+		return Response{}, err
+	}
+	if r.OK == (r.Error != nil) {
+		return Response{}, ErrShape
+	}
+	return r, nil
+}
+
+// EventName reads only the "event" key of a pushed frame, so the caller can pick
+// the strict type to decode it into (Nudge, Stop, task 26's TurnBegin, task 16's
+// snapshot). It is the one loose decode in the package, and it decodes nothing else.
+func EventName(b []byte) (string, error) {
+	var e struct {
+		Event string `json:"event"`
+	}
+	if err := json.Unmarshal(b, &e); err != nil {
+		return "", err
+	}
+	if e.Event == "" {
+		return "", errors.New("wire: no event name")
+	}
+	return e.Event, nil
+}
+
+// DecodeEvent decodes a pushed frame strictly into dst after EventName chose it.
+func DecodeEvent(b []byte, dst any) error { return strict(b, dst) }
+```
+
+`OK(id string, result any) (Response, error)` marshals `result` into `Result`, and
+`Fail(id string, err error) Response` turns a `*Refusal` into `Error` and anything else into
+`{"code":"internal","message":"Fleet could not answer that."}`; both are six lines and live in
+`decode.go`. `Unavailable(id string, since time.Time) Response` is the one constructor that sets
+`Since`, so no code path can send `unavailable` without it.
+
+**The sandbox copy** is `sandboxd/internal/control/wire.go`: the four types, the event names,
+`Nudge`, `Stop`, the `Stop*` reasons, the codes and `Codes`, and the three decoders, with the
+same JSON tags, in `package control`. It omits `Refusal`, `Refuse`, `RefuseWith`, `OK`, `Fail`
+and `Unavailable` except as task 16 needs them (`sandboxd` answers `unavailable` itself when the
+stream is down, `task-16.md:281`, so it carries `Unavailable`). The copy is written out by
+copying the Fleet file and changing the package line; the round-trip test is what proves the two
+still agree afterwards.
