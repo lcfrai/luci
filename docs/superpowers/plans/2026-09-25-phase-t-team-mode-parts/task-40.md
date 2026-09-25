@@ -631,6 +631,48 @@ the desktop, is task 44's; this task stops at the fakes and the Linux child test
 
 ```bash
 git add sandboxd/internal/runner/rotate.go sandboxd/internal/runner/dive.go sandboxd/internal/runner/rotate_test.go sandboxd/internal/runner/dive_test.go sandboxd/internal/control/dive.go control-plane/internal/fleet/wire/dive.go control-plane/internal/fleet/turns/rotate.go control-plane/internal/fleet/turns/dive.go control-plane/internal/fleet/turns/rotate_test.go control-plane/internal/fleet/turns/dive_test.go control-plane/internal/fleet/verbs/seed.go control-plane/internal/fleet/verbs/seed_test.go control-plane/internal/fleet/server/dive.go control-plane/internal/fleet/server/dive_test.go control-plane/internal/fleet/store/migrations testdata/panacea-control/v1
-git commit -F <msgfile> -- sandboxd/internal/runner sandboxd/internal/control/dive.go control-plane/internal/fleet/wire/dive.go control-plane/internal/fleet/turns control-plane/internal/fleet/verbs control-plane/internal/fleet/server/dive.go control-plane/internal/fleet/store control-plane/cmd/fleetd/main.go testdata/panacea-control/v1
+git commit -F <msgfile> -- sandboxd/internal/runner sandboxd/internal/control/dive.go control-plane/internal/fleet/wire/dive.go control-plane/internal/fleet/turns control-plane/internal/fleet/verbs control-plane/internal/fleet/server/dive.go control-plane/internal/fleet/server/dive_test.go control-plane/internal/fleet/store control-plane/cmd/fleetd/main.go testdata/panacea-control/v1
 ```
+
+`server/` is committed file by file, not as a folder, because tasks 12 and 39 own the rest of it.
+
+**What this task does NOT claim.**
+- **That a rotated session knows nothing the old one learnt.** It knows what Fleet's typed state
+  holds and nothing else. A fact the old session held only in its transcript is gone, which is the
+  point; the cost is that a new session re-reads the world through `seed`, `team` and `inbox`.
+- **That rotation bounds cost by itself.** It bounds the transcript that every turn re-reads. The
+  turn budget is task 37's; nothing here meters or caps a DIVE's tokens, which are the owner's own
+  conversation and are attributed to the Orchestrator's gateway key like any turn (task 20).
+- **That `--resume` finds the transcript under the per-session `HOME`.** Claude Code keeps session
+  files under the user's home today; that it does so on the pinned image, and that nothing else it
+  needs lives there, is **UNVERIFIED**. The managed policy is not in `HOME`: it is
+  `/etc/claude-code/managed-settings.json` (`task-13.md:21`), so a fresh `HOME` loses no policy.
+- **That the runner understands the DIVE.** It starts a child and waits. It does not read, parse
+  or summarise what the owner and the Orchestrator say; the conversation's audit is the `ot-…`
+  record's start and end and the ids issued between them, not its words.
+- **A deadline without a race.** The runner kills the child at `Deadline`, which equals the
+  claim's `Until`; if the 5-second sweep runs first, the end record says `lost`, not `timeout`,
+  and the runner's late `dive.end` gets `turn_mismatch`, which it treats as done. Both outcomes
+  free the Orchestrator; only the label differs.
+- **Anything on the desktop.** Task 55's panel shows `DiveState` and the `Waiting` count; task 21's
+  `fleetbe` calls the three routes. Neither is built here.
+
+**Gaps against the skeleton, raised here and not resolved alone:**
+1. **The file map is sandbox-only.** It lists `sbx/internal/runner/{rotate.go,dive.go}`, but the
+   rotation decision and the DIVE claim are Fleet's (decisions a and e): `turns/rotate.go`,
+   `turns/dive.go`, `verbs/seed.go` and `server/dive.go` should join the skeleton's map.
+2. **Task 07's route 69 must accept two writes to one `ot-…`** (start `dive-started`, then end
+   `dive`), and those two `exit` values. If it will not, the start becomes its own `ot-…` and the
+   end another, and `TestDiveRecordsStartAndEnd` changes to two ids.
+3. **Task 26's interfaces grow**: `SessionState.StartedAt`, `ClaimRow.Rotated`, `EndTurn`'s
+   `clearPendingBefore`, and `Store.SetRotatePending`/`RotatePending`. Task 26's part should carry
+   them or name this task as their owner.
+4. **Task 24 must call `MarkBoundary`** on `done` and `abandoned`, after its outbox write; its scope
+   does not say so.
+5. **First run in a fresh `HOME`.** An interactive `claude` in a new `HOME` may show first-run or
+   folder-trust screens that the headless `-p` turns never see. Whether the pinned image's managed
+   settings suppress them, or the owner simply answers them, needs the same probe task 38 asks for
+   (task 33's TM1-α run is the natural place). Nothing here writes Claude Code's own config files.
+6. **Task 21 and task 55 consume the DIVE routes**; their scopes should name `POST`/`GET`/`DELETE
+   /v1/agents/{ag}/dive` and `DiveState` so the three stay one contract.
 
