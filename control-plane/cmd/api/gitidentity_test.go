@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -40,14 +38,20 @@ func (r *identityRunner) Run(_ context.Context, dir string, args ...string) ([]b
 
 var _ project.Runner = (*identityRunner)(nil)
 
+// identityHost is a hostGit whose git is r, in a directory hostGit makes for
+// it in the OS temp directory.
+func identityHost(r *identityRunner) hostGit {
+	return hostGit{run: r, root: os.TempDir(), getenv: noXDG}
+}
+
 // The explicit pair wins outright, and "outright" is checked as the host never
 // being asked — a resolver that asked and then preferred the variables would
 // pass an equality check and still run git on every create.
 func TestAnExplicitIdentityWinsAndTheHostIsNeverAsked(t *testing.T) {
 	host := &identityRunner{out: "Someone Else <else@example.invalid> 1790156728 +1000\n"}
-	resolve := gitIdentityResolver("Ada Lovelace", "ada@example.invalid", host)
+	resolve := gitIdentityResolver("Ada Lovelace", "ada@example.invalid", identityHost(host))
 
-	got, err := resolve(context.Background(), `C:\work\evidence-upload`)
+	got, err := resolve(context.Background())
 	if err != nil {
 		t.Fatalf("resolve: %v", err)
 	}
@@ -59,13 +63,14 @@ func TestAnExplicitIdentityWinsAndTheHostIsNeverAsked(t *testing.T) {
 	}
 }
 
-// Unset, the answer is the host git's own, asked IN THE WORKTREE with git var:
-// the identity a commit there would carry, whatever layer of git supplied it.
-func TestWithNothingSetTheHostGitIsAskedInTheWorktree(t *testing.T) {
+// Unset, the answer is the host git's own, asked with git var in hostGit's
+// directory, outside every repository and never in a worktree (X-1): the
+// identity a commit would carry, whatever layer of git supplied it.
+func TestWithNothingSetTheHostGitIsAskedOutsideAnyRepository(t *testing.T) {
 	host := &identityRunner{out: "Dylan <au-dev-dmackie1@kpmg.com.au> 1790156728 +1000\n"}
-	resolve := gitIdentityResolver("", "", host)
+	resolve := gitIdentityResolver("", "", identityHost(host))
 
-	got, err := resolve(context.Background(), `C:\work\evidence-upload`)
+	got, err := resolve(context.Background())
 	if err != nil {
 		t.Fatalf("resolve: %v", err)
 	}
@@ -75,8 +80,8 @@ func TestWithNothingSetTheHostGitIsAskedInTheWorktree(t *testing.T) {
 	if len(host.calls) != 1 {
 		t.Fatalf("git was run %d times, want once: %#v", len(host.calls), host.calls)
 	}
-	if c := host.calls[0]; c.dir != `C:\work\evidence-upload` || strings.Join(c.args, " ") != "var GIT_AUTHOR_IDENT" {
-		t.Errorf("git ran %q in %q, want \"var GIT_AUTHOR_IDENT\" in the worktree", strings.Join(c.args, " "), c.dir)
+	if c := host.calls[0]; !madeByHostGit(c.dir) || strings.Join(c.args, " ") != "var GIT_AUTHOR_IDENT" {
+		t.Errorf("git ran %q in %q, want \"var GIT_AUTHOR_IDENT\" in a directory hostGit made for it", strings.Join(c.args, " "), c.dir)
 	}
 }
 
@@ -86,7 +91,7 @@ func TestWithNothingSetTheHostGitIsAskedInTheWorktree(t *testing.T) {
 func TestHalfAnExplicitPairIsNotAnIdentity(t *testing.T) {
 	for _, pair := range [][2]string{{"Ada Lovelace", ""}, {"", "ada@example.invalid"}} {
 		host := &identityRunner{out: "Dylan <d@example.invalid> 1790156728 +1000\n"}
-		got, err := gitIdentityResolver(pair[0], pair[1], host)(context.Background(), "/w")
+		got, err := gitIdentityResolver(pair[0], pair[1], identityHost(host))(context.Background())
 		if err != nil || got.Name != "Dylan" || len(host.calls) != 1 {
 			t.Errorf("pair %q: identity %#v, err %v, host asked %d times; want the host's answer", pair, got, err, len(host.calls))
 		}
@@ -97,9 +102,9 @@ func TestHalfAnExplicitPairIsNotAnIdentity(t *testing.T) {
 // fixes and carries git's own words, which say what git could not find.
 func TestNoIdentityAnywhereIsASentenceNamingBothFixes(t *testing.T) {
 	gitSaid := errors.New("git var GIT_AUTHOR_IDENT in /w: exit status 128: Author identity unknown\n\n*** Please tell me who you are.")
-	resolve := gitIdentityResolver("", "", &identityRunner{err: gitSaid})
+	resolve := gitIdentityResolver("", "", identityHost(&identityRunner{err: gitSaid}))
 
-	got, err := resolve(context.Background(), "/w")
+	got, err := resolve(context.Background())
 	if err == nil {
 		t.Fatalf("resolve returned %#v and no error with no identity anywhere", got)
 	}
@@ -131,40 +136,13 @@ func TestAnIdentLineThatIsNotOneIsRefused(t *testing.T) {
 			t.Errorf("parseGitIdent(%q) = %#v, %v; want %#v", line, got, ok, want)
 		}
 	}
-	resolve := gitIdentityResolver("", "", &identityRunner{out: "not an ident\n"})
-	if _, err := resolve(context.Background(), "/w"); err == nil || !strings.Contains(err.Error(), envGitName) {
+	resolve := gitIdentityResolver("", "", identityHost(&identityRunner{out: "not an ident\n"}))
+	if _, err := resolve(context.Background()); err == nil || !strings.Contains(err.Error(), envGitName) {
 		t.Errorf("an unparseable ident gave err %v, want the sentence naming %s", err, envGitName)
 	}
 }
 
-// Against the real git, per worktree: a repository that sets its own identity
-// keeps it. This is the reason the host is asked IN the worktree rather than
-// once at startup — GIT_AUTHOR_* in the sandbox beats the repository's config,
-// so a machine-wide answer would silently override it.
-func TestTheRealHostGitAnswersWithTheRepositorysOwnIdentity(t *testing.T) {
-	if _, err := exec.LookPath("git"); err != nil {
-		t.Skip("git is not on PATH")
-	}
-	for _, k := range []string{"GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL"} {
-		if os.Getenv(k) != "" {
-			t.Skipf("%s is set in this environment and outranks any repository config", k)
-		}
-	}
-	repo := filepath.Join(t.TempDir(), "repo")
-	for _, args := range [][]string{
-		{"init", "-q", repo},
-		{"-C", repo, "config", "user.name", "Repo Local"},
-		{"-C", repo, "config", "user.email", "repo-local@example.invalid"},
-	} {
-		if out, err := exec.Command("git", args...).CombinedOutput(); err != nil {
-			t.Fatalf("git %v: %v: %s", args, err, out)
-		}
-	}
-	got, err := gitIdentityResolver("", "", project.NewExecRunner())(context.Background(), repo)
-	if err != nil {
-		t.Fatalf("resolve: %v", err)
-	}
-	if want := (api.GitIdentity{Name: "Repo Local", Email: "repo-local@example.invalid"}); got != want {
-		t.Errorf("identity = %#v, want the repository's own %#v", got, want)
-	}
-}
+// Against the real git, TestARepoLocalIdentityIsNotTheOneCommitsAreMadeAs
+// (githostconfig_test.go) is the check: the host's global identity, and not a
+// worktree's own user.name, which the agent writes. It replaced the test that
+// held the opposite, that a repository's own identity was kept (X-1).

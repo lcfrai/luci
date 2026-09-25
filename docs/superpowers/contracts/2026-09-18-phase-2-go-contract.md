@@ -901,13 +901,19 @@ func (b *Backend) Kind() backend.Kind { return backend.KindKata }
   than move; until it is decided, Kata must supply it or refuse. The line-ending pairs are
   `Spec.Env` and need nothing from Phase 8, but `Deps.GitLineEndings` asks the host's git
   about a host path, which a pod does not have: Phase 8 answers it from wherever its clone lives.
+  AMENDED by X-1 (2026-09-25): it takes no path now, and neither does `Deps.GitGlobalFiles` or
+  `Deps.GitIdentity`. Each reads the user's own global and system config and never a clone's,
+  so Phase 8 answers them from the user's config, not from wherever the clone lives.
 - AMENDED by the sandbox git fix's round-1 fix round (gitfix-rereview I-A, 2026-09-24): **and a
   fifth.** Every session whose host's git reads a global excludes file or a global attributes file
   also carries a **read-only** mount of each, at `/etc/panacea-app/git/ignore` and
   `/etc/panacea-app/git/attributes` (§5.1 step 5). Kata must supply them as read-only volumes, the
   same shape as the CA bundle, or refuse. `Deps.GitGlobalFiles` asks the host's git about a host
-  path too, and Phase 8 answers it for the user whose clone it is. The `core.excludesFile` and
-  `core.attributesFile` pairs are `Spec.Env`, and name `/dev/null` when there is no file.
+  path too, and Phase 8 answers it for the user whose clone it is (AMENDED by X-1, 2026-09-25:
+  from the user's own config, never the clone's; see the amendment above). The `core.excludesFile` and
+  `core.attributesFile` pairs are `Spec.Env`, and name `/dev/null` when there is no file
+  (AMENDED by the X-1 fix round, 2026-09-25, review m-4: or the user's own relative path, with
+  no volume, when it stays inside the repository; §5.1 step 5).
 - `Endpoint` is `net.JoinHostPort(pod.Status.PodIP, "8080")`. An empty `PodIP` means
   the pod is not scheduled yet: `StateStarting`, empty `Endpoint`.
 - `State` maps `pod.Status.Phase`: `Pending` → `StateStarting`, `Running` →
@@ -2122,7 +2128,9 @@ AMENDED by the sandbox git fix's round-1 fix round (gitfix-rereview M-A, 2026-09
 `internal` **before the destroy** when the host's git cannot say how it converts line endings or
 where its global excludes and attributes files are, for that worktree (§5.1 step 5). The old
 sandbox is **kept**, still running, and the record still names it, so the caller can retry once
-the host's git is fixed and has lost nothing.
+the host's git is fixed and has lost nothing. AMENDED by X-1 (2026-09-25): neither question is
+asked about the worktree any more. The host's own global and system config answers both, the same
+for every session (§5.1 step 5).
 
 ### 3.15 `DELETE /v1/sessions/{id}[?purge=true]`
 
@@ -2275,7 +2283,7 @@ visible in one file.
 | `PANACEA_APP_NAMESPACE` | `panacea-app` | `kata` backend only. |
 | `PANACEA_APP_LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error`. Anything else falls back to `info` with one warning line rather than exiting. |
 | `PANACEA_APP_HARNESS_ALLOW_UNVERIFIED` | unset | When `1`, `harness.Build` will construct argv for a harness whose flags were never verified. Nothing in Phase 2 sets it; it exists so adding Codex is a flag flip plus a `--help` check, not a code change. |
-| `PANACEA_APP_GIT_NAME` | unset | ADDED by the sandbox git fix (2026-09-23). With `PANACEA_APP_GIT_EMAIL`, the identity every commit in every sandbox is made as, passed in as `GIT_AUTHOR_*` and `GIT_COMMITTER_*`. **A pair or nothing:** one without the other exits 2 naming both. Unset, every session create and restart asks the host's own git, **in that worktree**, with `git var GIT_AUTHOR_IDENT`: the identity a commit there would carry on the host, whether it comes from the repository's config, an `includeIf`, global or system config, or git's own derivation from the account. If that fails too, the session still starts, the control plane logs "no git identity, so a commit in a sandbox will fail: set PANACEA_APP_GIT_NAME and PANACEA_APP_GIT_EMAIL, or give this machine's git an identity …" (once at startup, and at each create), and git in the sandbox refuses to commit with its own "Author identity unknown" rather than invent `dev@<container>`, because `user.useConfigOnly` is set (§5.1 step 5). |
+| `PANACEA_APP_GIT_NAME` | unset | ADDED by the sandbox git fix (2026-09-23). With `PANACEA_APP_GIT_EMAIL`, the identity every commit in every sandbox is made as, passed in as `GIT_AUTHOR_*` and `GIT_COMMITTER_*`. **A pair or nothing:** one without the other exits 2 naming both. Unset, every session create and restart asks the host's own git with `git var GIT_AUTHOR_IDENT`. AMENDED by X-1 (2026-09-25; was "**in that worktree** … whether it comes from the repository's config, an `includeIf`, global or system config"): git runs **outside every repository**, in a directory the control plane made, and never in a worktree, whose `.git/config` the agent writes. So the answer comes from global or system config, or from git's own derivation from the account, and a repository's own `user.name` does not count. If that fails too, the session still starts, the control plane logs "no git identity, so a commit in a sandbox will fail: set PANACEA_APP_GIT_NAME and PANACEA_APP_GIT_EMAIL, or give this machine's git an identity …" (once at startup, and at each create), and git in the sandbox refuses to commit with its own "Author identity unknown" rather than invent `dev@<container>`, because `user.useConfigOnly` is set (§5.1 step 5). |
 | `PANACEA_APP_GIT_EMAIL` | unset | ADDED by the sandbox git fix. The other half of `PANACEA_APP_GIT_NAME`'s pair; that row is the whole behaviour. |
 | `PANACEA_APP_CA_BUNDLE` | unset | ADDED by the sandbox git fix. An **absolute host path to a PEM file** of root certificates every sandbox trusts **in addition to** its own. It is mounted **read-only** at `/etc/panacea-app/ca-bundle.pem` and named by `NODE_EXTRA_CA_CERTS`, which Node — and so Claude Code — adds to its trust store. Unset mounts nothing and sets nothing. Set, it is checked at startup, and a relative path, a missing file, a directory, or a file holding no `CERTIFICATE` block x509 can parse each exits 2 with its own sentence. `SSL_CERT_FILE` is never set, because it replaces the system bundle, and TLS verification is never disabled under any setting. `kata` refuses the mount (§2.6). |
 
@@ -2370,7 +2378,24 @@ Exactly one place: the `POST /v1/sessions` handler, in this order.
    `native` turned into the host's own ending, `crlf` on Windows. The container never sees the
    host's system or global config, and Git for Windows sets `core.autocrlf=true` at system scope,
    so without these a CRLF checkout reads as every file modified and `commit -a` writes CRLF blobs.
-   The repository's own `.gitattributes` and `.git/config` are in the mount and apply unchanged. An
+   The repository's own `.gitattributes` and `.git/config` are in the mount and apply unchanged.
+   AMENDED by X-1 (2026-09-25; phase 3 ruling R4 rule 6): the answer is **the host's own, from its
+   global and system config**, and no longer "for that worktree". No resolver in `Deps` takes a
+   worktree path, and cmd/api's `hostGit` runs every git in a directory the control plane made,
+   outside every repository (`GIT_CEILING_DIRECTORIES` is its parent), never with `-C`,
+   `--git-dir` or `--work-tree`. AMENDED by the X-1 fix round (2026-09-25, review I-1; was one
+   directory, made by `serve()` at startup and kept for the life of the process): each git gets
+   its own directory, made with `os.MkdirTemp` in the OS temp directory just before it runs and
+   removed when it is done, and the ceiling is the temp directory, made absolute. A directory kept
+   for the life of the process is what temp reapers remove, and every create and restart after
+   that failed with 500. Each key is read from the scope git takes it from: `git config
+   --get --global --includes --default <unset marker> <key>` says whether the global scope sets
+   it, and then `git config --get --global|--system --includes <the question above> <key>` answers
+   it. `--includes` because naming a scope turns `include.path` off, and the system scope is
+   skipped when `GIT_CONFIG_NOSYSTEM` is true, which `--system` alone ignores. The worktree's
+   `.git/config` is the agent's to write, so its `core.autocrlf` and `core.eol` are never read
+   on the host. They also no longer apply in the sandbox: command-scope config outranks them
+   there. Its `.gitattributes` still applies, as it does on the host. An
    error, or an answer that is not `true`/`false`/`input` and `lf`/`crlf`, fails the create or
    restart with 500 before step 4 and before the restart's destroy. A primary worktree, one whose
    `.git` is a directory, also gets a **read-only** mount of its `<worktree>/.git/worktrees` at
@@ -2397,7 +2422,23 @@ Exactly one place: the `POST /v1/sessions` handler, in this order.
    `git config --get --type=path --default <git's default> core.excludesFile`, and the same for
    `core.attributesFile`, where the default is `$XDG_CONFIG_HOME/git/<ignore|attributes>` when
    that variable is set and not empty, else `~/.config/git/<ignore|attributes>`. A relative answer
-   is joined to the worktree, and an empty value is no file. A path that is a **regular file** on
+   is joined to the worktree, and an empty value is no file. AMENDED by X-1 (2026-09-25; was "asks
+   the host's git in the worktree" and "joined to the worktree"): both keys are read from the
+   host's global and system config only, by the same `hostGit` two-step as the line endings. The
+   question is `git config --get --global|--system --includes --type=path --default <git's
+   default> <key>`. **This is the fix for X-1.** The worktree's `.git/config` is in the mount and
+   the agent writes it, so a `core.excludesFile` there naming `~/.ssh/id_rsa` was mounted into the
+   sandbox at the next create or restart. Now a repository's own value is never read, and the
+   user's global file is still mounted. A relative answer is passed on as git gave it, and it
+   fails the create below: git reads it against each repository, so it names a file in the
+   worktree, not one of the host's. AMENDED by the X-1 fix round (2026-09-25, review m-4; was
+   "it fails the create"): a relative answer is never mounted. One that stays inside the
+   repository (Go's `filepath.IsLocal`) is the pair's value itself, cleaned and in slash form,
+   and the sandbox's git reads it against the same repository in its mount, as the host's git
+   does (measured with git 2.53: read against the worktree's top from a subdirectory, at command
+   scope too). One that leaves the repository (`..`, or a Windows drive- or root-relative path)
+   names a file no sandbox can see, so it still fails the create, and the 500 says to make it
+   absolute or a path inside the repository. A path that is a **regular file** on
    the host, following a link as git does, is mounted from the file it resolves to, so what a
    Docker host does with a link as a mount source never matters (dotfile managers link
    `~/.config/git/ignore`), **read-only** at `/etc/panacea-app/git/ignore` or
@@ -2406,7 +2447,9 @@ Exactly one place: the `POST /v1/sessions` handler, in this order.
    because the host's git reads no patterns there. The pair is never left unset, since then the
    sandbox's git would read its own `~/.config/git` default, which the host never reads and an
    agent can write. An error from the resolver, or a relative path from it, fails the create or
-   restart with 500 before step 4 and before the restart's destroy. The **system** attributes
+   restart with 500 before step 4 and before the restart's destroy (AMENDED by the X-1 fix round,
+   review m-4: a relative path that leaves the repository; one inside it is passed on, above).
+   The **system** attributes
    file (`$(prefix)/etc/gitattributes`) is not forwarded: git has no key that names it, and Git
    for Windows' own holds only `diff=astextplain` lines, which change how a diff is shown and not
    what a commit holds. Failure → `store.Update` to

@@ -44,44 +44,93 @@ func (r *eolRunner) Run(_ context.Context, dir string, args ...string) ([]byte, 
 
 var _ project.Runner = (*eolRunner)(nil)
 
-const (
-	eolAskBool = "config --get --type=bool --default false core.autocrlf"
-	eolAskRaw  = "config --get core.autocrlf"
-	eolAskEOL  = "config --get --default native core.eol"
+// hostAsk is one host-config question: `git config --get <scope> --includes
+// <rest...>`, as hostGit.config asks it.
+func hostAsk(scope string, rest ...string) string {
+	return strings.Join(append([]string{"config", "--get", scope, "--includes"}, rest...), " ")
+}
+
+// hostProbe is hostGit.scope's question for key.
+func hostProbe(key string) string { return hostAsk("--global", "--default", hostGitUnset, key) }
+
+// scriptedHost is a hostGit whose git answers from answers, each git in a
+// directory hostGit makes for it in the OS temp directory.
+func scriptedHost(r *eolRunner, getenv func(string) string) hostGit {
+	return hostGit{run: r, root: os.TempDir(), getenv: getenv}
+}
+
+// madeByHostGit is whether dir is a directory hostGit.git made for one git
+// under a scripted host: a direct child of the OS temp directory, named by
+// hostGitPattern.
+func madeByHostGit(dir string) bool {
+	return filepath.Dir(dir) == filepath.Clean(os.TempDir()) && strings.HasPrefix(filepath.Base(dir), hostGitPattern)
+}
+
+// Neither key set in the global scope, so each is read from the system scope.
+var (
+	eolAskBool = hostAsk("--system", "--type=bool", "--default", "false", "core.autocrlf")
+	eolAskRaw  = hostAsk("--system", "core.autocrlf")
+	eolAskEOL  = hostAsk("--system", "--default", "native", "core.eol")
+	eolUnset   = map[string]eolAnswer{
+		hostProbe("core.autocrlf"): {out: hostGitUnset + "\n"},
+		hostProbe("core.eol"):      {out: hostGitUnset + "\n"},
+	}
 )
 
-// git's refusal of a value that is not a boolean, as the runner reports it.
-var eolNotABool = errors.New("git config --get --type=bool --default false core.autocrlf in C:\\w: exit status 128: fatal: bad boolean config value 'input' for 'core.autocrlf'")
+// eolAnswers is eolUnset with more answers on top.
+func eolAnswers(more map[string]eolAnswer) map[string]eolAnswer {
+	all := map[string]eolAnswer{}
+	for k, v := range eolUnset {
+		all[k] = v
+	}
+	for k, v := range more {
+		all[k] = v
+	}
+	return all
+}
 
-// Each answer is asked of git in the worktree, and each value reaches the
-// sandbox the way the host's git reads it. native is both hosts' in turn, so a
-// resolver that ignored its parameter passes one of them at most.
-func TestTheLineEndingsAreTheHostGitsOwnAnswerInTheWorktree(t *testing.T) {
+// git's refusal of a value that is not a boolean, as the runner reports it.
+var eolNotABool = errors.New("git config --get --system --includes --type=bool --default false core.autocrlf in C:\\w: exit status 128: fatal: bad boolean config value 'input' for 'core.autocrlf'")
+
+// Each answer is asked of the host's own config, in hostGit's directory, and
+// each value reaches the sandbox the way the host's git reads it. native is
+// both hosts' in turn, so a resolver that ignored its parameter passes one of
+// them at most.
+func TestTheLineEndingsAreTheHostGitsOwnAnswer(t *testing.T) {
 	for _, tc := range []struct {
 		name    string
 		answers map[string]eolAnswer
 		native  string
 		want    api.GitLineEndings
 	}{
-		{"git for windows' installer default", map[string]eolAnswer{eolAskBool: {out: "true\n"}, eolAskEOL: {out: "native\n"}},
+		{"git for windows' installer default", eolAnswers(map[string]eolAnswer{eolAskBool: {out: "true\n"}, eolAskEOL: {out: "native\n"}}),
 			"crlf", api.GitLineEndings{AutoCRLF: "true", EOL: "crlf"}},
-		{"unset on windows", map[string]eolAnswer{eolAskBool: {out: "false\n"}, eolAskEOL: {out: "native\n"}},
+		{"unset on windows", eolAnswers(map[string]eolAnswer{eolAskBool: {out: "false\n"}, eolAskEOL: {out: "native\n"}}),
 			"crlf", api.GitLineEndings{AutoCRLF: "false", EOL: "crlf"}},
-		{"unset on linux", map[string]eolAnswer{eolAskBool: {out: "false\n"}, eolAskEOL: {out: "native\n"}},
+		{"unset on linux", eolAnswers(map[string]eolAnswer{eolAskBool: {out: "false\n"}, eolAskEOL: {out: "native\n"}}),
 			"lf", api.GitLineEndings{AutoCRLF: "false", EOL: "lf"}},
-		{"input", map[string]eolAnswer{eolAskBool: {err: eolNotABool}, eolAskRaw: {out: "InPut\n"}, eolAskEOL: {out: "native\n"}},
+		{"input", eolAnswers(map[string]eolAnswer{eolAskBool: {err: eolNotABool}, eolAskRaw: {out: "InPut\n"}, eolAskEOL: {out: "native\n"}}),
 			"crlf", api.GitLineEndings{AutoCRLF: "input", EOL: "crlf"}},
-		{"an explicit eol, in git's case-blind spelling", map[string]eolAnswer{eolAskBool: {out: "false\n"}, eolAskEOL: {out: "LF\n"}},
+		{"an explicit eol, in git's case-blind spelling", eolAnswers(map[string]eolAnswer{eolAskBool: {out: "false\n"}, eolAskEOL: {out: "LF\n"}}),
 			"crlf", api.GitLineEndings{AutoCRLF: "false", EOL: "lf"}},
-		{"crlf on linux", map[string]eolAnswer{eolAskBool: {out: "false\n"}, eolAskEOL: {out: "crlf\n"}},
+		{"crlf on linux", eolAnswers(map[string]eolAnswer{eolAskBool: {out: "false\n"}, eolAskEOL: {out: "crlf\n"}}),
 			"lf", api.GitLineEndings{AutoCRLF: "false", EOL: "crlf"}},
 		// git reads a core.eol it does not know as native, not as an error.
-		{"an eol git does not know", map[string]eolAnswer{eolAskBool: {out: "false\n"}, eolAskEOL: {out: "unix\n"}},
+		{"an eol git does not know", eolAnswers(map[string]eolAnswer{eolAskBool: {out: "false\n"}, eolAskEOL: {out: "unix\n"}}),
 			"crlf", api.GitLineEndings{AutoCRLF: "false", EOL: "crlf"}},
+		// The global scope sets both, so each is read from there: git reads it
+		// after the system scope. The system answers are scripted to lose.
+		{"set in the global scope, over the system's", map[string]eolAnswer{
+			hostProbe("core.autocrlf"): {out: "false\n"},
+			hostProbe("core.eol"):      {out: "lf\n"},
+			hostAsk("--global", "--type=bool", "--default", "false", "core.autocrlf"): {out: "false\n"},
+			hostAsk("--global", "--default", "native", "core.eol"):                    {out: "lf\n"},
+			eolAskBool: {out: "true\n"}, eolAskEOL: {out: "crlf\n"},
+		}, "crlf", api.GitLineEndings{AutoCRLF: "false", EOL: "lf"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			host := &eolRunner{answers: tc.answers}
-			got, err := gitLineEndingsResolverWith(host, tc.native)(context.Background(), `C:\work\evidence-upload`)
+			got, err := gitLineEndingsResolverWith(scriptedHost(host, noXDG), tc.native)(context.Background())
 			if err != nil {
 				t.Fatalf("resolve: %v", err)
 			}
@@ -89,25 +138,73 @@ func TestTheLineEndingsAreTheHostGitsOwnAnswerInTheWorktree(t *testing.T) {
 				t.Errorf("line endings = %#v, want %#v", got, tc.want)
 			}
 			for _, c := range host.calls {
-				if c.dir != `C:\work\evidence-upload` {
-					t.Errorf("git %q ran in %q, want the worktree", strings.Join(c.args, " "), c.dir)
+				if !madeByHostGit(c.dir) {
+					t.Errorf("git %q ran in %q, want a directory hostGit made for it", strings.Join(c.args, " "), c.dir)
 				}
 			}
 		})
 	}
 }
 
+// GIT_CONFIG_NOSYSTEM tells the host's git to skip the system file, which
+// `git config --system` reads regardless, so the global scope and git's
+// default answer instead. The system file's core.autocrlf=true must not count.
+func TestWithGitConfigNoSystemTheSystemScopeIsNotRead(t *testing.T) {
+	for _, v := range []string{"1", "true", "YES", "on"} {
+		host := &eolRunner{answers: map[string]eolAnswer{
+			hostProbe("core.autocrlf"): {out: hostGitUnset + "\n"},
+			hostProbe("core.eol"):      {out: hostGitUnset + "\n"},
+			hostAsk("--global", "--type=bool", "--default", "false", "core.autocrlf"): {out: "false\n"},
+			hostAsk("--global", "--default", "native", "core.eol"):                    {out: "native\n"},
+			eolAskBool: {out: "true\n"}, eolAskEOL: {out: "lf\n"},
+		}}
+		env := func(k string) string {
+			if k == "GIT_CONFIG_NOSYSTEM" {
+				return v
+			}
+			return ""
+		}
+		got, err := gitLineEndingsResolverWith(scriptedHost(host, env), "crlf")(context.Background())
+		if want := (api.GitLineEndings{AutoCRLF: "false", EOL: "crlf"}); err != nil || got != want {
+			t.Errorf("GIT_CONFIG_NOSYSTEM=%s: %#v, %v; want %#v", v, got, err, want)
+		}
+	}
+}
+
+// GIT_CONFIG_NOSYSTEM is a boolean, so a false value, or the empty string, is
+// git reading the system file as usual. Git for Windows' installer writes
+// core.autocrlf=true there, and a resolver that read any value as "skip it"
+// would hand that host's sandbox false: every CRLF file reads as modified.
+func TestWithGitConfigNoSystemFalseTheSystemScopeStillCounts(t *testing.T) {
+	for _, v := range []string{"", "0", "false", "No", "off"} {
+		host := &eolRunner{answers: eolAnswers(map[string]eolAnswer{
+			eolAskBool: {out: "true\n"}, eolAskEOL: {out: "lf\n"},
+		})}
+		env := func(k string) string {
+			if k == "GIT_CONFIG_NOSYSTEM" {
+				return v
+			}
+			return ""
+		}
+		got, err := gitLineEndingsResolverWith(scriptedHost(host, env), "crlf")(context.Background())
+		if want := (api.GitLineEndings{AutoCRLF: "true", EOL: "lf"}); err != nil || got != want {
+			t.Errorf("GIT_CONFIG_NOSYSTEM=%q: %#v, %v; want the system scope's %#v", v, got, err, want)
+		}
+	}
+}
+
 // A core.autocrlf the host's git would die on is an error, carrying git's own
 // words, and so is a git that cannot answer at all.
 func TestALineEndingSettingTheHostsGitCannotReadIsAnError(t *testing.T) {
-	gitDied := errors.New("git config --get core.eol in C:\\w: exit status 128: fatal: bad config line 3 in file .git/config")
+	gitDied := errors.New("git config --get --system --includes core.eol in C:\\w: exit status 128: fatal: bad config line 3 in file C:/Program Files/Git/etc/gitconfig")
 	for name, answers := range map[string]map[string]eolAnswer{
-		"autocrlf is not a word git knows": {eolAskBool: {err: errors.New("exit status 128: fatal: bad boolean config value 'maybe' for 'core.autocrlf'")}, eolAskRaw: {out: "maybe\n"}, eolAskEOL: {out: "native\n"}},
-		"the raw read fails too":           {eolAskBool: {err: eolNotABool}, eolAskRaw: {err: gitDied}, eolAskEOL: {out: "native\n"}},
-		"core.eol cannot be read":          {eolAskBool: {out: "true\n"}, eolAskEOL: {err: gitDied}},
+		"autocrlf is not a word git knows": eolAnswers(map[string]eolAnswer{eolAskBool: {err: errors.New("exit status 128: fatal: bad boolean config value 'maybe' for 'core.autocrlf'")}, eolAskRaw: {out: "maybe\n"}, eolAskEOL: {out: "native\n"}}),
+		"the raw read fails too":           eolAnswers(map[string]eolAnswer{eolAskBool: {err: eolNotABool}, eolAskRaw: {err: gitDied}, eolAskEOL: {out: "native\n"}}),
+		"core.eol cannot be read":          eolAnswers(map[string]eolAnswer{eolAskBool: {out: "true\n"}, eolAskEOL: {err: gitDied}}),
+		"the global scope cannot be read":  {hostProbe("core.autocrlf"): {err: gitDied}},
 	} {
 		t.Run(name, func(t *testing.T) {
-			got, err := gitLineEndingsResolverWith(&eolRunner{answers: answers}, "crlf")(context.Background(), `C:\w`)
+			got, err := gitLineEndingsResolverWith(scriptedHost(&eolRunner{answers: answers}, noXDG), "crlf")(context.Background())
 			if err == nil {
 				t.Fatalf("resolve returned %#v and no error", got)
 			}
@@ -132,17 +229,17 @@ func TestNativeIsCRLFOnWindowsAndLFElsewhere(t *testing.T) {
 		t.Errorf("hostNativeEOL() on %s = %q, want %q", runtime.GOOS, got, want)
 	}
 	// And the production resolver, the one main.go wires, is on this host.
-	host := &eolRunner{answers: map[string]eolAnswer{eolAskBool: {out: "false\n"}, eolAskEOL: {out: "native\n"}}}
-	got, err := gitLineEndingsResolver(host)(context.Background(), `C:\w`)
+	host := &eolRunner{answers: eolAnswers(map[string]eolAnswer{eolAskBool: {out: "false\n"}, eolAskEOL: {out: "native\n"}})}
+	got, err := gitLineEndingsResolver(scriptedHost(host, noXDG))(context.Background())
 	if err != nil || got.EOL != want {
 		t.Errorf("gitLineEndingsResolver on %s: %#v, %v; want core.eol native read as %q", runtime.GOOS, got, err, want)
 	}
 }
 
 // Against the real git: the answer includes the SYSTEM scope, which is where
-// Git for Windows puts core.autocrlf=true and which no container sees, and a
-// repository's own setting beats it, as it does on the host.
-func TestTheRealHostGitAnswersFromEveryScope(t *testing.T) {
+// Git for Windows puts core.autocrlf=true and which no container sees, and the
+// global scope beats it, an included file too, as they do on the host.
+func TestTheRealHostGitAnswersFromItsOwnScopes(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git is not on PATH")
 	}
@@ -153,15 +250,16 @@ func TestTheRealHostGitAnswersFromEveryScope(t *testing.T) {
 	}
 	t.Setenv("GIT_CONFIG_NOSYSTEM", "")
 	t.Setenv("GIT_CONFIG_SYSTEM", system)
-	t.Setenv("GIT_CONFIG_GLOBAL", filepath.Join(dir, "gitconfig-global"))
+	global := filepath.Join(dir, "gitconfig-global")
+	t.Setenv("GIT_CONFIG_GLOBAL", global)
 	t.Setenv("GIT_CONFIG_COUNT", "")
-	repo := filepath.Join(dir, "repo")
-	if out, err := exec.Command("git", "init", "-q", repo).CombinedOutput(); err != nil {
-		t.Fatalf("git init: %v: %s", err, out)
+	host, err := newHostGit()
+	if err != nil {
+		t.Fatal(err)
 	}
-	resolve := gitLineEndingsResolverWith(project.NewExecRunner(), "crlf")
+	resolve := gitLineEndingsResolverWith(host, "crlf")
 
-	got, err := resolve(context.Background(), repo)
+	got, err := resolve(context.Background())
 	if err != nil {
 		t.Fatalf("resolve: %v", err)
 	}
@@ -169,19 +267,53 @@ func TestTheRealHostGitAnswersFromEveryScope(t *testing.T) {
 		t.Errorf("with system core.autocrlf=true: %#v, want %#v", got, want)
 	}
 
-	for _, args := range [][]string{
-		{"-C", repo, "config", "core.autocrlf", "input"},
-		{"-C", repo, "config", "core.eol", "lf"},
-	} {
-		if out, err := exec.Command("git", args...).CombinedOutput(); err != nil {
-			t.Fatalf("git %v: %v: %s", args, err, out)
-		}
+	// core.eol arrives through include.path, which naming a scope turns off
+	// unless --includes turns it back on.
+	included := filepath.Join(dir, "gitconfig-included")
+	if err := os.WriteFile(included, []byte("[core]\n\teol = lf\n"), 0o644); err != nil {
+		t.Fatal(err)
 	}
-	got, err = resolve(context.Background(), repo)
+	body := "[core]\n\tautocrlf = input\n[include]\n\tpath = " + filepath.ToSlash(included) + "\n"
+	if err := os.WriteFile(global, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err = resolve(context.Background())
 	if err != nil {
 		t.Fatalf("resolve: %v", err)
 	}
 	if want := (api.GitLineEndings{AutoCRLF: "input", EOL: "lf"}); got != want {
-		t.Errorf("with the repository's own settings: %#v, want %#v", got, want)
+		t.Errorf("with the global scope's own settings: %#v, want %#v", got, want)
+	}
+}
+
+// Each key is read from the scope git takes IT from (contract §5.1 step 5),
+// not from the scope the other came from. Git for Windows' installer puts
+// core.autocrlf=true in the system file, and a user's own core.eol=lf lives
+// in the global one; reading core.eol in core.autocrlf's scope would send the
+// sandbox crlf (X-1 review m-3, mutant R2).
+func TestEachLineEndingKeyIsReadFromItsOwnScope(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git is not on PATH")
+	}
+	dir := t.TempDir()
+	system := filepath.Join(dir, "gitconfig-system")
+	global := filepath.Join(dir, "gitconfig-global")
+	if err := os.WriteFile(system, []byte("[core]\n\tautocrlf = true\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(global, []byte("[core]\n\teol = lf\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "")
+	t.Setenv("GIT_CONFIG_SYSTEM", system)
+	t.Setenv("GIT_CONFIG_GLOBAL", global)
+	t.Setenv("GIT_CONFIG_COUNT", "")
+	host, err := newHostGit()
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := gitLineEndingsResolverWith(host, "crlf")(context.Background())
+	if want := (api.GitLineEndings{AutoCRLF: "true", EOL: "lf"}); err != nil || got != want {
+		t.Errorf("system autocrlf=true, global eol=lf: %#v, %v; want %#v", got, err, want)
 	}
 }

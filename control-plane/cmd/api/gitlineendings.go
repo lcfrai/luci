@@ -7,17 +7,20 @@ import (
 	"strings"
 
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/api"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/project"
 )
 
 // gitLineEndingsResolver is the production api.Deps.GitLineEndings: how the
-// host's git converts line endings in one worktree, asked of that git, in that
-// worktree, so every scope it reads counts. That includes the system scope a
-// container never sees, where Git for Windows' installer writes
-// core.autocrlf=true, and a repository's own .git/config and includeIf
-// sections.
+// host's git converts line endings, from the host's own config and never a
+// worktree's (hostGit; X-1). That is the system scope a container never sees,
+// where Git for Windows' installer writes core.autocrlf=true, and the global
+// scope over it. A worktree's .git/config is the agent's to write, so its
+// core.autocrlf and core.eol are not asked: the sandbox gets the host's own
+// value, as command-scope config that outranks the repository's (phase 3
+// ruling R4 rule 6). A repository's .gitattributes still applies in the
+// sandbox as it does on the host, because attributes outrank both keys.
 //
-// Two questions, each answered by git's own parser rather than a copy of it:
+// Two questions, each answered by git's own parser rather than a copy of it,
+// in the scope hostGit.scope finds:
 //
 //  1. core.autocrlf, as git reads a boolean: `git config --type=bool`, with
 //     --default false for unset, which is git's own default. That turns
@@ -33,23 +36,27 @@ import (
 // serve(), which no unit test runs, has nothing to get wrong.
 // gitLineEndingsResolverWith takes it as a parameter so a test can be both
 // hosts.
-func gitLineEndingsResolver(run project.Runner) func(context.Context, string) (api.GitLineEndings, error) {
-	return gitLineEndingsResolverWith(run, hostNativeEOL())
+func gitLineEndingsResolver(host hostGit) func(context.Context) (api.GitLineEndings, error) {
+	return gitLineEndingsResolverWith(host, hostNativeEOL())
 }
 
 // gitLineEndingsResolverWith is gitLineEndingsResolver on a host whose git
 // reads "native" as native.
-func gitLineEndingsResolverWith(run project.Runner, native string) func(context.Context, string) (api.GitLineEndings, error) {
-	return func(ctx context.Context, worktreePath string) (api.GitLineEndings, error) {
-		autocrlf, err := gitConfigValue(ctx, run, worktreePath, "--type=bool", "--default", "false", "core.autocrlf")
+func gitLineEndingsResolverWith(host hostGit, native string) func(context.Context) (api.GitLineEndings, error) {
+	return func(ctx context.Context) (api.GitLineEndings, error) {
+		scope, err := host.scope(ctx, "core.autocrlf")
 		if err != nil {
-			raw, rawErr := gitConfigValue(ctx, run, worktreePath, "core.autocrlf")
+			return api.GitLineEndings{}, fmt.Errorf("read core.autocrlf: %w", err)
+		}
+		autocrlf, err := host.config(ctx, scope, "--type=bool", "--default", "false", "core.autocrlf")
+		if err != nil {
+			raw, rawErr := host.config(ctx, scope, "core.autocrlf")
 			if rawErr != nil || !strings.EqualFold(raw, "input") {
 				return api.GitLineEndings{}, fmt.Errorf("read core.autocrlf: %w", err)
 			}
 			autocrlf = "input"
 		}
-		eol, err := gitConfigValue(ctx, run, worktreePath, "--default", "native", "core.eol")
+		eol, err := host.value(ctx, "core.eol", "--default", "native")
 		if err != nil {
 			return api.GitLineEndings{}, fmt.Errorf("read core.eol: %w", err)
 		}
@@ -61,16 +68,6 @@ func gitLineEndingsResolverWith(run project.Runner, native string) func(context.
 		}
 		return api.GitLineEndings{AutoCRLF: autocrlf, EOL: eol}, nil
 	}
-}
-
-// gitConfigValue runs `git config --get <args...>` in dir and returns its one
-// line of output.
-func gitConfigValue(ctx context.Context, run project.Runner, dir string, args ...string) (string, error) {
-	out, err := run.Run(ctx, dir, append([]string{"config", "--get"}, args...)...)
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(string(out)), nil
 }
 
 // hostNativeEOL is the line ending "native" means to this host's git: Git for

@@ -129,6 +129,164 @@ build stream with `args {"stream":"p3","cleared":["b02"]}`.
 - Team-collab research: COMPLETE (`00-summary.md`). Linear parity-plus: COMPLETE (`00-summary.md`, `prototype/work-layer.html`).
 - Owner decisions now run OD-1 to OD-24. OD-21: LiteLLM. OD-22: read-only fetch. OD-23: a policy injection mechanism. OD-24: the data class is set at creation and drives inference and deploy scans.
 
+**Added 09:00, 2026-09-25: three new streams** (OD-21 to OD-28). The worktrees are
+`.claude/worktrees/{phase-6,team,work}`, on branches `feat/phase-6-gateway`, `feat/team-mode` and
+`feat/work-layer`.
+- **Plans:** `wave-c-plans`, run `wf_33255dc5-1ac`: skeleton, then parallel part writers, then an
+  adversarial review, for each stream. It has **parallel chains, so do not resume it by prefix**
+  after an interruption. Read its journal and write a continuation per stream.
+- **Build streams**, all on the session's `build-stream-wf_56772bc5-8a7.js` (copy:
+  `.superpowers/workflows/build-stream-current.js`). Their gates wait for the plan reviews:
+  - p6: run `wf_3628332d-1ab`, args `{"stream":"p6"}`;
+  - team: run `wf_e90a5a3f-ad5`, args `{"stream":"team"}`;
+  - work: run `wf_d0a82d09-d10`, args `{"stream":"work"}`.
+
+**Added 10:00, 2026-09-25: after the second spend-limit stop (09:24).** Ten runs were resumed with
+`resumeFromRunId` and keep their run IDs: close-out, p3 R4 round 4, hub, p4, p5, p7, env and p6's
+build stream. `wave-c-plans` (`wf_33255dc5-1ac`) is **retired**. Only p6's skeleton had finished.
+The team and work skeleton writers were killed by the watchdog while composing a very large return
+(a scope for every task), so the new scripts return task ids only. It is replaced by:
+- **p6 plan continuation**, run `wf_7bc1a1b9-064`: `.superpowers/workflows/wave-c-p6-continue.js`,
+  no args. It writes the 25 part files, then the review.
+- **team plan parts**, run `wf_2b949030-b55`: `.superpowers/workflows/wave-c-plan-parts.js`, args
+  `{"stream":"team"}`. It writes the 69 part files in sections of 10. Each section gets its own
+  reviewer, then one cross-cutting reviewer, then an assembler writes `…-review.md`.
+- **work plan parts**, run `wf_90d7f9c9-ec9`: the same script, args `{"stream":"work"}`. It first
+  finishes the skeleton (the W5 rows), then writes the scopes in `…-scopes/`, then the coverage
+  map `…-scopes/coverage.md`, then the parts and the reviews as for team.
+- Every agent in these two scripts is restart-safe: it finishes a file and never rewrites it. So
+  resume them with `resumeFromRunId`. A cache miss re-runs safely.
+- The section reviews live in `<worktree>/.superpowers/sdd/<stream>/plan-review-sections/`, which
+  is git-ignored. `.superpowers/sdd/.gitignore` (`*`) was added to `team` and `phase-6`, because the
+  gate needs a clean `git status`.
+- **The team and work build streams are STOPPED** (`wf_e90a5a3f-ad5`, `wf_d0a82d09-d10`). Their gate
+  gives up after 5 hours, and their plans take longer (OD-29, all part files now). When
+  `…-phase-t-team-mode-review.md` (or `…-phase-w-work-layer-review.md`) is committed, launch that
+  build stream **FRESH**: no `resumeFromRunId`, because a cached gate result of `ready=false` would
+  replay. Use the session's `build-stream-wf_56772bc5-8a7.js` with `{"stream":"team"}` or
+  `{"stream":"work"}`.
+
+**Added 12:50, 2026-09-25:**
+- **p6 plan: COMPLETE.** Its review is Needs fixes: 1 Critical (C-1: LiteLLM body fields could send
+  AU traffic to Global) and 10 Important. p6's build stream (`wf_3628332d-1ab`) runs the fix rounds
+  once its gate sees the committed review.
+- **p3 R4: APPROVED** (r4-review-5: 0 Critical, 0 Important, 3 Minor). p3's build stream is resumed
+  (`wf_0feefc44-791`, `build-stream-current.js`, `{"stream":"p3","cleared":["b02"]}`). Two side
+  agents (not workflows; if they die, dispatch again):
+  - one applies M-1 to M-3 to `phase-3 … task-24.md`;
+  - one restates the env plan's P8-D7 to match R4 (Q18).
+  Q19 is fixed in `orchestrator-rulings.md` R4.6. G5 (X-1 is not on `feat/phase-3-git`) closes at
+  the phase 2 sync. `4948320` on phase 3 has another stream's message (a message-file collision).
+  It stays unamended.
+- **Team plan repair.** At 11:40 a transient "Not logged in" killed the writers of team tasks 01-05
+  and 41-45. Tasks 04, 05 and 41-45 are missing, and task 03 is cut off. Stage 1 is run
+  `wf_5c66b9e9-0e9` (`.superpowers/workflows/wave-c-team-repair.js`, `{"stream":"team"}`).
+  **Stage 2, after the main team run (`wf_2b949030-b55`) finishes:** re-review sections 1 (01-10)
+  and 5 (41-50). Their section files will flag the missing parts. Then re-run the cross-cutting
+  review and the assembler. Launch the team build stream only after that.
+  **Stage 1 is DONE** (all of 01-05 and 41-45 exist). Its writers' 13 gaps are in
+  `team/.superpowers/sdd/team/repair-gaps.md`, and stage 2's reviewers must read that file.
+
+**Added 20:05, 2026-09-25: a third spend stop (19:31), then a forced resume.** All 12 runs were
+stopped and resumed with `resumeFromRunId`. **Parallel runs resume from cache now** (keys are
+`v2:<hash>`; verified on env-r4). There is no need for continuations.
+- `a1e2c46` on `feat/env` is a SALVAGE commit. It holds the env-r4 first attempt's work on tasks 19,
+  20 and 25, which its retries had refused to touch.
+- 17:58: a runaway `python -` REPL (PID 23092) had filled C: with a 38 GB task log. It is killed and
+  deleted, and disk is back to 47 GB. The watcher now flags any task `.output` over 500 MB.
+
+**Added 21:50, 2026-09-25: a fourth spend stop (21:17), and a correction.**
+- Resuming does NOT work for `wave-c-plan-parts`: its nested parallel steps miss the cache, so each
+  resume re-ran finished writers and reviews. The team and work runs (`wf_2b949030-b55`,
+  `wf_90d7f9c9-ec9`) are RETIRED.
+- They are replaced by `.superpowers/workflows/wave-c-plan-finish.js`, which is idempotent. A
+  state agent reads the disk, then only missing parts and unreviewed sections are dispatched,
+  followed by the cross-cutting review and the assembler. The assembler includes
+  `sec-90-identity.md`, and for team it runs the stage-2 repair re-reviews of sections 1 and 5.
+  - team: `wf_1bf44b8c-f6f`, `{"stream":"team"}`.
+  - work: `wf_3c2c558c-b5b`, `{"stream":"work"}`.
+  - **After any stop, launch it FRESH with the same args. Do not resume it.**
+- SALVAGE commits `aab769f` (main) and `dd7cb16` (env) hold OD-30 fix-1's stranded edits.
+
+**Added 22:30, 2026-09-25: cross-stream order fixes.**
+- **env R4 re-plan: DONE.** Review 1's 4 Criticals are fixed. Review 2 left 2 Importants, which the
+  seams run below fixes.
+- **p3 was missing task 24** (the sandboxd git runner, added by R4 after p3's triage ran). Tasks 07,
+  08, 09, 11 and 16 depend on it. `build-stream-current.js` now takes `args.insertBefore`, and p3 is
+  resumed with `{"stream":"p3","cleared":["b02"],"insertBefore":{"07":[{"id":"24",…}]}}`. **Every p3
+  resume must pass those args** (copy them from task `wlt02zfzi`'s launch).
+- **Build streams can now hold tasks.** Both `build-stream-as-launched.js` and
+  `build-stream-current.js` take `args.hold` (a list of ids). Held tasks are skipped and logged, and
+  kept out of `done`, so the cache still holds. They are built later by a fresh run.
+- **Run `wf_e83c0311-995`** (`.superpowers/workflows/env-p3-seams.js`):
+  - it files phase 8's asks S8-P3.3, S8-P3.4 and S8-P3.5 into the phase 3 plan, task 02 first
+    because p3 reaches it soon;
+  - it fixes env review-2's I1, I2 and M1 to M5;
+  - it returns env's **held set**, recorded in `env/.superpowers/sdd/env/held.md`.
+  **Then restart the env stream with `{"stream":"env","hold":[<held ids>]}`**, before env reaches
+  task 20 (position 17; env is on task 02).
+
+**Added 23:40, 2026-09-25:**
+- **Hub stream STOPPED at task 04**: not approved after 2 fix rounds (0 Critical, 1 Important, a
+  test-coverage gap in the fake's org-admin rule). Tasks 01-03 are approved; 41 remain.
+  - `build-stream-as-launched.js` now takes `args.clearedTasks`.
+  - `.superpowers/workflows/task-round3.js` is an orchestrator round 3 for one task: a fix, then a
+    scoped re-review. Its run is `wf_884200d0-8ba`, with
+    `{"stream":"hub","dir":"hub","task":"04","review":"…/task-04-review-2.md"}`.
+  - **When its review-3 is Approved, resume hub:** `resumeFromRunId: wf_b4bd0092-bcc` with
+    `{"stream":"hub","clearedTasks":["04"]}`.
+- p7 stopped on a sign-out and is resumed as task `wcbdm4rcg`.
+- Owner questions (4 from phase 7, 5 from the Hub) are collected in
+  `docs/superpowers/planning/2026-09-25-owner-questions-pending.md` for the next question round.
+
+**Added 00:30, 2026-09-26: a sign-out killed agents in 5 runs. All are resumed.**
+- The runs: identity, p4, env, close-out, and team finisher (fresh run `wf_df8d0e15-93e`).
+- The work finisher (`wf_3c2c558c-b5b`) lost writers for 149-168. **Launch it FRESH once more after
+  it finishes**, and it writes only what is missing.
+- **X-1 is APPROVED** (x1-global-files-review-2). Close-out continues with the reconcile, 26, 25
+  and the final review.
+- **QUEUED, SECURITY, before phase 2 merges to `main`: X-3**, from the X-1 review, with no owner
+  yet.
+  - **O-1 (Critical-class):** the rail scanner runs `git worktree list --porcelain` in the
+    agent-writable primary worktree (`internal/project/project.go:282`). An agent-written
+    `.git/commondir` lists another repository's worktrees, and a create mounts one read-write. The
+    cheapest guard is to confine `Scanner.Path` results to ProjectsDir after EvalSymlinks.
+  - **m-5:** a host-owned `core.excludesFile` can name a file inside a project, which an agent can
+    swap for a link to a secret. Under R4's rule, no bind-mount source may be a path a sandbox can
+    write.
+  - **O-2.**
+  - Run as: a ruling, then a fix, then an adversarial review, AFTER close-out's final review; fold
+    in its findings too.
+
+**Added 01:30, 2026-09-26:**
+- **Team plan: COMPLETE.** It has 69 parts, and its review is committed:
+  `…-phase-t-team-mode-review.md`, Needs fixes, 18 C / 153 I / 134 M.
+  - At least S01-C1 is stale ("tasks 04 and 05 missing"). The section 1 reviewer appended to an
+    interrupted pre-repair pass.
+  - **`build-stream-v2.js`** (for team and work, which launch fresh) adds `fixOnly:'critical'`. Only
+    Criticals are batched, and the review is carried, so implementers grep it for their own task.
+    It also adds `planOnly`, which stops after the plan fix.
+  - Team run: `{"stream":"team","fixOnly":"critical","planOnly":true}`. **To build later, resume
+    it with the same args minus `planOnly`**, once its sibling code (the Hub, phase 8, phase 3) has
+    landed; most team tasks depend on it.
+- **OD-30 identity: review-2 is 0 C, 2 I**, and round 3 is running (`wf_c1460e29-6b6`).
+
+**Added 13:40, 2026-09-25: OD-30 (sign-in) and the env R4 re-plan.**
+- **OD-30:** sign-in goes through a Keycloak broker on Panacea's existing Entra registration, with
+  zero clicks. The IT request's Part 1 is no longer needed. Run `wf_579f2bb3-bfb`
+  (`.superpowers/workflows/identity-keycloak.js`, no args) does the work in order: facts, the ruling
+  `docs/superpowers/planning/2026-09-25-identity-keycloak-broker.md`, then edits the hub, env,
+  p6, p7 and p4 plans and the main documents, then reviews.
+  - The team and work plans get the change as findings, in `sec-90-identity.md` in their review
+    sections folder. **Both assemblers must include `sec-90`**: check after the work run finishes,
+    and put it in team's stage 2.
+  - Urgent: the hub build reaches tasks 10 and 11 (token validation) in about 5 tasks.
+  - env task 16 (`internal/entra`) is BUILT, so its rework folds into an unbuilt task.
+- **env R4 re-plan:** run `wf_bb6abd47-038` (`.superpowers/workflows/env-r4-replan.js`). A side
+  agent gated env tasks 20, 21, 24b and 25, because they were planned on the retired git design, and
+  a gated part stops the env stream. This run decides the five open items, re-plans the four parts
+  and removes the gates. It must land before the env build reaches task 20, about 12 tasks away.
+
 ## 4. After phase 2's fix rounds finish
 
 Still to do for phase 2:
