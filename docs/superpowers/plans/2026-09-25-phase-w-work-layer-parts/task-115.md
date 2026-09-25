@@ -599,3 +599,140 @@ func (w *fakeWorld) milestoneView(ft hubapi.Feature, m *hubapi.Milestone) hubapi
 reader including `roleGranted`. `PatchMilestone` and `SetMilestoneCriteria` take the member check
 and, for the criteria, `onBrief` again; each appends its one event.
 
+```go
+// reaches reports whether "from" reaches "to" along blocks edges.
+func (r *fakeRoadmap) reaches(from, to string) bool {
+	seen := map[string]bool{}
+	stack := []string{from}
+	for len(stack) > 0 {
+		n := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if n == to {
+			return true
+		}
+		if seen[n] {
+			continue
+		}
+		seen[n] = true
+		for e := range r.deps {
+			if e[0] == n {
+				stack = append(stack, e[1])
+			}
+		}
+	}
+	return false
+}
+
+func (f *Fake) AddFeatureDependency(_ context.Context, featureID, blocks string) (hubapi.FeatureDependency, error) {
+	w := f.w
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	var zero hubapi.FeatureDependency
+	me, err := f.enter("AddFeatureDependency", featureID, blocks)
+	if err != nil {
+		return zero, err
+	}
+	from, role, err := w.featureOf(featureID, me)
+	if err != nil {
+		return zero, err
+	}
+	if err := need(role, hubapi.RoleMember); err != nil {
+		return zero, err
+	}
+	to, _, err := w.featureOf(blocks, me)
+	if err != nil || blocks == featureID {
+		return zero, badRequest("blocks", "Name another feature you can see.")
+	}
+	if w.rm().reaches(blocks, featureID) { // the new edge would close a loop
+		return zero, rmProblem(hubapi.CodeDependencyCycle, "That would make the features wait on each other.",
+			"from", featureID, "blocks", blocks)
+	}
+	if k := [2]string{featureID, blocks}; !w.rm().deps[k] { // a repeat is a no-op, no second event
+		w.rm().deps[k] = true
+		w.rmEvent(me, hubapi.EventWorkDependencyAdded, w.projects[from.ProjectID].teamID, from.ProjectID,
+			featureID, map[string]any{"from": featureID, "blocks": blocks})
+	}
+	return w.depOf(from, to), nil
+}
+
+// depOf derives orderViolated at read: the blocked feature's target date is
+// before its blocker's. Either date missing is not a violation.
+func (w *fakeWorld) depOf(from, to hubapi.Feature) hubapi.FeatureDependency {
+	v := from.TargetDate != nil && to.TargetDate != nil && *to.TargetDate < *from.TargetDate
+	return hubapi.FeatureDependency{From: from.ID, Blocks: to.ID, OrderViolated: v}
+}
+```
+
+`FeatureDependencies` returns every edge with the feature on either side, each through `depOf`,
+sorted by `(from, blocks)`; `RemoveFeatureDependency` deletes the edge (a missing edge is 404
+`feature_not_found` on `blocks`, the Hub's 404 for an unreadable or absent feature) and appends
+`work.dependency_removed`.
+
+#### `fake_work_roadmap.go`, continued: read cursors and insights (tasks 122-123's rules)
+
+```go
+// AdvanceReadCursor only advances: a lower seq is ignored, not an error, and
+// the stored cursor is returned. A cursor is not a change: no event.
+func (f *Fake) AdvanceReadCursor(_ context.Context, s hubapi.ReadScope, seq int64) (hubapi.ReadCursor, error) {
+	w := f.w
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	me, err := f.enter("AdvanceReadCursor", s, seq)
+	if err != nil {
+		return hubapi.ReadCursor{}, err
+	}
+	if err := w.scopeReadable(s, me); err != nil {
+		return hubapi.ReadCursor{}, err
+	}
+	k := [2]string{me, s.String()}
+	if seq > w.rm().cursors[k] {
+		w.rm().cursors[k] = seq
+	}
+	return hubapi.ReadCursor{Scope: s, Seq: w.rm().cursors[k]}, nil
+}
+
+// scopeReadable: the scope's project is readable through the team or a grant;
+// otherwise the scope kind's own 404 (task 123: never an empty page).
+func (w *fakeWorld) scopeReadable(s hubapi.ReadScope, me string) error {
+	if err := s.Validate(); err != nil {
+		return contentError("", err)
+	}
+	switch s.Kind {
+	case "project":
+		_, _, err := w.workProjectOf(s.ID, me)
+		return err
+	case "feature":
+		_, _, err := w.featureOf(s.ID, me)
+		return err
+	default:
+		_, _, err := w.issueOf(s.ID, me)
+		return err
+	}
+}
+
+// percentile is nearest-rank over sorted ms: the ceil(p/100 × n)-th value.
+func percentile(sorted []int64, p int) *int64 {
+	if len(sorted) == 0 {
+		return nil // nothing measured, nothing printed (Q1)
+	}
+	i := (p*len(sorted) + 99) / 100
+	v := sorted[max(i, 1)-1]
+	return &v
+}
+```
+
+`GetReadCursor` returns `{scope, 0}` for a scope never advanced; `MarkSeen` checks every scope with
+`scopeReadable` **before** writing any (all or nothing) and then advances each. `ScopedChanges`
+filters the fake's feed (`feedEvents`, H05, **UNVERIFIED**) to events whose subject lies under the
+scope (an issue under its feature and its project), after `after`; with `after == ""` it returns
+the last 200 and `Truncated: true`.
+
+`QueryInsights` checks `q.TeamID == teamID`, `Validate`, and viewer or better in the team; then it
+walks `feedEvents` in `[from, to)`, per issue of the team's projects (or `projectId`'s only):
+`count` counts `issue.state` moves grouped by `groupBy`; `cycle_time` is the first move whose `to`
+is `started` to the latest move whose `to` is `done` (and no later move out of `done`);
+`lead_time` is the `issue.created` event to that `done`; `triage_time` is `issue.created` to the
+first move whose `from` is `triage`. Each measured issue is one `InsightPoint`; `P50Ms`, `P75Ms`
+and `P90Ms` are `percentile` over the sorted points. An issue that never reached the end event
+gives no point; nothing is estimated for it.
+
