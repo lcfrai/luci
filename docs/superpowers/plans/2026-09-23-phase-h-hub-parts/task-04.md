@@ -417,3 +417,13 @@ go list -deps ./control-plane/internal/hub/hubclient | grep panacea-app
   invites, lists only its own team, and after erasing a brief gets 404 on that brief and its
   project (erasure is no read). Carried: MY-1 → 16a and 05. MY-2's Hub half is already task 16b's
   matrix (`colO`); so are the 403 cells of N2, which the re-review missed.
+- **Fix round 3** (re-review `task-04-review-2.md`: 0 C, 1 I, 3 m; commit 54b5e74). No
+  production code changed: the code was right, and eleven of the re-review's mutants passed the
+  suite. `fake_test.go` now pins the org admin in no team as the outsider on every route but
+  audit and erasure (I1, §5.3's `O` column, §5.2's "no read of project content"): one table runs
+  20 of the fake's methods on Portal's objects as Linus and as the org admin, requires the same
+  outsider answer from both, then finds the brief's head, the project, the team and its invites
+  unchanged. Also pinned: the second revoke's 204 comes after the membership and role checks (a
+  member gets 403 and an outsider 404 on a revoked invite; m1), and route 11's role check comes
+  before the pending-invite 409 (m2). The re-review's RR-1 to RR-10 and RR-2b are KILLED. Carried:
+  I1 → 05 (`org_admin_is_a_non_member`); m1, m2 → 16a and 05 as cases of their existing rows.
