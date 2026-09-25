@@ -354,3 +354,72 @@ rotation; Xavier of another org). Time moves through `RunJanitorOnce(…, now)` 
 | `TestALeaverIsSkipped` | member 2 leaves the team before day 8 → day 8 reads member 3, and the handover names member 3 | duty given to a non-member |
 | `TestWhoSetsPolicies` | Grace (member) → 403 on the schedule and rotation routes, 403 on a reminder for a feature she does not lead, 200 on one she leads; Xavier → 404 everywhere | a member sets the team's policies |
 | `TestEachPolicyWriteAppendsOneEvent` | each PUT → one event; a DELETE of an absent schedule → none | a write without its event |
+| `TestTheJanitorRespectsTheOrg` | two orgs, each with a due schedule; one `RunJanitorOnce` → one issue in each, and each org's events are in its own audit chain | a pass outside `hub.org_id` (Hub task 24's row, extended) |
+
+#### The matrix rows (`workMatrixRows["121"]`, appended)
+
+Columns V M A O N X (`hub-contract:341`). A reminder policy's writer is the lead, the owner or an
+admin, so its row is split by whether `M` leads the subject.
+
+| Route | V | M | A | O | N | X |
+|---|---|---|---|---|---|---|
+| `PUT /v1/templates/{templateId}/schedule` | 403 | 403 | 200 | 404 | 404 | 404 |
+| `DELETE /v1/templates/{templateId}/schedule` | 403 | 403 | 204 | 404 | 404 | 404 |
+| `PUT /v1/reminder-policies` (M is not the lead) | 403 | 403 | 200 | 404 | 404 | 404 |
+| `PUT /v1/reminder-policies` (M leads the feature) | 403 | 200 | 200 | 404 | 404 | 404 |
+| `PUT /v1/teams/{teamId}/triage-rotation` | 403 | 403 | 200 | 404 | 404 | 404 |
+| `GET /v1/teams/{teamId}/triage-rotation` | 200 | 200 | 200 | 404 | 404 | 404 |
+
+A granted team (task 117) has no row: templates, rotations and policies are a team's own.
+
+#### Steps
+
+- [ ] **Step 1:** Confirm the sync base (rule H1): Hub task 24's janitor, task 77's passes, task 78's
+  templates, tasks 114, 116 and 119 committed. Re-read `H24:66-112` at the base; follow any move.
+- [ ] **Step 2:** Check G1 (in 114), G2 (in 114) and G3 (in 116); if one is missing, stop and raise
+  it against its task.
+- [ ] **Step 3:** Write `server/recur_test.go`; it fails to compile; write `recur.go`; it passes.
+- [ ] **Step 4:** Write the integration test and the matrix rows; every row fails.
+- [ ] **Step 5:** `store/work_schedules.go` and the five routes; the policy rows go green.
+- [ ] **Step 6:** `janitor_w4.go`, the call in `Sweep`, the three counters, and
+  `janitor_w4_export_test.go`; run until green.
+- [ ] **Step 7:** Rerun Hub task 24's `janitor_integration_test.go` and task 77's janitor rows,
+  unchanged and green (the W4 passes must not change their counts).
+- [ ] **Step 8:** `git diff -- go.work control-plane/go.mod` shows nothing (`time/tzdata` is the
+  standard library); commit by pathspec.
+
+#### Acceptance
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/work
+go test ./control-plane/internal/hub/server/ -race -count=1 -v \
+  -run '^Test(WeeklyOccurrencesKeepLocalTime|TheThirtyFirstFallsBackToTheLastDay|AGapTimeRunsAtTheFirstRealMinute|DueOccurrenceCountsTheSkipped)$' \
+  2>&1 | grep -c "^--- PASS"                                                                    # 4
+go test -tags integration ./control-plane/internal/hub/server/ -race -count=1 -v \
+  -run '^Test(AWeeklyScheduleRunsOncePerOccurrence|SettingAScheduleNeverBackfills|MissedWeeksMakeOneIssue|AJanitorActHasANullActor|ATemplateEditChangesNoRecurringIssue|TwoJanitorsCreateOneIssue|AStaleFeatureGetsOneReminder|ASameDayRerunRemindsNobody|AnUpdateResetsTheReminder|TheRotationHandsOverAtTheBoundary|ALeaverIsSkipped|WhoSetsPolicies|EachPolicyWriteAppendsOneEvent|TheJanitorRespectsTheOrg)$' \
+  2>&1 | grep -c "^--- PASS"                                                                    # 14
+go test -tags integration ./control-plane/internal/hub/... -race -count=1                      # ok
+go test ./control-plane/... -race -count=1                                                      # ok
+```
+
+`TestTheJanitorRespectsTheOrg` may clash with a Hub task 24 test name in the same package; if it
+does at compile time, this one becomes `TestTheW4JanitorRespectsTheOrg` and the regex follows.
+
+#### What this task does not claim
+
+- That reminders are **read**, or that a lead answers one: the event reaches task 81's digest and
+  task 127's row; whether anyone acts on it is unmeasured.
+- PagerDuty or Opsgenie rotation import (L-218, task 184); a rotation across teams; holidays.
+- The digest itself (task 81), the settings surfaces (task 134), or the reminder row (task 127).
+- Any sweep duration at any org size; the linear occurrence scan is bounded, not measured.
+- That `created_by` on a janitor-made issue is accepted by task 08's create path as written
+  (**UNVERIFIED** until its part lands; the fallback is named under *The passes*).
+
+**Parity rows served:** **L-32** (recurring issues) and **L-50** (triage rotation), both with task
+134's surfaces; **L-77** (update reminders) with task 127, the digest itself being task 81's.
+
+**Gaps for the skeleton and siblings:** G1 (`TemplateSchedule.startsOn`, `TriageRotation.tz`,
+`TriageRotationView.onDuty` as a pointer, `rotation_not_found`) and G2 (seven kinds) belong to task
+114; G3 (`last_run_at`, `last_reminded_at`, `created_at`, `last_handover_on`) to task 116; T114 has
+no route to delete a reminder policy; task 124's `RunJanitorOnce` call needs `st` and `blobs` or a
+package-`server` test.
