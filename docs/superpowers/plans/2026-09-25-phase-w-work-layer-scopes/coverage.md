@@ -298,3 +298,52 @@ against the desktop tree (UNVERIFIED).
 | 255 | AI spend limits at workspace, per-user and per-loop level, with usage by feature and user | EXCEED | phase 6 | serves 135 · proof 142 |  |
 | 256 | Admin allow-list for agent MCP connectors; each user connects their own accounts | MATCH | W5 | 161, 166, 173 · proof 174 |  |
 | 257 | Transparent AI pricing: provider token rates with no markup plus sandbox minutes | MATCH | phase 6 | serves 135 |  |
+
+## Gaps
+
+This list names every MATCH, EXCEED or PARTIAL row that no Phase W task closes: 27 of the 230.
+None of them has a Phase W stop. Each is owned by 05's stop column: it is already built
+(`exists`), it belongs to another plan (`TM`, `phase 3/5/6/8`), or it is part built and part
+deferred (`exists / later`). So under `OD-26` **no Phase W task is missing**, provided 05's
+stops hold. What still needs proof is that the `exists` rows really exist (UNVERIFIED here) and
+that the owning plans (team mode, phases 3, 5, 6 and 8) carry the other rows.
+
+### No Phase W task at all (21)
+
+These rows are closed and served by no task. Where a task mentions the row, it does so only in a
+*does not claim* clause or in passing.
+
+- **L-1** Workspaces; one person in several workspaces (MATCH). 05 stop: *exists*.
+- **L-5** Private teams, invisible to non-members (MATCH). 05 stop: *exists*.
+- **L-120** Documents attached to projects, initiatives, teams, issues, cycles (PARTIAL). 05 stop: *exists / later*; mentioned, not closed, in 02.
+- **L-121** Real-time multiplayer editing with cursors (MATCH). 05 stop: *TM*; mentioned, not closed, in 49.
+- **L-123** Version history with revert (EXCEED). 05 stop: *exists*.
+- **L-125** Links to a specific heading (EXCEED). 05 stop: *exists*.
+- **L-143** Release pipelines, continuous and scheduled (EXCEED). 05 stop: *exists*.
+- **L-155** Linear Agent chat with full workspace context, `Cmd/Ctrl+J` (EXCEED). 05 stop: *TM*; mentioned, not closed, in 59.
+- **L-163** Coding sessions in a managed cloud sandbox, producing draft PRs (EXCEED). 05 stop: *exists / TM*.
+- **L-164** Per-repo environments: runtimes, env vars, separated secrets, prep scripts (PARTIAL). 05 stop: *phase 8*.
+- **L-165** Per-repo agent and model choice, including Claude models (MATCH). 05 stop: *phase 6*.
+- **L-167** Steer or follow up a running session; notify when input is needed (EXCEED). 05 stop: *exists*.
+- **L-179** Agents as app users, not billable seats (MATCH). 05 stop: *exists*.
+- **L-204** GitHub Enterprise Cloud and Server (PARTIAL). 05 stop: *phase 3*; mentioned, not closed, in 152.
+- **L-208** Figma: frame previews and an in-Figma plugin (PARTIAL). 05 stop: *phase 5*.
+- **L-231** Desktop apps for macOS and Windows, with tabs and per-tab history (PARTIAL). 05 stop: *exists / later*.
+- **L-236** Roles: owner, admin, team owner, member, guest (PARTIAL). 05 stop: *exists*.
+- **L-237** SAML SSO with domain enforcement and JIT (PARTIAL). 05 stop: *exists*; mentioned, not closed, in 185.
+- **L-240** Data regions US or EU, full-stack replica per region (PARTIAL). 05 stop: *phase 8*.
+- **L-242** IP restrictions (MATCH). 05 stop: *phase 8*; mentioned, not closed, in 182.
+- **L-243** Domain claiming; block rogue workspaces on the domain (MATCH). 05 stop: *exists*.
+
+### Served, never closed (6)
+
+A Phase W task builds part of each of these rows, but the closing act belongs to the stop
+named. L-169, L-255 and L-257 are the per-issue and per-loop halves that task 135 carries,
+and phase 6 closes them.
+
+- **L-169** Shared AI credit pool with top-ups, expiry, auto-replenish (EXCEED). 05 stop: *phase 6*; served by 135, closed by no Phase W task.
+- **L-170** Diffs: code review inside Linear, synced with GitHub, merge from Linear (EXCEED). 05 stop: *phase 3*; served by 180, closed by no Phase W task.
+- **L-189** Signals: stop, auth, select (MATCH). 05 stop: *exists*; served by 64, closed by no Phase W task.
+- **L-248** Public GraphQL API, the same one Linear's apps use (MATCH). 05 stop: *exists*; served by 16, closed by no Phase W task.
+- **L-255** AI spend limits at workspace, per-user and per-loop level, with usage by feature and user (EXCEED). 05 stop: *phase 6*; served by 135, closed by no Phase W task.
+- **L-257** Transparent AI pricing: provider token rates with no markup plus sandbox minutes (MATCH). 05 stop: *phase 6*; served by 135, closed by no Phase W task.
