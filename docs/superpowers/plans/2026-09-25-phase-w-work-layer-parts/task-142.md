@@ -121,3 +121,148 @@ in *The suites*. Rows that close only **with phase 6** on the sync base: L-43, L
 L-66, L-78, L-82, L-100, L-130 (its proposer is an assist) and L-255; L-55 too if task 137's
 layering test runs through the assist client (**UNVERIFIED**: no part yet). L-79 does not (its
 facts need no gateway, `TestFactsNeedNoGateway`).
+
+#### Interfaces — complete: the W4 section's shape (appended to the results file)
+
+```markdown
+## W4: roadmap, release and reporting — <date>
+
+**Environment:** local Hub stack (`control-plane/cmd/hub/compose.yaml`) at `<sha>`, sign-in through
+`devissuer`, control plane in local mode (OD-20) at `<sha>`, desktop at `<sha>`. Phase 6 gateway:
+<on the sync base at `<sha>` | not on the sync base: frames 10-15 not run>. Phase 7 task 19:
+<merged at `<sha>` | not merged: L-144 not run>. A local run proves nothing about a cluster.
+
+### The run (docs/verification/phase-w/w4-run.md)
+
+| Frame | Command or act | Observed (quoted) | Time | Commit |
+|---|---|---|---|---|
+| 1 share | … | … | … | … |
+
+### The rows
+
+| Row | Task | Test (real name) | Command | Observed (excerpt) | Commit |
+|---|---|---|---|---|---|
+| L-32 | 121, 134 | … | … | … | … |
+| L-50 (PARTIAL: <open part>) | 121, 134 | … | … | … | … |
+| L-255 (W4 half; phase 6 closes) | 135 | … | … | … | … |
+
+### The suites
+
+| Suite | Command | Result line (quoted) |
+|---|---|---|
+| Go | `go test ./control-plane/... -race -count=1` | … |
+| Hub integration | `go test -tags integration ./control-plane/internal/hub/...` | … |
+| Desktop | `npm --prefix desktop test` | … |
+| Types | `npm --prefix desktop run typecheck` | … |
+| Sweep | `npm --prefix desktop test -- test/w4Sweep` | … |
+
+### The owner's look
+
+<the owner's words, verbatim, with the date; or "not yet shown">
+
+### What is still unproven
+
+- <each item of decision 10, one line each, with the test or record that would settle it>
+```
+
+A row that did not run reads `not run (<why>)` in its *Observed* cell and `—` in its *Commit* cell;
+the check below accepts that pair and only that pair in place of a sha, and prints it, so a
+*not run* is visible in the check's output and never counted as closed.
+
+#### Interfaces — complete: `docs/verification/phase-w/check-w4.sh`
+
+```bash
+#!/usr/bin/env bash
+# check-w4.sh: every W4 parity row in 05 §1, and each carried row, has in the W4 results section a
+# task, a test, a command, an observed excerpt and a commit, or an explicit "not run (why)" (OD-27).
+set -euo pipefail
+ROOT=$(git rev-parse --show-toplevel)
+MATRIX="${W4_MATRIX:-$ROOT/docs/superpowers/planning/2026-09-25-linear-parity/05-design.md}"
+RESULTS="${W4_RESULTS:-$ROOT/docs/verification/2026-09-25-phase-w-results.md}"
+CARRIED="L-255"                                   # decision 3: W4 half of a phase 6 row
+PARTIAL="L-50 L-72 L-74 L-118 L-119"              # decision 4
+
+rows=$(awk -F'|' '/^\| [0-9]+ \|/ && $(NF-1) ~ /W4/ { gsub(/ /, "", $2); print "L-" $2 }' "$MATRIX")
+[ -n "$rows" ] || { echo "no W4 rows in 05 §1: the matrix moved"; exit 2; }
+all=$(printf '%s\n%s\n' "$rows" $CARRIED | sort -u)
+
+section=$(awk '/^## W4: /{on=1; print; next} on && /^## /{exit} on{print}' "$RESULTS")
+[ -n "$section" ] || { echo "no W4 section in $RESULTS"; exit 2; }
+table=$(printf '%s\n' "$section" | awk '/^### The rows/{on=1; next} on && /^### /{exit} on')
+
+fail=0; notrun=0
+for r in $all; do
+  line=$(printf '%s\n' "$table" | grep -E "^\| $r( |\))" | head -1 || true)
+  if [ -z "$line" ]; then echo "$r: no row in the W4 section"; fail=1; continue; fi
+  cell() { printf '%s\n' "$line" | awk -F'|' -v i="$1" '{v=$i; gsub(/^ +| +$/, "", v); gsub(/`/, "", v); print v}'; }
+  obs=$(cell 6); commit=$(printf '%s\n' "$line" | awk -F'|' '{v=$(NF-1); gsub(/^ +| +$/, "", v); gsub(/`/, "", v); print v}')
+  if printf '%s' "$obs" | grep -Eq '^not run \(.+\)$' && [ "$commit" = "—" ]; then
+    echo "$r: not run: ${obs#not run }"; notrun=$((notrun+1)); continue
+  fi
+  empty=$(printf '%s\n' "$line" | awk -F'|' '{c=0; for (i=2; i<NF; i++) { v=$i; gsub(/^ +| +$/, "", v); if (v=="" || v=="…") c++ }; print c}')
+  [ "$empty" = 0 ] || { echo "$r: $empty empty cell(s)"; fail=1; }
+  printf '%s' "$commit" | grep -Eq '^[0-9a-f]{7,40}$' || { echo "$r: commit cell is not a sha"; fail=1; }
+done
+for p in $PARTIAL; do
+  printf '%s\n' "$table" | grep -Eq "^\| $p \(PARTIAL: [^)…]+\)" || { echo "$p: PARTIAL with no open part named"; fail=1; }
+done
+for e in $(printf '%s\n' "$table" | grep -oE '^\| L-[0-9]+' | tr -d '| ' | sort -u); do
+  printf '%s\n' "$all" | grep -qx "$e" || { echo "$e: in the section but not a W4 or carried row"; fail=1; }
+done
+if printf '%s\n' "$section" | grep -q '…'; then echo "an unfilled … is left in the W4 section"; fail=1; fi
+n=$(printf '%s\n' "$all" | wc -l | tr -d ' ')
+[ "$fail" = 0 ] && echo "W4 coverage: $n rows ($((n-notrun)) with a command, an observation and a commit; $notrun not run)"
+exit "$fail"
+```
+
+`W4_RESULTS` points the check at a fixture for its own test, three files under
+`docs/verification/phase-w/testdata/`: `w4-complete.md` (all forty-two rows filled with a sample
+sha, frames 10-15's rows as `not run (phase 6 not on the sync base)` with `—`), which must print the
+coverage line and exit 0; `w4-missing-output.md` (the same with L-145's *Observed* cell empty),
+which must print `L-145: 1 empty cell(s)` and exit 1; and `w4-partial-unnamed.md` (L-72's row as
+`L-72 (PARTIAL)` with no open part), which must print `L-72: PARTIAL with no open part named` and
+exit 1.
+
+#### Interfaces — complete: `docs/verification/phase-w/w4-run.md`
+
+```markdown
+# W4 run: roadmap, release and reporting
+
+Two teams, A (Dylan, Priya) and B (Alice, Sam), one project, the local Hub stack. Brief `bf-…` is at
+revision 6 with criteria C1 and C2; EP-142 serves C1, EP-150 serves C2. Record every observation as
+quoted text or a pasted output line, with the time (Commit Mono). No step reads a harness's
+terminal (OD-8).
+
+1. **Share.** Dylan shares feature *Resume upload* with team B as *comment*. Sam opens it.
+   Record: Sam's comment id; the status of Sam's `PATCH /v1/features/ft-…` (expect 403, not 404).
+2. **Initiative.** Dylan creates an initiative over *Resume upload* and one team B feature.
+   Record: the roll-up line, verbatim (words, no number); `GET /v1/initiatives/iv-…` `health` field.
+3. **Pinned update.** Dylan posts an update on *Resume upload* citing EP-142.
+   Record: the `nt-…` id, its `pin` (`brief:bf-…@6`) and `cites` from `GET …/updates`.
+4. **Milestone.** A milestone names C1 and C2. Settle C1, then C2.
+   Record: the milestone's word after C1 (not *reached*) and after C2 (*reached*), with each event id.
+5. **Timeline.** Alice drags EP-150's feature one week right, then presses Undo.
+   Record: the one `PATCH` body and the date after Undo; then the dependency line's signal text.
+6. **Recurring.** A weekly schedule's occurrence passes. Open the new issue's history.
+   Record: the create event's `actor` (`null`) and `scheduleAuthor`.
+7. **Insights.** Open insights for team A over the last 90 days.
+   Record: the counts and the p50/p75/p90 labels as printed; click one scatter mark; the issue it opened.
+8. **Since you last looked.** Dylan opens the desk after Priya moves EP-142.
+   Record: the sentence naming EP-142 and the target of each link in it.
+9. **Release.** Build a release over EP-142; freeze production; try to ship; unfreeze; ship.
+   Record: the notes' criterion headings; the refusal's code; EP-142's line (*shipped to production at hh:mm*).
+10. **Spend.** Open EP-142 after a session that carried it. Needs phase 6's rollup.
+    Record: the spend line, verbatim, or *absent* if the rollup is unreachable.
+11. **Triage suggestion.** Open team A's triage with one new issue. Needs the gateway.
+    Record: the suggestion's criterion and its *why*; the dial's text.
+12. **Hints and filters.** Type a near-duplicate title in *New issue*; type *"bugs Priya touched last week"* in the view bar.
+    Record: the duplicate hint's issue key; the pending chips; the list's count before and after *Apply*.
+13. **Drafted update.** Press *Draft* in the composer; edit; post.
+    Record: the draft body's class before Post (`text·A`) and the posted revision's class.
+14. **Propose per criterion.** On a brief with one uncovered criterion, press *Propose issues*.
+    Record: the draft issue's key, its state (`triage`) and its `serves`.
+15. **Agent edit.** An agent proposes an edit to EP-142's description; Dylan presses Accept.
+    Record: the diff's first changed line; the revision count before and after; the new revision's `author`.
+
+If a frame cannot run in the environment, write **not run** and why; never a predicted result.
+```
