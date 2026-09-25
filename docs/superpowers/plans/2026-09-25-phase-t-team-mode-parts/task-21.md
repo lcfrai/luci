@@ -305,14 +305,18 @@ type TeamLauncher struct {
 	RenewBefore time.Duration
 }
 
-// routesFor is the closed set each class asks for (task 06's list).
+// routesFor is the class's route set of task 01 (task-01.md:268-277), which
+// task 06's route 46 enforces. The worker set is written out; the
+// Orchestrator's is "every route name" of task 01's team table, taken from
+// task 03's hubapi constant rather than copied, so a new route cannot be
+// missing here. If task 03 names that constant differently, task 03 wins.
 func routesFor(class string) []string {
 	if class == model.ClassOrchestrator {
-		return []string{"tasks.write", "agents.write", "leases.write", "conflicts.write",
-			"threads.write", "messages.write", "escalations.write", "directives.write",
-			"turns.write", "humanmsgs.read"}
+		return hubapi.OrchestratorRoutes()
 	}
-	return []string{"agents.write", "leases.write", "conflicts.write"}
+	return []string{"delegations.read", "tasks.read", "agents.start", "agents.end",
+		"agents.read", "leases.events", "conflicts.create", "conflicts.update",
+		"conflicts.read", "policy.read"}
 }
 
 // Launch is called by the create handler for a team project, in place of
@@ -330,7 +334,7 @@ func (t *TeamLauncher) Launch(ctx context.Context, projectID, class, harness str
 // (hubclient.ErrSignedOut): it stops renewing and logs once; the delegation
 // then lapses at 24 h and Fleet pauses the sessions (§2.4 item 4). That is
 // the design's intent, not a failure to fix here. A revoked delegation
-// (409 team_state) is dropped from the set and never retried.
+// (task 06 route 48: 409 conflict) is dropped from the set and never retried.
 func (t *TeamLauncher) RunRenewer(ctx context.Context, live func() []LiveDelegation)
 
 // LiveDelegation is what the renewer needs per session.
@@ -392,7 +396,7 @@ every owner, the Orchestrator task 20 would create.
 | `TestLaunchCreatesDelegationThenAgent` | call order: `CreateDelegation` then Fleet `POST …/agents`; the agent body's `delegation` is the returned `dl-…` | calling Fleet first, or with a stale id |
 | `TestLaunchHubDownRelaysHubCode` | `CreateDelegation` returning `&hubclient.Error{Status: 503, Problem: {Error: "upstream_unavailable"}}` makes the handler answer **503 with the Hub's code**, and Fleet got no request | wrapping every failure as `backend_unavailable` |
 | `TestLaunchFleetFailRevokes` | Fleet `409 already_exists` after a created delegation calls `RevokeDelegation(dl)` once | a live delegation for a launch that never happened |
-| `TestWorkerAsksWorkerRoutes` | a worker launch's `CreateDelegationRequest.Routes` equals `routesFor("worker")` exactly | a worker delegation with `directives.write` |
+| `TestWorkerAsksWorkerRoutes` | a worker launch's `CreateDelegationRequest.Routes` equals task 01's ten-name worker set exactly, and contains no `messages.*`, `directives.*` or `escalations.*` name | a worker delegation that can reach the cross-user channel (OD-16) |
 | `TestRenewerRenewsInWindow` | fake clock at `expiresAt − 59 min` renews once; at `− 61 min` does not | an off-by-sign window |
 | `TestRenewerStopsWhenSignedOut` | after one `ErrSignedOut`, no further calls for 3 ticks | a renew storm against a refused token |
 | `TestSessionJSONTeamScope` | the three rows of `teamScopeOf`, and a marshalled team session has `"teamScope":"team"` and no `delegation` key | leaking the delegation id, or labelling a local session `team` |
