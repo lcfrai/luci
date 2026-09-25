@@ -10,7 +10,7 @@
 
 **State the stack mounts is a directory, never a file.** The project route file (task 13's `File` source) is rewritten by task 21 with an atomic rename, and a bind-mounted **file** keeps its old inode, so a container would never see the change (the same reason the token directory is mounted, the skeleton's shared names). `init.sh` therefore seeds `state/projects.json` from the checked-in `projects.json` once, and compose mounts `state/` read-only. The checked-in seed is never written at run time, so the git tree stays clean.
 
-**Two upstream modes.** `PANACEA_APP_GATEWAY_LOCAL_UPSTREAM=fake` (the default) points both LiteLLM groups at the fakes. `=anthropic` points the **Global** group at the real Anthropic API with a developer-supplied key and makes real spend; the **AU** group stays on `fakeanthropic-au`, because Bedrock is never reachable from local mode. `init.sh` implements the switch by writing compose's `.env` (non-secret: `COMPOSE_FILE` and its separator), so `docker compose up` does the right thing without flags. The anthropic mode needs a second rendered config, `litellm.config.anthropic.yaml`, which is **task 02's generator output** (a gap this part raises: the skeleton's task 02 names only `local` and `cloud` targets).
+**Two upstream modes.** `PANACEA_APP_GATEWAY_LOCAL_UPSTREAM=fake` (the default) points both LiteLLM groups at the fakes. `=anthropic` points the **Global** group at the real Anthropic API with a developer-supplied key and makes real spend; the **AU** group stays on `fakeanthropic-au`, because Bedrock is never reachable from local mode. `init.sh` implements the switch by writing compose's `.env` (non-secret: `COMPOSE_FILE` and its separator), so `docker compose up` does the right thing without flags. The anthropic mode needs a second rendered config, `litellm.anthropic.config.yaml`, which is **task 02's third target**, `gatewaygen -target local-anthropic` (task 02's decision (c); the skeleton's file map lists only `local` and `cloud`).
 
 **Files:**
 - `deploy/local/gateway/compose.yaml` — six services, one network, file secrets, `127.0.0.1` ports (new)
@@ -21,7 +21,7 @@
 - `deploy/local/gateway/projects.json` — the seed route file: two fixture projects, one Global, one AU (new)
 - `images/gateway/Dockerfile` — distroless, three host-built binaries (new)
 - `.gitignore` — `deploy/local/gateway/secrets/`, `deploy/local/gateway/state/`, `images/gateway/bin/` (modified)
-- Read, not written: `deploy/local/gateway/litellm.config.yaml` and `litellm.config.anthropic.yaml` (task 02's generator)
+- Read, not written: `deploy/local/gateway/litellm.config.yaml` and `litellm.anthropic.config.yaml` (task 02's generator)
 
 **Interfaces:**
 - Produces:
@@ -92,7 +92,7 @@ trap 'rm -rf "$tmp"' EXIT
 fx="$tmp/deploy/local/gateway"
 mkdir -p "$fx"
 for f in compose.yaml compose.anthropic.yaml litellm.config.yaml \
-         litellm.config.anthropic.yaml projects.json init.sh; do
+         litellm.anthropic.config.yaml projects.json init.sh; do
   cp "$here/$f" "$fx/$f"
 done
 fail=0
@@ -158,7 +158,7 @@ if re.search(r"--(detailed_)?debug", ll):
 if "exec litellm" not in ll or "--port 4001" not in ll:
     errs.append("litellm entrypoint does not exec litellm on :4001")
 # Kills the anthropic override losing the fake AU group (Bedrock is never local).
-want = "litellm.config.anthropic.yaml" if mode == "anthropic" else "litellm.config.yaml"
+want = "litellm.anthropic.config.yaml" if mode == "anthropic" else "litellm.config.yaml"
 mounts = [v.get("source", "") for v in svcs["litellm"].get("volumes") or []
           if v.get("target") == "/app/config.yaml"]
 if len(mounts) != 1 or not mounts[0].endswith(want):
@@ -195,7 +195,7 @@ exit "$fail"
 ~/.claude/tools/claudezsh/claudezsh 'bash deploy/local/gateway/compose_test.sh'
 ```
 
-Expected: exit non-zero with `cp: cannot stat '.../compose.yaml'`. If task 02 has not yet rendered `litellm.config.anthropic.yaml`, the `cp` of that file fails the same way; that is the gap raised above, and the test stays red until task 02 renders it.
+Expected: exit non-zero with `cp: cannot stat '.../compose.yaml'`. If task 02 has not yet rendered `litellm.anthropic.config.yaml`, the `cp` of that file fails the same way, and the test stays red until task 02's `local-anthropic` target renders it.
 
 - [ ] **Step 3: Write `deploy/local/gateway/compose.yaml`**
 
@@ -348,7 +348,7 @@ services:
         export ANTHROPIC_API_KEY="$$(cat /run/secrets/anthropic_api_key)";
         exec litellm --config /app/config.yaml --port 4001
     secrets: [master_key, salt_key, database_url, anthropic_api_key]
-    volumes: ["./litellm.config.anthropic.yaml:/app/config.yaml:ro"]
+    volumes: ["./litellm.anthropic.config.yaml:/app/config.yaml:ro"]
 ```
 
 Compose merges an override's `volumes` by target path, so `/app/config.yaml` is replaced rather than mounted twice; the test's mount check proves it for the pinned Compose.
@@ -578,5 +578,5 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
 - **That LiteLLM honours the rendered config.** It starts and answers readiness; which keys it obeys is task 18's.
 - **That the file modes protect anything on Windows.** NTFS ignores them; the user profile's ACL is the protection.
 - **That the chosen LiteLLM, Postgres, distroless and curl digests are safe or current.** They are what the registry served on the day, recorded for task 18.
-- **The `anthropic` mode's correctness.** It needs task 02 to render `litellm.config.anthropic.yaml` (a gap in the skeleton), and it makes real spend on a developer's key; this task's acceptance runs only the `fake` mode.
+- **The `anthropic` mode's correctness.** It needs task 02's `local-anthropic` target to render `litellm.anthropic.config.yaml`, and it makes real spend on a developer's key; this task's acceptance runs only the `fake` mode.
 - **The route names in `secrets/callers`.** They follow the skeleton's scope for task 08; task 08's part is authoritative.
