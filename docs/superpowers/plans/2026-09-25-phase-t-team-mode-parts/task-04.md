@@ -634,3 +634,57 @@ CREATE TABLE directives (
   CHECK (origin = 'human' OR kind <> 'free' OR approved_by IS NOT NULL)
 );
 ```
+
+**Piece 8, notes and team policy.** `team_policies` flattens task 03's nested keys
+(`quotas.memberDailyCents` is `member_daily_cents`). It holds **no data class**: task 01 §7.24
+makes the class the project's own, read-only here, with its home **UNVERIFIED until merge**, and
+task 43 reuses whatever the merged project record carries. It has no column defaults: the
+non-zero defaults of OD-24 are task 43's to write, in one place.
+
+```sql
+-- ── §7.23 notes: immutable, tombstoned on erasure (task 46) ──────────────────
+CREATE TABLE notes (
+  id             text        PRIMARY KEY CHECK (id ~ '^nt-[0-9a-f]{16}$'),
+  org_id         text        NOT NULL REFERENCES orgs (id),
+  project_id     text        NOT NULL,
+  author_user_id text        NOT NULL,
+  target_kind    note_target NOT NULL,
+  target_id      text        NOT NULL,
+  text_body      text,
+  text_author    text_author NOT NULL CHECK (text_author = 'human'),
+  text_agent     text,
+  created_at     timestamptz NOT NULL DEFAULT now(),
+  tombstoned_at  timestamptz,
+  UNIQUE (org_id, id),
+  CONSTRAINT notes_project_fk FOREIGN KEY (org_id, project_id) REFERENCES projects (org_id, id),
+  CONSTRAINT notes_author_fk  FOREIGN KEY (org_id, author_user_id) REFERENCES users (org_id, id),
+  CHECK (CASE target_kind WHEN 'project' THEN target_id = project_id
+                          WHEN 'task'    THEN target_id ~ '^tk-[0-9a-f]{16}$'
+                          ELSE target_id ~ '^u-[0-9a-f]{16}$' END),
+  CHECK (hub.text_ok(text_body, text_author, text_agent, 1000)),
+  CHECK ((text_body IS NULL) = (tombstoned_at IS NOT NULL))
+);
+
+-- ── §7.24 team policy: one row per team project ──────────────────────────────
+CREATE TABLE team_policies (
+  project_id                  text            PRIMARY KEY,
+  org_id                      text            NOT NULL REFERENCES orgs (id),
+  route                       inference_route NOT NULL,
+  member_daily_cents          bigint          NOT NULL CHECK (member_daily_cents > 0),
+  project_daily_cents         bigint          NOT NULL CHECK (project_daily_cents > 0),
+  orchestrator_turns_per_hour integer         NOT NULL CHECK (orchestrator_turns_per_hour BETWEEN 1 AND 30),
+  escalation_floors           text[]          NOT NULL CHECK (hub.all_distinct(escalation_floors)
+    AND escalation_floors <@ ARRAY['yield-unedited', 'accept-split', 'proceed-both-ps', 'sequence-short']),
+  per_pair_per_hour           integer         NOT NULL CHECK (per_pair_per_hour BETWEEN 1 AND 20),
+  rounds_per_side             integer         NOT NULL CHECK (rounds_per_side BETWEEN 1 AND 3),
+  thread_deadline_minutes     integer         NOT NULL CHECK (thread_deadline_minutes BETWEEN 30 AND 1440),
+  revision                    integer         NOT NULL DEFAULT 1 CHECK (revision >= 1),
+  updated_at                  timestamptz     NOT NULL DEFAULT now(),
+  UNIQUE (org_id, project_id),
+  CONSTRAINT team_policies_project_fk FOREIGN KEY (org_id, project_id) REFERENCES projects (org_id, id)
+);
+```
+
+The ranges are task 01 §7.24's (`task-01.md:480-484`): quotas above zero, turns 1 to 30, pair
+budget 1 to 20, rounds 1 to 3, deadline 30 to 1,440 minutes, floors a subset of the four. "Tighten
+only" and "lengthen only" compare to the defaults, which are task 43's, so they stay Go's.
