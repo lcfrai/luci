@@ -673,3 +673,91 @@ The same file, continued:
 
 No transition and no animation: the stage appears and goes, because nothing about opening it is
 causal. `.ss-stage` sits at 8000, under the toolbar (9000) and the grain (9999).
+
+#### Tests to write first — `desktop/src/components/devtools/StressSets.test.tsx`
+
+```tsx
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import developCss from "../develop/develop.css?raw";
+import stressCss from "./stress.css?raw";
+import { AGENT_PATHS, MARK_PATHS, NOTCH_TIP, STATE_PATHS } from "../glyphs/paths";
+import { resetFlags, setFlag } from "../../lib/flags";
+import { stripCssComments } from "../../test/fakes";
+import { DEUTERANOPIA_MATRIX, SET_LABEL, StressSets } from "./StressSets";
+import { DevelopStates, DEVELOP_STATES, FLOOR_STATES, NOT_DESIGNED } from "./screens/developStates";
+import { GlyphSheet } from "./screens/glyphs";
+
+const root = () => document.documentElement;
+const css = stripCssComments(stressCss);
+
+afterEach(() => {
+  resetFlags();
+  vi.resetModules();
+});
+
+describe("stress.sets", () => {
+  it("applies each new set's attribute or filter", async () => {
+    // Kills: a set that changes nothing, a filter rule nothing points at, a zoom never applied.
+    render(<StressSets />);
+    await userEvent.click(screen.getByRole("radio", { name: SET_LABEL["reduced-deuteranopia"] }));
+    expect(root().getAttribute("data-motion")).toBe("reduce");
+    expect(root().getAttribute("data-vision")).toBe("deuteranopia");
+    expect(css).toMatch(/:root\[data-vision="deuteranopia"\] #root,\s*:root\[data-vision="deuteranopia"\] \.ss-stage \{\s*filter: url\("#ss-deutan"\);/);
+    expect(document.getElementById("ss-deutan")).not.toBeNull();
+
+    await userEvent.click(screen.getByRole("radio", { name: SET_LABEL["forced-colors"] }));
+    expect(root().hasAttribute("data-motion")).toBe(false);
+    expect(root().hasAttribute("data-vision")).toBe(false);
+    expect(document.querySelector(".ss-fact")?.getAttribute("data-forced")).toBe("off");
+
+    await userEvent.click(screen.getByRole("radio", { name: SET_LABEL.scaling }));
+    await userEvent.click(screen.getByRole("radio", { name: "150 %" }));
+    expect(document.querySelector(".ss-stage")?.getAttribute("data-zoom")).toBe("150");
+    expect(css).toMatch(/\.ss-stage\[data-zoom="150"\] \.ss-screens \{ zoom: 1\.5; \}/);
+
+    await userEvent.click(screen.getByRole("button", { name: "Close the stage" }));
+    expect(document.querySelector(".ss-stage")).toBeNull();
+  });
+
+  it("uses the cited deuteranopia matrix", () => {
+    // Kills: a wrong or transposed matrix, a missing alpha row, the matrix applied in sRGB.
+    render(<StressSets />);
+    const filter = document.getElementById("ss-deutan");
+    expect(filter?.getAttribute("color-interpolation-filters")).toBe("linearRGB");
+    const values = (filter?.querySelector("feColorMatrix")?.getAttribute("values") ?? "")
+      .split(/\s+/).map(Number);
+    expect(values).toEqual([...DEUTERANOPIA_MATRIX]);
+    expect(values.slice(0, 3)).toEqual([0.367322, 0.860646, -0.227968]);
+    for (const row of [0, 1, 2]) {
+      const [r, g, b, a, offset] = values.slice(row * 5, row * 5 + 5);
+      expect(Math.abs(r + g + b - 1)).toBeLessThan(1e-5);
+      expect([a, offset]).toEqual([0, 0]);
+    }
+    expect(values.slice(15)).toEqual([0, 0, 0, 1, 0]);
+  });
+
+  it("renders every glyph at both sizes on both grounds", () => {
+    // Kills: a glyph in paths.ts that the sheet never draws, a size dropped, a ground that
+    // unmounts the sheet.
+    const expected = [
+      ...Object.keys(STATE_PATHS[16]).map((k) => `state:${k}`),
+      ...Object.keys(NOTCH_TIP[16]).map((k) => `priority:${k}`),
+      ...Object.keys(AGENT_PATHS[16]).map((k) => `agent:${k}`),
+      ...Object.keys(MARK_PATHS[16]).map((k) => `mark:${k}`),
+      "mark:thread_node:lit",
+    ];
+    expect(expected).toHaveLength(23);
+    render(<GlyphSheet />);
+    for (const ground of ["graphite", "paper"] as const) {
+      setFlag("theme", ground);
+      for (const key of expected) {
+        for (const size of [14, 16]) {
+          const cell = document.querySelector(`[data-cell="${key}@${String(size)}"]`);
+          expect(cell?.querySelector("svg"), `${ground} ${key}@${String(size)}`).not.toBeNull();
+        }
+      }
+    }
+  });
+```
