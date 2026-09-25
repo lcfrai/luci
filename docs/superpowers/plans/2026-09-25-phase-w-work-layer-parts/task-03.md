@@ -240,3 +240,93 @@ const (
 	ImportSourceCSV    = "csv"
 )
 ```
+
+```go
+// ── records ─────────────────────────────────────────────────────────────────
+
+// ThreadState: Reason is "" unless Kind is not_tied, and then it is required.
+type ThreadState struct {
+	Kind   ThreadStateKind `json:"kind"`
+	Reason NotTiedReason   `json:"reason"`
+}
+
+func (t ThreadState) Valid() bool {
+	switch t.Kind {
+	case ThreadOnThread, ThreadProjectLevel:
+		return t.Reason == ""
+	case ThreadNotTied:
+		return ValidNotTiedReason(t.Reason)
+	}
+	return false
+}
+
+type Relation struct {
+	Kind    RelationKind `json:"kind"`
+	IssueID string       `json:"issueId"`
+}
+
+// ExternalRef names the tracker item an imported issue came from. AuthorName
+// is display text (erasable), never a user id.
+type ExternalRef struct {
+	Source     string `json:"source"` // ImportSourceLinear | ImportSourceCSV (W1)
+	ExternalID string `json:"externalId"`
+	URL        string `json:"url"` // https, or ""
+	AuthorName string `json:"authorName"`
+}
+
+// IssueHead is the mutable head, outside every digest. Alias is formatted at
+// read time (DisplayAlias) and is "" while the project has no key.
+type IssueHead struct {
+	ID           string       `json:"id"`
+	ProjectID    string       `json:"projectId"`
+	Number       int          `json:"number"`
+	Alias        string       `json:"alias"`
+	State        IssueState   `json:"state"`
+	StateReason  string       `json:"stateReason"` // a hand-set done's reason; else ""
+	Proof        Proof        `json:"proof"`       // SW.4's result word; "" before landed
+	LandCommit   string       `json:"landCommit"`  // 40 hex once landed; else ""
+	Assignee     *User        `json:"assignee"`    // a person, never an agent
+	Priority     Priority     `json:"priority"`
+	Labels       []string     `json:"labels"` // lb- ids of the project's team
+	Relations    []Relation   `json:"relations"`
+	HeadRevision int          `json:"headRevision"`
+	HeadKey      string       `json:"headKey"` // issue:is-…@headRevision
+	ThreadState  ThreadState  `json:"threadState"`
+	Source       IssueSource  `json:"source"`
+	External     *ExternalRef `json:"external"`
+	CreatedAt    string       `json:"createdAt"`
+	CreatedBy    User         `json:"createdBy"`
+	UpdatedAt    string       `json:"updatedAt"`
+}
+
+// IssueRevision is one immutable revision. Content is parsed from the stored
+// canonical bytes; Digest is IssueRevisionDigest of them. An erased revision
+// keeps Key, Digest and Revision; its texts read "" and ErasedAt is set.
+type IssueRevision struct {
+	IssueID      string               `json:"issueId"`
+	Revision     int                  `json:"revision"`
+	Key          string               `json:"key"`
+	Digest       Digest               `json:"digest"`
+	ProjectID    string               `json:"projectId"`
+	Content      IssueRevisionContent `json:"content"`
+	WrittenAt    string               `json:"writtenAt"`
+	WrittenBy    User                 `json:"writtenBy"`
+	RestoredFrom *int                 `json:"restoredFrom"` // the revision a restore copied
+	ErasedAt     *string              `json:"erasedAt"`
+}
+
+// IssueWithRevision is a head with its head revision, content included, so a
+// client can re-hash it (hub-contract §3.4).
+type IssueWithRevision struct {
+	Head     IssueHead     `json:"head"`
+	Revision IssueRevision `json:"revision"`
+}
+
+// ProjectKey is the project's display key and who set it last.
+type ProjectKey struct {
+	ProjectID string `json:"projectId"`
+	Key       string `json:"key"`
+	SetAt     string `json:"setAt"`
+	SetBy     User   `json:"setBy"`
+}
+```
