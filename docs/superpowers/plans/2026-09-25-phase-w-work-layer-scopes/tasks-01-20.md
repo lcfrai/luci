@@ -113,7 +113,7 @@ envelope field, a `kind` of `"issue"`, and `omitempty` on `serves`); a 201-chara
 16 KiB + 1 description fail validation (kills an off-by-one limit). It **does not claim** that the
 Hub stores or serves an issue (tasks 08-09), that `/v1/refs` resolves `issue:` (task 09), or that
 phase 4's parser accepts it (task 18). Parity rows served: **L-3** (the alias; closed with 08 and
-the desktop rows), **L-34** (immutable, digested revisions; closed with 09 and 46), **L-124**
+the desktop rows), **L-34** (immutable, digested revisions; closed with 09 and 47), **L-124**
 (author class on every text; closed with 03, 12 and the issue view).
 
 **03 — `hubapi`: the W1 wire types and request bodies.** W1, stream WH, seam **SW.1** (second
@@ -460,7 +460,7 @@ from another project is 404 (kills attaching someone else's blob); `PATCH`ing pr
 leaves `headRevision` unchanged (the agent's context stays valid; kills a revision per head write).
 It **does not claim** phase 4's parser or `Ref.Kind` (task 18), the editor or the revisions UI
 (tasks 46-50), or erase (14). Parity rows served: **L-34** (autosave history and restore, as
-immutable digested revisions; closed with the issue view's `Revisions`, task 46), **L-45**
+immutable digested revisions; closed with the issue view's `Revisions`, task 47), **L-45**
 (attachments; closed with task 52), **L-124** (author class stored on every text), and the Hub half
 of **L-191** (what the agent was told is recoverable byte for byte; closed with task 19).
 
