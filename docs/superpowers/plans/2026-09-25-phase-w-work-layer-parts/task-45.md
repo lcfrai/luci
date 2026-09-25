@@ -156,3 +156,68 @@ then its issues as task 40's rows. An `uncovered` criterion keeps its row and re
 The word carries the meaning; the ink only lifts the three that ask for attention. No colour, bar
 or fill encodes convergence (02 C13: nothing fills as work progresses).
 
+#### Tests to write first — `desktop/src/components/work/PlanSurface.test.tsx`
+
+`PlanSurface` renders on `workScenario()` through task 40's test seam (**UNVERIFIED** name), with
+`me = DYLAN` and `criteria` built from the scenario's two criteria plus a third no issue serves.
+`convergenceWord` is also tested bare.
+
+| Test | What it asserts | Mutant it kills |
+|---|---|---|
+| `the four sections render in order, and nothing else` | the `h2`s read exactly `PLAN_SECTIONS`, in order; no heading or text matches `/feature|cycle|initiative|saved view|favourite/i` | empty W2 placeholders |
+| `a criterion no issue serves reads uncovered and stays listed` | the third criterion's row is present, reads `uncovered · 0 issues` and the empty-criterion sentence | hiding an uncovered criterion |
+| `done issues do not make a criterion settled` | three issues serving `c-91e2a4b0`, all `done` with `proof: "proven"`; its reading is `{state: "open", because: "evidence does not hold at the head"}`; the row reads `open`; and `convergenceWord({reading: open, inBrief: true}, 3)` is `open` | deriving `settled` from issue states |
+| `settled and contested come from the reading` | a reading of `settled` with zero serving issues reads `settled`; `contested` reads `contested` | an `uncovered` that overrides the reading |
+| `a served id the brief no longer has reads drifting` | EP-164 serves `c-deadbeef`, not among the brief's criteria; a `drifting` row is listed after the brief's own, with EP-164 under it | a drifted serve that silently vanishes |
+| `My issues is the assignee filter only` | EP-163 is Alice's with Dylan's bound session in the fixture's agent lines, and Dylan subscribes to EP-150 (assignee Alice); *My issues* lists every issue with `assignee.id === DYLAN.id` and neither EP-163 nor EP-150 | a filter on agents owned or subscriptions |
+| `every group size is a plain count` | every `.wk-count` matches `/^\d+ issues?( · \d+ moving)?$/`; `expectNoPrediction(container)` passes | a coverage percentage, or `2 of 3 criteria` |
+| `Triage's keys still work inside Plan` | a `1` on the embedded Triage row sends one `setState` (task 42's op); a `1` on a *Backlog* row sends none | a Plan that swallows or widens the Triage keys |
+
+#### Steps
+
+- [ ] Write `PlanSurface.test.tsx`; it fails to import.
+- [ ] Write the exported half (`Convergence`, `PlanCriterion`, `convergenceWord`, `PLAN_SECTIONS`),
+      then `PlanSurface` (the four sections, one `HoldState` per held section), then `PlanMount`.
+- [ ] Add `surface` and `setSurface` to `workSlice.ts` (task 37's file, not persisted); make
+      `AppShell`'s `"work"` arm render `PlanMount` when `surface === "plan"`; add the *Plan*
+      action to `WorkLens`'s `ViewHeader` and the *Work* action to Plan's.
+- [ ] Mutate by hand and watch each named test go red, then revert: add a *Cycles* `h2` (1); skip
+      criteria with no issues (2); return `settled` when every serving issue is `done` (3); test
+      `servedBy === 0` before the reading (4); drop the appended drifting entries (5); widen *My
+      issues* to `createdBy` (6); print `n / total` (7).
+- [ ] Append the CSS. Run the suite and the typecheck; commit each file as it goes green.
+
+#### Acceptance
+
+```bash
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop test -- src/components/work/PlanSurface.test.tsx'
+# expected: 1 file, 8 tests, all passing
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop test'
+# expected: every suite passing, the AppShell and store suites included
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop run typecheck'
+# expected: exit 0
+~/.claude/tools/claudezsh/claudezsh 'grep -n "state === \"done\"\|\.state ===" desktop/src/components/work/PlanSurface.tsx'
+# expected: exactly one line, the Backlog filter (h.state === "backlog"); none in convergenceWord
+```
+
+#### What this task does NOT claim
+
+- **The features board** (L-67 onward), **cycles** (L-57 onward), **initiatives**, **saved views**
+  and **favourites**: W2 and W4. Their absence is tested, not stubbed.
+- **The ranking** of what needs the reader: the Desk, tasks 62-65. *My issues* is a filter.
+- **`G P`** (task 54) and the palette's *Plan* verb (task 59).
+- **The drifting criterion's re-point**: the Desk's one key, task 63.
+- **That phase 4's readings are right or current**: Plan shows what the loader holds; the loader's
+  freshness is phase 4's (tasks 16-17), **UNVERIFIED until merge**.
+
+#### Gaps found while writing this part
+
+1. The scope's `/v1/auth/status` account has no `u-` id (`hub-contract.md:1370`); *My issues* needs
+   `GET /v1/me` (`hub-contract.md:653`), as task 46 decided. Where the mount gets `me` is task 40's.
+2. `workSlice.surface` is this part's proposal; task 37 must carry it (task 62 adds `"desk"`).
+3. Phase 4's `CriterionState` is `open | settled | contested` only (`phase-4 task-06.md:79-84`,
+   `task-15.md:93`); `drifting` and `uncovered` are computed here from `serves`, which the scope's
+   *read, never computed* sentence does not separate. Both use no issue state.
+4. The skeleton's row gives 45 `dependsOn: 42`; it also uses task 43's `EMPTY_CRITERION` and task
+   41's hold model directly.
+
