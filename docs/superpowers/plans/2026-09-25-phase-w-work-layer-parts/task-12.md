@@ -452,3 +452,72 @@ func TestAnAnchorCarriesOnlyItsOwnFields(t *testing.T) {
 | `TestUTF16LenCountsSurrogatePairs` | a length in bytes or in runes, either of which puts a text anchor after an emoji on the wrong characters |
 | `TestAnAnchorCarriesOnlyItsOwnFields` | a loose anchor (a text anchor that also names a criterion), an empty range, a `ref` with a newline that would break the `commit path:lines` form |
 
+#### Tests to write first, part 2 — `server/work_comments_integration_test.go` (`//go:build integration`)
+
+The cast and harness are task 11's (Hub task 15's `as(name)` over `devissuer` and
+`hubtest.Migrated`): Ada admin of Portal, Grace member, Vera viewer, Linus outside Portal, Xavier in
+another org. EP-1's revision 3 has the description `"Resume must survive a restart 👍 on Windows."`
+(an emoji so the UTF-16 length, 44, differs from the rune count, 43; both computed, not
+guessed) and serves `c-resume`.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestCommentsHaveNoEditOrDeleteRoute` | no pattern in `server.Patterns()` is `PATCH /v1/comments/…`, `PUT /v1/comments/…` or `DELETE /v1/comments/…`, nor any `PATCH`/`DELETE` under `/v1/issues/{issueId}/comments` | an editable comment |
+| `TestACommentIsStoredAndListedOldestFirst` | Grace posts two comments, Ada one; `GET` lists them in write order with `kind: comment`, the body and author class as sent, `reactions: []`, `mentions: []` | a list in reverse order, or an `omitempty` list the desktop indexes |
+| `TestAKindIsRefusedInW1` | a body with `"kind": "note"` → 400 `field: kind`; nothing written | a W3 kind accepted before task 99 widens the constraint |
+| `TestAViewerCannotComment` | Vera `POST` → 403 `required: member`; Vera `GET` → 200; Linus `GET` → 404 `issue_not_found` | a viewer writing (07's row), or a non-member reading |
+| `TestAReplyToAReplyIs422` | a reply to a top-level comment → 201 with `parentId`; a reply to that reply → 422 `comment_not_top_level`, `field: parentId` | threads deeper than one level (L-41) |
+| `TestAParentOnAnotherIssueIs422` | `parentId` a comment of EP-2 on EP-1 → 422 `field: parentId`, not a 500 from the foreign key | a reply filed under the wrong issue |
+| `TestATextAnchorIsCheckedInUTF16` | `start 0, end 44` on revision 3 → 201; `end 45` → 422 `anchor_unresolvable`, `field: anchor.end`; revision 9 → 422 `anchor.revision` | an unchecked anchor, or one measured in runes or bytes |
+| `TestACriterionAnchorMustBeServed` | `criterionId: c-resume` on revision 3 → 201; `c-other` → 422 `anchor.criterionId` | an anchor on a criterion the revision does not serve |
+| `TestSpanAndHunkRefsAreStoredVerbatim` | a hunk ref `3f2a91c src/session/resume.ts:40-58` reads back byte for byte; a 513-byte ref → 400 `anchor.ref` | a Hub that parses or rewrites a ref (05 §3.2) |
+| `TestMentionsMustBeTeamMembers` | a mention of Linus → 400 `field: mentions[0]`; of Vera (a viewer is a member of the team) → 201; 21 mentions → 400 | a mention that names a stranger |
+| `TestTwoMentionsAppendThreeEvents` | a comment mentioning Ada and Vera → exactly three events: `comment.created`, then `comment.mentioned` with subject Ada, then with subject Vera; a repeated id in `mentions` is one row | one event for the batch, or a mention without its event |
+| `TestReactingTwiceIsOneRowAndOneEvent` | `👍 on` twice → one row, one `comment.reacted`; `on: false` → the row gone, one more event; `on: false` again → 200, no event | a non-idempotent toggle |
+| `TestAShortcodeReactionIs400` | `:partyparrot:` → 400 `field: emoji`; `👍👍` → 400 | custom emoji before it is designed |
+| `TestResolvingAReplyIs422` | resolving the reply → 422 `field: commentId`; resolving the top-level → 200 with `resolvedBy` Grace; resolving again → 200, no event; `resolved: false` → `resolvedAt: null` | a resolve on a reply, or a resolve that forgets who |
+| `TestAnAgentDraftKeepsItsClass` | Grace posts `author: A` → the comment reads `author: A`, `createdBy` Grace, and the event's `author` is `A` | an author class lost on write (L-124) |
+| `TestNoCommentEventCarriesTheBody` | a body `CANARY-12-BODY` and a hunk ref `CANARY-12-PATH`; no event's `data` in the org, read as the owner from `hub.audit_events`, contains either string | the body or a code path in the feed (hub-contract:1133-1134) |
+
+#### Steps
+
+- [ ] **Step 1:** Confirm the sync base (rule H1) and that tasks 08 and 09 are committed. Re-read
+  hub-contract §4.2 and §8, Hub task 14's part, task 06's comment tables and task 09's revision
+  read at the new base; follow any move.
+- [ ] **Step 2:** Write `hubapi/work_comments_test.go`; it fails to compile. Append the `hubapi`
+  block above; it passes.
+- [ ] **Step 3:** Write `server/work_comments_integration_test.go`; every row fails (404
+  `route_not_found`), and `TestCommentsHaveNoEditOrDeleteRoute` passes already, which is correct:
+  it guards the absence.
+- [ ] **Step 4:** Write `store/work_comments.go`, then `server/work_comments.go` and
+  `registerWorkComments`; run until green.
+- [ ] **Step 5:** Run task 05's comment conformance rows against the fake; fix the fake where it
+  disagrees, never the row.
+- [ ] **Step 6:** `git diff -- go.work control-plane/go.mod` shows nothing; commit by pathspec.
+
+#### Acceptance
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/work
+go test ./control-plane/internal/hub/hubapi/ -race -count=1 -v -run '^Test(ReactionEmojiIsOneSequence|UTF16LenCounts|AnAnchorCarriesOnly)' 2>&1 | grep -c "^--- PASS"   # 3
+go test -tags integration ./control-plane/internal/hub/server/ -race -count=1 -v \
+  -run '^Test(CommentsHaveNoEdit|ACommentIsStored|AKindIsRefused|AViewerCannotComment|AReplyToAReply|AParentOnAnother|ATextAnchorIs|ACriterionAnchorMust|SpanAndHunkRefs|MentionsMustBe|TwoMentionsAppend|ReactingTwice|AShortcodeReaction|ResolvingAReply|AnAgentDraftKeeps|NoCommentEventCarries)' \
+  2>&1 | grep -c "^--- PASS"                                                                    # 16
+go test ./control-plane/... -race -count=1                                                      # ok
+```
+
+#### What this task does not claim
+
+- The comment UI, threading on screen, or *on an earlier revision* (task 51).
+- Subscriptions from a comment or a mention (task 13), or any notification (W2, task 81 onward).
+- Erase of a comment (task 14); until then an erased issue refuses new comments, and nothing erases.
+- W3's kinds `note`, `evidence_proposal`, `negotiation` (task 99), or the Orchestrator as a writer.
+- Custom emoji (L-41 *later*), comment drafts (L-44, the desktop's), or AI thread summaries (L-43,
+  W4).
+- That `ValidReactionEmoji` is a full UTS #51 parser: it is not, and the part says which cases it
+  refuses.
+
+**Parity rows served:** **L-41** (threads one level deep, resolve, reactions; custom emoji stays
+*later*; closed with task 51), **L-42** (anchors to text, a criterion, a transcript span or a
+hunk; closed with tasks 51 and 60), **L-124** (the author class on every comment).
+
