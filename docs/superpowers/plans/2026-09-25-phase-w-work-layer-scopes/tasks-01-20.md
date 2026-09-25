@@ -918,4 +918,30 @@ src/test/` and `npm --prefix desktop run typecheck` pass. It **does not claim** 
 by CSS widths alone (the owner's review, task 39, covers the look), and it closes no L row alone; it
 enforces `OD-27` on every surface task that closes one.
 
+---
+
+## Gaps against the skeleton, found while scoping 01-20
+
+For the skeleton's owner; the paragraphs above work around each one and say how.
+
+1. **Seam order.** SW.4 (defined in 10), SW.5 (13) and SW.6 (15) are needed by the fake at WS0
+   (04-05) and by 08-12's events first. The scopes have 03 declare the shapes, 04-05 and 08-12 draft
+   the semantics and names, and 10, 13 and 15 fix them.
+2. **Files the File map does not list:** `hubapi/workevents.go` (13); `hubapi/types.go` ⚑ and
+   `server/refs.go` ⚑ (09: `RefResult.issue`, `RefsResponse.issueHeads`); `issue_proofs` and
+   `issues.head_title` in the W1 migration (10, 14); `internal/registry/session.go` ⚑ (19:
+   `ContextRef` lives at `session.go:102-104`); possibly phase 4's `claudemd/render.go` (19).
+3. **Hub evidence cites no issue** (`EvidenceRecord`, `hubapi/types.go:517-529`), so the done rule's
+   "evidence that cites this issue" is carried by `StateMove.evidence` and `issue_proofs` (10).
+4. **Row 11 depends only on 08** but adds the triage-exit check to task 10's move path; it needs 10
+   in its dependsOn, or the two must run in order.
+5. **Five or four fact states.** 05 §3.3 says "the five fact states"; its table and skeleton rule 2
+   name four (`started`, `in_review`, `landed`, `done`). The scopes use four.
+6. **Row 20 has no dependency** but its fixtures need SW.15's types from task 37, which depends on
+   20; 20 mirrors 03's JSON names locally and 37 swaps in the real types.
+7. **One event per changed record** (hub-contract:1133) against "one event per write": a create
+   writes the head and revision 1 as one `issue.created` (08), to be confirmed with the Hub owner.
+8. **Phase 4's `Ref` has no kind field** (`task-06.md:122-148`); 18 adds `Kind`, and
+   `control-plane/internal/provenance` is absent from `feat/phase-4` at `6ffa6bf`.
+
 
