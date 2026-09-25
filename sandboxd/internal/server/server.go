@@ -14,6 +14,7 @@ import (
 
 	"github.com/coder/websocket"
 	"github.com/kpmg-au-emu/panacea-app/sandboxd/internal/hub"
+	"github.com/kpmg-au-emu/panacea-app/sandboxd/internal/mcprelay"
 	"github.com/kpmg-au-emu/panacea-app/sandboxd/internal/wire"
 )
 
@@ -47,6 +48,12 @@ type Config struct {
 
 	// Scrollback is the replay buffer size in bytes; 0 uses the hub default.
 	Scrollback int
+
+	// MCP is the relay's listener; nil disables /mcp-channel (answers 404).
+	// The caller owns it: New neither opens nor closes it, so the listener
+	// can be bound before the PTY starts and the harness's first MCP dial is
+	// held rather than refused.
+	MCP *mcprelay.Listener
 }
 
 // Server binds HTTP requests to the sandbox's hub.
@@ -83,6 +90,9 @@ func New(cfg Config) (*Server, error) {
 	}
 	s := &Server{cfg: cfg, h: h, mux: http.NewServeMux()}
 	s.mux.HandleFunc("/attach", s.attach)
+	if cfg.MCP != nil {
+		s.mux.HandleFunc(mcprelay.ChannelPath, s.mcpChannel)
+	}
 	s.mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
@@ -160,6 +170,31 @@ func fanOut(ctx context.Context, conn wsConn, h *hub.Hub, out <-chan []byte) {
 		case <-ctx.Done():
 			return
 		}
+	}
+}
+
+// mcpChannel serves the canvas MCP relay (plan task 18): the control plane
+// dials in, as it does /attach, and every local connection on the relay's
+// loopback listener becomes a stream over this WebSocket. The credential is
+// the attach token, checked exactly as /attach checks it; no other token
+// enters the sandbox.
+func (s *Server) mcpChannel(w http.ResponseWriter, r *http.Request) {
+	if !s.authorised(r) {
+		slog.Warn("rejected unauthenticated mcp channel", "remote", r.RemoteAddr)
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	// No InsecureSkipVerify, unlike /attach: the control plane dials from Go
+	// and sends no Origin, which Accept allows; a browser's Origin is refused.
+	conn, err := websocket.Accept(w, r, nil)
+	if err != nil {
+		slog.Error("mcp channel accept failed", "err", err)
+		return
+	}
+	defer conn.CloseNow()
+	conn.SetReadLimit(mcprelay.MaxFrameBytes)
+	if err := s.cfg.MCP.Serve(r.Context(), conn); err != nil {
+		slog.Info("mcp channel served", "err", err)
 	}
 }
 

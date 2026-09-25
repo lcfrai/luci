@@ -1,9 +1,28 @@
 package main
 
 import (
+	"flag"
 	"reflect"
 	"testing"
 )
+
+// The image's entrypoint passes no -mcp-listen, so the default is what every
+// sandbox runs: the address the harness is given (task 19), on loopback.
+func TestMCPListenFlag(t *testing.T) {
+	fs := flag.NewFlagSet("sandboxd", flag.ContinueOnError)
+	got := mcpListenFlag(fs)
+	if err := fs.Parse(nil); err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if *got != "127.0.0.1:8731" {
+		t.Errorf("-mcp-listen defaults to %q, want 127.0.0.1:8731", *got)
+	}
+	fs = flag.NewFlagSet("sandboxd", flag.ContinueOnError)
+	got = mcpListenFlag(fs)
+	if err := fs.Parse([]string{"-mcp-listen", "off"}); err != nil || *got != "off" {
+		t.Errorf("-mcp-listen off parsed as %q, %v", *got, err)
+	}
+}
 
 func TestParseArgsPrefersJSON(t *testing.T) {
 	got, err := parseArgs("ignored,csv", `["--model","opus","add tests, then refactor"]`)
