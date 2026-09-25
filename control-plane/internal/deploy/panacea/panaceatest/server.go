@@ -697,7 +697,10 @@ var accessModes = []string{"panacea-sso", "kpmg-sso", "password", "bypass-token"
 // (handlers/project_security.go:701-845), always enforced (no seeder names a failed reconcile):
 // a mode outside the five is the 400 (:718-722); password needs one (:766-770) and sets the gate;
 // bypass-token with no supplied token, or a rotation, mints one, returned ONCE (:779-803,
-// :830-833), and the stored count is the tokens kept. The mode is stored as PostureWord's.
+// :830-833), and the stored count is the tokens kept. writeAccessMode keeps the password only
+// for password and the token hashes only for bypass-token, deleting each otherwise
+// (handlers/access_mode.go:202-216), so every write starts from no extras. The mode is stored as
+// PostureWord's.
 func (s *Server) setBranchAccess(w http.ResponseWriter, r *http.Request, pr *project) {
 	branch := strings.TrimSpace(r.PathValue("branch"))
 	var req struct {
@@ -715,7 +718,7 @@ func (s *Server) setBranchAccess(w http.ResponseWriter, r *http.Request, pr *pro
 		writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid accessMode %q: must be one of panacea-sso, kpmg-sso, password, bypass-token, none", mode))
 		return
 	}
-	x := pr.extras[branch]
+	var x postureExtras // the mode's own material only: a switch deletes the other's
 	var minted []string
 	switch mode {
 	case "password":

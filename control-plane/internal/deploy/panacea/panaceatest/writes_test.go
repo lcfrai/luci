@@ -209,8 +209,17 @@ func TestBranchAccessPut(t *testing.T) {
 	if err := json.Unmarshal([]byte(body), &minted); st != 200 || err != nil || len(minted.Data.BypassTokens) != 1 || !mintedToken.MatchString(minted.Data.BypassTokens[0]) {
 		t.Errorf("PUT bypass-token = %d %s, want one minted pnb_ token", st, body)
 	}
-	if _, _, got := get(t, s, path, s.Token()); !strings.Contains(got, `"bypassTokenCount":1`) || strings.Contains(got, "pnb_") {
-		t.Errorf("GET after a mint = %s, want the count and never the token", got)
+	// writeAccessMode keeps the password only for password and the token hashes only for
+	// bypass-token, deleting each otherwise (handlers/access_mode.go:202-216).
+	if _, _, got := get(t, s, path, s.Token()); !strings.Contains(got, `"bypassTokenCount":1`) || strings.Contains(got, "pnb_") ||
+		!strings.Contains(got, `"passwordSet":false`) {
+		t.Errorf("GET after a mint = %s, want the count, no password (the switch deletes it) and never the token", got)
+	}
+	if st, body := send(t, s, http.MethodPut, path, `{"accessMode":"kpmg-sso"}`); st != 200 {
+		t.Errorf("PUT kpmg-sso = %d %s", st, body)
+	}
+	if _, _, got := get(t, s, path, s.Token()); !strings.Contains(got, `"bypassTokenCount":0`) || !strings.Contains(got, `"passwordSet":false`) {
+		t.Errorf("GET after kpmg-sso = %s, want no token hashes and no password: the switch deletes both", got)
 	}
 	for req, want := range map[string]string{
 		`{"accessMode":"public"}`:   `{"error":"invalid accessMode \"public\": must be one of panacea-sso, kpmg-sso, password, bypass-token, none"}`,
