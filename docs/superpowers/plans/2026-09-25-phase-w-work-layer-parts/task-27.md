@@ -322,3 +322,155 @@ describe("the bundled faces", () => {
 
 `stack()` matches a declaration at the start of a line, so `--sans` does not match inside
 `--sans-small`'s `var(--sans)`.
+
+#### Tests to write first — `desktop/src/components/Terminal.test.tsx` (appended inside `:67`)
+
+Two imports join the file's head: `import { FitAddon } from "@xterm/addon-fit";` (the mocked class
+at `:28-30`) and `MONO_WAIT_MS, TERM_MONO_FALLBACK, termFontFamily` from `./Terminal`. One helper and
+one `afterEach` go above `describe("Terminal")`:
+
+```ts
+/** Task 27: jsdom has no FontFaceSet. This installs one whose face is not yet loaded, and hands
+ *  back the switch that loads it. Removed after each test, so the older tests keep jsdom's
+ *  "no FontFaceSet" path, which is the synchronous one. */
+function unloadedFace(): { load: ReturnType<typeof vi.fn>; loadNow: () => void } {
+  let done: (() => void) | null = null;
+  const load = vi.fn(() => new Promise<FontFace[]>((resolve) => { done = () => resolve([]); }));
+  Object.defineProperty(document, "fonts", { configurable: true, value: { check: () => false, load } });
+  return { load, loadNow: () => done?.() };
+}
+afterEach(() => { delete (document as { fonts?: unknown }).fonts; });
+```
+
+```ts
+  // Kills: a fit measured on the fallback face (the terminal opens and fits before the face loads).
+  it("fits after the mono face loads", async () => {
+    const fit = vi.spyOn(FitAddon.prototype, "fit");
+    const face = unloadedFace();
+    seed(session());
+    render(<Terminal sessionId="s-1" readOnly={false} focused={false} />);
+    const term = grab().term as unknown as FakeTerm;
+    expect(face.load).toHaveBeenCalledWith('12px "Commit Mono"');
+    expect([term.opens, fit.mock.calls.length]).toEqual([0, 0]);
+    await act(async () => { face.loadNow(); });
+    expect(term.opens).toBe(1);
+    expect(term.openedWhileConnected).toBe(true);
+    expect(fit).toHaveBeenCalled();
+  });
+
+  // Kills: an unbounded wait, which leaves a pane blank forever when the file is missing.
+  it("opens after one second when the face never loads", async () => {
+    vi.useFakeTimers();
+    try {
+      unloadedFace();
+      seed(session());
+      render(<Terminal sessionId="s-1" readOnly={false} focused={false} />);
+      const term = grab().term as unknown as FakeTerm;
+      await act(async () => { vi.advanceTimersByTime(MONO_WAIT_MS - 1); });
+      expect(term.opens).toBe(0);
+      await act(async () => { vi.advanceTimersByTime(1); });
+      expect(term.opens).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  // Kills: opening into a pane that unmounted while it waited.
+  it("never opens after it unmounted mid-wait", async () => {
+    const face = unloadedFace();
+    seed(session());
+    const view = render(<Terminal sessionId="s-1" readOnly={false} focused={false} />);
+    const term = grab().term as unknown as FakeTerm;
+    view.unmount();
+    await act(async () => { face.loadNow(); });
+    expect(term.opens).toBe(0);
+  });
+
+  // Kills: the caret lost because the focus effect ran before the late open.
+  it("takes the caret once it opens, when it mounted focused", async () => {
+    const face = unloadedFace();
+    seed(session());
+    render(<Terminal sessionId="s-1" readOnly={false} focused />);
+    const term = grab().term as unknown as FakeTerm;
+    const before = term.focused;
+    await act(async () => { face.loadNow(); });
+    expect(term.focused).toBe(before + 1);
+  });
+
+  // Kills: the hard-coded Cascadia-first stack left in place (Terminal.tsx:38 today).
+  it("sets its face from --mono, with Commit Mono first in the fallback", () => {
+    expect(TERM_MONO_FALLBACK.startsWith('"Commit Mono",')).toBe(true);
+    expect(termFontFamily()).toBe(TERM_MONO_FALLBACK);   // jsdom resolves no custom property
+  });
+```
+
+The `grab()` helper (`:57-64`) is the file's own way to reach the entry without re-creating it.
+`restoreMocks: true` (`vitest.config.ts:15`) restores the `fit` spy after each test.
+
+#### Steps
+
+1. **Fetch and record the face.** From the Commit Mono project's GitHub releases, take the latest
+   release's WOFF2 files for weights 400 and 500 and its licence file. Confirm the licence is SIL
+   OFL 1.1 and read its Reserved Font Name line: if a name is reserved, the files are bundled
+   byte-for-byte and only *renamed on disk*, never modified (renaming a file is not modifying the
+   font). Copy them into `desktop/src/assets/fonts/` under our names, the licence verbatim as
+   `OFL-CommitMono.txt`, and fill `fonts.lock.json` with the tag, the release URL, each upstream
+   name and `sha256sum` of each file. The corporate network may need `curl --ssl-no-revoke`; the
+   files are fetched by a person or an agent with network access, never at build time.
+2. Write `fonts.test.ts` and the five Terminal tests. Run them: the stack, import and Terminal
+   tests fail; the licence and manifest tests pass only if step 1 is complete (that is their job).
+3. Write `fonts.css`; add its import to `app.css`; replace the stacks in `tokens.css`.
+4. Change `Terminal.tsx` as above. Run `npm --prefix desktop test`: all pass, the older Terminal
+   tests included, because jsdom takes the synchronous path.
+5. Mutate by hand and watch the named test go red, then revert: put `"Berkeley Mono"` first in
+   `--mono`; move the fonts import below the `*` reset; set `MONO_WAIT_MS` to `Infinity`; drop the
+   `live` check; drop the `focusedRef` line; delete `OFL-CommitMono.txt`.
+6. `npm --prefix desktop run build`, then the acceptance commands. `git add` the five new files and
+   the two binaries; commit with `git commit -F <msg> -- <paths>`.
+
+#### Acceptance
+
+```bash
+npm --prefix desktop test
+# expect: every test passes, the eight in fonts.test.ts and the five new Terminal tests included
+
+npm --prefix desktop run typecheck
+# expect: exit 0
+
+npm --prefix desktop run build && ls desktop/dist/assets | grep -c woff2
+# expect: the build succeeds; the count is 2 (1 if the release shipped one variable file)
+
+cd desktop/src/assets/fonts && sha256sum CommitMono-*.woff2
+# expect: each hash equals its "sha256" in fonts.lock.json
+
+ls desktop/src/assets/fonts desktop/dist/assets | grep -ci segoe
+# expect: 0 (no Segoe file bundled; the CSS bundle names the stack, which is not a face)
+```
+
+#### What this task does not claim
+
+- **Not the sans comparison.** Task 32 sets Segoe UI Variable beside the two alternatives 05 §4.4
+  C3 names, for the owner's eyes. This task only wires the owner's choice (`OD-28`).
+- **Not how the faces render at 125 % and 150 %** (task 33), nor on macOS or Linux, where the sans
+  falls to the platform face and nobody has looked.
+- **Not a legal review of the licence.** OFL 1.1 is on `OD-11`'s allowed list; that Commit Mono's
+  release carries OFL 1.1 is **UNVERIFIED** until step 1 reads it.
+- **Not which files the release ships**, its tag or its URL: all **UNVERIFIED** until fetched.
+- **Not that xterm measures at `open()`.** The gate covers `open()` and the first `fit()` so the
+  claim does not matter; which of the two measures in xterm 6 is **UNVERIFIED**.
+- **Not a visible change the owner has accepted.** Every fact in the terminal and in mono CSS
+  changes face on this task; whether that reads better is the owner's eyes at task 39.
+- Design: 05 §4.4 C3 (faces, revision 2); 02 C3; `OD-28`, `OD-11`. Parity: no 01 row names a
+  face; it serves **L-234**'s look with task 26.
+
+**Interfaces:**
+- Produces (seam **SW.11**, the face half):
+  - `--mono` (Commit Mono first, monospace last), `--sans`, `--sans-small`, `--sans-display`
+  - `@font-face "Commit Mono"` 400 and 500, `font-display: block`, from `src/styles/fonts.css`
+  - `Terminal.tsx`: `TERM_MONO_FALLBACK`, `MONO_FACE`, `MONO_WAIT_MS`, `termFontFamily()`
+  - `src/assets/fonts/fonts.lock.json`, the manifest shape above; any later bundled face (a
+    Geist, if the owner ever changes `OD-28`) adds an entry and an `OFL-<Family>.txt`
+- Consumes: task 26's `--t-*` steps (named in the comments; no rule here sets a size);
+  `attachRegistry`'s idempotent `mount()`; `desktop/src/test/fakes.ts`'s `FakeTerm` and
+  `stripCssComments`
+- Amends: nothing in the Hub. No wire shape changes.
