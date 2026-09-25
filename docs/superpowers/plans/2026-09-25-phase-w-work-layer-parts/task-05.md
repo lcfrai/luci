@@ -1229,3 +1229,94 @@ func (w *fakeWorld) erasedWrite(is *fakeIssue) error {
 	return nil
 }
 ```
+
+Block 3, continued: erase (task 14, decision (g)). The fake keeps no reason: it has no audit log
+(H05 has none), so the reason is checked and dropped, and no feed event can carry it.
+
+```go
+const fkRequiredOrgAdmin = "org_admin" // task 14: forbidden's details.required
+
+// EraseIssue is an org admin's, in any team or none. Every revision's texts
+// read "" with ErasedAt set; ids, keys, digests, the number and the alias
+// stay; the state reason and the import's link and author name go; so does
+// every comment not yet erased. One issue.erased each time; a second answers
+// zeros and still appends its event (task 14's TestASecondEraseIsZeroAndAudited).
+func (f *Fake) EraseIssue(_ context.Context, issueID string, req hubapi.EraseRequest) (hubapi.WorkEraseResponse, error) {
+	w := f.w
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if err := f.enterErase("EraseIssue", issueID, req); err != nil {
+		return hubapi.WorkEraseResponse{}, err
+	}
+	is := w.wk().issues[issueID]
+	if is == nil {
+		return hubapi.WorkEraseResponse{}, problem(404, fkIssueNotFound, "There is no such issue.", "issueId", issueID)
+	}
+	now := w.stamp()
+	res := hubapi.WorkEraseResponse{IssueID: issueID, ErasedAt: now}
+	for _, r := range is.revisions {
+		if r.ErasedAt == nil {
+			r.Content.Title.Text, r.Content.Description.Text, r.ErasedAt = "", "", &now
+			res.ErasedRevisions++
+		}
+	}
+	for _, c := range w.soc().comments {
+		if c.c.IssueID == issueID && eraseComment(c, now) {
+			res.ErasedComments++
+		}
+	}
+	is.head.StateReason = ""
+	if x := is.head.External; x != nil {
+		x.URL, x.AuthorName = "", "" // task 15's addition; ExternalID stays, so a re-import is existing
+	}
+	w.soc().erased[issueID] = true
+	w.workEvent(f.as.ID, fkEventIssueErased, is.teamID, is.head.ProjectID, issueID, map[string]any{
+		"erasedRevisions": int64(res.ErasedRevisions), "erasedComments": int64(res.ErasedComments)})
+	return res, nil
+}
+
+// EraseComment blanks one comment; its replies and its issue are untouched.
+func (f *Fake) EraseComment(_ context.Context, commentID string, req hubapi.EraseRequest) (hubapi.WorkEraseResponse, error) {
+	w := f.w
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if err := f.enterErase("EraseComment", commentID, req); err != nil {
+		return hubapi.WorkEraseResponse{}, err
+	}
+	c := w.soc().comments[commentID]
+	if c == nil {
+		return hubapi.WorkEraseResponse{}, problem(404, fkCommentNotFound, "There is no such comment.", "commentId", commentID)
+	}
+	now := w.stamp()
+	res := hubapi.WorkEraseResponse{IssueID: c.c.IssueID, CommentID: commentID, ErasedAt: now}
+	if eraseComment(c, now) {
+		res.ErasedComments = 1
+	}
+	w.workEvent(f.as.ID, fkEventCommentErased, c.teamID, c.projectID, commentID, map[string]any{}) // task 13's CommentErasedData{}
+	return res, nil
+}
+
+// enterErase is both erases' first checks, in EraseBrief's order: the log and
+// switches, the org admin (before any lookup), then the reason.
+func (f *Fake) enterErase(method, id string, req hubapi.EraseRequest) error {
+	if _, err := f.enter(method, id, req); err != nil {
+		return err
+	}
+	if !f.as.OrgAdmin {
+		return forbidden(fkRequiredOrgAdmin)
+	}
+	if strings.TrimSpace(req.Reason) == "" || utf8.RuneCountInString(req.Reason) > 500 {
+		return badRequest("reason", "A reason is 1 to 500 characters, not only spaces.")
+	}
+	return nil
+}
+
+// eraseComment blanks c's body; false when c was erased already.
+func eraseComment(c *fakeComment, now string) bool {
+	if c.c.ErasedAt != nil {
+		return false
+	}
+	c.c.Body.Text, c.c.ErasedAt = "", &now
+	return true
+}
+```
