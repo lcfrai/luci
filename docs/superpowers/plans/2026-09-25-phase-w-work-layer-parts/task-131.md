@@ -68,7 +68,8 @@ are at: `ship/ship.go` `2026-09-23-phase-7-deploy.md:585` (task 09), `sessions/s
 
 **Files:**
 - `control-plane/internal/deploy/notes/notes.go` — `Notes`, `Build`, the release filter (new)
-- `control-plane/internal/deploy/notes/glob.go` — `Match` with `**` (new)
+- `control-plane/internal/deploy/notes/filter/filter.go` (+ `filter_test.go`) — `ParseFilter`,
+  `Touches`, `Match` with `**` (new)
 - `control-plane/internal/deploy/notes/notes_test.go` — the Go tests below (new)
 - `control-plane/internal/deploy/sessions/sessions.go` ⚑ (P7 task 19; task 71's `ReleaseIssue`
   walk) — `--name-only` when a filter is set; `ReleaseIssue` carries `paths` (modified)
@@ -343,3 +344,122 @@ func serves(ss []hubapi.Serve, briefID, criterionID string) bool {
 	return false
 }
 ```
+
+#### Interfaces — complete: `control-plane/internal/deploy/notes/filter/filter.go`
+
+```go
+// Package filter is the release path filter. Its own package, because both sessions (the walk)
+// and notes import it, and notes imports sessions.
+package filter
+
+import (
+	"path"
+	"strings"
+
+	"gopkg.in/yaml.v3" // already in go.mod v3.0.1 as indirect; becomes direct
+)
+
+// FilterFile is the committed path: read at the released commit, never from the working tree.
+const FilterFile = ".panacea/release.yaml"
+
+// Filter is the file's one key. Empty Paths (or no file) is no filter: every commit counts.
+type Filter struct {
+	Paths []string `yaml:"paths"`
+}
+
+// ParseFilter reads the file's bytes. An unknown key, a non-list or a bad glob is an error the
+// walk reports as state "filter_invalid" with this message (decision 7).
+func ParseFilter(b []byte) (Filter, error) {
+	var f Filter
+	dec := yaml.NewDecoder(strings.NewReader(string(b)))
+	dec.KnownFields(true)
+	if err := dec.Decode(&f); err != nil {
+		return Filter{}, err
+	}
+	for _, p := range f.Paths {
+		for _, seg := range strings.Split(p, "/") {
+			if seg == "**" {
+				continue
+			}
+			if _, err := path.Match(seg, seg); err != nil { // ErrBadPattern, e.g. "[a-"
+				return Filter{}, err
+			}
+		}
+	}
+	return f, nil
+}
+
+// Touches reports whether any of files matches any of f.Paths. No paths: always true.
+func (f Filter) Touches(files []string) bool {
+	if len(f.Paths) == 0 {
+		return true
+	}
+	for _, name := range files {
+		for _, p := range f.Paths {
+			if ok, _ := Match(p, name); ok {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// Match reports whether name (repo-relative, slash-separated, as git prints it) matches pattern.
+// "**" matches any number of whole segments, none included; any other segment is path.Match.
+func Match(pattern, name string) (bool, error) {
+	return match(strings.Split(pattern, "/"), strings.Split(name, "/"))
+}
+
+func match(p, n []string) (bool, error) {
+	for len(p) > 0 {
+		if p[0] == "**" {
+			for i := 0; i <= len(n); i++ {
+				if ok, err := match(p[1:], n[i:]); ok || err != nil {
+					return ok, err
+				}
+			}
+			return false, nil
+		}
+		if len(n) == 0 {
+			return false, nil
+		}
+		if ok, err := path.Match(p[0], n[0]); err != nil || !ok {
+			return false, err
+		}
+		p, n = p[1:], n[1:]
+	}
+	return len(n) == 0, nil
+}
+```
+
+#### Interfaces — complete: the delta on ⚑ `sessions/sessions.go` (P7 task 19; task 71's walk)
+
+```go
+// Task 71 adds ReleaseIssue beside Session; this task adds the filter to the same walk, so
+// sessions and issues are read from one git log (decision 7 keeps it one command).
+type ReleaseIssue struct {
+	IssueID string   `json:"issueId"` // is-…, SW.9's trailer value
+	Commits []string `json:"commits"` // the range's commits carrying it, newest first
+}
+
+type IssueResult struct {
+	State     string         `json:"state"` // task 19's states, plus "filter_invalid"
+	Message   string         `json:"message"`
+	Issues    []ReleaseIssue `json:"issues"` // [] never null
+	Filtered  int            `json:"filtered"` // trailer commits dropped by the filter: a count, shown
+	Truncated bool           `json:"truncated"`
+}
+
+// ReadIssues runs, after task 19's two cat-file checks:
+//  1. git show <Commit>:.panacea/release.yaml   exit 128 "does not exist" → no filter; other bytes →
+//     filter.ParseFilter; an error → State "filter_invalid", Message "release.yaml: <err>", no walk.
+//  2. the same git log as Read, with the trailer format for TrailerIssue and, only when a filter is
+//     set, --name-only, so each record carries its paths. A commit whose paths !f.Touches adds no
+//     issue and counts in Filtered. A merge commit lists no paths under --name-only and is kept
+//     only when its own trailer names an issue (its parents' commits are walked on their own).
+func (rd *Reader) ReadIssues(ctx context.Context, r Range) (IssueResult, error)
+```
+
+`gitx.TrailerIssue` is task 21's name for SW.9's key (**UNVERIFIED**, task 21's part not read
+here). Step 1's parse is `filter.ParseFilter`, and step 2's test is `Filter.Touches`.
+
