@@ -53,7 +53,7 @@ from this task; nothing may set it until task 46.
 **(e) The two feed flags come from the kind, in the database.** Task 01's §8 has three feed
 values; task 08 reads two booleans (`task-08.md:207-213`): `yes` is `feed, fleet_feed`; `fleet`
 is `fleet_feed` only; `no` is neither. `audit_events` gains `fleet_feed`, and a reference table
-`team_event_kinds` holds task 01's 21 rows. A `BEFORE INSERT` trigger **sets** both flags for a
+`team_event_kinds` holds task 01's 22 rows (`task-01.md:512-533`). A `BEFORE INSERT` trigger **sets** both flags for a
 kind in that table, whatever the Go side wrote, and sets `fleet_feed = false` for every other
 kind. So a Go bug that writes `feed = true` for `escalation.created` cannot put an escalation in
 every member's feed (§3.4). The trigger's comment says it overrides, and a test pins it: this is
@@ -71,3 +71,70 @@ pattern of `resolve_principal` (`task-07b.md:189`). `fleet_org(tenant)` maps Fle
 its enrolled org (the exempt feed route, rule 7); `fleet_delegation(tenant, id)` returns the
 delegation only when its org is that tenant's. An unknown id and another org's id both return no
 row, which task 05 answers as 401 `delegation_revoked`, `reason = "unknown"` (task 01, `:225`).
+
+**Files** (all under `control-plane/internal/hub/migrate/`, after the Hub's merge):
+- `sql/00NN_team.sql` — the types, helpers, two new columns, twelve tables, guards, RLS, grants
+  and the two owner functions, in the order below (new)
+- `team_schema_integration_test.go` — `//go:build integration`, the tests of this part (new)
+- `schema_integration_test.go` — Hub task 07a's: `TestMigrationAppliesAndReappliesClean` reads
+  the version list from `Embedded()`; `TestHubAppGrantsAreExactlyTheList` gains this part's grants;
+  `TestACrossOrgReferenceIsRefused` gains one case per team foreign key (modify)
+- `guards_integration_test.go` — Hub task 07b's: `TestHubAppExecutesExactlyTheOwnerFunctions`
+  gains `fleet_org` and `fleet_delegation` (modify)
+
+**Interfaces:**
+- Produces: the tables `delegations`, `team_tasks`, `agents`, `lease_events`, `conflicts`,
+  `threads`, `messages`, `escalations`, `directives`, `human_messages`, `notes`, `team_policies`,
+  `team_event_kinds`; `projects.mode`; `audit_events.fleet_feed`; the guard functions
+  `guard_message`, `guard_human_message`, `guard_note`, `guard_escalation_answer`,
+  `guard_project_mode`, `audit_feed_flags`; the owner functions `fleet_org(uuid) → text` and
+  `fleet_delegation(uuid, text) → TABLE`; the helpers `is_agent_id`, `globs_ok`, `ids_ok`,
+  `text_ok`, `options_ok`, `conflict_paths_ok`. Every column name is the snake case of task 03's
+  JSON key, except the text triples of decision (b).
+- Consumes: `0001_init.sql`'s `orgs`, `users`, `projects`, `audit_events`, `forbid_change()`, the
+  roles `hub_owner` and `hub_app`, and `current_setting('hub.org_id', true)` as the tenancy key
+  (`task-07a.md:452-473`, `task-07b.md:46-61`; **UNVERIFIED until merge**); `hubtest.Migrated`,
+  `AppPool`, `OwnerConn` (Hub task 06, `task-06.md:146-156`).
+- Required by: 05 (`fleet_org`, `fleet_delegation`), 06 (the first six tables, `mode`,
+  `fleet_feed`), 07 (threads to directives, `human_messages`), 08 (`fleet_feed`, `mode`), 43
+  (`team_policies`), 46 (`notes`, the three guards, `text_body`, `tombstoned_at`), 66 (numbers its
+  own migration after this one). **A later task that adds a team event kind inserts its
+  `team_event_kinds` row in its own migration** (task 46's three erasure kinds), or its events fall
+  to the `ELSE` branch and Fleet never sees them.
+
+The migration, in six pieces for reading; the file is their concatenation, in this order.
+
+```sql
+-- control-plane/internal/hub/migrate/sql/00NN_team.sql
+-- 00NN_team.sql — Phase T task 04: the team records (contract §7.13–§7.24, task 01).
+-- Applied by `hub migrate` as hub_owner, in one transaction, after 0001_init.sql.
+SET LOCAL search_path = hub;
+
+CREATE TYPE project_mode     AS ENUM ('solo', 'team');
+CREATE TYPE text_author      AS ENUM ('agent', 'human');
+CREATE TYPE delegation_class AS ENUM ('orchestrator', 'worker');
+CREATE TYPE revoke_reason    AS ENUM ('owner', 'admin', 'member_removed', 'account_disabled');
+CREATE TYPE task_state       AS ENUM ('planned', 'active', 'blocked', 'done', 'abandoned');
+CREATE TYPE agent_role       AS ENUM ('orchestrator', 'worker');
+CREATE TYPE exit_class       AS ENUM ('done', 'stopped', 'failed', 'access_removed', 'lapsed');
+CREATE TYPE lease_mode       AS ENUM ('intent', 'hold', 'bulk');
+CREATE TYPE lease_state      AS ENUM ('requested', 'granted', 'contested', 'yielded', 'released',
+                                      'expired', 'admin-released');
+CREATE TYPE conflict_tier    AS ENUM ('P', 'H', 'M', 'S');
+CREATE TYPE conflict_state   AS ENUM ('raised', 'negotiating', 'accepted', 'resolved',
+                                      'escalated', 'cleared');
+CREATE TYPE resolution_kind  AS ENUM ('split', 'sequence', 'yield', 'build-on', 'proceed-both');
+CREATE TYPE thread_state     AS ENUM ('open', 'resolved', 'escalated', 'expired');
+CREATE TYPE thread_subject   AS ENUM ('conflict', 'lease', 'free');
+CREATE TYPE message_kind     AS ENUM ('ask', 'answer', 'inform', 'propose', 'accept', 'reject',
+                                      'counter', 'withdraw');
+CREATE TYPE escalation_kind  AS ENUM ('inform', 'decide');
+CREATE TYPE directive_kind   AS ENUM ('pause', 'resume', 'narrow', 'wait-for', 'rebase', 'free');
+CREATE TYPE delivery_rung    AS ENUM ('piggyback', 'inbox-socket', 'pty-nudge');
+CREATE TYPE turn_origin      AS ENUM ('human', 'fleet');
+CREATE TYPE note_target      AS ENUM ('project', 'task', 'user');
+CREATE TYPE inference_route  AS ENUM ('global', 'au');
+```
+
+Every enum's labels are task 03's constants, in its order (`task-03.md:97-279`); step 4's
+`TestTeamEnumsAreTask03s` compares them, label by label, against `pg_enum`.
