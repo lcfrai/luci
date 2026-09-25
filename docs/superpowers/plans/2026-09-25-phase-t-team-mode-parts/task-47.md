@@ -314,3 +314,44 @@ P23 to P27 are the five of `05-design.md:1154`; **P28 is this task's own**, beca
 nobody has watched deny anything is the exact kind of assumed fact task 32 exists to test
 (`task-32.md:11-15`). P23 and P25 run inside task 33's runbook, P24 after task 34 lands, P26 and
 P27 after task 21, and P28 before any AU project is created.
+
+#### Tests to write first
+
+**Chart** (`deploy/charts/platform/tests/netpol_au_test.yaml`, helm-unittest, as task 11's suites):
+
+| Case | Asserts | Mutant it kills |
+|---|---|---|
+| `a session with no route label gets no internet` | no `NetworkPolicy` with a `0.0.0.0/0` rule has a selector a pod labelled only `component: sandbox` matches | the internet allow left on `component: sandbox` alone, so a missed label fails open |
+| `an AU session gets the allowlist, not the internet` | `egress-internet`'s `matchLabels` has `route: global`; `egress-au-allowlist` selects `route: au`; its `toFQDNs` equals the values list, in order | the AU policy added beside an unchanged internet allow (a union cannot subtract) |
+| `orchestrators have no internet on either route` | both selectors carry `class NotIn [orchestrator, mirror]` | task 32's exclusion lost in the rewrite |
+| `the allowlist holds no model provider and no wildcard` | no entry equals `api.anthropic.com` or matches `*.anthropic.com`, `*.amazonaws.com`; `helm lint` with `patterns: ["*"]` or `["*.com"]` fails on the schema | an AU pod reaching the Global route directly, or a `*` that makes the list meaningless |
+| `machines and balloons keep phase 8's egress` | `egress-internet-infra` selects `component In [machine, balloon]` with task 11's `except` list byte for byte | machined's fetch broken by the split |
+
+**Broker** (`cp/cmd/broker`, Go, on phase 8 task 17's fake cluster):
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestRouteLabelStampedFromSpec` | `Route: "au"` → pod label `panacea-app/route: au`; `""` → `global`; `"AU"`, `"eu"` → 400 `details.field = "route"`, no pod | a free-form label value; "" left unlabelled (no internet for every solo session) |
+| `TestCallerCannotSetTheRouteLabel` | Fleet's `WithLabels` with `panacea-app/route: global` on an AU spec → refused, no pod | a second path that spells `global` for an AU project |
+| `TestFleetSendsTheProjectsRoute` (task 20's suite) | route source `au` → `SandboxSpec.Route == "au"` | the field computed and never sent |
+
+**Guard** (`guards_test.sh`, one fixture tree each, as task 01's cases):
+
+| Case | Asserts | Mutant it kills |
+|---|---|---|
+| `case_g11_rejects_australiasoutheast` | a stack tfvars `location = "australiasoutheast"` → `guard G11: FAIL infra/terraform/stacks/…: location = "australiasoutheast"; team mode runs in australiaeast only`, `expect_only 11` | the scope paragraph's test: the guard missing a sister region |
+| `case_g11_rejects_a_prefixed_location` | `backup_location = "westus2"` in a module → G11 fails | only the bare `location` key read |
+| `case_g11_rejects_a_variable_default` | `variable "location" { default = "eastus" }` → G11 fails | defaults not read, so an unset tfvars deploys abroad |
+| `case_g11_passes_references_and_global` | `location = var.location`, `location = azurerm_resource_group.x.location`, `location = "global"` → `guard G11: ok` | a rule that fails every non-literal, and gets deleted |
+| `case_g11_reads_chart_values` | `deploy/values/dev/fleet.yaml` with `topology.kubernetes.io/region: australiasoutheast` → FAIL; `bedrockRegion: us-east-1` → FAIL; `bedrockRegion: ap-southeast-2` → ok | Terraform read and charts forgotten; Bedrock's region unpinned |
+| `case_g11_values_scan_failure_is_exit_2` | a stub `grep` that exits 2 → `guards: values scan failed (grep exit 2)`, exit 2, no rule reported | a failed read taken for "nothing found" (task 01 review I1) |
+
+`expect_only`'s `9 of 10` becomes `10 of 11`, and `case_clean_tree_passes` loops to 11: those
+two edits, and the summary lines, are the only changes to existing cases.
+
+**Probes** (`proving_test.sh`, verdicts on canned output, as task 32's cases):
+`P23 fails when a peak exceeds 75% of the limit and names the pod`, `P24 reports the slowest of
+five runs, not the mean`, `P25 fails and prints both addresses when they differ`, `P26 fails on a
+max over 10 s even when the median passes`, `P27 computes p95 from 200 samples, not from the last
+20`, `P28 fails on the first reachable forbidden target and names it` (kills a verdict that checks
+only the allowed names).
