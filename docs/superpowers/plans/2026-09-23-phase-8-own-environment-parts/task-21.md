@@ -40,7 +40,8 @@ reaches), 3 (bundles, task 21b) and 4 (the create shape, below).
   `:529-534`);
 - **task 03** (`lanes`: `NoFetchURL`, `NoPushURL`, `NoFilterEnv`, `CopyableHooksPath`,
   `CopyGeneratedHooks`, `RemoveTree`, and `Create`'s steps; `task-03.md:148-268`);
-- **seam S8-P3.6's `gitx.MachineFS`** (ruling 4): an ask of phase 3, not yet answered. Without
+- **seam S8-P3.6's `gitx.MachineFS`** (ruling 4): an ask of phase 3, answered in its plan
+  (phase-3 `task-02.md:286-299`, `task-03.md:293-303`) and pending as code. Without
   it a cloud machine cannot create lanes, so it is a blocker, not a fallback.
 
 If any has not landed, this task does not start: no local copy of `gitx` or `lanes` is written,
@@ -187,8 +188,9 @@ const CreatingTTL = 5 * time.Minute
 ```
 
 **The ask of phase 3, seam S8-P3.6** (env ruling 4, "The one S8-P3.6 contract", copied
-verbatim; task 25 copies the same). Phase 3 owns the final shape; this one is **UNVERIFIED**
-until phase 3 answers, and step 1 greps for what landed. `machined` serves it, and the laptop's
+verbatim; task 25 copies the same). Phase 3 owns the final shape; its plan carries this one
+byte for byte (phase-3 `task-02.md:286-299`; seams review 1). Its code is **UNVERIFIED** until
+it is sync-merged, and step 1 greps for what landed. `machined` serves it, and the laptop's
 cloud implementation over these routes is task 25's.
 
 ```go
