@@ -121,3 +121,90 @@ export function suggestCriteria(
 `CriterionSuggestion` has no `score`, `confidence` or `rank` field: the order is the only place the
 count shows, and the why is the words.
 
+#### Interfaces — complete: `desktop/src/components/work/CriterionPicker.tsx`
+
+```tsx
+// desktop/src/components/work/CriterionPicker.tsx — task 42; tasks 46 and 47 reuse it.
+import type { JSX } from "react";
+import { Picker, type PickerItem } from "../issue/pickers/Picker";          // task 46
+import { suggestCriteria, type BriefCriterion } from "../../work/suggestCriterion";
+
+type ServeRef = { briefKey: string; criterionId: string };
+const same = (a: ServeRef, b: ServeRef): boolean => a.briefKey === b.briefKey && a.criterionId === b.criterionId;
+
+/** Suggestions first, each with its matched words as the note; then every other criterion in
+ *  brief order with no note. A criterion the issue already serves is not offered again. */
+export function CriterionPicker(props: {
+  issue: { title: string; description: string };
+  criteria: readonly BriefCriterion[];   // every criterion of the project's briefs, in brief order
+  serving: readonly ServeRef[];
+  onChoose(c: BriefCriterion): void;
+  onClose(): void;
+}): JSX.Element {
+  const { issue, criteria, serving, onChoose, onClose } = props;
+  const open = criteria.filter((c) => !serving.some((s) => same(s, c)));
+  const suggested = suggestCriteria(issue, open);
+  const rest = open.filter((c) => !suggested.some((s) => same(s, c)));
+  const ordered: { c: BriefCriterion; note?: string }[] = [
+    ...suggested.map((s) => ({ c: s as BriefCriterion, note: `matches: ${s.matched.join(", ")}` })),
+    ...rest.map((c) => ({ c })),
+  ];
+  // Item ids are positions in this list: a criterion id is unique only within its brief.
+  const items: PickerItem[] = ordered.map((o, i) => ({ id: `crit-${i}`, label: o.c.text, note: o.note }));
+  return (
+    <Picker label="Serves which criterion" items={items} onClose={onClose}
+      onChoose={(id) => { const o = ordered[Number(id.slice(5))]; if (o !== undefined) onChoose(o.c); }} />
+  );
+}
+```
+
+The note is sans (`PickerItem.note`, `task-46.md:161`), so the matched words read as words. No
+suggestion yields no note on any row, and the list is still every criterion: the reader can always
+choose by hand.
+
+#### Interfaces — complete: `desktop/src/components/work/TriageView.tsx`, the exported half
+
+```tsx
+// desktop/src/components/work/TriageView.tsx — task 42. Embedded by the Work lens (its Triage
+// view) and by Plan's first section (task 45). It draws no ViewHeader: its host does.
+import type { JSX } from "react";
+import type { IssueHead, IssueState, TeamPolicy } from "../../api/work";   // SW.15, task 37
+
+/** The four number keys, by `event.key` (digits carry no agent act; Shift makes them symbols). */
+export const TRIAGE_KEYS: Readonly<Record<string, "accept" | "duplicate" | "decline" | "snooze">> = {
+  "1": "accept", "2": "duplicate", "3": "decline", "4": "snooze",
+};
+
+/** Decision 2: the team's default state, never triage (the Hub's own default is backlog). */
+export function acceptTarget(policy: TeamPolicy | null): IssueState {
+  const s = policy?.defaultState ?? "backlog";
+  return s === "triage" ? "backlog" : s;
+}
+
+/** Decision 5: 09:00 on the reader's next calendar day, in their zone, as RFC 3339 UTC. */
+export function nextMorning(nowMs: number, timeZone: string): string {
+  const parts = (ms: number): Record<string, string> => Object.fromEntries(
+    new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(ms).map((p) => [p.type, p.value]));
+  const p = parts(nowMs);
+  const asUtc = Date.UTC(+p.year, +p.month - 1, +p.day + 1, 9, 0);
+  const q = parts(asUtc);
+  const offset = Date.UTC(+q.year, +q.month - 1, +q.day, +q.hour, +q.minute) - asUtc;
+  return new Date(asUtc - offset).toISOString();
+}
+
+/** Decision 7, in words; `null` for on_thread, which draws ThreadNodes instead. */
+export function threadWords(head: Pick<IssueHead, "threadState">): string | null {
+  const t = head.threadState;
+  if (t.kind === "on_thread") return null;
+  if (t.kind === "project_level") return "project-level";
+  return t.reason === "" ? "not tied" : `not tied · ${t.reason}`;
+}
+
+export function TriageView(props: {
+  projectId: string;
+  timeZone: string;       // the reader's; tests pin it
+  now(): number;          // the heartbeat's clock in the app (hooks/heartbeat.ts), FIXED_NOW in tests
+}): JSX.Element;
+```
+
