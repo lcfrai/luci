@@ -43,6 +43,8 @@ a serving issue, even for one commit.
   — the four pickers (new; not yet in the File map)
 - `desktop/src/components/issue/pickers/DuplicateOfPicker.tsx` — *Duplicate of which issue* (new;
   not yet in the File map)
+- `desktop/src/components/issue/issueData.ts` — the one file here that reads the replica's shape
+  (new; not yet in the File map)
 - `desktop/src/components/issue/AuthorClass.tsx` — the author-class mark and word, `text·H` or
   `text·A`, which tasks 47, 49 and 51 reuse (new; not yet in the File map; see decision 7)
 - `desktop/src/components/issue/pickers/stateOptions.ts` — the nine states, which are choosable, and
@@ -150,7 +152,7 @@ is marked `aria-selected="true"` and is never re-sent: choosing it closes the pi
 ```tsx
 // The one listbox the four pickers share. Keyboard: type to filter, Up/Down to move, Enter to
 // choose, Esc to close. A disabled item is reachable (its note is read aloud) and never chosen.
-import { useId, useMemo, useState, type JSX, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type JSX, type KeyboardEvent, type ReactNode } from "react";
 import "../issue.css";
 
 export interface PickerItem {
@@ -178,6 +180,10 @@ export function Picker(props: {
   );
   const [active, setActive] = useState(0);
   const at = Math.min(active, Math.max(shown.length - 1, 0));
+  // A passive effect, not autoFocus: Popover's layout effect focuses its own box first
+  // (`common/Popover.tsx:39`), and this runs after it, so typing filters at once.
+  const q = useRef<HTMLInputElement>(null);
+  useEffect(() => q.current?.focus(), []);
   const choose = (item: PickerItem | undefined) => {
     if (!item || item.disabled) return;          // a fact state or a needs-reason done: nothing sent
     onChoose(item.id);
@@ -194,7 +200,7 @@ export function Picker(props: {
   return (
     <div className="iv-picker" role="dialog" aria-label={label}>
       <input
-        className="iv-picker-q" autoFocus value={query} aria-label={`${label}: filter`}
+        ref={q} className="iv-picker-q" value={query} aria-label={`${label}: filter`}
         role="combobox" aria-expanded="true" aria-controls={`${base}-list`}
         aria-activedescendant={shown[at] ? optId(shown[at]) : undefined}
         onChange={(e) => { setQuery(e.target.value); setActive(0); }} onKeyDown={onKey}
@@ -303,4 +309,383 @@ The item's `id` is the other issue's `is-` id and its label is the alias and tit
 only, so filtering by `EP-150` works and nothing is keyed on it. `search(r, q)` is SW.16's
 search (task 58) returning `{id, alias, title}` hits; its signature here is **UNVERIFIED** until
 task 58's part is written, and is listed in *Gaps*.
+
+#### Interfaces — complete: `desktop/src/components/issue/pickers/PriorityPicker.tsx`
+
+```tsx
+import type { JSX } from "react";
+import { mutate } from "../../../work/replica/ops";
+import { StateGlyph, type IssueState, type Priority } from "../../glyphs/StateGlyph";
+import { Picker } from "./Picker";
+
+export const PRIORITY_ORDER: readonly Priority[] = ["none", "urgent", "high", "medium", "low"];
+export const PRIORITY_LABEL: Readonly<Record<Priority, string>> = {
+  none: "No priority", urgent: "Urgent", high: "High", medium: "Medium", low: "Low",
+};
+
+/** Each option draws the issue's own glyph with that notch: priority is ink, never a colour
+ *  (05 §4.4 work rule 2). No class, style or colour is set on an option for its priority. */
+export function PriorityPicker(props: {
+  issueId: string; state: IssueState; priority: Priority; onClose(): void;
+}): JSX.Element {
+  const { issueId, state, priority, onClose } = props;
+  const items = PRIORITY_ORDER.map((p) => ({
+    id: p, label: PRIORITY_LABEL[p], selected: p === priority,
+    lead: <StateGlyph state={state} priority={p} size={14} />,
+  }));
+  const onChoose = (id: string) => {
+    if (id !== priority) mutate({ kind: "setPriority", issueId, priority: id as Priority });
+  };
+  return <Picker label="Change priority" items={items} onChoose={onChoose} onClose={onClose} />;
+}
+```
+
+#### Interfaces — complete: `desktop/src/components/issue/pickers/AssigneePicker.tsx`
+
+```tsx
+import type { JSX } from "react";
+import type { IssueHead, User } from "../../../api/work";
+import { mutate } from "../../../work/replica/ops";
+import { Picker } from "./Picker";
+
+/** Decision 2: someone else's lane is bound to this issue, so assigning is a request. */
+export function othersLiveWork(head: IssueHead, me: User): boolean {
+  return (head.state === "started" || head.state === "in_review")
+    && head.assignee !== null && head.assignee.id !== me.id;
+}
+
+/** One op for a choice of person. `null` is *No assignee*. The `I` key (task 53) calls it with me. */
+export function assign(head: IssueHead, me: User, to: User | null): void {
+  if ((head.assignee?.id ?? null) === (to?.id ?? null)) return;
+  if (othersLiveWork(head, me)) {
+    if (to === null) return;                     // not offered: see the note below
+    mutate({ kind: "requestReassign", issueId: head.id, toUserId: to.id });
+    return;
+  }
+  mutate({ kind: "setAssignee", issueId: head.id, assigneeId: to?.id ?? null });
+}
+
+export const assignToMe = (head: IssueHead, me: User): void => assign(head, me, me);
+
+/** People only (OD-16): `people` is the team's members (decision 5). Nothing else is listed. */
+export function AssigneePicker(props: {
+  head: IssueHead; me: User; people: readonly User[]; onClose(): void;
+}): JSX.Element {
+  const { head, me, people, onClose } = props;
+  const asking = othersLiveWork(head, me);
+  const owner = head.assignee?.displayName.split(" ")[0] ?? "";
+  const note = asking ? `asks ${owner} to hand over` : "";
+  const byId = new Map(people.map((p) => [p.id, p]));
+  const rest = people.filter((p) => p.id !== me.id)
+    .sort((a, b) => a.displayName.localeCompare(b.displayName));
+  const items = [
+    { id: me.id, label: "Assign to me", note, selected: head.assignee?.id === me.id },
+    { id: "", label: "No assignee", selected: head.assignee === null, disabled: asking,
+      note: asking ? `${owner}'s agents are on it` : "" },
+    ...rest.map((p) => ({ id: p.id, label: p.displayName, note, selected: head.assignee?.id === p.id })),
+  ];
+  const onChoose = (id: string) => {
+    const who = id === "" ? null : id === me.id ? me : byId.get(id);
+    if (who !== undefined) assign(head, me, who);  // an id not in the list sends nothing
+  };
+  return (
+    <Picker label={asking ? `Ask ${owner} to hand over` : "Assign"} items={items}
+      onChoose={onChoose} onClose={onClose} />
+  );
+}
+```
+
+*No assignee* is not a request while someone else's lane is bound: clearing the assignee of a
+person's running work is the same act as taking it, and the only way to take it is to ask (§3.7
+rule 2). The first name is the display name's first word, as the scope's *Ask Dylan to hand
+over* reads; a display name with one word reads whole.
+
+#### Interfaces — complete: `desktop/src/components/issue/pickers/LabelPicker.tsx`
+
+```tsx
+import type { JSX } from "react";
+import type { Label } from "../../../api/work";
+import { mutate } from "../../../work/replica/ops";
+import { Picker } from "./Picker";
+
+/** The team's labels (task 11). Multi-select: each choice is one op, and the picker stays open. */
+export function LabelPicker(props: {
+  issueId: string; labels: readonly string[]; teamLabels: readonly Label[]; onClose(): void;
+}): JSX.Element {
+  const { issueId, labels, teamLabels, onClose } = props;
+  const on = new Set(labels);
+  const items = [...teamLabels]
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((l) => ({
+      id: l.id, label: l.name, selected: on.has(l.id),
+      lead: <span className="iv-label-dot" data-color={l.color} />,
+    }));
+  const onChoose = (id: string) =>
+    mutate(on.has(id)
+      ? { kind: "labels", issueId, add: [], remove: [id] }
+      : { kind: "labels", issueId, add: [id], remove: [] });
+  return <Picker label="Labels" multi items={items} onChoose={onChoose} onClose={onClose} />;
+}
+```
+
+A label's `color` is a token name, never a hex (task 03, `task-03.md:338`); `issue.css` maps each
+name task 11 allows to its token under `.iv-label-dot[data-color="…"]`, so no inline style
+carries a colour. A label is the one place on the head where colour appears, and it is paired with
+the label's name everywhere, never alone.
+
+#### Interfaces — complete: `desktop/src/components/issue/AuthorClass.tsx`
+
+```tsx
+// Drawn for PanaceaApp from no third-party source (OD-11). Two marks, 12px, in currentColor:
+// a person is a solid upright bar; an agent is a bracket open to the right, "text held apart".
+import type { JSX } from "react";
+
+export type Author = "H" | "A";
+export const AUTHOR_WORD: Readonly<Record<Author, string>> = { H: "person", A: "agent" };
+export const AUTHOR_CLASS: Readonly<Record<Author, string>> = { H: "text·H", A: "text·A" };
+
+const PATH: Readonly<Record<Author, string>> = {
+  H: "M5 2.5h2v7H5z",
+  A: "M8.5 2.5H4.5v7h4M4.5 2.5v7",
+};
+
+/** The mark and the word, always together (never colour alone, 05 §4.4 C3). `word={false}` is
+ *  for the editor gutter, where the passage's accessible name carries the word instead. */
+export function AuthorClass(props: { author: Author; word?: boolean }): JSX.Element {
+  const { author, word = true } = props;
+  return (
+    <span className="iv-author" data-author={author}>
+      <svg width={12} height={12} viewBox="0 0 12 12" aria-hidden="true" focusable="false">
+        <path d={PATH[author]} className={author === "H" ? "iv-author-fill" : "iv-author-ring"} />
+      </svg>
+      {word ? <span className="iv-author-word">{AUTHOR_CLASS[author]} · {AUTHOR_WORD[author]}</span> : null}
+    </span>
+  );
+}
+```
+
+The word is the class and its gloss, `text·A · agent`, in `--t-fact` mono: `text·A` is a fact a
+reader can search for, and `agent` says what it means to someone who has never seen the notation.
+
+#### Interfaces — complete: `desktop/src/components/issue/issueData.ts`
+
+```ts
+// The ONLY file in components/issue/ that reads the replica's shape. Every other file takes plain
+// records, so a rename in tasks 55-57 changes this file alone.
+import type { IssueHead, IssueRevision, Label, User } from "../../api/work";
+import { useWork } from "../../work/replica/replica";
+
+export interface IssueViewData {
+  head: IssueHead;
+  headRevision: IssueRevision;          // the head's content: the title, and serving or not
+  teamLabels: readonly Label[];
+  people: readonly User[];              // the team's members (decision 5)
+}
+
+export function useIssueViewData(issueId: string): IssueViewData | null {
+  return useWork((r) => {
+    const rec = r.issue(issueId);                    // IssueWithRevision | undefined
+    if (!rec) return null;
+    const teamId = r.teamOfProject(rec.head.projectId);
+    return {
+      head: rec.head,
+      headRevision: rec.revision,
+      teamLabels: teamId ? r.labels(teamId) : [],
+      people: teamId ? r.members(teamId).map((m) => m.user) : [],
+    };
+  });
+}
+```
+
+`r.issue`, `r.teamOfProject`, `r.labels` and `r.members` are the reads this view needs from the
+replica; task 55's scope names only `get(id)` and `byProject(projectId)`, so these four are a gap
+for tasks 55-57 (named below). `useWork` must compare the selection structurally, or this
+selector's fresh object re-renders on every event; task 55's test *re-renders only when its
+selection changes* is where that is held (**UNVERIFIED** until its part says how).
+
+#### Interfaces — complete: `desktop/src/components/issue/IssueView.tsx`
+
+```tsx
+import type { JSX, ReactNode } from "react";
+import type { User } from "../../api/work";
+import { ViewHeader, type Route } from "../common/ViewHeader";
+import { IssueHead } from "./IssueHead";
+import { useIssueViewData } from "./issueData";
+import "./issue.css";
+
+/** The one issue view (05 §4.1). `revision` is the revision a chip or link named, or null for
+ *  the head; task 47 honours it. The slots are filled by tasks 47, 48, 51 and 52, in that order. */
+export function IssueView(props: {
+  issueId: string;
+  revision: number | null;
+  me: User;
+  route: Route | null;
+  slots?: { body?: ReactNode; relations?: ReactNode; activity?: ReactNode };
+}): JSX.Element {
+  const { issueId, me, route, slots = {} } = props;
+  const data = useIssueViewData(issueId);
+  if (data === null) {
+    return <section className="iv" aria-label="Issue"><p className="iv-empty">This issue is not in your replica.</p></section>;
+  }
+  const { head, headRevision, teamLabels, people } = data;
+  return (
+    <section className="iv" aria-label={`Issue ${head.alias}`} data-issue={head.id}>
+      <ViewHeader
+        title={headRevision.content.title.text}
+        route={route}
+        badge={<span className="iv-alias iv-fact" data-fact="alias">{head.alias}</span>}
+      />
+      <IssueHead head={head} title={headRevision.content.title} serving={headRevision.content.serves.length > 0}
+        me={me} people={people} teamLabels={teamLabels} />
+      {slots.body ?? null}
+      {slots.relations ?? null}
+      {slots.activity ?? null}
+    </section>
+  );
+}
+```
+
+The empty case names what is true (the record is not in memory) and draws no spinner: the replica
+is either ready or resyncing, and task 57 shows that once, for the window. `data-issue` carries
+the `is-` id; the alias appears only as text.
+
+#### Interfaces — complete: `desktop/src/components/issue/IssueHead.tsx`
+
+```tsx
+import { useState, type JSX, type MouseEvent } from "react";
+import type { AuthoredText, IssueHead as Head, Label, User } from "../../api/work";
+import { Popover } from "../common/Popover";
+import { StateGlyph } from "../glyphs/StateGlyph";
+import { AuthorClass } from "./AuthorClass";
+import { AssigneePicker } from "./pickers/AssigneePicker";
+import { LabelPicker } from "./pickers/LabelPicker";
+import { PRIORITY_LABEL, PriorityPicker } from "./pickers/PriorityPicker";
+import { StatePicker } from "./pickers/StatePicker";
+import { STATE_LABEL } from "./pickers/stateOptions";
+
+type Field = "state" | "priority" | "assignee" | "labels";
+
+/** "14:02": a clock time in mono, never "N ago" as the primary (lib/time.ts:1-4). */
+export const clock = (iso: string): string =>
+  new Date(iso).toLocaleTimeString("en-AU", { hour: "2-digit", minute: "2-digit", hour12: false });
+
+export function IssueHead(props: {
+  head: Head; title: AuthoredText; serving: boolean;
+  me: User; people: readonly User[]; teamLabels: readonly Label[];
+}): JSX.Element {
+  const { head, title, serving, me, people, teamLabels } = props;
+  const [open, setOpen] = useState<{ field: Field; at: DOMRect } | null>(null);
+  const close = () => setOpen(null);
+  const opener = (field: Field) => (e: MouseEvent<HTMLButtonElement>) =>
+    setOpen({ field, at: e.currentTarget.getBoundingClientRect() });
+  const btn = (field: Field) => ({
+    type: "button" as const, className: "iv-field", "aria-haspopup": "dialog" as const,
+    "aria-expanded": open?.field === field, onClick: opener(field),
+  });
+  const names = new Map(teamLabels.map((l) => [l.id, l.name]));
+  const req = head.reassignRequest;               // task 65's added field; null when none
+  return (
+    <div className="iv-head">
+      <div className="iv-fields" role="group" aria-label="Issue fields">
+        <button {...btn("state")} aria-label={`State: ${STATE_LABEL[head.state]}`}>
+          <StateGlyph state={head.state} priority={head.priority}
+            notProven={head.state === "done" && head.proof === "not_proven"} size={16} />
+          <span>{STATE_LABEL[head.state]}</span>
+        </button>
+        <button {...btn("priority")} aria-label={`Priority: ${PRIORITY_LABEL[head.priority]}`}>
+          <span>{PRIORITY_LABEL[head.priority]}</span>
+        </button>
+        <button {...btn("assignee")} aria-label={`Assignee: ${head.assignee?.displayName ?? "none"}`}>
+          <span>{head.assignee?.displayName ?? "No assignee"}</span>
+        </button>
+        <button {...btn("labels")} aria-label="Labels">
+          {head.labels.length === 0 ? <span>No labels</span>
+            : head.labels.map((id) => <span key={id} className="iv-label">{names.get(id) ?? id}</span>)}
+        </button>
+      </div>
+      <p className="iv-facts">
+        <AuthorClass author={title.author} />
+        <span className="iv-fact" data-fact="key">{head.headKey}</span>
+        <span className="iv-fact" data-fact="created">
+          opened <time dateTime={head.createdAt}>{clock(head.createdAt)}</time> by {head.createdBy.displayName}
+        </span>
+        <span className="iv-fact" data-fact="updated">
+          changed <time dateTime={head.updatedAt}>{clock(head.updatedAt)}</time>
+        </span>
+      </p>
+      {req ? (
+        <p className="iv-request" role="status">
+          reassign requested by {req.by.displayName} to {req.to.displayName} ·{" "}
+          <time className="iv-fact" data-fact="requested" dateTime={req.at}>{clock(req.at)}</time>
+        </p>
+      ) : null}
+      <Popover anchor={open?.at ?? null} onClose={close}>
+        {open?.field === "state" ? <StatePicker issueId={head.id} state={head.state} serving={serving} onClose={close} /> : null}
+        {open?.field === "priority" ? <PriorityPicker issueId={head.id} state={head.state} priority={head.priority} onClose={close} /> : null}
+        {open?.field === "assignee" ? <AssigneePicker head={head} me={me} people={people} onClose={close} /> : null}
+        {open?.field === "labels" ? <LabelPicker issueId={head.id} labels={head.labels} teamLabels={teamLabels} onClose={close} /> : null}
+      </Popover>
+    </div>
+  );
+}
+```
+
+`head.reassignRequest` is `{ to: User; by: User; at: string } | null`, the field task 65's scope
+adds to `IssueHead` (`tasks-61-80.md:190`). This part is written before task 65, so SW.15's desktop
+`IssueHead` must carry it as nullable from task 37 on, always `null` until the fake or the Hub sets
+it; a gap for task 37, named below. The head shows no `--need` for it: the request is the
+**owner's** decision, and the owner sees it on the Desk; here it is a fact line.
+
+The facts line is **all mono and all `--ink-2`**: the head key `issue:is-…@3` (the one identity a
+reader can copy), the times with who, and the author class. The test below holds this by class
+and by reading `issue.css` as text, not by computed style (jsdom computes no fonts), the way
+`StatusDot.test.tsx:4-7` already imports `common.css?raw`.
+
+#### Interfaces — complete: `desktop/src/components/issue/issue.css`, the head's rules
+
+```css
+/* issue.css owns .iv-* and no other prefix. Facts: Commit Mono at --t-fact, --ink-2 or stronger,
+   never --ink-3 (SW.11; tokens.css:47 gives --ink-3 3.43:1). No colour codes a priority. */
+.iv { display: grid; grid-template-rows: auto auto 1fr; min-height: 0; }
+.iv-head { display: grid; gap: var(--s-2); padding: 0 var(--s-4) var(--s-3); }
+.iv-fields { display: flex; flex-wrap: wrap; gap: var(--s-1); }
+.iv-field {
+  display: inline-flex; align-items: center; gap: var(--s-1);
+  min-height: var(--row-h); padding: 0 var(--s-2); border-radius: var(--r-sm);
+  font: inherit; font-family: var(--sans); color: var(--ink); background: transparent;
+  box-shadow: 0 0 0 1px var(--ring);
+  transition: background-color var(--dur-fast) var(--ease);
+}
+.iv-field:hover { background: var(--hover); }
+.iv-field:focus-visible { outline: 2px solid var(--accent-ring); outline-offset: 1px; }
+.iv-field[aria-expanded="true"] { background: var(--hover); }
+.iv-fact, .iv-alias { font-family: var(--mono); font-size: var(--t-fact); color: var(--ink-2);
+  font-variant-numeric: tabular-nums; }
+.iv-facts { display: flex; flex-wrap: wrap; gap: var(--s-3); margin: 0; }
+.iv-request { margin: 0; font-family: var(--sans); color: var(--ink); }
+.iv-label { font-family: var(--sans); }
+.iv-label-dot { inline-size: 8px; block-size: 8px; border-radius: 50%; background: currentColor; }
+.iv-author { display: inline-flex; align-items: center; gap: 4px; color: var(--ink-2); }
+.iv-author-word { font-family: var(--mono); font-size: var(--t-fact); }
+.iv-author-fill { fill: currentColor; }
+.iv-author-ring { fill: none; stroke: currentColor; stroke-width: 1.25; }
+.iv-picker { display: grid; min-inline-size: 240px; border-radius: var(--r-md); background: var(--surface-2);
+  box-shadow: 0 0 0 1px var(--ring), var(--shadow-2); }
+.iv-picker-q { font: inherit; font-family: var(--sans); padding: var(--s-2); border: 0; background: transparent; color: var(--ink); }
+.iv-picker-list { list-style: none; margin: 0; padding: var(--s-1); max-block-size: 320px; overflow: auto; }
+.iv-picker-opt { display: grid; grid-template-columns: 20px 1fr; align-items: center; min-block-size: var(--row-h);
+  padding: 0 var(--s-2); border-radius: var(--r-sm); color: var(--ink); }
+.iv-picker-opt[data-active] { background: var(--hover); }
+.iv-picker-opt[aria-disabled="true"] { cursor: default; }
+.iv-picker-note { grid-column: 2; font-size: var(--t-small); color: var(--ink-2); }
+.iv-empty { padding: var(--s-4); color: var(--ink-2); }
+```
+
+Every token named here is **UNVERIFIED** against task 26's final list except `--ink-2`, `--ink-3`,
+`--t-fact`, `--row-h`, `--mono` and `--sans` (SW.11): `--s-*`, `--r-*`, `--ring`, `--hover`,
+`--surface-2`, `--shadow-2`, `--t-small`, `--dur-fast` and `--ease` are read on the sync base and
+renamed to task 26's words if they differ. The fact-state option is not greyed: a disabled look in
+`--ink-3` would put a fact (what the state waits on) in the one ink that may not carry one. The
+label dot's `currentColor` is set per `[data-color]` by task 11's token list, appended here when
+task 11's allowed names are read (**UNVERIFIED**: the list is task 11's).
 
