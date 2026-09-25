@@ -10,13 +10,14 @@ Three rules are enforced here, not described:
 2. **No bare-host `api_base`** (the Panacea 405, skeleton "What Panacea's LiteLLM taught"). The cloud Global route renders **no** `api_base` at all, so LiteLLM uses its own default for the Anthropic provider. Where an `api_base` is rendered (local mode's fakes, or an operator override), its form is a recorded fact, `full` (ends in `/v1/messages`) until task 18's P07 measures otherwise, and flipping it to a bare host needs a named piece of evidence.
 3. **Zero data retention in our own config** (P6-D9). No callback of any kind, prompt storage in spend logs off, message logging off, every credential an `os.environ/` reference and never a value.
 
-Five decisions the skeleton leaves open, made here so no later part re-derives them:
+Six decisions the skeleton leaves open, made here so no later part re-derives them:
 
 - **(a) YAML through `sigs.k8s.io/yaml` v1.4.0, promoted from `// indirect` to a direct `require`.** It is already in the module graph through `client-go` (`control-plane/go.mod:68`, `control-plane/go.sum:196-197`), so the promotion adds no module and no `go.sum` line. It decodes YAML into the same `json` tags the rest of the code uses, and `UnmarshalStrict` refuses an unknown key, so a misspelt `verifed:` in `models.yaml` is a load error, not a silently unverified model. Global constraint 1 names `pgx/v5` as the only planned dependency; this is listed as a skeleton gap in the return.
 - **(b) The generated YAML is rendered from Go structs** by `yaml.Marshal`, which goes through `encoding/json` and so sorts every map's keys. The output is byte-for-byte deterministic without a template, which is what makes the drift test honest.
 - **(c) Three targets, not two: `local`, `local-anthropic`, `cloud`.** Task 17 offers `PANACEA_APP_GATEWAY_LOCAL_UPSTREAM=anthropic` (real Global spend from a developer's key), and a single local config pointing at the fakes cannot serve it. `local-anthropic` renders the Global group exactly as `cloud` does (no `api_base`, `os.environ/ANTHROPIC_API_KEY`) and the AU group at the `au` fake, because there is no Bedrock locally. Its output is `deploy/local/gateway/litellm.anthropic.config.yaml`, a third generated file the skeleton's file map does not list (skeleton gap; task 17 picks the file by the variable).
 - **(d) The AU route's AWS credential is not in the config.** The cloud render gives the AU group only `aws_region_name: ap-southeast-2`. The role is assumed through the standard AWS web-identity chain, `AWS_ROLE_ARN` plus `AWS_WEB_IDENTITY_TOKEN_FILE` set on the LiteLLM pod, with a projected service-account token of audience `sts.amazonaws.com` (task 20's trust). That LiteLLM's Bedrock client falls back to boto3's default chain when no `aws_*` credential parameter is given is **training knowledge, UNVERIFIED** until task 24's P04; it keeps every LiteLLM-specific credential parameter name out of this file. Task 19 must set the two variables and the projected token (skeleton gap: task 19's scope names neither).
 - **(e) Aliases.** Claude Code may send a dated id (`claude-haiku-4-5-20251001`) as well as the undated one. An entry may list `aliases`; `Resolve` accepts them, `ModelsResponse` lists only the canonical id, and every id and alias is unique across the file. No id or alias may contain `/`, so a LiteLLM group name (`global/claude-opus-4-8`) can never resolve as a public id (task 11 relies on that).
+- **(f) Every group carries its own price, and a price of zero does not load** (review I-5). LiteLLM prices a call from its built-in cost table, and an id the pinned table lacks (`claude-opus-5`, `claude-sonnet-5`, every `bedrock/au.anthropic.*` profile, and every id at a local fake) is priced at US$0. Spend then stays 0, and all three OD-24 budgets are silently off. So each model carries `price: {global: …, au: …}`, four figures per route in US dollars per million tokens (`input`, `output`, `cacheRead`, `cacheWrite`), and `gatewaygen` renders them per token into each group's `model_info` on every target, in fixed notation (`0.000005`): `yaml.Marshal` writes `5e-06`, which PyYAML, the YAML 1.1 loader LiteLLM reads its config with, resolves to a string, so `fixedCosts` rewrites each price and a test holds every one to PyYAML's float pattern. `Parse` refuses a route whose figure is missing, zero, or outside US$0.01–1,000 per million tokens; the floor catches a per-token figure typed into a per-million field, which would price near zero and fail open just the same. **Every price is UNVERIFIED.** Global is Anthropic's list price as cached on 2026-06-24 (the `claude-api` reference). Cache read is 0.1× input and cache write 1.25× input, the usual ratios, also unverified. AU uses the same figures until task 24's P06 compares them with the AWS price list for `ap-southeast-2` and raises any that is lower. An unverified price may err high, which makes a budget bite early; never low. The `model_info` key names are LiteLLM's from training knowledge, **UNVERIFIED** until task 18 shows spend above zero (P03–P05, P12).
 
 **The model ids are not claimed current.** `claude-opus-4-8` is the docs' own example (https://code.claude.com/docs/en/llm-gateway-protocol, read 2026-09-25, per the skeleton). The other ids come from Anthropic's model notes as cached on 2026-06-24 (step 4), and **every Bedrock profile id is UNVERIFIED** and carries `verified: false` until task 24 lists the account's `au.` profiles. The generator writes the unverified list into each output's header, so an operator reading the deployed config sees it.
 
@@ -31,7 +32,7 @@ Five decisions the skeleton leaves open, made here so no later part re-derives t
 
 **Interfaces:**
 - Produces:
-  - `catalogue.Model{ID, DisplayName string; Aliases []string; CreatedAt string; Global, AU Upstream}`, `catalogue.Upstream{Model, Region string; Verified bool}`
+  - `catalogue.Model{ID, DisplayName string; Aliases []string; CreatedAt string; Price Prices; Global, AU Upstream}`, `catalogue.Upstream{Model, Region string; Verified bool}`, `catalogue.Prices{Global, AU Cost}`, `catalogue.Cost{InputPerMTok, OutputPerMTok, CacheReadPerMTok, CacheWritePerMTok float64}`, US dollars per million tokens (decision (f))
   - `catalogue.APIBaseForm` with `FormFull` (`"full"`) and `FormHost` (`"host"`); `catalogue.CheckAPIBase(form APIBaseForm, raw string) error`
   - `catalogue.Load() (*Catalogue, error)` (the embedded file), `catalogue.Parse([]byte) (*Catalogue, error)`
   - `(*Catalogue) Resolve(publicID string, r dataclass.Route) (group string, ok bool)`: `global/<id>` or `au/<id>`, `ok=false` for an unknown id, a group name, or a route that is not valid
@@ -65,12 +66,18 @@ models:
   - id: claude-opus-4-8
     displayName: Claude Opus 4.8
     createdAt: "2026-01-01T00:00:00Z"
+    price:
+      global: {input: 5, output: 25, cacheRead: 0.5, cacheWrite: 6.25}
+      au: {input: 5, output: 25, cacheRead: 0.5, cacheWrite: 6.25}
     global: {model: anthropic/claude-opus-4-8, verified: true}
     au: {model: "bedrock/au.anthropic.claude-opus-4-8-v1:0", region: ap-southeast-2, verified: false}
   - id: claude-haiku-4-5
     aliases: [claude-haiku-4-5-20251001]
     displayName: Claude Haiku 4.5
     createdAt: "2025-10-01T00:00:00Z"
+    price:
+      global: {input: 1, output: 5, cacheRead: 0.1, cacheWrite: 1.25}
+      au: {input: 1, output: 5.5, cacheRead: 0.1, cacheWrite: 1.25}
     global: {model: anthropic/claude-haiku-4-5, verified: true}
     au: {model: "bedrock/au.anthropic.claude-haiku-4-5-20251001-v1:0", region: ap-southeast-2, verified: false}
 `
@@ -187,6 +194,31 @@ func TestParseRefusesAnAmbiguousOrMisspeltCatalogue(t *testing.T) {
 	evidenced := swap(t, "apiBaseForm: full", "apiBaseForm: host\n  apiBaseEvidence: docs/verification/2026-09-25-phase-6-litellm-probe.md#p07")
 	if _, err := Parse([]byte(evidenced)); err != nil {
 		t.Errorf("host form with evidence refused: %v", err)
+	}
+}
+
+// Review I-5, decision (f). Kills: a group that loads unpriced (LiteLLM's own
+// table then charges US$0 and every budget is off), a zero or negative figure,
+// a per-token figure typed into a per-million field, and checking Global only.
+func TestParseRefusesAnUnpricedModel(t *testing.T) {
+	haikuGlobal := "global: {input: 1, output: 5, cacheRead: 0.1, cacheWrite: 1.25}"
+	haikuAU := "au: {input: 1, output: 5.5, cacheRead: 0.1, cacheWrite: 1.25}"
+	cases := map[string][2]string{
+		"no price":          {"    price:\n      " + haikuGlobal + "\n      " + haikuAU + "\n", ""},
+		"no AU price":       {"\n      " + haikuAU, ""},
+		"zero output":       {haikuGlobal, "global: {input: 1, output: 0, cacheRead: 0.1, cacheWrite: 1.25}"},
+		"no AU cache read":  {haikuAU, "au: {input: 1, output: 5.5, cacheWrite: 1.25}"},
+		"negative AU input": {haikuAU, "au: {input: -1, output: 5.5, cacheRead: 0.1, cacheWrite: 1.25}"},
+		"per token":         {haikuGlobal, "global: {input: 0.000001, output: 0.000005, cacheRead: 0.0000001, cacheWrite: 0.00000125}"},
+		"misspelt figure":   {haikuAU, "au: {input: 1, ouput: 5.5, cacheRead: 0.1, cacheWrite: 1.25}"},
+	}
+	for name, e := range cases {
+		if _, err := Parse([]byte(swap(t, e[0], e[1]))); err == nil {
+			t.Errorf("%s: Parse accepted it", name)
+		}
+	}
+	if got := mustParse(t, fixture).Public()[1].Price.AU.OutputPerMTok; got != 5.5 {
+		t.Errorf("haiku's AU output price = %v, want the au figure 5.5", got)
 	}
 }
 
@@ -371,12 +403,29 @@ type Upstream struct {
 	Verified bool   `json:"verified"` // false until the id is seen in a real account
 }
 
+// Cost is one route's price in US dollars per million tokens (decision (f),
+// review I-5). Every figure is UNVERIFIED until task 24's P06 checks it.
+type Cost struct {
+	InputPerMTok      float64 `json:"input"`
+	OutputPerMTok     float64 `json:"output"`
+	CacheReadPerMTok  float64 `json:"cacheRead"`
+	CacheWritePerMTok float64 `json:"cacheWrite"`
+}
+
+// Prices is a model's price on each route; gatewaygen renders each into its
+// group's model_info, so LiteLLM never falls back to its own cost table.
+type Prices struct {
+	Global Cost `json:"global"`
+	AU     Cost `json:"au"`
+}
+
 // Model is one public model. ID is what Claude Code sends as "model".
 type Model struct {
 	ID          string   `json:"id"`
 	Aliases     []string `json:"aliases,omitempty"`
 	DisplayName string   `json:"displayName"`
 	CreatedAt   string   `json:"createdAt"` // RFC 3339, for /v1/models
+	Price       Prices   `json:"price"`
 	Global      Upstream `json:"global"`
 	AU          Upstream `json:"au"`
 }
@@ -480,6 +529,30 @@ func (m Model) validate() error {
 	}
 	if m.AU.Region != AURegion {
 		return fmt.Errorf("au region %q is not %s", m.AU.Region, AURegion)
+	}
+	if err := m.Price.Global.validate(); err != nil {
+		return fmt.Errorf("global price: %w", err)
+	}
+	if err := m.Price.AU.validate(); err != nil {
+		return fmt.Errorf("au price: %w", err)
+	}
+	return nil
+}
+
+// Price bounds, US dollars per million tokens. The floor refuses a per-token
+// figure typed into a per-million field, which would price near zero and turn
+// every budget off just as a missing price does (review I-5).
+const minPerMTok, maxPerMTok = 0.01, 1000
+
+func (c Cost) validate() error {
+	for _, f := range []struct {
+		name string
+		v    float64
+	}{{"input", c.InputPerMTok}, {"output", c.OutputPerMTok},
+		{"cacheRead", c.CacheReadPerMTok}, {"cacheWrite", c.CacheWritePerMTok}} {
+		if !(f.v >= minPerMTok && f.v <= maxPerMTok) { // also refuses NaN
+			return fmt.Errorf("%s is %v; want US$%v to %v per million tokens", f.name, f.v, minPerMTok, maxPerMTok)
+		}
 	}
 	return nil
 }
@@ -612,6 +685,13 @@ Create `control-plane/internal/inference/catalogue/models.yaml`. The ids are the
 # verified: false = the id has not been seen in a real account. Every Bedrock
 # profile below is UNVERIFIED until task 24 lists the account's au. profiles
 # (`aws bedrock list-inference-profiles --region ap-southeast-2`).
+#
+# price: US dollars per million tokens, per route, rendered into each group's
+# model_info so LiteLLM never prices a call at 0 from its own table (review
+# I-5). Every figure is UNVERIFIED: Global is Anthropic's list price as cached
+# 2026-06-24; cacheRead = 0.1 x input and cacheWrite = 1.25 x input; AU copies
+# Global until task 24's P06 checks the AWS price list for ap-southeast-2.
+# Err high, never low: a high price makes a budget bite early.
 litellm:
   # How the pinned LiteLLM's Anthropic provider treats api_base. "full" is the
   # Panacea lesson (a bare host answered 405). Task 18's P07 measures it; a
@@ -621,27 +701,41 @@ models:
   - id: claude-opus-5
     displayName: Claude Opus 5
     createdAt: "2026-06-01T00:00:00Z"
+    price:
+      global: {input: 5, output: 25, cacheRead: 0.5, cacheWrite: 6.25}
+      au: {input: 5, output: 25, cacheRead: 0.5, cacheWrite: 6.25}
     global: {model: anthropic/claude-opus-5, verified: false}
     au: {model: "bedrock/au.anthropic.claude-opus-5", region: ap-southeast-2, verified: false}
   - id: claude-opus-4-8
     displayName: Claude Opus 4.8
     createdAt: "2026-04-01T00:00:00Z"
+    price:
+      global: {input: 5, output: 25, cacheRead: 0.5, cacheWrite: 6.25}
+      au: {input: 5, output: 25, cacheRead: 0.5, cacheWrite: 6.25}
     global: {model: anthropic/claude-opus-4-8, verified: false}
     au: {model: "bedrock/au.anthropic.claude-opus-4-8", region: ap-southeast-2, verified: false}
   - id: claude-sonnet-5
     displayName: Claude Sonnet 5
     createdAt: "2026-06-01T00:00:00Z"
+    price:
+      global: {input: 2, output: 10, cacheRead: 0.2, cacheWrite: 2.5}
+      au: {input: 2, output: 10, cacheRead: 0.2, cacheWrite: 2.5}
     global: {model: anthropic/claude-sonnet-5, verified: false}
     au: {model: "bedrock/au.anthropic.claude-sonnet-5", region: ap-southeast-2, verified: false}
   - id: claude-haiku-4-5
     aliases: [claude-haiku-4-5-20251001]
     displayName: Claude Haiku 4.5
     createdAt: "2025-10-01T00:00:00Z"
+    price:
+      global: {input: 1, output: 5, cacheRead: 0.1, cacheWrite: 1.25}
+      au: {input: 1, output: 5, cacheRead: 0.1, cacheWrite: 1.25}
     global: {model: anthropic/claude-haiku-4-5, verified: false}
     au: {model: "bedrock/au.anthropic.claude-haiku-4-5-20251001-v1:0", region: ap-southeast-2, verified: false}
 ```
 
 Every Global entry is `verified: false` too: no call has been made from this repository with the org's key (owner question Q3). Task 23's optional real Global call, or task 24, flips each one it sees.
+
+The prices are Anthropic's list prices from the same notes (input / output per million tokens: Opus 5 and Opus 4.8 US$5 / US$25, Sonnet 5 US$2 / US$10, Haiku 4.5 US$1 / US$5). Those notes say Bedrock is priced separately, so every AU figure is a copy, not a fact (decision (f)).
 
 - [ ] **Step 5: Tidy, then run the catalogue tests to verify they pass**
 
@@ -678,8 +772,10 @@ package main
 
 import (
 	"bytes"
+	"math"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -759,10 +855,80 @@ func TestEveryCatalogueGroupIsRenderedOnEveryTarget(t *testing.T) {
 		}
 	}
 }
+
+// pricedYAML prices AU above Global, so a render that prices the AU group from
+// Global's figures is caught (the embedded catalogue has them equal).
+const pricedYAML = `
+litellm: {apiBaseForm: full}
+models:
+  - id: claude-haiku-4-5
+    displayName: Claude Haiku 4.5
+    createdAt: "2025-10-01T00:00:00Z"
+    price:
+      global: {input: 1, output: 5, cacheRead: 0.1, cacheWrite: 1.25}
+      au: {input: 1.1, output: 5.5, cacheRead: 0.11, cacheWrite: 1.375}
+    global: {model: anthropic/claude-haiku-4-5, verified: false}
+    au: {model: "bedrock/au.anthropic.claude-haiku-4-5-20251001-v1:0", region: ap-southeast-2, verified: false}
+`
+
+// yaml11Float is PyYAML's float resolver (YAML 1.1), which LiteLLM loads with.
+var yaml11Float = regexp.MustCompile(`^[-+]?(\.[0-9]+|[0-9][0-9_]*\.[0-9_]*([eE][-+][0-9]+)?)$`)
+
+// Review I-5, decision (f). Kills: a group without model_info (LiteLLM's own
+// table then charges US$0 and every budget is off), a per-million figure
+// rendered as per token, the AU group priced from Global, and fixedCosts
+// skipped (PyYAML would read 5e-06 as a string).
+func TestEveryGroupIsPricedFromItsOwnRoute(t *testing.T) {
+	fixture, err := catalogue.Parse([]byte(pricedYAML))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for target := range outputs {
+		for _, c := range []*catalogue.Catalogue{fixture, cat(t)} {
+			raw, err := render(c, options{Target: target})
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, m := range regexp.MustCompile(`(?m)^ +\w+_cost\w*: (\S+)$`).FindAllSubmatch(raw, -1) {
+				if !yaml11Float.Match(m[1]) {
+					t.Errorf("%s: price %s is not a YAML 1.1 float", target, m[1])
+				}
+			}
+			var doc map[string]any
+			if err := yaml.Unmarshal(raw, &doc); err != nil {
+				t.Fatal(err)
+			}
+			prices := map[string]catalogue.Cost{}
+			for _, m := range c.Public() {
+				prices[catalogue.GroupPrefixGlobal+m.ID] = m.Price.Global
+				prices[catalogue.GroupPrefixAU+m.ID] = m.Price.AU
+			}
+			for _, e := range doc["model_list"].([]any) {
+				entry := e.(map[string]any)
+				name := entry["model_name"].(string)
+				p := prices[name]
+				info, _ := entry["model_info"].(map[string]any)
+				for key, perM := range map[string]float64{"input_cost_per_token": p.InputPerMTok,
+					"output_cost_per_token": p.OutputPerMTok, "cache_read_input_token_cost": p.CacheReadPerMTok,
+					"cache_creation_input_token_cost": p.CacheWritePerMTok} {
+					got, _ := info[key].(float64)
+					if want := perM / 1e6; want == 0 || math.Abs(got-want) > want*1e-9 {
+						t.Errorf("%s %s: %s = %v, want %v", target, name, key, got, want)
+					}
+				}
+			}
+		}
+	}
+}
 ```
 
 ```go
 var secretish = []string{"key", "secret", "token", "password", "database_url"}
+
+// priceKeys hold numbers, not credentials, though each names "token" (decision
+// (f)). They are exempt from secretish only while their value is a number.
+var priceKeys = map[string]bool{"input_cost_per_token": true, "output_cost_per_token": true,
+	"cache_read_input_token_cost": true, "cache_creation_input_token_cost": true}
 
 // walk visits every key/value pair in a decoded YAML tree.
 func walk(v any, visit func(key string, val any)) {
@@ -787,6 +953,12 @@ func TestNoCallbackAndNoLiteralSecretOnAnyTarget(t *testing.T) {
 		walk(doc, func(k string, val any) {
 			if strings.Contains(strings.ToLower(k), "callback") {
 				t.Errorf("%s: key %q is a logging callback", target, k)
+			}
+			if priceKeys[k] {
+				if _, ok := val.(float64); !ok {
+					t.Errorf("%s: %s is %v, want a number", target, k, val)
+				}
+				return
 			}
 			for _, s := range secretish {
 				if strings.Contains(strings.ToLower(k), s) {
@@ -897,6 +1069,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"sigs.k8s.io/yaml"
@@ -925,8 +1099,49 @@ type config struct {
 }
 
 type modelEntry struct {
-	ModelName string `json:"model_name"`
-	Params    params `json:"litellm_params"`
+	ModelName string    `json:"model_name"`
+	Params    params    `json:"litellm_params"`
+	Info      modelInfo `json:"model_info"` // every group, every target (decision (f))
+}
+
+// modelInfo is the group's price per token, so LiteLLM never prices a call
+// from its own table, which lacks these ids and charges US$0 (review I-5). The
+// key names are LiteLLM's from training knowledge, UNVERIFIED until task 18
+// sees spend above zero (P03-P05, P12).
+type modelInfo struct {
+	InputCostPerToken      float64 `json:"input_cost_per_token"`
+	OutputCostPerToken     float64 `json:"output_cost_per_token"`
+	CacheReadCostPerToken  float64 `json:"cache_read_input_token_cost"`
+	CacheWriteCostPerToken float64 `json:"cache_creation_input_token_cost"`
+}
+
+func perToken(c catalogue.Cost) modelInfo {
+	return modelInfo{c.InputPerMTok / 1e6, c.OutputPerMTok / 1e6, c.CacheReadPerMTok / 1e6, c.CacheWritePerMTok / 1e6}
+}
+
+// costLine is one rendered price. yaml.Marshal writes 5e-06, which PyYAML, the
+// YAML 1.1 loader LiteLLM reads its config with, resolves to a STRING: a 1.1
+// float needs a dot. A string price would break LiteLLM's cost arithmetic.
+var costLine = regexp.MustCompile(`(?m)^( +(?:input_cost_per_token|output_cost_per_token|cache_read_input_token_cost|cache_creation_input_token_cost): )(\S+)$`)
+
+// fixedCosts rewrites every price in fixed notation (0.000005), a float to
+// every YAML 1.1 and 1.2 parser.
+func fixedCosts(body []byte) ([]byte, error) {
+	var bad error
+	out := costLine.ReplaceAllFunc(body, func(line []byte) []byte {
+		m := costLine.FindSubmatch(line)
+		v, err := strconv.ParseFloat(string(m[2]), 64)
+		if err != nil {
+			bad = fmt.Errorf("rendered price %q is not a number", m[2])
+			return line
+		}
+		s := strconv.FormatFloat(v, 'f', -1, 64)
+		if !strings.Contains(s, ".") {
+			s += ".0"
+		}
+		return append(append([]byte(nil), m[1]...), s...)
+	})
+	return out, bad
 }
 
 type params struct {
@@ -1039,11 +1254,14 @@ func render(c *catalogue.Catalogue, o options) ([]byte, error) {
 			}
 		}
 		cfg.ModelList = append(cfg.ModelList,
-			modelEntry{ModelName: catalogue.GroupPrefixGlobal + m.ID, Params: g},
-			modelEntry{ModelName: catalogue.GroupPrefixAU + m.ID, Params: au})
+			modelEntry{ModelName: catalogue.GroupPrefixGlobal + m.ID, Params: g, Info: perToken(m.Price.Global)},
+			modelEntry{ModelName: catalogue.GroupPrefixAU + m.ID, Params: au, Info: perToken(m.Price.AU)})
 	}
 	body, err := yaml.Marshal(cfg)
 	if err != nil {
+		return nil, err
+	}
+	if body, err = fixedCosts(body); err != nil {
 		return nil, err
 	}
 	return append(header(c, o.Target, form), body...), nil
@@ -1055,6 +1273,7 @@ func header(c *catalogue.Catalogue, target string, form catalogue.APIBaseForm) [
 	b.WriteString("# control-plane/internal/inference/catalogue/models.yaml, then regenerate with\n")
 	fmt.Fprintf(&b, "#   go run ./control-plane/cmd/gatewaygen -target %s -out <this file>\n", target)
 	fmt.Fprintf(&b, "# api_base form: %s\n", form)
+	b.WriteString("# model_info prices are UNVERIFIED (models.yaml, review I-5); spend is only as right as they are\n")
 	if u := c.Unverified(); len(u) > 0 {
 		b.WriteString("# UNVERIFIED upstream ids, not yet seen in a real account:\n")
 		for _, s := range u {
@@ -1145,6 +1364,11 @@ ok  	github.com/kpmg-au-emu/panacea-app/control-plane/cmd/gatewaygen
 | `generalSettings`: add `,omitempty` to `store_prompts_in_spend_logs` | `TestZDRSwitchesAreRenderedExplicitly` |
 | `render`, cloud: give the AU group `APIKey: anthropicKey` | `TestCloudRoutes`, and `TestCheckedInConfigsAreTheGeneratorsOutput` (the render no longer matches the checked-in file) |
 | Append a comment line by hand to `deploy/charts/gateway/files/litellm.config.yaml` | `TestCheckedInConfigsAreTheGeneratorsOutput` |
+| `validate`: delete the `m.Price.AU.validate()` check (review I-5) | `TestParseRefusesAnUnpricedModel` (`no AU price`, `no AU cache read`, `negative AU input`) |
+| `Cost.validate`: `f.v >= minPerMTok` → `f.v > 0` | `TestParseRefusesAnUnpricedModel` (`per token`) |
+| `render`: the AU entry's `Info: perToken(m.Price.AU)` → `perToken(m.Price.Global)` | `TestEveryGroupIsPricedFromItsOwnRoute` (the `pricedYAML` AU figures) |
+| `render`: delete the `fixedCosts` call | `TestEveryGroupIsPricedFromItsOwnRoute` (`5e-06` is not a YAML 1.1 float) |
+| `perToken`: drop the `/ 1e6` on `OutputPerMTok` | `TestEveryGroupIsPricedFromItsOwnRoute` |
 
 - [ ] **Step 12: Format, vet, and confirm the import set**
 
@@ -1184,13 +1408,15 @@ feat(inference): the model catalogue and the generated LiteLLM config
 One embedded models.yaml names every model and where it runs on each
 route. The loader refuses an AU upstream that is not a Bedrock au.
 profile in ap-southeast-2, a Global upstream that is not the Anthropic
-provider, a duplicate or slash-bearing id, a misspelt key, and a family
-not served under zero data retention.
+provider, a duplicate or slash-bearing id, a misspelt key, a family
+not served under zero data retention, and a route with no usable price.
 
 gatewaygen renders LiteLLM's config for local, local-anthropic and cloud
 from the catalogue: no callbacks, prompt storage off, every credential an
-os.environ/ reference, no api_base on the cloud Global route, and any
-api_base in the recorded form (full until task 18 measures otherwise).
+os.environ/ reference, no api_base on the cloud Global route, any
+api_base in the recorded form (full until task 18 measures otherwise),
+and every group's UNVERIFIED price in model_info, in fixed notation so
+PyYAML reads a number (review I-5: an unpriced group spends US$0).
 The three outputs are checked in and a test fails on any hand edit.
 
 Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
@@ -1201,6 +1427,7 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
 **What this task does not claim:**
 
 - **That the model ids are current or exist in either account.** They are the model notes' set as cached on 2026-06-24. Every Bedrock profile id, and every Global id, is `verified: false` until a real call sees it (task 23's optional Global call, task 24's profile listing).
+- **That the prices are right, or that LiteLLM reads them** (decision (f), review I-5). Global is the cached list price, cache read and write are ratios, and AU is a copy of Global; task 24's P06 checks AU. That the pinned LiteLLM prices from `model_info` under these four key names is training knowledge: task 18 shows it when spend comes back above zero (P03–P05, P12). If it prices from `litellm_params` instead, moving `Info` there is a one-line change to `modelEntry`. Task 09's sweep flags a key with requests and no spend either way.
 - **That LiteLLM honours every rendered key.** `turn_off_message_logging`, `store_prompts_in_spend_logs`, per-model `drop_params` and `aws_region_name` are LiteLLM's documented names as the skeleton gives them, not re-read here; task 18's P06 and P10 measure the first and third against the pinned image.
 - **That LiteLLM falls back to the pod's AWS web identity** when an AU group names no credential (decision (d)). Training knowledge of LiteLLM's use of boto3's default chain, **UNVERIFIED** until task 24's P04.
 - **That `full` is the right `api_base` form for the pinned LiteLLM.** It is the Panacea lesson, from an incident record outside the repository tree; task 18's P07 measures it, and a change to `host` must cite that measurement.
