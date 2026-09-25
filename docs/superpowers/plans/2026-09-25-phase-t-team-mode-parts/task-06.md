@@ -22,15 +22,16 @@ adds no transaction machinery of its own.
 its body. The owner is `tx.P.UserID`, and for a Fleet call task 05 has already made that the
 delegation's owner and set `tx.P.Via = "fleet"` and `tx.P.DelegationID`. So every handler compares
 record owners with `tx.P.UserID` and never reads a user id out of JSON. A request type that grew an
-`ownerId` or `actor` field would make task 01's acceptance grep fail, and `Decode` refuses unknown
+`ownerUserId` or `actor` field would make task 01's acceptance grep fail, and `Decode` refuses unknown
 fields, so a body that sends one gets 400 `bad_request`.
 
 **Two callers, two kinds of route.**
 
 | Route group | Who may call | Why |
 |---|---|---|
-| `POST /v1/delegations`, `…/renew`, `DELETE …` | the user's **desktop** token only; a Fleet token is 403 `forbidden`, `required: "desktop"` | the user's own call creates the delegation (§2.4 item 2); Fleet cannot extend its own authority |
-| tasks, agents, lease events, conflicts | **Fleet under a delegation** only; a desktop token is 403 `forbidden`, `required: "via:fleet"` | these records are written by an Orchestrator through `panacea` or by Fleet's forecaster (§3.3 "Written by") |
+| routes 46, 48, 49 (create, renew, revoke a delegation) | the user's **desktop** token only; Fleet cannot reach them, because they have no route name to delegate | the user's own call creates the delegation (§2.4 item 2); Fleet cannot extend its own authority |
+| routes 50, 51, 53, 54, 56, 57, 58 (task, agent, lease event, conflict writes) | **Fleet under a delegation** only; a desktop token is 403 `forbidden`, `required: "fleet"` (`task-01.md:543-545`) | these records are written by an Orchestrator through `panacea` or by Fleet's forecaster (§3.3 "Written by") |
+| routes 47, 52, 55, 59 (reads) | the desktop, or Fleet under a delegation listing the read | the team strip is visible to every project role (§3.4 row 1) |
 
 **Files:**
 - `control-plane/internal/hub/server/delegations.go` + `delegations_integration_test.go` (new)
@@ -41,27 +42,32 @@ fields, so a body that sends one gets 400 `bad_request`.
 - `control-plane/internal/hub/server/teamguard.go` + `teamguard_test.go`: the shared guards (new)
 - `control-plane/internal/hub/store/{delegations,teamtasks,agents,leaseevents,conflicts}.go` (new)
 - `control-plane/internal/hub/server/server.go`: `s.registerTeamPart1()` (modify: one line)
-- `control-plane/internal/hub/hubapi/codes.go`: five not-found codes and `team_state` (modify,
-  additive; see "Gaps" at the end)
+- `control-plane/internal/hub/server/sessionlinks.go` (Hub task 20's route 33): the team-project
+  refusal (modify: one check)
 
 **Interfaces:**
 - Consumes:
-  - from task 03 (`hubapi/team.go`): `Delegation`, `CreateDelegationRequest`, `Task`,
-    `CreateTaskRequest`, `PatchTaskRequest`, `AgentStart`, `AgentStartRequest`, `AgentEndRequest`,
-    `LeaseEvent`, `LeaseEventRequest`, `Conflict`, `CreateConflictRequest`, `PatchConflictRequest`,
-    the enums with `Valid()`, and the codes `delegation_required`, `delegation_expired`,
-    `agent_not_owner`, `text_refused`, `glob_refused`, `breadth_exceeded`. **Where task 03's part
-    names a type differently, task 03 wins and this part is renamed mechanically.** The JSON
-    below is the wire this task tests, and task 03's golden files must agree with it.
-  - from task 04: the tables `delegations`, `team_tasks`, `agents`, `lease_events`, `conflicts`
-    under the Hub's RLS pattern.
+  - from task 01: the contract §7.13 to §7.17, rows 46 to 59, the class route sets and the §8
+    rows (`task-01.md:229-242`, `:268-361`, `:478-487`). **Task 01 is authoritative for every
+    field, bound, code and kind; this part implements it.**
+  - from task 03 (`hubapi/team.go`, `codes.go`): the Go types of those records and requests
+    (`Delegation`, `CreateDelegationRequest`, `Task`, `CreateTaskRequest`, `PatchTaskRequest`,
+    `Agent`, `StartAgentRequest`, `EndAgentRequest`, `LeaseEventRequest`, `LeaseEventResult`,
+    `Conflict`, `CreateConflictRequest`, `PatchConflictRequest`), the enums with `Valid()`, the
+    codes of `task-01.md:193-205` including `delegation_not_found`, and `CodeConflict` (409
+    `conflict`). **Task 03's part is not yet written; where it names a type differently, task 03
+    wins and this part is renamed mechanically.**
+  - from task 04: the tables `delegations`, `team_tasks`, `agents`, `lease_events`, `conflicts`,
+    `human_messages` under the Hub's RLS pattern, the audit row's `fleet_feed` flag, and a
+    project's `mode` (`solo`·`team`).
   - from task 05: `Principal.Via` (`""` or `"fleet"`), `Principal.DelegationID`,
-    `Principal.Delegation` (the loaded row: project, class, routes, expiry), and
-    `store.AgentOwnedBy(ctx, tx, agentID, userID) (bool, error)`.
-  - from task 02: `teamtext.Bound`, `teamtext.Clean`, `teamtext.ValidGlob`.
-- Produces: the ten write and three read handlers below; `server.RequireFleet`, `server.RequireDesktop`,
-  `server.RequireRoute`; the event kinds in the table after the routes.
-- Required by: task 07 (reuses the three guards), task 08 (feed kinds; `hubclient.Team` methods,
+    `Principal.Delegation` (a `DelegationView`: project, class, routes, expiry), the route-name
+    check, the v2 audit write, and `store.AgentOwnedBy(ctx, tx, agentID, userID) (bool, error)`.
+  - from task 02: `teamtext.Bound`, `teamtext.Clean`, `teamtext.ValidGlob`, `teamtext.Author`.
+- Produces: the ten write and four read handlers below; `server.RequireDesktop`,
+  `server.RequireFleet`, `server.OwnedAgent`, `server.EitherAgent`; `store.HumanMessageEquals`
+  (reads task 04's `human_messages` table, for `titleSource`); `renderTask(p, t)`.
+- Required by: task 07 (reuses the four guards), task 08 (feed kinds; `hubclient.Team` methods,
   one per route here), task 11 (Fleet's delivery calls), task 14 (the agent start carries the
   policy version and digest), task 21 (the desktop creates the delegation at launch), task 43 (Z5
   rows), task 44 (revocation end to end).
@@ -71,155 +77,177 @@ fields, so a body that sends one gets 400 `bad_request`.
 Conventions are the Hub contract's §1 (timestamps RFC 3339 UTC to the millisecond, ids by
 `hubapi.ValidID`, unknown fields refused, problem bodies per §4). `{p}` is a `pj-…` id.
 
-**`POST /v1/delegations`**: desktop only; project role `member` or `admin` (`viewer` is 403,
-§3.4 row 2).
+**This section implements task 01's contract §7.13 to §7.17 and rows 46 to 59 of its §7.0 team
+table (`task-01.md:229-242`, `:292-361`); where anything below disagrees with task 01, task 01
+wins.** Request free text is a plain string: the Hub bounds and cleans it (task 02), stamps the
+author class from the route (a Fleet route writes `agent`, a desk route `human`) and answers it as
+a `Text` object (`task-01.md:281-284`). Fleet mints every id here but `dl-…` and sends it as the
+body's `id` (`task-01.md:167-182`); a reuse with a different body is 409 `conflict`, a retry with
+the same `Idempotency-Key` replays.
+
+**Route 46, `POST /v1/delegations`**: desktop only; project role `member` or `admin` (`viewer`
+403, §3.4 row 2). `routes` is 1 to 25 distinct names from the **class's set**
+(`task-01.md:268-277`), else 422 `bad_request`, `details.route`.
 
 ```jsonc
 // request
 { "projectId": "pj-…", "class": "orchestrator" | "worker",
-  "routes": [ "tasks.write", "agents.write", "leases.write", "conflicts.write",
-              "threads.write", "messages.write", "escalations.write", "directives.write",
-              "turns.write", "humanmsgs.read" ] }          // 1–10 distinct, from this closed set
+  "routes": [ "tasks.create", "agents.start" ] }
 // 201
-{ "id": "dl-…", "projectId": "pj-…", "ownerId": "us-…", "class": "orchestrator",
-  "routes": [ … ], "createdAt": "…", "expiresAt": "…",   // createdAt + 24 h exactly
-  "revokedAt": null, "revision": 1 }
+{ "id": "dl-…", "projectId": "pj-…", "ownerUserId": "u-…", "class": "orchestrator",
+  "routes": [ "tasks.create", "agents.start" ],
+  "createdAt": "…", "expiresAt": "…",                     // createdAt + PANACEA_APP_HUB_DELEGATION_TTL (24h)
+  "renewedAt": null, "revokedAt": null, "revokedReason": "" }
 ```
 
-`routes` never contains a delegation route, so no delegation can create, renew or revoke another.
-`ownerId` appears in the **response** only; it is `tx.P.UserID`.
+No delegation route (46 to 49) has a route name, so no delegation can create, renew or revoke
+another. Fleet calling route 46 is refused by task 05's route check (403 `forbidden`) before this
+handler runs; `RequireDesktop` below is the second layer. `ownerUserId` is `tx.P.UserID`, and it
+appears in responses only.
 
-**`POST /v1/delegations/{dl}/renew`**: desktop only, the delegation's owner only (another user is
-404 `delegation_not_found`, so a delegation's existence does not leak). Body `{}`. A revoked
-delegation is 409 `team_state`, `details.state = "revoked"`. A lapsed one **is** renewable: the
-desktop signing back in is exactly the case §2.4 item 4 describes. → `200` the `Delegation`, with
-`expiresAt = tx.Now + 24 h` and `revision + 1`.
+**Route 47, `GET /v1/delegations/{dl}`**: its owner's desktop, or Fleet under that same
+delegation (`delegations.read`). Anyone else is 404 `delegation_not_found`, so an id does not leak.
 
-**`DELETE /v1/delegations/{dl}`**: desktop only, owner only. Sets `revokedAt = tx.Now`. A second
-delete is `204` and emits nothing. → `204`.
+**Route 48, `POST /v1/delegations/{dl}/renew`**: its owner's desktop only (another user 404
+`delegation_not_found`). Body `{}`. Sets `expiresAt = tx.Now + TTL`, `renewedAt = tx.Now`. A
+lapsed but unrevoked delegation **is** renewable, and its event carries `"lapsed": true`; a revoked
+one is 409 `conflict`. → `200` the delegation.
 
-**`POST /v1/projects/{p}/tasks`**: Fleet, route `tasks.write`, delegation class `orchestrator`.
+**Route 49, `DELETE /v1/delegations/{dl}`**: its owner, or an `admin` of its project, from the
+desktop. Sets `revokedAt = tx.Now` and `revokedReason` = `owner` or `admin`. A second delete is
+`204` and emits nothing. → `204`. (The `member_removed` and `account_disabled` reasons are
+task 44's.)
+
+**Route 50, `POST /v1/projects/{p}/tasks`**: Fleet·O (an `orchestrator`-class delegation),
+`tasks.create`.
 
 ```jsonc
 // request
-{ "orchestratorAgentId": "ag-…",                          // must be the owner's, live, role orchestrator
-  "title": { "body": "Split the invoice export by region", "author": "human" },   // ≤ 140
-  "reason": { "briefRef": "bf-…#s-3", "why": { "body": "…", "author": "agent" } }, // why ≤ 200, agent
-  "scope": [ "services/export/**", "docs/export.md" ],    // 0–20 globs, teamtext.ValidGlob each
-  "state": "planned" | "active" }
+{ "id": "tk-…", "orchestratorAgentId": "ag-…",           // the owner's Orchestrator, not ended
+  "title": "Add the export route",                         // ≤ 140
+  "titleSource": "hm-…",                                   // optional: the owner's hm-… whose trimmed body equals title
+  "reason": { "briefRef": "brief:bf-…@3#export", "why": "…" },  // why ≤ 200
+  "scope": [ "src/export/**" ], "trackedFiles": 812,       // ≤ 20 globs; count Fleet supplies
+  "state": "planned" }                                     // optional, default planned
 // 201
-{ "id": "tk-…", "projectId": "pj-…", "ownerId": "us-…", "orchestratorAgentId": "ag-…",
-  "title": {…}, "reason": {…}, "scope": [ … ], "state": "planned",
-  "createdAt": "…", "updatedAt": "…", "revision": 1 }
+{ "id": "tk-…", "projectId": "pj-…", "ownerUserId": "u-…", "orchestratorAgentId": "ag-…",
+  "title": Text, "reason": { "briefRef": "…", "why": Text }, "scope": [ … ], "state": "planned",
+  "revision": 1, "createdAt": "…", "updatedAt": "…" }
 ```
 
-**`PATCH /v1/projects/{p}/tasks/{tk}`**: Fleet, `tasks.write`, the task's owner only (another
-owner's delegation is 403 `forbidden`, `required: "owner"`; rule 5).
+`title` is `author: "human"` only when `titleSource` names the owner's own human message whose
+trimmed body equals it; otherwise `agent`. `briefRef` is a brief key (contract §3.2) plus `#` and a
+section id `^[a-z0-9][a-z0-9-]{0,63}$`. More than 20 globs is 422 `breadth_exceeded`; a bad glob
+422 `glob_refused`; a bad text 422 `text_refused` (`task-01.md:193-200`).
+
+**Route 51, `PATCH /v1/projects/{p}/tasks/{tk}`**: Fleet·O, `tasks.update`, the task's owner only.
+Body `{ "revision": 3, "state"?, "scope"?, "trackedFiles"?, "why"? }`; a stale revision is 409
+`revision_conflict`. Transitions: `planned → active | abandoned`; `active → blocked | done |
+abandoned`; `blocked → active | abandoned`. `done` and `abandoned` are terminal; any other move is
+409 `conflict`, `details = {"from","to"}`. A patch with nothing but `revision` is 400 `bad_request`.
+
+**Route 52, `GET /v1/projects/{p}/tasks`**: any project role from the desktop, or Fleet under
+either class (`tasks.read`). **`title` and `reason.why` are answered only to Fleet·O**; every
+other reader, the owner's own desktop included, gets the record without them
+(`task-01.md:321-322`, `05-design.md` §5.1).
+
+**Route 53, `POST /v1/projects/{p}/agents`**: Fleet (either class), `agents.start`.
 
 ```jsonc
-{ "ifRevision": 3,                                        // required; stale → 409 revision_conflict
-  "state": "active" | "blocked" | "done" | "abandoned",   // optional
-  "scope": [ … ],                                         // optional, replaces
-  "reason": { "briefRef": "…", "why": {…} } }             // optional, replaces
+{ "id": "ag-…", "role": "orchestrator" | "worker",
+  "parentAgentId": "ag-…",                                 // optional; an Orchestrator has none; a worker's is the same owner's Orchestrator
+  "taskId": "tk-…",                                        // optional; the owner's task, not terminal
+  "harness": { "id": "claude-code", "version": "2.1.4" },  // ^[a-z][a-z0-9-]{0,31}$, ^[0-9A-Za-z.+-]{1,32}$
+  "laneRef": "refs/panacea/lanes/ag-…/main",               // OD-2 prefix plus ValidBranchRef's component rules
+  "policy": { "version": 3, "digest": "sha256:…" } }       // OD-23: what the sandbox mounted (task 14)
+// 201: the request plus "projectId", "ownerUserId", "startedAt", "endedAt": null, "exitClass": ""
 ```
 
-Transitions: `planned → active | abandoned`; `active → blocked | done | abandoned`;
-`blocked → active | abandoned`. `done` and `abandoned` are terminal. Any other is 409 `team_state`,
-`details = {"from","to"}`. An empty patch (no field but `ifRevision`) is 400 `bad_request`.
+**Route 54, `POST /v1/projects/{p}/agents/{ag}/end`**: Fleet, `agents.end`, the agent's owner
+only. `{ "exitClass": "done" | "stopped" | "failed" | "access_removed" | "lapsed" }`. A second end
+is 409 `conflict`. → `200` the agent. Status (`working`, `waiting`, …) is Fleet state and never
+reaches the Hub.
 
-**`POST /v1/projects/{p}/agents`**: Fleet, `agents.write`. Fleet mints the `ag-…` id (task 20);
-the Hub validates it and refuses a reuse with 409 `team_state`, `details.state = "exists"`.
+**Route 55, `GET /v1/projects/{p}/agents`**: as route 52, `agents.read`; `?live=true` omits ended
+agents.
 
-```jsonc
-{ "id": "ag-…", "role": "orchestrator" | "worker",       // must equal the delegation's class
-  "parentAgentId": "ag-…" | null,                         // required for a worker: the owner's live orchestrator
-  "harness": { "id": "claude-code", "version": "2.1.14" },// id [a-z0-9-]{1,32}; version ≤ 32, semver-ish
-  "taskId": "tk-…" | null,                                // the owner's task, not terminal
-  "laneRef": "refs/panacea/lanes/…" | null,               // hubapi.ValidBranchRef and that prefix
-  "policy": { "version": 7, "digest": "sha256:…" } }      // task 14: the version the pod mounted
-// 201
-{ "id": "ag-…", "projectId": "pj-…", "ownerId": "us-…", "role": "worker", … ,
-  "startedAt": "…", "endedAt": null, "exitClass": null }
-```
+**Route 33 on a team project.** Contract §7.8's `session_link` stays for solo projects. On a
+project whose mode is `team` (`task-01.md:465-466`), route 33 answers 409 `conflict` with
+`details.use = "agents"`, so a team session cannot be linked by a machine-local id.
 
-**`POST /v1/projects/{p}/agents/{ag}/end`**: Fleet, `agents.write`, the agent's owner only.
-`{ "exitClass": "completed" | "stopped" | "crashed" | "access_removed" | "lapsed" }`. A second end
-is 409 `team_state`, `details.state = "ended"`. → `200` the agent.
-
-**`POST /v1/projects/{p}/leases/{ls}/events`**: Fleet, `leases.write`. **Fleet is authoritative
-for leases** (§3.3 row "lease"); the Hub records each state change and validates shape and
-ownership only. It never refuses a transition Fleet made, because a Hub that second-guessed Fleet's
-lease engine would make two authorities. The first event for an `ls-…` id creates the lease's
-Hub row; every later one appends.
+**Route 56, `POST /v1/projects/{p}/leases/{ls}/events`**: Fleet, `leases.events`, the holder's
+owner. **Fleet is authoritative for leases** (§3.3 row "lease"); the Hub checks shape, owner, that
+`seq` is the lease's last `seq` + 1 (409 `conflict` otherwise) and that nothing follows a terminal
+state (`yielded`, `released`, `expired`, `admin-released`), and nothing else. A Hub that judged
+Fleet's transitions would make two authorities. The first event for an `ls-…` creates its row.
 
 ```jsonc
-{ "seq": 4,                                               // Fleet's per-lease counter, 1, 2, 3…; a gap or a repeat → 409 team_state
-  "holderAgentId": "ag-…",                                // the delegation owner's, unless state is admin-released
-  "globs": [ "services/export/**" ],                      // 1–20, teamtext.ValidGlob each
-  "mode": "intent" | "hold" | "bulk",
+{ "seq": 4, "holderAgentId": "ag-…", "mode": "intent" | "hold" | "bulk",
+  "globs": [ "src/export/**" ], "trackedFiles": 812,       // ≤ 20, ValidGlob each
   "state": "requested" | "granted" | "contested" | "yielded" | "released" | "expired" | "admin-released",
-  "expiresAt": "…",
-  "cause": { "kind": "verb" | "observed" | "resolution" | "admin", "ref": "th-…" | "es-…" | null } }
+  "expiresAt": "…", "at": "…" }
 // 201
-{ "leaseId": "ls-…", "seq": 4, "state": "granted", "at": "…", "revision": 4 }
+{ "leaseId": "ls-…", "seq": 4, "state": "granted", "at": "…" }
 ```
 
-The Hub checks `ValidGlob` and the count of 20, not breadth: it does not hold the tracked-file list,
-so the 10% check is Fleet's (task 23). `admin-released` is the one state another person may write
-(§3.4 last row): it requires the delegation owner to be a project `admin`, it records `releasedBy`,
-and it emits its own event kind so an audit query finds every one.
+**The one exception to "the holder's owner"**: an `admin-released` event is written under the
+delegation of an `admin` of the project, and records that admin (`task-01.md:346-347`, §3.4 last
+row). A member's delegation writing `admin-released` on another's lease is 403 `forbidden`,
+`required: "admin"`.
 
-**`POST /v1/projects/{p}/conflicts`**: Fleet, `conflicts.write`. A conflict has **two owners**, so
-it is written under the delegation of **either party**: the Hub requires the delegation's owner to
-own `agents[0]` or `agents[1]`, and both agents to be in `{p}`. The audit line reads `actor = that
-owner, via = fleet` and `data.raisedBy = "forecaster"`, so nobody reads it as the person's own act.
+**Route 57, `POST /v1/projects/{p}/conflicts`**: Fleet, `conflicts.create`. A conflict has two
+owners; task 01's rule 5 (`task-01.md:130-135`) requires the **first-named** agent, `agentA`, to be
+the delegation owner's. The forecaster therefore writes under `agentA`'s owner's delegation.
 
 ```jsonc
-{ "agents": [ "ag-…", "ag-…" ],                           // exactly 2, distinct, different owners
-  "tier": "P" | "H" | "M" | "S",
-  "paths": [ { "path": "services/export/region.go",       // ValidGlob with no metacharacter, ≤ 200
-               "ranges": [ [ 40, 88 ] ] } ],               // 1–50 paths; 0–20 ranges each, 1 ≤ start ≤ end
-  "basis": { "a": "<40 hex>", "b": "<40 hex>" } }         // tier P may send nulls: intent has no commit yet
-// 201
-{ "id": "cf-…", "projectId": "pj-…", "agents": [ … ], "tier": "P", "paths": [ … ],
-  "basis": { … }, "state": "raised", "resolution": null, "createdAt": "…", "revision": 1 }
+{ "id": "cf-…", "agentA": "ag-…", "agentB": "ag-…", "tier": "P" | "H" | "M" | "S",
+  "paths": [ { "path": "src/export/route.ts", "lines": [ [ 10, 24 ] ] } ],   // ≤ 50 paths, ≤ 20 ranges, 1 ≤ start ≤ end
+  "basis": { "a": "<40 or 64 hex>", "b": "<40 or 64 hex>" } }
+// 201: the request plus "projectId", "state": "raised", "resolution": "", "threadId": "",
+//      "revision": 1, "createdAt", "updatedAt"
 ```
 
-**`PATCH /v1/projects/{p}/conflicts/{cf}`**: Fleet, `conflicts.write`, either party's delegation.
-`{ "ifRevision": 2, "state": "negotiating" | "accepted" | "resolved" | "escalated" | "cleared",
-"resolution": "yield" | "sequence" | "proceed-both" | "counter" | "split" | "build-on" | null,
-"threadId": "th-…" | null }`. `resolution` is required with `resolved` and refused otherwise.
-`resolved` and `cleared` are terminal (409 `team_state`).
+The two agents differ and both are in `{p}`. **Route 58, `PATCH …/conflicts/{cf}`**:
+`conflicts.update`, under the delegation of the owner of **either** agent; body `{ "revision",
+"state", "resolution"?, "threadId"? }`, `state` one of `negotiating`·`accepted`·`resolved`·
+`escalated`·`cleared`, `resolution` one of `split`·`sequence`·`yield`·`build-on`·`proceed-both`,
+required with `resolved` and `accepted` and refused otherwise (400 `bad_request`). `resolved` and
+`cleared` are terminal (409 `conflict`). **Route 59, `GET …/conflicts`**: as route 52,
+`conflicts.read`; `?open=true` omits `resolved` and `cleared`.
 
-**The session-id rule.** Solo projects keep the Hub's `session_link` route (contract §7.8)
-unchanged. No request type above has a `sessionId` field, so `Decode` answers a body carrying one
-with 400 `bad_request`, `details.field = "sessionId"`. Beyond that, every string field that is an
-id is checked with `hubapi.ValidID` for its own prefix, so a phase 2 session id pasted into
-`laneRef`, `taskId` or `parentAgentId` is 400 too; one test sends one to each.
+**The session-id rule.** No request type above has a `sessionId`, `ownerUserId`, `actor`, `via` or
+`delegationId` field, so strict decoding answers a body carrying one with 400 `bad_request`,
+`details.field` naming it (`task-01.md:125-129`). Beyond that, every id field is checked with
+`hubapi.ValidID` for its own prefix, so a phase 2 session id pasted into `laneRef`, `taskId` or
+`parentAgentId` is 400 too.
 
 #### Events
 
 One metadata-only event per changed record, in the write's transaction (contract §8). `data` holds
 **no** text: no title, no why-line, no glob list; only ids, enums and counts.
 
+The kinds and `data` are task 01's contract §8 rows (`task-01.md:478-487`), copied, not chosen
+here. **In the feed** is task 01's three-valued column: `yes` (the member feed and Fleet's),
+`fleet` (Fleet's feed only, the audit row's `fleet_feed` flag of task 04), `no`.
+
 | Kind | `projectId` | `subject` | `data` | In the feed |
 |---|---|---|---|---|
-| `delegation.created` | ✓ | dl id | `{"class","routes"}` (routes joined by `,`) | yes |
-| `delegation.renewed` | ✓ | dl id | `{"expiresAt"}` | yes |
-| `delegation.revoked` | ✓ | dl id | `{}` | yes |
-| `task.created` | ✓ | tk id | `{"state","orchestratorAgentId","scopeCount"}` | yes |
-| `task.updated` | ✓ | tk id | `{"state","previousState","scopeCount"}` | yes |
-| `agent.started` | ✓ | ag id | `{"role","parentAgentId","taskId","harness","harnessVersion","policyVersion","policyDigest"}` | yes |
-| `agent.ended` | ✓ | ag id | `{"exitClass"}` | yes |
-| `lease.changed` | ✓ | ls id | `{"seq","holderAgentId","mode","state","globCount"}` | yes |
-| `lease.admin_released` | ✓ | ls id | `{"seq","holderAgentId","releasedBy"}` | yes |
-| `conflict.raised` | ✓ | cf id | `{"tier","agentA","agentB","pathCount","raisedBy"}` | yes |
-| `conflict.updated` | ✓ | cf id | `{"state","previousState","resolution","threadId"}` | yes |
+| `delegation.created` | ✓ | delegation id | `{"class","expiresAt"}` | fleet |
+| `delegation.renewed` | ✓ | delegation id | `{"expiresAt","lapsed"}` | fleet |
+| `delegation.revoked` | ✓ | delegation id | `{"reason"}` | fleet |
+| `task.created` | ✓ | task id | `{"state","orchestratorAgentId"}` | yes |
+| `task.updated` | ✓ | task id | `{"state","revision"}` | yes |
+| `agent.started` | ✓ | agent id | `{"role","parentAgentId","harnessId","harnessVersion","policyVersion"}` | yes |
+| `agent.ended` | ✓ | agent id | `{"exitClass"}` | yes |
+| `lease.state_changed` | ✓ | lease id | `{"seq","state","mode","holderAgentId"}` | yes |
+| `conflict.raised` | ✓ | conflict id | `{"tier","agentA","agentB"}` | yes |
+| `conflict.updated` | ✓ | conflict id | `{"state","resolution"}` | yes |
 
-Every event from a Fleet call also carries `via = "fleet"` and `delegationId` in the audit row's
-actor columns (task 05), not in `data`. Task 08 registers these kinds on the feed; until it merges
-they are written but appear in no per-org subscription. **If task 01's contract §8 rows name a kind
-differently, task 01 wins.**
+Every event of a delegated write is the audit-event `v: 2` of task 01's §3.6 (`task-01.md:184-188`):
+`actorUserId = owner`, `via = "fleet"`, `delegationId`, set by task 05's write path, not by these
+handlers. An `admin-released` lease event is `lease.state_changed` like any other; its `actorUserId`
+is the admin, which is how an audit query finds every one. Task 08 makes these kinds readable on
+Fleet's per-org feed.
 
 #### The guards — complete source
 
@@ -228,9 +256,11 @@ differently, task 01 wins.**
 package server
 
 import (
-	"slices"
+	"context"
+	"errors"
 
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubapi"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/store"
 )
 
 // RequireDesktop refuses a Fleet call. Delegation routes are the user's own act (§2.4 item 2).
@@ -241,52 +271,59 @@ func RequireDesktop(p Principal) error {
 	return nil
 }
 
-// RequireFleet refuses a desktop call to a route only Fleet writes, and a Fleet call
-// whose delegation does not list route, is for another project, or has the wrong class.
-// class "" means either class may call.
-func RequireFleet(p Principal, projectID, route string, class hubapi.AgentRole) error {
+// RequireFleet refuses a desktop call to a Fleet-only route (task-01.md:543-545), and a
+// Fleet call whose delegation is for another project than the path names.
+func RequireFleet(p Principal, projectID string) error {
 	if p.Via != "fleet" {
-		return Forbidden("via:fleet")
+		return Forbidden("fleet")
 	}
-	d := p.Delegation
-	if d.ProjectID != projectID {
-		// A delegation for another project is not a 404 of that project: the caller is
-		// Fleet, and telling it which delegation it used is safe.
+	if p.Delegation.ProjectID != projectID {
+		// Not a 404 of the project: the caller is Fleet, and naming its own
+		// delegation's mismatch tells it nothing it did not send.
 		return Forbidden("delegation.project")
 	}
-	if !slices.Contains(d.Routes, route) {
-		return Forbidden("delegation.route:" + route)
+	return nil
+}
+
+// OwnedAgent is task 01's rule 5 (task-01.md:130-135): the agent the record names
+// first, and every agent it says acts, belongs to the principal. Whatever the
+// principal's role: an admin is refused on another member's agent like anyone.
+func OwnedAgent(ctx context.Context, tx *Tx, agentID string) error {
+	ok, err := store.AgentOwnedBy(ctx, tx, agentID, tx.P.UserID)
+	if err != nil {
+		return err
 	}
-	if class != "" && d.Class != class {
-		return Forbidden("delegation.class:" + string(class))
+	if !ok {
+		return Refuse(403, hubapi.CodeAgentNotOwner, "That agent is not yours.",
+			map[string]string{"agentId": agentID})
 	}
 	return nil
 }
 
-// RequireOwner is rule 5: nobody writes another person's record, whatever their role.
-func RequireOwner(p Principal, ownerID string) error {
-	if p.UserID != ownerID {
-		return Forbidden("owner")
+// EitherAgent is OwnedAgent for a record with two owners (a conflict update, a
+// thread update): one of the two must be the principal's.
+func EitherAgent(ctx context.Context, tx *Tx, a, b string) error {
+	if err := OwnedAgent(ctx, tx, a); err == nil {
+		return nil
+	} else if !isAgentNotOwner(err) {
+		return err
 	}
-	return nil
+	return OwnedAgent(ctx, tx, b)
 }
 
-// RequireParty is RequireOwner for a record with two owners (a conflict, a thread).
-func RequireParty(p Principal, ownerA, ownerB string) error {
-	if p.UserID != ownerA && p.UserID != ownerB {
-		return Forbidden("party")
-	}
-	return nil
+func isAgentNotOwner(err error) bool {
+	var ae *APIError
+	return errors.As(err, &ae) && ae.Code == hubapi.CodeAgentNotOwner
 }
 ```
 
-`Forbidden` is Hub task 14's; it also records `auth.forbidden` in its own short transaction, so a
-refused Fleet write leaves an audit trace even though its transaction rolls back. `RequireFleet`
-does **not** re-check expiry or revocation: task 05's auth pipeline did that before the handler
-ran, and doing it twice would give two answers for one question the day they drift.
-
-`p.Delegation.Class` is typed `hubapi.AgentRole` because the two sets are the same (`orchestrator`,
-`worker`); the `mirror` class is Fleet-internal (task 58) and never holds a delegation.
+The imports are `context`, `errors`, `hubapi` and `store`. **What the guards do not re-check, on
+purpose:** a delegation's expiry, revocation and route list, and its class. Task 05's pipeline
+checked the first three before the handler ran, and task 01's class route sets
+(`task-01.md:268-277`) mean a `worker` delegation can never list `tasks.create` in the first place.
+Checking any of them twice gives two answers to one question the day the two copies drift.
+`Forbidden` is Hub task 14's; it records `auth.forbidden` in its own short transaction, so a refused
+Fleet write leaves an audit trace although its transaction rolls back.
 
 #### The handler shape — one route in full
 
@@ -298,7 +335,7 @@ differ, and those are the rules in the route text above.
 func (s *Server) createTask(w http.ResponseWriter, r *http.Request) {
 	projectID := r.PathValue("p")
 	s.Write(w, r, func(tx *Tx, body []byte) (WriteResult, error) {
-		if err := RequireFleet(tx.P, projectID, "tasks.write", hubapi.AgentRoleOrchestrator); err != nil {
+		if err := RequireFleet(tx.P, projectID); err != nil {
 			return WriteResult{}, err
 		}
 		if _, _, ok, err := ProjectRole(r.Context(), tx, projectID); err != nil {
@@ -313,22 +350,20 @@ func (s *Server) createTask(w http.ResponseWriter, r *http.Request) {
 		if err := validateTask(req); err != nil { // teamtext.Bound, Clean, ValidGlob; ≤ 20 globs
 			return WriteResult{}, err
 		}
-		owned, err := store.AgentOwnedBy(r.Context(), tx, req.OrchestratorAgentID, tx.P.UserID)
-		if err != nil {
+		if err := OwnedAgent(r.Context(), tx, req.OrchestratorAgentID); err != nil {
 			return WriteResult{}, err
 		}
-		if !owned {
-			return WriteResult{}, Refuse(403, hubapi.CodeAgentNotOwner, "That agent is not yours.",
-				map[string]string{"agentId": req.OrchestratorAgentID})
+		author := teamtext.Author("agent")
+		if req.TitleSource != "" && store.HumanMessageEquals(r.Context(), tx, req.TitleSource, tx.P.UserID, req.Title) {
+			author = "human"
 		}
-		t, err := store.CreateTask(r.Context(), tx, projectID, tx.P.UserID, req)
-		if err != nil {
+		t, err := store.CreateTask(r.Context(), tx, projectID, tx.P.UserID, author, req)
+		if err != nil { // a reused id with another body: store returns 409 conflict
 			return WriteResult{}, err
 		}
 		tx.Emit(Event{Kind: "task.created", ProjectID: projectID, Subject: t.ID,
-			Data: map[string]any{"state": string(t.State),
-				"orchestratorAgentId": t.OrchestratorAgentID, "scopeCount": int64(len(t.Scope))}})
-		return WriteResult{Status: 201, Body: t}, nil
+			Data: map[string]any{"state": string(t.State), "orchestratorAgentId": t.OrchestratorAgentID}})
+		return WriteResult{Status: 201, Body: renderTask(tx.P, t)}, nil
 	})
 }
 ```
@@ -356,7 +391,7 @@ import (
 
 func fleetP(user, project string, class hubapi.AgentRole, routes ...string) Principal {
 	return Principal{UserID: user, Via: "fleet", DelegationID: "dl-TEST",
-		Delegation: DelegationView{ProjectID: project, Class: class, Routes: routes}}
+		Delegation: DelegationView{ProjectID: project, Class: class, Routes: routes}} // u-… ids: task 01's §7.13 sample
 }
 
 func required(t *testing.T, err error) string {
@@ -368,62 +403,39 @@ func required(t *testing.T, err error) string {
 	return ae.Details["required"]
 }
 
-// Mutant killed: RequireFleet checks the route but not Via, so a desktop token whose
-// Delegation field is zero but whose request names a listed route slips through.
+// Mutant killed: RequireFleet checks the project but not Via, so a desktop token
+// (whose Delegation is the zero value) slips through on a zero project comparison.
 func TestRequireFleetRefusesADesktopCaller(t *testing.T) {
-	if got := required(t, RequireFleet(Principal{UserID: "us-L"}, "pj-P", "tasks.write", "")); got != "via:fleet" {
+	if got := required(t, RequireFleet(Principal{UserID: "u-L"}, "")); got != "fleet" {
 		t.Fatalf("required = %q", got)
 	}
 }
 
 // Mutant killed: the project comparison is dropped, so Linus's delegation for P writes into Q.
 func TestRequireFleetRefusesAnotherProjectsDelegation(t *testing.T) {
-	p := fleetP("us-L", "pj-P", hubapi.AgentRoleOrchestrator, "tasks.write")
-	if got := required(t, RequireFleet(p, "pj-Q", "tasks.write", "")); got != "delegation.project" {
+	p := fleetP("u-L", "pj-P", hubapi.AgentRoleOrchestrator, "tasks.create")
+	if got := required(t, RequireFleet(p, "pj-Q")); got != "delegation.project" {
 		t.Fatalf("required = %q", got)
 	}
-}
-
-// Mutant killed: slices.Contains replaced by a prefix match, so "tasks" covers "tasks.write".
-func TestRequireFleetRefusesAnUnlistedRoute(t *testing.T) {
-	p := fleetP("us-L", "pj-P", hubapi.AgentRoleWorker, "agents.write", "tasks")
-	if got := required(t, RequireFleet(p, "pj-P", "tasks.write", "")); got != "delegation.route:tasks.write" {
-		t.Fatalf("required = %q", got)
-	}
-}
-
-// Mutant killed: the class check is skipped, so a worker's delegation creates tasks,
-// which §3.3 gives to the Orchestrator alone.
-func TestRequireFleetRefusesTheWrongClass(t *testing.T) {
-	p := fleetP("us-L", "pj-P", hubapi.AgentRoleWorker, "tasks.write")
-	err := RequireFleet(p, "pj-P", "tasks.write", hubapi.AgentRoleOrchestrator)
-	if got := required(t, err); got != "delegation.class:orchestrator" {
-		t.Fatalf("required = %q", got)
+	if err := RequireFleet(p, "pj-P"); err != nil {
+		t.Fatalf("its own project was refused: %v", err)
 	}
 }
 
 // Mutant killed: RequireDesktop tests Via == "fleet" rather than Via != "", so a future
 // second delegated caller would be treated as a desktop.
 func TestRequireDesktopRefusesAnyDelegatedCaller(t *testing.T) {
-	if got := required(t, RequireDesktop(Principal{UserID: "us-L", Via: "other"})); got != "desktop" {
+	if got := required(t, RequireDesktop(Principal{UserID: "u-L", Via: "other"})); got != "desktop" {
 		t.Fatalf("required = %q", got)
 	}
-	if err := RequireDesktop(Principal{UserID: "us-L"}); err != nil {
+	if err := RequireDesktop(Principal{UserID: "u-L"}); err != nil {
 		t.Fatalf("a desktop caller was refused: %v", err)
 	}
 }
-
-// Mutant killed: RequireParty accepts when either comparison is true of the *other* field
-// (ownerA twice), so a conflict between Linus and Grace accepts Vera's delegation.
-func TestRequirePartyNeedsOneOfTheTwo(t *testing.T) {
-	if err := RequireParty(Principal{UserID: "us-G"}, "us-L", "us-G"); err != nil {
-		t.Fatalf("party B refused: %v", err)
-	}
-	if got := required(t, RequireParty(Principal{UserID: "us-V"}, "us-L", "us-G")); got != "party" {
-		t.Fatalf("required = %q", got)
-	}
-}
 ```
+
+`OwnedAgent` and `EitherAgent` read the database, so their tests are integration tests (Step 2:
+`TestTaskCreateRefusesAnotherOwnersAgent`, `TestConflictUpdateByEitherParty`).
 
 `DelegationView` is task 05's name for the loaded row on the principal (**UNVERIFIED**: task 05's
 part is written in parallel; if it calls it something else, rename here). `Forbidden` records an
@@ -466,31 +478,36 @@ is not written.
 
 | Test | Asserts | Mutant it kills |
 |---|---|---|
-| `TestDelegationCreateIsTheUsersOwnCall` | Linus's desktop → 201, `ownerId` = Linus, `expiresAt − createdAt` = 24 h exactly | expiry from config instead of the constant; owner read from a body field |
+| `TestDelegationCreateIsTheUsersOwnCall` | Linus's desktop → 201, `ownerUserId` = Linus, `expiresAt − createdAt` = the TTL (24 h default; 1 h when the harness sets `PANACEA_APP_HUB_DELEGATION_TTL=1h`) | the TTL variable ignored; owner read from a body field |
 | `TestDelegationCreateRefusesAViewer` | Vera → 403 `forbidden`, `required: "member"` | the role floor is `viewer` |
-| `TestDelegationCreateRefusesFleet` | `fleet(DLLinusOrch)` → 403 `required: "desktop"` | `RequireDesktop` omitted, so Fleet mints its own authority |
-| `TestDelegationRoutesAreAClosedSet` | `routes: ["delegations.write"]` → 400, `field: "routes"`; a duplicate → 400 | the set check is a prefix or a regexp |
-| `TestDelegationRenewIsOwnerOnlyAndHidesExistence` | Grace renews Linus's → 404 `delegation_not_found`; Linus → 200, `expiresAt` moved, `revision` 2 | the owner check answers 403, leaking the id |
-| `TestDelegationRenewRevivesALapsedOneButNotARevokedOne` | clock +25 h, renew → 200; `DELETE` then renew → 409 `team_state` | the lapsed check shares the revoked branch |
-| `TestDelegationDeleteIsIdempotentAndEmitsOnce` | two `DELETE`s → 204, 204; one `delegation.revoked` in the audit | the second delete emits again |
-| `TestTaskCreateNeedsFleetUnderAnOrchestratorDelegation` | Linus desktop → 403 `via:fleet`; `fleet("")` → 401 `delegation_required` (task 05); `fleet(DLLinusWorker)` → 403 `delegation.class:orchestrator`; `fleet(DLLinusOrch)` → 201 | any one of the three guards removed |
+| `TestDelegationCreateRefusesFleet` | `fleet(DLLinusOrch)` on route 46 → 403 `forbidden` (task 05: no route name) | a route name given to route 46, so Fleet mints its own authority |
+| `TestDelegationRoutesAreTheClassSet` | a `worker` delegation listing `tasks.create` → 422 `bad_request`, `details.route = "tasks.create"`; an unknown name → 422; a duplicate → 422; 26 names → 422 | the class sets merged into one list, so a worker carries the cross-user channel |
+| `TestDelegationRenewIsOwnerOnlyAndHidesExistence` | Grace renews Linus's → 404 `delegation_not_found`; Linus → 200, `expiresAt` moved, `renewedAt` set | the owner check answers 403, leaking the id |
+| `TestDelegationRenewRevivesALapsedOneButNotARevokedOne` | clock +25 h, renew → 200 and `data.lapsed = true`; `DELETE` then renew → 409 `conflict` | the lapsed check shares the revoked branch |
+| `TestDelegationDeleteByOwnerOrAdmin` | Vera → 403; Linus on Grace's → 403; Grace (admin) on Linus's → 204, `revokedReason = "admin"`; a second `DELETE` → 204, one `delegation.revoked` in the audit | admin revoke refused, or the second delete emits again |
+| `TestDelegationGetIsOwnerOrFleetUnderIt` | Linus → 200; `fleet(DLLinusOrch)` on its own id → 200; `fleet(DLLinusOrch)` on `DLGraceOrch` → 404 | the Fleet read is keyed on the org, not the delegation |
+| `TestTaskCreateNeedsFleet` | Linus desktop → 403 `required: "fleet"`; `fleet("")` → 401 `delegation_required` (task 05); `fleet(DLLinusOrch)` → 201 | `RequireFleet` removed |
 | `TestTaskCreateRefusesAnotherOwnersAgent` | `fleet(DLLinusOrch)` with `AGGraceOrch` → 403 `agent_not_owner` | the agent check compares the agent's project, not its owner |
-| `TestTaskPatchIsOwnerOnly` | `fleet(DLGraceOrch)` patching Linus's task → 403 `required: "owner"`, although Grace is team admin | admin exempted from rule 5 |
-| `TestTaskTransitions` | every pair of the 5×5 state table: allowed → 200, others → 409 `team_state` with `from`/`to` | one terminal state left open (e.g. `done → active`) |
-| `TestTaskPatchNeedsTheCurrentRevision` | `ifRevision` 1 after a patch → 409 `revision_conflict` | the `WHERE revision = $n` guard dropped |
-| `TestTaskTextIsBoundedAndCleaned` | title of 141 runes → 400 `text_refused`, `details.field = "title"`; title with `U+202E` → 400 `text_refused`; why-line of 201 → 400 | the bound counts bytes, not runes; `Clean` skipped on the why-line |
-| `TestTaskScopeGlobs` | 21 globs → 400 `glob_refused`; `../x`, `/abs`, `a\b` → 400 `glob_refused` | the count cap applied after dedupe only |
-| `TestAgentStartBindsRoleClassAndParent` | worker with no parent → 400; worker whose parent is Grace's → 403 `agent_not_owner`; role `worker` under an orchestrator delegation → 403 `delegation.class:worker`; a reused `ag-…` → 409 | the parent's owner not checked |
-| `TestAgentStartRecordsThePolicy` | the `agent.started` event's `data` has `policyVersion` and `policyDigest` exactly as sent | the digest is dropped from the event (task 14 then has no audit fact) |
-| `TestAgentEndTwiceIs409` | end, end → 200, 409 `team_state` `ended` | a second end overwrites `exitClass` |
-| `TestLeaseEventsAreAppendOnlyAndGapless` | seq 1, 2 → 201; seq 2 again → 409; seq 4 → 409 | the gap check is `>` instead of `== last + 1` |
-| `TestLeaseEventHolderMustBeTheOwners` | holder `AGGraceOrch` under `DLLinusOrch` → 403 `agent_not_owner` | the holder check skipped when `cause.kind = observed` |
-| `TestAdminReleaseNeedsAnAdminAndIsItsOwnKind` | `admin-released` under Linus's delegation (member) of Grace's lease → 403 `required: "admin"`; under Grace's delegation of Linus's lease → 201 and one `lease.admin_released` | admin release allowed to members; it reuses `lease.changed` |
-| `TestConflictIsWrittenByEitherPartyOnly` | create with Linus's and Grace's agents under `DLLinusOrch` → 201; under a third member's delegation → 403 `required: "party"`; two agents of one owner → 400 | the party check is replaced by rule 5's owner check |
-| `TestConflictResolutionOnlyWithResolved` | `resolved` with no resolution → 400; `negotiating` with one → 400; `cleared` then anything → 409 | resolution accepted on any state |
-| `TestNoTeamBodyCarriesASessionID` | each of the ten write bodies plus `"sessionId": "se-…"` → 400 `bad_request`, `field: "sessionId"`; a phase 2 session id in `laneRef`, `taskId`, `parentAgentId` → 400 | `Decode` with unknown fields allowed; `ValidID` skipped on optional ids |
-| `TestEveryTeamWriteIsOneEventWithNoText` | after one of each write, the audit has exactly one event per write, and no event's canonical `data` contains the title or the why-line | an event emitted per field changed; the title copied into `data` |
-| `TestFleetEventsCarryViaAndDelegation` | every event from a Fleet call has `actor = owner`, `via = fleet`, `delegation = dl-…` | the actor recorded as Fleet's service principal |
+| `TestTaskPatchIsOwnerOnly` | `fleet(DLGraceOrch)` patching Linus's task → 403 `agent_not_owner`, although Grace is team admin (task 01's `Fx` column) | admin exempted from rule 5 |
+| `TestTaskTransitions` | every pair of the 5×5 state table: allowed → 200, others → 409 `conflict` with `from`/`to` | one terminal state left open (e.g. `done → active`) |
+| `TestTaskPatchNeedsTheCurrentRevision` | `revision` 1 after a patch → 409 `revision_conflict` | the `WHERE revision = $n` guard dropped |
+| `TestTaskTitleAuthor` | no `titleSource` → `author: agent`; the owner's `hm-…` with an equal trimmed body → `human`; Grace's `hm-…` or an unequal body → `agent` | the source's owner not compared |
+| `TestTaskTextIsBoundedAndCleaned` | title of 141 runes → 422 `text_refused`, `details.field = "title"`; title with `U+202E` → 422; why of 201 → 422 | the bound counts bytes, not runes; `Clean` skipped on the why |
+| `TestTaskScopeGlobs` | 21 globs → 422 `breadth_exceeded`; `../x`, `/abs`, `a\b` → 422 `glob_refused`, `details.index` | the count cap applied after dedupe only |
+| `TestAgentStartBindsParent` | a worker whose parent is Grace's Orchestrator → 403 `agent_not_owner`; an Orchestrator with a parent → 400; a reused `ag-…` with another body → 409 `conflict`; the same body and key → replay | the parent's owner not checked |
+| `TestAgentStartRecordsThePolicyVersion` | the `agent.started` event's `data.policyVersion` is exactly as sent | the version dropped from the event (task 14 then has no audit fact) |
+| `TestAgentEndTwiceIs409` | end, end → 200, 409 `conflict` | a second end overwrites `exitClass` |
+| `TestSessionLinkRefusedOnATeamProject` | route 33 on the team project → 409 `conflict`, `details.use = "agents"`; on a solo project → 201 as before | route 33 left open to team projects |
+| `TestLeaseEventsAreGaplessAndStopAtTerminal` | seq 1, 2 → 201; seq 2 again → 409; seq 4 → 409; after `released`, seq n+1 → 409 | the gap check is `>` instead of `== last + 1` |
+| `TestLeaseEventHolderMustBeTheOwners` | holder `AGGraceOrch` under `DLLinusOrch` → 403 `agent_not_owner` | the holder check skipped for `expired` |
+| `TestAdminReleaseNeedsAnAdmin` | `admin-released` of Grace's lease under Linus's delegation → 403 `required: "admin"`; of Linus's lease under Grace's → 201, `actorUserId` Grace | admin release allowed to members |
+| `TestConflictCreateNeedsAgentAsOwner` | `agentA` Linus's under `DLLinusOrch` → 201; `agentA` Grace's under `DLLinusOrch` → 403 `agent_not_owner`; `agentA == agentB` → 400 | rule 5 applied to `agentB` instead |
+| `TestConflictUpdateByEitherParty` | `fleet(DLGraceOrch)` patching a conflict whose `agentB` is Grace's → 200; a third member's delegation → 403 `agent_not_owner` | `EitherAgent` checks `a` twice |
+| `TestConflictResolutionOnlyWithResolvedOrAccepted` | `resolved` with none → 400; `negotiating` with one → 400; `cleared` then anything → 409 | resolution accepted on any state |
+| `TestNoTeamBodyCarriesAnActorOrASessionID` | each of the ten write bodies plus one of `sessionId`, `ownerUserId`, `actor`, `via`, `delegationId` → 400 `bad_request` naming it; a phase 2 session id in `laneRef`, `taskId`, `parentAgentId` → 400 | unknown fields allowed; `ValidID` skipped on optional ids |
+| `TestTaskTitleIsServedToFleetOrchestratorOnly` | route 52: Linus's desktop, Vera and `fleet(DLLinusWorker)` get no `title` or `reason.why`; `fleet(DLGraceOrch)` gets both | the redaction keyed on the owner, not on Fleet·O |
+| `TestEveryTeamWriteIsOneEventWithNoText` | one event per write; no event's canonical `data` contains the title or the why | an event per field changed; the title copied into `data` |
+| `TestFleetEventsAreV2` | every event of a Fleet call is `v: 2` with `actorUserId` = owner, `via = fleet`, `delegationId` | the actor recorded as Fleet's service principal |
 
 Two of them in full; the rest follow the same shape and live beside their route's file.
 
@@ -504,29 +521,33 @@ package server_test
 // delegation of hers; she still may not change Linus's task (§3.3 rule 5).
 func TestTaskPatchIsOwnerOnly(t *testing.T) {
 	w := newTeamWorld(t)
-	tk := w.fleet(w.DLLinusOrch).mustPost(t, "/v1/projects/"+w.ProjectID+"/tasks", map[string]any{
-		"orchestratorAgentId": w.AGLinusOrch,
-		"title":  map[string]any{"body": "Split the export", "author": "human"},
-		"reason": map[string]any{"briefRef": "bf-AAAAAAAAAAAAAAAAAAAAAAAAAA#s-1",
-			"why": map[string]any{"body": "Brief s-1 asks for it", "author": "agent"}},
-		"scope": []string{"services/export/**"}, "state": "planned",
+	tkID := ids.Wide("tk")
+	w.fleet(w.DLLinusOrch).mustPost(t, "/v1/projects/"+w.ProjectID+"/tasks", map[string]any{
+		"id": tkID, "orchestratorAgentId": w.AGLinusOrch,
+		"title":  "Split the export",
+		"reason": map[string]any{"briefRef": w.BriefKey + "#export", "why": "Brief section export asks for it"},
+		"scope":  []string{"src/export/**"}, "trackedFiles": 812, "state": "planned",
 	}, 201)
-	res := w.fleet(w.DLGraceOrch).patch(t, "/v1/projects/"+w.ProjectID+"/tasks/"+tk.ID(),
-		map[string]any{"ifRevision": 1, "state": "abandoned"})
-	res.wantProblem(t, 403, "forbidden", map[string]string{"required": "owner"})
-	if got := w.h.auditKinds(t); !slices.Contains(got, "auth.forbidden") {
-		t.Fatalf("no auth.forbidden in %v", got)
+	res := w.fleet(w.DLGraceOrch).patch(t, "/v1/projects/"+w.ProjectID+"/tasks/"+tkID,
+		map[string]any{"revision": 1, "state": "abandoned"})
+	res.wantProblem(t, 403, "agent_not_owner", map[string]string{"agentId": w.AGLinusOrch})
+	if got := w.h.taskState(t, tkID); got != "planned" {
+		t.Fatalf("the refused patch changed the task: state %q", got)
 	}
 }
 
-// Mutant killed: the session-id rule enforced only on the routes that carry an id field.
-func TestNoTeamBodyCarriesASessionID(t *testing.T) {
+// Mutant killed: strict decoding applied only on the routes whose type has an id field.
+func TestNoTeamBodyCarriesAnActorOrASessionID(t *testing.T) {
 	w := newTeamWorld(t)
+	extras := map[string]any{"sessionId": "se-01J9ZK3Y6N4Q0V9T8W7X6Y5Z4A", "ownerUserId": "u-X",
+		"actor": "u-X", "via": "fleet", "delegationId": w.DLGraceOrch}
 	for _, c := range w.everyTeamWrite() { // ten (caller, method, path, valid body) cases
-		body := maps.Clone(c.body)
-		body["sessionId"] = "se-01J9ZK3Y6N4Q0V9T8W7X6Y5Z4A"
-		res := c.caller.do(t, c.method, c.path, body)
-		res.wantProblem(t, 400, "bad_request", map[string]string{"field": "sessionId"})
+		for field, v := range extras {
+			body := maps.Clone(c.body)
+			body[field] = v
+			res := c.caller.do(t, c.method, c.path, body)
+			res.wantProblem(t, 400, "bad_request", map[string]string{"field": field})
+		}
 	}
 }
 ```
@@ -564,6 +585,7 @@ The route registration, in full:
 // control-plane/internal/hub/server/delegations.go (excerpt)
 func (s *Server) registerTeamPart1() {
 	s.mux.HandleFunc("POST /v1/delegations", s.createDelegation)
+	s.mux.HandleFunc("GET /v1/delegations/{dl}", s.getDelegation)
 	s.mux.HandleFunc("POST /v1/delegations/{dl}/renew", s.renewDelegation)
 	s.mux.HandleFunc("DELETE /v1/delegations/{dl}", s.revokeDelegation)
 	s.mux.HandleFunc("POST /v1/projects/{p}/tasks", s.createTask)
@@ -579,31 +601,24 @@ func (s *Server) registerTeamPart1() {
 }
 ```
 
-Ten writes and three reads. `s.mux` is the name Hub task 13's server uses (**UNVERIFIED until
+Routes 46 to 59: ten writes and four reads. `s.mux` is the name Hub task 13's server uses (**UNVERIFIED until
 merge**; if the field differs, rename).
 
-**The three reads** exist because task 11's `rebuild.go` reloads Hub-owned state after a Fleet
-restart, and the scope paragraph names no route for it (see "Gaps"). They are the Hub's usual
-page shape (`hubapi.Page[T]`, `limit` 1–200, `cursor`), run under `s.Read`, and are open to every
-project role including `viewer` (§3.4 row 1: the team strip). Filters: tasks `?state=` (repeatable),
-agents `?live=true` (no `endedAt`), conflicts `?open=true` (not `resolved` or `cleared`). **A task's
-`title` and `reason.why` are answered only to its owner and to Fleet under an orchestrator-class
-delegation; everyone else gets `null`** (§3.3 row "task": "served to orchestrators only", §5.1).
-`TestTaskTitleIsServedToOrchestratorsAndItsOwnerOnly` pins it: Vera and Grace's desktop see
-`null`, Linus's desktop and `fleet(DLGraceOrch)` see the text. Mutant killed: the redaction applied
-to the list but not to the single-row body of a `PATCH` answer, which is why the `PATCH` answer
-goes through the same `renderTask(p, t)` function.
+**The three reads** (routes 52, 55, 59) are what task 11's `rebuild.go` reloads after a Fleet
+restart. They are the Hub's usual page shape (`hubapi.Page[T]`, `limit` 1–200, `cursor`), run
+under `s.Read`, and open to every project role including `viewer` (§3.4 row 1: the team strip);
+an org *auditor* who is not a member gets 404 (`task-01.md:540`). Filters: tasks `?state=`
+(repeatable), agents `?live=true`, conflicts `?open=true`. The title redaction of route 52 lives in
+one function, `renderTask(p Principal, t hubapi.Task) hubapi.Task`, which every task answer passes
+through, route 50's and 51's included. Mutant killed by `TestTaskTitleIsServedToFleetOrchestratorOnly`:
+the redaction applied to the list but not to a create or patch answer, which Fleet·W never sees but
+a future caller would.
 
-The new codes, appended to `hubapi/codes.go` beside task 03's:
-
-```go
-	CodeDelegationNotFound = "delegation_not_found" // 404
-	CodeTaskNotFound       = "task_not_found"       // 404
-	CodeAgentNotFound      = "agent_not_found"      // 404
-	CodeLeaseNotFound      = "lease_not_found"      // 404 (task 08's reads)
-	CodeConflictNotFound   = "conflict_not_found"   // 404
-	CodeTeamState          = "team_state"           // 409, details.state or details.from/to
-```
+**Codes.** This task adds none. It uses task 01's (`task-01.md:193-205`) through task 03, plus
+404s for the new records. Task 03 must therefore carry `CodeConflict = "conflict"` (409), which
+task 01 uses throughout and the Hub's `codes.go:20-52` as built does not have, and
+`CodeTaskNotFound`, `CodeAgentNotFound`, `CodeConflictNotFound` (404), which task 01 does not name
+(see "Gaps").
 
 - [ ] **Step 5: Run the tests to verify they pass**
 
@@ -612,12 +627,12 @@ cd control-plane && go test ./internal/hub/server/ -run 'TestRequire' -count=1 -
 cd control-plane && go test -tags integration ./internal/hub/server/ -count=1
 ```
 
-Expected: the six guard tests `--- PASS`, and the integration run ends
+Expected: the three guard tests `--- PASS`, and the integration run ends
 `ok  	github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/server	<n>s` with no `FAIL`
 line. Three failures are worth predicting. `TestTaskTransitions` failing on exactly one pair means
 the table was written as a switch with a fall-through. `TestDelegationCreateIsTheUsersOwnCall`
-failing by one millisecond means `expiresAt` was computed from `time.Now()` rather than `tx.Now`,
-which Hub task 14 truncates. `TestEveryTeamWriteIsOneEventWithNoText` counting two events for a
+failing by under a millisecond means `expiresAt` was computed from `time.Now()` rather than
+`tx.Now`, which Hub task 14 truncates to the millisecond. `TestEveryTeamWriteIsOneEventWithNoText` counting two events for a
 task create means the handler emitted and the store also emitted; the store never emits.
 
 - [ ] **Step 6: Vet, format, and the whole suite**
@@ -640,7 +655,7 @@ Write the message to `.superpowers/sdd/team/msg/t06.txt`, then:
 git add control-plane/internal/hub/server/{delegations,teamtasks,agents,leaseevents,conflicts,teamguard}*.go \
         control-plane/internal/hub/server/team1_world_test.go \
         control-plane/internal/hub/store/{delegations,teamtasks,agents,leaseevents,conflicts}.go
-git commit -F .superpowers/sdd/team/msg/t06.txt -- control-plane/internal/hub
+git commit -F .superpowers/sdd/team/msg/t06.txt -- control-plane/internal/hub/server control-plane/internal/hub/store
 ```
 
 The message says what changed and why (the owner is never a body field; Fleet writes only under a
@@ -651,16 +666,17 @@ delegation; the Hub records lease changes but does not second-guess them) and en
 
 1. Both `go test` commands of Step 5 pass, and every test in the table of Step 2 exists and names
    its mutant.
-2. `grep -n '"ownerId"\|"actor"' control-plane/internal/hub/hubapi/team.go` shows `ownerId` only
-   on response types (`Delegation`, `Task`, `AgentStart`), and no request type; the task 01 grep.
-3. `grep -c 'HandleFunc' control-plane/internal/hub/server/delegations.go` prints `13`.
+2. `grep -n 'json:"ownerUserId\|json:"actor\|json:"via\|json:"delegationId' control-plane/internal/hub/hubapi/team.go`
+   shows `ownerUserId` only on record types (`Delegation`, `Task`, `Agent`) and none of the four on
+   any `…Request` type; task 01's acceptance grep.
+3. `grep -c 'HandleFunc' control-plane/internal/hub/server/delegations.go` prints `14`.
 4. `go test -tags integration ./internal/hub/server/ -run TestEveryTeamWriteIsOneEventWithNoText -v`
    passes, and a manual `SELECT data FROM hub.audit_events WHERE kind LIKE 'task.%'` on the test
    database shows ids, enums and counts only.
 
 #### What this task does not claim
 
-- **Not the Z5 matrix rows.** The per-principal rows for these thirteen routes, including *auditor*
+- **Not the Z5 matrix rows.** The per-principal rows for these fourteen routes, including *auditor*
   and *compliance*, are task 43's; this task's tests cover owner, other member, viewer and Fleet
   with and without a delegation only.
 - **Not revocation end to end.** A revoked delegation stops Hub writes at once (task 05's check),
@@ -675,14 +691,11 @@ delegation; the Hub records lease changes but does not second-guess them) and en
 
 #### Gaps found in the skeleton
 
-1. **No read routes for rebuild.** Task 11's `rebuild.go` "reloads Hub-owned state", but no scope
-   paragraph adds a team `GET`. This part adds three list reads (tasks, agents, conflicts); threads
-   and escalations need the same in task 07.
-2. **Not-found and state codes.** Task 03's code list has no `*_not_found` for the new records and
-   no state-transition code; this part adds six to `codes.go`. Task 03's part should list them.
-3. **"Fleet for itself".** Task 07's scope has Fleet writing escalations "for itself". With task
-   05's rule (a Fleet token with no delegation is 401), every Fleet write names *some* delegation;
-   this part resolves conflicts, which have two owners, by accepting either party's delegation.
-4. **Team versus solo project.** The scopes name no Hub field that marks a project as a team
-   project (§2.3, Share). Task 08's "team projects only" feed filter needs one; this part does not
-   invent it.
+1. **The scope paragraph names no reads and no route 47.** Task 01's table gives task 06 routes
+   47, 52, 55 and 59; this part builds them. The skeleton's scope for 06 should list them.
+2. **Codes task 03 must carry.** Task 01 uses 409 `conflict` throughout; the Hub's `codes.go` as
+   built has no such code, and the skeleton's task 03 list omits it. Task 01 names no 404 for a
+   task, agent or conflict.
+3. **Who sets a project's `mode` to `team`.** Task 01's §7.26 filters on it ("set by Share"), and
+   route 33's refusal here reads it, but no scope paragraph owns the write (task 21's team launch
+   or a Share route are the candidates).
