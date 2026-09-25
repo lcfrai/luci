@@ -121,6 +121,17 @@ type Result struct {
 // matches §3.3's states exactly.
 func (e *Engine) Request(ctx context.Context, r Req) (Result, error)
 
+// RequestIn is Request inside the caller's transaction, for task 24's task
+// create: the Hub task record and its intent leases commit together or not
+// at all. Request is Store.Tx around RequestIn plus the lease.contested event.
+// Validation (shape, globs, breadth) runs BEFORE tx is used, so a refused
+// glob leaves the caller's transaction untouched.
+func (e *Engine) RequestIn(ctx context.Context, tx store.Tx, r Req) (Result, error)
+
+// Validate is RequestIn's validation alone, for a caller that must refuse
+// before it writes anything (task 24 checks every glob of a scope first).
+func (e *Engine) Validate(ctx context.Context, r Req) (tracked int, checked bool, err error)
+
 // Release is the holder's own release of its own lease; any other caller is
 // agent_not_owner. Released is terminal. It then calls Reevaluate.
 func (e *Engine) Release(ctx context.Context, org string, holder model.AgentID, id string) error
