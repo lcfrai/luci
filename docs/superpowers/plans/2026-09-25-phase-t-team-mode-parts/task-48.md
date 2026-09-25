@@ -178,12 +178,14 @@ var ErrReadOnlyAuth = errors.New("remote: a read-only fetch credential cannot pu
 // is NOT a failed proof: "GitHub is down" must not stop her fetches.
 func ProveAccess(ctx context.Context, h Host, cred credstore.Credential, r Remote) error
 
-var ErrNoAccess = errors.New("githost: this person cannot read the repository")
+var (
+	ErrNoAccess              = errors.New("githost: this person cannot read the repository")
+	ErrNotAPersonsCredential = errors.New("githost: a re-proof needs the person's own credential")
+)
 ```
 
-`ProveAccess` refuses a credential whose `Source` is `SourceProjectFetch`
-(`ErrFetchCredentialNotForWrite` is the wrong word; it returns `ErrNotAPersonsCredential`): the
-proof must be hers, or it proves nothing.
+`ProveAccess` refuses a credential whose `Source` is `SourceProjectFetch` with
+`ErrNotAPersonsCredential`, before any request: the proof must be hers, or it proves nothing.
 
 #### The broker's half — complete wire
 
@@ -210,3 +212,58 @@ No body. The broker runs one `Fetcher.Fetch` for that project on that machine an
 3's `FetchResult` (`task-12.md:75-78`), or 409 `fetch_proof_required` (no fresh proof), 404
 `no_binding`, 502 `fetch_failed` with git's sentence. Task 31's `rebase` directive and the
 Orchestrator's view call it; nothing else does.
+
+```go
+// control-plane/cmd/broker/fetch.go (new, UNVERIFIED until phase 8's broker merges)
+
+// FetchCredential is the skeleton's FetchCredential(project): the one place the
+// broker turns a binding into a token. It refuses without a fresh proof for the
+// machine's owner, and it writes the audit line whatever the outcome.
+func (b *Broker) FetchCredential(ctx context.Context, machine MachineRef, projectID string) (credstore.Credential, error)
+
+// fetchLoop is phase 3's slow timer, moved to the broker for team projects:
+// every PANACEA_APP_FETCH_INTERVAL (phase 3's key and default, 10m, min 1m), for
+// each awake machine, one remote.Fetcher over that machine's gitx.Machine
+// (phase 8 task 21's remote runner), with Projects = the team projects of the
+// machine that have a binding AND a fresh proof, and Authorize = FetchEnv of
+// FetchCredential. A sleeping machine is skipped: its clones cannot move.
+// Singleton: it runs on the replica holding phase 8's broker lease.
+func (b *Broker) fetchLoop(ctx context.Context)
+```
+
+**The audit line.** Every `FetchCredential` call, issued or refused, writes one line through
+phase 8's broker audit logger (task 17's `TestAuditLine`, shape **UNVERIFIED until merge**), which
+phase 8 ships to Log Analytics. That is "every fetch audited to the project": the project id is a
+field, and a Sentinel query per project lists them.
+
+```json
+{ "event": "fetch_credential", "projectId": "pj-…", "machineId": "…", "ownerOid": "…",
+  "repoKey": "github.com/o/r", "provider": "github-app" | "azure-devops-identity",
+  "via": "timer" | "fleet" | "desktop" | "mirror", "delegationId": "dl-…" | "",
+  "result": "issued" | "no_proof" | "proof_failed" | "no_binding" | "too_wide" | "host_error",
+  "expiresAt": "…" | "" }
+```
+
+No token, no header and no key id is ever a field; a test greps the captured log for the token.
+
+**Bindings and key material.** `PANACEA_APP_BROKER_FETCH_BINDINGS` names a JSON file, `[]Binding`,
+mounted from the broker chart's values (`deploy/values/<env>/broker.yaml`, `fetchBindings:`),
+validated at start-up (one invalid binding stops the broker, naming the project). The GitHub
+App's private key is one Key Vault secret, `github-fetch-app-key`, with **Key Vault Secrets
+User** granted on that secret to the broker's identity alone (phase 8 task 05's module takes a
+per-secret reader list; **UNVERIFIED** until merge), mounted by the Secrets Store CSI driver at
+`/var/run/panacea/fetch/github-app.pem` and read at each mint, so rotation needs no restart. Azure
+DevOps needs no secret: `stacks/workloads` creates one user-assigned identity per entry of a new
+`ado_fetch_projects` map, each with one federated credential trusting the broker's service account
+subject. Granting it Read on one repository is done in Azure DevOps by an admin (the runbook),
+because `guards.sh` G9 admits only the `azurerm`, `azuread` and `azapi` providers
+(`infra/scripts/guards.sh:33`, built), not an Azure DevOps provider.
+
+**The sign-in proof** (`control-plane/internal/api/signin_proof.go`, the local control plane):
+after the Hub sign-in completes (Hub task 33's hook, **UNVERIFIED until merge**), for each team
+project of hers with a cloud machine, the control plane reads the binding's `repoKey`, asks phase 3
+task 13's `Credentials` chain for **her** credential for that host, calls `ProveAccess`, and `PUT`s
+the result. `ErrNoCredential` or `ErrNoAccess` → `ok: false`; any other error → nothing is sent,
+and the previous proof ages out on its own TTL. The cockpit shows a false proof on the project's
+row as one sentence: *"Fetches into your cloud clones are paused: your access to <repo> could not
+be confirmed. Sign in again, or ask the repository's admin."*
