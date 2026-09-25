@@ -513,3 +513,96 @@ function chromeInk(t: Tree): string[] {
 `finalValue` takes the **last** matching declaration because that is what the cascade does
 between rules of equal specificity; a rule appended later that brightens a label is what the
 canary plants, and a predicate that read the first one would pass it.
+
+Part 2, accent, the tick and the old look:
+
+```ts
+/** Accent is legal on the current item only (02 C5), and in the old look kept for task 32. */
+function accentOutsideCurrent(t: Tree): string[] {
+  const out: string[] = [];
+  for (const f of CHROME) {
+    for (const r of rulesOf(t.read(f))) {
+      if (r.selector.startsWith(OLD_LOOK)) continue;
+      if (!r.decls.some((d) => /var\(--accent/.test(d.value))) continue;
+      if (r.selector.split(",").every((s) => CURRENT_ITEM.test(s))) continue;
+      out.push(`${f}  ${r.selector}`);
+    }
+  }
+  return out;
+}
+
+const CURRENT_OF: ReadonlyArray<readonly [string, string]> = [
+  [RAIL_CSS, '.rail-row[aria-selected="true"]'],
+  [SUBRAIL_CSS, '.sub-row[aria-current="page"]'],
+];
+
+/** The current item carries a 2px accent bar on its leading edge, and no wash or ring. */
+function tickFaults(t: Tree): string[] {
+  const out: string[] = [];
+  for (const [f, current] of CURRENT_OF) {
+    const css = t.read(f);
+    const tick = `${current}::before`;
+    const ok =
+      finalValue(css, tick, "content") === '""' &&
+      finalValue(css, tick, "position") === "absolute" &&
+      finalValue(css, tick, "inset-inline-start") === "0" &&
+      finalValue(css, tick, "inline-size") === "2px" &&
+      finalValue(css, tick, "background") === "var(--accent)";
+    if (!ok) out.push(`${f}  ${tick}`);
+    if (finalValue(css, current, "background") !== undefined || finalValue(css, current, "box-shadow") !== undefined) {
+      out.push(`${f}  ${current}`);
+    }
+  }
+  return out;
+}
+
+/** Every declaration task 31 changed, restored under data-look="old" for flag.compare. */
+const OLD_CHROME: ReadonlyArray<readonly [string, string, string, string]> = [
+  [RAIL_CSS, '.rail-row[aria-selected="true"]', "background", "var(--accent-tint)"],
+  [RAIL_CSS, '.rail-row[aria-selected="true"]', "box-shadow", "inset 0 0 0 1px var(--accent-ring)"],
+  [RAIL_CSS, '.rail-row[aria-selected="true"]::before', "content", "none"],
+  [RAIL_CSS, ".rail-add", "color", "var(--accent-hi)"],
+  [SUBRAIL_CSS, '.sub-row[aria-current="page"]', "background", "var(--accent-tint)"],
+  [SUBRAIL_CSS, '.sub-row[aria-current="page"]', "box-shadow", "inset 0 0 0 1px var(--accent-ring)"],
+  [SUBRAIL_CSS, '.sub-row[aria-current="page"]::before', "content", "none"],
+  [SUBRAIL_CSS, ".sub-back", "color", "var(--ink-3)"],
+  [SUBRAIL_CSS, ".sub-branch", "color", "var(--ink)"],
+  [SUBRAIL_CSS, '.sub-row[aria-current="page"] .sub-glyph', "color", "var(--ink)"],
+  [SUBRAIL_CSS, ".sub-glyph", "color", "inherit"],
+];
+
+function oldLookFaults(t: Tree): string[] {
+  return OLD_CHROME.filter(([f, sel, prop, want]) => finalValue(t.read(f), `${OLD_LOOK} ${sel}`, prop) !== want)
+    .map(([f, sel, prop]) => `${f}  ${OLD_LOOK} ${sel} ${prop}`);
+}
+```
+
+Appended to `describe("the design-system audit")`, after `:721`:
+
+```ts
+  it("has one view header", () => {
+    // 02 C5 and AGENTIC-UX §9 item 8. Not vacuous: the one header really renders an h1.
+    expect(read(VIEW_HEADER)).toMatch(/<h1 className="vh-title">/);
+    expect(secondHeaders(REAL)).toEqual([]);
+  });
+
+  it("dims rail and sub-rail labels to ink-2, and their icons to ink-3", () => {
+    expect(chromeInk(REAL)).toEqual([]);
+  });
+
+  it("uses accent only on the current item", () => {
+    // Not vacuous: each file does carry accent, on its current item.
+    for (const [f, current] of CURRENT_OF) {
+      expect(topRules(read(f), `${current}::before`)).not.toEqual([]);
+    }
+    expect(accentOutsideCurrent(REAL)).toEqual([]);
+  });
+
+  it("marks the current item with a tick, not colour alone", () => {
+    expect(tickFaults(REAL)).toEqual([]);
+  });
+
+  it("keeps the old chrome under data-look=old", () => {
+    expect(oldLookFaults(REAL)).toEqual([]);
+  });
+```
