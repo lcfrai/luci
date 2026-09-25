@@ -417,7 +417,7 @@ const WORD: Record<RiskName, string> = {
   "outside-declared-scope": "outside declared scope",
 };
 
-/** Named facts, in the fixed order the control plane sent; no score, no colour scale (decision 2). */
+/** Named facts, in the fixed order the control plane sent, one ink for all (decision 2). */
 export function RiskFacts({ reply, dense = false }: { reply: RiskReply; dense?: boolean }) {
   const notes: string[] = [];
   if (!reply.globsSet) notes.push("no risk globs set for this project");
@@ -498,4 +498,321 @@ The confidence is a raw ratio printed with its calibration id, never a `%` (SW.8
 `fileReason` is the verb's `because`, which the Hub stores only if task 99 adds it as an added
 field on the create body (gap 5). Task 42's *Accept* and *Decline* stay as they are: they are the
 person's acts, sent with the person's token.
+
+#### Tests to write first — `control-plane/internal/work/riskfacts_test.go`
+
+```go
+package work
+
+import (
+	"reflect"
+	"strings"
+	"testing"
+)
+
+var globs = ProjectGlobs{
+	ProdConfig: []string{"deploy/prod/**", "**/*.prod.yaml"},
+	Migrations: []string{"control-plane/internal/hub/migrate/sql/*.sql"},
+}
+
+func TestAMigrationFileRaisesRunsMigrationWithItsPath(t *testing.T) {
+	got, err := Facts([]ChangedPath{{Path: "control-plane/internal/hub/migrate/sql/0042_work_agents.sql", Status: "A"}}, globs, nil)
+	if err != nil || len(got) != 1 || got[0].Name != RunsMigration ||
+		!reflect.DeepEqual(got[0].Paths, []string{"control-plane/internal/hub/migrate/sql/0042_work_agents.sql"}) {
+		t.Fatalf("got %+v, %v", got, err)
+	}
+	if !strings.Contains(got[0].Because, "control-plane/internal/hub/migrate/sql/*.sql") {
+		t.Fatalf("because %q does not name its glob", got[0].Because)
+	}
+}
+
+func TestADeletedMigrationRaisesNothing(t *testing.T) {
+	got, _ := Facts([]ChangedPath{{Path: "control-plane/internal/hub/migrate/sql/0041_x.sql", Status: "D"}}, globs, nil)
+	if len(got) != 0 {
+		t.Fatalf("got %+v", got)
+	}
+}
+
+func TestAPathOutsideTheTaskScopeAndLeases(t *testing.T) {
+	scope := &DeclaredScope{Globs: []string{"control-plane/internal/fleet/**"}, Leases: []string{"docs/work/*.md"}}
+	got, _ := Facts([]ChangedPath{
+		{Path: "control-plane/internal/fleet/leases/glob.go", Status: "M"},
+		{Path: "docs/work/agent-rules.md", Status: "M"},
+		{Path: "desktop/src/App.tsx", Status: "M"},
+	}, ProjectGlobs{}, scope)
+	if len(got) != 1 || got[0].Name != OutsideDeclaredScope || !reflect.DeepEqual(got[0].Paths, []string{"desktop/src/App.tsx"}) {
+		t.Fatalf("got %+v", got)
+	}
+}
+
+func TestASoloLaneNeverCarriesTheScopeFact(t *testing.T) {
+	got, _ := Facts([]ChangedPath{{Path: "anything/at/all.go", Status: "A"}}, ProjectGlobs{}, nil)
+	if len(got) != 0 {
+		t.Fatalf("got %+v", got)
+	}
+}
+
+func TestFactsComeInTheFixedOrderAndCarryNoNumber(t *testing.T) {
+	got, _ := Facts([]ChangedPath{
+		{Path: "desktop/x.ts", Status: "M"},
+		{Path: "control-plane/internal/hub/migrate/sql/0042_a.sql", Status: "A"},
+		{Path: "deploy/prod/values.yaml", Status: "M"},
+	}, globs, &DeclaredScope{Globs: []string{"deploy/**", "control-plane/**"}})
+	names := []RiskName{}
+	for _, f := range got {
+		names = append(names, f.Name)
+	}
+	if !reflect.DeepEqual(names, []RiskName{TouchesProdConfig, RunsMigration, OutsideDeclaredScope}) {
+		t.Fatalf("order %v", names)
+	}
+	if typ := reflect.TypeOf(RiskFact{}); typ.NumField() != 3 {
+		t.Fatalf("RiskFact grew a field: a score or a level does not belong on it")
+	}
+}
+
+func TestAMalformedGlobIsAnErrorNotAMiss(t *testing.T) {
+	if _, err := Facts([]ChangedPath{{Path: "a", Status: "M"}}, ProjectGlobs{ProdConfig: []string{"deploy/[prod"}}, nil); err == nil {
+		t.Fatal("a broken glob silently matched nothing")
+	}
+}
+```
+
+#### Tests to write first — `control-plane/internal/fleet/work/repo_test.go`
+
+```go
+package work
+
+import (
+	"context"
+	"errors"
+	"testing"
+)
+
+type someCalibrations map[string]bool
+
+func (c someCalibrations) Exists(_ context.Context, id string) bool { return c[id] }
+
+func TestAOneRepoProjectGetsNoProposal(t *testing.T) {
+	got, err := CheckRepoChoice(context.Background(), []string{"rm-1"}, &RepoChoice{Remote: "rm-1", Because: "only one"}, NoCalibrations{})
+	if err != nil || got != nil {
+		t.Fatalf("got %+v, %v", got, err)
+	}
+}
+
+func TestAnUncalibratedConfidenceIsDropped(t *testing.T) {
+	c := 0.91
+	got, _ := CheckRepoChoice(context.Background(), []string{"rm-1", "rm-2"},
+		&RepoChoice{Remote: "rm-2", Because: "the API lives there", Confidence: &c, CalibrationID: "cal-x"}, NoCalibrations{})
+	if got == nil || got.Confidence != nil || got.CalibrationID != "" {
+		t.Fatalf("kept %+v", got)
+	}
+	got, _ = CheckRepoChoice(context.Background(), []string{"rm-1", "rm-2"},
+		&RepoChoice{Remote: "rm-2", Because: "x", Confidence: &c, CalibrationID: "cal-x"}, someCalibrations{"cal-x": true})
+	if got.Confidence == nil {
+		t.Fatal("a calibrated confidence was dropped")
+	}
+}
+
+func TestAnUnboundRemoteIsRefused(t *testing.T) {
+	_, err := CheckRepoChoice(context.Background(), []string{"rm-1", "rm-2"}, &RepoChoice{Remote: "rm-9", Because: "x"}, NoCalibrations{})
+	if !errors.Is(err, ErrUnboundRemote) {
+		t.Fatalf("err %v", err)
+	}
+}
+```
+
+#### Tests to write first — appended to task 101's `verbs/issue_test.go`, and the conformance rows
+
+```go
+func TestIssueFileIsOrchestratorOnly(t *testing.T) {
+	_, err := FileIssue(ctx, Stamp{Class: "worker"}, dylanDelegated, &fakeFiler{}, IssueFileArgs{Project: "pj-1", Title: "x"})
+	if !errors.Is(err, ErrClass) {
+		t.Fatalf("a worker filed an issue: %v", err)
+	}
+}
+
+func TestIssueFileResultIsWhatTheHubStored(t *testing.T) {
+	f := &fakeFiler{stored: IssueFileResult{Issue: "is-1", State: "triage", Source: "orchestrator", TitleClass: "A"}}
+	got, _ := FileIssue(ctx, Stamp{Class: "orchestrator"}, dylanDelegated, f, IssueFileArgs{Project: "pj-1", Title: "x"})
+	if got.State != "triage" || got.Source != "orchestrator" {
+		t.Fatalf("got %+v", got)
+	}
+}
+
+func TestIssueFileRefusesAStateArgument(t *testing.T) {
+	// Through TM-19's dispatch with the real args decoder: the unknown field never reaches the handler.
+	res := dispatchFixture(t, "issue.file.with-state.json") // args carry "state": "todo"
+	if res.OK || res.Error.Code != "unknown_field" {
+		t.Fatalf("got %+v", res)
+	}
+}
+```
+
+Appended to task 99's `hubclient/conformance/work_agents.go` ⚑ (run against the fake and, with
+`-tags integration`, the real Hub; rule H1, additive):
+
+```go
+{Name: "an Orchestrator-filed issue is stored in triage whatever the body says", Run: func(t *testing.T, h Harness) {
+	got := h.AsDelegated("u-dylan").FileIssueAsAgent(t, map[string]any{"title": "x", "state": "todo"})
+	requireEqual(t, "triage", got.State); requireEqual(t, "orchestrator", got.Source)
+}},
+{Name: "a delegated caller cannot assign an issue", Run: func(t *testing.T, h Harness) {
+	is := h.AsPerson("u-dylan").NewIssue(t)
+	requireCode(t, "forbidden", h.AsDelegated("u-dylan").Assign(is, "u-dylan"))
+}},
+{Name: "a delegated caller cannot move an issue's state", Run: func(t *testing.T, h Harness) {
+	is := h.AsPerson("u-dylan").NewIssue(t)
+	requireCode(t, "forbidden", h.AsDelegated("u-dylan").MoveState(is, "started"))
+}},
+```
+
+`Harness`, `AsDelegated`, `AsPerson`, `requireEqual` and `requireCode` stand for task 05's and
+99's conformance helpers under their real names. If the last two rows fail on task 100's server,
+that is a finding against task 100 (gap 4), not a reason to weaken the row.
+
+#### Tests to write first — `desktop/src/components/work/{RiskFacts,RepoProposal}.test.tsx`
+
+```tsx
+import { describe, expect, it } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { expectNoPrediction } from "../../test/expectNoPrediction";
+import { RiskFacts } from "./RiskFacts";
+import { RepoProposal } from "./RepoProposal";
+import src from "./RiskFacts.tsx?raw";
+
+const reply = (over = {}) => ({ lane: "ln-1", globsSet: true, scopeChecked: true, teamLane: true, facts: [
+  { name: "runs-migration" as const, paths: ["m/0042.sql"], because: "adds or changes a file matching `m/*.sql` …" },
+], ...over });
+
+describe("RiskFacts", () => {
+  it("names the fact and its path, with no number, level or colour", () => {
+    const { container } = render(<RiskFacts reply={reply()} />);
+    expect(screen.getByText("runs a migration")).toBeTruthy();
+    expect(screen.getAllByText("m/0042.sql").length).toBeGreaterThan(0);
+    expect(container.textContent).not.toMatch(/\b(high|medium|low|score|risk \d)/i);
+    expect(src).not.toMatch(/--(red|amber|green|danger|warn)|severity|score/);
+    expectNoPrediction(container);
+  });
+  it("says so once when the project has no risk globs", () => {
+    render(<RiskFacts reply={reply({ facts: [], globsSet: false })} />);
+    expect(screen.getAllByText("no risk globs set for this project").length).toBe(1);
+  });
+  it("says scope was not checked on a team lane with the team view down, and nothing on a solo lane", () => {
+    const { rerender } = render(<RiskFacts reply={reply({ facts: [], scopeChecked: false })} />);
+    expect(screen.getByText("scope not checked: team view unavailable")).toBeTruthy();
+    rerender(<RiskFacts reply={reply({ facts: [], scopeChecked: false, teamLane: false })} />);
+    expect(screen.queryByText(/scope/)).toBeNull();
+  });
+});
+
+describe("RepoProposal", () => {
+  const two = [{ id: "rm-1", label: "github · kpmg/api" }, { id: "rm-2", label: "ado · kpmg/web" }];
+  it("renders nothing on a one-repo project", () => {
+    const { container } = render(<RepoProposal choice={{ remote: "rm-1", because: "x" }} remotes={[two[0]]} />);
+    expect(container.textContent).toBe("");
+  });
+  it("shows no confidence without a calibration id, and the reason as agent text", () => {
+    const { container } = render(<RepoProposal choice={{ remote: "rm-2", because: "the form lives there", confidence: 0.9 }} remotes={two} />);
+    expect(container.textContent).not.toMatch(/0\.9|%/);
+    expect(container.querySelector("[data-class='A']")?.textContent).toBe("the form lives there");
+    expectNoPrediction(container);
+  });
+});
+```
+
+Task 42's `TriageView.test.tsx` gains one row: an Orchestrator-filed issue shows
+`alice · orchestrator (agent)`, its title carries `data-class="A"`, and *Accept* is sent with the
+person's token through task 42's accept op (mutant: accept sent as the agent, or the byline lost).
+
+| Test | Mutant it kills |
+|---|---|
+| a migration file raises `runs-migration` with its path and glob | fact missed; a fact with no *because* |
+| a deleted migration raises nothing | a delete read as running a migration |
+| a path outside scope and leases | scope unchecked; a lease ignored |
+| a solo lane never carries the scope fact | a guessed scope on a lane that declared none |
+| fixed order; `RiskFact` has three fields | facts ranked by severity; a score field added |
+| a malformed glob is an error | a broken glob silently matches nothing |
+| one-repo project, no proposal | a needless proposal |
+| uncalibrated confidence dropped; calibrated kept | an uncalibrated number (anti-pattern 12); a rule that drops every number forever |
+| unbound remote refused | a proposal naming a repository the project does not bind |
+| `issue.file` Orchestrator only | a worker files issues |
+| result is what the Hub stored | the verb echoes its args, hiding the Hub's triage |
+| a `state` argument refused | the agent files into the backlog |
+| conformance: stored in triage; no assign; no state move | the agent files into the backlog; the agent triages its own issue |
+| RiskFacts: no number, level or colour | a risk score, a traffic light |
+| globs not set, said once | silence read as *no risk* |
+| scope not checked on a team lane | a missing scope check read as *in scope* |
+| RepoProposal: nothing on one repo; no confidence | a needless proposal; an uncalibrated number |
+
+#### Steps
+
+- [ ] **Step 1: read on the sync base** phase 3's lane index and changed-path read
+  (`internal/converge`) and `LaneCard.tsx`, task 48's `IssueAgentLine.tsx`, task 42's
+  `TriageView.tsx`, task 101's `verbs/issue.go` names, task 99's create method and conformance
+  helpers, TM-03's task type and TM-05 §6.3's scope and lease fields, and whether the Hub project
+  record binds more than one remote. Rename in this part's files only.
+- [ ] **Step 2: add `doublestar/v4`** (`go get github.com/bmatcuk/doublestar/v4`; MIT, named in
+  the commit message); check `git diff control-plane/go.mod` keeps `go 1.23`.
+- [ ] **Step 3: the Go tests first**, then `riskfacts.go`, `workrisk.go` with its registration and
+  catalog row, `repo.go`, and `FileIssue` with its dispatch row and fixtures.
+- [ ] **Step 4: the conformance rows**; run them against the fake, then with `-tags integration`
+  against the real Hub; a failing assign or move row is reported to task 100's owner.
+- [ ] **Step 5: the desktop tests first**, then `RiskFacts.tsx`, `RepoProposal.tsx`, the two mounts,
+  the `TriageView` edit and `workRisk` in `work.ts`.
+- [ ] **Step 6: run the acceptance commands.** Commit by path after steps 3, 4 and 5, each message
+  ending with the `Co-Authored-By` line.
+
+#### Acceptance
+
+```bash
+go test ./control-plane/internal/work/ ./control-plane/internal/fleet/work/ -race -count=1 -v -run 'Migration|Scope|Solo|Order|Malformed|Repo|Calibrated|Unbound'
+# expect: riskfacts 6 and repo 3 tests, all PASS
+go test ./control-plane/internal/fleet/verbs/ -race -count=1 -run IssueFile
+# expect: 3 tests PASS
+go test ./control-plane/... -race -count=1
+# expect: ok for every package; no FAIL line
+go test -tags integration ./control-plane/internal/hub/hubclient/conformance/ -run 'triage|assign|state' -count=1
+# expect: 3 rows PASS against the real Hub (compose.yaml up)
+npm --prefix desktop test -- work/RiskFacts work/RepoProposal work/TriageView issue/IssueAgentLine
+# expect: every file passes; this part adds 5 tests in two new files, plus 1 in TriageView
+npm --prefix desktop run typecheck
+# expect: exit 0
+grep -rnE "score|severity|confidence" control-plane/internal/work/riskfacts.go desktop/src/components/work/RiskFacts.tsx
+# expect: no output
+```
+
+The counts are this part's plan, not a run.
+
+#### What this task does NOT claim
+
+- That the globs catch every production config or migration: the project owns them, and an
+  unconfigured project raises neither fact (decision 4).
+- That a fact means the lane is dangerous, or its absence that it is safe. A fact says a path
+  matched a glob.
+- That any repository proposal is right, or that a calibration record will ever exist; W3 shows
+  no confidence at all.
+- That an Orchestrator files useful issues. It claims only that what it files lands in `triage`,
+  marked `text·A`, for a person.
+- That Phase T's task record carries `repository` until its delta lands (gap 2).
+
+**Parity** (`05-design.md` rows). Closes **L-174** (`:336`), **L-192** (`:359`, on team projects
+with more than one bound remote) and **L-193** (`:360`).
+
+#### Gaps found while writing this part
+
+1. **Where a project's risk globs live** is undesigned: no W1 settings record names prod-config or
+   migration globs. They need an added field on the project's work settings (task 03's wire) and a
+   settings row (task 109's settings surface).
+2. **Several remotes per Hub project, and `repository` on Phase T's task**, are both unverified:
+   the Hub contract was not read for multi-remote binding here, and TM-03's task has no such field.
+3. **The scope says an Orchestrator's create outside `triage` is *refused*; task 100 *forces* it
+   to `triage`.** This part follows task 100 (the Hub owner) and makes the verb carry no `state`
+   at all; the skeleton scope should say *stored in triage*.
+4. **No W3 Hub guard forbids a delegated caller's assign or state move.** Task 100's guards list
+   triage-forcing and assignee-only delegation, not these; the conformance rows here ask for them.
+5. **The Orchestrator's `because` for filing** has no field on W1's create body; an added field
+   (`fileReason`, `text·A`) on task 99's wire, or the verb drops it.
+6. **`issue.file` is a fourth work verb**; the skeleton's delta row (`:287`) says *"three verbs"*.
+7. **The file map has no row** for `control-plane/internal/work/`, `internal/api/workrisk.go`,
+   `components/work/{RiskFacts,RepoProposal}.tsx` or Fleet's `work/repo.go`.
 
