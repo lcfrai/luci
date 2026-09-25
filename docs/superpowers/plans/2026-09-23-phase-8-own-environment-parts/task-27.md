@@ -80,7 +80,7 @@ which moves the base, moves or drops it too.
 
 | Assertion | Mutant it kills |
 |---|---|
-| `docker run --rm panacea-app/broker:<sha>` exits **2** and prints `PANACEA_APP_BROKER_ENTRA_TENANTS is required` | a broker image that starts with no configuration |
+| `docker run --rm panacea-app/broker:<sha>` exits **2** and prints `PANACEA_APP_OIDC_ISSUER is required`, the first required variable task 17 reports (task 17 `:340`; OD-30 ruling §11: no `PANACEA_APP_BROKER_ENTRA_*` name exists) | a broker image that starts with no configuration |
 | the broker and Hub images have **no shell**: `docker run --rm --entrypoint /bin/sh …` fails to start | a debug base that ships a shell to anyone who gets exec |
 | `docker inspect` user of broker and Hub is `65532` (nonroot), of machine `1001` | a root container on a `restricted` namespace (task 11 would reject it at admission, late) |
 | `docker run --rm --entrypoint git panacea-app/machine:<sha> version` ≥ **2.40.0** | `machined` failing `CheckVersion` on first wake |
