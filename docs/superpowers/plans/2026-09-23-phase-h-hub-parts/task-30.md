@@ -4,7 +4,7 @@
 
 **OD-30 (ruling `docs/superpowers/planning/2026-09-25-identity-keycloak-broker.md` on `main`, sections
 2 and 3) rewrites this part.** The user signs in through a **Keycloak realm that brokers Entra**, with no
-clicks: auth code + PKCE against `PANACEA_APP_OIDC_ISSUER`, `kc_idp_hint` skips Keycloak's page,
+clicks: auth code + PKCE against `PANACEA_APP_OIDC_ISSUER`, the desktop client's browser-flow override (ruling K1) skips Keycloak's page (`kc_idp_hint=entra` is sent and may only name `entra`, the realm's one IdP),
 `login_hint` (the Windows UPN) and the Windows session skip Entra's picker, and no `prompt` is ever
 sent. OD-6's other half stands: the **system browser**, and ADR-H1 §5.2's mechanics: the flow and the
 tokens live **in the control plane**, the renderer never sees a code or a token. The package is
@@ -163,7 +163,7 @@ is the listener. No test adds a parameter to the URL: devissuer picks the dev us
 |---|---|---|
 | `TestSignInEndToEnd` | `OpenBrowser` was called once, with the returned URL; `Status` goes `signing_in` → `signed_in`; `Account` is Grace; the store holds the account record, and its `refreshGen` names the **only** generation under `OIDCRefreshPrefix(Issuer)`, which holds exactly `refreshChunks` ≥ 1 chunks; `AfterSignIn` was called once and `Token(ctx, "panacea-app-hub")` inside it returned a token `oidcauth` validates under `ProfileKeycloak` with `Audience: "panacea-app-hub"` | any break in steps 2–11 against the real issuer; a browser the control plane never opens |
 | `TestTheAuthorizeURL` | the query's key set is **exactly** step 4's ten keys, each value exact; `scope` is the six names in order; `redirect_uri` is `http://127.0.0.1:<the listener's port>/callback`; the listener is bound to `127.0.0.1`, not `0.0.0.0` | a redirect the realm client rejects; a listener reachable from the LAN; any extra parameter |
-| `TestTheIdPHintIsSent` | `kc_idp_hint` = `entra`; with `IdPHint: ""` the key is **absent** (not empty) | **a missing `kc_idp_hint`**: Keycloak's login page, a click, comes back |
+| `TestTheIdPHintIsSent` | `kc_idp_hint` = `entra`; with `IdPHint: ""` the key is **absent** (not empty) | **a missing or wrong `kc_idp_hint`**: the flow override, not the hint, skips Keycloak's page (ruling K1), so this pins the value sent; a wrong value names no IdP and the sign-in fails closed (K1's one-IdP invariant, OD-30 review-2 I1) |
 | `TestTheLoginHintIsSent` | `login_hint` = `grace@example.test`, and devissuer signed in Grace, not its first user; with `LoginHint: ""` the key is **absent** and devissuer's fallback user signs in | **a missing `login_hint`**: Entra's account picker comes back; a guessed hint |
 | `TestNoPromptIsSent` | the query has **no** `prompt` key, and no `domain_hint`, `response_mode`, `max_age` or `acr_values`, at every sign-in including one after `Cancel` | **a `prompt` parameter sent** (`select_account` or `login`): Entra re-asks every time |
 | `TestTheExchangeAccessTokenIsNeverUsed` | devissuer marks the code-exchange access token; it never reaches `AfterSignIn`'s `Token` answer, and step 9b's request carries `scope=openid panacea-app-hub` | the all-audience token replayed at the Hub (confused deputy) |
