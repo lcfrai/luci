@@ -1,5 +1,7 @@
 ### Task 25: a cloud machine's project-only `gitx.Machine`, its `MachineFS`, and its composite catalog (seam S3-P8.1)
 
+HELD until phase 3's tasks 02 to 04 and 11 are sync-merged into feat/env, phase 3 answers S8-P3.6 (`gitx.MachineFS`, with `Sealed`), and tasks 21 and 24b land (`.superpowers/sdd/env/held.md`): the build stream skips this task until then.
+
 Re-planned onto phase 3's ruling R4 by the env rulings of 2026-09-25
 (`.superpowers/sdd/env/r4-env-rulings.md`, "What each task changes", task 25). A cloud machine meets
 phase 3 at three seams. This task builds the laptop's half of all three; lane git is task 25b's.
@@ -39,7 +41,7 @@ holds this task out of the build stream until phase 3 answers ("Order", "Held"; 
 
 **Files:**
 - `control-plane/internal/machines/remote.go`, `remote_test.go` — `machines.Remote` and its `gitx.MachineFS` (new; phase 8's package, so phase 3's `gitx` gains no phase 8 import)
-- `control-plane/internal/machineapi/fs.go` — the `/v1/fs/…` and `sealed` wire, and `Problem`, if task 21 has not already added them (new; task 21 owns the package, and its spelling wins)
+- no `machineapi` file: the `/v1/fs/…` and `sealed` wire is task 21's (`task-21.md:139-186`), and an agent's problem body is task 24b's `machines.AgentError` (`task-24b.md:62-71`) (review-2 M2, M3)
 - `control-plane/internal/machines/agent.go` — `*Agent` implements `AgentRoutes` (modify, after 24b)
 - `control-plane/internal/machines/source.go` — `CatalogSource`, the agent catalog as a `lanes.Source` (new)
 - `control-plane/internal/api/catalog.go` — a cloud `machineId` is served by `lanes.Catalog{Source, Store, FS}` (modify, after 24b)
@@ -65,7 +67,7 @@ import (
 
 // AgentRoutes is task 21's routes on one machine's agent, through the broker's agent proxy.
 // *Agent implements it; tests use a fake. A problem body the agent answered comes back as
-// *machineapi.Problem; anything else (the broker unreachable, backend.ErrUnavailable) comes back
+// *AgentError (task 24b's, the one type; review-2 M2); anything else (the broker unreachable, backend.ErrUnavailable) comes back
 // as it is.
 type AgentRoutes interface {
 	Git(ctx context.Context, call machineapi.GitCall) (machineapi.GitResult, error) // POST /v1/git
@@ -110,10 +112,10 @@ func (r Remote) FS() gitx.MachineFS { return remoteFS{r.Agent} }
 // It sends Dir and NewLane relative to MachineRoot ("" stays "": machined's own owned root,
 // task 21), Class as "read" | "local" | "remote", Scope as "project" | "none", and RemoteURL,
 // Stdin, Env and OKExit unchanged. It maps the answer back:
-//   - *machineapi.Problem "git_failed" → *Error{Dir, Args from the Call; ExitCode, TimedOut and
+//   - *AgentError "git_failed" → *Error{Dir, Args from the Call; ExitCode, TimedOut and
 //     Stderr = details.gitSays from the details};
 //   - "conflict" with details.reason "project_config_untrusted" → *UntrustedConfig{Dir,
-//     Key: details.key, Scope: Project}; any other conflict reason stays a *machineapi.Problem;
+//     Key: details.key, Scope: Project}; any other conflict reason stays an *AgentError;
 //   - "bad_request" (400) → an error wrapping ErrCallShape;
 //   - anything else passes through, never an *Error, so the cockpit never says "git said" for a
 //     network failure. Callers that switch on *Error or *UntrustedConfig behave as for Local.
@@ -162,60 +164,11 @@ type MachineFS interface {
 }
 ```
 
-The wire, which task 21 serves. Paths are relative to the machine root.
-
-```go
-package machineapi
-
-// GitCall (task 21) gains NewLane, ruling 4's creating writes. Scope is "project" | "none".
-//	NewLane string `json:"newLane,omitempty"`
-
-const (
-	PathFSLstat      = "/v1/fs/lstat"
-	PathFSRemoveTree = "/v1/fs/remove-tree"
-	PathFSCopyHooks  = "/v1/fs/copy-hooks"
-	PathLanesSealed  = "/v1/lanes/sealed"
-)
-
-// FSPath is the body of POST /v1/fs/lstat and POST /v1/lanes/sealed (204). Path is under lanes/.
-type FSPath struct {
-	Path string `json:"path"`
-}
-
-// FSStat is POST /v1/fs/lstat's 200.
-type FSStat struct {
-	Exists bool `json:"exists"`
-	Dir    bool `json:"dir"`
-}
-
-// FSRemoveTree is POST /v1/fs/remove-tree's body (204). Root is lanes or under it.
-type FSRemoveTree struct {
-	Root string `json:"root"`
-	Path string `json:"path"`
-}
-
-// FSCopyHooks is POST /v1/fs/copy-hooks's body. ProjectTop is under projects/; CloneTop is
-// under lanes/ and in machined's creating set (ruling 4).
-type FSCopyHooks struct {
-	ProjectTop string `json:"projectTop"`
-	CloneTop   string `json:"cloneTop"`
-	Rel        string `json:"rel"`
-}
-
-// FSCopied is POST /v1/fs/copy-hooks's 200.
-type FSCopied struct {
-	Copied int `json:"copied"`
-}
-
-// Problem is a problem body the agent answered, as machines.Agent returns it.
-type Problem struct {
-	Status  int
-	Code    string
-	Details map[string]string
-}
-
-func (p *Problem) Error() string // "<status> <code>", never a detail value
-```
+The wire is task 21's and is not declared here (review-2 M3): `GitCall.NewLane`, the
+`PathFS…` and `PathLanesSealed` routes, `FSPath`, `FSStat`, `FSRemoveTree` (root "lanes or a
+lane"), `FSCopyHooks` and `FSCopied`, all in `machineapi/wire.go` (`task-21.md:139-186`). Paths
+are relative to the machine root. An agent's problem body comes back as task 24b's
+`*machines.AgentError` (`task-24b.md:62-71`); there is no `machineapi.Problem` (review-2 M2).
 
 The catalog for a cloud machine, on the laptop:
 
