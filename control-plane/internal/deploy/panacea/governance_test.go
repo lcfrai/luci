@@ -159,6 +159,9 @@ func TestPostureMintedTokenReturnedNotLogged(t *testing.T) {
 		"PUT " + branchP + "/access": {file: "posture-set-minted.json"},
 		"PUT " + actsP + "/branches/locked/access": {status: 409,
 			body: `{"error":"access mode cannot be relaxed: a stand-in echo of ` + password + ` and ` + token + `"}`},
+		// Posture's GET passes noBodyLog too: a failed read's body is not logged either.
+		"GET " + actsP + "/branches/locked/access": {status: 404,
+			body: `{"error":"a stand-in echo of ` + password + ` and ` + token + `"}`},
 	})
 	ctx := context.Background()
 	got, err := rs.c.SetPosture(ctx, project, "feat/x", deploy.PostureChange{Mode: deploy.PostureBypassToken, RotateBypassToken: true})
@@ -172,7 +175,13 @@ func TestPostureMintedTokenReturnedNotLogged(t *testing.T) {
 	if deploy.KindOf(err) != deploy.KindConflict {
 		t.Fatalf("a 409 read as %v", err)
 	}
+	if _, err := rs.c.Posture(ctx, project, "locked"); deploy.KindOf(err) != deploy.KindNotFound {
+		t.Fatalf("a 404 read as %v", err)
+	}
 	log := rs.log.String()
+	if n := strings.Count(log, "panacea call failed"); n != 2 {
+		t.Fatalf("%d failed calls logged, want the PUT and the GET, so this test proves nothing:\n%s", n, log)
+	}
 	if !strings.Contains(log, "panacea call failed") {
 		t.Fatalf("the failed call was not logged, so this test proves nothing:\n%s", log)
 	}
@@ -483,5 +492,68 @@ func TestNoWriteIsRetried(t *testing.T) {
 	}
 	if len(writes)+len(reads) != len(routes) {
 		t.Errorf("%d routes, %d calls: a method is untested", len(routes), len(writes)+len(reads))
+	}
+}
+
+// TestCallsAcceptOnlyTheirStatus kills a call that takes any 2xx. Each accepts only the status
+// its handler writes on success: Ship 202 (handlers/projects.go:2998), Grant 201
+// (handlers/access.go:61), every other 200. Another 2xx is an answer this code does not know:
+// KindUnavailable with the status received, one request, never retried.
+func TestCallsAcceptOnlyTheirStatus(t *testing.T) {
+	ctx := context.Background()
+	rollback := `{"data":{"id":"d1","status":"rolling-back","createdAt":"2026-09-23T11:02:09Z","rollbackWarmth":"warm"}}`
+	for _, c := range []struct {
+		name, key string
+		answer    fixture
+		call      func(*Client) error
+	}{
+		{"Ship", "POST " + actsP + "/deploy", fixture{file: "ship-202.json", status: 200}, func(c *Client) error {
+			_, err := c.Ship(ctx, project, deploy.ShipRequest{Branch: "feat/x", Commit: commit40})
+			return err
+		}},
+		{"Cancel", "POST " + actsP + "/pipelines/r1/cancel", fixture{file: "cancel-cancelled.json", status: 202}, func(c *Client) error {
+			_, err := c.Cancel(ctx, project, "r1")
+			return err
+		}},
+		{"Rollback", "POST " + actsP + "/deployments/d1/rollback", fixture{body: rollback, status: 202}, func(c *Client) error {
+			_, err := c.Rollback(ctx, project, "d1")
+			return err
+		}},
+		{"SetAutoDeploy", "PUT " + branchP + "/auto-deploy", fixture{file: "autodeploy-set.json", status: 201}, func(c *Client) error {
+			_, err := c.SetAutoDeploy(ctx, project, "feat/x", true)
+			return err
+		}},
+		{"SetPosture", "PUT " + branchP + "/access", fixture{file: "posture-set-minted.json", status: 201}, func(c *Client) error {
+			_, err := c.SetPosture(ctx, project, "feat/x", deploy.PostureChange{Mode: deploy.PostureBypassToken})
+			return err
+		}},
+		{"Grant", "POST " + actsP + "/access", fixture{body: `{"message":"access binding added"}`, status: 200}, func(c *Client) error {
+			return c.Grant(ctx, project, deploy.GrantRequest{Grantee: "a", Role: deploy.RoleViewer})
+		}},
+		{"Revoke", "DELETE " + actsP + "/access/a", fixture{body: `{"message":"access binding removed"}`, status: 202}, func(c *Client) error {
+			return c.Revoke(ctx, project, "a")
+		}},
+		{"SetURLPrefix", "PUT " + branchP + "/url-prefix", fixture{file: "urlprefix.json", status: 201}, func(c *Client) error {
+			_, err := c.SetURLPrefix(ctx, project, "feat/x", "uat-test")
+			return err
+		}},
+		{"AutoDeploy", "GET " + branchP + "/auto-deploy", fixture{file: "autodeploy.json", status: 203}, func(c *Client) error {
+			_, err := c.AutoDeploy(ctx, project, "feat/x")
+			return err
+		}},
+		{"Posture", "GET " + branchP + "/access", fixture{file: "posture.json", status: 203}, func(c *Client) error {
+			_, err := c.Posture(ctx, project, "feat/x")
+			return err
+		}},
+		{"Access", "GET " + actsP + "/access", fixture{file: "access.json", status: 203}, func(c *Client) error {
+			_, err := c.Access(ctx, project)
+			return err
+		}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			rs := serveRecorded(t, map[string]fixture{c.key: c.answer})
+			wantKind(t, c.call(rs.c), deploy.KindUnavailable, c.answer.status, "")
+			oneRequest(t, rs, c.key)
+		})
 	}
 }

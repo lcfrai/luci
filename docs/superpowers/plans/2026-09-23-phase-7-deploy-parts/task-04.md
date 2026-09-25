@@ -235,6 +235,7 @@ test those routes. Rollback refuses a row with no image, as Panacea does (`:1575
 | `TestAccessLegacyGroup` | `access.json`'s legacy row → `Legacy == true`, `Group "project-legacy-viewer"`, `Grantee "team-old"`; the person row → `Legacy == false`, `Group == Grantee` | drawing a group binding as a person; a legacy test keyed on `Grantee == ""`, which Panacea's code never sends (review M30) |
 | `TestRevokeLegacyByGroup` | `Revoke` with the legacy row's `Group` requests `/access/project-legacy-viewer`, and the recorded requests hold no `/access/team-old` | revoking a legacy row by its grantee: Panacea answers 200 and removes nothing (`keycloak.go:268`) (review M30) |
 | `TestNoWriteIsRetried` | every write of this task against a server answering 503 once, then its success: each saw one request. The three reads each saw two, and read the answer | — the whole file's rule |
+| `TestCallsAcceptOnlyTheirStatus` (built t04, mutation run) | each of the eleven calls ClearURLPrefix's own test does not cover, answered with its success body under another 2xx → `KindUnavailable`, `Status` the one received, one request | a call that takes any 2xx, e.g. a Ship answered 200 read as a started run (named survivor N2) |
 
 #### Steps
 
@@ -278,6 +279,16 @@ grep -niE '(secretscan|dast|sast|checks|iacscan|scascan|licensescan|modelscan|nu
   `already_completed`, *"Pipeline run is already Unknown"*, and `Cancel` reads that as
   `AlreadyFinished`. The Fake cancels such a run. `panaceatest` copies Panacea's rule
   (`TestCancelRoute`).
+- That a cleared URL prefix has stopped serving (found t04, for the task that consumes
+  `ClearURLPrefix`). `ClearBranchURLPrefix` answers 200 with `routeReverted: false` and the
+  message *"URL prefix released, but the live route has NOT reverted yet — …"* when removing the
+  host annotation or the reconcile fails (`projects.go:4427-4450`, at Panacea `eb85f0d9f`). `ClearURLPrefix` returns
+  only `error`, as `deploy.Governor` declares it, so that case reads as plain success. It is the
+  same saved-but-not-applied class `SetPosture` reports through `Enforced`; closing it needs a
+  result type on the interface, which is outside this task.
+- `panaceatest`'s `PUT B/access` starts every write from no password and no tokens, as
+  `writeAccessMode` deletes the other mode's material (`handlers/access_mode.go:202-216`; found
+  t04, `TestBranchAccessPut`).
 - `PostureResult.Posture` beyond branch, environment and mode. The PUT's answer has no
   `ipWhitelist`, `passwordSet` or `bypassTokenCount` (`project_security.go:824-833`). Those are
   zero, and a caller that shows them re-reads `Posture` (task 11).
