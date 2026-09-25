@@ -187,12 +187,15 @@ func (l *Lander) Land(ctx context.Context, req LandRequest) (LandResult, error)
 // failure backs off without Forget (task 07), so a runner fault or an agent's broken lane never
 // buys the whole history at every backoff.
 // That retry works because the runner's fetch first repairs its own namespace
-// (refs/remotes/origin/, refs/remotes/upstream/): it deletes every non-symref ref there that
-// names a missing object (review r4-3 I-2), and removes every loose ref file there that git
-// cannot read, an empty one included, which update-ref -d cannot (task 24's fetch steps 1 and
-// 2; review r4-4 I-2). On the image's git 2.39.5 one such ref fails verify and fetch of any
-// bundle, the no-basis one included, and the repair is what lets it through. The same repair
-// clears an agent's 40 random hex, or an empty file, in its origin/<branch> on the first fetch:
+// (refs/remotes/origin/, refs/remotes/upstream/): it removes every .lock there older than
+// BundleTimeout (review r4-5 M-2), deletes every non-symref ref there that names a missing
+// object (review r4-3 I-2), and removes every loose ref file there that git cannot read, an
+// empty one included, which update-ref -d cannot (review r4-4 I-2); when that removed a file it
+// deletes again, since the file may have hidden a packed ref naming a missing object (task 24's
+// fetch steps 1 and 2; review r4-5 M-1). On the image's git 2.39.5 one such ref fails verify
+// and fetch of any bundle, the no-basis one included, and the repair is what lets it through.
+// The same repair clears an agent's 40 random hex, or an empty file, in its origin/<branch> on
+// the first fetch:
 // the claim omits that ref, so that lane costs one whole-history bundle, not one per retry.
 // A Fetch answering lanegit.ErrLaneBroken (a ref OUTSIDE that namespace names a missing object,
 // or the repair met a symlink or a garbled packed-refs, which no bundle can mend) is that
