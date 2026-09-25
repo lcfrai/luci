@@ -393,8 +393,10 @@ func (s *Server) TeamModeAllowed() error {
 }
 ```
 
-`hub_audit_stream_lag_seconds{org}` (now minus the oldest unsent event's `at`, 0 when none) and
-`hub_audit_anchor_age_seconds{org}` are exported on Hub task 08's metrics endpoint.
+Each round logs one line per org, `audit stream org=<id> sent=<n> lag_s=<now minus the oldest
+unsent event's at, 0 when none>`, and each anchor `audit anchor org=<id> seq=<n>`. The Hub has no
+metrics endpoint on its branch (none found in Hub tasks or the contract at `9f2fa31`), so these
+lines, collected by phase 8 task 04's Container Insights, are what an alert reads.
 
 #### The `anchor` check
 
