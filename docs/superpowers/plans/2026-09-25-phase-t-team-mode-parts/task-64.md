@@ -264,3 +264,61 @@ On phase 3's `lanegittest.Fake` and `lanes.FileStore` in a temp dir for the lapt
 | `TestMovedLaneRefusesALocalSession` | after a move, a local launch into the laptop lane → 409 `lane_moved_to_cloud` | two agents on two copies of one lane |
 | `TestSoloProjectRefuses` | `IsTeam` false → 409 `not_a_team_project` on both routes; no cloud call | moving lanes of a project nobody shares |
 | `MoveLanes sends exactly the ticked ids` (TS) | three candidates, one busy (disabled), one unticked by the user: the POST body has one id | an untick ignored; a disabled row sent |
+
+- [ ] **Step 2: Run the tests and watch them fail**
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/control-plane && GOPROXY=off go test ./internal/api/ ./internal/lanes/ -run "Move|Moved|Duplicated|Behind|Diverged|Uncommitted|Solo|Exports"
+```
+
+Expected: `undefined: LanesMover`, `unknown field MovedFrom in struct literal of type lanes.Lane`.
+
+- [ ] **Step 3: The `lanes` fields, `CreateRequest.StartAt`, `MarkMoved`; phase 3's `lanes` suite
+  passes with `StartAt` empty (its behaviour unchanged).**
+- [ ] **Step 4: `machined`'s `bundle-in` on the sibling's code; its verify-and-fetch test on real
+  git, and a bundle that fails `verify` creating nothing.**
+- [ ] **Step 5: `lanesmove.go`, the two routes, the local-session refusal; the audit rows.**
+- [ ] **Step 6: `MoveLanes.tsx`, after the prototype frame's review (gap 3).** Read
+  `docs/DESIGN-SYSTEM.md` and `docs/AGENTIC-UX.md` first.
+- [ ] **Step 7: Run everything**
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/control-plane && GOPROXY=off go test ./... && GOPROXY=off go vet ./... && gofmt -l internal cmd
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/desktop && npm run typecheck && npm test -- team
+```
+
+Expected: every package `ok`, phase 3's `lanes` and lens suites unchanged, `gofmt -l` silent,
+typecheck clean.
+
+- [ ] **Step 8: Commit**
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team && git add control-plane/internal/api/lanesmove.go control-plane/internal/api/lanesmove_test.go control-plane/cmd/machined/bundlein.go desktop/src/components/team/MoveLanes.tsx desktop/src/components/team/MoveLanes.test.tsx && git commit -F .superpowers/sdd/team/msg/task-64.txt -- control-plane desktop/src
+```
+
+A real move from a laptop into a cloud machine on the real environment is not in task 69's list;
+this task's tests use fakes for the cloud half, and the first real move is a deferred check (gap
+4).
+
+**What this task does not claim:**
+
+- **That uncommitted work can move.** Only commits cross; the owner commits or leaves the files.
+- **That the laptop copy disappears.** It stays, frozen for launches; removing it is the owner's
+  phase 3 remove.
+- **Session history.** A conversation that ran on the laptop does not move; the cloud session
+  starts fresh in the moved lane.
+- **Speed or size.** A lane of thousands of commits is one bundle within task 24's limit; a lane
+  over it is `git_failed` with git's sentence, and no chunking is proposed.
+
+**Gaps against the skeleton, raised here:**
+
+1. **Phase 8 has no bundle-into-the-project op for a laptop's bundle.** P8-D7's runner answers
+   `bundle` and `fetch` for lanes; this task adds `bundle-in` for the machine's project, a phase 8
+   delta the skeleton's delta table does not list (its rows for `cmd/machined` name tasks 34 and
+   60 only).
+2. **Worktree ids.** Phase 3's lane id is `w-` plus 8 hex and changes per clone; the skeleton and
+   several parts write `wt-…`. This part uses phase 3's form; the skeleton should say which.
+3. **No prototype frame for this view.** Task 51's prototype lists every team surface; this
+   button and list are a new one and need the owner's review first.
+4. **No real-environment check.** Task 69's list has no lane move; the skeleton should add one
+   or accept that this is proved on fakes.
