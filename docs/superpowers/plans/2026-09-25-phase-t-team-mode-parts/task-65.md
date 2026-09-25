@@ -62,8 +62,13 @@ the merge, on `dev`, before the artefact is published. The PR needs a repository
 pipeline identities do not have (P8-D16): gap 1.
 
 **(c) The mirror moves with the CLI.** §8.2 pins the lane mirror's git by digest and bumps it with
-the CLI image. Task 58's mirror image is built `FROM` the sandbox base in the same `build.sh`
-run, as the machine image is (phase 8 `parts/task-27.md:21`), so one bump moves all three.
+the CLI image (`05-design.md:898`). Task 58's mirror image has its own pinned AzureLinux base and
+git package (`task-58.md:392-405`), not the sandbox base, and task 58 says its digest "moves only
+with the CLI bump job's gates" (`task-58.md:72-75`). So this task adds `images/mirror` to
+`build.sh` and `mirror` to `digests.json`: every run that publishes a new sandbox digest publishes
+the mirror digest built beside it, through the same four gates. A git bump in the mirror's
+Dockerfile is an ordinary PR that rides the next publish. Fleet passes the digest in task 58's
+`PUT /v1/mirrors/{projectId}` body (`task-58.md:316`) from `PANACEA_APP_FLEET_MIRROR_IMAGE`.
 
 **(d) Promotion is task 30's deploy, as ever.** On `dev` the deploy that consumes a newly published
 `image-digests` sets `warm.images.sandbox` and `warm.images.machine`, the broker's session image,
@@ -203,3 +208,39 @@ that key hash shows at least one `/v1/messages` upstream `200` and **zero** refu
 allowed, header refused, model not in the catalogue). The docs warn that *"a gateway that doesn't
 forward them breaks the corresponding features"* (`05-design.md:1106-1108`); zero refusals is how
 that shows up on our side.
+
+**Files, two more** (omitted from the list above): `pipelines/scripts/lib/gate.sh`, the one writer
+and reader of gate files, with `lib/gate_test.sh` (new); `images/mirror` joins `build.sh` (c).
+
+**`pipelines/scripts/lib/gate.sh`, complete.** No `jq`, as phase 8's scripts have none
+(`parts/task-30.md:489`). The reader is sound only because this is the only writer, and it
+refuses any value that could break the fixed shape.
+
+```bash
+#!/usr/bin/env bash
+# pipelines/scripts/lib/gate.sh — sourced. The ONLY writer and reader of images/.out/gates/*.json.
+#   gate_write <dir> <gate> <image> <claudeCode> <result> <reason>     exit 2 on a bad value
+#   gate_field <file> <key>                                            prints the value, or nothing
+readonly GATE_NAMES="canary channel g9 gateway"
+readonly GATE_IMAGE_RE='^[a-z0-9.-]+(:[0-9]+)?/[a-z0-9._/-]+@sha256:[a-f0-9]{64}$'
+readonly GATE_VERSION_RE='^[0-9]+\.[0-9]+\.[0-9]+$'
+
+gate_write() {
+  local dir="$1" gate="$2" image="$3" cc="$4" result="$5" reason="$6"
+  case " $GATE_NAMES " in *" $gate "*) ;; *) echo "gate: unknown gate $gate"; return 2 ;; esac
+  [[ "$image" =~ $GATE_IMAGE_RE ]] || { echo "gate: $gate: image is not a digest: $image"; return 2; }
+  [[ "$cc" =~ $GATE_VERSION_RE ]] || { echo "gate: $gate: claudeCode is not MAJOR.MINOR.PATCH"; return 2; }
+  case "$result" in pass|fail|skipped) ;;
+    not-required) [ "$gate" = g9 ] || { echo "gate: not-required is g9's only"; return 2; } ;;
+    *) echo "gate: $gate: result $result"; return 2 ;; esac
+  [[ "$reason" =~ ^[A-Za-z0-9\ .,:/_()=-]{0,200}$ ]] || { echo "gate: $gate: reason has a character the reader cannot carry"; return 2; }
+  mkdir -p "$dir"
+  printf '{"gate":"%s","image":"%s","claudeCode":"%s","result":"%s","reason":"%s","at":"%s","run":"%s"}\n' \
+    "$gate" "$image" "$cc" "$result" "$reason" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${BUILD_BUILDNUMBER:-local}" \
+    > "$dir/$gate.json"
+}
+
+gate_field() {  # every value is from gate_write's alphabet, so no quote or backslash can occur
+  sed -n "s/.*\"$2\":\"\\([^\"]*\\)\".*/\\1/p" "$1" 2>/dev/null | head -n 1
+}
+```
