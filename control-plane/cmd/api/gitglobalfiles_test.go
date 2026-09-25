@@ -85,8 +85,8 @@ func TestTheGlobalGitFilesAreTheHostGitsOwnAnswer(t *testing.T) {
 				t.Errorf("git ran %d times, want a probe and a read for each: %#v", len(host.calls), host.calls)
 			}
 			for _, c := range host.calls {
-				if c.dir != hostGitDir {
-					t.Errorf("git %q ran in %q, want hostGit's own directory", strings.Join(c.args, " "), c.dir)
+				if !madeByHostGit(c.dir) {
+					t.Errorf("git %q ran in %q, want a directory hostGit made for it", strings.Join(c.args, " "), c.dir)
 				}
 			}
 		})
@@ -145,11 +145,10 @@ func TestTheRealHostGitNamesItsGlobalFiles(t *testing.T) {
 	if out, err := exec.Command("git", "init", "-q", repo).CombinedOutput(); err != nil {
 		t.Fatalf("git init: %v: %s", err, out)
 	}
-	host, cleanup, err := newHostGit()
+	host, err := newHostGit()
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(cleanup)
 	resolve := gitGlobalFilesResolver(host)
 
 	same := func(label, got, want string) {

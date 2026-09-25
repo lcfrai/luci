@@ -52,8 +52,9 @@ const (
 
 	// envGitName and envGitEmail are the commit identity every sandbox's git
 	// uses, as a pair. Unset, each session takes the identity the host's own git
-	// would stamp on a commit in that worktree (gitidentity.go). Added by the
-	// sandbox git fix, with envCABundle; contract §4 carries all three rows.
+	// gives outside any repository (gitidentity.go; X-1): a worktree's own
+	// user.name is the agent's to write. Added by the sandbox git fix, with
+	// envCABundle; contract §4 carries all three rows.
 	envGitName  = "PANACEA_APP_GIT_NAME"
 	envGitEmail = "PANACEA_APP_GIT_EMAIL"
 

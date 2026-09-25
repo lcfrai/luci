@@ -53,12 +53,17 @@ func hostAsk(scope string, rest ...string) string {
 // hostProbe is hostGit.scope's question for key.
 func hostProbe(key string) string { return hostAsk("--global", "--default", hostGitUnset, key) }
 
-// hostGitDir is the directory a scripted hostGit says git runs in.
-const hostGitDir = `C:\Users\u\AppData\Local\Temp\panacea-app-hostgit-1`
-
-// scriptedHost is a hostGit whose git answers from answers, in hostGitDir.
+// scriptedHost is a hostGit whose git answers from answers, each git in a
+// directory hostGit makes for it in the OS temp directory.
 func scriptedHost(r *eolRunner, getenv func(string) string) hostGit {
-	return hostGit{run: r, dir: hostGitDir, getenv: getenv}
+	return hostGit{run: r, root: os.TempDir(), getenv: getenv}
+}
+
+// madeByHostGit is whether dir is a directory hostGit.git made for one git
+// under a scripted host: a direct child of the OS temp directory, named by
+// hostGitPattern.
+func madeByHostGit(dir string) bool {
+	return filepath.Dir(dir) == filepath.Clean(os.TempDir()) && strings.HasPrefix(filepath.Base(dir), hostGitPattern)
 }
 
 // Neither key set in the global scope, so each is read from the system scope.
@@ -133,8 +138,8 @@ func TestTheLineEndingsAreTheHostGitsOwnAnswer(t *testing.T) {
 				t.Errorf("line endings = %#v, want %#v", got, tc.want)
 			}
 			for _, c := range host.calls {
-				if c.dir != hostGitDir {
-					t.Errorf("git %q ran in %q, want hostGit's own directory", strings.Join(c.args, " "), c.dir)
+				if !madeByHostGit(c.dir) {
+					t.Errorf("git %q ran in %q, want a directory hostGit made for it", strings.Join(c.args, " "), c.dir)
 				}
 			}
 		})
@@ -248,11 +253,10 @@ func TestTheRealHostGitAnswersFromItsOwnScopes(t *testing.T) {
 	global := filepath.Join(dir, "gitconfig-global")
 	t.Setenv("GIT_CONFIG_GLOBAL", global)
 	t.Setenv("GIT_CONFIG_COUNT", "")
-	host, cleanup, err := newHostGit()
+	host, err := newHostGit()
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(cleanup)
 	resolve := gitLineEndingsResolverWith(host, "crlf")
 
 	got, err := resolve(context.Background())
@@ -279,5 +283,37 @@ func TestTheRealHostGitAnswersFromItsOwnScopes(t *testing.T) {
 	}
 	if want := (api.GitLineEndings{AutoCRLF: "input", EOL: "lf"}); got != want {
 		t.Errorf("with the global scope's own settings: %#v, want %#v", got, want)
+	}
+}
+
+// Each key is read from the scope git takes IT from (contract §5.1 step 5),
+// not from the scope the other came from. Git for Windows' installer puts
+// core.autocrlf=true in the system file, and a user's own core.eol=lf lives
+// in the global one; reading core.eol in core.autocrlf's scope would send the
+// sandbox crlf (X-1 review m-3, mutant R2).
+func TestEachLineEndingKeyIsReadFromItsOwnScope(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git is not on PATH")
+	}
+	dir := t.TempDir()
+	system := filepath.Join(dir, "gitconfig-system")
+	global := filepath.Join(dir, "gitconfig-global")
+	if err := os.WriteFile(system, []byte("[core]\n\tautocrlf = true\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(global, []byte("[core]\n\teol = lf\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "")
+	t.Setenv("GIT_CONFIG_SYSTEM", system)
+	t.Setenv("GIT_CONFIG_GLOBAL", global)
+	t.Setenv("GIT_CONFIG_COUNT", "")
+	host, err := newHostGit()
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := gitLineEndingsResolverWith(host, "crlf")(context.Background())
+	if want := (api.GitLineEndings{AutoCRLF: "true", EOL: "lf"}); err != nil || got != want {
+		t.Errorf("system autocrlf=true, global eol=lf: %#v, %v; want %#v", got, err, want)
 	}
 }

@@ -82,16 +82,28 @@ func x1Host(t *testing.T) (worktree, secret, globalIgnore string) {
 }
 
 // x1Spy is the real git runner with every invocation's directory and argv
-// recorded, so a test can say where the host's git ran and with what.
+// recorded, so a test can say where the host's git ran and with what. What
+// is true of the directory is recorded as the git starts, because hostGit
+// removes each one when its git is done: whether it was there, and the
+// repository a plain git (no ceiling) finds from it, "" for none.
 type x1Spy struct {
 	mu    sync.Mutex
 	calls []identityCall
+	there []bool
+	repo  []string
 	real  project.Runner
 }
 
 func (s *x1Spy) Run(ctx context.Context, dir string, args ...string) ([]byte, error) {
+	info, statErr := os.Stat(dir)
+	repo := ""
+	if out, err := exec.Command("git", "-C", dir, "rev-parse", "--absolute-git-dir").CombinedOutput(); err == nil {
+		repo = strings.TrimSpace(string(out))
+	}
 	s.mu.Lock()
 	s.calls = append(s.calls, identityCall{dir: dir, args: append([]string(nil), args...)})
+	s.there = append(s.there, statErr == nil && info.IsDir())
+	s.repo = append(s.repo, repo)
 	s.mu.Unlock()
 	return s.real.Run(ctx, dir, args...)
 }
@@ -108,10 +120,16 @@ func x1NeverInTheWorktree(t *testing.T, spy *x1Spy, worktree string) {
 		rel, err := filepath.Rel(worktree, p)
 		return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 	}
-	for _, c := range spy.calls {
+	for i, c := range spy.calls {
 		line := strings.Join(c.args, " ")
 		if c.dir == "" || inside(c.dir) {
 			t.Errorf("git %q ran in %q, which is the worktree or no directory at all", line, c.dir)
+		}
+		if !spy.there[i] {
+			t.Errorf("git %q ran in %q, which was not a directory when it started", line, c.dir)
+		}
+		if spy.repo[i] != "" {
+			t.Errorf("git %q ran in %q, which is inside the repository %s", line, c.dir, spy.repo[i])
 		}
 		scoped := false
 		for _, a := range c.args {
@@ -125,9 +143,6 @@ func x1NeverInTheWorktree(t *testing.T, spy *x1Spy, worktree string) {
 		}
 		if len(c.args) > 0 && c.args[0] == "config" && !scoped {
 			t.Errorf("git %q reads config without --global or --system, so a repository's own scope counts", line)
-		}
-		if out, err := exec.Command("git", "-C", c.dir, "rev-parse", "--git-dir").CombinedOutput(); err == nil {
-			t.Errorf("git %q ran in %q, which is inside the repository %s", line, c.dir, strings.TrimSpace(string(out)))
 		}
 	}
 }
@@ -189,13 +204,28 @@ func TestARepoLocalIdentityIsNotTheOneCommitsAreMadeAs(t *testing.T) {
 	x1NeverInTheWorktree(t, spy, worktree)
 }
 
-// newHostGit's directory is made in the temp directory, and nothing stops a
+// hostGit's directories are made in the temp directory, and nothing stops a
 // temp directory being inside a repository. GIT_CEILING_DIRECTORIES keeps git
 // from finding it: git var reads a found repository's user.name, so without
 // the ceiling the enclosing repository's identity would be the answer.
 func TestHostGitFindsNoRepositoryEvenWhenTempIsInsideOne(t *testing.T) {
 	worktree, _, _ := x1Host(t)
-	tmp := filepath.Join(worktree, "tmp")
+	x1CeilingHolds(t, worktree, filepath.Join(worktree, "tmp"))
+}
+
+// The same with the temp directory the repository's root itself, so each
+// directory hostGit makes is a direct child of the root. Only the exact
+// ceiling, the temp directory, stops git there; one a level higher still
+// passes the test above (X-1 review m-2, mutant R1).
+func TestHostGitFindsNoRepositoryWhenTempIsTheRepositoryRoot(t *testing.T) {
+	worktree, _, _ := x1Host(t)
+	x1CeilingHolds(t, worktree, worktree)
+}
+
+// x1CeilingHolds points the temp directory at tmp, inside worktree, and says
+// hostGit's answers are still the host's own, not the worktree's.
+func x1CeilingHolds(t *testing.T, worktree, tmp string) {
+	t.Helper()
 	if err := os.MkdirAll(tmp, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -204,8 +234,8 @@ func TestHostGitFindsNoRepositoryEvenWhenTempIsInsideOne(t *testing.T) {
 	}
 	spy := &x1Spy{}
 	host := x1HostGit(t, spy)
-	if rel, err := filepath.Rel(worktree, host.dir); err != nil || strings.HasPrefix(rel, "..") {
-		t.Fatalf("hostGit's directory %q is not inside %q, so this test proves nothing", host.dir, worktree)
+	if rel, err := filepath.Rel(worktree, host.root); err != nil || strings.HasPrefix(rel, "..") {
+		t.Fatalf("hostGit's directories are made in %q, not inside %q, so this test proves nothing", host.root, worktree)
 	}
 
 	got, err := gitIdentityResolver("", "", host)(context.Background())
@@ -225,11 +255,10 @@ func TestHostGitFindsNoRepositoryEvenWhenTempIsInsideOne(t *testing.T) {
 // every git it runs. The worktree is not an argument: no resolver takes one.
 func x1HostGit(t *testing.T, spy *x1Spy) hostGit {
 	t.Helper()
-	host, cleanup, err := newHostGit()
+	host, err := newHostGit()
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(cleanup)
 	spy.real = host.run
 	host.run = spy
 	return host

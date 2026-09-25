@@ -131,13 +131,12 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 	}
 
 	// The host's own git config, and nothing a sandbox can write, answers the
-	// identity, line-ending and global-file questions: hostGit runs git in a
-	// directory made here, outside every repository (X-1).
-	host, removeHostDir, err := newHostGit()
+	// identity, line-ending and global-file questions: hostGit runs each git in
+	// a directory made for it alone, outside every repository (X-1).
+	host, err := newHostGit()
 	if err != nil {
 		return err
 	}
-	defer removeHostDir()
 
 	// Asked once here as well as at every create, so the user without an
 	// identity hears it at startup, before any agent tries to commit. The

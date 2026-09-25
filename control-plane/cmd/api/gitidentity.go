@@ -35,7 +35,7 @@ func gitIdentityResolver(name, email string, host hostGit) func(context.Context)
 		return func(context.Context) (api.GitIdentity, error) { return fixed, nil }
 	}
 	return func(ctx context.Context) (api.GitIdentity, error) {
-		out, err := host.run.Run(ctx, host.dir, "var", "GIT_AUTHOR_IDENT")
+		out, err := host.git(ctx, "var", "GIT_AUTHOR_IDENT")
 		if err != nil {
 			return api.GitIdentity{}, fmt.Errorf("%s: %w", gitIdentityMissing, err)
 		}

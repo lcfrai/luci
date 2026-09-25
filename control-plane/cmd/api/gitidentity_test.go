@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -37,9 +38,10 @@ func (r *identityRunner) Run(_ context.Context, dir string, args ...string) ([]b
 
 var _ project.Runner = (*identityRunner)(nil)
 
-// identityHost is a hostGit whose git is r, in hostGitDir.
+// identityHost is a hostGit whose git is r, in a directory hostGit makes for
+// it in the OS temp directory.
 func identityHost(r *identityRunner) hostGit {
-	return hostGit{run: r, dir: hostGitDir, getenv: noXDG}
+	return hostGit{run: r, root: os.TempDir(), getenv: noXDG}
 }
 
 // The explicit pair wins outright, and "outright" is checked as the host never
@@ -78,8 +80,8 @@ func TestWithNothingSetTheHostGitIsAskedOutsideAnyRepository(t *testing.T) {
 	if len(host.calls) != 1 {
 		t.Fatalf("git was run %d times, want once: %#v", len(host.calls), host.calls)
 	}
-	if c := host.calls[0]; c.dir != hostGitDir || strings.Join(c.args, " ") != "var GIT_AUTHOR_IDENT" {
-		t.Errorf("git ran %q in %q, want \"var GIT_AUTHOR_IDENT\" in hostGit's own directory", strings.Join(c.args, " "), c.dir)
+	if c := host.calls[0]; !madeByHostGit(c.dir) || strings.Join(c.args, " ") != "var GIT_AUTHOR_IDENT" {
+		t.Errorf("git ran %q in %q, want \"var GIT_AUTHOR_IDENT\" in a directory hostGit made for it", strings.Join(c.args, " "), c.dir)
 	}
 }
 
