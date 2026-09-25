@@ -593,3 +593,83 @@ import { StressSets } from "./StressSets";
   box-shadow: var(--e-hair);
 }
 ```
+
+The same file, continued:
+
+```css
+.ss-note {
+  margin: 0;
+  max-inline-size: 72ch;
+  color: var(--ink-2);
+  font-size: var(--t-ui);
+  line-height: var(--t-ui-lh);
+}
+
+/* Machine facts: glyph keys, state ids, the forced-colours readout, the terminal stand-in.
+ * voice.split (task 30): mono at --t-fact, never below --ink-2. */
+.ss-fact,
+.ss-key,
+.ss-term {
+  margin: 0;
+  color: var(--ink-2);
+  font-family: var(--mono);
+  font-size: var(--t-fact);
+  line-height: var(--t-fact-lh);
+}
+
+.ss-zoom {
+  display: flex;
+  gap: var(--s-3);
+}
+
+.ss-screens {
+  display: grid;
+  gap: var(--s-5);
+  padding: var(--s-4);
+}
+
+.ss-screen {
+  display: grid;
+  gap: var(--s-3);
+}
+
+.ss-name {
+  color: var(--ink);
+  font-size: var(--t-ui);
+  line-height: var(--t-ui-lh);
+}
+
+.ss-sheet {
+  display: grid;
+  gap: var(--s-1);
+}
+
+.ss-row {
+  display: grid;
+  grid-template-columns: 24ch repeat(2, var(--row-h));
+  align-items: center;
+  min-block-size: var(--row-h);
+}
+
+.ss-cell {
+  display: grid;
+  place-items: center;
+  color: var(--ink);
+}
+
+.ss-states {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: var(--s-4);
+}
+
+.ss-state {
+  display: grid;
+  grid-template-rows: auto minmax(180px, auto);
+  gap: var(--s-2);
+  margin: 0;
+}
+```
+
+No transition and no animation: the stage appears and goes, because nothing about opening it is
+causal. `.ss-stage` sits at 8000, under the toolbar (9000) and the grain (9999).
