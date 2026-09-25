@@ -33,10 +33,10 @@ refuses all four, and each refusal is a test.
    link text is a fallback for a person no longer on the team, shown as *former member*.
 4. **Posting is one write, and the text comes only from `Editor`.** The composer is task 49's
    `Editor`; its `onCommit` keeps the draft and `onSubmit` (`Ctrl+Enter`) or the *Comment* button
-   posts it as **one** `mutate({kind: "comment"})`. `body.text` is `serializeMarkdown`'s output, and
-   `body.author` is `authorOf(doc)`: `"A"` only when every character sits in a `text·A` span, else
-   `"H"` (a person who typed or pasted anything made the comment theirs; task 49's rule that pasted
-   text is the person's). After a post the composer remounts empty by `key`.
+   posts it as **one** `mutate({kind: "comment"})`. `body` is task 49's `toAuthored(doc)`
+   (`task-49.md:114-127`): `"A"` if any agent span remains, else `"H"`, so a mixed comment is
+   never labelled a person's (05 §3.4; the same rule as the description, no second one). After a
+   post the composer remounts empty by `key`.
 5. **Reactions are a fixed set of five single code points** (👍 👀 ✅ ❓ 🎉), our choice; custom
    emoji are *later* (L-41). Each is one person's toggle: `on` is "I have not reacted with this".
    A reaction renders its emoji and the **names** of the people, in reaction order, and no digit
@@ -63,8 +63,8 @@ refuses all four, and each refusal is a test.
 
 **Files** (the scope names `Comments.tsx` and `IssueView.tsx`; the four split-out siblings and the
 `Serves.tsx` edit are not yet in the File map, a gap named in the return):
-- `desktop/src/components/issue/commentModel.ts` — pure: threads, mentions, reactions, anchors, the
-  author class of a draft (new)
+- `desktop/src/components/issue/commentModel.ts` — pure: threads, mentions, reactions, anchors, a
+  selection's offsets (new)
 - `desktop/src/components/issue/commentModel.test.ts` — the pure rules (new)
 - `desktop/src/components/issue/mentionPlugin.ts` — the `@` query as a ProseMirror plugin (new)
 - `desktop/src/components/issue/CommentComposer.tsx` — `Editor`, the pending anchor, the people
@@ -82,7 +82,6 @@ refuses all four, and each refusal is a test.
 ```ts
 // Pure. No React, no DOM, no replica: what a thread IS, so every rule has a unit test.
 import type { CommentAnchor, IssueComment, Reaction, User } from "../../api/work";
-import type { MarkdownDoc } from "../editor/Editor";
 
 /** Our fixed set (decision 5). One code point each; custom emoji are later (L-41). */
 export const REACTIONS = ["\u{1F44D}", "\u{1F440}", "✅", "❓", "\u{1F389}"] as const;
@@ -126,15 +125,6 @@ export function mentionsIn(markdown: string): string[] {
     if (ids.length === MAX_MENTIONS) break;
   }
   return ids;
-}
-
-/** "A" only when every character of a non-empty draft is agent text (decision 4). */
-export function authorOf(doc: MarkdownDoc): "H" | "A" {
-  const n = doc.markdown.length;
-  if (n === 0 || doc.authorship.some((s) => s.cls === "text·H")) return "H";
-  let covered = 0;
-  for (const s of doc.authorship) covered += Math.max(0, s.to - s.from);
-  return covered >= n ? "A" : "H";
 }
 
 /** One person's toggle: `on` is true exactly when `me` has not reacted with `emoji`. The next list
@@ -264,8 +254,9 @@ import type { CommentAnchor, User } from "../../api/work";
 import { makeId } from "../../lib/ids";
 import { mutate } from "../../work/replica/ops";
 import { Popover } from "../common/Popover";
-import { Editor, type MarkdownDoc } from "../editor/Editor";
-import { authorOf, mentionHref, mentionsIn, MAX_MENTIONS } from "./commentModel";
+import { toAuthored, type MarkdownDoc } from "../editor/authorClass";
+import { Editor } from "../editor/Editor";
+import { mentionHref, mentionsIn, MAX_MENTIONS } from "./commentModel";
 import { insertMention, mentionPlugin, type MentionQuery } from "./mentionPlugin";
 
 const EMPTY: MarkdownDoc = { markdown: "", authorship: [] };
@@ -314,7 +305,7 @@ export function CommentComposer(props: {
     const localId = makeId("cml");                       // names the painted comment (task 56's op)
     mutate({
       kind: "comment", issueId, localId,
-      req: { body: { text: doc.markdown, author: authorOf(doc) }, parentId, anchor, mentions: mentionsIn(doc.markdown) },
+      req: { body: toAuthored(doc), parentId, anchor, mentions: mentionsIn(doc.markdown) },
     });
     setDraft(EMPTY);
     setRound((n) => n + 1);
@@ -691,7 +682,7 @@ Pressed is a weight change on the names, not a fill colour.
 import { describe, expect, it } from "vitest";
 import { ALICE, DYLAN, makeComment, WORK_IDS } from "../../test/workFixtures";
 import type { IssueComment } from "../../api/work";
-import { anchorWords, authorOf, locate, mentionMarkdown, mentionsIn, nextReactions, quoteOf,
+import { anchorWords, locate, mentionMarkdown, mentionsIn, nextReactions, quoteOf,
   REACTIONS, textAnchor, threads } from "./commentModel";
 
 const c = (over: Partial<IssueComment>): IssueComment => ({ ...makeComment(), anchor: null, ...over } as IssueComment);
@@ -748,18 +739,11 @@ describe("commentModel", () => {
     expect(locate("the same conversation", "same")).toEqual({ start: 4, end: 8 });
   });
 
-  it("a draft is the agent's only when every character is text·A", () => {
-    // kills: majority-vote authorship (one pasted human word makes the comment the person's)
-    expect(authorOf({ markdown: "done", authorship: [{ from: 0, to: 4, cls: "text·A" }] })).toBe("A");
-    expect(authorOf({ markdown: "done!", authorship: [{ from: 0, to: 4, cls: "text·A" }] })).toBe("H");
-    expect(authorOf({ markdown: "", authorship: [] })).toBe("H");
-  });
 });
 ```
 
-`authorship` spans are `{from, to, cls}` over the Markdown, the shape task 49's `MarkdownDoc`
-prints (`task-49.md:101-160`, **UNVERIFIED** here beyond the member names `authorOf` reads; a
-rename there is a rename in `authorOf` and this test).
+The comment's author class is task 49's `toAuthored`, tested there (`task-49.md:815`); this part
+adds no second rule, and surface test 1 below holds that the composer calls it.
 
 #### Tests to write first — `desktop/src/components/issue/Comments.test.tsx`
 
@@ -802,7 +786,8 @@ beforeEach(() => {
 
 describe("Comments", () => {
   it("posting sends ONE append whose Markdown and authorship come from Editor", () => {
-    // kills: a second text path (a textarea's value, or the draft state instead of the doc)
+    // kills: a second text path (a textarea's value, or the draft state instead of the doc), and
+    // a second authorship rule: one agent span makes the whole comment A (task 49's toAuthored)
     const md = `resume works, ${mentionMarkdown(ALICE)}`;
     submitDoc = { markdown: md, authorship: [{ from: 0, to: 6, cls: "text·A" }] };
     view();
@@ -810,7 +795,7 @@ describe("Comments", () => {
     expect(mutate).toHaveBeenCalledTimes(1);
     expect(mutate).toHaveBeenCalledWith(expect.objectContaining({
       kind: "comment", issueId: WORK_IDS.ep163, localId: expect.any(String),
-      req: { body: { text: md, author: "H" }, parentId: null, anchor: null, mentions: [WORK_IDS.alice] },
+      req: { body: { text: md, author: "A" }, parentId: null, anchor: null, mentions: [WORK_IDS.alice] },
     }));
   });
 
@@ -914,3 +899,65 @@ The size in the fold (*· 1 comment*, *· 3 comments*) is a count of records tha
 prediction, and `expectNoPrediction` passes over it (task 20's rule is about forecasts). The
 resolved-fold time is written as `\d\d:\d\d` because the local time zone of the test runner
 is not fixed; `toLocaleTimeString` with `hour12: false` is the source.
+
+#### Steps
+
+- [ ] **Step 1: read on the sync base** task 49's `Editor.tsx` (`EditorProps`, `load()`, the
+  `Mod-Enter` binding) and `authorClass.ts`, task 46's `issueData.ts` and `AuthorClass.tsx`, task
+  47's `Serves.tsx` and `IssueView.tsx`, and task 56's `ops.ts` (`WorkOp`'s `comment`,
+  `reaction`, `resolve` arms and `inverseOf`'s `resolve` case). Where one differs from what this
+  part cites, the built file wins and the rename lands here.
+- [ ] **Step 2: the two test files first**; run them and see them fail on the missing modules.
+- [ ] **Step 3: `commentModel.ts`**; `commentModel.test.ts` passes (8 tests).
+- [ ] **Step 4: the three `Editor` props** in task 49's `Editor.tsx`; task 49's `Editor.test.tsx`
+  still passes unchanged (the props are optional).
+- [ ] **Step 5: `mentionPlugin.ts`, `CommentComposer.tsx`, `Comments.tsx`**, the `issueData.ts`
+  read and the `issue.css` rules; `Comments.test.tsx` passes (10 tests).
+- [ ] **Step 6: the `IssueView.tsx` and `Serves.tsx` edits**; tasks 46-49's issue tests pass.
+- [ ] **Step 7: commit** by path, one commit per step 3-6, each message ending with the
+  `Co-Authored-By` line.
+
+#### Acceptance
+
+```bash
+npm --prefix desktop test -- issue editor
+# expect: every file passes; this part adds 2 files and 18 tests (commentModel 8, Comments 10)
+npm --prefix desktop run typecheck
+# expect: exit 0
+grep -rn "scrollTo\|scrollTop *=\|dangerouslySetInnerHTML\|innerHTML" desktop/src/components/issue/Comments.tsx desktop/src/components/issue/CommentComposer.tsx | wc -l
+# expect: 0
+grep -c "scrollIntoView" desktop/src/components/issue/Comments.tsx
+# expect: 1 (the person's own post, decision 8)
+```
+
+#### What this task does NOT claim
+
+- That the Hub accepts each of the five reactions: `ValidReactionEmoji` runs in task 12's code,
+  not here (decision 5, **UNVERIFIED**).
+- That a reply landing above the viewport leaves the visible text still in WebView2: that is
+  scroll anchoring, and the owner's eyes check it (decision 8). The test holds only that this code
+  moves nothing.
+- A brief-section anchor (decision 1), an edit record (decision 7), thread summaries (L-43, W4),
+  comment drafts (L-44, W2), custom emoji (L-41's later half), W3's comment kinds (`note`,
+  `evidence_proposal`, `negotiation`, SW.19), and agent-written comments before W3.
+- That comments never enter an agent's managed block: task 19 tests that (05 §3.4).
+- Span and hunk anchors being **created**: task 60 creates them through `useStartComment`; this
+  part renders them.
+
+**Parity.** Closes **L-42** and L-41's W1 part (a fixed reaction set, names not counts), per the
+scope. Serves 05 §4.1 (the issue view) and §3.6 (who writes comments).
+
+#### Gaps found while writing this part
+
+1. **`mutate` has two homes.** Tasks 47, 48, 49 and this part import `mutate` from
+   `work/replica/ops`; task 56 declares it as `Replica.mutate` in `replica.ts`
+   (`task-56.md:347`). One module-level export is needed; task 56 owns the choice.
+2. **Comment ids.** Task 20's fixtures and the scope say `ic-` (`task-20.md:161`); task 56's text
+   says `cm-` (`task-56.md:164`, `:375`). Task 03's prefix decides.
+3. **A sixth replica read**, `comments(issueId)`, for task 55 (beside task 46's four and task 47's
+   `criterion`); task 56's `ReplicaReadView` already names it.
+4. **Three `Editor` props** (`plugins`, `onSubmit`, `onSelectionChange`) added to task 49's file.
+5. **SW.12 has no author mark**; the mark is task 46's `AuthorClass`, not `MarkGlyph`.
+6. **SW.1 has no brief-section anchor kind and no edit record**, both of which the scope names.
+7. **The File map** lists `Comments.tsx` only; `commentModel.ts`, `mentionPlugin.ts` and
+   `CommentComposer.tsx` are this part's additions.
