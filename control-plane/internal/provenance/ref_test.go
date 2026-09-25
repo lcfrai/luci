@@ -399,12 +399,35 @@ func TestNilEvaluateMeansOpen(t *testing.T) {
 
 func TestUnexplainedVerdictIsShownOpen(t *testing.T) {
 	ref := mustBuild(t, key42, src42(), head42)
-	for _, because := range [][]string{nil, {}, {"  "}, {"", "\t\n"}} {
-		eval, calls := counting(func(EvalQuery) ([]Verdict, error) { return verdicts(ref, StateSettled, because...), nil })
-		assertAllOpen(t, fmt.Sprintf("settled because %q", because), ref, Readings(context.Background(), key42, src42(), evidenceRef, eval))
-		if len(*calls) != 1 {
-			t.Errorf("because %q: %d calls, want 1", because, len(*calls))
+	// Both non-open states (mutant R3-P1: the rule held for settled only).
+	for _, state := range []CriterionState{StateSettled, StateContested} {
+		for _, because := range [][]string{nil, {}, {"  "}, {"", "\t\n"}} {
+			eval, calls := counting(func(EvalQuery) ([]Verdict, error) { return verdicts(ref, state, because...), nil })
+			assertAllOpen(t, fmt.Sprintf("%s because %q", state, because), ref, Readings(context.Background(), key42, src42(), evidenceRef, eval))
+			if len(*calls) != 1 {
+				t.Errorf("%s because %q: %d calls, want 1", state, because, len(*calls))
+			}
 		}
+	}
+}
+
+// TestAnOpenRevisionIsEvaluated: Readings runs on every answer, and an open
+// history row's criteria are criteria like any other (mutant R3-P2).
+func TestAnOpenRevisionIsEvaluated(t *testing.T) {
+	src := src42()
+	src.Revision.Number, src.Revision.Key = 4, BriefKey(branchBrief, 4)
+	src.Revision.Content = content(discover.StatusOpen,
+		person(discover.KeyPurpose, "Let client users upload evidence files against an open request."),
+		done("a", "Upload works for PDF, XLSX and images", "Tests pass"),
+	)
+	ref := mustBuild(t, src.Revision.Key, src, head42)
+	if ref.Status != "open" || len(ref.Criteria) != 2 {
+		t.Fatalf("open revision Ref: status %q, %d criteria", ref.Status, len(ref.Criteria))
+	}
+	eval, calls := counting(func(EvalQuery) ([]Verdict, error) { return verdicts(ref, StateSettled, "CI run 88 passed"), nil })
+	got := Readings(context.Background(), src.Revision.Key, src, evidenceRef, eval)
+	if len(*calls) != 1 || len(got) != 2 || got[0].State != StateSettled || got[1] != (CriterionReading{ID: ref.Criteria[1].ID, State: StateSettled, Because: "CI run 88 passed"}) {
+		t.Errorf("open revision: %d calls, readings %+v", len(*calls), got)
 	}
 }
 
