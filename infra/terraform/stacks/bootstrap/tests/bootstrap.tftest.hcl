@@ -157,12 +157,137 @@ run "ip_rules_turn_default_deny_on" {
     condition     = azurerm_storage_account.state.network_rules[0].default_action == "Deny"
     error_message = "IP rules were given but the account firewall does not deny by default."
   }
+  assert {
+    condition     = azurerm_storage_account.state.network_rules[0].ip_rules == toset(["203.0.113.0/24"])
+    error_message = "The IP rules did not reach the firewall: Deny with no rules locks every caller out."
+  }
 }
 
+# apply: the lock's scope is the account's computed id (as built: plan read the level only).
 run "the_account_is_locked" {
-  command = plan
   assert {
     condition     = azurerm_management_lock.state.lock_level == "CanNotDelete"
     error_message = "The state account has no CanNotDelete lock."
+  }
+  assert {
+    condition     = azurerm_management_lock.state.scope == azurerm_storage_account.state.id
+    error_message = "The CanNotDelete lock is not on the state account. On a resource group it would block every replace foundation plans."
+  }
+}
+
+# ---- Added as built (task 02): the mutants the twelve runs above let live. ----------------
+
+run "the_state_account_is_hardened" {
+  command = plan
+  assert {
+    condition     = azurerm_storage_account.state.account_tier == "Standard" && azurerm_storage_account.state.account_replication_type == "ZRS"
+    error_message = "The state account is not Standard ZRS."
+  }
+  assert {
+    condition     = azurerm_storage_account.state.min_tls_version == "TLS1_2" && azurerm_storage_account.state.https_traffic_only_enabled == true
+    error_message = "The state account accepts plain HTTP or TLS older than 1.2."
+  }
+  assert {
+    condition     = azurerm_storage_account.state.default_to_oauth_authentication == true
+    error_message = "The portal does not default to Entra for the state account."
+  }
+  assert {
+    condition     = azurerm_storage_account.state.allow_nested_items_to_be_public == false && azurerm_storage_container.tfstate.container_access_type == "private"
+    error_message = "State can be made public: the account allows public containers, or tfstate is not private."
+  }
+  assert {
+    condition     = azurerm_storage_account.state.infrastructure_encryption_enabled == true
+    error_message = "The state account has no infrastructure (double) encryption."
+  }
+  assert {
+    condition     = azurerm_storage_account.state.cross_tenant_replication_enabled == false
+    error_message = "The state account can be replicated to another tenant."
+  }
+}
+
+# Both committed tfvars set true today, so committed_tfvars_plan cannot tell a hard-coded true
+# from the variable (predicted survivor S1). This is prod's one planned change (task 30).
+run "public_access_off_reaches_the_account" {
+  command = plan
+  variables {
+    state_public_network_access = false
+  }
+  assert {
+    condition     = azurerm_storage_account.state.public_network_access_enabled == false
+    error_message = "state_public_network_access = false did not turn the account's public access off."
+  }
+}
+
+run "no_ip_rules_leave_entra_as_the_only_gate" {
+  command = plan
+  variables {
+    state_ip_rules = []
+  }
+  assert {
+    condition     = azurerm_storage_account.state.network_rules[0].default_action == "Allow"
+    error_message = "With no IP rules the firewall denies by default, which locks every caller out."
+  }
+}
+
+run "a_bad_environment_is_rejected" {
+  command = plan
+  variables {
+    environment = "test"
+  }
+  expect_failures = [var.environment]
+}
+
+# An extra tag passes through; a clashing one loses to the stack's own (README, Conventions).
+run "state_lives_in_its_own_tagged_group" {
+  command = plan
+  variables {
+    tags = { cost-centre = "test", stack = "overridden" }
+  }
+  assert {
+    condition     = azurerm_resource_group.state.name == "rg-panacea-app-${var.environment}-tfstate" && azurerm_storage_account.state.resource_group_name == azurerm_resource_group.state.name
+    error_message = "The state account is not in its own rg-panacea-app-<env>-tfstate group."
+  }
+  assert {
+    condition     = alltrue([for l in [azurerm_resource_group.state.location, azurerm_resource_group.product.location, azurerm_storage_account.state.location] : l == var.location])
+    error_message = "A bootstrap resource is not in var.location."
+  }
+  assert {
+    condition = alltrue([for t in [azurerm_resource_group.state.tags, azurerm_resource_group.product.tags, azurerm_storage_account.state.tags] : t == tomap({
+      cost-centre = "test", product = "panacea-app", environment = var.environment, stack = "bootstrap", managed-by = "terraform"
+    })])
+    error_message = "A bootstrap resource's tags are not var.tags under the stack's own four."
+  }
+}
+
+# apply: product_resource_group_id is computed.
+run "the_outputs_name_what_was_built" {
+  assert {
+    condition     = output.state_resource_group_name == azurerm_resource_group.state.name && output.state_storage_account_name == azurerm_storage_account.state.name
+    error_message = "The state group or account output does not name what bootstrap built."
+  }
+  assert {
+    condition     = output.state_container_name == "tfstate" && output.state_container_name == azurerm_storage_container.tfstate.name
+    error_message = "state_container_name is not the tfstate container."
+  }
+  assert {
+    condition     = output.product_resource_group_id == azurerm_resource_group.product.id
+    error_message = "product_resource_group_id is not the product group's id."
+  }
+}
+
+# backends/<env>.hcl, read as text: each tfvars pass checks its own environment's file.
+run "the_backend_file_names_this_container" {
+  command = plan
+  assert {
+    condition     = try(regex("(?m)^container_name\\s*=\\s*\"([^\"]*)\"\\s*$", file("${path.module}/../../backends/${var.environment}.hcl"))[0], "") == azurerm_storage_container.tfstate.name
+    error_message = "backends/<env>.hcl does not name the container bootstrap creates."
+  }
+  assert {
+    condition     = can(regex("(?m)^use_azuread_auth\\s*=\\s*true\\s*$", file("${path.module}/../../backends/${var.environment}.hcl")))
+    error_message = "backends/<env>.hcl does not set use_azuread_auth = true; the account has no shared key."
+  }
+  assert {
+    condition     = !can(regex("(?m)^\\s*(storage_account_name|resource_group_name|key|access_key|sas_token|subscription_id|tenant_id|client_id)\\s*=", file("${path.module}/../../backends/${var.environment}.hcl")))
+    error_message = "backends/<env>.hcl holds an identity or a credential; those arrive as -backend-config flags."
   }
 }
