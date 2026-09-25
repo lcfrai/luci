@@ -271,6 +271,15 @@ stopped and resumed with `resumeFromRunId`. **Parallel runs resume from cache no
     landed; most team tasks depend on it.
 - **OD-30 identity: review-2 is 0 C, 2 I**, and round 3 is running (`wf_c1460e29-6b6`).
 
+**Added 05:40, 2026-09-26:**
+- **OD-30 identity is APPROVED** (review-3: 0 C, 0 I, 2 M). M1 is fixed as `3df9fab8` on `feat/hub`
+  (ADR-H1:809). M2 is carried to env task 31 (`env/.superpowers/sdd/env/carried/task-31.md`): the
+  realm runtime checks, plus a first-time-user sign-in (U-16).
+- For the owner, later: the ruling's section 10 checks and the Panacea asks K1-K5 are
+  owner-run and batched (OD-12).
+- A fifth spend stop ran from 02:15 to 05:20. Every run restarted **on its own** when usage reset,
+  so nothing was forced.
+
 **Added 13:40, 2026-09-25: OD-30 (sign-in) and the env R4 re-plan.**
 - **OD-30:** sign-in goes through a Keycloak broker on Panacea's existing Entra registration, with
   zero clicks. The IT request's Part 1 is no longer needed. Run `wf_579f2bb3-bfb`
