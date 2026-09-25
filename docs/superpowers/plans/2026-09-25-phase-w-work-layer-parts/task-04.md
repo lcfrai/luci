@@ -667,4 +667,94 @@ func (f *Fake) PatchIssue(_ context.Context, issueID string, req hubapi.PatchIss
 			return hubapi.IssueHead{}, err
 		}
 	}
+	var fields []string
+	if req.Priority != nil && *req.Priority != is.head.Priority {
+		is.head.Priority, fields = *req.Priority, append(fields, "priority")
+	}
+	if setA && assignee != is.assignee {
+		is.assignee, fields = assignee, append(fields, "assigneeId")
+	}
+	if req.Labels != nil && !slices.Equal(*req.Labels, is.head.Labels) {
+		is.head.Labels, fields = slices.Clone(*req.Labels), append(fields, "labels")
+	}
+	if req.NotTiedReason != nil && *req.NotTiedReason != is.notTied {
+		is.notTied, fields = *req.NotTiedReason, append(fields, "notTiedReason")
+	}
+	if len(fields) == 0 {
+		return w.renderIssue(is), nil
+	}
+	is.head.UpdatedAt = w.stamp() // HeadRevision is untouched: no revision per head write
+	w.workEvent(me, fkEventIssueUpdated, is.teamID, is.head.ProjectID, is.head.ID,
+		map[string]any{"fields": strings.Join(fields, ",")})
+	if slices.Contains(fields, "assigneeId") && assignee != "" && assignee != me {
+		w.subscribeOn(is, assignee, hubapi.SubscribeAssign)
+	}
+	return w.renderIssue(is), nil
+}
+```
+
+Block 5: revisions. A write and a restore both go through `appendRevision`, so the digest is
+always `IssueRevisionDigest` of exactly what is stored.
+
+```go
+// appendRevision stores revision head+1 of content, digested as stored, and
+// emits issue.revised. from is the restored revision, or 0.
+func (w *fakeWorld) appendRevision(me string, is *fakeIssue, content hubapi.IssueRevisionContent, from int) (*hubapi.IssueRevision, error) {
+	n := is.head.HeadRevision + 1
+	env := hubapi.IssueRevisionEnvelope{IssueID: is.head.ID, Revision: n, ProjectID: is.head.ProjectID, Content: content}
+	digest, _, err := hubapi.IssueRevisionDigest(env)
+	if err != nil {
+		return nil, contentError("content", err)
+	}
+	rev := &hubapi.IssueRevision{IssueID: is.head.ID, Revision: n,
+		Key: hubapi.IssueKey{IssueID: is.head.ID, Revision: n}.String(), Digest: digest,
+		ProjectID: is.head.ProjectID, Content: content, WrittenAt: w.stamp(), WrittenBy: *w.userRef(me)}
+	if from > 0 {
+		rev.RestoredFrom = &from
+	}
+	is.revisions = append(is.revisions, rev)
+	is.head.HeadRevision, is.head.UpdatedAt = n, rev.WrittenAt
+	w.workEvent(me, fkEventIssueRevised, is.teamID, is.head.ProjectID, is.head.ID, map[string]any{
+		"key": rev.Key, "revision": int64(n), "digest": digest.String(),
+		"servesCount": int64(len(content.Serves)), "restoredFrom": int64(from)})
+	return rev, nil
+}
+
+// WriteIssueRevision is optimistic: a base that is not the head is 409 and
+// writes nothing (task 09's decision 1).
+func (f *Fake) WriteIssueRevision(_ context.Context, issueID string, req hubapi.WriteIssueRevisionRequest) (hubapi.IssueRevision, error) {
+	w := f.w
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	me, err := f.enter("WriteIssueRevision", issueID, req)
+	if err != nil {
+		return hubapi.IssueRevision{}, err
+	}
+	is, role, err := w.issueOf(issueID, me)
+	if err != nil {
+		return hubapi.IssueRevision{}, err
+	}
+	if err := need(role, hubapi.RoleMember); err != nil {
+		return hubapi.IssueRevision{}, err
+	}
+	if req.BaseRevision != is.head.HeadRevision {
+		return hubapi.IssueRevision{}, problem(409, hubapi.CodeRevisionConflict,
+			"Someone saved this issue after you opened it.", "headRevision", strconv.Itoa(is.head.HeadRevision))
+	}
+	if err := hubapi.ValidateIssueRevisionContent(req.Content); err != nil {
+		return hubapi.IssueRevision{}, contentError("content", err)
+	}
+	if err := w.checkServes(is.head.ProjectID, "content.serves", req.Content.Serves); err != nil {
+		return hubapi.IssueRevision{}, err
+	}
+	if len(req.Content.Serves) == 0 && is.notTied == "" {
+		return hubapi.IssueRevision{}, problem(422, fkNotTiedReasonRequired,
+			"Say why this issue serves no criterion before removing the last one.", "field", "content.serves")
+	}
+	rev, err := w.appendRevision(me, is, req.Content, 0)
+	if err != nil {
+		return hubapi.IssueRevision{}, err
+	}
+	return *rev, nil
+}
 ```
