@@ -335,4 +335,85 @@ Rule (02 C8): <grain stays | to the owner>. Owner's decision: <pending | date an
 ```
 
 Nothing is written into this section until a person runs the meter: an empty template is not a
-result, and a guessed number is worse than none (`OD-27`).
+result, and a guessed number is worse than none (`CLAUDE.md`: state what is unverified).
+
+#### Tests to write first — `desktop/src/styles/grain.test.ts`
+
+```ts
+import { afterEach, describe, expect, it } from "vitest";
+import grainCss from "./grain.css?raw";
+import tokensCss from "./tokens.css?raw";
+import forcedCss from "./forced-colors.css?raw";
+import { resetFlags, setFlag } from "../lib/flags";
+import { stripCssComments } from "../test/fakes";
+
+/** tokens.css:164-170 at bf4caeb, whitespace-collapsed: the rule as it was before the move. */
+const ORIGINAL = [
+  'content: ""',
+  "position: fixed",
+  "inset: 0",
+  "z-index: 9999",
+  "pointer-events: none",
+  "opacity: 0.022",
+  `background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E")`,
+];
+
+/** The declarations of the first rule whose selector list is exactly `selector`. */
+function body(css: string, selector: string): string[] | null {
+  const bare = stripCssComments(css);
+  const at = bare.search(new RegExp(`(^|[}\\s])${selector.replace(/[.*+?^${}()|[\]\\$]/g, "\\$&")}\\s*\\{`, "m"));
+  if (at < 0) return null;
+  const open = bare.indexOf("{", at);
+  return bare.slice(open + 1, bare.indexOf("}", open)).split(";").map((d) => d.replace(/\s+/g, " ").trim()).filter((d) => d !== "");
+}
+
+afterEach(() => resetFlags());
+
+describe("grain", () => {
+  it("moves the grain rule without changing it", () => {
+    // Kills: a tuned opacity or a changed noise slipped in with the move; a copy left behind.
+    expect(body(grainCss, ".grain::after")).toEqual(ORIGINAL);
+    expect(stripCssComments(tokensCss)).not.toContain(".grain");
+  });
+
+  it("turns grain off in high-contrast themes", () => {
+    // Kills: grain on a -hc theme, and on paper, where the design gives dark's mark no place.
+    const off = /((?::root\[[^\]]+\] \.grain::after,?\s*)+)\{\s*display: none;\s*\}/.exec(stripCssComments(grainCss));
+    expect(off).not.toBeNull();
+    expect(off![1]).toContain(':root[data-theme$="-hc"] .grain::after');
+    expect(off![1]).toContain(':root[data-theme="paper"] .grain::after');
+  });
+
+  it("turns grain off with the flag", () => {
+    // Kills: a meter whose second pass still has grain, so it cannot compare.
+    setFlag("grain", "off");
+    expect(document.documentElement.getAttribute("data-grain")).toBe("off");
+    expect(stripCssComments(grainCss)).toContain(':root[data-grain="off"] .grain::after');
+    setFlag("grain", "on");
+    expect(document.documentElement.hasAttribute("data-grain")).toBe(false);
+  });
+
+  it("keeps grain on the shell only, with one forced-colours rule", () => {
+    // Kills: grain per component (a compositor layer each), and a second forced-colours copy.
+    const sources = import.meta.glob<string>("/src/**/*.{ts,tsx,css}", { query: "?raw", import: "default", eager: true });
+    const users = Object.entries(sources)
+      .filter(([f]) => !/\.test\.tsx?$/.test(f) && !f.startsWith("/src/test/"))
+      // The flag and the meter name "grain" as a flag, not as a class.
+      .filter(([f]) => f !== "/src/lib/flags.ts" && !f.startsWith("/src/components/devtools/"))
+      .filter(([f, text]) => (f.endsWith(".css") ? /\.grain\b/.test(stripCssComments(text)) : /"grain"/.test(text)))
+      .map(([f]) => f)
+      .sort();
+    expect(users).toEqual([
+      "/src/components/AppShell.tsx",
+      "/src/styles/forced-colors.css",
+      "/src/styles/grain.css",
+    ]);
+    expect(stripCssComments(forcedCss).match(/\.grain::after/g)).toHaveLength(1);
+  });
+});
+```
+
+`AppShell.tsx:82` builds the class list as `["shell", "grain"]`, which the `"grain"` pattern
+finds. `flags.ts`, `FlagCompare.tsx` (`flag="grain"`) and `GrainMeter.tsx` (`setFlag("grain", …)`)
+name the flag, not the class, and are the two exclusions. That no other source file holds the
+literal today is **UNVERIFIED** until step 2 runs it; a hit would name its file.
