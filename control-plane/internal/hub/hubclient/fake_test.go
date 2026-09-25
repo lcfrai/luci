@@ -204,6 +204,17 @@ func TestFakeMeProvisionsAndBindsInvites(t *testing.T) {
 		t.Errorf("Mo's Me with two pending invites = bound %d teams %+v, want 2: Portal viewer, Studio member", got.InvitesBound, got.Teams)
 	}
 
+	// A bound invite raises a lower role already held to its own (§7.2: the
+	// caller "becomes a member with the invite's role — or keeps a higher role
+	// already held"; fix round 2's MY-1). Linus is invited to Studio as admin,
+	// seated there as a viewer by id, then signs in: he is Studio's admin.
+	must(ada.CreateInvite(bg, studio.ID, hubapi.CreateInviteRequest{Email: FakeLinus.Email, Role: hubapi.RoleAdmin}))(t)
+	must(ada.SetMember(bg, studio.ID, FakeLinus.ID, hubapi.RoleViewer))(t)
+	if got := must(linus.Me(bg))(t); got.InvitesBound != 1 || len(got.Teams) != 2 ||
+		got.Teams[0].ID != team.ID || got.Teams[0].Role != hubapi.RoleAdmin || got.Teams[1].ID != studio.ID || got.Teams[1].Role != hubapi.RoleAdmin {
+		t.Errorf("Linus's Me with a Studio admin invite over his viewer's seat = bound %d teams %+v, want 1: Portal admin, Studio raised to admin", got.InvitesBound, got.Teams)
+	}
+
 	// Binding reads this call's email, refreshed from the principal, never the
 	// one first seen (§5.1 step 5 refreshes display_name and email; task-16a.md:61
 	// "binding that reads the stored users.email instead of this token"; fix round
@@ -229,6 +240,16 @@ func TestFakeMeProvisionsAndBindsInvites(t *testing.T) {
 	must(ada.CreateInvite(bg, team.ID, hubapi.CreateInviteRequest{Email: "BOSS@example.test", Role: hubapi.RoleViewer}))(t)
 	if got := must(boss.Me(bg))(t); !got.OrgAdmin || got.User.Email != "boss@example.test" || got.InvitesBound != 1 {
 		t.Errorf("the org admin's Me = %+v, want orgAdmin, a lowercased email, one invite bound", got)
+	}
+	// An org admin reads no team it is not in (§5.3: "read a team, its members,
+	// its invites" is 404 for O, the org admin who is not a member; fix round 2's
+	// MY-2). The boss is Portal's viewer and nothing of Studio's.
+	_, err = boss.Team(bg, studio.ID)
+	wantProblem(t, err, 404, "team_not_found", "teamId", studio.ID)
+	_, err = boss.Invites(bg, studio.ID)
+	wantProblem(t, err, 404, "team_not_found", "teamId", studio.ID)
+	if got := must(boss.Teams(bg))(t); len(got) != 1 || got[0].ID != team.ID || got[0].Role != hubapi.RoleViewer {
+		t.Errorf("the org admin's Teams = %+v, want Portal alone, as viewer", got)
 	}
 }
 
@@ -1049,6 +1070,13 @@ func TestFakeResolveStates(t *testing.T) {
 	if er.BriefID != e.ID || er.ErasedRevisions != 2 || er.ErasedAt == "" {
 		t.Errorf("EraseBrief = %+v, want two revisions erased", er)
 	}
+	// Erasure is no read (§5.3: the org admin has "no read of project content it
+	// is not a member of"; fix round 2, beside MY-2): the boss, in no team,
+	// erased e, yet its brief and its project are the same 404 as for anyone.
+	_, err = boss.Brief(bg, e.ID)
+	wantProblem(t, err, 404, "brief_not_found", "briefId", e.ID)
+	_, err = boss.Project(bg, p.ID)
+	wantProblem(t, err, 404, "project_not_found", "projectId", p.ID)
 	first := headOf(t, ada, e.ID)
 	if again := must(boss.EraseBrief(e.ID, "again"))(t); again.ErasedRevisions != 0 {
 		t.Errorf("a second erase erased %d, want 0", again.ErasedRevisions)

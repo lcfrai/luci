@@ -408,4 +408,12 @@ go list -deps ./control-plane/internal/hub/hubclient | grep panacea-app
   pinned: PS2-1, the role check after the invite lookup (a member now gets 403 for a missing and
   for a bound invite), and PS2-2, an email never refreshed after first sight (binding follows a
   changed address). Found beside PS2-1 and pinned: PS2-3, `CreateInvite` checking the body before
-  the role. Carried: N1, N2, m2 → 16a; m1 → 19; a conformance row for each → 05.
+  the role. Carried: N1, N2, m2 → 16a; m1 → 19; a conformance row for each → 05. A third mutant
+  round on the final suite named two more in advance, and both survived as named: MY-1, `Me` that
+  never raises a lower role already held to the invite's (§7.2 "becomes a member with the invite's
+  role"; the suite pinned only the keep), and MY-2, `Team` admitting an org admin who is not a
+  member (§5.3's `O` column). Now pinned: Linus, seated in Studio as a viewer over a pending admin
+  invite, signs in as Studio's admin; the org admin gets 404 on a team it is not in and on its
+  invites, lists only its own team, and after erasing a brief gets 404 on that brief and its
+  project (erasure is no read). Carried: MY-1 → 16a and 05. MY-2's Hub half is already task 16b's
+  matrix (`colO`); so are the 403 cells of N2, which the re-review missed.
