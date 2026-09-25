@@ -205,8 +205,8 @@ as remembered, **UNVERIFIED**; P28 checks it.
 	Route string `json:"route,omitempty"`
 ```
 
-The label is set by the broker from the spec, never by a caller-supplied label map: task 17's
-`WithLabels` (`task-17.md:325`) rejects the key `panacea-app/route` from any caller, so Fleet cannot
+The label is set by the broker from the spec, never by a caller-supplied label map: this task
+makes task 17's `WithLabels` (`task-17.md:325`) refuse the key `panacea-app/route`, so Fleet cannot
 spell `global` for an AU project by a second path. Fleet sets `Route` from the value it already
 reads through `gwire.RouteSource` before every create (`task-20.md:284`), and a route source error
 still means no create. **A solo AU project's sessions still get `global` egress** until remotebe
@@ -225,3 +225,64 @@ sends `Route` (gap 2).
 The block's shape is azurerm 4.81.0's, as phase 8's Q1 names it; the pinned provider version at
 merge decides, **UNVERIFIED**. ACNS is billed per node (from knowledge, **UNVERIFIED** amount); the
 cost goes in phase 8's cost model row as an owner-visible line (gap 4).
+
+#### G11, the Australia East guard — complete source
+
+`guards.sh` runs from the repository root after its two `cd`s (`guards.sh:29-31`), so `deploy/`
+is a sibling of `$BASE`. G11 reads two things. **Terraform:** one new tag from the existing awk
+pass, so no second process. **Chart values:** one `grep` over `deploy/values/**/*.yaml` and
+`deploy/charts/*/values.yaml`, captured whole and its status tested, as every read is
+(`guards.sh:22-25`). G11 is the first rule that reads outside `infra/`; the header comment says so.
+
+```bash
+# infra/scripts/guards.sh — the awk SCAN program gains (beside the TFVKEY rule, :179):
+#   LOC <file> <attr> <value>   a location attribute set to a string literal            (G11)
+(is_tf || is_vars) && /^[ \t]*([a-z_]*_)?location[ \t]*=[ \t]*"/ {
+  a = $0; sub(/^[ \t]*/, "", a); sub(/[ \t]*=.*/, "", a)
+  v = $0; sub(/^[^"]*"/, "", v); sub(/".*/, "", v); print "LOC\t" cur "\t" a "\t" v
+}
+(is_tf) && /^variable[ \t]+"([a-z_]*_)?location"/ { in_locvar = 1 }
+(is_tf) && in_locvar && /^}/ { in_locvar = 0 }
+(is_tf) && in_locvar && /^[ \t]*default[ \t]*=[ \t]*"/ {
+  v = $0; sub(/^[^"]*"/, "", v); sub(/".*/, "", v); print "LOC\t" cur "\tdefault\t" v
+}
+```
+
+```bash
+# infra/scripts/guards.sh — the tag loop gains  LOC) LOCS+=("$rest") ;;  and, before the summary:
+
+# --- G11: every region is Australia East (Phase T task 47; 05-design.md §2.5) ----------------------
+# Fleet, its Postgres, the lane mirror, the gateway and its usage store, and every sandbox pool
+# run in Australia East. The rule is wider than that list on purpose: one estate, one region, so
+# a new component cannot be missed by name. "global" is the literal some Azure resources take
+# for a control-plane object with no data location (from knowledge, UNVERIFIED per resource).
+# The AU route's Bedrock region is AWS's name and is pinned too: ap-southeast-2 (Sydney).
+REGION="australiaeast"
+begin 11
+for l in "${LOCS[@]}"; do
+  f="${l%%"$TAB"*}" r="${l#*"$TAB"}" attr="${r%%"$TAB"*}" v="${r#*"$TAB"}"
+  case "$v" in "$REGION"|global) ;; *) fail "$f" "$attr = \"$v\"; team mode runs in $REGION only" ;; esac
+done
+VALS="$(find deploy/values deploy/charts -name '*.yaml' \( -path 'deploy/values/*' -o -path 'deploy/charts/*/values.yaml' \) 2> /dev/null | sort)"
+if [ -n "$VALS" ]; then
+  HITS="$(grep -nE '^[[:space:]]*(location|azureRegion|topology\.kubernetes\.io/region|bedrockRegion):' $VALS)"
+  rc=$?; [ "$rc" -le 1 ] || read_failed "values scan" grep "$rc"
+  while IFS= read -r h; do
+    [ -n "$h" ] || continue
+    file="${h%%:*}" rest="${h#*:}" rest="${rest#*:}"
+    key="${rest%%:*}" key="${key//[[:space:]]/}" v="${rest#*:}" v="${v//[[:space:]\"\']/}"
+    want="$REGION"; [ "$key" = bedrockRegion ] && want="ap-southeast-2"
+    [ "$v" = "$want" ] || [ -z "$v" ] || fail "$file" "$key: $v; team mode runs in $want only"
+  done <<< "$HITS"
+fi
+end
+
+echo "guards: $PASSED of 11 passed"
+[ "$PASSED" -eq 11 ]
+```
+
+An empty value (`location: ""`, a pipeline-filled slot) passes; the value the pipeline passes is
+the Terraform output, which G11 has already pinned. `bedrockRegion` is phase 6's key as this part
+names it; **phase 6's gateway chart is not written**, so the key is renamed mechanically to
+phase 6's at merge (gap 5). The `$VALS` word-split is deliberate: chart paths hold no spaces
+(phase 8's naming rule), and `find … | sort` feeds it once.
