@@ -63,3 +63,70 @@ let an SVG run. This part does the first and refuses the three others, each with
    the Hub's word verbatim. The desktop never infers a cause from what it saw locally. One button
    unsubscribes or subscribes, as one `subscribe` op, undoable through task 56's handle. Linear's
    `Shift+S` does nothing here (05 §4.3 rule 3); the palette verb is task 59's.
+
+**Files** (the scope names `Attachments.tsx`, `blob.ts` and the two edits; `Subscribe.tsx` is split
+out of `IssueHead.tsx` so task 46's file changes by two lines, a gap in the File map):
+- `desktop/src/work/blob.ts` — `sha256Hex`, `sniffImage`, `wireContentType`, `uploadAttachment`,
+  `fetchVerified` (new)
+- `desktop/src/work/blob.test.ts` — the hash, sniff and refusal tests (new)
+- `desktop/src/components/issue/Attachments.tsx` — the list, the drop target, preview, *Save as* (new)
+- `desktop/src/components/issue/Attachments.test.tsx` — the surface tests (new)
+- `desktop/src/components/issue/Subscribe.tsx` — the reason line and the one control (new)
+- `desktop/src/components/issue/Subscribe.test.tsx` — (new)
+- `desktop/src/components/issue/IssueHead.tsx` ⚑ (task 46's) — renders `<Subscribe/>` (modified)
+- `desktop/src/components/issue/issueData.ts` ⚑ (task 46's) — `useSubscription` (modified)
+- `desktop/src/components/issue/IssueView.tsx` ⚑ — `Attachments` above `Comments` (modified)
+- `desktop/src/components/issue/issue.css` ⚑ — the `.iv-at-*` and `.iv-sub` rules (modified)
+
+#### Interfaces — complete: `desktop/src/work/blob.ts`, part 1: bytes
+
+```ts
+// desktop/src/work/blob.ts — content-addressed attachments (hub-contract §7.6). Bytes stay in
+// memory. Nothing in this file touches storage, a cache or the file system (decision 5).
+
+/** The Hub's upload allowlist, verbatim (hub-contract.md:850). Anything else goes as octet-stream. */
+export const HUB_BLOB_TYPES: readonly string[] = [
+  "text/html; charset=utf-8", "text/css; charset=utf-8", "text/plain; charset=utf-8",
+  "application/json", "image/png", "image/jpeg", "image/webp", "image/svg+xml", "font/woff2",
+  "application/octet-stream",
+];
+/** The desktop's own memory guard for hashing, NOT the Hub's limit (decision 6). */
+export const READ_CEILING_BYTES = 64 * 1024 * 1024;
+
+export type ImageKind = "image/png" | "image/jpeg" | "image/gif" | "image/webp";
+
+/** 64 lowercase hex of SHA-256 over exactly these bytes. */
+export async function sha256Hex(bytes: ArrayBuffer): Promise<string> {
+  const d = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+  let s = "";
+  for (const b of d) s += b.toString(16).padStart(2, "0");
+  return s;
+}
+export const digestOf = (hex: string): string => `sha256:${hex}`;
+export const hexOf = (digest: string): string | null => /^sha256:([0-9a-f]{64})$/.exec(digest)?.[1] ?? null;
+
+/** Magic numbers only (decision 3). SVG, HTML and every text format answer null. */
+export function sniffImage(bytes: ArrayBuffer): ImageKind | null {
+  const b = new Uint8Array(bytes, 0, Math.min(bytes.byteLength, 12));
+  const at = (i: number, ...xs: number[]) => xs.every((x, k) => b[i + k] === x);
+  if (at(0, 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a)) return "image/png";
+  if (at(0, 0xff, 0xd8, 0xff)) return "image/jpeg";
+  if (at(0, 0x47, 0x49, 0x46, 0x38) && (at(4, 0x37, 0x61) || at(4, 0x39, 0x61))) return "image/gif";
+  if (at(0, 0x52, 0x49, 0x46, 0x46) && at(8, 0x57, 0x45, 0x42, 0x50)) return "image/webp";
+  return null;
+}
+
+/** The type the PUT carries: the file's own when the Hub lists it, else octet-stream (decision 2).
+ *  A text type is listed only with its charset, so "text/plain" alone becomes octet-stream too. */
+export function wireContentType(fileType: string): string {
+  return HUB_BLOB_TYPES.includes(fileType) ? fileType : "application/octet-stream";
+}
+
+/** "16777216 bytes · 16 MiB": the Hub's number verbatim, then its binary size. */
+export function bytesFact(n: number): string {
+  const units = ["bytes", "KiB", "MiB", "GiB"];
+  let v = n, u = 0;
+  while (v >= 1024 && u < units.length - 1) { v /= 1024; u += 1; }
+  return u === 0 ? `${n} bytes` : `${n} bytes · ${Number.isInteger(v) ? v : v.toFixed(1)} ${units[u]}`;
+}
+```
