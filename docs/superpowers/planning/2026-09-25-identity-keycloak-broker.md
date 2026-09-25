@@ -530,3 +530,24 @@ written; **none** = verified to need no change. Built code is never edited outsi
 | team | `05-design.md` `:120`, `:161-162`, `:189-191`, `:853`, `:1127`; phase T plan and parts 01, 05, 12, 17, 21, 66 | T* | no | section 6: Fleet and gateway service clients, `azp` keys, audience `panacea-app-fleet` | findings |
 | work | phase W plan `:127`, `:254`, `:257`, `:568`, `:581`; scopes 141-160, 161-180, 181-187 | W* | no | the MCP server's `authorization_servers` = the realm; Hub pages sign in through the realm; third-party apps are realm clients; groups via broker mappers | findings |
 
+## 12. UNVERIFIED
+
+Each item names who settles it. None changes a decision above; each says what happens if it is false.
+
+| # | Not verified | Settled by | If false |
+|---|---|---|---|
+| U-1 | That OD-30's "Panacea Platform API" is the registration Panacea's IdP uses (`37f8bd70-...`, named `AU-PROD-Panacea-RITM6316333`; facts §10) | the owner, one look | the ruling holds: it keys on that client id, not the name |
+| U-2 | Panacea's **live** realm: no Identity Provider Redirector default, no required actions, the IdP bound to `panacea first broker login`, IdP settings as scripted (facts §3, §4) | Panacea's team when applying K1-K4 | a live difference is fixed in Panacea's script, not worked around in PanaceaApp |
+| U-3 | The live Keycloak is 25.0.0 (chart default, pod not inspected); loopback any-port, `kc_idp_hint` and the `loginHint` switch in exactly 25.0.0 (facts §1, §8) | section 10's check | if a loopback port is refused, K1 lists `http://127.0.0.1:*/*`-style entries per Keycloak's own doc for that version |
+| U-4 | Keycloak honours a narrowing `scope` on the refresh-token grant, so each access token has one audience | hub task 31 against devissuer, then task 43 against the dev realm | tokens carry all four audiences; validators still pass (`aud` contains); the per-audience defence is recorded as degraded until phase 8 |
+| U-5 | Offline sessions survive a pod restart of Panacea's one-replica, `--cache=local` Keycloak; the realm's default roles include `offline_access` | section 10's check, then a pod restart | a restart costs one zero-click re-sign-in; nothing else changes |
+| U-6 | Zero clicks on KPMG devices: the PRT browser SSO (Edge; Chrome with Windows Accounts), conditional-access behaviour, and existing consent for `openid profile email` on the registration | section 10's check, by the owner | the prompts are Entra's and correct (section 3); none is worked around |
+| U-7 | `GetUserNameExW(NameUserPrincipal)` returns the Entra UPN on KPMG's (hybrid or Entra-joined) devices | hub task 30, one run on the owner's laptop | `login_hint` is omitted; Entra relies on the browser session |
+| U-8 | Keycloak 25 drops an IdP-mapped attribute that the user profile does not declare | not needed: UP declares it either way | — |
+| U-9 | Keycloak can reach phase 8's **Entra-only** Postgres by workload identity (Azure's `azure-identity-extensions` JDBC plugin as a provider jar); Keycloak has no native Entra auth to Postgres | env task 08 | env 08's implementer stops and reports; no password role is invented without the owner |
+| U-10 | Whether any Panacea client holds offline sessions that K4's 60-day cap would shorten | Panacea's team | they gain a 60-day cap; Panacea's choice to accept |
+| U-11 | Tauri `setFocus` against Windows' foreground lock | hub task 40 | the taskbar flash is the whole behaviour |
+| U-12 | Fleet's daily account-state check (`05-design.md:163-185`) has no way to see Entra disablement through the realm | the team plan's writers (findings) | the 7-day offline cap (section 6) is the leaver bound |
+| U-13 | Keycloak token exchange is still preview, and keycloak-config-cli supports the Keycloak 26 release pinned in phase 8 (both from knowledge, not fetched) | env tasks 09 and 29 | WAM stays out (section 3 has two other reasons); the realm Job's tool is re-chosen by env 09 from Apache/MIT tools only |
+| U-14 | Line numbers for hub parts 07a, 15, 17, 21, 27, 34, 36, 37, 39, 40, 41, 42, and the phase 6, team and work rows of section 11, are from `facts-app-identity.md`, not re-read here | each task's implementer re-verifies its part's citations (OD-29) | the edit lands on the right text, not the cited line |
+
