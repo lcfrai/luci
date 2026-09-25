@@ -486,3 +486,68 @@ In *writes each flag to the root element*: `setFlag("grain", "off");` and
 `expect(root().getAttribute("data-grain")).toBe("off");`. In *removes the attribute when a flag
 returns to its default*: `setFlag("grain", "off"); setFlag("grain", "on");` and
 `expect(root().hasAttribute("data-grain")).toBe(false);`.
+
+#### Steps
+
+1. Write `grain.test.ts`, `GrainMeter.test.tsx` and the `flags.test.ts` changes. Run
+   `npm --prefix desktop test -- grain GrainMeter flags`: the two new files fail to import; the
+   flags tests fail on the missing key.
+2. Create `grain.css` by **moving** `tokens.css:159-171` (a cut, then the new header comment and
+   the off rule), add the `app.css` import. The four grain tests pass; `AppShell` and `defects`
+   still pass (`npm --prefix desktop test -- AppShell defects`).
+3. Add `grain` to `flags.ts` and the fourth group to `FlagCompare.tsx`. The flags tests pass.
+4. Write `GrainMeter.tsx`, `screens/grain.tsx`, the `index.ts` line and the `stress.css`
+   rules. The four meter tests pass.
+5. Mutate by hand, one at a time, and watch the named test go red, then revert: `opacity:
+   0.03` in `grain.css`; drop the `-hc` selector; `sorted[Math.floor(…)]` in `percentile`;
+   `setFlag("grain", "on")` before the second pass; leave the `finally` out of `measureGrain`.
+6. Run the typecheck and the full desktop suite; commit with `git commit -F <msg> -- <paths>`.
+7. **The measurement, by a person, on the laptop.** `npm --prefix desktop run tauri dev` at the
+   laptop's own Windows scaling (150 % on the reference machine). Dev → Stress set → Themes; the
+   stage zoom at 100 %; *Grain, measured* → Measure. Copy the two lines into the *Grain* section
+   of `docs/verification/2026-09-25-phase-w-results.md`, with the machine line filled in, and
+   commit that file. If the rule line reads *to the owner*, the numbers go to the owner at task 39
+   with the proposal to turn grain off at a DPR of 1.5 and above; nothing turns it off before
+   the owner says so.
+
+#### Acceptance
+
+```bash
+npm --prefix desktop test -- grain GrainMeter AppShell defects flags
+# expect: every test passes: grain's four, the meter's four, AppShell's and defects' grain
+# assertions unchanged, and flags' tests with the new key
+
+npm --prefix desktop run typecheck
+# expect: exit 0, no output from tsc
+
+grep -c "grain" desktop/src/styles/tokens.css
+# expect: 0
+
+grep -A3 "^## Grain" docs/verification/2026-09-25-phase-w-results.md
+# expect (after step 7 only): the machine line, then two measured lines, each with "dpr"
+```
+
+#### What this task does not claim
+
+- **A frame budget met.** The numbers are recorded, **UNVERIFIED** until step 7 runs, and the
+  owner accepts them. The rule says which way they point; it does not decide.
+- **That rAF intervals are GPU frame time.** They are the page's frame pacing, which is what a
+  scrolling list feels like; compositor cost that does not delay the next frame is not seen.
+- **Any machine but the one it ran on,** nor 125 % unless someone runs it there too.
+- **That grain is right at all.** Whether it still adds a *made-object quality* on the new look is
+  the owner's eyes at task 39, with the grain flag flipping it on one screen.
+- **High-contrast themes.** None exists (W2); the rule is written ahead so none can ship with grain.
+- Design: 05 §4.4 work rule 6, C13 (grain is dark's mark; paper carries the thread gutter);
+  02 C8, C13; 07 D M5, D M6. Parity: no 01 row.
+
+**Interfaces:**
+- Produces: `desktop/src/styles/grain.css` owning `.grain::after` and its three off rules
+  (`paper`, `-hc`, `data-grain="off"`); `Grain` and the `grain` flag (`data-grain="off"`);
+  `GrainMeter`, `PASS_MS`, `ROWS`, `STEP_PX`, `FrameSummary`, `percentile`, `summarise`,
+  `grainRule`, `resultLine`, `scrollPass`, `measureGrain`; the *Grain* section's shape
+- Consumes: task 34's forced-colours grain rule (the one copy); task 33's
+  `registerStressScreen`, `screens/index.ts`, `.ss-note`; task 32's `setFlag`, `getFlags`,
+  `resetFlags`, `Group`, `FlagOption`, `.dt-reset`; task 26's `--t-fact`, `--t-fact-lh`, `--s-*`,
+  `--row-h`; the built `.grain::after` (`tokens.css:163-171`), `AppShell.tsx:82`,
+  `AppShell.test.tsx:192-193`, `defects.test.tsx:193-201` (all verified)
+- Amends: nothing in the Hub. No wire shape changes.
