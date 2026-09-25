@@ -523,3 +523,71 @@ The downward API cannot read an image label, so `PANACEA_APP_CLAUDE_VERSION` is 
 `${CLAUDE_CODE}`, which `gate-live.sh` takes from `digests.json`. A finished pod cannot be copied
 from, so the report leaves the pod as one log line the container's wrapper prints after the test,
 `G9-REPORT <base64 of report.json>`: our own format, read by `gate-live.sh`, never the CLI's.
+
+**`pipelines/scripts/gate-live.sh`, the contract** (header, complete; the body is these steps):
+
+```bash
+#!/usr/bin/env bash
+# pipelines/scripts/gate-live.sh <pushed digests.json> <gates dir> <last image-digests dir>
+#   Runs G4 then G3 on DEV's cluster (never prod's, even for main), writes gateway.json and
+#   g9.json with lib/gate.sh, and uploads <gates dir> + last-claudeCode as artefact gates-final.
+#   1. az aks get-credentials for dev (no --admin, P8-D2); kubelogin convert-kubeconfig -l azurecli
+#   2. last = gate_field <last dir>/digests.json claudeCode   ("" when absent or task 27's shape)
+#   3. G4: envsubst < infra/smoke/bump/gateway-job.yaml | kubectl apply -f -; wait <= 10 min for
+#      Complete or Failed. pass iff Complete AND, over every gatekeeper replica's log since the
+#      Job's start (kubectl logs -n panacea-gateway -l app.kubernetes.io/name=gatekeeper), the
+#      lines whose "session" is gate-<run>-gateway-1 hold >= 1 {"path":"/v1/messages","status":200}
+#      and none with a 4xx status or "path":"(other)". reason names the first offending line's
+#      path and status, nothing else.
+#   4. G3: if claudeCode == last, gate_write g9 not-required. Else if G4 failed, gate_write g9
+#      skipped "G4 failed first". Else run g9-job.yaml the same way; pass iff Complete AND the
+#      decoded G9-REPORT line's "pass" is true.
+#   5. trap: kubectl delete job -l panacea.app/gate --wait=false for this run, always.
+# Exit 0 whatever the gates say (the files say it; publish refuses). Exit 2 on a setup error:
+# no cluster, no digests, a Job that never started. A setup error fails the run, and nothing publishes.
+set -euo pipefail
+```
+
+The log-line match is on the gatekeeper's own JSON keys, `level,ms,msg,path,project,route,session,
+status,time` (phase 6 `parts/task-12.md:208`, the `request` line at `:874`), which task 12 pins
+by test. The gate identity must be able to read those logs (gap 1).
+
+**Fleet, the launch version and the mirror image** (`cmd/fleetd/config.go`, task 12's block at
+`task-12.md:95-130`, two constants, two fields, two checks):
+
+```go
+	envClaudeVersion = "PANACEA_APP_FLEET_CLAUDE_VERSION" // required: MAJOR.MINOR.PATCH, image-digests' claudeCode
+	envMirrorImage   = "PANACEA_APP_FLEET_MIRROR_IMAGE"   // required: <repo>@sha256:<64 hex>, image-digests' mirror
+
+// in Config:
+	ClaudeCodeVersion string
+	MirrorImage       string
+
+// in loadConfig, after the existing checks:
+	c.ClaudeCodeVersion, c.MirrorImage = getenv(envClaudeVersion), getenv(envMirrorImage)
+	if !regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+$`).MatchString(c.ClaudeCodeVersion) {
+		return Config{}, fmt.Errorf("%s: %q is not MAJOR.MINOR.PATCH", envClaudeVersion, c.ClaudeCodeVersion)
+	}
+	if !regexp.MustCompile(`^[a-z0-9.\-]+(:[0-9]+)?/[a-z0-9._/\-]+@sha256:[a-f0-9]{64}$`).MatchString(c.MirrorImage) {
+		return Config{}, fmt.Errorf("%s: not an image by digest", envMirrorImage)
+	}
+```
+
+`internal/fleet/sessions/sessions.go` (task 20): `Config` gains `ClaudeCodeVersion string`, set
+from the above by `fleetd`'s wiring; `Launch` gains one line before the agent record is built
+(`task-20.md:391`), so a caller cannot choose the version a record shows:
+
+```go
+	if r.Harness == "claude-code" {
+		r.Version = s.cfg.ClaudeCodeVersion // the digest this pod starts from; never the caller's
+	}
+```
+
+Task 59's `EnsureMirror` caller sends `cfg.MirrorImage` in task 58's `PUT` body (gap 6).
+
+**The chart** (task 32's `deploy/charts/fleet`): `values.yaml` gains `images: { claudeCode: "",
+mirror: "" }`; `templates/deployment.yaml` sets the two variables from them; the schema requires
+`claudeCode` to match the version pattern and `mirror` task 12's digest pattern. Task 30's
+`helm-values.sh` sets both from the same `image-digests` it already reads for `warm.images`
+(`--set fleet.images.claudeCode=… --set fleet.images.mirror=…`), so Fleet's launch version and
+the warm pool's image come from one artefact, in one deploy.
