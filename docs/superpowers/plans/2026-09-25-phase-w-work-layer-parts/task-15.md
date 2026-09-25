@@ -581,6 +581,7 @@ func TestValidateImportBatchNamesTheField(t *testing.T) {
 		{"external id 200", func(b *ImportBatch) { b.Items[0].ExternalID = strings.Repeat("a", 200) }, ""},
 		{"external id 201", func(b *ImportBatch) { b.Items[0].ExternalID = strings.Repeat("a", 201) }, "items[0].externalId"},
 		{"external id twice", func(b *ImportBatch) { b.Items[1].ExternalID = b.Items[0].ExternalID }, "items[1].externalId"},
+		{"ids differ in case", func(b *ImportBatch) { b.Items[1].ExternalID = "eng-9" }, ""},
 		{"priority p1", func(b *ImportBatch) { b.Items[0].Priority = "p1" }, "items[0].priority"},
 		{"51 labels", func(b *ImportBatch) { b.Items[0].Labels = make([]string, 51) }, "items[0].labels"},
 		{"padded label", func(b *ImportBatch) { b.Items[0].Labels = []string{" Bug"} }, "items[0].labels[0]"},
@@ -635,7 +636,7 @@ then covers `ExternalRef.CreatedAt` with no new code.
 The cast and harness are task 11's (Ada admin of Portal, project `EP`; Grace a member; Vera a
 viewer; Linus outside Portal and admin of Billing, project `PAY`; Xavier in another org), plus
 task 14's **Olga**, an org admin in no team. Project `EP2` is a second project of Portal, made
-through Hub route 22's `POST /v1/projects` in setup. Portal has live labels `Bug` and `Old`, `Old`
+through the Hub's `POST /v1/projects` (hub-contract:705) in setup. Portal has labels `Bug` (live) and `Old`
 archived, made by Ada through task 11's routes; Billing has `Payments`. Events are counted from
 `hub.audit_events` as the owner (`hubtest.OwnerConn`), before and after. `batch(ids …)` builds a
 valid `csv` batch, one item per id, title `Imported <id>`.
@@ -653,4 +654,30 @@ valid `csv` batch, one item per id, title `Imported <id>`.
 | `TestNoStateTravels` | an item with `"state": "done"` → 400 `bad_request`; 0 issues | a lenient decoder that drops, or honours, a smuggled state |
 | `TestOnlyAMemberImports` | Vera → 403 `required: member`; Linus → 404 `project_not_found`; Xavier → 404; Olga → 404 (an org admin is no team member) | a viewer importing; a 403 that leaks the project |
 | `TestTheScopeIsPerProject` | `row-1` into `EP`, then into `EP2` → two issues, two ids, each `created` | idempotency keyed on the org, not the project |
+| `TestTheSourceIsPartOfTheKey` | `row-1` as `csv`, then `row-1` as `linear`, both into `EP` → two issues | idempotency on `externalId` alone |
+| `TestTheImporterIsNotSubscribed` | after Grace imports 3, `GET /v1/me/subscriptions` as Grace lists none of them, and no `subscription.set` was appended (task 13's route, `task-13.md:419-420`) | an import subscribing its runner to every issue (task 13's exception) |
+| `TestTheExternalTimeIsKeptNotUsed` | `createdAt: "2019-03-01T00:00:00Z"` → the head's `createdAt` is at or after the test's start, `external.createdAt` is `2019-03-01T00:00:00Z`; an item with `createdAt: ""` reads `external.createdAt: ""` | the source's time used as the Hub's, or dropped |
+| `TestAReimportDoesNotResurrectAnErasedIssue` | import `row-1`; Olga erases it (task 14's route); the same batch again → `existing` names the erased id; its head's `title` is still `""`; 0 `issue.created` | a re-import that re-creates erased text under a new id |
+| `TestEraseTakesTheAuthorName` | `row-1` with the canary `ZQX-15` in its title, description, URL path and author name; Olga erases it → `markerHits("ZQX-15")` (`H27:72`) is empty; `external.externalId` is still `row-1`; as `hub_app`, `UPDATE issues SET external_author_name = ''` → `42501` | `erase_issue` not replaced (the author name survives); a column grant on the new columns |
+| `TestTheReplyHoldsNoText` | the canary import sent with an `Idempotency-Key`; before any erase, the `idempotency_keys` row for it holds no `ZQX-15`; the same key again → the same body | a reply that returns heads, so the stored reply keeps a title erase cannot reach |
+| `TestTwoImportsAtOnceCreateOnce` | two goroutines post the same 3-item batch at once → both 200; across the two replies 3 `created` and 3 `existing`; 3 issues | the lookup outside the org's write lock (a 500 from `issues_external_once`, or duplicates) |
+| `TestAnOverSizeBodyIsRefusedFirst` | a body of `MaxImportBatchBytes + 1` bytes → 400 `field: "body"`; a 2 MiB valid body of 120 items with 16 KiB descriptions → 200 | the route left on the 1 MiB default, or no cap at all |
+
+`TestTheReplyHoldsNoText` reads `idempotency_keys` through `markerHits` restricted to that table,
+as the owner. `fullRun` in task 13's feed test gains the same canary import, so
+`TestNoWorkEventCarriesText` (task 13) also covers the import's one event kind.
+
+#### Mutants for part 1, applied by hand
+
+| Mutant | Test that must fail |
+|---|---|
+| `len(b.Items) > MaxImportItems` as `>=` | `TestValidateImportBatchNamesTheField` (`500 items`) |
+| the title rule re-written here with `len` (bytes) instead of task 02's code points | the same (`title 200 é`) |
+| `TrimSuffix(".text")` dropped | the same (`title 201 é` names `items[2].title.text`) |
+| `u.User == nil` dropped | the same (`userinfo url`) |
+| the `HasPrefix("https://")` check replaced by `u.Scheme == "https"` alone | the same (`upper-case scheme`: `url.Parse` lower-cases the scheme) |
+| the duplicate check keyed on `strings.ToLower(ExternalID)` | the same (`ids differ in case`: the index compares exact bytes, so `ENG-9` and `eng-9` are two items) |
+| `ToLower` dropped from the dedupe in `ImportLabelNames` | `TestImportLabelNamesDedupesAndSorts` |
+| `out` starts `nil` | the same (`none encodes as null`) |
+| a `State IssueState` field added to `ImportItem` | `TestAnImportItemCarriesNoState` |
 
