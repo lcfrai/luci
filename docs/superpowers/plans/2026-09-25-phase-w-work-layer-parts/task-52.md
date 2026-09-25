@@ -381,3 +381,175 @@ export function Attachments(props: { issueId: string; projectId: string; blobs: 
 One file per drop in W1: a multi-file drop attaches the first and says nothing of the rest, which
 the *does not claim* list records. The *uploading* line names the act, not a percentage: the
 desktop does not know how far a `PUT` has gone and does not pretend to (`OD-27`).
+
+#### Interfaces — complete: `desktop/src/components/issue/Subscribe.tsx` and `useSubscription`
+
+```tsx
+// desktop/src/components/issue/Subscribe.tsx — the Hub's reason, and one control (decision 9).
+import type { JSX } from "react";
+import type { Subscription, SubscriptionCause } from "../../api/work";
+import { mutate } from "../../work/replica/ops";
+
+/** The cause as words. The KEY is the Hub's field; the desktop adds words, never a cause. */
+export const CAUSE_WORDS: Record<SubscriptionCause, string> = {
+  create: "you created it", assign: "you were assigned", mention: "you were mentioned",
+  comment: "you commented", manual: "your choice",
+};
+
+export function Subscribe(props: { issueId: string; sub: Subscription | null }): JSX.Element {
+  const { issueId, sub } = props;
+  const on = sub?.subscribed === true;
+  const line = sub === null ? "Not subscribed"
+    : `${on ? "Subscribed" : "Not subscribed"} · ${CAUSE_WORDS[sub.cause]}`;
+  return (
+    <p className="iv-sub" data-subscribed={on} data-cause={sub?.cause ?? ""}>
+      <span className="iv-sub-line">{line}</span>
+      <button type="button" className="iv-sub-toggle"
+        onClick={() => mutate({ kind: "subscribe", issueId, subscribed: !on })}>
+        {on ? "Unsubscribe" : "Subscribe"}
+      </button>
+    </p>
+  );
+}
+```
+
+```ts
+// issueData.ts ⚑ (task 46's; still the only file here that reads the replica's shape):
+import type { Subscription } from "../../api/work";
+export function useSubscription(issueId: string): Subscription | null {
+  return useWork((r) => r.subscription(issueId));   // task 55's read; null when the Hub holds no row
+}
+```
+
+`sub === null` means the Hub holds no row for this person and issue: nobody subscribed them, so
+*Not subscribed* with no cause. A row with `subscribed: false` is an unsubscribe the person made
+(the only way a row goes false is the manual `PUT`, `task-13.md:57`), so it reads *Not subscribed
+· your choice*, and a later mention does not undo it (`task-13.md:527`). The optimistic paint of
+the op writes `{subscribed, cause: "manual"}` (task 55's `setSubscribed`), which is exactly what
+the Hub will answer, because the manual `PUT` always sets cause `manual`. The chip is task 56's:
+`mutate` returns the handle and the view's `UndoChip` shows *Unsubscribed · Undo*, and Undo
+sends the inverse op. There is no key; *Subscribe* and *Unsubscribe* are palette verbs (task 59).
+
+#### Interfaces — complete: the edits to `IssueHead.tsx`, `IssueView.tsx` and `issue.css`
+
+```tsx
+// IssueHead.tsx ⚑ — two lines. Props gain `sub: Subscription | null`, and after .iv-facts:
+      <Subscribe issueId={head.id} sub={props.sub} />
+
+// IssueView.tsx ⚑ — IssueViewBody reads the subscription through issueData and passes it on,
+// and the activity slot's default renders Attachments above task 51's Comments:
+const sub = useSubscription(issueId);
+<IssueHead … sub={sub} />
+{slots.activity ?? (
+  <>
+    <Attachments issueId={head.id} projectId={head.projectId} blobs={blobsClient} />
+    <Comments issueId={head.id} me={me} people={people} head={headRevision} />
+  </>
+)}
+// blobsClient is `makeBlobs(controlPlaneBlobs())`, built once at module scope in Attachments.tsx
+// and exported; tests pass their own `blobs` to <Attachments/> directly.
+```
+
+```css
+/* issue.css ⚑ — task 52. A file is a row of facts; a preview is the image, not a card. */
+.iv-at-list { display: grid; gap: var(--s-2); padding: var(--s-3) var(--s-4); }
+.iv-at-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-1); }
+.iv-at { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s-2);
+  padding: var(--s-1) var(--s-2); border-radius: var(--r-ctl); box-shadow: var(--e-hair); }
+.iv-at-name, .iv-at-by, .iv-at-empty, .iv-at-note { font-family: var(--sans); color: var(--ink-2); }
+.iv-at-name { color: var(--ink); }
+.iv-at [data-fact], .iv-at-refused { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.iv-at-refused { color: var(--fail); }
+.iv-at-img { display: block; max-inline-size: 100%; max-block-size: 320px; border-radius: var(--r-card);
+  box-shadow: var(--e-card); }
+.iv-sub { display: flex; align-items: baseline; gap: var(--s-2); margin: 0;
+  font-family: var(--sans); color: var(--ink-2); }
+```
+
+No `transition`, no `@keyframes`: an attachment or a subscribe change is caused by the person's
+own click, and the row's appearance in place already shows the cause. The radius and elevation
+names are the ones in `desktop/src/styles/tokens.css:110-122` today (`--r-ctl`, `--r-card`,
+`--e-hair`, `--e-card`); `--s-*` are task 26's (`task-26.md:90`).
+
+#### Tests to write first — `desktop/src/work/blob.test.ts`
+
+```ts
+import { describe, expect, it, vi } from "vitest";
+import { ApiError } from "../api/client";
+import { BlobError, bytesFact, makeBlobs, READ_CEILING_BYTES, sha256Hex, sniffImage,
+  wireContentType, type BlobTransport } from "./blob";
+
+const enc = (s: string) => new TextEncoder().encode(s).buffer as ArrayBuffer;
+const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]).buffer;
+const SVG = enc(`<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>`);
+// SHA-256 of "abc", from FIPS 180-2's worked example.
+const ABC = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
+
+function transport(over: Partial<BlobTransport> = {}) {
+  const put = vi.fn<BlobTransport["put"]>(async (_p, hex, body, type) =>
+    ({ digest: `sha256:${hex}`, size: body.byteLength, contentType: type }));
+  const get = vi.fn<BlobTransport["get"]>(async () => enc("abc"));
+  return { put, get, ...over };
+}
+const file = (bytes: ArrayBuffer, name: string, type: string) => new File([bytes], name, { type });
+
+describe("blob", () => {
+  it("hashes the bytes itself and PUTs under that hash", async () => {
+    expect(await sha256Hex(enc("abc"))).toBe(ABC);
+    const t = transport({ put: vi.fn(async () => ({ digest: "sha256:" + "f".repeat(64), size: 3, contentType: "x" })) });
+    const b = makeBlobs(t);
+    await expect(b.uploadAttachment("pj-1", file(enc("abc"), "a.txt", ""))).rejects.toMatchObject(
+      { refusal: { kind: "digest_mismatch", expected: `sha256:${ABC}`, got: "sha256:" + "f".repeat(64) } });
+    expect(t.put.mock.calls[0][1]).toBe(ABC);          // the path's {sha} is OUR hash
+  });
+  it("names the upload by the local hash and keeps the name off the wire", async () => {
+    const t = transport();
+    const up = await makeBlobs(t).uploadAttachment("pj-1", file(enc("abc"), "notes.txt", "text/plain"));
+    expect(up).toEqual({ digest: `sha256:${ABC}`, name: "notes.txt", size: 3, contentType: "application/octet-stream" });
+    expect(JSON.stringify(t.put.mock.calls[0])).not.toContain("notes.txt");
+  });
+  it("sends a GIF and a PDF as octet-stream, a PNG as image/png", () => {
+    expect(wireContentType("image/gif")).toBe("application/octet-stream");
+    expect(wireContentType("application/pdf")).toBe("application/octet-stream");
+    expect(wireContentType("image/png")).toBe("image/png");
+  });
+  it("sniffs by magic number, so an SVG named .png is not an image", () => {
+    expect(sniffImage(PNG)).toBe("image/png");
+    expect(sniffImage(SVG)).toBeNull();
+    expect(sniffImage(enc("GIF89a....."))).toBe("image/gif");
+    expect(sniffImage(enc("RIFF\0\0\0\0WEBPVP8 "))).toBe("image/webp");
+  });
+  it("carries the Hub's limitBytes verbatim on a 413", async () => {
+    const e = new ApiError("blob_too_large" as never, "too large", 413, { limitBytes: "16777216" });
+    const b = makeBlobs(transport({ put: vi.fn(async () => { throw e; }) }));
+    await expect(b.uploadAttachment("pj-1", file(enc("abc"), "a", ""))).rejects.toMatchObject(
+      { refusal: { kind: "too_large", limitBytes: "16777216", source: "hub" } });
+    expect(bytesFact(16777216)).toBe("16777216 bytes · 16 MiB");
+  });
+  it("refuses past the desktop ceiling before reading a byte", async () => {
+    const big = { size: READ_CEILING_BYTES + 1, name: "big", type: "", arrayBuffer: vi.fn() } as unknown as File;
+    const t = transport();
+    await expect(makeBlobs(t).uploadAttachment("pj-1", big)).rejects.toBeInstanceOf(BlobError);
+    expect(big.arrayBuffer).not.toHaveBeenCalled();
+    expect(t.put).not.toHaveBeenCalled();
+  });
+  it("does not hand over downloaded bytes that do not hash to the digest", async () => {
+    const b = makeBlobs(transport({ get: vi.fn(async () => enc("abd")) }));
+    await expect(b.fetchVerified("pj-1", `sha256:${ABC}`)).rejects.toMatchObject({ refusal: { kind: "digest_mismatch" } });
+    await expect(makeBlobs(transport()).fetchVerified("pj-1", `sha256:${ABC}`)).resolves.toMatchObject({ image: null });
+  });
+});
+```
+
+| Test | Mutant it kills |
+|---|---|
+| `hashes the bytes itself and PUTs under that hash` | trusting a server-reported hash; a path named by anything but the local hash |
+| `names the upload by the local hash …` | the file name sent to the Hub (decision 7) |
+| `sends a GIF and a PDF as octet-stream …` | a 400 on every GIF from sending an unlisted type |
+| `sniffs by magic number …` | preview decided by the file's type string or extension |
+| `carries the Hub's limitBytes verbatim` | a generic *upload failed*; a desktop copy of 16 MiB |
+| `refuses past the desktop ceiling …` | reading a 2 GB file into memory to hash it |
+| `does not hand over downloaded bytes …` | trusting the bytes because the route said so |
+
+`ApiError`'s fourth argument is `details` (`client.ts:62`); if its constructor takes them in
+another order, the test follows the client (**UNVERIFIED** against the file's current signature).
