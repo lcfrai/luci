@@ -617,7 +617,7 @@ func (s *Server) postAgentComment(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return WriteResult{}, err
 		}
-		if head.AssigneeID == nil || *head.AssigneeID != tx.P.UserID { // 6. the owner's issue only
+		if head.Assignee == nil || head.Assignee.ID != tx.P.UserID { // 6. the owner's issue only
 			return WriteResult{}, Forbidden("assignee")
 		}
 		if err := s.checkAgentPayload(ctx, tx, head, req); err != nil { // 7. brief key, thread
