@@ -13,7 +13,7 @@ which is an org admin's, audited, and keeps the comment's id so every reference 
 `erased` (05 §3.2). That is the whole design: a record of who said what, next to the issue on the
 thread, that nobody can quietly rewrite.
 
-Four decisions the scope left open, made here.
+Five decisions the scope left open, made here.
 
 1. **There is no `kind` field on `CreateCommentRequest` in W1.** Task 03's body is `{body,
    parentId, anchor, mentions}`, decoded strictly, so a `"kind": "note"` is 400 `bad_request`
@@ -31,6 +31,13 @@ Four decisions the scope left open, made here.
    (task 49 fixes this; **UNVERIFIED** until task 49's part says so).
 4. **Reactions are a set, not a counter.** One row per `(comment, user, emoji)` (task 06's primary
    key); `on: true` twice is one row and one event; `on: false` on no row is 200 and no event.
+5. **A comment's reply is stored for replay without its text.** All three comment `POST`s answer
+   a `Comment`, which holds the body and the anchor's `ref`. `server.Write` would keep that reply
+   whole in `idempotency_keys` (H14 `:111`), where task 14's erase cannot reach it. So the three
+   routes use `server.WriteReplayable` with `rebuildComment`, as task 08 does for an issue's
+   reply (`task-08.md:45-51`): `Stored` is the reply with `body.text` `""` and `anchor.ref` `""`,
+   and a replay rebuilds the comment from `issue_comments` as it is now, so a replay after an
+   erase answers the erased comment, blank.
 
 **The one thing this task must not get wrong** is that no comment body ever reaches the change
 feed or the audit `data`. Every event here carries ids, kinds and booleans; the body stays in
@@ -75,7 +82,8 @@ the `(org_id, issue_id, parent_id)` foreign key that keeps a reply on its parent
     `V M A`)
   - task 08: the readable-issue lookup; the team-membership read used for `mentions`
   - task 09: the read of one stored revision's content and its `serves`
-  - Hub task 14: `server.Write`, `server.Read`, `(*Tx).Emit`, `server.Refuse`, `server.Decode`
+  - Hub task 14: `server.WriteReplayable`, `server.Read`, `(*Tx).Emit`, `server.Refuse`,
+    `server.Decode` (`H14:27-138`)
 - Consumed by: task 13 (subscribe the commenter and each mentioned user in the same
   transaction), task 14 (erase blanks `body` and `anchor`), task 51 (the comment UI), task 60 (a
   hunk or span anchor from the Merge lens), task 99 (the W3 kinds)
@@ -340,7 +348,8 @@ func (s *Server) registerWorkComments(mux *http.ServeMux) {
 }
 ```
 
-**`postComment`**, inside `s.Write`, in this order:
+**`postComment`**, inside `s.WriteReplayable(w, r, httpx.MaxBodyBytes, s.rebuildComment, …)`
+(decision 5; `postReaction` and `postResolve` use the same call), in this order:
 
 1. `server.Decode[hubapi.CreateCommentRequest]` (a `kind` is an unknown field: 400).
 2. The issue inside the caller's readable set → 404 `issue_not_found`; role below `member` →
@@ -479,6 +488,7 @@ guessed) and serves `c-resume`.
 | `TestAShortcodeReactionIs400` | `:partyparrot:` → 400 `field: emoji`; `👍👍` → 400 | custom emoji before it is designed |
 | `TestResolvingAReplyIs422` | resolving the reply → 422 `field: commentId`; resolving the top-level → 200 with `resolvedBy` Grace; resolving again → 200, no event; `resolved: false` → `resolvedAt: null` | a resolve on a reply, or a resolve that forgets who |
 | `TestAnAgentDraftKeepsItsClass` | Grace posts `author: A` → the comment reads `author: A`, `createdBy` Grace, and the event's `author` is `A` | an author class lost on write (L-124) |
+| `TestACommentReplayHoldsNoText` | a comment posted with `Idempotency-Key: k1` and body `CANARY-12-REPLAY` → `idempotency_keys.response` for `k1`, read as the owner, does not contain the canary; the same request again → `Idempotent-Replay: true` and the body with the canary (rebuilt); the same for a reaction with `k2` | the whole reply stored, which task 14's erase could not reach (decision 5) |
 | `TestNoCommentEventCarriesTheBody` | a body `CANARY-12-BODY` and a hunk ref `CANARY-12-PATH`; no event's `data` in the org, read as the owner from `hub.audit_events`, contains either string | the body or a code path in the feed (hub-contract:1133-1134) |
 
 #### Steps
@@ -503,8 +513,8 @@ guessed) and serves `c-resume`.
 cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/work
 go test ./control-plane/internal/hub/hubapi/ -race -count=1 -v -run '^Test(ReactionEmojiIsOneSequence|UTF16LenCounts|AnAnchorCarriesOnly)' 2>&1 | grep -c "^--- PASS"   # 3
 go test -tags integration ./control-plane/internal/hub/server/ -race -count=1 -v \
-  -run '^Test(CommentsHaveNoEdit|ACommentIsStored|AKindIsRefused|AViewerCannotComment|AReplyToAReply|AParentOnAnother|ATextAnchorIs|ACriterionAnchorMust|SpanAndHunkRefs|MentionsMustBe|TwoMentionsAppend|ReactingTwice|AShortcodeReaction|ResolvingAReply|AnAgentDraftKeeps|NoCommentEventCarries)' \
-  2>&1 | grep -c "^--- PASS"                                                                    # 16
+  -run '^Test(CommentsHaveNoEdit|ACommentIsStored|AKindIsRefused|AViewerCannotComment|AReplyToAReply|AParentOnAnother|ATextAnchorIs|ACriterionAnchorMust|SpanAndHunkRefs|MentionsMustBe|TwoMentionsAppend|ReactingTwice|AShortcodeReaction|ResolvingAReply|AnAgentDraftKeeps|ACommentReplayHolds|NoCommentEventCarries)' \
+  2>&1 | grep -c "^--- PASS"                                                                    # 17
 go test ./control-plane/... -race -count=1                                                      # ok
 ```
 

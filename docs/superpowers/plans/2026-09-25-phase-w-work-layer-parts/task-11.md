@@ -331,6 +331,13 @@ rolls the transaction back and appends nothing):
    when that assignee is set **and is not the writer**, else `""` (05 §3.7 rule 3: the owner is
    informed, never their agents). 201 with the subject's head.
 
+**Replay storage.** `postRelation` answers an `IssueHead`, which carries `external.url` (an
+imported issue's link, which task 14 erases). So it runs under `server.WriteReplayable` with a
+`rebuildIssueHead` that reads the head as it is now, storing the reply with `external.url` `""`,
+the rule task 08 applies to its create (`task-08.md:45-51`). The label and policy replies hold no
+issue text and use `server.Write`; `DELETE` and `PUT` are never stored (Hub task 14 claims keys
+for `POST` only, `H14:103`).
+
 `deleteRelation` accepts any of the five words in `{kind}` (the read words included, because the
 desktop deletes what it shows), normalises, and deletes; nothing deleted → 404
 `relation_not_found`; else one `issue.unrelated` event with the same `data` and 200.
