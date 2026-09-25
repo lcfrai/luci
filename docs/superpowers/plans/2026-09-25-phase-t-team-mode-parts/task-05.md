@@ -433,3 +433,88 @@ func auditRow(p Principal, at time.Time, e Event) store.AuditRow {
 On the feed `p.Via` is `fleet` and `p.DelegationID` is `""`. The feed is a read and writes no
 event; if it ever did, `AuditEnvelope.check()` refuses `via` without `delegationId`
 (`task-03.md:1336`), so the write fails closed with 500, never a v2 event with no delegation.
+
+**`store`, the three lookups and the audit row.**
+
+```go
+// control-plane/internal/hub/store/delegation.go
+package store
+
+import (
+	"context"
+	"errors"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubapi"
+)
+
+// ErrDelegationUnknown: fleet_delegation returned no row, for an unknown id or
+// another tenant's. The server answers both 401 delegation_revoked, "unknown".
+var ErrDelegationUnknown = errors.New("store: delegation unknown to this tenant")
+
+// FleetDelegationRow is task 04's fleet_delegation row (task-04.md:815-818).
+type FleetDelegationRow struct {
+	OrgID, OwnerUserID, ProjectID string
+	Class                         hubapi.DelegationClass
+	Routes                        []hubapi.RouteName
+	ExpiresAt                     time.Time
+	RevokedAt                     *time.Time
+	RevokedReason                 hubapi.RevokeReason // "" unless RevokedAt is set
+	OwnerOID, OwnerName, OwnerEmail string
+}
+
+// FleetDelegation runs hub.fleet_delegation($tenant, $id). It runs before
+// hub.org_id is set, which is why it is an owner function (task 04, decision g).
+func FleetDelegation(ctx context.Context, tx pgx.Tx, tenantID, id string) (FleetDelegationRow, error) {
+	var d FleetDelegationRow
+	var class, reason string
+	var routes []string
+	err := tx.QueryRow(ctx, `
+		SELECT org_id, owner_user_id, project_id, class::text, routes, expires_at, revoked_at,
+		       coalesce(revoked_reason::text, ''), owner_entra_oid::text,
+		       coalesce(owner_name, ''), coalesce(owner_email, '')
+		  FROM hub.fleet_delegation($1::uuid, $2)`, tenantID, id).Scan(
+		&d.OrgID, &d.OwnerUserID, &d.ProjectID, &class, &routes, &d.ExpiresAt, &d.RevokedAt,
+		&reason, &d.OwnerOID, &d.OwnerName, &d.OwnerEmail)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return FleetDelegationRow{}, ErrDelegationUnknown
+	}
+	if err != nil {
+		return FleetDelegationRow{}, err
+	}
+	d.Class, d.RevokedReason = hubapi.DelegationClass(class), hubapi.RevokeReason(reason)
+	for _, r := range routes {
+		d.Routes = append(d.Routes, hubapi.RouteName(r))
+	}
+	return d, nil
+}
+
+// FleetOrg runs hub.fleet_org($tenant): the feed's org. NULL is ErrNotEnrolled.
+func FleetOrg(ctx context.Context, tx pgx.Tx, tenantID string) (string, error) {
+	var org *string
+	if err := tx.QueryRow(ctx, `SELECT hub.fleet_org($1::uuid)`, tenantID).Scan(&org); err != nil {
+		return "", err
+	}
+	if org == nil {
+		return "", ErrNotEnrolled
+	}
+	return *org, nil
+}
+
+// AgentOwnedBy reports whether agentID is an agents row of userID's in the
+// session's org (row-level security bounds it). An unknown id is false, not an
+// error: the caller answers 403 agent_not_owner either way, so the answer never
+// says whether another owner's agent exists (§5.10 rule 5).
+func AgentOwnedBy(ctx context.Context, tx pgx.Tx, agentID, userID string) (bool, error) {
+	var ok bool
+	err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM hub.agents
+		WHERE id = $1 AND owner_user_id = $2)`, agentID, userID).Scan(&ok)
+	return ok, err
+}
+```
+
+`store.AuditRow` (Hub task 14, `task-14.md:159-168`) gains, after `Data`, `Via string` and
+`DelegationID string`, and `Append` copies both onto the `hubapi.AuditEnvelope` it builds. It adds
+no check of its own: the envelope's `check()` is the one rule (`task-03.md:1336-1341`).
