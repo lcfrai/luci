@@ -188,7 +188,7 @@ the only check.
 // desktop/src/components/intake/LinkPicker.tsx — task 170 (decision 3), on task 46's Picker.
 import type { JSX } from "react";
 import { Picker, type PickerItem } from "../issue/pickers/Picker";   // task 46
-import { useWork } from "../../work/useWork";                         // SW.16
+import { useWork } from "../../work/replica/useWork";                 // SW.16, task 55
 
 export function LinkPicker(props: { teamId: string; onChoose(issueId: string): void; onClose(): void }): JSX.Element {
   const { teamId, onChoose, onClose } = props;
@@ -222,3 +222,93 @@ const open = useWork((w) => (hasRequests ? w.openRequestsOfTeam(teamId) : [])); 
 Requests sort **oldest first** (the longest wait on top), a measured order, not a rank. While
 `hasRequests` is `false` the `Requests` heading, its rows and the list's *requests* filter chip are
 absent from the DOM, not hidden with CSS.
+
+#### Interfaces — complete: `IntakeRulesEditor.tsx` and `IntakeFormEditor.tsx`, the exported halves
+
+```tsx
+// desktop/src/components/intake/IntakeRulesEditor.tsx — task 170 over task 147's rules.
+import type { JSX } from "react";
+import type { IntakeRule, RuleMatch } from "../../api/work";
+
+/** One rule's match, in words: "from the form Bug report, sender @contoso.com, text has 'upload'". */
+export function matchWords(m: RuleMatch, formName: (id: string) => string): string {
+  const parts: string[] = [];
+  if (m.channel) parts.push(`by ${m.channel}`);
+  if (m.formId) parts.push(`from the form ${formName(m.formId)}`);
+  if (m.senderDomain) parts.push(`sender @${m.senderDomain}`);
+  if (m.textContains) parts.push(`text has "${m.textContains}"`);
+  return parts.length === 0 ? "every request" : parts.join(", ");
+}
+
+/** Reorder as a new position list; the Hub writes it with the person as author (task 147). */
+export function moveRule(rules: readonly IntakeRule[], from: number, to: number): IntakeRule[] {
+  const next = rules.slice();
+  const [r] = next.splice(from, 1);
+  if (r !== undefined) next.splice(Math.max(0, Math.min(to, next.length)), 0, r);
+  return next.map((x, i) => ({ ...x, position: i + 1 }));
+}
+
+export function IntakeRulesEditor(props: { teamId: string; canEdit: boolean }): JSX.Element;
+```
+
+```tsx
+// desktop/src/components/intake/IntakeFormEditor.tsx — task 170 over task 148's forms.
+import type { JSX } from "react";
+import type { FormField, IntakeForm } from "../../api/work";
+
+/** A field is valid when it has a label and, for select, at least two distinct options. */
+export function fieldProblem(f: FormField): string | null {
+  if (f.label.trim() === "") return "A field needs a label";
+  if (f.kind === "select" && new Set(f.options.map((o) => o.trim()).filter(Boolean)).size < 2)
+    return "A choice field needs at least two options";
+  return null;
+}
+
+export function IntakeFormEditor(props: {
+  teamId: string; formId: string; canEdit: boolean;
+  form: IntakeForm & { url: string };   // task 169's form(formId) answer
+}): JSX.Element;
+```
+
+**The rules editor**, top to bottom: *First match wins* once, in sans, above the list; one row per
+rule in `position` order with `matchWords`, the route (*to Payments · labels intake, mobile*),
+and *by Dana Wu · 24 Sep 10:14* (author in sans, time in mono). A team admin reorders with the
+row's handle or `Alt+↑`/`Alt+↓`, and each reorder sends **one** `rules.put` op with the whole list
+and the `version` read (a stale version comes back `conflict` and the list reloads, saying *Dana
+changed the rules; showing hers*). A member sees the same rows with no handle and no button, and
+*Only a team admin edits intake rules* once above the list. `canEdit` is the token's team role
+(hub-contract §5.2), never an optimistic guess.
+
+**The form editor**: one row per `FormField` with its label, a `kind` picker over task 169's
+`FORM_FIELD_KINDS` (words: *short text, long text, choice, date, number, person*), a *Required*
+switch, and the options list when `kind` is `select`. Two default blocks follow, *For members* and
+*For people outside the team*, each with labels, priority and assignee through task 46's
+`LabelPicker`, `PriorityPicker` and `AssigneePicker`. The form's `url` (the Hub-hosted https
+page, task 148) shows in mono with *Copy*; the editor never renders the public page itself. *Save*
+sends one `form.put`; `fieldProblem` blocks it in place, naming the field.
+
+#### Interfaces — complete: `desktop/src/components/intake/registerIntakeDesk.ts`
+
+```ts
+// desktop/src/components/intake/registerIntakeDesk.ts — task 170. SW.17's one new row kind.
+import { registerDeskRow, registerDeskSource } from "../desk/registry";   // task 62, UNVERIFIED path
+import { UnroutedRow } from "./UnroutedRow";
+
+export interface UnroutedPayload { requestId: string; teamId: string; requester: string; reason: string }
+
+export function registerIntakeDesk(): void {
+  registerDeskRow<UnroutedPayload>("request.unrouted", "failed", UnroutedRow,
+    (item) => ({ tier: 1, waitingSinceMs: Date.parse(item.arrivedAt) }));   // blocks a requester
+  registerDeskSource("request.unrouted", (snap) => snap.signals("request.unrouted").map((e) => ({
+    kind: "request.unrouted", id: e.subject, arrivedAt: e.at,
+    payload: { requestId: e.subject, teamId: String(e.data?.teamId ?? ""),
+               requester: String(e.data?.requesterName ?? ""), reason: String(e.data?.reason ?? "") },
+    rankReason: "a request no rule could route", ifNothing: "It waits, unseen by any team's Triage",
+  })));
+}
+```
+
+`UnroutedRow` is a six-line row in the same file set (*No rule routed Priya Nair's request ·
+waiting 3h 12m*, and *Open* to the team's Triage), counted in `RequestRow.test.tsx`. The row's
+data is metadata only: `requesterName` and `reason` are task 144's event `data` fields
+(**UNVERIFIED**), never the quote.
