@@ -650,3 +650,81 @@ describe("peek keys", () => {
   });
 });
 ```
+
+#### Tests to write first, part 3 — `Peek.test.tsx` (surfaces and source guards)
+
+```tsx
+import peekSrc from "./Peek.tsx?raw";
+import personSrc from "./PeekPerson.tsx?raw";
+import cssSrc from "./work.css?raw";
+import { setHunkSource } from "../../work/peek";
+import { useCockpit } from "../../store/store";
+
+function openOn(alias: string) {
+  const { list } = lens();
+  const row = screen.getByText(alias).closest<HTMLElement>("[data-row-id]")!;
+  fireEvent.click(row);                                        // task 40: a click sets the cursor
+  const t0 = performance.now();
+  press(list, "Space");
+  return { list, row, ms: performance.now() - t0 };
+}
+
+describe("peek surfaces", () => {
+  it("the criterion id is in peek in mono and never on the row", () => {
+    const { row } = openOn("EP-167");                          // todo, mine, serves c-91e2a4b0
+    expect(within(row).queryByText(/c-91e2/)).toBeNull();
+    const id = within(peek()!).getByText(/c-91e2a4b0/);
+    expect(id.closest(".pk-fact")).not.toBeNull();
+    // mutant: machine ids on the row
+  });
+  it("a teammate's peek renders her issues and no session, attach or transcript", () => {
+    const attach = vi.fn();
+    useCockpit.setState({ sessions: {} });
+    openOn("EP-163");                                          // Alice's, started
+    const p = peek()!;
+    expect(p.dataset.peekKind).toBe("person");
+    expect(within(p).getByText("Alice Example")).toBeTruthy();
+    expect(p.querySelector(".pk-span, .pk-diff, [data-terminal-host]")).toBeNull();
+    expect(attach).not.toHaveBeenCalled();
+    expect(personSrc).not.toMatch(/attachRegistry|xterm|sessions|useCockpit|transcript/);
+    // mutant: showing a teammate's session (OD-15)
+  });
+  it("Peek imports nothing from the attach registry or a terminal", () => {
+    expect(peekSrc).not.toMatch(/api\/attachRegistry|@xterm|TerminalPane/);
+    // mutant: PTY-derived meaning (OD-8)
+  });
+  it("a landed row peeks the land commit, and a missing diff source says so in place", async () => {
+    setHunkSource({ hunksOf: () => Promise.reject(new Error("the land diff is not on this build yet")) });
+    openOn("EP-142");                                          // done, proven, landCommit LAND
+    expect(peek()!.dataset.peekKind).toBe("hunk");
+    await act(async () => { await Promise.resolve(); });
+    expect(within(peek()!).getByText("the land diff is not on this build yet")).toBeTruthy();
+  });
+  it("a hunk's Comment on this opens the composer with a hunk anchor", async () => {
+    setHunkSource({ hunksOf: async () => [{ path: "upload/resume.go", oldStart: 40, oldLines: 2,
+      newStart: 40, newLines: 3, lines: [" a", "-b", "+c", "+d"], spanRef: null }] });
+    openOn("EP-142");
+    await act(async () => { await Promise.resolve(); });
+    fireEvent.click(within(peek()!).getByRole("button", { name: "Comment on this" }));
+    expect(within(peek()!).getByLabelText(/Comment on EP-142/)).toBeTruthy();
+  });
+  it("the peek's CSS animates only opacity and transform", () => {
+    const pk = cssSrc.slice(cssSrc.indexOf("/* Peek:"));
+    expect(pk).not.toMatch(/transition:\s*all/);
+    const frames = pk.match(/@keyframes pk-in\s*\{[^}]*\{[^}]*\}[^}]*\{[^}]*\}/)![0];
+    const props = [...frames.matchAll(/([a-z-]+)\s*:/g)].map((m) => m[1]);
+    expect(new Set(props)).toEqual(new Set(["opacity", "transform"]));
+    // mutant: layout motion (height, top)
+  });
+  it("no prediction anywhere, and budget.peek is recorded", () => {
+    const { ms } = openOn("EP-167");
+    expectNoPrediction(document.body);
+    console.info(`budget.peek first paint: ${ms.toFixed(1)} ms`);   // a record, not a verdict
+  });
+});
+```
+
+The composer's accessible name comes from task 51's `label` prop (`task-51.md:267`); if its part
+labels the editor another way, the query follows it. The `EP-167` row serves `c-91e2a4b0` only if
+task 20's `head(167, …)` revision serves it; if not, the test builds that revision with
+`makeIssueRevision` (**UNVERIFIED**, `task-20.md:299-320`).
