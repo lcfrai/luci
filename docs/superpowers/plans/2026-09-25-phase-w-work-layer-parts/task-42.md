@@ -12,7 +12,7 @@ task 46's `DuplicateOfPicker`, the priority refusal opens its `PriorityPicker`, 
 Parity: closes **L-46** (the Triage view; its Desk rows are task 63), **L-47** (the number keys;
 `Shift+R` accept-and-Start is task 61) and **L-48**'s surface (the refusal shown; the check is
 task 11's `TriageExitRefused`, `task-11.md:187-199`), and **L-10** with task 48. Design: 05 §4.3
-(`1`-`4`, `T`, `task-42` row at `05-design.md:1008-1009`), §3.3 (`triage`), §2.3 point 4 (the
+(`T` and `1`-`4`, the key table's rows at `05-design.md:1006` and `:1008`), §3.3 (`triage`), §2.3 point 4 (the
 thread state, `05-design.md:613-618`), §5.3's demo (`05-design.md:1175`).
 
 **What the reader does** (the demo, 05 §5.3): the imported backlog is in Triage, every row reading
@@ -62,4 +62,62 @@ the priority picker in place.
 8. **Keys are the Triage list element's own.** `1`-`4` and `T` are bound in `TriageView`'s list
    `onKeyDown`, after `isBareListKey` (task 41). The Work list does not see them, and neither does
    a text field, the decline field included. Task 53 moves them into `KEYMAP` unchanged.
+
+**Files** (the skeleton's file map lists `TriageView.tsx`; it omits `suggestCriterion.ts`,
+`CriterionPicker.tsx` and their tests, a gap named in the return):
+- `desktop/src/work/suggestCriterion.ts` (+ `suggestCriterion.test.ts`) — the pure matcher (new)
+- `desktop/src/components/work/CriterionPicker.tsx` (+ `CriterionPicker.test.tsx`) — `T`'s picker; tasks 46 and 47 reuse it (new)
+- `desktop/src/components/work/TriageView.tsx` (+ `TriageView.test.tsx`) — the view and its keys (new)
+- `desktop/src/components/work/WorkLens.tsx` — a *Triage* action in its `ViewHeader`, switching the lens's view (modified, task 40's)
+- `desktop/src/components/work/work.css` — `.wk-triage-*`, the `--fail` flash, the decline field (modified)
+
+#### Interfaces — complete: `desktop/src/work/suggestCriterion.ts`
+
+```ts
+// desktop/src/work/suggestCriterion.ts — task 42. W1's criterion suggestion is text match
+// (05 §2.3 point 4); W4's gateway suggestion (L-51, L-52) replaces the source, not the shape.
+
+/** A criterion as the picker lists it: which brief it is in, in brief order. */
+export interface BriefCriterion { briefKey: string; criterionId: string; text: string }
+
+export interface CriterionSuggestion {
+  briefKey: string;
+  criterionId: string;
+  text: string;
+  /** The shared normalised terms, in the order they appear in the criterion: the why. */
+  matched: readonly string[];
+}
+
+// A fixed list, so a suggestion never changes because a library did.
+const STOP = new Set(("a an and are as at be but by for from has have if in into is it its not of on or " +
+  "our so than that the their then there these this to was we were when where which while who will " +
+  "with without after before must should can may").split(" "));
+
+/** Lower case, marks removed, split on non-letters and non-digits, stop words and 1-char tokens out. */
+export function terms(text: string): string[] {
+  return text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase()
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter((t) => t.length > 1 && !STOP.has(t));
+}
+
+export function suggestCriteria(
+  issue: { title: string; description: string },
+  criteria: readonly BriefCriterion[],   // brief order: the tie-break
+  limit = 3,
+): CriterionSuggestion[] {
+  const mine = new Set(terms(`${issue.title} ${issue.description}`));
+  return criteria
+    .map((c, order) => {
+      const matched = [...new Set(terms(c.text))].filter((t) => mine.has(t));
+      return { order, s: { briefKey: c.briefKey, criterionId: c.criterionId, text: c.text, matched } };
+    })
+    .filter((x) => x.s.matched.length > 0)
+    .sort((x, y) => y.s.matched.length - x.s.matched.length || x.order - y.order)
+    .slice(0, Math.max(0, limit))
+    .map((x) => x.s);
+}
+```
+
+`CriterionSuggestion` has no `score`, `confidence` or `rank` field: the order is the only place the
+count shows, and the why is the words.
 
