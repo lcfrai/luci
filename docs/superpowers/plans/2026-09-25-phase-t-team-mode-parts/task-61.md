@@ -193,3 +193,95 @@ const (
 
 var ErrStopped = errors.New("landq: the queue is stopped")
 ```
+
+```go
+// control-plane/internal/fleet/landq/landq.go, continued: what the queue needs.
+
+// Mirror is task 59's client (mirror.Client), three ops this task adds to it.
+type Mirror interface {
+	// FetchRemote fetches <branch> from the customer's remote with the project's
+	// read-only fetch credential (task 48) into refs/panacea/integration/<branch>
+	// and returns its sha. The credential never leaves the mirror pod.
+	FetchRemote(ctx context.Context, project, branch string) (head string, err error)
+	// BuildLand is phase 3 task 09 steps 6 to 11, in the mirror (decision a).
+	BuildLand(ctx context.Context, project string, b LandBuild) (LandBuilt, error)
+	// ExportRange bundles from..to (from may be "" for a first refresh).
+	ExportRange(ctx context.Context, project, from, to string) (Bundle, error)
+}
+
+type LandBuild struct {
+	Entry          string   `json:"entry"`   // the merge goes to refs/panacea/landq/<entry>
+	Base           string   `json:"base"`    // integration/<branch>'s sha; the mirror refuses if it moved
+	LaneRef        string   `json:"laneRef"`
+	LaneTip        string   `json:"laneTip"` // must equal LaneRef's sha, else lane_moved
+	AuthorName     string   `json:"authorName"`  // decision b, bounded, hygiene-checked
+	AuthorEmail    string   `json:"authorEmail"`
+	Message        string   `json:"message"` // built by Fleet with phase 3's gitx.Message, trailers included
+	PackageMembers []string `json:"packageMembers"` // converge.PackageScriptMembers
+}
+
+type PathChange struct {
+	Path   string `json:"path"`
+	Status string `json:"status"` // "A" | "M" | "D", --no-renames
+}
+
+// LandBuilt is ST.7's family: typed facts, no file content.
+type LandBuilt struct {
+	Merge          string              `json:"merge"`      // "" when Conflicted is non-empty
+	Changes        []PathChange        `json:"changes"`    // Base..Merge
+	PackageChanged map[string][]string `json:"packageChanged"` // package.json path → members that differ, sorted
+	Conflicted     []string            `json:"conflicted"` // non-empty: nothing was written
+	LaneMoved      bool                `json:"laneMoved"`
+}
+
+type Bundle struct {
+	Prereq string `json:"prereq"` // "" for a full bundle
+	Tip    string `json:"tip"`
+	Bytes  []byte `json:"-"`      // at most MaxBundle; carried as the body, never in JSON
+}
+
+// Handoff is what reaches a member's machined through the broker (task 17's
+// control relay). It has NO credential field, and landq imports no credential
+// package: TestLandqHoldsNoCredential checks both (property 3).
+type Handoff struct {
+	Entry  string `json:"entry"`  // "" for a refresh
+	Ref    string `json:"ref"`    // refs/panacea/landq/<entry> or refs/panacea/integration/<branch>
+	Tip    string `json:"tip"`
+	Prereq string `json:"prereq"`
+	Bundle []byte `json:"-"`
+}
+
+// Machines is task 17's broker client, as Fleet's caller under each owner's delegation.
+type Machines interface {
+	Stage(ctx context.Context, ownerUserID, project string, h Handoff) error   // the lane owner only
+	Refresh(ctx context.Context, memberUserID, project string, h Handoff) error // decision d
+	Identity(ctx context.Context, ownerUserID, project string) (name, email string, err error)
+}
+
+// Approvals is task 49's route 86 through hubclient, under the owner's delegation.
+type Approvals interface {
+	ListLandApprovals(ctx context.Context, project string, agent model.AgentID) ([]Approval, error)
+}
+
+// Approval mirrors converge.Approval (task 49), copied here so landq never
+// imports converge's git half; Gate imports only converge.IsAgentConfigPath.
+type Approval struct {
+	ID, State, LaneTip, ApproverUserID string
+	Paths                              []string
+}
+
+// Hints is task 29's fleet.land_hints, read-only here, plus the one call that
+// releases a hint once its first side has landed.
+type Hints interface {
+	Live(ctx context.Context, org, project string) ([]Hint, error)
+	FirstLanded(ctx context.Context, org string, hintID int64) error // Resolver.FirstLanded
+}
+
+type Hint struct {
+	ID       int64
+	Conflict string           // cf-…
+	First    model.AgentID    // Orchestrator of the side that lands first
+	Second   model.AgentID
+	Parties  [2]model.AgentID // the conflict's agentA, agentB (task 03's Conflict)
+}
+```
