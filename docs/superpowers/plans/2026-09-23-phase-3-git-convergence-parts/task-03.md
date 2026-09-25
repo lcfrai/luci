@@ -153,7 +153,9 @@ type Creator struct {
 //  2. `rev-parse --verify --quiet refs/heads/<Branch>^{commit}` in the project (Read) —
 //     ErrUnknownBranch, and nothing on disk;
 //  3. ErrNameTaken when the index has Name for this project. Path =
-//     <CloneRoot>/<ProjectID>/<Name>-<c.Nonce()>; when anything exists at Path (fs.Exists), draw
+//     m.Join(m.CloneRoot(), ProjectID, Name+"-"+c.Nonce()), m = c.Machine (task 02's Join,
+//     P3A-1: a cloud machine's path stays slash-separated on a Windows control plane, so its
+//     MachineFS never meets `\machine\…`); when anything exists at Path (fs.Exists), draw
 //     again, at most 4 draws, then ErrNameTaken. An existing directory is never removed or
 //     reused. A removed lane's directory is gone, so a draw can repeat its nonce only by
 //     chance: 1 in 16^6 (16,777,216) per draw of 6 hex. That is 256 times likelier than two
@@ -572,6 +574,7 @@ logs each call with the Spy's length and the Store's Add mark; it reaches Create
 | `TestCreateCleansUpThroughTheMachineFS` | the clone fails after creating Path → the recording FS logged `RemoveTree(CloneRoot, Path)` | the failure path calling `lanes.RemoveTree` directly, on the laptop's disk |
 | `TestCopyHooksGoesThroughTheMachineFS` | the husky fixture → the FS logged `CopyGeneratedHooks(projectTop, cloneTop, ".husky/_")`; the unignored `.githooks/` fixture → then `RemoveTree(cloneTop, <cloneTop>/.githooks)`; `.git/hooks` → neither call, 0 | the copy or the take-back on `os` beside the seam |
 | `TestFSOfRefusesANilCloudFS` | a fake `gitx.Machine` with ID `m-0123abcd` and a nil FS → `FSOf` is `ErrNoMachineFS`; `Create` → `ErrNoMachineFS`, the Script saw no call, CloneRoot has no entry; ID `local` and nil → `LocalFS{}` | a cloud machine that silently falls back to the laptop's disk |
+| `TestCreateBuildsPathThroughMachineJoin` (P3A-1; env seams review 1 M4) | a fake `gitx.Machine` with ID `m-0123abcd`, `CloneRoot() "/machine/lanes"`, `Join` = `path.Join`, a recording FS and Nonce `"aaaaaa"` → the FS's first `Exists` is `/machine/lanes/<p>/ui-aaaaaa` on every OS, Windows included, and `Lane.Path` is the same string | step 3 built with `filepath.Join`, which hands a cloud machine `\machine\lanes\…` on a Windows control plane |
 | `TestCatalogPathUsesItsFS` | `Catalog{FS: rec}` whose Exists answers `(true, false)` for a lane on disk → `worktree.ErrNotADir`; `(true, true)` for a lane not on disk → its Path; `FS` nil → `TestCatalogPathOfAVanishedClone`'s answer | `worktree.Verify` on the laptop for a cloud machine's lane |
 
 #### Steps
