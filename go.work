@@ -4,4 +4,5 @@ use (
 	./canvas
 	./control-plane
 	./sandboxd
+	./tools/licencegate
 )
