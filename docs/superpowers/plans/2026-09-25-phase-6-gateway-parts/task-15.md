@@ -39,7 +39,7 @@ Seven decisions where the skeleton is silent:
   - `(*Launcher) Prepare(ctx, sessionID, projectID string) (Prep, error)`; `Start(sessionID, projectID, agentID string, generation int, pod netip.Addr)`, which returns at once; `Stop(ctx, sessionID string, keepDir bool) error`; `Resume(sessionID, projectID string, generation int)`
 - Produces, package `backend`: `Spec.Network string` (docker only; `""` is the default bridge); `Sandbox.NetworkAddr netip.Addr` (docker only; the zero value when `Spec.Network` was empty); `LabelNetwork = "panacea-app.network"`.
 - Produces, the session wire shape (additive to phase 2's `sessionJSON`, `control-plane/internal/api/sessions.go:593-620`): `"gateway": "off"|"pending"|"on"|"error"`, `"gatewayError": "<one sentence>"`, `"gatewayRoute": "global"|"au"|""`.
-- Produces, `cmd/api` variables: `PANACEA_APP_GATEWAY_KEYSMITH_URL` (unset: the gateway is off), `_BASE_URL` (default `http://gatekeeper:4000`, the address **inside** the gateway network), `_NETWORK` (default `panacea-app-gateway`, task 17's network), `_CALLER_TOKEN_FILE` (required when on), `_ROUTE_SOURCE` (required when on; `file:<path>` only until S6.1), `_MINT_TIMEOUT` (`20s`), `_REFRESH_AT` (`45m`, and below `55m`), `_OWNER` (`<tid>:<oid>`, default `local:developer`), `_TEAM` (default `local`).
+- Produces, `cmd/api` variables: `PANACEA_APP_GATEWAY_KEYSMITH_URL` (unset: the gateway is off), `_BASE_URL` (default `http://gatekeeper:4000`, the address **inside** the gateway network), `_NETWORK` (default `panacea-app-gateway`, task 17's network), `_CALLER` (`file`, the default, or `oidc`: the person's own `panacea-app-gateway` realm token from the Hub sign-in, `OD-30`), `_CALLER_TOKEN_FILE` (required when on with `file`, refused with `oidc`), `_ROUTE_SOURCE` (required when on; `file:<path>` only until S6.1), `_MINT_TIMEOUT` (`20s`), `_REFRESH_AT` (`45m`, and below `55m`), `_OWNER` (`<tid>:<oid>`, default `local:developer`), `_TEAM` (default `local`).
 - Consumes: `wire.MintRequest`, `MintResponse`, `RefreshRequest`, `RevokeRequest`, `UsageRow`, `Owner`, `RouteSource`, `ErrRouteUnknown`, `ProjectInference.LiveRoute` (task 03; `Prepare` and the raise check read the route by it, so the refresher sees every raise keysmith retires on, re-review R-6); keysmith's `POST /v1/mint` (201), `POST /v1/refresh` (201), `POST /v1/revoke` (204), `GET /v1/usage?scope=&id=` (task 08); `routesource.NewFile` (task 13); `dataclass.Route` (task 01); `httpx.Problem` (`problem.go:26-34`).
 - Required by: task 17 (the compose network and the callers file this reads), task 21 (`Usage`, and the same `ROUTE_SOURCE` file), task 22 (renders `gateway`, `gatewayError`), task 23 (the whole local path), ask P8-1 (the broker uses this client).
 
@@ -494,6 +494,42 @@ func TestResumeRefreshesAtOnce(t *testing.T) {
 }
 ```
 
+The same file, the `oidc` credential (`OD-30`; task 08 decision (g)):
+
+```go
+// fakeTokens is the Hub sign-in's TokenSource as the client sees it.
+type fakeTokens struct{ scopes []string }
+
+func (f *fakeTokens) Token(_ context.Context, scope string) (string, error) {
+	f.scopes = append(f.scopes, scope)
+	return "realm-at-1", nil
+}
+
+// Kills the realm token asked for another audience, the file read instead of
+// the token source, and New accepting two caller credentials or none.
+func TestTheOIDCCredentialIsThePersonsGatewayToken(t *testing.T) {
+	k := &keysmith{script: []reply{{status: 201, body: minted("sk-pa-1", "global")}}}
+	tokens := &fakeTokens{}
+	c, err := New(k.serve(t).URL, "", Options{Tokens: tokens, Backoff: time.Millisecond})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.Mint(context.Background(), mintReq); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, auths := k.snapshot(); len(auths) != 1 || auths[0] != "Bearer realm-at-1" ||
+		strings.Join(tokens.scopes, ",") != "panacea-app-gateway" {
+		t.Errorf("auths %q, scopes %v", auths, tokens.scopes)
+	}
+	if _, err := New("http://keysmith:4100", "/run/caller", Options{Tokens: tokens}); err == nil {
+		t.Error("New accepted a caller token file and a token source together")
+	}
+	if _, err := New("http://keysmith:4100", "", Options{}); err == nil {
+		t.Error("New accepted no caller credential")
+	}
+}
+```
+
 - [ ] **Step 2: Write the failing backend tests**
 
 `control-plane/internal/backend/backend_test.go`, one table added:
@@ -760,12 +796,23 @@ type Options struct {
 	Retries int           // 0 is 2; negative is none
 	Backoff time.Duration // 0 is 500 ms
 	HTTP    *http.Client
+	Tokens  TokenSource // OD-30: the person's own realm token, instead of a caller token file
 }
+
+// TokenSource is the Hub sign-in's (hub task 31, signin.TokenSource): a
+// single-audience realm access token, refreshed silently.
+type TokenSource interface {
+	Token(ctx context.Context, scope string) (string, error)
+}
+
+// gatewayAudience is keysmith's oidc audience scope (task 08 decision (g)).
+const gatewayAudience = "panacea-app-gateway"
 
 // Client talks to keysmith. Every attempt runs on its own deadline under the
 // caller's context, and the body of a retry is the first attempt's, byte for byte.
 type Client struct {
 	base, tokenFile  string
+	tokens           TokenSource
 	timeout, backoff time.Duration
 	retries          int
 	http             *http.Client
@@ -785,10 +832,10 @@ func New(keysmithURL, callerTokenFile string, o Options) (*Client, error) {
 		(u.Path != "" && u.Path != "/") || u.RawQuery != "" || u.User != nil {
 		return nil, errors.New("gatewayclient: the keysmith URL must be http(s)://host:port with no path, query or credentials")
 	}
-	if callerTokenFile == "" {
-		return nil, errors.New("gatewayclient: a caller token file is required")
+	if (callerTokenFile == "") == (o.Tokens == nil) {
+		return nil, errors.New("gatewayclient: exactly one caller credential: a caller token file or a token source")
 	}
-	c := &Client{base: u.Scheme + "://" + u.Host, tokenFile: callerTokenFile,
+	c := &Client{base: u.Scheme + "://" + u.Host, tokenFile: callerTokenFile, tokens: o.Tokens,
 		timeout: o.Timeout, backoff: o.Backoff, retries: o.Retries, http: o.HTTP}
 	if c.timeout <= 0 {
 		c.timeout = DefaultTimeout
@@ -884,7 +931,7 @@ func (c *Client) do(ctx context.Context, method, path string, in any, want int, 
 
 // once is one attempt. again reports whether a retry could help.
 func (c *Client) once(ctx context.Context, method, path string, body []byte, want int, out any) (again bool, err error) {
-	tok, err := c.bearer()
+	tok, err := c.bearer(ctx)
 	if err != nil {
 		return false, err
 	}
@@ -923,7 +970,14 @@ func (c *Client) once(ctx context.Context, method, path string, body []byte, wan
 	return resp.StatusCode >= 500, p
 }
 
-func (c *Client) bearer() (string, error) {
+func (c *Client) bearer(ctx context.Context) (string, error) {
+	if c.tokens != nil { // the sign-in's error may name the realm; it never holds a token
+		tok, err := c.tokens.Token(ctx, gatewayAudience)
+		if err != nil || tok == "" {
+			return "", errors.New("gatewayclient: no realm token for panacea-app-gateway (sign in again)")
+		}
+		return tok, nil
+	}
 	b, err := os.ReadFile(c.tokenFile)
 	tok := strings.TrimSpace(string(b))
 	if err != nil || tok == "" {
@@ -1477,7 +1531,8 @@ type GatewayConfig struct {
 	KeysmithURL     string
 	BaseURL         string
 	Network         string
-	CallerTokenFile string
+	Caller          string // CALLER: "file" (default) or "oidc", the person's own realm token (OD-30)
+	CallerTokenFile string // required with "file", refused with "oidc"
 	RouteFile       string
 	MintTimeout     time.Duration
 	RefreshAt       time.Duration
@@ -1503,7 +1558,14 @@ func loadGatewayConfig(raw func(string) string, backendKind string) (GatewayConf
 		return c, fmt.Errorf("%sKEYSMITH_URL is set but the backend is %q: the local gateway joins a Docker network, and a cloud session's token is the broker's (ask P8-1)", gw, backendKind)
 	}
 	c.BaseURL, c.Network, c.Team = get("BASE_URL", "http://gatekeeper:4000"), get("NETWORK", "panacea-app-gateway"), get("TEAM", "local")
-	if c.CallerTokenFile = get("CALLER_TOKEN_FILE", ""); c.CallerTokenFile == "" {
+	c.Caller, c.CallerTokenFile = get("CALLER", "file"), get("CALLER_TOKEN_FILE", "")
+	switch {
+	case c.Caller == "oidc" && c.CallerTokenFile != "":
+		return c, fmt.Errorf("%sCALLER_TOKEN_FILE is refused with %sCALLER=oidc: the credential is the sign-in's token", gw, gw)
+	case c.Caller == "oidc":
+	case c.Caller != "file":
+		return c, fmt.Errorf("%sCALLER must be file or oidc", gw)
+	case c.CallerTokenFile == "":
 		return c, fmt.Errorf("%sCALLER_TOKEN_FILE is required with %sKEYSMITH_URL", gw, gw)
 	}
 	src := get("ROUTE_SOURCE", "")
@@ -1511,6 +1573,9 @@ func loadGatewayConfig(raw func(string) string, backendKind string) (GatewayConf
 		return c, fmt.Errorf("%sROUTE_SOURCE %q: the local control plane reads file:<path>; the Hub is seam S6.1", gw, src)
 	}
 	c.RouteFile = strings.TrimPrefix(src, "file:")
+	if c.Caller == "oidc" && raw(gw+"OWNER") == "" { // keysmith refuses any owner but the token's (task 08 (g))
+		return c, fmt.Errorf("%sOWNER is required with %sCALLER=oidc: the signed-in person's <tid>:<oid>", gw, gw)
+	}
 	owner := strings.SplitN(get("OWNER", "local:developer"), ":", 2)
 	if len(owner) != 2 || owner[0] == "" || owner[1] == "" {
 		return c, fmt.Errorf("%sOWNER must be <tid>:<oid>", gw)
@@ -1530,15 +1595,21 @@ func loadGatewayConfig(raw func(string) string, backendKind string) (GatewayConf
 }
 ```
 
-`parseDuration(name, value, def)` is phase 2's (`config.go:421`). `config_test.go` gains a table in the file's existing style: unset `KEYSMITH_URL` gives `On == false` and no other variable is read; set, each missing or bad variable fails naming itself (`CALLER_TOKEN_FILE`, `ROUTE_SOURCE=hub`, `OWNER=nobody`, `REFRESH_AT=58m`), and the kata backend with the gateway on fails naming `KEYSMITH_URL`.
+`parseDuration(name, value, def)` is phase 2's (`config.go:421`). `config_test.go` gains a table in the file's existing style: unset `KEYSMITH_URL` gives `On == false` and no other variable is read; set, each missing or bad variable fails naming itself (`CALLER_TOKEN_FILE`, `CALLER=entra`, `CALLER=oidc` with a `CALLER_TOKEN_FILE`, `CALLER=oidc` without `OWNER`, `ROUTE_SOURCE=hub`, `OWNER=nobody`, `REFRESH_AT=58m`), and the kata backend with the gateway on fails naming `KEYSMITH_URL`.
 
 `control-plane/cmd/api/main.go`, after the registry store is opened and before `api.New` (`main.go:147`):
 
 ```go
 	var launcher api.GatewayLauncher // nil interface when off: never a typed nil
 	if cfg.Gateway.On {
-		client, err := gatewayclient.New(cfg.Gateway.KeysmithURL, cfg.Gateway.CallerTokenFile,
-			gatewayclient.Options{Timeout: cfg.Gateway.MintTimeout})
+		opts := gatewayclient.Options{Timeout: cfg.Gateway.MintTimeout}
+		if cfg.Gateway.Caller == "oidc" { // OD-30: the person's own panacea-app-gateway token
+			if signIn == nil { // hub task 32's *signin.Authenticator in cmd/api; nil when the Hub is off
+				return fail(errors.New("PANACEA_APP_GATEWAY_CALLER=oidc needs the Hub sign-in (PANACEA_APP_OIDC_ISSUER)"))
+			}
+			opts.Tokens = signIn // never a typed nil: checked above
+		}
+		client, err := gatewayclient.New(cfg.Gateway.KeysmithURL, cfg.Gateway.CallerTokenFile, opts)
 		if err != nil {
 			return fail(err)
 		}
@@ -1572,13 +1643,13 @@ and `api.Deps{…}` gains `Gateway: launcher`. `fail`, `store` and `log` stand f
 ```bash
 cd control-plane
 go test -race -count=1 ./internal/gatewayclient/                                   # expect: ok
-go test -count=1 -v ./internal/gatewayclient/ | grep -c '^--- PASS: Test'          # expect 11
+go test -count=1 -v ./internal/gatewayclient/ | grep -c '^--- PASS: Test'          # expect 12
 go test -race -count=1 ./internal/backend/... ./internal/registry/... ./internal/api/ ./cmd/api/   # expect: ok for each, phase 2's tests included
 ```
 
 The last line is the regression gate: every phase 2 session test runs with `Deps.Gateway` nil and must be unchanged.
 
-- [ ] **Step 11: Kill eight mutants by hand**
+- [ ] **Step 11: Kill nine mutants by hand**
 
 | Edit | Test that must fail |
 |---|---|
@@ -1590,6 +1661,7 @@ The last line is the regression gate: every phase 2 session test runs with `Deps
 | `refreshLoop`: `Generation: gen + 1` → `Generation: gen` | `TestTheRefresherRefreshesThenStopsWithTheSession` |
 | `sleepUnlessRaised`: delete the `if raisedToAU(…) { return true }` block | `TestARaiseRefreshesAtOnce` (both rows; review C-1) |
 | `raisedToAU`: `r, err := pi.LiveRoute()` → `r, err := pi.Effective, error(nil)` | `TestARaiseRefreshesAtOnce/class` alone (re-review R-6) |
+| `bearer`: `c.tokens.Token(ctx, gatewayAudience)` → `c.tokens.Token(ctx, "panacea-app-hub")` | `TestTheOIDCCredentialIsThePersonsGatewayToken` (`OD-30`) |
 
 - [ ] **Step 12: Vet and format**
 
@@ -1610,7 +1682,7 @@ git commit -F <message file> -- control-plane/internal/gatewayclient/ control-pl
 
 Message: `feat(gateway): the keysmith client and the local control plane's launch (phase 6 task 15)`, a body naming decisions (a) to (g), and the attribution line.
 
-**Acceptance:** step 10 prints `ok`, `11`, and `ok` for every listed package; step 11's eight edits each fail the named test; step 12 prints nothing. The end-to-end run, a real sandbox on the gateway network getting a token, is task 17's acceptance and task 23's proof, not this task's.
+**Acceptance:** step 10 prints `ok`, `12`, and `ok` for every listed package; step 11's nine edits each fail the named test; step 12 prints nothing. The end-to-end run, a real sandbox on the gateway network getting a token, is task 17's acceptance and task 23's proof, not this task's.
 
 **What this task does not claim:**
 
@@ -1618,13 +1690,14 @@ Message: `feat(gateway): the keysmith client and the local control plane's launc
 - **That a raise mid-session applies the AU environment.** Decision (a): the route is served AU from the next request; `CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS` stays as launched until a restart. The key is re-minted on AU within `RaiseCheck` of the raise (`sleepUnlessRaised`, task 07 decision (h)); the environment is not.
 - **That keysmith accepts a mint after a revoke** (decision (d)); task 07's part decides.
 - **That the token is safe from the user's own code in the sandbox.** Any `dev` process can read `/run/panacea/gateway/token`, as it can run `panacea token`; pod binding (task 10) is what makes a copy useless elsewhere.
-- **Per-person attribution in local mode.** Every local session mints as `PANACEA_APP_GATEWAY_OWNER` (default `local:developer`), because the local control plane without the Hub has no signed-in identity. With phase H's sign-in, the owner is the signed-in `tid`/`oid`; that wiring is not built here.
+- **Per-person attribution in local mode.** Every local session mints as `PANACEA_APP_GATEWAY_OWNER` (default `local:developer`), because the local control plane without the Hub has no signed-in identity. With phase H's sign-in, the owner is the signed-in `tid`/`oid`; that wiring is not built here. Under `CALLER=oidc` (`OD-30`, ruling §6) `OWNER` must be set to that pair by hand, and keysmith refuses any other (`403`, task 08 decision (g)); reading it from the sign-in's status is hub task 32's.
+- **That a laptop can mint against the cloud gateway end to end.** `CALLER=oidc` sends the person's `panacea-app-gateway` token (ruling §6), which is keysmith's side. Whether the cloud gatekeeper's pod binding (task 10, `PodAddr`) can see a laptop container's address, and the route from a laptop to the cloud keysmith, are **UNVERIFIED** and not settled here. `signIn` in `cmd/api/main.go` is hub task 32's identifier, assumed, **UNVERIFIED** until it merges.
 - **That file modes protect the token on Docker Desktop for Windows.** Decision (e).
 
 **Gaps against the skeleton, for the orchestrator:**
 
 1. **More files than the skeleton lists:** `registry/session.go` (four persisted fields, decision (c)), `api/api.go` (`Deps.Gateway`, `GatewayRecorder`), `cmd/api/main.go` (the launcher and the resume loop), and the backend and katabe tests. Without the registry fields a control-plane restart silently kills every live session's token within the hour.
-2. **Variables beyond the skeleton's four:** `_ROUTE_SOURCE` (read here too, decision (a); task 21 writes the same file), `_MINT_TIMEOUT`, `_REFRESH_AT`, `_OWNER`, `_TEAM`.
+2. **Variables beyond the skeleton's four:** `_ROUTE_SOURCE` (read here too, decision (a); task 21 writes the same file), `_MINT_TIMEOUT`, `_REFRESH_AT`, `_OWNER`, `_TEAM`, and `_CALLER` (`file` or `oidc`, `OD-30`).
 3. **The token file mode is `0644`, not `0600`** (decision (e)).
 4. **The session wire shape gains `gateway`, `gatewayError`, `gatewayRoute`.** Additive, but phase 2's UI contract and `desktop/src/store/types.ts` should list them; task 22 is the first reader.
 5. **`backend.Sandbox.NetworkAddr` and `LabelNetwork` are new seam fields** the skeleton did not name; phase 8's broker has its own pod IP and does not need them.
