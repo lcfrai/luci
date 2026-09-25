@@ -485,3 +485,71 @@ All on task 10's `memstore`, a fake `Mirror`, a fake `Machines`, a fake `Approva
 | `TestEnqueueOwnerFromTheToken` | F-L1 with Alice's token naming Bob's agent → 403 `agent_not_owner`; no body field can set `ownerUserId` (an unknown field → 400) | owner read from the body |
 | `TestRefreshTellsEveryMemberAndFailsSoft` | three members; Linus's `Refresh` errors: Alice and Bob told, `land_told` for them only, the entry stays `landed` | a refresh failure failing the land |
 | `TestConflictedBuildRefusesWithPathsOnly` | `Conflicted ["auth/session.go"]` → `refused`, `merge_conflict`, the path; the fake mirror's answer carried no content and the entry has none | a merge-conflict refusal that carries hunks |
+
+The mirror half (task 59's runner, `sandboxd`) gets two real-git tests in task 59's style:
+`TestMirrorBuildLandMakesTask09sMerge` (parents `[base, laneTip]`, `Panacea-Owner` and
+`Panacea-Land` trailers read back with `%(trailers)`, the tree is `merge-tree`'s) and
+`TestMirrorBuildLandRefusesAMovedBase` (integration ref moved → an error, nothing written under
+`refs/panacea/landq/`).
+
+- [ ] **Step 2: Run the tests and watch them fail**
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/control-plane && GOPROXY=off go test ./internal/fleet/landq/ ./internal/fleet/server/ ./internal/api/ -run "Land|Hint|Approval|Push|Refresh|Enqueue|Conflicted|Credential"
+```
+
+Expected: compile failure, `undefined: Order`, `undefined: Gate`, `undefined: Queue`.
+
+- [ ] **Step 3: Write `order.go` and `gate.go`; run their tests** (pure, no store).
+- [ ] **Step 4: Add the migration and task 10's store methods; run task 10's `storetest` suite**
+  against `memstore` and, with `PANACEA_APP_FLEET_TEST_PG` set, `pgstore`.
+- [ ] **Step 5: Write `landq.go` and `refresh.go`, then the mirror ops in task 59's client and
+  runner, then `Resolver.FirstLanded` in task 29's file.**
+- [ ] **Step 6: Add F-L1 to F-L6 and `VerbLandQueue`; the local control plane's `teamland.go`;
+  the two desktop client functions.** Every route joins task 12's Z5 matrix test.
+- [ ] **Step 7: Run everything**
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/control-plane && GOPROXY=off go test ./... && GOPROXY=off go vet ./... && gofmt -l internal
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/sandboxd && GOFLAGS=-mod=vendor go test ./cmd/panacea-mirror/... && GOFLAGS=-mod=vendor go vet ./...
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/desktop && npm run typecheck && npm test -- team
+```
+
+Expected: every package `ok`, task 29's suite unchanged, `gofmt -l` prints nothing, the desktop's
+typecheck and tests pass.
+
+- [ ] **Step 8: Commit**
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team && git add control-plane/internal/fleet/landq control-plane/internal/fleet/server/landq.go control-plane/internal/fleet/server/landq_test.go control-plane/internal/api/teamland.go control-plane/internal/api/teamland_test.go && git commit -F .superpowers/sdd/team/msg/task-61.txt -- control-plane sandboxd/cmd/panacea-mirror desktop/src/api/team.ts desktop/src/store/slices/teamSlice.ts
+```
+
+The real-cluster run (a team land through the mirror, pushed with the owner's token) is task
+69's, because it needs task 58's pod, task 48's credential and two signed-in people.
+
+**What this task does not claim:**
+
+- **That a land can skip the queue.** A member can still push to the remote outside the product;
+  decision (e) notices it and stops the queue after two rejects, and nothing prevents it.
+- **That a `sequence` hint can be overridden.** A second side held by a hint waits until the
+  first side lands or its task ends (task 29's `TaskEnded`); there is no "land anyway". If the
+  owner wants one, it is a two-human decide and a new task.
+- **Any Hub record of a land.** The land's facts are in git (the merge and its trailers) and in
+  Fleet's queue. Release attribution (task 68) reads `Panacea-Owner` from the trailers.
+- **That the push path exists in phase 8.** Gap 1.
+- **Speed.** One land at a time per project, each with a human click, is slow for a busy team by
+  design; the 24-hour expiry is a proposal, not a measurement.
+
+**Gaps against the skeleton, raised here:**
+
+1. **The per-act push token to a cloud `machined`.** OD-22 and global constraint 8 keep push on
+   the owner's own token, per act, in memory; phase 3 task 13's `credstore` is laptop-side and
+   refuses serialisation; no phase 8 plan row carries a token to the machine. This part assumes
+   one header on the broker's machine RPC (phase 8 tasks 17–21) and needs that plan to add it.
+2. **Is a land an accountability fact the Hub must record?** §3.2's rule 1 suggests it may be;
+   this part keeps it in git and Fleet (above). The owner decides; a Hub `land` record would be a
+   Hub delta like task 49's routes.
+3. **`converge.PackageScriptMembers`** is not exported by task 49's part; this task exports it.
+4. **`readyAt` as a zero time** rather than `null`: a wire nit for task 52's read model to settle.
+5. **One queue per project, not per branch.** The scope says per project; a team project with two
+   product branches lands serially across both. Fine for TM2; noted.
