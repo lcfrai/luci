@@ -120,7 +120,9 @@ const (
 |---|---|---|
 | `POST /v1/git` | `200 GitResult` | `400 bad_request` (a `Dir` that escapes the root, an unknown `Class` or `Scope`, a `Scope` that does not follow `Dir`, an `Env` key outside the allowlist, credential `Env` on a `clone`-scope call, a `clone` outside its two shapes, empty `Args`, or `gitx.ErrCallShape`; the message names the field or key, never a value) · `409 conflict` with `reason` and `key` (phase 3's H3 refused the repository's config; git never ran) · `422 git_failed` with the three details · `413` above 16 MiB of stdin |
 
-**What `machined` does to every call (review I7).** A lane clone's `.git` is inside that lane's
+**What `machined` does to every call (review I7).** *Pre-R4 text: after R4 this route takes
+project calls only, no session mounts `projects/<name>`, and a `lanes/…` `Dir` is `400` (the
+block at the top holds). The paragraph is kept for the re-plan.* A lane clone's `.git` is inside that lane's
 session mount. So is a project's `.git` whenever a session runs on the project's primary
 worktree: its `machinePath` is `projects/<name>` (task 20, `TestWorktreePathIsRelativeToTheRoot`),
 and task 24b mounts the worktree's machine path read-write at `/home/dev/work`. The agent can
