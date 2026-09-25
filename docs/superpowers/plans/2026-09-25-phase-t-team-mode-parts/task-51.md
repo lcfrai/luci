@@ -163,7 +163,7 @@ SAMPLE.thread = { thread: SAMPLE.orchestrator.threads[0], messages: [
               sides: { "ag-a1w2": ["auth/session.go"], "ag-d1w1": ["mobile/**"] } } },
     text: null } ] };
 
-SAMPLE.settings = { v: 1, projectId: "pj-sample", dataClass: "internal",
+SAMPLE.settings = { v: 1, projectId: "pj-sample", dataClass: { level: "internal", residency: "any" },
   route: { current: "global", required: false, raisedAt: null, canLower: false },
   spend: { day: "2026-09-25", workersCents: 1840, coordinationCents: 310, quotaCents: 5000 } };
 ```

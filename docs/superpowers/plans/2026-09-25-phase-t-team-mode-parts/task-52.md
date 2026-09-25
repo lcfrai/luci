@@ -100,6 +100,8 @@ gateway a session happened to call. Task 56 renders it.
 - `desktop/src/api/team.ts`, `desktop/src/api/team.test.ts` (new)
 - `desktop/src/store/slices/teamSlice.ts`, `desktop/src/store/slices/teamSlice.test.ts` (new)
 - `desktop/src/store/store.ts` — the fourth slice; `teamSeenAt` joins `Persisted` (modify)
+- `desktop/src/store/selectors.ts` — `selectTeamSettings(state, projectId)`, `selectTeamStrip`
+  (modify; task 56 reads the first, `task-56.md:105-108`)
 
 **Interfaces:**
 - Consumes: task 22's `verbs.Sources`, `BriefRef`, `LeaseView`, `Quoted` (`task-22.md:77-246`);
@@ -237,6 +239,7 @@ func (b *Backend) Team(ctx context.Context, projectID string) (verbs.TeamHuman, 
 func (b *Backend) Threads(ctx context.Context, projectID string) ([]server.DeskThread, error)
 func (b *Backend) ThreadMessages(ctx context.Context, projectID, threadID string,
 	page hubapi.PageRequest) (hubapi.Page[hubapi.Message], error)
+func (b *Backend) Spend(ctx context.Context, projectID string) (budget.SplitView, error)
 ```
 
 `fleetbe` imports `verbs` and `server` for their types only, which is legal inside one module
@@ -568,19 +571,26 @@ type Sender struct {
 // ── settings (task 56): GET /v1/projects/{projectId}/team/settings ─────────
 
 type TeamSettings struct {
-	V         int        `json:"v"`
-	ProjectID string     `json:"projectId"`
-	DataClass string     `json:"dataClass"` // the Hub's value, verbatim (task 03: grammar only)
-	Route     RouteState `json:"route"`
-	Spend     *Spend     `json:"spend"` // null until task 37's split is served
+	V         int            `json:"v"`
+	ProjectID string         `json:"projectId"`
+	DataClass *DataClassView `json:"dataClass"` // null: the Hub has none recorded (gap G52-6)
+	Route     RouteState     `json:"route"`
+	Spend     Spend          `json:"spend"`
 }
 
-// Spend is today's split, Australia/Sydney day, in cents. Never a ratio.
+// DataClassView is phase 6's DataClass shape (phase-6 task-22.md:62-66).
+type DataClassView struct {
+	Level     string `json:"level"`     // rendered verbatim, never switched on
+	Residency string `json:"residency"` // "any" | "au-only"
+}
+
+// Spend is task 37's SplitView cut to what task 56 renders (task-37.md:431-440),
+// in cents, the UTC day. A nil figure is "not known", never 0. Never a ratio.
 type Spend struct {
 	Day               string `json:"day"`
-	WorkersCents      int64  `json:"workersCents"`
-	CoordinationCents int64  `json:"coordinationCents"`
-	QuotaCents        int64  `json:"quotaCents"`
+	WorkersCents      *int64 `json:"workersCents"`
+	CoordinationCents *int64 `json:"coordinationCents"`
+	QuotaCents        *int64 `json:"quotaCents"` // team policy's memberDailyCents; nil: none set
 }
 
 // ── action bodies ───────────────────────────────────────────────────────────
@@ -627,7 +637,7 @@ routes with an empty, `team: false` body and the write routes with `409 not_team
 | `GET /v1/team/desk?since=` | per team project: Hub 59, 66; Fleet `…/threads?party=me`, `…/messages` | `TeamDesk` |
 | `GET /v1/projects/{projectId}/orchestrator` | Hub 71, 68, turn replies (gap G52-2); Fleet `…/team`, `…/threads` | `OrchestratorView` |
 | `GET /v1/projects/{projectId}/orchestrator/threads/{threadId}` | Fleet `…/threads/{th}/messages` | `ThreadView` |
-| `GET /v1/projects/{projectId}/team/settings` | Hub 74; task 37's split (gap G52-5) | `TeamSettings` |
+| `GET /v1/projects/{projectId}/team/settings` | Hub 74 (data class, route, quota); Fleet `GET /v1/projects/{p}/spend` (task 37, `task-37.md:484`) | `TeamSettings` |
 | `POST /v1/projects/{projectId}/orchestrator/messages` | Hub 70, `toAgentId` = the viewer's own Orchestrator | `201 Created` |
 | `POST /v1/team/escalations/{escalationId}/answer` | Hub 65 | `200 DecideItem` answered; a second answer is the Hub's `409 conflict` (`task-01.md:427`), relayed |
 | `POST /v1/team/decided/{escalationId}/undo` | Hub 70, the fixed Undo template | `201 Created`; `409 not_reversible` |
@@ -656,6 +666,7 @@ type TeamFleet interface {
 	Team(ctx context.Context, projectID string) (verbs.TeamHuman, error)
 	Threads(ctx context.Context, projectID string) ([]server.DeskThread, error)
 	ThreadMessages(ctx context.Context, projectID, threadID string, page hubapi.PageRequest) (hubapi.Page[hubapi.Message], error)
+	Spend(ctx context.Context, projectID string) (budget.SplitView, error) // task 37's route
 }
 
 // TeamHub is the slice of task 08's hubclient.Team this file calls, as the
@@ -927,9 +938,13 @@ export interface ThreadMessage {
 }
 export interface ThreadView { thread: ThreadRow; messages: ThreadMessage[]; }
 
+/** dataClass is phase 6's DataClass, written structurally so both parts do not declare it. */
 export interface TeamSettings {
-  v: 1; projectId: string; dataClass: string; route: RouteState;
-  spend: { day: string; workersCents: number; coordinationCents: number; quotaCents: number } | null;
+  v: 1; projectId: string; route: RouteState;
+  dataClass: { level: string; residency: "any" | "au-only" } | null;
+  /** UTC day. null figures mean "not known", never 0 (task 37). */
+  spend: { day: string; workersCents: number | null; coordinationCents: number | null;
+           quotaCents: number | null };
 }
 
 export interface AskSubject { kind: "task" | "path" | "agent" | "conflict"; ref: string; }
@@ -965,7 +980,8 @@ export interface TeamClient {
   undo(escalationId: string): Promise<Created>;
   note(projectId: ProjectId, target: { kind: "project" | "task" | "user"; id: string },
        text: string): Promise<Created>;
-  raiseRoute(projectId: ProjectId): Promise<TeamSettings>;
+  /** Hub route 79, {"route":"au"}: the team ratchet (task 56). */
+  raiseTeamRoute(projectId: ProjectId): Promise<TeamSettings>;
 }
 
 export function createTeamClient(opts?: ClientOptions): TeamClient;
@@ -1177,6 +1193,9 @@ git commit -F <msgfile> -- control-plane/internal/api control-plane/internal/fle
   thread state.
 - **G52-4.** No task maps the cockpit's project id (`p-…`, `types.ts:10`) to the Hub's `pj-…`
   (task 21's `TeamProjects` has the same gap, `task-21.md:361-367`).
-- **G52-5.** The spend split's read route is task 37's to define (unwritten here); `spend` is
-  `null` until it exists. Also: task 12's `Member.UserID` comment says `us-…` (`task-12.md:312`)
-  where the Hub's prefix is `u` (`hub …/hubapi/keys.go:18`, checked).
+- **G52-5.** Task 12's `Member.UserID` comment says `us-…` (`task-12.md:312`) where the Hub's
+  prefix is `u` (`.claude/worktrees/hub/control-plane/internal/hub/hubapi/keys.go:18`, checked).
+- **G52-6.** `TeamSettings.dataClass` is phase 6's `{level, residency}` (task 56's request,
+  `task-56.md:149-151`), but the Hub's team policy holds `dataClass` as a bare string (task 03,
+  grammar only). `residency` then needs task 43's class table, **UNVERIFIED** until task 43 is
+  written; until then `dataClass` is `null` and `route.required` is false.
