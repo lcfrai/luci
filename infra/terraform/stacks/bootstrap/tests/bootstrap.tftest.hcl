@@ -148,6 +148,25 @@ run "bad_suffix_is_rejected" {
   expect_failures = [var.unique_suffix]
 }
 
+# Exactly four (README, Conventions: `^[a-z0-9]{4}$`, one suffix per environment for every
+# stack's globally unique names). Round 2 survivor X1, `{4,6}`, lived through the upper-case
+# run above, which has the right length.
+run "a_five_character_suffix_is_rejected" {
+  command = plan
+  variables {
+    unique_suffix = "k7q2x"
+  }
+  expect_failures = [var.unique_suffix]
+}
+
+run "a_three_character_suffix_is_rejected" {
+  command = plan
+  variables {
+    unique_suffix = "k7q"
+  }
+  expect_failures = [var.unique_suffix]
+}
+
 run "ip_rules_turn_default_deny_on" {
   command = plan
   variables {
@@ -238,10 +257,13 @@ run "a_bad_environment_is_rejected" {
 }
 
 # An extra tag passes through; a clashing one loses to the stack's own (README, Conventions).
+# The location is one no tfvars uses: both say australiaeast, so under them a location
+# hard-coded to it passes (round 2 survivor L1).
 run "state_lives_in_its_own_tagged_group" {
   command = plan
   variables {
-    tags = { cost-centre = "test", stack = "overridden" }
+    tags     = { cost-centre = "test", stack = "overridden" }
+    location = "australiasoutheast"
   }
   assert {
     condition     = azurerm_resource_group.state.name == "rg-panacea-app-${var.environment}-tfstate" && azurerm_storage_account.state.resource_group_name == azurerm_resource_group.state.name
