@@ -234,7 +234,7 @@ type WorkIssues interface {
 
 #### `fake_work.go`, complete
 
-Five blocks; the file is their concatenation. Block 1 is the state and the helpers.
+Seven blocks; the file is their concatenation. Block 1 is the state and the helpers.
 
 ```go
 package hubclient
@@ -916,3 +916,136 @@ func (w *fakeWorld) clearProof(is *fakeIssue) {
 	is.head.Proof, is.head.LandCommit, is.head.StateReason = hubapi.ProofNone, "", ""
 }
 ```
+
+Block 7: the move. A repeat of a fact already recorded is 200 with no write and no event
+(task 10's decision 7); every other accepted move is one write and one `issue.state`.
+
+```go
+func (f *Fake) MoveIssueState(_ context.Context, issueID string, move hubapi.StateMove) (hubapi.IssueHead, error) {
+	w := f.w
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	me, err := f.enter("MoveIssueState", issueID, move)
+	if err != nil {
+		return hubapi.IssueHead{}, err
+	}
+	is, role, err := w.issueOf(issueID, me)
+	if err != nil {
+		return hubapi.IssueHead{}, err
+	}
+	if err := need(role, hubapi.RoleMember); err != nil {
+		return hubapi.IssueHead{}, err
+	}
+	from, serves := is.head.State, is.headRev().Content.Serves
+	switch {
+	case !hubapi.ValidIssueState(move.To):
+		return hubapi.IssueHead{}, badRequest("to", "That is not a state.")
+	case !slices.Contains(hubapi.MoveCauses, move.Cause):
+		return hubapi.IssueHead{}, badRequest("cause", "That is not a cause.")
+	case !fakeMoveAllowed(from, move.To, move.Cause):
+		return hubapi.IssueHead{}, problem(422, fkStateNotAllowed, "That move is not allowed from this state.",
+			"from", string(from), "to", string(move.To), "cause", string(move.Cause))
+	}
+	repeat := from == move.To && move.Cause != hubapi.CauseHand
+	switch move.Cause {
+	case hubapi.CauseHand:
+		if move.To == from {
+			return w.renderIssue(is), nil
+		}
+		reason := strings.TrimSpace(move.Reason)
+		if move.To == hubapi.StateDone && len(serves) > 0 && reason == "" {
+			return hubapi.IssueHead{}, badRequest("reason", "Say why this is done without its evidence.")
+		}
+		if move.To != hubapi.StateDone { // a reopen, a cancel, a duplicate
+			w.clearProof(is)
+		}
+		if move.To == hubapi.StateDone {
+			is.handSet, is.head.StateReason, is.head.Proof = true, reason, hubapi.ProofNotProven
+			if len(serves) == 0 {
+				is.head.Proof = hubapi.ProofNoCriteria
+			}
+		}
+	case hubapi.CauseLaneBound, hubapi.CauseLaneQueued:
+		if repeat {
+			return w.renderIssue(is), nil
+		}
+		if move.To == hubapi.StateStarted {
+			is.startedBy = me
+		}
+	case hubapi.CauseLandTrailer:
+		if !landCommitRe.MatchString(move.LandCommit) {
+			return hubapi.IssueHead{}, badRequest("landCommit", "A land commit is 40 lowercase hex characters.")
+		}
+		if from == hubapi.StateLanded || from == hubapi.StateDone {
+			if move.LandCommit == is.head.LandCommit {
+				return w.renderIssue(is), nil
+			}
+			return hubapi.IssueHead{}, problem(409, fkStateConflict, "This issue already landed at another commit; reopen it first.",
+				"landCommit", is.head.LandCommit)
+		}
+		is.head.LandCommit, is.landedAt, is.head.Proof = move.LandCommit, w.stamp(), hubapi.ProofWaiting
+		if len(serves) == 0 {
+			is.head.Proof = hubapi.ProofNoCriteria
+			if !w.stopAtLanded(is.teamID) {
+				move.To = hubapi.StateDone // lands at done in the same write
+			}
+		}
+	case hubapi.CauseEvidenceObserved, hubapi.CauseEvidenceRecorded:
+		if len(move.Evidence) == 0 {
+			return hubapi.IssueHead{}, badRequest("evidence", "An evidence move cites one record or more.")
+		}
+		var add []fakeCitation
+		for i, id := range move.Evidence {
+			rec, why := w.whyNotApplicable(is, id)
+			if why != "" {
+				return hubapi.IssueHead{}, problem(422, fkEvidenceNotApplicable, "That evidence cannot close this issue.",
+					"field", "evidence["+strconv.Itoa(i)+"]", "why", why)
+			}
+			add = append(add, fakeCitation{rec: rec, cause: move.Cause})
+		}
+		for _, c := range add {
+			is.citations = append(is.citations, c)
+			w.wk().cited[c.rec.ID] = is.head.ID
+		}
+		is.head.Proof = w.proofOf(is)
+		if is.head.Proof == hubapi.ProofWaiting {
+			return w.renderIssue(is), nil // recorded; the issue stays landed (decision 5)
+		}
+	}
+	is.head.State, is.head.UpdatedAt = move.To, w.stamp()
+	w.workEvent(me, fkEventIssueState, is.teamID, is.head.ProjectID, is.head.ID, map[string]any{
+		"from": string(from), "to": string(move.To), "cause": string(move.Cause),
+		"proof": string(is.head.Proof), "landCommit": move.LandCommit})
+	return w.renderIssue(is), nil
+}
+
+// proofOf is task 10's DecideProof over the citations: waiting until every
+// served pair is cited; then proven, or proven_self_attested when a recorded
+// (not observed) record is by the person who created the issue and started it.
+func (w *fakeWorld) proofOf(is *fakeIssue) hubapi.Proof {
+	self := false
+	for _, s := range is.headRev().Content.Serves {
+		covered := false
+		for _, c := range is.citations {
+			if c.rec.BriefKey == s.BriefKey && c.rec.CriterionID == s.CriterionID {
+				covered = true
+				self = self || (c.cause == hubapi.CauseEvidenceRecorded &&
+					c.rec.RecordedBy.ID == is.createdBy && c.rec.RecordedBy.ID == is.startedBy)
+			}
+		}
+		if !covered {
+			return hubapi.ProofWaiting
+		}
+	}
+	if self {
+		return hubapi.ProofSelfAttested
+	}
+	return hubapi.ProofProven
+}
+```
+
+That is the whole of `fake_work.go`. A partial evidence move (decision 5 of task 10: valid
+records that do not yet cover every criterion) records its citations and appends **no** event,
+because the head does not change; whether the Hub audits a citation-only write is task 10's to
+say (UNVERIFIED: its part names no event for it), and a conformance row of task 05 pins what
+both do.
