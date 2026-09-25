@@ -1,5 +1,7 @@
 ### Task 25b: lane git on a cloud machine: phase 3's `Lanes.For` over the broker, the runner-only pod, and the bundle relay
 
+HELD until phase 3's task 24 (the runner, `lanegit`) is sync-merged into feat/env, phase 3 answers S8-P3.4 (`lanegit.Bundles`) and S8-P3.5 (the pool reaches a lane's own machine), and tasks 25 and 21b land (`.superpowers/sdd/env/held.md`): the build stream skips this task until then.
+
 Split out of task 25 by the env R4 rulings of 2026-09-25 (`.superpowers/sdd/env/r4-env-rulings.md`,
 "What each task changes", task 25). Task 25 builds **project** git on a cloud machine. This task
 builds the laptop's half of **lane** git, which never runs in the machine pod (ruling 2):
