@@ -365,10 +365,12 @@ issue EP-1; team U (Uma admin, Gus member) owns project Q with feature H.
 | `TestASpanNeedsALink` | `PUT …/teams [T, U]` with no grant either way is 422 `teamIds[1]`; `[U, T]` is 400 | spans over any team |
 | `TestEachWriteHasItsEvent` | grant, revoke and span each append exactly one event of its kind, in the same transaction (a forced rollback leaves neither row nor event) | write without event |
 
-`server/work_access_test.go` (unit): `WorkAccess{OK: false}.Read` is the 404 passed in;
-`{OK: true, Granted: true}.Write(member)` is 403; `{OK: true, Role: member}.Write(admin)` is 403,
-`.Write(member)` nil; `grantedKind("brief.revised")` false, `grantedKind("issue.state")` true
-(kills a prefix list that lets briefs through).
+`server/work_access_test.go` (unit), four tests: `TestWorkAccessOutsiderIs404`
+(`WorkAccess{OK: false}.Read` and `.Write` are the 404 passed in); `TestWorkAccessGrantedWriteIs403`
+(`{OK: true, Granted: true}.Write(member)` is 403); `TestWorkAccessRoleBelowWant`
+(`{OK: true, Role: member}.Write(admin)` is 403, `.Write(member)` nil);
+`TestWorkAccessGrantedKinds` (`grantedKind("brief.revised")` false, `grantedKind("issue.state")`
+true; kills a prefix list that lets briefs through).
 
 **Matrix rows, `"117"`:** `wadmin` for the grant create and delete and the span `PUT`; `wread` for
 the list, with the owning team's columns (a granted `G` is 404 on the list, by `grantedRowFor`'s
