@@ -4,8 +4,15 @@
 
 `PROGRAM.md`'s local-first rule: the whole stack runs on a laptop before any Azure spend. The
 contract's §12.1 put all four services in `compose.yaml`; correction **A2** explains why that fails
-here (no Go build inside Docker behind the proxy; `entra` refuses a non-loopback `http` authority;
+here (no Go build inside Docker behind the proxy; `oidcauth` refuses a non-loopback `http` issuer;
 the token issuer must be the same string for the browser, the control plane and the Hub). So:
+
+**OD-30** (main `docs/superpowers/planning/2026-09-25-identity-keycloak-broker.md`; Hub contract §17 §12):
+the issuer is `devissuer`'s realm, `http://127.0.0.1:8740/realms/panacea-app-dev`, under the `keycloak`
+profile. The Hub reads `PANACEA_APP_OIDC_ISSUER`/`_PROFILE` (replacing `PANACEA_APP_HUB_ENTRA_AUTHORITY_HOST`);
+the control plane reads `PANACEA_APP_OIDC_*` and `PANACEA_APP_HUB_AUDIENCE=panacea-app-hub` (replacing
+`PANACEA_APP_ENTRA_AUTHORITY`, `_ENTRA_CLIENT_ID` and `PANACEA_APP_HUB_SCOPE`): one `_AUDIENCE` suffix on
+both sides (review-1 M5). The import rules name `internal/oidcauth` and `internal/signin`.
 
 - `compose.yaml` runs **Postgres only**, on `127.0.0.1:5433`, with the roles created at init.
 - `devstack.sh` builds `hub` and `devissuer` **on the host**, migrates, starts both as background
@@ -83,15 +90,16 @@ environment it gives each process:
 |---|---|
 | `hub migrate` | `PANACEA_APP_HUB_MIGRATE_DATABASE_URL=postgres://hub_owner@127.0.0.1:5433/hub?sslmode=disable` |
 | `devissuer` | `PANACEA_APP_DEVISSUER_ADDR=127.0.0.1:8740`, `PANACEA_APP_DEVISSUER_CONFIG=$MODULE/cmd/devissuer/dev-tenant.json` |
-| `hub serve` | `PANACEA_APP_HUB_ENV=local`, `PANACEA_APP_HUB_DEV_ISSUER=true`, `PANACEA_APP_HUB_ENTRA_AUTHORITY_HOST=http://127.0.0.1:8740`, `PANACEA_APP_HUB_DATABASE_URL=postgres://hub_app@127.0.0.1:5433/hub?sslmode=disable`, and `PANACEA_APP_HUB_TENANTS`, `_AUDIENCE`, `_ALLOWED_CLIENTS` from `devissuer env` |
+| `hub serve` | `PANACEA_APP_HUB_ENV=local`, `PANACEA_APP_HUB_DEV_ISSUER=true`, `PANACEA_APP_HUB_DATABASE_URL=postgres://hub_app@127.0.0.1:5433/hub?sslmode=disable`, and `PANACEA_APP_HUB_TENANTS`, `_AUDIENCE`, `_ALLOWED_CLIENTS`, `PANACEA_APP_OIDC_ISSUER`, `PANACEA_APP_OIDC_PROFILE` from `devissuer env` (task 11) |
 
 `devstack.sh env` prints exactly (values from `dev-tenant.json`, task 11):
 
 ```text
 export PANACEA_APP_HUB_URL=http://127.0.0.1:8750
-export PANACEA_APP_ENTRA_AUTHORITY=http://127.0.0.1:8740/11111111-1111-4111-8111-111111111111
-export PANACEA_APP_ENTRA_CLIENT_ID=22222222-2222-4222-8222-222222222222
-export PANACEA_APP_HUB_SCOPE=api://33333333-3333-4333-8333-333333333333/Hub.Access
+export PANACEA_APP_OIDC_ISSUER=http://127.0.0.1:8740/realms/panacea-app-dev
+export PANACEA_APP_OIDC_PROFILE=keycloak
+export PANACEA_APP_OIDC_CLIENT_ID=panacea-app-desktop
+export PANACEA_APP_HUB_AUDIENCE=panacea-app-hub
 ```
 
 ```go
@@ -110,10 +118,10 @@ var rules = []struct {
 	forbidden  []string // module-local prefixes that must NOT appear
 }{
 	{"./cmd/hub",
-		[]string{"cmd/hub", "internal/hub/", "internal/httpx", "internal/ids", "internal/entra"},
+		[]string{"cmd/hub", "internal/hub/", "internal/httpx", "internal/ids", "internal/oidcauth"},
 		[]string{"pgx", "x/time/rate"},
 		[]string{"internal/hub/hubtest", "internal/devissuer", "internal/api", "internal/backend",
-			"internal/registry", "internal/credstore", "internal/entraauth"}},
+			"internal/registry", "internal/credstore", "internal/signin"}},
 	{"./cmd/devissuer", []string{"cmd/devissuer", "internal/devissuer"}, nil, nil},
 	{"./cmd/api", nil, nil, // cmd/api keeps its own set; only the Hub side is constrained here
 		[]string{"internal/hub/server", "internal/hub/store", "internal/hub/migrate",
@@ -137,7 +145,7 @@ Plus one rule over the whole module: **no package outside `internal/hub/...` imp
 |---|---|---|
 | `TestHubBinaryImportBoundary` | `go list -deps ./cmd/hub` passes rule 0; `./cmd/api` does not link `pgx` nor any forbidden Hub package | the Hub dragging in `client-go`, or the control plane linking the Hub's store (ADR-H1 R6) |
 | `TestDevissuerIsStandardLibraryOnly` | `./cmd/devissuer`'s non-stdlib deps are exactly its own two packages | a JOSE library creeping into the issuer |
-| `TestHubapiAndHubclientImports` | rules 3 and 4 (correction A9) | `hubclient` importing `entraauth` for a sentinel |
+| `TestHubapiAndHubclientImports` | rules 3 and 4 (correction A9) | `hubclient` importing `signin` for a sentinel |
 | `TestNothingOutsideTheHubImportsItsServer` | the module-wide rule | a control-plane handler calling `store` directly |
 | `TestTheBoundaryCatchesAViolation` | `checkDeps(0, […, "…/control-plane/internal/api"], …)` returns one failure naming it; a stray `github.com/docker/docker/client` → one failure | a boundary test that always passes |
 
@@ -177,4 +185,4 @@ git check-ignore control-plane/cmd/hub/.out/hub.exe                             
 - That Docker Desktop's `--wait` flag exists on the owner's version; `up` falls back to polling the
   health status if `docker compose up --wait` is refused, and says so.
 - That the stack runs on macOS or Linux; it is written for them and checked only on Windows.
-- A real Entra tenant: `devissuer` stands in (task 43's checklist covers the real one).
+- A real realm (Panacea's dev realm brokering Entra, OD-30): `devissuer` stands in (task 43's check covers the real one).
