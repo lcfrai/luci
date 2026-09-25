@@ -164,4 +164,23 @@ Fixes the open issues of `.superpowers/sdd/p6/plan-rereview-b01-1.md`. Line numb
 
 **Deferred:** none. **Owner questions:** none new.
 
+## Fix batch b02 (I-7, I-5), 2026-09-25
+
+Line numbers are as of commit `85c0b69`. Hub contract lines are in `.claude/worktrees/hub/docs/superpowers/contracts/2026-09-23-hub-contract.md` at `da8c7da`: `Project` at `:637-639`, route 15 at `:577`, "a project's access is exactly its team's membership" at `:333`, and `Team.role` (the caller's role) at `:624-625`.
+
+**I-7 (Important), the team is the project's, not the caller's.**
+- `task-03.md:22`, decision (h): `wire.ProjectInference` gains `TeamID` (`:550`), the golden pins `"teamId"` (`:96`), and gap 7 is at `:772`. The decision count now reads eight (`:13`); it said six, which was stale from (g).
+- `task-13.md:14`, decision (f): `Hub.Project` reads the record's `teamId` through `teamOf` (`:900`) and refuses a missing or malformed one definitively. `File` leaves `""`. The tests are `TestHubEffectiveRouteIsDecidedNotRead` (pins the team) and `TestHubRefusalsAreDefinitive` (`no team`, `a team not an id`, `:340`; fixtures at `:265`). Mutants 4 → 6 (`:1146`), and the test count stays 18. Gap 5 (`:1185`): task 19 runs both binaries on `ROUTE_SOURCE=hub` (`task-19.md:484`, `:549`), so the cloud never takes the no-teams path.
+- `task-07.md:47`, decision (i): `mint` reads the project once through `s.project` (`:1070`) and refuses a differing non-empty team (`:1011`) with `ErrTeamMismatch` (`:769`). That error is an `ErrInvalid`, so it maps to 400 `bad_request` with no new code. The check runs before the spend read and before any LiteLLM call, and `Refresh` inherits it. `TestMintRefusesATeamThatIsNotTheProjects` is at `:263`, with three mutants from `:1283`. Tests 16 → 17 and mutants 16 → 19. "Trusts its caller" (`:1310`) now names what it does not trust, and gap 8 is at `:1327`.
+- Skeleton `:220` (03), `:230` (07's mint order) and `:244` (13). Ask P8-1 (`:306`): before minting, the broker uses the owner's own token (`OD-30`) to read route 15, which answers only members, and route 6 for the caller's role. It mints only for `member` or `admin`, and sends the record's `teamId`. keysmith holds no user token, so nothing else can check membership.
+
+**I-5 (Important), no group can spend US$0 silently.**
+- `task-02.md:20`, decision (f): each model carries `price.global` and `price.au`, four figures per route in US$ per million tokens, all **UNVERIFIED**. Types are at `:408`. `Cost.validate` (`:547`) refuses a missing, zero, negative or per-token-sized figure (US$0.01–1,000). `TestParseRefusesAnUnpricedModel` is at `:203`, `models.yaml` prices at `:705` onward, the fixture at `:70`. `gatewaygen`'s `modelInfo` (`:1111`) renders each group's own route price per token, and `fixedCosts` (`:1129`) rewrites `5e-06` as `0.000005`, because PyYAML, which LiteLLM loads with, reads an exponent without a dot as a string. `TestEveryGroupIsPricedFromItsOwnRoute` is at `:881`, and the secret walk exempts the four price keys while they hold numbers (`:930`). The five mutants start at `:1367`, and "does not claim" is at `:1430`.
+- `task-09.md:39`, decision (g). **The review's check could not fire**, because the part's decision (f) records `Requests` as 0, so "requests > 0 and spend == 0" is never true. The sweep reads the cause instead. `Once` (`:847`) calls `checkPrices` (`:823`), which reads task 04's `ModelPrices` and reports `ErrUnpriced` for each catalogue group that is missing or priced at zero. A nil reader is reported too. `TestSweepReportsAnUnpricedGroup` is at `:432`. There are four mutants, 12/19 passes and 11 edits. Gap 6 is at `:977`.
+- `task-04.md:618`: `(*Client).ModelPrices` over `GET /model/info` keeps the lower price when a group has two deployments. The table row is at `:45` and `TestModelPricesKeepsTheLowerPricePerGroup` at `:338`, with one mutant. `task-08.md:1895` wires `Prices` and `Groups` into the `Sweeper`.
+- `task-18.md:11`, `:177` and `:689`: an unpriced probe now means LiteLLM does not read the `model_info` keys; it no longer asks task 02 to add costs. `task-24.md:42`: P06 also fails unless `/model/info` shows every group's input and output price above zero (`:605`). The new canned case is at `:242` (36 → 37), and "does not claim" is at `:684`: AU prices against the AWS price list are an operator's check.
+- Skeleton `:218` (02), `:224` (04) and `:234` (09).
+
+**Deferred:** none. **Owner question (new):** may a team `viewer` launch an agent? Ask P8-1 recommends `member` or `admin` only, and nothing in phase 6 depends on the answer.
+
 
