@@ -145,10 +145,10 @@ func TestTeamPointerIsTheDesignsParagraph(t *testing.T) {
 collects lines while they start with `> `, strips `> ` from each, joins with one space, and trims
 one `*` from each end. It fails the test if it finds no such block, so a moved heading is a
 failure, not a pass. **The path is relative to the package directory**; `go test` runs there
-(standard behaviour). Whether `feat/team-mode` carries `docs/superpowers/planning/…/05-design.md`
-at merge is **UNVERIFIED** (the planning set lives in the main worktree today); if it does not,
-the test pins the paragraph to a copy in `testdata/design-5.3.txt` with a comment naming its
-source, and gap 1 records it.
+(standard behaviour). `feat/team-mode` tracks the design (`git ls-files
+docs/superpowers/planning/2026-09-24-team-collaboration` lists it, checked 2026-09-25), so the file
+is there once phase 4 merges in. If the design is ever revised past revision 3 and the paragraph
+changes, this test fails first, which is the point.
 
 | Test | Mutant it kills |
 |---|---|
@@ -157,3 +157,57 @@ source, and gap 1 records it.
 | `TestTeamBlockIsTheSoloBlockPlusOneInsertion` | anything but the pointer added to a team block, which is where a teammate's text would go |
 | `TestTeamPointerIsTheDesignsParagraph` | the product sentence edited in code without the design, or the reverse |
 | phase 4's existing suite, unchanged | any byte of the solo goldens moved (`golden-branch.md`, `golden-project.md`, `golden-neutralised.md`) |
+
+#### Steps
+
+- [ ] **Step 1: Read after the merge.** `render.go` and `render_test.go` as merged; confirm
+  `Render`'s header lines still end with *"your edits inside it will be lost."* (`render.go:82`).
+- [ ] **Step 2: Tests.** Add the four tests; `designPointer`; run them; they fail to compile
+  (`RenderWith`, `Options`, `TeamPointer` do not exist).
+- [ ] **Step 3: Source.** Move `Render`'s body into `RenderWith` unchanged, add the one team step,
+  add the constant and the type; `Render` delegates.
+- [ ] **Step 4: Golden.** Write `testdata/golden-team.md` from `RenderWith(resolve(t, b7(), nil),
+  Options{Team: true})` once, **read it by eye** against §5.3, and commit it; from then on the test
+  compares against it and the golden is never regenerated to make a test pass.
+- [ ] **Step 5: Commit.** `git add` the golden; `git commit -F <msg> -- <paths>`.
+
+#### Acceptance
+
+```bash
+cd control-plane
+go test ./internal/claudemd/ -count=1 -v -run 'TestTeam|TestSolo'
+# --- PASS: TestTeamRenderHasThePointerOnceAndIsDeterministic
+# --- PASS: TestSoloRenderIsByteIdenticalToBefore
+# --- PASS: TestTeamBlockIsTheSoloBlockPlusOneInsertion
+# --- PASS: TestTeamPointerIsTheDesignsParagraph
+go test ./internal/claudemd/ -count=1 && go vet ./internal/claudemd/
+# ok  	github.com/kpmg-au-emu/panacea-app/control-plane/internal/claudemd	…
+git diff --stat HEAD~1 -- control-plane/internal/claudemd/testdata/golden-branch.md \
+  control-plane/internal/claudemd/testdata/golden-project.md \
+  control-plane/internal/claudemd/testdata/golden-neutralised.md
+# (no output: the three solo goldens did not change)
+```
+
+Whether a worker actually runs `panacea check` before a first edit is **not** this task's to show:
+TM1 measures it as a rate (C6, `05-design.md:596-597`), in task 57.
+
+#### What this task does not claim
+
+- **Not that the paragraph is followed.** It is advisory (`03-techniques.md:138`); the cloud
+  `PreToolUse` hook (task 13's managed file) and the observed-edit `hold` lease (task 35) are what
+  make the check deterministic and the edit visible.
+- **Not the caller.** Phase 4's Materialiser (`contextwrite`) is planned, not built; passing
+  `Team` for a Fleet-launched session on a team project is its line when it is written (gap 2).
+- **Not the `team.json` snapshot.** That is task 16's, outside the worktree, and a worker reads it
+  as facts, not through `CLAUDE.md`.
+- **Not localisation.** The paragraph is English, as every product sentence in the block is.
+
+#### Gaps found in the skeleton
+
+1. **"A team project" for the renderer.** The skeleton says "for a team project"; this part renders
+   the paragraph only for a **Fleet-launched** session on one, because a local session on a team
+   project is *outside the team* (skeleton `:641`) and has no `panacea` verb, so the paragraph would
+   tell it to report `blocked` for nothing.
+2. **The Materialiser is unbuilt.** No non-test caller of `claudemd.Render` exists on
+   `feat/phase-4-discover` at `f700613` (checked by grep). Phase 4's `contextwrite` task must take
+   `Options.Team` from the session's backend (`fleetbe`, task 21) when it lands.
