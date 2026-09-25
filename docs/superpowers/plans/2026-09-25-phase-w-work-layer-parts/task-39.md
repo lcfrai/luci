@@ -330,3 +330,87 @@ export function DeskPrototype(): JSX.Element {
 `makeComment()` is task 20's one comment (`task-20.md:257-265`): Alice to Dylan on EP-163, so the
 NEEDS YOU row reads a fixture, not an invented line. The other `why` words are overrides.
 
+#### Interfaces — complete: the deltas on ⚑ `WorkPrototype.tsx` and ⚑ `register.tsx` (task 38)
+
+```tsx
+// WorkPrototype.tsx: the default export is replaced (decision 1). WorkScreen is unchanged.
+import { DeskPrototype } from "./DeskPrototype";
+import { IssuePrototype } from "./IssuePrototype";
+
+export type ProtoScreen = "work" | "plan" | "issue" | "desk";
+export const PROTO_SCREENS: readonly { id: ProtoScreen; label: string }[] = [
+  { id: "work", label: "Work" }, { id: "plan", label: "Plan" },
+  { id: "issue", label: "Issue" }, { id: "desk", label: "Desk" },
+];
+
+export default function WorkPrototype(): JSX.Element {
+  const [screen, setScreen] = useState<ProtoScreen>("work");
+  return (
+    <div className="pw-proto">
+      <nav className="pw-switch" aria-label="Prototype screens">
+        {PROTO_SCREENS.map((s) => (
+          <button key={s.id} type="button" className="pw-ghost" aria-pressed={screen === s.id}
+            onClick={() => setScreen(s.id)}>{s.label}</button>
+        ))}
+      </nav>
+      {screen === "work" ? <WorkScreen /> : screen === "plan" ? <PlanPrototype />
+        : screen === "issue" ? <IssuePrototype /> : <DeskPrototype />}
+    </div>
+  );
+}
+```
+
+```tsx
+// register.tsx: two more lines inside register(), after task 38's two.
+  registerStressScreen("Issue prototype", () => <IssuePrototype />);
+  registerStressScreen("Desk prototype", () => <DeskPrototype />);
+// and the imports: import { IssuePrototype } from "./IssuePrototype";
+//                  import { DeskPrototype } from "./DeskPrototype";
+```
+
+#### Interfaces — complete: appended to ⚑ `prototype.css` (task 38)
+
+```css
+/* Task 39: the switch, the issue view (.pw-iv-*), the Desk (.pw-desk-*). Tokens only. */
+.pw-proto { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.pw-switch { display: flex; gap: var(--s-1); padding: var(--s-1) var(--s-4); box-shadow: 0 1px 0 var(--line-soft); }
+.pw-ghost[aria-pressed="true"] { background: var(--inset); color: var(--ink); }
+
+.pw-iv { padding: var(--s-4) var(--s-6); display: flex; flex-direction: column; gap: var(--s-2); overflow: auto; }
+.pw-iv-head { display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; }
+.pw-iv-title { font: 600 var(--t-display)/var(--t-display-lh) var(--sans); color: var(--ink); margin: 0; }
+.pw-iv-label { font: 500 var(--t-micro)/var(--t-micro-lh) var(--sans); color: var(--ink-2);
+  border-radius: var(--r-chip); padding: 0 var(--s-2); box-shadow: 0 0 0 1px var(--line); }
+.pw-iv-line { display: flex; align-items: baseline; gap: var(--s-2); flex-wrap: wrap; }
+.pw-iv-k { font: 500 var(--t-meta)/var(--t-meta-lh) var(--sans); color: var(--ink-3); margin: 0; }
+.pw-iv-key, .pw-iv-mono {
+  font-family: var(--mono); font-size: var(--t-fact); line-height: var(--t-fact-lh);
+  font-variant-numeric: tabular-nums; color: var(--ink-2);
+}
+.pw-iv-words { font: 400 var(--t-body)/var(--t-body-lh) var(--sans); color: var(--ink); }
+.pw-iv-np { margin: 0; display: flex; gap: var(--s-2); align-items: baseline; }
+.pw-iv-np-mark { font: 600 var(--t-body)/var(--t-body-lh) var(--sans); color: var(--ink); }
+.pw-iv-np-reason { font: 400 var(--t-body)/var(--t-body-lh) var(--sans); color: var(--ink-2); }
+.pw-iv-revs ol { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-1); }
+.pw-iv-revs li { display: flex; gap: var(--s-2); align-items: baseline; }
+
+.pw-desk-sec { margin-bottom: var(--s-4); }
+.pw-desk-h { font: 600 var(--t-micro)/var(--t-micro-lh) var(--sans); letter-spacing: 0.04em; color: var(--ink-3);
+  margin: 0 0 var(--s-1); }
+.pw-desk-sec ul { list-style: none; margin: 0; padding: 0; }
+.pw-desk-row { display: grid; grid-template-columns: 16px 62px minmax(0, 1fr) auto; align-items: center;
+  gap: var(--s-2); min-height: var(--row-h); padding: 0 var(--s-2); border-radius: var(--r-ctl); }
+.pw-desk-row:hover { background: var(--surface); }
+.pw-desk-why { font: 400 var(--t-meta)/var(--t-meta-lh) var(--sans); color: var(--ink-2); white-space: nowrap; }
+.pw-desk-none { font: 400 var(--t-meta)/var(--t-meta-lh) var(--sans); color: var(--ink-3); margin: 0; padding: 0 var(--s-2); }
+.pw-desk-card { display: grid; gap: 2px; padding: var(--s-2); border-radius: var(--r-card);
+  background: var(--surface); box-shadow: var(--e-card); max-width: 56ch; }
+.pw-desk-card > div:first-child { display: flex; align-items: center; gap: var(--s-2); }
+.pw-desk-zero { font: 400 var(--t-body)/var(--t-body-lh) var(--sans); color: var(--ink); padding: var(--s-6); margin: 0; }
+```
+
+The card is the one raised element, so it takes `--e-card` (task 26: a 1px ring plus layered
+shadow, DESIGN-SYSTEM's elevation rule) and `--r-card`; a row takes `--r-ctl`, a label chip
+`--r-chip`, so the radius follows the element's size. The Desk's section words are uppercase in the
+source, as 05 §4.2 writes them; no `text-transform`.
+
