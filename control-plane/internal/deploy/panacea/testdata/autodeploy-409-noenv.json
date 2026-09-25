@@ -1,0 +1,4 @@
+{
+  "_source": "GET or PUT /api/v1/projects/engagement-portal/branches/feat%2Fnew/auto-deploy for a branch whose namespace does not exist yet: writeError(http.StatusConflict, \"branch has no environment yet — deploy it once, or set the project default\") (handlers/projects.go:4133, the GET; :4178, the PUT). Served with status 409",
+  "error": "branch has no environment yet — deploy it once, or set the project default"
+}

@@ -1,0 +1,4 @@
+{
+  "_source": "POST /api/v1/projects/engagement-portal/access when Keycloak's admin token cannot be fetched: AddProjectAccess returns fmt.Errorf(\"get admin token: %w\", err) (clients/keycloak.go:175-177), written by handlers/access.go:57. The wrapped cause is a STAND-IN. Served with status 500",
+  "error": "failed to add access binding: get admin token: Post \"https://keycloak.panacea.svc/realms/master/protocol/openid-connect/token\": dial tcp 10.0.3.4:8443: connect: connection refused"
+}

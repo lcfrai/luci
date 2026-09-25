@@ -1,0 +1,11 @@
+{
+  "_source": "PUT /api/v1/projects/engagement-portal/branches/feat%2Ffix%28ui%29/access with {\"accessMode\":\"bypass-token\"} when ReconcileAccessModeIngress fails: enforced, reconcileErr = false, err.Error() (handlers/project_security.go:818-821), resp {branch, env, accessMode, enforced} (:824-829) plus bypassTokens, because bypass-token with no supplied token always mints one (:786-797, returned ONCE, :830-833; generateBypassToken's pnb_ + 32 hex, handlers/protection.go:42, :472-478), and the not-enforced Message that embeds reconcileErr (:836-839), written at :841-844. The branch feat/fix(ui) is legal git (git check-ref-format --branch accepts it); env is sanitizeBranchEnv's (handlers/projects.go:3814-3826: lowercase, / to -). reconcileErr is a STAND-IN that holds a ( itself",
+  "message": "Access mode SAVED as bypass-token for engagement-portal@feat/fix(ui) BUT NOT YET ENFORCED — the ingress could not be updated (dial tcp 10.0.0.9:6443: i/o timeout (retry 3)), so traffic is still gated by the previous mode. Re-apply, and do not treat the new mode as active until it succeeds.",
+  "data": {
+    "branch": "feat/fix(ui)",
+    "env": "feat-fix(ui)",
+    "accessMode": "bypass-token",
+    "enforced": false,
+    "bypassTokens": ["pnb_5c2e9a0f7b3d4e1a8c6f2b9d0e4a7c13"]
+  }
+}

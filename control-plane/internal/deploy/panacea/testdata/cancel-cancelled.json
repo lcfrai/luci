@@ -1,0 +1,7 @@
+{
+  "_source": "POST /api/v1/projects/engagement-portal/pipelines/engagement-portal-deploy-9f3kq/cancel of a run whose status is Pending or Running: CancelDeploy's writeJSON(http.StatusOK, models.APIResponse{Data: map[string]string{status: \"cancelled\", message: \"Deployment cancelled successfully\"}}) (handlers/projects.go:3684-3687)",
+  "data": {
+    "status": "cancelled",
+    "message": "Deployment cancelled successfully"
+  }
+}

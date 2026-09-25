@@ -1,0 +1,9 @@
+{
+  "_source": "GET /api/v1/projects/engagement-portal/access: AccessHandler.List's writeJSON(http.StatusOK, models.ListResponse{Items: bindings, TotalCount}) (handlers/access.go:31-34) of ListProjectAccess (clients/keycloak.go:126-162). Row 1: a member of project-engagement-portal-editor, Group == Grantee == the member's identity, role from roleFromProjectGroupName (:156-159, :503-512). Row 2: a member-less group with a panacea-group attribute, Group = the group's name, Grantee = the attribute (:143-153), shaped as Panacea's own test pins it (clients/keycloak_access_test.go:349-351). Row 3: an owner. grantee is omitempty (models/models.go:2004-2015) but ListProjectAccess always fills it",
+  "items": [
+    {"group": "a.person@kpmg.com.au", "role": "editor", "grantee": "a.person@kpmg.com.au"},
+    {"group": "project-legacy-viewer", "role": "viewer", "grantee": "team-old"},
+    {"group": "b.owner", "role": "owner", "grantee": "b.owner"}
+  ],
+  "totalCount": 3
+}

@@ -1,0 +1,17 @@
+{
+  "_source": "POST /api/v1/projects/engagement-portal/deployments/engagement-portal-deploy-3mz8d/rollback, the legacy image-patch path: RollbackDeployment returns models.Deployment{ID: deployID, Status: \"rolling-back\", Image: fullImage, RollbackWarmth: \"cold\", ColdStartSeconds: rollbackColdStartSeconds} (clients/kubernetes.go:6029-6037; ID at :6030; rollbackColdStartSeconds = 20, clients/immutable_deploy.go:77), enriched by Rollback (handlers/projects.go:1619-1623) and written at :1636-1639",
+  "message": "rollback initiated to engagement-portal-deploy-3mz8d",
+  "data": {
+    "id": "engagement-portal-deploy-3mz8d",
+    "projectName": "engagement-portal",
+    "revision": "",
+    "status": "rolling-back",
+    "image": "panaceacr.azurecr.io/engagement-portal/app:9b1e7c3",
+    "commit": "9b1e7c3a5d2f4e6a8c0b1d3f5a7c9e2b4d6f8a0c",
+    "branch": "feat-x",
+    "environment": "feat-x",
+    "createdAt": "2026-09-23T11:04:51Z",
+    "rollbackWarmth": "cold",
+    "coldStartSeconds": 20
+  }
+}

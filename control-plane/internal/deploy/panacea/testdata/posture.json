@@ -1,0 +1,11 @@
+{
+  "_source": "GET /api/v1/projects/engagement-portal/branches/feat%2Fx/access for a branch in password mode with an IP allowlist: GetBranchAccessMode's writeJSON(http.StatusOK, models.APIResponse{Data: {branch, env, accessMode, ipWhitelist, passwordSet, bypassTokenCount}}) (handlers/project_security.go:668-677); ipWhitelist from the project-security ConfigMap's JSON list, passwordSet = the htpasswd key is non-empty, bypassTokenCount = the stored hashes (:649-666)",
+  "data": {
+    "branch": "feat/x",
+    "env": "feat-x",
+    "accessMode": "password",
+    "ipWhitelist": ["10.20.0.0/16", "203.0.113.7/32"],
+    "passwordSet": true,
+    "bypassTokenCount": 2
+  }
+}

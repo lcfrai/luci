@@ -65,6 +65,10 @@ func Conformance(t *testing.T, h Harness) {
 		{"ProvisioningSurvives", rowProvisioningSurvives},
 		{"EmptyVersionIsUnknown", rowEmptyVersionIsUnknown},
 		{"ReplicasAbsentIsNil", rowReplicasAbsentIsNil},
+		// Task 04.
+		{"RollbackSourceIsArgument", rowRollbackSourceIsArgument},
+		{"CancelFinishedIsNotAnError", rowCancelFinishedIsNotAnError},
+		{"GrantDeveloperRoundTrips", rowGrantDeveloperRoundTrips},
 	}
 	for _, r := range rows {
 		t.Run(r.name, func(t *testing.T) {
@@ -177,8 +181,8 @@ func rowCompletedAtSurvives(t *testing.T, d deploy.Deployer, s Seeder) {
 // RollbackCreatesNoDeployment kills a fake that invents a rollback row, hiding 7P-4 from every
 // test above it.
 func rowRollbackCreatesNoDeployment(t *testing.T, d deploy.Deployer, s Seeder) {
-	s.Deployment(confProject, seedRow("d1", "feat-x", confBase))
-	s.Deployment(confProject, seedRow("d2", "feat-x", confBase.Add(10*time.Minute)))
+	s.Deployment(confProject, imaged(seedRow("d1", "feat-x", confBase)))
+	s.Deployment(confProject, imaged(seedRow("d2", "feat-x", confBase.Add(10*time.Minute))))
 	s.RollbackTarget(confProject, "d1", deploy.WarmthWarm)
 	// Both rows must read back first, or a Deployments that answers none passes: [] == [] after a
 	// Rollback answered from the RollbackTarget seed alone (review t01 M-2).
@@ -336,5 +340,58 @@ func rowReplicasAbsentIsNil(t *testing.T, d deploy.Deployer, s Seeder) {
 	}
 	if r := byName["production"].Replicas; r == nil || *r != (deploy.Replicas{Ready: 2, Desired: 3}) {
 		t.Errorf("a measured environment read back Replicas %v, want &{2 3}", r)
+	}
+}
+
+// imaged is a seeded row with the image a rollback returns to: Panacea refuses to roll back to a
+// deployment with none (handlers/projects.go:1574-1575).
+func imaged(d deploy.Deployment) deploy.Deployment {
+	d.Image = "registry.test/conformance-portal/app:" + d.ID
+	return d
+}
+
+// RollbackSourceIsArgument kills a connector that reports a new id, which task 10 would send to
+// the Hub and be refused with a 409 (task 04). Warm and cold both.
+func rowRollbackSourceIsArgument(t *testing.T, d deploy.Deployer, s Seeder) {
+	s.Deployment(confProject, imaged(seedRow("d-warm", "feat-x", confBase)))
+	s.Deployment(confProject, imaged(seedRow("d-cold", "feat-x", confBase.Add(time.Minute))))
+	s.Deployment(confProject, imaged(seedRow("d-now", "feat-x", confBase.Add(2*time.Minute))))
+	s.RollbackTarget(confProject, "d-warm", deploy.WarmthWarm)
+	s.RollbackTarget(confProject, "d-cold", deploy.WarmthCold)
+	for id, warmth := range map[string]deploy.Warmth{"d-warm": deploy.WarmthWarm, "d-cold": deploy.WarmthCold} {
+		res, err := d.Rollback(context.Background(), confProject, id)
+		if err != nil || res.SourceDeploymentID != id || res.Warmth != warmth {
+			t.Errorf("Rollback(%s) = (%+v, %v), want SourceDeploymentID %s, Warmth %q", id, res, err, id, warmth)
+		}
+	}
+}
+
+// CancelFinishedIsNotAnError kills an error toast for an undo that raced the build's end: a
+// finished run answers AlreadyFinished with a nil error.
+func rowCancelFinishedIsNotAnError(t *testing.T, d deploy.Deployer, s Seeder) {
+	s.Deployment(confProject, seedRow("d-done", "feat-x", confBase))
+	res, err := d.Cancel(context.Background(), confProject, "d-done")
+	if err != nil || res.Outcome != deploy.AlreadyFinished {
+		t.Errorf("Cancel of a succeeded run = (%+v, %v), want (AlreadyFinished, nil)", res, err)
+	}
+}
+
+// GrantDeveloperRoundTrips kills sending the domain's "developer" where Panacea's writer spells
+// "editor": Panacea builds the group "project-<name>-"+role unchecked and lists any suffix but
+// -owner and -editor as viewer (clients/keycloak.go:192, :503-512), so a developer granted as
+// "developer" reads back a viewer. Read from source; never tried live (task 04).
+func rowGrantDeveloperRoundTrips(t *testing.T, d deploy.Deployer, _ Seeder) {
+	ctx := context.Background()
+	const who = "a.person@kpmg.com.au"
+	if err := d.Grant(ctx, confProject, deploy.GrantRequest{Grantee: who, Role: deploy.RoleDeveloper}); err != nil {
+		t.Fatalf("Grant(developer): %v", err)
+	}
+	grants, err := d.Access(ctx, confProject)
+	if err != nil {
+		t.Fatalf("Access: %v", err)
+	}
+	i := slices.IndexFunc(grants, func(g deploy.AccessGrant) bool { return g.Grantee == who })
+	if i < 0 || grants[i].Role != deploy.RoleDeveloper || grants[i].Legacy || grants[i].Group != who {
+		t.Errorf("after Grant(developer), Access = %+v, want %s as a developer on a person's row", grants, who)
 	}
 }

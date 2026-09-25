@@ -1,0 +1,10 @@
+{
+  "_source": "PUT /api/v1/projects/engagement-portal/branches/feat%2Fx/auto-deploy with {\"enabled\":true}: SetBranchAutoDeploy's writeJSON(http.StatusOK, models.APIResponse{Data: {branch, enabled: *body.Enabled, projectDefault, effective: st.effective(), isProductionBranch}}) (handlers/projects.go:4192-4198). enabled is the bool just written (:4194), never null. projectDefault false here, so effective true can only come from the explicit label",
+  "data": {
+    "branch": "feat/x",
+    "enabled": true,
+    "projectDefault": false,
+    "effective": true,
+    "isProductionBranch": false
+  }
+}

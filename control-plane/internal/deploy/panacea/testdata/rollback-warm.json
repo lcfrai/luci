@@ -1,0 +1,16 @@
+{
+  "_source": "POST /api/v1/projects/engagement-portal/deployments/engagement-portal-deploy-7k2xq/rollback, the alias-flip path with a warm target: RollbackDeployment returns models.Deployment{ID: deployID, ProjectName, Status: \"rolling-back\", Image, CreatedAt, RollbackWarmth: \"warm\", ColdStartSeconds: 0} (clients/kubernetes.go:5962-5989; ID at :5982), which Rollback enriches with the target's image, commit, branch and environment (handlers/projects.go:1619-1623) and writes as models.APIResponse{Message: \"rollback initiated to \"+deployID, Data: deploy} (:1636-1639). coldStartSeconds is omitempty (models/models.go:708), so a warm answer has no key",
+  "message": "rollback initiated to engagement-portal-deploy-7k2xq",
+  "data": {
+    "id": "engagement-portal-deploy-7k2xq",
+    "projectName": "engagement-portal",
+    "revision": "",
+    "status": "rolling-back",
+    "image": "panaceacr.azurecr.io/engagement-portal/app:4f0c2a9",
+    "commit": "4f0c2a9d1b7e3c5a8f6d0b2e4c6a8f1d3b5e7c9a",
+    "branch": "main",
+    "environment": "prod",
+    "createdAt": "2026-09-23T11:02:09Z",
+    "rollbackWarmth": "warm"
+  }
+}

@@ -1,0 +1,4 @@
+{
+  "_source": "POST /api/v1/projects/engagement-portal/deploy for a project over its monthly hosting budget: enforceTeamBudget's writeError(http.StatusPaymentRequired, \"new deploys are paused: \"+dec.Reason) (handlers/projects.go:2856), dec.Reason the projHost arm of handlers/budget_resolve.go:240. Served with status 402",
+  "error": "new deploys are paused: this project has reached its monthly hosting budget; new deploys are paused. Raise it on the project Cost tab."
+}

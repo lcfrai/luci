@@ -1,0 +1,4 @@
+{
+  "_source": "POST /api/v1/projects/engagement-portal/deployments/engagement-portal-deploy-3mz8d/rollback when the registry answers that the target's tag is gone: writeError(http.StatusConflict, \"cannot roll back: image \"+ref+\" no longer exists in the registry (it may have been pruned) — redeploy from source instead\") (handlers/projects.go:1598-1604; ref is repo:tag from ResolveDeployImageRef). Served with status 409",
+  "error": "cannot roll back: image panaceacr.azurecr.io/engagement-portal/app:9b1e7c3 no longer exists in the registry (it may have been pruned) — redeploy from source instead"
+}

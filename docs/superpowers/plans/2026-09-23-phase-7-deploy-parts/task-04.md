@@ -2,8 +2,10 @@
 
 **Half:** 7a (the calls exist before 7b wires Ship to them). **Hours:** 3. **Depends on:** 02, 03.
 
-`deploy.Actor` and `deploy.Governor` on `*panacea.Client`. Every method here is a **write**, so
-none is retried (task 02's `do`) and every one is tested for exactly one request.
+`deploy.Actor` and `deploy.Governor` on `*panacea.Client`. Every **write** here is sent once, never
+retried (task 02's `do`), and every one is tested for exactly one request. Three Governor methods
+are reads, `AutoDeploy`, `Posture` and `Access` (GETs), and `do` retries them like every read
+(built t04: this sentence said every method is a write; `TestNoWriteIsRetried` pins both halves).
 
 **Files:**
 - `control-plane/internal/deploy/panacea/wire.go` (modified) — the act DTOs below
@@ -150,11 +152,20 @@ type urlPrefixResponseDTO struct {
 | `Grant` | `POST P/access` (1408) | **201** (`handlers/access.go:61`) | domain → wire: `RoleDeveloper` → **`"editor"`**; `RoleUnknown` refused before sending. Single-role on Panacea: `AddProjectAccess` first drops the grantee from the project's other role groups (`clients/keycloak.go:198-214`), so a grant to a current member **is** the role change, one request. That drop is best-effort (a failure is logged at debug, `:207-210`), and it runs before the add (`:216-218`), so a failed add can leave the grantee with no role. The caller re-reads after success and after failure (tasks 11, 18; re-review I-1). A 500 is `KindUnavailable`, except the two typo phrases anchored after its prefix, which are `KindRejected` (plan 7P-12's single exception; `TestGrantUnknownUserIsRejected`) |
 | `Revoke` | `DELETE P/access/{group}` (1409) | 200 | takes the row's **`Group`**, path-escaped (an email contains `@`). For a person's row that is their identity, and Panacea removes them from **every** role group (`keycloak.go:245-260`); for a legacy row it is the group's name, and Panacea deletes that group (`:262-267`). A legacy row's `Grantee` (an attribute value such as `team-old`) is no group's name, so unless a user happens to have that name Panacea answers 200 having removed nothing (`:268`); and if one does, it removes that user instead. It is never sent (review M30) |
 | `SetURLPrefix` | `PUT B/url-prefix` (1313) | 200 | a 409 carries *"url prefix already taken: …"* (`projects.go:4321`) verbatim |
-| `ClearURLPrefix` | `DELETE B/url-prefix` (1314) | 200 | clearing a branch with no prefix is success (`projects.go:4380-4382`); the body is `data {branch, routeReverted}` plus a `message` (`:4448-4451`), read from source (b07), and only the status is used |
+| `ClearURLPrefix` | `DELETE B/url-prefix` (1314) | 200 | clearing a branch with no prefix is success (`projects.go:4378-4379`, `:4407`; re-read t04, was `:4380-4382`); the body is `data {branch, routeReverted}` plus a `message` (`:4448-4450`), read from source (b07), and only the status is used |
 
 **Never logged, anywhere in this file:** `PostureChange.Password`, any `bypassTokens` value, the
-token. `do` already omits bodies; these two methods also pass `logBody: false` explicitly and a test
-asserts the captured log.
+token. `do` already omits request and 2xx bodies; these two methods, `Posture` and `SetPosture`,
+also pass `noBodyLog` explicitly, and a test asserts the captured log. (Built t04: `do` had no
+`logBody` parameter, and it logged a failed call's error body at Debug. `client.go` gained
+`doWith(ctx, bodyLog, …)`, and `do` is `doWith(ctx, logBody, …)`.
+`TestPostureMintedTokenReturnedNotLogged` pins it with a 409 body that echoes a stand-in password
+and token.)
+
+**Grant's parsed 500 needs the sentence `do` drops.** `mapStatus` leaves `Message ""` on every 5xx.
+So `attempt` now sets `Cause` to an `*answered` value. Its `Error()` is the same text as before
+(`panacea: METHOD path answered N`), and it keeps `readProblem`'s sentence. Only `Grant` reads it,
+through `answeredSentence` (built t04).
 
 #### Testdata added
 
@@ -176,7 +187,23 @@ or the fallback built at `handlers/risk_capability_apply.go:536-539`, whose labe
 stand-in `reconcileErr` that itself holds a `(`), `posture-set-minted.json` (`enforced: true`), `posture-409-locked.json` (`:733-735`), `access.json` (one person grant, its `group` equal to its `grantee`,
 one legacy group binding shaped as Panacea's own test pins it, `{"group":"project-legacy-viewer",
 "role":"viewer","grantee":"team-old"}`, `clients/keycloak_access_test.go:349-351`; review M30),
-`urlprefix.json`, `urlprefix-409.json`.
+`urlprefix.json`, `urlprefix-409.json`. Built t04 with four more, one per
+`TestGrantUnknownUserIsRejected` phrase: `grant-500-no-user.json` (`keycloak.go:189`),
+`grant-500-blank.json` (`:182`), `grant-500-resolve.json` (`:186` wrapping `:989`) and
+`grant-500-admin-token.json` (`:177`), each as `access.go:57` writes it. That makes 25 new
+files, 49 in all. `posture-set-not-enforced.json` also carries a minted `bypassTokens`. The
+reason is that bypass-token with no supplied token always mints one (`project_security.go:786-797`),
+enforced or not, so `SetPosture` carries it in both cases.
+
+`notEnforcedSentence` is in `governance.go`, beside `SetPosture`, not in `wire.go`: it is code, not
+a DTO.
+
+`panaceatest` answers deploy, cancel, rollback, `PUT B/access` and the three access routes. Each
+answer follows its handler's own rules, cited where they are written. It answers auto-deploy and
+url-prefix with `notModelled`, as it does the drill-ins: no seeder names them, and their answers
+need a Panacea rule it does not hold (whether a namespace exists, the host). The recorded bodies
+test those routes. Rollback refuses a row with no image, as Panacea does (`:1575`). So
+`RollbackCreatesNoDeployment` now seeds images, through `imaged`.
 
 #### Conformance rows added
 
@@ -184,7 +211,7 @@ one legacy group binding shaped as Panacea's own test pins it, `{"group":"projec
 |---|---|---|
 | `RollbackSourceIsArgument` | `Rollback(p, "d1").SourceDeploymentID == "d1"` for warm and cold | a connector that reports a new id, which task 10 would send to the Hub and 409 |
 | `CancelFinishedIsNotAnError` | cancelling a succeeded run → `AlreadyFinished`, `err == nil` | an error toast for an undo that raced the build's end |
-| `GrantDeveloperRoundTrips` | `Grant(RoleDeveloper)` then `Access` → that grantee with `RoleDeveloper` | sending `"developer"` where Panacea's writer spells `"editor"` — **unverified whether it would be refused**, so the connector never finds out |
+| `GrantDeveloperRoundTrips` | `Grant(RoleDeveloper)` then `Access` → that grantee with `RoleDeveloper` | sending `"developer"` where Panacea's writer spells `"editor"`. Read from source at t04, so no longer "unverified whether it would be refused": it is **not** refused. `AddProjectAccess` builds `"project-<name>-"+role` unchecked (`clients/keycloak.go:192`), and `roleFromProjectGroupName` lists every suffix except `-owner` and `-editor` as `viewer` (`:503-512`), so the developer reads back as a viewer. `panaceatest` copies that rule, so the row kills the mutant over the connector. Never tried live |
 
 #### Tests to write first
 
@@ -204,10 +231,10 @@ one legacy group binding shaped as Panacea's own test pins it, `{"group":"projec
 | `TestPasswordOnlyForPasswordMode` | `SetPosture(Mode: kpmg-sso, Password: "x")` sends no `password` key | sending a stale password field that Panacea might persist |
 | `TestGrantEditorSpelling` | `Grant(RoleDeveloper)` body has `"role":"editor"` | the domain word leaking onto the wire |
 | `TestGrantUnknownUserIsRejected` | one fixture per real phrase, each a 500 as `handlers/access.go:57` writes it: `{"error":"failed to add access binding: no Keycloak user found for grantee \"x\""}` (`clients/keycloak.go:189`) and `{"error":"failed to add access binding: a grantee (username or email) is required"}` (`:182`) → each `KindRejected`, `Message` *"No Panacea user matches that name or email."*. Then two outages that share the prefix: `{"error":"failed to add access binding: resolve grantee \"x\": user search returned 503: unavailable"}` (`:186` wrapping `:988-989`) and `… get admin token: …` (`:177`) → each `KindUnavailable`, `Message ""`; any other 500 → the same. The matcher takes the text after the prefix and tests that it **begins with** `no Keycloak user found for grantee ` or **equals** `a grantee (username or email) is required` — never a contains (re-review M-1). The test quotes `access.go:57` and `keycloak.go:177`, `:182`, `:186`, `:189` | a typo shown as an outage — or, the opposite mutant, any 500 body shown to the user; a matcher keyed on `resolve grantee`, or on a contains, that shows a Keycloak outage as *"No Panacea user matches …"* (plan 7P-12 names this as the single parsed sentence; task 11 explains the route; review M8, re-review M-1) |
-| `TestRevokeEscapesEmail` | `Revoke("a.b@kpmg.com.au")` requests `/access/a.b%40kpmg.com.au` | an unescaped path segment |
+| `TestRevokeEscapesEmail` | `Revoke("a.b@kpmg.com.au")` requests `/access/a.b@kpmg.com.au`, and `Revoke("x/y z?")` requests `/access/x%2Fy%20z%3F`. Built t04: `%40` was wrong on the facts. `url.PathEscape` leaves `@` alone, because it is a pchar (RFC 3986 §3.3), and Panacea's mux decodes both forms to the same `{group}` | an unescaped path segment |
 | `TestAccessLegacyGroup` | `access.json`'s legacy row → `Legacy == true`, `Group "project-legacy-viewer"`, `Grantee "team-old"`; the person row → `Legacy == false`, `Group == Grantee` | drawing a group binding as a person; a legacy test keyed on `Grantee == ""`, which Panacea's code never sends (review M30) |
 | `TestRevokeLegacyByGroup` | `Revoke` with the legacy row's `Group` requests `/access/project-legacy-viewer`, and the recorded requests hold no `/access/team-old` | revoking a legacy row by its grantee: Panacea answers 200 and removes nothing (`keycloak.go:268`) (review M30) |
-| `TestNoWriteIsRetried` | every method of this task against a server answering 503 once, then 200: each saw one request | — the whole file's rule |
+| `TestNoWriteIsRetried` | every write of this task against a server answering 503 once, then its success: each saw one request. The three reads each saw two, and read the answer | — the whole file's rule |
 
 #### Steps
 
@@ -245,3 +272,12 @@ grep -niE '(secretscan|dast|sast|checks|iacscan|scascan|licensescan|modelscan|nu
 - That Panacea accepts `developer` as a role spelling (plan §12). It sends `editor` and never tests
   the other.
 - Any Hub interaction. Ship's reserve/confirm is task 09.
+- That an undo lands in a run's first seconds (found t04, for tasks 09 and 10). `CancelDeploy`
+  cancels only a `Pending` or `Running` run (`projects.go:3669`). A run with no condition yet reads
+  `Unknown` (`clients/pipeline.go`, `pipelineRunStatusFromUnstructured`), so Panacea answers
+  `already_completed`, *"Pipeline run is already Unknown"*, and `Cancel` reads that as
+  `AlreadyFinished`. The Fake cancels such a run. `panaceatest` copies Panacea's rule
+  (`TestCancelRoute`).
+- `PostureResult.Posture` beyond branch, environment and mode. The PUT's answer has no
+  `ipWhitelist`, `passwordSet` or `bypassTokenCount` (`project_security.go:824-833`). Those are
+  zero, and a caller that shows them re-reads `Posture` (task 11).

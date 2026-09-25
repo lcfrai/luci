@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"io/fs"
 	"net/http"
 	"os"
@@ -64,11 +65,13 @@ func loadFixture(t *testing.T, name string) []byte {
 }
 
 // recorded answers each "METHOD /escaped/path?query" from its routes and records every request
-// in order. A request no route names fails the test and is answered 500.
+// in order, with its body (task 04's writes). A request no route names fails the test and is
+// answered 500.
 type recorded struct {
 	*harness
-	mu   sync.Mutex
-	reqs []string
+	mu     sync.Mutex
+	reqs   []string
+	bodies []string
 }
 
 func serveRecorded(t *testing.T, routes map[string]fixture) *recorded {
@@ -83,8 +86,13 @@ func serveRecorded(t *testing.T, routes map[string]fixture) *recorded {
 	rs := &recorded{}
 	rs.harness = newHarness(t, func(w http.ResponseWriter, r *http.Request) {
 		key := r.Method + " " + r.URL.RequestURI()
+		sent, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Errorf("reading the body of %s: %v", key, err)
+		}
 		rs.mu.Lock()
 		rs.reqs = append(rs.reqs, key)
+		rs.bodies = append(rs.bodies, string(sent))
 		rs.mu.Unlock()
 		f, ok := routes[key]
 		if !ok {
@@ -110,6 +118,13 @@ func (rs *recorded) requests() []string {
 	rs.mu.Lock()
 	defer rs.mu.Unlock()
 	return slices.Clone(rs.reqs)
+}
+
+// sent is every request's body, in request order.
+func (rs *recorded) sent() []string {
+	rs.mu.Lock()
+	defer rs.mu.Unlock()
+	return slices.Clone(rs.bodies)
 }
 
 // at parses an RFC 3339 instant for a want value.
@@ -809,8 +824,8 @@ func TestRecordedBodiesNameTheirSource(t *testing.T) {
 	for _, e := range entries {
 		loadFixture(t, e.Name())
 	}
-	if len(entries) < 24 {
-		t.Errorf("testdata holds %d files, want the part's 22 plus the two custom-production-branch bodies", len(entries))
+	if len(entries) < 49 {
+		t.Errorf("testdata holds %d files, want task 03's 24 plus task 04's 25 (its 21 plus the four grant 500s)", len(entries))
 	}
 }
 

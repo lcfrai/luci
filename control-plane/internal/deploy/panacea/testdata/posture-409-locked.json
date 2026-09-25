@@ -1,0 +1,4 @@
+{
+  "_source": "PUT /api/v1/projects/engagement-portal/branches/feat%2Fx/access with {\"accessMode\":\"none\"} when the risk assessment locks SSO on: writeError(http.StatusConflict, \"access mode cannot be relaxed: \"+reason+\". Resolve the failing risk requirements on the project Risk page to unlock this setting.\") (handlers/project_security.go:731-735). The reason is a STAND-IN. Served with status 409",
+  "error": "access mode cannot be relaxed: the project handles client-confidential data and its assessment requires SSO. Resolve the failing risk requirements on the project Risk page to unlock this setting."
+}

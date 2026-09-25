@@ -1,0 +1,4 @@
+{
+  "_source": "POST /api/v1/projects/engagement-portal/access with a grantee no Keycloak user matches: AddProjectAccess returns fmt.Errorf(\"no Keycloak user found for grantee %q\", grantee) (clients/keycloak.go:188-189), which AccessHandler.Add writes as writeError(http.StatusInternalServerError, \"failed to add access binding: \"+err.Error()) (handlers/access.go:55-58). Served with status 500",
+  "error": "failed to add access binding: no Keycloak user found for grantee \"a.persn@kpmg.com.au\""
+}

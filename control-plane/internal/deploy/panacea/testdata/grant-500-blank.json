@@ -1,0 +1,4 @@
+{
+  "_source": "POST /api/v1/projects/engagement-portal/access with a whitespace-only grantee (an empty one is access.go:50-52's 400 first): AddProjectAccess returns fmt.Errorf(\"a grantee (username or email) is required\") (clients/keycloak.go:180-182), written by handlers/access.go:57. Served with status 500",
+  "error": "failed to add access binding: a grantee (username or email) is required"
+}

@@ -1,0 +1,10 @@
+{
+  "_source": "GET /api/v1/projects/engagement-portal/branches/feat%2Fx/auto-deploy for a branch with an environment and no explicit label: GetBranchAutoDeploy's writeJSON(http.StatusOK, models.APIResponse{Data: {branch, enabled: st.explicit, projectDefault, effective: st.effective(), isProductionBranch}}) (handlers/projects.go:4136-4143). enabled is a *bool, JSON null when the branch has no explicit label (:4139), so effective follows projectDefault",
+  "data": {
+    "branch": "feat/x",
+    "enabled": null,
+    "projectDefault": true,
+    "effective": true,
+    "isProductionBranch": false
+  }
+}

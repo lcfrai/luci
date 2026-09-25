@@ -1,0 +1,9 @@
+{
+  "_source": "PUT /api/v1/projects/engagement-portal/branches/feat%2Fx/url-prefix with {\"prefix\":\"uat-test\"}: SetBranchURLPrefix's writeJSON(http.StatusOK, models.APIResponse{Message: \"url prefix set\", Data: {branch, prefix: req.Prefix, host}}) (handlers/projects.go:4365-4371). The host is a STAND-IN of the shape the handler computes from the team prefix and the domain",
+  "message": "url prefix set",
+  "data": {
+    "branch": "feat/x",
+    "prefix": "uat-test",
+    "host": "uat-test.panacea.kpmg"
+  }
+}

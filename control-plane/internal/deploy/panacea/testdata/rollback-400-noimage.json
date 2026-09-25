@@ -1,0 +1,4 @@
+{
+  "_source": "POST /api/v1/projects/engagement-portal/deployments/engagement-portal-deploy-q4w1p/rollback of a deployment with no image recorded: writeError(http.StatusBadRequest, \"deployment has no image tag — cannot rollback\") (handlers/projects.go:1574-1575). Served with status 400",
+  "error": "deployment has no image tag — cannot rollback"
+}

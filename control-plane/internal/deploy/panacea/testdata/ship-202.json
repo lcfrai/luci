@@ -1,0 +1,9 @@
+{
+  "_source": "POST /api/v1/projects/engagement-portal/deploy: TriggerDeploy's writeJSON(http.StatusAccepted, models.APIResponse{Message: \"deployment started\", Data: map[string]string{project, status: \"running\", pipelineRun: runName}}) (handlers/projects.go:2998-3005; APIResponse's tags, models/models.go:2147-2151). The run name is a stand-in in the style of deployments.json. Served with status 202",
+  "message": "deployment started",
+  "data": {
+    "project": "engagement-portal",
+    "status": "running",
+    "pipelineRun": "engagement-portal-deploy-9f3kq"
+  }
+}

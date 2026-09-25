@@ -1,0 +1,11 @@
+{
+  "_source": "PUT /api/v1/projects/engagement-portal/branches/feat%2Fx/access with {\"accessMode\":\"bypass-token\",\"rotateBypassTokens\":true}: a minted token (handlers/project_security.go:786-797; pnb_ + 32 hex, handlers/protection.go:42, :472-478), the ingress reconciled so enforced true (:817-822), resp {branch, env, accessMode, enforced, bypassTokens} (:824-833, the token returned ONCE) and Message \"access mode set to %s for %s@%s\" (:835), written at :841-844",
+  "message": "access mode set to bypass-token for engagement-portal@feat/x",
+  "data": {
+    "branch": "feat/x",
+    "env": "feat-x",
+    "accessMode": "bypass-token",
+    "enforced": true,
+    "bypassTokens": ["pnb_9d41f07c2a6b3e58d1c0a4f7e2b9c615"]
+  }
+}

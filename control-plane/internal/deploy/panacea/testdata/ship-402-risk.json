@@ -1,0 +1,4 @@
+{
+  "_source": "POST /api/v1/projects/engagement-portal/deploy of the production branch when the risk assessment forbids it: writeError(http.StatusPaymentRequired, \"production deploy blocked by the project's risk assessment: \"+reason+\". Resolve the failing risk requirements on the project Risk page, then re-deploy.\") (handlers/projects.go:2916-2918). The reason is a STAND-IN: the real one is the assessment's own text or the fallback built at handlers/risk_capability_apply.go:536-539, whose label was not read. Served with status 402",
+  "error": "production deploy blocked by the project's risk assessment: data-residency requirement DR-2 is failing. Resolve the failing risk requirements on the project Risk page, then re-deploy."
+}
