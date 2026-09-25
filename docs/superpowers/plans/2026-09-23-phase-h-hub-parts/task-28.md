@@ -7,7 +7,8 @@ same store** holds the Azure DevOps and GitHub tokens phase 3 needs (`OD-4`) and
 phase 7 needs (`OD-13`). This task is that store's lowest layer — **seam S-CRED**: one `Secrets`
 interface, two implementations, one chunking rule for tokens larger than a credential blob, and
 **one** place every target name is spelled. Task 29 builds the typed accessors on it (GitHub,
-Panacea); task 31 stores the Entra refresh token through it; task 39 is the only write path for a
+Panacea); task 31 stores the realm's offline refresh token through it (OD-30: Keycloak brokering
+Entra, main `docs/superpowers/planning/2026-09-25-identity-keycloak-broker.md` §11 `:581`); task 39 is the only write path for a
 pasted token.
 
 **Two rules no implementation may break:** a secret is never logged, never in an error, never
@@ -31,7 +32,7 @@ pooled; the Hub stores none, ADR-H1 §5.2).
 // control-plane/internal/credstore/secrets.go
 
 // Package credstore is this machine's store of the signed-in user's own secrets
-// (OD-6): the Entra refresh token, a GitHub token, a Panacea token. Windows
+// (OD-6): the realm's refresh token (OD-30), a GitHub token, a Panacea token. Windows
 // Credential Manager in production, memory in tests and off Windows. There is no
 // file-backed store: a file is the thing Credential Manager exists to avoid
 // (contract §9.1). Nothing in this package logs; no error carries a blob.
@@ -71,21 +72,28 @@ func Memory() Secrets  // tests, and every non-Windows build: secrets last for t
 // is exactly our entries and nobody else's.
 const TargetPrefix = "PanaceaApp/"
 
-// EntraAccountTarget: the account record, written LAST so it marks a complete
-// write (contract §9.1):  PanaceaApp/entra/<tenantId>/<clientId>/account
-func EntraAccountTarget(tenantID, clientID string) string
+// The sign-in targets key on the ISSUER (OD-30 ruling §11 :581; Hub contract §17 §9.1), so
+// a token from one realm is never offered to another. issuer is the validated
+// PANACEA_APP_OIDC_ISSUER (task 32's TestTheIssuerIsARealmURL): <scheme>://<host>/realms/<realm>.
+// <issuer host> is the URL's host, port included (127.0.0.1:8751 locally); <realm>
+// is the path segment after /realms/. These replace EntraAccountTarget and
+// EntraRefresh*(tenantID, clientID), which keyed on an Entra tenant and client.
 
-// EntraRefreshTarget: chunk i of one generation of the refresh token:
-//   PanaceaApp/entra/<tenantId>/<clientId>/refresh/<gen>/<i>
+// OIDCAccountTarget: the account record, written LAST so it marks a complete
+// write (contract §9.1):  PanaceaApp/oidc/<issuer host>/<realm>/account
+func OIDCAccountTarget(issuer string) string
+
+// OIDCRefreshTarget: chunk i of one generation of the refresh token:
+//   PanaceaApp/oidc/<issuer host>/<realm>/refresh/<gen>/<i>
 // Every write of a refresh token is a new generation (NewGeneration, chunk.go), so
 // a write never overwrites a chunk the account record still names (review I1).
-func EntraRefreshTarget(tenantID, clientID, gen string, i int) string
+func OIDCRefreshTarget(issuer, gen string, i int) string
 
-// EntraRefreshGenPrefix is the prefix of one generation's chunks: …/refresh/<gen>/
-func EntraRefreshGenPrefix(tenantID, clientID, gen string) string
+// OIDCRefreshGenPrefix is the prefix of one generation's chunks: …/refresh/<gen>/
+func OIDCRefreshGenPrefix(issuer, gen string) string
 
-// EntraRefreshPrefix is the prefix of every generation's chunks: …/refresh/
-func EntraRefreshPrefix(tenantID, clientID string) string
+// OIDCRefreshPrefix is the prefix of every generation's chunks: …/refresh/
+func OIDCRefreshPrefix(issuer string) string
 
 // GitHubTarget: a GitHub token for owner, or for every owner when owner is "":
 // PanaceaApp/git/github/<owner or "*">
@@ -99,7 +107,8 @@ func AzureDevOpsTarget(org string) string
 // PanaceaTarget: phase 7's pnc_ token for one API host:  PanaceaApp/panacea/<api host>
 func PanaceaTarget(apiHost string) string
 
-// A part (a tenant id, a client id, an owner, an organisation, a host) may not be empty (except
+// An issuer that is not <scheme>://<host>/realms/<realm> is a bad part. A part (an
+// issuer host, a realm, an owner, an organisation, a host) may not be empty (except
 // GitHubTarget's owner), contain "/", "*", a space or a control character, or
 // exceed 128 bytes; a gen is exactly 16 lowercase hex characters. The builders
 // panic on a bad one, because every caller passes a validated value and a bad one
@@ -121,9 +130,9 @@ func ValidGeneration(gen string) bool
 // cannot be replaced in place atomically: overwriting chunk 0 and then failing on
 // chunk 1 leaves new-0 + old-1 behind a valid marker, which is neither value. So a
 // write never touches the chunks a reader may be using. The sequence, which task 31
-// follows for the Entra refresh token:
+// follows for the realm's offline refresh token (OD-30):
 //   1. gen := NewGeneration(); PutChunked under that generation's prefix.
-//   2. Write the "written last" marker (the Entra account record), naming gen and
+//   2. Write the "written last" marker (the OIDC account record), naming gen and
 //      the chunk count. Until this Put succeeds the old marker names the old
 //      generation, whose chunks are untouched.
 //   3. Only then DeleteChunked the old generation's prefix. A failure or a crash
@@ -137,7 +146,7 @@ func ValidGeneration(gen string) bool
 func NewGeneration() (string, error)
 
 // PutChunked writes data as ceil(len/MaxBlob) blobs at prefix+"0", prefix+"1", …
-// prefix is one fresh generation's (EntraRefreshGenPrefix). It never deletes and
+// prefix is one fresh generation's (OIDCRefreshGenPrefix). It never deletes and
 // never writes outside prefix. It returns the chunk count, which the caller records
 // with the generation in its marker. An empty data is 0 chunks. On an error the
 // chunks written so far stay; see the sequence above.
@@ -148,10 +157,10 @@ func PutChunked(s Secrets, prefix, userName string, data []byte) (chunks int, er
 func GetChunked(s Secrets, prefix string, n int) ([]byte, error)
 
 // DeleteChunked deletes every chunk under prefix (by List): one generation's
-// prefix after a rotation, or EntraRefreshPrefix, every generation, at sign-out.
+// prefix after a rotation, or OIDCRefreshPrefix, every generation, at sign-out.
 func DeleteChunked(s Secrets, prefix string) error
 
-// SweepGenerations deletes every chunk under prefix (EntraRefreshPrefix) whose
+// SweepGenerations deletes every chunk under prefix (OIDCRefreshPrefix) whose
 // generation segment is not keep; keep "" deletes every generation. Start-up calls
 // it with the generation the marker names, before any write.
 func SweepGenerations(s Secrets, prefix, keep string) error
@@ -211,8 +220,8 @@ unique `PanaceaApp/test-<8 hex>/` prefix and a cleanup that deletes everything u
 | `TestChunkedRoundTrips6000Bytes` | `PutChunked` 6,000 bytes → 3 chunks; `GetChunked(3)` → the same bytes (Memory; and WinCred on Windows — contract §13 C1) | a KPMG-sized refresh token (R1) that cannot be stored |
 | `TestAWriteNeverTouchesAnotherGeneration` | 6,000 bytes under generation A (3 chunks), then 100 bytes under generation B (1 chunk); A's `GetChunked(3)` still returns the 6,000 bytes whole, B's `GetChunked(1)` the 100; two `NewGeneration` values differ and each is 16 lowercase hex | the in-place overwrite (review I1): a rotation that tears the token the marker still names |
 | `TestSweepKeepsOnlyTheNamedGeneration` | generations A (3 chunks), B (1) and a stray C (2, no marker); `SweepGenerations(prefix, B)` → `List(prefix)` is exactly B's chunk 0; `SweepGenerations(prefix, "")` → empty; a chunk under a **different account's** prefix is untouched | a sweep that deletes the named generation; a stale generation left for ever; a sweep that crosses accounts |
-| `TestAMissingChunkIsNotFound` | delete chunk 1 of 3; `GetChunked(3)` → `ErrNotFound` | a corrupted token sent to Entra |
-| `TestTargetsAreExact` | each builder's output byte for byte, e.g. `EntraRefreshTarget("t","c","0123456789abcdef",2)` = `PanaceaApp/entra/t/c/refresh/0123456789abcdef/2`, `EntraRefreshGenPrefix("t","c","0123456789abcdef")` = `PanaceaApp/entra/t/c/refresh/0123456789abcdef/`, `GitHubTarget("")` = `PanaceaApp/git/github/*`, `AzureDevOpsTarget("kpmg-au")` = `PanaceaApp/git/azure-devops/kpmg-au` (review I10) | two components spelling one target differently |
+| `TestAMissingChunkIsNotFound` | delete chunk 1 of 3; `GetChunked(3)` → `ErrNotFound` | a corrupted token sent to the issuer |
+| `TestTargetsAreExact` | each builder's output byte for byte, e.g. `OIDCRefreshTarget("https://auth.dev.panacea.kpmg/realms/panacea","0123456789abcdef",2)` = `PanaceaApp/oidc/auth.dev.panacea.kpmg/panacea/refresh/0123456789abcdef/2`, `OIDCRefreshGenPrefix("http://127.0.0.1:8751/realms/panacea-app-dev","0123456789abcdef")` = `PanaceaApp/oidc/127.0.0.1:8751/panacea-app-dev/refresh/0123456789abcdef/`, `OIDCAccountTarget` of two realms on one host → two targets, and an issuer with no `/realms/` segment panics, `GitHubTarget("")` = `PanaceaApp/git/github/*`, `AzureDevOpsTarget("kpmg-au")` = `PanaceaApp/git/azure-devops/kpmg-au` (review I10) | two components spelling one target differently |
 | `TestTargetPartsAreValidated` | a part with `/`, `*`, a space, a newline, or 129 bytes → panic; a gen of 15 or 17 characters, or with an uppercase or non-hex character → panic, and `ValidGeneration` of each of those → false (of `"0123456789abcdef"` → true) | a caller-supplied owner that escapes its namespace; a `ValidGeneration` that accepts what a builder panics on |
 | `TestWinCredPersistsOnThisMachineOnly` (Windows only) | after `Put`, a raw `CredReadW` shows `Persist == 2` and `Type == 1` | enterprise persistence roaming the token (ADR-H1 §5.2) |
 | `TestWinCredUnsupportedOffWindows` (non-Windows only) | every method → `ErrUnsupported` | a Linux build that pretends to have stored a token |
@@ -256,4 +265,4 @@ WinCred, as `TestMemoryConforms` and `TestWinCredConforms`.)
   recalled (contract §15; ADR-H1 R1). The Windows test proves a 6,000-byte round trip on the
   owner's machine; KPMG's real refresh-token size is measured at the first real sign-in (task 43).
 - That DPAPI protection is what an enterprise auditor requires; it is what `OD-6` chose.
-- Any typed accessor: task 29 (GitHub, Panacea) and task 31 (Entra).
+- Any typed accessor: task 29 (GitHub, Panacea) and task 31 (the realm's refresh token).
