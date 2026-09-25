@@ -192,3 +192,85 @@ func ValidReactionEmoji(s string) bool {
 }
 ```
 
+```go
+func isKeycapBase(r rune) bool        { return (r >= '0' && r <= '9') || r == '#' || r == '*' }
+func isRegionalIndicator(r rune) bool { return r >= 0x1F1E6 && r <= 0x1F1FF }
+
+func isEmojiBase(r rune) bool {
+	switch {
+	case r >= 0x1F000 && r <= 0x1FAFF, r >= 0x2600 && r <= 0x27BF, r >= 0x2300 && r <= 0x23FF,
+		r >= 0x2B00 && r <= 0x2BFF, r >= 0x2190 && r <= 0x21FF:
+		return !isRegionalIndicator(r) && !(r >= 0x1F3FB && r <= 0x1F3FF)
+	case r == 0x00A9, r == 0x00AE, r == 0x203C, r == 0x2049, r == 0x2122, r == 0x2139,
+		r == 0x3030, r == 0x303D, r == 0x3297, r == 0x3299:
+		return true
+	}
+	return false
+}
+
+// ValidateAnchor checks an anchor's shape only: the kind is known and carries
+// only its own fields. Whether the revision, the offsets and the criterion exist
+// is the store's check (they need the database). The error names the field.
+func ValidateAnchor(a CommentAnchor) (field string, ok bool) {
+	switch a.Kind {
+	case AnchorText:
+		switch {
+		case a.Revision < 1:
+			return "anchor.revision", false
+		case a.Start < 0 || a.End <= a.Start:
+			return "anchor.end", false
+		case a.CriterionID != "":
+			return "anchor.criterionId", false
+		case a.Ref != "":
+			return "anchor.ref", false
+		}
+	case AnchorCriterion:
+		switch {
+		case a.Revision < 1:
+			return "anchor.revision", false
+		case a.CriterionID == "":
+			return "anchor.criterionId", false
+		case a.Start != 0 || a.End != 0:
+			return "anchor.start", false
+		case a.Ref != "":
+			return "anchor.ref", false
+		}
+	case AnchorSpan, AnchorHunk:
+		switch {
+		case a.Ref == "" || len(a.Ref) > MaxAnchorRefBytes || strings.ContainsAny(a.Ref, "\x00\r\n"):
+			return "anchor.ref", false
+		case a.Revision != 0:
+			return "anchor.revision", false
+		case a.Start != 0 || a.End != 0:
+			return "anchor.start", false
+		case a.CriterionID != "":
+			return "anchor.criterionId", false
+		}
+	default:
+		return "anchor.kind", false
+	}
+	return "", true
+}
+
+// Work codes task 12 needs. If task 03 declared them, these lines are dropped.
+const (
+	CodeCommentNotFound    = "comment_not_found"     // 404, details.commentId
+	CodeCommentNotTopLevel = "comment_not_top_level" // 422, details.field: "parentId" | "commentId"
+	CodeAnchorUnresolvable = "anchor_unresolvable"   // 422, details.field: "anchor.revision" | "anchor.end" | "anchor.criterionId"
+)
+```
+
+`work.go` gains the imports `strings` and `unicode/utf8` if task 03 did not already use them.
+Task 03's scope names a `:custom:` refusal on `Reaction`; if task 03 wrote a validator, this
+function replaces its body (one validator, not two) and task 03's test must still pass. The field
+names in `CommentAnchor` (`Kind`, `Revision`, `Start`, `End`, `CriterionID`, `Ref`) are task 03's
+as its scope spells them; task 03's part wins on spelling.
+
+**The shape errors are 400, the reference errors 422.** `ValidateAnchor` failing is 400
+`bad_request` with its `field`: the request is malformed whatever the database holds. A
+well-formed anchor that names a revision that does not exist, an `end` past that revision's
+description, or a criterion that revision does not serve is 422 `anchor_unresolvable`: the
+request is well formed and points at nothing. The split matches the Hub's own (`bad_request` for
+a malformed key, `key_unresolvable` for a key that names nothing, hub-contract §4.2 at `:233` and
+`:260`).
+
