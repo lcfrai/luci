@@ -365,3 +365,94 @@ export interface WorkClient {
 destructured binding, and a caller will destructure. `start` and the four others keep task 24's
 and 25's words (`undo_start`, `/import/preview`).
 
+#### Interfaces — complete: `work.ts`, part 7: `makeWorkClient`
+
+```ts
+/** The client's own transport, handed in by createClient: verb, route (path + query), optional
+ *  JSON body → the parsed body, or an ApiError. It carries the base URL and the timeout. */
+export type WorkSend = (verb: Verb, route: string, body?: unknown) => Promise<unknown>;
+
+/** Fills each {…} in order with encodeURIComponent, so "is-1/../teams" stays one segment. A
+ *  count mismatch is a bug in this file, not a refusal; the route test catches it first. */
+function fill(pattern: string, args: ReadonlyArray<string | number>): string {
+  let i = 0;
+  const out = pattern.replace(/\{[^}]+\}/g, () => {
+    if (i >= args.length) throw new Error(`work: too few arguments for ${pattern}`);
+    return encodeURIComponent(String(args[i++]));
+  });
+  if (i !== args.length) throw new Error(`work: too many arguments for ${pattern}`);
+  return out;
+}
+
+/** An absent or "" value adds nothing; an array repeats its key (?state=a&state=b). */
+function query(pairs: ReadonlyArray<readonly [string, string | number | readonly string[] | undefined]>): string {
+  const q = new URLSearchParams();
+  for (const [k, v] of pairs) {
+    if (v === undefined || v === "") continue;
+    for (const one of Array.isArray(v) ? v : [v]) q.append(k, String(one));
+  }
+  const s = q.toString();
+  return s === "" ? "" : `?${s}`;
+}
+const pageQ = (p?: PageRequest) => query([["after", p?.after], ["limit", p?.limit]]);
+
+export function makeWorkClient(send: WorkSend): WorkClient {
+  const relay = <T,>(m: RelayMethod, args: ReadonlyArray<string | number>, body?: unknown, q = ""): Promise<T> => {
+    const [, verb, hub] = WORK_RELAY.find((r) => r[0] === m)!;
+    return send(verb, relayPath(fill(hub, args)) + q, body) as Promise<T>;
+  };
+  const local = <T,>(m: LocalMethod, args: ReadonlyArray<string>, body?: unknown): Promise<T> => {
+    const [, verb, path] = WORK_LOCAL.find((r) => r[0] === m)!;
+    return send(verb, fill(path, args), body) as Promise<T>;
+  };
+  const items = async <T,>(p: Promise<Page<T>>): Promise<T[]> => (await p).items;
+
+  return {
+    setProjectKey: (projectId, key) => relay("SetProjectKey", [projectId], { key }),
+    createIssue: (projectId, req) => relay("CreateIssue", [projectId], req),
+    issues: (projectId, q, page) =>
+      relay("Issues", [projectId], undefined,
+        query([["state", q?.states], ["assignee", q?.assignee], ["label", q?.label],
+               ["after", page?.after], ["limit", page?.limit]])),
+    issueByNumber: (projectId, n) => relay("IssueByNumber", [projectId, n]),
+    issue: (issueId) => relay("Issue", [issueId]),
+    patchIssue: (issueId, req) => relay("PatchIssue", [issueId], req),
+    writeIssueRevision: (issueId, req) => relay("WriteIssueRevision", [issueId], req),
+    issueRevisions: (issueId, page) => relay("IssueRevisions", [issueId], undefined, pageQ(page)),
+    issueRevisionAt: (issueId, rev) => relay("IssueRevisionAt", [issueId, rev]),
+    restoreIssueRevision: (issueId, fromRevision) =>
+      relay("RestoreIssueRevision", [issueId, fromRevision], { fromRevision }),
+    moveIssueState: (issueId, move) => relay("MoveIssueState", [issueId], move),
+    attachBlob: (issueId, digest) => relay("AttachBlob", [issueId], { digest }),
+    attachments: (issueId) => items(relay("Attachments", [issueId])),
+    addRelation: (issueId, req) => relay("AddRelation", [issueId], req),
+    removeRelation: (issueId, kind, otherId) => relay("RemoveRelation", [issueId, kind, otherId]),
+    labels: (teamId) => items(relay("Labels", [teamId])),
+    createLabel: (teamId, req) => relay("CreateLabel", [teamId], req),
+    archiveLabel: (labelId) => relay("ArchiveLabel", [labelId]),
+    teamPolicy: (teamId) => relay("TeamPolicy", [teamId]),
+    putTeamPolicy: (teamId, req) => relay("PutTeamPolicy", [teamId], req),
+    comments: (issueId, page) => relay("Comments", [issueId], undefined, pageQ(page)),
+    createComment: (issueId, req) => relay("CreateComment", [issueId], req),
+    react: (commentId, emoji, on) => relay("React", [commentId], { emoji, on }),
+    resolveComment: (commentId, resolved) => relay("ResolveComment", [commentId], { resolved }),
+    subscribe: (issueId, subscribed) => relay("Subscribe", [issueId], { subscribed }),
+    subscriptions: (page) => relay("Subscriptions", [], undefined, pageQ(page)),
+    searchIssues: (q) =>
+      items(relay("SearchIssues", [], undefined,
+        query([["q", q.q], ["projectId", q.projectId], ["limit", q.limit]]))),
+    importBatch: (projectId, batch) => relay("ImportBatch", [projectId], batch),
+    eraseIssue: (issueId, reason) => relay("EraseIssue", [issueId], { reason }),
+    eraseComment: (commentId, reason) => relay("EraseComment", [commentId], { reason }),
+    start: (req) => local("start", [], req),
+    undoStart: (sessionId) => local("undoStart", [sessionId]),
+    discardStart: (sessionId, confirm) => local("discardStart", [sessionId], { confirm }),
+    importPreview: (req) => local("importPreview", [], req),
+    importRun: (req) => local("importRun", [], req),
+  };
+}
+```
+
+`ArchiveLabel` and `undoStart` send no body, as the Go routes take none (`task-24.md:107`). The
+`!` after each `find` is safe because `m` is typed to a row's name.
+
