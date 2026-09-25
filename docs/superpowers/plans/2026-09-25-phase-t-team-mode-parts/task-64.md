@@ -219,3 +219,48 @@ is a bundle of at most task 24's bundle limit, written to the project's private 
 `git bundle verify`, then fetched into the one ref named under `refs/panacea/moved/`, all as
 project calls under §HGH with P8-D7's `Env` allowlist; the ref name is checked by
 `check-ref-format` and the prefix, never taken as a path.
+
+**The routes — complete wire** (loopback, phase 2's local auth; both join phase 3's
+`routes_audit_test.go`):
+
+| Route | Body → answer | Refusals |
+|---|---|---|
+| `GET /v1/projects/{projectId}/team/lanes-move` | → 200 `MoveCandidates` | 409 `not_a_team_project`, `no_cloud_machine` |
+| `POST /v1/projects/{projectId}/team/lanes-move` | `MoveRequest` → 200 `MoveResult` | 400 on 0 or more than 20 ids, a duplicate id, an unknown field; the two 409s |
+
+```json
+{"outcomes":[
+ {"worktreeId":"w-3c2b1a0f","cloudLaneId":"w-9d8e7f60","result":"moved","tip":"4b825dc642cb6eb9a060e54bf8d69288fbee4904"},
+ {"worktreeId":"w-7a6b5c4d","result":"skipped","reason":"lane_busy"}]}
+```
+
+**The desktop** (`MoveLanes.tsx`). On a team project with at least one candidate, the project view
+shows one line, *"2 lanes on this laptop are not in the cloud yet."*, and a button **Move my 2
+lanes to the cloud**. The button opens a list, one row per candidate: name, `N commits ahead` in
+`tabular-nums`, and any of *"a session is running in it"* (row disabled), *"3 files not committed
+stay on this laptop"* (with the *Move the committed work* tick), *"already in the cloud"*
+(disabled). Every enabled row starts ticked, since the click that opens the list is already
+the owner's choice; **Move** sends exactly the ticked ids. The result replaces the list with one
+line per lane, and each moved lane offers **Continue in the cloud** (task 21's team launch). No
+spinner per row: the one global heartbeat clock drives the pending state (`CLAUDE.md` frontend
+rules). A prototype frame for this view is added to task 51's `prototype/team-mode.html` and
+owner-reviewed before this step is built (gap 3).
+
+- [ ] **Step 1: Write the tests, each with the mutant it kills**
+
+On phase 3's `lanegittest.Fake` and `lanes.FileStore` in a temp dir for the laptop, and a fake
+`CloudLanes`; one real-git test for `Local.Bundle` in the project repository.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestNoLaneMovesWithoutTheCall` | share the project (task 52's fake strip flips `team`), sign in, launch, tick the heartbeat for a minute: the fake `CloudLanes` saw no `BundleIn`, `Create` or `FastForward`; `GET …/lanes-move` twice: likewise | a move on share, sign-in or a read |
+| `TestOnlyMoveExportsALane` | a source scan of `control-plane/` (the `go/ast` walk task 24 uses for its spy test): `Local.Bundle` and `Cloud.BundleIn` are called only from `LanesMover.Move` | a second export path added later |
+| `TestALaneAlreadyOnTheMachineIsNotDuplicated` | move lane A; move A again → `skipped`, `already_moved`, `Create` called once in total; with the laptop mark lost (a crash after step 6) → `skipped`, the mark restored, still one `Create` | an import keyed on the per-path lane id |
+| `TestBehindIsFastForwardedNotCloned` | the cloud copy at `c1`, the laptop at `c2` descending from it → `updated`, `FastForward` with basis `[c1]`, no `Create` | a second clone for an updated lane |
+| `TestDivergedIsRefused` | the cloud copy has a commit the laptop lacks → `lane_diverged`, nothing sent | a force-update over cloud work |
+| `TestLiveSessionBlocksTheMove` | `Local.Live` true → `lane_busy`, and `Sync` was not called | moving a lane an agent is writing |
+| `TestUncommittedNeedsTheTick` | 3 uncommitted paths: without the id in `LeaveUncommitted` → `lane_uncommitted`; with it → `moved`, and the laptop's uncommitted files are byte-identical after | uncommitted work silently dropped or silently moved |
+| `TestBundleIsBuiltInTheProjectNotTheLane` (real git) | `Local.Bundle`'s git runs with the project repository as its directory and Scope Project; task 24's spy harness sees no host git in the lane clone | host git reading a sandbox-writable clone (R4.2) |
+| `TestMovedLaneRefusesALocalSession` | after a move, a local launch into the laptop lane → 409 `lane_moved_to_cloud` | two agents on two copies of one lane |
+| `TestSoloProjectRefuses` | `IsTeam` false → 409 `not_a_team_project` on both routes; no cloud call | moving lanes of a project nobody shares |
+| `MoveLanes sends exactly the ticked ids` (TS) | three candidates, one busy (disabled), one unticked by the user: the POST body has one id | an untick ignored; a disabled row sent |
