@@ -18,9 +18,9 @@ are at: `ship/ship.go` `2026-09-23-phase-7-deploy.md:585` (task 09), `sessions/s
 (task 19), `api/deploy_drill.go` `:593`, `routes_audit_test.go` `:596`, `ReleaseDrawer.tsx` `:613`
 (task 17), `GovernancePanel.tsx` `:614` (task 18). The scope's `:578`-`:607` are stale by 7-8 lines.
 `Precondition`, `Orchestrator.Ship`, `Readiness` are P7 `task-09.md:134-179`; `sessions.Range`,
-`Result`, `Reader.Read` and the *previous release* rule are P7 `task-19.md:38-171`. `desktop/src/
-deploy/api.ts` is named by the scope; its P7 row was not found in the file map by this part
-(**UNVERIFIED**).
+`Result`, `Reader.Read` and the *previous release* rule are P7 `task-19.md:38-171`.
+`desktop/src/deploy/types.ts` and `api.ts` (`DeployApi`; task 19 adds `ReleaseSessions`) are P7
+`:600`, not `:593`; `ShipBar.tsx`, where the frozen sentence shows, is P7 task 16, `:612`.
 
 **Decisions made here, so nobody re-derives them:**
 
@@ -65,3 +65,85 @@ deploy/api.ts` is named by the scope; its P7 row was not found in the file map b
    the issue's trailer commits as an ancestor; `servingNow` says whether the environment's current
    commit still has it (a rollback can take it away). Staging never reads as production: each row
    names its own environment. Newest first by the reach time.
+
+**Files:**
+- `control-plane/internal/deploy/notes/notes.go` — `Notes`, `Build`, the release filter (new)
+- `control-plane/internal/deploy/notes/glob.go` — `Match` with `**` (new)
+- `control-plane/internal/deploy/notes/notes_test.go` — the Go tests below (new)
+- `control-plane/internal/deploy/sessions/sessions.go` ⚑ (P7 task 19; task 71's `ReleaseIssue`
+  walk) — `--name-only` when a filter is set; `ReleaseIssue` carries `paths` (modified)
+- `control-plane/internal/deploy/ship/ship.go` ⚑ (P7 task 09) — `Freezes`, the check between step
+  4 and the reserve, `Readiness` reason `frozen` (modified)
+- `control-plane/internal/api/deploy_drill.go` ⚑ — `GET {P}/notes`, `GET {P}/shipped` (modified)
+- `control-plane/internal/api/routes_audit_test.go` ⚑ — two `catalogReadOnlyRoutes` lines (modified)
+- `desktop/src/deploy/types.ts`, `api.ts` ⚑ (P7 tasks 13, 19) — `ReleaseNotes`, `IssueShipped`,
+  `EnvironmentFreeze`; `releaseNotes`, `issueShipped` (modified)
+- `desktop/src/deploy/ReleaseNotes.tsx` (+ test) — in ⚑ `ReleaseDrawer.tsx` (new)
+- `desktop/src/deploy/FreezeToggle.tsx` (+ test) — in ⚑ `GovernancePanel.tsx`; the frozen line
+  in ⚑ `ShipBar.tsx` (new)
+- `desktop/src/deploy/IssueShipped.tsx` (+ test) — the per-environment list under task 71's head
+  line in ⚑ `desktop/src/components/issue/IssueView.tsx` (task 46) (new; not in the scope's file
+  list, gap 4)
+- `desktop/src/components/desk/deskRows.tsx` ⚑ — `issue.shipped`'s second-environment case
+  (modified)
+
+#### Interfaces — complete: the proposed Hub freeze record (for tasks 114, 116, 124: gap 1)
+
+```go
+// hubapi — proposed. A freeze is a decision others must see (05 §3.1), so it is a Hub record.
+type EnvironmentFreeze struct {
+	ProjectID   string       `json:"projectId"`   // pj-…
+	Environment string       `json:"environment"` // Panacea's own name (P7 task 09 step 4)
+	Reason      AuthoredText `json:"reason"`      // text·H, 1-280 characters
+	By          User         `json:"by"`          // a team admin
+	At          time.Time    `json:"at"`
+}
+
+// PUT    /v1/projects/{projectId}/freezes/{env}   body {reason}  → 200 EnvironmentFreeze (admin)
+// DELETE /v1/projects/{projectId}/freezes/{env}                  → 204 (admin; 404 freeze_not_found)
+// GET    /v1/projects/{projectId}/freezes                         → 200 {items: EnvironmentFreeze[]}
+// Events: "freeze.set", "freeze.cleared", subject the project. 403 for a non-admin, a granted
+// team included (task 117's read-and-comment grant writes nothing).
+```
+
+#### Interfaces — complete: the delta on ⚑ `ship/ship.go`
+
+```go
+// Freezes is the one read Ship needs. nil (the default until task 124 wires the Hub client):
+// nothing is frozen, and the Governance panel says the control is not available yet (decision 5).
+type Freezes interface {
+	// Freeze answers nil, nil when env is not frozen. An error fails closed: Ship refuses
+	// with 503 upstream_unavailable (details.upstream "hub"), never ships past an unread freeze.
+	Freeze(ctx context.Context, hubProjectID, env string) (*hubapi.EnvironmentFreeze, error)
+}
+
+// Config gains: Freezes Freezes
+
+// FrozenError is the refusal. Mapped to 409 deploy_frozen, details {environment, by, at}.
+type FrozenError struct{ F hubapi.EnvironmentFreeze }
+
+func (e *FrozenError) Error() string {
+	return fmt.Sprintf("%s is frozen by %s since %s · %s",
+		e.F.Environment, e.F.By.Name, e.F.At.Format("15:04"), e.F.Reason.Text)
+}
+
+// checkFreeze runs after step 4 names env and before step 5 reserves (decision 6). Readiness
+// calls the same function when its Environment is resolved, with Reason "frozen".
+func (o *Orchestrator) checkFreeze(ctx context.Context, hubProjectID, env string) error {
+	if o.cfg.Freezes == nil || hubProjectID == "" {
+		return nil
+	}
+	f, err := o.cfg.Freezes.Freeze(ctx, hubProjectID, env)
+	if err != nil {
+		return &deploy.Error{Code: "upstream_unavailable", Status: 503, Details: map[string]string{"upstream": "hub"}}
+	}
+	if f != nil {
+		return &FrozenError{F: *f}
+	}
+	return nil
+}
+```
+
+`deploy.Error`'s field names are P7 task 04's (**UNVERIFIED**; the pattern is `task-09.md:480`'s
+error mapping). The message's time is the person's zone in the desktop; the Go sentence is the
+log's and uses the control plane's.
