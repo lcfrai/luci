@@ -62,6 +62,11 @@ it is Fleet, not the broker, that mints (S6.5, `:290`; task 20).
    workers it spawns (`panacea worker spawn`, task 24), because both act for the same owner and task
    01 gives the Orchestrator class every route (`task-01.md:292-293`). Anything else is `403
    delegation_class_mismatch`. Fleet may also use `control` and `source`, which a desktop token may not.
+   Of P8-19's machine routes (`task-19.md:82-88`) Fleet may call exactly three, owner-scoped as the
+   owner's own: `POST /v1/machines/default`, `GET /v1/machines/{id}` and `POST /v1/machines/{id}/wake`,
+   because every cloud worker needs the owner's machine (`SandboxSpec.Machine` is required,
+   `task-18.md:57`) and task 20 places a worker on the owner's default one. Creating, sleeping or
+   deleting a machine stays the owner's desktop's act; under a delegation those routes are `403 forbidden`.
 6. **Every object Fleet creates is labelled for audit, not for authority.** `panacea-app/via: fleet`,
    `panacea-app/delegation: dl-…` and `panacea-app/project: <id>` join the owner and control-plane
    labels. Authority still comes from the owner label and a fresh delegation check; the labels let an
@@ -216,6 +221,7 @@ Alice's desktop token, and Fleet's app-only token. Two delegations: `dl-alice` (
 | `TestControlRelayReachesSandboxdControl` | Fleet under `dl-alice` relays; the stand-in's `/control` receives a frame and the answer comes back | a relay that dials `/attach` |
 | `TestControlRelayClosesOnRevocation` | relay open; revoke; advance the clock 60 s → both ends closed `4003` | a relay that checks only at the upgrade |
 | `TestSourceAddrRecordedAtReady` | after create, the pod carries `panacea-app/source-addr`; `GET …/source` → the stand-in pod's IP; Alice's desktop → 403 | leaking the pod IP to the laptop |
+| `TestFleetMachineRoutesAreThree` | under `dl-alice`: `POST /v1/machines/default` → 200/201 for Alice's machine; `POST /v1/machines`, `…/sleep`, `DELETE …` → 403 `forbidden` | a Fleet that can delete a person's disk |
 | `TestBrokerDoesNotMintForFleet` | the fake keysmith records a mint for Alice's desktop create and **none** for Fleet's, and Fleet's pod mounts an `emptyDir` at `/run/panacea/gateway` | two live keys for one session |
 
 In `control-plane/internal/entra/verify_test.go`: `TestAppCallerAdmitted` (no `scp`, listed `azp`, role
@@ -356,10 +362,10 @@ Expected: `ok` for each of the four packages; `go vet` prints nothing. These are
 on a fake clientset and run on Windows.
 
 ```bash
-~/.claude/tools/claudezsh/claudezsh 'cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/control-plane && go test -run "^Test(FleetWithout|DesktopCarrying|AppOnlyToken|DelegationFor|DelegationScopes|FleetCreate|ClassMismatch|RevokedDelegation|HubDown|AuditLine|ControlRelay|SourceAddr|BrokerDoesNotMint)" -v ./cmd/broker/ | grep -c "^--- PASS"'
+~/.claude/tools/claudezsh/claudezsh 'cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/control-plane && go test -run "^Test(FleetWithout|DesktopCarrying|AppOnlyToken|DelegationFor|DelegationScopes|FleetCreate|ClassMismatch|RevokedDelegation|HubDown|AuditLine|ControlRelay|SourceAddr|FleetMachineRoutes|BrokerDoesNotMint)" -v ./cmd/broker/ | grep -c "^--- PASS"'
 ```
 
-Expected: `16`, one per broker row of step 1 (the three `entra` cases run in their own package). A
+Expected: `17`, one per broker row of step 1 (the three `entra` cases run in their own package). A
 lower number means a row was not written, not that it was skipped: none of them calls `t.Skip`.
 
 - [ ] **Step 7: Commit**, `git add` for the new files, then `git commit -F
