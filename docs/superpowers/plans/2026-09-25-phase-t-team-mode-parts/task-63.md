@@ -132,7 +132,7 @@ type TeamLane struct {
 	Owner      Person            `json:"owner"`      // from the agent record's owner, never git
 	You        bool              `json:"you"`
 	AgentID    model.AgentID     `json:"agentId"`
-	WorktreeID string            `json:"worktreeId"` // phase 3 lane id (w- plus 8 hex), from the agent record, never parsed from LaneRef
+	WorktreeID string            `json:"worktreeId"` // LaneRef's last segment (phase 3 lane id); the owner-hash segment is never read
 	LaneRef    string            `json:"laneRef"`
 	Tip        string            `json:"tip"`        // the mirror's, as of ReadAt
 	MergeBase  string            `json:"mergeBase"`
