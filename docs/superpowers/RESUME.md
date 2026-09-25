@@ -166,6 +166,25 @@ The team and work skeleton writers were killed by the watchdog while composing a
   replay. Use the session's `build-stream-wf_56772bc5-8a7.js` with `{"stream":"team"}` or
   `{"stream":"work"}`.
 
+**Added 12:50, 2026-09-25:**
+- **p6 plan: COMPLETE.** Its review is Needs fixes: 1 Critical (C-1: LiteLLM body fields could send
+  AU traffic to Global) and 10 Important. p6's build stream (`wf_3628332d-1ab`) runs the fix rounds
+  once its gate sees the committed review.
+- **p3 R4: APPROVED** (r4-review-5: 0 Critical, 0 Important, 3 Minor). p3's build stream is resumed
+  (`wf_0feefc44-791`, `build-stream-current.js`, `{"stream":"p3","cleared":["b02"]}`). Two side
+  agents (not workflows; if they die, dispatch again):
+  - one applies M-1 to M-3 to `phase-3 … task-24.md`;
+  - one restates the env plan's P8-D7 to match R4 (Q18).
+  Q19 is fixed in `orchestrator-rulings.md` R4.6. G5 (X-1 is not on `feat/phase-3-git`) closes at
+  the phase 2 sync. `4948320` on phase 3 has another stream's message (a message-file collision).
+  It stays unamended.
+- **Team plan repair.** At 11:40 a transient "Not logged in" killed the writers of team tasks 01-05
+  and 41-45. Tasks 04, 05 and 41-45 are missing, and task 03 is cut off. Stage 1 is run
+  `wf_5c66b9e9-0e9` (`.superpowers/workflows/wave-c-team-repair.js`, `{"stream":"team"}`).
+  **Stage 2, after the main team run (`wf_2b949030-b55`) finishes:** re-review sections 1 (01-10)
+  and 5 (41-50). Their section files will flag the missing parts. Then re-run the cross-cutting
+  review and the assembler. Launch the team build stream only after that.
+
 ## 4. After phase 2's fix rounds finish
 
 Still to do for phase 2:
