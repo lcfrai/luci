@@ -301,3 +301,161 @@ Hub's (`hub-contract.md`, §7). Every refusal is the Hub's problem shape with `c
 `agents_disabled` is 403, not 503: the Hub is up, and a retry will not succeed until a person acts.
 The client's retries are Hub tasks H33-H34's (`task-16.md:5`); that they never retry a 403 is
 **UNVERIFIED**, and `TestAgentsDisabledIsNotRetried` below holds it for this route set.
+
+#### The migration, complete: `migrate/sql/NNNN_work_agents.sql`, part 1 of 2
+
+Applied by `hub migrate` as `hub_owner`, in one transaction, after task 74's W2 migration and
+TM-04's `00NN_team.sql` (it references `agents` and `delegations`). Additive to every Hub table;
+it widens task 06's `issue_comments`, a Work table, by dropping one `CHECK` and adding columns.
+
+```sql
+-- NNNN_work_agents.sql — Phase W, W3: agents on the work. Requires NNNN_work_w1.sql and
+-- 00NN_team.sql. Nothing here is read by an agent's context; all text stays text·H or text·A.
+SET LOCAL search_path = hub;
+
+-- ── the kill switch, one row per org; no row reads as "on" (decision (d)) ──────────────────
+CREATE TABLE org_agent_switches (
+  org_id         text        PRIMARY KEY REFERENCES orgs (id),
+  orchestrators  boolean     NOT NULL,
+  reason         text        NOT NULL DEFAULT '' CHECK (char_length(reason) <= 500),
+  set_at         timestamptz NOT NULL DEFAULT now(),
+  set_by         text        NOT NULL,
+  CONSTRAINT org_agent_switches_off_has_reason
+    CHECK (orchestrators OR char_length(btrim(reason)) BETWEEN 1 AND 500),
+  FOREIGN KEY (org_id, set_by) REFERENCES users (org_id, id)
+);
+
+CREATE FUNCTION agents_disabled(p_org text) RETURNS boolean
+  LANGUAGE sql STABLE AS $$
+    SELECT COALESCE((SELECT NOT orchestrators FROM hub.org_agent_switches WHERE org_id = p_org),
+                    false) $$;
+
+-- ── comment kinds and attribution (SW.19; task 06 left kind IN ('comment')) ──────────────────
+ALTER TABLE issue_comments DROP CONSTRAINT issue_comments_kind_known;
+ALTER TABLE issue_comments
+  ADD COLUMN agent_owner_id   text,
+  ADD COLUMN agent_id         text,
+  ADD COLUMN agent_model      text CHECK (agent_model ~ '^[A-Za-z0-9][A-Za-z0-9._:/-]{0,63}$'),
+  ADD COLUMN agent_session_id text CHECK (char_length(agent_session_id) BETWEEN 1 AND 128),
+  ADD COLUMN via              text CHECK (via IS NULL OR via = 'fleet'),
+  ADD COLUMN proposal         jsonb CHECK (proposal IS NULL OR jsonb_typeof(proposal) = 'object'),
+  ADD COLUMN negotiation      jsonb CHECK (negotiation IS NULL
+                                           OR jsonb_typeof(negotiation) = 'object'),
+  ADD COLUMN recorded_as      text REFERENCES evidence (id),
+  ADD CONSTRAINT issue_comments_kind_known
+    CHECK (kind IN ('comment', 'note', 'evidence_proposal', 'negotiation')),
+  -- an agent kind is attributed in full, via Fleet, as text·A; a person's comment is not
+  ADD CONSTRAINT issue_comments_agent_attributed CHECK (
+    (kind = 'comment' AND agent_id IS NULL AND agent_owner_id IS NULL AND agent_model IS NULL
+       AND agent_session_id IS NULL AND via IS NULL)
+    OR (kind <> 'comment' AND agent_id IS NOT NULL AND agent_owner_id IS NOT NULL
+       AND agent_model IS NOT NULL AND agent_session_id IS NOT NULL AND via IS NOT NULL
+       AND author_class = 'A')),
+  -- decision (b): the owner is the writer, and the agent is the owner's (TM-04's acts key)
+  ADD CONSTRAINT issue_comments_owner_is_writer
+    CHECK (agent_owner_id IS NULL OR agent_owner_id = created_by),
+  ADD CONSTRAINT issue_comments_agent_is_owners
+    FOREIGN KEY (org_id, agent_owner_id, agent_id) REFERENCES agents (org_id, owner_user_id, id),
+  ADD CONSTRAINT issue_comments_proposal_kind
+    CHECK ((kind = 'evidence_proposal') = (proposal IS NOT NULL)),
+  ADD CONSTRAINT issue_comments_negotiation_kind
+    CHECK ((kind = 'negotiation') = (negotiation IS NOT NULL)),
+  ADD CONSTRAINT issue_comments_recorded_is_a_proposal
+    CHECK (recorded_as IS NULL OR kind = 'evidence_proposal'),
+  -- task 14's erase blanks the proposal's because too; ids, commit and criterion stay
+  ADD CONSTRAINT issue_comments_erased_proposal_is_blank
+    CHECK (erased_at IS NULL OR proposal IS NULL OR proposal->>'because' = '');
+CREATE INDEX issue_comments_proposals ON issue_comments (org_id, issue_id, created_at)
+  WHERE kind = 'evidence_proposal';
+```
+
+The proposal's shape inside `jsonb` is checked in Go (task 99's `EvidenceProposal.Valid`) and by
+two further `CHECK`s in part 2; the database holds the keys every rule reads (`criterionId`,
+`commit`), not the prose. A `negotiation`'s text is never here: it stays in Phase T's `messages`
+(task 99's scope), so its `body` is `''` (part 2) and the row carries the thread id and the
+counterpart issue only.
+
+#### The migration, part 2 of 2: delegations, guidance, the database guards, RLS, grants
+
+```sql
+ALTER TABLE issue_comments
+  ADD CONSTRAINT issue_comments_negotiation_has_no_text
+    CHECK (kind <> 'negotiation' OR body = ''),
+  ADD CONSTRAINT issue_comments_proposal_keys CHECK (proposal IS NULL OR (
+    proposal->>'commit' ~ '^[0-9a-f]{40}$'
+    AND char_length(proposal->>'criterionId') BETWEEN 1 AND 128
+    AND proposal->>'issueId' = issue_id));
+
+-- ── one row per (issue, owner) who delegated it; "live" means the owner is still assignee ──
+CREATE TABLE issue_delegations (
+  org_id        text        NOT NULL REFERENCES orgs (id),
+  issue_id      text        NOT NULL,
+  owner_user_id text        NOT NULL,
+  delegation_id text        NOT NULL REFERENCES delegations (id),        -- TM-04's dl- row
+  delegated_at  timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (org_id, issue_id, owner_user_id),
+  FOREIGN KEY (org_id, issue_id)      REFERENCES issues (org_id, id),
+  FOREIGN KEY (org_id, owner_user_id) REFERENCES users (org_id, id)
+);
+
+-- ── guidance: append-only versions per (scope, scopeId), text·H only (L-183) ──────────────
+CREATE TABLE guidance_versions (
+  id         text        PRIMARY KEY CHECK (id ~ '^gd-[0-9a-f]{16}$'),
+  org_id     text        NOT NULL REFERENCES orgs (id),
+  scope      text        NOT NULL CHECK (scope IN ('org', 'team', 'person')),
+  scope_id   text        NOT NULL,
+  version    integer     NOT NULL CHECK (version >= 1),
+  author_class text      NOT NULL DEFAULT 'H' CHECK (author_class = 'H'),
+  body       text        NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  created_by text        NOT NULL,
+  erased_at  timestamptz,
+  CONSTRAINT guidance_body_bounds
+    CHECK (erased_at IS NOT NULL OR char_length(btrim(body)) BETWEEN 1 AND 8000),
+  CONSTRAINT guidance_erased_is_blank CHECK (erased_at IS NULL OR body = ''),
+  CONSTRAINT guidance_org_scope_is_the_org CHECK (scope <> 'org' OR scope_id = org_id),
+  CONSTRAINT guidance_scope_id_grammar CHECK (
+    (scope = 'team' AND scope_id ~ '^tm-') OR (scope = 'person' AND scope_id ~ '^u-')
+    OR scope = 'org'),
+  UNIQUE (org_id, scope, scope_id, version),               -- two racing saves: one 409
+  FOREIGN KEY (org_id, created_by) REFERENCES users (org_id, id)
+);
+
+-- ── the database halves of decisions (b)-(e) ──────────────────────────────────────────────
+CREATE FUNCTION work_agent_comment_guard() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.kind = 'comment' THEN RETURN NEW; END IF;
+  IF hub.agents_disabled(NEW.org_id) THEN
+    RAISE EXCEPTION 'agents_disabled' USING ERRCODE = 'check_violation'; END IF;
+  IF NOT EXISTS (SELECT 1 FROM hub.agents a WHERE a.org_id = NEW.org_id AND a.id = NEW.agent_id
+                   AND a.role = 'orchestrator' AND a.ended_at IS NULL) THEN
+    RAISE EXCEPTION 'agent_not_orchestrator' USING ERRCODE = 'check_violation'; END IF;
+  IF NOT EXISTS (SELECT 1 FROM hub.issues i WHERE i.org_id = NEW.org_id AND i.id = NEW.issue_id
+                   AND i.assignee_user_id = NEW.agent_owner_id AND i.erased_at IS NULL) THEN
+    RAISE EXCEPTION 'owner_not_assignee' USING ERRCODE = 'check_violation'; END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER issue_comments_agent_guard BEFORE INSERT ON issue_comments
+  FOR EACH ROW EXECUTE FUNCTION work_agent_comment_guard();
+
+CREATE FUNCTION work_recorded_once() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF OLD.recorded_as IS NOT NULL AND NEW.recorded_as IS DISTINCT FROM OLD.recorded_as THEN
+    RAISE EXCEPTION 'recorded_as_set' USING ERRCODE = 'check_violation'; END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER issue_comments_recorded_once BEFORE UPDATE OF recorded_as ON issue_comments
+  FOR EACH ROW EXECUTE FUNCTION work_recorded_once();
+
+CREATE FUNCTION work_orchestrator_files_triage() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.source <> 'orchestrator' THEN RETURN NEW; END IF;
+  IF NEW.state <> 'triage' THEN
+    RAISE EXCEPTION 'orchestrator_not_triage' USING ERRCODE = 'check_violation'; END IF;
+  IF hub.agents_disabled(NEW.org_id) THEN
+    RAISE EXCEPTION 'agents_disabled' USING ERRCODE = 'check_violation'; END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER issues_orchestrator_triage BEFORE INSERT ON issues
+  FOR EACH ROW EXECUTE FUNCTION work_orchestrator_files_triage();
+```
