@@ -718,7 +718,8 @@ describe("task 140: propose issues per criterion", () => {
     const { container, hub, unmount } = await panel();
     fireEvent.click(screen.getByRole("button", { name: "Propose issues for 3 uncovered criteria" }));
     expect(await screen.findAllByRole("article")).toHaveLength(3);
-    expect(hub.drafts("u-b")).toEqual([]);                                   // kills "drafts shared"
+    const [first] = hub.drafts("u-a");
+    expect((await hub.as("u-b").getDraft(first.id)).status).toBe(404);       // kills "drafts shared" (task 80: 404, not 403)
     unmount();
     await panel();                                                           // a restart reads the Hub
     expect(await screen.findAllByRole("article")).toHaveLength(3);
@@ -787,5 +788,64 @@ describe("task 140: propose the next cycle", () => {
 
 `asUser`, `proposed`, `cycleProposal`, `remount` and `undo` extend the harness (a second signed-in
 user, fixture builders, a Desk leave-and-return and a press of the latest Undo chip). The `SetCycle`
-inverse writes `cycleId: null` because the fixture issues had no cycle.
+inverse writes `cycleId: null` because the fixture issues had no cycle. `hub.as(user)` is the fake
+Hub seen by another signed-in person; `asUser` is its render-side twin.
+
+#### Steps
+
+1. Write the Go tests and `testdata/propose/*.json` (the two prompt goldens); they fail.
+2. Write `propose_issues.go` with `uncovered`; its three tests pass.
+3. Write `propose_cycle.go` (candidates, the call, keep, group); its three tests pass; run the
+   switch and AU rows on task 136's rig.
+4. Append the two routes and `cycleProject` to `workassist.go`, the `cycle_not_upcoming` code to
+   `httpx`, the patterns to `routes_audit_test.go`; `go test ./control-plane/... -race -count=1`.
+5. Write the desktop tests; they fail. Append the `work.ts` types; write `proposals.ts` and the
+   `drafts.ts` skip.
+6. Write `ProposeIssues.tsx`; its four tests pass. Write `CycleProposal.tsx`, the `deskRows.tsx`
+   registration and the `CycleView.tsx` button; the two cycle tests pass.
+7. Styles in `plan.css` (the drafted mark as the word *Drafted* plus the agent-class ring, never a
+   hue alone; mono aliases, labels and dates, `tabular-nums`); `npm --prefix desktop run
+   typecheck`; commit with `git commit -F <msgfile> -- <paths>`.
+
+#### Acceptance
+
+```bash
+go test ./control-plane/internal/workassist/... ./control-plane/internal/api/... -race -count=1
+# expect: ok for both; TestOneDraftPerUncoveredCriterion, TestServesIsSetByCode,
+#         TestNoCallWhenNothingUncovered, TestCycleCandidatesExcludeClosedAndUnreadable,
+#         TestCycleGroupsByOwnServesAndDropsUnknownPicks, TestCycleProposalHasNoForecastField pass; no FAIL
+npm --prefix desktop test -- src/components/plan/proposals.test.tsx
+# expect: proposals.test.tsx 6 passed; no failed
+npm --prefix desktop run typecheck
+# expect: exit 0
+```
+
+With phase 6's gateway not on the sync base, the Go rig cannot start its fake upstream and the
+rows are recorded *not run* in task 142, never *passed*. **Visual acceptance is the owner's eyes.**
+
+#### What this task does NOT claim
+
+- That proposed issues are right, well scoped or worth doing (unmeasured; a person accepts each).
+- An Orchestrator-made cycle proposal (decision 9; needs team mode, no TM dependency here).
+- That a cycle proposal is achievable in the cycle: nothing here estimates or forecasts (`OD-27`).
+- That *uncovered* sees issues of other projects serving the brief: the read is the feature's
+  project only (a brief served across projects shows *uncovered* wrongly; gap 5).
+- That Undo returns the aliases: EP-151 to EP-153 stay allocated, as `cancelled` issues.
+
+#### Gaps found while writing this part
+
+1. **Task 72's `Draft` has one `body` and no `title` or `serves`**, so a proposal draft encodes
+   both into `body.text` (decision 3). The additive fix is `Draft.title *AuthoredText` and
+   `Draft.serves []Serve` on SW's W2 wire; that is a Hub task's change, not this one's.
+2. **Tasks 87, 80, 72, 77, 83, 92 and 136 have no part on this tree**: `CycleView`, the draft
+   routes' client names, the `setCycle` op, `issueMeta`, `useCycleName` and the rig are assumed.
+3. **Task 56's Undo chip** is offered by `mutate` for ops; a chip with a callback (`offerUndo`)
+   is needed for any batch whose inverse is not an op (a create). Task 56's part owns it.
+4. **Issue creation has no inverse**: Undo of *Accept all* cancels, and the numbers stay used.
+5. **Cross-project serves**: *uncovered* reads one project's issues; a Hub read of "issues serving
+   brief B" across readable projects would make it exact.
+6. **The file map has no rows** for `workassist/propose_*.go`, `work/proposals.ts`,
+   `ProposeIssues.tsx` or `CycleProposal.tsx` (the scope's gap 2 extends to them).
+7. **`cycle_not_upcoming`** is a new control-plane problem code beside task 139's
+   `thread_too_short`.
 
