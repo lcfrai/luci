@@ -44,6 +44,8 @@ no body text and no event from a project he was never granted.
   `WorkRoadmap` methods over HTTP, `verifyPins` (new)
 - `control-plane/internal/hub/hubclient/methods_work_roadmap_test.go` — the route map against a
   recording `httptest` Hub, the pin re-check, path escaping, the `scope` rule (new)
+- `control-plane/internal/hub/hubclient/client_work_roadmap_stub.go` — **deleted** in the same
+  commit: task 114's `ErrNotConfigured` stubs for `*Client` (`task-114.md:41-47`, decision 2)
 - `control-plane/internal/hub/hubclient/methods_work.go` ⚑ (task 16's) — `AllWorkRoutes()`, the one
   list `registerWork` iterates, and `ErrPinUnverified` beside task 16's sentinels
 - `control-plane/internal/hub/hubclient/conformance/work_roadmap_integration_test.go` — task 115's
@@ -67,10 +69,12 @@ no body text and no event from a project he was never granted.
 `hubapi/types.go:322-328`, the `Resolution` words `resolved·missing·erased·invalid` at `:37-43`,
 `Event` at `:536-545`, `ChangesPage{Events, Next, More}` at `:547-551`. H34's `ErrDigestMismatch`,
 H33's `c.send`, `server`, `store`, `devissuer`, `hubtest` and `compose.yaml` are **planned** and
-**UNVERIFIED until merge**. Tasks 114 to 123 have no part on this tree yet: every `hubapi` W4 type
-and `WorkRoadmap` method signature below is written from their scope paragraphs
-(`…-scopes/tasks-101-120.md:352-530`, `tasks-121-140.md:32-134`) and is **UNVERIFIED until those
-parts land**; where this part needs a name they do not fix, it says so under *Gaps*.
+**UNVERIFIED until merge**. **Task 114's part is on this tree** (`…-parts/task-114.md`): every
+`hubapi` W4 type, the 31-method `WorkRoadmap` interface (`task-114.md:657-703`), its route table
+(`:715-738`) and its codes (`:633-645`) below are **its** names, read from that part. Tasks 115 to
+123 had no part when this was written, so their route bodies and event kinds are their scopes'
+(`…-scopes/tasks-101-120.md:389-530`, `tasks-121-140.md:32-134`) and **UNVERIFIED until those
+parts land**; where this part needs a name none of them fixes, it says so under *Gaps*.
 
 **Interfaces:**
 - Produces: the HTTP `WorkRoadmap`; `WorkRoadmapRoutes`; `AllWorkRoutes()`; `ErrPinUnverified`;
@@ -116,7 +120,7 @@ var WorkRoadmapRoutes = []WorkRoute{
 	{"PatchMilestone", http.MethodPatch, "/v1/milestones/{milestoneId}", false},
 	{"SetMilestoneCriteria", http.MethodPut, "/v1/milestones/{milestoneId}/criteria", false},
 	{"AddFeatureDependency", http.MethodPost, "/v1/features/{featureId}/dependencies", false},
-	{"FeatureDependencies", http.MethodGet, "/v1/features/{featureId}/dependencies", false},
+	{"FeatureDependencies", http.MethodGet, "/v1/projects/{projectId}/feature-dependencies", false},
 	{"RemoveFeatureDependency", http.MethodDelete, "/v1/features/{featureId}/dependencies/{blocks}", false},
 	{"CreateFeatureFromTemplate", http.MethodPost, "/v1/projects/{projectId}/features:fromTemplate", true},
 	// task 121: schedules, reminders, the triage rotation
@@ -133,6 +137,17 @@ var WorkRoadmapRoutes = []WorkRoute{
 	{"MarkSeen", http.MethodPost, "/v1/me/read-cursors/mark-seen", false},
 	{"ScopedChanges", http.MethodGet, "/v1/changes", false},
 }
+
+// briefTemplateRoutes are task 114's three brief-template methods. Their
+// paths are task 78's template routes (kind "brief" in the body), which W2's
+// table (task 82) already relays, so they are client-only here: workRoute()
+// finds them, AllWorkRoutes() does not mount them a second time (ServeMux
+// panics on a duplicate pattern).
+var briefTemplateRoutes = []WorkRoute{
+	{"CreateBriefTemplate", http.MethodPost, "/v1/teams/{teamId}/templates", true},
+	{"BriefTemplates", http.MethodGet, "/v1/teams/{teamId}/templates", false},
+	{"PatchBriefTemplate", http.MethodPatch, "/v1/templates/{templateId}", false},
+}
 ```
 
 ```go
@@ -148,15 +163,19 @@ func AllWorkRoutes() []WorkRoute {
 	return append(all, WorkRoadmapRoutes...)
 }
 
-// workRoute (task 16's) now searches AllWorkRoutes(), not WorkRoutes alone.
+// workRoute (task 16's) now searches AllWorkRoutes() and then
+// briefTemplateRoutes, not WorkRoutes alone.
 ```
 
-Thirty-one rows, ten of them `GET`s. Four notes on the table:
+Thirty-one relay rows, ten of them `GET`s, plus three client-only rows. They serve task 114's 31
+methods and one more, `ScopedChanges` (*Gaps*, 3): `PostUpdate` and `Updates` each take two rows
+(feature and initiative), and the three brief-template methods ride task 78's rows. Four notes:
 
-- `SetMilestoneCriteria` and `FeatureDependencies` are **not** in task 120's route list (task
-  120 names `PATCH /v1/milestones/{id}` and the dependency `POST`/`DELETE` only). Task 114 names
-  the method `SetMilestoneCriteria`, and the replica's full load (task 125) needs a dependency
-  list. The two paths above are this part's and are a gap for task 120 (see *Gaps*).
+- `SetMilestoneCriteria` and `FeatureDependencies` are task 114's † paths (`task-114.md:724,727`),
+  fixed there because task 120's scope names the methods and not the paths. `FeatureDependencies`
+  is per **project** (`GET /v1/projects/{projectId}/feature-dependencies`), which is what the
+  replica's full load (task 125) wants: one call per project, both directions, each row a
+  `FeatureDependencyView` with the Hub's derived `orderViolated`.
 - `ScopedChanges` is task 123's `GET /v1/changes?after=&scope=`. Its relay twin is
   `/v1/hub/work/changes`, which does not collide with H's `/v1/hub/changes` (hub-contract §9.3,
   `:1372`). The whole feed stays H's; this row **requires** `scope`, so it can never be used as a
@@ -178,9 +197,9 @@ below exists. Part 1: grants, initiatives, updates.
 
 var _ WorkRoadmap = (*Client)(nil)
 
-func (c *Client) GrantProject(ctx context.Context, projectID, teamID string) (hubapi.ProjectGrant, error) {
+func (c *Client) GrantProject(ctx context.Context, projectID string, req hubapi.GrantProjectRequest) (hubapi.ProjectGrant, error) {
 	var out hubapi.ProjectGrant
-	return out, c.work(ctx, "GrantProject", nil, hubapi.GrantProjectRequest{TeamID: teamID}, &out, projectID)
+	return out, c.work(ctx, "GrantProject", nil, req, &out, projectID)
 }
 
 func (c *Client) ProjectGrants(ctx context.Context, projectID string) ([]hubapi.ProjectGrant, error) {
@@ -194,9 +213,9 @@ func (c *Client) RevokeProjectGrant(ctx context.Context, projectID, teamID strin
 	return c.work(ctx, "RevokeProjectGrant", nil, nil, nil, projectID, teamID)
 }
 
-func (c *Client) SetInitiativeTeams(ctx context.Context, initiativeID string, teamIDs []string) (hubapi.InitiativeTeams, error) {
+// SetInitiativeTeams replaces the span; TeamIDs[0] must be the owning team.
+func (c *Client) SetInitiativeTeams(ctx context.Context, initiativeID string, req hubapi.SetInitiativeTeamsRequest) (hubapi.InitiativeTeams, error) {
 	var out hubapi.InitiativeTeams
-	req := hubapi.InitiativeTeams{InitiativeID: initiativeID, TeamIDs: teamIDs}
 	return out, c.work(ctx, "SetInitiativeTeams", nil, req, &out, initiativeID)
 }
 
@@ -220,18 +239,18 @@ func (c *Client) PatchInitiative(ctx context.Context, initiativeID string, req h
 	return out, c.work(ctx, "PatchInitiative", nil, req, &out, initiativeID)
 }
 
-// SetFeatureInitiative points a feature at one initiative, or at none (nil).
-func (c *Client) SetFeatureInitiative(ctx context.Context, featureID string, initiativeID *string) (hubapi.Feature, error) {
+// SetFeatureInitiative points a feature at one initiative, or at none
+// (req.InitiativeID nil).
+func (c *Client) SetFeatureInitiative(ctx context.Context, featureID string, req hubapi.SetFeatureInitiativeRequest) (hubapi.Feature, error) {
 	var out hubapi.Feature
-	req := hubapi.SetFeatureInitiativeRequest{InitiativeID: initiativeID}
 	return out, c.work(ctx, "SetFeatureInitiative", nil, req, &out, featureID)
 }
 
 // PostUpdate picks the feature or the initiative route by subject.Kind; the
 // Hub, not the client, refuses any other kind (task 114's Validate does too).
-func (c *Client) PostUpdate(ctx context.Context, subject hubapi.UpdateSubject, req hubapi.PostUpdateRequest) (hubapi.StatusUpdate, error) {
+func (c *Client) PostUpdate(ctx context.Context, subject hubapi.SubjectRef, req hubapi.PostUpdateRequest) (hubapi.StatusUpdate, error) {
 	method := "PostFeatureUpdate"
-	if subject.Kind == hubapi.UpdateSubjectInitiative {
+	if subject.Kind == hubapi.SubjectInitiative {
 		method = "PostInitiativeUpdate"
 	}
 	var out hubapi.StatusUpdate
@@ -241,9 +260,9 @@ func (c *Client) PostUpdate(ctx context.Context, subject hubapi.UpdateSubject, r
 	return out, c.verifyPins(ctx, out)
 }
 
-func (c *Client) Updates(ctx context.Context, subject hubapi.UpdateSubject, page hubapi.PageRequest) (hubapi.Page[hubapi.StatusUpdate], error) {
+func (c *Client) Updates(ctx context.Context, subject hubapi.SubjectRef, page hubapi.PageRequest) (hubapi.Page[hubapi.StatusUpdate], error) {
 	method := "FeatureUpdates"
-	if subject.Kind == hubapi.UpdateSubjectInitiative {
+	if subject.Kind == hubapi.SubjectInitiative {
 		method = "InitiativeUpdates"
 	}
 	var out hubapi.Page[hubapi.StatusUpdate]
@@ -264,8 +283,8 @@ Part 2: milestones, dependencies, the template create, schedules and the rotatio
 ```go
 // control-plane/internal/hub/hubclient/methods_work_roadmap.go (continued)
 
-func (c *Client) CreateMilestone(ctx context.Context, featureID string, req hubapi.CreateMilestoneRequest) (hubapi.Milestone, error) {
-	var out hubapi.Milestone
+func (c *Client) CreateMilestone(ctx context.Context, featureID string, req hubapi.CreateMilestoneRequest) (hubapi.MilestoneView, error) {
+	var out hubapi.MilestoneView
 	return out, c.work(ctx, "CreateMilestone", nil, req, &out, featureID)
 }
 
@@ -278,52 +297,64 @@ func (c *Client) Milestones(ctx context.Context, featureID string) ([]hubapi.Mil
 	return out.Items, c.work(ctx, "Milestones", nil, nil, &out, featureID)
 }
 
-func (c *Client) PatchMilestone(ctx context.Context, milestoneID string, req hubapi.PatchMilestoneRequest) (hubapi.Milestone, error) {
-	var out hubapi.Milestone
+func (c *Client) PatchMilestone(ctx context.Context, milestoneID string, req hubapi.PatchMilestoneRequest) (hubapi.MilestoneView, error) {
+	var out hubapi.MilestoneView
 	return out, c.work(ctx, "PatchMilestone", nil, req, &out, milestoneID)
 }
 
-func (c *Client) SetMilestoneCriteria(ctx context.Context, milestoneID string, criterionIDs []string) (hubapi.Milestone, error) {
-	var out hubapi.Milestone
-	req := hubapi.SetMilestoneCriteriaRequest{CriterionIDs: criterionIDs}
+func (c *Client) SetMilestoneCriteria(ctx context.Context, milestoneID string, req hubapi.SetMilestoneCriteriaRequest) (hubapi.MilestoneView, error) {
+	var out hubapi.MilestoneView
 	return out, c.work(ctx, "SetMilestoneCriteria", nil, req, &out, milestoneID)
 }
 
-func (c *Client) AddFeatureDependency(ctx context.Context, featureID, blocks string) (hubapi.FeatureDependency, error) {
-	var out hubapi.FeatureDependency
-	req := hubapi.AddFeatureDependencyRequest{Blocks: blocks}
+func (c *Client) AddFeatureDependency(ctx context.Context, featureID string, req hubapi.FeatureDependencyRequest) (hubapi.FeatureDependencyView, error) {
+	var out hubapi.FeatureDependencyView
 	return out, c.work(ctx, "AddFeatureDependency", nil, req, &out, featureID)
 }
 
-// FeatureDependencies lists both directions: rows whose From or Blocks is the
-// feature, each with the Hub's derived OrderViolated.
-func (c *Client) FeatureDependencies(ctx context.Context, featureID string) ([]hubapi.FeatureDependency, error) {
+// FeatureDependencies lists every dependency in a project, both directions,
+// each with the Hub's derived OrderViolated (task 114's † path).
+func (c *Client) FeatureDependencies(ctx context.Context, projectID string) ([]hubapi.FeatureDependencyView, error) {
 	var out struct {
-		Items []hubapi.FeatureDependency `json:"items"`
+		Items []hubapi.FeatureDependencyView `json:"items"`
 	}
-	return out.Items, c.work(ctx, "FeatureDependencies", nil, nil, &out, featureID)
+	return out.Items, c.work(ctx, "FeatureDependencies", nil, nil, &out, projectID)
 }
 
-func (c *Client) RemoveFeatureDependency(ctx context.Context, featureID, blocks string) error {
-	return c.work(ctx, "RemoveFeatureDependency", nil, nil, nil, featureID, blocks)
+func (c *Client) RemoveFeatureDependency(ctx context.Context, featureID, blocksID string) error {
+	return c.work(ctx, "RemoveFeatureDependency", nil, nil, nil, featureID, blocksID)
 }
 
-// CreateFeatureFromTemplate returns the feature, its brief at revision 1 and
-// one issue per issue template. Both kinds of revision are re-hashed: the
-// brief by H34's VerifyRevision, each issue by task 16's checked.
-func (c *Client) CreateFeatureFromTemplate(ctx context.Context, projectID string, req hubapi.CreateFeatureFromTemplateRequest) (hubapi.FeatureFromTemplate, error) {
-	var out hubapi.FeatureFromTemplate
-	if err := c.work(ctx, "CreateFeatureFromTemplate", nil, req, &out, projectID); err != nil {
-		return out, err
+// The three brief-template methods ride task 78's rows (briefTemplateRoutes).
+func (c *Client) CreateBriefTemplate(ctx context.Context, teamID string, req hubapi.CreateBriefTemplateRequest) (hubapi.BriefTemplate, error) {
+	var out hubapi.BriefTemplate
+	body := struct {
+		Kind string `json:"kind"`
+		hubapi.CreateBriefTemplateRequest
+	}{"brief", req}
+	return out, c.work(ctx, "CreateBriefTemplate", nil, body, &out, teamID)
+}
+
+// BriefTemplates is task 78's list with ?kind=brief, so issue templates never
+// decode into a BriefTemplate.
+func (c *Client) BriefTemplates(ctx context.Context, teamID string) ([]hubapi.BriefTemplate, error) {
+	var out struct {
+		Items []hubapi.BriefTemplate `json:"items"`
 	}
-	if err := VerifyRevision(out.Brief); err != nil {
-		return out, fmt.Errorf("%w: %w (brief %s revision %d)", ErrUnavailable, err, out.Brief.BriefID, out.Brief.Revision)
-	}
-	revs := make([]*hubapi.IssueRevision, len(out.Issues))
-	for i := range out.Issues {
-		revs[i] = &out.Issues[i].Revision
-	}
-	return out, checked(nil, revs...)
+	return out.Items, c.work(ctx, "BriefTemplates", url.Values{"kind": {"brief"}}, nil, &out, teamID)
+}
+
+func (c *Client) PatchBriefTemplate(ctx context.Context, templateID string, req hubapi.PatchBriefTemplateRequest) (hubapi.BriefTemplate, error) {
+	var out hubapi.BriefTemplate
+	return out, c.work(ctx, "PatchBriefTemplate", nil, req, &out, templateID)
+}
+
+// CreateFeatureFromTemplate returns the feature (task 114's signature). Its
+// brief at revision 1 and its issues are read afterwards through the methods
+// that already re-hash them (H34's brief reads, task 16's issue reads).
+func (c *Client) CreateFeatureFromTemplate(ctx context.Context, projectID string, req hubapi.CreateFeatureFromTemplateRequest) (hubapi.Feature, error) {
+	var out hubapi.Feature
+	return out, c.work(ctx, "CreateFeatureFromTemplate", nil, req, &out, projectID)
 }
 
 func (c *Client) SetTemplateSchedule(ctx context.Context, templateID string, s hubapi.TemplateSchedule) (hubapi.TemplateSchedule, error) {
@@ -358,40 +389,44 @@ Part 3: insights, read cursors, the scoped feed, and the pin re-check.
 ```go
 // control-plane/internal/hub/hubclient/methods_work_roadmap.go (continued)
 
-func (c *Client) QueryInsights(ctx context.Context, teamID string, q hubapi.InsightsQuery) (hubapi.InsightsResult, error) {
+// QueryInsights: the team is q.TeamID (task 114's signature carries no
+// separate team), and it fills the path's {teamId}.
+func (c *Client) QueryInsights(ctx context.Context, q hubapi.InsightsQuery) (hubapi.InsightsResult, error) {
 	var out hubapi.InsightsResult
-	return out, c.work(ctx, "QueryInsights", nil, q, &out, teamID)
+	return out, c.work(ctx, "QueryInsights", nil, q, &out, q.TeamID)
 }
+
+// scopeValue writes task 123's ?scope={kind}:{id}.
+func scopeValue(s hubapi.ScopeRef) string { return s.Kind + ":" + s.ID }
 
 // GetReadCursor reads the caller's own cursor. There is no user parameter:
 // a cursor is the person's, and the Hub reads the person from the token.
-func (c *Client) GetReadCursor(ctx context.Context, scope hubapi.ReadScope) (hubapi.ReadCursor, error) {
+func (c *Client) GetReadCursor(ctx context.Context, scope hubapi.ScopeRef) (hubapi.ReadCursor, error) {
 	var out hubapi.ReadCursor
-	return out, c.work(ctx, "GetReadCursor", url.Values{"scope": {scope.String()}}, nil, &out)
+	return out, c.work(ctx, "GetReadCursor", url.Values{"scope": {scopeValue(scope)}}, nil, &out)
 }
 
-// AdvanceReadCursor only advances; a lower seq returns the stored cursor.
-func (c *Client) AdvanceReadCursor(ctx context.Context, scope hubapi.ReadScope, seq int64) (hubapi.ReadCursor, error) {
+// AdvanceReadCursor only advances; a lower Seq returns the stored cursor.
+func (c *Client) AdvanceReadCursor(ctx context.Context, cur hubapi.ReadCursor) (hubapi.ReadCursor, error) {
 	var out hubapi.ReadCursor
-	req := hubapi.AdvanceReadCursorRequest{Scope: scope, Seq: seq}
-	return out, c.work(ctx, "AdvanceReadCursor", nil, req, &out)
+	return out, c.work(ctx, "AdvanceReadCursor", nil, cur, &out)
 }
 
-func (c *Client) MarkSeen(ctx context.Context, scopes []hubapi.ReadScope, seq int64) ([]hubapi.ReadCursor, error) {
+func (c *Client) MarkSeen(ctx context.Context, req hubapi.MarkSeenRequest) ([]hubapi.ReadCursor, error) {
 	var out struct {
 		Items []hubapi.ReadCursor `json:"items"`
 	}
-	req := hubapi.MarkSeenRequest{Scopes: scopes, Seq: seq}
 	return out.Items, c.work(ctx, "MarkSeen", nil, req, &out)
 }
 
-// ScopedChanges is task 123's filtered read of /v1/changes. A zero scope is a
-// programming error, not a request for the whole feed: that is Feed.Changes.
-func (c *Client) ScopedChanges(ctx context.Context, scope hubapi.ReadScope, after string, limit int) (hubapi.ScopedChangesPage, error) {
+// ScopedChanges is task 123's filtered read of /v1/changes; it is not in task
+// 114's WorkRoadmap (Gaps, 3). A zero scope is a programming error, not a
+// request for the whole feed: that is Feed.Changes.
+func (c *Client) ScopedChanges(ctx context.Context, scope hubapi.ScopeRef, after string, limit int) (hubapi.ScopedChangesPage, error) {
 	if scope.Kind == "" || scope.ID == "" {
 		panic("hubclient: ScopedChanges needs a scope; the whole feed is Feed.Changes")
 	}
-	q := url.Values{"scope": {scope.String()}}
+	q := url.Values{"scope": {scopeValue(scope)}}
 	if after != "" {
 		q.Set("after", after)
 	}
@@ -434,10 +469,11 @@ func (c *Client) verifyPins(ctx context.Context, updates ...hubapi.StatusUpdate)
 }
 ```
 
-`ReadScope.String()` is task 114's and writes `project:pj-…`, `feature:ft-…` or `issue:is-…`, the
-form task 123's `?scope=` reads. `verifyPins` costs one extra round trip per update call; a list
-of fifty updates on one feature usually names a handful of revisions, so it is one `Resolve` of a
-few keys. **Not measured**: no number is claimed for its latency.
+`scopeValue` writes `project:pj-…`, `feature:ft-…` or `issue:is-…`, the form task 123's `?scope=`
+reads; task 114's `ScopeRef` has `Validate()` (`task-114.md:624`) and no string form, so this part
+writes the two helpers (`scopeValue` here, `parseScope` in the relay). `verifyPins` costs one
+extra round trip per update call, one `Resolve` over the distinct pins of the page. **Not
+measured**: no number is claimed for its latency.
 
 #### Contract — the relay rows
 
@@ -470,9 +506,10 @@ var emptyAnswer = struct{}{}
 
 // scopeParam reads ?scope={kind}:{id}; absent or malformed is 400 before the
 // Hub is called, which is what keeps /v1/hub/work/changes a scoped read only.
-func scopeParam(r *http.Request) (hubapi.ReadScope, error) {
-	s, err := hubapi.ParseReadScope(r.URL.Query().Get("scope"))
-	if err != nil {
+func scopeParam(r *http.Request) (hubapi.ScopeRef, error) {
+	kind, id, ok := strings.Cut(r.URL.Query().Get("scope"), ":")
+	s := hubapi.ScopeRef{Kind: kind, ID: id}
+	if !ok || s.Validate() != nil { // task 114's ScopeRef.Validate: the three kinds, a prefixed id
 		return s, &hubclient.FieldError{Field: "scope", Reason: "must be project:, feature: or issue: and an id"}
 	}
 	return s, nil
@@ -492,15 +529,15 @@ func in1[T any](call func(r *http.Request, wk hubclient.Work, req T) (any, error
 func roadmapCalls() map[string]workCall {
 	pv := func(r *http.Request, k string) string { return r.PathValue(k) }
 	ctx := func(r *http.Request) context.Context { return r.Context() }
-	feature := func(r *http.Request) hubapi.UpdateSubject {
-		return hubapi.UpdateSubject{Kind: hubapi.UpdateSubjectFeature, ID: pv(r, "featureId")}
+	feature := func(r *http.Request) hubapi.SubjectRef {
+		return hubapi.SubjectRef{Kind: hubapi.SubjectFeature, ID: pv(r, "featureId")}
 	}
-	initiative := func(r *http.Request) hubapi.UpdateSubject {
-		return hubapi.UpdateSubject{Kind: hubapi.UpdateSubjectInitiative, ID: pv(r, "initiativeId")}
+	initiative := func(r *http.Request) hubapi.SubjectRef {
+		return hubapi.SubjectRef{Kind: hubapi.SubjectInitiative, ID: pv(r, "initiativeId")}
 	}
 	return map[string]workCall{
 		"GrantProject": in1(func(r *http.Request, wk hubclient.Work, q hubapi.GrantProjectRequest) (any, error) {
-			return wk.GrantProject(ctx(r), pv(r, "projectId"), q.TeamID)
+			return wk.GrantProject(ctx(r), pv(r, "projectId"), q)
 		}),
 		"ProjectGrants": func(r *http.Request, _ http.ResponseWriter, wk hubclient.Work) (any, error) {
 			items, err := wk.ProjectGrants(ctx(r), pv(r, "projectId"))
@@ -509,11 +546,8 @@ func roadmapCalls() map[string]workCall {
 		"RevokeProjectGrant": func(r *http.Request, _ http.ResponseWriter, wk hubclient.Work) (any, error) {
 			return emptyAnswer, wk.RevokeProjectGrant(ctx(r), pv(r, "projectId"), pv(r, "teamId"))
 		},
-		"SetInitiativeTeams": in1(func(r *http.Request, wk hubclient.Work, q hubapi.InitiativeTeams) (any, error) {
-			if q.InitiativeID != "" && q.InitiativeID != pv(r, "initiativeId") {
-				return nil, &hubclient.FieldError{Field: "initiativeId", Reason: "must match the path"}
-			}
-			return wk.SetInitiativeTeams(ctx(r), pv(r, "initiativeId"), q.TeamIDs)
+		"SetInitiativeTeams": in1(func(r *http.Request, wk hubclient.Work, q hubapi.SetInitiativeTeamsRequest) (any, error) {
+			return wk.SetInitiativeTeams(ctx(r), pv(r, "initiativeId"), q)
 		}),
 		"CreateInitiative": in1(func(r *http.Request, wk hubclient.Work, q hubapi.CreateInitiativeRequest) (any, error) {
 			return wk.CreateInitiative(ctx(r), pv(r, "teamId"), q)
@@ -532,7 +566,7 @@ func roadmapCalls() map[string]workCall {
 			return wk.PatchInitiative(ctx(r), pv(r, "initiativeId"), q)
 		}),
 		"SetFeatureInitiative": in1(func(r *http.Request, wk hubclient.Work, q hubapi.SetFeatureInitiativeRequest) (any, error) {
-			return wk.SetFeatureInitiative(ctx(r), pv(r, "featureId"), q.InitiativeID)
+			return wk.SetFeatureInitiative(ctx(r), pv(r, "featureId"), q)
 		}),
 ```
 
@@ -568,13 +602,13 @@ func roadmapCalls() map[string]workCall {
 			return wk.PatchMilestone(ctx(r), pv(r, "milestoneId"), q)
 		}),
 		"SetMilestoneCriteria": in1(func(r *http.Request, wk hubclient.Work, q hubapi.SetMilestoneCriteriaRequest) (any, error) {
-			return wk.SetMilestoneCriteria(ctx(r), pv(r, "milestoneId"), q.CriterionIDs)
+			return wk.SetMilestoneCriteria(ctx(r), pv(r, "milestoneId"), q)
 		}),
-		"AddFeatureDependency": in1(func(r *http.Request, wk hubclient.Work, q hubapi.AddFeatureDependencyRequest) (any, error) {
-			return wk.AddFeatureDependency(ctx(r), pv(r, "featureId"), q.Blocks)
+		"AddFeatureDependency": in1(func(r *http.Request, wk hubclient.Work, q hubapi.FeatureDependencyRequest) (any, error) {
+			return wk.AddFeatureDependency(ctx(r), pv(r, "featureId"), q)
 		}),
 		"FeatureDependencies": func(r *http.Request, _ http.ResponseWriter, wk hubclient.Work) (any, error) {
-			items, err := wk.FeatureDependencies(ctx(r), pv(r, "featureId"))
+			items, err := wk.FeatureDependencies(ctx(r), pv(r, "projectId"))
 			return map[string]any{"items": items}, err
 		},
 		"RemoveFeatureDependency": func(r *http.Request, _ http.ResponseWriter, wk hubclient.Work) (any, error) {
@@ -599,7 +633,10 @@ func roadmapCalls() map[string]workCall {
 			return wk.TriageRotation(ctx(r), pv(r, "teamId"))
 		},
 		"QueryInsights": in1(func(r *http.Request, wk hubclient.Work, q hubapi.InsightsQuery) (any, error) {
-			return wk.QueryInsights(ctx(r), pv(r, "teamId"), q)
+			if q.TeamID != pv(r, "teamId") { // the body's team and the path's are one team
+				return nil, &hubclient.FieldError{Field: "teamId", Reason: "must match the path"}
+			}
+			return wk.QueryInsights(ctx(r), q)
 		}),
 		"GetReadCursor": func(r *http.Request, _ http.ResponseWriter, wk hubclient.Work) (any, error) {
 			s, err := scopeParam(r)
@@ -608,11 +645,11 @@ func roadmapCalls() map[string]workCall {
 			}
 			return wk.GetReadCursor(ctx(r), s) // any ?userId= is never read
 		},
-		"AdvanceReadCursor": in1(func(r *http.Request, wk hubclient.Work, q hubapi.AdvanceReadCursorRequest) (any, error) {
-			return wk.AdvanceReadCursor(ctx(r), q.Scope, q.Seq)
+		"AdvanceReadCursor": in1(func(r *http.Request, wk hubclient.Work, q hubapi.ReadCursor) (any, error) {
+			return wk.AdvanceReadCursor(ctx(r), q)
 		}),
 		"MarkSeen": in1(func(r *http.Request, wk hubclient.Work, q hubapi.MarkSeenRequest) (any, error) {
-			items, err := wk.MarkSeen(ctx(r), q.Scopes, q.Seq)
+			items, err := wk.MarkSeen(ctx(r), q)
 			return map[string]any{"items": items}, err
 		}),
 		"ScopedChanges": func(r *http.Request, _ http.ResponseWriter, wk hubclient.Work) (any, error) {
@@ -632,8 +669,14 @@ func roadmapCalls() map[string]workCall {
 ```
 
 `queryLimit` is `""` → 0 (the Hub's default), else a decimal from 1 to 500 or a `*FieldError` on
-`limit`, so a malformed limit is a 400 here and not a silent default. `hubapi.ParseReadScope` is
-task 114's inverse of `ReadScope.String()` (a gap if 114's part omits it).
+`limit`, so a malformed limit is a 400 here and not a silent default. `scopeParam` splits at the
+first `:` and leans on task 114's `ScopeRef.Validate()` (`task-114.md:624`) for the kinds and the
+id prefix, so the relay and the Hub refuse the same scopes.
+
+**The brief-template methods are not relayed by these rows.** `CreateBriefTemplate`,
+`BriefTemplates` and `PatchBriefTemplate` share task 78's paths, whose relay rows are task 82's
+(W2). The desktop reaches them through task 82's relay with `kind: "brief"` in the body; that
+relay handler must pass the `kind` and the brief fields through (a gap for task 82, *Gaps*, 6).
 
 **The route audit.** Ten W4 relay routes are `GET`s; each gets one line in
 `catalogReadOnlyRoutes`, under task 16's `workRelayRead` reason, and one new test pins the whole
@@ -736,9 +779,9 @@ Alice in the setup through H34's `Evidence`.
 | 7 | `CreateMilestone(ft-ep, "Beta", [c1, c2])` | alice | 201 | `milestone.created` |
 | 8 | `CreateMilestone(ft-ep, "Wrong", [c-other])` | alice | 422 `criterion_not_on_brief` | — |
 | 9 | `AddFeatureDependency(ft-ep, blocks ft-pay)` | alice | ok | `feature_dep.added` |
-| 10 | `AddFeatureDependency(ft-pay, blocks ft-ep)` | alice | 409 `dependency_cycle` | — |
-| 11 | `PostUpdate(feature ft-ep, at_risk, pin bf-ep@3, cites [ev-1])` | alice | 201 | `update.posted` |
-| 12 | the same `nt-` written again through the store-backed route | alice | 409 `update_immutable` | — |
+| 10 | `AddFeatureDependency(ft-pay, blocks ft-ep)` | alice | 422 `dependency_cycle` | — |
+| 11 | `PostUpdate(feature ft-ep, at_risk, pin bf-ep@3, cites [ev-1])` | alice | 201 | `work.update_posted` |
+| 12 | `PATCH /v1/updates/{nt-…}` with `{health: on_track}` (task 119's refusing route) | alice | 409 `update_immutable` | — |
 | 13 | `Initiative(in)` read | bob | ok, `ft-ep` with `latestUpdate {at_risk, at}` | — |
 | 14 | `CreateComment(EP-1, …)` | bob | 201 | `comment.created` |
 | 15 | `CreateIssue(EP, …)` | bob | 403 `forbidden` | — |
@@ -751,8 +794,11 @@ Alice in the setup through H34's `Evidence`.
 Step 11 runs through `verifyPins`, so the real Hub's `/v1/refs` answer for `bf-ep@3` is re-hashed
 on the client in the run; the step fails if the pin does not verify. Step 12 is the one place the
 test reaches past the client: `hubclient` has no update-edit method (task 114 declares none), so
-the test sends the second write as a raw request through `w.raw(alice, "POST", …)`, the same
-signed transport, to prove the Hub, not only the client, refuses it. Step 17's hook is task 121's
+the test sends `PATCH /v1/updates/{updateId}` (registered by task 119 only to refuse,
+`task-119.md:54`, `:260`) as a raw request through `w.raw(alice, "PATCH", …)`, the same signed
+transport, to prove the Hub, not only the client, refuses it. That path has no relay row: the
+desktop is never offered an edit. Step 11's kind `work.update_posted` is task 119's
+(`task-119.md:181`). Step 17's hook is task 121's
 `server.RunJanitorOnce(ctx, clk.Now())`, exported for tests only (**UNVERIFIED until task 121's
 part names it**). Step 13 is Bob's read of Alice's initiative after step 5 spans it to his team;
 the view lists only features in projects Bob may read (task 117's rule): `ft-ep` is readable through the grant; a
@@ -774,15 +820,20 @@ In `methods_work_roadmap_test.go`, against a recording `httptest` Hub (task 16's
    re-check skipped".
 4. `TestUpdatesRefusesTheWholePageOnOneBadPin` — a page of three with one bad pin is an error, not
    two updates. **Kills** "partial page shown".
-5. `TestScopedChangesNeedsAScope` — a zero `ReadScope` panics; a set one sends `scope=feature:ft-1`.
+5. `TestScopedChangesNeedsAScope` — a zero `ScopeRef` panics; a set one sends `scope=feature:ft-1`.
    **Kills** "the scoped row used as a whole feed".
+5a. `TestBriefTemplateRowsAreClientOnly` — `CreateBriefTemplate` lands on `POST
+   /v1/teams/{teamId}/templates` with `"kind":"brief"` in the body; `BriefTemplates` sends
+   `?kind=brief`; none of the three rows is in `AllWorkRoutes()`. **Kills** "a duplicate relay
+   pattern" (a `ServeMux` panic at start) and "issue templates decoded as briefs".
 
 In `control-plane/internal/api/work_roadmap_test.go`, against a fake `hubclient.Work`:
 
-6. `TestRoadmapRefusalsPassThrough` — for each of `dependency_cycle` (409), `criterion_not_on_brief`
-   (422), `update_immutable` (409) and `grant_exists` (409), a Hub problem with `details` is
-   re-sent with the same status, `code`, `message` and `details`. **Kills** "a W4 code rewrapped
-   as 502".
+6. `TestRoadmapRefusalsPassThrough` — for each of task 114's codes (`task-114.md:633-645`):
+   `dependency_cycle` (422), `criterion_not_on_brief` (422), `update_immutable` (409),
+   `grant_exists` (409), `initiative_not_found`, `milestone_not_found` and `grant_not_found` (404),
+   a Hub problem with `details` is re-sent with the same status, `code`, `message` and `details`.
+   **Kills** "a W4 code rewrapped as 502".
 7. `TestRelayNeverForwardsAuthorization` — for every W4 row, a request carrying
    `Authorization: Bearer desktop-token` and `X-Hub-Token: x` reaches the fake with neither header
    visible (the fake records the context's outgoing headers from H33's transport hook). **Kills**
@@ -846,23 +897,25 @@ go test -tags integration ./control-plane/internal/hub/ -run TestWorkRoadmapE2E 
 
 #### Gaps found while writing this part
 
-1. **Task 120** names no route for `SetMilestoneCriteria` and no list of a feature's
-   dependencies; this part takes `PUT /v1/milestones/{milestoneId}/criteria` and `GET
-   /v1/features/{featureId}/dependencies` and task 120 must add both (with matrix rows).
-2. **Task 114** must carry `UpdateSubject{Kind, ID}` with `UpdateSubjectFeature`/`Initiative`,
-   `ReadScope.String()`/`ParseReadScope`, `ScopedChangesPage{Events, Next, More, Truncated}`
-   (task 123's `truncated`, which H's `ChangesPage` at `types.go:547-551` lacks),
-   `TriageRotationView{Rotation, OnDuty, NextHandoverOn}` (task 121's read), and
-   `FeatureFromTemplate{Feature, Brief, Issues}`; none is in its scope's type list.
-3. **Task 114's** `WorkRoadmap` must use this part's method names or the rows are renamed at sync:
-   `PostUpdate` and `Updates` each serve two rows, `ClearTemplateSchedule` and `MarkSeen` are not
-   in its list, `ScopedChanges` is new.
+1. **Task 120** must register task 114's two † paths, `PUT /v1/milestones/{milestoneId}/criteria`
+   and `GET /v1/projects/{projectId}/feature-dependencies` (`task-114.md:724,727`, its gap 2),
+   with matrix rows; this table relays exactly those.
+2. **Task 114** has no `ScopedChangesPage{Events, Next, More, Truncated}`: task 123's scope
+   answers `truncated: true` on a first look, which H's `ChangesPage` (`types.go:547-551`) lacks.
+   This part uses that name; task 114 must add it additively, or task 123 must drop `truncated`.
+3. **Task 114's** `WorkRoadmap` has no method for task 123's scoped `/v1/changes`. This part adds
+   `ScopedChanges(ctx, ScopeRef, after, limit)` to `*Client` and calls it through `hubclient.Work`;
+   task 114 must add it to the interface (a 32nd method) and task 115 to the fake, or the relay
+   handler cannot compile against `Deps.Work`.
 4. **Task 121** must export the janitor's one-run test hook; its scope names *"the test hook"* but
    no function.
 5. **Task 115** names no event kinds; the kinds in the story table are this part's and must be
    copied from task 115's fake when it lands (task 125 copies them by name too).
-6. **The skeleton's** row for task 82 fixes no second route table; if task 82 appends to
-   `WorkRoutes` itself, `AllWorkRoutes` is `WorkRoutes ++ WorkRoadmapRoutes` and nothing breaks.
+6. **Task 82** (W2's relay) must pass `kind: "brief"` and the brief fields of task 78's template
+   routes through to the Hub, and its `GET …/templates` must forward `?kind=`; this part's three
+   brief-template methods are client-only and depend on it. If task 82 appends to `WorkRoutes`
+   itself rather than adding a table, `AllWorkRoutes` is `WorkRoutes ++ WorkRoadmapRoutes` and
+   nothing breaks.
 7. **Task 117** has no caller-scoped list of the projects granted to the caller's teams (task
    125's gap 1). When task 117 adds one, this table gains a 32nd row and an eleventh
    audit line; `TestW4RelayPathsAreExactlyTheTable`'s count moves with it.
