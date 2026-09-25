@@ -144,3 +144,120 @@ second layer, never the answer a person sees. `CREATE OR REPLACE` keeps the func
 not need task 07's to know who may call it. Task 06's `TestWorkGrantsAreExactlyTheList` gains
 `issues.head_title`.
 
+#### `hubapi/work.go`, the additions (complete)
+
+```go
+// ── Task 14: erase and title search ─────────────────────────────────────────
+
+// Additive field on task 03's IssueHead (shown as the diff):
+//   Title string `json:"title"` // the head revision's title; "" once erased
+
+// IssueEraseResponse is POST /v1/issues/{issueId}/erase's 200. A second erase
+// answers zeros (and is still audited, H27:37-39).
+type IssueEraseResponse struct {
+	IssueID         string `json:"issueId"`
+	ErasedRevisions int    `json:"erasedRevisions"`
+	ErasedComments  int    `json:"erasedComments"`
+	ErasedAt        string `json:"erasedAt"` // the first erasure's time
+}
+
+// CommentEraseResponse is POST /v1/comments/{commentId}/erase's 200.
+type CommentEraseResponse struct {
+	CommentID string `json:"commentId"`
+	Erased    int    `json:"erased"` // 1 the first time, 0 after
+	ErasedAt  string `json:"erasedAt"`
+}
+
+const (
+	MaxSearchQueryChars = 200
+	MaxSearchLimit      = 50
+)
+
+// EscapeLike makes q a literal for ILIKE … ESCAPE '\': a person typing "50%"
+// finds "50%", not every title.
+func EscapeLike(q string) string {
+	r := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
+	return r.Replace(q)
+}
+```
+
+#### The store (`store/work_erase.go`, `store/work_search.go`, signatures complete)
+
+```go
+package store
+
+// EraseIssue runs, in the caller's write transaction: SELECT hub.erase_issue($1);
+// then SELECT hub.erase_comment(id) FROM issue_comments WHERE issue_id = $1 AND
+// erased_at IS NULL, summing the results. P0002 (no_data_found) is ErrNotInOrg.
+func EraseIssue(ctx context.Context, tx pgx.Tx, issueID string) (revisions, comments int, erasedAt time.Time, err error)
+
+// EraseComment: SELECT hub.erase_comment($1). P0002 is ErrNotInOrg.
+func EraseComment(ctx context.Context, tx pgx.Tx, commentID string) (n int, erasedAt time.Time, err error)
+
+// IssueForErase and CommentForErase find the record by id under row-level
+// security alone, with no team check (H27:32-34: an org admin need not be a member).
+func IssueForErase(ctx context.Context, tx pgx.Tx, issueID string) (teamID, projectID string, found bool, err error)
+func CommentForErase(ctx context.Context, tx pgx.Tx, commentID string) (teamID, projectID, issueID string, found bool, err error)
+
+var ErrNotInOrg = errors.New("store: no such record in this org")
+
+// SetHeadTitle: UPDATE issues SET head_title = $2 WHERE id = $1. Called beside
+// every MoveIssueHead (task 08's create, task 09's write and restore).
+func SetHeadTitle(ctx context.Context, tx pgx.Tx, issueID, title string) error
+
+// SearchIssueTitles is the search query. alias, when non-nil, is the issue a
+// q like "EP-142" names, placed first; the rest are title matches, newest
+// first, excluding erased issues and the alias hit.
+//   SELECT … FROM issues i JOIN projects p ON p.id = i.project_id
+//    WHERE i.erased_at IS NULL
+//      AND i.team_id IN (SELECT team_id FROM team_members WHERE user_id = $1)
+//      AND ($2 = '' OR i.project_id = $2)
+//      AND i.head_title ILIKE '%' || $3 || '%' ESCAPE '\'
+//    ORDER BY i.created_at DESC, i.id DESC LIMIT $4
+func SearchIssueTitles(ctx context.Context, q Querier, userID, projectID, escapedQ string, limit int) ([]IssueRow, error)
+
+// IssueByAlias resolves "KEY-N" through project_keys at query time, inside the
+// caller's readable teams. It is never stored and never treated as a key.
+func IssueByAlias(ctx context.Context, q Querier, userID, projectID, key string, n int) (IssueRow, bool, error)
+```
+
+The readability join is the one the change feed uses (`H26:27-28`): a team the caller is in, or a
+project of such a team. Row-level security already bounds the query to the caller's org; the
+membership join bounds it to the caller's teams, and a test proves each half.
+
+#### The routes (`server/erase.go` ⚑, `server/work_search.go`)
+
+```go
+// In Hub task 27's registerErase, beside route 45, which is not changed:
+mux.HandleFunc("POST /v1/issues/{issueId}/erase", s.eraseIssue)
+mux.HandleFunc("POST /v1/comments/{commentId}/erase", s.eraseComment)
+
+// work_search.go
+mux.HandleFunc("GET /v1/issues/search", s.searchIssues)
+```
+
+Go 1.22's mux prefers the more specific pattern, so `GET /v1/issues/search` never reaches task
+08's `GET /v1/issues/{issueId}`. `search` is not an id (`is-` + 16 hex, task 02), so no issue can
+shadow the route. A test pins it (`TestSearchIsNotAnIssueID`).
+
+**`eraseIssue`**, inside `s.Write`, in this order: the principal is not an org admin →
+`server.Forbidden("org_admin")`; `server.Decode[hubapi.EraseRequest]`; `reason` trimmed 1-500
+characters → else 400 `field: "reason"`; `IssueForErase` → not found is 404 `issue_not_found`;
+`EraseIssue`; `emitWork(tx, EventIssueErased, team, project, issueID,
+IssueErasedData{revisions, comments}, reason)` through `emitWorkErase` (below); 200
+`IssueEraseResponse`. `eraseComment` is the same with `CommentForErase`, `EraseComment`, 404
+`comment_not_found` and `comment.erased`.
+
+**The reason reaches the audit and not the feed.** Hub task 27 writes `brief.erased` with
+`{"erasedRevisions", "reason"}` and the feed strips `reason` (`H27:36-37`; hub-contract §8's
+`brief.erased` row). The Work erase follows the same path: the event's stored `data` holds
+`reason`, and the feed's projection drops it for `issue.erased` and `comment.erased` exactly as it
+does for `brief.erased`. So task 13's `server/work_emit.go` gains a sibling of `emitWork`,
+`emitWorkErase(tx, kind, teamID, projectID, subject string, data any, reason string) error`, which
+runs `emitWork`'s checks, accepts only the two erase kinds, and adds `"reason"` to the map; Hub
+task 26's projection lists the two kinds beside `brief.erased`; and task 13's
+`TestTheHubWritesOnlyDeclaredWorkKinds` allows exactly one extra stored key, `reason`, on exactly
+these two kinds. How task 26 strips the key (a per-kind list or a rule) is **UNVERIFIED** until its
+code lands; this task adds its two kinds to whichever it is. `IssueErasedData` itself has no
+`reason` field, so nothing but the erase handlers can put one there.
+
