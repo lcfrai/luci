@@ -242,7 +242,8 @@ export function ThreadTrace(props: { play: boolean; children: ReactNode }): JSX.
 /* SW.14, task 36. Owns .thr-*; no other file writes the prefix.
  * The gutter axis is x = 7px: the left pixel of task 29's 16px node box, whose ring is centred at
  * 8. A surface (tasks 40, 47, 67, 85) puts its ThreadNode at the gutter's left edge and its rows
- * at --thr-indent, so the node sits on the line and the rows hang from it (05 §4.1). */
+ * inside the ThreadLine, which indents them 22px, so the node sits on the line and the rows hang
+ * from it (05 §4.1; the prototype's .rows, work-layer.html:136-137). */
 
 .thr-node {
   display: inline-flex;
@@ -404,10 +405,14 @@ const node = (c: string, href = `#brief/${c}`, label = `Brief, criterion ${c}`) 
 const litIn = (root: HTMLElement) =>
   [...root.querySelectorAll('[data-lit="true"]')].map((e) => e.getAttribute("data-criterion"));
 
-/** The body of the first rule whose selector list is exactly `sel`, in a CSS text. */
+/** Every body whose selector list ends in `sel`, joined: `.thr-trace::before` is both the last
+ *  of the shared geometry list and a rule of its own, and both bodies count. */
 function rule(css: string, sel: string): string {
-  const at = css.indexOf(`${sel} {`);
-  return at < 0 ? "" : css.slice(at, css.indexOf("}", at));
+  const bodies: string[] = [];
+  for (let at = css.indexOf(`${sel} {`); at >= 0; at = css.indexOf(`${sel} {`, at + 1)) {
+    bodies.push(css.slice(at, css.indexOf("}", at)));
+  }
+  return bodies.join("\n");
 }
 
 describe("SW.14 thread primitives", () => {
@@ -453,4 +458,95 @@ describe("SW.14 thread primitives", () => {
     expect(litIn(container)).toEqual([]);                          // focus left the thread
   });
 ```
+
+
+```tsx
+  // Kills: lit implemented as selection (05 §4.1, 07 D I1): a ring on the row, aria-selected.
+  it("never marks a lit row selected", async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <div role="listbox" aria-label="Work">
+        <Header criterionId="c-1" />
+        <ThreadLine criterionId="c-1">
+          <div role="option" aria-selected="false" className="row">EP-1</div>
+        </ThreadLine>
+      </div>,
+    );
+    await user.hover(screen.getByRole("button"));
+    expect(container.querySelector(".thr-line")!.getAttribute("data-lit")).toBe("true");
+    const row = screen.getByRole("option");
+    expect(row.getAttribute("aria-selected")).toBe("false");
+    expect(row.className).toBe("row");
+    expect(container.querySelectorAll('[aria-selected="true"]')).toHaveLength(0);
+  });
+
+  // Kills: a trace that animates height or top, and one that still moves under either switch.
+  it("traces with transform only, and not when motion is reduced", () => {
+    const { container, rerender } = render(<ThreadTrace play>x</ThreadTrace>);
+    expect(container.firstElementChild!.getAttribute("data-play")).toBe("true");
+    rerender(<ThreadTrace play={false}>x</ThreadTrace>);
+    expect(container.firstElementChild!.hasAttribute("data-play")).toBe(false);
+
+    const frames = /@keyframes thr-grow \{([\s\S]*?)\n\}/.exec(threadCss)![1];
+    expect(frames.match(/[a-z-]+(?=:)/g)).toEqual(["transform", "transform"]);
+    expect(rule(threadCss, '.thr-trace[data-play="true"]::before'))
+      .toContain("animation: thr-grow var(--dur-slow) var(--ease) both");
+    expect(rule(threadCss, ".thr-trace::before")).toContain("transform-origin: top");
+    expect(threadCss).not.toMatch(/(transition|animation)[^;]*\b(height|top|bottom|width)\b/);
+
+    const media = /@media \(prefers-reduced-motion: reduce\) \{([\s\S]*?)\n\}/.exec(threadCss)![1];
+    const twin = threadCss.split("\n").filter((l) => l.startsWith(':root[data-motion="reduce"]'));
+    const norm = (l: string) => l.replace(':root[data-motion="reduce"] ', "").trim();
+    expect(twin.map(norm)).toEqual(media.split("\n").map((l) => l.trim()).filter(Boolean));
+    expect(twin.map(norm)).toContain('.thr-trace[data-play="true"]::before { animation: none; }');
+  });
+
+  // Kills: a node drawn as a disc, or as this task's own shape instead of task 29's glyph.
+  it("draws the node as a 5px ring", () => {
+    render(node("c-1"));
+    const svg = screen.getByRole("link").querySelector("svg")!;
+    expect(svg.getAttribute("data-glyph")).toBe("mark:thread_node");
+    expect(svg.getAttribute("width")).toBe("16");
+    // Radius 2 at a 1px stroke: 4 + 1 = 5px across (task 29's path, 02 C2 thread.node).
+    expect(svg.querySelector("path")!.getAttribute("d")).toMatch(/a2 2 0 1 0/);
+    expect(rule(threadCss, ".thr-node")).not.toMatch(/fill|background/);
+  });
+
+  // Kills: a thread erased under Windows contrast themes (forced colours repaint backgrounds).
+  it("keeps the thread under forced colours", () => {
+    const at = forcedCss.indexOf("/* Task 36: the thread.");
+    expect(at).toBeGreaterThan(-1);
+    const block = forcedCss.slice(at);
+    expect(block).toContain("@media (forced-colors: active)");
+    expect(rule(block, ".thr-line::after")).toContain("background: Highlight");
+    expect(block).toMatch(/\.thr-trace::before \{\s*forced-color-adjust: none;\s*background: CanvasText;/);
+    expect(rule(block, '.thr-node[data-lit="true"] .gl-mark-node')).toContain("color: Highlight");
+  });
+});
+```
+
+In the forced block `.thr-line::before` shares its rule with `.thr-trace::before`, so test 8 reads
+that pair by its second selector with a regex. `userEvent.hover` fires `pointerover` as well as
+`pointerenter`, which is what React's `onPointerEnter` listens for; `user.tab()` reaches an `a[href]`
+in jsdom. Neither was run while this plan was written (**UNVERIFIED** until step 1's red run).
+
+#### Tests to write first — appended to ⚑ `desktop/src/styles/tokens.test.ts`
+
+```ts
+describe("the thread tokens (task 36)", () => {
+  // Kills: paper's thread left at graphite's alpha (1.52:1, invisible without grain), and a lit
+  // line no brighter than the unlit one. luminance() refuses an alpha value, so an alpha left on
+  // either paper token fails here by throwing.
+  it("gives paper's thread full strength", () => {
+    const [thread, lit, page] = ["--thread", "--thread-lit", "--page"].map((n) => valueOf(PAPER, n)!);
+    expect(contrast(thread, page)).toBeGreaterThanOrEqual(3);
+    expect(contrast(lit, page)).toBeGreaterThan(contrast(thread, page));
+    // Graphite's lit line is its unlit line's colour at a higher alpha (decision 7).
+    const base = (v: string) => v.replace(/\s*\/\s*[\d.]+\s*\)$/, ")");
+    expect(base(valueOf(ROOT, "--thread-lit")!)).toBe(base(valueOf(ROOT, "--thread")!));
+  });
+});
+```
+
+`valueOf`, `contrast`, `ROOT` and `PAPER` are task 26's (its part, `:238-270`).
 
