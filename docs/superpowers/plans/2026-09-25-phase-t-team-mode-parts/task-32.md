@@ -328,3 +328,101 @@ it, its egress is exactly `allow-dns` plus `sandbox-egress-gateway`, and its ing
 existing `session-ingress-from-broker` on 8080 (`task-11.md:151-152`), provided task 15 keeps the
 `panacea-app/component: sandbox` label on it. Machines gain the gateway allow too; that is harmless
 (a machine pod holds no gateway token) and keeps one rule instead of two.
+
+#### Contract — the Terraform additions (complete)
+
+`stacks/workloads/main.tf` gains, beside `module.hub` and `module.hub_migrate` (`task-10.md:145-156`):
+
+```hcl
+module "fleet" {
+  source          = "../../modules/workload-identity"
+  name            = "id-panacea-fleet-${var.environment}"
+  oidc_issuer_url = data.terraform_remote_state.foundation.outputs.aks_oidc_issuer_url
+  namespace       = var.namespaces.fleet
+  service_account = "fleet"
+  role_assignments = [{
+    scope                = data.terraform_remote_state.foundation.outputs.key_vault_id
+    role_definition_name = "Key Vault Secrets User" # the control key, read through CSI
+  }]
+  tags = local.tags
+}
+
+module "fleet_migrate" {
+  source           = "../../modules/workload-identity"
+  name             = "id-panacea-fleet-migrate-${var.environment}"
+  oidc_issuer_url  = data.terraform_remote_state.foundation.outputs.aks_oidc_issuer_url
+  namespace        = var.namespaces.fleet
+  service_account  = "fleet-migrate"
+  role_assignments = [] # DDL rights are a Postgres grant, not an Azure role
+  tags             = local.tags
+}
+```
+
+`variables.tf`'s `namespaces` object gains `fleet = string`, default `"panacea-fleet"`.
+`outputs.tf` gains the six `fleet_*` outputs named under Interfaces, with the Hub's descriptions
+(`task-10.md:146-153`), and `helm_values` gains `fleet.serviceAccount.clientId` and
+`fleet.migrate.serviceAccount.clientId`. The module's input names (`name`, `oidc_issuer_url`,
+`location` if it has one) and the foundation output names are the sibling plan's; **UNVERIFIED
+until merge**, and step 5 reconciles them. `Key Vault Secrets User` must already be in
+`infra/terraform/role-allowlist.txt` (P8-10's `role-allowlist.sh`); if it is not, adding it is a
+reviewed change to that file, not a bypass.
+
+Scoped to the vault, that role reads **every** secret in it, including the Hub's if it ever
+has any (`hub_key_vault_access`, `task-10.md:126-130`). A per-secret role assignment (scope
+`<vault id>/secrets/fleet-control-key`) is the tighter grant; Key Vault RBAC supports a secret
+scope (training knowledge, **UNVERIFIED** for `azurerm_role_assignment`), and step 5 uses it if
+`terraform plan` accepts it.
+
+`stacks/identity` gains a fourth registration, **Fleet API**: app id URI `api://panacea-fleet-<env>`,
+one delegated scope `Fleet.Access` that the desktop public client is pre-authorised for, and an
+app role `Sandboxes.Fleet` on the **broker** API's registration, assigned to `module.fleet`'s
+principal (the role task 17 checks, `task-17.md:386-388`). Output `fleet_api_client_id`.
+
+`deploy/sql/fleet-principals.sql.tpl`, rendered by P8-29's `render-sql.sh` and run by a human
+Postgres admin (P8-D10):
+
+```sql
+-- As the Entra admin, connected to the "postgres" database.
+CREATE DATABASE fleet;
+SELECT * FROM pgaadauth_create_principal_with_oid('{{fleet_migrate_identity_name}}', '{{fleet_migrate_principal_id}}', 'service', false, false);
+SELECT * FROM pgaadauth_create_principal_with_oid('{{fleet_identity_name}}', '{{fleet_principal_id}}', 'service', false, false);
+-- Then connected to "fleet".
+CREATE SCHEMA IF NOT EXISTS fleet AUTHORIZATION "{{fleet_migrate_identity_name}}";
+GRANT USAGE ON SCHEMA fleet TO "{{fleet_identity_name}}";
+ALTER DEFAULT PRIVILEGES FOR ROLE "{{fleet_migrate_identity_name}}" IN SCHEMA fleet
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO "{{fleet_identity_name}}";
+-- task 10's append-only half (task-10.md:375-378) is its migration's REVOKE, which runs as the owner.
+REVOKE ALL ON DATABASE fleet FROM PUBLIC;
+GRANT CONNECT ON DATABASE fleet TO "{{fleet_identity_name}}", "{{fleet_migrate_identity_name}}";
+```
+
+`pgaadauth_create_principal_with_oid`'s argument list is the one P8-29's template uses; its exact
+signature is **UNVERIFIED** there too (`task-29.md:250`), and this template follows whatever that
+task records. The Hub's roles get no grant on `fleet`, and Fleet's none on `hub`.
+
+- [ ] **Step 1: Write the tests first, each with the mutant it kills**
+
+helm-unittest suites in `deploy/charts/fleet/tests/` and the platform chart's `tests/`; two cases in
+`netpolcover`; one `terraform test` run. Run them now: every one fails (no chart, no policy).
+
+| Suite / test | Asserts | Mutant it kills |
+|---|---|---|
+| `fleet / two replicas and a PDB` | `replicas: 2`; `PodDisruptionBudget` `minAvailable: 1`; `replicas: 1` fails schema | a single replica, so one pod restart stops every team agent's turns |
+| `fleet / image by digest` | `image: x:latest` fails schema | a mutable tag |
+| `fleet / no secret in the environment` | no `env` item has `valueFrom.secretKeyRef`; no env value matches `password=`; `SecretProviderClass` has no `secretObjects` | the control key synced into a Secret and an env var |
+| `fleet / no dev-insecure` | no rendered env name is `PANACEA_APP_FLEET_DEV_INSECURE` | the offline stack's switch reaching a cluster |
+| `fleet / every variable task 12 requires` | the env names equal the set in `tests/fleetd-env.txt`, which step 2 generates from `config.go`'s table | a variable renamed in `config.go`, so `fleetd` exits 2 on the cluster |
+| `fleet / workload identity on server and migrate` | both SAs carry their client-id annotation; both pod templates carry the `use` label; the `migrate` SA's id is not the server's | DDL rights on the serving identity (task 10's grant made moot) |
+| `fleet / migrate hooks exist before the Job` | weights `-10`, `-5`, `0`; hook policy selects `component: migrate` only | the Job's pod sealed on the first install (`task-29.md:176`) |
+| `fleet / no path to a sandbox` | no egress rule of `fleet-server` names `panacea-sandboxes` | a direct Fleet-to-pod path around the broker |
+| `fleet / no path to a model` | no egress rule names `gatekeeper` or `litellm` | Fleet holding a gateway path it does not need |
+| `platform / orchestrators have no internet` | `egress-internet`'s selector has `NotIn [orchestrator]` on `panacea-app/class`; a pod labelled `orchestrator` matches no policy with a `0.0.0.0/0` rule | the selector left `{}` and an orchestrator-only allow added beside it (a union cannot subtract) |
+| `platform / the gateway allow is one port on one app` | `sandbox-egress-gateway` has one `to` (gatekeeper in `panacea-gateway`) and one port, 4000/TCP | `namespaceSelector` alone, which opens keysmith and LiteLLM |
+| `platform / five namespaces, five default-denies` | `panacea-fleet` exists with `enforce: restricted` and a `default-deny` | Fleet's namespace left open |
+| `netpolcover / sandbox_reaches_one_service` | over the rendered platform, gateway and fleet charts: the set of (namespace, pod labels, port) a `panacea-sandboxes` pod may reach inside the cluster is exactly `{kube-dns:53, gatekeeper:4000}` | a later chart adding an in-cluster allow from sandboxes |
+| `netpolcover / every_denied_workload_has_an_allow` | stays green with `fleet` added (the existing case, `task-11.md:141-145`) | Fleet's pods with no egress (the chart renders but `fleetd` cannot start) |
+| `workloads.tftest.hcl / fleet identities` | `module.fleet.subject == "system:serviceaccount:panacea-fleet:fleet"`; `module.fleet_migrate` has no role assignment; the Fleet role is scoped to the vault or narrower | a subject typo; an Azure role on the DDL identity |
+
+`sandbox_reaches_one_service` is the skeleton's "a sandbox pod cannot reach any other service
+port", written as a render check. The live half (a pod that actually tries) is task 47's probe on
+a real Kata pod, since Cilium's handling of `ipBlock` is **UNVERIFIED** (`task-11.md:161-164`).
