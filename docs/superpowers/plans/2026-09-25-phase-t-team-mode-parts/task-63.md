@@ -52,3 +52,63 @@ desktop never runs or asks for a merge across people.
 **(d) Line counts are `numstat` against the lane's merge base with the integration head**, the
 same range task 60 bundles. Binary files count as `binary`, not as zero. More than 500 paths in
 one lane: the first 500 by path, and `truncated: true`, drawn as *"and N more paths"*.
+
+**Files:**
+- `control-plane/internal/fleet/mirror/client.go` (task 59) — `LaneStats` (modify; task 59's file)
+- `sandboxd/cmd/panacea-mirror/main.go` (task 59) — the `lane-stats` op (modify)
+- `control-plane/internal/fleet/verbs/lanes.go` + `lanes_test.go` — `TeamLanes`, the read (new)
+- `control-plane/internal/fleet/server/lanes.go` + test — `GET /v1/projects/{p}/team/lanes` (new)
+- `control-plane/internal/api/teamview.go`, `team.go` (task 52) — the ST.8 types below and the
+  local `GET /v1/projects/{projectId}/team/lanes`, relayed through `fleetbe` (modify)
+- `control-plane/internal/api/changes.go` (phase 3 task 16) — the diff GET refuses a worktree
+  that is not a local lane, `404 lane_not_local` (modify; one check)
+- `desktop/src/store/types.ts`, `desktop/src/api/team.ts`, `store/slices/teamSlice.ts` (task 52)
+  — `TeamLanes`, `teamLanes()`, the slice's `lanes` on the poll tick (modify)
+- `desktop/src/components/lens/files/model.ts` (phase 3 task 21) — `withTeammates` (modify)
+- `desktop/src/components/lens/files/PathList.tsx`, `PathDiff.tsx` (task 21) — owner labels; a
+  teammate's touch renders counts, never a hunk (modify)
+- `desktop/src/components/lens/merge/LaneCard.tsx` (task 19) — the owner label; no `authorName`
+  on a team project (modify)
+- `desktop/src/components/lens/merge/TeammateLanes.tsx` + test — teammates' lanes under the
+  queue (new)
+- `desktop/src/components/lens/files/model.test.ts`, `PathDiff.test.tsx`, `LaneCard.test.tsx`
+  (modify / new)
+
+**Interfaces:**
+- Produces: `verbs.TeamLanes`; the Fleet and local `team/lanes` routes; ST.8's `TeamLanes`,
+  `TeamLane`, `LaneStat`; `withTeammates`.
+- Consumes: task 22's `verbs.Sources` (the agents of the project, their owners' display names);
+  task 60's lanes in the mirror and its tier-M `cf-…` records; task 61's `landq` entries (queue
+  position, optional); task 52's `PersonRef`, `TeamStrip.Team`, the `fleetbe` relay; phase 3's
+  `changes.Changes`, `PathRow`, `Touch` (`parts/task-16.md:33-67`) and `LaneObservation`
+  (`parts/task-18.md:43-47`).
+- Requires of **task 59's mirror client**: `LaneStats` (below).
+
+```go
+// control-plane/internal/fleet/mirror/client.go (modify): one op.
+
+// LaneStat is one path of a lane since its merge base with the integration
+// head: git diff --numstat -z --no-renames and --name-status -z over the same
+// range, joined by path. No content, ever.
+type LaneStat struct {
+	Path    string `json:"path"`
+	Status  string `json:"status"`  // A | M | D | T
+	Added   int    `json:"added"`   // 0 when Binary
+	Deleted int    `json:"deleted"`
+	Binary  bool   `json:"binary"`  // numstat's "-\t-"
+}
+
+type LaneStats struct {
+	MergeBase string     `json:"mergeBase"`
+	Tip       string     `json:"tip"`
+	Paths     []LaneStat `json:"paths"`     // sorted by Path, at most 500
+	Truncated bool       `json:"truncated"`
+	More      int        `json:"more"`      // paths beyond the 500
+}
+
+// LaneStats runs in the mirror pod under phase 3's §HGH hardening
+// (--no-ext-diff, --no-textconv, no attributes-driven drivers). tip must be
+// laneRef's sha, else ErrLaneMoved: a count for a tip nobody asked about is
+// worse than none.
+func (c *Client) LaneStats(ctx context.Context, project, laneRef, tip, branch string) (LaneStats, error)
+```
