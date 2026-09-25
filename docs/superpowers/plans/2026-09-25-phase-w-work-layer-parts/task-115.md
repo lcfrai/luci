@@ -308,3 +308,153 @@ The two ⚑ call sites, complete:
 		}
 	}
 ```
+
+#### `fake_work_roadmap.go`, continued: initiatives and the view (task 118's rules)
+
+```go
+func (w *fakeWorld) initiativeOf(id, me string) (*hubapi.Initiative, hubapi.Role, error) {
+	if in := w.rm().initiatives[id]; in != nil {
+		if m := w.teams[in.TeamID].members[me]; m != nil {
+			return in, m.role, nil
+		}
+		for _, t := range w.rm().spans[id][1:] { // a spanned team reads, never writes
+			if w.teams[t] != nil && w.teams[t].members[me] != nil {
+				return in, roleGranted, nil
+			}
+		}
+	}
+	return nil, "", rmProblem(hubapi.CodeInitiativeNotFound, "There is no such initiative that you can see.",
+		"initiativeId", id)
+}
+
+func (f *Fake) CreateInitiative(_ context.Context, teamID string, req hubapi.CreateInitiativeRequest) (hubapi.Initiative, error) {
+	w := f.w
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	me, err := f.enter("CreateInitiative", teamID, req)
+	if err != nil {
+		return hubapi.Initiative{}, err
+	}
+	t := w.teams[teamID]
+	if t == nil || t.members[me] == nil {
+		return hubapi.Initiative{}, problem(404, hubapi.CodeTeamNotFound, "There is no such team that you can see.")
+	}
+	if err := need(t.members[me].role, hubapi.RoleMember); err != nil {
+		return hubapi.Initiative{}, err
+	}
+	if err := req.Validate(); err != nil {
+		return hubapi.Initiative{}, contentError("", err) // task 04's FieldError → 400
+	}
+	if t.members[req.OwnerID] == nil {
+		return hubapi.Initiative{}, badRequest("ownerId", "The owner must be a member of the team.")
+	}
+	state := hubapi.InitiativePlanned
+	if req.State != nil {
+		state = *req.State
+	}
+	now := w.stamp()
+	in := &hubapi.Initiative{ID: ids.Wide(hubapi.PrefixInitiative), TeamID: teamID, Name: req.Name,
+		Owner: w.userRef(req.OwnerID), TargetDate: req.TargetDate, State: state,
+		CreatedAt: now, CreatedBy: w.userRef(me), UpdatedAt: now}
+	w.rm().initiatives[in.ID] = in
+	w.rm().spans[in.ID] = []string{teamID}
+	w.rmEvent(me, hubapi.EventWorkInitiativeCreated, teamID, "", in.ID,
+		map[string]any{"initiativeId": in.ID, "state": string(state)})
+	return *in, nil
+}
+
+// Initiative is task 118's view: each readable feature's own latest health
+// word and date, never a score; unreadable features are absent, not named.
+func (f *Fake) Initiative(_ context.Context, id string) (hubapi.InitiativeView, error) {
+	w := f.w
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	me, err := f.enter("Initiative", id)
+	if err != nil {
+		return hubapi.InitiativeView{}, err
+	}
+	in, _, err := w.initiativeOf(id, me)
+	if err != nil {
+		return hubapi.InitiativeView{}, err
+	}
+	v := hubapi.InitiativeView{Initiative: *in, Teams: slices.Clone(w.rm().spans[id]),
+		Features: []hubapi.InitiativeFeature{}}
+	for fid, iid := range w.rm().featureIn {
+		ft, _, err := w.featureOf(fid, me)
+		if iid != id || err != nil {
+			continue // the name of a feature the caller cannot read never leaves the fake
+		}
+		row := hubapi.InitiativeFeature{FeatureID: fid, Name: ft.Name, Lead: ft.Lead,
+			Criteria: w.criterionWords(ft)}
+		if us := w.rm().updates[hubapi.UpdateSubjectFeature+":"+fid]; len(us) > 0 {
+			last := us[len(us)-1]
+			row.LatestUpdate = &hubapi.UpdateStamp{Health: last.Health, At: last.At}
+		}
+		v.Features = append(v.Features, row)
+	}
+	sort.Slice(v.Features, func(i, j int) bool { return v.Features[i].FeatureID < v.Features[j].FeatureID })
+	return v, nil
+}
+
+// criterionWords is each criterion of the feature's branch brief at its head
+// with task 10's word. Two adapters, both UNVERIFIED names bound at Step 1:
+// w.briefCriterionIDs (the head revision's criterion ids, from the envelope)
+// and w.criterionWord (task 10's thread-state word; "open" with no evidence).
+func (w *fakeWorld) criterionWords(ft hubapi.Feature) []hubapi.CriterionWord {
+	out := []hubapi.CriterionWord{}
+	for _, c := range w.briefCriterionIDs(ft.BriefID) {
+		out = append(out, hubapi.CriterionWord{CriterionID: c, Word: w.criterionWord(ft.BriefID, c)})
+	}
+	return out
+}
+```
+
+`Initiatives` (the team's, newest first, `pageOf`), `PatchInitiative` (member of the owning team;
+`ownerId` must be a member; `targetDate` `null` clears, task 03's `json.RawMessage` rule; one
+`work.initiative_updated` event naming the changed fields) and `SetFeatureInitiative` follow the
+same shape and are not repeated. `SetFeatureInitiative`'s two rules: the caller is a member of the
+**feature's** team (`need(role, RoleMember)`, so `roleGranted` is refused), and the initiative's
+span (`spans[id]`) includes that team, else 422 `bad_request`, `field: "initiativeId"`; `nil`
+deletes `featureIn[featureID]`.
+
+#### `fake_work_roadmap.go`, continued: status updates (task 119's rules)
+
+```go
+func subjectKey(s hubapi.UpdateSubject) string { return s.Kind + ":" + s.ID }
+
+func (f *Fake) PostUpdate(_ context.Context, s hubapi.UpdateSubject, req hubapi.PostUpdateRequest) (hubapi.StatusUpdate, error) {
+	w := f.w
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	var zero hubapi.StatusUpdate
+	me, err := f.enter("PostUpdate", s, req)
+	if err != nil {
+		return zero, err
+	}
+	teamID, projectID, pin, err := w.updateTarget(s, me, req)
+	if err != nil {
+		return zero, err
+	}
+	if err := req.ValidateFor(s); err != nil {
+		return zero, contentError("", err)
+	}
+	for i, k := range req.Cites { // Resolve's rule: a key in an unreadable project is missing
+		if !w.resolvable(k, me) {
+			return zero, problem(422, hubapi.CodeBadRequest, "A cited key does not resolve for you.",
+				"field", "cites", "index", strconv.Itoa(i))
+		}
+	}
+	u := &hubapi.StatusUpdate{ID: ids.Wide("nt"), Kind: "update", Subject: s, Health: req.Health,
+		Body: req.Body, PinnedBrief: pin, FeaturePins: slices.Clone(req.FeaturePins),
+		Cites: slices.Clone(req.Cites), Author: w.userRef(me), At: w.stamp()}
+	if u.FeaturePins == nil {
+		u.FeaturePins = []hubapi.FeaturePin{}
+	}
+	w.rm().updates[subjectKey(s)] = append(w.rm().updates[subjectKey(s)], u)
+	w.rmEvent(me, hubapi.EventWorkUpdatePosted, teamID, projectID, u.ID, map[string]any{
+		"subjectKind": s.Kind, "subjectId": s.ID, "health": string(u.Health),
+		"pinnedBrief": map[bool]string{true: pin, false: ""}[s.Kind == hubapi.UpdateSubjectFeature],
+		"pins": int64(len(u.FeaturePins)), "cites": int64(len(u.Cites))})
+	return *u, nil
+}
+```
