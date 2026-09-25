@@ -688,3 +688,74 @@ CREATE TABLE team_policies (
 The ranges are task 01 §7.24's (`task-01.md:480-484`): quotas above zero, turns 1 to 30, pair
 budget 1 to 20, rounds 1 to 3, deadline 30 to 1,440 minutes, floors a subset of the four. "Tighten
 only" and "lengthen only" compare to the defaults, which are task 43's, so they stay Go's.
+
+**Piece 9, the guards (decision d).** The trigger layer holds even for `hub_owner`, which the
+grant layer does not bind.
+
+```sql
+-- ── append-only: directives and lease events take 07b's forbid_change ────────
+DO $$
+DECLARE t text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY['directives', 'lease_events'] LOOP
+    EXECUTE format('CREATE TRIGGER %I BEFORE UPDATE OR DELETE ON hub.%I
+                    FOR EACH ROW EXECUTE FUNCTION hub.forbid_change()', t || '_append_only', t);
+    EXECUTE format('CREATE TRIGGER %I BEFORE TRUNCATE ON hub.%I
+                    FOR EACH STATEMENT EXECUTE FUNCTION hub.forbid_change()', t || '_no_truncate', t);
+  END LOOP;
+END $$;
+
+-- ── messages, human messages, notes: their own guards, refusing every change ─
+-- Task 46 replaces each body (CREATE OR REPLACE, same name, same trigger) to admit exactly one
+-- move: the erasure tombstone, as hub_owner, inside its SECURITY DEFINER function.
+CREATE FUNCTION guard_message() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  RAISE EXCEPTION 'hub: messages are append-only' USING ERRCODE = 'insufficient_privilege';
+END $$;
+CREATE FUNCTION guard_human_message() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  RAISE EXCEPTION 'hub: human messages are append-only' USING ERRCODE = 'insufficient_privilege';
+END $$;
+CREATE FUNCTION guard_note() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  RAISE EXCEPTION 'hub: a note is immutable' USING ERRCODE = 'insufficient_privilege';
+END $$;
+CREATE TRIGGER messages_guard       BEFORE UPDATE OR DELETE ON messages
+  FOR EACH ROW EXECUTE FUNCTION guard_message();
+CREATE TRIGGER human_messages_guard BEFORE UPDATE OR DELETE ON human_messages
+  FOR EACH ROW EXECUTE FUNCTION guard_human_message();
+CREATE TRIGGER notes_guard          BEFORE UPDATE OR DELETE ON notes
+  FOR EACH ROW EXECUTE FUNCTION guard_note();
+CREATE TRIGGER messages_no_truncate       BEFORE TRUNCATE ON messages
+  FOR EACH STATEMENT EXECUTE FUNCTION forbid_change();
+CREATE TRIGGER human_messages_no_truncate BEFORE TRUNCATE ON human_messages
+  FOR EACH STATEMENT EXECUTE FUNCTION forbid_change();
+CREATE TRIGGER notes_no_truncate          BEFORE TRUNCATE ON notes
+  FOR EACH STATEMENT EXECUTE FUNCTION forbid_change();
+
+-- ── an escalation is answered once, and nothing else of it ever moves ────────
+CREATE FUNCTION guard_escalation_answer() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    RAISE EXCEPTION 'hub: escalations are never deleted' USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  IF OLD.answered_at IS NOT NULL OR NEW.answered_at IS NULL
+     OR (to_jsonb(NEW) - 'answer_choice' - 'answer_body' - 'answer_author' - 'answered_at')
+        IS DISTINCT FROM
+        (to_jsonb(OLD) - 'answer_choice' - 'answer_body' - 'answer_author' - 'answered_at')
+  THEN
+    RAISE EXCEPTION 'hub: an escalation is answered once' USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER escalations_guard       BEFORE UPDATE OR DELETE ON escalations
+  FOR EACH ROW EXECUTE FUNCTION guard_escalation_answer();
+CREATE TRIGGER escalations_no_truncate BEFORE TRUNCATE ON escalations
+  FOR EACH STATEMENT EXECUTE FUNCTION forbid_change();
+```
+
+`to_jsonb(NEW) - … IS DISTINCT FROM to_jsonb(OLD) - …` compares every other column without naming
+them, the form task 46 uses (`task-46.md:205`), so a column added to `escalations` later is frozen
+without an edit here. The mutable team records (delegations, tasks, agents, conflicts, threads,
+team policy) are held by column grants alone, as Hub task 07a holds `teams` and `projects`; their
+state machines are Go's, returning 409 `team_state` (task 03's codes).
