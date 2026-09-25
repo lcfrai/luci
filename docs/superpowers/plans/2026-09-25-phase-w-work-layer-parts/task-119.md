@@ -35,12 +35,12 @@ Seven decisions the scope left open, made here.
    branch brief and may name an earlier revision of **that** brief; any other brief, or a revision
    that does not exist, is 422 `bad_request`, `field: "pinnedBrief"`. For an initiative, the author
    pins **each feature they report on**, and one field cannot hold that: task 114's `StatusUpdate`
-   carries one `pinnedBrief` (its scope, `tasks-101-120.md:361-363`). **Gap G1, fixed in 114:**
-   `StatusUpdate` gains `featurePins [{featureId, pinnedBrief}]`, required and non-empty for an
-   initiative subject, forbidden for a feature subject, and `Validate` requires `pinnedBrief` for
-   a feature subject only. This task appends the child table `work_update_pins` to task 116's
-   migration (the pattern task 14 uses on task 06's file), because 116's scope has one
-   `pinned_brief` column.
+   carries one `pinnedBrief` (`task-114.md:152`). **Gap G1, fixed in 114:** `StatusUpdate` and
+   `PostUpdateRequest` gain `featurePins [{featureId, pinnedBrief}]`, non-empty for an initiative
+   subject and empty for a feature; the stored `pinnedBrief` of an initiative update is its first
+   pin, so the record's one field is never empty. This task appends the child table
+   `work_update_pins` to task 116's migration (the pattern task 14 uses on task 06's file),
+   because 116's scope has one `pinned_brief` column.
 4. **Cites resolve as `/v1/refs` resolves them.** Each key is resolved by the Hub's own `/v1/refs`
    path under the author's principal (`hub-contract:356`: *"resolves keys in readable projects;
    every other key is `missing`"*); a `missing` key is 422 `bad_request`, `field: "cites"`,
@@ -103,7 +103,8 @@ and `TestNoOrchestratorEverReceivesAnUpdate` walks both.
   posted through this route by the person who accepts it)
 
 **Two gaps in task 114, listed here and fixed there.** **G1** is decision 3's `featurePins`.
-**G2:** 114's scope names the W4 wire types and methods but no W4 **event kinds**, while task 13's
+**G2:** 114's scope, and its part at this writing, name the W4 wire types and methods but no W4
+**event kinds**, while task 13's
 registry says *"W2-W5 append their kinds (tasks 72, 99, 114, 143)"* (`task-13.md:250`). This task
 needs one, written below as 114 must declare it. Until 114 carries both, the handler cannot
 compile, and the part says so rather than declaring them here.
@@ -143,55 +144,38 @@ time if those parts chose others. No `DELETE` grant: an update and its pins are 
 erase touches only the note's text (`TM46:191`). `org_id` is written from `hub.org_id` by the store,
 as every Hub table.
 
-#### The wire, as task 114 must carry it (G1 and G2; complete)
+#### The wire: task 114's types, and what 114 must add (G1 and G2)
+
+Task 114's part (`task-114.md`, in progress at this writing) declares `Health` (`:124-131`),
+`SubjectRef` and `SubjectFeature`/`SubjectInitiative` (`:133-142`), `StatusUpdate` (`:144-157`:
+`Body AuthoredText`, `PinnedBrief` required, `ErasedAt`) and `PostUpdateRequest` (`:379-384`:
+`Body AuthoredText`, author `H`). This task uses them as written. Two additions it needs are not
+there, and are written here as 114 must carry them:
 
 ```go
-// control-plane/internal/hub/hubapi/work_roadmap.go (task 114's file; the two additions)
+// control-plane/internal/hub/hubapi/work_roadmap.go (task 114's file) — G1, additive
 
-// StatusUpdate, with G1's field. Everything else is 114's scope as written.
-type StatusUpdate struct {
-	ID          string        `json:"id"`   // nt-…
-	Kind        string        `json:"kind"` // always "update"
-	Subject     UpdateSubject `json:"subject"`
-	Health      Health        `json:"health"`
-	Body        *teamtext.Text `json:"body"`       // text·H (TM task 02's Text); null once erased
-	PinnedBrief string        `json:"pinnedBrief"` // feature subject: brief:bf-…@r; else ""
-	FeaturePins []FeaturePin  `json:"featurePins"` // initiative subject: ≥ 1; else []
-	Cites       []string      `json:"cites"`       // ≤ 20 keys, as the author sent them
-	Author      User          `json:"author"`
-	At          string        `json:"at"`
-	ErasedAt    *string       `json:"erasedAt"` // TM-46's tombstonedAt, renamed on the Work wire
-}
-
-type UpdateSubject struct {
-	Kind string `json:"kind"` // "feature" | "initiative"
-	ID   string `json:"id"`   // ft-… | in-…
-}
-
+// FeaturePin is one feature an initiative update reports on, pinned to the
+// revision of that feature's branch brief the author wrote against.
 type FeaturePin struct {
-	FeatureID   string `json:"featureId"`
-	PinnedBrief string `json:"pinnedBrief"`
+	FeatureID   string `json:"featureId"`   // ft-…
+	PinnedBrief string `json:"pinnedBrief"` // brief:bf-…@r of that feature's branch brief
 }
 
-type Health string
+// On StatusUpdate:      FeaturePins []FeaturePin `json:"featurePins"` // never null; [] for a feature
+// On PostUpdateRequest: FeaturePins []FeaturePin `json:"featurePins"` // initiative: 1-50; feature: []
+//
+// Validate, for an initiative subject: FeaturePins non-empty, no FeatureID twice,
+// and PinnedBrief == "" in the request. The Hub then stores PinnedBrief =
+// FeaturePins[0].PinnedBrief, so 114's rule "a StatusUpdate always has a
+// PinnedBrief" holds for both subjects and a reader of one field is never wrong.
 
-const (
-	HealthOnTrack  Health = "on_track"
-	HealthAtRisk   Health = "at_risk"
-	HealthOffTrack Health = "off_track"
-)
+const MaxUpdateCites = 20 // 114's "0-20 Hub keys" (task-114.md:383), named
+```
 
-// PostUpdateRequest is the body of both POST routes. The author, the subject
-// and the time come from the principal and the path, never from the body.
-type PostUpdateRequest struct {
-	Health      Health       `json:"health"`
-	Body        string       `json:"body"`        // 1–1,000 runes after G3 hygiene (TM-46's rule)
-	PinnedBrief string       `json:"pinnedBrief"` // feature: optional, defaults to the head revision
-	FeaturePins []FeaturePin `json:"featurePins"` // initiative: required
-	Cites       []string     `json:"cites"`
-}
-
-const MaxUpdateCites = 20
+`PostUpdateRequest.PinnedBrief` may be `""` for a **feature** subject, meaning *the head revision*
+(decision 3); the stored record always carries the resolved key. If 114's `Validate` refuses an
+empty request pin, that is the one line 114 changes, and it is a request rule, not a record rule.
 
 // G2: the kind and its data. Scalars only (task 13's EventData rule).
 const EventWorkUpdatePosted = "work.update_posted"
@@ -211,10 +195,11 @@ type WorkUpdatePostedData struct {
 //   {EventWorkUpdatePosted, WorkUpdatePostedData{}, ScopeTeam, VisibleToReaders},
 ```
 
-`Body` reuses TM-46's stamped text shape on the way out (`TM46:90-91`; `teamtext` is TM task 02's
-package, `control-plane/internal/teamtext/text.go`, **UNVERIFIED until merge**) and a plain string
-on the way in, as TM-46's conventions say (`TM46:77-78`). `ErasedAt` is a rename of the note's
-`tombstonedAt` so the Work wire reads like task 14's erased issues; the store maps one to the other.
+`Body` is 114's `AuthoredText` both ways; the handler maps it to and from TM-46's stamped
+`teamtext.Text` at the note insert (`TM46:90-91`; `teamtext` is TM task 02's package,
+`control-plane/internal/teamtext/text.go`, **UNVERIFIED until merge**), and an erased update
+answers with `body.text` `""`, as task 14's erased issues do. `ErasedAt` is the note's
+`tombstonedAt` renamed on the Work wire; the store maps one to the other.
 **ScopeTeam leaks nothing across teams, but a feature update then reaches a granted team's feed
 only through task 117's widening of `server/changes.go`**; 117 names the Work kinds it forwards,
 and must name this one (a note for 117, not a change here).
@@ -281,8 +266,9 @@ mux.HandleFunc("PATCH /v1/updates/{updateId}", s.patchUpdate)
 2. The feature, read through the caller's team membership: not readable → 404 `feature_not_found`;
    readable only through a task 117 grant, or as a `viewer` → 403 `forbidden`, `required: "member"`.
 3. `server.Decode[hubapi.PostUpdateRequest]` (strict; an `author`, `at` or `subject` field is 400);
-   `health` one of the three words, else 422 `field: "health"`; `featurePins` non-empty → 422
-   `field: "featurePins"`.
+   `health` one of the three words, else 422 `field: "health"`; `body.author` other than `H` → 422
+   `field: "body"` (an agent's words are never posted as a person's); `featurePins` non-empty →
+   422 `field: "featurePins"`.
 4. The pin: empty → `brief:<the feature's branch brief>@<BriefHeadRevision>`; `ErrNoBrief` → 422
    `field: "pinnedBrief"`, `reason: "no_brief"`; set → it must parse as a `brief:` key of **that**
    brief at a revision between 1 and the head, else 422 `field: "pinnedBrief"`.
@@ -304,12 +290,13 @@ null` and rebuilds `body` and `erasedAt` from the rows on replay, TM-46's patter
 **`listFeatureUpdates`** and **`listInitiativeUpdates`**, inside `s.Read`: the subject's read rule
 (a granted team reads a feature's updates, task 117; an initiative's are read under 118's rule),
 `after` and `limit` as `ListUpdates`, `200 Page[StatusUpdate]`. **`patchUpdate`**: `UpdateByID`
-under the caller's read rule, else 404 `update_not_found`; otherwise 409 `update_immutable`, always,
+under the caller's read rule, else 404 `note_not_found` (TM-46's code, **UNVERIFIED** name, as
+`task-114.md:55-56` says); otherwise 409 `update_immutable`, always,
 with nothing written and no event (a refused write changes no record, `hub-contract:1133`).
 
-**G3, codes:** `update_not_found` and `initiative_not_found` (404) are not in 114's appended list,
-and `feature_not_found` is W2's if task 72 declares it (its part is not yet written). 114 appends
-whichever are missing; this task uses them and declares none.
+**G3, codes:** `initiative_not_found` is 114's (`task-114.md:638`); an unknown update is TM-46's
+`note_not_found`, as 114 decides (`:52-56`); `feature_not_found` is W2's if task 72 declares it
+(its part is not yet written) and 114's to append if not. This task declares none.
 
 #### Tests to write first — `server/work_updates_integration_test.go` (`//go:build integration`)
 
@@ -324,10 +311,10 @@ holding FT-1 and a Billing feature FT-9 (task 117's span).
 |---|---|---|
 | `TestAnUpdateIsPinnedByDefault` | Grace posts `{health: at_risk, body}` with no pin → 201, `pinnedBrief: brief:bf-A@3`; after the brief moves to revision 4, a post pinning `@2` → 201 `@2`, and `@5` or `brief:bf-B@1` → 422 `field: pinnedBrief` | an unpinned update (L-76's EXCEED); a pin to any brief |
 | `TestAFeatureWithNoBriefCannotBeUpdated` | a feature whose brief is not yet created → 422 `reason: no_brief`, nothing written | a pin invented from nothing |
-| `TestAnInitiativeUpdatePinsEachFeature` | Ada posts on IN-1 with `featurePins` for FT-1 and FT-9 → 201, two pins in order; no pins → 422; FT-1 twice → 422; a feature outside IN-1 → 422 `index: 1`; `pinnedBrief` set → 422 | an initiative update pinned to nothing, or to one brief for all |
+| `TestAnInitiativeUpdatePinsEachFeature` | Ada posts on IN-1 with `featurePins` for FT-1 and FT-9 → 201, two pins in order, and the record's `pinnedBrief` equals FT-1's pin; no pins → 422; FT-1 twice → 422; a feature outside IN-1 → 422 `index: 1`; `pinnedBrief` set → 422 | an initiative update pinned to nothing, or to one brief for all |
 | `TestHealthIsOneOfThreeWords` | `"fine"`, `""` and `"On_Track"` → 422 `field: health` | free-text health |
 | `TestCitesResolveOrTheUpdateIsRefused` | cites `issue:EP-142`, a `brief:` and an `ev-` of Portal → 201; a Billing issue key from Grace → 422 `field: cites`, `index: 0`, the same answer as a key that exists nowhere; 21 cites, or one twice → 422 | cites that leak or confirm another project's records |
-| `TestOnlyAPersonPosts` | the Fleet principal under Grace's delegation, and a session token, → 403 `required: desktop` on both POST routes, nothing written | agents post updates |
+| `TestOnlyAPersonPosts` | the Fleet principal under Grace's delegation, and a session token, → 403 `required: desktop` on both POST routes, nothing written; Grace posting a `body` with author `A` → 422 `field: body` | agents post updates; an agent's draft posted as a person's words |
 | `TestWhoMayPostAndRead` | V → POST 403, GET 200; M and A → 201 and 200; Gia (granted) → POST 403 `required: member`, GET 200; Linus, Olga and Xavier → 404 `feature_not_found` on both | a grant that writes; an update readable outside its readers |
 | `TestAnUpdateIsImmutable` | `PATCH /v1/updates/{id}` → 409 `update_immutable`, no event; a direct `UPDATE work_update_meta SET health = 'on_track'` as `hub_app` → refused; `PATCH` of an unreadable id → 404 | an editable update |
 | `TestAnErasedUpdateKeepsItsFacts` | Olga erases the update through TM-46's route 81 → the list shows it at its place with `body: null`, `erasedAt` set, and the same `health`, `pinnedBrief`, `featurePins` and `cites`; `markerHits` of the body's canary is empty, `idempotency_keys.response` included | erase drops the row; a stored reply keeps the words |
@@ -397,6 +384,6 @@ go test ./control-plane/... -race -count=1                                      
 **Parity rows served:** **L-76** (updates with health, EXCEED by the pin) and **L-87** (initiative
 updates, with task 118). L-77 is task 121's and L-78 task 139's.
 
-**Gaps for the skeleton and siblings:** G1 (`featurePins`), G2 (the W4 event kinds, none in 114's
-scope) and G3 (three not-found codes) belong to task 114; task 117 must forward
+**Gaps for the skeleton and siblings:** G1 (`featurePins`) and G2 (the W4 event kinds: none in
+114's part at this writing) belong to task 114, and G3 only if task 72 lacks `feature_not_found`; task 117 must forward
 `work.update_posted` to a granted team's feed; route 73's clause is a delta on a Phase T file.
