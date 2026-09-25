@@ -50,8 +50,8 @@ the real class names, not copied.
 
 **Files:**
 - `desktop/src/styles/forced-colors.css` — the layer (new)
-- `desktop/src/styles/app.css` ⚑ (82 lines; the imports at `:10-11` after task 27) — imports the
-  layer after `fonts.css` (modified)
+- `desktop/src/main.tsx` ⚑ (13 lines; `import App` at `:7`) — imports the layer after `./App`
+  (modified; the scope named `app.css`, see below)
 - `desktop/src/styles/tokens.css` ⚑ (191 lines; the floor at `:173-183`) — the floor's twin, the
   tick and its twin, after `:183` (modified)
 - `desktop/src/components/glyphs/glyphs.css` ⚑ (task 29) — the `.gl-agent-live` twin (modified)
@@ -70,9 +70,7 @@ and a component rule of equal specificity resolve by source order. `main.tsx:1-4
 `app.css` first so the token layer sits **under** every component sheet; a layer imported there
 would lose every tie (`.top-btn { border: 0 }` would erase its forced border). So `main.tsx`
 imports `./styles/forced-colors.css` **after** `import App from "./App";` (`:7`), which Vite emits
-after every component sheet. `app.css` is not edited; the *Files* entry above is superseded by:
-
-- `desktop/src/main.tsx` ⚑ (13 lines; `import App` at `:7`) — one import after it (modified)
+after every component sheet. `app.css` is not edited.
 
 #### Interfaces — complete: `desktop/src/styles/forced-colors.css`
 
@@ -159,3 +157,110 @@ after every component sheet. `app.css` is not edited; the *Files* entry above is
   }
 }
 ```
+
+#### Interfaces — complete: `main.tsx`, and the dev sheets' own lines
+
+`main.tsx`, after `import App from "./App";` (`:7`):
+
+```ts
+// LAST, after every component sheet App pulls in: a forced-colours rule must win each tie with
+// the component rule it redraws (Phase W task 34). Vite emits CSS in module-graph order.
+import "./styles/forced-colors.css";
+```
+
+Appended to `devtools.css` (task 32) and `stress.css` (task 33) respectively:
+
+```css
+@media (forced-colors: active) {
+  .dt, .dt-reset {
+    border: 1px solid CanvasText;
+  }
+}
+```
+
+```css
+@media (forced-colors: active) {
+  .ss-bar {
+    border-block-end: 1px solid CanvasText;
+  }
+}
+```
+
+#### Interfaces — complete: the reduced-motion twins and the tick
+
+`tokens.css`, after the floor (`:183`):
+
+```css
+/* The floor's twin. data-motion="reduce" (task 33's stress set, through flags.ts) forces the same
+ * floor on a machine whose OS setting is off. Every reduced-motion rule in the tree has a twin
+ * with IDENTICAL declarations; designsystem.test.ts fails one that drifts. */
+:root[data-motion="reduce"] *,
+:root[data-motion="reduce"] *::before,
+:root[data-motion="reduce"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* The unseen tick (05 §4.4 C7, revision 2; AX §6.1's read cursor). With motion reduced a state
+ * change cannot flash, so a row whose change the reader has not seen carries a static 2px
+ * leading tick in --ink. The attribute is the contract: the lens that owns "seen" sets and clears
+ * data-changed="unseen" (task 41), and the tick goes when the attribute goes. --ink, never
+ * accent: it is news, not selection. inset-inline-start makes it the leading edge in RTL too. */
+[data-changed="unseen"] {
+  position: relative;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-changed="unseen"]::before {
+    content: "";
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: 0;
+    inline-size: 2px;
+    background: var(--ink);
+    pointer-events: none;
+  }
+}
+
+:root[data-motion="reduce"] [data-changed="unseen"]::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  inline-size: 2px;
+  background: var(--ink);
+  pointer-events: none;
+}
+```
+
+`glyphs.css`, after task 29's reduced block; `common.css`, after `:123`; `palette.css`, after
+`:135`. Each is its file's media rule, restated under the attribute:
+
+```css
+:root[data-motion="reduce"] .gl-agent-live {
+  opacity: 1;
+}
+```
+
+```css
+:root[data-motion="reduce"] .dot-live {
+  box-shadow: 0 0 0 1.5px currentColor;
+}
+
+:root[data-motion="reduce"] .dot-run.dot-live {
+  box-shadow: none;
+}
+```
+
+```css
+:root[data-motion="reduce"] .pal {
+  animation: none;
+}
+```
+
+The second `common.css` twin is task 29's addition to the reduced block (`task-29.md:378-383`).
+If a Work row (task 40) draws its own `::before`, the tick and it collide on one pseudo-element;
+task 40's part was not on the tree at this writing, so that is **UNVERIFIED**, and the fix would
+be task 40's (an `::after` or a child), because the tick is the floor.
