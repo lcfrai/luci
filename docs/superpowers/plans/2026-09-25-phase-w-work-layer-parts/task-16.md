@@ -240,8 +240,8 @@ func checked(err error, revs ...*hubapi.IssueRevision) error {
 }
 ```
 
-The methods, part 1 (task 04's set). `IssueWithRevision` is read here as `{Head, Revision}`;
-task 04 declares it, and its real field names replace these at sync (**UNVERIFIED until merge**).
+The methods, part 1 (task 04's set). `IssueWithRevision` is `{Head, Revision}` as task 03's part
+declares it (`task-03.md:320-324`).
 
 ```go
 func (c *Client) SetProjectKey(ctx context.Context, projectID, key string) (hubapi.ProjectKey, error) {
@@ -462,13 +462,13 @@ package hubclient
 // wrapped in ErrUnavailable. An erased revision (content null) is not
 // checked: there is nothing left to check, and its resolution says so.
 func VerifyIssueRevision(r hubapi.IssueRevision) error {
-	if r.Content == nil {
+	if r.ErasedAt != nil {
 		return nil
 	}
 	got, _, err := hubapi.IssueRevisionDigest(hubapi.IssueRevisionEnvelope{
 		V: 1, Kind: "issue-revision",
 		IssueID: r.IssueID, Revision: r.Revision, ProjectID: r.ProjectID,
-		Content: *r.Content,
+		Content: r.Content,
 	})
 	if err != nil {
 		return fmt.Errorf("%w: %w", ErrDigestMismatch, err)
@@ -482,10 +482,10 @@ func VerifyIssueRevision(r hubapi.IssueRevision) error {
 
 `IssueRevisionDigest(env) (Digest, []byte, error)` and `IssueRevisionEnvelope{v, kind, issueId,
 revision, projectId, content}` are task 02's (scope 02). The envelope names `projectId`, so the
-re-check needs it on every revision the client receives: task 03's `IssueRevision` must carry
-`projectId`, as `BriefRevision` does (`hubapi/types.go:172`). Scope 03's field list omits it; this
-part relies on it being added (gap 5 below), and without it a revision read alone
-(`IssueRevisionAt`) cannot be re-checked at all. `/v1/refs`
+re-check needs it on every revision the client receives; task 03's part declares
+`IssueRevision.ProjectID` (`task-03.md:305-316`), as `BriefRevision` has it
+(`hubapi/types.go:172`), with `Content` a value and `ErasedAt *string`, which is what the erased
+check above reads. `/v1/refs`
 already carries issue revisions after task 09, and `Briefs.Resolve` is H34's: its per-key re-check
 turns a failing revision into `missing`. This task adds the `issue:` case to that loop, one line in
 H34's `methods_briefs.go` calling `VerifyIssueRevision`, so a tampered issue behind a `/v1/refs`
@@ -843,7 +843,7 @@ method, raw path (`r.URL.RawPath` or `EscapedPath()`), query and body, and answe
 | `TestAPathValueIsEscapedNotConcatenated` | `Issue(ctx, "is-1/../teams")` records the raw path `/v1/issues/is-1%2F..%2Fteams` | a `"/v1/issues/" + id` build that lets a desktop value walk the Hub's paths |
 | `TestAPostCarriesOneIdempotencyKeyAcrossRetries` | the server answers `503` then `201`; `CreateIssue` records two attempts with the same `Idempotency-Key`, one `issue` created | a method that bypasses H33's transport and mints its own key |
 | `TestATamperedRevisionIsAnErrorNotAValue` | the server serves revision 3 of `is-…` with a stored title altered after its digest was taken; `IssueRevisionAt`, `Issue` and `IssueRevisions` each return an error with `errors.Is(err, ErrUnavailable)` and `errors.Is(err, ErrDigestMismatch)` | a skipped re-check; a re-check on one method only |
-| `TestAnErasedRevisionIsNotHashed` | `content: null` with its original digest → no error | a re-check that calls every erased issue tampered |
+| `TestAnErasedRevisionIsNotHashed` | `erasedAt` set, texts `""`, the original digest kept → no error | a re-check that calls every erased issue tampered |
 | `TestResolveMarksATamperedIssueMissing` | `/v1/refs` answering an `issue:` key whose revision fails the re-check → that result `missing`, one `error` log line naming the key | the `issue:` case missing from H34's loop |
 | `TestTheQueryRuleRoundTrips` (`query_test.go`) | `DecodeQuery[issuesQuery](EncodeQuery(q, page))` equals the input for a table of filters; an unknown key, `limit=ten` and `limit=1&limit=2` are each a `*FieldError` naming the key | a lenient decoder; an encoder that drops a `[]string` element |
 
@@ -943,7 +943,7 @@ Parity rows served: none closed alone. It carries every W1 Hub row to the deskto
    one both sides should use, and the real-Hub conformance run is what proves they agree.
 4. **The File map omits** `hubclient/query.go`, `hubclient/verify_work.go` and the one-line edit to
    H34's `hubclient/methods_briefs.go`.
-5. **`IssueRevision` has no `projectId`** in scope 03's field list, but the `issue-revision`
-   envelope (scope 02) hashes it. Task 03 should add `ProjectID string "projectId"`, additively,
-   as `BriefRevision` has it; otherwise no client can re-check a revision it reads on its own.
+5. **`IssueRevision.projectId`** is missing from scope 03's field list but present in task 03's
+   part (`task-03.md:305-316`); this part follows the part. Nothing to do if the part merges as
+   written.
 

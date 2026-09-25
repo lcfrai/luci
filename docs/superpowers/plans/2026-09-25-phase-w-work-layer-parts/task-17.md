@@ -93,27 +93,31 @@ response, never from the wall clock.
 #### Contract — the story, one `t.Run` per step
 
 Each step names who acts, the call (a task 16 or H34 method), what the response must hold, and the
-Work events it must append to the feed, in order. `—` means the step appends **no** Work event. The
-kind names are task 13's (SW.5), drafted by task 04 as `issue.created`, `issue.changed`,
-`issue.revised`, `issue.state`; the rest are drafted here and take task 13's names at sync.
+Work events it must append to the feed **as Dylan reads it**, in order. `—` means the step
+appends **no** Work event Dylan can see. The kind names are task 13's registry
+(`hubapi/workevents.go`, `task-13.md:120-139`), and three of its rules shape the column: a write
+that inserts a subscription row appends `subscription.set` after its own event; one that finds a
+row appends nothing and keeps the first cause (`task-13.md:52-62`); and `subscription.set` is shown
+**only to its subject** (`:32-37`). A comment appends `comment.created`, then one
+`comment.mentioned` per mention (`task-12.md:376`).
 
 | # | Step | As | Call | Response holds | Work events appended |
 |---|---|---|---|---|---|
 | 0 | `teams_and_project` | Dylan, Alice, Bea | H34 `CreateTeam`, `CreateProject`, `CreateInvite`; Alice accepts | T has Dylan `admin`, Alice `member`; U has Bea | — |
 | 1 | `project_key` | Dylan | `SetProjectKey(P, "EP")` | `key: EP`, `setBy` Dylan | `project.key_set` |
-| 2 | `triage_policy` | Dylan | `PutTeamPolicy(T, {priorityToLeaveTriage: true})`; `CreateLabel(T, {name: "resume", color: "accent"})` | the policy echoed; label `lb-…` | `team.work_policy`, `label.created` |
+| 2 | `triage_policy` | Dylan | `PutTeamPolicy(T, {priorityToLeaveTriage: true})`; `CreateLabel(T, {name: "resume", color: "accent"})` | the policy echoed; label `lb-…` | `team.work_policy_set`, `label.created` |
 | 3 | `briefs` | Dylan | H34 `CreateBrief` (project, then branch `feature/resume`), `WriteRevisions` with criteria `c-91e2…` and `c-40aa…` | both heads; revision 1 `complete` | — (brief events are not Work kinds) |
-| 4 | `import_142` | Dylan | `ImportBatch(P, {source: csv, items: 142})` | `created` holds 142 refs; the last is `EP-142`; every item `state: triage`, `threadState {not_tied, imported}` | 142 × `issue.created`, in item order |
+| 4 | `import_142` | Dylan | `ImportBatch(P, {source: csv, items: 142})` | `created` holds 142 refs; the last is `EP-142`; every item `state: triage`, `threadState {not_tied, imported}` | 142 × (`issue.created`, Dylan's `subscription.set` cause `create`), in item order |
 | 5 | `triage_needs_priority` | Dylan | `MoveIssueState(EP-142, {to: todo, cause: hand})` | 422 `policy_refused`, `details.policy: priorityToLeaveTriage` | — |
-| 6 | `priority_then_accept` | Dylan | `PatchIssue(EP-142, {priority: high, labels: [lb-…]})`, then the same move | `priority: high`, the label; then `state: todo` | `issue.changed`, `issue.state` |
+| 6 | `priority_then_accept` | Dylan | `PatchIssue(EP-142, {priority: high, labels: [lb-…]})`, then the same move | `priority: high`, the label; then `state: todo` | `issue.updated`, `issue.state` |
 | 7 | `serves_the_brief` | Dylan | `WriteIssueRevision(EP-142, {baseRevision: 1, content: {…, serves: [{briefKey, criterionId: c-91e2…}]}})` | revision 2; `threadState.kind: on_thread` on the head | `issue.revised` |
-| 8 | `alice_comments` | Alice | `CreateComment(EP-142, {body: {author: H, …}, mentions: [Dylan]})`, `React(…, {emoji: "\U0001F44D", on: true})` | the comment; one reaction by Alice | `comment.created`, `comment.reacted` |
-| 9 | `subscriptions` | Alice, Dylan | `Subscriptions(page)` for each | Alice's EP-142 row `cause: comment`; Dylan's `cause: mention` (an import subscribes no one) | — |
+| 8 | `alice_comments` | Alice | `CreateComment(EP-142, {body: {author: H, …}, mentions: [Dylan]})`, `React(…, {emoji: "\U0001F44D", on: true})` | the comment; one reaction by Alice | `comment.created`, `comment.mentioned` (subject Dylan), `comment.reacted` (Alice's `subscription.set` is hers alone) |
+| 9 | `subscriptions` | Alice, Dylan | `Subscriptions(page)` for each | Alice's EP-142 row `cause: comment`; Dylan's `cause: create`, from the import, **unchanged by the mention** (task 13 decision 2) | — |
 | 10 | `lane_bound` | Dylan | `MoveIssueState(EP-142, {to: started, cause: lane_bound})` | `state: started` | `issue.state` |
 | 11 | `lane_queued` | Dylan | `{to: in_review, cause: lane_queued}` | `state: in_review` | `issue.state` |
 | 12 | `land_trailer` | Dylan | `{to: landed, cause: land_trailer, landCommit: <40 hex, L>}` | `state: landed`, `proof: waiting` | `issue.state` |
 | 13 | `done_waits_for_evidence` | Dylan | `{to: done, cause: evidence_observed}` with no evidence | 422; `GET` shows `landed`, `proof: waiting` | — |
-| 14 | `second_issue_no_criteria` | Dylan | `CreateIssue(P, {title: CANARY, serves: []})` → EP-143; `AddRelation(EP-143, {kind: relates, issueId: EP-142})`; `lane_bound`, `lane_queued`, `land_trailer` at commit `L2` | the relation on both heads; the last move answers `state: done`, `proof: no_criteria` (no criterion to wait for) | `issue.created`, `issue.related`, `issue.state` × 3 |
+| 14 | `second_issue_no_criteria` | Dylan | `CreateIssue(P, {title: CANARY, serves: []})` → EP-143; `AddRelation(EP-143, {kind: relates, issueId: EP-142})`; `lane_bound`, `lane_queued`, `land_trailer` at commit `L2` | the relation on both heads; the last move answers `state: done`, `proof: no_criteria` (no criterion to wait for) | `issue.created`, Dylan's `subscription.set`, `issue.related`, `issue.state` × 3 |
 | 15 | `sibling_evidence_refused` | Dylan | H34 `RecordEvidence` for `c-91e2…` at `L2`; then EP-142 `{to: done, cause: evidence_observed, evidence: [that id]}` | 422; EP-142 stays `landed` | — |
 | 16 | `evidence_then_done` | Dylan | `RecordEvidence` for `c-91e2…` at `L`; then the move citing it | `state: done`, `proof: proven` | `issue.state` |
 | 17 | `search_and_refs` | Dylan | `SearchIssues({q: "EP-142"})`; H34 `Resolve(["issue:<id>@2"])` | one head, EP-142; the ref `resolved`, `kind: issue`, `serves` as step 7 | — |
@@ -158,28 +162,35 @@ func expectedWorkEvents() []wantEvent {
 			w = append(w, wantEvent{step: step, kind: kind})
 		}
 	}
-	add("project_key", "project.key_set", 1)
-	add("triage_policy", "team.work_policy", 1)
-	add("triage_policy", "label.created", 1)
-	add("import_142", "issue.created", 142)
-	add("priority_then_accept", "issue.changed", 1)
-	add("priority_then_accept", "issue.state", 1)
-	add("serves_the_brief", "issue.revised", 1)
-	add("alice_comments", "comment.created", 1)
-	add("alice_comments", "comment.reacted", 1)
-	add("lane_bound", "issue.state", 1)
-	add("lane_queued", "issue.state", 1)
-	add("land_trailer", "issue.state", 1)
-	add("second_issue_no_criteria", "issue.created", 1)
-	add("second_issue_no_criteria", "issue.related", 1)
-	add("second_issue_no_criteria", "issue.state", 3)
-	add("evidence_then_done", "issue.state", 1)
-	add("erase", "issue.erased", 1)
+	add("project_key", hubapi.EventProjectKeySet, 1)
+	add("triage_policy", hubapi.EventTeamWorkPolicySet, 1)
+	add("triage_policy", hubapi.EventLabelCreated, 1)
+	for range 142 { // one issue, then the importer's subscription (task 13 :388)
+		add("import_142", hubapi.EventIssueCreated, 1)
+		add("import_142", hubapi.EventSubscriptionSet, 1)
+	}
+	add("priority_then_accept", hubapi.EventIssueUpdated, 1)
+	add("priority_then_accept", hubapi.EventIssueState, 1)
+	add("serves_the_brief", hubapi.EventIssueRevised, 1)
+	add("alice_comments", hubapi.EventCommentCreated, 1)
+	add("alice_comments", hubapi.EventCommentMentioned, 1) // Alice's subscription.set is hers alone
+	add("alice_comments", hubapi.EventCommentReacted, 1)
+	add("lane_bound", hubapi.EventIssueState, 1)
+	add("lane_queued", hubapi.EventIssueState, 1)
+	add("land_trailer", hubapi.EventIssueState, 1)
+	add("second_issue_no_criteria", hubapi.EventIssueCreated, 1)
+	add("second_issue_no_criteria", hubapi.EventSubscriptionSet, 1)
+	add("second_issue_no_criteria", hubapi.EventIssueRelated, 1)
+	add("second_issue_no_criteria", hubapi.EventIssueState, 3)
+	add("evidence_then_done", hubapi.EventIssueState, 1)
+	add("erase", hubapi.EventIssueErased, 1)
 	return w
 }
 ```
 
-160 events. The step each event belongs to is known because the test records the feed cursor at
+304 events in Dylan's feed; the constants are task 13's, so a typo is a compile error. Alice's feed
+is checked by the same rule with her own `subscription.set` rows (one, from her comment) in place
+of Dylan's. The step each event belongs to is known because the test records the feed cursor at
 the start of every step and reads the events between two cursors; a mismatch names the step.
 
 #### Steps
@@ -202,8 +213,10 @@ the start of every step and reads the events between two cursors; a mismatch nam
 - [ ] **Step 5: write the eight checks of the table above**, and `expectedWorkEvents`. Run; expect
   every check to pass.
 - [ ] **Step 6: prove two checks bite.** Temporarily make task 13's feed filter return every
-  event of the org (one line); `bea_sees_nothing` must fail. Temporarily drop the `issue.erased`
-  payload scrub of task 14; `canary_is_gone` must fail. Revert both; the run is green.
+  event of the org (one line); `bea_sees_nothing` must fail. Temporarily make task 14's
+  `hub.erase_issue` skip blanking `canonical` (task 07's owner function); `canary_is_gone` must fail
+  on the `Resolve` answer. Revert both; the run is green. (Events carry no text at all, task 13's
+  rule, so the feed half of `canary_is_gone` guards a regression, not today's code.)
 - [ ] **Step 7: commit** `control-plane/internal/hub/work_e2e_integration_test.go` by path.
 
 #### Acceptance
@@ -234,16 +247,18 @@ Parity rows served: it proves, against the real Hub, the **Hub halves** of L-3, 
 L-17, L-24, L-34, L-38, L-41, L-42, L-46, L-48, L-106, L-117, L-220 and L-229. None is closed
 here; task 70 records each with its desktop half. L-17 (labels) is steps 2 and 6; L-24
 (relations) is step 14, where the relation is `relates` because the demo's `EP-150 blocks EP-142`
-lives in the desktop fixtures (task 20), not on this Hub. `label.created`, `team.work_policy`,
-`project.key_set`, `comment.reacted`, `issue.related` and `issue.erased` are drafted names; task 13
-fixes them (SW.5) and `expectedWorkEvents` takes its names at sync, with the count unchanged.
+lives in the desktop fixtures (task 20), not on this Hub. Every kind named here is in task 13's
+registry; a rename there is a break of SW.5 (`task-13.md:116-118`) and shows up here as a failing
+`events_in_order`.
 
 #### Gaps found while writing this part
 
 1. **H43's helpers may be unexported** in its own test file; step 2 says how to share them
    without a copy, which needs H43's owner.
-2. **Task 13 owns the Work event kind names** but the skeleton names only four; the six drafted
-   here (above) are for task 13's owner to confirm or rename.
-3. **Whether an import subscribes its runner** is not fixed by task 05's or 15's scope; step 9
-   asserts it does not (Dylan's cause is `mention`), as scope 17 implies.
+2. **Scope 17 says Dylan is subscribed "by the mention"**, but task 13's part subscribes the
+   person who ran an import (`task-13.md:388`) and never overwrites a row's first cause, so
+   Dylan's cause is `create`. This part follows task 13; the scope sentence is superseded.
+3. **The `every_actor_is_a_person` check covers `subscription.set` too**: its actor is the person
+   whose write inserted the row (Dylan for the import), not its subject. Task 13's part should say
+   so explicitly if it does not already.
 
