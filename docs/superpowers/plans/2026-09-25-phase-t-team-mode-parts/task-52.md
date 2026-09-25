@@ -610,3 +610,101 @@ type Created struct {
 	ID string `json:"id"` // hm-… | nt-… | es-…
 }
 ```
+
+#### The local routes (complete)
+
+All under phase 2's origin guard (`api.go:379`, so `/api/v1/…` aliases each), all phase 2 problem
+bodies. `{projectId}` is the **cockpit's** project id; `TeamReader` maps it to the Hub's `pj-…`
+through task 21's `TeamProjects` production type (see gap G52-4). A solo project answers the read
+routes with an empty, `team: false` body and the write routes with `409 not_team_project`.
+
+| Route | Reads or writes | 200/201 body |
+|---|---|---|
+| `GET /v1/projects/{projectId}/team` | Fleet `…/team`; Hub route 74 | `TeamStrip` |
+| `GET /v1/projects/{projectId}/team/people/{userId}` | Fleet `…/team` (same call, cached ≤ 2 s) | `PersonDetail`; `404 person_not_found` when the person has no live agent |
+| `GET /v1/team/desk?since=` | per team project: Hub 59, 66; Fleet `…/threads?party=me`, `…/messages` | `TeamDesk` |
+| `GET /v1/projects/{projectId}/orchestrator` | Hub 71, 68, turn replies (gap G52-2); Fleet `…/team`, `…/threads` | `OrchestratorView` |
+| `GET /v1/projects/{projectId}/orchestrator/threads/{threadId}` | Fleet `…/threads/{th}/messages` | `ThreadView` |
+| `GET /v1/projects/{projectId}/team/settings` | Hub 74; task 37's split (gap G52-5) | `TeamSettings` |
+| `POST /v1/projects/{projectId}/orchestrator/messages` | Hub 70, `toAgentId` = the viewer's own Orchestrator | `201 Created` |
+| `POST /v1/team/escalations/{escalationId}/answer` | Hub 65 | `200 DecideItem` answered, or `409 already_answered` |
+| `POST /v1/team/decided/{escalationId}/undo` | Hub 70, the fixed Undo template | `201 Created`; `409 not_reversible` |
+| `POST /v1/projects/{projectId}/notes` | Hub 72 (task 46) | `201 Created` |
+| `POST /v1/projects/{projectId}/team/route/raise` | Hub 79, `{"route":"au"}` | `200 TeamSettings` |
+
+The ask route refuses `400 bad_request` for a subject whose `ref` fails its grammar (task 03's
+`ValidID` for ids, task 02's `teamtext.ValidPath` for a path), before any Hub call; the Hub then
+applies its own 2,000-rune bound and G3 hygiene, and its code is relayed unchanged. The Undo body
+is exactly:
+
+```go
+// undoText is the only prose this task writes into a record. Every value is
+// typed: the conflict id, the resolution kind, the other person's display
+// name (cleaned by the Hub), and the globs, each already validated.
+const undoTemplate = "Undo: reopen %s (%s with %s on %s). I did not agree to this."
+```
+
+#### `api/team.go` (complete public surface)
+
+```go
+package api
+
+// TeamFleet is the slice of fleetbe the reads call (fleetbe/team.go).
+type TeamFleet interface {
+	Team(ctx context.Context, projectID string) (verbs.TeamHuman, error)
+	Threads(ctx context.Context, projectID string) ([]server.DeskThread, error)
+	ThreadMessages(ctx context.Context, projectID, threadID string, page hubapi.PageRequest) (hubapi.Page[hubapi.Message], error)
+}
+
+// TeamHub is the slice of task 08's hubclient.Team this file calls, as the
+// signed-in user, plus three methods other tasks add (each marked).
+type TeamHub interface {
+	Conflicts(ctx context.Context, projectID string, q hubapi.ConflictQuery) (hubapi.Page[hubapi.Conflict], error)
+	Escalations(ctx context.Context, projectID string, page hubapi.PageRequest) (hubapi.Page[hubapi.Escalation], error)
+	Directives(ctx context.Context, projectID string, page hubapi.PageRequest) (hubapi.Page[hubapi.Directive], error)
+	HumanMessages(ctx context.Context, projectID string, page hubapi.PageRequest) (hubapi.Page[hubapi.HumanMessage], error)
+	AnswerEscalation(ctx context.Context, escalationID string, req hubapi.AnswerEscalationRequest) (hubapi.Escalation, error)
+	WriteHumanMessage(ctx context.Context, projectID string, req hubapi.CreateHumanMessageRequest) (hubapi.HumanMessage, error)
+	TeamPolicy(ctx context.Context, projectID string) (hubapi.TeamPolicy, error)               // route 74, task 43
+	RaiseRoute(ctx context.Context, projectID string) (hubapi.TeamPolicy, error)               // route 79, task 43
+	WriteNote(ctx context.Context, projectID string, req hubapi.CreateNoteRequest) (hubapi.Note, error) // route 72, task 46
+	TurnReplies(ctx context.Context, projectID string, page hubapi.PageRequest) (hubapi.Page[TurnReply], error) // gap G52-2
+}
+
+// TurnReply is the owner's read of a human-origin turn's kept reply (task 26's
+// TurnRecord.Reply, task-26.md:584-594). No Hub route serves it yet: gap G52-2.
+type TurnReply struct {
+	ID        string        `json:"id"` // ot-…
+	Exit      string        `json:"exit"`
+	Reply     teamtext.Text `json:"reply"`
+	Truncated bool          `json:"replyTruncated"`
+	At        string        `json:"at"`
+}
+
+// Viewer is who is asking, from the Hub session, never from a request.
+type Viewer interface {
+	Me(ctx context.Context) (userID, displayName string, compliance bool, err error)
+}
+
+// TeamReader is Deps.Team; nil unless PANACEA_APP_FLEET_URL is set (as TeamLauncher).
+type TeamReader struct {
+	Projects HubProjects // task 21 TeamProjects plus the id mapping
+	Fleet    TeamFleet
+	Hub      TeamHub
+	Viewer   Viewer
+	Now      func() time.Time
+	seen     sync.Map // (hub project, userId) -> row signature and changedAt
+}
+
+// HubProjects extends task 21's TeamProjects with the id mapping (gap G52-4).
+type HubProjects interface {
+	TeamProjects
+	HubProject(ctx context.Context, projectID string) (string, error)
+}
+
+func (a *API) registerTeam(mux *routes) // the eleven routes above; a no-op when Deps.Team is nil
+```
+
+`TeamReader.Projects` is typed `HubProjects`; task 21's `TeamProjects` stays as it is. Every Hub
+error is relayed with its own status and code (`hubclient.Code`), and every `fleetbe` error by
+its sentinel (`task-21.md:385`), as `teamlaunch.go` does.
