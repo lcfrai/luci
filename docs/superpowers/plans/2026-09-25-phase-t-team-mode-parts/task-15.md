@@ -250,7 +250,7 @@ class. The worker's machine volume and affinity stay exactly as P8-15 writes the
 ```
 
 The two memory `emptyDir`s count against the container's memory limit, which is also the Kata
-guest's size (`manager.go:328-330`); 5 MiB of 512 MiB is the Orchestrator's cost of them. If phase
+guest's size (`manager.go:331-332`); 5 MiB of 512 MiB is the Orchestrator's cost of them. If phase
 6's merged manager already mounts something at `/run/panacea/gateway`, it nests under this volume
 and both stay; if it mounts `/run/panacea` itself, reuse that volume and add none (step 4 checks).
 
@@ -307,7 +307,121 @@ func (m *Manager) Create(ctx context.Context, spec Spec) (string, error) {
 }
 ```
 
-`ownByPod` is the existing owner-reference block (`manager.go:386-399`), moved into a method so it
+`ownByPod` is the existing owner-reference block (`manager.go:388-399`), moved into a method so it
 runs for both Secrets. `Delete` (`manager.go:420-435`) deletes `policySecretFor(podName)` after the
 attach Secret, with the same *absence is success* rule. The attach Secret stays the claim: the
 policy Secret is created only by the request that holds it, and is never what a retry checks.
+
+**`backend.Spec` and `katabe`.** `backend.Spec` (`backend.go:142-153`) gains `Class string`,
+`PolicyFile []byte` and `ControlToken string` with the same comments; `ValidateSpec` refuses a
+`Class` other than `""`, `worker` or `orchestrator` and a `PolicyFile` over 64 KiB, and **never logs
+either token**; `katabe.Create` copies the three into `sandbox.Spec` beside `SessionID`
+(`kata.go:105-115`), converting `Class` with `sandbox.Class(spec.Class)`. `dockerbe` returns
+`ErrUnsupported` for an `orchestrator` class, a `PolicyFile` or a `ControlToken`: a local sandbox
+has no managed mount, and a team sandbox in local mode would be one `policycheck` lets through
+unchecked.
+
+**`sandboxd/internal/policycheck/policycheck.go`, complete:**
+
+```go
+// Package policycheck makes sandboxd refuse to start the harness unless the
+// managed-settings file the control plane mounted is the one it rendered
+// (OD-23; Phase T task 15). It is standard library only: sandboxd vendors.
+package policycheck
+
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
+	"fmt"
+	"io"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
+)
+
+const (
+	Env  = "PANACEA_APP_POLICY_SHA256"          // control-plane: policy.EnvDigest
+	Dir  = "/etc/claude-code"                   // control-plane: sandbox.PolicyMountPath
+	File = "managed-settings.json"              // control-plane: sandbox.PolicySecretKey
+	maxFile = 64 << 10
+)
+
+var (
+	ErrMissing    = errors.New("policycheck: a digest is set but the managed-settings file is absent")
+	ErrMismatch   = errors.New("policycheck: the managed-settings file does not match its digest")
+	ErrExtra      = errors.New("policycheck: the managed directory holds a file the control plane did not render")
+	ErrUnexpected = errors.New("policycheck: a managed-settings file is present with no digest to check it against")
+	ErrMalformed  = errors.New("policycheck: the digest is not sha256:<64 lower-case hex>")
+)
+
+var digestRE = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
+
+// Check is the whole rule; want is Env's value, "" when unset. Local mode is
+// "no digest and no file", and passes. No error ever quotes the file.
+func Check(dir, want string) error {
+	path := filepath.Join(dir, File)
+	b, err := readBounded(path)
+	absent := errors.Is(err, fs.ErrNotExist)
+	if err != nil && !absent {
+		return fmt.Errorf("policycheck: reading %s: %w", path, err)
+	}
+	switch {
+	case want == "" && absent:
+		return nil
+	case want == "":
+		return ErrUnexpected
+	case !digestRE.MatchString(want):
+		return ErrMalformed
+	case absent:
+		return ErrMissing
+	}
+	sum := sha256.Sum256(b)
+	if got := "sha256:" + hex.EncodeToString(sum[:]); got != want {
+		return fmt.Errorf("%w: mounted %s, expected %s", ErrMismatch, got, want)
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return fmt.Errorf("policycheck: listing %s: %w", dir, err)
+	}
+	for _, e := range entries {
+		// A Secret volume holds the key's symlink plus the kubelet's own
+		// "..data" and "..<timestamp>" entries; nothing else may be there,
+		// or Claude Code would merge it (a managed-settings.d/ drop-in).
+		if e.Name() == File || strings.HasPrefix(e.Name(), "..") {
+			continue
+		}
+		return fmt.Errorf("%w: %s", ErrExtra, e.Name())
+	}
+	return nil
+}
+
+func readBounded(path string) ([]byte, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	b, err := io.ReadAll(io.LimitReader(f, maxFile+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(b) > maxFile {
+		return nil, fmt.Errorf("policycheck: %s is over %d bytes", path, maxFile)
+	}
+	return b, nil
+}
+```
+
+`sandboxd/cmd/sandboxd/main.go`, the one addition, immediately before `newServer` (`:56`):
+
+```go
+	// OD-23: the harness starts only under the policy the control plane
+	// rendered. Before newServer, because newServer starts the PTY.
+	if err := policycheck.Check(policycheck.Dir, os.Getenv(policycheck.Env)); err != nil {
+		slog.Error("refusing to start the harness", "err", err)
+		os.Exit(3)
+	}
+```
