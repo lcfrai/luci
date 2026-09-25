@@ -24,6 +24,8 @@ func TestParseAcceptsTheHubsForms(t *testing.T) {
 		{"brief:bf-00000000000000a2@1", Key{Kind: KindBrief, ID: "bf-00000000000000a2", Revision: 1}},
 		{"design:ab-0123@1", Key{Kind: KindDesign, ID: "ab-0123", Revision: 1}},
 		{"design:abcd-" + strings.Repeat("f", 32) + "@10", Key{Kind: KindDesign, ID: "abcd-" + strings.Repeat("f", 32), Revision: 10}},
+		// The design form's largest revision too (mutant R8-P1).
+		{"design:cv-7c01d2e3f4a5b6c7@999999999", Key{Kind: KindDesign, ID: "cv-7c01d2e3f4a5b6c7", Revision: 999999999}},
 	} {
 		got, err := Parse(tc.in)
 		if err != nil {
@@ -67,6 +69,8 @@ func TestParseRejects(t *testing.T) {
 		"design:cv-" + strings.Repeat("a", 33) + "@1",
 		"design:CV-0123@1",
 		"design:cv-7c01d2e3f4a5b6c7@0",
+		"design:cv-7c01d2e3f4a5b6c7@01",
+		"design:cv-7c01d2e3f4a5b6c7@1000000000", // ten digits (mutant R8-P2)
 		"none:",
 		"none:other",
 		"none:Declined",
@@ -122,6 +126,11 @@ func TestBriefKey(t *testing.T) {
 		{"bf-3F2A91C07B1E4D2A", 5},
 		{"cv-7c01d2e3f4a5b6c7", 5},
 		{"", 5},
+		// The id is the whole id: 17 hex, a trailing line feed, or a prefix
+		// before bf- would mint a key Parse refuses (mutants R6-P1, R6-P1b).
+		{"bf-3f2a91c07b1e4d2a0", 5},
+		{"bf-3f2a91c07b1e4d2a\n", 5},
+		{"xbf-3f2a91c07b1e4d2a", 5},
 		{"bf-3f2a91c07b1e4d2a", 0},
 		{"bf-3f2a91c07b1e4d2a", -1},
 		{"bf-3f2a91c07b1e4d2a", 1000000000},

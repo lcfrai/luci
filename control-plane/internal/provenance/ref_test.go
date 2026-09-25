@@ -253,8 +253,10 @@ func TestBuildTitlesAnOpenRevisionByTheOneRule(t *testing.T) {
 	if ref.Audience != "" || ref.Constraints != "" {
 		t.Errorf("audience %q constraints %q: an open revision inherits nothing and renders no draft", ref.Audience, ref.Constraints)
 	}
-	if ref.Inherits == nil || ref.Inherits.Key != key7 {
-		t.Errorf("Inherits = %+v, want the pin the revision's content holds", ref.Inherits)
+	// The pin's revision is its key's (5), never the branch revision's own
+	// number (3): mutant R6-P2, which every other fixture's 5 == 5 hides.
+	if want := (InheritedRef{Key: key7, BriefID: projectBrief, Revision: 5, Digest: dig7}); ref.Inherits == nil || *ref.Inherits != want {
+		t.Errorf("Inherits = %+v, want %+v: the pin the revision's content holds", ref.Inherits, want)
 	}
 
 	project := b7()
@@ -327,6 +329,13 @@ func TestBuildRefusesASourceTheKeyDoesNotName(t *testing.T) {
 		{"a later revision's key", BriefKey(branchBrief, 6), src42, false},
 		{"another brief's key", BriefKey("bf-00000000000000a3", 5), src42, false},
 		{"a design key", "design:cv-7c01d2e3f4a5b6c7@5", src42, false},
+		// Mutant R9-P2: the key's kind is checked before anything reaches
+		// discover, even on a revision relabelled to agree with the key.
+		{"a design key on a revision relabelled to match it", "design:cv-7c01d2e3f4a5b6c7@5", func() Source {
+			s := src42()
+			s.Revision.Key, s.Revision.BriefID = "design:cv-7c01d2e3f4a5b6c7@5", "cv-7c01d2e3f4a5b6c7"
+			return s
+		}, false},
 		{"not a key", "brief:b-42@5", src42, false},
 		{"the empty string", "", src42, false},
 		{"none:declined", Declined, src42, false},
@@ -335,6 +344,9 @@ func TestBuildRefusesASourceTheKeyDoesNotName(t *testing.T) {
 		{"an erased pin with the pin passed", key42, func() Source { s := src42(); s.PinErased = true; return s }, false},
 		{"an erased pin on a revision that pins nothing", key7, func() Source { s := src7(); s.PinErased = true; return s }, false},
 		{"a pin that is not a brief key", key42, withPin("brief:b-7@5"), false},
+		// Mutant R9-P1: a pin that parses, as another kind, with the project
+		// passed under that key.
+		{"a pin that is a design key", key42, withPin("design:cv-7c01d2e3f4a5b6c7@5"), false},
 		{"the project head, not the pin", key42, func() Source {
 			s := src42()
 			p := b7()
@@ -740,5 +752,35 @@ func TestRefGoldenJSON(t *testing.T) {
 	}
 	if string(got)+"\n" != string(raw) {
 		t.Errorf("Build(b-42@5) JSON differs from testdata/ref-golden.json:\n%s", got)
+	}
+}
+
+// TestReadingAndHeadJSON: the two moving shapes task 12 serves beside a Ref
+// (RefsResponse.criterionStates and heads) are wire contract too, and the
+// golden holds only the Ref (mutants R7-P1, R7-P2: a tag renamed on one side).
+func TestReadingAndHeadJSON(t *testing.T) {
+	eval := func(_ context.Context, q EvalQuery) ([]Verdict, error) {
+		vs := make([]Verdict, len(q.Criteria))
+		for i, c := range q.Criteria {
+			vs[i] = Verdict{CriterionID: c.ID, State: StateOpen}
+		}
+		vs[0].State, vs[0].Because = StateSettled, []string{"CI run 88 passed"}
+		return vs, nil
+	}
+	got, err := json.Marshal(Readings(context.Background(), key42, src42(), evidenceRef, eval))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `[{"id":"c-a0000001","state":"settled","because":"CI run 88 passed"},` +
+		`{"id":"c-a0000002","state":"open","because":""},{"id":"c-a0000003","state":"open","because":""}]`
+	if string(got) != want {
+		t.Errorf("Readings JSON =\n%s\nwant\n%s", got, want)
+	}
+	head, err := json.Marshal(Head{HeadRevision: 7, LatestCompleteRevision: 6, Archived: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := `{"headRevision":7,"latestCompleteRevision":6,"archived":true}`; string(head) != want {
+		t.Errorf("Head JSON = %s, want %s", head, want)
 	}
 }
