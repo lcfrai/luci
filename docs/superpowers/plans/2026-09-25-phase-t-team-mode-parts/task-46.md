@@ -277,7 +277,7 @@ row is task 30's, and this task only feeds it the note id.
 | Test | Asserts | Mutant it kills |
 |---|---|---|
 | `TestAnErasedNoteIsATombstoneAndItsAuditRemains` | Linus writes `nt-A` on the project (marker `ZQX-NOTE-7731` in the text); Ada (org admin) erases it → `{erased: true}`; route 73 lists `nt-A` with `text: null`, `tombstonedAt` set, target and author unchanged; the audit (route 44) still holds `note.created` for `nt-A` **and** one `note.erased` with `by: org_admin`; `markerHits` (Hub task 27) over schema `hub` is empty, `idempotency_keys` included | a tombstone that deletes the row, or the audit event with it; the stored reply keeping the words |
-| `TestAWorkersTeamNeverContainsANote` | with three notes in the project (on the project, on the worker's task, on its owner), `panacea team` from a worker-class session and task 16's `team.json` snapshot contain none of the marker strings and no `nt-…`; a `worker`-class delegation calling route 73 → 403 `forbidden`, `required: "route"` | `notes.read` added to the worker class set, or `WorkerSnapshot` given a notes field |
+| `TestAWorkersTeamNeverContainsANote` | with three notes in the project (on the project, on the worker's task, on its owner), `panacea team` from a worker-class session and task 16's `team.json` snapshot contain none of the marker strings and no `nt-…`; a `worker`-class delegation calling route 73 → 403 `forbidden` (`task-01.md:121-122`); creating a `worker` delegation that lists `notes.read` → 422 `details.route` (`:290-296`) | `notes.read` added to the worker class set, or `WorkerSnapshot` given a notes field |
 | `TestANoteReachesAnOrchestratorOnlyByInboxQuoted` | Grace's Orchestrator's `panacea inbox` holds `nt-A` in `notes` with `by: "Linus Torvalds"`, `text.author: "human"`; her `team`, the turn template (task 26) and the PTY writer's output (task 38) hold neither the text nor the id | a note spliced into the turn template or a nudge |
 | `TestTheAuthorMayEraseTheirOwnNoteOnly` | Linus erases his `nt-A` → 200 `by: author`; Grace (team admin) erasing `nt-A` → 403 `required: "org_admin"`; Linus erasing Grace's note → 403 | the team admin treated as an eraser; the author check by team, not by user |
 | `TestAThreadMessageIsErasedByTheOrgAdminOnly` | Linus (the sender's owner) → 403; Ada → 200; route 63 then lists the message with `text: null`, `kind` and typed `fields` unchanged | the sender's owner allowed to rewrite a negotiation the other side relied on |
@@ -290,3 +290,90 @@ row is task 30's, and this task only feeds it the note id.
 | `TestNoteTextBoundsAndHygiene` | 1,001 runes → 422 `text_refused`; ANSI `ESC[2J` → 422; a body field `authorUserId` → 400 | the author taken from the body |
 | `TestFleetCannotWriteANote` | Fleet·O under Linus's delegation `POST`s route 72 → 403 `required: "desktop"` | an Orchestrator writing notes that other Orchestrators then quote as a person's |
 | `TestAReplayAfterEraseHasNoWords` | route 72 with `Idempotency-Key: k1`; erase; `k1` again → 201, `Idempotent-Replay: true`, `text: null`, `tombstonedAt` set; same for route 70 | the stored-reply leak (Hub review I6) on the team routes |
+
+The first two are the scope paragraph's (`2026-09-25-phase-t-team-mode.md:915-917`) and are written
+first. Every Hub test is an integration test (`//go:build integration`) on Hub task 06's harness
+and task 07's `team2World`, plus **Ada** (org admin, `Hub.OrgAdmin`, Hub task 11's
+`dev-tenant.json`) and **Xavier** (org 2). The three Fleet tests run on task 08's `hubclient` fake
+and task 22's and 28's test worlds, with no database.
+
+**Z5 rows** (task 43's matrix test; this task adds them, as the global constraints require):
+
+| Operation | V | M | M′ | A | Au | N | X | F | F∅ | Fx | D |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| write a note (72) | 403 | ✓ | ✓ | ✓ | 404 | 404 | 404 | 403 | 401d | 403 | 403 |
+| read notes (73) | ✓ | ✓ | ✓ | ✓ | 404 | 404 | 404 | ✓ (orchestrator class) | 401d | ✓ | 403 |
+| erase a note (81) | 403 | ✓ own | 403 | 403 | 403 | 404 | 404 | 403 | 403 | 403 | 403 |
+| erase a human message (82) | ∅404 | ✓ own | 404 | 404 | 403 | 404 | 404 | 403 | 403 | 403 | 403 |
+| erase a thread message (83) | 403 | 403 | 403 | 403 | 403 | 404 | 404 | 403 | 403 | 403 | 403 |
+
+The org admin, not a column of task 01's team table, gets ✓ on 81 to 83 in one extra row of the
+same test. `∅404` is 404 `human_message_not_found`: a human message is invisible to anyone but its
+owner and an auditor, so the erase route does not reveal it.
+
+#### Steps
+
+- [ ] **Step 1: Read.** Contract §7.23, §8 and task 01's team matrix (`task-01.md:462-467`,
+  `:530`, `:577-579`); Hub task 27's routes 44–45 and `markerHits` (`task-27.md:22-46`, `:72`);
+  Hub task 07b's `erase_brief` and `guard_revision` (`task-07b.md:63-80`, `:212-232`); task 04's
+  migration as merged, to take its guard and column names.
+- [ ] **Step 2: Tests.** Write the fourteen tests and the Z5 rows; run them; they fail (no routes,
+  no functions).
+- [ ] **Step 3: Migration.** `00NN_team_erase.sql` with task 04's real names; run
+  `TestTheGuardAllowsOnlyTheTombstoneShape` and `TestEraseIsOrgScoped`; they pass.
+- [ ] **Step 4: Types and codes.** `EraseRecordResponse`, the three codes, the contract count;
+  `go test ./internal/hub/hubapi/` passes.
+- [ ] **Step 5: Notes.** `store/notes.go` and `server/notes.go` (routes 72, 73), the stored reply
+  with `text: null`, and route 70's stored reply the same; the note tests pass.
+- [ ] **Step 6: Erase.** `store/teamerase.go` and `server/teamerase.go` (routes 81 to 83), the
+  three events, the feed projection without `reason`; the erase tests pass.
+- [ ] **Step 7: Fleet.** `Envelope.Notes`, `NoteItem`, `NoteRecipients`, the unread set, the
+  `note.erased` drop; the three Fleet tests pass, and task 09's and task 28's golden fixtures are
+  unchanged (`git diff --stat testdata/panacea-control/` is empty).
+- [ ] **Step 8: Contract.** §7.0 rows 81 to 83, a new §7.23a "Erasure of team text", the §8 rows,
+  the Z5 rows; `go test ./internal/hub/hubapi/ -run Contract` passes.
+- [ ] **Step 9: Commit.** `git add` the new files, `git commit -F <msg> -- <paths>`.
+
+#### Acceptance
+
+```bash
+cd control-plane
+go test -tags integration ./internal/hub/server/ -run 'TestAnErasedNote|TestAWorkersTeam|TestTheAuthorMay|TestAThreadMessage|TestAHumanMessage|TestASecondErase|TestEraseIsOrgScoped|TestTheGuardAllows|TestTheFeedHides|TestNoteTarget|TestNoteText|TestFleetCannotWrite|TestAReplayAfterErase' -count=1
+# ok  	github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/server	…
+go test ./internal/fleet/protocol/ ./internal/fleet/verbs/ -run 'Note|Worker' -count=1
+# ok  	…/internal/fleet/protocol	…
+# ok  	…/internal/fleet/verbs	…
+go test ./internal/hub/hubapi/ -count=1 && go vet ./...
+# ok  	…/internal/hub/hubapi	…   (and no vet output)
+```
+
+#### What this task does not claim
+
+- **Not erasure from storage.** A tombstone's `UPDATE` leaves the words in dead tuples until
+  `VACUUM`, in WAL, and in every backup taken before it, exactly as Hub task 27 says of briefs
+  (`task-27.md:113-126`). The horizon is phase 8's backup retention.
+- **Not recall from an Orchestrator.** A note delivered before its erasure stays in that session's
+  transcript and in any sandbox scratch the Orchestrator wrote. Rotation (task 40) ends that
+  session within its rotation window; nothing edits a transcript (OD-8).
+- **Not erasure of directives, escalations or tasks.** Their text is `text·A` or a question Fleet
+  templated; `05-design.md` §3.3 names only notes, messages and human messages. A request to erase
+  one is an org-admin procedure outside this plan.
+- **Not a UI.** The desktop's note composer, list and "erase my note" action are task 52's and
+  54's; this task gives them routes.
+- **Not the informs.** The `inform` a note raises for its addressee is task 30's rule.
+
+#### Gaps found in the skeleton
+
+1. **No erasure routes in task 01's §7.0.** Its team table stops at 79 (`task-01.md:248-285`);
+   task 14 took 80 (`task-14.md:52-62`). This part claims **81 to 83**. If another part claims
+   them first, the lower task id keeps the numbers and this part renumbers mechanically.
+2. **Who erases.** The skeleton says "Hub task 27's erasure gains tombstones"; task 27 lets only an
+   org admin erase. This part adds the author (note) and the owner (human message), per
+   `04-enterprise-constraints.md:209-210`, and keeps thread messages admin-only. The owner should
+   confirm.
+3. **Task 04's guard and column names** are unknown until its part is written; this part names
+   them provisionally and says so.
+4. **Task 28's `Envelope` has no notes field** (`task-28.md:502-508`); this part adds one,
+   `omitempty`, so task 28's fixtures do not move. Task 28's writer should know.
+5. **Route 70's stored reply** (task 07) holds the human message's words; this part changes it to
+   `text: null` with a replay rebuild. Task 07's part does not mention idempotent storage.
