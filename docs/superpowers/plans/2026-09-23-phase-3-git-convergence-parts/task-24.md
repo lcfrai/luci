@@ -538,9 +538,9 @@ two bundle moves. Host git in this half runs only in the **project** or under
 **Files (host side):**
 - `control-plane/internal/lanegit/wire.go` — the shapes of `wire.go` above, field for field, and
   the four limits of `limits.go` above, checked against `testdata/gitrunner` (new)
-- `control-plane/internal/lanegit/client.go` — `Runner`, `NewRunner`, `RunnerError` (new)
-- `control-plane/internal/lanegit/pool.go` — `Lanes`, `For`, the runner-only sandbox (new)
-- `control-plane/internal/lanegit/bundle.go` — `FetchLane`, `ArchiveLane`, `SendBranch`, `Sent`, the split, `BundleRefused` (new)
+- `control-plane/internal/lanegit/client.go` — `Runner`, `NewRunner`, `NewRunnerTransport` (S8-P3.5), `RunnerError` (new)
+- `control-plane/internal/lanegit/pool.go` — `Lanes`, `For`, the runner-only sandbox, `Machine`, `Lanes.Bundles`, `readyWaiter` (S8-P3.5) (new)
+- `control-plane/internal/lanegit/bundle.go` — `FetchLane`, `ArchiveLane`, `SendBranch`, `Sent`, the split, `BundleRefused`, `Bundles`, `DirBundles` (S8-P3.4) (new)
 - `control-plane/internal/lanegit/lanegittest/fake.go` — `Fake`, a test-only `Runner` (new)
 - `control-plane/internal/lanegit/lanegittest/validate.go` — the Fake's copy of the runner's
   Validation, held to `testdata/gitrunner/validation` (new)
@@ -577,6 +577,14 @@ type Runner interface {
 // The http.Client follows no redirect (CheckRedirect returns http.ErrUseLastResponse) and its
 // context deadline is the op's runner timeout plus 5 s.
 func NewRunner(endpoint, token string) Runner
+
+// NewRunnerTransport is NewRunner with the http.Client's Transport set to rt (seam S8-P3.5):
+// the request is still POST "http://" + endpoint + backend.GitPath + op with the bearer, and
+// rt carries it, so a machine whose sandboxes are reached through a broker (phase 8's
+// remotebe.DialLane, env task 25b) rewrites it there. nil rt is NewRunner exactly. Every check
+// NewRunner makes (no redirect, the deadline, the decode limits) is unchanged. NewRunner is
+// NewRunnerTransport(endpoint, token, nil).
+func NewRunnerTransport(endpoint, token string, rt http.RoundTripper) Runner
 
 // RunnerError is every failed op. Code is the runner's ErrorResponse.Code; GitSays is capped at
 // gitx.MaxSentence. A runner that does not answer (refused, reset, timed out, a body that is not
@@ -633,6 +641,39 @@ type Lanes struct {
 	// pair it with lanegittest.Backend (below), so For runs its real lookup, pool and release
 	// logic with no HTTP and no Docker.
 	Dial func(endpoint, token string) Runner
+	// LocalBundles is the local machine's bundle store (seam S8-P3.4): main.go sets
+	// DirBundles{Dir: <Hardening.OwnedRoot>/bundles}, the directory this task used before the seam.
+	LocalBundles Bundles
+	// Machines answers the machine a lane is on, by lane.MachineID (task-03.md:68) (seam
+	// S8-P3.5). nil means every lane is on {Backend, Dial, LocalBundles}: phase 3 exactly, and
+	// phase 3 never sets it. For calls it with lane.MachineID; Drop finds the lane with
+	// Store.ByID first. A pool entry remembers the Machine it created on, so the Idle timer and
+	// Drop destroy there. Live reads only the registry, as before.
+	Machines func(ctx context.Context, machineID string) (Machine, error)
+}
+
+// Machine is how the pool reaches the lanes of one machine (seam S8-P3.5, env task 25b).
+type Machine struct {
+	Backend backend.Backend
+	Dial    func(endpoint, token string) Runner // nil means the pool's Dial, then NewRunner
+	Bundles Bundles                             // nil means LocalBundles, on machine "local" only
+}
+
+// Bundles answers the Bundles of the machine lane is on, for the callers of FetchLane,
+// ArchiveLane and SendBranch (tasks 07, 09, 11). Machines nil, or a Machine with nil Bundles
+// on MachineID "local" (or ""): LocalBundles. A nil Bundles on any other machine is
+// ErrNoBundles, so a cloud lane's bundle is never spooled on the laptop's disk.
+func (p *Lanes) Bundles(ctx context.Context, lane lanes.Lane) (Bundles, error)
+
+var ErrNoBundles = errors.New("lanegit: this lane's machine has no bundle store")
+
+// readyWaiter is the pool's readiness seam (S8-P3.5): the method set of phase 8's
+// backend.ReadyWaiter (env task 22), declared here so phase 3 needs nothing phase 8 adds. A
+// Backend that implements it is asked WaitReady(ctx, sb.ID, ReadyTimeout) in step 2; any other
+// is polled with backend.WaitReady(ctx, sb.Endpoint, ReadyTimeout), as before. dockerbe and
+// katabe do not implement it; lanegittest.Backend does (it answers nil at once).
+type readyWaiter interface {
+	WaitReady(ctx context.Context, id string, timeout time.Duration) error
 }
 
 // Drop destroys the lane's runner-only sandbox, if the pool holds one, waiting for any caller
@@ -652,7 +693,10 @@ var ErrLaneDropped = errors.New("lanegit: the lane is being removed")
 func (p *Lanes) Live(ctx context.Context, laneID string) (live bool, lastExit time.Time, err error)
 
 // ErrNoRunner: no live session is on the lane and this backend cannot start a runner-only
-// sandbox (katabe refuses Mounts, backend.go:129-131). Phase 8's machined is that half (P8-D7).
+// sandbox (katabe refuses Mounts, backend.go:129-131). It is decided from Create's answer,
+// errors.Is(err, backend.ErrUnsupported), and wraps it; never from Kind(), because phase 8's
+// remotebe is KindKata and can serve step 2 (seam S8-P3.5). katabe's Create refuses Mounts
+// with ErrUnsupported (katabe/kata.go:84-85), so katabe's answer is the same as before.
 var ErrNoRunner = errors.New("lanegit: no git runner can reach this lane")
 
 // For returns a Runner for lane and a release the caller must call exactly once.
@@ -680,8 +724,13 @@ func (h *HeldSet) Has(sandboxID string) bool
    32 random bytes (crypto/rand) as hex, Resources, WorkDir: "/home/dev/work", Mounts:
    [{HostPath: lane.Path, ContainerPath: "/home/dev/work"}]}` (`Spec` at `backend.go:141-152`;
    `Mounts` is docker only, `:151`). `/home/dev/work` is `sessionWorkDir` and the runner's
-   `-git-worktree` default. Then `backend.WaitReady(ctx, sb.Endpoint, ReadyTimeout)`. The token
-   lives only in the pool's memory. On katabe this step is `ErrNoRunner`.
+   `-git-worktree` default. Then readiness: `WaitReady(ctx, sb.ID, ReadyTimeout)` when the
+   Backend implements `readyWaiter`, else `backend.WaitReady(ctx, sb.Endpoint, ReadyTimeout)`
+   (S8-P3.5). The token lives only in the pool's memory. A `Create` error that `errors.Is`
+   `backend.ErrUnsupported` is `ErrNoRunner` wrapping it (katabe's answer); any other `Create`
+   error is returned as itself. With `Machines` set, `Backend`, `Dial` and `Bundles` in steps 1
+   to 5 are the lane's Machine's, and `Held` is the one set for every machine (ids are
+   `lg-` + 16 random hex, so they do not collide across machines).
 3. **One per lane, reused, then destroyed.** The pool keeps one entry per lane with a count of
    holders; two concurrent `For` calls start one sandbox. The last release starts a timer of
    `Idle` (60 s); a `For` inside it reuses the sandbox, and when it fires the pool calls
@@ -702,10 +751,37 @@ func (h *HeldSet) Has(sandboxID string) bool
    that reached step 2 after `RemoveTree` would leave an orphan directory under `CloneRoot`.
 
 ```go
-// bundle.go — lane work in, product commits out. All three run host git in the PROJECT only, through
-// gitx.Exec, with Scope Project. The bundle file lives in <Hardening.OwnedRoot>/bundles (mode
-// 0700), named <16 random hex>.bundle, created O_EXCL mode 0600, and removed by a defer on
-// every path, success included.
+// bundle.go — lane work in, product commits out. All three run git in the PROJECT only, through
+// the project machine's gitx.Runner (the host's gitx.Exec in phase 3), with Scope Project. The
+// bundle lives in a Bundles (seam S8-P3.4, env R4 ruling 3), on the machine whose git reads
+// it; the local one is DirBundles over <Hardening.OwnedRoot>/bundles, exactly the file this
+// task used before the seam. Each bundle is removed by a defer on every path, success included.
+
+// Bundles is where a lane bundle is spooled. Every id is ^[0-9a-f]{16}$; an id it answers is
+// checked before use, since on a cloud machine it is that machine's claim.
+type Bundles interface {
+	// Put streams r into a new bundle and answers its id. It never reads r ahead into memory.
+	// On any failure it closes r when r is an io.Closer (a relay's *io.PipeReader, so the
+	// runner's Bundle unblocks with io.ErrClosedPipe) and leaves no bundle behind.
+	Put(ctx context.Context, r io.Reader) (string, error)
+	// Reserve answers a new id for a bundle git itself writes at Path(id) (SendBranch).
+	Reserve(ctx context.Context) (string, error)
+	// Open streams bundle id, for the caller to close. Each Open starts at the first byte.
+	Open(ctx context.Context, id string) (io.ReadCloser, error)
+	// Remove deletes bundle id; nil when it is already gone.
+	Remove(ctx context.Context, id string) error
+	// Path is where git on that machine reads or writes bundle id: an argument to a Scope
+	// Project call, never opened by the caller. A malformed id answers "".
+	Path(id string) string
+}
+
+// DirBundles is Bundles on this process's disk: Dir is created mode 0700 on first use; Put and
+// Reserve create <Dir>/<16 random hex>.bundle with O_EXCL, mode 0600 (Reserve's stays empty
+// until git replaces it); Put removes its file on any failure; Open is os.Open; Remove is
+// os.Remove with not-exist as nil; Path is filepath.Join(Dir, id+".bundle").
+type DirBundles struct{ Dir string }
+
+var _ Bundles = DirBundles{}
 
 // BundleRefused is every reason FetchLane will not take a bundle. No ref has moved.
 type BundleRefused struct{ Why string }
@@ -716,8 +792,8 @@ type BundleRefused struct{ Why string }
 // bundle can leave out a ref FetchLane asked for (review r4-4 C-1). Each refspec is
 // +<that ref>:<dst> with dst under refs/panacea/lanes/. It answers the fetched refs,
 // ErrBundleEmpty, a *BundleRefused, or a *gitx.Error from a project call.
-func FetchLane(ctx context.Context, git *gitx.Exec, projectPath string, runner Runner,
-	refs, basis, refspecs []string) (map[string]string, error)
+func FetchLane(ctx context.Context, git gitx.Runner, bundles Bundles, projectPath string,
+	runner Runner, refs, basis, refspecs []string) (map[string]string, error)
 
 // ArchiveLane is task 11's archive of off-branch work (review I6), and FetchLane's only sibling.
 // refs maps each refname to the sha the runner answered for it (Refs, or Head for "HEAD"); each
@@ -727,21 +803,21 @@ func FetchLane(ctx context.Context, git *gitx.Exec, projectPath string, runner R
 // archive lands in the project, so any project-held sha is a valid prerequisite (review r4-3
 // I-1). It answers every dst written, a *BundleRefused, or a *gitx.Error; never
 // ErrBundleEmpty (review r4-4 C-1).
-func ArchiveLane(ctx context.Context, git *gitx.Exec, projectPath string, runner Runner,
-	refs map[string]string, basis []string, prefix string, refspecs []string) (map[string]string, error)
+func ArchiveLane(ctx context.Context, git gitx.Runner, bundles Bundles, projectPath string,
+	runner Runner, refs map[string]string, basis []string, prefix string, refspecs []string) (map[string]string, error)
 
-// Sent is SendBranch's answer (review r4-4 C-1). Bundle carries Carried, the refs the kept
-// basis does not reach. Reached are the others, refname → sha: each an ancestor of a kept basis
-// sha, so a lane holding the basis holds it, and task 09 hands each to Runner.Fetch as a Set.
+// Sent is SendBranch's answer (review r4-4 C-1). The bundle ID carries Carried, the refs the
+// kept basis does not reach. Reached are the others, refname → sha: each an ancestor of a kept
+// basis sha, so a lane holding the basis holds it, and task 09 hands each to Runner.Fetch as a Set.
 type Sent struct {
-	Bundle  *os.File
+	ID      string // in the Bundles SendBranch was given; Open it once per lane (S8-P3.4)
 	Carried []string
 	Reached map[string]string
 }
 
-// SendBranch writes a bundle of refs over basis from the project into OwnedRoot, for task 09's
-// refresh to hand to Runner.Fetch. The caller calls done, which deletes the file.
-func SendBranch(ctx context.Context, git *gitx.Exec, projectPath string,
+// SendBranch writes a bundle of refs over basis from the project into bundles, for task 09's
+// refresh to hand to Runner.Fetch. The caller calls done, which removes the bundle.
+func SendBranch(ctx context.Context, git gitx.Runner, bundles Bundles, projectPath string,
 	refs, basis []string) (sent Sent, done func(), err error)
 ```
 
@@ -761,9 +837,13 @@ tip's parents), ArchiveLane's refs by at most three.
 1. **Arguments.** `refs` (exactly one) and `refspecs` are checked as above, and the ref passes
    `check-ref-format` in the project (Class `Read`). A failure is `*BundleRefused` and the runner
    is not called.
-2. **Spool.** `runner.Bundle` writes through a counting writer into the file. Byte
-   `MaxBundleBytes + 1` stops the copy and is `*BundleRefused{"larger than MaxBundleBytes"}`;
-   the runner's own 413 is the same refusal. `ErrBundleEmpty` returns as itself.
+2. **Spool** (S8-P3.4's relay). `pr, pw := io.Pipe()`; a goroutine runs `runner.Bundle` into
+   a counting writer over `pw` and ends with `pw.CloseWithError(err)`; `id, err :=
+   bundles.Put(ctx, pr)` under one deadline, `BundleTimeout` + 5 s, over both legs; then
+   `defer bundles.Remove(context.WithoutCancel(ctx), id)`. Byte `MaxBundleBytes + 1` stops the
+   copy and is `*BundleRefused{"larger than MaxBundleBytes"}`; the runner's own 413 is the same
+   refusal. `ErrBundleEmpty` returns as itself. Steps 3 to 5 name `bundles.Path(id)`; a Path of
+   "" is `*BundleRefused` before any git. Locally Put is the same O_EXCL file this step wrote.
 3. **`bundle verify <file>`** in the project (Class `Read`). It checks the header and that every
    prerequisite is in the project, so a truncated file or a missing prerequisite fails here.
 4. **`bundle list-heads <file>`** (Class `Read`), parsed as `<sha> SP <refname>` lines. The set of
@@ -817,13 +897,18 @@ what the project lacks:
 The spy row is task 11's (remove), and it sees only project calls here.
 
 **`SendBranch`, in order.** Each call in the project. The split (above): no carried ref is
-`ErrBundleEmpty`. Then `bundle create <file> <carried…> --not <kept…>`, and `Sent{Bundle,
-Carried, Reached}`; a ref the kept basis reaches is never asked of `bundle create`, which would
+`ErrBundleEmpty`. Then `id := bundles.Reserve(ctx)`, `bundle create <bundles.Path(id)>
+<carried…> --not <kept…>` (a Path of "" is an error before any git; any failure removes id),
+and `Sent{ID, Carried, Reached}`; a ref the kept basis reaches is never asked of `bundle create`, which would
 leave it out and so fail the runner's fetch of its refspec (`fatal: couldn't find remote ref`,
 exit 128; r4-4 Probe 1 A). `bundle create` is Class `Local` (2 min, `task-02.md:64`, which equals
 `BundleTimeout`). It writes only the file, but it packs every object it carries, and
 `MaxBundleBytes` is sized for 120 s, not for `Read`'s 10 s (review r4-2 I-2). A file past
-`MaxBundleBytes` is deleted and refused, because the runner's `fetch` would 413 it.
+`MaxBundleBytes` is deleted and refused, because the runner's `fetch` would 413 it. That check
+is `DirBundles.Size(id) (int64, error)`, an `os.Stat`, taken through an optional interface
+`interface{ Size(id string) (int64, error) }`, not a sixth `Bundles` method: a `Bundles` without
+it (phase 8's, env task 25b) is capped by the runner's own 413 at `Fetch` instead, and the
+lane's errs entry names it. Locally the answer is the one this paragraph gave before the seam.
 
 **The Class of each host bundle move.** `bundle create` (SendBranch) and the `fetch`
 (FetchLane, ArchiveLane) are `Local`: each moves up to `MaxBundleBytes`. ArchiveLane's
@@ -851,6 +936,9 @@ project call stays `git_failed`, and a `RunnerError` is `git_failed` 500 as abov
 		Backend: be, Sessions: store, Store: laneStore, Held: laneHeld,
 		Image: cfg.SandboxImage, Resources: cfg.Resources(), ReadyTimeout: cfg.ReadyTimeout,
 		Idle: 60 * time.Second, Log: log,
+		// S8-P3.4: the directory bundle.go used before the seam. hardening is task 04's
+		// gitx.MachineHardening value (task-04.md:225). Machines stays nil: phase 8 sets it.
+		LocalBundles: lanegit.DirBundles{Dir: filepath.Join(hardening.OwnedRoot, "bundles")},
 	}
 	defer laneGit.Close(context.Background()) // destroys every runner-only sandbox it holds
 	gitDeps.LaneGit = laneGit
@@ -922,6 +1010,20 @@ runner):
 | `TestPoolDialSeam` | `Lanes{Dial: fake.Dial, Backend: lanegittest.Backend{}}` → `For` on a sessionless lane answers the Fake, and the Fake saw the pool's endpoint and token; `Dial` nil → the Runner is `NewRunner`'s | a `For` that builds `NewRunner` whatever `Dial` holds |
 | `TestWireMatchesTheGoldens` | the fixtures paragraph above | a field renamed on the host side only |
 
+Seams S8-P3.4 and S8-P3.5 (phase 8's asks; env tasks 21b and 25b consume them). Every row above
+runs with `Machines` nil and `LocalBundles` a `DirBundles`, so it is phase 3's path unchanged.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestFetchLaneSpoolsThroughBundles` | a recording `Bundles` over a `DirBundles`: `TestBundleRoundTrip`'s lane → one `Put`, then `bundle verify`, `list-heads` and `fetch` each name `Path(id)`, then one `Remove(id)`; the refused cases of `TestBundleFetchRefusesABadBundle` → `Remove` too; `Path` answering "" → `*BundleRefused`, no git | a `FetchLane` that still writes `<OwnedRoot>/bundles` itself, the wrong disk for a cloud lane |
+| `TestFetchLaneRelayStreams` | a `Bundles` whose `Put` reads 1 MiB and then blocks until the runner has written 2 MiB → both progress; a `Put` that fails mid-body → the runner's `Bundle` returns `io.ErrClosedPipe`, and no goroutine is left (`runtime.NumGoroutine` before and after, settled; no new dependency) | a spool buffered in memory, or a relay goroutine leaked on a failed `Put` |
+| `TestSendBranchReservesAndCreatesAtPath` | a recording `Bundles`: `Reserve` once, `bundle create`'s first path argument is `Path(id)`, `Sent.ID == id`; `done()` → `Remove(id)`; two `Open(id)` calls each read the whole bundle; a `Bundles` without `Size` → no size refusal, and one with it past `MaxBundleBytes` → refused and removed | `Sent` holding a laptop `*os.File`, or a second lane of task 09's group reading an exhausted stream |
+| `TestDirBundlesIDsAndModes` | `Put` and `Reserve` answer `^[0-9a-f]{16}$`, files mode 0600 in a 0700 `Dir` (Unix only), O_EXCL; `Remove` of a gone id → nil; `Path("../x") == ""` | an id that lands outside `Dir` |
+| `TestPoolReachesTheLanesMachine` | `Machines` answers two `lanegittest.Backend`s for `m-1` and `m-2` → each lane's `Create`, `Get`, `Destroy` (after `Idle`, and on `Drop`) go to its own; `Bundles(lane)` answers each machine's; a nil `Bundles` on `m-1` → `ErrNoBundles`, on `local` → `LocalBundles` | lane work sent to another machine, a runner destroyed on the wrong one, or a cloud bundle spooled on the laptop |
+| `TestPoolAsksAReadyWaiter` | a Backend that implements `readyWaiter` and answers `Endpoint "remote:lg-…"` → `WaitReady(ctx, sb.ID, ReadyTimeout)` once, and no HTTP request reaches any listener (a counting `httptest` server as the only one); a Backend without it → `backend.WaitReady` on the endpoint, as before | a `/healthz` poll of an endpoint nothing can dial |
+| `TestPoolNoRunnerIsFromCreate` | a Backend with `Kind() KindKata` whose `Create` succeeds → a runner-only sandbox; one whose `Create` answers an error wrapping `ErrUnsupported` → `errors.Is(err, ErrNoRunner)` and `errors.Is(err, backend.ErrUnsupported)`; any other `Create` error → itself, not `ErrNoRunner` | `ErrNoRunner` decided from `Kind()`, which refuses phase 8's remotebe |
+| `TestNewRunnerTransportCarriesTheRequest` | a recording `RoundTripper` → `POST http://<endpoint>/git/v1/status`, `Authorization: Bearer <token>`, the body `NewRunner` sends; a 302 answer is not followed; `rt` nil → the same as `NewRunner` against an `httptest` server | a transport that bypasses `NewRunner`'s checks |
+
 "A corrupt blob caught by fsck" is built as a commit whose author has no email (fsck's
 `missingEmail`, an error), carried in a hand-made bundle. Fsck never reads a blob's bytes (bar
 `.gitmodules`), and a blob whose bytes do not match its id fails `index-pack` with fsck off, so
@@ -976,11 +1078,25 @@ Real host git, no `gitx`. Each records git's exact words in a comment, as task 0
 - [ ] **Step 6: lanegit, green.** `wire.go`, `client.go`, `pool.go`, `bundle.go`,
   `lanegittest`; `backend.GitPath`; `reaper.Config.Held` and `reaperConfigFor`; the `main.go`
   block. `go test ./control-plane/... -race`.
+- [ ] **Step 6a: Mutants for S8-P3.4 and S8-P3.5**, on a `$TEMP` copy, each verified applied:
+  `FetchLane` writes its own file under `OwnedRoot` → `TestFetchLaneSpoolsThroughBundles` red;
+  `Put` reads into a `bytes.Buffer` first → `TestFetchLaneRelayStreams` red; step 2 on
+  `Kind() == KindKata` → `TestPoolNoRunnerIsFromCreate` red; step 2 ignores `readyWaiter` →
+  `TestPoolAsksAReadyWaiter` red; `For` uses `p.Backend` whatever `Machines` answers →
+  `TestPoolReachesTheLanesMachine` red. Likeliest to survive: the `Machines` one, since every
+  other row runs with `Machines` nil.
 - [ ] **Step 7: The spy test, last.** Red with each planted mutant, green without.
 - [ ] **Step 8: Commit by pathspec**, the files listed in both halves.
 
 #### What this task does not claim
 
+- **A cloud machine's lanes.** Seams S8-P3.4 (`Bundles`) and S8-P3.5 (`Machine`,
+  `Lanes.Machines`, `readyWaiter`, `NewRunnerTransport`) are built and tested here only with
+  local and fake implementations. That phase 8's `machines.Bundles`, `remotebe.DialLane` and
+  `laneGit.Machines` satisfy them is env task 25b's claim, UNVERIFIED here; phase 3 never sets
+  `Machines`. A cloud `FetchLane`'s `fetch` also needs `machined` to admit its
+  `transfer.fsckObjects` `Call.Env` (step 5), which env task 21's allowlist does not list
+  (seam S8-P3.3, UNVERIFIED on the env side until it answers).
 - **The Kata runner.** On katabe a sessionless lane is `ErrNoRunner`. Phase 8's `machined`
   serves the runner in the machine pod, against the contract above (S3-P8.1), not P8-D7's
   "phase 3's local git runner unchanged, with §HGH", which phase 3 no longer builds.
