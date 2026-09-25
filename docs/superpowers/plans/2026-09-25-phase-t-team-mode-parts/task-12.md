@@ -55,7 +55,7 @@ proposed `hubclient.Team.Principal` method and the tests run on a fake `Membersh
 
 **Files:**
 - `control-plane/cmd/fleetd/config.go` — `Config`, `loadConfig`, the variable table (new)
-- `control-plane/cmd/fleetd/config_test.go` — one test per variable rule (new)
+- `control-plane/cmd/fleetd/config_test.go`, `token_test.go` — one test per variable rule; the token source's cache, rotation and error hygiene (new)
 - `control-plane/cmd/fleetd/main.go` — wiring, the loops, graceful shutdown (new)
 - `control-plane/cmd/fleetd/token.go` — the workload-identity `hubclient.TokenSource` (new; not in the skeleton's file map, which lists only `main.go` and `config.go` — the Hub's token source has to live somewhere, and `main.go` is the wrong place to test it)
 - `control-plane/internal/fleet/server/server.go` — `Server`, `Deps`, `New`, the mux, `/healthz`, `/readyz`, `Route` (new)
@@ -1014,3 +1014,200 @@ func level(s string) slog.Level {
 
 `principal_not_found` is the code the proposed Hub read answers for a `(tid, oid)` it has never
 provisioned; it is part of the gap, and task 08's conformance row for the route pins it.
+
+- [ ] **Step 1: Write the failing tests**
+
+Package-internal tests throughout. `server` tests use a `fakeValidator` (returns fixed
+`entra.Claims`, or an error wrapping one of `entra`'s sentinels), a `fakeMembers` (a map, plus a
+call counter and an injectable error), and `fakePinger`s. `singleton_test.go` needs a real
+Postgres: it reads `PANACEA_APP_FLEET_TEST_PG_DSN`, the variable task 10's `pgstore` tests use, and
+`t.Skip`s without it, printing that it skipped — **a skip is not a pass**, and step 5 runs it with
+the DSN set.
+
+| File · test | What it proves | The mutant it kills |
+|---|---|---|
+| config · `TestEveryRequiredVariableIsNamedWhenMissing` | empty env → one error naming each of the nine required variables | a required variable given a silent default |
+| config · `TestMembershipTTLOverSixtyFailsStart` | `61s` → an error beginning `PANACEA_APP_FLEET_MEMBERSHIP_TTL` | a clamp instead of a refusal |
+| config · `TestHTTPIsRefusedUnlessDevInsecure` | `http://hub` → error; with `DEV_INSECURE=1` → accepted | the scheme check dropped |
+| config · `TestAPasswordInTheDSNIsRefused` | `postgres://u:p@h/db` and `host=h password=p` → both refused; with `DEV_INSECURE=1` → accepted | only one DSN form checked |
+| config · `TestRunExitsTwoBeforeListening` | `run` with an empty env returns 2 and `net.Listen` on the default addr still succeeds | a config error logged and start continued |
+| token · `TestTheAssertionIsReReadOnEveryFetch` | rotate the file between two fetches (after `Invalidate`): the second form carries the new assertion | the assertion read once at start, which fails an hour later |
+| token · `TestATokenIsReusedUntilFiveMinutesBeforeExpiry` | `expires_in: 3600`: fetches at 0 and 54 min → one POST; at 56 min → two | no cache (a token request per Hub call) or no margin |
+| token · `TestTheAssertionNeverAppearsInAnError` | the endpoint answers 400 echoing the form; `err.Error()` does not contain the assertion | an error that quotes the response body |
+| authz · `TestEveryVerbHasARow` | every `Verb` constant (listed in the test) is a key of `table` | a new verb refused for everyone by omission |
+| authz · `TestTheTableIsSection34` | below: 12 verbs × 7 principals, each cell `(ok, ownOnly)` | any cell of §3.4 flipped |
+| authz · `TestAViewersLaunchIs403` | a viewer's `POST` to a route registered with `VerbLaunch` → 403 `forbidden`, `details.required = "sessions.launch"`, and the handler never ran | `Route` registering the bare handler |
+| authz · `TestATokenForAnotherAudienceIs401` | the validator returns `entra.ErrAudience` → 401 from `entra.Middleware`, the handler never ran, `fakeMembers` never called | a route mounted on the root mux, outside `Middleware` |
+| authz · `TestMembershipIsCachedAtMostSixtySeconds` | lookups at 0 s and 59 s → one Hub call; at 60 s → two; `NewMembershipCache(…, 5*time.Minute, …)` still expires at 60 s | a TTL above the §2.4 bound |
+| authz · `TestMembershipErrorsAreNotCached` | an error, then a success 1 s later → two calls | a Hub blip cached as a refusal |
+| authz · `TestHubDownIs503NotForbidden` | lookup error → 503 `upstream_unavailable`, `details.upstream = "hub"` | a lookup failure answered as "not a member", which tells a member they were removed |
+| authz · `TestTheOrgInThePathMustBeTheCallers` | `GET /v1/orgs/{org}/…` with another org → 403 `required: "org"` | an org admin of org A reading org B's policy |
+| server · `TestHealthzNeedsNoTokenAndNothingElseDoes` | `/healthz` 200 with no token; `/readyz` 503 or 200 with no token; `GET /nope` with no token → 401 | the probes behind Entra, or unknown routes outside it |
+| server · `TestReadyzNamesTheFailingDependency` | Postgres down → `postgres`; Hub down → `hub`; both up, no `MarkRebuilt` → `rebuild`; then 200 | ready before the first rebuild, when the cache is empty and every delegated write would fail |
+| server · `TestARouteWithAnUnknownVerbPanicsAtStart` | `Route("GET /x", "made.up", h)` panics | a route silently refused in production |
+| singleton · `TestTwoReplicasRunOneFeedConsumer` | below | a transaction-level lock, or a lock taken on a pooled connection that goes back to the pool |
+| singleton · `TestLosingTheConnectionHandsOver` | `pg_terminate_backend` of the holder's pid: the holder's loop context is cancelled within `check`, and the other replica acquires within `retry + check` | no watchdog: the old holder runs on without the lock |
+
+The matrix, complete, because it *is* §3.4 and a reviewer should be able to hold the two side by
+side. `own` is the second value; `-` is refused.
+
+```go
+func TestTheTableIsSection34(t *testing.T) {
+	type cell struct{ ok, own bool }
+	Y, O, N := cell{true, false}, cell{true, true}, cell{false, false}
+	principals := []struct {
+		name string
+		p    Principal
+	}{
+		{"viewer", Principal{Member: Member{UserID: "us-v", Role: hubapi.RoleViewer}}},
+		{"member", Principal{Member: Member{UserID: "us-m", Role: hubapi.RoleMember}}},
+		{"admin", Principal{Member: Member{UserID: "us-a", Role: hubapi.RoleAdmin}}},
+		{"auditor", Principal{Member: Member{UserID: "us-au", Auditor: true}}},
+		{"compliance", Principal{Member: Member{UserID: "us-c", Compliance: true}}},
+		{"orgadmin", Principal{Member: Member{UserID: "us-o", OrgAdmin: true}}},
+		{"nobody", Principal{Member: Member{UserID: "us-n"}}},
+	}
+	//                          viewer member admin auditor compliance orgadmin nobody
+	want := map[Verb][7]cell{
+		VerbTeamRead:      {Y, Y, Y, Y, N, N, N},
+		VerbLaunch:        {N, O, O, N, N, N, N},
+		VerbSessionsOwn:   {N, O, O, N, N, N, N},
+		VerbThreadRead:    {N, O, O, Y, N, N, N},
+		VerbPrivateRead:   {N, O, O, Y, N, N, N},
+		VerbNoteWrite:     {N, Y, Y, N, N, N, N},
+		VerbTeamPolicy:    {N, N, Y, N, N, N, N},
+		VerbRouteRaise:    {N, Y, Y, N, N, N, N},
+		VerbRouteLower:    {N, N, N, N, Y, N, N},
+		VerbLeaseForce:    {N, N, Y, N, N, N, N},
+		VerbOrgPolicy:     {N, N, N, N, N, Y, N},
+		VerbProjectPolicy: {N, N, Y, N, N, N, N},
+	}
+	if len(want) != len(table) {
+		t.Fatalf("table has %d verbs, the test %d: a verb was added without its §3.4 row", len(table), len(want))
+	}
+	for v, row := range want {
+		for i, pr := range principals {
+			ok, own := Allowed(v, pr.p)
+			if got := (cell{ok, own}); got != row[i] {
+				t.Errorf("Allowed(%s, %s) = %+v; §3.4 says %+v", v, pr.name, got, row[i])
+			}
+		}
+	}
+	// An auditor who is also a member reads every thread, not only their own.
+	both := Principal{Member: Member{UserID: "us-b", Role: hubapi.RoleMember, Auditor: true}}
+	if ok, own := Allowed(VerbThreadRead, both); !ok || own {
+		t.Errorf("auditor+member on threads.read = (%v, %v); want (true, false)", ok, own)
+	}
+	// A principal the Hub has never provisioned holds nothing, whatever else is set.
+	if ok, _ := Allowed(VerbTeamRead, Principal{Member: Member{Role: hubapi.RoleAdmin}}); ok {
+		t.Error("a principal with no Hub user id was allowed")
+	}
+}
+```
+
+Where §3.4 says "within floors" (team policy) or "audited" (lowering the route, releasing a stale
+lease), the table grants the verb and the handler (tasks 43, 56, 35) owes the floor check or the
+audit event; the matrix cannot see either, and does not pretend to.
+
+The two-replica test, complete:
+
+```go
+func TestTwoReplicasRunOneFeedConsumer(t *testing.T) {
+	dsn := os.Getenv("PANACEA_APP_FLEET_TEST_PG_DSN")
+	if dsn == "" {
+		t.Skip("PANACEA_APP_FLEET_TEST_PG_DSN unset: the advisory lock needs a real Postgres")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	var running, maxRunning, runs atomic.Int32
+	loop := func(c context.Context) error {
+		n := running.Add(1)
+		defer running.Add(-1)
+		for m := maxRunning.Load(); n > m && !maxRunning.CompareAndSwap(m, n); m = maxRunning.Load() {
+		}
+		runs.Add(1)
+		<-c.Done()
+		return nil
+	}
+	var singles []*Singleton
+	for i := 0; i < 2; i++ { // two pools: two replicas, never one pool shared
+		pool, err := pgxpool.New(ctx, dsn)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer pool.Close()
+		s := NewSingleton(pool, "feed-test-"+t.Name(), slog.New(slog.NewTextHandler(io.Discard, nil)))
+		s.retry, s.check = 100*time.Millisecond, 100*time.Millisecond
+		singles = append(singles, s)
+		go func() { _ = s.Run(ctx, nil, loop) }()
+	}
+	deadline := time.Now().Add(3 * time.Second)
+	for runs.Load() == 0 && time.Now().Before(deadline) {
+		time.Sleep(20 * time.Millisecond)
+	}
+	time.Sleep(1 * time.Second) // ten retry periods for the second to (wrongly) get in
+	if got := maxRunning.Load(); got != 1 {
+		t.Fatalf("%d loops ran at once across two replicas; want exactly 1", got)
+	}
+	if singles[0].Held() == singles[1].Held() {
+		t.Fatalf("Held() = %v, %v; exactly one replica must hold the lock", singles[0].Held(), singles[1].Held())
+	}
+}
+```
+
+This is the one test in the task that sleeps, and it sleeps on a real database's lock, which has no
+fake clock; the lock name carries `t.Name()` so a parallel run of another test cannot collide.
+
+Run: `cd control-plane && go test ./cmd/fleetd/ ./internal/fleet/server/ -count=1`. Expected
+before step 2: compile failures naming `loadConfig`, `newAssertionSource`, `New`, `Allowed`,
+`NewSingleton`.
+
+- [ ] **Step 2: Write `server.go`, `authz.go`, `singleton.go`** as above. Run
+  `go test ./internal/fleet/server/ -count=1`. Expected: `ok`, with `TestTwoReplicasRunOneFeedConsumer`
+  and `TestLosingTheConnectionHandsOver` reported as skipped when the DSN is unset (`-v` shows
+  `--- SKIP`). Commit: `feat(fleet): fleetd's server: Entra per request, §3.4 as data, singletons`.
+
+- [ ] **Step 3: Write `config.go` and `token.go`** as above. Run `go test ./cmd/fleetd/ -run
+  'Config|Token|RunExits' -count=1`. Expected: `ok`. Commit:
+  `feat(fleetd): config read once, the workload-identity token source`.
+
+- [ ] **Step 4: Write `main.go`** as above. It compiles only once tasks 10 and 11 are merged
+  (`pgstore`, `outbox`, `delegation`) and task 08's `hubclient.Team` carries `Principal`; if task
+  08 has not added `Principal` yet, stop here and raise the gap rather than stub it. Run `go build
+  ./cmd/fleetd/`. Expected: no output. Commit: `feat(fleetd): wiring, the feed reader, the outbox
+  and feed singletons`.
+
+- [ ] **Step 5: Acceptance**
+
+```
+cd control-plane
+go vet ./cmd/fleetd/ ./internal/fleet/server/
+PANACEA_APP_FLEET_TEST_PG_DSN="$PANACEA_APP_FLEET_TEST_PG_DSN" go test ./cmd/fleetd/ ./internal/fleet/server/ -count=1 -race -v 2>&1 | grep -E "^(--- FAIL|--- SKIP|ok|FAIL)"
+grep -rn "os.Getenv\|os.LookupEnv" cmd/fleetd internal/fleet | grep -v _test.go
+env -i PATH="$PATH" go run ./cmd/fleetd; echo "exit=$?"
+```
+
+Expected: `go vet` silent; two `ok` lines and **no** `--- SKIP` (the DSN is set: the offline
+stack's Postgres, or task 10's test database); the `grep` prints exactly one line, `main.go`'s
+`os.Getenv` passed to `run`; the last command prints `fleetd: configuration:` and nine errors,
+one per line, each beginning with the variable it names, then `exit=2`.
+
+The two-replica property on the real cluster (two pods, one outbox loop, a pod kill hands over) is
+**deferred to task 33**, which runs it; this task proves it on one database with two pools.
+
+**What this task does not claim.**
+- The Hub read that resolves a principal's role does not exist yet (task 01's table has no such
+  route). Until tasks 01 and 08 add it, `fleetd` cannot authorise a real request: the unit tests
+  pass on a fake `Membership`, and `main.go` does not build. This is the task's largest gap.
+- *auditor* and *compliance* are carried as flags but always false until task 43 makes them Hub
+  roles. A route that grants a verb only to them is unreachable until then, which is the safe
+  direction.
+- No route but the probes exists after this task; each later task adds its own through `Route`,
+  and each joins the Z5 matrix there (global constraints).
+- The `Revoker` fan-out is empty here, so a revocation or a lapse is logged and acted on by
+  nothing until tasks 20, 23 and 39 add their effects. The 60-second property is task 11's to
+  prove at the `Revoker` boundary and task 44's to prove end to end.
+- It does not rate-limit, and it does not set a body limit: per-route body limits are the routes'
+  (phase 2's `httpx` decode, 1 MiB), and a Fleet rate limit is not in the design.
+- Which Azure Postgres token flow authenticates Fleet's DSN is **UNVERIFIED** (task 10, task 32).
+
