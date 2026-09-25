@@ -927,3 +927,45 @@ npm --prefix desktop run typecheck
 
 The implementer reports the numbers the run prints; the plan's counts are not the evidence.
 
+#### What this task does not claim
+
+- **Not that the types match a running Hub.** The golden vectors are task 02's (the skeleton's file
+  map, `:237`; the scope says task 03's) and carry one revision's content, so they pin
+  `IssueRevisionContent`, `AuthoredText` and `Serve` and nothing else. `IssueHead`, `IssueComment`
+  and the rest are written from task 03's Go source and checked by the compiler only; task 17's
+  end-to-end run is where a drift would show.
+- **Not the query parameter names** (**UNVERIFIED**, see part 3), nor that `import.meta.glob`
+  reaches outside `desktop/` without step 2's config line (**UNVERIFIED**).
+- **Not the replica** (SW.16, tasks 55-58): no Hub record is held, cached or refreshed here.
+- **Not any rendered surface.** Tasks 38-48 draw the lens; `"work"` renders nothing until task 38.
+- **Not what a surface says for each `WorkProblem` kind.** The words are the surfaces' (tasks 47,
+  48 and 56).
+- **Not W2-W5's routes.** SW.2 grows by added interfaces (`task-04.md:162-164`); each later phase
+  appends rows to `WORK_RELAY` and methods to `WorkClient`, and test 3's table with them.
+- Design: 05 §4.1 (Work is a lens, not a tab), §3.1 (the desktop keeps no Hub data);
+  `ADR-H1:467-474`. Parity: with tasks 55-58 it serves **L-228** (the in-memory replica); it closes
+  no row alone.
+
+**Interfaces:**
+- Produces (seam **SW.15**, completed), from `desktop/src/api/work.ts`:
+  - the records: `IssueState` (+ `ISSUE_STATES`), `Priority`, `RelationKind`, `NotTiedReason`,
+    `IssueSource`, `SubscriptionCause`, `MoveCause`, `Proof`, `Digest`, `User`, `AuthoredText`,
+    `Serve` (= `ServesEntry`), `IssueRevisionContent`, `ThreadState`, `Relation`, `ExternalRef`,
+    `IssueHead`, `IssueRevision`, `IssueWithRevision`, `ProjectKey`, `Label`, `TeamPolicy`,
+    `CommentAnchor`, `Reaction`, `IssueComment`, `Subscription`, `IssueRef`, `ImportResult`,
+    `IssueAttachment`, `WorkEraseResponse`, `Page<T>`, `PageRequest`
+  - the requests: `CreateIssueRequest`, `PatchIssueRequest`, `WriteIssueRevisionRequest`,
+    `StateMove`, `RelationRequest`, `CreateLabelRequest`, `PutTeamPolicyRequest`,
+    `CreateCommentRequest`, `ImportItem`, `ImportBatch`, `IssueQuery`, `IssueSearchQuery`
+  - the local wire: `StartRequest`, `StartResult` (SW.10), `UndoStartResult`,
+    `DiscardStartResult`, `ImportRequest`, `ImportRefusal`, `ImportPreview`, `ImportOutcome`
+  - `WORK_RELAY`, `WORK_LOCAL`, `relayPath`, `Verb`, `WorkSend`, `makeWorkClient`, `WorkClient`
+    (35 methods), `WorkProblem`, `workProblem(e)`, `WIRE_KEYS`
+  - `api.work` on the app's one client (`CockpitClient.work`)
+  - `store/slices/workSlice.ts`: `WorkView`, `WorkSlice` (`work`, `openWork`, `openIssue`,
+    `select`, `moveCursor`), `WorkState`, `initialWorkState`, `createWorkSlice`
+  - `Lens` gains `"work"`; `LENSES` stays six
+- Consumes: task 03's JSON names (SW.1), task 16's route table (SW.2), task 24's start wire
+  (SW.10), task 25's import wire, task 02's golden vectors, task 20's fixtures, task 28's
+  `IssueState` (type test only); the built `send`, `parseJson`, `ApiError`, `toProblem`.
+- Amends: nothing in the Hub. Task 20's `workFixtures.ts` types become re-exports.
