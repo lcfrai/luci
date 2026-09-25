@@ -407,3 +407,192 @@ renders the defaults and the gateway fragment and stores that as version 1 with 
 `CreatedBy` `""`, so every agent start carries a real `{version, digest}` and the Hub never sees a
 zero. `""` is allowed by task 10's `created_by text NOT NULL`; it means *the product's minimal
 default*, and the GET route shows it that way.
+
+#### Fleet's four routes — complete wire
+
+`{org}` is the caller's org (task 12's `authorize` refuses another); `{p}` is a `pj-…` the caller
+is team *admin* of. The body of a `POST` is task 13's envelope itself, at most 64 KiB.
+
+```jsonc
+// POST /v1/orgs/{org}/policy            VerbOrgPolicy (org admin)
+// POST /v1/projects/{p}/policy          VerbProjectPolicy (team admin)
+{ "v": 1, "all": { "permissions": { "deny": [ "Bash(curl *)" ] } }, "worker": { … } }
+// 201 created, or 200 when the canonical bytes equal the scope's newest version
+{ "id": "pv-3f2a91c07b1e4d2a", "scope": "org" | "project", "projectId": null | "pj-…",
+  "seq": 4, "digest": "sha256:…", "state": "pending" | "active",
+  "author": "us-…", "createdAt": "…", "activatedAt": null | "…",
+  "audit": { "method": "POST", "path": "/v1/orgs/{orgId}/policy-versions",
+             "body": { "id": "pv-…", "projectId": null, "seq": 4, "digest": "sha256:…" } } }
+// 422 — Render refused it; nothing was written
+{ "error": "policy_refused", "message": "project layer breaks I10 for the worker class: …",
+  "details": { "invariant": "I10", "class": "worker", "scope": "project", "project": "pj-…" } }
+// 422 — not the envelope (task 13's ErrLayer)
+{ "error": "policy_refused", "message": "policy: layer refused: unknown section \"workers\" …",
+  "details": { "invariant": "layer" } }
+// 409 — two admins posted at once; the loser retries
+{ "error": "conflict", "message": "Another version was written at the same moment. Try again." }
+
+// GET /v1/orgs/{org}/policy             VerbOrgPolicy
+// GET /v1/projects/{p}/policy           VerbProjectPolicy
+{ "items": [ { …the POST answer without "audit", plus "doc": { …the envelope… } } ],  // newest first, at most 20
+  "current": "pv-…" | null }                                                         // newest active
+```
+
+`audit` tells the admin's client exactly what to send to the Hub next (step 2 of the order
+above), so the client does not re-derive it. It is instructions, not a record.
+`TestRefusalIsNamedPerInvariant` pins that `details.invariant` is task 13's id and never a
+message string, because the admin's client shows the invariant's name.
+
+`control-plane/internal/fleet/server/policy.go`, complete:
+
+```go
+package server
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"io"
+	"log/slog"
+	"net/http"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/fleet/delegation"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/fleet/model"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/fleet/store"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubapi"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/httpx"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/policy"
+)
+
+const CodePolicyRefused = "policy_refused" // 422
+
+// RegisterPolicy adds OD-23's four routes and the feed consumer that
+// activates a version once the Hub has audited it.
+func RegisterPolicy(s *Server, pol *policy.Store, feed *delegation.Feed) {
+	s.Route("GET /v1/orgs/{org}/policy", VerbOrgPolicy, func(w http.ResponseWriter, r *http.Request, p Principal) {
+		listPolicy(w, r, pol, p.OrgID, "")
+	})
+	s.Route("POST /v1/orgs/{org}/policy", VerbOrgPolicy, func(w http.ResponseWriter, r *http.Request, p Principal) {
+		putPolicy(w, r, s.log, pol, p, "")
+	})
+	s.Route("GET /v1/projects/{p}/policy", VerbProjectPolicy, func(w http.ResponseWriter, r *http.Request, p Principal) {
+		listPolicy(w, r, pol, p.OrgID, p.ProjectID)
+	})
+	s.Route("POST /v1/projects/{p}/policy", VerbProjectPolicy, func(w http.ResponseWriter, r *http.Request, p Principal) {
+		putPolicy(w, r, s.log, pol, p, p.ProjectID)
+	})
+	feed.Also(func(ctx context.Context, ev hubapi.Event) error { return activateOn(ctx, s.log, pol, ev) })
+}
+
+func putPolicy(w http.ResponseWriter, r *http.Request, log *slog.Logger, pol *policy.Store, p Principal, project string) {
+	doc, err := io.ReadAll(http.MaxBytesReader(w, r.Body, policy.MaxLayerBytes+1))
+	if err != nil || len(doc) > policy.MaxLayerBytes {
+		httpx.WriteProblem(w, http.StatusRequestEntityTooLarge, CodePolicyRefused,
+			"A policy layer is at most 64 KiB.", map[string]string{"invariant": "layer"})
+		return
+	}
+	l, created, err := pol.Put(r.Context(), p.OrgID, project, model.Owner(p.UserID), doc)
+	var re *policy.RefusedError
+	var ie *policy.InvariantError
+	switch {
+	case errors.As(err, &re) && errors.As(err, &ie): // Put wraps every refusal in a RefusedError
+		httpx.WriteProblem(w, http.StatusUnprocessableEntity, CodePolicyRefused, err.Error(), map[string]string{
+			"invariant": ie.Invariant, "class": string(ie.Class), "scope": string(ie.Scope), "project": re.Project})
+		return
+	case errors.As(err, &re): // ErrLayer: the envelope itself
+		httpx.WriteProblem(w, http.StatusUnprocessableEntity, CodePolicyRefused, err.Error(),
+			map[string]string{"invariant": "layer"})
+		return
+	case errors.Is(err, store.ErrConflict):
+		httpx.WriteProblem(w, http.StatusConflict, "conflict",
+			"Another version was written at the same moment. Try again.", nil)
+		return
+	case err != nil:
+		log.Error("policy put", "err", err)
+		httpx.WriteProblem(w, http.StatusInternalServerError, httpx.CodeInternal, "Something went wrong.", nil)
+		return
+	}
+	status := http.StatusOK
+	if created {
+		status = http.StatusCreated
+	}
+	out := view(l, false)
+	out["audit"] = map[string]any{"method": "POST", "path": "/v1/orgs/{orgId}/policy-versions",
+		"body": map[string]any{"id": l.ID, "projectId": nullable(l.Project), "seq": l.Seq, "digest": l.Digest}}
+	writeJSON(w, status, out)
+}
+
+func listPolicy(w http.ResponseWriter, r *http.Request, pol *policy.Store, org, project string) {
+	ls, err := pol.List(r.Context(), org, project)
+	if err != nil {
+		httpx.WriteProblem(w, http.StatusInternalServerError, httpx.CodeInternal, "Something went wrong.", nil)
+		return
+	}
+	items, current := []map[string]any{}, any(nil)
+	for i, l := range ls {
+		if i < 20 {
+			items = append(items, view(l, true))
+		}
+		if current == nil && !l.ActivatedAt.IsZero() {
+			current = l.ID
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": items, "current": current})
+}
+
+// activateOn is the feed consumer. Only a store failure is returned (so the
+// page is re-read); a refusal is logged and dropped, or the feed would stall.
+func activateOn(ctx context.Context, log *slog.Logger, pol *policy.Store, ev hubapi.Event) error {
+	if ev.Kind != "policy.versioned" {
+		return nil
+	}
+	org, _ := ev.Data["orgId"].(string)
+	project, _ := ev.Data["projectId"].(string) // absent or null for the org scope
+	digest, _ := ev.Data["digest"].(string)
+	err := pol.Activate(ctx, org, project, ev.Subject, digest)
+	var re *policy.RefusedError
+	switch {
+	case err == nil:
+		log.Info("policy version active", "id", ev.Subject, "org", org, "project", project)
+		return nil
+	case errors.Is(err, policy.ErrNotPending), errors.Is(err, policy.ErrDigestMismatch), errors.As(err, &re):
+		log.Warn("policy version not activated", "id", ev.Subject, "err", err)
+		return nil
+	}
+	return err
+}
+
+func view(l store.PolicyLayer, withDoc bool) map[string]any {
+	scope, state, activated := "org", "pending", any(nil)
+	if l.Project != "" {
+		scope = "project"
+	}
+	if !l.ActivatedAt.IsZero() {
+		state, activated = "active", l.ActivatedAt.UTC().Format("2006-01-02T15:04:05.000Z")
+	}
+	v := map[string]any{"id": l.ID, "scope": scope, "projectId": nullable(l.Project), "seq": l.Seq,
+		"digest": l.Digest, "state": state, "author": string(l.Author),
+		"createdAt": l.CreatedAt.UTC().Format("2006-01-02T15:04:05.000Z"), "activatedAt": activated}
+	if withDoc {
+		v["doc"] = json.RawMessage(l.Doc)
+	}
+	return v
+}
+
+func nullable(s string) any {
+	if s == "" {
+		return nil
+	}
+	return s
+}
+
+func writeJSON(w http.ResponseWriter, status int, v any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(v)
+}
+```
+
+The first case sets both targets: `re` for the project the layer was rendered against, `ie`
+(reached through `RefusedError.Unwrap`) for the invariant. An `ErrLayer` refusal matches only the
+second case.
