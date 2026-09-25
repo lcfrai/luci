@@ -540,3 +540,71 @@ does **not** claim a frame budget met: the numbers are recorded, **UNVERIFIED** 
 owner accepts them. Design: 05 §4.4 work rule 6, C13 (grain is one of the five marks on dark; `paper`
 carries the thread gutter instead); 02 C13; 07 D M6. Parity: no 01 row.
 
+**36 — the thread primitives: node, line, lit, trace.** Stream WD1, defines seam **SW.14**, 3 h.
+Depends on 29 (`MarkGlyph kind="thread_node"`) and 30. Files: new
+`desktop/src/components/thread/ThreadNode.tsx`, `ThreadLine.tsx`, `ThreadTrace.tsx`, `useThreadLit.ts`,
+`thread.css` and tests; ⚑ `tokens.css` gains `--thread-lit` (the prototype's value,
+`prototype/work-layer.html:28`, rewritten in OKLCH) and raises `paper`'s `--thread` to full strength,
+because on `paper` the thread gutter is the fifth mark in place of grain (05 §4.4 C13; `tokens.css`
+is not listed for this task in the skeleton's file map); ⚑ `forced-colors.css` gains the thread
+rules, since task 34's audit fails on a new ring without them. **SW.14, complete:** `export function
+ThreadNode(props: { criterionId: string; href: string; label: string }): JSX.Element | null`: the 5px
+ring, a link to its source span, `null` when `href` is empty, because a thread without a source is
+deleted (02 C2; AX Principle 7); `export function ThreadLine(props: { criterionId: string; children:
+ReactNode }): JSX.Element`: the 1px hairline in the leading gutter from which a group's rows hang
+(05 §4.1); `export function ThreadTrace(props: { play: boolean; children: ReactNode }): JSX.Element`:
+on drill-in the line grows from source to target with `transform: scaleY(0 → 1)`,
+`transform-origin: top`, `--dur-slow`, `--ease` (motion that explains *this came from that*), and
+appears at once under reduced motion; `export function useThreadLit(criterionId: string | null): {
+lit: boolean; bind: { onPointerEnter(): void; onPointerLeave(): void; onFocus(): void; onBlur(): void
+} }`, backed by one module-level store (`useSyncExternalStore`), so hovering **or focusing** a
+criterion lights its node and line in every mounted surface at once, Work, Design and Develop.
+**Lit is not selected** (05 §4.1, 07 D I1): lit brightens only the node and the line; it never rings
+a row and never sets `aria-selected`. **Tests first:** `it("renders no node without a source")`
+(kills a sourceless node); `it("makes the node a named link to its span")` (kills a decorative
+node); `it("lights every node of a criterion across two trees")` (kills lit scoped to one lens);
+`it("lights on focus as well as hover")` (kills a pointer-only thread); `it("never marks a lit row
+selected")` (kills lit equal to selected); `it("traces with transform only, and not when motion is
+reduced")` (kills animating `height`, and motion under `data-motion="reduce"`); `it("draws the node
+as a 5px ring")` (kills a disc); `it("gives paper's thread full strength")` (kills paper at graphite's
+alpha); the forced-colors audit from task 34 passes. **Acceptance:** `npm --prefix desktop test --
+thread designsystem tokens` passes. It does **not** claim that any surface carries the thread yet
+(tasks 40, 47, 67, 85 place it), Design's frames (phase 5), or that it reads as the signature: the
+owner judges at task 39. Design: 05 §2.3, §4.1 (lit is not selected), §4.4 C2 and C13, §4.5 rule
+4; 02 C2. Parity: no 01 row; this is the part Linear has no object to build (05 §2.3).
+
+**37 — desktop Work wire types, relay calls and `workSlice`; `Lens` gains `"work"`.** Stream WD2
+(the skeleton's WD1 row lists it with the lens), defines seam **SW.15**, 2.5 h. Depends on 05 (SW.2
+frozen at WS0) and 20 (`src/test/workFixtures.ts`). Files: new `desktop/src/api/work.ts` and
+`work.test.ts`; ⚑ `desktop/src/api/client.ts` (`CockpitClient` at `:132` gains `work: WorkClient`;
+`createClient` at `:236`); new `desktop/src/store/slices/workSlice.ts`; ⚑ `store/types.ts` (`Lens` at
+`:173` gains `"work"`); ⚑ `store/store.ts` (`CockpitState` at `:14` adds `WorkSlice`; `partialize` at
+`:34-46` must not take any of it). **Wire types** mirror SW.1 (task 03's `hubapi/work.go`) field for
+field in camelCase: `IssueHead`, `IssueRevision`, `ServesEntry`, `IssueState` (the same union as
+task 28's, which it must be assignable to), `ThreadState`, `Relation`, `Label`, `TeamPolicy`,
+`IssueComment`, `Subscription`, `StateMove`, `ImportResult`, plus task 24's `StartResult` (SW.10).
+**`WorkClient`** has one method per relay path in task 16's table (`/v1/hub/work/*`, SW.2) and per
+local route of tasks 24 and 25 (`start`, `undoStart`, `discardStart`, `importPreview`, `importRun`),
+each calling the loopback control plane (`DEFAULT_BASE_URL`, `client.ts:30`), never the Hub (the
+relay rule, contract §4.3), and mapping failures onto the built `ApiError` and `Problem`
+(`client.ts:40-58`) with the new codes `first_write` and `refused`. **`workSlice`** holds view state
+only, never a Hub record: `work: { projectId: string | null; branch: string | null; openIssue: {
+id: string; revision: number | null } | null; selection: string[]; cursor: string | null }` and
+`openWork`, `openIssue`, `select`, `moveCursor`; Hub records come from the replica (SW.16, tasks
+55-58), and until then task 38 reads task 20's fixtures. **`Lens` gains `"work"`** but the sub-rail's
+`LENSES` (`components/subrail/SubRail.tsx:9-16`) stays six: Work is not a seventh tab, because tabs
+read as stages (05 §4.1, 07 D M7); it opens from `G W` (task 54), Plan and every issue chip. The
+persisted `lens` (`store.ts:46`) may be `"work"`; it is a preference, not Hub data. **Tests first:**
+`it("decodes and re-encodes each golden vector")` (task 03's `hubapi/testdata` JSON; kills a field
+renamed on the desktop); a type test that `IssueState` equals task 28's union (kills drift between
+the glyph and the wire); `it("calls only the loopback relay")` (a fetch spy sees each method and path;
+kills a call straight to the Hub); `it("maps first_write to its own problem")` (kills a generic
+error where *Stop and discard* must be offered); `it("persists nothing of workSlice")` (`partialize`
+output has no `work` key; kills Hub-derived state on disk, ADR-H1); `it("keeps six lens tabs")`
+(kills Work as a seventh tab); `it("restores a persisted work lens")` (kills a `migrate` that throws
+on the new member). **Acceptance:** `npm --prefix desktop test -- work store SubRail` passes;
+`npm --prefix desktop run typecheck` is clean. It does **not** claim the replica (55-58), any
+rendered surface (38-48), or that the types match a running Hub (task 17 does). Design: 05 §4.1
+(Work is a lens, not a tab), §3.1 (three homes: the desktop keeps no Hub data); `ADR-H1:467-474`.
+Parity: with tasks 55-58 it serves **L-228** (the in-memory replica); it closes no row alone.
+
