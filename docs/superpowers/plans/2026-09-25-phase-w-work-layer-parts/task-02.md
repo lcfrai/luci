@@ -495,3 +495,67 @@ The canonical text of v2, with the two escapes as they appear in the bytes:
 
 To regenerate either file, the implementer runs the same method and **must** get these digests;
 a different digest is a bug in the regeneration, never a reason to change the file.
+
+---
+
+#### Tests first, each with the mutant it kills
+
+**`keys_test.go`, appended** (the file's imports already cover these):
+
+```go
+// ── issue keys (Phase W; contract §3.2 as proposed in W0) ───────────────────
+
+// Mutant: ParseKey without the issue case (an issue key reads as ErrInvalidKey).
+func TestIssueKeyRoundTrips(t *testing.T) {
+	const in = "issue:is-3f2a91c07b1e4d2a@3"
+	if kind, err := ParseKey(in); kind != KeyIssue || err != nil {
+		t.Fatalf("ParseKey(%q) = (%q, %v), want (%q, nil)", in, kind, err, KeyIssue)
+	}
+	k, err := ParseIssueKey(in)
+	if want := (IssueKey{IssueID: "is-3f2a91c07b1e4d2a", Revision: 3}); err != nil || k != want {
+		t.Fatalf("ParseIssueKey(%q) = %+v, %v; want %+v", in, k, err, want)
+	}
+	if got := k.String(); got != in {
+		t.Fatalf("IssueKey.String() = %q, want the input %q back", got, in)
+	}
+	const max = "issue:is-3f2a91c07b1e4d2a@999999999"
+	if k, err := ParseIssueKey(max); err != nil || k.Revision != 999_999_999 || k.String() != max {
+		t.Fatalf("ParseIssueKey(%q) = %+v, %v; want revision 999999999 and the input back", max, k, err)
+	}
+}
+
+// Mutant: a loosened issueKeyRe ([0-9]+, [0-9a-fA-F], \w, or no anchors).
+func TestIssueKeyRejectsEverythingOutsideTheGrammar(t *testing.T) {
+	const id = "is-3f2a91c07b1e4d2a"
+	for _, s := range []string{
+		"issue:" + id + "@0",          // revision 0 never appears in a key
+		"issue:" + id + "@01",         // a leading zero
+		"issue:" + id + "@1000000000", // ten digits
+		"issue:is-3f2a91c07b1e4d2@1",  // 15 hex
+		"issue:is-3F2A91C07B1E4D2A@1", // upper-case hex
+		"issue:bf-3f2a91c07b1e4d2a@1", // a brief id under the issue kind
+		"issue:ic-3f2a91c07b1e4d2a@1", // a comment id
+		" issue:" + id + "@1",         // a leading space
+		"issue:" + id + "@1\n",        // a trailing newline
+		"issue:" + id,                 // no @
+		"Issue:" + id + "@1",          // the kind is lower case
+	} {
+		if k, err := ParseIssueKey(s); !errors.Is(err, ErrInvalidKey) {
+			t.Errorf("ParseIssueKey(%q) = %+v, %v; want ErrInvalidKey", s, k, err)
+		}
+		if kind, err := ParseKey(s); !errors.Is(err, ErrInvalidKey) {
+			t.Errorf("ParseKey(%q) = %q, %v; want ErrInvalidKey", s, kind, err)
+		}
+	}
+}
+
+// Mutant: an alias accepted as a key, or ParseKey falling back to "looks like
+// PROJECT-number". An admin can change the key; an alias is never a key.
+func TestDisplayAliasIsNeverAKey(t *testing.T) {
+	for _, s := range []string{DisplayAlias("EP", 142), "EP-142", "issue:EP-142", "issue:EP-142@1"} {
+		if kind, err := ParseKey(s); !errors.Is(err, ErrInvalidKey) {
+			t.Errorf("ParseKey(%q) = %q, %v; want ErrInvalidKey", s, kind, err)
+		}
+	}
+}
+```
