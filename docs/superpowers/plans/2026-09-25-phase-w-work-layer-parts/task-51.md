@@ -60,3 +60,190 @@ refuses all four, and each refusal is a test.
    person composes every comment the desktop sends, so it sends `"H"`; agent comments arrive in W3.
    SW.12's `MarkKind` has no author kind (`task-29.md:145`), so the mark is task 46's `AuthorClass`,
    not `MarkGlyph`; named as a gap against the scope's wording.
+
+**Files** (the scope names `Comments.tsx` and `IssueView.tsx`; the four split-out siblings and the
+`Serves.tsx` edit are not yet in the File map, a gap named in the return):
+- `desktop/src/components/issue/commentModel.ts` — pure: threads, mentions, reactions, anchors, the
+  author class of a draft (new)
+- `desktop/src/components/issue/commentModel.test.ts` — the pure rules (new)
+- `desktop/src/components/issue/mentionPlugin.ts` — the `@` query as a ProseMirror plugin (new)
+- `desktop/src/components/issue/CommentComposer.tsx` — `Editor`, the pending anchor, the people
+  picker, *Comment* (new)
+- `desktop/src/components/issue/Comments.tsx` — the thread, `useStartComment`, the anchor line (new)
+- `desktop/src/components/issue/Comments.test.tsx` — the surface tests (new)
+- `desktop/src/components/issue/IssueView.tsx` ⚑ (tasks 46-48's) — the provider, the default
+  `activity`, *Comment on selection* over the description (modified)
+- `desktop/src/components/issue/Serves.tsx` ⚑ (task 47's) — one *Comment* button per row, the
+  criterion anchor (modified)
+- `desktop/src/components/issue/issue.css` ⚑ — the `.iv-cm-*` rules appended (modified)
+
+#### Interfaces — complete: `desktop/src/components/issue/commentModel.ts`
+
+```ts
+// Pure. No React, no DOM, no replica: what a thread IS, so every rule has a unit test.
+import type { CommentAnchor, IssueComment, Reaction, User } from "../../api/work";
+import type { MarkdownDoc } from "../editor/Editor";
+
+/** Our fixed set (decision 5). One code point each; custom emoji are later (L-41). */
+export const REACTIONS = ["\u{1F44D}", "\u{1F440}", "✅", "❓", "\u{1F389}"] as const;
+export type ReactionEmoji = (typeof REACTIONS)[number];
+export const REACTION_WORD: Readonly<Record<ReactionEmoji, string>> = {
+  "\u{1F44D}": "agree", "\u{1F440}": "looking", "✅": "done", "❓": "question", "\u{1F389}": "thanks",
+};
+
+/** task-12.md:141. The Hub refuses more; the composer stops the picker at this many. */
+export const MAX_MENTIONS = 20;
+
+export interface CommentThread { root: IssueComment; replies: IssueComment[] }
+
+/** The Hub answers oldest first, roots and replies in one list (task-12.md:112-113). A reply whose
+ *  parent is not in the list (not loaded, or erased and dropped) becomes a root, never lost. */
+export function threads(comments: readonly IssueComment[]): CommentThread[] {
+  const roots = new Map<string, CommentThread>();
+  const out: CommentThread[] = [];
+  for (const c of comments) {
+    const parent = c.parentId === null ? undefined : roots.get(c.parentId);
+    if (parent) { parent.replies.push(c); continue; }
+    const t: CommentThread = { root: c, replies: [] };
+    roots.set(c.id, t);
+    out.push(t);
+  }
+  return out;
+}
+
+const MENTION_HREF = /^panacea:user\/(u-[0-9a-f]{16})$/;
+/** The link the picker inserts (decision 3). The name is a fallback, never the identity. */
+export const mentionHref = (userId: string): string => `panacea:user/${userId}`;
+export const mentionMarkdown = (u: User): string => `[@${u.displayName.replace(/[[\]]/g, "")}](${mentionHref(u.id)})`;
+export const userIdOfHref = (href: string): string | null => MENTION_HREF.exec(href)?.[1] ?? null;
+
+/** Distinct u- ids in the order they first appear, capped at MAX_MENTIONS. */
+export function mentionsIn(markdown: string): string[] {
+  const ids: string[] = [];
+  for (const m of markdown.matchAll(/\]\((panacea:user\/u-[0-9a-f]{16})\)/g)) {
+    const id = userIdOfHref(m[1]);
+    if (id && !ids.includes(id)) ids.push(id);
+    if (ids.length === MAX_MENTIONS) break;
+  }
+  return ids;
+}
+
+/** "A" only when every character of a non-empty draft is agent text (decision 4). */
+export function authorOf(doc: MarkdownDoc): "H" | "A" {
+  const n = doc.markdown.length;
+  if (n === 0 || doc.authorship.some((s) => s.cls === "text·H")) return "H";
+  let covered = 0;
+  for (const s of doc.authorship) covered += Math.max(0, s.to - s.from);
+  return covered >= n ? "A" : "H";
+}
+
+/** One person's toggle: `on` is true exactly when `me` has not reacted with `emoji`. The next list
+ *  is what the replica shows optimistically; a set, never a counter (task-12.md:32-33). */
+export function nextReactions(rs: readonly Reaction[], me: User, emoji: string): { on: boolean; reactions: Reaction[] } {
+  const hit = rs.find((r) => r.emoji === emoji);
+  const on = !(hit?.users.some((u) => u.id === me.id) ?? false);
+  const reactions = rs
+    .map((r) => r.emoji !== emoji ? r
+      : { emoji, users: on ? [...r.users, me] : r.users.filter((u) => u.id !== me.id) })
+    .filter((r) => r.users.length > 0);
+  if (on && !hit) reactions.push({ emoji, users: [me] });
+  return { on, reactions };
+}
+```
+
+User ids match `u-` and 16 lowercase hex, the `ids.Wide` shape task 20's fixtures use
+(`task-20.md:155-163`); if the Hub's user ids differ, the two regular expressions above are the one
+place to change.
+
+#### Interfaces — complete: `commentModel.ts`, part 2: anchors
+
+```ts
+/** A text anchor the person just made: the revision READ, not the head (decision 2). */
+export function textAnchor(revision: number, start: number, end: number): CommentAnchor {
+  return { kind: "text", revision, start, end, criterionId: "", ref: "" };
+}
+export function criterionAnchor(revision: number, criterionId: string): CommentAnchor {
+  return { kind: "criterion", revision, start: 0, end: 0, criterionId, ref: "" };
+}
+/** Task 60 makes these from peek; the ref is stored verbatim (task-12.md:109-110). */
+export function refAnchor(kind: "span" | "hunk", ref: string): CommentAnchor {
+  return { kind, revision: 0, start: 0, end: 0, criterionId: "", ref };
+}
+
+/** What the anchor line says before its quote. `head` is the issue's head revision number. */
+export function anchorWords(a: CommentAnchor, head: number): string {
+  const on = a.revision !== 0 && a.revision !== head ? ` · on @${a.revision}` : "";
+  switch (a.kind) {
+    case "text": return `on the description${on}`;
+    case "criterion": return `on criterion ${a.criterionId}${on}`;
+    case "span": return `on transcript span ${a.ref}`;
+    case "hunk": return `on ${a.ref}`;
+  }
+}
+
+/** The quote of a text anchor, from THAT revision's description. Offsets are UTF-16 code units,
+ *  which is what String.prototype.slice counts, so no conversion happens here. Out-of-range
+ *  offsets (a Hub that did not check, or a stale fixture) give null, never a clamped guess. */
+export function quoteOf(a: CommentAnchor, descriptionAtRevision: string): string | null {
+  if (a.kind !== "text") return null;
+  if (a.start < 0 || a.end <= a.start || a.end > descriptionAtRevision.length) return null;
+  return descriptionAtRevision.slice(a.start, a.end);
+}
+```
+
+#### Interfaces — complete: `desktop/src/components/issue/mentionPlugin.ts`
+
+```ts
+// Our own plugin on the public ProseMirror API (MIT); written from the API docs, from no editor's
+// mention extension (OD-11). It reports "@query" before the cursor and never edits by itself.
+import { Plugin, PluginKey, type EditorState } from "prosemirror-state";
+import type { EditorView } from "prosemirror-view";
+
+export interface MentionQuery { query: string; from: number; to: number; at: DOMRect }
+export const mentionKey = new PluginKey<null>("iv-mention");
+
+/** "@" at the start of a text block or after a space, then up to 32 characters with no space. */
+const TRIGGER = /(?:^|\s)@([^\s@]{0,32})$/;
+
+export function queryAt(state: EditorState): { query: string; from: number; to: number } | null {
+  const { $from, empty } = state.selection;
+  if (!empty || !$from.parent.isTextblock) return null;
+  const before = $from.parent.textBetween(0, $from.parentOffset, undefined, "￼");
+  const m = TRIGGER.exec(before);
+  if (!m) return null;
+  const to = $from.pos;
+  return { query: m[1], from: to - m[1].length - 1, to };
+}
+
+/** `onQuery(null)` whenever the cursor leaves a trigger, so the picker closes on its own. */
+export function mentionPlugin(onQuery: (q: MentionQuery | null) => void, viewRef: { current: EditorView | null }): Plugin {
+  return new Plugin({
+    key: mentionKey,
+    view(view) {
+      viewRef.current = view;
+      return {
+        update(v) {
+          const q = queryAt(v.state);
+          if (!q) return onQuery(null);
+          const c = v.coordsAtPos(q.from);
+          onQuery({ ...q, at: new DOMRect(c.left, c.top, 1, c.bottom - c.top) });
+        },
+        destroy() { viewRef.current = null; onQuery(null); },
+      };
+    },
+  });
+}
+
+/** Replaces "@query" with the mention link, as the person's text. The schema's `link` mark
+ *  (task 49's schema.ts, prosemirror-markdown's default, UNVERIFIED until 49 lands) carries href. */
+export function insertMention(view: EditorView, q: { from: number; to: number }, label: string, href: string): void {
+  const link = view.state.schema.marks.link;
+  if (!link) return;
+  const text = view.state.schema.text(`@${label}`, [link.create({ href, title: null })]);
+  view.dispatch(view.state.tr.replaceWith(q.from, q.to, [text, view.state.schema.text(" ")]).scrollIntoView());
+  view.focus();
+}
+```
+
+`tr.scrollIntoView()` keeps the **caret** of the person typing in view; it is the editor's own
+caret, which the person moved, not a comment arriving (decision 8).
