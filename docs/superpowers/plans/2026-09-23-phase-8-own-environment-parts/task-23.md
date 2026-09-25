@@ -146,7 +146,7 @@ beside whichever local backend is selected):
 | Variable | Default | Meaning |
 |---|---|---|
 | `PANACEA_APP_BROKER_URL` | `""` | the broker, `https://broker.<zone>`; empty = no cloud machines |
-| `PANACEA_APP_BROKER_SCOPE` | `""` | required when the URL is set: task 09's `broker_api_scope` |
+| `PANACEA_APP_BROKER_SCOPE` | `panacea-app-broker` | the broker's audience scope in the realm (OD-30, ruling §4; was task 09's `broker_api_scope`, withdrawn) |
 
 `main.go`: when the URL is set, open the session registry first, then
 `machines.InstallID(statepath.Dir("machines"), mustExist)`, with `mustExist` true when any
