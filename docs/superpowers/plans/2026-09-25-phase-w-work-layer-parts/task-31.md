@@ -606,3 +606,131 @@ Appended to `describe("the design-system audit")`, after `:721`:
     expect(oldLookFaults(REAL)).toEqual([]);
   });
 ```
+
+Appended to `CANARIES` (before its closing `];` at `:847`). A chrome canary **replaces** the real
+file with the real bytes plus one appended rule, so the fault is the only difference:
+
+```ts
+  // Task 31: one view header, and chrome.dim.
+  { fault: "a second h1", rule: secondHeaders, file: PLANT_TSX, text: "export const H = () => <h1>Work</h1>;\n" },
+  { fault: "a level-1 heading role", rule: secondHeaders, file: PLANT_TSX, text: 'export const H = () => <div role="heading" aria-level={1}>Work</div>;\n' },
+  { fault: "a *-view-title class", rule: secondHeaders, file: PLANT_TSX, text: 'export const H = () => <div className="desk-view-title">Desk</div>;\n' },
+  { fault: "a stylesheet that styles an h1", rule: secondHeaders, file: PLANT_CSS, text: sheet(".p h1 { font-size: 20px; }") },
+  { fault: "a rail label as bright as the work", rule: chromeInk, file: RAIL_CSS, text: `${read(RAIL_CSS)}\n.rail-row { color: var(--ink); }\n` },
+  { fault: "a sub-rail icon at label ink", rule: chromeInk, file: SUBRAIL_CSS, text: `${read(SUBRAIL_CSS)}\n.sub-glyph { color: var(--ink-2); }\n` },
+  { fault: "accent on a resting rail row", rule: accentOutsideCurrent, file: RAIL_CSS, text: `${read(RAIL_CSS)}\n.rail-add { color: var(--accent-hi); }\n` },
+  { fault: "accent on a hovered sub-rail row", rule: accentOutsideCurrent, file: SUBRAIL_CSS, text: `${read(SUBRAIL_CSS)}\n.sub-row:hover { background: var(--accent-tint); }\n` },
+  { fault: "a current item marked by a wash alone", rule: tickFaults, file: RAIL_CSS, text: `${read(RAIL_CSS)}\n.rail-row[aria-selected="true"] { background: var(--accent-tint); }\n` },
+  { fault: "a tick on the trailing edge", rule: tickFaults, file: SUBRAIL_CSS, text: `${read(SUBRAIL_CSS)}\n.sub-row[aria-current="page"]::before { inset-inline-start: auto; }\n` },
+  { fault: "an old look that lost its ring", rule: oldLookFaults, file: RAIL_CSS, text: `${read(RAIL_CSS)}\n${OLD_LOOK} .rail-row[aria-selected="true"] { box-shadow: none; }\n` },
+```
+
+The *wash alone* canary is the one that separates the tick rule from the accent rule: a wash on
+the current item is **legal** accent (it passes `accentOutsideCurrent`), so only `tickFaults` can
+see that the new look has grown the Phase 2 wash back.
+
+#### Tests to write first — `desktop/src/components/rail/Rail.test.tsx`
+
+One test, appended inside `describe("Rail")`. The stylesheet tests above prove what the current
+item looks like; this proves the current item is **state** that assistive technology reads, so
+the tick is never the only signal:
+
+```tsx
+  it("marks only the selected row current, as state and not as colour", async () => {
+    // Kills: a selection drawn by an inline style or a class with no aria state behind it.
+    render(<Rail />);
+    await userEvent.click(screen.getByRole("treeitem", { name: /evidence-upload$/ }));
+    const current = document.querySelectorAll('.rail-row[aria-selected="true"]');
+    expect(current).toHaveLength(1);
+    expect(current[0].textContent).toContain("evidence-upload");
+    for (const row of document.querySelectorAll<HTMLElement>(".rail-row")) {
+      expect(row.style.color).toBe("");
+      expect(row.style.background).toBe("");
+    }
+  });
+```
+
+It uses the file's own seeding (`Rail.test.tsx:9-36`: branch `b-1`, `evidence-upload`) and the
+treeitem query the existing selection test uses at `:51-56`.
+
+#### Steps
+
+1. Write the ViewHeader, designsystem and Rail tests above. Run
+   `npm --prefix desktop test -- ViewHeader designsystem Rail`: ViewHeader fails to import; the
+   five new audit tests fail (no `ViewHeader.tsx`; the rail current item still has its wash and
+   no tick; `.rail-add` still accent; `.sub-back` still `--ink-3`); the seven chrome canaries fail
+   their real-tree half, because the real files still carry the Phase 2 chrome; the four header
+   canaries pass. The Rail test passes already (the state exists today): it is a guard for step 4.
+2. Write `ViewHeader.tsx` and `viewheader.css`. The ViewHeader tests pass; *has one view header*
+   passes.
+3. Move `LensPlaceholder` onto it, delete `shell.css:44-47`, add the `app.css` reset, and change
+   `AppShell.test.tsx:119` to `"Merge"`. Run `npm --prefix desktop test -- AppShell tokens`:
+   both pass (`tokens.test.ts:85-90` still finds no colour in `app.css`).
+4. Apply `chrome.dim` to `rail.css` and `subrail.css`, then the two old-look blocks. The audit's
+   five new tests and eleven canaries pass.
+5. Mutate by hand, one at a time, watch the named test go red, then revert:
+   `route ?? "global"` in `ViewHeader`; `.vh-route { font-family: var(--sans) }`; delete
+   `.rail-row[aria-selected="true"]::before`; `.sub-branch { color: var(--ink) }`; drop
+   `:root[data-look="old"] .rail-add`.
+6. Run the typecheck and the full desktop suite.
+7. `git add` the three new files; commit the eleven with `git commit -F <msg> -- <paths>`.
+
+#### Acceptance
+
+```bash
+npm --prefix desktop test -- ViewHeader designsystem Rail AppShell tokens
+# expect: every test passes: ViewHeader's six, the audit's five new tests and eleven new
+# canaries, Rail's new one, AppShell's heading test with "Merge", tokens' app.css rule
+
+npm --prefix desktop run typecheck
+# expect: exit 0, no output from tsc
+
+grep -rn "<h1" desktop/src --include=*.tsx | grep -v "\.test\.tsx"
+# expect: one line, desktop/src/components/common/ViewHeader.tsx
+
+grep -c "var(--accent" desktop/src/components/rail/rail.css desktop/src/components/subrail/subrail.css
+# expect: rail.css:4 and subrail.css:3 (the tick, then the old look's tint, ring and, in
+# rail.css, the old +); every other accent in the two files is gone
+```
+
+The scope's acceptance ran `-- ViewHeader designsystem rail`. The filter is a path substring,
+so `rail` also matches `subrail`; `Rail` is named here because the file is `Rail.test.tsx`, and
+`AppShell` and `tokens` because this task edits a test in the first and relies on a rule in the
+second.
+
+#### What this task does not claim
+
+- **That the route is right.** The badge shows what it is given. Task 24 computes a project's
+  route from its data class; phase 6 enforces it at the gateway. Until task 24, every caller
+  passes `null` and no badge shows, which is the honest state.
+- **A Develop header.** The Develop lens has no title row today (correction 1). Whether it
+  gains a `ViewHeader`, and whether the top bar's controls move into its `actions`, is a layout
+  change to a built lens and goes to the owner at task 39.
+- **The Desk's or the Plan's headers** (tasks 45 and 62), nor any surface that is not built
+  yet. Each of tasks 38-48, 62, 85-91 and 126-132 renders `ViewHeader`, and this task's audit
+  fails any of them that renders its own `<h1>`.
+- **That the chrome reads as receded.** The inks and the tick are pinned; whether the work is
+  now visibly the brightest thing on screen is the owner's eyes, with `flag.compare` (task 32)
+  flipping between the two looks on the same screen.
+- **Forced colours.** Chromium paints `::before` backgrounds with system colours under
+  `forced-colors: active`, so the tick needs a rule there; task 34 writes it
+  (`.rail-row[aria-selected="true"]::before` and `.sub-row[aria-current="page"]::before` get
+  `forced-color-adjust: none; background: Highlight`).
+- Design: 05 §4.4 C5, §4.1; 02 C5, D2 step 2; `OD-19` (the switch made visible). Parity: no 01 row
+  names chrome; it is the visible half of `OD-19`'s per-project route.
+
+**Interfaces:**
+- Produces (seam **SW.13**): `export type Route = "global" | "au"`; `export function
+  ViewHeader(props: { title: string; route: Route | null; badge?: ReactNode; actions?:
+  ReactNode }): JSX.Element` in `desktop/src/components/common/ViewHeader.tsx`, the classes
+  `.vh`, `.vh-title`, `.vh-scope`, `.vh-route` (with `data-route`), `.vh-actions`
+- Produces for task 32: the `:root[data-look="old"]` blocks at the end of `rail.css` and
+  `subrail.css`; with no `data-look` set, the new look is the default
+- Produces for task 34: the two tick selectors above, and the audit predicates `topRules` and
+  `finalValue`, which task 34's forced-colours audit reuses
+- Consumes: task 26's `--t-head`, `--t-head-lh`, `--t-head-weight`, `--t-head-track`, `--t-fact`,
+  `--t-fact-lh`, `--t-ui`, `--t-ui-lh`, `--s-1` … `--s-5`, `--row-h`; the built `--ink*`,
+  `--accent*`, `--line*`, `--r-chip`, `--sans`, `--mono` (`tokens.css`, verified); `LENSES`
+  (`SubRail.tsx:9-16`, verified); `stripCssComments` (`test/fakes.ts`, verified by import in
+  `designsystem.test.ts:23`)
+- Amends: nothing in the Hub. No wire shape changes.
