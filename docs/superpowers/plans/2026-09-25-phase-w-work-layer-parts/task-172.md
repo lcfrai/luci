@@ -75,4 +75,78 @@ part adds `loops/`, as scope 172 does (gap 1).
 169; task 13's W1 kinds are on its part (`task-13.md:120-138`). There is **no part** for tasks 162
 or 163, so every route, field and outcome word is their scopes' (`tasks-161-180.md:85-177`) and
 **UNVERIFIED**; where Phase T stores the owner's own grid is **UNVERIFIED** in task 162's scope
-too (`:109-110`), so how the editor reads it is gap 2.
+too (`:109-110`), so how the editor reads it is gap 2. The one heartbeat is on the tree:
+`desktop/src/hooks/heartbeat.ts` exports `useHeartbeat()` (`:64`) and `BEAT_MS = 2400` (`:13`).
+
+#### Interfaces — complete: `desktop/src/components/loops/loopModel.ts`
+
+```ts
+// desktop/src/components/loops/loopModel.ts — task 172. Pure: no React, no network.
+import { ACTION_CLASSES, AUTONOMY_LEVELS, type ActionClass, type AutonomyLevel, type LoopBound,
+  type LoopOutcome, type LoopVersion } from "../../api/work";   // task 169
+
+export const LEVEL_WORDS: Readonly<Record<AutonomyLevel, string>> = {
+  ask_first: "ASK FIRST", propose_and_wait: "PROPOSE AND WAIT", act_and_tell: "ACT AND TELL ME", full: "FULL",
+};
+export const CLASS_WORDS: Readonly<Record<ActionClass, string>> = {
+  read: "read", edit_own_worktree: "edit in own worktree", edit_outside_worktree: "edit outside worktree",
+  run_tests: "run tests", install_dependency: "install dependency", run_migration: "run migration",
+  touch_infra: "touch infra/config", commit: "commit", push: "push", deploy: "deploy",
+};
+const rank = (l: AutonomyLevel) => AUTONOMY_LEVELS.indexOf(l);
+
+/** One grid cell as the editor draws it (decision 2). */
+export interface Cell { level: AutonomyLevel; chosen: boolean; inherited: boolean; disabled: boolean; why: string | null }
+
+/** owner: the owner's own grid, every class set (gap 2 says where it comes from). */
+export function gridCells(bound: LoopBound, owner: Readonly<Record<ActionClass, AutonomyLevel>>): Record<ActionClass, Cell[]> {
+  const out = {} as Record<ActionClass, Cell[]>;
+  for (const c of ACTION_CLASSES) {
+    const set = bound.levels[c];
+    const cap = owner[c];
+    out[c] = AUTONOMY_LEVELS.map((level) => {
+      const above = rank(level) > rank(cap);
+      return { level, chosen: set === level, inherited: set === undefined && level === cap,
+        disabled: above, why: above ? `Above your own grid (${LEVEL_WORDS[cap]})` : null };
+    });
+  }
+  return out;
+}
+
+/** The blast radius in words, from the levels alone (decision 3). Never a rate or a count. */
+export function consequence(bound: LoopBound, owner: Readonly<Record<ActionClass, AutonomyLevel>>): string {
+  const eff = (c: ActionClass) => bound.levels[c] ?? owner[c];
+  const can = (c: ActionClass) => eff(c) === "act_and_tell" || eff(c) === "full";
+  const asks = (c: ActionClass) => eff(c) === "ask_first" || eff(c) === "propose_and_wait";
+  const parts: string[] = [];
+  parts.push(can("edit_outside_worktree") ? "Can edit outside its worktree." : "Edits stay in its own worktree.");
+  if (can("commit")) parts.push("Commits and tells you.");
+  else if (asks("commit")) parts.push("Commits only after you approve.");
+  const never = (["push", "deploy", "run_migration"] as const).filter((c) => eff(c) === "ask_first");
+  if (never.length > 0) parts.push(`Asks before it would ${never.map((c) => CLASS_WORDS[c]).join(", ")}.`);
+  parts.push(`At most ${bound.turnsPerDay} ${bound.turnsPerDay === 1 ? "turn" : "turns"} a day.`);
+  return parts.join(" ");
+}
+
+export const OUTCOME_WORDS: Readonly<Record<LoopOutcome, string>> = {
+  queued: "queued", ran: "ran", skipped_budget: "skipped: budget spent", skipped_paused: "skipped: paused",
+  refused_bound: "refused: bound", failed: "failed",
+};
+
+/** A field-by-field text diff of two versions, for the side-by-side view. */
+export function versionDiff(a: LoopVersion, b: LoopVersion): { field: string; before: string; after: string }[] {
+  const f = (v: LoopVersion): Record<string, string> => ({
+    trigger: JSON.stringify(v.trigger), instruction: v.instruction.text, action: v.action,
+    label: v.labelId ?? "", turnsPerDay: String(v.bound.turnsPerDay), levels: JSON.stringify(v.bound.levels),
+  });
+  const x = f(a), y = f(b);
+  return Object.keys(x).filter((k) => x[k] !== y[k]).map((k) => ({ field: k, before: x[k]!, after: y[k]! }));
+}
+
+/** Decision 5: over the cap blocks Save. */
+export const INSTRUCTION_MAX = 2000;
+```
+
+`JSON.stringify` of `trigger` and `levels` is a text diff over a stable shape (task 169's field
+order; `levels` is built from `ACTION_CLASSES` in order by the editor, so two equal grids
+stringify equally). The diff view renders `trigger` through `triggerWords` below, never raw JSON.
