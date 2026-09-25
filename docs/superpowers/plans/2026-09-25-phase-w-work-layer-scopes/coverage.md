@@ -239,3 +239,62 @@ against the desktop tree (UNVERIFIED).
 | 196 | Hosted MCP server, read-write and read-only, OAuth 2.1, Okta | MATCH | W5 | 161 · proof 174 |  |
 | 197 | MCP connectors that extend the Linear Agent and Loops | MATCH | W5 | 161, 166, 173 · proof 174 |  |
 | 198 | GitHub: branch name copy with auto-assign and auto-start | EXCEED | W1 / W5 | 21, 24, 61, 155 · proof 70, 174 |  |
+| 199 | GitHub: closing, non-closing and relation magic words | MATCH | W5 | 154, 155 · proof 174 |  |
+| 200 | GitHub: commit linking by webhook | EXCEED | W1 / W5 | 21, 22, 154, 155 · proof 70, 174 |  |
+| 201 | PR-stage automations (draft, open, review requested, ready, merged) with branch rules | EXCEED | W1 / W5 | 22, 154, 155 · serves 10, 67 · proof 70, 174 |  |
+| 202 | GitHub Issues one-way or two-way sync | MATCH | W5 | 145, 150-153, 171 · proof 174 |  |
+| 203 | PR linkback comments and autolinks | MATCH | W5 | 155 · proof 174 |  |
+| 204 | GitHub Enterprise Cloud and Server | PARTIAL | phase 3 | **none** |  |
+| 205 | GitLab MR linking and automations, self-managed | SKIP | — | — | OD-4 names Azure DevOps and GitHub. GitLab fits the same host interface later |
+| 206 | Slack: create from message, unfurls with actions, synced threads, channel feeds | MATCH | later | 182 |  |
+| 207 | Microsoft Teams: agent, batch filing, project update feeds | EXCEED | W5 | 157, 165 · proof 174 |  |
+| 208 | Figma: frame previews and an in-Figma plugin | PARTIAL | phase 5 | **none** |  |
+| 209 | Sentry: create or link, resolve on complete, assignee sync | MATCH | later | 183 |  |
+| 210 | Zendesk: sidebar app, reopen ticket on completion | SKIP | — | — | Support desk (group J's reason) |
+| 211 | Intercom: sidebar, internal note on completion, requests | SKIP | — | — | Support desk |
+| 212 | Front: support intake and requests | SKIP | — | — | Support desk |
+| 213 | Salesforce: cases to issues, real-time status sync, roles | SKIP | — | — | CRM (L-131's reason) |
+| 214 | Gong: issues auto-filed from customer calls | SKIP | — | — | Sales calls; also puts client voice data in scope |
+| 215 | Jira coexistence sync | MATCH | W5 | 145, 150, 153, 171 · proof 174 |  |
+| 216 | Notion live embeds | SKIP | — | — | L-128's embed reason; notion.com is also blocked on the corporate network (03) |
+| 217 | Zapier, Discord, Airbyte, Google Sheets, GUS | SKIP | — | — | The API and webhooks cover them; a Power Automate connector is the Microsoft-native answer, later |
+| 218 | Incident tools for triage rotation | MATCH | later | 121, 184 |  |
+| 219 | Directory of 250+ integrations; third parties can submit | SKIP | — | — | A short curated set (Azure DevOps, GitHub, Teams, Entra, Jira) serves regulated teams better than breadth; the API and MCP let others build |
+| 220 | Importers: Jira, GitHub, Asana, Shortcut, Linear-to-Linear, CLI | PARTIAL | W1 / W5 | 25, 69, 150, 153, 171 · serves 03, 05, 15, 17 · proof 70, 174 |  |
+| 221 | Contextual command menu `Cmd/Ctrl+K` that opens next to its trigger | MATCH | exists / W1 | 59 · proof 70 |  |
+| 222 | Command-menu prefixes to scope results | MATCH | W1 | 59 · proof 70 |  |
+| 223 | Key grammar: property letters, `G` go, `O` open, `M` relate | EXCEED | W1 | 53, 54, 102 · proof 70 |  |
+| 224 | `?` shortcut sheet | MATCH | W1 | 54 · proof 70 |  |
+| 225 | Multi-select and bottom bulk-action bar | EXCEED | W1 | 29, 44, 66 · proof 70 |  |
+| 226 | Menus display the shortcut for every action | MATCH | W1 | 54, 59 · proof 70 |  |
+| 227 | Safe-triangle submenus | MATCH | W1 | 54 · proof 70 |  |
+| 228 | Local-first client database: no round trip per action | MATCH | W1 | 37, 55, 56 · proof 70 |  |
+| 229 | Sync-action log with checkpoint delta sync | MATCH | exists / W1 | 55, 57 · serves 13, 17 · proof 70 |  |
+| 230 | Offline change queue that survives restart | SKIP | — | — | Surviving a restart means writing Hub data to disk, which ADR-H1 forbids, and the product is cloud-first (OD-20). The in-memory queue survives a network drop, not a restart |
+| 231 | Desktop apps for macOS and Windows, with tabs and per-tab history | PARTIAL | exists / later | **none** |  |
+| 232 | Mobile apps: inbox, create, search, review, document editing | SKIP | — | — | A separate product. The phone's job, the 10-second check (AX §5), is served first by the Desk digest and answer-in-Teams (L-207). Revisit (Q6) |
+| 233 | Web app and PWA | SKIP | — | — | The desktop is the portal (OD-20). The Hub serves only intake forms and read-only issue pages for people without the app |
+| 234 | Light, dark, system and custom themes; community theme gallery | EXCEED | W1 / W2 | 26, 27, 95, 96 · proof 70 |  |
+| 235 | Personal preferences: home view, font size, send key, auto-assign | PARTIAL | W2 | 96 |  |
+| 236 | Roles: owner, admin, team owner, member, guest | PARTIAL | exists | **none** |  |
+| 237 | SAML SSO with domain enforcement and JIT | PARTIAL | exists | **none** |  |
+| 238 | SCIM with role groups and IdP-group-to-team mapping | MATCH | later | 185 |  |
+| 239 | Audit log, 90 days, API queries, SIEM streaming | PARTIAL | exists / W5 | 159, 167 · serves 08, 14 · proof 174 |  |
+| 240 | Data regions US or EU, full-stack replica per region | PARTIAL | phase 8 | **none** |  |
+| 241 | SOC 2 Type II, GDPR, HIPAA with BAA | SKIP | — | — | An organisational programme, not a build item; KPMG's technology risk assessment is our gate |
+| 242 | IP restrictions | MATCH | phase 8 | **none** |  |
+| 243 | Domain claiming; block rogue workspaces on the domain | MATCH | exists | **none** |  |
+| 244 | Third-party app approvals | MATCH | W5 | 145, 159, 161, 173 · proof 174 |  |
+| 245 | Admin control of personal API keys; team-scoped keys | MATCH | W5 | 145, 160, 173 · proof 174 |  |
+| 246 | AI feature toggles and Linear Agent kill switch | MATCH | W3 | 100, 109 · serves 99 · proof 113 |  |
+| 247 | Uptime SLA, priority support, migration help | SKIP | — | — | Commercial terms, not product |
+| 248 | Public GraphQL API, the same one Linear's apps use | MATCH | exists | serves 16 |  |
+| 249 | TypeScript SDK | MATCH | W5 | 158 · proof 174 |  |
+| 250 | OAuth 2.0, actor-as-app authorisation, app manifests | MATCH | W5 | 145, 159 · proof 174 |  |
+| 251 | Webhooks with actor, previous values and HMAC signing | EXCEED | W5 | 156, 173 · serves 13 · proof 174 |  |
+| 252 | Published rate and complexity limits with headers | MATCH | W5 | 160, 173 · proof 174 |  |
+| 253 | A published product method that justifies every default | EXCEED | exists / W4 | 134 · proof 142 |  |
+| 254 | A weekly public changelog; "build in public" | MATCH | later | 186 |  |
+| 255 | AI spend limits at workspace, per-user and per-loop level, with usage by feature and user | EXCEED | phase 6 | serves 135 · proof 142 |  |
+| 256 | Admin allow-list for agent MCP connectors; each user connects their own accounts | MATCH | W5 | 161, 166, 173 · proof 174 |  |
+| 257 | Transparent AI pricing: provider token rates with no markup plus sandbox minutes | MATCH | phase 6 | serves 135 |  |
