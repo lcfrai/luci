@@ -51,8 +51,8 @@ type conversationStore interface {
 	// first if needed. Local: phase 2's host mounts (sessionMounts). Cloud: the
 	// worktree's machine path at /home/dev/work; when the agent's WorktreePath
 	// names a GitConfig (task 20), that file read-only at
-	// /home/dev/work/.git/config (phase 3 §HGH H5's first half, which phase 3
-	// builds in task 05's sessionMounts for Docker only); and
+	// /home/dev/work/.git/config (hygiene after phase 3's ruling R4, as phase 3's
+	// task 05 sessionMounts bind is for Docker; nothing is claimed from it); and
 	// "conversations/<worktreeID>" at /home/dev/.claude/projects — after
 	// POST /v1/dirs on the machine agent creates the latter (task 15's rule).
 	Mounts(ctx context.Context, worktreeID string) ([]backend.Mount, []backend.MachineMount, error)
@@ -82,13 +82,15 @@ func (a *API) conversationStoreFor(ctx context.Context, machineID string) (conve
    "/home/dev/work"}`, `{MachinePath: gitConfig, ContainerPath: "/home/dev/work/.git/config",
    ReadOnly: true}`, and the conversation store. The file mount is listed after the worktree
    mount it sits inside. The runtime must mount the parent first; containerd's CRI sorts a
-   container's mounts by destination depth, from its source (**UNVERIFIED** here, and on Kata). **Why (review I7, b06 re-review 1):**
-   `machined`'s H3 reads `.git/config` a few milliseconds before git does, so an agent that
-   writes `filter.x.clean` into it and removes it again, in a loop, would sometimes pass the
-   check with a file git then reads dirty, and the cockpit's lane observer calls `status`
-   often enough to give it many tries. With the file read-only in the sandbox, the agent
-   cannot write it at all. The cost is phase 3's (its Q7): the agent's own `git config` in its
-   checkout fails.
+   container's mounts by destination depth, from its source (**UNVERIFIED** here, and on Kata). **Why, after R4 (review I7, b06 re-review 1, Q18):**
+   the bind was written as the defence against an agent racing `machined`'s H3 on a lane's
+   `.git/config`. Under phase 3's ruling R4 no host git reads a lane's config at all: lane git
+   runs only through the `/git/v1/` runner (P8-D7, task 21), so the bind is hygiene, as phase 3
+   keeps its own (phase 3 plan `:245`, `:712`), and nothing is claimed from it. The cost is
+   phase 3's (its Q7): the agent's own `git config` in its checkout fails. **R4.1:** no session
+   mounts `projects/<name>`; a session on the primary worktree runs in its backing lane (phase 3
+   task 05), so this create must mount that lane, never the primary's `machinePath`. How the
+   laptop's lane choice reaches this step is **open**, for the task 21 and 25 re-plan.
 4. `be.Create` — the broker answers after the pod is ready (task 18).
 
 An `ErrQuotaExceeded` from the backend is `429 quota_exceeded` (task 24a's code) with the
@@ -126,7 +128,7 @@ follow-up uses the interface. Either way a cloud session's Forget reaches the ma
 | `TestCloudCatalogComesFromTheMachineAgent` | `?machineId=m-…` → the stand-in agent's projects, each with `machineId` | a cloud catalog read from the laptop's disk |
 | `TestASleepingMachinesCatalogIs409AndDoesNotWake` | 409, `details.state = "sleeping"`, no wake call | a GET that boots a VM |
 | `TestCloudCreateSendsMachineMountsNeverHostMounts` | a stand-in agent whose `WorktreePath` has no `gitConfig`: the fake backend received `Mounts == nil`, two `MachineMounts` with the agent's path and `conversations/<w>`, `WorkDir == "/home/dev/work"` | S8.3 "fixed" by dropping katabe's refusal |
-| `TestCloudCreateBindsTheCloneConfigReadOnly` | the stand-in answers `gitConfig: "lanes/p-1/w-2/.git/config"` → three `MachineMounts`, the second exactly `{MachinePath: "lanes/p-1/w-2/.git/config", ContainerPath: "/home/dev/work/.git/config", ReadOnly: true}`, listed after the worktree mount; the same for `projects/a`; the stand-in answering 409 `git_config_not_a_file` → `409 conflict` with that reason and no `Create` | H5's read-only half dropped on cloud machines, so an agent races `machined`'s H3 with a config it rewrites; the bind made writable; a session created over a config Kubernetes would make a directory |
+| `TestCloudCreateBindsTheCloneConfigReadOnly` | the stand-in answers `gitConfig: "lanes/p-1/w-2/.git/config"` → three `MachineMounts`, the second exactly `{MachinePath: "lanes/p-1/w-2/.git/config", ContainerPath: "/home/dev/work/.git/config", ReadOnly: true}`, listed after the worktree mount; the stand-in answering 409 `git_config_not_a_file` → `409 conflict` with that reason and no `Create` | the hygiene bind dropped on cloud machines, or made writable; a session created over a config Kubernetes would make a directory (a `projects/a` mount is retired by R4.1, above) |
 | `TestCloudCreateMakesTheStoreBeforeTheSandbox` | the agent saw `POST /v1/dirs` for `conversations/<w>` before the backend saw `Create` | a root-owned store the agent cannot write |
 | `TestCreateOnASleepingMachineWakesItFirst` | wake, then polls, then `Create`; the record was `starting` meanwhile; with the list cached beforehand, the next `GET /v1/machines` after the wake makes a fresh broker call (plan re-review b08-1 issue 5) | "machine asleep" shown to a user who just typed; an implicit wake that leaves the rail at `sleeping` for 5 s, so task 26's waking state never shows |
 | `TestQuotaIs429WithTheLimit` | `ErrQuotaExceeded` from the backend's `Create` → 429 `quota_exceeded`, `details.limit` | a quota shown as "unavailable" |
