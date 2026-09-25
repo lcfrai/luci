@@ -435,7 +435,7 @@ phase 3 adapts in one file.
 |---|---|---|---|
 | **S3-P8.1** the lane git runner contract | `testdata/gitrunner/*.json`; `control-plane/internal/lanegit` (`Runner`, `Lanes.For`) | phase 8's `machined` serves task 24's contract in the machine pod: the `/git/v1/` wire (bearer auth, the five ops, the error envelope, the four limits; `refs`
 takes `Merged` from `--merged` only; `bundle` admits `HEAD` in `Refs`, which task 11's archive
-through `ArchiveLane` carries for a detached HEAD, review r4-2 C-1; `refs` takes prefixes such as `refs/heads`, never a glob; `fetch` first deletes the dangling non-symref refs in its own `refs/remotes/{origin,upstream}/` namespace and answers 409 `lane_broken` for a bad object outside it, review r4-3 C-1 and I-2), with `testdata/gitrunner` as the goldens (`validation/` holds a case for every Validation rule), which are **the only shared artifact** (`sandboxd/internal/gitrunner` is not importable from `control-plane`: Go's internal rule, and separate modules; `machined` vendors `sandboxd` or writes its own server against the goldens, phase 8's choice); lane work crosses as a bundle the host verifies (R4.4). The host's Kata half is a `Lanes.For` answering a `Runner` at `machined`. `gitx.Machine` stays project-only | run lane git on the host through `gitx.Machine` or §HGH, which R4.2 forbids and `ErrLaneDir` refuses; or take P8-D7's "phase 3's local git runner unchanged" at its word |
+through `ArchiveLane` carries for a detached HEAD, review r4-2 C-1; `refs` takes prefixes such as `refs/heads`, never a glob; `fetch` first deletes the dangling non-symref refs in its own `refs/remotes/{origin,upstream}/` namespace, removes the unreadable loose ref files there and a symref at a `<dst>`, answers 409 `prerequisite_missing` with the missing shas before verify, takes `X-Panacea-Set` for refs the bundle need not carry, and answers 409 `lane_broken` for a bad object outside that namespace, review r4-3 C-1 and I-2, r4-4 C-1, I-1 and I-2; the host asks `bundle` only for refs its basis does not reach, since `bundle create` leaves those out), with `testdata/gitrunner` as the goldens (`validation/` holds a case for every Validation rule), which are **the only shared artifact** (`sandboxd/internal/gitrunner` is not importable from `control-plane`: Go's internal rule, and separate modules; `machined` vendors `sandboxd` or writes its own server against the goldens, phase 8's choice); lane work crosses as a bundle the host verifies (R4.4). The host's Kata half is a `Lanes.For` answering a `Runner` at `machined`. `gitx.Machine` stays project-only | run lane git on the host through `gitx.Machine` or §HGH, which R4.2 forbids and `ErrLaneDir` refuses; or take P8-D7's "phase 3's local git runner unchanged" at its word |
 | **S3-P8.2** `lanes.Store` location | `PANACEA_APP_WORKTREES_DIR` | phase 8 puts cloud clones on the pod's volume, behind S3-P8.1 | move local clones under the projects root (the scanner would list each one as a project) |
 | **S3-P7.1** Session trailers in a shipped range | `git log --format=%(trailers:key=Panacea-Session)` | phase 7's manifest lists the sessions that produced a release (`7-D3`) | infer a session from a commit's time |
 | **S3-P7.2** Merge-link trailers | `Panacea-Brief`/`Panacea-Brief-Digest` on first-parent merges | phase 7 shows "reviewed against rev N at land" | parse the key (P5) |
@@ -594,7 +594,7 @@ under three.
 | 04 | Create-worktree route, `kind` on the Go wire, config and wiring | 03, G1, G5 | 2 h |
 | 05 | Git in the sandbox for clones: every session in a lane (R4.1), `core.hooksPath`, `PANACEA_APP_SESSION_ID`, the hook dispatcher | 02, G1, G5; 04 for its lane tests and Docker step (the order below runs it after 04 anyway) | 3 h |
 | 06 | The linked-worktree notice deleted (R4.1): `kind` in `types.ts`, the shared-index note (3-D2) | 04, 05, G1 | 2 h |
-| 24 | sandboxd git runner: the /git/v1/ RPC on the attach token, status/refs/bundle/fetch/diff, bundle verify and limits, the host client and runner pool with `Drop`, `Live` and the `Dial` test seam (R4; review r4-1); the ref repair, `lane_broken` and the shared Validation goldens (review r4-3) | 02, 04 | 5.5 h |
+| 24 | sandboxd git runner: the /git/v1/ RPC on the attach token, status/refs/bundle/fetch/diff, bundle verify and limits, the host client and runner pool with `Drop`, `Live` and the `Dial` test seam (R4; review r4-1); the ref repair, `lane_broken` and the shared Validation goldens (review r4-3); the host's reached-ref split, fetch Sets, `prerequisite_missing` and the unreadable-file repair (review r4-4) | 02, 04 | 6 h |
 | 07 | Lane sync and observed claims; the sweep's tip-change clone refresh (review I4) | 04, 24 | 3.5 h |
 | 08 | The chained forecast, queue order, remote reading, and the convergence GET | 07 (24 through 07) | 3 h |
 | 09 | Land, with the merge link and the clones' origin and upstream refresh; bring in origin/<branch> (review I5); the refresh route (review I4), a bundle into each lane's runner (R4.5) | 08, 24 | 5 h |
@@ -613,11 +613,13 @@ under three.
 | 22 | Lifecycle verbs: new and remove worktree, branch create/rename/delete, palette; the four phase 2 promises of phase 3 retired (review Minor 10 found the fourth) | 04, 06, 11, 18, 19 | 3 h |
 | 23 | Proof: the end-to-end script on real git and Docker, the owner's batched checklist, the seams doc | all | 2 h |
 
-**Total: 69.5 h** over 24 tasks (64 h before task 24's 5.5 h, ruling R4; review r4-1 added the
+**Total: 70 h** over 24 tasks (64 h before task 24's 6 h, ruling R4; review r4-1 added the
 pool's `Drop`, `Live` and `Dial` seam, 1 h; review r4-2 added `ArchiveLane` to task 24 and the
 claim basis to task 09, half an hour each; review r4-3 added the runner's ref repair,
 `lane_broken` and the shared Validation goldens to task 24, half an hour, and `Syncer.Broken`
-and the archive basis inside tasks 07, 09 and 11's hours).
+and the archive basis inside tasks 07, 09 and 11's hours; review r4-4 added the reached-ref
+split, fetch Sets, `prerequisite_missing` and the unreadable-file repair to task 24, half an
+hour, and the Sets and Forget rule inside tasks 09 and 11's hours).
 
 **Order.** 01 → 02 → 03 → 04 → then three lanes that can run in parallel worktrees:
 **(a)** 05 → 06; **(b)** 24 → 07 → 08 → 09 → 10, then 15 and 16 → 17 (24, the runner, is
