@@ -697,3 +697,93 @@ The golden test reads the files by path, never a retyped copy: the fixture **is*
 file (mutant: `quoteText` for `quote`, which `tsc` alone never sees). The `// W5` marker in task
 168's `work.go` is this part's convention (task 124 used a separate Go table); task 168 writes the
 marker or the test's slice is empty and the row test fails, which is the signal.
+
+#### Tests to write first — `kinds.test.ts` (appended) and `desktop/src/work/replica/intake.test.ts`
+
+1. **Copied by name** — reads `control-plane/internal/hub/hubclient/fake_work_intake.go` through
+   `import.meta.glob(…, { query: "?raw" })`, collects every `Kind: "…"` literal, and requires the
+   set to equal `W5_FEED_KINDS ∪ W5_ADMIN_KINDS ∪ W5_SIGNAL_KINDS`. **Kills** "a kind retyped
+   wrong on the desktop".
+2. **Accept then link, in order** — with task 57's fake Hub, team `tm-pay`, the feed carries
+   `request.accepted` (rq-1 → is-1, seq 10) then `request.linked` (rq-2 → is-1, seq 11) in one
+   page. After apply, `requestsOf("is-1")` lists both requesters, rq-1 first. The same pair
+   delivered as seq 11 before seq 10 in one page is sorted and gives the same answer. **Kills**
+   "applied out of order", where the second write replaces the first issue's requester list.
+3. **Unknown kind** — a page carrying `{kind: "request.escalated_v9", …}` applies the rest of the
+   page, throws nothing, and leaves every `IntakeRecords` map unchanged (hub-contract §1). **Kills**
+   "a new Hub kind breaks old desktops".
+4. **No admin kind creates a record** — a page of every `W5_ADMIN_KINDS` kind, each with a subject
+   id, causes **zero** `send` calls and leaves every map in the replica, including task 55's and
+   task 125's, the same size (a deep count before and after). **Kills** "keys cached in the
+   replica".
+5. **The secret is nowhere after the dialog closes** — `createAPIKey` answers
+   `{key: {…}, secret: "fixture-secret-7f3a9c"}` from a test double; the test mounts a `Keys`
+   dialog stub, closes it, then walks the store's `work` state (task 37's `workSlice`,
+   `desktop/src/store/slices/workSlice.ts`) and every replica map with a recursive string search:
+   no value equals or contains `"fixture-secret-7f3a9c"`.
+   **Kills** "the secret stored". (The stub is a 10-line component in this test file; task 173's
+   real dialog runs the same assertion on itself.)
+6. **Another team's request is never fetched** — `request.created` with `data.teamId: "tm-other"`
+   and a caller of `tm-pay` only causes zero `send` calls and no record. **Kills** "a request's
+   quote visible by grant".
+7. **No persistence** — task 55's no-persistence grep runs over `kinds.ts`, `replica.ts`, `ops.ts`,
+   `visibility.ts` and `work.ts` and passes; then a spy on `Storage.prototype.setItem` during a
+   full load plus one `putLoop` records zero calls. A test double whose `createLoop` writes the draft
+   to `localStorage` makes the same check fail. **Kills** "a loop draft in `localStorage`".
+8. **No loop patch, no admin op** — `INTAKE_OP_KINDS` (the runtime list of `IntakeOp["kind"]`)
+   holds no kind starting `loop.patch`, `key.`, `app.`, `webhook.`, `connector.`, `harness.` or
+   `skill.`, and `inverseOf` of a `loop.runNow` returns the refusal. **Kills** "a loop edited in
+   place" and "an admin write through the replica".
+
+#### Steps
+
+1. Append the wire tests and write `intake.test.ts`; run them; they fail (no `WORK_RELAY_W5`, no
+   W5 kinds).
+2. Append parts 13-19 to `work.ts` and the ten codes to `client.ts`; the wire tests pass once task
+   143's goldens and task 168's rows are on the tree (before that they fail by design).
+3. Append the W5 lists to `kinds.ts`; test 1 passes once task 144's fake is on the tree.
+4. Add the `replica.ts`, `ops.ts` and `visibility.ts` deltas; tests 2-8 pass.
+5. `npm --prefix desktop run typecheck`; commit with `git commit -F <msgfile> -- <paths>`.
+
+#### Acceptance
+
+```bash
+npm --prefix desktop test -- src/api/work.test.ts src/work/replica/kinds.test.ts src/work/replica/intake.test.ts
+# expect: work.test.ts six more passed than before; kinds.test.ts one more passed;
+#         intake.test.ts 7 passed; no failed
+npm --prefix desktop run typecheck
+# expect: exit 0
+```
+
+#### What this task does NOT claim
+
+- A surface: tasks 170 to 173 draw these records.
+- That the W5 kinds, golden file names, relay paths and header names are the Hub's: tasks 143,
+  144, 160 and 168 have no part, and the copy, golden and row tests make them so when those land,
+  failing until then.
+- That a request's thread is complete: it loads on open and grows by `request.message_added`.
+
+#### Gaps found while writing this part
+
+1. **G1 — task 143's list and the desktop's needs differ.** This task's scope names types task 143
+   does not (`SyncLogEntry`, `LoopVersion`, `LoopTrigger`, `LoopBound`, `TeamAgentPolicy`,
+   `DigestSettings.teams`); resolved above by task 143's names. The other way, tasks 172 and 173
+   need fields and methods task 143's scope lacks: `Loop.name`, `.action`, `.trigger.filter`,
+   `.author`, `.at`; `Loop.grid` as per-class levels (AX §7's grid, not one level name);
+   `LoopRun.outcome`'s words, `.sessionId`, `.worktree`; `App.actsAs`; and the methods
+   `RequestMessages`, `SetTrackerMode`, `ListLoops`, `TeamLoops`, `CreateLoop`, `PauseLoop`,
+   `ListApps`, `ListTeamSkills`. Task 143 takes them or the goldens fail here.
+2. **G2 — task 144 and task 170 disagree on the accepted issue's description.** Task 144's scope
+   says `AcceptRequest` writes revision 1 with **the quote** as the description; task 170's scope
+   and 05 §3.5 say the quote is customer content and **never** copied into the issue. This part
+   follows 170 (`AcceptRequestBody.description` is the person's text); task 144's rule must change.
+3. **G3 — no undo for accept, link or decline.** Task 146's scope names no unlink and task 143's
+   list no reopen, so `U` refuses with a fact line. If one is wanted, task 146 adds the route.
+4. **G4 — how an `ExternalLink` reaches the desktop.** Task 150 names the record, not whether it
+   rides on the issue or needs its own list route; task 171's *not tied · imported* needs it.
+5. **G5 — the sync log is per run, task 171 wants per item.** `SyncRun` carries counts and
+   `errors`; per-item `imported`/`updated`/`skipped` rows need task 150 to record them. Until then
+   task 171 shows counts per run and a row per refusal.
+6. **Parts missing.** Tasks 55, 143, 144, 146-168 have no part on this tree; every name from them
+   is their scope's and **UNVERIFIED**. The File map's `desktop/src/components/…` row has no home
+   for `loops/` (scope 172 names it).
