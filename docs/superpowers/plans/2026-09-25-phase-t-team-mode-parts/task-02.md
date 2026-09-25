@@ -42,7 +42,7 @@ the widest claim; the 10% breadth check needs the tracked files and is Fleet's (
 claims, and a union measure would refuse them for the wrong reason. An empty tracked list has
 breadth 0.
 
-**(e) Secret-shaped text is a fixed table of eleven RE2 patterns.** Go's `regexp` is RE2, linear in
+**(e) Secret-shaped text is a fixed table of twelve RE2 patterns.** Go's `regexp` is RE2, linear in
 the input, so an attacker cannot make the check slow. The table is closed: a new pattern is a code
 change with its own test. It refuses; it never redacts, because a redacted string is still a string
 an agent chose to send, and the sender should hear *"refused: secret"* and stop.
@@ -387,5 +387,261 @@ func TestNewAppliesCleanNameToNames(t *testing.T) {
 func isRule(err error, class error, r Rule) bool {
 	var e *Error
 	return errors.As(err, &e) && errors.Is(err, class) && e.Rule == r
+}
+```
+
+- [ ] **Step 2: Write the failing tests for `hygiene.go`**
+
+Every sample secret is **assembled at run time** (`"ghp_" + strings.Repeat(…)`), so no
+secret-shaped literal sits in the repo for a push-protection scanner, or a reader, to trip on.
+`control-plane/internal/teamtext/hygiene_test.go`:
+
+```go
+package teamtext
+
+import (
+	"strings"
+	"testing"
+)
+
+func TestCleanRefusesEachCharacterClass(t *testing.T) {
+	for _, c := range []struct {
+		in     string
+		rule   Rule
+		off    int
+		mutant string
+	}{
+		{"a\x00b", RuleControl, 1, "C0 check starts at 0x01"},
+		{"a\x07b", RuleControl, 1, "C0 check dropped"},
+		{"a\rb", RuleControl, 1, "CR allowed with LF and TAB"},
+		{"a\x7fb", RuleControl, 1, "DEL (0x7f) not treated as a control"},
+		{"a\u0085b", RuleControl, 1, "C1 range 0x80-0x9f dropped"},
+		{"a\u009fb", RuleControl, 1, "C1 upper bound 0x9e"},
+		{"a\x1b[31mb", RuleANSI, 1, "ESC reported as a plain control, or allowed"},
+		{"a\u009b31mb", RuleANSI, 1, "C1 CSI (0x9b) not reported as ANSI"},
+		{"a\u009d0;x\u0007", RuleANSI, 1, "C1 OSC (0x9d) not reported as ANSI"},
+		{"x‪y", RuleBidi, 1, "bidi range starts at 0x202b"},
+		{"x‮y", RuleBidi, 1, "bidi range ends at 0x202d (RLO let through)"},
+		{"x⁦y", RuleBidi, 1, "isolates 0x2066-0x2069 dropped"},
+		{"x⁩y", RuleBidi, 1, "isolate upper bound 0x2068 (PDI let through)"},
+		{"x\U000E0000y", RuleTagBlock, 1, "tag block starts at 0xe0001"},
+		{"x\U000E0041y", RuleTagBlock, 1, "tag block range dropped: U+E0041 is an invisible 'A'"},
+		{"x\U000E007Fy", RuleTagBlock, 1, "tag block ends at 0xe007e"},
+		{"é\x00", RuleControl, 1, "Offset counts bytes, not code points"},
+	} {
+		if err := Clean(c.in); !isRule(err, ErrText, c.rule) || err.(*Error).Offset != c.off {
+			t.Errorf("%q: got %v, want %s at %d (mutant: %s)", c.in, err, c.rule, c.off, c.mutant)
+		}
+	}
+}
+
+func TestCleanAllowsBodyWhitespaceAndNeighbours(t *testing.T) {
+	// mutants: LF or TAB refused in bodies; ranges widened past their true bounds.
+	for _, s := range []string{"line one\nline two", "a\tb", "a  b", " lead", "x y",
+		"x y", "x⁥y", "x⁪y", "x\U000E0080y", "ok é 中"} {
+		if err := Clean(s); err != nil {
+			t.Errorf("%q refused: %v", s, err)
+		}
+	}
+}
+
+func TestCleanNameRefusesWhitespaceShapes(t *testing.T) {
+	// mutants: each arm of the name rule removed in turn.
+	for _, s := range []string{"a  b", " a", "a ", "a b", "a　b", "a\tb", "a\nb"} {
+		if err := CleanName(s); !isRule(err, ErrText, RuleWhitespace) {
+			t.Errorf("%q: got %v, want whitespace", s, err)
+		}
+	}
+	if err := CleanName("Add the export route"); err != nil {
+		t.Errorf("plain name refused: %v", err)
+	}
+}
+
+func TestCleanRefusesEverySecretShape(t *testing.T) {
+	r := strings.Repeat
+	for name, s := range map[string]string{
+		"private_key":      "-----BEGIN " + "OPENSSH PRIVATE KEY-----",
+		"aws_access_key":   "id " + "AKIA" + r("Q", 16) + " x",
+		"github_token":     "ghp_" + r("a", 36),
+		"github_pat":       "github_pat_" + r("A", 30),
+		"anthropic_key":    "sk-ant-" + r("b", 24),
+		"sk_key":           "sk-" + r("c", 24),
+		"slack_token":      "xoxb-" + r("1", 12),
+		"jwt":              "eyJ" + r("h", 10) + ".eyJ" + r("p", 10) + "." + r("s", 10),
+		"azure_key":        "AccountKey=" + r("K", 40) + "==",
+		"url_credentials":  "https://bob:" + "hunter2@example.com",
+		"assignment":       "password" + " = " + r("z", 9),
+		"azure_devops_pat": r("a", 26) + r("7", 26),
+	} {
+		err := Clean(s)
+		if !isRule(err, ErrText, RuleSecret) || err.(*Error).Detail != name {
+			t.Errorf("%s: got %v (mutant: its row dropped or reordered)", name, err)
+		}
+	}
+	if len(secrets) != 12 {
+		t.Fatalf("secret table has %d rows, want 12: a row added without a test", len(secrets))
+	}
+}
+
+func TestCleanSecretNearMisses(t *testing.T) {
+	// mutant: a pattern loosened until ordinary prose trips it.
+	for _, s := range []string{"the AKIA prefix", "ghp_short", "sk-short", "password is required",
+		"see https://example.com/a@b", "-----BEGIN CERTIFICATE-----", r52Hex()} {
+		if err := Clean(s); err != nil {
+			t.Errorf("%q refused: %v", s, err)
+		}
+	}
+}
+
+// r52Hex is 52 hex characters with a 0: outside the ADO PAT alphabet.
+func r52Hex() string { return "0" + strings.Repeat("a", 51) }
+```
+
+- [ ] **Step 3: Write the failing tests for `glob.go`**
+
+`control-plane/internal/teamtext/glob_test.go`:
+
+```go
+package teamtext
+
+import (
+	"fmt"
+	"strings"
+	"testing"
+)
+
+func TestValidGlobRefusals(t *testing.T) {
+	for _, c := range []struct {
+		in     string
+		rule   Rule
+		mutant string
+	}{
+		{"", RuleEmpty, "empty glob accepted"},
+		{"/etc/passwd", RuleAbsolute, "leading slash accepted"},
+		{"C:/Users/x", RuleAbsolute, "drive letter accepted"},
+		{`src\app.ts`, RuleBackslash, "backslash accepted"},
+		{"src/../../etc", RuleDotDot, "a .. segment accepted"},
+		{"..", RuleDotDot, ".. checked only between slashes"},
+		{"src//a.ts", RuleSegment, "an empty segment accepted"},
+		{"src/", RuleSegment, "a trailing slash accepted"},
+		{"./src", RuleSegment, "a . segment accepted"},
+		{"src/a**b", RuleSegment, "** inside a segment accepted"},
+		{"**", RuleWholeRepo, "whole-repo glob accepted"},
+		{"*", RuleWholeRepo, "single-star whole-repo glob accepted"},
+		{"**/*", RuleWholeRepo, "whole-repo check looks at the first segment only"},
+		{strings.Repeat("a", 201), RuleTooLong, "path cap 201"},
+		{"src/\x1b[2Ja", RuleANSI, "glob not hygiene-checked"},
+		{"src/a\tb", RuleControl, "TAB allowed in a path"},
+	} {
+		if err := ValidGlob(c.in); !isRule(err, ErrGlob, c.rule) {
+			t.Errorf("%q: got %v, want %s (mutant: %s)", c.in, err, c.rule, c.mutant)
+		}
+	}
+}
+
+func TestValidGlobAccepts(t *testing.T) {
+	// mutants: [ ] { } treated as metacharacters; the cap at 199; ".git" style names refused.
+	for _, s := range []string{"src/export/**", "app/[id]/page.tsx", "docs/{draft}.md",
+		"**/*.test.ts", "a?c", ".github/workflows/ci.yml", strings.Repeat("a", 200)} {
+		if err := ValidGlob(s); err != nil {
+			t.Errorf("%q refused: %v", s, err)
+		}
+	}
+}
+
+func TestValidPathTakesMetacharactersLiterally(t *testing.T) {
+	// mutant: ValidPath shares the whole-repo rule, so a file named "*" cannot be reported.
+	if err := ValidPath("*"); err != nil {
+		t.Errorf(`file "*" refused: %v`, err)
+	}
+	if !isRule(ValidPath("../x"), ErrGlob, RuleDotDot) {
+		t.Error("ValidPath lost the .. rule")
+	}
+}
+
+func TestMatch(t *testing.T) {
+	for _, c := range []struct {
+		g, p   string
+		want   bool
+		mutant string
+	}{
+		{"src/**", "src/a/b/c.ts", true, "** matches one segment only"},
+		{"src/**", "src", true, "** does not match zero segments"},
+		{"src/**/x.ts", "src/x.ts", true, "inner ** does not match zero segments"},
+		{"src/*.ts", "src/a/b.ts", false, "* crosses a slash"},
+		{"src/?.ts", "src/ab.ts", false, "? matches two characters"},
+		{"src/?.ts", "src/é.ts", true, "? matches a byte, not a code point"},
+		{"app/[id]/page.tsx", "app/[id]/page.tsx", true, "[ ] read as a class"},
+		{"app/[id]/page.tsx", "app/i/page.tsx", false, "[ ] read as a class"},
+		{"a*b*c", "aXXbYYc", true, "star backtracking broken"},
+		{"a*b", "a*b", true, "literal * in a path unmatched"},
+		{"src/a.ts", "src/a.tsx", false, "prefix match instead of whole segment"},
+	} {
+		if got := Match(c.g, c.p); got != c.want {
+			t.Errorf("Match(%q, %q) = %v (mutant: %s)", c.g, c.p, got, c.mutant)
+		}
+	}
+}
+
+func TestMatchIsPolynomial(t *testing.T) {
+	// mutant: ** matched by plain recursion; this input is exponential without the memo.
+	g := strings.Repeat("**/a/", 20) + "b"
+	p := strings.Repeat("a/", 60) + "c"
+	if Match(g, p) {
+		t.Fatal("matched")
+	}
+}
+
+func tracked(n int) []string {
+	out := make([]string, n)
+	for i := range out {
+		out[i] = fmt.Sprintf("f/%03d.go", i)
+	}
+	return out
+}
+
+func TestBreadthIsTheWidestSingleGlob(t *testing.T) {
+	// mutant: the union of all globs measured instead of the widest one.
+	files := append(tracked(10), "a/x.go", "b/y.go")
+	got := Breadth([]string{"a/**", "b/**"}, files)
+	if want := 1.0 / 12; got != want {
+		t.Fatalf("Breadth = %v, want %v", got, want)
+	}
+	if Breadth([]string{"**/*.go"}, nil) != 0 {
+		t.Fatal("empty tracked list not 0")
+	}
+}
+
+func TestCheckSet(t *testing.T) {
+	// mutant: an empty set accepted as "claims nothing".
+	if err := CheckSet(nil, tracked(10)); !isRule(err, ErrGlob, RuleEmpty) {
+		t.Errorf("empty set: %v", err)
+	}
+	// f/00?.go matches f/000.go … f/009.go, ten files.
+	// mutant: >= instead of >, so exactly 10% (10 of 100) is refused.
+	if err := CheckSet([]string{"f/00?.go"}, tracked(100)); err != nil {
+		t.Errorf("10 of 100 refused: %v", err)
+	}
+	// mutant: the breadth check dropped; 10 of 99 is over 10%.
+	if err := CheckSet([]string{"f/00?.go"}, tracked(99)); !isRule(err, ErrBreadth, RuleTooBroad) {
+		t.Errorf("10 of 99: %v", err)
+	}
+	// mutant: with no tracked list (the Hub's call) breadth divides by zero or refuses all.
+	if err := CheckSet([]string{"f/00?.go"}, nil); err != nil {
+		t.Errorf("no tracked list: %v", err)
+	}
+	// mutant: the 20-glob cap at 21, or checked after the per-glob loop.
+	many := make([]string, 21)
+	for i := range many {
+		many[i] = fmt.Sprintf("f/%03d.go", i)
+	}
+	if err := CheckSet(many, nil); !isRule(err, ErrBreadth, RuleTooMany) {
+		t.Errorf("21 globs: %v", err)
+	}
+	// mutant: CheckSet reports the rune offset, not the set index, of a bad glob.
+	if err := CheckSet([]string{"ok/a.go", "/abs"}, nil); !isRule(err, ErrGlob, RuleAbsolute) ||
+		err.(*Error).Offset != 1 {
+		t.Errorf("index: %v", err)
+	}
 }
 ```
