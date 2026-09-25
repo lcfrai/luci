@@ -587,7 +587,9 @@ authentication) — the Hub (owner decisions `:35`).
   data model; it was not opened in a browser. The owner's eyes remain the visual acceptance.
 - **Whether `hubclient.NewFake()` models `revision_conflict` under concurrent batches** is the
   contract's promise (§9.2); task 08's tests depend on it.
-- **`entraauth.ErrSignedOut` is the Hub's task C1's.** Tasks 09 and 11 match it with `errors.Is`,
+- **`signin.ErrSignedOut` is the Hub's task C1's** (`OD-30`: the package `entraauth` is renamed
+  `signin`, and its `ErrSignedOut` is the same value as `hubclient.ErrSignedOut`, hub task 30;
+  ruling `2026-09-25-identity-keycloak-broker.md` §11). Tasks 09 and 11 match it with `errors.Is`,
   so they cannot compile before C1 lands unless `hubclient` re-exports the sentinel. If neither is
   true when they start, they match a relayed 401 `signed_out` `*hubclient.Error` only and name the
   gap in the commit message; the `signed_out` refusal then reaches the person one layer later, never
