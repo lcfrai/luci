@@ -641,3 +641,102 @@ func (f *Fake) ArchiveLabel(_ context.Context, labelID string) (hubapi.Label, er
 
 `sameName` is `fake_projects.go:159`'s case-insensitive compare. `inOrder` needs `order()`, which
 `fakeLabel` and `fakeComment` declare in block 1.
+
+Block 5: comments (task 12: append-only, one level of replies, checked anchors, team mentions).
+
+```go
+func (w *fakeWorld) renderComment(fc *fakeComment) hubapi.Comment {
+	c := fc.c
+	c.CreatedBy = *w.userRef(fc.createdBy)
+	c.Mentions = append([]string{}, c.Mentions...)
+	c.Reactions = []hubapi.Reaction{}
+	for _, r := range fc.reactions {
+		i := slices.IndexFunc(c.Reactions, func(x hubapi.Reaction) bool { return x.Emoji == r[0] })
+		if i < 0 {
+			c.Reactions, i = append(c.Reactions, hubapi.Reaction{Emoji: r[0], Users: []hubapi.User{}}), len(c.Reactions)
+		}
+		c.Reactions[i].Users = append(c.Reactions[i].Users, *w.userRef(r[1]))
+	}
+	return c
+}
+
+// commentOf is commentID's comment and the caller's role in its team; one 404
+// for unknown and unreadable.
+func (w *fakeWorld) commentOf(commentID, me string) (*fakeComment, hubapi.Role, error) {
+	if fc := w.soc().comments[commentID]; fc != nil {
+		if m := w.teams[fc.teamID].members[me]; m != nil {
+			return fc, m.role, nil
+		}
+	}
+	return nil, "", problem(404, fkCommentNotFound, "There is no such comment that you can see.", "commentId", commentID)
+}
+
+// checkAnchor is task 12's: text offsets in UTF-16 code units of the named
+// revision's description; a criterion that revision serves; a span or hunk
+// ref kept verbatim, at most 512 bytes, one line.
+func (w *fakeWorld) checkAnchor(is *fakeIssue, a *hubapi.CommentAnchor) error {
+	if a == nil {
+		return nil
+	}
+	bad := func(field string) error {
+		return problem(422, fkAnchorUnresolvable, "That anchor is not in the revision it names.", "field", field)
+	}
+	switch a.Kind {
+	case "text", "criterion":
+		if a.Revision < 1 || a.Revision > len(is.revisions) {
+			return bad("anchor.revision")
+		}
+		rev := is.revisions[a.Revision-1]
+		if a.Kind == "text" {
+			n := len(utf16.Encode([]rune(rev.Content.Description.Text)))
+			if a.CriterionID != "" || a.Ref != "" {
+				return badRequest("anchor", "A text anchor names a range only.")
+			}
+			if a.Start < 0 || a.End <= a.Start || a.End > n {
+				return bad("anchor.end")
+			}
+			return nil
+		}
+		if !slices.ContainsFunc(rev.Content.Serves, func(s hubapi.Serve) bool { return s.CriterionID == a.CriterionID }) {
+			return bad("anchor.criterionId")
+		}
+	case "span", "hunk":
+		if a.Ref == "" || len(a.Ref) > 512 || strings.ContainsAny(a.Ref, "\r\n") {
+			return badRequest("anchor.ref", "A ref is one line of at most 512 bytes.")
+		}
+	default:
+		return badRequest("anchor.kind", "An anchor is text, criterion, span or hunk.")
+	}
+	return nil
+}
+
+func (f *Fake) Comments(_ context.Context, issueID string, page hubapi.PageRequest) (hubapi.Page[hubapi.Comment], error) {
+	w := f.w
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	var zero hubapi.Page[hubapi.Comment]
+	me, err := f.enter("Comments", issueID, page)
+	if err != nil {
+		return zero, err
+	}
+	if _, _, err := w.issueOf(issueID, me); err != nil {
+		return zero, err
+	}
+	limit, err := pageLimit(page.Limit)
+	if err != nil {
+		return zero, err
+	}
+	var rows []*fakeComment
+	for _, fc := range inOrder(w.soc().comments) { // oldest first
+		if fc.c.IssueID == issueID && (page.After == "" || fc.seq > w.soc().comments[page.After].seqOr0()) {
+			rows = append(rows, fc)
+		}
+	}
+	return pageOf(rows, limit, func(fc *fakeComment) string { return fc.c.ID }, w.renderComment), nil
+}
+```
+
+`seqOr0` is a nil-safe `seq` read, so an unknown cursor lists from the start (as the Hub's list
+routes treat a cursor they did not issue, `fake.go:239-262`'s idiom):
+`func (c *fakeComment) seqOr0() int64 { if c == nil { return 0 }; return c.seq }`, gofmt'd over
+four lines, declared beside `order()` in block 1.
