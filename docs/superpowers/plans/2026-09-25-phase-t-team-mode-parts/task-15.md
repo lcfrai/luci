@@ -71,4 +71,243 @@ built by something that is not this manager). On the cloud side the guarantee is
 - `control-plane/internal/sandbox/manager_test.go` — the refused-create and delete tests extended to the second Secret (modified)
 - `sandboxd/internal/policycheck/policycheck.go`, `policycheck_test.go` — `Check`, `Env`, `Dir`, the four refusals (new)
 - `sandboxd/cmd/sandboxd/main.go` — the one call before `newServer`; `main_test.go` gains the tampered-file process test (modified)
-- `images/sandbox/Dockerfile` — nothing for the policy (the mount brings the directory); **one** line only if phase 6's image does not already create `/etc/claude-code`, which a directory mount on a read-only rootfs needs as its mount point (checked in step 5) (modified, conditionally)
+- **Not** `images/sandbox/Dockerfile`: phase 6's image already creates `/etc/claude-code/` for its drop-in (`phase-6 …/task-14.md:202,260`), which is the mount point; if a merged image lacks it, the runtime creates the mount point before the rootfs goes read-only (runc's order; for the Kata agent **UNVERIFIED**, and task 33's first pod shows it)
+
+**Interfaces:**
+- Produces:
+  - `sandbox.Class`, `sandbox.ClassWorker`, `sandbox.ClassOrchestrator`, `sandbox.OrchestratorCommand` (`/usr/local/bin/panacea-orchestrator`, task 27's binary, `task-27.md:89`)
+  - `sandbox.Spec.Class`, `Spec.PolicyFile []byte`, `Spec.ControlToken string`; the same three on `backend.Spec`
+  - `sandbox.PolicySecretKey` (`managed-settings.json`), `sandbox.ControlSecretKey` (`control`), `sandbox.PolicyMountPath` (`/etc/claude-code`), `sandbox.PolicySecretName(owner, id)`
+  - the pod contract: env `PANACEA_APP_CLASS`, `PANACEA_APP_AGENT_ID`, `PANACEA_APP_CONTROL_TOKEN` (a `secretKeyRef`), `PANACEA_APP_POLICY_SHA256`; volumes at `/etc/claude-code` (read-only Secret), `/run/panacea` and `/panacea` (memory `emptyDir`s)
+  - `policycheck.Check(dir, want string) error`, `policycheck.Env`, `policycheck.Dir`, `policycheck.File`, `ErrMissing`, `ErrMismatch`, `ErrExtra`, `ErrUnexpected`, `ErrMalformed`; `sandboxd` exit code 3
+- Consumes:
+  - P8-14, built — `Spec` (`manager.go:69-83`), `pod` (`:270-348`), `Create` and its order (`:350-401`), `Delete` (`:420-435`), `containerEnv` (`:189-242`), `envReservedPrefix` (`:52-55`), `backend.ValidateSpec` (`backend.go:204`), `katabe.Create` (`kata.go:95-120`)
+  - P8-15, planned — `Spec.Machine` (`phase-8 …/task-15.md:71`: *""* *means no machine volume and no affinity*); **UNVERIFIED until merge**
+  - task 13 — the rendered bytes and `sha256:` digest form (`policy.Digest`), re-implemented in `sandboxd`, which cannot import `control-plane` (skeleton file map); a shared fixture pins the two
+  - task 16 — the three variables it reads (`task-16.md:1072-1074`), `/run/panacea/control.sock` and `/panacea/team.json` (`task-16.md:162-165`)
+- Consumed by: task 20 (sets `Class`, `PolicyFile`, `ControlToken`, `SessionID` on the broker's spec), task 17 (the broker passes them through), task 27 (the runner is the orchestrator's command), task 33 (`/status`), task 58 (adds the `mirror` class here).
+
+**The additions to `control-plane/internal/sandbox/manager.go`, complete.** New declarations,
+beside `AttachSecretKey` (`manager.go:31-32`):
+
+```go
+// Class is a sandbox's class (05-design.md §2.1; task 14b). "" is a worker, so
+// every Phase 8 caller that predates team mode keeps its shape.
+type Class string
+
+const (
+	ClassWorker       Class = "worker"
+	ClassOrchestrator Class = "orchestrator" // task 58 adds "mirror"
+)
+
+const (
+	// OrchestratorCommand is the orchestrator class's one PTY command (task 27).
+	OrchestratorCommand = "/usr/local/bin/panacea-orchestrator"
+	// The orchestrator's size is proposed (05-design.md §11.2 line 1145) and
+	// measured in task 47; a caller's CPU and Memory still win.
+	orchestratorCPU    = "250m"
+	orchestratorMemory = "512Mi"
+
+	PolicySecretKey  = "managed-settings.json" // the policy Secret's one key
+	ControlSecretKey = "control"               // the attach Secret's second key
+	PolicyMountPath  = "/etc/claude-code"      // Claude Code's Linux managed directory
+	maxPolicyBytes   = 64 << 10                // task 13's MaxLayerBytes bounds each layer; the file is smaller
+
+	envClass   = "PANACEA_APP_CLASS"
+	envAgentID = "PANACEA_APP_AGENT_ID"
+	envControl = "PANACEA_APP_CONTROL_TOKEN"
+	envPolicy  = "PANACEA_APP_POLICY_SHA256" // task 13's policy.EnvDigest
+)
+
+// PolicySecretName is PodName(owner, id) + "-policy", beside AttachSecretName.
+func PolicySecretName(owner, id string) string { return policySecretFor(PodName(owner, id)) }
+
+func policySecretFor(podName string) string { return podName + "-policy" }
+
+func policyDigest(file []byte) string {
+	sum := sha256.Sum256(file)
+	return "sha256:" + hex.EncodeToString(sum[:])
+}
+```
+
+`Spec` (`manager.go:69-83`) gains, after `SessionID`:
+
+```go
+	// Added in Phase T (task 15). Class shapes the pod; PolicyFile is the
+	// rendered managed settings every cloud sandbox starts under (OD-23);
+	// ControlToken is /control's bearer (task 16), "" for a session with no Fleet.
+	Class        Class
+	PolicyFile   []byte
+	ControlToken string
+```
+
+`validateClass` runs first in `Create`, before any object exists, and normalises the spec:
+
+```go
+// validateClass is task 14b's three rules and OD-23's one. It returns the
+// spec as the pod builder must see it.
+func validateClass(spec Spec) (Spec, error) {
+	if len(spec.PolicyFile) == 0 {
+		return spec, fmt.Errorf("sandbox %q: PolicyFile is required: every cloud sandbox starts under a rendered policy (OD-23)", spec.ID)
+	}
+	if len(spec.PolicyFile) > maxPolicyBytes {
+		return spec, fmt.Errorf("sandbox %q: PolicyFile is %d bytes, the limit is %d", spec.ID, len(spec.PolicyFile), maxPolicyBytes)
+	}
+	if spec.ControlToken != "" && spec.SessionID == "" {
+		return spec, fmt.Errorf("sandbox %q: a ControlToken needs a SessionID, which sandboxd stamps on every control request", spec.ID)
+	}
+	switch spec.Class {
+	case "", ClassWorker:
+		spec.Class = ClassWorker
+	case ClassOrchestrator:
+		if spec.Machine != "" { // P8-15's field
+			return spec, fmt.Errorf("sandbox %q: an orchestrator has no machine disk and no affinity (task 14b), got machine %q", spec.ID, spec.Machine)
+		}
+		if spec.Command != "" && spec.Command != OrchestratorCommand {
+			return spec, fmt.Errorf("sandbox %q: an orchestrator runs %s, not %q", spec.ID, OrchestratorCommand, spec.Command)
+		}
+		spec.Command = OrchestratorCommand
+		if spec.CPU == "" {
+			spec.CPU = orchestratorCPU
+		}
+		if spec.Memory == "" {
+			spec.Memory = orchestratorMemory
+		}
+	default:
+		return spec, fmt.Errorf("sandbox %q: unknown class %q", spec.ID, spec.Class)
+	}
+	return spec, nil
+}
+```
+
+**If P8-15 has not merged when this is built,** `Spec.Machine` does not exist yet: delete the
+`Machine` check, keep a `// P8-15: refuse Machine here` line, and the orchestrator is diskless
+trivially because no pod has a machine disk yet. The check lands with P8-15's merge, and
+`TestAnOrchestratorRefusesAMachine` is written then; this is the one test in the task that waits.
+
+`containerEnv` (`manager.go:206-242`) renders the four team variables after its three and before
+the sorted `Env`; `backend.Spec.EnvEntries()` renders the same four in the same order, and phase 8's
+pin test (`TestThePodEnvironmentIsExactlySpecEnvEntries`, `manager.go:199-205`) keeps the two equal:
+
+```go
+	env = append(env,
+		corev1.EnvVar{Name: envClass, Value: string(spec.Class)},
+		corev1.EnvVar{Name: envPolicy, Value: policyDigest(spec.PolicyFile)})
+	if spec.SessionID != "" {
+		env = append(env, corev1.EnvVar{Name: envAgentID, Value: spec.SessionID})
+	}
+	if spec.ControlToken != "" { // a reference, like the attach token: never a value in the pod spec
+		env = append(env, corev1.EnvVar{Name: envControl, ValueFrom: &corev1.EnvVarSource{
+			SecretKeyRef: &corev1.SecretKeySelector{
+				LocalObjectReference: corev1.LocalObjectReference{Name: secretName},
+				Key:                  ControlSecretKey,
+			},
+		}})
+	}
+```
+
+`attachSecret` (`manager.go:256-268`) adds `ControlSecretKey: []byte(spec.ControlToken)` to `Data`
+when the token is set. The policy Secret is its twin, one key, same labels:
+
+```go
+func (m *Manager) policySecret(spec Spec, name string) *corev1.Secret {
+	s := m.attachSecret(spec, name) // the labels and namespace, one place
+	s.Data = map[string][]byte{PolicySecretKey: spec.PolicyFile}
+	return s
+}
+```
+
+In `pod` (`manager.go:318-331`), three volumes and three mounts join `home` and `tmp`, for every
+class. The worker's machine volume and affinity stay exactly as P8-15 writes them, gated on
+`Spec.Machine`, which `validateClass` has already refused for an orchestrator:
+
+```go
+	policyMode := int32(0o444)
+	runLimit, snapLimit := resource.MustParse("1Mi"), resource.MustParse("4Mi")
+	volumes := []corev1.Volume{
+		{Name: "home", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
+		{Name: "tmp", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
+		// OD-23: the whole managed directory, so nothing from the image is in scope.
+		{Name: "policy", VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{
+			SecretName:  policySecretFor(name),
+			Items:       []corev1.KeyToPath{{Key: PolicySecretKey, Path: PolicySecretKey}},
+			DefaultMode: &policyMode,
+		}}},
+		// task 16's control socket and phase 6's token directory live under /run/panacea.
+		{Name: "run-panacea", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{
+			Medium: corev1.StorageMediumMemory, SizeLimit: &runLimit}}},
+		// task 16's team.json: memory-backed, outside the worktree (§5.3; ADR-H1's A5).
+		{Name: "snapshot", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{
+			Medium: corev1.StorageMediumMemory, SizeLimit: &snapLimit}}},
+	}
+	mounts := []corev1.VolumeMount{
+		{Name: "home", MountPath: "/home/dev"},
+		{Name: "tmp", MountPath: "/tmp"},
+		{Name: "policy", MountPath: PolicyMountPath, ReadOnly: true},
+		{Name: "run-panacea", MountPath: "/run/panacea"},
+		{Name: "snapshot", MountPath: "/panacea"},
+	}
+```
+
+The two memory `emptyDir`s count against the container's memory limit, which is also the Kata
+guest's size (`manager.go:328-330`); 5 MiB of 512 MiB is the Orchestrator's cost of them. If phase
+6's merged manager already mounts something at `/run/panacea/gateway`, it nests under this volume
+and both stay; if it mounts `/run/panacea` itself, reuse that volume and add none (step 4 checks).
+
+`Create` (`manager.go:364-401`) keeps its order and inserts the policy Secret second:
+
+```go
+func (m *Manager) Create(ctx context.Context, spec Spec) (string, error) {
+	spec, err := validateClass(spec)
+	if err != nil {
+		return "", err // before any object: a bad spec leaves nothing behind
+	}
+	name := PodName(m.owner, spec.ID)
+	secretName := attachSecretFor(name)
+	policyName := policySecretFor(name)
+	secrets := m.client.CoreV1().Secrets(m.cfg.Namespace)
+
+	secret, err := secrets.Create(ctx, m.attachSecret(spec, secretName), metav1.CreateOptions{})
+	if err != nil {
+		return "", err // the claim is taken: touch nothing (unchanged)
+	}
+	cleanup := func(names ...string) error { // a fresh, bounded context, as before
+		c, cancel := context.WithTimeout(context.WithoutCancel(ctx), cleanupTimeout)
+		defer cancel()
+		var errs []error
+		for _, n := range names {
+			if derr := secrets.Delete(c, n, metav1.DeleteOptions{}); derr != nil && !apierrors.IsNotFound(derr) {
+				errs = append(errs, fmt.Errorf("delete secret %s: %w", n, derr))
+			}
+		}
+		return errors.Join(errs...)
+	}
+	pol, err := secrets.Create(ctx, m.policySecret(spec, policyName), metav1.CreateOptions{})
+	if err != nil { // no pod yet: the claim goes too, so a retry can take it
+		return "", errors.Join(err, cleanup(secretName, policyName))
+	}
+
+	created, err := m.client.CoreV1().Pods(m.cfg.Namespace).Create(ctx, m.pod(spec, name, secretName), metav1.CreateOptions{})
+	if err != nil {
+		if podCreateRefused(err) {
+			if cerr := cleanup(secretName, policyName); cerr != nil {
+				return "", errors.Join(err, fmt.Errorf("sandbox %q: after the pod was refused: %w", spec.ID, cerr))
+			}
+		}
+		return "", err // ambiguous: both Secrets kept, Delete removes all three (unchanged rule)
+	}
+
+	for _, s := range []*corev1.Secret{secret, pol} {
+		if err := m.ownByPod(ctx, s, created); err != nil {
+			return created.Name, fmt.Errorf("sandbox %q: own secret %s by pod %s (the pod is kept; Delete removes all three): %w",
+				spec.ID, s.Name, created.Name, err)
+		}
+	}
+	return created.Name, nil
+}
+```
+
+`ownByPod` is the existing owner-reference block (`manager.go:386-399`), moved into a method so it
+runs for both Secrets. `Delete` (`manager.go:420-435`) deletes `policySecretFor(podName)` after the
+attach Secret, with the same *absence is success* rule. The attach Secret stays the claim: the
+policy Secret is created only by the request that holds it, and is never what a retry checks.
