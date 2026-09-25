@@ -167,3 +167,76 @@ steady agents and says `idle` when one is (mutant: *"all live"* regardless); (7)
 *Abandon* (05 names no fact move back from `started`, a reported gap), a generated MEANING line
 (W4 gateway), or that 30 agents fit one screen at 125 % (measured in task 70).
 
+**65 — the Desk: §3.7's informs and the reassign *decide*; answer in place; the zero state.** Files:
+`desktop/src/components/desk/deskRows.tsx` ⚑, `desktop/src/components/desk/rows/{InformRow,
+ReassignDecide}.tsx` (+ tests), `desktop/src/components/desk/DeskZero.tsx` (task 62's file, now
+filled), `desktop/src/work/desk/informs.ts` (+ test). **Informs** register under the `since` band
+(`prototype/work-layer.html:786`): (a) §3.7 rule 1, derived locally with no Hub record: a session of
+mine whose `IssueRef` names `issue:is-…@3` (task 19) while the head is `@4`, written by someone
+else, gives *"EP-142 changed since your agent read @3 (Alice, 11:02): serves c-40aa added."* and one
+verb, *re-brief my agents at @4*, which moves the session's `IssueRef` through task 19's path so the
+Materialiser rewrites the managed block (SW.7); nothing reaches the agent until I press it, and
+whether a running CLI re-reads the block before its next turn is **UNVERIFIED** (we never type into
+it, OD-8); (b) §3.7 rule 3's solo form: a relation someone else added to my in-flight issue is
+recorded and informs me; (c) §3.3's drift: a served `criterionId` no longer in the brief's current
+revision (04:263) informs with a one-key *re-point* (P4-16's loader, **UNVERIFIED until merge**).
+**The reassign decide** (§3.7 rule 2) sits in NEEDS YOU at tier 0: when Alice reassigns my issue
+while a lane is bound (`started` or `in_review`), I get *hand over the worktree to Alice* or *keep
+working, decline* (keys `1`, `2`); the safe default pauses and moves nothing, and every surface
+shows *reassign requested by Alice* until I answer; in solo mode, hand-over restarts nothing: my
+session gets a checkpoint commit and stops. **Its Hub half is a gap** (reported): SW.1 has no
+pending-reassign record, so this task builds against `NewFake()` with two added methods,
+`RequestReassign(issueId, toUserId)` and `AnswerReassign(issueId, accept bool)`, and an added
+`IssueHead.reassignRequest *{to User; by User; at string}`, all allowed by WS0's *added method or
+field* rule, and marks the real route UNVERIFIED until a WH task owns it. **Answer in place** (AX
+§5, L-113): every Desk verb resolves the row where it stands through `mutate` (`optimistic.undo`,
+`U`), a refusal returns it with a `--fail` flash and the Hub's reason (02 C8), a one-line reply to a
+mention posts a `Comment` inline, and nothing navigates; `H` defer with a reason is W2 (task 94).
+**The zero state**, only what W1 can back: *"Nothing needs you. EP-142 landed and proven at 14:02.
+3 agents live on 2 issues."*, no horizon line. **Tests first:** (1) a newer head revision written
+by me makes no inform (mutant: any revision gap); (2) *re-brief* is the only path that changes the
+session's `IssueRef` (mutant: the head change auto-re-briefs, which breaks rule 1); (3) a reassign
+on a `todo` issue is a plain assign, on a `started` one it is a decide and the assignee is unchanged
+until answered (mutants: decide for every reassign; assignee moved at once); (4) *keep working*
+leaves the session running and clears the request (mutant: the default pauses); (5) answering the
+last NEEDS YOU row shows the zero sentence and a non-empty FAILED stays visible below it
+(mutants: zero unreachable; FAILED hidden, 07 D C5); (6) no verb changes the route or lens (mutant:
+a verb that dives); (7) the zero sentence passes `expectNoPrediction` and has no `~` time (mutant:
+AX's *"Next decision expected ~14:22"* copied). **Depends on** 63, 64 (and 19 through SW.7).
+**Design:** 05 §3.7 rules 1-3, §3.3 (drift), §4.2 (answer in place, zero state); AX §5, anti-pattern
+16. **Closes** L-112 and L-113 (with 62-64); **serves** L-114. **Does not claim** rule 3's
+Orchestrator proposal (W3), the horizon bar or quiet mode (Q4), defer with a reason (task 94), or
+that the reassign's Hub route exists.
+
+**66 — the accessibility floor: one live region, `aria-hidden` liveness, grid roles.** Files:
+`desktop/src/components/common/LiveRegion.tsx` (+ test, new), `desktop/src/components/AppShell.tsx`
+⚑ (mounts it once), `desktop/src/components/common/Toasts.tsx` (phase 2's toast stack already
+carries `aria-live="polite"` at `Toasts.tsx:42`; this task routes its text through `LiveRegion`
+and removes the second region), `desktop/src/components/common/StatusDot.tsx` (a `decorative`
+prop: `aria-hidden="true"` and no `aria-label`, `StatusDot.tsx:58`, for Work and Desk rows where
+the row's STATE word carries the status), and the row containers of tasks 40, 42 and 62-65
+(`WorkLens`, `IssueRow`, `TriageView`, `Desk`, `DeskSection`) for roles; neither `Toasts.tsx`
+nor `StatusDot.tsx` is in the skeleton's file map (reported). The API: `announce(text: string,
+kind: "answer" | "digest"): void` from `useLiveRegion()`: an **answer** to the user's own act is
+spoken at once (*"EP-142 deferred. Undo, U"*); a **digest** (held arrivals from task 41, Desk
+arrivals from task 62) is coalesced to at most one per 15 minutes (AX §6.8; 05 §4.4 rule 5). The
+heartbeat, dots and flashes are `aria-hidden` (05 §4.4 rule 5). Lists are ARIA grids (Work list,
+Triage, the board's columns as `listbox`) with `aria-rowcount` set to the full count because they
+virtualise over 50 rows, and each rendered row carries `aria-rowindex`; the Desk is one grid per
+section. The **Undo pause** (05 §4.6, §5.3 row 17): the `--undo-window` countdown on task 56's chip
+stops while its row has focus or hover and resumes on leave; no skeleton row names it, so it lands
+here if task 56's part has not built it (the part checks first and never builds it twice). The
+`?` sheet (task 54) gains *"Space: peek"*. **Tests first:** (1) AppShell with the Work lens, the
+Desk and a toast open holds exactly one `[aria-live]` (mutant: the toast stack's region kept, or a
+region per section); (2) two digests 5 minutes apart speak once, an answer between them speaks at
+once (mutants: every arrival spoken; answers throttled); (3) every heartbeat element in the Work
+and Desk fixtures is `aria-hidden` (mutant: `StatusDot` keeps its label in a row); (4) 120 issues
+virtualised render `aria-rowcount="120"` and row 61 carries `aria-rowindex="61"` (mutant: the
+rendered count); (5) with focus on the row, 10 s of fake time leaves Undo available, and 6 s after
+blur it is gone (mutant: the window ignores focus); (6) the sheet lists `Space` as peek (mutant:
+missing line); (7) `expectNoPrediction` on the region's text. **Depends on** 41, 62. **Design:**
+05 §4.4 rules 4-5 (rule 4, `forced-colors`, is task 34), §4.6, §5.3 row 17; 07 D I9. **Closes** no
+parity row alone; it is the floor under L-101, L-113 and L-225, and L-36's undo pause. **Does not
+claim** a screen-reader test with a real reader (NVDA or Narrator by the owner is **UNVERIFIED**),
+or WCAG conformance.
+
