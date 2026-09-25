@@ -13,7 +13,7 @@ re-plan rulings order (`.superpowers/sdd/env/r4-env-rulings.md`, rulings 2 and 4
   sandbox mounts it (phase-3 `task-03.md:148-199`). `machined` admits exactly those calls, and
   holds each new lane in an in-memory **creating set** until the laptop seals it. It also serves
   the three filesystem steps of a create that would otherwise touch the laptop's disk, as seam
-  S8-P3.3's `gitx.MachineFS` (ruling 4).
+  S8-P3.6's `gitx.MachineFS` (ruling 4).
 - **Lane git never runs in the machine pod** (ruling 2, which amends P8-D7). `machined` serves no
   `/git/v1/`. Lane git runs in `sandboxd`, in the one pod that mounts the lane: the live
   session's, or a runner-only pod (task 25b). The machine pod runs no agent-defined filter,
@@ -38,12 +38,16 @@ reaches), 3 (bundles, task 21b) and 4 (the create shape, below).
   `:529-534`);
 - **task 03** (`lanes`: `NoFetchURL`, `NoPushURL`, `NoFilterEnv`, `CopyableHooksPath`,
   `CopyGeneratedHooks`, `RemoveTree`, and `Create`'s steps; `task-03.md:148-268`);
-- **seam S8-P3.3's `gitx.MachineFS`** (ruling 4): an ask of phase 3, not yet answered. Without
+- **seam S8-P3.6's `gitx.MachineFS`** (ruling 4): an ask of phase 3, not yet answered. Without
   it a cloud machine cannot create lanes, so it is a blocker, not a fallback.
 
 If any has not landed, this task does not start: no local copy of `gitx` or `lanes` is written,
 no second hardening is invented, and no `MachineFS` of this task's own shape is built. Phase 3's
 task 24 (the runner) is **not** a dependency: `machined` serves no runner (ruling 2).
+
+**Held out of the env build stream** (plan, "Order", "Held"): the stream skips this task, and
+its dependants 21b, 25 and 25b, until Step 1's three greps pass on the env branch. S8-P3.6 is
+filed with phase 3 by the orchestrator or the owner (env ruling 4); this part does not file it.
 
 **Files:**
 - `control-plane/internal/machineapi/wire.go` — `GitCall`, `GitResult`, the filesystem and seal
@@ -130,30 +134,49 @@ const (
 	ReasonLaneCreating    = "lane_creating"
 )
 
-// LanePath is the body of POST /v1/lanes/exists, /v1/lanes/remove-tree and
-// /v1/lanes/sealed. Path is relative to the root and is lanes/<projectId>/<dir>,
-// or, on remove-tree only, a path below a lane that is in the creating set.
-type LanePath struct {
+// S8-P3.6's wire (env ruling 4, "The one S8-P3.6 contract"; task 25's
+// gitx.Remote.FS() is its client). Every path is relative to the root.
+const (
+	PathFSLstat      = "/v1/fs/lstat"
+	PathFSRemoveTree = "/v1/fs/remove-tree"
+	PathFSCopyHooks  = "/v1/fs/copy-hooks"
+	PathLanesSealed  = "/v1/lanes/sealed"
+)
+
+// FSPath is the body of POST /v1/fs/lstat and POST /v1/lanes/sealed. Path is a
+// lane, lanes/<projectId>/<dir>.
+type FSPath struct {
 	Path string `json:"path"`
 }
 
-// LaneExists answers POST /v1/lanes/exists: whether anything is at Path, read
-// with Lstat, so a symlink counts (phase-3 task-03.md:152-154, Create's step 3).
-type LaneExists struct {
+// FSStat answers POST /v1/fs/lstat, read with Lstat (phase-3 task-03.md:152-154,
+// Create's step 3): Exists is false only for not-exist, so a symlink counts; Dir
+// is true only for a real directory, never a symlink (Catalog.Path's
+// worktree.Verify reads it).
+type FSStat struct {
 	Exists bool `json:"exists"`
+	Dir    bool `json:"dir"`
 }
 
-// CopyHooks is POST /v1/lanes/copy-hooks' body, MachineFS.CopyGeneratedHooks on
-// the wire. Project is projects/<name>, Lane is a lane in the creating set, and
-// Rel is a value lanes.CopyableHooksPath accepts.
-type CopyHooks struct {
-	Project string `json:"project"`
-	Lane    string `json:"lane"`
-	Rel     string `json:"rel"`
+// FSRemoveTree is POST /v1/fs/remove-tree's body: task 03's RemoveTree(root,
+// path). Root is "lanes" or a lane; Path is under Root, and is a whole lane or a
+// path below a lane in the creating set.
+type FSRemoveTree struct {
+	Root string `json:"root"`
+	Path string `json:"path"`
 }
 
-// CopiedHooks answers it: the files copied, 0 when a guard refused (not an error).
-type CopiedHooks struct {
+// FSCopyHooks is POST /v1/fs/copy-hooks' body, MachineFS.CopyGeneratedHooks on
+// the wire. ProjectTop is projects/<name>, CloneTop is a lane in the creating
+// set, and Rel is a value lanes.CopyableHooksPath accepts.
+type FSCopyHooks struct {
+	ProjectTop string `json:"projectTop"`
+	CloneTop   string `json:"cloneTop"`
+	Rel        string `json:"rel"`
+}
+
+// FSCopied answers it: the files copied, 0 when a guard refused (not an error).
+type FSCopied struct {
 	Copied int `json:"copied"`
 }
 
@@ -161,40 +184,41 @@ type CopiedHooks struct {
 const CreatingTTL = 5 * time.Minute
 ```
 
-**The ask of phase 3, seam S8-P3.3** (ruling 4). Phase 3 owns the final shape; this one is
-**UNVERIFIED** until phase 3 answers, and step 1 greps for what landed. `machined` serves it,
-and the laptop's cloud implementation over these routes is task 25's.
+**The ask of phase 3, seam S8-P3.6** (env ruling 4, "The one S8-P3.6 contract", copied
+verbatim; task 25 copies the same). Phase 3 owns the final shape; this one is **UNVERIFIED**
+until phase 3 answers, and step 1 greps for what landed. `machined` serves it, and the laptop's
+cloud implementation over these routes is task 25's.
 
 ```go
 package gitx
 
 import "context"
 
-// MachineFS is the filesystem half of a lane create on a Machine (phase-3
+// MachineFS is the filesystem half of lane create and remove (phase-3
 // task-03.md:153-154, :189-190, :227-268). Paths are absolute on that machine.
 // The local implementation is os, on the laptop's disk.
 type MachineFS interface {
-	// Exists is Create step 3's os.Lstat: true when anything, a symlink too, is at path.
-	Exists(ctx context.Context, path string) (bool, error)
-	// RemoveTree is task 03's RemoveTree(CloneRoot(), path).
-	RemoveTree(ctx context.Context, path string) error
+	// Exists is os.Lstat at path: exists is false only for not-exist; dir is true only for a
+	// real directory, never a symlink. Step 3 reads exists; Catalog.Path's worktree.Verify reads dir.
+	Exists(ctx context.Context, path string) (exists, dir bool, err error)
+	// RemoveTree is task 03's RemoveTree(root, path): it refuses a path not under root.
+	RemoveTree(ctx context.Context, root, path string) error
 	// CopyGeneratedHooks is the copy half of task 03's CopyGeneratedHooks: its Lstat
 	// guards, its SameFile check and its 64-file / 1 MiB budget. Its ls-files check and
 	// the take-back stay in lanes.CopyGeneratedHooks, over m.Git() and RemoveTree.
 	CopyGeneratedHooks(ctx context.Context, projectTop, cloneTop, rel string) (int, error)
-	// Sealed ends R4.5's window for path: Create calls it after step 6, before Store.Add.
+	// Seal ends R4.5's window for path: Create calls it after step 6, before Store.Add.
 	// Locally it does nothing; on a cloud machine it closes machined's creating-set entry.
-	// Env ruling 4 names the seal but not its caller; this method is this task's reading.
-	Sealed(ctx context.Context, path string) error
+	Seal(ctx context.Context, path string) error
 }
 ```
 
 | Route | Answer | Failures |
 |---|---|---|
 | `POST /v1/git` | `200 GitResult` | `400 bad_request` (a `Dir` that escapes the root or is none of the three forms in item 2, an unknown `Class` or `Scope`, `"clone"` included, a `Scope` that does not follow `Dir`, a `NewLane` that is not `Dir`, an `Env` key outside the allowlist, a `clone` outside its two shapes, a `NewLane` call outside its shapes, an argument that names a lane or the owned root (but the create clone's destination, and task 21b's one bundle path), empty `Args`, or `gitx.ErrCallShape` / `gitx.ErrLaneDir`; the message names the field, key or argument index, never a value) · `409 conflict` `project_config_untrusted` with `key` (H3 refused; git never ran) · `409 conflict` `lane_path_invalid` or `lane_not_creating` (git never ran) · `422 git_failed` with the three details · `413` above 16 MiB of stdin |
-| `POST /v1/lanes/exists` | `200 LaneExists` | `400` (not `lanes/<p>/<d>`) · `409 lane_path_invalid` |
-| `POST /v1/lanes/remove-tree` | `204`, also when nothing was there | `400` · `409 lane_path_invalid` · `409 lane_not_creating` (a path below a lane not in the set) |
-| `POST /v1/lanes/copy-hooks` | `200 CopiedHooks` | `400` · `409 lane_path_invalid` · `409 lane_not_creating` |
+| `POST /v1/fs/lstat` | `200 FSStat` | `400` (not `lanes/<p>/<d>`) · `409 lane_path_invalid` |
+| `POST /v1/fs/remove-tree` | `204`, also when nothing was there | `400` (a `Root` that is neither `lanes` nor a lane, or a `Path` not under `Root`) · `409 lane_path_invalid` · `409 lane_not_creating` (a path below a lane not in the set) |
+| `POST /v1/fs/copy-hooks` | `200 FSCopied` | `400` · `409 lane_path_invalid` · `409 lane_not_creating` |
 | `POST /v1/lanes/sealed` | `204`, idempotent | `400` (not `lanes/<p>/<d>`) |
 | `GET /v1/worktrees/{worktreeId}/path` (task 20's) | unchanged | adds `409 lane_creating` while the lane is in the set |
 
@@ -378,26 +402,29 @@ call in the new repository is a `project`-scope call, and H3 checks it then. Any
 `project`-scope call (item 2). No clone-specific route exists; the cockpit surface
 that starts it belongs to whichever phase owns "add project" (recorded as seam S8-P3.2, task 33).
 
-**The lane filesystem routes (`lanefs.go`, S8-P3.3's cloud half).** Each takes `machined`'s
-bearer and a path relative to the root, and serves it through phase 3's **local** `MachineFS`
+**The lane filesystem routes (`lanefs.go`, S8-P3.6's cloud half).** Each takes `machined`'s
+bearer and paths relative to the root, and serves them through phase 3's **local** `MachineFS`
 (the `os` one) on `/machine/<path>`, so every guard is phase 3's code, not a copy. `machined`
 adds only the confinement, and runs no git:
-- **`exists`.** `Path` must pass task 20's `LanePathShapeOK`, else `400`. Each of `lanes` and
+- **`lstat`.** `Path` must pass task 20's `LanePathShapeOK`, else `400`. Each of `lanes` and
   `lanes/<p>` that exists must be a real directory by `Lstat`, else `409 lane_path_invalid`; an
-  absent `lanes/<p>` answers `exists: false`. The leaf is `Lstat`ed, so anything there, a
-  symlink too, is `true`. It needs no set entry: Create's step 3 runs before the clone.
-- **`remove-tree`.** `Path` is a whole lane (the shape and parent checks of `exists`), or a
+  absent `lanes/<p>` answers `exists: false, dir: false`. The leaf is `Lstat`ed, so anything
+  there, a symlink too, is `exists: true`, and `dir` is true only for a real directory. It needs
+  no set entry: Create's step 3 runs before the clone.
+- **`remove-tree`.** `Root` is `lanes` or a lane, and `Path` is under `Root`, else `400`. `Path`
+  is a whole lane (the shape and parent checks of `lstat`), or a
   path below a lane in the creating set (CopyGeneratedHooks' take-back, `task-03.md:253-256`),
   else `409 lane_not_creating`. A whole lane is admitted in or out of the set, because phase 3
   task 11's Remove deletes a sealed lane with `RemoveTree` after its step 2a destroyed any
   runner-only sandbox (phase-3 `task-11.md:195-201`); env ruling 4 confines the route to
   `lanes/` and is silent on that caller. It closes the lane's entry. Nothing there is `204`. It
   must never follow a symlink, neither to delete nor to clear a mode.
-- **`copy-hooks`.** `Project` is `projects/<name>` and a real directory, `Lane` is a lane in the
-  creating set (else `409 lane_not_creating`), and `Rel` passes `lanes.CopyableHooksPath`, else
-  `400`. The copy is phase 3's `CopyGeneratedHooks` half, with all its guards (`:227-252`).
+- **`copy-hooks`.** `ProjectTop` is `projects/<name>` and a real directory, `CloneTop` is a lane
+  in the creating set (else `409 lane_not_creating`), and `Rel` passes
+  `lanes.CopyableHooksPath`, else `400`. The copy is phase 3's `CopyGeneratedHooks` half, with
+  all its guards (`:227-252`).
 - **`sealed`.** `Path` must pass the shape check. It closes the entry, and is `204` whether or
-  not one was open. Phase 3's Create sends it through `MachineFS.Sealed` after step 6 and
+  not one was open. Phase 3's Create sends it through `MachineFS.Seal` after step 6 and
   before `Store.Add` (the seam's fourth method, above).
 
 **The path route (`catalog.go`).** Task 20's `GET /v1/worktrees/{worktreeId}/path` answers
@@ -433,7 +460,7 @@ with a fake `git` first on `PATH` that writes a marker on any start. A marker sc
 | `TestGitCloneOutsideItsTwoShapesIsRefused` | table, each `Scope: "project"`, `Dir: "projects/a"` → 400 and git never ran: destination `/machine/projects/b`; destination `/tmp/machined-git/x`; destination `/machine/lanes/p-1` (one element); destination `/machine/lanes/p-1/../../projects/b`; an existing destination; source `/machine/projects/b` (not the call's `Dir`); `--config filter.x.smudge=<marker script>`; `--template=/machine/projects/a`; `--separate-git-dir=/tmp/x`; the pre-R4 four `--config` keys only; `core.symlinks=true`; `core.eol=lf` twice; a seventh `--config core.fsmonitor=<marker script>`; `Class: "remote"`; `Env` empty; `Env` `NoFilterEnv` plus one host-scoped header pair; `NoFilterEnv` with `filter.lfs.required=true`; `NewLane` set to the destination | a lane create that plants a repository where H3 reads it under the wrong rule or not at all; a clone-time filter run before H3 first reads the clone; the user's token in a lane create |
 | `TestGitNewLaneWritesAreAClosedList` | a creating lane `L` (made by an admitted clone). Admitted, each 200 and the value then read back: `config remote.origin.url <NoFetchURL>`, `config remote.origin.pushurl <NoPushURL>`, `config user.name "A B"`, `config user.email a@b.invalid`, `config core.hooksPath .husky/_`, `ls-files --others --exclude-standard -- .husky/_`. Refused, each 400 and git never ran: `config remote.origin.url https://x.invalid/r`, `config filter.x.smudge <marker script>`, `config core.fsmonitor x`, `config core.hooksPath ../x`, `config user.name -x`, `config user.email` with a newline, `status`, `ls-files -- ../x`, any admitted shape with a non-empty `Env`, `Scope: "project"` | a `NewLane` that opens any git in a lane, where `None` skips H3; a create write that plants a driver the sandbox then runs |
 | `TestGitLaneDirOutsideTheCreatingSetIsRefused` | each 409 `lane_not_creating`, git never ran: an admitted write shape on a lane never cloned by this `machined`; on `L` after `sealed`; on `L` after its deadline (fake clock); on `L` after a restart. `NewLane` ≠ `Dir` → 400. A creating lane whose `lanes/p-1` was swapped for a symlink → 409 `lane_path_invalid` | a creating set that never closes, so the host runs git in a lane an agent has mounted (R4.2, R4.5) |
-| `TestGitServesPhase3sCreateSequence` | real git: phase 3's Create call sequence for `ui` on `projects/a` (a husky project with `core.hooksPath .husky/_`), replayed as wire calls in `task-03.md:148-198`'s order: `rev-parse --verify --quiet`; `exists`; the clone; step 4a's two writes; `var GIT_AUTHOR_IDENT`; step 5's two writes; `config --local --get core.hooksPath`; its write; `copy-hooks`; `ls-files`; `sealed` → each 200 or 204; the lane's origin is `NoFetchURL`, its `.husky/_` files match the project's, and task 20's path route then answers the lane path | one shape that refuses a step of phase 3's real create, which only a full sequence shows |
+| `TestGitServesPhase3sCreateSequence` | real git: phase 3's Create call sequence for `ui` on `projects/a` (a husky project with `core.hooksPath .husky/_`), replayed as wire calls in `task-03.md:148-198`'s order: `rev-parse --verify --quiet`; `fs/lstat`; the clone; step 4a's two writes; `var GIT_AUTHOR_IDENT`; step 5's two writes; `config --local --get core.hooksPath`; its write; `fs/copy-hooks`; `ls-files`; `sealed` → each 200 or 204; the lane's origin is `NoFetchURL`, its `.husky/_` files match the project's, and task 20's path route then answers the lane path | one shape that refuses a step of phase 3's real create, which only a full sequence shows |
 | `TestGitFailureIsGitFailedWithGitsOwnSentence` | `rev-parse nosuchref` → 422, `details.gitSays` begins `fatal:`, `exitCode` non-zero, no `args` in details | a generic 500; argv (which may hold a URL) in the body |
 | `TestGitOKExitIsAnAnswer` | a `merge-tree --write-tree` conflict with `OKExit: [1]` → 200, `exitCode: 1` | a forecast conflict reported as a failure |
 | `TestGitStdinReachesGit` | `hash-object --stdin` with stdin `x` → the known hash | stdin dropped (commit-tree -F - in phase 3) |
@@ -447,8 +474,8 @@ on `PATH` that must stay silent):
 
 | Test | Asserts | Mutant it kills |
 |---|---|---|
-| `TestLaneFSExistsIsLstat` | absent leaf → `false`; a directory → `true`; a dangling symlink → `true`; an absent `lanes/p-1` → `false`; `lanes/p-1` a symlink → 409 `lane_path_invalid`; `projects/a`, `lanes/p-1`, `lanes/p-1/d/e`, `lanes/../x` → 400 | an `os.Stat` exists, so Create's step 3 takes a planted link's path as free; a shape check that admits `projects/` |
-| `TestLaneFSRemoveTreeTakesAWholeLaneOrBelowACreatingOne` | a whole sealed lane → 204 and gone; `<L>/.husky/_` below a creating `L` → 204; the same below a sealed lane → 409 `lane_not_creating`; `projects/a` → 400; nothing there → 204; after a whole-lane removal of a creating `L`, its entry is gone | task 11's Remove refused on a cloud machine; a take-back that reaches into a lane an agent has mounted; a route that deletes a project |
+| `TestLaneFSExistsIsLstat` | `POST /v1/fs/lstat`: absent leaf → `{exists: false, dir: false}`; a directory → `{true, true}`; a dangling symlink → `{true, false}`; a symlink to a directory → `{true, false}`; a regular file → `{true, false}`; an absent `lanes/p-1` → `{false, false}`; `lanes/p-1` a symlink → 409 `lane_path_invalid`; `projects/a`, `lanes/p-1`, `lanes/p-1/d/e`, `lanes/../x` → 400 | an `os.Stat` exists, so Create's step 3 takes a planted link's path as free; `dir` from `os.Stat`, so `Catalog.Path` verifies a link to a directory as a lane; a shape check that admits `projects/` |
+| `TestLaneFSRemoveTreeTakesAWholeLaneOrBelowACreatingOne` | `POST /v1/fs/remove-tree`: a whole sealed lane with `root: "lanes"` → 204 and gone; `<L>/.husky/_` below a creating `L` with `root: <L>` → 204; the same below a sealed lane → 409 `lane_not_creating`; `path: projects/a` → 400; `root: projects`, and a `path` not under its `root` → 400; nothing there → 204; after a whole-lane removal of a creating `L`, its entry is gone | task 11's Remove refused on a cloud machine; a take-back that reaches into a lane an agent has mounted; a route that deletes a project; a `root` taken on trust |
 | `TestLaneFSRemoveTreeNeverFollowsASymlink` | a lane holding `x → ../../../projects/a` and `f → ../../../projects/a/README` (mode `0400`) → 204; `projects/a` and its `README` intact, still mode `0400` | a delete, or a read-only-clearing walk, that follows an agent's link out of `lanes/`. If phase 3's local `RemoveTree` fails it, the fix is phase 3's (step 1) |
 | `TestLaneFSCopyHooksOnlyIntoACreatingLane` | a project with `.husky/_/pre-commit` and a creating `L` → `copied: 1`, the bytes equal; a sealed lane → 409 `lane_not_creating`; `Rel` `../x` or `/x` → 400; `Project` `lanes/p-1/d` → 400 | a copy into a live lane; a copy source outside `projects/` |
 | `TestLaneFSSealClosesTheWindow` | a creating `L`: `sealed` → 204, again → 204; then an admitted write shape → 409 `lane_not_creating`, and task 20's path route answers the lane path | a seal that leaves the window open; a seal the laptop's retry turns into an error |
@@ -460,7 +487,7 @@ on `PATH` that must stay silent):
 - [ ] **Step 1: Dependencies, all phase 3's.** Each command must print what it says, or stop and report which is missing (this is a dependency wait on phase 3, not a re-plan):
   - task 02 **with §HGH**: `git grep -n "type Runner interface\|func MachineHardening\|type UntrustedConfig\|LaneRoot " -- control-plane/internal/gitx/` prints at least four lines, `NewLane` among `Call`'s fields;
   - task 03: `git grep -n "NoFilterEnv\|NoFetchURL\|NoPushURL\|func CopyableHooksPath\|func RemoveTree" -- control-plane/internal/lanes/` prints all five names;
-  - seam S8-P3.3: `git grep -n "type MachineFS interface" -- control-plane/internal/gitx/` prints one line, and its methods and local implementation are the ones above. Record the names that landed in the commit message; where they differ from this part's, phase 3's win, and the routes keep their confinement.
+  - seam S8-P3.6: `git grep -n "type MachineFS interface" -- control-plane/internal/gitx/` prints one line, and its methods and local implementation are the ones above. Record the names that landed in the commit message; where they differ from this part's, phase 3's win, and the routes keep their confinement.
 - [ ] **Step 2:** Wire types; tests, each shown red first; `git.go` over `gitx.NewExec(h)` with `h.LaneRoot` set; `lanefs.go` over phase 3's local `MachineFS`; `catalog.go`'s `lane_creating` step; the scrub in `main.go`; all pass.
 - [ ] **Step 3: Mutation check** (rule 7), each on a `$TEMP` copy, each turning the named test red:
   (1) the `Env` allowlist replaced by `^GIT_[A-Z0-9_]+$` → `TestGitEnvIsAnExplicitAllowlist`,
@@ -496,7 +523,7 @@ on `PATH` that must stay silent):
   (19) the deadline counted from the clone's admission → `TestLaneFSCreatingEntryExpires`;
   (20) `h.LaneRoot` left `""` → `TestGitHardeningNamesTheLaneRoot`;
   (21) `remove-tree` below a lane admitted without the set → `TestLaneFSRemoveTreeTakesAWholeLaneOrBelowACreatingOne`;
-  (22) `exists` by `os.Stat` → `TestLaneFSExistsIsLstat`, on its dangling-symlink row.
+  (22) `lstat` by `os.Stat` → `TestLaneFSExistsIsLstat`, on its dangling-symlink and link-to-directory rows.
   The two named beforehand as likeliest to survive are (8), because a test of the helper alone
   passes, and (20), because no route call can observe it: `machined`'s own checks refuse every
   lane call before phase 3's guard sees one. Each is killed only by the assertion named beside
@@ -528,7 +555,7 @@ go test ./sandboxd/... ./control-plane/... -race -count=1                       
 - That `objects/info/alternates` is checked. It can lend a project another repository's objects,
   but not its refs, and H5 pins the layout that holds the refs. **UNVERIFIED** beyond that
   reading of git's documented layout.
-- That phase 3 accepts seam S8-P3.3 as shaped here, `Sealed` included (**UNVERIFIED**; step 1
+- That phase 3 accepts seam S8-P3.6 as shaped here, `Seal` and `dir` included (**UNVERIFIED**; step 1
   greps). Or that phase 3's local `RemoveTree` follows no symlink on Linux: its doc says it
   clears read-only attributes during the walk (phase-3 `task-03.md:264-268`), and
   `TestLaneFSRemoveTreeNeverFollowsASymlink` is the first place that is checked.
