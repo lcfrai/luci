@@ -1,0 +1,188 @@
+{
+  "version": "1.0.0",
+  "name": "proj",
+  "private": true,
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "gpl-dev": "file:vendor/gpl-dev-1.0.0.tgz"
+  },
+  "_id": "proj@1.0.0",
+  "extraneous": false,
+  "path": "@ROOT@/fx/proj",
+  "_dependencies": {
+    "desktop-notify": "npm:picocolors@1.1.1",
+    "@panacea-app/x": "npm:siginfo@2.0.0",
+    "@panacea-app/b": "file:../b",
+    "vx": "file:../vendor/x",
+    "forkx": "file:../../fx-fork/x",
+    "g": "file:vendor/g-1.0.0.tgz"
+  },
+  "peerDependencies": {},
+  "dependencies": {
+    "@panacea-app/b": {
+      "version": "0.1.0",
+      "resolved": "file:../../../b",
+      "overridden": false,
+      "name": "@panacea-app/b",
+      "private": true,
+      "license": "UNLICENSED",
+      "_id": "@panacea-app/b@0.1.0",
+      "extraneous": false,
+      "path": "@ROOT@/fx/proj/node_modules/@panacea-app/b",
+      "_dependencies": {
+        "bchild": "npm:siginfo@2.0.0"
+      },
+      "devDependencies": {},
+      "peerDependencies": {},
+      "dependencies": {
+        "bchild": {
+          "version": "2.0.0",
+          "overridden": false,
+          "name": "siginfo",
+          "description": "Utility module to print pretty messages on SIGINFO/SIGUSR1",
+          "main": "index.js",
+          "devDependencies": {
+            "standard": "^14.3.4"
+          },
+          "scripts": {
+            "test": "standard"
+          },
+          "repository": {
+            "type": "git",
+            "url": "git+https://github.com/emilbayes/siginfo.git"
+          },
+          "keywords": [
+            "siginfo",
+            "sigusr1",
+            "ctrl",
+            "t",
+            "info",
+            "progress",
+            "inspect"
+          ],
+          "author": "Emil Bay <github@tixz.dk>",
+          "license": "ISC",
+          "bugs": {
+            "url": "https://github.com/emilbayes/siginfo/issues"
+          },
+          "homepage": "https://github.com/emilbayes/siginfo#readme",
+          "_id": "siginfo@2.0.0",
+          "extraneous": false,
+          "path": "@ROOT@/fx/b/node_modules/bchild",
+          "_dependencies": {},
+          "peerDependencies": {}
+        }
+      }
+    },
+    "@panacea-app/x": {
+      "version": "2.0.0",
+      "resolved": "https://registry.npmjs.org/siginfo/-/siginfo-2.0.0.tgz",
+      "overridden": false,
+      "name": "siginfo",
+      "description": "Utility module to print pretty messages on SIGINFO/SIGUSR1",
+      "main": "index.js",
+      "devDependencies": {
+        "standard": "^14.3.4"
+      },
+      "scripts": {
+        "test": "standard"
+      },
+      "repository": {
+        "type": "git",
+        "url": "git+https://github.com/emilbayes/siginfo.git"
+      },
+      "keywords": [
+        "siginfo",
+        "sigusr1",
+        "ctrl",
+        "t",
+        "info",
+        "progress",
+        "inspect"
+      ],
+      "author": "Emil Bay <github@tixz.dk>",
+      "license": "ISC",
+      "bugs": {
+        "url": "https://github.com/emilbayes/siginfo/issues"
+      },
+      "homepage": "https://github.com/emilbayes/siginfo#readme",
+      "_id": "siginfo@2.0.0",
+      "extraneous": false,
+      "path": "@ROOT@/fx/proj/node_modules/@panacea-app/x",
+      "_dependencies": {},
+      "peerDependencies": {}
+    },
+    "desktop-notify": {
+      "version": "1.1.1",
+      "resolved": "https://registry.npmjs.org/picocolors/-/picocolors-1.1.1.tgz",
+      "overridden": false,
+      "name": "picocolors",
+      "main": "./picocolors.js",
+      "types": "./picocolors.d.ts",
+      "browser": {
+        "./picocolors.js": "./picocolors.browser.js"
+      },
+      "sideEffects": false,
+      "description": "The tiniest and the fastest library for terminal output formatting with ANSI colors",
+      "files": [
+        "picocolors.*",
+        "types.d.ts"
+      ],
+      "keywords": [
+        "terminal",
+        "colors",
+        "formatting",
+        "cli",
+        "console"
+      ],
+      "author": "Alexey Raspopov",
+      "repository": "alexeyraspopov/picocolors",
+      "license": "ISC",
+      "_id": "picocolors@1.1.1",
+      "extraneous": false,
+      "path": "@ROOT@/fx/proj/node_modules/desktop-notify",
+      "_dependencies": {},
+      "devDependencies": {},
+      "peerDependencies": {}
+    },
+    "forkx": {
+      "version": "1.0.0",
+      "resolved": "file:../../../fx-fork/x",
+      "overridden": false,
+      "name": "forkx",
+      "license": "UNLICENSED",
+      "_id": "forkx@1.0.0",
+      "extraneous": false,
+      "path": "@ROOT@/fx/proj/node_modules/forkx",
+      "_dependencies": {},
+      "devDependencies": {},
+      "peerDependencies": {}
+    },
+    "g": {
+      "version": "1.0.0",
+      "resolved": "file:@ROOT@/fx/proj/vendor/g-1.0.0.tgz",
+      "overridden": false,
+      "name": "g",
+      "license": "MIT",
+      "_id": "g@1.0.0",
+      "extraneous": false,
+      "path": "@ROOT@/fx/proj/node_modules/g",
+      "_dependencies": {},
+      "devDependencies": {},
+      "peerDependencies": {}
+    },
+    "vx": {
+      "version": "1.0.0",
+      "resolved": "file:../../vendor/x",
+      "overridden": false,
+      "name": "vx",
+      "license": "GPL-3.0",
+      "_id": "vx@1.0.0",
+      "extraneous": false,
+      "path": "@ROOT@/fx/proj/node_modules/vx",
+      "_dependencies": {},
+      "devDependencies": {},
+      "peerDependencies": {}
+    }
+  }
+}
