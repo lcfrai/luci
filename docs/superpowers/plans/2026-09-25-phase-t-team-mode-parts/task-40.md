@@ -128,3 +128,185 @@ e); neither can live in the pod.
     task 30: the owner's policy rows; task 07: the human messages read (`hm-…`);
   - task 31: `CurrentTurn`'s origin drives the directive's `origin` (`task-31.md:132-133`).
 
+#### `control-plane/internal/fleet/turns/rotate.go` (complete)
+
+```go
+package turns
+
+import (
+	"context"
+	"time"
+	_ "time/tzdata" // decision (a): the zone must not depend on the image
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/fleet/model"
+)
+
+// rotationZone is the product's one region (global constraint: Australia East).
+var rotationZone = mustZone("Australia/Sydney")
+
+// RotateDue is ST.5's rotation rule. SessionState gains StartedAt (the first
+// turn of this uuid); pending is fleet.orch_sessions.rotate_pending.
+func RotateDue(s SessionState, pending bool, now time.Time) bool {
+	if s.UUID == "" {
+		return false // SessionFor already starts a new one
+	}
+	if pending {
+		return true
+	}
+	y1, m1, d1 := s.StartedAt.In(rotationZone).Date()
+	y2, m2, d2 := now.In(rotationZone).Date()
+	return y1 != y2 || m1 != m2 || d1 != d2
+}
+
+// MarkBoundary is task 24's call when one of orch's tasks reaches done or
+// abandoned. Idempotent. It never ends a turn in flight or a DIVE: the flag
+// is read at the next claim.
+func (s *Scheduler) MarkBoundary(ctx context.Context, orch model.AgentID) error {
+	return s.Store.SetRotatePending(ctx, orch, true)
+}
+
+func mustZone(name string) *time.Location {
+	loc, err := time.LoadLocation(name)
+	if err != nil {
+		panic("turns: " + err.Error()) // unreachable with time/tzdata embedded
+	}
+	return loc
+}
+```
+
+`SessionState` gains `StartedAt time.Time` and `Store` gains `SetRotatePending(ctx, orch, bool)`
+and `RotatePending(ctx, orch) (bool, error)`; `End` on a `new` turn writes `StartedAt = Began` and
+clears the flag in the same transaction as the session row (task 26's `EndTurn`). A lost `new`
+turn keeps the flag set, so the next turn is `new` again, which is the safe side.
+
+#### `sandboxd/internal/runner/rotate.go` (complete)
+
+```go
+package runner
+
+import (
+	"errors"
+	"os"
+	"path/filepath"
+)
+
+// SessionsDir holds one directory per harness session id. Its parent is the
+// pod's /run/panacea emptyDir (task 15); nothing else is written under it.
+const SessionsDir = "/run/panacea/sessions"
+
+var ErrBadHome = errors.New("runner: session home is not a directory this runner created")
+
+// SessionHome is the child's HOME for one session id (already validated as
+// a v4 uuid by Argv, so it is a safe single path element).
+func SessionHome(root, uuid string) string { return filepath.Join(root, uuid, "home") }
+
+// PrepareHome creates the session's HOME, mode 0700, if it does not exist.
+// For mode "new" it must NOT exist yet: a uuid is never reused, so an
+// existing directory means something is wrong, and the turn is refused.
+func PrepareHome(root, uuid, mode string) (string, error)
+
+// PruneHomes removes every session directory under root except keep, each
+// with one os.RemoveAll. It reads directory NAMES under root only: it never
+// opens, lists or stats anything inside a session's HOME (OD-8).
+func PruneHomes(root, keep string) error
+```
+
+`Run` calls `PrepareHome` before `Preflight` (so task 27's empty-folder and no-`CLAUDE.md` checks
+see the session's own `HOME`, `task-27.md:35-41`), and `PruneHomes` only **after** the `new` child
+has started, so a failed start leaves the previous session resumable. The child's working
+directory stays task 27's `/run/panacea/orch`, the same for every session, so `--resume` finds its
+transcript under the same project key.
+
+#### The DIVE wire, ST.5 extension (complete; the sandbox copy is the same in `package control`)
+
+```go
+package wire
+
+import "time"
+
+const (
+	EventDiveBegin = "dive.begin" // pushed to an orchestrator pod
+	EventDiveStop  = "dive.stop"  // pushed: the owner ended it, or DiveMax passed
+	VerbDiveEnd    = "dive.end"   // the runner's request up; orchestrator class only
+)
+
+// DiveMax bounds one DIVE. The claim's Until is Began + DiveMax.
+const DiveMax = 2 * time.Hour
+
+type DiveBegin struct {
+	Event    string      `json:"event"`    // "dive.begin"
+	Turn     string      `json:"turn"`     // ot-…, the DIVE's own turn id
+	Nonce    string      `json:"nonce"`    // as TurnBegin's: runner memory only
+	Session  TurnSession `json:"session"`  // resume the current uuid, or new if none
+	Deadline time.Time   `json:"deadline"` // Began + DiveMax, RFC 3339 UTC
+}
+
+type DiveStop struct {
+	Event  string `json:"event"`  // "dive.stop"
+	Turn   string `json:"turn"`
+	Reason string `json:"reason"` // "owner" | "deadline" | "access_removed"
+}
+
+// DiveEnd carries no reply: the owner saw the conversation themselves, and
+// the runner reads nothing from the PTY (decision f).
+type DiveEnd struct {
+	Turn       string `json:"turn"`
+	Nonce      string `json:"nonce"`
+	Exit       string `json:"exit"` // ok | failed | timeout
+	Code       int    `json:"code"`
+	DurationMs int64  `json:"durationMs"`
+}
+```
+
+The fixtures, byte for byte (task 09's decoders refuse unknown fields):
+
+```json
+{"event":"dive.begin","turn":"ot-9c0d1e2f","nonce":"ZGl2ZWRpdmVkaXZlZGl2ZWRpdmVkaXZlZGl2ZWRpdmVk","session":{"mode":"resume","id":"5f0c7a52-3b1e-4c2a-9d7e-0a1b2c3d4e5f"},"deadline":"2026-09-25T12:00:00Z"}
+```
+
+```json
+{"v":1,"id":"rq-00000009","verb":"dive.end","args":{"turn":"ot-9c0d1e2f","nonce":"ZGl2ZWRpdmVkaXZlZGl2ZWRpdmVkaXZlZGl2ZWRpdmVk","exit":"ok","code":0,"durationMs":742000}}
+```
+
+```json
+{"event":"dive.stop","turn":"ot-9c0d1e2f","reason":"owner"}
+```
+
+The three blocks are `dive-begin.json`, `dive-end.json` and `dive-stop.json`. `dive.end` is
+accepted by task 16's socket only from the runner's pid, like `turn.end` (`task-27.md:45-51`);
+the interactive child, whose pid differs, cannot end its own DIVE, and never sees the nonce.
+
+#### `sandboxd/internal/runner/dive.go` (complete public surface)
+
+```go
+package runner
+
+// DiveArgv is the interactive command line: no -p, no --output-format,
+// never --fork-session. It is NOT Argv (task 27's always adds -p).
+func DiveArgv(claude string, b control.DiveBegin) ([]string, error) {
+	if !uuidRE.MatchString(b.Session.ID) {
+		return nil, ErrBadSession
+	}
+	switch b.Session.Mode {
+	case "resume":
+		return []string{claude, "--resume", b.Session.ID}, nil
+	case "new":
+		return []string{claude, "--session-id", b.Session.ID}, nil
+	}
+	return nil, ErrBadSession
+}
+
+// dive runs one DIVE while parked: PrepareHome, Preflight, then the child
+// on the runner's own stdin/stdout/stderr (the PTY), in its own process
+// group, with ChildEnv(os.Environ(), home) plus the PTY's TERM. It returns
+// when the child exits, the deadline passes (SIGTERM, SIGKILL 10 s later,
+// exit "timeout"), or a dive.stop for this turn arrives (the same kill,
+// exit "ok"). Then it sends dive.end with the nonce, retried as turn.end is.
+func (r *Runner) dive(ctx context.Context, b control.DiveBegin) control.DiveEnd
+```
+
+`Run` accepts `dive.begin` **only while parked**; one arriving mid-turn (impossible if Fleet's
+claim holds, so a sign of a bug) is answered with a `dive.end` of `exit: failed`, `code: -3`, and
+the turn is untouched. While the DIVE child runs, `Run` keeps calling `events.wait` on its own
+goroutine for `dive.stop` only; any `turn.begin` arriving then is refused the same way, `code: -3`.
+
