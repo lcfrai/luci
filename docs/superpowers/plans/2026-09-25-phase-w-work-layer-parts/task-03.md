@@ -569,4 +569,79 @@ type IssueSearchQuery struct {
 }
 ```
 
+And the one method on task 02's type that texts outside a revision need (a comment's body, task
+12; an import's texts, task 15), appended as the file's last lines:
+
+```go
+// ValidAuthor reports whether the author class is H or A. A revision's texts
+// are checked by ValidateIssueRevisionContent; this is for every other text.
+func (a AuthoredText) ValidAuthor() bool { return validAuthor(a.Author) }
+```
+
 That is the whole file. It declares no route, store, code or event: those are tasks 06-15's.
+
+---
+
+#### Tests first: `work_test.go`, complete, each test with the mutant it kills
+
+Three blocks; the file is their concatenation. It reuses `types_test.go`'s helpers (`exampleJSON`
+with its `USER`, `TIME`, `DIG` placeholders at `:147`, `jsonKeyPaths` `:112`, `jsonFields`
+`:213`, `decodeInto` `:361`, `problemOf` `:367`) and `canonical_test.go:281`'s `decodeAny`, and
+declares no helper of the same name.
+
+```go
+package hubapi
+
+import (
+	"bytes"
+	"encoding/json"
+	"net/http"
+	"reflect"
+	"slices"
+	"testing"
+)
+
+// workExamples is one example per W1 record, every field present, every list
+// non-empty, so a misspelt tag cannot hide behind an empty value.
+var workExamples = []struct {
+	label  string
+	target func() any
+	json   string
+}{
+	{"IssueHead", func() any { return new(IssueHead) }, `{"id":"is-3f2a91c07b1e4d2a","projectId":"pj-0123456789abcdef","number":142,"alias":"EP-142","state":"landed","stateReason":"","proof":"waiting","landCommit":"77aa310000000000000000000000000000000abc","assignee":USER,"priority":"high","labels":["lb-0123456789abcdef"],"relations":[{"kind":"blocks","issueId":"is-00000000000000c4"}],"headRevision":3,"headKey":"issue:is-3f2a91c07b1e4d2a@3","threadState":{"kind":"on_thread","reason":""},"source":"person","external":{"source":"linear","externalId":"ENG-9","url":"https://linear.app/x/issue/ENG-9","authorName":"A. Person"},"createdAt":TIME,"createdBy":USER,"updatedAt":TIME}`},
+	{"IssueRevision", func() any { return new(IssueRevision) }, `{"issueId":"is-3f2a91c07b1e4d2a","revision":3,"key":"issue:is-3f2a91c07b1e4d2a@3","digest":DIG,"projectId":"pj-0123456789abcdef","content":{"title":{"text":"Resume","author":"H"},"description":{"text":"","author":"A"},"serves":[{"briefKey":"brief:bf-3f2a91c07b1e4d2a@5","criterionId":"c-91e2a0b3c4d5e6f7"}],"implements":["design:cv-7c01d2e3f4a5b6c7@11"]},"writtenAt":TIME,"writtenBy":USER,"restoredFrom":1,"erasedAt":null}`},
+	{"Label", func() any { return new(Label) }, `{"id":"lb-0123456789abcdef","teamId":"tm-0123456789abcdef","name":"Infra","color":"accent-2"}`},
+	{"TeamPolicy", func() any { return new(TeamPolicy) }, `{"teamId":"tm-0123456789abcdef","defaultState":"backlog","priorityToLeaveTriage":true,"stopAtLandedWithoutServes":false,"updatedAt":TIME,"updatedBy":USER}`},
+	{"ProjectKey", func() any { return new(ProjectKey) }, `{"projectId":"pj-0123456789abcdef","key":"EP","setAt":TIME,"setBy":USER}`},
+	{"Comment", func() any { return new(Comment) }, `{"id":"ic-0123456789abcdef","issueId":"is-3f2a91c07b1e4d2a","parentId":null,"kind":"comment","body":{"text":"Looks right","author":"H"},"anchor":{"kind":"text","revision":3,"start":0,"end":6,"criterionId":"","ref":""},"mentions":["u-00000000000000a2"],"reactions":[{"emoji":"👍","users":[USER]}],"resolvedAt":null,"resolvedBy":null,"createdAt":TIME,"createdBy":USER,"erasedAt":null}`},
+	{"Subscription", func() any { return new(Subscription) }, `{"issueId":"is-3f2a91c07b1e4d2a","user":USER,"cause":"mention","subscribed":true}`},
+	{"ImportResult", func() any { return new(ImportResult) }, `{"created":[{"issueId":"is-3f2a91c07b1e4d2a","number":1,"externalId":"ENG-9"}],"existing":[],"unmatchedLabels":["Infra"]}`},
+	{"StateMove", func() any { return new(StateMove) }, `{"to":"done","cause":"evidence_observed","reason":"","landCommit":"77aa310000000000000000000000000000000abc","evidence":["ev-0123456789abcdef"]}`},
+	{"CreateIssueRequest", func() any { return new(CreateIssueRequest) }, `{"title":{"text":"Resume","author":"H"},"description":{"text":"","author":"H"},"serves":[],"implements":[],"state":"triage","priority":"none","assigneeId":null,"labels":[],"notTiedReason":"chore"}`},
+	{"ImportBatch", func() any { return new(ImportBatch) }, `{"source":"csv","items":[{"externalId":"7","url":"","title":"T","description":"","priority":"low","labels":["Infra"],"authorName":"","createdAt":TIME}]}`},
+}
+
+// Mutant: a tag spelt criterion_id, issueID or head_revision, or a field
+// dropped from a struct. The example must decode strictly and come back with
+// exactly its own keys.
+func TestWorkFieldNamesMatchTheExamples(t *testing.T) {
+	for _, ex := range workExamples {
+		t.Run(ex.label, func(t *testing.T) {
+			in := []byte(exampleJSON(ex.json))
+			dst := ex.target()
+			dec := json.NewDecoder(bytes.NewReader(in))
+			dec.DisallowUnknownFields()
+			if err := dec.Decode(dst); err != nil {
+				t.Fatalf("the example does not decode into %T: %v", dst, err)
+			}
+			out, err := json.Marshal(dst)
+			if err != nil {
+				t.Fatalf("json.Marshal(%T): %v", dst, err)
+			}
+			if got, want := jsonKeyPaths(decodeAny(t, out), nil), jsonKeyPaths(decodeAny(t, in), nil); !slices.Equal(got, want) {
+				t.Errorf("%T round trip:\n got keys %v\nwant keys %v", dst, got, want)
+			}
+		})
+	}
+}
+```
