@@ -28,21 +28,27 @@ No call here reads a lane's `.git`, and no lane git request reaches `machined` (
   (`task-22.md:128-130`). `NewRunner` dials `"http://" + endpoint` (phase-3
   `task-24.md:574-579`). So this task asks phase 3 for **S8-P3.5** (below): the pool reaches a
   lane on the lane's own machine. This task does not start without it.
-- **The agent proxy caps request bodies at 16 MiB** (`task-19.md:91-93`), and ruling 3 sends a
-  bundle of up to `MaxBundleBytes` (1 GiB) through it to `POST /v1/bundles`. The proxy's cap on
-  `POST /v1/machines/{id}/agent/v1/bundles` must be `MaxBundleBytes`. That is task 21b's
-  (it serves the route), recorded as a dependency here; this task does not edit task 19's code.
+- **The agent proxy caps request bodies at 16 MiB** (`task-19.md:91-94`), and ruling 3 sends a
+  bundle of up to `MaxBundleBytes` (1 GiB) through it to `POST /v1/bundles`. Task 19 owns the
+  exception: on that one path the body streams through a `GitMaxBundleBytes` cap with
+  `GitBundleTimeout` + 5 s as its deadline (`task-19.md:96-103`, tests `:225-227`), and `/tmp`
+  has `sizeLimit: 3Gi` (`:26`, `:229-231`). This task edits neither.
 
-**Depends on** task 25 (`gitx.Remote`, `MachineRoot`), task 21b (the bundle routes and the proxy
-cap above), task 18 (the sandbox git route and a runner-only spec, ruling "What each task
-changes"), task 15 (`ValidateSpec` refuses a `projects/` mount), task 23 (`machines.Set`, the
-per-machine reaper), phase 3 task 24 (`lanegit`), and phase 3's **acceptance of S8-P3.4 and
-S8-P3.5**. The rulings keep 25b gated until phase 3 answers (their "Stream order"); Step 1 checks.
+**Depends on** task 25 (`machines.Remote`; `machineapi.MachineRoot` is task 20's), task 21b (the
+bundle routes), task 19 (the proxy's bundle cap and `/tmp`'s `sizeLimit`), task 18 (the sandbox
+git route and the runner-only admission, `task-18.md:127-133`, `:155`), task 15
+(`ValidateSpec` refuses a `projects/` mount), task 23 (`machines.Set`, and the per-machine reaper
+that honours `Held`), task 24b (`machines.Agent.WorktreePath`), phase 3 task 24 (`lanegit`), and
+phase 3's **acceptance of S8-P3.4 and S8-P3.5**. The plan holds 25b out of the build stream until
+phase 3 answers (plan, "Order", "Held"; P3A-5); Step 1 checks.
 
 **Files:**
 - `control-plane/internal/backend/remotebe/lanegit.go`, `lanegit_test.go` — the runner-only spec
   translation, `Client.Raw`, `Client.GitTransport`, `DialLane` (new)
-- `control-plane/internal/backend/remotebe/remote.go` — `Create` runs the translation first (modify)
+- `control-plane/internal/backend/remotebe/remote.go` — `Create` runs the translation and
+  `LaneCheck` first (modify)
+- the `machines` file where task 23 builds a machine's `remotebe` backend — sets `LaneCheck` to
+  `Agent.WorktreePath` (modify; the file name is task 23's, UNVERIFIED until it lands)
 - `control-plane/internal/machines/bundles.go`, `bundles_test.go` — `Bundles`, the cloud
   `lanegit.Bundles` (new)
 - `control-plane/internal/machineapi/bundles.go` — the bundle wire, if task 21b has not already
@@ -108,14 +114,26 @@ const RunnerWorkDir = "/home/dev/work"
 const SandboxHost = "sandbox.invalid"
 
 // laneMount maps phase 3's runner-only spec onto this backend's machine. Mounts that are exactly
-// one {HostPath: gitx.MachineRoot + "/lanes/<p>/<d>", ContainerPath: RunnerWorkDir, ReadOnly:
-// false}, with MachineMounts empty, become Mounts nil and MachineMounts
-// [{MachinePath: "lanes/<p>/<d>", ContainerPath: RunnerWorkDir}]. <p> and <d> are one segment
-// each: not "", "." or "..", no "/" or "\". No Mounts: the spec is returned unchanged. Any other
-// Mounts: ErrUnsupported naming the field, before any request. remotebe's host is its machine,
-// and the only host path it maps is one lane. Create runs laneMount, then backend.ValidateSpec
-// (task 15's projects/ refusal), then the request, as today (task-22.md:124-126).
-func laneMount(s backend.Spec) (backend.Spec, error)
+// one {HostPath: <lane path>, ContainerPath: RunnerWorkDir, ReadOnly: false}, with MachineMounts
+// empty, become Mounts nil and MachineMounts [{MachinePath: rel, ContainerPath: RunnerWorkDir}],
+// where rel is machineapi.LaneMachinePath(HostPath) (task-20.md:132-144): the one parser, which
+// takes either separator, since a Windows laptop may hold "\machine\lanes\…" (P3A-1,
+// UNVERIFIED). No Mounts: the spec is returned unchanged, rel "". Any other Mounts:
+// ErrUnsupported naming the field, before any request. Syntax only; it touches no disk.
+func laneMount(s backend.Spec) (spec backend.Spec, rel string, err error)
+
+// LaneCheck is the machine agent's worktree path route (task 20, task 21's lane_creating step),
+// which machines sets to its Agent.WorktreePath (task-24b.md:83) where it builds this machine's
+// backend (task 23). remotebe cannot import machines (machines imports remotebe), so it is a func.
+type LaneCheck func(ctx context.Context, worktreeID, lane string) (machineapi.WorktreePath, error)
+
+// Create runs laneMount; when it mapped a lane, it calls LaneCheck(ctx,
+// project.WorktreeID(HostPath), rel) before anything else: the id phase 3's lane store minted
+// from the same Path (task-03.md:62; env ruling 1). So ruling 1's Lstat walk and the
+// lane_creating refusal run at pod create, for a runner-only pod as for a session (24b step 3).
+// Its refusal is returned and no broker request is sent. A nil LaneCheck refuses every lane
+// mount with ErrUnsupported (fail closed). Then backend.ValidateSpec (task 15's projects/
+// refusal), then the request, as today (task-22.md:124-126).
 
 // Raw sends body to path with the Entra bearer and returns the response whatever its status,
 // for the caller to read and close. Only a TokenSource failure or a network error is an error:
@@ -261,7 +279,8 @@ request, and phase 3's `lanegit.NewRunnerTransport`:
 
 | Test | Asserts | Mutant it kills |
 |---|---|---|
-| `TestLaneMountMapsOneLane` | `{HostPath: "/machine/lanes/p-1/app-0a1b2c", ContainerPath: "/home/dev/work"}` → `MachineMounts == [{MachinePath: "lanes/p-1/app-0a1b2c", ContainerPath: "/home/dev/work"}]`, `Mounts == nil`; no `Mounts` → the spec unchanged | a runner-only pod refused, or a session spec rewritten |
+| `TestLaneMountMapsOneLane` | `{HostPath: "/machine/lanes/p-1/app-0a1b2c", ContainerPath: "/home/dev/work"}` → `MachineMounts == [{MachinePath: "lanes/p-1/app-0a1b2c", ContainerPath: "/home/dev/work"}]`, `Mounts == nil`; the same lane as `\machine\lanes\p-1\app-0a1b2c` → the same `MachineMounts`; no `Mounts` → the spec unchanged | a runner-only pod refused, a Windows laptop's lane path refused (a parser of laneMount's own), or a session spec rewritten |
+| `TestRunnerOnlyCreateChecksTheLaneFirst` | a fake `LaneCheck` records its calls: it is called once, with `project.WorktreeID(HostPath)` and `lanes/p-1/app-0a1b2c`, before any broker request; answering `409 lane_path_invalid` (a symlinked `lanes/p-1`) or `409 lane_creating` → that error and the broker got no request; a nil `LaneCheck` → `ErrUnsupported`, no request | a runner-only pod on a symlinked or still-creating lane, because only a session create checked it (ruling 1) |
 | `TestLaneMountRefusesEverythingElse` | `/machine/projects/app`, `/machine/lanes/p`, `/machine/lanes/p/d/x`, `/machine/lanes/../projects/app`, `/machine/lanes/p/..`, `C:\x`, `/machine`, ContainerPath `/other`, `ReadOnly: true`, two mounts, `Mounts` with `MachineMounts` → `ErrUnsupported`, and the broker got no request | a runner-only pod that mounts the project, another lane or the disk root (R4.1) |
 | `TestCreateSendsTheRunnerOnlySpec` | phase 3's step 2 spec (`lg-…`, `sleep infinity`, no `SessionID`) → the broker's create body has `machine: "m-0123abcd"`, the one lane mount at `/home/dev/work`, and no other mount | a conversation store or a `projects/` mount on a runner-only pod |
 | `TestGitTransportUsesTheSandboxRoute` | a runner `Status` → `POST /v1/sandboxes/lg-00…01/git/v1/status`, `Authorization: Bearer <entra>`, `Panacea-Attach-Token: <token>`, no query, the body phase 3 sent | the attach token sent as the broker bearer (broker 401), or a request to the opaque endpoint |
@@ -294,11 +313,22 @@ in-memory lane store and registry, and task 23's reaper:
 
 #### Steps
 
-- [ ] **Step 1:** Confirm the dependencies: `git grep -n "type Bundles interface" -- control-plane/internal/lanegit/` (S8-P3.4), `git grep -n -e "Machines func" -e "func NewRunnerTransport" -- control-plane/internal/lanegit/` (S8-P3.5), `git grep -n "MachineRoot" -- control-plane/internal/gitx/` (task 25), `git grep -n "/git/v1/" -- control-plane/cmd/ control-plane/internal/brokerapi/` (task 18's route), `git grep -n "PathBundles" -- control-plane/internal/machineapi/` and the proxy's bundle cap (task 21b). If S8-P3.4 or S8-P3.5 is absent, stop and report which one is unanswered. If phase 3 answered with another spelling, adapt the wiring only.
-- [ ] **Step 2:** `lanegit_test.go`, red; `laneMount`, `Raw`, `GitTransport`, `DialLane`; `Create` calls `laneMount`. Green.
+- [ ] **Step 1:** Confirm the dependencies: `git grep -n "type Bundles interface" -- control-plane/internal/lanegit/` (S8-P3.4), `git grep -n -e "Machines func" -e "func NewRunnerTransport" -- control-plane/internal/lanegit/` (S8-P3.5), `git grep -n "type Remote struct" -- control-plane/internal/machines/` (task 25), `git grep -n "func LaneMachinePath" -- control-plane/internal/machineapi/` (task 20), `git grep -n "/git/v1/" -- control-plane/cmd/ control-plane/internal/brokerapi/` (task 18's route), `git grep -n "PathBundles" -- control-plane/internal/machineapi/` (task 21b) and `git grep -n "TestAgentProxyStreamsABundleUpToItsCap" -- control-plane/` (task 19's bundle cap). If S8-P3.4 or S8-P3.5 is absent, stop and report which one is unanswered. If phase 3 answered with another spelling, adapt the wiring only.
+- [ ] **Step 2:** `lanegit_test.go`, red; `laneMount`, `LaneCheck`, `Raw`, `GitTransport`, `DialLane`; `Create` calls `laneMount`, then `LaneCheck`; `machines` sets `LaneCheck` to its `Agent.WorktreePath`. Green.
 - [ ] **Step 3:** `bundles_test.go`, red; `machines.Bundles` and the `machineapi` wire if task 21b lacks it. Green.
 - [ ] **Step 4:** `lanegit_cloud_test.go`, red; `laneGit.Machines` in `main.go`. Green. If `TestTheReaperKeepsAHeldCloudRunner` is red, task 23's per-machine sweep skips `Held`: report it, and do not patch the reaper here.
-- [ ] **Step 5:** Full run, including phase 3's suites; commit by pathspec.
+- [ ] **Step 5: Mutation check** (rule 7), each on a `$TEMP` copy, each verified applied and
+  turning the named test red:
+  (1) `laneMount` accepts any `HostPath` under `/machine/` → `TestLaneMountRefusesEverythingElse`;
+  (2) `Create` skips `LaneCheck` → `TestRunnerOnlyCreateChecksTheLaneFirst`;
+  (3) a nil `LaneCheck` read as "no check" → the same test, on its nil row;
+  (4) `GitTransport` sends the attach token as the broker bearer → `TestGitTransportUsesTheSandboxRoute`;
+  (5) `Machines` answers a cloud lane's machine with `NewRunner` over `machined`'s proxy → `TestNoLaneGitReachesMachined`;
+  (6) `Put` reads the reader into a buffer first → `TestPutStreams`.
+  The two named beforehand as likeliest to survive are (3), because every other row sets a
+  `LaneCheck`, and (5), because a `…/agent/v1/git` call with a `lanes/` `dir` is the only thing
+  that shows it. Each is killed only by the row named beside it.
+- [ ] **Step 6:** Full run, including phase 3's suites; commit by pathspec.
 
 #### Acceptance
 
