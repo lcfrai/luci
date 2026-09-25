@@ -354,10 +354,10 @@ Expected: no output.
   (task 33).
 - That `panacea` works on a laptop. In solo mode there is no socket and every verb exits `3`; the
   channel is cloud-only by design (§5.2 item 1).
-- **Gap S18-1 — the hook command.** Task 13's invariant says the worker's `PreToolUse` hook "runs
-  `panacea check`" (skeleton scope 13). A hook passes its input on stdin, not as an argument, so
-  `panacea check` with no path would be a usage error on every edit. The invariant should render
-  `panacea check --hook`; task 13's part should adopt that spelling.
+- **S18-1 — resolved.** The skeleton's scope 13 says the hook "runs `panacea check`", which with no
+  path would be a usage error on every edit, since a hook passes its input on stdin. Task 13's part
+  adopted this part's spelling, `/usr/local/bin/panacea check --hook`, as invariant I5
+  (`task-13.md:78`, `:361`).
 - **S18-2 — resolved.** ST.1's argument shapes were unwritten when this part began; task 09's table
   now holds them and every row above matches it. The table test reads task 09's six request fixtures
   (`request-team.json`, `request-check.json`, `request-lease-request.json`,
