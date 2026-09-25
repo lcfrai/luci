@@ -649,13 +649,19 @@ func TestScansMapping(t *testing.T) {
 	f := false
 	want := deploy.ScanReport{
 		DeploymentID: "engagement-portal-deploy-5m9rt", Overall: "FAIL",
-		Blocking:   []deploy.ScanNote{{Scan: "trivy", Reason: "2 critical vulnerabilities (enforce)"}},
-		Incomplete: []deploy.ScanNote{{Scan: "dast", Reason: "no result for this deploy"}},
+		Blocking:   []deploy.ScanNote{{Scan: "trivy", Reason: "trivy enforce failed: 2 critical, 5 high"}},
+		Incomplete: []deploy.ScanNote{{Scan: "dast", Reason: "dast produced no result: TaskRunImagePullFailed"}},
 		Scans: []deploy.Scan{
+			// ErrorReason is the Tekton reason for a scan that ran and produced nothing
+			// (models/security.go:143-158): the one fact that says why a gate is incomplete.
+			{Name: "dast", Status: "ERROR", Mode: "enforce", Counts: map[string]int{}, ErrorReason: "TaskRunImagePullFailed",
+				LastScanAt: "2026-09-23T09:19:00Z", FindingsSource: "unverified"},
+			{Name: "sast", Status: "PASS", Mode: "warn", Counts: map[string]int{"findings": 0}, LastScanAt: "2026-09-23T09:18:00Z",
+				FindingsSource: "unverified"},
+			{Name: "secret", Status: "SKIPPED", Mode: "off", Counts: map[string]int{}, SkipReason: "posture-off",
+				Summary: "not enabled for this branch — turn it on in the Security Scans tab to run it on every build"},
 			{Name: "trivy", Status: "FAIL", Mode: "enforce", Counts: map[string]int{"critical": 2, "high": 5, "medium": 11, "low": 3},
-				Summary: "2 critical, 5 high", Blocking: true, LastScanAt: "2026-09-23T09:20:00Z", FindingsSource: "snapshot"},
-			{Name: "secret", Status: "SKIPPED", Mode: "off", Counts: map[string]int{}, SkipReason: "scanner is off for this project"},
-			{Name: "sast", Status: "PASS", Mode: "warn", Counts: map[string]int{"findings": 0}, LastScanAt: "2026-09-23T09:18:00Z"},
+				Summary: "2 critical, 5 high", Blocking: true, LastScanAt: "2026-09-23T09:20:00Z", FindingsSource: "unverified"},
 		},
 		DetailsRetained: &f, DetailsSource: "unverified", UpdatedAt: "2026-09-23T09:21:00Z",
 	}
@@ -736,13 +742,36 @@ func TestDrillInsMapping(t *testing.T) {
 	if err != nil || !reflect.DeepEqual(events, wantEvents) {
 		t.Errorf("Events = (%+v, %v)\nwant %+v", events, err, wantEvents)
 	}
+	// Every DiagnoseFinding field (handlers/diagnose.go:60-67), compared whole: Problem and
+	// SuggestedFix are what the card says and what the user does (mutants X3, X1 of the t03 run
+	// survived a field-by-field check that skipped them). Evidence absent stays nil.
 	d, err := rs.c.Diagnosis(ctx, project, env)
-	if err != nil || d.Health != "down" || d.Source != "rules+ai" || d.Summary != "The app container exits on start, so no pod is ready." ||
-		len(d.Findings) != 2 || d.Findings[0].Severity != "critical" || d.Findings[0].Owner != "app" ||
-		!slices.Equal(d.Findings[0].Evidence, []string{"BackOff x42 on Pod/engagement-portal-7c9d5b6f4-x2kqp", "restarts: 7"}) ||
-		d.Findings[0].LikelyCause != "DATABASE_URL is not set in this environment, so the app exits at boot." ||
-		d.Findings[1].Evidence != nil || d.Findings[1].Owner != "platform" {
-		t.Errorf("Diagnosis = (%+v, %v)", d, err)
+	wantDiag := deploy.Diagnosis{Health: "down", Summary: "The app container exits on start, so no pod is ready.", Source: "rules+ai",
+		Findings: []deploy.Finding{
+			{Problem: "The app container is crash-looping.",
+				LikelyCause:  "DATABASE_URL is not set in this environment, so the app exits at boot.",
+				SuggestedFix: "Add DATABASE_URL under Env Vars for this branch and redeploy.",
+				Evidence:     []string{"BackOff x42 on Pod/engagement-portal-7c9d5b6f4-x2kqp", "restarts: 7"}, Severity: "critical", Owner: "app"},
+			{Problem: "One pod was evicted for memory pressure.", LikelyCause: "The node ran low on memory.",
+				SuggestedFix: "No action; the platform reschedules evicted pods.", Severity: "info", Owner: "platform"},
+		}}
+	if err != nil || !reflect.DeepEqual(d, wantDiag) {
+		t.Errorf("Diagnosis = (%+v, %v)\nwant %+v", d, err, wantDiag)
+	}
+}
+
+// TestPodReadyIsPanaceas: Ready is Panacea's own verdict, "all app containers ready AND phase
+// Running" (clients/pod_introspection.go:50), read verbatim. Both recorded pods are not ready, so
+// a mapper that drops the field passed them (mutant X4 of the t03 run).
+func TestPodReadyIsPanaceas(t *testing.T) {
+	rs := serveRecorded(t, map[string]fixture{"GET /api/v1/projects/engagement-portal/environments/prod/pods": {body: `{"items":[` +
+		`{"name":"a","phase":"Running","ready":true,"readyContainers":1,"totalContainers":1,"restarts":0,"image":"i","ageSeconds":60,"containers":[]},` +
+		`{"name":"b","phase":"Running","ready":false,"readyContainers":0,"totalContainers":1,"restarts":2,"image":"i","ageSeconds":60,"containers":[]}` +
+		`],"totalCount":2}`}})
+	pods, err := rs.c.Pods(context.Background(), project, "prod")
+	want := []deploy.Pod{{Name: "a", Phase: "Running", Ready: true}, {Name: "b", Phase: "Running", Restarts: 2}}
+	if err != nil || !reflect.DeepEqual(pods, want) {
+		t.Errorf("Pods = (%+v, %v)\nwant %+v", pods, err, want)
 	}
 }
 

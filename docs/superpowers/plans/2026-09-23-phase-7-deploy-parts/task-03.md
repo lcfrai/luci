@@ -276,7 +276,7 @@ truth the mapping tests read.
 | `latest.json`, `latest-404.json` | `deploys/latest`; the 404 is `{"error":"no deployments yet for project engagement-portal"}` (`projects.go:1539`) |
 | `deployments.json` | four rows: a `Succeeded` newest with `liveReadyReplicas: 0` and a `scanStatus`; a `Failed` with `failedStep`; a `historical` backfilled row; one with an empty `version` |
 | `run-running.json`, `run-failed.json` | `pipelines/{run}` |
-| `security-status.json` | `FAIL` with one blocking and one incomplete, `detailsSource: "unverified"` |
+| `security-status.json` | `FAIL` with one blocking and one incomplete, `detailsSource: "unverified"`. Rewritten in the t03 build to what Panacea writes: a deploy with no findings snapshot, so every live row is an env-keyed scanner's with no `deployId` and `findingsSource: "unverified"` (`security_status.go:999-1004`); rows scan-name sorted (`:465`); `trivy` blocking with `blockingReason`'s sentence (`:768-780`); `dast` `ERROR` with `errorReason: "TaskRunImagePullFailed"` (`:602`), incomplete with `incompleteReason`'s sentence (`:748-749`); `secret` is `offScanRow` (`:429-439`); `findings` on every row (`models/security.go:122`). The first version's hand-written reasons, a `deployId` on the env-keyed `trivy` row, and an `errorReason: ""` that omitempty never writes let mutant X2 (ErrorReason dropped) survive |
 | `pods.json`, `events.json`, `diagnose-ai.json` | drill-ins; the diagnosis has `source: "rules+ai"` |
 | `error-text-plain-403.txt` | `{"error":"no access yet: your account is waiting for team approval — finish onboarding first"}` served as `text/plain` (`rbac.go:398-400`) |
 
@@ -358,6 +358,17 @@ gains the methods, the embedded pair is an ambiguous selector, `connector` stops
 | `TestScansSendsTheEnvironment` | `Scans(p, "feat-x", "d-feat")` requests `GET /api/v1/projects/engagement-portal/security-status?deployId=d-feat&env=feat-x` (`url.Values.Encode` order); `Scans(p, "prod", "d1")` sends `env=prod`; `Scans(p, "", "d1")` sends `?deployId=d1` with **no** `env` key, never `env=` (review C3) | dropping `env`, which shows production's verdict as a branch release's; or sending `env=` empty, which Panacea also reads as production |
 | `TestTextPlain403` | `error-text-plain-403.txt` → `KindForbidden` with the full sentence | a decoder gated on `Content-Type: application/json` that loses Panacea's most actionable sentence |
 | `TestConformanceOverConnector` | `deploytest.Conformance(t, panaceaHarness)` | the connector and the fake disagreeing about any row |
+
+Added in the t03 build, each for a mutant that survived the rows above:
+
+| Test | Assertion | Mutant it kills |
+|---|---|---|
+| `TestRunNameIsTheOneAsked` | a run answered with no `name` reads `Run` as the name asked | N1: the run-to-deployment join broken by `Run ""` |
+| `TestReadsAcceptOnly200` | 201, 202, 203 and 206 on every read → `KindUnavailable` with that status; `Latest` not ok | N2: any 2xx accepted |
+| `TestGatesEmptyMapIsNil` | `"scanStatus": {}` → `Gates == nil` | G3: an empty map read as "all gates clean" |
+| `TestScansMapping` (whole report) | the rewritten `security-status.json`, compared whole, `ErrorReason` included | X2: `ErrorReason` dropped, so an incomplete gate loses its why |
+| `TestDrillInsMapping` (diagnosis whole) | every `DiagnoseFinding` field (`diagnose.go:60-67`) compared whole | X1, X3: `SuggestedFix` or `Problem` dropped |
+| `TestPodReadyIsPanaceas` | a ready and a not-ready pod read `Ready` verbatim (`pod_introspection.go:50`) | X4: `Ready` dropped (both recorded pods are not ready) |
 
 #### Steps
 

@@ -1,42 +1,58 @@
 {
-  "_source": "GET /api/v1/projects/engagement-portal/security-status?deployId=engagement-portal-deploy-5m9rt&env=feat-evidence-upload, handlers/security_status.go:254 writeJSON(models.APIResponse{Data: agg}) of models.SecurityStatus (models/security.go:205-242): FAIL because one enforce-mode scan failed (IsBlocking, :124), one required scan in incomplete, and detailsSource unverified (:241)",
+  "_source": "GET /api/v1/projects/engagement-portal/security-status?deployId=engagement-portal-deploy-5m9rt&env=feat-evidence-upload, handlers/security_status.go:250-254 writeJSON(models.APIResponse{Data: agg}) of models.SecurityStatus (models/security.go:205-242). A deploy with no findings snapshot: each live row is an env-keyed scanner's, with no deployId (models/security.go:159-163), so findingsSource unverified and detailsRetained false (mergeDeployScanDetails, handlers/security_status.go:999-1004). secret is offScanRow (:429-439), joined after the merge with no findingsSource; rows are scan-name sorted (:465). trivy enforce FAIL is blocking with blockingReason's sentence (:768-780); dast ERROR carries errorReason from tektonReason (:602) and is incomplete with incompleteReason's sentence (:748-749); overall is FAIL because blocking wins (:697). findings is never omitted (models/security.go:122; parseScanFindings, :806-816). Panacea's formats applied by hand to write this file (re-written in the t03 build: the first version's reasons, trivy deployId and empty errorReason were not what Panacea writes)",
   "data": {
+    "project": "engagement-portal",
+    "env": "feat-evidence-upload",
     "overall": "FAIL",
     "blocking": [
-      {"scan": "trivy", "reason": "2 critical vulnerabilities (enforce)"}
+      {"scan": "trivy", "reason": "trivy enforce failed: 2 critical, 5 high"}
     ],
     "incomplete": [
-      {"scan": "dast", "reason": "no result for this deploy"}
+      {"scan": "dast", "reason": "dast produced no result: TaskRunImagePullFailed"}
     ],
     "scans": [
       {
-        "scan": "trivy",
-        "status": "FAIL",
+        "scan": "dast",
+        "status": "ERROR",
         "mode": "enforce",
-        "counts": {"critical": 2, "high": 5, "medium": 11, "low": 3},
-        "summary": "2 critical, 5 high",
-        "isBlocking": true,
-        "lastScanTime": "2026-09-23T09:20:00Z",
-        "deployId": "engagement-portal-deploy-5m9rt",
-        "findingsSource": "snapshot"
-      },
-      {
-        "scan": "secret",
-        "status": "SKIPPED",
-        "mode": "off",
         "counts": {},
+        "findings": [],
         "isBlocking": false,
-        "lastScanTime": "",
-        "skipReason": "scanner is off for this project"
+        "lastScanTime": "2026-09-23T09:19:00Z",
+        "errorReason": "TaskRunImagePullFailed",
+        "findingsSource": "unverified"
       },
       {
         "scan": "sast",
         "status": "PASS",
         "mode": "warn",
         "counts": {"findings": 0},
+        "findings": [],
         "isBlocking": false,
         "lastScanTime": "2026-09-23T09:18:00Z",
-        "errorReason": ""
+        "findingsSource": "unverified"
+      },
+      {
+        "scan": "secret",
+        "status": "SKIPPED",
+        "mode": "off",
+        "counts": {},
+        "findings": [],
+        "summary": "not enabled for this branch — turn it on in the Security Scans tab to run it on every build",
+        "isBlocking": false,
+        "lastScanTime": "",
+        "skipReason": "posture-off"
+      },
+      {
+        "scan": "trivy",
+        "status": "FAIL",
+        "mode": "enforce",
+        "counts": {"critical": 2, "high": 5, "medium": 11, "low": 3},
+        "findings": [],
+        "summary": "2 critical, 5 high",
+        "isBlocking": true,
+        "lastScanTime": "2026-09-23T09:20:00Z",
+        "findingsSource": "unverified"
       }
     ],
     "lastUpdated": "2026-09-23T09:21:00Z",
