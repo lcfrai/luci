@@ -153,7 +153,7 @@ ST.1 shape when it is written, and task 09 wins.
 
 For the `--args` form of `task`, `peer` and `human`, the CLI adds `op` or `kind` from the subcommand and
 refuses (`2`) an object that already carries a different one. It checks only that `--args` is one JSON
-object of at most 60 KiB (under task 16's 64 KiB request cap with room for the envelope); every field
+object of at most 32 KiB (task 19's `MaxArgsBytes`; task 16's socket cap is 64 KiB); every field
 check is Fleet's. Positional ids are checked for their prefix only (`ag-`, `tk-`, `ls-`), so a typo is
 a usage error with the usage line rather than a round trip.
 
@@ -179,7 +179,7 @@ and answers with a canned response. The package is `//go:build linux || darwin`,
 | `TestSilentSocketExits3` | the fake accepts and never answers, `Env.Timeout` 100 ms: exit 3 in under 1 s | an unbounded read |
 | `TestRefusedExits1` | canned `{"ok":false,"error":{"code":"forbidden_class",…}}`: exit 1, the error object inside the envelope | treating every error as unavailable |
 | `TestUnknownVerbExits2` | `panacea frobnicate`, `panacea events.wait`, `panacea turn.end`: exit 2, nothing written to the socket | exposing the runner's verbs |
-| `TestArgsMustBeOneObject` | `--args '[1]'`, `--args '{}{}'`, 61 KiB: each exit 2, nothing sent | forwarding an array or a stream |
+| `TestArgsMustBeOneObject` | `--args '[1]'`, `--args '{}{}'`, 32 KiB + 1: each exit 2, nothing sent | forwarding an array or a stream |
 | `TestArgsKindConflictExits2` | `peer counter --args '{"kind":"ask"}'` → exit 2 | the object overriding the subcommand |
 | `TestHookRelativisesAndNeverBlocks` | stdin `{"tool_input":{"file_path":"/home/dev/w/src/a.ts"},"cwd":"/home/dev/w"}`: request `{"path":"src/a.ts"}`; with the socket absent, exit 0 and the unavailable line in the added context | a hook that blocks an edit, or sends an absolute path |
 | `TestHookPathOutsideCwdIsNotSent` | `file_path` `/etc/passwd`: nothing sent, exit 0, context says the path is outside the worktree | leaking a host path to Fleet (X-1 class, §3.3 rule 3) |
