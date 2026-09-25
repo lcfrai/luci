@@ -174,9 +174,12 @@ export interface TrackerConnection {
   createdBy: User;
 }
 /** An issue imported from outside: *not tied · imported* until a person ties it (task 42). */
+/** Task 150's UpstreamChange: an outside close, reassignment or edit, shown and never applied. */
+export interface UpstreamChange { externalId: string; field: string; at: string }
 export interface ExternalLink {
   id: string;                  // xl-…
   source: TrackerSource; externalId: string; issueId: string; url: string; lastSeenAt: string;
+  upstream: UpstreamChange | null;   // the latest, from task 150's upstreamChangedAt
 }
 export interface SyncError { externalId: string; code: ProblemCode }
 /** One engine pass (task 150): counts are measured facts of that pass, not a total to reach. */
@@ -346,11 +349,12 @@ export const WORK_RELAY_W5 = [
   ["PutIntakeRules", "PUT", "/v1/teams/{teamId}/intake-rules"],
   ["GetForm", "GET", "/v1/forms/{formId}"],
   ["PutForm", "PUT", "/v1/teams/{teamId}/forms/{formId}"],
-  ["ConnectTracker", "POST", "/v1/teams/{teamId}/trackers"],
+  ["ConnectTracker", "POST", "/v1/projects/{projectId}/trackers"],   // task 150's scope, :441
   ["ListTrackers", "GET", "/v1/teams/{teamId}/trackers"],
   ["SetTrackerMode", "PUT", "/v1/trackers/{connectionId}/mode"],
   ["DisconnectTracker", "DELETE", "/v1/trackers/{connectionId}"],
   ["ListSyncRuns", "GET", "/v1/trackers/{connectionId}/runs"],
+  ["ListTrackerLinks", "GET", "/v1/trackers/{connectionId}/links"],
   ["ListLoops", "GET", "/v1/me/loops"],
   ["TeamLoops", "GET", "/v1/teams/{teamId}/loops"],
   ["PutLoop", "PUT", "/v1/loops/{loopId}"],
@@ -382,8 +386,9 @@ export type RelayMethodW5 = (typeof WORK_RELAY_W5)[number][0];
 export const W5_NOT_RELAYED = ["/v1/hooks/", "/v1/teams-bot/", "/v1/forms/{formId}/submit", "/mcp"] as const;
 ```
 
-Eight rows name a method task 143's list lacks: `RequestMessages` (task 157's thread),
-`SetTrackerMode` (task 153's per-connection switch), `ListLoops`, `TeamLoops`, `CreateLoop` and
+Nine rows name a method task 143's list lacks: `RequestMessages` (task 157's thread),
+`SetTrackerMode` (task 153's per-connection switch), `ListTrackerLinks` (task 171's imported
+rows and upstream changes; task 150 names the `ExternalLink` record and no list), `ListLoops`, `TeamLoops`, `CreateLoop` and
 `PauseLoop` (tasks 162-163's own list and pause), `ListApps` and `ListTeamSkills`. They are proposed
 to task 143 with G1. `PauseLoop` is a separate row from `PutLoop` because a team admin may pause a
 teammate's loop but not write a version of it (OD-16, task 172). *Publish to sandboxes* is **not**
@@ -406,7 +411,8 @@ export interface WorkIntakeClient {
   putIntakeRules(teamId: string, body: PutIntakeRulesBody): Promise<{ rules: IntakeRule[]; version: number }>;
   form(formId: string): Promise<IntakeForm & { url: string }>;   // url: the Hub form's https link
   putForm(teamId: string, formId: string, body: PutFormBody): Promise<IntakeForm & { url: string }>;
-  connectTracker(teamId: string, body: ConnectTrackerBody): Promise<{ connection: TrackerConnection; consentUrl: string | null }>;
+  connectTracker(projectId: string, body: ConnectTrackerBody): Promise<{ connection: TrackerConnection; consentUrl: string | null }>;
+  trackerLinks(connectionId: string, page?: PageRequest): Promise<Page<ExternalLink>>;
   trackers(teamId: string): Promise<TrackerConnection[]>;
   setTrackerMode(connectionId: string, mode: TrackerMode): Promise<TrackerConnection>;
   disconnectTracker(connectionId: string): Promise<TrackerConnection>;
@@ -460,7 +466,8 @@ so task 168's digest re-check on the new revision runs in the relay before the d
   formField: keys<FormField>({ id: true, label: true, kind: true, required: true, options: true }),
   trackerConnection: keys<TrackerConnection>({ id: true, teamId: true, projectId: true, source: true,
     target: true, mode: true, principalId: true, state: true, lastRunAt: true, createdBy: true }),
-  externalLink: keys<ExternalLink>({ id: true, source: true, externalId: true, issueId: true, url: true, lastSeenAt: true }),
+  externalLink: keys<ExternalLink>({ id: true, source: true, externalId: true, issueId: true, url: true,
+    lastSeenAt: true, upstream: true }),
   syncRun: keys<SyncRun>({ connectionId: true, at: true, created: true, existing: true, commentsIn: true, commentsOut: true, errors: true }),
   loop: keys<Loop>({ id: true, ownerId: true, teamId: true, name: true, trigger: true, instruction: true,
     action: true, grid: true, version: true, state: true, author: true, at: true }),
@@ -775,8 +782,9 @@ npm --prefix desktop run typecheck
    `DigestSettings.teams`); resolved above by task 143's names. The other way, tasks 172 and 173
    need fields and methods task 143's scope lacks: `Loop.name`, `.action`, `.trigger.filter`,
    `.author`, `.at`; `Loop.grid` as per-class levels (AX §7's grid, not one level name);
-   `LoopRun.outcome`'s words, `.sessionId`, `.worktree`; `App.actsAs`; and the methods
-   `RequestMessages`, `SetTrackerMode`, `ListLoops`, `TeamLoops`, `CreateLoop`, `PauseLoop`,
+   `LoopRun.outcome`'s words, `.sessionId`, `.worktree`; `App.actsAs`; `ExternalLink.upstream`
+   (task 150's `UpstreamChange`); `AcceptRequestBody.serves`; and the methods `RequestMessages`,
+   `SetTrackerMode`, `ListTrackerLinks`, `ListLoops`, `TeamLoops`, `CreateLoop`, `PauseLoop`,
    `ListApps`, `ListTeamSkills`. Task 143 takes them or the goldens fail here.
 2. **G2 — task 144 and task 170 disagree on the accepted issue's description.** Task 144's scope
    says `AcceptRequest` writes revision 1 with **the quote** as the description; task 170's scope
