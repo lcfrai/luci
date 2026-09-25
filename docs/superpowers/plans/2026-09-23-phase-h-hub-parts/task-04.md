@@ -361,9 +361,10 @@ go list -deps ./control-plane/internal/hub/hubclient | grep panacea-app
   content error's `field` is `revisions[i].content` plus the `hubapi.FieldError` path, as
   `FieldError`'s doc says. Lists: `limit` 0 is 50, 1–200 taken, else 400 `field: limit`. The
   `Revisions` cursor is the last revision in decimal (task 19: `after=1&limit=1` is `[2]`): any
-  canonical decimal ≥ 0 is taken — `"0"` is the whole history, the head or past it an empty last
-  page with no `next` — and any other spelling (`"01"`, `"-1"`, `"+1"`, `"x"`) is 400
-  `field: after`. The `List` cursor is the last head's id: an id that is not a brief of this
+  canonical decimal ≥ 0 that fits a Go `int` is taken — `"0"` is the whole history, the head or
+  past it an empty last page with no `next` — and any other spelling (`"01"`, `"-1"`, `"+1"`,
+  `"x"`), or a decimal too large for an `int` (`strconv.Atoi`'s range error; no list ever gave
+  one), is 400 `field: after` (fix round 2, re-review m1). The `List` cursor is the last head's id: an id that is not a brief of this
   project — one that names nothing, or a brief of another project, readable or not — is 400
   `field: after`, the same answer either way, so the cursor tells an outsider nothing (*As built*,
   fix round 1; carried to tasks 18, 19 and 05).
@@ -397,3 +398,14 @@ go list -deps ./control-plane/internal/hub/hubclient | grep panacea-app
   invite per call) and PS-2 (the member check spans every team), survived as named and are killed
   by the round's second commit. Carried: I1, I2 → task 16a; M1 → 18; M2 → 19; M4 → 18 and 34;
   a conformance row for each → 05. M5 and M6 are this part's own wording, above.
+- **Fix round 2** (re-review `task-04-review-1.md`: 0 C, 2 I, 2 m). No production code changed
+  again: the code was right, and the re-review's MX-1 (`Me` without its email match), MX-2 and
+  MX-2b (`RevokeInvite` without its admin check, or admitting a member) passed the suite.
+  `fake_test.go` now pins: `Me` binds only the caller's own email, while another person's admin
+  invite is pending (N1); a member and a viewer get 403 `required: admin` on `RevokeInvite`, and
+  the invite stays pending (N2); a second revoke is 204 and changes nothing (m2, the ruling carried
+  to 16a); the overflowing cursor above (m1). The two named in advance survived as named and are
+  pinned: PS2-1, the role check after the invite lookup (a member now gets 403 for a missing and
+  for a bound invite), and PS2-2, an email never refreshed after first sight (binding follows a
+  changed address). Found beside PS2-1 and pinned: PS2-3, `CreateInvite` checking the body before
+  the role. Carried: N1, N2, m2 → 16a; m1 → 19; a conformance row for each → 05.

@@ -146,13 +146,27 @@ func TestFakeMeProvisionsAndBindsInvites(t *testing.T) {
 		t.Errorf("Invites after binding = %+v, want one bound to Grace", invites)
 	}
 
-	// A bound invite keeps a higher role already held (contract §7.2): Linus is
-	// invited as viewer, then made admin by id, then signs in.
+	// Me binds only invites for the caller's own email (§7.2: an invite "whose
+	// `email` equals the caller's email"; task 04 re-review N1). Vera's admin
+	// invite is pending when Linus signs in for the first time: he binds
+	// nothing, joins no team and cannot see Portal, and Vera's invite is left
+	// pending, bound to nobody. (It is revoked below, before Vera signs in.)
+	withdrawn := must(ada.CreateInvite(bg, team.ID, hubapi.CreateInviteRequest{Email: "vera@example.test", Role: hubapi.RoleAdmin}))(t)
 	linus := f.As(FakeLinus)
 	fresh := must(linus.Me(bg))(t) // first sight: provisioned, no teams, not nil
 	if fresh.Teams == nil || len(fresh.Teams) != 0 || fresh.InvitesBound != 0 {
-		t.Errorf("Linus's first Me = %+v, want teams [] and nothing bound", fresh)
+		t.Errorf("Linus's first Me while Vera's admin invite is pending = %+v, want teams [] and nothing bound", fresh)
 	}
+	_, err := linus.Team(bg, team.ID)
+	wantProblem(t, err, 404, "team_not_found", "teamId", team.ID)
+	for _, inv := range must(ada.Invites(bg, team.ID))(t) {
+		if inv.ID == withdrawn.ID && (inv.State != hubapi.InvitePending || inv.BoundUser != nil) {
+			t.Errorf("Vera's invite after Linus's Me = %+v, want it still pending, bound to nobody", inv)
+		}
+	}
+
+	// A bound invite keeps a higher role already held (contract §7.2): Linus is
+	// invited as viewer, then made admin by id, then signs in.
 	must(ada.CreateInvite(bg, team.ID, hubapi.CreateInviteRequest{Email: FakeLinus.Email, Role: hubapi.RoleViewer}))(t)
 	must(ada.SetMember(bg, team.ID, FakeLinus.ID, hubapi.RoleAdmin))(t)
 	if got := must(linus.Me(bg))(t); got.InvitesBound != 1 || len(got.Teams) != 1 || got.Teams[0].Role != hubapi.RoleAdmin {
@@ -163,12 +177,11 @@ func TestFakeMeProvisionsAndBindsInvites(t *testing.T) {
 	// before the person signs in (contract §7.2 binds `pending` invites only;
 	// task 04 review I1). Vera's withdrawn admin invite leaves her in no team.
 	vera := f.As(FakeUser{ID: "u-00000000000000c1", DisplayName: "Vera Example", Email: "vera@example.test"})
-	withdrawn := must(ada.CreateInvite(bg, team.ID, hubapi.CreateInviteRequest{Email: "vera@example.test", Role: hubapi.RoleAdmin}))(t)
 	noErr(t, ada.RevokeInvite(bg, team.ID, withdrawn.ID))
 	if got := must(vera.Me(bg))(t); got.InvitesBound != 0 || len(got.Teams) != 0 {
 		t.Errorf("Vera's Me after her invite was revoked = bound %d teams %+v, want 0 and none", got.InvitesBound, got.Teams)
 	}
-	_, err := vera.Team(bg, team.ID)
+	_, err = vera.Team(bg, team.ID)
 	wantProblem(t, err, 404, "team_not_found", "teamId", team.ID)
 	var kept *hubapi.Invite
 	for _, inv := range must(ada.Invites(bg, team.ID))(t) {
@@ -191,6 +204,26 @@ func TestFakeMeProvisionsAndBindsInvites(t *testing.T) {
 		t.Errorf("Mo's Me with two pending invites = bound %d teams %+v, want 2: Portal viewer, Studio member", got.InvitesBound, got.Teams)
 	}
 
+	// Binding reads this call's email, refreshed from the principal, never the
+	// one first seen (§5.1 step 5 refreshes display_name and email; task-16a.md:61
+	// "binding that reads the stored users.email instead of this token"; fix round
+	// 2, PS2-2). Nia signs in, then her email and name change: an invite for the
+	// new address binds, and one for the old address no longer does.
+	nia := FakeUser{ID: "u-00000000000000c3", DisplayName: "Nia Old", Email: "nia.old@example.test"}
+	must(f.As(nia).Me(bg))(t)
+	must(ada.CreateInvite(bg, team.ID, hubapi.CreateInviteRequest{Email: "nia@example.test", Role: hubapi.RoleMember}))(t)
+	oldAddress := must(ada.CreateInvite(bg, studio.ID, hubapi.CreateInviteRequest{Email: "nia.old@example.test", Role: hubapi.RoleViewer}))(t)
+	nia.DisplayName, nia.Email = "Nia Example", "Nia@Example.test"
+	if got := must(f.As(nia).Me(bg))(t); got.User != (hubapi.User{ID: nia.ID, DisplayName: "Nia Example", Email: "nia@example.test"}) ||
+		got.InvitesBound != 1 || len(got.Teams) != 1 || got.Teams[0].ID != team.ID || got.Teams[0].Role != hubapi.RoleMember {
+		t.Errorf("Nia's Me after her email changed = %+v, want the new name and address, one bound: Portal member", got)
+	}
+	for _, inv := range must(ada.Invites(bg, studio.ID))(t) {
+		if inv.ID == oldAddress.ID && (inv.State != hubapi.InvitePending || inv.BoundUser != nil) {
+			t.Errorf("the invite for Nia's old address = %+v, want it still pending, bound to nobody", inv)
+		}
+	}
+
 	// orgAdmin is the principal's, and an email is matched lowercased (§5.1).
 	boss := f.As(FakeUser{ID: "u-00000000000000b1", DisplayName: "Org Boss", Email: "Boss@Example.TEST", OrgAdmin: true})
 	must(ada.CreateInvite(bg, team.ID, hubapi.CreateInviteRequest{Email: "BOSS@example.test", Role: hubapi.RoleViewer}))(t)
@@ -209,6 +242,13 @@ func TestFakeTeamRoles(t *testing.T) {
 	_, err = grace.SetMember(bg, team.ID, FakeAda.ID, hubapi.RoleViewer)
 	wantProblem(t, err, 403, "forbidden", "required", "admin")
 	wantProblem(t, grace.RemoveMember(bg, team.ID, FakeAda.ID), 403, "forbidden", "required", "admin")
+	// The role check comes before the body (route 11 in task-16a.md:20 lists 403
+	// before 400 and 409): a member's malformed invite, or one for a member, is
+	// the same 403 (fix round 2, found beside PS2-1).
+	for _, req := range []hubapi.CreateInviteRequest{{Email: "no-at-sign", Role: hubapi.RoleMember}, {Email: "y@example.test", Role: "owner"}, {Email: FakeAda.Email, Role: hubapi.RoleMember}} {
+		_, err = grace.CreateInvite(bg, team.ID, req)
+		wantProblem(t, err, 403, "forbidden", "required", "admin")
+	}
 
 	// An outsider learns nothing: 404 on every team method, even for an id that
 	// does not exist or is malformed.
@@ -267,6 +307,13 @@ func TestFakeTeamRoles(t *testing.T) {
 	if got := must(ada.Invites(bg, team.ID))(t); got[0].State != hubapi.InviteRevoked {
 		t.Errorf("a revoked invite reads %s, want revoked (the row is kept)", got[0].State)
 	}
+	// A DELETE is idempotent: revoking an invite that is already revoked is 204
+	// and changes nothing (contract §7.3 names only the bound case; the ruling is
+	// task 04 re-review m2's, carried to task 16a).
+	noErr(t, ada.RevokeInvite(bg, team.ID, invites[0].ID))
+	if got := must(ada.Invites(bg, team.ID))(t); len(got) != 2 || got[0].ID != invites[0].ID || got[0].State != hubapi.InviteRevoked || got[0].BoundUser != nil {
+		t.Errorf("Invites after a second revoke = %+v, want x's still revoked, first, and no new row", got)
+	}
 	wantProblem(t, ada.RevokeInvite(bg, team.ID, "iv-0000000000000000"), 404, "invite_not_found", "inviteId", "iv-0000000000000000")
 
 	// "One pending invite" is per team and pending only (contract §7.3; the
@@ -277,6 +324,22 @@ func TestFakeTeamRoles(t *testing.T) {
 	if again.State != hubapi.InvitePending || again.ID == invites[0].ID {
 		t.Errorf("a re-invite after a revoke = %+v, want a new pending invite", again)
 	}
+	// Revoking an invite is the team admin's alone (contract §5.3, "create or
+	// revoke an invite": 403 for M and V; task 04 re-review N2). Grace, a member,
+	// cannot withdraw Ada's invite; the viewer's row is below.
+	wantProblem(t, grace.RevokeInvite(bg, team.ID, again.ID), 403, "forbidden", "required", "admin")
+	stillPending := func(who string) {
+		t.Helper()
+		if got := must(ada.Invites(bg, team.ID))(t); got[0].ID != again.ID || got[0].State != hubapi.InvitePending || got[0].BoundUser != nil {
+			t.Errorf("x's invite after %s's revoke = %+v, want it first and still pending", who, got[0])
+		}
+	}
+	stillPending("Grace")
+	// The role check comes before the invite lookup (route 12 in task-16a.md:21
+	// lists 403 before invite_not_found and the bound 409): a member gets the same
+	// 403 for an id that names nothing and for a bound invite (fix round 2, PS2-1).
+	wantProblem(t, grace.RevokeInvite(bg, team.ID, "iv-0000000000000000"), 403, "forbidden", "required", "admin")
+	wantProblem(t, grace.RevokeInvite(bg, team.ID, invites[1].ID), 403, "forbidden", "required", "admin")
 	lt := must(linus.CreateTeam(bg, hubapi.CreateTeamRequest{Name: "Linus's"}))(t)
 	theirs := must(linus.CreateInvite(bg, lt.ID, x))(t)
 	if theirs.State != hubapi.InvitePending || theirs.TeamID != lt.ID {
@@ -322,6 +385,8 @@ func TestFakeTeamRoles(t *testing.T) {
 	}
 	_, err = linus.CreateInvite(bg, team.ID, hubapi.CreateInviteRequest{Email: "z@example.test", Role: hubapi.RoleMember})
 	wantProblem(t, err, 403, "forbidden", "required", "admin")
+	wantProblem(t, linus.RevokeInvite(bg, team.ID, again.ID), 403, "forbidden", "required", "admin")
+	stillPending("Linus")
 
 	must(ada.CreateTeam(bg, hubapi.CreateTeamRequest{Name: "attic"}))(t)
 	var order []string
@@ -602,9 +667,11 @@ func TestFakeRevisionNumberingAndConflict(t *testing.T) {
 		_, err = ada.Revisions(bg, b.ID, bad)
 		wantProblem(t, err, 400, "bad_request")
 	}
-	// The cursor is any canonical decimal ≥ 0 (part D4, as fix round 1 words it;
-	// task 19's store takes afterRevision int): "0" is the whole history, the
-	// head or past it an empty last page; any other spelling is 400 (review M2).
+	// The cursor is any canonical decimal ≥ 0 that fits a Go int (part D4, as
+	// fix rounds 1 and 2 word it; task 19's store takes afterRevision int): "0"
+	// is the whole history, the head or past it an empty last page; any other
+	// spelling is 400 (review M2), and so is a decimal too big for an int, which
+	// no list ever gave (re-review m1).
 	if got := must(ada.Revisions(bg, b.ID, hubapi.PageRequest{After: "0"}))(t); len(got.Items) != 3 || got.Next != nil {
 		t.Errorf("Revisions after 0 = %+v, want 1, 2, 3 with no next", got)
 	}
@@ -613,7 +680,7 @@ func TestFakeRevisionNumberingAndConflict(t *testing.T) {
 			t.Errorf("Revisions after %s = %+v, want items [] and no next", past, got)
 		}
 	}
-	for _, spelled := range []string{"01", "-1", "+1", " 1", "1.0"} {
+	for _, spelled := range []string{"01", "-1", "+1", " 1", "1.0", "99999999999999999999"} {
 		_, err = ada.Revisions(bg, b.ID, hubapi.PageRequest{After: spelled})
 		wantProblem(t, err, 400, "bad_request", "field", "after")
 	}
