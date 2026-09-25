@@ -690,13 +690,21 @@ func TestWorkEmptyListsStayArrays(t *testing.T) {
 	if err := json.Unmarshal([]byte(`{"serves":[],"implements":[]}`), &r); err != nil {
 		t.Fatal(err)
 	}
-	for name, v := range map[string]any{"IssueHead": h, "Comment": c, "IssueRevisionContent": r} {
-		b, _ := json.Marshal(v)
+	for _, tc := range []struct {
+		name string
+		v    any
+		keys []string
+	}{
+		{"IssueHead", h, []string{"labels", "relations"}},
+		{"Comment", c, []string{"mentions", "reactions"}},
+		{"IssueRevisionContent", r, []string{"serves", "implements"}},
+	} {
+		b, _ := json.Marshal(tc.v)
 		var m map[string]json.RawMessage
 		_ = json.Unmarshal(b, &m)
-		for _, k := range []string{"labels", "relations", "mentions", "reactions", "serves", "implements"} {
-			if raw, ok := m[k]; ok && string(raw) != "[]" {
-				t.Errorf("%s.%s re-encodes as %s, want []", name, k, raw)
+		for _, k := range tc.keys {
+			if raw, ok := m[k]; !ok || string(raw) != "[]" {
+				t.Errorf("%s.%s re-encodes as %q (present %v), want []", tc.name, k, raw, ok)
 			}
 		}
 	}
@@ -847,3 +855,80 @@ func TestAssigneeChangeIsTriState(t *testing.T) {
 ```
 
 Every test fails to compile before Step 3 (`undefined: IssueHead` and the rest).
+
+---
+
+#### Steps
+
+- [ ] **Step 1: Check the base.** Task 02 is merged on `feat/work-layer`:
+  `grep -n "^type IssueRevisionContent" control-plane/internal/hub/hubapi/workcanonical.go`
+  prints one line. Re-read the *Anchors*; follow any that moved.
+- [ ] **Step 2: Grep the later parts for spellings.** `grep -n "hubapi\.[A-Z]" docs/superpowers/plans/2026-09-25-phase-w-work-layer-parts/task-{04..17}.md`
+  and compare every name this file declares. A part that spells one differently is corrected by
+  its own writer (this part wins on spelling, as tasks 08, 11 and 12 state); list any found in
+  the commit message.
+- [ ] **Step 3: Write `work_test.go`**, run
+  `go test ./control-plane/internal/hub/hubapi/ -count=1`, watch it fail to compile.
+- [ ] **Step 4: Write `work.go`**, the six blocks and the `ValidAuthor` lines, in order.
+- [ ] **Step 5: Run to green**; `go vet` and `gofmt -l` on the package print nothing.
+- [ ] **Step 6: Prove the tests bite.** Apply each mutant by hand, run, see the named test fail,
+  revert. None is committed.
+
+| Mutant, applied by hand | Test that must fail |
+|---|---|
+| `CriterionID` tagged `json:"criterion_id"` (task 02's `Serve`) | `TestWorkFieldNamesMatchTheExamples/IssueRevision` |
+| `HeadRevision` tagged `json:"head_revision"` | `TestWorkFieldNamesMatchTheExamples/IssueHead` |
+| `Labels []string \`json:"labels,omitempty"\`` on `IssueHead` | `TestWorkResponsesNeverOmitAField`, `TestWorkEmptyListsStayArrays` |
+| a `State *IssueState \`json:"state,omitempty"\`` field on `PatchIssueRequest` | `TestWorkRequestsRejectUnknownFields` (`{"state":"done"}` decodes) |
+| `StateStarted` added to `InitialStates` | `TestWorkStateSets` |
+| `StateShipped IssueState = "shipped"` appended to `IssueStates` | `TestWorkStateSets` |
+| `ThreadNotTied` case returning `true` | `TestThreadStateValid` |
+| `AssigneeID *string` in `PatchIssueRequest` (and `AssigneeChange` rewritten over it) | `TestAssigneeChangeIsTriState` (`null` reads as absent) |
+| `CauseLaneBound` value `"lane-bound"` | none here: **task 07's** `TestWorkCheckSetsMatchHubapi` and **task 17**'s count row catch it; this part says so rather than claim it |
+
+- [ ] **Step 7: Commit** `work.go` and `work_test.go` (`git add` both, then
+  `git commit -F <msgfile> -- <the two paths>`). Message file under
+  `.superpowers/sdd/work/msg/`; last line
+  `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>`.
+
+#### Acceptance
+
+```bash
+go test ./control-plane/internal/hub/hubapi/ -race -count=1 -run 'TestWork|TestThreadStateValid|TestAuthoredTextValidAuthor|TestAssigneeChangeIsTriState' -v 2>&1 | grep -c '^--- PASS'
+# 9
+go test ./control-plane/... -race -count=1
+# ok for every package (hubapi's own TestResponsesNeverOmitAField and TestRequestsRejectUnknownFields unchanged)
+grep -c 'omitempty' control-plane/internal/hub/hubapi/work.go
+# 4   (PatchIssueRequest's priority, assigneeId, labels and notTiedReason: requests only)
+```
+
+The nine top-level tests are `TestWorkFieldNamesMatchTheExamples`, `TestWorkResponsesNeverOmitAField`,
+`TestWorkEmptyListsStayArrays`, `TestWorkRequestsRejectUnknownFields`, `TestWorkStateSets`,
+`TestWorkValueListsAreSets`, `TestThreadStateValid`, `TestAuthoredTextValidAuthor` and
+`TestAssigneeChangeIsTriState`.
+
+**What this task does not claim.**
+
+- Any route, store, migration, authorisation row or event (tasks 06-15), nor the W2-W5 types
+  (tasks 72, 99, 114, 143).
+- That the done rule holds. `StateMove`, the causes and the result words are shapes; task 10's
+  server and task 04's fake enforce them, and task 10 is where SW.4 is fixed.
+- That a head's `labels`, `relations`, `mentions` or `reactions` are `[]` rather than `null` when a
+  server builds them from nothing. A Go `nil` slice encodes as `null` whatever the tag; this task
+  proves the tags and the round trip, and task 05's conformance rows prove each renderer.
+- The reaction-emoji rule (task 12 declares `ValidReactionEmoji` and its `:custom:` test) and the
+  import rules (task 15, SW.6).
+- That TypeScript mirrors these types. Task 37 writes `desktop/src/api/work.ts` from this file.
+
+**Parity rows served** (each closed by its route task and its desktop surface): **L-8** (fixed
+states), **L-9** (default state), **L-10** (duplicate), **L-13** (priority), **L-17** (team
+labels), **L-24** (relations), **L-38** (assignee, a person), **L-41** (reactions), **L-42**
+(anchored comments), **L-46** (resolve), **L-48** (priority to leave triage), **L-117**
+(subscriptions), **L-124** (author class), **L-220** (the import batch's shape).
+
+**Corrections to the scope paragraph** (the skeleton row wins; this part records them):
+`ValidReactionEmoji` and its `:custom:` test move to task 12; `IssueHead` gains `proof`,
+`landCommit` and `headKey`, and `IssueRevision` and `Comment` gain `erasedAt` (task 10's and task
+14's fields, declared here once); `ExternalRef` and `ImportItem` carry `authorName` and
+`ImportResult` carries `unmatchedLabels` (task 15's scope); `IssueRevision` carries `projectId`
+as `BriefRevision` does; `PatchIssueRequest.assigneeId` is tri-state.
