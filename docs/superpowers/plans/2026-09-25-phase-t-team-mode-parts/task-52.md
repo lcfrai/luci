@@ -442,6 +442,7 @@ type DecideItem struct {
 	Options      []DecideOption `json:"options"` // 1–4, the Hub's bound
 	Default      int            `json:"default"` // index into Options; the safe default
 	Deadline     string         `json:"deadline"`
+	At           string         `json:"at"` // the escalation's createdAt: the Desk's aging
 }
 
 type DecideOption struct {
@@ -481,6 +482,7 @@ type DecidedItem struct {
 	Other        PersonRef `json:"other"`
 	Globs        []string  `json:"globs"`
 	At           string    `json:"at"`
+	Summary      string    `json:"summary"` // the question body: task 29's template over typed fields
 	Undo         Undo      `json:"undo"`
 }
 
@@ -870,7 +872,7 @@ export interface HorizonItem {
 export interface DecideItem {
   escalationId: string; projectId: string; threadId: string | null; fromAgentId: AgentId | null;
   question: TextA; options: { label: TextA; consequence: TextA }[];
-  default: number; deadline: string;
+  default: number; deadline: string; at: string;
 }
 export type SinceItem =
   | { kind: "inform"; projectId: string; at: string; escalationId: string; question: TextA }
@@ -880,6 +882,8 @@ export type Resolution = "split" | "sequence" | "yield" | "build-on" | "proceed-
 export interface DecidedItem {
   escalationId: string; conflictId: string; projectId: string; resolution: Resolution;
   other: PersonRef; globs: string[]; at: string; undo: { available: boolean };
+  /** Fleet's own sentence from typed fields (task-29.md:278-296), never an agent's. */
+  summary: string;
 }
 export interface TeamDesk {
   v: 1; generatedAt: string; horizon: HorizonItem[]; needsYou: DecideItem[];

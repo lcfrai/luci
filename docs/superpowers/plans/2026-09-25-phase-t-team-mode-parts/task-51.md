@@ -115,7 +115,7 @@ const SAMPLE = {
         { label: T("Keep going, both", "agent", "Your Orchestrator (agent)", "u-dylan", "ag-d1orch"),
           consequence: T("Both edit the file; the land review shows the overlap", "agent",
                          "Your Orchestrator (agent)", "u-dylan", "ag-d1orch") } ],
-      default: 0, deadline: "2026-09-25T04:40:00.000Z" } ],
+      default: 0, deadline: "2026-09-25T04:40:00.000Z", at: "2026-09-25T04:05:12.000Z" } ],
     sinceYouLastLooked: { since: "2026-09-24T22:41:00.000Z", items: [
       { kind: "inform", escalationId: "es-51ab", projectId: "pj-sample",
         question: T("Yielded store/cache.go to Alice's side; nothing lost.", "agent",
@@ -126,7 +126,8 @@ const SAMPLE = {
                 "Your Orchestrator (agent)", "u-dylan", "ag-d1orch"), at: "2026-09-25T02:30:40.000Z" } ] },
     decidedWithoutYou: [ { escalationId: "es-51ac", conflictId: "cf-2b70", projectId: "pj-sample",
       resolution: "yield", other: { userId: "u-alice", displayName: "Alice" },
-      globs: ["store/cache.go"], at: "2026-09-25T01:02:10.000Z", undo: { available: true } } ] },
+      globs: ["store/cache.go"], at: "2026-09-25T01:02:10.000Z", undo: { available: true },
+      summary: "DECIDED WITHOUT YOU: your side: yielded store/cache.go to Alice (cf-2b70)." } ] },
 };
 ```
 
