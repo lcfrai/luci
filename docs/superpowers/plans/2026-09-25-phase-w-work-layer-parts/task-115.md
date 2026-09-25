@@ -145,4 +145,166 @@ func (w *fakeWorld) workProjectOf(projectID, me string) (*fakeProject, hubapi.Ro
 	}
 	return w.projectOf(projectID, me) // the same 404, byte for byte
 }
+
+// featureOf is a feature the caller may read, through its team or a grant.
+// task 73's state is read through one adapter, w.planFeature (UNVERIFIED
+// name: Step 1 binds it to fake_work_plan.go's map of features).
+func (w *fakeWorld) featureOf(featureID, me string) (hubapi.Feature, hubapi.Role, error) {
+	if f, ok := w.planFeature(featureID); ok {
+		if _, role, err := w.workProjectOf(f.ProjectID, me); err == nil {
+			return f, role, nil
+		}
+	}
+	return hubapi.Feature{}, "", problem(404, "feature_not_found", // task 76's code
+		"There is no such feature that you can see.", "featureId", featureID)
+}
+
+// rmEvent is the one event every W4 write appends (SW.5; task 114's kinds).
+func (w *fakeWorld) rmEvent(me, kind, teamID, projectID, subject string, data map[string]any) {
+	w.workEvent(me, kind, teamID, projectID, subject, data) // task 04's helper
+}
+
+func rmProblem(code, message string, kv ...string) error {
+	return problem(hubapi.WorkRoadmapCodeStatus[code], code, message, kv...)
+}
+```
+
+#### `fake_work_roadmap.go`, continued: grants and an initiative's span (task 117's rules)
+
+```go
+func (f *Fake) GrantProject(_ context.Context, projectID, teamID string) (hubapi.ProjectGrant, error) {
+	w := f.w
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	me, err := f.enter("GrantProject", projectID, teamID)
+	if err != nil {
+		return hubapi.ProjectGrant{}, err
+	}
+	p, role, err := w.projectOf(projectID, me) // a granted caller cannot grant onward
+	if err != nil {
+		return hubapi.ProjectGrant{}, err
+	}
+	if err := need(role, hubapi.RoleAdmin); err != nil {
+		return hubapi.ProjectGrant{}, err
+	}
+	if w.teams[teamID] == nil || teamID == p.teamID {
+		return hubapi.ProjectGrant{}, badRequest("teamId", "Grant a different team of this org.")
+	}
+	k := [2]string{projectID, teamID}
+	if w.rm().grants[k] != nil {
+		return hubapi.ProjectGrant{}, rmProblem(hubapi.CodeGrantExists,
+			"That team already has this project.", "projectId", projectID, "teamId", teamID)
+	}
+	g := &hubapi.ProjectGrant{ProjectID: projectID, TeamID: teamID, Scope: hubapi.GrantReadComment,
+		GrantedBy: w.userRef(me), At: w.stamp()}
+	w.rm().grants[k] = g
+	w.rmEvent(me, hubapi.EventWorkGrantAdded, p.teamID, projectID, projectID,
+		map[string]any{"projectId": projectID, "teamId": teamID})
+	return *g, nil
+}
+
+func (f *Fake) RevokeProjectGrant(_ context.Context, projectID, teamID string) error {
+	w := f.w
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	me, err := f.enter("RevokeProjectGrant", projectID, teamID)
+	if err != nil {
+		return err
+	}
+	p, role, err := w.projectOf(projectID, me)
+	if err != nil {
+		return err
+	}
+	if err := need(role, hubapi.RoleAdmin); err != nil {
+		return err
+	}
+	k := [2]string{projectID, teamID}
+	if w.rm().grants[k] == nil {
+		return rmProblem(hubapi.CodeGrantNotFound, "That team has no grant on this project.",
+			"projectId", projectID, "teamId", teamID)
+	}
+	delete(w.rm().grants, k) // reads and the feed stop at once
+	w.rmEvent(me, hubapi.EventWorkGrantRevoked, p.teamID, projectID, projectID,
+		map[string]any{"projectId": projectID, "teamId": teamID})
+	return nil
+}
+
+func (f *Fake) ProjectGrants(_ context.Context, projectID string) ([]hubapi.ProjectGrant, error) {
+	w := f.w
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	me, err := f.enter("ProjectGrants", projectID)
+	if err != nil {
+		return nil, err
+	}
+	if _, _, err := w.projectOf(projectID, me); err != nil { // the owning team only
+		return nil, err
+	}
+	out := []hubapi.ProjectGrant{}
+	for k, g := range w.rm().grants {
+		if k[0] == projectID {
+			out = append(out, *g)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].TeamID < out[j].TeamID })
+	return out, nil
+}
+
+// linked: a live grant in either direction between the two teams (decision 5).
+func (w *fakeWorld) linked(owner, other string) bool {
+	for k := range w.rm().grants {
+		pt := w.projects[k[0]].teamID
+		if (pt == owner && k[1] == other) || (pt == other && k[1] == owner) {
+			return true
+		}
+	}
+	return false
+}
+
+func (f *Fake) SetInitiativeTeams(_ context.Context, initiativeID string, teamIDs []string) (hubapi.InitiativeTeams, error) {
+	w := f.w
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	var zero hubapi.InitiativeTeams
+	me, err := f.enter("SetInitiativeTeams", initiativeID, teamIDs)
+	if err != nil {
+		return zero, err
+	}
+	in, role, err := w.initiativeOf(initiativeID, me)
+	if err != nil {
+		return zero, err
+	}
+	if err := need(role, hubapi.RoleAdmin); err != nil {
+		return zero, err
+	}
+	if len(teamIDs) < 1 || len(teamIDs) > 10 || teamIDs[0] != in.TeamID {
+		return zero, badRequest("teamIds", "The owning team comes first; at most ten teams.")
+	}
+	for i, t := range teamIDs[1:] {
+		if slices.Index(teamIDs, t) != i+1 || !w.linked(in.TeamID, t) {
+			return zero, problem(422, hubapi.CodeBadRequest, "Name only teams this team shares a project with.",
+				"field", "teamIds["+strconv.Itoa(i+1)+"]")
+		}
+	}
+	w.rm().spans[initiativeID] = slices.Clone(teamIDs)
+	w.rmEvent(me, hubapi.EventWorkInitiativeTeamsSet, in.TeamID, "", initiativeID,
+		map[string]any{"initiativeId": initiativeID, "teams": int64(len(teamIDs))})
+	return hubapi.InitiativeTeams{InitiativeID: initiativeID, TeamIDs: slices.Clone(teamIDs)}, nil
+}
+```
+
+The two ⚑ call sites, complete:
+
+```go
+// fake_work.go, task 04's issueOf, after its member check and before the 404:
+		if w.grantedTo(is.head.ProjectID, me) {
+			return is, roleGranted, nil
+		}
+
+// fake_work_social.go, task 05's CreateComment, replacing its need(role, RoleMember):
+	if role != roleGranted {
+		if err := need(role, hubapi.RoleMember); err != nil {
+			return hubapi.Comment{}, err
+		}
+	}
 ```
