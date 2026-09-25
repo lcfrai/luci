@@ -351,4 +351,235 @@ func (g *Gate) holds(ctx context.Context, org string, orch model.AgentID, owner 
 (`task-26.md:126`); if task 09 spells it differently, task 09 wins. The digest turn's size is
 bounded by `turns.MaxBatch` in `Admit`'s step 5, so a counterpart who sent 200 events in 15
 minutes costs the receiver one turn of 50 and the next digest takes the rest, 15 minutes later.
+Task 09's kind list (`task-09.md:213-221`) has no `EventThreadResolved` or `EventSequenceGo`
+yet; task 26 already requires the first, and this task requires both (see the gaps).
+
+#### `pause.go` (complete)
+
+```go
+package budget
+
+import (
+	"context"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/fleet/model"
+)
+
+// Directives is task 31's writer for a human-origin directive: a dv-… Hub
+// record (through the outbox) BEFORE delivery, origin "human", no turn.
+type Directives interface {
+	IssueHuman(ctx context.Context, owner model.Owner, worker model.AgentID,
+		kind string) (dv string, err error)
+}
+
+// Deliverer is task 38's ladder, rung 4 for pause, rung 1 for resume.
+type Deliverer interface {
+	Pause(ctx context.Context, worker model.AgentID, dv string) error
+	Resume(ctx context.Context, worker model.AgentID, dv string) error
+}
+
+// Workers lists the owner's own live workers on project (task 10).
+type Workers interface {
+	OwnWorkers(ctx context.Context, owner model.Owner, project string) ([]model.AgentID, error)
+}
+
+type Pauser struct {
+	Store      Store
+	Workers    Workers
+	Directives Directives
+	Deliver    Deliverer
+}
+
+// HumanPause is §4.4 rule 1's second half: Fleet executes it directly. It
+// sets the owner's pause flag first (so no fleet-origin turn starts), then
+// writes one pause dv-… per named worker and delivers it on rung 4. The
+// agents argument, when non-empty, must be a subset of OwnWorkers; any
+// other id is refused whole (ErrNotOwn), before anything is written.
+func (p *Pauser) HumanPause(ctx context.Context, owner model.Owner, project string,
+	agents []model.AgentID) ([]string, error)
+
+// HumanResume clears the flag and writes one resume dv-… per worker it paused.
+func (p *Pauser) HumanResume(ctx context.Context, owner model.Owner, project string,
+	agents []model.AgentID) ([]string, error)
+```
+
+`ErrNotOwn` is `errors.New("budget: not the caller's own worker")`, mapped to 403
+`agent_not_owner` (task 09's `CodeAgentNotOwner`, `task-09.md:439`) by the route. No Orchestrator turn is started, queued or consumed: the Orchestrator
+learns of the pause from its next `panacea team` (its workers read `paused`), which is the same
+fact source every other agent uses. The pause flag holds only **fleet-origin** turns; the owner
+can still talk to their Orchestrator while everything is paused, and that message is a
+human-origin turn (decision a), which is exactly what a person pausing a run to think wants.
+
+#### `split.go` (complete)
+
+```go
+package budget
+
+import (
+	"context"
+	"time"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/fleet/model"
+)
+
+// AgentSpend is the usage sum by agent that phase 6 task 09 must add (its
+// Store.Sum takes person, project or team only). ok == false: not known.
+type AgentSpend interface {
+	AgentCents(ctx context.Context, agent model.AgentID, day time.Time) (cents int64, ok bool, err error)
+}
+
+// SplitView is what task 56's spend line renders, in words and numbers.
+// There is no percentage field on purpose (OD-27).
+type SplitView struct {
+	Day              string          `json:"day"`              // UTC, "2026-09-25"
+	WorkersCents     *int64          `json:"workersCents"`     // null: not known
+	CoordinationCents *int64         `json:"coordinationCents"` // the Orchestrator's turn keys
+	ByCounterpart    []CounterpartUse `json:"byCounterpart"`
+	TurnsPerHour     int             `json:"turnsPerHour"`    // the effective limit
+	Spent            bool            `json:"spent"`           // this hour's budget is used
+	Paused           bool            `json:"paused"`
+}
+
+// CounterpartUse is "coordination with Alice: 41k tokens today" (§4.4).
+type CounterpartUse struct {
+	UserID       string `json:"userId"`       // the counterpart, or "several"
+	Turns        int    `json:"turns"`
+	InputTokens  int64  `json:"inputTokens"`
+	OutputTokens int64  `json:"outputTokens"`
+	Digested     bool   `json:"digested"`     // at least one digest turn today
+}
+
+func (g *Gate) Split(ctx context.Context, owner model.Owner, project string,
+	orch model.AgentID, workers []model.AgentID, day time.Time) (SplitView, error)
+```
+
+`WorkersCents` is the sum over the owner's workers on the project, `CoordinationCents` the
+Orchestrator's; either is `null` when phase 6 cannot answer, **never zero** (as task 26's
+`tokens` rule). Tokens come from the `TurnLog` rows `Record` wrote and task 26's meter filled
+through `SetTurnTokens`; a turn whose meter never answered counts its turn and adds no tokens.
+There is deliberately no "turns used this hour" field: beside `TurnsPerHour` it would be an
+"N of M", which OD-27 forbids on every team surface. The view says the limit (*"up to 30 turns an
+hour"*) and, when it applies, the fact (*"this hour's budget is used"*); nothing in between.
+
+#### The routes, `server/budget.go`
+
+All four are registered with `s.Route(pattern, VerbSessionsOwn, h)`, so each is `member`/`admin`,
+own only (`task-12.md:1076`), joins the Z5 matrix, and takes the owner **from the token**, never
+the body (global constraint 3).
+
+```jsonc
+// GET /v1/projects/{p}/orchestrator/budget → 200
+{ "turnsPerHour": 30, "turnCapCents": 50, "teamTurnsPerHour": 30, "spent": false, "paused": false }
+
+// PUT /v1/projects/{p}/orchestrator/budget
+{ "turnsPerHour": 12, "turnCapCents": 40 }
+// 200: as GET. 422 bad_request, details.field "turnsPerHour" (0, or above teamTurnsPerHour)
+//      or "turnCapCents" (outside 5..500). 404 not_found: the caller has no Orchestrator here.
+
+// POST /v1/projects/{p}/pause     { "agents": ["ag-…"] }   // omitted or [] = every own worker
+// POST /v1/projects/{p}/resume    { "agents": ["ag-…"] }
+// 200 { "directives": ["dv-…"] }. 403 agent_not_owner: an id that is not the caller's own worker;
+//      nothing is written.
+
+// GET /v1/projects/{p}/spend?day=2026-09-25 → 200 SplitView (day defaults to today, UTC;
+//      more than 31 days back is 422 bad_request, details.field "day")
+```
+
+A `PUT` above the team's ceiling is refused, not clamped: a silent clamp would tell the owner a
+number that is not the one in force. When a team admin later **lowers** the team ceiling below an
+owner's setting, the gate uses the lower (`min`, step 3) and `GET` shows both numbers, so the
+owner sees why.
+
+#### Task 26's files (modify: three anchored hunks)
+
+```go
+// queue.go — Immediate: human.message joins the two thread kinds (decision a).
+func Immediate(k model.EventKind) bool {
+	return k == model.EventHumanMessage || k == model.EventPeerMessage ||
+		k == model.EventConflictOpened || k == model.EventThreadResolved
+}
+
+// queue.go — Ready's sort: own-human events first, then immediate, then oldest.
+// (Enqueue has already refused a human.message from anyone but the owner.)
+rank := func(q Queued) int {
+	switch {
+	case q.Event.Kind == model.EventHumanMessage:
+		return 0
+	case Immediate(q.Event.Kind):
+		return 1
+	}
+	return 2
+}
+sort.SliceStable(open, func(i, j int) bool {
+	if ri, rj := rank(open[i]), rank(open[j]); ri != rj {
+		return ri < rj
+	}
+	return open[i].Event.At.Before(open[j].Event.At)
+})
+
+// scheduler.go — TryBegin: the gate replaces the bare Ready call.
+adm, err := s.Gate.Admit(ctx, orch, a.Owner, pending, now) // Ready is called inside
+if err != nil || adm.Batch == nil {
+	return false, err
+}
+batch := adm.Batch
+// … task 26's SessionFor, ClaimRow, ClaimTurn, unchanged …
+if ok, err := s.Store.ClaimTurn(ctx, row); err != nil || !ok {
+	return false, err
+}
+if err := s.Gate.Record(ctx, adm, row.TurnID); err != nil {
+	s.Log.Warn("budget record", "turn", row.TurnID, "err", err) // the turn still runs
+}
+```
+
+The `Agent` read moves above `Admit`, because the gate needs the owner. `Scheduler` gains one
+field, `Gate interface{ Admit(…) (budget.Admitted, error); Record(…) error }`, declared in
+`turns` as an interface so `turns` does not import `budget` (budget imports turns). A `Record`
+failure is logged and the turn runs: refusing a won claim would strand its events, and the next
+`TurnsSince` read undercounts by one turn at most. Task 26's `End`, on the turn's meter reading,
+calls `SetTurnTokens` through the same interface (a third method, `Tokens(ctx, turnID, in, out)`).
+
+#### `00NN_budget.sql` (complete; `NN` is the next Fleet migration number at merge)
+
+```sql
+CREATE TABLE fleet.orch_budgets (
+  orch_id         text        PRIMARY KEY CHECK (orch_id ~ '^ag-'),
+  turns_per_hour  int         NOT NULL CHECK (turns_per_hour BETWEEN 1 AND 30),
+  turn_cap_cents  int         NOT NULL CHECK (turn_cap_cents BETWEEN 5 AND 500),
+  updated_at      timestamptz NOT NULL
+);
+CREATE TABLE fleet.turn_log (
+  turn_id        text        PRIMARY KEY CHECK (turn_id ~ '^ot-'),
+  orch_id        text        NOT NULL,
+  origin         text        NOT NULL CHECK (origin IN ('human', 'fleet')),
+  counterparts   text[]      NOT NULL DEFAULT '{}',
+  digest         boolean     NOT NULL DEFAULT false,
+  began_at       timestamptz NOT NULL,
+  in_tokens      bigint,
+  out_tokens     bigint
+);
+CREATE INDEX turn_log_by_orch ON fleet.turn_log (orch_id, began_at);
+CREATE TABLE fleet.owner_pauses (
+  owner       text        NOT NULL,
+  project_id  text        NOT NULL,
+  paused_at   timestamptz NOT NULL,
+  PRIMARY KEY (owner, project_id)
+);
+CREATE TABLE fleet.budget_notices (
+  orch_id    text        PRIMARY KEY,
+  last_at    timestamptz NOT NULL
+);
+```
+
+`turn_log` rows older than 32 days are deleted by a `fleet-turnlog-prune` singleton, hourly (the
+spend route reads at most 31 days back). The table holds ids, counts and times, no text. The
+`CHECK` on `turns_per_hour` repeats the team policy's range (`task-01.md:482`) so the table
+enforces it too; the tighter per-team ceiling is the route's.
+
+- [ ] **Step 1: Write the failing tests first**
+
+Fixture: Alice (owner `u-a`, Orchestrator `ag-a0`, workers `ag-a1`, `ag-a2`), Bob (`u-b`,
+`ag-b0`), Carol (`u-c`, `ag-c0`); task 26's `memstore` queue; a fake clock; a fake
+`Counterparts` that maps each event's `Ref` to an owner; a recording `Notifier`, `Directives` and
+`Deliverer`; team policy ceiling 30.
 
