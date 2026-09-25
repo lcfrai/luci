@@ -830,3 +830,63 @@ describe("SW.15 the Work wire", () => {
 The source walk reads `/src/**` the way `styles/designsystem.test.ts:30` does. `work.ts`'s own
 comments name `/v1/hub/work`, which is why it is the one allowed file.
 
+#### Tests to write first — appended to ⚑ `desktop/src/store/store.test.ts`
+
+In the file's existing persistence `describe` (the one holding `PERSISTED_KEYS`, `:402-408`),
+whose `beforeEach` already calls `resetCockpit()`:
+
+```ts
+  // Kills: Hub-derived state on disk (ADR-H1:467-474), and a `work` key added to partialize.
+  it("persists nothing of workSlice", () => {
+    const s = useCockpit.getState();
+    s.openWork("pj-00000000000000a1", "main");
+    s.openIssue("is-3f2a91c07b1e4d2a", 2);
+    s.select(["is-3f2a91c07b1e4d2a", "is-0000000000000150"]);
+    s.moveCursor("is-0000000000000150");
+    const snap = partialize(useCockpit.getState());
+    expect(Object.keys(snap).sort()).toEqual([...PERSISTED_KEYS].sort());
+    expect(JSON.stringify(snap)).not.toContain("is-3f2a91c07b1e4d2a");
+    expect(snap.lens).toBe("work");                      // the lens is a preference, and it is kept
+  });
+
+  // Kills: a migrate (or a rehydrate check) that throws on, or drops, the new Lens member.
+  it("restores a persisted work lens", () => {
+    localStorage.setItem(PERSIST_KEY, JSON.stringify({ state: { lens: "work" }, version: 1 }));
+    const store = createCockpitStore();
+    expect(store.getState().lens).toBe("work");
+    expect(store.getState().work).toEqual(initialWorkState.work);   // and nothing of work came back
+  });
+
+  // Kills: a selection or open issue from one project surviving a move to another.
+  it("clears the issue view when the project or branch changes, and only then", () => {
+    const s = useCockpit.getState();
+    s.openWork("pj-a", "main");
+    s.openIssue("is-1");
+    s.select(["is-1", "is-2", "is-1"]);
+    expect(useCockpit.getState().work.selection).toEqual(["is-1", "is-2"]);
+    s.openWork("pj-a", "main");
+    expect(useCockpit.getState().work.openIssue).toEqual({ id: "is-1", revision: null });
+    s.openWork("pj-a", "feature");
+    expect(useCockpit.getState().work).toEqual({
+      projectId: "pj-a", branch: "feature", openIssue: null, selection: [], cursor: null,
+    });
+  });
+```
+
+`initialWorkState` is imported from `./slices/workSlice` beside the file's existing imports.
+
+#### Tests to write first — `desktop/src/components/subrail/SubRail.test.tsx`
+
+```tsx
+import { describe, expect, it } from "vitest";
+import { LENSES } from "./SubRail";
+
+describe("the sub-rail", () => {
+  // Kills: Work added as a seventh tab (tabs read as stages; 05 §4.1, 07 D M7).
+  it("keeps six lens tabs", () => {
+    expect(LENSES.map((l) => l.id)).toEqual(["discover", "design", "develop", "files", "merge", "deploy"]);
+    expect(LENSES.some((l) => (l.id as string) === "work")).toBe(false);
+  });
+});
+```
+
