@@ -535,5 +535,5 @@ go test ./internal/hub/hubapi/ ./internal/hub/hubclient/... -count=1 && go vet .
    `task-01.md:579`). This part follows task 01. The owner should confirm.
 4. **Route 79 and ask H-1 may both write the route.** If the Hub gains a project route-change
    route for solo projects, route 79 becomes its team-project door, sharing one store function.
-5. **`CodeBadRequest` and `CodeProjectNotFound` in `hubapi`** are assumed to exist under those
-   names in the merged Hub (**UNVERIFIED**).
+5. **Checked, not a gap:** `hubapi.CodeBadRequest` and `CodeProjectNotFound` exist on the Hub
+   branch (`hubapi/codes.go:9`, `:25` at `9f2fa31`).
