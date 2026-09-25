@@ -5,21 +5,22 @@ A sandbox's only credential is a one-hour LiteLLM virtual key that keysmith mint
 **The one thing this task must not get wrong is a key nobody holds.** Panacea's lesson is that a mint can time out *after* LiteLLM has made the key (`~/Projects/Panacea/services/panacea-api/handlers/llm_env_keys.go:120`, the `/key/generate` call, verified 2026-09-25). The caller then retries. If the retry simply mints again, the first key is live, budgeted and held by no one. So a retried generation **revokes whatever that generation already has live** before it mints, and a mint that fails half-way revokes its own binding before it returns. After any sequence of retries, a generation has at most one live binding, and it is the one whose token the caller last received.
 
 **Files:**
-- `control-plane/internal/keysmith/keysmith.go`: `AdminAPI`, `SpentReader`, `Deps`, `Service`, `New`, `Mint`, `Refresh`, `RevokeSession`, the error sentinels, `BudgetDuration`, `EnsureMemo` (new)
-- `control-plane/internal/keysmith/keysmith_test.go`: fourteen tests, one mutant each (new)
+- `control-plane/internal/keysmith/keysmith.go`: `AdminAPI`, `SpentReader`, `Deps`, `Service`, `New`, `Mint`, `Refresh`, `RevokeSession`, `ByKeyHash`, the error sentinels, `BudgetDuration`, `EnsureMemo` (new)
+- `control-plane/internal/keysmith/keysmith_test.go`: sixteen tests, at least one mutant each (new)
 
 **Interfaces:**
 - Produces:
   - `keysmith.New(Deps) (*Service, error)`; `(*Service).Mint(ctx, wire.MintRequest) (wire.MintResponse, error)`; `(*Service).Refresh(ctx, wire.RefreshRequest) (wire.MintResponse, error)`; `(*Service).RevokeSession(ctx, wire.RevokeRequest) (int, error)`
+  - `(*Service).ByKeyHash(ctx, keyHash string) (wire.Binding, error)`: `*Service` satisfies `wire.BindingReader` (a compile-time assertion pins it), and retires a raised Global-minted key as it reads it (decision (h)); task 08's `Deps.Bindings` is this, not the store
   - `keysmith.AdminAPI` (the four `*litellmadmin.Client` methods keysmith calls) and `keysmith.SpentReader` (task 09's `*usage.Reader` satisfies it)
   - Errors task 08 maps to problem codes: `ErrInvalid` (400 `bad_request`), `wire.ErrRouteUnknown` wrapped (503 `route_unknown`), `*BudgetExhaustedError{Dimension}` (402 `budget_exhausted`, the status is task 03's), `ErrBudgetUnknown` (503 `budget_unknown`, see gap 2), `ErrNoSession` (404 `session_not_found`), `ErrBusy` and `ErrSuperseded` (409 `conflict`), `ErrAdmin` and `ErrStore` (503 `backend_unavailable`)
 - Consumes:
-  - task 03: `wire.MintRequest` (with `Validate`), `wire.MintResponse`, `wire.RefreshRequest`, `wire.RevokeRequest`, `wire.Binding`, `wire.Owner`, `wire.ProjectInference`, `wire.RouteSource`, `wire.ErrRouteUnknown`, `wire.HashToken`
+  - task 03: `wire.MintRequest` (with `Validate`), `wire.MintResponse`, `wire.RefreshRequest`, `wire.RevokeRequest`, `wire.Binding`, `wire.BindingReader`, `wire.Owner`, `wire.ProjectInference`, `wire.RouteSource`, `wire.ErrRouteUnknown`, `wire.HashToken`
   - task 04: `litellmadmin.GenerateKeyRequest`, `litellmadmin.GenerateKeyResponse{Key string}`, and the method signatures in `AdminAPI` below (the identifiers are this part's assumption; gap 4)
   - task 05: `binding.Store`, `binding.ErrExists`, `binding.NewMemStore()` for the tests (gap 1 is a change to its uniqueness rule)
   - task 06: `budget.Policy`, `budget.Spent`, `budget.Slice`, `budget.Dimension`, `budget.None`, `budget.NewStatic`, `budget.Proposed` (read in `task-06.md`, committed)
   - task 01: `dataclass.Decide`, `dataclass.Tighter`, `dataclass.Route`, `RouteGlobal`, `RouteAU`, `Class`, `LevelInternal`, `ResidencyAny`, `ResidencyAUOnly` (read in `task-01.md`, committed)
-- Required by: task 08 (the HTTP API wraps `Service`); task 15 (the retry contract: the same generation, twice, is safe)
+- Required by: task 08 (the HTTP API wraps `Service`, and its binding route reads through `ByKeyHash`); task 15 (the retry contract: the same generation, twice, is safe; the refresh on a raise, gap 7)
 
 **Decisions where the skeleton is silent:**
 
@@ -37,6 +38,14 @@ A sandbox's only credential is a one-hour LiteLLM virtual key that keysmith mint
 
 **(g) LiteLLM user and team budgets use `budget_duration: "30d"`**, the value Panacea runs in its pinned LiteLLM (`services/panacea-api/handlers/llm_env_keys.go:270`, verified 2026-09-25). Task 06 already records that LiteLLM's window is independent of our UTC month.
 
+**(h) A raise retires every Global-minted key within one refresh's grace** (review C-1). Decision (d) narrows an AU-minted key to `au/*`, but a key minted while its project was Global names every `global/*` group. Until now it kept them until its scheduled refresh, up to about 50 minutes after a raise. A body fallback that got past task 11, or a gatekeeper bug, could then take an AU project's request out of Australia on that key.
+
+So `*Service` is itself a `wire.BindingReader`. Task 08 serves `GET /v1/bindings/{keyHash}` from it instead of from the store, and every gatekeeper lookup reaches it through the gatekeeper's binding cache (≤ 10 s, P6-D7). `ByKeyHash` acts only on a binding that is live and was minted on Global, and whose project's route (`s.route`, the same check `mint` makes) is now AU. It dates that binding's revocation `Grace` from now and deletes its LiteLLM key after `Grace`: exactly what `Refresh` does to the generation it replaces, so a stream in flight is not cut. It never moves an earlier date later.
+
+The bound, after the first request following a raise: at most the route cache (≤ 30 s) plus the binding cache (≤ 10 s) plus `Grace` (5 min). A Global-minted key that is not used after the raise carries nothing, because only the gatekeeper and keysmith can reach LiteLLM (P6-D1). If the route cannot be read, `ByKeyHash` changes nothing and reports it. The gatekeeper reads the route itself and fails closed (task 10), so a Hub blip must not turn into a refusal of every binding lookup.
+
+**Why keysmith retires rather than re-mints**, as the review words it: keysmith never holds a token after the mint reply (decision (f)) and cannot hand one to a sandbox. A key it minted on its own would be a key nobody holds, the one thing this task must not get wrong. **The re-mint belongs to the session's refresher.** Task 15's `Launcher` already holds `Routes`, and the cloud broker is ask P8-1. The refresher refreshes as soon as its project's route rises, and `Refresh` then mints on AU with `au/*` only (decision (d)). A refresher that does not do this leaves its session refused (`401 token_revoked`) from the end of `Grace` until its next refresh. That fails closed, never open. Gap 7 hands this to task 15 and to P8-1.
+
 - [ ] **Step 1: Preflight**
 
 ```bash
@@ -51,7 +60,7 @@ Every `MISSING` line is a dependency not merged yet (tasks 01, 03, 04, 05, 06); 
 
 - [ ] **Step 2: Write the failing tests**
 
-Fourteen tests. The store is task 05's real memory store, not a fake, so the idempotency tests exercise the uniqueness rule the Postgres store also passes (`bindingtest`). LiteLLM, the route source, the spend reader and the clock are fakes. `After` is captured, so the grace-period delete runs when the test says, not on a timer.
+Sixteen tests. The store is task 05's real memory store, not a fake, so the idempotency tests exercise the uniqueness rule the Postgres store also passes (`bindingtest`). LiteLLM, the route source, the spend reader and the clock are fakes. `After` is captured, so the grace-period delete runs when the test says, not on a timer.
 
 Create `control-plane/internal/keysmith/keysmith_test.go`:
 
@@ -537,6 +546,77 @@ func TestEnsureIsRememberedForTenMinutes(t *testing.T) {
 }
 ```
 
+The two tests of decision (h). `routes` is a map, so a test that captures it through `mut` raises a project mid-test and the Service sees it on its next read.
+
+```go
+// Review C-1, decision (h). Mutants killed: a lookup that never retires (the
+// raise branch gone), a retirement dated now instead of Grace on, and a
+// second lookup that schedules a second delete.
+func TestARaiseRetiresAGlobalMintedKeyAfterGrace(t *testing.T) {
+	var rs routes
+	r := newRig(t, func(d *Deps) { rs = d.Routes.(routes) })
+	ctx := context.Background()
+	m, err := r.svc.Mint(ctx, mintReq("p-global", 1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := wire.HashToken(m.Token)
+	if b, err := r.svc.ByKeyHash(ctx, h); err != nil || b.RevokedAt != nil || len(r.later) != 0 {
+		t.Fatalf("before the raise: RevokedAt %v, err %v, %d scheduled; want untouched", b.RevokedAt, err, len(r.later))
+	}
+	rs["p-global"] = wire.ProjectInference{ProjectID: "p-global", DataClass: anyRes,
+		Route: dataclass.RouteAU, Effective: dataclass.RouteAU}
+	want := t0.Add(5 * time.Minute)
+	b, err := r.svc.ByKeyHash(ctx, h)
+	if err != nil || b.RevokedAt == nil || !b.RevokedAt.Equal(want) {
+		t.Fatalf("after the raise: RevokedAt %v, err %v; want %v", b.RevokedAt, err, want)
+	}
+	if live := liveBindings(t, r.store, want); len(live) != 0 {
+		t.Errorf("%d bindings still live at the end of the grace, want 0", len(live))
+	}
+	if again, err := r.svc.ByKeyHash(ctx, h); err != nil || !again.RevokedAt.Equal(want) || len(r.later) != 1 {
+		t.Fatalf("second lookup: RevokedAt %v, err %v, %d deletes scheduled; want %v and 1", again.RevokedAt, err, len(r.later), want)
+	}
+	r.later[0]()
+	if w := [][]string{{h}}; !reflect.DeepEqual(r.admin.deleted, w) {
+		t.Errorf("after the grace, deleted = %v, want the Global-minted key", r.admin.deleted)
+	}
+}
+
+// Decision (h)'s other half. Mutants killed: retiring without a raise (the
+// route check gone), retiring an AU-minted key (the RouteAtMint check gone),
+// and an unreadable route returned as an error, which task 08 would turn into
+// a 503 on every lookup of that key.
+func TestALookupRetiresOnlyARaisedGlobalKey(t *testing.T) {
+	var rs routes
+	reported := 0
+	r := newRig(t, func(d *Deps) { rs = d.Routes.(routes); d.Report = func(error) { reported++ } })
+	ctx := context.Background()
+	g, err := r.svc.Mint(ctx, mintReq("p-global", 1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := mintReq("p-au", 1)
+	req.SessionID = "s-2"
+	a, err := r.svc.Mint(ctx, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	check := func(name, token string, wantReported int) {
+		t.Helper()
+		b, err := r.svc.ByKeyHash(ctx, wire.HashToken(token))
+		if err != nil || b.RevokedAt != nil || len(r.later) != 0 || reported != wantReported {
+			t.Errorf("%s: RevokedAt %v, err %v, %d scheduled, %d reported; want untouched, %d reported",
+				name, b.RevokedAt, err, len(r.later), reported, wantReported)
+		}
+	}
+	check("Global project, Global key", g.Token, 0)
+	check("AU project, AU-minted key", a.Token, 0)
+	delete(rs, "p-global")
+	check("route unreadable", g.Token, 1)
+}
+```
+
 - [ ] **Step 3: Run the tests to verify they fail**
 
 ```bash
@@ -801,6 +881,40 @@ func (s *Service) RevokeSession(ctx context.Context, req wire.RevokeRequest) (in
 		s.deleteKeys(context.WithoutCancel(ctx), keys)
 	}
 	return n, nil
+}
+
+var _ wire.BindingReader = (*Service)(nil)
+
+// ByKeyHash is the gatekeeper's binding lookup (task 08 serves it). A live key
+// minted on Global whose project is now AU has its revocation dated Grace from
+// now, as Refresh dates the generation it replaces, and its LiteLLM key is
+// deleted then (decision (h)). An unreadable route changes nothing here: the
+// gatekeeper reads the route itself and fails closed (task 10).
+func (s *Service) ByKeyHash(ctx context.Context, keyHash string) (wire.Binding, error) {
+	b, err := s.d.Store.ByKeyHash(ctx, keyHash)
+	if err != nil || b.RouteAtMint != dataclass.RouteGlobal || !liveAt(b, s.d.Clock()) {
+		return b, err
+	}
+	route, err := s.route(ctx, b.ProjectID)
+	if err != nil {
+		s.d.Report(fmt.Errorf("keysmith: the route of project %s, for a Global-minted key: %w", b.ProjectID, err))
+		return b, nil
+	}
+	if route != dataclass.RouteAU {
+		return b, nil
+	}
+	retire := s.d.Clock().Add(s.d.Grace)
+	if b.RevokedAt != nil && !b.RevokedAt.After(retire) {
+		return b, nil // already retiring no later than a raise would
+	}
+	if err := s.d.Store.Revoke(context.WithoutCancel(ctx), b.KeyHash, retire); err != nil {
+		s.d.Report(fmt.Errorf("keysmith: retiring session %s generation %d after a raise: %w", b.SessionID, b.Generation, err))
+		return b, nil // the next lookup tries again; the gatekeeper still sends it on AU
+	}
+	b.RevokedAt = &retire
+	keyID := b.KeyID
+	s.d.After(s.d.Grace, func() { s.deleteKeys(context.Background(), []string{keyID}) })
+	return b, nil
 }
 
 // supersede revokes every live binding of generation gen and deletes its key.
@@ -1068,7 +1182,7 @@ func scrub(kind error, what string, cause error, secrets ...string) error {
 cd control-plane && go test ./internal/keysmith/ -count=1 -race -v 2>&1 | grep -c '^--- PASS'
 ```
 
-Expected: `14`, and no `--- FAIL` line.
+Expected: `16`, and no `--- FAIL` line.
 
 - [ ] **Step 6: Prove the mutants die**
 
@@ -1084,6 +1198,11 @@ Apply each edit alone, run `go test ./internal/keysmith/ -count=1`, confirm the 
 | in `groupsFor`, `if r != dataclass.RouteAU` → `if true` | `TestAUKeyNamesOnlyAUGroups` |
 | in `bindThenGenerate`, delete the `if !liveAt(cur, …)` block | `TestSupersededWhileGeneratingDeletesItsOwnKey` |
 | in `mint`, `return … fmt.Errorf("%w: spent: %v", ErrBudgetUnknown, err)` → `spent = budget.Spent{}` and carry on | `TestMintFailsClosedWhenSpendCannotBeRead` |
+| in `ByKeyHash`, delete the `if route != dataclass.RouteAU { return b, nil }` block | `TestALookupRetiresOnlyARaisedGlobalKey` (the Global project) |
+| in `ByKeyHash`, delete `b.RouteAtMint != dataclass.RouteGlobal \|\|` | `TestALookupRetiresOnlyARaisedGlobalKey` (the AU-minted key) |
+| in `ByKeyHash`, `retire := s.d.Clock().Add(s.d.Grace)` → `retire := s.d.Clock()` | `TestARaiseRetiresAGlobalMintedKeyAfterGrace` |
+| in `ByKeyHash`, delete the `if b.RevokedAt != nil && … { return b, nil }` block | `TestARaiseRetiresAGlobalMintedKeyAfterGrace` (the second lookup schedules a second delete) |
+| in `ByKeyHash`, after the route read, `return b, nil` → `return b, err` | `TestALookupRetiresOnlyARaisedGlobalKey` (route unreadable) |
 
 - [ ] **Step 7: Vet and format**
 
@@ -1102,9 +1221,9 @@ git add control-plane/internal/keysmith/keysmith.go control-plane/internal/keysm
 git commit -F <message file> -- control-plane/internal/keysmith/keysmith.go control-plane/internal/keysmith/keysmith_test.go
 ```
 
-Message: `feat(keysmith): mint, refresh and revoke, one live key per generation (phase 6 task 07)`, a body naming decisions (a) to (g), and the attribution line.
+Message: `feat(keysmith): mint, refresh and revoke, one live key per generation (phase 6 task 07)`, a body naming decisions (a) to (h), and the attribution line.
 
-**Acceptance:** step 5 prints `14` under `-race`; step 6's eight edits each fail the named test; step 7 prints nothing.
+**Acceptance:** step 5 prints `16` under `-race`; step 6's thirteen edits each fail the named test; step 7 prints nothing.
 
 **What this task does not claim:**
 
@@ -1112,6 +1231,7 @@ Message: `feat(keysmith): mint, refresh and revoke, one live key per generation 
 - **That LiteLLM accepts a caller-chosen `key`, honours `duration`, `max_budget`, `models` and `metadata` on `/key/generate`, or names a key by the SHA-256 of its value.** All from LiteLLM's documented admin API and training knowledge, **UNVERIFIED** against the pinned image until task 18 (P01, P02, P05, P11, P12). P01 failing switches `LiteLLMChoosesKey` on; the code for that path is written and tested here.
 - **That LiteLLM enforces unique `key_alias` values.** Nothing here relies on it. If it does, a retry whose delete of the superseded key failed gets `ErrAdmin` from `GenerateKey`, and the caller's next retry converges.
 - **Exactly one LiteLLM key per generation at every instant.** Between a timed-out `GenerateKey` and the `kill` that follows it, a key may exist whose binding is already revoked. The gatekeeper refuses it (task 10), and nothing but the gatekeeper and keysmith can reach LiteLLM (P6-D1). In the fallback path, a key whose reply was lost has no binding at all until it expires at `TTL`.
+- **That a raise retires a Global-minted key nobody uses.** Decision (h) acts on a lookup, and only the gatekeeper looks a key up. A key that makes no request after the raise keeps its `global/*` groups until its refresh or its `TTL`. It has nothing to send them with, since only the gatekeeper and keysmith reach LiteLLM (P6-D1). Whether LiteLLM then refuses a body fallback outside an AU-minted key's `au/*` is task 18's P14.
 - **A lock across replicas.** Two replicas racing one generation converge through `ErrBusy`, `ErrSuperseded` and a retry, not through mutual exclusion.
 - **Freedom from head-of-line waiting.** A session's stripe is held across LiteLLM calls (up to task 04's 20-second deadline), so up to 1 in 64 other sessions' mints can wait behind a slow one.
 
@@ -1123,3 +1243,4 @@ Message: `feat(keysmith): mint, refresh and revoke, one live key per generation 
 4. **Task 04's identifiers are assumed:** `GenerateKeyRequest{Key, KeyAlias, Duration, UserID, TeamID, Models []string, MaxBudget float64, Metadata map[string]string}`, `GenerateKeyResponse{Key string}`, `DeleteKeys(ctx, []string) error`, `EnsureUser`/`EnsureTeam(ctx, id string, maxBudget float64, budgetDuration string) error`; and task 05's `binding.NewMemStore()`. Step 1 checks them.
 5. **The skeleton gives every key both groups;** decision (d) narrows an AU-minted key to `au/*`. No other part is affected: the gatekeeper already keeps such a key on AU.
 6. **The skeleton's file map names a `Revoke`** besides `RevokeSession`. With `wire.RevokeRequest{SessionID}` the only revoke on the wire, a single-key revoke is internal (`kill`, `supersede`) and not exported.
+7. **The re-mint on a raise is the refresher's (decision (h), review C-1).** keysmith retires a raised Global-minted key `Grace` after its first lookup, but only a caller can deliver the new key. Three hand-offs follow. **Task 15:** the `Launcher`'s refresh loop checks its project's route (it holds `Routes`) at least once a minute, and refreshes at once when `dataclass.Tighter(live, route at mint)` is AU and the route at mint was Global. It needs a test on a raised fake route and a mutant. **Task 08:** its `Deps.Bindings` is wired to the `*keysmith.Service`, not to the store, and it needs a test that a lookup of a raised Global key returns a future `revokedAt`. **Ask P8-1:** the cloud broker refreshes on a raise the same way. Without these, a raise leaves the session refused from the end of `Grace` to its next scheduled refresh. That fails closed, but it is a usability failure the owner would see.
