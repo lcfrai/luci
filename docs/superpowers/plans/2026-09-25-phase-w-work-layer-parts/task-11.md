@@ -112,8 +112,8 @@ spells one differently, task 03 wins and this part is a find-and-replace.
 // Either end may delete, with either word: the pair is normalised before the lookup.
 
 // POST /v1/teams/tm-…/labels                      admin; 201
-{ "name": "Bug", "color": "danger" }
-// → { "id": "lb-…", "teamId": "tm-…", "name": "Bug", "color": "danger", "archivedAt": null }
+{ "name": "Bug", "color": "fail" }
+// → { "id": "lb-…", "teamId": "tm-…", "name": "Bug", "color": "fail", "archivedAt": null }
 // GET /v1/teams/tm-…/labels?archived=true         viewer; Page[Label], name order, live first
 // POST /v1/labels/lb-…/archive                    admin; 200 Label; a second call 200, no event
 
@@ -354,9 +354,10 @@ string: `data` carries no arrays, hub-contract §8's last paragraph).
 **The label palette.** `LabelColors` is the list of `docs/DESIGN-SYSTEM.md` token names a label may
 use, declared once in `hubapi/work.go` as `[]string`, and a Go test reads the token names out of
 `desktop/src/styles/tokens.css` and fails when one in the list is not a token there. The exact
-list is task 26's to fix (the tokens task); until it lands this task ships the six the design
-system already names for status (`neutral`, `accent`, `success`, `warning`, `danger`, `info`),
-**UNVERIFIED** against `tokens.css` until that test runs.
+list is task 26's to widen (the tokens task); until it lands this task ships six names that are
+tokens in `desktop/src/styles/tokens.css` today, read at this writing: `ink-2` (`:46`), `accent`
+(`:63`), `run`, `need`, `fail` and `drift` (`:74-77`). `thread` (`:57`) is deliberately absent: it
+is the provenance signature and a label must never look like the thread.
 
 **The create and patch paths (task 08's file, edited in task order).** `CreateIssueRequest` with an
 empty `state` takes `TeamPolicy(team).DefaultState`; a non-empty one must satisfy
