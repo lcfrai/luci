@@ -624,3 +624,87 @@ uses (Hub `task-27.md:72`).
 | `TestARewriteBeforeTheNextAnchorIsCaught` | stream only (no anchor since row 12 was written), rewrite 12–30 as above → exit 1, `seq 12: A4` | anchors alone, leaving the hour between anchors open |
 | `TestATruncatedChainIsCaught` | anchor at 30, delete rows 21–30 and set the head to 20 → exit 1, `A2` | a head allowed behind its anchor |
 | `TestAHubThatNeverAnchoredIsCaught` | events older than 2 h, zero anchors → exit 1, `A5` | a stopped anchor loop passing verify |
+
+#### The contract lines
+
+Hub contract (`2026-09-23-hub-contract.md`):
+- §11, row T5 (`:2073`): the residual *"audit anchoring is later (ADR §5.9)"* becomes *"every event
+  is streamed as metadata to Log Analytics within about 15 s and each org's head is anchored there
+  hourly; `hub verify`'s `anchor` check compares them (Phase T task 45). An owner rewrite is caught
+  unless it lands inside the stream lag and the streamer is also stopped, which the missing-anchor
+  rule raises within two hours."*
+- §12: `PANACEA_APP_HUB_AUDIT_SINK` (`off` · `fake` · `logs`), `PANACEA_APP_HUB_AUDIT_DCE`,
+  `PANACEA_APP_HUB_AUDIT_DCR`, `PANACEA_APP_HUB_AUDIT_WORKSPACE`, `PANACEA_APP_HUB_VERIFY_SINCE`;
+  `logs` needs all three of DCE, DCR and workspace, or `hub serve` exits at start-up.
+- §15: *"That Azure Monitor accepts the stream as declared is verified only by task 57's run."*
+
+#### Steps
+
+- [ ] **Step 1: Read, after the sync-merges of `feat/hub` and `feat/env`.** Hub task 27's `audit`
+  check and Hub task 08's verify runner as merged; Hub task 24's loop; phase 8 task 04's module and
+  task 10's `module "hub"`. Where a merged name differs, follow it; the tests do not change.
+- [ ] **Step 2: Record tests, then `record.go`.** They pass. (30 min)
+- [ ] **Step 3: `sink.go`, `logs_test.go`, then `logs.go`.** They pass. (25 min)
+- [ ] **Step 4: Migration and store.** `00NN_audit_stream.sql`, `store/auditstream.go`. (20 min)
+- [ ] **Step 5: Loops.** `auditstream_integration_test.go` fails; `server/auditstream.go`,
+  `config.go`, `serve.go`; it passes. (30 min)
+- [ ] **Step 6: The `anchor` check.** The five verify tests fail, then pass. (25 min)
+- [ ] **Step 7: Terraform.** `hubaudit.tf`, the outputs, `versions.tf`, the workloads entries, both
+  tests; `terraform test` in both directories; `bash infra/scripts/role-allowlist.sh`. (20 min)
+- [ ] **Step 8: Contract.** The three edits above.
+- [ ] **Step 9: Commit.** `git add` the new files; `git commit -F <msg> -- <paths>`.
+
+#### Acceptance
+
+```bash
+cd control-plane && go test ./internal/hub/auditsink/ -count=1
+# ok  	…/internal/hub/auditsink	…
+cd control-plane && go test -tags integration ./internal/hub/server/ -run 'TestEveryEventStreams|TestAFailedSend|TestNoTextLeaves|TestEverySubject|TestTheCursor|TestStreamingTakes|TestAnchorsEvery|TestTeamModeNeeds' -count=1 -v 2>&1 | grep -c '^--- PASS'
+# 8
+cd control-plane && go test -tags integration ./cmd/hub/ -run 'TestAnchor|TestAConsistent|TestARewrite|TestATruncated|TestAHubThat' -count=1 -v 2>&1 | grep -c '^--- PASS'
+# 5
+cd infra/terraform/modules/observability && terraform init -backend=false >/dev/null && terraform test
+# Success! … passed, 0 failed.
+cd infra/terraform/stacks/workloads && terraform init -backend=false >/dev/null && terraform test
+# Success! … passed, 0 failed.
+bash infra/scripts/role-allowlist.sh
+# role-allowlist: <n> roles used, all allowed
+```
+
+#### What this task does not claim
+
+- **That Azure accepts any of it.** The Logs Ingestion and query calls, the table schema and the
+  DCR are from Microsoft's documentation as known at the knowledge cutoff; nothing here has
+  touched a real workspace. Task 57's run on the real environment is the first proof, and the
+  skeleton's gate names it.
+- **That the stream leaks nothing through its hashes.** `Hash` is SHA-256 over the whole canonical
+  envelope, text included. Someone with workspace read and a short list of guesses for one
+  `reason` could test each guess only by rebuilding the whole envelope, org, time and ids
+  included. That is a real but narrow attack; the workspace's readers are the org's own security
+  staff.
+- **That an attacker who holds the database owner role and stops the Hub's pods is caught at
+  once.** The missing-anchor rule raises it within two hours; `hub verify` catches the rewrite
+  whenever it runs next.
+- **That Sentinel's retention outlives Postgres's.** The tables inherit the workspace retention
+  (30 days in dev). An anchor older than the retention cannot be compared, so the ISM-required
+  period (phase 8 `task-04.md:39`, an owner input) is also this check's reach.
+- **Any Sentinel content beyond one rule.** Other detections (forbidden-rate spikes, erasures,
+  `compliance` route lowering from task 43) are the security team's to write on these tables.
+
+#### Gaps found in the skeleton
+
+1. **No part owns the write that sets a project's `mode` to `team`** (also task 06's gap 3,
+   `task-06.md:699-701`). This part ships `TeamModeAllowed`; whichever task owns Share must call it
+   first, or the "gate before the first real teammate" is a document, not code.
+2. **The skeleton lists task 45 as a Hub delta only**, but the stream needs a collection endpoint,
+   two custom tables, a collection rule, Sentinel onboarding and two roles, none of which phase 8
+   plans. This part carries them as a phase 8 delta on task 04's module and task 10's stack; the
+   skeleton's file map (`:261`) should name them.
+3. **`azapi` is a new provider** for phase 8, which pins azurerm alone (phase 8 `task-04.md:18`).
+   If azurerm 4.81.0 can declare a custom table's columns, use that instead; either way it is a
+   phase 8 owner call.
+4. **The collection endpoint is public.** Phase 8's private networking for PaaS (a private link
+   scope for Azure Monitor) is not planned; the Hub reaches the endpoint over the internet with its
+   Entra token. Adding an Azure Monitor Private Link Scope is a later phase 8 task.
+5. **The foundation stack's output names** (`log_analytics_workspace_id` and the four new ones)
+   are assumed; phase 8's stack layout is **UNVERIFIED until merge**.
