@@ -40,7 +40,7 @@
 | Service | Variables | Secrets mounted | Other mounts |
 |---|---|---|---|
 | `postgres` | `POSTGRES_DB=gateway`, `POSTGRES_USER=gateway`, `POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password` | `postgres_password` | volume `pgdata` |
-| `litellm` | none in compose; exported by its entrypoint from files: `LITELLM_MASTER_KEY`, `LITELLM_SALT_KEY`, `DATABASE_URL` (plus `ANTHROPIC_API_KEY` in anthropic mode) | `master_key`, `salt_key`, `database_url` (+ `anthropic_api_key`) | `./litellm.config.yaml:/app/config.yaml:ro` (Panacea's path, `litellm-values.yaml:100-103`) |
+| `litellm` | none in compose; exported by its entrypoint from files: `LITELLM_MASTER_KEY`, `LITELLM_SALT_KEY`, `DATABASE_URL` (plus `ANTHROPIC_API_KEY` in anthropic mode), and the non-secret `PANACEA_APP_GATEWAY_FAKE_UPSTREAM_KEY=fake-local` that task 02's local config names for the fakes (exported in the entrypoint, not `environment:`, so the checker's `*_KEY` rule holds without an exception) | `master_key`, `salt_key`, `database_url` (+ `anthropic_api_key`) | `./litellm.config.yaml:/app/config.yaml:ro` (Panacea's path, `litellm-values.yaml:100-103`) |
 | `keysmith` | `PANACEA_APP_GATEWAY_LITELLM_URL=http://litellm:4001`, `_MASTER_KEY_FILE=/run/secrets/master_key`, `_DATABASE_URL_FILE=/run/secrets/database_url`, `_CALLER_AUTH=bearer-file:/run/secrets/callers`, `_ROUTE_SOURCE=file:/etc/panacea/state/projects.json`, `_BASE_URL=http://gatekeeper:4000` | `master_key`, `database_url`, `callers` | `./state:/etc/panacea/state:ro` |
 | `gatekeeper` | `PANACEA_APP_GATEWAY_LITELLM_URL=http://litellm:4001`, `_KEYSMITH_URL=http://keysmith:4100`, `_ROUTE_SOURCE=file:/etc/panacea/state/projects.json`, `_CALLER_TOKEN_FILE=/run/secrets/gatekeeper_token` | `gatekeeper_token` | `./state:/etc/panacea/state:ro` |
 | `fakeanthropic-global` | flags `-addr :4900 -label global` | none | none |
@@ -264,6 +264,7 @@ services:
         export LITELLM_MASTER_KEY="$$(cat /run/secrets/master_key)";
         export LITELLM_SALT_KEY="$$(cat /run/secrets/salt_key)";
         export DATABASE_URL="$$(cat /run/secrets/database_url)";
+        export PANACEA_APP_GATEWAY_FAKE_UPSTREAM_KEY=fake-local;
         exec litellm --config /app/config.yaml --port 4001
     secrets: [master_key, salt_key, database_url]
     volumes: ["./litellm.config.yaml:/app/config.yaml:ro"]
@@ -345,6 +346,7 @@ services:
         export LITELLM_MASTER_KEY="$$(cat /run/secrets/master_key)";
         export LITELLM_SALT_KEY="$$(cat /run/secrets/salt_key)";
         export DATABASE_URL="$$(cat /run/secrets/database_url)";
+        export PANACEA_APP_GATEWAY_FAKE_UPSTREAM_KEY=fake-local;
         export ANTHROPIC_API_KEY="$$(cat /run/secrets/anthropic_api_key)";
         exec litellm --config /app/config.yaml --port 4001
     secrets: [master_key, salt_key, database_url, anthropic_api_key]
