@@ -101,6 +101,7 @@ transcripts, never a replacement"*; AX Principle 7):
 - `desktop/src/components/roadmap/ChangesSinceUpdate.tsx` — the fixed block (new)
 - `desktop/src/components/issue/ThreadSummary.tsx` — the in-memory summary (new)
 - `desktop/src/components/roadmap/UpdateComposer.tsx` ⚑ (task 127) — the block, *Draft from these*, the refusal line (modified)
+- `desktop/src/components/roadmap/roadmapSelectors.ts` ⚑ (task 127) — `lastUpdateSeq` (modified)
 - `desktop/src/components/issue/Comments.tsx` ⚑ (task 51) — `ThreadSummary` above a long thread (modified)
 - `desktop/src/components/editor/authorClass.ts` ⚑ (task 49) — `keepAsMine`, `draftedRanges` (modified; not in the scope's list)
 - `desktop/src/components/roadmap/drafts.test.tsx`, `desktop/src/components/issue/ThreadSummary.test.tsx` — the desktop tests (new)
@@ -139,8 +140,9 @@ type Fact struct {
 	Kind    FactKind `json:"kind"`
 	Seq     string   `json:"seq"`     // the event's feed position, the link target
 	At      string   `json:"at"`      // RFC 3339, the event's time
-	Subject string   `json:"subject"` // "issue:is-…", "feature:ft-…" or "brief:bf-…#C3"
-	Alias   string   `json:"alias"`   // "EP-142" when the subject is an issue; display only
+	Subject string   `json:"subject"`   // a citable Hub key: "issue:is-…", "ev-…" or "feature:ft-…"
+	Alias   string   `json:"alias"`     // "EP-142" when the subject is an issue; display only
+	Criterion string `json:"criterion"` // "C3" when the fact touches a criterion, else ""
 	Line    string   `json:"line"`    // the digest's words, built from event data only
 	By      string   `json:"by"`      // the actor's display name; "" for the janitor
 	Count   int      `json:"count"`   // scope facts: how many issues one line stands for
@@ -216,8 +218,8 @@ func factOf(ev hubapi.Event) (Fact, bool) {
 		default:
 			return Fact{}, false
 		}
-	case "evidence.recorded": // hub-contract.md:1160: briefKey, criterionId, verdict, commit
-		f.Kind, f.Subject = FactEvidence, str("briefKey")+"#"+str("criterionId")
+	case "evidence.recorded": // hub-contract.md:1160: subject ev-…; briefKey, criterionId, verdict, commit
+		f.Kind, f.Criterion = FactEvidence, str("criterionId") // Subject stays the ev- id, a citable key
 		f.Line = str("criterionId") + " evidence · " + str("verdict")
 	case hubapi.EventIssueRelated:
 		if str("kind") != "blocks" {
@@ -245,8 +247,8 @@ func factOf(ev hubapi.Event) (Fact, bool) {
 `fields`, the line reads *"target changed · Priya"* and the dates come from the feature's two
 revisions, a gap). `criterionWords` reads the feature's current convergence (task 45's five words,
 through the same Hub read task 125's `InitiativeFeature.criteria[].word` uses) and emits one
-`criterion_word` fact, *"C3 settled"*, for each criterion named by an `evidence` fact in the
-period: a statement of the word **now**, never a predicted one. `actorName` is `DisplayName` or
+`criterion_word` fact, *"C3 settled"*, for each distinct `Criterion` named by an `evidence` fact
+in the period, its `Subject` the feature: a statement of the word **now**, never a predicted one. `actorName` is `DisplayName` or
 `""` for a `nil` actor (the janitor); `hasField` splits task 13's comma-joined `fields`; `plural`
 is two words. `Alias` is filled by the route from the replica-independent issue head read, as
 `EP-142` from `project.key` and the issue's number (skeleton rule 1: never a key).
@@ -561,7 +563,7 @@ rule: the control plane logs no issue text). `routes_audit_test.go` gains the th
 export type FactKind = "landed" | "evidence" | "criterion_word" | "scope" | "blocker" | "property";
 export interface Fact {
   key: string; kind: FactKind; seq: string; at: string;
-  subject: string; alias: string; line: string; by: string; count: number;
+  subject: string; alias: string; criterion: string; line: string; by: string; count: number;
 }
 export interface FactsResult { featureId: string; after: string; facts: Fact[]; truncated: boolean }
 export interface DraftSentence { text: string; cites: string[] }
@@ -632,3 +634,123 @@ transaction removing the `agent` mark over the one range); the functions above a
 and what the tests pin. The person's typing inside a drafted sentence already removes the mark from
 what they typed (task 49's `personTyped` plugin, `task-49.md:129`); an untouched remainder keeps
 it, so `fieldAuthor` stays `A` and task 127's `canPost` stays false until every range is resolved.
+
+#### Interfaces — complete: `desktop/src/components/roadmap/ChangesSinceUpdate.tsx`
+
+```tsx
+// desktop/src/components/roadmap/ChangesSinceUpdate.tsx — L-79. Facts, no model.
+import { useEffect, useState } from "react";
+import type { Fact, FactsResult } from "../../api/work";
+import { useWorkClient } from "../../api/useWorkClient";
+import { KeyLink } from "../common/KeyLink";
+
+export interface ChangesSinceUpdateProps {
+  featureId: string;
+  after: string;                           // lastUpdateSeq; "" for none
+  sinceLabel: string;                      // "22 Sep", the last update's day, or "the start"
+  timeZone: string;
+  onFacts(r: FactsResult): void;           // the composer keeps them for Draft from these
+}
+
+export function ChangesSinceUpdate(p: ChangesSinceUpdateProps): JSX.Element {
+  const work = useWorkClient();
+  const [res, setRes] = useState<FactsResult | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let live = true;
+    work.workFacts(p.featureId, p.after).then(
+      (r) => { if (live) { setRes(r); p.onFacts(r); } },
+      () => { if (live) setFailed(true); });
+    return () => { live = false; };
+  }, [p.featureId, p.after]);   // read once per open; the composer does not re-read while typing
+
+  if (failed) return <p className="csu csu-fail">Changes could not be read from the Hub.</p>;
+  if (res === null) return <p className="csu csu-wait" aria-busy="true">Reading changes</p>;
+  return (
+    <section className="csu" aria-label="Changes since the last update">
+      <h3 className="csu-head">Changes since {p.sinceLabel}</h3>
+      {res.facts.length === 0
+        ? <p className="csu-none">Nothing recorded since {p.sinceLabel}.</p>
+        : <ul className="csu-list">{res.facts.map((f) => <FactLine key={f.key} f={f} tz={p.timeZone} />)}</ul>}
+      {res.truncated && <p className="csu-more">Older changes not shown.</p>}
+    </section>
+  );
+}
+
+function FactLine({ f, tz }: { f: Fact; tz: string }): JSX.Element {
+  const time = new Intl.DateTimeFormat("en-AU", { hour: "2-digit", minute: "2-digit", timeZone: tz }).format(new Date(f.at));
+  return (
+    <li className="csu-fact" data-kind={f.kind}>
+      <KeyLink k={f.subject} />
+      {f.alias !== "" && <span className="csu-alias">{f.alias}</span>}
+      <span className="csu-line">{f.line}</span>
+      {f.by !== "" && <span className="csu-by"> · {f.by}</span>}
+      {f.at !== "" && <time className="csu-at" dateTime={f.at}> · {time}</time>}
+    </li>
+  );
+}
+```
+
+The block has no *loading* spinner (`aria-busy` text only; DESIGN-SYSTEM's one heartbeat rule).
+It never calls the gateway, so it renders the same whatever task 136's switch says. The folded
+scope line has `at: ""` and shows no time. Ids and times are Commit Mono (`OD-28`) in `roadmap.css`
+(`.csu-alias, .csu-at { font-family: var(--font-mono); font-variant-numeric: tabular-nums }`).
+
+#### Interfaces — complete: the ⚑ `UpdateComposer.tsx` delta (task 127)
+
+```tsx
+// Added imports:
+import { ChangesSinceUpdate } from "./ChangesSinceUpdate";
+import { appendDrafted, draftedRanges, keepAsMine } from "../editor/authorClass";
+import { lastUpdateSeq, lastUpdateDay } from "./roadmapSelectors";
+import { ApiError } from "../../api/client";
+import type { FactsResult } from "../../api/work";
+
+// Inside UpdateComposer, after the body state (feature subjects only):
+const isFeature = p.subject.kind === "feature";
+const after = useWork((r) => (isFeature ? lastUpdateSeq(r, p.subject.id) : ""));
+const sinceLabel = useWork((r) => (isFeature ? lastUpdateDay(r, p.subject.id, "Australia/Sydney") : "the start"));
+const [facts, setFacts] = useState<FactsResult | null>(null);
+const [draftNote, setDraftNote] = useState<string | null>(null);
+const work = useWorkClient();
+const drafted = draftedRanges(body.authorship);
+
+const draft = async () => {
+  if (!isFeature) return;
+  setDraftNote(null);
+  try {
+    const r = await work.draftUpdate(p.subject.id, after);
+    const byKey = new Map(r.facts.facts.map((f) => [f.key, f] as const));
+    setBody((b) => appendDrafted(b, r.sentences.map((s) => s.text)));
+    setCites((c) => [...new Set([...c, ...r.sentences.flatMap((s) => s.cites.map((k) => byKey.get(k)!.subject))])]);
+    if (r.dropped > 0) setDraftNote(`${r.dropped} drafted ${r.dropped === 1 ? "sentence was" : "sentences were"} left out: cited nothing it was given.`);
+  } catch (e) {
+    const code = e instanceof ApiError ? e.code : "";
+    setDraftNote(code === "assists_off" ? "Drafting unavailable: assists are off for this org."
+      : "Drafting unavailable: the gateway did not answer.");
+  }
+};
+
+// In the JSX, before <Editor>:
+{isFeature && <ChangesSinceUpdate featureId={p.subject.id} after={after} sinceLabel={sinceLabel}
+  timeZone="Australia/Sydney" onFacts={setFacts} />}
+{isFeature && <button type="button" onClick={draft} disabled={facts === null || facts.facts.length === 0}>Draft from these</button>}
+{draftNote && <p className="ucmp-note" role="status">{draftNote}</p>}
+
+// Replacing task 127's agent-words line:
+{drafted.length > 0 && (
+  <div className="ucmp-agent">
+    <p>{drafted.length} drafted {drafted.length === 1 ? "sentence is" : "sentences are"} not yours yet. Edit them or mark them Keep as mine.</p>
+    <ul>{drafted.map((s) => (
+      <li key={s.from}><q>{body.markdown.slice(s.from, s.to)}</q>{" "}
+        <button type="button" onClick={() => setBody((b) => keepAsMine(b, s.from, s.to))}>Keep as mine</button></li>))}
+    </ul>
+  </div>
+)}
+```
+
+The composer's time zone is the person's (`useMe().timeZone`, task 126's harness sets
+`Australia/Sydney`); the literal above stands for it. Cites from a draft are the facts' **subjects**
+(`issue:is-…`, `ev-…`, `feature:ft-…`), because task 119's `cites` are Hub keys; a fact key `f1` never
+leaves the composer. The health radio group is untouched: a draft never sets `health`, and the
+`Draft from these` handler has no reference to it (the test reads the radios after a draft).
