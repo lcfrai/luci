@@ -1424,3 +1424,89 @@ func TestACreateIsOneIssueEvent(t *testing.T) {
 	}
 }
 ```
+
+Block 3: revisions and the head write.
+
+```go
+// Mutant: last writer wins (a stale base overwrites, or writes a second revision).
+func TestAStaleBaseIsAConflictAndWritesNothing(t *testing.T) {
+	r := newWorkRig(t)
+	is := must(r.grace.CreateIssue(bg, r.p.ID, chore("v1")))(t)
+	c := is.Revision.Content
+	c.Title = htext("v2")
+	_, err := r.grace.WriteIssueRevision(bg, is.Head.ID, hubapi.WriteIssueRevisionRequest{BaseRevision: 0, Content: c})
+	wantProblem(t, err, 409, hubapi.CodeRevisionConflict, "headRevision", "1")
+	if revs := must(r.grace.IssueRevisions(bg, is.Head.ID, hubapi.PageRequest{}))(t); len(revs.Items) != 1 {
+		t.Fatalf("revisions after a stale write = %d, want 1", len(revs.Items))
+	}
+	if got := must(r.grace.WriteIssueRevision(bg, is.Head.ID, hubapi.WriteIssueRevisionRequest{BaseRevision: 1, Content: c}))(t); got.Revision != 2 {
+		t.Errorf("revision = %d, want 2", got.Revision)
+	}
+}
+
+// Mutant: a revision per head write (reprioritising invalidates an agent's
+// context); an event for a patch that changes nothing.
+func TestAPatchWritesNoRevision(t *testing.T) {
+	r := newWorkRig(t)
+	is := must(r.grace.CreateIssue(bg, r.p.ID, chore("p")))(t)
+	high := hubapi.PriorityHigh
+	for range 2 { // the second patch changes nothing
+		h := must(r.grace.PatchIssue(bg, is.Head.ID, hubapi.PatchIssueRequest{Priority: &high}))(t)
+		if h.HeadRevision != 1 || h.Priority != high {
+			t.Fatalf("head = rev %d, %s; want rev 1, high", h.HeadRevision, h.Priority)
+		}
+	}
+	if evs := eventsOf(t, r.ada, fkEventIssueUpdated); len(evs) != 1 || evs[0].Data["fields"] != "priority" {
+		t.Errorf("issue.updated = %+v, want one naming priority", evs)
+	}
+}
+
+// Mutant: a digest over bytes other than IssueRevisionDigest's (json.Marshal
+// of the content, or the envelope without projectId); a restore that edits the
+// old revision instead of writing a new one.
+func TestTheStoredDigestIsTheCanonicalOne(t *testing.T) {
+	r := newWorkRig(t)
+	is := r.serving(t, "c1")
+	c := is.Revision.Content
+	c.Title = htext("second")
+	must(r.grace.WriteIssueRevision(bg, is.Head.ID, hubapi.WriteIssueRevisionRequest{BaseRevision: 1, Content: c}))(t)
+	back := must(r.grace.RestoreIssueRevision(bg, is.Head.ID, hubapi.RestoreRevisionRequest{FromRevision: 1}))(t)
+	if back.Revision != 3 || back.RestoredFrom == nil || *back.RestoredFrom != 1 || back.Content.Title != is.Revision.Content.Title {
+		t.Fatalf("restore = %+v, want revision 3 restored from 1 with 1's title", back)
+	}
+	for _, rev := range must(r.grace.IssueRevisions(bg, is.Head.ID, hubapi.PageRequest{}))(t).Items {
+		d, _, err := hubapi.IssueRevisionDigest(hubapi.IssueRevisionEnvelope{IssueID: rev.IssueID,
+			Revision: rev.Revision, ProjectID: rev.ProjectID, Content: rev.Content})
+		noErr(t, err)
+		if d != rev.Digest {
+			t.Errorf("revision %d: stored %s, canonical %s", rev.Revision, rev.Digest, d)
+		}
+	}
+	if one := must(r.grace.IssueRevisionAt(bg, is.Head.ID, 1))(t); one.Digest != is.Revision.Digest {
+		t.Errorf("revision 1 changed: %s, was %s", one.Digest, is.Revision.Digest)
+	}
+}
+```
+
+Block 4 (the same file, continued): the state moves.
+
+```go
+// Mutant: the silent done (a hand-set done on a serving issue with no reason),
+// or a hand-set done that reads proven.
+func TestAHandSetDoneNeedsAReason(t *testing.T) {
+	r := newWorkRig(t)
+	is := r.serving(t, "c1")
+	_, err := r.grace.MoveIssueState(bg, is.Head.ID, move(hubapi.StateDone, hubapi.CauseHand))
+	wantProblem(t, err, 400, hubapi.CodeBadRequest, "field", "reason")
+	m := move(hubapi.StateDone, hubapi.CauseHand)
+	m.Reason = "shipped in the hotfix"
+	h := must(r.grace.MoveIssueState(bg, is.Head.ID, m))(t)
+	if h.State != hubapi.StateDone || h.Proof != hubapi.ProofNotProven || h.StateReason != m.Reason {
+		t.Errorf("head = %s, %q, %q; want done, not_proven, the reason", h.State, h.Proof, h.StateReason)
+	}
+	c := must(r.grace.CreateIssue(bg, r.p.ID, chore("tidy")))(t)
+	if h := must(r.grace.MoveIssueState(bg, c.Head.ID, move(hubapi.StateDone, hubapi.CauseHand)))(t); h.Proof != hubapi.ProofNoCriteria {
+		t.Errorf("a chore's hand-set done reads %q, want no_criteria", h.Proof)
+	}
+}
+```
