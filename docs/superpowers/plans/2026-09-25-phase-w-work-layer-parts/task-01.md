@@ -56,3 +56,81 @@ file map), so there is no ordering conflict inside Phase W.
 exactly this text. The implementer copies it byte for byte. Anchor lines are re-read at the sync
 base on the day it is sent and corrected in place if they have moved; the grammar and the values
 do not change.
+
+`````markdown
+# W0: two proposed edits to the Hub contract, from Phase W
+
+**To:** the owner of `feat/hub` (`docs/superpowers/contracts/2026-09-23-hub-contract.md`).
+**From:** Phase W, the work layer (`docs/superpowers/plans/2026-09-25-phase-w-work-layer.md`).
+**Status:** proposed. Nothing on `feat/hub` has been changed by Phase W. Read at `feat/hub` `9f2fa31`.
+
+Both items are harmless whatever the owner decides about Phase W (05-design §5.2). Item 1 adds a
+grammar case nobody mints until W1. Item 2 fixes an example that is wrong today.
+
+## Item 1: the `issue` case in §3.2's key grammar
+
+**Where:** §3.2 *Key grammar — normative for the Hub* (`hub-contract:114`), the fenced block at
+`:119-122`, and the rules under it (`:124-129`).
+
+**Add** one line to the block, after `design key`:
+
+```
+issue key    ^issue:(is-[0-9a-f]{16})@([1-9][0-9]{0,8})$             e.g. issue:is-3f2a91c07b1e4d2a@3
+```
+
+**Add** one rule after the brief-revision rule (`:124-125`):
+
+- An issue revision number is the Hub's, assigned by the issue-revision write, from 1, gapless per
+  issue. Revision 0 means "the issue exists and has no revision yet" and never appears in a key.
+  `EP-142` (a project key and a number) is a **display alias and never a key**: a team admin can
+  change the project key, so no parser for the alias exists or may be written.
+
+**Code it implies** (Phase W task 02 builds it on `feat/work-layer`, additive only, and it reaches
+`feat/hub` through the orchestrator's merge, rule H1):
+
+- `KeyIssue KeyKind = "issue"` appended to the const block at `hubapi/keys.go:49-52`;
+- `issueKeyRe` beside `briefKeyRe` and `designKeyRe` at `keys.go:56-58`;
+- `IssueKey{IssueID, Revision}`, `String()` and `ParseIssueKey`, shaped like `BriefKey` (`:62-77`);
+- one `case issueKeyRe.MatchString(s): return KeyIssue, nil` in `ParseKey` (`keys.go:96-105`).
+
+Phase 4's `provenance` parser must accept at least these forms (§3.2's own rule); Phase W task 18
+adds the case there.
+
+## Item 2: the stale `criterionId` example in §7.10
+
+**Where:** §7.10 *Evidence*, the request at `hub-contract:1065` and the 201 body at `:1079`.
+Criterion ids are `c-` ids; `done:2` is a leftover from an older scheme.
+
+**Before** (both sites): `"criterionId": "done:2"`
+**After** (both sites): `"criterionId": "c-91e2a0b3c4d5e6f7"`
+
+The same stale value sits in two code examples, which should change with the contract's so the
+golden rows keep matching it: `control-plane/internal/hub/hubapi/types_test.go:173` (the `7.10`
+`EvidenceRecord` row) and `:531`. The rule at `:1072` (`criterionId` 1-128 characters) is
+unchanged, so no code changes and no test changes meaning.
+
+## What the later Phase W Hub tasks will ask (for information; nothing to do now)
+
+So the owner sees the whole ask once. Each arrives as a **new Hub task after Hub task 43**, never an
+edit to a Hub task in flight, and only after `feat/hub` is sync-merged into `feat/work-layer`.
+
+1. **Twelve id prefixes**, minted with `ids.Wide` (§3.1, `hub-contract:93-100`): `is-` issue,
+   `ic-` issue comment, `ft-` feature, `ml-` milestone, `cy-` cycle, `in-` initiative, `rq-`
+   request, `lb-` label, `tp-` template, `vw-` saved view, `lp-` loop, `df-` draft; `dc-` (free
+   document) is reserved for a later row. Checked disjoint from §3.1's ten (`org- u- tm- iv- pj-
+   bf- ap- ln- rl- ev-`), the control plane's `s- p- b- w- m-`, and Phase T task 01's twelve
+   (`dl- th- hm- ms- nt- es- tk- dv- ag- ot- ls- cf-`). Phase W reuses Phase T's `nt-` for status
+   updates rather than minting its own.
+   They live in a new `hubapi/workids.go`, **not** in §3.1's table or `keys.go`'s const block,
+   because `TestPrefixesAndReasonsAreTheContracts` (`hubapi/keys_test.go:737-775`) holds `keys.go`
+   and §3.1 to exactly ten entries each. Phase W's own test checks the twelve against the rest.
+2. **A `Work` interface embedded in `type Hub interface`** (`hub-contract:1329`), one line, with
+   one sub-interface per slice (W1 `Work`, then `WorkPlan`, `WorkAgents`, `WorkRoadmap`,
+   `WorkIntake`).
+3. **New rows appended to §7.0's route table after its last row, 45** (`hub-contract:607`,
+   before *"Nothing else is routed"* at `:609`), each with its §5.3 authorisation-matrix rows in
+   the same task, and exactly one metadata-only event per changed record (§8, `:1133`).
+4. **Migrations** taking the next free number at sync time, append-only.
+5. **One authorisation guard** Phase W needs from day one: no sync or integration principal may
+   write an issue's fact states (`started`, `in_review`, `landed`) or `done`.
+`````
