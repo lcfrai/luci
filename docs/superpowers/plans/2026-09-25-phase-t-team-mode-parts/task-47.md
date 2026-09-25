@@ -1,0 +1,72 @@
+### Task 47: Phase 8 delta: AU egress allowlist, the Australia East guard, task 32's five probes
+
+**Slice TM1. Depends on: 32, P8-32. About 3 hours. Seam: P8-D12.**
+
+Three changes to phase 8, each the smallest that makes a `05-design.md` §2.5 promise checkable. It
+is a delta on `feat/env` (worktree `.claude/worktrees/env`, read at `9ef70c3`), built after that
+branch's sync-merge into `feat/team-mode`.
+
+1. **AU sandboxes reach package registries and the git hosts, and nothing else.** An AU project
+   keeps inference onshore through the gateway, but an agent with open internet can still `curl`
+   the project's text anywhere (§2.5, `05-design.md:223-225`). Phase 8's platform chart (task 11)
+   today gives **every** sandbox pod `ipBlock 0.0.0.0/0` minus IMDS and the private ranges
+   (`task-11.md:155-159`, planned). This task splits that allow by a pod label the broker stamps,
+   and gives AU session pods an FQDN allowlist instead.
+2. **Nothing team mode runs sits outside Australia East** (§2.5 invariant, `05-design.md:228-231`).
+   A new rule **G11** in phase 8's `guards.sh` (built, `infra/scripts/guards.sh`, ten rules today)
+   fails any Terraform or chart value that places a region elsewhere.
+3. **Five facts the design rests on get a measuring script** (`05-design.md:1154`, `:1356-1373`),
+   as rows of phase 8 task 32's checklist, plus one this task needs for item 1.
+
+**The one thing this task must not get wrong is the direction of the default.** A pod the broker
+did not label must get **less** egress, never more. So the internet allow selects pods labelled
+`panacea-app/route: global` explicitly; an AU pod is labelled `au`; a pod with no route label (a
+bug, a hand-made pod, a future component) gets DNS and nothing else. The broker stamps `global`
+when a create names no route, which keeps every phase 8 solo session exactly as it is.
+
+**The second thing is that an FQDN allowlist on AKS is itself unverified.** Standard
+`NetworkPolicy` matches addresses, not names, and registries sit behind CDNs. A name allowlist needs
+Cilium's `toFQDNs`, which on AKS's managed Cilium needs Advanced Container Networking's security
+feature (`network_profile.advanced_networking.security_enabled`, azurerm 4.81.0, named by phase 8's
+Q1 third option, `phase-8-own-environment.md:306`; that it enforces `toFQDNs` is from training
+knowledge, **UNVERIFIED**). Phase 8 does not build it. So this task turns it on for the cluster, and
+adds **P28**, which proves an AU pod reaches the allowlist and nothing else. If P28 fails, AU
+projects fail closed: the policy still denies the internet, so agents lose registries, not
+isolation.
+
+**Where the files are.** Phase 8 task 32's scripts live in `infra/smoke/proving/` and its record in
+`docs/verification/phase-8-kata-proving.md` (`task-32.md:17-19`), **not** `infra/smoke/kata/*` as
+the skeleton says (gap 1). Its rows are P01–P16 and P20–P22; this task adds P23–P28.
+
+**Files:**
+- `deploy/charts/platform/templates/networkpolicy-sandboxes.yaml` (phase 8 task 11, planned):
+  `egress-internet` narrowed to `route: global`, `egress-internet-infra` for machines and balloons,
+  and `CiliumNetworkPolicy/egress-au-allowlist` (modify, **UNVERIFIED until merge**)
+- `deploy/charts/platform/values.yaml`, `values.schema.json` (task 11): `sandboxes.auEgress`
+  (modify)
+- `deploy/charts/platform/tests/netpol_au_test.yaml`: helm-unittest suite (new)
+- `cp/cmd/broker/*` (phase 8 tasks 17–18, planned), `cp/internal/brokerapi` (task 17): 
+  `SandboxSpec.Route`; the broker stamps `panacea-app/route` on every session pod (modify,
+  **UNVERIFIED until merge**)
+- `cp/internal/fleet/sessions/sessions.go` (task 20): sets `Route` on the spec it already builds
+  (`task-20.md:270-284`) (modify: one field)
+- `infra/terraform/modules/aks/*` (phase 8 task 06, planned): `advanced_networking` with
+  `security_enabled = true` (modify, **UNVERIFIED until merge**)
+- `infra/scripts/guards.sh`, `guards_test.sh` (phase 8 task 01, built): G11, and the summary's
+  `of 10` becomes `of 11` (modify)
+- `infra/smoke/proving/{p23-orchestrator-size,p24-guest-write-sweep,p25-source-addr,p26-team-launch,p27-pty-round-trip,p28-au-egress}.sh`
+  and six cases in `proving_test.sh` (phase 8 task 32, planned) (new / modify)
+- `docs/verification/phase-8-kata-proving.md` (task 32): six rows, each `NOT RUN` (modify)
+
+**Interfaces:**
+- Consumes: phase 8 task 11's `networkpolicy-sandboxes.yaml`, its labels
+  `panacea-app/component: sandbox | machine | balloon` (`task-11.md:147-159`); task 17's broker
+  labels and the `panacea-app/source-addr` annotation (`task-17.md:70-87`); task 20's `route`
+  (`task-20.md:284`); task 32's (this plan) allow from sandbox pods to the gateway's service port
+  and the Orchestrator class's egress, which stay as task 32 writes them; phase 8 task 32's
+  `proving_test.sh` style (`task-32.md:48-54`).
+- Produces: the pod label `panacea-app/route: global | au`; `SandboxSpec.Route`; G11; the values
+  block `sandboxes.auEgress`; checklist rows P23–P28.
+- Required by: task 57 (TM1 proof reads P23–P28's results), task 33's runbook (runs P23 and P25
+  during the scripted conflict), task 56 (the route badge's `AU · required` is only honest if P28
+  passed; the badge task states so).
