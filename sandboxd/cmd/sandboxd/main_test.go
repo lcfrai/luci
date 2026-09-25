@@ -24,6 +24,20 @@ func TestMCPListenFlag(t *testing.T) {
 	}
 }
 
+// The session's environment is sandboxd's minus the attach token, and minus
+// nothing else (review t18 M3).
+func TestWithoutAttachToken(t *testing.T) {
+	env := []string{"PATH=/usr/bin", "PANACEA_APP_ATTACH_TOKEN=tok", "HOME=/home/dev",
+		"PANACEA_APP_ATTACH_TOKEN=again", "PANACEA_APP_ATTACH_TOKENS=kept", "PANACEA_APP_COMMAND=claude"}
+	want := []string{"PATH=/usr/bin", "HOME=/home/dev", "PANACEA_APP_ATTACH_TOKENS=kept", "PANACEA_APP_COMMAND=claude"}
+	if got := withoutAttachToken(env); !reflect.DeepEqual(got, want) {
+		t.Errorf("withoutAttachToken = %q, want %q", got, want)
+	}
+	if got := withoutAttachToken(nil); got == nil {
+		t.Errorf("withoutAttachToken(nil) is nil, which the PTY takes as \"inherit sandboxd's environment\"")
+	}
+}
+
 func TestParseArgsPrefersJSON(t *testing.T) {
 	got, err := parseArgs("ignored,csv", `["--model","opus","add tests, then refactor"]`)
 	if err != nil {

@@ -58,6 +58,52 @@ const (
 	ListenAddr    = "127.0.0.1:8731" // inside the sandbox; the URL the harness is given (task 19)
 )
 
+// Stream rules. The codec below pins the bytes; these pin what each side's
+// channel does with them, and both sides' channels are written apart
+// (sandboxd's channel.go, the control plane's task 19), so they are stated
+// here, where both read them:
+//
+//   - Only sandboxd sends OPEN, with an odd id new to the channel. An OPEN
+//     from the control plane is a protocol error: sandboxd closes the channel
+//     with StatusProtocolError, as it does a malformed frame, and a text
+//     message with StatusUnsupportedData.
+//   - A stream ends at each side at a different moment, so a DATA, CLOSE,
+//     RESET or WINDOW for a stream that has ended here, or that was never
+//     opened, is dropped, not an error. In particular sandboxd queues RESET
+//     but writes DATA, WINDOW and CLOSE directly, so a DATA or a WINDOW can
+//     follow a RESET for the same stream.
+//   - Flow control, per stream and direction: a sender never has more than
+//     InitialWindow bytes unacknowledged, and a receiver sends WINDOW once it
+//     has handed at least WindowAck bytes to its reader. DATA past the window,
+//     a WINDOW for bytes never sent and DATA after CLOSE each reset the stream
+//     with the matching reason below.
+//   - A RESET's reason is one of the reasons below. sandboxd logs a peer's
+//     reason only when it is one of them, and any other by its length, so G5
+//     holds whatever the peer sends.
+//   - A second channel supersedes the first, which sandboxd closes with status
+//     4001. Only a holder of the attach token can attach one, so a peer
+//     closed with 4001 that it did not cause should say so, not stop quietly.
+const (
+	reasonTooMany        = "too many streams"
+	reasonWindow         = "window exceeded"
+	reasonBadWindow      = "window acknowledges bytes never sent"
+	reasonDataAfterClose = "data after close"
+	reasonLocalRead      = "local read failed"
+	reasonLocalWrite     = "local write failed"
+	reasonUnexpectedOpen = "sandboxd opens every stream"
+	reasonIDs            = "stream ids exhausted"
+)
+
+// knownReason reports whether r is one of the fixed reasons above.
+func knownReason(r string) bool {
+	switch r {
+	case reasonTooMany, reasonWindow, reasonBadWindow, reasonDataAfterClose,
+		reasonLocalRead, reasonLocalWrite, reasonUnexpectedOpen, reasonIDs:
+		return true
+	}
+	return false
+}
+
 // Frame is one decoded message. A decoded Payload aliases the input slice.
 type Frame struct {
 	Kind    Kind

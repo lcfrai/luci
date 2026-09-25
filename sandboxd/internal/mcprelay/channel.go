@@ -3,6 +3,7 @@ package mcprelay
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net"
@@ -11,23 +12,15 @@ import (
 	"github.com/coder/websocket"
 )
 
-// Why a stream or a local connection ends: logged, and sent as RESET reasons.
-// Fixed strings only: nothing here ever quotes a stream byte (G5).
-const (
-	reasonTooMany        = "too many streams"
-	reasonWindow         = "window exceeded"
-	reasonBadWindow      = "window acknowledges bytes never sent"
-	reasonDataAfterClose = "data after close"
-	reasonLocalRead      = "local read failed"
-	reasonLocalWrite     = "local write failed"
-	reasonUnexpectedOpen = "sandboxd opens every stream"
-	reasonIDs            = "stream ids exhausted"
-)
+// Why a stream or a local connection ends is one of frame.go's fixed reasons:
+// logged, and sent as RESET reasons. Nothing here ever quotes a stream byte
+// (G5).
 
 var (
 	errChannelDone    = errors.New("mcprelay: channel closed")
 	errTooManyStreams = errors.New("mcprelay: " + reasonTooMany)
 	errIDsExhausted   = errors.New("mcprelay: " + reasonIDs)
+	errPeerOpen       = errors.New("mcprelay: the peer sent an OPEN; " + reasonUnexpectedOpen)
 )
 
 // channel multiplexes local connections over one WebSocket. It never parses a
@@ -152,6 +145,16 @@ func (ch *channel) run(ctx context.Context) error {
 			ch.conn.Close(websocket.StatusProtocolError, "malformed frame")
 			return err
 		}
+		if f.Kind == KindOpen {
+			// Only sandboxd opens streams (frame.go's stream rules). An OPEN is
+			// a bug in the peer, and ends the channel as a malformed frame
+			// does: answering each with a RESET would let a peer that floods
+			// OPENs and reads nothing grow sendControl's overflow goroutines
+			// without bound.
+			ch.fail("peer sent OPEN")
+			ch.conn.Close(websocket.StatusProtocolError, reasonUnexpectedOpen)
+			return errPeerOpen
+		}
 		ch.handle(f)
 	}
 }
@@ -169,25 +172,29 @@ func (ch *channel) handle(f Frame) {
 	ch.mu.Unlock()
 	if s == nil {
 		// A frame for a stream that has already ended here (the peer had not
-		// seen the end yet) is dropped. An OPEN is refused: sandboxd opens
-		// every stream, and a control plane that tries has a bug to see.
-		if f.Kind == KindOpen {
-			ch.sendControl(Frame{Kind: KindReset, Stream: f.Stream, Payload: []byte(reasonUnexpectedOpen)})
-		}
+		// seen the end yet), or was never opened, is dropped.
 		return
 	}
 	switch f.Kind {
-	case KindOpen:
-		s.reset(reasonUnexpectedOpen)
 	case KindData:
 		s.data(f.Payload)
 	case KindClose:
 		s.peerClose()
 	case KindReset:
-		s.abort("peer reset: " + string(f.Payload))
+		s.abort(peerResetReason(f.Payload))
 	case KindWindow:
 		s.window(WindowIncrement(f))
 	}
+}
+
+// peerResetReason is what the log says of a peer's RESET. The reason is the
+// peer's text, so it is quoted only when it is one of the fixed reasons, and
+// otherwise described by its length: G5 must not rest on what the peer sends.
+func peerResetReason(p []byte) string {
+	if knownReason(string(p)) {
+		return "peer reset: " + string(p)
+	}
+	return fmt.Sprintf("peer reset: a %d-byte reason", len(p))
 }
 
 func (ch *channel) remove(id uint32) {

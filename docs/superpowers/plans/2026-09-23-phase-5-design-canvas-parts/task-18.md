@@ -11,7 +11,7 @@ nothing in the sandbox reaches the host. The relay keeps that direction:
 
 1. `sandboxd` listens on `127.0.0.1:8731` **inside** the sandbox (G4).
 2. The control plane dials `ws://<endpoint>/mcp-channel` with the attach token, the same credential
-   `/attach` checks (`sandboxd/internal/server/server.go:105-116`).
+   `/attach` checks (`Server.authorised` in `sandboxd/internal/server/server.go`).
 3. Each TCP connection accepted on 8731 becomes one **stream** over that WebSocket, as opaque bytes.
    `sandboxd` never parses them (G5); the control plane serves HTTP on the far end (task 19).
 
@@ -25,6 +25,8 @@ golden frames checked into both.
 - `sandboxd/internal/mcprelay/frame.go`, `listener.go`, `channel.go` + tests (new)
 - `sandboxd/internal/server/server.go` — `Config.MCP`, the `/mcp-channel` route
 - `sandboxd/cmd/sandboxd/main.go`, `serve_posix.go` — the `-mcp-listen` flag
+- `sandboxd/cmd/sandboxd/environ_linux.go`, `environ_darwin.go`, `serve_linux_test.go` — fix round
+  1: the session never holds the attach token (review M3)
 - `sandboxd/cmd/sandboxd/serve_other.go` — the Windows stub (`//go:build !linux && !darwin`,
   `serve_other.go:1`) gains the same fifth parameter, or `go build ./sandboxd/...` fails on the
   Windows machine this task's acceptance runs on (review M5)
@@ -114,12 +116,42 @@ reading only the low id byte would pass. The file as built also carries two more
 (the Go syntax is `%+v` with a printable-ASCII payload quoted, so a codec that round-trips its
 own mistake still fails the text).
 
+**Amended in fix round 1** (review M4, M5, M6): `frame.go`, still identical in both modules,
+also carries the **stream rules** each side's channel must follow, because the two channels are
+written apart (this task's `channel.go`, task 19's peer) and the twin tests pin only the codec:
+
+- Only sandboxd sends OPEN. An OPEN from the control plane, for a new id or a live one, is a
+  protocol error: sandboxd closes the channel with `StatusProtocolError` (it used to answer with
+  RESET, which let a peer flooding OPENs grow sandboxd's goroutines without bound).
+- A DATA, CLOSE, RESET or WINDOW for a stream that has ended here, or was never opened, is
+  dropped, not an error. sandboxd queues RESET but writes DATA, WINDOW and CLOSE directly, so a
+  DATA or WINDOW can follow a RESET for the same stream.
+- The flow-control rules below, and the fixed RESET reasons.
+- A peer closed with 4001 that it did not cause should surface it, not stop quietly: only a
+  holder of the attach token can attach a channel.
+
+The fixed reasons move from `channel.go` into `frame.go` (unexported, so task 19's peer in the
+same package uses the same strings), with `knownReason(string) bool`:
+
+```go
+const (
+	reasonTooMany        = "too many streams"
+	reasonWindow         = "window exceeded"
+	reasonBadWindow      = "window acknowledges bytes never sent"
+	reasonDataAfterClose = "data after close"
+	reasonLocalRead      = "local read failed"
+	reasonLocalWrite     = "local write failed"
+	reasonUnexpectedOpen = "sandboxd opens every stream"
+	reasonIDs            = "stream ids exhausted"
+)
+```
+
 ```go
 // sandboxd/internal/mcprelay/listener.go
 
 // Listener accepts local connections on ListenAddr and holds each until a
 // channel is attached, for at most HoldTimeout: the harness starts with the
-// PTY (server.New starts it, server.go:69-90) and dials MCP at once, before
+// PTY (server.New starts it) and dials MCP at once, before
 // the control plane has even seen /healthz answer. A connection still
 // unassigned after HoldTimeout is closed.
 type Listener struct{ /* unexported */ }
@@ -199,7 +231,22 @@ reader. One slow stream therefore cannot stall another — the head-of-line risk
 A frame that would exceed the window is a protocol error: `RESET "window exceeded"` for the stream.
 
 **Payload-blind** (G5, spec §7.7): `sandboxd` logs per stream only its id, byte counts and close
-reason; never a payload byte.
+reason; never a payload byte. **Amended in fix round 1** (review M4): a peer's RESET reason is the
+peer's text, so sandboxd logs it only when it is one of the fixed reasons, and any other as
+`peer reset: a N-byte reason`. G5 then holds whatever the peer sends.
+
+**The session never holds the attach token** (fix round 1, review M3). The token now opens
+`/mcp-channel` as well as `/attach`, and a session process that held it could supersede the
+control plane's channel (4001) and become the far end of the harness's MCP connections. So
+`serve_posix.go`'s `newServer` starts the session with `withoutAttachToken(os.Environ())` and
+first calls `protectEnviron()` (`environ_linux.go`: `prctl(PR_SET_DUMPABLE, 0)`;
+`environ_darwin.go`: a no-op, darwin being a development build). The review's remedy stopped at the
+environment. That is not enough on its own: the session runs as sandboxd's user (`dev`, uid 1001,
+`images/sandbox/Dockerfile`), and `/proc/<sandboxd pid>/environ` keeps the environment sandboxd
+was started with, token included. The Linux container read it (red run). A non-dumpable process's
+`/proc` files are root's and need `CAP_SYS_PTRACE`, which the image grants none. The session's
+`execve` makes it dumpable again, so only sandboxd changes: it writes no core dump and cannot be
+ptraced by its session.
 
 ## Tests first
 
@@ -215,7 +262,7 @@ reason; never a payload byte.
 | `TestFlowControl_noHeadOfLine` | one stream whose reader never reads; another stream still moves 1 MiB | a stalled stream stalling the channel |
 | `TestMaxStreams` | the 65th connection is reset with "too many streams" | unbounded streams |
 | `TestSecondChannelSupersedes` | a second `Serve` closes the first with 4001 and resets its streams | two control planes both serving one sandbox |
-| `TestMCPChannel_requiresToken` | `/mcp-channel` without the bearer → 401 | the relay open to any local process (the published port is on loopback, `server.go:33-39`) |
+| `TestMCPChannel_requiresToken` | `/mcp-channel` without the bearer → 401 | the relay open to any local process (the published port is on loopback, `server.Config.AttachToken`'s comment) |
 | `TestMCPChannel_disabled` | `Config.MCP == nil` → 404 | a half-configured relay |
 | `TestLogs_payloadBlind` | a captured log after a stream carrying `"secret"` has no `secret` | payload in sandbox logs |
 
@@ -232,6 +279,20 @@ reason; never a payload byte.
 | `TestMCPListenFlag` | `-mcp-listen` defaults to `127.0.0.1:8731` and parses `off` | the image's sandboxes silently without the relay |
 | `TestNewServer_mcpListen` | `0.0.0.0:0` refused; `off` → 404; loopback → 401 | the flag never reaching the server |
 | `TestNewServer_releasesTheRelayOnFailure` | a failed `server.New` leaves the port free | a restarted sandboxd unable to bind |
+
+**Added in fix round 1** (review `task-t18-review.md`), each for a mutant or a defect the tables
+above let through:
+
+| Test | Asserts | Kills the mutant |
+|---|---|---|
+| `TestChannelEndedByItsPeer` | the peer drops the channel: an idle stream is reset, `Serve` returns, the next connection is held and served on the next channel | MA: `Serve` without its final `ch.fail` (review I1) |
+| `TestFlowControl_partialWindow` | a full window, then a 1,000-byte WINDOW: sandboxd sends exactly 1,000 more bytes | MG: `upstream` reading a whole `MaxPayload` whenever the window has room (review M1; survived on Windows) |
+| `TestLogs_payloadBlind` (extended) | a peer RESET with reason `secret` is logged as `peer reset: a 6-byte reason`; a fixed reason is logged verbatim | the peer's reason logged verbatim (review M4) |
+| `TestPeerOpen_endsTheChannel` | a control-plane OPEN, for a new id or a live one, closes the channel with `StatusProtocolError` and resets its streams | the RESET answer to a peer OPEN, unbounded (review M6; MF survived) |
+| `TestListener_closeEndsItsChannel` | `Close` ends the live channel with 1001 and resets its stream; a channel attached after `Close` is refused and leaves no writer goroutine | MD, and the `Serve`-after-`Close` goroutine leak (review M7) |
+| `TestWithoutAttachToken` | the session's environment is sandboxd's minus every `PANACEA_APP_ATTACH_TOKEN` entry, and never nil | the token reaching the session (review M3) |
+| `TestNewServer_sessionEnvLacksTheToken` (posix) | a PTY child's `env` has no token and keeps sandboxd's other variables | the same, end to end |
+| `TestNewServer_sessionCannotReadTheTokenFromProc` (linux) | the test re-runs itself with the token in its initial environment; its PTY child cannot read it from `/proc/$PPID/environ` (skipped under `CAP_SYS_PTRACE`) | `protectEnviron` not called |
 
 `TestMaxStreams` runs twice: on a channel (and a new connection opens once one stream ends, so
 the bound is on live streams) and for connections held before any channel. The 65th is refused
@@ -275,10 +336,12 @@ local (`golang:1.23-bookworm`), `--network none` works because sandboxd is vendo
 go 1.23, which this machine's go1.26.2 does not.
 
 ```bash
-cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/phase-5 && go build ./sandboxd/... && GOOS=linux go build ./sandboxd/... && echo both-builds-ok
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/phase-5 && go build ./sandboxd/... && GOOS=linux go build ./sandboxd/... && GOOS=darwin go build ./sandboxd/... && echo both-builds-ok
 ```
 Expected: `both-builds-ok` — the first compiles `serve_other.go` (Windows), the second
-`serve_posix.go`, so a signature changed in one file only fails here (review M5).
+`serve_posix.go`, so a signature changed in one file only fails here (review M5). The darwin
+build is added in fix round 1: `protectEnviron` has one file per OS (`environ_linux.go`,
+`environ_darwin.go`), and a darwin build without its file fails only there.
 
 ## Not claimed
 

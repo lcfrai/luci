@@ -165,6 +165,34 @@ func TestFlowControl_noHeadOfLine(t *testing.T) {
 	p.checkClean(t)
 }
 
+// A window reopened by less than a frame must be honoured to the byte. An
+// upstream that read a whole MaxPayload whenever the window had any room would
+// overshoot it, and the other tests see that only when a local read happens to
+// return less than a frame, which Windows loopback did not (review t18 M1:
+// mutant MG survived there).
+func TestFlowControl_partialWindow(t *testing.T) {
+	const grant = 1000
+	r := newRelay(t, nil)
+	p := r.attach()
+	c := r.client()
+	s := p.nextOpen(t)
+	go func() { _, _ = c.Write(make([]byte, 1<<20)) }() // blocks once the window closes
+	if !s.waitFor(wait, func() bool { return s.buf.Len() >= InitialWindow }) {
+		t.Fatalf("sandboxd sent %d bytes, want the whole %d-byte window", s.bufLen(), InitialWindow)
+	}
+	if err := s.grant(grant); err != nil {
+		t.Fatalf("send WINDOW: %v", err)
+	}
+	if !s.waitFor(wait, func() bool { return s.buf.Len() >= InitialWindow+grant }) {
+		t.Fatalf("after a %d-byte WINDOW sandboxd sent %d more bytes", grant, s.bufLen()-InitialWindow)
+	}
+	time.Sleep(300 * time.Millisecond) // room for an overshoot to arrive
+	if got := s.bufLen() - InitialWindow; got != grant {
+		t.Errorf("after a %d-byte WINDOW sandboxd sent %d more bytes, want exactly %d", grant, got, grant)
+	}
+	p.checkClean(t)
+}
+
 func TestPing_echoedAsPong(t *testing.T) {
 	r := newRelay(t, nil)
 	p := r.attach()

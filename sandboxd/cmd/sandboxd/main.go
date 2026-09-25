@@ -45,12 +45,30 @@ func mcpListenFlag(fs *flag.FlagSet) *string {
 	return fs.String("mcp-listen", mcprelay.ListenAddr, `loopback address for the canvas MCP relay, or "off"`)
 }
 
+// attachTokenEnv carries the attach token into sandboxd, and no further.
+const attachTokenEnv = "PANACEA_APP_ATTACH_TOKEN"
+
+// withoutAttachToken is env minus every attachTokenEnv entry: the session's
+// environment. The token opens /attach and /mcp-channel, and nothing in the
+// session needs it (the harness's MCP URL carries none, task 19; the relay's
+// listener takes no credential). Never nil: the PTY reads a nil environment as
+// "inherit sandboxd's".
+func withoutAttachToken(env []string) []string {
+	out := make([]string, 0, len(env))
+	for _, kv := range env {
+		if !strings.HasPrefix(kv, attachTokenEnv+"=") {
+			out = append(out, kv)
+		}
+	}
+	return out
+}
+
 func main() {
 	addr := flag.String("addr", ":8080", "listen address")
 	command := flag.String("command", "/bin/bash", "command to run in the PTY")
 	argsCSV := flag.String("args", "", "comma-separated arguments (legacy; prefer -args-json)")
 	argsJSON := flag.String("args-json", "", "arguments as a JSON array of strings")
-	token := flag.String("attach-token", os.Getenv("PANACEA_APP_ATTACH_TOKEN"),
+	token := flag.String("attach-token", os.Getenv(attachTokenEnv),
 		"shared secret required on /attach")
 	allowUnauthenticated := flag.Bool("allow-unauthenticated", false,
 		"run without an attach token; local development only")

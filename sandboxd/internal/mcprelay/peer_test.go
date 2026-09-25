@@ -381,6 +381,15 @@ func (s *peerStream) write(data []byte) error {
 
 func (s *peerStream) closeWrite() error { return s.p.send(Frame{Kind: KindClose, Stream: s.id}) }
 
+// grant acknowledges n bytes the test has not read, in one WINDOW. The peer's
+// own accounting moves with it, so its window check stays exact.
+func (s *peerStream) grant(n int) error {
+	s.mu.Lock()
+	s.recvOut -= n
+	s.mu.Unlock()
+	return s.p.send(Frame{Kind: KindWindow, Stream: s.id, Payload: WindowPayload(uint32(n))})
+}
+
 // noOpen asserts that no OPEN arrives within d.
 func (p *peer) noOpen(t *testing.T, d time.Duration) {
 	t.Helper()

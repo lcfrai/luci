@@ -24,7 +24,7 @@ const StatusSuperseded websocket.StatusCode = 4001
 
 // Listener accepts local connections on ListenAddr and holds each until a
 // channel is attached, for at most HoldTimeout: the harness starts with the
-// PTY (server.New starts it, server.go:69-90) and dials MCP at once, before
+// PTY (server.New starts it) and dials MCP at once, before
 // the control plane has even seen /healthz answer. A connection still
 // unassigned after HoldTimeout is closed.
 //
@@ -202,6 +202,7 @@ func (l *Listener) Serve(ctx context.Context, conn *websocket.Conn) error {
 	l.mu.Lock()
 	if l.closed {
 		l.mu.Unlock()
+		ch.fail("relay closed") // ends the writer newChannel started
 		conn.Close(websocket.StatusGoingAway, "relay closed")
 		return errRelayClosed
 	}

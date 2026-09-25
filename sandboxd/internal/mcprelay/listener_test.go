@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"runtime"
 	"strings"
 	"sync"
 	"syscall"
@@ -315,6 +316,131 @@ func TestSecondChannelSupersedes(t *testing.T) {
 	p2.checkClean(t)
 }
 
+// A channel usually ends because its peer drops it: the control plane
+// restarts, or the network goes. Its streams must be reset then, idle ones
+// included, and the next connection held for the next channel rather than
+// opened on the dead one (review t18 I1: mutant MA, Serve without its final
+// fail, survived every other test).
+func TestChannelEndedByItsPeer(t *testing.T) {
+	r := newRelay(t, nil)
+	p1 := r.attach()
+	c1 := r.client()
+	p1.nextOpen(t)
+	p1.conn.CloseNow()
+	expectReset(t, c1, "an idle stream of a channel its peer dropped")
+	select {
+	case <-r.served:
+	case <-time.After(wait):
+		t.Fatalf("Serve did not return after its peer dropped the channel")
+	}
+	c2 := r.client()
+	expectOpen(t, c2, "a connection made while no channel is attached")
+	p2 := r.attach()
+	s2 := p2.nextOpen(t)
+	if err := exchange(c2, s2, []byte("held"), []byte("served")); err != nil {
+		t.Fatalf("the held connection on the next channel: %v", err)
+	}
+	p2.checkClean(t)
+}
+
+// writeControlGoroutines counts live channel writer goroutines.
+func writeControlGoroutines() int {
+	buf := make([]byte, 1<<20)
+	for {
+		n := runtime.Stack(buf, true)
+		if n < len(buf) {
+			return strings.Count(string(buf[:n]), "mcprelay.(*channel).writeControl")
+		}
+		buf = make([]byte, 2*len(buf))
+	}
+}
+
+// Close ends the live channel (its peer told why, its streams reset), and a
+// channel that attaches after Close is refused without leaving its writer
+// goroutine behind (review t18 M7: mutant MD survived, and that goroutine
+// leaked).
+func TestListener_closeEndsItsChannel(t *testing.T) {
+	r := newRelay(t, nil)
+	p := r.attach()
+	c := r.client()
+	p.nextOpen(t)
+	r.l.Close()
+	select {
+	case <-p.ended:
+	case <-time.After(wait):
+		t.Fatalf("the channel is still open after its relay closed")
+	}
+	if got := websocket.CloseStatus(p.endErr); got != websocket.StatusGoingAway {
+		t.Errorf("the channel closed with %v (%v), want %d", got, p.endErr, websocket.StatusGoingAway)
+	}
+	expectReset(t, c, "a stream of the closed relay's channel")
+	select {
+	case <-r.served:
+	case <-time.After(wait):
+		t.Fatalf("the channel's Serve never returned after Close")
+	}
+
+	late := r.attach()
+	select {
+	case err := <-r.served:
+		if !errors.Is(err, errRelayClosed) {
+			t.Errorf("Serve after Close returned %v, want %v", err, errRelayClosed)
+		}
+	case <-time.After(wait):
+		t.Fatalf("Serve after Close never returned")
+	}
+	select {
+	case <-late.ended:
+	case <-time.After(wait):
+		t.Fatalf("a channel attached after Close is still open")
+	}
+	deadline := time.Now().Add(wait)
+	for n := writeControlGoroutines(); n != 0; n = writeControlGoroutines() {
+		if time.Now().After(deadline) {
+			t.Fatalf("%d channel writer goroutines outlive a closed relay", n)
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+}
+
+// Only sandboxd opens streams. An OPEN from the peer, for a new id or a live
+// one, is a bug in the peer and ends the channel as a malformed frame does:
+// answering each with a RESET let a peer that floods OPENs and reads nothing
+// grow sendControl's overflow goroutines without bound (review t18 M6).
+func TestPeerOpen_endsTheChannel(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		id   func(live uint32) uint32
+	}{
+		{"a new id", func(uint32) uint32 { return 2 }},
+		{"a live id", func(live uint32) uint32 { return live }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := newRelay(t, nil)
+			p := r.attach()
+			c := r.client()
+			s := p.nextOpen(t)
+			if err := p.send(Frame{Kind: KindOpen, Stream: tc.id(s.id)}); err != nil {
+				t.Fatalf("send OPEN: %v", err)
+			}
+			select {
+			case <-p.ended:
+			case <-time.After(wait):
+				t.Fatalf("the channel is still open after the peer sent an OPEN")
+			}
+			if got := websocket.CloseStatus(p.endErr); got != websocket.StatusProtocolError {
+				t.Errorf("the channel closed with %v (%v), want %d", got, p.endErr, websocket.StatusProtocolError)
+			}
+			expectReset(t, c, "a stream of the channel the peer broke")
+			select {
+			case <-r.served:
+			case <-time.After(wait):
+				t.Fatalf("Serve never returned")
+			}
+		})
+	}
+}
+
 func TestLogs_payloadBlind(t *testing.T) {
 	r := newRelay(t, nil)
 	p := r.attach()
@@ -325,7 +451,24 @@ func TestLogs_payloadBlind(t *testing.T) {
 		t.Fatalf("exchange: %v", err)
 	}
 	waitLog(t, r, "reason=closed", 1)
+	// A RESET's reason is the peer's text, not sandboxd's, so G5 must not rest
+	// on what the peer puts there: a reason that is not one of the fixed ones
+	// is logged by its length only (review t18 M4). A fixed one is logged.
+	for _, reason := range [][]byte{secret, []byte(reasonTooMany)} {
+		cr := r.client()
+		sr := p.nextOpen(t)
+		if err := p.send(Frame{Kind: KindReset, Stream: sr.id, Payload: reason}); err != nil {
+			t.Fatalf("send RESET: %v", err)
+		}
+		expectReset(t, cr, "a stream the peer reset")
+	}
+	waitLog(t, r, "mcp stream closed", 3)
 	log := r.log.String()
+	for _, want := range []string{"peer reset: a 6-byte reason", "peer reset: " + reasonTooMany} {
+		if !strings.Contains(log, want) {
+			t.Errorf("the log lacks %q:\n%s", want, log)
+		}
+	}
 	for _, form := range []string{string(secret), hex.EncodeToString(secret),
 		base64.StdEncoding.EncodeToString(secret), "115 101 99 114 101 116"} {
 		if strings.Contains(log, form) {
