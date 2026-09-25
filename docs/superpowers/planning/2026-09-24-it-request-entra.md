@@ -1,55 +1,41 @@
-# Request to KPMG IT — Entra registrations for PanaceaApp (draft, 2026-09-24)
+# Request to KPMG IT — Entra registrations for PanaceaApp (draft 2026-09-24, amended by OD-30 2026-09-25)
 
-**Status: DRAFT for the owner to send. Nothing is blocked on it.** The Hub is built and tested
-against a local OIDC issuer (`devissuer`) that runs the identical PKCE flow. These registrations are
-needed only to sign in with real KPMG identities. Source: ADR-H1 and the Hub contract on
-`feat/hub` (`docs/superpowers/adr/ADR-H1-hub-architecture.md`,
-`docs/superpowers/contracts/2026-09-23-hub-contract.md`); phase 8's plan adds the broker item.
+**Status (2026-09-25, OD-30): nothing is sent to IT for sign-in.** Users sign in through a
+Keycloak realm that brokers Entra on **Panacea's existing registration**, so Part 1 below is
+withdrawn. Part 2 (phase 8's Azure plane) is still sent, when phase 8 provisions. Ruling:
+`docs/superpowers/planning/2026-09-25-identity-keycloak-broker.md`.
+
+**Nothing is blocked on this file.** The Hub is planned against a local OIDC issuer, `devissuer`
+(hub tasks 11-12, **not built yet**), which runs the identical Keycloak-shaped flow. Source for the
+original draft: ADR-H1 and the Hub contract on `feat/hub`
+(`docs/superpowers/adr/ADR-H1-hub-architecture.md`,
+`docs/superpowers/contracts/2026-09-23-hub-contract.md`) and phase 8's plan.
 
 ---
 
-**Subject: Entra app registrations for PanaceaApp (internal developer platform pilot)**
+## Part 1 — sign-in registrations: Not needed since OD-30
 
-Hi team,
+**Withdrawn 2026-09-25. Do not send.** Items 1-7 of the earlier draft (the tenant id; the
+*PanaceaApp Desktop*, *PanaceaApp Hub API* and *PanaceaApp Sandbox Broker* registrations; the
+"PanaceaApp Users" and "PanaceaApp Org Admins" groups and the `Hub.OrgAdmin` app role; the
+conditional-access question; Azure DevOps sign-in) are all withdrawn. The text is in git history.
 
-We are piloting PanaceaApp, a desktop cockpit for coding agents that signs users in with their
-own KPMG identity. Could you please create the following in the **KPMG Australia** tenant?
+Why no IT ticket (ruling section 1): the desktop signs in to a Keycloak realm, and that realm
+brokers to Entra through the registration Panacea's Keycloak already uses (client id beginning
+`37f8bd70-`). Entra only ever sees Keycloak's broker callback, which is already registered. The
+desktop's loopback redirect is registered on a new **Keycloak client**, never on Entra, and that
+client is added by Panacea's own realm update (ruling section 10), not by IT. Org admin is the
+realm role `hub.org_admin`, assigned by the realm's admin. Azure DevOps is a personal access token
+(Q5 below).
 
-1. **Our tenant id** (GUID), so we can pin the issuer.
-2. **App registration: "PanaceaApp Desktop"**
-   - Single tenant; **public client**; platform "Mobile and desktop applications".
-   - Redirect URIs: `http://localhost` and `http://127.0.0.1` (the second may need the manifest
-     editor).
-   - No secret, no certificate. "Allow public client flows": **No** (we use authorization code +
-     PKCE with a loopback redirect, not device code or ROPC).
-   - Delegated permissions: `openid`, `profile`, `offline_access`, `email`,
-     `api://<hub-api-id>/Hub.Access`, `api://<broker-id>/Sandboxes.Access`, and (see item 7)
-     Azure DevOps `user_impersonation`.
-   - Tenant-wide admin consent for all of the above.
-3. **App registration: "PanaceaApp Hub API"**
-   - Single tenant. Application ID URI `api://<its client id>`.
-   - Delegated scope `Hub.Access`, with "PanaceaApp Desktop" pre-authorised.
-   - `requestedAccessTokenVersion: 2`. App role `Hub.OrgAdmin`. Optional access-token claim
-     `email`. No secret, no certificate.
-   - On its enterprise application: **assignment required = Yes**, assigned to group
-     "PanaceaApp Users".
-4. **App registration: "PanaceaApp Sandbox Broker"**: scope `Sandboxes.Access`, with the desktop
-   pre-authorised.
-5. **Security groups**:
-   - "PanaceaApp Users": the pilot team.
-   - "PanaceaApp Org Admins": assigned `Hub.OrgAdmin`.
-   - Plus a Postgres admin group for the environment, when that environment is provisioned.
-6. **Conditional access**: please confirm that a public desktop client with a loopback redirect is
-   allowed, what device state it requires (compliant or hybrid-joined), and any sign-in-frequency
-   interval.
-7. **Azure DevOps**: may the desktop use the same Entra sign-in for Azure DevOps
-   (`user_impersonation`), so users need no ADO personal access token?
+**Kept: one optional later ask, not in any task** (ruling section 7). Raise it only if ADO
+personal-access-token expiry becomes a real support cost:
 
-No client secrets are requested anywhere. Tokens stay on the user's machine in Windows Credential
-Manager. Access tokens are held in memory only.
-
-Thanks,
-Dylan
+> Could you please create a single-tenant **public client** registration, "PanaceaApp Desktop",
+> platform "Mobile and desktop applications", redirect URI `http://127.0.0.1` (loopback, any
+> port), no secret, with delegated permission **Azure DevOps `user_impersonation`** and tenant-wide
+> admin consent? It lets the desktop get an Azure DevOps token for the signed-in user by
+> authorization code + PKCE, so users need no ADO personal access token.
 
 ---
 
@@ -84,10 +70,18 @@ applied until this exists. Source: `feat/env`,
 4. **A monthly budget**, with alert recipients.
 5. **Entra groups**: cluster admins (AKS Entra RBAC), and a Postgres admin group. The Hub's
    database roles are created once by a human member of that group, never by a pipeline.
+6. **Our own Keycloak on the existing registration** (OD-30, ruling section 9; the only Entra ask
+   OD-30 leaves). On the registration Panacea's Keycloak uses (client id beginning `37f8bd70-`):
+   - add **one redirect URI**,
+     `https://auth.<our domain>/realms/panacea-app/broker/entra/endpoint`;
+   - issue **a second client secret** for our Keycloak, so either side rotates without breaking
+     the other. It is stored in our Key Vault, never sent by email.
 
 **Before real users:**
-- Confirmation that sandboxes may reach Anthropic and the other model providers from Azure egress
-  IPs, using users' own subscriptions.
+- Confirmation that our org gateway may reach the direct Anthropic API (Global) and Amazon
+  Bedrock in Sydney (AU) from Azure egress IPs, on org-level accounts with zero data retention
+  (OD-19). No personal subscription is used; sandboxes hold only a scoped per-session gateway
+  token, never an org key.
 - The Azure Policy assignments on the subscription, and exemptions if they block Kata SKUs, public
   IPs or the chosen network plugin.
 - Who is on call, and the log-retention period ISM requires.
@@ -101,6 +95,9 @@ These are **accepted by default**. Tell the orchestrator if you disagree.
   "erased on <date>", not "missing".
 - **Q3**: a designer may approve their own design in v1.
 - **Q4**: teammates join by an email invite within the same tenant (no Graph people picker).
-- **Q5**: Azure DevOps uses the same Entra sign-in (item 7 above), so no ADO PAT is needed.
+- **Q5** (flipped by OD-30, ruling section 7): Azure DevOps uses a **personal access token** per
+  user, scope Code (Read & write), pasted once into the desktop's connection panel and kept in
+  Windows Credential Manager. A realm token cannot be an Azure DevOps token. *Was: "the same Entra
+  sign-in, so no ADO PAT is needed".*
 - **Q6**: while the Hub is unreachable, writes are refused, not queued.
 - **Q7**: the Hub holds no canvas documents in v1 (approved snapshots only).
