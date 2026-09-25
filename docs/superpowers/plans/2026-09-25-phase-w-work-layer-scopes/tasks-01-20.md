@@ -523,7 +523,7 @@ issueId}`) and `DELETE /v1/issues/{issueId}/relations/{kind}/{otherId}`; `GET`/`
 /v1/teams/{teamId}/labels` (`CreateLabelRequest{name, color}`), `POST /v1/labels/{labelId}/archive`;
 `GET`/`PUT /v1/teams/{teamId}/work-policy` (`PutTeamPolicyRequest` → `TeamPolicy`). **Rules:** a
 relation joins two issues of projects **in the same team** (a project's access is exactly its
-team's membership, hub-contract:334), never an issue to itself, never the same `(kind, pair)`
+team's membership, hub-contract:333), never an issue to itself, never the same `(kind, pair)`
 twice (a repeat is 200 with the existing relation and **no** event), and `A blocks B` refuses `B
 blocks A`; `relates` and `duplicates` are stored once and read from both ends, `blocks` reads as
 `blocked_by` from the other end; marking `duplicates` never moves the state by itself (the triage
@@ -557,5 +557,43 @@ declining); a create with no state lands in the policy's `defaultState`, an impo
 UI (task 42). Parity rows served: **L-2**, **L-9**, **L-10**, **L-17**, **L-24** (blocks,
 related, duplicate; the Desk cost-of-waiting half closes with task 63), **L-46** and **L-47**
 (the server half; closed with task 42), **L-48**.
+
+**12 — comments `ic-`: mentions, reactions, anchors, resolve.** W1, stream WH; no seam of its own
+(it fills SW.1's `Comment`; W3's comment kinds are SW.19, task 99); depends on 08. Files: new
+`store/work_comments.go`, `server/work_comments.go`,
+`server/work_comments_integration_test.go`. Routes (07's list): `GET`/`POST
+/v1/issues/{issueId}/comments` (`Page[Comment]`, oldest first; `CreateCommentRequest{body, parentId,
+anchor, mentions}`); `POST /v1/comments/{commentId}/reactions` (`ReactRequest{emoji, on}`); `POST
+/v1/comments/{commentId}/resolve` (`ResolveRequest{resolved}`). **There is no edit or delete
+route**: a comment is append-only (05 §3.2), a correction is a new comment, and removal is task 14's
+erase. **Rules:** `body` is `AuthoredText`, ≤ 16 KiB, `kind` is `comment` in W1 (a `note`,
+`evidence_proposal` or `negotiation` is 400 until task 99 adds them); `author: "A"` is accepted
+only from the person's own principal (an agent draft the person posts), and W3 adds the
+Orchestrator path; a reply's `parentId` names a **top-level** comment on the same issue (one level
+of thread, L-41); `anchor` is checked against the record it names — `text` needs `revision` to
+exist on this issue and `0 ≤ start < end ≤` that revision's description length in UTF-16 code
+units (the unit the editor reports, task 49; **UNVERIFIED** until 49 fixes it), `criterion` needs a
+`criterionId` that revision serves, `span` and `hunk` carry a `ref` (a transcript span id or `commit
+path:lines`) stored verbatim and resolved by the desktop, never parsed by the Hub (L-42; 05 §3.2);
+`mentions` are `u-` ids of current team members (L-41's mentions; a subscription follows in task
+13); reactions are idempotent per `(comment, user, emoji)`, `emoji` one Unicode emoji sequence of at
+most 32 bytes, and a `:shortcode:` is refused (custom emoji is *later*, L-41 PARTIAL); resolve
+applies to top-level comments only and records `resolvedBy`. **Events**, one per changed record
+(hub-contract:1133), values only strings, integers and booleans (hub-contract §8, the line after
+its table): `comment.created` `{"issueId", "parentId", "kind", "author", "anchorKind"}`, one
+`comment.mentioned` per mention row with `subject` the mentioned user and `{"commentId",
+"issueId"}` (so task 13 and the Desk can route it without an array in `data`),
+`comment.reacted` `{"emoji", "on"}`, `comment.resolved` `{"resolved"}` — never the body. **Tests**,
+each with its mutant: the route table has no `PATCH` or `DELETE` on `/v1/comments/…` (kills an
+editable comment, read from `server.Patterns()`); a reply to a reply is 422 naming `parentId`; an
+anchor with `end` past the revision's text or a `criterionId` the revision does not serve is 422
+(kills an unchecked anchor that would point at nothing); a mention of a non-member is 400 naming
+`mentions[0]` and a comment with two mentions appends three events (kills one event for the batch,
+or a mention without its event); reacting twice `on` keeps one row and one event (kills a
+non-idempotent toggle); `:partyparrot:` is 400; resolving a reply is 422; no event's `data` contains
+the body string. It **does not claim** the comment UI (task 51), subscriptions (13), erase (14) or
+W3's kinds (99). Parity rows served: **L-41** (threads, resolve, reactions; custom emoji stays
+*later*; closed with task 51), **L-42** (anchors to text, a criterion, a span or a hunk; closed with
+51 and 60), **L-124** (author class on every comment).
 
 
