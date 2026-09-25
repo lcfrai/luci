@@ -292,3 +292,65 @@ author class); (6) a 422 keeps the composer open with the Hub's reason and leave
 L-29 and L-9's create half; **serves** L-124. **Does not claim** templates (task 78/89), the
 prefill deep link (task 93), drafts (task 80/92), or create from Discover's criteria (W4).
 
+**69 — the import dialog; `first.landing`'s rehearsal as the real issue EP-1.** Files:
+`desktop/src/components/work/ImportDialog.tsx` (+ test), `desktop/src/api/work.ts` ⚑ (the import
+relay call over task 25's `control-plane/internal/api/workimport.go`; its path and body are task
+25's), `desktop/src/work/firstRun/rehearsal.ts` (+ test). **The dialog** (05 §5.3's demo, first
+frame): source *Linear* (a personal API key, `type="password"`, held in component state for the
+run only, never in the store, never on disk, never logged; the control plane pages Linear's public
+API, task 25) or *CSV* (a file the control plane parses, task 25); a target project; then the
+import, which posts SW.6's batch and lands every item in `triage` as *not tied · imported*
+(`notTiedReason: "imported"`, task 15). While it runs it shows a running count only, *"imported 400
+so far"*, never a total, a bar or *"N of M"* (`OD-27`); it ends with `ImportResult`'s plain counts,
+*"142 created · 3 already imported"* (idempotent by `(source, externalId)`, SW.6), and one verb,
+*Open Triage* (`G T`). **`first.landing`** (02 C11 as amended by 05 §4.4 C11): in a project with no
+issues, the Work lens's zero state offers one verb, *Rehearse on EP-1*: it creates a **real** issue,
+EP-1, in that project, whose one-line description names the rehearsal task, and the user's first
+`Shift+R` starts it (task 61), so their first Desk item is a real LANDED row with a real span and
+hunk. W1 runs it in **local mode** (`OD-20`), not a cloud sandbox; **the tiny starter repo it needs
+does not exist in the tree** (searched `docs/` and the repo on 2026-09-25; a reported gap), so the
+part either names the starter repo's owner task or ships the verb disabled with that fact as its
+label, never a fake agent (AX Principle 7). **Tests first:** (1) a CSV with a repeated `externalId`
+reports `created` and `existing` from the response, not from the file's row count (mutant: shows
+the row count as created); (2) a paged Linear import never renders the word `of` beside a count or a
+`progressbar` role (mutant: `400 of 1000`; also `expectNoPrediction`); (3) the key never reaches
+`localStorage`, the persisted store or a log call (spies; mutant: key kept in `workSlice`);
+(4) closing the dialog clears the key (mutant: kept for the next open); (5) the imported items show
+*not tied · imported* in Triage (mutant: lands in `backlog`); (6) *Rehearse on EP-1* creates one
+issue and starts nothing until `Shift+R` (mutant: auto-starts an agent); (7) a project with issues
+offers no rehearsal (mutant: offered every visit). **Depends on** 25, 42. **Design:** 05 §5.3 (the
+demo), §4.4 (C11 row); 02 C11. **Closes** L-220's W1 half (Linear and CSV into `triage`); **serves**
+L-46. **Does not claim** Jira, Azure Boards or GitHub Issues import (W5, tasks 150-153), Linear's
+comments or attachments in the batch (SW.6 carries none), or a measured import speed.
+
+**70 — W1's local-mode demo, end to end, and its results.** Files:
+`docs/verification/2026-09-25-phase-w-results.md` (new; the W1 section; the house model is
+`docs/verification/2026-09-17-phase-1-results.md`), and a run script under
+`docs/verification/phase-w/` (`w1-demo.md`: the steps a person runs, each with the command, the
+observation to record and its time). The stack: the local Hub (`control-plane/cmd/hub/compose.yaml`)
+through `devissuer` (WS1, task 17), the control plane on loopback, the desktop, **local mode**
+sandboxes (`OD-20`), two signed-in people (the second makes the teammate's comment). The run
+follows 05 §5.3's demo, frame by frame: import a CSV (task 69) → Triage shows *not tied · imported*;
+`T` on EP-142 attaches its criterion from the text-match suggestion (task 42); `Shift+R` (task 61),
+first sign within 10 s recorded as measured seconds; the teammate comments (task 51); the lane lands
+(phase 3's land, task 22's `landed` move), the row flashes in place and does not move (tasks 40-41);
+the watched resume test passes at the landed commit and EP-142 turns `done` by itself (task 23); the
+Desk's last frame reads *"Nothing needs you. EP-142 landed and proven at 14:02."* (task 65). Beside
+it, the §4.6 budgets are **recorded, not asserted** (`budget.paint`, `budget.palette`,
+`budget.peek`, `budget.ack`), the Desk at 125 % and 150 % with 30 fixture agents is shown to the
+owner, and each of the four themes' screens goes to the owner's eyes (`CLAUDE.md`: a screenshot is
+not evidence). **Checks, each with the defect it would catch:** `go test ./control-plane/... -race
+-count=1` and the `-tags integration` rows green (a Work route regression); `npm --prefix desktop
+test` and `run typecheck` green; a `git grep -nE "localStorage|indexedDB|writeTextFile" --
+desktop/src/work desktop/src/components/{work,issue,desk}` that finds no Hub-record write (task 55's
+rule); a Hub query after the run showing the `done` move's actor is the person and its cause the
+observed run (rule 2), and no sync principal wrote a fact state. **The results section** lists, per
+parity row W1 closes (L-3, L-8's W1 half, L-9, L-10, L-13, L-15, L-17's team half, L-24, L-29,
+L-34, L-36, L-38, L-41, L-42, L-46-L-48, L-98's W1 half, L-101, L-102's W1 half, L-104, L-106,
+L-108, L-112-L-114, L-124, L-126, L-146, L-181, L-191, L-198, L-220's W1 half, L-221-L-229), the
+task that built it and what was observed, and what stays **UNVERIFIED** (the budgets, the cloud
+path, screen-reader use, `first.landing`'s starter repo). **Depends on** 01-69. **Design:** 05
+§5.3 (the demo, revision 2), §4.6, §5.7. **Closes** nothing new; it proves W1's rows. **Does not
+claim** the cloud demo (the owner's, after phase 6 stream A and phase 8 stream C; skeleton *Start
+lines*), team mode, or any number as a measurement beyond the run it was taken in.
+
