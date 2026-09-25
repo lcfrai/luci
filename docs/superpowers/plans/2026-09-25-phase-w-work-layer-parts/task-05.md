@@ -1950,3 +1950,41 @@ func TestWorkRowIDsAreInOrder(t *testing.T) {
 	}
 }
 ```
+
+---
+
+#### Tests first: the rows, each with the mutant it kills
+
+The rows are written before the fake's bodies: against task 04's stub, W-01 to W-09 pass and
+W-10 to W-25 fail with 501 `not_in_fake_yet` (step 2 pins that).
+
+| Row | Asserts | Mutant it kills |
+|---|---|---|
+| W-01 `numbers_gapless` | 1, 2, 3 across a refused create | a number taken before validation |
+| W-02 `viewer_cannot_write` | viewer 403 `required: member`; outsider 404 naming the id | a viewer who writes; a 403 that says it exists |
+| W-03 `key_is_the_alias` | `EP-1`, then `PAY-1` with the same `headKey`; a taken key 409 | a stored alias; a key that changes the provenance key |
+| W-04 `stale_base_conflicts` | base 1 after revision 2 → 409 `revision_conflict`, head still `v2` | last writer wins |
+| W-05 `restore_is_a_new_revision` | revision 3, `restoredFrom` 1, revision 1's digest and time unchanged | an in-place restore |
+| W-06 `patch_writes_no_revision` | `headRevision` 1 and exactly one `issue.updated` | a head write that revises |
+| W-07 `hand_cannot_set_a_fact` | `started`, `in_review`, `landed` by hand → 422 with from, to, cause | a person asserting a fact |
+| W-08 `hand_done_of_a_chore_has_no_criteria` | proof `no_criteria` | a hand-set done that reads proven |
+| W-09 `reopen_clears_the_proof_word` | proof `""`, reason `""` after a reopen | a stale proof word on an open issue |
+| W-10 `relation_reads_the_inverse` | the other end reads `blocked_by`; a repeat is one event | two stored rows; a repeat that appends |
+| W-11 `relation_cycle_refused` | the back edge 422 `relation_cycle`; a self relation 400 | a two-issue block cycle |
+| W-12 `relation_removed_from_the_other_end` | `duplicated_by` removed from B clears A; again 404 | a delete that leaves the inverse |
+| W-13 `label_names_are_the_teams` | ` bug ` after `Bug` 409 with its id; member 403; a hex colour 400 | a case-sensitive name; a raw colour |
+| W-14 `archived_label_is_unavailable` | 422 naming `labels[0]`; the list is empty | an archived label put on an issue |
+| W-15 `policy_gates_the_triage_exit` | default backlog; triage then 422 `policy_refused`; cancel allowed | a policy that blocks declining |
+| W-16 `replies_are_one_level` | a reply's reply and a reply's resolve → 422 | nested threads |
+| W-17 `text_anchors_count_utf16` | end 4 accepted, 5 refused on `é😀x` | code-point or byte offsets |
+| W-18 `reactions_are_idempotent` | on, on, off, off → two events; `:+1:` 400 | a second row per repeat; a shortcode |
+| W-19 `subscriptions_follow_triggers` | create subscribes; manual survives a comment; a mention subscribes; one event | a trigger overwriting a person's choice |
+| W-20 `import_is_idempotent` | 2 created, `nope` unmatched; re-run 2 existing, no event; triage, intake, imported; no subscription | a re-import that duplicates; a label created by import |
+| W-21 `import_is_all_or_nothing` | `items[1].url` 400 and no issue | a half-written batch |
+| W-22 `search_reads_only_readable_titles` | viewer finds it case-insensitively; outsider nothing; limit 51 400 | search before readability |
+| W-23 `attachments_are_this_projects_blobs` | one event for two attaches; type and size the blob's; another project's blob 404; viewer 403 | attaching another project's file |
+| W-24 `erase_keeps_keys_and_blanks_texts` | 403 then 400 then `2, 1`; number, alias, key, digest kept; texts `""`; second erase zeros and one more event | deleting rows; an unaudited retry |
+| W-25 `erased_takes_no_writes` | patch, comment, move → 409 `conflict`; search finds nothing | new text on an erased record |
+
+W-25's search clause is weak on the fake, where the title is read from the blanked revision; on
+the Hub it is the check on task 14's denormalised `head_title`, which is where the leak would be.
