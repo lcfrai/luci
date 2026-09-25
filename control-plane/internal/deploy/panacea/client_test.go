@@ -631,14 +631,16 @@ func TestCAFileAddsRoot(t *testing.T) {
 	if err := os.WriteFile(caPath, block, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	withCA, err := BuildHTTPClient(caPath, 5*time.Second)
+	// 30 s, not 5: this test is about roots, not time, and a 5 s timeout expired under -race on
+	// a loaded machine ("through the CA file: ..., unavailable", found t04).
+	withCA, err := BuildHTTPClient(caPath, 30*time.Second)
 	if err != nil {
 		t.Fatalf("BuildHTTPClient(ca): %v", err)
 	}
 	if v, err := Version(context.Background(), withCA, srv.URL); err != nil || v != "v1.163.0" {
 		t.Fatalf("through the CA file: %q, %v; want v1.163.0", v, err)
 	}
-	plain, err := BuildHTTPClient("", 5*time.Second)
+	plain, err := BuildHTTPClient("", 30*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1013,8 +1015,14 @@ func TestCancelDuringAttemptIsNotRetried(t *testing.T) {
 
 // TestVersionHonoursCtx: the connect form passes its request's ctx (task-05.md:90, :115), so a
 // cancelled connect ends at once instead of waiting out the client's timeout.
+//
+// The cancel fires when the request reaches the handler, not on a timer: a 50 ms timer raced the
+// TLS handshake under -race on a loaded machine, cancelled before any request, and failed "the
+// server saw 0 requests" (found t04, 1 run in 3 alone).
 func TestVersionHonoursCtx(t *testing.T) {
+	arrived := make(chan struct{}, 1)
 	srv, hits := versionServer(t, func(w http.ResponseWriter, r *http.Request) {
+		arrived <- struct{}{}
 		select {
 		case <-r.Context().Done():
 		case <-time.After(3 * time.Second): // bounded, so a Version that drops ctx fails, not hangs
@@ -1022,15 +1030,26 @@ func TestVersionHonoursCtx(t *testing.T) {
 	})
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	time.AfterFunc(50*time.Millisecond, cancel)
-	start := time.Now()
+	done := make(chan struct{})
+	defer close(done)
+	var cancelledAt atomic.Int64 // UnixNano of the cancel; 0 until it fires
+	go func() {
+		select {
+		case <-arrived:
+			cancelledAt.Store(time.Now().UnixNano())
+			cancel()
+		case <-done:
+		}
+	}()
 	v, err := Version(ctx, srv.Client(), srv.URL)
-	took := time.Since(start)
+	returned := time.Now()
 	if v != "" || !errors.Is(err, context.Canceled) || deploy.KindOf(err) != deploy.KindUnavailable {
-		t.Errorf("Version with a ctx cancelled at 50ms = %q, %v; want unavailable wrapping context.Canceled", v, err)
+		t.Errorf("Version with a ctx cancelled on the request's arrival = %q, %v; want unavailable wrapping context.Canceled", v, err)
 	}
-	if took >= time.Second {
-		t.Errorf("Version returned %v after its ctx was cancelled at 50ms; want at once", took)
+	if at := cancelledAt.Load(); at == 0 {
+		t.Errorf("Version returned before its request reached the server")
+	} else if took := returned.Sub(time.Unix(0, at)); took >= time.Second {
+		t.Errorf("Version returned %v after its ctx was cancelled; want at once", took)
 	}
 	if n := hits.Load(); n != 1 {
 		t.Errorf("the server saw %d requests, want 1", n)
