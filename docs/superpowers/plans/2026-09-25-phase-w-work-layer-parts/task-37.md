@@ -832,8 +832,8 @@ comments name `/v1/hub/work`, which is why it is the one allowed file.
 
 #### Tests to write first — appended to ⚑ `desktop/src/store/store.test.ts`
 
-In the file's existing persistence `describe` (the one holding `PERSISTED_KEYS`, `:402-408`),
-whose `beforeEach` already calls `resetCockpit()`:
+In the file's `describe("persistence")` (`:401`), which holds `PERSISTED_KEYS` (`:402-408`). The
+file's top-level `beforeEach` (`:27-30`) already clears `localStorage` and calls `resetCockpit()`:
 
 ```ts
   // Kills: Hub-derived state on disk (ADR-H1:467-474), and a `work` key added to partialize.
@@ -889,4 +889,41 @@ describe("the sub-rail", () => {
   });
 });
 ```
+
+
+#### Steps
+
+1. Write `work.test.ts`, the three `store.test.ts` tests and `SubRail.test.tsx`. Run
+   `npm --prefix desktop test -- work store SubRail`: `work.test.ts` fails to import; the store
+   tests fail on `openWork` not being a function; the SubRail test passes already (it is a guard).
+2. If the golden-vector glob returns no files, Vite is refusing a path outside `desktop/`: add
+   `server: { fs: { allow: [".."] } }` to `vitest.config.ts` and say so in the commit. If the Hub
+   branch has not merged yet, the three files do not exist and test 1 fails on its count: that is
+   the honest result, and this task waits for task 02's merge rather than copying the vectors.
+3. Write `work.ts` (parts 1-8, `import type` at the top); apply the `client.ts` deltas. Re-run: the
+   seven `work.test.ts` tests pass.
+4. Write `workSlice.ts`; apply the `types.ts` and `store.ts` deltas; replace task 20's mirrored
+   types in `workFixtures.ts`. Re-run: all pass. Run `npm --prefix desktop run typecheck`: the
+   `Same<>` line is the IssueState assertion, and a `Lens` switch without a `default` would fail
+   here (there is none today: `AppShell.tsx:67`).
+5. Mutate by hand, watch the named test go red, then revert: rename `criterionId` to `criterion` in
+   `Serve` and `WIRE_KEYS` (test 1); add `"shipped"` to `IssueState` (test 2, typecheck); change
+   `relayPath` to keep `/v1` (test 3); point `send` at `https://hub.example` for one method
+   (test 3); drop `first_write` from `workProblem` (test 4); build a path with `+` in place of
+   `fill` (test 5); join `states` with commas (test 6); add `work: s.work` to `partialize` (the
+   first store test); make `migrate` return `{}` for an unknown lens (the second); make `openWork`
+   keep `openIssue` on a branch change (the third); add Work to `LENSES` (SubRail).
+6. Run the full desktop suite (`npm --prefix desktop test`) and typecheck; commit.
+
+#### Acceptance
+
+```bash
+npm --prefix desktop test -- work store SubRail
+# expect: work.test.ts 7 passed; store.test.ts three more than before, all passed;
+#         SubRail.test.tsx 1 passed
+npm --prefix desktop run typecheck
+# expect: exit 0
+```
+
+The implementer reports the numbers the run prints; the plan's counts are not the evidence.
 
