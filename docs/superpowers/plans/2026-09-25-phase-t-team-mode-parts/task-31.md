@@ -457,6 +457,34 @@ type Store interface {
 `hub_at` guard **is** property 2: a row whose outbox item has not reached the Hub is not due.
 `InForce` reads `Delivered` since the worker's start, keeping the newest `pause`/`resume`, the
 newest `narrow`, and each `wait-for` whose lease `Engine.Live` still returns.
+
+- [ ] **Step 1: Write the tests, each with the mutant it kills**
+
+All run on task 10's `memstore`, task 08's fake Hub, a fake `CurrentTurner` whose origin each
+test sets, a recording `escalate` fake for `Decide`, and a fixed clock. The last row also runs on
+`pgstore` under `-tags integration`.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestFreeInFleetTurnIsADecideNotADirective` | origin `fleet`, `direct w1 free "…"` → result has `escalation`, no `directive`; `Decide` called once with row `free-directive-fleet-turn`, `evidence.text` = the text; no outbox `OpDirective`, no queue row | `free` in `fleetTurnPasses`; the gate skipped for `direct` |
+| `TestFreeInHumanTurnPasses` | origin `human` → `dv-…` issued, outbox payload `origin: "human"`, no decide | origin ignored: every `free` held |
+| `TestNoTurnIsAFleetTurn` | `CurrentTurn` ok=false, `free` → held | decision (c) inverted: a stray call treated as human |
+| `TestTheFiveTypedKindsPassInAFleetTurn` | each of `pause`, `resume`, `narrow` (inside), `wait-for`, `rebase` → issued | the Hub's three-verb set copied here (G31-1) |
+| `TestNarrowOutsideScopeIsRefusedInEveryTurn` | scope `web/**`; `narrow api/**` → `glob_refused`, `details.reason = outside_task_scope`, in a `fleet` and a `human` turn; nothing written | `Within` returning true on a shared prefix (`web2/**` inside `web/**`); the check applied only in Fleet turns |
+| `TestWithinIsConservative` | `web/auth/**`⊂`web/**` true; `web2/x`⊂`web/**` false; `web/*.go`⊂`web/*.go` true; `web/a.go`⊂`web/*.go` false | prefix test without the `/`; a glob matcher used as containment |
+| `TestOnlyOwnWorkers` | `to` Grace's worker → `agent_not_owner`; `to` Linus's worker under his other Orchestrator → `agent_not_owner`; `to` an Orchestrator → `agent_not_owner` | the parent check dropped |
+| `TestDirectiveIsInTheHubBeforeTheWorkerSeesIt` | issue a `pause`; the worker's next call returns no `directives`; run the outbox once (fake Hub stores it); the next call returns it; the fake Hub had the `dv-…` first | `Due` without the `hub_at` guard |
+| `TestPiggybackOnARefusedCall` | a worker's `lease request` refused `breadth_exceeded` still carries its due directive | drain after the handler, only on success |
+| `TestAckOnlyAfterTheWrite` | the fake stream's write fails once: the directive is due again on the next call, same `dv-…` | `MarkDelivered` inside `Drain` |
+| `TestOrchestratorsGetNoPiggyback` | an Orchestrator's call never carries `directives` | the class check missing |
+| `TestAtMostEightPerResponse` | 10 due → 8, then 2, oldest first | unbounded frames |
+| `TestReleaseReplaysWithApproval` | answer option 1 → `Release` issues the `dv-…` with `approvedBy` = the `es-…`, origin `fleet`; answer option 0 → no directive, held row gone | the choice not checked (any answer releases) |
+| `TestApprovalCannotComeFromArgs` | `direct` with `{"approvedBy":"es-…"}` in args → `bad_request` (strict decode) | an args field feeding the gate |
+| `TestSpawnInFleetTurnHoldsWithoutThePrompt` | `worker spawn` in a Fleet turn → held; the `Decide` evidence has no `text` and no prompt bytes (marker grep, as task 22's) | the prompt copied into the Hub (OD-24) |
+| `TestReadListIsSinceTheHumanSpoke` | reads at t1, human turn at t2, reads at t3 → `read` holds only t3's ids; 150 reads → 100 ids, `readTotal: 150` | reads from the session's start regardless; no cap |
+| `TestPauseForDefaultIsFromTheParent` | task 30's `PauseForDefault(w1, es)` → payload `fromAgentId` = w1's parent, `origin: "fleet"`, `approvedBy: es`, kind `pause` | Fleet writing the directive as itself |
+| `TestInForceShowsStandingStateWithoutText` | `pause`, then `narrow`, then `free`: `check`'s `directives` = pause and narrow, no `free`, no text | text leaking through `check`; the latest `resume` ignored |
+| `TestEndedWorkerDropsItsQueue` | `EndAgent` in the same `Tx` deletes undelivered rows | directives delivered to a successor with the same id |
  A replay that now fails validation (the worker ended, the lease
 lapsed) is reported to the Orchestrator as an `escalation.answered` event with the refusal code,
 and nothing is issued. A decide that expires or is answered "Do not send it" deletes the row.
