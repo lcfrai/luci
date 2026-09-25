@@ -64,10 +64,12 @@ func (r *ScopeRefusal) Error() string // "signin: <scope>: <Code>/<Suberror>"
 func (r *ScopeRefusal) Unwrap() error // r.Err
 
 // refreshSkew is how long before exp a cached token stops being served
-// (review I9): min(5 min, lifetime/2), lifetime = exp − the Now() at which the
-// token response was received. An hour's token is refreshed 5 min early, as
-// before; a 90 s token is served for 45 s, not redeemed on every call. All times
-// come from Config.Now, never time.Now.
+// (review I9, OD-30): min(60 s, lifetime/2), lifetime = exp − the Now() at which the
+// token response was received. The ruling's "cached until 60 seconds before exp"
+// (section 2 step 7) for every token of 2 min or more, so Keycloak's 5-minute
+// tokens are served for 4 min; A13's half-lifetime guard kept below that, so a
+// 90 s token is served for 45 s, not redeemed on every call. All times come from
+// Config.Now, never time.Now.
 func refreshSkew(lifetime time.Duration) time.Duration
 
 // Token serves the cached access token for scope while exp − now > refreshSkew(lifetime);
@@ -249,8 +251,8 @@ injected clock.
 
 | Test | Asserts | Mutant it kills |
 |---|---|---|
-| `TestACachedTokenIsServedUntilFiveMinutesLeft` | `AccessTTL` 60 min: at exp − 6 min → the cached token, no request; at exp − 4 min → a redemption | a redemption per call; a token served until it expires in flight |
-| `TestTheRefreshSkewIsHalfAShortLifetime` | `refreshSkew` table: 60 min → 5 min, 10 min → 5 min, 9 min → 4 min 30 s, 90 s → 45 s, 0 → 0. Then `AccessTTL` 90 s through `Token`, on the injected clock: at issue + 44 s → the cached token, no request; at issue + 46 s → one redemption (review I9) | the fixed 5-minute skew, under which any token shorter than 5 min is redeemed on every call; a skew read from `time.Now` instead of `Config.Now` |
+| `TestACachedTokenIsServedUntilSixtySecondsLeft` | `AccessTTL` 5 min: at exp − 61 s → the cached token, no request; at exp − 59 s → a redemption | a redemption per call; a token served until it expires in flight; the old 5-minute skew, which redeems Keycloak's 5-minute token on every call |
+| `TestTheRefreshSkewIsHalfAShortLifetime` | `refreshSkew` table: 60 min → 60 s, 5 min → 60 s, 2 min → 60 s, 90 s → 45 s, 0 → 0. Then `AccessTTL` 90 s through `Token`, on the injected clock: at issue + 44 s → the cached token, no request; at issue + 46 s → one redemption (review I9) | a fixed skew, under which any token shorter than it is redeemed on every call; a skew read from `time.Now` instead of `Config.Now` |
 | `TestTenCallersOneRedemption` | 10 goroutines, one scope, expired cache → exactly 1 token-endpoint request (contract §13 C1) | a thundering herd on the token endpoint |
 | `TestRedemptionsAreSerialisedAcrossScopes` | Hub and broker scopes expire together; 5 callers each, concurrently → both succeed; the endpoint saw 2 requests, never two with the same refresh token | the per-scope-only single-flight, which signs the user out under rotation |
 | `TestRotationIsWrittenBeforeTheTokenIsReturned` | a recording `Secrets`: in order, the new generation's chunks, then the account record naming that `refreshGen` and `refreshChunks`, then the old generation's deletes — all before `Token` returns; **no `Put` targets any chunk of the old generation** | a crash between return and write losing the only valid refresh token; the in-place overwrite (review I1); an old generation deleted before the record names the new one |
