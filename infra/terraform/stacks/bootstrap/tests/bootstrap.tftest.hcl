@@ -15,7 +15,10 @@
 # No file-level state_private_endpoint: its default, null, is dev's posture. If prod.tfvars
 # ever sets state_public_network_access = false, every prod-pass run without an endpoint meets
 # that variable's validation, so that change adds a placeholder endpoint here as well (no
-# tfvars sets the key, so guard G10 allows it; task 02 fix round 1, carried to task 31).
+# tfvars sets the key, so guard G10 allows it; task 02 fix round 1, carried to task 31). The
+# one run that needs no endpoint, public_access_off_needs_a_private_endpoint, sets
+# state_private_endpoint = null itself, so that placeholder cannot reach it (task 02 fix round
+# 2, re-review m1: without the null, the flip commit fails validate.sh in both passes).
 
 # The account's id is pinned to a well-formed Resource Manager id: azurerm validates the
 # container's storage_account_id as one even against a mock, and a random mock string fails
@@ -141,6 +144,39 @@ run "a_reader_that_is_also_a_writer_is_rejected" {
   variables {
     state_writer_object_ids = ["11111111-1111-1111-1111-111111111111", "33333333-3333-3333-3333-333333333333", "44444444-4444-4444-4444-444444444444"]
     state_reader_object_ids = ["22222222-2222-2222-2222-222222222222", "55555555-5555-5555-5555-555555555555", "33333333-3333-3333-3333-333333333333", "66666666-6666-6666-6666-666666666666"]
+  }
+  expect_failures = [var.state_reader_object_ids]
+}
+
+# The ends of both lists (task 02 re-review m2). The mid-list run above cannot tell a check that
+# drops the first writer or the last reader (RS1, RS1b), nor one that drops the last writer or
+# the first reader (RS1c, RS1d), so the shared id sits at each pair of ends in turn.
+run "a_reader_that_is_the_first_writer_is_rejected" {
+  command = plan
+  variables {
+    state_writer_object_ids = ["33333333-3333-3333-3333-333333333333", "11111111-1111-1111-1111-111111111111"]
+    state_reader_object_ids = ["22222222-2222-2222-2222-222222222222", "33333333-3333-3333-3333-333333333333"]
+  }
+  expect_failures = [var.state_reader_object_ids]
+}
+
+run "a_reader_that_is_the_last_writer_is_rejected" {
+  command = plan
+  variables {
+    state_writer_object_ids = ["11111111-1111-1111-1111-111111111111", "33333333-3333-3333-3333-333333333333"]
+    state_reader_object_ids = ["33333333-3333-3333-3333-333333333333", "22222222-2222-2222-2222-222222222222"]
+  }
+  expect_failures = [var.state_reader_object_ids]
+}
+
+# An Entra object id is a GUID, which compares without case; setintersection compares with it.
+# The same id typed in two cases is one principal, given both roles (task 02 fix round 2). The
+# case differs within each list too, so folding only one list still finds no overlap.
+run "a_reader_that_is_a_writer_in_another_case_is_rejected" {
+  command = plan
+  variables {
+    state_writer_object_ids = ["11111111-1111-1111-1111-111111111111", "aBcDeF00-0000-0000-0000-00000000000a"]
+    state_reader_object_ids = ["AbCdEf00-0000-0000-0000-00000000000A"]
   }
   expect_failures = [var.state_reader_object_ids]
 }
@@ -275,6 +311,7 @@ run "public_access_off_needs_a_private_endpoint" {
   command = plan
   variables {
     state_public_network_access = false
+    state_private_endpoint      = null
   }
   expect_failures = [var.state_public_network_access]
 }
@@ -331,6 +368,11 @@ run "a_private_endpoint_puts_state_on_the_vnet" {
   assert {
     condition     = azurerm_private_endpoint.state[0].tags == azurerm_storage_account.state.tags
     error_message = "The endpoint does not carry the stack's tags."
+  }
+  # Task 02 re-review m5 (PNM): a name hard-coded to one environment dies in the other's pass.
+  assert {
+    condition     = azurerm_private_endpoint.state[0].name == "pe-panacea-app-${var.environment}-tfstate" && azurerm_private_endpoint.state[0].private_service_connection[0].name == "psc-panacea-app-${var.environment}-tfstate"
+    error_message = "The endpoint or its connection is not named for this environment."
   }
 }
 
@@ -423,16 +465,24 @@ run "the_backend_file_names_this_container" {
 
 # providers.tf, read as text. Provider configuration is not an object a run can assert on, but
 # its file is (the technique the backend run uses). Each line exactly once, whole, never
-# commented out. This pins the source, not what azurerm does with it.
+# commented out. This pins the source, not what azurerm does with it. Block comments are
+# stripped before counting: a line regex reads a line inside /* */ as live (task 02 re-review
+# m3, RS2). Terraform's regex form takes the last / as its delimiter, hence the escaped \\/. One
+# azurerm block only: with a second, aliased one, the lines could sit there while the default
+# provider, the one every resource uses, has neither (task 02 fix round 2, PA1).
 run "the_provider_is_entra_only_and_registers_nothing" {
   command = plan
   assert {
-    condition     = length(regexall("(?m)^\\s*storage_use_azuread\\s*=\\s*true\\s*$", file("${path.module}/providers.tf"))) == 1
-    error_message = "providers.tf does not set storage_use_azuread = true once: the account has no shared key, so data-plane calls must use Entra."
+    condition     = length(regexall("(?m)^\\s*storage_use_azuread\\s*=\\s*true\\s*$", replace(file("${path.module}/providers.tf"), "/(?s)/\\*.*?\\*\\//", ""))) == 1
+    error_message = "providers.tf does not set storage_use_azuread = true once, outside a comment: the account has no shared key, so data-plane calls must use Entra."
   }
   assert {
-    condition     = length(regexall("(?m)^\\s*resource_provider_registrations\\s*=\\s*\"none\"\\s*$", file("${path.module}/providers.tf"))) == 1
-    error_message = "providers.tf does not set resource_provider_registrations = \"none\" once: the read-only plan identity cannot register providers (review C3)."
+    condition     = length(regexall("(?m)^\\s*resource_provider_registrations\\s*=\\s*\"none\"\\s*$", replace(file("${path.module}/providers.tf"), "/(?s)/\\*.*?\\*\\//", ""))) == 1
+    error_message = "providers.tf does not set resource_provider_registrations = \"none\" once, outside a comment: the read-only plan identity cannot register providers (review C3)."
+  }
+  assert {
+    condition     = length(regexall("(?m)^\\s*provider\\s+\"azurerm\"", replace(file("${path.module}/providers.tf"), "/(?s)/\\*.*?\\*\\//", ""))) == 1
+    error_message = "providers.tf does not hold exactly one azurerm provider block, so the two lines above may not be the default provider's."
   }
 }
 
@@ -442,5 +492,23 @@ run "the_container_is_made_through_resource_manager" {
   assert {
     condition     = azurerm_storage_container.tfstate.storage_account_id == azurerm_storage_account.state.id
     error_message = "The tfstate container is not made by storage_account_id, so managing it needs data-plane reach to the account."
+  }
+}
+
+# ---- Added in fix round 2 (task 02 re-review I1). -----------------------------------------------
+
+# README's stack order says an earlier stack never reads a later one, yet state_private_endpoint
+# takes two of foundation's ids. So the exception is declared beside the rule, in that section
+# (HTML comments stripped: a reader never sees them), and it stays what it declares: the ids
+# arrive by hand, and no bootstrap file reads terraform_remote_state.
+run "the_one_input_from_a_later_stack_is_declared" {
+  command = plan
+  assert {
+    condition     = strcontains(try(regex("(?s)\n## Stack order\n(.*?)\n## ", replace(replace(file("${path.module}/../../README.md"), "\r", ""), "/(?s)<!--.*?-->/", ""))[0], ""), "`state_private_endpoint`")
+    error_message = "infra/terraform/README.md's Stack order section does not declare state_private_endpoint, the one input bootstrap takes from a later stack, so the rule reads as unbroken."
+  }
+  assert {
+    condition     = alltrue([for f in fileset(path.module, "*.tf") : !strcontains(file("${path.module}/${f}"), "terraform_remote_state")])
+    error_message = "A bootstrap file names terraform_remote_state: the declared exception is ids copied by hand on an operator pass, never a read of a later stack's state."
   }
 }
