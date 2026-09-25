@@ -238,3 +238,95 @@ function ServesLine(props: { briefKey: string; criterionId: string; text: string
 the same line: the mark never appears without why (05 §2.1 rule 4, `task-20.md:309`'s
 `stateReason`). The criterion id inside *observed evidence* is mono, as every machine id is.
 
+#### Interfaces — complete: `desktop/src/prototype/work/DeskPrototype.tsx`
+
+```tsx
+// desktop/src/prototype/work/DeskPrototype.tsx — task 39. 05 §4.2's Desk on fixtures: the fixed
+// sections in their fixed order (decision 6), RUNNING folded (decision 7), the zero state (8).
+import { useMemo, useState } from "react";
+import type { JSX } from "react";
+import { ViewHeader } from "../../components/common/ViewHeader";
+import { AgentGlyph } from "../../components/glyphs/AgentGlyph";
+import type { AgentStatus } from "../../components/glyphs/AgentGlyph";
+import { StateGlyph } from "../../components/glyphs/StateGlyph";
+import { WORK_IDS, makeComment } from "../../test/workFixtures";
+import { protoWorld } from "./world";
+import "./prototype.css";
+
+/** AX §5's order. Never re-ranked by content; a section with no rows keeps its place. */
+export const DESK_ORDER = ["NEEDS YOU", "DECIDED WITHOUT YOU", "FAILED", "LANDED", "RUNNING"] as const;
+export type DeskSection = (typeof DESK_ORDER)[number];
+
+/** One issue row: why it is here, in one sans line. Override words, each naming its 05 §4.2 cell. */
+interface DeskRow { issueId: string; why: string }
+/** AX's three-line card, for an agent that changed since the reader last looked. */
+interface AgentCard { issueId: string; who: string; status: AgentStatus; meaning: string; fact: string }
+
+export const ZERO_LINE = "Nothing needs you. EP-142 landed and proven at 14:02.";
+
+export function DeskPrototype(): JSX.Element {
+  const world = useMemo(protoWorld, []);
+  const [zero, setZero] = useState(false);
+  const [unfolded, setUnfolded] = useState(false);
+  const ask = makeComment();                                       // Alice's question to Dylan on EP-163
+  const rows: Record<Exclude<DeskSection, "RUNNING">, DeskRow[]> = {
+    "NEEDS YOU": [{ issueId: ask.issueId, why: `Alice asked you: ${ask.body.text}` }],     // "a comment naming you with a question"
+    "DECIDED WITHOUT YOU": [],                                                          // W3 fills it
+    FAILED: [{ issueId: WORK_IDS.ep160, why: "imported from CSV; no intake rule routed it" }], // "an intake rule could not route a request"
+    LANDED: [{ issueId: WORK_IDS.ep142, why: "landed and proven at 14:02" },
+             { issueId: WORK_IDS.ep164, why: "landed; its evidence is not in yet" }],     // "your issue landed"
+  };
+  const changed: AgentCard = { issueId: WORK_IDS.ep150, who: "dylan · agent 2", status: "idle",
+    meaning: "asks which chunk size the brief means", fact: "idle · quiet 12m" };
+  const steady = [world.agent];                                    // EP-167's agent 1, live
+  const row = (r: DeskRow) => {
+    const head = world.heads[r.issueId];
+    return (
+      <li key={r.issueId} className="pw-desk-row" data-issue={r.issueId}>
+        <StateGlyph state={head.state} priority={head.priority} notProven={head.proof === "not_proven"} size={14} />
+        <span className="pw-alias">{head.alias}</span>
+        <span className="pw-title">{world.revisions[r.issueId].content.title.text}</span>
+        <span className="pw-desk-why">{r.why}</span>
+      </li>
+    );
+  };
+  return (
+    <div className="pw-screen" data-screen="desk">
+      <ViewHeader title="Desk" route="global" />
+      <div className="pw-dev" aria-label="Prototype controls">
+        <button type="button" className="pw-ghost" aria-pressed={zero} onClick={() => setZero(!zero)}>Show the zero state</button>
+      </div>
+      {zero ? <p className="pw-desk-zero">{ZERO_LINE}</p> : (
+        <div className="pw-list">
+          {DESK_ORDER.map((name) => (
+            <section key={name} className="pw-desk-sec" aria-label={name} data-section={name}>
+              <h2 className="pw-desk-h">{name}</h2>
+              {name !== "RUNNING" ? (
+                rows[name].length === 0 ? <p className="pw-desk-none">None</p> : <ul>{rows[name].map(row)}</ul>
+              ) : (<>
+                <div className="pw-desk-card" data-issue={changed.issueId}>
+                  <div><AgentGlyph status={changed.status} size={14} label={`${changed.who}, ${changed.status}`} />
+                    <span className="pw-agent-who">{changed.who}</span>
+                    <span className="pw-alias">{world.heads[changed.issueId].alias}</span></div>
+                  <div className="pw-agent-meaning">{changed.meaning}</div>
+                  <div className="pw-cause">{changed.fact}</div>
+                </div>
+                <button type="button" className="pw-ghost pw-desk-fold" aria-expanded={unfolded}
+                  onClick={() => setUnfolded(!unfolded)}>{`${steady.length} steady, all live`}</button>
+                {unfolded ? steady.map((a) => (
+                  <div key={a.issueId} className="pw-agent"><AgentGlyph status={a.status} size={14} label={`${a.who}, ${a.status}`} />
+                    <span className="pw-agent-who">{a.who}</span><span className="pw-agent-meaning">{a.meaning}</span></div>
+                )) : null}
+              </>)}
+            </section>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+`makeComment()` is task 20's one comment (`task-20.md:257-265`): Alice to Dylan on EP-163, so the
+NEEDS YOU row reads a fixture, not an invented line. The other `why` words are overrides.
+
