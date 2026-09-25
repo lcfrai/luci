@@ -456,3 +456,74 @@ export function makeWorkClient(send: WorkSend): WorkClient {
 `ArchiveLabel` and `undoStart` send no body, as the Go routes take none (`task-24.md:107`). The
 `!` after each `find` is safe because `m` is typed to a row's name.
 
+#### Interfaces — complete: `work.ts`, part 8: `workProblem` and the wire key lists
+
+```ts
+import type { ApiError } from "./client";   // type-only: client.ts imports this file at runtime
+
+/** What a Work surface does with a failure (decision 5). `refused` carries the reason in the
+ *  server's own words; `unavailable` means nothing was decided and a retry is honest. */
+export type WorkProblem =
+  | { kind: "first_write"; message: string }                                   // offer Stop and discard
+  | { kind: "confirm"; message: string; details: Record<string, string> }      // discard's token step
+  | { kind: "signed_out"; message: string }                                    // sign in again (OD-6)
+  | { kind: "unavailable"; code: string; message: string }
+  | { kind: "refused"; code: string; message: string; details: Record<string, string> };
+
+const UNAVAILABLE: ReadonlySet<string> = new Set([
+  "network_unavailable", "timeout", "upstream_unavailable", "hub_not_configured",
+  "import_source_unavailable", "backend_unavailable",
+]);
+
+export function workProblem(e: ApiError): WorkProblem {
+  const { code, message, details } = e;
+  if (code === "first_write") return { kind: "first_write", message };
+  if (code === "confirm_required") return { kind: "confirm", message, details };
+  if (code === "signed_out") return { kind: "signed_out", message };
+  if (UNAVAILABLE.has(code)) return { kind: "unavailable", code, message };
+  return { kind: "refused", code, message, details };
+}
+
+/** The wire's key lists, as values, for the golden-vector test. `Record<keyof T, true>` makes the
+ *  compiler hold each list to its type both ways: a missing key and an extra key are both errors,
+ *  so renaming a field on the desktop changes the list, and the vectors then disagree. */
+const keys = <T,>(r: Record<keyof T, true>): string[] => Object.keys(r).sort();
+export const WIRE_KEYS = {
+  content: keys<IssueRevisionContent>({ title: true, description: true, serves: true, implements: true }),
+  text: keys<AuthoredText>({ text: true, author: true }),
+  serve: keys<Serve>({ briefKey: true, criterionId: true }),
+};
+```
+
+The `import type` line sits at the top of `work.ts` with the file's other imports; it is printed
+here beside the one function that uses it.
+
+#### Interfaces — complete: the deltas on ⚑ `desktop/src/api/client.ts`
+
+```ts
+// :10, a new import beside the store types
+import { makeWorkClient, type WorkClient } from "./work";
+
+// :40-48, ProblemCode: these eleven join the union, after "non_loopback_publish"
+  /* the Work wire (task 37): the relay's (task 16), the local start's (task 24), import's (task 25) */
+  | "hub_not_configured" | "upstream_unavailable" | "signed_out"
+  | "first_write" | "confirm_required" | "start_not_found" | "issue_not_startable" | "git_not_ready"
+  | "import_source_refused" | "import_source_unavailable" | "too_large"
+
+// :132, CockpitClient gains one member, after openAttach
+  /** SW.15: the Work relay and the local Work routes, over this client's transport. */
+  readonly work: WorkClient;
+
+// :170
+type Method = "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
+
+// inside createClient, after `createSession` (:301-302), and `work` in the returned object
+  const work = makeWorkClient(async (verb, route, body) => parseJson<unknown>(await send(verb, route, body)));
+  // …
+    work,
+```
+
+The comment above `ProblemCode` (`:35-39`) says "The sixteen codes"; it becomes "twenty-seven".
+Hub codes the list does not name (`policy_refused`, `revision_conflict`, `issue_not_found`, …)
+still arrive intact through `toProblem`, and `workProblem` files them as `refused`.
+
