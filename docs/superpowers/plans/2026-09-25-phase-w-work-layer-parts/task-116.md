@@ -225,3 +225,87 @@ task 74's; `notes` is TM-46's. All five names are **UNVERIFIED** until those mig
 are renamed mechanically at Step 1 if they differ. Task 119's part references `work_features (id)`
 for its pins (`task-119.md:122`); the table is task 74's `features`, and 119's line takes that name
 at build.
+
+#### `NNNN_work_roadmap.sql`, continued: the guards
+
+```sql
+-- ── an update never changes (decision 1). Task 119 reuses this for its pins. ──
+CREATE FUNCTION guard_work_update_meta() RETURNS trigger
+LANGUAGE plpgsql SET search_path = hub, pg_temp AS $$
+BEGIN
+  RAISE EXCEPTION 'hub: update_immutable: % on %', TG_OP, TG_TABLE_NAME
+    USING ERRCODE = 'insufficient_privilege';
+END $$;
+CREATE TRIGGER work_update_meta_immutable
+  BEFORE UPDATE OR DELETE ON work_update_meta
+  FOR EACH ROW EXECUTE FUNCTION guard_work_update_meta();
+
+-- ── a dependency never closes a cycle (decision 2) ──
+CREATE FUNCTION guard_work_feature_deps() RETURNS trigger
+LANGUAGE plpgsql SET search_path = hub, pg_temp AS $$
+BEGIN
+  PERFORM pg_advisory_xact_lock(hashtext('work_feature_deps:' || NEW.org_id));
+  IF EXISTS (
+    WITH RECURSIVE reach(id) AS (
+      SELECT d.blocks_id FROM work_feature_deps d WHERE d.from_id = NEW.blocks_id
+      UNION
+      SELECT d.blocks_id FROM work_feature_deps d JOIN reach r ON d.from_id = r.id
+    )
+    SELECT 1 FROM reach WHERE id = NEW.from_id
+  ) OR NEW.blocks_id = NEW.from_id THEN
+    RAISE EXCEPTION 'hub: dependency_cycle: % blocks %', NEW.from_id, NEW.blocks_id
+      USING ERRCODE = 'P0001';
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER work_feature_deps_acyclic
+  BEFORE INSERT ON work_feature_deps
+  FOR EACH ROW EXECUTE FUNCTION guard_work_feature_deps();
+
+-- ── a cursor never goes back (decision 3) ──
+CREATE FUNCTION guard_work_read_cursor() RETURNS trigger
+LANGUAGE plpgsql SET search_path = hub, pg_temp AS $$
+BEGIN
+  NEW.seq := GREATEST(OLD.seq, NEW.seq);
+  RETURN NEW;
+END $$;
+CREATE TRIGGER work_read_cursors_forward
+  BEFORE UPDATE ON work_read_cursors
+  FOR EACH ROW EXECUTE FUNCTION guard_work_read_cursor();
+
+-- ── SW.3, extended: a person writes W4; the janitor touches two columns (decision 4) ──
+CREATE FUNCTION guard_work_w4_actor() RETURNS trigger
+LANGUAGE plpgsql SET search_path = hub, pg_temp AS $$
+DECLARE v_kind text := coalesce(current_setting('hub.work_actor_kind', true), '');
+BEGIN
+  IF v_kind = 'person' THEN
+    RETURN CASE TG_OP WHEN 'DELETE' THEN OLD ELSE NEW END;
+  END IF;
+  IF v_kind = 'janitor' AND TG_OP = 'UPDATE' AND (
+       (TG_TABLE_NAME = 'work_template_schedules'
+          AND (to_jsonb(NEW) - 'last_fired_on') = (to_jsonb(OLD) - 'last_fired_on'))
+    OR (TG_TABLE_NAME = 'work_reminder_policies'
+          AND (to_jsonb(NEW) - 'last_reminded_on') = (to_jsonb(OLD) - 'last_reminded_on'))) THEN
+    RETURN NEW;
+  END IF;
+  RAISE EXCEPTION 'hub: work: a % principal does not write %', nullif(v_kind, ''), TG_TABLE_NAME
+    USING ERRCODE = 'insufficient_privilege';
+END $$;
+
+DO $$
+DECLARE t text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY['work_initiatives', 'work_initiative_teams', 'work_update_meta',
+      'work_milestones', 'work_milestone_criteria', 'work_feature_deps', 'work_brief_templates',
+      'work_template_schedules', 'work_reminder_policies', 'work_triage_rotations',
+      'work_read_cursors', 'work_project_grants'] LOOP
+    EXECUTE format('CREATE TRIGGER %I BEFORE INSERT OR UPDATE OR DELETE ON hub.%I
+                    FOR EACH ROW EXECUTE FUNCTION hub.guard_work_w4_actor()', t || '_actor', t);
+  END LOOP;
+END $$;
+```
+
+Trigger order: Postgres fires `BEFORE` row triggers in name order, so on `work_update_meta` the
+actor guard (`…_actor`) fires before `…_immutable`, and on `work_feature_deps` before
+`…_acyclic`; either order refuses the same writes, and the tests name the error they expect.
+`features.initiative_id` is written by task 118 on `features`, whose guard is task 74's.
