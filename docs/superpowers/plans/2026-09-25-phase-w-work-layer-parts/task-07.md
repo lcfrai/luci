@@ -416,7 +416,7 @@ var workMatrixRows = map[string][]workRow{
 		wread("GET /v1/issues/{issueId}/revisions", "/v1/issues/{IssueID}/revisions", "issue_not_found"),
 		wread("GET /v1/issues/{issueId}/revisions/{rev}", "/v1/issues/{IssueID}/revisions/1", "issue_not_found"),
 		wwrite("POST /v1/issues/{issueId}/revisions/{rev}/restore", "POST", "/v1/issues/{IssueID}/revisions/1/restore", 201, "issue_not_found",
-			func(*fixture) any { return map[string]any{"fromRevision": 1} }),
+			func(*fixture) any { return map[string]any{"fromRevision": 1, "baseRevision": 2} }), // task 09 decision 3
 		wwrite("POST /v1/issues/{issueId}/attachments", "POST", "/v1/issues/{IssueID}/attachments", 201, "issue_not_found",
 			func(f *fixture) any { return map[string]any{"digest": f.WorkBlob} }),
 		wread("GET /v1/issues/{issueId}/attachments", "/v1/issues/{IssueID}/attachments", "issue_not_found"),
