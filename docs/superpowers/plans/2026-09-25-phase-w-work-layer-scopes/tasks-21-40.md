@@ -134,3 +134,83 @@ sandbox uses in local mode (P3-24's runner or the phase 1 Docker sandbox, **UNVE
 05 §3.3, §2.1 point 4, §5.3 row 7. Parity: closes the W1 part of **L-8** (`done` is a fact) with task
 22; it is what makes the demo's no-click `done` (05 §5.3) true.
 
+**24 — control plane: Start from an issue, *Undo Start*, the data-class route.** Stream WP, defines
+seam **SW.10**, 3 h. Depends on 16 (the relay, `Deps.Work`), 19 (`Session.IssueRef`, SW.7) and 21
+(`IssueBranchName`, `Lane.IssueID`); P3-04 and P3-11 (create and remove a worktree) arrive through 21.
+Files: new `control-plane/internal/workstart/start.go`, `undo.go` and tests; new
+`control-plane/internal/api/workstart.go` (+ test); ⚑ `internal/api/api.go` (`Deps.WorkStart`,
+registration), ⚑ `routes_audit_test.go` (catalog rows), ⚑ `cmd/api/{config,main}.go` (wiring).
+**SW.10, the wire:** `POST /v1/work/start` with `{projectId, issueId, branch, accept?: bool,
+route?: "global"|"au", requestId}` → `201 {issueKey: "issue:is-…@r", worktreeId, sessionId, branch,
+route, undo: "undo_start"}`; `POST /v1/work/start/{sessionId}/undo` → `200 {undone: true, cost:
+null|{cents}}`, or `409 first_write` with `{next: "discard"}` once the session has written a file;
+`POST /v1/work/start/{sessionId}/discard` with `{confirm}`, P3-11's two-step confirm token. A repeat
+`requestId` returns the first result (a double press is one Start). **Start**, in order: read the
+issue head and its latest revision through `Deps.Work`, and pin that revision as the `IssueRef` (the
+agent is told `@r`, never "latest"); with `accept`, move `triage → todo` first, as the person (L-47's
+*accept and Start*); create the lane through `lanes.Creator` with `Name: IssueBranchName(…)` and
+`IssueID`; create the session on it through the built `POST /v1/sessions` path
+(`sessionCreateRequest`, `internal/api/sessions.go:696-707`, which task 19 extends with `IssueRef`,
+and `ContextRef` set to the first `serves` entry's brief key); then task 22's `LaneBound` writes
+`started`. A failure at any step undoes the steps before it. **The route:** a `DataClass` interface
+(`AUOnly(ctx, projectID) (bool, error)`) forces `au` and a slug-free name for an *AU data only*
+project, and **an unknown class fails safe to AU** (its home is **UNVERIFIED until merge**, as task
+21 says); otherwise the person's choice, default `global` (`OD-19`). In local mode no gateway exists,
+so the route is returned and shown, and phase 6's token mint consumes it later. ***Undo Start***
+(05 §4.6): allowed until the **first file write**, observed mechanically as the lane's `git status
+--porcelain=v1 -z` turning non-empty or its `HEAD` moving (read through the lane runner, never the
+PTY, `OD-8`), with no timer, so it holds past six seconds. It stops the session, removes the
+worktree, and moves the issue back to its state before Start with cause `start_undone`, as the
+person who started it; SW.4 must accept that one backward cause (task 10). `cost` is `null` in local
+mode (provider rate through the gateway, phase 6, **UNVERIFIED**). **Tests first:**
+`TestStartBindsLaneSessionAndIssue` (kills a session without `IssueRef`); `TestStartPinsTheRevision`
+(the Hub writes `@4` after Start → the session keeps `@3`; kills re-reading latest);
+`TestStartAUOnlyForcesAUAndNoSlug` (kills the person's choice overriding the class);
+`TestStartUnknownClassFailsSafe` (kills a Global default); `TestStartFromTriageAcceptsFirst` (kills
+starting an unaccepted issue); `TestStartRollsBackOnSessionFailure` (kills a half-made Start);
+`TestUndoBeforeFirstWriteRemovesAll` (kills a clone left behind); `TestUndoAfterFirstWriteRefused`
+(kills an undo that throws work away); `TestUndoHoldsPastSixSeconds` (kills a timer-based undo);
+`TestDiscardNeedsConfirm` (kills a one-step discard); the catalog row in `routes_audit_test.go`.
+**Acceptance:** `go test ./control-plane/internal/workstart/... ./control-plane/internal/api/... -race
+-count=1` prints `ok`. It does **not** claim the desktop chip or `Shift+R` (task 61), the 10-second
+first sign (task 61), Delegate (W3, task 102), or cloud sessions (phase 6 stream A, phase 8 stream C).
+Design: 05 §2.1, §3.4 (issue text enters only after its owner adopts it, here by Start), §4.5
+(Develop row), §4.6. Parity: closes the W1 parts of **L-39** (the delegate is the assignee's own
+agent), **L-175** (Start with the issue in context, local mode first), **L-181** and **L-198**; with
+task 19 **L-191**; with tasks 42 and 61 **L-47**'s *accept and Start*.
+
+**25 — control plane: the Linear public-API and CSV import adapters.** Stream WP, consumes seam
+**SW.6** (task 15's normalised batch, idempotent by `(source, externalId)`), 3 h. Depends on 15 and 16.
+Files: new `control-plane/internal/workimport/linear.go`, `csv.go`, `batch.go` and tests with
+hand-written fixtures under `workimport/testdata/` (written from Linear's public API documentation,
+never copied responses, `OD-11`); new `control-plane/internal/api/workimport.go` (+ test); ⚑ `api.go`
+(`Deps.WorkImport`), ⚑ `routes_audit_test.go`, ⚑ `cmd/api/{config,main}.go`. **Wire:** `POST
+/v1/work/import/preview` and `POST /v1/work/import`, body `{projectId, source: "linear"|"csv",
+linear?: {apiKey, teamKey?}, csv?: {content}}` → `200 {created, unchanged, refused: [{at, reason}]}`
+(`at` is a CSV line number or a Linear identifier; plain counts only, `OD-27`). **Linear:**
+`LinearPager` walks the public GraphQL API's `issues` connection by cursor to the end, 50 per page,
+honouring `Retry-After` on 429, and maps each issue to one batch item: title, description (as
+`text·H` of the importing person, the source identifier kept as `externalKey`), priority (Linear's
+0-4 to `none`·`urgent`·`high`·`medium`·`low`), labels by name; Linear's workflow state is **not**
+carried, because every import lands in `triage` as *not tied · imported* and nothing imported may
+set a state (05 §2.3 point 4). The API key lives in memory for one request: never logged, never
+written under `statepath`, never sent anywhere but the Linear host. **CSV:** `encoding/csv`, BOM
+stripped, a header row with `title` required and `description`, `priority`, `labels` (`;`-separated),
+`id` optional; without `id`, `externalId` is a digest of the row's normalised fields, so the same
+file imported twice creates nothing the second time; at most 5,000 rows; every refusal names its
+line. **Batch:** items go to the relay in chunks of at most 100. **Tests first:**
+`TestLinearPagerFollowsTheCursorToTheEnd` (kills stopping at page one);
+`TestLinearPagerHonoursRetryAfter` (kills retrying at once); `TestLinearKeyNeverLeaves` (captures
+the logger and the state directory; kills a key in a log line or a file);
+`TestLinearPriorityMapping` (kills an off-by-one between `none` and `urgent`);
+`TestLinearStateIsNotCarried` (kills an import that arrives `done`); `TestCSVRequiresTitle` (kills a
+silent drop); `TestCSVReimportIsIdempotent` (kills duplicates on re-import);
+`TestCSVDigestIgnoresLineEndings` (CRLF and LF give one id; kills a digest over raw bytes);
+`TestBatchChunksAtOneHundred` (kills one unbounded request). **Acceptance:** `go test
+./control-plane/internal/workimport/... ./control-plane/internal/api/... -race -count=1` prints `ok`.
+It does **not** claim the import dialog (task 69), Jira, Azure Boards or GitHub Issues import (W5,
+tasks 150-153), comment import, or that `api.linear.app` is reachable from the corporate network
+(**UNVERIFIED**; the CSV path is the fallback). Design: 05 §5.3 (row 5 and the demo's first step),
+§2.3 point 4, §3.6. Parity: closes the W1 part of **L-220** (Linear and CSV importers), and with task
+15 **L-9**'s *intake always lands in `triage`*.
+
