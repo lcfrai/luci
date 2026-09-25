@@ -56,3 +56,137 @@ from an outage or a restored Hub without a blank screen, and keeps no text an er
    as `unavailable` (task 37's `workProblem`, which counts `upstream_unavailable` and
    `network_unavailable`, `task-37.md:472-475`) followed by one that succeeds: resume from the last
    applied cursor, **no** full load, then call task 56's `resume()`; (c) **membership** (decision 3).
+5. **A resync never blanks the screen.** While it runs `status` is `"resyncing"` and the records
+   already held stay readable. The new load is built **beside** the old records and swapped in with
+   **one** `transact`, so `useWork` selectors see one change and task 41's `reconcile(prev, next,
+   focus)` holds every move under the reader. `resyncSince()` answers the local time the resync
+   began; the view header renders it through `resyncLine` as one fact line. There is no progress:
+   the line says what is happening and since when, never how much is left (`OD-27`).
+6. **Erase keeps the identity and loses the words.** `issue.erased` (`task-13.md:129`) takes the
+   issue's comments with it, and `comment.erased` is a comment's own (`task-14.md:32-36`). On
+   either, before task 55's subject re-fetch, `eraseInMemory` rewrites **every** copy the replica
+   holds: each revision in memory (the head and any task 47 loaded) keeps `key`, `digest`,
+   `revision`, `issueId` and `projectId`, sets `erasedAt`, and has its title and description text
+   emptied; the head's `stateReason` is emptied (task 14 blanks it too, `task-14.md:37-38`); each
+   erased comment keeps `id`, `issueId` and `createdAt`, sets `erasedAt`, and has its body emptied.
+   `serves` and `implements` hold keys, not words, and stay. The record is kept, so chips and links
+   still resolve, as *erased*.
+
+**Files** (the skeleton's File map lists `src/work/replica/{…,visibility,…}.ts` for 55-58, `:304`;
+it omits the two surface edits and `ResyncLine.tsx`, gaps named at the end):
+- `desktop/src/work/replica/visibility.ts` — `ProjectScope`, `classify`, `resyncFor`,
+  `eraseInMemory`, `resyncLine` (new)
+- `desktop/src/work/replica/visibility.test.ts` — the pure rules (new)
+- `desktop/src/work/replica/replica.ts` (task 55) — `scope`, `admit`, `accessLost`, `resyncSince`,
+  the membership and resync paths (modified)
+- `desktop/src/work/replica/access.test.ts` — the replica against a fake Hub (new)
+- `desktop/src/components/work/ResyncLine.tsx` — the one fact line (new)
+- `desktop/src/components/work/WorkLens.tsx` ⚑ (task 40) — mounts `ResyncLine` in its header (modified)
+- `desktop/src/components/issue/IssueView.tsx` ⚑ (task 46) — the *no longer have access* fact (modified)
+
+#### Interfaces — complete: `desktop/src/work/replica/visibility.ts`
+
+```ts
+// desktop/src/work/replica/visibility.ts — pure rules; replica.ts owns the state they act on.
+import type { IssueComment, IssueHead, IssueRevision } from "../../api/work";
+
+/** One readable project, from GET /v1/hub/projects (hub-contract.md:347, relayed by task 16). */
+export interface ProjectScope { projectId: string; teamId: string; key: string }
+
+/** The fields of a feed event these rules read (hubapi.Event, hub-contract.md:1096-1097). */
+export interface FeedEventLike {
+  seq: number; at: string; kind: string; teamId: string | null; projectId: string | null;
+  subject: string;
+}
+
+export type VisibilityAction =
+  | { kind: "none" }
+  | { kind: "drop_team"; teamId: string }                 // team.member_removed naming the caller
+  | { kind: "relist"; teamId: string }                    // team.member_set naming the caller
+  | { kind: "erase"; what: "issue" | "comment"; subject: string };
+
+export const ERASE_KINDS = { "issue.erased": "issue", "comment.erased": "comment" } as const;
+
+export function classify(e: FeedEventLike, callerId: string): VisibilityAction {
+  if (e.kind === "team.member_removed" && e.subject === callerId && e.teamId)
+    return { kind: "drop_team", teamId: e.teamId };
+  if (e.kind === "team.member_set" && e.subject === callerId && e.teamId)
+    return { kind: "relist", teamId: e.teamId };
+  const what = (ERASE_KINDS as Record<string, "issue" | "comment" | undefined>)[e.kind];
+  return what ? { kind: "erase", what, subject: e.subject } : { kind: "none" };
+}
+
+/** The feed's health as the replica sees it. `lastSeq` is the highest seq applied. */
+export interface FeedHealth { readonly lastSeq: number; readonly down: boolean }
+/** "full": drop the cursor, take after=latest, load every readable project, swap in one transact.
+ *  "resume": the feed answered again after an outage; nothing to reload, the cursor stands. */
+export type ResyncPlan = "none" | "full" | "resume";
+
+/** A page arrived. A `next` below lastSeq means the Hub went back in time: a restore (decision 4a).
+ *  Holes between seqs mean nothing (the feed is filtered per caller, hub-contract.md:1103). */
+export function planForPage(h: FeedHealth, next: string): ResyncPlan {
+  const n = Number(next);
+  if (Number.isSafeInteger(n) && n < h.lastSeq) return "full";
+  return h.down ? "resume" : "none";
+}
+
+/** A changes() call failed. Only `unavailable` (task 37's workProblem) marks the feed down: a
+ *  refusal or signed_out is not an outage, and a resume after it would hide the real cause. */
+export function healthAfterFailure(h: FeedHealth, problem: "unavailable" | "refused" | "signed_out" | "other"): FeedHealth {
+  return problem === "unavailable" ? { lastSeq: h.lastSeq, down: true } : h;
+}
+
+/** The words an erase leaves behind (decision 6). Identity stays; text goes. */
+export function eraseRevision(r: IssueRevision, at: string): IssueRevision {
+  return { ...r, erasedAt: r.erasedAt ?? at, content: { ...r.content,
+    title: { text: "", author: r.content.title.author },
+    description: { text: "", author: r.content.description.author } } };
+}
+export function eraseComment(c: IssueComment, at: string): IssueComment {
+  return { ...c, erasedAt: c.erasedAt ?? at, body: { text: "", author: c.body.author }, mentions: [] };
+}
+export function eraseHead(h: IssueHead): IssueHead {
+  return { ...h, stateReason: "" };
+}
+
+/** "Reloading · since 11:02" while resyncing, else "". 24-hour local time; no count, no ETA. */
+export function resyncLine(status: string, since: number | null, timeZone: string): string {
+  if (status !== "resyncing" || since === null) return "";
+  const hhmm = new Intl.DateTimeFormat("en-AU", { hour: "2-digit", minute: "2-digit",
+    hourCycle: "h23", timeZone }).format(since);
+  return `Reloading · since ${hhmm}`;
+}
+```
+
+`IssueRevision`, `IssueComment` and `IssueHead` are task 37's wire types. Their fields here
+(`content.title`, `content.description`, `erasedAt`, `body`, `mentions`, `stateReason`) are the
+ones task 20's fixtures mirror (`task-20.md:180-197`); if task 37 names them differently, task 37
+wins and these three functions follow. The replica passes the event's `at` as the erase time.
+
+#### Interfaces — complete: the deltas on `replica.ts` (task 55)
+
+```ts
+// desktop/src/work/replica/replica.ts — task 57 adds these; task 55's Replica keeps its members.
+import type { ProjectScope } from "./visibility";
+
+/** Task 55's ReplicaDeps gains the two things visibility needs. */
+export interface ReplicaVisibilityDeps {
+  /** The signed-in user's Hub id (u-…), from phase H's identity (GET /v1/me, hub-contract.md:343). */
+  callerId: string;
+  /** GET /v1/hub/projects through task 16's relay: own teams' projects only (hub-contract.md:347). */
+  readableProjects(): Promise<ProjectScope[]>;
+  /** The IANA zone the fact line prints in; the store's, as task 41's causeLine takes it. */
+  timeZone: string;
+  clock(): number;
+}
+
+export interface ReplicaVisibility {
+  /** The projects the replica may hold, as last listed. Nothing outside it is ever loaded. */
+  scope(): readonly ProjectScope[];
+  /** Set when the caller lost a project this session; the issue view shows it as a fact. */
+  accessLost(projectId: string): { projectKey: string; at: number } | null;
+  /** When the current resync began, or null when status is not "resyncing". */
+  resyncSince(): number | null;
+}
+// `interface Replica extends ReplicaVisibility` — task 55's Replica gains these members.
+```
