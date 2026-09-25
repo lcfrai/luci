@@ -266,7 +266,7 @@ base party's task; (4) conflict → `resolved`, resolution `build-on`; (5) `Outc
 | **Build on** (`AcceptNeedsDecision`, row `build-on`) | the builder's human | *Hold: nothing is brought in* · `hold` | *Bring <other>'s lane into <worker>* · `apply-proposal` — **offered only when `AgentConfigKnown`** | *Do not build on it* · `decline-proposal` |
 
 The question, Fleet's template, ≤ 300 runes, from typed fields only: *"<other>'s orchestrator and
-yours agreed that your worker <ag-…> builds on <other>'s lane <wt-…> at <sha7>. It changes N
+yours agreed that your worker <ag-…> builds on <other>'s lane <w-…> at <sha7>. It changes N
 agent-config files, listed below."* With `AgentConfigKnown` false: *"… The agent-config files it
 changes could not be listed, so it cannot be applied from here."* N = 0 says *"It changes no
 agent-config files."* The lines themselves go in the record's new `agentConfig` field, one entry
