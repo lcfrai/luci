@@ -125,8 +125,8 @@ func escapeStrings(raw []byte) []byte
 
 **The verbs and their `args`.** One row per argv form. The `args` column is the exact JSON the CLI
 sends. Rows marked **(22)** or **(23)** match a part already written (`task-22.md:263-265`,
-`task-23.md:252-264`); rows marked **(09?)** are this part's proposal, to be reconciled with task 09's
-ST.1 shape when it is written, and task 09 wins.
+`task-23.md:252-264`); rows marked **(09)** match task 09's per-verb table (`task-09.md:596-611`),
+checked 2026-09-25 after that part landed. Where the two ever disagree, task 09 wins.
 
 | Argv | `args` sent | Row |
 |---|---|---|
@@ -138,17 +138,17 @@ ST.1 shape when it is written, and task 09 wins.
 | `lease request <glob>…` | `{"op":"request","globs":[…]}` | (23) |
 | `lease request --intent --task <tk-…> <glob>…` | `{"op":"request","globs":[…],"mode":"intent","task":"tk-…"}` | (23) |
 | `lease release <ls-…>` | `{"op":"release","lease":"ls-…"}` | (23) |
-| `report done\|blocked\|assumed <text>` | `{"kind":"blocked","text":"<text>"}` | (09?) |
-| `report blocked --on human <text>` | `{"kind":"blocked","on":"human","text":"<text>"}` | (09?) |
-| `worker spawn --task <tk-…>` | `{"op":"spawn","task":"tk-…"}` | (09?) |
-| `worker stop <ag-…>` | `{"op":"stop","agent":"ag-…"}` | (09?) |
-| `direct <ag-…> pause\|resume\|rebase` | `{"to":"ag-…","kind":"pause"}` | (09?) |
-| `direct <ag-…> narrow <glob>…` | `{"to":"ag-…","kind":"narrow","globs":[…]}` | (09?) |
-| `direct <ag-…> wait-for <ls-…>` | `{"to":"ag-…","kind":"wait-for","lease":"ls-…"}` | (09?) |
-| `direct <ag-…> free <text>` | `{"to":"ag-…","kind":"free","text":"<text>"}` | (09?) |
-| `inbox` | `{}` | (09?) |
-| `lane <ag-…>` | `{"agent":"ag-…"}` | (09?) |
-| `task\|peer\|human <sub> --args '<json>'` | `{"op":"<sub>", …the object's keys}` for `task`; `{"kind":"<sub>", …}` for `peer` and `human` | (09?) |
+| `report done\|blocked\|assumed <text>` | `{"kind":"blocked","text":"<text>"}` | (09) |
+| `report blocked --on human <text>` | `{"kind":"blocked","on":"human","text":"<text>"}` | (09) |
+| `worker spawn --task <tk-…>` | `{"op":"spawn","task":"tk-…"}` | (09) |
+| `worker stop <ag-…>` | `{"op":"stop","agent":"ag-…"}` | (09) |
+| `direct <ag-…> pause\|resume\|rebase` | `{"to":"ag-…","kind":"pause"}` | (09) |
+| `direct <ag-…> narrow <glob>…` | `{"to":"ag-…","kind":"narrow","globs":[…]}` | (09) |
+| `direct <ag-…> wait-for <ls-…>` | `{"to":"ag-…","kind":"wait-for","lease":"ls-…"}` | (09) |
+| `direct <ag-…> free <text>` | `{"to":"ag-…","kind":"free","text":"<text>"}` | (09) |
+| `inbox` | `{}` | (09) |
+| `lane <ag-…>` | `{"agent":"ag-…"}` | (09) |
+| `task\|peer\|human <sub> --args '<json>'` | `{"op":"<sub>", …the object's keys}` for `task`; `{"kind":"<sub>", …}` for `peer` and `human` | (09) |
 | `<any verb> --args '<json>'` | the object, verbatim | — |
 
 For the `--args` form of `task`, `peer` and `human`, the CLI adds `op` or `kind` from the subcommand and
@@ -348,10 +348,8 @@ Expected: no output.
 
 - That a model obeys the envelope. The header states the rule; whether a model treats `text·A` as data
   is task 42's injection corpus (G9) to measure, not something output formatting can guarantee.
-- That any verb but `team`, `check`, `files`, `show` and `lease` sends the `args` its handler will
-  accept. Those five match parts already written (tasks 22, 23). The rest are **(09?)** rows until
-  task 09 fixes ST.1's shapes and tasks 24, 28, 30 and 31 decode them; the table test then reads task
-  09's fixtures and the rows are renamed to fit.
+- That the handlers of tasks 24, 28, 30 and 31 decode exactly task 09's `args`. This part sends task
+  09's shapes; each handler's strict decode is that handler's test.
 - That the hook's input fields and `additionalContext` behave as described at the pinned CLI version
   (task 33).
 - That `panacea` works on a laptop. In solo mode there is no socket and every verb exits `3`; the
@@ -360,7 +358,9 @@ Expected: no output.
   `panacea check`" (skeleton scope 13). A hook passes its input on stdin, not as an argument, so
   `panacea check` with no path would be a usage error on every edit. The invariant should render
   `panacea check --hook`; task 13's part should adopt that spelling.
-- **Gap S18-2 — ST.1's argument shapes.** The skeleton's scope 09 says every verb's `args` and
-  `result` shape is written out in task 09, but tasks 22 and 23 defined their own (`CheckArgs`,
-  `LeaseArgs`) before task 09's part existed. This part follows those two and proposes the rest; one
-  owner (task 09) should publish the full table so the CLI's fixtures have a single source.
+- **S18-2 — resolved.** ST.1's argument shapes were unwritten when this part began; task 09's table
+  now holds them and every row above matches it. The table test reads task 09's six request fixtures
+  (`request-team.json`, `request-check.json`, `request-lease-request.json`,
+  `request-report-blocked-human.json`, `request-direct-pause.json`, `request-inbox.json`,
+  `task-09.md:626-631`) and adds a `request-<verb>-<case>.json` beside them only for the argv forms
+  those six do not cover.
