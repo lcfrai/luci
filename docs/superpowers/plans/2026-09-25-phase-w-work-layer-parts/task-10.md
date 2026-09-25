@@ -433,3 +433,77 @@ carries no text, so the plain `Write` is enough):
 6. **One** `issue.state` event `{from, to, cause, proof, landCommit}` (`landCommit` `""` when
    none), also for an evidence move that stays `landed` (its proof record changed). Answer 200 with
    `issueHead`, which now fills `proof` and `landCommit` from `ProofOf`.
+
+#### Tests to write first
+
+`hubapi/workstates_test.go` (unit, no database):
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestMoveAllowedIsTheTable` | every `(from, to, cause)` of the 9 × 9 × 6 cube against a literal expected set written out in the test | a loosened row (`hand` → `started`); a fact cause accepted for the wrong target |
+| `TestEveryCriterionNotAny` | two served criteria, one cited → `waiting`; both → `proven` | *any* criterion instead of *every* |
+| `TestObservedIsNeverSelfAttested` | creator = starter = recorder, cause observed → `proven`; cause recorded → `proven_self_attested`; recorded by a reviewer → `proven` | observed evidence marked self-attested; self-attestation keyed on the recorder alone |
+| `TestTheStrongestCitationCounts` | one criterion with a self-recorded and an observed citation → `proven` | the first citation found deciding the word |
+| `TestHandSetAndNoCriteria` | `HandSet` with serves → `not_proven`; with none → `no_criteria`; no serves, not hand-set → `no_criteria` | a hand-set done that reads proven |
+
+`server/work_states_integration_test.go` (`//go:build integration`). Each seeds a brief with two
+criteria, an issue serving them, a lane's `lane_bound` and `land_trailer` moves as Linus, and
+evidence through the Hub's own `POST /v1/evidence` (H25), so no row is forged:
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestEvidenceBeforeTheLandingDoesNotClose` | evidence recorded, then the issue lands; citing it → 422, `why: before_landed`; the issue stays `landed` | a rule without the time bound |
+| `TestASiblingsEvidenceAtAnotherCommit` | EP-150 landed at C2 with evidence at C2; EP-142 landed at C1 cites it → 422, `why: commit` | matching evidence by criterion alone |
+| `TestSharedEvidenceNeedsTheSameLanding` | EP-142 cites a record with `evidenceCommit` C2; EP-150, landed at C1 ≠ C2's issue landing, cites it too → 422 `cited_elsewhere`; two issues both landed at C1 share one record → both `done` | reuse of another issue's proof |
+| `TestEveryServedCriterionIsNeeded` | evidence for one of two criteria → 200, `landed`, `proof: waiting`; the second → `done`, `proven` | *any* instead of *every*, end to end |
+| `TestAFactIsNotSetByHand` | `to: started` with cause `hand` → 422 `state_not_allowed`; `to: landed` with `hand` → 422 | a hand-faked fact |
+| `TestAHandSetDoneNeedsAReason` | on the serving issue: no `reason` → 400 naming `reason`; with one → 200, `done`, `proof: not_proven`, `stateReason` the reason | a reasonless hand-set done; a hand-set done that reads proven |
+| `TestSelfAttestedAndObserved` | Linus creates, starts and records → `proven_self_attested`; the same Linus with `evidence_observed` → `proven` | observed evidence marked self-attested |
+| `TestNoCriteriaLandsAtDone` | an issue with `serves: []` (reason `chore`): `land_trailer` → `done`, `no_criteria`; with the team's `stopAtLandedWithoutServes` on → `landed`, `no_criteria` | the switch ignored |
+| `TestProjectLevelIsItsOwnThreadState` | an issue serving only the project brief's criterion reads `threadState.kind` `project_level` | scope ignored (task 08's `threadStateOf`, pinned end to end) |
+| `TestFactsAreIdempotentAndContradictionsRefused` | `lane_bound` twice → one event; `land_trailer` C1 twice → one event; `land_trailer` C2 after C1 → 409 `state_conflict` | a hook firing twice writing two facts; a second landing replacing the first proof |
+| `TestAReopenClearsTheProof` | a `done` issue reopened to `todo` by hand → `proof: ""`, `landCommit: ""`, its citations `cleared_at` set, its evidence citable by another issue | a stale proof surviving a reopen |
+| `TestEvidenceNeverSkipsTheLanding` | as `hub_app` directly, with the settings for `evidence_observed`, `UPDATE` a `started` issue to `done` → `42501` (the replaced guard's clause) | done by evidence on an issue that never landed, at the database layer |
+| `TestOneStateEventPerMove` | every move above writes exactly one `issue.state`, whose `data` holds only the five keys, none of them text | two events per move; content in the feed |
+
+#### Steps
+
+- [ ] **Step 1: Check the base.** H25's evidence route and table on the sync base; task 07's
+  guard as merged; task 08's `issueHead`. If `evidence` changed shape, the Hub's file wins and
+  decision 3's columns follow it.
+- [ ] **Step 2: The unit tests**, then `MoveAllowed` and `DecideProof`, until green. Then the
+  integration tests; add `"10"` to `workMatrixLive`; they fail.
+- [ ] **Step 3: The migration additions**, the store, the route and the two lines in `issueHead`;
+  extend task 06's grant-list test with the two tables. Run this task's, task 06's, task 07's and
+  task 08's suites, and the matrix, until all are green.
+- [ ] **Step 4: Commit by pathspec**, the ten files, naming the migration file in the message.
+
+#### Acceptance
+
+```bash
+go test ./control-plane/internal/hub/hubapi/ -race -count=1 -run '^Test(MoveAllowedIsTheTable|EveryCriterionNotAny|ObservedIsNeverSelfAttested|TheStrongestCitationCounts|HandSetAndNoCriteria)$' -v 2>&1 | grep -c '^--- PASS'   # 5
+export PANACEA_APP_HUB_TEST_DATABASE_URL='postgres://postgres@127.0.0.1:5433/postgres?sslmode=disable'
+go test ./control-plane/internal/hub/server/ -tags integration -race -count=1 -v \
+  -run '^Test(EvidenceBeforeTheLandingDoesNotClose|ASiblingsEvidenceAtAnotherCommit|SharedEvidenceNeedsTheSameLanding|EveryServedCriterionIsNeeded|AFactIsNotSetByHand|AHandSetDoneNeedsAReason|SelfAttestedAndObserved|NoCriteriaLandsAtDone|ProjectLevelIsItsOwnThreadState|FactsAreIdempotentAndContradictionsRefused|AReopenClearsTheProof|EvidenceNeverSkipsTheLanding|OneStateEventPerMove)$' \
+  2>&1 | grep -c '^--- PASS'                                                    # 13
+go test ./control-plane/internal/hub/... -tags integration -race -count=1       # every package ok
+grep -rn "hub.work_cause" control-plane/internal --include=*.go | grep -v _test.go   # store/work_states.go only
+```
+
+Expected: `5`, then `13`, then every package `ok`, then one line, in `store/work_states.go`.
+
+#### What this task does not claim
+
+- **Not that a test run was watched.** The Hub records the cause the person's control plane sends;
+  `evidence_observed` meaning "the platform saw the exit code at the land commit" is task 23's
+  claim, and so is the ancestry of an `evidenceCommit`.
+- **Not that the lane facts arrive.** Task 22 sends `lane_bound`, `lane_queued` and `land_trailer`;
+  this task only accepts them.
+- **Not custom states (W2, task 75) or a parent's roll-up (L-21, W2).**
+- **Not the third proof word.** Evidence recorded by a reviewer reads `proven` by this task's
+  reading; the owner may want it named apart.
+- **No measured cost.** One evidence read and one citation query per move; nobody has timed it.
+
+**Parity rows served:** **L-8** (fixed fact states; closed with task 22 and the glyphs, task 28),
+**L-10** (the `duplicate` state), and the Hub half of 05 §2.3's *done means proven*, which no L row
+names alone; it underlies **L-146** and **L-201** (closed with tasks 21-22).
