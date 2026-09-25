@@ -137,4 +137,91 @@ CREATE TABLE work_milestone_criteria (
   PRIMARY KEY (milestone_id, ord),
   UNIQUE (milestone_id, criterion_id)
 );
+
+-- "from blocks blocks_id". orderViolated is derived at read; there is no column for it.
+CREATE TABLE work_feature_deps (
+  org_id     text NOT NULL,
+  from_id    text NOT NULL REFERENCES features (id),
+  blocks_id  text NOT NULL REFERENCES features (id),
+  created_at timestamptz NOT NULL,
+  created_by text NOT NULL REFERENCES users (id),
+  PRIMARY KEY (from_id, blocks_id),
+  CHECK (from_id <> blocks_id)
+);
+CREATE INDEX work_feature_deps_blocks ON work_feature_deps (blocks_id);
+
+-- Beside task 78's issue templates, in the same tp- space; task 120 appends content columns.
+CREATE TABLE work_brief_templates (
+  org_id             text NOT NULL,
+  id                 text PRIMARY KEY CHECK (id ~ '^tp-[0-9a-f]{16}$'),
+  team_id            text REFERENCES teams (id),                -- NULL is an org template
+  name               text NOT NULL CHECK (char_length(btrim(name)) BETWEEN 1 AND 120),
+  criteria           jsonb NOT NULL CHECK (jsonb_typeof(criteria) = 'array'
+                                           AND jsonb_array_length(criteria) BETWEEN 1 AND 50),
+  issue_template_ids text[] NOT NULL DEFAULT '{}',
+  created_at         timestamptz NOT NULL,
+  updated_at         timestamptz NOT NULL
+);
+
+CREATE TABLE work_template_schedules (
+  org_id        text NOT NULL,
+  template_id   text PRIMARY KEY REFERENCES templates (id),   -- task 74's issue templates
+  every_n       int  NOT NULL CHECK (every_n BETWEEN 1 AND 365),
+  every_unit    text NOT NULL CHECK (every_unit IN ('day', 'week', 'month')),
+  at_time       time NOT NULL,
+  tz            text NOT NULL CHECK (tz <> '' AND tz <> 'Local'),
+  last_fired_on date,                                           -- the janitor's, decision 4
+  updated_at    timestamptz NOT NULL,
+  updated_by    text NOT NULL REFERENCES users (id)
+);
+
+CREATE TABLE work_reminder_policies (
+  org_id           text NOT NULL,
+  subject_kind     text NOT NULL CHECK (subject_kind IN ('feature', 'initiative')),
+  subject_id       text NOT NULL,
+  every_days       int  NOT NULL CHECK (every_days BETWEEN 1 AND 90),
+  last_reminded_on date,                                        -- the janitor's, decision 4
+  updated_at       timestamptz NOT NULL,
+  updated_by       text NOT NULL REFERENCES users (id),
+  PRIMARY KEY (subject_kind, subject_id)
+);
+
+CREATE TABLE work_triage_rotations (
+  org_id      text NOT NULL,
+  team_id     text PRIMARY KEY REFERENCES teams (id),
+  members     text[] NOT NULL CHECK (cardinality(members) BETWEEN 1 AND 50),
+  period_days int  NOT NULL CHECK (period_days BETWEEN 1 AND 28),
+  starts_on   date NOT NULL,
+  updated_at  timestamptz NOT NULL,
+  updated_by  text NOT NULL REFERENCES users (id)
+);
+
+-- One row per person and scope (task 123). seq is a feed seq; it only increases (decision 3).
+CREATE TABLE work_read_cursors (
+  org_id     text NOT NULL,
+  user_id    text NOT NULL REFERENCES users (id),
+  scope_kind text NOT NULL CHECK (scope_kind IN ('project', 'feature', 'issue')),
+  scope_id   text NOT NULL,
+  seq        bigint NOT NULL CHECK (seq >= 0),
+  updated_at timestamptz NOT NULL,
+  PRIMARY KEY (user_id, scope_kind, scope_id)
+);
+
+-- Q12's project-scoped read-and-comment grant. Revocation deletes the row.
+CREATE TABLE work_project_grants (
+  org_id     text NOT NULL,
+  project_id text NOT NULL REFERENCES projects (id),
+  team_id    text NOT NULL REFERENCES teams (id),
+  scope      text NOT NULL DEFAULT 'read_comment' CHECK (scope = 'read_comment'),
+  granted_by text NOT NULL REFERENCES users (id),
+  granted_at timestamptz NOT NULL,
+  PRIMARY KEY (project_id, team_id)
+);
+CREATE INDEX work_project_grants_team ON work_project_grants (team_id);
 ```
+
+`teams`, `users`, `projects` are H's tables (`0001_init.sql`); `features` and `templates` are
+task 74's; `notes` is TM-46's. All five names are **UNVERIFIED** until those migrations merge, and
+are renamed mechanically at Step 1 if they differ. Task 119's part references `work_features (id)`
+for its pins (`task-119.md:122`); the table is task 74's `features`, and 119's line takes that name
+at build.
