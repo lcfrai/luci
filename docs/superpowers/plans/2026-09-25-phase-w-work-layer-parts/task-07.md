@@ -556,7 +556,7 @@ file by this task (rule H1).
 ```bash
 export PANACEA_APP_HUB_TEST_DATABASE_URL='postgres://postgres@127.0.0.1:5433/postgres?sslmode=disable'
 go test ./control-plane/internal/hub/migrate/... -tags integration -race -count=1 -v \
-  -run 'Done|HandSet|Integration|UnsetActor|OneCause|LandTrailer|BornAFact|Immutable|OneStep|Frozen|TeamIsThe|CountsUp|Erase|AppendOnly|CheckSets' \
+  -run '^Test(DoneWithoutACauseIsRefused|AHandSetDoneNeedsAReasonWhenItServes|AnIntegrationNeverWritesAFact|AnUnsetActorIsNotAPerson|EachFactHasItsOneCause|LandTrailerLandsAtDoneOnlyWithoutServes|AnIssueIsNotBornAFact|ARevisionIsImmutableOutsideErase|TheHeadMovesOneStepOntoARealRevision|NumberProjectAndCreatorAreFrozen|TheTeamIsTheProjectsTeam|ACounterOnlyCountsUp|EraseIssueBlanksAndKeeps|EraseRefusesAnotherOrg|EraseCommentBlanksBodyAndAnchor|AppendOnlyWorkTables|WorkCheckSetsMatchHubapi)$' \
   2>&1 | grep -c '^--- PASS'                                                     # 17
 go test ./control-plane/internal/hub/server/ -tags integration -race -count=1 -v \
   -run 'TestWorkRows|TestLiveWorkRows|TestAWorkRow|TestAuthorisationMatrix|TestTheXColumn|TestEveryRoute'
