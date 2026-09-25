@@ -427,3 +427,73 @@ type SeedPolicy struct {
 reach another Orchestrator's seed. `Rotated` tells the new session why it is new, as a fixed enum.
 `seed-result.json` is the fixture, with one of each.
 
+`Rotated` is read from the **current claim**: `seed` is only ever called inside a turn (the new
+session calls it first), so `Store.ClaimedTurn(orch)` holds the row, and `ClaimRow` gains `Rotated
+string`, written at claim time by the hunk below. A `seed` with no live claim is `409
+no_turn_in_flight` (an Orchestrator only runs inside a turn or a DIVE). The verb is registered for
+the `orchestrator` class only in task 19's dispatch table, so a worker's call is task 19's
+`forbidden` before this code runs.
+
+#### Task 26's `scheduler.go` (modify: two anchored hunks)
+
+Hunk 1 replaces the line `mode, uuid := SessionFor(prev, sandboxID, false) // task 40 supplies
+rotateDue` (`task-26.md:558`) with:
+
+```go
+	pending, err := s.Store.RotatePending(ctx, orch)
+	if err != nil {
+		return false, err
+	}
+	why := RotateWhy(prev, sandboxID, pending, now)
+	mode, uuid := SessionFor(prev, sandboxID, why == "day" || why == "task-boundary")
+```
+
+and the `ClaimRow` literal below it gains `Rotated: why,`. `RotateWhy` joins `rotate.go`:
+
+```go
+// RotateWhy names why this turn's session is new, or "" when it is not new
+// or is the first session ever. "pod" is SessionFor's own sandbox rule
+// (task 26: a changed sandbox never resumes); it is named, not decided, here.
+func RotateWhy(prev SessionState, sandboxID string, pending bool, now time.Time) string {
+	switch {
+	case prev.UUID == "":
+		return ""
+	case prev.SandboxID != sandboxID:
+		return "pod"
+	case pending:
+		return "task-boundary"
+	case RotateDue(prev, false, now):
+		return "day"
+	}
+	return ""
+}
+```
+
+Hunk 2 is in `End`, where the `SessionState` passed to `EndTurn` is built: on `row.Mode ==
+ModeNew` it sets `StartedAt: row.Began`; on resume it carries `prev.StartedAt` unchanged. `EndTurn`
+gains one parameter, `clearPendingBefore time.Time` (zero on resume: nothing cleared), and runs
+`UPDATE fleet.orch_sessions SET rotate_pending_at = NULL WHERE orchestrator = $1 AND
+rotate_pending_at <= $2` inside its existing transaction. `LoseTurn` is unchanged: it clears the
+session, so the next turn is `new` with `Rotated: ""`, which `seed` reports as a first session.
+That undercounts one reason and is the safe side.
+
+#### `00NN_rotation.sql` (complete; `NN` is the next Fleet migration number at merge)
+
+```sql
+-- ST.5 rotation (task 40). Three columns on task 26's two tables; no text
+-- column that could hold a reply, a summary or a transcript byte.
+ALTER TABLE fleet.orch_sessions
+  ADD COLUMN IF NOT EXISTS started_at        timestamptz,
+  ADD COLUMN IF NOT EXISTS rotate_pending_at timestamptz;
+
+ALTER TABLE fleet.turn_claims
+  ADD COLUMN IF NOT EXISTS rotated text NOT NULL DEFAULT ''
+    CHECK (rotated IN ('', 'day', 'task-boundary', 'pod'));
+```
+
+`started_at` is null for a session that predates this migration; `RotateDue` treats a zero
+`StartedAt` as an earlier date, so each such Orchestrator rotates once on its next turn, the safe
+side. Task 26's `storetest.Suite` row that pins `turn_events` to ten columns is untouched (these are
+other tables); the suite gains one row pinning `turn_claims.rotated`'s `CHECK` by inserting `'x'`
+and expecting a violation.
+
