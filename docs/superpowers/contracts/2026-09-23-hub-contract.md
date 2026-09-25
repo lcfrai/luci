@@ -402,7 +402,7 @@ KPMG's registration can only carry `http://localhost` (§6.5).
   **before** the access token is returned. A crash in between leaves the old one, which Entra still
   honours until it expires.
 - **Scopes in v1.** `api://<hub-client-id>/Hub.Access`; phase 8's
-  `api://<broker-client-id>/Sandboxes.Access`; if ADR Q5 is yes,
+  `api://<broker-client-id>/Sandboxes.Access`; if ADR Q5 is yes (**Q5 flipped to No by OD-30, §17: no Azure DevOps scope**),
   `499b84ac-1321-427f-aa17-267ca6975798/user_impersonation` (Azure DevOps). One refresh token
   redeems all three because the desktop client is admin-consented for each (§6.5).
 - **Failure.** `invalid_grant` or `interaction_required` → both Credential Manager entries deleted,
@@ -1259,7 +1259,7 @@ func (a *Authenticator) SignOut(ctx context.Context) error
 func (a *Authenticator) Token(ctx context.Context, scope string) (string, error) // satisfies TokenSource
 
 // DevOps implements phase 3's credstore.Store for Azure DevOps with the Entra token
-// (ADR Q5): Scheme "bearer", Source "entra". Used only when Q5 is yes.
+// (ADR Q5): Scheme "bearer", Source "entra". Used only when Q5 is yes. **Deleted by OD-30 (§17): Q5 is No; Azure DevOps is a PAT.**
 type DevOps struct{ Tokens TokenSource }
 ```
 
