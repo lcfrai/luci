@@ -289,7 +289,8 @@ Do not estimate effort, capacity or completion. Answer with JSON only:
 3. **Keep.** A pick whose `key` is not a candidate is dropped (counted); each `why` entry must be a
    candidate key (mapped to `{kind: "issue", key: "issue:is-…"}`) or a criterion label present in
    that candidate's `Criteria` (mapped to `{kind: "criterion", key: brief key + criterion id}`);
-   a pick left with no why is dropped (AX Principle 7, task 136's rule).
+   a pick left with no why is dropped (AX Principle 7, task 136's rule). A key answered twice
+   keeps its first answer; later ones are ignored and not counted in `Dropped`.
 4. **Group** kept picks by each one's own `Serves` (decision 6), in the brief's criterion order,
    the no-criterion group last. `MadeAt` is the control plane's clock.
 
@@ -693,4 +694,98 @@ The switch and AU rows are task 139's `TestKillSwitchAndAURoute` repeated for bo
 cycle whose backlog holds one `au-only` project's issue goes AU even when the team's first project
 is Global (kills "route of the first project"). The route test adds: both routes are `POST`; no Hub
 write follows either (`r.hub.Writes()` empty; kills decision 4's "assist writes").
+
+#### Tests to write first — desktop, `desktop/src/components/plan/proposals.test.tsx`
+
+Over task 126's `roadmapHarness` and the `assist` stub task 139 adds, extended with
+`assist.proposeIssues` and `assist.proposeCycle`; `hub.drafts(user)` lists a user's `df-` drafts in
+the fake Hub; `deskWith` mounts task 62's frame. Every test ends with `expectNoPrediction(container)`.
+
+```tsx
+import { describe, expect, it } from "vitest";
+import { act, fireEvent, screen, within } from "@testing-library/react";
+import { expectNoPrediction } from "../../test/expectNoPrediction";
+import { renderWith, assist, deskWith, asUser, proposed, cycleProposal } from "../../test/roadmapHarness";
+import { ProposeIssues } from "./ProposeIssues";
+import { CycleProposal } from "./CycleProposal";
+import { holdCycleProposal } from "../../work/proposals";
+
+const panel = () => renderWith(<ProposeIssues featureId="ft-ep" projectId="pj-ep" uncoveredCount={3} />);
+
+describe("task 140: propose issues per criterion", () => {
+  it("drafts are the author's and survive a remount", async () => {
+    assist.proposeIssues({ proposals: [proposed("c-3", "C3"), proposed("c-4", "C4"), proposed("c-5", "C5")], missing: [] });
+    const { container, hub, unmount } = await panel();
+    fireEvent.click(screen.getByRole("button", { name: "Propose issues for 3 uncovered criteria" }));
+    expect(await screen.findAllByRole("article")).toHaveLength(3);
+    expect(hub.drafts("u-b")).toEqual([]);                                   // kills "drafts shared"
+    unmount();
+    await panel();                                                           // a restart reads the Hub
+    expect(await screen.findAllByRole("article")).toHaveLength(3);
+    expectNoPrediction(container);
+  });
+
+  it("accept creates as the person with text·A and its own criterion", async () => {
+    assist.proposeIssues({ proposals: [proposed("c-3", "C3")], missing: [] });
+    const { container, hub } = await panel();
+    fireEvent.click(screen.getByRole("button", { name: /Propose issues/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Accept" }));
+    await act(async () => {});
+    const w = hub.writes().find((x) => x.route === "CreateIssue")!;
+    expect(w.actor).toBe("u-a");                                             // kills "the system as author"
+    expect(w.body.title.author).toBe("A");                                   // kills "text·H claimed for model text"
+    expect(w.body.serves).toEqual([{ briefKey: "brief:bf-7k2@6", criterionId: "c-3" }]);
+    expect(w.body.state).toBe("triage");
+    expectNoPrediction(container);
+  });
+
+  it("accept all is one Undo that cancels every created issue", async () => {
+    assist.proposeIssues({ proposals: [proposed("c-3", "C3"), proposed("c-4", "C4")], missing: [] });
+    const { container, hub } = await panel();
+    fireEvent.click(screen.getByRole("button", { name: /Propose issues/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Accept all" }));
+    fireEvent.click(await screen.findByRole("button", { name: /Undo/ }));
+    await act(async () => {});
+    const cancels = hub.writes().filter((x) => x.route === "SetState" && x.body.to === "cancelled");
+    expect(cancels).toHaveLength(2);                                         // kills "partial undo"
+    expect(screen.getAllByRole("article")).toHaveLength(2);                  // the drafts are back
+    expectNoPrediction(container);
+  });
+
+  it("names a criterion the model skipped", async () => {
+    assist.proposeIssues({ proposals: [proposed("c-3", "C3")], missing: ["c-4"], uncoveredLabels: { "c-4": "C4" } });
+    const { container } = await panel();
+    fireEvent.click(screen.getByRole("button", { name: /Propose issues/ }));
+    expect(await screen.findByText("No draft for C4. Write one yourself.")).toBeTruthy();
+    expectNoPrediction(container);
+  });
+});
+
+describe("task 140: propose the next cycle", () => {
+  it("arrives on the next Desk entry, not while the Desk is open", async () => {
+    const { container, remount } = await deskWith([]);
+    act(() => holdCycleProposal(cycleProposal({ cycleId: "cy-14" })));
+    expect(screen.queryByText(/Proposed for Cycle 14/)).toBeNull();          // kills "live Desk"
+    await remount();
+    expect(screen.getByText(/Proposed for Cycle 14/)).toBeTruthy();
+    expectNoPrediction(container);
+  });
+
+  it("groups by criterion, speaks no forecast, and Undo reverts the set", async () => {
+    const p = cycleProposal({ groups: [["C3", ["is-3", "is-5"]], ["C4", ["is-5"]], ["", ["is-6"]]] });
+    const { container, hub, undo } = await renderWith(<CycleProposal p={p} cycleName="Cycle 14" />);
+    expect(screen.getByText("Serves C3 · 2 issues")).toBeTruthy();
+    expect(container.textContent).not.toMatch(/settle|capacity|velocity|fits|points|%/i); // kills "a forecast"
+    fireEvent.click(screen.getByRole("button", { name: "Set cycle for checked" }));
+    expect(hub.writes().filter((w) => w.route === "SetCycle")).toHaveLength(3);          // is-5 written once
+    await undo();
+    expect(hub.writes().filter((w) => w.route === "SetCycle" && w.body.cycleId === null)).toHaveLength(3); // kills "partial undo"
+    expectNoPrediction(container);
+  });
+});
+```
+
+`asUser`, `proposed`, `cycleProposal`, `remount` and `undo` extend the harness (a second signed-in
+user, fixture builders, a Desk leave-and-return and a press of the latest Undo chip). The `SetCycle`
+inverse writes `cycleId: null` because the fixture issues had no cycle.
 
