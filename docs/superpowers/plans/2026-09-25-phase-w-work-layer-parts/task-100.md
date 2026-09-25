@@ -33,7 +33,7 @@ Eight decisions the scope left open, made here.
 
 **(a) Paths follow task 16's table, not a `/v1/work/…` prefix.** The scope says *"task 08's
 `/v1/work/…` convention"*; task 08 and task 16 register `/v1/issues/…`, `/v1/comments/…` and
-`/v1/projects/{projectId}/…` (`task-16.md:127-156`). W3's nine routes use the same shapes, so the
+`/v1/projects/{projectId}/…` (`task-16.md:127-156`). W3's ten routes use the same shapes, so the
 relay derives them with `Relay()` unchanged.
 
 **(b) Attribution is the principal's, never the body's.** `attribution.ownerId` in a body must
@@ -65,7 +65,12 @@ state. `threadState` stays the request's; a `not_tied` reason is still required.
 /v1/issues/{issueId}/delegate` is the assignee's own (not `Delegable`); anyone else is 403
 `forbidden`, `required: "assignee"`. A repeat while live is 200 with the same record and no event.
 With no live Orchestrator delegation for the owner in that project (TM-04's `delegations`, class
-`orchestrator`), it is 422 `orchestrator_unavailable`: the key is team mode's.
+`orchestrator`), it is 422 `orchestrator_unavailable`: the key is team mode's. `DELETE` on the
+same path withdraws it (task 102's *Undo*, 05 §4.6: *"reversible until the session's first file
+write"*): the assignee's own, sets `withdrawn_at`, appends `issue.undelegated`; a repeat, or a
+withdrawal with nothing live, is 200 with no event. The Hub cannot see a file write, so it does not
+refuse a late withdrawal; the desktop offers *Undo* only while the control plane has observed none
+(task 102), and Fleet stops what the delegation started when it reads the event (task 98).
 
 **(g) A proposal never writes evidence; a link is its own write.** `evidence_proposal` rows live
 in `issue_comments`. `POST /v1/comments/{commentId}/recorded-as` `{evidenceId}` (task 104's
@@ -84,7 +89,7 @@ versions and booleans only; guidance text, comment text, `because` and the switc
 |---|---|
 | `migrate/sql/NNNN_work_agents.sql` | new: the widened comment kinds, attribution, delegations, guidance, the switch, the guards |
 | `store/work_agents.go` | new: the W3 store functions, each one statement set inside the caller's `Tx` |
-| `server/work_agents.go` | new: `registerWorkAgents`, the nine handlers, `agentSwitchGate` |
+| `server/work_agents.go` | new: `registerWorkAgents`, the ten handlers, `agentSwitchGate` |
 | `server/server.go` ⚑ | one line, `s.registerWorkAgents()`, beside `registerWorkIssues` |
 | `server/work_issues.go` ⚑ | `createIssue` registered through `Delegable`; the triage override (decision (e)) |
 | `server/auth.go` ⚑ (TM-05's) | one call, `s.agentSwitchGate(r, p)`, after the delegated principal is built (decision (d)) |
@@ -119,6 +124,7 @@ import (
 // row and one row per WorkAgents method (task 99's interface).
 var WorkAgentRoutes = []WorkRoute{
 	{"DelegateIssue", http.MethodPost, "/v1/issues/{issueId}/delegate", false},
+	{"WithdrawDelegation", http.MethodDelete, "/v1/issues/{issueId}/delegate", false},
 	{"AddAgentComment", http.MethodPost, "/v1/issues/{issueId}/agent-comments", true},
 	{"ListEvidenceProposals", http.MethodGet, "/v1/projects/{projectId}/evidence-proposals", false},
 	{"LinkEvidenceProposal", http.MethodPost, "/v1/comments/{commentId}/recorded-as", false},
@@ -141,10 +147,10 @@ const (
 )
 ```
 
-`LinkEvidenceProposal` and `GuidanceVersions` are **not** in task 99's scope's method list
+`LinkEvidenceProposal`, `GuidanceVersions` and `WithdrawDelegation` are **not** in task 99's scope's method list
 (`tasks-81-100.md:452-455`). The first is task 104's `Linker` (`task-104.md:127-131`); the second
-is task 109's history list (decision 7, `task-109.md:49-52`). Both are additions to SW.19 that
-task 99's part must carry; if it does not, this part's gap 1 says so. The route names are placed in
+is task 109's history list (decision 7, `task-109.md:49-52`); the third is task 102's *Undo*
+(decision (f)). All three are additions to SW.19 that task 99's part must carry; if it does not, this part's gap 1 says so. The route names are placed in
 `hubclient` only for this listing; Step 3 moves them to `hubapi/work_agents.go` beside task 99's
 types if task 99 has not declared them (UNVERIFIED which).
 
@@ -171,6 +177,12 @@ func (c *Client) agentWork(ctx context.Context, method string, q url.Values, bod
 		path += "?" + q.Encode()
 	}
 	return c.send(ctx, rt.Verb, rt.Hub, path, body, out)
+}
+
+// WithdrawDelegation is an addition to task 99's list: task 102's Undo.
+func (c *Client) WithdrawDelegation(ctx context.Context, issueID string) (hubapi.IssueDelegation, error) {
+	var out hubapi.IssueDelegation
+	return out, c.agentWork(ctx, "WithdrawDelegation", nil, nil, &out, issueID)
 }
 
 func (c *Client) DelegateIssue(ctx context.Context, issueID string) (hubapi.IssueDelegation, error) {
@@ -241,10 +253,17 @@ Hub's (`hub-contract.md`, §7). Every refusal is the Hub's problem shape with `c
 // POST /v1/issues/{issueId}/delegate            (the assignee's own; not Delegable)
 {}                                                   // body: nothing to choose (decision (f))
 // 200 — IssueDelegation
-{ "issueId": "is-…", "ownerId": "u-…", "delegatedAt": "…", "delegationId": "dl-…" }
+{ "issueId": "is-…", "ownerId": "u-…", "delegatedAt": "…", "delegationId": "dl-…",
+  "withdrawnAt": null }
 // 403 forbidden {required:"assignee"} · 422 orchestrator_unavailable {projectId}
 // 409 conflict when the issue is erased · event issue.delegated {issueId, revision, ownerId}
-// (task 98's scope's data, the head revision at the moment of delegation)
+// (task 98's scope's data, the head revision at the moment of delegation); a delegation
+// withdrawn earlier is made live again by the same POST, with a new delegatedAt and the event
+
+// DELETE /v1/issues/{issueId}/delegate          (the assignee's own; not Delegable)
+// 200 — IssueDelegation with withdrawnAt set · 404 delegation_not_found when never delegated
+// 403 forbidden {required:"assignee"} · a repeat: 200, no event
+// event issue.undelegated {issueId, ownerId}
 
 // POST /v1/issues/{issueId}/agent-comments      (Delegable: work.agent_comments.create)
 { "kind": "note" | "evidence_proposal" | "negotiation",
@@ -387,13 +406,17 @@ ALTER TABLE issue_comments
     AND char_length(proposal->>'criterionId') BETWEEN 1 AND 128
     AND proposal->>'issueId' = issue_id));
 
--- ── one row per (issue, owner) who delegated it; "live" means the owner is still assignee ──
+-- ── one row per (issue, owner) who delegated it; "live" means not withdrawn and the owner
+--    is still the assignee. The audit of each delegate and withdraw is the event, not the row ──
 CREATE TABLE issue_delegations (
   org_id        text        NOT NULL REFERENCES orgs (id),
   issue_id      text        NOT NULL,
   owner_user_id text        NOT NULL,
   delegation_id text        NOT NULL REFERENCES delegations (id),        -- TM-04's dl- row
   delegated_at  timestamptz NOT NULL DEFAULT now(),
+  withdrawn_at  timestamptz,
+  CONSTRAINT issue_delegations_withdrawn_after CHECK (withdrawn_at IS NULL
+                                                      OR withdrawn_at >= delegated_at),
   PRIMARY KEY (org_id, issue_id, owner_user_id),
   FOREIGN KEY (org_id, issue_id)      REFERENCES issues (org_id, id),
   FOREIGN KEY (org_id, owner_user_id) REFERENCES users (org_id, id)
@@ -478,9 +501,11 @@ END $$;
 GRANT SELECT, INSERT ON org_agent_switches, issue_delegations, guidance_versions TO hub_app;
 GRANT UPDATE (orchestrators, reason, set_at, set_by) ON org_agent_switches TO hub_app;
 GRANT UPDATE (recorded_as)                           ON issue_comments     TO hub_app;
+GRANT UPDATE (delegation_id, delegated_at, withdrawn_at) ON issue_delegations TO hub_app;
 GRANT EXECUTE ON FUNCTION agents_disabled(text) TO hub_app;
--- No UPDATE or DELETE on issue_delegations or guidance_versions: a new version is a new row,
--- and a delegation is never rewritten. Erasing guidance text is not granted here (gap 3).
+-- No DELETE on issue_delegations, and no UPDATE or DELETE on guidance_versions: a new
+-- version is a new row; a withdrawn delegation keeps its row. Erasing guidance text is not
+-- granted here (gap 3).
 -- No UPDATE of issue_comments' kind, agent_*, via, proposal or negotiation, ever.
 ```
 
@@ -507,8 +532,13 @@ func AgentSwitch(ctx context.Context, tx *Tx, orgID string) (hubapi.AgentSwitch,
 // nothing, so the handler appends no event.
 func SetAgentSwitch(ctx context.Context, tx *Tx, orgID string, on bool, reason, by string) (hubapi.AgentSwitch, bool, error)
 
-// Delegate inserts the (issue, owner) row. It answers the existing row and false on a repeat.
+// Delegate inserts the (issue, owner) row, or makes a withdrawn one live again with a new
+// delegated_at. It answers the existing row and false on a repeat while live.
 func Delegate(ctx context.Context, tx *Tx, issueID, ownerID, delegationID string) (hubapi.IssueDelegation, bool, error)
+
+// Withdraw sets withdrawn_at on a live row. changed is false when it was already withdrawn;
+// ErrNoDelegation when no row exists (the handler's 404 delegation_not_found).
+func Withdraw(ctx context.Context, tx *Tx, issueID, ownerID string) (hubapi.IssueDelegation, bool, error)
 
 // LiveOrchestratorDelegation finds the owner's unexpired, unrevoked orchestrator-class
 // delegation for the project (TM-04's delegations), or "" when none.
@@ -543,6 +573,7 @@ func GuidanceHeads(ctx context.Context, tx *Tx, orgID, teamID, userID string) ([
 var (
 	ErrRecordedAs       = errors.New("store: recorded_as is already another evidence id")
 	ErrGuidanceConflict = errors.New("store: a guidance version at base+1 exists")
+	ErrNoDelegation     = errors.New("store: this owner never delegated this issue")
 )
 ```
 
@@ -563,6 +594,7 @@ func (s *Server) registerWorkAgents() {
 		return Delegable(name, h).ServeHTTP // TM-05: a route without a name is Fleet-forbidden
 	}
 	s.route("POST /v1/issues/{issueId}/delegate", s.postDelegate)
+	s.route("DELETE /v1/issues/{issueId}/delegate", s.deleteDelegate)
 	s.route("POST /v1/issues/{issueId}/agent-comments", d(hubclient.RouteWorkAgentComment, s.postAgentComment))
 	s.route("GET /v1/projects/{projectId}/evidence-proposals", d(hubclient.RouteWorkProposalsRead, s.listProposals))
 	s.route("POST /v1/comments/{commentId}/recorded-as", s.postRecordedAs)
@@ -649,7 +681,11 @@ to its real name; none is a new rule.
 - `postDelegate`: a person (`Via == ""`, since the route is not `Delegable`); the issue readable
   as member (404, then 403 `required: member`); not erased (409 `conflict`); `assignee == caller`
   (403 `required: assignee`); `store.LiveOrchestratorDelegation` non-empty (422
-  `orchestrator_unavailable`); `store.Delegate`; `issue.delegated` only when the row is new.
+  `orchestrator_unavailable`); `store.Delegate`; `issue.delegated` only when the row is new or
+  was withdrawn.
+- `deleteDelegate`: the same first four checks; `store.Withdraw` (404 `delegation_not_found` on
+  `ErrNoDelegation`); `issue.undelegated` only when changed. No switch check: withdrawing is a
+  person stopping work, and must work while Orchestrators are off.
 - `postRecordedAs`: the comment exists and is readable (404 `comment_not_found`); kind
   `evidence_proposal` (422 `proposal_mismatch`, `field: kind`); `store.EvidenceForLink` (404
   `evidence_not_found`, also for another project's record, never a 403 that confirms it exists);
@@ -702,9 +738,9 @@ func (a *API) registerWorkAgents(mux *routes) {
 }
 ```
 
-`registerWork` calls `a.registerWorkAgents(mux)` as its last line. `workAgentCalls()` holds eight
+`registerWork` calls `a.registerWorkAgents(mux)` as its last line. `workAgentCalls()` holds nine
 `workCall`s, each decoding its body and calling the matching `wk.` method, as `workCalls()` does.
-`routes_audit_test.go` gains the eight relay patterns, each `guarded`, in the catalog's order.
+`routes_audit_test.go` gains the nine relay patterns, each `guarded`, in the catalog's order.
 
 #### The matrix rows: `server/work_matrix_rows_integration_test.go` ⚑, key `"100"`
 
@@ -719,6 +755,11 @@ file, because `row.want` is task 07's `[6]int` and a seventh column would change
 			path: "/v1/issues/{IssueID}/delegate", body: empty,
 			want:     [6]int{403, 422, 403, 404, 404, 404}, // M passes auth; no Orchestrator here
 			wantCode: map[column]string{colM: "orchestrator_unavailable", colO: "issue_not_found",
+				colN: "issue_not_found", colX: "issue_not_found"}}},
+		{"DELETE /v1/issues/{issueId}/delegate", row{name: "withdraw", method: "DELETE",
+			path: "/v1/issues/{IssueID}/delegate",
+			want:     [6]int{403, 404, 403, 404, 404, 404}, // M passes auth; never delegated here
+			wantCode: map[column]string{colM: "delegation_not_found", colO: "issue_not_found",
 				colN: "issue_not_found", colX: "issue_not_found"}}},
 		{"POST /v1/issues/{issueId}/agent-comments", row{name: "agent-comment", method: "POST",
 			path: "/v1/issues/{IssueID}/agent-comments", body: agentNote,
@@ -804,6 +845,7 @@ before the code it covers.
 | `TestAProposalIsNeverEvidence` | a proposal appends `comment.created` and **no** `evidence.recorded`; Dylan's `POST /v1/evidence` appends exactly one, actor Dylan; the link appends `comment.proposal_linked` | the proposal inserted as evidence |
 | `TestALinkChecksTheRecord` | another criterion → 422 `field: criterionId`; another commit → `field: commit`; Alice's record → 403 `required: recorder`; a second id → 409 | a link that marks any record |
 | `TestANonAssigneeCannotDelegate` | A (not assignee) → 403 `required: assignee`; M with a live delegation → 200 and `issue.delegated`; again → 200, no event | anyone delegating anyone's issue |
+| `TestAWithdrawalIsTheAssigneesAndOnce` | A's `DELETE` → 403; M's → 200, `withdrawnAt` set, one `issue.undelegated`; again → 200, no event; M's `POST` then → live again with one more `issue.delegated`; with Orchestrators off, M's `DELETE` still → 200 | a withdrawal anyone can make; a withdrawal the switch blocks |
 | `TestNoTextReachesAnEvent` | every event of this file: `data` holds no value equal to any body, `because`, guidance text or reason sent | text in the event (hub-contract §8) |
 | `TestTheSyncActorWritesNoAgentKind` | the insert above fails `issue_comments_agent_attributed` | a sync write taken for an agent's |
 
@@ -829,7 +871,9 @@ green (task 05's promise, for W3).
   `Delegable`, `Principal.Via`, `RouteFrom` are merged (`grep -n "func Delegable"
   control-plane/internal/hub/server/*.go` prints one line). Map the four assumed chassis names.
   `grep -n "kind" control-plane/internal/hub/server/changes.go`: if task 13's filter lists kinds,
-  append the eight W3 kinds there and add `changes.go` ⚑ to *Files*.
+  append the six new W3 kinds there (`issue.delegated`, `issue.undelegated`,
+  `comment.proposal_linked`, `guidance.versioned`, `org.agent_switch_set`,
+  `org.agent_write_refused`) and add `changes.go` ⚑ to *Files*.
 - [ ] **Step 2: Write the tests first**, all of the tables above; run them and see each fail for
   the reason its row names (404 route, or 501 from the stub `Client`).
 - [ ] **Step 3: Write the migration**, take the next free number, run `hub migrate` against the
@@ -854,11 +898,11 @@ go test ./control-plane/internal/hub/hubclient/ -race -count=1 -run 'TestEveryWo
 go test -tags integration ./control-plane/internal/hub/server/ -count=1 -run 'TestFleet|TestAWorker|TestAPerson|TestTheSwitch|TestTheDatabase|TestOnlyAnOrgAdmin|TestAViewer|TestGuidance|TestAnOrchestrator|TestAProposal|TestALink|TestANonAssignee|TestNoTextReachesAnEvent|TestTheSyncActor' -v 2>&1 | grep -c '^--- PASS'
 # 14
 go test -tags integration ./control-plane/internal/hub/server/ -race -count=1 -run 'TestAuthorisationMatrix|TestLiveWorkRows|TestEveryRoute'
-# ok   (task 07's meta-tests, `task-07.md:561-562`: the nine W3 patterns are live and each has a row)
+# ok   (task 07's meta-tests, `task-07.md:561-562`: the ten W3 patterns are live and each has a row)
 go test -tags integration ./control-plane/internal/hub/hubclient/ -count=1 -run TestWorkAgentsRowsOnTheHub
 # ok
 go test ./control-plane/internal/api/ -race -count=1 -run 'TestRoutesAudit|TestWorkRelay'
-# ok   (eight W3 relay rows; no relay for AddAgentComment)
+# ok   (nine W3 relay rows; no relay for AddAgentComment)
 ```
 
 With the variable unset every integration test is `--- SKIP`, and that is reported as a skip, not a
@@ -874,7 +918,8 @@ pass.
   the next turn; a live worker is stopped by *pause all*, which is not here.
 - That TM's own tables hold the switch in the database. Their writes pass through the Go gate in
   `resolveCaller` only; the database half covers W3's two tables (comments and issues).
-- Undoing a delegation. No withdraw route exists (gap 5).
+- That a withdrawal stops an Orchestrator's work. The Hub records it and appends
+  `issue.undelegated`; Fleet acting on that event is task 98's and Phase T's.
 - Any parity row alone. It carries the Hub halves of **L-39, L-156, L-158, L-166, L-173, L-183,
   L-193 and L-246** (verified against 05-design's matrix, `05-design.md:148-428`), which tasks
   102-104, 109 and 111 close on the desktop and in Fleet, and task 113 records.
@@ -883,14 +928,16 @@ pass.
 task 16's shapes, not `/v1/work/…` (decision (a)); the matrix file is task 07's
 `work_matrix_rows_integration_test.go`; `server.go`, `work_issues.go` and TM-05's `auth.go` are
 added to *Files*; the sync principal's column is the database's until W5 (the Fleet columns
-section); the relay carries eight rows, not nine, because `AddAgentComment` is Fleet's alone.
+section); the relay carries nine rows, not ten, because `AddAgentComment` is Fleet's alone; a tenth
+route, the withdrawal, is added for task 102's *Undo* (decision (f)).
 
 **Gaps found while writing this part** (for the skeleton's owner and the named tasks):
 
 1. **Task 99's part did not exist** when this was written. Its method list lacks
-   `LinkEvidenceProposal` (task 104 needs it) and `GuidanceVersions` (task 109's history); its
-   codes lack `orchestrator_unavailable`, `proposal_mismatch`, `evidence_not_found`,
-   `thread_unresolvable`; its events are unnamed (`issue.delegated`, `comment.proposal_linked`,
+   `LinkEvidenceProposal` (task 104 needs it), `GuidanceVersions` (task 109's history) and
+   `WithdrawDelegation` (task 102's Undo); its codes lack `orchestrator_unavailable`,
+   `proposal_mismatch`, `evidence_not_found`, `delegation_not_found`, `thread_unresolvable`; its
+   events are unnamed (`issue.delegated`, `issue.undelegated`, `comment.proposal_linked`,
    `guidance.versioned`, `org.agent_switch_set`, `org.agent_write_refused` are proposed here).
    Task 99 must carry each, or this part changes to its names at Step 1.
 2. **Task 109 reads the switch "as Fleet's own workload principal"** (`task-109.md:94-96`), but
@@ -902,7 +949,8 @@ section); the relay carries eight rows, not nine, because `AddAgentComment` is F
    so no migration is needed later; the route and its grant are unowned.
 4. **The sync principal's HTTP column** belongs to task 150, which should add it beside task 07's
    `AnIntegrationNeverWritesAFact`.
-5. **No withdraw route for a delegation.** 05 §5's *"Start or Delegate: reversible until the
-   session's first file write"* (`05-design.md:1105`) needs one for task 102's Undo; SW.19 has none.
+5. **The withdraw route is this part's addition.** 05's *"Start or Delegate: reversible until the
+   session's first file write"* (`05-design.md:1105`) needs it for task 102's Undo, and task 99's
+   scope has none. Task 98 must map `issue.undelegated` so Fleet stops what the delegation started.
 6. **The skeleton's file map** omits `server/auth.go` ⚑ and `server/work_issues.go` ⚑ for task 100,
    and has no row for `server/work_agents_integration_test.go`.
