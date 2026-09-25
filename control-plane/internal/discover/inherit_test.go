@@ -412,8 +412,9 @@ func TestResolveRefusesAMalformedRevision(t *testing.T) {
 	}
 	// A project revision's envelope has branchRef "" (Hub contract §3.3,
 	// §7.5 :759); a branch revision's is "refs/heads/<name>", name non-empty
-	// with no ASCII control character (§3.3; the Hub's own CHECK is
-	// 'refs/heads/_%'). The title is that ref minus "refs/heads/" on one line.
+	// with no ASCII control character, space or DEL (§3.3; the Hub's own
+	// CHECK is 'refs/heads/_%'). The title is that ref minus "refs/heads/",
+	// on one line.
 	projectOnABranch := rvProject()
 	projectOnABranch.BranchRef = "refs/heads/main"
 	withRef := func(ref string) *Revision {
@@ -444,6 +445,11 @@ func TestResolveRefusesAMalformedRevision(t *testing.T) {
 		{"a tag ref", rvProject(), withRef("refs/tags/v1")},
 		{"a branch ref with a line break", rvProject(), withRef("refs/heads/evidence\nupload")},
 		{"a branch ref with DEL", rvProject(), withRef("refs/heads/evidence\x7fupload")},
+		{"a branch ref with a tab", rvProject(), withRef("refs/heads/evidence\tupload")},
+		{"a branch ref with a carriage return", rvProject(), withRef("refs/heads/evidence\rupload")},
+		{"a branch ref with 0x1f", rvProject(), withRef("refs/heads/evidence\x1fupload")},
+		{"a branch ref with a space", rvProject(), withRef("refs/heads/evidence upload")},
+		{"a branch ref ending in a line break", rvProject(), withRef("refs/heads/evidence-upload\n")},
 	}
 	for _, tc := range cases {
 		doc, err := Resolve(tc.project, tc.branch)
@@ -457,8 +463,10 @@ func TestResolveRefusesAMalformedRevision(t *testing.T) {
 
 	// The same revisions with a well-formed ref and id resolve: the refusals
 	// above are the ref's and the id's, not the pairing's.
-	if _, err := Resolve(rvProject(), withRef("refs/heads/a")); err != nil {
-		t.Errorf(`branch ref "refs/heads/a": %v`, err)
+	for _, ref := range []string{"refs/heads/a", "refs/heads/café/upload", "refs/heads/<!--x"} {
+		if _, err := Resolve(rvProject(), withRef(ref)); err != nil {
+			t.Errorf("branch ref %q: %v", ref, err)
+		}
 	}
 	if _, err := Resolve(withID("bf-!b7"), nil); err != nil {
 		t.Errorf(`brief id "bf-!b7": %v`, err)
@@ -508,6 +516,18 @@ func TestFollowUpHeadingIsTrimmedOrTheKey(t *testing.T) {
 	for _, k := range []Key{"f-0000000d", "f-0000000q", "f-0000000w", "f-0000000e"} {
 		branch = rvSet(branch, rvPerson(k, "yes"))
 	}
+	// A key both revisions hold, where the revision the section shows has no
+	// wording: the key, not the other scope's wording (headingFor asks the
+	// other revision only when the shown one lacks the question).
+	project.Content.Questions = append(project.Content.Questions,
+		Question{Key: "f-0000000s", ProjectPrompt: "Which team owns it?", Options: []string{}, FollowUp: true},
+		Question{Key: "f-0000000t", ProjectPrompt: " ? ", Options: []string{}, FollowUp: true})
+	project = rvSet(rvSet(project, rvPerson("f-0000000s", "Audit")), rvPerson("f-0000000t", "Audit"))
+	branch.Content.Questions = append(branch.Content.Questions,
+		Question{Key: "f-0000000s", BranchPrompt: "?", Options: []string{}, FollowUp: true},
+		Question{Key: "f-0000000t", BranchPrompt: "Which team owns this branch?", Options: []string{}, FollowUp: true})
+	branch = rvSet(rvSet(branch, rvPerson("f-0000000s", "Payments")), rvSkip("f-0000000t"))
+
 	doc := mustResolve(t, project, branch)
 	for k, want := range map[Key]string{
 		"f-0000000p": "Which regulator reads it",
@@ -515,6 +535,8 @@ func TestFollowUpHeadingIsTrimmedOrTheKey(t *testing.T) {
 		"f-0000000q": "f-0000000q",
 		"f-0000000w": "f-0000000w",
 		"f-0000000e": "f-0000000e",
+		"f-0000000s": "f-0000000s", // an override: the branch's "?" is shown
+		"f-0000000t": "f-0000000t", // inherited: the project's " ? " is shown
 	} {
 		if s, ok := rvSection(t, doc, k); !ok || s.Heading != want {
 			t.Errorf("%s: heading %q (found %v), want %q", k, s.Heading, ok, want)

@@ -384,7 +384,7 @@ Where this differs from the text above, this wins:
    holds are the unexported `errBadRevision` (a 500, like task 03's `errNoNewID`), with a zero
    `Document`, checked before completeness and the pin. The `BranchRef` rule: a project
    revision's is `""`; a branch revision's is `refs/heads/` and a non-empty name holding no ASCII
-   control character or DEL (Hub contract §3.3 `:133-137`, §7.5 `:759`, and its `briefs` table's
+   control character, space or DEL (Hub contract §3.3 `:133-137`, §7.5 `:759`, and its `briefs` table's
    `CHECK ((scope = 'project' AND branch_ref = '') OR (scope = 'branch' AND branch_ref LIKE
    'refs/heads/_%' …))` at `:1573-1574`), so the title is one line and names a branch.
    So every block `Render(Resolve(…))` writes reads back through `Inspect`
@@ -418,7 +418,10 @@ Where this differs from the text above, this wins:
    old plan's branch-first rule heading an inherited project answer with the branch's wording;
    fixed in `c2005fd`). Pinned by `TestFollowUpHeadingIsTrimmedOrTheKey` (fix round 1, review I2):
    `"  Is there a deadline?  "` is headed `Is there a deadline`; `"?"`, `"  ?  "` and `""` are
-   headed by the key.
+   headed by the key. The other revision is asked only when the shown one lacks the question, so
+   a key both hold, whose shown prompt leaves nothing, is headed by the key, not by the other
+   scope's wording (the fix round's predicted survivor P2; ops.go refuses a blank prompt, so only
+   a `?`-only prompt or an unchecked head reaches this).
 10. **Tests beyond the table:** `TestResolveOverrideCarriesTheReplacedText`,
     `TestResolveOrdersSectionsAndHeadsFollowUps`, `TestResolveNamesTheKeyAndThePin`,
     `TestResolveRefusesAMalformedRevision`, `TestAllSkippedRendersTheKeyAndNoSection`,

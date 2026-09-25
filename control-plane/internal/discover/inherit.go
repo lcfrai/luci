@@ -186,9 +186,10 @@ func Title(branch *Revision) string {
 // in the other scope's place, an id MarkerSafe refuses, a number below 1, or
 // a BranchRef its scope's envelope never holds (review M2). A project
 // revision's BranchRef is "" (Hub contract §7.5, :759); a branch revision's
-// is "refs/heads/" and a non-empty name with no ASCII control character or
-// DEL (§3.3, :133-137; the briefs CHECK 'refs/heads/_%', :1573-1574), so
-// Title names a branch, on one line.
+// is "refs/heads/" and a non-empty name with no ASCII control character,
+// space or DEL (§3.3, :133-137; the briefs CHECK 'refs/heads/_%',
+// :1573-1574), so Title names a branch, on one line. The rest of §3.3 (no
+// "..", "~", ...) is the Hub's to enforce: it does not change the block.
 func checkRevisions(project, branch *Revision) error {
 	if project == nil && branch == nil {
 		return fmt.Errorf("%w: no revision passed", errBadRevision)
@@ -224,7 +225,7 @@ func envelopeRef(s Scope, ref string) bool {
 		return false
 	}
 	for i := 0; i < len(name); i++ {
-		if name[i] < 0x20 || name[i] == 0x7f {
+		if name[i] <= ' ' || name[i] == 0x7f {
 			return false
 		}
 	}
