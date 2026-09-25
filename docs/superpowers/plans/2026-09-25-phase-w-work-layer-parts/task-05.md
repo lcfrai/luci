@@ -2187,3 +2187,69 @@ the `required` detail), `Calls` (`fake.go:130`), `FakeUser.OrgAdmin` (`:37-40`).
   `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>`.
 - [ ] **Step 7: Announce WS0** in the commit body: *"WS0 reached: SW.1 and SW.2 frozen except
   for additions"*, so streams WP, WD1 and WD2 start against `NewFake()` (skeleton, *Start lines*).
+
+#### Acceptance
+
+```bash
+go build ./control-plane/... && go vet ./control-plane/internal/hub/hubclient/...
+# (no output)
+test -e control-plane/internal/hub/hubclient/fake_work_stub.go; echo $?
+# 1   (the stub is gone)
+grep -rc 'notInFakeYet\|not_in_fake_yet' control-plane/internal/hub/hubclient/ --include='*.go' | grep -v ':0$'
+# (no output: no method answers 501 any more)
+go test ./control-plane/internal/hub/hubclient/conformance/ -race -count=1 -v -run 'TestWorkRowsOnTheFake|TestWorkRowIDsAreInOrder' 2>&1 | grep -c -- '--- PASS: TestWorkRowsOnTheFake/work/W-'
+# 25
+go test ./control-plane/internal/hub/hubclient/ -race -count=1 -v -run 'TestNoPartTwoMethodIsAStub|TestAttachChecksTheProjectThroughGetBlob|TestTheFeedNeverCarriesTheReason|TestAnErasedImportStaysErased|TestAnotherTeamsLabelIsUnavailable' 2>&1 | grep -c '^--- PASS'
+# 5
+go test ./control-plane/internal/hub/... -race -count=1
+# ok for every package: task 04's fake_work_test.go and H05's own rows unchanged
+git diff --name-only START -- control-plane/ | sort
+# control-plane/internal/hub/hubclient/conformance/work.go
+# control-plane/internal/hub/hubclient/conformance/work_fake_test.go
+# control-plane/internal/hub/hubclient/fake_work_intake.go
+# control-plane/internal/hub/hubclient/fake_work_social.go
+# control-plane/internal/hub/hubclient/fake_work_social_test.go
+# control-plane/internal/hub/hubclient/fake_work_stub.go   (deleted; fake_work.go and conformance.go do not appear)
+```
+
+`START` is the task's start commit. The count of 25 is the rows' own count; if a later task adds
+a row, this line changes with it and nothing else does.
+
+**What this task does not claim.**
+
+- That the real Hub passes any `W-NN` row. Task 16 runs `RunWork` against it; until then the rows
+  are proved on the fake only, and the fake is a reading of tasks 08-15's parts, not their code.
+- That the `fk…` spellings are the declared ones. Each is copied from tasks 11-15's parts
+  (decision (c)); those tasks swap them for `hubapi`'s and a drift fails a row on either side.
+- Search of descriptions or comments (not in W1, per the scope), or ranking beyond newest first.
+- That erase reaches the blob store. Attachments keep their digest; blob erasure is H05's and the
+  retention rules are the Hub's (UNVERIFIED which task owns it).
+- Import from any external system. Task 15 owns the batch shape; the importers are W5's.
+- Anything the desktop shows. Tasks 37 onward.
+
+**Parity rows served** (each closed by its server task and its desktop surface): **L-9** (the
+team's default state, completing task 04's), **L-10** (duplicate offered, never forced), **L-17**
+(team labels; workspace labels are not claimed), **L-24** (relations), **L-41** (threads, resolve,
+reactions; custom emoji not claimed), **L-42** (text anchors), **L-45** (attachments by digest),
+**L-48** (priority to leave triage), **L-106** (the Hub half of search), **L-117**
+(subscriptions), **L-220** (the import semantics only; the importers are W5's). Verified against
+`01-linear-feature-inventory.md`'s numbered list on 2026-09-25.
+
+**Corrections to the scope paragraph** (the skeleton row wins; this part records them):
+the rows do not join H05's table; they run through `RunWork` beside `Run` (decision (a)); the
+suite's environment gains an org admin (b); erased text reads `""` with `erasedAt`, and
+*"resolves `erased`"* is `/v1/refs`'s word (g); import is idempotent per `(project, source,
+externalId)`, not `(source, externalId)` (h); `relates` is stored once from either end (d); the
+scope's *"unsubscribe, then comment"* test is row W-19's manual-survives clause.
+
+**Gaps found while writing this part** (for the skeleton's owner and the named tasks):
+
+1. Tasks 13 and 14 do not list `hubclient/fake_work*.go` in their files, though decision (c)
+   needs each to swap the fake's `fk…` copies for `hubapi`'s (checked: `grep -c fake_work` prints
+   `0` for both). Task 15 names it once; tasks 11 and 12 already do.
+2. Task 16's part does not name `RunWork` or `WorkEnv.OrgAdmin` (`grep` prints nothing). Its
+   `work_integration_test.go` must call `RunWork` with a real org admin, or W-24 and W-25 skip.
+3. H05's `conformance.go` and blob store (`fake_designs.go`, `PutBlob`/`GetBlob`) are not on any
+   branch yet (UNVERIFIED; Step 1 re-checks).
+4. Who erases blob bytes when an issue is erased is unowned: task 14 keeps digests, H05 keeps
+   bytes, and no Phase W or Hub part names the retention rule.
