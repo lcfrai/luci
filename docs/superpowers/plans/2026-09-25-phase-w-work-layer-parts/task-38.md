@@ -714,3 +714,75 @@ from the scenario so a fixture edit cannot silently pass. `vi.stubEnv` with a bo
 grep in Acceptance carries the claim. The ghost row's text has no space between its two spans,
 which is why the assertion reads `cancelledN applies`.
 
+#### Steps
+
+1. Write `prototype.test.tsx`. Run `npm --prefix desktop test -- prototype`: it fails to import
+   `./PlanPrototype` and `./WorkPrototype`.
+2. Add `prototype` to ⚑ `lib/flags.ts` (the type, `FLAG_DEFAULTS`, `ATTRIBUTE`). Write `world.ts`,
+   `Rows.tsx`, `prototype.css`, `PlanPrototype.tsx`, `WorkPrototype.tsx`, then `mount.ts` and
+   `register.tsx`. Re-run: tests 1 to 9 pass; test 10 passes once `mount.ts` holds both gates.
+3. Add the `"work"` arm and `WorkArm` to ⚑ `AppShell.tsx`, `Launcher.tsx`, and mount it in ⚑
+   `DevToolbar.tsx`. Task 32's `flags.test.ts` rows that enumerate `Flags` gain `prototype`; re-run
+   `npm --prefix desktop test -- flags devtools AppShell`.
+4. Mutate by hand, watch the named test go red, then revert: print `1 of 3 proven` beside a group
+   size (test 1); group `world.groups` by `heads[id].state` (test 2); sort groups by `title` (test
+   3); render the agent line on every row assigned to anyone (tests 4 and 5); add `· 2 agents` to
+   the row's title cell (test 6); give the lit group's rows `aria-selected` (test 7); re-sort in
+   `replay` instead of `apply` (test 8); drop *My issues* from `bands` (test 9); remove the
+   `import.meta.env.DEV ?` from `mount.ts` (test 10).
+5. Run the full suite, the typecheck, and the production build; grep the build for the prototype.
+6. Run `npm --prefix desktop run tauri dev`, click *Open the Work prototype* on the dev toolbar,
+   switch Work and Plan, graphite and paper, old and new look, and press *Replay a land*. What the
+   implementer saw is written down as seen, not as a verdict: the verdict is the owner's (task 39).
+   Commit.
+
+#### Acceptance
+
+```bash
+npm --prefix desktop test -- prototype
+# expect: prototype.test.tsx 10 passed
+npm --prefix desktop test
+# expect: all passed, including the design-system audit over prototype.css (tokens only)
+npm --prefix desktop run typecheck
+# expect: exit 0
+npm --prefix desktop run build && grep -rl "Work prototype\|pw-grp" desktop/dist || echo "absent"
+# expect: absent   (no prototype chunk, no .pw-* rule in a production build)
+npm --prefix desktop run tauri dev
+# expect: the app opens; the dev toolbar shows "Open the Work prototype"; clicking it shows
+#         05 §4.1's groups. This line is for the owner's eyes; it is not evidence of a pass.
+```
+
+The implementer reports the numbers the run prints; the plan's counts are not the evidence. The
+`grep` over `dist/` is **UNVERIFIED** until the first run: Vite may inline `prototype.css` into a
+dev-only chunk that the build then drops (the expectation), or keep a stylesheet (a failure).
+
+#### What this task does not claim
+
+- **Not real data.** Every row is task 20's world with this task's overrides; no Hub, no replica,
+  no `useWork` (tasks 55-58), no `api.work` call.
+- **Not the keys.** `G W`, `G P`, `J`/`K`, `X` and `N` are tasks 53-54; the prototype's buttons
+  stand in for them, and a row takes focus only by pointer or `Tab`.
+- **Not the product's order inside a group, nor its `moves.hold` rule.** Apply moves held rows to
+  the group's end; task 41 builds the rule, task 40 the order.
+- **Not accessibility.** A `section` inside a `listbox` is not a valid ARIA tree; task 66 owns the
+  grid roles. The prototype is shown to one person on one machine.
+- **Not any size for tasks 40-45**, nor that the look is right. Both are the owner's, at task 39
+  (05 §5.3 rows 10-11, `OD-1`).
+- **Not the convergence word.** `open` is a fixture value; task 45 computes it.
+- Design: 05 §4.1, §4.4 C1 C2 C13, §5.3 rows 10-11; `OD-1`, `OD-28`. Parity: none closed; the check
+  before L-46, L-101, L-102 and L-112 are built.
+
+**Interfaces:**
+- Produces (no seam; dev-only, deleted by task 40): `desktop/src/prototype/work/` —
+  `WorkPrototype` (default) and `WorkScreen`, `PlanPrototype`, `plainSize(issues, moving?)`,
+  `IssueRow`, `Group`, `RowFacts`, `protoWorld`, `ProtoWorld`, `ProtoGroup`, `ProtoAgent`,
+  `ProtoTouch`, `ConvergenceWord`, `Launcher`, `mount.ts`'s `WorkPrototype | null`, `register()`,
+  and `.pw-*`; the flag `prototype: "off" | "on"` (`data-prototype`) in `lib/flags.ts`
+- Consumes: task 20's `workScenario`, `WORK_IDS`, `DYLAN`, `ALICE`, `makeIssueRevision`,
+  `makeServe`, `expectNoPrediction`; task 28's `StateGlyph`; task 29's `AgentGlyph`, `AgentStatus`,
+  `MarkGlyph`; task 31's `ViewHeader`; task 32's `setFlag`, `useFlags`, `resetFlags`, `DevToolbar`,
+  `.dt-reset`; task 33's `registerStressScreen`; task 34's `data-changed="unseen"`; task 36's
+  `ThreadNode`, `ThreadLine`, `useThreadLit`; task 37's `IssueHead`, `IssueRevision`, `openWork`,
+  `select`, `moveCursor`, `Lens` `"work"`; the built `resetCockpit`.
+- Amends: nothing in the Hub. ⚑ `AppShell.tsx` gains `LensRouter`'s `"work"` arm (task 40
+  replaces it).
