@@ -341,3 +341,152 @@ A label is matched to the **project's team**, never to the org: task 06's `issue
 key names only `(org_id, label_id)` (`task-06.md:249-256`), so the team rule is Go's, and
 `TestALabelOfAnotherTeamIsNotMatched` holds it.
 
+#### The route — `server/work_imports.go` (complete)
+
+```go
+package server
+
+func (s *Server) registerWorkImports(mux *http.ServeMux) {
+	mux.HandleFunc("POST /v1/projects/{projectId}/imports", s.postImport)
+}
+
+// postImport is SW.6. The body cap is the route's own (see The body cap); the
+// reply holds no issue text, so plain WriteLimit stores it whole under a key.
+func (s *Server) postImport(w http.ResponseWriter, r *http.Request) {
+	projectID := r.PathValue("projectId")
+	s.WriteLimit(w, r, hubapi.MaxImportBatchBytes, func(tx *Tx, body []byte) (WriteResult, error) {
+		ctx := r.Context()
+		var b hubapi.ImportBatch
+		if err := Decode(body, &b); err != nil { // strict: a "state" in an item is 400
+			return WriteResult{}, err
+		}
+		role, teamID, ok, err := ProjectRole(ctx, tx, projectID)
+		if err != nil {
+			return WriteResult{}, err
+		}
+		if err := Require(role, ok, hubapi.RoleMember, notFoundProject(projectID)); err != nil {
+			return WriteResult{}, err
+		}
+		if err := hubapi.ValidateImportBatch(b); err != nil { // decision 1: before any write
+			var fe *hubapi.FieldError
+			errors.As(err, &fe)
+			return WriteResult{}, Refuse(http.StatusBadRequest, "bad_request", err.Error(),
+				map[string]string{"field": fe.Field})
+		}
+		keys := make([]string, len(b.Items))
+		for n, it := range b.Items {
+			keys[n] = it.ExternalID
+		}
+		found, err := store.IssuesByExternal(ctx, tx, projectID, b.Source, keys) // under the org's write lock
+		if err != nil {
+			return WriteResult{}, err
+		}
+		var names []string // decision 3: only created items' labels are read
+		for _, it := range b.Items {
+			if _, ok := found[it.ExternalID]; !ok {
+				names = append(names, it.Labels...)
+			}
+		}
+		matched, err := store.MatchLabels(ctx, tx, teamID, names)
+		if err != nil {
+			return WriteResult{}, err
+		}
+		out := hubapi.ImportResult{Created: []hubapi.IssueRef{}, Existing: []hubapi.IssueRef{}}
+		var unmatched []string
+		for _, it := range b.Items { // input order: numbers follow the file
+			if hit, ok := found[it.ExternalID]; ok {
+				out.Existing = append(out.Existing, hubapi.IssueRef{IssueID: hit.IssueID, Number: hit.Number,
+					ExternalID: it.ExternalID})
+				continue
+			}
+			ref, missing, err := s.importOne(ctx, tx, teamID, projectID, b.Source, it, matched)
+			if err != nil {
+				return WriteResult{}, err // one transaction: every created issue rolls back with it
+			}
+			out.Created, unmatched = append(out.Created, ref), append(unmatched, missing...)
+		}
+		out.UnmatchedLabels = hubapi.ImportLabelNames(unmatched)
+		return WriteResult{Status: http.StatusOK, Body: out}, nil
+	})
+}
+```
+
+`Refuse`, `Require`, `ProjectRole` and `Decode` are Hub task 14's and 15's (`H14:37`, `H14:138`,
+`H15:42`, `H15:48`, read at `feat/hub` `3b0dcad`); `notFoundProject` is task 08's. The org's write
+lock is taken by `s.WriteLimit` before `fn` runs (hub-contract:2035), so two imports of one file in
+one org run one after the other and the second finds every item; `issues_external_once` is the
+second layer, and a `23505` on it would be a 500 and a rollback, never a half-import.
+
+```go
+// importOne creates one issue from a validated item: triage, not tied ·
+// imported, source intake, revision 1 with both texts author "H", the head's
+// title set, matched labels attached, one issue.created. It subscribes nobody
+// (task 13's exception) and never reads the team's policy (task 11).
+func (s *Server) importOne(ctx context.Context, tx *Tx, teamID, projectID, source string,
+	it hubapi.ImportItem, matched map[string]string) (hubapi.IssueRef, []string, error) {
+	n, err := store.NextIssueNumber(ctx, tx, tx.P.OrgID, projectID)
+	if err != nil {
+		return hubapi.IssueRef{}, nil, err
+	}
+	var at *time.Time
+	if it.CreatedAt != "" {
+		t, _ := time.Parse(time.RFC3339, it.CreatedAt) // ValidateImportBatch parsed it already
+		at = &t
+	}
+	id := ids.Wide(hubapi.PrefixIssue)
+	head := store.IssueRow{ID: id, OrgID: tx.P.OrgID, ProjectID: projectID, TeamID: teamID, Number: n,
+		State: hubapi.StateTriage, Priority: it.Priority, NotTiedReason: hubapi.NotTiedImported,
+		Source: hubapi.SourceIntake, ExternalSource: source, ExternalID: it.ExternalID,
+		ExternalURL: it.URL, ExternalAuthorName: it.AuthorName, ExternalCreatedAt: at,
+		CreatedAt: tx.Now, UpdatedAt: tx.Now, CreatedBy: tx.P.UserID} // decision 5: our time, not theirs
+	if err := store.InsertIssue(ctx, tx, head); err != nil {
+		return hubapi.IssueRef{}, nil, err
+	}
+	content := hubapi.IssueRevisionContent{
+		Title:       hubapi.AuthoredText{Text: it.Title, Author: hubapi.AuthorHuman},
+		Description: hubapi.AuthoredText{Text: it.Description, Author: hubapi.AuthorHuman},
+		Serves:      []hubapi.Serve{}, Implements: []string{}} // no serve: the thread stays open, named
+	env := hubapi.IssueRevisionEnvelope{V: 1, Kind: "issue-revision", IssueID: id, Revision: 1,
+		ProjectID: projectID, Content: content}
+	digest, canonical, err := hubapi.IssueRevisionDigest(env)
+	if err != nil {
+		return hubapi.IssueRef{}, nil, err
+	}
+	if err := store.InsertIssueRevision(ctx, tx, store.RevisionRow{OrgID: tx.P.OrgID, IssueID: id,
+		ProjectID: projectID, Revision: 1, Canonical: canonical, Digest: digest, WrittenAt: tx.Now,
+		WrittenBy: tx.P.UserID, Serves: content.Serves}); err != nil {
+		return hubapi.IssueRef{}, nil, err
+	}
+	if err := store.MoveIssueHead(ctx, tx, id, 1, tx.Now); err != nil {
+		return hubapi.IssueRef{}, nil, err
+	}
+	if err := store.SetHeadTitle(ctx, tx, id, it.Title); err != nil { // task 14
+		return hubapi.IssueRef{}, nil, err
+	}
+	var labelIDs, missing []string
+	for _, name := range it.Labels {
+		if lid, ok := matched[name]; !ok {
+			missing = append(missing, name)
+		} else if !slices.Contains(labelIDs, lid) {
+			labelIDs = append(labelIDs, lid)
+		}
+	}
+	if len(labelIDs) > 0 {
+		if err := store.InsertIssueLabels(ctx, tx, tx.P.OrgID, id, labelIDs); err != nil {
+			return hubapi.IssueRef{}, nil, err
+		}
+	}
+	if err := emitWork(tx, hubapi.EventIssueCreated, teamID, projectID, id, hubapi.IssueCreatedData{
+		Number: int64(n), Key: hubapi.IssueKey{IssueID: id, Revision: 1}.String(), Digest: digest.String(),
+		State: string(hubapi.StateTriage), Source: string(hubapi.SourceIntake)}); err != nil {
+		return hubapi.IssueRef{}, nil, err
+	}
+	return hubapi.IssueRef{IssueID: id, Number: n, ExternalID: it.ExternalID}, missing, nil
+}
+```
+
+The file imports `context`, `errors`, `net/http`, `slices`, `time`, and the Hub's `hubapi`, `ids`
+and `store` packages, as task 08's `work_issues.go` does. A 500-item batch is about 3,000 single-row
+statements in one transaction holding the org's write lock; how long that holds other writers in
+the org is **unmeasured**, and the page size of 500 is the knob if a measurement says so.
+
