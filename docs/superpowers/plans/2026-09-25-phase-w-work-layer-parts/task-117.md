@@ -95,6 +95,11 @@ import (
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/store"
 )
 
+// roleGranted is what readableIssue returns for a granted-only caller, the
+// same word as task 115's fake; it ranks below every role, so a Require on it
+// is 403. It never reaches the wire.
+const roleGranted hubapi.Role = "granted"
+
 // WorkAccess is the caller's reach into one project for Work routes only.
 // Role is the caller's role in the owning team ("" if none); Granted is true
 // when a team the caller belongs to holds a read_comment grant (Q12).
@@ -342,3 +347,73 @@ Phase W grant"*.
 **If declined**, nothing changes: the feature header (task 126) shows the brief's key and says it
 is readable by the owning team only. Nothing in Phase W depends on the answer.
 `````
+
+#### Tests first: `server/work_grants_integration_test.go` (`//go:build integration`)
+
+Seeded with task 116's fixture: team T (Ada admin, Grace member) owns project P with feature F and
+issue EP-1; team U (Uma admin, Gus member) owns project Q with feature H.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestTheGrantedTeamReadsAndComments` | Ada grants P to U; Gus reads EP-1, F, F's milestones and updates (200) and posts a `note` comment (201) | grant not consulted |
+| `TestAGrantedWriteIs403Not404` | Gus's issue create, `PATCH`, state move, relation, label, sub-state and an `evidence_proposal` comment are each 403 `forbidden`, `required: member`; none is 404 | grant is write; a leak by 404/403 difference inverted |
+| `TestRevocationIsImmediate` | Ada revokes; Gus's next `GET /v1/issues/EP-1` is 404 and his next `/v1/changes` page carries no P event, with no cache flush between | revocation ignored |
+| `TestTheFeedNeverOverShares` | after the grant, a brief revision on P and a label change on T reach Gus's feed **zero** times; an issue event on P reaches it once; nothing of Q's sibling project R reaches Grace | feed over-shares |
+| `TestTheBriefStaysTeamOnly` | Gus's `GET /v1/briefs/{F's brief}` is 404 and `/v1/refs` of its key is `missing` | a grant widening H's reads (decision 7) |
+| `TestOnlyAnAdminGrants` | Grace's grant is 403; Gus cannot grant P onward (404, he has no role in T); a grant to T itself is 400; a second grant is 409 `grant_exists` | member grants; grant onward |
+| `TestASpanShowsOnlyWhatEachTeamReads` | (after 118) T's initiative spans U; F and H are in it; before Uma grants Q to T, Grace's view lists F only, and no byte of the response holds H's id or name | an unreadable feature's name leaks |
+| `TestASpanNeedsALink` | `PUT …/teams [T, U]` with no grant either way is 422 `teamIds[1]`; `[U, T]` is 400 | spans over any team |
+| `TestEachWriteHasItsEvent` | grant, revoke and span each append exactly one event of its kind, in the same transaction (a forced rollback leaves neither row nor event) | write without event |
+
+`server/work_access_test.go` (unit): `WorkAccess{OK: false}.Read` is the 404 passed in;
+`{OK: true, Granted: true}.Write(member)` is 403; `{OK: true, Role: member}.Write(admin)` is 403,
+`.Write(member)` nil; `grantedKind("brief.revised")` false, `grantedKind("issue.state")` true
+(kills a prefix list that lets briefs through).
+
+**Matrix rows, `"117"`:** `wadmin` for the grant create and delete and the span `PUT`; `wread` for
+the list, with the owning team's columns (a granted `G` is 404 on the list, by `grantedRowFor`'s
+override); and `"117"` appended to `workMatrixLive`, which switches on task 116's `G` rows.
+
+#### Steps
+
+- [ ] **Step 1: Sync and bind (15 min).** Sync-merge `feat/hub`; bind `Require`, `ProjectRole`,
+  `team_members`, task 13's filter, task 12's comment path. Confirm 116 is in.
+- [ ] **Step 2: Tests first (40 min).** The unit test, the integration tests but the span pair,
+  and the matrix rows; all fail.
+- [ ] **Step 3: The grant half (60 min).** `work_access.go`, the store, the three routes, the
+  two ⚑ edits and task 12's comment rule. Green; then H16b's whole matrix and every W1-W3 row.
+- [ ] **Step 4: Commit the grant half**, then, **after task 118 lands**, the span route and its two
+  tests (30 min), and a second commit.
+- [ ] **Step 5: The proposal file (10 min)**, handed to the orchestrator for the `feat/hub` owner.
+
+#### Acceptance
+
+```bash
+go test ./control-plane/internal/hub/server/ -race -count=1 -run '^TestWorkAccess' -v 2>&1 | grep -c '^--- PASS'
+# 4
+go test ./control-plane/internal/hub/server/ -tags integration -race -count=1 -v \
+  -run '^Test(TheGrantedTeamReadsAndComments|AGrantedWriteIs403Not404|RevocationIsImmediate|TheFeedNeverOverShares|TheBriefStaysTeamOnly|OnlyAnAdminGrants|ASpanShowsOnlyWhatEachTeamReads|ASpanNeedsALink|EachWriteHasItsEvent|WorkGrantedPrincipal)$' \
+  2>&1 | grep -c '^--- PASS'
+# 10   (8 before task 118: the two span tests are added with the second commit)
+grep -rn "workAccess(" control-plane/internal/hub/server --include=*.go | grep -v _test.go | grep -v -E "work_[a-z_]+\.go" | wc -l
+# 0   (no H route calls it)
+```
+
+#### What this task does not claim
+
+- **Not that a granted team reads the brief.** The proposal decides; until then the feature header
+  names the brief and says who may read it (task 126).
+- **Not per-object sharing, nested teams or sub-initiatives** (SKIP, Q12).
+- **Not that the feed filter is fast.** One sub-select per page; not measured.
+
+**Parity rows:** closes **L-67**'s W4 half (with task 76's feature and task 126's header) and the
+span in **L-83** (with task 118's initiatives and task 127's surface).
+
+#### Gaps found
+
+1. **The skeleton's row lacks 118** in `dependsOn`; the span half lands after 118 (Step 4).
+2. **No caller-scoped list of projects granted to my teams** (task 124's gap 7): a granted member
+   has no route to discover what was shared with them except the feed. Add `GET
+   /v1/me/granted-projects` here or in task 126, with a `WorkRoadmap` method (task 114's gap 6).
+3. **Task 12's comment kinds** are narrowed for a granted caller (`note` only); the scope says
+   "write comments" without kinds.
