@@ -221,4 +221,51 @@ two events). It **does not claim** the HTTP client (task 16), the real Hub (task
 rules (task 05). Parity rows served: L-3, L-8, L-9, L-13, L-34, L-38 (closed by 08-10 and the
 desktop).
 
+**05 — the fake, part 2, and the Work conformance rows (WS0).** W1, stream WH, seam **SW.2**
+(second half) and start line **WS0**: when this task is green, streams WP, WD1 and WD2 build every
+Work-backed handler and surface against `hubclient.Work` and `NewFake()`, and a later change that
+is not an added method, field or route reopens this task and is announced (skeleton *Start
+lines*). Depends on 04. Files: new `hubclient/fake_work_social.go` (relations, labels, policies,
+comments, subscriptions), `fake_work_intake.go` (import, search, attachments, erase),
+`fake_work_social_test.go`, and `hubclient/conformance/work.go` with its rows; it **deletes**
+`fake_work_stub.go`. The conformance file adds rows to the Hub's one table-driven suite
+(`hubclient/conformance/conformance.go`, H-plan:279, built by Hub task 05, **UNVERIFIED until
+merge**), so the same rows run against the fake now and against the real Hub in task 16. Rules the
+fake implements, each also a conformance row named `W-NN`: **relations** `blocks`, `duplicates`,
+`relates` between issues of readable projects, no self-relation, no duplicate pair, `A blocks B`
+and `B blocks A` refused as a cycle of two; marking `duplicates` offers but never forces the
+`duplicate` state (L-10); **team labels** `lb-`, unique name per team, an issue may carry only its
+own team's labels (L-17); **team policy** `defaultState` applied on create when the request names
+none (L-9), and `priorityToLeaveTriage` refusing a move out of `triage` with `priority: none`
+(L-48, 422 `policy_refused` with `details.policy`); **comments** `ic-` are append-only (no edit
+route; a correction is a new comment), `body.author` `H` or `A`, `mentions` only of team members,
+an `anchor` checked against the issue revision it names (range within that revision's text, or a
+criterion the revision serves), `React` idempotent per `(comment, user, emoji)`, `Resolve` on a
+top-level comment only (L-41, L-42); **subscriptions** created on create, assign, mention and
+comment with that `cause`, and an explicit unsubscribe is **not** undone by a later comment
+(L-117); **import** lands every item in `triage` with `threadState {not_tied, imported}`,
+`source: intake` and `external {source, externalId, url}`, idempotent by `(source, externalId)`
+(a re-run returns the same ids under `existing`) — SW.6's semantics as drafted, fixed by task 15
+(L-220); **search** matches titles of the caller's readable projects only, case-insensitive,
+newest first, never descriptions or comments in W1 (L-106's Hub half); **attachments** name a
+project blob by digest (hub-contract's blob routes, H-plan task 21) and are listed on the issue
+(L-45, pulled into W1 by 05 §5.3 row 12); **erase** is org-admin only, removes title,
+description, comment and import text, keeps ids, keys, digests and revision numbers, and every
+later read of the erased text resolves `erased` (hub-contract:2254's H7 row). Every write here
+also appends exactly one event. **Tests**, each with its mutant: a cross-team label on an issue is
+refused (kills a label check by name only); moving out of `triage` with `priority: none` under the
+policy is 422 and appends no event (kills a check after the write); editing a comment has no method
+and `CreateComment` twice gives two ids (kills an upsert); a mention of a non-member is 400 naming
+`mentions[0]` (kills leaking a name outside the team); unsubscribe, then comment, and
+`Subscriptions` still shows `subscribed: false` (kills auto-resubscribe); the same import batch
+twice yields one issue per `externalId` (kills a non-idempotent import); a search from a user of
+team B never returns team A's title (kills search before the readability check); an erase by a team
+`admin` is 403 and by an org admin leaves `IssueRevisionAt` returning the same digest with text
+`erased` (kills deleting the row, which breaks every trailer); a `go vet`-clean build with
+`fake_work_stub.go` absent (kills a stub left behind). Acceptance: `go test
+./control-plane/internal/hub/hubclient/... -race -count=1` passes with the new rows listed by
+`-run Conformance -v`. It **does not claim** that the real Hub passes these rows (tasks 16-17), or
+any desktop surface. Parity rows served: L-9, L-10, L-17, L-24, L-41, L-42, L-45, L-46, L-48,
+L-106, L-117, L-220.
+
 
