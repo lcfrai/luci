@@ -242,5 +242,77 @@ export function reconcile(prev: HoldState, next: GroupedIssues, focus: Attention
     const moving = keep.filter((k) => k.row.kind === "row" && k.row.home !== key).length;
     return { key, rows, arrivals, moving };
   });
+
+  // 3. One flash per update (D M9): rows, unless the group changed more than three times at once.
+  const rowFlash = new Set<string>();
+  const groupFlash = new Set<string>();
+  for (const [k, ids] of changes) {
+    if (ids.size > HEADER_FLASH_OVER) groupFlash.add(k);
+    else for (const id of ids) if (fact.has(id) && wasLive.has(id)) rowFlash.add(id);
+  }
+  const flashed = rowFlash.size + groupFlash.size > 0;
+  return {
+    shown, held,
+    flash: flashed ? { seq: prev.flash.seq + 1, rows: rowFlash, groups: groupFlash } : { seq: prev.flash.seq, rows: EMPTY, groups: EMPTY },
+  };
+}
+
+const PHRASE: Readonly<Record<MoveCause, (m: MoveFact) => string>> = {
+  hand: (m) => `set by ${m.byName}`,
+  lane_bound: () => "a lane started",
+  lane_queued: () => "worktree queued",
+  land_trailer: (m) => `landed at ${m.commit.slice(0, 7)}`,
+  evidence_observed: (m) => `own evidence at ${m.commit.slice(0, 7)}`,
+  evidence_recorded: (m) => `evidence recorded at ${m.commit.slice(0, 7)}`,
+};
+
+/** "→ done · own evidence at 7c1f0a2 (test run, exit 0) · 14:02". Printed in Commit Mono. */
+export function causeLine(move: MoveFact, timeZone: string): string {
+  const hhmm = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone })
+    .format(new Date(move.at));
+  const detail = move.detail === "" ? "" : ` (${move.detail})`;
+  return `→ ${move.to.replace("_", " ")} · ${PHRASE[move.cause](move)}${detail} · ${hhmm}`;
+}
+
+export function groupSize(group: ShownGroup): string {
+  const n = group.rows.filter((r) => r.kind === "row").length;
+  return `${n} issue${n === 1 ? "" : "s"}${group.moving > 0 ? ` · ${group.moving} moving` : ""}`;
+}
+
+export function heldWords(n: number): string {
+  return n === 1 ? "One change is held, so no row moves under you." : `${n} changes are held, so no row moves under you.`;
+}
+```
+
+#### Interfaces — complete: `desktop/src/components/work/HeldLine.tsx`
+
+```tsx
+// desktop/src/components/work/HeldLine.tsx — task 41. The per-group held line and the ghost row.
+import { heldWords } from "../../work/hold";
+
+/** At the top of a group with held arrivals. The button applies everything held (the same act
+ *  as N); it is a button so a pointer reader has the act too. No count of the group's total. */
+export function HeldLine(props: { count: number; onApply(): void }): JSX.Element | null {
+  if (props.count === 0) return null;
+  return (
+    <div className="wk-held" role="note">
+      <span className="wk-held-words">{heldWords(props.count)}</span>
+      <button type="button" className="wk-held-apply" onClick={props.onApply}>
+        Apply <kbd className="wk-kbd">N</kbd>
+      </button>
+    </div>
+  );
+}
+
+/** A departure: "EP-128 left this view · cancelled", until N. Not focusable, not selectable:
+ *  it is a record, not a row (task 44's selection skips it; task 53's cursor steps over it). */
+export function GhostRow(props: { alias: string; why: string }): JSX.Element {
+  return (
+    <div className="wk-ghost" data-ghost="">
+      <span><span className="wk-mono">{props.alias}</span> left this view · {props.why}</span>
+      <span className="wk-ghost-hint"><kbd className="wk-kbd">N</kbd> applies</span>
+    </div>
+  );
+}
 ```
 
