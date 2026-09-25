@@ -289,3 +289,136 @@ export function makeWorkEvent(over: Partial<WorkEvent> = {}): WorkEvent {
 ordered; a test that needs fixed numbers passes `seq` in the override. `label.color` is a token
 name, never a hex (task 03).
 
+#### Contract — `workFixtures.ts`, part 3: `workScenario()`, the demo's world (05 §5.3)
+
+```ts
+const LAND = "4f1c2e9a7b3d5c6e8f0a1b2c3d4e5f6a7b8c9d0e"; // 40 hex
+const head = (n: number, id: string, over: Partial<IssueHead>): IssueHead =>
+  makeIssueHead({ id, number: n, alias: `EP-${n}`, headRevision: 1, headKey: issueKey(id, 1), ...over });
+
+export function workScenario() {
+  const criteria = [makeCriterion(), makeCriterion({ id: WORK_IDS.criterionUpload, text: "upload works for PDF, XLSX and images" })];
+  const issues: IssueHead[] = [
+    makeIssueHead({ state: "done", proof: "proven", landCommit: LAND, updatedAt: at(302) }), // EP-142, 14:02
+    head(150, WORK_IDS.ep150, { state: "in_review", relations: [{ kind: "blocks", issueId: WORK_IDS.ep142 }] }),
+    head(160, WORK_IDS.ep160, {
+      state: "triage", priority: "none", assignee: null, source: "intake",
+      threadState: { kind: "not_tied", reason: "imported" },
+      external: { source: "csv", externalId: "row-160", url: "", authorName: "Import" },
+    }),
+    head(161, WORK_IDS.ep161, { state: "done", proof: "not_proven", stateReason: "Checked by hand on staging; the CI job was down." }),
+    head(162, WORK_IDS.ep162, { state: "done", proof: "proven_self_attested", landCommit: LAND }),
+    head(163, WORK_IDS.ep163, { state: "started", assignee: ALICE, createdBy: ALICE }),
+    head(164, WORK_IDS.ep164, { state: "landed", proof: "waiting", landCommit: LAND }),
+    head(165, WORK_IDS.ep165, { state: "done", proof: "no_criteria", threadState: { kind: "not_tied", reason: "chore" } }),
+    head(166, WORK_IDS.ep166, { state: "backlog", priority: "low" }),
+    head(167, WORK_IDS.ep167, { state: "todo" }),
+    head(168, WORK_IDS.ep168, { state: "cancelled", stateReason: "Superseded by the upload rework." }),
+    head(169, WORK_IDS.ep169, { state: "duplicate", relations: [{ kind: "duplicates", issueId: WORK_IDS.ep142 }] }),
+  ];
+  const revisions = {
+    ep142: makeIssueRevision(), // revision 3, serving c-91e2a4b0
+    ep164: makeIssueRevision({ issueId: WORK_IDS.ep164, revision: 1,
+      content: { title: { text: "Upload evidence files", author: "H" }, description: { text: "PDF, XLSX and images.", author: "H" },
+        serves: [makeServe({ criterionId: WORK_IDS.criterionUpload })], implements: [] } }),
+    ep163Proposal: makeIssueRevision({ issueId: WORK_IDS.ep163, revision: 2, writtenBy: ALICE,
+      content: { title: { text: "Split the restart fixture", author: "A" }, description: { text: "Drafted by an agent.", author: "A" },
+        serves: [], implements: [] } }),
+  };
+  const comments = [makeComment({ reactions: [{ emoji: "\u{1F44D}", users: [DYLAN] }] })];
+  const events: WorkEvent[] = [
+    makeWorkEvent({ seq: 1, at: at(280), kind: "issue.state", subject: WORK_IDS.ep142, data: { to: "landed", cause: "land_trailer" } }),
+    makeWorkEvent({ seq: 2, at: at(302), kind: "issue.state", subject: WORK_IDS.ep142, data: { to: "done", cause: "evidence_observed" } }),
+    makeWorkEvent({ seq: 3, at: at(30), kind: "comment.created", subject: WORK_IDS.ep163, actor: ALICE, data: { commentId: WORK_IDS.comment } }),
+    makeWorkEvent({ seq: 4, at: at(30), kind: "comment.mentioned", subject: WORK_IDS.dylan, actor: ALICE, data: { commentId: WORK_IDS.comment, issueId: WORK_IDS.ep163 } }),
+  ];
+  return {
+    projectKey: "EP", briefKey: BRIEF_KEY, criteria, issues, revisions, comments, events,
+    labels: [makeLabel()], policy: makeTeamPolicy(), users: [DYLAN, ALICE],
+  };
+}
+```
+
+**What the world holds, in words** (so a surface task can name its fixture without reading code):
+EP-142 serves *"the resume test passes"* at revision 3, landed at 13:40 and done with **proven**
+at 14:02; EP-150 **blocks** EP-142 and is in review, not landed; EP-160 is an imported `triage`
+item reading *not tied · imported*; EP-161 is a hand-set `done`, **not proven**, with its reason;
+EP-162 is **proven, self-attested**; EP-163 is Alice's, started, with her comment mentioning
+Dylan and an agent's unaccepted revision 2 (`text·A`, for task 19's refusal and the accept
+surface); EP-164 is landed and **waiting** on *"upload works for PDF, XLSX and images"*; EP-165 is
+a chore done with **no criteria**; EP-166 to EP-169 are `backlog`, `todo`, `cancelled` and
+`duplicate`. The `data` payloads follow task 13's scalar-only rule; their exact keys are task 13's
+data structs and task 37 takes them from there (**UNVERIFIED** here beyond the two kinds shown).
+Times are ISO instants in UTC (`FIXED_NOW` is 09:00Z); a surface that prints *14:02* formats in
+the time zone its test pins, which is that surface task's choice, not this kit's.
+
+#### Tests to write first
+
+`expectNoPrediction.test.ts` renders each case into a fresh `div` with `innerHTML` (no React: the
+check is about the DOM, whoever built it).
+
+| Test | Input | Asserts | Mutant it kills |
+|---|---|---|---|
+| `throws on a percentage in text` | `<p>40%</p>` | throws; the message names `percentage`, `"40%"` and `div > p` | a missing rule; a message with no path |
+| `throws on a percentage in an attribute` | `<span aria-label="60% done"></span>`, and `title="12.5 %"` | each throws, naming the attribute | a text-only check |
+| `throws on a bar by role` | `<div role="progressbar"></div>`, `<div role="meter"></div>` | each throws `progress-role` | a check that looks only at text |
+| `throws on a bar by element` | `<progress></progress>`, `<meter></meter>` | each throws `progress-element` | the native elements forgotten |
+| `throws on aria-valuenow` | `<div aria-valuenow="3"></div>` | throws `valuenow` | a custom slider-shaped bar |
+| `throws on N of M` | `3 of 5 criteria`; `<b>3</b> of 5`; `4/5 proven` | each throws `n-of-m`; the split one once at its `p` | a per-text-node check that misses a split phrase |
+| `throws on an ETA` | `ETA 14:22`; `about 5 min left`; `2 hours remaining`; `done by Friday`; `estimated 16:00` | each throws `eta` | each missing rule |
+| `passes the facts` | `EP-142`; `14:02`; `4 issues`; `waiting 2h 10m`; `c-91e2 still open (EP-150 not landed)` | no throw | an over-broad rule that would ban facts, and so get switched off |
+| `verbatim is skipped whole` | `<pre data-verbatim>coverage 50% · 3 of 5 · ETA 2m</pre>` | no throw | a verbatim exemption that checks anyway |
+| `a verbatim span does not leak into its sentence` | `<p>Log says <code data-verbatim>50%</code> today</p>` | no throw | the phrasing join dragging verbatim text in |
+| `a projection may say when` | `<span data-projection-rule>estimated ~14:22 · rule: migration gate</span>` | no throw; the same text **without** the attribute throws `eta` | an exemption that does nothing, or one that is always on |
+| `a projection may not say how far` | `<span data-projection-rule>40% · rule: migration gate</span>` | throws `percentage` | an exemption that disables every rule |
+| `findPredictions returns, never throws` | `<p>40%</p>` | one finding, rule `percentage` | two code paths that disagree |
+
+`workFixtures.test.ts`:
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `every id matches the Hub's grammar` | each `WORK_IDS` value matches `^[a-z]{2,3}-[0-9a-f]{16}$` for Hub ids, `^c-[0-9a-f]{8}$` for criteria, `^u-[0-9a-f]{16}$` for users; `BRIEF_KEY` and each `headKey` match the Hub's `brief:` and `issue:` grammars | a fixture id the real Hub would refuse |
+| `every state and proof word is in the world` | the set of `workScenario().issues[].state` equals `WORK_STATES`; the set of non-empty `proof` values equals `PROOF_WORDS` | a fixture set that hides a glyph or a state from surface tests |
+| `the world tells the demo's story` | EP-142 is `done`, `proven`, served criterion `c-91e2a4b0`, `updatedAt` 14:02Z; EP-150 `blocks` EP-142 and is not `landed`; EP-160 is `not_tied` / `imported`; EP-161's `stateReason` is non-empty | a scenario that drifts from 05 §5.3 |
+| `no fixture string is a prediction` | every string reachable in `workScenario()`, rendered into one `<p>` each, passes `expectNoPrediction` | a fixture that would force exemptions on every surface |
+| `builders are single` | a source scan of `desktop/src/**/*.test.ts(x)` finds no `function make(IssueHead|IssueRevision|Serve|Criterion|Comment|Label|TeamPolicy|WorkEvent)` outside this file | a local near-duplicate builder (`fixtures.ts:6-8`'s rule) |
+
+#### Steps
+
+- [ ] **Step 1: write `expectNoPrediction.test.ts`.** `npm --prefix desktop test -- src/test/expectNoPrediction.test.ts`
+  fails: the module does not exist.
+- [ ] **Step 2: write `expectNoPrediction.ts`** as above. Re-run; every row passes.
+- [ ] **Step 3: prove two rows bite.** Delete the `data-projection-rule` waiver line; the
+  `a projection may say when` row fails. Delete the `PHRASING` join; the split `N of M` row fails.
+  Restore both.
+- [ ] **Step 4: write `workFixtures.test.ts`, then `workFixtures.ts`.** Run
+  `npm --prefix desktop test -- src/test/`; every test passes, the kit's existing ones included.
+- [ ] **Step 5: typecheck.** `npm --prefix desktop run typecheck` exits 0.
+- [ ] **Step 6: commit** the four files by path.
+
+#### Acceptance
+
+```bash
+npm --prefix desktop test -- src/test/
+# expect: every file under src/test passes; the two new files list 13 and 5 tests
+npm --prefix desktop run typecheck
+# expect: exit 0, no output from tsc
+```
+
+#### What this task does NOT claim
+
+- That a bar drawn by CSS widths alone is caught: a `div` whose `width` grows is invisible to a DOM
+  text scan. The owner's review of the prototype (task 39) covers the look.
+- That every surface calls the check: each surface task's own test does.
+- That the local mirror types are right: task 37's typecheck is what proves them against
+  `src/api/work.ts`.
+
+Parity rows served: none closed alone. It enforces `OD-27` on every surface task that closes one.
+
+#### Gaps found while writing this part
+
+1. **Row 20 has no dependency, but its types are task 03's and task 37's.** As the scopes' gap 6
+   says, this part mirrors task 03's JSON names by hand (`task-03.md:279-398`) and task 37 swaps
+   in the real types.
+2. **Event `data` keys** are task 13's per-kind structs; the fixtures use two kinds' keys only.
+
