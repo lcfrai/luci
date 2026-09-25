@@ -871,3 +871,82 @@ describe("slashMenu", () => {
 });
 ```
 
+#### Tests to write first — `desktop/src/components/editor/SlashMenu.test.tsx`
+
+```tsx
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import type { Transaction } from "prosemirror-state";
+import { parseIssueLink } from "../../work/links";
+import { Editor, IDLE_COMMIT_MS, editorViewOf } from "./Editor";
+import { serializeMarkdown } from "./markdown";
+import type { LinkSources } from "./slashMenu";
+
+vi.mock("@tauri-apps/plugin-opener", () => ({ openUrl: vi.fn(async () => {}) }));
+afterEach(() => vi.useRealTimers());
+
+const ISSUE = { id: "is-3f2a91c07b1e4d2a", alias: "EP-142", title: "Resume an upload" };
+const SOURCES: LinkSources = {
+  issues: (q) => [ISSUE].filter((i) => `${i.alias} ${i.title}`.toLowerCase().includes(q.toLowerCase())),
+  criteria: () => [{ briefKey: "brief:bf-00000000000000a1@5", criterionId: "c-91e2a0b3c4d5e6f7", text: "Uploads resume" }],
+};
+
+function mount(markdown = "") {
+  const onCommit = vi.fn();
+  const r = render(<Editor ariaLabel="Description" value={{ markdown, authorship: [] }} onCommit={onCommit} linkSources={SOURCES} />);
+  const view = editorViewOf(r.container.querySelector(".ed")!)!;
+  const seen: Transaction[] = [];
+  const dispatch = view.dispatch.bind(view);
+  view.dispatch = (tr: Transaction) => { seen.push(tr); dispatch(tr); };
+  /** ProseMirror's own input order: handleTextInput props first, a plain insert if none takes it. */
+  const type = (s: string) => act(() => {
+    for (const ch of s) {
+      const { from, to } = view.state.selection;
+      if (!view.someProp("handleTextInput", (f) => f(view, from, to, ch))) view.dispatch(view.state.tr.insertText(ch, from, to));
+    }
+  });
+  const key = (k: string, init: KeyboardEventInit = {}) => act(() => { fireEvent.keyDown(view.dom, { key: k, ...init }); });
+  const md = () => serializeMarkdown(view.state.doc);
+  const options = () => screen.queryAllByRole("option").map((o) => o.querySelector(".ed-slash-label")?.textContent);
+  return { ...r, view, onCommit, seen, type, key, md, options };
+}
+
+describe("SlashMenu", () => {
+  it("opens on / at a block's start, and types a plain slash inside a word", () => {
+    const a = mount();
+    a.type("/");
+    expect(screen.getByRole("listbox")).toBeTruthy();
+    a.unmount();
+    const b = mount();
+    b.type("and/or");
+    expect(screen.queryByRole("listbox")).toBeNull();
+    expect(b.md()).toBe("and/or");
+  });
+  it("filters to Table on 'tab', and Enter inserts a table with a header row", () => {
+    const { type, key, view, md, options } = mount();
+    type("/tab");
+    expect(options()).toEqual(["Table"]);
+    key("Enter");
+    expect(screen.queryByRole("listbox")).toBeNull();
+    const t = view.state.doc.firstChild!;
+    expect([t.type.name, t.child(0).child(0).type.name, t.child(1).child(0).type.name])
+      .toEqual(["table", "table_header", "table_cell"]);
+    expect(md()).not.toContain("/tab");
+  });
+  it("closes on Esc and leaves the slash and the query in the text", () => {
+    const { type, key, md } = mount();
+    type("/tab");
+    key("Escape");
+    expect(screen.queryByRole("listbox")).toBeNull();
+    expect(md()).toBe("/tab");
+  });
+  it("shows each hint as a kbd, from the shortcut table, and none on Table", () => {
+    const { type } = mount();
+    type("/");
+    const row = (label: string) => screen.getAllByRole("option").find((o) => o.textContent?.startsWith(label))!;
+    expect(row("Heading 2").querySelector("kbd")?.textContent).toBe("## ");
+    expect(row("Divider").querySelector("kbd")?.textContent).toBe("---");
+    expect(row("Table").querySelector("kbd")).toBeNull();
+  });
+```
+
