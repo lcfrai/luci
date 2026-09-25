@@ -72,7 +72,8 @@ Closes **L-82**'s W4 half (*"propose issues, one per open criterion"*; Discover'
 8. **Accept all creates, and Undo cancels.** Issue creation is not a replica op (task 56's
    `WorkOp` has no create kind, `task-56.md:157-168`). *Accept all* creates the issues one by one
    through the client; its Undo is one `mutate([...])` batch of `setState` to `cancelled` with
-   cause `undo`, and the drafts are written back from memory. The aliases stay consumed (gap 4).
+   cause `hand` and a reason (task 37's `MoveCause` has no `undo`, `task-37.md:99-100`), and the
+   drafts are written back from memory. The aliases stay consumed (gap 4).
 9. **Solo mode.** The assist client makes the cycle proposal. 05 §1's *"the user's Orchestrator
    proposes"* needs team mode, and this row has no TM dependency, so the Orchestrator path is
    **UNVERIFIED** here and not built.
@@ -482,7 +483,8 @@ export function ProposeIssues(props: ProposeIssuesProps): JSX.Element {
     setCards([]);
     offerUndo(`${made.length} issues created`, async () => {
       mutate(made.map((i) => ({ kind: "setState", issueId: i.id,
-        move: { to: "cancelled", reason: "Undone: proposed issues accepted by mistake" } })));   // one batch
+        move: { to: "cancelled", cause: "hand", reason: "Undone: proposed issues accepted by mistake",
+                landCommit: "", evidence: [] } })));   // one batch; StateMove, task-37.md:197-199
       const back = await Promise.all(all.map((c) => work.saveDraft({ kind: "issue", issueId: null, body: encodeDraft(c.p) })));
       setCards(back.map((d) => ({ draftId: d.id, p: fromDraft(d)! })));
     });
@@ -531,3 +533,94 @@ with a callback, because the inverse of a create is not a `WorkOp` (`task-56.md:
 create kind); inside it, the cancel moves are **one** `mutate([...])` batch (`task-56.md:47-48`),
 and `cancelled` with a reason is a person's move, never a fact state (skeleton rule 2). Whether the
 chip takes a callback is a gap (gap 3).
+
+#### Interfaces — complete: `desktop/src/components/plan/CycleProposal.tsx` and the ⚑ deltas
+
+```tsx
+// desktop/src/components/plan/CycleProposal.tsx — L-66. Grouped by criterion, a fact; no forecast.
+import { useState } from "react";
+import type { CycleProposal as Proposal } from "../../api/work";
+import { mutate, useWork } from "../../work/replica/useWork";
+import { clearCycleProposal } from "../../work/proposals";
+import { KeyLink } from "../common/KeyLink";
+import { issueMeta } from "./planSelectors";   // task 83's row read: priority word, dueOn, blocker alias
+
+export function CycleProposal({ p, cycleName }: { p: Proposal; cycleName: string }): JSX.Element {
+  const all = p.groups.flatMap((g) => g.issues.map((i) => i.issueId));
+  const [checked, setChecked] = useState<ReadonlySet<string>>(() => new Set(all));
+  const meta = useWork((r) => issueMeta(r, all));
+  const unique = new Set(all).size;
+  const criteria = p.groups.filter((g) => g.criterion !== null).length;
+
+  const accept = () => {
+    const ids = [...new Set(all)].filter((id) => checked.has(id));
+    mutate(ids.map((issueId) => ({ kind: "setCycle", issueId, cycleId: p.cycleId })));  // one batch, one Undo
+    clearCycleProposal(p.cycleId);
+  };
+
+  return (
+    <section className="cp" aria-label={`Proposed for ${cycleName}`}>
+      <p className="cp-head">Proposed for {cycleName}: {unique} {unique === 1 ? "issue" : "issues"} across {criteria} {criteria === 1 ? "criterion" : "criteria"}</p>
+      {p.groups.map((g) => (
+        <fieldset key={g.label || "none"} className="cp-group">
+          <legend>{g.criterion ? `Serves ${g.label} · ${g.issues.length} ${g.issues.length === 1 ? "issue" : "issues"}` : "Serves no criterion"}</legend>
+          {g.issues.map((i) => (
+            <label key={i.issueId} className="cp-row">
+              <input type="checkbox" checked={checked.has(i.issueId)} onChange={() => {
+                const n = new Set(checked); n.has(i.issueId) ? n.delete(i.issueId) : n.add(i.issueId); setChecked(n); }} />
+              <span className="cp-alias">{i.alias}</span>
+              <span className="cp-title">{meta[i.issueId]?.title}</span>
+              <span className="cp-pri">{meta[i.issueId]?.priority}</span>
+              {meta[i.issueId]?.dueOn && <time className="cp-due" dateTime={meta[i.issueId]!.dueOn!}>due {meta[i.issueId]!.dueOn}</time>}
+              {meta[i.issueId]?.blockedBy && <span className="cp-blk">blocked by {meta[i.issueId]!.blockedBy}</span>}
+              <span className="cp-why">why {i.why.map((w) => <KeyLink key={w.key} k={w.key} />)}</span>
+            </label>))}
+        </fieldset>))}
+      <button type="button" onClick={accept} disabled={checked.size === 0}>Set cycle for checked</button>
+    </section>
+  );
+}
+```
+
+`setCycle` is W2's replica op for task 77's `PUT /v1/issues/{issueId}/cycle` with
+`SetCycleRequest{cycleId}` (task 83 adds it to `WorkOp`; **UNVERIFIED** kind name, no part on this
+tree); its inverse is the issue's previous `cycleId`, so the batch's one Undo returns every issue of
+the set (task 56's batch rule). An issue listed under two groups is written once.
+
+```tsx
+// desktop/src/components/desk/deskRows.tsx (task 62) — task 140's registration, beside task 127's.
+import { cycleProposals, type } from "../../work/proposals";
+import { CycleProposal } from "../plan/CycleProposal";
+import { useCycleName } from "../plan/planSelectors";
+
+registerDeskSource("cycle.proposal", () => cycleProposals().map((p): DeskItem<CycleProposalT> => ({
+  kind: "cycle.proposal", id: `cycle.proposal:${p.cycleId}`, payload: p, arrivedAt: p.madeAt,
+  rankReason: "A cycle proposal waits for you", ifNothing: "The cycle starts with what is already in it",
+})));
+
+function CycleProposalRow({ item }: { item: DeskItem<CycleProposalT> }): JSX.Element {
+  const [open, setOpen] = useState(false);
+  const name = useCycleName(item.payload.cycleId);
+  return (
+    <div className="dr-cycle">
+      <button type="button" className="dr-line" aria-expanded={open} onClick={() => setOpen(!open)}>
+        Proposed for {name}: {new Set(item.payload.groups.flatMap((g) => g.issues.map((i) => i.issueId))).size} issues
+      </button>
+      {open && <CycleProposal p={item.payload} cycleName={name} />}
+    </div>
+  );
+}
+
+registerDeskRow<CycleProposalT>("cycle.proposal", "needs_you", (item) => <CycleProposalRow item={item} />,
+  (item) => ({ tier: 2, waitingSinceMs: Date.parse(item.arrivedAt) }));
+```
+
+`CycleProposalT` is `import type { CycleProposal as CycleProposalT } from "../../api/work"` (the
+stray `type` in the first import line above is that import, written in full at build). **The ⚑
+`CycleView.tsx` delta (task 87):** for an upcoming cycle, the header gains *Propose the next cycle*;
+pressing it calls `proposeCycle(teamId, cycleId)`, passes the result to `holdCycleProposal`, and
+says *"The proposal is on your Desk."* It does **not** render the proposal in the cycle view: the
+Desk is where a decision waits (AX §5). A failure reads *"Proposal unavailable: …"* in task 139's
+two words. **The ⚑ `drafts.ts` delta (task 92):** its draft list skips drafts `fromDraft` accepts,
+so a proposal never shows as raw JSON; they show on the feature's *Proposed issues* list only.
+
