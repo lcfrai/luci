@@ -72,9 +72,11 @@ lost send heals with no outbox on disk. What it does not heal is named at the en
     `MoveIssueState(ctx, issueID, hubapi.StateMove) (hubapi.IssueHead, error)` (task 16 part,
     `:258`, `:309`); `hubclient.NewFake()`, `(*Fake).As(FakeUser)` (`fake.go:91` on `feat/hub` at
     `9f2fa31`, verified), `SetUnavailable` (`fake.go:114`, verified)
-  - task 03 — `hubapi.IssueState` and its nine values; `hubapi.IssueWithRevision`'s head field is
-    assumed to be `Head` (task 04 declares the type; **UNVERIFIED**)
-  - task 10 — `hubapi.StateMove{To, Cause, Reason, LandCommit, Evidence}` and the three causes
+  - task 03 — `hubapi.IssueState` and its nine values; task 08 — `hubapi.IssueWithRevision{Head,
+    Revision}` (task 08 part `:176-180`, read at `9a6c93a`)
+  - task 10 — `hubapi.StateMove{To, Cause, Reason, LandCommit, Evidence}` and the three causes,
+    `hubapi.CauseLaneBound`, `CauseLaneQueued`, `CauseLandTrailer` of type `StateCause` (task 10
+    part `:214-219`, read at `9a6c93a`: the names assumed above are the names it declares)
   - task 21 — `lanes.Lane.IssueID`, `converge.LandResult.Issues`, `gitx.TrailerIssue`,
     `gitx.IssueTrailerValues`, `gitx.ValidIssueTrailer`
   - P3-02/07/09 — `gitx.Machine`, `gitx.Call`, `gitx.TrailerLand`, `gitx.TrailerFormat`,
