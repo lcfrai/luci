@@ -1001,7 +1001,15 @@ func TestBehaviourRemoveAllOnAClone(t *testing.T) {
 	src, _, pack := objectsFixture(t, env)
 	dst := clone(t, env, src, "--no-hardlinks")
 	if fi, err := os.Stat(filepath.Join(dst, pack)); err == nil {
-		t.Logf("a clone's pack file mode: %v", fi.Mode())
+		t.Logf("a clone's pack file mode as git wrote it: %v", fi.Mode())
+	}
+	// Force the case the plan names: a read-only object file (on Windows, os.Chmod 0o444 sets
+	// FILE_ATTRIBUTE_READONLY), whether or not this git wrote one.
+	if err := os.Chmod(filepath.Join(dst, pack), 0o444); err != nil {
+		t.Fatal(err)
+	}
+	if fi, err := os.Stat(filepath.Join(dst, pack)); err != nil || fi.Mode().Perm()&0o200 != 0 {
+		t.Fatalf("fixture: the pack is not read-only (stat %v, err %v)", fi, err)
 	}
 	err := os.RemoveAll(dst)
 	t.Logf("os.RemoveAll(clone) on %s: err = %v", runtime.GOOS, err)
