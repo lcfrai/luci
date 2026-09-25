@@ -57,3 +57,84 @@ prefix `hub: dependency_cycle`, `:241-242`).
    switch on with the route that makes a grant mean something (task 07's decision 6).
 7. **`features.initiative_id`** gets its foreign key here. Task 72's `Feature.initiativeId` puts
    the column in task 74's table; this task adds the column if absent and the constraint.
+
+#### Files
+
+| Path (under `control-plane/internal/hub/`) | Change |
+|---|---|
+| `migrate/sql/NNNN_work_roadmap.sql` | new, the **next free number at sync time**, renumbered on a clash (rule H1); tasks 119 and 120 append sections |
+| `migrate/work_roadmap_integration_test.go` | new: the migration and guard tests below |
+| `server/matrix_integration_test.go` ⚑ | H16b's `fixture` gains `Granted` (a member of team U, which holds a grant on T's project) and one `buildW4Fixture(t, f)` call; additive only |
+| `server/work_matrix_rows_integration_test.go` ⚑ | task 07's file: the `G` guard rows, grouped under `"117"` |
+
+#### `NNNN_work_roadmap.sql`, complete: the tables
+
+```sql
+-- ── Phase W, W4 (task 116): initiatives, updates, milestones, dependencies,
+--    brief templates, the janitor's policies, read cursors, project grants ──
+SET search_path = hub, pg_temp;
+
+CREATE TABLE work_initiatives (
+  org_id      text NOT NULL,
+  id          text PRIMARY KEY CHECK (id ~ '^in-[0-9a-f]{16}$'),
+  team_id     text NOT NULL REFERENCES teams (id),
+  name        text NOT NULL CHECK (char_length(btrim(name)) BETWEEN 1 AND 120),
+  owner_id    text NOT NULL REFERENCES users (id),
+  target_date date,
+  state       text NOT NULL DEFAULT 'planned'
+              CHECK (state IN ('planned', 'active', 'paused', 'done', 'cancelled')),
+  created_at  timestamptz NOT NULL,
+  created_by  text NOT NULL REFERENCES users (id),
+  updated_at  timestamptz NOT NULL
+);
+CREATE INDEX work_initiatives_team ON work_initiatives (team_id, created_at DESC);
+
+-- The span (Q12): ord 0 is the owning team; the others are linked by a grant (task 117).
+CREATE TABLE work_initiative_teams (
+  org_id        text NOT NULL,
+  initiative_id text NOT NULL REFERENCES work_initiatives (id),
+  team_id       text NOT NULL REFERENCES teams (id),
+  ord           int  NOT NULL CHECK (ord >= 0 AND ord < 10),
+  PRIMARY KEY (initiative_id, team_id),
+  UNIQUE (initiative_id, ord)
+);
+
+ALTER TABLE features ADD COLUMN IF NOT EXISTS initiative_id text;
+ALTER TABLE features ADD CONSTRAINT features_initiative_fk
+  FOREIGN KEY (initiative_id) REFERENCES work_initiatives (id);
+
+-- A status update's Work half, keyed by TM-46's note (decision 1). No text here.
+CREATE TABLE work_update_meta (
+  org_id       text NOT NULL,
+  note_id      text PRIMARY KEY REFERENCES notes (id),
+  subject_kind text NOT NULL CHECK (subject_kind IN ('feature', 'initiative')),
+  subject_id   text NOT NULL,
+  health       text NOT NULL CHECK (health IN ('on_track', 'at_risk', 'off_track')),
+  pinned_brief text NOT NULL CHECK (pinned_brief ~ '^brief:bf-[0-9a-f]{16}@[1-9][0-9]{0,8}$'),
+  cites        text[] NOT NULL DEFAULT '{}' CHECK (cardinality(cites) <= 20),
+  created_at   timestamptz NOT NULL,
+  CHECK ((subject_kind = 'feature'    AND subject_id ~ '^ft-[0-9a-f]{16}$')
+      OR (subject_kind = 'initiative' AND subject_id ~ '^in-[0-9a-f]{16}$'))
+);
+CREATE INDEX work_update_meta_subject ON work_update_meta (subject_kind, subject_id, created_at DESC);
+
+CREATE TABLE work_milestones (
+  org_id     text NOT NULL,
+  id         text PRIMARY KEY CHECK (id ~ '^ml-[0-9a-f]{16}$'),
+  feature_id text NOT NULL REFERENCES features (id),
+  name       text NOT NULL CHECK (char_length(btrim(name)) BETWEEN 1 AND 120),
+  date       date,
+  created_at timestamptz NOT NULL,
+  updated_at timestamptz NOT NULL
+);
+
+-- A named subset of the branch brief's criteria; reached is never stored (04 §2.5).
+CREATE TABLE work_milestone_criteria (
+  org_id       text NOT NULL,
+  milestone_id text NOT NULL REFERENCES work_milestones (id),
+  ord          int  NOT NULL CHECK (ord >= 0 AND ord < 100),
+  criterion_id text NOT NULL CHECK (char_length(criterion_id) BETWEEN 1 AND 128),
+  PRIMARY KEY (milestone_id, ord),
+  UNIQUE (milestone_id, criterion_id)
+);
+```
