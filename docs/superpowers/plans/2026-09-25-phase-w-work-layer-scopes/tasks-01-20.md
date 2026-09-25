@@ -268,4 +268,55 @@ team B never returns team A's title (kills search before the readability check);
 any desktop surface. Parity rows served: L-9, L-10, L-17, L-24, L-41, L-42, L-45, L-46, L-48,
 L-106, L-117, L-220.
 
+**06 — migration, part 1: the Work tables, row-level security and grants.** W1, stream WH; no
+seam; depends on 03 and Hub tasks H06-H07b (the migrate runner, `roles.sql`, the integration
+harness and `sql/0001_init.sql`). One new file,
+`control-plane/internal/hub/migrate/sql/NNNN_work_w1.sql`, taking **the next free number at sync
+time** (renumbered on a clash; rule H1), applied by `hub migrate` as `hub_owner` in one transaction
+like `0001_init.sql` (hub-contract §10.1-10.2, `SET LOCAL search_path = hub` at :1466), and its
+database test `migrate/work_w1_integration_test.go` (`-tags integration`). **No Hub table is
+altered**: the project key and the number counter get their own tables, so no grant on
+`projects` changes. The tables, each with `org_id text NOT NULL` first and a composite key that
+leads with it: `project_keys (org_id, project_id PK, key, set_at, set_by)` with `UNIQUE (org_id,
+team_id, key)`; `project_issue_counters (org_id, project_id PK, last_number)`; `issues (org_id,
+id PK, project_id, team_id, number, state, state_reason, assignee_user_id, priority,
+head_revision, not_tied_reason, source, external_source, external_id, external_url, created_at,
+created_by, updated_at, erased_at)` with `UNIQUE (project_id, number)`, a partial `UNIQUE (org_id,
+project_id, external_source, external_id) WHERE external_id IS NOT NULL` (SW.6's idempotency), and
+`CHECK`s for the state, priority and reason sets of task 03; `issue_revisions (org_id, issue_id,
+revision, project_id, canonical bytea, digest, written_at, written_by, restored_from, erased_at,
+PRIMARY KEY (issue_id, revision))` — `canonical` is the stored `C`, byte for byte, as
+`brief_revisions` (hub-contract §3.4); `issue_serves (org_id, issue_id, revision, brief_key,
+criterion_id)`, an index derived from each revision's `serves` at write time, so the Work lens can
+group by criterion without parsing canonical bytes; `labels (org_id, id PK, team_id, name, color,
+archived_at, created_at, created_by)`; `issue_labels (org_id, issue_id, label_id)`;
+`issue_relations (org_id, issue_id, other_issue_id, kind, created_at, created_by)`;
+`team_work_policies (org_id, team_id PK, default_state, priority_to_leave_triage,
+stop_at_landed_without_serves, updated_at, updated_by)`; `issue_comments (org_id, id PK, issue_id,
+parent_id, kind, author_class, body, anchor jsonb, created_at, created_by, resolved_at,
+resolved_by, erased_at)`; `comment_mentions`; `comment_reactions (org_id, comment_id, user_id,
+emoji, PRIMARY KEY (comment_id, user_id, emoji))`; `issue_subscriptions (org_id, issue_id,
+user_id, subscribed, cause, updated_at)`; `issue_attachments (org_id, issue_id, digest, added_at,
+added_by)`. **Row-level security** repeats hub-contract §10.3's loop (:1905-1920) over exactly
+these tables: `ENABLE ROW LEVEL SECURITY` and the `org_isolation` policy `TO hub_app USING (org_id
+= current_setting('hub.org_id', true)) WITH CHECK (…)`. **Grants** follow §10.5 (:2001-2016):
+`SELECT` and `INSERT` on every new table to `hub_app`; `UPDATE` column-limited — `issues (state,
+state_reason, assignee_user_id, priority, head_revision, not_tied_reason, updated_at)`, never
+`number`, `project_id`, `team_id`, `created_*` or `external_*`; `project_keys (key, set_at,
+set_by)`; `project_issue_counters (last_number)`; `labels (name, color, archived_at)`;
+`team_work_policies` (every column but the key); `issue_comments (resolved_at, resolved_by)`;
+`issue_subscriptions (subscribed, cause, updated_at)`; `DELETE` only on `issue_labels`,
+`issue_relations` and `comment_reactions` (the three toggles). **Tests**, each with its mutant: a
+`pg_policies` query finds `org_isolation` on every table the migration creates, read from
+`pg_tables` rather than a list (kills a table left out of the loop); with `hub.org_id` unset, a
+`SELECT` from `issues` as `hub_app` returns zero rows (kills a permissive policy); as `hub_app`,
+`UPDATE issues SET number = 9` fails with `insufficient_privilege` (kills a table-wide `UPDATE`
+grant); `DELETE FROM issues` and `DELETE FROM issue_comments` fail (kills a `DELETE` grant beyond
+the toggles); an `INSERT` with another org's `org_id` fails the `WITH CHECK` (kills `USING`
+without `WITH CHECK`); two issues with the same `(project_id, number)` fail (kills a missing
+unique); the migration applies twice through the runner with no second effect (kills a migration
+the runner re-runs). It **does not claim** the guards (task 07), any route or store (08-15), or
+that the number it took is final before merge. Parity rows served: none closed alone; it is the
+storage behind L-3, L-8 to L-10, L-13, L-17, L-24, L-34, L-41, L-42, L-45, L-48, L-117, L-220.
+
 
