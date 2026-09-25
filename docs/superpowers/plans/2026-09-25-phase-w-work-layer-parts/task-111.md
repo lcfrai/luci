@@ -79,3 +79,201 @@ Three rows of 05 §1, each of which Linear prices as a number and we price as a 
 - `desktop/src/components/work/TriageView.tsx` ⚑ (task 42's) — the Orchestrator-filed row (modified)
 - `control-plane/internal/hub/hubclient/conformance/work_agents.go` ⚑ (task 99's) — three rows,
   appended under rule H1 (modified)
+
+#### Interfaces — complete: `control-plane/internal/work/riskfacts.go`
+
+```go
+// Package work holds the local control plane's derived work facts (Phase W task 111).
+// Nothing here is stored: every fact is computed on read (skeleton rule 3).
+package work
+
+import (
+	"fmt"
+	"sort"
+
+	"github.com/bmatcuk/doublestar/v4"
+)
+
+// RiskName is closed: three names, in this display order (decision 1).
+type RiskName string
+
+const (
+	TouchesProdConfig    RiskName = "touches-prod-config"
+	RunsMigration        RiskName = "runs-migration"
+	OutsideDeclaredScope RiskName = "outside-declared-scope"
+)
+
+var order = []RiskName{TouchesProdConfig, RunsMigration, OutsideDeclaredScope}
+
+type RiskFact struct {
+	Name    RiskName `json:"name"`
+	Paths   []string `json:"paths"`   // sorted, repository-relative, forward slashes
+	Because string   `json:"because"` // assembled product text, never a model's words
+}
+
+// ChangedPath is one entry of phase 3's lane diff against its base (P3 tasks 07-09's index).
+type ChangedPath struct {
+	Path   string `json:"path"`
+	Status string `json:"status"` // A, M, D or R; a rename is reported under its new path
+}
+
+// ProjectGlobs are the project's own risk globs (decision 4). Empty means not set.
+type ProjectGlobs struct {
+	ProdConfig []string `json:"prodConfig"`
+	Migrations []string `json:"migrations"`
+}
+
+// DeclaredScope is a task's scope globs and its held leases (TM-05 §6.3); nil on a solo lane.
+type DeclaredScope struct {
+	Globs  []string `json:"globs"`
+	Leases []string `json:"leases"`
+}
+
+// Facts derives the risk facts for one lane. The result is empty, never nil, when nothing matches.
+func Facts(changed []ChangedPath, g ProjectGlobs, scope *DeclaredScope) ([]RiskFact, error) {
+	hits := map[RiskName]map[string]string{} // name → path → the glob that matched
+	add := func(n RiskName, path, glob string) {
+		if hits[n] == nil {
+			hits[n] = map[string]string{}
+		}
+		if _, dup := hits[n][path]; !dup {
+			hits[n][path] = glob
+		}
+	}
+	for _, c := range changed {
+		if glob, ok, err := firstMatch(g.ProdConfig, c.Path); err != nil {
+			return nil, err
+		} else if ok {
+			add(TouchesProdConfig, c.Path, glob)
+		}
+		if c.Status == "A" || c.Status == "M" || c.Status == "R" {
+			if glob, ok, err := firstMatch(g.Migrations, c.Path); err != nil {
+				return nil, err
+			} else if ok {
+				add(RunsMigration, c.Path, glob)
+			}
+		}
+		if scope != nil {
+			_, inGlobs, err := firstMatch(scope.Globs, c.Path)
+			if err != nil {
+				return nil, err
+			}
+			_, inLease, err := firstMatch(scope.Leases, c.Path)
+			if err != nil {
+				return nil, err
+			}
+			if !inGlobs && !inLease {
+				add(OutsideDeclaredScope, c.Path, "")
+			}
+		}
+	}
+	out := []RiskFact{}
+	for _, n := range order {
+		if len(hits[n]) == 0 {
+			continue
+		}
+		paths := make([]string, 0, len(hits[n]))
+		for p := range hits[n] {
+			paths = append(paths, p)
+		}
+		sort.Strings(paths)
+		out = append(out, RiskFact{Name: n, Paths: paths, Because: because(n, hits[n][paths[0]])})
+	}
+	return out, nil
+}
+
+// firstMatch reports the first glob that matches path. A malformed glob is an error, never a miss.
+func firstMatch(globs []string, path string) (string, bool, error) {
+	for _, g := range globs {
+		ok, err := doublestar.Match(g, path)
+		if err != nil {
+			return "", false, fmt.Errorf("risk glob %q: %w", g, err)
+		}
+		if ok {
+			return g, true, nil
+		}
+	}
+	return "", false, nil
+}
+
+func because(n RiskName, glob string) string {
+	switch n {
+	case TouchesProdConfig:
+		return fmt.Sprintf("matches `%s` in this project's prod-config globs", glob)
+	case RunsMigration:
+		return fmt.Sprintf("adds or changes a file matching `%s` in this project's migration globs", glob)
+	default:
+		return "outside the task's declared scope globs and its leases"
+	}
+}
+```
+
+`because` quotes the first matching glob of the first path only; the facts line lists every path.
+A deleted migration file raises nothing: deleting a migration is not running one, and the lane's
+diff shows it.
+
+#### Interfaces — complete: `control-plane/internal/api/workrisk.go`
+
+```go
+package api
+
+import (
+	"context"
+	"net/http"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/work"
+)
+
+// RiskInputs gathers the three inputs; each method names the seam that serves it.
+type RiskInputs interface {
+	// LaneChanges reads phase 3's lane index: the lane's changed paths against its base.
+	LaneChanges(ctx context.Context, laneID string) ([]work.ChangedPath, error)
+	// ProjectGlobs reads the project's risk globs from its work settings (gap 1).
+	ProjectGlobs(ctx context.Context, laneID string) (work.ProjectGlobs, bool, error) // bool: set at all
+	// Scope reads the task's scope and leases through TM-52's team read model; nil on a solo lane.
+	Scope(ctx context.Context, laneID string) (*work.DeclaredScope, error)
+	// IsTeamLane: the lane's session came through TM-21's team launch.
+	IsTeamLane(ctx context.Context, laneID string) bool
+}
+
+type riskReply struct {
+	Lane         string          `json:"lane"`
+	Facts        []work.RiskFact `json:"facts"`
+	GlobsSet     bool            `json:"globsSet"`
+	ScopeChecked bool            `json:"scopeChecked"` // false on a solo lane or with the team view down
+	TeamLane     bool            `json:"teamLane"`
+}
+
+func riskHandler(in RiskInputs) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		lane := r.PathValue("lane")
+		changed, err := in.LaneChanges(r.Context(), lane)
+		if err != nil {
+			writeProblem(w, http.StatusNotFound, "lane_not_found", "no such lane")
+			return
+		}
+		globs, set, err := in.ProjectGlobs(r.Context(), lane)
+		if err != nil {
+			writeProblem(w, http.StatusBadGateway, "settings_unavailable", "project settings could not be read")
+			return
+		}
+		team := in.IsTeamLane(r.Context(), lane)
+		scope, err := in.Scope(r.Context(), lane)
+		if err != nil {
+			scope = nil // team view down: the scope fact is absent, never guessed
+		}
+		facts, err := work.Facts(changed, globs, scope)
+		if err != nil {
+			writeProblem(w, http.StatusUnprocessableEntity, "bad_risk_glob", err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, riskReply{Lane: lane, Facts: facts, GlobsSet: set,
+			ScopeChecked: scope != nil, TeamLane: team})
+	}
+}
+```
+
+Registered as `GET /v1/work/lanes/{lane}/risk` when `Deps.WorkRisk` is set,
+with its catalog row. `writeProblem` and `writeJSON` are the package's helpers under their real
+names (task 110's note). A team lane with `scopeChecked: false` shows *"scope not checked: team
+view unavailable"*; a solo lane shows nothing about scope (decision 5).
