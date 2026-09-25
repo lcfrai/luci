@@ -407,3 +407,82 @@ type ImportResult struct {
 	UnmatchedLabels []string   `json:"unmatchedLabels"`
 }
 ```
+
+```go
+// ── request bodies (decoded strictly: an unknown field is 400) ──────────────
+
+// CreateIssueRequest writes the head and revision 1 in one write. State "" is
+// the team policy's DefaultState; it must be one of InitialStates. Priority ""
+// is none. NotTiedReason is required when Serves is empty.
+type CreateIssueRequest struct {
+	Title         AuthoredText  `json:"title"`
+	Description   AuthoredText  `json:"description"`
+	Serves        []Serve       `json:"serves"`
+	Implements    []string      `json:"implements"`
+	State         IssueState    `json:"state"`
+	Priority      Priority      `json:"priority"`
+	AssigneeID    *string       `json:"assigneeId"`
+	Labels        []string      `json:"labels"`
+	NotTiedReason NotTiedReason `json:"notTiedReason"`
+}
+
+// PatchIssueRequest changes head fields only and never writes a revision.
+// It has no state field: a state moves only through StateMove. An absent
+// field is kept. AssigneeID is tri-state: absent keeps, null clears, "u-…"
+// sets; read it with AssigneeChange, write it with AssignTo or Unassign.
+type PatchIssueRequest struct {
+	Priority      *Priority       `json:"priority,omitempty"`
+	AssigneeID    json.RawMessage `json:"assigneeId,omitempty"`
+	Labels        *[]string       `json:"labels,omitempty"` // &[]string{} clears every label
+	NotTiedReason *NotTiedReason  `json:"notTiedReason,omitempty"`
+}
+
+var jsonNull = []byte("null")
+
+// Unassign is the AssigneeID that clears the assignee.
+func Unassign() json.RawMessage { return json.RawMessage(jsonNull) }
+
+// AssignTo is the AssigneeID that sets userID.
+func AssignTo(userID string) json.RawMessage {
+	b, _ := json.Marshal(userID)
+	return b
+}
+
+// AssigneeChange reads AssigneeID: set is false when the field was absent;
+// userID is "" when it was null. Anything but null or a string is an error.
+func (r PatchIssueRequest) AssigneeChange() (set bool, userID string, err error) {
+	if len(r.AssigneeID) == 0 {
+		return false, "", nil
+	}
+	if bytes.Equal(bytes.TrimSpace(r.AssigneeID), jsonNull) {
+		return true, "", nil
+	}
+	if err := json.Unmarshal(r.AssigneeID, &userID); err != nil || userID == "" {
+		return true, "", &FieldError{"assigneeId", ErrBadEnvelope}
+	}
+	return true, userID, nil
+}
+
+// WriteIssueRevisionRequest: a stale BaseRevision is 409 revision_conflict and
+// writes nothing, as briefs (hub-contract §7.5).
+type WriteIssueRevisionRequest struct {
+	BaseRevision int                  `json:"baseRevision"`
+	Content      IssueRevisionContent `json:"content"`
+}
+
+// RestoreRevisionRequest writes a NEW revision copying FromRevision's content,
+// with RestoredFrom set; history is never rewritten.
+type RestoreRevisionRequest struct {
+	FromRevision int `json:"fromRevision"`
+}
+
+// StateMove is SW.4's shape. LandCommit rides with land_trailer; Evidence (ev-
+// ids) with the two evidence causes; Reason with a hand-set done.
+type StateMove struct {
+	To         IssueState `json:"to"`
+	Cause      MoveCause  `json:"cause"`
+	Reason     string     `json:"reason"`
+	LandCommit string     `json:"landCommit"`
+	Evidence   []string   `json:"evidence"`
+}
+```
