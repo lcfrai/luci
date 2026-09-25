@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/api"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/project"
 )
 
 // gitIdentityResolver is the production api.Deps.GitIdentity: who an agent's
@@ -16,28 +15,27 @@ import (
 //
 //  1. PANACEA_APP_GIT_NAME and PANACEA_APP_GIT_EMAIL, which loadConfig has
 //     already checked are a pair. They win outright; the host is never asked.
-//  2. Otherwise, the identity the host's own git would stamp on a commit in
-//     that worktree, read with `git var GIT_AUTHOR_IDENT` in the worktree.
+//  2. Otherwise, the identity the host's own git would stamp on a commit
+//     outside any repository, read with `git var GIT_AUTHOR_IDENT` in
+//     hostGit's directory, never a worktree (X-1, phase 3 ruling R4 rule 6).
 //
 // Why `git var` and not `git config user.name`: it is git's own answer, in
-// git's own order — environment, then the repository's config, includeIf
-// sections, global and system config, then the name and address git derives
-// from the account. The last step is not hypothetical. On the machine this was
-// written on no scope sets user.name at all, and every commit its owner makes
-// is by the identity git derives, so reading config alone would find nobody.
-// Asked per worktree, a repository that sets its own identity keeps it: the
-// sandbox's GIT_AUTHOR_* would otherwise override that repository's config
-// with a machine-wide answer.
+// git's own order — environment, global and system config, then the name and
+// address git derives from the account. The last step is not hypothetical. On
+// the machine this was written on no scope sets user.name at all, and every
+// commit its owner makes is by the identity git derives, so reading config
+// alone would find nobody. A worktree's own user.name is not asked: its
+// .git/config is the agent's to write, and the commits are the user's.
 //
 // When neither way yields an identity the error says so in a sentence naming
 // both fixes, and git's own words ride along. The session still starts.
-func gitIdentityResolver(name, email string, run project.Runner) func(context.Context, string) (api.GitIdentity, error) {
+func gitIdentityResolver(name, email string, host hostGit) func(context.Context) (api.GitIdentity, error) {
 	if name != "" && email != "" {
 		fixed := api.GitIdentity{Name: name, Email: email}
-		return func(context.Context, string) (api.GitIdentity, error) { return fixed, nil }
+		return func(context.Context) (api.GitIdentity, error) { return fixed, nil }
 	}
-	return func(ctx context.Context, worktreePath string) (api.GitIdentity, error) {
-		out, err := run.Run(ctx, worktreePath, "var", "GIT_AUTHOR_IDENT")
+	return func(ctx context.Context) (api.GitIdentity, error) {
+		out, err := host.run.Run(ctx, host.dir, "var", "GIT_AUTHOR_IDENT")
 		if err != nil {
 			return api.GitIdentity{}, fmt.Errorf("%s: %w", gitIdentityMissing, err)
 		}

@@ -163,6 +163,7 @@ agents across owners to work together."* The design is in `2026-09-25-linear-par
 | **OD-26** | How far to commit | **Everything: W1 to W5** | Full parity-plus: about 138 focused days plus team mode, across all 257 Linear items (MATCH 139, EXCEED 67, PARTIAL 24, SKIP 27). The 27 skips stand as the design argues (Q6), until the owner overrules. |
 | **OD-27** | Progress displays | **Proof per criterion, no predictions** | Show which acceptance criteria are proven, and plain counts per group. Still banned: percentages, progress bars, ETAs and "N of M" completion predictions. `AGENTIC-UX.md` gets the design's four one-line amendments (Q13). |
 | **OD-28** | The mono face for machine facts | **Commit Mono** (OFL, free) | Every id, path and time is set in Commit Mono. The sans is **Segoe UI Variable** (Q14's recommendation, accepted under OD-1). |
+| **OD-29** | Plan depth for Phase T and Phase W (asked 2026-09-25, about 234 part files, about 66 agent-hours) | **Everything now** | Every part file of both plans (T: 69 tasks; W: W0 to W5, about 165) is written before either build starts, instead of writing later slices when their build begins. Accepted risk: parts for late slices (TM2, W4, W5) may drift from the code by the time they are built, so each task's implementer re-verifies its part's citations first. |
 
 The Linear design's other questions take their recommended answers under OD-1:
 - Q3: issue text goes into the agent's context, with guards.

@@ -39,19 +39,19 @@ func (l *sandboxEnvLog) String() string {
 	return l.buf.String()
 }
 
-// sandboxEnvIdentity is a Deps.GitIdentity double that records every worktree
-// path it was asked about.
+// sandboxEnvIdentity is a Deps.GitIdentity double that counts how often it
+// was asked. It is given no worktree to be asked about (X-1).
 type sandboxEnvIdentity struct {
 	mu    sync.Mutex
-	asked []string
+	asked int
 	id    GitIdentity
 	err   error
 }
 
-func (f *sandboxEnvIdentity) resolve(_ context.Context, worktreePath string) (GitIdentity, error) {
+func (f *sandboxEnvIdentity) resolve(context.Context) (GitIdentity, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.asked = append(f.asked, worktreePath)
+	f.asked++
 	return f.id, f.err
 }
 
@@ -61,10 +61,10 @@ func (f *sandboxEnvIdentity) set(id GitIdentity, err error) {
 	f.id, f.err = id, err
 }
 
-func (f *sandboxEnvIdentity) calls() []string {
+func (f *sandboxEnvIdentity) calls() int {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	return append([]string(nil), f.asked...)
+	return f.asked
 }
 
 func sandboxEnvNew(t *testing.T, tweak func(*Deps)) *sessionsEnv {
@@ -155,18 +155,18 @@ func TestEverySandboxTrustsTheMountPointAndNothingWider(t *testing.T) {
 	}
 }
 
-// The identity is the resolver's answer for THIS worktree, asked with the
-// host path, and it reaches both halves git reads: author and committer.
-func TestTheSandboxCommitsAsTheIdentityResolvedForItsWorktree(t *testing.T) {
+// The identity is the resolver's answer, asked at the create with no worktree
+// to read (X-1), and it reaches both halves git reads: author and committer.
+func TestTheSandboxCommitsAsTheIdentityTheHostResolved(t *testing.T) {
 	who := &sandboxEnvIdentity{id: GitIdentity{Name: "Ada Lovelace", Email: "ada@example.invalid"}}
 	for _, body := range []string{sessionsCreateBody, sandboxEnvShellBody} {
 		t.Run(body, func(t *testing.T) {
 			env := sandboxEnvNew(t, func(d *Deps) { d.GitIdentity = who.resolve })
+			before := who.calls()
 			spec := sandboxEnvCreate(t, env, body)
 
-			asked := who.calls()
-			if len(asked) == 0 || asked[len(asked)-1] != env.dir {
-				t.Fatalf("the resolver was asked about %#v, want the worktree's host path %q", asked, env.dir)
+			if asked := who.calls() - before; asked != 1 {
+				t.Fatalf("the create asked the resolver %d times, want once", asked)
 			}
 			for k, want := range map[string]string{
 				"GIT_AUTHOR_NAME":     "Ada Lovelace",
@@ -312,8 +312,8 @@ func TestRestartAsksForTheIdentityAgainAndKeepsTheCAAndSafeDirectory(t *testing.
 	sessionsAwaitWatch(t, done)
 	spec := env.be.spec(t, 0)
 
-	if asked := who.calls(); len(asked) != 1 || asked[0] != env.dir {
-		t.Fatalf("the restart asked the resolver about %#v, want once, about %q", asked, env.dir)
+	if asked := who.calls(); asked != 1 {
+		t.Fatalf("the restart asked the resolver %d times, want once", asked)
 	}
 	if spec.Env["GIT_AUTHOR_NAME"] != "Ada Lovelace" || spec.Env["GIT_COMMITTER_EMAIL"] != "ada@example.invalid" {
 		t.Errorf("the restarted sandbox commits as %q <%q>, want the identity resolved at restart",
@@ -323,8 +323,8 @@ func TestRestartAsksForTheIdentityAgainAndKeepsTheCAAndSafeDirectory(t *testing.
 	if got := cfg["safe.directory"]; got != sessionWorkDir {
 		t.Errorf("safe.directory = %q after a restart", got)
 	}
-	if asked := host.calls(); len(asked) != 1 || asked[0] != env.dir {
-		t.Errorf("the restart asked for the line endings of %#v, want once, of %q", asked, env.dir)
+	if asked := host.calls(); asked != 1 {
+		t.Errorf("the restart asked for the line endings %d times, want once", asked)
 	}
 	if cfg["core.autocrlf"] != "true" || cfg["core.eol"] != "crlf" || cfg["gc.worktreePruneExpire"] != "never" || cfg["gc.auto"] != "0" {
 		t.Errorf("after a restart core.autocrlf %q, core.eol %q, gc.worktreePruneExpire %q, gc.auto %q; want true, crlf, never, 0",
@@ -340,26 +340,26 @@ func TestRestartAsksForTheIdentityAgainAndKeepsTheCAAndSafeDirectory(t *testing.
 	}
 }
 
-// sandboxEnvLineEndings is a Deps.GitLineEndings double that records every
-// worktree path it was asked about.
+// sandboxEnvLineEndings is a Deps.GitLineEndings double that counts how often
+// it was asked. It is given no worktree to be asked about (X-1).
 type sandboxEnvLineEndings struct {
 	mu    sync.Mutex
-	asked []string
+	asked int
 	eol   GitLineEndings
 	err   error
 }
 
-func (f *sandboxEnvLineEndings) resolve(_ context.Context, worktreePath string) (GitLineEndings, error) {
+func (f *sandboxEnvLineEndings) resolve(context.Context) (GitLineEndings, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.asked = append(f.asked, worktreePath)
+	f.asked++
 	return f.eol, f.err
 }
 
-func (f *sandboxEnvLineEndings) calls() []string {
+func (f *sandboxEnvLineEndings) calls() int {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	return append([]string(nil), f.asked...)
+	return f.asked
 }
 
 // sandboxEnvCreates is how many sandboxes the fake backend was asked for.
@@ -406,10 +406,10 @@ func sandboxEnvPrimary(t *testing.T, dir string, linked bool) string {
 	return admin
 }
 
-// The host's answer, asked with the worktree's host path, is what the sandbox's
-// git converts line endings with, for every harness. Three answers, so a
-// sandbox that hard-coded any one of them passes at most one.
-func TestTheSandboxConvertsLineEndingsAsTheHostsGitDoesInThatWorktree(t *testing.T) {
+// The host's answer, from its own config and asked about no worktree (X-1), is
+// what the sandbox's git converts line endings with, for every harness. Three
+// answers, so a sandbox that hard-coded any one of them passes at most one.
+func TestTheSandboxConvertsLineEndingsAsTheHostsOwnConfigSays(t *testing.T) {
 	for _, want := range []GitLineEndings{
 		{AutoCRLF: "true", EOL: "crlf"},  // Git for Windows' installer default
 		{AutoCRLF: "false", EOL: "crlf"}, // Windows, autocrlf off, core.eol native
@@ -421,8 +421,8 @@ func TestTheSandboxConvertsLineEndingsAsTheHostsGitDoesInThatWorktree(t *testing
 				env := sandboxEnvNew(t, func(d *Deps) { d.GitLineEndings = host.resolve })
 				spec := sandboxEnvCreate(t, env, body)
 
-				if asked := host.calls(); len(asked) != 1 || asked[0] != env.dir {
-					t.Fatalf("the line endings were asked of %#v, want once, of the worktree's host path %q", asked, env.dir)
+				if asked := host.calls(); asked != 1 {
+					t.Fatalf("the line endings were asked for %d times, want once", asked)
 				}
 				cfg := sandboxEnvGitConfig(t, spec.Env)
 				if cfg["core.autocrlf"] != want.AutoCRLF || cfg["core.eol"] != want.EOL {
@@ -475,8 +475,8 @@ func TestARestartThatCannotReadTheLineEndingsKeepsTheOldSandbox(t *testing.T) {
 	if rec.Code != http.StatusInternalServerError {
 		t.Fatalf("status = %d, want 500: %s", rec.Code, rec.Body.String())
 	}
-	if len(host.calls()) != 1 {
-		t.Errorf("the restart asked for the line endings %d times, want once", len(host.calls()))
+	if host.calls() != 1 {
+		t.Errorf("the restart asked for the line endings %d times, want once", host.calls())
 	}
 	if n := env.be.destroyCount(); n != 0 {
 		t.Errorf("the failed restart destroyed %d sandboxes", n)

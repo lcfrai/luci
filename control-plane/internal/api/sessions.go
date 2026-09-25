@@ -386,13 +386,18 @@ func sessionMounts(worktreePath, worktreeAdmin, conversationStore string, carrie
 //     The host's system and global config are invisible here, and Git for
 //     Windows sets core.autocrlf=true at system scope. Without them a CRLF
 //     checkout over LF blobs reads as every text file modified, and commit -a
-//     writes CRLF blobs for files the agent never touched. The repository's
-//     own .gitattributes and .git/config are in the mount and apply as they
-//     do on the host. core.eol matters when core.autocrlf is false and a file
+//     writes CRLF blobs for files the agent never touched. The answer is from
+//     the host's global and system config only, never the worktree's
+//     .git/config, which the agent writes (X-1); these pairs outrank that
+//     file's own core.autocrlf and core.eol in the sandbox. The repository's
+//     .gitattributes is in the mount and applies as it does on the host.
+//     core.eol matters when core.autocrlf is false and a file
 //     is text by attribute: "native" is CRLF there and LF here, which is why
 //     the resolver sends the host's answer and never "native".
-//   - core.excludesFile and core.attributesFile = the host's own files, from
-//     Deps.GitGlobalFiles, mounted read-only at sessionGitExcludesPath and
+//   - core.excludesFile and core.attributesFile = the host's own files, as
+//     the host's global and system config name them and never a worktree's
+//     (X-1: a worktree's core.excludesFile named an SSH key, and it was
+//     mounted), from Deps.GitGlobalFiles, mounted read-only at sessionGitExcludesPath and
 //     sessionGitAttributesPath, or sessionGitNoFile when the host's git reads
 //     none (gitfix-rereview I-A). Git reads ~/.config/git/ignore even with
 //     core.excludesFile unset, and this HOME has none, so without the first an
@@ -437,14 +442,14 @@ func sessionEnv(id GitIdentity, eol GitLineEndings, git sessionGitFiles, caBundl
 	return env
 }
 
-// sessionGitLineEndings asks Deps.GitLineEndings how the host's git converts
-// line endings in this worktree, and refuses an answer the sandbox's git would
+// sessionGitLineEndings asks Deps.GitLineEndings how the host's own config
+// says git converts line endings, and refuses an answer the sandbox's git would
 // read differently: anything but the three core.autocrlf words, and any
 // core.eol but lf or crlf. "native" is the one that matters, because it means
 // CRLF to Git for Windows and LF to the sandbox's git. An error, or a refused
 // answer, fails the create or restart: there is no safe default.
-func (a *API) sessionGitLineEndings(ctx context.Context, worktreePath string) (GitLineEndings, error) {
-	eol, err := a.deps.GitLineEndings(ctx, worktreePath)
+func (a *API) sessionGitLineEndings(ctx context.Context) (GitLineEndings, error) {
+	eol, err := a.deps.GitLineEndings(ctx)
 	if err != nil {
 		return GitLineEndings{}, err
 	}
@@ -466,13 +471,14 @@ func sessionGitFileIn(hostPath, containerPath string) string {
 	return containerPath
 }
 
-// sessionGitGlobalFiles asks Deps.GitGlobalFiles where the host's git looks
-// for its global excludes and attributes files in this worktree, and keeps
-// each one git would read patterns from. An error fails the create or
-// restart, like the line endings: a sandbox that guessed "none" commits what
-// the host ignores.
-func (a *API) sessionGitGlobalFiles(ctx context.Context, worktreeID, worktreePath string) (sessionGitFiles, error) {
-	files, err := a.deps.GitGlobalFiles(ctx, worktreePath)
+// sessionGitGlobalFiles asks Deps.GitGlobalFiles where the host's own config
+// says git looks for its global excludes and attributes files, and keeps each
+// one git would read patterns from. The worktree is not asked about (X-1): its
+// .git/config is the agent's, and a file it named would be mounted. An error
+// fails the create or restart, like the line endings: a sandbox that guessed
+// "none" commits what the host ignores.
+func (a *API) sessionGitGlobalFiles(ctx context.Context, worktreeID string) (sessionGitFiles, error) {
+	files, err := a.deps.GitGlobalFiles(ctx)
 	if err != nil {
 		return sessionGitFiles{}, err
 	}
@@ -493,8 +499,8 @@ func (a *API) sessionGitGlobalFiles(ctx context.Context, worktreeID, worktreePat
 // it. Nothing there: git skips the path silently. Something git cannot read,
 // or a directory: git reads no patterns from it and at most warns, so the
 // sandbox reads none either, and the cause goes to the log. A relative path
-// is an error, because it would be read against this process's directory and
-// not the worktree's.
+// is an error: git reads it against each repository, so it names a file in
+// the worktree, which the agent writes, and not one of the host's (X-1).
 func (a *API) sessionGitGlobalFile(worktreeID, key, hostPath string) (string, error) {
 	if hostPath == "" {
 		return "", nil
@@ -566,15 +572,16 @@ func sessionWorktreeAdmin(worktreePath string) (string, error) {
 	return admin, nil
 }
 
-// sessionGitIdentity asks Deps.GitIdentity who this worktree's commits are by.
-// It never fails a session: an agent with no identity can still read, edit and
-// run everything, and only a commit is refused. The refusal's cause goes to the
-// log as the resolver wrote it, because that sentence names the fix.
-func (a *API) sessionGitIdentity(ctx context.Context, worktreeID, worktreePath string) GitIdentity {
+// sessionGitIdentity asks Deps.GitIdentity who the user's commits are by; the
+// worktree is named only in the log. It never fails a session: an agent with
+// no identity can still read, edit and run everything, and only a commit is
+// refused. The refusal's cause goes to the log as the resolver wrote it,
+// because that sentence names the fix.
+func (a *API) sessionGitIdentity(ctx context.Context, worktreeID string) GitIdentity {
 	if a.deps.GitIdentity == nil {
 		return GitIdentity{}
 	}
-	id, err := a.deps.GitIdentity(ctx, worktreePath)
+	id, err := a.deps.GitIdentity(ctx)
 	if err != nil {
 		a.sessionLog().Warn("the sandbox has no git identity, so a commit in it will fail",
 			"worktreeId", worktreeID, "err", err)
@@ -848,12 +855,12 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 	// record, because both run git or write on the host, the window between
 	// the record and its sandbox is the one the reaper has to tolerate, and a
 	// failure here must leave nothing behind.
-	lineEndings, err := a.sessionGitLineEndings(ctx, path)
+	lineEndings, err := a.sessionGitLineEndings(ctx)
 	if err != nil {
-		a.internal(w, r, "read how the host's git converts line endings in worktree "+req.WorktreeID, err)
+		a.internal(w, r, "read how the host's git converts line endings, for worktree "+req.WorktreeID, err)
 		return
 	}
-	gitFiles, err := a.sessionGitGlobalFiles(ctx, req.WorktreeID, path)
+	gitFiles, err := a.sessionGitGlobalFiles(ctx, req.WorktreeID)
 	if err != nil {
 		a.internal(w, r, "find the host git's global excludes and attributes files for worktree "+req.WorktreeID, err)
 		return
@@ -863,7 +870,7 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		a.internal(w, r, "prepare the linked-worktree metadata of worktree "+req.WorktreeID, err)
 		return
 	}
-	sandboxEnv := sessionEnv(a.sessionGitIdentity(ctx, req.WorktreeID, path), lineEndings, gitFiles, a.deps.CABundle)
+	sandboxEnv := sessionEnv(a.sessionGitIdentity(ctx, req.WorktreeID), lineEndings, gitFiles, a.deps.CABundle)
 
 	// 3. Ids and the secret.
 	sessionID := ids.New("s")
@@ -1518,12 +1525,12 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 	// identity after the first create gets a sandbox that can commit, and so
 	// are the line endings, so a failure to read them leaves the old sandbox
 	// alive.
-	lineEndings, err := a.sessionGitLineEndings(ctx, path)
+	lineEndings, err := a.sessionGitLineEndings(ctx)
 	if err != nil {
-		a.internal(w, r, "read how the host's git converts line endings in worktree "+sess.WorktreeID, err)
+		a.internal(w, r, "read how the host's git converts line endings, for worktree "+sess.WorktreeID, err)
 		return
 	}
-	gitFiles, err := a.sessionGitGlobalFiles(ctx, sess.WorktreeID, path)
+	gitFiles, err := a.sessionGitGlobalFiles(ctx, sess.WorktreeID)
 	if err != nil {
 		a.internal(w, r, "find the host git's global excludes and attributes files for worktree "+sess.WorktreeID, err)
 		return
@@ -1533,7 +1540,7 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 		a.internal(w, r, "prepare the linked-worktree metadata of worktree "+sess.WorktreeID, err)
 		return
 	}
-	sandboxEnv := sessionEnv(a.sessionGitIdentity(ctx, sess.WorktreeID, path), lineEndings, gitFiles, a.deps.CABundle)
+	sandboxEnv := sessionEnv(a.sessionGitIdentity(ctx, sess.WorktreeID), lineEndings, gitFiles, a.deps.CABundle)
 	// No carried transcript: a restart starts clean, so even a fork's restart
 	// resumes nothing and needs no source to read.
 	sandboxMounts := sessionMounts(path, worktreeAdmin, conversationStore, backend.Mount{}, a.deps.CABundle, gitFiles)

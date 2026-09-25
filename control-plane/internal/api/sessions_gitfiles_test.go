@@ -20,26 +20,26 @@ import (
 // owner's host ignores there. Every sandbox's git now reads the host's own
 // files, mounted read-only, and reads nothing where the host reads nothing.
 
-// sandboxEnvGlobalFiles is a Deps.GitGlobalFiles double that records every
-// worktree path it was asked about.
+// sandboxEnvGlobalFiles is a Deps.GitGlobalFiles double that counts how often
+// it was asked. It is given no worktree to be asked about (X-1).
 type sandboxEnvGlobalFiles struct {
 	mu    sync.Mutex
-	asked []string
+	asked int
 	files GitGlobalFiles
 	err   error
 }
 
-func (f *sandboxEnvGlobalFiles) resolve(_ context.Context, worktreePath string) (GitGlobalFiles, error) {
+func (f *sandboxEnvGlobalFiles) resolve(context.Context) (GitGlobalFiles, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.asked = append(f.asked, worktreePath)
+	f.asked++
 	return f.files, f.err
 }
 
-func (f *sandboxEnvGlobalFiles) calls() []string {
+func (f *sandboxEnvGlobalFiles) calls() int {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	return append([]string(nil), f.asked...)
+	return f.asked
 }
 
 // sandboxEnvMountsAt is every mount of the sandbox at containerPath.
@@ -151,8 +151,8 @@ func TestTheHostsGlobalGitFilesReachTheSandboxReadOnlyAndOnlyWhenTheHostsGitRead
 				env := sandboxEnvNew(t, func(d *Deps) { d.GitGlobalFiles = host.resolve })
 				spec := sandboxEnvCreate(t, env, body)
 
-				if asked := host.calls(); len(asked) != 1 || asked[0] != env.dir {
-					t.Fatalf("the global files were asked of %#v, want once, of the worktree's host path %q", asked, env.dir)
+				if asked := host.calls(); asked != 1 {
+					t.Fatalf("the global files were asked for %d times, want once", asked)
 				}
 				sandboxEnvWantGitFile(t, spec, "core.excludesFile", sessionGitExcludesPath, host.files.Excludes, tc.excludes == "file" || tc.excludes == "link")
 				sandboxEnvWantGitFile(t, spec, "core.attributesFile", sessionGitAttributesPath, host.files.Attributes, tc.attributes == "file" || tc.attributes == "link")
@@ -164,8 +164,9 @@ func TestTheHostsGlobalGitFilesReachTheSandboxReadOnlyAndOnlyWhenTheHostsGitRead
 	}
 }
 
-// With no answer, or a path that would be read against this process's
-// directory rather than the worktree's, the create fails before anything
+// With no answer, or a relative path, which names a file in the worktree
+// rather than one of the host's (git reads it against each repository), the
+// create fails before anything
 // exists: no record, and no sandbox whose `git add -A` commits what the host
 // ignores.
 func TestAGlobalFilesAnswerTheSandboxCannotUseFailsTheCreateAndLeavesNothing(t *testing.T) {
@@ -191,7 +192,7 @@ func TestAGlobalFilesAnswerTheSandboxCannotUseFailsTheCreateAndLeavesNothing(t *
 	}
 }
 
-// Restart asks again, with the worktree's host path, and before the destroy:
+// Restart asks again, and before the destroy:
 // a file the user added since the first create is in the new sandbox, and a
 // failure leaves the old sandbox alive and the record naming it.
 func TestRestartAsksForTheGlobalGitFilesAgainBeforeTheDestroy(t *testing.T) {
@@ -213,8 +214,8 @@ func TestRestartAsksForTheGlobalGitFilesAgainBeforeTheDestroy(t *testing.T) {
 		sessionsAwaitWatch(t, done)
 		spec := env.be.spec(t, 0)
 
-		if asked := host.calls(); len(asked) != 1 || asked[0] != env.dir {
-			t.Errorf("the restart asked for the global files of %#v, want once, of %q", asked, env.dir)
+		if asked := host.calls(); asked != 1 {
+			t.Errorf("the restart asked for the global files %d times, want once", asked)
 		}
 		sandboxEnvWantGitFile(t, spec, "core.excludesFile", sessionGitExcludesPath, host.files.Excludes, true)
 		sandboxEnvWantGitFile(t, spec, "core.attributesFile", sessionGitAttributesPath, host.files.Attributes, false)
@@ -240,8 +241,8 @@ func TestRestartAsksForTheGlobalGitFilesAgainBeforeTheDestroy(t *testing.T) {
 		if rec.Code != http.StatusInternalServerError {
 			t.Fatalf("status = %d, want 500: %s", rec.Code, rec.Body.String())
 		}
-		if len(host.calls()) != 1 {
-			t.Errorf("the restart asked for the global files %d times, want once", len(host.calls()))
+		if host.calls() != 1 {
+			t.Errorf("the restart asked for the global files %d times, want once", host.calls())
 		}
 		if n := env.be.destroyCount(); n != 0 {
 			t.Errorf("the failed restart destroyed %d sandboxes", n)

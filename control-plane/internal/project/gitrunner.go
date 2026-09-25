@@ -22,6 +22,10 @@ type ExecRunner struct {
 	// Timeout overrides GitTimeout when non-zero. Tests use it; nothing else
 	// needs to.
 	Timeout time.Duration
+	// Env is appended to every git's environment after the headless
+	// variables, so an entry here wins over this process's own. cmd/api's
+	// host-config runner sets GIT_CEILING_DIRECTORIES with it; nil adds none.
+	Env []string
 }
 
 var _ Runner = (*ExecRunner)(nil)
@@ -61,6 +65,7 @@ func (r *ExecRunner) Run(ctx context.Context, dir string, args ...string) ([]byt
 		"GIT_PAGER=cat",
 		"GCM_INTERACTIVE=never",
 	)
+	cmd.Env = append(cmd.Env, r.Env...)
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
