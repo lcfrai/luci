@@ -788,3 +788,82 @@ In that order. Write each fixture with an editor and then run `python -c "import
 nothing. The sandbox copy is the Fleet file with `package control`; delete `Refusal`, `Refuse`,
 `RefuseWith`, `OK`, `Fail`; keep `Unavailable`; add nothing. Task 16's `CodeForbidden` is task
 16's own file.
+
+- [ ] **Step 4: Run the tests to verify they pass, in both modules**
+
+```bash
+cd control-plane && go test ./internal/fleet/model/ ./internal/fleet/wire/ -count=1 -v
+cd sandboxd && go test ./internal/control/ -count=1 -v
+```
+
+Expected: every test above `--- PASS`, and each module ends `ok`. Two failures are worth
+predicting. `TestEveryFixtureRoundTrips` failing on `response-ok-null.json` with `got
+{"id":"rq-00000001","ok":true}` means `Result` was typed `any`, not `json.RawMessage`: a
+`null` result then vanishes under `omitempty`, and task 16's `events.wait` empty answer would too.
+Failing on `response-unavailable.json` with `since` printed as `2026-09-25T10:00:00.000Z` means a
+custom time format crept in; `time.Time`'s own RFC 3339 encoding is the wire's.
+
+- [ ] **Step 5: Vet, format and the full suites**
+
+```bash
+gofmt -l control-plane/internal/fleet sandboxd/internal/control
+cd control-plane && go vet ./... && go test ./... -count=1
+cd sandboxd && go vet ./... && go test ./... -count=1
+```
+
+`gofmt -l` prints nothing; every package is `ok` or `[no test files]`. `sandboxd` is vendored:
+this task adds no dependency to it, so `go mod vendor` is not run and `vendor/modules.txt` is
+unchanged (`git diff --stat sandboxd/vendor` prints nothing).
+
+- [ ] **Step 6: Commit**
+
+`.superpowers/sdd/team/msg/t09.txt`: what changed and why (one wire, two copies, one fixture set;
+strict decoding; the verb table as data), ending
+`Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>`:
+
+```bash
+git add control-plane/internal/fleet/model control-plane/internal/fleet/wire \
+        sandboxd/internal/control/wire.go sandboxd/internal/control/wire_test.go \
+        testdata/panacea-control/v1
+git commit -F .superpowers/sdd/team/msg/t09.txt -- control-plane/internal/fleet sandboxd/internal/control testdata/panacea-control
+```
+
+#### Acceptance
+
+1. Step 4 passes in both modules and names every test of Step 1.
+2. `grep -rn "panacea-app/sandboxd" control-plane/` and `grep -rn "panacea-app/control-plane" sandboxd/ --include=*.go`
+   print nothing: neither module imports the other.
+3. `grep -n 'json:"owner\|json:"org\|json:"class' control-plane/internal/fleet/wire/*.go` prints
+   nothing: no wire type carries an owner, an org or a class (the stamp is task 16's `Stamped`).
+4. `go doc ./internal/fleet/model ClassMay` (in `control-plane`) prints the signature, and
+   `TestVerbTable` shows every §5.2 row.
+
+#### Reconciled with the parts already written
+
+| Question | Parts that answered it | Settled as |
+|---|---|---|
+| Is `turn.end` pushed or sent? | task 16's `Event` comment lists it as pushed; task 26 makes it a request (`task-26.md:865-868`) | **a request** (verb `turn.end`); the pushed events are `turn.begin`, `nudge`, `stop` and task 16's snapshot |
+| "Not yours": `not_owner` or `agent_not_owner`? | task 19 `not_owner` (`task-19.md:161`); tasks 23 and 24 `agent_not_owner` | **`agent_not_owner`**, one code, the Hub's spelling too (task 19 renames one constant) |
+| Error extras | task 24 needs `details.{from,to}`; task 28 `retryAfter`; task 16 `since` | all three are fields of `Error`, each optional |
+| Pushed events' shape | task 16's `Event{event}` only; task 26's `TurnBegin` carries its fields beside `event` | every pushed frame is one object keyed by `event`, decoded strictly into its registered type |
+| Where args types live | tasks 22 to 28 put them in `verbs` or `protocol` | there; the wire keeps `Args` raw |
+
+#### What this task does not claim
+
+- **Not transport.** No socket, stream or WebSocket; tasks 16, 17 and 19.
+- **Not dispatch.** `ClassMay` is data; refusing a verb is task 19's.
+- **Not the verbs' behaviour.** The `result` column names shapes other tasks own and test.
+- **Not that the table matches the managed policy.** The Orchestrator's allowed tools are
+  `Bash(panacea *)` and `Read` (§4.2); that the policy file allows exactly the verbs here is
+  task 13's check.
+
+#### Gaps found in the skeleton and in written parts
+
+1. **Task 19 renames `not_owner` to `agent_not_owner`** (one constant, one table row).
+2. **Task 26's `turns.Origin` should alias `model.TurnOrigin`**, so the Hub record, the queue and
+   the model agree on one type (`task-26.md:151-156` defines its own).
+3. **Task 16's `Event` comment** lists `turn.end` as pushed; it is a request (row 1 above).
+4. **Task 11's assumed owner prefix** is `us-…` (`task-11.md:87`); the Hub's is `u-…`
+   (`task-01.md:295`, `fake.go:43-45`). `model.Owner` holds `u-…`.
+5. **The skeleton's scope for 09** lists `turn.end` among server-pushed events; it should read
+   `turn.begin`, `nudge`, `stop`, with `turn.end` a verb.
