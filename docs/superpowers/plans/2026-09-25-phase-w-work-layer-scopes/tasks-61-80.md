@@ -345,10 +345,12 @@ test` and `run typecheck` green; a `git grep -nE "localStorage|indexedDB|writeTe
 desktop/src/work desktop/src/components/{work,issue,desk}` that finds no Hub-record write (task 55's
 rule); a Hub query after the run showing the `done` move's actor is the person and its cause the
 observed run (rule 2), and no sync principal wrote a fact state. **The results section** lists, per
-parity row W1 closes (L-3, L-8's W1 half, L-9, L-10, L-13, L-15, L-17's team half, L-24, L-29,
-L-34, L-36, L-38, L-41, L-42, L-46-L-48, L-98's W1 half, L-101, L-102's W1 half, L-104, L-106,
-L-108, L-112-L-114, L-124, L-126, L-146, L-181, L-191, L-198, L-220's W1 half, L-221-L-229), the
-task that built it and what was observed, and what stays **UNVERIFIED** (the budgets, the cloud
+parity row W1 closes (05 §1's W1 and W1-split rows: L-2, L-3, L-8's W1 half, L-9, L-10, L-13,
+L-15, L-17's team half, L-24, L-29, L-34, L-36, L-38, L-39's solo half, L-41, L-42, L-46-L-48,
+L-98's W1 half, L-101's list and board, L-102's W1 half, L-104, L-106, L-108, L-112-L-114, L-124,
+L-126, L-127's W1 half, L-146, L-181, L-191, L-198, L-200 and L-201's in-product halves, L-220's
+W1 half, L-221-L-229, L-234's W1 half; plus L-45 and L-117, which 05 §5.3 rows 4 and 12 moved
+from W2 into W1), the task that built it and what was observed, and what stays **UNVERIFIED** (the budgets, the cloud
 path, screen-reader use, `first.landing`'s starter repo). **Depends on** 01-69. **Design:** 05
 §5.3 (the demo, revision 2), §4.6, §5.7. **Closes** nothing new; it proves W1's rows. **Does not
 claim** the cloud demo (the owner's, after phase 6 stream A and phase 8 stream C; skeleton *Start
