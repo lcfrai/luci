@@ -433,3 +433,76 @@ CLI side in `sandboxd/internal/panaceacli/work_test.go`, against TM-18's canned 
 | `TestIssueAloneIsUsage` | `panacea issue` → exit 2, both usages on stderr, no dial | a bare verb dialled |
 | `TestFleetDownIsExitThree` | canned `unavailable` with `since` → exit 3 and *"team view unavailable since 2026-09-25T10:00:00Z"* on stdout and stderr, for each of the three verbs | a work verb that exits 1 on an outage |
 | `TestProposeFlagsBecomeArgs` | the flag form and the `--args` form send the same bytes | a second schema in the CLI |
+
+#### Steps
+
+- [ ] **Step 1: Check the sync base** (rule H2). Phase T's `fleet/{model,wire,control,verbs,
+  delegation,instructions}` and `sandboxd/internal/panaceacli` are merged: `grep -n "func (d
+  \*Dispatcher) Handle" control-plane/internal/fleet/control/dispatch.go` prints one line. Task 98's
+  store rows and task 100's `AddAgentComment` are merged. Replace `DelegationKey` with TM-11's
+  `delegation.Key`; map `wire.RefuseWith`, `orRefuse` and `fromHub` to TM-09's refusal helpers; note
+  each rename here.
+- [ ] **Step 2: Write the fixtures**, then the tests above; run them and see each fail (the verbs
+  are unknown: `unknown_verb` from dispatch, exit `2` from the CLI).
+- [ ] **Step 3: Add the three `model.Verbs` rows** and see `TestAWorkerCannotNote` move from
+  `unknown_verb` to a missing handler: the class table is live before any handler exists.
+- [ ] **Step 4: Write `issue.go`, `evidence.go`, the `team.go` delta, the registrations, the CLI
+  files and the `orchestrator.md` bullet.** Run to green.
+- [ ] **Step 5: Prove the tests bite.** Apply each mutant by hand, see its test fail, revert.
+- [ ] **Step 6: Commit** with `git add` for the new files, then `git commit -F <msgfile> --` the
+  paths of *Files*. Message file under `.superpowers/sdd/work/msg/`; last line
+  `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>`.
+
+#### Acceptance
+
+```bash
+go build ./control-plane/... ./sandboxd/... && go vet ./control-plane/internal/fleet/... ./sandboxd/internal/panaceacli/
+# (no output)
+go test ./control-plane/internal/fleet/verbs/ -race -count=1 -v -run 'TestAWorkerCannotNote|TestAWorkerCanReadItsTasksIssue|TestANoteOfSixHundredAndOneIsRefused|TestTheSecondNoteWaits|TestShowRefusesAnUndelegatedIssue|TestAMentionTurnOpensShowOnly|TestAttributionIsTheSessionsNotTheArgs|TestAProposalLeavesDoneUnchanged|TestAProposalNeedsAServedCriterion|TestShowAnswersTheKeyNotTheAlias|TestShowQuotesEveryText|TestTheSwitchReadsAsUnavailable|TestTheOrchestratorCardShowsTheIssueTitle|TestTheWorkerSnapshotIsUnchanged|TestEveryNamedWorkVerbIsServed' 2>&1 | grep -c '^--- PASS'
+# 15
+go test ./sandboxd/internal/panaceacli/ -race -count=1 -v -run 'TestIssueShowSendsTheDottedVerb|TestIssueAloneIsUsage|TestFleetDownIsExitThree|TestProposeFlagsBecomeArgs' 2>&1 | grep -c '^--- PASS'
+# 4
+go test ./control-plane/internal/fleet/... ./sandboxd/... -race -count=1
+# ok for every package: TM-18, TM-19 and TM-22's own tests unchanged, the worker fixture unchanged
+git diff --stat START -- testdata/panacea-control/v1/result-team-worker.json
+# (no output)
+```
+
+`START` is the task's start commit. That the verbs work **in a running pod** is not accepted
+here: no Fleet is deployed (phase 6 and 8, TM1), and a fake socket is not a pod.
+
+#### What this task does not claim
+
+- That Fleet is running anywhere, or that a real Orchestrator calls these verbs well. TM-41's replay
+  eval is where an Orchestrator's use of a verb is measured; this task adds none of its cases.
+- That TM-05's injection corpus covers hostile issue text (05 §3.4, Q3; **UNVERIFIED**). Issue and
+  comment text reach the agent only as quoted data through TM-18's envelope.
+- The desktop's view of a note or a proposal (tasks 103, 104), the delegate key (102), or the
+  solo-mode runner (task 112).
+- That a five-minute window is the right rate. It is this part's number, a constant, not measured.
+
+**Parity rows:** closes, jointly, **L-187** (with task 98: tasks carry the issue) and the W3 half of
+**L-166** (with task 104: proposed evidence on a criterion). Row numbers checked against
+`05-design.md`'s matrix on 2026-09-25 (L-166 at `:328`, L-187 at `:354`, *"the plan is the
+Orchestrator's tasks `tk-`, each with its reason"*, which the card's `issue` and `criterion`
+extend).
+
+**Corrections to the scope paragraph:** the class rows go to TM-09's `model/verbs.go`, not
+`dispatch.go` (TM-19 checks classes against that table); `evidence.propose` takes `issue` (decision
+(e)); the worker view of `panacea team` is unchanged and only the Orchestrator's card gains the
+issue (decision (g)); TM-41's `orchestrator.md` and TM-18's `cli.go` and `verbs.go` are added to the
+files.
+
+**Gaps found while writing this part** (for the skeleton's owner and the named tasks):
+
+1. **SW.7's golden names no verb.** Task 19's `golden-issue.md` (`task-19.md:206-228`) tells an
+   agent the issue, never that `panacea issue show` exists. `TestEveryNamedWorkVerbIsServed` passes
+   on it trivially; the Orchestrator learns the verbs from TM-41's text instead. If a cloud worker
+   should be told too, task 19 or TM-41's `worker-cloud.md` must add the line.
+2. **Task 98 must store what `IssueScope` reads**: the owner's `issue.delegated` events and
+   `task.issueId`, queryable by `(org, owner, issue)`. Its scope names the event kinds, not the query.
+3. **Task 103's mention event** must be one TM-09 `Event` kind held in the running `Turn`'s
+   `Events`, so `InTurn` can find it; TM-09's origins are only `human` and `fleet`
+   (`task-09.md:252-258`), and task 109's six origins are its own type, not TM-09's.
+4. **Task 109's gate** refuses turns; these verbs are refused by the Hub's `agents_disabled`. The
+   two answer the same switch at two points; neither task names the other's test.
