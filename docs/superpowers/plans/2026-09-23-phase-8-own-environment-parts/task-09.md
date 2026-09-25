@@ -65,6 +65,7 @@ that way; no id, tenant or secret is typed into the file. The Job's variables:
     ]
   },
   "userProfile": {
+    "unmanagedAttributePolicy": "ADMIN_VIEW",
     "attributes": [
       { "name": "username", "permissions": { "view": ["admin", "user"], "edit": ["admin"] } },
       { "name": "email", "permissions": { "view": ["admin", "user"], "edit": ["admin"] } },
@@ -98,9 +99,10 @@ that way; no id, tenant or secret is typed into the file. The Job's variables:
     { "clientId": "panacea-app-desktop", "name": "PanaceaApp Desktop", "enabled": true, "protocol": "openid-connect",
       "publicClient": true, "standardFlowEnabled": true, "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": false, "serviceAccountsEnabled": false, "consentRequired": false,
-      "redirectUris": ["http://127.0.0.1/*"], "webOrigins": [],
+      "redirectUris": ["http://127.0.0.1/callback"], "webOrigins": [],
       "attributes": { "pkce.code.challenge.method": "S256", "oauth2.device.authorization.grant.enabled": "false",
-        "client.offline.session.max.lifespan": "604800" },
+        "client.offline.session.max.lifespan": "604800", "access.token.lifespan": "600" },
+      "authenticationFlowBindingOverrides": { "browser": "panacea-app desktop browser" },
       "defaultClientScopes": ["basic", "profile", "email", "roles", "web-origins", "acr"],
       "optionalClientScopes": ["offline_access", "panacea-app-hub", "panacea-app-broker", "panacea-app-gateway", "panacea-app-fleet"],
       "protocolMappers": [
@@ -146,7 +148,7 @@ that way; no id, tenant or secret is typed into the file. The Job's variables:
   ],
   "identityProviderMappers": [
     { "name": "email", "identityProviderAlias": "entra", "identityProviderMapper": "oidc-user-attribute-idp-mapper",
-      "config": { "claim": "email", "user.attribute": "email", "syncMode": "INHERIT" } },
+      "config": { "claim": "email", "user.attribute": "email", "syncMode": "FORCE" } },
     { "name": "firstName", "identityProviderAlias": "entra", "identityProviderMapper": "oidc-user-attribute-idp-mapper",
       "config": { "claim": "given_name", "user.attribute": "firstName", "syncMode": "INHERIT" } },
     { "name": "lastName", "identityProviderAlias": "entra", "identityProviderMapper": "oidc-user-attribute-idp-mapper",
@@ -158,7 +160,15 @@ that way; no id, tenant or secret is typed into the file. The Job's variables:
     { "name": "entra_tid", "identityProviderAlias": "entra", "identityProviderMapper": "oidc-user-attribute-idp-mapper",
       "config": { "claim": "tid", "user.attribute": "entra_tid", "syncMode": "FORCE" } }
   ],
+  "authenticatorConfig": [
+    { "alias": "panacea-app entra redirector", "config": { "defaultProvider": "entra" } }
+  ],
   "authenticationFlows": [
+    { "alias": "panacea-app desktop browser", "providerId": "basic-flow", "topLevel": true, "builtIn": false,
+      "authenticationExecutions": [
+        { "authenticator": "identity-provider-redirector", "authenticatorConfig": "panacea-app entra redirector",
+          "requirement": "REQUIRED", "priority": 10, "authenticatorFlow": false }
+      ] },
     { "alias": "panacea-app first broker login", "providerId": "basic-flow", "topLevel": true, "builtIn": false,
       "authenticationExecutions": [
         { "authenticator": "idp-create-user-if-unique", "requirement": "ALTERNATIVE", "priority": 10, "authenticatorFlow": false },
@@ -178,6 +188,17 @@ Why the settings that are not obvious (ruling §4, §6, §9; Panacea's pattern f
   front of the person (ruling §3). `loginHint` forwards the desktop's `login_hint`.
 - **`FORCE` on M1, M2**: `oid` and `tid` never change, so rewriting them at every login is a no-op for
   a stable person and repairs a user created before the mapper existed.
+- **The desktop's browser flow is one Identity Provider Redirector to `entra`** (ruling K1 `:500-505`,
+  review-1 I1): no Cookie step and no username/password form, so every interactive sign-in goes through
+  Entra and its conditional access, M1/M2 run each time, and `kc_idp_hint` decides nothing. Refresh and
+  offline grants run no browser flow, so silent launches are unaffected.
+- **`email` is admin-edit and its IdP mapper `FORCE`** (ruling K3, K4, review-1 I3): the Hub binds
+  invites by `email` when `email_verified` is true, so a user must not be able to rewrite it.
+- **`unmanagedAttributePolicy` is `ADMIN_VIEW`, never `ENABLED`** (ruling K4, review-1 M2): an
+  undeclared attribute is never user-editable, so a lapsed declaration cannot make `entra_oid` forgeable.
+- **`access.token.lifespan` 600** (ruling K1 `:495`, §6, review-1 M4): bounds how long a revoked session
+  stays valid at the offline validators. **`redirectUris` is `/callback` only**, the one path the
+  listener serves (ruling K1 `:490`, review-1 M3).
 - **`${CLAIM.email}`** is Keycloak's own template, not a `$(env:…)` substitution: the two syntaxes differ
   on purpose.
 - **Keycloak's built-in scopes** (`basic`, `profile`, `email`, `roles`, `web-origins`, `acr`,
@@ -195,12 +216,13 @@ The test reads `../../../deploy/keycloak/realm/panacea-app.json` with `encoding/
 | Test | Asserts | Mutant it kills |
 |---|---|---|
 | `TestTheRealmFileParses` | valid JSON; `realm == "panacea-app"`, `sslRequired == "all"`, registration, password reset and email login off | a file the Job refuses at deploy; a self-registration page |
-| `TestDesktopIsAPublicPKCEClientOnLoopback` | public, no `secret`; `S256`; `redirectUris == ["http://127.0.0.1/*"]` exactly; implicit, direct grants, service accounts and device grant off; no consent; `webOrigins` empty | a secret on a laptop; a `localhost` redirect (facts §8); a password grant |
+| `TestDesktopIsAPublicPKCEClientOnLoopback` | public, no `secret`; `S256`; `redirectUris == ["http://127.0.0.1/callback"]` exactly; implicit, direct grants, service accounts and device grant off; no consent; `webOrigins` empty; `access.token.lifespan` `"600"` | a secret on a laptop; a `localhost` redirect (facts §8); a `/*` path (review-1 M3); a password grant; 30 minutes of revocation latency (M4) |
+| `TestEveryBrowserSignInGoesToEntra` | the desktop's `authenticationFlowBindingOverrides.browser` names `panacea-app desktop browser`; that flow is top-level with exactly one execution, `identity-provider-redirector`, `REQUIRED`, whose config has `defaultProvider` `entra`; no `auth-cookie`, `auth-username-password-form` or OTP execution in it | a realm password form or SSO cookie that mints a token without Entra (review-1 I1) |
 | `TestDesktopScopesAreExactlyTheRulings` | optional scopes `offline_access` + the four audience scopes, and nothing else; no `groups` anywhere | groups in every token; no `offline_access`, so the silent refresh dies overnight (ruling §2) |
 | `TestEachAudienceScopeNamesItself` | four scopes, each with one `oidc-audience-mapper` whose `included.custom.audience` is the scope's own name, access token only, `include.in.token.scope` true | a broker token that the Hub also accepts (the confused deputy) |
 | `TestPersonClaimsCarryTheEntraIds` | desktop mappers: `entra_oid` → `oid`, `entra_tid` → `tid` (access + id token), realm roles → `roles` (multivalued, access only) | a person keyed on Keycloak's `sub` |
-| `TestIdPMappersForceTheEntraIds` | `oid` → `entra_oid`, `tid` → `entra_tid`, both `syncMode` `FORCE` | a user who never gets `entra_oid` (`IMPORT` writes only at creation) |
-| `TestOnlyAnAdminCanEditTheEntraIds` | user profile: `entra_oid`, `entra_tid` view and edit `["admin"]` | a person rewriting their own `oid` in the account console, becoming someone else |
+| `TestIdPMappersForceTheEntraIds` | `oid` → `entra_oid`, `tid` → `entra_tid`, and `email` → `email`, each `syncMode` `FORCE` | a user who never gets `entra_oid` (`IMPORT` writes only at creation); a stale or self-edited `email` surviving a login (review-1 I3) |
+| `TestOnlyAnAdminCanEditTheEntraIds` | user profile: `entra_oid`, `entra_tid` view and edit `["admin"]`; `email` edit `["admin"]`; `unmanagedAttributePolicy` present and not `ENABLED` | a person rewriting their own `oid` or `email` in the account console, becoming someone else or binding a colleague's invite (review-1 I3, M2) |
 | `TestTheIdPIsPinnedToOneTenant` | alias `entra`; all four URLs tenant-specific through `$(env:PANACEA_APP_ENTRA_TENANT_ID)`; `client_secret_post`; `tid` claim filter on; `trustEmail` true; `storeToken` false; `loginHint` true; no `prompt` key; its first-login flow exists | any Entra tenant signing in; an Entra token stored in the realm; a click |
 | `TestFirstLoginHasNoReviewStep` | the flow holds exactly `idp-create-user-if-unique` and the sub-flow with `idp-auto-link`; no `idp-review-profile` anywhere | a profile-review page at first sign-in |
 | `TestServiceClientsCarryNoPerson` | Fleet and gateway: confidential, service accounts on, every browser flow off, no redirects, no protocol mappers; Fleet's optional scopes hub + broker, the gateway's hub only | a service token carrying `oid`; a gateway token the broker could accept |
@@ -212,13 +234,13 @@ The test reads `../../../deploy/keycloak/realm/panacea-app.json` with `encoding/
 
 - [ ] **Step 1:** Re-read ruling §4, §6 and §9; if they changed, they win over this part.
 - [ ] **Step 2:** `doc.go` and the tests; `go test` fails (no realm file).
-- [ ] **Step 3:** The realm file until the thirteen tests pass.
+- [ ] **Step 3:** The realm file until the fourteen tests pass.
 - [ ] **Step 4:** Commit.
 
 #### Acceptance
 
 ```bash
-go test ./control-plane/internal/realmfile/ -count=1 -v 2>&1 | grep -c '^--- PASS'   # 13
+go test ./control-plane/internal/realmfile/ -count=1 -v 2>&1 | grep -c '^--- PASS'   # 14
 go vet ./control-plane/internal/realmfile/
 ```
 
@@ -227,7 +249,11 @@ go vet ./control-plane/internal/realmfile/
 - That keycloak-config-cli reads this file as written: the `$(env:…)` substitution, the `userProfile`
   key and the `authenticatorFlow` spelling are **from training knowledge, UNVERIFIED** until task 29's
   Job applies it to a Keycloak 26 in a cluster (task 31). The test pins the settings, not the format.
-- That `http://127.0.0.1/*` matches any loopback port in Keycloak (the same assumption as ruling §10's
-  K1, UNVERIFIED).
+- That `http://127.0.0.1/callback` matches any loopback port in Keycloak (the same assumption as ruling
+  §10's K1, U-3, UNVERIFIED), that keycloak-config-cli resolves `authenticationFlowBindingOverrides` by
+  flow **alias** (a realm export holds the flow's id; UNVERIFIED), and that `unmanagedAttributePolicy`
+  sits in `userProfile` as written (UNVERIFIED): task 31's run against the cluster settles all three.
+- That the account console refuses a user's own edit of `entra_oid` or `email` at runtime: ruling
+  §10's check 3, run against our realm when task 31 applies this file. This test pins the permissions only.
 - That IT has added the redirect URI and the second secret, or that the owner has stored the secrets:
   both are owner-run (above) and task 31 checks them.
