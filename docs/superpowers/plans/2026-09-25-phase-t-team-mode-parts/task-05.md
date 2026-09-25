@@ -674,3 +674,39 @@ func registerFleetTestRoutes(s *Server, mux *http.ServeMux) {
 `writeError`, `WriteJSON` and `Decode` stand for Hub task 14's helpers (`task-14.md:130-138`); the
 implementer uses whatever names the merged `tx.go` has (**UNVERIFIED until merge**).
 `task.created` is a real team kind (`task-04.md:243`), so the row passes task 04's kind check.
+
+#### Tests to write first
+
+**Unit tests** (no database; `go test ./internal/entra/ ./internal/hub/server/ ./internal/devissuer/
+./cmd/hub/`). Each row names the mutant it kills.
+
+| Test (file) | Asserts | Kills |
+|---|---|---|
+| `TestAppCallerAdmitted` (`appcaller_test.go`) | no `scp`, Fleet's `azp`, `roles` ∋ `Hub.Fleet` → `Claims.AppOnly`, `ObjectID` the service principal's oid, `Scopes` empty | `appOnly` never copied into `Claims` |
+| `TestAppCallerNeedsBothFacts` | Fleet's `azp`, no role → `ErrClient`; Fleet's `azp`, the role **and** `scp: Hub.Access` → `ErrClient` (a token with a scope takes the delegated path, where Fleet is no client); the desktop's `azp`, the role, no `scp` → `ErrScope` | admitting on the `azp` alone, or on the role alone |
+| `TestDelegatedTokenUnchanged` | with `AppCallers` set, the rejections of `entra_test.go:291-333` (unlisted client, scope match, app-only desktop) are unchanged and a desktop token has `AppOnly` false | a branch that skips the `scp` check for every token once `AppCallers` is set |
+| `TestAppCallerConfigIsChecked` | `New` refuses a non-GUID client id, an empty role, and a client id that is also an allowed client **in another case** (`AB…` against `ab…`) | decision (h) dropped, or compared before `normGUID` |
+| `TestDelegationHeaderRules` (`delegation_test.go`) | the table below, through `delegationHeader` | each row's mutant is named in the table |
+| `TestIsFeedPathIsExact` | `GET /v1/orgs/org-x/changes` true; `POST` it false; `/v1/orgs/org-x/changes/`, `/v1/orgs//changes`, `/v1/orgs/org-x/changes/extra`, `/v1/orgs/org-x/projects`, `/v1/projects/p/changes` false | a prefix match, which exempts every `/v1/orgs/…` route (`task-08.md:387`) |
+| `TestUserKeyIsPerDelegation` | desktop → `tid/oid`; Fleet under `dl-a` and `dl-b` → two keys; the feed → `fleet/feed` | Fleet keyed on `tid/oid`, one bucket for every member |
+| `TestRouteFromIsDelegablesName` | inside `Delegable(RouteTasksRead, h)` → `(tasks.read, true)`; a bare handler → `("", false)` | `RouteFrom` defaulting to a name |
+| `TestAppOnlyClaimsCarryNoAdmin` (`auth_test.go`) | a fake validator's `AppOnly` claims with `roles` ∋ `Hub.OrgAdmin` → `server.Claims.OrgAdmin` false, `Name`, `Email`, `BindEmail` "" | `OrgAdmin` read from an app token's roles |
+| `TestAppTokenFromTheGrant` (`token_test.go`) | the grant → 200 with no `refresh_token`, `id_token` or `scope`; the token validates under `entra.New(… AppCallers: [{fleet, Hub.Fleet}])` with `AppOnly`; its payload has no `scp`, `name`, `email`, `idtyp` | `scp` written into an app token (the Hub then answers 401 `client`), or `idtyp` written |
+| `TestAppGrantRefusals` | a public client → `unauthorized_client`; an unknown one → `invalid_client`; no assertion, or another assertion type → `invalid_client`; `scope` `…/Hub.Access` or an unknown API → `invalid_scope`; the unenrolled tenant (no service principal) → `unauthorized_client`; the Fleet client on `authorization_code` → `unauthorized_client` | the assertion check removed; a public client given an app token |
+| `TestFleetdsFormIsAccepted` | the exact `url.Values` of `task-12.md:723-729` → 200 | the two forms drifting apart |
+| `TestEnvNamesFleet` | `Env()`'s last line is `PANACEA_APP_HUB_FLEET_CLIENT_ID=77777777-…`; with no confidential client the line is absent | a devstack whose Hub refuses Fleet |
+| `TestFleetClientIDIsChecked` (`config_test.go`) | `""` → `fleetCallers` nil; a non-GUID → the error names the variable; a value in `ALLOWED_CLIENTS` → the error names both | `serve` passing an `AppCaller` with an empty id |
+
+`TestDelegationHeaderRules`' table:
+
+| Caller | Header | Path | Answer | Kills |
+|---|---|---|---|---|
+| desktop | none | any | nil | — |
+| desktop | `dl-00000000000000a1` | `/v1/_test/whoami` | 403 `forbidden`, `required: fleet` | a borrowed delegation admitted |
+| desktop | `dl-…` | the feed | 403 `forbidden`, `required: fleet` | the feed exemption checked before the caller |
+| Fleet | none | the feed | nil, `FleetFeed` true | — |
+| Fleet | `dl-…` | the feed | 400 `bad_request`, `field: X-Panacea-Delegation` | a feed read in one member's name |
+| Fleet | none | `/v1/_test/whoami` | 401 `delegation_required` | Fleet acting as nobody |
+| Fleet | two `dl-…` values | `/v1/_test/whoami` | 400 `bad_request` | the first value taken, the second ignored |
+| Fleet | `dl-XYZ` | `/v1/_test/whoami` | 401 `delegation_revoked`, `reason: unknown`, `delegationId: ""` | the raw value echoed |
+| Fleet | `dl-00000000000000a1` | `/v1/_test/whoami` | nil, `DelegationID` set | — |
