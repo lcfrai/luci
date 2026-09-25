@@ -56,6 +56,18 @@ the remote `gitx.Machine` of each machine, and `machined` never stores a token. 
 - `docs/runbooks/fetch-credential.md`: installing the GitHub App; granting an Azure DevOps
   identity Read on one repository (new)
 
+**Interfaces:**
+- Consumes: phase 3's `remote.Auth`, `Fetcher`, `Push` (`task-12.md:28-126`), `credstore.Credential`,
+  `Store`, `Chain` and `githost.Remote`, `ParseRemote`, `GitAuthHeader` (`task-13.md:28-175`),
+  `githost.Host` (`task-14.md:57-66`); phase 8 task 21's `POST /v1/git` and its credential-`Env`
+  rule (`task-21.md:87`, `:193-197`); task 17's delegation check for Fleet on broker routes.
+- Produces: `credstore.SourceProjectFetch`; `githost.Binding`, `FetchSource`, `GitHubApp`,
+  `AzureDevOpsIdentity`, `FetchEnv`, `ProveAccess`; `remote.FetchOnly`, `ErrReadOnlyAuth`,
+  `Fetcher.Authorize`; the broker's `FetchCredential`, two routes and audit line.
+- Required by: task 31 (`rebase` calls the fetch route), task 22 (the Orchestrator's view of
+  `origin` is the last fetch), task 44 (leavers' proofs), task 57 (the live check), task 59 (the
+  lane mirror fetches with the same `FetchCredential`).
+
 #### Interfaces — complete
 
 ```go
