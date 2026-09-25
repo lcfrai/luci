@@ -221,7 +221,8 @@ start). The delimiter row is written from the **header** cells' alignment only, 
 `gfmShapePlugin` copies it down the column: a body cell with its own alignment would re-parse as
 its column's and fail rule 5. Escaping `|` after rendering touches text and code alike, which is
 what GFM requires; a person's `\|` is written `\\\|`, which markdown-it reads back as `\|`
-(**UNVERIFIED** against the installed markdown-it until the fixture `tables.md` runs).
+(**UNVERIFIED** against the installed markdown-it until `tables.test.ts`'s pipe test runs; the
+table cases live in that file, not in task 49's fixture set, whose test counts exactly seven).
 
 #### Interfaces — complete: the edits to task 49's `schema.ts` and `markdown.ts`
 
@@ -948,5 +949,87 @@ describe("SlashMenu", () => {
     expect(row("Divider").querySelector("kbd")?.textContent).toBe("---");
     expect(row("Table").querySelector("kbd")).toBeNull();
   });
+  it("links an issue by its is- id, shown as its alias, never with the alias as the target", () => {
+    const { type, key, view, md } = mount();
+    type("/link");
+    key("Enter");                                           // Link an issue, the first match
+    expect(screen.getByRole("listbox").getAttribute("aria-label")).toBe("Link an issue");
+    type("resume");
+    key("Enter");
+    const hrefs: string[] = [];
+    view.state.doc.descendants((n) => { n.marks.forEach((m) => { if (m.type.name === "link") hrefs.push(String(m.attrs.href)); }); });
+    expect(hrefs.map(parseIssueLink)).toEqual([{ id: ISSUE.id, rev: null }]);
+    expect(hrefs[0]).not.toContain("EP-142");
+    expect(md()).toBe("[EP-142](panacea://issue/is-3f2a91c07b1e4d2a)");
+  });
+  it("points the editor at the active option, and the arrows move it", () => {
+    const { type, key, view } = mount();
+    type("/head");
+    const active = () => document.getElementById(view.dom.getAttribute("aria-activedescendant") ?? "")?.textContent;
+    expect(view.dom.getAttribute("aria-controls")).toBe(screen.getByRole("listbox").id);
+    expect(active()).toContain("Heading 1");
+    key("ArrowDown");
+    expect(active()).toContain("Heading 2");
+    key("Escape");
+    expect(view.dom.hasAttribute("aria-activedescendant")).toBe(false);
+  });
+  it("opens without scrolling: no scrollIntoView, no scrolling transaction, focus kept", () => {
+    const { type, view, seen } = mount("one\n\ntwo");
+    act(() => { view.focus(); });
+    const focused = document.activeElement;
+    vi.mocked(Element.prototype.scrollIntoView).mockClear();
+    const before = seen.length;
+    type("/");
+    type("h");
+    expect(screen.getByRole("listbox")).toBeTruthy();
+    expect(seen.slice(before).some((tr) => tr.scrolledIntoView)).toBe(false);
+    expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(focused);
+  });
+  it("holds the idle commit while the menu is open, and commits once it closes", () => {
+    vi.useFakeTimers();
+    const { type, key, onCommit } = mount();
+    type("/ta");
+    act(() => { vi.advanceTimersByTime(IDLE_COMMIT_MS * 3); });
+    expect(onCommit).not.toHaveBeenCalled();
+    key("Escape");
+    act(() => { vi.advanceTimersByTime(IDLE_COMMIT_MS); });
+    expect(onCommit).toHaveBeenCalledTimes(1);
+    expect(onCommit.mock.calls[0][0].markdown).toBe("/ta");
+  });
+  it("moves between cells with Tab and Shift+Tab", () => {
+    const { type, key, view } = mount();
+    type("/table");
+    key("Enter");
+    type("a");
+    key("Tab");
+    type("b");
+    key("Tab", { shiftKey: true });                          // back; goToNextCell selects the cell
+    type("c");
+    const head = view.state.doc.firstChild!.child(0);
+    expect([head.child(0).textContent, head.child(1).textContent]).toEqual(["c", "b"]);
+  });
+});
 ```
+
+`view.someProp("handleTextInput", …)` then a plain insert is the order ProseMirror's own input
+path uses, so the slash plugin and task 49's input rules see each character as they would from a
+keyboard; jsdom's `contenteditable` does not run that path itself (task 49's note, same
+**UNVERIFIED**). Shift+Tab lands on the first cell with its text selected (`goToNextCell` selects
+the cell's content), so typing `c` replaces `a`; that selection behaviour is `prosemirror-tables`'
+as this plan understands it, **UNVERIFIED** until step 3. jsdom has no layout, so the scroll test
+proves the menu asks for no scroll (no `scrollIntoView`, no transaction flagged to scroll); that
+the real WebView2 does not scroll is the owner's eyes.
+
+| Test | Mutant it kills |
+|---|---|
+| opens at a block's start; a slash inside a word | an always-open trigger that fires on `and/or` and paths |
+| `tab` filters to *Table*; `Enter` inserts it | a broken filter (substring, or none); a table with no header row |
+| `Esc` leaves the text | a close that eats the `/` or the query |
+| hints as `kbd` from the table (and the pure parity test) | a second, drifting table of hints; an invented hint on an item with no Markdown form |
+| links an issue by id | an alias key (`[EP-142](EP-142)`), which breaks on rename and is not a target |
+| `aria-activedescendant` follows | a menu a screen reader cannot follow; a stale id after close |
+| opens without scrolling | a scroll jump (`scrollIntoView` on the active row, or `tr.scrollIntoView()` on open) |
+| holds the idle commit | a revision digested with `/ta` in it while the person is still choosing |
+| Tab between cells | Tab leaving the editor from inside a table |
 
