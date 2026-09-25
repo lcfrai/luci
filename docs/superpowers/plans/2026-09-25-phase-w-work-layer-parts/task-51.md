@@ -570,6 +570,87 @@ The resolved fold keeps the thread's **size** in words (*· 3 comments*), not a 
 new write by the person, the same op with `resolved: false`; task 56's `U` and chip undo a
 `resolve` the same way, because `inverseOf` of a resolve is the resolve flipped (`task-56.md:234`,
 **UNVERIFIED** that its switch has the `resolve` arm until task 56's code runs; the test below
-holds it). The painted comment keeps `localId` as its `data-comment` until the Hub's `cm-` record
+holds it). The painted comment keeps `localId` as its `data-comment` until the Hub's `ic-` record (task 20's `WORK_IDS.comment`; task 56 writes `cm-`)
 replaces it (`task-56.md:375`); the scroll runs on the painted element, in the same frame as the
 post, so the id change does not matter to it.
+
+#### Interfaces — complete: `commentModel.ts`, part 3: a selection becomes offsets
+
+```ts
+/** The description is Markdown; the editor's selection is its plain text. A selection becomes a
+ *  text anchor only when that text occurs exactly ONCE in the revision's Markdown, so the offsets
+ *  are the Markdown's own and nothing maps positions between two models. */
+export type Located = { start: number; end: number } | { refused: "empty" | "absent" | "ambiguous" };
+export function locate(markdown: string, selected: string): Located {
+  if (selected.trim() === "") return { refused: "empty" };
+  const first = markdown.indexOf(selected);
+  if (first < 0) return { refused: "absent" };                 // it crossed **bold** or a link
+  if (markdown.indexOf(selected, first + 1) >= 0) return { refused: "ambiguous" };
+  return { start: first, end: first + selected.length };
+}
+export const LOCATE_WORDS: Readonly<Record<"empty" | "absent" | "ambiguous", string>> = {
+  empty: "select some words in the description first",
+  absent: "the selection crosses formatting; select plain words",
+  ambiguous: "those words appear more than once; select a few more",
+};
+```
+
+#### Interfaces — complete: the edits to task 49's `Editor.tsx`, task 46's `issueData.ts`, `Comments.tsx` part 4
+
+```tsx
+// Editor.tsx: EditorProps (task-49.md:522-528) gains three optional members.
+  plugins?: readonly Plugin[];                 // placed BEFORE the editor's own in load()
+  onSubmit?(doc: MarkdownDoc): void;           // Mod-Enter calls this in place of commit() when set
+  onSelectionChange?(selectedText: string): void;
+// …and in the view's dispatchTransaction, after the state is applied:
+  if (tr.selectionSet) latest.current.onSelectionChange?.(next.doc.textBetween(next.selection.from, next.selection.to, "\n"));
+
+// issueData.ts (task 46's; the only reader of the replica's shape, task-46.md:475-476):
+export function useIssueComments(issueId: string): readonly IssueComment[] {
+  return useWork((r) => r.comments(issueId));   // oldest first, as the Hub answers (task-12.md:112)
+}
+
+// Comments.tsx, part 4. Serves and the description render inside the provider in the view, and
+// alone in their own tests; outside a provider there is no Comment button, not a throw.
+export function useMaybeStartComment(): ((anchor: CommentAnchor) => void) | null {
+  return useContext(StartCtx)?.start ?? null;
+}
+```
+
+`r.comments(issueId)` is task 56's `ReplicaReadView.comments` (`task-56.md:184`), read through
+`useWork`; it is a sixth replica read beside task 46's four and task 47's one, named as a gap for
+task 55.
+
+#### Interfaces — complete: the edits to `IssueView.tsx` and `Serves.tsx`
+
+```tsx
+// IssueView.tsx (task 46's, as tasks 47 and 49 leave it). IssueViewBody wraps its section:
+import { Comments, CommentsProvider, useMaybeStartComment } from "./Comments";
+import { locate, LOCATE_WORDS, textAnchor } from "./commentModel";
+//   return <CommentsProvider><section …>…</section></CommentsProvider>;
+//   the activity slot's default:
+{slots.activity ?? <Comments issueId={head.id} me={me} people={people} head={headRevision} />}
+//   the description (task 49's Editor) gains onSelectionChange={setSelected}, and below it:
+<CommentOnSelection markdown={shown.value.content.description.text} revision={at} selected={selected} />
+
+function CommentOnSelection(props: { markdown: string; revision: number; selected: string }): JSX.Element | null {
+  const start = useMaybeStartComment();
+  if (!start || props.selected === "") return null;
+  const where = locate(props.markdown, props.selected);
+  return "refused" in where
+    ? <p className="iv-fact" data-fact="anchor-refused">{LOCATE_WORDS[where.refused]}</p>
+    : <button type="button" className="iv-cm-on-sel"
+        onClick={() => start(textAnchor(props.revision, where.start, where.end))}>Comment on selection</button>;
+}
+
+// Serves.tsx (task 47's): ServeRow gains `revision: number`, and after the facts:
+const startComment = useMaybeStartComment();
+{startComment ? (
+  <button type="button" className="iv-serve-comment" aria-label={`Comment on criterion ${serve.criterionId}`}
+    onClick={() => startComment(criterionAnchor(revision, serve.criterionId))}>Comment</button>
+) : null}
+```
+
+`revision` is `at`, the revision **being read**, so a selection in @3 anchors @3 even when the head
+is @4 (decision 2). `IssueViewBody` gains `const [selected, setSelected] = useState("")`, reset by
+the same effect that resets `reading`.
