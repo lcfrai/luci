@@ -277,3 +277,225 @@ Registered as `GET /v1/work/lanes/{lane}/risk` when `Deps.WorkRisk` is set,
 with its catalog row. `writeProblem` and `writeJSON` are the package's helpers under their real
 names (task 110's note). A team lane with `scopeChecked: false` shows *"scope not checked: team
 view unavailable"*; a solo lane shows nothing about scope (decision 5).
+
+#### Interfaces — complete: `control-plane/internal/fleet/work/repo.go`
+
+```go
+package work
+
+import (
+	"context"
+	"errors"
+	"unicode/utf8"
+)
+
+// RepoChoice is the repository proposal on an Orchestrator's task (L-192). Because is text·A.
+type RepoChoice struct {
+	Remote        string   `json:"remote"`            // one of the project's bound remotes, by its Hub id
+	Because       string   `json:"because"`           // at most 300 characters
+	Confidence    *float64 `json:"confidence,omitempty"`
+	CalibrationID string   `json:"calibrationId,omitempty"`
+}
+
+// Calibrations resolves a calibration record (AX §7: "Trust is calibrated from the user's own
+// history"). No store exists in W3, so Fleet wires NoCalibrations and every confidence is dropped.
+type Calibrations interface {
+	Exists(ctx context.Context, id string) bool
+}
+
+type NoCalibrations struct{}
+
+func (NoCalibrations) Exists(context.Context, string) bool { return false }
+
+var ErrUnboundRemote = errors.New("unbound_remote")
+var ErrBadBecause = errors.New("invalid_args")
+
+// CheckRepoChoice runs where TM-18's `task` verb creates or edits an Orchestrator's task.
+// It returns the choice to store: nil on a one-remote project (decision 7).
+func CheckRepoChoice(ctx context.Context, remotes []string, c *RepoChoice, cal Calibrations) (*RepoChoice, error) {
+	if c == nil || len(remotes) <= 1 {
+		return nil, nil
+	}
+	bound := false
+	for _, r := range remotes {
+		bound = bound || r == c.Remote
+	}
+	if !bound {
+		return nil, ErrUnboundRemote
+	}
+	if n := utf8.RuneCountInString(c.Because); n == 0 || n > 300 {
+		return nil, ErrBadBecause
+	}
+	out := *c
+	if out.Confidence != nil && (out.CalibrationID == "" || !cal.Exists(ctx, out.CalibrationID)) {
+		out.Confidence, out.CalibrationID = nil, "" // anti-pattern 12: no number without its history
+	}
+	return &out, nil
+}
+```
+
+The choice rides on Phase T's task record as one **added** optional field `repository`
+(`hubapi/team.go`, TM-03; an added field, as task 98 adds `issueId`), a delta listed as gap 2.
+
+#### Wire — complete: the `issue.file` verb (TM-09's envelope; Orchestrator class only)
+
+```json
+{ "v": 1, "id": "12", "verb": "issue.file",
+  "args": { "project": "pj-01J…", "title": "Lease cap is not applied to renamed paths",
+            "description": "Seen while planning EP-142: …", "because": "found during EP-142",
+            "serves": [ { "briefKey": "brief:bf-01J…@4", "criterionId": "c-40aa…" } ] } }
+```
+
+```json
+{ "id": "12", "ok": true, "result": { "issue": "is-01J…", "alias": "EP-163", "state": "triage",
+  "source": "orchestrator", "revision": "issue:is-01J…@1", "titleClass": "A" } }
+```
+
+Args are closed: an unknown field (`state`, `assignee`, `priority`, `cycle`, `labels`) is refused
+with ST.1's unknown-field code before the handler runs (TM-19). Limits: `title` at most 140
+characters, `description` at most 4,000, `because` at most 300, `serves` at most 5 and each
+criterion one the caller's owner may read. The handler writes through task 99's create method as
+the delegated caller (TM-05), so the Hub records `via: fleet` and the owner; the stored `state`
+and `source` are the Hub's (task 100), and the result echoes what the Hub stored, never the args.
+
+#### Interfaces — complete: appended to task 101's `control-plane/internal/fleet/verbs/issue.go`
+
+```go
+// IssueFileArgs is issue.file's args. There is no state, assignee, priority or cycle field
+// (decision 8); TM-19 refuses any field not named here.
+type IssueFileArgs struct {
+	Project     string        `json:"project"`
+	Title       string        `json:"title"`
+	Description string        `json:"description"`
+	Because     string        `json:"because"`
+	Serves      []ServesEntry `json:"serves,omitempty"` // task 101's {briefKey, criterionId}
+}
+
+type IssueFileResult struct {
+	Issue      string `json:"issue"`
+	Alias      string `json:"alias"` // display only; never written into any record (skeleton rule 1)
+	State      string `json:"state"`
+	Source     string `json:"source"`
+	Revision   string `json:"revision"`
+	TitleClass string `json:"titleClass"`
+}
+
+// IssueFiler is the one hubclient call issue.file needs (task 99's create for a delegated caller;
+// the method name is task 99's).
+type IssueFiler interface {
+	FileIssueAsAgent(ctx context.Context, d Delegated, a IssueFileArgs) (IssueFileResult, error)
+}
+
+func FileIssue(ctx context.Context, s Stamp, d Delegated, h IssueFiler, a IssueFileArgs) (IssueFileResult, error) {
+	if s.Class != "orchestrator" {
+		return IssueFileResult{}, ErrClass // a worker reports to its Orchestrator instead
+	}
+	if n := utf8.RuneCountInString(a.Title); n == 0 || n > 140 ||
+		utf8.RuneCountInString(a.Description) > 4000 || utf8.RuneCountInString(a.Because) > 300 || len(a.Serves) > 5 {
+		return IssueFileResult{}, ErrArgs
+	}
+	return h.FileIssueAsAgent(ctx, d, a) // the Hub forces triage and source: orchestrator
+}
+```
+
+`Stamp`, `Delegated`, `ServesEntry`, `ErrClass` and `ErrArgs` are task 101's names in the same
+package (its scope: *"`issue note` and `evidence propose` are **Orchestrator class only**"*); step 1
+renames here if task 101 chose others. The dispatch row names class `orchestrator` only, and the
+issue.file handler runs behind task 109's switch because every delegated write does (task 100's
+`agents_disabled`).
+
+#### Interfaces — complete: `desktop/src/components/work/RiskFacts.tsx`
+
+```tsx
+export type RiskName = "touches-prod-config" | "runs-migration" | "outside-declared-scope";
+export interface RiskFact { name: RiskName; paths: string[]; because: string }
+export interface RiskReply { lane: string; facts: RiskFact[]; globsSet: boolean; scopeChecked: boolean; teamLane: boolean }
+
+const WORD: Record<RiskName, string> = {
+  "touches-prod-config": "touches prod config",
+  "runs-migration": "runs a migration",
+  "outside-declared-scope": "outside declared scope",
+};
+
+/** Named facts, in the fixed order the control plane sent; no score, no colour scale (decision 2). */
+export function RiskFacts({ reply, dense = false }: { reply: RiskReply; dense?: boolean }) {
+  const notes: string[] = [];
+  if (!reply.globsSet) notes.push("no risk globs set for this project");
+  if (reply.teamLane && !reply.scopeChecked) notes.push("scope not checked: team view unavailable");
+  if (reply.facts.length === 0 && notes.length === 0) return null;
+  return (
+    <div className="risk" data-dense={dense || undefined}>
+      {reply.facts.map((f) => (
+        <details key={f.name} className="risk-fact" data-risk={f.name}>
+          <summary><span className="risk-name">{WORD[f.name]}</span> · <span className="risk-paths">{f.paths[0]}{f.paths.length > 1 ? ` +${f.paths.length - 1} paths` : ""}</span></summary>
+          <p className="risk-because">{f.because}</p>
+          <ul className="risk-list">{f.paths.map((p) => <li key={p}>{p}</li>)}</ul>
+        </details>
+      ))}
+      {notes.map((n) => <p key={n} className="risk-note">{n}</p>)}
+    </div>
+  );
+}
+```
+
+Every fact uses one ink (`--ink-2`) and one mark; no fact is red, amber or green, because a colour
+would rank them. Paths are Commit Mono at `--t-fact`. `+2 paths` counts listed paths inside a
+collapsed fact that expands to all of them, which AX anti-pattern 13 (`AGENTIC-UX.md:248`) asks
+of a collapsed row; it is not a completion count.
+
+The two mounts are one line each: `LaneCard.tsx` (P3 task 19) renders `<RiskFacts reply={…}/>`
+under the lane's commit line, and task 48's `IssueAgentLine.tsx` renders it `dense` under each
+own agent's line whose session has a lane. Both read the reply through one added call,
+`workRisk(laneId)`, in `desktop/src/api/work.ts`.
+
+#### Interfaces — complete: `desktop/src/components/work/RepoProposal.tsx`
+
+```tsx
+export interface RepoChoice { remote: string; because: string; confidence?: number; calibrationId?: string }
+export interface BoundRemote { id: string; label: string } // e.g. "github · kpmg/panacea-app"
+
+/**
+ * The Orchestrator's repository proposal on a task card (task 107). Renders nothing on a
+ * one-remote project. A confidence shows only beside a calibration id (anti-pattern 12);
+ * Fleet already dropped any other, and this is the second fence.
+ */
+export function RepoProposal({ choice, remotes }: { choice?: RepoChoice; remotes: BoundRemote[] }) {
+  if (!choice || remotes.length <= 1) return null;
+  const remote = remotes.find((r) => r.id === choice.remote);
+  if (!remote) return <p className="repo-fact">proposed repository is not bound to this project</p>;
+  const calibrated = choice.confidence !== undefined && !!choice.calibrationId;
+  return (
+    <div className="repo">
+      <p className="repo-line">
+        <span className="repo-label">{remote.label}</span> · proposed by the Orchestrator (agent)
+        {calibrated && <span className="repo-conf"> · {choice.confidence!.toFixed(2)} (calibration {choice.calibrationId})</span>}
+      </p>
+      <p className="repo-because" data-class="A">{choice.because}</p>
+    </div>
+  );
+}
+```
+
+The confidence is a raw ratio printed with its calibration id, never a `%` (SW.8's guard fails on
+`%`), and in W3 it never renders because no calibration record exists (decision 7).
+
+#### Interfaces — complete: the edit to task 42's `desktop/src/components/work/TriageView.tsx`
+
+```tsx
+// In task 42's triage row, where the row renders its title and reporter:
+{head.source === "orchestrator" ? (
+  <>
+    <AgentByline who={head.createdBy} />               {/* task 103: "alice · orchestrator (agent)" */}
+    <span className="tri-title" data-class={head.titleClass}>{head.title}</span>
+    {head.fileReason && <p className="tri-because" data-class="A">{head.fileReason}</p>}
+  </>
+) : (
+  task42Row(head) /* task 42's own rendering, unchanged */
+)}
+```
+
+`head.source`, `head.titleClass` and `head.createdBy` are W1's head fields (tasks 03 and 37);
+`fileReason` is the verb's `because`, which the Hub stores only if task 99 adds it as an added
+field on the create body (gap 5). Task 42's *Accept* and *Decline* stay as they are: they are the
+person's acts, sent with the person's token.
+
