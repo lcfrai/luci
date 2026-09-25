@@ -1715,3 +1715,66 @@ func wImportIsIdempotent(t *testing.T, e WorkEnv) {
 	}
 }
 ```
+
+Block 6: import refusals, search and attachments.
+
+```go
+func wImportIsAllOrNothing(t *testing.T, e WorkEnv) {
+	p := e.project(t, "Portal", "")
+	_, err := e.Member.ImportBatch(wctx, p.ID, hubapi.ImportBatch{Source: hubapi.ImportSourceLinear, Items: []hubapi.ImportItem{
+		{ExternalID: "A-1", Title: "fine"}, {ExternalID: "A-2", Title: "bad link", URL: "http://example.test/A-2"}}})
+	wRefused(t, err, 400, hubapi.CodeBadRequest, "field", "items[1].url")
+	if page, _ := e.Member.Issues(wctx, p.ID, hubapi.IssueQuery{}, hubapi.PageRequest{}); len(page.Items) != 0 {
+		t.Errorf("a refused batch wrote %d issues", len(page.Items))
+	}
+}
+
+func wSearchReadsOnlyReadableTitles(t *testing.T, e WorkEnv) {
+	p := e.project(t, "Portal", "")
+	iw := e.issue(t, p, "Resume an upload")
+	got, err := e.Viewer.SearchIssues(wctx, hubapi.IssueSearchQuery{Q: "RESUME"})
+	if err != nil || len(got) != 1 || got[0].ID != iw.Head.ID {
+		t.Errorf("viewer's search = %v, %v; want the one issue", got, err)
+	}
+	if none, err := e.Outsider.SearchIssues(wctx, hubapi.IssueSearchQuery{Q: "resume"}); err != nil || len(none) != 0 {
+		t.Errorf("outsider's search = %v, %v; want nothing", none, err)
+	}
+	_, err = e.Viewer.SearchIssues(wctx, hubapi.IssueSearchQuery{Q: "x", Limit: 51})
+	wRefused(t, err, 400, hubapi.CodeBadRequest, "field", "limit")
+}
+
+func wAttachmentsAreThisProjectsBlobs(t *testing.T, e WorkEnv) {
+	p, p2 := e.project(t, "Portal", ""), e.project(t, "Billing", "")
+	iw := e.issue(t, p, "one")
+	put := func(projectID, s string) hubapi.Digest {
+		b := []byte(s)
+		blob, err := e.Member.PutBlob(wctx, projectID, hubapi.DigestOf(b).String(), "text/plain; charset=utf-8", int64(len(b)), bytes.NewReader(b))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return blob.Digest
+	}
+	mine, theirs := put(p.ID, "log line"), put(p2.ID, "other log")
+	from := wHead(t, e.Member)
+	for range 2 {
+		if _, err := e.Member.AttachBlob(wctx, iw.Head.ID, hubapi.AttachRequest{Digest: mine}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := wKinds(t, e.Member, from, "issue.attached"); len(got) != 1 {
+		t.Errorf("issue.attached events = %d, want 1", len(got))
+	}
+	list, err := e.Viewer.Attachments(wctx, iw.Head.ID)
+	if err != nil || len(list) != 1 || list[0].Size != len("log line") || list[0].ContentType != "text/plain; charset=utf-8" {
+		t.Errorf("attachments = %+v, %v; want the one blob's type and size", list, err)
+	}
+	_, err = e.Member.AttachBlob(wctx, iw.Head.ID, hubapi.AttachRequest{Digest: theirs})
+	wRefused(t, err, 404, hubapi.CodeBlobNotFound)
+	_, err = e.Viewer.AttachBlob(wctx, iw.Head.ID, hubapi.AttachRequest{Digest: mine})
+	wRefused(t, err, 403, hubapi.CodeForbidden, "required", "member")
+}
+```
+
+`put` reads the digest back from `PutBlob`'s answer, not from `DigestOf`, so the row holds H05's
+upload and this task's attach to one digest. `hubapi.DigestOf` is `hubapi/keys.go:114` on
+`feat/hub`; `hubapi.IssueQuery{}` is task 03's list filter, its zero value filtering nothing.
