@@ -52,10 +52,10 @@ The check count this changes is **nineteen** (it was eighteen); every restatemen
 **A note on the expected-output blocks, as in task 24.** No command in this plan has been run. Where a transcript appears it is the shape the tool prints and the named value is what matters; where I am unsure of the chrome I say so. Do not edit an assertion to match a transcript in a document.
 
 **Files:**
-- `control-plane/internal/harness/harness.go` — the Claude Code descriptor's evidence comment (`:123-124`) re-cited to 2.1.274 in the image. Comment only (modify)
-- `control-plane/internal/harness/argv.go` — the `--permission-mode` evidence comment (`:5-7`) re-cited the same way. Comment only (modify)
+- `control-plane/internal/harness/harness.go` — the Claude Code descriptor's evidence comment (`:139-140` at `a38c268`) re-cited to 2.1.274 in the image. Comment only (modify)
+- `control-plane/internal/harness/argv.go` — the `--permission-mode` evidence comment (`:8-10` at `a38c268`) re-cited the same way. Comment only (modify)
 - `desktop/package.json`, `desktop/package-lock.json` — `playwright` as a pinned dev dependency and an `e2e` script (modify)
-- `desktop/e2e/phase2.e2e.mjs` — the headed harness. `.mjs` and outside `src/`, so vitest's `src/**/*.test.{ts,tsx}` never collects it and `tsc --noEmit` never type-checks it (new)
+- `desktop/e2e/phase2.e2e.mjs` — the headed harness, nineteen checks (step 20 lists them). `.mjs` and outside `src/`, so vitest's `src/**/*.test.{ts,tsx}` never collects it and `tsc --noEmit` never type-checks it (new)
 - `desktop/e2e/fixture.sh` — builds the throwaway git project the control plane enumerates. Bash rather than PowerShell so it runs through the audited wrapper (new)
 - `docs/verification/<run-date>-phase-2-results.md` — the sibling of `2026-09-17-phase-1-results.md`, in the same form, dated by the day the run happens (new)
 
@@ -137,7 +137,7 @@ cd ..
 # (e) The two stale citations step 5 corrects are where the carry says, and the product
 #     decision step 5 must NOT touch is intact.
 grep -nF '2.1.267' control-plane/internal/harness/harness.go control-plane/internal/harness/argv.go
-                                                                            # two lines: harness.go:123, argv.go:6
+                                                                            # two lines: harness.go:139, argv.go:9 (at a38c268)
 grep -cE '^\s+Efforts:\s+\[\]Effort\{EffortLow, EffortMedium, EffortHigh, EffortXHigh\},$' \
   control-plane/internal/harness/harness.go                                 # 1 — four, by design
 grep -nE '^- \*\*Effort\*\* — low / medium / high / xhigh \(Claude Code only\)$' docs/FUNCTIONAL-SPEC.md
@@ -285,7 +285,7 @@ grep -nE -- '--(permission-mode|model|effort|resume|session-id)\b' "$SCRATCH/cla
 
 **The fifth `--effort` level is recorded, not acted on.** The catalogue offers four by a written product decision (`harness.go:37-40`, citing `docs/FUNCTIONAL-SPEC.md:27`), and that comment is still true against 2.1.274 — *"The CLI also accepts "max"; the product does not offer it"*. So it is not edited. Step 19's results document carries `max` as an open question for the owner, with this `--help` line as its evidence.
 
-**5b — correct the two citations.** Comments only; no line of code changes. In `control-plane/internal/harness/harness.go`, the `ClaudeCode` descriptor's two-line evidence comment at `:123-124` becomes:
+**5b — correct the two citations.** Comments only; no line of code changes. In `control-plane/internal/harness/harness.go`, the `ClaudeCode` descriptor's first two evidence lines at `:139-140` (at `a38c268`) become:
 
 ```go
 		// Verified against `claude --help` in panacea-app/sandbox:dev, which
@@ -293,7 +293,7 @@ grep -nE -- '--(permission-mode|model|effort|resume|session-id)\b' "$SCRATCH/cla
 		// the binary that actually runs. Re-read by Phase 2 task 25 step 5a.
 ```
 
-And in `control-plane/internal/harness/argv.go`, the first sentence of the evidence at `:5-7`:
+And in `control-plane/internal/harness/argv.go`, the first sentence of the evidence at `:8-10` (at `a38c268`):
 
 ```go
 // claudePermissionFlag maps the product's three-word vocabulary onto the CLI's
@@ -302,7 +302,7 @@ And in `control-plane/internal/harness/argv.go`, the first sentence of the evide
 // and plan.
 ```
 
-**Read both surrounding comments before replacing them.** The resume fix lands before this task and may have edited `argv.go` near these lines — it adds `--session-id` handling. Replace only the sentences that cite 2.1.267, and keep anything the fix added.
+**Read both surrounding comments before replacing them.** The resume fix did edit near these lines: `harness.go:141` onward now says *"--session-id and --fork-session were verified inside that image"*, and that sentence stays. Replace only the sentences that cite 2.1.267, and keep everything the fix added.
 
 ```bash
 gofmt -l control-plane/internal/harness                                     # expect no output
@@ -1253,7 +1253,7 @@ PANACEA_E2E_ONLY=c1.flip,c5.resize,d.detach,d.reload,d.cp-restart npm run e2e
 
 **Carry 9's overlay hit-test rides on the same moment.** A failed pane shows the attach overlay in its *corner* presentation (`SessionPane.tsx:85-90`: only `connecting` is centred), and `develop.css:164-169` gives it `pointer-events: none` *"so it can never eat a selection drag in the terminal beneath it"*. `document.elementFromPoint` at the strip's centre answers that mechanically: it must return an element inside `.xterm`, not the strip. **Whether the strip occludes the transcript it sits over is not asked** — that is step 17's.
 
-**Open carry 2 — `resume` has no end-to-end proof** (`group-d-open-carries.md:43`). Planning this task found why: resume could not have worked. The client sent `resume: from.id` (`desktop/src/api/client.ts:358`) — the **cockpit's** session id, `s-` plus eight hex characters (`control-plane/internal/ids/ids.go:17-25`) — to `argv.go:87-89`'s `--resume`, where the Go contract types it as *"a prior agent session id"* (`2026-09-18-phase-2-go-contract.md:1137`). And a resumed session is a **new sandbox** whose only mount was the worktree at `/home/dev/work` (`api/sessions.go:30,331`), so the old sandbox's `~/.claude` — where `claude --resume` reads its state (`docs/FUNCTIONAL-SPEC.md:36`) — was gone with it.
+**Open carry 2 — `resume` has no end-to-end proof** (`group-d-open-carries.md:43`). Planning this task found why: resume could not have worked. The client sent `resume: from.id` (`desktop/src/api/client.ts`, `:361` at `a38c268`, still sent on purpose) — the **cockpit's** session id, `s-` plus eight hex characters (`control-plane/internal/ids/ids.go:17-25`) — to `argv.go`'s `--resume` (then `:87-89`), where the Go contract typed it as *"a prior agent session id"* (§2.9, `harness.Request`; that text has since been amended away, so no line number is cited). And a resumed session is a **new sandbox** whose only mount was the worktree at `/home/dev/work` (`api/sessions.go:30,331`), so the old sandbox's `~/.claude` — where `claude --resume` reads its state (`docs/FUNCTIONAL-SPEC.md:36`) — was gone with it.
 
 **The Resume fix fixed both, and has landed** (`b4be570`, round 1 `2e3db79`). It mints a UUID per Claude Code session and starts the CLI with `--session-id <uuid>` (which `claude --help` 2.1.274 offers, *"must be a valid UUID"*). It resumes that UUID **as a fork**, `--resume <U> --fork-session --session-id <V>`, because the CLI accepts no other pairing. It persists `/home/dev/.claude/projects` and nothing wider, from `<state>/conversations/local/<worktree>/`, mode 0o700. The desktop still sends the cockpit id, on purpose, and the control plane resolves it (`sessionResolveResume`). And it refuses, with a 409 at the create, to resume a session whose conversation has no transcript (`sessionResumableConversation`). **This check proves that fix works** — step 1 (h) found it at `a38c268`.
 
@@ -1501,11 +1501,13 @@ check("w.webview2", "phase-1 unproven item 5, agent half: the native WebView2 wi
 PANACEA_E2E_CDP=http://127.0.0.1:9222 PANACEA_E2E_ONLY=w.webview2 npm run e2e
 ```
 
-**What you must see:** `curl` prints a JSON object whose `Browser` field names an `Edg/` version — that is WebView2. Then `"ok":true` with `observed.engine` a user-agent string containing `Edg/`, and non-zero `rows` and `cols`. **Leave `tauri dev` running**: step 16 is performed in this window. `native.close()` on a `connectOverCDP` browser disconnects Playwright and leaves the application alone; if the window disappears when the check ends, record it, because that would mean the harness closed the owner's window and step 16 must restart it.
+**What you must see:** `curl` prints a JSON object whose `Browser` field names an `Edg/` version — that is WebView2. Then `"ok":true` with `observed.engine` a user-agent string containing `Edg/`, and non-zero `rows` and `cols`. **Leave `tauri dev` running until step 20**: step 16 is performed in this window, in the owner's batched session (OD-12, step 16's note), which brings it up again from the recipe. `native.close()` on a `connectOverCDP` browser disconnects Playwright and leaves the application alone; if the window disappears when the check ends, record it, because that would mean the harness closed the owner's window and step 16 must restart it.
 
 - [ ] **Step 16: The owner checklist — the native window and the terminal** · OWNER-OBSERVED
 
 **The implementer does not perform, pre-fill or summarise any item in steps 16 to 18.** Its job is to leave the app in the state each item needs, hand the owner this list, and copy the owner's answers into the results document word for word. If an item is ambiguous when the owner reads it, the plan is wrong: fix the wording with the owner, and record that it changed.
+
+**OD-12: steps 16 to 18 are batched, UNVERIFIED, to the very end.** The owner does all nineteen items in one hands-on session after phases 3 to 7 are built, so no one waits here for the owner. In this task the implementer writes the nineteen items unchanged in meaning. It proves each one *reachable*, meaning the state each item's "State the implementer leaves" names can be reached from a clean start. It records that state as a recipe in the results document: steps 6 and 7's commands, then the `PANACEA_E2E_ONLY` runs that produce it (`setup,p1.fidelity,c2.cols,c6.load` for step 16). And it shuts the stack down in step 20, like every other run. The results document marks all nineteen `PENDING OWNER`, **unverified**. Whoever runs the batched session later brings the stack up from that recipe, against whatever `HEAD` is then, and says so beside the answers. "Leave `tauri dev` running" (step 15) and "acts during the item" (item 11) describe that later session, not this task.
 
 **State the implementer leaves before handing over.** The stack from step 6 is running; `tauri dev` from step 15 is open (or, if step 15 was refused, started without the environment variable); project `e2e-demo`, branch `feat/e2e` is selected; the layout is **Columns**; the shell `e2e-shell` exists and has run `p1.fidelity`'s commands, so its scrollback holds `REDOK`, `╭─╮` and `L1` to `L500`; and the UI-created Claude Code session is showing its first screen. Paste `c2.cols`' and `c6.load`'s `observed` lines at the top of the owner's copy — items 3 and 5 refer to them.
 
@@ -1539,15 +1541,22 @@ Real-browser carry 9 is listed separately from carry 3 *"because carry 3 is spec
 
 `docs/FUNCTIONAL-SPEC.md:36` defines the promise: **Resume** (`claude --resume`, *restores context*). Step 14's `o2.resume` proved the two mechanical halves the resume fix adds — the same Claude session id, and a conversation store that survives into the new sandbox. This step is the half no agent can do: the owner watching the promise itself, because a resumed agent that remembers — or does not — is the only evidence that settles it, and it needs a real sign-in. `CLAUDE.md` locks it that way: *"Users authenticate as themselves"*. **Like `o2.resume`, it depends on the resume fix having landed** (step 1 (h)); without it, item 19 cannot say PAPAYA and the step proves nothing new.
 
-**What the owner should know before starting.** Signing in stores a credential in Claude Code's store inside the sandbox, and the resume fix persists that store across sandboxes so a resumed session can find its conversation. **Whether the credential persists with it, where it lives on this machine, and how it is removed, are the fix's decisions** — the implementer reads its commit and tells the owner all three before item 15. Nothing in this step pools or shares the subscription.
+**What the owner should know before starting — answered by the Resume fix** (`resume-fix-report.md` §5; reconcile item 4). These are facts, and the implementer reads them to the owner before item 15:
+
+- **The credential does not persist.** `/login` writes `~/.claude/.credentials.json`, which sits *beside* the persisted mount (`/home/dev/.claude/projects`), not in it.
+- **It dies with the sandbox.** Nothing about it is stored on this machine outside Docker.
+- **Every new sandbox needs `/login` again: create, Restart and Resume.** So the resumed session in item 18 asks for sign-in before it can reply. That is this phase's design, not a defect. **OD-20** keeps local mode, and there each user signs in with their own subscription. **OD-19** replaces this **in the cloud** with org inference through a gateway and a scoped per-session token; nothing here builds or assumes that.
+- **The persisted transcripts are sensitive.** They live in `<state>/conversations/local/<worktree>/`, mode 0o700, on this machine. Forget deletes a session's transcripts since `960457d` (OD-10).
+
+Nothing in this step pools or shares the subscription.
 
 15. **Start a Claude Code session.** *Do:* with `feat/e2e` selected, click `＋ New session`. In the new pane, follow Claude Code's own sign-in with your own subscription. *You should see:* Claude Code's prompt, ready for input. *Answer:* signed in?
 16. **Give it something to remember.** *Do:* type `Remember the word PAPAYA. Reply only OK.` and Enter. *You should see:* `OK`. *Answer:* did it reply?
 17. **Kill it.** *Do:* open the pane's `⋯` menu and choose **Kill**. *You should see:* the exited bar in that pane. *Answer:* exited?
-18. **Resume it.** *Do:* open the same pane's `⋯` menu and choose **Resume**. *You should see:* a new pane for a new session. *Answer:* write down the **first thing** the new pane shows — Claude Code's prompt, a sign-in screen, or an error message, word for word if it is an error.
-19. **Ask.** *Do:* if the new pane reached a prompt, type `What word did I ask you to remember?` and Enter. *Answer:* write down its reply exactly.
+18. **Resume it.** *Do:* open the same pane's `⋯` menu and choose **Resume**. *You should see:* a new pane for a new session, which **asks you to sign in** before it can reply, because the credential did not persist. Sign in again with your own subscription. *Answer:* write down the **first thing** the new pane shows — a sign-in screen, Claude Code's prompt, or an error message, word for word if it is an error — and whether it reached the prompt after you signed in.
+19. **Ask.** *Do:* once the new pane reaches a prompt, type `What word did I ask you to remember?` and Enter. *Answer:* write down its reply exactly.
 
-**Resume working looks like this:** item 18 reaches Claude Code's prompt — directly if the fix persists the credential with the conversation, after a sign-in if it deliberately does not; the fix's commit says which — and item 19 answers PAPAYA. Anything else is a finding against the resume fix, not fixed here. **The owner's answer is the evidence either way**, and the results document records it in the owner's words beside `o2.resume`'s agent result, so a reader sees the mechanical proof and the lived one side by side.
+**Resume working looks like this:** item 18 shows a sign-in, then reaches Claude Code's prompt after it, and item 19 answers PAPAYA. A resumed pane that reaches the prompt *without* a sign-in is also a finding: it means a credential persisted, which contradicts the Resume fix's report and must be traced before anything else. Anything else is a finding against the resume fix, not fixed here. **The owner's answer is the evidence either way**, and the results document records it in the owner's words beside `o2.resume`'s agent result, so a reader sees the mechanical proof and the lived one side by side.
 
 - [ ] **Step 19: Write the results document, with a disposition for every carry** · AGENT-PROVABLE
 
@@ -1559,7 +1568,7 @@ npm run e2e > "$E2E_ROOT/e2e-results.jsonl"; echo "exit=$?"
 cat "$E2E_ROOT/e2e-results.jsonl"
 ```
 
-Redirected rather than piped through `tee`, because of the pipe exit-code trap: `npm run e2e | tee …` reports `tee`'s status, and the status is part of the evidence. **What you must see:** one line per check, `setup` first and `w.webview2` last, every one `"ok":true`, and `exit=0`. (`w.webview2` is `ok` with `observed: "skipped: …"` if step 15's port was refused.) If the resume fix had not landed and the orchestrator chose not to wait, `o2.resume` is `"ok":false` on its `--session-id` assertion, `exit=1`, and the document says so plainly. **Any other red is a finding**: it goes into the document as a failure with the check's `error` verbatim, and to the orchestrator. It is not re-run until green, and it is not fixed here.
+Redirected rather than piped through `tee`, because of the pipe exit-code trap: `npm run e2e | tee …` reports `tee`'s status, and the status is part of the evidence. **What you must see:** one line per check, `setup` first and `w.webview2` last, every one `"ok":true`, and `exit=0`. (`w.webview2` is `ok` with `observed: "skipped: …"` if step 15's port was refused.) Both fixes landed before this task (step 1 (h)), so a red `o2.resume` or `g.primary` is not an expected branch. **Every red is a finding**: it goes into the document as a failure with the check's `error` verbatim, and to the orchestrator. It is not re-run until green, and it is not fixed here.
 
 Then create `docs/verification/<run-date>-phase-2-results.md`, where `<run-date>` is the day of the run in `YYYY-MM-DD`. It follows `2026-09-17-phase-1-results.md`'s form — a headline sentence, the environment, what was tested, the checks, blockers, false results, what is still unproven, how to reproduce — with **four additions** that Phase 2 needs and Phase 1 did not: the owner-observed items, the findings with owners, the open questions for the owner, and the carry disposition. Results are written `PASS` / `FAIL` / `SKIPPED` / `PENDING OWNER` in words.
 
@@ -1586,13 +1595,15 @@ Native window: WebView2 <Edg/ version from w.webview2, or "DevTools port refused
 | The sandbox image alone | `docker run`, `curl` (steps 2–4) | <n>/<n> |
 | The cockpit at the dev-window origin | headed Chromium, `desktop/e2e/phase2.e2e.mjs` | <n>/<n> |
 | The native window | WebView2 over the DevTools protocol (step 15) | <PASS / SKIPPED: reason> |
-| The owner's eyes | 19 numbered items (steps 16–18) | <n> answered, <n> PENDING OWNER |
+| The owner's eyes | 19 numbered items (steps 16–18), batched to the owner's end-of-build session (OD-12) | 0 answered, 19 PENDING OWNER, unverified |
 
-## Prerequisites — the two this phase recorded
+## Prerequisites — the two this phase recorded, and the three fixes
 
 | Prerequisite | Evidence | Result |
 |---|---|---|
-| Image newer than `382f056` (2026-09-21T22:43:47Z) | before `2026-09-21T05:10:18Z`, after `<Created>` | PASS |
+| Image newer than `382f056` (2026-09-21T22:43:47Z), and tied to a commit | before `5d9a580e035b` labelled `a38c268`; after `<Created>` `<source-commit label>`; last image-tree commit `<git log -1 -- sandboxd images/sandbox>` | PASS |
+| The Resume fix and the git + CA fix landed | step 1 (h): every count as expected | <PASS/FAIL> |
+| TLS interception, and the CA bundle | step 1 (i): `<HTTP n / ERROR code>`; with the bundle `<HTTP n / not needed>` | <PASS/FAIL> |
 | Fail-closed startup | tokenless container exits 1 with `sandboxd: no attach token configured; …` | <PASS/FAIL> |
 | Token rejection | `/healthz` 200, `/attach` 401 / 401 / 101 | <PASS/FAIL> |
 | Harness flags vs 2.1.274 | `--permission-mode` the same six choices; both evidence comments re-cited to the image | <PASS/FAIL> |
@@ -1650,7 +1661,11 @@ check that passed on an echo. Phase 1 recorded two; record every one here, or "n
    isolation, the RuntimeClass name, cold start, the read-only root in practice. Phase 8.
 2. Contract §4.7's refresh half: declared as not delivered by task-24.md:28.
 3. The CORS grant is task 24 step 11's evidence, relied on here and not re-run.
-4. <anything a SKIPPED check leaves open>
+4. All nineteen owner items: batched to the owner's end-of-build session (OD-12), unverified
+   until then. That includes whether a resumed agent remembers (step 18).
+5. Org inference (OD-19) is the cloud path and is not built in this phase. Local mode (OD-20),
+   which this run exercised, still needs `/login` in every sandbox.
+6. <anything a SKIPPED check leaves open>
 
 ## Reproducing this
 
@@ -1672,7 +1687,8 @@ check that passed on an echo. Phase 1 recorded two; record every one here, or "n
 | RB 9 — Develop lens geometry, contrast, 11px footer, overlay | `:93` | Step 9 `c9.exit-row`, step 14 overlay hit-test; step 17 items 8–12 | |
 | RB 10 — Retry attach on a real socket | `:119` | Step 14, `c10.retry` | |
 | OC 1 — failed attach had no way forward | `group-d-open-carries.md:16` | Closed by `07119d1`; its observation is RB 10 | |
-| OC 2 — `resume` has no end-to-end proof | `:43` | Step 14 `o2.resume` (identity and store); step 18 (the agent remembers). **Depends on the separate resume fix** — `--session-id <uuid>` at create, resume by it, the conversation store persisted — landing first | |
+| OC 2 — `resume` has no end-to-end proof | `:43` | Step 14 `o2.resume` (identity, the fork, and the persisted transcript); step 18 (the agent remembers, after a fresh `/login`; PENDING OWNER per OD-12). Built on the Resume fix, `b4be570` and `2e3db79`: `--session-id <uuid>` at create, `--resume <U> --fork-session --session-id <V>`, `/home/dev/.claude/projects` persisted | |
+| Sandbox git + CA fix — git and Claude Code in a sandbox on this network | `sandbox-git-fix-report.md` | Step 1 (h) and (i); step 14 `g.primary` (status, command-scope `safe.directory`, a commit as the configured identity, the env names in `docker inspect`) | |
 | OC 3 — Canvas `⌘1-9` does not raise the tile | `:47` | **Owner: task 23.** Step 17 item 14 observes the result | |
 | OC 4 — palette exposes no session verbs | `:52` | Correction already made (`80342ee`); nothing to observe | |
 | OC 5 — `max` effort (corrected at source: a product decision, not an omission) | `:60` | **Not changed.** Recorded as open question 1 for the owner; step 5a's `--help` reading is its evidence | |
@@ -1698,7 +1714,7 @@ docker ps -a --filter label=panacea-app.managed=true --format '{{.Names}} {{.Sta
 netstat -ano | grep -E ':(8730|1420|9222)\s' | grep LISTENING
 ```
 
-**What you must see:** the `docker ps` line prints nothing — the harness `DELETE`d every session it made, and `DELETE` destroys the sandbox. A leftover `panacea-app-*` container means a check threw before `main()` reached its cleanup loop; remove it by name with `docker rm -f`, after `docker inspect` confirms its `panacea-app.session-id` label is one this run created. The `netstat` line prints nothing. `$E2E_ROOT` is left in the temp directory for the owner to inspect and is not deleted by this task.
+**What you must see:** the `docker ps` line prints nothing — the harness `DELETE`d every session it made, and `DELETE` destroys the sandbox. A leftover `panacea-app-*` container means a check threw before `main()` reached its cleanup loop; remove it by name with `docker rm -f`, after `docker inspect` confirms its `panacea-app.session-id` label is one this run created. The `netstat` line prints nothing. `$E2E_ROOT` is left in the temp directory for the owner to inspect and is not deleted by this task. **Only then release the Docker lock** that step 6 took: `rm <lock>/owner.txt && rmdir <lock>` (`docker-daemon-lock.md` step 4).
 
 **Then the guards.** Anchored, per shared shape §3A.
 
@@ -1721,7 +1737,9 @@ grep -cE '^\s+"playwright": "[0-9]+\.[0-9]+\.[0-9]+",?$'      desktop/package.js
 grep -cE '^\s+"e2e": "node e2e/phase2\.e2e\.mjs"$'            desktop/package.json                       # 1
 grep -cE '^\s+channel:'                                       desktop/e2e/phase2.e2e.mjs                  # 0
 grep -cE '^await main\(\);$'                                  desktop/e2e/phase2.e2e.mjs                  # 1
-grep -cE '^check\("'                                          desktop/e2e/phase2.e2e.mjs                  # 18
+grep -cE '^check\("'                                          desktop/e2e/phase2.e2e.mjs                  # 19
+grep -cE '^const CLAUDE_STORE = "/home/dev/\.claude/projects";$' desktop/e2e/phase2.e2e.mjs               # 1 — the persisted part only
+grep -c  'e2e-resume-marker'                                  desktop/e2e/phase2.e2e.mjs                  # 0 — the transcript is the marker
 
 # The results document exists and the implementer answered no owner item.
 ls docs/verification/*-phase-2-results.md
@@ -1730,7 +1748,7 @@ grep -c 'PENDING OWNER' docs/verification/*-phase-2-results.md          # 19, un
 git status --porcelain | sort
 ```
 
-**Eighteen checks**, in file order: `setup`, `p1.fidelity`, `p1.claude`, `c2.cols`, `c3.theme`, `c7.popover`, `c9.exit-row`, `c1.flip`, `c1.cap`, `c5.resize`, `c4.pinned`, `c6.load`, `d.detach`, `d.reload`, `d.cp-restart`, `c10.retry`, `o2.resume`, `w.webview2`. `w.webview2` is written even when step 15's port is refused — it returns `skipped` when `PANACEA_E2E_CDP` is unset — so the count does not depend on the policy.
+**Nineteen checks** (eighteen before the git + CA fix added `g.primary`), in file order: `setup`, `p1.fidelity`, `p1.claude`, `c2.cols`, `c3.theme`, `c7.popover`, `c9.exit-row`, `c1.flip`, `c1.cap`, `c5.resize`, `c4.pinned`, `c6.load`, `d.detach`, `d.reload`, `d.cp-restart`, `c10.retry`, `o2.resume`, `g.primary`, `w.webview2`. `w.webview2` is written even when step 15's port is refused — it returns `skipped` when `PANACEA_E2E_CDP` is unset — so the count does not depend on the policy.
 
 `git status --porcelain | sort` must list exactly the seven paths of the Files block, the results document among them, and nothing else. A stray path is either an un-reverted edit or a file from the parallel work in this tree — the second is **not** staged.
 
@@ -1759,7 +1777,7 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
 
 ```bash
 git add control-plane/internal/harness/harness.go control-plane/internal/harness/argv.go
-git commit -F "$SCRATCH/c1.txt"
+git commit -F "$SCRATCH/c1.txt" -- control-plane/internal/harness/harness.go control-plane/internal/harness/argv.go
 ```
 
 `$SCRATCH/c2.txt`:
@@ -1778,11 +1796,18 @@ The sandbox image is rebuilt and proven to contain 382f056 by its behaviour: a
 tokenless sandboxd now refuses to start, and /attach answers 401 without the
 bearer token.
 
-<If o2.resume passed: Resume is proven end to end on top of the separate
-resume fix - the source sandbox runs with its own Claude session UUID, the
-resumed one resumes that UUID, and the conversation store survives into the
-new sandbox. Whether the agent remembers is the owner's step-18 observation.
-If it failed, say which assertion, and that it is owned by the resume fix.>
+<If o2.resume passed: Resume is proven end to end on top of the Resume fix
+(b4be570, 2e3db79) - the source sandbox runs with its own Claude session UUID,
+a seeded transcript lands in the persisted store, and the resumed sandbox
+forks that UUID under a new one and reads the transcript unchanged. Whether
+the agent remembers is the owner's step-18 observation, batched to the end
+(OD-12) and unverified. If it failed, say which assertion, and that it is
+owned by the Resume fix.>
+
+<If g.primary passed: git works in a session on a primary worktree - status,
+a command-scope safe.directory, and a commit as the exported identity - on
+top of the sandbox git + CA fix (2d6d95b..31576b7). If it failed, say which
+assertion, and that it is owned by that fix.>
 
 <One paragraph per FAIL in the run, naming the check and the owner, or "No
 agent-provable check failed.">
@@ -1798,9 +1823,11 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
 git add desktop/package.json desktop/package-lock.json \
         desktop/e2e/phase2.e2e.mjs desktop/e2e/fixture.sh \
         docs/verification/<run-date>-phase-2-results.md
-git commit -F "$SCRATCH/c2.txt"
+git commit -F "$SCRATCH/c2.txt" -- desktop/package.json desktop/package-lock.json \
+        desktop/e2e/phase2.e2e.mjs desktop/e2e/fixture.sh \
+        docs/verification/<run-date>-phase-2-results.md
 ```
 
-Fill the two `<…>` paragraphs from the run before committing; a commit body that still contains `<` is not finished. **Do not write that anything "looks right" in either message**: `task-24.md:1278` gives the reason, and this task has more occasions to break it than any other.
+Both commits name their paths after `--`, so nothing another agent staged in this shared tree rides along. Fill every `<…>` paragraph from the run before committing; a commit body that still contains `<` is not finished. **Do not write that anything "looks right" in either message**: `task-24.md:1278` gives the reason, and this task has more occasions to break it than any other.
 
 **What is not claimed.** No screenshot was taken. No visual acceptance was performed by an agent: the nineteen owner items stand as `PENDING OWNER` until the owner answers them, and the orchestrator commits those answers separately. What *is* claimed is exactly the list of `PASS` rows in the results document — each one a behaviour observed in a real engine, against a real control plane and a real sandbox, by a script anyone can re-run.
