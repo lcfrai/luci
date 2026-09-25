@@ -29,7 +29,9 @@ an answer resolves**. It does not claim the answer is right.
    Even a write that got past the policy would reach nothing a person merges.
 4. **The commit is named by the asker.** The desktop sends the commit its own clone has for the
    project's default branch remote-tracking ref, so the worker and the citation check read the
-   same tree. If the remote lacks it, Fleet refuses with `commit_not_on_remote`.
+   same tree. Fleet runs no git (TM-05 §7.1's G6), so if the remote lacks the commit the ask's
+   checkout fails at launch and the ask ends `refused` with `checkout_failed`. How TM-20's launch
+   gets a checkout at a named commit is **UNVERIFIED** (its `Launch` takes no commit; gap 3).
 5. **The answer comes back through one new verb**, `answer {answer, citations}`, callable once per
    ask session; the session ends after it. The scope names no return channel, and TM-18's
    `report done <text>` caps text at a length and has no typed citations, so this is a delta to
@@ -277,3 +279,209 @@ Character hygiene (G3) runs in TM-19's dispatch before any handler (Phase T plan
 checks sizes and fields there); this handler adds the per-verb limits only. When the session ends
 without an `answer`, TM-20's end record sets `State` to `ended_without_answer` through one added
 line in its end path (**UNVERIFIED until merge**).
+
+#### Interfaces — complete: `control-plane/internal/workask/cite.go` (the local control plane)
+
+The local control plane does not import Fleet's packages; its types mirror the wire.
+
+```go
+// Package workask serves the ask routes on the local control plane and checks every citation
+// against the asker's own clone before the desktop renders it (Phase W task 110).
+package workask
+
+import (
+	"bytes"
+	"context"
+	"regexp"
+	"strings"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/project"
+)
+
+type Check string
+
+const (
+	CheckOK           Check = "ok"
+	CheckMissingPath  Check = "missing_path"
+	CheckMissingLines Check = "missing_lines"
+	CheckCommitAbsent Check = "commit_absent"
+)
+
+type Citation struct {
+	Path      string `json:"path"`
+	LineStart int    `json:"lineStart"`
+	LineEnd   int    `json:"lineEnd"`
+	Check     Check  `json:"check,omitempty"`
+}
+
+var fullSHA = regexp.MustCompile(`^[0-9a-f]{40}$`)
+
+// Checker runs read-only git in the asker's clone through phase 2's runner (project.go:56-58).
+type Checker struct{ Git project.Runner }
+
+// Check marks each citation; it never drops one and never reorders them.
+func (c Checker) Check(ctx context.Context, repoDir, commit string, cites []Citation) []Citation {
+	out := make([]Citation, len(cites))
+	absent := !fullSHA.MatchString(commit)
+	if !absent {
+		_, err := c.Git.Run(ctx, repoDir, "cat-file", "-e", commit+"^{commit}")
+		absent = err != nil
+	}
+	lines := map[string]int{} // one read per path; -1 means not a file at commit
+	for i, ct := range cites {
+		switch {
+		case absent:
+			ct.Check = CheckCommitAbsent
+		case !safePath(ct.Path):
+			ct.Check = CheckMissingPath
+		default:
+			n, seen := lines[ct.Path]
+			if !seen {
+				n = c.blobLines(ctx, repoDir, commit, ct.Path)
+				lines[ct.Path] = n
+			}
+			switch {
+			case n < 0:
+				ct.Check = CheckMissingPath
+			case ct.LineStart < 1 || ct.LineEnd < ct.LineStart || ct.LineEnd > n:
+				ct.Check = CheckMissingLines
+			default:
+				ct.Check = CheckOK
+			}
+		}
+		out[i] = ct
+	}
+	return out
+}
+
+func (c Checker) blobLines(ctx context.Context, dir, commit, path string) int {
+	spec := commit + ":" + path // starts with 40 hex, so git never reads it as an option
+	kind, err := c.Git.Run(ctx, dir, "cat-file", "-t", spec)
+	if err != nil || strings.TrimSpace(string(kind)) != "blob" {
+		return -1 // absent, or a directory or submodule
+	}
+	b, err := c.Git.Run(ctx, dir, "cat-file", "blob", spec)
+	if err != nil {
+		return -1
+	}
+	if len(b) == 0 {
+		return 0
+	}
+	n := bytes.Count(b, []byte("\n"))
+	if b[len(b)-1] != '\n' {
+		n++
+	}
+	return n
+}
+
+func safePath(p string) bool {
+	return p != "" && len(p) <= 300 && !strings.HasPrefix(p, "/") && !strings.HasPrefix(p, "-") &&
+		!strings.Contains(p, "..") && !strings.Contains(p, `\`) && !strings.Contains(p, ":")
+}
+```
+
+The check reads git objects only: no checkout, no working-tree file, so a file edited but
+uncommitted in the asker's clone cannot make a citation look right.
+
+#### Interfaces — complete: `control-plane/internal/api/workask.go`
+
+```go
+package api
+
+import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"strings"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/workask"
+)
+
+// AskFleet is the part of TM-21's fleetbe the ask routes use, called as the signed-in user.
+type AskFleet interface {
+	StartAsk(ctx context.Context, project, commit, question string, subject json.RawMessage) (agentID, sessionID string, err error)
+	ReadAsk(ctx context.Context, project, agentID string) (FleetAsk, error)
+}
+
+// FleetAsk is Fleet's GET body and, with the two class fields set here, the loopback AskResult.
+type FleetAsk struct {
+	State         string             `json:"state"`
+	Code          string             `json:"code,omitempty"`
+	Question      string             `json:"question"`
+	QuestionClass string             `json:"questionClass"` // always "H"
+	Answer        string             `json:"answer,omitempty"`
+	AnswerClass   string             `json:"answerClass,omitempty"` // "A" whenever Answer is set
+	Commit        string             `json:"commit"`
+	Citations     []workask.Citation `json:"citations,omitempty"`
+}
+
+// AskClones maps a Hub project to the asker's local clone and its default remote-tracking commit
+// (task 24's project mapping, SW.10; the name is this part's).
+type AskClones interface {
+	CloneDir(ctx context.Context, project string) (string, error)
+	DefaultRemoteCommit(ctx context.Context, dir string) (string, error) // rev-parse refs/remotes/origin/HEAD^{commit}
+}
+
+type askHandler struct {
+	fleet  AskFleet
+	clones AskClones
+	check  workask.Checker
+}
+
+func (h askHandler) start(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Project  string          `json:"project"`
+		Question string          `json:"question"`
+		Subject  json.RawMessage `json:"subject,omitempty"`
+	}
+	if err := decodeStrict(r, &body); err != nil || !strings.HasPrefix(body.Project, "pj-") {
+		writeProblem(w, http.StatusBadRequest, "invalid_request", "project and question are required")
+		return
+	}
+	dir, err := h.clones.CloneDir(r.Context(), body.Project)
+	if err != nil {
+		writeProblem(w, http.StatusConflict, "no_local_clone", "this project has no clone on this machine")
+		return
+	}
+	commit, err := h.clones.DefaultRemoteCommit(r.Context(), dir)
+	if err != nil {
+		writeProblem(w, http.StatusConflict, "no_remote_default", "fetch the project once, then ask again")
+		return
+	}
+	id, sid, err := h.fleet.StartAsk(r.Context(), body.Project, commit, body.Question, body.Subject)
+	if err != nil {
+		writeFleetProblem(w, err) // agents_disabled, invalid_request, Fleet down: Fleet's own code
+		return
+	}
+	writeJSON(w, http.StatusAccepted, map[string]string{"askId": id, "sessionId": sid})
+}
+
+func (h askHandler) read(w http.ResponseWriter, r *http.Request) {
+	project, id := r.URL.Query().Get("project"), r.PathValue("ag")
+	got, err := h.fleet.ReadAsk(r.Context(), project, id)
+	if err != nil {
+		writeFleetProblem(w, err) // another person's ask is Fleet's 404, passed through
+		return
+	}
+	got.QuestionClass = "H"
+	if got.State == "answered" {
+		got.AnswerClass = "A"
+		for i := range got.Citations {
+			got.Citations[i].Check = "" // never trust a check that arrived from upstream
+		}
+		if dir, err := h.clones.CloneDir(r.Context(), project); err == nil {
+			got.Citations = h.check.Check(r.Context(), dir, got.Commit, got.Citations)
+		} else {
+			for i := range got.Citations {
+				got.Citations[i].Check = workask.CheckCommitAbsent
+			}
+		}
+	}
+	writeJSON(w, http.StatusOK, got)
+}
+```
+
+Registered in `api.go` as `POST /v1/work/ask` and `GET /v1/work/ask/{ag}` when `Deps.WorkAsk` is
+set, with two catalog rows in `routes_audit_test.go`. `decodeStrict`, `writeProblem`, `writeJSON`
+and `writeFleetProblem` stand for the package's existing helpers and TM-21's error mapping; step 1
+greps `internal/api/*.go` for their real names and uses them.
