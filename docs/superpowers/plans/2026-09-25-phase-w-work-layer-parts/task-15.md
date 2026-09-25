@@ -103,8 +103,8 @@ adds one, a delta on sibling code under rule H2). A body over it is 400 `field: 
 
 - Produces:
   - the route, in 07's list and 07's matrix row `"15"` (`task-07.md:463-468`): `POST
-    /v1/projects/{projectId}/imports` (✓ for `M A O`; 403 `required: member` for `V`; 404
-    `project_not_found` for `N X`)
+    /v1/projects/{projectId}/imports` (✓ for `M A`; 403 `required: member` for `V`; 404
+    `project_not_found` for `O N X`, the columns of hub-contract:337-339)
   - `hubapi.ExternalRef.CreatedAt`, `hubapi.ValidateImportBatch`, `hubapi.ImportLabelNames`,
     `hubapi.MaxImportBatchBytes` and the other limits below
   - `store.IssuesByExternal`, `store.MatchLabels`, `store.InsertIssueLabels`
@@ -624,4 +624,33 @@ func TestAnImportItemCarriesNoState(t *testing.T) {
 	}
 }
 ```
+
+`jsonFields` is the Hub test helper task 03 reuses (`task-03.md:626-628`), its `name` field as task 03's
+`TestWorkResponsesNeverOmitAField` reads it, reused, not redeclared. Task 03's `IssueHead`
+example row gains `"createdAt":TIME` inside `external`; its `TestWorkResponsesNeverOmitAField`
+then covers `ExternalRef.CreatedAt` with no new code.
+
+#### Tests to write first, part 2 — `server/work_imports_integration_test.go` (`//go:build integration`)
+
+The cast and harness are task 11's (Ada admin of Portal, project `EP`; Grace a member; Vera a
+viewer; Linus outside Portal and admin of Billing, project `PAY`; Xavier in another org), plus
+task 14's **Olga**, an org admin in no team. Project `EP2` is a second project of Portal, made
+through Hub route 22's `POST /v1/projects` in setup. Portal has live labels `Bug` and `Old`, `Old`
+archived, made by Ada through task 11's routes; Billing has `Payments`. Events are counted from
+`hub.audit_events` as the owner (`hubtest.OwnerConn`), before and after. `batch(ids …)` builds a
+valid `csv` batch, one item per id, title `Imported <id>`.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestTheSameBatchTwiceWritesOnce` | Grace imports `row-1..3` → 200, 3 `created`, numbers 1, 2, 3 in input order, 3 `issue.created`; the same body again → 3 `existing` with the same ids and numbers, `created: []`, `unmatchedLabels: []`, **0** new events, 3 issues in `EP` | a non-idempotent import; a re-run that appends events or reads existing items' labels |
+| `TestOneBadItemWritesNothing` | `row-1..3` with item 3's title 201 characters → 400 `field: "items[2].title"`; 0 issues, 0 events; Grace's next create in `EP` is number 1 | a partial import; the counter bumped before validation |
+| `TestImportsLandInTriageWhateverTheDefault` | Ada puts Portal's policy `defaultState: "todo"`; Grace imports 2 → both heads `state: "triage"` | intake using the team's default |
+| `TestAnImportIsNotTiedImported` | each head: `threadState {not_tied, imported}`, `source: "intake"`, revision 1 with `serves: []` and both texts `author: "H"`, `createdBy` Grace | an import that silently claims the thread; texts marked as an agent's |
+| `TestAMemberCannotCreateALabelByImport` | item labels `["bug", "Infra", "Old"]` → the issue carries `Bug`'s id only; `unmatchedLabels: ["Infra", "Old"]`; Portal's label count unchanged; no `label.created` | a member creating labels through import; case-sensitive matching; an archived label matched |
+| `TestALabelOfAnotherTeamIsNotMatched` | Grace's `EP` item naming `Payments` → reported unmatched, no `issue_labels` row | labels matched across the org, not the project's team |
+| `TestAnUnsafeLinkIsRefused` | `javascript:alert(1)`, then `http://x.example` → 400 `field: "items[0].url"`; 0 issues | a link the issue view would render unsafely |
+| `TestTheBatchIsOneTo500` | 0 items → 400 `field: "items"`; 501 → 400 `items`; 500 → 200 with 500 `created` | a missing or off-by-one bound |
+| `TestNoStateTravels` | an item with `"state": "done"` → 400 `bad_request`; 0 issues | a lenient decoder that drops, or honours, a smuggled state |
+| `TestOnlyAMemberImports` | Vera → 403 `required: member`; Linus → 404 `project_not_found`; Xavier → 404; Olga → 404 (an org admin is no team member) | a viewer importing; a 403 that leaks the project |
+| `TestTheScopeIsPerProject` | `row-1` into `EP`, then into `EP2` → two issues, two ids, each `created` | idempotency keyed on the org, not the project |
 
