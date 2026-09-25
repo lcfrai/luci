@@ -281,3 +281,81 @@ The 403 and 400 answers here record no `auth.forbidden` event: `Authenticate` ha
 and no org yet (Hub task 14's `Forbidden` needs both), so the log line is the record, as for every
 other refusal of step 3. The 403 of a route check (below) runs inside the transaction and does
 record one.
+
+```go
+// control-plane/internal/hub/server/delegation.go
+package server
+
+import (
+	"context"
+	"errors"
+	"net/http"
+	"slices"
+	"strings"
+	"time"
+
+	"github.com/jackc/pgx/v5" // the Hub's driver (Hub task 06), not in feat/env's go.mod
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubapi"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/store"
+)
+
+// DelegationView is the delegation a Fleet request acts under, as resolveCaller
+// loaded it. The zero value for a desktop caller and for the feed.
+type DelegationView struct {
+	ID        string
+	ProjectID string
+	Class     hubapi.DelegationClass
+	Routes    []hubapi.RouteName
+	ExpiresAt time.Time
+}
+
+type routeKey struct{}
+
+// Delegable registers a team route under its contract §7.0 name (decision d).
+// A route registered without it has no name, and Fleet calling it is 403.
+func Delegable(name hubapi.RouteName, h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), routeKey{}, name)))
+	})
+}
+
+// RouteFrom returns the name Delegable stored.
+func RouteFrom(ctx context.Context) (hubapi.RouteName, bool) {
+	n, ok := ctx.Value(routeKey{}).(hubapi.RouteName)
+	return n, ok
+}
+
+// isFeedPath is decision (b)'s exact match: GET, and the path's segments are
+// exactly "v1", "orgs", one non-empty id, "changes". Never a prefix match.
+func isFeedPath(r *http.Request) bool {
+	if r.Method != http.MethodGet {
+		return false
+	}
+	s := strings.Split(strings.TrimPrefix(r.URL.Path, "/"), "/")
+	return len(s) == 4 && s[0] == "v1" && s[1] == "orgs" && s[2] != "" && s[3] == "changes"
+}
+
+// resolveCaller is contract §5.1 steps 3a and 5 (decision c), the first statement
+// of every Read and Write transaction, where store.ResolvePrincipal was. created
+// is true only when a desktop caller was provisioned by this call.
+func (s *Server) resolveCaller(ctx context.Context, tx pgx.Tx, now time.Time) (p Principal, created bool, err error) {
+	c, _ := ClaimsFrom(ctx)
+	switch {
+	case !c.AppOnly:
+		rp, err := store.ResolvePrincipal(ctx, tx, c.TenantID, c.ObjectID, c.Name, c.Email)
+		if err != nil {
+			return Principal{}, false, err // ErrNotEnrolled: 403, as Hub task 14 maps it
+		}
+		return Principal{OrgID: rp.OrgID, UserID: rp.UserID, TenantID: c.TenantID,
+			ObjectID: c.ObjectID, Name: c.Name, Email: c.Email, OrgAdmin: c.OrgAdmin}, rp.Created, nil
+	case c.FleetFeed:
+		org, err := store.FleetOrg(ctx, tx, c.TenantID)
+		if err != nil {
+			return Principal{}, false, err // ErrNotEnrolled
+		}
+		return Principal{OrgID: org, TenantID: c.TenantID, Via: hubapi.ViaFleet}, false, nil
+	}
+	return s.resolveDelegated(ctx, tx, now, c)
+}
+```
