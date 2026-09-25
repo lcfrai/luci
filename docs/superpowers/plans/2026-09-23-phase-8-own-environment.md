@@ -298,6 +298,7 @@ beyond. The two differences phase 8 introduces are recorded for the Hub's review
 | **P3A-2** | The lane index for a cloud machine is keyed by machine id | laptop-side, keyed by `(machineId, projectId)`; the single-laptop limitation is stated in the cockpit. It holds for sessions too: a cloud sandbox carries its creator's install id, and only that control plane reaps it (review I6, tasks 18, 22, 23). The default machine's id is derived from its owner, so the index also holds `createdAt` and drops entries when it changes; the broker refuses to delete the default (b09 re-review 4, task 19) | 25 |
 | **P3A-3** | *Answered by phase 3's ruling R4 (review I7, b06, Q18):* §HGH (H1–H5) hardens **project** calls only, and no host git runs with a lane as its repository (R4.2). Lane git runs only through phase 3's `/git/v1/` runner, which is `sandboxd`'s own, in the one pod that mounts the lane: the live session's, or a runner-only pod (P8-D7; env R4 ruling 2). `machined` serves no `/git/v1/`, so R4.3's "phase 8's `machined` serves the same RPC" changes for the cloud (P3A-5). Lane work crosses as a bundle verified and fetched in the project (R4.4). For its project calls `machined` adds an explicit `Env` allowlist and an environment without `PANACEA_APP_*`; no credential enters a lane. The read-only `.git/config` bind task 24b builds for cloud sessions is hygiene, as phase 3's is, and nothing is claimed from it (phase 3 plan `2026-09-23-phase-3-git-convergence.md:245`, `:712`) | phase 3's tasks 02 (§HGH, project-only) and 03 land before task 21 starts (task 21 step 1 checks); phase 3's task 24 (the runner, its goldens and `lanegit`) lands before task 25b starts (task 25b step 1 checks). Task 24 is not a dependency of task 21 | 20, 21, 24b, 25b, 33 |
 | **P3A-5** | *Env R4 re-plan (rulings 2 to 4), not yet answered:* S8-P3.4 (`lanegit.Bundles`, ruling 3), S8-P3.5 (the pool reaches a lane's own machine, task 25b), S8-P3.6 (`gitx.MachineFS`, ruling 4's one contract), and R4.3's cloud half (the runner is `sandboxd`'s, not `machined`'s) | nothing: tasks 21, 21b, 25 and 25b are held out of the build stream until phase 3 answers ("Order", "Held"). Filing the asks on phase 3's side is an orchestrator or owner action; this plan does not edit phase 3 | 21, 21b, 25, 25b, 33 |
+| **P3A-6** | *Review-2 I2:* task 24b's `cloudlane.go` compiles against phase 3's `lanes.Creator`, `lanes.CreateRequest` and `GitDeps.Lanes` (phase-3 `task-03.md:199`, `task-04.md:65`) and runs phase 3 task 05's backing-lane rule (`task-05.md:96-112`). None is on feat/env (`ls control-plane/internal`: no `gitx`, no `lanes`) | nothing: 24b, and 26 through it, are held ("Held", `.superpowers/sdd/env/held.md`) until the orchestrator sync-merges phase 3's branch, with tasks 03, 04 and 05 landed, into feat/env. 24b's Step 1 greps then print | 24b, 26 |
 | **P3A-4** | Phase 3's task 05 and this phase's task 14 both edit the sandbox environment and its parity test | phase 3 lands first; task 14 step 0 checks | 14 |
 
 ---
@@ -608,10 +609,10 @@ first.
 | 22 | `remotebe`: `backend.Backend` over the broker, with the Hub's token source (HA-2) | 18 | 3 |
 | 23 | `internal/machines`: a backend per machine through sessions, attach, reaper and `main`; the install id, and a reaper that destroys only its own cloud sandboxes (review I6) | 22 | 3.5 |
 | 24a | Cloud machines in `GET /v1/machines`, `POST /v1/machines/default` (ensure-default) and `POST /v1/machines/{machineId}/wake`; the list cache and its invalidation (review m17 split task 24) | 23 | 2 |
-| 24b | Machine-scoped catalog; session create and restart on a cloud machine in the worktree's lane, a primary's or linked worktree's backing lane made on first start (phase 3 task 05's rule; R4.1: no `projects/` mount; env R4 ruling 5), with wake-before-create and `.git/config` bound read-only as hygiene; the cloud conversation store (`cloudstore`, OD-10); closes S8.3 | 24a, 20, **phase 3 task 05** (the backing lane) | 3.5 |
+| 24b | Machine-scoped catalog; session create and restart on a cloud machine in the worktree's lane, a primary's or linked worktree's backing lane made on first start (phase 3 task 05's rule; R4.1: no `projects/` mount; env R4 ruling 5), with wake-before-create and `.git/config` bound read-only as hygiene; the cloud conversation store (`cloudstore`, OD-10); closes S8.3 | 24a, 20, **phase 3 tasks 03–05** (the lane creator, the index, the backing lane; held, P3A-6) | 3.5 |
 | 25 | A cloud machine's project-only `gitx.Machine` (`CloneRoot` `/machine/lanes`), its `MachineFS`, and the laptop-side composite catalog that lists lanes from the lane index (S3-P8.1; R4 rulings, task 25) | 24b, 21, **phase 3 tasks 02–04 and 11, phase 3's S8-P3.6** (held, "Order") | 2.5 |
 | 25b | Lane git on a cloud machine: phase 3's `Lanes.For` over the broker's sandbox git route, the runner-only pod held from the reaper, and the cloud `lanegit.Bundles` relay (R4 rulings 1–3) | 25, 21b, 18, 15, 23, **phase 3 task 24, phase 3's S8-P3.4 and S8-P3.5** (held, "Order") | 2.5 |
-| 26 | The cockpit shows cloud machines: states, implicit wake, the isolation badge (S8.5), signed-out | 24b (and so 24a) | 3 |
+| 26 | The cockpit shows cloud machines: states, implicit wake, the isolation badge (S8.5), signed-out | 24b (and so 24a; held through 24b) | 3 |
 
 ### Group G — packaging and CI/CD
 
@@ -628,12 +629,12 @@ first.
 | # | Task | Depends on | Hours to write |
 |---|---|---|---|
 | 31 | The first-apply runbook and the smoke scripts | 07–13, 27a, 29, 30 | 2 |
-| 32 | The Kata proving checklist: RuntimeClass, disk sharing, cold start, overhead, isolation | 31 | 2 |
+| 32 | The Kata proving checklist: RuntimeClass, disk sharing, cold start, overhead, isolation | 31, **21, 25 and 25b** (P18 runs a session, and land and refresh; held through them, review-2 I1) | 2 |
 | 33 | Close the phase: the S8 seams, the compliance gap, the cost model, what stays unverified | all | 1.5 |
 
 ### Order
 
-The graph allows ten waves. Tasks inside a wave share no file (see "Shared files" above), and no
+The graph allows eleven waves. Tasks inside a wave share no file (see "Shared files" above), and no
 task sits in the same wave as, or an earlier wave than, a task it depends on (review m2: 28 was in
 wave 1 beside 01, which it depends on, and 32 and 33 were in wave 8 beside 31). Task 11's
 dependency on 06 is marked "names only" in the task list (a chart that renders against no cluster
@@ -647,20 +648,32 @@ wave 3   05  06  12  13  18  20
 wave 4   07  19  22  27
 wave 5   08  23  27a         21 (held)
 wave 6   10  24a  29         21b (held; after 21 and 19)
-wave 7   24b  30             (29 after 08, OD-30 review-1 M5; 30 after 29)
-wave 8   25 (held)  26  31 (owner-gated, OD-12)
-wave 9   32 (owner-gated, OD-12; depends on 31)   25b (held; after 25, 23, 21b and 18)
-wave 10  33                  (depends on every task)
+wave 7   24b (held)  30      (29 after 08, OD-30 review-1 M5; 30 after 29)
+wave 8   25 (held)  26 (held)  31 (owner-gated, OD-12)
+wave 9   25b (held; after 25, 23, 21b and 18)
+wave 10  32 (held; owner-gated, OD-12; after 31, 21, 25 and 25b)
+wave 11  33 (held)           (depends on every task)
 ```
 
-**Held** (env R4 re-plan; P3A-5). Tasks 21, 21b, 25 and 25b stay out of the build stream: the
-stream skips them and dispatches no implementer onto a known block. 21 and 25 need phase 3's
-S8-P3.6 (`gitx.MachineFS`) and tasks 02 and 03; 25 also needs tasks 04 and 11; 21b needs 21;
-25b needs phase 3's task 24, S8-P3.4 and S8-P3.5. Each part's Step 1 greps say when its hold
-lifts, and the orchestrator re-admits it then. Task 33 waits for them, as it waits for every task.
+**Held** (env R4 re-plan; P3A-5, P3A-6). The held set is 21, 21b, 24b, 25, 25b, 26, 32 and 33;
+`.superpowers/sdd/env/held.md` gives each one's wait, and each held part says so in its first
+line. The stream skips them and dispatches no implementer onto a known block. 21 and 25 need
+phase 3's S8-P3.6 (`gitx.MachineFS`) and tasks 02 and 03; 25 also needs tasks 04 and 11; 21b
+needs 21; 24b needs phase 3's tasks 03 to 05 sync-merged into feat/env (P3A-6), and 26 needs
+24b; 25b needs phase 3's task 24, S8-P3.4 and S8-P3.5; 32 needs 21, 25 and 25b; 33 needs all.
+**No cloud session starts while 21 and 25 are held**: every cloud session runs in a lane
+(ruling 5), and only task 25's creator, over task 21's routes, makes a cloud lane
+(`task-24b.md:104-109`, `:318-321`, `503 lanes_unwired`).
 
-**The critical path** is 14 → 15 → 18 → 19 and 16 → 17 → 18 → 22 → 23 → 24a → 24b → 26: the cloud machine
-end to end. The Terraform groups can finish in parallel with it and gate nothing in Go.
+The stream's list names only buildable tasks (review-2 M1). Held tasks are not in it; the
+orchestrator re-admits them in wave order (21, 21b, 24b, 25, 26, 25b, 32, 33) as each part's
+Step 1 greps pass.
+
+**The critical path** is 14 → 15 → 18 → 19 and 16 → 17 → 18 → 22 → 23 → 24a, which ends at a
+cloud machine in the machine list that can run **no session**. Once phase 3 answers, it runs
+24b → 26, and 21 and 24b → 25 → 25b (21b beside it), then 32 (P18: a session, a land, a
+refresh). The Terraform
+groups can finish in parallel with it and gate nothing in Go.
 
 ---
 
