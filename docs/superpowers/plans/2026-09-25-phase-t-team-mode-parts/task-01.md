@@ -44,8 +44,9 @@ byte, so the golden vectors in `hubapi/canonical_test.go` (contract §3.5) do no
 - `docs/superpowers/adr/ADR-H1-hub-architecture.md` — a new **§5.10 Delegated callers**; the five
   replaced lines marked in place with a pointer to §5.10; risk **R12** in §8 (modified)
 - `docs/superpowers/contracts/2026-09-23-hub-contract.md` — §3.1 prefix rows; §3.6 the audit
-  event v2; §4.2 eight codes (the scope's six, plus `delegation_revoked` so Fleet can
-  tell *renew* from *stop*, and `delegation_not_found` for the owner's own routes); §5.1 the delegated step; §5.3 the team rows; §7.0 rows 46 onward;
+  event v2; §4.2 fifteen codes (the scope's six; `delegation_revoked`, so Fleet can tell
+  *renew* from *stop*; seven `*_not_found`; `team_state`); §5.1 the delegated step; §5.2 two org
+  capabilities; §5.3 the team rows; §7.0 a team routes table, rows 46 to 79;
   new **§7.13 to §7.26**; §8 the team events; §12.2 two variables (modified)
 - `docs/superpowers/contracts/team-records-fieldcheck.txt` — one line per `05-design.md` §3.3
   field, the acceptance script's input (new)
@@ -60,8 +61,12 @@ number below was read there on that date; step 1 re-reads them after the merge.
     actor rule (`actor = owner, via = fleet, delegationId = dl-…`); the `ag-…` owner check
   - **ST.2** — every Hub-owned record of `05-design.md` §3.3: id prefix, fields, bounds, author
     class, route, audit event kind, feed kind
-  - the problem codes `delegation_required`, `delegation_expired`, `delegation_revoked`,
-    `delegation_not_found`, `agent_not_owner`, `text_refused`, `glob_refused`, `breadth_exceeded`
+  - the fifteen problem codes of Step 4, in their table order: `delegation_required`,
+    `delegation_expired`, `delegation_revoked`, `agent_not_owner`, `delegation_not_found`,
+    `task_not_found`, `agent_not_found`, `lease_not_found`, `conflict_not_found`,
+    `thread_not_found`, `escalation_not_found`, `team_state`, `text_refused`, `glob_refused`,
+    `breadth_exceeded`
+  - the app roles `Hub.Fleet`, `Hub.Auditor`, `Hub.Compliance`
   - **Id minting:** the Hub mints `dl`, `hm`, `nt`; Fleet mints the other nine with `ids.Wide`
     and sends each as the body's `id` (Step 4)
   - `PANACEA_APP_HUB_FLEET_CLIENT_ID`, `PANACEA_APP_HUB_DELEGATION_TTL` (contract §12.2)
@@ -164,22 +169,25 @@ Then add one row to §8's table, after R11:
 
 - [ ] **Step 4: Contract — ids, the audit event v2, codes, the principal step, variables**
 
-**§3.1**, append to the prefix table (the Hub mints the first three; Fleet mints the rest with
-`ids.Wide` and sends them as the body's `id`, because it writes through an outbox that must name a
-record before the Hub has answered, Phase T task 11):
+**§3.1**, append six rows to the prefix table, in its own two-pairs-per-row shape (the Hub's
+`TestPrefixesAndReasonsAreTheContracts`, `hubapi/keys_test.go:737-775`, reads exactly five cells a
+row and takes the entity cell as the entity's name, so no annotation goes in it):
 
 ```markdown
-| `dl-` | delegation (Hub mints) | | `th-` | thread (Fleet mints) |
-| `hm-` | human message (Hub mints) | | `ms-` | message (Fleet mints) |
-| `nt-` | note (Hub mints) | | `es-` | escalation (Fleet mints) |
-| `tk-` | task (Fleet mints) | | `dv-` | directive (Fleet mints) |
-| `ag-` | agent (Fleet mints) | | `ot-` | orchestrator turn (Fleet mints) |
-| `ls-` | lease (Fleet mints) | | `cf-` | conflict (Fleet mints) |
+| `dl-` | delegation | | `th-` | thread |
+| `hm-` | human message | | `ms-` | message |
+| `nt-` | note | | `es-` | escalation |
+| `tk-` | task | | `dv-` | directive |
+| `ag-` | agent | | `ot-` | orchestrator turn |
+| `ls-` | lease | | `cf-` | conflict |
 ```
 
-and one sentence under it: *"A Fleet-minted id is validated by `hubapi.ValidID` and must be new in
-its org: a reuse with a different body is 409 `conflict`; a retry with the same `Idempotency-Key`
-replays (§1)."* All twelve are disjoint from the ten above and from the control plane's five.
+and two sentences under it: *"The Hub mints `dl-`, `hm-` and `nt-`. Fleet mints the other nine
+with `ids.Wide` and sends each as the body's `id`, because it writes through an outbox that must
+name a record before the Hub has answered (Phase T task 11); such an id is validated by
+`hubapi.ValidID` and must be new in its org: a reuse with a different body is 409 `conflict`, a
+retry with the same `Idempotency-Key` replays (§1)."* All twelve are disjoint from the ten above
+and from the control plane's five.
 
 **§3.6**, replace the audit event row's field list with: `v` (`1`, or `2` for a delegated write),
 `kind`, `orgId`, `seq`, `at`, `actorUserId` (or `""`), `event`, `projectId` (or `""`), `subject`,
@@ -187,19 +195,32 @@ replays (§1)."* All twelve are disjoint from the ten above and from the control
 are unchanged by this amendment; the §3.5 golden vectors stand. A v2 golden vector is added by
 Phase T task 03."*
 
-**§4.2**, append to the codes table:
+**§4.2**, append fifteen rows at the **end** of the codes table, after `unavailable`, in exactly
+this order. The Hub's `TestHubCodesAreContractSection42s` (`hubapi/keys_test.go:530-625`) requires
+`codes.go` to declare its own codes in the table's order and each `details` cell to hold the keys
+in backticks, so task 03 appends the constants in this order and names these keys:
 
 ```markdown
-| `delegation_required` | 401 | a Fleet token on a route other than the per-org feed, with no `X-Panacea-Delegation` | — |
-| `delegation_expired` | 401 | the named delegation's `expiresAt` has passed | `details.delegationId` |
-| `delegation_revoked` | 401 | the named delegation has `revokedAt` set | `details.delegationId`, `details.reason` |
-| `agent_not_owner` | 403 | an `ag-…` in the write does not belong to the delegation's owner (§5.10 rule 5) | `details.agentId` |
-| `text_refused` | 422 | a free-text field fails a bound or the hygiene check (Phase T task 02) | `details.field`, `details.rule` |
-| `glob_refused` | 422 | a path or glob is absolute, contains `..` or `\`, or exceeds 200 characters | `details.field`, `details.index` |
-| `breadth_exceeded` | 422 | a glob set exceeds 20 globs, or one glob matches more than 10% of tracked files | `details.field`, `details.index` |
+| `delegation_required` | 401 | a Fleet token, on a route other than the per-org feed, with no `X-Panacea-Delegation` | — |
+| `delegation_expired` | 401 | the named delegation's `expiresAt` has passed | `delegationId` |
+| `delegation_revoked` | 401 | the named delegation has `revokedAt` set, or is unknown to this org | `delegationId`, `reason` |
+| `agent_not_owner` | 403 | an `ag-…` in the write does not belong to the delegation's owner (§5.10 rule 5) | `agentId` |
+| `delegation_not_found` | 404 | the owner's own delegation route names none of theirs | — |
+| `task_not_found` | 404 | no such task in this project | — |
+| `agent_not_found` | 404 | no such agent in this project | — |
+| `lease_not_found` | 404 | no lease events for this lease in this project | — |
+| `conflict_not_found` | 404 | no such conflict in this project | — |
+| `thread_not_found` | 404 | no such thread in this project, or the caller is not a party | — |
+| `escalation_not_found` | 404 | no such escalation of the caller's | — |
+| `team_state` | 409 | a team record's state does not allow this move | `from`, `to` |
+| `text_refused` | 422 | a free-text field fails a bound or the hygiene check (Phase T task 02) | `field`, `rule` |
+| `glob_refused` | 422 | a path or glob is empty, absolute, has `..` or `\`, a bad segment, is whole-repo, or exceeds 200 characters | `field`, `index`, `rule` |
+| `breadth_exceeded` | 422 | a glob set exceeds 20 globs, or one glob matches more than 10% of tracked files | `field`, `index` |
 ```
 
-Add `delegation_not_found` (404) beside the other `*_not_found` codes. A named delegation that is
+The not-found and state rows are the ones tasks 06 and 07 need (their parts' "Gaps"); listing them
+here keeps §4.2 and `codes.go` one list. A transition refused by a team record's state is 409
+`team_state`, not the generic `conflict`, which stays for id reuse. A named delegation that is
 absent, or in another org, is **401 `delegation_revoked` with `details.reason = "unknown"`**, not
 404, so a Fleet caller cannot probe for another org's delegation ids; `delegation_not_found` is
 served only on the owner's own `GET`/`renew`/`DELETE` routes (§7.13).
@@ -287,7 +308,11 @@ of the project's tracked files when Fleet supplies the count (`teamtext.Breadth`
 file list, so it checks the count Fleet sends in `trackedFiles` and the glob grammar; Fleet checks
 the match). **No request body carries an owner, an actor, a `via`, a delegation or a session id**;
 strict decoding refuses them (§5.10 rule 4, `hub-contract.md:941-942`). Every write is one
-metadata-only audit event and one feed row, in the §10.6 transaction.
+metadata-only audit event and one feed row, in the §10.6 transaction. **Status for a refused
+move:** wherever a section below says 409 `conflict` for a *state* (a terminal task or conflict, a
+second agent end, renewing a revoked delegation, a second answer, an event after a terminal lease
+state), the code is 409 **`team_state`** with `details.from` and `details.to`; 409 `conflict` stays
+only for an id reused with a different body and a lease `seq` out of order.
 
 **§7.13 Delegations.** `POST /v1/delegations`, body `{"projectId","class","routes"}`, 201:
 
