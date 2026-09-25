@@ -276,3 +276,79 @@ branch name and glyph, and the `+`. In `rail.css`:
   color: var(--ink);
 }
 ```
+
+In `subrail.css`:
+
+```css
+.sub-back {  /* :22's --ink-3: a label, so --ink-2 */
+  color: var(--ink-2);
+}
+.sub-branch {  /* :28's --ink: the chrome's own title, dimmed so the work stays brightest */
+  color: var(--ink-2);
+}
+.sub-row {
+  position: relative; /* added to the rule at :36-50 */
+}
+.sub-row[aria-current="page"] {  /* replaces :54-58 */
+  color: var(--ink);
+}
+.sub-row[aria-current="page"]::before {
+  content: "";
+  position: absolute;
+  inset-block: var(--s-1);
+  inset-inline-start: 0;
+  inline-size: 2px;
+  background: var(--accent);
+}
+.sub-glyph {  /* added to :59-62: an icon, so --ink-3 */
+  color: var(--ink-3);
+}
+.sub-row[aria-current="page"] .sub-glyph {
+  color: var(--ink-2);
+}
+```
+
+**The old look**, appended at the end of each file, for task 32's `flag.compare`. Nothing sets
+`data-look` until task 32, so these rules are dead code until then, and the default is the new
+look. `:root[data-look="old"]` adds (0,2,0) to each selector, so each old rule outranks its new
+counterpart wherever it sits in the file.
+
+```css
+/* rail.css: the Phase 2 look, restored by flag.compare (task 32). Delete after task 39. */
+:root[data-look="old"] .rail-row[aria-selected="true"] {
+  background: var(--accent-tint);
+  box-shadow: inset 0 0 0 1px var(--accent-ring);
+}
+:root[data-look="old"] .rail-row[aria-selected="true"]::before {
+  content: none;
+}
+:root[data-look="old"] .rail-add {
+  color: var(--accent-hi);
+}
+```
+
+```css
+/* subrail.css: the Phase 2 look, restored by flag.compare (task 32). Delete after task 39. */
+:root[data-look="old"] .sub-back {
+  color: var(--ink-3);
+}
+:root[data-look="old"] .sub-branch,
+:root[data-look="old"] .sub-row[aria-current="page"] .sub-glyph {
+  color: var(--ink);
+}
+:root[data-look="old"] .sub-glyph {
+  color: inherit;
+}
+:root[data-look="old"] .sub-row[aria-current="page"] {
+  background: var(--accent-tint);
+  box-shadow: inset 0 0 0 1px var(--accent-ring);
+}
+:root[data-look="old"] .sub-row[aria-current="page"]::before {
+  content: none;
+}
+```
+
+The old block restores **every** declaration this task changed and nothing else, so a flip
+compares exactly `chrome.dim` against Phase 2. The heading reset and `ViewHeader` have no old
+twin: the Phase 2 placeholder's `<h2>` was the only heading, and a flag that brought back a
+second header pattern would fail this task's own audit.
