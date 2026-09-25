@@ -243,7 +243,8 @@ Hub's (`hub-contract.md`, §7). Every refusal is the Hub's problem shape with `c
 // 200 — IssueDelegation
 { "issueId": "is-…", "ownerId": "u-…", "delegatedAt": "…", "delegationId": "dl-…" }
 // 403 forbidden {required:"assignee"} · 422 orchestrator_unavailable {projectId}
-// 409 conflict when the issue is erased · event issue.delegated {issueId, ownerId, delegationId}
+// 409 conflict when the issue is erased · event issue.delegated {issueId, revision, ownerId}
+// (task 98's scope's data, the head revision at the moment of delegation)
 
 // POST /v1/issues/{issueId}/agent-comments      (Delegable: work.agent_comments.create)
 { "kind": "note" | "evidence_proposal" | "negotiation",
