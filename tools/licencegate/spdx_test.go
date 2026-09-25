@@ -17,6 +17,10 @@ func TestParseSPDX(t *testing.T) {
 		{"MPL-2.0 OR MIT", true, false},
 		{"Apache-2.0 WITH LLVM-exception", true, false},
 		{"GPL-2.0 WITH Classpath-exception-2.0", false, false},
+		// An allowed licence with an exception not on AllowedExceptions: the
+		// row the GPL one cannot be, since GPL fails without the exception
+		// (task 04 mutation P2 survived without it).
+		{"MIT WITH Classpath-exception-2.0", false, false},
 		{"MIT*", false, false},
 		{"UNKNOWN", false, false},
 		{"", false, false},

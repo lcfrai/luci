@@ -177,6 +177,39 @@ func TestNpmDeps_importedDevDepIsEnforced(t *testing.T) {
 	}
 }
 
+// TestNpmDeps_redactedPath: npm 11.12.1 passes what it prints through
+// @npmcli/redact 4.0.0, which turns a UUID into "***", so a project under a
+// directory named by one (this program's own scratchpad) gets node paths
+// that do not exist. Measured 2026-09-26: the gate exited 2 on its own
+// mutation copy ("CreateFile …\***\scratchpad\…: The filename, directory
+// name, or volume label syntax is incorrect"). The gate restores each "***"
+// element from the one directory entry that redacts to it.
+func TestNpmDeps_redactedPath(t *testing.T) {
+	const uuid = "2ce0c1a9-63c3-42f2-bf4e-e6ba45d14fab"
+	base := filepath.Join(t.TempDir(), uuid)
+	p := newProject(t, filepath.Join(base, "desktop"))
+	x := p.node("node_modules/x", "x", "1.0.0", "GPL-3.0", nil)
+	tree := []byte(strings.ReplaceAll(string(p.write(kids("x", x))), uuid, "***"))
+	if !strings.Contains(string(tree), "***") {
+		t.Fatal("the fixture holds no redacted path")
+	}
+	var calls [][]string
+	deps, err := NpmDeps(base, p.dir, "desktop", []string{p.dir}, npmRunner(base, tree, tree, nil, &calls))
+	if err != nil {
+		t.Fatal(err)
+	}
+	d, ok := npmDeps(t, deps)["x@1.0.0"]
+	if !ok || d.Declared != "GPL-3.0" || !strings.Contains(d.Path, uuid) {
+		t.Fatalf("x = %+v, %v: want it read at its real path", d, ok)
+	}
+	t.Run("two entries that redact alike are an error", func(t *testing.T) {
+		mkdirs(t, filepath.Join(filepath.Dir(base), "0e2cc1a9-63c3-42f2-bf4e-e6ba45d14fab"))
+		if _, err := NpmDeps(base, p.dir, "desktop", []string{p.dir}, npmRunner(base, tree, tree, nil, &calls)); err == nil {
+			t.Fatal("an ambiguous redacted path was guessed")
+		}
+	})
+}
+
 // TestNpmDeps_readsEachCopyAtItsPath is hole 4: nodes are keyed by path.
 func TestNpmDeps_readsEachCopyAtItsPath(t *testing.T) {
 	base := t.TempDir()

@@ -30,12 +30,17 @@ func (m *cargoMeta) pkg(name, version string, license any, kinds ...string) stri
 		source, license = nil, nil
 		manifest = filepath.Join(m.root, "crates", name, "Cargo.toml")
 	}
+	// Each argument is one target; "+" joins the kinds of one target, as the
+	// real member's ["staticlib", "cdylib", "rlib"].
 	if len(kinds) == 0 {
 		kinds = []string{"lib"}
 	}
+	var targets []map[string]any
+	for _, k := range kinds {
+		targets = append(targets, map[string]any{"kind": strings.Split(k, "+")})
+	}
 	p := map[string]any{"name": name, "version": version, "id": id, "license": license,
-		"license_file": nil, "source": source, "manifest_path": manifest,
-		"targets": []map[string]any{{"kind": kinds}}}
+		"license_file": nil, "source": source, "manifest_path": manifest, "targets": targets}
 	if license == nil && source == nil {
 		p["license_file"] = "LICENSE.txt"
 	}
@@ -74,12 +79,17 @@ func TestCargoDeps(t *testing.T) {
 	root := t.TempDir()
 	dir := filepath.Join(root, "desktop", "src-tauri")
 	m := &cargoMeta{root: root, nodes: map[string][]map[string]any{}}
-	desktop := m.pkg("desktop", "0.1.0", "path", "staticlib", "cdylib", "rlib")
+	desktop := m.pkg("desktop", "0.1.0", "path", "staticlib+cdylib+rlib", "bin", "custom-build")
 	tauri := m.pkg("tauri", "2.11.5", "Apache-2.0 OR MIT")
 	utils := m.pkg("tauri-utils", "2.9.3", "Apache-2.0 OR MIT")
 	dom := m.pkg("dom_query", "0.27.0", "MIT")
-	css := m.pkg("cssparser", "0.36.0", "MPL-2.0")
+	css := m.pkg("cssparser", "0.36.0", "MPL-2.0", "lib", "custom-build")
 	macros := m.pkg("cssparser-macros", "0.6.1", "MPL-2.0", "proc-macro")
+	// Read 2026-09-26: yoke-derive 0.8.3 is [proc-macro] plus an [example]
+	// target, and displaydoc 0.2.7 [proc-macro] plus [test] targets; neither
+	// links, so the mark ignores test, bench, example and build-script targets.
+	yoke := m.pkg("yoke-derive", "0.8.3", "Unicode-3.0", "proc-macro", "example")
+	m.dep(dom, yoke, "")
 	same := m.pkg("same-file", "1.0.6", "Unlicense/MIT")
 	fnv := m.pkg("fnv", "1.0.7", "Apache-2.0 / MIT")
 	brotli := m.pkg("brotli-decompressor", "5.0.3", "BSD-3-Clause/MIT")
@@ -110,8 +120,8 @@ func TestCargoDeps(t *testing.T) {
 		}
 		got[d.Name] = d
 	}
-	if _, ok := got["desktop"]; ok || len(got) != 10 {
-		t.Errorf("deps = %v: want the 10 non-members, the member skipped", got)
+	if _, ok := got["desktop"]; ok || len(got) != 11 {
+		t.Errorf("deps = %v: want the 11 non-members, the member skipped", got)
 	}
 	fs := verdicts(t, deps)
 	want := map[string]Verdict{"cssparser@0.36.0": Report, "cssparser-macros@0.6.1": Report,
@@ -133,6 +143,9 @@ func TestCargoDeps(t *testing.T) {
 	}
 	if w := fs["cssparser-macros@0.6.1"].Why; !strings.Contains(w, "dom_query 0.27.0 → cssparser 0.36.0") || !strings.HasSuffix(w, "(proc-macro)") {
 		t.Errorf("cssparser-macros why = %q", w)
+	}
+	if w := fs["yoke-derive@0.8.3"].Why; !strings.HasSuffix(w, "dom_query 0.27.0 (proc-macro)") {
+		t.Errorf("yoke-derive (proc-macro and an example target) why = %q", w)
 	}
 	if w := fs["build-only@1.0.0"].Why; !strings.Contains(w, "no normal edge") {
 		t.Errorf("build-only why = %q", w)

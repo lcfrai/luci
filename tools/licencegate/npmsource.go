@@ -79,13 +79,17 @@ func (g npmGraph) add(name string, e *lsEntry) (string, error) {
 	if e.Path == "" || e.Missing {
 		return "", fmt.Errorf("npm ls lists %s with no installed path: run npm ci", name)
 	}
-	key, err := canon(e.Path)
+	path, err := unredact(e.Path)
+	if err != nil {
+		return "", fmt.Errorf("npm ls node %s: %w", name, err)
+	}
+	key, err := canon(path)
 	if err != nil {
 		return "", fmt.Errorf("npm ls node %s: %w", name, err)
 	}
 	n := g[key]
 	if n == nil {
-		n = &npmNode{name: name, version: e.Version, path: e.Path, kids: map[string]bool{}}
+		n = &npmNode{name: name, version: e.Version, path: path, kids: map[string]bool{}}
 		g[key] = n
 	}
 	names := make([]string, 0, len(e.Dependencies))

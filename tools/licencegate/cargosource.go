@@ -105,18 +105,25 @@ func CargoDeps(root, dir string, run Runner) (deps []Dep, notScanned string, err
 	return deps, "", nil
 }
 
-// isProcMacroOnly: every target is a proc-macro, which runs at compile time
-// and does not link.
+// isProcMacroOnly: the crate's library target is a proc-macro, which runs at
+// compile time and does not link. Test, bench, example and build-script
+// targets are ignored, because none links into a dependent: yoke-derive 0.8.3
+// is [proc-macro] plus an [example], displaydoc 0.2.7 [proc-macro] plus
+// [test]s (read 2026-09-26). Any other kind (lib, rlib, bin, …) is not.
 func isProcMacroOnly(p cargoPackage) bool {
-	if len(p.Targets) == 0 {
-		return false
-	}
+	macros := 0
 	for _, t := range p.Targets {
-		if len(t.Kind) != 1 || t.Kind[0] != "proc-macro" {
-			return false
+		for _, k := range t.Kind {
+			switch k {
+			case "test", "bench", "example", "custom-build":
+			case "proc-macro":
+				macros++
+			default:
+				return false
+			}
 		}
 	}
-	return true
+	return macros > 0
 }
 
 // cargoChains is each package's why: "reached by a 1.0 → b 2.0", the first
