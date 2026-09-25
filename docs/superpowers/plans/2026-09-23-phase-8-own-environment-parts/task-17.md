@@ -104,7 +104,7 @@ returned under `keycloak`.
 | 3 | `exp` and `nbf` present and within `ClockSkew` | `ErrMalformed`, `ErrExpired`, `ErrNotYetValid` |
 | 4 | `iss == Issuer`, exact | `ErrIssuer` |
 | 5 | `typ == "Bearer"` (refuses id and refresh tokens) | `ErrType` |
-| 6 | `aud`, a string or an array, contains `Audience` (Keycloak's `account` beside it is ignored) | `ErrAudience` |
+| 6 | `aud`, a string or an array, contains `Audience` **and no other `panacea-app-*` audience** (Keycloak's `account` beside it is ignored; ruling §5 `:278-279`, OD-30 review-1 I2: if the realm ignores the narrowing refresh, every validator fails loudly) | `ErrAudience` |
 | 7 | `azp` in `AllowedClients` (person) or `ServiceClients` (service) | `ErrClient` |
 | 8 | the space-separated fields of `scope` contain `RequiredScope` | `ErrScope` |
 | 9 | person: `oid` a GUID, `tid` a GUID in `TenantIDs`. Service: `oid` and `tid` both absent, `Service = true` | `ErrMalformed` (oid); `ErrTenant` (tid); a service token carrying either: `ErrClient` |
@@ -126,7 +126,7 @@ no assertion changed (kills any regression in the `entra` profile). Then:
 | `TestKeycloakAcceptsAGoodPersonToken` | tid, oid, azp, scope, roles, iss, sub come back; `Service` false; `Key() == tid+"/"+oid` | a claim dropped, or a key on `sub` |
 | `TestKeycloakRefusesAnotherIssuer` | iss `.../realms/other` -> `ErrIssuer` | a prefix or host-only issuer compare |
 | `TestKeycloakRefusesANonBearerTyp` | typ `ID`, and no typ -> `ErrType` | an id token accepted as an access token |
-| `TestKeycloakAudienceIsContained` | aud `"panacea-app-broker"` and `["account","panacea-app-broker"]` pass; `["account","panacea-app-hub"]` and none -> `ErrAudience` | an equality compare that refuses arrays; a Hub token replayed at the broker |
+| `TestKeycloakAudienceIsContained` | aud `"panacea-app-broker"` and `["account","panacea-app-broker"]` pass; `["account","panacea-app-hub"]`, `["panacea-app-broker","panacea-app-hub"]` (two audiences) and none -> `ErrAudience` | an equality compare that refuses arrays; a Hub token replayed at the broker; a four-audience token (the narrowing ignored, ruling U-4) accepted at every service (review-1 I2) |
 | `TestKeycloakRefusesAnUnlistedClient` | azp `panacea-app-other` -> `ErrClient` | the azp check skipped |
 | `TestKeycloakScopeIsReadFromScope` | `scope` without `panacea-app-broker` -> `ErrScope`, even with an `scp` that holds it | Entra's `scp` read under keycloak |
 | `TestKeycloakPersonNeedsAnOid` | no oid -> `ErrMalformed` | a person keyed `"tid/"` |
