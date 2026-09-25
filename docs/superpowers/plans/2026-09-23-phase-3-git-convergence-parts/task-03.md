@@ -23,6 +23,7 @@ clone's local config; the fix's resolver then gives the clone the answer the pro
 - `control-plane/internal/gitx/ident.go` + test — `ParseIdent` (new)
 - `control-plane/internal/lanes/store.go` — `Lane`, `Queue`, `Rename`, `Store`, `FileStore` (new)
 - `control-plane/internal/lanes/clone.go` — `Creator`, `CreateRequest`, errors, `RemoveTree` (new)
+- `control-plane/internal/lanes/fs.go` — `LocalFS`, `ErrNoMachineFS`, `FSOf` (seam S8-P3.6) (new)
 - `control-plane/internal/lanes/catalog.go` — `Source`, `Catalog` (new)
 - `control-plane/internal/lanes/*_test.go` (new)
 - `control-plane/internal/briefref/briefref.go` — `Revision`, `Criterion`, `Resolver`, `Archiver`;
@@ -146,11 +147,13 @@ type Creator struct {
 }
 
 // Create, in this order, and the order is the point:
+//  0. fs, err := FSOf(c.Machine) (seam S8-P3.6): ErrNoMachineFS, and nothing on disk. Every
+//     filesystem touch below goes through fs; locally fs is LocalFS, the os calls themselves;
 //  1. validate Name (ErrBadName); derive it when empty;
 //  2. `rev-parse --verify --quiet refs/heads/<Branch>^{commit}` in the project (Read) —
 //     ErrUnknownBranch, and nothing on disk;
 //  3. ErrNameTaken when the index has Name for this project. Path =
-//     <CloneRoot>/<ProjectID>/<Name>-<c.Nonce()>; when anything exists at Path (os.Lstat), draw
+//     <CloneRoot>/<ProjectID>/<Name>-<c.Nonce()>; when anything exists at Path (fs.Exists), draw
 //     again, at most 4 draws, then ErrNameTaken. An existing directory is never removed or
 //     reused. A removed lane's directory is gone, so a draw can repeat its nonce only by
 //     chance: 1 in 16^6 (16,777,216) per draw of 6 hex. That is 256 times likelier than two
@@ -185,9 +188,12 @@ type Creator struct {
 //     No sandbox mounts the project (ruling R4.1), so the copy always runs; a directory its
 //     guards refuse copies no files and is not an error: the setting stays, and task 05's
 //     dispatcher line names the missing folder;
+//  6a. fs.Seal(ctx, Path): R4.5's window ends here, after the last NewLane write and before
+//     any session can resolve the lane. LocalFS's Seal does nothing; a cloud machine's closes
+//     machined's creating-set entry (env task 21). A Seal error is a Create failure;
 //  7. Store.Add.
-// A failure in 4-7 removes Path with RemoveTree before returning, so a failed create leaves
-// no directory behind; a failure in 1-3 has touched nothing.
+// A failure in 4-7 (6a included) removes Path with fs.RemoveTree(ctx, CloneRoot, Path) before
+// returning, so a failed create leaves no directory behind; a failure in 0-3 has touched nothing.
 // Scopes, per task-02 §HGH H3: steps 2, 4, 5's `var` and 6's `--get` run in the project with
 // Scope Project. Steps 4a, 5 and 6's writes and CopyGeneratedHooks' `ls-files` run with Dir
 // Path, Scope None and `NewLane: Path` (task-02 §HGH): this is R4.5's creation window. Until
@@ -259,6 +265,10 @@ func CopyableHooksPath(v string) bool
 // the real mount and settles it (unverified until then). The host never runs them: every
 // host git call overrides core.hooksPath (task-02 §HGH H1). A copy that fails after it started
 // is a Create failure (step 6), so RemoveTree takes the clone with it.
+// Split by seam S8-P3.6: the guards and the copy (every Lstat, SameFile, the budget) are
+// FSOf(m).CopyGeneratedHooks; the `.git`-segment refusal runs here first, and the `ls-files`
+// check over m.Git() and the take-back through FSOf(m).RemoveTree(ctx, cloneTop, <cloneTop>/<rel>)
+// run here after it. Locally that is LocalFS, the same os calls as before the split.
 func CopyGeneratedHooks(ctx context.Context, m gitx.Machine, projectTop, cloneTop, rel string) (int, error)
 
 // RemoveTree deletes a directory tree that git wrote. On Windows git leaves object and pack
@@ -266,6 +276,29 @@ func CopyGeneratedHooks(ctx context.Context, m gitx.Machine, projectTop, cloneTo
 // records whether it does on this machine); RemoveTree clears the read-only attribute during
 // the walk and then removes. It refuses a path that is not under root.
 func RemoveTree(root, path string) error
+
+// LocalFS is gitx.MachineFS on this process's own disk (seam S8-P3.6): the os calls this task
+// makes, moved behind the interface unchanged.
+//   - Exists is os.Lstat: fs.ErrNotExist → (false, false, nil); success → (true,
+//     fi.Mode().IsDir(), nil), so a symlink or a junction is exists and not dir; any other
+//     error is returned;
+//   - RemoveTree is RemoveTree(root, path) above;
+//   - CopyGeneratedHooks is the copy half above: the `.git`-segment refusal again (env task
+//     21's copy-hooks route serves through LocalFS, so it inherits it), the not-exist Lstat of
+//     <cloneTop>/<rel>, the real-directory walk, SameFile and the 64-file / 1 MiB budget;
+//   - Seal returns nil and touches nothing.
+// Each method returns ctx.Err() when ctx has ended before its first os call.
+type LocalFS struct{}
+
+var _ gitx.MachineFS = LocalFS{}
+
+// ErrNoMachineFS: a machine whose ID is not "local" answered a nil FS. Nothing was touched.
+var ErrNoMachineFS = errors.New("lanes: this machine has no filesystem for lane create and remove")
+
+// FSOf is the one place a MachineFS is taken from a machine: m.FS() when non-nil; LocalFS{}
+// when it is nil and m.ID() == "local"; otherwise ErrNoMachineFS, so a cloud machine never
+// falls back to the laptop's disk. Create, CopyGeneratedHooks and task 11's Remove call it.
+func FSOf(m gitx.Machine) (gitx.MachineFS, error)
 ```
 
 *Line endings (review C2).* Git for Windows' installer writes `core.autocrlf=true` into the
@@ -410,6 +443,10 @@ type Source interface {
 type Catalog struct {
 	Source Source
 	Store  Store
+	// FS is the disk the Store's lanes are on (seam S8-P3.6). nil means this process's own:
+	// Path runs worktree.Verify, exactly as before the seam. Phase 8 sets its machine's FS()
+	// for a cloud machine's catalog (env task 25).
+	FS gitx.MachineFS
 }
 
 var (
@@ -421,7 +458,9 @@ func (c *Catalog) Branches(ctx context.Context, projectID string) ([]project.Bra
 func (c *Catalog) Worktrees(ctx context.Context, projectID string) ([]project.Worktree, error)
 
 // Path resolves a lane first (worktree.Verify on its Path, so a clone deleted outside the
-// cockpit is worktree.ErrNotADir, the 404 session create already maps), then the Source.
+// cockpit is worktree.ErrNotADir, the 404 session create already maps), then the Source. With
+// FS set, a lane's check is FS.Exists(ctx, Path) instead: anything but (true, true, nil) is
+// worktree.ErrNotADir, and an FS error is returned as it came.
 func (c *Catalog) Path(ctx context.Context, worktreeID string) (string, error)
 ```
 
@@ -521,6 +560,20 @@ Real git through `gitxtest` wherever the claim is about git; a fake `Source` for
 | `TestCatalogPathOfAVanishedClone` | lane dir deleted → `errors.Is(err, worktree.ErrNotADir)` | a mount of a missing directory |
 | `TestParseWorktreesSetsKind` (project_test.go) | first record `Kind:"primary"`, the rest `"linked"` | a linked worktree reported as primary |
 
+Seam S8-P3.6's rows (`gitx.MachineFS`, env R4 ruling 4). A **recording FS** wraps `LocalFS` and
+logs each call with the Spy's length and the Store's Add mark; it reaches Create through
+`gitx.Local{Files: rec}`. Every row above runs with `Files` nil, so it is `LocalFS` unchanged.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestLocalFSExistsIsLstat` | absent → `(false, false, nil)`; a directory → `(true, true)`; a file → `(true, false)`; a symlink to a directory (a junction on Windows) → `(true, false)`; a cancelled ctx → `ctx.Err()` | `os.Stat` for `os.Lstat`, so a linked lane reads as a real directory |
+| `TestCreateDrawsThroughTheMachineFS` | the recording FS answers `exists` for the first draw's Path, nothing being on disk → the lane is created at the second draw | step 3 still calling `os.Lstat`, so a cloud machine's taken name is read from the laptop |
+| `TestCreateSealsAfterTheLastLaneWrite` | Seal is called once, with Path, after the last Call with `NewLane == Path` and before the Add mark; a Seal that fails → Create fails, `RemoveTree(CloneRoot, Path)` is the FS's next call, Path is absent and the Store has no lane | no Seal (machined runs git in the lane after sessions can mount it), a Seal after Add, or a failed Seal that leaves the clone |
+| `TestCreateCleansUpThroughTheMachineFS` | the clone fails after creating Path → the recording FS logged `RemoveTree(CloneRoot, Path)` | the failure path calling `lanes.RemoveTree` directly, on the laptop's disk |
+| `TestCopyHooksGoesThroughTheMachineFS` | the husky fixture → the FS logged `CopyGeneratedHooks(projectTop, cloneTop, ".husky/_")`; the unignored `.githooks/` fixture → then `RemoveTree(cloneTop, <cloneTop>/.githooks)`; `.git/hooks` → neither call, 0 | the copy or the take-back on `os` beside the seam |
+| `TestFSOfRefusesANilCloudFS` | a fake `gitx.Machine` with ID `m-0123abcd` and a nil FS → `FSOf` is `ErrNoMachineFS`; `Create` → `ErrNoMachineFS`, the Script saw no call, CloneRoot has no entry; ID `local` and nil → `LocalFS{}` | a cloud machine that silently falls back to the laptop's disk |
+| `TestCatalogPathUsesItsFS` | `Catalog{FS: rec}` whose Exists answers `(true, false)` for a lane on disk → `worktree.ErrNotADir`; `(true, true)` for a lane not on disk → its Path; `FS` nil → `TestCatalogPathOfAVanishedClone`'s answer | `worktree.Verify` on the laptop for a cloud machine's lane |
+
 #### Steps
 
 - [ ] **Step 1: R2's lift, if needed.** `grep -n "func WriteAtomic" control-plane/internal/statepath/*.go`.
@@ -530,8 +583,14 @@ Real git through `gitxtest` wherever the claim is about git; a fake `Source` for
   `go test ./control-plane/internal/registry/ ./control-plane/internal/statepath/ -count=1`, and
   commit that move **alone**, before anything else, so the lift is one reviewable commit.
 - [ ] **Step 2:** write the tests; `gitxtest.NewRepo` for the git ones.
-- [ ] **Step 3:** implement `ident.go`, `store.go`, `clone.go`, `catalog.go`, `briefref.go`, and
-  the `Kind` field.
+- [ ] **Step 3:** implement `ident.go`, `store.go`, `clone.go`, `fs.go`, `catalog.go`,
+  `briefref.go`, and the `Kind` field. `clone.go` and `catalog.go` call no `os` function on a
+  lane path except inside `LocalFS` and `RemoveTree`.
+- [ ] **Step 3a: Mutants for S8-P3.6**, on a `$TEMP` copy, each verified applied: step 3 on
+  `os.Lstat` → `TestCreateDrawsThroughTheMachineFS` red; drop step 6a →
+  `TestCreateSealsAfterTheLastLaneWrite` red; `FSOf` answers `LocalFS{}` for any nil FS →
+  `TestFSOfRefusesANilCloudFS` red; `LocalFS.Exists` on `os.Stat` → `TestLocalFSExistsIsLstat` red.
+  Likeliest to survive: the `FSOf` one, since every other row runs on `local`.
 - [ ] **Step 4:** run and commit by pathspec.
 
 #### Acceptance
@@ -546,6 +605,10 @@ go test ./control-plane/internal/registry/ ./control-plane/internal/statepath/ -
 #### What this task does not claim
 
 - Nothing serves the catalog yet (task 04), so the rail does not show clones yet.
+- Seam S8-P3.6 has one implementation here, `LocalFS`. That a cloud machine can create a lane
+  through it is phase 8's claim (env tasks 21 and 25), UNVERIFIED in this phase; this task
+  claims only that every lane create, copy, take-back and path check goes through `FSOf`, and
+  that the local one is the `os` code it was.
 - A lane whose product branch was deleted outside the cockpit still lists, under a branch id no
   branch has; the rail shows it nowhere. Task 11's remove clears it; nothing detects it here.
 - Every clone copies the project's objects (`--no-hardlinks`, Q9), so a lane costs the size of
