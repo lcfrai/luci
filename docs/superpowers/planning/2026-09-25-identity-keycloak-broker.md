@@ -487,3 +487,46 @@ phase 8's Keycloak comes first, they are born in our realm (section 9) and K5 is
 realm, launch PanaceaApp signed out, and confirm the browser tab reaches "Signed in. You can return to
 PanaceaApp." with no click; then `GET /v1/auth/status` shows a GUID `oid` and `tid`.
 
+## 11. The per-plan change list
+
+HOW: **edit** = the named file is edited to this ruling now, before its task is built; **fold into NN** =
+the change is made by task NN when it is built; **findings** = a findings file for that plan's writers
+(`.superpowers/sdd/identity/findings-team.md`, `findings-work.md`), because those plans are still being
+written; **none** = verified to need no change. Built code is never edited outside a task.
+
+| Tree | File | Task | Built | Change | How |
+|---|---|---|---|---|---|
+| main | `CLAUDE.md:21` | — | doc | "signs in with Entra" -> "through a Keycloak realm brokering Entra, auth-code + PKCE, zero clicks (OD-30)" | edit |
+| main | `docs/PROGRAM.md:18`, `:59`, `:95` | — | doc | identity row back to the broker chain; delete "a real Entra app registration" | edit |
+| main | `owner-decisions.md:186-188` | — | doc | the PROGRAM.md bullet: "the Hub ADR decides" -> "OD-30 decided: a broker" | edit |
+| main | `2026-09-24-it-request-entra.md` | — | doc | Part 1 (`:1-54`) withdrawn, nothing asked for sign-in; Q5 (`:104`) flipped; Part 2 gains section 9's redirect URI and second secret; `:3-4` corrected (devissuer not built) | edit |
+| hub | ADR-H1 §5.2, §6.1, §9, Q5, `:430`, `:678-679` | 44a | doc | sections 1-4, 7; §6.1 reversed; §9's IT list replaced by section 10 | fold into 44a |
+| hub | Hub contract §6.1-§6.3, §6.5, §9, §10 (`orgs`/`users` keys unchanged), §12, T2 | 44a | doc | env vars (section 2); audience scopes for `Hub.Access`; `oidcauth`; §6.5 deleted; ADO PAT | fold into 44a |
+| hub | `hubapi/codes.go:57-67` | 01 | BUILT | none: `ErrType` maps to `ReasonMalformed`; `ReasonVersion` is unused under `keycloak` | none |
+| hub | `hubapi/types.go:104`, `codes.go:21` | 01, 03 | BUILT | none: `tid` arrives as a claim (P2) | none |
+| hub | `hubclient/hubclient.go:18,23,137` | 04 | BUILT | comments name `entraauth` -> `signin` | fold into 31 |
+| hub | parts `task-10.md` | 10 | no | writes no validator; takes env 17 step 0's `internal/oidcauth` | edit |
+| hub | parts `task-11.md`, `task-12.md` | 11, 12 | no | devissuer: Keycloak paths and `keycloak` profile by default, client-credentials grant, scope narrowing (section 5) | edit |
+| hub | parts `task-13.md` | 13 | no | `oidcauth` under `keycloak`, audience `panacea-app-hub`, `ServiceClients` Fleet + gateway (section 6); rate-limit keys `tid/oid` unchanged | edit |
+| hub | parts `task-28.md` | 28 | no | refresh-token target `PanaceaApp/oidc/<issuer host>/<realm>/refresh` replaces `EntraRefreshPrefix`/`EntraAccountTarget` | edit |
+| hub | parts `task-29.md` | 29 | no | ADO: PAT is the only path; the Entra ADO branch deleted | edit |
+| hub | parts `task-30.md`, `task-31.md` | 30, 31 | no | package `entraauth` -> `signin`; issuer from discovery; `kc_idp_hint`, `login_hint` (UPN), `offline_access`, per-audience refresh; `ErrEntraUnavailable` -> `ErrIssuerUnavailable`; `AzureDevOpsScope` deleted | edit |
+| hub | parts `task-32.md` | 32 | no | `PANACEA_APP_OIDC_*`; `TestTheAuthorityMustNameATenant` -> `TestTheIssuerIsARealmURL`; `PANACEA_APP_ENTRA_DEVOPS` deleted | edit |
+| hub | parts `task-33.md`, `task-07b.md`, `task-09.md` | 33, 07b, 09 | no | wording "Entra" -> "the issuer"; `PANACEA_APP_HUB_SCOPE` -> `PANACEA_APP_HUB_AUDIENCE=panacea-app-hub`; `TestResolvePrincipal` unchanged | edit |
+| hub | parts `task-40.md`, `task-41.md` | 40, 41 | no | no sign-in click at launch; the loopback page text; foregrounding (section 3) | edit |
+| hub | parts `task-43.md` | 43 | no | real-tenant checklist becomes section 10's check against Panacea's dev realm | edit |
+| env | `control-plane/internal/entra/*` | 16 | BUILT | rename to `internal/oidcauth`, add the profile (section 5) | fold into 17 (step 0) |
+| env | `internal/sandbox/manager.go:138-141` | 14 | BUILT | none: `(tid, oid)` are still Entra's ids | none |
+| env | phase 8 plan `:123` OQ-4, `:134` P8-D4, `:250-264` HA-1/HA-3, `:484`, `:562`, `:584` | — | doc | sections 1, 4, 5, 9 | edit |
+| env | parts `task-09.md` | 09 | no | rewritten per section 9 | edit |
+| env | parts `task-17.md` | 17 | no | step 0; `PANACEA_APP_OIDC_ISSUER`/`_PROFILE`, `PANACEA_APP_BROKER_AUDIENCE=panacea-app-broker` replace `_ENTRA_*` (`:33-36`); `ServiceClients` = Fleet | edit |
+| env | parts `task-18.md`, `task-22.md`, `task-23.md` | 18, 22, 23 | no | "Entra token" -> "realm token"; task 22's scope -> `panacea-app-broker` | edit |
+| env | parts `task-07.md`, `task-08.md`, `task-11.md`, `task-29.md` | 07, 08, 11, 29 | no | section 9's rows | edit |
+| phase-6 | parts `task-08.md` | 08 | no | `CALLER_AUTH` comma list, new `oidc` mode (section 6) | edit |
+| phase-6 | parts `task-13.md` | 13 | no | route source: client credentials as `panacea-app-gateway` at the realm, not an Entra federated assertion | edit |
+| phase-6 | parts `task-15.md`; `task-03.md` | 15; 03 | no | 15 sends the person's `panacea-app-gateway` token in `oidc` mode; 03's `Owner{TID, OID}` unchanged | edit; none |
+| phase-7 | plan `:140`, `:167-192`, `:205-212` | — | doc | "Entra token" -> "realm token"; 7P-1 stands (section 8) | edit |
+| phase-4 | parts `task-23.md:29`, `:129` | 23 | no | none: devissuer stays the local issuer | none |
+| team | `05-design.md` `:120`, `:161-162`, `:189-191`, `:853`, `:1127`; phase T plan and parts 01, 05, 12, 17, 21, 66 | T* | no | section 6: Fleet and gateway service clients, `azp` keys, audience `panacea-app-fleet` | findings |
+| work | phase W plan `:127`, `:254`, `:257`, `:568`, `:581`; scopes 141-160, 161-180, 181-187 | W* | no | the MCP server's `authorization_servers` = the realm; Hub pages sign in through the realm; third-party apps are realm clients; groups via broker mappers | findings |
+
