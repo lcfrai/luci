@@ -39,6 +39,10 @@ typed the words. Nobody may tombstone another person's record but an org admin.
 - `control-plane/internal/hub/hubapi/team.go` (task 03): add `EraseRecordResponse`; the request
   is the Hub's `EraseRequest`, reused. Routes 81 to 83 get no route name, so no delegation can
   list them (modify)
+- `control-plane/internal/hub/hubapi/codes.go` (task 03): `CodeNoteNotFound`,
+  `CodeHumanMessageNotFound`, `CodeMessageNotFound`, appended in §4.2's order; `keys_test.go`'s
+  own-code count in `TestHubCodesAreContractSection42s` rises by exactly three from its value at
+  merge (48 after task 01, `task-03.md:37-40`) (modify)
 - `control-plane/internal/hub/server/humanmsgs.go` (task 07): route 70's stored reply nulls `text`
   (modify, three lines; see "The stored reply")
 - `control-plane/internal/hub/server/server.go`: `s.registerNotesAndErase()` (modify: one line)
@@ -83,7 +87,8 @@ themselves. No route name, so Fleet cannot write one under any delegation (403 `
 // 201
 { "id": "nt-…", "projectId": "pj-…", "authorUserId": "u-…",   // from the token, never the body
   "target": { "kind": "task", "id": "tk-…" },
-  "text": { "body": "…", "author": "human", "by": "u-…" },     // task 02's Text, as stamped
+  "text": { "body": "…", "author": "human", "authorAgentId": null,
+            "ownerUserId": "u-…", "at": "…" },                // task 02's Text (task-02.md:245-249)
   "createdAt": "…", "tombstonedAt": null }
 ```
 
@@ -140,3 +145,82 @@ therefore store their reply with `text: null` and rebuild `text` and `tombstoned
 replay, the pattern Hub route 26 uses (A17, `task-27.md:41-46`). A replay before erasure is the
 first answer byte for byte; after it, `text: null` and `tombstonedAt` set. Route 70 is task 07's;
 this task changes only its stored form.
+
+#### The migration — complete source
+
+Task 04's append-only guards refuse **every** `UPDATE` on the three tables, grants and triggers
+both (G4). A tombstone is an `UPDATE`, so it runs inside a `SECURITY DEFINER` function owned by
+`hub_owner`, and each guard gains exactly the exception Hub task 07b gives `guard_revision`
+(`task-07b.md:63-80`): the owner may move the body from a value to `NULL` and `tombstoned_at` from
+`NULL` to a time, and nothing else. **Task 04's part is not yet written**: its guard function names
+and text column names are written here as `guard_note`, `guard_message`, `guard_human_message` and
+`text_body`, and are renamed mechanically to task 04's at build time. Every other column of the row
+(ids, owner, target, author class, `text_agent`, `created_at`) is compared unchanged.
+
+```sql
+-- control-plane/internal/hub/migrate/sql/00NN_team_erase.sql   (NN = task 04's + 1)
+SET search_path = hub, pg_temp;
+
+-- ── the guards: a row changes once, by erasure, and only as hub_owner ────────
+CREATE OR REPLACE FUNCTION guard_note() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    RAISE EXCEPTION 'hub: notes are never deleted' USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  IF current_user <> 'hub_owner'
+     OR OLD.tombstoned_at IS NOT NULL OR NEW.tombstoned_at IS NULL OR NEW.text_body IS NOT NULL
+     OR (to_jsonb(NEW) - 'text_body' - 'tombstoned_at') IS DISTINCT FROM
+        (to_jsonb(OLD) - 'text_body' - 'tombstoned_at')
+  THEN
+    RAISE EXCEPTION 'hub: a note is immutable' USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  RETURN NEW;
+END $$;
+-- guard_message() and guard_human_message() are the same body with the table's noun in both
+-- messages; written out in full in the file, not generated, so a grep finds each.
+
+-- ── the tombstones: one per kind, the session's org only ─────────────────────
+CREATE FUNCTION tombstone_note(p_id text, p_at timestamptz)
+RETURNS TABLE (erased boolean, tombstoned_at timestamptz)
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = hub, pg_temp AS $$
+DECLARE v_org text := current_setting('hub.org_id', true);
+BEGIN
+  IF v_org IS NULL OR NOT EXISTS (SELECT 1 FROM notes n WHERE n.id = p_id AND n.org_id = v_org) THEN
+    RAISE EXCEPTION 'hub: no note % in this org', p_id USING ERRCODE = 'no_data_found';
+  END IF;
+  UPDATE notes n SET text_body = NULL, tombstoned_at = p_at
+   WHERE n.id = p_id AND n.org_id = v_org AND n.tombstoned_at IS NULL;
+  RETURN QUERY SELECT FOUND, n.tombstoned_at FROM notes n WHERE n.id = p_id AND n.org_id = v_org;
+END $$;
+-- tombstone_message(text, timestamptz) and tombstone_human_message(text, timestamptz): the same
+-- body on messages and human_messages, written out in full.
+
+REVOKE ALL ON FUNCTION tombstone_note(text, timestamptz), tombstone_message(text, timestamptz),
+                       tombstone_human_message(text, timestamptz) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION tombstone_note(text, timestamptz), tombstone_message(text, timestamptz),
+                          tombstone_human_message(text, timestamptz) TO hub_app;
+```
+
+`to_jsonb(NEW) - … IS DISTINCT FROM to_jsonb(OLD) - …` compares every other column without naming
+them, so a column task 04 adds later is protected without an edit here. `FOUND` after the `UPDATE`
+is true only when this call set the tombstone (PL/pgSQL sets it from the last statement's row
+count, from knowledge, **UNVERIFIED** until the test runs), which is `EraseRecordResponse.Erased`.
+The `SELECT` after it reads the first erasure time on a second call. **`idempotency_keys` is not
+touched**, for the reason `erase_brief` gives (`task-07b.md:226-230`): no stored reply holds the
+words (see "The stored reply").
+
+#### Events
+
+Task 01's §8 table gains three rows. `data` carries the `reason` in the audit only; the feed
+projection drops it, as Hub task 27 does for `brief.erased` (`task-27.md:76`), because a reason
+can name a client's matter.
+
+| Kind | `subject` | `data` | In the feed |
+|---|---|---|---|
+| `note.erased` | note id | `{"by","reason"}`; `by` is `author` or `org_admin` | yes, without `reason` |
+| `human_message.erased` | human message id | `{"by","reason"}`; `by` is `owner` or `org_admin` | fleet, without `reason` |
+| `message.erased` | message id | `{"threadId","reason"}` | fleet, without `reason` |
+
+`note.created` is task 01's row (`task-01.md:530`), feed `yes`: every member's desktop and Fleet
+learn that a note exists, and read its words through route 73. A second erasure emits a second
+event with the same `subject`, so an attempt always leaves a trace.
