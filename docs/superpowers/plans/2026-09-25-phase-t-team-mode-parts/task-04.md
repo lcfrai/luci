@@ -547,3 +547,90 @@ CREATE TABLE messages (
 A message's `text_author` stays set after erasure, so "had text" survives a tombstone and the two
 kind `CHECK`s hold for an erased row. The per-kind `fields` keys, and `accept`·`reject`'s shorter
 300-character reason, are Go's (task 07); the database holds 600, the widest.
+
+**Piece 7, escalations and directives.** An escalation's options are two parallel arrays, so the
+database can bound each label (80) and consequence (200) without parsing JSON; both texts are the
+question's author's, so they carry no author columns of their own (`task-03.md:758-762`). A
+question Fleet raises for itself is `agent` text naming **no** agent, the one place an agent text's
+`x_agent` is `NULL` (`task-07.md:125`: `fromAgentId` is `""` then), so its triple is checked by
+hand rather than through `text_ok`. `directives.read_ids` is task 03's `read`, renamed because a
+bare `read` column reads like a verb in every query.
+
+```sql
+-- ── §7.19 escalations: readable by the owner and an org auditor only ─────────
+CREATE TABLE escalations (
+  id                  text            PRIMARY KEY CHECK (id ~ '^es-[0-9a-f]{16}$'),
+  org_id              text            NOT NULL REFERENCES orgs (id),
+  project_id          text            NOT NULL,
+  owner_user_id       text            NOT NULL,
+  from_agent_id       text,                                  -- NULL: Fleet raised it
+  kind                escalation_kind NOT NULL,
+  thread_id           text,
+  question_body       text            NOT NULL CHECK (char_length(question_body) BETWEEN 1 AND 300),
+  question_author     text_author     NOT NULL CHECK (question_author = 'agent'),
+  question_agent      text,
+  option_labels       text[]          NOT NULL CHECK (hub.texts_ok(option_labels, 80)),
+  option_consequences text[]          NOT NULL CHECK (hub.texts_ok(option_consequences, 200)),
+  default_option      integer,
+  deadline            timestamptz     NOT NULL,
+  answer_choice       integer,
+  answer_body         text            CHECK (char_length(answer_body) BETWEEN 1 AND 300),
+  answer_author       text_author     CHECK (answer_author = 'human'),
+  answered_at         timestamptz,
+  created_at          timestamptz     NOT NULL DEFAULT now(),
+  UNIQUE (org_id, id),
+  UNIQUE (org_id, owner_user_id, id),            -- a directive's approval is the owner's own
+  CONSTRAINT escalations_project_fk FOREIGN KEY (org_id, project_id) REFERENCES projects (org_id, id),
+  CONSTRAINT escalations_owner_fk   FOREIGN KEY (org_id, owner_user_id) REFERENCES users (org_id, id),
+  CONSTRAINT escalations_from_fk    FOREIGN KEY (org_id, owner_user_id, from_agent_id)
+    REFERENCES agents (org_id, owner_user_id, id),
+  CONSTRAINT escalations_thread_fk  FOREIGN KEY (org_id, thread_id) REFERENCES threads (org_id, id),
+  CHECK (question_agent IS NOT DISTINCT FROM from_agent_id),
+  CHECK (cardinality(option_labels) = cardinality(option_consequences)),
+  CHECK (CASE kind WHEN 'inform' THEN cardinality(option_labels) = 0 AND default_option IS NULL
+         ELSE cardinality(option_labels) BETWEEN 2 AND 4
+          AND coalesce(default_option BETWEEN 0 AND cardinality(option_labels) - 1, false) END),
+  CHECK (deadline > created_at),
+  -- an answer: by a human; a real option for a decide, no choice for an acknowledged inform
+  CHECK ((answer_body IS NULL) = (answer_author IS NULL)),
+  CHECK (answered_at IS NOT NULL OR (answer_choice IS NULL AND answer_body IS NULL)),
+  CHECK (answered_at IS NULL OR CASE kind WHEN 'inform' THEN answer_choice IS NULL
+         ELSE coalesce(answer_choice BETWEEN 0 AND cardinality(option_labels) - 1, false) END)
+);
+
+-- ── §7.20 directives: append-only ────────────────────────────────────────────
+CREATE TABLE directives (
+  id            text           PRIMARY KEY CHECK (id ~ '^dv-[0-9a-f]{16}$'),
+  org_id        text           NOT NULL REFERENCES orgs (id),
+  project_id    text           NOT NULL,
+  owner_user_id text           NOT NULL,
+  from_agent_id text           NOT NULL,
+  to_agent_id   text           NOT NULL,
+  kind          directive_kind NOT NULL,
+  params        jsonb          NOT NULL CHECK (jsonb_typeof(params) = 'object'),
+  text_body     text,
+  text_author   text_author    CHECK (text_author = 'agent'),
+  text_agent    text,
+  rung          delivery_rung  NOT NULL,
+  origin        turn_origin    NOT NULL,
+  read_ids      text[]         NOT NULL CHECK (hub.ids_ok(read_ids, 100, '^(ms|tk|nt|es)-[0-9a-f]{16}$')),
+  approved_by   text,
+  created_at    timestamptz    NOT NULL DEFAULT now(),
+  UNIQUE (org_id, id),
+  CONSTRAINT directives_project_fk  FOREIGN KEY (org_id, project_id) REFERENCES projects (org_id, id),
+  CONSTRAINT directives_owner_fk    FOREIGN KEY (org_id, owner_user_id) REFERENCES users (org_id, id),
+  CONSTRAINT directives_from_fk     FOREIGN KEY (org_id, owner_user_id, from_agent_id)
+    REFERENCES agents (org_id, owner_user_id, id),
+  CONSTRAINT directives_to_fk       FOREIGN KEY (org_id, owner_user_id, to_agent_id)
+    REFERENCES agents (org_id, owner_user_id, id),
+  CONSTRAINT directives_approval_fk FOREIGN KEY (org_id, owner_user_id, approved_by)
+    REFERENCES escalations (org_id, owner_user_id, id),
+  CHECK (from_agent_id <> to_agent_id),
+  CHECK (hub.text_ok(text_body, text_author, text_agent, 600)),
+  CHECK (text_author IS NULL OR text_agent = from_agent_id),
+  CHECK ((kind = 'free') = (text_author IS NOT NULL)),       -- required for free, else refused
+  -- the database layer of the taint rule's kind half (§7.20): a Fleet-started free directive
+  -- names an approval. That it is an answered decide is Go's (task 07's TaintAllows).
+  CHECK (origin = 'human' OR kind <> 'free' OR approved_by IS NOT NULL)
+);
+```
