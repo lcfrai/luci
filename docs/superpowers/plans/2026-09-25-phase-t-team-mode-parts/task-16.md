@@ -6,7 +6,7 @@ and every Fleet handler (task 19) relies on.
 
 Every team verb an agent runs — `panacea team`, `check`, `lease`, `peer` — has to reach Fleet, and the
 only thing allowed to reach a sandbox is the broker on 8080 (P8-D12,
-`.claude/worktrees/env/docs/superpowers/plans/2026-09-23-phase-8-own-environment.md:141`). So the
+`.claude/worktrees/env/docs/superpowers/plans/2026-09-23-phase-8-own-environment.md:143`). So the
 request travels backwards: Fleet opens a WebSocket **into** the sandbox through the broker (task 17's
 `control` relay kind), and `sandboxd` holds it. Inside the pod the `panacea` binary does not speak
 WebSocket at all. It dials a Unix socket, writes one ST.1 request, reads one ST.1 response and exits.
