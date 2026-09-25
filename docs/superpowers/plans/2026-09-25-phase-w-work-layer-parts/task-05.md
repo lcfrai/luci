@@ -2131,3 +2131,59 @@ func TestAnotherTeamsLabelIsUnavailable(t *testing.T) {
 	}
 }
 ```
+
+The helpers this part calls beyond task 04's are on `feat/hub` at `9f2fa31`, re-read on
+2026-09-25: `teamOf` and `projectOf` (`fake_projects.go:61`, `:72`), `userRef` (`:108`),
+`sameName` (`:159`), `pageLimit` and `pageOf` (`fake.go:240`, `:251`), `forbidden` (`fake.go`,
+the `required` detail), `Calls` (`fake.go:130`), `FakeUser.OrgAdmin` (`:37-40`).
+
+#### Steps
+
+- [ ] **Step 1: Check the sync base.** Task 04 and H05 are on it (rule H1):
+  `grep -c 'func (f \*Fake) ' control-plane/internal/hub/hubclient/fake_work_stub.go` prints `20`;
+  `grep -n "func (f \*Fake) PutBlob" control-plane/internal/hub/hubclient/fake_designs.go` prints
+  one line, and its body is not `notInFakeYet`. Re-read the helpers above; if H05 renamed one,
+  change the call and note it here.
+- [ ] **Step 2: Write the rows and the tests first.** `conformance/work.go` (the head and the
+  rows), `conformance/work_fake_test.go`, `fake_work_social_test.go`, all as above. Against task
+  04's stub, run `go test ./control-plane/internal/hub/hubclient/conformance/ -count=1 -v -run
+  TestWorkRowsOnTheFake 2>&1 | grep -c -- '--- FAIL: TestWorkRowsOnTheFake/work/W-'` and see
+  `16`: W-01 to W-09 pass on part 1, W-10 to W-25 fail with 501 `not_in_fake_yet`. That 9/16 split
+  is the proof that part 1 and part 2 are held by different rows.
+- [ ] **Step 3: Write the code.** `git rm control-plane/internal/hub/hubclient/fake_work_stub.go`;
+  the build now names the nineteen methods and six hooks it lost. Add `fake_work_social.go`, then
+  `fake_work_intake.go`, each as above. No line of `fake_work.go` changes.
+- [ ] **Step 4: Run to green**, then `go vet ./control-plane/internal/hub/hubclient/...` and
+  `gofmt -l control-plane/internal/hub/hubclient/` (prints nothing).
+- [ ] **Step 5: Prove the tests bite.** Apply each mutant by hand, run, see the named test fail,
+  revert. None is committed.
+
+| Mutant, applied by hand | Test that must fail |
+|---|---|
+| `fkInverse` returns `k` for every kind | W-10 |
+| drop the back-edge check in `AddRelation` | W-11 |
+| `RemoveRelation` without the inverse-word mapping | W-12 |
+| `==` for `sameName` in `CreateLabel` | W-13 |
+| drop `l.archivedAt != ""` in `checkIssueLabels` | W-14 |
+| drop `l.label.TeamID != teamID` in `checkIssueLabels` | `TestAnotherTeamsLabelIsUnavailable` |
+| drop the cancelled and duplicate exits from `policyRefuses` | W-15 |
+| drop `p.c.ParentID != nil` in `CreateComment` | W-16 |
+| `len([]rune(…))` for the UTF-16 length in `checkAnchor` | W-17 |
+| `React` appends without the index check | W-18 |
+| `subscribeOn` overwrites a row that exists | W-19 |
+| drop the `imports` lookup in `ImportBatch` | W-20 |
+| write each item inside the validation loop | W-21 |
+| drop the `members[me]` check in `SearchIssues` | W-22 |
+| skip `GetBlob` and read H05's store by digest alone | W-23, `TestAttachChecksTheProjectThroughGetBlob` |
+| return before `workEvent` when both counts are zero | W-24 |
+| `erasedWrite` returns `nil` | W-25 |
+| add `"reason": req.Reason` to `issue.erased`'s data | `TestTheFeedNeverCarriesTheReason` |
+| blank `ExternalID` in `EraseIssue` | `TestAnErasedImportStaysErased` |
+| leave one of the nineteen at a 501 | `TestNoPartTwoMethodIsAStub` |
+
+- [ ] **Step 6: Commit**, one commit for the code and its tests: `git add` the five new files and
+  the `git rm`, then `git commit -F <msgfile> --` the six paths of *Files*. Message file under
+  `.superpowers/sdd/work/msg/`; last line
+  `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>`.
+- [ ] **Step 7: Announce WS0** in the commit body: *"WS0 reached: SW.1 and SW.2 frozen except
+  for additions"*, so streams WP, WD1 and WD2 start against `NewFake()` (skeleton, *Start lines*).
