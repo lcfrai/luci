@@ -102,7 +102,7 @@ row, which task 05 answers as 401 `delegation_revoked`, `reason = "unknown"` (ta
   `team_event_kinds` row in its own migration** (task 46's three erasure kinds), or its events fall
   to the `ELSE` branch and Fleet never sees them.
 
-The migration, in six pieces for reading; the file is their concatenation, in this order.
+The migration, in ten pieces for reading; the file is their concatenation, in this order.
 
 ```sql
 -- control-plane/internal/hub/migrate/sql/00NN_team.sql
@@ -829,3 +829,25 @@ The functions run as `hub_owner`, which row-level security does not bind (`ENABL
 `FORCE`d, `task-07a.md:465-470`); the tenant join is their only tenancy check, and
 `TestFleetLookupsStayInTheTenant` is what proves it. `STABLE`, not `VOLATILE`: they read and
 never write.
+
+#### Tests to write first — `team_schema_integration_test.go` (`//go:build integration`)
+
+Each runs on `hubtest.Migrated(t)`. The seed is Hub task 07a's helper (orgs, users and
+`audit_heads` as `hub_owner`; `task-07a.md:512-519`) plus a `teamSeed` in this file: per org, three
+users (Linus and Grace, members; Ada, an admin), one team project (`mode = 'team'`), and as
+`hub_app` with `hub.org_id` set, in the order the Hub writes: Linus's Orchestrator `agLO` and
+worker `agLW`, Grace's Orchestrator `agGO`, a delegation of each, one human message, one task, one
+lease event, one thread between `agLO` and `agGO`, one conflict, one message, one escalation, one
+directive, one note and one team policy. **Refused** means a `*pgconn.PgError` whose `Code` is the
+one named, and, where the row says so, whose message contains the guard's text. A bound is tested
+at the limit and one past it, in `é` (two bytes in UTF-8), so a byte count would refuse the limit.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestTeamEnumsAreTask03s` | for each of the 21 types, `pg_enum` labels in `enumsortorder` equal a Go list: 19 built from `hubapi`'s constants (`string(hubapi.LeaseAdminReleased)`, …), `text_author` from `teamtext.AuthorAgent` and `AuthorHuman`, and `project_mode` the literal pair; so the test fails to compile if task 03 renames one | a label respelled (`admin_released`): every Go insert of it fails `22P02` in production, and no unit test sees it |
+| `TestTeamTablesSeparateOrgs` | orgs A and B seeded; with `hub.org_id` = A, `SELECT` from each of the 12 tables returns A's rows only; `INSERT` of an org-B row into each → `42501`; with `hub.org_id` unset on a reused connection, zero rows from each. Then, from the catalog: **every** table in schema `hub` with an `org_id` column has `relrowsecurity` and a policy `org_isolation` | a table left out of the RLS loop, including one a later migration adds with no policy |
+| `TestOnlyTheOwnersAgentsAct` | as `hub_app`, org A, owner Linus: a task whose Orchestrator is `agGO` → `23503` (`team_tasks_orchestrator_fk`); a message with `sender_agent_id` `agGO` and `sender_user_id` Linus → `23503`; a directive to Grace's agent → `23503`; a worker whose parent is `agGO` → `23503`; a directive approved by Grace's escalation → `23503`; each same row with Linus's own agent → ok | a composite key cut to `(org_id, agent_id)`: another owner's agent accepted, and §5.10 rule 5 held by Go alone |
+| `TestAgentIDsAreNeverSessionIDs` | an agent `s-3f2a91c0` → `23514`; `ag-` with 15 hex → `23514`; a message naming `s-3f2a91c0` as sender → `23503` (no such agent can exist) | the `is_agent_id` check dropped: a machine-local session id reaches the Hub (§3.3 rule 2) |
+| `TestTheDatabaseBoundsText` | limit ok, limit + 1 → `23514`, for: title 140, why 200, message 600, question 300, option label 80, consequence 200, answer 300, directive 600, human message 2,000, note 1,000; and an empty body → `23514` for each | `octet_length` for `char_length` (a 600-`é` message is 1,200 bytes); a bound off by one; task 02's constant changed in Go and not here |
+| `TestTextCarriesItsAuthorClass` | a message whose `text_author` is `human` → `23514`; a message whose `text_agent` is not its sender → `23514`; a human message or note authored `agent` → `23514`; a note with `text_agent` set → `23514`; a task titled `human` with no `title_source` → `23514`, with Linus's own `hm-…` → ok, with Grace's → `23503` | an agent's words stored as a human's, which every reader then trusts (§3.3); a title laundered through another member's message |
+| `TestGlobsAreRelativeAndBounded` | a task scope of `/etc/**`, `a/../b`, `a\b`, a 201-character glob, or 21 globs → each `23514`; `src/**` and `[]` → ok; a lease event with no globs → `23514` | `globs_ok` dropped, so a host path reaches the Hub (§3.3 rule 3) |
