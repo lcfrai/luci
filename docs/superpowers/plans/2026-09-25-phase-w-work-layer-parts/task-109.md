@@ -4,7 +4,9 @@ Stream **W3** (agents on the work), about 2.5 hours (an estimate, not a measurem
 task 100 (SW.19 on the real Hub and its relay rows) and **TM-14** (Phase T's versioned policy store
 and the version recorded on agent start). Uses SW.19's `Guidance`, `AgentSwitch` and the methods
 `PutGuidance`, `ResolveGuidance`, `GetAgentSwitch`, `SetAgentSwitch` (task 99's scope,
-`tasks-81-100.md:452-455`; **their exact names are task 99's**, and step 1 re-reads them), task
+`tasks-81-100.md:452-455`; the names and wire checked against task 100's part,
+`task-100.md:176-231` and `:278-298`: `author` and `by` are `User` objects, a stale version is
+409 `revision_conflict`, turning Orchestrators off needs a 1-500 character reason), task
 100's `/v1/hub/work/*` relay, task 62's Desk frame (SW.17), and Phase T's human `pause`, which
 *"is executed by Fleet directly, with no turn"* (TM-37, Phase T plan `:825`, read at `64ab2c4`;
 **UNVERIFIED until merge**).

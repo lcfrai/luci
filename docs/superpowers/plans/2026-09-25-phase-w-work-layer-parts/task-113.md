@@ -49,6 +49,7 @@ with no output beside it is not closed, whatever a part or a person says.
 - `docs/verification/2026-09-25-phase-w-results.md` ⚑ — the W3 section (modified; task 70's file)
 - `docs/verification/phase-w/w3-run.md` — the eight frames a person runs (new)
 - `docs/verification/phase-w/check-w3.sh` — the coverage check (new)
+- `docs/verification/phase-w/testdata/{w3-complete,w3-missing-output}.md` — the check's fixtures (new)
 - `desktop/src/test/w3Sweep.test.tsx` — `expectNoPrediction` over every W3 surface in one file (new)
 
 #### The rows W3 closes, and what closes each
@@ -195,3 +196,143 @@ Record every observation as quoted text or a pasted output line, with the time (
 No step reads a harness's terminal output (OD-8). If a step cannot be run in the environment, write
 **not run** and why; never a predicted result.
 ```
+
+#### Tests to write first — `desktop/src/test/w3Sweep.test.tsx`
+
+The sweep does two things. It checks that **every** W3 surface's own test file calls
+`expectNoPrediction` (a surface that skipped the helper is caught even when its props are not
+known here), and it renders the four surfaces whose props this plan fixes (tasks 109-111) with
+their most number-prone data, through the helper, in one place.
+
+```tsx
+import { readFileSync, existsSync } from "node:fs";
+import { resolve } from "node:path";
+import { describe, expect, it, vi } from "vitest";
+import { render } from "@testing-library/react";
+import { expectNoPrediction } from "./expectNoPrediction";
+import { AskAnswer } from "../components/work/AskAnswer";
+import { RiskFacts } from "../components/work/RiskFacts";
+import { RepoProposal } from "../components/work/RepoProposal";
+import { agentsOffLine } from "../components/admin/agentsOff";
+
+const SRC = resolve(__dirname, "..");
+/** Every W3 surface and its owning task. A new W3 surface is added here by its task. */
+const W3_SURFACES: [string, number][] = [
+  ["components/work/DelegateChip.test.tsx", 102],
+  ["components/issue/AgentByline.test.tsx", 103],
+  ["components/issue/ProposedEvidence.test.tsx", 104],
+  ["components/issue/NegotiationRow.test.tsx", 106],
+  ["components/work/AgentTaskCard.test.tsx", 107],
+  ["components/issue/StepFold.test.tsx", 108],
+  ["components/issue/SessionLinks.test.tsx", 108],
+  ["components/admin/KillSwitch.test.tsx", 109],
+  ["components/admin/AgentGuidance.test.tsx", 109],
+  ["components/work/AskAnswer.test.tsx", 110],
+  ["components/work/RiskFacts.test.tsx", 111],
+];
+
+describe("W3 sweep: no prediction on any W3 surface (OD-27)", () => {
+  it.each(W3_SURFACES)("%s (task %i) exists and calls expectNoPrediction", (file) => {
+    const path = resolve(SRC, file);
+    expect(existsSync(path)).toBe(true);
+    expect(readFileSync(path, "utf8")).toMatch(/expectNoPrediction\(/);
+  });
+
+  it("renders the number-prone W3 surfaces with no percentage, bar, ETA or N of M", () => {
+    const SHA = "7c1f0a2d9e0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d";
+    const many = Array.from({ length: 7 }, (_, i) => `m/00${i}.sql`);
+    const { container } = render(
+      <div>
+        <AskAnswer openAt={vi.fn()} result={{ state: "answered", question: "q", questionClass: "H",
+          answer: "a", answerClass: "A", commit: SHA,
+          citations: [{ path: "a.go", lineStart: 3, lineEnd: 7, check: "ok" }, { path: "b.go", lineStart: 1, lineEnd: 2, check: "missing_lines" }] }} />
+        <RiskFacts reply={{ lane: "ln-1", globsSet: true, scopeChecked: true, teamLane: true,
+          facts: [{ name: "runs-migration", paths: many, because: "adds or changes a file matching `m/*.sql` …" }] }} />
+        <RepoProposal choice={{ remote: "rm-2", because: "b", confidence: 0.7 }}
+          remotes={[{ id: "rm-1", label: "one" }, { id: "rm-2", label: "two" }]} />
+        <p>{agentsOffLine({ orchestrators: false, by: null, at: null, reason: "" })}</p>
+      </div>,
+    );
+    expectNoPrediction(container);
+  });
+});
+```
+
+`+6 paths` (seven paths in one collapsed fact) is the most number-shaped string W3 prints; the
+sweep holds that task 20's guard does not read it as progress. If it does, the words change in
+`RiskFacts.tsx`, never the guard.
+
+| Test | Mutant it kills |
+|---|---|
+| each W3 surface's test calls the helper | a surface that skipped `expectNoPrediction` |
+| the number-prone surfaces render clean | *"3 of 7"*, a `%` or a bar sneaking into an answer, a fact or a proposal |
+| `check-w3.sh` on `w3-missing-output.md` exits 1 | a row marked closed from a self-report |
+| `check-w3.sh` on `w3-complete.md` exits 0 | a check that fails everything, so nobody runs it |
+| `check-w3.sh` rows from 05 §1 | a row that moved in 05 and was not re-derived |
+
+#### Steps
+
+- [ ] **Step 1: read on the sync base** the parts and code of tasks 98-112 and fill the closing
+  table's *test* column with each real test name; read task 70's W1 section for its headings and
+  keep the W3 section in the same shape. If task 70 already ships a coverage check, `check-w3.sh`
+  calls it with the W3 row list instead of repeating it.
+- [ ] **Step 2: the tests first**: `w3Sweep.test.tsx`, then `check-w3.sh` with its two fixtures.
+  `npm --prefix desktop test -- test/w3Sweep` fails until every W3 surface exists; the check on
+  the missing-output fixture exits 1.
+- [ ] **Step 3: name the environment** (decision 1), bring it up, and record its commits.
+- [ ] **Step 4: run the eight frames** of `w3-run.md` and fill the run table, quoting each
+  observation. An excerpt is shortened with `[cut]`, never with `…`, so the check can tell an
+  unfilled cell from a shortened one.
+- [ ] **Step 5: run the suites** and each of tasks 98-112's acceptance commands; paste each result
+  line into the rows table beside its row.
+- [ ] **Step 6: paste task 112's spike paragraph**, list what is still unproven (decision 7), and
+  show the W3 surfaces to the owner; record the owner's words, or *not yet shown*.
+- [ ] **Step 7: run the acceptance commands.** Commit the results file, the run script, the check
+  and its fixtures, and the sweep by path, each message ending with the `Co-Authored-By` line.
+
+#### Acceptance
+
+```bash
+bash docs/verification/phase-w/check-w3.sh
+# expect: "W3 coverage: 18 rows, each with a command, an observation and a commit", exit 0
+W3_RESULTS=docs/verification/phase-w/testdata/w3-missing-output.md bash docs/verification/phase-w/check-w3.sh; echo "exit $?"
+# expect: "L-162: 1 empty cell(s)" then "exit 1"
+npm --prefix desktop test -- test/w3Sweep
+# expect: 12 tests pass (11 surfaces and the render)
+go test ./control-plane/... -race -count=1
+# expect: ok for every package; no FAIL line
+npm --prefix desktop test && npm --prefix desktop run typecheck
+# expect: every suite passes; exit 0
+grep -cE "^## W3: " docs/verification/2026-09-25-phase-w-results.md
+# expect: 1
+```
+
+The row count is 18 on 2026-09-25; if 05 §1 moves a row, the expected line moves with it and the
+section says why.
+
+#### What this task does NOT claim
+
+- That W3 is adopted or wanted (05 §2.2: *"designed, not built or proven wanted"*).
+- Anything about the environment it did not run in: a local-stack run proves nothing about TM1's
+  cluster, and neither proves Kata sandboxes (phase 8).
+- That two Orchestrators converge on a resolution beyond the one scripted `sequence` (TM-05 §14).
+- That hostile issue text is fenced: the injection corpus (05 §3.4, Q3) is not part of this run.
+- That the transcript adapter reads any harness version beyond the one its canary pinned.
+- The owner's acceptance until it is recorded in the owner's words.
+
+**Parity.** This task closes no row itself; it records the eighteen rows of decision 2 as closed
+**only** where the rows table carries a command, an observation and a commit.
+
+#### Gaps found while writing this part
+
+1. **The W3 surface list lives in the sweep**, by hand; the skeleton's file map (`:305-314`) should
+   list the W3 desktop files (DelegateChip, AgentByline, ProposedEvidence, NegotiationRow,
+   AgentTaskCard, StepFold, SessionLinks, the admin pair, AskAnswer, RiskFacts, RepoProposal) so
+   the sweep can be checked against it.
+2. **Task 70 defines no coverage check yet** (its part is not written on 2026-09-25). If it adds
+   one, `check-w3.sh` should become a W3 row list passed to it, so the six results sections share
+   one check.
+3. **`docs/verification/phase-w/`** (run scripts, the check, fixtures) is not in the file map's
+   *Proof and documents* table (`:316-324`).
+4. **Four rows close only in part or only on team projects** (L-158's *pause all*, L-162, L-192;
+   L-156 by design). The skeleton's W3 totals do not say so.
