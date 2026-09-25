@@ -30,7 +30,7 @@ stream is refused and logged as a security event, because it can only mean a bro
    `task-12.md:589`). Sharding by agent is a later change behind the same `Streams` type, not a TM1-α
    one: a team of two people is a handful of sockets.
 2. **`Push` is durable and callable on any replica.** Task 26's scheduler claims a turn on whichever
-   replica wins `ClaimTurn` and then pushes `turn.begin` (`task-26.md:501-503`). So `Push` writes a row
+   replica wins `ClaimTurn` and then pushes `turn.begin` (`task-26.md:509-511`). So `Push` writes a row
    to `fleet.pushes` and returns; the leader drains each agent's rows in id order every 250 ms and
    deletes a row once it has been written to the socket. A push whose `until` has passed is dropped
    unsent and counted. A leader that dies mid-drain leaves the rows for the next one; a row written
@@ -49,7 +49,7 @@ stream is refused and logged as a security event, because it can only mean a bro
    (1 s doubling to 30 s, ±20% jitter). Only a `404 sandbox_not_found` from the broker (the pod no
    longer exists for this owner) or the target leaving `Targets.Live` ends the stream and fires
    `OnLost`. A `401 delegation_*` stops redialling without `OnLost`: revocation is task 11's `Revoker`,
-   which ends the session through task 20 (`task-11.md:578-582`).
+   which ends the session through task 20 (`task-11.md:580-585`).
 6. **The control token is derived, not stored.** Fleet presents `Panacea-Control-Token` (task 17) and
    `sandboxd` checks it (task 16). It is `base64url(HMAC-SHA256(K, "panacea-control/v1/" + agentID))`
    with `K` from `PANACEA_APP_FLEET_CONTROL_KEY_FILE` (a Key Vault file, task 32). Any replica can
@@ -173,7 +173,7 @@ type Target struct {
 	Owner      model.Owner
 	Class      model.Class
 	Sandbox    string         // the broker's sandbox id
-	Delegation delegation.Key // task 11 (`task-11.md:373-378`)
+	Delegation delegation.Key // task 11 (`task-11.md:374-381`)
 }
 
 type Targets interface {
@@ -230,7 +230,7 @@ type StreamsConfig struct {
 
 func NewStreams(cfg StreamsConfig) *Streams
 
-// Push is task 26's Pusher (`task-26.md:501-503`): durable, any replica.
+// Push is task 26's Pusher (`task-26.md:509-511`): durable, any replica.
 // event must marshal to an object with an "event" key; until defaults to
 // now + 10 min when the event carries no deadline of its own.
 func (s *Streams) Push(ctx context.Context, agent model.AgentID, event any) error
@@ -250,7 +250,7 @@ func (s *Streams) Run(ctx context.Context) error
 ```
 
 Task 26 registers `OnLost(func(ctx, a) error { return sched.StreamLost(ctx, a) })`; its `StreamLost`
-signature (`task-26.md:650-652`) is exactly that shape.
+signature (`task-26.md:658-660`) is exactly that shape.
 
 ```sql
 -- control-plane/internal/fleet/store/migrations/0002_pushes.sql
@@ -275,7 +275,7 @@ mistake. `PendingPushes` deletes rows with `until_at <= now` for that agent in t
 Consumes: task 09's `model.AgentID`, `model.Owner`, `model.Class`, `model.Agent`, `wire.Response`,
 `wire.Refuse`, and a class table query this part calls `model.ClassMay(c model.Class, verb string) bool`
 (task 09 is unwritten on 2026-09-25; **its spelling wins**); task 11's `delegation.Key`,
-`delegation.Cache.Get` (`task-11.md:421-426`); task 12's `server.Singleton`; `coder/websocket`
+`delegation.Cache.Get` (`task-11.md:422-429`); task 12's `server.Singleton`; `coder/websocket`
 (already a `control-plane` dependency, `go.mod`).
 
 - [ ] **Step 1: Write the failing tests for dispatch (`dispatch_test.go`)**
@@ -326,7 +326,7 @@ func TestAliceCannotStopBobsWorker(t *testing.T) {
 `peer` is an Orchestrator verb and `worker` is registered for Orchestrators only in task 09's table
 (§5.2, `05-design.md:547-558`); the tests register them here with a probe so the class check is tested
 without tasks 24 and 28. Every code above is task 09's, in `control-plane/internal/fleet/wire/codes.go`
-(`task-09.md:418-458`): `wire.CodeBadRequest`, `CodeTooLarge`, `CodeStampMismatch`,
+(`task-09.md:422-465`): `wire.CodeBadRequest`, `CodeTooLarge`, `CodeStampMismatch`,
 `CodeUnknownSession`, `CodeUnknownVerb`, `CodeForbiddenClass`, `CodeInternal` and
 `CodeAgentNotOwner`. Dispatch declares none of its own.
 
@@ -440,7 +440,7 @@ func (d *Dispatcher) Dispatch(ctx context.Context, bound Target, raw []byte) wir
 with the verb and the key, never the value. `*wire.Refusal` is what task 09's `wire.Refuse` and
 `RefuseWith` return (`task-09.md:470-484`), so `errors.As` recovers it and its `Details`; any other
 error is `internal` with a fixed message, never the Go error string, as task 09 requires.
-`model.StatusEnded` is task 09's (`task-09.md:100`). The session check reads Fleet's store on every
+`model.StatusEnded` is task 09's (`task-09.md:102`). The session check reads Fleet's store on every
 request; at a handful of agents per project that is one indexed read, and it is what makes a stopped
 agent's late request fail rather than act.
 
@@ -505,7 +505,7 @@ exit naming the variable) and `PANACEA_APP_FLEET_BROKER_URL` (required, `https` 
 `config.go`; build one `Dispatcher` and hand it to every `verbs.Register` (tasks 22–31); build
 `Streams` with task 20's `sessions` as `Targets`; run `Streams.Run` under
 `server.NewSingleton(pool, "streams", log)`. Task 26's step 6 then registers `turn.end` on this
-`Dispatcher` and `Scheduler.StreamLost` with `Streams.OnLost` (`task-26.md:810-812`).
+`Dispatcher` and `Scheduler.StreamLost` with `Streams.OnLost` (`task-26.md:818-820`).
 
 - [ ] **Step 7: Run the tests and the acceptance commands**
 
@@ -536,7 +536,7 @@ racing a socket close.
   noted in decision 1 and not built.
 - That `OwnArgs` alone keeps owners apart. It is the generic check; each handler still refuses what its
   own verb forbids (task 23's own-lease rule, task 31's own-worker rule), and the Hub's `agent_not_owner`
-  check (`task-01.md:135-141`) is the last layer.
+  check (`task-01.md:137-142`) is the last layer.
 - **S19-1 — resolved.** Dispatch's codes were a gap until task 09's part landed; they are now
   task 09's `wire` constants, `ClassMay` is task 09's (`task-09.md:305-307`), and local verbs
   (`token`, `events.wait`) have no registration, so they reach `unknown_verb` as task 09 asks

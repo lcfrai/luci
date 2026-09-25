@@ -15,12 +15,12 @@ the spec here and nowhere else.
 
 Three rules from the design shape it. **One Orchestrator per person per project**, created on that
 person's first team launch and never for a `viewer` (OD-16, `05-design.md` §4.1). **The owner is the
-delegation's**, never Fleet's and never a body's (§3.3 rule 1; `task-01.md:127-131`). **No org key
+delegation's**, never Fleet's and never a body's (§3.3 rule 1; `task-01.md:129-136`). **No org key
 and no Global fallback**: a sandbox holds a one-hour key bound to its pod, and an AU project whose AU
 route is down gets no key at all (P6-D5, `.claude/worktrees/phase-6/docs/superpowers/plans/2026-09-25-phase-6-gateway.md:69`).
 
 **Built after the sync-merges of `feat/env` and `feat/phase-6-gateway`.** `remotebe` is phase 8 task
-22's plan (`.claude/worktrees/env/docs/superpowers/plans/2026-09-23-phase-8-own-environment-parts/task-22.md:60-116`),
+22's plan (`.claude/worktrees/env/docs/superpowers/plans/2026-09-23-phase-8-own-environment-parts/task-22.md:61-117`),
 `gatewayclient` is phase 6 task 15's plan (`2026-09-25-phase-6-gateway.md:250`) over task 03's wire
 (`.claude/worktrees/phase-6/docs/superpowers/plans/2026-09-25-phase-6-gateway-parts/task-03.md:26-40`).
 Neither exists on any branch on 2026-09-25; both are **UNVERIFIED until merge**. `ids.Wide` is built on
@@ -29,7 +29,7 @@ Neither exists on any branch on 2026-09-25; both are **UNVERIFIED until merge**.
 **Decisions made here.**
 
 1. **`Launch` answers before the pod is ready.** The broker's create waits for `/healthz` for up to
-   its `READY_TIMEOUT`, 120 s (phase 8 `task-22.md:91-92`). Task 21's `fleetbe` already expects Fleet to
+   its `READY_TIMEOUT`, 120 s (phase 8 `task-22.md:94-95`). Task 21's `fleetbe` already expects Fleet to
    answer first and polls for readiness (`task-21.md:231-233`). So `Launch` commits the row with status
    `starting` and returns `201`; a goroutine does the broker create, the address, the mint and the
    stream. A failure there ends the agent with `exitClass: failed` through the same outbox path, so
@@ -43,16 +43,16 @@ Neither exists on any branch on 2026-09-25; both are **UNVERIFIED until merge**.
    on `store.ErrConflict` it reads the winner and returns it. Two replicas launching at once therefore
    yield one Orchestrator and two identical answers, with no lock.
 4. **The Orchestrator needs its own delegation.** A worker delegation covers worker routes only
-   (`task-01.md:293-297`), and the broker lets only an `orchestrator` delegation create an
+   (`task-01.md:292-298`), and the broker lets only an `orchestrator` delegation create an
    Orchestrator (task 17 decision 5). So a member's first team launch creates the Orchestrator **only
    if** a live `orchestrator`-class delegation for that owner and project is in task 11's cache;
    otherwise the worker launches alone, which task 01 allows ("a worker the member launched with no
-   Orchestrator", `:294`), and the answer says `orchestrator: "awaiting-delegation"`. Who creates that
+   Orchestrator", `:296`), and the answer says `orchestrator: "awaiting-delegation"`. Who creates that
    delegation is *Gap S20-1*.
 5. **The policy is read, never composed, here.** `policy.Store.Effective(ctx, org, project, class)`
    (task 14, `task-14.md:360`) returns the rendered file, version and digest; the file goes into the
    spec's policy field (task 15), the digest into `PANACEA_APP_POLICY_SHA256` (task 13's `EnvDigest`,
-   `task-13.md:133`), and both into the `agents.start` body's `policy` (`task-01.md:350-360`). A render
+   `task-13.md:133`), and both into the `agents.start` body's `policy` (`task-01.md:352-362`). A render
    error fails the launch with `409 policy_invalid` before any sandbox exists.
 6. **Tokens and control secrets are derived or minted, never stored.** The attach and control tokens
    are task 19's HMAC derivation (decision 6 there) with labels `panacea-attach/v1/` and
@@ -64,14 +64,14 @@ Neither exists on any branch on 2026-09-25; both are **UNVERIFIED until merge**.
    `AgentID` the `ag-…`, `SessionClass` the class, `PodAddr` the broker's recorded source (task 17
    decision 9), and for a peer-triggered Orchestrator turn `Counterpart`, the other owner, which phase
    6's `MintRequest` does not have yet (*Gap S20-2*). Route is not sent: keysmith decides it from the
-   project's route source and returns it (`task-03.md:31`).
+   project's route source and returns it (`task-03.md:31-32`).
 8. **AU fails closed, twice.** Keysmith refuses to mint when the AU route is unknown (P6-D5). Fleet
    also reads the project's required route through phase 6's `wire.RouteSource` before minting and
    checks `MintResponse.Route` against it after; a mismatch revokes the key at once and fails the
    session with `gateway_route_mismatch`. There is no retry with different parameters, no Global
    default, and no path in this file that constructs a Global route.
 9. **Revocation can always clean up.** Task 11's feed calls `Revoker.Revoke` on a revoked delegation
-   (`task-11.md:569-582`). By then the broker refuses that delegation, so Fleet could not destroy the
+   (`task-11.md:568-585`). By then the broker refuses that delegation, so Fleet could not destroy the
    pod it made. Task 17 therefore lets `DELETE /v1/sandboxes/{id}` through under a revoked or lapsed
    delegation **for a sandbox labelled with that same `dl-…`** (task 17 decision 6's label) and for
    nothing else: a dead delegation may only undo its own work. `Revoke(…, Revoked)` destroys each of
@@ -333,7 +333,7 @@ records `Send`, and a settable clock. Principals: Alice as `member`, Vic as `vie
 | `TestMintCarriesTheTeamTags` | a worker's first `MintRequest` has `Owner{tid,oid}` of the delegation owner, `TeamID`, `ProjectID`, `AgentID` = the `ag-…`, `SessionClass: worker`, `PodAddr: 10.244.3.17`, `Counterpart: ""` | Fleet's own identity in the tags, or a missing field |
 | `TestEachOrchestratorTurnMintsAFreshKey` | two `turn.begin` pushes through `BeforeTurn`: two mints, generations 1 and 2, each `Send` precedes its turn; a peer-triggered turn carries `Counterpart` = Bob | one key per session for an Orchestrator |
 | `TestLaunchReturnsBeforeTheSandboxIsReady` | the fake broker's create blocks 2 s; `Launch` returns in < 200 ms with status `starting` | the shared-deadline chain |
-| `TestAgentStartIsInTheSameTx` | after `Launch`, the store holds the agent row **and** an outbox row `agents.start` whose payload matches `task-01.md:352-356`'s shape with `policy.version` and `digest` from `Effective`; a `Tx` that fails leaves neither | two writes that can diverge |
+| `TestAgentStartIsInTheSameTx` | after `Launch`, the store holds the agent row **and** an outbox row `agents.start` whose payload matches `task-01.md:354-358`'s shape with `policy.version` and `digest` from `Effective`; a `Tx` that fails leaves neither | two writes that can diverge |
 | `TestOpeningPromptStaysInTheSpec` | args `["-p","PROMPT-MARKER-7"]`: the marker is in the broker's recorded spec and absent from the agent row, the outbox payload, every log line and `AgentJSON` | persisting the private prompt (OD-24) |
 | `TestSpecCarriesNoOrgKey` | the recorded spec's env has no `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN` or `CLAUDE_CODE_USE_BEDROCK`, and `ANTHROPIC_BASE_URL` is the gatekeeper | a key in the environment (§2.5 constraint 9) |
 | `TestRevokeDestroysAndEnds` | `Revoke(dl-a-w, Revoked)`: every sandbox of that delegation destroyed, `RevokeSession` for each, each agent ended `access_removed` with an outbox `agents.end` | stranded pods after a revocation |
@@ -410,7 +410,7 @@ func (s *Sessions) Launch(ctx context.Context, r LaunchRequest) (Launched, error
 
 `s.delegation` reads task 11's cache by `Key{OrgID, Owner, Project, Class}` and requires the cached
 id to equal `r.Delegation`; on a miss it calls `DelegationFetcher` (the delegation was created a moment
-ago by the owner's desktop, task 21, and the feed polls every 10 s, `task-11.md:566-567`) and `Put`s
+ago by the owner's desktop, task 21, and the feed polls every 10 s, `task-11.md:568-570`) and `Put`s
 the answer. `orchestratorFor` calls `EnsureOrchestrator` when an `orchestrator`-class delegation for the
 same key is live, and returns `("", "awaiting-delegation")` when it is not (decision 4).
 `EnsureOrchestrator` is `Launch` with `Class: orchestrator`, `Command: "panacea-orchestrator"` (task
@@ -529,10 +529,10 @@ Expected: no output. Decision 8's "no path in this file constructs a Global rout
 - **Gap S20-1 — the Orchestrator's delegation.** Task 21 creates a `worker` delegation per cockpit
   launch (`task-21.md:440`); nothing in the skeleton or a written part creates the owner's
   `orchestrator`-class delegation, which only the owner's desktop can (route 46 is desk-only,
-  `task-01.md:251`). Until task 21 (or task 52) creates and renews it on a member's first team launch,
+  `task-01.md:253`). Until task 21 (or task 52) creates and renews it on a member's first team launch,
   decision 4's "awaiting-delegation" is the answer and TM1-α has no Orchestrator. **This blocks task 33.**
 - **Gap S20-2 — the counterpart tag.** Phase 6's `MintRequest` has no counterpart
-  (`task-03.md:30`); this task adds `Counterpart` as a phase 6 delta the skeleton's delta table does not
+  (phase 6 `task-03.md:31`); this task adds `Counterpart` as a phase 6 delta the skeleton's delta table does not
   list for task 20, and `Counterparts` needs a producer (task 26's scheduler knows a turn's events; task
   37 owns the per-counterpart budget). Owner `tid`/`oid` for the tags depend on Gap S17-1.
 - **Gap S20-3 — a worker's worktree in the cloud.** The broker requires a machine and the worker needs

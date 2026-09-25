@@ -37,21 +37,21 @@ it is Fleet, not the broker, that mints (S6.5, `:290`; task 20).
    `PANACEA_APP_BROKER_FLEET_CLIENT_ID` and whose `roles` holds `Sandboxes.Fleet`. The built validator
    refuses any token without the required scope (`verify.go:119-121`), so `entra.Config` gains
    `AppCallers []AppCaller` and `Claims` gains `AppOnly bool`. An app-only token matching no entry is
-   refused as before. This mirrors task 01's Hub rule 1 (`task-01.md:114-116`), spelled for the broker.
+   refused as before. This mirrors task 01's Hub rule 1 (`task-01.md:116-119`), spelled for the broker.
    If task 05 lands the same `AppCallers` field first, this task consumes it and adds nothing to
    `entra`.
 2. **Fleet must name a delegation, and nobody else may.** A Fleet request without
    `X-Panacea-Delegation: dl-…` is `401 delegation_required`; a desktop token carrying the header is
-   `403 forbidden` with `details.required = "fleet"`. The same two rules as the Hub's (`task-01.md:118-126`),
+   `403 forbidden` with `details.required = "fleet"`. The same two rules as the Hub's (`task-01.md:120-128`),
    so no client can borrow a delegation from either service.
 3. **The broker verifies the delegation against the Hub, as itself.** It calls `GET
    /v1/delegations/{id}` with its own workload-identity token and caches the answer by id for at most
    `PANACEA_APP_BROKER_DELEGATION_TTL` (default and maximum 60 s). A revoked answer is cached as
    revoked. A Hub error with no cached answer is `503 delegation_unverifiable`: **fail closed**. This
    needs two things task 01 does not give (*Gap S17-1*): the broker as a caller of route 47
-   (`task-01.md:252` lists the owner and Fleet only), and the owner's `tid`/`oid` in the answer,
+   (`task-01.md:254` lists the owner and Fleet only), and the owner's `tid`/`oid` in the answer,
    because the broker's owner label is `sandbox.OwnerLabelValue(tid, oid)` and task 01's delegation
-   carries `ownerUserId` (`u-…`, `:321`).
+   carries `ownerUserId` (`u-…`, `:323`).
 4. **`ownerOf` becomes `principalOf`, still the only place a request becomes an owner.** It returns
    the owner from the token for a desktop, and from the verified delegation for Fleet, plus `via` and
    the `dl-…`. Every route calls it; no route reads an owner, a project or a class from a body.
@@ -60,12 +60,12 @@ it is Fleet, not the broker, that mints (S6.5, `:290`; task 20).
    only the classes the delegation's class covers (task 15's `Spec.Class`): a `worker` delegation
    creates `worker` sandboxes only; an `orchestrator` delegation creates the Orchestrator and the
    workers it spawns (`panacea worker spawn`, task 24), because both act for the same owner and task
-   01 gives the Orchestrator class every route (`task-01.md:293`). Anything else is `403
+   01 gives the Orchestrator class every route (`task-01.md:295`). Anything else is `403
    delegation_class_mismatch`. Fleet may also use `control` and `source`, which a desktop token may not.
    Of P8-19's machine routes (`task-19.md:82-88`) Fleet may call exactly three, owner-scoped as the
    owner's own: `POST /v1/machines/default`, `GET /v1/machines/{id}` and `POST /v1/machines/{id}/wake`,
    because every cloud worker needs the owner's machine (`SandboxSpec.Machine` is required,
-   `task-18.md:57`) and task 20 places a worker on the owner's default one. Creating, sleeping or
+   `task-18.md:59`) and task 20 places a worker on the owner's default one. Creating, sleeping or
    deleting a machine stays the owner's desktop's act; under a delegation those routes are `403 forbidden`.
 6. **Every object Fleet creates is labelled for audit, not for authority.** `panacea-app/via: fleet`,
    `panacea-app/delegation: dl-…` and `panacea-app/project: <id>` join the owner and control-plane
@@ -87,8 +87,8 @@ it is Fleet, not the broker, that mints (S6.5, `:290`; task 20).
    does, to the pod annotation `panacea-app/source-addr`, so both broker replicas and a restarted broker
    agree. `GET /v1/sandboxes/{id}/source` returns it to a Fleet principal; a desktop principal is
    `403`, because P8-18's `Sandbox` "deliberately has no Endpoint: the laptop never learns a pod IP"
-   (`task-18.md:75-76`).
-10. **The audit line names all three.** The request logger's line (`task-17.md:130`, "owner hash")
+   (`task-18.md:77-78`).
+10. **The audit line names all three.** The request logger's line (`task-17.md:245`, "owner hash")
     gains `via` and `delegation`, and for a Fleet principal `owner` is the delegation owner's hash, not
     Fleet's. Fleet's own `oid` is never a label, a selector or an owner.
 11. **A dead delegation may undo its own work, and nothing else.** When a delegation is revoked or
@@ -200,7 +200,7 @@ var ErrNoSuchDelegation = errors.New("broker: no such delegation")
 func principalOf(w http.ResponseWriter, r *http.Request, d serverDeps) (p Principal, ok bool)
 ```
 
-`serverDeps` (`task-17.md:135-139`) gains `Delegations *delegationCache` and `FleetClientID string`.
+`serverDeps` (`task-17.md:253-257`) gains `Delegations *delegationCache` and `FleetClientID string`.
 `delegationCache` wraps a `DelegationSource` with a per-id entry `{d Delegation; err error; at time.Time}`,
 refreshed when `now - at >= TTL`; concurrent misses for one id make one Hub call (`singleflight`-style,
 written by hand with a map of in-flight channels, because `control-plane/go.mod` does not require
@@ -333,7 +333,7 @@ Fleet call is still attributable.
 
 - [ ] **Step 4: The `control` relay (`control.go`)**
 
-The same order as P8-18's attach (`task-18.md:238-249`), dial before upgrade, so every failure is an
+The same order as P8-18's attach (`task-18.md:270-284`), dial before upgrade, so every failure is an
 HTTP status and a problem code:
 
 1. `principalOf`; a principal with `Via != "fleet"` is `403 forbidden`.
@@ -392,8 +392,8 @@ lower number means a row was not written, not that it was skipped: none of them 
   P03 (`2026-09-25-phase-6-gateway.md:276`); if it fails, seam S6.10's client certificate replaces the
   annotation.
 - **Gap S17-1 — the broker as a Hub caller.** Task 01's route 47, `GET /v1/delegations/{id}`, admits
-  "its owner (desk), or Fleet under it" (`task-01.md:252`) and its record names the owner as
-  `ownerUserId` (`:321`). The broker needs to be a third caller of that one route (app-only, role
+  "its owner (desk), or Fleet under it" (`task-01.md:254`) and its record names the owner as
+  `ownerUserId` (`:323`). The broker needs to be a third caller of that one route (app-only, role
   `Hub.DelegationReader`) and needs `ownerTid` and `ownerOid` in the answer to it. Without that the
   broker would have to trust Fleet's statement of whom it acts for, which is the thing P8-D4 exists to
   prevent. Task 01 (contract) and task 06 (the route) should add both; this task's tests run on a
@@ -416,17 +416,26 @@ New configuration (`config.go`, parsed with the rest, a bad value fails start na
 | `PANACEA_APP_BROKER_HUB_URL` | the Hub's base URL; `https` unless loopback. Required when the Fleet client id is set | empty |
 | `PANACEA_APP_BROKER_DELEGATION_TTL` | cache lifetime; > 0 and ≤ 60 s | `60s` |
 
-Routes this task adds to P8-18's table (`task-18.md:118-124`):
+Routes this task adds to P8-18's table (`task-18.md:118-127`):
 
 | Route | Who | Answer |
 |---|---|---|
 | `GET /v1/sandboxes/{id}/control` | Fleet under a delegation | `101`, then frames both ways, copied, never decoded. Before the upgrade, as HTTP: `bad_request` 400 (no `Panacea-Control-Token`) · `forbidden` 403 (a desktop principal) · `sandbox_not_found` 404 (also another owner's or another project's) · `sandbox_not_running` 409 · `control_rejected` 403 (`sandboxd` said 401 or 403) · `backend_unavailable` 503 |
 | `GET /v1/sandboxes/{id}/source` | Fleet under a delegation | `200` + `SourceAddr` · `forbidden` 403 (desktop) · `sandbox_not_found` 404 · `sandbox_not_running` 409 (not yet ready: no annotation) |
 
-Both are `GET`s that change nothing, so P8-17's `TestNoRouteIsASideEffectingGet` (`task-17.md:187`)
-gains them in its read list. The four existing sandbox routes keep their answers; under a delegation
-they add `delegation_required` 401, `delegation_revoked` 401, `delegation_expired` 401,
-`delegation_unverifiable` 503 and, on create only, `delegation_class_mismatch` 403.
+Both are `GET`s that change nothing, so P8-17's `TestNoRouteIsASideEffectingGet` (`task-17.md:313`)
+gains them in its read list. The four existing sandbox routes (create, list, get, delete) keep their
+answers; under a delegation they add `delegation_required` 401, `delegation_revoked` 401,
+`delegation_expired` 401, `delegation_unverifiable` 503 and, on create only,
+`delegation_class_mismatch` 403. Attach under a delegation is decision 8's.
+
+**Gap S17-3 — the sandbox git route postdates this part.** P8-18's table now holds
+`POST /v1/sandboxes/{id}/git/v1/{op}` (env R4 ruling 1, `task-18.md:127`). Its handler answers
+`403 forbidden` when `principalOf` returns `Via == "fleet"`, as the machine handlers outside decision
+5's three do, until task 20's *Gap S20-3* decides how a cloud worker's lane comes back. Step 1 gains
+the row `TestFleetMayNotUseSandboxGit` (a delegated `POST …/git/v1/fetch` is 403 and the fake
+`sandboxd` sees nothing; kills a git handler that skips the `Via` check). Failing closed costs nothing
+TM1-α needs.
 
 Consumes: P8-17's `newServer`, `serverDeps`, `ownerOf`; P8-18's katabe `Attach` path and
 `proxy.RelayHooked` (`control-plane/internal/proxy/proxy.go:38`, built); `sandbox.OwnerLabelValue`
