@@ -435,3 +435,81 @@ describe("ViewHeader", () => {
   });
 });
 ```
+
+#### Tests to write first — `desktop/src/styles/designsystem.test.ts`
+
+Four predicates in the file's own shape (`(t: Tree) => string[]`, each offender
+`` `${file}  ${selector}` ``), inserted before the canaries at `:725`, so every one can be handed
+the fault it exists to catch. Part 1, the header rule and the chrome inks:
+
+```ts
+/* ── task 31: one view header, and chrome.dim (02 C5) ───────────────────────────────── */
+const VIEW_HEADER = "src/components/common/ViewHeader.tsx";
+const VIEW_HEADER_CSS = "src/components/common/viewheader.css";
+const RAIL_CSS = "src/components/rail/rail.css";
+const SUBRAIL_CSS = "src/components/subrail/subrail.css";
+const CHROME = [RAIL_CSS, SUBRAIL_CSS] as const;
+const OLD_LOOK = ':root[data-look="old"]';
+const CURRENT_ITEM = /\[aria-selected="true"\]|\[aria-current="page"\]/;
+/** app.css's zero-specificity reset names h1 and is not a header. */
+const HEADING_RESET = ":where(h1, h2, h3)";
+
+const last = <T,>(list: readonly T[]): T | undefined => list[list.length - 1];
+
+/** The top-level rules (inside no at-rule) whose selector list names `selector`. */
+function topRules(css: string, selector: string): Rule[] {
+  return rulesOf(css).filter(
+    (r) => r.within.length === 0 && r.selector.split(",").map((s) => s.trim()).includes(selector),
+  );
+}
+
+/** The value `property` ends with across those rules, as the cascade would resolve it. */
+function finalValue(css: string, selector: string, property: string): string | undefined {
+  const decls = topRules(css, selector).flatMap((r) => r.decls.filter((d) => d.property === property));
+  return last(decls)?.value;
+}
+
+/** A second header pattern anywhere: an h1, a level-1 heading role, a *-view-title class. */
+function secondHeaders(t: Tree): string[] {
+  const out: string[] = [];
+  for (const f of t.ts) {
+    if (f === VIEW_HEADER) continue;
+    const src = t.read(f);
+    if (/<h1[\s>]/.test(src)) out.push(`${f}  <h1>`);
+    if (/aria-level=\{?["']?1\b/.test(src)) out.push(`${f}  aria-level 1`);
+    if (/[\w-]*view-title\b/.test(src)) out.push(`${f}  *-view-title`);
+  }
+  for (const f of t.css) {
+    if (f === VIEW_HEADER_CSS) continue;
+    for (const r of rulesOf(t.read(f))) {
+      if (r.selector === HEADING_RESET) continue;
+      if (/(?:^|[\s,>+~(])h1\b|view-title\b/.test(r.selector)) out.push(`${f}  ${r.selector}`);
+    }
+  }
+  return out;
+}
+
+/** 02 C5: labels at --ink-2, icons at --ink-3, the current item at --ink. */
+const CHROME_INK: ReadonlyArray<{ file: string; selector: string; ink: string }> = [
+  { file: RAIL_CSS, selector: ".rail-row", ink: "var(--ink-2)" },
+  { file: RAIL_CSS, selector: ".rail-machine", ink: "var(--ink-2)" },
+  { file: RAIL_CSS, selector: ".rail-footer", ink: "var(--ink-2)" },
+  { file: RAIL_CSS, selector: ".rail-add", ink: "var(--ink-2)" },
+  { file: RAIL_CSS, selector: ".rail-chev", ink: "var(--ink-3)" },
+  { file: SUBRAIL_CSS, selector: ".sub-row", ink: "var(--ink-2)" },
+  { file: SUBRAIL_CSS, selector: ".sub-back", ink: "var(--ink-2)" },
+  { file: SUBRAIL_CSS, selector: ".sub-branch", ink: "var(--ink-2)" },
+  { file: SUBRAIL_CSS, selector: ".sub-glyph", ink: "var(--ink-3)" },
+  { file: RAIL_CSS, selector: '.rail-row[aria-selected="true"]', ink: "var(--ink)" },
+  { file: SUBRAIL_CSS, selector: '.sub-row[aria-current="page"]', ink: "var(--ink)" },
+];
+
+function chromeInk(t: Tree): string[] {
+  return CHROME_INK.filter(({ file, selector, ink }) => finalValue(t.read(file), selector, "color") !== ink)
+    .map(({ file, selector }) => `${file}  ${selector}`);
+}
+```
+
+`finalValue` takes the **last** matching declaration because that is what the cascade does
+between rules of equal specificity; a rule appended later that brightens a label is what the
+canary plants, and a predicate that read the first one would pass it.
