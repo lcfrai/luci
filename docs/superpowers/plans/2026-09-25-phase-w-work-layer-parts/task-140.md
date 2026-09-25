@@ -76,3 +76,134 @@ Closes **L-82**'s W4 half (*"propose issues, one per open criterion"*; Discover'
 9. **Solo mode.** The assist client makes the cycle proposal. 05 §1's *"the user's Orchestrator
    proposes"* needs team mode, and this row has no TM dependency, so the Orchestrator path is
    **UNVERIFIED** here and not built.
+
+**Files:**
+
+- `control-plane/internal/workassist/propose_issues.go` — `ProposeIssues`, `uncovered` (new)
+- `control-plane/internal/workassist/propose_cycle.go` — `ProposeCycle`, the candidate read, grouping (new)
+- `control-plane/internal/workassist/{propose_issues,propose_cycle}_test.go`, `testdata/propose/*.json` (new)
+- `control-plane/internal/api/workassist.go` ⚑ (task 136) — two routes (modified)
+- `control-plane/internal/api/routes_audit_test.go` ⚑ — the two patterns (modified)
+- `desktop/src/api/work.ts` ⚑ — the wire types and two calls (modified)
+- `desktop/src/work/proposals.ts` — `ProposedIssueDraft` encode and decode, the cycle proposal source (new)
+- `desktop/src/components/plan/ProposeIssues.tsx` — the cards, accept, accept all (new)
+- `desktop/src/components/plan/CycleProposal.tsx` — the grouped proposal and its accept (new)
+- `desktop/src/components/plan/CycleView.tsx` ⚑ (task 87) — *Propose the next cycle* (modified)
+- `desktop/src/components/desk/deskRows.tsx` ⚑ (task 62) — registers `cycle.proposal` (modified)
+- `desktop/src/work/drafts.ts` ⚑ (task 92) — recognises a proposal draft (modified; not in the scope's list)
+- `desktop/src/components/plan/proposals.test.tsx` — the desktop tests (new)
+
+#### Interfaces — complete: `control-plane/internal/workassist/propose_issues.go`
+
+```go
+package workassist
+
+import (
+	"context"
+	"encoding/json"
+	"strconv"
+	"strings"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubapi"
+)
+
+// ProposeIssuesRequest is POST /v1/work/assist/propose-issues's body.
+type ProposeIssuesRequest struct {
+	FeatureID string `json:"featureId"`
+}
+
+// ProposedIssue is one draft for one uncovered criterion. Title and
+// Description are always author "A"; Serves is set by code (decision 2).
+type ProposedIssue struct {
+	Criterion   UncoveredCriterion  `json:"criterion"`
+	Title       hubapi.AuthoredText `json:"title"`
+	Description hubapi.AuthoredText `json:"description"`
+	Serves      []hubapi.Serve      `json:"serves"` // exactly one: {briefKey, criterion.id}
+}
+
+// UncoveredCriterion is a criterion of the branch brief's head no readable,
+// non-cancelled issue serves (decision 1).
+type UncoveredCriterion struct {
+	BriefKey string `json:"briefKey"` // brief:bf-…@r, the head the check read
+	ID       string `json:"id"`       // phase 4's c-…
+	Label    string `json:"label"`    // "C3", its position in the brief, display only
+	Text     string `json:"text"`     // the criterion's words, as the brief has them
+}
+
+// ProposeIssuesResponse lists one proposal per answered criterion and names
+// the criteria the model left unanswered.
+type ProposeIssuesResponse struct {
+	FeatureID string               `json:"featureId"`
+	Uncovered []UncoveredCriterion `json:"uncovered"` // every uncovered criterion, never null
+	Proposals []ProposedIssue      `json:"proposals"` // at most one per uncovered criterion
+	Missing   []string             `json:"missing"`   // criterion ids with no proposal
+	Route     string               `json:"route"`
+}
+
+const proposeIssuesSystem = `You draft one work item for each acceptance criterion given.
+Each criterion has a key like k1. For each, write a short title (under 80 characters) and a
+description of the work needed to meet it. Do not merge criteria. Do not add criteria.
+Answer with JSON only: {"items":[{"key":"k1","title":"…","description":"…"}]}.`
+
+// ProposeIssues finds the uncovered criteria and asks for one draft each. With
+// none uncovered it makes no call.
+func (s *Service) ProposeIssues(ctx context.Context, projectID string, req ProposeIssuesRequest) (ProposeIssuesResponse, error) {
+	unc, err := s.uncovered(ctx, projectID, req.FeatureID)
+	if err != nil {
+		return ProposeIssuesResponse{}, err
+	}
+	out := ProposeIssuesResponse{FeatureID: req.FeatureID, Uncovered: unc, Proposals: []ProposedIssue{}, Missing: []string{}}
+	if len(unc) == 0 {
+		return out, nil
+	}
+	byKey := make(map[string]UncoveredCriterion, len(unc))
+	type pc struct{ Key, Criterion string }
+	in := make([]pc, 0, len(unc))
+	for i, c := range unc {
+		k := "k" + strconv.Itoa(i+1)
+		byKey[k] = c
+		in = append(in, pc{Key: k, Criterion: c.Text})
+	}
+	user, _ := json.Marshal(map[string]any{"criteria": in})
+	reply, err := s.Complete(ctx, projectID, Call{System: proposeIssuesSystem, User: string(user), MaxTokens: 400 * len(unc)})
+	if err != nil {
+		return ProposeIssuesResponse{}, err
+	}
+	out.Route = string(reply.Route)
+	var raw struct {
+		Items []struct{ Key, Title, Description string } `json:"items"`
+	}
+	_ = json.Unmarshal([]byte(strings.TrimSpace(reply.Text)), &raw) // unparseable: every criterion missing
+	done := map[string]bool{}
+	for _, it := range raw.Items {
+		c, ok := byKey[it.Key]
+		title := strings.TrimSpace(it.Title)
+		if !ok || done[it.Key] || title == "" || len(title) > 200 {
+			continue // decision 2: unknown key, second answer, or no usable title
+		}
+		done[it.Key] = true
+		out.Proposals = append(out.Proposals, ProposedIssue{Criterion: c,
+			Title:       hubapi.AuthoredText{Text: title, Author: "A"},
+			Description: hubapi.AuthoredText{Text: strings.TrimSpace(it.Description), Author: "A"},
+			Serves:      []hubapi.Serve{{BriefKey: c.BriefKey, CriterionID: c.ID}}})
+	}
+	for i, c := range unc {
+		if !done["k"+strconv.Itoa(i+1)] {
+			out.Missing = append(out.Missing, c.ID)
+		}
+	}
+	return out, nil
+}
+```
+
+`uncovered` reads the feature (task 76's head, its branch brief id; **UNVERIFIED** field name, the
+same gap task 127 names), the brief head through `hubclient.Brief(ctx, briefID)`
+(`.claude/worktrees/hub/control-plane/internal/hub/hubclient/hubclient.go:57`, `BriefWithRevision`,
+`hubapi/types.go:167-180`), decodes `Revision.Content`'s criteria with phase 4's `Criterion{ID,
+Text}` decoder (P4 task 03, **UNVERIFIED until merge**, rule H2), and lists the project's issues
+through the relay as the caller (task 72's issue list with a `serves` filter, **UNVERIFIED** method
+name). A criterion is kept when no listed issue in a state other than `cancelled` has a `Serve`
+whose `CriterionID` equals its id **and** whose `BriefKey` names the same brief at any revision
+(an issue serving `@5` still covers the criterion at `@6` when the id is unchanged; a drifted
+criterion is task 10's `drifting`, not *uncovered*). An erased brief revision (`Content` null) gives
+no criteria and no call.
