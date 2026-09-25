@@ -85,3 +85,33 @@ func TestTokensDiffer(t *testing.T) {
 		t.Fatalf("two Token() calls returned the same secret %q", a)
 	}
 }
+
+// Hub contract §3.1: every Hub id is prefix + "-" + 16 lowercase hex. The Hub's
+// Postgres CHECKs and hubapi.ValidID hold it to exactly that shape, so a Wide
+// that reused New's 4 bytes, or wrote uppercase hex, would mint ids the Hub
+// then refuses as malformed.
+var widePattern = regexp.MustCompile(`^bf-[0-9a-f]{16}$`)
+
+func TestWideIsThePrefixAndSixteenLowercaseHex(t *testing.T) {
+	for i := 0; i < 1000; i++ {
+		if got := ids.Wide("bf"); !widePattern.MatchString(got) {
+			t.Fatalf("Wide(%q) = %q, want the shape bf-3f2a91c07b1e4d2a", "bf", got)
+		}
+	}
+}
+
+// Wide ids are shared across every user of the Hub, so they are drawn from 64
+// bits of crypto/rand. 100,000 draws collide with probability about
+// 1e10/2/2^64, i.e. 3 in 10^10. A time-seeded generator collides inside the
+// first few calls on Windows, where the clock granularity is ~15 ms.
+func TestWideDoesNotCollideOnFastSuccessiveCalls(t *testing.T) {
+	const draws = 100_000
+	seen := make(map[string]struct{}, draws)
+	for i := 0; i < draws; i++ {
+		id := ids.Wide("bf")
+		if _, dup := seen[id]; dup {
+			t.Fatalf("Wide collided at draw %d: %q", i, id)
+		}
+		seen[id] = struct{}{}
+	}
+}

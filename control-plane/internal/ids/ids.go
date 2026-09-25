@@ -53,3 +53,15 @@ func UUID() string {
 	h := hex.EncodeToString(b)
 	return h[0:8] + "-" + h[8:12] + "-" + h[12:16] + "-" + h[16:20] + "-" + h[20:32]
 }
+
+// Wide returns prefix + "-" + 16 random lowercase hex characters, e.g.
+// "bf-3f2a91c07b1e4d2a". It is for ids shared across every user of the Hub,
+// where New's 32 bits would collide: the Hub also retries once on a unique
+// violation, so a collision costs a retry, never a wrong row.
+func Wide(prefix string) string {
+	b := make([]byte, 8)
+	if _, err := rand.Read(b); err != nil {
+		panic("ids: crypto/rand failed: " + err.Error())
+	}
+	return prefix + "-" + hex.EncodeToString(b)
+}
