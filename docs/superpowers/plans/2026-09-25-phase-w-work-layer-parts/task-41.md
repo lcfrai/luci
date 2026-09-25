@@ -316,3 +316,67 @@ export function GhostRow(props: { alias: string; why: string }): JSX.Element {
 }
 ```
 
+#### Interfaces — complete: `desktop/src/work/listKeys.ts` (new; shared by tasks 41, 42 and 44)
+
+```ts
+// desktop/src/work/listKeys.ts — task 41. The one test every list-element key handler runs first,
+// until task 53 folds the handlers into KEYMAP. A key typed into a field is the field's.
+export function isTextTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable || target.closest("[contenteditable='true'],[contenteditable='']")) return true;
+  return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement;
+}
+
+/** A bare letter or digit on a list: no Ctrl, Meta or Alt, and not in a field. Shift is the
+ *  caller's to test, by `event.code` (Global constraints, Keys). */
+export function isBareListKey(e: { target: EventTarget | null; ctrlKey: boolean; metaKey: boolean; altKey: boolean }): boolean {
+  return !e.ctrlKey && !e.metaKey && !e.altKey && !isTextTarget(e.target);
+}
+```
+
+#### The edits to task 40's files (props and behaviour; task 40's part owns the rest)
+
+- **`WorkLens.tsx`.** Holds `const [hold, setHold] = useState(() => initialHold(grouped))` and
+  `const [attention, setAttention] = useState<Attention>({ groupKey: null })`. An effect on
+  `[grouped, attention.groupKey]` runs `setHold((h) => reconcile(h, grouped, attention))`.
+  `grouped` must be referentially stable between replica changes (task 40's selector memoises it
+  on the replica's version); an unstable `grouped` re-runs the effect every render, and test 9
+  below fails on it. The list element gets
+  `onKeyDown={(e) => { if (e.code === "KeyN" && !e.shiftKey && isBareListKey(e)) { e.preventDefault(); setHold((h) => applyHeld(h, grouped)); } }}`.
+  The lens renders from `hold.shown`, never from `grouped` directly.
+- **`CriterionGroup.tsx`** gains `group: ShownGroup`, `flash: boolean` (its key is in
+  `hold.flash.groups`), `flashSeq: number`, `onApply(): void` and `onAttention(key: string | null)`.
+  It renders `<HeldLine count={group.arrivals} onApply={onApply}/>` first, then each `ShownRow`
+  (`GhostRow` for a ghost), and its header's size from `groupSize(group)` in a `.wk-count` span
+  with `tabular-nums`. The header carries `data-flash={flash ? flashSeq : undefined}`.
+- **`IssueRow.tsx`** gains `cause: string | null`, `flash: boolean` and `flashSeq: number`. It sets
+  `data-changed="unseen"` when `cause !== null`, `data-flash` like the header, and renders the
+  cause under the title in a `.wk-cause` line in Commit Mono at `--t-fact`. Its `StateGlyph` takes
+  `row.state`, the new state, at once.
+
+#### `work.css`, appended (the `.wk-` prefix is task 40's)
+
+```css
+/* task 41 — held changes. No layout property animates; the flash is opacity on a pseudo-element. */
+.wk-held { display: flex; align-items: center; gap: var(--s-3); min-block-size: var(--row-h);
+  padding-inline: var(--s-3); color: var(--ink-2); font-size: var(--t-ui); }
+.wk-held-words { flex: 1; }
+.wk-held-apply { color: var(--ink); }
+.wk-ghost { display: flex; justify-content: space-between; align-items: center; min-block-size: var(--row-h);
+  padding-inline: var(--s-3); color: var(--ink-2); font-size: var(--t-ui); }
+.wk-cause { font-family: var(--mono); font-size: var(--t-fact); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.wk-row[data-flash], .wk-group-head[data-flash] { position: relative; }
+.wk-row[data-flash]::after, .wk-group-head[data-flash]::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
+  background: var(--accent-ring); opacity: 0; animation: wk-flash var(--dur-flash) var(--ease) 1;
+}
+@keyframes wk-flash { from { opacity: 1; } to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .wk-row[data-flash]::after, .wk-group-head[data-flash]::after { animation: none; } }
+:root[data-motion="reduce"] .wk-row[data-flash]::after, :root[data-motion="reduce"] .wk-group-head[data-flash]::after { animation: none; }
+```
+
+`--accent-ring`, `--ease`, `--ink-2`, `--t-ui` and `--s-3` are the built tokens and task 26's; the
+class names `.wk-row` and `.wk-group-head` are task 40's (**UNVERIFIED** until its part exists: its
+file was not on the tree at this writing, so the names here are this task's proposal and task 40's
+part wins). The reduced-motion rule is written twice, task 36's decision 6.
+
