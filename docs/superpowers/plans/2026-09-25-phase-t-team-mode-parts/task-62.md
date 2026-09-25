@@ -224,7 +224,7 @@ in `rules.go` over it.
 |---|---|---|---|
 | `counter` | `thread`, `proposal` (a live `propose`·`counter` of this thread by the **other** side), `resolution` | `to`, `subject`, `inReplyTo` | optional rationale, ≤ 600 |
 | `split` | `sides`: exactly the two participants as keys, each 1 to `MaxGlobs` globs, each `ValidGlob`; a conflict thread | `globs`, `first`, `paths`, `base` | — |
-| `build-on` | `base`: a participant; a conflict thread whose base-side party has a lane (task 20's agent record has `laneRef`) | `globs`, `first`, `paths`, `sides` | — |
+| `build-on` | `base`: a participant; a conflict thread whose base-side party has a lane (a non-empty `Agent.LaneRef`, `task-03.md:560`) | `globs`, `first`, `paths`, `sides` | — |
 
 New codes, joining task 09's ST.1 list: `split_not_a_partition` (details: `paths`, the uncovered
 or doubly-covered ones), `build_on_no_lane`, `counter_own_proposal`. `resolution_not_held` and
@@ -256,3 +256,62 @@ lane's mirror tip still descends from `BaseTip` (else `resolution_stale`: the ba
 rewritten); (2) `Bring(builderOwner, project, builderWorker's worktree, BuildOnRef(thread),
 mergeBase, BaseTip)`; (3) one `land_hints` row `first = Base`, `second = Builder`, `first_task` the
 base party's task; (4) conflict → `resolved`, resolution `build-on`; (5) `Outcome.BuildOn`.
+
+**The build-on decide** (task 30's `options.go`, one row added to its table at `task-30.md:414-418`):
+
+| Decide | Asked | Option 0 (default) | Option 1 | Option 2 |
+|---|---|---|---|---|
+| **Build on** (`AcceptNeedsDecision`, row `build-on`) | the builder's human | *Hold: nothing is brought in* · `hold` | *Bring <other>'s lane into <worker>* · `apply-proposal` — **offered only when `AgentConfigKnown`** | *Do not build on it* · `decline-proposal` |
+
+The question, Fleet's template, ≤ 300 runes, from typed fields only: *"<other>'s orchestrator and
+yours agreed that your worker <ag-…> builds on <other>'s lane <wt-…> at <sha7>. It changes N
+agent-config files, listed below."* With `AgentConfigKnown` false: *"… The agent-config files it
+changes could not be listed, so it cannot be applied from here."* N = 0 says *"It changes no
+agent-config files."* The lines themselves go in the record's new `agentConfig` field, one entry
+per path, never folded into the question, so each renders on its own line (task 54's NEEDS YOU
+row) and no path is truncated.
+
+**Hub delta: `agentConfig` on a decide** (task 03's `team.go`, task 07's route 64, a migration
+after task 04's; this plan's own Hub code, after `feat/hub`'s sync-merge):
+
+```go
+// control-plane/internal/hub/hubapi/team.go (modify)
+
+// EscalationPath is one agent-config line of a Fleet-written decide.
+type EscalationPath struct {
+	Path    string   `json:"path"`              // teamtext.ValidPath, ≤ 200
+	Kind    string   `json:"kind"`              // instructions | agent-settings | git-hooks | package-scripts
+	Status  string   `json:"status"`            // A | M | D
+	Members []string `json:"members,omitempty"` // package-scripts only; each of task 49's four
+}
+
+// CreateEscalationRequest gains (after Deadline):
+//	AgentConfig []EscalationPath `json:"agentConfig,omitempty"` // ≤ 50; decide only; Fleet only
+// Escalation gains:
+//	AgentConfig []EscalationPath `json:"agentConfig"` // [] never null
+
+const DirectiveBuildOn DirectiveKind = "build-on" // CreateDirectiveRequest gains Ref *string `json:"ref,omitempty"`
+```
+
+Route 64 refuses `agentConfig` when `fromAgentId` is present (an Orchestrator cannot author the
+lines a human reads as Fleet's), on an `inform`, past 50 entries, or with a bad path, kind or
+status: 400 `bad_request`, `field: "agentConfig"`. The migration:
+
+```sql
+ALTER TABLE team_escalations ADD COLUMN IF NOT EXISTS agent_config jsonb NOT NULL DEFAULT '[]'
+  CHECK (jsonb_typeof(agent_config) = 'array' AND jsonb_array_length(agent_config) <= 50);
+ALTER TABLE team_directives ADD COLUMN IF NOT EXISTS ref text
+  CHECK (ref IS NULL OR ref LIKE 'refs/panacea/build-on/th-%');
+```
+
+The table names are task 04's as written in its part (**UNVERIFIED**: task 04's part is not on
+disk as this is written; the builder uses whatever task 04 named them). The `kind` CHECK on
+directives, if task 04 has one, gains `'build-on'`.
+
+**The directive.** `panacea direct <ag-…> build-on --ref refs/panacea/build-on/<th-…>` (task 18's
+CLI, task 31's `DirectArgs` gains `Ref string` for this kind only). Task 31's handler admits it,
+from either turn origin, iff an applied `Outcome.BuildOn` has `Worker == To` and `Ref == Ref`
+and the caller is `Outcome.BuildOn.Builder`; otherwise `bad_request`. It is typed, so it passes
+the taint rule the way `narrow` does (`task-31.md:473`). The worker's instructions (task 41's
+`worker-cloud.md`) gain one fixed paragraph: *merge the named ref into your branch with `git
+merge --no-ff`, run the project's checks, and report* — the worker's own act in its own clone.
