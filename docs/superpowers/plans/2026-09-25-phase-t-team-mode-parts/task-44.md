@@ -299,3 +299,51 @@ func (r Revoker) Resume(context.Context, delegation.Delegation) error { return n
 
 The fan-out tries every effect whichever fails (`task-12.md:984-991`), so a lease error does not
 stop the sessions half, and the feed retries the whole act (`task-11.md:693-700`).
+
+#### Tests first
+
+The people are the design's: Grace (admin), Linus and Margaret (members), Vera (viewer), in team T
+with team project P and solo project S. The Hub tests run on Hub task 06's integration harness
+(`-tags integration`, a real Postgres); the Fleet unit tests on task 10's fake store; the chain test
+on both.
+
+**Hub, `server/leaver_integration_test.go`:**
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestRemovalRevokesInTheSameTransaction` | Linus has a worker and an orchestrator delegation on P; Grace removes him (route 9) → both `revokedAt` = the removal's `at`, `revokedReason = "member_removed"`; the audit holds `team.member_removed` and two `delegation.revoked` with consecutive `seq` | revocation in a second transaction |
+| `TestRemovalRollsBackAsOne` | a test hook fails the second `delegation.revoked` insert → Linus is still a member **and** both delegations are live | removal committed without its revocations |
+| `TestRemovalRevokesOnlyThatTeamsProjects` | Linus also owns a delegation in team U's project → it stays live | `WHERE` without `p.team_id` |
+| `TestSelfRemovalRevokes` | Linus removes himself (route 9's "or self") → same result as Grace removing him | only the admin path calls `RevokeForLeaver` |
+| `TestDowngradeToViewerRevokes` | Grace sets Linus to `viewer` (route 8) → both revoked, `member_removed`; the audit holds `team.member_set {"role":"viewer"}` and **no** `team.member_removed` | viewers keep acting agents; or a false removal event |
+| `TestUpgradeDoesNotRevoke` | Vera set to `member` → no `delegation.revoked` | every role write revokes |
+| `TestRemovalOfANonOwnerEmitsNoRevocation` | Margaret, who owns none, removed → zero `delegation.revoked` | an empty `RETURNING` still emitting |
+| `TestRenewalOfADisabledAccountRevokes` | check `fake`; `Disable(linus.oid)`; Linus renews (route 48) → 403 `account_disabled`, and **after the response** every live delegation he owns, in any team, is `account_disabled` | the 403 built with `Refuse`, so the revocations roll back |
+| `TestRenewalWhenTheDirectoryCannotTell` | `Fail = errors.New("429")` → 200, renewed, zero revocations | an outage revoking the org |
+| `TestUnknownAccountIsDisabled` | `Forget(linus.oid)` → 403 `account_disabled` | 404 read as "enabled" |
+| `TestCheckOffNeverCalls` | check `off` → `Calls == 0`, renewal 200 | the check running when off |
+| `TestSweepRevokesAndIsSingleReplica` | two `SweepAccountsOnce` at once, Linus disabled → total `revoked` = 2, one pair of events; a third round → 0 | two replicas double-sweeping; a non-idempotent sweep |
+| `TestSweepSkipsTheLapsed` | Linus's delegations past `expiresAt` → not listed by `LiveOwners`, no Graph call | the sweep asking about people who already cannot act |
+
+**Fleet, `leases/revoke_test.go`:**
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestRevokeWithdrawsEveryLeaseOfTheDelegation` | two agents under `dl-a`, one under `dl-b` → `Revoke(dl-a, Revoked)` releases the first two agents' leases, not the third's; `lease.released` in the outbox for each | matching by owner, so a second delegation's agents lose theirs |
+| `TestLapseAlsoWithdraws` | `Revoke(dl-a, Lapsed)` → the same releases | leases kept while the owner cannot act |
+| `TestRevokeIsIdempotent` | a second call → zero releases, `nil` | an error on "nothing to release", which would loop the feed |
+| `TestResumeRestoresNothing` | `Revoke` then `Resume` → the leases stay `released`; the agent's next `Request` re-runs the overlap check against Margaret's lease and comes back `contested` | a resumed agent silently re-granted over a teammate |
+
+**The chain, `fleet/e2e/leaver_integration_test.go`** (build tag `integration`; the real Hub
+in process on Hub task 34's harness; Fleet's real `delegation.Feed`, `Cache`, `fanout`,
+`sessions.Sessions`, `leases.Engine` and `attach.Relay` on task 10's Postgres store; task 20's
+broker fake; one `fakeClock` driving the feed ticker and Fleet's clocks):
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestRemovalStopsEverythingWithinSixtySeconds` | Linus's worker running, a hold on `src/**`, a viewer socket open; Grace removes him through route 9 at `t0`; the clock advances in 1 s steps → by `t0 + 60 s`: the broker sandbox destroyed, the agent's exit `access_removed`, the lease `released`, the socket closed with task 39's close code, and the Hub's projection shows `agent.ended {"exit":"access_removed"}`; the measured lag is ≤ `PollEvery` + one fan-out (`task-11.md:568-570`) | any effect missing from the fan-out; the Hub's removal not reaching the feed |
+| `TestLapsePausesAndWithdrawsThenResumes` | no renewal for 24 h + 1 s → sessions paused (not destroyed), leases released, sockets closed; Linus renews (route 48) → the next poll resumes the session and the hold is not re-granted until asked | a lapse treated as a removal; a lapse that never resumes |
+| `TestDisabledAccountChain` | check `fake`, Linus disabled, his desktop renews → 403; within 60 s the same effects as a removal | the renewal check not reaching Fleet |
+
+The conformance row `team-feed/member-removed-revokes` (`task-08.md:343`) now runs against the real
+Hub: its `t.Skip("task 44")` is deleted, and the run has zero `--- SKIP` lines in the team groups.
