@@ -648,7 +648,7 @@ task 27's file, **UNVERIFIED until merge**; two routes added beside `POST
 additive column in this plan's W1 migration, `issues.head_title text` (the head revision's title,
 kept in step by task 09's revision write, the only text outside `canonical`), with 07's
 `hub.erase_issue` extended to blank it. **Erase** follows hub-contract §7.12's brief erase
-(:1113-1128) exactly: `POST /v1/issues/{issueId}/erase` and `POST /v1/comments/{commentId}/erase`,
+(:1115-1127) exactly: `POST /v1/issues/{issueId}/erase` and `POST /v1/comments/{commentId}/erase`,
 body `{"reason"}` 1-500 characters, org admin only (07's rows: 403 for every team role), 404
 `issue_not_found` / `comment_not_found` outside the admin's org; in one transaction through the
 owner functions of task 07 — an issue's erase removes every revision's `canonical`, `head_title`,
@@ -679,5 +679,45 @@ never matches, and `EP-142` returns issue 142 first. It **does not claim** reque
 146), blob deletion, or the replica's erase handling (task 57). Parity rows served: **L-106** (the
 Hub half of search and jump; closed with task 58), **L-239** (the erase is audited with its reason);
 05 §3.6's erase has no L row of its own.
+
+**15 — the import route: a normalised batch into `triage`, *not tied · imported*.** W1, stream
+WH, seam **SW.6** (the import batch: one normalised item per external issue, idempotent by
+`(source, externalId)`; consumed by task 25's adapters, task 69's dialog and W5's sync, 150-153);
+depends on 11 (labels and the policy it must override). Files: new `store/work_imports.go`,
+`server/work_imports.go`, `server/work_imports_integration_test.go`; `hubapi/work.go` gains,
+additively, `ImportResult.unmatchedLabels []string` and `ImportItem.authorName` if task 03 did not
+declare them. Route: `POST /v1/projects/{projectId}/imports` (`ImportBatch{source, items}` →
+`ImportResult{created []IssueRef, existing []IssueRef, unmatchedLabels []string}`), member role
+(07's row). **SW.6, fixed here:** `source` is `linear` or `csv` in W1 (W5 adds `jira`,
+`azure_boards`, `github`); 1 to 500 items per call (the control plane pages, task 25); each
+`ImportItem{externalId (1-200 chars), url (https or empty), title (≤ 200), description (≤ 16 KiB),
+priority (hubapi.Priority, already mapped by the adapter), labels []string (names), authorName,
+createdAt}`; idempotency is per project by `(source, externalId)`, enforced by 06's partial unique
+index, so a re-run returns the same issue ids under `existing` and writes nothing for them. **What an
+import creates:** every new issue lands in **`triage`** whatever the team's `defaultState` (L-9's
+"intake always lands in triage"), with `threadState {not_tied, imported}` (05 §2.3 point 4: sync does
+not cut the thread), `source: intake`, `external {source, externalId, url}`, the next project
+number, revision 1 with both texts `author: "H"` and the original author's name kept as
+`external.authorName` (display text, erasable, never a user id), and `createdBy` the person who ran
+the import. Label names match the team's unarchived labels case-insensitively; an unmatched name is
+**reported** in `unmatchedLabels` and never created, because creating a label is an admin write
+(07's row) and an import is a member's. The external state is **not** imported (every item is
+un-triaged here); comments, attachments and relations are not imported in W1, so L-220 stays
+PARTIAL and the part says so. The batch is **all or nothing** for its new items, as the Hub's brief
+batch (hub-contract's H3 row, :2250): one invalid item writes none of them, and the error names
+`items[n].field`. Each created issue appends its own `issue.created` event (13's kinds); an item
+already present appends none. **Tests**, each with its mutant: the same 3-item batch twice gives 3
+created, then 3 existing and zero new events (kills a non-idempotent import); a batch whose item 3
+has a 201-character title writes nothing and names `items[2].title` (kills a partial import);
+imported issues sit in `triage` under a policy whose default is `todo` (kills intake using the
+default); each reads `not_tied · imported` (kills an import that silently claims the thread); a
+member's batch naming label `Infra`, absent from the team, creates no label and returns it in
+`unmatchedLabels` (kills a member creating labels through import); a `javascript:` or `http:` URL
+is 400 naming `items[0].url` (kills a link the issue view would render unsafely); 501 items is 400;
+a viewer is 403; the same `externalId` imported into a second project creates a second issue there
+(the scope is per project, stated in the part). It **does not claim** the Linear API pager or the CSV
+parser (task 25), the dialog (69), or two-way sync (W5, which never writes a fact state or `done`).
+Parity rows served: **L-220** (importers: Linear and CSV into `triage`, PARTIAL; closed with tasks 25
+and 69).
 
 
