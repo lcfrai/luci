@@ -491,6 +491,47 @@ func TestBehaviourEmptyFilterEnvChecksOutTheBlob(t *testing.T) {
 	if out, errs, code := run(t, quiet, env, "status", "--porcelain"); code != 0 {
 		t.Errorf("a later production-shaped status in the clone exits %d (%q %q), want 0", code, out, errs)
 	}
+
+	// git-lfs's own install also sets filter.lfs.process, which outranks smudge. The mutation
+	// check found the empty smudge redundant (git skips smudge whenever process is set, and an
+	// empty process runs nothing), so this half pins which of NoFilterEnv's keys carry it.
+	script := filepath.Join(t.TempDir(), "process.sh")
+	writeFile(t, script, "#!/bin/sh\ntouch '"+filepath.ToSlash(marker)+"'\nexit 0\n")
+	penv := production(t, lfsSystem(t, marker)+"\tprocess = sh "+filepath.ToSlash(script)+"\n")
+	_, errs, code := run(t, t.TempDir(), penv, "clone", "-q", "--no-hardlinks", "--", src, filepath.Join(t.TempDir(), "p"))
+	_, statErr := os.Stat(marker)
+	t.Logf("plain clone, system filter.lfs.process: exit %d, driver ran %v, stderr verbatim:\n%s", code, statErr == nil, errs)
+	if statErr != nil {
+		t.Errorf("plain clone with a system filter.lfs.process: the process driver did not run")
+	}
+	os.Remove(marker)
+	for _, c := range []struct {
+		name string
+		env  gitEnv
+		ok   bool
+	}{
+		{"NoFilterEnv", penv.with(noFilterEnv...), true},
+		{"process= and required=false only", penv.with("GIT_CONFIG_COUNT=2",
+			"GIT_CONFIG_KEY_0=filter.lfs.process", "GIT_CONFIG_VALUE_0=",
+			"GIT_CONFIG_KEY_1=filter.lfs.required", "GIT_CONFIG_VALUE_1=false"), true},
+		{"smudge= and process= without required=false", penv.with("GIT_CONFIG_COUNT=2",
+			"GIT_CONFIG_KEY_0=filter.lfs.smudge", "GIT_CONFIG_VALUE_0=",
+			"GIT_CONFIG_KEY_1=filter.lfs.process", "GIT_CONFIG_VALUE_1="), false},
+	} {
+		dst := filepath.Join(t.TempDir(), "q")
+		_, errs, code := run(t, t.TempDir(), c.env, "clone", "-q", "--no-hardlinks", "--", src, dst)
+		_, statErr := os.Stat(marker)
+		t.Logf("%s over a system process driver: exit %d, driver ran %v, stderr %q", c.name, code, statErr == nil, errs)
+		if statErr == nil {
+			t.Errorf("%s: the system process driver ran", c.name)
+		}
+		if c.ok && (code != 0 || readFile(t, filepath.Join(dst, "a.bin")) != lfsPointer) {
+			t.Errorf("%s: exit %d; want 0 and a.bin equal to its blob", c.name, code)
+		}
+		if !c.ok && code == 0 {
+			t.Errorf("%s: exit 0; want the checkout to fail, since a required driver that runs nothing is a failure", c.name)
+		}
+	}
 }
 
 // deepPath is a 5 x 50-character path, so a checkout under a temporary directory passes
