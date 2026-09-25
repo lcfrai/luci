@@ -278,3 +278,85 @@ other owner, the paths, the resolution or *"unresolved"*), then, when `agentConf
 **Ask for a second look** (route 84) or, once asked, *"Waiting for a teammate"*; on another
 member's desktop the same row shows **Review and approve** (the diff, then route 85). The Land
 button stays enabled: the server's refusal names the reason, and task 19's banner shows it.
+
+#### Tests to write first
+
+The first three are the scope paragraph's (`2026-09-25-phase-t-team-mode.md:947-949`). The
+`converge` tests run on phase 3's `gitxtest` repositories; the Hub tests are integration tests on
+task 07's `team2World`.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestALaneTouchingClaudeSettingsCannotLandOnItsOwnersApproval` | a team lane changing `.claude/settings.json`: no approval → 409 `second_approval_required`, `details.paths = ".claude/settings.json"`, the branch ref and the object count unchanged; an approval **by the owner** cannot exist (route 85 → 403 `second_member`; a direct `INSERT` with approver = owner fails the `CHECK`); Grace's approval → the land succeeds | the rule enforced only in the lens; the owner approving herself |
+| `TestDependenciesOnlyNeedsNoSecondApprover` | `package.json` with only `dependencies` changed → `AgentConfigChanges` is `[]`, the land needs no approval | every `package.json` change treated as agent config, so the rule is ignored in practice |
+| `TestScriptsChangeNeedsASecondApprover` | `package.json` with `scripts.postinstall` added → one change, kind `package-scripts`; `husky` or `lint-staged` changed → the same; key order changed only → `[]` (canonical JSON) | a text diff of `package.json`; a member missed |
+| `TestAnUnparseablePackageJSONCounts` | a `package.json` that is not JSON on the tip → one `package-scripts` change | unparseable taken as harmless |
+| `TestNestedAndHookPathsCount` | `docs/CLAUDE.md`, `pkg/.claude/commands/x.md`, `.husky/pre-commit`, `.mcp.json` added, `AGENTS.md` deleted → five changes with the right kinds; `docs/claude.md` (lower case) → none | root-only matching; deletions ignored |
+| `TestARenameOutOfClaudeCounts` | `git mv .claude/settings.json settings.bak` → a `D` for `.claude/settings.json` | rename detection on, so the change reads as a rename to a harmless path |
+| `TestAnApprovalForAnOlderTipDoesNotCount` | approve at tip T1; the lane moves to T2 → 409 `second_approval_required`; the review says `stale` | an approval bound to the lane, not to what was reviewed |
+| `TestAnApprovalMustCoverEveryPath` | approved paths `[CLAUDE.md]`; the land also changes `.mcp.json` → refused, `details.paths = ".mcp.json"` | "any approval" instead of coverage |
+| `TestHubDownRefusesRatherThanSkips` | `Approvals` errors → 409 `hub_unavailable`, nothing written | a Hub error read as "no approvals needed" |
+| `TestSoloProjectsAreUnchanged` | `Team == nil` → phase 3's own land tests pass byte-identical, and `AgentConfigChanges` is never called (the fake machine saw no `diff --name-status`) | the rule leaking into solo projects |
+| `TestTheReviewListsEveryConflictWithItsResolution` | two `cf-…` rows naming the lane's agent (one `resolved`/`split`, one `raised`) and one naming another agent → the review lists the first two, oldest first, `resolution` `"split"` and `""` | conflicts filtered to open ones, so the resolved one the owner should see vanishes |
+| `TestOnlyTheOwnerMayAskAndOnlyAnotherMemberMayApprove` | route 84 by Grace for Linus's agent → 403 `agent_not_owner`; by Fleet → 403 `required: "desktop"`; route 85 by a viewer → 403; by Grace → 200; again → 409 | Fleet or a viewer granting approvals |
+| `TestNoAgentCanReachTheApprovalRoutes` | a delegation listing `land_approvals.approve` → 422 at create (no such route name); route 85 with `X-Panacea-Delegation` → 403 | an Orchestrator approving its teammate's lane on a persuasive message |
+| `TestTheApproverSeesTheDiffOrAClearUnavailable` (Fleet) | a fake `TreeSource` with a diff → 200 with the text; `ErrTreeUnavailable` → 503 with the sentence; an agent token → 403 | the approval UI offering "approve" with nothing to look at |
+
+#### Steps
+
+- [ ] **Step 1: Read after the merges.** Phase 3 tasks 09, 16 and 19 as built (`Lander.Land`'s
+  steps, the lands handler, `LaneCard`), the Hub's `0001_init.sql` (id shape, `projects` key),
+  task 22's `TreeSource` as built.
+- [ ] **Step 2: Classifier.** The six `converge` path and `package.json` tests; they fail;
+  `agentconfig.go`; they pass.
+- [ ] **Step 3: Land.** The land tests; they fail; `TeamLand`, step 9a, the handler's `Team`
+  fill (from routes 55 and 86 via `hubclient`), the refusal row; they pass, and phase 3's land
+  suite passes unchanged.
+- [ ] **Step 4: Hub.** Migration, routes 84 to 86, events, codes, Z5 rows; the Hub tests pass.
+- [ ] **Step 5: Review and diff.** `ReviewFor`, the review route, `TreeSource.Diff`, the Fleet
+  route; their tests pass.
+- [ ] **Step 6: Lens.** `TeamLandReview.tsx` and its test (renders both sections from a fixture;
+  no approve button on the owner's own lane); `npm run typecheck` and `npm test` pass.
+- [ ] **Step 7: Commit** each group with `git commit -F <msg> -- <paths>`.
+
+#### Acceptance
+
+```bash
+cd control-plane
+go test ./internal/converge/ -run 'TestALaneTouching|TestDependenciesOnly|TestScriptsChange|TestAnUnparseable|TestNestedAndHook|TestARenameOut|TestAnApprovalFor|TestAnApprovalMust|TestHubDown|TestSoloProjects|TestTheReviewLists' -count=1
+# ok  	github.com/kpmg-au-emu/panacea-app/control-plane/internal/converge	…
+go test -tags integration ./internal/hub/server/ -run 'TestOnlyTheOwnerMayAsk|TestNoAgentCanReach' -count=1
+go test ./internal/fleet/server/ -run TestTheApproverSeesTheDiff -count=1 && go vet ./...
+cd ../desktop && npm run typecheck && npm test -- TeamLandReview
+```
+
+The two-person run (Linus's lane changes `CLAUDE.md`, Linus's land is refused, Grace reviews the
+diff on her desktop and approves, Linus lands) is **deferred to task 57**, because the diff needs
+task 34's real tree source on the real environment.
+
+#### What this task does not claim
+
+- **Not the TM2 queue.** From TM2 the land queue moves to Fleet over the lane mirror (§8.3,
+  tasks 59–61); that queue must call the same `AgentConfigChanges` and step 9a. Task 61's part
+  should say so.
+- **Not that the list is complete.** Any file an agent reads as instructions or runs as a hook is
+  agent config in spirit; a tool this table does not name (a `Makefile` target a hook calls, a
+  `.vscode/tasks.json`) is not caught. The managed settings (OD-23) are the stronger wall.
+- **Not a review of the code itself.** A second approver is required for agent-config paths only;
+  every other change is its owner's reviewed act, as in phase 3.
+- **Not rejection or comments.** There is no reject route; discussion happens between people.
+
+#### Gaps found in the skeleton
+
+1. **No approval record in task 01.** Its §7.0 team table has no land-approval route; this part
+   adds routes **84 to 86**, after task 46's 81 to 83. The lower task id keeps a number on any
+   clash, and this part renumbers mechanically.
+2. **The approver needs to see the diff**, and in TM1 the lane exists only on its owner's machine.
+   This part adds `TreeSource.Diff` to task 22's interface and a Fleet desktop route; both depend on
+   task 34 adding a real read of the owner's machine (task 22 ships `unavailableTree` in TM1-α).
+   Task 34's part should include `diff` beside its `ls-tree` / `cat-file`.
+3. **The path list** extends the design's "git-hook files" and "package-script entries" with named
+   tools and four `package.json` members; the owner confirms.
+4. **Phase 3's lens is desktop-per-project.** A teammate approving another's lane needs that lane in
+   her lens; this part shows it as a row on the team project's merge lens, fed by the
+   `land_approval.requested` feed kind, not by her own queue.
