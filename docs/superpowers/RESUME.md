@@ -280,6 +280,27 @@ stopped and resumed with `resumeFromRunId`. **Parallel runs resume from cache no
 - A fifth spend stop ran from 02:15 to 05:20. Every run restarted **on its own** when usage reset,
   so nothing was forced.
 
+**Added 2026-09-26, later: the org's WEEKLY limit (reset 30 Sep) ended every workflow.** The
+runtime called that reset "too far out to wait for" and failed all in-flight agents. After the
+owner added usage, all 11 were relaunched. The new task ids:
+- **env** `w5ac7lsk5`, with
+  `{"stream":"env","hold":["21","24","25","26","32","33"],"insertBefore":{"30":[24a],"08":[27a]}}`.
+  - The cached triage predates the re-plan, so its "24" names a deleted part (it is now 24a and
+    24b), and it has no 27a.
+  - `build-stream-as-launched.js` now takes `insertBefore` too.
+  - **Every env resume must pass these args** (copy them from `w5ac7lsk5`'s launch).
+  - The held set is in `env/.superpowers/sdd/env/held.md`: 21, 21b, 24b, 25, 25b, 26, 32, 33.
+  - Re-admit them once phase 3's code is sync-merged into `feat/env`. 21b, 24b and 25b need
+    `insertBefore` too.
+- **p3** `whgfigd7k` (same insert args). **p4** `w823a4wvg`. **p5** `wq7y2nlcm`. **p6** `w06fg5ozf`.
+  **p7** `wo9w3grgt`.
+- **close-out** `wevstu56b`: task 26, then 25, then the final review.
+- **hub t04 round 3** `wu645aloo`: fix-3 is done and review-3 is running. When it is Approved,
+  resume hub with `clearedTasks:["04"]`.
+- **env-p3-seams** `w6d55h2ch`: review-2 is running. **team v2** `wndrouo9x`: 8 Critical batches.
+- **work finisher** `wf_591bc2c2-c47` (fresh): 132 parts, 18 section reviews, then the
+  cross-cutting review and assembly.
+
 **Added 13:40, 2026-09-25: OD-30 (sign-in) and the env R4 re-plan.**
 - **OD-30:** sign-in goes through a Keycloak broker on Panacea's existing Entra registration, with
   zero clicks. The IT request's Part 1 is no longer needed. Run `wf_579f2bb3-bfb`
