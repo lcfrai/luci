@@ -145,3 +145,89 @@ list, which does not name it).
 | Path (continued) | Change |
 |---|---|
 | `client_work_stub.go` | new: `*Client`'s Work methods answer `ErrNotConfigured`; task 16 deletes it |
+
+`work.go`, complete. Thirty methods: eleven whose rules are part 1's (this task, tasks 08-10 on
+the server), nineteen whose rules are part 2's (task 05, tasks 11-15). Task 16's thirty
+`WorkRoutes` rows (`task-16.md:131-162`) are these thirty methods.
+
+```go
+package hubclient
+
+import (
+	"context"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubapi"
+)
+
+// Work is the work layer (Phase W). Hub embeds it. W2-W5 append WorkPlan
+// (task 72), WorkAgents (task 99), WorkRoadmap (task 114) and WorkIntake
+// (task 143), each an added interface: SW.2 grows, it never changes.
+type Work interface {
+	WorkIssues
+}
+
+// WorkIssues is every W1 method, in the style of Briefs: ctx first, hubapi
+// types in and out, an *Error for every refusal the Hub answered.
+type WorkIssues interface {
+	// ── part 1: task 04's fake, tasks 08-10's server ──
+
+	// SetProjectKey sets or changes a project's key (team admin; ValidProjectKey;
+	// unique in the team). A change changes every alias and no key.
+	SetProjectKey(ctx context.Context, projectID, key string) (hubapi.ProjectKey, error)
+	// CreateIssue writes the head and revision 1 in one write, and takes the
+	// project's next number (gapless from 1). Member or admin.
+	CreateIssue(ctx context.Context, projectID string, req hubapi.CreateIssueRequest) (hubapi.IssueWithRevision, error)
+	// Issue is the head and its head revision.
+	Issue(ctx context.Context, issueID string) (hubapi.IssueWithRevision, error)
+	// IssueByNumber is how a typed alias ("EP-142") becomes an issue: the caller
+	// knows the project from where it was typed; no alias parser exists.
+	IssueByNumber(ctx context.Context, projectID string, number int) (hubapi.IssueWithRevision, error)
+	// Issues lists heads, newest number first, filtered by q.
+	Issues(ctx context.Context, projectID string, q hubapi.IssueQuery, page hubapi.PageRequest) (hubapi.Page[hubapi.IssueHead], error)
+	// PatchIssue changes head fields only. It never writes a revision.
+	PatchIssue(ctx context.Context, issueID string, req hubapi.PatchIssueRequest) (hubapi.IssueHead, error)
+	// WriteIssueRevision writes revision baseRevision+1, or 409 when the head
+	// has moved past baseRevision, writing nothing.
+	WriteIssueRevision(ctx context.Context, issueID string, req hubapi.WriteIssueRevisionRequest) (hubapi.IssueRevision, error)
+	// IssueRevisions lists revisions oldest first, content included.
+	IssueRevisions(ctx context.Context, issueID string, page hubapi.PageRequest) (hubapi.Page[hubapi.IssueRevision], error)
+	// IssueRevisionAt is one revision; an erased one keeps its digest.
+	IssueRevisionAt(ctx context.Context, issueID string, rev int) (hubapi.IssueRevision, error)
+	// RestoreIssueRevision writes a NEW revision copying req.FromRevision's
+	// content, with restoredFrom set. The path's {rev} is req.FromRevision.
+	RestoreIssueRevision(ctx context.Context, issueID string, req hubapi.RestoreRevisionRequest) (hubapi.IssueRevision, error)
+	// MoveIssueState is SW.4: hand moves among the non-fact states and a
+	// hand-set done with a reason; each fact state only with its fact cause.
+	MoveIssueState(ctx context.Context, issueID string, move hubapi.StateMove) (hubapi.IssueHead, error)
+
+	// ── part 2: task 05's fake, tasks 11-15's server ──
+
+	AddRelation(ctx context.Context, issueID string, req hubapi.RelationRequest) (hubapi.IssueHead, error)
+	RemoveRelation(ctx context.Context, issueID string, kind hubapi.RelationKind, otherID string) (hubapi.IssueHead, error)
+	Labels(ctx context.Context, teamID string) ([]hubapi.Label, error)
+	CreateLabel(ctx context.Context, teamID string, req hubapi.CreateLabelRequest) (hubapi.Label, error)
+	ArchiveLabel(ctx context.Context, labelID string) (hubapi.Label, error)
+	TeamPolicy(ctx context.Context, teamID string) (hubapi.TeamPolicy, error)
+	PutTeamPolicy(ctx context.Context, teamID string, req hubapi.PutTeamPolicyRequest) (hubapi.TeamPolicy, error)
+	Comments(ctx context.Context, issueID string, page hubapi.PageRequest) (hubapi.Page[hubapi.Comment], error)
+	// CreateComment appends; there is no edit. A correction is a new comment.
+	CreateComment(ctx context.Context, issueID string, req hubapi.CreateCommentRequest) (hubapi.Comment, error)
+	React(ctx context.Context, commentID string, req hubapi.ReactRequest) (hubapi.Comment, error)
+	// ResolveComment, not Resolve: Briefs.Resolve(ctx, keys) holds that name in Hub.
+	ResolveComment(ctx context.Context, commentID string, req hubapi.ResolveRequest) (hubapi.Comment, error)
+	Subscribe(ctx context.Context, issueID string, req hubapi.SubscribeRequest) (hubapi.Subscription, error)
+	// Subscriptions is the caller's own, newest first.
+	Subscriptions(ctx context.Context, page hubapi.PageRequest) (hubapi.Page[hubapi.Subscription], error)
+	// SearchIssues matches titles in the caller's readable projects, newest first.
+	SearchIssues(ctx context.Context, q hubapi.IssueSearchQuery) ([]hubapi.IssueHead, error)
+	// ImportBatch is idempotent by (source, externalId).
+	ImportBatch(ctx context.Context, projectID string, batch hubapi.ImportBatch) (hubapi.ImportResult, error)
+	// AttachBlob names a blob already put to the issue's project (Designs.PutBlob).
+	AttachBlob(ctx context.Context, issueID string, req hubapi.AttachRequest) (hubapi.IssueAttachment, error)
+	Attachments(ctx context.Context, issueID string) ([]hubapi.IssueAttachment, error)
+	// EraseIssue and EraseComment are org admin only. Ids, keys, digests and
+	// revision numbers stay; the texts read as erased.
+	EraseIssue(ctx context.Context, issueID string, req hubapi.EraseRequest) (hubapi.WorkEraseResponse, error)
+	EraseComment(ctx context.Context, commentID string, req hubapi.EraseRequest) (hubapi.WorkEraseResponse, error)
+}
+```
