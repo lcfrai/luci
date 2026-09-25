@@ -1553,3 +1553,69 @@ func wArchivedLabelIsUnavailable(t *testing.T, e WorkEnv) {
 	}
 }
 ```
+
+Block 4: the team policy, comments, reactions and subscriptions.
+
+```go
+func wPolicyGatesTheTriageExit(t *testing.T, e WorkEnv) {
+	if pol, err := e.Viewer.TeamPolicy(wctx, e.TeamID); err != nil || pol.DefaultState != hubapi.StateBacklog || pol.UpdatedAt != nil {
+		t.Fatalf("default policy = %+v, %v; want backlog, never set", pol, err)
+	}
+	put := hubapi.PutTeamPolicyRequest{DefaultState: hubapi.StateTriage, PriorityToLeaveTriage: true}
+	_, err := e.Member.PutTeamPolicy(wctx, e.TeamID, put)
+	wRefused(t, err, 403, hubapi.CodeForbidden, "required", "admin")
+	if _, err := e.Admin.PutTeamPolicy(wctx, e.TeamID, put); err != nil {
+		t.Fatal(err)
+	}
+	p := e.project(t, "Portal", "")
+	iw := e.issue(t, p, "one")
+	if iw.Head.State != hubapi.StateTriage {
+		t.Fatalf("state = %s, want the team's default, triage", iw.Head.State)
+	}
+	_, err = e.Member.MoveIssueState(wctx, iw.Head.ID, hubapi.StateMove{To: hubapi.StateTodo, Cause: hubapi.CauseHand, Evidence: []string{}})
+	wRefused(t, err, 422, "policy_refused", "policy", "priorityToLeaveTriage", "issueId", iw.Head.ID)
+	if _, err := e.Member.MoveIssueState(wctx, iw.Head.ID, hubapi.StateMove{To: hubapi.StateCancelled, Cause: hubapi.CauseHand, Evidence: []string{}}); err != nil {
+		t.Errorf("declining from triage = %v, want allowed without a priority", err)
+	}
+}
+
+// wSay is a top-level comment, or a reply when parent is set.
+func wSay(view hubclient.Hub, issueID, text string, parent *string, anchor *hubapi.CommentAnchor, mentions ...string) (hubapi.Comment, error) {
+	return view.CreateComment(wctx, issueID, hubapi.CreateCommentRequest{Body: wText(text), ParentID: parent,
+		Anchor: anchor, Mentions: append([]string{}, mentions...)})
+}
+
+func wRepliesAreOneLevel(t *testing.T, e WorkEnv) {
+	iw := e.issue(t, e.project(t, "Portal", ""), "one")
+	top, err := wSay(e.Member, iw.Head.ID, "top", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reply, err := wSay(e.Admin, iw.Head.ID, "reply", &top.ID, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = wSay(e.Member, iw.Head.ID, "deeper", &reply.ID, nil)
+	wRefused(t, err, 422, "comment_not_top_level", "field", "parentId")
+	_, err = e.Member.ResolveComment(wctx, reply.ID, hubapi.ResolveRequest{Resolved: true})
+	wRefused(t, err, 422, "comment_not_top_level", "field", "commentId")
+}
+
+func wTextAnchorsCountUTF16(t *testing.T, e WorkEnv) {
+	req := wChore("anchored")
+	req.Description = wText("é😀x") // UTF-16: 1+2+1 = 4; code points 3; UTF-8 bytes 7
+	iw, err := e.Member.CreateIssue(wctx, e.project(t, "Portal", "").ID, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	at := func(end int) *hubapi.CommentAnchor { return &hubapi.CommentAnchor{Kind: "text", Revision: 1, Start: 0, End: end} }
+	if _, err := wSay(e.Member, iw.Head.ID, "whole", nil, at(4)); err != nil {
+		t.Errorf("end 4 = %v, want accepted: the description is 4 UTF-16 units", err)
+	}
+	_, err = wSay(e.Member, iw.Head.ID, "past", nil, at(5))
+	wRefused(t, err, 422, "anchor_unresolvable", "field", "anchor.end")
+}
+```
+
+`é😀x` is where the three counts differ: a code-point counter refuses `end: 4`, and a byte
+counter accepts `end: 5`, so either mutant fails `wTextAnchorsCountUTF16`.
