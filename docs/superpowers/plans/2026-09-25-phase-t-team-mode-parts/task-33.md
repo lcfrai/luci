@@ -354,3 +354,68 @@ number of people above two; anything about the cockpit, which TM1-α has none of
 
 The record states each observation, what was not observed, and the verdict (the skeleton's scope,
 `:786-788`), and nothing more: it is not a narrative of the day.
+
+- [ ] **Step 1: Write the scripts' own tests first, each with the mutant it kills**
+
+`infra/smoke/team/tests/lib_test.sh`, plain bash, run on the build laptop with no cluster:
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `jget_reads_paths` | `{"result":{"conflicts":[{"id":"cf-1"}]}}` with `result.conflicts[0].id` prints `cf-1`; a missing key prints `""` | an index read as a key, so M2 always sees no conflict |
+| `jget_reads_every_fixture` | for each fixture in `testdata/panacea-control/v1/result-*.json` that a script reads, the script's path resolves to a non-empty value | a script path out of step with the merged wire (step 1's "corrected to the fixture") |
+| `record_writes_one_json_line` | two `record` calls → two lines, each valid JSON with the seven keys | a record the template cannot be built from |
+| `laptop_refuses_a_cluster_credential` | with a fake `kubectl` on `PATH` whose `auth can-i` exits 0, `ctx_is laptop` exits 2 | the P8-D4 check inverted |
+| `operator_refuses_without_exec` | with a fake `kubectl` whose `auth can-i` exits 1, `ctx_is operator` exits 2 | a step run where it cannot observe anything, and recorded as `not-observed` for the wrong reason |
+| `no_secret_in_out` | after a fake run, `grep -rE 'eyJ[A-Za-z0-9_-]{10,}|sk-ant-' out/` finds nothing | a token echoed into the record |
+
+Run: `bash infra/smoke/team/tests/lib_test.sh`. Expected before step 2: every test fails (no
+`lib.sh`).
+
+- [ ] **Step 2:** `lib.sh`, then `00` to `60`, then `README.md` and `g9-first.txt`. `bash -n` on
+  each; `shellcheck` if it is installed, else say so in the commit.
+- [ ] **Step 3: Acceptance of the scripts, on the laptop.**
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team && bash infra/smoke/team/tests/lib_test.sh && for f in infra/smoke/team/*.sh; do bash -n "$f" || echo "SYNTAX $f"; done
+```
+Expected: `6 passed, 0 failed`, and no `SYNTAX` line.
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team && grep -n "jq \|\$ANTHROPIC\|set -x" infra/smoke/team/*.sh
+```
+Expected: no output (no `jq`, no key variable read, no tracing that would print a token).
+
+- [ ] **Step 4: The run, by the owner.** Entry conditions first; then `10` to `60` in order, each
+  in its context. This step is the owner's time, not this task's three hours.
+- [ ] **Step 5: The record.** Fill the template from `out/*.jsonl` only; the verdict by decision
+  (e). Commit the record and the `out/` files it cites (after checking `no_secret_in_out` on the
+  real files) with `git add` then `git commit -F .superpowers/sdd/team/msg/t33.txt --
+  docs/verification/2026-09-25-phase-t-alpha-results.md infra/smoke/team`.
+- [ ] **Step 6: The gate.** PASS: task 34 may start. FAIL: the record's last section is the input
+  to re-planning TM1, and no TM1 task starts until the owner has read it. BLOCKED: fix the unmet
+  entry condition and run again; a BLOCKED record is committed too.
+
+**What this task does not claim:**
+
+- **That the scripted run shows what models do.** Run A's Orchestrator verbs are the operator's.
+  Run B shows two models on one day, once; it proves no rate.
+- **Anything above two people**, or any property of tier H or M, the mirror, budgets or the
+  cockpit: TM1 and TM2 tasks.
+- **That `kubectl exec` is representative.** A process started that way is not the runner's child;
+  the checks that depend on the runner (M6, the turn records) use the runner's own path.
+- **That `/status` is complete evidence of the policy in force.** It is what the CLI reports about
+  itself at the pinned version; the digest checks are the evidence Fleet controls (M7).
+- **That the gate can be passed by editing the record.** The verdict comes from `out/*.jsonl`, which
+  the scripts write; the record is a copy of it.
+
+**Gaps against the skeleton and sibling parts, raised here:**
+
+- **G33-1.** No task before 52 gives the desktop the four team calls TM1-α's humans need; the
+  minimum is named above. Until then this task is BLOCKED at E3.
+- **G33-2.** Task 18's `check --hook` needs a trace switch to capture the hook's stdin for O3; it
+  exits 0 always (`task-18.md:62-67`) and prints nothing about its input.
+- **Gap S20-1** (task 20's) blocks this task by its own words (`task-20.md:533`); E2 carries it.
+- **Skeleton.** The scope says "one Orchestrator and one worker for each of two identities", but a
+  scripted plan needs each Orchestrator's task worker as well as the cockpit-launched one (task 21
+  launches a worker, and the Orchestrator comes with it); this task runs two workers per person and
+  says so in the record.
