@@ -221,3 +221,275 @@ first (*"aging matters"*), then FAILED, then ASSUMED (*"highest risk"*), then LA
 attention"*). It is an order of four headed lists, never an interleaving: the lists stay four
 (decision 2). The templates follow §6.3's product language, and §6.4's *"every claim … is a link
 to its span"* is the `links` field.
+
+#### Interfaces — complete: `desktop/src/components/desk/SinceIssues.tsx`
+
+```tsx
+// desktop/src/components/desk/SinceIssues.tsx — the band's issue rows (DeskBand "since"). One
+// headed list per class; each sentence's refs are links to the event they rest on.
+import type { JSX, ReactNode } from "react";
+import type { ScopeRef } from "../../api/work";
+import type { Classes } from "../../work/since/classify";
+import type { Sentence } from "../../work/since/handover";
+
+export interface SincePayload {
+  sentences: Sentence[];            // handover(classes, now, clock), taken once at snapshot
+  counts: Record<keyof Classes, number>;
+  projectScopes: ScopeRef[];        // every project cursor the band read
+  headSeq: number;                  // the newest seq the snapshot saw: mark-all-seen's target
+}
+
+const HEAD: Record<keyof Classes, string> = {
+  waiting: "Waiting on you", failed: "Failed", assumed: "Decided without asking", landed: "Landed" };
+
+/** Splits text at each link's ref, in order, so every claim is a link (decision 3). */
+export function linked(s: Sentence, open: (issueId: string, seq: number) => void): ReactNode[] {
+  const out: ReactNode[] = [];
+  let rest = s.text;
+  for (const l of s.links) {
+    const i = rest.indexOf(l.ref);
+    if (i < 0) continue;                                   // a ref not in the text: the test catches it
+    out.push(rest.slice(0, i),
+      <a key={`${l.ref}-${l.eventSeq}`} href={`#${l.issueId}@${l.eventSeq}`} className="since-ref"
+         onClick={(e) => { e.preventDefault(); open(l.issueId, l.eventSeq); }}>{l.ref}</a>);
+    rest = rest.slice(i + l.ref.length);
+  }
+  out.push(rest);
+  return out;
+}
+
+export function SinceIssues(p: { item: { payload: SincePayload };
+  openAt(issueId: string, seq: number): void; markAllSeen(scopes: ScopeRef[], seq: number): void }): JSX.Element {
+  const { sentences, counts, projectScopes, headSeq } = p.item.payload;
+  const classes = (["waiting", "failed", "assumed", "landed"] as const).filter((c) => counts[c] > 0);
+  if (classes.length === 0) return <p className="since-zero">Nothing on your issues since you last looked.</p>;
+  return (
+    <div className="since-issues">
+      {classes.map((c) => (
+        <section key={c} className="since-class" data-class={c}>
+          <h4>{HEAD[c]} <span className="since-n">{counts[c]}</span></h4>
+          <ul>{sentences.filter((s) => s.cls === c).map((s, i) => (
+            <li key={i} className="since-line">{linked(s, p.openAt)}</li>
+          ))}</ul>
+        </section>
+      ))}
+      <button type="button" className="since-seen" onClick={() => p.markAllSeen(projectScopes, headSeq)}>
+        Mark all seen
+      </button>
+    </div>
+  );
+}
+```
+
+`.since-n` is `tabular-nums` (a section count, the one place counts are allowed, task 62's
+scope). The clock times inside the text are wrapped by the renderer in `.since-at` (mono) where
+`handover` puts them; a plain-text version for task 94's `DeskDigest` is `sentences.map((s) =>
+s.text)`, the same words (L-119 without audio).
+
+#### Interfaces — complete: the registration on ⚑ `deskRows.tsx`, and the watermark
+
+```tsx
+// deskRows.tsx ⚑ (task 62) — task 133's registration. "since" is a DeskBand: not ranked.
+import { registerDeskRow, registerDeskSource } from "./deskModel";          // SW.17 (gap 1)
+import { SinceIssues, type SincePayload } from "./SinceIssues";
+import { classify } from "../../work/since/classify";
+import { handover } from "../../work/since/handover";
+
+registerDeskRow<SincePayload>("since.issues", "since",
+  (item) => <SinceIssues item={item} openAt={openAtWatermark} markAllSeen={markAllSeen} />,
+  () => ({ tier: 2, waitingSinceMs: 0 }));                                 // a band: rank unused
+registerDeskSource("since.issues", (snap) => {
+  const s = snap.since;          // gathered on Desk entry (below); the frame never re-ranks while open
+  const c = classify(s.events, s.local, s.involvement);
+  return [{ kind: "since.issues", id: "since.issues", arrivedAt: s.takenAt,
+    payload: { sentences: handover(c, s.now, s.clock), projectScopes: s.scopes, headSeq: s.headSeq,
+      counts: { landed: c.landed.length, waiting: c.waiting.length, failed: c.failed.length, assumed: c.assumed.length } },
+    rankReason: "what changed on your issues", ifNothing: "" }];
+});
+```
+
+**On Desk entry** (task 62's snapshot hook, `DeskSnapshot.since`, a member this task adds; gap 1)
+the band, for each project scope: `readCursor({kind: "project", id})` then `scopedChanges(scope,
+String(cursor.seq))`, following `more` to at most 200 events per scope (task 123's bound; a
+`truncated` page adds the line *"Older changes were not read."*). `takenAt` and `now` are one
+`Date.now()` read, so aging does not tick while the Desk is open.
+
+`openAtWatermark(issueId, seq)`: reads the issue's own cursor, then `advanceReadCursor({scope:
+{kind: "issue", id: issueId}, seq})` for **that issue only**, and opens the issue with
+`openIssue(issueId)` (task 37) plus a `watermark` of the old cursor's `seq`. ⚑ `IssueView.tsx`
+(task 46) scrolls its activity to the first event with `seq > watermark` and gives older ones
+`data-seen` (dimmed by `opacity`, no transition). `markAllSeen(scopes, seq)` is **one**
+`markSeen({scopes, seq})` call, then the band shows *"Marked seen."* and keeps its rows until the
+next visit (the frame never re-ranks while open). TM-54's `team.since` rows run their own
+`markTeamSeen` from the same control (`team/…/task-54.md:57-60`).
+
+#### Tests to write first — `desktop/src/work/since/since.test.ts`
+
+```ts
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { describe, expect, it } from "vitest";
+import type { FeedEvent } from "../../api/work";
+import { aging, classify, type Involvement } from "./classify";
+import { handover } from "./handover";
+
+const ME = "u-dylan";
+const mine = new Set(["is-142", "is-150"]);            // assigned to me; is-900 is a teammate's
+const inv: Involvement = {
+  meId: ME, involves: (id) => mine.has(id), alias: (id) => ({ "is-142": "EP-142", "is-150": "EP-150", "is-900": "EP-900" }[id] ?? null),
+  reviewerOf: (id) => (id === "is-150" ? ME : null), commentKind: () => "question", commentAuthor: () => "Priya",
+};
+const ev = (seq: number, subject: string, to: string, proof = "", at = "2026-09-26T04:02:00Z"): FeedEvent =>
+  ({ seq, kind: "issue.state", subject, at, actor: "u-x", data: { from: "started", to, cause: "", proof, landCommit: "" } }) as never;
+const clock = (iso: string) => iso.slice(11, 16);
+
+describe("classify", () => {
+  // mutant killed: "a merged stream"
+  it("a landed and a failed event land in two classes, never one list", () => {
+    const c = classify([ev(1, "is-142", "landed")],
+      [{ fact: "lane_failed", seq: 2, at: "2026-09-26T05:00:00Z", issueId: "is-150", alias: "EP-150", laneId: "wt-3" }], inv);
+    expect(c.landed.map((f) => f.alias)).toEqual(["EP-142"]);
+    expect(c.failed.map((f) => f.alias)).toEqual(["EP-150"]);
+    expect(Object.keys(c).sort()).toEqual(["assumed", "failed", "landed", "waiting"]);
+  });
+  // mutant killed: "optimistic class"
+  it("a self-attested done is assumed, not landed; a proven done is landed", () => {
+    const c = classify([ev(1, "is-142", "done", "proven_self_attested"), ev(2, "is-150", "done", "proven")], [], inv);
+    expect(c.assumed.map((f) => f.alias)).toEqual(["EP-142"]);
+    expect(c.landed.map((f) => f.alias)).toEqual(["EP-150"]);
+  });
+  // mutant killed: "team firehose"
+  it("a teammate's issue that does not involve me is absent", () => {
+    const c = classify([ev(1, "is-900", "landed")], [], inv);
+    expect([...c.landed, ...c.waiting, ...c.failed, ...c.assumed]).toEqual([]);
+  });
+});
+
+describe("handover", () => {
+  // mutant killed: AX anti-pattern 9 ("5h ago")
+  it("aging reads 'waiting 5h 51m' and nothing reads 'ago'", () => {
+    const now = Date.parse("2026-09-26T09:53:00Z");
+    const c = classify([ev(1, "is-150", "in_review", "", "2026-09-26T04:02:00Z")], [], inv);
+    const text = handover(c, now, clock).map((s) => s.text).join("\n");
+    expect(text).toContain("waiting 5h 51m");
+    expect(text).not.toMatch(/\bago\b/);
+    expect(aging("2026-09-26T09:00:00Z", now)).toBe("53m");
+  });
+  // mutant killed: "a claim with no span" (checked on the text too, in SinceIssues.test.tsx)
+  it("every sentence has a link, and every link's ref is in its text", () => {
+    const c = classify([ev(1, "is-142", "landed"), ev(2, "is-142", "done", "waiting")], [], inv);
+    for (const s of handover(c, Date.now(), clock)) {
+      expect(s.links.length).toBeGreaterThan(0);
+      for (const l of s.links) expect(s.text).toContain(l.ref);
+    }
+  });
+  // mutant killed: "an unlinked model summary"
+  it("the handover module imports no gateway, inference or draft client", () => {
+    const src = readFileSync(resolve(__dirname, "handover.ts"), "utf8");
+    expect(src.match(/^import .*$/gm) ?? []).toEqual([`import { aging, type Classes, type SinceFact } from "./classify";`]);
+  });
+});
+```
+
+#### Tests to write first — `desktop/src/components/desk/SinceIssues.test.tsx`
+
+```tsx
+import { fireEvent, render, screen } from "@testing-library/react";
+import { expect, it, vi } from "vitest";
+import { expectNoPrediction } from "../../test/expectNoPrediction";
+import type { Sentence } from "../../work/since/handover";
+import { SinceIssues, type SincePayload } from "./SinceIssues";
+
+const S = (cls: Sentence["cls"], text: string, ref: string, issueId: string, seq: number): Sentence =>
+  ({ cls, text, links: [{ ref, eventSeq: seq, issueId }] });
+const payload: SincePayload = {
+  sentences: [S("waiting", "EP-150 waits on your review, waiting 5h 51m", "EP-150", "is-150", 41),
+              S("landed", "EP-142 landed 14:02", "EP-142", "is-142", 40)],
+  counts: { waiting: 1, failed: 0, assumed: 0, landed: 1 },
+  projectScopes: [{ kind: "project", id: "pj-1" }, { kind: "project", id: "pj-2" }], headSeq: 41 };
+const mount = () => {
+  const openAt = vi.fn(), markAllSeen = vi.fn();
+  return { openAt, markAllSeen, ...render(<SinceIssues item={{ payload }} openAt={openAt} markAllSeen={markAllSeen} />) };
+};
+
+// mutant killed: "a claim with no span", walked over the rendered text nodes
+it("every rendered sentence holds at least one link", () => {
+  const { container } = mount();
+  const lines = [...container.querySelectorAll(".since-line")];
+  expect(lines).toHaveLength(2);
+  for (const li of lines) expect(li.querySelectorAll("a.since-ref").length).toBeGreaterThan(0);
+  expectNoPrediction(container);
+});
+
+// mutant killed: "open marks all seen"
+it("opening one issue opens it at its event and moves nothing else", () => {
+  const { openAt, markAllSeen } = mount();
+  fireEvent.click(screen.getByRole("link", { name: "EP-142" }));
+  expect(openAt.mock.calls).toEqual([["is-142", 40]]);
+  expect(markAllSeen).not.toHaveBeenCalled();
+});
+
+// mutant killed: "partial mark" (one call per scope, or a scope left out)
+it("mark all seen is one call over every project scope", () => {
+  const { markAllSeen } = mount();
+  fireEvent.click(screen.getByRole("button", { name: "Mark all seen" }));
+  expect(markAllSeen.mock.calls).toEqual([[payload.projectScopes, 41]]);
+});
+
+it("the classes are headed lists, never one merged list", () => {
+  const { container } = mount();
+  expect([...container.querySelectorAll(".since-class")].map((s) => s.getAttribute("data-class")))
+    .toEqual(["waiting", "landed"]);
+});
+```
+
+**Rows that need task 62's frame and task 125's client** (written in `deskRows.test.tsx` beside
+task 62's own tests, with its fixtures; **UNVERIFIED** helper names until task 62's part lands):
+
+| Test | Setup and expectation | Mutant killed |
+|---|---|---|
+| `openAtWatermark moves one cursor` | three project scopes and two issue cursors held; open EP-142 → exactly one `advanceReadCursor` with `{kind:"issue", id:"is-142"}` and the event's seq; the other cursors read unchanged | open marks all seen |
+| `an arrival while open holds` | Desk mounted; the replica delivers a new `issue.state` for EP-150 → no new `.since-line`; task 62's hold line shows; `N` applies it | live band |
+| `a teammate's agent alone never shows` | an `issue.state` from a teammate's agent on a teammate's issue → nothing in the band (TM-54's rule) | agent on the Desk by itself |
+| `IssueView lands on the watermark` | watermark 40; events 38-43 → focus and scroll at 41; 38-40 carry `data-seen` | lands at the bottom |
+
+#### Steps
+
+1. Write `since.test.ts`; it fails. Write `classify.ts` and `handover.ts`; it passes.
+2. Write `SinceIssues.test.tsx`; it fails. Write `SinceIssues.tsx`; it passes.
+3. Register the kind in ⚑ `deskRows.tsx`; add `DeskSnapshot.since` to task 62's snapshot hook;
+   write `openAtWatermark` and `markAllSeen` over `createClient().work`.
+4. Land on the watermark in ⚑ `IssueView.tsx`; add the four frame rows.
+5. Run the acceptance; commit.
+
+#### Acceptance
+
+```bash
+cd desktop && npx vitest run src/work/since src/components/desk/SinceIssues.test.tsx src/components/desk
+# expect: since.test.ts 6 passed; SinceIssues.test.tsx 4 passed; deskRows' four rows and task 62's
+#         and TM-54's registry tests pass (registering "since.issues" once, never twice)
+cd desktop && npx tsc --noEmit
+# expect: exit 0
+cd desktop && grep -n -E "localStorage|sessionStorage|indexedDB" src/work/since/*.ts src/components/desk/SinceIssues.tsx
+# expect: no output (decision 7)
+```
+
+#### What this task does NOT claim
+
+- Audio playback of the handover (later), or session and branch deltas (AX §6.1's other scopes).
+- A drafted, prose handover: task 139's, from these facts, never in place of them.
+- That the local facts are bounded exactly by the cursor: they are bounded by the oldest unseen
+  Hub event's time until `ReadCursor` carries `at` (gap 2).
+- That `comment.mentioned`'s subject is the mentioned person (task 13's data carries
+  `commentId` and `issueId` only, `task-13.md:195-198`; **UNVERIFIED**, gap 3).
+
+#### Gaps found while writing this part
+
+1. **Task 62 has no part.** `registerDeskRow`, `registerDeskSource`, `DeskSnapshot` and the
+   *mark all seen* control are its scope's; two parts import them from different files (task 127:
+   `./deskFrame`; task 170: `../desk/registry`); this part uses the scope's `deskModel`. Task 62
+   should fix one path, and a `DeskSnapshot.since` member for this band.
+2. **`ReadCursor` has no `at`** (task 123/114). Local facts need the time of the cursor's event.
+3. **Who a mention names.** `CommentMentionedData` has no mentioned-user field; this part reads
+   the event's `subject` as the person named (task 13 should say so or add `userId`).
+4. **No part for tasks 63, 64 or 71**, whose Desk sources feed `local`.
