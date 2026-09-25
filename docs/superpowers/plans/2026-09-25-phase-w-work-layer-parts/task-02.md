@@ -736,3 +736,93 @@ func TestIssueRevisionParseRoundTrips(t *testing.T) {
 	}
 }
 ```
+
+```go
+func validContent() IssueRevisionContent {
+	return IssueRevisionContent{
+		Title:       AuthoredText{Text: "Resume an upload", Author: AuthorHuman},
+		Description: AuthoredText{Text: "", Author: AuthorHuman},
+		Serves:      []Serve{{BriefKey: "brief:bf-00000000000000a1@5", CriterionID: "c-91e2a0b3c4d5e6f7"}},
+		Implements:  []string{},
+	}
+}
+
+// fieldOf is the failing field's path, or "" when err is not a *FieldError.
+func fieldOf(err error) string {
+	var fe *FieldError
+	if errors.As(err, &fe) {
+		return fe.Field
+	}
+	return ""
+}
+
+// Mutants: off-by-one limits (> vs >=), bytes for the title, code points for
+// the description, a blank title accepted, an author other than H or A, a
+// null list encoded as [] instead of refused, a malformed key in serves or
+// implements, and a serves pair repeated.
+func TestValidateIssueRevisionContent(t *testing.T) {
+	cases := []struct {
+		name  string
+		edit  func(c *IssueRevisionContent)
+		field string // "" means valid
+	}{
+		{"valid", func(c *IssueRevisionContent) {}, ""},
+		{"title 200 é", func(c *IssueRevisionContent) { c.Title.Text = strings.Repeat("é", 200) }, ""},
+		{"title 201", func(c *IssueRevisionContent) { c.Title.Text = strings.Repeat("a", 201) }, "title.text"},
+		{"title blank", func(c *IssueRevisionContent) { c.Title.Text = "   " }, "title.text"},
+		{"title author", func(c *IssueRevisionContent) { c.Title.Author = "agent" }, "title.author"},
+		{"desc 16 KiB", func(c *IssueRevisionContent) { c.Description.Text = strings.Repeat("a", 16384) }, ""},
+		{"desc 16 KiB + 1", func(c *IssueRevisionContent) { c.Description.Text = strings.Repeat("a", 16385) }, "description.text"},
+		{"desc 8193 é", func(c *IssueRevisionContent) { c.Description.Text = strings.Repeat("é", 8193) }, "description.text"},
+		{"desc author", func(c *IssueRevisionContent) { c.Description.Author = "" }, "description.author"},
+		{"serves null", func(c *IssueRevisionContent) { c.Serves = nil }, "serves"},
+		{"serves empty", func(c *IssueRevisionContent) { c.Serves = []Serve{} }, ""},
+		{"implements null", func(c *IssueRevisionContent) { c.Implements = nil }, "implements"},
+		{"brief key", func(c *IssueRevisionContent) { c.Serves[0].BriefKey = "brief:bf-1@5" }, "serves[0].briefKey"},
+		{"issue key in serves", func(c *IssueRevisionContent) { c.Serves[0].BriefKey = "issue:is-00000000000000c3@1" }, "serves[0].briefKey"},
+		{"criterion empty", func(c *IssueRevisionContent) { c.Serves[0].CriterionID = "" }, "serves[0].criterionId"},
+		{"criterion 129", func(c *IssueRevisionContent) { c.Serves[0].CriterionID = strings.Repeat("c", 129) }, "serves[0].criterionId"},
+		{"serves repeat", func(c *IssueRevisionContent) { c.Serves = append(c.Serves, c.Serves[0]) }, "serves[1]"},
+		{"implements key", func(c *IssueRevisionContent) { c.Implements = []string{"design:x@1"} }, "implements[0]"},
+	}
+	for _, tc := range cases {
+		c := validContent()
+		tc.edit(&c)
+		err := ValidateIssueRevisionContent(c)
+		if tc.field == "" && err != nil {
+			t.Errorf("%s: %v, want valid", tc.name, err)
+		}
+		if tc.field != "" && fieldOf(err) != tc.field {
+			t.Errorf("%s: err %v (field %q), want field %q", tc.name, err, fieldOf(err), tc.field)
+		}
+	}
+}
+
+// Mutants: an envelope accepted with a brief id, revision 0 or a local project
+// id; bytes accepted with an extra member, the wrong kind, or whitespace.
+func TestIssueRevisionEnvelopeRefuses(t *testing.T) {
+	env, v := loadIssueVector(t, "v1")
+	for name, e := range map[string]IssueRevisionEnvelope{
+		"issueId":   {IssueID: "bf-00000000000000c3", Revision: 1, ProjectID: env.ProjectID, Content: env.Content},
+		"revision":  {IssueID: env.IssueID, Revision: 0, ProjectID: env.ProjectID, Content: env.Content},
+		"projectId": {IssueID: env.IssueID, Revision: 1, ProjectID: "p-42", Content: env.Content},
+	} {
+		if _, err := e.Canonical(); fieldOf(err) != name || !errors.Is(err, ErrBadEnvelope) {
+			t.Errorf("Canonical with a bad %s: %v, want ErrBadEnvelope on %q", name, err, name)
+		}
+	}
+	for name, b := range map[string]string{
+		"extra member": strings.Replace(v.Canonical, `"v":1}`, `"v":1,"w":1}`, 1),
+		"kind issue":   strings.Replace(v.Canonical, `"issue-revision"`, `"issue"`, 1),
+		"whitespace":   strings.Replace(v.Canonical, `,"v":1}`, `, "v":1}`, 1),
+		"content key":  strings.Replace(v.Canonical, `"implements":[]`, `"implements":[],"labels":[]`, 1),
+	} {
+		if _, err := ParseIssueRevisionEnvelope([]byte(b)); err == nil {
+			t.Errorf("ParseIssueRevisionEnvelope(%s) accepted %s", name, b)
+		}
+	}
+}
+```
+
+Every test above is written before the code it tests, and fails first: `keys_test.go`'s three
+and every test in the two new files fail to compile until Step 3.
