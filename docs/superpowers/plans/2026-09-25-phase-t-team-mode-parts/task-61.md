@@ -502,7 +502,7 @@ Expected: compile failure, `undefined: Order`, `undefined: Gate`, `undefined: Qu
 
 - [ ] **Step 3: Write `order.go` and `gate.go`; run their tests** (pure, no store).
 - [ ] **Step 4: Add the migration and task 10's store methods; run task 10's `storetest` suite**
-  against `memstore` and, with `PANACEA_APP_FLEET_TEST_PG` set, `pgstore`.
+  against `memstore` and, with `PANACEA_APP_FLEET_TEST_PG_DSN` set, `pgstore`.
 - [ ] **Step 5: Write `landq.go` and `refresh.go`, then the mirror ops in task 59's client and
   runner, then `Resolver.FirstLanded` in task 29's file.**
 - [ ] **Step 6: Add F-L1 to F-L6 and `VerbLandQueue`; the local control plane's `teamland.go`;
