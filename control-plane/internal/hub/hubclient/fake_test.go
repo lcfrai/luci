@@ -307,6 +307,10 @@ func TestFakeTeamRoles(t *testing.T) {
 	// Invites: a second pending one for an email is a conflict, as is one for a
 	// member; a bound one cannot be revoked; a pending one can.
 	must(ada.CreateInvite(bg, team.ID, x))(t)
+	// The role check comes before the pending-invite 409 too (route 11 lists 403
+	// before both 409s): Grace inviting x, now pending, is 403 (re-review 2, m2).
+	_, err = grace.CreateInvite(bg, team.ID, x)
+	wantProblem(t, err, 403, "forbidden", "required", "admin")
 	_, err = ada.CreateInvite(bg, team.ID, hubapi.CreateInviteRequest{Email: "X@example.test", Role: hubapi.RoleViewer})
 	wantProblem(t, err, 409, "conflict")
 	_, err = ada.CreateInvite(bg, team.ID, hubapi.CreateInviteRequest{Email: FakeGrace.Email, Role: hubapi.RoleViewer})
@@ -332,6 +336,11 @@ func TestFakeTeamRoles(t *testing.T) {
 	// and changes nothing (contract §7.3 names only the bound case; the ruling is
 	// task 04 re-review m2's, carried to task 16a).
 	noErr(t, ada.RevokeInvite(bg, team.ID, invites[0].ID))
+	// That 204 is the admin's alone: it comes after the membership and role
+	// checks, so a member still gets 403 and an outsider (Linus is seated below)
+	// 404 for a revoked invite, and neither learns it exists (task 04 re-review 2, m1).
+	wantProblem(t, grace.RevokeInvite(bg, team.ID, invites[0].ID), 403, "forbidden", "required", "admin")
+	wantProblem(t, linus.RevokeInvite(bg, team.ID, invites[0].ID), 404, "team_not_found", "teamId", team.ID)
 	if got := must(ada.Invites(bg, team.ID))(t); len(got) != 2 || got[0].ID != invites[0].ID || got[0].State != hubapi.InviteRevoked || got[0].BoundUser != nil {
 		t.Errorf("Invites after a second revoke = %+v, want x's still revoked, first, and no new row", got)
 	}
@@ -1070,7 +1079,7 @@ func TestFakeResolveStates(t *testing.T) {
 	if er.BriefID != e.ID || er.ErasedRevisions != 2 || er.ErasedAt == "" {
 		t.Errorf("EraseBrief = %+v, want two revisions erased", er)
 	}
-	// Erasure is no read (§5.3: the org admin has "no read of project content it
+	// Erasure is no read (§5.2: the org admin has "no read of project content it
 	// is not a member of"; fix round 2, beside MY-2): the boss, in no team,
 	// erased e, yet its brief and its project are the same 404 as for anyone.
 	_, err = boss.Brief(bg, e.ID)
@@ -1157,6 +1166,94 @@ func TestFakeResolveStates(t *testing.T) {
 	}
 	if none := must(grace.Resolve(bg, nil))(t); none.Results == nil || len(none.Results) != 0 || none.Heads == nil {
 		t.Errorf("Resolve(nil) = %+v, want results [] and heads {}", none)
+	}
+}
+
+// The org admin in no team is the outsider on every route the fake has but
+// erasure: contract §5.3 gives O and N the same cell on each of them, and they
+// differ only on audit and erasure (hub-contract.md:358-359); §5.2 gives the org
+// admin "no read of project content it is not a member of" (:331). Every call
+// runs as Linus (N) and as the boss (O), neither in Portal, and each must get the
+// outsider's answer, with nothing changed (task 04 re-review 2, I1).
+func TestFakeOrgAdminIsANonMember(t *testing.T) {
+	f, ada, grace, linus, team := withTeam(t)
+	const repo = "github.com/lcfrai/panaceaapp"
+	p := withProject(t, ada, team.ID, "P", hubapi.RemoteRequest{RepoKey: repo, Host: hubapi.HostGitHub})
+	b := branchBrief(t, grace, p.ID, "refs/heads/a")
+	r := write(t, grace, p.ID, b.ID, 0, "complete")
+	inv := must(ada.CreateInvite(bg, team.ID, hubapi.CreateInviteRequest{Email: "x@example.test", Role: hubapi.RoleMember}))(t)
+	head, proj := headOf(t, grace, b.ID), must(ada.Project(bg, p.ID))(t)
+	detail, invites := must(ada.Team(bg, team.ID))(t), must(ada.Invites(bg, team.ID))(t)
+	boss := f.As(orgBoss)
+	answer := func(v any, err error) string {
+		var he *Error
+		if errors.As(err, &he) {
+			return fmt.Sprintf("%d %s %v", he.Status, he.Problem.Error, he.Problem.Details)
+		}
+		if err != nil {
+			return "error " + err.Error()
+		}
+		return fmt.Sprintf("ok %v", v)
+	}
+	tm, pr, bf := team.ID, p.ID, b.ID
+	calls := []struct {
+		name, want string
+		call       func(h *Fake) string
+	}{
+		{"Teams", "ok []", func(h *Fake) string { return answer(h.Teams(bg)) }},
+		{"Team", "404 team_not_found", func(h *Fake) string { return answer(h.Team(bg, tm)) }},
+		{"Invites", "404 team_not_found", func(h *Fake) string { return answer(h.Invites(bg, tm)) }},
+		{"CreateInvite", "404 team_not_found", func(h *Fake) string {
+			return answer(h.CreateInvite(bg, tm, hubapi.CreateInviteRequest{Email: "y@example.test", Role: hubapi.RoleMember}))
+		}},
+		{"RevokeInvite", "404 team_not_found", func(h *Fake) string { return answer(nil, h.RevokeInvite(bg, tm, inv.ID)) }},
+		{"SetMember", "404 team_not_found", func(h *Fake) string { return answer(h.SetMember(bg, tm, FakeGrace.ID, hubapi.RoleAdmin)) }},
+		{"RemoveMember", "404 team_not_found", func(h *Fake) string { return answer(nil, h.RemoveMember(bg, tm, FakeGrace.ID)) }},
+		{"CreateProject", "404 team_not_found", func(h *Fake) string {
+			return answer(h.CreateProject(bg, hubapi.CreateProjectRequest{TeamID: tm, Name: "S"}))
+		}},
+		{"Project", "404 project_not_found", func(h *Fake) string { return answer(h.Project(bg, pr)) }},
+		{"ProjectForRepo", "ok false", func(h *Fake) string { _, ok, err := h.ProjectForRepo(bg, repo); return answer(ok, err) }},
+		{"AddRemote", "404 project_not_found", func(h *Fake) string {
+			return answer(h.AddRemote(bg, pr, hubapi.RemoteRequest{RepoKey: "github.com/a/b", Host: hubapi.HostGitHub}))
+		}},
+		{"CreateBrief", "404 project_not_found", func(h *Fake) string {
+			return answer(h.CreateBrief(bg, pr, hubapi.CreateBriefRequest{Scope: hubapi.ScopeBranch, BranchRef: "refs/heads/s"}))
+		}},
+		{"List", "404 project_not_found", func(h *Fake) string { return answer(h.List(bg, pr, hubapi.BriefQuery{})) }},
+		{"ForBranch", "404 project_not_found", func(h *Fake) string { return answer(h.ForBranch(bg, pr, "refs/heads/a")) }},
+		{"Brief", "404 brief_not_found", func(h *Fake) string { return answer(h.Brief(bg, bf)) }},
+		{"Rebind", "404 brief_not_found", func(h *Fake) string { return answer(h.Rebind(bg, bf, "refs/heads/t")) }},
+		{"Archive", "404 brief_not_found", func(h *Fake) string { return answer(h.Archive(bg, bf)) }},
+		{"Revisions", "404 brief_not_found", func(h *Fake) string { return answer(h.Revisions(bg, bf, hubapi.PageRequest{})) }},
+		{"WriteRevisions", "404 project_not_found", func(h *Fake) string {
+			return answer(h.WriteRevisions(bg, pr, []hubapi.RevisionWrite{{BriefID: bf, BaseRevision: 1, Content: content("open")}}))
+		}},
+		{"Resolve", "ok missing revision false heads 0", func(h *Fake) string {
+			out, err := h.Resolve(bg, []string{r.Key})
+			if err != nil || len(out.Results) != 1 {
+				return answer(out, err)
+			}
+			return fmt.Sprintf("ok %s revision %t heads %d", out.Results[0].Resolution, out.Results[0].Revision != nil, len(out.Heads))
+		}},
+	}
+	for _, c := range calls {
+		if n, o := c.call(linus), c.call(boss); !strings.HasPrefix(n, c.want) || o != n {
+			t.Errorf("%s: the outsider got %q and the org admin %q, want both the same %q", c.name, n, o, c.want)
+		}
+	}
+	// Nothing either of them asked for happened.
+	if got := headOf(t, grace, b.ID); !reflect.DeepEqual(got, head) {
+		t.Errorf("the brief's head moved: %+v, want %+v", got, head)
+	}
+	if got := must(ada.Project(bg, p.ID))(t); !reflect.DeepEqual(got, proj) {
+		t.Errorf("Portal's project changed: %+v, want %+v", got, proj)
+	}
+	if got := must(ada.Team(bg, team.ID))(t); !reflect.DeepEqual(got, detail) {
+		t.Errorf("Portal changed: %+v, want %+v", got, detail)
+	}
+	if got := must(ada.Invites(bg, team.ID))(t); !reflect.DeepEqual(got, invites) || got[0].ID != inv.ID || got[0].State != hubapi.InvitePending {
+		t.Errorf("Portal's invites = %+v, want %+v, x's still pending", got, invites)
 	}
 }
 
