@@ -407,3 +407,138 @@ is set at insert and cleared only by erase (task 07). **`issue_comments.body` is
 has no comment edit (a correction is a new comment; the W1 route list in task 07 has no comment
 `PATCH`); a
 later slice that adds editing adds the grant in its own migration with its own test.
+
+#### Tests to write first — `migrate/work_w1_integration_test.go` (`//go:build integration`)
+
+Each runs on `hubtest.Migrated(t)`, which now applies `0001` and this file. "Refused" means the
+statement returns a `*pgconn.PgError` whose `Code` is the one named; where a constraint name is
+given, `ConstraintName` must equal it too, because tasks 08, 11 and 15 branch on that name.
+
+The seed helper is this file's, and tasks 07-15 reuse it. It calls H07a's seed helper for the orgs,
+users, teams, members and projects, then adds a project-scope brief at revision 1 and one project
+blob per project, in the order the Hub writes:
+
+```go
+//go:build integration
+
+package migrate_test
+
+// workOrg is one org's seeded parents. Every id is a real ids.Wide id.
+type workOrg struct {
+	Org      string // org-…
+	Team     string // tm-…
+	Project  string // pj-…, the team's first project
+	Project2 string // pj-…, the team's second project (decision 3's tests)
+	Admin    string // u-…, team admin
+	Member   string // u-…, team member
+	Viewer   string // u-…, team viewer
+	Brief    string // brief:bf-…@1, project scope, on Project
+	Blob     []byte // a 32-byte digest in project_blobs for Project
+	Blob2    []byte // a 32-byte digest in project_blobs for Project2
+}
+
+type workSeed struct{ A, B workOrg }
+
+// seedWork seeds two orgs through H07a's helper, then briefs and blobs as hub_app
+// with hub.org_id set. It writes no Work row: each test writes its own.
+func seedWork(t *testing.T, db *hubtest.DB) workSeed
+
+// asApp runs fn in one hub_app transaction with hub.org_id = org ("" leaves it unset),
+// and rolls back, so a test's refused statement never poisons the next one.
+func asApp(t *testing.T, db *hubtest.DB, org string, fn func(tx pgx.Tx) error) error
+
+// insertIssue writes a head at head_revision 0 as hub_app; the columns not named take
+// their defaults. It returns the new is- id.
+func insertIssue(t *testing.T, tx pgx.Tx, o workOrg, project string, number int) string
+```
+
+`pgcode(err)` and `pgconstraint(err)` unwrap with `errors.As(err, &pgErr)`; a test never matches on
+the message text.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestEveryOrgTableHasOrgIsolation` | reads `pg_tables` for schema `hub` joined to `information_schema.columns` (`column_name = 'org_id'`), **not a list**; each such table has `relrowsecurity` and a `pg_policies` row `org_isolation` for role `hub_app` whose `qual` and `with_check` both name `hub.org_id` | a table left out of the loop; `USING` without `WITH CHECK`. It also covers task 10's `issue_proofs` when it lands |
+| `TestAnUnsetOrgSeesNoIssues` | one issue and one comment seeded for org A; as `hub_app` with `hub.org_id` unset, `SELECT count(*)` from `issues`, `issue_revisions` and `issue_comments` is 0 each; with it set to B, also 0 | a permissive policy (`USING (true)`), or one that reads a session-level setting |
+| `TestAnotherOrgsRowFailsTheCheck` | `hub.org_id` = A; `INSERT INTO issues` with `org_id` = B → `42501` | a policy with `USING` only |
+| `TestIssueNumberAndProjectAreFrozen` | as `hub_app`: `UPDATE issues SET number = 9`, `SET project_id = …`, `SET external_url = ''`, `SET erased_at = now()` → `42501` each; `SET priority = 'high'` → ok | a table-wide `UPDATE` grant; `external_url` or `erased_at` added to the column list |
+| `TestNoDeleteBeyondTheToggles` | `DELETE` from `issues`, `issue_revisions`, `issue_serves`, `issue_comments`, `comment_mentions`, `issue_attachments`, `labels`, `project_keys`, `team_work_policies`, `issue_subscriptions`, `project_issue_counters` → `42501` each; from `issue_labels`, `issue_relations`, `comment_reactions` → ok | a `DELETE` grant beyond the three toggles |
+| `TestWorkGrantsAreExactlyTheList` | `information_schema.role_table_grants` and `column_privileges` for `hub_app`, **restricted to the fourteen Work tables**, equal the grants block above, table by table and column by column | a grant nobody reviewed (the Work half of H07a's `TestHubAppGrantsAreExactlyTheList`) |
+| `TestIssueNumbersAreUniquePerProject` | two issues `(Project, 7)` → `23505`, constraint `issues_project_number_key`; `(Project2, 7)` → ok | a missing unique; a unique on `number` alone |
+| `TestAnExternalIssueLandsOnce` | two issues `('linear', 'LIN-1')` in `Project` → `23505`, constraint `issues_external_once`; the same pair in `Project2` → ok; `external_source` set with `external_id` NULL → `23514` | SW.6's idempotency left to Go; a pair half-set |
+| `TestClosedSetsRefuseStrangers` | `state = 'shipped'`, `priority = 'p1'`, `not_tied_reason = 'misc'`, `source = 'sync'`, `external_source = 'jira'`, a relation kind `'parent'`, a comment kind `'note'`, a policy `default_state = 'done'` → `23514` each, each naming its `…_known` constraint | 05 §3.3's derived `shipped` stored as a state; a set widened before its slice (W3, W5) |
+| `TestARevisionMustHashToItsDigest` | `INSERT` a revision whose `digest` is not `sha256(canonical)` → `23514`, constraint `issue_revisions_canonical_hashes`; a revision with `canonical` NULL and `erased_at` NULL → `23514` | a digest the Go side computed wrong, stored anyway |
+| `TestARevisionPinsItsIssuesProject` | an issue in `Project`; a revision naming it with `project_id` = `Project2` → `23503` | decision 3 dropped: a key on `(org_id, issue_id)` alone |
+| `TestAReplyStaysOnItsIssue` | comment `c1` on issue X; a reply on issue Y with `parent_id` = `c1` → `23503`; on X → ok | a single-column `parent_id` key, which lets a thread span issues |
+| `TestAnAttachmentNeedsItsProjectsBlob` | an issue in `Project`; attaching `Blob2` (Project2's) → `23503`; attaching `Blob` → ok; an unknown digest → `23503` | attaching another project's file; a key to `blobs` instead of `project_blobs` |
+| `TestWorkMigrationReappliesClean` | `migrate.Apply` on a migrated database → `[]`; `Current` = `Latest()`; `Latest()` is `0001`'s number plus the Work migrations on the base | a migration the runner re-runs; a file not embedded |
+
+H07a's `TestEveryForeignKeyCarriesTheOrg` and `TestACrossOrgReferenceIsRefused` run on the same
+migrated database and read the catalog, so they check every key above with no edit. The second of
+them seeds "one parent of every kind" from its own list (H07a `:531`); if its closing assertion
+("the set of constraint names exercised equals the catalog's set") goes red on the Work keys, that
+is the gap named at the top, and the fix is the same proposed edit to the Hub owner.
+
+#### Steps
+
+- [ ] **Step 1: Check the base.** On the sync base, `ls control-plane/internal/hub/migrate/sql/`
+  and read hub-contract §10.1-§10.5 and H07a's SQL. Take the next free number for the file name.
+  If `0001_init.sql` changed a parent's `UNIQUE (org_id, id)` target, or `project_blobs`' key, the
+  Hub's file wins and this SQL follows it (rule H1); record the change in the commit message.
+- [ ] **Step 2: The tests first.** Write `work_w1_integration_test.go` with `seedWork`, `asApp`,
+  `insertIssue` and the fourteen tests. Run them: each fails, because no Work table exists.
+- [ ] **Step 3: The migration.** Write `NNNN_work_w1.sql` exactly as above. Run the tests against
+  the compose stack until every one passes, then run H07a's and H07b's schema and guard tests on
+  the same database; they must pass unchanged.
+- [ ] **Step 4: The two Hub tests.** If `TestHubAppGrantsAreExactlyTheList` or
+  `TestACrossOrgReferenceIsRefused` goes red **only** because the Work tables exist, do not edit
+  them. Write the proposed scoping edit into the WH proposal (task 01's file), name the failing
+  assertion in the commit message, and stop for the orchestrator. Any other red is a finding against
+  this SQL.
+- [ ] **Step 5: Commit by pathspec**, the two files, with the migration number in the message.
+  Do not migrate a persistent database (`hub-pg-dev`) from this commit: tasks 07 and 10 append to
+  the same file, and the runner would then refuse it (`ErrEdited`).
+
+#### Acceptance
+
+```bash
+# the compose stack from control-plane/cmd/hub/compose.yaml is up; the URL is the local admin's
+export PANACEA_APP_HUB_TEST_DATABASE_URL='postgres://postgres@127.0.0.1:5433/postgres?sslmode=disable'
+go test ./control-plane/internal/hub/migrate/... -tags integration -race -count=1 -v \
+  -run 'Work|OrgIsolation|UnsetOrg|AnotherOrgs|IssueNumber|NoDelete|ExternalIssue|ClosedSets|Revision|Reply|Attachment|EveryForeignKey|CrossOrg|GrantsAreExactly'
+```
+
+Expected: every test named in the table above reports `--- PASS`, H07a's
+`TestEveryForeignKeyCarriesTheOrg` and `TestACrossOrgReferenceIsRefused` report `--- PASS`, and the
+run ends `ok  github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/migrate`. With the
+variable unset every integration test reports `--- SKIP` naming `PANACEA_APP_HUB_TEST_DATABASE_URL`
+(H06's `hubtest.New`); a skip is **not** a pass and is not reported as one.
+
+```bash
+go test ./control-plane/... -race -count=1        # the runner's unit tests see a second file
+grep -n "AS ENUM" control-plane/internal/hub/migrate/sql/*_work_w1.sql   # decision 4
+git diff --stat -- go.work control-plane/go.mod    # the go directive stays 1.23
+```
+
+Expected: the first ends with every package `ok` (no `FAIL`); the `grep` prints nothing; the
+`diff` prints nothing.
+
+#### What this task does not claim
+
+- **No guard.** A hand-written `UPDATE issues SET state = 'done'` succeeds after this task alone;
+  task 07's trigger refuses it. Revisions are protected here only by the grant (no `UPDATE`), and
+  the owner role can still change one until task 07's `guard_issue_revision` lands.
+- **No route, store or event.** Nothing here writes an issue; tasks 08-15 do, each with its one
+  event per write.
+- **Not that the number is final.** The migration's number is the next free one on the sync base
+  and may be renumbered at merge (rule H1).
+- **Not that the Hub's two catalog-wide tests pass unchanged.** It is written to; whether
+  `TestHubAppGrantsAreExactlyTheList` is scoped to `0001` is **UNVERIFIED** (see the top).
+- **Not the janitor's reference list.** Attached blobs are protected by a key; the janitor skipping
+  them cleanly is Hub task 24's, as a proposed edit (**UNVERIFIED**).
+- **No measured size or speed.** No query here has been planned against real data; the indexes are
+  the ones the W1 routes' filters name (tasks 08, 11, 13), chosen by reading, not by `EXPLAIN`.
+
+**Parity rows served:** none closed alone. This is the storage behind **L-3** (key and number),
+**L-8**, **L-9**, **L-10** (states and policies), **L-13** (priority), **L-17** (labels), **L-24**
+(relations), **L-34** (revisions), **L-41**, **L-42** (reactions, anchors), **L-45** (attachments),
+**L-48** (team policy), **L-117** (subscriptions) and **L-220** (the imported external link).
