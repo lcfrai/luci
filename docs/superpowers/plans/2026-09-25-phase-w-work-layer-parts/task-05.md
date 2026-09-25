@@ -132,45 +132,46 @@ func RunWork(t *testing.T, newEnv func(t *testing.T) WorkEnv, rows ...WorkRow) {
 	}
 }
 
-var bg = context.Background()
+// wctx, not bg: H05's conformance.go may declare its own name for this.
+var wctx = context.Background()
 
 // project is a new project of T, made by T's admin; key is "" for none.
 func (e WorkEnv) project(t *testing.T, name, key string) hubapi.Project {
 	t.Helper()
-	p, err := e.Admin.CreateProject(bg, hubapi.CreateProjectRequest{TeamID: e.TeamID, Name: name,
+	p, err := e.Admin.CreateProject(wctx, hubapi.CreateProjectRequest{TeamID: e.TeamID, Name: name,
 		Remotes: []hubapi.RemoteRequest{}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if key != "" {
-		if _, err := e.Admin.SetProjectKey(bg, p.ID, key); err != nil {
+		if _, err := e.Admin.SetProjectKey(wctx, p.ID, key); err != nil {
 			t.Fatal(err)
 		}
 	}
 	return p
 }
 
-// chore is the smallest valid create: no criterion, so a reason.
-func chore(title string) hubapi.CreateIssueRequest {
-	return hubapi.CreateIssueRequest{Title: text(title), Description: text(""), Serves: []hubapi.Serve{},
+// wChore is the smallest valid create: no criterion, so a reason.
+func wChore(title string) hubapi.CreateIssueRequest {
+	return hubapi.CreateIssueRequest{Title: wText(title), Description: wText(""), Serves: []hubapi.Serve{},
 		Implements: []string{}, Labels: []string{}, NotTiedReason: hubapi.NotTiedChore}
 }
 
-func text(s string) hubapi.AuthoredText { return hubapi.AuthoredText{Text: s, Author: hubapi.AuthorHuman} }
+func wText(s string) hubapi.AuthoredText { return hubapi.AuthoredText{Text: s, Author: hubapi.AuthorHuman} }
 
 // issue is a new chore in p, created by the member.
 func (e WorkEnv) issue(t *testing.T, p hubapi.Project, title string) hubapi.IssueWithRevision {
 	t.Helper()
-	iw, err := e.Member.CreateIssue(bg, p.ID, chore(title))
+	iw, err := e.Member.CreateIssue(wctx, p.ID, wChore(title))
 	if err != nil {
 		t.Fatal(err)
 	}
 	return iw
 }
 
-// refused asserts err is a Hub refusal with this status and code, and each
+// wRefused asserts err is a Hub refusal with this status and code, and each
 // detail named in kv ("key", "value", …).
-func refused(t *testing.T, err error, status int, code string, kv ...string) {
+func wRefused(t *testing.T, err error, status int, code string, kv ...string) {
 	t.Helper()
 	var he *hubclient.Error
 	if !errors.As(err, &he) || he.Status != status || he.Problem.Error != code {
@@ -183,10 +184,10 @@ func refused(t *testing.T, err error, status int, code string, kv ...string) {
 	}
 }
 
-// kinds is the kinds of every event after seq "after" that start with prefix.
-func kinds(t *testing.T, view hubclient.Hub, after, prefix string) []string {
+// wKinds is the kinds of every event after seq "after" that start with prefix.
+func wKinds(t *testing.T, view hubclient.Hub, after, prefix string) []string {
 	t.Helper()
-	page, err := view.Changes(bg, after, 200)
+	page, err := view.Changes(wctx, after, 200)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -199,10 +200,11 @@ func kinds(t *testing.T, view hubclient.Hub, after, prefix string) []string {
 	return out
 }
 
-// head is the feed's cursor now: events after it are this row's.
-func head(t *testing.T, view hubclient.Hub) string {
+// wHead is the feed's cursor now: events after it are this row's. Every
+// unexported name in work.go starts with w, so none meets one of H05's.
+func wHead(t *testing.T, view hubclient.Hub) string {
 	t.Helper()
-	page, err := view.Changes(bg, "latest", 1)
+	page, err := view.Changes(wctx, "latest", 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -210,6 +212,6 @@ func head(t *testing.T, view hubclient.Hub) string {
 }
 ```
 
-`head` reads `Changes("latest", 1)`, which H05's part fixes as *"no events and the head as
+`wHead` reads `Changes("latest", 1)`, which H05's part fixes as *"no events and the head as
 `next`"* (`phase-h-hub-parts/task-05.md:163`), so a row counts only its own events, on the fake and
 on a real Hub with history.
