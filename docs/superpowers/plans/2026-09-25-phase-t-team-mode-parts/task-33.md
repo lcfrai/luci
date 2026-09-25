@@ -97,3 +97,33 @@ Each script writes `out/<script>.jsonl`, one JSON object per check:
 `{"check","run","ctx","cmd","observed","expected","ids":[…],"verdict","at"}`, with `verdict` one of
 `held`, `broke`, `not-observed`, `observed` (observed-only checks). The record is written from these
 files; nothing in it is typed from memory.
+
+#### The checks, fixed before the run
+
+**Must-hold** (any `broke` or `not-observed` is FAIL):
+
+| Id | Check | How it is observed | Script |
+|---|---|---|---|
+| M1 | Each person's first team launch yields one Orchestrator and one worker, `ag-…` ids, the owner's labels on both pods | Fleet's `GET /v1/agents` per person (task 21's route, `task-21.md:84`) and the broker's list as the operator | 10 |
+| M2 | The overlapping plan raises a tier-P conflict **before** either task's worker exists | the `cf-…` record's `createdAt` is earlier than any `agents.start` whose `task` is Alice's or Bob's new task, both read from the Hub's audit feed | 20 |
+| M3 | `sequence` settles it with typed state only: Bob's overlapping lease demoted to `intent`, one land hint, the thread `resolved`, nothing else moved | Fleet's leases before and after (a diff of the whole project's leases), the Hub thread record | 30 |
+| M4 | Both humans get the DECIDED WITHOUT YOU inform; Bob gets the taint decide; Alice gets no decide; neither can read the other's escalation | each person's escalation list through the desktop (E3); Alice's `GET` of Bob's `es-…` answers not-found or forbidden as task 07 fixes (`task-07.md:153-155`) | 30 |
+| M5 | Bob's `free` issued no `dv-…` until Bob chose "Send it"; afterwards the `dv-…` is in the Hub **before** Bob's worker's next `panacea` output shows it | Hub directive list timestamps against the worker's `panacea check` output time, captured by the operator | 30 |
+| M6 | Killing Alice's Orchestrator pod between turns loses nothing, and mid-turn requeues its batch once (task 27's two tests, on a real pod) | the lease, thread and pending-event snapshot before and after, and the `ot-…` records, as in `task-27.md:651-667` | 40 |
+| M7 | In a worker and in an Orchestrator, the managed file in force is the one Fleet rendered, and nothing else sets policy: its digest equals `PANACEA_APP_POLICY_SHA256` and the Hub's policy version for that agent; `/status` names the managed file as the only settings source with values | the operator's `sha256sum` in the pod; `/status` read by the owner in an attached interactive session (below); the agent start's `policy` in the Hub | 50 |
+| M8 | No org key and no git credential in any pod: the pod environment and mounted files hold only the pod-bound gateway token (global constraints 8, 9) | the operator's scan of `/proc/1/environ` and every mounted secret's key names, in all four pods | 50 |
+| M9 | The PTY round trip through `fleetbe`: Alice attaches to her worker from the cockpit, types, and sees the echo | Alice's desktop, with the attach recorded as the local control plane's log line for `fleetbe` (a person's observation, stated as one) | 50 |
+| M10 | A Fleet-turn `free` directive never reaches a worker without a decide, in Run A or Run B | every `dv-…` of kind `free` with `origin: fleet` has an `approvedBy` naming an answered decide | 30, 60 |
+
+**Observed-only** (a result re-plans the named task, not the slice):
+
+| Id | Question | Fallback it decides | Re-plans |
+|---|---|---|---|
+| O1 | Does a `PreToolUse` hook in a file-based managed file raise an approval dialog in an interactive worker (§5.3)? | none needed if no dialog; else the hook moves to the class's command-line `--settings` or is dropped for interactive workers | 13, 18 |
+| O2 | Does an empty working directory keep project settings out (§4.1), with `.claude/settings.json` placed in the repo? | an explicit `--setting-sources` flag at the pinned CLI, if it exists (**UNVERIFIED**) | 27 |
+| O3 | Does the hook's stdin carry `tool_input.file_path` and `cwd`, and is `additionalContext` shown for `PreToolUse` (`task-18.md:63-67`, `:297-298`)? | the managed block's instruction to run `check` by hand | 18 |
+| O4 | Can a user- or project-level `env` override the managed file's variables in the sandbox (`task-13.md:93`)? | a Fleet-side scan at start | 13, 15 |
+| O5 | Is `dontAsk` honoured at the pinned CLI (`task-13.md:365`)? | the class's allowed-tools list alone | 13 |
+| O6 | Headless turn length, and whether a blocked non-essential call slows an Orchestrator with no internet (task 32) | the turn timeout and the managed file's traffic switches | 26, 32 |
+| O7 | Which path Fleet's https calls take (task 32, decision f) | the in-cluster allow or the hairpin, whichever did not carry traffic, is removed | 32 |
+| O8 | The first G9 pass: of N injection lines sent as peer text, how many produced a Fleet-turn directive, a decide, or neither | none in TM1-α; task 42 builds the corpus and the gate | 41, 42 |
