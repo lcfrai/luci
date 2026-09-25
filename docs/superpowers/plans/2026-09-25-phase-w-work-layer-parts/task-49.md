@@ -580,18 +580,21 @@ export function Editor(props: EditorProps): JSX.Element {
           return false;
         },
         blur: () => { commit(); return false; },
-      },
-      handleClick: (_v, _pos, e) => {
-        const a = (e.target as Element | null)?.closest("a.ed-link");
-        if (!a) return false;
-        e.preventDefault();                           // never a webview navigation (decision 6)
-        if (!latest.current.readOnly) return false;   // editing: a click places the caret
-        const href = a.getAttribute("href") ?? "";
-        if (LIVE_LINK.test(href)) openLink(href, latest.current.onOpenIssue);
-        return true;
+        // The raw click, not PM's handleClick (which runs on mouseup): the anchor's navigation is
+        // the click's default action, so this is the event that must be prevented.
+        click: (_v, e) => {
+          const a = (e.target as Element | null)?.closest("a.ed-link");
+          if (!a) return false;
+          e.preventDefault();                         // never a webview navigation (decision 6)
+          if (!latest.current.readOnly) return false; // editing: a click places the caret
+          const href = a.getAttribute("href") ?? "";
+          if (LIVE_LINK.test(href)) openLink(href, latest.current.onOpenIssue);
+          return true;
+        },
       },
     });
     view.current = v;
+    VIEWS.set(host.current!, v);
     return () => { commit(); v.destroy(); view.current = null; };
   }, []);                                             // one view per mount; props are read via `latest`
 
@@ -610,9 +613,18 @@ export function Editor(props: EditorProps): JSX.Element {
     v.updateState(load(value));
   }, [value.markdown, cls]);
 
-  return <div ref={host} className="ed" data-readonly={readOnly || undefined} />;
+  // data-verbatim: the text is the person's own (task 20's exemption), so "50% of users" in a
+  // description is not a prediction; the chrome around the editor is still scanned.
+  return <div ref={host} className="ed" data-verbatim data-readonly={readOnly || undefined} />;
 }
+
+/** Test seam: the view behind an editor's host element. A WeakMap, so nothing leaks. */
+const VIEWS = new WeakMap<Element, EditorView>();
+export const editorViewOf = (el: Element): EditorView | undefined => VIEWS.get(el);
 ```
+
+`VIEWS` is declared at module scope, above `Editor`, in the file; it is listed after the component
+here only to keep the component in one block. A production caller has no reason to reach for it.
 
 Four things in that component are deliberate. `latest` holds the newest props so the one view,
 built once, never calls a stale `onCommit`. Unmounting commits, so closing the issue view with
@@ -675,5 +687,244 @@ and the person's text is kept.
 A dead link is ink with no underline: it reads as text, which it is. The task item's marker is the
 Markdown it came from, in mono, so the item teaches its own shortcut; a clickable checkbox is not
 in W1 (toggling one is an edit like any other, by typing).
+
+#### The round-trip set — `desktop/src/components/editor/fixtures/*.md`
+
+Seven files, each already in the serializer's canonical form, so parse then serialize must give
+the same bytes. `⏎` below marks the file's final newline where it has one.
+
+| File | Content (exact) | What it holds |
+|---|---|---|
+| `headings.md` | `# One\n\n## Two\n\n### Three` | the three heading levels |
+| `lists.md` | `- a\n- b\n\n1. one\n2. two\n\n* star` | `-` and `*` bullets kept apart; numbering |
+| `tasks.md` | `- [ ] open\n- [x] done` | the task items and their markers |
+| `inline.md` | `Some *em*, **strong**, \`code\`, [a](https://example.test/x) and [b](panacea://issue/is-3f2a91c07b1e4d2a@3).` | marks and the two live schemes |
+| `quote.md` | `> quoted\n> twice` | a blockquote over two lines |
+| `code.md` | ```` ```go\nfmt.Println("```")\n``` ```` written with a four-backtick fence around it | a fence containing a triple backtick |
+| `trailing.md` | `Ends with a newline.⏎` | the trailing newline kept |
+
+`lists.md`'s `* star` sits after the ordered list as its own list; whether `prosemirror-markdown`
+separates two adjacent bullet lists of different markers with one blank line or two is
+**UNVERIFIED** until step 3, and the fixture is corrected to what CommonMark requires, never to
+what the serializer happens to emit.
+
+#### Tests to write first — `desktop/src/components/editor/markdown.test.ts`
+
+```ts
+import { describe, expect, it } from "vitest";
+import { DOMSerializer } from "prosemirror-model";
+import lock from "../../../package-lock.json";
+import { editorSchema } from "./schema";
+import { clean, parseMarkdown, serializeMarkdown, trailingNewlines } from "./markdown";
+
+const FIXTURES = import.meta.glob("./fixtures/*.md", { query: "?raw", import: "default", eager: true }) as Record<string, string>;
+
+function render(md: string): HTMLElement {
+  const box = document.createElement("div");
+  box.appendChild(DOMSerializer.fromSchema(editorSchema).serializeFragment(parseMarkdown(md).content));
+  return box;
+}
+
+describe("markdown", () => {
+  it("round-trips every fixture byte for byte", () => {
+    expect(Object.keys(FIXTURES)).toHaveLength(7);
+    for (const [name, src] of Object.entries(FIXTURES)) {
+      expect([name, serializeMarkdown(parseMarkdown(src), trailingNewlines(src))]).toEqual([name, src]);
+    }
+  });
+  it("renders raw HTML as text", () => {
+    const box = render("<script>alert(1)</script> and <b>bold</b>");
+    expect(box.querySelector("script, b")).toBeNull();
+    expect(box.textContent).toContain("<script>alert(1)</script>");
+  });
+  it("makes no unsafe scheme a live link, parsed or built by hand", () => {
+    for (const bad of ["[x](javascript:alert(1))", "[x](data:text/html,hi)", "[x](file:///c:/x)", "<vbscript:x>"]) {
+      expect(render(bad).querySelector("a")).toBeNull();
+    }
+    const handMade = editorSchema.text("x", [editorSchema.marks.link.create({ href: "javascript:alert(1)" })]);
+    const box = document.createElement("div");
+    box.appendChild(DOMSerializer.fromSchema(editorSchema).serializeFragment(editorSchema.nodes.paragraph.create(null, handMade).content));
+    expect(box.querySelector("a")).toBeNull();
+  });
+  it("keeps https, http and panacea links live", () => {
+    const box = render("[a](https://e.test) [b](http://e.test) [c](panacea://issue/is-3f2a91c07b1e4d2a)");
+    expect(Array.from(box.querySelectorAll("a")).map((a) => a.getAttribute("href")))
+      .toEqual(["https://e.test", "http://e.test", "panacea://issue/is-3f2a91c07b1e4d2a"]);
+  });
+  it("embeds nothing: an image stays a link", () => {
+    expect(render("![x](https://e.test/a.png)").querySelector("img")).toBeNull();
+  });
+  it("strips the authorship sentinels from any input", () => {
+    expect(clean("a\uE000b\uE001c")).toBe("abc");
+  });
+  it("adds only permissive licences", () => {
+    const names = ["prosemirror-model", "prosemirror-state", "prosemirror-view", "prosemirror-transform",
+      "prosemirror-commands", "prosemirror-keymap", "prosemirror-history", "prosemirror-inputrules",
+      "prosemirror-markdown", "markdown-it"];
+    const pkgs = (lock as { packages: Record<string, { license?: string }> }).packages;
+    for (const n of names) {
+      expect([n, pkgs[`node_modules/${n}`]?.license]).toEqual([n, expect.stringMatching(/^(MIT|Apache-2\.0|BSD-[23]-Clause|ISC)$/)]);
+    }
+  });
+});
+```
+
+`desktop/package-lock.json` exists and carries `license` fields (139 of them, counted 2026-09-25),
+so the licence test reads the file the install writes. Vitest's `css.include` already admits
+`?raw` for CSS only (`desktop/vitest.config.ts`); `.md?raw` goes through Vite's raw loader without it.
+
+#### Tests to write first — `desktop/src/components/editor/authorClass.test.ts`
+
+```ts
+import { describe, expect, it } from "vitest";
+import { EditorState } from "prosemirror-state";
+import { docFromAuthored, fieldAuthor, personTypedPlugin, toAuthored } from "./authorClass";
+import { parseMarkdown, serializeWithAuthorship } from "./markdown";
+import { editorSchema } from "./schema";
+
+const agentState = (md: string) =>
+  EditorState.create({ doc: parseMarkdown(md, "A"), plugins: [personTypedPlugin] });
+const after = (s: EditorState, tr: ReturnType<EditorState["tr"]["insertText"]>) =>
+  serializeWithAuthorship(s.applyTransaction(tr).state.doc);
+
+describe("the author class inside the editor", () => {
+  it("marks only the typed range the person's, and keeps the rest agent on both sides", () => {
+    const s = agentState("agent words here");               // doc positions: text starts at 1
+    const out = after(s, s.tr.insertText("person ", 1 + "agent ".length));
+    expect(out.markdown).toBe("agent person words here");
+    expect(out.authorship).toEqual([
+      { from: 0, to: 6, cls: "text·A" }, { from: 13, to: 23, cls: "text·A" },
+    ]);
+  });
+  it("keeps what survives a deletion inside an agent passage agent", () => {
+    const s = agentState("agent words here");
+    const out = after(s, s.tr.delete(1 + 6, 1 + 12));
+    expect(out).toEqual({ markdown: "agent here", authorship: [{ from: 0, to: 10, cls: "text·A" }] });
+  });
+  it("makes pasted text the person's even when it arrives marked agent", () => {
+    const s = agentState("x");
+    const pasted = editorSchema.text("pasted", [editorSchema.marks.agent.create()]);
+    const out = after(s, s.tr.insert(2, pasted));
+    expect(out.authorship).toEqual([{ from: 0, to: 1, cls: "text·A" }]);
+  });
+  it("labels a mixed text agent on the wire, never the person's", () => {
+    expect(fieldAuthor([])).toBe("H");
+    expect(fieldAuthor([{ from: 3, to: 5, cls: "text·A" }])).toBe("A");
+    expect(toAuthored({ markdown: "ab", authorship: [{ from: 0, to: 1, cls: "text·A" }] })).toEqual({ text: "ab", author: "A" });
+  });
+  it("loads a whole-field class as one span or none", () => {
+    expect(docFromAuthored({ text: "abc", author: "A" }).authorship).toEqual([{ from: 0, to: 3, cls: "text·A" }]);
+    expect(docFromAuthored({ text: "abc", author: "H" }).authorship).toEqual([]);
+    expect(docFromAuthored({ text: "", author: "A" }).authorship).toEqual([]);
+  });
+});
+```
+
+| Test | Mutant it kills |
+|---|---|
+| round-trips every fixture | a serializer that rewrites `-` as `*`, `*` as `_`, or drops a trailing newline |
+| raw HTML as text | `html: true` |
+| no unsafe live link | an unsafe `href` (parsed, or built by a paste) |
+| https, http, panacea live | a guard so strict that no link works |
+| embeds nothing | an `<img>` (L-128 is a SKIP) |
+| strips sentinels | a text that smuggles an agent span in |
+| permissive licences | a copyleft dependency |
+| only the typed range | flipping the whole passage to the person's; losing the agent mark on any edit |
+| deletion keeps the rest | a delete that clears the class of what is left |
+| paste is the person's | a paste that recreates an agent passage |
+| mixed is agent on the wire | a mixed text laundered to `text·H` (decision 1) |
+| whole-field load | an empty text marked agent; a load that ignores the class |
+
+#### Tests to write first — `desktop/src/components/editor/Editor.test.tsx`
+
+```tsx
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render } from "@testing-library/react";
+import { Editor, IDLE_COMMIT_MS, editorViewOf } from "./Editor";
+
+vi.mock("@tauri-apps/plugin-opener", () => ({ openUrl: vi.fn(async () => {}) }));
+afterEach(() => vi.useRealTimers());
+
+function mount(markdown: string, author: "H" | "A" = "H", readOnly = false) {
+  const onCommit = vi.fn();
+  const parentKeys = vi.fn();
+  const authorship = author === "A" ? [{ from: 0, to: markdown.length, cls: "text·A" as const }] : [];
+  const r = render(
+    <div role="list" onKeyDown={parentKeys}>
+      <Editor ariaLabel="Description" value={{ markdown, authorship }} onCommit={onCommit} readOnly={readOnly} />
+    </div>,
+  );
+  const host = r.container.querySelector(".ed")!;
+  const view = editorViewOf(host)!;
+  const type = (s: string) => act(() => { view.dispatch(view.state.tr.insertText(s)); });
+  return { ...r, host, view, onCommit, parentKeys, type };
+}
+
+describe("Editor", () => {
+  it("marks an agent passage with a shape and a word, not a colour", () => {
+    const { host } = mount("an agent wrote this", "A");
+    const gutter = host.querySelector(".ed-gutter")!;
+    expect(gutter.querySelector("svg path")).not.toBeNull();
+    expect(gutter.textContent).toBe("text·A · agent: ");
+  });
+  it("keeps plain keys from a surrounding list, and inserts what is typed", () => {
+    const { view, parentKeys, type } = mount("");
+    for (const key of ["C", "S", "N", "1"]) fireEvent.keyDown(view.dom, { key });
+    type("CSN1");
+    expect(parentKeys).not.toHaveBeenCalled();
+    expect(view.state.doc.textContent).toBe("CSN1");
+  });
+  it("lets a chord reach the cockpit, except Ctrl+Enter, which commits here", () => {
+    const { view, parentKeys, onCommit, type } = mount("a");
+    fireEvent.keyDown(view.dom, { key: "k", ctrlKey: true });
+    expect(parentKeys).toHaveBeenCalledTimes(1);
+    type("b");
+    fireEvent.keyDown(view.dom, { key: "Enter", ctrlKey: true });
+    expect(parentKeys).toHaveBeenCalledTimes(1);               // New session never fires
+    expect(onCommit).toHaveBeenCalledTimes(1);
+  });
+  it("sends one revision write per blur, none per keystroke, none without a change", () => {
+    const { view, onCommit, type } = mount("start");
+    fireEvent.blur(view.dom);
+    expect(onCommit).not.toHaveBeenCalled();
+    for (const ch of "abcde") type(ch);
+    expect(onCommit).not.toHaveBeenCalled();
+    fireEvent.blur(view.dom);
+    fireEvent.blur(view.dom);
+    expect(onCommit).toHaveBeenCalledTimes(1);
+    expect(onCommit.mock.calls[0][0].markdown).toBe("abcdestart");
+  });
+  it("commits after the idle cadence, once", () => {
+    vi.useFakeTimers();
+    const { onCommit, type } = mount("x");
+    type("y");
+    act(() => { vi.advanceTimersByTime(IDLE_COMMIT_MS - 1); });
+    expect(onCommit).not.toHaveBeenCalled();
+    act(() => { vi.advanceTimersByTime(1); });
+    expect(onCommit).toHaveBeenCalledTimes(1);
+  });
+  it("never rewrites a person's Markdown style unless they edit it", () => {
+    const { view, onCommit } = mount("some _em_ here");
+    fireEvent.blur(view.dom);
+    expect(onCommit).not.toHaveBeenCalled();
+  });
+  it("opens a live link outside the window when read-only, and navigates nothing", async () => {
+    const { host } = mount("[site](https://example.test/a)", "H", true);
+    const a = host.querySelector("a.ed-link")!;
+    const click = new MouseEvent("click", { bubbles: true, cancelable: true });
+    a.dispatchEvent(click);
+    expect(click.defaultPrevented).toBe(true);
+    const opener = await import("@tauri-apps/plugin-opener");
+    await vi.waitFor(() => expect(opener.openUrl).toHaveBeenCalledWith("https://example.test/a"));
+  });
+});
+```
+
+`view.dispatch(tr.insertText(…))` stands in for typing because jsdom's `contenteditable` does not
+run the browser's text input path that ProseMirror observes (**UNVERIFIED** whether
+`user-event` 14.6.7 drives it well enough; if it does, step 3 may switch to `user.type`). The
+key-propagation half is still a real `keydown` on the view's DOM, which is what task 53's list
+would receive. `insertText` at the default selection inserts at the document start, so
+`"abcdestart"` is the expected text.
 
 
