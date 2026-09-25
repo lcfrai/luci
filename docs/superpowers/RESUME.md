@@ -239,6 +239,25 @@ stopped and resumed with `resumeFromRunId`. **Parallel runs resume from cache no
 - Owner questions (4 from phase 7, 5 from the Hub) are collected in
   `docs/superpowers/planning/2026-09-25-owner-questions-pending.md` for the next question round.
 
+**Added 00:30, 2026-09-26: a sign-out killed agents in 5 runs. All are resumed.**
+- The runs: identity, p4, env, close-out, and team finisher (fresh run `wf_df8d0e15-93e`).
+- The work finisher (`wf_3c2c558c-b5b`) lost writers for 149-168. **Launch it FRESH once more after
+  it finishes**, and it writes only what is missing.
+- **X-1 is APPROVED** (x1-global-files-review-2). Close-out continues with the reconcile, 26, 25
+  and the final review.
+- **QUEUED, SECURITY, before phase 2 merges to `main`: X-3**, from the X-1 review, with no owner
+  yet.
+  - **O-1 (Critical-class):** the rail scanner runs `git worktree list --porcelain` in the
+    agent-writable primary worktree (`internal/project/project.go:282`). An agent-written
+    `.git/commondir` lists another repository's worktrees, and a create mounts one read-write. The
+    cheapest guard is to confine `Scanner.Path` results to ProjectsDir after EvalSymlinks.
+  - **m-5:** a host-owned `core.excludesFile` can name a file inside a project, which an agent can
+    swap for a link to a secret. Under R4's rule, no bind-mount source may be a path a sandbox can
+    write.
+  - **O-2.**
+  - Run as: a ruling, then a fix, then an adversarial review, AFTER close-out's final review; fold
+    in its findings too.
+
 **Added 13:40, 2026-09-25: OD-30 (sign-in) and the env R4 re-plan.**
 - **OD-30:** sign-in goes through a Keycloak broker on Panacea's existing Entra registration, with
   zero clicks. The IT request's Part 1 is no longer needed. Run `wf_579f2bb3-bfb`
