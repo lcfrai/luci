@@ -283,7 +283,20 @@ unescaped, or sent empty).
   `CodeMachineFull`. Show `TestCloudCreateOnPrimaryMountsItsBackingLane` and
   `TestCloudCreateNeverMountsProjects` red first against the pre-R4 create, which mounts the
   agent's path for the rail's id.
-- [ ] **Step 3:** Full run; commit. This task registers no route, so the route audits are
+- [ ] **Step 3: Mutation check** (rule 7), each on a `$TEMP` copy, each verified applied and
+  turning the named test red:
+  (1) create mounts the agent's path for the rail's id, skipping the backing lane →
+  `TestCloudCreateOnPrimaryMountsItsBackingLane`;
+  (2) `cloudMounts` takes `MachinePath` from the `NotALane` details' `path` →
+  `TestCloudCreateNeverMountsProjects`;
+  (3) a detached HEAD creates a lane on `""` → `TestCloudCreateDetachedIs409`;
+  (4) the lane path's 409s mapped to 500 → `TestCloudCreatePassesTheLanePathRefusals`;
+  (5) the store keyed by the backing lane's id → `TestCloudCreateOnPrimaryMountsItsBackingLane`,
+  on its store row.
+  The two named beforehand as likeliest to survive are (2), because only a primary's details
+  carry a `projects/` path, and (5), because the lane and the store both exist either way. Each
+  is killed only by the row named beside it.
+- [ ] **Step 4:** Full run; commit. This task registers no route, so the route audits are
   unchanged and still pass.
 
 #### Acceptance
@@ -303,7 +316,7 @@ git grep -n '"projects/' -- control-plane/internal/api/cloudlane.go control-plan
   (rule SX.2).
 - Adding a project to a cloud machine (a clone through task 21's route): seam S8-P3.2.
 - **A cloud lane is made here only in tests.** The creator for a cloud machine is task 25's
-  (`gitx.Remote`, and the `MachineFS` of env ruling 4); it sets `Deps.CloudLanes`. Until it
+  (`machines.Remote`, and the `MachineFS` of env ruling 4); it sets `Deps.CloudLanes`. Until it
   lands, a cloud create that needs a new backing lane answers `503 backend_unavailable`,
   `details.cloud "lanes_unwired"`, and mounts nothing. The tests use a fake `laneCreator`, as
   phase 3's own tests use fakes. Phase 3 has one `GitDeps.Machine` and `GitDeps.Creator`, for the
@@ -318,10 +331,14 @@ git grep -n '"projects/' -- control-plane/internal/api/cloudlane.go control-plan
   session on one of them runs in a backing lane the rail does not show.
 - **That `LaneMachinePath` reads a lane path a Windows laptop holds.** `Lane.Path` comes from
   `filepath.Join` over the cloud `CloneRoot`. Task 20 accepts both separators, but what
-  task 25's `gitx.Remote` hands the Creator is **UNVERIFIED** until task 25 exists.
-- **UNVERIFIED:** that a Kata guest enforces a `readOnly` `subPath` **file** mount, so that the
-  agent's `git config` write and git's `config.lock` rename onto `/home/dev/work/.git/config`
-  both fail inside the microVM. Phase 3's `TestSandboxCloneConfigIsReadOnly` covers Docker
-  only. Nothing here runs against a cluster (the stream's rule); the first live Kata session
-  must run `sh -c 'echo x >> /home/dev/work/.git/config'` and `git config x.y z` in the sandbox
-  and see both refused, and task 33 carries that check into the results doc.
+  task 25's `machines.Remote` hands the Creator is **UNVERIFIED** until task 25 exists.
+- **The hygiene bind is on sessions only, and nothing rests on it.** A session binds
+  `.git/config` read-only (`cloudMounts` item 2); a runner-only pod mounts the lane alone (env
+  ruling 2, "Mounts"; task 25b), exactly as phase 3's local runner-only pod does (one mount of
+  `lane.Path`, phase-3 `task-24.md:918`). The asymmetry is phase 3's, not a cloud twin. The bind
+  is hygiene, as phase 3's is (plan P3A-3): R4's boundary is that no host git reads a lane, not
+  the bind, so no claim here depends on whether it holds.
+- **UNVERIFIED, and recorded only:** that a Kata guest enforces a `readOnly` `subPath` **file**
+  mount. Phase 3's `TestSandboxCloneConfigIsReadOnly` covers Docker only. The first live Kata
+  session may run `git config x.y z` in the sandbox and task 33 records what it saw; no
+  acceptance and no other claim depends on the answer.
