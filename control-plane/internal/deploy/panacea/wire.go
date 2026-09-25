@@ -179,7 +179,8 @@ type diagnoseDTO struct {
 	Source   string       `json:"source"`
 }
 
-// findingDTO mirrors handlers.DiagnoseFinding (handlers/diagnose.go:60-67).
+// findingDTO mirrors handlers.DiagnoseFinding (handlers/diagnose.go:60-67). The write half
+// follows it.
 type findingDTO struct {
 	Problem      string   `json:"problem"`
 	LikelyCause  string   `json:"likelyCause"`
@@ -187,4 +188,114 @@ type findingDTO struct {
 	Evidence     []string `json:"evidence"`
 	Severity     string   `json:"severity"`
 	Owner        string   `json:"owner"`
+}
+
+// The write half (task 04), at 406d0da95; every cited line re-read at eb85f0d9f.
+
+// shipRequestDTO is the subset of models.TriggerDeployOptions phase 7 sends
+// (models/models.go:2342-2383). It has NO scan-mode field on purpose (brief B2): turning a
+// scanner off from a desktop is a security-posture change, and Panacea's rule is "off means
+// skip, never fabricate". NoCache is a pointer exactly as Panacea's is (:2349-2352).
+// TriggerDeploy decodes leniently (handlers/projects.go:2967-2968), so an unknown field would be
+// silently dropped — which is why no speculative "metadata" field is sent (seam S7-N2).
+type shipRequestDTO struct {
+	Branch  string `json:"branch"`
+	Commit  string `json:"commit"`
+	NoCache *bool  `json:"noCache,omitempty"`
+}
+
+// shipResponseDTO mirrors TriggerDeploy's 202 data (handlers/projects.go:2998-3005).
+type shipResponseDTO struct {
+	Project     string `json:"project"`
+	Status      string `json:"status"`
+	PipelineRun string `json:"pipelineRun"`
+}
+
+// cancelResponseDTO mirrors CancelDeploy's data (handlers/projects.go:3670-3687).
+type cancelResponseDTO struct {
+	Status  string `json:"status"` // "cancelled" | "already_completed"
+	Message string `json:"message"`
+}
+
+// rollbackResponseDTO is Rollback's data (handlers/projects.go:1636-1639): the Deployment
+// RollbackDeployment returns, enriched with image/commit/branch/environment (:1619-1623).
+// Its ID is the deployment rolled back TO (clients/kubernetes.go:5982, :6030).
+type rollbackResponseDTO = deploymentDTO
+
+// autoDeployDTO mirrors GetBranchAutoDeploy's data (handlers/projects.go:4136-4143) and
+// SetBranchAutoDeploy's (:4192-4198): the same five keys in a data envelope. On the PUT,
+// enabled is the bool just written (*body.Enabled, :4194), never null (review M6).
+type autoDeployDTO struct {
+	Branch             string `json:"branch"`
+	Enabled            *bool  `json:"enabled"` // GET: null = no explicit label; PUT: always set
+	ProjectDefault     bool   `json:"projectDefault"`
+	Effective          bool   `json:"effective"`
+	IsProductionBranch bool   `json:"isProductionBranch"`
+}
+
+// setAutoDeployDTO is SetBranchAutoDeploy's body (handlers/projects.go:4159-4167).
+type setAutoDeployDTO struct {
+	Enabled *bool `json:"enabled"` // required; always non-nil when sent
+}
+
+// postureDTO mirrors GetBranchAccessMode's data (handlers/project_security.go:668-677).
+type postureDTO struct {
+	Branch           string   `json:"branch"`
+	Env              string   `json:"env"`
+	AccessMode       string   `json:"accessMode"`
+	IPWhitelist      []string `json:"ipWhitelist"`
+	PasswordSet      bool     `json:"passwordSet"`
+	BypassTokenCount int      `json:"bypassTokenCount"`
+}
+
+// setPostureDTO mirrors branchAccessModeRequest (handlers/project_security.go:681-691).
+// BypassTokens (caller-supplied raw tokens) is deliberately NOT declared: the cockpit never
+// supplies a token, it only asks Panacea to mint one.
+type setPostureDTO struct {
+	AccessMode         string `json:"accessMode"`
+	Password           string `json:"password,omitempty"`
+	RotateBypassTokens bool   `json:"rotateBypassTokens,omitempty"`
+}
+
+// setPostureResponseDTO mirrors SetBranchAccessMode's data (handlers/project_security.go:824-845).
+// The envelope's message is carried only when enforced is true ("access mode set to …", :835).
+// When enforced is false Panacea's sentence embeds the reconcile error's err.Error() (:818-821,
+// :837-839), so it is logged at warn and never carried; SetPosture writes notEnforcedSentence
+// (governance.go). BypassTokens is present whenever one was minted, enforced or not: bypass-token
+// with no supplied token always mints (:786-797), and it is returned ONCE (:830-833).
+type setPostureResponseDTO struct {
+	Branch       string   `json:"branch"`
+	Env          string   `json:"env"`
+	AccessMode   string   `json:"accessMode"`
+	Enforced     bool     `json:"enforced"`
+	BypassTokens []string `json:"bypassTokens"`
+}
+
+// accessBindingDTO mirrors models.AccessBinding (models/models.go:2004-2015) as ListProjectAccess
+// fills it (clients/keycloak.go:143-159): a person's row has group == grantee; a legacy row has
+// group = the Keycloak group's name and grantee = its panacea-group attribute. The model's
+// comment says a legacy grantee is "" (:2011); the code never sends that (review M30).
+type accessBindingDTO struct {
+	Group   string `json:"group"`
+	Role    string `json:"role"`
+	Grantee string `json:"grantee"`
+}
+
+// grantDTO mirrors models.AddAccessRequest (models/models.go:2016-2019). "group" carries a
+// username or email: AddProjectAccess resolves it to one Keycloak user (clients/keycloak.go:180-190).
+type grantDTO struct {
+	Group string `json:"group"`
+	Role  string `json:"role"`
+}
+
+// urlPrefixDTO is setBranchURLPrefixRequest (handlers/projects.go:4263-4265).
+type urlPrefixDTO struct {
+	Prefix string `json:"prefix"`
+}
+
+// urlPrefixResponseDTO mirrors SetBranchURLPrefix's data (handlers/projects.go:4365-4371).
+type urlPrefixResponseDTO struct {
+	Branch string `json:"branch"`
+	Prefix string `json:"prefix"`
+	Host   string `json:"host"`
 }

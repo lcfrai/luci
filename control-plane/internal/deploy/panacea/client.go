@@ -320,8 +320,46 @@ func Version(ctx context.Context, hc *http.Client, origin string) (string, error
 //   - A non-2xx is readProblem + mapStatus (errors.go). The body is redacted of the token first.
 //   - One Warn line per failed call: op, method, path, status, duration, attempts, Panacea's
 //     X-Request-Id. Never the Authorization header, never a request body. The redacted error
-//     body goes to Debug, at most 64 KiB of it.
+//     body goes to Debug, at most 64 KiB of it, unless the caller passes noBodyLog (doWith).
+//   - A non-2xx's Cause is an *answered: its Error() is "panacea: METHOD path answered N", and it
+//     keeps Panacea's sentence for the one caller that reads a 5xx's (answeredSentence, task 04).
 func (c *Client) do(ctx context.Context, op, method, path string, in, out any, okStatus ...int) error {
+	return c.doWith(ctx, logBody, op, method, path, in, out, okStatus...)
+}
+
+// bodyLog says whether do's Debug line may carry a failed call's redacted error body.
+type bodyLog bool
+
+const (
+	logBody   bodyLog = true
+	noBodyLog bodyLog = false // task 04's posture calls: their bodies can name a password or a token
+)
+
+// answered is a non-2xx answer: the Cause of the *deploy.Error do returns for it. Its Error()
+// never holds the sentence, so the Warn line (causeText) is unchanged; the sentence is read only
+// through answeredSentence.
+type answered struct {
+	method, path string
+	status       int
+	sentence     string // readProblem of the redacted body; "" when it is not Panacea's JSON
+}
+
+func (a *answered) Error() string {
+	return fmt.Sprintf("panacea: %s %s answered %d", a.method, a.path, a.status)
+}
+
+// answeredSentence is Panacea's sentence of the non-2xx behind err, or "". It exists for
+// Grant's one parsed 500 (plan 7P-12); nothing else may read a 5xx sentence.
+func answeredSentence(err error) string {
+	var a *answered
+	if errors.As(err, &a) {
+		return a.sentence
+	}
+	return ""
+}
+
+// doWith is do with an explicit body-log choice.
+func (c *Client) doWith(ctx context.Context, bl bodyLog, op, method, path string, in, out any, okStatus ...int) error {
 	if !strings.HasPrefix(path, apiPrefix) {
 		return &deploy.Error{Kind: deploy.KindRejected, Op: op,
 			Cause: fmt.Errorf("panacea: path %q does not begin %s", path, apiPrefix)}
@@ -368,7 +406,7 @@ func (c *Client) do(ctx context.Context, op, method, path string, in, out any, o
 	c.log.Warn("panacea call failed", "op", op, "method", method, "path", path, "status", res.err.Status,
 		"kind", string(res.err.Kind), "duration", time.Since(start), "attempts", n,
 		"panacea_request_id", res.requestID, "cause", causeText(res.err))
-	if len(res.body) > 0 {
+	if bl == logBody && len(res.body) > 0 {
 		c.log.Debug("panacea error body", "op", op, "status", res.err.Status, "body", string(res.body[:min(len(res.body), 64<<10)]))
 	}
 	return res.err
@@ -410,8 +448,9 @@ func (c *Client) attempt(ctx context.Context, op, method, path, token, rid strin
 	status := resp.StatusCode
 	if status < 200 || status >= 300 {
 		o.body = redact(raw, token)
-		o.err = mapStatus(op, status, readProblem(o.body), parseRetryAfter(resp.Header.Get("Retry-After"), time.Now()))
-		o.err.Cause = fmt.Errorf("panacea: %s %s answered %d", method, path, status)
+		sentence := readProblem(o.body)
+		o.err = mapStatus(op, status, sentence, parseRetryAfter(resp.Header.Get("Retry-After"), time.Now()))
+		o.err.Cause = &answered{method: method, path: path, status: status, sentence: sentence}
 		o.retryable = status == http.StatusBadGateway || status == http.StatusServiceUnavailable || status == http.StatusGatewayTimeout
 		return o
 	}

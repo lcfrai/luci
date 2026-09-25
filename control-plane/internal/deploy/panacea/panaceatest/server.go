@@ -8,12 +8,17 @@
 // connector and its fake would agree with itself however wrong its tags were. The recorded
 // bodies under panacea/testdata/ are what pin the connector to Panacea's source.
 //
-// It holds NO naming rule: an environment's name, a branch's environment and a run's name are all
-// seeded. The one Panacea rule it copies is how security-status resolves env (Server.Scans).
+// It holds NO naming rule: an environment's name, a branch's environment and a seeded run's name
+// are all seeded (a Ship's run is named by this server, in no Panacea form). The Panacea rules it
+// copies are each the rule a mutant hides behind: how security-status resolves env (Server.Scans);
+// and, for task 04's writes, the handlers' own refusals and state changes, each cited where it is
+// written (the cancel of a run neither Pending nor Running, the share's group-name role, the
+// access mode's mint).
 package panaceatest
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -39,6 +44,7 @@ type Server struct {
 	reqs     []string
 	order    []deploy.ProjectRef // Project order: /projects answers in it
 	projects map[deploy.ProjectRef]*project
+	seq      int // names a Ship's run and a minted token
 }
 
 type scanKey struct{ env, deploymentID string }
@@ -53,6 +59,16 @@ type project struct {
 	deps        []wireDeployment // newest first by CreatedAt
 	scans       map[scanKey]wireSecurityStatus
 	rollbacks   map[string]deploy.Warmth // task 04's rollback route answers from it
+	// Task 04's writes.
+	extras map[string]postureExtras // per branch: what GET B/access reports beside the mode
+	groups map[string][]string      // Keycloak group name → its members, in join order
+}
+
+// postureExtras is what SetBranchAccessMode persists beside the mode, as GET B/access reads it
+// back (handlers/project_security.go:649-666): a password gate, and how many bypass tokens.
+type postureExtras struct {
+	passwordSet  bool
+	bypassTokens int
 }
 
 var _ deploytest.Seeder = (*Server)(nil)
@@ -74,6 +90,20 @@ func New(t *testing.T) *Server {
 	mux.HandleFunc("GET "+P+"/security-status", s.inProject(s.securityStatus))
 	for _, drill := range []string{"pods", "events", "diagnose"} {
 		mux.HandleFunc("GET "+P+"/environments/{env}/"+drill, s.inProject(s.notModelled))
+	}
+	// Task 04: the write routes, and the access list they change.
+	mux.HandleFunc("POST "+P+"/deploy", s.inProject(s.ship))
+	mux.HandleFunc("POST "+P+"/pipelines/{run}/cancel", s.inProject(s.cancel))
+	mux.HandleFunc("POST "+P+"/deployments/{id}/rollback", s.inProject(s.rollback))
+	mux.HandleFunc("PUT "+P+"/branches/{branch}/access", s.inProject(s.setBranchAccess))
+	mux.HandleFunc("GET "+P+"/access", s.inProject(s.listAccess))
+	mux.HandleFunc("POST "+P+"/access", s.inProject(s.addAccess))
+	mux.HandleFunc("DELETE "+P+"/access/{group}", s.inProject(s.removeAccess))
+	// No seeder names auto-deploy or a URL prefix, and each answer needs a Panacea rule this
+	// server does not hold (a namespace's existence, a host): the recorded bodies test them.
+	for _, route := range []string{"GET " + P + "/branches/{branch}/auto-deploy", "PUT " + P + "/branches/{branch}/auto-deploy",
+		"PUT " + P + "/branches/{branch}/url-prefix", "DELETE " + P + "/branches/{branch}/url-prefix"} {
+		mux.HandleFunc(route, s.inProject(s.notModelled))
 	}
 	s.srv = httptest.NewTLSServer(s.gate(mux))
 	t.Cleanup(s.srv.Close)
@@ -216,7 +246,8 @@ func (s *Server) branchAccess(w http.ResponseWriter, r *http.Request, pr *projec
 		s.testBug(w, "branch %q seeded in neither table", branch)
 		return
 	}
-	body := map[string]any{"branch": branch, "ipWhitelist": []string{}, "passwordSet": false, "bypassTokenCount": 0}
+	x := pr.extras[branch] // task 04's PUT B/access writes them
+	body := map[string]any{"branch": branch, "ipWhitelist": []string{}, "passwordSet": x.passwordSet, "bypassTokenCount": x.bypassTokens}
 	if hasEnv {
 		body["env"] = env
 	}
@@ -336,6 +367,8 @@ type wireDeployment struct {
 	DeployedBy        string                  `json:"deployedBy,omitempty"`
 	Trigger           string                  `json:"trigger,omitempty"`
 	Backfilled        bool                    `json:"backfilled,omitempty"`
+	RollbackWarmth    string                  `json:"rollbackWarmth,omitempty"`   // task 04: the rollback answer (models.go:704)
+	ColdStartSeconds  int                     `json:"coldStartSeconds,omitempty"` // (models.go:708)
 }
 
 // wireProvisioning is models.ProvisioningStatus (models/models.go:794-804).
@@ -393,7 +426,8 @@ func (s *Server) seed(p deploy.ProjectRef) *project {
 	pr := s.projects[p]
 	if pr == nil {
 		pr = &project{info: deploy.Project{Ref: p}, branchEnv: map[string]string{}, postureWord: map[string]string{},
-			scans: map[scanKey]wireSecurityStatus{}, rollbacks: map[string]deploy.Warmth{}}
+			scans: map[scanKey]wireSecurityStatus{}, rollbacks: map[string]deploy.Warmth{},
+			extras: map[string]postureExtras{}, groups: map[string][]string{}}
 		s.projects[p] = pr
 	}
 	return pr
@@ -451,8 +485,13 @@ func (s *Server) Deployment(p deploy.ProjectRef, d deploy.Deployment) {
 	row := s.wireDeployment(p, d)
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	pr := s.seed(p)
-	pr.deps = slices.DeleteFunc(pr.deps, func(x wireDeployment) bool { return x.ID == d.ID })
+	s.seed(p).insert(row)
+}
+
+// insert puts row in the history, newest first by CreatedAt (a later row wins a tie), replacing
+// a row with its ID. The caller holds s.mu.
+func (pr *project) insert(row wireDeployment) {
+	pr.deps = slices.DeleteFunc(pr.deps, func(x wireDeployment) bool { return x.ID == row.ID })
 	i := sort.Search(len(pr.deps), func(i int) bool { return !pr.deps[i].CreatedAt.After(row.CreatedAt) })
 	pr.deps = slices.Insert(pr.deps, i, row)
 }
@@ -559,4 +598,239 @@ func (s *Server) wireDeployment(p deploy.ProjectRef, d deploy.Deployment) wireDe
 		}
 	}
 	return row
+}
+
+// Task 04: the write routes. Each handler runs with s.mu held (inProject).
+
+// apiResponse is models.APIResponse with its omitempty tags (models/models.go:2147-2151).
+type apiResponse struct {
+	Data    any    `json:"data,omitempty"`
+	Message string `json:"message,omitempty"`
+}
+
+// ship answers POST P/deploy as TriggerDeploy does (handlers/projects.go:2942-3005): the body
+// decoded leniently (:2967-2968), a run named, and its row in the history at once as a run with
+// no condition yet ("Unknown", clients/kubernetes.go:5662) in the branch's seeded environment.
+// The row carries no branch label: that is Panacea's sanitizer, not this server's. An unseeded
+// branch is a test bug. The run's name is this server's own ("<project>-run-<n>").
+func (s *Server) ship(w http.ResponseWriter, r *http.Request, pr *project) {
+	var opts struct {
+		Branch string `json:"branch"`
+		Commit string `json:"commit"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&opts)
+	env, ok := pr.branchEnv[opts.Branch]
+	if !ok {
+		s.testBug(w, "Ship of branch %q, which has no BranchEnvironment seed", opts.Branch)
+		return
+	}
+	name := r.PathValue("name")
+	var run string
+	for taken := true; taken; {
+		s.seq++
+		run = fmt.Sprintf("%s-run-%d", name, s.seq)
+		taken = slices.ContainsFunc(pr.deps, func(d wireDeployment) bool { return d.ID == run })
+	}
+	pr.insert(wireDeployment{ID: run, ProjectName: name, Status: "Unknown", Commit: opts.Commit, Environment: env,
+		CreatedAt: time.Now().UTC().Truncate(time.Second)})
+	writeJSON(w, http.StatusAccepted, apiResponse{Message: "deployment started",
+		Data: map[string]string{"project": name, "status": "running", "pipelineRun": run}})
+}
+
+// cancel answers POST P/pipelines/{run}/cancel as CancelDeploy does (handlers/projects.go:3644-3687):
+// an unknown run is the 404 (:3660); only a Pending or Running run is cancelled (:3669), and then
+// reads Failed (the domain's "failed or cancelled"); any other, Unknown included, is
+// already_completed with "Pipeline run is already <status>" (:3670-3673).
+func (s *Server) cancel(w http.ResponseWriter, r *http.Request, pr *project) {
+	run := r.PathValue("run")
+	i := slices.IndexFunc(pr.deps, func(d wireDeployment) bool { return d.ID == run })
+	if i < 0 {
+		writeError(w, http.StatusNotFound, "pipeline run not found: pipelineruns.tekton.dev \""+run+"\" not found")
+		return
+	}
+	if st := pr.deps[i].Status; st != "Pending" && st != "Running" {
+		writeJSON(w, http.StatusOK, apiResponse{Data: map[string]string{"status": "already_completed",
+			"message": "Pipeline run is already " + st}})
+		return
+	}
+	pr.deps[i].Status = "Failed"
+	writeJSON(w, http.StatusOK, apiResponse{Data: map[string]string{"status": "cancelled",
+		"message": "Deployment cancelled successfully"}})
+}
+
+// rollback answers POST P/deployments/{id}/rollback as Rollback does (handlers/projects.go:1547-1639):
+// an unknown id is the 404 (:1570), a row with no image the 400 (:1575), and otherwise the
+// Deployment rolled back TO, id unchanged (clients/kubernetes.go:5982, :6030), enriched with the
+// target's image, commit, branch and environment (:1619-1623), warm with no seconds or cold with
+// rollbackColdStartSeconds (clients/immutable_deploy.go:77). It adds NO row (7P-4). A target with
+// no RollbackTarget seed is a test bug: Panacea always answers warm or cold.
+func (s *Server) rollback(w http.ResponseWriter, r *http.Request, pr *project) {
+	id := r.PathValue("id")
+	i := slices.IndexFunc(pr.deps, func(d wireDeployment) bool { return d.ID == id })
+	if i < 0 {
+		writeError(w, http.StatusNotFound, "deployment not found: "+id)
+		return
+	}
+	d := pr.deps[i]
+	if d.Image == "" {
+		writeError(w, http.StatusBadRequest, "deployment has no image tag — cannot rollback")
+		return
+	}
+	warmth := pr.rollbacks[id]
+	if warmth != deploy.WarmthWarm && warmth != deploy.WarmthCold {
+		s.testBug(w, "rollback of %q, which has no warm or cold RollbackTarget seed", id)
+		return
+	}
+	out := wireDeployment{ID: id, ProjectName: r.PathValue("name"), Status: "rolling-back", Image: d.Image, Commit: d.Commit,
+		Branch: d.Branch, Environment: d.Environment, CreatedAt: time.Now().UTC(), RollbackWarmth: string(warmth)}
+	if warmth == deploy.WarmthCold {
+		out.ColdStartSeconds = 20
+	}
+	writeJSON(w, http.StatusOK, apiResponse{Message: "rollback initiated to " + id, Data: out})
+}
+
+// accessModes are ValidAccessMode's five (handlers/project_security.go:718-722), spelled here
+// rather than read from package deploy, so the fake does not agree with the connector by sharing.
+var accessModes = []string{"panacea-sso", "kpmg-sso", "password", "bypass-token", "none"}
+
+// setBranchAccess answers PUT P/branches/{branch}/access as SetBranchAccessMode does
+// (handlers/project_security.go:701-845), always enforced (no seeder names a failed reconcile):
+// a mode outside the five is the 400 (:718-722); password needs one (:766-770) and sets the gate;
+// bypass-token with no supplied token, or a rotation, mints one, returned ONCE (:779-803,
+// :830-833), and the stored count is the tokens kept. The mode is stored as PostureWord's.
+func (s *Server) setBranchAccess(w http.ResponseWriter, r *http.Request, pr *project) {
+	branch := strings.TrimSpace(r.PathValue("branch"))
+	var req struct {
+		AccessMode         string   `json:"accessMode"`
+		Password           string   `json:"password"`
+		BypassTokens       []string `json:"bypassTokens"`
+		RotateBypassTokens bool     `json:"rotateBypassTokens"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.testBug(w, "PUT %s: the body is not JSON: %v", r.URL.Path, err)
+		return
+	}
+	mode := strings.TrimSpace(req.AccessMode)
+	if !slices.Contains(accessModes, mode) {
+		writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid accessMode %q: must be one of panacea-sso, kpmg-sso, password, bypass-token, none", mode))
+		return
+	}
+	x := pr.extras[branch]
+	var minted []string
+	switch mode {
+	case "password":
+		if strings.TrimSpace(req.Password) == "" {
+			writeError(w, http.StatusBadRequest, "password is required for accessMode=password")
+			return
+		}
+		x.passwordSet = true
+	case "bypass-token":
+		kept := slices.DeleteFunc(slices.Clone(req.BypassTokens), func(t string) bool { return strings.TrimSpace(t) == "" })
+		if req.RotateBypassTokens || len(kept) == 0 {
+			s.seq++
+			kept = []string{fmt.Sprintf("pnb_%032x", s.seq)}
+			minted = kept
+		}
+		x.bypassTokens = len(kept)
+	}
+	pr.postureWord[branch], pr.extras[branch] = mode, x
+	resp := map[string]any{"branch": branch, "accessMode": mode, "enforced": true}
+	if env, ok := pr.branchEnv[branch]; ok {
+		resp["env"] = env
+	}
+	if len(minted) > 0 {
+		resp["bypassTokens"] = minted
+	}
+	writeJSON(w, http.StatusOK, apiResponse{Data: resp,
+		Message: fmt.Sprintf("access mode set to %s for %s@%s", mode, r.PathValue("name"), branch)})
+}
+
+// wireBinding is models.AccessBinding (models/models.go:2004-2015).
+type wireBinding struct {
+	Group   string `json:"group"`
+	Role    string `json:"role"`
+	Grantee string `json:"grantee,omitempty"`
+}
+
+// roleFromGroupName is roleFromProjectGroupName (clients/keycloak.go:503-512), copied because it
+// is the rule the "developer" mutant hides behind: -owner, -editor, and anything else viewer.
+func roleFromGroupName(name string) string {
+	switch {
+	case strings.HasSuffix(name, "-owner"):
+		return "owner"
+	case strings.HasSuffix(name, "-editor"):
+		return "editor"
+	}
+	return "viewer"
+}
+
+// listAccess answers GET P/access as ListProjectAccess does (clients/keycloak.go:126-162): one
+// row per member, group == grantee == the member (:156-159), role from the group's name, groups
+// in name order. A member-less group is skipped: no seeder names a legacy attribute (:143-153).
+func (s *Server) listAccess(w http.ResponseWriter, _ *http.Request, pr *project) {
+	names := make([]string, 0, len(pr.groups))
+	for g := range pr.groups {
+		names = append(names, g)
+	}
+	slices.Sort(names)
+	var out []wireBinding
+	for _, g := range names {
+		for _, m := range pr.groups[g] {
+			out = append(out, wireBinding{Group: m, Role: roleFromGroupName(g), Grantee: m})
+		}
+	}
+	writeJSON(w, http.StatusOK, list(out))
+}
+
+// addAccess answers POST P/access as AccessHandler.Add and AddProjectAccess do: "" is the 400
+// (handlers/access.go:50-52); whitespace the 500 of clients/keycloak.go:182 through access.go:57;
+// otherwise the grantee leaves the project's other groups (:198-214) and joins
+// "project-<name>-"+role, the role unchecked (:192, :216-218). Every grantee is a user: no seeder
+// names Keycloak's directory, so "no Keycloak user found" (:189) is the recorded bodies' to test.
+func (s *Server) addAccess(w http.ResponseWriter, r *http.Request, pr *project) {
+	var req struct {
+		Group string `json:"group"`
+		Role  string `json:"role"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.testBug(w, "POST %s: the body is not JSON: %v", r.URL.Path, err)
+		return
+	}
+	if req.Group == "" || req.Role == "" {
+		writeError(w, http.StatusBadRequest, "group and role are required")
+		return
+	}
+	grantee := strings.TrimSpace(req.Group)
+	if grantee == "" {
+		writeError(w, http.StatusInternalServerError, "failed to add access binding: a grantee (username or email) is required")
+		return
+	}
+	group := "project-" + r.PathValue("name") + "-" + req.Role
+	for g, members := range pr.groups {
+		if g != group {
+			pr.groups[g] = slices.DeleteFunc(members, func(m string) bool { return m == grantee })
+		}
+	}
+	if !slices.Contains(pr.groups[group], grantee) {
+		pr.groups[group] = append(pr.groups[group], grantee)
+	}
+	writeJSON(w, http.StatusCreated, apiResponse{Message: "access binding added"})
+}
+
+// removeAccess answers DELETE P/access/{group} as RemoveProjectAccess does
+// (clients/keycloak.go:229-268): a member is removed from every group (:245-260); otherwise a
+// group of that name is deleted (:262-267); otherwise nothing matched, and it is still 200 (:268).
+func (s *Server) removeAccess(w http.ResponseWriter, r *http.Request, pr *project) {
+	who := strings.TrimSpace(r.PathValue("group"))
+	member := false
+	for g, members := range pr.groups {
+		if slices.Contains(members, who) {
+			member = true
+			pr.groups[g] = slices.DeleteFunc(members, func(m string) bool { return m == who })
+		}
+	}
+	if !member {
+		delete(pr.groups, who)
+	}
+	writeJSON(w, http.StatusOK, apiResponse{Message: "access binding removed"})
 }
