@@ -215,3 +215,114 @@ func wHead(t *testing.T, view hubclient.Hub) string {
 `wHead` reads `Changes("latest", 1)`, which H05's part fixes as *"no events and the head as
 `next`"* (`phase-h-hub-parts/task-05.md:163`), so a row counts only its own events, on the fake and
 on a real Hub with history.
+
+---
+
+#### `fake_work_social.go`, complete
+
+Five blocks; the file is their concatenation. Block 1: the names of later tasks, the state, and
+four of task 04's hooks at their real rules.
+
+```go
+package hubclient
+
+import (
+	"context"
+	"slices"
+	"strconv"
+	"strings"
+	"sync"
+	"unicode/utf16"
+	"unicode/utf8"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubapi"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/ids"
+)
+
+// Phase W, part 2: relations, labels, the team policy, comments, reactions,
+// resolve and subscriptions. The rules are tasks 11-13's; the names below are
+// theirs, spelled here until each lands in hubapi (task 05's decision (c)).
+const (
+	fkRelationBlockedBy    hubapi.RelationKind = "blocked_by"    // task 11
+	fkRelationDuplicatedBy hubapi.RelationKind = "duplicated_by" // task 11
+
+	fkPolicyPriorityToLeaveTriage = "priorityToLeaveTriage"
+
+	fkRelationNotFound   = "relation_not_found"    // 404, details.kind, .otherId
+	fkRelationCycle      = "relation_cycle"        // 422, details.kind, .otherId
+	fkLabelNotFound      = "label_not_found"       // 404, details.labelId
+	fkLabelExists        = "label_exists"          // 409, details.labelId
+	fkLabelUnavailable   = "label_unavailable"     // 422, details.field "labels[n]"
+	fkPolicyRefused      = "policy_refused"        // 422, details.policy, .issueId
+	fkCommentNotFound    = "comment_not_found"     // 404, details.commentId
+	fkCommentNotTopLevel = "comment_not_top_level" // 422, details.field
+	fkAnchorUnresolvable = "anchor_unresolvable"   // 422, details.field
+
+	fkEventIssueRelated      = "issue.related"
+	fkEventIssueUnrelated    = "issue.unrelated"
+	fkEventLabelCreated      = "label.created"
+	fkEventLabelArchived     = "label.archived"
+	fkEventTeamWorkPolicySet = "team.work_policy_set"
+	fkEventCommentCreated    = "comment.created"
+	fkEventCommentMentioned  = "comment.mentioned"
+	fkEventCommentReacted    = "comment.reacted"
+	fkEventCommentResolved   = "comment.resolved"
+	fkEventSubscriptionSet   = "subscription.set"
+)
+
+// fkLabelColors is task 11's LabelColors: token names, never the thread's.
+var fkLabelColors = []string{"ink-2", "accent", "run", "need", "fail", "drift"}
+
+// fakeSocial is one world's part-2 state, found as task 04's wk() is (its
+// decision (i)). Every field is guarded by the world's mu.
+type fakeSocial struct {
+	relations []*fakeRelation
+	labels    map[string]*fakeLabel         // by id
+	policies  map[string]*hubapi.TeamPolicy // by team id; absent reads DefaultTeamPolicy
+	comments  map[string]*fakeComment       // by id
+	subs      map[[2]string]*fakeSub        // by (issue id, user id)
+	imports   map[[3]string]string          // (project, source, externalId) → issue id
+	attached  map[string][]hubapi.IssueAttachment
+	erased    map[string]bool // issue ids
+}
+
+type fakeRelation struct {
+	kind     hubapi.RelationKind // blocks | duplicates | relates, the writer's direction
+	from, to string
+}
+
+type fakeLabel struct {
+	label      hubapi.Label
+	archivedAt string
+	seq        int64
+}
+
+func (l *fakeLabel) order() int64 { return l.seq }
+
+type fakeComment struct {
+	c         hubapi.Comment // Reactions and CreatedBy are made at read
+	teamID    string
+	projectID string
+	createdBy string
+	reactions [][2]string // (emoji, user id), in order; one row per pair
+	seq       int64
+}
+
+func (c *fakeComment) order() int64 { return c.seq }
+
+type fakeSub struct {
+	cause      hubapi.SubscriptionCause
+	subscribed bool
+	seq        int64
+}
+
+var workSocials sync.Map // *fakeWorld → *fakeSocial
+
+func (w *fakeWorld) soc() *fakeSocial {
+	v, _ := workSocials.LoadOrStore(w, &fakeSocial{labels: map[string]*fakeLabel{},
+		policies: map[string]*hubapi.TeamPolicy{}, comments: map[string]*fakeComment{},
+		subs: map[[2]string]*fakeSub{}, imports: map[[3]string]string{},
+		attached: map[string][]hubapi.IssueAttachment{}, erased: map[string]bool{}})
+	return v.(*fakeSocial)
+}
+```
