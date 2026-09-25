@@ -217,7 +217,7 @@ decision 6). The bar's default range is the last 30 whole days ending today, set
 // The result is held here only: never the replica, the store or storage (task 125 decision 3).
 import { useState, type JSX } from "react";
 import type { InsightsQuery, InsightsResult, WorkClient } from "../../api/work";
-import { ViewHeader } from "../common/ViewHeader";                 // SW.13, task 31
+import { ViewHeader, type Route } from "../common/ViewHeader";     // SW.13, task-31.md:93-98
 import { InsightsQueryBar } from "./InsightsQueryBar";
 import { InsightsScatter } from "./InsightsScatter";
 import "./insights.css";
@@ -228,6 +228,7 @@ const NONE_WORDS: Record<string, string> = { assignee: "No assignee", label: "No
 export interface InsightsPanelProps {
   work: Pick<WorkClient, "queryInsights">;
   teamId: string; projectId: string | null; tz: string; today: string;   // today: YYYY-MM-DD in tz
+  route: Route | null;                   // the project's, as Plan passes it (task 45)
   /** Resolves a group key to words (decision 3): the replica's names. */
   nameOf(groupBy: string, key: string): string;
   aliasOf(issueId: string): string;
@@ -250,7 +251,8 @@ export function InsightsPanel(p: InsightsPanelProps): JSX.Element {
     key === "none" && asked?.groupBy ? NONE_WORDS[asked.groupBy] ?? "None" : p.nameOf(asked?.groupBy ?? "", key);
   return (
     <section className="in-panel" aria-label="Insights">
-      <ViewHeader title="Insights" actions={<button type="button" onClick={p.onClose}>Close</button>} />
+      <ViewHeader title="Insights" route={p.route}
+        actions={<button type="button" onClick={p.onClose}>Close</button>} />
       <InsightsQueryBar teamId={p.teamId} projectId={p.projectId} tz={p.tz}
         initial={{ from: minusDays(p.today, 30), to: p.today }} onQuery={run} />
       {problem && <p className="in-fact" role="status">{problem}</p>}
@@ -274,10 +276,166 @@ export function InsightsPanel(p: InsightsPanelProps): JSX.Element {
 }
 ```
 
-`ViewHeader`'s props are SW.13's (`title route badge actions`); `route` and `badge` are omitted, as
-a secondary panel has no route of its own. `.in-n` is `tabular-nums`, right-aligned. With
+`ViewHeader`'s props are SW.13's (`title`, `route: Route | null`, `badge?`, `actions?`,
+`task-31.md:93-98`); the panel shows the project's route, as Plan does, and no badge. `Route` is
+exported from `ViewHeader.tsx` as task 45 imports it (`task-45.md:78`). `.in-n` is `tabular-nums`, right-aligned. With
 `groupBy` null and `measure: "count"`, what `groups` holds is task 122's to say (gap 2).
 
 ⚑ `PlanSurface.tsx` (task 45) gains one action in its `ViewHeader actions`, *Insights*, which
 mounts the panel in place of the sections and returns to them on *Close*. It gets no key chord in
 this task, so it adds no row to the `?` sheet.
+
+#### Tests to write first — `desktop/src/components/roadmap/Insights.test.tsx`
+
+```tsx
+import { readFileSync, existsSync } from "node:fs";
+import { resolve } from "node:path";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { expect, it, vi } from "vitest";
+import type { InsightsResult } from "../../api/work";
+import { expectNoPrediction } from "../../test/expectNoPrediction";
+import { InsightsScatter } from "./InsightsScatter";
+import { rangeProblem, startOfDayIso } from "./InsightsQueryBar";
+
+const H = 3_600_000;
+const result = (ms: number[], p: [number | null, number | null, number | null]): InsightsResult => ({
+  groups: [], points: ms.map((m, i) => ({ issue: `is-${i}`, ms: m })), p50Ms: p[0], p75Ms: p[1], p90Ms: p[2] });
+const strip = (r: InsightsResult, openIssue = vi.fn()) => ({ openIssue, ...render(
+  <InsightsScatter result={r} measure="cycle_time" widthPx={400} openIssue={openIssue}
+    aliasOf={(id) => `EP-${140 + Number(id.slice(3))}`} />) });
+
+// mutant killed: "decorative points"
+it("clicking a mark opens that issue", () => {
+  const { openIssue } = strip(result([5 * H + 10 * 60_000, 8 * H], [5 * H, 8 * H, 8 * H]));
+  fireEvent.click(screen.getByRole("button", { name: "EP-140, cycle time 5h 10m" }));
+  expect(openIssue).toHaveBeenCalledWith("is-0");
+});
+
+// mutant killed: "mouse-only chart"
+it("the arrow keys walk every mark in point order, one tab stop", () => {
+  strip(result([3 * H, 1 * H, 2 * H], [2 * H, 3 * H, 3 * H]));
+  const marks = screen.getAllByRole("button");
+  expect(marks.filter((m) => m.tabIndex === 0)).toHaveLength(1);
+  marks[0].focus();
+  const seen = [document.activeElement!.getAttribute("aria-label")];
+  for (let i = 0; i < 2; i++) {
+    fireEvent.keyDown(document.activeElement!, { key: "ArrowRight" });
+    seen.push(document.activeElement!.getAttribute("aria-label"));
+  }
+  expect(seen).toEqual(["EP-141, cycle time 1h 00m", "EP-142, cycle time 2h 00m", "EP-140, cycle time 3h 00m"]);
+});
+
+// mutant killed: "client recompute" (mean of 1, 2, 9 h is 4 h; the Hub's p50 is 2 h)
+it("the p50 label is the Hub's value, not the points' mean", () => {
+  const { container } = strip(result([1 * H, 2 * H, 9 * H], [2 * H, 9 * H, 9 * H]));
+  expect(container.querySelector('[data-p="p50"]')!.textContent).toBe("p50 2h 00m");
+  expect(container.textContent).not.toContain("4h 00m");
+});
+
+// mutant killed: "lines at zero"
+it("an empty result says so and draws no percentile line", () => {
+  const { container } = strip(result([], [null, null, null]));
+  expect(screen.getByText("No closed issue in this range")).toBeTruthy();
+  expect(container.querySelector(".in-pline")).toBeNull();
+});
+
+// mutant killed: "a prediction" (a trend, forecast band or target line)
+it("nothing in the strip is a trend, a forecast or a target", () => {
+  const { container } = strip(result([1 * H, 2 * H], [1 * H, 2 * H, 2 * H]));
+  expect(container.querySelector("[class*=trend], [class*=forecast], [class*=target], path, polyline")).toBeNull();
+  expectNoPrediction(container);
+});
+
+// mutant killed: "insights on the rail" (and on the Desk)
+it("the rail and the Desk import nothing from roadmap/Insights*", () => {
+  for (const f of ["../rail/Rail.tsx", "../desk/Desk.tsx"]) {
+    const path = resolve(__dirname, f);
+    if (!existsSync(path)) continue;                  // Desk.tsx lands with task 62
+    expect(readFileSync(path, "utf8")).not.toMatch(/roadmap\/Insights/);
+  }
+});
+
+// mutant killed: "jittering digits" (the design-system test's rule, held here for these classes)
+it("the numbers use tabular-nums", () => {
+  const css = readFileSync(resolve(__dirname, "insights.css"), "utf8");
+  for (const cls of [".in-plabel", ".in-n"]) {
+    expect(css).toMatch(new RegExp(`\\${cls}[^}]*font-variant-numeric:\\s*tabular-nums`));
+  }
+});
+
+// mutant killed: "unbounded scan" sent anyway; and "UTC days" for a Sydney person
+it("the bar refuses what the Hub refuses, and a day starts in the person's zone", () => {
+  expect(rangeProblem("2026-09-10", "2026-09-10")).toMatch(/end after/);
+  expect(rangeProblem("2025-01-01", "2026-02-05")).toMatch(/366/);
+  expect(rangeProblem("2026-08-27", "2026-09-26")).toBeNull();
+  expect(startOfDayIso("2026-10-04", "Australia/Sydney")).toBe("2026-10-03T14:00:00.000Z");
+  expect(startOfDayIso("2026-10-05", "Australia/Sydney")).toBe("2026-10-04T13:00:00.000Z");
+});
+```
+
+#### Interfaces — complete: `desktop/src/components/roadmap/insights.css`
+
+```css
+/* One hue (dataviz rule), marks and lines labelled; no transition, no animation anywhere here. */
+.in-panel { display: grid; gap: var(--space-3); }
+.in-bar { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: end; }
+.in-groups { border-collapse: collapse; font: 13px var(--sans); }
+.in-groups th, .in-groups td { padding: 4px 12px 4px 0; text-align: left; }
+.in-n { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+.in-plot { position: relative; color: var(--t-fact); }
+.in-mark { position: absolute; left: 0; top: 0; width: 8px; height: 8px; padding: 0;
+  border: 0; border-radius: 2px; background: currentColor; box-shadow: 0 0 0 1px var(--ring); }
+.in-mark:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.in-pline { position: absolute; left: 0; top: 0; bottom: 0; width: 1px; background: var(--line-strong); }
+.in-plabel { position: absolute; top: 0; left: 4px; white-space: nowrap;
+  font: 11px var(--mono); font-variant-numeric: tabular-nums; }
+.in-empty, .in-fact, .in-cap { font: 13px var(--sans); color: var(--t-muted); }
+@media (forced-colors: active) {
+  .in-mark { background: ButtonText; }
+  .in-pline { background: CanvasText; }
+}
+```
+
+`--space-*`, `--ring`, `--focus`, `--line-strong` and `--t-muted` are task 26's token names as the
+design system writes them (**UNVERIFIED** against task 26's part, not read here); `--t-fact`,
+`--mono` and `--sans` are SW.11's.
+
+#### Steps
+
+1. Write `Insights.test.tsx`; run it; it fails on the missing modules.
+2. Write `InsightsScatter.tsx` (`pointOrder`, `lanes`, the strip), `InsightsQueryBar.tsx`
+   (`startOfDayIso`, `rangeProblem`, the bar), `insights.css`; the tests pass.
+3. Write `InsightsPanel.tsx`; mount it from ⚑ `PlanSurface.tsx`'s *Insights* action, passing
+   `createClient().work`, the replica's `nameOf` and `aliasOf`, and `useCockpit((s) => s.openIssue)`.
+4. Run the acceptance; commit.
+
+#### Acceptance
+
+```bash
+cd desktop && npx vitest run src/components/roadmap/Insights.test.tsx src/components/work
+# expect: Insights.test.tsx 8 passed; task 45's PlanSurface tests pass as before
+cd desktop && npx tsc --noEmit
+# expect: exit 0
+cd desktop && grep -n -i -w -E "forecast|trend|eta|predict(ed|ion)?|average|mean" \
+  src/components/roadmap/InsightsPanel.tsx src/components/roadmap/InsightsScatter.tsx \
+  src/components/roadmap/InsightsQueryBar.tsx
+# expect: no output
+```
+
+#### What this task does NOT claim
+
+- A time-axis scatter. It is a one-axis strip until task 114 adds each point's `at` (gap 1).
+- *Effort* (L-150's `estimate_sum`), which task 114's measures lack (task 122's G2).
+- Dashboards (L-152, task 177), or any insights surface on the rail or the Desk (never, Q1).
+- That the numbers are right beyond what the Hub recorded: they are the Hub's measured moves.
+- A readable strip past a few hundred points (unmeasured); marks stack in lanes, never merge.
+
+#### Gaps found while writing this part
+
+1. **`InsightPoint` has no `at`** (task 122's G2, for task 114). The strip is the honest half.
+2. **What `groups` holds with `groupBy: null`** is not fixed by task 122's part; the panel renders
+   whatever keys come back, and shows *"No issue in this range"* only for an empty `count`.
+3. **`nameOf` for a `criterion` key** (`<bf-…>/<criterionId>`, `task-122.md:34`) needs the brief's
+   criterion text from phase 4's loader, which only Plan's `PlanMount` holds (task 45 decision 7);
+   the panel takes it through `nameOf` rather than reading phase 4 itself.
+4. **No part read for task 26's tokens**; the CSS names above are the design system's words.
