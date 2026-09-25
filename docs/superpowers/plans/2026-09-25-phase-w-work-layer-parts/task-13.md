@@ -107,3 +107,113 @@ Three decisions the scope left open, made here.
   generated from, or tested against, this registry), tasks 55 (the replica applies these kinds),
   62 (the Desk), 98 (Fleet), 123 (W4's handover), 156 (W5's webhooks: SW.22 is built on it)
 
+#### `hubapi/workevents.go` (complete)
+
+```go
+package hubapi
+
+// SW.5: the Work kinds of the change feed. Every Work write appends events from
+// this list only (server.emitWork refuses anything else), and every data struct
+// holds only string, int64 and bool fields (hub-contract §8; Event.Data, H14:72).
+// A new kind is an added line here and an added struct; a rename is a break.
+
+// Event kinds, W1.
+const (
+	EventIssueCreated      = "issue.created"
+	EventIssueUpdated      = "issue.updated"
+	EventIssueRevised      = "issue.revised"
+	EventIssueState        = "issue.state"
+	EventIssueRelated      = "issue.related"
+	EventIssueUnrelated    = "issue.unrelated"
+	EventIssueAttached     = "issue.attached"
+	EventIssueErased       = "issue.erased"
+	EventProjectKeySet     = "project.key_set"
+	EventLabelCreated      = "label.created"
+	EventLabelArchived     = "label.archived"
+	EventTeamWorkPolicySet = "team.work_policy_set"
+	EventCommentCreated    = "comment.created"
+	EventCommentMentioned  = "comment.mentioned"
+	EventCommentReacted    = "comment.reacted"
+	EventCommentResolved   = "comment.resolved"
+	EventCommentErased     = "comment.erased"
+	EventSubscriptionSet   = "subscription.set"
+)
+
+type IssueCreatedData struct {
+	Number int64  `json:"number"`
+	Key    string `json:"key"`    // the revision key issue:is-…@1, never the alias
+	Digest string `json:"digest"`
+	State  string `json:"state"`
+	Source string `json:"source"`
+}
+type IssueUpdatedData struct {
+	Fields string `json:"fields"` // comma-joined wire names: data carries no arrays
+}
+type IssueRevisedData struct {
+	Key          string `json:"key"`
+	Revision     int64  `json:"revision"`
+	Digest       string `json:"digest"`
+	ServesCount  int64  `json:"servesCount"`
+	RestoredFrom int64  `json:"restoredFrom"` // 0 when not a restore
+}
+type IssueStateData struct {
+	From       string `json:"from"`
+	To         string `json:"to"`
+	Cause      string `json:"cause"`
+	Proof      string `json:"proof"`      // "" before landed (SW.4's result words)
+	LandCommit string `json:"landCommit"` // "" unless the move carried one
+}
+type IssueRelationData struct { // issue.related and issue.unrelated
+	Kind            string `json:"kind"` // the stored kind: blocks | duplicates | relates
+	OtherIssueID    string `json:"otherIssueId"`
+	OtherAssigneeID string `json:"otherAssigneeId"` // "" when none or the writer
+}
+type IssueAttachedData struct {
+	Digest string `json:"digest"`
+}
+type IssueErasedData struct {
+	ErasedRevisions int64 `json:"erasedRevisions"`
+	ErasedComments  int64 `json:"erasedComments"`
+}
+type ProjectKeySetData struct {
+	Key         string `json:"key"`
+	PreviousKey string `json:"previousKey"`
+}
+type LabelData struct { // label.created and label.archived
+	Name string `json:"name"`
+}
+type TeamWorkPolicySetData struct {
+	Fields string `json:"fields"`
+}
+type CommentCreatedData struct {
+	IssueID    string `json:"issueId"`
+	ParentID   string `json:"parentId"`
+	Kind       string `json:"kind"`
+	Author     string `json:"author"`
+	AnchorKind string `json:"anchorKind"`
+}
+type CommentMentionedData struct {
+	CommentID string `json:"commentId"`
+	IssueID   string `json:"issueId"`
+}
+type CommentReactedData struct {
+	Emoji string `json:"emoji"`
+	On    bool   `json:"on"`
+}
+type CommentResolvedData struct {
+	Resolved bool `json:"resolved"`
+}
+type CommentErasedData struct{}
+type SubscriptionSetData struct {
+	IssueID    string `json:"issueId"`
+	Subscribed bool   `json:"subscribed"`
+	Cause      string `json:"cause"`
+}
+```
+
+`IssueErasedData.ErasedComments` is one field the scope's list (`{erasedRevisions}`) does not
+name. It is added here because task 14's erase answers it and the Desk and the replica need the
+count to say what went; like `brief.erased` (hub-contract's §8 row), the event holds counts only.
+`issue.revised` and `issue.state` carry task 09's and task 10's names as their scopes spell them;
+where those parts spell a field differently, the part that emits it wins and this file follows.
+
