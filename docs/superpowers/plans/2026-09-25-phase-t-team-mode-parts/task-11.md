@@ -59,11 +59,13 @@ only that the right call is made, once per delegation, inside 60 s of fake time.
 outbox payload is the only place Hub-shaped bytes touch Fleet's disk, and a sent row keeps its
 payload only until the janitor (24 hours, matching the Hub's idempotency window) deletes it. After a
 restart, `rebuild.go` reads the per-org feed head **first** (`after=latest`, `hub-contract.md:1100`),
-then lists the live delegations, open tasks, open threads and open escalations of every org that
-has a Fleet agent row, holds them in memory, and starts the feed consumer **from that head**. Head
-first, lists second is what makes the rebuild gapless: a change committed during the lists is on
-the feed after the head, and applying it twice is harmless because every apply is by id and
-revision.
+then reads, by id, every delegation Fleet's own store says is in use (task 01's table has no
+delegation list route, only `GET /v1/delegations/{id}`, route 47), then lists the open tasks and
+conflicts of each project that has a live delegation, holds them in memory, and starts the feed
+consumer **from that head**. Head first, reads second is what makes the rebuild gapless: a change
+committed during the reads is on the feed after the head, and applying it twice is harmless because
+every apply is by id. Open threads are **not** rebuilt from the Hub: their working state is Fleet's
+own (task 10), and task 01's table has no thread list route either.
 
 **Files:**
 - `control-plane/internal/fleet/outbox/outbox.go` — `Item`, `Queue`, `Sender`, `Deliverer`, `Gate`, the backoff and classify rules (new)
@@ -80,8 +82,8 @@ revision.
   - `delegation.Revoker`, `delegation.Reason` (`revoked`, `lapsed`), `delegation.Feed` with `Poll`, `delegation.PollEvery` (10 s)
   - `delegation.HubState`, `delegation.Rebuild`
 - Consumes:
-  - task 10 — `store.Store` and its `Tx(ctx, func(store.Tx) error) error`; the store implements `outbox.Queue` (the outbox **owns** `Item`; the store imports `outbox`, never the reverse), and `store.Tx` has `AppendOutbox(ctx, outbox.Item) error`; `store.Store.OrgsWithAgents(ctx) ([]string, error)` for the rebuild
-  - task 08 — `hubclient.Team` (one method per task 06–07 route), `hubclient.OrgFeed` with `OrgChanges(ctx, org, after string, kinds []string, limit int) (hubapi.ChangesPage, error)` (the per-org twin of the built `Feed.Changes`, `hubclient.go:96-99`; `hubapi.Event` and `hubapi.ChangesPage` are built, `hubapi/types.go:536-551`), `Team.Delegation(ctx, id) (hubapi.Delegation, error)` (route 47, `delegations.read`), `hubclient.WithDelegation(ctx, dl string) context.Context`, `hubclient.WithIdempotencyKey(ctx, key string) context.Context`, and the fake's team half
+  - task 10 — `store.Store` and its `Tx(ctx, func(store.Tx) error) error`; the store implements `outbox.Queue` (the outbox **owns** `Item`; the store imports `outbox`, never the reverse), and `store.Tx` has `AppendOutbox(ctx, outbox.Item) error`; `store.Store.DelegationsInUse(ctx) ([]delegation.Use, error)` for the rebuild — every `dl-…` a live agent row of Fleet's was started under, with its key (task 20 writes the `dl-…` on the agent row; if task 10's agent row has no delegation column, this task's gap list says so)
+  - task 08 — `hubclient.Team` (one method per task 06–07 route), `hubclient.OrgFeed` with `OrgChanges(ctx, org, after string, kinds []string, limit int) (hubapi.ChangesPage, error)` (the per-org twin of the built `Feed.Changes`, `hubclient.go:96-99`; `hubapi.Event` and `hubapi.ChangesPage` are built, `hubapi/types.go:536-551`), `Team.Delegation(ctx, id) (hubapi.Delegation, error)` (route 47, `delegations.read`), `Team.Tasks(ctx, projectID, hubapi.PageRequest) (hubapi.Page[hubapi.Task], error)` (route 52), `Team.Conflicts(ctx, projectID, hubapi.ConflictQuery) (hubapi.Page[hubapi.Conflict], error)` (route 59; `ConflictQuery{State string; hubapi.PageRequest}` from task 03), `hubclient.WithDelegation(ctx, dl string) context.Context`, `hubclient.WithIdempotencyKey(ctx, key string) context.Context`, and the fake's team half
   - task 09 — `model.Owner`, `model.Class`. **Assumed:** `model.Owner` is a string type holding the Hub user id (`us-…`), because every Hub team record names its owner that way (`task-06.md:84,111`); if task 09 makes it `(tid, oid)`, `FromHub` and the feed's decode are the two places that change
   - task 03 — `hubapi.Delegation` (`ID`, `OrgID`, `OwnerID`, `ProjectID`, `Class`, `Routes`, `ExpiresAt`, `RevokedAt`, as `task-06.md:84-86` shows the wire), the list types for tasks, threads and escalations, and the feed kinds `delegation.created`, `delegation.renewed`, `delegation.revoked`
   - task 01 — the delegable route names (`task-01.md:226-261`), the class route sets (`:267-273`), the one exempt route (`:26-29`), "first about" for Fleet-authored records (`:31-36`), and the codes `delegation_required`, `delegation_revoked`, `delegation_expired`
@@ -740,3 +742,204 @@ func (f *Feed) SetCursor(org, next string) {
 	f.mu.Unlock()
 }
 ```
+
+`control-plane/internal/fleet/delegation/rebuild.go`:
+
+```go
+package delegation
+
+import (
+	"context"
+	"fmt"
+	"sync"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubapi"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubclient"
+)
+
+// Use is one delegation a live agent row in Fleet's own store runs under.
+type Use struct {
+	ID  string // dl-…
+	Key Key
+}
+
+// InUse is the slice of task 10's Store that Rebuild reads.
+type InUse interface {
+	DelegationsInUse(ctx context.Context) ([]Use, error)
+}
+
+// HubState is the Hub-owned state Fleet reads from: memory only, rebuilt at
+// every start, kept current by the feed consumers tasks 22-25 register.
+type HubState struct {
+	mu        sync.RWMutex
+	tasks     map[string]map[string]hubapi.Task     // project -> tk -> task
+	conflicts map[string]map[string]hubapi.Conflict // project -> cf -> open conflict
+}
+
+func NewHubState() *HubState {
+	return &HubState{tasks: map[string]map[string]hubapi.Task{},
+		conflicts: map[string]map[string]hubapi.Conflict{}}
+}
+
+func (s *HubState) PutTask(t hubapi.Task) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.tasks[t.ProjectID] == nil {
+		s.tasks[t.ProjectID] = map[string]hubapi.Task{}
+	}
+	s.tasks[t.ProjectID][t.ID] = t
+}
+
+func (s *HubState) PutConflict(c hubapi.Conflict) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.conflicts[c.ProjectID] == nil {
+		s.conflicts[c.ProjectID] = map[string]hubapi.Conflict{}
+	}
+	s.conflicts[c.ProjectID][c.ID] = c
+}
+
+func (s *HubState) Task(project, id string) (hubapi.Task, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	t, ok := s.tasks[project][id]
+	return t, ok
+}
+
+// Rebuild is gapless: for each org it reads the feed head, then the state,
+// then sets the cursor to the head it read first. It is safe to call again:
+// task 12 calls it at start on every replica and on becoming leader.
+func Rebuild(ctx context.Context, in InUse, hub hubclient.OrgFeed, team hubclient.Team,
+	f *Feed, s *HubState) error {
+	uses, err := in.DelegationsInUse(ctx)
+	if err != nil {
+		return fmt.Errorf("rebuild: delegations in use: %w", err)
+	}
+	byOrg := map[string][]Use{}
+	for _, u := range uses {
+		byOrg[u.Key.OrgID] = append(byOrg[u.Key.OrgID], u)
+	}
+	for org, us := range byOrg {
+		head, err := hub.OrgChanges(ctx, org, "latest", FeedKinds, 1)
+		if err != nil {
+			return fmt.Errorf("rebuild %s: feed head: %w", org, err)
+		}
+		live, err := rebuildDelegations(ctx, team, f, us)
+		if err != nil {
+			return fmt.Errorf("rebuild %s: %w", org, err)
+		}
+		for project, dl := range live {
+			if err := rebuildProject(hubclient.WithDelegation(ctx, dl), team, s, project); err != nil {
+				return fmt.Errorf("rebuild %s/%s: %w", org, project, err)
+			}
+		}
+		f.SetCursor(org, head.Next)
+	}
+	return nil
+}
+
+// rebuildDelegations asks the Hub for each in-use delegation's state, by id,
+// under itself: 200 is live, 401 delegation_revoked / delegation_expired say
+// exactly which act is owed. It returns one live dl per project to read under.
+func rebuildDelegations(ctx context.Context, team hubclient.Team, f *Feed, us []Use) (map[string]string, error) {
+	live := map[string]string{}
+	for _, u := range us {
+		hd, err := team.Delegation(hubclient.WithDelegation(ctx, u.ID), u.ID)
+		switch hubclient.Code(err) {
+		case "delegation_revoked":
+			err = f.act(ctx, Delegation{ID: u.ID, Key: u.Key}, Revoked)
+		case "delegation_expired":
+			err = f.act(ctx, Delegation{ID: u.ID, Key: u.Key}, Lapsed)
+		case "":
+			if err != nil {
+				return nil, err // transport: the whole rebuild retries
+			}
+			d := FromHub(hd)
+			f.cache.Put(d)
+			live[d.Key.ProjectID] = d.ID
+			if f.leader() { // a renewal while Fleet was down left no event after the head
+				err = f.rev.Resume(ctx, d)
+			}
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	return live, nil
+}
+
+// rebuildProject replaces a project's tasks and open conflicts, page by page.
+func rebuildProject(ctx context.Context, team hubclient.Team, s *HubState, project string) error {
+	for after := ""; ; {
+		p, err := team.Tasks(ctx, project, hubapi.PageRequest{After: after, Limit: 200})
+		if err != nil {
+			return err
+		}
+		for _, t := range p.Items {
+			s.PutTask(t)
+		}
+		if p.Next == nil {
+			break
+		}
+		after = *p.Next
+	}
+	for after := ""; ; {
+		p, err := team.Conflicts(ctx, project, hubapi.ConflictQuery{State: "open",
+			PageRequest: hubapi.PageRequest{After: after, Limit: 200}})
+		if err != nil {
+			return err
+		}
+		for _, c := range p.Items {
+			s.PutConflict(c)
+		}
+		if p.Next == nil {
+			return nil
+		}
+		after = *p.Next
+	}
+}
+
+// Adopt is task 20's entry at launch; org comes from the caller's
+// authenticated membership (task 12), never from the request body. Head
+// first, record second, as in Rebuild. A launch never waits for the feed.
+func (f *Feed) Adopt(ctx context.Context, org, id string) (Delegation, error) {
+	f.mu.Lock()
+	_, tracked := f.cursor[org]
+	f.mu.Unlock()
+	if !tracked {
+		head, err := f.hub.OrgChanges(ctx, org, "latest", FeedKinds, 1)
+		if err != nil {
+			return Delegation{}, err
+		}
+		f.SetCursor(org, head.Next)
+	}
+	hd, err := f.team.Delegation(hubclient.WithDelegation(ctx, id), id)
+	if err != nil {
+		return Delegation{}, err
+	}
+	d := FromHub(hd)
+	if d.Key.OrgID != org {
+		return Delegation{}, fmt.Errorf("delegation: %s is not in org %s", id, org)
+	}
+	f.cache.Put(d)
+	return d, nil
+}
+
+// Orgs is what task 12's feed loop polls, every PollEvery.
+func (f *Feed) Orgs() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	out := make([]string, 0, len(f.cursor))
+	for org := range f.cursor {
+		out = append(out, org)
+	}
+	return out
+}
+```
+
+**Head first everywhere, because the other order has a hole.** Had `Adopt` read the delegation and
+then the head, a revocation committed between the two reads would sit before the cursor and never
+be applied, and the delegation would stay cached as live until its expiry, up to 24 hours. Reading
+the head first puts that revocation after the cursor, so the next `Poll` applies it.
+`TestAdoptReadsTheHeadBeforeTheRecord` pins the order with a fake that revokes between the calls.
+
