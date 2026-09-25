@@ -559,3 +559,92 @@ func TestDisplayAliasIsNeverAKey(t *testing.T) {
 	}
 }
 ```
+
+**`workids_test.go`, complete.**
+
+```go
+package hubapi
+
+import (
+	"testing"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/ids"
+)
+
+// The control plane's local prefixes (contract §3.1, :111) and Phase T task
+// 01's twelve (2026-09-25-phase-t-team-mode-parts/task-01.md:176-183, read at
+// feat/team-mode af569a8). Written out, not imported: Phase T's constants are
+// not on this branch's sync base, and the test must hold before they are.
+var (
+	controlPlanePrefixes = []string{"s", "p", "b", "w", "m"}
+	phaseTPrefixes       = []string{"dl", "th", "hm", "ms", "nt", "es", "tk", "dv", "ag", "ot", "ls", "cf"}
+)
+
+// Mutant: a Work prefix that repeats one already taken ("ms" for milestones,
+// "tm" for templates, "iv" for initiatives), or a repeat inside the twelve.
+func TestWorkPrefixesAreDisjoint(t *testing.T) {
+	if len(WorkPrefixes) != 12 {
+		t.Fatalf("WorkPrefixes has %d entries, want the twelve of 05-design §3.6", len(WorkPrefixes))
+	}
+	owner := map[string]string{}
+	claim := func(p, who string) {
+		if prev, ok := owner[p]; ok {
+			t.Errorf("prefix %q is both %s and %s", p+"-", prev, who)
+		}
+		owner[p] = who
+	}
+	for _, c := range constValues(t, "keys.go", "Prefix") { // §3.1's ten, from the Hub's own file
+		claim(c.value, "the Hub's "+c.name)
+	}
+	for _, p := range controlPlanePrefixes {
+		claim(p, "the control plane's")
+	}
+	for _, p := range phaseTPrefixes {
+		claim(p, "Phase T's")
+	}
+	for _, p := range WorkPrefixes {
+		claim(p, "Phase W's")
+	}
+	if len(owner) != 10+5+12+12 {
+		t.Errorf("%d distinct prefixes, want 39", len(owner))
+	}
+}
+
+// Mutant: a prefix constant that ids.Wide cannot mint into a ValidID (a
+// trailing "-" in the constant, or an upper-case letter).
+func TestWorkPrefixesMintValidIDs(t *testing.T) {
+	for _, p := range WorkPrefixes {
+		if id := ids.Wide(p); !ValidID(p, id) {
+			t.Errorf("ids.Wide(%q) = %q, which ValidID refuses", p, id)
+		}
+	}
+}
+
+// Mutant: a lower-case key, a 1-letter or 6-letter key, digits, or no anchors.
+func TestValidProjectKey(t *testing.T) {
+	for _, k := range []string{"EP", "PAY", "ABCDE"} {
+		if !ValidProjectKey(k) {
+			t.Errorf("ValidProjectKey(%q) = false, want true", k)
+		}
+	}
+	for _, k := range []string{"", "E", "EPICS1", "ABCDEF", "ep", "Ep", "E1", "EP-", " EP", "EP\n", "ÉP"} {
+		if ValidProjectKey(k) {
+			t.Errorf("ValidProjectKey(%q) = true, want false", k)
+		}
+	}
+}
+
+// Mutant: a zero-padded or separator-less alias ("EP142", "EP-0142").
+func TestDisplayAliasFormat(t *testing.T) {
+	if got := DisplayAlias("EP", 142); got != "EP-142" {
+		t.Fatalf(`DisplayAlias("EP", 142) = %q, want "EP-142"`, got)
+	}
+	if got := DisplayAlias("PAY", 1); got != "PAY-1" {
+		t.Fatalf(`DisplayAlias("PAY", 1) = %q, want "PAY-1"`, got)
+	}
+}
+```
+
+`constValues` (`keys_test.go:683`) returns `[]namedConst` with `name` and `value`; it parses
+`keys.go` with `go/parser`, so this test reads the Hub's ten from the Hub's own file and follows
+any change there.
