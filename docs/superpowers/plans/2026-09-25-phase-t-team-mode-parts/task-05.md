@@ -70,3 +70,65 @@ handler can forget. A desktop write leaves both empty and stays v1, byte for byt
 member's Orchestrator throttle every other member's. Fleet's key is `fleet/<dl-…>`, one bucket per
 owner and class; the org bucket (key `tid`) is unchanged and still caps the whole org. The feed
 route's key is `fleet/feed`.
+
+Two more, the part's own, each closing a hole the scope leaves open:
+
+**(h) `entra.New` refuses a client id that is both a desktop client and an app caller.** If the
+same GUID were in `AllowedClients` and `AppCallers`, a user token minted for Fleet's registration
+would pass as a desktop token and dodge decision (b). The two lists are disjoint, or the Hub does
+not start.
+
+**(i) `devissuer`'s grant checks the form, not the assertion.** Fleet sends a workload-identity
+client assertion (`task-12.md:723-729`). Offline there is no kubelet and no federated credential,
+so `devissuer` requires `client_assertion_type` to be the JWT-bearer URN and `client_assertion`
+to be non-empty, and verifies nothing else about it. That is the whole difference from Entra; it
+joins contract §6.4's list beside Hub task 12's spent-refresh rule (Hub `task-12.md:90-92`), and
+`devissuer` still listens on loopback only.
+
+**Files:**
+- `control-plane/internal/entra/entra.go` — `AppCaller`, `Config.AppCallers`, `Claims.AppOnly`,
+  `New`'s checks (modify)
+- `control-plane/internal/entra/verify.go` — the one `switch` of decision (a) (modify)
+- `control-plane/internal/entra/appcaller_test.go` — task 17's three tests and decision (h)'s (new)
+- `control-plane/internal/hub/server/auth.go` — `Claims.AppOnly`; the header rules; the rate
+  key (modify)
+- `control-plane/internal/hub/server/delegation.go` + `delegation_test.go` — `Delegable`,
+  `RouteFrom`, `DelegationView`, `isFeedPath`, `resolveCaller` (new)
+- `control-plane/internal/hub/server/tx.go` — `Principal` gains three fields; `Read` and `Write`
+  call `resolveCaller`; `Write` stamps every `AuditRow` (modify)
+- `control-plane/internal/hub/server/export_test.go` — two delegable test routes (modify)
+- `control-plane/internal/hub/server/fleet_integration_test.go` — the pipeline, end to end (new)
+- `control-plane/internal/hub/store/delegation.go` + `delegation_integration_test.go` —
+  `FleetDelegation`, `FleetOrg`, `AgentOwnedBy` (new)
+- `control-plane/internal/hub/store/audit.go` + `audit_test.go` — `AuditRow.Via`,
+  `AuditRow.DelegationID` onto the envelope (modify)
+- `control-plane/cmd/hub/config.go` + `config_test.go` — `PANACEA_APP_HUB_FLEET_CLIENT_ID` (modify)
+- `control-plane/cmd/hub/serve.go` — `AppCallers` from it (modify)
+- `control-plane/internal/devissuer/config.go`, `token.go` + `token_test.go`, `issuer.go`,
+  `discovery.go` — the grant, `MintAppToken`, the discovery list, `Env` (modify)
+- `control-plane/cmd/devissuer/dev-tenant.json` — one confidential client, Fleet (modify)
+
+`PANACEA_APP_HUB_DELEGATION_TTL` is read by task 06, which creates delegations; this task only
+reads `expires_at` back.
+
+**Interfaces:**
+- Produces: `entra.AppCaller`, `entra.Config.AppCallers`, `entra.Claims.AppOnly`;
+  `server.Claims.AppOnly`; `server.Delegable(name, h)`, `server.RouteFrom(ctx)`;
+  `server.DelegationView`; `Principal.Via`, `Principal.DelegationID`, `Principal.Delegation`
+  (a value, zero for a desktop caller); `store.FleetDelegation`, `store.FleetDelegationRow`,
+  `store.ErrDelegationUnknown`, `store.FleetOrg`, `store.AgentOwnedBy(ctx, tx, agentID, userID)
+  (bool, error)` (the signature task 06 consumes, `task-06.md:65`); `store.AuditRow.Via`,
+  `store.AuditRow.DelegationID`; `devissuer.Client.{Confidential,AppRoles,ServicePrincipalOID}`,
+  `(*Issuer).MintAppToken`; the variable `PANACEA_APP_HUB_FLEET_CLIENT_ID`.
+- Consumes: task 03's `HeaderDelegation`, `AppRoleFleet`, `ViaFleet`, `RouteName`,
+  `DelegationClass`, `RevokeReason`, `ValidID`, the five codes of `task-03.md:1433-1437`,
+  `AuditEnvelope.Via` and `.DelegationID` (`task-03.md:1329-1336`); task 04's
+  `fleet_delegation(uuid, text)` and `fleet_org(uuid)` (`task-04.md:803-829`) and `agents`
+  (`task-04.md:325-341`); Hub task 13's `Authenticate`, `Claims`, `ClaimsFrom`, the limiter;
+  Hub task 14's `Principal`, `Tx`, `Read`, `Write`, `Forbidden`, `Refuse`, `AuditRow`, `Append`;
+  Hub tasks 11–12's `Config`, `Client`, `/token`; Hub task 08's `cmd/hub/config.go`. All Hub
+  parts are **planned** (**UNVERIFIED until merge**).
+- Required by: 06 and 07 (every team handler reads `tx.P`; `AgentOwnedBy`), 08 (the exempt feed
+  route and `FleetOrg`), 11 (Fleet's delivery calls), 12 (`fleetd`'s token against `devissuer`),
+  17 (the same `AppCallers`, consumed not re-added), 43 (the offline proof), 44 (revocation),
+  66 (the variable, `task-66.md:297`).
