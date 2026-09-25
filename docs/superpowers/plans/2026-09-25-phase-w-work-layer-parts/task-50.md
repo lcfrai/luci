@@ -158,3 +158,98 @@ short by flattening is filled by `tableEditing`'s own `fixTables`, which runs in
 are `prosemirror-tables`' as this plan understands them, **UNVERIFIED** until step 2 reads the
 installed types.
 
+#### Interfaces — complete: `tables.ts`, part 2: parse, serialize, commands
+
+```ts
+/** markdown-it's table tokens (its `table` rule, which makeTokenizer now enables) to our nodes.
+ *  `ignore` drops thead/tbody open and close tokens and keeps what is between them. */
+const cellAttrs = (tok: Token) => ({ align: alignOf(tok.attrGet("style")) });
+export const tableParserTokens = {
+  table: { block: "table" },
+  thead: { ignore: true },
+  tbody: { ignore: true },
+  tr: { block: "table_row" },
+  th: { block: "table_header", getAttrs: cellAttrs },
+  td: { block: "table_cell", getAttrs: cellAttrs },
+};
+
+const DELIM: Record<string, string> = { left: ":---", center: ":---:", right: "---:", none: "---" };
+/** GFM: a pipe in a cell is escaped, inside code spans too (markdown-it removes the backslash
+ *  before the cell's inline parse). */
+export const escapeCell = (s: string): string => s.replace(/\|/g, "\\|");
+
+/** `inline` renders one cell's content to Markdown (markdown.ts passes its own serializer, so a
+ *  cell's marks, links and authorship sentinels are written exactly as in a paragraph). */
+export function tableSerializer(inline: (cell: Node) => string) {
+  return (state: MarkdownSerializerState, node: Node): void => {
+    const rows: string[][] = [];
+    node.forEach((row) => {
+      const cells: string[] = [];
+      row.forEach((cell) => { cells.push(escapeCell(inline(cell))); });
+      rows.push(cells);
+    });
+    const aligns: string[] = [];
+    node.firstChild?.forEach((c) => { aligns.push(DELIM[(c.attrs.align as string | null) ?? "none"]); });
+    const lines = [rows[0], aligns, ...rows.slice(1)].map((cells) => `| ${cells.join(" | ")} |`);
+    lines.forEach((l, i) => { if (i > 0) state.ensureNewLine(); state.write(l); });
+    state.closeBlock(node);
+  };
+}
+
+/** A fresh table: a header row and `bodyRows` body rows of `cols` empty cells. */
+export function createTable(schema: Schema, cols = 3, bodyRows = 1): Node {
+  const { table, table_row: tr, table_header: th, table_cell: td } = schema.nodes;
+  const row = (type: typeof th) => tr.create(null, Array.from({ length: cols }, () => type.create()));
+  return table.create(null, [row(th), ...Array.from({ length: bodyRows }, () => row(td))]);
+}
+
+/** Where the row and column items may run (the menu lists only what can run). */
+export const inTable = (s: EditorState): boolean => isInTable(s);
+export const inBodyRow = (s: EditorState): boolean => isInTable(s) && selectedRect(s).top > 0;
+export const hasColumns = (s: EditorState): boolean => isInTable(s) && selectedRect(s).map.width > 1;
+
+/** Tab and Shift+Tab between cells. Outside a table both return false, so Tab moves focus out of
+ *  the editor as everywhere else (no focus trap); at the last cell, too. */
+export const cellKeys = { Tab: goToNextCell(1), "Shift-Tab": goToNextCell(-1) };
+```
+
+`state.write` is called once per line, after `ensureNewLine`, so a table inside a blockquote or a
+list item gets the container's prefix on every line (`write` adds the delimiter at a blank line
+start). The delimiter row is written from the **header** cells' alignment only, which is why
+`gfmShapePlugin` copies it down the column: a body cell with its own alignment would re-parse as
+its column's and fail rule 5. Escaping `|` after rendering touches text and code alike, which is
+what GFM requires; a person's `\|` is written `\\\|`, which markdown-it reads back as `\|`
+(**UNVERIFIED** against the installed markdown-it until the fixture `tables.md` runs).
+
+#### Interfaces — complete: the edits to task 49's `schema.ts` and `markdown.ts`
+
+```ts
+// schema.ts — the nodes, added last so every existing node keeps its position in the map.
+import { tableNodeSpecs } from "./tables";
+export const editorSchema = new Schema({
+  nodes: base.spec.nodes.remove("image").update("list_item", listItem)
+    .update("code_block", codeBlock).update("bullet_list", bulletList)
+    .append(tableNodeSpecs),
+  marks: base.spec.marks.update("link", link).addToEnd("agent", agent),
+});
+
+// markdown.ts — the tokenizer enables GFM tables; the parser and serializer learn them.
+import { tableParserTokens, tableSerializer } from "./tables";
+//   in makeTokenizer(), after md.disable(["image"]):
+md.enable(["table"]);
+//   parserTokens gains the six table entries:
+export const parserTokens = { ...baseTokens, ...tableParserTokens, bullet_list: { /* as task 49 */ },
+  list_item: { /* as task 49 */ } };
+//   serializerNodes gains the table (the three row and cell nodes are written by it, never alone):
+table: tableSerializer((cell) =>
+  serializer.serialize(editorSchema.nodes.doc.create(null, editorSchema.nodes.paragraph.create(null, cell.content)))),
+```
+
+`OrderedMap.append` takes a plain object as well as a map (`prosemirror-model`'s `orderedmap`,
+MIT). The cell renders through the real serializer inside a one-paragraph document, so a cell's
+`em`, `code`, `link` and `agent` marks are written by the same rules as anywhere else, and the
+sentinels inside a table are stripped by `serializeWithAuthorship` like any others. Referencing
+`serializer` inside `serializerNodes` is safe because the function runs only at serialize time,
+after the constant exists. Escaping at a paragraph's line start may write `\-` for a cell that
+starts with `-`; that re-parses to the same text and is the serializer's, not this task's.
+
