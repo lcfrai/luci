@@ -193,9 +193,104 @@ var (
 	ErrImportDuplicate  = errors.New("hubapi: an external id appears twice in one batch")
 	ErrImportURL        = errors.New("hubapi: an imported link is https with a host, or empty")
 	ErrImportPriority   = errors.New("hubapi: an imported priority is one of the five")
-	ErrImportLabels     = errors.New("hubapi: an item names at most 50 labels, each 1 to 60 characters")
+	ErrImportLabels     = errors.New("hubapi: an item names at most 50 labels, each 1 to 60 characters, trimmed")
 	ErrImportAuthorName = errors.New("hubapi: an author name is at most 200 characters")
 	ErrImportCreatedAt  = errors.New("hubapi: an external creation time is RFC 3339, or empty")
 )
+
+// ValidateImportBatch checks shape and limits before anything is written and
+// names the first failing field as items[n].<json name> (decision 1). Title and
+// description go through ValidateIssueRevisionContent, the create path's rule,
+// so an import can never hold a text a person's create would refuse. It never
+// rewrites an item: trimming is the adapter's (task 25), refusing is ours.
+func ValidateImportBatch(b ImportBatch) error {
+	if !slices.Contains(ImportSources, b.Source) {
+		return &FieldError{"source", ErrImportSource}
+	}
+	if len(b.Items) < 1 || len(b.Items) > MaxImportItems {
+		return &FieldError{"items", ErrImportSize}
+	}
+	seen := make(map[string]bool, len(b.Items))
+	for n, it := range b.Items {
+		at := fmt.Sprintf("items[%d].", n)
+		if fe := validateImportItem(it); fe != nil {
+			return &FieldError{at + fe.Field, fe.Err}
+		}
+		if seen[it.ExternalID] { // exact bytes, as issues_external_once compares them
+			return &FieldError{at + "externalId", ErrImportDuplicate}
+		}
+		seen[it.ExternalID] = true
+	}
+	return nil
+}
+
+func validateImportItem(it ImportItem) *FieldError {
+	if it.ExternalID == "" || !utf8.ValidString(it.ExternalID) ||
+		utf8.RuneCountInString(it.ExternalID) > MaxExternalIDChars {
+		return &FieldError{"externalId", ErrImportExternalID}
+	}
+	if !validImportURL(it.URL) {
+		return &FieldError{"url", ErrImportURL}
+	}
+	c := IssueRevisionContent{Title: AuthoredText{it.Title, AuthorHuman},
+		Description: AuthoredText{it.Description, AuthorHuman}, Serves: []Serve{}, Implements: []string{}}
+	if err := ValidateIssueRevisionContent(c); err != nil {
+		var fe *FieldError
+		if errors.As(err, &fe) { // "title.text" → "title", "description.text" → "description"
+			return &FieldError{strings.TrimSuffix(fe.Field, ".text"), fe.Err}
+		}
+		return &FieldError{"title", err}
+	}
+	switch {
+	case !ValidPriority(it.Priority):
+		return &FieldError{"priority", ErrImportPriority}
+	case len(it.Labels) > MaxImportLabels:
+		return &FieldError{"labels", ErrImportLabels}
+	case utf8.RuneCountInString(it.AuthorName) > MaxImportAuthorNameChars:
+		return &FieldError{"authorName", ErrImportAuthorName}
+	case it.CreatedAt != "" && !validRFC3339(it.CreatedAt):
+		return &FieldError{"createdAt", ErrImportCreatedAt}
+	}
+	for k, l := range it.Labels {
+		if l == "" || l != strings.TrimSpace(l) || utf8.RuneCountInString(l) > MaxLabelNameChars {
+			return &FieldError{fmt.Sprintf("labels[%d]", k), ErrImportLabels}
+		}
+	}
+	return nil
+}
+
+// validImportURL: "" or an absolute https URL with a host and no userinfo.
+// https://trusted.example@evil.example reads as the first host to a person and
+// goes to the second, so userinfo is refused (the issue view renders the link).
+func validImportURL(s string) bool {
+	if s == "" {
+		return true
+	}
+	if len(s) > MaxExternalURLBytes || !strings.HasPrefix(s, "https://") {
+		return false // case-sensitive, as task 06's CHECK '^https://' is
+	}
+	u, err := url.Parse(s)
+	return err == nil && u.Scheme == "https" && u.Host != "" && u.User == nil
+}
+
+func validRFC3339(s string) bool { _, err := time.Parse(time.RFC3339, s); return err == nil }
+
+// ImportLabelNames is names deduplicated case-insensitively (the first spelling
+// kept) and sorted by lower-case form: the order task 25 shows (task-25.md:195).
+// Matching is Postgres lower() (store.MatchLabels), the index's own rule; this
+// Go fold only orders the report, so the two may differ on rare scripts.
+func ImportLabelNames(names []string) []string {
+	out, seen := []string{}, map[string]bool{}
+	for _, n := range names {
+		if k := strings.ToLower(n); !seen[k] {
+			seen[k], out = true, append(out, n)
+		}
+	}
+	slices.SortFunc(out, func(a, b string) int { return strings.Compare(strings.ToLower(a), strings.ToLower(b)) })
+	return out
+}
 ```
+
+`work.go` gains the imports `errors`, `fmt`, `net/url`, `strings`, `time` and `unicode/utf8` beside
+task 03's `bytes`, `encoding/json` and `slices` (`task-03.md:86-90`), where it lacks them.
 
