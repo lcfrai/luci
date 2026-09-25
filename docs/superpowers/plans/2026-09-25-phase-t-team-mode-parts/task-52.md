@@ -708,3 +708,91 @@ func (a *API) registerTeam(mux *routes) // the eleven routes above; a no-op when
 `TeamReader.Projects` is typed `HubProjects`; task 21's `TeamProjects` stays as it is. Every Hub
 error is relayed with its own status and code (`hubclient.Code`), and every `fleetbe` error by
 its sentinel (`task-21.md:385`), as `teamlaunch.go` does.
+
+#### `api/teamassemble.go` (complete surface; every function pure)
+
+The handlers fetch; these assemble. Nothing here does I/O, so every rule of ST.8 is a table test.
+
+```go
+package api
+
+// labelFor names a text's author from typed fields only. viewer is the
+// signed-in user; names maps u-… to display name; agents maps ag-… to its
+// role and owner (from TeamHuman). Unknown agent: "<owner>'s agent (agent)".
+//   human, owner == viewer                 -> "You"
+//   human, other                           -> "<name>"
+//   agent, orchestrator, owner == viewer   -> "Your Orchestrator (agent)"
+//   agent, orchestrator, other             -> "<name>'s Orchestrator (agent)"
+//   agent, worker, owner == viewer         -> "Your <agentName> (agent)"
+//   agent, worker, other                   -> "<name>'s <agentName> (agent)"
+func labelFor(t teamtext.Text, viewer string, names map[string]string, agents map[string]verbs.HumanAgent) string
+
+// teamText converts a stored text to ST.8's shape, with its label.
+func teamText(t teamtext.Text, viewer string, names map[string]string, agents map[string]verbs.HumanAgent) TeamText
+
+// agentName: "Orchestrator" for one; else the brief section's title cut at
+// 40 runes plus " worker"; else "worker". Never the task title (text·A).
+func agentName(a verbs.HumanAgent) string
+
+// rowStatus is the person's one dot (§9.1): "working" if any live agent is
+// working or starting; else "waiting" if any is waiting; else "idle". The
+// WaitingOn it returns is the first waiting agent's, human before lease
+// before peer, so "waiting on Priya" wins over a lease wait.
+func rowStatus(agents []verbs.HumanAgent, names map[string]string) (string, *WaitingOn)
+
+// stripFrom cuts TeamStrip from one TeamHuman. heldByOthers: a Recent path
+// another person's agent has in its Files or covers with a granted or
+// contested lease glob (teamtext.Match). changedAt comes from seen: it
+// moves only when the row's signature (task id, Recent, Status, WaitingOn)
+// changes; the first sight stamps now.
+func stripFrom(h verbs.TeamHuman, viewer string, route RouteState, now time.Time, seen *sync.Map) TeamStrip
+
+// detailFrom cuts one person's PersonDetail; ok is false when the person has
+// no live agent in h.
+func detailFrom(h verbs.TeamHuman, userID, viewer string) (PersonDetail, bool)
+
+// cardFor fills STATE / MEANING / NEXT from typed fields:
+//   STATE   "WORKING" | "STARTING" | "IDLE" | "WAITING ON <NAME>" | "WAITING ON A LEASE" | "WAITING ON A THREAD"
+//   MEANING "<brief section title> · <tk-…>", or "<tk-…>", or "no task"
+//   NEXT    "holds <first glob> until <HH:MM>" for its newest granted lease,
+//           "asked for <glob>" for a requested one, else "no lease held"
+// HH:MM is Australia/Sydney, the viewer's clock (phase 2 displays local time).
+func cardFor(a verbs.HumanAgent, names map[string]string, loc *time.Location) Card
+
+// isDecidedWithoutYou is decision (d): kind inform, fromAgentId null,
+// threadId set. Nothing reads the question's text to decide it.
+func isDecidedWithoutYou(e hubapi.Escalation) bool
+
+// deskFrom merges one project's reads into the account Desk's four lists.
+// horizon: open conflicts (raised|negotiating|accepted|escalated) where one
+// side is the viewer's agent. needsYou: decide, Answer == nil. since: inform
+// and not decided-without-you, CreatedAt > since; plus answer messages the
+// viewer's Orchestrator sent with text, CreatedAt > since. decided: every
+// decided-without-you escalation, joined to its conflict by ThreadID;
+// undo.available = conflict.State == accepted && resolution in {yield, sequence}.
+func deskFrom(in DeskInputs, viewer string, since time.Time) TeamDesk
+
+type DeskInputs struct {
+	ProjectID   string
+	Human       verbs.TeamHuman
+	Conflicts   []hubapi.Conflict
+	Escalations []hubapi.Escalation
+	Threads     []server.DeskThread
+	Sent        []hubapi.Message // answers by the viewer's Orchestrator, one page per open thread
+	Names       map[string]string
+}
+
+// conversationFrom interleaves the viewer's human messages, human-origin
+// turn replies and human-origin directives by time, oldest first, the last 100.
+func conversationFrom(hm []hubapi.HumanMessage, replies []TurnReply, dv []hubapi.Directive,
+	viewer string, names map[string]string, agents map[string]verbs.HumanAgent) []ConvEntry
+
+// threadRow names a DeskThread for the viewer.
+func threadRow(t server.DeskThread, names map[string]string, others map[string]string) ThreadRow
+```
+
+`TeamDesk` for more than one team project is the concatenation of each project's `deskFrom`,
+then each list sorted newest first by `At` (HORIZON and DECIDED WITHOUT YOU) or deadline soonest
+first (NEEDS YOU). The sort is done once per response, and the order is stable for equal keys
+(`sort.SliceStable`), so an unchanged Desk never reorders under the cursor
+(`docs/AGENTIC-UX.md:146`).
