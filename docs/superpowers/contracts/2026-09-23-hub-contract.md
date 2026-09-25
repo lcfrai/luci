@@ -2302,7 +2302,7 @@ disabled to prove row-level security alone holds.
 
 **Ruling, applied as written:** main `docs/superpowers/planning/2026-09-25-identity-keycloak-broker.md`
 ("the ruling"); ADR-H1 §12. **This section wins over §5.1, §6, §9.1, §9.5, §11.1 T2 and §12 where they
-disagree**; task 44a folds it into those sections (ruling §11 `:573`). The `orgs` and `users` keys of §10
+disagree**; task 44a folds it into those sections (ruling §11 `:574`). The `orgs` and `users` keys of §10
 are unchanged: the person is still `(tid, oid)`, Entra's ids carried through the realm (ruling §4).
 
 **§5.1, from token to principal.** Step 3 validates with `oidcauth.Validator` under the `keycloak` profile
@@ -2326,8 +2326,8 @@ the JSON boolean `true` and `azp == panacea-app-desktop`; otherwise no invite bi
   `scope=openid offline_access panacea-app-hub panacea-app-broker panacea-app-gateway panacea-app-fleet`,
   `state`, `nonce`, `code_challenge`, `code_challenge_method=S256`, `kc_idp_hint=<PANACEA_APP_OIDC_IDP_HINT>`
   (omitted when empty), `login_hint=<Windows UPN>` (omitted when unknown). **No `prompt`, no
-  `response_mode`, no `domain_hint`** (ruling §2 step 4, §3 `:115-125`). `kc_idp_hint` is cosmetic:
-  the client's browser-flow override sends every interactive sign-in to Entra (ruling K1, `:500-505`).
+  `response_mode`, no `domain_hint`** (ruling §2 step 4, §3 `:115-125`). The client's browser-flow override, not the hint, sends every
+  interactive sign-in to Entra (ruling K1, `:500-505`). The hint is read before that flow's `defaultProvider`, so it is harmless only because `entra` is the realm's only enabled IdP (K1's invariant; a second IdP is an OD-30 ruling change): it can name only `entra`, and an empty or unknown hint fails closed (UNVERIFIED; ruling §10 check 2, hub task 43 R-3).
 - Step 5: **the control plane opens the system browser itself** (`ShellExecuteW`); the renderer shows
   `authorizeUrl` only as a fallback link after 15 s with no callback (ruling §2 step 3).
 - Step 6: browser ↔ Keycloak ↔ Entra, with no click on a KPMG device (ruling §3; U-6).
