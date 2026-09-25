@@ -771,3 +771,159 @@ func TestAnswerLimits(t *testing.T) {
 
 `fakeSwitch`, `countQueue` and `refusals` are task 109's test doubles in the same package.
 
+**Rows added to Phase T's own tests** (their files are TM-09's and TM-13's, **UNVERIFIED until
+merge**): TM-09's verb-table test gains *the `ask` class may call `answer` and nothing else*, run
+over every verb in the table (a `lease request`, `report done` or `peer` from an `ask` session is
+refused with the class error); TM-13's render test gains *the `ask` class's file denies `Edit`,
+`Write`, `MultiEdit` and `NotebookEdit`, pins `defaultMode: plan`, and a project layer that adds
+`Edit` to `allow` fails `Render` naming the invariant*; TM-09's fixture round-trip picks up the
+three `answer.*.json` files by glob. TM-20's key-tag test gains *an ask launched by Alice on
+Dylan's project tags `oid` Alice*.
+
+#### Tests to write first — `desktop/src/components/work/AskAnswer.test.tsx`
+
+```tsx
+import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import type { AskResult } from "../../api/work";
+import { expectNoPrediction } from "../../test/expectNoPrediction";
+import { AskAnswer } from "./AskAnswer";
+
+const SHA = "7c1f0a2d9e0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d";
+const answered = (over: Partial<AskResult> = {}): AskResult => ({
+  state: "answered", question: "where is the cap?", questionClass: "H",
+  answer: "It is checked in glob.go.", answerClass: "A", commit: SHA,
+  citations: [
+    { path: "a/glob.go", lineStart: 41, lineEnd: 58, check: "ok" },
+    { path: "a/cap.go", lineStart: 1, lineEnd: 9, check: "missing_path" },
+  ], ...over,
+});
+
+describe("AskAnswer", () => {
+  it("links only a checked citation and states the rest as a fact", () => {
+    const openAt = vi.fn();
+    const { container } = render(<AskAnswer result={answered()} openAt={openAt} />);
+    expect(container.querySelectorAll("a").length).toBe(1);
+    fireEvent.click(screen.getByText("a/glob.go:41-58"));
+    expect(openAt).toHaveBeenCalledWith("a/glob.go", 41, 58, SHA);
+    expect(screen.getByText("not found at 7c1f0a2")).toBeTruthy();
+    expectNoPrediction(container);
+  });
+  it("says no file cited when there is none", () => {
+    render(<AskAnswer result={answered({ citations: [] })} openAt={vi.fn()} />);
+    expect(screen.getByText("no file cited")).toBeTruthy();
+  });
+  it("says a citation was not checked when the commit is not in this clone", () => {
+    render(<AskAnswer result={answered({ citations: [{ path: "a.go", lineStart: 1, lineEnd: 1, check: "commit_absent" }] })} openAt={vi.fn()} />);
+    expect(screen.getByText("not checked: 7c1f0a2 is not in this clone")).toBeTruthy();
+  });
+  it("renders the answer as text, so an answer cannot make a link of its own", () => {
+    const { container } = render(<AskAnswer openAt={vi.fn()}
+      result={answered({ answer: "see <a href='https://x.test'>here</a> and [y](https://y.test)", citations: [] })} />);
+    expect(container.querySelectorAll("a").length).toBe(0);
+    expect(container.querySelector("[data-class='A']")?.textContent).toMatch(/<a href=/);
+  });
+  it("posts nothing by itself; the person's composer opens with the answer quoted", () => {
+    const post = vi.fn();
+    render(<AskAnswer result={answered()} openAt={vi.fn()} postAsComment={post} />);
+    expect(post).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Post as my comment…" }));
+    expect(post.mock.calls[0][0]).toBe("ask (agent) at 7c1f0a2:\n\n> It is checked in glob.go.");
+  });
+  it("marks the question as the person's and the answer as the agent's", () => {
+    const { container } = render(<AskAnswer result={answered()} openAt={vi.fn()} />);
+    expect(container.querySelector(".ask-q")?.getAttribute("data-class")).toBe("H");
+    expect(container.querySelector(".ask-a")?.getAttribute("data-class")).toBe("A");
+  });
+});
+```
+
+The loopback route's test (`internal/api/workask_test.go`) holds two rows: a `check` field sent
+by the fake Fleet is cleared and re-derived (mutant: an upstream `ok` trusted), and a project with
+no local clone marks every citation `commit_absent` (mutant: unchecked citations shown as links).
+
+| Test | Mutant it kills |
+|---|---|
+| citation checks; absent commit; one read per path | unchecked citations; a directory cited as a file; a git read per citation |
+| option-shaped commit runs no git | an argument passed to git unvalidated |
+| a checked link only; *not found at …* | a failed citation rendered as a link |
+| *no file cited* | an uncited answer that looks grounded |
+| answer as text | an answer that draws its own link past the check |
+| posts nothing by itself | an answer landing on an issue without a person |
+| the asker's own launch | billed to the project owner (`OD-19`), or run as them |
+| switch off refuses | the ask bypasses task 109's gate |
+| ask class only, once | a worker or Orchestrator writes an answer; a second answer overwrites the first |
+| another person cannot read it | an ask visible to the project owner |
+| the ask class's policy and verb table (Phase T rows) | an ask session that can write, lease or report |
+| upstream `check` cleared | Fleet or the worker marks its own citations `ok` |
+
+#### Steps
+
+- [ ] **Step 1: read on the sync base** TM-09's `model` (the `Class` enum and the verb table),
+  TM-13's `defaults/` and render test, TM-19's dispatch registration, TM-20's `Launch` and end
+  path, TM-21's `fleetbe` and its error mapping, task 24's project mapping, task 59's `Command`
+  type, and the helper names in `control-plane/internal/api/*.go`. Rename in this part's files only.
+- [ ] **Step 2: the Go tests first** (`cite_test.go`, `ask_test.go`, `workask_test.go`) and the
+  Phase T rows; each fails on the missing code.
+- [ ] **Step 3: the `ask` class.** `defaults/ask.json`, the class value and its one-verb row, the
+  three fixtures. Run TM-13's render test, then the one-command probe from decision 2's note in
+  TM-33's canary sandbox, and write the result into this part's gap 1 as *observed*, with the date
+  and the pinned CLI version. No CLI is modified or parsed (`OD-8`): the probe reads the exit
+  status of `panacea answer` and of one denied `Write`.
+- [ ] **Step 4: `ask.go`**, its registration in TM-19's dispatch and the Fleet routes; then
+  `cite.go` and `workask.go` with `api.go`'s registration and the two catalog rows.
+- [ ] **Step 5: the desktop test first**, then `work.ts`'s append, `AskAnswer.tsx` and the palette
+  command; the dialog that asks the question reuses task 59's palette input.
+- [ ] **Step 6: run the acceptance commands.** Commit by path after steps 3, 4 and 5, each message
+  ending with the `Co-Authored-By` line.
+
+#### Acceptance
+
+```bash
+go test ./control-plane/internal/workask/ ./control-plane/internal/fleet/work/ -race -count=1 -v -run 'Citation|Commit|OneRead|Ask|Answer|Another'
+# expect: cite 4 and ask 5 tests, all PASS
+go test ./control-plane/internal/api/ -race -count=1 -run 'WorkAsk|RoutesAudit'
+# expect: ok; the catalog lists POST /v1/work/ask and GET /v1/work/ask/{ag}
+go test ./control-plane/... -race -count=1
+# expect: ok for every package; no FAIL line
+npm --prefix desktop test -- work/AskAnswer palette
+# expect: every file passes; AskAnswer adds 6 tests
+npm --prefix desktop run typecheck
+# expect: exit 0
+grep -rnE "dangerouslySetInnerHTML|marked|markdown" desktop/src/components/work/AskAnswer.tsx
+# expect: no output
+```
+
+The counts are this part's plan, not a run.
+
+#### What this task does NOT claim
+
+- Answer quality. It claims only that every link in an answer resolves at the named commit.
+- That the `ask` class's policy works against the pinned Claude Code version until step 3's probe
+  has run and its result is written down (gap 1).
+- That TM-20's launch can check out a named commit into a throwaway clone (gap 3).
+- That an ask costs any particular amount; usage is attributed to the asker, never predicted.
+- Grounded Q&A in local mode (decision 1, gap 5).
+- That the question text is safe to hand to a model: it is the asker's own `text·H` to their own
+  agent, and hostile repository content read by the ask worker is the injection corpus's question
+  (05 §3.4, Q3; **UNVERIFIED**).
+
+**Parity** (`05-design.md` rows). Closes **L-162** (`:324`) for team projects.
+
+#### Gaps found while writing this part
+
+1. **`deny: ["Bash"]` beside `allow: ["Bash(panacea answer *)"]`** is unproven on the pinned CLI;
+   step 3 settles it and records the answer here.
+2. **A new control verb, `answer`, and a new class, `ask`,** are deltas to TM-09's wire and verb
+   table and TM-13's defaults (rule H2). The skeleton's delta table (`:287`) lists *"three verbs"*
+   for Phase T; it should list the fourth and the class.
+3. **TM-20's `Launch(owner, project, class, harness, delegation)` takes no commit**, and TM-15's
+   classes say nothing of a throwaway checkout. The ask needs both; a delta for TM-15 and TM-20.
+4. **Fleet's store needs an ask table** (asker, commit, question, answer, state), an additive
+   migration in TM-10's `fleet` schema, kept for a stated time. This part leaves the time to the
+   Phase T owner and names it as a gap, not a number.
+5. **Local projects have no ask.** L-162 closes for team projects only unless task 112's solo
+   runner can host an ask session too, which its spike could record.
+6. **The file map has no row** for `control-plane/internal/workask/`, `internal/api/workask.go`,
+   `components/work/AskAnswer.tsx` or Fleet's `work/` directory.
+
