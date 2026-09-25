@@ -120,4 +120,60 @@ const (
 	ReadErrGitFailed       = "git_failed"
 	ReadErrUnreadable      = "unreadable"              // the directory could not be listed
 )
+
+// ActivitySample is one sweep of one worktree. Every path in it passed
+// teamtext.ValidPath and teamtext.Clean in machined; a refused one is counted
+// in Dropped and appears nowhere. It holds no file contents and no "read" set.
+type ActivitySample struct {
+	Seq        int64       `json:"seq"`        // per machine, strictly increasing across restarts (below)
+	ProjectID  string      `json:"projectId"`  // pj-…, from the lane's path
+	WorktreeID string      `json:"worktreeId"` // w-…
+	At         time.Time   `json:"at"`         // when the sweep began, UTC
+	Head       string      `json:"head"`       // 40-hex; "" on an unborn branch
+	Dirty      []DirtyPath `json:"dirty"`      // sorted by path; never nil
+	Hunks      []Hunk      `json:"hunks"`      // sorted by path; never nil
+	LastCommit *LastCommit `json:"lastCommit"` // nil on an unborn branch
+	Dropped    int         `json:"dropped"`    // paths refused by hygiene or the cap
+	Truncated  bool        `json:"truncated"`  // a Max* bound cut something
+	ReadError  string      `json:"readError,omitempty"` // a ReadErr* code; then Dirty, Hunks are empty
+}
+
+// DirtyPath is one path that differs from HEAD, staged or not, or is untracked.
+type DirtyPath struct {
+	Path    string `json:"path"`
+	Status  string `json:"status"`  // P3-07's vocabulary: added|modified|deleted|renamed|typechange|untracked|unmerged
+	From    string `json:"from,omitempty"` // a rename's old path, also cleaned
+	Added   int    `json:"added"`   // numstat; -1 for a binary file
+	Deleted int    `json:"deleted"` // numstat; -1 for a binary file
+}
+
+// Hunk is one path's dirty line ranges, on the blob that HEAD holds for it.
+// Task 22's verbs.Hunk has the same three fields and tags (task-22.md:149-153).
+type Hunk struct {
+	Path   string   `json:"path"`
+	Base   string   `json:"base"`   // HEAD's blob for Path, 40-hex; "" for a path HEAD lacks
+	Ranges [][2]int `json:"ranges"` // [start, count] from "@@ -start,count"; count 0 is a pure insertion after start
+}
+
+// LastCommit is HEAD's commit.
+type LastCommit struct {
+	SHA     string    `json:"sha"`
+	Subject string    `json:"subject"` // cleaned and cut to MaxSubjectRunes; an agent wrote it (text·A where Fleet wraps it)
+	Paths   []string  `json:"paths"`   // changed against its first parent, or all paths for a root commit
+	At      time.Time `json:"at"`      // committer date
+}
+
+// ActivityPage answers GET /v1/activity. Samples are oldest first. Next is the
+// Seq to ask for next time. Gap is true when since was older than the ring
+// holds, so the caller knows it missed samples and rebuilds from this page.
+type ActivityPage struct {
+	Samples []ActivitySample `json:"samples"`
+	Next    int64            `json:"next"`
+	Gap     bool             `json:"gap"`
+}
 ```
+
+**`Seq` across a restart.** `machined` seeds its counter with the start time in milliseconds times
+1,000, then increments by one per sample, so a restarted `machined` never repeats a `Seq` a poller
+has seen, without writing state to disk. A poller that sees `Gap` rebuilds that worktree's view
+from the page, which is the "rebuilt within one sweep after a restart" task 35 needs.
