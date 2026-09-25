@@ -61,7 +61,8 @@ var ErrType = errors.New("oidcauth: typ is not Bearer") // keycloak profile only
 ```
 
 **`keycloak` order** (ruling §5 `:266-271`): size and alg → signature against the issuer's JWKS → exp/nbf →
-`iss` equals `Issuer` → `typ == "Bearer"` → `aud` contains `Audience` → `azp` in `AllowedClients` or
+`iss` equals `Issuer` → `typ == "Bearer"` → `aud` contains `Audience` **and no other `panacea-app-*`
+audience** (`ErrAudience`; Keycloak's `account` ignored; ruling §5 `:278-279`, review-1 I2) → `azp` in `AllowedClients` or
 `ServiceClients` → `RequiredScope` in `scope` → person: `oid` and `tid` GUIDs, `tid` in `TenantIDs`;
 service: both absent, `Service = true`. Hub mapping: `ErrType` → `ReasonMalformed` (hub `hubapi/codes.go:57-67`).
 
