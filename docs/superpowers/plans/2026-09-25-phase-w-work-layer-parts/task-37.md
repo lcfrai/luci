@@ -566,6 +566,7 @@ export interface WorkSlice {
 export type WorkState = Pick<WorkSlice, "work">;
 
 /** FROZEN, as initialUiState is (uiSlice.ts:91-92). */
+// (select's `[...new Set(ids)]` is always a fresh array, so the frozen initial one is never pushed to.)
 export const initialWorkState: WorkState = Object.freeze({
   work: Object.freeze({
     projectId: null, branch: null, openIssue: null,
@@ -618,8 +619,91 @@ export type CockpitState = DataSlice & UiSlice & PrefsSlice & WorkSlice;        
   useCockpit.setState({ ...initialDataState, ...initialUiState, ...initialPrefsState, ...initialWorkState });
 ```
 
-`Persisted` and `partialize` (`store.ts:20-46`) are not edited: they name their keys, so a new
+`Persisted` and `partialize` (`store.ts:21-48`) are not edited: they name their keys, so a new
 slice is unpersisted by default, and the test below keeps it that way. `PERSIST_VERSION` stays 1:
 no persisted shape changed, and `lens: "work"` is a new value of a persisted key, which `migrate`
-(`:58-61`) passes through untouched.
+(`:59-62`) passes through untouched.
+
+#### Interfaces — complete: the delta on ⚑ `desktop/src/test/workFixtures.ts` (task 20)
+
+Task 20's part 1 types (`task-20.md:167-206`) are replaced by these lines. `WORK_STATES`,
+`PROOF_WORDS`, `Criterion`, `WorkEvent`, the ids and every builder stay as task 20 wrote them.
+
+```ts
+import type {
+  AuthoredText, IssueComment, IssueHead, IssueRevision, IssueState, Label, Proof, Serve, TeamPolicy, User,
+} from "../api/work";
+export type {
+  AuthoredText, ExternalRef, IssueHead, IssueRevision, IssueState, Label, Priority, Proof,
+  Reaction, Relation, Serve, TeamPolicy, ThreadState, User,
+} from "../api/work";
+/** The fixtures' name for SW.15's IssueComment, kept so task 20's builders and callers compile. */
+export type Comment = IssueComment;
+```
+
+`Comment.anchor` widens from `null` to `CommentAnchor | null`; `makeComment` still builds `null`,
+so every existing fixture is unchanged.
+
+#### Tests to write first — `desktop/src/api/work.test.ts`, part 1
+
+```ts
+import { describe, expect, it, vi } from "vitest";
+import { ApiError, createClient, DEFAULT_BASE_URL } from "./client";
+import {
+  ISSUE_STATES, WIRE_KEYS, WORK_LOCAL, WORK_RELAY, relayPath, workProblem,
+  type IssueState, type StateMove, type WorkClient,
+} from "./work";
+import type { IssueState as GlyphState } from "../components/glyphs/StateGlyph";
+import { WORK_STATES } from "../test/workFixtures";
+
+// Task 02's golden vectors, read where the Hub keeps them. Eager and raw, like
+// designsystem.test.ts's tree walk; the count below stops an empty glob passing.
+const VECTORS = import.meta.glob<string>(
+  "../../../control-plane/internal/hub/hubapi/testdata/issue-revision/*.json",
+  { query: "?raw", import: "default", eager: true },
+);
+
+/** Sorted keys, no whitespace: hub-contract §3.4's canonical form for these ASCII-or-UTF-8
+ *  strings. JSON.stringify already writes \t and lowercase \u0001 and leaves é as its bytes. */
+function canon(v: unknown): string {
+  if (Array.isArray(v)) return `[${v.map(canon).join(",")}]`;
+  if (v !== null && typeof v === "object") {
+    const o = v as Record<string, unknown>;
+    return `{${Object.keys(o).sort().map((k) => `${JSON.stringify(k)}:${canon(o[k])}`).join(",")}}`;
+  }
+  return JSON.stringify(v);
+}
+/** A copy holding only the keys the desktop type names: what survives a typed decode. */
+const pick = (o: Record<string, unknown>, keys: string[]) => Object.fromEntries(keys.map((k) => [k, o[k]]));
+
+describe("SW.15 the Work wire", () => {
+  // Kills: a field renamed on the desktop (criterion for criterionId), or one dropped.
+  it("decodes and re-encodes each golden vector", () => {
+    const files = Object.entries(VECTORS);
+    expect(files).toHaveLength(3);
+    for (const [name, raw] of files) {
+      const v = JSON.parse(raw) as { envelope: Record<string, unknown>; canonical: string; bytes: number };
+      const c = v.envelope.content as Record<string, unknown>;
+      expect(Object.keys(c).sort(), name).toEqual(WIRE_KEYS.content);
+      const content = {
+        ...pick(c, WIRE_KEYS.content),
+        title: pick(c.title as Record<string, unknown>, WIRE_KEYS.text),
+        description: pick(c.description as Record<string, unknown>, WIRE_KEYS.text),
+        serves: (c.serves as Record<string, unknown>[]).map((s) => pick(s, WIRE_KEYS.serve)),
+      };
+      const again = canon({ ...v.envelope, content });
+      expect(again, name).toBe(v.canonical);
+      expect(new TextEncoder().encode(again).length, name).toBe(v.bytes);
+    }
+  });
+
+  // Kills: the wire's states drifting from the glyph's (task 28) or the fixtures' (task 20).
+  it("keeps one IssueState for the wire, the glyph and the fixtures", () => {
+    type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+    const same: Same<IssueState, GlyphState> = true;     // npm run typecheck is this assertion
+    expect(same).toBe(true);
+    expect([...ISSUE_STATES]).toEqual([...WORK_STATES]);
+    expect(new Set(ISSUE_STATES).size).toBe(9);
+  });
+```
 
