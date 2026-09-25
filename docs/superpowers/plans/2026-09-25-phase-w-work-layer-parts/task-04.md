@@ -540,7 +540,8 @@ func (f *Fake) CreateIssue(_ context.Context, projectID string, req hubapi.Creat
 
 `checkIssueLabels`, `defaultState` and `subscribeOn` are part 2's rules. In this task they are
 `fake_work_stub.go`'s part-1 bodies (labels must be `[]`, as task 08's decision 8; the default
-state is `triage`; no subscription is kept); task 05 deletes that file and gives each its rule in
+state is `backlog`, task 11's `DefaultTeamPolicy` for a team with no policy; no subscription is
+kept); task 05 deletes that file and gives each its rule in
 `fake_work_social.go`, so no line of this block changes. `source` is `person` for every
 `CreateIssue`: task 08 names no other source for this route, and `intake` is `ImportBatch`'s
 (task 05, task 15). Whether an Orchestrator's create reads `orchestrator` is task 19's to ask of
@@ -1072,7 +1073,7 @@ func (w *fakeWorld) checkIssueLabels(_, field string, labels []string) error {
 	}
 	return nil
 }
-func (w *fakeWorld) defaultState(string) hubapi.IssueState                  { return hubapi.StateTriage }
+func (w *fakeWorld) defaultState(string) hubapi.IssueState                  { return hubapi.StateBacklog } // task 11's DefaultTeamPolicy
 func (w *fakeWorld) stopAtLanded(string) bool                               { return false }
 func (w *fakeWorld) subscribeOn(*fakeIssue, string, hubapi.SubscriptionCause) {}
 
@@ -1516,7 +1517,7 @@ func TestFactStatesNeedTheirFactCause(t *testing.T) {
 	r := newWorkRig(t)
 	is := r.serving(t, "c1")
 	_, err := r.grace.MoveIssueState(bg, is.Head.ID, move(hubapi.StateStarted, hubapi.CauseHand))
-	wantProblem(t, err, 422, fkStateNotAllowed, "from", "triage", "to", "started", "cause", "hand")
+	wantProblem(t, err, 422, fkStateNotAllowed, "from", "backlog", "to", "started", "cause", "hand")
 	for range 2 {
 		must(r.grace.MoveIssueState(bg, is.Head.ID, move(hubapi.StateStarted, hubapi.CauseLaneBound)))(t)
 	}
@@ -1661,7 +1662,7 @@ grep -c 'func (f \*Fake) ' control-plane/internal/hub/hubclient/fake_work.go con
   that the real Hub passes any row (task 05 writes the rows; task 16 runs them against it).
 - Part 2's rules: relations, labels, policies, comments, subscriptions, import, search,
   attachments, erase (task 05). Until then those methods answer 501 and the four hooks hold their
-  part-1 bodies (labels `[]`, default `triage`, no stop at `landed`, no subscription).
+  part-1 bodies (labels `[]`, default `backlog`, no stop at `landed`, no subscription).
 - That `fakeMoveAllowed` **is** `hubapi.MoveAllowed`. It is the same table by reading; task 10
   makes it one function.
 - `evidenceCommit` (a later commit than the land commit, task 10's decision 3), a restore's
