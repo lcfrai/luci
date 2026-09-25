@@ -124,7 +124,7 @@ Inserted after `--numeric: tabular-nums;` (`tokens.css:156`) and before `:root`'
   --icon-ink: var(--ink-3); /* at rest; --ink-2 on hover and --ink when current, set by the component */
 ```
 
-The prototype (`prototype/work-layer.html:40`, read in the main tree) sets `--t-body:13px`. This
+The prototype (`prototype/work-layer.html:40`) sets `--t-body:13px`. This
 task follows 02 C3, where 13px is `--t-ui` and `--t-body` is 14px; a MEANING line is prose, and
 prose gets the larger step. The prototype's `--t-kbd` is this plan's `--t-micro`.
 
@@ -281,4 +281,148 @@ const THEME_COLOUR_NAMES = [
   "--run", "--need", "--fail", "--drift", "--run-tint", "--need-tint", "--fail-tint",
   "--e-hair", "--e-btn", "--e-card", "--e-raised", "--e-overlay", "--scrim",
 ];
+
+describe("02 D2 step 1 and the paper block", () => {
+  // Kills: a missing token (any one of the thirty-three).
+  it("declares 02 D2 step 1's tokens", () => {
+    const want = [
+      "--dur-flash", "--dur-peek", "--undo-window",
+      "--s-1", "--s-2", "--s-3", "--s-4", "--s-5", "--s-6",
+      "--row-h", "--row-h-compact", "--card-3line",
+      "--t-micro", "--t-micro-lh", "--t-fact", "--t-fact-lh", "--t-meta", "--t-meta-lh",
+      "--t-ui", "--t-ui-lh", "--t-body", "--t-body-lh", "--t-head", "--t-head-lh",
+      "--t-head-weight", "--t-head-track", "--t-display", "--t-display-lh",
+      "--icon", "--icon-stroke", "--icon-sm", "--icon-sm-stroke", "--icon-ink",
+    ];
+    const declared = new Set(declaredCustomProperties(ROOT));
+    expect(want.filter((n) => !declared.has(n))).toEqual([]);
+    expect(valueOf(ROOT, "--s-1")).toBe("4px");
+    expect(["--s-2", "--s-3", "--s-4", "--s-5", "--s-6"].map((n) => valueOf(ROOT, n)))
+      .toEqual(["8px", "12px", "16px", "24px", "32px"]);
+    expect([valueOf(ROOT, "--row-h"), valueOf(ROOT, "--row-h-compact"), valueOf(ROOT, "--card-3line")])
+      .toEqual(["32px", "28px", "76px"]);
+  });
+
+  // Kills: facts at 11px (05 §4.4 C3), and --t-micro drifting up to meet them.
+  it("sets --t-fact to 12px and --t-micro to 11px", () => {
+    expect([valueOf(ROOT, "--t-fact"), valueOf(ROOT, "--t-fact-lh")]).toEqual(["12px", "16px"]);
+    expect([valueOf(ROOT, "--t-micro"), valueOf(ROOT, "--t-micro-lh")]).toEqual(["11px", "14px"]);
+    expect([valueOf(ROOT, "--t-ui"), valueOf(ROOT, "--t-body")]).toEqual(["13px", "14px"]);
+    expect(valueOf(ROOT, "--t-head-weight")).toBe("560");
+  });
+
+  // Kills: drift from 05 §4.6's six seconds and DESIGN-SYSTEM's ~600ms flash.
+  it("keeps --undo-window at 6000ms and --dur-flash at 600ms", () => {
+    expect(valueOf(ROOT, "--undo-window")).toBe("6000ms");
+    expect(valueOf(ROOT, "--dur-flash")).toBe("600ms");
+    expect(valueOf(ROOT, "--dur-peek")).toBe("120ms");
+  });
+
+  // Kills: a paper block whose inks fall below graphite's floors, on any of three grounds.
+  it("clears the ink floors in graphite and paper", () => {
+    const floors: ReadonlyArray<[string, number]> = [["--ink", 15], ["--ink-2", 7], ["--ink-3", 3]];
+    const misses: string[] = [];
+    for (const [theme, css] of THEMES) {
+      for (const [ink, floor] of floors) {
+        for (const ground of GROUNDS) {
+          const r = contrast(valueOf(css, ink)!, valueOf(css, ground)!);
+          if (r < floor) misses.push(`${theme} ${ink} on ${ground}: ${r.toFixed(2)} < ${floor}`);
+        }
+      }
+    }
+    expect(misses).toEqual([]);
+  });
+
+  // Kills: graphite's status values copied unchanged (fail alone would scrape 3.01 on --page).
+  it("gives paper its own status lightness", () => {
+    const misses: string[] = [];
+    for (const name of STATUS) {
+      const paper = valueOf(PAPER, name)!;
+      expect(paper).not.toBe(valueOf(ROOT, name));
+      for (const ground of GROUNDS) {
+        const r = contrast(paper, valueOf(PAPER, ground)!);
+        if (r < 3) misses.push(`${name} on ${ground}: ${r.toFixed(2)}`);
+      }
+    }
+    expect(misses).toEqual([]);
+  });
+
+  // Kills: a paper block that drops a name the generator must keep, or an inverted scheme flag.
+  it("gives paper every colour name graphite has, and a light colour-scheme", () => {
+    const declared = new Set(declaredCustomProperties(PAPER));
+    expect(THEME_COLOUR_NAMES.filter((n) => !declared.has(n))).toEqual([]);
+    expect(THEME_COLOUR_NAMES).toHaveLength(34);
+    expect(PAPER).toContain("color-scheme: light");
+  });
+
+  // Kills: a hex literal inside the paper block (the file-wide rule, made explicit for it).
+  it("uses no literal hex in the paper block", () => {
+    expect(findHexLiterals(PAPER)).toEqual([]);
+    expect(PAPER).not.toMatch(/\b(?:rgb|rgba|hsl|hsla)\(/);
+  });
+});
 ```
+
+Every `valueOf(...)!` above is on a name the declaration tests prove present; a missing one makes
+`luminance` throw on `undefined`, so the test fails loudly rather than passing.
+
+#### Steps
+
+1. Write the three test edits above. Run `npm --prefix desktop test -- tokens`: the new
+   `describe` fails (no `--t-fact`, and `block` throws on the missing paper selector), and the
+   amended hex test fails (no paper hexes yet). The seven older tests still pass.
+2. Insert the `:root` additions after `tokens.css:156`. Re-run: the three declaration and value
+   tests pass; the paper tests still fail.
+3. Insert the paper block after `:root`'s closing brace. Re-run: all pass.
+4. Mutate by hand, one at a time, and watch the named test go red, then revert: `--t-fact: 11px`;
+   `--undo-window: 5000ms`; paper `--ink-2: oklch(55.5% 0.0140 67)`; paper `--fail` set to
+   graphite's `oklch(66.7% 0.1830 32.3)`; delete paper's `--thread`; paper `--page: #f7f5f2`.
+5. Run the typecheck and the full desktop suite (nothing else reads these names yet, so nothing
+   else should move).
+6. `git add` nothing new; commit the two files with `git commit -F <msg> -- <paths>`.
+
+#### Acceptance
+
+```bash
+npm --prefix desktop test -- tokens
+# expect: every test in tokens.test.ts passes, the new describe's seven included
+
+npm --prefix desktop run typecheck
+# expect: exit 0, no output from tsc
+
+grep -c "^  --t-fact" desktop/src/styles/tokens.css
+# expect: 2   (--t-fact and --t-fact-lh; the scope's "1" did not count the line-height token)
+
+grep -c '^:root\[data-theme="paper"\] {' desktop/src/styles/tokens.css
+# expect: 1
+```
+
+The scope's acceptance said `grep -c "^  --t-fact"` prints `1`. With the line-height token it
+prints `2`; `grep -c "^  --t-fact:"` prints `1`, and either is the check.
+
+#### What this task does not claim
+
+- **No visible change.** Nothing uses these tokens until tasks 30 and 31, and nothing sets
+  `data-theme` until task 33 renders the paper sheet by hand.
+- **Not a theme picker** (C11 `first.keys`, later), **not the high-contrast pair** (W2, tasks 95
+  and 96), and not the generator.
+- **Not that existing component CSS uses only `--s-*`.** Only the new Phase W directories are held
+  to it, by task 30's audit rule C. The Phase 2 stylesheets keep their literal spacing.
+- **Not that paper looks right.** The arithmetic says every ink and status colour clears its
+  floor; whether the ground reads as paper or as grey is the owner's eyes at task 39.
+- **Not that the status hues stay fixed across themes.** `--need` moves 5.8°; the test pins
+  meaning by contrast and name, not by angle.
+- Design: 05 §4.4 (C1, C3, C4, C7), §4.6; 02 C1, C3, C4, C6, C7, D2 step 1. Parity: the W1 part of
+  **L-234** (a light theme beside the dark one; the generated four are W2).
+
+**Interfaces:**
+- Produces (seam **SW.11**, the token half):
+  - motion `--dur-flash`, `--dur-peek`, `--undo-window`; spacing `--s-1` … `--s-6`; density
+    `--row-h`, `--row-h-compact`, `--card-3line`
+  - type `--t-{micro,fact,meta,ui,body,head,display}` each with `-lh`; `--t-head-weight`,
+    `--t-head-track`; icons `--icon`, `--icon-stroke`, `--icon-sm`, `--icon-sm-stroke`, `--icon-ink`
+  - `:root[data-theme="paper"]`, declaring the 34 `THEME_COLOUR_NAMES` and `color-scheme: light`;
+    tasks 95 and 96 must emit the same 34 names
+- Consumes: the built token layer (`tokens.css` at `f7ea2a2`) and `desktop/src/test/fakes.ts`'s
+  `declaredCustomProperties`, `findHexLiterals`, `stripCssComments` (`:259-278`, verified)
+- Amends: nothing in the Hub. No wire shape changes.
