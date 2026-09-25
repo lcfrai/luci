@@ -1594,3 +1594,103 @@ Eleven top-level tests: `TestIssueNumbersAreGaplessUnderRace`, `TestWorkRolesAre
 from the fake or the client stub. Every test that counts events reads H05's `Changes`, and the
 evidence test calls H05's `RecordEvidence`, so they run once H05 is merged, which is this task's
 dependency.
+
+---
+
+#### Steps
+
+- [ ] **Step 1: Check the sync base and take H05's names.** Tasks 03 and H04-H05 are on the
+  sync base (rule H1): `grep -n "type IssueWithRevision\|type WorkEraseResponse"
+  control-plane/internal/hub/hubapi/work.go` prints two lines; `grep -n "func (f \*Fake) Changes"
+  control-plane/internal/hub/hubclient/fake_feed.go` prints one. Then find H05's two internals:
+  `grep -n "func (w \*fakeWorld)" control-plane/internal/hub/hubclient/fake_feed.go` names the
+  function that appends one `hubapi.Event` (assigning `Seq` and `At`), and `grep -n "evidence"
+  control-plane/internal/hub/hubclient/fake.go` names the evidence store. If they are not
+  `appendEvent` and a map `evidence` by id, change the one call in `workEvent` and the one read in
+  `evidenceRecord` to the merged names, and note them here. Re-read every anchor in *Anchors*.
+- [ ] **Step 2: Write the tests.** Create `fake_work_test.go` exactly as above. Run
+  `go test ./control-plane/internal/hub/hubclient/ -count=1` and watch it fail to compile
+  (`r.grace.CreateIssue undefined`, `undefined: fkIssueNotFound`).
+- [ ] **Step 3: Write the code**, in this order so each build tells you one thing: `work.go`; the
+  one line in `hubclient.go` (the build now fails: `*Fake` and `*Client` do not implement
+  `Hub`); `client_work_stub.go` (the client error goes); `fake_work_stub.go` and `fake_work.go`.
+- [ ] **Step 4: Run to green**, then `go vet ./control-plane/internal/hub/hubclient/` and
+  `gofmt -l control-plane/internal/hub/hubclient/` (prints nothing).
+- [ ] **Step 5: Prove the tests bite.** Apply each mutant by hand, run, see the named test fail,
+  revert. None is committed.
+
+| Mutant, applied by hand | Test that must fail |
+|---|---|
+| move `wk.numbers[projectID]++` above `checkServes` | `TestIssueNumbersAreGaplessUnderRace` (the refused create burns 1) |
+| drop `need(role, hubapi.RoleAdmin)` from `SetProjectKey` | `TestWorkRolesAreChecked` |
+| set `is.head.Alias` at create and drop the recompute in `renderIssue` | `TestAKeyChangeChangesAliasesNotKeys` |
+| emit `fkEventIssueRevised` in `CreateIssue` as well | `TestACreateIsOneIssueEvent` |
+| drop the `BaseRevision` check | `TestAStaleBaseIsAConflictAndWritesNothing` |
+| call `appendRevision` at the end of `PatchIssue` | `TestAPatchWritesNoRevision` |
+| digest `json.Marshal(content)` in `appendRevision` | `TestTheStoredDigestIsTheCanonicalOne` |
+| drop the `reason == ""` refusal | `TestAHandSetDoneNeedsAReason` |
+| `case hubapi.CauseHand: return true` in `fakeMoveAllowed` | `TestFactStatesNeedTheirFactCause` |
+| overwrite `LandCommit` when `from` is `landed` | `TestALandingIsRecordedOnce` |
+| `is.head.Proof = hubapi.ProofProven` after the first cited record | `TestEvidenceClosesWhenEveryCriterionIsCited` |
+
+- [ ] **Step 6: Commit**, one commit for the code and its tests: `git add` the five new files,
+  then `git commit -F <msgfile> --` the six paths of *Files*. Message file under
+  `.superpowers/sdd/work/msg/`; last line
+  `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>`.
+
+#### Acceptance
+
+```bash
+go build ./control-plane/... && go vet ./control-plane/internal/hub/hubclient/
+# (no output)
+go test ./control-plane/internal/hub/hubclient/ -race -count=1 -v -run 'TestIssueNumbersAreGaplessUnderRace|TestWorkRolesAreChecked|TestAKeyChangeChangesAliasesNotKeys|TestACreateIsOneIssueEvent|TestAStaleBaseIsAConflictAndWritesNothing|TestAPatchWritesNoRevision|TestTheStoredDigestIsTheCanonicalOne|TestAHandSetDoneNeedsAReason|TestFactStatesNeedTheirFactCause|TestALandingIsRecordedOnce|TestEvidenceClosesWhenEveryCriterionIsCited' 2>&1 | grep -c '^--- PASS'
+# 11
+go test ./control-plane/internal/hub/... -race -count=1
+# ok for every package: the Hub's own fake_test.go and conformance rows unchanged
+git diff --numstat START -- control-plane/internal/hub/hubclient/hubclient.go control-plane/internal/hub/hubclient/fake.go
+# 1	0	control-plane/internal/hub/hubclient/hubclient.go   (fake.go does not appear)
+grep -c 'func (f \*Fake) ' control-plane/internal/hub/hubclient/fake_work.go control-plane/internal/hub/hubclient/fake_work_stub.go
+# fake_work.go:11  fake_work_stub.go:20   (eleven part-1 methods; nineteen part-2 and workNotInFakeYet)
+```
+
+`START` is the task's start commit.
+
+**What this task does not claim.**
+
+- The HTTP client's Work methods or the relay (task 16), the real Hub's routes (tasks 08-10), or
+  that the real Hub passes any row (task 05 writes the rows; task 16 runs them against it).
+- Part 2's rules: relations, labels, policies, comments, subscriptions, import, search,
+  attachments, erase (task 05). Until then those methods answer 501 and the four hooks hold their
+  part-1 bodies (labels `[]`, default `triage`, no stop at `landed`, no subscription).
+- That `fakeMoveAllowed` **is** `hubapi.MoveAllowed`. It is the same table by reading; task 10
+  makes it one function.
+- `evidenceCommit` (a later commit than the land commit, task 10's decision 3), a restore's
+  `baseRevision` (task 09's decision 3), or `revision_erased` being reachable: nothing erases
+  until task 05.
+- That the code and event spellings here are the declared ones. They are copied from tasks 08-10
+  and 13's parts; task 05's rows assert them and task 16 runs the rows against the Hub.
+- Anything the desktop shows. Tasks 37 onward.
+
+**Parity rows served** (each closed by tasks 08-10 and its desktop surface): **L-3** (the display
+alias), **L-8** (fixed states), **L-9** (the default state; task 05 adds the team's), **L-13**
+(priority), **L-34** (immutable, digested revisions), **L-38** (the assignee, a person).
+
+**Corrections to the scope paragraph** (the skeleton row wins; this part records them):
+`Resolve` is `ResolveComment` (decision (a)); `Attachments` is added (b); erase takes
+`hubapi.EraseRequest` and answers `hubapi.WorkEraseResponse` (c); the stub code is
+`not_in_fake_yet` (d); the event kinds are task 13's, `issue.updated` for the scope's
+`issue.changed` (e); `RestoreIssueRevision` takes `hubapi.RestoreRevisionRequest`, not a bare
+revision; `fakeWorld` is not edited (i); and a sixth file, `client_work_stub.go` (j).
+
+**Gaps found while writing this part** (for the skeleton's owner and the named tasks):
+
+1. Adding `Work` to `Hub` breaks `var _ Hub = (*Client)(nil)` until task 16. This part adds
+   `client_work_stub.go`; task 16's file list must delete it.
+2. Task 10 spells the cause and result types `StateCause` and `ProofWord`
+   (`task-10.md:236-313`); task 03 declared `MoveCause` and `Proof`. Task 10 must use task 03's
+   names, and its file list must gain `hubclient/fake_work.go` (the `fakeMoveAllowed` body).
+3. Task 08 gives the not-tied refusal a status and no code; this part spells
+   `not_tied_reason_required`.
+4. Task 16's part drafted `hubapi.Attachment`, a bodyless erase answering a head, and
+   `RestoreIssueRevision(ctx, id, rev int)`; this part's signatures differ (its Step 2 takes them).
+5. H05's feed-append helper and evidence store are unnamed in its part (UNVERIFIED; Step 1).
