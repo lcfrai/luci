@@ -54,3 +54,116 @@ W4-10 (the same rules on the fake); task 116's tables and `grantedExpect`
 7. **The brief across teams is a proposal, not a rule** (the scope's gap): the feature's spec is its
    branch brief, whose routes and `/v1/refs` stay team-only (`hub-contract.md:356`). This task
    writes `w4-hub-contract-proposal.md` in task 01's form and applies nothing on `feat/hub`.
+
+#### Files
+
+| Path | Change |
+|---|---|
+| `control-plane/internal/hub/server/work_access.go` (+ `_test.go`) | new: `WorkAccess`, `workAccess`, `grantedFeedKinds` |
+| `control-plane/internal/hub/store/work_grants.go` (+ `_integration_test.go`) | new: insert, delete, list, `GrantedTo`, `TeamsLinked` |
+| `control-plane/internal/hub/server/work_grants.go` | new: the three grant routes |
+| `control-plane/internal/hub/server/work_initiative_teams.go` | new, **after task 118**: `PUT /v1/initiatives/{initiativeId}/teams` |
+| `control-plane/internal/hub/server/work_issues.go` ⚑ (task 08's) | `readableIssue` and the Work read handlers call `workAccess` (decision 2) |
+| `control-plane/internal/hub/server/changes.go` ⚑ (task 13's) | the granted clause (decision 3) |
+| `control-plane/internal/hub/server/work_matrix_rows_integration_test.go` ⚑ | the `"117"` rows; `"117"` added to `workMatrixLive` |
+| `control-plane/internal/hub/server/work_grants_integration_test.go` | new: the tests below |
+| `docs/superpowers/planning/2026-09-25-linear-parity/w4-hub-contract-proposal.md` | new: the proposal (decision 7) |
+
+#### The routes (SW.20; the paths are task 124's rows, `task-124.md:97-101`)
+
+| Route | Body → reply | Who | Refusals |
+|---|---|---|---|
+| `POST /v1/projects/{projectId}/grants` | `GrantProjectRequest{teamId}` → 201 `ProjectGrant` | admin of the owning team | 400 `teamId` (own team, other org, unknown); 409 `grant_exists` |
+| `GET /v1/projects/{projectId}/grants` | → 200 `[]ProjectGrant`, by `teamId` | viewer of the owning team | 404 `project_not_found` |
+| `DELETE /v1/projects/{projectId}/grants/{teamId}` | → 204 | admin of the owning team | 404 `grant_not_found` |
+| `PUT /v1/initiatives/{initiativeId}/teams` | `SetInitiativeTeamsRequest{teamIds}` → 200 `InitiativeTeams` | admin of the owning team | 400 `teamIds` (owner not first, over ten); 422 `bad_request` `teamIds[i]` (not linked); 404 `initiative_not_found` |
+
+Every write appends one event in its transaction: `work.grant_added` and `work.grant_revoked`
+(`{projectId, teamId}`, scope the owning team), `work.initiative_teams_set` (`{initiativeId,
+teams}`, a count).
+
+#### `server/work_access.go`, complete
+
+```go
+package server
+
+import (
+	"context"
+	"strings"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubapi"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/store"
+)
+
+// WorkAccess is the caller's reach into one project for Work routes only.
+// Role is the caller's role in the owning team ("" if none); Granted is true
+// when a team the caller belongs to holds a read_comment grant (Q12).
+type WorkAccess struct {
+	ProjectID, TeamID string
+	Role              hubapi.Role
+	Granted           bool
+	OK                bool // the project exists in the org and is reachable at all
+}
+
+// workAccess is ProjectRole widened by a grant. Only Work routes call it;
+// H's brief, ref, design and release routes keep ProjectRole (decision 7).
+func workAccess(ctx context.Context, tx *Tx, projectID string) (WorkAccess, error) {
+	role, teamID, ok, err := ProjectRole(ctx, tx, projectID) // task 08's anchor; H's helper
+	if err != nil {
+		return WorkAccess{}, err
+	}
+	a := WorkAccess{ProjectID: projectID, TeamID: teamID, Role: role, OK: ok && role != ""}
+	if a.OK {
+		return a, nil
+	}
+	granted, owner, err := store.GrantedTo(ctx, tx, projectID, tx.P.UserID)
+	if err != nil {
+		return WorkAccess{}, err
+	}
+	if granted {
+		a.TeamID, a.Granted, a.OK = owner, true, true
+	}
+	return a, nil
+}
+
+// Read passes a member of the owning team (viewer or better) or a granted member.
+func (a WorkAccess) Read(notFound error) error {
+	if !a.OK {
+		return notFound // 404 before 403: an outsider learns nothing
+	}
+	return nil
+}
+
+// Comment is Read: a grant is read and comment, and nothing else.
+func (a WorkAccess) Comment(notFound error) error { return a.Read(notFound) }
+
+// Write is H's Require for the owning team's role; a granted-only caller is
+// 403 forbidden, required "member" or higher, because the project is visible.
+func (a WorkAccess) Write(want hubapi.Role, notFound error) error {
+	if !a.OK {
+		return notFound
+	}
+	// ok is true: the project is visible, so a granted-only caller (Role "")
+	// gets Require's 403 forbidden, required want, and never its 404.
+	return Require(a.Role, true, want, notFound)
+}
+
+// grantedFeedKinds: an event of a granted project reaches the granted team
+// only if its kind is one of these prefixes (decision 3).
+var grantedFeedKinds = []string{"issue.", "comment.", "feature.", "work.milestone_",
+	"work.dependency_", "work.update_posted"}
+
+func grantedKind(kind string) bool {
+	for _, p := range grantedFeedKinds {
+		if strings.HasPrefix(kind, p) {
+			return true
+		}
+	}
+	return false
+}
+```
+
+`Require(role, ok, want, notFound)` (task 08's use, `task-08.md:337`) answers `notFound` when
+`ok` is false and 403 `forbidden` when the role ranks below `want`; the empty role ranks below
+every role. **UNVERIFIED** until H's `Require` merges; `TestAGrantedWriteIs403Not404` pins the
+answer, so a `Require` that ranks `""` otherwise fails it at once.
