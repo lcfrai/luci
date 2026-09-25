@@ -927,4 +927,83 @@ key-propagation half is still a real `keydown` on the view's DOM, which is what 
 would receive. `insertText` at the default selection inserts at the document start, so
 `"abcdestart"` is the expected text.
 
+| Test | Mutant it kills |
+|---|---|
+| shape and a word | colour-only authorship on an agent passage |
+| plain keys stay in the editor | a `keys.list` leak into text fields (`C` creating an issue while typing) |
+| Ctrl+Enter commits here | a *New session* created by committing a description (`useKeyboardMap.ts:208`) |
+| one write per blur | per-keystroke writes; a write on a blur with no change |
+| the idle cadence | a timer that never fires, or one per keystroke that fires many |
+| never rewrites style | a commit on open that rewrites `_em_` as `*em*` and digests a new revision for nothing |
+| opens outside the window | a webview navigation away from the app on a link click |
+
+#### Steps
+
+- [ ] **Step 1: read on the sync base** task 46's `AuthorClass.tsx` (`AUTHOR_PATH` exported),
+  task 47's `IssueView.tsx` and `links.ts`, and task 56's `WorkOp` `revise` shape.
+- [ ] **Step 2: install** the ten packages with `--save-exact` (one `npm` command, the list in the
+  table above), then read each `license` from `desktop/package-lock.json`, the installed
+  `prosemirror-markdown`'s `schema.spec.nodes.get("bullet_list").attrs`, its
+  `defaultMarkdownParser.tokens.bullet_list`, `@tauri-apps/plugin-opener`'s `openUrl` export, and
+  whether `markdown-it` ships its own types (if so, drop `@types/markdown-it`).
+- [ ] **Step 3: the three test files and the seven fixtures first**; run them and see them fail.
+- [ ] **Step 4: `schema.ts`, `markdown.ts`**; `markdown.test.ts` passes. Correct a fixture only
+  toward what CommonMark requires, never toward what the serializer emits.
+- [ ] **Step 5: `authorClass.ts`, `inputRules.ts`**; `authorClass.test.ts` passes.
+- [ ] **Step 6: `Editor.tsx`, `editor.css`**, then the `IssueView.tsx` edit; the editor tests and
+  tasks 46-48's tests pass.
+- [ ] **Step 7: commit** by path: `package.json` and `package-lock.json` together first, then one
+  commit per step 4-6, each message ending with the `Co-Authored-By` line.
+
+#### Acceptance
+
+```bash
+npm --prefix desktop test -- editor issue
+# expect: every file passes; this part adds 3 files and 19 tests (markdown 7, authorClass 5, Editor 7)
+npm --prefix desktop run typecheck
+# expect: exit 0
+grep -rn "html: true\|dangerouslySetInnerHTML\|innerHTML" desktop/src/components/editor/ | wc -l
+# expect: 0
+node -e "const l=require('./desktop/package-lock.json').packages;for(const k of Object.keys(l).filter(k=>/node_modules\/(prosemirror-|markdown-it$)/.test(k)))console.log(k,l[k].license)"
+# expect: each line ends in MIT
+```
+
+The last command lists every `prosemirror-*` and `markdown-it` entry, transitive ones included
+(`orderedmap`, `rope-sequence`, `w3c-keyname`, `linkify-it`, `mdurl`, `uc.micro`, `entities`,
+`punycode.js` are expected under them; their licences are read, not assumed, and any that is not
+MIT, Apache-2.0, BSD or ISC stops the task). Visual acceptance is the owner's eyes.
+
+#### What this task does NOT claim
+
+- Multiplayer editing (`L-121`, team mode's TM2), drafts (`L-33`, W2), agent edits shown as
+  proposals (`L-130`, W4), and the Discover brief editor (phase 4's).
+- That per-passage authorship survives a reload or reaches the Hub: the wire has one class per
+  field (decision 1; gap 1). Within one editing session it is exact.
+- The slash menu and tables (task 50); callouts (task 92).
+- That the 3 s cadence is right: it is a proposal for the owner.
+- That typing in a real WebView2 behaves as `view.dispatch` does in jsdom; the owner's hands on
+  the build are the check.
+- That issue text reaching an agent is safe: that is 05 §3.4's adoption rule and the Hub's
+  checks (task 19), not the editor's.
+
+**Parity** (`05-design.md` rows). Closes **L-124** (`05:268`: every text keeps its author class;
+here per passage in the editor, per field on the wire) and **L-126**'s Markdown half (`05:270`:
+shortcuts as input rules; the slash menu is task 50). Serves **L-34** (`05:143`): each commit is
+one revision (task 47).
+
+#### Gaps found while writing this part
+
+1. **Per-passage authorship has no wire form.** `AuthoredText` is one class per field
+   (`task-02.md:224-229`); carrying spans means changing task 02's canonical `issue-revision` form
+   and its golden vectors, the Hub-contract owner's call. Until then a mixed text is `A`.
+2. **`Ctrl+Enter` is taken.** The scope's commit key is the cockpit's *New session* chord
+   (`useKeyboardMap.ts:55`, `:208`); this part stops its propagation inside the editor, which task
+   53's keymap must know (a chord that works everywhere except in a text field).
+3. **SW.12 has no author mark**, so the gutter draws task 46's `AUTHOR_PATH` (task 46's gap 5).
+4. **`IssueView` gains `onOpenIssue`**, which its mount (task 40) must wire.
+5. Task 50's slash menu has to mount inside `Editor.tsx`, which the scope's file list for task 50
+   does not name; task 50's part edits it.
+6. The File map lists `src/components/editor/*` without the files; `inputRules.ts` and the
+   `fixtures/` directory are this part's additions.
+
 
