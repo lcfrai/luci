@@ -289,7 +289,7 @@ describe("search ranks, folds and formats", () => {
     const { ix, keyOf } = fixture();
     const hits = ix.query("resume", keyOf);
     expect(hits.map((h) => [h.alias, h.matched])).toEqual([
-      ["EP-160", "title"], ["EP-142", "title"], ["EP-150", "description"]]);
+      ["EP-142", "title"], ["EP-160", "title"], ["EP-150", "description"]]);
   }); // kills: unranked results (EP-150 is the newest and would lead by time alone)
   it("EP-142, ep-142 and 142 all put EP-142 first", () => {
     const { ix, keyOf } = fixture();
@@ -325,7 +325,88 @@ describe("search ranks, folds and formats", () => {
 });
 ```
 
-In the first test, EP-160 leads EP-142 inside the title tier because the fixture gives both the same
-`updatedAt` and the alias breaks the tie (`EP-142` < `EP-160` sorts EP-142 first). **Correct it
-when writing**: with equal times `localeCompare` puts EP-142 first, so the expected order is
-`EP-142, EP-160, EP-150`. The mutant it kills is the same.
+In the first test EP-142 and EP-160 share an `updatedAt`, so the alias breaks their tie; EP-150 is
+the newest of the three and still comes last, which is what makes time-only ordering fail.
+
+#### Tests to write first, part 2 — `desktop/src/components/work/search.test.tsx` (keys and surfaces)
+
+The lens is mounted as task 41's lens tests mount it, through task 40's seam
+`setWorkSourceForTest(world)` over `workScenario()` (SW.8; `task-41.md:462-466`, **UNVERIFIED**
+until task 40's part lands). Keys go through task 53's real keymap, never a stub: the test fires
+`keydown` with both `key` and `code` set, as task 41's `N` test does (`task-41.md:472`).
+
+| Test | What it asserts | Mutant it kills |
+|---|---|---|
+| `slash in a list opens search; slash in the editor does not` | focus the list, `keyDown({key: "/", code: "Slash"})`: `getByRole("search")` exists and its input has focus. Then with task 49's editor focused (a `contenteditable`), the same key: no `role="search"`, and the editor's text or slash menu got the key | a global `/` listener on `document` |
+| `typing ranks a title hit first and marks a description hit` | type `resume`; the first `option` reads `EP-142` in `.wk-search-alias`; the option for the description-only hit carries `.wk-search-where` with `in description`; `expectNoPrediction(container)` | unranked hits; a hit count or `N of M` in the field |
+| `the selection is by id across a re-rank` | select the second option with `↓`; the world changes the first hit's title so it no longer matches; the selected option is still the same issue's `hit-{issueId}` | selection by index, which silently moves to a different issue |
+| `O I 142 Enter opens EP-142` | keys `O`, `I` (task 54's sequence), then type `142`, `Enter`: `onOpen` received `WORK_IDS.ep142` exactly once | an unrouted `issue.openByNumber`; opening a wrong issue |
+| `O I 999 Enter goes nowhere and says so` | the same with `999`: `onOpen` not called; `.wk-open-miss` reads exactly `No EP-999 in EP`; the input keeps focus with `999` selected | a navigation to a blank view; a silent miss |
+| `the number prompt takes digits only` | type `1a4-2`: the input's value is `142` | a prompt that passes `EP-142`-style text on to a parser |
+
+```tsx
+// the loading fallback, in the same file
+it("while the replica loads, the Hub's title search is asked once and labelled", async () => {
+  const replica = { status: "loading", search: () => [], resolveAlias: () => null } as unknown as Replica;
+  const searchIssues = vi.fn(async () => [{ ...makeIssueHead({ id: WORK_IDS.ep142 }), title: "Resume an upload after a drop" }]);
+  render(<SearchField replica={replica} work={{ searchIssues }} onOpen={vi.fn()} onClose={vi.fn()} />);
+  fireEvent.change(screen.getByRole("searchbox", { name: "Search issues" }), { target: { value: "resume" } });
+  expect(await screen.findByText("Resume an upload after a drop")).toBeTruthy();
+  expect(screen.getByText("from the Hub · titles only")).toBeTruthy();
+  expect(searchIssues).toHaveBeenCalledTimes(1);
+  expect(searchIssues).toHaveBeenCalledWith({ q: "resume", limit: 20 });
+}); // kills: empty results after a restart; kills: a Hub call per render
+```
+
+The input is `type="search"`, so its role is `searchbox`. `makeIssueHead` returns task 20's head
+without `title`; the spread adds it as the Hub's wire does (decision 4's gap).
+
+#### Steps
+
+- [ ] Write `search.test.ts`; it fails to import `./search`. Write `search.ts` until the six pass.
+      Mutants, one at a time, then revert: sort by `updatedAt` alone (test 1); drop the `whole ===`
+      branch (test 2); replace `fold` with `toLowerCase` (test 3); keep a `lastTitle` per issue that
+      `put` never clears (test 4); format the alias from a stored `head.alias` (test 5).
+- [ ] Feed the index from `replica.ts`'s `transact`; add `search` and `resolveAlias`. Task 55's
+      tests still pass.
+- [ ] Write `useSearch.ts`, `SearchField.tsx`, `OpenByNumber.tsx`, `searchVerbs.ts`; append the CSS.
+- [ ] Write `search.test.tsx`; wire `WorkLens.tsx`. Mutants: bind `/` on `document` (test 1);
+      select by index (test 3); call `onOpen` before `resolve` answers (test 5); call the Hub in the
+      render body (the fallback test).
+- [ ] Commit each file as it goes green. Paste the recorded `budget.palette` line into the commit
+      message of `search.ts`, as a measurement with its machine named, not as a pass.
+
+#### Acceptance
+
+```bash
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop test -- src/work/replica/search.test.ts src/components/work/search.test.tsx'
+# expected: 2 files, 13 tests, all passing (6 index, 7 surface), and one line
+# "budget.palette search over 10000 issues: <n> ms" in the output: a record, not a verdict
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop test'
+# expected: every suite passing, tasks 40, 41, 53, 55 and 57 included
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop run typecheck'
+# expected: exit 0
+~/.claude/tools/claudezsh/claudezsh 'grep -rnF "split(\"-\")" desktop/src/work desktop/src/components/work'
+# expected: no output (no alias parser, task-02.md:176-178; a review still reads search.ts for one)
+```
+
+#### What this task does NOT claim
+
+- **`@person`, `#label` and `EP-` filter prefixes inside search** (L-107): W2. The palette's own
+  `#`, `@`, `>` and `~` scopes are task 59's.
+- **Natural-language filters** (L-100): W4.
+- **A moved issue's old number redirecting** (L-35): W2. Here an old alias simply does not resolve.
+- **Search over comments**: not in 05 §4.3's `/`; comments are not indexed.
+- **`budget.palette ≤ 50 ms` as met**: the test records the time on the machine that ran it.
+- **Parity**: closes L-106's W1 part (row 106, `05-design.md:240`).
+
+#### Gaps found while writing this part
+
+1. The skeleton's file map omits `SearchField.tsx`, `OpenByNumber.tsx`, `useSearch.ts`,
+   `searchVerbs.ts` and the `WorkLens.tsx` edit.
+2. Task 37's `IssueHead` (`task-37.md:121-128`) has no `title`, but the Hub's projection puts one on
+   every head (`task-14.md:279-287`); `hubHit` reads it defensively until task 37 declares it.
+3. `list.search` is this part's name for the `/` row of task 53's `KEYMAP`; task 53 should print the
+   row with that id or say its own.
+4. Tasks 40, 53, 54 and 55 had no part files at this writing; their seams (`setWorkSourceForTest`,
+   `registerVerb`, the `O I` sequence, the replica's `transact`) are their scopes' words.
