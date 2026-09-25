@@ -389,7 +389,9 @@ loads the held row, deletes it, and re-invokes its verb through the dispatcher's
 the same caller under `withApproval(ctx, es)`, an unexported context key of package
 `directive`; the verb's gate call reads it through `approvalFrom` and passes without a second
 decide. `approvedBy` is never an argument: no field of any verb's args can set it, and a sandbox
-frame cannot set a Go context value.
+frame cannot set a Go context value. A replay that now fails validation (the worker ended, the
+lease lapsed) is reported to the Orchestrator as an `escalation.answered` event with the refusal
+code, and nothing is issued. A decide that expires or is answered "Do not send it" deletes the row.
 
 **The migration, complete** (`00NN_directives.sql`, numbered after task 30's at build time):
 
@@ -529,13 +531,49 @@ cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team && grep -
 Expected: no output. The verb has no approval field (`TestApprovalCannotComeFromArgs` is the
 behavioural half).
 
-Step 4 of the acceptance for the Hub half: task 07's `TestTaintAllows` table run against this
+The Hub half: task 07's taint table (`task-07.md:283-300`, run by `-run TestTaint`) against this
 task's issued payloads (`go test -tags integration ./internal/hub/server/ -run TestTaint`). With
 task 07 as written, the `fleet resume` and `fleet rebase` rows fail: that is G31-1, and the fix
 is task 07's.
 
 - [ ] **Step 8: Commit** with `git add` on each new file, then `git commit -F <msgfile> --
   <paths>`, the message ending with the plan's co-author line.
- A replay that now fails validation (the worker ended, the lease
-lapsed) is reported to the Orchestrator as an `escalation.answered` event with the refusal code,
-and nothing is issued. A decide that expires or is answered "Do not send it" deletes the row.
+
+**What this task does not claim:**
+
+- **That a worker obeys a directive.** Delivery puts the text in the worker's tool output; the
+  model decides what to do with it. `check --hook` never blocks an edit (`task-18.md:62-67`), so a
+  paused worker can still edit, and the in-force view only repeats the instruction. Leases are
+  advisory for the same reason (P7).
+- **That a directive reaches an idle worker.** Piggyback needs the worker to call `panacea`. An
+  idle worker gets nothing until task 38's rungs 2 and 3 nudge it, with a fixed template only.
+- **That `Within` is glob containment.** It is a conservative subset test; it refuses some
+  narrows that are inside the scope and passes none that are not.
+- **That the Hub proves the choice.** The Hub checks that `approvedBy` names an answered decide of
+  the same owner; only Fleet checks it was option 1 (`task-07.md:232-237`).
+- **That origin `human` is true.** Fleet asserts it from the batch (task 26); the Hub records it.
+  A compromised Fleet can claim `human` (task 01's R12).
+- **That the read list is complete evidence.** It lists ids the session was handed by `inbox` and
+  templated answers (task 28); text an Orchestrator saw through `team` or `check` is typed facts,
+  not peer text, and is not listed.
+- **The PTY and socket rungs, DIVE's human turns, and the Orchestrator's instructions** that tell
+  it to direct its workers after a resolution: tasks 38, 40 and 41.
+
+**Gaps against the skeleton and sibling parts, raised here:**
+
+- **G31-1.** Task 07's `fleetTurnVerbs` (`task-07.md:205-209`) holds three kinds and its table
+  expects `resume` and `rebase` from a Fleet turn to be 403 (`:292-293`); design §7.2, task 01
+  §7.20 and task 03's `Typed()` say five. Task 07 should use `req.Kind.Typed()`.
+- **G31-2.** Route 64 has no field for what a taint decide showed the human; this task needs an
+  optional `evidence` object (decision e). Task 01 §7.19 and task 07's route 64 own it.
+- **G31-3.** Task 22's `Directives.Pending` (`task-22.md:155-158`) cannot be "undelivered" once
+  piggyback drains before the handler; this task makes it `InForce`.
+- **G31-4.** Task 30's `Effect.Kind` list (`task-30.md:334-335`) has no `send-held`, and
+  `OnAnswered` has no hook to release a held act.
+- **G31-5.** Task 07's route 67 body (`task-07.md:160-166`) omits task 01's `params`
+  (`task-01.md:431-432`), so a `narrow`'s globs and a `wait-for`'s lease have no Hub field. This
+  task sends `params` per task 01.
+- **Skeleton.** The scope paragraph lists "a new task … or abandoning the task" but not a new
+  worker; this task treats `worker spawn` in a Fleet turn as held too, because its opening prompt
+  is the same channel as `free` (`task-24.md:130-135`). TM1 measures how many decides that costs.
+
