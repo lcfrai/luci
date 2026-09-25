@@ -1,182 +1,100 @@
-### Task 10: `internal/entra` — the one Entra validator, **phase 8 task 16's**, written here only if it has not landed
+### Task 10: `internal/oidcauth` — the one validator, **env task 17 step 0's**, taken unchanged (OD-30)
 
-**Lane B. Depends on: nothing. About 3 hours, or 0 if phase 8 task 16 has landed. Contract task H1 (HA-1).**
+**Lane B. Depends on: env task 17 step 0 (through the orchestrator's merge) and task 11. About 1 hour.
+Contract task H1 (HA-1).** Ruling: main `docs/superpowers/planning/2026-09-25-identity-keycloak-broker.md`
+§5 (`:222-302`); it supersedes this part's earlier "write phase 8 task 16 here if it has not landed".
 
-The Hub and phase 8's broker must accept and reject **the same tokens** (HA-1). ADR-H1 §4.1 makes
-that true by construction: one package, `control-plane/internal/entra`, in the one module. Phase 8
-owns it — its task 16 part (sibling `feat/env`,
-`docs/superpowers/plans/2026-09-23-phase-8-own-environment-parts/task-16.md`, read 2026-09-23)
-adopts the Hub contract's §6.3 interface **exactly** and adds five things (`JWKSValidator`,
-`ErrKeySetUnavailable`, `Claims.Key`, `Ready`, `Middleware`/`ClaimsFrom`/`CodeUnauthenticated`).
+The Hub and the broker accept and reject **the same tokens** (HA-1): one package, in the one module.
+Phase 8 task 16 BUILT it as `control-plane/internal/entra` on `feat/env` (`669204b` .. `1772f25`), with
+Entra-only rules that refuse every Keycloak token. **Env task 17's step 0** renames it by `git mv` to
+`control-plane/internal/oidcauth` and adds the `keycloak` claims profile, committed before any broker code.
+**This task writes no validator** and copies nothing: it takes that commit unchanged through the
+orchestrator's merge. Task 13 waits for this task and inherits the wait.
 
-**This task exists so the Hub is not blocked on phase 8's schedule.** It is one of two outcomes:
+**Files:** `control-plane/internal/devissuer/oidcauth_test.go` (new, package `devissuer_test`). Nothing
+under `control-plane/internal/oidcauth/` is written by this lane.
 
-- **Phase 8 task 16 has landed** on `feat/hub`'s base (or in a branch the orchestrator merges
-  first): do nothing but Step 1, and record "task 10: satisfied by phase 8 task 16 at `<sha>`" in
-  the plan's progress notes.
-- **It has not:** implement phase 8 task 16's part **exactly** — its files, its interface, its
-  check order, its 25 tests — in this lane. The part gives signatures, not bodies (`feat/env` at
-  `aa12b01`), so when phase 8's branch later carries the same files, the two sets of bodies meet
-  at one path: an add/add conflict, not a no-op (review M5). **Phase 8 wins it:** the orchestrator
-  keeps phase 8's files whole and re-runs this plan's tests against them (plan, "Files that belong
-  to a sibling phase").
-
-**Files** (phase 8 task 16's list, unchanged):
-- `control-plane/internal/entra/{entra.go,jwks.go,verify.go,middleware.go}` (new)
-- `control-plane/internal/entra/{entra_test.go,jwks_test.go,middleware_test.go,testkey_test.go}` (new)
-
-#### Contract — complete (phase 8 task 16's, which is contract §6.3 plus its additions)
+#### Contract — the exported API the Hub relies on (ruling §5, complete)
 
 ```go
-// Package entra validates Microsoft Entra ID v2 access tokens for a resource API.
-// Standard library only: RS256 over crypto/rsa, JWKS over net/http.
-package entra
+package oidcauth
 
-import (
-	"context"
-	"errors"
-	"net/http"
-	"time"
+type Profile string
+
+const (
+	ProfileKeycloak Profile = "keycloak"
+	ProfileEntra    Profile = "entra"
 )
 
 type Config struct {
-	// AuthorityHost is "https://login.microsoftonline.com" in every deployed
-	// environment, or devissuer's base URL locally. The tenant id is appended.
-	AuthorityHost string
-	// TenantIDs are the enrolled tenants. A token from any other is ErrTenant.
-	TenantIDs []string
-	// Audience is the resource API's client id, a GUID: a v2 token's aud.
-	Audience string
-	// RequiredScope must appear in scp, e.g. "Hub.Access" or "Sandboxes.Access".
-	RequiredScope string
-	// AllowedClients is the azp allowlist: the desktop's client id.
-	AllowedClients []string
-	// ClockSkew defaults to 120 s.
-	ClockSkew time.Duration
-	// AllowInsecureAuthority permits an http AuthorityHost, and only a loopback one.
-	AllowInsecureAuthority bool
-	HTTPClient             *http.Client // default: 10 s timeout
+	Profile        Profile  // required; New refuses "". Callers default it from PANACEA_APP_OIDC_PROFILE.
+	Issuer         string   // keycloak: exact iss; JWKS at Issuer + "/protocol/openid-connect/certs".
+	AuthorityHost  string   // entra only, unchanged.
+	TenantIDs      []string // both: enrolled tids, GUIDs. keycloak: checked AFTER the signature.
+	Audience       string   // keycloak: a client-id string, aud must CONTAIN it. entra: GUID, unchanged.
+	RequiredScope  string   // keycloak: in `scope`. entra: in `scp`, unchanged.
+	AllowedClients []string // person clients (azp). keycloak: strings. entra: GUIDs, unchanged.
+	ServiceClients []string // keycloak only: azp values accepted with NO oid and NO tid (ruling §6).
+	ClockSkew              time.Duration // defaults to 120 s
+	AllowInsecureAuthority bool          // also permits a loopback http Issuer
+	HTTPClient             *http.Client  // default: 10 s timeout
 	Now                    func() time.Time
 }
 
 // Claims is what a validated token says. It holds no token text.
 type Claims struct {
-	TenantID          string   // tid
-	ObjectID          string   // oid
-	ClientID          string   // azp
-	Name              string   // name
-	PreferredUsername string   // preferred_username
-	Email             string   // email, when the optional claim is configured
-	Scopes            []string // scp, split on spaces
-	Roles             []string // roles
-	ExpiresAt         time.Time
+	TenantID, ObjectID, ClientID       string // tid, oid, azp
+	Name, PreferredUsername, Email     string
+	Scopes, Roles                      []string // keycloak: `scope` split on spaces; flat `roles`
+	ExpiresAt                          time.Time
+	Issuer, Subject                    string // iss; sub (logged, never a key)
+	Service                            bool   // an azp in ServiceClients, no oid, no tid
 }
 
-type Validator interface {
-	Validate(ctx context.Context, bearer string) (Claims, error)
-}
+func (c Claims) Key() string // person: "tid/oid" (unchanged). service: "client/" + ClientID.
 
-func New(cfg Config) (*JWKSValidator, error) // errors on an unusable Config; fetches nothing
-
-// Every rejection wraps exactly one of these. The Hub maps each to details.reason.
-var (
-	ErrMalformed   = errors.New("entra: malformed token")      // "malformed"
-	ErrSignature   = errors.New("entra: bad signature")         // "signature"
-	ErrExpired     = errors.New("entra: token expired")         // "expired"
-	ErrNotYetValid = errors.New("entra: token not yet valid")   // "not_yet_valid"
-	ErrIssuer      = errors.New("entra: wrong issuer")          // "issuer"
-	ErrAudience    = errors.New("entra: wrong audience")        // "audience"
-	ErrScope       = errors.New("entra: required scope absent") // "scope"
-	ErrClient      = errors.New("entra: client not allowed")    // "client"
-	ErrVersion     = errors.New("entra: not a v2 token")        // "version"
-	ErrTenant      = errors.New("entra: tenant not enrolled")   // 403 tenant_not_enrolled
-)
-
-// ── Phase 8's additions. All additive; the Hub uses JWKSValidator, ErrKeySetUnavailable and Ready. ──
-
-// JWKSValidator implements Validator. Safe for concurrent use.
-type JWKSValidator struct{ /* unexported: config, per-tenant key cache, single-flight fetch */ }
-
-var _ Validator = (*JWKSValidator)(nil)
-
-// ErrKeySetUnavailable: the tenant's JWKS could not be fetched. NOT a rejection
-// of the token. The Hub answers it 503 unavailable (plan correction A7).
-var ErrKeySetUnavailable = errors.New("entra: key set unavailable")
-
-// Key is "tid/oid", the stable identity. Never sub, never preferred_username.
-func (c Claims) Key() string { return c.TenantID + "/" + c.ObjectID }
-
-// Ready fetches the key set of every enrolled tenant not yet fetched and returns
-// the first failure (wrapping ErrKeySetUnavailable). The Hub's /readyz "jwks" check calls it.
-func (v *JWKSValidator) Ready(ctx context.Context) error
-
-// Middleware is the broker's; the Hub does NOT use it (plan correction A7): it
-// answers a key-set outage with a control-plane code and runs before the Hub's
-// Origin and rate-limit steps can.
-func Middleware(v Validator, next http.Handler) http.Handler
-
-func ClaimsFrom(ctx context.Context) (Claims, bool)
-
-const CodeUnauthenticated = "unauthenticated"
+var ErrType = errors.New("oidcauth: typ is not Bearer") // keycloak profile only
+// Unchanged from task 16, prefix renamed: ErrMalformed, ErrSignature, ErrExpired, ErrNotYetValid,
+// ErrIssuer, ErrAudience, ErrScope, ErrClient, ErrVersion (never under keycloak), ErrTenant,
+// ErrKeySetUnavailable; New, JWKSValidator, Validator, Ready, Middleware, ClaimsFrom, CodeUnauthenticated.
 ```
 
-**Check order, unchanged** (contract §6.3 `:483-494`): shape (three base64url segments; `alg ==
-"RS256"` and a `kid`; `none` and every `HS*` are `ErrMalformed` before claims are read) → tenant
-(`tid` present and enrolled, else `ErrTenant`, **with no fetch**) → signature (the JWKS key whose
-`kid` matches, from `<AuthorityHost>/<tid>/discovery/v2.0/keys`, cached 24 h per tenant; an unknown
-`kid` refetches at most once per 5 min per tenant) → `ver == "2.0"` → `iss == <AuthorityHost>/<tid>/v2.0`
-→ `aud == Audience` → `exp`/`nbf` with skew → `azp ∈ AllowedClients` → `scp` contains
-`RequiredScope` (app-only tokens fail here) → `oid` present and a GUID. JWKS keys are used only if
-`kty == "RSA"`, `use` absent or `"sig"`, modulus ≥ 2048 bits. Errors never contain the token.
+**`keycloak` order** (ruling §5 `:266-271`): size and alg → signature against the issuer's JWKS → exp/nbf →
+`iss` equals `Issuer` → `typ == "Bearer"` → `aud` contains `Audience` → `azp` in `AllowedClients` or
+`ServiceClients` → `RequiredScope` in `scope` → person: `oid` and `tid` GUIDs, `tid` in `TenantIDs`;
+service: both absent, `Service = true`. Hub mapping: `ErrType` → `ReasonMalformed` (hub `hubapi/codes.go:57-67`).
 
-#### Tests to write first — phase 8 task 16's 25, by name
+#### Tests to write first
 
-`testkey_test.go` generates one RSA-2048 key per test binary and serves
-`/{tid}/discovery/v2.0/keys` from an `httptest.Server` that counts requests, on loopback with
-`AllowInsecureAuthority: true`. The tests, each with the assertion and mutant in phase 8's part:
-`TestAValidTokenYieldsItsClaims`, `TestNoneIsMalformed`, `TestHS256SignedWithThePublicKeyIsMalformed`,
-`TestAMissingKidIsMalformed`, `TestATamperedPayloadFailsTheSignature`,
-`TestAnUnknownKidRefetchesOnceThenFails`, `TestRotationIsPickedUpOnAnUnknownKid`,
-`TestTheKeySetIsCachedFor24Hours`, `TestConcurrentMissesFetchOnce`,
-`TestTheTenantIsCheckedBeforeAnyFetch`, `TestExpiryAndNotBeforeHonourTheSkew`,
-`TestAVersion1TokenIsRejected`, `TestTheIssuerMustBeTheTokensOwnTenant`,
-`TestTheAudienceIsTheClientIDOnly`, `TestAnUnlistedClientIsRejected`, `TestScopeMatchIsExact`,
-`TestAppOnlyTokensFailTheScopeCheck`, `TestAMissingOrNonGUIDOidIsMalformed`,
-`TestSubIsNeverTheIdentity`, `TestAKeySetOutageIsNotARejection`, `TestErrorsNeverContainTheToken`,
-`TestMiddlewareStatuses`, `TestMiddlewareStripsTheAuthorizationHeader`,
-`TestAnInsecureAuthorityIsRefused`, `TestReadyFetchesEveryTenant`.
-
-**One Hub-side test is added here**, because the Hub depends on it and phase 8's list does not
-name it: `TestADevissuerShapedTokenValidates` — a token with `iss =
-http://127.0.0.1:<port>/<tid>/v2.0` and the claims `devissuer` mints (task 11) validates with
-`AllowInsecureAuthority: true`. It kills a validator the Hub can never use locally.
+`TestADevissuerKeycloakTokenValidates` (in `oidcauth_test.go`): start `devissuer` in process (task 11,
+default profile), mint a person token for audience scope `panacea-app-hub`, and validate it with
+`oidcauth.New(Config{Profile: ProfileKeycloak, Issuer: <devissuer>/realms/panacea-app-dev, Audience:
+"panacea-app-hub", RequiredScope: "panacea-app-hub", AllowedClients: ["panacea-app-desktop"], TenantIDs:
+[dev tid], AllowInsecureAuthority: true})`. Asserts `Key() == "<tid>/<oid>"` of the dev user and
+`Service == false`. **Kills** a `devissuer` whose token the Hub can never validate locally (a wrong `iss`
+path, a string-only `aud`, `scp` in place of `scope`, or no `typ`). A second row mints the Fleet
+client-credentials token and asserts `Key() == "client/panacea-app-fleet"` when Fleet is in `ServiceClients`.
 
 #### Steps
 
-- [ ] **Step 1: Preflight.** `ls control-plane/internal/entra/` on this lane's base, then
-  `git -C /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/env log --oneline -- control-plane/internal/entra`
-  (read only). If the package exists with phase 8's interface, stop here: run its tests, add
-  `TestADevissuerShapedTokenValidates` only if absent, commit that test alone.
-- [ ] **Step 2:** Otherwise re-read phase 8's task 16 part in full; it wins over this summary for
-  everything above the "Phase 8's additions" line only where the Hub contract §6.3 agrees with it.
-- [ ] **Step 3:** `testkey_test.go`, then the 26 tests; they fail to compile.
-- [ ] **Step 4:** `entra.go`, `jwks.go`, `verify.go`, `middleware.go`. All pass under `-race`.
-- [ ] **Step 5:** `git diff control-plane/go.mod` is empty. Commit by pathspec.
+- [ ] **Step 1: Preflight.** `ls control-plane/internal/oidcauth/` on this lane's base. If absent, stop and
+  report "task 10 waits for env 17 step 0"; never write the package here.
+- [ ] **Step 2:** run its suite unchanged; record "task 10: env 17 step 0 at `<sha>`" in the plan's notes.
+- [ ] **Step 3:** write the test above; it passes against task 11's `devissuer`. Commit by pathspec.
 
 #### Acceptance
 
 ```bash
-go test ./control-plane/internal/entra/ -race -count=1 -v 2>&1 | grep -c "^--- PASS"   # 26
-go list -deps ./control-plane/internal/entra | grep '\.' | grep -v '^vendor/' | grep -v 'control-plane/internal/entra$'
-# no output: standard library only (a third-party path has a dot in its first element;
-# the standard library's own vendored x/ packages start "vendor/")
-git diff --stat control-plane/go.mod control-plane/go.sum                             # empty
+go test ./control-plane/internal/oidcauth/ -race -count=1 2>&1 | tail -1         # ok
+go test ./control-plane/internal/devissuer/ -run TestADevissuerKeycloakTokenValidates -race -count=1 -v \
+  2>&1 | grep -c "^--- PASS"                                                     # 1
+git diff --stat <env 17 step 0 sha> -- control-plane/internal/oidcauth           # empty
+git diff --stat control-plane/go.mod control-plane/go.sum                        # empty
 ```
 
 #### What this task does not claim
 
-- That KPMG's tenant issues tokens in exactly this shape (v2, `azp`, `scp`); task 43's real-tenant
-  checklist checks that once the registrations exist.
-- Group-overage handling: nothing reads `groups` (ADR-H1 §6.6).
-- Ownership: the package stays phase 8's. A later change to it is made in phase 8's plan and the
-  Hub adapts in `internal/hub/server/auth.go` alone (contract §6.3).
+- That Panacea's live realm issues exactly this shape; ruling §10's check and task 43 settle it (U-2..U-4).
+- Group-overage handling: the desktop does not request `groups` (ruling §4; ADR-H1 §6.6).
+- Ownership: the package stays env's. A change is made in phase 8's plan; the Hub adapts in
+  `internal/hub/server/auth.go` alone.
