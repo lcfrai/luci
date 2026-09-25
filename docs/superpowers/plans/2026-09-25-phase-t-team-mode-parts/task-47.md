@@ -355,3 +355,70 @@ five runs, not the mean`, `P25 fails and prints both addresses when they differ`
 max over 10 s even when the median passes`, `P27 computes p95 from 200 samples, not from the last
 20`, `P28 fails on the first reachable forbidden target and names it` (kills a verdict that checks
 only the allowed names).
+
+#### Steps
+
+- [ ] **Step 1: Read, after the merge.** Phase 8 tasks 11, 17, 32 as built (`networkpolicy-sandboxes.yaml`,
+  the broker's create path, `infra/smoke/proving/`), this plan's task 32 as built, `guards.sh`
+  and `guards_test.sh`. Rename `bedrockRegion` and the class label to what was merged.
+- [ ] **Step 2: Guard.** The six `case_g11_*` cases and the `of 11` edits; run `guards_test.sh`;
+  the new cases fail. Add the `LOC` tag and G11; `guards_test.sh` passes; `bash
+  infra/scripts/guards.sh` on the real tree passes (every stack's tfvars already say
+  `australiaeast`, `phase-8-own-environment.md:317`).
+- [ ] **Step 3: Broker label.** The three Go tests; they fail. `SandboxSpec.Route`, the stamp, the
+  `WithLabels` refusal, task 20's one field; they pass.
+- [ ] **Step 4: Chart.** The five helm-unittest cases; they fail. The values block, the schema, the
+  three policies; they pass, and task 11's and task 32's suites still pass unchanged.
+- [ ] **Step 5: Cluster flag.** The `advanced_networking` block in `modules/aks`; `bash
+  infra/scripts/validate.sh` passes for dev and prod.
+- [ ] **Step 6: Probes.** Six verdict cases in `proving_test.sh`; they fail. The six scripts;
+  shellcheck clean; the cases pass. Six rows in the checklist, each `NOT RUN`.
+- [ ] **Step 7: Commit** each group with `git commit -F <msg> -- <paths>`.
+
+#### Acceptance
+
+```bash
+bash infra/scripts/guards_test.sh           # guards_test: all cases passed
+bash infra/scripts/guards.sh | tail -1      # guards: 11 of 11 passed
+bash infra/smoke/proving/proving_test.sh    # proving_test: all cases passed
+grep -c "NOT RUN" docs/verification/phase-8-kata-proving.md    # 28 (task 32's 22, plus six)
+helm unittest deploy/charts/platform        # Test Suites: 7 passed (task 11's 6, plus netpol_au)
+cd control-plane && go test ./cmd/broker/ -run 'TestRouteLabel|TestCallerCannotSetTheRouteLabel' -count=1
+# ok  	github.com/kpmg-au-emu/panacea-app/control-plane/cmd/broker	…
+go test ./internal/fleet/sessions/ -run TestFleetSendsTheProjectsRoute -count=1 && go vet ./...
+```
+
+The live half (P23 to P28 with results, and an AU pod actually denied `example.com`) is **deferred
+to task 57**, on the owner's hands-on session (OD-12), because no pipeline identity may create
+pods in `panacea-sandboxes` (`task-32.md:6-9`).
+
+#### What this task does not claim
+
+- **Not that an AU agent cannot exfiltrate.** An allowlist limits where agents connect; `github.com`
+  and the registries accept uploads (phase 8 Q1 says the same of its firewall,
+  `phase-8-own-environment.md:306`). What it removes is arbitrary hosts, and the Global route
+  reached directly.
+- **Not that `toFQDNs` works on this cluster.** P28 is the evidence; until it has a result, AU
+  egress is **UNVERIFIED**, and task 56's badge says `AU` without claiming egress.
+- **Not solo AU projects** (gap 2).
+- **Not region for data outside this estate.** Bedrock in Sydney is AWS's region (pinned by G11
+  in values only); what AWS does with it is phase 6's and the owner's contract, not a guard.
+- **Not a security boundary.** G11 is hygiene, like every rule in `guards.sh` (`:13-16`): a pull
+  request can edit it.
+
+#### Gaps found in the skeleton
+
+1. **Path.** The skeleton's `infra/smoke/kata/*` for phase 8 task 32 is `infra/smoke/proving/*` and
+   `docs/verification/phase-8-kata-proving.md` (`task-32.md:17-19`, read on `feat/env` at
+   `9ef70c3`). The file map row (`2026-09-25-phase-t-team-mode.md:270`) should say so.
+2. **Solo AU projects.** `05-design.md` §2.5 gives the allowlist to "AU projects"; this task
+   reaches team projects (Fleet always sends `Route`). A solo AU project gets it only when
+   phase 6's `remotebe` path sends `SandboxSpec.Route`; no task in this plan or phase 6's (as far
+   as read) does. Owner or phase 6 to place.
+3. **The allowlist's contents** are a starting set from knowledge; the owner decides which
+   ecosystems an AU project may pull from.
+4. **Cost.** Turning on ACNS security is a new per-node charge the skeleton does not mention.
+5. **Phase 6's gateway chart key** for the Bedrock region is not written; G11 names it
+   `bedrockRegion` provisionally.
+6. **A sixth row.** The scope names five probes; this part adds P28 because item 1 is otherwise
+   unmeasured.
