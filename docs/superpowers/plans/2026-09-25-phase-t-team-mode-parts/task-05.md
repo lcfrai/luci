@@ -736,3 +736,69 @@ tokens from `MintAccessToken`.
 | `TestDelegatedWriteIsV2` | `DLLinus` on `agent-write` naming `AGLinus` → 201; the event is `v: 2`, `actorUserId` Linus, `via: fleet`, `delegationId: DLLinus`; Linus's desktop on the same route → 201, and its event is `v: 1` with no `via` key | `Write` building its rows without `auditRow` |
 | `TestFleetBucketsArePerDelegation` | with `User 1:1`, two `whoami` under `DLLinus` → the second 429 `user`; one under `DLAda` → 200 | decision (g) dropped |
 | `TestFeedRouteTakesNoHeader` | Fleet, no header, on the feed stub → 200, `orgId` T, `via: fleet`; tenant B's Fleet → B's org | the feed resolved through a delegation, or with no org |
+
+The cross-tenant test in full, because it is the one whose mutant makes one org's Fleet act as
+another org's member:
+
+```go
+func TestAnotherTenantsDelegationIsUnknown(t *testing.T) {
+	w := newFleetWorld(t)
+	foreign := w.fleetToken(t, tenantB) // Fleet's service principal in the second tenant
+	code, prob := w.get(t, "/v1/_test/whoami", foreign, w.DLLinus)
+	if code != http.StatusUnauthorized || prob.Code != hubapi.CodeDelegationRevoked ||
+		prob.Details["reason"] != "unknown" {
+		t.Fatalf("tenant B naming T's delegation: %d %s %v, want 401 delegation_revoked unknown",
+			code, prob.Code, prob.Details)
+	}
+	const unknown = "dl-00000000000000ff" // never seeded
+	_, probU := w.get(t, "/v1/_test/whoami", w.fleetToken(t, tenantT), unknown)
+	delete(prob.Details, "delegationId")
+	delete(probU.Details, "delegationId")
+	if !maps.Equal(prob.Details, probU.Details) || prob.Message != probU.Message {
+		t.Fatalf("foreign %+v and unknown %+v differ: an oracle for another org's ids", prob, probU)
+	}
+}
+```
+
+`w.get(t, path, token, delegation)` sends the header only when `delegation` is non-empty and
+returns the status and the decoded problem (Hub task 03's `Problem`).
+
+#### Steps
+
+- [ ] **Step 1: Re-read what this extends.** After the sync-merge of `feat/hub`: `server/auth.go`,
+  `server/tx.go`, `server/apierror.go`, `store/audit.go`, `store/orgs.go`, `cmd/hub/config.go`,
+  `cmd/hub/serve.go`, `internal/devissuer/*`; confirm task 04 is in:
+  `grep -c "FUNCTION fleet_delegation" control-plane/internal/hub/migrate/sql/*_team.sql` → `1`.
+  Every name here that differs from the merged text is renamed mechanically, and the rename is
+  listed in the commit body. A difference of **behaviour** (for example `Read` taking a request,
+  not a context) stops the task and is raised.
+- [ ] **Step 2: `entra`.** Write `appcaller_test.go`; `go test ./internal/entra/` fails with
+  `undefined: AppCaller`. Add the fields, `New`'s loop, the `switch` and `appCaller`. Green, and
+  every pre-existing `entra` test still passes unedited.
+- [ ] **Step 3: `server`, no database.** Write `delegation_test.go` and the `auth_test.go` case;
+  they fail with `undefined: delegationHeader`. Write `delegation.go`'s `Delegable`, `RouteFrom`,
+  `isFeedPath`, `DelegationView`; add `delegationHeader`, `userKey` and the three `Claims` fields
+  to `auth.go`, and call them from `Authenticate` as sub-step 3b. `Authenticate` writes a
+  refusal with the same problem writer `Write` uses for an `*APIError`. Green.
+- [ ] **Step 4: `store`.** Write `delegation_integration_test.go` and the `audit_test.go` case;
+  they fail. Write `store/delegation.go`; add the two `AuditRow` fields and the two copies in
+  `Append`. Green under `-tags integration`.
+- [ ] **Step 5: the transaction.** Add `Principal`'s three fields, `resolveCaller`,
+  `resolveDelegated` and `auditRow`; swap the `ResolvePrincipal` call in `Read` and `Write`; make
+  `Write`'s pending events and `Forbidden`'s short transaction both build rows with `auditRow`.
+  Add `registerFleetTestRoutes` and `fleet_integration_test.go`. Green.
+- [ ] **Step 6: `devissuer`.** Tests first (`TestAppTokenFromTheGrant`, `TestAppGrantRefusals`,
+  `TestFleetdsFormIsAccepted`, `TestEnvNamesFleet`, and `LoadConfig`'s new refusals in
+  `config_test.go`); then `config.go`, the grant in `token.go`, `MintAppToken`, discovery,
+  `Env`, and the Fleet entry in `dev-tenant.json`. Green.
+- [ ] **Step 7: `cmd/hub`.** `TestFleetClientIDIsChecked` first; then the variable, `loadConfig`'s
+  two checks and `fleetCallers`. Green.
+- [ ] **Step 8: Kill four mutants by hand**, one at a time, each reverted after: (1) in
+  `resolveDelegated`, `!now.Before(d.ExpiresAt)` → `now.After(d.ExpiresAt)`: expect
+  `TestExpiredDelegationIs401` to fail; (2) delete `resolveCaller`'s `c.FleetFeed` case, so the
+  feed falls into `resolveDelegated` with an empty id: expect `TestFeedRouteTakesNoHeader` to
+  fail (the tenant join itself is task 04's mutant, `task-04.md:867`); (3) `userKey` returns `tid/oid` for Fleet:
+  expect `TestFleetBucketsArePerDelegation` to fail; (4) `auditRow` omits `Via`: expect
+  `TestDelegatedWriteIsV2` and `TestUnlistedRouteIs403` to fail.
+- [ ] **Step 9: Whole suite, vet, format, commit.** The acceptance commands below, then
+  `git add` the new files and `git commit -F .superpowers/sdd/team/msg/t05.txt -- <the files>`.
