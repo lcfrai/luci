@@ -458,3 +458,30 @@ CREATE TABLE IF NOT EXISTS fleet.land_told (
   member_user_id text NOT NULL, told_head text NOT NULL, told_at timestamptz NOT NULL,
   PRIMARY KEY (org_id, project_id, branch, member_user_id));
 ```
+
+`Resolver.FirstLanded(org, hintID)` (task 29's file, one method) is the restore half of task 29's
+`TaskEnded` for one hint: `Restore` every `lease_demotions` row of the hint, delete the rows and
+the hint, enqueue the `sequence.go` event for the second side. Idempotent. Task 29's scope said
+*"In TM1 the trigger becomes phase 3's land event"* (`task-29.md:51-52`); this is that trigger.
+
+- [ ] **Step 1: Write the tests, each with the mutant it kills**
+
+All on task 10's `memstore`, a fake `Mirror`, a fake `Machines`, a fake `Approvals` and a fake
+`Hints`; no git runs in `landq`'s tests.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestSequenceHintOrdersTwoLands` | Bob enqueues at 09:00, Alice at 09:05; a live hint `first: oAlice, second: oBob` whose parties are both lanes' agents: `Order` → Alice, then Bob, `heldBy[Bob] = cf-…`; `FirstLanded` on Alice's land, and the next `Order` is Bob | FIFO ignoring hints; a hint that holds the first side |
+| `TestAHintHoldsOnlyItsParties` | Bob has two waiting lanes; the hint's parties hold one: the other lands before Alice's | a hint that holds every lane of the second side |
+| `TestUnresolvedAgentConfigApprovalIsRefused` | the build's `Changes` has `M .claude/settings.json`; approvals: none → `refused`, `second_approval_required`, `paths [".claude/settings.json"]`, `Stage` never called; one approved by the owner herself → the same; one for an older lane tip → the same; one by Linus for this tip covering the path → `ready` | the rule checked in the UI only; the owner approving herself; a stale approval |
+| `TestPackageScriptsNeedASecondApprover` | `PackageChanged {"package.json": ["scripts"]}` → refused without approval; `{"package.json": []}` (dependencies only) → `ready` | package.json counted by path alone |
+| `TestApprovalsErrorIsNotNoneNeeded` | `ListLandApprovals` errors on an agent-config lane → `hub_unavailable` | an error read as an empty list |
+| `TestPushUsesTheOwnersTokenNeverTheFetchCredential` | `teamland.go` with a fake `credstore.Store` (Alice's token `tA`) and a fake machine that records the push's credential and a fake broker holding the fetch credential `fX`: the push carries `tA`; `fX` appears in no request the local control plane makes | the fetch credential reused for push |
+| `TestLandqHoldsNoCredential` | reflection over `Handoff`, `LandBuild`, `Entry` and every route body: no field of a `credstore` type, and no field named like `token`, `password` or `credential`; `go list -deps ./internal/fleet/landq` names no `credstore` package | a credential field added to the handoff |
+| `TestLandedOnlyWhenTheRemoteShowsIt` | `Report{pushed}` and `FetchRemote` returns the old base three times → `refused`, `push_unverified`; returns `Merge` → `landed` | trusting the owner's report |
+| `TestRemoteMovedRebuildsThenStops` | one `rejected remote_moved` → `waiting`, still the head, rebuilt on the new base; a second → `refused`, `remote_contended`, a stop row, `Notify` to each member once; `Advance` → `ErrStopped` until F-L6 | a retry loop; the requeue sent to the tail |
+| `TestOneActiveEntryPerProject` | two waiting heads, one `Advance`: one `building`; a second `Advance` moves nothing; the pgstore suite: a second active insert violates `land_queue_one_active` | two lands built on one base |
+| `TestReadyExpiresAndYieldsTheHead` | `ready` at 09:00, `Now` 09:00 next day + 1 s → `waiting`, `ready_expired`, behind the other waiting entry | a ready entry blocking the queue forever |
+| `TestEnqueueOwnerFromTheToken` | F-L1 with Alice's token naming Bob's agent → 403 `agent_not_owner`; no body field can set `ownerUserId` (an unknown field → 400) | owner read from the body |
+| `TestRefreshTellsEveryMemberAndFailsSoft` | three members; Linus's `Refresh` errors: Alice and Bob told, `land_told` for them only, the entry stays `landed` | a refresh failure failing the land |
+| `TestConflictedBuildRefusesWithPathsOnly` | `Conflicted ["auth/session.go"]` → `refused`, `merge_conflict`, the path; the fake mirror's answer carried no content and the entry has none | a merge-conflict refusal that carries hunks |
