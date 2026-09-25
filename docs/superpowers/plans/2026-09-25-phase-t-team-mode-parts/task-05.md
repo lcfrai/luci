@@ -710,3 +710,29 @@ implementer uses whatever names the merged `tx.go` has (**UNVERIFIED until merge
 | Fleet | two `dl-…` values | `/v1/_test/whoami` | 400 `bad_request` | the first value taken, the second ignored |
 | Fleet | `dl-XYZ` | `/v1/_test/whoami` | 401 `delegation_revoked`, `reason: unknown`, `delegationId: ""` | the raw value echoed |
 | Fleet | `dl-00000000000000a1` | `/v1/_test/whoami` | nil, `DelegationID` set | — |
+
+**Integration tests** (`//go:build integration`, Hub task 06's `hubtest.Migrated`, `devissuer`
+in-process with `dev-tenant.json` and a fake clock). The world, `newFleetWorld(t)` in
+`fleet_integration_test.go`, seeds through `OwnerConn` (task 06's routes do not exist yet), in
+org T (tenant `1111…`): a team project `P`; **Linus**'s orchestrator delegation `DLLinus`
+listing `tasks.read` and `tasks.create`, expiring at `t0 + 24h`; **Ada**'s (org admin, `Hub.OrgAdmin`)
+`DLAda` listing `tasks.read`; `DLRevoked` (Linus's, `revoked_reason = member_removed`); agents
+`AGLinus` and `AGGrace`. Fleet's tokens come from `MintAppToken(tenant, fleet, hubAPI)`; desktop
+tokens from `MintAccessToken`.
+
+| Test (file) | Asserts | Kills |
+|---|---|---|
+| `TestFleetDelegationReadsTheOwner` (`store/delegation_integration_test.go`) | `FleetDelegation(T, DLLinus)` → org T, Linus's id, oid, name, email, `P`, `orchestrator`, both routes, `RevokedAt` nil; `(tenant B, DLLinus)` and `(T, an unknown dl-…)` → `ErrDelegationUnknown`; `DLRevoked` → `RevokedAt` set, `member_removed` | no-row mapped to a plain error (a 500 where the contract says 401) |
+| `TestAgentOwnedBy` | `(AGLinus, Linus)` true; `(AGGrace, Linus)` false; `(unknown, Linus)` false, no error | the `owner_user_id` predicate dropped |
+| `TestAuditRowCarriesVia` (`store/audit_test.go`) | `Append` with `Via` and `DelegationID` → the stored envelope's bytes are task 03's v2 golden; without them → the §3.5 v1 golden, byte for byte | `Append` dropping the two fields: no v2 event is ever written |
+| `TestFleetWithoutHeaderIs401` (`server/fleet_integration_test.go`) | Fleet, no header, `whoami` → 401 `delegation_required` | the scope's first test |
+| `TestDesktopWithHeaderIs403` | Linus's desktop with `DLLinus` → 403 `forbidden`, `required: fleet` | the scope's fourth test |
+| `TestExpiredDelegationIs401` | at `t0 + 24h − 1 ms` → 200; at exactly `t0 + 24h` → 401 `delegation_expired`, `delegationId: DLLinus` | `now.After(expiresAt)`, which admits the expiry instant |
+| `TestRevokedDelegationIs401WithItsReason` | `DLRevoked` → 401 `delegation_revoked`, `reason: member_removed`; revoked **and** expired → `delegation_expired` (decision c's order) | the reason hard-coded; the order swapped silently |
+| `TestAnotherTenantsDelegationIsUnknown` | Fleet's token for tenant B naming `DLLinus` → 401 `delegation_revoked`, `reason: unknown`; the body equals, key for key, the one an unknown `dl-…` gets | tenant ignored in the lookup: B's Fleet acts as T's member |
+| `TestTheOwnerIsThePrincipal` | Fleet under `DLAda`, `whoami` → `UserID` Ada's, `OrgAdmin` **false**, `Via: fleet`, `Delegation.ProjectID: P`; `users` holds no row with the service principal's oid | `OrgAdmin` carried over; `resolve_principal` called for an app token, provisioning Fleet as a user |
+| `TestUnlistedRouteIs403` | `DLAda` on `agent-write` (`tasks.create`, unlisted) → 403 `required: tasks.create`; `DLLinus` on `undelegable` → 403 `required: route`; each records `auth.forbidden`, `v: 2`, actor the owner | a missing name treated as allowed; the route check skipped |
+| `TestAnotherOwnersAgentIs403` | `DLLinus` on `agent-write` naming `AGGrace` → 403 `agent_not_owner`, `agentId`; the audit chain's length is unchanged | the scope's third test; an event written before the refusal |
+| `TestDelegatedWriteIsV2` | `DLLinus` on `agent-write` naming `AGLinus` → 201; the event is `v: 2`, `actorUserId` Linus, `via: fleet`, `delegationId: DLLinus`; Linus's desktop on the same route → 201, and its event is `v: 1` with no `via` key | `Write` building its rows without `auditRow` |
+| `TestFleetBucketsArePerDelegation` | with `User 1:1`, two `whoami` under `DLLinus` → the second 429 `user`; one under `DLAda` → 200 | decision (g) dropped |
+| `TestFeedRouteTakesNoHeader` | Fleet, no header, on the feed stub → 200, `orgId` T, `via: fleet`; tenant B's Fleet → B's org | the feed resolved through a delegation, or with no org |
