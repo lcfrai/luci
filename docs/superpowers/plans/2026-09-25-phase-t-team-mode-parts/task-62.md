@@ -91,6 +91,8 @@ writes one task 29 `land_hints` row, `first` the base side, so task 61's queue l
 - `control-plane/internal/hub/hubapi/team.go` (task 03), `server/escalations.go` (task 07),
   `migrate/sql/00NN_escalation_agent_config.sql` (after task 04's) — `agentConfig` on a decide
   and `DirectiveBuildOn` with `ref` (modify / new; Hub deltas on this branch's own Hub code)
+- `docs/superpowers/contracts/2026-09-23-hub-contract.md` (task 01's §7 entries for route 64
+  and the directive route) — the `agentConfig` field and the `build-on` kind (modify)
 - `sandboxd/internal/panaceacli/direct.go` (task 18) — `panacea direct <ag-…> build-on --ref`
   (modify)
 - `control-plane/internal/fleet/instructions/worker-cloud.md` (task 41) — one paragraph: what
@@ -338,3 +340,66 @@ On task 10's `memstore`, task 08's Hub fake, task 30's `Service` with a fake `So
 | `TestBuildOnApplyBringsExactlyTheApprovedTip` | Alice chooses `apply-proposal`; the base lane has since moved to a descendant: `Bring` gets `BaseTip`, not the new tip; ref `refs/panacea/build-on/<th>`; one `land_hints` row `first = oB`; conflict `resolved`, `build-on`; a rewritten base (not a descendant) → `resolution_stale`, nothing brought | the latest tip brought; no hint |
 | `TestBuildOnDirectiveOnlyForTheAppliedRef` | `oA` `direct wA build-on --ref <the ref>` in a Fleet turn → issued; another ref, another worker, or `oB` calling → `bad_request` | a free-form ref directive through a typed kind |
 | `TestRoute64AgentConfigIsFleetOnly` | route 64 with `fromAgentId` and `agentConfig` → 400; Fleet's own with 51 entries → 400; with 2 → 201 and the read returns them, `[]` when absent | an Orchestrator forging lines |
+
+Task 28's `TestKindsNotEnabled` (or whatever its suite names the `kind_not_enabled` rows) is
+**changed** here, not deleted: its three rows now expect the validation above. Both modules'
+fixture round-trip tests read the four new fixtures.
+
+- [ ] **Step 2: Run the tests and watch them fail**
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/control-plane && GOPROXY=off go test ./internal/fleet/protocol/ ./internal/fleet/escalate/ ./internal/fleet/leases/ ./internal/fleet/verbs/ -run "Counter|Split|BuildOn|Reissue"
+```
+
+Expected: failures, not compile errors, for the counter and split tests (`kind_not_enabled`
+where a result is wanted), and `undefined: BuildOnPort`, `(*Engine).Reissue undefined`.
+
+- [ ] **Step 3: `Reissue` in `leases/yield.go`; run task 23's transition-table test unchanged.**
+- [ ] **Step 4: The three validation rows and `Send`'s counter branch; run task 28's suite.**
+- [ ] **Step 5: `split.go`, then `KeyOf`'s split case; run task 29's and task 30's suites.**
+- [ ] **Step 6: `buildon.go`, the decide row and its question, the directive kind; the Hub delta
+  (types, route 64's check, the migration); the CLI verb; the instruction paragraph.**
+- [ ] **Step 7: Run everything**
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/control-plane && GOPROXY=off go test ./... && GOPROXY=off go vet ./... && gofmt -l internal
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/sandboxd && GOFLAGS=-mod=vendor go test ./internal/panaceacli/... ./internal/control/... && GOFLAGS=-mod=vendor go vet ./...
+```
+
+Expected: every package `ok`; tasks 23, 28, 29, 30 and 31's suites pass with only the changed
+`kind_not_enabled` rows; the Hub's route 64 integration test passes against its test database
+(skipped, and said so, without one); `gofmt -l` prints nothing.
+
+- [ ] **Step 8: Commit**
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team && git add control-plane/internal/fleet/protocol/split.go control-plane/internal/fleet/protocol/split_test.go control-plane/internal/fleet/protocol/buildon.go control-plane/internal/fleet/protocol/buildon_test.go testdata/panacea-control/v1 && git commit -F .superpowers/sdd/team/msg/task-62.txt -- control-plane sandboxd/internal/panaceacli testdata/panacea-control/v1
+```
+
+The real-cluster `build-on` decide listing an agent-config path is task 69's, because it needs
+task 58's mirror pod and two signed-in people.
+
+**What this task does not claim:**
+
+- **That the worker merges well.** Fleet brings a ref in and admits one typed directive; the merge
+  is the worker's, it can conflict, and a failed merge is the worker's `report`, not Fleet's.
+- **That listing agent-config paths makes a build-on safe.** It tells the human what could change
+  their agents' behaviour; the managed files still lock hooks, permission rules and
+  `apiKeyHelper` (§7.3), and anything else in the lane runs in the builder's sandbox as code.
+- **That a split is fair.** It only checks the partition and the acceptor's edits. Right of way
+  (task 23) still applies to the re-issued leases.
+- **`counter` on a free thread with no resolution to counter.** A counter needs a live proposal.
+
+**Gaps against the skeleton, raised here:**
+
+1. **A typed `build-on` directive** is not in task 03's or task 31's kinds; this task adds it
+   (Hub delta and Fleet). Without it, the builder's Orchestrator could only reach its worker with
+   free text, which a Fleet-started turn turns into a decide (§7.2), so every build-on would ask
+   twice.
+2. **Who decides a build-on.** §6.5 says "decide" without naming whose; task 30 made it the
+   builder's human (`Who = Builder`). The base side's human hears of it through task 29's DECIDED
+   WITHOUT YOU. The owner may want both.
+3. **`agentConfig` on the Hub's escalation record** is a contract change (task 01's §7 route 64)
+   that task 01's part did not foresee; the contract doc gains the field in this task.
+4. **Split and build-on need a conflict thread.** §6.2 does not say whether a free thread may
+   carry either; this part refuses both on a free thread (no paths to partition, no party lane).
