@@ -17,14 +17,14 @@ task 25b's. Split out of task 21 by env ruling 3's "What each task changes" (`:2
 **Depends on:**
 - **task 21** (`POST /v1/git`, `gitx.NewExec(h)` with `OwnedRoot` `/tmp/machined-git`);
 - **task 19's `/tmp` `emptyDir` with `sizeLimit: 3Gi`** (ruling 3: two live bundles at
-  `MaxBundleBytes` plus clone scratch). Task 19's pod row (`task-19.md:26`) gives `emptyDir`
-  `/tmp` with **no** `sizeLimit` today, so task 19 must gain it before this task ships;
-- **task 19's agent proxy streaming a bundle body.** Ruling 3 says the proxy reaches these
-  routes "streamed and unbuffered", but `task-19.md:92-93` caps **request** bodies at 16 MiB;
-  only responses stream. `GET` works as written. `POST /v1/bundles` needs task 19 to admit up
-  to `MaxBundleBytes` on that one path, streamed, with `BundleTimeout` + 5 s as its deadline
-  (ruling 3's relay deadline, `:155-158`). Until it does, a land from a cloud lane above 16 MiB
-  fails with the proxy's `413`;
+  `MaxBundleBytes` plus clone scratch). Task 19 owns it: its pod row (`task-19.md:26`) and
+  `TestMachinePodTmpHasASizeLimit` (`task-19.md:229-231`);
+- **task 19's agent proxy streaming a bundle body.** Task 19 owns it (`task-19.md:96-103`): on
+  `POST …/agent/v1/bundles` only, the body streams through a `GitMaxBundleBytes` cap with
+  `GitBundleTimeout` + 5 s as its deadline; every other path keeps the 16 MiB request cap
+  (`task-19.md:93`). Its tests are `TestAgentProxyStreamsABundleUpToItsCap`,
+  `TestAgentProxyKeepsTheCapOffTheBundlePath` and `TestAgentProxyBundleDeadline`
+  (`task-19.md:225-227`). This task edits neither;
 - **phase 3 seam S8-P3.4** (`lanegit.Bundles`, ruling 3 `:166-173`): an ask of phase 3, not yet
   answered. This task's routes stand on their own, but nothing calls them until S8-P3.4 and
   task 25b land. Step 1 records what landed.
@@ -86,7 +86,10 @@ const (
 - The directory is `<OwnedRoot>/bundles`, made mode `0700` at start and emptied then, so a
   restart forgets every id and leaves no file.
 - A live id is an in-memory entry: its creation time, and whether a file is there. Two at most,
-  reserved and stored alike; a third `POST` is `429` before any byte is read.
+  reserved and stored alike; a third `POST` is `429` before any byte is read. The caller is
+  told, not queued: task 25b maps it to `ErrBundleBusy`, nothing waits or retries, and that land,
+  archive or refresh fails with it, so a third concurrent one on one machine is refused and the
+  user runs it again. Whether phase 3's callers then retry is theirs (S8-P3.4, **UNVERIFIED**).
 - `POST` with a body opens `<id>.bundle` with `O_CREATE|O_EXCL`, mode `0600` (phase 3's rule,
   `task-24.md:705-708`). An id whose file exists is drawn again, never reused. It copies the
   body through `io.LimitReader(body, MaxBundleBytes+1)` under a `BundleTimeout` deadline, and
@@ -127,7 +130,7 @@ source are injected.
 
 #### Steps
 
-- [ ] **Step 1:** Confirm task 21 has landed (`git grep -n "func.*handleGit" -- control-plane/cmd/machined/` answers). Record in the commit message whether phase 3's S8-P3.4 has landed (`git grep -n "type Bundles interface" -- control-plane/internal/lanegit/`); it does not block this task. Record whether task 19's pod has `sizeLimit: 3Gi` and its proxy streams a bundle `POST`; if not, say so in the commit message, since cloud lands above 16 MiB fail until it does.
+- [ ] **Step 1:** Confirm task 21 has landed (`git grep -n "func.*handleGit" -- control-plane/cmd/machined/` answers). Record in the commit message whether phase 3's S8-P3.4 has landed (`git grep -n "type Bundles interface" -- control-plane/internal/lanegit/`); it does not block this task. Confirm task 19 has landed with both of its bundle changes (`git grep -n "TestMachinePodTmpHasASizeLimit\|TestAgentProxyStreamsABundleUpToItsCap" -- control-plane/` prints two lines); if not, stop and report, because cloud lands above 16 MiB would fail with the proxy's `413`.
 - [ ] **Step 2:** Wire types; tests, each shown red first; `bundles.go`; the admission in `git.go`; start and the sweep in `main.go`; all pass.
 - [ ] **Step 3: Mutation check** (rule 7), each on a `$TEMP` copy, each turning the named test red:
   (1) `O_EXCL` dropped → `TestBundlePostStoresTheBodyAndAnswersAnID`;
