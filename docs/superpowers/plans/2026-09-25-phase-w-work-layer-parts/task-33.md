@@ -63,3 +63,101 @@ beside it; the toolbar is a third sibling and is not filtered.
 - `desktop/src/lib/flags.ts` ⚑ (task 32) — `motion`, `vision` (modified)
 - `desktop/src/lib/flags.test.ts` ⚑ (task 32) — the two new flags in two existing tests
   (modified)
+
+#### Interfaces — complete: the `flags.ts` delta
+
+Task 32's three places, each gaining two keys. Nothing else in the file changes.
+
+```ts
+export type Motion = "system" | "reduce";
+export type Vision = "normal" | "deuteranopia";
+
+export interface Flags {
+  look: Look;
+  sans: SansCandidate;
+  theme: ThemeName;
+  /** "reduce" writes data-motion="reduce": every reduced-motion rule's twin (task 34). */
+  motion: Motion;
+  /** "deuteranopia" writes data-vision; stress.css filters #root and the stage by it. */
+  vision: Vision;
+}
+
+export const FLAG_DEFAULTS: Readonly<Flags> = Object.freeze({
+  look: "new",
+  sans: "segoe",
+  theme: "graphite",
+  motion: "system",
+  vision: "normal",
+});
+
+const ATTRIBUTE: { readonly [K in keyof Flags]: string } = {
+  look: "data-look",
+  sans: "data-sans",
+  theme: "data-theme",
+  motion: "data-motion",
+  vision: "data-vision",
+};
+```
+
+`motion: "system"` is no attribute: the OS setting then decides through the media query alone.
+`"reduce"` forces the reduced look on a machine whose OS setting is off, which is how a reviewer
+sees it without changing Windows.
+
+#### Interfaces — complete: `desktop/src/components/devtools/stressRegistry.ts`
+
+```ts
+// desktop/src/components/devtools/stressRegistry.ts
+//
+// stress.sets (Phase W task 33; 02 C12). A SET is a condition or a content filter; a SCREEN is a
+// named render viewed under it. Dev only: register from a file under ./screens/, never from a
+// production module (StressSets.test.tsx's import-boundary test holds that).
+
+import type { ReactNode } from "react";
+
+export type StressSet =
+  | "themes"
+  | "states"
+  | "load"
+  | "reduced-deuteranopia"
+  | "forced-colors"
+  | "scaling";
+
+/** In the order the picker lists them: 02 C12's four, then 05 §4.4 C12's two new conditions. */
+export const STRESS_SETS: readonly StressSet[] = [
+  "themes", "states", "load", "reduced-deuteranopia", "forced-colors", "scaling",
+];
+
+/** The sets that change how a screen looks rather than which screens appear. */
+export const CONDITION_SETS: readonly StressSet[] = [
+  "themes", "reduced-deuteranopia", "forced-colors", "scaling",
+];
+
+export interface StressScreen {
+  name: string;
+  render: () => ReactNode;
+  sets: readonly StressSet[];
+}
+
+const screens: StressScreen[] = [];
+
+/** Registration order is list order. A second call with a name already registered replaces that
+ *  screen IN PLACE: Vite's hot reload re-runs a screen module, and a duplicate would follow. */
+export function registerStressScreen(
+  name: string,
+  render: () => ReactNode,
+  sets: readonly StressSet[] = CONDITION_SETS,
+): void {
+  const screen: StressScreen = { name, render, sets };
+  const at = screens.findIndex((s) => s.name === name);
+  if (at >= 0) screens[at] = screen;
+  else screens.push(screen);
+}
+
+/** The screens registered for one set, in registration order. */
+export function stressScreens(set: StressSet): readonly StressScreen[] {
+  return screens.filter((s) => s.sets.includes(set));
+}
+```
+
+No unregister and no subscription: every screen registers at import, before the toolbar's first
+render, and a dev session never removes one.
