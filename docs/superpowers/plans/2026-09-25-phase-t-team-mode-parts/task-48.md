@@ -136,3 +136,77 @@ var (
 // wrapped by remote.FetchOnly so it can never be passed to Push.
 func FetchEnv(r Remote, cred credstore.Credential) (remote.Auth, error) // error unless Source == SourceProjectFetch
 ```
+
+`githost` importing `remote` adds no cycle: `remote` imports `gitx` only, and `cmd/api/main.go`
+already joins the two for `PushAuth` (`task-13.md:187-189`). If phase 3's merged graph says
+otherwise, `FetchEnv` moves to `remote` and takes the header string.
+
+```go
+// control-plane/internal/remote/fetch.go and push.go (modify)
+
+type Auth struct {
+	Env      map[string]string
+	readOnly bool // set only by FetchOnly; the zero Auth and PushEnv's are writable
+}
+
+// FetchOnly wraps a fetch header's Env. Push refuses the result.
+func FetchOnly(env map[string]string) Auth { return Auth{Env: env, readOnly: true} }
+
+// ReadOnly reports whether a is a project fetch credential's.
+func (a Auth) ReadOnly() bool { return a.readOnly }
+
+var ErrReadOnlyAuth = errors.New("remote: a read-only fetch credential cannot push")
+
+// Push, first statement:  if auth.readOnly { return PushResult{}, ErrReadOnlyAuth }
+// before the lock, before any gitx call.
+
+// Fetcher gains one field. When Authorize is set it replaces AuthFor: an error
+// is recorded as the project's LastError and no git runs for that project.
+	Authorize func(ctx context.Context, p ProjectRef) (Auth, error)
+```
+
+```go
+// control-plane/internal/githost/prove.go
+
+// ProveAccess checks, with a person's OWN credential, that she can read the
+// repository. It is the §10.2 re-proof, run by her desktop's control plane at
+// each sign-in. It sends one request and changes nothing:
+//   GitHub:       GET {BaseURL}/repos/{owner}/{repo}  → 200 and permissions.pull == true
+//   Azure DevOps: GET https://dev.azure.com/{org}/{project}/_apis/git/repositories/{repo}?api-version=7.1 → 200
+// 401, 403 and 404 are ErrNoAccess (a private repository she cannot see is 404
+// on both hosts, from knowledge); any other failure is returned as it is, and
+// is NOT a failed proof: "GitHub is down" must not stop her fetches.
+func ProveAccess(ctx context.Context, h Host, cred credstore.Credential, r Remote) error
+
+var ErrNoAccess = errors.New("githost: this person cannot read the repository")
+```
+
+`ProveAccess` refuses a credential whose `Source` is `SourceProjectFetch`
+(`ErrFetchCredentialNotForWrite` is the wrong word; it returns `ErrNotAPersonsCredential`): the
+proof must be hers, or it proves nothing.
+
+#### The broker's half — complete wire
+
+Two routes on phase 8's broker (tasks 17–18, planned), beside task 17's Fleet routes.
+
+**`PUT /v1/machines/{machineId}/fetch-proofs/{projectId}`**: the machine owner's **desktop** token
+only (Fleet → 403 `forbidden`; another person → 404, as every broker machine route). Body:
+
+```jsonc
+{ "repoKey": "github.com/o/r", "ok": true | false }   // ok=false carries no reason text
+// 204. The broker writes the proof and emits one audit line.
+```
+
+The broker keeps proofs on the machine's `PersistentVolumeClaim` as the annotation
+`panacea-app/fetch-proofs`, a JSON object `{"pj-…": {"repoKey", "ok", "at"}}`, so a sleeping
+machine (no pod) and a restarted broker keep them (phase 8's machine disk is that claim, P8-D6,
+**UNVERIFIED** until merge). A proof is **fresh** while `ok` is true and `at` is within
+`PANACEA_APP_BROKER_FETCH_PROOF_TTL` (default `24h`, the Hub's delegation ceiling,
+`task-01.md:237`). The repoKey must equal the project's binding; a mismatch is 422.
+
+**`POST /v1/machines/{machineId}/projects/{projectId}/fetch`**: Fleet under the machine owner's
+live delegation (task 17's check, the class `orchestrator` or `worker`), or the owner's desktop.
+No body. The broker runs one `Fetcher.Fetch` for that project on that machine and answers phase
+3's `FetchResult` (`task-12.md:75-78`), or 409 `fetch_proof_required` (no fresh proof), 404
+`no_binding`, 502 `fetch_failed` with git's sentence. Task 31's `rebase` directive and the
+Orchestrator's view call it; nothing else does.
