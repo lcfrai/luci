@@ -957,3 +957,94 @@ func (f *Fake) Subscriptions(_ context.Context, page hubapi.PageRequest) (hubapi
 ```
 
 That is the whole of `fake_work_social.go`.
+
+#### `fake_work_intake.go`, complete
+
+Three blocks; the file is their concatenation. Block 1: import (task 15, decision (h)).
+
+```go
+package hubclient
+
+import (
+	"context"
+	"net/url"
+	"slices"
+	"strconv"
+	"strings"
+	"unicode/utf8"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubapi"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/ids"
+)
+
+// Phase W, part 2: import, search, attachments and erase. The rules are tasks
+// 09, 14 and 15's, the names theirs (task 05's decision (c)).
+const (
+	fkMaxImportItems     = 500
+	fkEventIssueAttached = "issue.attached"
+	fkEventIssueErased   = "issue.erased"
+	fkEventCommentErased = "comment.erased"
+)
+
+// ImportBatch checks every item before it writes any; a re-run answers the
+// same ids under existing and writes nothing.
+func (f *Fake) ImportBatch(_ context.Context, projectID string, batch hubapi.ImportBatch) (hubapi.ImportResult, error) {
+	w := f.w
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	me, err := f.enter("ImportBatch", projectID, batch)
+	if err != nil {
+		return hubapi.ImportResult{}, err
+	}
+	p, role, err := w.projectOf(projectID, me)
+	if err != nil {
+		return hubapi.ImportResult{}, err
+	}
+	if err := need(role, hubapi.RoleMember); err != nil {
+		return hubapi.ImportResult{}, err
+	}
+	if batch.Source != hubapi.ImportSourceLinear && batch.Source != hubapi.ImportSourceCSV {
+		return hubapi.ImportResult{}, badRequest("source", "An import is from linear or csv.")
+	}
+	if n := len(batch.Items); n < 1 || n > fkMaxImportItems {
+		return hubapi.ImportResult{}, badRequest("items", "An import is 1 to 500 items.")
+	}
+	seen := map[string]bool{}
+	for i, it := range batch.Items {
+		at := "items[" + strconv.Itoa(i) + "]"
+		u, uerr := url.Parse(it.URL)
+		switch {
+		case it.ExternalID == "" || seen[it.ExternalID]:
+			return hubapi.ImportResult{}, badRequest(at+".externalId", "Each item has its own external id.")
+		case it.URL != "" && (uerr != nil || u.Scheme != "https" || u.Host == ""):
+			return hubapi.ImportResult{}, badRequest(at+".url", "A link is https, or empty.")
+		case it.Priority != "" && !hubapi.ValidPriority(it.Priority):
+			return hubapi.ImportResult{}, badRequest(at+".priority", "That is not a priority.")
+		}
+		seen[it.ExternalID] = true
+		if err := hubapi.ValidateIssueRevisionContent(importContent(it)); err != nil {
+			return hubapi.ImportResult{}, contentError(at, err)
+		}
+	}
+	res := hubapi.ImportResult{Created: []hubapi.IssueRef{}, Existing: []hubapi.IssueRef{}, UnmatchedLabels: []string{}}
+	for _, it := range batch.Items {
+		key := [3]string{projectID, batch.Source, it.ExternalID}
+		if id := w.soc().imports[key]; id != "" {
+			res.Existing = append(res.Existing, hubapi.IssueRef{IssueID: id, Number: w.wk().issues[id].head.Number, ExternalID: it.ExternalID})
+			continue
+		}
+		labels := w.matchLabels(p.teamID, it.Labels, &res.UnmatchedLabels)
+		is := w.insertImported(me, p, batch.Source, it, labels)
+		w.soc().imports[key] = is.head.ID
+		res.Created = append(res.Created, hubapi.IssueRef{IssueID: is.head.ID, Number: is.head.Number, ExternalID: it.ExternalID})
+	}
+	return res, nil
+}
+
+// importContent is an item's revision 1: both texts a person's, no criterion.
+func importContent(it hubapi.ImportItem) hubapi.IssueRevisionContent {
+	return hubapi.IssueRevisionContent{Title: hubapi.AuthoredText{Text: it.Title, Author: hubapi.AuthorHuman},
+		Description: hubapi.AuthoredText{Text: it.Description, Author: hubapi.AuthorHuman},
+		Serves: []hubapi.Serve{}, Implements: []string{}}
+}
+```
