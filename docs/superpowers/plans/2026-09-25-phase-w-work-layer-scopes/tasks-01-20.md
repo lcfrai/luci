@@ -720,4 +720,43 @@ parser (task 25), the dialog (69), or two-way sync (W5, which never writes a fac
 Parity rows served: **L-220** (importers: Linear and CSV into `triage`, PARTIAL; closed with tasks 25
 and 69).
 
+**16 — `hubclient`'s Work methods over HTTP; the control plane's `/v1/hub/work/*` relay.** W1,
+streams WH and WP, seam **SW.2** (third part: the relay paths); depends on 05 (the frozen interface
+and rows), 15 (the last W1 route) and Hub tasks H33-H34 (`hubclient` over HTTP: transport, retries,
+idempotency, refresh, the relay rule; the methods and the digest re-check). Files: new
+`control-plane/internal/hub/hubclient/methods_work.go` and `methods_work_test.go`;
+`control-plane/internal/api/work.go` and `work_test.go`; `internal/api/api.go` ⚑ (`Deps.Work
+hubclient.Work`, optional, and the registrations), `internal/api/routes_audit_test.go` ⚑ (the
+`catalogReadOnlyRoutes` map, `routes_audit_test.go:32`), `cmd/api/main.go` ⚑ (wires the Hub
+client's `Work` into `Deps`; no new variable here — `PANACEA_APP_WORK_*` begins in tasks 24-25).
+**Client:** one method per `WorkIssues` method, each on the exact method and path of 07's route list,
+through H33's transport (so the `Idempotency-Key`, the single refresh on `expired` and the 10 s
+timeout come for free); every response carrying an `IssueRevision` with content is re-hashed with
+`hubapi.IssueRevisionDigest` and a mismatch is an error, never a value (the brief methods' re-check,
+hub-contract §9.2). **Relay:** the control plane serves the same routes under `/v1/hub/work/…` — the
+Hub path with `/v1` replaced by `/v1/hub/work` (for example `POST
+/v1/hub/work/projects/{projectId}/issues`, `POST /v1/hub/work/issues/{issueId}/state`, `GET
+/v1/hub/work/issues/search?q=`) — each handler a thin call to `Deps.Work` that decodes strictly,
+passes Hub ids verbatim (no local-to-Hub id mapping here; `hublink`, H-task 35, owns that), and
+answers by **the relay rule** unchanged (hub-contract §4.3, :277-295): a Hub 4xx problem with the
+same status, code, message and details; 401 → `signed_out`; 5xx, timeout or refusal → 503
+`upstream_unavailable` with `details.upstream = "hub"`; a nil `Deps.Work` (no Hub configured, which
+local mode without a Hub still is, `OD-20`) → 503 `hub_not_configured`. Every route goes through
+the `routes` recorder so the route audit sees it; every `GET` is in `catalogReadOnlyRoutes` and no
+write is. The desktop's feed stays `/v1/hub/changes` (hub-contract §9.3 :1372); this task adds no
+second feed. **Tests**, each with its mutant: an `httptest` Hub records each client method's method
+and path, compared with 07's list read from one table (kills a path typo or a `PUT` for a `POST`); a
+revision whose stored content was altered in the fake server fails the call (kills a skipped digest
+re-check); a Hub 422 `policy_refused` with `details.policy` reaches the desktop with the same status,
+code and details (kills a relay that rewraps problems); a Hub 500 becomes 503 `upstream_unavailable`
+naming `hub` (kills leaking the Hub's 500); a nil `Work` answers 503 `hub_not_configured` and the
+process still starts (kills a startup failure in local mode with no Hub); the route audit fails if a
+`/v1/hub/work` write is added to `catalogReadOnlyRoutes` (kills an unaudited write); and, with
+`-tags integration` against the compose stack, **every conformance row of tasks 04-05 passes against
+the real Hub** through this client (kills fake-versus-real drift, the WS0 promise). Acceptance: `go
+test ./control-plane/... -race -count=1` and the integration run both pass. It **does not claim** the
+desktop's calls (task 37), Start (24) or import adapters (25). Parity rows served: none closed alone;
+it carries every W1 Hub row to the desktop and serves **L-248** (the public API is the app's own
+API).
+
 
