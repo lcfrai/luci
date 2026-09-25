@@ -305,7 +305,12 @@ sends it as response headers, and `rateOf(res)` below reads them.
 #### Interfaces — complete: `work.ts`, part 16: request bodies
 
 ```ts
-export interface AcceptRequestBody { title: string; description: AuthoredText; projectId: string }
+/** serves rides on the create so accept stays one op (task 168's end to end accepts into an
+ *  issue that serves a criterion); it is SW.1's {briefKey, criterionId}, [] for none. */
+export interface AcceptRequestBody {
+  title: string; description: AuthoredText; projectId: string;
+  serves: { briefKey: string; criterionId: string }[];
+}
 export interface LinkRequestBody { issueId: string }
 export interface PutIntakeRulesBody { rules: Omit<IntakeRule, "id" | "author" | "version">[]; version: number }
 export interface PutFormBody { name: string; fields: FormField[]; defaults: IntakeForm["defaults"] }

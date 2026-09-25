@@ -129,7 +129,7 @@ the one heartbeat, never its own interval (DESIGN-SYSTEM, one global clock).
 // desktop/src/components/intake/RequestPanel.tsx — task 170. Opened from a RequestRow by Enter.
 import type { JSX } from "react";
 import type { Request, RequestMessage } from "../../api/work";
-import type { BriefCriterion, CriterionSuggestion } from "../../work/suggestCriterion";   // task 42
+import { suggestCriteria, type BriefCriterion, type CriterionSuggestion } from "../../work/suggestCriterion";   // task 42
 
 /** The one suggestion line (decision 6): the first of task 42's suggestCriteria over the quote. */
 export function requestSuggestion(r: Pick<Request, "quote">, criteria: readonly BriefCriterion[]): CriterionSuggestion | null {
@@ -158,3 +158,67 @@ suggestion line; the form answers as a two-column list (`label` in sans, `value`
 four actions in one row: *Accept*, *Link*, *Important* (a toggle, `aria-pressed`), *Decline*.
 *Decline* is in place: it asks *Decline this request? Priya is not told.* through `ConfirmInPlace`
 and sends `request.decline`. The panel uses `useWork`, `mutate` and `onRefused` (SW.16).
+
+#### The ops this task sends (SW.16 `mutate`; the union is task 169's `IntakeOp`)
+
+```ts
+// Accept (decision 2): ONE op. The body is only what the person typed, plus the chosen serve.
+mutate({ kind: "request.accept", requestId: r.id, body: {
+  title: draft.title.trim(),
+  description: { text: draft.description, author: "H" },   // "" is legal; never r.quote.text
+  projectId,
+  serves: draft.serves ? [{ briefKey: draft.serves.briefKey, criterionId: draft.serves.criterionId }] : [],
+} });
+mutate({ kind: "request.link", requestId: r.id, issueId });                           // Link
+mutate({ kind: "request.important", requestId: r.id, important: !r.important, prev: r.important });
+mutate({ kind: "request.decline", requestId: r.id });                                 // Decline
+```
+
+`mutate` takes one op, so accept is one `Idempotency-Key` and one Undo entry (task 56's `keyed`).
+The replica's optimistic copy of an accept moves the request to `accepted` and adds a placeholder
+issue head in the team's default state; a refusal (`request_closed`, `policy_refused`) removes
+**both** in one `transact` and `onRefused` shows the reason under the accept form: *Someone else
+accepted this request* for `request_closed`, task 42's policy words for `policy_refused`. The
+title field refuses an empty title before any send (*A title is needed*), so the Hub's 422 is not
+the only check.
+
+#### Interfaces — complete: `desktop/src/components/intake/LinkPicker.tsx`
+
+```tsx
+// desktop/src/components/intake/LinkPicker.tsx — task 170 (decision 3), on task 46's Picker.
+import type { JSX } from "react";
+import { Picker, type PickerItem } from "../issue/pickers/Picker";   // task 46
+import { useWork } from "../../work/useWork";                         // SW.16
+
+export function LinkPicker(props: { teamId: string; onChoose(issueId: string): void; onClose(): void }): JSX.Element {
+  const { teamId, onChoose, onClose } = props;
+  const heads = useWork((w) => w.openIssuesOfTeam(teamId));   // alias order, open states only
+  const items: PickerItem[] = heads.map((h) => ({ id: h.id, label: `${h.alias} ${h.title}` }));
+  return <Picker label="Link to which issue" items={items} onClose={onClose} onChoose={(id) => onChoose(id)} />;
+}
+```
+
+`openIssuesOfTeam` is a replica read over task 55's issue map (every non-`done`, non-`cancelled`,
+non-`duplicate` head of the team's projects, by alias); if task 55's part names it otherwise, this
+file follows. The item id is the `is-` id, never the alias (task 46's `PickerItem.id` rule).
+
+#### Interfaces — complete: the delta on ⚑ `TriageView.tsx` (task 42)
+
+```tsx
+// TriageView.tsx — task 170 adds request rows above the issue rows, under one sub-heading.
+import { RequestRow } from "../intake/RequestRow";
+import { RequestPanel } from "../intake/RequestPanel";
+
+// inside TriageView, after task 42's issue list is computed:
+const teamId = useWork((w) => w.teamOfProject(props.projectId));
+const hasRequests = useWork((w) => w.teamHasRequests(teamId));            // decision 8
+const open = useWork((w) => (hasRequests ? w.openRequestsOfTeam(teamId) : []));   // oldest first
+// Rendered only when hasRequests: <h3 className="ik-sub">Requests</h3> and one RequestRow each,
+// then task 42's <h3>Issues</h3> and its rows. j/k walk both lists as one (task 41's listKeys).
+// Enter on a request row opens RequestPanel beside the list, as task 42's CriterionPicker opens.
+// The number keys 1-4 and T are issue keys: on a request row they do nothing (decision 7).
+```
+
+Requests sort **oldest first** (the longest wait on top), a measured order, not a rank. While
+`hasRequests` is `false` the `Requests` heading, its rows and the list's *requests* filter chip are
+absent from the DOM, not hidden with CSS.
