@@ -310,3 +310,58 @@ export type RelayMethod = (typeof WORK_RELAY)[number][0];
 export type LocalMethod = (typeof WORK_LOCAL)[number][0];
 ```
 
+#### Interfaces — complete: `work.ts`, part 6: `WorkClient`
+
+```ts
+/** SW.15. One method per row of WORK_RELAY (Go's name in lower camel case) and per row of
+ *  WORK_LOCAL. Every method rejects with the client's ApiError and nothing else. */
+export interface WorkClient {
+  setProjectKey(projectId: string, key: string): Promise<ProjectKey>;
+  createIssue(projectId: string, req: CreateIssueRequest): Promise<IssueWithRevision>;
+  issues(projectId: string, q?: IssueQuery, page?: PageRequest): Promise<Page<IssueHead>>;
+  /** How a typed alias ("EP-142") becomes an issue: the caller knows the project. */
+  issueByNumber(projectId: string, n: number): Promise<IssueWithRevision>;
+  issue(issueId: string): Promise<IssueWithRevision>;
+  patchIssue(issueId: string, req: PatchIssueRequest): Promise<IssueHead>;
+  writeIssueRevision(issueId: string, req: WriteIssueRevisionRequest): Promise<IssueRevision>;
+  issueRevisions(issueId: string, page?: PageRequest): Promise<Page<IssueRevision>>;
+  issueRevisionAt(issueId: string, rev: number): Promise<IssueRevision>;
+  /** Writes a NEW revision copying `fromRevision`; the path's {rev} is that number. */
+  restoreIssueRevision(issueId: string, fromRevision: number): Promise<IssueRevision>;
+  moveIssueState(issueId: string, move: StateMove): Promise<IssueHead>;
+  attachBlob(issueId: string, digest: Digest): Promise<IssueAttachment>;
+  attachments(issueId: string): Promise<IssueAttachment[]>;
+  addRelation(issueId: string, req: RelationRequest): Promise<IssueHead>;
+  removeRelation(issueId: string, kind: RelationKind, otherId: string): Promise<IssueHead>;
+  labels(teamId: string): Promise<Label[]>;
+  createLabel(teamId: string, req: CreateLabelRequest): Promise<Label>;
+  archiveLabel(labelId: string): Promise<Label>;
+  teamPolicy(teamId: string): Promise<TeamPolicy>;
+  putTeamPolicy(teamId: string, req: PutTeamPolicyRequest): Promise<TeamPolicy>;
+  comments(issueId: string, page?: PageRequest): Promise<Page<IssueComment>>;
+  createComment(issueId: string, req: CreateCommentRequest): Promise<IssueComment>;
+  react(commentId: string, emoji: string, on: boolean): Promise<IssueComment>;
+  resolveComment(commentId: string, resolved: boolean): Promise<IssueComment>;
+  subscribe(issueId: string, subscribed: boolean): Promise<Subscription>;
+  subscriptions(page?: PageRequest): Promise<Page<Subscription>>;
+  searchIssues(q: IssueSearchQuery): Promise<IssueHead[]>;
+  importBatch(projectId: string, batch: ImportBatch): Promise<ImportResult>;
+  /** Org admin only. Ids, keys, digests and revision numbers stay; the texts read as erased. */
+  eraseIssue(issueId: string, reason: string): Promise<WorkEraseResponse>;
+  eraseComment(commentId: string, reason: string): Promise<WorkEraseResponse>;
+
+  // ── local: tasks 24 and 25 ──
+  start(req: StartRequest): Promise<StartResult>;
+  /** 409 first_write once the agent has written: offer Stop and discard (workProblem). */
+  undoStart(sessionId: string): Promise<UndoStartResult>;
+  /** `confirm` "" asks for the token (409 confirm_required); the token discards. */
+  discardStart(sessionId: string, confirm: string): Promise<DiscardStartResult>;
+  importPreview(req: ImportRequest): Promise<ImportPreview>;
+  importRun(req: ImportRequest): Promise<ImportOutcome>;
+}
+```
+
+`importRun`, not `import`: `import` is a reserved word, legal as a property name but not as a
+destructured binding, and a caller will destructure. `start` and the four others keep task 24's
+and 25's words (`undo_start`, `/import/preview`).
+
