@@ -413,7 +413,10 @@ AuthoredText, updatedAt, expiresAt}` (private to its author, L-33, L-44); `Issue
 number}`. **Team policy additions:** `estimateScale`, `estimateZero`, `staleAfterDays`, `staleMode
 "propose" | "auto"`, `archiveAfterDays` (task 03's `stopAtLandedWithoutServes` unchanged).
 **Request bodies:**
-`PatchIssuePlanRequest` (pointer fields for the head fields above), `RankRequest{before, after
+`PatchIssuePlanRequest{estimate, dueOn}` (pointer fields; task 79's route), one small body per
+aggregate field, `SetFeatureRequest{featureId *string}` (76), `SetCycleRequest{cycleId *string}`
+(77) and `SetParentRequest{parentId *string}` (78), so the aggregate tasks never share a
+handler, `RankRequest{before, after
 *string}`, `MoveIssueRequest{toProjectId}`, `SetSubStateRequest{key *string}`,
 `PromoteToFeatureRequest{name, slug}`, `PutCadenceRequest`, `AnswerClosureRequest{close []string}`,
 and one create/patch body per record. `WorkPlan`'s methods, one per route task 74's migration and
@@ -439,8 +442,8 @@ is accepted only while the head's state is in its band (`before_started`: `triag
 (`409 held_by_substate`) until a person clears it (05 §3.3); creating a feature reserves
 `refs/heads/<slug>` and creates its branch brief at once, and a second feature or brief on that
 ref is `409 brief_exists` (`hub-contract.md:253`, 04 §2.5); *promote to feature* returns the new
-`ft-` with the issue as its first child and the issue's `serves` copied onto nothing (they stay on
-the issue revision) (L-23); cycle numbers are gapless per team, `PutCadence` creates `ahead`
+`ft-` with the issue as its first child, and the issue keeps its `serves` on its own revision
+(nothing is copied; L-23); cycle numbers are gapless per team, `PutCadence` creates `ahead`
 upcoming cycles, and rollover moves every issue not `done`, `cancelled` or `duplicate` to the next
 cycle with one event each and `actor: null` (04 §2.5, L-60); a `started` move puts the issue in the
 current cycle, written as the person (L-61); a cycle change after `startsOn` appends a
@@ -492,4 +495,64 @@ route whose role check is missing (mutant: member sets a team default); `go test
 **Depends on** 72. **Design:** 05 §3.1-§3.3, §3.6; hub-contract §5, §10. **Closes** no row alone.
 **Does not claim** a migration applied anywhere shared (they are applied nowhere shared until
 merged, rule H1), or W4's tables.
+
+**75 — custom states inside the human bands.** Stream WH; the Hub half of L-8's W2 row (the desktop
+is task 84). Files: `control-plane/internal/hub/store/work_custom_states.go` and
+`server/work_custom_states.go` (+ tests, new pair), task 10's state route and done rule
+(`server/work_states.go` by the file map's pattern; path as task 10's part built it) for the
+held-done check, and `server/matrix_integration_test.go` ⚑. **Routes:** `PUT
+/v1/teams/{teamId}/states` (team admin) with `{states: [CustomState]}`, replacing the team's list
+in one write; `GET /v1/teams/{teamId}/states` (viewer); `PUT /v1/issues/{issueId}/sub-state`
+(member) with `SetSubStateRequest{key}` (`null` clears). **Rules** (05 §3.3): the five fact states
+cannot be renamed, reordered or removed (they are not in the list at all; a key equal to a fact
+state's name is `422`); a sub-state is valid only while the head's state is in its band; an
+`after_landed` sub-state **holds `done`**: the evidence move is refused with `409
+held_by_substate`, and when a person clears it the server re-runs task 10's done rule at once, so
+an issue whose evidence already holds turns `done` **written as the person who cleared it**, cause
+`evidence` (never `actor: null`); a state move out of the band clears the sub-state in the same
+transaction; removing a custom state that issues hold is `409 state_in_use` with the plain count.
+Every write appends one metadata-only event (`team.states_changed`, `issue.sub_state_changed`;
+SW.5 gains the two kinds). **Tests first:** (1) a list naming `landed` is refused (mutant: fact
+states editable); (2) a `before_started` sub-state on a `started` issue is `422` (mutant: band
+unchecked); (3) evidence recorded while *In QA* is set leaves the issue `landed` (mutant: done
+ignores the sub-state); (4) clearing *In QA* with evidence already held makes it `done` with the
+clearer as actor (mutants: stays `landed` until the next evidence; `actor: null`); (5) moving
+`backlog` → `todo` keeps a `before_started` sub-state and `todo` → `started` clears it (mutant:
+stale sub-state); (6) removing a held state is `409` (mutant: orphaned keys); (7) every write has
+its event (mutant: silent write); (8) matrix rows: a member cannot `PUT` the team's states, the
+sync principal cannot set a sub-state. **Depends on** 74. **Design:** 05 §3.3, §5.4 (W2's first
+row). **Closes** L-8's W2 half and L-2's state names (Hub halves; task 84 the desktop). **Does not
+claim** custom states between `started` and `landed` (forbidden by design) or per-project states.
+
+**76 — features `ft-`: lead, dates, status, branch reservation, *promote to feature*.** Stream WH.
+Files: `control-plane/internal/hub/store/work_features.go`, `server/work_features.go` (+ tests,
+new pair), `server/matrix_integration_test.go` ⚑. **Routes:** `POST
+/v1/projects/{projectId}/features` (member) `{name, slug, leadId, targetDate, priority, labels}`;
+`GET /v1/projects/{projectId}/features`; `GET` and `PATCH /v1/features/{featureId}` (lead, dates,
+status, priority, labels); `PUT /v1/issues/{issueId}/feature` (`SetFeatureRequest`);
+`POST /v1/issues/{issueId}/promote` (`PromoteToFeatureRequest{name, slug}`). **Rules** (04 §2.5):
+creating a feature **reserves `refs/heads/<slug>`** by creating its branch brief in the same
+transaction (the Hub validates the ref's format only, `hub-contract.md:131-137`, and never reads
+git), so a second feature or brief on that ref is `409 brief_exists` (`hub-contract.md:253`); the
+git branch is cut on the first Start (task 24), and the control plane refuses to cut that name for
+anything else (a check this task adds to task 24's route as a one-line delta, since the Hub cannot
+see git); status `planned`·`active`·`paused`·`done`·`cancelled` is set only by a person, and the
+facts beside it (lanes live, landed, released where) are **derived at read time**, never stored
+(rule 3; task 85 shows them); *promote to feature* creates the `ft-` and its branch brief,
+records the issue as the feature's first child (`featureId`), and leaves the issue's `serves`
+on its own revision (L-23); the brief's text is drafted by phase 4 after its task 18
+(`model_drafted`, 05 §5.5), so this route creates the brief record with the issue's title and a
+pointer to the issue revision it came from, as `text·H` of the promoter; AU-only projects take a
+slug with no title words (Q8, `OD-24`). Events `feature.created`, `feature.updated`,
+`issue.feature_set`, `issue.promoted`. **Tests first:** (1) two features on one slug: the second
+is `409 brief_exists` and writes nothing (mutant: reservation outside the transaction); (2) a
+`PATCH` that sends a derived fact (`released`) is `422` (mutant: stored facts); (3) *promote* gives
+one `ft-`, one brief and the issue as child, and the issue's revision is unchanged (mutants: a new
+issue revision; `serves` moved); (4) an AU-only project refuses a slug containing the issue's
+title words (mutant: title slug in AU branches); (5) a feature's lead must be a team member
+(mutant: any user); (6) every write has one event (mutant: two events or none); (7) matrix rows:
+a viewer cannot create, the sync principal cannot promote. **Depends on** 74; P4-18. **Design:**
+05 §3.2 (feature row), §5.4 W2, §4.5; 04 §2.5. **Closes** the Hub halves of L-23, L-67's W2 half,
+L-69, L-70 and L-71 (the desktop is 85-86). **Does not claim** multi-team features (W4, L-67),
+milestones (W4, L-72), initiatives, or the brief's drafted text (phase 4).
 
