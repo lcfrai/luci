@@ -337,9 +337,9 @@ func isFeedPath(r *http.Request) bool {
 }
 
 // resolveCaller is contract §5.1 steps 3a and 5 (decision c), the first statement
-// of every Read and Write transaction, where store.ResolvePrincipal was. created
-// is true only when a desktop caller was provisioned by this call.
-func (s *Server) resolveCaller(ctx context.Context, tx pgx.Tx, now time.Time) (p Principal, created bool, err error) {
+// of every Read and Write transaction, where store.ResolvePrincipal was. The bool
+// (created) is true only when a desktop caller was provisioned by this call.
+func (s *Server) resolveCaller(ctx context.Context, tx pgx.Tx, now time.Time) (Principal, bool, error) {
 	c, _ := ClaimsFrom(ctx)
 	switch {
 	case !c.AppOnly:
