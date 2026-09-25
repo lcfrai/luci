@@ -334,12 +334,13 @@ func TestReplies(t *testing.T) {
 }
 
 // Review I-5 (task 09's price check). Kills: the wrong path, and a group listed
-// twice reported at its priced deployment when the other is unpriced.
+// twice reported at its priced deployment when the other is unpriced. The
+// unpriced deployment comes first, so "the last one wins" is caught too.
 func TestModelPricesKeepsTheLowerPricePerGroup(t *testing.T) {
 	f := newFake(t, map[string]reply{"/model/info": {status: 200, body: `{"data":[` +
 		`{"model_name":"global/m","model_info":{"input_cost_per_token":0.000005,"output_cost_per_token":0.000025}},` +
-		`{"model_name":"au/m","model_info":{"input_cost_per_token":0.000005,"output_cost_per_token":0.000025}},` +
-		`{"model_name":"au/m","model_info":{"input_cost_per_token":null,"output_cost_per_token":0,"extra":true}}]}`}})
+		`{"model_name":"au/m","model_info":{"input_cost_per_token":null,"output_cost_per_token":0,"extra":true}},` +
+		`{"model_name":"au/m","model_info":{"input_cost_per_token":0.000005,"output_cost_per_token":0.000025}}]}`}})
 	got, err := client(t, f, Options{}).ModelPrices(context.Background())
 	if err != nil {
 		t.Fatal(err)

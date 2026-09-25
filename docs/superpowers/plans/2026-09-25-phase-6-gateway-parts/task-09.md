@@ -426,9 +426,9 @@ func (f fakePrices) ModelPrices(context.Context) (map[string]litellmadmin.GroupP
 }
 
 // Review I-5, decision (g). Kills: no price check (an unpriced group spends
-// US$0 and every budget on it is silently off), a check of input only, a
-// group LiteLLM does not list passing as priced, and a nil reader passing
-// quietly while groups are named.
+// US$0 and every budget on it is silently off), a check of input only, and a
+// nil reader passing quietly while groups are named. au/unlisted pins that a
+// group LiteLLM does not list is reported.
 func TestSweepReportsAnUnpricedGroup(t *testing.T) {
 	var got []string
 	sw := &Sweeper{Keys: &fakeKeys{}, Admin: fakeInfo{}, Store: NewMemStore(),
@@ -834,7 +834,8 @@ func (s *Sweeper) checkPrices(ctx context.Context) {
 		return
 	}
 	for _, g := range s.Groups {
-		if p, ok := prices[g]; !ok || !(p.Input > 0) || !(p.Output > 0) {
+		// An unlisted group reads as the zero price, so it is reported too.
+		if p := prices[g]; !(p.Input > 0) || !(p.Output > 0) {
 			s.report(fmt.Errorf("%w: %s (input %v, output %v per token)", ErrUnpriced, g, p.Input, p.Output))
 		}
 	}
@@ -934,7 +935,6 @@ Apply each edit alone, run `go test ./internal/usage/ -count=1`, confirm the nam
 | `Sweeper.Once`: on a `KeyInfo` error, `continue` → record `SpendUSD: 0` | `TestDeletedKeyKeepsItsSpend` (with a plain-overwrite store too) |
 | `Sweeper.Once`: delete the `s.checkPrices(ctx)` call (review I-5) | `TestSweepReportsAnUnpricedGroup` |
 | `checkPrices`: delete `\|\| !(p.Output > 0)` | `TestSweepReportsAnUnpricedGroup` (`au/m` has no output price) |
-| `checkPrices`: `!ok \|\|` deleted | `TestSweepReportsAnUnpricedGroup` (`au/unlisted`) |
 | `checkPrices`: the `s.Prices == nil` branch `return`s without reporting | `TestSweepReportsAnUnpricedGroup` (the nil reader) |
 | `recentSQL`: `expires_at > $1` → `expires_at > now()` | `TestPGRecentKeysReadsKeysExpiringAfterTheCut` |
 
@@ -956,7 +956,7 @@ git commit -F <message file> -- control-plane/internal/usage/ control-plane/inte
 
 Message: `feat(usage): the per-key spend sweep and the three-dimension reader (phase 6 task 09)`, a body naming decisions (a) to (g), and the attribution line.
 
-**Acceptance:** step 6 prints `12` and `2` without a database, and `19` and `0` with one; step 7's eleven edits each fail the named test; step 8 prints nothing and then `ok`.
+**Acceptance:** step 6 prints `12` and `2` without a database, and `19` and `0` with one; step 7's ten edits each fail the named test; step 8 prints nothing and then `ok`.
 
 **What this task does not claim:**
 
