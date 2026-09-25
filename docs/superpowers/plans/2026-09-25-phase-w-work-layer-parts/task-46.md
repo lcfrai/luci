@@ -925,3 +925,73 @@ The alias test filters out attribute values containing `EP` because the view's `
 `Issue EP-142`, which is text a screen reader speaks, not identity; every other attribute must be
 byte-identical across the key change.
 
+#### Steps
+
+- [ ] **Step 1: read before writing.** `docs/DESIGN-SYSTEM.md`, `docs/AGENTIC-UX.md`,
+  `prototype/work-layer.html` (the issue view), task 39's review file for the owner's words on the
+  issue view, and on the sync base: `src/api/work.ts` (task 37), `work/replica/{replica,ops}.ts`
+  (tasks 55-56, or task 40's fixture-backed `useWork` if they have not landed), and task 26's
+  token names. Rename anything in this part that differs, in this part's files only.
+- [ ] **Step 2: the three test files first**, as above; run them and see them fail on the missing
+  modules: `npm --prefix desktop test -- issue` exits non-zero.
+- [ ] **Step 3: `stateOptions.ts`**, then its test passes alone.
+- [ ] **Step 4: `Picker.tsx` and `issue.css`**, then the four pickers and `DuplicateOfPicker.tsx`.
+- [ ] **Step 5: `AuthorClass.tsx`, `issueData.ts`, `IssueHead.tsx`, `IssueView.tsx`.**
+- [ ] **Step 6: run the tests and the typecheck** below; fix until both are clean.
+- [ ] **Step 7: commit** by path, one commit per step 3-5, each message ending with the
+  `Co-Authored-By` line. Never `git add -A`.
+
+#### Acceptance
+
+```bash
+npm --prefix desktop test -- issue/pickers issue/IssueHead
+# expect: Test Files 3 passed (3); Tests 19 passed (19)
+npm --prefix desktop run typecheck
+# expect: exit 0, no output from tsc
+grep -rn "ink-3" desktop/src/components/issue/ | wc -l
+# expect: 0
+grep -rnE "key=\{[^}]*alias" desktop/src/components/issue/ | wc -l
+# expect: 0 (no React key built from an alias)
+```
+
+The test count is this part's: 5 in `stateOptions.test.ts`, 8 in `pickers.test.tsx`, 6 in
+`IssueHead.test.tsx`. The owner's eyes are the visual acceptance (`CLAUDE.md`); nothing here
+claims the head *looks* right.
+
+#### What this task does NOT claim
+
+- Estimate `E` (L-16), the due date (L-37), cycle and feature fields: W2.
+- Org labels and label groups (L-17's W2 part); only the team's labels are offered.
+- The reason step for a hand-set `done` on a serving issue: task 48. This part leaves it shown
+  and unsendable.
+- The Hub route for a reassign request, or that the owner is asked: task 65 builds that on the
+  fake, and names the real route **UNVERIFIED**.
+- The row keys `S`, `P`, `A`, `I`, `L` and the pickers opening beside a row: task 53.
+- That the Hub refuses a hand-set fact state: task 07's guard and task 10's `MoveAllowed` hold
+  that; this part only never offers it.
+- Any visual verdict. The prototype review (task 39) and the owner's look at this branch are it.
+
+**Parity** (rows read in `05-design.md:107-348`). Closes **L-13** (five priorities, drawn as the
+notch, `05:122`), **L-38** (*one human assignee; `I` = me*, `05:147`; the `I` key itself is task
+53's), **L-17**'s team-labels part (`05:126`; org labels are W2), **L-181** (*delegate is not
+assignee*, `05:348`) with task 48, the display half of **L-3** (`05:107`, with task 08), and
+**L-8**'s W1 part (`05:117`: the fact states shown as facts, never chosen).
+
+#### Gaps found while writing this part
+
+1. **`WorkOp` needs `requestReassign`** (`{kind, issueId, toUserId}`), which task 56's closed
+   union does not list; task 65 names the Hub half (`RequestReassign`) as its own gap.
+2. **SW.15's `IssueHead` needs `reassignRequest: {to; by; at} | null`** from task 37 on, and task
+   20's `makeIssueHead` needs it `null` by default; this part's tests add it by spread until then.
+3. **The replica reads this view needs** (`issue`, `teamOfProject`, `labels`, `members`) are not
+   in task 55's scope, which names only `get` and `byProject`; `issueData.ts` isolates them.
+4. **No signed-in-user seam on the desktop.** `IssueView` takes `me`; its mount (task 40) needs
+   `GET /v1/me` through the relay, which task 16's table must carry (**UNVERIFIED**).
+5. **SW.12 has no author-class mark.** `AuthorClass.tsx` draws one here for tasks 47, 49 and 51;
+   task 29's owner may move it into `MarkGlyph`.
+6. **Task 46 uses SW.16 but depends only on 37 and 39.** It builds on task 40's fixture-backed
+   `useWork` until tasks 55-58 land, as task 40 does; `search` (task 58) is used by
+   `DuplicateOfPicker` with a signature **UNVERIFIED** here.
+7. The File map's `src/components/issue/` row lists none of `pickers/*`, `issueData.ts`,
+   `AuthorClass.tsx` or `issue.css`.
+
