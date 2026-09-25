@@ -376,3 +376,79 @@ to, priority, TeamPolicy(team))` → 422 `policy_refused`, `details.policy =
 accepts the issue first is **UNVERIFIED** here, and the conformance row in task 05 is where the two
 must agree.
 
+#### Tests to write first, part 1 — `hubapi/work_social_test.go` (pure, no database)
+
+```go
+package hubapi
+
+import "testing"
+
+func TestTriageExitRefusedOnlyWhereThePolicySays(t *testing.T) {
+	on := TeamPolicy{TeamID: "tm-0000000000000001", DefaultState: StateBacklog, PriorityToLeaveTriage: true}
+	off := on
+	off.PriorityToLeaveTriage = false
+	cases := []struct {
+		name     string
+		from, to IssueState
+		p        Priority
+		pol      TeamPolicy
+		refused  bool
+	}{
+		{"accept unprioritised", StateTriage, StateTodo, PriorityNone, on, true},
+		{"accept to backlog unprioritised", StateTriage, StateBacklog, PriorityNone, on, true},
+		{"accept prioritised", StateTriage, StateTodo, PriorityHigh, on, false},
+		{"decline is never blocked", StateTriage, StateCancelled, PriorityNone, on, false},
+		{"duplicate is never blocked", StateTriage, StateDuplicate, PriorityNone, on, false},
+		{"policy off", StateTriage, StateTodo, PriorityNone, off, false},
+		{"not leaving triage", StateBacklog, StateTodo, PriorityNone, on, false},
+		{"triage to triage", StateTriage, StateTriage, PriorityNone, on, false},
+	}
+	for _, c := range cases {
+		if got := TriageExitRefused(c.from, c.to, c.p, c.pol); got != c.refused {
+			t.Errorf("%s: TriageExitRefused = %v, want %v", c.name, got, c.refused)
+		}
+	}
+}
+
+func TestInverseRelationIsAnInvolution(t *testing.T) {
+	for _, k := range []RelationKind{RelationBlocks, RelationBlockedBy, RelationDuplicates,
+		RelationDuplicatedBy, RelationRelates} {
+		if InverseRelation(InverseRelation(k)) != k {
+			t.Errorf("InverseRelation twice on %q is %q", k, InverseRelation(InverseRelation(k)))
+		}
+	}
+	if InverseRelation(RelationRelates) != RelationRelates {
+		t.Errorf("relates must read the same from both ends")
+	}
+	if InverseRelation(RelationBlocks) != RelationBlockedBy {
+		t.Errorf("blocks must read blocked_by from the other end")
+	}
+}
+
+func TestOnlyThreeRelationKindsAreWritable(t *testing.T) {
+	for k, want := range map[RelationKind]bool{RelationBlocks: true, RelationDuplicates: true,
+		RelationRelates: true, RelationBlockedBy: false, RelationDuplicatedBy: false, "parent": false} {
+		if WritableRelationKind(k) != want {
+			t.Errorf("WritableRelationKind(%q) = %v, want %v", k, !want, want)
+		}
+	}
+}
+
+func TestTheDefaultPolicyIsBacklogWithEverySwitchOff(t *testing.T) {
+	p := DefaultTeamPolicy("tm-0000000000000001")
+	if p.DefaultState != StateBacklog || p.PriorityToLeaveTriage || p.StopAtLandedWithoutServes {
+		t.Fatalf("DefaultTeamPolicy = %+v", p)
+	}
+	if p.UpdatedAt != nil || p.UpdatedBy != nil {
+		t.Fatalf("the defaults must read updatedAt and updatedBy null, got %+v", p)
+	}
+}
+```
+
+| Test | Mutant it kills |
+|---|---|
+| `TestTriageExitRefusedOnlyWhereThePolicySays` | a policy that blocks declining (`cancelled`) or marking a duplicate; a policy that fires when switched off; one that blocks moves that are not out of triage |
+| `TestInverseRelationIsAnInvolution` | a one-sided read (`blocks` shown as `blocks` from both ends); an inverse table with a typo that maps `duplicated_by` back to `blocks` |
+| `TestOnlyThreeRelationKindsAreWritable` | a writer storing `blocked_by`, which would make one pair two rows and the two-cycle check blind |
+| `TestTheDefaultPolicyIsBacklogWithEverySwitchOff` | a default of `triage` (every new issue would land in a queue nobody asked for) or a switch on by default |
+
