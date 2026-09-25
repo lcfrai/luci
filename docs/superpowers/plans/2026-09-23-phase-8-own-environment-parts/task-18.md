@@ -30,7 +30,7 @@ import "time"
 
 // HeaderAttachToken carries a sandbox's attach token on GET …/attach. The
 // broker passes it to sandboxd as the bearer token and never stores it. It is
-// a separate header because Authorization carries the caller's Entra token.
+// a separate header because Authorization carries the caller's realm token (OD-30).
 const HeaderAttachToken = "Panacea-Attach-Token"
 
 // MachineMount mirrors backend.MachineMount on the wire.
@@ -246,8 +246,8 @@ waits in the upstream socket until the relay starts, a few milliseconds later.
 5. `proxy.RelayHooked(ctx, caller, upstream, proxy.Hooks{})` until either side closes; then both
    are closed with the other side's status where known, `1001` on broker shutdown.
 
-The caller's `Authorization` header never reaches the pod: `entra.Middleware` removed it
-(task 16), and `backend.Dial` sends only the attach token.
+The caller's `Authorization` header never reaches the pod: `oidcauth.Middleware` removed it
+(task 16, renamed by task 17 step 0), and `backend.Dial` sends only the attach token.
 
 ```go
 // machinecheck.go — the seam task 19 fills.
@@ -342,7 +342,7 @@ the key).
 | `TestAttachWithoutTheTokenHeaderIs400` | before any upgrade | an upgrade the pod will refuse |
 | `TestAttachToAStoppedSandboxIs409BeforeUpgrade` | HTTP 409 `sandbox_not_running`, no 101 | a close code remotebe cannot map |
 | `TestARejectedTokenIs403AttachRejected` | the stand-in answers 401 → HTTP 403 `attach_rejected` | a 500 that looks like a broker bug |
-| `TestThePodNeverSeesTheEntraToken` | the stand-in records its request headers: `Authorization` is `Bearer <attach token>`, never the Entra token | the user's token forwarded into a sandbox (ADR-H1 §5.8, `67609ab` `:545`) |
+| `TestThePodNeverSeesTheRealmToken` | the stand-in records its request headers: `Authorization` is `Bearer <attach token>`, never the caller's realm token | the user's token forwarded into a sandbox (ADR-H1 §5.8, `67609ab` `:545`) |
 | `TestKeepalivePingsTheCaller` | with a 50 ms test interval, the caller observes pings while idle | idle sockets cut by the edge |
 | `TestShutdownClosesRelaysWith1001` | cancelling the server context → the caller sees status 1001 | a silent drop remotebe cannot tell from a crash |
 
