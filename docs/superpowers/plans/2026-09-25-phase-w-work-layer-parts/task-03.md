@@ -148,3 +148,95 @@ const (
 
 var RelationKinds = []RelationKind{RelationBlocks, RelationDuplicates, RelationRelates}
 ```
+
+```go
+// ThreadStateKind is computed on every head read from the head revision
+// (task 10); never set by a client.
+type ThreadStateKind string
+
+const (
+	ThreadOnThread     ThreadStateKind = "on_thread"     // serves a branch brief's criterion
+	ThreadProjectLevel ThreadStateKind = "project_level" // serves only the project brief's
+	ThreadNotTied      ThreadStateKind = "not_tied"      // serves nothing; needs a reason
+)
+
+// NotTiedReason says why an issue is off the thread: never a silent open end
+// (05-design §2.3 point 4).
+type NotTiedReason string
+
+const (
+	NotTiedChore    NotTiedReason = "chore"
+	NotTiedSpike    NotTiedReason = "spike"
+	NotTiedImported NotTiedReason = "imported"
+	NotTiedSupport  NotTiedReason = "support"
+)
+
+var NotTiedReasons = []NotTiedReason{NotTiedChore, NotTiedSpike, NotTiedImported, NotTiedSupport}
+
+func ValidNotTiedReason(r NotTiedReason) bool { return slices.Contains(NotTiedReasons, r) }
+
+// IssueSource is who opened the issue (04-internal-fit §2.4).
+type IssueSource string
+
+const (
+	SourcePerson       IssueSource = "person"
+	SourceOrchestrator IssueSource = "orchestrator"
+	SourceIntake       IssueSource = "intake" // import, form, sync
+)
+
+var IssueSources = []IssueSource{SourcePerson, SourceOrchestrator, SourceIntake}
+
+// SubscriptionCause is why a person is subscribed (L-117).
+type SubscriptionCause string
+
+const (
+	SubscribeCreate  SubscriptionCause = "create"
+	SubscribeAssign  SubscriptionCause = "assign"
+	SubscribeMention SubscriptionCause = "mention"
+	SubscribeComment SubscriptionCause = "comment"
+	SubscribeManual  SubscriptionCause = "manual"
+)
+
+var SubscriptionCauses = []SubscriptionCause{SubscribeCreate, SubscribeAssign, SubscribeMention,
+	SubscribeComment, SubscribeManual}
+
+// MoveCause is why a state moved: the complete W1 set (SW.4; task 10 owns the
+// rule, declared here so task 04's fake can hold it).
+type MoveCause string
+
+const (
+	CauseHand             MoveCause = "hand"              // a person, among the non-fact states, or a hand-set done
+	CauseLaneBound        MoveCause = "lane_bound"        // → started (task 22)
+	CauseLaneQueued       MoveCause = "lane_queued"       // → in_review (task 22)
+	CauseLandTrailer      MoveCause = "land_trailer"      // → landed, with LandCommit (task 22)
+	CauseEvidenceObserved MoveCause = "evidence_observed" // → done, with Evidence (task 23)
+	CauseEvidenceRecorded MoveCause = "evidence_recorded" // → done, with Evidence (task 23)
+)
+
+var MoveCauses = []MoveCause{CauseHand, CauseLaneBound, CauseLaneQueued, CauseLandTrailer,
+	CauseEvidenceObserved, CauseEvidenceRecorded}
+
+// Proof is the done rule's result word on IssueHead.Proof (SW.4). "" before landed.
+type Proof string
+
+const (
+	ProofNone         Proof = ""
+	ProofProven       Proof = "proven"               // every record observed
+	ProofSelfAttested Proof = "proven_self_attested" // recorded by the issue's own starter
+	ProofNotProven    Proof = "not_proven"           // a hand-set done: "done, not proven"
+	ProofNoCriteria   Proof = "no_criteria"          // empty serves
+	ProofWaiting      Proof = "waiting"              // landed; a criterion lacks evidence
+)
+
+var Proofs = []Proof{ProofNone, ProofProven, ProofSelfAttested, ProofNotProven, ProofNoCriteria, ProofWaiting}
+
+// CommentKindComment is W1's only comment kind; W3 adds note,
+// evidence_proposal and negotiation (SW.19, task 99).
+const CommentKindComment = "comment"
+
+// Import sources in W1 (SW.6; task 15 fixes the semantics, W5 adds more).
+const (
+	ImportSourceLinear = "linear"
+	ImportSourceCSV    = "csv"
+)
+```
