@@ -392,3 +392,89 @@ Longhands, not the `font` shorthand, on `.dt`: the audit's numeric rule (`design
 fails a shorthand that resets `font-variant-numeric` on a carrier. `.dt-reset`'s `font: inherit`
 is `app.css:47`'s own form for controls. The accent on a checked radio marks the current choice,
 which is what 02 C5 allows accent for.
+
+#### Interfaces — complete: `desktop/src/devtools/fonts/candidates.css`
+
+```css
+/* desktop/src/devtools/fonts/candidates.css
+ *
+ * Q14's two alternative sans faces (Phase W task 32; 05 §4.4 C3, revision 2). DEV ONLY:
+ * DevToolbar.tsx imports this file, and mount.ts loads DevToolbar behind import.meta.env.DEV, so
+ * a production build carries neither face nor either name. OD-28 chose Segoe UI Variable, which
+ * has no rule here because it is the default; these two exist so the owner confirms it by eye.
+ *
+ * Every rule sets all three sans tokens. Task 27's --sans-small and --sans-display lead with a
+ * Segoe optical size that every Windows laptop has installed, so overriding --sans alone would
+ * change the body and leave --t-meta and --t-head text in Segoe.
+ *
+ * One variable file per family, because --t-head-weight is 560. The weight ranges below are the
+ * files' wght axes as step 1 reads them; until then they are UNVERIFIED. Each family's OFL text
+ * and its fonts.lock.json entry sit in this directory, not in src/assets/fonts/, whose manifest
+ * lists only what ships. */
+@import "../../styles/tokens.css";
+
+@font-face {
+  font-family: "Atkinson Hyperlegible Next";
+  src: url("./AtkinsonHyperlegibleNext-Variable.woff2") format("woff2");
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: block;
+}
+
+@font-face {
+  font-family: "Geist";
+  src: url("./Geist-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: block;
+}
+
+:root[data-sans="atkinson"] {
+  --sans: "Atkinson Hyperlegible Next", system-ui, sans-serif;
+  --sans-small: "Atkinson Hyperlegible Next", system-ui, sans-serif;
+  --sans-display: "Atkinson Hyperlegible Next", system-ui, sans-serif;
+}
+
+:root[data-sans="geist"] {
+  --sans: "Geist", system-ui, sans-serif;
+  --sans-small: "Geist", system-ui, sans-serif;
+  --sans-display: "Geist", system-ui, sans-serif;
+}
+```
+
+`:root[data-sans="…"]` is specificity (0,2,0) against task 27's `:root` (0,1,0), so the rule wins
+whatever order Vite emits the two sheets in.
+
+#### Interfaces — complete: `desktop/src/devtools/fonts/fonts.lock.json`
+
+Task 27's manifest shape, so one reader could check both. Values are step 1's.
+
+```json
+{
+  "atkinson-hyperlegible-next": {
+    "family": "Atkinson Hyperlegible Next",
+    "licence": "<SPDX id as the release states it, UNVERIFIED until fetched>",
+    "licenceFile": "OFL-AtkinsonHyperlegibleNext.txt",
+    "release": "<release or commit — UNVERIFIED until fetched>",
+    "source": "<the Braille Institute or google/fonts URL it was fetched from>",
+    "files": [
+      { "ours": "AtkinsonHyperlegibleNext-Variable.woff2", "upstream": "<name>", "sha256": "<64 hex>" }
+    ]
+  },
+  "geist": {
+    "family": "Geist",
+    "licence": "<SPDX id, UNVERIFIED until fetched; expected OFL-1.1>",
+    "licenceFile": "OFL-Geist.txt",
+    "release": "<release tag — UNVERIFIED until fetched>",
+    "source": "https://github.com/vercel/geist-font/releases/tag/<tag>",
+    "files": [
+      { "ours": "Geist-Variable.woff2", "upstream": "<name>", "sha256": "<64 hex>" }
+    ]
+  }
+}
+```
+
+The Geist repository and its licence are from memory, not fetched: **UNVERIFIED**. Atkinson
+Hyperlegible Next's licence and weight range are **UNVERIFIED**, as 05 §4.4 C3 already records.
+If either licence is not on `OD-11`'s allowed list (MIT, Apache, BSD, ISC, OFL), that face is
+dropped from `SANS_CANDIDATES` and the owner is told, rather than fetched under another licence.
