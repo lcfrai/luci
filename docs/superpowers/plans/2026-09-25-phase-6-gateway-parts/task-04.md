@@ -28,9 +28,9 @@ Four decisions the skeleton leaves open, made here so no later part re-derives t
   - `litellmadmin.New(baseURL, masterKeyFile string, o Options) (*Client, error)`; `Options{Timeout time.Duration; HTTP *http.Client}`, zero `Timeout` = `DefaultTimeout` (20 s, the skeleton's `MINT_TIMEOUT`), nil `HTTP` = a client that refuses redirects
   - `litellmadmin.ErrNoMasterKey`; `*litellmadmin.Error{Op string; Status int; Type string; Timeout bool}` with `Unwrap`
   - `GenerateKeyRequest`, `GenerateKeyResponse{Key}`, `KeyInfo{Spend float64; MaxBudget *float64; KeyAlias, UserID, TeamID, Expires string; Metadata map[string]any}`
-  - `(*Client) GenerateKey`, `DeleteKeys`, `KeyInfo`, `EnsureUser`, `EnsureTeam`, `Health`
+  - `(*Client) GenerateKey`, `DeleteKeys`, `KeyInfo`, `EnsureUser`, `EnsureTeam`, `Health`, and `ModelPrices(ctx) (map[string]GroupPrice, error)` with `GroupPrice{Input, Output float64}` per token (fix batch b02, review I-5)
 - Consumes: `wire.CheckBaseURL` (task 03) for the base URL; the standard library.
-- Required by: task 07 (`keysmith.AdminAPI` is four of these methods), task 08 (`New` at start-up; `Health` in `/readyz`), task 09 (`KeyInfo` in the sweep).
+- Required by: task 07 (`keysmith.AdminAPI` is four of these methods), task 08 (`New` at start-up; `Health` in `/readyz`), task 09 (`KeyInfo` in the sweep, and `ModelPrices` in its price check, task 09 decision (g)).
 
 **LiteLLM's admin API as this client calls it.** Paths and field names are LiteLLM's documented proxy API as the skeleton and task 18 give them (`task-18.md`, "LiteLLM's admin API as this script calls it"), **not re-read for this part**, and so **UNVERIFIED** until task 18 runs against the pinned digest:
 
@@ -42,6 +42,7 @@ Four decisions the skeleton leaves open, made here so no later part re-derives t
 | `EnsureUser` | `POST /user/new`, then `POST /user/update` | `user_id`, `max_budget`, `budget_duration` | status |
 | `EnsureTeam` | `POST /team/new`, then `POST /team/update` | `team_id`, `max_budget`, `budget_duration` | status |
 | `Health` | `GET /health/readiness` | none | status |
+| `ModelPrices` | `GET /model/info` | none | `data[].model_name`, `data[].model_info.input_cost_per_token`, `data[].model_info.output_cost_per_token` |
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -331,6 +332,28 @@ func TestReplies(t *testing.T) {
 		t.Fatalf("KeyInfo = %+v, %v", info, err)
 	}
 }
+
+// Review I-5 (task 09's price check). Kills: the wrong path, and a group listed
+// twice reported at its priced deployment when the other is unpriced.
+func TestModelPricesKeepsTheLowerPricePerGroup(t *testing.T) {
+	f := newFake(t, map[string]reply{"/model/info": {status: 200, body: `{"data":[` +
+		`{"model_name":"global/m","model_info":{"input_cost_per_token":0.000005,"output_cost_per_token":0.000025}},` +
+		`{"model_name":"au/m","model_info":{"input_cost_per_token":0.000005,"output_cost_per_token":0.000025}},` +
+		`{"model_name":"au/m","model_info":{"input_cost_per_token":null,"output_cost_per_token":0,"extra":true}}]}`}})
+	got, err := client(t, f, Options{}).ModelPrices(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g := got["global/m"]; g.Input != 0.000005 || g.Output != 0.000025 {
+		t.Errorf("global/m = %+v, want its model_info prices", g)
+	}
+	if a := got["au/m"]; a.Input != 0 || a.Output != 0 {
+		t.Errorf("au/m = %+v, want the unpriced deployment's zeros", a)
+	}
+	if c := f.calls(); len(c) != 1 || c[0].method != http.MethodGet || c[0].path != "/model/info" {
+		t.Errorf("calls = %+v, want one GET /model/info", c)
+	}
+}
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
@@ -584,6 +607,38 @@ func (c *Client) KeyInfo(ctx context.Context, keyID string) (KeyInfo, error) {
 	return env.Info, nil
 }
 
+// GroupPrice is what LiteLLM will charge one model group per token. Zero means
+// it has no price, and a call to that group spends US$0 (review I-5).
+type GroupPrice struct{ Input, Output float64 }
+
+// ModelPrices reads GET /model/info: each group's per-token price as LiteLLM
+// will charge it. A group listed twice (two deployments) keeps the lower of
+// each figure, since a call may land on either. The shape (data[].model_name,
+// data[].model_info.*_cost_per_token) is training knowledge, UNVERIFIED.
+func (c *Client) ModelPrices(ctx context.Context) (map[string]GroupPrice, error) {
+	var env struct {
+		Data []struct {
+			ModelName string `json:"model_name"`
+			ModelInfo struct {
+				Input  float64 `json:"input_cost_per_token"`
+				Output float64 `json:"output_cost_per_token"`
+			} `json:"model_info"`
+		} `json:"data"`
+	}
+	if err := c.do(ctx, "model/info", http.MethodGet, nil, nil, &env); err != nil {
+		return nil, err
+	}
+	out := make(map[string]GroupPrice, len(env.Data))
+	for _, d := range env.Data {
+		p := GroupPrice{d.ModelInfo.Input, d.ModelInfo.Output}
+		if old, seen := out[d.ModelName]; seen {
+			p = GroupPrice{min(old.Input, p.Input), min(old.Output, p.Output)}
+		}
+		out[d.ModelName] = p
+	}
+	return out, nil
+}
+
 // EnsureUser makes the person's LiteLLM user exist with this budget.
 func (c *Client) EnsureUser(ctx context.Context, id string, maxBudget float64, budgetDuration string) error {
 	return c.ensure(ctx, "user", budgetBody{UserID: id, MaxBudget: maxBudget, BudgetDuration: budgetDuration})
@@ -634,6 +689,7 @@ Expected:
 --- PASS: TestAnErrorCarriesNeitherTheBodyNorAKey (0.00s)
 --- PASS: TestARedirectIsAnErrorAndNotFollowed (0.00s)
 --- PASS: TestReplies (0.00s)
+--- PASS: TestModelPricesKeepsTheLowerPricePerGroup (0.00s)
 ok  	github.com/kpmg-au-emu/panacea-app/control-plane/internal/litellmadmin
 ```
 
@@ -650,6 +706,7 @@ The timings are indicative; `TestAHungServerFailsAfterTheTimeout` must stay well
 | `New`: delete `h.CheckRedirect = refuseRedirect` | `TestARedirectIsAnErrorAndNotFollowed` |
 | `ensure`: `return err` after a failed create, without the update | `TestEnsureCreatesThenUpdates` |
 | `KeyInfo`: `url.Values{"key": {keyID}}` → the path `key/info/`+keyID | `TestEveryCallSendsTheMasterKeyAndItsGoldenBody` |
+| `ModelPrices`: delete the `if old, seen := …` block (the last deployment wins) | `TestModelPricesKeepsTheLowerPricePerGroup` (`au/m` reads as priced) |
 
 - [ ] **Step 6: Format, vet and confirm the import set**
 
