@@ -54,14 +54,14 @@ agent with a marker prompt and greps every verb's bytes for it, for both classes
     `wire.CodeUnavailable`; `wire.Refuse(code, msg string) error`, which dispatch turns into the
     ST.1 error envelope;
   - task 02: `teamtext.Clean`, `teamtext.Bound`, `teamtext.KindPath`, `teamtext.KindBriefTitle`,
-    `teamtext.ValidGlob`, and **`teamtext.Match(glob, path string) bool`** (see gap below);
+    `teamtext.ValidPath` (one file, no glob metacharacter), and `teamtext.Match(glob,
+    path string) bool` (`task-02.md:69`);
   - task 10: `store.Store`'s `Agents(ctx, org, project)` and `Leases(ctx, org, project)`.
 - Required by: 23 (`TreeSource`, `Sources`), 24, 25, 16's push, 18's CLI output, 38, 52.
 
-**Gap (in the return).** Task 02's scope exports `ValidGlob` and `Breadth` but no matcher, and
-`check` must decide whether a lease glob covers a path. `Breadth` needs one internally; this part
-asks task 02 to export it as `Match` so `check`, task 23's overlap and task 25's forecaster use one
-glob semantics. If task 02 does not, three packages will write three matchers that disagree.
+**One glob semantics.** `check`, task 23's overlap and task 25's forecaster all decide coverage with
+task 02's `teamtext.Match`, never a matcher of their own, so the three cannot disagree about
+whether `auth/**` covers `auth/session.go`.
 
 #### `sources.go` (complete)
 
@@ -258,7 +258,7 @@ func WorkerSnapshot(ctx context.Context, s Sources, org, project string) (TeamWo
 
 ```go
 // CheckArgs is `panacea check <path>`. The path is validated by
-// teamtext.ValidGlob and must contain no glob metacharacter: check asks about
+// teamtext.ValidPath, which refuses a glob metacharacter: check asks about
 // one file. A bad path is wire.CodeBadRequest, naming the rule it broke.
 type CheckArgs struct {
 	Path string `json:"path"`
@@ -413,7 +413,7 @@ Sources are read once per call, never cached in the verb: the answer is as fresh
 
 - [ ] **Step 3: `check.go`**
 
-Order: validate `Path` (`teamtext.ValidGlob`, then reject any of `*?[{`), then directives
+Order: validate `Path` (`teamtext.ValidPath`, which refuses a glob metacharacter), then directives
 (`Directives.Pending(c.Agent)`, a worker's own only; an Orchestrator's list is always empty,
 because directives address workers), then holders (every live lease in `Store.Leases` whose glob
 `teamtext.Match`es the path; `Mine` when the holder's owner is `c.Owner`), then editors
