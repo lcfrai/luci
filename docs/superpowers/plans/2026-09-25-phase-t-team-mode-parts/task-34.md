@@ -176,4 +176,65 @@ type ActivityPage struct {
 **`Seq` across a restart.** `machined` seeds its counter with the start time in milliseconds times
 1,000, then increments by one per sample, so a restarted `machined` never repeats a `Seq` a poller
 has seen, without writing state to disk. A poller that sees `Gap` rebuilds that worktree's view
-from the page, which is the "rebuilt within one sweep after a restart" task 35 needs.
+from the page, which is the "rebuilt within one sweep after a restart" task 35 needs. A clock
+that steps back across a restart could repeat a range; the page's `Gap` does not catch that, and
+it is listed under "does not claim".
+
+#### Contract — `converge/claims.go` (complete in its surface)
+
+```go
+package converge
+
+// ReadEnv is added to every call Sample makes, on top of §HGH's own
+// environment: status must not take the index lock or rewrite the index.
+var ReadEnv = map[string]string{"GIT_OPTIONAL_LOCKS": "0"}
+
+// ReadFlags go after "git" and before the subcommand, after §HGH's prefix,
+// so they win over any repository or included config.
+var ReadFlags = []string{"-c", "core.untrackedCache=false", "-c", "core.quotePath=false"}
+
+// Sample reads one clone. It never returns an error: a failure is ReadError,
+// so one broken clone does not blank the machine's page. Every call is
+// gitx.Call{Dir: dir, Class: gitx.Read, Scope: gitx.Clone}, 5 s each.
+func Sample(ctx context.Context, r gitx.Runner, dir string, at time.Time) machineapi.ActivitySample
+
+// ParseHunkHeaders reads "@@ -a[,b] +c[,d] @@" lines from `diff -U0` output
+// and returns [a, b] pairs (b defaults to 1). It reads nothing else in the
+// patch: no path, no content. A malformed header is an error, never a guess.
+func ParseHunkHeaders(patch []byte) ([][2]int, error)
+```
+
+`Sample` makes these calls, in this order, and stops at the first failure with its code:
+
+| # | Arguments after `git` and the prefixes | Reads | Parsed by |
+|---|---|---|---|
+| 1 | `rev-parse --verify -q HEAD` (`OKExit` 1) | `Head`; exit 1 is an unborn branch | trimmed 40-hex, else `git_failed` |
+| 2 | `status --porcelain=v2 -z --untracked-files=normal` | the dirty set | P3-07's `ParseStatus` (untrusted input) |
+| 3 | `diff --numstat -z --no-ext-diff --no-textconv HEAD` (skipped when unborn) | `Added`, `Deleted`; `-` is binary, -1 | a `-z` numstat parser here, with a rename's two paths |
+| 4 | `ls-tree -z HEAD -- <path>…` for the dirty paths, in batches of 100 (`--literal-pathspecs` is in §HGH's prefix, `task-02.md:589`) | `Hunk.Base` | the mode, type, sha, path fields |
+| 5 | `diff -U0 --no-ext-diff --no-textconv --no-color HEAD -- <path>` for each of the first `MaxHunkPaths` modified text paths | `Hunk.Ranges` | `ParseHunkHeaders` |
+| 6 | `log -1 -z --format=%H%x00%cI%x00%s HEAD` then `diff-tree -r -z --no-commit-id --name-only --root HEAD` (skipped when unborn) | `LastCommit` | NUL fields |
+
+One `diff -U0` per path is deliberate: parsing paths out of a multi-file patch means undoing git's
+quoting, and a per-path call with a literal pathspec reads only the `@@` lines. Up to 50 calls of
+a few milliseconds each every 5 s is the cost; a clone with more modified paths reads the first
+50 in path order and sets `Truncated`. Every path from calls 2, 3 and 6 goes through
+`teamtext.ValidPath` then `teamtext.Clean`; a refused one increments `Dropped` and is removed from
+`Dirty`, `Hunks` and `LastCommit.Paths` alike. The subject goes through `teamtext.Clean` and is cut
+at 140 runes; a subject `Clean` refuses becomes `""` and counts as one drop.
+
+A `*gitx.UntrustedConfig` from §HGH H3 on any call (a filter driver, a `diff.*.command`, or any
+other key H3's `Clone` row refuses) ends the sample with `clone_config_untrusted`: git never ran,
+and the clone is reported unreadable rather than read with the agent's program. That lets an agent
+hide its own worktree from the sweep; it cannot hide that it did, because the sample says so.
+
+#### `machined`'s sweeper and route
+
+`Sweeper` lists the clones under `lanes/<projectId>/<worktreeId>` (P8-20's layout) every 60 s and
+keeps a `nextAt` per worktree: live ones every 5 s plus a uniform jitter of 0 to 5 s, idle ones
+every 60 s (decision b). At most four samples run at once, so a machine with twenty lanes cannot
+spend more than four git processes on this. Each sample is appended to a ring of `RingWindow`;
+older samples are dropped. `GET /v1/activity?project=<pj-…>&since=<seq>` (bearer as every P8-20
+route) returns the ring's samples for that project with `Seq > since`, at most 500, oldest first;
+`project` is required, so no caller receives every project's activity by omission. `400
+bad_request` for a missing or malformed `project` or `since`.
