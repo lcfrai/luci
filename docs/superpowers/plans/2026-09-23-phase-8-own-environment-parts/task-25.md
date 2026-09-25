@@ -1,12 +1,24 @@
-### Task 25: Phase 3's `gitx.Machine` for a cloud machine (seam S3-P8.1)
+### Task 25: a cloud machine's project-only `gitx.Machine` and its lane runners (seam S3-P8.1)
 
-Phase 3 routes every git call through `gitx.Machine` — `ID()`, `Git() Runner`, `CloneRoot()`,
-`FetchURL(clonePath)` — and ships one implementation, `gitx.Local`
-(phase 3 task 02, sibling `phase-3` worktree, `task-02.md:146-171`). It leaves the second to this
-phase: "a pod gets a clone, FetchURL names it, and the control plane fetches from it"
-(`:148-149`), seams S3-P8.1 and S3-P8.2 (phase 3 plan `:314-319`). On a cloud machine the
-project repository and its lane clones share the machine's disk (OD-2, P8-D6), so **every git
-call, including the fetch-back, runs on the machine**, through task 21's `POST /v1/git`.
+After phase 3's ruling R4 (P8-D7; review Q18) phase 3 has two git seams, and a cloud machine
+needs both (sibling `phase-3` worktree, plan `2026-09-23-phase-3-git-convergence.md:120-128`,
+`:436`, read at `9935278`):
+- `gitx.Machine` — `ID()`, `Git() Runner`, `CloneRoot()`, … — runs **project** git only, under
+  §HGH. `gitx.Remote` below is its cloud implementation, over task 21's `POST /v1/git`.
+- `lanegit.Lanes.For` answers a `lanegit.Runner` for a lane (phase-3 `task-24.md:565-579`,
+  `:654-659`). Its Kata half answers a `Runner` pointed at `machined`'s `/git/v1/` runner through
+  the broker, where phase 3's katabe answers `ErrNoRunner`. Lane work crosses as a bundle the host
+  verifies and fetches in the project (R4.4); no call here reads a lane's `.git`.
+
+**Re-plan required before this task starts (review Q18).** The contract and tests below predate
+R4. Where they and this block disagree, this block holds. Retired: `Scope` `"clone"` on the wire,
+`clone_config_untrusted`, `*UntrustedConfig{Scope: Clone}`, a `Remote.Git` call whose `Dir` is
+under `lanes/`, and `FetchURL` as "the clone's path" (the fetch-back reads a bundle file, never a
+lane). To add: the Kata `Lanes.For` and its `Runner` over the broker, and the bundle hand-off of
+task 21's open item 3 (a lane bundle the laptop receives must reach `machined`'s owned
+`bundles` directory before a project call verifies and fetches it, and a refresh bundle the
+project writes there must reach the runner). Survives: P3A-1 (`Join`), P3A-2, and the `git_failed`
+and unreachable-agent mappings.
 
 **Depends on** phase 3 tasks 02–04 and 11 (the runner, the lane store, clone create/remove, the
 composite catalog) and on tasks 21 and 24b here. If any is missing, this task does not start.
@@ -107,7 +119,7 @@ machine lists a lane clone under `lanes/` as a worktree of its project (S3-P8.2)
 
 #### Steps
 
-- [ ] **Step 1:** Confirm the dependencies: `git grep -n "type Machine interface" -- control-plane/internal/gitx/`, phase 3's lane store and composite catalog exist, tasks 21 and 24b landed. Resolve P3A-1 as the table says.
+- [ ] **Step 1:** Confirm the re-plan above (review Q18) has landed in this part; if this part still carries the "Re-plan required" block, stop. Confirm the dependencies: `git grep -n "type Machine interface" -- control-plane/internal/gitx/` and `git grep -n "type Runner interface" -- control-plane/internal/lanegit/`, phase 3's lane store and composite catalog exist, tasks 21 and 24b landed. Resolve P3A-1 as the table says.
 - [ ] **Step 2:** Tests; `remote.go`; `machines.Agent.Git`.
 - [ ] **Step 3:** The resolver arm for cloud ids; `machined`'s catalog switch.
 - [ ] **Step 4:** Full run, including phase 3's suites; commit.
