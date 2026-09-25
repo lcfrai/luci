@@ -242,3 +242,100 @@ cycle. Row-level security binds both reads to `hub.org_id`; the project list bin
 team's reach. The candidate filter is wider than the window rule (an issue done in the window and
 reopened later is read and then dropped by `windowAndDuration`), which is what makes it safe to
 compute the rule once, in Go.
+
+#### The route (`server/work_insights.go`)
+
+```go
+mux.HandleFunc("POST /v1/teams/{teamId}/insights/query", s.queryInsights)
+```
+
+**`queryInsights`**, inside `s.Read` (no event: a query changes no record): the caller a member of
+`{teamId}`, any role, else 404 `team_not_found`; `Decode[hubapi.InsightsQuery]`; its `teamId`
+absent or equal to the path (else 422 `field: "teamId"`); `measure` one of T114's four (422
+`field: "measure"`); `groupBy` `null` or one of the seven keys of decision 3 (422 `field:
+"groupBy"`); `from` and `to` RFC 3339 with `from < to` and at most 366 days apart (422); then
+`ReachProjects` (a `projectId` outside it → 404 `project_not_found`), `WindowIssues` with
+`limit 5000` (5,001 ids → 422 `field: "to"`, `reason: "too_many_issues"`), `IssueFactsOf`,
+`ComputeInsights`, 200.
+
+#### Tests to write first, part 1 — `server/insights_test.go` (pure)
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestCycleTimeRunsFromStartedToDone` | moves `triage → todo → started → in_review → landed → done` one hour apart → `cycle_time` is 3 h; `lead_time` 5 h; `triage_time` 1 h | cycle time from creation; lead time from started |
+| `TestAHandClosedIssueIsCountedAndNoPoint` | `todo → done` by hand → in `count`'s group, no `cycle_time` point, `points: []`, percentiles `null` | a zero-length point |
+| `TestNearestRankNotInterpolated` | ten points of 1 to 10 hours → `p50` 5 h, `p75` 8 h, `p90` 9 h | "interpolated" (5.5, 7.75, 9.1 h) and "mean" (5.5 h) |
+| `TestIntegerRankNeverOffByOne` | 100 points of 1 to 100 ms, `nearestRank(…, 7)` → 7 ms | a float rank (8 ms) |
+| `TestNoPointsMeansNoPercentiles` | no closed issue → `groups: []`, `points: []`, three `null` | "p50 of 0" |
+| `TestAReopenedIssueHasNoDuration` | `started → done → todo` → no point for `cycle_time` or `lead_time`, and not in `count` | a stale done counted |
+| `TestTheLastDoneStands` | `started → done → started → done` → cycle time from the **first** started to the **second** done | the first done taken |
+| `TestTwoCriteriaAreOnePoint` | an issue serving two criteria, `groupBy: criterion` → two groups of count 1, one point | double-counted durations |
+| `TestTheWindowIsHalfOpen` | a done exactly at `to` is out; one exactly at `from` is in | an inclusive or shifted window |
+
+#### Tests to write first, part 2 — `server/work_insights_integration_test.go` (`//go:build integration`)
+
+The cast is task 11's (Grace, a Portal member; Linus, Billing only; Xavier, another org) and task
+117's grant of Billing's project to Portal's team. Moves are made through the real routes, with the
+Hub's clock moved by the test harness (task 11's clock hook; its name is **UNVERIFIED** here, and
+Hub task 24's `JanitorConfig.Now` shows the Hub already takes an injected clock).
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestInsightsReadTheHubsClock` | an issue moved with a client sending a `Date` header a day off → durations from the events' `at`, not the header | the client's clock |
+| `TestVisibilityIsTheTeamsReach` | Portal's query counts Portal's issues and the granted Billing project's, never another Billing project's; with `projectId` of an ungranted project → 404 | visibility not applied |
+| `TestOnlyMembersQuery` | Linus on Portal's team → 404 `team_not_found`; Xavier → 404; a Portal viewer → 200 | a query readable outside the team |
+| `TestErasedIssuesStillCount` | an issue erased by an org admin (task 14) stays one point, its id kept, no title anywhere in the answer | erase dropping history, or leaking text |
+| `TestTheAnswerForecastsNothing` | every key of the JSON answer, at any depth, is checked against `forecast`, `eta`, `trend`, `expected`, `remaining`, `projected`, `percent` and `progress` → none | a prediction in the handler (beside T114's type test) |
+| `TestARangeIsBounded` | `from ≥ to` → 422 `field: from`; a 400-day range → 422; 5,001 issues in range → 422 `reason: too_many_issues` | an unbounded scan |
+| `TestAQueryAppendsNoEvent` | the org's feed `next` is the same before and after ten queries | a read that writes |
+
+#### The matrix rows (`workMatrixRows["122"]`, appended)
+
+| Route | V | M | A | O | N | X |
+|---|---|---|---|---|---|---|
+| `POST /v1/teams/{teamId}/insights/query` | 200 | 200 | 200 | 404 | 404 | 404 |
+
+`O` is 404 as for every Work read (`task-07.md`'s `wread`). A granted team's member queries their
+**own** team's reach, which includes the grant; they get no row on the granting team's route.
+
+#### Steps
+
+- [ ] **Step 1:** Confirm the sync base (rule H1): tasks 13, 114, 116 and 117 committed; re-read
+  task 13's `IssueStateData` and `IssueCreatedData` at the base.
+- [ ] **Step 2:** Check T114 for G1 (`priority`, `criterion` in `GroupBy`) and G2 (`estimate_sum`,
+  `InsightPoint.at`). G1 missing: stop and raise it. G2 missing: go on, and the parity line below
+  stays as written.
+- [ ] **Step 3:** Write `server/insights_test.go`; it fails to compile; write `insights.go`; green.
+- [ ] **Step 4:** Write the integration test and the matrix row; every row fails.
+- [ ] **Step 5:** `store/work_insights.go` and the route; run until green.
+- [ ] **Step 6:** `git diff -- go.work control-plane/go.mod` shows nothing; commit by pathspec.
+
+#### Acceptance
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/work
+go test ./control-plane/internal/hub/server/ -race -count=1 -v \
+  -run '^Test(CycleTimeRunsFromStartedToDone|AHandClosedIssueIsCountedAndNoPoint|NearestRankNotInterpolated|IntegerRankNeverOffByOne|NoPointsMeansNoPercentiles|AReopenedIssueHasNoDuration|TheLastDoneStands|TwoCriteriaAreOnePoint|TheWindowIsHalfOpen)$' \
+  2>&1 | grep -c "^--- PASS"                                                                    # 9
+go test -tags integration ./control-plane/internal/hub/server/ -race -count=1 -v \
+  -run '^Test(InsightsReadTheHubsClock|VisibilityIsTheTeamsReach|OnlyMembersQuery|ErasedIssuesStillCount|TheAnswerForecastsNothing|ARangeIsBounded|AQueryAppendsNoEvent)$' \
+  2>&1 | grep -c "^--- PASS"                                                                    # 7
+go test ./control-plane/... -race -count=1                                                      # ok
+```
+
+#### What this task does not claim
+
+- Dashboards (L-152, task 177), or any surface on the rail or the Desk (never, Q1); the panel and
+  scatter are task 132's.
+- Query speed at any size: the 5,000-issue guard is a bound, not a measurement.
+- *Effort* (L-150's `estimate_sum`) and the scatter's time axis (L-151's `at`) until task 114 adds
+  them (G2).
+- That a short cycle time is good work: the numbers are what was recorded, and the reading is the
+  team's.
+
+**Parity rows served:** **L-150** (insights: counts and durations, less *effort*) and **L-151**
+(the scatter, with task 132, once G2's `at` lands).
+
+**Gaps for the skeleton and siblings:** G1 (`priority` and `criterion` in `GroupBy`) and G2
+(`estimate_sum`; `InsightPoint.at`) belong to task 114; `IssueFacts` needs a home both `store` and
+`server` can import (a build-time choice).
