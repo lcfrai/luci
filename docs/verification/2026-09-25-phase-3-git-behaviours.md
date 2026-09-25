@@ -210,7 +210,11 @@ about git's answers.
     failed inside a git that had started: `fetch` exited 1 with "error: <src> did not send all
     necessary objects", a child of it presumably having failed the same way (inferred; the trace
     does not say). The same pins passed in full at 21:29 (the race run) and
-    at 21:48 to 21:59 (26 of 26, 244.7 s). **Change:** task 02's runner must not read
+    at 21:48 to 21:59 (26 of 26, 244.7 s). The sandbox run at 22:23 failed as a whole the
+    same way: the test binary itself never started (`exit status 0xc0000142`, no test ran).
+    At `e7d2281` the reruns passed one `go test` at a time: sandbox 3 of 3 at 22:37 to 22:44
+    (177.6 s), behaviour 26 of 26 at 22:47 to 22:51 (156.0 s), and the `-race` suite over
+    `./sandboxd/... ./control-plane/...` at 23:08 to 23:26 (gitx 346.8 s). **Change:** task 02's runner must not read
     3221225794 as git's exit code. An `OKExit` list, or a caller's "128 means no such ref",
     would otherwise file a git that never ran as an answer. Its `*Error` should name it
     ("git could not start"). Retrying that one code is safe, because no git code ran; a git
