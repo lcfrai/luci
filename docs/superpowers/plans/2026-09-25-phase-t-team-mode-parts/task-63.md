@@ -112,3 +112,86 @@ type LaneStats struct {
 // worse than none.
 func (c *Client) LaneStats(ctx context.Context, project, laneRef, tip, branch string) (LaneStats, error)
 ```
+
+```go
+// control-plane/internal/fleet/verbs/lanes.go
+package verbs
+
+// TeamLanes is GET /v1/projects/{p}/team/lanes (VerbTeamRead). Every live
+// worker of the project with a lane, the caller's own included (flagged You),
+// so the desktop can label its own lanes from the same source.
+type TeamLanes struct {
+	V         int        `json:"v"` // 1
+	ProjectID string     `json:"projectId"`
+	Branch    string     `json:"branch"` // the integration branch the counts are against
+	Lanes     []TeamLane `json:"lanes"`  // own first, then by owner display name, then worktree id
+	ReadAt    string     `json:"readAt"`
+}
+
+type TeamLane struct {
+	Owner      Person            `json:"owner"`      // from the agent record's owner, never git
+	You        bool              `json:"you"`
+	AgentID    model.AgentID     `json:"agentId"`
+	WorktreeID string            `json:"worktreeId"` // the wt-… segment of LaneRef, parsed by task 03's grammar
+	LaneRef    string            `json:"laneRef"`
+	Tip        string            `json:"tip"`        // the mirror's, as of ReadAt
+	MergeBase  string            `json:"mergeBase"`
+	Paths      []mirror.LaneStat `json:"paths"`      // [] for the caller's own: the desktop has better
+	Added      int               `json:"added"`      // totals over Paths, binaries excluded
+	Deleted    int               `json:"deleted"`
+	Truncated  bool              `json:"truncated"`
+	More       int               `json:"more"`
+	Conflicts  []LaneConflict    `json:"conflicts"`  // tier-M cf-… this lane shares with one of the caller's
+	Queued     *LaneQueued       `json:"queued"`     // task 61's entry, when live; null otherwise
+	Unread     string            `json:"unread"`     // "" | "mirror_unavailable" | "lane_moved": counts withheld
+}
+
+type Person struct {
+	UserID      string `json:"userId"`
+	DisplayName string `json:"displayName"` // People.DisplayName, teamtext.CleanName'd; "a teammate" if unknown
+}
+
+type LaneConflict struct {
+	ID    string   `json:"id"`    // cf-…
+	Tier  string   `json:"tier"`  // "M" only in this read
+	Paths []string `json:"paths"`
+	With  model.AgentID `json:"with"` // the caller's agent on the other side
+}
+
+type LaneQueued struct {
+	Entry string `json:"entry"` // lq-…
+	State string `json:"state"` // task 61's State
+}
+
+// LanesSource is what the read needs beyond task 22's Sources.
+type LanesSource interface {
+	LaneRef(ctx context.Context, org string, agent model.AgentID) (string, error) // "" when none
+	Stats(ctx context.Context, project, laneRef, branch string) (mirror.LaneStats, error) // cached by tip
+	Queued(ctx context.Context, org, project string, agent model.AgentID) (*LaneQueued, error)
+}
+
+// Lanes builds TeamLanes for principal p. Owner is Sources.People.DisplayName
+// of the agent's Owner. The caller's own lanes carry no Paths (the desktop
+// reads its own lanes through phase 3), so no stats call is made for them.
+func Lanes(ctx context.Context, src Sources, ls LanesSource, org, project, callerUserID string) (TeamLanes, error)
+```
+
+`Stats` caches one `LaneStats` per `(project, laneRef, tip)` for 10 minutes, so a poll every 5 s
+(task 52's tick) costs one mirror call per lane per new commit, not per poll. The mirror being
+down is `Unread: "mirror_unavailable"` on each teammate lane, not a failed read: owners and
+queue state still render.
+
+`model.Agent` has no lane ref today (`task-09.md:131-145`); the Hub's agent record does
+(`task-03.md:560`). `LaneRef` reads it through task 11's rebuilt cache of Hub agents. If task 11
+does not keep `laneRef`, this task adds the field to Fleet's cache, not to `model.Agent` (gap 1).
+
+**The local route** (`api/team.go`, task 52's pattern): `GET
+/v1/projects/{projectId}/team/lanes`, the signed-in user's token through `fleetbe`, the body
+relayed as ST.8's `TeamLanes`, byte for byte except that every `displayName` passes task 52's
+`labelFor` (so the viewer's own reads *"You"*). A solo project (`TeamStrip.Team == false`)
+answers `{"v":1,"projectId":…,"lanes":[]}` without calling Fleet.
+
+**The refusal on the local diff route** (phase 3 task 16's `GET …/changes/diff`): a
+`worktreeId` that is not a lane of this machine's project (phase 3's `lanes.Store`) is `404
+lane_not_local`, before any git runs. Phase 3 already refuses an unknown id; this names the case a
+desktop bug would hit, so the test can pin it.
