@@ -328,3 +328,62 @@ position (kills a scroll jump). Depends on 49. Design: 05 §1 row I (L-126, L-12
 Parity: closes L-126's slash menu and L-127's table part. Does not claim: callouts (task 92, W2),
 Mermaid and collapsibles (L-127's *later* part), embeds (L-128, SKIP).
 
+**51 — comments: the thread, mentions, reactions, anchors, resolve.** Files:
+`src/components/issue/Comments.tsx` (+ test; any split-out sibling under `src/components/issue/` is
+not yet in the File map) and an edit to `IssueView.tsx`. Uses SW.1's comment `ic-` shape and task
+12's rules (append-only; mentions, reactions, anchors and resolve on the server), task 49's `Editor`
+for writing (no second editor), SW.16's `mutate` for every write and SW.12's `MarkGlyph` for the
+author class. W1 comments have one kind; W3 adds `note`, `evidence_proposal` and `negotiation`
+(SW.19). **Anchors**, rendered for all five kinds SW.1 carries (issue text at a revision with its
+quote, a brief section, a criterion, a transcript span, a diff hunk; the field names are task 03's,
+**UNVERIFIED** here): the issue view creates the issue-text anchor (select text in the description,
+then *Comment*) and the criterion anchor (from a `Serves` row); span and hunk anchors are created
+from peek (task 60) through the same `addComment({anchor})` call. An anchor whose text changed in a
+later revision shows *on @3* with its quote and is never silently re-mapped. **Mentions**: `@` in the
+editor opens a people picker of the team and stores the user id, rendered as the name. **Reactions**:
+a fixed small emoji set (our choice; custom emoji are *later*, L-41), toggled per person, shown with
+the people's names and no number (05 §4.4 work rule 3). **Resolve** folds a thread to *Resolved by
+Priya · 11:02* and can be undone. A correction is a reply, or task 12's edit record if SW.1 carries
+one (**UNVERIFIED**); nothing rewrites a posted comment. An agent's comment (`text·A`, W3 onward, since
+in W1 an agent writes only on its owner's behalf, 05 §3.6) carries the agent mark and a word. A new
+comment arriving while the reader is scrolled up never moves the scroll position. Tests first:
+posting sends one append whose Markdown and authorship come from `Editor` (kills a second text path);
+a text anchor stores the revision and the quote, and after the description changes it shows *on @3*
+(kills re-mapping offsets onto a new revision); a mention stores the user id, so a renamed person still
+resolves (kills name-text mentions); the same person reacting twice ends with no reaction (kills a
+double add); reactions render names and no digit (kills a reaction count); resolve then Undo reopens
+the thread (kills a one-way resolve); an agent comment carries its mark and word (kills colour-only
+authorship); an arrival while scrolled up leaves `scrollTop` unchanged (kills a scroll jump);
+`expectNoPrediction` passes. Depends on 49. Design: 05 §3.6 (who writes comments), §3.4 (comments never
+enter an agent's managed block; task 19 tests that), §4.1 (issue view), §1 row B. Parity: closes L-41's
+W1 part and L-42. Does not claim: thread summaries (L-43, W4), comment drafts (L-44, W2), custom emoji.
+
+**52 — attachments by blob digest; subscribe and unsubscribe.** Files:
+`src/components/issue/Attachments.tsx` (+ test), new `src/work/blob.ts` (+ test; not yet in the File
+map), edits to `IssueHead.tsx` (the subscribe control) and `IssueView.tsx`. Uses the Hub's
+content-addressed blobs, `PUT` and `GET`/`HEAD /v1/projects/{projectId}/blobs/{sha}`
+(`hub-contract.md:590-591`, §7.6), through the control plane (whether the relay table carries the blob
+routes is **UNVERIFIED**; the part checks contract §4.3 and a missing row is a finding against task
+16), and SW.1's attachment record naming a digest (task 09). `blob.ts` adds `sha256Hex(bytes) →
+Promise<string>` on `crypto.subtle.digest` and `uploadAttachment(projectId, file) →
+Promise<{digest, name, size, contentType}>`, which hashes **before** the upload and names the blob by
+that hash; the Hub re-checks (`digest_mismatch` 422). Refusals show their fact in mono:
+`blob_too_large` 413 with `limitBytes` (16 MiB default, `hub-contract.md:261`, `:2172`) and
+`quota_exceeded` 409 (1 GiB a project, `:260`). A download is re-hashed and a mismatch is not opened.
+PNG, JPEG, GIF and WebP preview from their bytes through an `<img>` with an object URL; every other
+type, SVG included, is a file row, so no attachment runs script. Bytes stay in memory; nothing is
+cached to disk; only the person's explicit *Save as* writes a file (the part checks this against
+`ADR-H1:467-474`). **Subscribe**: the head shows the Hub's reason (*Subscribed · you commented*;
+create, assign, mention and comment subscribe on the server, task 13) and one control to unsubscribe
+or subscribe, written as the person; subscribe has **no single key**, because Linear's `Shift+S`
+does nothing here (05 §4.3 rule 3), and it is a palette verb in task 59. Tests first: the upload's
+path sha equals the locally computed hash of the bytes (kills trusting a server-reported hash); a 413
+renders `limitBytes` (kills a generic error); a download whose bytes do not hash to its digest is
+not opened (kills trusting the bytes); an SVG attachment never enters the DOM as markup (kills script
+in an attachment); no `localStorage`, IndexedDB or file-system call happens during upload or view
+(kills a blob cache); the subscribe reason is the Hub's field verbatim (kills a reason guessed on the
+desktop); unsubscribe sends one op and Undo restores (kills a silent toggle). Depends on 51. Design:
+05 §5.3 rows 4 and 12 (both pulled into W1), §3.1 (three homes), §4.3 rule 3. Parity: closes L-45 and
+L-117, each moved into W1 by 05 §5.3. Does not claim: the Desk digest for subscriptions (L-116, W2),
+subscribing to a view (L-96, W2), per-person notification settings.
+
