@@ -208,12 +208,51 @@ func (e *Engine) Reissue(ctx context.Context, org string, l model.Lease, globs [
 	case protocol.ResSplit:
 		mine := a.Sides[a.Acceptor]
 		for _, p := range a.EditedByAcceptor {
-			if !teamtext.MatchAny(mine, p) {
+			if !matchAny(mine, p) {
 				return "accept-split-moves-edited"
 			}
 		}
 		return "accept-split"
 ```
 
-`teamtext.MatchAny(globs, path)` is `Match` over a list; if task 02 does not export it, it is a
-three-line helper in `rules.go`.
+Task 02 exports `Match(glob, path)` only (`task-02.md:898`), so `matchAny` is a three-line helper
+in `rules.go` over it.
+
+**Validation, the three rows that replace `kind_not_enabled`** (task 28's table, `task-28.md:236-247`):
+
+| Kind / resolution | Required | Refused | Text |
+|---|---|---|---|
+| `counter` | `thread`, `proposal` (a live `propose`·`counter` of this thread by the **other** side), `resolution` | `to`, `subject`, `inReplyTo` | optional rationale, ≤ 600 |
+| `split` | `sides`: exactly the two participants as keys, each 1 to `MaxGlobs` globs, each `ValidGlob`; a conflict thread | `globs`, `first`, `paths`, `base` | — |
+| `build-on` | `base`: a participant; a conflict thread whose base-side party has a lane (task 20's agent record has `laneRef`) | `globs`, `first`, `paths`, `sides` | — |
+
+New codes, joining task 09's ST.1 list: `split_not_a_partition` (details: `paths`, the uncovered
+or doubly-covered ones), `build_on_no_lane`, `counter_own_proposal`. `resolution_not_held` and
+`resolution_stale` are task 29's, reused.
+
+**`Send` for a counter** (task 28's step 9, one branch): in the same transaction that stores the
+counter, the countered proposal's id leaves `liveProposals` and the counter's id joins it; the
+thread's `rounds` for the sender go up by one (task 28 (a) already counts `counter`); the stale-run
+rule reads the counter's canonical resolution (task 28 (b)). If the countered proposal was
+`awaiting-human` (task 29 step 2), the counter is refused `resolution_stale`: a proposal a human
+is deciding on cannot be swapped out under them. A counter is **not** an accept, so `Resolve` is
+not called.
+
+**`checkSplit` and `applySplit`.** `CheckProposal` for a split, at propose or counter time and
+again in `Resolve` step 3: the partition rule (decision b) against the conflict's paths
+(`verbs.Conflicts.Open`, task 22), and `Engine.Validate` on each side's globs (breadth). Apply
+(task 29's step 4), for each side S in key order: for each live lease L of S's side whose globs
+match a conflict path, `Reissue(L, keep(L) ∪ Sides[S])`, where `keep(L)` is L's globs matching no
+conflict path; a side with none gets `Engine.Request` of an `intent` lease on `Sides[S]` for its
+party agent. Close (task 29's step 5): conflict → `resolved`, resolution `split`.
+
+**`checkBuildOn` and `applyBuildOn`.** At propose or counter time: `base` is a participant and
+its party agent has a lane (`build_on_no_lane`). On accept, before `Classify`: find the base
+party's `laneRef` and the mirror's tip for it; `BuildOnPort.LaneChanges(…, PackageScriptMembers)`
+→ `Action.BaseTip`, `AgentConfig = buildOnLines(d)`, `AgentConfigKnown = true`; an error →
+`AgentConfigKnown = false`, lines empty. `Classify` → `build-on`, a decide for the builder's human
+(always; `task-30.md:203`). Apply (`ApplyApproved`, after the human chose *apply*): (1) the base
+lane's mirror tip still descends from `BaseTip` (else `resolution_stale`: the base lane was
+rewritten); (2) `Bring(builderOwner, project, builderWorker's worktree, BuildOnRef(thread),
+mergeBase, BaseTip)`; (3) one `land_hints` row `first = Base`, `second = Builder`, `first_task` the
+base party's task; (4) conflict → `resolved`, resolution `build-on`; (5) `Outcome.BuildOn`.
