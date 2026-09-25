@@ -1398,3 +1398,76 @@ func wStaleBaseConflicts(t *testing.T, e WorkEnv) {
 	}
 }
 ```
+
+Block 2: the restore, the patch, and the moves.
+
+```go
+func wRestoreIsANewRevision(t *testing.T, e WorkEnv) {
+	p := e.project(t, "Portal", "")
+	iw := e.issue(t, p, "v1")
+	next := iw.Revision.Content
+	next.Title = wText("v2")
+	if _, err := e.Member.WriteIssueRevision(wctx, iw.Head.ID, hubapi.WriteIssueRevisionRequest{BaseRevision: 1, Content: next}); err != nil {
+		t.Fatal(err)
+	}
+	r, err := e.Member.RestoreIssueRevision(wctx, iw.Head.ID, hubapi.RestoreRevisionRequest{FromRevision: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Revision != 3 || r.RestoredFrom == nil || *r.RestoredFrom != 1 || r.Content.Title.Text != "v1" {
+		t.Errorf("restore = rev %d from %v %q; want 3 from 1 \"v1\"", r.Revision, r.RestoredFrom, r.Content.Title.Text)
+	}
+	one, err := e.Member.IssueRevisionAt(wctx, iw.Head.ID, 1)
+	if err != nil || one.Digest != iw.Revision.Digest || one.WrittenAt != iw.Revision.WrittenAt {
+		t.Errorf("revision 1 changed: %+v, %v", one, err)
+	}
+}
+
+func wPatchWritesNoRevision(t *testing.T, e WorkEnv) {
+	p := e.project(t, "Portal", "")
+	iw := e.issue(t, p, "one")
+	from := wHead(t, e.Member)
+	high := hubapi.PriorityHigh
+	h, err := e.Member.PatchIssue(wctx, iw.Head.ID, hubapi.PatchIssueRequest{Priority: &high})
+	if err != nil || h.Priority != high || h.HeadRevision != 1 {
+		t.Fatalf("patch = %+v, %v; want high at revision 1", h, err)
+	}
+	if got := wKinds(t, e.Member, from, "issue."); !slices.Equal(got, []string{"issue.updated"}) {
+		t.Errorf("events = %v, want [issue.updated]: a patch never revises", got)
+	}
+}
+
+func wHandCannotSetAFact(t *testing.T, e WorkEnv) {
+	p := e.project(t, "Portal", "")
+	iw := e.issue(t, p, "one")
+	for _, to := range []hubapi.IssueState{hubapi.StateStarted, hubapi.StateInReview, hubapi.StateLanded} {
+		_, err := e.Member.MoveIssueState(wctx, iw.Head.ID, hubapi.StateMove{To: to, Cause: hubapi.CauseHand, Evidence: []string{}})
+		wRefused(t, err, 422, "state_not_allowed", "from", string(iw.Head.State), "to", string(to), "cause", "hand")
+	}
+}
+
+func wHandDoneOfAChoreHasNoCriteria(t *testing.T, e WorkEnv) {
+	p := e.project(t, "Portal", "")
+	iw := e.issue(t, p, "one")
+	h, err := e.Member.MoveIssueState(wctx, iw.Head.ID, hubapi.StateMove{To: hubapi.StateDone, Cause: hubapi.CauseHand, Evidence: []string{}})
+	if err != nil || h.State != hubapi.StateDone || h.Proof != hubapi.ProofNoCriteria {
+		t.Errorf("hand done = %s %q, %v; want done no_criteria, never proven", h.State, h.Proof, err)
+	}
+}
+
+func wReopenClearsTheProofWord(t *testing.T, e WorkEnv) {
+	p := e.project(t, "Portal", "")
+	iw := e.issue(t, p, "one")
+	done := hubapi.StateMove{To: hubapi.StateDone, Cause: hubapi.CauseHand, Reason: "shipped by hand", Evidence: []string{}}
+	if _, err := e.Member.MoveIssueState(wctx, iw.Head.ID, done); err != nil {
+		t.Fatal(err)
+	}
+	h, err := e.Member.MoveIssueState(wctx, iw.Head.ID, hubapi.StateMove{To: hubapi.StateTodo, Cause: hubapi.CauseHand, Evidence: []string{}})
+	if err != nil || h.Proof != hubapi.ProofNone || h.StateReason != "" {
+		t.Errorf("reopen = proof %q reason %q, %v; want both empty", h.Proof, h.StateReason, err)
+	}
+}
+```
+
+`wHandDoneOfAChoreHasNoCriteria` holds task 04's rule that a hand-set done of an issue serving
+nothing reads `no_criteria`, not `not_proven`: the word a chore earns, never the word proof earns.
