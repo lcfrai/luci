@@ -43,7 +43,7 @@ twelve `prefixEntity` entries. These are the only edits to an existing test.
 existing `TestEveryBodyHasTheContractsKeys` parses fenced JSON with values; several of task 01's
 team bodies are inline key lists (`{"seq", "holderAgentId", …}`), which its `jsoncKeyPaths` reads
 as no keys. So a new test checks the direction that catches drift in Go: **every JSON key of a team
-type appears as `"key"` in its contract section**. The other direction, every design field in the
+type appears, as `"key"` or `` `key` ``, somewhere in the team sections §7.13 to §7.26**. The other direction, every design field in the
 contract, is task 01's field check. Both together pin the three layers.
 
 **(e) The audit event gains a version 2, and version 1 does not move by one byte.** Task 01's
@@ -787,3 +787,163 @@ type AnswerEscalationRequest struct {
 	Text   *string `json:"text,omitempty"` // ≤ 300
 }
 ```
+
+**Block 6, directive, turn, human message, note, team policy and usage (contract §7.20–§7.25):**
+
+```go
+// ── §7.20 directives ────────────────────────────────────────────────────────
+
+// DirectiveParams: Globs for narrow, LeaseID for wait-for; empty otherwise.
+type DirectiveParams struct {
+	Globs   []string `json:"globs"`
+	LeaseID *string  `json:"leaseId"`
+}
+
+type AppendDirectiveRequest struct {
+	ID          string          `json:"id"`
+	FromAgentID string          `json:"fromAgentId"`
+	ToAgentID   string          `json:"toAgentId"`
+	Kind        DirectiveKind   `json:"kind"`
+	Params      DirectiveParams `json:"params"`
+	Text        *string         `json:"text,omitempty"` // free only
+	Rung        DeliveryRung    `json:"rung"`
+	Origin      TurnOrigin      `json:"origin"`
+	Read        []string        `json:"read"`
+	ApprovedBy  *string         `json:"approvedBy,omitempty"`
+}
+
+type Directive struct {
+	ID          string          `json:"id"`
+	ProjectID   string          `json:"projectId"`
+	OwnerUserID string          `json:"ownerUserId"`
+	FromAgentID string          `json:"fromAgentId"`
+	ToAgentID   string          `json:"toAgentId"`
+	Kind        DirectiveKind   `json:"kind"`
+	Params      DirectiveParams `json:"params"`
+	Text        *teamtext.Text  `json:"text"`
+	Rung        DeliveryRung    `json:"rung"`
+	Origin      TurnOrigin      `json:"origin"`
+	Read        []string        `json:"read"`
+	ApprovedBy  *string         `json:"approvedBy"`
+	CreatedAt   string          `json:"createdAt"`
+}
+
+// ── §7.21 orchestrator turns (an audit event, no row) ───────────────────────
+
+type TurnTokens struct {
+	Input  int64 `json:"input"`
+	Output int64 `json:"output"`
+}
+
+type RecordTurnRequest struct {
+	ID                  string     `json:"id"`
+	OrchestratorAgentID string     `json:"orchestratorAgentId"`
+	Origin              TurnOrigin `json:"origin"`
+	Consumed            []string   `json:"consumed"` // ≤ 200 event ids
+	Issued              []string   `json:"issued"`   // ≤ 100 dv-/ms-/es- ids
+	Tokens              TurnTokens `json:"tokens"`
+}
+
+type TurnRecorded struct {
+	ID string `json:"id"`
+}
+
+// ── §7.22 human messages; §7.23 notes ───────────────────────────────────────
+
+type CreateHumanMessageRequest struct {
+	ToAgentID string `json:"toAgentId"`
+	Text      string `json:"text"` // ≤ 2,000
+}
+
+// HumanMessage: Text is null once tombstoned.
+type HumanMessage struct {
+	ID           string         `json:"id"`
+	ProjectID    string         `json:"projectId"`
+	OwnerUserID  string         `json:"ownerUserId"`
+	ToAgentID    string         `json:"toAgentId"`
+	Text         *teamtext.Text `json:"text"`
+	CreatedAt    string         `json:"createdAt"`
+	TombstonedAt *string        `json:"tombstonedAt"`
+}
+
+type NoteTarget struct {
+	Kind NoteTargetKind `json:"kind"`
+	ID   string         `json:"id"` // pj-…, tk-… or u-…
+}
+
+type CreateNoteRequest struct {
+	Target NoteTarget `json:"target"`
+	Text   string     `json:"text"` // ≤ 1,000
+}
+
+// Note: Text is null once tombstoned.
+type Note struct {
+	ID           string         `json:"id"`
+	ProjectID    string         `json:"projectId"`
+	AuthorUserID string         `json:"authorUserId"`
+	Target       NoteTarget     `json:"target"`
+	Text         *teamtext.Text `json:"text"`
+	CreatedAt    string         `json:"createdAt"`
+	TombstonedAt *string        `json:"tombstonedAt"`
+}
+
+// ── §7.24 team policy ───────────────────────────────────────────────────────
+
+type Quotas struct {
+	MemberDailyCents  int64 `json:"memberDailyCents"`
+	ProjectDailyCents int64 `json:"projectDailyCents"`
+}
+
+type MessageBudgets struct {
+	PerPairPerHour        int `json:"perPairPerHour"`
+	RoundsPerSide         int `json:"roundsPerSide"`
+	ThreadDeadlineMinutes int `json:"threadDeadlineMinutes"`
+}
+
+type TeamPolicy struct {
+	ProjectID                string            `json:"projectId"`
+	DataClass                DataClass         `json:"dataClass"`
+	Route                    InferenceRoute    `json:"route"`
+	Quotas                   Quotas            `json:"quotas"`
+	OrchestratorTurnsPerHour int               `json:"orchestratorTurnsPerHour"`
+	EscalationFloors         []EscalationFloor `json:"escalationFloors"`
+	MessageBudgets           MessageBudgets    `json:"messageBudgets"`
+	Revision                 int               `json:"revision"`
+	UpdatedAt                string            `json:"updatedAt"`
+}
+
+type PutTeamPolicyRequest struct {
+	Revision                 int               `json:"revision"`
+	Quotas                   Quotas            `json:"quotas"`
+	OrchestratorTurnsPerHour int               `json:"orchestratorTurnsPerHour"`
+	EscalationFloors         []EscalationFloor `json:"escalationFloors"`
+	MessageBudgets           MessageBudgets    `json:"messageBudgets"`
+}
+
+type RouteChangeRequest struct {
+	Route InferenceRoute `json:"route"`
+}
+
+// ── §7.25 usage roll-ups (the caller rule is open: task 66) ─────────────────
+
+type UsageRow struct {
+	UserID            string         `json:"userId"`
+	TeamID            string         `json:"teamId"`
+	ProjectID         string         `json:"projectId"`
+	AgentID           string         `json:"agentId"`
+	Route             InferenceRoute `json:"route"`
+	CounterpartUserID *string        `json:"counterpartUserId"`
+	InputTokens       int64          `json:"inputTokens"`
+	OutputTokens      int64          `json:"outputTokens"`
+	CostCents         int64          `json:"costCents"`
+}
+
+type UsageRollupRequest struct {
+	Day  string     `json:"day"` // YYYY-MM-DD, Australia/Sydney
+	Rows []UsageRow `json:"rows"`
+}
+```
+
+The usage day is **UNVERIFIED** in its time zone: `Australia/Sydney` is this part's choice, since
+the gateway's usage store is in Australia East (§2.5), and task 66 confirms or changes it with the
+gateway's own roll-up boundary.
