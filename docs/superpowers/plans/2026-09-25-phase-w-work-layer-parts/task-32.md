@@ -478,3 +478,88 @@ The Geist repository and its licence are from memory, not fetched: **UNVERIFIED*
 Hyperlegible Next's licence and weight range are **UNVERIFIED**, as 05 §4.4 C3 already records.
 If either licence is not on `OD-11`'s allowed list (MIT, Apache, BSD, ISC, OFL), that face is
 dropped from `SANS_CANDIDATES` and the owner is told, rather than fetched under another licence.
+
+#### Tests to write first — `desktop/src/lib/flags.test.ts`
+
+```ts
+import { act, renderHook } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { FLAG_DEFAULTS, getFlags, resetFlags, setFlag, useFlags } from "./flags";
+
+const root = () => document.documentElement;
+
+afterEach(() => {
+  resetFlags();
+  vi.unstubAllGlobals();
+});
+
+describe("flags", () => {
+  it("writes each flag to the root element", () => {
+    // Kills: a flag kept in memory that never reaches CSS, or one written to <body>.
+    setFlag("look", "old");
+    setFlag("sans", "geist");
+    setFlag("theme", "paper");
+    expect(root().getAttribute("data-look")).toBe("old");
+    expect(root().getAttribute("data-sans")).toBe("geist");
+    expect(root().getAttribute("data-theme")).toBe("paper");
+    expect(document.body.hasAttribute("data-look")).toBe(false);
+  });
+
+  it("removes the attribute when a flag returns to its default", () => {
+    // Kills: data-look="new" left on <html>, so a flipped-back DOM is not the production DOM.
+    setFlag("look", "old");
+    setFlag("look", "new");
+    setFlag("sans", "atkinson");
+    setFlag("sans", "segoe");
+    expect(root().hasAttribute("data-look")).toBe(false);
+    expect(root().hasAttribute("data-sans")).toBe(false);
+    expect(getFlags()).toEqual(FLAG_DEFAULTS);
+  });
+
+  it("returns one snapshot until a flag changes", () => {
+    // Kills: a getSnapshot that builds a fresh object per call (a render loop under
+    // useSyncExternalStore), and a no-op set that replaces the snapshot anyway.
+    const before = getFlags();
+    expect(getFlags()).toBe(before);
+    setFlag("look", "new");
+    expect(getFlags()).toBe(before);
+    setFlag("look", "old");
+    expect(getFlags()).not.toBe(before);
+    expect(Object.isFrozen(getFlags())).toBe(true);
+  });
+
+  it("re-renders a subscriber on a change and not on a no-op", () => {
+    // Kills: a toolbar whose radios lag the attribute, and a notify on every call.
+    let renders = 0;
+    const { result } = renderHook(() => {
+      renders += 1;
+      return useFlags();
+    });
+    const settled = renders;
+    act(() => setFlag("theme", "graphite"));
+    expect(renders).toBe(settled);
+    act(() => setFlag("theme", "paper"));
+    expect(result.current.theme).toBe("paper");
+    expect(renders).toBe(settled + 1);
+  });
+
+  it("persists nothing", () => {
+    // Kills: a flag written to disk, which would make a dev preference outlive the session and
+    // leak into the next person's review.
+    const setItem = vi.spyOn(Storage.prototype, "setItem");
+    const open = vi.fn();
+    vi.stubGlobal("indexedDB", { open });
+    setFlag("look", "old");
+    setFlag("sans", "atkinson");
+    setFlag("theme", "paper");
+    resetFlags();
+    expect(setItem).not.toHaveBeenCalled();
+    expect(open).not.toHaveBeenCalled();
+    expect(document.cookie).toBe("");
+  });
+});
+```
+
+jsdom has no `indexedDB`, so the stub is the only one a write could reach. `renderHook`'s first
+render count is read after mount (`settled`) because `StrictMode` is not in play in `renderHook`
+and React may still render twice in development; the assertion is on the difference.
