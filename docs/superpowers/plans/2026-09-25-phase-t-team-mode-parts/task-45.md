@@ -78,8 +78,10 @@ exactly, so a later role added to `id-hub` fails the plan.
   Hub task 27's `audit` (modify)
 - `infra/terraform/modules/observability/hubaudit.tf` + `tests/hubaudit.tftest.hcl` — the DCE,
   two tables, the DCR, Sentinel onboarding, the missing-anchor rule (new; phase 8 task 04's module)
-- `infra/terraform/modules/observability/{variables,outputs}.tf` — `hub_principal_id`; the DCE and
-  DCR outputs (modify)
+- `infra/terraform/modules/observability/{versions,outputs}.tf` — the `azapi` provider; the DCE,
+  DCR and workspace outputs (modify)
+- `infra/terraform/stacks/workloads/main.tf` + `tests/workloads.tftest.hcl` — `id-hub`'s
+  `role_assignments` gain two entries, and a test pins its set (modify; phase 8 task 10's files)
 - `infra/terraform/role-allowlist.txt` — `Monitoring Metrics Publisher`, `Log Analytics Reader`
   (modify; phase 8 task 10's file, `task-10.md:39`)
 - `docs/superpowers/contracts/2026-09-23-hub-contract.md` — §11 T5's residual, §12's settings,
@@ -415,3 +417,88 @@ workspace's dev retention, phase 8 `task-04.md:37-44`). For each org of `hub.org
 
 The first fault prints `FAULT anchor: org <id> seq <n>: <rule>` and exits 1; a healthy run prints
 `ok anchor (<a> anchors, <e> events in <m> orgs)`.
+
+#### The phase 8 half — complete source
+
+```hcl
+# infra/terraform/modules/observability/hubaudit.tf
+# The Hub's audit, outside the Hub. Two custom tables, one endpoint, one rule
+# with two streams, Sentinel on the workspace, and the one detection whose
+# absence would hide an attack: an org that stopped anchoring.
+
+locals {
+  hub_audit_columns = [
+    { name = "TimeGenerated", type = "datetime" }, { name = "OrgId", type = "string" },
+    { name = "Seq", type = "long" }, { name = "Kind", type = "string" },
+    { name = "Feed", type = "boolean" }, { name = "TeamId", type = "string" },
+    { name = "ProjectId", type = "string" }, { name = "Subject", type = "string" },
+    { name = "ActorUserId", type = "string" }, { name = "Hash", type = "string" },
+    { name = "PrevHash", type = "string" }, { name = "DataKeys", type = "dynamic" },
+    { name = "DataValues", type = "dynamic" }, { name = "Dropped", type = "int" },
+  ]
+  hub_anchor_columns = [
+    { name = "TimeGenerated", type = "datetime" }, { name = "OrgId", type = "string" },
+    { name = "Seq", type = "long" }, { name = "Hash", type = "string" },
+    { name = "StreamedSeq", type = "long" }, { name = "Replica", type = "string" },
+  ]
+  hub_tables = { PanaceaHubAudit_CL = local.hub_audit_columns, PanaceaHubAuditAnchor_CL = local.hub_anchor_columns }
+}
+
+# azurerm 4.81.0 manages an existing table's plan and retention, not a custom
+# table's schema (from knowledge, UNVERIFIED), so the tables are azapi.
+resource "azapi_resource" "hub_table" {
+  for_each  = local.hub_tables
+  type      = "Microsoft.OperationalInsights/workspaces/tables@2022-10-01"
+  name      = each.key
+  parent_id = azurerm_log_analytics_workspace.this.id
+  body = {
+    properties = {
+      schema          = { name = each.key, columns = each.value }
+      retentionInDays = var.retention_days
+    }
+  }
+}
+
+resource "azurerm_monitor_data_collection_endpoint" "hub_audit" {
+  name                          = "dce-hub-audit-panacea-app-${var.environment}"
+  resource_group_name           = var.resource_group_name
+  location                      = var.location
+  public_network_access_enabled = true # the Hub egresses to it; a private link is later (Gap 4)
+}
+
+resource "azurerm_monitor_data_collection_rule" "hub_audit" {
+  name                        = "dcr-hub-audit-panacea-app-${var.environment}"
+  resource_group_name         = var.resource_group_name
+  location                    = var.location
+  data_collection_endpoint_id = azurerm_monitor_data_collection_endpoint.hub_audit.id
+  destinations {
+    log_analytics {
+      name                  = "la"
+      workspace_resource_id = azurerm_log_analytics_workspace.this.id
+    }
+  }
+  dynamic "stream_declaration" {
+    for_each = local.hub_tables
+    content {
+      stream_name = "Custom-${stream_declaration.key}"
+      dynamic "column" {
+        for_each = stream_declaration.value
+        content {
+          name = column.value.name
+          type = column.value.type
+        }
+      }
+    }
+  }
+  dynamic "data_flow" {
+    for_each = local.hub_tables
+    content {
+      streams       = ["Custom-${data_flow.key}"]
+      destinations  = ["la"]
+      output_stream = "Custom-${data_flow.key}"
+      transform_kql = "source"
+    }
+  }
+  depends_on = [azapi_resource.hub_table]
+}
+```
