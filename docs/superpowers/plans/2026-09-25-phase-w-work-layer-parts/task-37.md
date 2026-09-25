@@ -135,3 +135,91 @@ export interface IssueWithRevision { head: IssueHead; revision: IssueRevision }
 export interface ProjectKey { projectId: string; key: string; setAt: string; setBy: User }
 ```
 
+#### Interfaces — complete: `work.ts`, part 2: the team records, comments and lists
+
+```ts
+/** Team-owned (L-17). `color` is a token name ("accent-2"), never a hex. */
+export interface Label { id: string; teamId: string; name: string; color: string }
+export interface TeamPolicy {
+  teamId: string; defaultState: IssueState; priorityToLeaveTriage: boolean;
+  stopAtLandedWithoutServes: boolean; updatedAt: string | null; updatedBy: User | null;
+}
+/** Fields that do not apply are 0 or "", never omitted (task 12 declares the kinds). */
+export interface CommentAnchor {
+  kind: "text" | "criterion" | "span" | "hunk";
+  revision: number; start: number; end: number; criterionId: string; ref: string;
+}
+export interface Reaction { emoji: string; users: User[] }
+/** Go's `Comment`. Append-only: there is no edit route; a correction is a new comment. */
+export interface IssueComment {
+  id: string; issueId: string; parentId: string | null; kind: "comment"; body: AuthoredText;
+  anchor: CommentAnchor | null; mentions: string[]; reactions: Reaction[];
+  resolvedAt: string | null; resolvedBy: User | null;
+  createdAt: string; createdBy: User; erasedAt: string | null;
+}
+export interface Subscription { issueId: string; user: User; cause: SubscriptionCause; subscribed: boolean }
+export interface IssueRef { issueId: string; number: number; externalId: string }
+export interface ImportResult { created: IssueRef[]; existing: IssueRef[]; unmatchedLabels: string[] }
+export interface IssueAttachment {
+  issueId: string; digest: Digest; contentType: string; size: number; addedAt: string; addedBy: User;
+}
+export interface WorkEraseResponse {
+  issueId: string; commentId: string; erasedRevisions: number; erasedComments: number; erasedAt: string;
+}
+
+/** Every list route's body (hub-contract §1). `next` is null on the last page. */
+export interface Page<T> { items: T[]; next: string | null }
+/** `?after=` and `?limit=`; absent means "from the start" and 50 (hubapi.PageRequest). */
+export interface PageRequest { after?: string; limit?: number }
+```
+
+#### Interfaces — complete: `work.ts`, part 3: request bodies and queries
+
+```ts
+export interface CreateIssueRequest {
+  title: AuthoredText; description: AuthoredText; serves: Serve[]; implements: string[];
+  /** "" is the team policy's defaultState; else one of triage, backlog, todo. */
+  state: "" | "triage" | "backlog" | "todo";
+  priority: "" | Priority; assigneeId: string | null; labels: string[];
+  /** Required when `serves` is empty. */
+  notTiedReason: "" | NotTiedReason;
+}
+/** Head fields only; never a state (a state moves only through StateMove). An absent key keeps.
+ *  `assigneeId` is tri-state on the wire: absent keeps, null clears, "u-…" sets. JSON.stringify
+ *  drops an `undefined` key, which is exactly "absent". */
+export interface PatchIssueRequest {
+  priority?: Priority; assigneeId?: string | null; labels?: string[]; notTiedReason?: NotTiedReason;
+}
+/** A stale baseRevision is 409 revision_conflict and writes nothing. */
+export interface WriteIssueRevisionRequest { baseRevision: number; content: IssueRevisionContent }
+/** SW.4. `landCommit` rides with land_trailer, `evidence` (ev- ids) with the evidence causes,
+ *  `reason` with a hand-set done. The desktop only ever sends cause "hand" (rule 2). */
+export interface StateMove {
+  to: IssueState; cause: MoveCause; reason: string; landCommit: string; evidence: string[];
+}
+export interface RelationRequest { kind: RelationKind; issueId: string }
+export interface CreateLabelRequest { name: string; color: string }
+export interface PutTeamPolicyRequest {
+  defaultState: "triage" | "backlog" | "todo"; priorityToLeaveTriage: boolean; stopAtLandedWithoutServes: boolean;
+}
+export interface CreateCommentRequest {
+  body: AuthoredText; parentId: string | null; anchor: CommentAnchor | null; mentions: string[];
+}
+export interface ImportItem {
+  externalId: string; url: string; title: string; description: string;
+  priority: Priority; labels: string[]; authorName: string; createdAt: string;
+}
+export interface ImportBatch { source: "linear" | "csv"; items: ImportItem[] }
+
+/** GET …/issues. An absent field does not filter. `states` repeats as ?state=. */
+export interface IssueQuery { states?: IssueState[]; assignee?: string; label?: string }
+/** GET /v1/issues/search: a title substring, readable projects only, newest first. */
+export interface IssueSearchQuery { q: string; projectId?: string; limit?: number }
+```
+
+The query parameter names (`state`, `assignee`, `label`, `q`, `projectId`, `after`, `limit`) are
+read from the Go comments (`task-03.md:557-569`, hub `types.go:201`); task 16 decodes them with
+`DecodeQuery` (`task-16.md:609`, `:750`), whose name rule its part does not print. They are
+**UNVERIFIED** until task 16 merges; a mismatch is a one-line change in `query()` below, and
+task 17's end-to-end run is where it would show.
+
