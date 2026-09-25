@@ -47,6 +47,14 @@ the input, so an attacker cannot make the check slow. The table is closed: a new
 change with its own test. It refuses; it never redacts, because a redacted string is still a string
 an agent chose to send, and the sender should hear *"refused: secret"* and stop.
 
+**(f) `Text` marshals itself in the Hub's response rules.** The scope gives `Text.At` as a
+`time.Time`, and it stays one in Go. But the Hub writes every time as RFC 3339 UTC with exactly
+three fractional digits (contract §1; `hubapi.FormatTime`, `hubapi/envelope.go:392-394`), which
+`time.Time`'s own `MarshalJSON` does not (a whole second loses its `.000`), and a Hub response never
+omits a field (`hubapi/types.go:6-11`). So `Text` has its own `MarshalJSON`: the Hub's time form,
+and `"authorAgentId": null` for a human's text. The layout is repeated here, not imported, because
+`hubapi` imports this package; task 03's golden test pins the two layouts equal.
+
 **Files:**
 - `control-plane/internal/teamtext/text.go` — `Author`, `Kind`, the limits, `Text`, `Bound`, `New`,
   `Error` and the three class sentinels (new)
@@ -55,7 +63,7 @@ an agent chose to send, and the sender should hear *"refused: secret"* and stop.
   `CheckSet` (new)
 - `control-plane/internal/teamtext/text_test.go`, `hygiene_test.go`, `glob_test.go` (new)
 
-No `go.mod` change: standard library only (`errors`, `fmt`, `regexp`, `strings`, `time`,
+No `go.mod` change: standard library only (`encoding/json`, `errors`, `fmt`, `regexp`, `strings`, `time`,
 `unicode`, `unicode/utf8`). The module is `github.com/kpmg-au-emu/panacea-app/control-plane`, `go
 1.23` (`control-plane/go.mod:1-3`, read 2026-09-25); the directive does not move.
 
@@ -84,6 +92,7 @@ No `go.mod` change: standard library only (`errors`, `fmt`, `regexp`, `strings`,
 package teamtext
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
@@ -215,13 +224,56 @@ func refuse(class error, r Rule, off int) *Error {
 }
 
 // Text is a stored free-text field and who wrote it. It is the wire shape of
-// every text·A and text·H field (Phase T task 01, Step 6).
+// every text·A and text·H field (Phase T task 01, Step 6); MarshalJSON writes
+// it in the Hub's response rules.
 type Text struct {
-	Body        string    `json:"body"`
-	Author      Author    `json:"author"`
-	AuthorAgent string    `json:"authorAgentId,omitempty"`
-	Owner       string    `json:"ownerUserId"`
-	At          time.Time `json:"at"`
+	Body        string
+	Author      Author
+	AuthorAgent string // "" for a human's text
+	Owner       string
+	At          time.Time
+}
+
+// timeLayout is the Hub's one time form (contract §1): UTC, exactly three
+// fractional digits. It repeats hubapi.FormatTime's layout because this
+// package may not import hubapi; task 03's golden test pins the two equal.
+const timeLayout = "2006-01-02T15:04:05.000Z"
+
+// textJSON is Text on the wire. Hub responses never omit a field (contract
+// §7.1): a human's text says "authorAgentId": null.
+type textJSON struct {
+	Body        string  `json:"body"`
+	Author      Author  `json:"author"`
+	AuthorAgent *string `json:"authorAgentId"`
+	Owner       string  `json:"ownerUserId"`
+	At          string  `json:"at"`
+}
+
+// MarshalJSON writes t with its time in the Hub's form and a null agent for a
+// human's text.
+func (t Text) MarshalJSON() ([]byte, error) {
+	j := textJSON{Body: t.Body, Author: t.Author, Owner: t.Owner, At: t.At.UTC().Format(timeLayout)}
+	if t.AuthorAgent != "" {
+		j.AuthorAgent = &t.AuthorAgent
+	}
+	return json.Marshal(j)
+}
+
+// UnmarshalJSON reads what MarshalJSON writes, and any RFC 3339 time.
+func (t *Text) UnmarshalJSON(b []byte) error {
+	var j textJSON
+	if err := json.Unmarshal(b, &j); err != nil {
+		return err
+	}
+	at, err := time.Parse(time.RFC3339Nano, j.At)
+	if err != nil {
+		return fmt.Errorf("teamtext: at: %w", err)
+	}
+	*t = Text{Body: j.Body, Author: j.Author, Owner: j.Owner, At: at.UTC()}
+	if j.AuthorAgent != nil {
+		t.AuthorAgent = *j.AuthorAgent
+	}
+	return nil
 }
 
 var (
@@ -351,6 +403,25 @@ func TestNewLabelsAndNormalises(t *testing.T) {
 		`"ownerUserId":"u-0123456789abcdef","at":"2026-09-24T15:02:03.456Z"}`
 	if string(b) != golden {
 		t.Fatalf("json = %s", b)
+	}
+}
+
+func TestTextJSONFollowsTheHubRules(t *testing.T) {
+	// mutants: time.Time's own marshalling (drops ".000" on a whole second);
+	// omitempty on authorAgentId (the Hub never omits a response field).
+	h, _ := New(KindNote, "hi", AuthorHuman, "", owner, time.Date(2026, 9, 25, 1, 0, 0, 0, time.UTC))
+	b, _ := json.Marshal(h)
+	const golden = `{"body":"hi","author":"human","authorAgentId":null,` +
+		`"ownerUserId":"u-0123456789abcdef","at":"2026-09-25T01:00:00.000Z"}`
+	if string(b) != golden {
+		t.Fatalf("json = %s", b)
+	}
+	var back Text
+	if err := json.Unmarshal(b, &back); err != nil {
+		t.Fatal(err)
+	}
+	if b2, _ := json.Marshal(back); string(b2) != golden || back.AuthorAgent != "" {
+		t.Fatalf("round trip = %s", b2)
 	}
 }
 
