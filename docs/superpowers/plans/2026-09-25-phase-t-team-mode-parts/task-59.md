@@ -140,3 +140,340 @@ func ForecastQueue(ctx context.Context, m gitx.Machine, repo, branchTip string, 
 `Changed[i].Path`), and `type Forecast = gitforecast.Forecast`. Every phase 3 test of the queue
 moves to `gitforecast/forecast_test.go` with only the `Lane` literal changed; `converge` keeps
 `TestForecastCacheSkipsGit` (`task-08.md:280`), because the cache stays there.
+
+#### `pair.go` (complete surface and rule)
+
+```go
+// Pair is two lane tips to merge against each other (tier M, decision (c)).
+type Pair struct{ A, B string } // shas the repository holds
+
+// PathLines is one path both sides changed. Lines are [start, end] on the
+// merge base's blob, 1-based, inclusive, merged, at most MaxRanges.
+type PathLines struct {
+	Path       string
+	Conflicted bool     // merge-tree reported it conflicted
+	BaseBlob   string   // the merge base's blob sha for Path, "" when absent there
+	Lines      [][2]int // overlapping hunks of A and B against the base
+}
+
+// PairResult is PairForecast's answer. State: "clean" | "conflicts" | "unknown".
+type PairResult struct {
+	State     string
+	MergeBase string
+	Paths     []PathLines // every path both sides changed, conflicted or not, sorted
+	Code      string      // "" or one of the Code* constants when State is "unknown"
+}
+
+const MaxRanges = 20 // route 57's cap (task-06.md:203-205)
+
+// PairForecast, all Class Read or Local in repo, Scope Project:
+//   1. merge-base <A> <B>                          → MergeBase; none → unknown, CodeNoMergeBase
+//   2. MergeTreeArgs + <A> <B>                     → ParseMergeTree; exit 0 clean, 1 conflicts
+//   3. diff --name-only -z --no-renames <base> <A>, and <base> <B>   → the two changed sets
+//   4. for each path in both sets (sorted):
+//        rev-parse --verify -q <base>:<path>       → BaseBlob ("" on exit 1)
+//        diff --unified=0 --no-color --no-ext-diff --no-textconv <base> <X> -- <path>, X = A, B
+//        → only the "@@ -s[,c] +…" headers are parsed, into [s, s+c-1] on the base (c = 0 is
+//          an insertion after line s, recorded as [s, s]); every other line is skipped
+//        → Lines = the overlap-or-adjacency intersection of A's and B's ranges (task 36's
+//          rule (a), overlaps), merged, capped at MaxRanges as task 36's mergeRanges does
+//   A path with Conflicted false and Lines empty is still listed: both sides changed it,
+//   and task 60 decides what that means. No content line is kept, returned or logged.
+func PairForecast(ctx context.Context, m gitx.Machine, repo string, p Pair) PairResult
+```
+
+`--no-renames` on step 3 keeps a rename from making one path two; `--literal-pathspecs` is already
+in §HGH H1's prefix (`task-02.md:481`), so a path such as `app/[slug]/page.tsx` in step 4 is not
+read as a glob. Both `--no-ext-diff` and `--no-textconv` matter in a repository whose trees an
+attacker writes: a lane's `.gitattributes` can name a diff driver, and while the mirror's config
+defines none (so git would fall back to its built-in diff), the two flags make that fact
+irrelevant rather than relied on.
+
+#### `ingest.go` (complete surface)
+
+```go
+// IngestSpec is one bundle file to take into repo.
+type IngestSpec struct {
+	File     string   // a bundle the caller spooled, at most MaxBundleBytes (task 24)
+	Refs     []string // exactly the refnames the bundle must carry, each refs/heads/…
+	Refspecs []string // "+<ref>:<dst>", each dst under DstPrefix
+	DstPrefix string  // "refs/panacea/lanes/" (phase 3) or the mirror's two prefixes
+}
+
+// ErrNeedBase is Ingest's answer when bundle verify fails for a missing
+// prerequisite. Missing is every prerequisite sha the bundle header names
+// ("-<sha>" lines) that `cat-file -e <sha>^{commit}` does not find. No ref
+// has moved.
+type ErrNeedBase struct{ Missing []string }
+
+func (e *ErrNeedBase) Error() string { return "gitforecast: the bundle needs commits the repository lacks" }
+
+// Ingest is FetchLane's steps 3 to 6 (task-24.md:767-781), unchanged in
+// order and in every flag: bundle verify; list-heads must equal Refs exactly;
+// fetch --atomic --no-auto-maintenance --no-recurse-submodules --no-tags
+// --no-write-fetch-head --quiet <file> <refspecs…> with transfer.fsckObjects=true
+// in Call.Env; read back with for-each-ref. It answers dst → sha, an
+// *ErrNeedBase, or a *BundleRefused carrying git's sentence.
+func Ingest(ctx context.Context, git *gitx.Exec, repo string, s IngestSpec) (map[string]string, error)
+```
+
+`lanegit.FetchLane` keeps its signature and its steps 1 and 2 (arguments, spooling from the
+runner) and calls `Ingest` for the rest; `BundleRefused` moves to `gitforecast` with a `lanegit`
+alias, so phase 3's `errors.As` checks still match. The `need-base` split is new: phase 3's step 3
+answers a missing prerequisite as a refusal, and it still does for `FetchLane` (it unwraps
+`*ErrNeedBase` into `*BundleRefused{"the bundle needs commits the project lacks"}`), because
+phase 3 fixed that answer and its callers rely on it. The prerequisite shas come from the bundle
+header, which `bundle list-heads` does not print. When `bundle verify` exits non-zero, `Ingest`
+reads the header itself (the v2 or v3 signature line, `@` capability lines, `-<sha>` prerequisite
+lines, `<sha> <ref>` lines, then a blank line; bounded to the first 64 KiB), keeps each
+prerequisite sha of 40 or 64 hex, and asks `cat-file -e` for each; if at least one is missing the
+answer is `*ErrNeedBase`, and otherwise it is `*BundleRefused` with git's sentence. git's stderr is
+never parsed for meaning. That `bundle verify` exits non-zero for a missing prerequisite is phase 3's
+pin (`task-24.md:948`).
+
+#### ST.7 — `control-plane/internal/fleet/mirror/result.go` (complete)
+
+```go
+// Package mirror is Fleet's side of the lane mirror (Phase T tasks 59-61):
+// ST.7's typed results, their validation, and the client over the broker's
+// control relay. Nothing here ever holds file content.
+package mirror
+
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"regexp"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/fleet/model"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/teamtext"
+)
+
+// LaneKey names one lane in the mirror: refs/panacea/lanes/<Owner>/<Worktree>.
+type LaneKey struct {
+	Owner    string `json:"owner"`    // OwnerHash(owner): 16 lower-case hex
+	Worktree string `json:"worktree"` // a phase 3 worktree id
+}
+
+// OwnerHash is the lane namespace for an owner. Not reversible; Fleet keeps
+// the map back to model.Owner in its own state.
+func OwnerHash(o model.Owner) string {
+	sum := sha256.Sum256([]byte("lane-owner/" + string(o)))
+	return hex.EncodeToString(sum[:])[:16]
+}
+
+func (k LaneKey) Ref() string { return "refs/panacea/lanes/" + k.Owner + "/" + k.Worktree }
+
+// PairRequest asks tier M for two lanes of different owners.
+type PairRequest struct {
+	A LaneKey `json:"a"`
+	B LaneKey `json:"b"`
+}
+
+// PathResult is one path both lanes changed. No field can hold content:
+// a validated path, a sha, and integers.
+type PathResult struct {
+	Path       string   `json:"path"`
+	Conflicted bool     `json:"conflicted"`
+	BaseBlob   string   `json:"baseBlob"` // "" when the path is new on both sides
+	Lines      [][2]int `json:"lines"`    // on the merge base's blob; ≤ 20
+}
+
+// Basis is what the answer was computed from, so a stale answer is detectable.
+type Basis struct {
+	A         string `json:"a"`
+	B         string `json:"b"`
+	MergeBase string `json:"mergeBase"`
+}
+
+// PairResult is ST.7: tier, paths, line ranges, basis shas. Code is from the
+// fixed set below, never a sentence.
+type PairResult struct {
+	A     LaneKey      `json:"a"`
+	B     LaneKey      `json:"b"`
+	Tier  string       `json:"tier"`  // always "M"
+	State string       `json:"state"` // clean | conflicts | unknown
+	Paths []PathResult `json:"paths"`
+	Basis Basis        `json:"basis"`
+	Code  string       `json:"code"`
+}
+
+// IngestResult answers one bundle.
+type IngestResult struct {
+	Lane    LaneKey  `json:"lane"`
+	State   string   `json:"state"`   // fetched | need-base | refused
+	Tip     string   `json:"tip"`     // the lane ref after the fetch, when fetched
+	Missing []string `json:"missing"` // need-base: prerequisite shas, ≤ 16
+	Code    string   `json:"code"`
+}
+
+const (
+	CodeNone           = ""
+	CodeUnverified     = "bundle_unverified"  // bundle verify failed, prerequisites present
+	CodeFsck           = "fsck_failed"        // the fsck'd fetch refused an object
+	CodeHeads          = "heads_mismatch"     // list-heads is not exactly the lane's ref
+	CodeTooLarge       = "bundle_too_large"
+	CodeNoMergeBase    = "no_merge_base"
+	CodeLaneMissing    = "lane_missing"       // a PairRequest named a lane the mirror lacks
+	CodeGitFailed      = "git_failed"
+)
+
+var (
+	shaRE   = regexp.MustCompile(`^([0-9a-f]{40}|[0-9a-f]{64})$`)
+	ownerRE = regexp.MustCompile(`^[0-9a-f]{16}$`)
+	wtRE    = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,62}$`)
+	codes   = map[string]bool{CodeNone: true, CodeUnverified: true, CodeFsck: true, CodeHeads: true,
+		CodeTooLarge: true, CodeNoMergeBase: true, CodeLaneMissing: true, CodeGitFailed: true}
+)
+
+func (k LaneKey) Validate() error {
+	if !ownerRE.MatchString(k.Owner) || !wtRE.MatchString(k.Worktree) {
+		return fmt.Errorf("mirror: bad lane key")
+	}
+	return nil
+}
+
+// Validate is what Fleet runs on every answer before any field is used. The
+// mirror runs code over hostile objects, so its answers are hostile too: an
+// answer that fails is dropped whole, and the pair is treated as unknown.
+func (r PairResult) Validate(asked PairRequest) error {
+	if r.A != asked.A || r.B != asked.B || r.Tier != "M" || !codes[r.Code] {
+		return fmt.Errorf("mirror: answer does not match the question")
+	}
+	switch r.State {
+	case "clean", "conflicts":
+		if r.Code != CodeNone || !shaRE.MatchString(r.Basis.A) || !shaRE.MatchString(r.Basis.B) ||
+			!shaRE.MatchString(r.Basis.MergeBase) {
+			return fmt.Errorf("mirror: a %s answer needs three basis shas and no code", r.State)
+		}
+	case "unknown":
+		if r.Code == CodeNone || len(r.Paths) != 0 {
+			return fmt.Errorf("mirror: an unknown answer carries a code and no paths")
+		}
+	default:
+		return fmt.Errorf("mirror: state %q", r.State)
+	}
+	if len(r.Paths) > 500 {
+		return fmt.Errorf("mirror: %d paths", len(r.Paths))
+	}
+	conflicted := false
+	for _, p := range r.Paths {
+		if err := teamtext.ValidPath(p.Path); err != nil { // task 02: repo-relative, ≤ 200, G3 hygiene
+			return fmt.Errorf("mirror: path refused: %w", err)
+		}
+		if p.BaseBlob != "" && !shaRE.MatchString(p.BaseBlob) {
+			return fmt.Errorf("mirror: base blob")
+		}
+		if len(p.Lines) > 20 {
+			return fmt.Errorf("mirror: %d ranges", len(p.Lines))
+		}
+		for _, l := range p.Lines {
+			if l[0] < 1 || l[1] < l[0] || l[1] > 10_000_000 {
+				return fmt.Errorf("mirror: range")
+			}
+		}
+		conflicted = conflicted || p.Conflicted
+	}
+	if (r.State == "conflicts") != conflicted {
+		return fmt.Errorf("mirror: state and conflicted paths disagree")
+	}
+	return nil
+}
+```
+
+`IngestResult.Validate(asked LaneKey)` is the same discipline: the lane matches, `State` is one of
+three, `Tip` is a sha exactly when `fetched`, `Missing` holds only shas and at most 16, `Code` is
+from the set. `teamtext.ValidPath` is task 02's path check (`task-02.md:77`, `:847`), which takes
+glob metacharacters literally (`:623`). The JSON decoder on every answer uses
+`DisallowUnknownFields`, so a field the mirror adds, a place content could hide, is a refusal.
+The 500-path cap is this part's: a pair that both changed more than 500 paths is a rewrite, not a
+conflict to forecast, and the runner answers it `unknown` with `CodeGitFailed` rather than send it.
+
+#### The runner's wire (complete): one WebSocket per request, through the broker's relay
+
+`panacea-mirror` listens on `:8080` (task 58's `MirrorPort`) and serves exactly `GET /control`
+and `GET /healthz`. `/control` needs `Authorization: Bearer <PANACEA_APP_CONTROL_TOKEN>`, compared
+in constant time; the broker's relay adds it (task 17, `task-17.md:342`). One upgrade carries one
+request and its answer, then the runner closes it, so no state spans requests. Frames, with
+`github.com/coder/websocket` (global constraint), read limit 64 KiB for text frames:
+
+```go
+// The first text frame of every request.
+type Request struct {
+	Op    string        `json:"op"`              // ingest | pairs | prune-owner
+	Lane  *LaneKey      `json:"lane,omitempty"`  // ingest
+	Kind  string        `json:"kind,omitempty"`  // ingest: "lane" | "base"
+	Head  string        `json:"head,omitempty"`  // ingest: the one ref the bundle carries, refs/heads/…
+	Size  int64         `json:"size,omitempty"`  // ingest: the bundle's bytes, ≤ MaxBundleBytes
+	Pairs []PairRequest `json:"pairs,omitempty"` // pairs: ≤ 32 per request
+	Owner string        `json:"owner,omitempty"` // prune-owner: an OwnerHash
+}
+// ingest: then binary frames totalling exactly Size bytes, then the answer
+//         (one text frame): IngestResult.
+// pairs:  the answer is one text frame: {"results": [PairResult, …]}, one per
+//         pair, in order.
+// prune-owner: {"deleted": n}.
+// Any refusal before work: {"error": "<code>"} and close 1008.
+```
+
+**What each op does in the runner**, in `/mirror/lanes.git`, a bare repository `repo.go` creates
+on first start with `git init --bare` and three config keys it writes itself and never reads
+back from a lane: `gc.auto=0`, `receive.fsckObjects=true`, `transfer.fsckObjects=true`:
+
+- `ingest`, kind `lane`: spool to `/mirror/spool/<16 random hex>.bundle` (`O_EXCL`, `0600`, removed
+  by a defer), refusing byte `Size+1` or `MaxBundleBytes+1`; `head` must begin `refs/heads/` and
+  pass `check-ref-format`; `gitforecast.Ingest` with `Refs = [head]`, `Refspecs = ["+" + head +
+  ":" + lane.Ref()]`, `DstPrefix = "refs/panacea/lanes/<owner>/"`. The bundle is exactly what
+  phase 3's runner makes for a lane (one `refs/heads/<branch>` ref, `task-24.md:713-717`), so
+  task 60 needs no new bundle shape. `*ErrNeedBase` → `need-base` with `Missing`;
+  `*BundleRefused` → `refused` with the code its step maps to; success → `fetched`, `Tip`.
+- `ingest`, kind `base`: the same, with `Refs = [head]`, `Refspecs = ["+" + head +
+  ":refs/panacea/base/" + <head without refs/heads/>]`, `DstPrefix = "refs/panacea/base/"`; `lane`
+  is absent. A base bundle is as hostile as a lane's (a member's clone is agent-writable, phase 3's
+  R4.2), so it takes the same path.
+- `pairs`: for each pair, both lanes must exist (`rev-parse --verify -q <ref>`), else
+  `unknown`/`lane_missing`; then `gitforecast.PairForecast` over the two tips; the result is mapped
+  field for field into ST.7 and **validated by the runner with the same `Validate` before it is
+  sent**, so a runner bug fails in the mirror, not in Fleet.
+- `prune-owner`: `for-each-ref --format=%(refname) refs/panacea/lanes/<owner>/`, then one
+  `update-ref --stdin` transaction deleting each; then `git gc --prune=now --quiet`, so the leaver's
+  objects that no other ref reaches leave the disk, not just the refs (task 58 decision (f)).
+
+Every git call goes through `gitx.Exec` with `Scope: Project` on `/mirror/lanes.git` and a
+`Hardening` the runner builds once: `HooksDir` an empty read-only directory in the image
+(`/opt/panacea-mirror/no-hooks`), no `Credential`, no `Proxy`. That `gitx.Exec` accepts a bare
+repository as a Project directory is **UNVERIFIED until merge** (phase 3 only ever runs it in a
+user's checkout); step 1's preflight reads `harden.go`, and if it refuses one, `repo.go` keeps a
+non-bare repository with no working-tree checkout (`core.bare=false`, never `checkout`), which
+§HGH covers as written.
+
+`panacea-mirror --version` prints `git --version`'s line from `/etc/panacea-mirror-git-version`
+(task 58's image) and its own build commit; `main.go` logs one `slog` JSON line per request with
+`op`, `lane` or pair count, `state`, `code` and `ms`, and **never a path**: a path is the lane
+owner's, and the mirror's logs are an operator's.
+
+#### `client.go` — Fleet's side (complete surface)
+
+```go
+// Dialer opens one control WebSocket to a project's mirror, through the
+// broker's GET /v1/mirrors/{projectId}/control (task 58), as Fleet.
+type Dialer interface {
+	Dial(ctx context.Context, projectID string) (*websocket.Conn, error)
+}
+
+type Client struct {
+	D       Dialer
+	Timeout time.Duration // per request; default 60 s
+}
+
+func (c *Client) Ingest(ctx context.Context, projectID string, lane *LaneKey, kind, head string,
+	bundle io.Reader, size int64) (IngestResult, error) // lane nil for kind "base"
+func (c *Client) Pairs(ctx context.Context, projectID string, pairs []PairRequest) ([]PairResult, error)
+func (c *Client) PruneOwner(ctx context.Context, projectID, ownerHash string) (int, error)
+```
+
+`Pairs` validates every result against its request (`PairResult.Validate`) and replaces one that
+fails with `{State: "unknown", Code: "git_failed"}` for that pair alone, logging `mirror answer
+refused` with the pair's lane keys and the validation error, never the answer's bytes. A
+`len(results) != len(pairs)` answer is an error for the whole call.
+
