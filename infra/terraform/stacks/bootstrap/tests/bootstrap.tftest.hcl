@@ -8,8 +8,14 @@
 # passes. A bare `terraform test` without -var-file stops at "No value for required
 # variable": intended, validate.sh is the only caller.
 #
-# The GUIDs are placeholders that name nobody (all zeros, ones, twos, threes). This is a
-# .tftest.hcl, not a .tfvars, so guard G2 does not apply.
+# The GUIDs are placeholders that name nobody (all zeros, or all ones through all sixes). This
+# is a .tftest.hcl, not a .tfvars, so guard G2 does not apply. The private endpoint's subnet
+# and zone ids below are well-formed placeholders in the all-zeros subscription.
+#
+# No file-level state_private_endpoint: its default, null, is dev's posture. If prod.tfvars
+# ever sets state_public_network_access = false, every prod-pass run without an endpoint meets
+# that variable's validation, so that change adds a placeholder endpoint here as well (no
+# tfvars sets the key, so guard G10 allows it; task 02 fix round 1, carried to task 31).
 
 # The account's id is pinned to a well-formed Resource Manager id: azurerm validates the
 # container's storage_account_id as one even against a mock, and a random mock string fails
@@ -101,25 +107,40 @@ run "every_writer_gets_blob_contributor" {
   }
 }
 
+# Two readers, and the principals read back (task 02 review m1): one reader could not tell a
+# for_each over the first id only, nor the Reader role granted to a writer.
 run "the_plan_identity_only_reads_state" {
-  assert {
-    condition     = length(azurerm_role_assignment.state_reader) == 1
-    error_message = "One reader in did not give one state_reader role assignment."
+  variables {
+    state_reader_object_ids = ["22222222-2222-2222-2222-222222222222", "44444444-4444-4444-4444-444444444444"]
   }
   assert {
-    condition     = azurerm_role_assignment.state_reader["22222222-2222-2222-2222-222222222222"].role_definition_name == "Storage Blob Data Reader"
+    condition     = length(azurerm_role_assignment.state_reader) == 2
+    error_message = "Two readers in did not give two state_reader role assignments."
+  }
+  assert {
+    condition     = toset([for a in azurerm_role_assignment.state_reader : a.principal_id]) == toset(var.state_reader_object_ids)
+    error_message = "The state_reader assignments are not one per reader id."
+  }
+  assert {
+    condition     = alltrue([for a in azurerm_role_assignment.state_reader : a.role_definition_name == "Storage Blob Data Reader"])
     error_message = "The plan identity holds more than Storage Blob Data Reader, so a PR build could rewrite state (review C3)."
   }
   assert {
-    condition     = azurerm_role_assignment.state_reader["22222222-2222-2222-2222-222222222222"].scope == "${azurerm_storage_account.state.id}/blobServices/default/containers/tfstate"
+    condition     = alltrue([for a in azurerm_role_assignment.state_reader : a.scope == "${azurerm_storage_account.state.id}/blobServices/default/containers/tfstate"])
     error_message = "The plan identity's role is not scoped to the tfstate container."
   }
 }
 
+# The stack's one security invariant (review C3): the plan identity is never a writer. The
+# shared id sits in the middle of both lists and at a different index in each (task 02 review
+# I1), so a check narrowed to the first or last writer, the first or last reader, or pairs at
+# the same index finds no overlap. The Deploy identities table gives two writers, so the plan
+# identity listed after the first is the realistic mistake.
 run "a_reader_that_is_also_a_writer_is_rejected" {
   command = plan
   variables {
-    state_reader_object_ids = ["11111111-1111-1111-1111-111111111111"]
+    state_writer_object_ids = ["11111111-1111-1111-1111-111111111111", "33333333-3333-3333-3333-333333333333", "44444444-4444-4444-4444-444444444444"]
+    state_reader_object_ids = ["22222222-2222-2222-2222-222222222222", "55555555-5555-5555-5555-555555555555", "33333333-3333-3333-3333-333333333333", "66666666-6666-6666-6666-666666666666"]
   }
   expect_failures = [var.state_reader_object_ids]
 }
@@ -167,18 +188,19 @@ run "a_three_character_suffix_is_rejected" {
   expect_failures = [var.unique_suffix]
 }
 
+# Two ranges (task 02 review m2): one could not tell every rule from the first rule only.
 run "ip_rules_turn_default_deny_on" {
   command = plan
   variables {
-    state_ip_rules = ["203.0.113.0/24"]
+    state_ip_rules = ["203.0.113.0/24", "198.51.100.0/24"]
   }
   assert {
     condition     = azurerm_storage_account.state.network_rules[0].default_action == "Deny"
     error_message = "IP rules were given but the account firewall does not deny by default."
   }
   assert {
-    condition     = azurerm_storage_account.state.network_rules[0].ip_rules == toset(["203.0.113.0/24"])
-    error_message = "The IP rules did not reach the firewall: Deny with no rules locks every caller out."
+    condition     = azurerm_storage_account.state.network_rules[0].ip_rules == toset(["203.0.113.0/24", "198.51.100.0/24"])
+    error_message = "The IP rules did not all reach the firewall: Deny with a rule missing locks that caller out."
   }
 }
 
@@ -191,6 +213,11 @@ run "the_account_is_locked" {
   assert {
     condition     = azurerm_management_lock.state.scope == azurerm_storage_account.state.id
     error_message = "The CanNotDelete lock is not on the state account. On a resource group it would block every replace foundation plans."
+  }
+  # The part asks for notes saying why (task 02 review m2). can() is false for null notes too.
+  assert {
+    condition     = can(regex("(?i)terraform state", azurerm_management_lock.state.notes))
+    error_message = "The lock's notes do not say it guards the Terraform state; whoever meets the lock is told nothing."
   }
 }
 
@@ -225,15 +252,81 @@ run "the_state_account_is_hardened" {
 }
 
 # Both committed tfvars set true today, so committed_tfvars_plan cannot tell a hard-coded true
-# from the variable (predicted survivor S1). This is prod's one planned change (task 30).
+# from the variable (predicted survivor S1). Public access off needs the private endpoint
+# (task 02 review I4), so this run gives one.
 run "public_access_off_reaches_the_account" {
   command = plan
   variables {
     state_public_network_access = false
+    state_private_endpoint = {
+      subnet_id           = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-mock/providers/Microsoft.Network/virtualNetworks/vnet-mock/subnets/private_endpoints"
+      private_dns_zone_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-mock/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net"
+    }
   }
   assert {
     condition     = azurerm_storage_account.state.public_network_access_enabled == false
     error_message = "state_public_network_access = false did not turn the account's public access off."
+  }
+}
+
+# Task 02 review I4: public access off with no private endpoint locks every caller out, the
+# in-VNet pool included, and state is then reachable by nobody. The validation refuses it.
+run "public_access_off_needs_a_private_endpoint" {
+  command = plan
+  variables {
+    state_public_network_access = false
+  }
+  expect_failures = [var.state_public_network_access]
+}
+
+# null is the default: dev's posture, and prod's until task 31's prod section. Both keys set here
+# so the run means the same if prod.tfvars later sets public access off.
+run "no_private_endpoint_unless_one_is_given" {
+  command = plan
+  variables {
+    state_public_network_access = true
+    state_private_endpoint      = null
+  }
+  assert {
+    condition     = length(azurerm_private_endpoint.state) == 0
+    error_message = "bootstrap made a private endpoint nobody asked for."
+  }
+}
+
+# apply: the connection's target is the account's computed id. The endpoint sits in the state
+# group, on the subnet and blob zone given (foundation's subnet_ids.private_endpoints and
+# private_dns_zone_ids.blob), auto-approved: the operator who applies bootstrap owns the account.
+run "a_private_endpoint_puts_state_on_the_vnet" {
+  variables {
+    state_public_network_access = false
+    state_private_endpoint = {
+      subnet_id           = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-mock/providers/Microsoft.Network/virtualNetworks/vnet-mock/subnets/private_endpoints"
+      private_dns_zone_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-mock/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net"
+    }
+  }
+  assert {
+    condition     = length(azurerm_private_endpoint.state) == 1
+    error_message = "state_private_endpoint was given but bootstrap made no private endpoint."
+  }
+  assert {
+    condition     = azurerm_private_endpoint.state[0].subnet_id == var.state_private_endpoint.subnet_id && azurerm_private_endpoint.state[0].resource_group_name == azurerm_resource_group.state.name && azurerm_private_endpoint.state[0].location == var.location
+    error_message = "The endpoint is not on the given subnet, in the state group, in var.location."
+  }
+  assert {
+    condition     = azurerm_private_endpoint.state[0].private_service_connection[0].private_connection_resource_id == azurerm_storage_account.state.id && toset(azurerm_private_endpoint.state[0].private_service_connection[0].subresource_names) == toset(["blob"])
+    error_message = "The endpoint does not connect to the state account's blob service."
+  }
+  assert {
+    condition     = azurerm_private_endpoint.state[0].private_service_connection[0].is_manual_connection == false
+    error_message = "The endpoint waits for a manual approval, so state stays unreachable after the flip."
+  }
+  assert {
+    condition     = toset(azurerm_private_endpoint.state[0].private_dns_zone_group[0].private_dns_zone_ids) == toset([var.state_private_endpoint.private_dns_zone_id])
+    error_message = "The endpoint writes no record in the blob zone, so the pool resolves the account to its public address."
+  }
+  assert {
+    condition     = azurerm_private_endpoint.state[0].tags == azurerm_storage_account.state.tags
+    error_message = "The endpoint does not carry the stack's tags."
   }
 }
 
@@ -308,8 +401,41 @@ run "the_backend_file_names_this_container" {
     condition     = can(regex("(?m)^use_azuread_auth\\s*=\\s*true\\s*$", file("${path.module}/../../backends/${var.environment}.hcl")))
     error_message = "backends/<env>.hcl does not set use_azuread_auth = true; the account has no shared key."
   }
+  # An allow-list, not a deny-list (task 02 review I2): a list of refused keys let
+  # client_secret, oidc_token and every other credential it did not name through. Every line is
+  # blank, a # comment, or one of the two settings, whole. Anything else fails, a // or /* */
+  # comment included: this file is config, and free text is the secret scan's to read.
   assert {
-    condition     = !can(regex("(?m)^\\s*(storage_account_name|resource_group_name|key|access_key|sas_token|subscription_id|tenant_id|client_id)\\s*=", file("${path.module}/../../backends/${var.environment}.hcl")))
-    error_message = "backends/<env>.hcl holds an identity or a credential; those arrive as -backend-config flags."
+    condition = alltrue([
+      for l in split("\n", replace(file("${path.module}/../../backends/${var.environment}.hcl"), "\r", "")) :
+      can(regex("^(\\s*(#.*)?|container_name\\s*=\\s*\"[a-z0-9-]*\"\\s*|use_azuread_auth\\s*=\\s*true\\s*)$", l))
+    ])
+    error_message = "backends/<env>.hcl holds a line other than a # comment, container_name or use_azuread_auth = true. An identity arrives as a -backend-config flag and a credential never: this file is committed."
+  }
+}
+
+# ---- Added in fix round 1 (task 02 review I3): three choices the runs above let live. -------
+
+# providers.tf, read as text. Provider configuration is not an object a run can assert on, but
+# its file is (the technique the backend run uses). Each line exactly once, whole, never
+# commented out. This pins the source, not what azurerm does with it.
+run "the_provider_is_entra_only_and_registers_nothing" {
+  command = plan
+  assert {
+    condition     = length(regexall("(?m)^\\s*storage_use_azuread\\s*=\\s*true\\s*$", file("${path.module}/providers.tf"))) == 1
+    error_message = "providers.tf does not set storage_use_azuread = true once: the account has no shared key, so data-plane calls must use Entra."
+  }
+  assert {
+    condition     = length(regexall("(?m)^\\s*resource_provider_registrations\\s*=\\s*\"none\"\\s*$", file("${path.module}/providers.tf"))) == 1
+    error_message = "providers.tf does not set resource_provider_registrations = \"none\" once: the read-only plan identity cannot register providers (review C3)."
+  }
+}
+
+# apply: the account id is computed. storage_account_id keeps the container on Resource
+# Manager; the deprecated storage_account_name goes through the data plane.
+run "the_container_is_made_through_resource_manager" {
+  assert {
+    condition     = azurerm_storage_container.tfstate.storage_account_id == azurerm_storage_account.state.id
+    error_message = "The tfstate container is not made by storage_account_id, so managing it needs data-plane reach to the account."
   }
 }
