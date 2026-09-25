@@ -132,3 +132,81 @@ reads `expires_at` back.
   route and `FleetOrg`), 11 (Fleet's delivery calls), 12 (`fleetd`'s token against `devissuer`),
   17 (the same `AppCallers`, consumed not re-added), 43 (the offline proof), 44 (revocation),
   66 (the variable, `task-66.md:297`).
+
+#### Contract — complete
+
+**`entra`, the admission (decisions a and h).** Built file, built lines: `Config` is
+`entra.go:23-41`, `Claims` `:44-54`, `JWKSValidator` `:90-106`, `New`'s client loop `:158-164`;
+the checks this replaces are `verify.go:116-122`. The text is `task-17.md:128-139` and
+`:241-252` with the helper names the built file uses (`v.clients`, `contains`).
+
+```go
+// control-plane/internal/entra/entra.go — additions
+
+// Config gains, after AllowedClients:
+
+	// AppCallers admits an app-only token (no scp) whose azp is ClientID and
+	// whose roles hold Role (ADR-H1 §5.10 rule 1). Empty keeps the validator
+	// delegated-only, as before. No ClientID may also be in AllowedClients.
+	AppCallers []AppCaller
+
+// AppCaller is one app-only identity a resource admits.
+type AppCaller struct {
+	ClientID string // a GUID, trimmed and lower-cased as AllowedClients are
+	Role     string // the app role it must hold, e.g. "Hub.Fleet"
+}
+
+// Claims gains, after Roles:
+
+	AppOnly bool // true only for a token admitted through Config.AppCallers
+
+// JWKSValidator gains, after clients:
+
+	appCallers []AppCaller
+
+// New, straight after the AllowedClients loop (:158-164):
+
+	for _, ac := range cfg.AppCallers {
+		id := normGUID(ac.ClientID)
+		if !isGUID(id) {
+			return nil, fmt.Errorf("entra: config: app caller %q is not a GUID", ac.ClientID)
+		}
+		if strings.TrimSpace(ac.Role) == "" {
+			return nil, fmt.Errorf("entra: config: app caller %s has no role", id)
+		}
+		if v.clients[id] { // decision (h)
+			return nil, fmt.Errorf("entra: config: %s is both an allowed client and an app caller", id)
+		}
+		v.appCallers = append(v.appCallers, AppCaller{ClientID: id, Role: ac.Role})
+	}
+```
+
+```go
+// control-plane/internal/entra/verify.go — :116-122 become one decision
+
+	scopes := strings.Fields(p.Scp)
+	appOnly := false
+	switch {
+	case len(scopes) == 0 && v.appCaller(p.Azp, p.Roles):
+		appOnly = true // no scp, a listed azp, the listed role
+	case !v.clients[p.Azp]: // :116-118, unchanged
+		return Claims{}, fmt.Errorf("%w: azp is not an allowed client", ErrClient)
+	case !contains(scopes, v.scope): // :119-122, unchanged
+		return Claims{}, fmt.Errorf("%w: scp does not hold %s", ErrScope, v.scope)
+	}
+	// … the oid check (:123-125) is unchanged: an app-only token's oid is its
+	// service principal's, a GUID; the returned Claims gains AppOnly: appOnly.
+
+// appCaller is true when some AppCaller has ClientID == azp and Role in roles.
+func (v *JWKSValidator) appCaller(azp string, roles []string) bool {
+	for _, ac := range v.appCallers {
+		if ac.ClientID == azp && contains(roles, ac.Role) {
+			return true
+		}
+	}
+	return false
+}
+```
+
+`TestAppOnlyTokensFailTheScopeCheck` (`entra_test.go:327-333`) keeps passing unchanged: its token's
+`azp` is the desktop, which is no app caller, so it still falls to `ErrScope`.
