@@ -457,4 +457,145 @@ func (f *Fake) PostUpdate(_ context.Context, s hubapi.UpdateSubject, req hubapi.
 		"pins": int64(len(u.FeaturePins)), "cites": int64(len(u.Cites))})
 	return *u, nil
 }
+
+// updateTarget checks the caller may post on s (a member of the owning team;
+// roleGranted may not) and resolves the stored pin (task 119, decision 3).
+func (w *fakeWorld) updateTarget(s hubapi.UpdateSubject, me string, req hubapi.PostUpdateRequest) (team, project, pin string, err error) {
+	badPin := func(field string) error {
+		return problem(422, hubapi.CodeBadRequest, "That brief revision is not this feature's.", "field", field)
+	}
+	pinOf := func(ft hubapi.Feature, key, field string) (string, error) {
+		b := w.briefs[ft.BriefID]
+		if key == "" {
+			return hubapi.BriefKey{BriefID: b.id, Revision: len(b.revisions)}.String(), nil
+		}
+		k, err := hubapi.ParseBriefKey(key)
+		if err != nil || k.BriefID != b.id || k.Revision > len(b.revisions) {
+			return "", badPin(field)
+		}
+		return key, nil
+	}
+	if s.Kind == hubapi.UpdateSubjectFeature {
+		ft, role, err := w.featureOf(s.ID, me)
+		if err != nil {
+			return "", "", "", err
+		}
+		if err := need(role, hubapi.RoleMember); err != nil {
+			return "", "", "", err
+		}
+		pin, err := pinOf(ft, req.PinnedBrief, "pinnedBrief")
+		return w.projects[ft.ProjectID].teamID, ft.ProjectID, pin, err
+	}
+	in, role, err := w.initiativeOf(s.ID, me)
+	if err != nil {
+		return "", "", "", err
+	}
+	if err := need(role, hubapi.RoleMember); err != nil {
+		return "", "", "", err
+	}
+	for i, p := range req.FeaturePins {
+		ft, _, err := w.featureOf(p.FeatureID, me)
+		if err != nil || w.rm().featureIn[p.FeatureID] != in.ID {
+			return "", "", "", badPin("featurePins[" + strconv.Itoa(i) + "]")
+		}
+		if _, err := pinOf(ft, p.PinnedBrief, "featurePins["+strconv.Itoa(i)+"]"); err != nil {
+			return "", "", "", err
+		}
+	}
+	if len(req.FeaturePins) == 0 {
+		return in.TeamID, "", "", nil // ValidateFor refuses it next, naming featurePins
+	}
+	return in.TeamID, "", req.FeaturePins[0].PinnedBrief, nil
+}
+
+// resolvable mirrors Resolve (fake_briefs.go:466-498) for one key without
+// taking the lock again: a brief key resolves when the caller reads the
+// brief through its own team and the revision exists; an issue key through
+// task 04's issueOf, but not by a grant, because a grant does not widen
+// /v1/refs (hub-contract.md:356). Every other kind is "missing", as H's
+// Resolve answers today; a later H task that resolves more kinds adds a case.
+func (w *fakeWorld) resolvable(key, me string) bool {
+	kind, err := hubapi.ParseKey(key)
+	if err != nil {
+		return false
+	}
+	switch kind {
+	case hubapi.KeyBrief:
+		k, _ := hubapi.ParseBriefKey(key)
+		b, _, err := w.briefOf(k.BriefID, me)
+		return err == nil && k.Revision <= len(b.revisions)
+	case hubapi.KeyIssue: // task 02's kind (UNVERIFIED name)
+		is, role, err := w.issueOfKey(key, me) // task 09's key lookup (UNVERIFIED name)
+		return err == nil && is != nil && role != roleGranted
+	}
+	return false
+}
 ```
+
+`Updates` lists `updates[subjectKey(s)]` newest first through `pageOf`, after the same read check
+(`featureOf` or `initiativeOf`, so `roleGranted` reads). Erase is TM-46's route and the fake's
+`EraseNote` (Phase T's fake, **UNVERIFIED**) blanks `Body.Text` and sets `ErasedAt`, keeping every
+other field; the row below reads it back. H's `fake_briefs.go` is not edited.
+
+#### `fake_work_roadmap.go`, continued: milestones and dependencies (task 120's rules)
+
+```go
+func (f *Fake) CreateMilestone(_ context.Context, featureID string, req hubapi.CreateMilestoneRequest) (hubapi.Milestone, error) {
+	w := f.w
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	me, err := f.enter("CreateMilestone", featureID, req)
+	if err != nil {
+		return hubapi.Milestone{}, err
+	}
+	ft, role, err := w.featureOf(featureID, me)
+	if err != nil {
+		return hubapi.Milestone{}, err
+	}
+	if err := need(role, hubapi.RoleMember); err != nil {
+		return hubapi.Milestone{}, err
+	}
+	if err := req.Validate(); err != nil {
+		return hubapi.Milestone{}, contentError("", err)
+	}
+	if err := w.onBrief(ft, req.CriterionIDs); err != nil {
+		return hubapi.Milestone{}, err
+	}
+	now := w.stamp()
+	m := &hubapi.Milestone{ID: ids.Wide(hubapi.PrefixMilestone), FeatureID: featureID, Name: req.Name,
+		Date: req.Date, CriterionIDs: slices.Clone(req.CriterionIDs), CreatedAt: now, UpdatedAt: now}
+	w.rm().milestones[m.ID] = m
+	w.rmEvent(me, hubapi.EventWorkMilestoneCreated, w.projects[ft.ProjectID].teamID, ft.ProjectID, m.ID,
+		map[string]any{"milestoneId": m.ID, "featureId": featureID, "criteria": int64(len(m.CriterionIDs))})
+	return *m, nil
+}
+
+// onBrief: every id is a criterion of the feature's branch brief at its head.
+func (w *fakeWorld) onBrief(ft hubapi.Feature, criterionIDs []string) error {
+	have := w.briefCriterionIDs(ft.BriefID)
+	for i, c := range criterionIDs {
+		if !slices.Contains(have, c) {
+			return rmProblem(hubapi.CodeCriterionNotOnBrief, "That criterion is not on this feature's brief.",
+				"field", "criterionIds["+strconv.Itoa(i)+"]")
+		}
+	}
+	return nil
+}
+
+// Milestones is the view: each criterion's word, and reached derived here,
+// at read, when every listed word is settled (task 10's settled set).
+func (w *fakeWorld) milestoneView(ft hubapi.Feature, m *hubapi.Milestone) hubapi.MilestoneView {
+	v := hubapi.MilestoneView{Milestone: *m, Criteria: []hubapi.CriterionWord{}, Reached: true}
+	for _, c := range m.CriterionIDs {
+		word := w.criterionWord(ft.BriefID, c)
+		v.Criteria = append(v.Criteria, hubapi.CriterionWord{CriterionID: c, Word: word})
+		v.Reached = v.Reached && w.settledWord(word) // task 10's rule (UNVERIFIED name)
+	}
+	return v
+}
+```
+
+`Milestones` returns `milestoneView` for each of the feature's milestones, oldest first, to any
+reader including `roleGranted`. `PatchMilestone` and `SetMilestoneCriteria` take the member check
+and, for the criteria, `onBrief` again; each appends its one event.
+
