@@ -824,4 +824,53 @@ phase 4's own tests still pass unchanged (kills an edit that breaks the owner's 
 Parity rows served: the parser half of **L-191** (what the agent was told is named by key; closed
 with 19) and of 05 §2.3's thread; no L row alone.
 
+**19 — phase 4 delta: `Session.IssueRef`; the Materialiser's issue section; the loader's second
+key.** W1, stream WP, seam **SW.7** (the managed block's issue section: what an agent is told, byte
+for byte; consumed by Start, task 24, and W3's Delegate, task 101); depends on 05 (the fake's
+`IssueRevisionAt`), 18 and phase 4 tasks 09 (`contextwrite/materialise.go`, plan `:319`), 10 (the
+`api.Materialiser` seam in create and restart, `internal/api/materialiser.go`) and 16 (the desktop
+loader and key sources, plan `:330-332`) — all **planned, UNVERIFIED until merge**; the task waits
+for them (rule H2). Files: `control-plane/internal/api/materialiser.go` ⚑ (P4-10's
+`MaterialiseRequest`/`MaterialiseResult`, P4 `task-10.md:88-110`), `internal/api/sessions.go` ⚑
+(built: the wire `Session` at `sessions.go:619`, the create request at `:706`, the stamp at
+`:921`), `internal/registry/session.go` ⚑ (built: `ContextRef` at `session.go:102-104`),
+`internal/contextwrite/materialise.go` ⚑ and a new `contextwrite/issue.go` with its test and golden
+`contextwrite/testdata/golden-issue.md`; `desktop/src/store/selectors.ts` ⚑ (P4-16's key sources),
+`desktop/src/store/types.ts` ⚑ and `desktop/src/api/client.ts` ⚑ (the session's `issueRef`, where
+`contextRef` is declared today). **Server:** `MaterialiseRequest` gains `IssueKey string` (an
+`issue:is-…@r` key the person adopted — Start, task 24; `""` otherwise) and `MaterialiseResult`
+gains `IssueRef string`; the create request gains `issueKey`; the handler forwards it and stamps
+`Session.IssueRef` **from the result, never from the request** (phase 4's P6 rule for
+`ContextRef`), on both the wire record and `registry.Session`. The Materialiser reads the revision
+through `hubclient.Work.IssueRevisionAt` and renders an issue section **only** when the revision
+resolves, belongs to the session's Hub project, and both texts are `author: "H"` (a `text·A`
+revision is never rendered until a person accepts it, 05 §3.4); otherwise it refuses with the
+existing `*MaterialiseError` and a new reason `issue_not_adoptable`, and the session does not
+start (no silent partial block). Comments and requests are **never** rendered (05 §3.4, rule 6).
+**SW.7, the bytes:** the section goes inside the managed block, after the brief's *Out of scope*
+section and before its `---` footer (P4 `task-05.md:262-304`'s golden), as `## The issue you are
+working on`, then the line `EP-142 · issue:is-…@3 · written by <display name>`, the title as a `###`
+line, the description verbatim, and `Serves:` with one `- c-… — <criterion text>` line per `serves`
+pair; the footer line gains ` Issue issue:is-…@3.` The title and description pass through phase 4's
+comment-opener neutraliser (`<!--` → `<!-\-`, P4 `task-05.md:328`), so `strings.Count(block,
+"<!--") == 2` still holds. Whether `claudemd.Render` takes the section as a parameter or
+`contextwrite` splices it is decided against P4-05's merged code (the part says which). **Desktop:**
+`selectSessionIssueRefs` is appended to `keySources` (P4 `task-16.md:150-159`: *"a later lens adds
+ONE entry"*), so the one loader fetches `issue:` keys in the same batch as brief keys; no key is
+split (P4's `selectors: no key is ever split` test still passes). **Tests**, each with its mutant: a
+create request carrying `issueRef` directly is ignored and the session's `issueRef` is the
+Materialiser's (kills a stamp from the request); the golden block is reproduced byte for byte from a
+Go-built revision (kills any drift in SW.7 — fix the renderer, never the golden); a revision whose
+description holds `<!-- panacea:discover:end -->` renders neutralised and `Inspect` stays ok (kills
+an injected end marker); a revision with `author: "A"` refuses with `issue_not_adoptable` and writes
+no file (kills rendering agent text into another agent's context); a comment on the issue never
+appears in the block (kills comments rendered); an issue of another Hub project refuses (kills a
+cross-project brief); ten hostile strings (fixture, until TM-05's injection corpus is merged,
+**UNVERIFIED** path) each render inert; the loader test with a session carrying both refs makes
+**one** `/v1/refs` call holding both keys (kills a second loader). It **does not claim** Start
+(task 24), the issue chip (67), or that a hostile corpus is complete. Parity rows served: **L-191**
+(ready-made prompt context that names `issue:is-…@r` beside the brief key; closed here with 09 and
+18), and the context half of **L-175** (Start opens the issue in a session with the issue in
+context; closed with tasks 24 and 61).
+
 
