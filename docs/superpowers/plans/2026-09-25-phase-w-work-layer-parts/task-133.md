@@ -164,6 +164,6 @@ lane names its issue, task 21); `decided_without_you` from task 64's DECIDED WIT
 Their `seq` is the issue's newest Hub `seq` at the time, so the link lands on the issue's activity
 at that point. They are admitted only when their `at` is after `sinceAt`, the `at` of the oldest
 unseen Hub event across the scopes; with no unseen event there is no local fact, so the band never
-invents a window (gap 2: `ReadCursor` has no `at`). These five sources are other tasks' names as
-their scopes write them (**UNVERIFIED**, no parts on this tree for 22, 45's selector aside, 63,
-64 or 71).
+invents a window (gap 2: `ReadCursor` has no `at`). Task 45's `convergenceWord` is verified
+(`task-45.md:90`); the other four sources are their scopes' names (**UNVERIFIED**: there are no
+parts for tasks 63, 64 or 71, and task 22's lane index is read by name only).
