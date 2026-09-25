@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -566,12 +567,17 @@ func TestEveryResolvedIDReadsBack(t *testing.T) {
 		project.BriefID = tc.id
 		branch := b42()
 		branch.BriefID = tc.id
+		// A branch that pins no project resolves alone, and its marker names
+		// the branch revision (the review's I1 wording, Resolve(nil, …)).
+		lone := b42()
+		lone.BriefID, lone.Content.Inherits = tc.id, nil
 		for _, key := range []struct {
 			name            string
 			project, branch *discover.Revision
 		}{
 			{"project key", project, nil},
 			{"branch key", b7(), branch},
+			{"lone branch key", nil, lone},
 		} {
 			doc, rerr := discover.Resolve(key.project, key.branch)
 			if (rerr == nil) != tc.resolves {
@@ -587,6 +593,48 @@ func TestEveryResolvedIDReadsBack(t *testing.T) {
 			b, ok, err := Inspect("A\n\n" + Render(doc))
 			if err != nil || !ok || b.Marker != (Marker{BriefID: tc.id, Revision: 5}) {
 				t.Errorf("%s, brief %q: Inspect(Render(Resolve)) = %+v, %v, %v", key.name, tc.id, b.Marker, ok, err)
+			}
+		}
+	}
+}
+
+// The number's twin of TestEveryResolvedIDReadsBack (fix round 2, R4-P2):
+// every revision number Resolve accepts, Inspect reads back in a begin
+// marker, and every number it refuses, Inspect refuses. Resolve's rule is
+// "a Number below 1" and the parser's is [1-9][0-9]* fitting an int; for an
+// int they are the same set, and this holds them to it on both keys.
+func TestEveryResolvedRevisionReadsBack(t *testing.T) {
+	body := strings.TrimPrefix(branchBlock(t), beginLine)
+	for _, n := range []int{-1, 0, 1, 5, 12, math.MaxInt} {
+		project := b7()
+		project.Number, project.Key = n, key(projectID, n)
+		branch := b42()
+		branch.Number, branch.Key = n, key(branchID, n)
+		lone := b42()
+		lone.Number, lone.Key, lone.Content.Inherits = n, key(branchID, n), nil
+		for _, k := range []struct {
+			name            string
+			project, branch *discover.Revision
+			id              string
+		}{
+			{"project key", project, nil, projectID},
+			{"branch key", b7(), branch, branchID},
+			{"lone branch key", nil, lone, branchID},
+		} {
+			doc, rerr := discover.Resolve(k.project, k.branch)
+			if (rerr == nil) != (n >= 1) {
+				t.Errorf("%s, Resolve(revision %d): err %v, want resolves %v", k.name, n, rerr, n >= 1)
+			}
+			_, ok, ierr := Inspect(fmt.Sprintf("%s brief=%s rev=%d -->", BeginPrefix, k.id, n) + body)
+			if ok != (rerr == nil) || (ierr == nil) != (rerr == nil) {
+				t.Errorf("%s, revision %d: Resolve err %v, but Inspect of its marker: ok %v, err %v", k.name, n, rerr, ok, ierr)
+			}
+			if rerr != nil {
+				continue
+			}
+			b, ok, err := Inspect("A\n\n" + Render(doc))
+			if err != nil || !ok || b.Marker != (Marker{BriefID: k.id, Revision: n}) {
+				t.Errorf("%s, revision %d: Inspect(Render(Resolve)) = %+v, %v, %v", k.name, n, b.Marker, ok, err)
 			}
 		}
 	}

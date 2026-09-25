@@ -371,6 +371,24 @@ func TestResolveNamesTheKeyAndThePin(t *testing.T) {
 		doc.ProjectBriefID != rvProjectID || doc.ProjectRevision != 5 {
 		t.Errorf("branch document = %s %d %s, project %s %d", doc.BriefID, doc.Revision, doc.Key, doc.ProjectBriefID, doc.ProjectRevision)
 	}
+	// Every pair above is @5 over @5, so a document naming one revision's
+	// number in the other's place passes it (fix round 2, R4-P1). Here the
+	// branch is @8 and pins the project's @3: the key and the marker are the
+	// branch's @8, the inherited line the project's @3.
+	project3 := rvProject()
+	project3.Number, project3.Key = 3, rvKey(rvProjectID, 3)
+	branch8 := rvBranch()
+	branch8.Number, branch8.Key = 8, rvKey(rvBranchID, 8)
+	branch8.Content.Inherits.Key = rvKey(rvProjectID, 3)
+	doc = mustResolve(t, project3, branch8)
+	if doc.BriefID != rvBranchID || doc.Revision != 8 || doc.Key != rvKey(rvBranchID, 8) ||
+		doc.ProjectBriefID != rvProjectID || doc.ProjectRevision != 3 {
+		t.Errorf("branch @8 over project @3 = %s %d %s, project %s %d", doc.BriefID, doc.Revision, doc.Key, doc.ProjectBriefID, doc.ProjectRevision)
+	}
+	doc = mustResolve(t, project3, nil)
+	if doc.BriefID != rvProjectID || doc.Revision != 3 || doc.Key != rvKey(rvProjectID, 3) {
+		t.Errorf("project @3 alone = %s %d %s", doc.BriefID, doc.Revision, doc.Key)
+	}
 	doc = mustResolve(t, rvProject(), nil)
 	if doc.BriefID != rvProjectID || doc.Revision != 5 || doc.Key != rvKey(rvProjectID, 5) ||
 		doc.ProjectBriefID != "" || doc.ProjectRevision != 0 {
@@ -420,6 +438,27 @@ func TestResolveRefusesAMalformedRevision(t *testing.T) {
 	}
 	branchZero := rvBranch()
 	branchZero.Number = 0
+	// A number below 1, not just 0: Render would write rev=-1, which Inspect
+	// refuses (fix round 2, R4-P2).
+	negative := rvProject()
+	negative.Number = -1
+	branchNegative := rvBranch()
+	branchNegative.Number = -1
+	// A branch that pins no project resolves alone, Resolve(nil, b), and its
+	// marker names that branch revision too: the path of every branch in a
+	// project with no complete project brief (ops.go pins nothing then), and
+	// the review's own I1 wording, Resolve(nil, revision). Every row above
+	// with a branch passes a project beside it (fix round 2).
+	lone := func(id string, n int) *Revision {
+		r := rvBranch()
+		r.Content.Inherits = nil
+		r.BriefID, r.Number = id, n
+		return r
+	}
+	loneRef := lone(rvBranchID, 5)
+	loneRef.BranchRef = "refs/heads/\tevidence-upload"
+	loneScope := lone(rvBranchID, 5)
+	loneScope.Scope = ScopeProject
 	// A project revision's envelope has branchRef "" (Hub contract §3.3,
 	// §7.5 :759); a branch revision's is "refs/heads/<name>", name non-empty
 	// with no ASCII control character, space or DEL (§3.3; the Hub's own
@@ -458,6 +497,15 @@ func TestResolveRefusesAMalformedRevision(t *testing.T) {
 		{"a branch brief id with a tab", rvProject(), branchID("bf-\ta2")},
 		{"a branch brief id with a comment opener", rvProject(), branchID("bf-<!--a2")},
 		{"a branch revision numbered 0", rvProject(), branchZero},
+		{"revision -1", negative, nil},
+		{"a branch revision numbered -1", rvProject(), branchNegative},
+		{"a lone branch revision with no brief id", nil, lone("", 5)},
+		{`a lone branch brief id with ">"`, nil, lone("bf->a2", 5)},
+		{"a lone branch brief id with a tab", nil, lone("bf-\ta2", 5)},
+		{"a lone branch revision numbered 0", nil, lone(rvBranchID, 0)},
+		{"a lone branch revision numbered -1", nil, lone(rvBranchID, -1)},
+		{"a lone branch name starting with a tab", nil, loneRef},
+		{"a lone branch revision with project scope", nil, loneScope},
 		{"a project revision with a branch ref", projectOnABranch, nil},
 		{"a project revision with a bare name", projectRef("main"), nil},
 		{"a project revision with a space", projectRef(" "), nil},
@@ -498,6 +546,9 @@ func TestResolveRefusesAMalformedRevision(t *testing.T) {
 	}
 	if _, err := Resolve(rvProject(), branchID("bf-!a2")); err != nil {
 		t.Errorf(`branch brief id "bf-!a2": %v`, err)
+	}
+	if _, err := Resolve(nil, lone("bf-!a2", 1)); err != nil {
+		t.Errorf(`lone branch brief id "bf-!a2" @1: %v`, err)
 	}
 }
 

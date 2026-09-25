@@ -396,8 +396,16 @@ Where this differs from the text above, this wins:
    it). **Both keys are checked** (fix round 2, re-review 1 R-I1): on a branch key the marker names
    the branch revision's id and number, so the id and number rules are pinned on the branch
    revision as well as the project one (`TestResolveRefusesAMalformedRevision`'s branch-side rows;
-   `TestEveryResolvedIDReadsBack` resolves each id as the project key, `Resolve(r, nil)`, and as
-   the branch key, `Resolve(b7(), r)`). Round 1 had two copies, `discover.markerSafe` and `claudemd.markerID`, each pinned only
+   `TestEveryResolvedIDReadsBack` resolves each id as the project key, `Resolve(r, nil)`, as the
+   branch key, `Resolve(b7(), r)`, and as a lone branch key, `Resolve(nil, r)` with `r` pinning no
+   project, which is every branch in a project with no complete project brief). The number's twin,
+   `TestEveryResolvedRevisionReadsBack`, holds `-1`, `0`, `1`, `5`, `12` and `math.MaxInt` to the
+   same rule on all three keys: `Resolve` refuses a `Number` below 1 exactly where the parser's
+   `[1-9][0-9]*` refuses its `rev=`. The lone key has refusal rows of its own (id, number, ref,
+   scope), because until this round only its scope row reached it, and only by its error kind.
+   `TestResolveNamesTheKeyAndThePin` resolves a branch @8 over a project @3, so a document that
+   names one revision's number in the other's place fails in `discover`, not only in `claudemd`'s
+   golden. Round 1 had two copies, `discover.markerSafe` and `claudemd.markerID`, each pinned only
    for `<`, a space and `""`: the review's RV1, RV1c and RV2 dropped `>` or narrowed white space to
    `' '` in either copy, and both packages stayed green.
 5. **Every question skipped** still renders the key: the intro, then `No question in this brief has
@@ -436,7 +444,8 @@ Where this differs from the text above, this wins:
     `TestOverrideNoteIsOneLine`, `TestDiffLinesIsCapped`, `TestDiffLineWireShape` (the `op` strings
     are wire values task 12 carries); and at fix round 1 `TestMarkerSafe`,
     `TestFollowUpHeadingIsTrimmedOrTheKey`, `TestEveryResolvedIDReadsBack` and
-    `TestSameTextAgreesWithDiffLines`. The Strip row's third shape is spelled in Go (b10 re-review
+    `TestSameTextAgreesWithDiffLines`; and at fix round 2 `TestEveryResolvedRevisionReadsBack`
+    (As built 4). The Strip row's third shape is spelled in Go (b10 re-review
     R-I1, above). `TestMergeAppendsAfterABlankLine` has two mixed-ending rows: the first line
     ending decides. Fix round 1 rows (review I2), each the rule a surviving mutant broke: `Merge`
     of a file that starts with a line ending (`"\nA\n"`, `"\n"`, `"\r\nA\r\n"`; RV3's `i >= 0`
