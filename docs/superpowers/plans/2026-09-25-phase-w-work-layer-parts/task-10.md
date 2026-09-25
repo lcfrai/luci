@@ -454,7 +454,7 @@ evidence through the Hub's own `POST /v1/evidence` (H25), so no row is forged:
 |---|---|---|
 | `TestEvidenceBeforeTheLandingDoesNotClose` | evidence recorded, then the issue lands; citing it → 422, `why: before_landed`; the issue stays `landed` | a rule without the time bound |
 | `TestASiblingsEvidenceAtAnotherCommit` | EP-150 landed at C2 with evidence at C2; EP-142 landed at C1 cites it → 422, `why: commit` | matching evidence by criterion alone |
-| `TestSharedEvidenceNeedsTheSameLanding` | EP-142 cites a record with `evidenceCommit` C2; EP-150, landed at C1 ≠ C2's issue landing, cites it too → 422 `cited_elsewhere`; two issues both landed at C1 share one record → both `done` | reuse of another issue's proof |
+| `TestSharedEvidenceNeedsTheSameLanding` | EP-142 landed at C1 cites record R taken at C2, naming `evidenceCommit: C2`; EP-150, landed at C2, citing R → 422 `cited_elsewhere` (the two landings differ); two issues both landed at C1 citing one record at C1 → both `done` | reuse of another issue's proof |
 | `TestEveryServedCriterionIsNeeded` | evidence for one of two criteria → 200, `landed`, `proof: waiting`; the second → `done`, `proven` | *any* instead of *every*, end to end |
 | `TestAFactIsNotSetByHand` | `to: started` with cause `hand` → 422 `state_not_allowed`; `to: landed` with `hand` → 422 | a hand-faked fact |
 | `TestAHandSetDoneNeedsAReason` | on the serving issue: no `reason` → 400 naming `reason`; with one → 200, `done`, `proof: not_proven`, `stateReason` the reason | a reasonless hand-set done; a hand-set done that reads proven |
