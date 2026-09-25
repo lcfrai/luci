@@ -138,3 +138,74 @@ CREATE TYPE inference_route  AS ENUM ('global', 'au');
 
 Every enum's labels are task 03's constants, in its order (`task-03.md:97-279`); step 4's
 `TestTeamEnumsAreTask03s` compares them, label by label, against `pg_enum`.
+
+**Piece 2, the helpers the `CHECK`s call.** Each is `IMMUTABLE`, so a `CHECK` may call it, and
+names everything with `hub.`, since a `CHECK` runs under the inserting session's `search_path`.
+`CASE` orders every guard that must run before a call that raises on the wrong type: SQL does not
+promise that `AND` and `OR` evaluate left to right, and `jsonb_array_length` raises on a scalar.
+
+```sql
+-- ── helpers ──────────────────────────────────────────────────────────────────
+-- An ag- id, and so never a machine-local session id (05-design.md §3.3 rule 2).
+CREATE FUNCTION is_agent_id(v text) RETURNS boolean LANGUAGE sql IMMUTABLE AS
+  $$ SELECT v ~ '^ag-[0-9a-f]{16}$' $$;
+
+-- The database half of teamtext.ValidGlob (task 02): at most 20, each 1 to 200 characters,
+-- relative, no backslash (chr 92), no '..' segment. The rest of the grammar, and breadth,
+-- stay Go's: the Hub holds no file list (task 01 §7.13 conventions).
+CREATE FUNCTION globs_ok(g text[]) RETURNS boolean LANGUAGE sql IMMUTABLE AS $$
+  SELECT cardinality(g) <= 20 AND NOT EXISTS (
+    SELECT 1 FROM unnest(g) AS x
+     WHERE x IS NULL OR char_length(x) NOT BETWEEN 1 AND 200 OR left(x, 1) = '/'
+        OR strpos(x, chr(92)) > 0 OR x ~ '(^|/)\.\.(/|$)')
+$$;
+
+-- At most n ids, each matching pattern.
+CREATE FUNCTION ids_ok(ids text[], n integer, pattern text) RETURNS boolean
+LANGUAGE sql IMMUTABLE AS $$
+  SELECT cardinality(ids) <= n
+     AND NOT EXISTS (SELECT 1 FROM unnest(ids) AS x WHERE x IS NULL OR x !~ pattern)
+$$;
+
+-- A text triple (decision b). A body is 1 to max characters and has an author; an agent's
+-- text names its agent, a human's names none. A NULL body (no text, or tombstoned) passes
+-- here; whether the table requires one is the table's own CHECK.
+CREATE FUNCTION text_ok(body text, author hub.text_author, agent text, max integer)
+RETURNS boolean LANGUAGE sql IMMUTABLE AS $$
+  SELECT CASE WHEN body IS NOT NULL AND author IS NULL THEN false
+              WHEN body IS NOT NULL AND char_length(body) NOT BETWEEN 1 AND max THEN false
+              WHEN author = 'agent' THEN coalesce(hub.is_agent_id(agent), false)
+              ELSE agent IS NULL END
+$$;
+
+-- Each entry 1 to max characters: an escalation's option labels and consequences.
+CREATE FUNCTION texts_ok(t text[], max integer) RETURNS boolean LANGUAGE sql IMMUTABLE AS $$
+  SELECT NOT EXISTS (SELECT 1 FROM unnest(t) AS x
+                      WHERE x IS NULL OR char_length(x) NOT BETWEEN 1 AND max)
+$$;
+
+-- A conflict's paths (§7.17): 1 to 50 of {"path", "lines"}; each path passes globs_ok; each
+-- has at most 20 ranges [start, end] with 1 <= start <= end.
+CREATE FUNCTION conflict_paths_ok(p jsonb) RETURNS boolean LANGUAGE sql IMMUTABLE AS $$
+  SELECT CASE
+    WHEN jsonb_typeof(p) IS DISTINCT FROM 'array' THEN false
+    WHEN jsonb_array_length(p) NOT BETWEEN 1 AND 50 THEN false
+    ELSE NOT EXISTS (
+      SELECT 1 FROM jsonb_array_elements(p) AS e
+       WHERE CASE
+         WHEN jsonb_typeof(e) <> 'object' THEN true
+         WHEN jsonb_typeof(e->'path') IS DISTINCT FROM 'string' THEN true
+         WHEN jsonb_typeof(e->'lines') IS DISTINCT FROM 'array' THEN true
+         WHEN NOT hub.globs_ok(ARRAY[e->>'path']) THEN true
+         WHEN jsonb_array_length(e->'lines') > 20 THEN true
+         ELSE EXISTS (
+           SELECT 1 FROM jsonb_array_elements(e->'lines') AS r
+            WHERE CASE
+              WHEN jsonb_typeof(r) <> 'array' THEN true
+              WHEN jsonb_array_length(r) <> 2 THEN true
+              WHEN jsonb_typeof(r->0) <> 'number' OR jsonb_typeof(r->1) <> 'number' THEN true
+              ELSE (r->>0)::numeric < 1 OR (r->>1)::numeric < (r->>0)::numeric END)
+       END)
+  END
+$$;
+```
