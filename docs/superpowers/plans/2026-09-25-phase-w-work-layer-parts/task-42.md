@@ -208,3 +208,59 @@ export function TriageView(props: {
 }): JSX.Element;
 ```
 
+#### The ops this task sends (SW.16 `mutate`; the union is task 56's)
+
+```ts
+// Already in task 46's part (task-46.md:271, :298-301, :335): reused as written.
+{ kind: "setState", issueId, move: handMove(acceptTarget(policy)) }            // 1
+{ kind: "setState", issueId, move: handMove("cancelled", reason) }             // 3
+[{ kind: "relation", issueId, add: { kind: "duplicates", issueId: otherId } },
+ { kind: "setState", issueId, move: handMove("duplicate") }]                    // 2, via DuplicateOfPicker
+
+// New here; task 56's WorkOp union must carry both (a gap, named in the return).
+/** PatchIssueRequest.snoozedUntil (task 11). "" clears it. */
+{ kind: "snooze", issueId: string, until: string }                              // 4
+/** One new revision whose serves = head serves − remove + add (SW.1). Task 43 re-points with it. */
+{ kind: "serves", issueId: string, add: readonly Serve[], remove: readonly Serve[] }   // T
+```
+
+`serves` writes a revision through task 09's revise route with the head's title and description
+unchanged; the replica's optimistic copy bumps `headRevision` and is replaced by the Hub's answer
+(task 56). A `serves` op whose result equals the current list is not sent.
+
+#### The refusal (decision 6), in `TriageView`
+
+```tsx
+// Refusal is SW.16's; its shape is task 56's, UNVERIFIED here beyond these four fields.
+//   interface Refusal { op: WorkOp; code: string; message: string; details: Record<string, string> }
+useEffect(() => onRefused((r) => {
+  if (Array.isArray(r.op) || r.op.kind !== "setState" || !inView.has(r.op.issueId)) return;
+  const issueId = r.op.issueId;
+  const priority = r.code === "policy_refused" && r.details.policy === "priorityToLeaveTriage";
+  setFailed({ issueId, why: priority ? "Needs a priority to leave Triage" : r.message, seq: Date.now() });
+  if (priority) setOpen({ issueId, kind: "priority" });
+}), [inView]);
+```
+
+The failed row carries `data-fail={seq}` for one `--dur-flash` (the `--fail` ink on the same
+pseudo-element task 41 flashes), and the reason stays under its title until the row's next change.
+`onRefused` returns its unsubscribe, which the effect returns.
+
+#### `work.css`, appended
+
+```css
+/* task 42 — Triage. */
+.wk-thread-words { color: var(--ink-2); font-size: var(--t-ui); }
+.wk-snoozed { font-family: var(--mono); font-size: var(--t-fact); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.wk-fail-why { color: var(--fail); font-size: var(--t-ui); }
+.wk-row[data-fail] { position: relative; }
+.wk-row[data-fail]::after { content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
+  background: var(--fail); opacity: 0; animation: wk-flash var(--dur-flash) var(--ease) 1; }
+.wk-decline { display: flex; gap: var(--s-2); align-items: center; min-block-size: var(--row-h); padding-inline: var(--s-3); }
+@media (prefers-reduced-motion: reduce) { .wk-row[data-fail]::after { animation: none; } }
+:root[data-motion="reduce"] .wk-row[data-fail]::after { animation: none; }
+```
+
+`--fail` is the built status token (**UNVERIFIED** name: if `tokens.css` calls it otherwise, the
+built name is used and this rule follows it); `wk-flash` is task 41's keyframes.
+
