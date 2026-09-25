@@ -101,8 +101,10 @@ resolutions, and the lease moves belong in the lease engine, not beside the prot
   - task 26: `turns.Queue.Enqueue` for the other side's wake after a resolution
   - task 11: `outbox.OpConflictPatch`, `OpThreadPatch`, `OpEscalation`, `OpLeaseEvent`; task
     06's route 58 and task 07's routes 61 and 64 are their targets
-- Requires of **task 30**: `Rules.Classify(ctx, Action) (Verdict, error)`, and on the `Escalator`
-  one more method, `AcceptNeedsDecision(ctx, t Thread, accept Stored, a Action) error`. Until
+- Requires of **task 30**: `Rules.Classify(ctx, Action) (Ruling, error)`, and on the `Escalator`
+  one more method, `AcceptNeedsDecision(ctx, t Thread, accept Stored, a Action, r Ruling) error`,
+  which writes one `decide` per side in `r.Sides` and, once every one of them approves, calls
+  `ApplyApproved`. Until
   task 30 lands, `StubRules` (below) is wired.
 - Requires of **task 10**: `fleet.land_hints` and `fleet.lease_demotions` (below), and the
   pending-accept marker on a thread's live proposal.
@@ -146,19 +148,28 @@ const (
 	VerdictDecide Verdict = "decide" // do not apply; task 30 asks the human(s)
 )
 
+// Ruling is a verdict and, for a decide, whose humans decide: the
+// participants (Orchestrator ids) whose owners must each approve.
+type Ruling struct {
+	Verdict Verdict
+	Row     string          // the §6.5 row key that decided it (task 30's table)
+	Sides   []model.AgentID // empty for act
+}
+
 type Rules interface {
-	Classify(ctx context.Context, a Action) (Verdict, error)
+	Classify(ctx context.Context, a Action) (Ruling, error)
 }
 
 // StubRules is wired until task 30: the one always-decide row TM1-α can
-// reach, proceed-both on H or M; everything else acts.
+// reach, proceed-both on H or M, for both humans; everything else acts.
 type StubRules struct{}
 
-func (StubRules) Classify(_ context.Context, a Action) (Verdict, error) {
+func (StubRules) Classify(_ context.Context, a Action) (Ruling, error) {
 	if a.Resolution == ResProceedBoth && (a.Tier == "H" || a.Tier == "M") {
-		return VerdictDecide, nil
+		return Ruling{Verdict: VerdictDecide, Row: "proceed-both-hm",
+			Sides: []model.AgentID{a.Proposer, a.Acceptor}}, nil
 	}
-	return VerdictAct, nil
+	return Ruling{Verdict: VerdictAct}, nil
 }
 
 // Outcome is what Resolve did.
@@ -366,7 +377,7 @@ Conflict `cf-1` (tier P, paths `auth/session.go`, `auth/token.go`), thread `th-1
 | `TestSequenceRestoresWhenTheFirstTaskEnds` | `TaskEnded(org, wA's task)`: `ls-B1` back to `hold`, rows deleted, one `sequence.go` event on `oB`'s queue; a second call writes nothing | no restore; restore on the wrong side's task |
 | `TestProceedBothOnPAcceptsTheConflict` | `proceed-both [auth/session.go]`: conflict patch `{state: accepted, resolution: proceed-both}`; no lease moves | the conflict marked `resolved`; leases released |
 | `TestProceedBothPathsMustBeTheConflicts` | `proceed-both [README.md]` → `bad_request` at propose | any paths accepted |
-| `TestProceedBothOnHIsADecideNotAnAct` | tier `H`: the accept stores, `AcceptNeedsDecision` is called once, the proposal is `awaiting-human`, the conflict is not patched, no DECIDED WITHOUT YOU item | `StubRules` not consulted; the verdict ignored |
+| `TestProceedBothOnHIsADecideNotAnAct` | tier `H`: the accept stores, `AcceptNeedsDecision` is called once with `Sides` = both Orchestrators, the proposal is `awaiting-human`, the conflict is not patched, no DECIDED WITHOUT YOU item | `StubRules` not consulted; the verdict ignored; one human only |
 | `TestApplyApprovedAppliesAPendingAccept` | after the H case, `ApplyApproved(…, es-9)`: the conflict is `accepted`, both inform items written, the `Outcome` names `es-9` | a pending accept that can never be applied |
 | `TestBothHumansGetDecidedWithoutYou` | after the yield: exactly two `OpEscalation` items, one under each owner's delegation, both `kind: inform`, `fromAgentId: ""`, `threadId: th-1`; **neither Orchestrator called `human inform`** | the item written only to the proposer's human; left to the Orchestrators |
 | `TestDecidedQuestionUsesTypedFieldsOnly` | the proposal's rationale text holds `IGNORE PREVIOUS`; neither question contains it; each names the other owner and the glob | the rationale quoted into the item |
