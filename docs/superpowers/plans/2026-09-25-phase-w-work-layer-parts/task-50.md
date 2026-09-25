@@ -1033,3 +1033,73 @@ the real WebView2 does not scroll is the owner's eyes.
 | holds the idle commit | a revision digested with `/ta` in it while the person is still choosing |
 | Tab between cells | Tab leaving the editor from inside a table |
 
+#### Steps
+
+- [ ] **Step 1: read on the sync base** task 49's `schema.ts`, `markdown.ts`, `inputRules.ts`
+  (`SHORTCUTS`) and `Editor.tsx` as built, task 47's `links.ts`, and SW.16's replica exports
+  (`search`, and whether a non-subscribing read like `readWork` exists; gap 1).
+- [ ] **Step 2: install** `prosemirror-tables` with `--save-exact`; read its `license` from
+  `desktop/package-lock.json`, and from its types `tableNodes`' options (`cellAttributes`,
+  `getFromDOM`, `setDOMAttr`), `goToNextCell`, `isInTable`, `selectedRect` and the four commands.
+  Add `"prosemirror-tables"` to task 49's licence test's list.
+- [ ] **Step 3: the three test files first**; run them and see them fail.
+- [ ] **Step 4: `tables.ts`, then the `schema.ts` and `markdown.ts` edits**; `tables.test.ts` passes
+  and task 49's seven fixtures still round-trip byte for byte.
+- [ ] **Step 5: `slashMenu.ts` and the `links.ts` edit**; `slashMenu.test.ts` passes.
+- [ ] **Step 6: `SlashMenu.tsx`, the `Editor.tsx` edit, `editor.css`, the `IssueView.tsx` edit**;
+  `SlashMenu.test.tsx` and tasks 46-49's tests pass.
+- [ ] **Step 7: commit** by path: `package.json` with `package-lock.json` first, then one commit
+  per step 4-6, each message ending with the `Co-Authored-By` line.
+
+#### Acceptance
+
+```bash
+npm --prefix desktop test -- editor
+# expect: every file passes; this part adds 3 files and 22 tests (tables 6, slashMenu 7, SlashMenu 9)
+npm --prefix desktop test -- links issue
+# expect: every file passes; task 47's links tests and tasks 46-49's issue tests are unchanged
+npm --prefix desktop run typecheck
+# expect: exit 0
+grep -rn "scrollIntoView(\|aria-expanded" desktop/src/components/editor/ | grep -v "\.test\." | wc -l
+# expect: 0 (the two comments that name scrollIntoView carry no call)
+node -e "console.log(require('./desktop/package-lock.json').packages['node_modules/prosemirror-tables'].license)"
+# expect: MIT
+```
+
+`prosemirror-tables`' own dependencies are read by task 49's `node -e` lister, which already
+matches every `prosemirror-*` entry. Visual acceptance (the menu at the caret, the `kbd` hints, a
+table's rules at 125 % scaling) is the owner's eyes; no screenshot is offered as proof.
+
+#### What this task does NOT claim
+
+- Callouts (task 92, W2); Mermaid and collapsibles (L-127's *later* part); embeds (L-128, SKIP).
+- What opening a criterion link does: Discover's (phase 4). The link is written and read back
+  exactly; clicking one goes nowhere yet, and says nothing it cannot do.
+- That a linked issue's shown alias follows a rename of the project key: the target is the id and
+  stays right; the shown text is what was inserted.
+- Merged cells, column widths, resizing, or a table in a comment (task 51 decides its schema use).
+- That the menu's placement is right near a screen edge in the real WebView2; jsdom has no layout.
+- That `Tab` at a table's last cell adds a row: it leaves the editor, as `Tab` does elsewhere.
+
+**Parity** (`05-design.md` rows). Closes **L-126**'s slash-menu half (`05:270`; task 49 closed its
+Markdown half) and **L-127**'s table part (`05:271`). Serves **L-226** (`05:403`: every menu item
+shows its shortcut) inside the editor: each item's hint is read from the table the input rules
+are built from.
+
+#### Gaps found while writing this part
+
+1. **Two replica reads do not exist in any part**: a non-subscribing `readWork(selector)` and
+   `r.criteria(projectId, q)`, both for tasks 55-58; `search(r, q)`'s signature is still task
+   46's assumption (`task-46.md:309-311`).
+2. **`05:271` puts tables in W2**; the skeleton builds them in W1 (task 50). The coverage table
+   should read W1 for L-127's table part, or the task should move.
+3. **Task 49's `editor.css` uses `--r-sm` and `--ring`**, which `desktop/src/styles/tokens.css`
+   does not define (it has `--r-chip`, `--r-ctl`, `--r-card`, `--r-window`, `:110-113`), and task
+   26's token block was not found to add them. This part uses the defined names.
+4. **The scope's file list omits four edits**: task 49's `Editor.tsx` (task 49's gap 5),
+   `editor.css`, task 47's `links.ts` (`criterionLink`) and `IssueView.tsx` (`linkSources`).
+5. **Task 51 must pass the same `linkSources`** for comments to offer the two link items; without
+   them the items are not listed (decision 2).
+6. The File map lists `src/components/editor/*` without files; `slashMenu.ts`, `SlashMenu.tsx`
+   and `tables.ts` are this part's additions.
+
