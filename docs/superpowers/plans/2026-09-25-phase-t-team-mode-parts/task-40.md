@@ -527,3 +527,27 @@ Sandbox side, `package runner`: task 27's fakes (`Client`, `Child`, clock, `t.Te
 | `TestPruneLeavesWhatItDidNotMake` | under `root`: a non-uuid directory, a uuid-named **symlink** to a temp dir with a file in it, a uuid-named file: all three left, the symlink target's file intact | `RemoveAll` of every entry; following a symlink out of `root` |
 | `TestPruneNeverReadsInsideHome` (Linux) | A's home holds a FIFO and a mode-`0000` file: `PruneHomes` returns within 1 s and A is gone | any "summarise before delete" that opens a file (it blocks on the FIFO) |
 
+Fleet side, `package turns`, `verbs` and `server`: task 26's fakes (memstore, `Streams` recording
+every push, fake clock, fake Hub route 69), task 12's fake Entra and `Membership`. Alice (`u-a`)
+owns Orchestrator `ag-oa` on `pj-1`; Bob (`u-b`) is a member of `pj-1`; Adam (`u-ad`) its admin;
+Alice's worker is `ag-a1`.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestRotateDueOnTheSydneyDate` | `StartedAt` 2026-09-25T13:59Z, now 14:01Z: true (23:59 → 00:01 local); `StartedAt` 2026-09-24T14:30Z, now 2026-09-25T13:00Z: false (both the 25th local) | UTC dates, which answer the opposite in both cases |
+| `TestRotateDueAcrossDST` | `StartedAt` 2026-10-03T14:30Z; now 2026-10-04T12:30Z: false; now 13:30Z: true (AEDT, +11, from 4 October) | a fixed +10 offset in place of the zone |
+| `TestRotateDueRules` | empty uuid: false; pending: true; zero `StartedAt`: true | pending ignored; a pre-migration session never rotating |
+| `TestRotateWhyNamesEachCause` | changed sandbox: `pod`; pending: `task-boundary`; new day: `day`; same day, same pod: `""`; first ever: `""` | a reason that disagrees with `SessionFor`'s mode |
+| `TestTryBeginRotatesDaily` | session A started yesterday (local): the pushed `turn.begin` has `mode new` and a uuid ≠ A; the claim's `rotated` is `day` | `rotateDue` still hard-wired `false` |
+| `TestBoundaryMakesNextTurnNew` | `MarkBoundary(ag-oa)`, then an event: `mode new`, `rotated task-boundary`; the turn after resumes | the flag never set, or never cleared |
+| `TestBoundaryDuringTheNewTurnSurvives` | `MarkBoundary` at `Began + 1 s` of the `new` turn, then `End`: the next turn is `new` again | clearing the flag unconditionally at `End` |
+| `TestLostNewTurnKeepsTheFlag` | a `new` turn swept `lost`: the flag is still set, and the next turn is `new` | clearing the flag at claim time |
+| `TestSeedHoldsNoOldSessionByte` | the canary `C4N4RY-old` placed in the last human-origin turn's `Reply`, in a `ms-…` body `ag-oa` sent, in a `ms-…` body it received and in an escalation's text it wrote: `json.Marshal(SeedResult)` has no occurrence | any field fed from a reply, a sent message or an agent-written text |
+| `TestSeedFieldsAreTheList` | reflection over `SeedResult`, `SeedThread`, `SeedEsc`, `SeedPolicy`: the JSON names are exactly those fenced above | a later `summary` or `lastReply` field |
+| `TestSeedHumanIsOwnHOnly` | Hub fake holds Alice's `text·H` ×7, Bob's `text·H`, an `text·A` authored as Alice: `Human` is Alice's last five `text·H`, newest last | Bob's words in Alice's seed; agent text laundered as human |
+| `TestSeedNeedsATurn` | `seed` with no live claim: `409 no_turn_in_flight`; from worker `ag-a1`: task 19's `forbidden` | a seed callable outside a turn, or by a worker |
+| `TestDiveClaimsAsHuman` | `BeginDive(ag-oa)`: one claim, origin `human`, no event ids, mode `resume` on the current uuid, `Until` = now + 2 h; `CurrentTurn` returns it with origin `human` | a DIVE outside the claim (the scheduler would start a turn beside it) |
+| `TestTurnEventDuringDiveWaits` | during a DIVE, three team events and one `human.message` are appended: `Tick` pushes no `turn.begin`, `DiveState.Waiting` is 4; after `EndDive`, the next `Tick` pushes one `turn.begin` with all four | events run beside a DIVE, or are dropped behind it |
+| `TestDiveNeverRotates` | session started yesterday, pending set: `BeginDive` pushes `mode resume` on the same uuid | a DIVE into a fresh, empty conversation |
+| `TestDiveBusy` | a turn in flight: `409 orchestrator_busy`; a second `BeginDive` during a DIVE: `409 orchestrator_busy`; no live pod: `409 agent_not_running` | two claims, or a DIVE into nothing |
+
