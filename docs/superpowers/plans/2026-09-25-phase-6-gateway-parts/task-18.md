@@ -686,7 +686,7 @@ Bedrock, Kata, AKS, a real Anthropic upstream, and LiteLLM's behaviour under loa
 
 - [ ] **Step 9: Route each FAIL and UNKNOWN**
 
-For each non-PASS row, the "Consequence" cell names the part and the change, from the probe table at the top of this task. Two of them edit a file this task does not own and are therefore **recorded here and made by that part's owner**: an `apiBaseForm: host` result (task 02's `models.yaml`, with `apiBaseEvidence` pointing at `#p07`), and an `UNKNOWN (unpriced)` on P03 to P05 or P12 (task 02 adds explicit local costs, then this probe is re-run). A P06, P13 or P14 FAIL is written to the owner as a blocker in the words of the row, and task 23 does not start until the owner answers.
+For each non-PASS row, the "Consequence" cell names the part and the change, from the probe table at the top of this task. Two of them edit a file this task does not own and are therefore **recorded here and made by that part's owner**: an `apiBaseForm: host` result (task 02's `models.yaml`, with `apiBaseEvidence` pointing at `#p07`), and an `UNKNOWN (unpriced)` on P03 to P05 or P12 (task 02 already renders a price into every group's `model_info`, its decision (f), so this result means the pinned LiteLLM reads prices from other keys: task 02 moves them where the evidence says, then this probe is re-run). A P06, P13 or P14 FAIL is written to the owner as a blocker in the words of the row, and task 23 does not start until the owner answers.
 
 - [ ] **Step 10: Commit**
 
