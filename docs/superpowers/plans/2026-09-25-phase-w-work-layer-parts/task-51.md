@@ -513,7 +513,7 @@ function Thread(props: { t: CommentThread; me: User; people: readonly User[]; he
     return (
       <div className="iv-cm-thread" data-thread={r.id} data-resolved="">
         <span className="iv-cm-folded">Resolved by {r.resolvedBy?.displayName ?? "someone"} · {time(r.resolvedAt)}</span>
-        <span className="iv-fact"> · {1 + t.replies.length} comments</span>
+        <span className="iv-fact"> · {t.replies.length === 0 ? "1 comment" : `${1 + t.replies.length} comments`}</span>
         <button type="button" onClick={() => resolve(false)}>Reopen</button>
       </div>
     );
@@ -799,4 +799,118 @@ beforeEach(() => {
   comments = []; mutate.mockClear(); issueRevisionAt.mockReset();
   Element.prototype.scrollIntoView = vi.fn();            // jsdom has none; a spy either way
 });
+
+describe("Comments", () => {
+  it("posting sends ONE append whose Markdown and authorship come from Editor", () => {
+    // kills: a second text path (a textarea's value, or the draft state instead of the doc)
+    const md = `resume works, ${mentionMarkdown(ALICE)}`;
+    submitDoc = { markdown: md, authorship: [{ from: 0, to: 6, cls: "text·A" }] };
+    view();
+    fireEvent.click(screen.getByRole("button", { name: "New comment (stub)" }));
+    expect(mutate).toHaveBeenCalledTimes(1);
+    expect(mutate).toHaveBeenCalledWith(expect.objectContaining({
+      kind: "comment", issueId: WORK_IDS.ep163, localId: expect.any(String),
+      req: { body: { text: md, author: "H" }, parentId: null, anchor: null, mentions: [WORK_IDS.alice] },
+    }));
+  });
+
+  it("a text anchor on @3 quotes @3 and says so while the head is @4", async () => {
+    // kills: quoting the head's description at the stored offsets
+    issueRevisionAt.mockResolvedValue(makeIssueRevision({ issueId: WORK_IDS.ep163, revision: 3 }));
+    comments = [c({ anchor: textAnchor(3, 2, 19) })];
+    view();
+    expect(screen.getByText("on the description · on @3")).toBeTruthy();
+    await waitFor(() => expect(screen.getByText("restarted sandbox")).toBeTruthy());
+    expect(issueRevisionAt).toHaveBeenCalledWith(WORK_IDS.ep163, 3);
+  });
+
+  it("a mention renders the member's current name, and a former member says so", () => {
+    // kills: rendering the link text (the name at posting time) as the identity
+    comments = [c({ body: { text: `[@Alice Old](panacea://user/${WORK_IDS.alice}) look`, author: "H" } })];
+    const { unmount } = view();
+    expect(screen.getByText("@Alice Example")).toBeTruthy();
+    unmount();
+    view([DYLAN]);
+    expect(screen.getByText(/former member/)).toBeTruthy();
+  });
+
+  it("reactions render the people's names and no digit", () => {
+    // kills: a reaction count
+    comments = [c({ reactions: [{ emoji: "\u{1F44D}", users: [DYLAN, ALICE] }] })];
+    view();
+    const group = screen.getByRole("group", { name: "Reactions" });
+    expect(group.textContent).toContain("Dylan Example, Alice Example");
+    expect(group.textContent).not.toMatch(/[0-9]/);
+  });
+
+  it("my second click on my own reaction sends on: false", () => {
+    // kills: a double add from the surface (the toggle reads who reacted, not a local flag)
+    comments = [c({ reactions: [{ emoji: "\u{1F44D}", users: [DYLAN] }] })];
+    view();
+    fireEvent.click(screen.getByRole("button", { pressed: true }));
+    expect(mutate).toHaveBeenCalledWith({ kind: "reaction", issueId: WORK_IDS.ep163,
+      commentId: WORK_IDS.comment, emoji: "\u{1F44D}", on: false });
+  });
+
+  it("resolve folds the thread, and Reopen and Undo both send it back", async () => {
+    // kills: a one-way resolve
+    comments = [c({})];
+    const { rerender } = view();
+    fireEvent.click(screen.getByRole("button", { name: "Resolve" }));
+    const op = { kind: "resolve", issueId: WORK_IDS.ep163, commentId: WORK_IDS.comment, resolved: true };
+    expect(mutate).toHaveBeenLastCalledWith(op);
+    comments = [c({ resolvedAt: "2026-09-25T01:02:00Z", resolvedBy: ALICE })];
+    rerender(<CommentsProvider><Comments issueId={WORK_IDS.ep163} me={DYLAN} people={[DYLAN, ALICE]} head={HEAD} /></CommentsProvider>);
+    expect(screen.getByText(/^Resolved by Alice Example · \d\d:\d\d$/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Reopen" }));
+    expect(mutate).toHaveBeenLastCalledWith({ ...op, resolved: false });
+    const real = await vi.importActual<typeof import("../../work/replica/ops")>("../../work/replica/ops");
+    expect(real.inverseOf(op as never, new Map(), {} as never)).toEqual({ ...op, resolved: false });
+  });
+
+  it("an agent's comment carries its mark and the word, not a colour alone", () => {
+    // kills: colour-only authorship
+    comments = [c({ body: { text: "Fixture added.", author: "A" } })];
+    const { container } = view();
+    const art = container.querySelector('[data-author="A"]')!;
+    expect(art.querySelector(".iv-author svg")).not.toBeNull();
+    expect(art.querySelector(".iv-author-word")!.textContent).toBe("text·A · agent");
+  });
+
+  it("an arrival while scrolled up leaves scrollTop unchanged and scrolls nothing", () => {
+    // kills: a scroll jump to the newest comment
+    comments = [c({})];
+    const { container, rerender } = view();
+    const list = container.querySelector<HTMLElement>(".iv-cm-list")!;
+    list.scrollTop = 120;
+    comments = [c({}), c({ id: "ic-00000000000000c2", createdBy: ALICE })];
+    rerender(<CommentsProvider><Comments issueId={WORK_IDS.ep163} me={DYLAN} people={[DYLAN, ALICE]} head={HEAD} /></CommentsProvider>);
+    expect(list.scrollTop).toBe(120);
+    expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
+  });
+
+  it("my own post is the one scroll", () => {
+    // kills: a composer that posts and leaves the person's comment off screen (and pins the ONE
+    // scroll to the painted element named by the op's localId)
+    submitDoc = { markdown: "mine", authorship: [] };
+    const { rerender } = view();
+    fireEvent.click(screen.getByRole("button", { name: "New comment (stub)" }));
+    const localId = (mutate.mock.calls[0][0] as { localId: string }).localId;
+    comments = [c({ id: localId, createdBy: DYLAN, body: { text: "mine", author: "H" } })];
+    act(() => rerender(<CommentsProvider><Comments issueId={WORK_IDS.ep163} me={DYLAN} people={[DYLAN, ALICE]} head={HEAD} /></CommentsProvider>));
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalledTimes(1);
+  });
+
+  it("a thread with anchors, reactions and a resolved fold makes no prediction", () => {
+    comments = [c({ reactions: [{ emoji: "✅", users: [ALICE] }] }),
+      c({ id: "ic-00000000000000c3", resolvedAt: "2026-09-25T01:02:00Z", resolvedBy: DYLAN })];
+    const { container } = view();
+    expectNoPrediction(container);
+  });
+});
 ```
+
+The size in the fold (*· 1 comment*, *· 3 comments*) is a count of records that exist, not a
+prediction, and `expectNoPrediction` passes over it (task 20's rule is about forecasts). The
+resolved-fold time is written as `\d\d:\d\d` because the local time zone of the test runner
+is not fixed; `toLocaleTimeString` with `hour12: false` is the source.
