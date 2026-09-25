@@ -713,3 +713,80 @@ its rule requires. The active option carries an inset bar as well as a fill, and
 elevation, so the ring-and-shadow rule does not apply. No transition anywhere: the menu appears
 where the caret is, which is the whole of its causality.
 
+#### Tests to write first — `desktop/src/components/editor/tables.test.ts`
+
+```ts
+import { describe, expect, it } from "vitest";
+import { EditorState } from "prosemirror-state";
+import { tableEditing } from "prosemirror-tables";
+import type { Node, NodeType } from "prosemirror-model";
+import { parseMarkdown, serializeMarkdown, serializeWithAuthorship } from "./markdown";
+import { editorSchema } from "./schema";
+import { createTable, gfmShapePlugin } from "./tables";
+
+const TABLE = "| Step | Owner | Done |\n| :--- | :---: | ---: |\n| upload | EP-142 | `no` |\n| resume | **dylan** | yes |";
+const N = editorSchema.nodes;
+const cell = (t: NodeType, s: string, attrs: Record<string, unknown> = {}): Node =>
+  t.create(attrs, s ? editorSchema.text(s) : null);
+const shaped = (table: Node): Node => {
+  const s0 = EditorState.create({ schema: editorSchema, plugins: [tableEditing(), gfmShapePlugin] });
+  return s0.applyTransaction(s0.tr.replaceWith(0, s0.doc.content.size, table)).state.doc;
+};
+
+describe("tables", () => {
+  it("parses a pipe table into one header row, body rows and column alignment", () => {
+    const t = parseMarkdown(TABLE).firstChild!;
+    expect([t.type.name, t.childCount]).toEqual(["table", 3]);
+    expect(t.child(0).firstChild!.type).toBe(N.table_header);
+    expect(t.child(1).firstChild!.type).toBe(N.table_cell);
+    expect([0, 1, 2].map((c) => t.child(2).child(c).attrs.align)).toEqual(["left", "center", "right"]);
+  });
+  it("writes a table back to the same pipe table, which re-parses to an equal document", () => {
+    const doc = parseMarkdown(TABLE);
+    const md = serializeMarkdown(doc);
+    expect(md).toBe(TABLE);
+    expect(parseMarkdown(md).eq(doc)).toBe(true);
+  });
+  it("escapes a pipe inside a cell, in text and in code, and reads it back", () => {
+    const src = "| a \\| b | `x \\| y` |\n| --- | --- |\n| c | d |";
+    const doc = parseMarkdown(src);
+    expect(doc.firstChild!.child(0).child(0).textContent).toBe("a | b");
+    expect(serializeMarkdown(doc)).toBe(src);
+  });
+  it("keeps an agent's cell text agent through the round trip", () => {
+    const out = serializeWithAuthorship(parseMarkdown(TABLE, "A"));
+    expect(out.markdown).toBe(TABLE);
+    expect(out.markdown.slice(out.authorship[0].from, out.authorship[0].to)).toBe("Step");
+  });
+  it("reshapes any table to GFM: header first row only, no spans, alignment per column", () => {
+    const bad = N.table.create(null, [
+      N.table_row.create(null, [cell(N.table_cell, "a"), cell(N.table_header, "b", { colspan: 2 })]),
+      N.table_row.create(null, [cell(N.table_header, "c", { align: "right" }), cell(N.table_cell, "d"), cell(N.table_cell, "e")]),
+    ]);
+    const t = shaped(bad).firstChild!;
+    const types = [0, 1].map((r) => Array.from({ length: t.child(r).childCount }, (_, c) => t.child(r).child(c).type.name));
+    expect(types).toEqual([["table_header", "table_header", "table_header"], ["table_cell", "table_cell", "table_cell"]]);
+    expect(t.child(1).child(0).attrs.align).toBeNull();          // the column's (null), not the cell's own
+    const doc = shaped(bad);
+    expect(parseMarkdown(serializeMarkdown(doc)).eq(doc)).toBe(true);
+  });
+  it("builds a fresh table with a header row of three and one body row", () => {
+    const t = createTable(editorSchema);
+    expect([t.childCount, t.child(0).childCount, t.child(0).child(0).type.name]).toEqual([2, 3, "table_header"]);
+  });
+});
+```
+
+The colspan case leaves the header row one cell short after flattening; the third header cell is
+`fixTables`' (`tableEditing`), which is why that test mounts both plugins. That `fixTables` adds
+the missing cell to the **end** of the short row is **UNVERIFIED** until step 3 runs it.
+
+| Test | Mutant it kills |
+|---|---|
+| parses a pipe table | the `table` rule left disabled (commonmark preset), so a table stays a paragraph of pipes |
+| writes it back, re-parses equal | lossy tables: a dropped delimiter row, lost alignment, a missing header |
+| escapes a pipe | an unescaped `\|` that splits one cell into two on the next load |
+| agent cell text | a cell serialized by `textContent`, which drops the sentinels and the class |
+| reshapes to GFM | a pasted or edited table the serializer cannot write back (a header-less first row, a span) |
+| a fresh table | *Table* inserting a grid with no header row, which GFM cannot hold |
+
