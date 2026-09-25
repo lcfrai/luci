@@ -203,7 +203,8 @@ nothing; each revision's digest is `hubapi.IssueRevisionDigest` of what is store
 a **new** revision with `restoredFrom`; `MoveIssueState` follows 05 §3.3 as drafted for SW.4
 (human moves among `triage`, `backlog`, `todo`, `cancelled`, `duplicate`; a fact state only with
 a fact cause; a hand-set `done` on an issue whose revision serves criteria needs a non-empty
-`reason` and records `stateReason: "done_not_proven"`), and task 10 is where the real server fixes
+`reason`, kept as `stateReason`, and is recorded as hand-set so task 10's result word reads *done,
+not proven*), and task 10 is where the real server fixes
 SW.4 and any drift is corrected here; **every write appends exactly one event** to the fake's feed
 (hub-contract:1131), with the Work kind names task 13 fixes (SW.5; drafted here as
 `issue.created`, `issue.changed`, `issue.revised`, `issue.state`). `fake_work_stub.go` makes
@@ -376,5 +377,48 @@ its argument); the no-row meta-test fails on a fixture route with no row. It **d
 the routes exist (08-15) or that Entra issues an integration principal (W5). Parity rows served:
 none closed alone; it pins 05 §3.6's authorisation rows behind L-8 and L-239 (every write attributed
 to a person).
+
+**08 — issue heads, numbers and `project.key`: routes and store, one event per write.** W1,
+stream WH, seam **SW.1** (the server side of the head); depends on 07 and Hub tasks H14 (the write
+transaction: audit lock, hash chain, idempotency, hub-contract §10.6) and H17 (projects). Files:
+new `control-plane/internal/hub/store/work_issues.go`, `server/work_issues.go` and
+`server/work_issues_integration_test.go`; `server/matrix_integration_test.go` ⚑ goes live for
+this task's rows (07's table); the route rows are appended to hub-contract §7's table in the WH
+proposal, never edited into a Hub row. Routes: `PUT /v1/projects/{projectId}/key`
+(`SetProjectKeyRequest` → `ProjectKey`); `POST /v1/projects/{projectId}/issues`
+(`CreateIssueRequest` → `IssueWithRevision`, 201); `GET /v1/projects/{projectId}/issues?state=
+&assignee=&label=&after=&limit=` (`Page[IssueHead]`, keyset by `number` descending, the Hub's
+`PageRequest`); `GET /v1/projects/{projectId}/issues/by-number/{n}`; `GET /v1/issues/{issueId}`;
+`PATCH /v1/issues/{issueId}` (`PatchIssueRequest`; no `state`). The store, in the one write
+transaction: the number comes from `UPDATE project_issue_counters SET last_number = last_number
++ 1 … RETURNING` under the row lock (seeded on the project's first issue), **never a Postgres
+sequence**, which leaves gaps on rollback; a create inserts the head, revision 1 (canonical bytes
+from `hubapi.IssueRevisionDigest`), its `issue_serves` rows and **one** event; an assignee must be
+a current member of the project's team and a `u-` id, never an agent (05 §3.6, `OD-16`); a patch
+writes no revision; `alias` is computed on read from `project_keys`, and a project with no key yet
+answers `alias: ""` so the desktop shows the number alone. **Events** (hub-contract §8 style,
+metadata only, `data` never holds a title or description): `issue.created` `{"number", "key",
+"digest", "state", "source"}`, `issue.updated` `{"fields": [names]}`, `project.key_set` `{"key",
+"previousKey"}`. hub-contract §8 says *exactly one event per changed record* (:1133); this task
+treats a new issue's head and first revision as one record, one event, and the part asks the Hub
+owner to confirm it (**UNVERIFIED**). Task 13 fixes the Work kinds for the feed (SW.5); a rename
+there is a find-and-replace in this file. **Tests** (integration, `-tags integration`, against
+the compose stack), each with its mutant: 20 concurrent creates give 1 to 20 with no gap, and a
+create that fails after numbering (a forced `revision_conflict` on a bad `serves` key) leaves the
+next create at the next number (kills a sequence, and a counter bumped outside the transaction);
+the same `Idempotency-Key` twice returns the same issue and one event (kills a double create on
+retry); each write's events are counted in `audit_events` and are exactly one, and no event's
+`data` contains the title string (kills content in the feed, hub-contract:1133-1134); an
+assignee who is not a team member, or an `ag-…` id, is 400 naming `assigneeId` (kills an agent
+as assignee); after the key moves `EP` → `PAY`, `GET …/by-number/142` and `GET /v1/issues/{id}`
+both show `PAY-142` and the revision key is unchanged (kills a stored alias); a `PATCH` carrying
+`"state"` is 400 (kills a state move that skips task 10's rule); the conformance rows of tasks 04
+and 05 that touch these routes pass against the real Hub once task 16's client exists. Acceptance:
+`go test ./control-plane/internal/hub/... -tags integration -race -count=1 -run
+'WorkIssues|Matrix'` passes. It **does not claim** revisions, restore or `/v1/refs` (task 09),
+state moves (10), or any desktop surface. Parity rows served: **L-2** (the team gains Work
+settings, with 11), **L-3** (the key and the alias; closed with the desktop row, tasks 40 and
+46), **L-13** and **L-38** (priority and the one human assignee; closed with the issue view and
+the lens), **L-239** (every write's attributed event; the Hub's audit route already exists).
 
 
