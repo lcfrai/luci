@@ -575,3 +575,52 @@ run "sentinel_rule_reads_anchors" {
 Analytics Reader"]` plus whatever task 10 already assigns it (with `hub_key_vault_access` false:
 none), so `Log Analytics Contributor`, `Data Purger` or `Monitoring Contributor` on the Hub fails
 the plan. `role-allowlist.txt` gains the two role names.
+
+#### Tests first
+
+The Hub tests run on Hub task 06's integration harness (`-tags integration`, real Postgres), with
+`auditsink.Fake` as sink and reader. The marker is `ZQX-MATTER-4471`, as Hub task 27's erasure test
+uses (Hub `task-27.md:72`).
+
+**`auditsink/record_test.go`** (no database):
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestStringsLeaveOnlyWhenListed` | `team.created {"name": marker}` → `DataKeys ["name"]`, `DataValues {}`, `Dropped 1` | a mapping that copies `Data` |
+| `TestAListedKeyStillNeedsTheGrammar` | `delegation.revoked {"reason": "member removed ZQX"}` → dropped, `Dropped 1` | trusting the key alone, so a contract change leaks text |
+| `TestEnumsNumbersAndBooleansLeave` | `delegation.revoked {"reason":"member_removed"}`, `audit.read {"after":3,"count":40}` → all three values present | an allowlist so tight Sentinel can tell nothing |
+| `TestTheSameKeyIsTextInAnotherKind` | `release.abandoned {"reason": "client asked"}` and `brief.erased {"reason": …}` → dropped | a key-only allowlist (`reason` is an enum in one kind, text in two) |
+| `TestHashesAreTheRowsNotRecomputed` | `FromRow` with a `hash` that does not match `canonical` → the record carries the given hash | recomputing, which hides a row whose stored hash was edited |
+| `TestTheRecordHasNoCanonical` | the marshalled record's JSON keys equal exactly the 14 columns of `hub_audit_columns` | a new field added to the record and not to the table, or a `Canonical` field |
+
+**`auditsink/logs_test.go`** (an `httptest` server):
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestSendPostsToTheStreamPath` | the path is `/dataCollectionRules/<dcr>/streams/Custom-PanaceaHubAudit_CL`, `api-version=2023-01-01`, the bearer from `Token("https://monitor.azure.com/.default")`, a JSON array | a wrong scope or stream name |
+| `TestSendSplitsLargeBatches` | 1,200 records → three calls, none over 1 MB | one call over the API limit, refused whole |
+| `TestSendFailsOnAnyNon2xx` | 429, 500, 403 → non-nil | a 429 treated as sent, advancing the cursor over lost events |
+| `TestQueryRefusesABadOrgID` | `AnchorsOf(ctx, "org-1' or 1==1", …)` → error, zero requests | KQL injection through the org id |
+
+**`server/auditstream_integration_test.go`:**
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestEveryEventStreamsOnce` | 30 writes over two orgs; `StreamOnce` twice → the fake holds 30 records, each `(org, seq)` once, and each org's cursor equals its head | a cursor never advanced, or advanced per org wrongly |
+| `TestAFailedSendIsRetried` | `FailN = 1` → round 1 sends 0 and the cursor stays; round 2 sends all | the cursor advanced before the 2xx |
+| `TestNoTextLeaves` | a team named with the marker, a project likewise, an invite to `marker@example.com`, a release abandoned and a brief erased with the marker in `reason`, a brief revised with the marker in content → after `StreamOnce` and `AnchorOnce`, `bytes.Contains(w, marker)` is false for every `Fake.Wire` batch | any path by which text reaches the stream |
+| `TestEverySubjectIsAnIdentifier` | every streamed `Subject` matches `^[a-z]+-[0-9a-f]+$`, a route pattern `^(GET\|POST\|PUT\|PATCH\|DELETE) /v1/`, or `^sha256:[0-9a-f]{64}$` | a kind whose subject is a name |
+| `TestTheCursorMovesForwardOnly` | as `hub_app`: `UPDATE … SET streamed_seq = streamed_seq - 1` → `23514`; past the head → `23514` | a cursor wound back or forward by hand |
+| `TestStreamingTakesNoHeadLock` | a write holding the org's head lock does not block `StreamOnce` for that org (it completes within 1 s) | the streamer serialising every write in the org |
+| `TestAnchorsEveryHourEvenWhenIdle` | two `AnchorOnce` with no writes between → two anchors, same `Seq` and `Hash` | anchors only on change, so silence is not a signal |
+| `TestTeamModeNeedsTheSink` | sink `off` → `TeamModeAllowed` is 503 `unavailable`, `reason: audit_not_streaming`; `logs` → nil | team mode reachable with the audit inside the building |
+
+**`cmd/hub/verify_integration_test.go`** (added to Hub task 27's):
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestAnchorPassesOnAHealthyChain` | 30 events, stream, anchor → exit 0, exactly `ok anchor (2 anchors, 30 events in 2 orgs)` | a check that passes on zero anchors |
+| `TestAConsistentRewriteIsCaught` | stream and anchor; then, as the owner, disable the triggers, change row 12's `canonical` and recompute `hash` and `prev_hash` for 12–30 so the chain links → the `audit` check prints `ok audit` **and** the `anchor` check exits 1 with `FAULT anchor: org <id> seq 30: A1` | **the scope's test**: the in-database chain as the only proof |
+| `TestARewriteBeforeTheNextAnchorIsCaught` | stream only (no anchor since row 12 was written), rewrite 12–30 as above → exit 1, `seq 12: A4` | anchors alone, leaving the hour between anchors open |
+| `TestATruncatedChainIsCaught` | anchor at 30, delete rows 21–30 and set the head to 20 → exit 1, `A2` | a head allowed behind its anchor |
+| `TestAHubThatNeverAnchoredIsCaught` | events older than 2 h, zero anchors → exit 1, `A5` | a stopped anchor loop passing verify |
