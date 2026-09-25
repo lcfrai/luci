@@ -15,7 +15,7 @@ the spec here and nowhere else.
 
 Three rules from the design shape it. **One Orchestrator per person per project**, created on that
 person's first team launch and never for a `viewer` (OD-16, `05-design.md` §4.1). **The owner is the
-delegation's**, never Fleet's and never a body's (§3.3 rule 1; `task-01.md:122-126`). **No org key
+delegation's**, never Fleet's and never a body's (§3.3 rule 1; `task-01.md:127-131`). **No org key
 and no Global fallback**: a sandbox holds a one-hour key bound to its pod, and an AU project whose AU
 route is down gets no key at all (P6-D5, `.claude/worktrees/phase-6/docs/superpowers/plans/2026-09-25-phase-6-gateway.md:69`).
 
@@ -43,7 +43,7 @@ Neither exists on any branch on 2026-09-25; both are **UNVERIFIED until merge**.
    on `store.ErrConflict` it reads the winner and returns it. Two replicas launching at once therefore
    yield one Orchestrator and two identical answers, with no lock.
 4. **The Orchestrator needs its own delegation.** A worker delegation covers worker routes only
-   (`task-01.md:292-297`), and the broker lets only an `orchestrator` delegation create an
+   (`task-01.md:293-297`), and the broker lets only an `orchestrator` delegation create an
    Orchestrator (task 17 decision 5). So a member's first team launch creates the Orchestrator **only
    if** a live `orchestrator`-class delegation for that owner and project is in task 11's cache;
    otherwise the worker launches alone, which task 01 allows ("a worker the member launched with no
@@ -529,7 +529,7 @@ Expected: no output. Decision 8's "no path in this file constructs a Global rout
 - **Gap S20-1 — the Orchestrator's delegation.** Task 21 creates a `worker` delegation per cockpit
   launch (`task-21.md:440`); nothing in the skeleton or a written part creates the owner's
   `orchestrator`-class delegation, which only the owner's desktop can (route 46 is desk-only,
-  `task-01.md:229`). Until task 21 (or task 52) creates and renews it on a member's first team launch,
+  `task-01.md:251`). Until task 21 (or task 52) creates and renews it on a member's first team launch,
   decision 4's "awaiting-delegation" is the answer and TM1-α has no Orchestrator. **This blocks task 33.**
 - **Gap S20-2 — the counterpart tag.** Phase 6's `MintRequest` has no counterpart
   (`task-03.md:30`); this task adds `Counterpart` as a phase 6 delta the skeleton's delta table does not

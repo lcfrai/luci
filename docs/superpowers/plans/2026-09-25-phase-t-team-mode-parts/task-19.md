@@ -536,7 +536,7 @@ racing a socket close.
   noted in decision 1 and not built.
 - That `OwnArgs` alone keeps owners apart. It is the generic check; each handler still refuses what its
   own verb forbids (task 23's own-lease rule, task 31's own-worker rule), and the Hub's `agent_not_owner`
-  check (`task-01.md:127-133`) is the last layer.
+  check (`task-01.md:135-141`) is the last layer.
 - **S19-1 — resolved.** Dispatch's codes were a gap until task 09's part landed; they are now
   task 09's `wire` constants, `ClassMay` is task 09's (`task-09.md:305-307`), and local verbs
   (`token`, `events.wait`) have no registration, so they reach `unknown_verb` as task 09 asks
