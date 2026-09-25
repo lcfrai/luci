@@ -2302,17 +2302,23 @@ disabled to prove row-level security alone holds.
 
 **Ruling, applied as written:** main `docs/superpowers/planning/2026-09-25-identity-keycloak-broker.md`
 ("the ruling"); ADR-H1 §12. **This section wins over §5.1, §6, §9.1, §9.5, §11.1 T2 and §12 where they
-disagree**; task 44a folds it into those sections (ruling §11 `:504`). The `orgs` and `users` keys of §10
+disagree**; task 44a folds it into those sections (ruling §11 `:573`). The `orgs` and `users` keys of §10
 are unchanged: the person is still `(tid, oid)`, Entra's ids carried through the realm (ruling §4).
 
 **§5.1, from token to principal.** Step 3 validates with `oidcauth.Validator` under the `keycloak` profile
 (ruling §5): `Issuer` = `PANACEA_APP_OIDC_ISSUER`, `Audience` = `RequiredScope` = `panacea-app-hub`,
 `AllowedClients` = `panacea-app-desktop`, `ServiceClients` = `panacea-app-fleet` and `panacea-app-gateway`
-(ruling §6 `:326-336`: Fleet only with a live delegation, the gateway only on its two routes). Under
-`keycloak`, `tenant_not_enrolled` is decided **after** the signature. **Org admin** is true when the flat
-`roles` claim contains **`hub.org_admin`**, a realm role the realm's admin assigns, read from each token as
-before. The `email` rule is unchanged (ruling §4 `:188`); the invite-binding gate of plan correction A15
-is **open** (ADR-H1 §12).
+(ruling §6 `:325-361`). `aud` must contain `panacea-app-hub` **and no other `panacea-app-*` audience**
+(`ErrAudience`, ruling §5 `:278-279`). A **service** token (no `tid`, no `oid`) never reaches
+`resolve_principal`: the gateway passes only on ruling §6's one route list (`:349-361`; in phase H,
+`GET /v1/projects/{projectId}`), Fleet on no route until phase T adds its live-delegation check; both
+refusals are 403 `forbidden` (hub task 13). Under `keycloak`, `tenant_not_enrolled` is decided **after**
+the signature. **Org admin** is true when the flat `roles` claim contains **`hub.org_admin`**, a realm
+role the realm's admin assigns, read from each token as before. The `email` display rule is unchanged.
+**The invite-binding rule is ruled** (ruling §4 `:197`, replacing A15's `acct`/`xms_edov`, which fail
+closed under `keycloak`): `bindEmail` is the `email` claim, lowercased, only when `email_verified` is
+the JSON boolean `true` and `azp == panacea-app-desktop`; otherwise no invite binds. The realm makes
+`email` admin-edit only and its IdP mapper `FORCE` (ruling K3, K4).
 
 **§6.1, sign-in.** Changed steps; the rest stand:
 - Step 3: discovery at `<PANACEA_APP_OIDC_ISSUER>/.well-known/openid-configuration`, cached for the process.
@@ -2320,27 +2326,31 @@ is **open** (ADR-H1 §12).
   `scope=openid offline_access panacea-app-hub panacea-app-broker panacea-app-gateway panacea-app-fleet`,
   `state`, `nonce`, `code_challenge`, `code_challenge_method=S256`, `kc_idp_hint=<PANACEA_APP_OIDC_IDP_HINT>`
   (omitted when empty), `login_hint=<Windows UPN>` (omitted when unknown). **No `prompt`, no
-  `response_mode`, no `domain_hint`** (ruling §2 step 4, §3 `:121-129`).
+  `response_mode`, no `domain_hint`** (ruling §2 step 4, §3 `:115-125`). `kc_idp_hint` is cosmetic:
+  the client's browser-flow override sends every interactive sign-in to Entra (ruling K1, `:500-505`).
 - Step 5: **the control plane opens the system browser itself** (`ShellExecuteW`); the renderer shows
   `authorizeUrl` only as a fallback link after 15 s with no callback (ruling §2 step 3).
 - Step 6: browser ↔ Keycloak ↔ Entra, with no click on a KPMG device (ruling §3; U-6).
 - Step 7: the listener serves only `GET /callback`; the page text is **"Signed in. You can return to
   PanaceaApp."**, and a mismatch or `error` answers 400 "Sign-in did not complete. Return to PanaceaApp to
-  try again." (ruling §3 `:138-142`).
+  try again." (ruling §3 `:141-145`).
 - Step 9: the `id_token`'s `nonce`, `iss`, `aud == panacea-app-desktop` and `azp` are checked; `oid`, `tid`,
   `name`, `email` are read from it (ruling §2 step 6). Step 10: the **offline** refresh token is stored; the
   code-exchange access token is discarded, never sent (ruling §2 step 7).
-- `PANACEA_APP_ENTRA_REDIRECT_HOST` is deleted: the Keycloak client registers `http://127.0.0.1/*` only,
-  never `localhost` (ruling §10 `:454`). The `reason` strings are unchanged (the ruling is silent on them).
+- `PANACEA_APP_ENTRA_REDIRECT_HOST` is deleted: the Keycloak client registers `http://127.0.0.1/callback`
+  only, any loopback port, never `localhost` and never a `/*` path (ruling §10 `:490`). The `reason` strings are unchanged (the ruling is silent on them).
 
 **§6.2, tokens after sign-in.** `TokenSource.Token(ctx, "<audience scope>")` refreshes with
 `scope=openid <audience scope>` for a single-audience token (ruling §2 step 7; U-4). **Scopes in v1:**
 `panacea-app-hub`, `panacea-app-broker`, `panacea-app-gateway`, `panacea-app-fleet`; `Hub.Access`,
 `Sandboxes.Access` and Azure DevOps `user_impersonation` no longer exist. **Start-up:** a silent refresh
 for `panacea-app-hub` at launch; `invalid_grant` deletes the stored token and runs §6.1 at once, without a
-click; a network failure never opens a browser (ruling §3 `:131-136`). The ruling says the cache serves a
-token "until 60 seconds before `exp`"; plan correction A13's `min(5 min, lifetime / 2)` is task 31's to
-reconcile (flagged, not ruled here).
+click; a network failure never opens a browser (ruling §3 `:134-139`). The cache serves a token until
+`min(60 s, lifetime / 2)` before `exp` (hub task 31's reconciliation of the ruling's 60 s and A13).
+**A refresh grant's returned refresh token is never written back**; the original offline token is kept
+(ruling U-4b, `:613`; safe because the realm's `revokeRefreshToken` is false). The desktop client's
+access tokens live **600 s** (ruling K1 `:495`), which bounds revocation latency at the offline
+validators (ruling §6 `:383-386`).
 
 **§6.3, validation:** replaced by `control-plane/internal/oidcauth` (env task 17 step 0; hub task 10's part
 holds the exported API and the `keycloak` check order). **§6.4, `devissuer`:** Keycloak paths under
@@ -2351,9 +2361,9 @@ K1-K4 (Panacea's dev realm) and §9 (phase 8's own realm).
 **§9.1, `credstore` and the sign-in package.** `entraauth` is renamed **`signin`**; `ErrEntraUnavailable`
 becomes `ErrIssuerUnavailable`. The refresh-token target is `PanaceaApp/oidc/<issuer host>/<realm>/refresh`,
 replacing `EntraRefreshPrefix`/`EntraAccountTarget`, so a token from one realm is never offered to another
-(ruling §9 `:425-427`; hub task 28). `Config` reads the `PANACEA_APP_OIDC_*` variables below and
+(ruling §11 `:581`; hub task 28's `OIDCAccountTarget`/`OIDCRefresh*(issuer)`). `Config` reads the `PANACEA_APP_OIDC_*` variables below and
 `PANACEA_APP_HUB_AUDIENCE=panacea-app-hub`, replacing `Authority`, `HubScope`/`PANACEA_APP_HUB_SCOPE` and
-`RedirectHost`; the field names are hub tasks 30-32's parts (ruling §11 `:513-515`).
+`RedirectHost`; the field names are hub tasks 30-32's parts (ruling §11 `:583-584`).
 **`DevOps` and the credential Source `"entra"` are deleted**: Azure DevOps is a personal access token in
 `Local` (ruling §7; ADR-H1 Q5 flipped). Sources: `"credential-manager"` and `"git-credential-helper"`.
 
@@ -2363,11 +2373,14 @@ replacing `EntraRefreshPrefix`/`EntraAccountTarget`, so a token from one realm i
 `_ENTRA_REDIRECT_HOST` and `PANACEA_APP_HUB_SCOPE`. Hub: `PANACEA_APP_OIDC_ISSUER` and
 `PANACEA_APP_OIDC_PROFILE` replace `PANACEA_APP_HUB_ENTRA_AUTHORITY_HOST`; `PANACEA_APP_HUB_AUDIENCE` and
 `_REQUIRED_SCOPE` are `panacea-app-hub`; `_ALLOWED_CLIENTS` is `panacea-app-desktop`; `_ORG_ADMIN_ROLE`
-defaults to `hub.org_admin`. The Hub's service-client variable is named by task 13's part (the ruling names
-none). §12.1's devstack lines are `devissuer env`'s (hub task 11's part).
+defaults to `hub.org_admin`. The service clients are `PANACEA_APP_HUB_GATEWAY_CLIENT_ID` (default
+`panacea-app-gateway`, phase T task 66's name) and `PANACEA_APP_HUB_FLEET_CLIENT_ID` (default
+`panacea-app-fleet`), named by hub task 13's part. §12.1's devstack lines are `devissuer env`'s (hub task 11's part).
 
 **§11.1 T2, confused deputy.** Defence: `iss` equals `PANACEA_APP_OIDC_ISSUER`; `typ == "Bearer"`; `aud`
 contains `panacea-app-hub`; `scope` contains `panacea-app-hub`; `azp` in the person or service allowlist;
-one audience per token (ruling §4 `:215-217`).
+one audience per token (ruling §4 `:224-228`), and a token carrying a second `panacea-app-*` audience is
+refused (`ErrAudience`, ruling §5 `:278-279`), so a realm that ignored the narrowing would fail loudly,
+never lapse quietly (ruling U-4).
 
 *End of the Hub contract.*
