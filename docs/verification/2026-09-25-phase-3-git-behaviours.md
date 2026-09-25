@@ -81,6 +81,46 @@ step-4 argv and NoFilterEnv. The fixture holds LF blobs, a symlink entry and an 
 | `TestSandboxCloneCannotFetch` | Control, origin left at the Windows path clone wrote (`C:\Users\AU-DEV~1\…\src`): `git fetch` exit 128, "error: cannot run ssh: No such file or directory" / "fatal: unable to fork". With step 4a's URLs: `git fetch` exit 128 and `git pull` exit **1**, both "fatal: '/panacea-app/no-remote/the-cockpit-fetches-origin-and-upstream-for-this-worktree' does not appear to be a git repository" / "fatal: Could not read from remote repository." / "Please make sure you have the correct access rights" / "and the repository exists."; `git push origin HEAD` exit 128, the same four lines naming `/panacea-app/no-remote/the-cockpit-lands-this-worktree-and-pushes-the-branch`. | 03, 04; the sentences wait here for a later agent-docs task |
 | `TestSandboxGitHonoursEnvHooksPath` | `core.hooksPath=/opt/panacea/githooks` as `GIT_CONFIG_KEY_8`, the directory bind-mounted read-only (it lists `-rwxrwxrwx 1 root root 58 … prepare-commit-msg`): the commit carries `Panacea-Session: s-sandbox`. `git --version` in the image: `git version 2.39.5`. | 05 |
 
+## R12: clones on this laptop (Step 5)
+
+2026-09-25, 19:07 to 19:12 +1000, `git version 2.53.0.windows.2`, antivirus as configured (not
+changed). Each clone ran task 03's six `--config` keys and NoFilterEnv, with the owner's own
+global config, from the source's Windows path into
+`%TEMP%\claude\…\scratchpad\p3\r12\` (the same volume, `C:`, as `~/Projects` and
+`%LOCALAPPDATA%\PanaceaApp\state\worktrees`, so hard links were possible). Sizes come from a
+directory walk that opens no file (`scratchpad/p3/r12size`). A first round used `du -sk` and
+was stopped: `du` over the fresh `--no-hardlinks` clone's 20 MB of objects took 6.5 minutes,
+and so did the next `du`, because every newly written file is scanned when it is first opened.
+The raw logs are `scratchpad/p3/r12/r12-round2.log` and `r12.log`.
+
+| Source | Objects in the source | Mode | Exit | Wall-clock | Clone on disk (objects) | Packs that are the source's file | First `status` |
+|---|---|---|---|---|---|---|---|
+| PanaceaApp (419 files, `0881a85`) | 3,520 loose (7.0 MiB) + 2 packs (9.5 MiB) | `--local` | 0 | **26.2 s** | 24.0 MiB (16.6 MiB) | 2 of 2 | empty, 4.1 s |
+| PanaceaApp | same | `--no-hardlinks` | 0 | **41.8 s** | 24.1 MiB (16.7 MiB) | 0 of 2 | empty, 3.4 s |
+| Panacea (3,586 files, `219531165`) | 1,128 loose (39 MiB) + 11 packs (163 MiB) | `--local` | 0 | **32.5 s** | 267.6 MiB (202.4 MiB) | 11 of 11 | empty, 1.8 s |
+| Panacea | same | `--no-hardlinks` | 0 | **32.9 s** | 267.7 MiB (202.4 MiB) | 0 of 11 | empty, 2.2 s |
+
+- **Q9's answer.** `--no-hardlinks` on `~/Projects/Panacea` cost **32.9 s against 32.5 s** for
+  `--local`: the copy adds no measurable time, because the time goes on files, not bytes, and
+  Panacea's objects are 11 large packs. It adds about **202 MiB of disk per lane** (the objects),
+  where `--local` adds only the checkout. On PanaceaApp, whose objects are mostly loose, the copy
+  cost 15.6 s more (41.8 s against 26.2 s): 3,520 small files each copied and scanned. A first
+  round measured 22.7 s and 34.5 s for the same pair. The recommendation stands: keep the copy.
+- **Disk, by free space.** `C:` free space moved by +5 MiB, +81 MiB, −31 MiB and +345 MiB across
+  the four clones: other agents write to `C:` at the same time, so the delta is noise and the
+  walk's sizes above are the measure. Free space was about 48 GiB throughout.
+- **Path length.** The longest tracked path is 91 characters in PanaceaApp and 119 in Panacea.
+  Under this scratch root (158 to 168 characters) the longest checkout path was 260 and 285, and
+  both clones exited 0 only because `core.longpaths=true` was set. Under the production root
+  (task 03: 77 characters to the project id's folder, plus up to 48 for the name and nonce) the
+  longest Panacea path is 125 + 1 + 119 = **245**, inside 260 but only by 15; a repository with a
+  deeper tree passes it, which is what `core.longpaths=true` is for.
+- **Symlinks.** Neither repository tracks a symlink (0 entries of mode `120000`), so neither
+  checkout holds one. Rows 5 and `TestSandboxCloneHasWorkingGit` cover the shape: a regular file
+  under task 03's `core.symlinks=false`.
+- **Antivirus.** Not changed. Its cost shows as per-file time: a git process costs 2 to 3 s, and
+  a first open of a new file is slow enough that `du` over 3,574 files took 6.5 minutes.
+
 ## Divergences: what a later task must change or know
 
 No pin was inverted: all 29 held as the part states them. These are the facts the pins found
