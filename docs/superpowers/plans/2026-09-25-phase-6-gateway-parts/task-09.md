@@ -18,8 +18,8 @@ LiteLLM's own spend reports (tag and team reports) are not used, because those f
   - `usage.KeySource` = `RecentKeys(ctx, expiringAfter time.Time) ([]KeyRef, error)`; `*usage.PGStore` implements it over `keysmith.bindings`
   - `usage.NewMemStore() *MemStore`, `usage.NewPGStore(*pgxpool.Pool) *PGStore`
   - `usage.NewReader(Store, budget.Policy, now func() time.Time) *Reader`; `(*Reader).Spent(ctx, wire.Owner, teamID, projectID string) (budget.Spent, error)` (task 07's `SpentReader`); `(*Reader).Rows(ctx, scope, id string) ([]wire.UsageRow, error)`, exactly one row, the current period's, with zero spend when nothing was spent (task 21's gap 6)
-  - `usage.Sweeper{Keys KeySource; Admin KeyInfoer; Store Store; Clock func() time.Time; Every, Lookback time.Duration; Report func(error)}` with `Once(ctx) (int, error)` and `Run(ctx)`
-- Consumes: `budget.Policy`, `budget.Spent`, `budget.PeriodStart` (task 06, committed); `wire.Owner` and `(Owner).UserID()`, `wire.UsageRow`, `wire.ScopePerson`, `ScopeProject`, `ScopeTeam` (task 03); `litellmadmin.KeyInfo` (task 04); `keysmith.bindings`' columns `key_hash`, `key_id`, `session_id`, `owner_tid`, `owner_oid`, `team_id`, `project_id`, `created_at`, `expires_at` and `binding.Migrate` (task 05's `0001_keysmith.sql`, read in `task-05.md`); `github.com/jackc/pgx/v5` (task 05 adds it).
+  - `usage.Sweeper{Keys KeySource; Admin KeyInfoer; Store Store; Clock func() time.Time; Every, Lookback time.Duration; Report func(error); Prices PriceReader; Groups []string}` with `Once(ctx) (int, error)` and `Run(ctx)`; `usage.PriceReader`, `usage.ErrUnpriced` (decision (g))
+- Consumes: `budget.Policy`, `budget.Spent`, `budget.PeriodStart` (task 06, committed); `wire.Owner` and `(Owner).UserID()`, `wire.UsageRow`, `wire.ScopePerson`, `ScopeProject`, `ScopeTeam` (task 03); `litellmadmin.KeyInfo`, `litellmadmin.GroupPrice` and `(*Client).ModelPrices` (task 04; the last two added by review I-5); `keysmith.bindings`' columns `key_hash`, `key_id`, `session_id`, `owner_tid`, `owner_oid`, `team_id`, `project_id`, `created_at`, `expires_at` and `binding.Migrate` (task 05's `0001_keysmith.sql`, read in `task-05.md`); `github.com/jackc/pgx/v5` (task 05 adds it).
 - Required by: task 07 (`Deps.Spent`), task 08 (`NewPGStore`, `NewReader`, `Sweeper`, `GET /v1/usage`), task 21 (the rows it shows).
 
 **Decisions where the skeleton is silent:**
@@ -35,6 +35,8 @@ LiteLLM's own spend reports (tag and team reports) are not used, because those f
 **(e) `Rows` returns one row.** The current period's, with `BudgetUSD` from the policy: `Limits(ctx, id, "")` for a team, `Limits(ctx, "", projectID)` for a project, `Limits(ctx, "", "")` for a person. That is exact for task 06's `Static`, which answers every project alike; a Hub policy that varies by team (S6.2) needs the project's team here, which this API does not carry (gap 3).
 
 **(f) `Requests` is recorded as 0.** `KeyInfo` carries no request count (`task-04.md`'s `KeyInfo` has none), so the column exists, as the skeleton lists it, and stays 0 until a source is chosen (gap 4).
+
+**(g) Every sweep checks that LiteLLM prices every group** (review I-5). A group LiteLLM would charge nothing for spends US$0, so all three budgets on it are silently off. The review asked for a flag on a key with `requests > 0` and `spend == 0`, but decision (f) records `Requests` as 0: that check would never fire. So the sweep reads the cause instead of a symptom. `Once` first calls `Prices.ModelPrices` (task 04, `GET /model/info`: what LiteLLM will charge per token, its `model_info` merged with its own table) and reports `ErrUnpriced` for each of `Groups` (task 02's `catalogue.Groups()`) that is missing or has a zero input or output price. A nil `Prices` while `Groups` is set is reported on every sweep too, so a wiring that forgets the reader is loud. The check never stops the sweep. Task 02 decision (f) is the gate at build time; this is the check at run time, after an image bump or a hand-deployed config.
 
 - [ ] **Step 1: Preflight**
 
@@ -66,6 +68,7 @@ import (
 	"net/netip"
 	"os"
 	"reflect"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -415,6 +418,39 @@ func TestSweepLookbackPeriodAndBadFigures(t *testing.T) {
 		t.Errorf("September %v, October %v; want 2 and 0", sepSpend, octSpend)
 	}
 }
+
+type fakePrices map[string]litellmadmin.GroupPrice
+
+func (f fakePrices) ModelPrices(context.Context) (map[string]litellmadmin.GroupPrice, error) {
+	return f, nil
+}
+
+// Review I-5, decision (g). Kills: no price check (an unpriced group spends
+// US$0 and every budget on it is silently off), a check of input only, a
+// group LiteLLM does not list passing as priced, and a nil reader passing
+// quietly while groups are named.
+func TestSweepReportsAnUnpricedGroup(t *testing.T) {
+	var got []string
+	sw := &Sweeper{Keys: &fakeKeys{}, Admin: fakeInfo{}, Store: NewMemStore(),
+		Prices: fakePrices{"global/m": {Input: 1e-6, Output: 5e-6}, "au/m": {Input: 1e-6}},
+		Groups: []string{"global/m", "au/m", "au/unlisted"},
+		Report: func(err error) {
+			if errors.Is(err, ErrUnpriced) {
+				got = append(got, err.Error())
+			}
+		}}
+	if _, err := sw.Once(ctx); err != nil {
+		t.Fatal(err)
+	}
+	joined := strings.Join(got, "\n")
+	if len(got) != 2 || !strings.Contains(joined, "au/m ") || !strings.Contains(joined, "au/unlisted") {
+		t.Errorf("unpriced reports = %q, want au/m and au/unlisted only", got)
+	}
+	got, sw.Prices = nil, nil
+	if _, err := sw.Once(ctx); err != nil || len(got) != 1 {
+		t.Errorf("a nil price reader: %d unpriced reports, %v; want 1, nil", len(got), err)
+	}
+}
 ```
 
 - [ ] **Step 3: Run the tests to verify they fail**
@@ -741,6 +777,7 @@ package usage
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"time"
@@ -748,6 +785,15 @@ import (
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/budget"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/litellmadmin"
 )
+
+// ErrUnpriced is reported for a group LiteLLM would charge nothing for, which
+// silently turns off every budget on it (review I-5, decision (g)).
+var ErrUnpriced = errors.New("usage: LiteLLM prices a model group at zero")
+
+// PriceReader is task 04's (*litellmadmin.Client).ModelPrices.
+type PriceReader interface {
+	ModelPrices(ctx context.Context) (map[string]litellmadmin.GroupPrice, error)
+}
 
 const (
 	DefaultEvery    = 60 * time.Second
@@ -768,12 +814,37 @@ type Sweeper struct {
 	Every    time.Duration    // 0: DefaultEvery
 	Lookback time.Duration    // 0: DefaultLookback (decision (b))
 	Report   func(error)      // nil: dropped
+	Prices   PriceReader      // decision (g); nil while Groups is set is itself reported
+	Groups   []string         // task 02's catalogue.Groups(): every group a key may name
+}
+
+// checkPrices reports every group LiteLLM would price at zero on input or
+// output, or does not list. It never stops the sweep: spend is still copied.
+func (s *Sweeper) checkPrices(ctx context.Context) {
+	if len(s.Groups) == 0 {
+		return
+	}
+	if s.Prices == nil {
+		s.report(fmt.Errorf("%w: no price reader is wired, so %d groups are unchecked", ErrUnpriced, len(s.Groups)))
+		return
+	}
+	prices, err := s.Prices.ModelPrices(ctx)
+	if err != nil {
+		s.report(fmt.Errorf("usage: reading LiteLLM's model prices: %w", err))
+		return
+	}
+	for _, g := range s.Groups {
+		if p, ok := prices[g]; !ok || !(p.Input > 0) || !(p.Output > 0) {
+			s.report(fmt.Errorf("%w: %s (input %v, output %v per token)", ErrUnpriced, g, p.Input, p.Output))
+		}
+	}
 }
 
 // Once reads every recent key's spend and records it, returning how many it
 // recorded. A key that cannot be read, or reads as NaN, infinite or negative,
 // is reported and skipped, and its last record stands.
 func (s *Sweeper) Once(ctx context.Context) (int, error) {
+	s.checkPrices(ctx) // decision (g), review I-5
 	now := s.clock()
 	lookback := s.Lookback
 	if lookback <= 0 {
@@ -843,11 +914,11 @@ func (s *Sweeper) report(err error) {
 
 ```bash
 cd control-plane
-go test ./internal/usage/ -count=1 -race -v 2>&1 | grep -c '^\s*--- PASS'   # expect 11 without a database
+go test ./internal/usage/ -count=1 -race -v 2>&1 | grep -c '^\s*--- PASS'   # expect 12 without a database
 go test ./internal/usage/ -count=1 -v 2>&1 | grep -c '^--- SKIP'            # expect 2, each naming PANACEA_APP_GATEWAY_TEST_DATABASE_URL
 ```
 
-With task 17's compose Postgres up and `PANACEA_APP_GATEWAY_TEST_DATABASE_URL` set to it, the first line prints `18` and the second `0`: the store suite's five cases run against real SQL, and `RecentKeys` against task 05's table.
+With task 17's compose Postgres up and `PANACEA_APP_GATEWAY_TEST_DATABASE_URL` set to it, the first line prints `19` and the second `0`: the store suite's five cases run against real SQL, and `RecentKeys` against task 05's table.
 
 - [ ] **Step 7: Prove the mutants die**
 
@@ -861,6 +932,10 @@ Apply each edit alone, run `go test ./internal/usage/ -count=1`, confirm the nam
 | `Reader.Spent`: `now.Add(CacheTTL)` → `now.Add(24 * time.Hour)` | `TestSpentIsCachedSixtySecondsAndFailsClosed` |
 | `Sweeper.Once`: `budget.PeriodStart(k.CreatedAt)` → `budget.PeriodStart(now)` | `TestSweepLookbackPeriodAndBadFigures` |
 | `Sweeper.Once`: on a `KeyInfo` error, `continue` → record `SpendUSD: 0` | `TestDeletedKeyKeepsItsSpend` (with a plain-overwrite store too) |
+| `Sweeper.Once`: delete the `s.checkPrices(ctx)` call (review I-5) | `TestSweepReportsAnUnpricedGroup` |
+| `checkPrices`: delete `\|\| !(p.Output > 0)` | `TestSweepReportsAnUnpricedGroup` (`au/m` has no output price) |
+| `checkPrices`: `!ok \|\|` deleted | `TestSweepReportsAnUnpricedGroup` (`au/unlisted`) |
+| `checkPrices`: the `s.Prices == nil` branch `return`s without reporting | `TestSweepReportsAnUnpricedGroup` (the nil reader) |
 | `recentSQL`: `expires_at > $1` → `expires_at > now()` | `TestPGRecentKeysReadsKeysExpiringAfterTheCut` |
 
 - [ ] **Step 8: Vet and format**
@@ -879,16 +954,17 @@ git add control-plane/internal/usage/usage.go control-plane/internal/usage/sweep
 git commit -F <message file> -- control-plane/internal/usage/ control-plane/internal/binding/migrations/0002_key_spend.sql
 ```
 
-Message: `feat(usage): the per-key spend sweep and the three-dimension reader (phase 6 task 09)`, a body naming decisions (a) to (f), and the attribution line.
+Message: `feat(usage): the per-key spend sweep and the three-dimension reader (phase 6 task 09)`, a body naming decisions (a) to (g), and the attribution line.
 
-**Acceptance:** step 6 prints `11` and `2` without a database, and `18` and `0` with one; step 7's seven edits each fail the named test; step 8 prints nothing and then `ok`.
+**Acceptance:** step 6 prints `12` and `2` without a database, and `19` and `0` with one; step 7's eleven edits each fail the named test; step 8 prints nothing and then `ok`.
 
 **What this task does not claim:**
 
 - **Accuracy finer than the sweep.** keysmith's view of spend is up to `Every` (60 s) plus `CacheTTL` (60 s) old, plus however long LiteLLM takes to write a request's spend onto its key (LiteLLM batches spend writes; the delay is **UNVERIFIED** until task 18's P12). Between sweeps a team can overshoot its budget by what its live keys spend in that window, on top of task 06's bound of K × `SessionCapUSD`. The person and project dimensions also have LiteLLM's own real-time budgets (task 18, P03 and P04); the team has only this.
 - **Every cent of a revoked key.** A key LiteLLM deletes between two sweeps loses up to one interval of spend from this rollup (its last recorded figure stands). LiteLLM's user and team spend still count it, so the person and project dimensions are unaffected; the team dimension under-counts by at most that interval per revoked key.
 - **That `GET /key/info` reports spend by the hashed id** task 07 stores (P12), or that its `spend` is cumulative over the key's life (training knowledge, **UNVERIFIED**).
-- **Request counts.** `Requests` is 0 (decision (f)).
+- **Request counts.** `Requests` is 0 (decision (f)). So the sweep cannot flag one key with requests and no spend (review I-5's suggestion); decision (g) checks the price of every group instead.
+- **That `GET /model/info` reports the price LiteLLM charges.** Its shape and its merging of `model_info` with LiteLLM's own table are training knowledge, **UNVERIFIED** until task 18.
 - **Per-team budgets from the Hub.** `Rows`' `BudgetUSD` is exact only while the policy answers every team alike (decision (e)).
 
 **Gaps against the skeleton, for the orchestrator:**
@@ -898,3 +974,4 @@ Message: `feat(usage): the per-key spend sweep and the three-dimension reader (p
 3. **`GET /v1/usage?scope=&id=` carries no team for a project,** so a Hub policy that varies by team (S6.2) cannot give a project row its exact budget. When H-2 lands, the route needs a `teamId` parameter or the Hub's project record.
 4. **No request count source.** If `Requests` matters to the cockpit, task 18 should find whether the pinned LiteLLM exposes one per key without an enterprise feature.
 5. **`Rows` returns the current period only, one row per call** (task 21's gap 6 asked for the zero-spend row; this delivers it).
+6. **The price check needs two hand-offs** (decision (g), review I-5). **Task 04** adds `(*Client).ModelPrices(ctx) (map[string]GroupPrice, error)` over `GET /model/info` (done in its part, fix batch b02). **Task 08** passes `Prices: <the task 04 client>` and `Groups: catalogue.Groups()` into the `Sweeper` it runs; without `Groups` the check is off, so task 08's wiring must name both.
