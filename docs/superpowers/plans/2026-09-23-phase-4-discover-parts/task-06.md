@@ -95,8 +95,9 @@ type Criterion struct {
 // CriterionReading is the part that MOVES: phase 3's verdict on one
 // criterion of one key, which changes as evidence arrives (S4-P3.4). It is
 // never inside a Ref. It is served beside heads, per key
-// (RefsResponse.criterionStates, task 12), and the desktop overwrites it on
-// every answer (task 16). Review I14.
+// (RefsResponse.criterionStates, task 12), and beside each head reading, per
+// target (HeadReading.criterionStates, task 12), and the desktop overwrites
+// it on every answer (task 16). Review I14.
 type CriterionReading struct {
 	ID      string         `json:"id"`      // a Criterion.ID of the same key
 	State   CriterionState `json:"state"`   // "open" throughout phase 4
@@ -153,14 +154,15 @@ type Head struct {
 	Archived               bool `json:"archived"`
 }
 
-// EvalQuery is one brief key's criteria, and what the key itself says about
-// where they live. Every field is a function of the key, so Resolve and
-// HeadRef ask the same question for the same key and cannot disagree.
+// EvalQuery is one brief key's criteria, and the branch they are evaluated
+// at. BriefKey, ProjectID and Criteria are functions of the key. BranchRef is
+// not: it is the caller's (Readings' at), because a branch is where evidence
+// is, and a key names a revision, not a branch (re-review b08-2 R2-I1, R2-M1).
 type EvalQuery struct {
-	BriefKey  string               // brief:<id>@<rev>
-	ProjectID string               // the HUB project id, pj-… (Source.ProjectID)
-	BranchRef string               // refs/heads/… (Source.Revision.BranchRef); never "" here
-	Criteria  []Criterion          // Build's, digests included (P4-2), in order
+	BriefKey  string      // brief:<id>@<rev>
+	ProjectID string      // the HUB project id, pj-… (Source.ProjectID)
+	BranchRef string      // refs/heads/<name>: Readings' at; never "" here
+	Criteria  []Criterion // Build's, digests included (P4-2), in order
 }
 
 // Verdict is phase 3's evidence.State narrowed to what a reading shows
@@ -196,7 +198,14 @@ type Source struct {
 	// Revision.BranchRef, the envelope's own ref (review I5, task 05).
 	// No BranchRef either: Ref.BranchRef is Revision.BranchRef, so the fact
 	// has one carrier and two copies cannot disagree (re-review b05-1 R-M2).
+	// The branch criteria are evaluated at is not a fact of the revision at
+	// all: it is Readings' at.
 }
+
+// ErrBadSource: Build was handed a source that is not the revision its key
+// names, or a pin that cannot be the one the revision holds. No Hub answer
+// produces one; it is a caller fault (a 500), never the person's.
+var ErrBadSource = errors.New("provenance: the source is not the revision the key names")
 
 // Build resolves a complete revision through discover.Resolve and fills
 // every field; Ref.Title is the Document's Title and Ref.BranchRef is
@@ -212,24 +221,51 @@ type Source struct {
 // sets Ref.Inherits from the original Content.Inherits with Erased true: no
 // OriginProject section, and an audience, constraint or out-of-scope the
 // branch skipped stays "".
-func Build(key string, src Source, head Head) Ref
+// Resolve refuses an incomplete revision, so for an open one Build hands it a
+// copy marked complete with no pin: Ref.Status stays the stored status, and a
+// held draft still renders nothing (task 05). Ref.Inherits is the pin the
+// content holds, open or not.
+// The error (as built, departure 1): a source the key does not name - another
+// revision, a key that is not a brief key, a pin passed to a project
+// revision, an erased pin beside a pin in hand, a pin that is not a brief
+// key - is ErrBadSource; a pin that is not the one the revision holds is
+// discover.ErrInheritMismatch. Either way the Ref is UnavailableRef(key):
+// never one key on another revision's text.
+func Build(key string, src Source, head Head) (Ref, error)
 
 // Readings is the moving part of one resolved key: one CriterionReading per
-// Criterion of Build(key, src, …), in the same order. Its rules (S4-P3.4):
+// Criterion of Build(key, src, …), in the same order ([] when Build would
+// refuse src, or the key has no definition of done). at is the branch the
+// criteria are evaluated at, named by the caller when it calls, never read
+// from the key: a key names a revision, not a branch (re-review b08-2).
+//   - HeadRef(t) (task 07) passes t's branch for whatever key t inherits, a
+//     project key included: a branch with no complete branch brief inherits
+//     the project key, and its head reading shows verdicts at its own head
+//     (R2-I1). That reading is per target, and so are its states.
+//   - Resolve (task 07, by key) passes "" for a project key, which it never
+//     evaluates: one project key inherited by two branches has two sets of
+//     verdicts, and a by-key answer holds one. For a branch key it passes the
+//     branch the key's brief is bound to now, not the revision's envelope
+//     BranchRef: a rebind writes no revision, so after a rename the envelope
+//     names a ref that is gone, or an unrelated branch that took the name
+//     (R2-M1).
+// Its rules (S4-P3.4):
 //  1. ONE eval call per key, with every criterion of the done section in
-//     order, never one call per criterion.
-//  2. Every state is open with because "" when eval is nil, when the key is a
-//     project key (src.Revision.BranchRef "": phase 3 evaluates only at a
-//     branch head and never takes a branch id, so eval is not called), when
-//     eval returns an error, and when its verdicts do not match the criteria
-//     one for one, by id and in order. An error is not the refs call's error.
+//     order, never one call per criterion; none at all when there are no
+//     criteria.
+//  2. Every state is open with because "" when eval is nil, when at is not
+//     "refs/heads/" and a name (no branch named: eval is not called, so a
+//     subject is never guessed), when eval returns an error, and when its
+//     verdicts do not match the criteria one for one, by id and in order. An
+//     error is not the refs call's error.
 //  3. because is the verdict's Because, each element trimmed, empty ones
 //     dropped, joined with "; " in phase 3's order.
 //  4. A non-open verdict whose because is then "" is shown open: an
-//     unexplained verdict is not shown (P12).
+//     unexplained verdict is not shown (P12). So is a state that is not
+//     open, settled or contested, on that criterion alone.
 // Called on EVERY answer, cached revision or not, so a verdict is never older
 // than the refs call that carried it.
-func Readings(ctx context.Context, key string, src Source, eval Evaluate) []CriterionReading
+func Readings(ctx context.Context, key string, src Source, at string, eval Evaluate) []CriterionReading
 
 func MissingRef(key string) Ref
 func InvalidRef(key string) Ref
@@ -263,17 +299,30 @@ adapter holds only the one rule `Readings` cannot: **key to subject**.
   2. `projectPath` is `loc.ProjectPath(ctx, id)`.
   3. `repo` is the key phase 3 records evidence under for that project, computed by phase 3's
      own rule (`githost.Remote.RepoKey()`, else `"local:<projectId>"`, phase 3 `task-15.md:49`),
-     never a phase 4 copy of it.
+     never a phase 4 copy of it. **Phase 3 exports no function for that rule** (re-review b08-2
+     R2-M2): it is only the `Record.Repo` field comment (`task-15.md:49` at `a255408`, `:50` at
+     phase 3 `e7d2281`), and it does not say which remote it takes when a clone has several. A
+     different pick from phase 3's POST makes `ByDigest(repo)` find nothing, so every criterion
+     reads `open` with no error anywhere. The cross-phase ask below therefore carries an exported
+     rule, for example `evidence.RepoFor(ctx, projectPath, projectID string) (string, error)`,
+     and the adapter calls it. Until phase 3 exports one, the adapter is not written and
+     `Config.Evaluate` stays nil.
   4. `subject` is the commit `q.BranchRef` names in that clone at call time: `git rev-parse
      --verify --end-of-options <ref>^{commit}` through `gitx.Read` with Scope Project. A ref the
-     clone lacks is an error. A key names a revision, not a commit, so an older revision's
-     criteria are evaluated at today's head, which is phase 3's "at the branch head".
+     clone lacks is an error. `q.BranchRef` is `Readings`' `at`, the caller's branch (the
+     target's for a head reading, the brief's current one for a by-key answer), never the
+     revision's envelope ref (re-review b08-2 R2-I1, R2-M1). A key names a revision, not a
+     commit, so an older revision's criteria are evaluated at today's head, which is phase 3's
+     "at the branch head".
 - **Types:** `briefref.Criterion{ID: c.ID, Digest: c.Digest}` in; `Verdict{CriterionID,
   State, Because}` from each `evidence.State` out. `Evidence`, `RecordedAgainst` and `Commits` are
   dropped, because a `CriterionReading` shows none of them.
 - **Cross-phase ask (phase 3's stream; this plan cannot edit it):** phase 3's P4-4 row and task
   15 name this adapter, its file and its second-lander rule, so both plans carry one shape.
-  Recorded in the ledger (`progress.md`, b08 round 2).
+  Recorded in the ledger (`progress.md`, b08 round 2). Task 06 as built adds two items to the
+  ask: phase 3 exports its repo rule (rule 3 above, R2-M2), and its evaluator is called at the
+  branch the caller names, a project key's criteria included (R2-I1), which `States` already
+  allows: it takes a commit and never a branch id.
 
 **Tests first:**
 
@@ -288,16 +337,30 @@ adapter holds only the one rule `Readings` cannot: **key to subject**.
 | `TestBuildTitlesAnOpenRevisionByTheOneRule` (re-review b05-1 R-M2) | `Build` over an open branch revision on `refs/heads/evidence-upload` → `Title` equals `discover.Title` of it (`Branch brief — evidence-upload`) and `BranchRef` equals `Revision.BranchRef`; an open project revision → `Project brief` | an open history row titled `""`, or by a second hand-written copy of task 05's rule that drifts from it |
 | `TestBuildCarriesCriterionDigests` | each criterion's digest is `CriterionDigest(text)`; ids are the content's | phase 3 matching evidence by a digest phase 4 never computed |
 | `TestCriterionDigestVector` | `CriterionDigest("Tests pass")` is `sha256:` + the SHA-256 of those 10 bytes, checked against a literal computed by `printf 'Tests pass' \| sha256sum` when the test is written | a digest over a trimmed, lower-cased or JSON-quoted text |
-| `TestNilEvaluateMeansOpen` | `Readings(ctx, key, src, nil)`: one reading per criterion of `Build`, same ids and order, every state `open`, every `because` `""` | a default of `settled` |
+| `TestNilEvaluateMeansOpen` | `Readings(ctx, key, src, at, nil)`: one reading per criterion of `Build`, same ids and order, every state `open`, every `because` `""` | a default of `settled` |
 | `TestUnexplainedVerdictIsShownOpen` | an `Evaluate` returning `settled` with `Because` `nil`, and another with `[]string{"  "}`, each gives a reading `open` | P12 |
-| `TestOneEvaluateCallPerKey` (re-review b08-1 R-I1) | a counting `Evaluate` over a key with three criteria is called once, with all three in order, `BriefKey` the key, `ProjectID` and `BranchRef` from `src` | a per-criterion loop: three git walks for one chip |
+| `TestOneEvaluateCallPerKey` (re-review b08-1 R-I1) | a counting `Evaluate` over a key with three criteria is called once, with the caller's `ctx`, all three in order, `BriefKey` the key, `ProjectID` from `src` and `BranchRef` the caller's `at` | a per-criterion loop: three git walks for one chip |
 | `TestEvaluateFailureShowsOpen` (re-review b08-1 R-I1) | an `Evaluate` returning an error, one returning two verdicts for three criteria, and one returning them out of order, each gives every reading `open` with `because` `""` | a git error surfacing as a verdict, or a verdict pinned to the wrong criterion |
 | `TestBecausesJoin` (re-review b08-1 R-I1) | `contested` with `Because` `{" CI run 88 passed ", "", "review said no"}` gives `because` `"CI run 88 passed; review said no"` | only the first because shown, or an empty one joined in |
-| `TestProjectKeyIsNotEvaluated` (re-review b08-1 R-I1) | a project revision (`BranchRef` `""`) with a non-nil `Evaluate`: `Evaluate` is never called and every reading is `open` | a subject guessed for a key that names no branch |
+| `TestNoBranchIsNotEvaluated` (re-review b08-1 R-I1; replaces `TestProjectKeyIsNotEvaluated`, re-review b08-2 R2-I1) | a project key and a branch key, each with a non-nil `Evaluate` and `at` `""` (Resolve's call for a project key), `main`, `refs/heads/`, a tag, `heads/…` or a remote ref: `Evaluate` is never called and every reading is `open` | a subject guessed where the caller named no branch |
+| `TestAProjectKeyIsEvaluatedAtTheCallersBranch` (re-review b08-2 R2-I1) | `b-7@5` with `at` `refs/heads/fix-session-timeout`: one call, `BranchRef` that branch, and its verdicts shown | every branch that inherits the project brief showing `DefinitionOfDone` all `open` for ever |
+| `TestTheBranchEvaluatedIsTheCallers` (re-review b08-2 R2-M1) | `b-42@5` (envelope `evidence-upload`) with `at` `refs/heads/evidence-upload-v2`: the query's `BranchRef` is `at` | a subject read from the envelope, gone after a rename or taken by an unrelated branch |
 | `TestRefHoldsNoCriterionState` (review I14) | the JSON of a built `Ref` has no `state` or `because` key at any depth under `criteria`; an `Evaluate` that answers `settled` then `contested` for the same key gives two different `Readings` and byte-identical `Build` JSON | a verdict frozen inside a `Ref` the desktop caches for ever |
 | `TestRefHasNoDenominator` | the JSON of a built `Ref` has no key matching `(?i)met\|total\|percent\|ratio\|count` | a count sneaking back (G5) |
 | `TestErasedKeepsKeyAndDigest` | `ErasedRef` has key, digest, savedBy and erasedAt, no sections, `present: true` | an erased brief shown as missing (critique-2 §6.2 item 5) |
 | `TestRefGoldenJSON` | a built `Ref` for the fact sheet's `b-42@5` marshals to a checked-in golden — **the wire contract task 15 mirrors** | a field renamed on one side only |
+
+Added as built (each pins a rule the table's rows leave open):
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestKeyStringNeverWritesANonKey` | a hand-built `Key` with a bad id, revision 0 or -1, an unknown kind or reason: `String()` is `""` | `String` minting a string that looks like a key and is not one |
+| `TestBriefKey` | the one writer: `brief:<id>@<n>`, 999999999 accepted; `b-42`, uppercase, a canvas id, `""`, 0, -1 and 1000000000 panic | a writer laxer than the parser |
+| `TestNoneRefRefusesAKey` | `NoneRef` of a brief key, `none:other`, `none:`, `" "`, `declined` panics | a real key shown as "no brief" by a caller that skipped `Parse` |
+| `TestBuildRefusesASourceTheKeyDoesNotName` | 13 rows: another revision's or brief's key, a design key, `b-42`, `""`, `none:declined`, an envelope key that differs, a pin passed to a project revision, an erased pin beside a pin in hand or on a revision that pins nothing, a pin that is not a brief key (`ErrBadSource`); the project head instead of the pin, no pin passed (`discover.ErrInheritMismatch`). Each Ref is `unavailable` with no text | one key on another revision's text |
+| `TestAnUnknownStateIsShownOpen` | a verdict `SETTLED` on one criterion: that one `open`, the others shown | a state outside the three reaching the chip |
+| `TestReadingsOfAKeyWithNoCriteria` | a key with no definition of done, and a source `Build` refuses: `[]`, no call | a git walk for nothing, or readings of criteria no `Ref` holds |
+| `TestSlotRefs` | `MissingRef`, `UnavailableRef` (a brief key's id and revision filled from the key; a design key's not), `InvalidRef`, `NoneRef`: every other field zero, `sections` and `criteria` `[]`, `inherits` `null` | a `null` slice on the wire, or text on a slot with no revision |
 
 **Steps:**
 
@@ -321,3 +384,54 @@ $ grep -rn "strings.Split\|strings.Cut\|regexp" --include=*.go control-plane/int
 **Does NOT claim:** criterion evaluation (phase 3's, S4-P3.4); the adapter's key-to-subject rule
 (`cmd/api/evidence.go`, written by the second of phase 4 task 14 and phase 3 task 15); the `design:` kind's resolution
 (the Hub resolves design keys for phase 5; phase 4 only parses them so the grammar is one).
+
+**As built** (commit `05d32e7`; each departure is in the source above and in a test):
+
+1. **`Build` returns `(Ref, error)`.** The part gave it no error, yet `discover.Resolve` refuses a
+   pin that is not the revision's (`ErrInheritMismatch`), an incomplete pin and a malformed
+   revision, and nothing said what `Build` does then. A silent fallback would put one key on
+   another revision's text, or blank every chip on the branch. So a source the key does not name
+   (another revision's or brief's key, a key that is not a brief key, an envelope `Key` that
+   differs, a pin passed to a project revision or held by one, an erased pin beside a pin in hand
+   or on a revision that pins nothing, a pin that is not a brief key) is `ErrBadSource`, and a
+   pin that is not the revision's is `discover.ErrInheritMismatch`. The `Ref` beside either is
+   `UnavailableRef(key)`. Task 07 never builds such a source (its rule 3 fetches the pin by
+   `inherits.key`), so the error is a caller fault: task 07 logs it and serves the slot
+   `unavailable`.
+2. **`Readings` takes `at`, the branch it evaluates at** (re-review b08-2 R2-I1 and R2-M1, both
+   carried to this task). "A project key is never evaluated" left `DefinitionOfDone` all `open`
+   for ever on every branch that inherits the project brief, which is every new branch. It also
+   misread phase 3, whose `States` takes a commit and never a branch id. And the envelope's
+   `BranchRef` names a gone or reused ref after a rename. The rule is now the caller's:
+   `HeadRef(t)` passes `t`'s branch, a project key included, and `Resolve` passes `""` for a
+   project key and, for a branch key, the branch its brief is bound to now. An `at` that is not
+   `refs/heads/<name>` is never evaluated. `TestProjectKeyIsNotEvaluated` became
+   `TestNoBranchIsNotEvaluated`, and two tests were added. **Carried, not built here:**
+   - task 07 must pass `at` as above, reading the brief's current `branchRef` for `Resolve`
+     (`BriefHead.branchRef`, Hub contract §7.1 `:641-642` at hub `da8c7da`; `/v1/refs`' `heads`
+     do not carry it, §7.5 `:829`);
+   - task 16 must store a head reading's states by target, not by key, since one project key
+     inherited by two branches has two sets (plan S4-P3.4, amended);
+   - phase 3's cross-phase ask gains two items (the adapter section above).
+3. **`Readings` edges.** With no criteria there is no call and the result is `[]`. Where `Build`
+   would refuse the source, the result is `[]` with no call. A verdict state outside `open`,
+   `settled` and `contested` is shown `open`, on that criterion alone.
+4. **An open revision** is resolved by `discover.Resolve` on a copy marked complete with no pin,
+   so the one section builder serves both paths and a held draft still renders nothing.
+   `Ref.Status` stays the stored status. `Ref.Inherits` is the content's pin, open or not. A
+   project revision passed beside an open **branch** revision is ignored: an open revision
+   inherits nothing.
+5. **`MissingRef` and `UnavailableRef`** fill `briefId` and `revision` from a brief key. The
+   desktop never parses a key (P5), and this way it can still say which revision a slot is. A
+   design key fills neither.
+6. **`NoneRef`** panics on anything but `""` or a `none:` key, as `BriefKey` does on a bad id: a
+   caller that skipped `Parse` would otherwise show a real key as *no brief*.
+7. **`Key.String`** writes `""` for a `Key` the grammar would not parse back. **`BriefKey`**
+   refuses revisions above 999999999, the grammar's nine digits.
+8. **The golden** is the fact sheet's `b-42@5` (§2) over `b-7@5` (§3), with task 05's ids (`b-7`
+   = `bf-00000000000000b7`, `b-42` = `bf-00000000000000a2`), Hub project `pj-00000000000000e1`,
+   head `{6, 6}`, placeholder revision digests, and criterion digests computed with `printf |
+   sha256sum`. It was written by hand and matched `Build` on the first run.
+   `testdata/.gitattributes` is `* -text`.
+9. **Adapter rule 3** (re-review b08-2 R2-M2): phase 3 exports no repo rule, so the ask carries
+   one. The adapter is still not this task's.
