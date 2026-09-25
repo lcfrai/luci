@@ -187,6 +187,14 @@ The team and work skeleton writers were killed by the watchdog while composing a
   **Stage 1 is DONE** (all of 01-05 and 41-45 exist). Its writers' 13 gaps are in
   `team/.superpowers/sdd/team/repair-gaps.md`, and stage 2's reviewers must read that file.
 
+**Added 20:05, 2026-09-25: a third spend stop (19:31), then a forced resume.** All 12 runs were
+stopped and resumed with `resumeFromRunId`. **Parallel runs resume from cache now** (keys are
+`v2:<hash>`; verified on env-r4). There is no need for continuations.
+- `a1e2c46` on `feat/env` is a SALVAGE commit. It holds the env-r4 first attempt's work on tasks 19,
+  20 and 25, which its retries had refused to touch.
+- 17:58: a runaway `python -` REPL (PID 23092) had filled C: with a 38 GB task log. It is killed and
+  deleted, and disk is back to 47 GB. The watcher now flags any task `.output` over 500 MB.
+
 **Added 13:40, 2026-09-25: OD-30 (sign-in) and the env R4 re-plan.**
 - **OD-30:** sign-in goes through a Keycloak broker on Panacea's existing Entra registration, with
   zero clicks. The IT request's Part 1 is no longer needed. Run `wf_579f2bb3-bfb`
