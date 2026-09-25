@@ -5,7 +5,9 @@
 with the read path each sibling uses from its own worktree (step 3).
 
 ADR-H1 §7.2 lists amendments *"each made by the phase that next edits the file"*; this phase is
-that phase for four documents, and it edits two cells of ADR-H1 itself (A15, owner question Q12). This plan made nineteen corrections to the Hub contract (A1–A19), several
+that phase for four documents, and it edits ADR-H1 itself: A15's cell (owner question Q12) and, since
+**`OD-30`**, the fold of ADR-H1 §12 into its body (main `docs/superpowers/planning/2026-09-25-identity-keycloak-broker.md`
+§11 `:503-504`, "fold into 44a"). This plan made nineteen corrections to the Hub contract (A1–A19), several
 additions, and answered every sibling ask (task 00). They are folded in **now**, because every
 sibling reads the contract tonight — §7.4's repo-key regex (phase 4 HA4-6 and phase 7 already flag
 it), §12.1's four-service compose, §9.4's missing `Authorization` CORS header — and a phase that
@@ -17,7 +19,7 @@ build changes afterwards is task 44b's, last.
 - `docs/PROGRAM.md` (modify ⚑ — other phases edit it too; additions only)
 - `docs/superpowers/contracts/2026-09-18-phase-2-ui-contract.md` (modify: one note in §4.5; §4.4's `openAttach` row and §4.6's paragraph edited in place, re-review b02 m3; §4.2's union block edited in place, review M7)
 - `docs/superpowers/planning/2026-09-23-phases-4-5-7/provenance-contract-draft.md` (modify: one amendments block at the top)
-- `docs/superpowers/adr/ADR-H1-hub-architecture.md` (modify: exactly two cells, both A15's — §5.3's invite row and §9 item 3; owner question Q12, plan re-review b05 N1 and N3)
+- `docs/superpowers/adr/ADR-H1-hub-architecture.md` (modify: A15's §5.3 invite row, owner question Q12, plan re-review b05 N3; and the OD-30 fold of §12 into §5.2, §6.1, §9, Q5, `:430`, `:678-679`. A15's §9 item 3 cell is **dropped**: OD-30 withdrew IT's registration list it edited)
 
 #### What changes, exactly
 
@@ -74,9 +76,25 @@ nothing.
 | §9.3 | `Subscribe(kindPrefix, fn)` stands — `Subscribe("", fn)` is phase 4's shape — delivery in commit order | HA4-8 |
 | §14 | a row per ask (HA4-1…HA4-9, HA5-1…HA5-5, HA7-1…HA7-5) naming the answer and the section that now holds it; HA7-3 and HA5-5 recorded as reserved | all |
 
-**`PROGRAM.md`.** The identity row of *Decisions locked* (`PROGRAM.md:18`) gains: *"The control plane
-runs the flow and holds the tokens; the Hub validates Entra access tokens itself — no broker
-(ADR-H1 §5.2, §6.1)."* The Phase H paragraph (`:94-95`) gains one sentence naming the plan and its
+**OD-30, folded the same way** (ruling §11 `:503-504`). Contract **§17** (commit `95dc14c`, renumbered
+`03a3e20`) and ADR-H1 **§12** (`659eca4`) hold the amendment; this task moves each paragraph **in place**
+into the section it names, marked `(OD-30)`, strips the headings' "amended, §17" markers, and leaves §17
+and §12 as one-line pointers. Where a row above names Entra, OD-30 wins:
+
+| Row above | Under OD-30 |
+|---|---|
+| A5 (§2, §6.4) | `devissuer` serves Keycloak paths under realm `panacea-app-dev` and the `keycloak` profile by default (hub task 11's part, `fae2069`) |
+| A6 (§6.1 step 9) | the `id_token` checks gain `azp`; `aud` is `panacea-app-desktop`; the tenant cross-check stands (`tid` arrives by mapper P2) |
+| A8, the Azure DevOps half (§9.1) | the chain is `Local → LocalDevOps → GitHelper`: `entraauth.DevOps` and Source `"entra"` are deleted; the PAT target stands (ruling §7) |
+| A11 (§9.1, §6.2) | the prefix `PanaceaApp/entra/<tenantId>/<clientId>/refresh` becomes `PanaceaApp/oidc/<issuer host>/<realm>/refresh`; the generation and chunk rules stand (hub task 28's part holds the exact layout) |
+| A12 (§6.2) | `Hub.Access` reads `panacea-app-hub`; the Azure DevOps `Store` refusals go with the Entra ADO path |
+| A15 (§5.1, §7.2, §6.5, §6.4) | **blocked, not folded:** its gate reads `acct`/`xms_edov`, which a realm token never carries, so no invite would bind (ADR-H1 §12, "Open"). §6.5's row is deleted with §6.5. The orchestrator rules the replacement gate before this task makes A15's edits; the contract's §5.1 `email` rule stands meanwhile |
+
+**`PROGRAM.md`.** The identity row of *Decisions locked* (`PROGRAM.md:18`) is OD-30's since the
+ruling's main-tree edit (ruling §11 `:500`: back to the broker chain); it gains only: *"The control
+plane runs the flow and holds the tokens; the Hub validates the realm's access tokens itself
+(`OD-30`; ADR-H1 §12)."* *Was: "the Hub validates Entra access tokens itself — no broker", withdrawn
+by OD-30.* The Phase H paragraph (`:94-95`) gains one sentence naming the plan and its
 seams: *"Plan: `docs/superpowers/plans/2026-09-23-phase-h-hub.md`; seams S-CRED (the credential
 store phases 3, 6 and 7 use), S-TOKEN, S-HUB, S-LINK, S-FEED."* Nothing else in the file changes.
 
@@ -107,22 +125,20 @@ below it exactly as task 38 writes it; `Problem.error`, `ApiError.code` and the 
 These are edits in place, marked `(Phase H plan, task 38)`, not notes: §4.2, §4.4 and §4.6 are
 the signatures a builder copies, and a note beside a wrong signature still gets the old one copied.
 
-**ADR-H1 is edited in exactly two cells, both A15's; nothing else in it changes** (re-review b02
-m3; plan re-review b05 N1, N3). §5.4 still says *"every control-plane route except the WebSocket
+**ADR-H1 is edited in A15's §5.3 cell and by the OD-30 fold; nothing else in it changes** (re-review
+b02 m3; plan re-review b05 N3; ruling §11 `:503`). The fold replaces §5.2's issuer, token profile and
+validator text, reverses §6.1, replaces §9's IT list with the ruling's §10 Panacea asks, flips Q5, and
+reads `hub.org_admin` at `:430` and `oidcauth` at `:678-679`, each marked `(OD-30)`. §5.4 still says *"every control-plane route except the WebSocket
 attach requires `Authorization: Bearer <key>`"* (`ADR-H1-hub-architecture.md:451`). The ADR's
 text is the owner's (as the HA5-4 row above says), so the plan does not rewrite it. That departure
 is recorded where a reader of the plan meets it: the plan's coverage row for ADR-H1 §5.4
 (plan.md:81), and the Hub contract §9.4 row (A3) in the table above.
 
-A15's two cells are different, and are edited in place, because a note beside them does not
-reach the reader who acts on them:
+A15's cell is different, and is edited in place, because a note beside it does not reach the
+reader who acts on it. **It waits for the replacement gate** (the A15 row of the OD-30 table above):
 
-- **§9 item 3** (`:725`) is the list IT builds the Hub API registration from (*"so the whole ask
-  goes to IT once"*, `:719`). *"Optional claim **`email`** on the access token"* becomes
-  *"Optional claims **`email`**, **`acct`** and **`xms_edov`** on the access token — invites
-  bind only a member (`acct` 0) or a verified email domain (`xms_edov` true) (amended by the
-  Phase H plan, A15)"*. Unedited, IT configures `email` alone, Entra emits neither other claim,
-  and no deployed invite binds, with no error.
+- ~~**§9 item 3** (`:725`)~~ **dropped by OD-30**: it was IT's Hub API registration spec, and OD-30
+  withdrew every registration for sign-in (ADR-H1 §12; ruling §1). No IT list remains to edit.
 - **§5.3's invite row** (`:406`): *"a matching `preferred_username` or `email`"* becomes *"a
   matching `email` claim, and only when the token shows a member account (`acct` 0) or a verified
   email domain (`xms_edov` true); never `preferred_username` (amended by the Phase H plan, A15)"*.
@@ -174,13 +190,15 @@ grep -n "hub.lock_audit_head()" $C                                # §10.4 and �
 grep -n "hub.org_ids()" $C                                        # §10.4, §12.1 and §12.5 (A18)
 grep -n "^## 16" $C                                               # present
 grep -n "MaxRevisionBatch\|latestComplete\|CursorSource\|io.ReadSeeker" $C   # each present
-grep -n "no broker" docs/PROGRAM.md                               # the identity row
+grep -n "no broker" docs/PROGRAM.md                               # no output (OD-30)
+grep -n "OD-30" docs/PROGRAM.md                                   # the identity row
 grep -n "Amended by Phase H" docs/superpowers/planning/2026-09-23-phases-4-5-7/provenance-contract-draft.md   # present
+grep -n "(OD-30)" $C | wc -l                                      # ≥ 7: §5.1, §6.1, §6.2, §6.3, §6.4, §9.1, §12.2, T2
+grep -n "PANACEA_APP_ENTRA_AUTHORITY\|Hub\.Access\|Hub\.OrgAdmin" $C   # only in "Was:" text
 A=docs/superpowers/adr/ADR-H1-hub-architecture.md
-grep -c "amended by the Phase H plan, A15" $A                     # exactly 2
+grep -c "amended by the Phase H plan, A15" $A                     # 1 once the gate is ruled; 0 until then
 grep -n "preferred_username" $A                                   # no hit reads as a binding rule
-grep -n "xms_edov" $A                                             # §5.3's row and §9 item 3
-git diff --stat <parent-of-44a> <44a-sha> -- $A                   # the two cells only: 2 insertions(+), 2 deletions(-)
+grep -n "(OD-30)" $A | wc -l                                      # ≥ 5: §5.2, §6.1, §9, Q5, :430
 git log -1 --format=%H -- $C                                      # this task's commit (task 01 ran first and wrote A1 at caf18ae; this line once read "older than task 01's first commit")
 go test ./control-plane/internal/hub/hubapi/ -run 'TestTheContractsRepoKeyRegexIsTheCodes|TestHubCodesAreContractSection42s|TestPrefixesAndReasonsAreTheContracts' -count=1   # ok: the fold kept §7.4, §4.2's codes and §3.1's prefixes equal to the code
 grep -n "git show .*:docs/superpowers/contracts/2026-09-23-hub-contract.md" .superpowers/sdd/hub/progress.md   # the read path, with the sha
@@ -192,7 +210,8 @@ grep -n "git show .*:docs/superpowers/contracts/2026-09-23-hub-contract.md" .sup
   the `git show` read path (step 3); a phase plan
   written against the old §7.4 regex or the old §12.1 compose needs its own correction.
 - That the build matches this text: task 44b reconciles what the build changed.
-- Any change to the ADR's decision: ADR-H1 stands. Its text moves in two cells only, A15's, which
-  change which claim binds an invite and not the decision (§10 Q4); the owner accepts or rejects
-  them as Q12. HA5-4's ADR wording is an owner question.
-- That IT has configured `acct` and `xms_edov`: task 43's R-4 is the first real look.
+- Any change to the ADR's decision beyond `OD-30`'s: the owner changed §5.2, §6.1, §9 and Q5 (ADR-H1
+  §12); this task only moves that text in. A15's cell changes which claim binds an invite and not the
+  decision (§10 Q4); the owner accepts or rejects it as Q12. HA5-4's ADR wording is an owner question.
+- That a realm token carries what an invite gate needs: A15's replacement is unruled (ADR-H1 §12,
+  "Open"); task 43's check against Panacea's dev realm is the first real look.
