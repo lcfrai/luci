@@ -1471,3 +1471,85 @@ func wReopenClearsTheProofWord(t *testing.T, e WorkEnv) {
 
 `wHandDoneOfAChoreHasNoCriteria` holds task 04's rule that a hand-set done of an issue serving
 nothing reads `no_criteria`, not `not_proven`: the word a chore earns, never the word proof earns.
+
+Block 3: relations and labels.
+
+```go
+func wRelationReadsTheInverse(t *testing.T, e WorkEnv) {
+	p := e.project(t, "Portal", "")
+	a, b := e.issue(t, p, "a"), e.issue(t, p, "b")
+	from := wHead(t, e.Member)
+	for range 2 { // the repeat is the same head and no event
+		if _, err := e.Member.AddRelation(wctx, a.Head.ID, hubapi.RelationRequest{Kind: hubapi.RelationBlocks, IssueID: b.Head.ID}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	other, _ := e.Viewer.Issue(wctx, b.Head.ID)
+	want := []hubapi.Relation{{Kind: "blocked_by", IssueID: a.Head.ID}}
+	if !slices.Equal(other.Head.Relations, want) {
+		t.Errorf("b's relations = %v, want %v", other.Head.Relations, want)
+	}
+	if got := wKinds(t, e.Member, from, "issue.related"); len(got) != 1 {
+		t.Errorf("issue.related events = %d, want 1", len(got))
+	}
+}
+
+func wRelationCycleRefused(t *testing.T, e WorkEnv) {
+	p := e.project(t, "Portal", "")
+	a, b := e.issue(t, p, "a"), e.issue(t, p, "b")
+	if _, err := e.Member.AddRelation(wctx, a.Head.ID, hubapi.RelationRequest{Kind: hubapi.RelationBlocks, IssueID: b.Head.ID}); err != nil {
+		t.Fatal(err)
+	}
+	_, err := e.Member.AddRelation(wctx, b.Head.ID, hubapi.RelationRequest{Kind: hubapi.RelationBlocks, IssueID: a.Head.ID})
+	wRefused(t, err, 422, "relation_cycle", "kind", "blocks", "otherId", a.Head.ID)
+	_, err = e.Member.AddRelation(wctx, a.Head.ID, hubapi.RelationRequest{Kind: hubapi.RelationRelates, IssueID: a.Head.ID})
+	wRefused(t, err, 400, hubapi.CodeBadRequest, "field", "issueId")
+}
+
+func wRelationRemovedFromTheOtherEnd(t *testing.T, e WorkEnv) {
+	p := e.project(t, "Portal", "")
+	a, b := e.issue(t, p, "a"), e.issue(t, p, "b")
+	if _, err := e.Member.AddRelation(wctx, a.Head.ID, hubapi.RelationRequest{Kind: hubapi.RelationDuplicates, IssueID: b.Head.ID}); err != nil {
+		t.Fatal(err)
+	}
+	h, err := e.Member.RemoveRelation(wctx, b.Head.ID, "duplicated_by", a.Head.ID)
+	if err != nil || len(h.Relations) != 0 {
+		t.Fatalf("remove from b = %v, %v; want no relations", h.Relations, err)
+	}
+	if got, _ := e.Member.Issue(wctx, a.Head.ID); len(got.Head.Relations) != 0 {
+		t.Errorf("a still reads %v: a relation is stored once", got.Head.Relations)
+	}
+	_, err = e.Member.RemoveRelation(wctx, a.Head.ID, hubapi.RelationDuplicates, b.Head.ID)
+	wRefused(t, err, 404, "relation_not_found", "kind", "duplicates", "otherId", b.Head.ID)
+}
+
+func wLabelNamesAreTheTeams(t *testing.T, e WorkEnv) {
+	l, err := e.Admin.CreateLabel(wctx, e.TeamID, hubapi.CreateLabelRequest{Name: "Bug", Color: "fail"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = e.Admin.CreateLabel(wctx, e.TeamID, hubapi.CreateLabelRequest{Name: " bug ", Color: "run"})
+	wRefused(t, err, 409, "label_exists", "labelId", l.ID)
+	_, err = e.Member.CreateLabel(wctx, e.TeamID, hubapi.CreateLabelRequest{Name: "Chore", Color: "run"})
+	wRefused(t, err, 403, hubapi.CodeForbidden, "required", "admin")
+	_, err = e.Admin.CreateLabel(wctx, e.TeamID, hubapi.CreateLabelRequest{Name: "Pink", Color: "#ff00aa"})
+	wRefused(t, err, 400, hubapi.CodeBadRequest, "field", "color")
+}
+
+func wArchivedLabelIsUnavailable(t *testing.T, e WorkEnv) {
+	p := e.project(t, "Portal", "")
+	iw := e.issue(t, p, "one")
+	l, err := e.Admin.CreateLabel(wctx, e.TeamID, hubapi.CreateLabelRequest{Name: "Bug", Color: "fail"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.Admin.ArchiveLabel(wctx, l.ID); err != nil {
+		t.Fatal(err)
+	}
+	_, err = e.Member.PatchIssue(wctx, iw.Head.ID, hubapi.PatchIssueRequest{Labels: &[]string{l.ID}})
+	wRefused(t, err, 422, "label_unavailable", "field", "labels[0]")
+	if live, _ := e.Viewer.Labels(wctx, e.TeamID); len(live) != 0 {
+		t.Errorf("labels = %v, want none live", live)
+	}
+}
+```
