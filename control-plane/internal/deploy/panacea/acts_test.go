@@ -155,6 +155,10 @@ func TestRollbackCarriesWarmth(t *testing.T) {
 		"POST " + actsP + "/deployments/" + cold + "/rollback": {file: "rollback-cold.json"},
 		"POST " + actsP + "/deployments/d-odd/rollback": {
 			body: `{"data":{"id":"d-odd","status":"rolling-back","image":"i","createdAt":"2026-09-23T11:02:09Z","rollbackWarmth":"tepid","coldStartSeconds":7}}`},
+		// Panacea writes 0 or rollbackColdStartSeconds (clients/kubernetes.go:5970, :6036), never
+		// a negative; a negative is no time at all, not "ready 5 s ago" (named survivor Y1).
+		"POST " + actsP + "/deployments/d-neg/rollback": {
+			body: `{"data":{"id":"d-neg","status":"rolling-back","image":"i","createdAt":"2026-09-23T11:02:09Z","rollbackWarmth":"cold","coldStartSeconds":-5}}`},
 	})
 	ctx := context.Background()
 	for _, c := range []struct {
@@ -167,14 +171,15 @@ func TestRollbackCarriesWarmth(t *testing.T) {
 			Warmth: deploy.WarmthCold, ColdStartSeconds: 20}},
 		// A word this code does not know is unknown, never a guess, and carries no seconds.
 		{"d-odd", deploy.RollbackResult{SourceDeploymentID: "d-odd", Image: "i", Warmth: deploy.WarmthUnknown}},
+		{"d-neg", deploy.RollbackResult{SourceDeploymentID: "d-neg", Image: "i", Warmth: deploy.WarmthCold}},
 	} {
 		got, err := rs.c.Rollback(ctx, project, c.id)
 		if err != nil || got != c.want {
 			t.Errorf("Rollback(%s) = (%+v, %v), want %+v", c.id, got, err, c.want)
 		}
 	}
-	if n := len(rs.requests()); n != 3 {
-		t.Errorf("%d requests, want 3", n)
+	if n := len(rs.requests()); n != 4 {
+		t.Errorf("%d requests, want 4", n)
 	}
 }
 

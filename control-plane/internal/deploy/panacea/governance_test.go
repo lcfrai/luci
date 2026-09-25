@@ -234,6 +234,20 @@ func TestSetPostureRefusesUnknownMode(t *testing.T) {
 	}
 }
 
+// TestSetPostureAnswerFailsClosed kills reading the PUT's answered accessMode as known whatever
+// it says (named survivor Y2). The answer's word goes through deploy.ParsePostureMode as the GET's
+// does: a word outside the five is (PostureKPMGSSO, ModeKnown false), ModeRaw verbatim, so the
+// lens never draws an answer this code does not know as the mode just saved.
+func TestSetPostureAnswerFailsClosed(t *testing.T) {
+	rs := serveRecorded(t, map[string]fixture{"PUT " + branchP + "/access": {body: `{"message":"access mode set to ` +
+		`open-to-all for engagement-portal@feat/x","data":{"branch":"feat/x","env":"feat-x","accessMode":"open-to-all","enforced":true}}`}})
+	got, err := rs.c.SetPosture(context.Background(), project, "feat/x", deploy.PostureChange{Mode: deploy.PosturePublic})
+	want := deploy.Posture{Branch: "feat/x", Environment: "feat-x", Mode: deploy.PostureKPMGSSO, ModeRaw: "open-to-all"}
+	if err != nil || !reflect.DeepEqual(got.Posture, want) {
+		t.Errorf("SetPosture = (%+v, %v), want Posture %+v", got, err, want)
+	}
+}
+
 // TestAccessLegacyGroup kills drawing a group binding as a person, and a legacy test keyed on
 // Grantee == "", which Panacea's code never sends (review M30): ListProjectAccess fills a
 // person's row with group == grantee and a legacy row with the group's name and its attribute
