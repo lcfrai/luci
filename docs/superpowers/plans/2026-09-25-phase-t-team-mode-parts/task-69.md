@@ -138,7 +138,7 @@ type BumpCheck struct {
 }
 
 type Gate struct {
-	Name   string `json:"name"`   // od8-canary | panacea-channel | g9-corpus | gateway-compat
+	Name   string `json:"name"`   // od8-canary | panacea-channel | gateway-compat | g9-corpus
 	Passed bool   `json:"passed"`
 }
 
@@ -205,7 +205,8 @@ The collector writes `conflicts.json` as `null` when the run skipped item 2, whi
 ```go
 var digestRef = regexp.MustCompile(`@sha256:[0-9a-f]{64}$`)
 
-var bumpGates = []string{"od8-canary", "panacea-channel", "g9-corpus", "gateway-compat"}
+// Task 65's run order: G1, G2, then G4 before G3, the cheap gate first (task-65.md:614-616).
+var bumpGates = []string{"od8-canary", "panacea-channel", "gateway-compat", "g9-corpus"}
 
 // TM2 returns the six rows, in order. It never returns fewer.
 func TM2(e Export2) []Verdict {
@@ -581,4 +582,20 @@ Until two people run the script, every row in the record says `NOT RUN`, and TM2
    flagged it and the basis shas, as one `"msg":"pair"` line, for M2 to read.
 4. **The git host's push record** is the only evidence of *who* pushed; its endpoints are
    **UNVERIFIED**, and a host that does not expose the pusher cannot pass M3 as written.
+
+#### Reconciliation with task 65 (now on disk, re-read 2026-09-25)
+
+- **Gap 2 is closed.** Task 65 writes `images/.out/publish/bump-result.json` on every run, dry or
+  not, uploaded as the artefact `bump-result`, in exactly `BumpCheck`'s shape: `ran`, `gates`
+  (`name`, `passed`), `promote`, `dryRun`, `poolBefore`, `poolAfter` (`task-65.md:597-612`). Its
+  `images.yml` gains the runtime parameter `dryRun`, and a dry run runs all four gates, never
+  `not-required` (`:598-599`). Step 6's `./bump-result.json` is that artefact's file.
+- **One correction, made in place above.** Task 65 lists the gates *in the order they ran*, and
+  runs G4 before G3, the cheap gate first (`task-65.md:614-616`). `bumpGates` said G3 before G4,
+  so a correct dry run would have failed M5 with *"gate g9-corpus did not pass in its place"*. It
+  now reads `od8-canary`, `panacea-channel`, `gateway-compat`, `g9-corpus`, and the `Gate.Name`
+  comment with it. `TestM5GateOrderAndCount` still kills its mutant (the canary run last); its
+  fixture's four gates are written in the new order.
+- **Still open, re-checked the same day:** gap 3 (task 59's `"msg":"pair"` line) and gap 4 (the
+  git host's pusher). Neither is in task 59 or task 65 as written.
 
