@@ -127,3 +127,91 @@ key this one does not, because the spread keeps only what the type reads.
 
 Test 2 checks that absence as well as the presence of `workDisplay`.
 
+#### Interfaces — complete: `desktop/src/components/common/ConfirmInPlace.tsx`
+
+```tsx
+// desktop/src/components/common/ConfirmInPlace.tsx — task 44. 02 C8's confirm.inplace: the
+// consequence is stated where the act was asked for, and the second press is the act. Never a
+// dialog, never a scrim, never a focus trap: Tab leaves it like any other control.
+import { useEffect, useRef, type JSX, type KeyboardEvent } from "react";
+import "./common.css";
+
+export function ConfirmInPlace(props: {
+  consequence: string;   // one sentence, sans; facts inside it (route, counts) are plain words
+  confirmLabel: string;  // the act itself, e.g. "Start 3 worktrees"
+  onConfirm(): void;
+  onCancel(): void;
+}): JSX.Element {
+  const { consequence, confirmLabel, onConfirm, onCancel } = props;
+  const confirm = useRef<HTMLButtonElement>(null);
+  useEffect(() => { confirm.current?.focus(); }, []);
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== "Escape") return;
+    e.preventDefault();
+    e.stopPropagation();   // Esc closes this, not the list's selection underneath
+    onCancel();
+  };
+  return (
+    <div className="cip" role="group" aria-label="Confirm" onKeyDown={onKeyDown}>
+      <span className="cip-consequence">{consequence}</span>
+      <button type="button" ref={confirm} className="cip-confirm" onClick={onConfirm}>{confirmLabel}</button>
+      <button type="button" className="cip-cancel" onClick={onCancel}>Cancel</button>
+    </div>
+  );
+}
+```
+
+#### Interfaces — complete: `BulkBar.tsx` and `DisplayMenu.tsx`, the exported halves
+
+```tsx
+// desktop/src/components/work/BulkBar.tsx — task 44.
+import type { JSX } from "react";
+import type { IssueHead, User } from "../../api/work";          // SW.15
+import type { Route } from "../common/ViewHeader";             // SW.13
+import type { BriefCriterion } from "../../work/suggestCriterion";
+
+/** The human band a bulk state move may choose (decision 9). */
+export const BULK_STATES = ["triage", "backlog", "todo"] as const;
+
+/** "Starts 3 agents on 3 worktrees · route Global". No cost: none is observed before a run. */
+export function startConsequence(n: number, route: Route): string {
+  return `Starts ${n} agents on ${n} worktrees · route ${route === "au" ? "AU" : "Global"}`;
+}
+
+export function BulkBar(props: {
+  selected: readonly IssueHead[];         // in list order; ghosts never reach here
+  me: User;
+  route: Route;                           // the project's, from its data class (OD-24)
+  criteria: readonly BriefCriterion[];    // for "Attach a criterion" (task 42's CriterionPicker)
+  onStart?: (ids: readonly string[]) => void;   // task 61 wires SW.10; absent → no Start act
+  onClear(): void;
+}): JSX.Element | null;                   // null when nothing is selected
+
+// desktop/src/components/work/DisplayMenu.tsx — task 44. On the built Popover (common/Popover.tsx).
+import type { DisplayOptions, WorkViewId } from "../../store/slices/prefsSlice";
+
+export function DisplayMenu(props: {
+  view: WorkViewId;
+  anchor: DOMRect | null;                 // Popover's anchor; null is closed
+  onClose(): void;
+}): JSX.Element | null;                   // reads and writes prefsSlice.workDisplay[view] itself
+
+/** What the menu offers for a view: the board has no assignee or priority grouping (decision 2). */
+export function groupingsFor(view: WorkViewId): readonly DisplayOptions["grouping"][];
+```
+
+The bar's batches, one `mutate` call each (task 56 carries arrays as one Undo, `task-46.md:298`):
+
+```ts
+mutate(ids.map((issueId) => ({ kind: "setState", issueId, move: handMove(to) })));            // state
+mutate(ids.map((issueId) => ({ kind: "setPriority", issueId, priority })));                  // priority
+mutate(heads.map((h) => assignOp(h, me, to)).filter((op) => op !== null));                   // assignee
+mutate(ids.map((issueId) => ({ kind: "labels", issueId, add, remove })));                    // labels
+mutate(heads.filter((h) => !serves(h, c)).map((h) => ({ kind: "serves", issueId: h.id, add: [c], remove: [] }))); // criterion
+mutate(ids.map((issueId) => ({ kind: "setState", issueId, move: handMove("cancelled") })));  // cancel
+```
+
+An empty array is not sent. `serves(h, c)` reads the head revision's `serves` from the replica
+(SW.16); an issue that already serves the criterion is left out, so the batch writes no revision
+that changes nothing.
+
