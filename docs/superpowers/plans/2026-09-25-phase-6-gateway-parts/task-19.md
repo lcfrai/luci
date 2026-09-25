@@ -67,6 +67,14 @@ elif ! grep -q "images.litellm is required" "$tmp/err"; then
   bad "the missing-value error does not name images.litellm: $(head -c 200 "$tmp/err")"
 fi
 
+# Kills a release in another namespace: the sandbox image pins the gatekeeper's
+# Service name, gatekeeper.panacea-gateway.svc.cluster.local (review I-4).
+if helm template gw "$chart" -n gateway-other -f "$chart/values-dev.yaml" -f "$tmp/fixture.yaml" >/dev/null 2>"$tmp/err"; then
+  bad "the chart rendered into namespace gateway-other"
+elif ! grep -q "installs only into namespace panacea-gateway" "$tmp/err"; then
+  bad "the namespace error does not name panacea-gateway: $(head -c 200 "$tmp/err")"
+fi
+
 for mode in entity cidr; do
   helm template gw "$chart" -n panacea-gateway -f "$chart/values-dev.yaml" -f "$tmp/fixture.yaml" \
     --set apiServer.mode="$mode" --set 'apiServer.cidrs={10.0.0.1/32}' > "$tmp/$mode.yaml"
@@ -483,7 +491,8 @@ spec:
             - {name: PANACEA_APP_GATEWAY_CALLER_AUTH, value: kube}
             - {name: PANACEA_APP_GATEWAY_ROUTE_SOURCE, value: hub}
             - {name: PANACEA_APP_GATEWAY_HUB_URL, value: {{ .Values.hub.url | quote }}}
-            - {name: PANACEA_APP_GATEWAY_BASE_URL, value: "http://gatekeeper.{{ .Release.Namespace }}.svc.cluster.local:4000"}
+            {{- if ne .Release.Namespace "panacea-gateway" }}{{ fail "the gateway chart installs only into namespace panacea-gateway: the sandbox image pins ANTHROPIC_BASE_URL=http://gatekeeper.panacea-gateway.svc.cluster.local:4000 (phase 6 task 14 decision (e))" }}{{ end }}
+            - {name: PANACEA_APP_GATEWAY_BASE_URL, value: "http://gatekeeper.panacea-gateway.svc.cluster.local:4000"}
           ports:
             - {name: http, containerPort: 4100}
           readinessProbe: {httpGet: {path: /readyz, port: 4100}, periodSeconds: 5}

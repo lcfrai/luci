@@ -40,7 +40,7 @@
   - `bash deploy/local/gateway/probe.sh --self-test` → `PASS: probe self-test (<n> cases)`, no Docker needed
   - `bash deploy/local/gateway/probe.sh` → one line per probe, `P<nn> PASS|FAIL|UNKNOWN <evidence>`, in id order, plus a header line `digest <repo@sha256:…>`; exit 0 unless P06, P13 or P14 is `FAIL` (exit 3), or the stack is not up or not in task 17's fake mode (exit 2, checked through `/model/info` before any probe runs)
   - the results document, whose `#p07` anchor task 02's loader accepts as `apiBaseEvidence` (task 02, `models.yaml`'s `litellm.apiBaseForm`)
-- Consumes: task 17's running stack (`docker compose` in `deploy/local/gateway`, the secrets, the network `panacea-app-gateway`, services `litellm`, `postgres`, `fakeanthropic-global`, and `fakeanthropic-au` for P14, `task-17.md:47`); task 16's `GET /_captured` record fields `seq`, `path`, `headerNames`, `bodyKeys`; task 02's rendered group names `global/claude-opus-4-8` (the public id the docs use as their example) and `au/claude-opus-4-8` (`task-02.md:103`); task 11's `proxy.ControlFields`, of which P14 sends two.
+- Consumes: task 17's running stack (`docker compose` in `deploy/local/gateway`, the secrets, the internal network `panacea-app-gateway-backend`, where LiteLLM, Postgres and the fakes live and no sandbox is (task 17, review I-6), services `litellm`, `postgres`, `fakeanthropic-global`, and `fakeanthropic-au` for P14, `task-17.md:47`); task 16's `GET /_captured` record fields `seq`, `path`, `headerNames`, `bodyKeys`; task 02's rendered group names `global/claude-opus-4-8` (the public id the docs use as their example) and `au/claude-opus-4-8` (`task-02.md:103`); task 11's `proxy.ControlFields`, of which P14 sends two.
 - Consumed by: task 02 (`apiBaseForm`, pricing), task 07 (P01, P02, P11, P14), task 09 (P12), task 11 (P08, P14), task 06 (P03 to P05), task 23 (the digest it runs against), task 25 (what stays **UNVERIFIED**).
 
 **LiteLLM's admin API as this script calls it.** Paths and fields are LiteLLM's documented proxy API **as remembered**, not read for this plan; a wrong one shows as a `FAIL` or `UNKNOWN` with the status, which is itself the finding task 04 needs.
@@ -565,7 +565,7 @@ pq() { docker compose exec -T postgres psql -U gateway -d gateway -At "$@"; }
 
 # The throwaway LiteLLM: same digest, no database, config passed in the environment.
 docker rm -f gw-probe-litellm >/dev/null 2>&1 || true
-docker run -d --name gw-probe-litellm --network panacea-app-gateway \
+docker run -d --name gw-probe-litellm --network panacea-app-gateway-backend \
   -e LITELLM_MASTER_KEY="$tmpkey" -e PROBE_CFG="$(tmp_config | base64 | tr -d '\n')" \
   --entrypoint /bin/sh "$img" -c 'python3 -c "import base64,os; open(\"/tmp/c.yaml\",\"wb\").write(base64.b64decode(os.environ[\"PROBE_CFG\"]))" && exec litellm --config /tmp/c.yaml --port 4011' >/dev/null
 for _ in $(seq 1 40); do
