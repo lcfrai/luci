@@ -556,3 +556,461 @@ func (s *Server) readyz(w http.ResponseWriter, r *http.Request) {
 **`/healthz` and `/readyz` are outside Entra, and nothing else is.** They are registered on the
 root mux with methods; every other path, including an unknown one, goes through
 `entra.Middleware` first, so a probe for a route's existence without a token is a 401, not a 404.
+
+**`control-plane/internal/fleet/server/singleton.go`, complete:**
+
+```go
+package server
+
+import (
+	"context"
+	"log/slog"
+	"sync/atomic"
+	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+// Singleton runs one loop across every replica that shares a database. The
+// lock is session-level, on a connection hijacked out of the pool, so the
+// only ways to lose it are to close that connection or for Postgres to lose
+// it — and either one ends the session, releases the lock, and (through the
+// watchdog's ping) cancels the loop here.
+type Singleton struct {
+	pool  *pgxpool.Pool
+	name  string // "outbox", "feed", "deadlines"
+	log   *slog.Logger
+	retry time.Duration
+	check time.Duration
+	held  atomic.Bool
+}
+
+func NewSingleton(pool *pgxpool.Pool, name string, log *slog.Logger) *Singleton {
+	return &Singleton{pool: pool, name: name, log: log, retry: 5 * time.Second, check: 5 * time.Second}
+}
+
+// Held is task 11's leader() for the feed.
+func (s *Singleton) Held() bool { return s.held.Load() }
+
+// Run blocks until ctx ends. On each acquisition it calls onAcquire (nil is
+// allowed), then loop with a context that is cancelled when the lock is lost.
+func (s *Singleton) Run(ctx context.Context, onAcquire, loop func(context.Context) error) error {
+	for {
+		if err := s.once(ctx, onAcquire, loop); err != nil && ctx.Err() == nil {
+			s.log.Warn("singleton released", "name", s.name, "err", err)
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(s.retry):
+		}
+	}
+}
+
+func (s *Singleton) once(ctx context.Context, onAcquire, loop func(context.Context) error) error {
+	pc, err := s.pool.Acquire(ctx)
+	if err != nil {
+		return err
+	}
+	conn := pc.Hijack() // ours alone now; closing it is the unlock
+	defer conn.Close(context.Background())
+	var got bool
+	if err := conn.QueryRow(ctx, `SELECT pg_try_advisory_lock(hashtext($1))`,
+		"panacea-app-fleet-"+s.name).Scan(&got); err != nil || !got {
+		return err // not got: another replica holds it; try again after retry
+	}
+	lctx, cancel := context.WithCancel(ctx)
+	watchdog := make(chan struct{})
+	go func() { // only this goroutine touches conn while the loop runs
+		defer close(watchdog)
+		t := time.NewTicker(s.check)
+		defer t.Stop()
+		for {
+			select {
+			case <-lctx.Done():
+				return
+			case <-t.C:
+				if err := conn.Ping(lctx); err != nil {
+					s.log.Warn("singleton connection lost", "name", s.name, "err", err)
+					cancel()
+					return
+				}
+			}
+		}
+	}()
+	s.held.Store(true)
+	s.log.Info("singleton acquired", "name", s.name)
+	defer func() {
+		s.held.Store(false) // before the lock goes: never "held" without the lock
+		cancel()
+		<-watchdog // then conn.Close runs with no concurrent Ping
+	}()
+	if onAcquire != nil {
+		if err := onAcquire(lctx); err != nil {
+			return err
+		}
+	}
+	return loop(lctx)
+}
+```
+
+**`held` goes false before the lock is released, never after.** The feed's acting role asks
+`Held()` before each Revoker call (task 11). If the flag outlived the lock, a replica that had just
+lost it could act in the same instant as the one that had just taken it. Clearing the flag first
+leaves the opposite window, a moment with no actor, which costs at most one poll of delay.
+
+**The pgx dependency.** `github.com/jackc/pgx/v5` is task 10's addition to `control-plane/go.mod`
+(no branch pins it on 2026-09-25: checked `go.mod` on `feat/team-mode`, `feat/hub` and `feat/env`);
+this task adds no module. `pgxpool.Conn.Hijack` is in `pgx/v5`'s `pgxpool` (**UNVERIFIED** at the
+version task 10 pins; it has been there since v5.0).
+
+**`control-plane/cmd/fleetd/token.go`, complete.** Fleet's own token for the Hub, and the only
+credential it holds: an app-only token by the client-credentials grant with a **client
+assertion**, the projected service-account token Azure Workload Identity mounts into the pod. No
+secret is configured; the assertion file is re-read on every fetch because the kubelet rotates it.
+In the offline stack the same code calls `devissuer`'s client-credentials grant (task 05), which
+accepts the same form.
+
+```go
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/url"
+	"os"
+	"strings"
+	"sync"
+	"time"
+)
+
+// assertionSource is hubclient.TokenSource and hubclient.Invalidator.
+type assertionSource struct {
+	tokenURL, clientID, assertionFile string
+	http                              *http.Client
+	now                               func() time.Time
+
+	mu    sync.Mutex
+	cache map[string]cachedToken // scope -> token
+}
+
+type cachedToken struct {
+	value string
+	exp   time.Time
+}
+
+// refreshBefore keeps a token from being used in its last five minutes.
+const refreshBefore = 5 * time.Minute
+
+func newAssertionSource(c Config, hc *http.Client) *assertionSource {
+	return &assertionSource{tokenURL: c.TokenURL, clientID: c.ClientID,
+		assertionFile: c.AssertionFile, http: hc, now: time.Now, cache: map[string]cachedToken{}}
+}
+
+func (a *assertionSource) Token(ctx context.Context, scope string) (string, error) {
+	a.mu.Lock()
+	t, ok := a.cache[scope]
+	a.mu.Unlock()
+	if ok && a.now().Add(refreshBefore).Before(t.exp) {
+		return t.value, nil
+	}
+	assertion, err := os.ReadFile(a.assertionFile)
+	if err != nil {
+		return "", fmt.Errorf("fleetd: reading the workload-identity assertion: %w", err)
+	}
+	form := url.Values{
+		"grant_type":            {"client_credentials"},
+		"client_id":             {a.clientID},
+		"scope":                 {scope},
+		"client_assertion_type": {"urn:ietf:params:oauth:client-assertion-type:jwt-bearer"},
+		"client_assertion":      {strings.TrimSpace(string(assertion))},
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, a.tokenURL, strings.NewReader(form.Encode()))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	resp, err := a.http.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("fleetd: token endpoint: %w", err)
+	}
+	defer resp.Body.Close()
+	var body struct {
+		AccessToken string `json:"access_token"`
+		ExpiresIn   int    `json:"expires_in"`
+		Error       string `json:"error"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(nil, resp.Body, 64<<10)).Decode(&body); err != nil {
+		return "", fmt.Errorf("fleetd: token endpoint answered %d, unreadable: %w", resp.StatusCode, err)
+	}
+	if resp.StatusCode != http.StatusOK || body.AccessToken == "" || body.ExpiresIn <= 0 {
+		// body.Error is an OAuth code ("invalid_client"), never a secret; the
+		// assertion and the response body are never logged.
+		return "", fmt.Errorf("fleetd: token endpoint answered %d %q", resp.StatusCode, body.Error)
+	}
+	t = cachedToken{value: body.AccessToken, exp: a.now().Add(time.Duration(body.ExpiresIn) * time.Second)}
+	a.mu.Lock()
+	a.cache[scope] = t
+	a.mu.Unlock()
+	return t.value, nil
+}
+
+// Invalidate drops a cached token; hubclient calls it before its one retry on
+// a 401 "expired" (hubclient/hubclient.go:23-30).
+func (a *assertionSource) Invalidate(scope string) {
+	a.mu.Lock()
+	delete(a.cache, scope)
+	a.mu.Unlock()
+}
+```
+
+**`control-plane/cmd/fleetd/main.go`, complete.** Later tasks add exactly two kinds of line here,
+and nothing else: a `register…(srv, …)` call for their routes (tasks 14, 19, 20, 39, 52), and an
+entry in `revokers` or `kinds` (tasks 20, 22–25, 39). Task 30 adds the `deadlines` singleton beside
+`outbox`.
+
+```go
+// Command fleetd is Fleet: team mode's coordinator, beside the Hub.
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"log/slog"
+	"net/http"
+	"os"
+	"os/signal"
+	"slices"
+	"syscall"
+	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/entra"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/fleet/delegation"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/fleet/outbox"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/fleet/server"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/fleet/store/pgstore"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubclient"
+)
+
+func main() { os.Exit(run(context.Background(), os.Getenv, os.Stderr)) }
+
+func run(ctx context.Context, getenv func(string) string, stderr io.Writer) int {
+	cfg, err := loadConfig(getenv)
+	if err != nil {
+		fmt.Fprintln(stderr, "fleetd: configuration:", err)
+		return 2
+	}
+	log := slog.New(slog.NewJSONHandler(stderr, &slog.HandlerOptions{Level: level(cfg.LogLevel)}))
+	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	st, err := pgstore.Open(ctx, cfg.PGDSN)
+	if err != nil {
+		log.Error("postgres", "err", err)
+		return 1
+	}
+	defer st.Close()
+	if err := pgstore.Migrate(ctx, st.Pool()); err != nil {
+		log.Error("migrate", "err", err)
+		return 1
+	}
+
+	hc := &http.Client{Timeout: 10 * time.Second}
+	tokens := newAssertionSource(cfg, hc)
+	hub := hubclient.New(cfg.HubURL, cfg.HubScope, tokens, hc)
+	validator, err := entra.New(entra.Config{AuthorityHost: cfg.Authority, TenantIDs: cfg.Tenants,
+		Audience: cfg.Audience, RequiredScope: cfg.RequiredScope, AllowedClients: cfg.DesktopClients,
+		AllowInsecureAuthority: cfg.DevInsecure})
+	if err != nil {
+		log.Error("entra", "err", err)
+		return 1
+	}
+	srv, err := server.New(server.Deps{
+		Validator: validator,
+		Members:   server.NewMembershipCache(hubMembership{hub}, cfg.MembershipTTL, time.Now),
+		Postgres:  pgPinger{st.Pool()},
+		Hub:       hubReady{url: cfg.HubURL + "/readyz", http: hc},
+		Log:       log,
+	})
+	if err != nil {
+		log.Error("server", "err", err)
+		return 1
+	}
+
+	cache := delegation.NewCache()
+	deliver := outbox.New(st, delegation.Sender{Client: delegation.NewClient(cache, time.Now), Hub: hub}, time.Now)
+	feedLock := server.NewSingleton(st.Pool(), "feed", log)
+	outboxLock := server.NewSingleton(st.Pool(), "outbox", log)
+	revokers := &fanout{log: log} // tasks 20, 23, 39 add theirs: revokers.add(r)
+	feed := delegation.NewFeed(hub, hub, cache, revokers, feedLock.Held, time.Now)
+	state := delegation.NewHubState()
+	kinds := slices.Clone(delegation.FeedKinds) // tasks 22-25 append their kinds
+	rebuild := func(c context.Context) error { return delegation.Rebuild(c, st, hub, hub, feed, state) }
+
+	go readFeed(ctx, log, srv, feed, rebuild, kinds)
+	go feedLock.Run(ctx, func(c context.Context) error { feed.Reset(); return rebuild(c) },
+		func(c context.Context) error { <-c.Done(); return nil }) // the lock is the role
+	go outboxLock.Run(ctx, nil, func(c context.Context) error { return deliverLoop(c, deliver, cfg.OutboxTick) })
+
+	return serve(ctx, log, cfg.Addr, srv.Handler())
+}
+
+// readFeed is the feed's reading role, on every replica: rebuild until it
+// succeeds once, mark ready, then poll every tracked org and sweep.
+func readFeed(ctx context.Context, log *slog.Logger, srv *server.Server, feed *delegation.Feed,
+	rebuild func(context.Context) error, kinds []string) {
+	for {
+		if err := rebuild(ctx); err == nil {
+			srv.MarkRebuilt()
+			break
+		} else if ctx.Err() != nil {
+			return
+		} else {
+			log.Warn("rebuild failed; retrying", "err", err)
+		}
+		if !sleep(ctx, 5*time.Second) {
+			return
+		}
+	}
+	for sleep(ctx, delegation.PollEvery) {
+		for _, org := range feed.Orgs() {
+			for more := true; more; {
+				var err error
+				if more, err = feed.Poll(ctx, org, kinds); err != nil {
+					log.Warn("feed poll", "org", org, "err", err)
+					break
+				}
+			}
+		}
+		if err := feed.Sweep(ctx); err != nil {
+			log.Warn("feed sweep", "err", err)
+		}
+	}
+}
+
+func deliverLoop(ctx context.Context, d *outbox.Deliverer, every time.Duration) error {
+	tick, jan := time.NewTicker(every), time.NewTicker(time.Hour)
+	defer tick.Stop()
+	defer jan.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-tick.C:
+			if _, err := d.RunOnce(ctx); err != nil {
+				return err // the Singleton logs it, releases the lock, and retries
+			}
+		case <-jan.C:
+			if _, err := d.Janitor(ctx); err != nil {
+				return err
+			}
+		}
+	}
+}
+
+func serve(ctx context.Context, log *slog.Logger, addr string, h http.Handler) int {
+	// No WriteTimeout: tasks 19 and 39 serve long-lived WebSockets on this server.
+	hs := &http.Server{Addr: addr, Handler: h, ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 120 * time.Second}
+	go func() {
+		<-ctx.Done()
+		sctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+		_ = hs.Shutdown(sctx)
+	}()
+	log.Info("fleetd listening", "addr", addr)
+	if err := hs.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+		log.Error("listen", "err", err)
+		return 1
+	}
+	return 0
+}
+
+// hubMembership is server.Membership over the proposed Hub read (the gap above).
+type hubMembership struct{ hub hubclient.Team }
+
+func (m hubMembership) Lookup(ctx context.Context, tid, oid, project string) (server.Member, error) {
+	p, err := m.hub.Principal(ctx, tid, oid, project)
+	if hubclient.Code(err) == "principal_not_found" {
+		return server.Member{}, nil // unknown to the Hub: UserID "" is refused by Allowed
+	}
+	if err != nil {
+		return server.Member{}, err
+	}
+	return server.Member{UserID: p.UserID, OrgID: p.OrgID, Role: p.Role, OrgAdmin: p.OrgAdmin,
+		Auditor: p.Auditor, Compliance: p.Compliance}, nil
+}
+
+type hubReady struct {
+	url  string
+	http *http.Client
+}
+
+func (h hubReady) Ping(ctx context.Context) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, h.url, nil)
+	if err != nil {
+		return err
+	}
+	resp, err := h.http.Do(req)
+	if err != nil {
+		return err
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("hub /readyz answered %d", resp.StatusCode)
+	}
+	return nil
+}
+
+type pgPinger struct{ pool *pgxpool.Pool }
+
+func (p pgPinger) Ping(ctx context.Context) error { return p.pool.Ping(ctx) }
+
+// fanout is the one delegation.Revoker Fleet has; every effect joins it.
+type fanout struct {
+	log  *slog.Logger
+	list []delegation.Revoker
+}
+
+func (f *fanout) add(r delegation.Revoker) { f.list = append(f.list, r) }
+
+func (f *fanout) Revoke(ctx context.Context, d delegation.Delegation, why delegation.Reason) error {
+	f.log.Info("delegation act", "delegation", d.ID, "reason", why, "effects", len(f.list))
+	var errs []error
+	for _, r := range f.list { // every effect is tried, whichever fails
+		errs = append(errs, r.Revoke(ctx, d, why))
+	}
+	return errors.Join(errs...)
+}
+
+func (f *fanout) Resume(ctx context.Context, d delegation.Delegation) error {
+	var errs []error
+	for _, r := range f.list {
+		errs = append(errs, r.Resume(ctx, d))
+	}
+	return errors.Join(errs...)
+}
+
+func sleep(ctx context.Context, d time.Duration) bool {
+	select {
+	case <-ctx.Done():
+		return false
+	case <-time.After(d):
+		return true
+	}
+}
+
+func level(s string) slog.Level {
+	var l slog.Level
+	_ = l.UnmarshalText([]byte(s)) // loadConfig has already refused anything else
+	return l
+}
+```
+
+`principal_not_found` is the code the proposed Hub read answers for a `(tid, oid)` it has never
+provisioned; it is part of the gap, and task 08's conformance row for the route pins it.
