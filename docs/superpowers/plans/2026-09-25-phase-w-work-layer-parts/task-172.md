@@ -217,3 +217,122 @@ export function orderedLevels(levels: LoopBound["levels"]): LoopBound["levels"] 
 
 `loopRights` is the only place the list and the editor ask *may I*; the Hub's 403 (task 162) is
 the second check. A team admin who owns a loop is simply its owner: `own` wins.
+
+#### Interfaces — complete: `LoopList.tsx` and `LoopEditor.tsx`, the exported halves
+
+```tsx
+// desktop/src/components/loops/LoopList.tsx — task 172 (decisions 4, 8).
+import type { JSX } from "react";
+import "./loops.css";
+
+export function LoopList(props: {
+  projectId: string;
+  me: string;                 // the signed-in user's id
+  teamAdmin: boolean;         // the caller's role on the project's team (hub-contract §5.2)
+  hub: "cloud" | "local";     // gap 3: the host says which; "local" draws decision 8's one line
+  now(): number;
+}): JSX.Element;
+// Reads replica.intake().loops filtered by projectId (task 169 loads projectLoops). Two groups:
+// "Your loops" (owner.id === me), each row opening LoopEditor, and, for a team admin only,
+// "Teammates' loops" read-only, each row: name, owner's displayName, triggerWords, state, and a
+// Pause button when loopRights().pause. A member who is not an admin never sees the second
+// group. A paused row reads "Paused" and its pausedCause in words ("owner left the team" for
+// owner_left; any other cause as itself). "New loop" opens LoopEditor with no loop.
+
+// desktop/src/components/loops/LoopEditor.tsx — task 172 (decisions 1-3, 5, 9, 10).
+import type { ActionClass, AutonomyLevel, Loop, LoopVersion } from "../../api/work";
+
+export function LoopEditor(props: {
+  projectId: string;
+  loop: Loop | null;                  // null: a new loop
+  current: LoopVersion | null;        // the version read on open (client.loop), null when new
+  ownerGrid: Readonly<Record<ActionClass, AutonomyLevel>> | null;   // null: gap 2, decision 10
+  labels: readonly { id: string; name: string }[];                  // the team's labels
+  tz: string;                         // the owner's IANA zone, from the OS (Intl)
+  onSaved(v: LoopVersion): void;
+  onClose(): void;
+}): JSX.Element;
+// Fields, in order: Name (1-80, counted "12 / 80"); Trigger, a two-choice radio group
+// "When" | "Every"; for When, checkboxes over LOOP_EVENT_KINDS in EVENT_WORDS, then optional
+// label, from-state and to-state selects; for Every, day | weekday | week and a time input
+// (HH:MM) with the zone shown beside it in mono, not editable; Instruction, task 49's Editor
+// with the count "1,284 / 2,000"; Action, "Run a turn" | "Start on the accepted issue" (the
+// second needs a label); Turns a day (1-24, a number input); the grid; the consequence line.
+// Save is disabled, with the reason beside it, while any field fails; a refusal from the Hub
+// (loop_bound_exceeds_owner, loop_outside_grid) shows under the grid with details.class named.
+```
+
+**The ops Save sends** (task 169's `IntakeOp`, through SW.16 `mutate`):
+
+```ts
+const body: LoopVersionBody = {
+  trigger, instruction: { text: doc.markdown, author: fieldAuthor(doc.authorship) },
+  action, labelId: action === "start" ? labelId : null,   // the Start label only (task 163)
+  bound: { turnsPerDay, levels: orderedLevels(levels) },
+};
+if (loop === null) mutate({ kind: "loop.create", projectId, body: { name, first: body } });
+else mutate({ kind: "loop.version", loopId: loop.id, body, prev: toBody(current!) });
+// toBody drops loopId, version, savedAt and savedBy: the LoopVersionBody of the version read.
+```
+
+A rename of an existing loop is not a version field (task 162 keeps `name` on the head and names
+no rename route), so the Name field is read-only once a loop exists (gap 4). Save with nothing
+changed sends nothing: `versionDiff(current, candidate)` is empty and the button reads *No
+changes*, so the history never gains a copy the owner did not mean. The grid is ten rows of four
+`role="radio"` inputs in one `role="radiogroup"` per row, labelled by `CLASS_WORDS`; an inherited
+row's owner-level radio carries `data-inherited` and the word *inherited*; a disabled radio's
+`title` and the visible text under the row both hold `why`. Arrow keys move within a row only.
+
+#### Interfaces — complete: `LoopVersions.tsx` and `LoopRuns.tsx`, the exported halves
+
+```tsx
+// desktop/src/components/loops/LoopVersions.tsx — task 172 (decision 1).
+export function LoopVersions(props: {
+  loopId: string;
+  labelName(id: string): string;
+}): JSX.Element;
+// On open: client.loopVersions(loopId), held in component state (task 169: versions are not
+// replica records), newest first. Each row: "v3" (mono), savedBy.displayName, savedAt (mono,
+// local time), and a checkbox. With two checked, a side-by-side table of versionDiff(older,
+// newer): one row per changed field, "Before" and "After" columns. trigger renders through
+// triggerWords, levels as "commit: ASK FIRST" lines in ACTION_CLASSES order, instruction as
+// plain text (white-space: pre-wrap), never as rendered Markdown. A third check unchecks the
+// oldest of the two. No row offers Restore: restoring is saving the old body as n+1 from the
+// editor ("Start from v2" loads it into LoopEditor; the owner still presses Save).
+
+// desktop/src/components/loops/LoopRuns.tsx — task 172 (decisions 6, 7).
+export function LoopRuns(props: {
+  loop: Loop;
+  rights: LoopRights;
+  now(): number;              // task 20's FIXED_NOW in tests; Date.now in the app
+}): JSX.Element;
+// Rows: replica.intake().loopRuns.get(loop.id) (task 169 keeps the last 50), newest first,
+// then "Show older" pages client.loopRuns(loopId, {after}). Columns: firedAt (mono), the
+// trigger ("schedule" | "event" | "run now"), OUTCOME_WORDS[outcome], turnId (mono) and, for
+// each started lane, issueKey · branch (mono). No filter control exists, so nothing hides a
+// skipped run (decision 7).
+```
+
+```tsx
+// LoopRuns.tsx, the Run now button and the queued row (decision 6)
+const [sending, setSending] = useState(false);
+const runNow = async () => {
+  if (sending) return;                     // a second press while the first is out does nothing
+  setSending(true);
+  try { await mutate({ kind: "loop.runNow", loopId: loop.id }); }   // op id = requestId (task 169)
+  finally { setSending(false); }
+};
+// Only the queued row subscribes: a <QueuedSince> child calls useHeartbeat (hooks/heartbeat.ts:64),
+// so a log of 50 finished runs re-renders nothing once a second (the hook's own warning, :60-63).
+function QueuedSince(p: { firedAt: string }): JSX.Element {
+  const nowMs = useHeartbeat();
+  return <span className="lp-fact">queued since {hhmm(p.firedAt)} · {formatElapsed(p.firedAt, nowMs)}</span>;
+}
+// {rights.runNow && <button type="button" disabled={sending} onClick={runNow}>Run now</button>}
+// {loop.state === "paused" && <p className="lp-fact">Paused: resume to run</p>}
+```
+
+`formatElapsed` is `desktop/src/lib/time.ts:27` (*41m*, *1h 06m*), fed the heartbeat's own
+epoch-ms as that file asks (`:7-8`): a measured time since a recorded instant, never a remaining
+time. The row holds no animation and no `aria-busy`. `hhmm` formats in the owner's local zone
+with `tabular-nums`. The `now()` prop is for the non-live columns only (tests pass `FIXED_NOW`).
