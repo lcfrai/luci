@@ -1,33 +1,47 @@
-### Task 25: a cloud machine's project-only `gitx.Machine` and its lane runners (seam S3-P8.1)
+### Task 25: a cloud machine's project-only `gitx.Machine`, its `MachineFS`, and its composite catalog (seam S3-P8.1)
 
-After phase 3's ruling R4 (P8-D7; review Q18) phase 3 has two git seams, and a cloud machine
-needs both (sibling `phase-3` worktree, plan `2026-09-23-phase-3-git-convergence.md:120-128`,
-`:436`, read at `9935278`):
-- `gitx.Machine` — `ID()`, `Git() Runner`, `CloneRoot()`, … — runs **project** git only, under
-  §HGH. `gitx.Remote` below is its cloud implementation, over task 21's `POST /v1/git`.
-- `lanegit.Lanes.For` answers a `lanegit.Runner` for a lane (phase-3 `task-24.md:565-579`,
-  `:654-659`). Its Kata half answers a `Runner` pointed at `machined`'s `/git/v1/` runner through
-  the broker, where phase 3's katabe answers `ErrNoRunner`. Lane work crosses as a bundle the host
-  verifies and fetches in the project (R4.4); no call here reads a lane's `.git`.
+Re-planned onto phase 3's ruling R4 by the env rulings of 2026-09-25
+(`.superpowers/sdd/env/r4-env-rulings.md`, "What each task changes", task 25). A cloud machine meets
+phase 3 at three seams. This task builds the laptop's half of all three; lane git is task 25b's.
+- **`gitx.Machine`** (`ID`, `Git`, `CloneRoot`; phase-3 `task-02.md:242-250`) runs **project** git
+  only (R4.2). `gitx.Remote` below is its cloud implementation, over task 21's `POST /v1/git`. Its
+  `CloneRoot()` is `/machine/lanes` (ruling 4).
+- **`gitx.MachineFS`** (seam S8-P3.3, asked of phase 3; ruling 4) is the filesystem half of lane
+  create that `Machine` lacks: step 3's `os.Lstat` (phase-3 `task-03.md:153`), the failure path's
+  `RemoveTree` (`task-03.md:264-268`) and `CopyGeneratedHooks`' copy (`task-03.md:227-262`).
+  `Remote.FS()` is its cloud implementation, over task 21's `/v1/fs/…` routes and
+  `POST /v1/lanes/sealed`.
+- **The catalog.** Phase 3's `lanes.Catalog` (`task-03.md:406-425`) composes a `Source` (phase 2's
+  enumeration) with the lane index (`Store`). The lane index is on the laptop (P3A-2), so for a
+  cloud machine the composition runs **on the laptop**: `Source` is task 24b's agent catalog,
+  which is `machined`'s phase 2 Scanner, and `Store` is the laptop's index for that machine. Lanes
+  are listed from the index. Nothing runs git in `lanes/` (R4.2).
 
-**Re-plan required before this task starts (review Q18).** The contract and tests below predate
-R4. Where they and this block disagree, this block holds. Retired: `Scope` `"clone"` on the wire,
-`clone_config_untrusted`, `*UntrustedConfig{Scope: Clone}`, a `Remote.Git` call whose `Dir` is
-under `lanes/`, and `FetchURL` as "the clone's path" (the fetch-back reads a bundle file, never a
-lane). To add: the Kata `Lanes.For` and its `Runner` over the broker, and the bundle hand-off of
-task 21's open item 3 (a lane bundle the laptop receives must reach `machined`'s owned
-`bundles` directory before a project call verifies and fetches it, and a refresh bundle the
-project writes there must reach the runner). Survives: P3A-1 (`Join`), P3A-2, and the `git_failed`
-and unreachable-agent mappings.
+Retired by R4 and absent here: `Scope` `"clone"` on the wire, `clone_config_untrusted`,
+`*UntrustedConfig{Scope: Clone}`, a project call whose `Dir` is under `lanes/`, and `FetchURL`
+(phase 3 removed it from `Machine`, `task-02.md:507-511`; the fetch-back reads a bundle, task
+25b). Survives: P3A-1 (`Join`), P3A-2, and the `git_failed` and unreachable-agent mappings.
 
-**Depends on** phase 3 tasks 02–04 and 11 (the runner, the lane store, clone create/remove, the
-composite catalog) and on tasks 21 and 24b here. If any is missing, this task does not start.
+**Correction to the rulings.** They say task 25 "covers … the catalog switch to phase 3's composite
+catalog" and the old file list switched `cmd/machined/catalog.go`. `machined` cannot build that
+catalog: its `Store` is the laptop's index, which `machined` never sees (P3A-2). So `machined`
+keeps phase 2's Scanner over `projects/` (task 20), and this task adds one test there that pins
+it never enumerates `lanes/`. The switch is the laptop's.
+
+**Depends on** phase 3 tasks 02–04 and 11 (`Exec` with `Call.NewLane`, the lane store and
+`Creator`, `lanes.Catalog`, the machine resolver, clone remove), phase 3's **acceptance of
+S8-P3.3** (`gitx.MachineFS`), task 21 (the create shapes, the `/v1/fs/…` routes, `sealed`) and
+task 24b (`machines.Agent`, the agent catalog). If S8-P3.3 is declined, a cloud machine cannot
+create lanes (ruling 4): Step 1 stops and reports. Task 25b depends on this task.
 
 **Files:**
-- `control-plane/internal/gitx/remote.go`, `remote_test.go` — `gitx.Remote` (new file in phase 3's package: the seam's own home)
-- `control-plane/internal/machines/agent.go` — `Agent` implements `gitx.AgentGit` (modify)
-- `control-plane/cmd/machined/catalog.go` — switch from phase 2's Scanner to phase 3's composite catalog over `<root>/projects` and `<root>/lanes` (S3-P8.2) (modify)
-- wherever phase 3 resolves a `gitx.Machine` by machine id (its task 04 wiring) — one arm for cloud ids (modify)
+- `control-plane/internal/gitx/remote.go`, `remote_test.go` — `gitx.Remote` and its `MachineFS` (new file in phase 3's package: the seam's own home)
+- `control-plane/internal/machineapi/fs.go` — the `/v1/fs/…` and `sealed` wire, and `Problem`, if task 21 has not already added them (new; task 21 owns the package, and its spelling wins)
+- `control-plane/internal/machines/agent.go` — `Agent` implements `gitx.Agent` (modify, after 24b)
+- `control-plane/internal/machines/source.go` — `CatalogSource`, the agent catalog as a `lanes.Source` (new)
+- `control-plane/internal/api/catalog.go` — a cloud `machineId` is served by `lanes.Catalog{Source, Store, FS}` (modify, after 24b)
+- wherever phase 3 resolves a `gitx.Machine` by machine id (its task 04 wiring) — one arm for `m-` ids (modify)
+- `control-plane/cmd/machined/catalog_test.go` — `TestCatalogScansProjectsOnly` (modify; no production change)
 
 #### Contract (complete)
 
@@ -41,104 +55,244 @@ import (
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/machineapi"
 )
 
-// AgentGit is the one call a cloud machine's Runner needs: task 21's
-// POST /v1/git on that machine's agent, through the broker. machines.Agent
-// implements it; gitx does not import machines, so there is no cycle.
-type AgentGit interface {
-	Git(ctx context.Context, call machineapi.GitCall) (machineapi.GitResult, error)
+// Agent is task 21's routes on one machine's agent, through the broker's agent proxy.
+// machines.Agent implements it; gitx does not import machines, so there is no cycle. A problem
+// body the agent answered comes back as *machineapi.Problem; anything else (the broker
+// unreachable, backend.ErrUnavailable) comes back as it is.
+type Agent interface {
+	Git(ctx context.Context, call machineapi.GitCall) (machineapi.GitResult, error) // POST /v1/git
+	Lstat(ctx context.Context, req machineapi.FSPath) (machineapi.FSStat, error)    // POST /v1/fs/lstat
+	RemoveTree(ctx context.Context, req machineapi.FSRemoveTree) error                // POST /v1/fs/remove-tree
+	CopyHooks(ctx context.Context, req machineapi.FSCopyHooks) (machineapi.FSCopied, error) // POST /v1/fs/copy-hooks
+	Seal(ctx context.Context, req machineapi.FSPath) error                            // POST /v1/lanes/sealed
 }
 
 // MachineRoot is where a cloud machine's disk is mounted in its machine pod
-// (PANACEA_APP_MACHINED_ROOT, task 20). Paths a Remote hands out are absolute
-// on the MACHINE and slash-separated — never host paths.
+// (PANACEA_APP_MACHINED_ROOT, task 20). Paths a Remote takes and hands out are absolute on the
+// MACHINE and slash-separated, never host paths.
 const MachineRoot = "/machine"
 
 // Remote is a cloud machine: seam S3-P8.1's second implementation.
 type Remote struct {
-	MachineID string   // "m-…"
-	Agent     AgentGit
+	MachineID string // "m-…"
+	Agent     Agent
 }
 
-var _ Machine = Remote{}
+var (
+	_ Machine   = Remote{}
+	_ MachineFS = remoteFS{}
+)
 
 func (r Remote) ID() string { return r.MachineID }
 
-// Git runs on the machine agent. Call.Dir must be absolute under MachineRoot
-// (slash-separated); it is sent relative. The one exception is a Scope None
-// call, whose Call.Dir must be "" and is sent as "": machined runs it in its own
-// <OwnedRoot>/clone, never in MachineRoot itself (task 21 item 2); a Scope None
-// call with any other Dir, or any other scope with Dir "", is ErrCallShape here,
-// before any request. Call.Scope and Call.RemoteURL are
-// sent as GitCall.Scope ("clone" | "project" | "none") and RemoteURL; an Unset
-// scope is ErrCallShape here, before any request. A problem "git_failed" becomes a
-// *Error with ExitCode, Stderr (= details.gitSays) and TimedOut from the
-// details, Args and Dir from the Call. A problem "conflict" with details.reason
-// clone_config_untrusted | project_config_untrusted becomes
-// *UntrustedConfig{Dir, Key: details.key, Scope}. A 400 wraps ErrCallShape. So
-// callers that switch on *Error or *UntrustedConfig, and the cockpit's
-// details.gitSays, behave exactly as for Local (task 21, review I7).
-func (r Remote) Git() Runner
-
-// CloneRoot is MachineRoot + "/lanes" (machineapi.DirLanes).
+// CloneRoot is MachineRoot + "/lanes" (machineapi.DirLanes; ruling 4).
 func (r Remote) CloneRoot() string { return MachineRoot + "/" + machineapi.DirLanes }
 
-// FetchURL is the clone's path, unchanged: the project repository and the
-// clone are on the same disk, so the fetch is local to the machine — the same
-// answer Local gives, for the same reason.
-func (r Remote) FetchURL(clonePath string) string { return clonePath }
-
-// Join is P3A-1's method (below): machine paths are slash-separated whatever
-// the control plane's OS. Local.Join is filepath.Join; Remote.Join is path.Join.
+// Join is P3A-1's method: machine paths are slash-separated whatever the control plane's OS.
 func (r Remote) Join(elem ...string) string { return path.Join(elem...) }
+
+// FS is the machine's MachineFS (S8-P3.3), over the same Agent.
+func (r Remote) FS() MachineFS { return remoteFS{r.Agent} }
+
+// Git runs project git on the machine agent. Before any request it refuses, in this order:
+//  1. ErrLaneDir: Dir or NewLane under CloneRoot() on a call that is not ruling 4's creating
+//     write (Scope None with Dir == NewLane). Phase 3's Exec guard (task-02.md:139-149),
+//     mirrored so the laptop refuses before machined does (R4.2).
+//  2. ErrCallShape: Scope Unset; a Dir that is neither "" nor absolute under MachineRoot after
+//     path.Clean (a backslash, a drive letter or a ".." that climbs out is refused); Scope
+//     Project with Dir not under MachineRoot/projects/; Scope None with Dir "" and NewLane set,
+//     or with a Dir that is not its NewLane; NewLane set on any other scope.
+// It sends Dir and NewLane relative to MachineRoot ("" stays "": machined's own owned root,
+// task 21), Class as "read" | "local" | "remote", Scope as "project" | "none", and RemoteURL,
+// Stdin, Env and OKExit unchanged. It maps the answer back:
+//   - *machineapi.Problem "git_failed" → *Error{Dir, Args from the Call; ExitCode, TimedOut and
+//     Stderr = details.gitSays from the details};
+//   - "conflict" with details.reason "project_config_untrusted" → *UntrustedConfig{Dir,
+//     Key: details.key, Scope: Project}; any other conflict reason stays a *machineapi.Problem;
+//   - "bad_request" (400) → an error wrapping ErrCallShape;
+//   - anything else passes through, never an *Error, so the cockpit never says "git said" for a
+//     network failure. Callers that switch on *Error or *UntrustedConfig behave as for Local.
+func (r Remote) Git() Runner
+
+// remoteFS is MachineFS over the agent. Every path is absolute under MachineRoot and sent
+// relative. Exists, RemoveTree's path and Seal take a path under CloneRoot(); RemoveTree's root is
+// CloneRoot() or under it; CopyGeneratedHooks takes projectTop under MachineRoot/projects/ and
+// cloneTop under CloneRoot(). Any other path is ErrCallShape before any request. Problems map as
+// Git's do, less the git ones.
+type remoteFS struct{ agent Agent }
+
+func (f remoteFS) Exists(ctx context.Context, p string) (exists, dir bool, err error)
+func (f remoteFS) RemoveTree(ctx context.Context, root, p string) error
+func (f remoteFS) CopyGeneratedHooks(ctx context.Context, projectTop, cloneTop, rel string) (int, error)
+func (f remoteFS) Seal(ctx context.Context, p string) error
 ```
 
-#### Two asks of phase 3, recorded here and in task 33 (phase 3's code is not edited silently)
+`gitx.MachineFS` is **phase 3's** interface, the shape this plan asks for in S8-P3.3. If phase 3
+answers with another spelling, Step 1 adapts `remoteFS` to it and leaves the routes alone.
+
+```go
+package gitx
+
+// MachineFS is the filesystem half of lane create and remove (S8-P3.3). Local implements it with
+// os; Remote.FS() over machined. lanes.Creator, lanes.CopyGeneratedHooks, task 11's Remove and
+// lanes.Catalog.Path take it from the machine instead of calling os.
+type MachineFS interface {
+	// Exists is os.Lstat at path: exists is false only for not-exist; dir is true only for a
+	// real directory, never a symlink, junction or other reparse point. Step 3's "anything at
+	// Path" reads exists; Catalog.Path's worktree.Verify reads dir.
+	Exists(ctx context.Context, path string) (exists, dir bool, err error)
+	// RemoveTree is lanes.RemoveTree on the machine: it refuses a path not under root.
+	RemoveTree(ctx context.Context, root, path string) error
+	// CopyGeneratedHooks is lanes.CopyGeneratedHooks' checks and copy, answering the count. The
+	// ls-files after it stays a Git call with NewLane, and its take-back is RemoveTree.
+	CopyGeneratedHooks(ctx context.Context, projectTop, cloneTop, rel string) (int, error)
+	// Seal tells the machine that create's writes in path are done: after step 6, before
+	// Store.Add. Local's Seal is nil. Ruling 4 names the route; it is silent on who sends it,
+	// so this method is the one addition to its three.
+	Seal(ctx context.Context, path string) error
+}
+```
+
+The wire, which task 21 serves. Paths are relative to the machine root.
+
+```go
+package machineapi
+
+// GitCall (task 21) gains NewLane, ruling 4's creating writes. Scope is "project" | "none".
+//	NewLane string `json:"newLane,omitempty"`
+
+const (
+	PathFSLstat      = "/v1/fs/lstat"
+	PathFSRemoveTree = "/v1/fs/remove-tree"
+	PathFSCopyHooks  = "/v1/fs/copy-hooks"
+	PathLanesSealed  = "/v1/lanes/sealed"
+)
+
+// FSPath is the body of POST /v1/fs/lstat and POST /v1/lanes/sealed (204). Path is under lanes/.
+type FSPath struct {
+	Path string `json:"path"`
+}
+
+// FSStat is POST /v1/fs/lstat's 200.
+type FSStat struct {
+	Exists bool `json:"exists"`
+	Dir    bool `json:"dir"`
+}
+
+// FSRemoveTree is POST /v1/fs/remove-tree's body (204). Root is lanes or under it.
+type FSRemoveTree struct {
+	Root string `json:"root"`
+	Path string `json:"path"`
+}
+
+// FSCopyHooks is POST /v1/fs/copy-hooks's body. ProjectTop is under projects/; CloneTop is
+// under lanes/ and in machined's creating set (ruling 4).
+type FSCopyHooks struct {
+	ProjectTop string `json:"projectTop"`
+	CloneTop   string `json:"cloneTop"`
+	Rel        string `json:"rel"`
+}
+
+// FSCopied is POST /v1/fs/copy-hooks's 200.
+type FSCopied struct {
+	Copied int `json:"copied"`
+}
+
+// Problem is a problem body the agent answered, as machines.Agent returns it.
+type Problem struct {
+	Status  int
+	Code    string
+	Details map[string]string
+}
+
+func (p *Problem) Error() string // "<status> <code>", never a detail value
+```
+
+The catalog for a cloud machine, on the laptop:
+
+```go
+package machines
+
+// CatalogSource is task 24b's agent catalog for one machine as a lanes.Source (phase-3
+// task-03.md:398-404): Projects, Branches, Worktrees and Path over the agent's catalog routes.
+type CatalogSource struct {
+	Agent     *Agent
+	MachineID string
+}
+
+var _ lanes.Source = CatalogSource{}
+
+// In internal/api/catalog.go, a cloud machineId is served by
+//	&lanes.Catalog{Source: CatalogSource{…}, Store: <the lane index for machineId>, FS: remote.FS()}
+// Catalog.FS is S8-P3.3's: nil means os, as today.
+```
+
+#### Asks of phase 3, recorded here and in task 33 (phase 3's code is not edited silently)
 
 | Ask | What | Why | Plan proceeds on |
 |---|---|---|---|
-| **P3A-1** Machine paths are not host paths | Every path phase 3 derives from `CloneRoot()` for a non-local machine is joined with `path.Join` (slash), never `filepath.Join` — or `Machine` gains `Join(elem ...string) string` | the control plane runs on **Windows**; `filepath.Join("/machine/lanes", "p-1")` yields `\machine\lanes\p-1`, which the machine agent refuses | phase 3 adds `Join` to `Machine` (`Local.Join` = `filepath.Join`, `Remote.Join` = `path.Join`) in its task 02 before it lands; if it has already landed, this task adds the method to both implementations and to the interface in one commit and names every call site it changed |
-| **P3A-2** Where the lane index lives for a cloud machine | Phase 3's lane store (its task 03) persists on the laptop under `statepath`. For a cloud machine it must be **keyed by machine id** | a machine is per user, not per laptop: a second laptop signed in as the same user sees the machine's clones through the catalog but not their lane metadata | v1 keeps the index on the laptop, keyed by `(machineId, projectId)`, and states the single-laptop limitation in the cockpit's machine popover; a machine-side index served by `machined` is later. The same limit holds for **sessions** (review I6): a cloud sandbox carries its creating control plane's install id, and no other laptop lists, attaches to, reaps or ends it (task 23). A default machine's id is derived from its owner (task 19), so it recurs if its disk is lost out of band; the index also holds the machine's `createdAt` and drops a machine's entries when it changes (b09 re-review 4; the broker refuses to delete the default, `409 machine_is_default`) |
+| **P3A-1** Machine paths are not host paths | `Machine` gains `Join(elem ...string) string` (`Local.Join` = `filepath.Join`, `Remote.Join` = `path.Join`), and phase 3 joins every path it derives from `CloneRoot()` through it | the control plane runs on **Windows**; `filepath.Join("/machine/lanes", "p-1")` yields `\machine\lanes\p-1`, which the agent refuses | phase 3 adds it in its task 02; if that has landed, this task adds the method to both implementations and the interface in one commit and names every call site it changed |
+| **P3A-2** Where the lane index lives for a cloud machine | the index stays on the laptop, keyed by `(machineId, projectId)` | a machine is per user, not per laptop | v1 states the single-laptop limitation in the cockpit's machine popover. The same limit holds for sessions (review I6, task 23). A default machine's id recurs if its disk is lost out of band, so the index also holds the machine's `createdAt` and drops a machine's entries when it changes (b09 re-review 4; the broker refuses to delete the default, `409 machine_is_default`) |
+| **S8-P3.3** `gitx.MachineFS` (ruling 4) | the interface above; `Creator`, `CopyGeneratedHooks`, task 11's `Remove` and `Catalog.Path` take it from the machine; `Creator` calls `Seal` after step 6 | three create steps and `Catalog.Path`'s `worktree.Verify` touch the **laptop's** disk, which for a cloud machine is the wrong disk | nothing: without it a cloud machine cannot create lanes (ruling 4), so this task does not start |
 
-#### Tests to write first (`remote_test.go`, a fake `AgentGit`)
+#### Tests to write first
+
+`remote_test.go`, with a fake `Agent` that records every request:
 
 | Test | Asserts | Mutant it kills |
 |---|---|---|
-| `TestRemoteSendsDirRelativeToTheMachineRoot` | `Call{Dir: "/machine/lanes/p-1/w-2"}` → `GitCall.Dir == "lanes/p-1/w-2"` | an absolute path the agent refuses, or a host path sent |
-| `TestRemoteRefusesADirOutsideTheRoot` | `Dir: "C:\\Users\\x"` or `"/etc"` → error, no call | a laptop path leaking to the machine |
-| `TestRemoteCarriesClassStdinEnvAndOKExit` | each field arrives; `Class` as `"read" | "local" | "remote"`; `Scope` as `"clone" | "project" | "none"`; `RemoteURL` | a Read call taking optional locks on the machine; a lane call sent as `project` |
-| `TestRemoteRefusesAnUnsetScope` | `Scope: Unset` → `ErrCallShape`, no call | a call the machine must guess the scope of |
-| `TestRemoteSendsAnEmptyDirOnlyForScopeNone` | `Scope: None, Dir: ""` → `GitCall.Dir == ""`, `Scope == "none"`; `Scope: None, Dir: "/machine"` and `Scope: Project, Dir: ""` → `ErrCallShape`, no call | the laptop sending `/machine` to mean `machined`'s owned root, which `machined` reads as the disk root |
-| `TestGitFailedBecomesAGitxError` | problem `git_failed` with details → `*Error{ExitCode, Stderr, TimedOut}`, `AsError` finds it, `Sentence()` is `gitSays` | the cockpit's `details.gitSays` empty for cloud machines |
-| `TestAnUntrustedConfigBecomesAGitxUntrustedConfig` | problem `conflict`, `reason: clone_config_untrusted`, `key: filter.x.clean` → `*UntrustedConfig{Key: "filter.x.clean", Scope: Clone}`; the `project_…` reason → `Scope: Project` | a refused filter shown as a network failure, or as "git said" |
-| `TestAnUnreachableAgentIsNotAGitError` | the fake returns `backend.ErrUnavailable` → the error is not an `*Error` | "git said" shown for a network failure |
-| `TestFetchURLIsThePath` and `TestCloneRootIsMachineLanes` | as the contract | a URL scheme invented for a same-disk fetch |
-| phase 3's own `Machine` conformance tests, if its task 02 ships any, run against `Remote` with the fake | pass | a second implementation that diverges from the first |
+| `TestRemoteSendsDirRelativeToTheMachineRoot` | `Call{Dir: "/machine/projects/app", Scope: Project}` → `GitCall{Dir: "projects/app", Scope: "project"}` | an absolute path the agent refuses, or a host path sent |
+| `TestRemoteRefusesADirOutsideTheRoot` | `"C:\\Users\\x"`, `"/etc"`, `"/machine/../etc"`, and `"/machine"` with `Scope Project` → `ErrCallShape`, no request | a laptop path leaking to the machine |
+| `TestRemoteRefusesAProjectCallInALane` | `Scope Project`, `Dir: "/machine/lanes/p/app-0a1b2c"` → `ErrLaneDir`, no request | the host running git in a sandbox-writable directory (R4.2) |
+| `TestRemoteSendsOnlyTheNewLaneWrites` | phase 3's `TestExecAdmitsTheNewLaneOnly` cases (`task-02.md:605`): `Dir == NewLane == L`, `Scope None` → sent with both relative; `Dir: L2` → `ErrLaneDir`; `NewLane: L` with `Scope Project` → `ErrCallShape` | a NewLane that opens every lane, or any scope |
+| `TestRemoteSendsTheCreateCloneAsAProjectCall` | task 03 step 4's call (`Dir` the project, `Scope Project`, `Class Local`, `NewLane ""`, `Env` = `NoFilterEnv`, the clone's destination under `lanes/` as a positional) → sent unchanged | an unmarked clone refused, or a clone marked `NewLane`, which machined refuses (ruling 4) |
+| `TestRemoteSendsAnEmptyDirOnlyForScopeNone` | `Scope None, Dir ""` → `Dir ""`; `Scope None, Dir "/machine"` and `Scope Project, Dir ""` → `ErrCallShape` | `/machine` sent to mean machined's owned root, which machined reads as the disk root |
+| `TestRemoteRefusesAnUnsetScope` | `Scope Unset` → `ErrCallShape`, no request | a call the machine must guess the scope of |
+| `TestRemoteCarriesClassStdinEnvAndOKExit` | each field arrives; `Class` as `"read" | "local" | "remote"`; `Scope` only ever `"project" | "none"` | a Read call taking optional locks on the machine; a retired `"clone"` on the wire |
+| `TestGitFailedBecomesAGitxError` | problem `git_failed` → `*Error{ExitCode, Stderr, TimedOut}`, `AsError` finds it, `Sentence()` is `gitSays` | the cockpit's `details.gitSays` empty for cloud machines |
+| `TestAnUntrustedConfigBecomesAGitxUntrustedConfig` | `conflict`, `reason: project_config_untrusted`, `key: filter.x.clean` → `*UntrustedConfig{Key: "filter.x.clean", Scope: Project}`; `reason: clone_config_untrusted` → not an `*UntrustedConfig` | a refused filter shown as a network failure; a retired reason read as a scope |
+| `TestABadRequestWrapsErrCallShape` and `TestAnUnreachableAgentIsNotAGitError` | `400` → `errors.Is(err, ErrCallShape)`; `backend.ErrUnavailable` → not an `*Error` | "git said" shown for a network failure |
+| `TestCloneRootIsMachineLanes` and `TestJoinIsSlashSeparated` | `/machine/lanes`; `Join("/machine/lanes", "p-1") == "/machine/lanes/p-1"` on Windows | P3A-1's backslash path |
+| `TestFSSendsRelativePathsUnderLanes` | `Exists`, `RemoveTree`, `Seal` and `CopyGeneratedHooks` send the bodies above; `FSStat` maps to `(exists, dir)`; `FSCopied` to the count | a host path, or a dropped answer |
+| `TestFSRefusesAPathOutsideItsRoot` | `Exists("/machine/projects/app")`, `RemoveTree(CloneRoot, "/machine/projects/app")`, `Seal("/machine/lanes/../projects/app")`, and `CopyGeneratedHooks` with `cloneTop` under `projects/` → `ErrCallShape`, no request | a filesystem route aimed at the project or the disk root (R4.1) |
+| phase 3's own `Machine` conformance tests, if its task 02 ships any | pass against `Remote` and the fake | a second implementation that diverges from the first |
 
-And in `cmd/machined`: `TestCatalogListsLanesBesideWorktrees` — phase 3's composite catalog on the
-machine lists a lane clone under `lanes/` as a worktree of its project (S3-P8.2).
+`internal/api` and `internal/machines`, with a fake agent catalog and phase 3's in-memory lane
+store; and `cmd/machined`:
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestCloudCatalogListsLanesFromTheIndex` | the agent gives p's primary and linked; the index for `m-1` holds two lanes of p → p's list is primary, linked, then two with `Kind: "clone"` and `Name` the lane's `Name`; the fake agent received no request naming `lanes/` | lanes missing from the rail, or listed by scanning the machine's disk |
+| `TestCloudCatalogIndexIsPerMachine` | lanes indexed for `m-2` are absent from `m-1`'s list | P3A-2's key dropped |
+| `TestCloudCatalogPathOfAVanishedLane` | `FS.Exists` answers not-exist → `errors.Is(err, worktree.ErrNotADir)`; the laptop's `os` is never asked | a mount of a missing directory, or `os.Stat("/machine/…")` on the laptop |
+| `TestResolverAnswersRemoteForACloudID` | `m-0123abcd` → `gitx.Remote{MachineID: "m-0123abcd"}`; `local` → phase 3's `Local`; an unknown id → phase 3's not-found | a cloud id served by the laptop's disk |
+| `TestCatalogScansProjectsOnly` (`cmd/machined`) | a root holding `projects/app` (a repo) and `lanes/p/app-0a1b2c` (a clone) → the projects list is `app` only, and a spy `Runner` records no git whose `Dir` is under `lanes/` | `machined` enumerating lanes by running git in them (R4.2) |
 
 #### Steps
 
-- [ ] **Step 1:** Confirm the re-plan above (review Q18) has landed in this part; if this part still carries the "Re-plan required" block, stop. Confirm the dependencies: `git grep -n "type Machine interface" -- control-plane/internal/gitx/` and `git grep -n "type Runner interface" -- control-plane/internal/lanegit/`, phase 3's lane store and composite catalog exist, tasks 21 and 24b landed. Resolve P3A-1 as the table says.
-- [ ] **Step 2:** Tests; `remote.go`; `machines.Agent.Git`.
-- [ ] **Step 3:** The resolver arm for cloud ids; `machined`'s catalog switch.
-- [ ] **Step 4:** Full run, including phase 3's suites; commit.
+- [ ] **Step 1:** Confirm the dependencies: `git grep -n "type Machine interface" -- control-plane/internal/gitx/`, `git grep -n "type MachineFS interface" -- control-plane/internal/gitx/` (S8-P3.3), `git grep -n "NewLane" -- control-plane/internal/gitx/`, phase 3's `lanes.Catalog`, and tasks 21 and 24b landed. If `MachineFS` is absent, stop and report S8-P3.3 unanswered. Resolve P3A-1 as the table says. Name the resolver file with `git grep -n "LocalMachineID" -- control-plane/cmd/api/`.
+- [ ] **Step 2:** `remote_test.go`, red; `remote.go`; the `machineapi` wire if task 21 lacks it; `machines.Agent`'s five calls. Green.
+- [ ] **Step 3:** The catalog tests, red; `CatalogSource`; the cloud branch of `api/catalog.go`; the resolver arm. Green.
+- [ ] **Step 4:** `TestCatalogScansProjectsOnly` (green on task 20's code; if it is red, task 20 is wrong, and this task reports it rather than patching `machined`).
+- [ ] **Step 5:** Full run, including phase 3's suites; commit.
 
 #### Acceptance
 
 ```bash
-go test ./control-plane/internal/gitx/ ./control-plane/internal/machines/ ./control-plane/cmd/machined/ -race -count=1   # ok
-go test ./sandboxd/... ./control-plane/... -race -count=1                                                               # ok
+go test ./control-plane/internal/gitx/ ./control-plane/internal/machines/ ./control-plane/internal/api/ ./control-plane/cmd/machined/ -race -count=1   # ok
+go test ./sandboxd/... ./control-plane/... -race -count=1                                                                                          # ok
+git grep -n -e 'clone_config_untrusted' -e 'Scope.*"clone"' -- control-plane/internal/gitx/ control-plane/internal/machineapi/   # no output: no clone scope on the wire
 ```
 
 #### What this task does not claim
 
+- Lane git on a cloud machine: `Lanes.For`, the runner-only pod and the bundle relay are task 25b.
 - That phase 3's convergence flows have run against a real cloud machine: that is the owner's
   batched hands-on session (OD-12), listed in task 32.
-- Push from a cloud machine to a git host: it is phase 3's push (its task 13) with the user's
-  token in `Env`, through the same route, and it is unobserved. It runs in the project
-  repository, `Scope: Project`, `Class: Remote`, with `RemoteURL`. `machined` admits the token
-  there only as `http.<RemoteURL's origin>/.extraHeader`, the form `PushEnv` writes, and refuses
-  it on every `clone`-scope call (task 21, review I7). A phase 3 push from a lane clone would
-  therefore be a `400`. Phase 3's task 12 runs its fetch and push with `Scope Project` (its
-  contract comments, read at `93c1fdf`), which is what this plan relies on.
+- That phase 3 accepts S8-P3.3. The shape above is this plan's ask (UNVERIFIED until phase 3
+  answers).
+- Push from a cloud machine to a git host: phase 3's push (its task 13) runs in the project,
+  `Scope Project`, `Class Remote`, with `RemoteURL`, through this `Git`, and is unobserved.
+  `machined` admits the user's token only as `http.<RemoteURL's origin>/.extraHeader`, the form
+  `PushEnv` writes (task 21, review I7). A push from a lane is refused here (`ErrLaneDir`), as
+  R4.2 requires.

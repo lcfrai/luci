@@ -23,7 +23,7 @@ machine *is* its PersistentVolumeClaim, labelled with its owner, and everything 
 |---|---|---|
 | PersistentVolumeClaim | `machine-<owner[:8]>-<id>` (`sandbox.MachineClaimName(owner, id)`, task 15) | `ReadWriteOnce`, `MACHINE_STORAGE_CLASS`, `MACHINE_DISK_GIB`. Annotations: `panacea-app/name`, `panacea-app/default: "true"` on the default machine, `panacea-app/idle-since` (RFC 3339, set by the sleeper) |
 | Secret | `machine-<owner[:8]>-<id>-token` | `token`: 32 random bytes, hex; owner reference → the PVC, so deleting the disk collects it |
-| Pod | `machine-<owner[:8]>-<id>` | the machine image (digest), `command: ["/usr/local/bin/machined"]`, env `PANACEA_APP_MACHINED_TOKEN` from the Secret and `PANACEA_APP_MACHINED_ROOT=/machine`; the PVC at `/machine`; port `8081`; readiness `httpGet /healthz :8081`; `runtimeClassName`; `priorityClassName: panacea-machine`; the sandbox toleration and node selector; task 14's hardening (no SA token, seccomp, non-root 1001, `fsGroup: 1001`, read-only root with `emptyDir` `/tmp`); requests = limits = `500m` / `1Gi`; `safe-to-evict: "false"` |
+| Pod | `machine-<owner[:8]>-<id>` | the machine image (digest), `command: ["/usr/local/bin/machined"]`, env `PANACEA_APP_MACHINED_TOKEN` from the Secret and `PANACEA_APP_MACHINED_ROOT=/machine`; the PVC at `/machine`; port `8081`; readiness `httpGet /healthz :8081`; `runtimeClassName`; `priorityClassName: panacea-machine`; the sandbox toleration and node selector; task 14's hardening (no SA token, seccomp, non-root 1001, `fsGroup: 1001`, read-only root with `emptyDir` `/tmp`, which has `sizeLimit: 3Gi`: two live bundles at `MaxBundleBytes` plus clone scratch, env R4 ruling 3, task 21b); requests = limits = `500m` / `1Gi`; `safe-to-evict: "false"` |
 | PodDisruptionBudget | `machine-<owner[:8]>-<id>` | selects `panacea-app/machine-id: <id>` **and** `panacea-app/owner: <owner>`, `maxUnavailable: 0` — the machine pod **and its sessions** are never voluntarily evicted; a node-image upgrade cordons the node instead (task 06's `undrainable_node_behavior = "Cordon"`) and the machine moves at its next wake |
 
 **Names carry the owner, as task 14's sandbox names do (review m12).** Every name is
@@ -91,7 +91,16 @@ type CreateMachine struct {
 The agent proxy forwards `/{rest...}` to `http://<machine pod IP>:8081/{rest...}` with
 `Authorization: Bearer <machine token>` read from the Secret; the caller's `Authorization` is
 already gone (task 16's middleware); request bodies are capped at 16 MiB; responses stream
-unbuffered. `GET` on the proxy is safe to allow in the read-route audit because every `GET` the
+unbuffered.
+
+**One exception, bundles (env R4 ruling 3; task 21b's route).** On `POST
+/v1/machines/{id}/agent/v1/bundles` only (the exact path, a query allowed), the request body is
+streamed, never buffered, through `io.LimitReader(body, brokerapi.GitMaxBundleBytes+1)` (task
+18's constant, 1 GiB), and the request's deadline is `brokerapi.GitBundleTimeout` + 5 s. Past the
+cap the proxy stops sending, aborts the upstream request, and answers `413 too_large` if no
+header has been written (`machined` refuses first when it can, task 21b). Every other path keeps
+the 16 MiB cap, a `v1/bundles/x` or `v1/bundlesx` included. A bundle `GET` is a response, and
+streams like any other. `GET` on the proxy is safe to allow in the read-route audit because every `GET` the
 machine agent serves is itself read-only, and task 20 pins that with its own audit test.
 
 #### Two replicas: no check-then-create (review m11)
@@ -213,6 +222,13 @@ fails `restricted`); `TestMachinePDBProtectsTheMachineAndItsSessions` (selector 
 | `TestAgentProxyNeverWakes` | sleeping machine → 409 `machine_asleep`, no pod created | a GET that creates a pod (the audit rule) |
 | `TestAgentProxySendsTheMachineTokenNotTheCallers` | the stand-in agent sees `Bearer <machine token>` only | the Entra token forwarded into a Kata pod |
 | `TestAgentProxyStreamsLargeResponses` | a 32 MiB response arrives whole and starts before the agent finishes | a buffered proxy that holds a git log in memory |
+| `TestAgentProxyStreamsABundleUpToItsCap` | cap lowered to 32 MiB + 1 KiB through the proxy's field: a 32 MiB `POST …/agent/v1/bundles` reaches the stand-in whole, and its first byte arrives before the caller has sent the last; cap + 1 → 413, and the stand-in's read ends early | the 16 MiB cap on the bundle path, so every cloud land above 16 MiB fails; a buffered bundle |
+| `TestAgentProxyKeepsTheCapOffTheBundlePath` | 17 MiB to `…/agent/v1/git`, `…/agent/v1/bundles/x` and `…/agent/v1/bundlesx` → 413 each | an exception keyed on a prefix, which lifts the cap from every route |
+| `TestAgentProxyBundleDeadline` | `GitBundleTimeout` lowered to 50 ms and the slack to 50 ms: a stalled bundle body → the upstream request is cancelled within 1 s | a relay that holds a machine's bundle slot forever |
+
+`internal/sandbox/machine_test.go` gains `TestMachinePodTmpHasASizeLimit`: the `tmp` emptyDir's
+`sizeLimit` is `3Gi` (mutant: the limit dropped, so two 1 GiB bundles are unbounded ephemeral
+storage).
 
 `cmd/broker/sleeper_test.go`: `TestAnIdleMachineSleepsAfterTheWindow` (clock injected),
 `TestASessionClearsIdleSince`, `TestTheSleeperNeverDeletesADisk`, `TestZeroDisablesTheSleeper`
@@ -227,6 +243,11 @@ session pod added between the tick's list and its delete → the machine pod sta
 - [ ] **Step 1:** `sandbox/machine.go` tests, then the code.
 - [ ] **Step 2:** Wire types; broker tests; `machines.go`, `agentproxy.go`, `sleeper.go`, the real
   `machineChecker`; routes into `server.go`; update the read-route allowlist.
+- [ ] **Step 2a (env R4 review 1, C3):** mutation check on a `$TEMP` copy, each turning the
+  named test red: the bundle exception deleted → `TestAgentProxyStreamsABundleUpToItsCap`; the
+  exception keyed on `strings.HasPrefix(rest, "v1/bundles")` → `TestAgentProxyKeepsTheCapOffTheBundlePath`;
+  the bundle deadline dropped → `TestAgentProxyBundleDeadline`; the `sizeLimit` dropped →
+  `TestMachinePodTmpHasASizeLimit`.
 - [ ] **Step 3:** Full run; commit.
 
 #### Acceptance
