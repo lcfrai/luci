@@ -665,7 +665,7 @@ valid `csv` batch, one item per id, title `Imported <id>`.
 
 `TestTheReplyHoldsNoText` reads `idempotency_keys` through `markerHits` restricted to that table,
 as the owner. `fullRun` in task 13's feed test gains the same canary import, so
-`TestNoWorkEventCarriesText` (task 13) also covers the import's one event kind.
+`TestNoWorkTextReachesTheFeed` (task 13, `task-13.md:522`) also covers the import's one event kind.
 
 #### Mutants for part 1, applied by hand
 
@@ -680,4 +680,66 @@ as the owner. `fullRun` in task 13's feed test gains the same canary import, so
 | `ToLower` dropped from the dedupe in `ImportLabelNames` | `TestImportLabelNamesDedupesAndSorts` |
 | `out` starts `nil` | the same (`none encodes as null`) |
 | a `State IssueState` field added to `ImportItem` | `TestAnImportItemCarriesNoState` |
+
+#### Steps
+
+- [ ] **Step 1:** Confirm the sync base (rule H1): tasks 07-14 committed; Hub tasks 14, 15, 26 and
+  27 on the sync base. Re-read `H14:117-138`, hub-contract §10.6 and task 14's `erase_issue`
+  section at the new base; follow any move. Take the next free migration number if task 06 has
+  merged into `feat/hub`.
+- [ ] **Step 2:** Write `hubapi/work_import_test.go`; it fails to compile. Append the `hubapi`
+  block and `ExternalRef.CreatedAt`; add `"createdAt":TIME` to task 03's `IssueHead` example; run
+  `go test ./control-plane/internal/hub/hubapi/` to green.
+- [ ] **Step 3:** Append the migration section; `hub migrate` against the compose stack applies it;
+  task 06's grant-list and frozen-column tests still pass unchanged.
+- [ ] **Step 4:** Write `server/work_imports_integration_test.go`; every row fails (404, no route).
+- [ ] **Step 5:** `IssueRow`'s two fields, `InsertIssue` and every `IssueRow` read (task 08);
+  `issueHead`'s `external`; then `store/work_imports.go`.
+- [ ] **Step 6:** `server/work_imports.go`; `s.registerWorkImports(mux)` in `server.go`; append
+  `"15"` to `workMatrixLive` (`task-07.md:362-364`) in the same commit. Run to green.
+- [ ] **Step 7:** Append the canary import to task 13's `fullRun`; rerun tasks 08-14's integration
+  tests and the matrix. Run task 05's import conformance rows against the fake; fix the fake where
+  it differs (the conformance rows are the arbiter).
+- [ ] **Step 8:** Apply each part 1 mutant by hand, see its test fail, revert. `git diff -- go.work
+  control-plane/go.mod` shows nothing; commit by pathspec.
+
+#### Acceptance
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/work
+go test ./control-plane/internal/hub/hubapi/ -race -count=1 -v \
+  -run '^Test(ValidateImportBatchNamesTheField|ImportLabelNamesDedupesAndSorts|AnImportItemCarriesNoState)$' \
+  2>&1 | grep -c "^--- PASS"                                                                    # 3
+go test -tags integration ./control-plane/internal/hub/server/ -race -count=1 -v \
+  -run '^Test(TheSameBatchTwiceWritesOnce|OneBadItemWritesNothing|ImportsLandInTriageWhateverTheDefault|AnImportIsNotTiedImported|AMemberCannotCreateALabelByImport|ALabelOfAnotherTeamIsNotMatched|AnUnsafeLinkIsRefused|TheBatchIsOneTo500|NoStateTravels|OnlyAMemberImports|TheScopeIsPerProject|TheSourceIsPartOfTheKey|TheImporterIsNotSubscribed|TheExternalTimeIsKeptNotUsed|AReimportDoesNotResurrectAnErasedIssue|EraseTakesTheAuthorName|TheReplyHoldsNoText|TwoImportsAtOnceCreateOnce|AnOverSizeBodyIsRefusedFirst)$' \
+  2>&1 | grep -c "^--- PASS"                                                                    # 19
+go test -tags integration ./control-plane/internal/hub/server/ -race -count=1 -run '^TestNoWorkTextReachesTheFeed$'  # ok
+go test -tags integration ./control-plane/internal/hub/... -race -count=1                      # ok
+go test ./control-plane/... -race -count=1                                                      # ok
+grep -n 15 control-plane/internal/hub/server/work_matrix_rows_integration_test.go            # the row map key, and "15" in workMatrixLive
+```
+
+The two counts are the proof per criterion (OD-27); a green `./...` alone is not.
+
+#### What this task does not claim
+
+- The Linear API pager, the CSV parser, the chunking and the row-number arithmetic: task 25. The
+  import dialog and its preview: task 69. Two-way sync, which never writes a fact state or `done`:
+  W5, tasks 150-153.
+- Comments, attachments, relations, sub-issues, cycles, estimates, assignees or the external state:
+  none is imported in W1, so **L-220 stays PARTIAL**. An imported issue has no assignee, because an
+  external user is not a Hub user and matching people by name is a guess.
+- Label creation by import, or a mapping table from external label names: an unmatched name is
+  reported, and an admin creates the label and re-runs; a re-run does not relabel issues it
+  already made (decision 3), so that re-labelling is a person's patch, W1's known limit.
+- Jira, Azure Boards or GitHub sources: `ImportSources` and `issues_external_source_known` widen
+  in W5 (task 150).
+- Any measured speed: a 500-item batch's time and how long it holds the org's write lock are
+  unmeasured; 9 MiB bodies' memory cost is unmeasured.
+- That task 05's fake agrees: its part is not written at this writing, so its import rows are
+  **UNVERIFIED** here; the conformance rows are the arbiter when both exist.
+
+**Parity rows served:** **L-220** (importers: Linear and CSV into `triage`, PARTIAL; closed with
+tasks 25 and 69), the intake half of **L-9** (intake always lands in `triage`, whatever the default
+status) and of **L-46** (imported work arrives in the team's triage inbox; the inbox is task 42).
 
