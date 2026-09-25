@@ -371,3 +371,109 @@ func TestAUProjectNeverMintsOnGlobal(t *testing.T) {
 	}
 }
 ```
+
+- [ ] **Step 2: Implement `Launch` and `EnsureOrchestrator`**
+
+```go
+func (s *Sessions) Launch(ctx context.Context, r LaunchRequest) (Launched, error) {
+	p := r.Principal
+	if p.Role != hubapi.RoleMember && p.Role != hubapi.RoleAdmin {
+		return Launched{}, ErrViewer // task 12 refused already; this is the second layer
+	}
+	d, err := s.delegation(ctx, p, r.Project, r.Class, r.Delegation)
+	if err != nil {
+		return Launched{}, ErrDelegation
+	}
+	pv, err := s.cfg.Policies.Effective(ctx, p.OrgID, r.Project, r.Class)
+	if err != nil {
+		return Launched{}, fmt.Errorf("%w: %v", ErrPolicyInvalid, err)
+	}
+	a := model.Agent{ID: model.AgentID(ids.Wide("ag")), Org: p.OrgID, Project: r.Project,
+		Owner: model.Owner(p.UserID), Class: r.Class, Parent: r.Parent, Task: r.Task,
+		Delegation: d.ID, Status: model.StatusStarting, StartedAt: s.cfg.Now().UTC()}
+	if err := s.cfg.Store.Tx(ctx, func(tx store.Tx) error {
+		if err := tx.PutAgent(ctx, a); err != nil {
+			return err // store.ErrConflict: the one-Orchestrator index, or a reused ref
+		}
+		return tx.AppendOutbox(ctx, s.startRow(a, r, pv)) // agents.start, task-01.md:350-360
+	}); err != nil {
+		return Launched{}, s.mapPut(err)
+	}
+	out := Launched{Agent: a}
+	if r.Class == model.ClassWorker && r.Parent == "" {
+		out.Orchestrator, out.OrchestratorState = s.orchestratorFor(ctx, p, r.Project)
+	}
+	go s.start(context.WithoutCancel(ctx), a, r, pv) // decision 1: answer first
+	return out, nil
+}
+```
+
+`s.delegation` reads task 11's cache by `Key{OrgID, Owner, Project, Class}` and requires the cached
+id to equal `r.Delegation`; on a miss it calls `DelegationFetcher` (the delegation was created a moment
+ago by the owner's desktop, task 21, and the feed polls every 10 s, `task-11.md:566-567`) and `Put`s
+the answer. `orchestratorFor` calls `EnsureOrchestrator` when an `orchestrator`-class delegation for the
+same key is live, and returns `("", "awaiting-delegation")` when it is not (decision 4).
+`EnsureOrchestrator` is `Launch` with `Class: orchestrator`, `Command: "panacea-orchestrator"` (task
+15's PTY command), no args, and one extra branch: `store.ErrConflict` from `PutAgent` re-reads
+`Agents(org, project)` for the owner's live Orchestrator and returns it with `created == false`.
+
+`start` runs the rest in order, and each failure ends the agent `failed` through `Stop`'s own path, so
+there is one way an agent ends:
+
+1. the route: `RouteSource` for the project, else stop (decision 8);
+2. the machine: a worker's is `Broker.DefaultMachine` (task 17 decision 5); an Orchestrator has none;
+3. `Broker.CreateSandbox(remotebe.WithDelegation(ctx, dl), spec(…))`, which returns after the pod
+   answers `/healthz`;
+4. `Broker.Source` for the pod address;
+5. the agent's status to `idle` (phase 2's rule: Fleet does not guess `working` from a live pod);
+   task 19's reconcile then sees it in `Live()` within 2 s, dials, and its `OnOpen` runs
+   `Tokens.Open`, which mints and `Send`s the first key.
+
+- [ ] **Step 3: Implement `Tokens`**
+
+```go
+func (k *Tokens) BeforeTurn(ctx context.Context, t control.Target, event json.RawMessage) error {
+	var b struct {
+		Turn string `json:"turn"` // task 26's TurnBegin.Turn, the ot-… id
+	}
+	if err := json.Unmarshal(event, &b); err != nil || b.Turn == "" {
+		return fmt.Errorf("tokens: turn.begin without a turn id")
+	}
+	cp, _, err := k.counterparts.Counterpart(ctx, t.Agent, b.Turn)
+	if err != nil {
+		return err // the row stays queued; task 19 retries next drain
+	}
+	return k.mint(ctx, t, string(cp))
+}
+
+func (k *Tokens) mint(ctx context.Context, t control.Target, counterpart string) error {
+	pi, err := k.routes.Project(ctx, t.Project) // phase 6 RouteSource; an error fails closed
+	if err != nil {
+		return err
+	}
+	want := pi.Effective // the route the project's class and choice allow now (P6-D4)
+	req, err := k.request(ctx, t, counterpart) // owner tid/oid, team, project, agent, class, pod addr, next generation
+	if err != nil {
+		return err
+	}
+	res, err := k.m.Mint(ctx, req)
+	if err != nil {
+		return err // no retry with other parameters; gatewayclient retries the same generation (P6-15)
+	}
+	if res.Route != want {
+		_ = k.m.RevokeSession(ctx, string(t.Agent))
+		return ErrRouteMismatch
+	}
+	return k.streams.Send(ctx, t.Agent, tokenEvent{Event: "token", Token: res.Token, ExpiresAt: res.ExpiresAt})
+}
+```
+
+`RouteSource.Project(ctx, projectID) (ProjectInference, error)` is phase 6 task 03's, as written in
+its part (`.claude/worktrees/phase-6/docs/superpowers/plans/2026-09-25-phase-6-gateway-parts/task-03.md:532-534`),
+and `ProjectInference.Effective` is the route after the data-class ratchet. Generations are per agent, held in memory by the
+stream leader. After a failover the new leader has no counter, so a generation is
+`max(last+1, unix seconds of now)`: always above anything an earlier leader minted, without storing
+anything. Keysmith treats a replayed generation as the same mint (P6-08, *"the caller's retry of the
+same generation is safe"*); that it accepts a generation that skips numbers is **UNVERIFIED** until
+phase 6 task 07's part is read at merge. Worker
+refresh is a 45-minute timer per held stream, started by `Open` and stopped when the stream detaches.
