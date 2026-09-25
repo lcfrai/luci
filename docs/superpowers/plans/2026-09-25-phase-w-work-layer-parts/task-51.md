@@ -261,6 +261,7 @@ caret, which the person moved, not a comment arriving (decision 8).
 import { useMemo, useRef, useState, type JSX } from "react";
 import type { EditorView } from "prosemirror-view";
 import type { CommentAnchor, User } from "../../api/work";
+import { makeId } from "../../lib/ids";
 import { mutate } from "../../work/replica/ops";
 import { Popover } from "../common/Popover";
 import { Editor, type MarkdownDoc } from "../editor/Editor";
@@ -273,7 +274,7 @@ const EMPTY: MarkdownDoc = { markdown: "", authorship: [] };
  *  above the editor by the caller; it rides with the post and is cleared by `onPosted`. */
 export function CommentComposer(props: {
   issueId: string; parentId: string | null; anchor: CommentAnchor | null;
-  people: readonly User[]; onPosted(): void; label: string;
+  people: readonly User[]; onPosted(localId: string): void; label: string;
 }): JSX.Element {
   const { issueId, parentId, anchor, people, onPosted, label } = props;
   const [draft, setDraft] = useState<MarkdownDoc>(EMPTY);
@@ -310,13 +311,14 @@ export function CommentComposer(props: {
 
   const post = (doc: MarkdownDoc) => {
     if (doc.markdown.trim() === "") return;
+    const localId = makeId("cml");                       // names the painted comment (task 56's op)
     mutate({
-      kind: "comment", issueId,
+      kind: "comment", issueId, localId,
       req: { body: { text: doc.markdown, author: authorOf(doc) }, parentId, anchor, mentions: mentionsIn(doc.markdown) },
     });
     setDraft(EMPTY);
     setRound((n) => n + 1);
-    onPosted();
+    onPosted(localId);
   };
 
   return (
@@ -355,3 +357,67 @@ choosing a person does not blur and commit mid-mention. The picker lists only th
 (`people`, task 46's `issueData`): the Hub checks each mention against the team through task 08's
 membership read (`task-12.md:83`; the refusal code is task 12's and is not printed here), and the
 picker never offers someone that check would refuse.
+
+#### Interfaces — complete: `desktop/src/components/issue/Comments.tsx`, part 1: the pending anchor
+
+```tsx
+import { createContext, useContext, useLayoutEffect, useMemo, useRef, useState, type JSX, type ReactNode } from "react";
+import type { CommentAnchor, IssueComment, IssueRevision, User } from "../../api/work";
+import { mutate } from "../../work/replica/ops";
+import { AuthorClass } from "./AuthorClass";
+import { CommentComposer } from "./CommentComposer";
+import { anchorWords, nextReactions, quoteOf, REACTIONS, REACTION_WORD, threads, userIdOfHref,
+  type CommentThread } from "./commentModel";
+import { useIssueComments } from "./issueData";
+import { useRevision } from "./useRevision";
+
+/** The one way anything outside the thread starts a comment: the description's selection, a
+ *  Serves row, and (task 60) peek's span and hunk. The anchor waits above the composer. */
+interface StartComment { start(anchor: CommentAnchor): void }
+const StartCtx = createContext<StartComment | null>(null);
+const PendingCtx = createContext<{ anchor: CommentAnchor | null; clear(): void } | null>(null);
+
+export function CommentsProvider(props: { children: ReactNode }): JSX.Element {
+  const [anchor, setAnchor] = useState<CommentAnchor | null>(null);
+  const start = useMemo<StartComment>(() => ({
+    start(a) {
+      setAnchor(a);
+      document.querySelector<HTMLElement>(".iv-cm-new .ProseMirror")?.focus();   // the person asked
+    },
+  }), []);
+  const pending = useMemo(() => ({ anchor, clear: () => setAnchor(null) }), [anchor]);
+  return <StartCtx.Provider value={start}><PendingCtx.Provider value={pending}>{props.children}</PendingCtx.Provider></StartCtx.Provider>;
+}
+
+/** Outside a provider this throws: a caller that starts a comment nowhere is a bug, not a no-op. */
+export function useStartComment(): (anchor: CommentAnchor) => void {
+  const s = useContext(StartCtx);
+  if (!s) throw new Error("useStartComment outside CommentsProvider");
+  return s.start;
+}
+
+/** The anchor line: words, then the quote of THAT revision (decision 2), never the head's text. */
+function AnchorLine(props: { issueId: string; anchor: CommentAnchor; head: IssueRevision }): JSX.Element {
+  const { issueId, anchor, head } = props;
+  const text = useRevision(issueId, anchor.kind === "text" ? anchor.revision : null, head);
+  const quote = anchor.kind !== "text" ? null
+    : text.status === "ready" ? quoteOf(anchor, text.value.content.description.text) : null;
+  return (
+    <div className="iv-cm-anchor" data-anchor={anchor.kind}>
+      <span className="iv-cm-anchor-on">{anchorWords(anchor, head.revision)}</span>
+      {anchor.kind === "text" && text.status === "fetching" ? <span className="iv-fact"> @{anchor.revision} …</span> : null}
+      {anchor.kind === "text" && text.status === "refused" ? <span className="iv-fact"> {text.message}</span> : null}
+      {anchor.kind === "text" && text.status === "ready" && quote === null
+        ? <span className="iv-fact"> offsets {anchor.start}-{anchor.end} are outside @{anchor.revision}</span> : null}
+      {quote !== null ? <blockquote className="iv-cm-quote">{quote}</blockquote> : null}
+      {anchor.kind === "span" || anchor.kind === "hunk" ? <code className="iv-fact">{anchor.ref}</code> : null}
+    </div>
+  );
+}
+```
+
+`start` focuses the new-thread composer because the person clicked *Comment*: that moves the
+caret, which they caused, and scrolls nothing. `fetching` shows the revision number and an
+ellipsis in text, not a spinner (`DESIGN-SYSTEM.md`'s one-heartbeat rule); a refusal shows the
+relay's message verbatim; an anchor whose offsets fall outside its own revision says so with the
+numbers rather than quoting a clamped guess.
