@@ -1,6 +1,6 @@
 ### Task 25: a cloud machine's project-only `gitx.Machine`, its `MachineFS`, and its composite catalog (seam S3-P8.1)
 
-HELD until phase 3's tasks 02 to 04 and 11 are sync-merged into feat/env, phase 3 answers S8-P3.6 (`gitx.MachineFS`, with `Sealed`), and tasks 21 and 24b land (`.superpowers/sdd/env/held.md`): the build stream skips this task until then.
+HELD until phase 3's tasks 02 to 04 and 11 are sync-merged into feat/env, with phase 3's S8-P3.6 (`gitx.MachineFS`, with `Seal`, planned at phase-3 `task-02.md:286-299`) and P3A-1 (`Machine.Join`, `task-02.md:250-254`), and tasks 21 and 24b land (`.superpowers/sdd/env/held.md`): the build stream skips this task until then.
 
 Re-planned onto phase 3's ruling R4 by the env rulings of 2026-09-25
 (`.superpowers/sdd/env/r4-env-rulings.md`, "What each task changes", task 25). A cloud machine meets
@@ -193,7 +193,7 @@ var _ lanes.Source = CatalogSource{}
 
 | Ask | What | Why | Plan proceeds on |
 |---|---|---|---|
-| **P3A-1** Machine paths are not host paths | `Machine` gains `Join(elem ...string) string` (`Local.Join` = `filepath.Join`, `Remote.Join` = `path.Join`), and phase 3 joins every path it derives from `CloneRoot()` through it | the control plane runs on **Windows**; `filepath.Join("/machine/lanes", "p-1")` yields `\machine\lanes\p-1`, which the agent refuses | phase 3 adds it in its task 02; if that has landed, this task adds the method to both implementations and the interface in one commit and names every call site it changed |
+| **P3A-1** Machine paths are not host paths | `Machine` gains `Join(elem ...string) string` (`Local.Join` = `filepath.Join`, `Remote.Join` = `path.Join`), and phase 3 joins every path it derives from `CloneRoot()` through it | the control plane runs on **Windows**; `filepath.Join("/machine/lanes", "p-1")` yields `\machine\lanes\p-1`, which the agent refuses | phase 3 files it (seams review 1 M4): task 02 declares `Join` on `gitx.Machine` with `Local.Join` = `filepath.Join` (phase-3 `task-02.md:250-254`, `:272`), and task 03's step 3 builds `Path` through `m.Join` (phase-3 `task-03.md:155-158`). This task implements `Remote.Join` only and edits no phase 3 interface or call site |
 | **P3A-2** Where the lane index lives for a cloud machine | the index stays on the laptop, keyed by `(machineId, projectId)` | a machine is per user, not per laptop | v1 states the single-laptop limitation in the cockpit's machine popover. The same limit holds for sessions (review I6, task 23). A default machine's id recurs if its disk is lost out of band, so the index also holds the machine's `createdAt` and drops a machine's entries when it changes (b09 re-review 4; the broker refuses to delete the default, `409 machine_is_default`) |
 | **S8-P3.6** `gitx.MachineFS` (ruling 4; plan P3A-5; task 33) | the interface above; `Creator`, `CopyGeneratedHooks`, task 11's `Remove` and `Catalog.Path` take it from the machine; `Creator` calls `Seal` after step 6 | three create steps and `Catalog.Path`'s `worktree.Verify` touch the **laptop's** disk, which for a cloud machine is the wrong disk | nothing: without it a cloud machine cannot create lanes (ruling 4), so this task does not start |
 
@@ -232,7 +232,7 @@ store; and `cmd/machined`:
 
 #### Steps
 
-- [ ] **Step 1:** Confirm the dependencies: `git grep -n "type Machine interface" -- control-plane/internal/gitx/`, `git grep -n "type MachineFS interface" -- control-plane/internal/gitx/` (S8-P3.6), `git grep -n "NewLane" -- control-plane/internal/gitx/`, `git grep -n "const MachineRoot" -- control-plane/internal/machineapi/` (task 20), phase 3's `lanes.Catalog`, and tasks 21 and 24b landed. If `MachineFS` is absent, stop and report S8-P3.6 unanswered; the plan holds this task out of the stream until then ("Order", "Held"). Resolve P3A-1 as the table says. Name the resolver file with `git grep -n "LocalMachineID" -- control-plane/cmd/api/`.
+- [ ] **Step 1:** Confirm the dependencies: `git grep -n "type Machine interface" -- control-plane/internal/gitx/`, `git grep -n "type MachineFS interface" -- control-plane/internal/gitx/` (S8-P3.6), `git grep -n "NewLane" -- control-plane/internal/gitx/`, `git grep -n "const MachineRoot" -- control-plane/internal/machineapi/` (task 20), phase 3's `lanes.Catalog`, and tasks 21 and 24b landed. If `MachineFS` is absent, stop and report S8-P3.6 unanswered; the plan holds this task out of the stream until then ("Order", "Held"). P3A-1 is phase 3's (the table): confirm `git grep -n "Join(elem" -- control-plane/internal/gitx/` prints, then add `Remote.Join` only. Name the resolver file with `git grep -n "LocalMachineID" -- control-plane/cmd/api/`.
 - [ ] **Step 2:** `remote_test.go`, red; `remote.go`; the `machineapi` wire if task 21 lacks it; `machines.Agent`'s five calls. Green.
 - [ ] **Step 3:** The catalog tests, red; `CatalogSource`; the cloud branch of `api/catalog.go`; the resolver arm. Green.
 - [ ] **Step 4:** `TestCatalogScansProjectsOnly` (green on task 20's code; if it is red, task 20 is wrong, and this task reports it rather than patching `machined`).
