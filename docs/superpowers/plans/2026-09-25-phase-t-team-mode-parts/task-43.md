@@ -345,6 +345,7 @@ type teamRow struct {
 	path   func(f *teamFixture, record string) string
 	body   func(f *teamFixture, record string) any
 	want   [teamColumns]teamCell
+	ownA   bool // task 01's "✓ own" in A: the tcA cell runs Grace on her own record
 }
 
 // teamFixture is task 07's newTeam2World plus Priya (compliance) and one
@@ -417,11 +418,59 @@ delegation header) is 403 on every team route: a desktop acts as its user, never
 
 **The rule-5 check is structural, not per row.** `TestNoWriteRowLetsAnyoneWriteAnothersRecord`
 walks `allTeamRows`: for every row whose method is not `GET`, the cells `tcMp`, `tcA`, `tcAu` and
-`tcFx` must each be a status ≥ 400, except the project-level rows 74–79, which the test lists by
-route number. A later task adding a write row with a `✓` in one of those cells fails the build
-before any handler runs.
+`tcFx` must each be a status ≥ 400, with three listed exceptions, each by route number: the
+project-level rows 74–79; route 72, because a note is its **author's** record whatever it is about
+(`task-01.md:577`); and the `✓ own` cells of routes 46 and 70 (`:564`, `:576`), which a row marks
+`ownA: true` so its `tcA` cell runs Grace on **her own** record. A later task adding a write row
+with a `✓` in one of those cells fails the build before any handler runs.
 
 **`TestCapTableAgreesWithTheMatrix`** maps each `TeamCap` to the rows of its routes
 (`CapReadAcross` → 63, 66, 68, 71's `tcAu` cells; `CapSetPolicy` → 75; `CapLowerRoute` → the
 Priya row; …) and asserts `Can`'s answer for each column's principal equals "the cell is ≤ 299".
 `capTable` and the matrix can then only change together.
+
+#### Tests to write first
+
+Every Hub test is `//go:build integration` on Hub task 06's harness and task 07's
+`newTeam2World`, plus Ada (org admin), Audrey (auditor, task 07), Priya (compliance, added here
+to `dev-tenant.json`) and Xavier (org 2).
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestTeamAuthorisationMatrix` | every `teamRow` × every column, and every `orgRow`, on a fresh fixture: status, code, `details.required`, and for `empty` no other owner's id in the list | any missing or loosened check in any team handler |
+| `TestAMemberLoweringTheRouteIs403` | a project at `au`; Linus `POST`s route 79 `{"route":"global"}` → 403 `needs_compliance`; the project's route is still `au`; no `team_policy.route_changed` event | a lowering allowed to any member, or refused after the write |
+| `TestAFloorThatRemovesAskingIsRefused` | Grace `PUT`s `escalationFloors: ["free-directive-fleet-turn"]` (a row whose default is already *ask*) → 422 `details.field = "escalationFloors"`; a body key `escalationDefaults` → 400 `details.field`; `["yield-unedited","yield-unedited"]` → 422 | a floor list validated by type, not by the four values; a way to say "ask less" |
+| `TestComplianceLowersAndItIsAudited` | Priya lowers an `internal`·`any` project → 200; the audit (route 44) holds one `team_policy.route_changed` `{"route":"global","by":"compliance"}`; an `au-only` project → 422 `below_floor` and no event | a missing `by`; the floor check skipped for compliance |
+| `TestTheDefaultsAreOnBeforeAnyPut` | route 74 on a fresh team project → `revision: 0`, every quota > 0, turns 30, budgets `{20, 3, 30}`, floors `[]`; `dataClass` and `route` equal the project record's | a zero quota default (OD-24); a policy row as the class's source |
+| `TestPolicyBoundsTightenOnly` | each §7.24 bound at its edge passes and one past it fails with its own `details.field`: turns 0 and 31, pair 21, rounds 4, deadline 29 and 1441, a quota 0 | a bound off by one, or reported on the wrong field |
+| `TestAStalePutConflicts` | two `PUT`s naming `revision: 0` → the second 409 `revision_conflict`; the row's revision is 1 | a lost update between two admins |
+| `TestDataClassIsNotWritableHere` | a `PUT` carrying `dataClass`, `route`, `projectId` or `updatedAt` → 400 naming the field; the project record is unchanged | the policy route as a back door onto the class |
+| `TestTheAuditorReadsAcrossAndWritesNothing` | Audrey → 200 with both owners' rows on 63, 66, 68, 71; every write row's `tcAu` cell ≥ 400 | an auditor granted a write, or filtered to an owner |
+| `TestComplianceIsNotMembership` | Priya → 404 on every team route but 79 | the role treated as a team seat |
+| `TestNoWriteRowLetsAnyoneWriteAnothersRecord` | the structural rule-5 walk above | a `✓` added in an `M′`, `A`, `Au` or `Fx` write cell |
+| `TestCapTableAgreesWithTheMatrix` | `Can` equals each mapped cell's success | the table and the handlers drifting apart |
+| `TestEveryTeamWriteHasAZ5Row` | every `everyTeamWrite` case has a `rowsT06` row | a route added in task 06's list and not here |
+| `TestTheXColumnHoldsWithoutGoChecks` (Hub 16b's, extended) | every team row's `tcX` cell is 404 or `empty` with `disableGoAuthz` on; no 500 | a tenancy line held by Go alone on a team route |
+
+`TestAMemberLoweringTheRouteIs403` and `TestAFloorThatRemovesAskingIsRefused` are the scope's
+(`2026-09-25-phase-t-team-mode.md:895`) and are written first, with the matrix.
+
+#### Fleet reads the policy
+
+`hubclient` (task 08) gains three methods and their fake, complete:
+
+```go
+// TeamPolicy is route 74 under the caller's delegation (Fleet) or token (desk).
+func (c *Client) TeamPolicy(ctx context.Context, projectID string) (hubapi.TeamPolicy, error)
+// PutTeamPolicy is route 75; the desktop's (task 67) only.
+func (c *Client) PutTeamPolicy(ctx context.Context, projectID string, r hubapi.PutTeamPolicyRequest) (hubapi.TeamPolicy, error)
+// ChangeRoute is route 79; the desktop's (task 56) only.
+func (c *Client) ChangeRoute(ctx context.Context, projectID string, r hubapi.RouteChangeRequest) (hubapi.TeamPolicy, error)
+```
+
+Fleet reads route 74 at rebuild (task 11) and again on each `team_policy.updated` or
+`team_policy.route_changed` in its per-org feed (task 08's kinds), and holds the result in memory
+only: quotas and turns for task 37, budgets for task 28, floors for task 30. A Fleet that cannot
+read the policy uses `DefaultTeamPolicy`'s numbers **and** the AU route whenever the project's
+route is unknown: fail closed toward AU, never toward Global (phase 6's P6-D5,
+`phase-6-gateway.md:69`).
