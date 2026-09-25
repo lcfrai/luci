@@ -11,14 +11,14 @@ Six decisions where the skeleton is silent, made here so task 12 does not re-der
 - **(c) Credential-shaped headers are stripped, not only `x-litellm-*`.** The skeleton forwards "the credential as `Authorization: Bearer` alone". This task makes that literal: `Authorization`, `x-api-key`, `api-key`, `x-goog-api-key`, `ocp-apim-subscription-key`, `proxy-authorization` and `cookie` are all removed before the one `Authorization` is set. The reason is pod binding. A sandbox could present its own bound token in `Authorization` to pass task 10, and a second session's stolen token in `api-key`; if LiteLLM prefers that header (its header precedence is **UNVERIFIED** against the pinned image, task 18), the stolen key spends without its pod. Stripping costs nothing.
 - **(d) `x-litellm-*` and `litellm-*` are stripped from responses too.** LiteLLM answers with headers such as its model `api_base` and the key's spend (names from training knowledge, **UNVERIFIED**). They tell a sandbox the internal topology and invite tooling to depend on a component it must never reach. The rest of the response, body included, is relayed as LiteLLM sent it: an error body echoes the caller's own request back to the caller, which is not a disclosure.
 - **(e) The proxy reports each request through `Config.Observe(Outcome)`**, once, after the response ends, and `Outcome` has no field that can hold a body or a header value. Task 12's logger is that callback, so "bodies are never logged" (Global constraint 3) is a property of a type, not a habit.
-- **(f) A named denylist of LiteLLM control fields is dropped from the top level of the body** (review C-1). The route must not rest on `model` alone, because LiteLLM's proxy reads parameters of its own from a request body and acts on them before, or instead of, the group `model` names. `proxy.ControlFields` holds fifteen names, in three kinds:
+- **(f) A named denylist of LiteLLM control fields is dropped from the top level of the body** (review C-1). The route must not rest on `model` alone, because LiteLLM's proxy reads parameters of its own from a request body and acts on them before, or instead of, the group `model` names. `proxy.ControlFields` holds twenty-four names, in three kinds (3 + 5 + 16):
   - **Fallbacks, which move a request to another group:** `fallbacks`, `context_window_fallbacks`, `content_policy_fallbacks`.
   - **Mocks, which force the router's failure path or skip the upstream:** `mock_testing_fallbacks`, `mock_testing_context_fallbacks`, `mock_testing_content_policy_fallbacks`, `mock_testing_rate_limit_error`, `mock_response`.
-  - **Client-side upstream and credentials, which replace what the catalogue chose:** `api_base`, `base_url`, `api_key`, `api_version`, `aws_region_name`, `aws_bedrock_runtime_endpoint`, `user_config`. A body `aws_region_name` on an `au/` group would move a Bedrock call out of `ap-southeast-2`.
+  - **Client-side upstream and credentials, which replace what the catalogue chose:** `api_base`, `base_url`, `api_key`, `api_version`, `aws_region_name`, `aws_bedrock_runtime_endpoint`, `user_config`, `aws_access_key_id`, `aws_secret_access_key`, `aws_session_token`, `aws_role_name`, `aws_session_name`, `aws_profile_name`, `aws_web_identity_token`, `aws_sts_endpoint`, `custom_llm_provider`. A body `aws_region_name` on an `au/` group would move a Bedrock call out of `ap-southeast-2`. A body set of AWS credentials would keep the region but send the prompt and code to an AWS account outside the org's zero-retention arrangement (re-review R-5), an exfiltration channel from a sandbox whose only egress is the gatekeeper.
 
-  The review names seven of these; the other eight are the same kind, from the same source. The source is training knowledge of LiteLLM's proxy, **UNVERIFIED** against the pinned image, and so is whether its `/v1/messages` path honours each one. Task 18's P14 measures the two most dangerous against the running image. The list is dropped whether or not the image honours a name, since dropping costs nothing. None of the fifteen is an Anthropic Messages parameter (training knowledge of the Messages API, **UNVERIFIED** against future releases), so Claude Code never needs one to reach the provider.
+  The review names seven of these; the re-review names nine more (the Bedrock credential and provider parameters of the kind `api_key` stands for); the other eight are the same kind, from the same source. The source is training knowledge of LiteLLM's proxy, **UNVERIFIED** against the pinned image, and so is whether its `/v1/messages` path honours each one. Task 18's P14 measures the two most dangerous against the running image. The list is dropped whether or not the image honours a name, since dropping costs nothing. None of the twenty-four is an Anthropic Messages parameter (training knowledge of the Messages API, **UNVERIFIED** against future releases), so Claude Code never needs one to reach the provider.
 
-  A field is dropped silently, as a credential header is (decision (c)). It is not refused, because a client that sent one would get a `400` on its first request with no way to find out why. The match is on the **decoded** key, exact and case-sensitive, as Python's `dict.get` reads it, so `"fallbacks"` is dropped too. Only the top level is touched. P08 decides `metadata.tags`, the one nested field in question.
+  A field is dropped silently, as a credential header is (decision (c)). It is not refused, because a client that sent one would get a `400` on its first request with no way to find out why. The match is on the **decoded** key, exact and case-sensitive, as Python's `dict.get` reads it, so `"f\u0061llbacks"` (the JSON escape of `a`) is dropped too. Only the top level is touched. P08 decides `metadata.tags`, the one nested field in question.
 
   This is **a denylist, not an allowlist**. The gateway docs forbid an allowlist, and task 18's P13 checks that an unknown field still reaches the provider. Removing a field keeps every other byte: the splice of decision (a) also leaves out a dropped member's byte range, and the separating comma with it.
 
@@ -37,7 +37,7 @@ Six decisions where the skeleton is silent, made here so task 12 does not re-der
   - `proxy.RequestFrom(r *http.Request, now time.Time) authz.Request`: the source address from `r.RemoteAddr` alone, IPv4-mapped addresses unmapped; task 12 reuses it for `/v1/models`
   - `proxy.NewTransport() *http.Transport`: no environment proxy, no response-header deadline
   - `proxy.AllowedPaths` = `[]string{"/v1/messages", "/v1/messages/count_tokens"}`
-  - `proxy.ControlFields []string`: the fifteen top-level body keys dropped before the forward (decision (f)); task 18's P14 cites it
+  - `proxy.ControlFields []string`: the twenty-four top-level body keys dropped before the forward (decision (f)); task 18's P14 cites it
 - Consumes: `authz.Request`, `authz.Decision` (task 10); `dataclass.Route`, `RouteGlobal`, `RouteAU` (task 01); `wire.CodePathNotAllowed`, `wire.CodeModelNotOffered` (task 03; the Go identifiers are this part's assumption, see the gap list in the return); `httpx.WriteProblem`, `httpx.CodeInvalidJSON`, `httpx.CodeBackendUnavailable` (`control-plane/internal/httpx/problem.go:45`, `:60`, `:93`).
 - Required by: task 12 (mounts `New` behind `/v1/models` and `/api/hello`, logs `Outcome`, reuses `RequestFrom`), task 17 (the local stack), task 18 (P08 decides whether this rewrite also drops `metadata.tags`; P14 measures whether LiteLLM itself would honour a body `fallbacks` that `ControlFields` drops).
 
@@ -281,6 +281,9 @@ var wantDropped = []string{
 	"mock_testing_content_policy_fallbacks", "mock_testing_rate_limit_error", "mock_response",
 	"api_base", "base_url", "api_key", "api_version",
 	"aws_region_name", "aws_bedrock_runtime_endpoint", "user_config",
+	"aws_access_key_id", "aws_secret_access_key", "aws_session_token",
+	"aws_role_name", "aws_session_name", "aws_profile_name",
+	"aws_web_identity_token", "aws_sts_endpoint", "custom_llm_provider",
 }
 
 // Each row is one LiteLLM control field on an AU request (review C-1). Kills
@@ -292,7 +295,7 @@ func TestLiteLLMControlFieldsNeverReachUpstream(t *testing.T) {
 		t.Fatalf("ControlFields has %d names, the test knows %d: add a row for each", len(ControlFields), len(wantDropped))
 	}
 	rows := map[string]string{
-		"escaped fallbacks": `{"model":"claude-opus-4-8","fallbacks":["global/claude-opus-4-8"]}`,
+		"escaped fallbacks": `{"model":"claude-opus-4-8","f\u0061llbacks":["global/claude-opus-4-8"]}`,
 	}
 	for _, f := range wantDropped {
 		rows[f] = `{"model":"claude-opus-4-8","` + f + `":["global/claude-opus-4-8"]}`
@@ -571,6 +574,9 @@ var ControlFields = []string{
 	"mock_testing_content_policy_fallbacks", "mock_testing_rate_limit_error", "mock_response",
 	"api_base", "base_url", "api_key", "api_version",
 	"aws_region_name", "aws_bedrock_runtime_endpoint", "user_config",
+	"aws_access_key_id", "aws_secret_access_key", "aws_session_token",
+	"aws_role_name", "aws_session_name", "aws_profile_name",
+	"aws_web_identity_token", "aws_sts_endpoint", "custom_llm_provider",
 }
 
 var controlField = func() map[string]bool {
@@ -996,9 +1002,9 @@ go test -race -count=1 ./internal/gatekeeper/proxy/                    # expect:
 go test -count=1 -v ./internal/gatekeeper/proxy/ | grep -c '^--- PASS: Test'   # expect 14
 ```
 
-- [ ] **Step 6: Kill seven mutants by hand, then fifteen by script**
+- [ ] **Step 6: Kill eight mutants by hand, then twenty-four by script**
 
-Each edit is made, the package run, and the edit reverted. Each must turn the named test red. The fifteen come after the table: one per `ControlFields` name.
+Each edit is made, the package run, and the edit reverted. Each must turn the named test red. The twenty-four come after the table: one per `ControlFields` name. Before running the raw-bytes row, confirm the test file holds the escape: `grep -c 'u0061' internal/gatekeeper/proxy/proxy_test.go` prints `1`. If it prints `0`, the escape was decoded on the way in and that row tests nothing.
 
 | Edit | Test that must fail |
 |---|---|
@@ -1007,12 +1013,13 @@ Each edit is made, the package run, and the edit reverted. Each must turn the na
 | `rewriteModel`: delete the `if keys[key] { return … }` block | `TestTheRouteCannotBeChosenByTheBody/model_twice` and `/escaped_key` |
 | `New`: `FlushInterval: -1` → `FlushInterval: 0`, and `Flush` removed from `statusWriter` | `TestAStreamIsRelayedEventByEvent` |
 | `rewriteModel`: `drop: controlField[key]` → `drop: false` | every row of `TestLiteLLMControlFieldsNeverReachUpstream` |
+| `rewriteModel`: `drop: controlField[key]` → `drop: controlField[key] && bytes.Contains(body[prev:begin], []byte(key))` (a raw-bytes match: the key's own bytes must spell the name) | `TestLiteLLMControlFieldsNeverReachUpstream/escaped_fallbacks` alone |
 | `splice`: delete the `if first && i > 0 { … }` block | `TestDroppingAFieldKeepsEveryOtherByte/first` and `/two_leading` |
 | `splice`: delete `first = false` | `TestDroppingAFieldKeepsEveryOtherByte/middle` (the kept `stream` loses its comma) |
 
 The fourth row of the table needs both halves. With `FlushInterval: 0` alone, `ReverseProxy` still flushes an upstream it recognises as `text/event-stream` (training knowledge of `net/http/httputil`, **UNVERIFIED**), so the test stays green; that is a second guard, not a reason to drop the first.
 
-The fifteen name mutants **rename** a name rather than delete it. Deleting one would trip the test's length check first, which proves the lists are in step but not that the name's own row catches it. Write this to a file in the `$TEMP` copy's `control-plane/` and run it with `claudezsh 'bash <file>'`:
+The twenty-four name mutants **rename** a name rather than delete it. Deleting one would trip the test's length check first, which proves the lists are in step but not that the name's own row catches it. Write this to a file in the `$TEMP` copy's `control-plane/` and run it with `claudezsh 'bash <file>'`:
 
 ```bash
 f=internal/gatekeeper/proxy/rewrite.go
@@ -1020,7 +1027,10 @@ cp "$f" "$f.orig"
 for n in fallbacks context_window_fallbacks content_policy_fallbacks mock_testing_fallbacks \
          mock_testing_context_fallbacks mock_testing_content_policy_fallbacks \
          mock_testing_rate_limit_error mock_response api_base base_url api_key api_version \
-         aws_region_name aws_bedrock_runtime_endpoint user_config; do
+         aws_region_name aws_bedrock_runtime_endpoint user_config \
+         aws_access_key_id aws_secret_access_key aws_session_token aws_role_name \
+         aws_session_name aws_profile_name aws_web_identity_token aws_sts_endpoint \
+         custom_llm_provider; do
   cp "$f.orig" "$f" && sed -i "s/\"$n\"/\"${n}_x\"/" "$f"
   grep -q "\"${n}_x\"" "$f" || { echo "NOT APPLIED $n"; continue; }
   go test -count=1 -run "TestLiteLLMControlFieldsNeverReachUpstream/^${n}\$" ./internal/gatekeeper/proxy/ > m.out 2>&1
@@ -1029,7 +1039,7 @@ done
 cp "$f.orig" "$f" && rm "$f.orig" m.out
 ```
 
-Expected: fifteen lines, each `<name> exit 1`, and no `NOT APPLIED`. An `exit 0` means that name's row does not reach it: the row is wrong, not the list.
+Expected: twenty-four lines, each `<name> exit 1`, and no `NOT APPLIED`. An `exit 0` means that name's row does not reach it: the row is wrong, not the list.
 
 - [ ] **Step 7: Vet, format, and confirm the import set**
 
@@ -1061,12 +1071,12 @@ git commit -F <message file> -- control-plane/internal/gatekeeper/proxy/proxy.go
 
 Message: `feat(gatekeeper): the proxy, one JSON value rewritten, LiteLLM's control fields dropped, everything else relayed (phase 6 task 11)`, a body naming decisions (a) to (f), and the attribution line.
 
-**Acceptance:** step 5 prints `ok` and `14`; step 6's seven edits each fail the named test, and its script prints fifteen `exit 1` lines; step 7 prints nothing and then the six lines.
+**Acceptance:** step 5 prints `ok` and `14`; step 6's eight edits each fail the named test, and its script prints twenty-four `exit 1` lines; step 7 prints nothing and then the six lines.
 
 **What this task does not claim:**
 
-- **That LiteLLM reads only the body's `model` and the fifteen `ControlFields` to choose a group.** If the pinned image also honours a routing header or another body field (for example `metadata.tags` with tag-based routing, or a control field added in a later LiteLLM release), a sandbox could steer through it. The header side is closed by stripping every `x-litellm-*` and `litellm-*`. On the body side, P08 decides `metadata.tags`: if body tags matter, this rewrite gains one more edit, dropping `metadata.tags`, with its own test. P14 decides whether LiteLLM would honour a body fallback outside the gatekeeper. A new LiteLLM digest means re-reading its request-parameter list against `ControlFields`, which task 18's per-digest rule already requires of every probe.
-- **That the fifteen names are complete or exact.** They are LiteLLM's proxy parameters from training knowledge, **UNVERIFIED** against the pinned image. A wrong name costs nothing; a missing one is the residual that P14 and task 07's decision (h) bound.
+- **That LiteLLM reads only the body's `model` and the twenty-four `ControlFields` to choose a group.** If the pinned image also honours a routing header or another body field (for example `metadata.tags` with tag-based routing, or a control field added in a later LiteLLM release), a sandbox could steer through it. The header side is closed by stripping every `x-litellm-*` and `litellm-*`. On the body side, P08 decides `metadata.tags`: if body tags matter, this rewrite gains one more edit, dropping `metadata.tags`, with its own test. P14 decides whether LiteLLM would honour a body fallback outside the gatekeeper. A new LiteLLM digest means re-reading its request-parameter list against `ControlFields`, which task 18's per-digest rule already requires of every probe.
+- **That the twenty-four names are complete or exact.** They are LiteLLM's proxy parameters from training knowledge, **UNVERIFIED** against the pinned image. A wrong name costs nothing; a missing one is the residual that P14 and task 07's decision (h) bound.
 - **That LiteLLM prefers `Authorization` to any other credential header.** It does not need to: decision (c) leaves it only one.
 - **That streaming survives LiteLLM.** This task proves the gatekeeper does not buffer. Whether LiteLLM relays SSE pings unbuffered is task 18's P09.
 - **That the error body LiteLLM returns is safe to relay.** It is relayed unchanged to the caller that sent the request; task 12's canary test proves it never reaches a log. Whether it can carry another tenant's data is a LiteLLM property, **UNVERIFIED**.
