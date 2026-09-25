@@ -452,3 +452,37 @@ func TestTheDefaultPolicyIsBacklogWithEverySwitchOff(t *testing.T) {
 | `TestOnlyThreeRelationKindsAreWritable` | a writer storing `blocked_by`, which would make one pair two rows and the two-cycle check blind |
 | `TestTheDefaultPolicyIsBacklogWithEverySwitchOff` | a default of `triage` (every new issue would land in a queue nobody asked for) or a switch on by default |
 
+#### Tests to write first, part 2 — `server/work_social_integration_test.go` (`//go:build integration`)
+
+The cast is the Hub's (Hub task 15's part, `task-15.md:57-60`): tokens minted with
+`devissuer.MintAccessToken` against an in-process issuer, a Hub `httptest.Server` over
+`hubtest.Migrated`, and `as(name)` returning a client with that user's token. Ada is admin of team
+Portal (project `EP`), Grace a member, Vera a viewer, Linus an org member outside Portal, and Xavier
+in another enrolled org. Team Billing (project `PAY`) has Linus as admin. Issues are made through
+task 08's `POST /v1/projects/{projectId}/issues`, never by SQL, so every row went through the route.
+Each test counts events by reading `hub.audit_events` as the owner (`hubtest.OwnerConn`) for the
+org, before and after.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestRelationToAnotherTeamsIssueIs404` | Grace relates EP-1 to a PAY issue → 404 `issue_not_found`, `details.issueId` the PAY id; Linus (who can read PAY but not EP) relating PAY-1 to EP-1 → 404; no event either way | a relation that leaks another team's issue id |
+| `TestTheSameRelationTwiceIsOneRowAndOneEvent` | `EP-1 blocks EP-2` → 201; the same → 200, the same head; `issue_relations` has one row; one `issue.related` event | a double event on a repeat |
+| `TestRelatesIsStoredOnceFromEitherEnd` | `EP-1 relates EP-2`, then `EP-2 relates EP-1` → 200, one row, one event | a symmetric kind stored twice |
+| `TestTheTwoCycleIsRefused` | `EP-1 blocks EP-2`, then `EP-2 blocks EP-1` → 422 `relation_cycle`; the same for `duplicates` | a two-cycle, which makes both issues wait on each other |
+| `TestTheOtherEndReadsTheInverseWord` | after `EP-1 blocks EP-2`, `GET EP-2` has `{kind: blocked_by, issueId: EP-1}`; after `EP-3 duplicates EP-1`, `GET EP-1` has `duplicated_by EP-3` | a one-sided read |
+| `TestEitherEndMayDeleteWithEitherWord` | `DELETE /v1/issues/EP-2/relations/blocked_by/EP-1` → 200, the row gone, one `issue.unrelated`; the same again → 404 `relation_not_found` | a delete that only the writer's end can find |
+| `TestARelationToAnOwnedIssueInformsItsOwner` | EP-2 assigned to Ada; Grace relates EP-1 to EP-2 → the event's `otherAssigneeId` is Ada's id; Ada relating the pair back → `otherAssigneeId: ""` | an owner never told (05 §3.7 rule 3), or told about their own act |
+| `TestARelationToItselfIs400` | `EP-1 relates EP-1` → 400 `field: issueId`, no 500 from the `CHECK` | a database error surfacing as 500 |
+| `TestDuplicatesMovesNoState` | `EP-3 duplicates EP-1` → both states unchanged | a relation that moves a state behind the person's back |
+| `TestLabelNamesAreUniqueCaseInsensitively` | Ada creates `Bug` → 201; `bug` → 409 `label_exists` naming the first; after archiving `Bug`, `bug` → 201 | case-sensitive uniqueness; an archived name held forever |
+| `TestOnlyAdminsManageLabels` | Grace `POST …/labels` → 403 `required: admin`; Vera `GET` → 200; Linus `GET` → 404 `team_not_found` | a member creating labels (07's row) |
+| `TestALabelColourIsATokenName` | `"#ff0000"` → 400 `field: color`; `"thread"` → 400; `"fail"` → 201 | a hex colour, or the thread's colour on a label |
+| `TestAnIssueCarriesOnlyItsTeamsLiveLabels` | `PATCH EP-1 {labels: [billingLabel]}` → 422 `label_unavailable`, `details.field: labels[0]`; an archived Portal label → 422; a live one → 200 and one `issue.updated` `{fields: labels}` | another team's or an archived label on an issue |
+| `TestUnderThePolicyTriageNeedsAPriority` | Ada `PUT` the policy `priorityToLeaveTriage: true`; a triage issue with priority `none`, `hand` → `todo` → 422 `policy_refused`, `details.policy: priorityToLeaveTriage`, no event; → `cancelled` with a reason → 200 | a policy that blocks declining; a refusal that still appends an event |
+| `TestCreateWithNoStateTakesThePolicyDefault` | the policy `defaultState: todo`; create with no `state` → `todo`; with no policy row → `backlog`; an explicit `state: triage` → `triage` whatever the default. The scope's "an import lands in `triage`" half is task 15's `TestImportLandsInTriageWhateverTheDefault`, because the import route does not exist until then | a create that ignores the policy, or a policy that overrides an explicit state |
+| `TestAMemberCannotPutThePolicy` | Grace `PUT …/work-policy` → 403 `required: admin`; Vera `GET` → 200 with the defaults and `updatedAt: null` | a member changing team settings |
+| `TestAnUnchangedPolicyAppendsNoEvent` | the same `PUT` twice → one `team.work_policy_set`, `fields` naming only what changed | an event per `PUT` whatever changed |
+| `TestSnoozeKeepsTheIssueInTriageAndLast` | three triage issues; snooze the newest; `GET …/issues?state=triage` lists it last, not absent; `snoozedUntil` in the past → 400; on a `todo` issue → 422 | a snooze that hides the issue, which is what AX §7.4 forbids |
+| `TestLeavingTriageClearsTheSnooze` | a snoozed triage issue accepted → `snoozedUntil: null` | a stale snooze on an issue that already left |
+| `TestNoSocialEventCarriesText` | a title canary `CANARY-11-TITLE` on the related issues; no event's `data` of this file's kinds contains it | issue text in the feed (hub-contract:1133-1134) |
+
