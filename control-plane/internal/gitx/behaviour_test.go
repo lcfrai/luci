@@ -879,3 +879,152 @@ func TestBehaviourNoWriteFetchHeadLeavesFetchHeadAlone(t *testing.T) {
 		t.Errorf("a --no-write-fetch-head bundle fetch changed FETCH_HEAD: %q -> %q", before.bytes, after.bytes)
 	}
 }
+
+// --- Branch names and branch config (task 11) --------------------------------------------
+
+// gitCase is one git call and what it must answer: exit code, and a stdout and stderr that
+// must equal (stdout) or contain (stderr) the given text. "" in stderr means empty.
+type gitCase struct {
+	args           []string
+	code           int
+	stdout, stderr string
+}
+
+func checkCases(t *testing.T, dir string, env gitEnv, cases []gitCase) {
+	t.Helper()
+	for _, c := range cases {
+		out, errs, code := run(t, dir, env, c.args...)
+		t.Logf("git %s: exit %d, stdout %q, stderr verbatim %q", strings.Join(c.args, " "), code, out, errs)
+		if code != c.code || out != c.stdout ||
+			(c.stderr == "" && errs != "") || !strings.Contains(errs, c.stderr) {
+			t.Errorf("git %s: exit %d, stdout %q, stderr %q; want exit %d, stdout %q, stderr holding %q",
+				strings.Join(c.args, " "), code, out, errs, c.code, c.stdout, c.stderr)
+		}
+	}
+}
+
+// check-ref-format --branch expands @{-1} and refuses -x and HEAD, which the plain form
+// accepts, so ValidBranchName needs --branch and the printed-name equality both (Minor 6).
+func TestBehaviourCheckRefFormatBranchExpandsShorthand(t *testing.T) {
+	t.Parallel()
+	env := hermetic(t)
+	dir, _ := chain(t, env, 1)
+	must(t, dir, env, "switch", "-q", "-c", "feature")
+	must(t, dir, env, "switch", "-q", "main")
+	checkCases(t, dir, env, []gitCase{
+		{args: []string{"check-ref-format", "--branch", "@{-1}"}, code: 0, stdout: "feature\n"},
+		{args: []string{"check-ref-format", "refs/heads/@{-1}"}, code: 1},
+		{args: []string{"update-ref", "refs/heads/@{-1}", "HEAD", strings.Repeat("0", 40)}, code: 128,
+			stderr: "refusing to update ref with bad name"},
+		{args: []string{"check-ref-format", "--branch", "-x"}, code: 128, stderr: "fatal: '-x' is not a valid branch name"},
+		{args: []string{"check-ref-format", "--branch", "HEAD"}, code: 128, stderr: "fatal: 'HEAD' is not a valid branch name"},
+		{args: []string{"check-ref-format", "refs/heads/-x"}, code: 0},
+		{args: []string{"check-ref-format", "refs/heads/HEAD"}, code: 0},
+		{args: []string{"check-ref-format", "refs/heads/a..b"}, code: 1},
+	})
+}
+
+// remove-section's exit codes, and branch -D's answer when it cannot rewrite the config:
+// DeleteBranch's OKExit 128 and its warn-and-answer rule rest on them (Minor 12).
+func TestBehaviourRemoveSectionExitCodes(t *testing.T) {
+	t.Parallel()
+	env := hermetic(t)
+	dir, _ := chain(t, env, 1)
+	for _, b := range []string{"x", "z"} {
+		must(t, dir, env, "branch", b)
+		must(t, dir, env, "config", "branch."+b+".remote", "origin")
+	}
+	must(t, dir, env, "config", "branch.y.remote", "origin")
+	checkCases(t, dir, env, []gitCase{
+		{args: []string{"config", "--remove-section", "branch.nope"}, code: 128, stderr: "fatal: no such section: branch.nope"},
+		{args: []string{"config", "--remove-section", "branch.z"}, code: 0},
+	})
+	writeFile(t, filepath.Join(dir, ".git", "config.lock"), "")
+	checkCases(t, dir, env, []gitCase{
+		{args: []string{"config", "--remove-section", "branch.y"}, code: 255, stderr: "error: could not lock config file .git/config"},
+	})
+	out, errs, code := run(t, dir, env, "branch", "-D", "x")
+	t.Logf("branch -D x with .git/config.lock held: exit %d, stdout %q, stderr verbatim %q", code, out, errs)
+	if code != 0 || !strings.Contains(errs, "warning: update of config-file failed") {
+		t.Errorf("branch -D x with the config locked: exit %d, stderr %q; want 0 and the config-file warning", code, errs)
+	}
+	if cfg := readFile(t, filepath.Join(dir, ".git", "config")); !strings.Contains(cfg, "[branch \"x\"]") {
+		t.Errorf("branch -D x with the config locked removed branch.x anyway:\n%s", cfg)
+	}
+	if _, _, code := run(t, dir, env, "rev-parse", "--verify", "-q", "refs/heads/x"); code == 0 {
+		t.Errorf("branch -D x exited 0 but refs/heads/x is still there")
+	}
+}
+
+// branch -m renames the checked-out branch silently and moves HEAD with it, so RenameBranch
+// must refuse branch_checked_out itself (Minor 16).
+func TestBehaviourBranchRenameMovesACheckoutsHead(t *testing.T) {
+	t.Parallel()
+	env := hermetic(t)
+	dir, _ := chain(t, env, 1)
+	checkCases(t, dir, env, []gitCase{
+		{args: []string{"branch", "-m", "main", "renamed"}, code: 0},
+		{args: []string{"symbolic-ref", "HEAD"}, code: 0, stdout: "refs/heads/renamed\n"},
+	})
+}
+
+// --- Maintenance and removal (tasks 07, 09, 11, 12) ---------------------------------------
+
+// A fetch starts git maintenance --auto unless --no-auto-maintenance is passed, even when the
+// repository's own config asks for it, so every host fetch needs the flag (Minor 8).
+func TestBehaviourFetchStartsAutoMaintenance(t *testing.T) {
+	t.Parallel()
+	env := hermetic(t)
+	src, _ := chain(t, env, 1)
+	dst := filepath.Join(t.TempDir(), "dst")
+	must(t, t.TempDir(), env, "init", "-q", "-b", "main", dst)
+	traced := env.with("GIT_TRACE=1")
+	const started = "run_command: git maintenance run --auto --quiet --detach"
+
+	_, errs, code := run(t, dst, traced, "fetch", "--no-tags", "--quiet", src, "+refs/heads/main:refs/x")
+	if code != 0 || !strings.Contains(errs, started) {
+		t.Errorf("fetch under GIT_TRACE=1: exit %d, trace lacks %q:\n%s", code, started, errs)
+	}
+	must(t, dst, env, "config", "maintenance.auto", "true")
+	_, errs, code = run(t, dst, traced, "fetch", "--no-tags", "--quiet", "--no-auto-maintenance", src, "+refs/heads/main:refs/y")
+	// "maintenance run", not "maintenance": the trace echoes the argv's --no-auto-maintenance.
+	if code != 0 || strings.Contains(errs, "maintenance run") {
+		t.Errorf("fetch --no-auto-maintenance with maintenance.auto=true: exit %d, trace runs maintenance:\n%s", code, errs)
+	}
+}
+
+// os.RemoveAll on a clone: Git for Windows writes object files read-only. Record whether
+// RemoveAll copes, and prove the fix (clear the read-only bit during a walk) if it does not.
+func TestBehaviourRemoveAllOnAClone(t *testing.T) {
+	t.Parallel()
+	env := hermetic(t)
+	src, _, pack := objectsFixture(t, env)
+	dst := clone(t, env, src, "--no-hardlinks")
+	if fi, err := os.Stat(filepath.Join(dst, pack)); err == nil {
+		t.Logf("a clone's pack file mode: %v", fi.Mode())
+	}
+	err := os.RemoveAll(dst)
+	t.Logf("os.RemoveAll(clone) on %s: err = %v", runtime.GOOS, err)
+	if err != nil {
+		walkErr := filepath.WalkDir(dst, func(p string, d os.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			mode := os.FileMode(0o600)
+			if d.IsDir() {
+				mode = 0o700
+			}
+			return os.Chmod(p, mode)
+		})
+		if walkErr != nil {
+			t.Fatalf("clearing read-only bits: %v", walkErr)
+		}
+		if err := os.RemoveAll(dst); err != nil {
+			t.Fatalf("os.RemoveAll after clearing read-only bits: %v", err)
+		}
+		t.Logf("os.RemoveAll succeeded after os.Chmod(p, 0o600) over the tree")
+	}
+	if _, err := os.Stat(dst); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("the clone is still there after RemoveAll (stat err %v)", err)
+	}
+}
