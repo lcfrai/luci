@@ -1,4 +1,7 @@
 node_modules/
+# The licence gate's fixture repository is committed with its installed tree
+# (task 04: go run ./tools/licencegate -root ./tools/licencegate/testdata/repo-with-mpl).
+!tools/licencegate/testdata/repo-with-mpl/desktop/node_modules/
 dist/
 target/
 *.exe

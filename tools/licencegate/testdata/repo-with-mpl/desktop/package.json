@@ -1,0 +1,7 @@
+{
+  "name": "repo-with-mpl-desktop",
+  "version": "0.0.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "dependencies": { "mpl-fixture": "1.0.0" }
+}
