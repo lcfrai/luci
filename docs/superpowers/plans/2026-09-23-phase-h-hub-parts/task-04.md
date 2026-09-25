@@ -11,9 +11,11 @@ This task writes every interface, the error model, and the fake's **identity, te
 and resolver** behaviour. Task 05 adds designs, releases, evidence and the feed, and the
 conformance suite that holds the fake and the real Hub to one standard.
 
-**Additions to contract §9.2, all additive** (no method the contract names changes, not even a
-parameter type — digests stay wire-form strings in `PutBlob`, `GetBlob` and `EvidenceByDigest`,
-because phases 3 and 5 are coding to §9.2's text tonight):
+**Additions to contract §9.2, all additive, apart from HA5-1's and HA7-1's two signature changes**
+(task 00's amendments, which task 44a folds into §9.2: `PutBlob`'s body is an `io.ReadSeeker`, and
+`JoinDeployment` takes a `DeploymentJoinRequest`). No other method the contract names changes, not
+even a parameter type — digests stay wire-form strings in `PutBlob`, `GetBlob` and
+`EvidenceByDigest`, because phases 3 and 5 are coding to §9.2's text tonight. The additions:
 `Teams` (task 35's share flow needs it; the routes exist, §7.3), and `Projects.Project` and
 `Projects.AddRemote`, `Designs.Approval` and `Designs.SessionLinks`, `Releases.Release` — each a
 route the contract already defines (§7.4, §7.7, §7.8, §7.9) with no client method. `ErrSignedOut`
@@ -304,9 +306,12 @@ Every error is an `*Error` whose `Status` and `Problem.Error` are exactly the Hu
 - [ ] **Step 2:** `hubclient.go` with the interfaces, `Error`, the sentinels; `client.go` with the
   `Client` stub and `New` (D1). As built, the package cannot build yet: `var _ Hub = (*Fake)(nil)`
   needs the `Fake`, so Step 3's first red is that compile failure (`undefined: Fake`).
-- [ ] **Step 3:** The tests above; they fail — first to compile, then, against a temporary stub
-  answering 501 for every part-1 method, on behaviour (15 of 16; `TestErrorCarriesTheProblemUnchanged`
-  passes because Step 2 wrote `Error` and `Code`, and its red is the mutant `Code` without `errors.As`).
+- [ ] **Step 3:** The tests above; they fail — first to compile, then against a temporary stub
+  answering 501 for every part-1 method (15 of 16; `TestErrorCarriesTheProblemUnchanged` passes
+  because Step 2 wrote `Error` and `Code`, and its red is the mutant `Code` without `errors.As`).
+  The stub red is setup-level: each of the 15 fails at its first call (`CreateTeam` → 501), which
+  proves each test drives the fake and no more. The per-assertion red is the mutation record
+  (*As built*, "Mutants"), not the stub run.
 - [ ] **Step 4:** `fake.go`, `fake_projects.go`, `fake_briefs.go`. Pass under `-race`. The
   `var _ Hub = (*Fake)(nil)` assertion needs part 2's methods: until task 05, `fake.go` gives each
   part-2 method a body returning `&Error{501, …"not_in_fake_yet"}`, which task 05 deletes.
@@ -354,9 +359,14 @@ go list -deps ./control-plane/internal/hub/hubclient | grep panacea-app
   distinct ids, then the role, then every content, then 404 for a brief not this project's, then
   409 `brief_archived`, then `revision_conflict` in brief-id order, then the envelope's 64 KiB); a
   content error's `field` is `revisions[i].content` plus the `hubapi.FieldError` path, as
-  `FieldError`'s doc says. Lists: `limit` 0 is 50, 1–200 taken, else 400 `field: limit`; the
-  `Revisions` cursor is the last revision in decimal (task 19: `after=1&limit=1` is `[2]`); the
-  `List` cursor is the last head's id; a cursor not given by that list is 400 `field: after`.
+  `FieldError`'s doc says. Lists: `limit` 0 is 50, 1–200 taken, else 400 `field: limit`. The
+  `Revisions` cursor is the last revision in decimal (task 19: `after=1&limit=1` is `[2]`): any
+  canonical decimal ≥ 0 is taken — `"0"` is the whole history, the head or past it an empty last
+  page with no `next` — and any other spelling (`"01"`, `"-1"`, `"+1"`, `"x"`) is 400
+  `field: after`. The `List` cursor is the last head's id: an id that is not a brief of this
+  project — one that names nothing, or a brief of another project, readable or not — is 400
+  `field: after`, the same answer either way, so the cursor tells an outsider nothing (*As built*,
+  fix round 1; carried to tasks 18, 19 and 05).
 - **D5 — three rulings on the facts.** `ForBranch` with `""` is 400 `field: branchRef` (route 21's
   ref is required; a project brief alone is `List{Scope: "project"}`). `Rebind` checks
   `brief_archived` before `brief_exists` (a write to an archived brief is always refused), and a
@@ -375,3 +385,15 @@ go list -deps ./control-plane/internal/hub/hubclient | grep panacea-app
   no-op) and the default page of 50 over 65 heads; round 2 killed S1, S2 and R01–R04. The 20
   more on this task's own rules (X01–X23; X03, X13, X19 unused) are all KILLED, X08 and X23 in
   their compiling forms. No live survivor; none equivalent.
+- **Fix round 1** (review `task-04-review.md`: 0 C, 2 I, 6 m; commits 4dff13e and after). No
+  production code changed: the code was right, and eight of the reviewer's mutants passed the
+  suite. `fake_test.go` now pins: a revoked invite never binds; a re-invite after a revoke is
+  pending; one pending invite is per team; one `Me` binds every pending invite for the email; the
+  member check on an invite is this team's; a team's revoke route never reaches another team's
+  invite (I1, I2); a brief of another project is no `List` cursor (M1); the `Revisions` cursor rule
+  above (M2); a second erase leaves the head (M3); `Rebind` of an archived brief onto a live ref is
+  `brief_archived` (D5). The review's survivors RV-A, RV-B, RV-C, RV-D, RV-E, RV-F, RV-G2 and RV-L
+  are KILLED, with RV-H, RB-1, RV-D2 and M2-0. The two named in advance, PS-1 (`Me` binds one
+  invite per call) and PS-2 (the member check spans every team), survived as named and are killed
+  by the round's second commit. Carried: I1, I2 → task 16a; M1 → 18; M2 → 19; M4 → 18 and 34;
+  a conformance row for each → 05. M5 and M6 are this part's own wording, above.

@@ -180,6 +180,17 @@ func TestFakeMeProvisionsAndBindsInvites(t *testing.T) {
 		t.Errorf("the revoked invite after Vera's Me = %+v, want it kept, revoked, bound to nobody", kept)
 	}
 
+	// One Me binds every pending invite for the email, across teams (§7.2:
+	// "every pending invite in the caller's org"; fix round 1's PS-1).
+	studio := must(ada.CreateTeam(bg, hubapi.CreateTeamRequest{Name: "Studio"}))(t)
+	mo := f.As(FakeUser{ID: "u-00000000000000c2", DisplayName: "Mo Example", Email: "mo@example.test"})
+	must(ada.CreateInvite(bg, team.ID, hubapi.CreateInviteRequest{Email: "mo@example.test", Role: hubapi.RoleViewer}))(t)
+	must(ada.CreateInvite(bg, studio.ID, hubapi.CreateInviteRequest{Email: "mo@example.test", Role: hubapi.RoleMember}))(t)
+	if got := must(mo.Me(bg))(t); got.InvitesBound != 2 || len(got.Teams) != 2 ||
+		got.Teams[0].ID != team.ID || got.Teams[0].Role != hubapi.RoleViewer || got.Teams[1].ID != studio.ID || got.Teams[1].Role != hubapi.RoleMember {
+		t.Errorf("Mo's Me with two pending invites = bound %d teams %+v, want 2: Portal viewer, Studio member", got.InvitesBound, got.Teams)
+	}
+
 	// orgAdmin is the principal's, and an email is matched lowercased (§5.1).
 	boss := f.As(FakeUser{ID: "u-00000000000000b1", DisplayName: "Org Boss", Email: "Boss@Example.TEST", OrgAdmin: true})
 	must(ada.CreateInvite(bg, team.ID, hubapi.CreateInviteRequest{Email: "BOSS@example.test", Role: hubapi.RoleViewer}))(t)
@@ -277,6 +288,12 @@ func TestFakeTeamRoles(t *testing.T) {
 	wantProblem(t, ada.RevokeInvite(bg, team.ID, theirs.ID), 404, "invite_not_found", "inviteId", theirs.ID)
 	if got := must(linus.Invites(bg, lt.ID))(t); len(got) != 1 || got[0].ID != theirs.ID || got[0].State != hubapi.InvitePending {
 		t.Errorf("Linus's invites after Ada's cross-team revoke = %+v, want his one invite still pending", got)
+	}
+	// The member check is this team's members only (§7.3; task 16a's "a member
+	// of this team"): Grace, a member of Portal, is invitable to Linus's team
+	// (fix round 1's PS-2).
+	if g := must(linus.CreateInvite(bg, lt.ID, hubapi.CreateInviteRequest{Email: FakeGrace.Email, Role: hubapi.RoleViewer}))(t); g.State != hubapi.InvitePending {
+		t.Errorf("inviting Portal's Grace to Linus's team = %+v, want pending", g)
 	}
 
 	// Members: a user of the org is added by id with addedBy the caller; a role is
@@ -971,7 +988,14 @@ func TestFakeResolveStates(t *testing.T) {
 	}
 	// "The head is archived if it was not" (§7.12): a second erase moves nothing.
 	if h := headOf(t, ada, e.ID); first.ArchivedAt == nil || h.ArchivedAt == nil || *h.ArchivedAt != *first.ArchivedAt || h.UpdatedAt != first.UpdatedAt {
-		t.Errorf("a second erase moved the head: %+v -> %+v (task 04 review M3)", first, h)
+		at := func(p *string) string {
+			if p == nil {
+				return "null"
+			}
+			return *p
+		}
+		t.Errorf("a second erase moved the head: archivedAt %s -> %s, updatedAt %s -> %s (task 04 review M3)",
+			at(first.ArchivedAt), at(h.ArchivedAt), first.UpdatedAt, h.UpdatedAt)
 	}
 
 	keys := []string{
