@@ -159,3 +159,83 @@ against the desktop tree (UNVERIFIED).
 | 116 | Notification channels: desktop, mobile, Slack, email digest | PARTIAL | W2 / W5 | 81, 94 |  |
 | 117 | Automatic and manual subscriptions | MATCH | W2 | 52 · serves 03, 05, 13, 17, 81 · proof 70 |  |
 | 118 | Pulse feed: For me, Popular, Recent, custom feeds | PARTIAL | W4 | 114, 123, 133 · proof 142 |  |
+| 119 | Pulse daily or weekly digest, with audio playback | PARTIAL | W4 | 114, 123, 133 · proof 142 |  |
+| 120 | Documents attached to projects, initiatives, teams, issues, cycles | PARTIAL | exists / later | **none** |  |
+| 121 | Real-time multiplayer editing with cursors | MATCH | TM | **none** |  |
+| 122 | Document templates | MATCH | W4 | 114, 120 · proof 142 |  |
+| 123 | Version history with revert | EXCEED | exists | **none** |  |
+| 124 | Per-passage authorship: human or agent loop | EXCEED | W1 | 49 · serves 02, 03, 09, 12, 68, 141 · proof 70 |  |
+| 125 | Links to a specific heading | EXCEED | exists | **none** |  |
+| 126 | Markdown shortcuts and slash menu | MATCH | W1 | 49, 50 · proof 70 |  |
+| 127 | Mermaid diagrams, tables, collapsible sections, callouts | PARTIAL | W1 / later | 50, 92 · proof 70 |  |
+| 128 | Auto-embeds: YouTube, Loom, Descript, Figma | SKIP | — | — | Third-party embeds pull outside content into a regulated tool and defeat egress control. Links unfurl as text. **Our own canvas frames embed natively** (L-208) |
+| 129 | Copy as Markdown "for AI tools" | MATCH | W2 | 92 |  |
+| 130 | Agent writes and edits with changes highlighted, `Cmd/Ctrl+J` | EXCEED | W4 | 141 · proof 142 |  |
+| 131 | Customer object with revenue, size, tier, status, owner | SKIP | — | — | CRM data. "Who is it for" is already the brief's `audience` answer, and revenue data does not belong in a delivery tool's classification |
+| 132 | Customer requests with source quote, linked to issues or projects | EXCEED | W5 | 146, 170 · proof 174 |  |
+| 133 | Mark a request important | MATCH | W5 | 146, 170 · proof 174 |  |
+| 134 | Customer pages | SKIP | — | — | Goes with L-131 |
+| 135 | Prioritise by request count, tier and revenue | SKIP | — | — | Revenue and tier go with L-131. An issue lists its requesters by name instead |
+| 136 | Customer attribute sync with field mapping; merge; domain exclusions | SKIP | — | — | Goes with L-131 |
+| 137 | Asks from Slack with synced thread | MATCH | W5 | 146, 157, 182 · proof 174 |  |
+| 138 | Asks by email, custom domain | PARTIAL | W5 | 146, 149 · proof 174 |  |
+| 139 | Asks web forms behind IdP sign-in | MATCH | W5 | 148, 170 · proof 174 |  |
+| 140 | Requester kept updated where they asked | EXCEED | W5 | 146, 149 · serves 71 · proof 174 |  |
+| 141 | SLA rules with business days and custom work week | SKIP | — | — | A support-desk feature. Triage age is shown everywhere as "waiting 2d 4h" (AX §6.7), which covers an internal team. Revisit if a support team adopts us |
+| 142 | SLA risk states, breach warnings, SLA analytics | SKIP | — | — | Goes with L-141 |
+| 143 | Release pipelines, continuous and scheduled | EXCEED | exists | **none** |  |
+| 144 | Release stages that can be frozen | MATCH | W4 | 131 · proof 142 |  |
+| 145 | Monorepo path filters by glob | EXCEED | W4 | 131 · proof 142 |  |
+| 146 | Issues attach to releases automatically from CI commit scans | EXCEED | W1 | 21, 22, 71 · serves 10 · proof 70 |  |
+| 147 | Release notes, agent-drafted, and a per-pipeline changelog | EXCEED | W4 | 131 · proof 142 |  |
+| 148 | Release events drive issue status and downstream tools | EXCEED | W4 | 131, 156 · serves 71 · proof 142 |  |
+| 149 | `linear-release` CLI and GitHub Action | MATCH | W5 | 164 · proof 174 |  |
+| 150 | Insights panel on any view: count, effort, cycle, lead, triage time, age | MATCH | W4 | 114, 122, 132 · proof 142 |  |
+| 151 | Scatter with percentile markers; every point opens its issue | MATCH | W4 | 114, 122, 132 · proof 142 |  |
+| 152 | Dashboards with charts, metric blocks, tables, layered filters | MATCH | later | 122, 177 |  |
+| 153 | CSV export of issues, views, projects, requests | MATCH | W2 | 80, 94 |  |
+| 154 | Warehouse and spreadsheet sync (Airbyte, Google Sheets) | MATCH | later | 156, 178 |  |
+| 155 | Linear Agent chat with full workspace context, `Cmd/Ctrl+J` | EXCEED | TM | **none** |  |
+| 156 | `@Linear` in comments, documents, Slack and Teams | PARTIAL | W3 | 100, 103, 112 · serves 99 · proof 113 |  |
+| 157 | Agent acts only within the invoking user's permissions | MATCH | exists | 141 |  |
+| 158 | Agent guidance, workspace and personal; admin kill switch | MATCH | W3 | 100, 109 · serves 99 · proof 113 |  |
+| 159 | Saved agent Skills, personal or team | MATCH | W5 | 166 · proof 174 |  |
+| 160 | Loops: event- or schedule-triggered agent automations | EXCEED | W5 | 162, 163, 172 · proof 174 |  |
+| 161 | Loop permission list, run history, versions with restore, run now | MATCH | W5 | 162, 163, 172 · proof 174 |  |
+| 162 | Code Intelligence: grounded codebase Q&A with links to evidence | MATCH | W3 | 110 · proof 113 |  |
+| 163 | Coding sessions in a managed cloud sandbox, producing draft PRs | EXCEED | exists / TM | **none** |  |
+| 164 | Per-repo environments: runtimes, env vars, separated secrets, prep scripts | PARTIAL | phase 8 | **none** |  |
+| 165 | Per-repo agent and model choice, including Claude models | MATCH | phase 6 | **none** |  |
+| 166 | Verification artifacts (screenshots, recordings) and browser testing | PARTIAL | W3 / later | 100, 101, 104, 112 · serves 99 · proof 113 |  |
+| 167 | Steer or follow up a running session; notify when input is needed | EXCEED | exists | **none** |  |
+| 168 | Automatic first-pass bug fixing from Triage | MATCH | W5 | 163 · proof 174 |  |
+| 169 | Shared AI credit pool with top-ups, expiry, auto-replenish | EXCEED | phase 6 | serves 135 |  |
+| 170 | Diffs: code review inside Linear, synced with GitHub, merge from Linear | EXCEED | phase 3 | serves 180 |  |
+| 171 | Structural syntax-aware diff and `.gitattributes` file categories | MATCH | later | 179 |  |
+| 172 | Guided Reviews: AI sections a large PR, core first | EXCEED | later | 180 |  |
+| 173 | Agent-attributed review comments with name, avatar and model | MATCH | W3 | 100, 103 · serves 99 · proof 113 |  |
+| 174 | PR risk scoring from connected tools | EXCEED | W3 | 111 · proof 113 |  |
+| 175 | Open an issue in Claude Code, Cursor or a custom script | EXCEED | W1 | 24 · serves 19 |  |
+| 176 | Enforce signed commits for agent sessions | MATCH | later | 181 |  |
+| 177 | `TEAM-NEW` in a PR body creates an AI-written issue | MATCH | W5 | 155 · proof 174 |  |
+| 178 | Agent files issues from whole support conversations | MATCH | W5 | 149, 157 · proof 174 |  |
+| 179 | Agents as app users, not billable seats | MATCH | exists | **none** |  |
+| 180 | Admin installs an agent with per-team access | MATCH | W5 | 166, 173 · proof 174 |  |
+| 181 | Delegate versus assignee: the human keeps accountability | MATCH | W1 | 24, 46, 48, 61 · proof 70 |  |
+| 182 | Agent profile pages; filter and chart by Delegate | EXCEED | W3 | 107 · serves 98 · proof 113 |  |
+| 183 | Agent guidance with team override and history | MATCH | W3 | 100, 109 · serves 99 · proof 113 |  |
+| 184 | AgentSession with states derived from activity | EXCEED | exists | 29 · serves 64 |  |
+| 185 | Activity grammar: thought, action, elicitation, response, error, prompt | EXCEED | W3 | 108 · proof 113 |  |
+| 186 | Ephemeral activities | MATCH | W3 | 40, 108 · proof 113 |  |
+| 187 | Agent plans (checklist) | EXCEED | TM / W3 | 101 · serves 98 · proof 113 |  |
+| 188 | External URLs from a session (agent UI, PR) | MATCH | W3 | 108 · proof 113 |  |
+| 189 | Signals: stop, auth, select | MATCH | exists | serves 64 |  |
+| 190 | Timing contract: 5 s webhook, 10 s first activity, 30 min idle | MATCH | W3 | 108 · serves 61 · proof 113 |  |
+| 191 | Ready-made `promptContext` in the webhook | EXCEED | W1 | 24, 47, 67 · serves 09, 18, 19 · proof 70 |  |
+| 192 | Repository suggestions with confidence | EXCEED | W3 | 111 · proof 113 |  |
+| 193 | Agent-initiated sessions on an issue or comment | MATCH | W3 | 100, 111 · serves 99 · proof 113 |  |
+| 194 | Published Agent Interaction Guidelines | MATCH | W3 | 109 · proof 113 |  |
+| 195 | Partner agent directory: Cursor, Codex, Devin, Factory and more | SKIP | — | — | Third-party SaaS agents bring their own inference and break the ZDR promise (OD-19). We run harnesses as unmodified CLIs in our sandboxes; more harness adapters later |
+| 196 | Hosted MCP server, read-write and read-only, OAuth 2.1, Okta | MATCH | W5 | 161 · proof 174 |  |
+| 197 | MCP connectors that extend the Linear Agent and Loops | MATCH | W5 | 161, 166, 173 · proof 174 |  |
+| 198 | GitHub: branch name copy with auto-assign and auto-start | EXCEED | W1 / W5 | 21, 24, 61, 155 · proof 70, 174 |  |
