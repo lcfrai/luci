@@ -252,4 +252,75 @@ The one `HeldSet` (phase-3 `task-24.md:845`) holds runner-only ids on every mach
 | Ask | What | Why | Plan proceeds on |
 |---|---|---|---|
 | **S8-P3.4** `lanegit.Bundles` (ruling 3) | `FetchLane`, `ArchiveLane` and `SendBranch` take `gitx.Runner` and a `Bundles` (`Put`, `Reserve`, `Open`, `Remove`, `Path`), four of them with `ctx` | today they take `*gitx.Exec` and write `<OwnedRoot>/bundles` on the laptop (phase-3 `task-24.md:704-745`), the wrong disk for a cloud lane | nothing: without it this task does not start |
-| **S8-P3.5** the pool reaches a lane's own machine | `Lanes.Machines`, `Lanes.Bundles`, step 2's `ReadyWaiter` and `ErrUnsupported` rules, `NewRunnerTransport` (above) | one `Backend` and one `Dial` per pool, a readiness poll of an undialled endpoint, a Kind-based `ErrNoRunner`, and a runner that dials `http://<endpoint>` | nothing: without it this task does not start |
+| **S8-P3.5** the pool reaches a lane's own machine (new; the rulings are silent) | `Lanes.Machines`, `Lanes.Bundles`, step 2's `ReadyWaiter` and `ErrUnsupported` rules, `NewRunnerTransport` (above) | one `Backend` and one `Dial` per pool, a readiness poll of an undialled endpoint, a Kind-based `ErrNoRunner`, and a runner that dials `http://<endpoint>` | nothing: without it this task does not start |
+
+#### Tests to write first
+
+`remotebe/lanegit_test.go`, an `httptest.NewTLSServer` playing the broker that records every
+request, and phase 3's `lanegit.NewRunnerTransport`:
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestLaneMountMapsOneLane` | `{HostPath: "/machine/lanes/p-1/app-0a1b2c", ContainerPath: "/home/dev/work"}` → `MachineMounts == [{MachinePath: "lanes/p-1/app-0a1b2c", ContainerPath: "/home/dev/work"}]`, `Mounts == nil`; no `Mounts` → the spec unchanged | a runner-only pod refused, or a session spec rewritten |
+| `TestLaneMountRefusesEverythingElse` | `/machine/projects/app`, `/machine/lanes/p`, `/machine/lanes/p/d/x`, `/machine/lanes/../projects/app`, `/machine/lanes/p/..`, `C:\x`, `/machine`, ContainerPath `/other`, `ReadOnly: true`, two mounts, `Mounts` with `MachineMounts` → `ErrUnsupported`, and the broker got no request | a runner-only pod that mounts the project, another lane or the disk root (R4.1) |
+| `TestCreateSendsTheRunnerOnlySpec` | phase 3's step 2 spec (`lg-…`, `sleep infinity`, no `SessionID`) → the broker's create body has `machine: "m-0123abcd"`, the one lane mount at `/home/dev/work`, and no other mount | a conversation store or a `projects/` mount on a runner-only pod |
+| `TestGitTransportUsesTheSandboxRoute` | a runner `Status` → `POST /v1/sandboxes/lg-00…01/git/v1/status`, `Authorization: Bearer <entra>`, `Panacea-Attach-Token: <token>`, no query, the body phase 3 sent | the attach token sent as the broker bearer (broker 401), or a request to the opaque endpoint |
+| `TestGitTransportPassesTheAnswerThrough` | the broker answers 409 with a runner `ErrorResponse` `bundle_empty` → `errors.Is(err, lanegit.ErrBundleEmpty)`; a 200 body arrives byte for byte | a re-mapped runner answer (ruling 1) |
+| `TestGitTransportRefusesOtherRequests` | `GET`, another host, a path outside `/git/v1/<op>`, an `op` with `/` or `..`, no bearer → an error, no request | the transport as an open proxy to any broker route |
+| `TestDialLaneRefusesAPodEndpoint` | `DialLane(c)("10.0.0.5:8080", t)` → every op fails, no request anywhere | a cloud lane dialled at a pod IP |
+| `TestSignedOutIsNotAGitAnswer` | a failing `TokenSource` → the op's error wraps `ErrSignedOut`; not a runner `Code` | "git said" shown when the user is signed out |
+
+`machines/bundles_test.go`, the same fake broker playing the agent proxy:
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestPutStreams` | a reader that yields 1 MiB and then blocks until the server has read that 1 MiB → `Put` completes; the request had no `Content-Length` | a bundle buffered in memory before sending |
+| `TestPutFailureUnblocksTheWriter` | server answers 413 `too_large` mid-body → `*BundleError{413, "too_large"}`; the `io.PipeWriter` goroutine returns `io.ErrClosedPipe` | a leaked relay goroutine holding a runner stream |
+| `TestBusyIsErrBundleBusy` | 429 `bundle_busy` → `errors.Is(err, ErrBundleBusy)` | a third bundle queued on the machine |
+| `TestReserveOpenRemovePaths` | `Reserve` → `POST …/agent/v1/bundles?reserve=1`, empty body; `Open` → `GET …/{id}`; `Remove` → `DELETE …/{id}`, nil on 204 | a route the proxy does not forward |
+| `TestIdsAreChecked` | an answered id `../x` or 15 hex → error; `Open`, `Remove` with a bad id → error, no request; `Path("bad") == ""`; `Path("0123456789abcdef") == "/tmp/machined-git/bundles/0123456789abcdef.bundle"` | a machine-supplied id used as a path |
+
+`cmd/api/lanegit_cloud_test.go`, phase 3's real pool with `Machines` set, a fake broker, phase 3's
+in-memory lane store and registry, and task 23's reaper:
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestCloudLaneWithASessionUsesItsPod` | a live session on lane `w-0a1b2c3d` (`SandboxID`, `AttachToken`) → `For` creates nothing; `Runner.Refs` reaches that sandbox's git route | a second pod on a lane that has one |
+| `TestCloudLaneWithoutASessionGetsARunnerOnlyPod` | no session → one `Create` with the runner-only spec, `WaitReady` through `ReadyWaiter` (the broker's `GET`), never a `/healthz` dial; the id is in the `HeldSet`; after `Idle`, `DELETE` and the id leaves | `ErrNoRunner` on a cloud lane, or a health poll of `remote:<id>` |
+| `TestTheReaperKeepsAHeldCloudRunner` | task 23's sweep over `m-0123abcd` lists the held `lg-…` pod with no session record past `createGrace` → not destroyed; once released and not held → destroyed | a runner-only pod reaped mid-fetch |
+| `TestEachLaneUsesItsOwnMachine` | lanes on `m-1…` and `m-2…` → each `Create` goes to its own machine; `Bundles(lane)` answers each machine's | lane work sent to another of the user's machines |
+| `TestLocalLanesAreUnchanged` | a lane with `MachineID "local"` → phase 3's backend, `NewRunner` and local bundles; phase 3's own pool tests pass | phase 3's local path bent by the cloud arm |
+| `TestNoLaneGitReachesMachined` | across `For`, `Status`, `Refs`, `Bundle` (relayed into `Put`) and `Fetch` (from `Open`), the fake broker saw no `…/agent/…` path except `…/agent/v1/bundles…`, and no `…/agent/v1/git` whose body `dir` is under `lanes/` | lane git run in the machine pod (ruling 2) |
+
+#### Steps
+
+- [ ] **Step 1:** Confirm the dependencies: `git grep -n "type Bundles interface" -- control-plane/internal/lanegit/` (S8-P3.4), `git grep -n -e "Machines func" -e "func NewRunnerTransport" -- control-plane/internal/lanegit/` (S8-P3.5), `git grep -n "MachineRoot" -- control-plane/internal/gitx/` (task 25), `git grep -n "/git/v1/" -- control-plane/cmd/ control-plane/internal/brokerapi/` (task 18's route), `git grep -n "PathBundles" -- control-plane/internal/machineapi/` and the proxy's bundle cap (task 21b). If S8-P3.4 or S8-P3.5 is absent, stop and report which one is unanswered. If phase 3 answered with another spelling, adapt the wiring only.
+- [ ] **Step 2:** `lanegit_test.go`, red; `laneMount`, `Raw`, `GitTransport`, `DialLane`; `Create` calls `laneMount`. Green.
+- [ ] **Step 3:** `bundles_test.go`, red; `machines.Bundles` and the `machineapi` wire if task 21b lacks it. Green.
+- [ ] **Step 4:** `lanegit_cloud_test.go`, red; `laneGit.Machines` in `main.go`. Green. If `TestTheReaperKeepsAHeldCloudRunner` is red, task 23's per-machine sweep skips `Held`: report it, and do not patch the reaper here.
+- [ ] **Step 5:** Full run, including phase 3's suites; commit by pathspec.
+
+#### Acceptance
+
+```bash
+go test ./control-plane/internal/backend/remotebe/ ./control-plane/internal/machines/ ./control-plane/cmd/api/ -race -count=1   # ok
+go test ./sandboxd/... ./control-plane/... -race -count=1                                                                      # ok
+git grep -n "git/v1" -- control-plane/internal/machines/          # no output: machines never speaks the lane runner route
+git grep -n "HostPath" -- control-plane/internal/backend/remotebe/ # only lanegit.go and its test: laneMount is the one reader
+```
+
+#### What this task does not claim
+
+- Ruling 2's Kata probes: that a subPath confines the runner inside the Kata guest, kubelet's
+  subPath symlink safety under Kata, that a runner-only pod fits beside the machine pod, and its
+  cold start. All UNVERIFIED; task 32 probes them.
+- That phase 3 accepts S8-P3.4 or S8-P3.5. The shapes above are this plan's asks (UNVERIFIED
+  until phase 3 answers).
+- The runner-only pod's size: task 18's runner-only admission sets it (ruling 2, "the smallest
+  resources the broker admits"); remotebe sends none, as for sessions (`task-17.md:40`).
+- A cockpit sentence for a broker failure before the proxy (`sandbox_not_found`,
+  `sandbox_not_running`): phase 3's client reads a non-runner body as "the runner did not
+  answer" (phase-3 `task-24.md:581-583`), so the sentence is phase 3's generic one.
+- A broker-side splice of lane bundles: ruling 3 defers it. The bytes cross the laptop twice.
+- That any of this has run against a cloud machine: the owner's batched hands-on session (OD-12),
+  listed in task 32.
