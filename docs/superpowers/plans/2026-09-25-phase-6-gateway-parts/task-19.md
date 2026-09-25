@@ -518,7 +518,7 @@ spec:
     matchLabels: {app.kubernetes.io/name: keysmith}
 ```
 
-`templates/gatekeeper.yaml`. The grace period is above the CLI's 300-second idle abort, so a rolling update lets a stream in a long thinking pause finish; that task 12's server drains open streams on `SIGTERM` rather than closing them is **UNVERIFIED** here and is task 12's to state:
+`templates/gatekeeper.yaml`. The grace period is stated at 30 s to match task 12's decision (e): the server drains open streams for 25 s on `SIGTERM`, then closes, so a rolling update can cut a stream longer than that. Raising both together (a longer drain in task 12, a longer grace here) is the lever if task 23 or task 24 shows cut streams on deploys; this chart does not raise one without the other:
 
 ```yaml
 {{- include "gw.validate" . }}
@@ -538,7 +538,7 @@ spec:
         azure.workload.identity/use: "true"
     spec:
       serviceAccountName: gatekeeper
-      terminationGracePeriodSeconds: 330
+      terminationGracePeriodSeconds: 30   # task 12 drains for 25 s
       containers:
         - name: gatekeeper
           image: {{ include "gw.image" (dict "v" .Values.images.gateway "key" "images.gateway") }}
