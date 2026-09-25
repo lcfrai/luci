@@ -165,8 +165,8 @@ The CSS this task writes, complete for its one animation (everything else is lay
 @media (prefers-reduced-motion: reduce) { .team-row-flash::after { animation: none; } }
 ```
 
-`--accent-tint` is **UNVERIFIED** as a desktop token name (it is the prototypes'); if the token
-layer names the tint differently, use that name; the audit refuses a literal colour either way.
+`--accent-tint` is the token layer's *"selected-row wash"* (`desktop/src/styles/tokens.css:67`,
+checked), so the flash is the same colour a selected row already uses; no literal colour.
 
 - [ ] **Step 1: Write the failing tests first**
 
