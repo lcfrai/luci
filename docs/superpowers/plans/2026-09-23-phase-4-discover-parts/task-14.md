@@ -2,7 +2,7 @@
 
 Turns the packages on. After this task a control plane started with the Hub's variables serves
 Discover, and every session start materialises. **Depends on** tasks 09–13; on the Hub's **C2**
-(`hubclient.New`, the real client) and **C1** (`entraauth`, the `TokenSource`); on **phase 3 task
+(`hubclient.New`, the real client) and **C1** (`signin`, the `TokenSource`); on **phase 3 task
 13** (`githost.ParseRemote`, `Remote.RepoKey`). Each missing dependency has a stated fallback
 below, so this task never waits silently and never fabricates.
 
@@ -28,7 +28,7 @@ below, so this task never waits silently and never fabricates.
 | `PANACEA_APP_MODEL_BASE_URL` | an origin: the corporate gateway, or wherever the owner of the deployment chose | **none** (review I13, task 02 amendment 4): unset with a key set → no model, and the log line below names both variables. Brief answers are engagement text; a key alone never sends them to a public API |
 | `PANACEA_APP_MODEL_ID` | model id | `modelclient.DefaultModel` |
 | `PANACEA_APP_DISCOVER_CACHE_TTL` | the revision cache's TTL (task 07) | `5m` |
-| `PANACEA_APP_HUB_URL`, `PANACEA_APP_HUB_SCOPE`, `PANACEA_APP_ENTRA_*` | **the Hub's** (Hub contract §12.2), read by C1/C2's code, not here | unset → `hub_off` |
+| `PANACEA_APP_HUB_URL`, `PANACEA_APP_HUB_AUDIENCE`, `PANACEA_APP_OIDC_*` (`OD-30`) | **the Hub's** (Hub contract §12.2), read by C1/C2's code, not here | unset → `hub_off` |
 
 **Interfaces — complete source:**
 
@@ -90,7 +90,7 @@ type gitQuestions struct{ git project.Runner }
 | Missing | Behaviour | Test |
 |---|---|---|
 | Hub C2 (`hubclient.New`) not merged | `hub` is nil → `hub_off` everywhere; a start-up log line says Discover needs the Hub | `TestNilHubServesHubOff` |
-| C1 (`entraauth`) not merged | as above — no token source, no client | same |
+| C1 (`signin`) not merged | as above — no token source, no client | same |
 | phase 3 task 13 (`githost`) not merged | `gitRepos` returns no keys → every project is `no_remote`, and the start-up log says why; **it does not parse remotes itself** (no second canonicaliser — HA4-6's reason) | `TestNoGithostMeansNoRemote` |
 | `PANACEA_APP_MODEL_API_KEY` unset | nil `Completer`; one log line | `TestNoModelKeyIsNotFatal` |
 | `PANACEA_APP_MODEL_API_KEY` set, `PANACEA_APP_MODEL_BASE_URL` unset or blank (`modelclient.ErrNoBaseURL`) | nil `Completer`, not a start-up failure; one `Warn` line: `"model off: PANACEA_APP_MODEL_API_KEY is set but PANACEA_APP_MODEL_BASE_URL is not; Discover will not call a model. Set PANACEA_APP_MODEL_BASE_URL to the gateway's origin."`. The key's value is never logged | `TestAKeyWithoutABaseURLIsModelOff` |
@@ -112,7 +112,7 @@ type gitQuestions struct{ git project.Runner }
 **Steps:**
 
 - [ ] **Step 1:** Check what has landed: `go doc ./control-plane/internal/hub/hubclient New`,
-  `go doc ./control-plane/internal/entraauth`, `go doc ./control-plane/internal/githost ParseRemote`,
+  `go doc ./control-plane/internal/signin`, `go doc ./control-plane/internal/githost ParseRemote`,
   `go doc ./control-plane/internal/evidence Evaluator`. Record each in the commit message. When
   the last one answers, write `evidence.go` by task 06's four key-to-subject steps, set
   `discoverhub.Config.Evaluate: evidenceEvaluate(…)`, and test each step's failure. Each failure
