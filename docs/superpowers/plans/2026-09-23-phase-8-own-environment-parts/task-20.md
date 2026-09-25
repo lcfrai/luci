@@ -61,7 +61,9 @@ type Worktrees struct {
 // GitConfig is MachinePath + "/.git/config" when, read with Lstat (no symlink
 // followed), MachinePath/.git is a directory and its config a regular file;
 // otherwise "". Task 24b binds it read-only over the sandbox's
-// /home/dev/work/.git/config (phase 3 §HGH H5, review I7). A .git directory
+// /home/dev/work/.git/config as hygiene: after phase 3's ruling R4 no host git
+// reads a lane's config, so nothing is claimed from the bind (P8-D7; phase 3
+// plan :245, :712; review I7, Q18). A .git directory
 // whose config is missing or is not a regular file is 409 conflict with
 // details.reason "git_config_not_a_file": a Kubernetes subPath that does not
 // exist is created as a directory, and one that is a symlink binds its target
