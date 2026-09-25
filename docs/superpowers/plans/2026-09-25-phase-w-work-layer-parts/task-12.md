@@ -117,3 +117,78 @@ the Hub's own types, verified at `9f2fa31`). `Reaction.users` is in
 reaction order, and a `Comment.reactions` list is ordered by the first reaction's time, so two
 reads of one comment answer the same bytes.
 
+#### `hubapi/work.go`, the additions (complete)
+
+```go
+// ── Task 12: comments ──────────────────────────────────────────────────────
+// Appended to work.go (task 03's file). Additive only.
+
+const (
+	AnchorText      = "text"      // revision, start, end (UTF-16 code units of the description)
+	AnchorCriterion = "criterion" // revision, criterionId (a criterion that revision serves)
+	AnchorSpan      = "span"      // ref: a transcript span id, stored verbatim
+	AnchorHunk      = "hunk"      // ref: "<commit> <path>:<lines>", stored verbatim
+
+	MaxCommentBodyBytes = 16 << 10 // task 06's CHECK (octet_length(body) <= 16384)
+	MaxMentions         = 20
+	MaxAnchorRefBytes   = 512
+	MaxReactionBytes    = 32
+)
+
+// UTF16Len is the length of s in UTF-16 code units: the unit a browser selection
+// reports, so a text anchor's start and end are compared in the editor's own unit.
+func UTF16Len(s string) int {
+	n := 0
+	for _, r := range s {
+		if r >= 0x10000 {
+			n += 2
+		} else {
+			n++
+		}
+	}
+	return n
+}
+
+// ValidReactionEmoji accepts one emoji sequence of at most 32 bytes: a base
+// emoji, optionally followed by variation selector 16, a skin-tone modifier,
+// tag characters or a keycap mark, and further bases only after a zero-width
+// joiner; or a flag of exactly two regional indicators; or a keycap
+// (0-9, #, *, then U+FE0F U+20E3). It refuses text, a :shortcode: (custom
+// emoji is *later*, L-41) and two emoji side by side. It is not a full UTS #51
+// parser: a rare malformed ZWJ sequence can pass; nothing renders it as markup.
+func ValidReactionEmoji(s string) bool {
+	if s == "" || len(s) > MaxReactionBytes || !utf8.ValidString(s) || strings.ContainsRune(s, ':') {
+		return false
+	}
+	rs := []rune(s)
+	if isKeycapBase(rs[0]) {
+		return len(rs) == 3 && rs[1] == 0xFE0F && rs[2] == 0x20E3
+	}
+	if isRegionalIndicator(rs[0]) {
+		return len(rs) == 2 && isRegionalIndicator(rs[1])
+	}
+	if !isEmojiBase(rs[0]) {
+		return false
+	}
+	afterJoiner := false
+	for _, r := range rs[1:] {
+		switch {
+		case r == 0x200D:
+			if afterJoiner {
+				return false
+			}
+			afterJoiner = true
+		case r == 0xFE0F, r >= 0x1F3FB && r <= 0x1F3FF, r >= 0xE0020 && r <= 0xE007F:
+			if afterJoiner {
+				return false
+			}
+		case isEmojiBase(r) && afterJoiner:
+			afterJoiner = false
+		default:
+			return false
+		}
+	}
+	return !afterJoiner
+}
+```
+
