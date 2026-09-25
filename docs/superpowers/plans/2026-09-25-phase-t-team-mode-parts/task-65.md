@@ -209,8 +209,10 @@ allowed, header refused, model not in the catalogue). The docs warn that *"a gat
 forward them breaks the corresponding features"* (`05-design.md:1106-1108`); zero refusals is how
 that shows up on our side.
 
-**Files, two more** (omitted from the list above): `pipelines/scripts/lib/gate.sh`, the one writer
-and reader of gate files, with `lib/gate_test.sh` (new); `images/mirror` joins `build.sh` (c).
+**Files, more** (omitted from the list above): `pipelines/scripts/lib/gate.sh`, the one writer
+and reader of gate files, with `lib/gate_test.sh` (new); `images/mirror` joins `build.sh` (c);
+`control-plane/cmd/gatemint/{main.go,main_test.go}` (new, decision f); `pipelines/scripts/gate-channel_test.sh`
+(new); `deploy/charts/fleet/tests/fleet_images_test.yaml` and `values.schema.json` (new, modify).
 
 **`pipelines/scripts/lib/gate.sh`, complete.** No `jq`, as phase 8's scripts have none
 (`parts/task-30.md:489`). The reader is sound only because this is the only writer, and it
