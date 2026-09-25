@@ -516,3 +516,159 @@ it("shows nothing from W3 on the issue view", () => {
 decision 6). The test file's name holds no `prototype`, but its path does, so
 `npm --prefix desktop test -- prototype` selects it with task 38's file.
 
+#### Interfaces — complete: `docs/verification/2026-09-25-phase-w-prototype-review.md`
+
+The template, as committed before the session. No line of it starts with `> `, so the acceptance
+grep prints `0` until the owner's words are added.
+
+```markdown
+# Phase W prototype review (tasks 38 and 39)
+
+**Status: not yet reviewed.** This file records what was shown and what the owner said. It holds
+no verdict of its own. `feat/work-layer` is not merged onward until the owner's words are below
+(OD-1, OD-12).
+
+## What was shown (facts, filled from the machine before the session)
+
+| Fact | Value | How it was read |
+|---|---|---|
+| Date | | the session's date |
+| Commit | | `git rev-parse --short HEAD` on `feat/work-layer` |
+| Windows display scaling | 125 % | Settings, System, Display, Scale |
+| Webview size in CSS px | | `window.innerWidth` × `window.innerHeight` in the dev console |
+| Themes | graphite, paper | task 32's toolbar |
+| Looks | old, new | task 32's toolbar |
+| Sans candidates | | task 32's three `SansCandidate` values, as the toolbar lists them |
+| Screens | Work; Plan; Issue (EP-167, EP-161); Desk (sections, zero state) | the prototype switch |
+| Replayed | one land (*Replay a land*), then *Apply held changes* | the Work screen's prototype controls |
+| Not shown | W3's proposed evidence, Record and Orchestrator note; the keys; real data | task 39, decision 4 |
+
+## The checks (each result is the owner's, written as said; blank until said)
+
+### C13, not a clone (05 §4.4)
+
+| Check | Result |
+|---|---|
+| No work screen groups by workflow state by default | |
+| No status glyph fills as work progresses; no indigo accent | |
+| `paper` carries its fifth mark, the thread gutter at full strength | |
+| Every work screen passes in every theme shown | |
+
+### The five-minute noun test (05 §4.1)
+
+After five minutes on the screens, can a new user say what each visible noun means? The nine:
+project, feature, brief, criterion, issue, worktree, agent, Orchestrator, evidence.
+
+| Noun | Said what it means (yes / no / not visible) |
+|---|---|
+| project | |
+| feature | |
+| brief | |
+| criterion | |
+| issue | |
+| worktree | |
+| agent | |
+| Orchestrator | |
+| evidence | |
+
+### Questions the plan left to the owner
+
+| Question | Where it was raised | Answer |
+|---|---|---|
+| OD-28: Segoe UI Variable confirmed, or reversed to which candidate | `OD-28`; task 32's sans flag | |
+| Does a lit node (`--accent-ring`) read brighter than an unlit one | task 36, decision 1 | |
+| One thread node per group header, or one per row | task 38, decision 9 | |
+| Plan shows an issue in two bands (under its criterion and in *My issues*): keep or not | task 38, `PlanPrototype` | |
+| Empty Desk sections: keep their place with *None*, or hide | task 39, decision 6 | |
+| Old look or new look | task 32's `look` flag | |
+
+## Sizes of tasks 40 to 45, as resized after this review (05 §5.3 row 11)
+
+| Task | Skeleton size | Resized | Why, in the owner's words or the implementer's reading of them |
+|---|---|---|---|
+| 40 the Work lens | 0.375 (3 h) | | |
+| 41 `arrivals.hold`, `moves.hold`, departures | 0.375 (3 h) | | |
+| 42 Triage | 0.375 (3 h) | | |
+| 43 the board | 0.375 (3 h) | | |
+| 44 display options and the bulk bar | 0.375 (3 h) | | |
+| 45 Plan | 0.375 (3 h) | | |
+
+## The owner's words
+
+*None yet.* Each of the owner's remarks goes here verbatim, one quoted line each, dated and
+attributed, as: a `>` line with the words in quotation marks, then ` — the owner, YYYY-MM-DD`.
+Nothing here is paraphrased; a remark the implementer did not catch word for word is left out.
+```
+
+The skeleton sizes are the task table's (`2026-09-25-phase-w-work-layer.md:440-445`). Writing the
+resized sizes into the skeleton is not this task's: this file records them, and the plan's owner
+edits the table (a gap, named in the return).
+
+#### Steps
+
+1. Write `IssueDesk.test.tsx`. Run `npm --prefix desktop test -- prototype`: it fails to import
+   `./DeskPrototype` and `./IssuePrototype`; task 38's ten still pass.
+2. Write `issueWorld.ts`, `IssuePrototype.tsx`, `DeskPrototype.tsx` and the `prototype.css` block.
+   Re-run: all seven pass.
+3. Replace `WorkPrototype.tsx`'s default export with the four-way switch; add the two
+   `registerStressScreen` lines. Re-run the prototype tests and task 33's `StressSets` tests.
+4. Mutate by hand, watch the named test go red, then revert: put a `3 of 5 proven` line under the
+   issue head (test 1); sort `DESK_ORDER` by row count, then drop empty sections (test 2); drop
+   `.pw-iv-np-reason` (test 3); add *Next decision ~14:22* after `ZERO_LINE` (test 4); swap the
+   `.pw-iv-key` and `.pw-iv-words` font rules (test 5); render every steady agent as a card
+   (test 6); add a *Record* button to the observed evidence line (test 7).
+5. Run the full suite, the typecheck and the production build grep of task 38. Commit the code.
+6. Write the review file from the template above; fill the *What was shown* table from the machine
+   (every row's *How it was read*). Commit it. It says *not yet reviewed*.
+7. **The session.** Set Windows scaling to 125 %, run `npm --prefix desktop run tauri dev`, open
+   the prototype from the dev toolbar, and show the owner every screen in graphite and paper, old
+   and new look, and each sans candidate. Write the owner's answers into the checks and the
+   question table as said, and the owner's remarks verbatim as `>` lines. If the owner does not
+   look this session, the file stays *not yet reviewed* and the task stops here, open.
+8. Once the owner has spoken, change the status line to *Reviewed on YYYY-MM-DD; the owner's words
+   are below.* The status line is the implementer's; every answer and every quote is the owner's.
+   Commit.
+
+#### Acceptance
+
+```bash
+npm --prefix desktop test -- prototype
+# expect: prototype.test.tsx 10 passed; IssueDesk.test.tsx 7 passed
+npm --prefix desktop run typecheck
+# expect: exit 0
+grep -c "^> " docs/verification/2026-09-25-phase-w-prototype-review.md
+# expect: 0 before the session (the honest "not yet reviewed" state, not a pass);
+#         at least 1 only after the owner has spoken
+grep -c "not yet reviewed" docs/verification/2026-09-25-phase-w-prototype-review.md
+# expect: 1 before the session; 0 after step 8
+```
+
+The implementer reports what the runs print. A `grep` count of `1` or more is evidence that words
+were recorded, not that the owner approved anything.
+
+#### What this task does not claim
+
+- **Not the owner's approval.** The file records what the owner said; approval, if any, is in
+  those words, and nothing here reads them as a pass.
+- **Not the real issue view** (tasks 46-48), **the real Desk frame** (task 62), or the revision
+  list's words (task 47's `changeWords`).
+- **Not that 125 % is the only scaling that matters.** Task 35 measures 150 %; this session shows
+  125 % only, as 05 §5.3 row 10 asks.
+- **Not W3.** No proposed evidence, no Record, no Orchestrator note, no negotiation line.
+- **Not any size.** Tasks 40-45 are resized from this file by the plan's owner, not by this task.
+- **Not accessibility**, as in task 38: the prototype's roles are not the product's (task 66).
+- Design: 05 §2.1, §4.2, §5.3 rows 10 and 12; `OD-1`, `OD-12`, `OD-28`. Parity: none closed; the
+  check before L-112 to L-114 and L-34 are built.
+
+**Interfaces:**
+- Produces (no seam; dev-only, deleted by tasks 46-48 and 62): `issueWorld`, `IssueWorld`,
+  `ProtoIssue`, `ProtoRevisionLine`, `ProtoObserved`; `IssuePrototype`, `IssueBody`;
+  `DeskPrototype`, `DESK_ORDER`, `DeskSection`, `ZERO_LINE`; `ProtoScreen`, `PROTO_SCREENS` and the
+  new default `WorkPrototype`; `.pw-switch`, `.pw-iv-*`, `.pw-desk-*`; the review file
+  `docs/verification/2026-09-25-phase-w-prototype-review.md`
+- Consumes: task 38's `protoWorld`, `ProtoWorld`, `ProtoAgent`, `WorkScreen`, `PlanPrototype`,
+  `register()` and `.pw-*`; task 20's `workScenario`, `WORK_IDS`, `makeIssueRevision`, `makeLabel`,
+  `makeComment`, `expectNoPrediction`; task 28's `StateGlyph` (`done_not_proven`); task 29's
+  `AgentGlyph`, `AgentStatus`; task 31's `ViewHeader`; task 33's `registerStressScreen`; task 36's
+  `ThreadNode`, `useThreadLit`; task 37's `IssueHead`, `IssueRevision`, `Label`.
+- Amends: nothing in the Hub.
