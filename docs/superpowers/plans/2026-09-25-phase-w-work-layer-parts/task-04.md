@@ -241,6 +241,7 @@ package hubclient
 
 import (
 	"context"
+	"errors"
 	"regexp"
 	"slices"
 	"strconv"
@@ -282,8 +283,10 @@ type fakeWork struct {
 }
 
 type fakeIssue struct {
-	head      hubapi.IssueHead // Alias, HeadKey and ThreadState are made at read
+	head      hubapi.IssueHead // Alias, HeadKey, ThreadState and the users are made at read
 	teamID    string
+	assignee  string // a user id, or ""
+	createdBy string // a user id
 	notTied   hubapi.NotTiedReason
 	handSet   bool   // the done was set by hand
 	landedAt  string // the landed move's time; "" before
@@ -316,5 +319,94 @@ func (w *fakeWorld) workEvent(me, kind, teamID, projectID, subject string, data 
 		e.ProjectID = &projectID
 	}
 	w.appendEvent(e) // H05 assigns Seq and At
+}
+```
+
+Block 2: the lookups, the rendering, and the checks a create and a revision share.
+
+```go
+// issueOf is issueID's issue and the caller's role in its team. Unknown,
+// malformed and unreadable are one 404 (task 08's decision 6).
+func (w *fakeWorld) issueOf(issueID, me string) (*fakeIssue, hubapi.Role, error) {
+	if is := w.wk().issues[issueID]; is != nil {
+		if m := w.teams[is.teamID].members[me]; m != nil {
+			return is, m.role, nil
+		}
+	}
+	return nil, "", problem(404, fkIssueNotFound, "There is no such issue that you can see.", "issueId", issueID)
+}
+
+// renderIssue is the head as the Hub answers it: the alias from the key as it
+// is now, the head key, the thread state, the users as they are now.
+func (w *fakeWorld) renderIssue(is *fakeIssue) hubapi.IssueHead {
+	h := is.head
+	h.Alias = ""
+	if k := w.wk().keys[h.ProjectID]; k != nil {
+		h.Alias = hubapi.DisplayAlias(k.Key, h.Number)
+	}
+	h.HeadKey = hubapi.IssueKey{IssueID: h.ID, Revision: h.HeadRevision}.String()
+	h.ThreadState = w.threadStateOf(is)
+	h.Assignee = w.userRef(is.assignee)
+	h.CreatedBy = *w.userRef(is.createdBy)
+	h.Labels = append([]string{}, h.Labels...)
+	h.Relations = append([]hubapi.Relation{}, h.Relations...)
+	if h.External != nil {
+		x := *h.External
+		h.External = &x
+	}
+	return h
+}
+
+func (w *fakeWorld) withRevision(is *fakeIssue) hubapi.IssueWithRevision {
+	return hubapi.IssueWithRevision{Head: w.renderIssue(is), Revision: *is.headRev()}
+}
+
+// threadStateOf is task 08's: on_thread when any served brief is a branch
+// brief, project_level when every one is the project's, else not_tied.
+func (w *fakeWorld) threadStateOf(is *fakeIssue) hubapi.ThreadState {
+	serves := is.headRev().Content.Serves
+	if len(serves) == 0 {
+		return hubapi.ThreadState{Kind: hubapi.ThreadNotTied, Reason: is.notTied}
+	}
+	for _, s := range serves {
+		k, _ := hubapi.ParseBriefKey(s.BriefKey) // checked when written
+		if b := w.briefs[k.BriefID]; b != nil && b.scope == hubapi.ScopeBranch {
+			return hubapi.ThreadState{Kind: hubapi.ThreadOnThread}
+		}
+	}
+	return hubapi.ThreadState{Kind: hubapi.ThreadProjectLevel}
+}
+
+// checkServes is task 08's checkServes: each key parses and names a revision,
+// not erased, of a brief of this project. field is "serves" or "content.serves".
+func (w *fakeWorld) checkServes(projectID, field string, serves []hubapi.Serve) error {
+	for i, s := range serves {
+		k, err := hubapi.ParseBriefKey(s.BriefKey)
+		b := w.briefs[k.BriefID]
+		if err != nil || b == nil || b.projectID != projectID || k.Revision > len(b.revisions) ||
+			b.revisions[k.Revision-1].erasedAt != "" {
+			return problem(422, hubapi.CodeKeyUnresolvable, "A served brief revision is not one of this project's.",
+				"field", field+"["+strconv.Itoa(i)+"]")
+		}
+	}
+	return nil
+}
+
+// contentError is 400 naming the field hubapi's validation named, under
+// prefix: "" on a create (its body has no content), "content" on a revision.
+func contentError(prefix string, err error) error {
+	field := prefix
+	var fe *hubapi.FieldError
+	if errors.As(err, &fe) {
+		field = strings.TrimPrefix(prefix+"."+fe.Field, ".")
+	}
+	return badRequest(field, err.Error())
+}
+
+// assignable is task 08's decision 5: a u- id of a member or admin of the team.
+// A viewer cannot act, so cannot be assigned; an agent id is never a u- id.
+func (w *fakeWorld) assignable(teamID, userID string) bool {
+	m := w.teams[teamID].members[userID]
+	return hubapi.ValidID(hubapi.PrefixUser, userID) && m != nil && rank(m.role) >= rank(hubapi.RoleMember)
 }
 ```
