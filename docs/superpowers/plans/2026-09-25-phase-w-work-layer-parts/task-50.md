@@ -790,3 +790,71 @@ the missing cell to the **end** of the short row is **UNVERIFIED** until step 3 
 | reshapes to GFM | a pasted or edited table the serializer cannot write back (a header-less first row, a span) |
 | a fresh table | *Table* inserting a grid with no header row, which GFM cannot hold |
 
+#### Tests to write first — `desktop/src/components/editor/slashMenu.test.ts`
+
+```ts
+import { describe, expect, it } from "vitest";
+import { EditorState, TextSelection } from "prosemirror-state";
+import { criterionLink, issueLink, parseCriterionLink } from "../../work/links";
+import { SHORTCUTS } from "./inputRules";
+import { parseMarkdown } from "./markdown";
+import { SLASH_ITEMS, matches, opensAt, optionsFor, type LinkSources, type SlashState } from "./slashMenu";
+
+const stateAt = (md: string, pos: number): EditorState => {
+  const s = EditorState.create({ doc: parseMarkdown(md) });
+  return s.apply(s.tr.setSelection(TextSelection.create(s.doc, pos)));
+};
+const open = (query: string): SlashState => ({ open: true, from: 1, query, mode: "items", active: 0 });
+const SOURCES: LinkSources = { issues: () => [], criteria: () => [] };
+const labels = (st: EditorState, q: string, src?: LinkSources) => optionsFor(st, open(q), src).map((o) => o.label);
+const BLOCK_IDS = ["h1", "h2", "h3", "bullet", "ordered", "check", "quote", "code", "divider"];
+
+describe("slashMenu", () => {
+  it("shows each block item's hint and label from the input rules' own table, both ways", () => {
+    for (const item of SLASH_ITEMS.filter((i) => i.shortcut !== "")) {
+      const row = SHORTCUTS.find((s) => s.id === item.id);
+      expect([item.id, row?.trigger, row?.label]).toEqual([item.id, item.shortcut, item.label]);
+    }
+    const withHint = SLASH_ITEMS.filter((i) => i.shortcut !== "").map((i) => i.id);
+    expect(withHint).toEqual(BLOCK_IDS);                 // every block shortcut has an item
+    expect(SLASH_ITEMS.filter((i) => !BLOCK_IDS.includes(i.id)).every((i) => i.shortcut === "")).toBe(true);
+  });
+  it("opens at a block's start and after a space, never inside a word or in code", () => {
+    expect(opensAt(stateAt("", 1), 1)).toBe(true);
+    expect(opensAt(stateAt("and more", 5), 5)).toBe(true);    // after "and "
+    expect(opensAt(stateAt("andor", 4), 4)).toBe(false);      // "and|or"
+    expect(opensAt(stateAt("```\nx\n```", 2), 2)).toBe(false);
+    expect(opensAt(stateAt("`code here`", 6), 6)).toBe(false);
+  });
+  it("filters by word prefix: tab is Table alone outside a table", () => {
+    expect(labels(stateAt("", 1), "tab")).toEqual(["Table"]);
+    expect(labels(stateAt("", 1), "HEAD 2")).toEqual(["Heading 2"]);
+    expect(labels(stateAt("", 1), "todo")).toEqual(["Check list"]);
+  });
+  it("lists the row and column items only inside a table, and Remove row never on the header", () => {
+    const md = "| a | b |\n| --- | --- |\n| c | d |";
+    expect(labels(stateAt("", 1), "row")).toEqual([]);
+    const inHeader = stateAt(md, 3);
+    expect(labels(inHeader, "row")).toEqual(["Add row below"]);
+    const inBody = stateAt(md, parseMarkdown(md).firstChild!.child(0).nodeSize + 4);
+    expect(labels(inBody, "row")).toEqual(["Add row below", "Remove row"]);
+    expect(labels(inBody, "tab")).toEqual(["Remove table"]);
+  });
+  it("lists the two link items only when the caller gives sources", () => {
+    expect(labels(stateAt("", 1), "link")).toEqual([]);
+    expect(labels(stateAt("", 1), "link", SOURCES)).toEqual(["Link an issue", "Link a criterion"]);
+  });
+  it("matches words, not substrings", () => {
+    expect(matches(SLASH_ITEMS.find((i) => i.id === "table")!, "able")).toBe(false);
+  });
+  it("links a criterion by its key and id, and reads the link back exactly", () => {
+    const href = criterionLink("brief:bf-00000000000000a1@5", "c-91e2a0b3c4d5e6f7");
+    expect(href).toBe("panacea://criterion/brief:bf-00000000000000a1@5/c-91e2a0b3c4d5e6f7");
+    expect(parseCriterionLink(href)).toEqual({ briefKey: "brief:bf-00000000000000a1@5", criterionId: "c-91e2a0b3c4d5e6f7" });
+    expect(parseCriterionLink(criterionLink("brief:bf-00000000000000a1@5", "a/b c"))?.criterionId).toBe("a/b c");
+    expect(() => criterionLink("EP-142", "c-1")).toThrow();
+    expect(parseCriterionLink(issueLink("is-3f2a91c07b1e4d2a"))).toBeNull();
+  });
+});
+```
+
