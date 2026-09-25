@@ -319,3 +319,59 @@ export function ThreadTrace(props: { play: boolean; children: ReactNode }): JSX.
 audit, so the fade is 120 ms, not 180 ms. `thr-grow` is not a loop, so the looping-animation audit
 (`designsystem.test.ts:693`) does not require its stand-in; the reduced-motion block is decision 6's.
 
+#### Interfaces — complete: the deltas on ⚑ `tokens.css` and ⚑ `forced-colors.css`
+
+In `tokens.css`'s `:root`, directly after `--thread` (`:57`):
+
+```css
+  /* The lit thread (02 C2): the same warm ink as --thread, at the prototype's strength
+   * (work-layer.html:28). The line only; a lit node is --accent-ring, task 29's rule. */
+  --thread-lit:  oklch(94.8% 0.0097 73 / 0.58);
+```
+
+In task 26's `:root[data-theme="paper"]` block, its `--thread` line (task 26's part, `:169`) is
+replaced, and `--thread-lit` follows it:
+
+```css
+  /* No grain on paper (05 §4.4 C13, D M5): the thread gutter is the fifth mark, so it is drawn
+   * opaque. 3.34:1 on --page clears WCAG 1.4.11's 3:1; lit is 8.46:1. tokens.test.ts pins both. */
+  --thread:      oklch(62.0% 0.0120 67);
+  --thread-lit:  oklch(40.0% 0.0120 67);
+```
+
+Appended to task 34's `forced-colors.css`, as its own block after task 34's:
+
+```css
+/* Task 36: the thread. Forced colours repaint background-color as Canvas, which would erase a
+ * line drawn as a background, and force color on a link to LinkText. The line's pseudo-elements
+ * and the node's glyph opt out and draw in system colours, lit as Highlight. */
+@media (forced-colors: active) {
+  .thr-line::before,
+  .thr-trace::before {
+    forced-color-adjust: none;
+    background: CanvasText;
+  }
+  .thr-line::after {
+    forced-color-adjust: none;
+    background: Highlight;
+  }
+  .thr-node .gl-mark-node {
+    forced-color-adjust: none;
+    color: CanvasText;
+  }
+  .thr-node[data-lit="true"] .gl-mark-node {
+    color: Highlight;
+  }
+}
+```
+
+`CanvasText` and `Highlight` are system colours, not CSS Color 4 named colours, so the named-colour
+audit (`styles/designsystem.test.ts:307`, `NAMED_COLOURS`) does not flag them. Two selectors
+beat task 29's: `.thr-node .gl-mark-node` is (0,2,0), over `.gl-mark-node` (0,1,0); the lit one is
+(0,3,1) over `.gl-mark-node.gl-mark-lit` (0,2,0). Nothing here draws a `box-shadow`, so task 34's
+ring audit (which collects `box-shadow` selectors) finds nothing of this task's to require; test 8
+below is what holds the thread's counterpart.
+
+In `tokens.test.ts` (task 26's file), `"--thread-lit"` joins `THEME_COLOUR_NAMES` after
+`"--thread"`, and that list's `toHaveLength(34)` becomes `toHaveLength(35)`.
+
