@@ -295,7 +295,7 @@ the desktop may see is listed above; `desktop/src/api/problems.ts` maps them all
 
 ## 5. Principals and authorisation
 
-### 5.1 From token to principal — every `/v1` request, in this order
+### 5.1 From token to principal — every `/v1` request, in this order — **amended by OD-30, see §16**
 
 1. Refuse any request with an `Origin` header: 403 `forbidden_origin`.
 2. Apply the per-IP pre-auth limit (§11.3).
@@ -364,9 +364,9 @@ the Go check disabled through a test-only hook.
 
 ---
 
-## 6. Identity — the flow, step by step
+## 6. Identity — the flow, step by step — **amended by OD-30 (a Keycloak realm brokering Entra), see §16**
 
-### 6.1 Sign-in (task C1; control plane)
+### 6.1 Sign-in (task C1; control plane) — **amended, §16**
 
 | Step | Who | What, exactly |
 |---|---|---|
@@ -392,7 +392,7 @@ closed. The token exchange refused → `reason: "exchange_failed"`. `/v1/me` ans
 `localhost` may resolve to `::1` first. `PANACEA_APP_ENTRA_REDIRECT_HOST=localhost` switches it if
 KPMG's registration can only carry `http://localhost` (§6.5).
 
-### 6.2 Tokens after sign-in
+### 6.2 Tokens after sign-in — **amended, §16**
 
 - **Serving a token.** `TokenSource.Token(ctx, scope)` returns the cached access token for `scope`
   while `exp − now > 5 min`. Otherwise it redeems the refresh token: `POST token_endpoint` with
@@ -414,7 +414,7 @@ KPMG's registration can only carry `http://localhost` (§6.5).
 - **Sign-out.** `POST /v1/auth/sign-out` deletes both entries and the in-memory tokens. It does
   not call Entra's logout endpoint in v1: the browser session is the user's, not ours.
 
-### 6.3 Token validation — `control-plane/internal/entra` (HA-1)
+### 6.3 Token validation — `control-plane/internal/entra` (HA-1) — **replaced by `internal/oidcauth`, §16**
 
 Phase 8's task 16 owns this package; its part file did not exist on 2026-09-23. This is the
 interface the Hub needs. **If task 16 lands first with a different shape, the Hub adapts to it in
@@ -493,7 +493,7 @@ var (
 | `scp` | contains `RequiredScope`. A token with `roles` but no `scp` (app-only) fails here | `ErrScope` |
 | `oid` | present, a GUID | `ErrMalformed` |
 
-### 6.4 `devissuer` — the local OIDC issuer (task H1)
+### 6.4 `devissuer` — the local OIDC issuer (task H1) — **`keycloak` profile by default, §16**
 
 `control-plane/cmd/devissuer`, standard library only, **binds loopback only** and refuses any other
 address. It mirrors Entra's path layout, so the validator's issuer rule is the same string with a
@@ -525,7 +525,7 @@ different host.
 The Hub accepts `devissuer` only when `PANACEA_APP_HUB_DEV_ISSUER=true` **and**
 `PANACEA_APP_HUB_ENV=local`; otherwise an `http` authority is a start-up error.
 
-### 6.5 The registrations — exact values for phase 8's task 09 (HA-3)
+### 6.5 The registrations — exact values for phase 8's task 09 (HA-3) — **deleted by OD-30, §16**
 
 | Setting | Desktop — *PanaceaApp Desktop* | Hub API — *PanaceaApp Hub API* |
 |---|---|---|
@@ -1171,7 +1171,7 @@ audited** (§11.5).
 
 ## 9. The control-plane side
 
-### 9.1 `credstore` and `entraauth` (task C1)
+### 9.1 `credstore` and `entraauth` (task C1) — **amended: `signin`, no ADO Entra path, §16**
 
 **Credential Manager layout.** Generic credentials (`CRED_TYPE_GENERIC`),
 `CRED_PERSIST_LOCAL_MACHINE`, the `UserName` field set to the subject for display:
@@ -2067,7 +2067,7 @@ default `READ COMMITTED`.
 | # | Threat | Asset | Controls | Residual |
 |---|---|---|---|---|
 | T1 | **A stolen access token** replayed against the Hub | a user's projects | 60–90 min lifetime; refresh token only in Credential Manager; the token never enters the renderer, a log, a sandbox or a URL; TLS only (deployed) | usable until `exp`; CAE not in v1 |
-| T2 | **A token minted for another API or app** presented to the Hub (confused deputy) | every route | `aud` = the Hub's id; `scp` ∋ `Hub.Access`; `azp` allowlist; `iss` per enrolled tenant (§6.3) | — |
+| T2 | **A token minted for another API or app** presented to the Hub (confused deputy); **defence amended by OD-30, §16** | every route | `aud` = the Hub's id; `scp` ∋ `Hub.Access`; `azp` allowlist; `iss` per enrolled tenant (§6.3) | — |
 | T3 | **Cross-tenant read** — a missed `WHERE org_id` | another org's data | org from the token; row-level security (§10.3); the `X` column of the matrix test run with the Go check disabled | a bug in a `SECURITY DEFINER` function; there are three, each reviewed |
 | T4 | **Cross-team read inside an org** | another team's briefs | Go checks before any content read; 404 not 403; `missing` in `/v1/refs`; the matrix test | Go only — the one single-layer control (§10.7) |
 | T5 | **Rewriting history** — a revision, an approval, a pin | provenance (P3, P7) | §10.7's two layers; digests re-checked by `hubclient` (§9.2); `hub verify` walks the audit chain | the owner role can still rewrite; it is used only by the migrate Job; audit anchoring is later (ADR §5.9) |
@@ -2146,7 +2146,7 @@ The control plane then needs four variables: `PANACEA_APP_HUB_URL=http://127.0.0
 `PANACEA_APP_ENTRA_CLIENT_ID=<dev desktop client id>`, `PANACEA_APP_HUB_SCOPE=api://<dev hub id>/Hub.Access`
 — all four values are in `dev-tenant.json`, which the compose README prints.
 
-### 12.2 Configuration — every variable
+### 12.2 Configuration — every variable — **amended: `PANACEA_APP_OIDC_*`, §16**
 
 Read in one block per binary, as `control-plane/cmd/api/config.go:18-45` does; no other package
 calls `os.Getenv`. **No variable holds a secret in any deployed environment.**
@@ -2295,5 +2295,79 @@ disabled to prove row-level security alone holds.
   depend on it beyond `status`.
 - **Workload identity token exchange** for Entra-only Postgres is described, not prototyped.
 - **`tauri-plugin-opener`'s `opener:default`** permitting an `https` URL without a scope entry.
+
+---
+
+## 16. Amendment — OD-30, sign-in through a Keycloak broker (2026-09-25)
+
+**Ruling, applied as written:** main `docs/superpowers/planning/2026-09-25-identity-keycloak-broker.md`
+("the ruling"); ADR-H1 §12. **This section wins over §5.1, §6, §9.1, §9.5, §11.1 T2 and §12 where they
+disagree**; task 44a folds it into those sections (ruling §11 `:504`). The `orgs` and `users` keys of §10
+are unchanged: the person is still `(tid, oid)`, Entra's ids carried through the realm (ruling §4).
+
+**§5.1, from token to principal.** Step 3 validates with `oidcauth.Validator` under the `keycloak` profile
+(ruling §5): `Issuer` = `PANACEA_APP_OIDC_ISSUER`, `Audience` = `RequiredScope` = `panacea-app-hub`,
+`AllowedClients` = `panacea-app-desktop`, `ServiceClients` = `panacea-app-fleet` and `panacea-app-gateway`
+(ruling §6 `:326-336`: Fleet only with a live delegation, the gateway only on its two routes). Under
+`keycloak`, `tenant_not_enrolled` is decided **after** the signature. **Org admin** is true when the flat
+`roles` claim contains **`hub.org_admin`**, a realm role the realm's admin assigns, read from each token as
+before. The `email` rule is unchanged (ruling §4 `:188`); the invite-binding gate of plan correction A15
+is **open** (ADR-H1 §12).
+
+**§6.1, sign-in.** Changed steps; the rest stand:
+- Step 3: discovery at `<PANACEA_APP_OIDC_ISSUER>/.well-known/openid-configuration`, cached for the process.
+- Step 4: `client_id=panacea-app-desktop`, `response_type=code`, `redirect_uri=http://127.0.0.1:<port>/callback`,
+  `scope=openid offline_access panacea-app-hub panacea-app-broker panacea-app-gateway panacea-app-fleet`,
+  `state`, `nonce`, `code_challenge`, `code_challenge_method=S256`, `kc_idp_hint=<PANACEA_APP_OIDC_IDP_HINT>`
+  (omitted when empty), `login_hint=<Windows UPN>` (omitted when unknown). **No `prompt`, no
+  `response_mode`, no `domain_hint`** (ruling §2 step 4, §3 `:121-129`).
+- Step 5: **the control plane opens the system browser itself** (`ShellExecuteW`); the renderer shows
+  `authorizeUrl` only as a fallback link after 15 s with no callback (ruling §2 step 3).
+- Step 6: browser ↔ Keycloak ↔ Entra, with no click on a KPMG device (ruling §3; U-6).
+- Step 7: the listener serves only `GET /callback`; the page text is **"Signed in. You can return to
+  PanaceaApp."**, and a mismatch or `error` answers 400 "Sign-in did not complete. Return to PanaceaApp to
+  try again." (ruling §3 `:138-142`).
+- Step 9: the `id_token`'s `nonce`, `iss`, `aud == panacea-app-desktop` and `azp` are checked; `oid`, `tid`,
+  `name`, `email` are read from it (ruling §2 step 6). Step 10: the **offline** refresh token is stored; the
+  code-exchange access token is discarded, never sent (ruling §2 step 7).
+- `PANACEA_APP_ENTRA_REDIRECT_HOST` is deleted: the Keycloak client registers `http://127.0.0.1/*` only,
+  never `localhost` (ruling §10 `:454`). The `reason` strings are unchanged (the ruling is silent on them).
+
+**§6.2, tokens after sign-in.** `TokenSource.Token(ctx, "<audience scope>")` refreshes with
+`scope=openid <audience scope>` for a single-audience token (ruling §2 step 7; U-4). **Scopes in v1:**
+`panacea-app-hub`, `panacea-app-broker`, `panacea-app-gateway`, `panacea-app-fleet`; `Hub.Access`,
+`Sandboxes.Access` and Azure DevOps `user_impersonation` no longer exist. **Start-up:** a silent refresh
+for `panacea-app-hub` at launch; `invalid_grant` deletes the stored token and runs §6.1 at once, without a
+click; a network failure never opens a browser (ruling §3 `:131-136`). The ruling says the cache serves a
+token "until 60 seconds before `exp`"; plan correction A13's `min(5 min, lifetime / 2)` is task 31's to
+reconcile (flagged, not ruled here).
+
+**§6.3, validation:** replaced by `control-plane/internal/oidcauth` (env task 17 step 0; hub task 10's part
+holds the exported API and the `keycloak` check order). **§6.4, `devissuer`:** Keycloak paths under
+`/realms/panacea-app-dev`, the `keycloak` profile by default (hub task 11's part). **§6.5, the registrations:
+deleted.** Nothing is registered in Entra for sign-in; the realm's clients, scopes and mappers are ruling §10
+K1-K4 (Panacea's dev realm) and §9 (phase 8's own realm).
+
+**§9.1, `credstore` and the sign-in package.** `entraauth` is renamed **`signin`**; `ErrEntraUnavailable`
+becomes `ErrIssuerUnavailable`. The refresh-token target is `PanaceaApp/oidc/<issuer host>/<realm>/refresh`,
+replacing `EntraRefreshPrefix`/`EntraAccountTarget`, so a token from one realm is never offered to another
+(ruling §9 `:425-427`; hub task 28). `Config` reads the `PANACEA_APP_OIDC_*` variables below and
+`PANACEA_APP_HUB_AUDIENCE=panacea-app-hub`, replacing `Authority`, `HubScope`/`PANACEA_APP_HUB_SCOPE` and
+`RedirectHost`; the field names are hub tasks 30-32's parts (ruling §11 `:513-515`).
+**`DevOps` and the credential Source `"entra"` are deleted**: Azure DevOps is a personal access token in
+`Local` (ruling §7; ADR-H1 Q5 flipped). Sources: `"credential-manager"` and `"git-credential-helper"`.
+
+**§12, configuration.** Control plane: `PANACEA_APP_OIDC_ISSUER`, `PANACEA_APP_OIDC_PROFILE` (`keycloak`),
+`PANACEA_APP_OIDC_CLIENT_ID` (`panacea-app-desktop`), `PANACEA_APP_OIDC_IDP_HINT` (`entra`),
+`PANACEA_APP_OIDC_LOGIN_HINT` (override) replace `PANACEA_APP_ENTRA_AUTHORITY`, `_ENTRA_CLIENT_ID`,
+`_ENTRA_REDIRECT_HOST` and `PANACEA_APP_HUB_SCOPE`. Hub: `PANACEA_APP_OIDC_ISSUER` and
+`PANACEA_APP_OIDC_PROFILE` replace `PANACEA_APP_HUB_ENTRA_AUTHORITY_HOST`; `PANACEA_APP_HUB_AUDIENCE` and
+`_REQUIRED_SCOPE` are `panacea-app-hub`; `_ALLOWED_CLIENTS` is `panacea-app-desktop`; `_ORG_ADMIN_ROLE`
+defaults to `hub.org_admin`. The Hub's service-client variable is named by task 13's part (the ruling names
+none). §12.1's devstack lines are `devissuer env`'s (hub task 11's part).
+
+**§11.1 T2, confused deputy.** Defence: `iss` equals `PANACEA_APP_OIDC_ISSUER`; `typ == "Bearer"`; `aud`
+contains `panacea-app-hub`; `scope` contains `panacea-app-hub`; `azp` in the person or service allowlist;
+one audience per token (ruling §4 `:215-217`).
 
 *End of the Hub contract.*
