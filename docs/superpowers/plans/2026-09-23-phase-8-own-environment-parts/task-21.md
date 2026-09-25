@@ -1,21 +1,25 @@
-### Task 21: `machined` git — phase 3's lane runner and the project's git, on the machine
+### Task 21: `machined` git — the project's git on the machine, and lane creation from it
 
-Phase 3's ruling R4 (sibling `phase-3` worktree, `.superpowers/sdd/p3/orchestrator-rulings.md`,
-R4 rules 1-6) splits git by the repository it runs in, and P8-D7 carries the split to a cloud
-machine, where the project repositories and their lane clones share one disk (OD-2, P8-D6):
-- **Project calls** have `projects/<name>` as their repository. No session mounts it (R4.1), so
+Phase 3's ruling R4 (sibling `phase-3` worktree, `.superpowers/sdd/p3/orchestrator-rulings.md:3-67`,
+R4 rules 1-6) splits git by the repository it runs in. This task applies it to a cloud machine,
+where the project repositories and their lane clones share one disk (OD-2, P8-D6), as the env
+re-plan rulings order (`.superpowers/sdd/env/r4-env-rulings.md`, rulings 2 and 4, "Task 21"):
+- **Project calls** have `projects/<name>` as their repository. No sandbox mounts it (R4.1), so
   §HGH hardens these calls, and only these (R4.2). `machined` serves them on `POST /v1/git`,
   which runs **phase 3's own `gitx.Exec`** on the disk; task 25 wraps it as the laptop's
-  project-only `gitx.Machine`.
-- **Lane calls** have a lane clone as their repository, agent-writable from the moment a session
-  mounts it. No host git runs there (R4.2; phase 3's `gitx.Exec` refuses it, `ErrLaneDir`). They
-  run only through phase 3's sandboxd git runner, which `machined` serves in the machine pod
-  (R4.3): the `/git/v1/` RPC with the five ops `status`, `refs`, `bundle`, `fetch` and `diff`,
-  bearer auth, the error envelope, the four limits and the same result shapes, pinned by
-  `testdata/gitrunner/*.json` (phase-3 `2026-09-23-phase-3-git-convergence-parts/task-24.md:18-35`,
-  `:91`, `:937-939`, read at phase 3's `9935278`; seam S3-P8.1). Lane work reaches a project only
-  as a bundle, verified and fetched into `refs/panacea/lanes/…` in the project (R4.4); an update
-  into a lane is a bundle from the project that the runner fetches (R4.5).
+  project-only `gitx.Machine`, whose `CloneRoot()` is `/machine/lanes`.
+- **Lane creation** is the one host git that names a lane (R4.5): phase 3's `lanes.Creator`
+  clones the lane *from the project*, then writes its config in the new clone before any
+  sandbox mounts it (phase-3 `task-03.md:148-199`). `machined` admits exactly those calls, and
+  holds each new lane in an in-memory **creating set** until the laptop seals it. It also serves
+  the three filesystem steps of a create that would otherwise touch the laptop's disk, as seam
+  S8-P3.3's `gitx.MachineFS` (ruling 4).
+- **Lane git never runs in the machine pod** (ruling 2, which amends P8-D7). `machined` serves no
+  `/git/v1/`. Lane git runs in `sandboxd`, in the one pod that mounts the lane: the live
+  session's, or a runner-only pod (task 25b). The machine pod runs no agent-defined filter,
+  hook or config, because the only git it runs reads a project or a lane no sandbox has mounted.
+- **Bundles** (lane work in, product commits out) live in `machined`'s owned root and are task
+  21b's: the bundle routes, and the one bundle argument `POST /v1/git` admits (ruling 3).
 
 **Re-plan required before this task starts (review Q18).** The body below this block predates R4.
 Where it and this block disagree, this block holds. Retired, and not to be built: every
@@ -44,17 +48,29 @@ add-project clone, the scrub and the output cap. Open, for the re-plan:
    `Call.Env`, and step 4a's two `config` calls in the new lane (phase-3 `task-03.md:161-173`),
    so the lane-create shape in item 2 below is stale.
 
-**Depends on phase 3 task 02 with §HGH** (`internal/gitx`: `Call` with `Scope` and `RemoteURL`,
-`Result`, `Runner`, `Exec`, `Hardening`, `MachineHardening`, `UntrustedConfig`, `ErrCallShape`,
-`Error`, `Class` — task-02.md `#### Interfaces — complete` and `#### Host git hardening (HGH)`,
-read at `93c1fdf` and cited by heading, since that file is still being edited) **and on phase 3
-task 24** (the runner and its goldens). If either has not landed, this task does not start: no
-local copy of `gitx` or of the runner is written, and no second hardening is invented here.
+**Depends on, all in phase 3 (sibling `phase-3` worktree, parts read at `339b607`):**
+- **task 02 with §HGH** (`internal/gitx`: `Call` with `Scope`, `RemoteURL` and `NewLane`,
+  `Result`, `Runner`, `Exec`, `Hardening` with `LaneRoot`, `MachineHardening`, `UntrustedConfig`,
+  `ErrCallShape`, `ErrLaneDir`, `Error`, `Class`, `Machine`; `task-02.md:85-96`, `:242-250`,
+  `:529-534`);
+- **task 03** (`lanes`: `NoFetchURL`, `NoPushURL`, `NoFilterEnv`, `CopyableHooksPath`,
+  `CopyGeneratedHooks`, `RemoveTree`, and `Create`'s steps; `task-03.md:148-268`);
+- **seam S8-P3.3's `gitx.MachineFS`** (ruling 4): an ask of phase 3, not yet answered. Without
+  it a cloud machine cannot create lanes, so it is a blocker, not a fallback.
+
+If any has not landed, this task does not start: no local copy of `gitx` or `lanes` is written,
+no second hardening is invented, and no `MachineFS` of this task's own shape is built. Phase 3's
+task 24 (the runner) is **not** a dependency: `machined` serves no runner (ruling 2).
 
 **Files:**
-- `control-plane/internal/machineapi/wire.go` — `GitCall`, `GitResult` (modify)
-- `control-plane/cmd/machined/git.go`, `git_test.go` (new)
-- `control-plane/cmd/machined/server.go` — the route (modify)
+- `control-plane/internal/machineapi/wire.go` — `GitCall`, `GitResult`, the filesystem and seal
+  bodies (modify)
+- `control-plane/cmd/machined/git.go`, `git_test.go` (new) — `POST /v1/git`
+- `control-plane/cmd/machined/lanefs.go`, `lanefs_test.go` (new) — the creating set, `MachineFS`'
+  three routes and `POST /v1/lanes/sealed`
+- `control-plane/cmd/machined/server.go` — the routes (modify)
+- `control-plane/cmd/machined/catalog.go` — task 20's worktree path route answers
+  `409 lane_creating` for a lane in the creating set (modify)
 - `control-plane/cmd/machined/main.go` — the environment scrub below (modify)
 
 #### Contract (complete)
