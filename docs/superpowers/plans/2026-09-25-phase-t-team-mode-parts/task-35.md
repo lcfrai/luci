@@ -111,3 +111,113 @@ task 44's (task 23 assigns the transition there); this task builds Fleet's half.
   `task-20.md:538-540`).
 - Requires of **task 44**: the Hub route that records an admin's release and its feed kind
   `lease.admin_released` (G35-3).
+
+#### `activity/activity.go` (complete in its surface)
+
+```go
+package activity
+
+const (
+	TTL          = 45 * time.Second // an entry with no sample for this long reads as absent
+	RecentWindow = 10 * time.Minute // Observed.Files: paths edited this recently
+	BulkWindow   = time.Minute
+	BulkOver     = 25               // more than this many distinct paths in BulkWindow is bulk
+)
+
+// Edit is one observed edit, attributed to the worker whose worktree it is in.
+// Owner comes from the Lane (task 20), never from the sample.
+type Edit struct {
+	Org, Project string
+	Agent        model.AgentID
+	Owner        model.Owner
+	Path         string
+	At           time.Time
+	Commit       bool // the path is in a new LastCommit, not only dirty
+}
+
+// Lanes is task 20's sessions.Lanes (G35-1).
+type Lanes interface {
+	Lanes(ctx context.Context, org, project string) ([]Lane, error)
+}
+type Lane struct {
+	Agent    model.AgentID
+	Owner    model.Owner
+	Machine  string // the broker's machine id
+	Worktree string // w-…
+}
+
+// Table is in memory only (global constraint 1). One per replica: every
+// replica polls (poller.go) so every replica can answer team and check.
+type Table struct {
+	mu    sync.Mutex
+	now   func() time.Time
+	lanes Lanes
+	last  map[laneKey]entry // the previous sample per worktree
+	recent map[model.AgentID]map[string]time.Time // path -> last edit, pruned at RecentWindow
+	window map[model.AgentID][]stamp                 // the bulk window's (path, at)
+}
+
+// Fold turns one page from one machine into edits, per decision (c), and
+// updates the table. A sample for a worktree no Lane names is ignored (it is
+// not a team worker's). Every path is checked again with teamtext.ValidPath;
+// a refused one is dropped here too (two layers: machined, then Fleet).
+// A page with Gap, or the first since start, is a baseline (decision d): it
+// returns only the "uncovered dirty path" edits, marked At = now.
+func (t *Table) Fold(ctx context.Context, org, project, machine string, page machineapi.ActivityPage) ([]Edit, error)
+
+// Of is task 22's verbs.Activity. ok is false when the agent's last sample is
+// older than TTL. LastCommitSubj is teamtext.Text with Author agent and
+// AuthorAgent the worker, so its class travels with it to Orchestrators only.
+func (t *Table) Of(ctx context.Context, agent model.AgentID) (verbs.Observed, bool)
+
+// LastEdit is task 23's Contested input (task-23.md:251-253).
+func (t *Table) LastEdit(agent model.AgentID, path string) (time.Time, bool)
+
+// BulkDue returns, and clears, each agent whose window holds more than
+// BulkOver distinct paths, with those paths.
+func (t *Table) BulkDue() map[model.AgentID][]string
+```
+
+#### `leases/observed.go` (complete in its surface)
+
+```go
+package leases
+
+// ObserveResult is what one fold changed, for the tests and the logs.
+type ObserveResult struct {
+	NewHolds []model.Lease // one per newly held path
+	Touched  []string      // ls-… whose ExpiresAt moved
+}
+
+// Observe applies edits in one Tx per project: for each edit, the worker's
+// live lease whose globs Match the path is touched (TouchLeasePath, then
+// ExpiresAt = max(created, newest touch) + HoldTTL for a hold or bulk; an
+// intent is untouched); if none matches, a hold on exactly that path is
+// requested through RequestIn with Mode hold, which writes it granted or
+// contested with its Hub events, like any request. The breadth check does
+// not apply to a one-path hold (a literal path is never broad).
+func (e *Engine) Observe(ctx context.Context, edits []activity.Edit) (ObserveResult, error)
+
+// Bulk writes one bulk lease for agent over Collapse(paths, teamtext.MaxGlobs)
+// and releases, in the same Tx, the agent's holds from the window that the
+// bulk lease's globs now cover; then enqueues lease.bulk for the owner's
+// Orchestrator with the lease id and the path count (no path list: the
+// Orchestrator reads it with check or team).
+func (e *Engine) Bulk(ctx context.Context, org, project string, agent model.AgentID, paths []string) (model.Lease, error)
+
+// ExpireDue moves every hold or bulk lease with ExpiresAt <= now to expired,
+// one Hub event each, then Reevaluate per project; lease.expiring is enqueued
+// for the holder's Orchestrator five minutes before (once per lease).
+func (e *Engine) ExpireDue(ctx context.Context, now time.Time) (int, error)
+
+// AdminReleased applies the Hub's lease.admin_released (decision f). A lease
+// already terminal is left alone; the Hub's event is the audit, so Fleet
+// writes no second lease event for it.
+func (e *Engine) AdminReleased(ctx context.Context, org, lease string, at time.Time) error
+
+// Collapse reduces literal paths to at most max globs: group by the deepest
+// directory holding every path in the group, starting two segments deep and
+// widening one segment at a time until there are at most max groups; a group
+// of one path stays literal; a group becomes "<dir>/**". Never returns "**".
+func Collapse(paths []string, max int) []string
+```
