@@ -263,3 +263,158 @@ link is simply absent.
 // moves (at most once a beat); delegated agents (decision 7) get EphemeralLine from task 107's
 // card model and no StepFold.
 ```
+
+#### Tests to write first — `StepFold.test.tsx` and `SessionLinks.test.tsx`
+
+```tsx
+// StepFold.test.tsx
+import { render } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+import { expectNoPrediction } from "../../test/expectNoPrediction";
+import { StepFold, formatStep } from "./StepFold";
+import src from "./StepFold.tsx?raw";
+
+describe("StepFold", () => {
+  it("prints the four fields in mono, as 02 step.fold does", () => {
+    expect(formatStep({ command: "pytest -q", durationMs: 43_000, exitCode: 1, lines: 812 })).toBe("pytest -q · 43s · exit 1 · 812 lines");
+    const { container } = render(<StepFold answer={{ tier: "steps", steps: [{ command: "pytest -q", durationMs: 43_000, exitCode: 1, lines: 812 }] }} />);
+    expect(container.querySelector(".iv-step.iv-fact")!.textContent).toBe("pytest -q · 43s · exit 1 · 812 lines");
+  });
+  it("has no field for raw output, so none can be shown", () => {
+    const leaky = { command: "ls", durationMs: 10, lines: 2, output: "SECRET_TOKEN=abc" } as never;
+    const { container } = render(<StepFold answer={{ tier: "steps", steps: [leaky] }} />);
+    expect(container.textContent).not.toContain("SECRET_TOKEN");
+  });
+  it("degrades to commit facts, with no error banner and no commit subject", () => {
+    const { container } = render(<StepFold answer={{ tier: "commits", reason: "the transcript is gone", commits: [{ sha: "7c1f0a2e5b9d", at: "2026-09-25T10:41:00Z", files: 3 }], exit: { code: 0, at: "2026-09-25T10:42:00Z" } }} />);
+    expect(container.textContent).toBe("commit 7c1f0a2 · 3 filesexited · exit 0");
+    expect(container.querySelector("[role='alert'], .error, .banner")).toBeNull();
+  });
+  it("imports nothing from the terminal or a PTY, and predicts nothing", () => {
+    expect(src).not.toMatch(/attachRegistry|xterm|Terminal|pty|openAttach|setInterval|setTimeout/i);
+    const steps = Array.from({ length: 8 }, (_, i) => ({ command: `step ${i}`, durationMs: 1000, lines: 1 }));
+    const { container } = render(<StepFold answer={{ tier: "steps", steps }} />);
+    expect(container.textContent).toContain("3 earlier steps");
+    expectNoPrediction(container);
+  });
+});
+```
+
+```tsx
+// SessionLinks.test.tsx
+import { act, render } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { __resetHeartbeat, BEAT_MS } from "../../hooks/heartbeat";
+import { aSession } from "../../test/fixtures";
+import { expectNoPrediction } from "../../test/expectNoPrediction";
+import { EphemeralLine, SessionLinks, ephemeralLine, livenessWords } from "./SessionLinks";
+import src from "./SessionLinks.tsx?raw";
+
+const T0 = Date.parse("2026-09-25T10:00:00Z");
+afterEach(() => { vi.useRealTimers(); __resetHeartbeat(); });
+
+describe("the ephemeral line", () => {
+  it("states the budget as a fact when nothing has come in 10 s", () => {
+    const s = aSession({ createdAt: "2026-09-25T10:00:00Z", lastOutputAt: "2026-09-25T10:00:00Z", status: "running" });
+    expect(ephemeralLine(s, null, T0 + 9_000)).toBe("starting");
+    expect(ephemeralLine(s, null, T0 + 10_000)).toBe("no output yet · 10s");
+  });
+  it("coarsens liveness: live, then quiet under 1m, then minutes", () => {
+    expect(livenessWords(T0, T0 + 3_000)).toBe("live · last output 3s ago");
+    expect(livenessWords(T0, T0 + 30_000)).toBe("quiet · under 1m");
+    expect(livenessWords(T0, T0 + 14 * 60_000)).toBe("quiet 14m");
+  });
+  it("changes only on the heartbeat, with no timer of its own and no spinner", () => {
+    vi.useFakeTimers({ now: T0 + 2_000 });
+    const s = aSession({ createdAt: "2026-09-25T09:59:00Z", lastOutputAt: "2026-09-25T10:00:00Z", status: "running" });
+    const { container } = render(<EphemeralLine session={s} steps={null} />);
+    const before = container.textContent;
+    act(() => { vi.advanceTimersByTime(BEAT_MS - 1); });
+    expect(container.textContent).toBe(before);
+    act(() => { vi.advanceTimersByTime(1); });
+    expect(container.textContent).not.toBe(before);
+    expect(src).not.toMatch(/setInterval|setTimeout|requestAnimationFrame/);
+    expect(container.querySelector("[role='progressbar'], .spinner, progress")).toBeNull();
+  });
+  it("renders a link only where its fact exists", () => {
+    const s = aSession({ worktreeId: "", status: "running" });
+    const { container, rerender } = render(<SessionLinks session={s} mine={false} previewUrl={null} />);
+    expect(container.querySelectorAll("button, a")).toHaveLength(0);
+    rerender(<SessionLinks session={aSession({ worktreeId: "w-1" })} mine previewUrl="https://preview.example.test/s-1" />);
+    expect([...container.querySelectorAll("button, a")].map((e) => e.textContent)).toEqual(["open session", "worktree", "preview"]);
+    expectNoPrediction(container);
+  });
+});
+```
+
+| Test | Mutant it kills |
+|---|---|
+| the four fields in mono | a prose summary or a reordered fold (AX §8.3) |
+| no field for raw output | "raw output shown" |
+| degrades to commit facts | "the adapter is required" (`OD-8`); an error banner; an agent-written commit subject in a fact line |
+| nothing from the terminal, predicts nothing | "meaning from PTY bytes"; an "N of M steps" line (`OD-27`) |
+| the budget as a fact | "waits forever": no word when nothing arrives |
+| coarsens liveness | a seconds counter that re-renders every second |
+| only on the heartbeat | "a timer per row"; "spinner per row" (`DESIGN-SYSTEM.md`) |
+| a link only where its fact exists | "dead link"; *open session* on another person's agent |
+
+#### Steps
+
+- [ ] **Step 1: read on the sync base** phase 3's `claudecode` adapter (`ToolCalls`, the pin, the
+  cache, its fixtures: does the pinned version write a Bash result's exit code as a field?), its
+  `getTranscriptSpan` route, phase 3's lane index, phase 2's `sessions.go`, `heartbeat.ts` (how
+  `useHeartbeat` schedules its beat, so the fake-timer test advances it correctly), task 48's
+  `IssueAgentLine`, task 40's `AgentLine` and the `aSession` fixture. Rename in this part's files
+  only; phase 3's adapter not landed means wait (rule H2).
+- [ ] **Step 2: the Go tests**; `go test ./control-plane/internal/transcript/... ./control-plane/internal/api/... -race -count=1`
+  fails on the missing `Steps` and route.
+- [ ] **Step 3: `steps.go`, the route and its catalog row**; the Go tests pass.
+- [ ] **Step 4: the desktop tests**; `npm --prefix desktop test -- StepFold SessionLinks` fails
+  on the missing modules.
+- [ ] **Step 5: `StepFold.tsx`, `SessionLinks.tsx`, `getSessionSteps` in `client.ts`, the
+  `IssueAgentLine` edit**, and the `.iv-steps`, `.iv-ephemeral`, `.iv-links` rules in `issue.css`.
+- [ ] **Step 6: the acceptance commands.** Commit by path after steps 3 and 5, each message ending
+  with the `Co-Authored-By` line.
+
+#### Acceptance
+
+```bash
+go test ./control-plane/internal/transcript/... ./control-plane/internal/api/... -race -count=1
+# expect: ok; steps_test.go runs 5 tests; the api package gains 2 rows
+npm --prefix desktop test -- StepFold SessionLinks issue/IssueAgentLine
+# expect: every file passes; StepFold 4 tests, SessionLinks 4; task 48's IssueAgentLine tests pass
+#   (its "no timer of its own" test now also covers the two new files through the import)
+npm --prefix desktop run typecheck
+# expect: exit 0
+grep -rnE "setInterval|setTimeout|role=.progressbar|spinner" desktop/src/components/issue/StepFold.tsx desktop/src/components/issue/SessionLinks.tsx | wc -l
+# expect: 0
+```
+
+Visual acceptance is the owner's eyes.
+
+#### What this task does NOT claim
+
+- That the adapter reads any given harness version: its canary decides (**UNVERIFIED**), and
+  Codex, OpenCode and Gemini CLI get the commits tier only (phase 3 3-D7 c, `task-17.md:237`).
+- That the pinned transcript format records a shell call's exit code as a field; if it does not,
+  every step omits `exit` rather than guess it from the text.
+- A step fold for delegated agents (decision 7, gap 2), or a preview link on any session today
+  (phase 7, **UNVERIFIED**).
+- That *no output yet* means the agent is stuck: it states that nothing has arrived, and when.
+
+**Parity.** Closes **L-185**, **L-186**, **L-188** and **L-190** (05 §1's rows as the scope names
+them; task 113 records the proof).
+
+#### Gaps found while writing this part
+
+1. **Not in the skeleton's delta table.** The fold needs phase 3's adapter extended with
+   `Steps` (`internal/transcript/claudecode`, P3 task 17) and a control-plane steps read beside
+   phase 2's session routes; the scope lists desktop files only. The skeleton's *Deltas on
+   sibling code* table should gain a phase 3 row for task 108, and the file map a control-plane row.
+2. **Delegated agents have no step source.** A Fleet session's transcript lives in its sandbox,
+   not beside the desktop; a fold for delegated agents needs Fleet (or the sandbox) to run the same
+   adapter and serve steps, an ask to Phase T. TM-52 also carries no first-output time, so the
+   budget for a delegated agent reads from its status only.
+3. **Phase 7's per-session preview URL** has no named field on any session record this plan reads.
+4. **`Session` has no exit code** (`desktop/src/store/types.ts:134-157`); the commits tier's `exit`
+   comes from the control plane's session record, which this read adds to its answer.
