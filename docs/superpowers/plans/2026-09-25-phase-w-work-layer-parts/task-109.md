@@ -179,7 +179,7 @@ export interface Guidance {
   scopeId: string;       // or-…, tm-… or u-…
   text: string;          // always text·H: a person wrote it
   version: number;       // 1, 2, 3 …; never rewritten
-  author: string;        // u-…
+  author: User;          // task 37's User {id, displayName, email}; task 100's wire sends a User
   at: string;            // RFC 3339
 }
 
@@ -188,15 +188,15 @@ export interface ResolvedGuidance { layers: Guidance[] }
 
 export interface AgentSwitch {
   orchestrators: boolean; // false: Orchestrators are off for the org
-  by: string | null;      // u-… of the admin who last set it
+  by: User | null;        // the admin who last set it; null when never set
   at: string | null;
-  reason: string | null;  // text·H
+  reason: string;         // text·H; "" when never set (task 100's wire)
 }
 
 export interface WorkAgentSettingsApi {
   guidanceHistory(scope: GuidanceScope, scopeId: string): Promise<Guidance[]>; // newest first
   resolvedGuidance(teamId: string | null): Promise<ResolvedGuidance>;
-  /** 409 `stale_version` when baseVersion is not the current one: nobody overwrites blind. */
+  /** 409 `revision_conflict` {headVersion} when baseVersion is stale (task 100): nobody overwrites blind. */
   putGuidance(req: { scope: GuidanceScope; scopeId: string; text: string; baseVersion: number }): Promise<Guidance>;
   agentSwitch(orgId: string): Promise<AgentSwitch>;
   setAgentSwitch(orgId: string, req: { orchestrators: boolean; reason: string }): Promise<AgentSwitch>;
@@ -208,7 +208,7 @@ export interface WorkAgentSettingsApi {
 #### Interfaces — complete: `desktop/src/components/admin/agentsOff.ts`
 
 ```ts
-import type { AgentSwitch } from "../../api/work";
+import type { AgentSwitch, User } from "../../api/work";
 
 const localStamp = (iso: string): string =>
   new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
@@ -217,7 +217,7 @@ const localStamp = (iso: string): string =>
 /** The one sentence every blocked path shows (Shift+O, Shift+A, @me:orchestrator, Ask…). */
 export function agentsOffLine(
   sw: AgentSwitch,
-  nameOf: (u: string) => string,
+  nameOf: (u: User) => string = (u) => u.displayName,
   stamp: (iso: string) => string = localStamp,
 ): string | null {
   if (sw.orchestrators) return null;
@@ -235,7 +235,7 @@ caller prints the sentence with the time in Commit Mono.
 
 ```tsx
 import { useEffect, useState } from "react";
-import type { AgentSwitch, WorkAgentSettingsApi } from "../../api/work";
+import type { AgentSwitch, User, WorkAgentSettingsApi } from "../../api/work";
 import { agentsOffLine } from "./agentsOff";
 import "./admin.css";
 
@@ -243,7 +243,7 @@ export interface KillSwitchProps {
   api: Pick<WorkAgentSettingsApi, "agentSwitch" | "setAgentSwitch">;
   orgId: string;
   isOrgAdmin: boolean;      // from the Hub's membership read; courtesy only (decision 2)
-  nameOf: (u: string) => string;
+  nameOf: (u: User) => string;
 }
 
 export function KillSwitch({ api, orgId, isOrgAdmin, nameOf }: KillSwitchProps) {
@@ -267,7 +267,7 @@ export function KillSwitch({ api, orgId, isOrgAdmin, nameOf }: KillSwitchProps) 
     <section className="ks" aria-labelledby="ks-title">
       <h3 id="ks-title">Orchestrators for this org</h3>
       <p className="ks-fact" role="status">{line}</p>
-      {sw.reason && <p className="ks-reason">{sw.reason}</p>}
+      {sw.reason !== "" && <p className="ks-reason">{sw.reason}</p>}
       {isOrgAdmin && (
         <div className="ks-act">
           <label htmlFor="ks-why">Reason</label>
@@ -291,7 +291,7 @@ button is a toggle between two named acts, never a switch control with an unlabe
 
 ```tsx
 import { useEffect, useState } from "react";
-import type { Guidance, GuidanceScope, ResolvedGuidance, WorkAgentSettingsApi } from "../../api/work";
+import type { Guidance, GuidanceScope, ResolvedGuidance, User, WorkAgentSettingsApi } from "../../api/work";
 import "./admin.css";
 
 const LAYER_WORD: Record<GuidanceScope, string> = { person: "yours", team: "team", org: "org" };
@@ -301,7 +301,7 @@ export interface AgentGuidanceProps {
   teamId: string | null;
   /** The layers this person may write: always "person"; "team" for a team admin; "org" for an org admin. */
   writable: { scope: GuidanceScope; scopeId: string }[];
-  nameOf: (u: string) => string;
+  nameOf: (u: User) => string;
 }
 
 /** The merged view, most local first (decision 6), then one editor and one history per layer. */
@@ -328,7 +328,7 @@ export function AgentGuidance({ api, teamId, writable, nameOf }: AgentGuidancePr
 }
 
 function LayerEditor(p: { api: WorkAgentSettingsApi; scope: GuidanceScope; scopeId: string;
-  nameOf: (u: string) => string; onSaved: () => void }) {
+  nameOf: (u: User) => string; onSaved: () => void }) {
   const [history, setHistory] = useState<Guidance[]>([]);
   const [draft, setDraft] = useState("");
   const [refused, setRefused] = useState<string | null>(null);
@@ -553,10 +553,13 @@ import { expectNoPrediction } from "../../test/expectNoPrediction";
 import { KillSwitch } from "./KillSwitch";
 import { agentsOffLine } from "./agentsOff";
 
-const OFF = { orchestrators: false, by: "u-admin", at: "2026-09-25T04:10:00Z", reason: "incident 12" };
-const ON = { orchestrators: true, by: null, at: null, reason: null };
-const nameOf = (u: string) => (u === "u-admin" ? "Priya" : u);
-const api = (sw: typeof OFF | typeof ON, set = vi.fn()) => ({ agentSwitch: vi.fn().mockResolvedValue(sw), setAgentSwitch: set });
+import type { AgentSwitch, User } from "../../api/work";
+
+const PRIYA: User = { id: "u-admin", displayName: "Priya", email: "priya@example.test" };
+const OFF: AgentSwitch = { orchestrators: false, by: PRIYA, at: "2026-09-25T04:10:00Z", reason: "incident 12" };
+const ON: AgentSwitch = { orchestrators: true, by: null, at: null, reason: "" };
+const nameOf = (u: User) => u.displayName;
+const api = (sw: AgentSwitch, set = vi.fn()) => ({ agentSwitch: vi.fn().mockResolvedValue(sw), setAgentSwitch: set });
 
 describe("KillSwitch", () => {
   it("names who turned Orchestrators off and when", () => {
@@ -601,7 +604,8 @@ import { expectNoPrediction } from "../../test/expectNoPrediction";
 import { AgentGuidance } from "./AgentGuidance";
 
 const g = (scope: Guidance["scope"], version: number, text: string): Guidance =>
-  ({ id: `gd-${scope}`, scope, scopeId: `x-${scope}`, text, version, author: "u-d", at: "2026-09-25T01:00:00Z" });
+  ({ id: `gd-${scope}`, scope, scopeId: `x-${scope}`, text, version,
+     author: { id: "u-d", displayName: "Dylan", email: "dylan@example.test" }, at: "2026-09-25T01:00:00Z" });
 
 function fakeApi() {
   const store: Guidance[] = [g("person", 1, "prefer small commits")];
@@ -610,7 +614,7 @@ function fakeApi() {
     guidanceHistory: vi.fn(async () => [...store].reverse()),
     resolvedGuidance: vi.fn(async () => ({ layers: [store[store.length - 1], g("team", 3, "team rule"), g("org", 7, "org rule")] })),
     putGuidance: vi.fn(async (r: { text: string; baseVersion: number }) => {
-      if (r.baseVersion !== store.length) throw { code: "stale_version" };
+      if (r.baseVersion !== store.length) throw { code: "revision_conflict" };
       const next = g("person", store.length + 1, r.text); store.push(next); return next;
     }),
     agentSwitch: vi.fn(), setAgentSwitch: vi.fn(), pauseMine: vi.fn(),
