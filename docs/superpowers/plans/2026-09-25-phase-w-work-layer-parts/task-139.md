@@ -250,3 +250,225 @@ period: a statement of the word **now**, never a predicted one. `actorName` is `
 `""` for a `nil` actor (the janitor); `hasField` splits task 13's comma-joined `fields`; `plural`
 is two words. `Alias` is filled by the route from the replica-independent issue head read, as
 `EP-142` from `project.key` and the issue's number (skeleton rule 1: never a key).
+
+#### Interfaces — complete: `control-plane/internal/workassist/draft_update.go`
+
+```go
+package workassist
+
+import (
+	"context"
+	"encoding/json"
+	"strings"
+)
+
+// DraftUpdateRequest is POST /v1/work/assist/draft-update's body.
+type DraftUpdateRequest struct {
+	FeatureID string `json:"featureId"`
+	After     string `json:"after"` // decision 3
+}
+
+// DraftSentence is one sentence the model wrote, with the fact keys it cites.
+// Its text is always agent-class: the desktop inserts it as text·A.
+type DraftSentence struct {
+	Text  string   `json:"text"`
+	Cites []string `json:"cites"` // fact keys (f1…); at least one, each in Facts
+}
+
+// DraftUpdateResponse has no health field, by design (decision 5).
+type DraftUpdateResponse struct {
+	Facts     FactsResult     `json:"facts"`
+	Sentences []DraftSentence `json:"sentences"` // never null; may be empty after keepCited
+	Dropped   int             `json:"dropped"`   // sentences removed by keepCited, a count
+	Route     string          `json:"route"`     // "global" | "au", the route the call went on
+}
+
+const draftSystem = `You write short factual sentences for a status update about one feature.
+You are given numbered facts. Every sentence must cite, by key, the facts it states.
+Do not state anything that no fact says. Do not judge whether the feature is on track.
+Answer with JSON only: {"sentences":[{"text":"…","cites":["f1"]}]}.`
+
+// promptFact is what the model sees of a fact: its key, kind, words and time.
+// Seq, Subject ids and actor ids stay on the control plane.
+type promptFact struct {
+	Key  string   `json:"key"`
+	Kind FactKind `json:"kind"`
+	Line string   `json:"line"`
+	Who  string   `json:"who,omitempty"`
+	Item string   `json:"item,omitempty"` // "EP-142", the alias, for a sentence to name
+	At   string   `json:"at"`
+}
+
+// DraftUpdate builds facts, asks the gateway for sentences and keeps only
+// cited ones. With no facts it makes no call.
+func (s *Service) DraftUpdate(ctx context.Context, projectID string, req DraftUpdateRequest) (DraftUpdateResponse, error) {
+	facts, err := s.Facts(ctx, req.FeatureID, req.After)
+	if err != nil {
+		return DraftUpdateResponse{}, err
+	}
+	resp := DraftUpdateResponse{Facts: facts, Sentences: []DraftSentence{}}
+	if len(facts.Facts) == 0 {
+		return resp, nil
+	}
+	pf := make([]promptFact, 0, len(facts.Facts))
+	for _, f := range facts.Facts {
+		pf = append(pf, promptFact{Key: f.Key, Kind: f.Kind, Line: f.Line, Who: f.By, Item: f.Alias, At: f.At})
+	}
+	user, _ := json.Marshal(map[string]any{"facts": pf})
+	reply, err := s.Complete(ctx, projectID, Call{System: draftSystem, User: string(user), MaxTokens: 600})
+	if err != nil {
+		return DraftUpdateResponse{}, err // ErrAssistsOff and ErrGatewayDown pass through
+	}
+	resp.Route = string(reply.Route)
+	resp.Sentences, resp.Dropped = keepCited(reply.Text, facts.Facts)
+	return resp, nil
+}
+
+// keepCited parses the model's JSON and keeps a sentence only when it cites at
+// least one key it was given (decision 4) and is not a health word (decision 5).
+// Unparseable output keeps nothing: a draft is optional, a false cite is not.
+func keepCited(text string, facts []Fact) ([]DraftSentence, int) {
+	given := make(map[string]bool, len(facts))
+	for _, f := range facts {
+		given[f.Key] = true
+	}
+	var raw struct {
+		Sentences []DraftSentence `json:"sentences"`
+	}
+	if json.Unmarshal([]byte(strings.TrimSpace(text)), &raw) != nil {
+		return []DraftSentence{}, 0
+	}
+	kept, dropped := []DraftSentence{}, 0
+	for _, s := range raw.Sentences {
+		ok := len(s.Cites) > 0 && strings.TrimSpace(s.Text) != "" && !isHealthWord(s.Text)
+		for _, c := range s.Cites {
+			ok = ok && given[c]
+		}
+		if !ok {
+			dropped++
+			continue
+		}
+		kept = append(kept, DraftSentence{Text: strings.TrimSpace(s.Text), Cites: s.Cites})
+	}
+	return kept, dropped
+}
+
+// isHealthWord catches a sentence that is only a verdict (decision 5).
+func isHealthWord(t string) bool {
+	switch strings.ToLower(strings.Trim(strings.TrimSpace(t), ".!")) {
+	case "on track", "at risk", "off track", "on_track", "at_risk", "off_track":
+		return true
+	}
+	return false
+}
+```
+
+The system prompt is fixed text in the binary, not a template the Hub or a person edits. A
+sentence citing one given key and one invented key is dropped whole: a partly true cite list is a
+false one. `Dropped` is a plain count so the desktop can say *"1 drafted sentence was left out: it
+cited nothing it was given"*; it is never shown as a share.
+
+#### Interfaces — complete: `control-plane/internal/workassist/summary.go`
+
+```go
+package workassist
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"strconv"
+	"strings"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubapi"
+)
+
+// SummaryThreshold is decision 8: more than this many non-erased comments.
+const SummaryThreshold = 12
+
+// maxThreadComments bounds one prompt; a longer thread summarises its newest.
+const maxThreadComments = 200
+
+// ThreadSummaryRequest is POST /v1/work/assist/summarise-thread's body.
+// RootID is the top-level comment; "" means the issue's whole activity.
+type ThreadSummaryRequest struct {
+	IssueID string `json:"issueId"`
+	RootID  string `json:"rootId"`
+}
+
+// SummaryLine is one sentence and the ic- ids it condenses, all in the thread.
+type SummaryLine struct {
+	Text     string   `json:"text"`     // agent-class; the desktop marks it drafted
+	Comments []string `json:"comments"` // ic-… ids, at least one, each in this thread
+}
+
+// ThreadSummary is returned and never stored (decision 7).
+type ThreadSummary struct {
+	IssueID string        `json:"issueId"`
+	RootID  string        `json:"rootId"`
+	Lines   []SummaryLine `json:"lines"`   // never null
+	Dropped int           `json:"dropped"` // lines removed for a cite outside the thread
+	Route   string        `json:"route"`
+}
+
+var ErrThreadTooShort = errors.New("workassist: thread has too few comments to summarise")
+
+const summarySystem = `You index a discussion. Each comment has a key like c1.
+Write at most 8 short sentences. Each sentence condenses one or more comments and lists their keys.
+Quote no one at length. Add nothing the comments do not say.
+Answer with JSON only: {"lines":[{"text":"…","comments":["c1","c4"]}]}.`
+
+// SummariseThread reads the thread's comments, sends the non-erased ones with
+// local keys, and maps the reply's keys back to ic- ids of this thread only.
+func (s *Service) SummariseThread(ctx context.Context, projectID string, req ThreadSummaryRequest) (ThreadSummary, error) {
+	cs, err := s.threadComments(ctx, req.IssueID, req.RootID)
+	if err != nil {
+		return ThreadSummary{}, err
+	}
+	if len(cs) <= SummaryThreshold {
+		return ThreadSummary{}, ErrThreadTooShort
+	}
+	local := make(map[string]string, len(cs)) // c1 → ic-…; never sent
+	type pc struct{ Key, Who, Text string }
+	in := make([]pc, 0, len(cs))
+	for i, c := range cs {
+		k := "c" + strconv.Itoa(i+1)
+		local[k] = c.ID
+		in = append(in, pc{Key: k, Who: c.CreatedBy.DisplayName, Text: c.Body.Text})
+	}
+	user, _ := json.Marshal(map[string]any{"comments": in})
+	reply, err := s.Complete(ctx, projectID, Call{System: summarySystem, User: string(user), MaxTokens: 700})
+	if err != nil {
+		return ThreadSummary{}, err
+	}
+	out := ThreadSummary{IssueID: req.IssueID, RootID: req.RootID, Lines: []SummaryLine{}, Route: string(reply.Route)}
+	var raw struct {
+		Lines []SummaryLine `json:"lines"`
+	}
+	if json.Unmarshal([]byte(strings.TrimSpace(reply.Text)), &raw) != nil {
+		return out, nil
+	}
+	for _, l := range raw.Lines {
+		ids, ok := make([]string, 0, len(l.Comments)), len(l.Comments) > 0 && strings.TrimSpace(l.Text) != ""
+		for _, k := range l.Comments {
+			id, found := local[k]
+			ok = ok && found
+			ids = append(ids, id)
+		}
+		if !ok {
+			out.Dropped++
+			continue
+		}
+		out.Lines = append(out.Lines, SummaryLine{Text: strings.TrimSpace(l.Text), Comments: ids})
+	}
+	return out, nil
+}
+```
+
+`threadComments` pages task 04's `Comments(ctx, issueID, PageRequest)` (`task-04.md:212`, oldest
+first, `Page{Items, Next}`), keeps comments whose `ParentID` is `RootID` or which are the root
+(all of them when `RootID` is `""`), **drops every comment whose `ErasedAt` is set** and every
+comment whose `Kind` is not a plain comment (so an `edit_proposal` of task 141 or a note never
+enters a summary), and keeps the newest `maxThreadComments`. The model's cite is a local key; a key
+it invents, or an `ic-` id it copies from a body, is not in `local` and drops the line. No write
+follows: the service holds no store, and the route test counts the fake Hub's writes.
