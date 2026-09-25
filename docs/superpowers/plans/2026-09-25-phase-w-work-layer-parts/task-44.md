@@ -215,3 +215,45 @@ An empty array is not sent. `serves(h, c)` reads the head revision's `serves` fr
 (SW.16); an issue that already serves the criterion is left out, so the batch writes no revision
 that changes nothing.
 
+#### CSS, appended to `work.css` and `common.css`
+
+```css
+/* work.css — task 44. Density reads the tokens; FLIP animates transform only. */
+.wk-list .wk-row { block-size: var(--row-h); }
+.wk-list[data-density="compact"] .wk-row { block-size: var(--row-h-compact); }
+.wk-row[data-flip] { transition: transform var(--dur-slow) var(--ease); }
+@media (prefers-reduced-motion: reduce) { .wk-row[data-flip] { transition: none; } }
+:root[data-motion="reduce"] .wk-row[data-flip] { transition: none; }
+.wk-row[aria-selected="true"] .wk-lead { color: var(--ink); }
+.wk-bulk { position: sticky; inset-block-end: var(--s-3); display: flex; align-items: center; gap: var(--s-2);
+  margin-inline: auto; padding: var(--s-2) var(--s-3); border-radius: var(--r-card);
+  background: var(--surface); box-shadow: var(--e-card); font-size: var(--t-ui); }
+.wk-bulk-count { font-family: var(--mono); font-size: var(--t-fact); font-variant-numeric: tabular-nums; color: var(--ink-2); }
+
+/* common.css — task 44. confirm.inplace: a row of text and two buttons, no overlay. */
+.cip { display: inline-flex; align-items: center; gap: var(--s-2); }
+.cip-consequence { color: var(--ink); }
+```
+
+`--dur-slow` (260ms) and `--ease` are built (`tokens.css:135-138`). `.wk-list`, `.wk-row` and
+`.wk-lead` are task 40's class names (**UNVERIFIED** until its part exists; its names win).
+
+#### Tests to write first
+
+`DisplayMenu.test.tsx`, `BulkBar.test.tsx` and `ConfirmInPlace.test.tsx`; the lens-level ones render
+on `workScenario()` through task 40's test seam (**UNVERIFIED** name), with a `mutate` spy that
+records each call's argument and an Undo spy on the returned `{undo}`.
+
+| Test | What it asserts | Mutant it kills |
+|---|---|---|
+| `the default grouping is criterion, and a choice survives a remount` | fresh store: the menu's grouping reads *Criterion*; choose *State*; unmount the lens; rehydrate the store from `partialize`'s output; remount: grouping reads *State* and the list's groups are states | a state default; view-local state |
+| `the persisted prefs hold display keys and no issue data` | select three issues and set options; `JSON.stringify(partialize(store.getState()))` contains `"workDisplay"`, not `"issueSelection"`, and no match for `/is-[0-9a-f]{16}/` or `EP-\d` | saving rows or the selection with the prefs |
+| `hiding labels removes row chips and not the issue view's` | give EP-142 a label; turn `show.labels` off on `list`; the row has no `.wk-label`; task 46's `IssueView` for EP-142 still shows the label | a global toggle |
+| `bulk priority on three issues is one batch, reverted by one Undo` | `X` on three rows, bar → *Priority* → *Urgent*; the spy saw **one** call whose argument is an array of three `setPriority` ops; one Undo call reverts all three in the replica | three chips, or an Undo that reverts only the last |
+| `Start 3 worktrees confirms in place, and Esc cancels` | three selected, `onStart` spy: first press calls nothing and shows `Starts 3 agents on 3 worktrees · route Global`; `Esc` closes it with no call; press twice: `onStart` called once with the three `is-` ids | an optimistic start |
+| `Start is not offered for one issue` | one selected: no *Start* button | a bulk Start that is `Shift+R` in disguise |
+| `ConfirmInPlace is not a dialog` | render it: no element with `role="dialog"` or `aria-modal`; focus is on the confirm button; `Tab` moves out of it | a modal |
+| `compact rows read their height from the token` | `work.css` as text: the compact rule's value is `var(--row-h-compact)`; no `28px` or `32px` in `work.css` or any `.tsx` in `components/work` | a hard-coded 28px |
+| `X in a field does nothing; Shift+↓ extends` | `X` in the lens's filter `input` selects nothing; `Shift+ArrowDown` from EP-142 selects EP-142 and the next row, and focus moves | a document listener; an extend that does not move |
+| `no prediction` | with the bar open and the menu open, `expectNoPrediction(container)` passes; the bar's count reads `3 selected` | an `N of M` count |
+
