@@ -359,3 +359,66 @@ has four, `StatusDot.tsx:9-15`), the reduced-motion tick (task 34) or a licence 
 (**UNVERIFIED**). Design: 05 §4.1, §4.4 (C6, C7, rules 1 and 4); 02 C2, C6. Parity: gives **L-184**'s
 states a shape each and **L-225**'s multi-select its check; it closes neither alone.
 
+**30 — `voice.split` across Develop and the session pane (02 D2 step 3).** Stream WD1, no seam of
+its own (it applies SW.11), 2.5 h. Depends on 27. Human-language lines are sans; every machine fact
+(id, key, path, time, duration, exit code, cost, count of tokens, coordinates) is mono at `--t-fact`
+12px in `--ink-2` or stronger, never 11px and never `--ink-3` (05 §4.4 C3; D I7). The built tree
+breaks both rules today: `.pane-foot` (`desktop/src/components/develop/develop.css:244-255`) sets
+`font: 400 11px/1.4 var(--mono)` in `--ink-3`, `.pane-sub` (`:120-124`) sets 11px sans `--ink-3`,
+and `.cv-coords` (`:386`) carries live numbers. Files: ⚑ `develop.css`; `SessionPaneHeader.tsx`
+(`.pane-title` at `:36`, `.pane-sub` at `:37`) and `SessionPaneFooter.tsx` (`.pane-foot-fact` at
+`:65`), each field classified in a table in the part (a worktree name or a harness's product name
+is sans; a branch, id, path, duration or cost is mono); ⚑ `desktop/src/styles/designsystem.test.ts`
+(`describe("the design-system audit")` at `:596`, and `describe("the audit's own rules, fed a planted
+tree")` at `:849`). **Three audit rules**, each with a planted violation in the `:849` block so the
+rule is shown to fire: (A) a rule that sets a mono face uses `--t-fact`, unless its selector is a
+`kbd` hint (`kbd`, `.kbd`, `-kbd`), which alone may use `--t-micro`; (B) no rule that sets a mono face
+sets `color: var(--ink-3)`; (C) CSS under the new Phase W directories (`components/work`, `issue`,
+`desk`, `glyphs`, `thread`, `devtools`) uses only `--s-*` for `padding`, `margin` and `gap` (the rule
+task 26 deferred). **The old look stays reachable:** each replaced declaration is kept under a
+`:root[data-look="old"]` selector in the same file, so task 32's toggle flips old and new on the same
+screen; nothing is deleted until the owner accepts the new look (task 39 records it). **Tests
+first:** audit rule A over the real tree (kills `.pane-foot` left at 11px); rule B (kills facts left
+in `--ink-3`); rule C over the planted tree (kills a literal `padding: 10px` in a Phase W file);
+each planted violation fails its rule (kills a rule that never fires); `SessionPaneFooter`:
+`it("renders facts mono and the attach reason sans")` (kills the human sentence set in mono);
+`SessionPaneHeader`: `it("keeps the worktree name sans and the branch mono")` (kills the split
+reversed); `it("restores the old declarations under data-look=old")` (kills a change that cannot
+be flipped back). **Acceptance:** `npm --prefix desktop test -- designsystem develop` passes;
+`grep -n "11px/1.4 var(--mono)" desktop/src/components/develop/develop.css` finds the string only
+inside a `[data-look="old"]` block. It does **not** claim the rail or the Discover lens (other tasks
+touch them), the three sans candidates (task 32), or that the split reads better: the owner judges at
+task 39. Design: 05 §4.4 C3; 02 C3, D2 step 3; 07 D I7. Parity: no 01 row; it is one of 02 C13's five
+things every screen carries that Linear does not, `voice.split`.
+
+**31 — `chrome.dim` and one `ViewHeader` with the route badge (02 D2 step 2).** Stream WD1, defines
+seam **SW.13**, 3 h. Depends on 26. Files: new `desktop/src/components/common/ViewHeader.tsx` and
+`ViewHeader.test.tsx`; ⚑ `desktop/src/styles/app.css` (82 lines; its token-first import and "no
+colour of its own" rule are pinned by `tokens.test.ts:85`); ⚑ `desktop/src/components/rail/rail.css`;
+and `desktop/src/components/subrail/subrail.css`, which the skeleton's file map omits although
+02 C5 dims the sub-rail too. **SW.13, complete:** `export type Route = "global" | "au"`;
+`export function ViewHeader(props: { title: string; route: Route | null; badge?: ReactNode;
+actions?: ReactNode }): JSX.Element`: the title at `--t-head` in sans; `badge` is the scope chip
+(for the Work lens, `EP · Resumable uploads` with the branch in mono, 05 §4.1); the route badge
+reads `Global` or `AU` in mono at `--t-fact` and is hidden only when `route` is `null` (unknown; a
+header never guesses `Global`); `actions` sit on the right. One layout, one component: every new
+surface (tasks 38-48, 62, 85-91, 126-132) uses it, and this task moves the built lens titles onto it
+(`components/lens/LensPlaceholder.tsx`, and the Develop lens's title row wherever it renders at the
+sync base, `DevelopLens.tsx` or `topbar/TopBar.tsx`). **`chrome.dim`** (02 C5): rail and sub-rail
+labels at `--ink-2`, their icons at `--ink-3`, the current item at `--ink` with a 2px `--accent`
+tick on its leading edge (current state, the only place accent is legal); the work area keeps
+`--ink`, so the work is the brightest thing on screen. Old declarations stay under
+`:root[data-look="old"]` for task 32. **Tests first:** `it("renders the route badge in mono")`
+(kills the badge set in sans or dropped); `it("hides the badge when the route is unknown")` (kills a
+guessed `Global`); `it("puts actions after the title in one row")` (kills a second layout);
+designsystem audit `it("has one view header")` (no `<h1>` or `*-view-title` class outside
+`ViewHeader.tsx`; kills a second header pattern, 02 C5 and AX §9 item 8); `it("dims rail and
+sub-rail labels to ink-2")` (kills chrome as bright as the work); `it("uses accent only on the
+current item")` (kills accent on resting rows); `it("marks the current item with a tick, not colour
+alone")` (kills a colour-only current state); `it("keeps the old chrome under data-look=old")`.
+**Acceptance:** `npm --prefix desktop test -- ViewHeader designsystem rail` passes; typecheck is
+clean. It does **not** claim the route is right: the badge shows what it is given (task 24 computes
+it; phase 6 enforces it), nor the Desk's or Plan's headers (tasks 45, 62). Design: 05 §4.4 C5, §4.1;
+02 C5, D2 step 2; `OD-19` (the switch made visible). Parity: no 01 row names chrome; it is the
+visible half of `OD-19`'s per-project route.
+
