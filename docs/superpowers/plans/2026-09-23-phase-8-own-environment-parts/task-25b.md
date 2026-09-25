@@ -10,7 +10,7 @@ builds the laptop's half of **lane** git, which never runs in the machine pod (r
   (ruling 1): `POST /v1/sandboxes/{id}/git/v1/{op}`, `Authorization: Bearer <entra>` and
   `Panacea-Attach-Token: <token>`. The request names no directory.
 - **Step 2, a runner-only pod.** Phase 3's pool asks this machine's `remotebe.Backend` for a pod
-  whose one mount is the lane at `/home/dev/work` (ruling 2; phase-3 `task-24.md:678-684`). Its id
+  whose one mount is the lane at `/home/dev/work` (ruling 2; phase-3 `task-24.md:725-731`). Its id
   is in phase 3's `HeldSet`, so the reaper keeps it (`task-24.md:709-718`, `:934-936`).
 - **Bundles.** The cloud `lanegit.Bundles` (seam S8-P3.4, ruling 3) over `machined`'s bundle
   routes (task 21b), and the relay: lane work streams from the runner into `POST /v1/bundles`
@@ -111,7 +111,7 @@ remotebe's additions (`lanegit.go`):
 package remotebe
 
 // RunnerWorkDir is phase 3's sessionWorkDir and sandboxd's -git-worktree default
-// (phase-3 task-24.md:680-683).
+// (phase-3 task-24.md:730-731).
 const RunnerWorkDir = "/home/dev/work"
 
 // SandboxHost is the host DialLane gives NewRunnerTransport. .invalid never resolves (RFC 2606),
@@ -202,8 +202,11 @@ type Bundles struct {
 
 var _ lanegit.Bundles = Bundles{}
 
-// ErrBundleBusy: machined already holds two live bundles (429 bundle_busy). Nothing here waits
-// or retries.
+// ErrBundleBusy: machined already holds two live bundles (429 bundle_busy) (seams review 1 I2).
+// Reserve sends no body, so on 429 it waits BusyRetry (250 ms) and asks again until its ctx
+// ends, then answers ErrBundleBusy wrapping ctx.Err(). Put never waits: its body is the
+// runner's stream, already being read, so its 429 is ErrBundleBusy at once and the caller
+// (a sync's backoff, or the user) runs it again. Task 21b "The store" says who holds a slot.
 var ErrBundleBusy = errors.New("machines: the machine already holds two bundles")
 
 // BundleError is every other problem on a bundle route: 413 too_large, 504 git_timeout, 404 for
@@ -250,12 +253,12 @@ defer bundles.Remove(context.WithoutCancel(ctx), id) // every path, success incl
 // bundle verify, bundle list-heads and fetch on bundles.Path(id): Scope Project, POST /v1/git
 ```
 
-The wiring in `cmd/api/main.go`, beside phase 3's `laneGit` (phase-3 `task-24.md:850`):
+The wiring in `cmd/api/main.go`, beside phase 3's `laneGit` (phase-3 `task-24.md:940-951`):
 
 ```go
 laneGit.Machines = func(ctx context.Context, id string) (lanegit.Machine, error) {
 	if id == "" || id == machines.LocalID {
-		return lanegit.Machine{Backend: be, Bundles: localBundles}, nil // phase 3's own (S8-P3.4)
+		return lanegit.Machine{Backend: be, Bundles: laneGit.LocalBundles}, nil // phase 3's own (S8-P3.4; phase-3 task-24.md:946)
 	}
 	b, err := set.Backend(ctx, id) // task 23: ErrUnknownMachine for an id that is not this user's
 	if err != nil {
@@ -267,15 +270,15 @@ laneGit.Machines = func(ctx context.Context, id string) (lanegit.Machine, error)
 }
 ```
 
-The one `HeldSet` (phase-3 `task-24.md:845`) holds runner-only ids on every machine: ids are
+The one `HeldSet` (phase-3 `task-24.md:935`) holds runner-only ids on every machine: ids are
 `lg-` + 16 random hex, so they do not collide across machines.
 
 #### Asks of phase 3, recorded here (task 33 lists the phase's asks)
 
 | Ask | What | Why | Plan proceeds on |
 |---|---|---|---|
-| **S8-P3.4** `lanegit.Bundles` (ruling 3) | `FetchLane`, `ArchiveLane` and `SendBranch` take `gitx.Runner` and a `Bundles` (`Put`, `Reserve`, `Open`, `Remove`, `Path`), four of them with `ctx` | today they take `*gitx.Exec` and write `<OwnedRoot>/bundles` on the laptop (phase-3 `task-24.md:704-745`), the wrong disk for a cloud lane | nothing: without it this task does not start |
-| **S8-P3.5** the pool reaches a lane's own machine (new; the rulings are silent) | `Lanes.Machines`, `Lanes.Bundles`, step 2's `ReadyWaiter` and `ErrUnsupported` rules, `NewRunnerTransport` (above) | one `Backend` and one `Dial` per pool, a readiness poll of an undialled endpoint, a Kind-based `ErrNoRunner`, and a runner that dials `http://<endpoint>` | nothing: without it this task does not start |
+| **S8-P3.4** `lanegit.Bundles` (ruling 3) | `FetchLane`, `ArchiveLane` and `SendBranch` take `gitx.Runner` and a `Bundles` (`Put`, `Reserve`, `Open`, `Remove`, `Path`), four of them with `ctx` | before the seam they took `*gitx.Exec` and wrote `<OwnedRoot>/bundles` on the laptop, the wrong disk for a cloud lane | phase 3's plan answers it (phase-3 `task-24.md:758-830`); this task does not start until that code is on feat/env |
+| **S8-P3.5** the pool reaches a lane's own machine (new; the rulings are silent) | `Lanes.Machines`, `Lanes.Bundles`, step 2's `ReadyWaiter` and `ErrUnsupported` rules, `NewRunnerTransport` (above) | before the seam: one `Backend` and one `Dial` per pool, a readiness poll of an undialled endpoint, a Kind-based `ErrNoRunner`, and a runner that dials `http://<endpoint>` | phase 3's plan answers it (phase-3 `task-24.md:587`, `:629-668`, `:727-736`); this task does not start until that code is on feat/env |
 
 #### Tests to write first
 
@@ -300,7 +303,8 @@ request, and phase 3's `lanegit.NewRunnerTransport`:
 |---|---|---|
 | `TestPutStreams` | a reader that yields 1 MiB and then blocks until the server has read that 1 MiB → `Put` completes; the request had no `Content-Length` | a bundle buffered in memory before sending |
 | `TestPutFailureUnblocksTheWriter` | server answers 413 `too_large` mid-body → `*BundleError{413, "too_large"}`; the `io.PipeWriter` goroutine returns `io.ErrClosedPipe` | a leaked relay goroutine holding a runner stream |
-| `TestBusyIsErrBundleBusy` | 429 `bundle_busy` → `errors.Is(err, ErrBundleBusy)` | a third bundle queued on the machine |
+| `TestBusyIsErrBundleBusy` | `Put` meeting 429 `bundle_busy` → `errors.Is(err, ErrBundleBusy)` at once, one request made | a third bundle queued on the machine; a `Put` that retries a body it has already read |
+| `TestReserveWaitsWhileBusy` (seams review 1 I2) | `BusyRetry` 10 ms: a server answering 429 twice, then 201 → `Reserve` returns that id after three requests; one answering 429 until a 50 ms `ctx` ends → `errors.Is(err, ErrBundleBusy)` and `errors.Is(err, context.DeadlineExceeded)` | a refresh that fails whenever a sync or archive holds the second slot; a wait that outlives its `ctx` |
 | `TestReserveOpenRemovePaths` | `Reserve` → `POST …/agent/v1/bundles?reserve=1`, empty body; `Open` → `GET …/{id}`; `Remove` → `DELETE …/{id}`, nil on 204 | a route the proxy does not forward |
 | `TestIdsAreChecked` | an answered id `../x` or 15 hex → error; `Open`, `Remove` with a bad id → error, no request; `Path("bad") == ""`; `Path("0123456789abcdef") == "/tmp/machined-git/bundles/0123456789abcdef.bundle"` | a machine-supplied id used as a path |
 
