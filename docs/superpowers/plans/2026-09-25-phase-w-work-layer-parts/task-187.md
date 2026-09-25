@@ -60,3 +60,92 @@ criterion that was not run says *not run* and why, never *expected to pass*.
 - `docs/verification/phase-w/testdata/{wl-complete,wl-missing-output,ledger-complete,ledger-hidden-row,ledger-wrong-verdict}.md`
   — the checks' fixtures (new)
 - `desktop/src/test/wlSweep.test.tsx` — every WL surface's test calls `expectNoPrediction` (new)
+
+#### The rows WL closes, and what closes each
+
+Line numbers are `05-design.md`'s on 2026-09-26 (each re-read while writing this part). The test
+is a real name from the closing part's mutant table (parts 175-186 are all written on
+2026-09-26); step 1 re-reads each on the sync base in case a part moved it.
+
+| Row | 05 §1 | Closed by | The test that must pass |
+|---|---|---|---|
+| L-7 | `:111` | 175 | `TestACopiedTemplateDropsWhatTheTargetLacksAndCreatesNothing` (`task-175.md:498`) |
+| L-40 | `:149` | 176 | `TestTheRuleAssignsOnTheOwnersOwnCreate` (`task-176.md:292`) |
+| L-152 (Q1) | `:309` | 177 (with 122) | `TestOnlyTheFourTypesExist` (`task-177.md:288`): no burn-up, percentage or forecast block |
+| L-154 | `:311` | 178 (with 156's webhooks) | `TestFollowResumesWithNoDuplicateAndNoGap` (`task-178.md:315`) |
+| L-171 | `:333` | 179 | `renamed identifier marks one token` (`task-179.md:303`) |
+| L-172 | `:334` | 180 | `every hunk exactly once` (`task-180.md`, the `guidedReview.test.ts` rows) |
+| L-176 | `:338` | 181 | `TestSignedLandVerifies` (`task-181.md:204`) |
+| L-206 | `:378` | 182 | `TestShortcutMakesOneRequest` (`task-182.md`, after `:291`) |
+| L-209 | `:381` | 183 | `TestFiredMakesOneTriageRequest` (`task-183.md:253`) |
+| L-218 | `:390` | 184 | `TestAMatchedOnCallIsOnDuty` (`task-184.md:371`) |
+| L-238 | `:420` | 185 | `TestLeavingRemovesOnlyGroupSourced` (`task-185.md:347`) |
+| L-254 | `:446` | 186 | `refuses an entry dated after the build` (`task-186.md`, part 1) |
+
+#### The clauses WL carries from rows other slices close
+
+| Row | 05 §1 | Its closer | WL's clause, and its test |
+|---|---|---|---|
+| L-50 (PARTIAL) | `:164` | 114, 121, 134 (W4) | the *later* part, a rotation synced from PagerDuty or Opsgenie: 184's `TestAnOutageKeepsDuty` and `TestANonMemberAddsNobody` |
+| L-80 | `:204` | 157, 165 (W5, Teams) | *Slack next*: 182's `TestNoCustomerTextLeaves` |
+| L-97 | `:231` | 157 (W5, Teams) | *Slack next*: 182's `TestUnlinkedSubscribeRefused` |
+| L-137 | `:289` | 157 (W5, Teams) | *Slack next*: 182's `TestThreadReplyAttributed` |
+
+A clause row is not a close: the row's verdict stays with its own slice's section (task 142 for
+L-50, task 174 for the other three), and this table records only that the clause was run. L-50
+keeps 05's verdict, **PARTIAL** (`05-design.md:164`, `:464`: *"syncing it from PagerDuty and the
+like is L-218"*); with 184's rows passing, its ledger status is `closed`, both parts proved, and
+whether 05 should then read MATCH is left to the owner (gap 3). The inventory's item also names
+Rootly and incident.io (`coverage.md:93`), which 184 does not read, and the ledger says so.
+
+#### Interfaces — complete: the WL section's shape (appended to the results file)
+
+```markdown
+## WL: the later rows — <date>
+
+**Environment:** the local Hub stack through `devissuer`; fakes and golden payloads standing in:
+<Graph, Slack, Azure Monitor, Sentry, PagerDuty, Opsgenie, the warehouse sink: each named, with the
+one it stands for>. Hub at `<sha>`, control plane and desktop at `<sha>`. No live vendor was called
+<or: row L-nnn called <vendor> in tenant <name>>.
+
+### The rows
+
+| Row | Task | Test (real name) | Command | Observed (excerpt) | Commit |
+|---|---|---|---|---|---|
+| L-7 | 175 | … | … | … | … |
+
+### The clauses
+
+| Row | Task | Clause | Test | Observed (excerpt) | Commit |
+|---|---|---|---|---|---|
+| L-50 | 184 | later: rotation sync | … | … | … |
+
+### Q1
+
+<the owner's answer to Q1, verbatim, with the date; or "Q1 not answered; the recommended answer
+was built">
+
+### The suites
+
+| Suite | Command | Result line (quoted) |
+|---|---|---|
+| Go | `go test ./control-plane/... -race -count=1` | … |
+| Go, integration | `go test ./control-plane/... -race -count=1 -tags integration` | … |
+| Desktop | `npm --prefix desktop test` | … |
+| Types | `npm --prefix desktop run typecheck` | … |
+| WL acceptance | each of tasks 175-186's *Acceptance* block, one row per task | … |
+
+### The owner's look
+
+<the owner's words, verbatim, with the date, per surface of decision 7; or "not yet shown">
+
+### What is still unproven
+
+- <each item of task 187's decision 8, one line each, with the test that would settle it>
+
+## The phase ledger — <date>
+
+<the ledger, shaped as below>
+```
+
+Every `…` is filled from the run. A cell left `…` fails `check-wl.sh`.
