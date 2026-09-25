@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
@@ -207,6 +208,19 @@ func TestBuildWithAnErasedPinHoldsNoInheritedText(t *testing.T) {
 	if ref.Headline == "" || len(ref.Criteria) != 3 {
 		t.Errorf("headline %q, %d criteria: the branch's own answers are gone too", ref.Headline, len(ref.Criteria))
 	}
+
+	// An open history row whose pin was erased builds too: open, own answers,
+	// the pin marked erased (mutant X2: the erased case ahead of the open one).
+	open := src42()
+	open.Revision.Content.Status = discover.StatusOpen
+	open.Project, open.PinErased = nil, true
+	oref, err := Build(key42, open, head42)
+	if err != nil {
+		t.Fatalf("Build of an open revision with an erased pin: %v", err)
+	}
+	if oref.Status != "open" || oref.Inherits == nil || !oref.Inherits.Erased || oref.Audience != "" || len(oref.Criteria) != 3 {
+		t.Errorf("open revision, erased pin: %+v", oref)
+	}
 }
 
 // TestBuildTitlesAnOpenRevisionByTheOneRule (re-review b05-1 R-M2).
@@ -324,6 +338,15 @@ func TestBuildRefusesASourceTheKeyDoesNotName(t *testing.T) {
 			return s
 		}, true},
 		{"no pin passed, none erased", key42, func() Source { s := src42(); s.Project = nil; return s }, true},
+		// Mutant P1: a project revision whose content holds a pin.
+		{"a project revision that holds a pin", key7, func() Source {
+			s := src7()
+			s.Revision.Content.Inherits = &discover.Inherit{Key: BriefKey(projectBrief, 4), Digest: dig7}
+			return s
+		}, false},
+		// Mutant X1: the envelope's Key agrees with the key, its id or number does not.
+		{"an envelope whose id is another brief's", key42, func() Source { s := src42(); s.Revision.BriefID = "bf-00000000000000a3"; return s }, false},
+		{"an envelope whose number is another revision's", key42, func() Source { s := src42(); s.Revision.Number = 6; return s }, false},
 	} {
 		ref, err := Build(tc.key, tc.src(), head42)
 		want := ErrBadSource
@@ -443,6 +466,16 @@ func TestEvaluateFailureShowsOpen(t *testing.T) {
 		{"none", func(EvalQuery) ([]Verdict, error) { return nil, nil }},
 		{"out of order", func(EvalQuery) ([]Verdict, error) { v := good(); v[0], v[1] = v[1], v[0]; return v, nil }},
 		{"a stranger's id", func(EvalQuery) ([]Verdict, error) { v := good(); v[2].CriterionID = "c-ffffffff"; return v, nil }},
+		// Mutant P2: an Evaluate that reorders the query's criteria in place
+		// and answers in its new order. The readings keep Build's order.
+		{"a query reordered in place", func(q EvalQuery) ([]Verdict, error) {
+			slices.Reverse(q.Criteria)
+			v := make([]Verdict, len(q.Criteria))
+			for i, c := range q.Criteria {
+				v[i] = Verdict{CriterionID: c.ID, State: StateSettled, Because: []string{"CI run 88 passed"}}
+			}
+			return v, nil
+		}},
 	} {
 		eval, _ := counting(tc.fn)
 		assertAllOpen(t, tc.name, ref, Readings(context.Background(), key42, src42(), evidenceRef, eval))
