@@ -255,12 +255,17 @@ fix round 1). D5, D7 and D10 are not carried, and `carried/INDEX.md` gives the r
     that started and then failed, like the `fetch` above, cannot be told from a real failure
     and is not retried. For these pins: an `exit 3221225794` in this package's log is the
     machine, not a finding. Rerun with fewer processes live. *Since fix round 1 (2026-09-26)*
-    the pin helper says so itself. Every git call, and the sandbox half's `docker run`, goes
-    through `runProgram`. On that code, `runProgram` stops the pin with "git could not start
+    the pin helper says so itself. Every git call, and the sandbox half's `docker run` and
+    `docker image inspect`, goes through `runProgram`. On that code, `runProgram` stops the pin
+    with a sentence that starts with the program's own name, for git "git could not start
     (exit 3221225794 = 0xC0000142, STATUS_DLL_INIT_FAILED): the machine's load, not a finding
     about git". `TestPinHelperNamesAProgramThatNeverStarted` pins this with a
     `cmd /c exit -1073741502` fixture. That test went red before the check existed, and it also
     checks that the codes 0, 1, 128 and 255 pass through untouched. The helper does not retry.
+    `TestPinHelpersStartEveryProgramThroughRunProgram` reads this package's test sources and
+    fails on any other `exec.Command` site, in either build tag: before the fix, `needSandbox`'s
+    own inspect would have read a docker.exe that never started as "the image is absent" and
+    skipped the whole sandbox half.
     A test binary that itself fails to start ("exit status 0xc0000142" from `go test`, with no
     test run) is outside any helper's reach.
 15. **No pin shows what `core.checkStat=minimal` and `core.trustctime=false` do. A probe shows
@@ -337,3 +342,25 @@ Survivors against the pins as committed, all declared and all equivalent on this
 image: D4, M6r2, and M26 against the new row 26. Round 1's M6, M26 and D6 each led to a stronger
 pin, and the mutants run against those pins (M6b, M6c, M26c, M26d, D6r2) are killed. M26c's
 survival on the old pin is the evidence that the old pin was weaker, not a survivor of this one.
+
+**Round 4, fix round 1** (2026-09-26, the pin helper of divergence 14). Copies
+`scratchpad/p3/t01f1-mut-*` from `25107e8` and `t01f1-mut3-*` from `2666901`, archived with
+`core.autocrlf=false` so the anchors match; `scratchpad/p3/t01f1-mut.py` applies each mutant once
+or refuses. Each copy ran `go test -run TestPinHelper` and `go vet -tags docker` (every vet
+empty, so each mutant compiled in both build tags), one `go` process at a time. Named before
+running as the two most likely survivors: MH6 (the check asked for no program name) and MH4
+(only a source scan can see it).
+
+| Mutant | Result |
+|---|---|
+| MH1: `runProgram` no longer calls `requireStarted` | killed: the helper said "", want "could not start" |
+| MH2: the status compared is `0xC0000135` | killed: the helper said "" |
+| MH3: every non-zero code is called "could not start" | killed: `cmd /c exit 1`, `128` and `255` each got the fatal |
+| MH4: `inSandbox` starts docker with its own `exec.Command` | killed by the source scan: 2 sites, `sandbox_docker_test.go:135` |
+| MH5: the sentence drops "not" before "a finding" | killed: want a sentence holding "not a finding" |
+| MH6: the sentence names git whatever program it was | **survived** at `25107e8`, as predicted. Fixed in `2666901`: the pin asks the sentence to start "cmd could not start". Killed at `2666901` |
+| MH7: `needSandbox` inspects with its own `exec.Command` | killed by the source scan: 2 sites, `sandbox_docker_test.go:87` |
+| none (control), at both commits | both pins PASS |
+
+No survivor remains against the helper pins as committed. The review's S1 (the stat keys
+dropped) is answered by divergence 15's probe, not by a pin.
