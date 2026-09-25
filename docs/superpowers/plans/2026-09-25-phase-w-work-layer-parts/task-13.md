@@ -506,3 +506,70 @@ func TestEventDataUsesTheJSONNames(t *testing.T) {
 | `TestOnlySubscriptionSetIsSubjectOnlyInW1` | a private kind shown to the whole team, or a public kind hidden from it |
 | `TestEventDataUsesTheJSONNames` | stored keys in Go field names (`OtherIssueID`) instead of the wire names the desktop reads; an `int` stored where `Tx.Emit` expects `int64` |
 
+#### Tests to write first, part 2 — `server/work_feed_integration_test.go` (`//go:build integration`)
+
+The cast and harness are task 11's. `fullRun(t)` drives **every W1 write route that exists at this
+task** once, as Grace or Ada, with the canary `CANARY-13` embedded in every text field: an issue's
+title and description, a later revision, a comment body and a hunk ref. A label name carries no
+canary, because it is team metadata and reaches the feed by design (task 11). Task 15 appends its import to `fullRun`
+(an import title, description, URL and author name, each carrying the canary). `feed(as, after)`
+follows `next` until `more: false` and returns every event.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestNoWorkTextReachesTheFeed` | after `fullRun`, every page of `/v1/changes` as Ada, Grace, Vera and Linus, and every `data` value in `hub.audit_events` read as the owner, contains no `CANARY-13` | content in the feed or the audit chain (hub-contract:1133-1134) |
+| `TestEveryWorkEventCarriesItsScope` | every event of `fullRun` whose kind is in `WorkEventKinds` has a non-null `teamId`, and a non-null `projectId` when its scope is `ScopeProject`; every `ScopeTeam` kind has `projectId: null` | an event nobody sees (no team) or everybody sees |
+| `TestTheHubWritesOnlyDeclaredWorkKinds` | every kind in `audit_events` after `fullRun` with a Work prefix (`issue.`, `comment.`, `label.`, `team.work_`, `project.key_`, `subscription.`) is in `WorkEventKinds`, and its stored `data` keys equal its struct's JSON names | a writer's literal drifting from SW.5, which the desktop would silently ignore |
+| `TestASubscriptionIsSeenOnlyByItsSubject` | Grace unsubscribes from EP-1 and comments on it; Ada's feed shows Grace's `comment.created` and not Grace's `subscription.set`; Grace's shows both | a private kind in the team feed |
+| `TestAFilteredEventStillMovesTheCursor` | only Grace's `subscription.set` is written after Ada's cursor; Ada's poll → no events and `next` equal to the head | a per-caller filter that stalls a cursor on invisible rows |
+| `TestAnUnsubscribeSurvivesAMention` | Vera `PUT subscribed: false` on EP-1; Grace mentions Vera on EP-1; Vera's `GET /v1/me/subscriptions` still reads EP-1 `subscribed: false`, cause `manual`; no `subscription.set` for Vera from the mention | a trigger overriding the person's choice |
+| `TestTheCreatorIsSubscribedOnCreate` | Grace creates EP-5 → her row `subscribed: true, cause: create`; the events are `issue.created` then `subscription.set` | a creator who never hears about their own issue |
+| `TestAssigningSubscribesInTheSameTransaction` | Ada creates EP-7 and assigns it to Grace (a member; a viewer is not assignable, task 08's `Assignable`, `task-08.md:300-301`): `issue.updated` and Grace's `subscription.set` have consecutive `seq` and the same `at`; on EP-8, a `PATCH {assigneeId: grace, labels: [billingLabel]}` refused 422 by the label check leaves Grace with no row on EP-8 | a subscription written after commit, which a crash between the two would lose |
+| `TestACommenterAndTheMentionedAreSubscribed` | Grace comments on EP-6 mentioning Ada → Grace `cause: comment`, Ada `cause: mention`; a second comment by Grace appends no second `subscription.set` | a trigger that fires on every write, or none |
+| `TestALeaverKeepsTheRowAndStopsSeeingIt` | Vera subscribed to EP-1 is removed from Portal; her `GET /v1/me/subscriptions` omits EP-1; the owner's view of `issue_subscriptions` still has the row; re-added, she sees it again | a row deleted on leaving (her choice lost), or a row that still leaks the issue |
+| `TestSubscriptionRoutesFollowTheMatrix` | Vera `PUT` → 200; Linus `PUT` on EP-1 → 404 `issue_not_found`; Xavier `GET /v1/me/subscriptions` → 200 and an empty page | a viewer refused a read-like action, or a non-member probing ids |
+| `TestAnUnchangedPutAppendsNoEvent` | `subscribed: false` twice → one `subscription.set` | an event per `PUT` whatever changed |
+
+#### Steps
+
+- [ ] **Step 1:** Confirm the sync base (rule H1): `feat/hub` at or after Hub task 26, sync-merged;
+  tasks 08-12 committed. Re-read hub-contract §7.11 and §8, `H26` and `H14:67-75` at the new base.
+- [ ] **Step 2:** Write `hubapi/workevents_test.go`; it fails to compile. Write `workevents.go`;
+  move task 08's three constants into it; `go build ./control-plane/...` stays green.
+- [ ] **Step 3:** Write `server/work_emit.go`; replace every `tx.Emit` in tasks 08-12's Work
+  server files with `emitWork` and the kind's struct. `TestTheHubWritesOnlyDeclaredWorkKinds`
+  (once written) is the check that none was missed.
+- [ ] **Step 4:** Write `server/work_feed_integration_test.go`; the subscription rows fail (no
+  routes, no triggers); `TestNoWorkTextReachesTheFeed` should already pass, which is correct:
+  tasks 08-12 wrote no text into `data`, and this test is the lock on that.
+- [ ] **Step 5:** Write `store/work_subscriptions.go`, `server/work_subscriptions.go` and the
+  trigger calls; add the clause to `store/changes.go`; run until green.
+- [ ] **Step 6:** Re-read task 08's event-count test by kind (see *Files*); rerun tasks 08-12's
+  integration tests and Hub task 26's `changes_integration_test.go`, which must stay green.
+- [ ] **Step 7:** Run task 05's subscription conformance rows against the fake; fix the fake.
+- [ ] **Step 8:** `git diff -- go.work control-plane/go.mod` shows nothing; commit by pathspec.
+
+#### Acceptance
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/work
+go test ./control-plane/internal/hub/hubapi/ -race -count=1 -v -run '^Test(EveryWorkDataField|WorkKindsAreUnique|OnlySubscriptionSetIs|EventDataUses)' 2>&1 | grep -c "^--- PASS"   # 4
+go test -tags integration ./control-plane/internal/hub/server/ -race -count=1 -v \
+  -run '^Test(NoWorkTextReaches|EveryWorkEventCarries|TheHubWritesOnlyDeclared|ASubscriptionIsSeenOnly|AFilteredEventStill|AnUnsubscribeSurvives|TheCreatorIsSubscribed|AssigningSubscribes|ACommenterAndTheMentioned|ALeaverKeepsTheRow|SubscriptionRoutesFollow|AnUnchangedPutAppends)' \
+  2>&1 | grep -c "^--- PASS"                                                                    # 12
+go test -tags integration ./control-plane/internal/hub/server/ -race -count=1 -run 'Changes|Latest|OnlyVisible|Paging|Gapless'   # ok
+go test ./control-plane/... -race -count=1                                                      # ok
+```
+
+#### What this task does not claim
+
+- Any delivery: no mail, digest, toast or badge (W2, task 81 onward; AGENTIC-UX §10 anti-pattern 8).
+- The replica that applies these kinds (task 55), the Desk (62), Fleet (98) or webhooks (156).
+- W2-W5 kinds (tasks 72, 99, 114, 143 append them), or the draft kinds' subject-only rule until W2
+  declares them.
+- That the feed is fast: the added clause is one `<> ALL` over a list of one; nothing is measured.
+
+**Parity rows served:** **L-117** (automatic and manual subscriptions; closed with task 52's
+control), **L-229** (the delta-sync log gains the Work kinds; closed with the replica, task 55),
+and the metadata-only base of **L-251** (W5's webhooks).
+
