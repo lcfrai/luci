@@ -583,3 +583,114 @@ Fixture: Alice (owner `u-a`, Orchestrator `ag-a0`, workers `ag-a1`, `ag-a2`), Bo
 `Counterparts` that maps each event's `Ref` to an owner; a recording `Notifier`, `Directives` and
 `Deliverer`; team policy ceiling 30.
 
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestPeerFloodCannotDelayHuman` | 80 `peer.message` events from Bob, then one `human.message` from Alice: the next `TryBegin`'s batch holds the human message **first**, and its origin is `human` | `Ready` cutting at `MaxBatch` before sorting the human first, or the human kind left coalescing |
+| `TestHumanMessageIsImmediate` | a lone `human.message` is due at `t+0`, not `t+60s` | task 26's coalescing left in place (`task-26.md:133-137`) |
+| `TestHumanBypassesSpentBudget` | 30 turns in the last hour, then a human message: admitted, `HumanBypass: true`; a peer event alone: `Batch: nil` | a budget that gates the owner too |
+| `TestHumanBypassesPause` | `HumanPause`, then a human message: admitted; then a `conflict.opened`: `nil` | a pause that silences the owner's own Orchestrator |
+| `TestEleventhCounterpartTurnBecomesDigest` | ten turns in an hour each admitting Bob's events; an eleventh Bob event: `nil`; four more Bob events over 14 minutes: `nil`; at 15 minutes after the tenth turn: one batch of all five, `Digest: true` | no cap; a cap that drops events; a digest that fires per event |
+| `TestDigestHoldsOnlyThatCounterpart` | Bob over cap, Carol under: Carol's `peer.message` is admitted at once, Bob's is held | a hold on every counterpart once one is over |
+| `TestHumanOnlyTurnCountsNoCounterpart` | a human-only turn: `TurnLog.Counterparts` empty; `CounterpartTurns(u-b)` unchanged | the owner's own turns charged to a teammate |
+| `TestMixedTurnCountsEach` | one batch with Bob's and Carol's events: `CounterpartTurns` +1 for each; `Split` lists the tokens under `several` | tokens attributed to the first counterpart by guesswork |
+| `TestSpentQueuesAndTellsOnce` | 30 turns, then 5 peer events over 50 minutes: no turn; exactly **one** `InformOwnHuman(ag-a0, NoticeSpent)`; after the oldest turn leaves the window, the next tick admits all 5 | dropping queued events; a notice per event; no notice |
+| `TestOwnerLimitNeverAboveTeam` | `PUT turnsPerHour: 31` → 422 `details.field "turnsPerHour"`; team ceiling lowered to 10 with owner at 20: the 11th fleet turn in the hour is refused | clamping silently; `max` for `min` |
+| `TestTurnCapRange` | `PUT turnCapCents: 4` and `501` → 422; `50` → 200 and `TurnCapCents(ag-a0)` = 50 | an unbounded per-turn spend |
+| `TestPauseIsNoTurn` | `HumanPause` on two workers: two `IssueHuman(u-a, ag-aN, "pause")`, two `Deliver.Pause`, zero `ClaimTurn`, zero events enqueued | a pause routed through an Orchestrator turn (§4.4 rule 1) |
+| `TestPauseRefusesAnothersWorker` | Alice's pause naming `ag-b1`: 403 `agent_not_owner`, **no** directive written, flag unchanged | a partial pause, or steering a teammate's agent (OD-16) |
+| `TestOwnerFromTokenNotBody` | a `PUT` body with an `owner` or `orchestrator` field: 400 `bad_request` (strict decoding); the row written is the token's | a body-supplied owner (global constraint 3) |
+| `TestSplitNullNotZero` | `AgentSpend` answers `ok: false`: `workersCents` is `null` in the JSON, not `0` | an unknown figure shown as free |
+| `TestSplitHasNoFraction` | reflection over `SplitView`: no field named `*Used*`, `*Percent*`, `*Remaining*`, `*Left*` | an "N of M" sneaking back in (OD-27) |
+| `TestRecordAfterWonClaimOnly` | two replicas' `TryBegin` race: one `LogTurn`, one `AddCounterpartTurn` per counterpart | counting in `Admit`, which a lost claim would double |
+| `TestBudgetRoutesInZ5` | each of the four routes, for every principal in task 12's matrix, answers as `VerbSessionsOwn`'s row: viewer 403, member own, admin own, auditor 403 | a route outside the matrix |
+
+```bash
+cd control-plane && go test ./internal/fleet/budget/... ./internal/fleet/turns/... 2>&1 | head -3
+```
+
+Expected: `undefined: Gate` (build failure), and task 26's `TestHumanMessageIsImmediate`-shaped
+case failing on `Immediate`.
+
+- [ ] **Step 2: `budget.go`, `counterpart.go`, then the task 26 hunks**
+
+Write the gate, then the three hunks. Run task 26's own tests after the hunks: every one must
+still pass except its assertion that `human.message` coalesces, which this task deliberately
+reverses; change that one test's expectation and name the change in the commit message.
+
+- [ ] **Step 3: `pause.go`, `split.go`, the migration and the store methods**
+
+`memstore` and `pgstore` gain `budget.Store`'s methods; `storetest.Suite` gains a turn-log window
+case and a pause round trip, so both stores pass the same table.
+
+- [ ] **Step 4: The routes, and wiring**
+
+`server/budget.go` registers the four routes. In `cmd/fleetd/main.go`, anchored on task 26's
+`&turns.Scheduler{…}`: build `budget.Gate{…}` with the `Counterparts` adapter (task 28's
+`Messages.Sender`, task 25's `Open`, task 29's thread sides) and set `sched.Gate = gate`; start the
+`fleet-turnlog-prune` singleton. Task 20's per-turn mint reads `gate.TurnCapCents(orch)`.
+
+- [ ] **Step 5: Acceptance**
+
+```bash
+cd control-plane && go vet ./internal/fleet/... ./cmd/fleetd/... && go test ./internal/fleet/budget/... ./internal/fleet/turns/... ./internal/fleet/server/... ./internal/fleet/store/... -count=1 -race
+```
+
+Expected: `ok` for each, `-race` clean; the Postgres half of `storetest.Suite` runs where
+`PANACEA_APP_FLEET_TEST_PG_DSN` is set. Then the no-text guard, which must print nothing (the gate
+never reads a message body or builds a turn input):
+
+```bash
+cd control-plane && grep -nE "\.Body|Input\(|teamtext\." internal/fleet/budget/*.go | grep -v _test.go
+```
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add control-plane/internal/fleet/budget control-plane/internal/fleet/server/budget.go control-plane/internal/fleet/store
+git commit -F <msgfile> -- control-plane/internal/fleet/budget control-plane/internal/fleet/server/budget.go control-plane/internal/fleet/store control-plane/internal/fleet/turns control-plane/cmd/fleetd/main.go
+```
+
+**What this task does NOT claim.**
+- **That a human message never waits.** It waits for at most the turn already in flight (task
+  26's `TurnTimeout`, 10 minutes worst case). Fleet does not interrupt a running turn; a DIVE
+  (task 40) is the owner's way in during one.
+- **A token cap.** The per-turn cap is a **spend** cap on the turn's key (decision c), enforced
+  by the gateway's `max_budget`, **UNVERIFIED** against the pinned LiteLLM image until phase 6
+  task 18. Tokens are reported, not limited.
+- **A hard ceiling on coordination spend.** N back-to-back turns can each spend a full per-turn
+  cap, so an hour's worst case is `turnsPerHour × turnCapCents` (30 × 50 = A$15 at the defaults),
+  the same shape as phase 6's stated overrun bound (N × the slice).
+- **That the split is exact.** `CoordinationCents` is the Orchestrator's own keys; the nudges of
+  §4.4's "Orchestrator turns plus nudges" cost nothing at the gateway (task 38 writes a fixed
+  template with no model call), and the worker turn a nudge causes is counted as *workers*.
+- **That a digest is cheaper than the turns it replaces.** It is one turn instead of many; how
+  much it saves is measured by G9's scripted run (task 42), not claimed here. The 10-an-hour and
+  15-minute numbers are §4.4's, not tuned.
+- **That the owner's setting is audited.** It is Fleet state (decision b); see gap 5.
+
+**Gaps against the skeleton, raised here and not resolved alone:**
+1. **Phase 6 has no usage sum by agent.** `usage.Store.Sum` takes `person`, `project` or `team`
+   (`task-09.md:514-517`, `:527` on `feat/phase-6-gateway`); the split needs `agent` (or
+   `session`). Ask of P6-09: a fourth scope, `agent`, over the key's `agent` metadata, which the
+   mint already writes (`task-07.md:861-862` there). Until then `Split` answers `null` for both
+   figures and the spend line says it cannot tell.
+2. **Phase 6's mint has no per-request ceiling and no counterpart tag.** The mint's `MaxBudget` is
+   `budget.Slice(limits, spent)` alone and its metadata has no `counterpart`
+   (`task-07.md:840-862` there). Ask of P6-03/07: an optional `capUSD` that can only lower the
+   slice, and a `counterpart` metadata key. Task 20's scope already assumes the tag.
+3. **Task 11's `HubState` has no team-policy read.** The gate needs
+   `orchestratorTurnsPerHour` (task 03's `TeamPolicy`, `task-03.md:908`); required of task 11 as
+   `TeamPolicy(project) (hubapi.TeamPolicy, bool)`, fed by the team-policy feed kind (task 08).
+   Until then the gate uses `DefaultTurnsPerHour`, which is the ceiling's maximum, so the owner's
+   own lower setting still binds.
+4. **Task 31 has no human-origin issuer.** Its `Issue` takes an Orchestrator `control.Caller`
+   (`task-31.md:121-125`); a human `pause` has no Orchestrator call behind it. Required of task 31:
+   `IssueHuman(ctx, owner, worker, kind)` for `pause` and `resume` only, writing the `dv-…` with
+   origin `human` through the same outbox path. Task 09 also lacks `EventThreadResolved` and
+   `EventSequenceGo` (`task-09.md:213-221`), which tasks 26 and 37 use.
+5. **Whether an owner's budget setting is a Hub record.** Placed as Fleet state here (decision
+   b). If the owner wants it on the audit trail, it becomes a Hub record with its own route.
+6. **`Event.Author` is typed `Owner` but task 24 writes an agent id into it** (`task-24.md:165`
+   against `task-09.md:248`). This task avoids it through `Counterparts`; tasks 09 and 24 should
+   agree on one meaning.
+
