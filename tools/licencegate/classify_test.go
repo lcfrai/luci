@@ -17,6 +17,16 @@ func fixture(t *testing.T, name string) []byte {
 	return b
 }
 
+func writeFile(t *testing.T, path string, body []byte) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, body, 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // moduleDir makes a directory holding files, name -> content.
 func moduleDir(t *testing.T, files map[string][]byte) string {
 	t.Helper()
