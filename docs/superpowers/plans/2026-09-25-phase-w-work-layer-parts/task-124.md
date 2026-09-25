@@ -863,3 +863,6 @@ go test -tags integration ./control-plane/internal/hub/ -run TestWorkRoadmapE2E 
    copied from task 115's fake when it lands (task 125 copies them by name too).
 6. **The skeleton's** row for task 82 fixes no second route table; if task 82 appends to
    `WorkRoutes` itself, `AllWorkRoutes` is `WorkRoutes ++ WorkRoadmapRoutes` and nothing breaks.
+7. **Task 117** has no caller-scoped list of the projects granted to the caller's teams (task
+   125's gap 1). When task 117 adds one, this table gains a 32nd row and an eleventh
+   audit line; `TestW4RelayPathsAreExactlyTheTable`'s count moves with it.
