@@ -103,6 +103,19 @@ func TestMain_exitCodes(t *testing.T) {
 		{name: "an exception for tldraw", code: 2, inErr: "OD-11", edit: func(t *testing.T, root string, f *fakeRepo) {
 			writeFile(t, filepath.Join(root, "tools", "licencegate", "exceptions.json"), []byte(`{"exceptions":[{"ecosystem":"npm","name":"tldraw","version":"3.0.0","declared":"MIT","resolved":"MIT","reason":"r","reviewedBy":"x","reviewedOn":"2026-09-25"}]}`))
 		}},
+		// Mutation A3 survived without this row: a partial Go tree is a
+		// broken checkout, never three roots with one quietly skipped.
+		{name: "a partial Go tree", code: 2, inErr: "go: ./canvas/..., ./control-plane/cmd/... under -root, but not ./sandboxd/cmd/...", edit: func(t *testing.T, root string, f *fakeRepo) {
+			if err := os.RemoveAll(filepath.Join(root, "sandboxd")); err != nil {
+				t.Fatal(err)
+			}
+		}},
+		// Mutation A5 survived without this row. encoding/json matches names
+		// case-insensitively, so the typo is a real one; without the check the
+		// run still exits 2 (reviewedBy is required), but not naming the typo.
+		{name: "a misspelt exception field", code: 2, inErr: "unknown field", edit: func(t *testing.T, root string, f *fakeRepo) {
+			writeFile(t, filepath.Join(root, "tools", "licencegate", "exceptions.json"), []byte(`{"exceptions":[{"ecosystem":"npm","name":"x","version":"1.0.0","declared":"MPL-2.0","resolved":"MIT","reason":"r","reviewdBy":"x","reviewedOn":"2026-09-25"}]}`))
+		}},
 		{name: "no scanned project under -root", code: 2, inErr: "no scanned project", edit: func(t *testing.T, root string, f *fakeRepo) {
 			for _, d := range []string{"canvas", "control-plane", "sandboxd", "desktop"} {
 				if err := os.RemoveAll(filepath.Join(root, d)); err != nil {

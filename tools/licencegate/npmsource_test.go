@@ -194,8 +194,12 @@ func TestNpmDeps_firstPartyIsStructural(t *testing.T) {
 			t.Fatal(err)
 		}
 		var calls [][]string
-		if _, err := NpmDeps(root, proj, "proj", []string{proj}, npmRunner(base, prod, all, nil, &calls)); err == nil {
-			t.Fatal("NpmDeps with no package-lock.json returned no error")
+		// The error names the lockfile: without that assertion a gate that
+		// tolerated its absence still errored later, on the link location
+		// vx, which has no package.json (mutation N16 survived).
+		_, err := NpmDeps(root, proj, "proj", []string{proj}, npmRunner(base, prod, all, nil, &calls))
+		if err == nil || !strings.Contains(err.Error(), "package-lock.json") {
+			t.Fatalf("NpmDeps with no package-lock.json = %v, want an error naming it", err)
 		}
 	})
 }

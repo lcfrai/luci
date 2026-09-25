@@ -444,6 +444,11 @@ enforced ecosystems alone, so a missing report is visible, never silent.
 | `TestNpmDeps` (fixture `npm ls --long` JSON + fixture `package.json` files) | `--omit=dev` entries are enforced; dev-only entries no shipped file imports are not; `licenses: [{type:"MIT"},{type:"ISC"}]` → `MIT AND ISC` | dev deps enforced by accident |
 | `TestMain_exitCodes` | runs `run()` with fixtures: 0 when clean, 1 with the MPL fixture, 2 when the Go or npm runner errors; 0 with an `MPL-2.0` crate in the Cargo fixture (a `REPORT cargo` line printed); 0 with the cargo runner failing (a `REPORT cargo: not scanned` line printed); 2 when `desktop/node_modules` is a junction (Windows, `mklink /J`) or a symlink (elsewhere) into another tree, stderr naming "node_modules is a link into" (carried RR2-1; skipped with a message where no link can be made); 2 for an exception naming `tldraw`; 2 with no scanned project under `-root`; every run that is not 2 prints a Cargo line | a gate that exits 0 on a tool failure; Cargo flipping the exit code before the owner rules; a gate that reads a junctioned worktree's main-tree packages |
 | `TestNpmDeps_linkedNodeModules` (carried RR2-1; added by task 04) | `isLinkMode` true for `ModeSymlink` and `ModeIrregular`, false for a directory; a real junction (Windows) or symlink (elsewhere) as `<dir>/node_modules` → error naming the link, "never rm -rf through it" and "run npm ci in", and npm is never run. Logs the `Lstat` mode: `?rw-rw-rw-` (`ModeIrregular`) on go1.26.2, Windows | a check of `ModeSymlink` alone, which a junction does not carry |
+| `TestNpmDeps_redactedPath` (added by task 04) | npm 11.12.1 prints through `@npmcli/redact` 4.0.0, which turns a UUID into `***`: a project under `<tmp>/<uuid>/desktop` whose `npm ls` paths read `***` is read at its real path; two sibling entries that redact alike are an error, never a guess. Measured: the gate exited 2 on its own mutation copy under the scratchpad (a UUID-named directory) | a gate that cannot run under a UUID-named directory, or guesses which one |
+| `TestNpmDeps` rows (added by task 04) | an optional peer npm prints as `{}` (not installed: desktop's `@vitejs/plugin-react` → `"@rolldown/plugin-babel": {}`, the first real run's exit 2) is skipped; a `{"missing": true}` node is an error saying "run npm ci" | an uninstalled optional peer aborting the gate; a missing dependency skipped with it |
+| `TestCargoDeps` row (added by task 04) | `yoke-derive 0.8.3` as it is, `[proc-macro]` plus an `[example]` target, is marked "(proc-macro)"; `cssparser` with `[lib]` plus `[custom-build]` is not | a mark that needs the proc-macro to be the only target, which missed `yoke-derive`, `zerofrom-derive` and `zerovec-derive` on the real tree |
+| `TestParseSPDX` row (added by task 04) | `MIT WITH Classpath-exception-2.0` ✗ | `WITH` ignoring `AllowedExceptions` (predicted mutant P2 survived the GPL row alone) |
+| `TestMain_exitCodes` rows (added by task 04) | a partial Go tree (`sandboxd/` gone) is exit 2 naming the missing root; an exception with a misspelt field (`reviewdBy`) is exit 2, "unknown field" | a broken checkout passing with one root skipped; a misspelt field read as a review |
 | `TestMain_repoWithMPL` (added by task 04) | the real runner on `testdata/repo-with-mpl`: exit 1 and `FAIL npm mpl-fixture 1.0.0 MPL-2.0 — …`; skipped where `npm` is not on PATH | the spec's done-when, as a test and not only an acceptance command |
 
 ## Steps
@@ -499,6 +504,12 @@ Expected: a table of every enforced dependency, the `REPORT` lines (among them `
 cssparser 0.36.0 MPL-2.0 — …` and the other crates of step 4's table, or one `REPORT cargo: not
 scanned: …` line), then `exit 0` — or `exit 1` with each real violation named in the first-run
 report. The Cargo lines never change the exit code while `CargoEnforced` is false.
+*As measured by task 04 (2026-09-26, the phase-5 worktree with real installs):* exit 0; 68 enforced
+(57 Go modules, 10 `desktop` production packages, and `react` imported by
+`canvas/editor/src/probe.tsx`), all pass; 38 reported: per npm project `lightningcss` and its
+Windows binary (`MPL-2.0`), two `@csstools` packages (`MIT-0`), `lru-cache` (`BlueOak-1.0.0`) and
+`mdn-data` (`CC0-1.0`), all dev tooling; and 26 Cargo crates, exactly step 4's table and counts.
+The run takes minutes on a loaded machine: `imports.cjs` loads `typescript` once per 40 files.
 
 ```bash
 go run ./tools/licencegate -root ./tools/licencegate/testdata/repo-with-mpl ; echo "exit $?"

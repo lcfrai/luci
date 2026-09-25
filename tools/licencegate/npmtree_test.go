@@ -68,6 +68,7 @@ type lsNode struct {
 	Name         string             `json:"name,omitempty"`
 	Version      string             `json:"version,omitempty"`
 	Path         string             `json:"path,omitempty"`
+	Missing      bool               `json:"missing,omitempty"`
 	Dependencies map[string]*lsNode `json:"dependencies,omitempty"`
 }
 
@@ -285,4 +286,15 @@ func TestNpmDeps(t *testing.T) {
 	if f := v["my-canvas@3.0.0"]; f.Verdict != Fail || !strings.Contains(f.Why, "OD-11") {
 		t.Errorf("an alias of tldraw = %+v: want denied whatever its installed name", f)
 	}
+
+	// A required dependency npm reports missing is not the optional-peer {}:
+	// the gate cannot say what ships, so it could not run (mutation N15).
+	t.Run("a missing dependency is an error", func(t *testing.T) {
+		broken := p.write(kids("two", two, "gone", &lsNode{Missing: true}))
+		var calls [][]string
+		_, err := NpmDeps(base, p.dir, "desktop", []string{p.dir}, npmRunner(base, broken, broken, nil, &calls))
+		if err == nil || !strings.Contains(err.Error(), "run npm ci") {
+			t.Fatalf("NpmDeps with a missing dependency = %v, want an error saying run npm ci", err)
+		}
+	})
 }
