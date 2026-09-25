@@ -392,3 +392,69 @@ last told head for this branch, merge)` and `Machines.Refresh(member, …)` into
 `refs/panacea/integration/<branch>`; `fleet.land_told` records the told head. A failure is
 logged per member and retried on her machine's next start (task 20's start hook); it never
 changes the entry's state.
+
+**Fleet routes — complete wire.** One new verb in task 12's table, `VerbLandQueue Verb =
+"landq.own"`, `{member: true, admin: true, own: true}`: the handler refuses an entry whose
+`ownerUserId` is not the caller's. Reads use `VerbTeamRead`. Every route joins the Z5 matrix.
+
+| Id | Route | Verb | Body → answer |
+|---|---|---|---|
+| F-L1 | `POST /v1/projects/{p}/landq` | `landq.own` | `EnqueueRequest` → 201 `Entry` (200 and the live one if the worktree has one); 403 `agent_not_owner`; 400 on a bad sha, ref or brief pair |
+| F-L2 | `GET /v1/projects/{p}/landq` | `team.read` | → 200 `{"entries":[Entry…],"stopped":null\|{"reason","at"}}`, live first in `Order`, then the last 20 finished; a viewer sees the same |
+| F-L3 | `DELETE /v1/projects/{p}/landq/{entry}` | `landq.own` | → 200 `Entry` `withdrawn`; `pushing` → 409 `entry_not_live` (the push is already hers to finish) |
+| F-L4 | `POST /v1/projects/{p}/landq/{entry}/claim` | `landq.own` | `{}` → 200 `{"entry":Entry,"ref":"refs/panacea/landq/<id>","merge","base","branch"}`; not `ready` → 409 `entry_not_live` |
+| F-L5 | `POST /v1/projects/{p}/landq/{entry}/report` | `landq.own` | `PushReport` → 200 `Entry` after step 9 or 10; not `pushing` → 409 |
+| F-L6 | `POST /v1/projects/{p}/landq/resume` | `landq.own` without `own` narrowing (any member) | `{}` → 204; clears the stop row; the stop and the resume each log the caller |
+
+```json
+{"id":"lq-5d4c3b2a19087f6e","orgId":"og-1a2b3c4d5e6f7081","projectId":"pj-0f1e2d3c4b5a6978",
+ "branch":"main","ownerUserId":"us-5b4c3d2e1f0a9b8c","agentId":"ag-9e8d7c6b5a493827",
+ "worktreeId":"wt-3c2b1a0f","laneRef":"refs/panacea/lanes/7f3a9c1e/wt-3c2b1a0f",
+ "laneTip":"4b825dc642cb6eb9a060e54bf8d69288fbee4904","briefKey":"","briefDigest":"",
+ "state":"refused","reason":"second_approval_required","paths":[".claude/settings.json"],
+ "base":"9fceb02d0ae598e95dc970b74767f19372d61af8","merge":"","heldBy":"","rejects":0,
+ "enqueuedAt":"2026-09-25T09:41:07Z","readyAt":"0001-01-01T00:00:00Z","updatedAt":"2026-09-25T09:41:09Z"}
+```
+
+`readyAt` zero is written as Go's zero time; the desktop reads `state`, never `readyAt`, to decide
+whether it is ready (gap 4 asks whether to make it `null`).
+
+**The push act, on the local control plane** (`api/teamland.go`). `POST
+/api/projects/{id}/team/land/{entry}` (loopback, phase 2's auth): (1) F-L4 through `fleetbe`
+(task 21) → merge, base, ref, branch; (2) `credstore.Store.Credential(host)` (phase 3 task 13) →
+the owner's own token, in memory; (3) through `backend.Backend` (S8.1) to her own machine,
+phase 3 task 12's push with `--force-with-lease=refs/heads/<branch>:<base>` of `<ref>` to
+`refs/heads/<branch>`, run by `machined` outside the VM (global constraint 8: no git credential
+enters a sandbox); (4) F-L5 with the outcome. The token is never in a request body Fleet can
+see: `credstore.Credential.MarshalJSON` refuses (`parts/task-13.md:63-72`), and Fleet is not on
+the path. **How phase 8 carries a per-act token to a cloud `machined` is not in any sibling plan**
+(gap 1); this part needs one header on the broker's machine RPC, read into memory, never logged.
+
+**Migration** (task 10's directory, after its last):
+
+```sql
+CREATE TABLE IF NOT EXISTS fleet.land_queue (
+  org_id text NOT NULL, entry_id text NOT NULL, project_id text NOT NULL,
+  branch text NOT NULL, owner_user_id text NOT NULL, agent_id text NOT NULL,
+  worktree_id text NOT NULL, lane_ref text NOT NULL, lane_tip text NOT NULL,
+  brief_key text NOT NULL DEFAULT '', brief_digest text NOT NULL DEFAULT '',
+  state text NOT NULL CHECK (state IN
+    ('waiting','building','ready','pushing','landed','refused','withdrawn')),
+  reason text NOT NULL DEFAULT '', paths jsonb NOT NULL DEFAULT '[]',
+  base text NOT NULL DEFAULT '', merge text NOT NULL DEFAULT '',
+  held_by text NOT NULL DEFAULT '', rejects integer NOT NULL DEFAULT 0 CHECK (rejects >= 0),
+  enqueued_at timestamptz NOT NULL, ready_at timestamptz, updated_at timestamptz NOT NULL,
+  PRIMARY KEY (org_id, entry_id));
+-- one live entry per lane, and at most one past waiting per project (decision e)
+CREATE UNIQUE INDEX IF NOT EXISTS land_queue_live_lane ON fleet.land_queue (org_id, project_id, worktree_id)
+  WHERE state IN ('waiting','building','ready','pushing');
+CREATE UNIQUE INDEX IF NOT EXISTS land_queue_one_active ON fleet.land_queue (org_id, project_id)
+  WHERE state IN ('building','ready','pushing');
+CREATE TABLE IF NOT EXISTS fleet.land_queue_stops (
+  org_id text NOT NULL, project_id text NOT NULL, reason text NOT NULL,
+  stopped_at timestamptz NOT NULL, PRIMARY KEY (org_id, project_id));
+CREATE TABLE IF NOT EXISTS fleet.land_told (
+  org_id text NOT NULL, project_id text NOT NULL, branch text NOT NULL,
+  member_user_id text NOT NULL, told_head text NOT NULL, told_at timestamptz NOT NULL,
+  PRIMARY KEY (org_id, project_id, branch, member_user_id));
+```
