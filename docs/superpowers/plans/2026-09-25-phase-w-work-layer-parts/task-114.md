@@ -741,3 +741,59 @@ name the method and not the path.
 `{teamId}` segment name is fixed here. `features:fromTemplate` is one literal path segment, which
 Go 1.22's `ServeMux` accepts (a wildcard must be a whole segment; a literal with a colon is not a
 wildcard).
+
+#### `hubclient/fake_work_roadmap_stub.go`, complete
+
+One line per method; gofmt keeps a one-statement body on one line.
+
+```go
+package hubclient
+
+import (
+	"context"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubapi"
+)
+
+// Deleted by task 115 in the commit that adds fake_work_roadmap.go. Every
+// method is task 04's 501 not_in_fake_yet (task-04.md:1101).
+
+type pr = hubapi.PageRequest
+
+func (f *Fake) CreateInitiative(_ context.Context, t string, r hubapi.CreateInitiativeRequest) (hubapi.Initiative, error) { return hubapi.Initiative{}, f.workNotInFakeYet("CreateInitiative", t, r) }
+func (f *Fake) Initiatives(_ context.Context, t string, p pr) (hubapi.Page[hubapi.Initiative], error) { return hubapi.Page[hubapi.Initiative]{}, f.workNotInFakeYet("Initiatives", t, p) }
+func (f *Fake) Initiative(_ context.Context, id string) (hubapi.InitiativeView, error) { return hubapi.InitiativeView{}, f.workNotInFakeYet("Initiative", id) }
+func (f *Fake) PatchInitiative(_ context.Context, id string, r hubapi.PatchInitiativeRequest) (hubapi.Initiative, error) { return hubapi.Initiative{}, f.workNotInFakeYet("PatchInitiative", id, r) }
+func (f *Fake) SetFeatureInitiative(_ context.Context, id string, r hubapi.SetFeatureInitiativeRequest) (hubapi.Feature, error) { return hubapi.Feature{}, f.workNotInFakeYet("SetFeatureInitiative", id, r) }
+func (f *Fake) SetInitiativeTeams(_ context.Context, id string, r hubapi.SetInitiativeTeamsRequest) (hubapi.InitiativeTeams, error) { return hubapi.InitiativeTeams{}, f.workNotInFakeYet("SetInitiativeTeams", id, r) }
+func (f *Fake) PostUpdate(_ context.Context, s hubapi.SubjectRef, r hubapi.PostUpdateRequest) (hubapi.StatusUpdate, error) { return hubapi.StatusUpdate{}, f.workNotInFakeYet("PostUpdate", s, r) }
+func (f *Fake) Updates(_ context.Context, s hubapi.SubjectRef, p pr) (hubapi.Page[hubapi.StatusUpdate], error) { return hubapi.Page[hubapi.StatusUpdate]{}, f.workNotInFakeYet("Updates", s, p) }
+func (f *Fake) CreateMilestone(_ context.Context, id string, r hubapi.CreateMilestoneRequest) (hubapi.MilestoneView, error) { return hubapi.MilestoneView{}, f.workNotInFakeYet("CreateMilestone", id, r) }
+func (f *Fake) Milestones(_ context.Context, id string) ([]hubapi.MilestoneView, error) { return nil, f.workNotInFakeYet("Milestones", id) }
+func (f *Fake) PatchMilestone(_ context.Context, id string, r hubapi.PatchMilestoneRequest) (hubapi.MilestoneView, error) { return hubapi.MilestoneView{}, f.workNotInFakeYet("PatchMilestone", id, r) }
+func (f *Fake) SetMilestoneCriteria(_ context.Context, id string, r hubapi.SetMilestoneCriteriaRequest) (hubapi.MilestoneView, error) { return hubapi.MilestoneView{}, f.workNotInFakeYet("SetMilestoneCriteria", id, r) }
+func (f *Fake) AddFeatureDependency(_ context.Context, id string, r hubapi.FeatureDependencyRequest) (hubapi.FeatureDependencyView, error) { return hubapi.FeatureDependencyView{}, f.workNotInFakeYet("AddFeatureDependency", id, r) }
+func (f *Fake) RemoveFeatureDependency(_ context.Context, id, b string) error { return f.workNotInFakeYet("RemoveFeatureDependency", id, b) }
+func (f *Fake) FeatureDependencies(_ context.Context, id string) ([]hubapi.FeatureDependencyView, error) { return nil, f.workNotInFakeYet("FeatureDependencies", id) }
+func (f *Fake) CreateBriefTemplate(_ context.Context, t string, r hubapi.CreateBriefTemplateRequest) (hubapi.BriefTemplate, error) { return hubapi.BriefTemplate{}, f.workNotInFakeYet("CreateBriefTemplate", t, r) }
+func (f *Fake) BriefTemplates(_ context.Context, t string) ([]hubapi.BriefTemplate, error) { return nil, f.workNotInFakeYet("BriefTemplates", t) }
+func (f *Fake) PatchBriefTemplate(_ context.Context, id string, r hubapi.PatchBriefTemplateRequest) (hubapi.BriefTemplate, error) { return hubapi.BriefTemplate{}, f.workNotInFakeYet("PatchBriefTemplate", id, r) }
+func (f *Fake) CreateFeatureFromTemplate(_ context.Context, id string, r hubapi.CreateFeatureFromTemplateRequest) (hubapi.Feature, error) { return hubapi.Feature{}, f.workNotInFakeYet("CreateFeatureFromTemplate", id, r) }
+func (f *Fake) SetTemplateSchedule(_ context.Context, id string, s hubapi.TemplateSchedule) (hubapi.TemplateSchedule, error) { return hubapi.TemplateSchedule{}, f.workNotInFakeYet("SetTemplateSchedule", id, s) }
+func (f *Fake) ClearTemplateSchedule(_ context.Context, id string) error { return f.workNotInFakeYet("ClearTemplateSchedule", id) }
+func (f *Fake) SetReminderPolicy(_ context.Context, p hubapi.ReminderPolicy) (hubapi.ReminderPolicy, error) { return hubapi.ReminderPolicy{}, f.workNotInFakeYet("SetReminderPolicy", p) }
+func (f *Fake) SetTriageRotation(_ context.Context, t string, r hubapi.TriageRotation) (hubapi.TriageRotationView, error) { return hubapi.TriageRotationView{}, f.workNotInFakeYet("SetTriageRotation", t, r) }
+func (f *Fake) TriageRotation(_ context.Context, t string) (hubapi.TriageRotationView, error) { return hubapi.TriageRotationView{}, f.workNotInFakeYet("TriageRotation", t) }
+func (f *Fake) QueryInsights(_ context.Context, q hubapi.InsightsQuery) (hubapi.InsightsResult, error) { return hubapi.InsightsResult{}, f.workNotInFakeYet("QueryInsights", q) }
+func (f *Fake) GetReadCursor(_ context.Context, s hubapi.ScopeRef) (hubapi.ReadCursor, error) { return hubapi.ReadCursor{}, f.workNotInFakeYet("GetReadCursor", s) }
+func (f *Fake) AdvanceReadCursor(_ context.Context, c hubapi.ReadCursor) (hubapi.ReadCursor, error) { return hubapi.ReadCursor{}, f.workNotInFakeYet("AdvanceReadCursor", c) }
+func (f *Fake) MarkSeen(_ context.Context, r hubapi.MarkSeenRequest) ([]hubapi.ReadCursor, error) { return nil, f.workNotInFakeYet("MarkSeen", r) }
+func (f *Fake) GrantProject(_ context.Context, id string, r hubapi.GrantProjectRequest) (hubapi.ProjectGrant, error) { return hubapi.ProjectGrant{}, f.workNotInFakeYet("GrantProject", id, r) }
+func (f *Fake) RevokeProjectGrant(_ context.Context, id, t string) error { return f.workNotInFakeYet("RevokeProjectGrant", id, t) }
+func (f *Fake) ProjectGrants(_ context.Context, id string) ([]hubapi.ProjectGrant, error) { return nil, f.workNotInFakeYet("ProjectGrants", id) }
+```
+
+**`hubclient/client_work_roadmap_stub.go`** is the same thirty-one lines with the receiver
+`(c *Client)` and every body `return <zero>, ErrNotConfigured` (task 04's client idiom,
+`task-04.md:1169`), and no `pr` alias (it reuses this file's, same package). Step 3 derives it
+from this file and checks it with `go vet`; task 124 deletes it.
