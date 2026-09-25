@@ -191,7 +191,7 @@ type MachineFS interface {
 
 | Route | Answer | Failures |
 |---|---|---|
-| `POST /v1/git` | `200 GitResult` | `400 bad_request` (a `Dir` that escapes the root or is none of the three forms in item 2, an unknown `Class` or `Scope`, `"clone"` included, a `Scope` that does not follow `Dir`, a `NewLane` that is not `Dir`, an `Env` key outside the allowlist, a `clone` outside its two shapes, a `NewLane` call outside its shapes, an argument that names a lane or the owned root, empty `Args`, or `gitx.ErrCallShape` / `gitx.ErrLaneDir`; the message names the field, key or argument index, never a value) · `409 conflict` `project_config_untrusted` with `key` (H3 refused; git never ran) · `409 conflict` `lane_not_creating` (git never ran) · `422 git_failed` with the three details · `413` above 16 MiB of stdin |
+| `POST /v1/git` | `200 GitResult` | `400 bad_request` (a `Dir` that escapes the root or is none of the three forms in item 2, an unknown `Class` or `Scope`, `"clone"` included, a `Scope` that does not follow `Dir`, a `NewLane` that is not `Dir`, an `Env` key outside the allowlist, a `clone` outside its two shapes, a `NewLane` call outside its shapes, an argument that names a lane or the owned root (but the create clone's destination, and task 21b's one bundle path), empty `Args`, or `gitx.ErrCallShape` / `gitx.ErrLaneDir`; the message names the field, key or argument index, never a value) · `409 conflict` `project_config_untrusted` with `key` (H3 refused; git never ran) · `409 conflict` `lane_path_invalid` or `lane_not_creating` (git never ran) · `422 git_failed` with the three details · `413` above 16 MiB of stdin |
 | `POST /v1/lanes/exists` | `200 LaneExists` | `400` (not `lanes/<p>/<d>`) · `409 lane_path_invalid` |
 | `POST /v1/lanes/remove-tree` | `204`, also when nothing was there | `400` · `409 lane_path_invalid` · `409 lane_not_creating` (a path below a lane not in the set) |
 | `POST /v1/lanes/copy-hooks` | `200 CopiedHooks` | `400` · `409 lane_path_invalid` · `409 lane_not_creating` |
@@ -457,8 +457,11 @@ on `PATH` that must stay silent):
 
 #### Steps
 
-- [ ] **Step 1:** Confirm the re-plan above (review Q18) has landed in this part; if this part still carries the "Re-plan required" block, stop. Confirm phase 3 task 02 has landed **with §HGH**: `git grep -n "type Runner interface\|func MachineHardening\|type UntrustedConfig" -- control-plane/internal/gitx/` returns three lines; and phase 3 task 24: `git ls-files testdata/gitrunner/` lists its goldens. If not, stop.
-- [ ] **Step 2:** Wire types; tests, each shown red first; the route over `gitx.NewExec(h)`; the scrub in `main.go`; all pass.
+- [ ] **Step 1: Dependencies, all phase 3's.** Each command must print what it says, or stop and report which is missing (this is a dependency wait on phase 3, not a re-plan):
+  - task 02 **with §HGH**: `git grep -n "type Runner interface\|func MachineHardening\|type UntrustedConfig\|LaneRoot " -- control-plane/internal/gitx/` prints at least four lines, `NewLane` among `Call`'s fields;
+  - task 03: `git grep -n "NoFilterEnv\|NoFetchURL\|NoPushURL\|func CopyableHooksPath\|func RemoveTree" -- control-plane/internal/lanes/` prints all five names;
+  - seam S8-P3.3: `git grep -n "type MachineFS interface" -- control-plane/internal/gitx/` prints one line, and its methods and local implementation are the ones above. Record the names that landed in the commit message; where they differ from this part's, phase 3's win, and the routes keep their confinement.
+- [ ] **Step 2:** Wire types; tests, each shown red first; `git.go` over `gitx.NewExec(h)` with `h.LaneRoot` set; `lanefs.go` over phase 3's local `MachineFS`; `catalog.go`'s `lane_creating` step; the scrub in `main.go`; all pass.
 - [ ] **Step 3: Mutation check** (rule 7), each on a `$TEMP` copy, each turning the named test red:
   (1) the `Env` allowlist replaced by `^GIT_[A-Z0-9_]+$` → `TestGitEnvIsAnExplicitAllowlist`,
   on its `GIT_EXEC_PATH`, `GIT_SSH_COMMAND` and `GIT_CONFIG_PARAMETERS` rows. Not
@@ -467,9 +470,10 @@ on `PATH` that must stay silent):
   intended depth, and the reason this mutant is checked against the other test;
   (2) the bare `http.extraHeader` admitted → `TestGitEnvIsAnExplicitAllowlist`;
   (3) the header host not compared with `RemoteURL`'s → `TestGitEnvIsAnExplicitAllowlist`;
-  (4) credential `Env` admitted on a `clone` call → `TestGitCredentialEnvIsRefusedInALane`;
+  (4) the create clone's `Env` accepted as any superset of `NoFilterEnv` →
+  `TestGitCloneOutsideItsTwoShapesIsRefused`, on its `NoFilterEnv`-plus-header row;
   (5) the wire `Scope` passed through unchecked → `TestGitScopeMustFollowDir`;
-  (6) `"clone"` mapped to `gitx.Project` → `TestGitLaneFilterNeverRuns` (on its `reason`);
+  (6) `"clone"` mapped to `gitx.Project` → `TestGitScopeMustFollowDir`, on its `"clone"` row;
   (7) only `PANACEA_APP_MACHINED_TOKEN` unset → `TestGitNeverSeesTheMachinedToken`;
   (8) the scrub moved into a helper that `main` does not call → `TestGitNeverSeesTheMachinedToken`;
   (9) the identity keys dropped from the allowlist → `TestGitEnvIsAnExplicitAllowlist` (its
@@ -480,19 +484,32 @@ on `PATH` that must stay silent):
   (12) the lane-create destination check dropped → `TestGitCloneOutsideItsTwoShapesIsRefused`,
   on its `projects/b` and `/tmp/machined-git/x` rows;
   (13) the lane-create option list opened to any `--config` → `TestGitCloneOutsideItsTwoShapesIsRefused`,
+  on its `filter.x.smudge` and `core.fsmonitor` rows;
+  (14) the six `--config` keys checked by key, not value → `TestGitCloneOutsideItsTwoShapesIsRefused`,
+  on its `core.symlinks=true` row;
+  (15) `Dir: ""` resolved to the machine root → `TestGitAddProjectCloneHasOneShape` (the cwd);
+  (16) the creating-set check dropped (any `lanes/` `Dir` with `NewLane == Dir` runs) →
+  `TestGitLaneDirOutsideTheCreatingSetIsRefused`, on its sealed row;
+  (17) the `NewLane` write list opened to any `config` → `TestGitNewLaneWritesAreAClosedList`,
   on its `filter.x.smudge` row;
-  (14) `Dir: ""` resolved to the machine root → `TestGitAddProjectCloneHasOneShape` (the cwd).
-  The two named beforehand as likeliest to survive are (6), because `filter.*` is refused under
-  both scopes, and (8), because a test of the helper alone passes. Each is killed only by the
-  assertion named beside it: the `reason` string, and a start through `main`'s own function.
+  (18) `sealed` answering 204 without closing the entry → `TestLaneFSSealClosesTheWindow`;
+  (19) the deadline counted from the clone's admission → `TestLaneFSCreatingEntryExpires`;
+  (20) `h.LaneRoot` left `""` → `TestGitHardeningNamesTheLaneRoot`;
+  (21) `remove-tree` below a lane admitted without the set → `TestLaneFSRemoveTreeTakesAWholeLaneOrBelowACreatingOne`;
+  (22) `exists` by `os.Stat` → `TestLaneFSExistsIsLstat`, on its dangling-symlink row.
+  The two named beforehand as likeliest to survive are (8), because a test of the helper alone
+  passes, and (20), because no route call can observe it: `machined`'s own checks refuse every
+  lane call before phase 3's guard sees one. Each is killed only by the assertion named beside
+  it: a start through `main`'s own function, and the `Hardening` read from that same function.
 - [ ] **Step 4:** Full run; commit.
 
 #### Acceptance
 
 ```bash
-go test ./control-plane/cmd/machined/ -run '^TestGit' -race -count=1 -v > "$TMPDIR/t21.log" 2>&1; echo "exit=$?"   # exit=0; a build failure is non-zero, never a count of 0
-grep -c "^--- PASS" "$TMPDIR/t21.log"                                                          # 23 (the 23 TestGit rows above; or SKIP lines without git)
+go test ./control-plane/cmd/machined/ -run '^(TestGit|TestLaneFS)' -race -count=1 -v > "$TMPDIR/t21.log" 2>&1; echo "exit=$?"   # exit=0; a build failure is non-zero, never a count of 0
+grep -c "^--- PASS" "$TMPDIR/t21.log"                                                          # 32 (25 TestGit rows and 7 TestLaneFS rows above; or SKIP lines without git)
 grep -c "^--- SKIP" "$TMPDIR/t21.log"                                                          # 0 on a host with git
+grep -rn "gitrunner\|/git/v1/" control-plane/cmd/machined/ ; echo "grep=$?"                     # grep=1: machined serves no lane runner (ruling 2)
 go test ./sandboxd/... ./control-plane/... -race -count=1                                       # ok
 ```
 
@@ -503,11 +520,18 @@ go test ./sandboxd/... ./control-plane/... -race -count=1                       
   image's Debian git version, trixie's after task 27a, is **UNVERIFIED** against it — task 27's
   `git version ≥ 2.40.0` row checks it at build).
 - A clone surface in the cockpit.
-- That code the agent chose can never run in the machine pod. The claim is narrower: every path
-  that phase 3's §HGH names, and every `Env` path, is closed and tested. A git feature that §HGH
-  does not know of is a new finding for phase 3's list, and it would then run with the whole
-  disk in reach. The scrub hides `machined`'s token from children but not from `/proc/1/environ`
-  (item 4).
-- That `objects/info/alternates` is checked. It can lend a lane another repository's objects,
+- That code the agent chose can never run in the machine pod. The claim is narrower: no lane git
+  runs here (ruling 2), and for the project content an agent lands, every path that phase 3's
+  §HGH names, and every `Env` path, is closed and tested. A git feature that §HGH does not know
+  of is a new finding for phase 3's list, and it would then run with the whole disk in reach. The
+  scrub hides `machined`'s token from children but not from `/proc/1/environ` (item 4).
+- That `objects/info/alternates` is checked. It can lend a project another repository's objects,
   but not its refs, and H5 pins the layout that holds the refs. **UNVERIFIED** beyond that
   reading of git's documented layout.
+- That phase 3 accepts seam S8-P3.3 as shaped here, `Sealed` included (**UNVERIFIED**; step 1
+  greps). Or that phase 3's local `RemoveTree` follows no symlink on Linux: its doc says it
+  clears read-only attributes during the walk (phase-3 `task-03.md:264-268`), and
+  `TestLaneFSRemoveTreeNeverFollowsASymlink` is the first place that is checked.
+- That the creating set survives a restart. It does not; the create in flight fails, and cleans
+  up through `remove-tree`.
+- Bundles: the routes, the bundle argument on `POST /v1/git` and the sweep are task 21b's.
