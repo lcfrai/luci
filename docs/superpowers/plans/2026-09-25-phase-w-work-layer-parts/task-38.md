@@ -173,7 +173,7 @@ gains no class.
 // desktop/src/prototype/work/world.ts — task 38, decision 3. Task 20's world plus overrides; no
 // builder is declared here (task 20's rule). Every override names the drawing row it stands in for.
 import type { AgentStatus } from "../../components/glyphs/AgentGlyph";
-import type { IssueHead } from "../../api/work";
+import type { IssueHead, IssueRevision } from "../../api/work";
 import { ALICE, DYLAN, WORK_IDS, makeIssueRevision, makeServe, workScenario } from "../../test/workFixtures";
 
 export type ConvergenceWord = "settled" | "open" | "contested" | "drifting" | "uncovered";
@@ -194,6 +194,9 @@ export interface ProtoWorld {
   projectKey: string; featureName: string; branch: string;
   reader: typeof DYLAN;
   heads: Record<string, IssueHead>;
+  /** Each shown head's head revision: its title and its serves. */
+  revisions: Record<string, IssueRevision>;
+  briefKey: string;
   groups: ProtoGroup[];
   agent: ProtoAgent;
   touches: ProtoTouch[];
@@ -212,25 +215,35 @@ export function protoWorld(): ProtoWorld {
   const [resume, upload] = s.criteria;
   const heads = Object.fromEntries(s.issues.map((h) => [h.id, h])) as Record<string, IssueHead>;
   heads[WORK_IDS.ep167] = { ...heads[WORK_IDS.ep167], state: "started" };   // the reader's live issue
-  // Which criterion each head serves. EP-142 and EP-164 carry it in task 20's revisions; the rest
-  // are override revisions, so the claim is still a revision's `serves`, not a table of our own.
-  // In row order: the reader's live issue first, as the drawing has it.
-  const serving = [
-    ...[WORK_IDS.ep167, WORK_IDS.ep163, WORK_IDS.ep150, WORK_IDS.ep162, WORK_IDS.ep161].map((issueId) =>
-      makeIssueRevision({ issueId, revision: 1 })),                          // default serve: resume
+  // Each head's title and serves are its head revision's, as in the product. EP-142 and EP-164
+  // carry task 20's revisions; the rest are override revisions (an override of task 20's builder,
+  // not a builder of ours). In row order: the reader's live issue first, as the drawing has it.
+  const rev = (issueId: string, title: string, criterionId: string | null) =>
+    makeIssueRevision({ issueId, revision: 1, content: {
+      title: { text: title, author: "H" }, description: { text: "", author: "H" },
+      serves: criterionId === null ? [] : [makeServe({ criterionId })], implements: [] } });
+  const serving: IssueRevision[] = [
+    rev(WORK_IDS.ep167, "Resume offset per chunk record", resume.id),
+    rev(WORK_IDS.ep163, "Split the restart fixture", resume.id),
+    rev(WORK_IDS.ep150, "Chunked upload API", resume.id),
+    rev(WORK_IDS.ep162, "Retry budget per chunk", resume.id),
+    rev(WORK_IDS.ep161, "Resume after a browser refresh", resume.id),
     s.revisions.ep142,
     s.revisions.ep164,
-    makeIssueRevision({ issueId: WORK_IDS.ep166, revision: 1, content: {
-      ...s.revisions.ep164.content, serves: [makeServe({ criterionId: upload.id })] } }),
+    rev(WORK_IDS.ep166, "Image previews for uploaded evidence", upload.id),
+    rev(WORK_IDS.ep160, "Imported: upload stalls on hotel wifi", null),
+    rev(WORK_IDS.ep165, "Bump the chunk-store client", null),
   ];
+  const revisions = Object.fromEntries(serving.map((r) => [r.issueId, r])) as Record<string, IssueRevision>;
   const under = (c: string) => serving.filter((r) => r.content.serves.some((x) => x.criterionId === c)).map((r) => r.issueId);
   return {
     projectKey: s.projectKey, featureName: "Resumable uploads", branch: "feat/resumable-uploads",
-    reader: DYLAN, heads,
+    reader: DYLAN, heads, revisions, briefKey: s.briefKey,
     groups: [
       { criterionId: resume.id, title: resume.text, convergence: "open", issueIds: under(resume.id) },
       { criterionId: upload.id, title: upload.text, convergence: "open", issueIds: under(upload.id) },
-      { criterionId: null, title: "Serves no criterion", convergence: null, issueIds: [WORK_IDS.ep160, WORK_IDS.ep165] },
+      { criterionId: null, title: "Serves no criterion", convergence: null,
+        issueIds: serving.filter((r) => r.content.serves.length === 0).map((r) => r.issueId) },
     ],
     agent: { issueId: WORK_IDS.ep167, who: "dylan · agent 1", meaning: "writing the resume offset into store/chunks.go",
       status: "running", liveness: "live" },
@@ -243,8 +256,9 @@ export function protoWorld(): ProtoWorld {
 }
 ```
 
-`makeIssueRevision`'s default `serves` is `[makeServe()]`, the resume criterion (`task-20.md:222-250`),
-so five of the overrides need no content. `4f1c2e9` is the first seven of the world's `LAND`
+`rev` calls task 20's `makeIssueRevision` with an override (`task-20.md:242-255`); the titles are
+the prototype's words for the world's heads, which carry no title of their own (a head never
+does; the title is revision content, `task-03.md:305-319`). `4f1c2e9` is the first seven of the world's `LAND`
 (`task-20.md:295`). The times are the drawing's words, printed as given; the prototype formats
 nothing.
 
