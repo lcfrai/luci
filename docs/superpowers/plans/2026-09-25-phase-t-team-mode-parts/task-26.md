@@ -244,7 +244,7 @@ type ClaimRow struct {
 // TokenMeter reads the gateway's metered usage for one turn's key (task 20
 // mints a fresh key per turn). ok == false means "not known", never zero.
 type TokenMeter interface {
-	TurnTokens(ctx context.Context, turnID string) (tokens int64, ok bool, err error)
+	TurnTokens(ctx context.Context, turnID string) (input, output int64, ok bool, err error)
 }
 ```
 
@@ -277,7 +277,7 @@ import "github.com/kpmg-au-emu/panacea-app/control-plane/internal/fleet/model"
 // orchestrator's own owner (§7.2). Enqueue already refuses any other
 // author; the second check here means a store row written around Enqueue
 // still cannot raise a turn's authority.
-func OriginOf(batch []Queued, owner model.Principal) Origin {
+func OriginOf(batch []Queued, owner model.Owner) Origin { // model.Owner as task 22 cites it
 	for _, q := range batch {
 		if q.Event.Kind == model.EventHumanMessage && q.Event.Author == owner {
 			return OriginHuman
@@ -569,23 +569,25 @@ func (s *Scheduler) TryBegin(ctx context.Context, orch model.AgentID) (bool, err
 	return true, nil
 }
 
-// TurnRecord is the ot-… body sent to the Hub (task 07's turns route; task
-// 03 owns the hubapi type, and if its fields differ, task 03 wins). Metadata
-// only, except Reply: a human-origin turn's bounded text·A, readable by its
-// owner and an org auditor (§3.3, §4.2).
+// TurnRecord is the ot-… body of task 07's route 69, POST …/turns
+// (task-07.md:175-180): id, orchestratorAgentId, origin, consumed ≤ 200,
+// issued ≤ 100, tokens. Exit, Reply and ReplyTruncated are this task's
+// additions to that body, and Tokens optional; see "Requires of task 07".
 type TurnRecord struct {
-	ID             string    `json:"id"`
-	Orchestrator   string    `json:"orchestrator"`
-	Origin         Origin    `json:"origin"`
-	EventIDs       []string  `json:"eventIds"`
-	Issued         []string  `json:"issued"`
-	Exit           string    `json:"exit"` // ok | failed | timeout | lost
-	Tokens         *int64    `json:"tokens,omitempty"` // absent = not known
-	Reply          string    `json:"reply,omitempty"`
-	ReplyTruncated bool      `json:"replyTruncated,omitempty"`
-	Dropped        []string  `json:"droppedEvents,omitempty"` // lost twice
-	Began          time.Time `json:"began"`
-	Ended          time.Time `json:"ended"`
+	ID             string      `json:"id"`
+	Orchestrator   string      `json:"orchestratorAgentId"`
+	Origin         Origin      `json:"origin"`
+	Consumed       []string    `json:"consumed"`
+	Issued         []string    `json:"issued"`
+	Tokens         *TurnTokens `json:"tokens,omitempty"` // absent = not known, never zero
+	Exit           string      `json:"exit"`             // ok | failed | timeout | lost
+	Reply          string      `json:"reply,omitempty"`  // human-origin only, text·A, ≤ MaxReplyBytes
+	ReplyTruncated bool        `json:"replyTruncated,omitempty"`
+}
+
+type TurnTokens struct {
+	Input  int64 `json:"input"`
+	Output int64 `json:"output"`
 }
 
 // End accepts a runner's turn.end (task 19 dispatches the verb here, after
@@ -635,8 +637,7 @@ func (s *Scheduler) End(ctx context.Context, orch model.AgentID, e wire.TurnEnd)
 // lose ends a turn that no runner will end: push failed, the claim lapsed,
 // or task 19 reports the stream gone for good. Events re-queue once.
 func (s *Scheduler) lose(ctx context.Context, a model.Agent, row ClaimRow, why string) error {
-	rec := s.record(ctx, row, wire.ExitLost)
-	rec.Dropped = s.alreadyRetried(ctx, row) // the claim is held, so this cannot race
+	rec := s.record(ctx, row, wire.ExitLost) // consumed = the batch; a second loss names the same ids
 	dropped, err := s.Store.LoseTurn(ctx, row.Orch, row.TurnID, s.item(a, rec))
 	if err == nil && len(dropped) > 0 {
 		s.Log.Warn("turn lost twice; nudges dropped", "turn", row.TurnID, "events", dropped, "why", why)
@@ -656,14 +657,22 @@ func (s *Scheduler) CurrentTurn(ctx context.Context, orch model.AgentID) (TurnRe
 func (s *Scheduler) RecordIssued(ctx context.Context, orch model.AgentID, issuedID string) error
 ```
 
-`record` builds a `TurnRecord` from the row, reading `Meter.TurnTokens(row.TurnID)` and leaving
-`Tokens` nil when `ok` is false. `item` builds the `outbox.Item` with `ID: ids.Wide("ob")`, the
+`record` builds a `TurnRecord` from the row (`Consumed` = `row.EventIDs`, capped at 200 as route
+69 requires; `MaxBatch` is 50, so the cap never cuts), reading `Meter.TurnTokens(row.TurnID)` and
+leaving `Tokens` nil when `ok` is false. `item` builds the `outbox.Item` with `ID: ids.Wide("ob")`, the
 agent's org, owner, project and delegation, `Op: outbox.OpTurn`, `Subject: row.TurnID` and the
-marshalled record (task 11's part, `outbox.Item` and `OpTurn`). `alreadyRetried` returns the ids
-in `row.EventIDs` whose queue entry already has `Retried` set; those are exactly the ones
-`LoseTurn` deletes, so the record names them before the transaction runs and the store never
-touches a payload (task 11: a payload is never re-marshalled). `LoseTurn` is the only writer of
-`Retried`.
+marshalled record (task 11's part, `outbox.Item` and `OpTurn`). A lost turn's record says
+`exit: "lost"` and lists its batch in `consumed`; when the same events are lost a second time,
+the second `lost` record names the same ids, and that pair is the audit trail of a dropped nudge.
+The store never touches a payload (task 11: a payload is never re-marshalled). `LoseTurn` is the
+only writer of `Retried`.
+
+**Requires of task 07** (a Hub route this task writes to; raised, not changed here): route 69's
+body gains `exit` (`ok`·`failed`·`timeout`·`lost`), an optional `reply` (`text·A`, ≤ 8,000
+bytes, stored with the audit event and readable by the owner and an org auditor, §3.3 and §4.2),
+`replyTruncated`, and `tokens` becomes optional. Until it does, strict decoding refuses the body.
+If task 07 prefers the reply as its own record rather than audit-event metadata, `TurnRecord`
+splits in two and this part's `item` writes two outbox rows in the same transaction.
 
 - [ ] **Step 1: Write the tests, each with the mutant it kills**
 
@@ -692,10 +701,11 @@ fake `TokenMeter` and a fixed clock. `package turns`.
 | `TestSessionNewThenResume` | first turn `mode: new` with a uuid; after `End(ok)`, the next is `resume` with the same uuid | the uuid re-minted per turn; resume on the first turn |
 | `TestSessionNewAfterPodReplaced` | after `End(ok)` on sandbox `sb-1`, `Current` returns `sb-2`: next is `new`, fresh uuid | `SessionFor` ignores the sandbox id |
 | `TestSessionNewAfterUncleanEnd` | `End(failed)` then next turn: `new` | the session kept on failure |
-| `TestLostTurnRequeuesOnce` | push fails: events un-batched and `Retried`; the next `TryBegin` runs them; a second loss deletes them and the `ot-` record lists them in `droppedEvents` | re-queue forever; drop on first loss |
+| `TestLostTurnRequeuesOnce` | push fails: events un-batched and `Retried`; the next `TryBegin` runs them; a second loss deletes them, and two `ot-` records with `exit: "lost"` list the same ids in `consumed` | re-queue forever; drop on first loss |
 | `TestLapsedClaimIsLost` | clock past `Until`: `SweepLapsed` ends the turn `lost`, writes one `ot-` item, and a new turn can begin | the sweep only logs |
 | `TestTurnRecordWrittenInTheEndTransaction` | `EndTurn` on `memstore` with an injected outbox failure leaves the claim in place and no event deleted | the item appended after commit |
-| `TestTokensAbsentWhenMeterUnknown` | meter `ok=false`: the record's JSON has no `tokens` key; meter 1234: `"tokens":1234` | `Tokens` written as 0 |
+| `TestTokensAbsentWhenMeterUnknown` | meter `ok=false`: the record's JSON has no `tokens` key; meter 1200/34: `"tokens":{"input":1200,"output":34}` | `Tokens` written as zeros |
+| `TestTurnRecordMatchesRoute69` | the marshalled record's keys are exactly route 69's six plus `exit`, `reply`, `replyTruncated` | a renamed key (`eventIds` for `consumed`) the Hub's strict decode refuses |
 | `TestIssuedIdsReachTheRecord` | two `RecordIssued` calls during a turn: the record's `issued` holds both | `Issued` not carried from the claim |
 
 Wire tests, in both modules, extend task 09's round-trip suite by glob: the five new fixtures
@@ -857,4 +867,7 @@ cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team && git ad
    Fleet never pushes a `turn.end`; a turn Fleet ends itself is recorded `lost`, and the runner
    learns of it only through `stop` (task 27). Task 09's event list should drop `turn.end`, and
    task 16's `events.wait` queue then never sees one.
+4. **The human-origin reply has no Hub home.** §4.2 and §3.3 keep it "with the turn's `ot-…`
+   record as `text·A`"; task 07's route 69 is metadata-only with a strict body. See "Requires of
+   task 07" above.
 
