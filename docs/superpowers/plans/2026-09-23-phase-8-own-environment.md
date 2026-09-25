@@ -620,7 +620,7 @@ first.
 | 27 | `images/broker`, `images/machine`, and the `images` pipeline: digest, SBOM, scan, the OD-8 canary | 17, 20, 28 | 2.5 |
 | 27a | The sandbox base off end-of-life Node 20, by digest, before its first publish; it moves the OD-8 pin, so it has its own canary run and commit (review m15) | 27 | 1.5 |
 | 28 | Pipelines: tool templates, the Go pipeline, `desktop`, `licences` (OD-11, repo-wide), `secrets`, `infra`, `charts` | 01 | 3 |
-| 29 | `deploy/charts/broker` and `deploy/charts/hub` (HA-4, HA-5), with per-environment values | 11, 13, 19, 27 | 3 |
+| 29 | `deploy/charts/broker` and `deploy/charts/hub` (HA-4, HA-5), with per-environment values; `deploy/charts/keycloak` and the realm Job (OD-30) | 08 (the `keycloak` database), 09 (the realm file the Job applies), 11, 13, 19, 27 | 3 |
 | 30 | `infra-plan` and `deploy` pipelines, the estate guard, `modules/ci-pool` — written, not registered | 07, 28, 29 | 3 |
 
 ### Group H — owner-gated: written now, executable only when the environment exists
@@ -645,9 +645,9 @@ wave 1   01  14  16
 wave 2   02  03  04  09  11  15  17  28
 wave 3   05  06  12  13  18  20
 wave 4   07  19  22  27
-wave 5   08  23  27a  29     21 (held)
-wave 6   10  24a  30         21b (held; after 21 and 19)
-wave 7   24b
+wave 5   08  23  27a         21 (held)
+wave 6   10  24a  29         21b (held; after 21 and 19)
+wave 7   24b  30             (29 after 08, OD-30 review-1 M5; 30 after 29)
 wave 8   25 (held)  26  31 (owner-gated, OD-12)
 wave 9   32 (owner-gated, OD-12; depends on 31)   25b (held; after 25, 23, 21b and 18)
 wave 10  33                  (depends on every task)
