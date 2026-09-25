@@ -153,3 +153,94 @@ group **or** its home group; it relocates at once only when attention is in neit
 scope's *focus outside its group* is read here, so that a row can never vanish from one group
 while the other holds it out: a gap in the scope's wording, named in the return.
 
+#### Reference implementation: `reconcile` (the tests below are the contract; this is one way to pass them)
+
+```ts
+const EMPTY: ReadonlySet<string> = new Set();
+
+export function initialHold(next: GroupedIssues, seq = 0): HoldState {
+  return {
+    shown: next.groups.map((g) => ({
+      key: g.key, arrivals: 0, moving: 0,
+      rows: g.rows.map((row): ShownRow => ({ kind: "row", row, home: g.key, cause: null })),
+    })),
+    held: [],
+    flash: { seq, rows: EMPTY, groups: EMPTY },
+  };
+}
+
+/** N, or the view unmounting: everything held is laid out from the latest facts. */
+export function applyHeld(state: HoldState, next: GroupedIssues): HoldState {
+  return initialHold(next, state.flash.seq);
+}
+
+export function reconcile(prev: HoldState, next: GroupedIssues, focus: Attention): HoldState {
+  const home = new Map<string, string>();
+  const fact = new Map<string, RowFact>();
+  for (const g of next.groups) for (const r of g.rows) { home.set(r.issueId, g.key); fact.set(r.issueId, r); }
+  const watched = (k: string): boolean => k === focus.groupKey;
+  const wasLive = new Set<string>();
+  const wasArrival = new Set(prev.held.flatMap((h) => (h.kind === "arrival" ? [h.issueId] : [])));
+  const pinned = new Map<string, { at: number; row: ShownRow }[]>(); // kept at their old index
+  const pinnedIn = new Set<string>();
+  const carried = new Map<string, string | null>();                 // unseen causes carried forward
+  const changes = new Map<string, Set<string>>();
+  const note = (k: string, id: string): void => { changes.set(k, (changes.get(k) ?? new Set()).add(id)); };
+
+  // 1. Walk what the reader sees. Ghosts stay; a vanished row becomes one; a changed row stays at
+  //    its index while attention is on its shown group or its home group.
+  for (const g of prev.shown) {
+    const keep: { at: number; row: ShownRow }[] = [];
+    g.rows.forEach((s, at) => {
+      if (s.kind === "ghost") { keep.push({ at, row: s }); return; }
+      const id = s.row.issueId;
+      wasLive.add(id);
+      const r = fact.get(id);
+      if (r === undefined) {
+        keep.push({ at, row: { kind: "ghost", issueId: id, alias: s.row.alias, why: next.left.get(id) ?? "no longer visible" } });
+        note(g.key, id);
+        return;
+      }
+      const to = home.get(id)!;
+      const changedNow = r.state !== s.row.state || to !== s.home;
+      if (changedNow) note(g.key, id);
+      const cause = changedNow ? r.cause : s.cause;
+      carried.set(id, cause);
+      if (watched(g.key) || (to !== g.key && watched(to))) {
+        keep.push({ at, row: { kind: "row", row: r, home: to, cause } });
+        pinnedIn.add(id);
+      }
+    });
+    pinned.set(g.key, keep);
+  }
+
+  // 2. Lay out: a watched group keeps exactly its pinned rows; any other takes next's order with
+  //    its pinned rows and ghosts put back at their old index. A new issue is held, never drawn.
+  const held: HeldChange[] = [];
+  const nextKeys = next.groups.map((g) => g.key);
+  const keys = [...nextKeys, ...prev.shown.map((g) => g.key)
+    .filter((k) => !nextKeys.includes(k) && (pinned.get(k)?.length ?? 0) > 0)];
+  const shown: ShownGroup[] = keys.map((key) => {
+    const keep = pinned.get(key) ?? [];
+    const rows: ShownRow[] = [];
+    let arrivals = 0;
+    for (const r of next.groups.find((g) => g.key === key)?.rows ?? []) {
+      if (!wasLive.has(r.issueId)) {
+        arrivals += 1;
+        held.push({ kind: "arrival", issueId: r.issueId, groupKey: key });
+        if (!wasArrival.has(r.issueId)) note(key, r.issueId);
+        continue;
+      }
+      if (pinnedIn.has(r.issueId) || watched(key)) continue;          // drawn where it is pinned
+      rows.push({ kind: "row", row: r, home: key, cause: carried.get(r.issueId) ?? null });
+    }
+    for (const k of keep) rows.splice(Math.min(k.at, rows.length), 0, k.row);
+    for (const { row } of keep) {
+      if (row.kind === "ghost") held.push({ kind: "departure", issueId: row.issueId, groupKey: key, alias: row.alias, why: row.why });
+      else if (row.home !== key) held.push({ kind: "move", issueId: row.row.issueId, fromGroup: key, toGroup: row.home, cause: row.cause ?? "" });
+    }
+    const moving = keep.filter((k) => k.row.kind === "row" && k.row.home !== key).length;
+    return { key, rows, arrivals, moving };
+  });
+```
+
