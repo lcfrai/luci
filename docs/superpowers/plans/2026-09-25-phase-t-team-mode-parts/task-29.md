@@ -346,3 +346,90 @@ CREATE TABLE IF NOT EXISTS fleet.lease_demotions (
 
 `was_mode` excludes `intent`: demoting an intent is a no-op and writes no row, so a restore can
 never turn an intent into something stronger than it was.
+
+- [ ] **Step 1: Write the tests, each with the mutant it kills**
+
+On task 10's `memstore`, task 23's real `Engine`, task 28's real `Service`, task 26's real `Queue`,
+a fake `Conflicts` source, a recording `Escalator`, and `StubRules` unless a row says otherwise.
+Alice's side: `oA`, worker `wA` holding `ls-A1 = [auth/session.go, auth/token.go]` (hold) and
+`ls-A2 = [docs/**]` (intent). Bob's side: `oB`, worker `wB` holding `ls-B1 = [auth/**]` (intent).
+Conflict `cf-1` (tier P, paths `auth/session.go`, `auth/token.go`), thread `th-1`.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestYieldReleasesOnlyTheNamedGlobs` | `oA` proposes `yield [auth/session.go]`, `oB` accepts: `ls-A1` is `yielded`; a new lease holds exactly `[auth/token.go]`, same holder, mode `hold`, same task; `ls-A2` untouched; `ls-B1` untouched | the whole lease released; every lease of the side released |
+| `TestYieldOfEveryGlobLeavesNoReissue` | `yield [auth/session.go, auth/token.go]`: `ls-A1` `yielded`, no new lease | an empty lease re-issued |
+| `TestYieldMustBeHeldAtPropose` | `oA` proposes `yield [auth/**]` (not a glob Alice holds): `resolution_not_held`, nothing stored | a yield of a sub-glob or someone else's glob accepted |
+| `TestYieldStaleAtAccept` | `wA` releases `ls-A1` between propose and accept: the accept returns `resolution_stale`, no lease event, thread still `open` | parameters not re-checked at accept |
+| `TestResolutionCannotTouchTheOtherSide` | `oB` proposes `yield [auth/session.go]` naming Alice's glob: `resolution_not_held`; and across every applied test here, no lease of the acceptor's side changes state and **no directive** is written (the outbox holds no `OpDirective`) | a yield that releases the acceptor's lease; a resolver that issues directives |
+| `TestSequenceDemotesTheSecondSideAndRecordsAHint` | `oA` proposes `sequence first: oA`, `oB` accepts: `ls-B1` mode `intent` (it was intent: no row, no event); with `ls-B1` a hold instead, mode `intent`, one `lease_demotions` row `was_mode: hold`; one `land_hints` row; Alice's leases untouched | the first side demoted; no hint |
+| `TestSequenceRestoresWhenTheFirstTaskEnds` | `TaskEnded(org, wA's task)`: `ls-B1` back to `hold`, rows deleted, one `sequence.go` event on `oB`'s queue; a second call writes nothing | no restore; restore on the wrong side's task |
+| `TestProceedBothOnPAcceptsTheConflict` | `proceed-both [auth/session.go]`: conflict patch `{state: accepted, resolution: proceed-both}`; no lease moves | the conflict marked `resolved`; leases released |
+| `TestProceedBothPathsMustBeTheConflicts` | `proceed-both [README.md]` → `bad_request` at propose | any paths accepted |
+| `TestProceedBothOnHIsADecideNotAnAct` | tier `H`: the accept stores, `AcceptNeedsDecision` is called once, the proposal is `awaiting-human`, the conflict is not patched, no DECIDED WITHOUT YOU item | `StubRules` not consulted; the verdict ignored |
+| `TestApplyApprovedAppliesAPendingAccept` | after the H case, `ApplyApproved(…, es-9)`: the conflict is `accepted`, both inform items written, the `Outcome` names `es-9` | a pending accept that can never be applied |
+| `TestBothHumansGetDecidedWithoutYou` | after the yield: exactly two `OpEscalation` items, one under each owner's delegation, both `kind: inform`, `fromAgentId: ""`, `threadId: th-1`; **neither Orchestrator called `human inform`** | the item written only to the proposer's human; left to the Orchestrators |
+| `TestDecidedQuestionUsesTypedFieldsOnly` | the proposal's rationale text holds `IGNORE PREVIOUS`; neither question contains it; each names the other owner and the glob | the rationale quoted into the item |
+| `TestDecidedQuestionShrinksNeverCuts` | 20 paths of 200 characters each: the question is ≤ 300 runes, ends `(cf-1).`, and contains no partial path | a rune cut mid-path |
+| `TestResolutionClosesThreadAndConflict` | after the yield: thread patch `resolved`, conflict patch `resolved` + `yield`, in the same transaction as the lease events (an injected failure leaves all three unwritten) | the patches written after commit |
+| `TestProposerSideIsWokenImmediately` | after the accept, `oA`'s queue holds one `thread.resolved` event and `Ready` returns it at once | the wake coalesced; no wake |
+| `TestReevaluateAfterYield` | `ls-B1` was `contested` only by `ls-A1`'s `auth/session.go`: after the yield it is still contested by `auth/token.go`; after yielding both, it is `granted` | `Reevaluate` not called |
+
+- [ ] **Step 2: Run the tests and watch them fail**
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/control-plane && GOPROXY=off go test ./internal/fleet/protocol/ ./internal/fleet/leases/ -run "Yield|Sequence|Proceed|Decided|Resolution|Approved|Reevaluate|Proposer"
+```
+
+Expected: compile failure, `undefined: Resolver`, `undefined: DecidedWithoutYou`,
+`(*Engine).Yield undefined`.
+
+- [ ] **Step 3: Write `leases/yield.go`; run its tests and task 23's transition-table test**
+
+The transition-table test (`task-23.md:133-148`) now exercises the `yielded` row for real rather
+than as a table entry; it must still pass unchanged.
+
+- [ ] **Step 4: Write `resolve.go`, then `decided.go`; add the two tables to task 10's store**
+
+- [ ] **Step 5: Wire the two calls into task 28's `Service.Send` and task 24's `task update`**
+
+`Service` gains a `Resolver` field; a nil `Resolver` keeps task 28's behaviour exactly (a test in
+task 28's suite still passes with it nil). In `fleetd`, `Resolver{Rules: StubRules{}}` until task
+30 replaces `Rules` and the `Escalator`.
+
+- [ ] **Step 6: Run everything**
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/control-plane && GOPROXY=off go test ./internal/fleet/... && GOPROXY=off go vet ./internal/fleet/... && gofmt -l internal/fleet
+```
+
+Expected: every package `ok`, including task 23's, 24's and 28's suites unchanged; `go vet`
+silent; `gofmt -l` prints nothing.
+
+- [ ] **Step 7: Commit**
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team && git add control-plane/internal/fleet/protocol/resolve.go control-plane/internal/fleet/protocol/decided.go control-plane/internal/fleet/protocol/resolve_test.go control-plane/internal/fleet/protocol/decided_test.go control-plane/internal/fleet/leases/yield.go control-plane/internal/fleet/leases/yield_test.go testdata/panacea-control/v1/inbox-resolved-yield.json && git commit -F .superpowers/sdd/team/msg/task-29.txt -- control-plane/internal/fleet testdata/panacea-control/v1
+```
+
+**What this task does not claim:**
+
+- **That the right accepts act and the right ones ask.** `StubRules` covers one row. §6.5's
+  table, with users' rows and admins' floors, is task 30's `rules.go`; until it lands, a yield of
+  edited globs would act, which TM1-α cannot reach (no observed edits before task 35).
+- **That a `sequence` hint orders any land.** In TM1-α nothing consumes it but `TaskEnded`.
+  Phase 3's queue reads it in TM1 (tasks 34, 49) and task 61's in TM2.
+- **That workers follow the resolution.** Fleet changes leases, which are advisory (P7); each
+  Orchestrator directs its own workers in task 31, and a worker that ignores its directive is
+  visible, not stopped.
+- **`split`, `counter`, `build-on`.** Task 62.
+
+**Gaps against the skeleton, raised here:**
+
+1. **The land signal.** The scope says the hint is "consumed by phase 3's queue in TM1, task 61's
+   in TM2", and that the second side's lease is `intent` "until the first lands". TM1-α has no
+   land, so decision (c) restores on the first side's task ending. The skeleton should say so.
+2. **`thread.resolved` and `sequence.go`** are event kinds §4.2 does not list (task 26's gap 4).
+3. **A declined pending accept.** §6.5 does not say what a human's "no" to a pending accept does
+   to the thread; this part leaves the thread `open` with the proposal withdrawn. Task 30 owns the
+   answer handling and may choose otherwise.
