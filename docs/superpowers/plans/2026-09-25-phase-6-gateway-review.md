@@ -96,4 +96,39 @@ The severest finding, C-1, is latent rather than hit: nothing fails until someon
 
 **Plan quality: Needs fixes**
 
+## Fix batch b01 (C-1, I-8), 2026-09-25
+
+Line numbers are as of commit `8b8a7d7`. Parts are in `2026-09-25-phase-6-gateway-parts/`. "Skeleton" is `2026-09-25-phase-6-gateway.md`.
+
+**C-1 (1), task 11 drops a named denylist.** Fixed as the review asks, with a wider list.
+- `task-11.md:14`, decision (f): `proxy.ControlFields` holds fifteen names. They are the review's seven plus eight of the same kind: `content_policy_fallbacks`, `mock_testing_context_fallbacks`, `mock_testing_content_policy_fallbacks`, `mock_testing_rate_limit_error`, `api_key`, `api_version`, `aws_region_name`, `aws_bedrock_runtime_endpoint`. All are **UNVERIFIED** against the pinned image. A body `aws_region_name` would move a Bedrock call out of `ap-southeast-2`, which is why it is on the list.
+- Matching and splicing: the match is on the decoded top-level key. Decision (a)'s splice leaves out the dropped member's byte range, separator included (`task-11.md:568`, `:660`). It is a denylist, not an allowlist.
+- Tests: `TestLiteLLMControlFieldsNeverReachUpstream` (`:290`) has one row per name, from the test's own copy of the list, plus an escaped `fallbacks` row. `TestDroppingAFieldKeepsEveryOtherByte` (`:316`) covers first, middle, last and two-leading drops, byte-exact and `json.Valid`.
+- Mutants: three new table rows, plus fifteen scripted **rename** mutants (`:1015`), one per name. A delete would trip the length check and prove nothing about the row.
+- Restatements fixed: `task-11.md:3`, `:5`, the proxy package comment, "Does not claim" (`:1069`), gap 5 (`:1081`); skeleton `:240` (the scope line the review names, including its test list); `task-12.md:759`.
+
+**C-1 (2), task 18 gains P14.** Fixed as the review asks.
+- The probe (`task-18.md:32`, code `:357`): it sends `fallbacks` + `mock_testing_fallbacks` on `au/claude-opus-4-8` straight to LiteLLM, with two production-shaped keys. One is an AU-minted key naming `au/*` only; the other is a Global-minted key naming both groups.
+- Verdicts (`v_p14`, `:236`): any request at `fakeanthropic-global` is a FAIL. A primary that reached `fakeanthropic-au` is UNKNOWN (the mock never fired), never PASS. The self-test has four new cases (31 → 35, `:562`) and a vacuity mutant.
+- A FAIL is an owner blocker like P06, and exits 3 (`:551`).
+- Restatements fixed: the blocker set is now P06, P13 and P14 (`task-18.md:5`, `:41`, step 9, commit body; `task-23.md:37`); skeleton `:258`; the new register row `task-25.md:125` (U20).
+
+**C-1 (3), re-mint on a raise.** The review's wording is wrong on one fact, so the root cause is fixed another way.
+- Why not keysmith: keysmith never holds a token after the mint reply (task 07 decision (f)). A key it re-minted by itself would be a key nobody holds, the one thing task 07 must not get wrong.
+- keysmith retires instead: `task-07.md:41`, decision (h). `*Service` is the `wire.BindingReader` behind the gatekeeper's binding route (`ByKeyHash`, `:893`). A live Global-minted key whose project is now AU has its revocation dated `Grace` from now, and its LiteLLM key is deleted then. The bound after the first request following a raise: the route cache (≤ 30 s) plus the binding cache (≤ 10 s) plus `Grace` (5 min).
+- Task 07 tests and mutants: `:555` and `:590`, five mutants (8 → 13), 14 → 16 tests.
+- The refresher re-mints: `task-15.md:1159` (`sleepUnlessRaised`) and `RaiseCheck` (`:1001`), with test `:416` and two mutants. `task-08.md:1533` wires the Service in (gap `:1662`). Ask P8-1 (skeleton `:306`) makes the cloud broker do the same.
+- Restatements fixed: skeleton `:68` (P6-D4), `:230` (task 07 scope; its `Models` clause also contradicted decision (d)), `:232`, `:250`.
+
+**I-8, P03 and P04 mint the production shape.** Fixed as the review asks, and extended to P05 for the same root cause.
+- `task-18.md:15`, table `:21` to `:23`, code `:302` (`prod_key`), `:306` (`budget_probe`).
+- Each key carries `user_id` + `team_id` + a key `max_budget`. The dimension under test is at 1e-9 and the other two at US$1,000.
+- Skeleton `:258` says the same.
+
+**A new finding outside the review (N-1, fixed at its root).** Task 15's `refreshLoop` sent the **current** generation. Task 03's `RefreshRequest` names the **new** one (`task-03.md:447`), and task 07 refuses generation 1 as invalid, so every session's first refresh would have failed.
+- It now sends `gen + 1` (`task-15.md:1133`).
+- The existing refresher test asserts generation 2, and a mutant covers it (`:1558`). Recorded in task 15's gap 7 (`:1599`).
+
+**Deferred:** none. **Owner questions:** none new. A P14 FAIL reaches the owner through task 18's step 9.
+
 
