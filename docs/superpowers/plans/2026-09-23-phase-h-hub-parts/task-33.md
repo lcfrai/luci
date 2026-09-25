@@ -11,6 +11,11 @@ retries**, retry transport failures and 502/503/504 twice, refresh and retry onc
 `expired`, and time out each attempt at 10 s. This task is the transport and the relay; task 34 is
 the methods.
 
+**OD-30** (main `docs/superpowers/planning/2026-09-25-identity-keycloak-broker.md`; Hub contract §17):
+the token comes from the Keycloak realm brokering Entra, not Entra directly. `scope` is
+`PANACEA_APP_HUB_AUDIENCE` (`panacea-app-hub`), which replaces `PANACEA_APP_HUB_SCOPE`
+(`api://…/Hub.Access`); `tokens` is task 31's `signin` `TokenSource`. Nothing else in this task changes.
+
 **Files:**
 - `control-plane/internal/hub/hubclient/client.go` — `Client`, `New`, `Options` (replaces task 04's stub) (new)
 - `control-plane/internal/hub/hubclient/transport.go` + `transport_test.go` (new)
@@ -36,9 +41,10 @@ func New(baseURL, scope string, tokens TokenSource, httpClient *http.Client) *Cl
 func NewWithOptions(baseURL, scope string, tokens TokenSource, httpClient *http.Client, o Options) *Client
 
 // ErrTokenUnavailable wraps a TokenSource failure that is not ErrSignedOut —
-// Entra unreachable, in practice. The relay answers it 503 upstream_unavailable,
-// details.upstream "entra".
-var ErrTokenUnavailable = errors.New("hubclient: no token: Entra could not be reached")
+// the issuer (the Keycloak realm, OD-30) unreachable, in practice. The relay
+// answers it 503 upstream_unavailable, details.upstream "entra": the contract's
+// wire value (§6.2, :411), kept unchanged like the reason strings (contract §17).
+var ErrTokenUnavailable = errors.New("hubclient: no token: the issuer could not be reached")
 ```
 
 **One call, in order:**
@@ -119,7 +125,7 @@ implements `Invalidator`, and a recording `Sleep`.
 | `TestRelayA401IsSignedOut` | a 401 `reason: audience` → 401 `signed_out`, `details.reason: audience` | a Hub rejection shown as the user's password being wrong |
 | `TestRelaySignedOut` | `ErrSignedOut` → 401 `signed_out`, reason `signed_out` | — |
 | `TestRelayUnavailableIsUpstreamHub` | `ErrUnavailable` → 503 `upstream_unavailable`, `upstream: hub` (ruling R4's code, a third upstream name) | a new desktop `ProblemKind` for one more outage (contract §5.1) |
-| `TestRelayTokenUnavailableIsUpstreamEntra` | → 503, `upstream: entra` | an Entra outage reported as the Hub's |
+| `TestRelayTokenUnavailableIsUpstreamEntra` | → 503, `upstream: entra` (the contract's wire value for the issuer, unchanged by OD-30) | an issuer outage reported as the Hub's |
 | `TestRelayNotConfigured` | → 503 `hub_not_configured` | — |
 | `TestRelayAnythingElseIs500` | `io.ErrUnexpectedEOF` → 500 `internal`, the cause logged and absent from the body | a Go error chain in `message` |
 | `TestRelayAgreesWithWriteError` | for every error above, `Relay`'s `(status, p)` equals what `WriteError` writes, byte for byte after marshalling; `io.ErrUnexpectedEOF` → `ok == false` | phase 4's `discoverapi.relay` and the control plane's disagreeing about one Hub failure (HA4-5) |
@@ -139,7 +145,7 @@ implements `Invalidator`, and a recording `Sleep`.
 | `TestAGetCarriesNoKey` | → no `Idempotency-Key` | — |
 | `TestEachAttemptTimesOut` | `AttemptTimeout: 50ms`, a Hub that stalls → retried, then `ErrUnavailable` in < 1 s total | a control plane hung on a hung Hub |
 | `TestNoOriginHeaderIsSent` | the fake Hub records none | a 403 `forbidden_origin` from every call |
-| `TestTokenErrorsMap` | `ErrSignedOut` passes through `errors.Is`; any other → `errors.Is(err, ErrTokenUnavailable)` | an Entra outage signing the user out |
+| `TestTokenErrorsMap` | `ErrSignedOut` passes through `errors.Is`; any other → `errors.Is(err, ErrTokenUnavailable)` | an issuer outage signing the user out |
 | `TestAnOversizeBodyIsUnavailable` | a 6.5 MiB 200 body whose revisions' `content` is dense in raw `<`, `>`, `&` and U+2028, as the Hub's `server.WriteJSON` writes it (task 08) → decoded, each `content` byte-equal to what was sent; an 8 MiB + 1 200 body → `ErrUnavailable` | unbounded memory on a broken Hub, or a committed batch or a 100-key `/v1/refs` read reported as an outage (task 00) |
 | `TestAJSONBodyIsNotHTMLEscaped` | a `POST` whose body holds a `json.RawMessage` of `{"t":"a<b&&c>d"}` plus a raw U+2028 → the fake Hub receives those bytes exactly, with no `<`, `&` or ` `; a 503 then 201 → the second attempt's body is byte-equal to the first | the body encoded by `json.Marshal`, which pushes a `<`-dense 64-revision batch past route 26's 4 MiB cap (task 00, the wire rule) |
 | `TestARetryRewindsASeekableBody` | a call whose body is an `io.ReadSeeker` (the shape task 34's `PutBlob` passes) gets 503 after the fake Hub read half of it → the second attempt's body is the whole body, byte-equal; a reader whose `Seek` fails → that error after one attempt | a retried upload sending a short body the Hub then refuses `digest_mismatch` (HA5-1) |
