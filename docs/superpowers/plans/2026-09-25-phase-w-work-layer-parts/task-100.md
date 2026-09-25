@@ -805,3 +805,103 @@ before the code it covers.
 | `TestANonAssigneeCannotDelegate` | A (not assignee) → 403 `required: assignee`; M with a live delegation → 200 and `issue.delegated`; again → 200, no event | anyone delegating anyone's issue |
 | `TestNoTextReachesAnEvent` | every event of this file: `data` holds no value equal to any body, `because`, guidance text or reason sent | text in the event (hub-contract §8) |
 | `TestTheSyncActorWritesNoAgentKind` | the insert above fails `issue_comments_agent_attributed` | a sync write taken for an agent's |
+
+**The client's tests** (`hubclient/methods_work_agents_test.go`, against an `httptest` server):
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestEveryWorkAgentsMethodHasOneRoute` | reflection over task 99's `WorkAgents` plus the two additions: one `WorkAgentRoutes` row per method, one method per row | a method with no route; a stale row |
+| `TestAgentCommentKeepsItsDelegationAcrossRetries` | the server answers `503` then `201`; both attempts carry the same `X-Panacea-Delegation` and `Idempotency-Key`, and one comment exists | a method that drops `via` on retry |
+| `TestAgentsDisabledIsNotRetried` | a `403 agents_disabled` is one attempt and an `*Error` with that code | a client spinning on a refusal |
+| `TestIdsAreEscapedInTheW3Paths` | a `scopeId` with `/` reaches the server as one segment | a path built by concatenation |
+
+`hubclient/work_agents_integration_test.go` runs task 99's `conformance.RunWorkAgents` against the
+real Hub on `control-plane/cmd/hub/compose.yaml`, with F+ as the agent principal. A row that passes
+on the fake and fails here is a rule the two disagree on, and this task is not done until it is
+green (task 05's promise, for W3).
+
+#### Steps
+
+- [ ] **Step 1: Check the sync base** (rule H1). Task 99's part is on it: re-read every name this
+  part marks as task 99's (types, `WorkAgents`, codes, event kinds) and change this part's
+  spelling to match, noting each change here. TM-04's `agents`, `delegations` and TM-05's
+  `Delegable`, `Principal.Via`, `RouteFrom` are merged (`grep -n "func Delegable"
+  control-plane/internal/hub/server/*.go` prints one line). Map the four assumed chassis names.
+  `grep -n "kind" control-plane/internal/hub/server/changes.go`: if task 13's filter lists kinds,
+  append the eight W3 kinds there and add `changes.go` ⚑ to *Files*.
+- [ ] **Step 2: Write the tests first**, all of the tables above; run them and see each fail for
+  the reason its row names (404 route, or 501 from the stub `Client`).
+- [ ] **Step 3: Write the migration**, take the next free number, run `hub migrate` against the
+  compose database, and see `TestTheDatabaseHonoursTheSwitch`, `TestTheSyncActorWritesNoAgentKind`
+  and the direct-insert halves pass while the HTTP halves still fail.
+- [ ] **Step 4: Write the store, the routes, the gate, the triage override and the client**, then
+  the relay. Run to green.
+- [ ] **Step 5: Prove the tests bite.** Apply each table's mutant by hand, see its test fail,
+  revert. None is committed.
+- [ ] **Step 6: Commit** with `git add` for the new files, then `git commit -F <msgfile> --` the
+  paths of *Files*. Message file under `.superpowers/sdd/work/msg/`; last line
+  `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>`.
+
+#### Acceptance
+
+```bash
+export PANACEA_APP_HUB_TEST_DATABASE_URL='postgres://postgres@127.0.0.1:5433/postgres?sslmode=disable'
+go build ./control-plane/... && go vet ./control-plane/internal/hub/... ./control-plane/internal/api/
+# (no output)
+go test ./control-plane/internal/hub/hubclient/ -race -count=1 -run 'TestEveryWorkAgentsMethodHasOneRoute|TestAgentCommentKeepsItsDelegationAcrossRetries|TestAgentsDisabledIsNotRetried|TestIdsAreEscapedInTheW3Paths' -v 2>&1 | grep -c '^--- PASS'
+# 4
+go test -tags integration ./control-plane/internal/hub/server/ -count=1 -run 'TestFleet|TestAWorker|TestAPerson|TestTheSwitch|TestTheDatabase|TestOnlyAnOrgAdmin|TestAViewer|TestGuidance|TestAnOrchestrator|TestAProposal|TestALink|TestANonAssignee|TestNoTextReachesAnEvent|TestTheSyncActor' -v 2>&1 | grep -c '^--- PASS'
+# 14
+go test -tags integration ./control-plane/internal/hub/server/ -race -count=1 -run 'TestAuthorisationMatrix|TestLiveWorkRows|TestEveryRoute'
+# ok   (task 07's meta-tests, `task-07.md:561-562`: the nine W3 patterns are live and each has a row)
+go test -tags integration ./control-plane/internal/hub/hubclient/ -count=1 -run TestWorkAgentsRowsOnTheHub
+# ok
+go test ./control-plane/internal/api/ -race -count=1 -run 'TestRoutesAudit|TestWorkRelay'
+# ok   (eight W3 relay rows; no relay for AddAgentComment)
+```
+
+With the variable unset every integration test is `--- SKIP`, and that is reported as a skip, not a
+pass.
+
+#### What this task does not claim
+
+- Phase T's own Z5 matrix rows (TM-43), Fleet's use of these routes (tasks 101 onward), or any
+  desktop surface (102-104, 109, 111).
+- That guidance text may enter an agent's context. It is stored and resolved; whether it joins
+  TM-13's policy layers is task 99's open question to the Phase T owner (UNVERIFIED).
+- That the switch stops a running session. It refuses the next Fleet write; task 109's gate stops
+  the next turn; a live worker is stopped by *pause all*, which is not here.
+- That TM's own tables hold the switch in the database. Their writes pass through the Go gate in
+  `resolveCaller` only; the database half covers W3's two tables (comments and issues).
+- Undoing a delegation. No withdraw route exists (gap 5).
+- Any parity row alone. It carries the Hub halves of **L-39, L-156, L-158, L-166, L-173, L-183,
+  L-193 and L-246** (verified against 05-design's matrix, `05-design.md:148-428`), which tasks
+  102-104, 109 and 111 close on the desktop and in Fleet, and task 113 records.
+
+**Corrections to the scope paragraph** (the skeleton row wins; this part records them): paths are
+task 16's shapes, not `/v1/work/…` (decision (a)); the matrix file is task 07's
+`work_matrix_rows_integration_test.go`; `server.go`, `work_issues.go` and TM-05's `auth.go` are
+added to *Files*; the sync principal's column is the database's until W5 (the Fleet columns
+section); the relay carries eight rows, not nine, because `AddAgentComment` is Fleet's alone.
+
+**Gaps found while writing this part** (for the skeleton's owner and the named tasks):
+
+1. **Task 99's part did not exist** when this was written. Its method list lacks
+   `LinkEvidenceProposal` (task 104 needs it) and `GuidanceVersions` (task 109's history); its
+   codes lack `orchestrator_unavailable`, `proposal_mismatch`, `evidence_not_found`,
+   `thread_unresolvable`; its events are unnamed (`issue.delegated`, `comment.proposal_linked`,
+   `guidance.versioned`, `org.agent_switch_set`, `org.agent_write_refused` are proposed here).
+   Task 99 must carry each, or this part changes to its names at Step 1.
+2. **Task 109 reads the switch "as Fleet's own workload principal"** (`task-109.md:94-96`), but
+   TM-05 refuses an app-only Fleet token with no delegation (401 `delegation_required`). This part
+   makes the read `Delegable` (`work.agent_switch.read`); task 109's gate must send the turn's
+   owner's delegation, and TM-06's orchestrator class must list the name.
+3. **Guidance has no erase owner.** The skeleton's `server/erase.go` ⚑ row names issues,
+   comments, requests and notes (tasks 14, 146). This part adds `erased_at` and the blank `CHECK`
+   so no migration is needed later; the route and its grant are unowned.
+4. **The sync principal's HTTP column** belongs to task 150, which should add it beside task 07's
+   `AnIntegrationNeverWritesAFact`.
+5. **No withdraw route for a delegation.** 05 §5's *"Start or Delegate: reversible until the
+   session's first file write"* (`05-design.md:1105`) needs one for task 102's Undo; SW.19 has none.
+6. **The skeleton's file map** omits `server/auth.go` ⚑ and `server/work_issues.go` ⚑ for task 100,
+   and has no row for `server/work_agents_integration_test.go`.
