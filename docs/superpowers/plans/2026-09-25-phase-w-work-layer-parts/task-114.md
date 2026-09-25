@@ -81,6 +81,7 @@ takes the merged names; a rename is a find-and-replace in this part, never a new
 package hubapi
 
 import (
+	"encoding/json"
 	"errors"
 	"regexp"
 	"strconv"
@@ -244,5 +245,184 @@ type TriageRotationView struct {
 	Rotation   TriageRotation `json:"rotation"`
 	OnDuty     User           `json:"onDuty"`
 	HandoverOn string         `json:"handoverOn"` // YYYY-MM-DD, from StartsOn and PeriodDays
+}
+```
+
+#### `work_roadmap.go`, continued: insights, read cursors, grants, the initiative view
+
+```go
+// Insight measures, each read only from recorded state moves (task 122).
+const (
+	MeasureCount       = "count"
+	MeasureCycleTime   = "cycle_time"   // first move into started → the standing done
+	MeasureLeadTime    = "lead_time"    // creation → the standing done
+	MeasureTriageTime  = "triage_time"  // creation → the first move out of triage
+)
+
+// InsightsQuery is a window over one team, optionally one project.
+type InsightsQuery struct {
+	TeamID    string  `json:"teamId"`
+	ProjectID *string `json:"projectId"`
+	From      string  `json:"from"` // RFC 3339, the Hub's clock
+	To        string  `json:"to"`
+	Measure   string  `json:"measure"`
+	GroupBy   *string `json:"groupBy"` // "state" | "assignee" | "label" | "feature" | "cycle" | null
+}
+
+// InsightGroup is one group's measured count.
+type InsightGroup struct {
+	Key   string `json:"key"`
+	Count int    `json:"count"`
+}
+
+// InsightPoint is one issue's measured duration; the scatter opens it.
+type InsightPoint struct {
+	Issue string `json:"issue"` // is-…
+	Ms    int64  `json:"ms"`
+}
+
+// InsightsResult is measured only (Q1). The percentiles are null when no
+// point was measured (decision 5); they are nearest-rank over Points.
+type InsightsResult struct {
+	Groups []InsightGroup `json:"groups"` // never null
+	Points []InsightPoint `json:"points"` // never null; empty for "count"
+	P50Ms  *int64         `json:"p50Ms"`
+	P75Ms  *int64         `json:"p75Ms"`
+	P90Ms  *int64         `json:"p90Ms"`
+}
+
+// ScopeRef is what a read cursor watches (task 123).
+type ScopeRef struct {
+	Kind string `json:"kind"` // "project" | "feature" | "issue"
+	ID   string `json:"id"`
+}
+
+// ReadCursor is one person's last-seen feed seq on one scope. It only
+// advances: a lower Seq is ignored and the stored cursor returned.
+type ReadCursor struct {
+	Scope ScopeRef `json:"scope"`
+	Seq   int64    `json:"seq"` // an Event.Seq (types.go:537); 0 is "never looked"
+}
+
+// MarkSeenRequest advances several cursors to one seq (task 123).
+type MarkSeenRequest struct {
+	Scopes []ScopeRef `json:"scopes"` // 1-200
+	Seq    int64      `json:"seq"`
+}
+
+// ProjectGrant lets a second team read a project's Work objects and comment
+// on them (Q12). The scope has one value in v1.
+type ProjectGrant struct {
+	ProjectID string `json:"projectId"`
+	TeamID    string `json:"teamId"`
+	Scope     string `json:"scope"` // GrantReadComment
+	GrantedBy User   `json:"grantedBy"`
+	At        string `json:"at"`
+}
+
+const GrantReadComment = "read_comment"
+
+// InitiativeFeature is one feature's row in the initiative's read: its own
+// latest health word and date, never a score (L-84), and its criteria words.
+type InitiativeFeature struct {
+	FeatureID    string          `json:"featureId"`
+	Name         string          `json:"name"`
+	Lead         User            `json:"lead"`
+	LatestUpdate *UpdateStamp    `json:"latestUpdate"` // null when never updated
+	Criteria     []CriterionWord `json:"criteria"`
+}
+
+// UpdateStamp is the health and date of a subject's latest status update.
+type UpdateStamp struct {
+	Health Health `json:"health"`
+	At     string `json:"at"`
+}
+
+// InitiativeView is task 118's read. It has no aggregate health (L-84).
+type InitiativeView struct {
+	Initiative Initiative          `json:"initiative"`
+	Teams      []string            `json:"teams"`    // InitiativeTeams.TeamIDs
+	Features   []InitiativeFeature `json:"features"` // only those the caller may read
+}
+```
+
+#### `work_roadmap.go`, continued: request bodies
+
+Nullable fields that a PATCH may clear are `json.RawMessage`, task 03's idiom
+(`PatchIssueRequest.AssigneeID`, `task-03.md:436-446`): absent leaves the field, `null` clears it.
+
+```go
+type CreateInitiativeRequest struct {
+	Name       string           `json:"name"`
+	OwnerID    string           `json:"ownerId"` // u-…, a member of the team (task 118)
+	TargetDate *string          `json:"targetDate"`
+	State      *InitiativeState `json:"state,omitempty"` // default planned
+}
+
+type PatchInitiativeRequest struct {
+	Name       *string          `json:"name,omitempty"`
+	OwnerID    *string          `json:"ownerId,omitempty"`
+	TargetDate json.RawMessage  `json:"targetDate,omitempty"` // "YYYY-MM-DD" | null
+	State      *InitiativeState `json:"state,omitempty"`
+}
+
+// SetFeatureInitiativeRequest: a feature points at one initiative (05 §3.1).
+type SetFeatureInitiativeRequest struct {
+	InitiativeID *string `json:"initiativeId"` // null detaches
+}
+
+type SetInitiativeTeamsRequest struct {
+	TeamIDs []string `json:"teamIds"` // 1-10; [0] must be the owning team
+}
+
+type PostUpdateRequest struct {
+	Health      Health       `json:"health"`
+	Body        AuthoredText `json:"body"`        // author "H", 1-1000 characters (TM-46)
+	PinnedBrief string       `json:"pinnedBrief"` // brief:bf-…@r
+	Cites       []string     `json:"cites"`       // 0-20 Hub keys; never null
+}
+
+type CreateMilestoneRequest struct {
+	Name         string   `json:"name"`
+	Date         *string  `json:"date"`
+	CriterionIDs []string `json:"criterionIds"` // 1-100
+}
+
+type PatchMilestoneRequest struct {
+	Name *string         `json:"name,omitempty"`
+	Date json.RawMessage `json:"date,omitempty"`
+}
+
+type SetMilestoneCriteriaRequest struct {
+	CriterionIDs []string `json:"criterionIds"` // replaces the list; 1-100
+}
+
+type FeatureDependencyRequest struct {
+	Blocks string `json:"blocks"` // ft-…
+}
+
+type CreateBriefTemplateRequest struct {
+	Name             string         `json:"name"`
+	Criteria         []AuthoredText `json:"criteria"`
+	IssueTemplateIDs []string       `json:"issueTemplateIds"`
+}
+
+type PatchBriefTemplateRequest struct {
+	Name             *string         `json:"name,omitempty"`
+	Criteria         *[]AuthoredText `json:"criteria,omitempty"`
+	IssueTemplateIDs *[]string       `json:"issueTemplateIds,omitempty"`
+}
+
+// CreateFeatureFromTemplateRequest creates the feature, its branch brief at
+// revision 1 from the template's criteria, and one issue per issue template,
+// in one transaction (task 120).
+type CreateFeatureFromTemplateRequest struct {
+	TemplateID string `json:"templateId"`
+	Name       string `json:"name"`
+	BranchRef  string `json:"branchRef"` // refs/heads/<slug>
+}
+
+type GrantProjectRequest struct {
+	TeamID string `json:"teamId"`
 }
 ```
