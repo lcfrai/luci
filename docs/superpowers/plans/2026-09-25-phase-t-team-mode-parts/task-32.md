@@ -79,3 +79,118 @@ allows egress to Traefik's pods on the edge's HTTPS container port **and** to 44
 private ranges; which one a pod actually takes depends on how `hub.<zone>` resolves inside the
 cluster, **UNVERIFIED**, and task 33 records it. Keysmith is plain http inside its namespace
 (`:4100`, no route), so that allow is direct.
+
+**Files:**
+- `deploy/charts/fleet/{Chart.yaml,values.yaml,values.schema.json}` (new)
+- `deploy/charts/fleet/templates/{_helpers.tpl,serviceaccount.yaml,deployment.yaml,service.yaml,httproute.yaml,pdb.yaml,networkpolicy.yaml,migrate-job.yaml,secretproviderclass.yaml}` (new)
+- `deploy/charts/fleet/tests/*_test.yaml`, `tests/values-test.yaml` (new, helm-unittest)
+- `deploy/values/{dev,prod}/fleet.yaml` — per-environment values holding **no id** (new)
+- `deploy/sql/fleet-principals.sql.tpl` — the database, the two Entra principals, the grants (new)
+- `deploy/charts/platform/values.yaml`, `values.schema.json`, `templates/namespaces.yaml`,
+  `templates/networkpolicy-defaults.yaml`, `templates/networkpolicy-sandboxes.yaml`,
+  `tests/netpol_test.yaml` — `namespaces.fleet`; `egress-internet`'s selector; the two new
+  sandbox policies (modified; P8-11's files)
+- `deploy/charts/gateway/templates/networkpolicy.yaml` — keysmith admits Fleet's pods on 4100;
+  `deploy/charts/gateway/values.yaml` — keysmith's Fleet caller entry on (modified; P6-19's files;
+  task 20 left the entry off, `task-20.md:489-491`)
+- `deploy/charts/edge/templates/networkpolicy*.yaml` — Traefik admits `panacea-fleet` pods on its
+  HTTPS port (modified; P8-13's file, **UNVERIFIED** name until merge)
+- `deploy/tests/netpolcover/netpolcover_test.go` — add `fleet` to the rendered charts; two cases
+  (modified; P8-13's file, extended by P8-29, `task-29.md:16`)
+- `infra/terraform/stacks/workloads/{main.tf,outputs.tf,variables.tf}`, `tests/workloads.tftest.hcl`
+  — `module.fleet`, `module.fleet_migrate`, their outputs (modified; P8-10's files)
+- `infra/terraform/stacks/identity/*.tf` — Fleet's API registration (`Fleet.Access`) and the
+  broker's `Sandboxes.Fleet` app role assigned to Fleet's identity (modified; P8-09's files; task
+  17 needs the role, `task-17.md:386-388`)
+- `pipelines/scripts/render-sql.sh`'s mapping table — four `fleet_*` placeholders (modified; P8-29's
+  file)
+
+**Interfaces:**
+- Produces:
+  - the chart `fleet`, values below, and the environment `fleetd` reads (task 12's table,
+    `task-12.md:93-111`, plus tasks 19 and 20's additions)
+  - pod labels other charts select on: `app.kubernetes.io/name: fleet`,
+    `app.kubernetes.io/component: server` (serving) and `migrate` (the Job)
+  - the platform's `sandbox-egress-gateway` and `orchestrator-egress` policies, and the
+    `panacea-fleet` namespace
+  - `workloads` outputs `fleet_client_id`, `fleet_identity_name`, `fleet_principal_id`,
+    `fleet_migrate_client_id`, `fleet_migrate_identity_name`, `fleet_migrate_principal_id`; the
+    `identity` output `fleet_api_client_id`
+- Consumes:
+  - P8-10's `modules/workload-identity` (`task-10.md:91-105`), unchanged
+  - P8-29's chart layout, its migrate-hook weights and its SQL renderer, as patterns
+  - P6-19's gatekeeper and keysmith labels and ports (`:4000`, `:4100`)
+  - task 12, 19, 20: every `PANACEA_APP_FLEET_*` variable
+- Requires of **task 12**: `fleetd migrate` and `PANACEA_APP_FLEET_MIGRATE` (`startup`, the
+  default for the offline stack, or `job`) (G32-3).
+- Requires of **task 15**: the `panacea-app/class` pod label (G32-2).
+- Requires of **task 19**: nothing new. `PANACEA_APP_FLEET_CONTROL_KEY_FILE` is a file this chart
+  mounts from Key Vault through the Secrets Store CSI add-on (P8-D11), secret `fleet-control-key`.
+- Requires of **tasks 10 and 12**: an Entra token for Postgres per connection (pgx `BeforeConnect`
+  with the workload identity), switched by `PANACEA_APP_FLEET_PG_AUTH=entra`, as the Hub's
+  `PANACEA_APP_HUB_DB_AUTH=entra` (`task-29.md:155`). Task 12 leaves the flow **UNVERIFIED** and
+  names tasks 10 and 32 (`task-12.md:1214`); this chart sets the variable and task 12 must read it
+  (G32-4).
+
+#### Contract — `deploy/charts/fleet/values.yaml` (complete)
+
+```yaml
+# Every key is required by values.schema.json (additionalProperties: false).
+image: ""                     # <acr>/panacea-app/fleetd@sha256:…  (a digest, never a tag)
+replicas: 2                   # task 12: two stateless replicas, singletons by advisory lock
+namespace: panacea-fleet
+host: ""                      # fleet.<zone>, the desktop's route
+gateway:                      # phase 8's edge Gateway, as the Hub's chart names it
+  name: panacea
+  namespace: panacea-edge
+edge:
+  httpsPort: 8443             # Traefik's HTTPS container port (P8-13, UNVERIFIED until merge)
+installId: ""                 # PANACEA_APP_FLEET_INSTALL_ID, 32 lower-case hex, per environment
+database:
+  host: ""                    # data stack: postgres_fqdn (the Hub's server, P8-D10)
+  name: fleet
+  appUser: ""                 # workloads: fleet_identity_name
+  migrateUser: ""             # workloads: fleet_migrate_identity_name
+  maxConns: 8                 # per replica; 2 x 8 + 1 = 17 beside the Hub's 21 (task-29.md:137)
+entra:
+  authority: https://login.microsoftonline.com
+  tenants: ""                 # comma-separated tenant GUIDs
+  audience: ""                # identity: fleet_api_client_id's app id URI
+  desktopClients: ""          # identity: desktop_client_id
+  tokenUrl: ""                # https://login.microsoftonline.com/<tid>/oauth2/v2.0/token
+hub:
+  url: ""                     # https://hub.<zone>
+  scope: ""                   # <hub app id uri>/.default
+broker:
+  url: ""                     # https://broker.<zone>
+  scope: ""                   # api://<broker>/.default
+gatewayService:
+  baseUrl: http://gatekeeper.panacea-gateway.svc.cluster.local:4000
+  keysmithUrl: http://keysmith.panacea-gateway.svc.cluster.local:4100
+  keysmithAudience: keysmith  # the projected token's audience phase 6 task 08 reviews (UNVERIFIED)
+keyVault:
+  name: ""                    # foundation: key_vault_name
+  tenantId: ""
+  controlKeySecret: fleet-control-key   # >= 32 random bytes, created by the owner's runbook
+serviceAccount:
+  clientId: ""                # workloads: fleet_client_id
+migrate:
+  serviceAccount:
+    clientId: ""              # workloads: fleet_migrate_client_id
+tuning:
+  membershipTtl: 60s          # at most 60s (task 12)
+  outboxTick: 500ms
+  logLevel: info
+resources:
+  cpu: 500m
+  memory: 512Mi
+network:
+  privateEndpointsCidr: ""    # the value the platform chart takes (task-11.md:49)
+```
+
+`values.schema.json` is draft-07 from the block above: every key `required`, every object
+`additionalProperties: false`, `replicas` `minimum: 2`, `image` `pattern: "@sha256:[0-9a-f]{64}$"`,
+`installId` `pattern: "^[0-9a-f]{32}$"`, `hub.url` and `broker.url` `pattern: "^https://"`, and
+`tuning.membershipTtl` one of `15s`, `30s`, `45s`, `60s`. **There is no `devInsecure` key**:
+`PANACEA_APP_FLEET_DEV_INSECURE` is never rendered, so a cluster cannot run Fleet against an http
+Hub or authority (task 12, `:110`).
