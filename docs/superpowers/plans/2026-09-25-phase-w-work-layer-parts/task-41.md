@@ -380,3 +380,80 @@ class names `.wk-row` and `.wk-group-head` are task 40's (**UNVERIFIED** until i
 file was not on the tree at this writing, so the names here are this task's proposal and task 40's
 part wins). The reduced-motion rule is written twice, task 36's decision 6.
 
+#### Tests to write first, part 1 — `desktop/src/work/hold.test.ts` (pure)
+
+```ts
+import { describe, expect, it } from "vitest";
+import { applyHeld, causeLine, initialHold, reconcile, type GroupedIssues, type RowFact } from "./hold";
+
+const R = (issueId: string, alias: string, state: RowFact["state"], cause = ""): RowFact => ({ issueId, alias, state, cause });
+const G = (groups: Record<string, RowFact[]>, left: [string, string][] = []): GroupedIssues =>
+  ({ groups: Object.entries(groups).map(([key, rows]) => ({ key, rows })), left: new Map(left) });
+const ids = (s: ReturnType<typeof initialHold>, key: string) =>
+  s.shown.find((g) => g.key === key)!.rows.map((r) => (r.kind === "row" ? r.row.alias : `ghost:${r.alias}`));
+const a = R("is-a", "EP-1", "todo"), b = R("is-b", "EP-2", "todo"), c = R("is-c", "EP-3", "todo");
+const start = G({ "c-1": [a, b, c], "c-2": [] });
+const IN_C1 = { groupKey: "c-1" }, NOWHERE = { groupKey: null };
+
+describe("the hold model", () => {
+  it("keeps an arriving issue out of the shown order until applyHeld", () => {
+    const next = G({ "c-1": [R("is-n", "EP-9", "todo"), a, b, c], "c-2": [] });
+    const s = reconcile(initialHold(start), next, NOWHERE);
+    expect(ids(s, "c-1")).toEqual(["EP-1", "EP-2", "EP-3"]);          // mutant: arrivals inserted at once
+    expect(s.shown[0].arrivals).toBe(1);
+    expect(ids(applyHeld(s, next), "c-1")).toEqual(["EP-9", "EP-1", "EP-2", "EP-3"]);
+  });
+
+  it("keeps a re-grouped row at its index, with its new state and cause, while the reader is in its group", () => {
+    const moved = R("is-a", "EP-1", "done", "→ done · own evidence at 7c1f0a2 · 14:02");
+    const s = reconcile(initialHold(start), G({ "c-1": [b, c], "c-2": [moved] }), IN_C1);
+    expect(ids(s, "c-1")).toEqual(["EP-1", "EP-2", "EP-3"]);          // mutant: re-groups on every change
+    const row = s.shown[0].rows[0];
+    expect(row.kind === "row" && row.row.state).toBe("done");
+    expect(row.kind === "row" && row.cause).toBe(moved.cause);
+    expect(s.held).toContainEqual({ kind: "move", issueId: "is-a", fromGroup: "c-1", toGroup: "c-2", cause: moved.cause });
+    expect(s.shown[0].moving).toBe(1);
+  });
+
+  it("relocates a held row without N once the reader's attention leaves both its groups", () => {
+    const next = G({ "c-1": [b, c], "c-2": [R("is-a", "EP-1", "done")] });
+    const held = reconcile(initialHold(start), next, IN_C1);
+    const s = reconcile(held, next, NOWHERE);
+    expect(ids(s, "c-1")).toEqual(["EP-2", "EP-3"]);                  // mutant: relocates only on N
+    expect(ids(s, "c-2")).toEqual(["EP-1"]);
+    expect(s.held.filter((h) => h.kind === "move")).toEqual([]);
+  });
+
+  it("turns a departure into a ghost until N", () => {
+    const next = G({ "c-1": [a, c], "c-2": [] }, [["is-b", "cancelled"]]);
+    const s = reconcile(initialHold(start), next, NOWHERE);
+    expect(ids(s, "c-1")).toEqual(["EP-1", "ghost:EP-2", "EP-3"]);    // mutant: drops the row at once
+    expect(ids(reconcile(s, next, NOWHERE), "c-1")).toEqual(["EP-1", "ghost:EP-2", "EP-3"]);
+    expect(ids(applyHeld(s, next), "c-1")).toEqual(["EP-1", "EP-3"]);
+  });
+
+  it("flashes the header once and no row when four changes land in one group at once", () => {
+    const d = R("is-d", "EP-4", "todo");
+    const from = G({ "c-1": [a, b, c, d] });
+    const to = G({ "c-1": [a, b, c, d].map((r) => ({ ...r, state: "started" as const })) });
+    const s = reconcile(initialHold(from), to, IN_C1);
+    expect([...s.flash.groups]).toEqual(["c-1"]);                     // mutant: per-row flashing
+    expect(s.flash.rows.size).toBe(0);
+    const three = reconcile(initialHold(start), G({ "c-1": [a, b, c].map((r) => ({ ...r, state: "started" as const })), "c-2": [] }), IN_C1);
+    expect(three.flash.rows.size).toBe(3);
+    expect(three.flash.groups.size).toBe(0);
+  });
+
+  it("formats the cause from SW.4's words and prints no detail it was not given", () => {
+    const m = { to: "done" as const, cause: "evidence_observed" as const, at: "2026-09-18T04:02:00Z", byName: "Dylan Example",
+      commit: "7c1f0a2e9b3d5c6e8f0a1b2c3d4e5f6a7b8c9d0e", detail: "test run, exit 0" };
+    expect(causeLine(m, "Australia/Sydney")).toBe("→ done · own evidence at 7c1f0a2 (test run, exit 0) · 14:02");
+    expect(causeLine({ ...m, detail: "" }, "Australia/Sydney")).toBe("→ done · own evidence at 7c1f0a2 · 14:02"); // mutant: invented detail
+    expect(causeLine({ ...m, to: "in_review", cause: "lane_queued", commit: "" }, "UTC")).toBe("→ in review · worktree queued · 04:02");
+  });
+});
+```
+
+`2026-09-18T04:02:00Z` is 14:02 in Sydney (AEST, UTC+10; daylight time starts on 4 October 2026),
+so the time-zone assertion is fixed, not the machine's zone.
+
