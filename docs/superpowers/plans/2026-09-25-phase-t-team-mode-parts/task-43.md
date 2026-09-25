@@ -90,3 +90,195 @@ rewritten: one ratchet for solo and team projects.
 - Required by: task 37 (quotas, turn budget), task 28 (message budgets), task 30 (floors), task 44
   and 46 (their Z5 rows join `allTeamRows`), task 56 (the route badge), task 67 (quotas admin),
   task 57 (TM1 proof).
+
+#### `teamcaps.go` — the §3.4 table, complete source
+
+```go
+// control-plane/internal/hub/server/teamcaps.go
+package server
+
+// TeamCap is one row of 05-design.md §3.4. Handlers of routes 74, 75 and 79
+// call Can; tasks 06, 07 and 46's handlers keep their own tested checks, and
+// TestCapTableAgreesWithTheMatrix holds all of them to this one table.
+type TeamCap string
+
+const (
+	CapSeeTeam       TeamCap = "see-team"        // strip, cards, observed files (52, 55, 59, 73, 74)
+	CapLaunch        TeamCap = "launch"          // an Orchestrator or a worker; hold leases (own only)
+	CapReadThreads   TeamCap = "read-threads"    // 63: parties only, through their Orchestrator
+	CapReadOwnDesk   TeamCap = "read-own-desk"   // 66, 68, 71: own only
+	CapWriteNote     TeamCap = "write-note"      // 72
+	CapSetPolicy     TeamCap = "set-policy"      // 75: within floors
+	CapRaiseRoute    TeamCap = "raise-route"     // 79 to au
+	CapLowerRoute    TeamCap = "lower-route"     // 79 to global
+	CapReleaseStale  TeamCap = "release-stale"   // task 06's admin release, audited
+	CapReadAcross    TeamCap = "read-across"     // 63, 66, 68, 71 across owners
+)
+
+// who is one §3.4 row: which team roles, and which org capabilities, hold it.
+type who struct {
+	viewer, member, admin bool
+	auditor, compliance   bool
+}
+
+var capTable = map[TeamCap]who{
+	CapSeeTeam:      {viewer: true, member: true, admin: true, auditor: false},
+	CapLaunch:       {member: true, admin: true},
+	CapReadThreads:  {member: true, admin: true},
+	CapReadOwnDesk:  {member: true, admin: true},
+	CapWriteNote:    {member: true, admin: true},
+	CapSetPolicy:    {admin: true},
+	CapRaiseRoute:   {member: true, admin: true},
+	CapLowerRoute:   {compliance: true},
+	CapReleaseStale: {admin: true},
+	CapReadAcross:   {auditor: true},
+}
+
+// Can reports whether p, holding teamRole on the project's team ("" when
+// none), has cap. Owner-bound rules ("own only", "parties only") are the
+// handler's, after Can: Can answers "may this kind of person ever".
+func Can(p Principal, teamRole hubapi.Role, cap TeamCap) bool {
+	w, ok := capTable[cap]
+	if !ok {
+		return false // an unknown capability is nobody's
+	}
+	switch {
+	case w.auditor && p.Auditor, w.compliance && p.Compliance:
+		return true
+	}
+	switch teamRole {
+	case hubapi.RoleViewer:
+		return w.viewer
+	case hubapi.RoleMember:
+		return w.member
+	case hubapi.RoleAdmin:
+		return w.admin
+	}
+	return false
+}
+```
+
+**§3.4 says the auditor sees the team strip** ("yes", `05-design.md:349`); task 01's matrix says
+`Au` is 404 on route 74's read row (`task-01.md:579`). The later text wins (task 01 was written
+against §3.4 and chose "reads escalations, directives, human messages and threads … and nothing
+else of project content", `:547-548`), so `CapSeeTeam` holds `auditor: false`, and Gap 3 names
+the disagreement for the owner. `hubapi.Role` and its three values are built
+(`hub …/control-plane/internal/hub/hubapi/types.go:23-25`, checked at `9f2fa31`).
+
+#### `auth.go` (Hub task 13, task 07) — the compliance capability
+
+Beside task 07's `Auditor`, complete:
+
+```go
+// in AuthConfig
+	ComplianceRole string // "Hub.Compliance" (hubapi.AppRoleCompliance)
+
+// in Claims, beside OrgAdmin and Auditor, read from THIS token's roles only
+	Compliance bool
+
+// in Principal (tx.go)
+	Compliance bool // org compliance: may lower a team project's route (79), nothing else
+```
+
+`Compliance`, like `OrgAdmin`, is read from each token's `roles` and never cached across tokens
+(`hub …/task-13.md:36`, `:172`). It grants **no** team membership: Priya, with the role and no
+team, is `N` on every other route (404), which the matrix pins.
+
+#### Team policy — defaults, codes and the migration
+
+`hubapi/team.go` (task 03), added, complete:
+
+```go
+// DefaultTeamPolicy is §7.24's product default: every quota on (OD-24), no
+// extra asking, the tightest message budgets §6.6 allows. Revision 0 means
+// "no row yet"; the first PUT names revision 0.
+func DefaultTeamPolicy(projectID string, class DataClass, route InferenceRoute) TeamPolicy {
+	return TeamPolicy{
+		ProjectID: projectID, DataClass: class, Route: route,
+		Quotas:                   Quotas{MemberDailyCents: 2500, ProjectDailyCents: 20000},
+		OrchestratorTurnsPerHour: 30,
+		EscalationFloors:         []EscalationFloor{},
+		MessageBudgets:           MessageBudgets{PerPairPerHour: 20, RoundsPerSide: 3, ThreadDeadlineMinutes: 30},
+		Revision:                 0,
+	}
+}
+
+const (
+	CodeNeedsCompliance = "needs_compliance" // 403: lowering a route needs Hub.Compliance
+	CodeBelowFloor      = "below_floor"      // 422: the data class does not permit that route
+)
+```
+
+The two codes are appended in contract §4.2's order, so `keys_test.go`'s own-code count rises by
+exactly two from its value at merge (task 46 raises it by three; the order of merge decides the
+final number, never the delta).
+
+`migrate/sql/00NN_team_policy.sql`, complete. The data class and the route are **not** columns
+here (decision a).
+
+```sql
+-- One row per team project, created by the first PUT (route 75).
+CREATE TABLE team_policies (
+  org_id                      text        NOT NULL,
+  project_id                  text        NOT NULL,
+  member_daily_cents          bigint      NOT NULL CHECK (member_daily_cents > 0),
+  project_daily_cents         bigint      NOT NULL CHECK (project_daily_cents > 0),
+  orchestrator_turns_per_hour int         NOT NULL CHECK (orchestrator_turns_per_hour BETWEEN 1 AND 30),
+  escalation_floors           text[]      NOT NULL DEFAULT '{}' CHECK (escalation_floors <@
+                                ARRAY['yield-unedited','accept-split','proceed-both-ps','sequence-short']),
+  per_pair_per_hour           int         NOT NULL CHECK (per_pair_per_hour BETWEEN 1 AND 20),
+  rounds_per_side             int         NOT NULL CHECK (rounds_per_side BETWEEN 1 AND 3),
+  thread_deadline_minutes     int         NOT NULL CHECK (thread_deadline_minutes BETWEEN 30 AND 1440),
+  revision                    int         NOT NULL CHECK (revision >= 1),
+  updated_at                  timestamptz NOT NULL,
+  PRIMARY KEY (org_id, project_id),
+  FOREIGN KEY (org_id, project_id) REFERENCES projects (org_id, id)
+);
+ALTER TABLE team_policies ENABLE ROW LEVEL SECURITY;
+ALTER TABLE team_policies FORCE ROW LEVEL SECURITY;
+CREATE POLICY team_policies_org ON team_policies
+  USING (org_id = current_setting('hub.org_id'))
+  WITH CHECK (org_id = current_setting('hub.org_id'));
+GRANT SELECT, INSERT, UPDATE ON team_policies TO hub_app;
+```
+
+The composite foreign key follows Hub correction A16 (`hub …/phase-h-hub.md:195`): a cross-org
+link is refused by the database with every Go check off. The `CHECK`s repeat the handler's bounds
+so a handler bug cannot store a zero quota or a floor that is not one of the four. The RLS policy
+name and the `hub.org_id` setting follow Hub task 07a's pattern (**UNVERIFIED until merge**; Step
+1 takes the real names from the merged migration).
+
+#### The routes — complete wire
+
+**Route 74, `GET /v1/projects/{p}/team-policy`.** Desk (`V`, `M`, `A`), or Fleet under a
+delegation listing `policy.read`. 200 `TeamPolicy`: the row, or `DefaultTeamPolicy` with
+`revision: 0`; `dataClass` and `route` always from the project record. 404 `project_not_found` for
+a non-member. A solo project (mode not `team`) → 409 `team_state` `{"from":"solo"}`.
+
+**Route 75, `PUT /v1/projects/{p}/team-policy`.** `RequireDesktop`, then `Can(p, role,
+CapSetPolicy)` or 403 `forbidden` `required: "admin"`. Body `PutTeamPolicyRequest`, strict: a
+`dataClass`, `route`, `projectId` or `updatedAt` key is 400 `bad_request` `details.field`. Each
+bound of §7.24 is 422 `bad_request` `details.field` (`quotas.memberDailyCents`, …). A floor
+outside the four, or repeated, is 422 `details.field = "escalationFloors"`. `revision` must equal
+the stored one (0 when none) or 409 `revision_conflict`. 200 `TeamPolicy`, revision + 1; event
+`team_policy.updated` `{"revision"}`.
+
+**Route 79, `POST /v1/projects/{p}/team-policy/route`.** `RequireDesktop`. Body
+`RouteChangeRequest`. The handler reads the project's class and current route, then:
+
+```go
+	actor := dataclass.Actor{Member: Can(p, role, CapRaiseRoute), Compliance: p.Compliance}
+	switch err := dataclass.CanChange(class, from, to, actor); {
+	case errors.Is(err, dataclass.ErrNeedsCompliance):
+		return Refuse(403, hubapi.CodeNeedsCompliance, "Only compliance may lower this route.", nil)
+	case errors.Is(err, dataclass.ErrBelowFloor):
+		return Refuse(422, hubapi.CodeBelowFloor, "This project's data class requires AU.", nil)
+	case err != nil:
+		return Refuse(422, hubapi.CodeBadRequest, err.Error(), map[string]string{"field": "route"})
+	}
+```
+
+A non-member with `Compliance` passes this (Priya is no member), so route 79 is the one team route
+where `N` with the role is not 404. A same-route request is 200 with no event. Otherwise 200
+`TeamPolicy`, and one event `team_policy.route_changed` `{"route", "by"}`, `by` = `compliance`
+when the change lowered the route, else `member`.
