@@ -326,3 +326,113 @@ func (w *fakeWorld) soc() *fakeSocial {
 	return v.(*fakeSocial)
 }
 ```
+
+Block 2: task 04's hooks at their rules, and the team policy.
+
+```go
+// checkIssueLabels is task 11's: each id a live label of the issue's team, and
+// no id twice; else 422 label_unavailable naming labels[i].
+func (w *fakeWorld) checkIssueLabels(teamID, field string, labels []string) error {
+	for i, id := range labels {
+		l := w.soc().labels[id]
+		if l == nil || l.label.TeamID != teamID || l.archivedAt != "" || slices.Index(labels, id) != i {
+			return problem(422, fkLabelUnavailable, "That label is not one of this team's live labels.",
+				"field", field+"["+strconv.Itoa(i)+"]")
+		}
+	}
+	return nil
+}
+
+// policyOf is the team's policy, or task 11's DefaultTeamPolicy: backlog,
+// every switch off, updatedAt and updatedBy null.
+func (w *fakeWorld) policyOf(teamID string) hubapi.TeamPolicy {
+	if p := w.soc().policies[teamID]; p != nil {
+		return *p
+	}
+	return hubapi.TeamPolicy{TeamID: teamID, DefaultState: hubapi.StateBacklog}
+}
+
+func (w *fakeWorld) defaultState(teamID string) hubapi.IssueState { return w.policyOf(teamID).DefaultState }
+func (w *fakeWorld) stopAtLanded(teamID string) bool             { return w.policyOf(teamID).StopAtLandedWithoutServes }
+
+// policyRefuses is task 11's TriageExitRefused: under priorityToLeaveTriage an
+// issue with no priority leaves triage only to be declined or marked a duplicate.
+func (w *fakeWorld) policyRefuses(is *fakeIssue, to hubapi.IssueState) error {
+	if !w.policyOf(is.teamID).PriorityToLeaveTriage || is.head.State != hubapi.StateTriage ||
+		to == hubapi.StateTriage || to == hubapi.StateCancelled || to == hubapi.StateDuplicate ||
+		is.head.Priority != hubapi.PriorityNone {
+		return nil
+	}
+	return problem(422, fkPolicyRefused, "This team needs a priority before an issue leaves triage.",
+		"policy", fkPolicyPriorityToLeaveTriage, "issueId", is.head.ID)
+}
+
+// subscribeOn is task 13's trigger: a first row with this cause, one event; a
+// row that exists is never changed, so a manual unsubscribe survives.
+func (w *fakeWorld) subscribeOn(is *fakeIssue, userID string, cause hubapi.SubscriptionCause) {
+	k := [2]string{is.head.ID, userID}
+	if w.soc().subs[k] != nil {
+		return
+	}
+	w.soc().subs[k] = &fakeSub{cause: cause, subscribed: true, seq: w.next()}
+	w.workEvent(userID, fkEventSubscriptionSet, is.teamID, is.head.ProjectID, userID,
+		map[string]any{"issueId": is.head.ID, "subscribed": true, "cause": string(cause)})
+}
+
+// TeamPolicy is any member's read (a viewer too); a non-member's is 404.
+func (f *Fake) TeamPolicy(_ context.Context, teamID string) (hubapi.TeamPolicy, error) {
+	w := f.w
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	me, err := f.enter("TeamPolicy", teamID)
+	if err != nil {
+		return hubapi.TeamPolicy{}, err
+	}
+	if _, _, err := w.teamOf(teamID, me); err != nil {
+		return hubapi.TeamPolicy{}, err
+	}
+	return w.policyOf(teamID), nil
+}
+
+// PutTeamPolicy is a team admin's; an unchanged policy is 200 and no event.
+func (f *Fake) PutTeamPolicy(_ context.Context, teamID string, req hubapi.PutTeamPolicyRequest) (hubapi.TeamPolicy, error) {
+	w := f.w
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	me, err := f.enter("PutTeamPolicy", teamID, req)
+	if err != nil {
+		return hubapi.TeamPolicy{}, err
+	}
+	_, role, err := w.teamOf(teamID, me)
+	if err != nil {
+		return hubapi.TeamPolicy{}, err
+	}
+	if err := need(role, hubapi.RoleAdmin); err != nil {
+		return hubapi.TeamPolicy{}, err
+	}
+	if !hubapi.ValidInitialState(req.DefaultState) {
+		return hubapi.TeamPolicy{}, badRequest("defaultState", "A new issue starts in triage, backlog or todo.")
+	}
+	old := w.policyOf(teamID)
+	var fields []string
+	if req.DefaultState != old.DefaultState {
+		fields = append(fields, "defaultState")
+	}
+	if req.PriorityToLeaveTriage != old.PriorityToLeaveTriage {
+		fields = append(fields, "priorityToLeaveTriage")
+	}
+	if req.StopAtLandedWithoutServes != old.StopAtLandedWithoutServes {
+		fields = append(fields, "stopAtLandedWithoutServes")
+	}
+	if len(fields) == 0 {
+		return old, nil
+	}
+	at := w.stamp()
+	p := &hubapi.TeamPolicy{TeamID: teamID, DefaultState: req.DefaultState,
+		PriorityToLeaveTriage: req.PriorityToLeaveTriage, StopAtLandedWithoutServes: req.StopAtLandedWithoutServes,
+		UpdatedAt: &at, UpdatedBy: w.userRef(me)}
+	w.soc().policies[teamID] = p
+	w.workEvent(me, fkEventTeamWorkPolicySet, teamID, "", teamID, map[string]any{"fields": strings.Join(fields, ",")})
+	return *p, nil
+}
+```
