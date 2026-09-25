@@ -393,7 +393,7 @@ export interface WorkIntakeClient {
   requests(teamId: string, q?: { state?: RequestState } & PageRequest): Promise<Page<Request>>;
   requestMessages(requestId: string): Promise<RequestMessage[]>;
   /** One op: the issue and the link together. The answer carries both. */
-  acceptRequest(requestId: string, body: AcceptRequestBody): Promise<{ request: Request; issue: Issue }>;
+  acceptRequest(requestId: string, body: AcceptRequestBody): Promise<{ request: Request; issue: IssueWithRevision }>;
   linkRequest(requestId: string, body: LinkRequestBody): Promise<Request>;
   declineRequest(requestId: string): Promise<Request>;
   markImportant(requestId: string, important: boolean): Promise<Request>;
@@ -439,4 +439,62 @@ renamed row fails the route test), and one line per member over it. `apiKeys` is
 that reads headers: task 37's `send` resolves to the body, so `w5` takes a `{ headers: true }`
 flag for that row only and `rateOf(h)` parses `X-RateLimit-Used`, `X-RateLimit-Limit` and
 `X-RateLimit-Reset` (task 160's names, **UNVERIFIED**), answering `null` when any is absent,
-never a guessed limit.
+never a guessed limit. `acceptRequest` answers task 37's `IssueWithRevision` (`task-37.md:320`),
+so task 168's digest re-check on the new revision runs in the relay before the desktop sees it.
+
+#### Interfaces — complete: `work.ts`, part 19: `WIRE_KEYS` for W5, the goldens, the codes
+
+```ts
+// appended inside task 37's WIRE_KEYS object; keys<T>() holds each list to its type both ways
+  request: keys<Request>({ id: true, teamId: true, projectId: true, requester: true, quote: true,
+    channel: true, channelRef: true, important: true, answers: true, state: true, issueId: true,
+    suggestedCriterion: true, ruleId: true, createdAt: true }),
+  requestMessage: keys<RequestMessage>({ requestId: true, channelRef: true, authorName: true, userId: true, body: true, at: true }),
+  intakeRule: keys<IntakeRule>({ id: true, teamId: true, position: true, match: true, route: true, author: true, version: true }),
+  intakeForm: keys<IntakeForm>({ id: true, teamId: true, name: true, fields: true, defaults: true }),
+  formField: keys<FormField>({ id: true, label: true, kind: true, required: true, options: true }),
+  trackerConnection: keys<TrackerConnection>({ id: true, teamId: true, projectId: true, source: true,
+    target: true, mode: true, principalId: true, state: true, lastRunAt: true, createdBy: true }),
+  externalLink: keys<ExternalLink>({ id: true, source: true, externalId: true, issueId: true, url: true, lastSeenAt: true }),
+  syncRun: keys<SyncRun>({ connectionId: true, at: true, created: true, existing: true, commentsIn: true, commentsOut: true, errors: true }),
+  loop: keys<Loop>({ id: true, ownerId: true, teamId: true, name: true, trigger: true, instruction: true,
+    action: true, grid: true, version: true, state: true, author: true, at: true }),
+  loopRun: keys<LoopRun>({ id: true, loopId: true, version: true, cause: true, startedAt: true, endedAt: true,
+    outcome: true, turnRef: true, sessionId: true, worktree: true }),
+  app: keys<App>({ id: true, name: true, entraClientId: true, manifest: true, actsAs: true, state: true, decidedBy: true, decidedAt: true }),
+  apiKey: keys<APIKey>({ id: true, scope: true, ownerId: true, teamId: true, name: true, shown: true,
+    createdAt: true, expiresAt: true, lastUsedAt: true, revokedAt: true, revokedBy: true }),
+  createdApiKey: keys<CreatedAPIKey>({ key: true, secret: true }),
+  webhook: keys<Webhook>({ id: true, teamId: true, projectId: true, url: true, kinds: true, state: true, createdBy: true, secretVersion: true }),
+  createdWebhook: keys<CreatedWebhook>({ webhook: true, secret: true }),
+  webhookDelivery: keys<WebhookDelivery>({ id: true, webhookId: true, eventSeq: true, attempt: true,
+    status: true, responseCode: true, at: true, nextAttemptAt: true }),
+  mcpConnector: keys<MCPConnector>({ id: true, name: true, url: true, allowed: true, decidedBy: true, at: true }),
+  harnessAllow: keys<HarnessAllow>({ teamId: true, harnesses: true }),
+  teamSkill: keys<TeamSkill>({ teamId: true, name: true, source: true, ref: true }),
+
+/** Task 143's goldens, file → the WIRE_KEYS entry it is held to. The file names are this part's
+ *  (task 143 has no part); the test fails on a missing file, so a rename there shows here. */
+export const W5_GOLDENS = {
+  "request": "request", "request-erased": "request", "request-message": "requestMessage",
+  "intake-rule": "intakeRule", "intake-form": "intakeForm",
+  "tracker-connection": "trackerConnection", "external-link": "externalLink", "sync-run": "syncRun",
+  "loop": "loop", "loop-run": "loopRun", "app": "app", "api-key": "apiKey",
+  "created-api-key": "createdApiKey", "webhook": "webhook", "created-webhook": "createdWebhook",
+  "webhook-delivery": "webhookDelivery", "mcp-connector": "mcpConnector",
+  "harness-allow": "harnessAllow", "team-skill": "teamSkill",
+} as const satisfies Record<string, keyof typeof WIRE_KEYS>;
+```
+
+```ts
+// desktop/src/api/client.ts ⚑ — ProblemCode gains task 143's ten appended codes (its scope's list)
+  /* the W5 Work wire (tasks 143, 168) */
+  | "request_closed" | "form_field_required" | "tracker_exists" | "principal_cannot_move_state"
+  | "webhook_url_invalid" | "app_not_approved" | "key_revoked" | "connector_not_allowed"
+  | "harness_not_allowed" | "loop_outside_grid"
+```
+
+`workProblem` files all ten as `refused` with `details` intact, so task 170 can name the missing
+field (`form_field_required`), task 172 the level (`loop_outside_grid`) and task 171 the refused
+move (`principal_cannot_move_state`). `FormField` is checked inside `intake-form.json`
+(`fields[i]`), as task 125 checks `InitiativeFeature`.
