@@ -166,6 +166,28 @@ func TestWithGitConfigNoSystemTheSystemScopeIsNotRead(t *testing.T) {
 	}
 }
 
+// GIT_CONFIG_NOSYSTEM is a boolean, so a false value, or the empty string, is
+// git reading the system file as usual. Git for Windows' installer writes
+// core.autocrlf=true there, and a resolver that read any value as "skip it"
+// would hand that host's sandbox false: every CRLF file reads as modified.
+func TestWithGitConfigNoSystemFalseTheSystemScopeStillCounts(t *testing.T) {
+	for _, v := range []string{"", "0", "false", "No", "off"} {
+		host := &eolRunner{answers: eolAnswers(map[string]eolAnswer{
+			eolAskBool: {out: "true\n"}, eolAskEOL: {out: "lf\n"},
+		})}
+		env := func(k string) string {
+			if k == "GIT_CONFIG_NOSYSTEM" {
+				return v
+			}
+			return ""
+		}
+		got, err := gitLineEndingsResolverWith(scriptedHost(host, env), "crlf")(context.Background())
+		if want := (api.GitLineEndings{AutoCRLF: "true", EOL: "lf"}); err != nil || got != want {
+			t.Errorf("GIT_CONFIG_NOSYSTEM=%q: %#v, %v; want the system scope's %#v", v, got, err, want)
+		}
+	}
+}
+
 // A core.autocrlf the host's git would die on is an error, carrying git's own
 // words, and so is a git that cannot answer at all.
 func TestALineEndingSettingTheHostsGitCannotReadIsAnError(t *testing.T) {
