@@ -479,10 +479,85 @@ equality helper if its part defines one, else memoises on `r.cursor` (**UNVERIFI
   font-variant-numeric: tabular-nums; }
 .pk-src, .pk-reason { color: var(--ink-2); }             /* never --ink-3 on a fact (Global constraints) */
 .pk-diff { white-space: pre; overflow-x: auto; margin: 0; }
-.pk-link { background: none; border: 0; padding: 0; color: var(--accent-ink); cursor: pointer; }
+.pk-link { background: none; border: 0; padding: 0; color: var(--ink); text-decoration: underline;
+  cursor: pointer; }                                       /* --accent-ink is text ON a fill (tokens.css:66) */
 @media (prefers-reduced-motion: reduce) { .pk { animation: none; } }
 ```
 
 Token names are the tree's (`tokens.css:110-152`) and task 26's (`--t-fact`, `--t-fact-lh`,
-`--dur-peek`). `--sans`, `--s-*`, `--t-ui-lh` and `--accent-ink` are task 26's names as its part
-lists them (`task-26.md:420`); where a name differs, task 26 wins.
+`--dur-peek`). `--sans` is the tree's (`tokens.css:151`); `--s-*` and `--t-ui-lh` are task 26's
+(`task-26.md:109`, `:420`); where a name differs, task 26 wins.
+
+#### Tests to write first, part 1 — `desktop/src/work/peek.test.ts` (the pure choices)
+
+```ts
+import { describe, expect, it } from "vitest";
+import { makeIssueHead, ALICE, DYLAN, WORK_IDS } from "../test/workFixtures";
+import type { Session } from "../store/types";
+import { mySessionsOn, peekFor, personIssues, spanFacts } from "./peek";
+
+const ZERO = "0001-01-01T00:00:00Z";
+function session(over: Partial<Session> = {}): Session {
+  return {
+    id: "s-3f2a91c0", title: "", machineId: "m-local", projectId: "p-1", branchId: "b-1",
+    worktreeId: "w-1", harness: "claude-code", model: "m", effort: "medium", permissionMode: "default",
+    openingPrompt: "", status: "running", exitReason: "", backend: "docker", isolation: "container",
+    createdAt: "2026-09-25T09:14:02Z", updatedAt: "2026-09-25T09:14:02Z", lastOutputAt: ZERO,
+    attachCount: 0, attachPath: "/v1/sessions/s-3f2a91c0/attach", contextRef: "",
+    issueRef: `issue:${WORK_IDS.ep142}@3`, ...over,
+  } as Session;                                   // issueRef is task 19's field
+}
+
+describe("peekFor", () => {
+  it("a landed row with a land commit peeks the hunks, even with my session on it", () => {
+    const head = makeIssueHead({ state: "landed", landCommit: "a".repeat(40) });
+    expect(peekFor(head, DYLAN, [session()])).toBe("hunk");
+    // mutant: span before hunk, so a landed row shows the session instead of what landed
+  });
+  it("my session bound to the issue peeks the span; a session on another issue does not", () => {
+    const head = makeIssueHead({ state: "started" });
+    expect(peekFor(head, DYLAN, [session()])).toBe("span");
+    expect(peekFor(head, DYLAN, [session({ issueRef: `issue:${WORK_IDS.ep150}@1` })])).toBe("issue");
+    // mutant: any session in the project counts as this row's agent
+  });
+  it("a teammate's row peeks the person; my own unassigned row peeks the record", () => {
+    expect(peekFor(makeIssueHead({ assignee: ALICE, state: "started" }), DYLAN, [])).toBe("person");
+    expect(peekFor(makeIssueHead({ assignee: null }), DYLAN, [])).toBe("issue");
+    // mutant: an unassigned row treated as someone else's
+  });
+});
+
+describe("spanFacts", () => {
+  it("never makes a fact from Go's zero time, and states the exit reason verbatim", () => {
+    const f = spanFacts(session({ status: "exited", exitReason: "process exited", updatedAt: "2026-09-25T10:02:11Z" }));
+    expect(f.map((x) => x.what)).toEqual(["created", "status exited", "exit · process exited"]);
+    expect(f.every((x) => !x.at.startsWith("0001-"))).toBe(true);
+    // mutant: "last output" at 0001-01-01 shown as a fact
+  });
+  it("every fact carries its record source and a verbatim session ref", () => {
+    const f = spanFacts(session({ lastOutputAt: "2026-09-25T09:14:40Z" }));
+    expect(f.find((x) => x.what === "last output")?.ref).toBe("session:s-3f2a91c0@2026-09-25T09:14:40Z");
+    expect(new Set(f.map((x) => x.source))).toEqual(new Set(["session record"]));
+  });
+});
+
+describe("personIssues", () => {
+  it("lists only that person's issues in that project, open before closed", () => {
+    const heads = [
+      makeIssueHead({ id: "is-1", alias: "EP-1", assignee: ALICE, state: "done", updatedAt: "2026-09-25T12:00:00Z" }),
+      makeIssueHead({ id: "is-2", alias: "EP-2", assignee: ALICE, state: "started", updatedAt: "2026-09-25T09:00:00Z" }),
+      makeIssueHead({ id: "is-3", alias: "EP-3", assignee: DYLAN, state: "started" }),
+      makeIssueHead({ id: "is-4", alias: "UP-4", assignee: ALICE, projectId: "p-other" }),
+    ];
+    const rows = personIssues(heads, () => "", ALICE.id, heads[0]!.projectId);
+    expect(rows.map((r) => r.alias)).toEqual(["EP-2", "EP-1"]);
+    expect(rows.every((r) => r.files.length === 0)).toBe(true);    // no observed file fact in W1
+    // mutants: another project's issue listed; newest first regardless of closed
+  });
+  it("mySessionsOn orders by createdAt so agent numbers match task 48", () => {
+    const a = session({ id: "s-b", createdAt: "2026-09-25T10:00:00Z" });
+    const b = session({ id: "s-a", createdAt: "2026-09-25T09:00:00Z" });
+    expect(mySessionsOn(makeIssueHead(), [a, b]).map((s) => s.id)).toEqual(["s-a", "s-b"]);
+  });
+});
+```
