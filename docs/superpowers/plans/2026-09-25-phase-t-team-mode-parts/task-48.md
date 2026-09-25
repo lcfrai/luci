@@ -55,3 +55,84 @@ the remote `gitx.Machine` of each machine, and `machined` never stores a token. 
   file (modify)
 - `docs/runbooks/fetch-credential.md`: installing the GitHub App; granting an Azure DevOps
   identity Read on one repository (new)
+
+#### Interfaces — complete
+
+```go
+// control-plane/internal/credstore/credstore.go (modify: one constant; Credential unchanged)
+
+// SourceProjectFetch marks the read-only per-project credential of OD-22. It is
+// never a person's, never in a Store chain, and remote.Push and every githost
+// write refuse it by this value before any process or request (Phase T task 48).
+const SourceProjectFetch = "project-fetch"
+```
+
+```go
+// control-plane/internal/githost/fetchcred.go
+package githost
+
+// Binding says how one project's repository is fetched without a person. It
+// holds no secret: an installation id or a client id is an identifier, and the
+// key material stays in Key Vault, mounted into the broker only.
+type Binding struct {
+	ProjectID string `json:"projectId"` // pj-…
+	RepoKey   string `json:"repoKey"`   // Remote.RepoKey(): "github.com/o/r" or "azure-devops/org/p/r"
+	// Exactly one of the two, matching RepoKey's host.
+	GitHub *struct {
+		AppID          int64 `json:"appId"`
+		InstallationID int64 `json:"installationId"`
+	} `json:"github,omitempty"`
+	AzureDevOps *struct {
+		ClientID string `json:"clientId"` // the project's user-assigned identity, federated to the broker
+		TenantID string `json:"tenantId"`
+	} `json:"azureDevOps,omitempty"`
+}
+
+// Validate refuses a binding whose provider does not match its RepoKey, has
+// both or neither provider, or names a RepoKey ParseRemote would not produce.
+func (b Binding) Validate() error
+
+// FetchSource mints a fetch credential for one binding, valid about an hour.
+// Every Credential it returns has Source SourceProjectFetch.
+type FetchSource interface {
+	FetchCredential(ctx context.Context, b Binding, r Remote) (credstore.Credential, error)
+}
+
+// GitHubApp mints an installation token narrowed to one repository and one
+// permission (GitHub REST, version 2022-11-28, from knowledge, UNVERIFIED):
+//   POST {BaseURL}/app/installations/{installationId}/access_tokens
+//        Authorization: Bearer <app JWT, RS256, iss=appId, iat=now-60s, exp=now+9m>
+//        {"repositories":["<repo>"],"permissions":{"contents":"read"}}
+//   201 → {"token","expires_at","permissions","repositories":[{"full_name"}]}
+// The answer is checked, not trusted: permissions must be exactly
+// {"contents":"read"} (a "metadata":"read" GitHub adds is allowed) and
+// repositories exactly the one; anything wider is ErrCredentialTooWide and the
+// token is revoked (DELETE {BaseURL}/installation/token) before returning.
+type GitHubApp struct {
+	BaseURL string            // "https://api.github.com"
+	Key     func() ([]byte, error) // the PEM, read from the CSI mount at each call
+	Client  *http.Client
+	Now     func() time.Time
+}
+
+// AzureDevOpsIdentity gets an Entra token for Azure DevOps' resource
+// ("499b84ac-1321-427f-aa17-267ca6975798/.default", from knowledge, UNVERIFIED)
+// as the binding's ClientID, by client assertion with the broker's own
+// projected service-account token (workload identity). Which repository it can
+// read is decided in Azure DevOps by the runbook's one grant, not here.
+type AzureDevOpsIdentity struct {
+	TokenURL  string // "https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token"
+	Assertion func() (string, error) // the file AZURE_FEDERATED_TOKEN_FILE names
+	Client    *http.Client
+}
+
+var (
+	ErrNoBinding          = errors.New("githost: the project has no fetch binding")
+	ErrCredentialTooWide  = errors.New("githost: the host issued more than contents:read on one repository")
+	ErrFetchCredentialNotForWrite = errors.New("githost: a project fetch credential cannot push or open a pull request")
+)
+
+// FetchEnv is PushEnv's twin for a fetch: the same host-scoped extraHeader,
+// wrapped by remote.FetchOnly so it can never be passed to Push.
+func FetchEnv(r Remote, cred credstore.Credential) (remote.Auth, error) // error unless Source == SourceProjectFetch
+```
