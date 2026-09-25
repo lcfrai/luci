@@ -1,0 +1,16 @@
+{
+  "_source": "GET /api/v1/projects/engagement-portal/pipelines/engagement-portal-deploy-5m9rt, handlers/projects.go:3611, models.PipelineRunStatus (models/models.go:2385-2410): Failed (derivePipelineStatus, clients/pipeline.go:2073-2084) with the failing task in failedStep and an onError-continue task that failed without failing the run in ignoredFailures",
+  "data": {
+    "name": "engagement-portal-deploy-5m9rt",
+    "pipeline": "panacea-deploy",
+    "projectName": "engagement-portal",
+    "projectNamespace": "tenant-engagement-portal-feat-evidence-upload",
+    "status": "Failed",
+    "startTime": "2026-09-23T09:00:02Z",
+    "duration": "1h2m1s",
+    "failedStep": "build-image",
+    "errorMessage": "step build-image exited 1",
+    "completedSteps": ["fetch-source", "detect-env", "trivy-scan"],
+    "ignoredFailures": ["sign-release"]
+  }
+}

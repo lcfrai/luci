@@ -1,0 +1,9 @@
+{
+  "_source": "GET /api/v1/me with a key the portal restricted to engagement-portal at Deploy (review I5): groups is the synthetic group scopedGroups builds (middleware/api_key.go:380-385; -viewer appended for a Read only key); isAdmin false because IsSuperAdmin, IsAdmin and IsOwner are false for every scoped key (models/models.go:218-221, :247-249, :262); role developer (Role, :286-300); approved true (HasAnyGrant, :332-337). Nothing in the body says the key is scoped",
+  "username": "alice",
+  "email": "alice@kpmg.com.au",
+  "groups": ["project-engagement-portal"],
+  "isAdmin": false,
+  "role": "developer",
+  "approved": true
+}

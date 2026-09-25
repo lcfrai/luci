@@ -1,0 +1,11 @@
+{
+  "_source": "GET /api/v1/projects/engagement-portal/branches/main/access, handlers/project_security.go:668-677, on a project with no production-branch label: branchEnv passes prodBranch empty (handlers/branch_security.go:32), so mapBranchToEnvWithProd falls to mapBranchToEnv, whose main arm answers prod (handlers/projects.go:3785-3786). Panacea's rule applied by hand to write this file; no production code computes it",
+  "data": {
+    "branch": "main",
+    "env": "prod",
+    "accessMode": "kpmg-sso",
+    "ipWhitelist": ["10.20.0.0/16"],
+    "passwordSet": false,
+    "bypassTokenCount": 0
+  }
+}

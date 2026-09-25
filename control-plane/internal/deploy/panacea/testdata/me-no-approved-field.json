@@ -1,0 +1,7 @@
+{
+  "_source": "GET /api/v1/me as it was before approved and role were emitted: handlers/me.go:29-34 says /me reported only username, email, groups and isAdmin. me.go:36-37: a partial response must read as NOT approved",
+  "username": "carol",
+  "email": "carol@kpmg.com.au",
+  "groups": ["team-alpha"],
+  "isAdmin": false
+}

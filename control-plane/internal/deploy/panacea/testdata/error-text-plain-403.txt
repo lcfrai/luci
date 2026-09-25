@@ -1,0 +1,2 @@
+_source: any portal action by a principal with no grant yet: http.Error with a JSON literal, so text/plain, status 403 (middleware/rbac.go:398-400). The loader drops this first line; the rest is the body, newline included, as http.Error writes it.
+{"error":"no access yet: your account is waiting for team approval — finish onboarding first"}

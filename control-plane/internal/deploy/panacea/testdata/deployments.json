@@ -1,0 +1,71 @@
+{
+  "_source": "GET /api/v1/projects/engagement-portal/deployments, handlers/projects.go:1252 writeJSON(models.ListResponse{Items: deploys}) of models.Deployment (models/models.go:665-770), newest first (resolveDeployments sorts newest-first, :1532-1536). Row 1: the prod newest, Succeeded (derivePipelineStatus, clients/pipeline.go:2073-2084), duration as kubernetes.go:5683-5689 writes it, liveReadyReplicas 0 = measured and down (models/models.go:723), scanStatus keyed by the gates that RAN (models/models.go:724-781). Row 2: Failed with failedStep. Row 3: no version key (omitempty, :677) and no scanStatus or liveReadyReplicas key (not its environment's newest). Row 4: a backfilled row as clients/deployment_backfill.go:167-175 builds it: status historical, CreatedAt = the release's MintedAt, no duration",
+  "items": [
+    {
+      "id": "engagement-portal-deploy-7k2xq",
+      "projectName": "engagement-portal",
+      "revision": "4f0c2a9",
+      "status": "Succeeded",
+      "image": "panaceacr.azurecr.io/engagement-portal:4f0c2a9",
+      "version": "1.4.0",
+      "commit": "4f0c2a9d1b7e3c5a8f6d0b2e4c6a8f1d3b5e7c9a",
+      "author": "alice",
+      "branch": "main",
+      "environment": "prod",
+      "duration": "4m12s",
+      "createdAt": "2026-09-23T10:00:00Z",
+      "provisioning": [
+        {"project": "engagement-portal", "environment": "prod", "deployId": "engagement-portal-deploy-7k2xq", "component": "database", "status": "succeeded", "detail": "postgres ready", "createdAt": "2026-09-23T10:01:00Z", "updatedAt": "2026-09-23T10:02:00Z"},
+        {"project": "engagement-portal", "environment": "prod", "deployId": "engagement-portal-deploy-7k2xq", "component": "storage", "status": "failed", "detail": "bucket quota exceeded", "createdAt": "2026-09-23T10:01:00Z", "updatedAt": "2026-09-23T10:03:00Z"}
+      ],
+      "liveReadyReplicas": 0,
+      "scanStatus": {
+        "trivy": {"status": "failed", "criticals": 2, "highs": 5},
+        "sast": {"status": "passed", "findings": 0},
+        "secret": {"status": "skipped"}
+      },
+      "deployedBy": "alice",
+      "trigger": "manual"
+    },
+    {
+      "id": "engagement-portal-deploy-5m9rt",
+      "projectName": "engagement-portal",
+      "revision": "9b1e3d7",
+      "status": "Failed",
+      "version": "1.4.0-feat",
+      "commit": "9b1e3d7c5a2f8e4d6b0c1a3e5f7d9b2c4e6a8f0d",
+      "branch": "feat-evidence-upload",
+      "environment": "feat-evidence-upload",
+      "duration": "1h2m3s",
+      "failedStep": "build-image",
+      "errorMessage": "step build-image exited 1",
+      "createdAt": "2026-09-23T09:00:00Z",
+      "deployedBy": "bob",
+      "trigger": "git-push"
+    },
+    {
+      "id": "engagement-portal-deploy-3c8wd",
+      "projectName": "engagement-portal",
+      "revision": "2d4f6a8",
+      "status": "Succeeded",
+      "commit": "2d4f6a8b0c2e4f6a8b0c2e4f6a8b0c2e4f6a8b0c",
+      "branch": "main",
+      "environment": "prod",
+      "duration": "3m0s",
+      "createdAt": "2026-09-22T14:00:00Z",
+      "trigger": "manual"
+    },
+    {
+      "id": "engagement-portal-deploy-1a4bz",
+      "projectName": "engagement-portal",
+      "revision": "",
+      "status": "historical",
+      "commit": "7e9a1c3b5d7f9e1a3c5b7d9f1e3a5c7b9d1f3e5a",
+      "environment": "prod",
+      "createdAt": "2026-09-01T08:00:00Z",
+      "deployedBy": "alice",
+      "backfilled": true
+    }
+  ],
+  "totalCount": 4
+}

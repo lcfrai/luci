@@ -1,0 +1,47 @@
+{
+  "_source": "GET /api/v1/projects/engagement-portal/security-status?deployId=engagement-portal-deploy-5m9rt&env=feat-evidence-upload, handlers/security_status.go:254 writeJSON(models.APIResponse{Data: agg}) of models.SecurityStatus (models/security.go:205-242): FAIL because one enforce-mode scan failed (IsBlocking, :124), one required scan in incomplete, and detailsSource unverified (:241)",
+  "data": {
+    "overall": "FAIL",
+    "blocking": [
+      {"scan": "trivy", "reason": "2 critical vulnerabilities (enforce)"}
+    ],
+    "incomplete": [
+      {"scan": "dast", "reason": "no result for this deploy"}
+    ],
+    "scans": [
+      {
+        "scan": "trivy",
+        "status": "FAIL",
+        "mode": "enforce",
+        "counts": {"critical": 2, "high": 5, "medium": 11, "low": 3},
+        "summary": "2 critical, 5 high",
+        "isBlocking": true,
+        "lastScanTime": "2026-09-23T09:20:00Z",
+        "deployId": "engagement-portal-deploy-5m9rt",
+        "findingsSource": "snapshot"
+      },
+      {
+        "scan": "secret",
+        "status": "SKIPPED",
+        "mode": "off",
+        "counts": {},
+        "isBlocking": false,
+        "lastScanTime": "",
+        "skipReason": "scanner is off for this project"
+      },
+      {
+        "scan": "sast",
+        "status": "PASS",
+        "mode": "warn",
+        "counts": {"findings": 0},
+        "isBlocking": false,
+        "lastScanTime": "2026-09-23T09:18:00Z",
+        "errorReason": ""
+      }
+    ],
+    "lastUpdated": "2026-09-23T09:21:00Z",
+    "deployId": "engagement-portal-deploy-5m9rt",
+    "detailsRetained": false,
+    "detailsSource": "unverified"
+  }
+}

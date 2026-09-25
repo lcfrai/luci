@@ -1,0 +1,9 @@
+{
+  "_source": "GET /api/v1/me, handlers/me.go:48-59 at 406d0da95: writeJSON of username, email, groups, isAdmin (IsSuperAdmin), role (Role, models/models.go:286-300) and approved (HasAnyGrant, models/models.go:332-337), for a developer holding one team grant",
+  "username": "alice",
+  "email": "alice@kpmg.com.au",
+  "groups": ["team-alpha"],
+  "isAdmin": false,
+  "role": "developer",
+  "approved": true
+}

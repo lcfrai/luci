@@ -1,0 +1,2 @@
+_source: GET /api/v1/projects/engagement-portal/branches/main/auto-deploy (the owner probe, 7P-9) with a key scoped to engagement-portal at Deploy: RequireProjectRole's scoped branch writes http.Error with a JSON literal, so text/plain, status 403 (middleware/rbac.go:265-276, the role word from models.ProjectRoleName, models/models.go:433-444). The loader drops this first line; the rest is the body, newline included, as http.Error writes it.
+{"error":"forbidden: this token's scope does not permit owner access to this project"}

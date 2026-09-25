@@ -1,0 +1,25 @@
+{
+  "_source": "GET /api/v1/projects/engagement-portal/environments, handlers/projects.go:2116-2152: one row map per environment (name, branch, displayName, primary, subdomain, status, lastDeploy), replicas added ONLY when the namespace was read (:2138-2140), wrapped in models.ListResponse (:2152). production is the base row (primary, its real branch main); feat-evidence-upload is a non-base row whose branch LABEL equals its env key (Env == Branch, :2109-2111), never feat/evidence-upload, and whose namespace was not read (no batch entry, :2056-2067), so no replicas key and the default status and lastDeploy",
+  "items": [
+    {
+      "name": "production",
+      "branch": "main",
+      "displayName": "main",
+      "primary": true,
+      "subdomain": "engagement-portal.dev.panacea.kpmg",
+      "status": "running",
+      "lastDeploy": "2026-09-23T10:04:12Z",
+      "replicas": {"current": 2, "desired": 2}
+    },
+    {
+      "name": "feat-evidence-upload",
+      "branch": "feat-evidence-upload",
+      "displayName": "feat-evidence-upload",
+      "primary": false,
+      "subdomain": "engagement-portal-feat-evidence-upload.dev.panacea.kpmg",
+      "status": "pending",
+      "lastDeploy": "awaiting first deploy"
+    }
+  ],
+  "totalCount": 2
+}

@@ -61,6 +61,10 @@ func Conformance(t *testing.T, h Harness) {
 		{"UnknownPostureFailsClosed", rowUnknownPostureFailsClosed},
 		{"EnvironmentForIsTheTargets", rowEnvironmentForIsTheTargets},
 		{"ScansReadTheDeploymentsEnvironment", rowScansReadTheDeploymentsEnvironment},
+		// Task 03.
+		{"ProvisioningSurvives", rowProvisioningSurvives},
+		{"EmptyVersionIsUnknown", rowEmptyVersionIsUnknown},
+		{"ReplicasAbsentIsNil", rowReplicasAbsentIsNil},
 	}
 	for _, r := range rows {
 		t.Run(r.name, func(t *testing.T) {
@@ -278,5 +282,59 @@ func rowScansReadTheDeploymentsEnvironment(t *testing.T, d deploy.Deployer, s Se
 		if i < 0 || r.Scans[i].Status != want {
 			t.Errorf("Scans(%q, d-feat) iac = %+v, want %s", env, r.Scans, want)
 		}
+	}
+}
+
+// ProvisioningSurvives kills dropping the backing-service outcomes, so "app deployed, database
+// failed" reads green (task 03).
+func rowProvisioningSurvives(t *testing.T, d deploy.Deployer, s Seeder) {
+	d1 := seedRow("d-prov", "feat-a", confBase)
+	d1.Provisioning = []deploy.Provisioning{
+		{Component: "database", Status: "failed", Detail: "role creation timed out"},
+		{Component: "storage", Status: "succeeded"},
+	}
+	s.Deployment(confProject, d1)
+	_, byID := deployments(t, d)
+	need(t, byID, "d-prov")
+	if got := byID["d-prov"].Provisioning; !reflect.DeepEqual(got, d1.Provisioning) {
+		t.Errorf("Provisioning read back as %+v, want %+v", got, d1.Provisioning)
+	}
+}
+
+// EmptyVersionIsUnknown kills fabricating a version the target did not report, such as the
+// commit's first seven characters (task 03). A reported one reads back verbatim.
+func rowEmptyVersionIsUnknown(t *testing.T, d deploy.Deployer, s Seeder) {
+	blank := seedRow("d-noversion", "feat-a", confBase)
+	named := seedRow("d-version", "feat-b", confBase.Add(time.Minute))
+	named.Version = "2.3.1"
+	s.Deployment(confProject, blank)
+	s.Deployment(confProject, named)
+	_, byID := deployments(t, d)
+	need(t, byID, "d-noversion", "d-version")
+	if v := byID["d-noversion"].Version; v != "" {
+		t.Errorf("an unreported version read back as %q (commit %s), want \"\"", v, confCommit)
+	}
+	if v := byID["d-version"].Version; v != "2.3.1" {
+		t.Errorf("a reported version read back as %q, want 2.3.1", v)
+	}
+}
+
+// ReplicasAbsentIsNil kills rendering an unread namespace as 0/0 pods (task 03; Panacea omits
+// the key when it could not look, handlers/projects.go:2125-2140).
+func rowReplicasAbsentIsNil(t *testing.T, d deploy.Deployer, s Seeder) {
+	s.Environments(confProject, []deploy.Environment{
+		{Name: "production", Branch: "main", Primary: true, Replicas: &deploy.Replicas{Ready: 2, Desired: 3}},
+		{Name: "feat-a", Branch: "feat-a"},
+	})
+	envs, err := d.Environments(context.Background(), confProject)
+	if err != nil || len(envs) != 2 {
+		t.Fatalf("Environments = (%+v, %v), want the 2 seeded rows", envs, err)
+	}
+	byName := map[string]deploy.Environment{envs[0].Name: envs[0], envs[1].Name: envs[1]}
+	if r := byName["feat-a"].Replicas; r != nil {
+		t.Errorf("an unmeasured environment read back Replicas %+v, want nil", *r)
+	}
+	if r := byName["production"].Replicas; r == nil || *r != (deploy.Replicas{Ready: 2, Desired: 3}) {
+		t.Errorf("a measured environment read back Replicas %v, want &{2 3}", r)
 	}
 }

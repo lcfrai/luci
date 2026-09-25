@@ -1,0 +1,11 @@
+{
+  "_source": "GET /api/v1/projects/engagement-portal/branches/develop/access, handlers/project_security.go:668-677, on a project whose production branch is the primary-branch=develop ANNOTATION with no production-branch label. branchEnv reads the label only (handlers/branch_security.go:32), so prodBranch is empty and mapBranchToEnv(develop) answers develop (handlers/projects.go:3791-3804, the default arm) although the deploy resolves develop as production and lands it in prod (clients/pipeline.go:233-237, ResolveProjectProductionBranch, clients/kubernetes.go:10179-10204 at 406d0da95). Pins the divergence (b02 round 2, R1; Q-P7-6)",
+  "data": {
+    "branch": "develop",
+    "env": "develop",
+    "accessMode": "kpmg-sso",
+    "ipWhitelist": [],
+    "passwordSet": false,
+    "bypassTokenCount": 0
+  }
+}

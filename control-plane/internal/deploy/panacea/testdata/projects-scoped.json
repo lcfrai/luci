@@ -1,0 +1,18 @@
+{
+  "_source": "GET /api/v1/projects with the same scoped key: ONE project, however many the owner can see, because projectVisibleTo applies ScopeAllows first (clients/kubernetes.go:1237-1249); the envelope is handlers/projects.go:785",
+  "items": [
+    {
+      "name": "engagement-portal",
+      "displayName": "Engagement Portal",
+      "repoUrl": "https://dev.azure.com/kpmg-au/engagement/_git/engagement-portal",
+      "defaultBranch": "main",
+      "owner": "alice",
+      "groups": ["team-alpha"],
+      "teamVisible": true,
+      "status": "active",
+      "createdAt": "2026-08-01T09:00:00Z",
+      "updatedAt": "2026-09-22T16:30:00Z"
+    }
+  ],
+  "totalCount": 1
+}

@@ -1,0 +1,11 @@
+{
+  "_source": "GET /api/v1/projects/engagement-portal/branches/lane%2F7-deploy-connector-watcher/access, handlers/project_security.go:668-677. The branch is 31 characters; with no production-branch label, mapBranchToEnv's default arm cuts it at 20 (handlers/projects.go:3797-3799; sanitizeBranchEnv's identical cut is :3818-3820) and trims a trailing - (:3800), so env is lane-7-deploy-connec. Panacea's rule applied by hand to write this file; no production code computes it",
+  "data": {
+    "branch": "lane/7-deploy-connector-watcher",
+    "env": "lane-7-deploy-connec",
+    "accessMode": "kpmg-sso",
+    "ipWhitelist": [],
+    "passwordSet": false,
+    "bypassTokenCount": 0
+  }
+}

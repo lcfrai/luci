@@ -1,0 +1,11 @@
+{
+  "_source": "GET /api/v1/projects/engagement-portal/branches/feat%2Fx/access, handlers/project_security.go:668-677 (models.APIResponse{Data: branch, env, accessMode, ipWhitelist, passwordSet, bypassTokenCount}). The project has no production-branch label, so branchEnv (handlers/branch_security.go:29-37) passes prodBranch empty and mapBranchToEnvWithProd falls to mapBranchToEnv's default arm (handlers/projects.go:3791-3804, byte for byte sanitizeBranchEnv, :3814-3826): lowercase, / to -. The value is Panacea's rule applied by hand to write this file; no production code computes it",
+  "data": {
+    "branch": "feat/x",
+    "env": "feat-x",
+    "accessMode": "kpmg-sso",
+    "ipWhitelist": [],
+    "passwordSet": false,
+    "bypassTokenCount": 0
+  }
+}

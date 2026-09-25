@@ -1,0 +1,18 @@
+{
+  "_source": "GET /api/v1/projects/engagement-portal/deploys/latest, handlers/projects.go:1541-1545: the BARE models.Deployment deploys[0] (no envelope), after attachProvisioning, attachLiveReadiness and attachScanStatus on that one row",
+  "id": "engagement-portal-deploy-7k2xq",
+  "projectName": "engagement-portal",
+  "revision": "4f0c2a9",
+  "status": "Succeeded",
+  "image": "panaceacr.azurecr.io/engagement-portal:4f0c2a9",
+  "version": "1.4.0",
+  "commit": "4f0c2a9d1b7e3c5a8f6d0b2e4c6a8f1d3b5e7c9a",
+  "branch": "main",
+  "environment": "prod",
+  "duration": "4m12s",
+  "createdAt": "2026-09-23T10:00:00Z",
+  "liveReadyReplicas": 2,
+  "scanStatus": {"trivy": {"status": "passed", "criticals": 0, "highs": 0}},
+  "deployedBy": "alice",
+  "trigger": "manual"
+}

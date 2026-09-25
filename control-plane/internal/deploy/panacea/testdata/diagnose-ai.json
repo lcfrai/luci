@@ -1,0 +1,29 @@
+{
+  "_source": "GET /api/v1/projects/engagement-portal/environments/feat-evidence-upload/diagnose, handlers/diagnose.go:157 writeJSON(models.APIResponse{Data: resp}) of DiagnoseResponse (handlers/diagnose.go:70-79), findings DiagnoseFinding (:60-67), source rules+ai (:78): a model was involved, so the likely cause is a guess",
+  "data": {
+    "namespace": "tenant-engagement-portal-feat-evidence-upload",
+    "environment": "feat-evidence-upload",
+    "health": "down",
+    "summary": "The app container exits on start, so no pod is ready.",
+    "podCount": 2,
+    "readyReplicas": 0,
+    "findings": [
+      {
+        "problem": "The app container is crash-looping.",
+        "likelyCause": "DATABASE_URL is not set in this environment, so the app exits at boot.",
+        "suggestedFix": "Add DATABASE_URL under Env Vars for this branch and redeploy.",
+        "evidence": ["BackOff x42 on Pod/engagement-portal-7c9d5b6f4-x2kqp", "restarts: 7"],
+        "severity": "critical",
+        "owner": "app"
+      },
+      {
+        "problem": "One pod was evicted for memory pressure.",
+        "likelyCause": "The node ran low on memory.",
+        "suggestedFix": "No action; the platform reschedules evicted pods.",
+        "severity": "info",
+        "owner": "platform"
+      }
+    ],
+    "source": "rules+ai"
+  }
+}

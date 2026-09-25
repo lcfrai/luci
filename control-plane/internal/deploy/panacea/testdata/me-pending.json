@@ -1,0 +1,9 @@
+{
+  "_source": "GET /api/v1/me, handlers/me.go:44-59: a KPMG identity admitted with no groups to reach onboarding (me.go:30-31); groups nil is written [] (:44-47), Role() falls through to none (models/models.go:299) and HasAnyGrant is false (:332-337)",
+  "username": "bob",
+  "email": "bob@kpmg.com.au",
+  "groups": [],
+  "isAdmin": false,
+  "role": "none",
+  "approved": false
+}
