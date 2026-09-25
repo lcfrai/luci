@@ -132,7 +132,7 @@ G31-3**: task 22's method is renamed `InForce`, its comment changed; its key and
   - task 26: `turns.Scheduler.CurrentTurn(ctx, orch) (TurnRef, bool, error)` and
     `RecordIssued(ctx, orch, id)` (`task-26.md:663-665`); `TurnRef.Origin` (`:194-199`)
   - task 30: `escalate.Service.Decide(ctx, DecideRequest) (string, error)` (`task-30.md:340-352`,
-    `:383`), the `free-directive-fleet-turn` and `scope-change` rows (`task-30.md:203-204`), and
+    `:383`), the `free-directive-fleet-turn` and `scope-change` rows (`task-30.md:204-206`), and
     `Pauser` (`:370-372`), which `Service` satisfies
   - task 28: `fleet.message_reads` (`task-28.md:661-663`) for the read list
   - task 24: the worker's `Agent.Task` and the task card's `Scope` (1..20 globs,
@@ -179,4 +179,86 @@ type Directive struct {
 
 // MaxPiggyback bounds one response's directives; the rest wait for the next call.
 const MaxPiggyback = 8
+```
+
+`8 × 600` bytes of text is well under task 19's frame cap. The fixture `response-piggyback.json`
+is `{"id":"c-7","ok":true,"directives":[{"id":"dv-00000000000000d1","kind":"narrow","globs":
+["web/auth/**"],"author":"agent","origin":"fleet","at":"2026-09-25T01:00:00Z"}],"result":{…}}`,
+and both modules' round-trip tests read it (the plan's rule for a shape both speak).
+
+**`direct`'s args and result, complete** (`verbs/direct.go`; task 09's row, `task-09.md:607`):
+
+```go
+package verbs
+
+// DirectArgs is `panacea direct <ag-…> <kind> …`. Exactly one of Globs, Lease
+// and Text is set, and only for its kind; any other combination is bad_request.
+type DirectArgs struct {
+	To    model.AgentID `json:"to"`              // one of the caller's own workers
+	Kind  string        `json:"kind"`            // pause|resume|narrow|wait-for|rebase|free
+	Globs []string      `json:"globs,omitempty"` // narrow: 1..20, each inside the task scope
+	Lease string        `json:"lease,omitempty"` // wait-for: a live ls-… in the project
+	Text  string        `json:"text,omitempty"`  // free: 1..600
+}
+
+// DirectResult says what Fleet did. Exactly one of Directive and Escalation is set.
+type DirectResult struct {
+	Directive  string    `json:"directive,omitempty"`  // dv-…: issued, queued for delivery
+	Escalation string    `json:"escalation,omitempty"` // es-…: held for the human's decide
+	Deadline   *time.Time `json:"deadline,omitempty"`  // the decide's, when held (Go 1.23: no omitzero)
+	Origin     string     `json:"origin"`              // the turn origin Fleet judged
+}
+```
+
+`direct` is registered with `control.OwnArgs("to")` (task 19), so a `to` that is another owner's
+agent, or no agent, is `agent_not_owner` before the handler runs. The handler adds the parent
+check: `to` must be a worker whose `Parent` is the caller (task 07's route 67 rule,
+`task-07.md:169-171`); a worker of the same owner under another Orchestrator is `agent_not_owner`
+too, so one of a person's Orchestrators cannot steer another's.
+
+**`taint.go`, the table and the judgement, complete.**
+
+```go
+package directive
+
+// Act is one thing an Orchestrator asks Fleet to do that the taint rule governs.
+type Act struct {
+	Kind   ActKind
+	Worker model.AgentID // directives, spawn: the worker concerned
+	Task   string        // tk-… the act concerns
+	Globs  []string      // narrow, or a scope update's new scope
+	Scope  []string      // the task's current scope (task 24's card)
+	Text   string        // free only; never a spawn prompt (OD-24)
+	Verb   string        // the panacea verb, for the held replay
+	Args   json.RawMessage
+}
+
+type ActKind string
+
+const (
+	ActPause   ActKind = "pause"
+	ActResume  ActKind = "resume"
+	ActNarrow  ActKind = "narrow"
+	ActWaitFor ActKind = "wait-for"
+	ActRebase  ActKind = "rebase"
+	ActFree    ActKind = "free"
+	ActNewTask ActKind = "task-create"
+	ActWiden   ActKind = "scope-widen"
+	ActAbandon ActKind = "task-abandon"
+	ActSpawn   ActKind = "worker-spawn"
+	ActBuildOn ActKind = "build-on" // task 62 calls Judge; task 30's locked row decides anyway
+)
+
+// fleetTurnPasses is §7.2 item 2's list, and nothing else. A kind absent here
+// is a decide in a Fleet-started turn.
+var fleetTurnPasses = map[ActKind]bool{
+	ActPause: true, ActResume: true, ActNarrow: true, ActWaitFor: true, ActRebase: true,
+}
+
+// rowOf is the §6.5 row each held kind is written under (task 30's Table).
+var rowOf = map[ActKind]string{
+	ActFree: "free-directive-fleet-turn", ActNewTask: "free-directive-fleet-turn",
+	ActSpawn: "free-directive-fleet-turn", ActBuildOn: "build-on",
+	ActWiden: "scope-change", ActAbandon: "scope-change",
+}
 ```
