@@ -486,3 +486,60 @@ org, before and after.
 | `TestLeavingTriageClearsTheSnooze` | a snoozed triage issue accepted → `snoozedUntil: null` | a stale snooze on an issue that already left |
 | `TestNoSocialEventCarriesText` | a title canary `CANARY-11-TITLE` on the related issues; no event's `data` of this file's kinds contains it | issue text in the feed (hub-contract:1133-1134) |
 
+The matrix rows for these seven routes are task 07's (`work_matrix_rows.go`); they go live here
+because `server.Patterns()` now lists the patterns. This task adds no row and edits none.
+
+#### Steps
+
+- [ ] **Step 1:** Confirm the sync base (rule H1): `feat/hub` sync-merged into `feat/work-layer` by
+  the orchestrator, tasks 08 and 10 committed. Re-read hub-contract §4.2, §5.2, §5.3, §8 and Hub
+  task 14's part at the new base; if a helper this part names has moved, follow the move.
+- [ ] **Step 2:** Write `hubapi/work_social_test.go`; run it; it fails to compile (the names do not
+  exist). Append the `hubapi/work.go` block above; it passes.
+- [ ] **Step 3:** Append the migration section to `NNNN_work_w1.sql` (or a new next-number file if
+  task 06 has merged into `feat/hub`); add `issues.snoozed_until` to task 06's grant-list test.
+- [ ] **Step 4:** Write `server/work_social_integration_test.go`; run it against the compose stack;
+  every row fails (404 `route_not_found`).
+- [ ] **Step 5:** Write the three store files, then the three server files and
+  `registerWorkSocial`; run until green.
+- [ ] **Step 6:** Edit task 08's create and patch paths and task 10's move path as described; rerun
+  tasks 08 and 10's integration tests, which must stay green.
+- [ ] **Step 7:** Run the fake's conformance rows (task 05) against the fake; a row that now
+  disagrees with the Hub is fixed in the fake, never by loosening the row.
+- [ ] **Step 8:** `git diff -- go.work control-plane/go.mod` shows nothing; commit by pathspec.
+
+#### Acceptance
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/work
+go test ./control-plane/internal/hub/hubapi/ -race -count=1 -run 'TestTriageExit|TestInverseRelation|TestOnlyThree|TestTheDefaultPolicy' -v 2>&1 | grep -c "^--- PASS"   # 4
+go test -tags integration ./control-plane/internal/hub/server/ -race -count=1 -v \
+  -run '^Test(RelationToAnotherTeams|TheSameRelationTwice|RelatesIsStoredOnce|TheTwoCycle|TheOtherEndReads|EitherEndMayDelete|ARelationToAnOwned|ARelationToItself|DuplicatesMovesNoState|LabelNamesAreUnique|OnlyAdminsManageLabels|ALabelColour|AnIssueCarriesOnlyItsTeams|UnderThePolicyTriage|CreateWithNoStateTakes|AMemberCannotPutThePolicy|AnUnchangedPolicy|SnoozeKeeps|LeavingTriageClears|NoSocialEventCarries)' \
+  2>&1 | grep -c "^--- PASS"                                                                    # 20
+go test -tags integration ./control-plane/internal/hub/... -race -count=1 -run 'WorkIssues|WorkStates|Matrix'   # ok
+go test ./control-plane/... -race -count=1                                                                      # ok
+```
+
+The counts are what the tables above name (4 and 20); a different count is a test added or lost,
+and either is a finding.
+
+#### What this task does not claim
+
+- Label groups and workspace (org) labels (L-18, L-19, W2), custom states (W2, task 75).
+- A cycle check beyond the two-cycle (decision 2).
+- The triage UI and its number keys (task 42); the `2` key's relation-plus-move pair is task 42's.
+- That resolving a blocker downgrades it to *related* (L-25); nothing here does, and 05 prices it
+  in W2.
+- The Desk's *inform* for `otherAssigneeId` (task 63) or the W3 Orchestrator proposal (task 99
+  onward): this task only carries the id on the event.
+- That the event kind names are final: task 13 makes them constants (SW.5) and a rename there is a
+  find-and-replace here.
+- Any measured latency: every size in this part is an estimate.
+
+**Parity rows served:** **L-2** (a team owns its labels and work settings; with task 08),
+**L-9** (the default status; closed with task 45's create surface), **L-10** (the duplicate mark;
+with task 10's state), **L-17** (team labels; workspace labels stay W2), **L-24** (blocks, blocked
+by, related, duplicate; the Desk cost-of-waiting half closes with task 63), **L-46** and **L-47**
+(the server half of the triage inbox and its actions; closed with task 42), **L-48** (priority
+before leaving triage).
+
