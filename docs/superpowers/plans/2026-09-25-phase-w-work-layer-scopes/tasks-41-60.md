@@ -207,3 +207,67 @@ alias used as a key); no fact element carries the `--ink-3` class (kills an unre
 groups are W2), L-181, and the display half of L-3 (with task 08); L-8's W1 part (fact states shown as
 facts). Does not claim: estimate `E` (L-16), due date (L-37), cycle and feature fields (W2).
 
+**47 — the issue view, part 2: revisions, restore, `serves` with `thread.node`, revision-pinned
+links.** Files: `src/components/issue/Revisions.tsx` and `Serves.tsx` (+ tests), edits to
+`IssueView.tsx`, and new `src/work/links.ts` (+ test; not yet in the File map). Uses SW.1's
+immutable, digested revision `issue:is-…@r` and its `serves [{briefKey, criterionId}]`, SW.14's
+`<ThreadNode/>`, `<ThreadLine/>` and `useThreadLit(criterionId)`, task 42's `CriterionPicker` and
+SW.16's `mutate`. *Revisions*: newest first, each with `@r` in mono, the person, the author class
+`text·H`/`text·A` as a mark shape and a word (never colour alone), the time, and what changed in
+words (title, description, `serves`); any revision opens read-only with a line diff against the
+head; *Restore* writes a **new** revision whose content equals the chosen one and never rewrites
+history (reversible, `optimistic.undo`). The view opens **at the revision a chip names** (05 §4.5
+rule 1); on a non-head revision it says *You are reading @3; the head is @5 (Alice, 11:02)* with a
+link to the head. A revision an agent of the reader was given (the session's `IssueRef`, task 19)
+reads *dylan · agent 1 read @3*, which is §3.7 rule 1's basis. `links.ts` adds
+`issueLink(id, rev?) → "panacea://issue/is-…@r"` and `parseIssueLink(s) → {id, rev} | null`, which
+accepts only the `is-` form and never an alias (05 §3.6); *Copy link* pins the revision being read,
+*Copy link to head* does not. *Serves*: each criterion in sans with its convergence word, the brief
+key `brief:bf-…@n` in mono and a `thread.node`; hover **or focus** lights the criterion across
+Work, Design and Develop and never rings the row (05 §4.1 D I1); `T` adds through the picker and
+removal writes a new revision. Tests first: restoring @2 on a head of @3 creates @4 equal to @2 and
+keeps @2 and @3 (kills an in-place rewrite); the author class is present as text on every revision
+(kills colour-only authorship); *Copy link* on @3 yields `…@3` (kills links that always point at the
+head); `parseIssueLink("EP-142")` returns null (kills alias parsing); focusing a `serves` row lights
+its criterion and adds no selection ring (kills lit-as-selected); removing a criterion sends a
+revision write, and Undo returns it (kills a mutable field patch); opening at @3 shows the head line
+(kills silently showing the head); `expectNoPrediction` passes. Depends on 36, 46. Design: 05 §2.3
+(the thread), §3.6, §3.7 rule 1, §4.4 C2, §4.5 rules 1 and 4. Parity: closes L-34 and L-98's W1 part
+(the revision-pinned `panacea://` link); serves L-191 (task 19 writes the revision into the managed
+block; this view shows which one). Does not claim: the https Hub link and read-only page (L-98's W2
+part, task 80), registering the `panacea://` scheme with the OS (**UNVERIFIED** whether the desktop
+has it), moving an issue between projects (L-35, W2).
+
+**48 — the issue view, part 3: relations, the live agent line, *done, not proven* and its reason.**
+Files: `src/components/issue/Relations.tsx` and `IssueAgentLine.tsx` (+ tests), edits to `IssueView.tsx`
+and to task 46's `StatePicker.tsx` (the reason step). *Relations*: `blocked by`, `blocking`,
+`related`, `duplicate of` (task 11's kinds), each row with the alias in mono, the title, its glyph and
+owner; one relation record shows on **both** issues; add and remove through SW.16's `mutate`, opened
+from the view here and from `M` then `B` `X` `R` `D` in task 54. A relation to an issue another person
+owns is recorded and, in solo mode, reaches that owner as an *inform* (task 65's row), never their
+agents (05 §3.7 rule 3's W1 part). A blocker that stalls someone's agent shows the fact and the wait
+in mono (*blocking dylan · agent 1 · 42m*); the Desk row with its cost is task 63. *The live agent
+line* wraps task 40's `AgentLine`: one line per **own** agent on the issue, `who.label` in mono then
+MEANING in sans, one dot each on the one heartbeat (`useHeartbeat`, `desktop/src/hooks/heartbeat.ts`);
+a teammate's work is the person and one line of what they touch, with no dot and no count; liveness
+coarsens (`live` under 10 s, then `quiet 2m`) only on the beat; *open session* is a link. The line's
+source is the control plane's sessions with an `IssueRef` (task 19) and lane events, **never PTY
+bytes** (`OD-8`). *Done, not proven*: for an issue that serves criteria, `done` in the picker asks
+a one-line reason (required, trimmed non-empty) and sends `StateMove{to: "done", cause, reason}`
+(SW.4); the issue then carries `StateGlyph notProven` (SW.12) in every place it appears and the head
+shows the reason, its author and time. The done rule's **result words** come from SW.4 and are
+rendered, not computed: *done · own evidence at 7c1f0a2 (test run, exit 0) · 14:02*, *proven,
+self-attested*, *done · c-91e2 still open (EP-150 not landed)*. Tests first: a reasonless hand-done on
+a serving issue cannot be sent (kills a done without reason); with a reason, the row, the board card
+and the view all draw `notProven` (kills an ordinary done glyph); observed evidence renders its commit
+and exit code and no *not proven* (kills conflating the two); a self-attested result says so (kills
+hiding it); a teammate's issue renders no dot and no count (kills fleet dots for others);
+`IssueAgentLine` imports nothing from `src/api/attachRegistry.ts` or the terminal (kills PTY-derived
+meaning); a relation added on EP-142 shows as `blocking` on EP-150 (kills a one-sided relation); a
+cross-owner relation sends no act at the other owner's session (kills steering); no component here
+starts a timer of its own (kills a per-row clock); `expectNoPrediction` passes. Depends on 46.
+Design: 05 §3.3 (the done rule), §3.7 rule 3, §4.1 (one agent line, D C3, D I10), §4.4 C10. Parity:
+closes L-24's W1 part (the kinds and the stalled-agent fact; land order is phase 3's, resolved-blocker
+becomes related is L-25, W2), L-10's relation, L-39's W1 part (the delegate is the assignee's own
+agent) and, with task 46, L-181. Does not claim: sub-issues (L-20), the W3 negotiation line (§4.1).
+
