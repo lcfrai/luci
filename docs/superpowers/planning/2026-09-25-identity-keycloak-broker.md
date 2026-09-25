@@ -355,3 +355,44 @@ zero-click flow re-checks the person against Entra (the realm's browser SSO sess
 stands. Its daily account-state check (`05-design.md:163-185`) cannot read Entra's state through the realm
 (the IdP has `storeToken:false` and no user sync, facts §3); it stays as that design says, flagged in section 12.
 
+## 7. Azure DevOps and GitHub
+
+**Azure DevOps is a personal access token per user. Q5 flips to No.** A realm token cannot be an Azure
+DevOps token: ADO accepts only Entra tokens for its own resource (`499b84ac-1321-427f-aa17-267ca6975798`),
+and the broker's Entra login is for `openid profile email` only (`setup-keycloak.sh:508`) with
+`storeToken:false` (`:485`).
+
+- The user creates a PAT in Azure DevOps with scope **Code (Read & write)** and pastes it once into the
+  desktop's connection panel; it is stored in Windows Credential Manager through `credstore` (OD-6's store,
+  OD-4). This is hub task 29's existing PAT path, now the only ADO path.
+- **Removed from the plans:** `AzureDevOpsScope` and the `DevOps` credential with Source `"entra"` (hub
+  task 31 part `:31-33`, `:184-241`), `PANACEA_APP_ENTRA_DEVOPS` (hub task 32 part `:84`), the credstore
+  source `"entra"` for DevOps (Hub contract §9 `:1269`), and the ADO `user_impersonation` permission (IT
+  request item 2, `2026-09-24-it-request-entra.md:19-27`).
+- **Optional later IT ask, not in any task:** a desktop public-client registration with delegated
+  consent for Azure DevOps `user_impersonation`, which would let the control plane run a second, direct
+  Entra PKCE for the ADO resource only. It is raised only if PAT expiry becomes a real support cost.
+
+**GitHub is unaffected**: its own token in the same store (OD-4; hub task 29), as before.
+
+## 8. Phase 7: Panacea's API
+
+**Verified from Panacea's code: a realm access token does NOT authenticate to Panacea's API today.**
+- REST routes: `Auth` honours a bearer only if it equals `BACKEND_SECRET`
+  (`services/panacea-api/middleware/auth.go:156-160`); any other non-`pnc_` bearer is `401`
+  (`:245-251`).
+- Conduit and MCP, the direct-bearer surfaces: one JWKS, one issuer, one audience at a time
+  (`middleware/jwks.go:149-151`), deployed as the Backstage portal's keys, issuer `https://<domain>/api/auth`,
+  audience `backstage` (`deploy/portal/deploy-portal.yaml:605-621`). The realm's keys, issuer and
+  audience all differ. F3 (`deploy/f3-entra-cutover.sh`) re-points that one verifier at **Entra**, not
+  Keycloak, so it does not help either.
+
+**Consequence for phase 7's onboarding: none. 7P-1 stands.** Phase 7 authenticates to Panacea with the
+user's own `pnc_` key, pasted once into the ConnectPanel and stored at `PanaceaApp/panacea/<host>`
+(phase 7 plan `:53`, `:82-84`, `:167-192`; phase 7 task 03's client, BUILT, sends `pnc_`). 7P-1's reasons 1
+and 3 hold as written; reasons 2 and 4 now read "a realm token" for "an Entra token" and reach the same
+answer. Phase 7 task 11's grantee resolution to a Keycloak user is already consistent with OD-30.
+**Not asked of Panacea now:** a second trusted issuer (the realm) with an audience `panacea-api`. If
+Panacea ever adds it, the desktop requests one more audience scope and the paste step goes; until then
+nothing in phase 7 waits on it.
+
