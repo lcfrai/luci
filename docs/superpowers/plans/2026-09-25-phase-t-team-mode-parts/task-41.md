@@ -380,6 +380,7 @@ type Bound struct {
 type VerbRecord struct {
 	Seq    int              `json:"seq"`
 	Turn   int              `json:"turn"`
+	At     time.Time        `json:"at"` // the world's clock at dispatch (task 42's hop time)
 	Origin model.TurnOrigin `json:"origin"`
 	Verb   string           `json:"verb"`
 	Args   json.RawMessage  `json:"args"`
@@ -443,9 +444,18 @@ const (
 
 func NewWorld(name string, clock Clock) (*World, error)                      // "pair" | "pair-held"
 func (w *World) Orchestrator(user string) model.AgentID                      // "ada" | "linus"
+func (w *World) Worker(user string) model.AgentID                            // that user's one worker
+func (w *World) Task(user string) string                                     // that worker's tk-…
 func (w *World) Enqueue(ctx context.Context, orch model.AgentID, e EventSpec) error
+func (w *World) Pending(orch model.AgentID) int                              // events queued, no turn yet
 func (w *World) Step(ctx context.Context, orch model.AgentID, d Driver) (turn int, err error)
 func (w *World) Log(orch model.AgentID) []VerbRecord
+
+// CallAs dispatches one verb bound to any world agent's sandbox (a worker
+// or the other side's Orchestrator), exactly as that sandbox's panacea CLI
+// would. It is how a scenario plays a teammate; it is never recorded in an
+// Orchestrator's Log, and Fleet enqueues whatever events it causes.
+func (w *World) CallAs(ctx context.Context, agent model.AgentID, verb string, args json.RawMessage) wire.Response
 
 // Facts is Fleet's typed state after a run, read from the store and the Hub
 // fake, never from a driver: every dv-… with its kind, origin, globs and
