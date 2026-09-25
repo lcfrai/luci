@@ -654,3 +654,149 @@ const startComment = useMaybeStartComment();
 `revision` is `at`, the revision **being read**, so a selection in @3 anchors @3 even when the head
 is @4 (decision 2). `IssueViewBody` gains `const [selected, setSelected] = useState("")`, reset by
 the same effect that resets `reading`.
+
+#### Interfaces — complete: appended to `desktop/src/components/issue/issue.css`
+
+```css
+/* Task 51: comments. Author is a mark and a word; a reaction is names; nothing animates in. */
+.iv-cm-list { display: grid; gap: var(--s-3); padding: var(--s-3) var(--s-4); overflow-anchor: auto; }
+.iv-cm-thread { display: grid; gap: var(--s-2); }
+.iv-cm-thread > .iv-cm + .iv-cm { margin-inline-start: var(--s-4); }
+.iv-cm { display: grid; gap: var(--s-1); padding: var(--s-2) var(--s-3); border-radius: var(--r-sm);
+  box-shadow: 0 0 0 1px var(--ring); }
+.iv-cm-by { display: flex; align-items: baseline; gap: var(--s-2); }
+.iv-cm-name, .iv-cm-body, .iv-cm-folded { font-family: var(--sans); color: var(--ink); }
+.iv-cm-body { white-space: pre-wrap; }
+.iv-cm-mention { font-weight: 600; }
+.iv-cm-anchor { display: grid; gap: var(--s-1); font-family: var(--sans); color: var(--ink-2); }
+.iv-cm-quote { margin: 0; padding-inline-start: var(--s-2); box-shadow: inset 2px 0 0 var(--ring);
+  font-family: var(--sans); color: var(--ink); white-space: pre-wrap; }
+.iv-cm-reactions, .iv-cm-add, .iv-cm-acts { display: flex; flex-wrap: wrap; gap: var(--s-1); }
+.iv-cm-reaction { display: inline-flex; gap: var(--s-1); align-items: baseline; }
+.iv-cm-reaction[aria-pressed="true"] .iv-cm-who { font-weight: 600; }
+.iv-cm-who { font-family: var(--sans); color: var(--ink-2); }
+.iv-cm-pending { display: flex; align-items: start; gap: var(--s-2); }
+.iv-cm-people { list-style: none; margin: 0; padding: var(--s-1); display: grid; }
+.iv-cm-people [aria-selected="true"] { box-shadow: 0 0 0 1px var(--accent-ring); border-radius: var(--r-sm); }
+```
+
+No `transition` and no `@keyframes`: a comment arriving is not caused by the reader, so no motion
+explains it (`DESIGN-SYSTEM.md`, motion rule). `overflow-anchor: auto` is the browser default,
+written out so a later reset stylesheet that sets `none` is visible in review (decision 8).
+Pressed is a weight change on the names, not a fill colour.
+
+#### Tests to write first — `desktop/src/components/issue/commentModel.test.ts`
+
+```ts
+import { describe, expect, it } from "vitest";
+import { ALICE, DYLAN, makeComment, WORK_IDS } from "../../test/workFixtures";
+import type { IssueComment } from "../../api/work";
+import { anchorWords, authorOf, locate, mentionMarkdown, mentionsIn, nextReactions, quoteOf,
+  REACTIONS, textAnchor, threads } from "./commentModel";
+
+const c = (over: Partial<IssueComment>): IssueComment => ({ ...makeComment(), anchor: null, ...over } as IssueComment);
+
+describe("commentModel", () => {
+  it("a reply whose parent is absent becomes a root, never lost", () => {
+    // kills: dropping orphans, which hides a reply to an erased-and-dropped root
+    const t = threads([c({ id: "ic-1" }), c({ id: "ic-2", parentId: "ic-1" }), c({ id: "ic-3", parentId: "ic-9" })]);
+    expect(t.map((x) => [x.root.id, x.replies.map((r) => r.id)])).toEqual([["ic-1", ["ic-2"]], ["ic-3", []]]);
+  });
+
+  it("a mention stores the user id, and a renamed person still resolves", () => {
+    // kills: name-text mentions (the id, not "@Alice Example", is what mentions carries)
+    const md = `ping ${mentionMarkdown(ALICE)} and ${mentionMarkdown(ALICE)}`;
+    expect(mentionsIn(md)).toEqual([WORK_IDS.alice]);
+    const renamed = md.replace("Alice Example", "Alice Renamed");
+    expect(mentionsIn(renamed)).toEqual([WORK_IDS.alice]);
+  });
+
+  it("the same person reacting twice ends with no reaction", () => {
+    // kills: a double add, and a counter that goes 1, 2
+    const one = nextReactions([], DYLAN, REACTIONS[0]);
+    expect(one).toEqual({ on: true, reactions: [{ emoji: REACTIONS[0], users: [DYLAN] }] });
+    const two = nextReactions(one.reactions, DYLAN, REACTIONS[0]);
+    expect(two).toEqual({ on: false, reactions: [] });
+  });
+
+  it("every reaction in the set is one code point", () => {
+    // kills: a skin-tone or ZWJ sequence the Hub's base-range rule would refuse (decision 5)
+    for (const e of REACTIONS) expect([...e]).toHaveLength(1);
+  });
+
+  it("a text anchor keeps its revision; on a later head it says on @3 and quotes @3", () => {
+    // kills: re-mapping offsets onto the head (the head's slice would read other words)
+    const at3 = "A restarted sandbox must pick up the same conversation.";
+    const at4 = "Every restarted sandbox resumes; see the runbook first.";
+    const a = textAnchor(3, 2, 19);
+    expect(anchorWords(a, 4)).toBe("on the description · on @3");
+    expect(anchorWords(a, 3)).toBe("on the description");
+    expect(quoteOf(a, at3)).toBe("restarted sandbox");
+    expect(quoteOf(a, at4)).not.toBe(quoteOf(a, at3));
+  });
+
+  it("offsets outside the revision give null, never a clamped quote", () => {
+    // kills: slice's silent clamp showing a shorter quote as if it were the anchored one
+    expect(quoteOf(textAnchor(3, 40, 90), "short")).toBeNull();
+    expect(quoteOf(textAnchor(3, 5, 5), "short text")).toBeNull();
+  });
+
+  it("a selection anchors only where it occurs exactly once", () => {
+    // kills: indexOf's first hit anchoring the wrong one of two equal phrases
+    expect(locate("pick up the same pick up", "pick up")).toEqual({ refused: "ambiguous" });
+    expect(locate("a **bold** word", "bold word")).toEqual({ refused: "absent" });
+    expect(locate("the same conversation", "same")).toEqual({ start: 4, end: 8 });
+  });
+
+  it("a draft is the agent's only when every character is text·A", () => {
+    // kills: majority-vote authorship (one pasted human word makes the comment the person's)
+    expect(authorOf({ markdown: "done", authorship: [{ from: 0, to: 4, cls: "text·A" }] })).toBe("A");
+    expect(authorOf({ markdown: "done!", authorship: [{ from: 0, to: 4, cls: "text·A" }] })).toBe("H");
+    expect(authorOf({ markdown: "", authorship: [] })).toBe("H");
+  });
+});
+```
+
+`authorship` spans are `{from, to, cls}` over the Markdown, the shape task 49's `MarkdownDoc`
+prints (`task-49.md:101-160`, **UNVERIFIED** here beyond the member names `authorOf` reads; a
+rename there is a rename in `authorOf` and this test).
+
+#### Tests to write first — `desktop/src/components/issue/Comments.test.tsx`
+
+```tsx
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { IssueComment, User } from "../../api/work";
+import { expectNoPrediction } from "../../test/expectNoPrediction";
+import { ALICE, DYLAN, makeComment, makeIssueRevision, WORK_IDS } from "../../test/workFixtures";
+import { mentionMarkdown, textAnchor } from "./commentModel";
+
+let comments: IssueComment[] = [];
+vi.mock("../../work/replica/replica", () => ({
+  useWork: (f: (r: unknown) => unknown) => f({ comments: () => comments }),
+  search: vi.fn(() => []),
+}));
+const mutate = vi.fn(() => ({ id: "op-1", undoable: true, undo: vi.fn(), settled: Promise.resolve("applied") }));
+vi.mock("../../work/replica/ops", () => ({ mutate: (op: unknown) => mutate(op) }));
+const issueRevisionAt = vi.fn();
+vi.mock("../../api", () => ({ api: { work: { issueRevisionAt: (...a: unknown[]) => issueRevisionAt(...a) } } }));
+// The composer's Editor is task 49's; here a stub hands the composer a finished document, so the
+// test holds that what is posted is exactly the Editor's output and nothing else.
+let submitDoc = { markdown: "", authorship: [] as { from: number; to: number; cls: string }[] };
+vi.mock("../editor/Editor", () => ({
+  Editor: (p: { onSubmit?(d: unknown): void; ariaLabel: string }) =>
+    <button type="button" aria-label={`${p.ariaLabel} (stub)`} onClick={() => p.onSubmit?.(submitDoc)}>submit</button>,
+}));
+import { Comments, CommentsProvider } from "./Comments";
+
+const HEAD = makeIssueRevision({ issueId: WORK_IDS.ep163, revision: 4,
+  content: { ...makeIssueRevision().content, description: { text: "Every restarted sandbox resumes.", author: "H" } } });
+const c = (over: Partial<IssueComment>): IssueComment => ({ ...makeComment(), anchor: null, ...over } as IssueComment);
+const view = (people: readonly User[] = [DYLAN, ALICE]) => render(
+  <CommentsProvider><Comments issueId={WORK_IDS.ep163} me={DYLAN} people={people} head={HEAD} /></CommentsProvider>);
+
+beforeEach(() => {
+  comments = []; mutate.mockClear(); issueRevisionAt.mockReset();
+  Element.prototype.scrollIntoView = vi.fn();            // jsdom has none; a spy either way
+});
+```
