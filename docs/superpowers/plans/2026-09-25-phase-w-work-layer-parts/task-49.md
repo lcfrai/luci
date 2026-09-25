@@ -172,6 +172,12 @@ const listItem: NodeSpec = {
 
 const codeBlock: NodeSpec = { ...base.spec.nodes.get("code_block")!, marks: "agent" };
 
+/** The bullet the person typed, so "- a" does not come back as "* a" (rule 1). */
+const bulletList: NodeSpec = {
+  ...base.spec.nodes.get("bullet_list")!,
+  attrs: { ...(base.spec.nodes.get("bullet_list")!.attrs ?? {}), bullet: { default: "-" } },
+};
+
 /** No parseDOM: nothing pasted can create an agent passage (decision 2). */
 const agent: MarkSpec = {
   inclusive: false,
@@ -190,7 +196,8 @@ const link: MarkSpec = {
 };
 
 export const editorSchema = new Schema({
-  nodes: base.spec.nodes.remove("image").update("list_item", listItem).update("code_block", codeBlock),
+  nodes: base.spec.nodes.remove("image").update("list_item", listItem)
+    .update("code_block", codeBlock).update("bullet_list", bulletList),
   marks: base.spec.marks.update("link", link).addToEnd("agent", agent),
 });
 ```
@@ -199,6 +206,160 @@ export const editorSchema = new Schema({
 `addToEnd` return new maps, so the base schema is untouched. The `link` guard in `toDOM` is the
 second line of defence: the parser already refuses a dead scheme, and a document built any other
 way (a paste, a future import) still cannot render one as an anchor. Task 50 adds `table`,
-`table_row`, `table_cell` and `table_header` to this schema.
+`table_row`, `table_cell` and `table_header` to this schema. Whether the installed
+`prosemirror-markdown` already gives `bullet_list` a `bullet` attribute is **UNVERIFIED**; the
+spread keeps its own if it does and adds ours if not.
+
+#### Interfaces — complete: `desktop/src/components/editor/markdown.ts`, part 1: the parser
+
+```ts
+import MarkdownIt from "markdown-it";
+import type { Node } from "prosemirror-model";
+import { MarkdownParser, MarkdownSerializer, defaultMarkdownParser, defaultMarkdownSerializer }
+  from "prosemirror-markdown";
+import { Transform } from "prosemirror-transform";
+import type { AuthorSpan, MarkdownDoc } from "./authorClass";
+import { LIVE_LINK, editorSchema } from "./schema";
+
+/** Decision 3's sentinels: private-use code points, removed from every input. */
+export const OPEN = "";
+export const CLOSE = "";
+export const clean = (s: string): string => s.replace(/[]/g, "");
+
+type Token = ReturnType<MarkdownIt["parse"]>[number];
+
+/** `- [ ] a` and `- [x] a`: a task item. Ours, twelve lines, no plugin. */
+function taskItems(state: { tokens: Token[] }): void {
+  const t = state.tokens;
+  for (let i = 0; i + 2 < t.length; i++) {
+    if (t[i].type !== "list_item_open" || t[i + 1].type !== "paragraph_open" || t[i + 2].type !== "inline") continue;
+    const m = /^\[( |x|X)\] /.exec(t[i + 2].content);
+    if (!m) continue;
+    t[i].attrSet("data-checked", m[1] === " " ? "false" : "true");
+    t[i + 2].content = t[i + 2].content.slice(4);
+    const first = t[i + 2].children?.[0];
+    if (first && first.type === "text") first.content = first.content.slice(4);
+  }
+}
+
+export function makeTokenizer(): MarkdownIt {
+  const md = new MarkdownIt("commonmark", { html: false, linkify: false });
+  md.disable(["image"]);                          // rule 2: nothing embeds; ![x](u) is "!" and a link
+  md.validateLink = (url: string) => LIVE_LINK.test(url.trim());
+  md.core.ruler.after("inline", "ed_task_items", taskItems);
+  return md;
+}
+
+const baseTokens = Object.fromEntries(
+  Object.entries(defaultMarkdownParser.tokens).filter(([name]) => name !== "image"),
+);
+
+const baseBullet = defaultMarkdownParser.tokens.bullet_list;
+
+export const parserTokens = {
+  ...baseTokens,
+  bullet_list: {
+    block: "bullet_list",
+    // Keep whatever the installed version computes (tight, at least) and add the bullet.
+    getAttrs: (tok: Token, stream: Token[], i: number) =>
+      ({ ...(baseBullet.getAttrs?.(tok, stream, i) ?? {}), bullet: tok.markup || "-" }),
+  },
+  list_item: {
+    block: "list_item",
+    getAttrs: (tok: Token) => {
+      const c = tok.attrGet("data-checked");
+      return { checked: c === null ? null : c === "true" };
+    },
+  },
+};
+
+export const parser = new MarkdownParser(editorSchema, makeTokenizer(), parserTokens);
+
+/** Rule 1 keeps the trailing newlines the person wrote; the serializer never writes any. */
+export const trailingNewlines = (md: string): string => /\n*$/.exec(md)?.[0] ?? "";
+
+/** `author` is the field's class (decision 1): "A" marks every text node agent. */
+export function parseMarkdown(md: string, author: "H" | "A" = "H"): Node {
+  const doc = parser.parse(clean(md));
+  if (author === "H" || doc.content.size === 0) return doc;
+  return new Transform(doc).addMark(0, doc.content.size, editorSchema.marks.agent.create()).doc;
+}
+```
+
+`bullet_list`'s `getAttrs` calls the installed one first, so its `tight` computation is kept; the
+`(token, stream, index)` signature is `prosemirror-markdown`'s `ParseSpec.getAttrs` as this plan
+understands it, **UNVERIFIED** against the installed types until step 2.
+
+#### Interfaces — complete: `markdown.ts`, part 2: the serializer
+
+```ts
+const baseNodes = defaultMarkdownSerializer.nodes;
+type NodeFn = (typeof baseNodes)[string];
+
+const isAgent = (n: Node): boolean => n.marks.some((m) => m.type === editorSchema.marks.agent);
+
+export const serializerNodes: Record<string, NodeFn> = {
+  ...baseNodes,
+  bullet_list(state, node) {
+    state.renderList(node, "  ", () => `${node.attrs.bullet ?? "-"} `);
+  },
+  list_item(state, node, parent, index) {
+    if (node.attrs.checked !== null) state.write(node.attrs.checked ? "[x] " : "[ ] ");
+    baseNodes.list_item(state, node, parent, index);
+  },
+  /** The base rule writes node.textContent and loses marks; this one writes each text child with
+   *  its sentinels, so an agent's code keeps its class (decision 3). The fence rule is the base's. */
+  code_block(state, node) {
+    const runs = node.textContent.match(/`{3,}/gm);
+    const fence = runs ? `${runs.sort().slice(-1)[0]}\`` : "```";
+    state.write(`${fence}${node.attrs.params || ""}\n`);
+    node.forEach((child) => state.text(isAgent(child) ? OPEN + (child.text ?? "") + CLOSE : child.text ?? "", false));
+    state.ensureNewLine();
+    state.write(fence);
+    state.closeBlock(node);
+  },
+};
+
+export const serializerMarks = {
+  ...defaultMarkdownSerializer.marks,
+  agent: { open: OPEN, close: CLOSE, mixable: true, expelEnclosingWhitespace: false },
+};
+
+export const serializer = new MarkdownSerializer(serializerNodes, serializerMarks);
+
+/** Strip the sentinels and record where they were; adjacent spans merge. */
+export function serializeWithAuthorship(doc: Node, trailing = ""): MarkdownDoc {
+  const raw = serializer.serialize(doc) + trailing;
+  const out: string[] = [];
+  const spans: AuthorSpan[] = [];
+  let len = 0;
+  let open = -1;
+  for (const ch of raw) {
+    if (ch === OPEN) { if (open < 0) open = len; continue; }
+    if (ch === CLOSE) {
+      if (open >= 0 && len > open) {
+        const last = spans[spans.length - 1];
+        if (last && last.to === open) last.to = len; else spans.push({ from: open, to: len, cls: "text·A" });
+      }
+      open = -1;
+      continue;
+    }
+    out.push(ch);
+    len += ch.length;
+  }
+  return { markdown: out.join(""), authorship: spans };
+}
+
+export const serializeMarkdown = (doc: Node, trailing = ""): string =>
+  serializeWithAuthorship(doc, trailing).markdown;
+```
+
+The fence rule (the longest run of backticks inside, plus one) is the base serializer's
+(`prosemirror-markdown`, MIT, so reuse is permitted; `OD-11`'s clean room covers Linear, Plane and
+canvas sources), and a fixture with a triple backtick inside a fence holds it. `ensureNewLine` replaces the base's unconditional
+`write("\n")` because `state.text` of a line that already ends in a newline would otherwise add a
+blank line; the round-trip fixture holds which is right (**UNVERIFIED** until step 3 runs it).
+`len += ch.length` counts UTF-16 units, the unit JavaScript string offsets use, so an emoji in a
+passage moves the offsets by two, as `String.prototype.slice` expects.
 
 
