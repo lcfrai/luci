@@ -1034,12 +1034,10 @@ func (s *Service) newToken() (string, error) {
 	return tokenPrefix + base64.RawURLEncoding.EncodeToString(raw[:]), nil
 }
 
-// liveAt: a binding is live before its expiry and before its revocation time;
-// a revocation dated in the future is a scheduled one (decision (c)). Task 10
-// applies the same rule; gap 3 proposes it move to wire.
-func liveAt(b wire.Binding, now time.Time) bool {
-	return now.Before(b.ExpiresAt) && (b.RevokedAt == nil || now.Before(*b.RevokedAt))
-}
+// liveAt is task 03's (wire.Binding).LiveAt: live before its expiry and before
+// its revocation time, so a revocation dated in the future is a scheduled one
+// (decision (c)). The gatekeeper (task 10) calls the same function.
+func liveAt(b wire.Binding, now time.Time) bool { return b.LiveAt(now) }
 
 // duration renders a TTL in LiteLLM's duration syntax ("1h", "45m", "90s").
 func duration(d time.Duration) string {
@@ -1121,7 +1119,7 @@ Message: `feat(keysmith): mint, refresh and revoke, one live key per generation 
 
 1. **Task 05's uniqueness rule must count live rows only.** The skeleton's `ErrExists` on "a duplicate `(session, generation)`" would refuse the re-mint that decision (a) requires, because the superseded row still exists. Task 05 needs `unique (session_id, generation) where revoked_at is null` (a partial index), the memory store the same rule, and `bindingtest` a case for it. Task 05 also needs `Revoke` and `RevokeSession` to accept a future `at` and never move an existing `revoked_at` later (`least(revoked_at, at)`); decision (c) depends on both.
 2. **`budget_unknown` (503)** is not in task 03's code list. Task 06 proposed it (its gap 1); this part uses it for `ErrBudgetUnknown`.
-3. **`liveAt` belongs in `wire`**, as `(Binding) LiveAt(now time.Time) bool`, so keysmith and the gatekeeper (task 10) cannot drift. Both parts write it locally with the same rule until task 03 adopts it.
+3. **`liveAt` belongs in `wire`**, as `(Binding) LiveAt(now time.Time) bool`, so keysmith and the gatekeeper (task 10) cannot drift. Task 03 has adopted it (its decision (b)), with `budget_unknown` (its decision (c)); `liveAt` here is a one-line call to it.
 4. **Task 04's identifiers are assumed:** `GenerateKeyRequest{Key, KeyAlias, Duration, UserID, TeamID, Models []string, MaxBudget float64, Metadata map[string]string}`, `GenerateKeyResponse{Key string}`, `DeleteKeys(ctx, []string) error`, `EnsureUser`/`EnsureTeam(ctx, id string, maxBudget float64, budgetDuration string) error`; and task 05's `binding.NewMemStore()`. Step 1 checks them.
 5. **The skeleton gives every key both groups;** decision (d) narrows an AU-minted key to `au/*`. No other part is affected: the gatekeeper already keeps such a key on AU.
 6. **The skeleton's file map names a `Revoke`** besides `RevokeSession`. With `wire.RevokeRequest{SessionID}` the only revoke on the wire, a single-key revoke is internal (`kill`, `supersede`) and not exported.
