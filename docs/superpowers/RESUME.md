@@ -226,6 +226,19 @@ stopped and resumed with `resumeFromRunId`. **Parallel runs resume from cache no
   **Then restart the env stream with `{"stream":"env","hold":[<held ids>]}`**, before env reaches
   task 20 (position 17; env is on task 02).
 
+**Added 23:40, 2026-09-25:**
+- **Hub stream STOPPED at task 04**: not approved after 2 fix rounds (0 Critical, 1 Important, a
+  test-coverage gap in the fake's org-admin rule). Tasks 01-03 are approved; 41 remain.
+  - `build-stream-as-launched.js` now takes `args.clearedTasks`.
+  - `.superpowers/workflows/task-round3.js` is an orchestrator round 3 for one task: a fix, then a
+    scoped re-review. Its run is `wf_884200d0-8ba`, with
+    `{"stream":"hub","dir":"hub","task":"04","review":"…/task-04-review-2.md"}`.
+  - **When its review-3 is Approved, resume hub:** `resumeFromRunId: wf_b4bd0092-bcc` with
+    `{"stream":"hub","clearedTasks":["04"]}`.
+- p7 stopped on a sign-out and is resumed as task `wcbdm4rcg`.
+- Owner questions (4 from phase 7, 5 from the Hub) are collected in
+  `docs/superpowers/planning/2026-09-25-owner-questions-pending.md` for the next question round.
+
 **Added 13:40, 2026-09-25: OD-30 (sign-in) and the env R4 re-plan.**
 - **OD-30:** sign-in goes through a Keycloak broker on Panacea's existing Entra registration, with
   zero clicks. The IT request's Part 1 is no longer needed. Run `wf_579f2bb3-bfb`

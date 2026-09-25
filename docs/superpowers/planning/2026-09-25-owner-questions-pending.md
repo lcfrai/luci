@@ -3,6 +3,31 @@
 None of these blocks a build: each stream built its recommended default. They are waiting for the
 owner's next question round. Answers go into `2026-09-23-owner-decisions.md` as OD rows.
 
+## From the Hub (phase H), run `wf_b4bd0092-bcc`
+
+Several of these were written against direct Entra. OD-30's ruling
+(`2026-09-25-identity-keycloak-broker.md`) may already answer them; check it before asking.
+
+5. **Step-up sign-in for one non-Hub scope** (Azure DevOps via Entra's claims challenge) is not
+   built in v1. Recommended: decide after task 43's R-8 evidence. Under OD-30, ADO is a personal
+   access token, which may make this moot.
+6. **Task 40 against phase 2's SX.2 gate.** `types.ts` must be byte-identical to UI contract §2.
+   Recommended: amend §2 in task 40's own commit, rather than moving the types to their own file.
+7. **Q12a: accept two edits to ADR-H1 (your text)?**
+   - §5.3's invite row: an invite binds by the email claim only for a member, or for a guest whose
+     domain is verified.
+   - §9 item 3: IT configures the optional claims email, acct and xms_edov.
+   - Recommended: yes, but OD-30 moves the claims to Keycloak mappers.
+8. **Q12b: someone who cannot bind (a B2B guest with no verified domain, or no email) has no
+   in-product way into a team in v1.** Is that acceptable for the single KPMG tenant? Recommended:
+   yes, with a later admin list of the org's users.
+9. **Q13: phase H's two UI surfaces have no prototype** (the sign-in states in the rail footer, and
+   the share popover). Recommended: write `prototype/phase-h-hub.html` before task 41's component
+   code, and hold `feat/hub`'s onward merge until you have looked (OD-12 batching).
+
+The Hub's sibling asks of phase 8 (`Member` and `EmailVerified` claims, and `TRUSTED_HOPS`) are
+routed to the orchestrator; they are not questions for you.
+
 ## From phase 7 (the deploy connector), run `wf_63db912c-42f`
 
 1. **Q-P7-7: which `pnc_` key does the connect panel tell users to mint?** Phase 7 recommends, and
