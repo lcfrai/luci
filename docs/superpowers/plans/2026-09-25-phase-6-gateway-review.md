@@ -60,4 +60,40 @@ Fix, three parts, about 2 hours: (1) task 11 drops a named denylist of LiteLLM c
 
 **M-5 (Minor) `panacea token` waits 20 s; a retried mint takes up to about 61 s.** Task 15 retries twice on a 20 s timeout with 500 ms backoff; task 14 gives up after 20 s. The first request of a session whose first mint attempt times out fails with *"Your apiKeyHelper script is failing"* (task 14 `:8`). Either the wait covers the retry budget, or the part says the first-request failure is accepted and task 23 observes the CLI's recovery.
 
+**M-6 (Minor) P06 proves ZDR on the success path only.** Task 12's gatekeeper canary runs through a fake LiteLLM that fails with a 500 echoing the body; task 18's P06 runs LiteLLM's canary through a succeeding call. LiteLLM's own failure logging (stdout exceptions, any error-log table) is the likelier leak. Add a P06b: the canary through a fake upstream told to answer `400` echoing the prompt, then the same `pg_dump` and stdout search.
+
+**M-7 (Minor) Two budget clocks, one sentence.** keysmith sums a UTC calendar month (task 06, task 09); LiteLLM's person and project budgets run on `budget_duration: "30d"` from creation (task 07 `:38`, `:581`). On 1 October the cockpit can read *"US$0.00 of US$200 this month"* while LiteLLM still refuses the person on its own window, and task 22's *"can't start until 1 Oct"* is then false. Task 06 records the drift; nothing reconciles it for the reader. Either keysmith sets LiteLLM's reset to the calendar boundary (if the pinned image allows it; task 18 probe), or the panel's reset date comes from LiteLLM's `budget_reset_at` for those two dimensions.
+
+**M-8 (Minor) Task 20's AWS provider range spans a major version** (`>= 5.70.0, < 7.0.0`, `task-20.md:178`). Phase 8's modules use a pessimistic constraint (`~> 4.81`) with the exact version in the lock file (`env/infra/scripts/guards_test.sh:50`, `:140`). Use `~>` on one major version, as phase 8 does.
+
+## 5. Fit with the sibling plans
+
+| Sibling | Fit | Gap |
+|---|---|---|
+| Hub (phase H) | H-1's JSON is task 01's `ProjectInferenceFields` exactly, with the contract's null rule; route 15 read via `FieldsFromRecord` ignores the record's other keys. Neither the ADR nor the contract mentions a data class today, so H-1 to H-4 are genuine asks | I-3 (route 16 is admin-only); I-7 (`teamId` should come from the record); I-9 (no cloud usage read) |
+| Phase 8 | Namespaces, labels and peers in task 19 match the phase 8 parts (`task-13.md:210-215`, `:289-291`; `task-11.md:149-154`, verified); Entra-only Postgres is carried as P8-4; the proving list is task 32 | P8-1 needs the membership check (I-7) and the propagation inequality (M-4); P8-2 should name the AWS projected token audience `sts.amazonaws.com` on the `litellm` service account, which task 19 renders |
+| Phase 7 | P7-1 is correctly an ask; the phase 7 plan has no data-class text yet | none beyond the ask |
+| Phase 4 | P4-1 and S6.8 carry OD-24's "set at creation" | none |
+
+## 6. What holds up
+
+Tests come first in every code part, and every code part names its mutants in a table (167 mutant references across 23 parts; tasks 23 and 25 are documents). Every part has a "does not claim" section. The interfaces cross-checked between parts agree: `SpentReader.Spent` (tasks 07, 09), the `AdminAPI` subset (tasks 04, 07), `wire.NormalAddr` and `Binding.LiveAt` (tasks 03, 10), `httpx.CodeBackendUnavailable` (real, `problem.go:60`). The Panacea pitfalls each became a rule with a test: full-path `api_base` (task 02), the master key as a refused-if-empty file (tasks 04, 08, 19), own deadlines and mint-beside-start (tasks 04, 15). Task 07's supersede-on-retry with task 05's partial unique index is a better idempotency design than the skeleton's. Task 11 strips every credential-shaped header, not only `x-litellm-*`. Task 14 caught the helper-TTL-equals-grace boundary itself.
+
+## 7. The two defects a first implementer would hit
+
+1. **Budgets record US$0 (I-5).** The first local run prices every call at zero, because the catalogue's ids are newer than LiteLLM's built-in cost table. Task 18's P03–P05 and P12 come back UNKNOWN, task 23 item 5 cannot be shown, and the fix reopens task 02, merged in wave 1. In the cloud the same gap turns all three OD-24 budgets off with no signal.
+2. **Wave 6 starts task 19 before task 12 exists (I-1).** The chart's gatekeeper Deployment, its variables and its caller-token mount come from `cmd/gatekeeper`, which is merged in the same wave. Whoever picks up task 19 finds nothing to render against.
+
+The severest finding, C-1, is latent rather than hit: nothing fails until someone sends a crafted body.
+
+## 8. Fix list, in order
+
+1. C-1: body denylist in task 11, P14 in task 18, re-mint on a raise. About 2 hours.
+2. I-5: costs in `models.yaml` and a `gatewaygen` test. About 1 hour.
+3. I-4: `ANTHROPIC_BASE_URL` in the managed fragment, with one resolvable name. About 1 hour.
+4. I-1, I-3, I-7, I-9: skeleton and ask edits. About 1 hour.
+5. I-2 to the owner as a question; I-6, I-8, I-10 and the Minors in their parts.
+
+**Plan quality: Needs fixes**
+
 
