@@ -484,4 +484,290 @@ func (h askHandler) read(w http.ResponseWriter, r *http.Request) {
 Registered in `api.go` as `POST /v1/work/ask` and `GET /v1/work/ask/{ag}` when `Deps.WorkAsk` is
 set, with two catalog rows in `routes_audit_test.go`. `decodeStrict`, `writeProblem`, `writeJSON`
 and `writeFleetProblem` stand for the package's existing helpers and TM-21's error mapping; step 1
-greps `internal/api/*.go` for their real names and uses them.
+greps `internal/api/*.go` for their real names and uses them. Fleet's own GET serialises
+`StoredAsk` into the same flat shape (`answer` and `citations` beside `state`).
+
+#### Interfaces — complete: appended to `desktop/src/api/work.ts`
+
+```ts
+export type CitationCheck = "ok" | "missing_path" | "missing_lines" | "commit_absent";
+export interface AskCitation { path: string; lineStart: number; lineEnd: number; check: CitationCheck }
+export interface AskRequest { project: string; question: string; subject?: { issue?: string; path?: string } }
+export interface AskResult {
+  state: "running" | "answered" | "ended_without_answer" | "refused";
+  code?: string;
+  question: string; questionClass: "H";
+  answer?: string; answerClass?: "A";
+  commit: string;
+  citations?: AskCitation[];
+}
+export interface WorkAskApi {
+  ask(req: AskRequest): Promise<{ askId: string; sessionId: string }>;
+  askResult(project: string, askId: string): Promise<AskResult>;
+}
+```
+
+#### Interfaces — complete: `desktop/src/components/work/AskAnswer.tsx`
+
+```tsx
+import type { AskCitation, AskResult } from "../../api/work";
+
+export interface AskAnswerProps {
+  result: AskResult;
+  /** Opens a file at a line range in the Develop lens; only called for a checked citation. */
+  openAt: (path: string, lineStart: number, lineEnd: number, commit: string) => void;
+  /** Present only when the ask had an issue subject: opens that issue's composer, prefilled. */
+  postAsComment?: (body: string) => void;
+}
+
+const short = (sha: string) => sha.slice(0, 7);
+const range = (c: AskCitation) => (c.lineStart === c.lineEnd ? `${c.lineStart}` : `${c.lineStart}-${c.lineEnd}`);
+
+function CitationRow({ c, commit, openAt }: { c: AskCitation; commit: string; openAt: AskAnswerProps["openAt"] }) {
+  const label = `${c.path}:${range(c)}`;
+  if (c.check === "ok") {
+    return <li><a href="#" className="ask-cite" onClick={(e) => { e.preventDefault(); openAt(c.path, c.lineStart, c.lineEnd, commit); }}>{label}</a></li>;
+  }
+  const why = c.check === "commit_absent" ? `not checked: ${short(commit)} is not in this clone` : `not found at ${short(commit)}`;
+  return <li className="ask-cite-fact"><span>{label}</span> · <span>{why}</span></li>;
+}
+
+export function AskAnswer({ result, openAt, postAsComment }: AskAnswerProps) {
+  const cites = result.citations ?? [];
+  return (
+    <article className="ask" aria-label="Answer from your ask agent">
+      <p className="ask-q" data-class="H">{result.question}</p>
+      {result.state === "running" && <p className="ask-fact">ask agent working · no answer yet</p>}
+      {result.state === "ended_without_answer" && <p className="ask-fact">the ask agent ended without an answer</p>}
+      {result.state === "refused" && <p className="ask-fact" role="alert">not asked: {result.code}</p>}
+      {result.state === "answered" && (
+        <>
+          <p className="ask-by">ask (agent) at <span className="ask-sha">{short(result.commit)}</span></p>
+          <div className="ask-a" data-class="A">{result.answer}</div>
+          {cites.length === 0
+            ? <p className="ask-fact">no file cited</p>
+            : <ul className="ask-cites">{cites.map((c, i) => <CitationRow key={i} c={c} commit={result.commit} openAt={openAt} />)}</ul>}
+          {postAsComment && (
+            <button type="button" onClick={() => postAsComment(
+              `ask (agent) at ${short(result.commit)}:\n\n> ${(result.answer ?? "").split("\n").join("\n> ")}`)}>
+              Post as my comment…
+            </button>
+          )}
+        </>
+      )}
+    </article>
+  );
+}
+```
+
+The answer renders as plain text (`text·A`, no Markdown and no HTML), so an answer cannot draw a
+link of its own; the only links are the checked citations. `.ask-cite`, `.ask-sha` and
+`.ask-cite-fact` are Commit Mono at `--t-fact`. *"ask agent working · no answer yet"* is a state
+word on the one heartbeat's redraw, never a spinner.
+
+#### Interfaces — complete: the palette command (appended to task 59's `commands.ts`)
+
+```ts
+{
+  id: "work.ask",
+  title: "Ask about the code…",
+  when: (ctx) => ctx.project !== null,
+  disabledReason: (ctx) =>
+    !ctx.project?.team ? "Ask needs a team project"
+    : ctx.agentsOff ? ctx.agentsOff /* task 109's agentsOffLine */ : null,
+  run: (ctx) => ctx.openAskDialog({ project: ctx.project!.id, subject: ctx.focusedIssue ? { issue: ctx.focusedIssue.id } : undefined }),
+},
+```
+
+The command's field names follow task 59's `Command` type; step 1 renames here if task 59 named
+them otherwise. No chord is bound: `Shift+A` is *Ask my Orchestrator about this* (task 102), a
+different act.
+
+#### Tests to write first — `control-plane/internal/workask/cite_test.go`
+
+```go
+package workask
+
+import (
+	"context"
+	"errors"
+	"strings"
+	"testing"
+)
+
+const sha = "7c1f0a2d9e0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d"
+
+// fakeGit answers the three git calls the checker makes from a map of path → content.
+type fakeGit struct {
+	files map[string]string
+	calls int
+}
+
+func (g *fakeGit) Run(_ context.Context, _ string, args ...string) ([]byte, error) {
+	g.calls++
+	switch {
+	case args[0] == "cat-file" && args[1] == "-e":
+		if args[2] == sha+"^{commit}" {
+			return nil, nil
+		}
+		return nil, errors.New("fatal: not a valid object")
+	case args[0] == "cat-file" && args[1] == "-t":
+		if _, ok := g.files[strings.TrimPrefix(args[2], sha+":")]; ok {
+			return []byte("blob\n"), nil
+		}
+		return nil, errors.New("fatal: path does not exist")
+	case args[0] == "cat-file" && args[1] == "blob":
+		return []byte(g.files[strings.TrimPrefix(args[2], sha+":")]), nil
+	}
+	return nil, errors.New("unexpected git call: " + strings.Join(args, " "))
+}
+
+func TestCitationChecks(t *testing.T) {
+	g := &fakeGit{files: map[string]string{"a/glob.go": strings.Repeat("x\n", 60)}}
+	got := Checker{Git: g}.Check(context.Background(), "/repo", sha, []Citation{
+		{Path: "a/glob.go", LineStart: 41, LineEnd: 58},
+		{Path: "a/glob.go", LineStart: 59, LineEnd: 61},
+		{Path: "a/cap.go", LineStart: 1, LineEnd: 9},
+		{Path: "../etc/passwd", LineStart: 1, LineEnd: 1},
+	})
+	want := []Check{CheckOK, CheckMissingLines, CheckMissingPath, CheckMissingPath}
+	for i, w := range want {
+		if got[i].Check != w {
+			t.Fatalf("citation %d: %s, want %s", i, got[i].Check, w)
+		}
+	}
+}
+
+func TestAnAbsentCommitMarksEveryCitation(t *testing.T) {
+	got := Checker{Git: &fakeGit{}}.Check(context.Background(), "/repo", strings.Repeat("0", 40),
+		[]Citation{{Path: "a.go", LineStart: 1, LineEnd: 1}})
+	if got[0].Check != CheckCommitAbsent {
+		t.Fatalf("got %s", got[0].Check)
+	}
+}
+
+func TestAShortOrOptionShapedCommitRunsNoGit(t *testing.T) {
+	g := &fakeGit{}
+	Checker{Git: g}.Check(context.Background(), "/repo", "--output=/tmp/x", []Citation{{Path: "a.go", LineStart: 1, LineEnd: 1}})
+	if g.calls != 0 {
+		t.Fatalf("git ran %d times on an unvalidated commit", g.calls)
+	}
+}
+
+func TestOneReadPerPath(t *testing.T) {
+	g := &fakeGit{files: map[string]string{"a.go": "1\n2\n3\n"}}
+	Checker{Git: g}.Check(context.Background(), "/repo", sha, []Citation{
+		{Path: "a.go", LineStart: 1, LineEnd: 1}, {Path: "a.go", LineStart: 2, LineEnd: 3}})
+	if g.calls != 3 { // cat-file -e, then -t and blob once for a.go
+		t.Fatalf("calls = %d, want 3", g.calls)
+	}
+}
+```
+
+#### Tests to write first — `control-plane/internal/fleet/work/ask_test.go`
+
+```go
+package work
+
+import (
+	"context"
+	"errors"
+	"strings"
+	"testing"
+)
+
+type recLauncher struct{ owner, delegation string; n int }
+
+func (l *recLauncher) LaunchAsk(_ context.Context, owner, dl, _, _, _ string) (string, error) {
+	l.owner, l.delegation, l.n = owner, dl, l.n+1
+	return "ag-ask1", nil
+}
+
+type memAsks struct{ m map[string]StoredAsk }
+
+func (s *memAsks) Put(_ context.Context, a StoredAsk) error { s.m[a.AgentID] = a; return nil }
+func (s *memAsks) Get(_ context.Context, id string) (StoredAsk, error) {
+	a, ok := s.m[id]
+	if !ok {
+		return a, errors.New("absent")
+	}
+	return a, nil
+}
+func (s *memAsks) SetAnswer(_ context.Context, id string, ans AnswerArgs) (bool, error) {
+	a := s.m[id]
+	if a.Answer != nil {
+		return true, nil
+	}
+	a.Answer, a.State = &ans, AskAnswered
+	s.m[id] = a
+	return false, nil
+}
+
+const commit40 = "7c1f0a2d9e0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d"
+
+func newAsks(on bool) (Asks, *recLauncher, *memAsks) {
+	l, s := &recLauncher{}, &memAsks{m: map[string]StoredAsk{}}
+	return Asks{Gate: Gate{Switch: &fakeSwitch{on: on}, Next: &countQueue{}, Refused: &refusals{}}, Launch: l, Store: s}, l, s
+}
+
+var alice = Caller{OrgID: "or-1", UserID: "u-alice", DelegationID: "dl-a"}
+var q = AskRequest{Project: "pj-dylans", Commit: commit40, Question: "where is the cap?"}
+
+func TestTheAskIsTheAskersEvenOnSomeoneElsesProject(t *testing.T) {
+	a, l, _ := newAsks(true)
+	if _, err := a.Start(context.Background(), alice, q); err != nil {
+		t.Fatal(err)
+	}
+	if l.owner != "u-alice" || l.delegation != "dl-a" {
+		t.Fatalf("launched as %s/%s, want the asker's own", l.owner, l.delegation)
+	}
+}
+
+func TestOrchestratorsOffRefusesTheAsk(t *testing.T) {
+	a, l, _ := newAsks(false)
+	if _, err := a.Start(context.Background(), alice, q); !errors.Is(err, ErrAgentsDisabled) || l.n != 0 {
+		t.Fatalf("err=%v launches=%d", err, l.n)
+	}
+}
+
+func TestOnlyTheAskClassMayAnswerAndOnlyOnce(t *testing.T) {
+	a, _, _ := newAsks(true)
+	id, _ := a.Start(context.Background(), alice, q)
+	ans := AnswerArgs{Answer: "in glob.go", Citations: []Citation{{Path: "a/glob.go", LineStart: 41, LineEnd: 58}}}
+	if err := a.Answer(context.Background(), Stamp{AgentID: id, Class: "worker"}, ans); !errors.Is(err, ErrNotAskClass) {
+		t.Fatalf("worker answered: %v", err)
+	}
+	if err := a.Answer(context.Background(), Stamp{AgentID: id, Class: "ask"}, ans); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.Answer(context.Background(), Stamp{AgentID: id, Class: "ask"}, ans); !errors.Is(err, ErrAlreadyAnswered) {
+		t.Fatalf("second answer: %v", err)
+	}
+}
+
+func TestAnotherPersonCannotReadTheAsk(t *testing.T) {
+	a, _, _ := newAsks(true)
+	id, _ := a.Start(context.Background(), alice, q)
+	if _, err := a.Read(context.Background(), Caller{UserID: "u-dylan"}, id); !errors.Is(err, ErrNotYours) {
+		t.Fatalf("project owner read Alice's ask: %v", err)
+	}
+}
+
+func TestAnswerLimits(t *testing.T) {
+	bad := []AnswerArgs{
+		{Answer: ""},
+		{Answer: strings.Repeat("x", 4001)},
+		{Answer: "x", Citations: []Citation{{Path: "../x", LineStart: 1, LineEnd: 1}}},
+		{Answer: "x", Citations: []Citation{{Path: "a.go", LineStart: 9, LineEnd: 3}}},
+		{Answer: "x", Citations: make([]Citation, 21)},
+	}
+	for i, b := range bad {
+		if err := ValidateAnswer(b); !errors.Is(err, ErrBadAnswer) {
+			t.Fatalf("case %d passed", i)
+		}
+	}
+}
+```
+
+`fakeSwitch`, `countQueue` and `refusals` are task 109's test doubles in the same package.
+
