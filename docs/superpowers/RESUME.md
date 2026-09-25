@@ -258,6 +258,19 @@ stopped and resumed with `resumeFromRunId`. **Parallel runs resume from cache no
   - Run as: a ruling, then a fix, then an adversarial review, AFTER close-out's final review; fold
     in its findings too.
 
+**Added 01:30, 2026-09-26:**
+- **Team plan: COMPLETE.** It has 69 parts, and its review is committed:
+  `…-phase-t-team-mode-review.md`, Needs fixes, 18 C / 153 I / 134 M.
+  - At least S01-C1 is stale ("tasks 04 and 05 missing"). The section 1 reviewer appended to an
+    interrupted pre-repair pass.
+  - **`build-stream-v2.js`** (for team and work, which launch fresh) adds `fixOnly:'critical'`. Only
+    Criticals are batched, and the review is carried, so implementers grep it for their own task.
+    It also adds `planOnly`, which stops after the plan fix.
+  - Team run: `{"stream":"team","fixOnly":"critical","planOnly":true}`. **To build later, resume
+    it with the same args minus `planOnly`**, once its sibling code (the Hub, phase 8, phase 3) has
+    landed; most team tasks depend on it.
+- **OD-30 identity: review-2 is 0 C, 2 I**, and round 3 is running (`wf_c1460e29-6b6`).
+
 **Added 13:40, 2026-09-25: OD-30 (sign-in) and the env R4 re-plan.**
 - **OD-30:** sign-in goes through a Keycloak broker on Panacea's existing Entra registration, with
   zero clicks. The IT request's Part 1 is no longer needed. Run `wf_579f2bb3-bfb`
