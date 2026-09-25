@@ -81,8 +81,9 @@ revision.
   - `delegation.HubState`, `delegation.Rebuild`
 - Consumes:
   - task 10 — `store.Store` and its `Tx(ctx, func(store.Tx) error) error`; the store implements `outbox.Queue` (the outbox **owns** `Item`; the store imports `outbox`, never the reverse), and `store.Tx` has `AppendOutbox(ctx, outbox.Item) error`; `store.Store.OrgsWithAgents(ctx) ([]string, error)` for the rebuild
-  - task 08 — `hubclient.Team` (one method per task 06–07 route), `hubclient.OrgFeed` with `OrgChanges(ctx, org, after string, kinds []string) (hubapi.ChangePage, error)`, `hubclient.WithDelegation(ctx, dl string) context.Context`, `hubclient.WithIdempotencyKey(ctx, key string) context.Context`, and the fake's team half
-  - task 03 — `hubapi.Delegation` (`ID`, `OrgID`, `Owner{TID,OID}`, `ProjectID`, `Class`, `Routes`, `ExpiresAt`, `RevokedAt`), the list types for tasks, threads and escalations, and the feed kinds `delegation.created`, `delegation.renewed`, `delegation.revoked`
+  - task 08 — `hubclient.Team` (one method per task 06–07 route), `hubclient.OrgFeed` with `OrgChanges(ctx, org, after string, kinds []string, limit int) (hubapi.ChangesPage, error)` (the per-org twin of the built `Feed.Changes`, `hubclient.go:96-99`; `hubapi.Event` and `hubapi.ChangesPage` are built, `hubapi/types.go:536-551`), `Team.Delegation(ctx, id) (hubapi.Delegation, error)` (route 47, `delegations.read`), `hubclient.WithDelegation(ctx, dl string) context.Context`, `hubclient.WithIdempotencyKey(ctx, key string) context.Context`, and the fake's team half
+  - task 09 — `model.Owner`, `model.Class`. **Assumed:** `model.Owner` is a string type holding the Hub user id (`us-…`), because every Hub team record names its owner that way (`task-06.md:84,111`); if task 09 makes it `(tid, oid)`, `FromHub` and the feed's decode are the two places that change
+  - task 03 — `hubapi.Delegation` (`ID`, `OrgID`, `OwnerID`, `ProjectID`, `Class`, `Routes`, `ExpiresAt`, `RevokedAt`, as `task-06.md:84-86` shows the wire), the list types for tasks, threads and escalations, and the feed kinds `delegation.created`, `delegation.renewed`, `delegation.revoked`
   - task 01 — the delegable route names (`task-01.md:226-261`), the class route sets (`:267-273`), the one exempt route (`:26-29`), "first about" for Fleet-authored records (`:31-36`), and the codes `delegation_required`, `delegation_revoked`, `delegation_expired`
   - Hub (built) — `hubclient.Error{Status, Problem, RetryAfter}`, `hubclient.ErrUnavailable` and `hubclient.Code` (`hub/hubclient/hubclient.go:111-135` on `feat/hub`); `hubclient.TokenSource` (`:19-20`); `ids.Wide` (`internal/ids/ids.go:61`)
 - Amends: **the hubclient's own fresh key per call** (`hub-contract.md:1345`: "a fresh `Idempotency-Key` (UUID, `ids.UUID()`) on every `POST`, reused across its own retries") is right for a desktop and wrong for an outbox, whose retries span process restarts. `WithIdempotencyKey` overrides it for one call. If task 08's part does not add it, this task adds it to `hubclient/client.go`, eight lines, and says so in its commit.
@@ -106,6 +107,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/fleet/model"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubclient"
 )
 
@@ -160,10 +162,9 @@ type Item struct {
 	Seq          int64  // assigned by the store; the delivery order within an org
 	ID           string // ids.Wide("ob"); also the Idempotency-Key (19 chars, [a-z0-9-])
 	OrgID        string
-	OwnerTID     string // with OwnerOID, the owner the record is first about
-	OwnerOID     string //   (task-01.md:31-36); always set, never Fleet's own id
-	ProjectID    string // pj-…
-	Class        string // model.Class of the delegation: "orchestrator" | "worker"
+	Owner        model.Owner // the owner the record is first about (task-01.md:31-36); never Fleet
+	ProjectID    string      // pj-…
+	Class        model.Class // of the delegation it goes under: orchestrator | worker
 	// No dl-… is stored: the Sender resolves the owner's live delegation at
 	// delivery, so a renewal between enqueue and delivery is used, and a
 	// revocation fails the write locally (permanent) instead of at the Hub.
@@ -201,7 +202,7 @@ func Enqueue(ctx context.Context, tx Appender, it Item) error {
 	if it.ID == "" || it.OrgID == "" || it.Op == "" || len(it.Payload) == 0 {
 		return errors.New("outbox: id, org, op and payload are required")
 	}
-	if it.OwnerTID == "" || it.OwnerOID == "" || it.ProjectID == "" || it.Class == "" {
+	if it.Owner == "" || it.ProjectID == "" || it.Class == "" {
 		return errors.New("outbox: every write names its owner, project and class: Fleet never writes as itself")
 	}
 	if !slices.Contains(AllOps, it.Op) {
@@ -370,8 +371,10 @@ import (
 // Key is what a delegation is found by. An owner holds at most one live
 // delegation per project and class (05-design.md §2.4 item 2).
 type Key struct {
-	OrgID, OwnerTID, OwnerOID, ProjectID string
-	Class                                model.Class
+	OrgID     string
+	Owner     model.Owner
+	ProjectID string
+	Class     model.Class
 }
 
 type Delegation struct {
@@ -384,7 +387,7 @@ type Delegation struct {
 func FromHub(d hubapi.Delegation) Delegation {
 	return Delegation{
 		ID: d.ID, Routes: slices.Clone(d.Routes), ExpiresAt: d.ExpiresAt,
-		Key: Key{OrgID: d.OrgID, OwnerTID: d.Owner.TID, OwnerOID: d.Owner.OID,
+		Key: Key{OrgID: d.OrgID, Owner: model.Owner(d.OwnerID),
 			ProjectID: d.ProjectID, Class: model.Class(d.Class)},
 	}
 }
@@ -435,16 +438,16 @@ func (c *Cache) Drop(id string) (Delegation, bool) {
 	return d, true
 }
 
-// Expired removes and returns every entry with ExpiresAt <= now: the lapsed.
+// Expired returns every entry with ExpiresAt <= now: the lapsed. It removes
+// nothing — Get already refuses them — so a sweep whose Revoker call failed
+// sees the same entry next time, and a renewal (Put) replaces it in place.
 func (c *Cache) Expired(now time.Time) []Delegation {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 	var out []Delegation
-	for k, d := range c.byK {
+	for _, d := range c.byK {
 		if !now.Before(d.ExpiresAt) {
 			out = append(out, d)
-			delete(c.byK, k)
-			delete(c.byID, d.ID)
 		}
 	}
 	slices.SortFunc(out, func(a, b Delegation) int { return a.ExpiresAt.Compare(b.ExpiresAt) })
@@ -480,8 +483,7 @@ type Sender struct {
 }
 
 func (s Sender) Send(ctx context.Context, it outbox.Item) error {
-	k := Key{OrgID: it.OrgID, OwnerTID: it.OwnerTID, OwnerOID: it.OwnerOID,
-		ProjectID: it.ProjectID, Class: model.Class(it.Class)}
+	k := Key{OrgID: it.OrgID, Owner: it.Owner, ProjectID: it.ProjectID, Class: it.Class}
 	ctx, err := s.Client.Ctx(ctx, k, string(it.Op))
 	if err != nil {
 		return err
@@ -544,3 +546,197 @@ one per verb (`tasks.create`, `tasks.update`, `agents.start`, …); `task-06.md:
 set (`tasks.write`, `agents.write`, …). ST.3 is defined in task 01 (skeleton seam table), so this
 part follows task 01, and the disagreement is reported as a gap. Whichever set wins, it lives in one
 place here: the `Op` constants.
+
+`control-plane/internal/fleet/delegation/feed.go`:
+
+```go
+package delegation
+
+import (
+	"context"
+	"fmt"
+	"sync"
+	"time"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubapi"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubclient"
+)
+
+// PollEvery and the sweep period together bound revocation at 10 s + one
+// Revoker call, well inside §2.4 item 4's 60 s, with room for a slow Hub.
+const PollEvery = 10 * time.Second
+
+// Reason tells the Revoker which act §2.4 item 4 requires.
+type Reason string
+
+const (
+	Revoked Reason = "revoked" // stop sessions, close sockets, withdraw leases, card "ended: access removed"
+	Lapsed  Reason = "lapsed"  // pause sessions, withdraw leases; a renewal resumes
+)
+
+// Revoker is implemented by tasks 20 (sessions), 23 (leases) and 39 (sockets)
+// behind one fan-out. It must be idempotent: a leadership change may repeat a call.
+type Revoker interface {
+	Revoke(ctx context.Context, d Delegation, why Reason) error
+	Resume(ctx context.Context, d Delegation) error
+}
+
+// FeedKinds is what Fleet subscribes to here; tasks 22-31 add their own kinds
+// to the same poll through Feed.Also.
+var FeedKinds = []string{"delegation.created", "delegation.renewed", "delegation.revoked"}
+
+// Feed runs on every replica, so each keeps its Cache current; only the
+// replica that holds the "fleet.feed" advisory lock (task 12) calls the
+// Revoker — leader() reports that.
+type Feed struct {
+	hub    hubclient.OrgFeed
+	team   hubclient.Team
+	cache  *Cache
+	rev    Revoker
+	leader func() bool
+	now    func() time.Time
+
+	mu     sync.Mutex
+	cursor map[string]string // org -> next; set by Rebuild before the first Poll
+	done   map[string]Reason // dl id -> the last act the Revoker completed for it
+	also   []func(context.Context, hubapi.Event) error
+}
+
+func NewFeed(hub hubclient.OrgFeed, team hubclient.Team, c *Cache, rev Revoker,
+	leader func() bool, now func() time.Time) *Feed {
+	return &Feed{hub: hub, team: team, cache: c, rev: rev, leader: leader, now: now,
+		cursor: map[string]string{}, done: map[string]Reason{}}
+}
+
+// Also registers another consumer of the same poll (the kinds it needs must
+// be in the kinds list task 12 passes to Poll).
+func (f *Feed) Also(fn func(context.Context, hubapi.Event) error) { f.also = append(f.also, fn) }
+
+// Poll reads one page of org's feed and applies it. The cursor moves only
+// after the whole page applied, so a failure re-reads the page; every apply
+// is by id, so reading twice is harmless. more = ask again at once (§7.11).
+func (f *Feed) Poll(ctx context.Context, org string, kinds []string) (more bool, err error) {
+	f.mu.Lock()
+	after, ok := f.cursor[org]
+	f.mu.Unlock()
+	if !ok {
+		return false, fmt.Errorf("delegation: org %s polled before Rebuild set its cursor", org)
+	}
+	page, err := f.hub.OrgChanges(ctx, org, after, kinds, 500)
+	if err != nil {
+		return false, err
+	}
+	for _, ev := range page.Events {
+		if err := f.apply(ctx, org, ev); err != nil {
+			return false, err
+		}
+		for _, fn := range f.also {
+			if err := fn(ctx, ev); err != nil {
+				return false, err
+			}
+		}
+	}
+	f.mu.Lock()
+	f.cursor[org] = page.Next
+	f.mu.Unlock()
+	return page.More, nil
+}
+
+func (f *Feed) apply(ctx context.Context, org string, ev hubapi.Event) error {
+	switch ev.Kind {
+	case "delegation.created", "delegation.renewed":
+		// The feed carries metadata only (task-06.md:207-208), so read the record
+		// itself, under itself: route 47 is delegations.read.
+		hd, err := f.team.Delegation(hubclient.WithDelegation(ctx, ev.Subject), ev.Subject)
+		switch hubclient.Code(err) {
+		case "":
+		case "delegation_revoked", "delegation_expired":
+			return nil // a later event, or the sweep, handles it
+		default:
+			return err
+		}
+		if err != nil {
+			return err
+		}
+		d := FromHub(hd)
+		f.cache.Put(d)
+		f.mu.Lock()
+		delete(f.done, d.ID) // a renewal after a lapse must be able to lapse again
+		f.mu.Unlock()
+		if f.leader() {
+			return f.rev.Resume(ctx, d) // idempotent; resumes only what the lapse paused
+		}
+	case "delegation.revoked":
+		d, ok := f.cache.Drop(ev.Subject)
+		if !ok { // unknown here: the Revoker still finds work by d.ID
+			d = Delegation{ID: ev.Subject, Key: Key{OrgID: org, ProjectID: deref(ev.ProjectID)}}
+		}
+		return f.act(ctx, d, Revoked)
+	}
+	return nil
+}
+
+// Sweep lapses every expired delegation. It runs every PollEvery on every
+// replica, independent of Poll, so a feed that is down cannot keep one alive.
+func (f *Feed) Sweep(ctx context.Context) error {
+	for _, d := range f.cache.Expired(f.now()) {
+		if err := f.act(ctx, d, Lapsed); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// act calls the Revoker at most once per (delegation, reason) that succeeded;
+// a revocation is final and outranks a lapse. A failed call is retried by the
+// next Poll (the page is re-read) or the next Sweep (the entry is still there).
+func (f *Feed) act(ctx context.Context, d Delegation, why Reason) error {
+	f.mu.Lock()
+	last := f.done[d.ID]
+	f.mu.Unlock()
+	if last == Revoked || last == why {
+		return nil
+	}
+	if f.leader() {
+		if err := f.rev.Revoke(ctx, d, why); err != nil {
+			return err
+		}
+	}
+	f.mu.Lock()
+	f.done[d.ID] = why
+	f.mu.Unlock()
+	return nil
+}
+
+func deref(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
+```
+
+**A leader change must not lose a revocation, and events alone would.** A follower marks `done`
+without calling, so that it does not repeat every act when it becomes leader. But if the leader
+died between reading `delegation.revoked` and calling the Revoker, the follower has already moved
+its cursor past the event and dropped the entry, and nothing would ever stop those sessions. So
+revocation is also enforced **by state**: on acquiring the `fleet.feed` lock, task 12 calls
+`Reset` and then `Rebuild`, which reads every delegation Fleet's own store says is in use and asks
+the Hub for each one's state (below). A revoked one answers 401 `delegation_revoked` and is acted
+on then. Events make revocation fast; the state read makes it certain.
+
+```go
+// Reset forgets completed acts; task 12 calls it, then Rebuild, on becoming leader.
+func (f *Feed) Reset() {
+	f.mu.Lock()
+	f.done = map[string]Reason{}
+	f.mu.Unlock()
+}
+
+// SetCursor is Rebuild's: the head read before the lists, never after.
+func (f *Feed) SetCursor(org, next string) {
+	f.mu.Lock()
+	f.cursor[org] = next
+	f.mu.Unlock()
+}
+```
