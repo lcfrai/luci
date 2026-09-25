@@ -64,3 +64,98 @@ the real class names, not copied.
 - `desktop/src/styles/designsystem.test.ts` ⚑ — four rules and their canaries (modified)
 - `desktop/src/styles/tokens.test.ts` ⚑ (91 lines) — the tick (modified)
 - `desktop/src/components/glyphs/AgentGlyph.test.tsx` ⚑ (task 29) — one test (modified)
+
+**Why the layer is imported last, from `main.tsx`, not from `app.css`.** A forced-colours rule
+and a component rule of equal specificity resolve by source order. `main.tsx:1-4` imports
+`app.css` first so the token layer sits **under** every component sheet; a layer imported there
+would lose every tie (`.top-btn { border: 0 }` would erase its forced border). So `main.tsx`
+imports `./styles/forced-colors.css` **after** `import App from "./App";` (`:7`), which Vite emits
+after every component sheet. `app.css` is not edited; the *Files* entry above is superseded by:
+
+- `desktop/src/main.tsx` ⚑ (13 lines; `import App` at `:7`) — one import after it (modified)
+
+#### Interfaces — complete: `desktop/src/styles/forced-colors.css`
+
+```css
+/* desktop/src/styles/forced-colors.css
+ *
+ * Windows contrast themes (Phase W task 34; 05 §4.4 work rule 4; 07 D I8). Under
+ * forced-colors: active, Chromium forces every box-shadow to none and repaints backgrounds as
+ * Canvas. Here every ring, elevation and edge the tree draws as a shadow is redrawn as a border or
+ * outline in a system colour. designsystem.test.ts fails any box-shadow selector with no line here.
+ *
+ * Imported LAST, from main.tsx after ./App, so it wins every tie with a component sheet. Borders,
+ * not outlines, for rings: the focus ring (tokens.css :focus-visible) is an outline and must stay
+ * one. The dev toolbar's own lines live in devtools.css and stress.css. */
+@import "./tokens.css";
+
+@media (forced-colors: active) {
+  /* Elevation and control rings. */
+  .pop, .toast, .toast-undo, .pane, .pane-attach--corner, .pane-exit-restart, .pane-empty-go,
+  .cv-tile, .cv-tile[data-cv-dragging="resize"], .menu-rename-input, .pal, .pal-hint,
+  .rail-kbd, .top-seg, .top-btn, .vh-route {
+    border: 1px solid CanvasText;
+  }
+
+  /* Focus within a pane or tile is a selection: 2px Highlight, drawn inside the box. */
+  .pane--focused, .cv-tile:focus-within, .cv-tile[data-cv-dragging="resize"]:focus-within {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+
+  /* One-pixel panel edges, each on its own side. */
+  .rail, .sub {
+    border-inline-end: 1px solid CanvasText;
+  }
+  .rail-machine, .sub-head, .top, .vh, .pal-input, .pane-head {
+    border-block-end: 1px solid CanvasText;
+  }
+  .rail-footer, .pane-exit, .pane-foot, .pane > .pane-gitnote {
+    border-block-start: 1px solid CanvasText;
+  }
+  .cv-resize {
+    border-inline-end: 2px solid CanvasText;
+    border-block-end: 2px solid CanvasText;
+  }
+
+  /* The selected row: 2px Highlight, and the tick (task 31) in Highlight. Not while focused, so
+   * the focus ring is never replaced; the tick still marks the selection then. */
+  .rail-row[aria-selected="true"]:not(:focus-visible),
+  .sub-row[aria-current="page"]:not(:focus-visible) {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+  .rail-row[aria-selected="true"]::before,
+  .sub-row[aria-current="page"]::before {
+    forced-color-adjust: none;
+    background: Highlight;
+  }
+
+  /* The cursor row: 1px. The palette's active option is its cursor. */
+  .pal-row-on {
+    outline: 1px solid Highlight;
+    outline-offset: -1px;
+  }
+
+  /* Status dots draw their fill as a background. Opting out keeps every dot shape (disc, inset
+   * ring, the running ring, the halo) in one system ink; the shape carries the status. */
+  .dot, .dot-ring, .dot-live, .dot-flash::after {
+    forced-color-adjust: none;
+  }
+  .dot {
+    color: CanvasText;
+  }
+
+  /* The unseen tick (tokens.css, reduced motion only) keeps its ink. */
+  [data-changed="unseen"]::before {
+    forced-color-adjust: none;
+    background: CanvasText;
+  }
+
+  /* Grain over system colours is noise over someone's chosen contrast. Task 35 does not repeat
+   * this rule; its test counts one. */
+  .grain::after {
+    display: none;
+  }
+}
+```
