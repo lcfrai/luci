@@ -1,0 +1,11 @@
+{
+  "_source": "GET /api/v1/projects/risk-register/branches/main/access, handlers/project_security.go:668-677, on the same project labelled panacea.io/production-branch=release: a known production branch that is not this one sends main to its OWN env, sanitizeBranchEnv(main) = main (handlers/projects.go:3839, :3846), never prod, where a copy of mapBranchToEnv would say prod. Panacea's rule applied by hand to write this file; no production code computes it (mutant M12 of the t03 run)",
+  "data": {
+    "branch": "main",
+    "env": "main",
+    "accessMode": "kpmg-sso",
+    "ipWhitelist": [],
+    "passwordSet": false,
+    "bypassTokenCount": 0
+  }
+}

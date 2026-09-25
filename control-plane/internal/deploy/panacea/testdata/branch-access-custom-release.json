@@ -1,0 +1,11 @@
+{
+  "_source": "GET /api/v1/projects/risk-register/branches/release/access, handlers/project_security.go:668-677, on a project LABELLED panacea.io/production-branch=release (productionBranchLabel, handlers/projects.go:2516; read by branchEnv, handlers/branch_security.go:32). mapBranchToEnvWithProd(release, release) answers prod (handlers/projects.go:3840-3841), where a copy of the naming rule applied to the branch alone would say release. Panacea's rule applied by hand to write this file; no production code computes it (mutant M12 of the t03 run)",
+  "data": {
+    "branch": "release",
+    "env": "prod",
+    "accessMode": "kpmg-sso",
+    "ipWhitelist": [],
+    "passwordSet": false,
+    "bypassTokenCount": 0
+  }
+}

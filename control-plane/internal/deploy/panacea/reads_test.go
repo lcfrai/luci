@@ -477,8 +477,12 @@ const accessPath = "GET /api/v1/projects/engagement-portal/branches/"
 
 // TestEnvironmentForReadsPanaceasName kills returning the branch unchanged, or a copy of
 // sanitizeBranchEnv in the connector (review C2): the answer is data.env, verbatim, from the
-// access route, and no environment row is read to find it.
+// access route, and no environment row is read to find it. The first three answers are ones a
+// local copy of the naming rule also produces, so they alone let such a copy through (mutant M12
+// survived them in the t03 run); risk-register's are not: it is labelled production-branch=release,
+// so release answers prod and main answers main (handlers/projects.go:3839-3846).
 func TestEnvironmentForReadsPanaceasName(t *testing.T) {
+	const custom = "GET /api/v1/projects/risk-register/branches/"
 	rs := serveRecorded(t, map[string]fixture{
 		accessPath + "feat%2Fx/access":                          {file: "branch-access-feat-x.json"},
 		accessPath + "lane%2F7-deploy-connector-watcher/access": {file: "branch-access-long.json"},
@@ -486,6 +490,8 @@ func TestEnvironmentForReadsPanaceasName(t *testing.T) {
 		accessPath + "empty/access":                             {body: `{"data":{"branch":"empty","env":"","accessMode":"kpmg-sso"}}`},
 		accessPath + "noenv/access":                             {body: `{"data":{"branch":"noenv","accessMode":"kpmg-sso"}}`},
 		accessPath + "nodata/access":                            {body: `{}`},
+		custom + "release/access":                               {file: "branch-access-custom-release.json"},
+		custom + "main/access":                                  {file: "branch-access-custom-main.json"},
 	})
 	ctx := context.Background()
 	for branch, want := range map[string]string{
@@ -493,6 +499,11 @@ func TestEnvironmentForReadsPanaceasName(t *testing.T) {
 	} {
 		if got, err := rs.c.EnvironmentFor(ctx, project, branch); err != nil || got != want {
 			t.Errorf("EnvironmentFor(%q) = (%q, %v), want Panacea's %q", branch, got, err, want)
+		}
+	}
+	for branch, want := range map[string]string{"release": "prod", "main": "main"} {
+		if got, err := rs.c.EnvironmentFor(ctx, "risk-register", branch); err != nil || got != want {
+			t.Errorf("risk-register EnvironmentFor(%q) = (%q, %v), want Panacea's %q", branch, got, err, want)
 		}
 	}
 	// Panacea never writes an empty env (mapBranchToEnv and sanitizeBranchEnv never return "",
@@ -510,8 +521,8 @@ func TestEnvironmentForReadsPanaceasName(t *testing.T) {
 			t.Errorf("EnvironmentFor read an environment row: %s", r)
 		}
 	}
-	if got := len(rs.requests()); got != 6 {
-		t.Errorf("EnvironmentFor made %d requests, want 6 (one each)", got)
+	if got := len(rs.requests()); got != 8 {
+		t.Errorf("EnvironmentFor made %d requests, want 8 (one each)", got)
 	}
 }
 
@@ -769,8 +780,8 @@ func TestRecordedBodiesNameTheirSource(t *testing.T) {
 	for _, e := range entries {
 		loadFixture(t, e.Name())
 	}
-	if len(entries) < 22 {
-		t.Errorf("testdata holds %d files, want the part's 22", len(entries))
+	if len(entries) < 24 {
+		t.Errorf("testdata holds %d files, want the part's 22 plus the two custom-production-branch bodies", len(entries))
 	}
 }
 
@@ -825,5 +836,17 @@ func TestReadsAcceptOnly200(t *testing.T) {
 	}
 	if ok {
 		t.Error("Latest answered 202 read as a deployment")
+	}
+}
+
+// TestGatesEmptyMapIsNil: Panacea's omitempty never sends "scanStatus": {} (models/models.go:724-781),
+// and one would name no gate that ran, so it reads nil like an absent key: "none ran", never "all
+// clean" (mutant G3 of the t03 run).
+func TestGatesEmptyMapIsNil(t *testing.T) {
+	rs := serveRecorded(t, map[string]fixture{"GET /api/v1/projects/engagement-portal/deployments": {body: listOf(
+		`{"id":"e","status":"Succeeded","createdAt":"2026-09-23T10:00:00Z","scanStatus":{}}`)}})
+	ds, err := rs.c.Deployments(context.Background(), project)
+	if err != nil || len(ds) != 1 || ds[0].Gates != nil {
+		t.Errorf("Deployments with scanStatus {} = (%+v, %v), want one row with Gates nil", ds, err)
 	}
 }
