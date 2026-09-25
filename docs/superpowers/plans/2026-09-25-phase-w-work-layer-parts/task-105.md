@@ -565,3 +565,9 @@ grep -rnE "Stop|Pause|Demote|Yield" control-plane/internal/fleet/work/*.go | gre
 5. **TM-26's template has no line for either new kind**; the Phase T owner writes it.
 6. **The skeleton's file map has no Fleet row for W3's deltas** (`control-plane/internal/fleet/work/`,
    used by tasks 103, 105 and 109); it should add one.
+7. **Nothing writes the `negotiation` comment on the two issues.** SW.19 has the kind (task 99:
+   `Negotiation{threadId, counterpartIssueId}`, from an Orchestrator only), and task 106 reads it
+   to find a thread from an issue, but neither 105's scope nor this part writes it. The natural
+   writer is Fleet when a thread opened in a `work.relation` turn is created (one comment on each
+   issue, through task 99's `AddAgentComment`, as each side's Orchestrator); the skeleton should
+   give it to 105 as a follow-up row or to a new W3 task.
