@@ -61,3 +61,49 @@ Three decisions the scope left open, made here.
    one-event-per-create test is re-read by kind in this task (see *Files*), and task 12's
    comment count already counts `comment.*` kinds only.
 
+**Files:**
+
+- `control-plane/internal/hub/hubapi/workevents.go` (new): the kind constants, one `data` struct
+  per kind, `Visibility`, `Scope`, the registry `WorkEventKinds`, `EventData`
+- `control-plane/internal/hub/hubapi/workevents_test.go` (new): the reflection and registry tests
+- `control-plane/internal/hub/hubapi/work.go` ⚑ (task 03's): task 08's three `Event*` constants
+  (`task-08.md:196-201`) move from here to `workevents.go`, unchanged in value
+- `control-plane/internal/hub/store/work_subscriptions.go`, `server/work_subscriptions.go` (new)
+- `control-plane/internal/hub/server/work_emit.go` (new): `emitWork`, the one way a Work handler
+  appends an event; it refuses a kind or a `data` type the registry does not pair
+- `control-plane/internal/hub/server/work_feed_integration_test.go` (new, `-tags integration`)
+- `control-plane/internal/hub/store/changes.go` ⚑ (Hub task 26's file, `H26:13`): one additive
+  predicate in the visible-events query. The scope names `server/changes.go`; Hub task 26 puts the
+  query in `store/changes.go` and the route in `server/changes.go`, so the predicate goes where the
+  query is, and `server/changes.go` passes the caller's user id if it does not already
+- `control-plane/internal/hub/server/work_{issues,revisions,states,relations,labels,policies,comments}.go`
+  ⚑ (tasks 08-12, this plan's own files, in task order): every `tx.Emit` becomes `emitWork`; the
+  create, the assign and the comment and mention paths call the subscription trigger
+- `control-plane/internal/hub/server/work_issues_integration_test.go` ⚑ (task 08's): its
+  one-event-per-write count filters to `issue.*` and `project.*` kinds, since a create now also
+  appends the creator's `subscription.set`
+
+**Interfaces:**
+
+- Produces:
+  - **SW.5**: `hubapi.WorkEventKinds` and every `hubapi.Event*` constant below, with its `data`
+    struct; `hubapi.SubjectOnlyKinds() []string`; `hubapi.EventData(v any) map[string]any`
+  - the routes, in 07's list and 07's matrix rows: `PUT /v1/issues/{issueId}/subscription`
+    (`SubscribeRequest` → `Subscription`; ✓ for `V M A`, 404 for `O N X`) and `GET
+    /v1/me/subscriptions` (`Page[Subscription]`, any caller, their own rows only)
+  - `store.SubscribeOnTrigger(ctx, tx, org, issueID, userID, cause, at) (inserted bool, err
+    error)`, called by tasks 08 and 12, and by any later writer that has a trigger of its own
+  - `server.emitWork(tx, kind, teamID, projectID, subject string, data any) error`
+- Consumes:
+  - task 03: `Subscription`, `SubscribeRequest`, `SubscriptionCause`, `Page[T]`
+  - task 06: `issue_subscriptions` (`PRIMARY KEY (issue_id, user_id)`, cause set checked,
+    `task-06.md:339-352`)
+  - tasks 08-12: their emits, their create, assign, comment and mention paths; task 08's
+    `readableIssue` and `LockIssue`
+  - Hub task 14: `(*Tx).Emit`, `Event{Kind, TeamID, ProjectID, Subject, Data}` (`H14:67-75`)
+  - Hub task 26: the visible-events query and `hubapi.Event` (`H26:19-37`)
+- Consumed by: task 15 (its `issue.created` per imported issue, and its row in the canary test),
+  task 16 (the relay passes the feed through unchanged), task 37 (the desktop's event types are
+  generated from, or tested against, this registry), tasks 55 (the replica applies these kinds),
+  62 (the Desk), 98 (Fleet), 123 (W4's handover), 156 (W5's webhooks: SW.22 is built on it)
+
