@@ -615,3 +615,23 @@ A sibling task is a dependency only once its branch is sync-merged here (rules H
 | 187 | WL's proof and results | WL | 0.3 (2.5 h) | 175-186 | — |
 
 ---
+
+## Task scopes
+
+Each task's scope paragraph lives outside this file, in
+`docs/superpowers/plans/2026-09-25-phase-w-work-layer-scopes/`, one file per group of 20 ids. A
+part `task-NN.md` is written from its scope paragraph and this skeleton's row; where the two
+disagree, the row's id, dependsOn and seams win and the scope is corrected.
+
+| Scope file | Ids | Slices |
+|---|---|---|
+| `tasks-01-20.md` | 01-20 | W0, W1 (the Hub, phase 4 deltas, the test kit) |
+| `tasks-21-40.md` | 21-40 | W1 (phase 3 deltas, Start, import, the look, the Work lens) |
+| `tasks-41-60.md` | 41-60 | W1 (the lens, Triage, the issue view, the editor, keys, the replica, peek) |
+| `tasks-61-80.md` | 61-80 | W1, W1b, W2 (Start on the desktop, the Desk, the demo, *shipped*, W2's Hub) |
+| `tasks-81-100.md` | 81-100 | W2, W3 (W2's Hub and desktop, W2's proof, W3's Hub) |
+| `tasks-101-120.md` | 101-120 | W3, W4 (the verbs and Fleet on issues, W3's proof, W4's Hub) |
+| `tasks-121-140.md` | 121-140 | W4 (janitor, insights, the timeline, release, assists) |
+| `tasks-141-160.md` | 141-160 | W4, W5 (W4's proof; requests, sync, outside PRs, webhooks, the API) |
+| `tasks-161-180.md` | 161-180 | W5, WL (MCP, loops, CI, Teams, audit, W5's desktop and proof; the first *later* rows) |
+| `tasks-181-187.md` | 181-187 | WL (the remaining *later* rows and WL's proof) |
