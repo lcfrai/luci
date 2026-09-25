@@ -117,7 +117,7 @@ var _ api.Materialiser = (*Materialiser)(nil)
 //     cancelled (the desktop went away) → a plain error, never a refusal
 //     reason. Only this step is budgeted: steps 1-3 and 5-7 are local git
 //     and disk, and an expiry there would be misnamed as the Hub's.
-//     entraauth.ErrSignedOut, or a relayed 401 → signed_out (a brief may
+//     signin.ErrSignedOut, or a relayed 401 → signed_out (a brief may
 //     exist and cannot be read: 4-D1 refuses; the owner's OQ-11, plan §10,
 //     recommended option, with Sign in first in task 20; review M10;
 //     a tenant_not_enrolled sign-out lands here too, and task 20 then
