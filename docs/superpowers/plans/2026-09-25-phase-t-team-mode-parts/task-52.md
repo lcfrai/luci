@@ -488,3 +488,125 @@ type Undo struct {
 	Available bool `json:"available"` // conflict accepted, resolution yield or sequence
 }
 ```
+
+```go
+// ── the Orchestrator panel (task 55) ────────────────────────────────────────
+
+// OrchestratorView is GET /v1/projects/{projectId}/orchestrator: the viewer's
+// OWN Orchestrator only. There is no route that reads anyone else's.
+type OrchestratorView struct {
+	V            int          `json:"v"`
+	ProjectID    string       `json:"projectId"`
+	Orchestrator *OrchState   `json:"orchestrator"` // null: none live yet
+	Conversation []ConvEntry  `json:"conversation"` // oldest first, the last 100
+	Threads      []ThreadRow  `json:"threads"`
+}
+
+type OrchState struct {
+	AgentID string `json:"agentId"`
+	Status  string `json:"status"`
+	CanDive bool   `json:"canDive"` // the viewer owns it and task 40's DIVE is served
+}
+
+// ConvEntry is a flat union on Kind; keys of the other kinds are omitted.
+//   "human":     ID (hm-…), Text (text·H)
+//   "reply":     TurnID (ot-…), Text (text·A), Exit, Truncated
+//   "directive": ID (dv-…), DirectiveKind, To, Params, Text (text·A, free only)
+// Directives are the viewer's own with origin "human" only: issued in a turn
+// the viewer started (§9.4, §7.2).
+type ConvEntry struct {
+	Kind          string                  `json:"kind"`
+	At            string                  `json:"at"`
+	ID            string                  `json:"id,omitempty"`
+	TurnID        string                  `json:"turnId,omitempty"`
+	Text          *TeamText               `json:"text,omitempty"`
+	Exit          string                  `json:"exit,omitempty"` // ok | failed | timeout | lost
+	Truncated     bool                    `json:"truncated,omitempty"`
+	DirectiveKind string                  `json:"directiveKind,omitempty"`
+	To            *AgentRef               `json:"to,omitempty"`
+	Params        *hubapi.DirectiveParams `json:"params,omitempty"`
+}
+
+// ThreadRow is DeskThread with names: "round 2 of 3" is Round of MaxRounds,
+// where Round = max(rounds.mine, rounds.theirs) and MaxRounds = rounds.cap.
+type ThreadRow struct {
+	ID           string               `json:"id"`
+	State        string               `json:"state"`
+	Other        PersonRef            `json:"other"`
+	Subject      hubapi.ThreadSubject `json:"subject"`
+	SubjectLabel string               `json:"subjectLabel"` // the path, "tk-…" or "cf-… · auth/session.go"
+	Round        int                  `json:"round"`
+	MaxRounds    int                  `json:"maxRounds"`
+	Deadline     string               `json:"deadline"`
+}
+
+// ThreadView is GET /v1/projects/{projectId}/orchestrator/threads/{threadId}.
+type ThreadView struct {
+	Thread   ThreadRow       `json:"thread"`
+	Messages []ThreadMessage `json:"messages"` // oldest first
+}
+
+type ThreadMessage struct {
+	ID         string               `json:"id"`
+	Kind       string               `json:"kind"` // ask | answer | inform | propose | accept | reject | counter | withdraw
+	Templated  bool                 `json:"templated"`
+	At         string               `json:"at"`
+	Tombstoned bool                 `json:"tombstoned"`
+	Sender     Sender               `json:"sender"`
+	Fields     hubapi.MessageFields `json:"fields"` // the Hub's flat union, verbatim
+	Text       *TeamText            `json:"text"`   // null when absent or tombstoned
+}
+
+type Sender struct {
+	AgentID string `json:"agentId"`
+	UserID  string `json:"userId"`
+	Label   string `json:"label"` // "Alice's Orchestrator (agent)" | "Your Orchestrator (agent)"
+}
+
+// ── settings (task 56): GET /v1/projects/{projectId}/team/settings ─────────
+
+type TeamSettings struct {
+	V         int        `json:"v"`
+	ProjectID string     `json:"projectId"`
+	DataClass string     `json:"dataClass"` // the Hub's value, verbatim (task 03: grammar only)
+	Route     RouteState `json:"route"`
+	Spend     *Spend     `json:"spend"` // null until task 37's split is served
+}
+
+// Spend is today's split, Australia/Sydney day, in cents. Never a ratio.
+type Spend struct {
+	Day               string `json:"day"`
+	WorkersCents      int64  `json:"workersCents"`
+	CoordinationCents int64  `json:"coordinationCents"`
+	QuotaCents        int64  `json:"quotaCents"`
+}
+
+// ── action bodies ───────────────────────────────────────────────────────────
+
+// AskRequest is POST …/orchestrator/messages. Subject is optional; when set it
+// becomes a fixed first line ("About path auth/session.go:") of the text·H body.
+type AskRequest struct {
+	Text    string   `json:"text"` // 1–2,000 after the subject line is added
+	Subject *Subject `json:"subject,omitempty"`
+}
+
+type Subject struct {
+	Kind string `json:"kind"` // "task" | "path" | "agent" | "conflict"
+	Ref  string `json:"ref"`  // tk-…, a repo-relative path, ag-…, cf-…
+}
+
+type AnswerRequest struct {
+	Choice int     `json:"choice"`
+	Text   *string `json:"text,omitempty"` // ≤ 300
+}
+
+type NoteRequest struct {
+	Target hubapi.NoteTarget `json:"target"`
+	Text   string            `json:"text"` // ≤ 1,000
+}
+
+// Created answers every action that writes one Hub record.
+type Created struct {
+	ID string `json:"id"` // hm-… | nt-… | es-…
+}
+```
