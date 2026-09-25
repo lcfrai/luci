@@ -222,3 +222,117 @@ export async function measureGrain(
   }
 }
 ```
+
+The same file, continued: the component.
+
+```tsx
+const ROW_TEXT = Array.from({ length: ROWS }, (_, i) => `WRK-${String(i + 1)}  Fixture row for the grain meter`);
+
+export function GrainMeter(): JSX.Element {
+  const listRef = useRef<HTMLDivElement>(null);
+  const [lines, setLines] = useState<readonly string[]>([]);
+  const [running, setRunning] = useState(false);
+
+  const measure = async (): Promise<void> => {
+    const list = listRef.current;
+    if (list === null || running) return;
+    setRunning(true);
+    try {
+      const { on, off } = await measureGrain(list);
+      const dpr = window.devicePixelRatio;
+      setLines([resultLine("grain on", on, dpr), resultLine("grain off", off, dpr), `rule: ${grainRule(on, off)}`]);
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  return (
+    <div className="ss-meter">
+      <p className="ss-note">
+        Set the stage zoom to 100 % first. Copy the two result lines into the Grain section of
+        docs/verification/2026-09-25-phase-w-results.md.
+      </p>
+      <button type="button" className="dt-reset" disabled={running} onClick={() => void measure()}>
+        {running ? "Measuring for 10 s" : "Measure"}
+      </button>
+      <output className="ss-meter-out">
+        {lines.map((line) => (
+          <span key={line}>{line}</span>
+        ))}
+      </output>
+      <div ref={listRef} className="ss-meter-list">
+        {ROW_TEXT.map((text) => (
+          <div key={text} className="ss-meter-row">{text}</div>
+        ))}
+      </div>
+    </div>
+  );
+}
+```
+
+*Measuring for 10 s* is a static label, not a count: the design system allows no spinner and one
+clock, and a ticking countdown would be a second clock.
+
+#### Interfaces — complete: the registration and its styles
+
+```tsx
+// desktop/src/components/devtools/screens/grain.tsx — task 35's meter on task 33's stage. The
+// themes set only: the measurement is of the dark look, where grain is drawn.
+import { GrainMeter } from "../GrainMeter";
+import { registerStressScreen } from "../stressRegistry";
+
+registerStressScreen("Grain, measured", () => <GrainMeter />, ["themes"]);
+```
+
+`screens/index.ts`: the comment line `// task 35: import "./grain";` becomes `import "./grain";`.
+
+Appended to `stress.css` (task 33), before its forced-colours block:
+
+```css
+.ss-meter {
+  display: grid;
+  gap: var(--s-3);
+}
+
+.ss-meter-out {
+  display: grid;
+  gap: var(--s-1);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: var(--t-fact);
+  line-height: var(--t-fact-lh);
+  font-variant-numeric: tabular-nums;
+}
+
+.ss-meter-list {
+  block-size: 480px;
+  overflow: auto;
+  background: var(--surface);
+}
+
+.ss-meter-row {
+  min-block-size: var(--row-h);
+  padding-inline: var(--s-3);
+  color: var(--ink-2);
+  font-family: var(--mono);
+  font-size: var(--t-fact);
+  line-height: var(--row-h);
+}
+```
+
+#### Interfaces — complete: the *Grain* section of the results file
+
+```markdown
+## Grain (task 35)
+
+Machine: <model>, Windows <build>, display scaling <125 | 150> %, WebView2 <version>.
+Run: `npm --prefix desktop run tauri dev`, Dev → Stress set → Themes → *Grain, measured*.
+
+    <paste the grain on line>
+    <paste the grain off line>
+
+Rule (02 C8): <grain stays | to the owner>. Owner's decision: <pending | date and words>.
+```
+
+Nothing is written into this section until a person runs the meter: an empty template is not a
+result, and a guessed number is worse than none (`OD-27`).
