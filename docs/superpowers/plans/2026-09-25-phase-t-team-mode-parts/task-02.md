@@ -645,3 +645,350 @@ func TestCheckSet(t *testing.T) {
 	}
 }
 ```
+
+- [ ] **Step 4: Run the tests and watch them fail**
+
+`hygiene.go` and `glob.go` do not exist yet, so the package does not compile. Put `text.go` in
+place first (the Interfaces block above, verbatim), then run from the repository root:
+
+```bash
+~/.claude/tools/claudezsh/claudezsh 'cd control-plane && GOPROXY=off go test ./internal/teamtext/ 2>&1 | head -5'
+```
+
+Expected: `undefined: Clean`, `undefined: CleanName`, `undefined: secrets`, `undefined:
+ValidGlob` (in some order), then `FAIL github.com/kpmg-au-emu/panacea-app/control-plane/internal/teamtext [build failed]`.
+
+- [ ] **Step 5: Write `hygiene.go`**
+
+```go
+package teamtext
+
+import (
+	"regexp"
+	"unicode"
+	"unicode/utf8"
+)
+
+// secret is one row of the closed table of secret shapes. A new row is a code
+// change with its own test (hygiene_test.go counts the rows).
+type secret struct {
+	name string
+	re   *regexp.Regexp
+}
+
+// secrets is checked in order; the first match names the refusal. RE2 is
+// linear in its input, so no string makes this slow.
+var secrets = []secret{
+	{"private_key", regexp.MustCompile(`-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----`)},
+	{"aws_access_key", regexp.MustCompile(`\b(?:AKIA|ASIA)[0-9A-Z]{16}\b`)},
+	{"github_token", regexp.MustCompile(`\bgh[pousr]_[A-Za-z0-9]{36,255}\b`)},
+	{"github_pat", regexp.MustCompile(`\bgithub_pat_[A-Za-z0-9_]{22,255}\b`)},
+	{"anthropic_key", regexp.MustCompile(`\bsk-ant-[A-Za-z0-9_-]{20,}`)},
+	{"sk_key", regexp.MustCompile(`\bsk-[A-Za-z0-9_-]{20,}`)},
+	{"slack_token", regexp.MustCompile(`\bxox[abprs]-[A-Za-z0-9-]{10,}`)},
+	{"jwt", regexp.MustCompile(`\beyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}`)},
+	{"azure_key", regexp.MustCompile(`(?i)(?:AccountKey|SharedAccessKey)=[A-Za-z0-9+/]{30,}={0,2}`)},
+	{"url_credentials", regexp.MustCompile(`[A-Za-z][A-Za-z0-9+.-]*://[^\s/:@]+:[^\s/@]+@`)},
+	{"assignment", regexp.MustCompile(`(?i)\b(?:password|passwd|pwd|secret|api[_-]?key|access[_-]?token|client[_-]?secret)\s*[:=]\s*["']?[^\s"']{8,}`)},
+	{"azure_devops_pat", regexp.MustCompile(`\b[a-z2-7]{52}\b`)},
+}
+
+// Clean refuses a body that carries a character no reader should receive
+// unlabelled: C0 and C1 controls other than LF and TAB, ANSI escape
+// introducers (ESC, CSI, OSC), bidi overrides and isolates, the Unicode tag
+// block, or secret-shaped text (05-design.md §7.1, G3). It does not bound
+// length; Bound does.
+func Clean(s string) error { return clean(s, false) }
+
+// CleanName is Clean plus the one-line rule for names: no LF or TAB, no space
+// but U+0020, no run of two, none at either end.
+func CleanName(s string) error { return clean(s, true) }
+
+func clean(s string, name bool) error {
+	if !utf8.ValidString(s) {
+		return refuse(ErrText, RuleInvalidUTF8, -1)
+	}
+	i, prevSpace := 0, false
+	for _, r := range s {
+		switch {
+		case r == 0x1b || r == 0x9b || r == 0x9d:
+			return refuse(ErrText, RuleANSI, i)
+		case r == '\n' || r == '\t':
+			if name {
+				return refuse(ErrText, RuleWhitespace, i)
+			}
+		case r < 0x20 || r == 0x7f || (r >= 0x80 && r <= 0x9f):
+			return refuse(ErrText, RuleControl, i)
+		case (r >= 0x202a && r <= 0x202e) || (r >= 0x2066 && r <= 0x2069):
+			return refuse(ErrText, RuleBidi, i)
+		case r >= 0xe0000 && r <= 0xe007f:
+			return refuse(ErrText, RuleTagBlock, i)
+		}
+		space := unicode.IsSpace(r)
+		if name && space && (r != ' ' || prevSpace || i == 0) {
+			return refuse(ErrText, RuleWhitespace, i)
+		}
+		prevSpace = space
+		i++
+	}
+	if name && prevSpace {
+		return refuse(ErrText, RuleWhitespace, i-1)
+	}
+	for _, p := range secrets {
+		if p.re.MatchString(s) {
+			e := refuse(ErrText, RuleSecret, -1)
+			e.Detail = p.name
+			return e
+		}
+	}
+	return nil
+}
+```
+
+- [ ] **Step 6: Write `glob.go`**
+
+```go
+package teamtext
+
+import (
+	"errors"
+	"strings"
+	"unicode/utf8"
+)
+
+// MaxGlobs is the most globs one scope or lease may name; MaxBreadth the
+// largest share of tracked files one glob may match (05-design.md §6.3).
+// CheckSet tests MaxBreadth as the integer n*10 > len: change both together.
+const (
+	MaxGlobs   = 20
+	MaxBreadth = 0.10
+)
+
+// ValidGlob refuses a glob that is empty, over MaxPath code points, not
+// clean, absolute, contains a backslash, a "..", "." or empty segment, a "**"
+// inside a segment, or is made only of "*" and "**" segments. Its only
+// metacharacters are "*", "?" and a whole-segment "**"; everything else,
+// "[", "]", "{" and "}" included, is literal.
+func ValidGlob(g string) error { return validPath(g, true) }
+
+// ValidPath is ValidGlob's rules for a literal repo-relative path: "*" and
+// "?" are ordinary characters in it, and no whole-repo rule applies.
+func ValidPath(p string) error { return validPath(p, false) }
+
+func validPath(p string, glob bool) error {
+	switch {
+	case p == "":
+		return refuse(ErrGlob, RuleEmpty, -1)
+	case !utf8.ValidString(p):
+		return refuse(ErrGlob, RuleInvalidUTF8, -1)
+	case utf8.RuneCountInString(p) > MaxPath:
+		return refuse(ErrGlob, RuleTooLong, MaxPath)
+	}
+	if i := strings.IndexAny(p, "\n\t"); i >= 0 {
+		return refuse(ErrGlob, RuleControl, utf8.RuneCountInString(p[:i]))
+	}
+	if err := Clean(p); err != nil {
+		var e *Error
+		errors.As(err, &e)
+		return &Error{Class: ErrGlob, Rule: e.Rule, Offset: e.Offset, Detail: e.Detail}
+	}
+	if i := strings.IndexByte(p, '\\'); i >= 0 {
+		return refuse(ErrGlob, RuleBackslash, utf8.RuneCountInString(p[:i]))
+	}
+	if p[0] == '/' || (len(p) >= 2 && p[1] == ':' && isASCIILetter(p[0])) {
+		return refuse(ErrGlob, RuleAbsolute, 0)
+	}
+	segs := strings.Split(p, "/")
+	wild := true
+	for _, s := range segs {
+		switch {
+		case s == "..":
+			return refuse(ErrGlob, RuleDotDot, -1)
+		case s == "" || s == ".":
+			return refuse(ErrGlob, RuleSegment, -1)
+		case glob && s != "**" && strings.Contains(s, "**"):
+			return refuse(ErrGlob, RuleSegment, -1)
+		}
+		if s != "*" && s != "**" {
+			wild = false
+		}
+	}
+	if glob && wild {
+		return refuse(ErrGlob, RuleWholeRepo, -1)
+	}
+	return nil
+}
+
+func isASCIILetter(b byte) bool { return (b|0x20) >= 'a' && (b|0x20) <= 'z' }
+
+// Match reports whether a repo-relative path matches a glob of ValidGlob's
+// grammar. It is O(len(glob segments) × len(path segments)): "**" is matched
+// over a memo, never by plain recursion.
+func Match(glob, path string) bool {
+	g, p := strings.Split(glob, "/"), strings.Split(path, "/")
+	memo := make([][]uint8, len(g)+1) // 0 unknown, 1 match, 2 no match
+	for i := range memo {
+		memo[i] = make([]uint8, len(p)+1)
+	}
+	var m func(i, j int) bool
+	m = func(i, j int) bool {
+		if memo[i][j] != 0 {
+			return memo[i][j] == 1
+		}
+		var ok bool
+		switch {
+		case i == len(g):
+			ok = j == len(p)
+		case g[i] == "**":
+			ok = m(i+1, j) || (j < len(p) && m(i, j+1))
+		default:
+			ok = j < len(p) && matchSegment(g[i], p[j]) && m(i+1, j+1)
+		}
+		memo[i][j] = 2
+		if ok {
+			memo[i][j] = 1
+		}
+		return ok
+	}
+	return m(0, 0)
+}
+
+// matchSegment matches one segment: "*" is any run of code points, "?" one
+// code point; every other rune is literal. Iterative, backtracking to the
+// last "*" only, so it is linear-times-star-count, never exponential.
+func matchSegment(glob, seg string) bool {
+	g, s := []rune(glob), []rune(seg)
+	gi, si, star, mark := 0, 0, -1, 0
+	for si < len(s) {
+		switch {
+		case gi < len(g) && g[gi] == '*':
+			star, mark = gi, si
+			gi++
+		case gi < len(g) && (g[gi] == '?' || g[gi] == s[si]):
+			gi++
+			si++
+		case star >= 0:
+			mark++
+			gi, si = star+1, mark
+		default:
+			return false
+		}
+	}
+	for gi < len(g) && g[gi] == '*' {
+		gi++
+	}
+	return gi == len(g)
+}
+
+// widest is the most tracked files any one glob matches.
+func widest(globs, tracked []string) (n, at int) {
+	at = -1
+	for i, g := range globs {
+		c := 0
+		for _, f := range tracked {
+			if Match(g, f) {
+				c++
+			}
+		}
+		if c > n {
+			n, at = c, i
+		}
+	}
+	return n, at
+}
+
+// Breadth is the share of tracked files matched by the widest single glob
+// (not the union: twenty narrow claims are not one broad one). It is 0 when
+// tracked is empty.
+func Breadth(globs, tracked []string) float64 {
+	if len(tracked) == 0 {
+		return 0
+	}
+	n, _ := widest(globs, tracked)
+	return float64(n) / float64(len(tracked))
+}
+
+// CheckSet is the whole rule for a scope or a lease's globs: 1 to MaxGlobs
+// globs, each ValidGlob, and, when tracked is given, none matching more than
+// MaxBreadth of it. Offset in a refusal is the glob's index in the set. The
+// Hub, which holds no file list, calls it with tracked == nil (count and
+// grammar only); Fleet calls it with the integration head's tree (§6.3).
+func CheckSet(globs, tracked []string) error {
+	switch {
+	case len(globs) == 0:
+		return refuse(ErrGlob, RuleEmpty, -1)
+	case len(globs) > MaxGlobs:
+		return refuse(ErrBreadth, RuleTooMany, MaxGlobs)
+	}
+	for i, g := range globs {
+		if err := ValidGlob(g); err != nil {
+			var e *Error
+			errors.As(err, &e)
+			return &Error{Class: e.Class, Rule: e.Rule, Offset: i, Detail: e.Detail}
+		}
+	}
+	for i, g := range globs {
+		// Integer form of n/len > MaxBreadth: exactly 10% passes, and no float rounds it.
+		if n, _ := widest([]string{g}, tracked); n*10 > len(tracked) {
+			return refuse(ErrBreadth, RuleTooBroad, i)
+		}
+	}
+	return nil
+}
+```
+
+The integer test `n*10 > len(tracked)` hard-codes `MaxBreadth`'s 10%. A test cannot see that
+coupling, so the constant's comment says it, and a change to `MaxBreadth` must change this line.
+
+- [ ] **Step 7: Run the tests to green, then vet and format**
+
+```bash
+~/.claude/tools/claudezsh/claudezsh 'cd control-plane && GOPROXY=off go test -count=1 -timeout 60s ./internal/teamtext/ && GOPROXY=off go vet ./internal/teamtext/ && gofmt -l internal/teamtext/ && echo gofmt-clean'
+```
+
+Expected, exactly:
+
+```text
+ok  	github.com/kpmg-au-emu/panacea-app/control-plane/internal/teamtext	0.0XXs
+gofmt-clean
+```
+
+`-timeout 60s` is part of `TestMatchIsPolynomial`'s contract: without the memo that test does not
+fail, it hangs, and the timeout turns the hang into a failure.
+
+Then kill three mutants by hand, one at a time, each reverted before the next, to prove the tests
+bite (the house rule: a test that never failed has not been shown to test anything):
+
+1. In `hygiene.go`, change `r <= 0xe007f` to `r <= 0xe007e`. Expected: `TestCleanRefusesEachCharacterClass`
+   fails on `"x\U000E007Fy"`.
+2. In `glob.go`, change `n*10 > len(tracked)` to `n*10 >= len(tracked)`. Expected:
+   `TestCheckSet` fails with `10 of 100 refused`.
+3. In `text.go`, change `utf8.RuneCountInString(s)` in `Bound` to `len(s)`. Expected:
+   `TestBoundCountsCodePointsNotBytes` fails.
+
+- [ ] **Step 8: Commit**
+
+```bash
+~/.claude/tools/claudezsh/claudezsh 'git add control-plane/internal/teamtext && git commit -F .superpowers/sdd/team/msg/t02.txt -- control-plane/internal/teamtext'
+```
+
+Subject: `feat(teamtext): bounded text, author class, G3 hygiene, globs and breadth (Phase T task
+02)`; body: the three mutants killed by hand; last line the `Co-Authored-By` line.
+
+**What this task does not claim.**
+- **That it catches persuasive text.** A polite, well-formed message that talks an Orchestrator
+  into a bad yield passes every check here (§7.3). The taint rule (task 31) and the escalation
+  rows (task 30) are the controls for that, not this package.
+- **That the secret table is complete.** It is twelve shapes, chosen for this stack (Entra JWTs,
+  Azure keys, ADO and GitHub PATs, Anthropic and LiteLLM-style `sk-` keys). A secret in no listed
+  shape passes. The gateway's own token format is **UNVERIFIED** (phase 6 task 08 fixes it); if it
+  is not `sk-`-shaped, phase 6's delta adds a row here with its test.
+- **That invisible characters outside the named ranges are refused.** Zero-width space (U+200B),
+  zero-width joiners (U+200C, U+200D), bidi *marks* (U+200E, U+200F, U+061C) and the BOM (U+FEFF)
+  pass: G3 names overrides, isolates and the tag block, and this task implements G3 as written.
+  Widening it is a one-line change per range, each with a test, if the owner asks.
+- **That breadth is cheap.** `widest` is globs × tracked files × match. At 20 globs and 100,000
+  files that is two million matches per check; task 23 measures it against the real integration
+  head and caches the tree if it must.
+- **That `.git/**` is refused.** A glob into `.git` is valid here; Fleet's lease engine (task 23)
+  decides whether a lease on it means anything.
