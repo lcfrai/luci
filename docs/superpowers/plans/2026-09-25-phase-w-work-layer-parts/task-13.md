@@ -385,7 +385,9 @@ own event, so the events read in cause order):
 | `PATCH /v1/issues/{issueId}` setting `assigneeId` to a user | that user | `assign` | task 08's patch |
 | `POST /v1/issues/{issueId}/comments` | the commenter | `comment` | task 12's create |
 | the same, per `mentions` entry | each mentioned user | `mention` | task 12's create |
-| `POST /v1/projects/{projectId}/imports` | the person who ran the import, per new issue | `create` | task 15 |
+
+An import (task 15) subscribes **nobody**: the person who ran it moved a backlog, they did not
+write 500 issues, and subscribing them to every one would make W2's digest a flood.
 
 Each `inserted == true` appends one `subscription.set` `{issueId, subscribed: true, cause}` with
 `Subject` the subscribed user. An assign to nobody (clearing `assigneeId`) subscribes nobody and
