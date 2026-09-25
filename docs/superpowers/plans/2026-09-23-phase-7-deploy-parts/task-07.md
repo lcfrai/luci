@@ -261,7 +261,7 @@ Three words, used only in these senses in this task and in every restatement of 
    `Binding.HubProjectID == ""` → by `Binding.HubMiss` (task 06): `"not_linked"` →
    `ReleasesState "no_hub_project"`; `"key_spelling"` → `"hub_key_spelling"` (HA7-6, review I6);
    `""` → `"unavailable"`, because a configured Hub has not yet answered for this key (plan
-   re-review b05 R-4; `Releases == nil` is `"no_hub"` before this step); `entraauth.ErrSignedOut` →
+   re-review b05 R-4; `Releases == nil` is `"no_hub"` before this step); `signin.ErrSignedOut` →
    `"signed_out"`; `hubclient.ErrUnavailable` → `"unavailable"`, **keeping the previous releases**.
    A good read sets `ReleasesAt` and `ReleasesMore = page.Next != nil` (Hub contract §1 *Lists*,
    `:48-49` at 6b873d0: `limit` at most 200, `{"items","next"}`). A snapshot whose step 6 has not
