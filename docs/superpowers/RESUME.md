@@ -185,6 +185,22 @@ The team and work skeleton writers were killed by the watchdog while composing a
   and 5 (41-50). Their section files will flag the missing parts. Then re-run the cross-cutting
   review and the assembler. Launch the team build stream only after that.
 
+**Added 13:40, 2026-09-25: OD-30 (sign-in) and the env R4 re-plan.**
+- **OD-30:** sign-in goes through a Keycloak broker on Panacea's existing Entra registration, with
+  zero clicks. The IT request's Part 1 is no longer needed. Run `wf_579f2bb3-bfb`
+  (`.superpowers/workflows/identity-keycloak.js`, no args) does the work in order: facts, the ruling
+  `docs/superpowers/planning/2026-09-25-identity-keycloak-broker.md`, then edits the hub, env,
+  p6, p7 and p4 plans and the main documents, then reviews.
+  - The team and work plans get the change as findings, in `sec-90-identity.md` in their review
+    sections folder. **Both assemblers must include `sec-90`**: check after the work run finishes,
+    and put it in team's stage 2.
+  - Urgent: the hub build reaches tasks 10 and 11 (token validation) in about 5 tasks.
+  - env task 16 (`internal/entra`) is BUILT, so its rework folds into an unbuilt task.
+- **env R4 re-plan:** run `wf_bb6abd47-038` (`.superpowers/workflows/env-r4-replan.js`). A side
+  agent gated env tasks 20, 21, 24b and 25, because they were planned on the retired git design, and
+  a gated part stops the env stream. This run decides the five open items, re-plans the four parts
+  and removes the gates. It must land before the env build reaches task 20, about 12 tasks away.
+
 ## 4. After phase 2's fix rounds finish
 
 Still to do for phase 2:
