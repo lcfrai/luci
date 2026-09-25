@@ -26,7 +26,7 @@ There is no panel for anyone else's Orchestrator. ST.8 has no route that reads o
 **(a) DIVE needs three local routes and one attach route, and they take no agent id.** The
 Orchestrator is Fleet-spawned, so it is not in the laptop's registry and phase 2's
 `/v1/sessions/{id}/attach` cannot reach it (task 21 hides it from `List` on purpose,
-`task-21.md:27-35`). This task adds `control-plane/internal/api/orchestrator.go`:
+`task-21.md:24-31`). This task adds `control-plane/internal/api/orchestrator.go`:
 `POST`/`GET`/`DELETE /v1/projects/{projectId}/orchestrator/dive` and `GET
 /v1/projects/{projectId}/orchestrator/attach`. **None takes an `ag-…` from the desktop**: each
 finds the viewer's own live Orchestrator in the project's `TeamHuman` (task 52), so a crafted
@@ -62,3 +62,119 @@ reach the view at all (task 52's `conversationFrom`).
 **(f) ⌘K gets one command, on team projects only.** `buildCommands` (`palette/commands.ts:72`)
 gains `verb:ask-orchestrator`, label *"Ask my Orchestrator"*, shown only when the selected
 project's strip says `team: true`; `run()` is `openOrchestrator(projectId)`.
+
+**Files:**
+- `desktop/src/components/orchestrator/OrchestratorPanel.tsx` — the sheet: header, conversation,
+  composer, thread list, thread pane, DIVE (new)
+- `desktop/src/components/orchestrator/{Conversation,ConvLine,Composer,ThreadList,ThreadPane,
+  DivePane}.tsx`, `useOrchestrator.ts`, `diveSession.ts`, `orchestrator.css` (new)
+- `desktop/src/components/orchestrator/{OrchestratorPanel,ThreadPane,DivePane}.test.tsx` (new)
+- `desktop/src/api/orchestrator.ts`, `orchestrator.test.ts` — the DIVE client, on task 52's
+  `createTransport` (new)
+- `desktop/src/components/Terminal.tsx` — the optional `session` prop (modify, decision b)
+- `desktop/src/components/AppShell.tsx` — mounts `<OrchestratorPanel />` when
+  `orchestratorPanel !== null` (modify, one line)
+- `desktop/src/components/palette/commands.ts` — `verb:ask-orchestrator` (modify, decision f)
+- `control-plane/internal/api/orchestrator.go`, `orchestrator_test.go` — the four local routes (new)
+- `control-plane/internal/backend/fleetbe/dive.go` — `BeginDive`, `Dive`, `StopDive`,
+  `AttachAgent` (new; in task 21's package)
+
+**Interfaces:**
+- Consumes: ST.8's `OrchestratorView`, `ConvEntry`, `ThreadRow`, `ThreadView`, `ThreadMessage`,
+  `TextA`, `TextH`, `AskSubject` (task 52); `teamSlice.orchestrators`, `threads`,
+  `orchestratorPanel`, `setOrchestrator`, `setThread`, `closeOrchestrator`; `TeamClient.orchestrator`,
+  `.thread`, `.ask`; `AuthoredText` (task 53); task 40's `DiveState` and its three routes; task 39's
+  `GET /v1/agents/{ag}/attach`; phase 2's `Terminal`, `acquireAttach`, `internal/proxy`.
+- Produces: the panel; `DiveState` on the local wire (task 40's shape, unchanged).
+
+#### The local routes: `api/orchestrator.go` (complete surface)
+
+```go
+package api
+
+// DiveFleet is the slice of fleetbe these routes call.
+type DiveFleet interface {
+	BeginDive(ctx context.Context, agentID string) (turns.DiveState, error) // POST  /v1/agents/{ag}/dive
+	Dive(ctx context.Context, agentID string) (turns.DiveState, error)      // GET   /v1/agents/{ag}/dive
+	StopDive(ctx context.Context, agentID string) (turns.DiveState, error)  // DELETE /v1/agents/{ag}/dive
+	AttachAgent(ctx context.Context, agentID string) (*websocket.Conn, error) // GET /v1/agents/{ag}/attach
+}
+
+// ownOrchestrator finds the viewer's live Orchestrator in the project's
+// TeamHuman (Role orchestrator, OwnerID == viewer). ok is false when none is
+// live; the routes then answer 404 orchestrator_not_found.
+func (t *TeamReader) ownOrchestrator(ctx context.Context, projectID string) (agentID string, ok bool, err error)
+
+// registerOrchestrator adds, under the origin guard:
+//   POST   /v1/projects/{projectId}/orchestrator/dive    -> 202 DiveState
+//   GET    /v1/projects/{projectId}/orchestrator/dive    -> 200 DiveState
+//   DELETE /v1/projects/{projectId}/orchestrator/dive    -> 202 DiveState
+//   GET    /v1/projects/{projectId}/orchestrator/attach  -> 101, then phase 2's attach frames
+// Fleet's codes are relayed unchanged: 409 orchestrator_busy (with details.retry),
+// 409 agent_not_running, 404 agent_not_found. A solo project: 409 not_team_project.
+func (a *API) registerOrchestrator(mux *routes)
+```
+
+The attach route is phase 2's local attach shape with one difference: instead of dialling a
+sandbox with a stored secret (`api/attach.go:127-140`), it dials `fleetbe.AttachAgent` with the
+user's bearer and hands both sockets to `internal/proxy`, which relays the frames unchanged
+(`task-21.md:425-429`: *"the proxy relays them without knowing the backend"*). The origin check
+and the loopback-only rule of phase 2's handler apply before any Fleet call.
+
+#### `desktop/src/api/orchestrator.ts` (complete surface)
+
+```ts
+import { createTransport, type ClientOptions } from "./client";
+import type { ProjectId } from "../store/types";
+
+/** task 40's DiveState, field for field (task-40.md:324-330). since is RFC 3339. */
+export interface DiveState { active: boolean; turn?: string; since?: string; waiting: number; }
+
+export interface OrchestratorClient {
+  beginDive(projectId: ProjectId): Promise<DiveState>;
+  dive(projectId: ProjectId): Promise<DiveState>;
+  endDive(projectId: ProjectId): Promise<DiveState>;
+  /** "/v1/projects/<pid>/orchestrator/attach", for diveSession's attachPath. */
+  attachPath(projectId: ProjectId): string;
+}
+
+export function createOrchestratorClient(opts?: ClientOptions): OrchestratorClient;
+```
+
+#### Components (complete props)
+
+```tsx
+/** Mounted by AppShell while orchestratorPanel is set. A right-hand sheet over the project view,
+ *  --e-overlay elevation, closed by Esc or its close button; focus moves into the composer. */
+export function OrchestratorPanel(): JSX.Element | null;
+
+export function Conversation(props: { entries: ConvEntry[]; pending: PendingAsk[] }): JSX.Element;
+export interface PendingAsk { id: string; text: string; }
+
+/** One entry. human: "You" then the body (TextH). reply: the body (TextA) with
+ *  "Your Orchestrator (agent)", white-space pre-wrap, "(cut at 8,000 bytes)" when truncated,
+ *  and "This turn did not finish (<exit>)" when exit !== "ok". directive: decision (e). */
+export function ConvLine(props: { entry: ConvEntry }): JSX.Element;
+
+export function Composer(props: {
+  projectId: ProjectId;
+  subject: AskSubject | null;
+  onSent(p: PendingAsk): void;
+}): JSX.Element;
+
+/** "Alice · auth/session.go · round 2 of 3 · by 04:40": the other party, subjectLabel,
+ *  round of maxRounds, the deadline as a clock time in tabular-nums. A button per row. */
+export function ThreadList(props: { threads: ThreadRow[]; onOpen(id: string): void }): JSX.Element;
+
+/** Every message: sender.label, the kind as a word, typed fields as a fixed sentence, then the
+ *  text (AuthoredText inline) when present; "(removed)" when tombstoned. */
+export function ThreadPane(props: { projectId: ProjectId; threadId: string }): JSX.Element;
+
+/** Rendered only when orchestrator.canDive. Start: beginDive, then Terminal with
+ *  session={diveSession(...)}; shows "DIVE · N team events waiting" (DiveState.waiting, a
+ *  count). End: endDive; the pane stays until the next dive() reads active: false. */
+export function DivePane(props: { projectId: ProjectId; orch: { agentId: string; status: string } }): JSX.Element | null;
+
+// diveSession.ts
+export function diveSession(projectId: ProjectId, agentId: string, attachPath: string): Session;
+```
