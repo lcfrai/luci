@@ -262,6 +262,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"slices"
 	"strings"
 
@@ -366,9 +367,12 @@ var pinnedMode = map[model.Class]string{
 	model.ClassWorker: "default", model.ClassOrchestrator: "dontAsk", model.ClassMirror: "default",
 }
 
+// defaultsFS is the package's one test seam (TestI5 swaps it).
+var defaultsFS fs.FS = defaults
+
 // Default is the embedded minimal default for class, or nil for an unknown class.
 func Default(class model.Class) []byte {
-	b, err := defaults.ReadFile("defaults/" + string(class) + ".json")
+	b, err := fs.ReadFile(defaultsFS, "defaults/"+string(class)+".json")
 	if err != nil {
 		return nil
 	}
@@ -377,7 +381,7 @@ func Default(class model.Class) []byte {
 
 // GatewayFragment is the pinned copy of phase 6's fragment (S6.6).
 func GatewayFragment() []byte {
-	b, _ := defaults.ReadFile("defaults/gateway.json")
+	b, _ := fs.ReadFile(defaultsFS, "defaults/gateway.json")
 	return b
 }
 
@@ -650,3 +654,126 @@ Phase 6's plan row says `"300000"` for the TTL (`phase-6-gateway.md:248`) and it
 `"120000"`; the part is the later text and is what this copy follows. `TestGatewayCopyIsPinned`
 settles it against the image's real file once phase 6 merges: whichever value is there, the copy
 must equal it.
+
+- [ ] **Step 1: Write the failing tests**
+
+`control-plane/internal/policy/policy_test.go`, package `policy`. Every invariant test builds one
+layer that tries to break it and asserts `errors.As(err, &ie)` with `ie.Invariant` equal to the
+id, `ie.Scope` equal to the layer's scope and `ie.Class` equal to the class rendered — the error
+must **name** what broke, or an admin cannot fix their layer. A helper `layer(t, scope, json)`
+returns a `Layer`; `render(t, class, org, project)` calls `Render` with the pinned fragment.
+
+| Test | The layer (or input) | Expected | The mutant it kills |
+|---|---|---|---|
+| `TestI1ADenyCannotRemoveThePanaceaRule` | project `{"v":1,"all":{"permissions":{"deny":["Bash(panacea *)"]}}}` | I10, project, worker | the skeleton's own example: a project layer that removes `Bash(panacea *)`; with arrays combining, this deny is the only way to try |
+| `TestI1IsPresentInEveryAgentClass` | none | the worker and orchestrator files contain `Bash(panacea *)` in `permissions.allow` | a default file edited to drop it (I1 would then fail at `ScopeGateway`) |
+| `TestI2AKeyHelperCannotBeReplaced` | org `{"v":1,"all":{"apiKeyHelper":"/bin/echo sk-ant"}}` | I2, org | scalar replacement letting a static key in |
+| `TestI2TheMirrorHasNoKeyHelper` | org `{"v":1,"mirror":{"apiKeyHelper":"/usr/local/bin/panacea token"}}` | I2, org, mirror | the gateway fragment merged into the mirror |
+| `TestI3AndI4CannotBeTurnedOff` | org `{"v":1,"all":{"allowManagedHooksOnly":false}}`; then `…PermissionRulesOnly":false` | I3; I4 | a boolean invariant checked for presence, not value |
+| `TestI5TheWorkerKeepsItsCheckHook` | `defaultsFS` swapped for an `fstest.MapFS` whose `worker.json` runs `panacea check` without `--hook` | I5, gateway | the hook dropped from `worker.json`, or task 18's `--hook` spelling lost |
+| `TestI6NonessentialTrafficStaysOff` | project `{"v":1,"all":{"env":{"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC":"0"}}}` | I6, project | `env` merged by replacement of the whole block, or the value not checked |
+| `TestI7TheModeIsPinned` | org `{"v":1,"worker":{"permissions":{"defaultMode":"bypassPermissions"}}}` | I7, org, worker | a later layer's scalar winning over the pin |
+| `TestI8TheOrchestratorGetsNoOtherTool` | org `{"v":1,"all":{"permissions":{"allow":["Bash(npm test)"]}}}` | the **worker** renders; the **orchestrator** fails I8 | one invariant list for every class |
+| `TestI8TheOrchestratorGetsNoAskRule` | org `{"v":1,"orchestrator":{"permissions":{"ask":["Read"]}}}` | I8 | a headless turn that can stall on a prompt |
+| `TestI9ForceLoginIsRefused` | org `{"v":1,"all":{"forceLoginMethod":"console"}}`; then `forceLoginOrgUUID` | I9 twice | the key that blocks `apiKeyHelper` at startup (`phase-6 …/task-14.md:10`) |
+| `TestI10RuleFormsThatBlockTheChannel` | deny `Bash`, `Bash(*)`, `Bash(pan:*)`, `Bash(panacea check*)`, `Bash(*token)` each → I10; deny `Bash(rm:*)`, `Bash(curl *)`, `Read(./.env)` each → renders | as listed | a matcher that knows only the exact string |
+| `TestI11HooksCannotBeDisabled` | org `{"v":1,"all":{"disableAllHooks":true}}` | I11 | the check hook silently switched off |
+| `TestI12PlatformEnvIsRefused` | one render per key of I12 in a project `env` | I12, project, naming the key | a layer overriding the gateway route or TTL, or planting a key that outranks the helper |
+| `TestALayerMayAddAndTighten` | org: `permissions.deny ["Bash(curl *)"]`, `ask ["Bash(git push:*)"]`, `env {"FOO":"1"}` for `worker` | renders; the file has both rules, `FOO`, and every invariant | an over-eager check refusing a legitimate tightening |
+| `TestTheProjectLayerComesAfterTheOrg` | org `env {"X":"org"}`, project `env {"X":"project"}` | `X` is `project` | the layer order reversed |
+| `TestNullIsRefusedWithItsPath` | org `{"v":1,"all":{"permissions":{"deny":null}}}` | `ErrLayer`, message contains `$.all.permissions.deny` | null treated as "delete" |
+| `TestTheEnvelopeIsStrict` | `{"all":{}}` (no `v`), `{"v":2}`, `{"v":1,"workers":{}}`, `[]`, 64 KiB + 1 | each `ErrLayer` | an org typo silently ignored |
+| `TestRenderingIsDeterministic` | the same layers rendered 100 times, with the layer's keys written in two different orders | one digest | map iteration order leaking into the bytes |
+| `TestTheFileIsCanonical` | render, then `decode` and `canonical` the output | byte-equal; ends with exactly one `\n`; no `<` for a rule containing `<` | indentation, HTML escaping, or a second newline |
+| `TestTheDigestIsOfTheFile` | `Digest(file)` equals the returned digest and matches `^sha256:[0-9a-f]{64}$` | as stated | a digest of the layers instead of the bytes Claude Code reads |
+| `TestTheMinimalDefaultsAreOnlyTheInvariants` | each default parsed; its keys | exactly the keys the table requires for the class, nothing more | a drafted rule creeping into a default (OD-23) |
+| `TestGatewayCopyIsPinned` | reads `../../../images/sandbox/managed-settings.gateway.json` | byte-equal to `defaults/gateway.json`; if the file does not exist yet, `t.Skip("P6-14 not merged: …")` | the copy drifting from the image |
+| `TestMergeNeverMutatesALayer` | merge a layer twice into two bases | the layer's parsed value is unchanged, deep-equal before and after | aliasing an array between layers |
+
+**`TestI5`'s seam.** No layer can remove the hook (arrays combine), so I5 can only fail through a
+bad default. The test swaps the embedded FS for one with an edited `worker.json` through an
+unexported `var defaultsFS fs.FS = defaults` that `Default` reads; it is the only test seam in the
+package.
+
+Two tests, complete, because they carry the task's two claims — a layer cannot remove the channel,
+and a per-class rule does not leak across classes:
+
+```go
+func TestI1ADenyCannotRemoveThePanaceaRule(t *testing.T) {
+	proj := Layer{Scope: ScopeProject, Version: "pv-0000000000000001",
+		Doc: []byte(`{"v":1,"all":{"permissions":{"deny":["Bash(panacea *)"]}}}`)}
+	for _, class := range []model.Class{model.ClassWorker, model.ClassOrchestrator} {
+		_, _, err := Render(Layers{Project: proj}, class)
+		var ie *InvariantError
+		if !errors.As(err, &ie) {
+			t.Fatalf("%s: Render = %v; want an *InvariantError", class, err)
+		}
+		if ie.Invariant != "I10" || ie.Scope != ScopeProject || ie.Class != class {
+			t.Fatalf("%s: got %s/%s/%s; want I10/project/%s", class, ie.Invariant, ie.Scope, ie.Class, class)
+		}
+		if !strings.Contains(ie.Error(), "Bash(panacea *)") {
+			t.Fatalf("the error %q does not name the rule an admin must remove", ie.Error())
+		}
+	}
+}
+
+func TestI8TheOrchestratorGetsNoOtherTool(t *testing.T) {
+	org := Layer{Scope: ScopeOrg, Version: "pv-0000000000000002",
+		Doc: []byte(`{"v":1,"all":{"permissions":{"allow":["Bash(npm test)"]}}}`)}
+	file, _, err := Render(Layers{Org: org}, model.ClassWorker)
+	if err != nil {
+		t.Fatalf("worker: %v; an org may add an allow rule for its workers", err)
+	}
+	if !bytes.Contains(file, []byte(`"Bash(npm test)"`)) || !bytes.Contains(file, []byte(`"Bash(panacea *)"`)) {
+		t.Fatalf("worker file lacks a rule: %s", file)
+	}
+	_, _, err = Render(Layers{Org: org}, model.ClassOrchestrator)
+	var ie *InvariantError
+	if !errors.As(err, &ie) || ie.Invariant != "I8" || ie.Class != model.ClassOrchestrator {
+		t.Fatalf("orchestrator: Render = %v; want I8 for the orchestrator class", err)
+	}
+	// The per-class way to say the same thing renders for both classes.
+	scoped := Layer{Scope: ScopeOrg, Doc: []byte(`{"v":1,"worker":{"permissions":{"allow":["Bash(npm test)"]}}}`)}
+	if _, _, err := Render(Layers{Org: scoped}, model.ClassOrchestrator); err != nil {
+		t.Fatalf("a worker-only section reached the orchestrator: %v", err)
+	}
+}
+```
+
+Run: `cd control-plane && go test ./internal/policy/ -count=1`. Expected before step 2: `undefined:
+Render` and the other names.
+
+- [ ] **Step 2: Write `digest.go`, `merge.go`, `policy.go` and the four `defaults/*.json`** as
+  above, then run step 1's command. Expected: `ok`, with `TestGatewayCopyIsPinned` skipped until
+  phase 6 merges (`-v` shows the skip and its message naming P6-14). Commit:
+  `feat(policy): OD-23's layers, merge, class invariants and digest; minimal defaults only`.
+
+- [ ] **Step 3: Acceptance**
+
+```
+cd control-plane
+go vet ./internal/policy/
+go test ./internal/policy/ -count=1 -v 2>&1 | grep -E "^(--- FAIL|--- SKIP|ok|FAIL)"
+go test ./internal/policy/ -run 'TestI[0-9]+' -count=1 -v 2>&1 | grep -c "^--- PASS"
+```
+
+Expected: `go vet` silent; `ok` and at most one `--- SKIP` (the pin, before phase 6 merges; none
+after, and task 33 requires none); the invariant tests count **at least 12**, one or more per id.
+After phase 6 merges, re-run: the pin must pass, and if the TTL differs, change `gateway.json`,
+never the test.
+
+**What this task does not claim.**
+- That Claude Code honours any of it. Where the file is read, whether `dontAsk` is accepted, whether
+  `env` in a managed file can be overridden, and whether `allowManagedHooksOnly` is enforced at the
+  pinned CLI version are all **UNVERIFIED** here and are task 33's `/status` checks on the real
+  cluster.
+- That the defaults are a policy. They are OD-23's minimal default: what the product needs to
+  function, and nothing an InfoSec reviewer would call a control set. `disableBypassPermissionsMode`,
+  the tenant's 144 allow and 49 ask rules, and any deny list are for the org layer, by a human,
+  through task 14's route.
+- That I10's matcher is Claude Code's. It is a conservative approximation of the documented rule
+  forms (exact, `prefix:*`, `*`); a rule form it does not know is not refused, and one it refuses
+  may be one Claude Code would not match.
+- That the gateway copy is current before phase 6 merges; the pin test proves it after.
+- Storage, versions, routes and audit are task 14's; delivery into a pod and the digest check are
+  task 15's.
