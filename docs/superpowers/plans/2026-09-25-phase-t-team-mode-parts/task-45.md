@@ -501,4 +501,77 @@ resource "azurerm_monitor_data_collection_rule" "hub_audit" {
   }
   depends_on = [azapi_resource.hub_table]
 }
+
+resource "azurerm_sentinel_log_analytics_workspace_onboarding" "this" {
+  workspace_id = azurerm_log_analytics_workspace.this.id
+}
+
+# An org that anchored in the last day and not in the last two hours. A Hub
+# that stops anchoring is the one change a rewrite of history needs.
+resource "azurerm_sentinel_alert_rule_scheduled" "hub_anchor_missing" {
+  name                       = "hub-audit-anchor-missing"
+  log_analytics_workspace_id = azurerm_sentinel_log_analytics_workspace_onboarding.this.workspace_id
+  display_name               = "Panacea Hub: audit chain head not anchored for 2 hours"
+  severity                   = "High"
+  query_frequency            = "PT1H"
+  query_period               = "P1D"
+  trigger_operator           = "GreaterThan"
+  trigger_threshold          = 0
+  query                      = <<-KQL
+    PanaceaHubAuditAnchor_CL
+    | where TimeGenerated > ago(1d)
+    | summarize last = max(TimeGenerated) by OrgId
+    | where last < ago(2h)
+  KQL
+}
+
+output "workspace_customer_id" { value = azurerm_log_analytics_workspace.this.workspace_id }
+output "hub_audit_dce_endpoint" { value = azurerm_monitor_data_collection_endpoint.hub_audit.logs_ingestion_endpoint }
+output "hub_audit_dcr_id" { value = azurerm_monitor_data_collection_rule.hub_audit.id }
+output "hub_audit_dcr_immutable_id" { value = azurerm_monitor_data_collection_rule.hub_audit.immutable_id }
 ```
+
+`versions.tf` gains `azapi = { source = "Azure/azapi", version = "2.5.0" }` (the version is
+**UNVERIFIED**: pin the one `terraform init` resolves on the day, then record it in the lock file).
+
+`stacks/workloads/main.tf` (phase 8 task 10), `module "hub"`'s `role_assignments` gain:
+
+```hcl
+    { role = "Monitoring Metrics Publisher", scope = data.terraform_remote_state.foundation.outputs.hub_audit_dcr_id },
+    { role = "Log Analytics Reader", scope = data.terraform_remote_state.foundation.outputs.log_analytics_workspace_id },
+```
+
+Where `modules/observability` is instantiated (the foundation stack, per phase 8's layout,
+**UNVERIFIED until merge**) re-exports the four outputs above, and `log_analytics_workspace_id` if
+it does not already.
+
+```hcl
+# infra/terraform/modules/observability/tests/hubaudit.tftest.hcl (mock azurerm and azapi)
+run "two_tables_two_streams" {
+  command = plan
+  assert {
+    condition     = length(azurerm_monitor_data_collection_rule.hub_audit.data_flow) == 2
+    error_message = "the Hub's audit rule needs exactly the event and anchor flows"
+  }
+}
+run "no_text_column" {
+  command = plan
+  assert {
+    condition     = alltrue([for c in local.hub_audit_columns : !contains(["Canonical", "Data", "Body", "Text"], c.name)])
+    error_message = "the audit table must not have a column that could hold an event's text"
+  }
+}
+run "sentinel_rule_reads_anchors" {
+  command = plan
+  assert {
+    condition     = strcontains(azurerm_sentinel_alert_rule_scheduled.hub_anchor_missing.query, "PanaceaHubAuditAnchor_CL")
+    error_message = "the missing-anchor rule must read the anchor table"
+  }
+}
+```
+
+`stacks/workloads/tests/workloads.tftest.hcl` gains `hub_roles_are_send_and_read`: the set of
+`role` values planned for `module.hub` equals exactly `["Monitoring Metrics Publisher", "Log
+Analytics Reader"]` plus whatever task 10 already assigns it (with `hub_key_vault_access` false:
+none), so `Log Analytics Contributor`, `Data Purger` or `Monitoring Contributor` on the Hub fails
+the plan. `role-allowlist.txt` gains the two role names.
