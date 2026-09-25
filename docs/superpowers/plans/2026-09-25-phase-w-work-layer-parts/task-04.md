@@ -1049,3 +1049,99 @@ records that do not yet cover every criterion) records its citations and appends
 because the head does not change; whether the Hub audits a citation-only write is task 10's to
 say (UNVERIFIED: its part names no event for it), and a conformance row of task 05 pins what
 both do.
+
+#### `fake_work_stub.go`, complete
+
+```go
+package hubclient
+
+import (
+	"context"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubapi"
+)
+
+// Part 2 of the fake's Work rules, as placeholders. Task 05 deletes this file
+// whole and gives every hook and method below its rule in fake_work_social.go
+// and fake_work_intake.go; no line of fake_work.go changes when it does.
+
+// The four hooks part 1 calls, at their part-1 bodies.
+func (w *fakeWorld) checkIssueLabels(_, field string, labels []string) error {
+	if len(labels) > 0 { // task 08's decision 8 until team labels exist
+		return badRequest(field, "Labels arrive with team labels (Phase W task 05).")
+	}
+	return nil
+}
+func (w *fakeWorld) defaultState(string) hubapi.IssueState                  { return hubapi.StateTriage }
+func (w *fakeWorld) stopAtLanded(string) bool                               { return false }
+func (w *fakeWorld) subscribeOn(*fakeIssue, string, hubapi.SubscriptionCause) {}
+
+// workNotInFakeYet is fake.go's notInFakeYet, kept here because H05 deletes that
+// one (decision (d)): logged and switched like any call, then 501.
+func (f *Fake) workNotInFakeYet(method string, args ...any) error {
+	f.w.mu.Lock()
+	defer f.w.mu.Unlock()
+	if _, err := f.enter(method, args...); err != nil {
+		return err
+	}
+	return problem(501, "not_in_fake_yet", "The fake Hub does not answer "+method+" until Phase W task 05.")
+}
+
+func (f *Fake) AddRelation(_ context.Context, issueID string, req hubapi.RelationRequest) (hubapi.IssueHead, error) {
+	return hubapi.IssueHead{}, f.workNotInFakeYet("AddRelation", issueID, req)
+}
+func (f *Fake) RemoveRelation(_ context.Context, issueID string, kind hubapi.RelationKind, otherID string) (hubapi.IssueHead, error) {
+	return hubapi.IssueHead{}, f.workNotInFakeYet("RemoveRelation", issueID, string(kind), otherID)
+}
+func (f *Fake) Labels(_ context.Context, teamID string) ([]hubapi.Label, error) {
+	return nil, f.workNotInFakeYet("Labels", teamID)
+}
+func (f *Fake) CreateLabel(_ context.Context, teamID string, req hubapi.CreateLabelRequest) (hubapi.Label, error) {
+	return hubapi.Label{}, f.workNotInFakeYet("CreateLabel", teamID, req)
+}
+func (f *Fake) ArchiveLabel(_ context.Context, labelID string) (hubapi.Label, error) {
+	return hubapi.Label{}, f.workNotInFakeYet("ArchiveLabel", labelID)
+}
+func (f *Fake) TeamPolicy(_ context.Context, teamID string) (hubapi.TeamPolicy, error) {
+	return hubapi.TeamPolicy{}, f.workNotInFakeYet("TeamPolicy", teamID)
+}
+func (f *Fake) PutTeamPolicy(_ context.Context, teamID string, req hubapi.PutTeamPolicyRequest) (hubapi.TeamPolicy, error) {
+	return hubapi.TeamPolicy{}, f.workNotInFakeYet("PutTeamPolicy", teamID, req)
+}
+func (f *Fake) Comments(_ context.Context, issueID string, page hubapi.PageRequest) (hubapi.Page[hubapi.Comment], error) {
+	return hubapi.Page[hubapi.Comment]{}, f.workNotInFakeYet("Comments", issueID, page)
+}
+func (f *Fake) CreateComment(_ context.Context, issueID string, req hubapi.CreateCommentRequest) (hubapi.Comment, error) {
+	return hubapi.Comment{}, f.workNotInFakeYet("CreateComment", issueID, req)
+}
+func (f *Fake) React(_ context.Context, commentID string, req hubapi.ReactRequest) (hubapi.Comment, error) {
+	return hubapi.Comment{}, f.workNotInFakeYet("React", commentID, req)
+}
+func (f *Fake) ResolveComment(_ context.Context, commentID string, req hubapi.ResolveRequest) (hubapi.Comment, error) {
+	return hubapi.Comment{}, f.workNotInFakeYet("ResolveComment", commentID, req)
+}
+func (f *Fake) Subscribe(_ context.Context, issueID string, req hubapi.SubscribeRequest) (hubapi.Subscription, error) {
+	return hubapi.Subscription{}, f.workNotInFakeYet("Subscribe", issueID, req)
+}
+func (f *Fake) Subscriptions(_ context.Context, page hubapi.PageRequest) (hubapi.Page[hubapi.Subscription], error) {
+	return hubapi.Page[hubapi.Subscription]{}, f.workNotInFakeYet("Subscriptions", page)
+}
+func (f *Fake) SearchIssues(_ context.Context, q hubapi.IssueSearchQuery) ([]hubapi.IssueHead, error) {
+	return nil, f.workNotInFakeYet("SearchIssues", q)
+}
+func (f *Fake) ImportBatch(_ context.Context, projectID string, batch hubapi.ImportBatch) (hubapi.ImportResult, error) {
+	return hubapi.ImportResult{}, f.workNotInFakeYet("ImportBatch", projectID, batch)
+}
+func (f *Fake) AttachBlob(_ context.Context, issueID string, req hubapi.AttachRequest) (hubapi.IssueAttachment, error) {
+	return hubapi.IssueAttachment{}, f.workNotInFakeYet("AttachBlob", issueID, req)
+}
+func (f *Fake) Attachments(_ context.Context, issueID string) ([]hubapi.IssueAttachment, error) {
+	return nil, f.workNotInFakeYet("Attachments", issueID)
+}
+func (f *Fake) EraseIssue(_ context.Context, issueID string, req hubapi.EraseRequest) (hubapi.WorkEraseResponse, error) {
+	return hubapi.WorkEraseResponse{}, f.workNotInFakeYet("EraseIssue", issueID, req)
+}
+func (f *Fake) EraseComment(_ context.Context, commentID string, req hubapi.EraseRequest) (hubapi.WorkEraseResponse, error) {
+	return hubapi.WorkEraseResponse{}, f.workNotInFakeYet("EraseComment", commentID, req)
+}
+```
