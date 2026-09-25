@@ -759,3 +759,73 @@ them, the form task 46 uses (`task-46.md:205`), so a column added to `escalation
 without an edit here. The mutable team records (delegations, tasks, agents, conflicts, threads,
 team policy) are held by column grants alone, as Hub task 07a holds `teams` and `projects`; their
 state machines are Go's, returning 409 `team_state` (task 03's codes).
+
+**Piece 10, row-level security, the grants and Fleet's two lookups.**
+
+```sql
+-- ── row-level security: 0001's policy, verbatim, on every team table ─────────
+DO $$
+DECLARE t text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY['delegations', 'agents', 'human_messages', 'team_tasks',
+      'lease_events', 'threads', 'conflicts', 'messages', 'escalations', 'directives', 'notes',
+      'team_policies'] LOOP
+    EXECUTE format('ALTER TABLE hub.%I ENABLE ROW LEVEL SECURITY', t);
+    EXECUTE format('CREATE POLICY org_isolation ON hub.%I TO hub_app
+                    USING (org_id = current_setting(''hub.org_id'', true))
+                    WITH CHECK (org_id = current_setting(''hub.org_id'', true))', t);
+  END LOOP;
+END $$;
+
+-- ── grants: exactly these. 0001's GRANT SELECT ON ALL TABLES covered only the tables
+-- ── that existed then, and there are no default privileges.
+GRANT SELECT ON delegations, agents, human_messages, team_tasks, lease_events, threads,
+                conflicts, messages, escalations, directives, notes, team_policies,
+                team_event_kinds TO hub_app;
+GRANT INSERT ON delegations, agents, human_messages, team_tasks, lease_events, threads,
+                conflicts, messages, escalations, directives, notes, team_policies TO hub_app;
+GRANT UPDATE (expires_at, renewed_at, revoked_at, revoked_reason)     ON delegations   TO hub_app;
+GRANT UPDATE (ended_at, exit_class)                                   ON agents        TO hub_app;
+GRANT UPDATE (state, scope, why_body, why_author, why_agent, revision, updated_at)
+                                                                      ON team_tasks    TO hub_app;
+GRANT UPDATE (state, resolution, thread_id, revision, updated_at)     ON conflicts     TO hub_app;
+GRANT UPDATE (state, rounds, revision)                                ON threads       TO hub_app;
+GRANT UPDATE (answer_choice, answer_body, answer_author, answered_at) ON escalations   TO hub_app;
+GRANT UPDATE (route, member_daily_cents, project_daily_cents, orchestrator_turns_per_hour,
+              escalation_floors, per_pair_per_hour, rounds_per_side, thread_deadline_minutes,
+              revision, updated_at)                                   ON team_policies TO hub_app;
+GRANT UPDATE (mode)                                                   ON projects      TO hub_app;
+-- No UPDATE or DELETE on lease_events, messages, directives, human_messages, notes or
+-- team_event_kinds; no DELETE on any team table. Erasure is task 46's owner functions.
+
+-- ── Fleet's two lookups (decision g; ADR-H1 §5.10 rules 6 and 7) ─────────────
+-- The org Fleet's token tenant is enrolled as, or NULL.
+CREATE FUNCTION fleet_org(p_tenant uuid) RETURNS text
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = hub, pg_temp AS $$
+  SELECT o.id FROM hub.orgs o WHERE o.entra_tenant_id = p_tenant
+$$;
+
+-- The named delegation, only when its org is the tenant's. No row for an unknown id and none
+-- for another org's: the caller answers both 401 delegation_revoked, reason "unknown", so
+-- Fleet cannot probe for ids (task 01 §4.2). Expiry and revocation are returned, not
+-- filtered, so the caller can say which of the two it is.
+CREATE FUNCTION fleet_delegation(p_tenant uuid, p_id text)
+RETURNS TABLE (org_id text, owner_user_id text, project_id text, class hub.delegation_class,
+               routes text[], expires_at timestamptz, revoked_at timestamptz,
+               revoked_reason hub.revoke_reason)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = hub, pg_temp AS $$
+  SELECT d.org_id, d.owner_user_id, d.project_id, d.class, d.routes, d.expires_at,
+         d.revoked_at, d.revoked_reason
+    FROM hub.delegations d
+    JOIN hub.orgs o ON o.id = d.org_id AND o.entra_tenant_id = p_tenant
+   WHERE d.id = p_id
+$$;
+
+REVOKE ALL ON FUNCTION fleet_org(uuid), fleet_delegation(uuid, text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION fleet_org(uuid), fleet_delegation(uuid, text) TO hub_app;
+```
+
+The functions run as `hub_owner`, which row-level security does not bind (`ENABLE`d, never
+`FORCE`d, `task-07a.md:465-470`); the tenant join is their only tenancy check, and
+`TestFleetLookupsStayInTheTenant` is what proves it. `STABLE`, not `VOLATILE`: they read and
+never write.
