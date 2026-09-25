@@ -70,7 +70,7 @@ list. Task 40 promotes what the owner kept into `components/work/` and deletes t
 - `desktop/src/prototype/work/Rows.tsx` — the row and the group, shared by both screens (new)
 - `desktop/src/prototype/work/Launcher.tsx` — the toolbar's *Open the Work prototype* (new)
 - `desktop/src/prototype/work/prototype.css` — owns `.pw-*` (new)
-- `desktop/src/prototype/work/prototype.test.tsx` — eight tests (new)
+- `desktop/src/prototype/work/prototype.test.tsx` — ten tests (new)
 - `desktop/src/lib/flags.ts` ⚑ (task 32) — `prototype: "off" | "on"` (modified)
 - `desktop/src/components/devtools/DevToolbar.tsx` ⚑ (task 32) — mounts `Launcher` (modified)
 - `desktop/src/components/AppShell.tsx` ⚑ — `LensRouter` gains its `"work"` arm (modified)
@@ -586,7 +586,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { resetFlags } from "../../lib/flags";
 import { resetCockpit } from "../../store/store";
 import { expectNoPrediction } from "../../test/expectNoPrediction";
-import { WORK_IDS } from "../../test/workFixtures";
+import { WORK_IDS, workScenario } from "../../test/workFixtures";
 import { PlanPrototype } from "./PlanPrototype";
 import { WorkScreen } from "./WorkPrototype";
 
@@ -611,11 +611,12 @@ it("groups by criterion, not by state", () => {
   const { container } = render(<WorkScreen />);
   expect(groups(container).map((g) => g.dataset.criterion))
     .toEqual([WORK_IDS.criterionResume, WORK_IDS.criterionUpload, "none"]);
-  const states = ids(groups(container)[0]).map((id) => row(container, id!).querySelector("[data-glyph]")!.getAttribute("data-glyph"));
+  // The StateGlyph is .pw-ir's own svg child; the selected mark sits inside .pw-sel.
+  const states = ids(groups(container)[0]).map((id) => row(container, id!).querySelector(".pw-ir > svg")!.getAttribute("data-glyph"));
   expect(new Set(states).size).toBeGreaterThan(1);                 // one group, several states
 });
 
-// Kills sorting the groups by title ("Serves…" sorts before "Uploads…" and "upload…").
+// Kills sorting the groups by title ("Serves…" sorts before "the resume…" and "upload…").
 it("puts Serves no criterion last", () => {
   const { container } = render(<WorkScreen />);
   const last = groups(container).at(-1)!;
@@ -651,4 +652,65 @@ it("prints no count outside a group header", () => {
   expect(groups(container)[0].querySelector(".pw-gs")!.textContent).toBe("5 issues · 1 moving");
 });
 ```
+
+```tsx
+// Kills lit drawn as selection (a ring or aria-selected on the lit row), and selection lighting a line.
+it("shows lit and selected apart", () => {
+  const { container } = render(<WorkScreen />);
+  const selected = [...container.querySelectorAll('[aria-selected="true"]')].map((r) => r.getAttribute("data-issue"));
+  expect(selected).toEqual([WORK_IDS.ep167, WORK_IDS.ep150, WORK_IDS.ep161]);
+  for (const id of selected) expect(row(container, id!).querySelector(".pw-sel svg")).not.toBeNull();
+  const lit = row(container, WORK_IDS.ep164);
+  expect(document.activeElement).toBe(lit);                         // the cursor row has focus
+  expect(lit.getAttribute("aria-selected")).toBe("false");
+  expect(lit.querySelector(".pw-sel svg")).toBeNull();
+  const [first, second] = groups(container);
+  expect(second.querySelector<HTMLElement>(".thr-line")!.dataset.lit).toBe("true");
+  expect(first.querySelector<HTMLElement>(".thr-line")!.dataset.lit).not.toBe("true");
+});
+
+// Kills a re-sort on arrival of the change (the row jumping), and a change with no cause line.
+it("holds a replayed land in place until applied", () => {
+  const { container } = render(<WorkScreen />);
+  const before = ids(groups(container)[0]);
+  fireEvent.click(screen.getByRole("button", { name: "Replay a land" }));
+  expect(ids(groups(container)[0])).toEqual(before);
+  const moved = row(container, WORK_IDS.ep150);
+  expect(moved.dataset.changed).toBe("unseen");
+  expect(moved.querySelector(".pw-ir > svg")!.getAttribute("data-glyph")).toBe("landed");
+  expect(moved.querySelector(".pw-cause")!.textContent).toBe("→ landed · land commit 4f1c2e9 · 14:05");
+  expect(groups(container)[0].querySelector(".pw-gs")!.textContent).toBe("5 issues · 2 moving");
+  expect(container.querySelector(".pw-ghostrow")!.textContent).toBe("EP-168 left this view · cancelledN applies");
+  fireEvent.click(screen.getByRole("button", { name: "Apply held changes" }));
+  expect(ids(groups(container)[0]).slice(-2)).toEqual([WORK_IDS.ep150, WORK_IDS.ep162].sort(
+    (a, b) => before.indexOf(a) - before.indexOf(b)));
+  expect(groups(container)[0].querySelector(".pw-gs")!.textContent).toBe("5 issues");
+  expect(container.querySelector(".pw-ghostrow")).toBeNull();
+});
+
+// Kills Plan drawn as Work (a missing band, or bands in another order) and cycles or views in W1.
+it("draws Plan as Triage, Backlog, the criteria, then My issues", () => {
+  const { container } = render(<PlanPrototype />);
+  const [resume, upload] = workScenario().criteria;
+  expect(groups(container).map((g) => g.getAttribute("aria-label")))
+    .toEqual(["Triage", "Backlog", resume.text, upload.text, "My issues"]);
+  expect(container.textContent).not.toMatch(/cycle|saved view/i);
+});
+
+// Kills shipping the prototype: an ungated lazy() or registration emits it into a production build.
+it("does not exist in production", async () => {
+  vi.stubEnv("DEV", false);
+  vi.resetModules();
+  const mount = await import("./mount");
+  expect(mount.WorkPrototype).toBeNull();
+});
+```
+
+The Plan test imports `workScenario` beside `WORK_IDS`; the criteria's words are task 20's
+(`the resume test passes`, `task-20.md:227`; `upload works for PDF, XLSX and images`, `:300`), read
+from the scenario so a fixture edit cannot silently pass. `vi.stubEnv` with a boolean for `DEV` is **UNVERIFIED** against vitest 5.0.1
+(`desktop/package.json:35`); if it rejects a boolean, the test reads `mount.ts` as text through
+`?raw` and asserts both uses of `lazy`/`import(` sit under `import.meta.env.DEV`, and the build
+grep in Acceptance carries the claim. The ghost row's text has no space between its two spans,
+which is why the assertion reads `cancelledN applies`.
 
