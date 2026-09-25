@@ -55,9 +55,10 @@ confirms it** (gap 3).
 - `control-plane/internal/api/lands.go` (phase 3 task 09's handler): the new refusal's row;
   `GET …/land-review` (modify / new)
 - `control-plane/internal/hub/server/landapprovals.go` + `landapprovals_integration_test.go`,
-  `store/landapprovals.go`, `migrate/sql/00NN_land_approvals.sql`: routes 84, 85 (new; Hub delta)
-- `control-plane/internal/hub/hubapi/team.go` (task 03): `LandApproval`,
-  `CreateLandApprovalRequest`, `PrefixLandApproval = "la"`, `CodeLandApprovalRequired` (modify)
+  `store/landapprovals.go`, `migrate/sql/00NN_land_approvals.sql`: routes 84 to 86 (new; Hub delta)
+- `control-plane/internal/hub/hubapi/team.go`, `keys.go`, `codes.go` (task 03): `LandApproval`,
+  `CreateLandApprovalRequest`, `PrefixLandApproval = "la"`, `CodeLandApprovalNotFound`, the route
+  name `land_approvals.read` in the orchestrator class set (modify)
 - `control-plane/internal/hub/hubclient/*` (task 08): `CreateLandApproval`, `ListLandApprovals`
   and the fake's half (modify)
 - `desktop/src/components/lens/merge/TeamLandReview.tsx` + test, and `LaneCard.tsx` (phase 3
@@ -202,3 +203,78 @@ func ReviewFor(ctx context.Context, src ReviewSources, projectPath, branchTip, l
 `GET /v1/projects/{projectId}/branches/{branchId}/lands/{worktreeId}/review` on the local control
 plane answers `TeamReview` (every list `[]`, never `null`, phase 3's rule, `task-09.md:65-70`); for a
 solo project, `404 not_a_team_project`, and the lens does not ask.
+
+#### The migration
+
+```sql
+-- control-plane/internal/hub/migrate/sql/00NN_land_approvals.sql  (after task 46's)
+SET search_path = hub, pg_temp;
+CREATE TABLE land_approvals (
+  org_id           text NOT NULL,
+  id               text NOT NULL CHECK (id ~ '^la-[0-9a-z]{16}$'),
+  project_id       text NOT NULL,
+  agent_id         text NOT NULL CHECK (agent_id ~ '^ag-'),
+  owner_user_id    text NOT NULL,
+  base_sha         text NOT NULL CHECK (base_sha ~ '^([0-9a-f]{40}|[0-9a-f]{64})$'),
+  lane_tip         text NOT NULL CHECK (lane_tip ~ '^([0-9a-f]{40}|[0-9a-f]{64})$'),
+  paths            text[] NOT NULL CHECK (cardinality(paths) BETWEEN 1 AND 50),
+  approver_user_id text NULL CHECK (approver_user_id IS NULL OR approver_user_id <> owner_user_id),
+  approved_at      timestamptz NULL CHECK ((approver_user_id IS NULL) = (approved_at IS NULL)),
+  created_at       timestamptz NOT NULL,
+  PRIMARY KEY (org_id, id),
+  FOREIGN KEY (org_id, project_id) REFERENCES projects (org_id, id)
+);
+ALTER TABLE land_approvals ENABLE ROW LEVEL SECURITY;
+CREATE POLICY land_approvals_org ON land_approvals
+  USING (org_id = current_setting('hub.org_id', true))
+  WITH CHECK (org_id = current_setting('hub.org_id', true));
+GRANT SELECT, INSERT ON land_approvals TO hub_app;
+GRANT UPDATE (approver_user_id, approved_at) ON land_approvals TO hub_app;
+```
+
+The `CHECK` that the approver is not the owner is the database's copy of route 85's rule, so a
+handler bug still cannot write Alice's approval of Alice. The id pattern, the composite foreign
+key and the RLS policy follow the Hub's own tables (Hub task 07a/07b, review I5; **UNVERIFIED**
+until merge that `projects` is keyed `(org_id, id)` and that ids are 16 lowercase base-36
+characters: take both from the merged `0001_init.sql`).
+
+#### The approver's diff
+
+An approver must see what she approves. In TM1 the lane lives only on its owner's machine, so the
+approver's desktop reads the diff **through Fleet**, which reads it from the owner's machine the
+way task 22's `TreeSource` reads a tree:
+
+```go
+// control-plane/internal/fleet/verbs (task 22's interface, one method added)
+type TreeSource interface {
+	Tree(ctx context.Context, owner model.Owner, project string) (Tree, error)
+	Show(ctx context.Context, owner model.Owner, project, path string) ([]byte, error)
+	// Diff is `git diff --no-renames --no-ext-diff --no-textconv <base> <tip> -- <paths>`
+	// on the owner's machine, Scope Project, at most MaxDiffBytes (cut on a line
+	// boundary, Truncated set). ErrTreeUnavailable when the machine cannot be reached.
+	Diff(ctx context.Context, owner model.Owner, project, base, tip string, paths []string) (Diff, error)
+}
+
+type Diff struct {
+	Text      string `json:"text"`   // shown as monospace text, never rendered as markdown
+	Truncated bool   `json:"truncated"`
+}
+
+const MaxDiffBytes = 128 << 10
+```
+
+**Fleet route `GET /v1/projects/{p}/land-approvals/{la}/diff`**: a member's desktop token (Entra
+per request, task 12), never an agent. Fleet reads `la-…` from the Hub (route 86), then calls
+`Diff(owner, p, base, laneTip, paths)`. `200 Diff`, or `503 unavailable` with *"<Owner>'s cloud
+machine is asleep. Ask them to open the project."* A diff that fails `teamtext.Clean` is still
+shown (it is repository content, `Source: "repo"`, task 22's class), but in a pane that renders
+C0/C1 and bidi controls as visible escapes. Because task 22 ships `unavailableTree` in TM1-α and
+task 34 brings the real source, this route answers 503 until task 34 lands (gap 2).
+
+**The lens** (`TeamLandReview.tsx`, under each queued row of a team project in task 19's
+`LaneCard`): *CONFLICTS THIS LANE WAS PART OF* (one line each: tier, `cf-…` in Commit Mono, the
+other owner, the paths, the resolution or *"unresolved"*), then, when `agentConfig` is not empty,
+*AGENT-CONFIG CHANGES NEED A SECOND MEMBER* with one line per path and its kind, and one action:
+**Ask for a second look** (route 84) or, once asked, *"Waiting for a teammate"*; on another
+member's desktop the same row shows **Review and approve** (the diff, then route 85). The Land
+button stays enabled: the server's refusal names the reason, and task 19's banner shows it.
