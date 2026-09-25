@@ -296,3 +296,124 @@ The words *settle*, *fit*, *capacity*, *velocity*, *estimate*, *points* and a `%
 `CycleProposal`: it has no free-text field, only aliases, keys and labels, which a reflection test
 over its JSON field names pins with the OD-27 list (`percent`, `progress`, `eta`, `forecast`,
 `remaining`, `capacity`, `velocity`).
+
+#### Interfaces — complete: the routes, appended to `control-plane/internal/api/workassist.go` ⚑
+
+```go
+// Task 140: proposals. Both POST; neither writes to the Hub (decision 4).
+func (a *API) registerWorkProposals(rs *routes) {
+	rs.HandleFunc("POST /v1/work/assist/propose-issues", a.postProposeIssues)
+	rs.HandleFunc("POST /v1/work/assist/propose-cycle", a.postProposeCycle)
+}
+
+func (a *API) postProposeIssues(w http.ResponseWriter, r *http.Request) {
+	var req workassist.ProposeIssuesRequest
+	if !httpx.DecodeJSON(w, r, &req) {
+		return
+	}
+	projectID, ok := a.featureProject(w, r, req.FeatureID) // task 136; the Hub's 404 when unreadable
+	if !ok {
+		return
+	}
+	res, err := a.deps.WorkAssist.ProposeIssues(r.Context(), projectID, req)
+	if err != nil {
+		a.assistProblem(w, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, res)
+}
+
+func (a *API) postProposeCycle(w http.ResponseWriter, r *http.Request) {
+	var req workassist.ProposeCycleRequest
+	if !httpx.DecodeJSON(w, r, &req) {
+		return
+	}
+	projectID, ok := a.cycleProject(w, r, req.TeamID, req.CycleID) // the team's project for the route
+	if !ok {
+		return
+	}
+	res, err := a.deps.WorkAssist.ProposeCycle(r.Context(), projectID, req)
+	if err != nil {
+		a.assistProblem(w, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, res)
+}
+```
+
+`cycleProject` (new here) reads the cycle through the relay as the caller and answers `404` when
+the cycle is not the team's or is unreadable, `409 cycle_not_upcoming` when its `startsOn` is past
+(a new control-plane code, appended beside task 139's `thread_too_short`). A team's backlog spans
+its projects; **the route is the tightest of them**: when any candidate's project is `au-only`, the
+call goes AU (`dataclass.Tighter`, P6 task 01), so AU data never leaves on Global. `cycleProject`
+therefore returns the project whose route is tightest, and `ProposeCycle` re-checks it after the
+candidate read.
+
+#### Interfaces — complete: `desktop/src/api/work.ts` ⚑, appended
+
+```ts
+// Task 140. Mirrors workassist's proposal types.
+export interface UncoveredCriterion { briefKey: string; id: string; label: string; text: string }
+export interface ProposedIssue {
+  criterion: UncoveredCriterion; title: AuthoredText; description: AuthoredText; serves: Serve[];
+}
+export interface ProposeIssuesResponse {
+  featureId: string; uncovered: UncoveredCriterion[]; proposals: ProposedIssue[]; missing: string[];
+  route: "global" | "au";
+}
+export interface ProposedCycleIssue { issueId: string; alias: string; why: Why[] }
+export interface CriterionGroup { criterion: Serve | null; label: string; issues: ProposedCycleIssue[] }
+export interface CycleProposal {
+  teamId: string; cycleId: string; groups: CriterionGroup[]; dropped: number;
+  route: "global" | "au"; madeAt: string;
+}
+export interface WorkProposalsClient {
+  proposeIssues(featureId: string): Promise<ProposeIssuesResponse>;
+  proposeCycle(teamId: string, cycleId: string): Promise<CycleProposal>;
+}
+```
+
+`Why` is task 136's desktop type (`{kind, key}`, **UNVERIFIED** until its part); `Serve` and
+`AuthoredText` are task 37's mirrors of `task-02.md:226-235`. `WorkClient` extends
+`WorkProposalsClient`.
+
+#### Interfaces — complete: `desktop/src/work/proposals.ts`
+
+```ts
+// desktop/src/work/proposals.ts — decision 3 (the draft's body) and decision 7 (the Desk source).
+import type { AuthoredText, CycleProposal, Draft, ProposedIssue, Serve } from "../api/work";
+
+export const PROPOSAL_V = "proposal-1";
+
+/** What a proposal draft's body.text holds, canonical JSON (sorted keys, no spaces). */
+export interface ProposedIssueDraft {
+  v: typeof PROPOSAL_V; featureId: string; criterionLabel: string; criterionText: string;
+  title: AuthoredText; description: AuthoredText; serves: Serve[];
+}
+
+const canon = (v: unknown): string => JSON.stringify(v, (_k, x) =>
+  x && typeof x === "object" && !Array.isArray(x)
+    ? Object.fromEntries(Object.keys(x).sort().map((k) => [k, (x as Record<string, unknown>)[k]])) : x);
+
+export function toDraftBody(featureId: string, p: ProposedIssue): AuthoredText {
+  const d: ProposedIssueDraft = { v: PROPOSAL_V, featureId, criterionLabel: p.criterion.label,
+    criterionText: p.criterion.text, title: p.title, description: p.description, serves: p.serves };
+  return { text: canon(d), author: "A" };
+}
+
+/** A proposal draft, or null for an ordinary issue draft (task 92 keeps showing those). */
+export function fromDraft(d: Draft): ProposedIssueDraft | null {
+  if (d.kind !== "issue" || d.issueId !== null || d.body.author !== "A") return null;
+  try {
+    const x = JSON.parse(d.body.text) as Partial<ProposedIssueDraft>;
+    if (x.v !== PROPOSAL_V || !Array.isArray(x.serves) || x.serves.length !== 1 || !x.title) return null;
+    return x as ProposedIssueDraft;
+  } catch { return null; }
+}
+
+// Decision 7: one held proposal per cycle, in memory; the Desk reads it on entry.
+const byCycle = new Map<string, CycleProposal>();
+export const holdCycleProposal = (p: CycleProposal): void => { byCycle.set(p.cycleId, p); };
+export const clearCycleProposal = (cycleId: string): void => { byCycle.delete(cycleId); };
+export const cycleProposals = (): readonly CycleProposal[] => [...byCycle.values()];
+```
