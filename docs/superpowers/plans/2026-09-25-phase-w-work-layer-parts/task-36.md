@@ -550,3 +550,66 @@ describe("the thread tokens (task 36)", () => {
 
 `valueOf`, `contrast`, `ROOT` and `PAPER` are task 26's (its part, `:238-270`).
 
+
+#### Steps
+
+1. Write `thread.test.tsx` and the `tokens.test.ts` block. Run `npm --prefix desktop test -- thread
+   tokens`: `thread.test.tsx` fails to import; the paper test throws on paper's alpha `--thread`
+   (`luminance` refuses it) and `--thread-lit` is undeclared.
+2. Write `useThreadLit.ts`, then `ThreadNode.tsx`, `ThreadLine.tsx`, `ThreadTrace.tsx`, `index.ts`
+   and `thread.css`. Re-run: tests 1 to 7 pass; test 8 fails, since `forced-colors.css` has no
+   thread block yet.
+3. Add `--thread-lit` to `:root`; replace paper's `--thread` and add its `--thread-lit`; add the
+   name to `THEME_COLOUR_NAMES` and make its length 35. Append the thread block to
+   `forced-colors.css`. Re-run: all pass.
+4. Mutate by hand, watch the named test go red, then revert: drop the `href` guard (test 1); render
+   a `<span>` in place of the `<a>` (test 2); hold lit in a React context provider (test 3); delete
+   `onFocus` from `bind` (test 4); make `publish()` use `hover` only (test 4's fall-back line);
+   have `ThreadLine` set `aria-selected="true"` on its first child (test 5); animate `height` in
+   `thr-grow` (test 6); delete the `data-motion` twin of the trace rule (test 6); give `.thr-node` a
+   `background` (test 7); delete the forced block's `.thr-line::after` rule (test 8); put paper's
+   `--thread` back to task 26's alpha value (the tokens test).
+5. Run the full desktop suite: the design-system audit walks `thread.css` (token import first; no
+   hex or named colour; the one opacity transition at `--dur-fast`) and `forced-colors.css`.
+   Typecheck; commit.
+
+#### Acceptance
+
+```bash
+npm --prefix desktop test -- thread designsystem tokens
+# expect: thread.test.tsx 8 passed; tokens.test.ts one more than before, all passed;
+#         designsystem all passed
+npm --prefix desktop run typecheck
+# expect: exit 0
+```
+
+The implementer reports the numbers the run prints; the plan's counts are not the evidence.
+
+#### What this task does not claim
+
+- **Not any surface carrying the thread.** Tasks 40 (the Work lens), 47 (the `serves` line and the
+  issue view's trace), 67 (the Develop chip) and 85 place it; nothing here is mounted in the app.
+- **Not Design's frames** (phase 5), which carry the thread in a later phase.
+- **Not that the thread reads as the signature**, nor that a lit node at `--accent-ring` reads
+  brighter than an unlit one (decision 1). The owner judges both at task 39.
+- **Not how a Windows contrast theme renders the thread**, nor that WebView2 honours `forced-colors`
+  and `forced-color-adjust` as Chromium does (**UNVERIFIED**, as in task 34).
+- **Not the half-pixel alignment** of a 1px line at `left: 7px` against a ring centred at 8 at
+  125 % and 150 % scaling; task 33's stress screens are where the owner sees it.
+- **Not the form of `href`.** Tasks 47 and 67 own the source resolver (decision 4).
+- Design: 05 §2.3, §4.1 (lit is not selected), §4.4 C2 and C13, §4.5 rule 4; 02 C2. Parity: no 01
+  row; this is the part Linear has no object for (05 §2.3).
+
+**Interfaces:**
+- Produces (seam **SW.14**, completed), all from `components/thread`:
+  - `ThreadNode({ criterionId, href, label }): JSX.Element | null`
+  - `ThreadLine({ criterionId, children }): JSX.Element`
+  - `ThreadTrace({ play, children }): JSX.Element`
+  - `useThreadLit(criterionId: string | null): { lit: boolean; bind: ThreadLitBind }`, and the
+    type `ThreadLitBind`
+  - `thread.css`: `.thr-node`, `.thr-line` (`data-lit`), `.thr-trace` (`data-play`), `@keyframes thr-grow`
+  - `tokens.css`: `--thread-lit` in both themes; paper's `--thread` opaque
+- Consumes: task 29's `MarkGlyph kind="thread_node"` and its `gl-mark-node`/`gl-mark-lit` classes;
+  task 26's paper block and `tokens.test.ts` helpers; task 33's `data-motion` hook; task 34's
+  `forced-colors.css`; `--thread`, `--accent-ring`, `--dur-fast`, `--dur-slow`, `--ease` (built).
+- Amends: nothing in the Hub.
