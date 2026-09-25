@@ -130,3 +130,85 @@ export function bytesFact(n: number): string {
   return u === 0 ? `${n} bytes` : `${n} bytes · ${Number.isInteger(v) ? v : v.toFixed(1)} ${units[u]}`;
 }
 ```
+
+#### Interfaces — complete: `desktop/src/work/blob.ts`, part 2: the transport, upload, verified fetch
+
+`WorkSend` is JSON in and JSON out (`task-37.md:372-374`), and a blob is raw bytes, so `blob.ts`
+takes its own two-method transport. The control-plane route it names is a **proposal**: task 16's
+relay table carries `AttachBlob` (`task-16.md:139`) and no blob row, so `PUT`/`GET
+/v1/projects/{projectId}/blobs/{sha}` is not relayed today (a gap against task 16, below). The
+Hub's `details` values are strings (`client.ts:62`), so `limitBytes` is parsed, and a value that
+does not parse is shown as the Hub wrote it.
+
+```ts
+// desktop/src/work/blob.ts, continued.
+import type { ApiError } from "../api/client";
+
+/** Raw bytes to and from the Hub's blob routes (hub-contract.md:846-866), through the control
+ *  plane. The route below is this part's proposal until task 16 adds the row. */
+export interface BlobTransport {
+  put(projectId: string, hex: string, body: ArrayBuffer, contentType: string):
+    Promise<{ digest: string; size: number; contentType: string }>;
+  get(projectId: string, hex: string): Promise<ArrayBuffer>;
+}
+export const blobRoute = (projectId: string, hex: string): string =>
+  `/v1/hub/projects/${encodeURIComponent(projectId)}/blobs/${hex}`;
+
+export type BlobRefusal =
+  | { kind: "too_large"; limitBytes: string; source: "hub" | "desktop" }
+  | { kind: "quota"; limitBytes: string }
+  | { kind: "digest_mismatch"; expected: string; got: string | null }
+  | { kind: "not_found" }
+  | { kind: "other"; code: string; status: number };
+
+export class BlobError extends Error {
+  constructor(readonly refusal: BlobRefusal) { super(`blob: ${refusal.kind}`); this.name = "BlobError"; }
+}
+
+/** An ApiError from the transport, sorted. Every other throw passes through untouched. */
+export function blobRefusal(e: ApiError): BlobRefusal {
+  const limit = e.details.limitBytes ?? "";
+  if (e.code === "blob_too_large") return { kind: "too_large", limitBytes: limit, source: "hub" };
+  if (e.code === "quota_exceeded") return { kind: "quota", limitBytes: limit };
+  if (e.code === "digest_mismatch") return { kind: "digest_mismatch", expected: "", got: null };
+  if (e.code === "blob_not_found") return { kind: "not_found" };
+  return { kind: "other", code: e.code, status: e.status };
+}
+
+export interface Uploaded { digest: string; name: string; size: number; contentType: string }
+export interface Verified { digest: string; bytes: ArrayBuffer; image: ImageKind | null }
+
+export function makeBlobs(t: BlobTransport) {
+  const mapped = async <T,>(p: Promise<T>): Promise<T> => {
+    try { return await p; } catch (e) {
+      if (e instanceof Error && e.name === "ApiError") throw new BlobError(blobRefusal(e as ApiError));
+      throw e;
+    }
+  };
+  return {
+    /** Hash first, then PUT under that hash (decision 1). The desktop's ceiling is checked
+     *  before a byte is read (decision 6). The name never leaves this function's caller. */
+    async uploadAttachment(projectId: string, file: File): Promise<Uploaded> {
+      if (file.size > READ_CEILING_BYTES) {
+        throw new BlobError({ kind: "too_large", limitBytes: String(READ_CEILING_BYTES), source: "desktop" });
+      }
+      const bytes = await file.arrayBuffer();
+      const hex = await sha256Hex(bytes);
+      const ours = digestOf(hex);
+      const r = await mapped(t.put(projectId, hex, bytes, wireContentType(file.type)));
+      if (r.digest !== ours) throw new BlobError({ kind: "digest_mismatch", expected: ours, got: r.digest });
+      return { digest: ours, name: file.name, size: r.size, contentType: r.contentType };
+    },
+    /** GET, re-hash, compare (decision 4). A mismatch throws and no bytes reach the caller. */
+    async fetchVerified(projectId: string, digest: string): Promise<Verified> {
+      const hex = hexOf(digest);
+      if (hex === null) throw new BlobError({ kind: "digest_mismatch", expected: digest, got: null });
+      const bytes = await mapped(t.get(projectId, hex));
+      const got = digestOf(await sha256Hex(bytes));
+      if (got !== digest) throw new BlobError({ kind: "digest_mismatch", expected: digest, got });
+      return { digest, bytes, image: sniffImage(bytes) };
+    },
+  };
+}
+export type Blobs = ReturnType<typeof makeBlobs>;
+```
