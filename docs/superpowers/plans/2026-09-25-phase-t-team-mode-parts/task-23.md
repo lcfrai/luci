@@ -343,6 +343,15 @@ suite is asked, in the return, to carry the same case for `pgstore`.
 Expiry of a hold is `Now() + HoldTTL` at request time. An intent's `ExpiresAt` is the zero time,
 sent to the Hub as `null`: an intent lives until its task ends, and task 24 ends it.
 
+**The one turn-queue event this task raises** (task 26's table, `task-26.md:113-120`): when
+`Request` comes out `contested`, it enqueues one `model.EventLeaseContested` (`lease.contested`),
+through `turns.Queue.Enqueue` (task 26), for the **requesting** agent's own Orchestrator only,
+with `Ref` the new `ls-…`. It coalesces (not immediate), because the typed conflict and its thread,
+which *are* immediate, reach both Orchestrators through task 25. The other side learns through
+that thread, never through this event, so no Orchestrator is told about another owner's lease by
+a path the thread does not also carry. `Deps` gains `Queue interface{ Enqueue(context.Context,
+model.Event) error }`; nil in the pure tests. `lease.expiring` is task 35's.
+
 - [ ] **Step 4: `verbs/lease.go`**
 
 Register `lease` for both classes. The handler builds `leases.Req` from `control.Caller` only,
