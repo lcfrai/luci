@@ -10,7 +10,7 @@ Three rules are enforced here, not described:
 2. **A token never appears anywhere but the one field that carries it.** `HashToken` is a one-way hash, `Binding` holds only the hash, and no type's `String` or error text includes a token.
 3. **The base URL has no path.** `ANTHROPIC_BASE_URL` is scheme and host only (skeleton, "What Claude Code needs from a gateway"), and every URL our own code builds to `/v1/messages` goes through `MessagesURL`, which refuses a base that already ends in `/v1/messages` (double-pathing) or has any other path, query or credentials. That is the Panacea 405 turned into a function (skeleton, "What Panacea's LiteLLM taught").
 
-Six decisions the skeleton leaves open, made here so no later part re-derives them:
+Eight decisions the skeleton leaves open, made here so no later part re-derives them:
 
 - **(a) `RefreshRequest.Generation` is the new generation**, so it is at least 2. Task 07 decided this (`task-07.md`, decision (c)): a retried refresh is then exactly a retried mint of the same generation. `Validate` enforces `≥ 2`.
 - **(b) `(Binding) LiveAt(now)` lives here**, as task 07's gap 3 asks: live means `now` is before `ExpiresAt` and either `RevokedAt` is nil or `now` is before `*RevokedAt`. A revocation dated in the future is a scheduled one (task 07's refresh grace). keysmith and the gatekeeper (task 10) call this one function and cannot drift.
@@ -18,7 +18,8 @@ Six decisions the skeleton leaves open, made here so no later part re-derives th
 - **(d) Addresses are normalised once.** `NormalAddr` unmaps an IPv4-mapped IPv6 address (`::ffff:10.244.1.7` → `10.244.1.7`) and drops any zone. `MintRequest.Validate` refuses a zone, the unspecified address and a mapped form, so a stored `Binding.PodAddr` is always normal, and task 10 compares `NormalAddr(source) == b.PodAddr`. Without this, a dual-stack listener that reports the mapped form would fail every request with `binding_mismatch`.
 - **(e) Ids are refused, not escaped.** `SessionID`, `TeamID`, `ProjectID`, `AgentID`, `Owner.TID` and `Owner.OID` must be 1–128 characters of `[A-Za-z0-9._-]`. `SessionID` becomes part of a LiteLLM `key_alias` (`sess/<session>/<generation>`, P6-D6) and `<tid>:<oid>` a LiteLLM `user_id`, so a `/`, a `:` or a space in either would be ambiguous there. `Owner.OID` and `TID` are Entra GUIDs in the cloud and short strings locally (`local`, `dev` in task 17's script); both fit.
 - **(f) Codes and statuses live together.** `Status(code)` returns the HTTP status for each of this package's codes, and a test pins the whole table. No wire code equals one of `httpx`'s sixteen (`control-plane/internal/httpx/problem.go:45-60`), so the cockpit's single `switch` on `Problem.Error` never sees one string with two meanings.
-- **(g) `(ProjectInference) LiveRoute()` lives here** (re-review R-6). The live route is `Tighter(Decide(DataClass, Route), Effective)`, an error for anything unparsed. keysmith (task 07's `route`, used by decision (h)'s retire), the gatekeeper (task 10's step 7) and the session refresher (task 15's raise check) each computed it, and the refresher read `Effective` alone. With an AU-only class and a stale Global `Effective`, keysmith retired the key but the refresher saw no raise, which left the session refused for up to 55 minutes. One function, like decision (b), means they cannot drift.
+- **(g) `(ProjectInference) LiveRoute()` lives here** (re-review R-6). The live route is `Tighter(Decide(DataClass, Route), Effective)`, an error for anything unparsed. keysmith (task 07's `route`, used by task 07 decision (h)'s retire), the gatekeeper (task 10's step 7) and the session refresher (task 15's raise check) each computed it, and the refresher read `Effective` alone. With an AU-only class and a stale Global `Effective`, keysmith retired the key but the refresher saw no raise, which left the session refused for up to 55 minutes. One function, like decision (b), means they cannot drift.
+- **(h) `ProjectInference.TeamID` is the project's team, read from the Hub** (review I-7). `MintRequest.TeamID` is the caller's claim, and attribution and the team budget both key on it (task 07's `Budgets.Limits` and `Spent`, task 09's ledger). The Hub's `Project` carries `teamId` (`hub-contract.md:637-639`, never null), and task 13's `Hub` source already reads that record, so it fills `TeamID` and refuses a record without a valid one. keysmith refuses a mint whose `TeamID` differs (task 07 decision (i)). Only a source with no teams leaves it `""`: task 13's `File`, local mode's `projects.json`, where the caller's team stands.
 
 **Files:**
 - `control-plane/internal/inference/wire/wire.go` — every type, interface, sentinel, code and helper below (new)
@@ -33,7 +34,7 @@ Six decisions the skeleton leaves open, made here so no later part re-derives th
   - `wire.RefreshRequest{SessionID string; Generation int}` with `Validate()`; `wire.RevokeRequest{SessionID string}` with `Validate()`
   - `wire.Binding{KeyHash, KeyID, SessionID string; Generation int; Owner Owner; TeamID, ProjectID, AgentID string; PodAddr netip.Addr; RouteAtMint dataclass.Route; CreatedAt, ExpiresAt time.Time; RevokedAt *time.Time}` with `LiveAt(time.Time) bool`
   - `wire.UsageRow{Scope, ID string; PeriodStart time.Time; SpendUSD, BudgetUSD float64; Requests int64}` and `ScopePerson`, `ScopeProject`, `ScopeTeam`
-  - `wire.ProjectInference{ProjectID string; DataClass dataclass.Class; Route, Effective dataclass.Route; Version string}` with `LiveRoute() (dataclass.Route, error)` (decision (g))
+  - `wire.ProjectInference{ProjectID, TeamID string; DataClass dataclass.Class; Route, Effective dataclass.Route; Version string}` with `LiveRoute() (dataclass.Route, error)` (decision (g)); `TeamID` is the project's team as the source read it (decision (h))
   - `wire.BindingReader`, `wire.RouteSource`; sentinels `wire.ErrNotFound`, `wire.ErrRouteUnknown`
   - the thirteen `wire.Code…` constants, `wire.Status(code) (int, bool)`, `wire.Codes() []string`
   - `wire.HashToken(string) string`, `wire.CheckBaseURL(string) error`, `wire.MessagesURL(string) (string, error)`, `wire.NormalAddr(netip.Addr) netip.Addr`
@@ -92,9 +93,9 @@ func TestJSONKeysAreGolden(t *testing.T) {
 			`{"keyHash":"h-1","keyId":"h-1","sessionId":"s-1","generation":1,"owner":{"tid":"t-1","oid":"o-1"},"teamId":"team-1","projectId":"p-1","agentId":"a-1","podAddr":"fd00::7","routeAtMint":"global","createdAt":"2026-09-25T01:00:00Z","expiresAt":"2026-09-25T02:00:00Z","revokedAt":"2026-09-25T01:30:00Z"}`},
 		{"UsageRow", UsageRow{Scope: ScopeTeam, ID: "team-1", PeriodStart: time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC), SpendUSD: 212.4, BudgetUSD: 2000, Requests: 31},
 			`{"scope":"team","id":"team-1","periodStart":"2026-09-01T00:00:00Z","spendUsd":212.4,"budgetUsd":2000,"requests":31}`},
-		{"ProjectInference", ProjectInference{ProjectID: "p-1", DataClass: dataclass.Class{Level: dataclass.LevelConfidential, Residency: dataclass.ResidencyAUOnly},
+		{"ProjectInference", ProjectInference{ProjectID: "p-1", TeamID: "team-1", DataClass: dataclass.Class{Level: dataclass.LevelConfidential, Residency: dataclass.ResidencyAUOnly},
 			Route: dataclass.RouteGlobal, Effective: dataclass.RouteAU, Version: "0123456789abcdef"},
-			`{"projectId":"p-1","dataClass":{"level":"confidential","residency":"au-only"},"route":"global","effective":"au","version":"0123456789abcdef"}`},
+			`{"projectId":"p-1","teamId":"team-1","dataClass":{"level":"confidential","residency":"au-only"},"route":"global","effective":"au","version":"0123456789abcdef"}`},
 	}
 	for _, tc := range cases {
 		got, err := json.Marshal(tc.v)
@@ -543,7 +544,10 @@ type UsageRow struct {
 // Effective is always dataclass.Decide(DataClass, Route), computed by the
 // source (task 13), never read from a record.
 type ProjectInference struct {
-	ProjectID string          `json:"projectId"`
+	ProjectID string `json:"projectId"`
+	// TeamID is the project's team from the Hub record, never the caller's
+	// claim; "" only from a source with no teams (local mode). Decision (h).
+	TeamID    string          `json:"teamId"`
 	DataClass dataclass.Class `json:"dataClass"`
 	Route     dataclass.Route `json:"route"`
 	Effective dataclass.Route `json:"effective"`
@@ -736,7 +740,8 @@ feat(inference): the gateway's wire contracts
 Every shape between launcher, keysmith, gatekeeper and cockpit, with
 camelCase JSON pinned by goldens: mint, refresh (the new generation),
 revoke, the token's binding (with LiveAt, which treats a future
-revocation as scheduled), usage rows and the project route. Pod
+revocation as scheduled), usage rows and the project route with its
+team as the Hub records it. Pod
 addresses are normalised once so a binding compares with ==.
 
 Thirteen problem codes with their statuses, none shared with httpx.
@@ -764,3 +769,4 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
 4. **`RefreshRequest.Generation` is the new generation** (task 07's reading); the skeleton's `RefreshRequest{SessionID, Generation}` did not say which.
 5. **`budget_exhausted` is `402`**, the status task 07 already assumed; the skeleton gave no status.
 6. **`(ProjectInference) LiveRoute` is an addition** (decision (g), re-review R-6). Task 07's `route`, task 10's `route` and task 15's `Prepare` and `sleepUnlessRaised` call it; each part says so.
+7. **`ProjectInference.TeamID` is an addition** (decision (h), review I-7). Task 13's `Hub` source fills it from the record's `teamId` and its `File` source leaves it `""`; task 07's `mint` refuses a `MintRequest.TeamID` that differs (decision (i) there). The skeleton's `ProjectInference` had no team.
