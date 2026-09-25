@@ -640,4 +640,44 @@ served: **L-117** (automatic and manual subscriptions; closed with task 52), **L
 sync log gains the Work kinds; closed with the replica, task 55), and the metadata-only base of
 **L-251** (W5).
 
+**14 — erase for issues and comments; title search.** W1, stream WH; no seam; depends on 12 and
+Hub task H27 (the audit route, erasure, the full `hub verify`). Files: `server/erase.go` ⚑ (Hub
+task 27's file, **UNVERIFIED until merge**; two routes added beside `POST
+/v1/briefs/{briefId}/erase`, never a change to it); new `store/work_erase.go`,
+`store/work_search.go`, `server/work_search.go`, `server/work_erase_integration_test.go`; and one
+additive column in this plan's W1 migration, `issues.head_title text` (the head revision's title,
+kept in step by task 09's revision write, the only text outside `canonical`), with 07's
+`hub.erase_issue` extended to blank it. **Erase** follows hub-contract §7.12's brief erase
+(:1113-1128) exactly: `POST /v1/issues/{issueId}/erase` and `POST /v1/comments/{commentId}/erase`,
+body `{"reason"}` 1-500 characters, org admin only (07's rows: 403 for every team role), 404
+`issue_not_found` / `comment_not_found` outside the admin's org; in one transaction through the
+owner functions of task 07 — an issue's erase removes every revision's `canonical`, `head_title`,
+`external_url`, every comment body and anchor on it, and the import's source text if any; **keys,
+digests, revision numbers, numbers, `writtenAt`/`writtenBy` stay**, so every `Panacea-Issue`
+trailer, chip and `issue:` key still resolves, as `erased` (05 §3.6, 04 §5.5); a comment's erase does
+the same for one comment. → `200 {"issueId", "erasedRevisions", "erasedComments", "erasedAt"}`; a
+second erase answers zeros. Events `issue.erased` / `comment.erased` in the feed **without**
+`reason`; the audit keeps `reason` (as `brief.erased`, hub-contract §8). Attached blobs are not
+deleted here: whether the Hub deletes a project blob on erase is the Hub plan's (**UNVERIFIED**),
+and the part names it as open. **Search**: `GET /v1/issues/search?q=&projectId=&limit=` →
+`Page[IssueHead]`, `q` 1-200 characters, a case-insensitive substring match on `head_title` over the
+caller's **readable** projects only (optionally one), erased issues excluded, newest first, at most
+50; a `q` that equals a current display alias (`EP-142`) returns that issue first, resolved through
+`project_keys` at query time and never stored or treated as a key; W1 matches titles only, never
+descriptions or comments (L-106's Hub half; the desktop's `/` searches the replica, task 58). The
+match is `ILIKE` with no index; its speed at 10,000 issues is **unmeasured**, and a trigram index is
+a later task if a measurement asks for it. **Tests**, each with its mutant: a team `admin` erasing is
+403 and an org admin of another org gets 404 (kills a role or org check left out); after an erase
+`/v1/refs` answers every revision key `erased` with the same digest, and `GET` of the issue shows
+number and key intact (kills deleting rows, which orphans trailers); a canary title, description,
+comment and import URL are absent from **every** text column of every Work table after the erase,
+read from `information_schema` rather than a list (kills a denormalised copy such as `head_title`
+left behind); the feed's `issue.erased` has no `reason` while `/v1/audit` does (kills the reason in
+the feed); `hub verify` passes after the erase (kills an erase that breaks the audit chain); search
+by a user of team B never returns team A's title (kills search before readability), an erased issue
+never matches, and `EP-142` returns issue 142 first. It **does not claim** request erase (W5, task
+146), blob deletion, or the replica's erase handling (task 57). Parity rows served: **L-106** (the
+Hub half of search and jump; closed with task 58), **L-239** (the erase is audited with its reason);
+05 §3.6's erase has no L row of its own.
+
 
