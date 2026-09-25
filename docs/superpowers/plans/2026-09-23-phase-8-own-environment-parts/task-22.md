@@ -4,8 +4,10 @@ The laptop's control plane drives every sandbox through `backend.Backend`'s seve
 (`control-plane/internal/backend/backend.go:286-294`, seam S8.1). `remotebe` is the third
 implementation, beside `dockerbe` and `katabe`, and the interface **does not change**. It calls the
 broker (tasks 18–19) as the signed-in user, with a token from the Hub's token source (HA-2 —
-ADR-H1 names it `entraauth.TokenSource.Token(ctx, scope)`, built in the Hub's client track C1,
-§5.2 and §5.9, `67609ab` `:334-342`, `:564`). Each `remotebe.Backend` is bound to **one cloud machine**; task 23's
+ADR-H1 named it `entraauth.TokenSource.Token(ctx, scope)`, built in the Hub's client track C1,
+§5.2 and §5.9, `67609ab` `:334-342`, `:564`; **OD-30, 2026-09-25: the package is `signin` (hub tasks
+30-31) and the token is a single-audience realm access token**, ruling
+`docs/superpowers/planning/2026-09-25-identity-keycloak-broker.md` §2 step 7). Each `remotebe.Backend` is bound to **one cloud machine**; task 23's
 `machines.Set` holds one per machine.
 
 Two things phase 2's code assumes that are false for a remote sandbox, and how this task handles
@@ -60,14 +62,14 @@ func (e *MachineFullError) Is(target error) bool // target == ErrMachineFull
 package remotebe
 
 // TokenSource is the one method remotebe needs from the Hub's
-// entraauth.TokenSource (ADR-H1 §5.2). Declared here so remotebe compiles and
+// signin.TokenSource (hub tasks 30-31, OD-30). Declared here so remotebe compiles and
 // is tested before the Hub's C1 lands; cmd/api adapts C1's type to it.
 type TokenSource interface {
 	Token(ctx context.Context, scope string) (string, error)
 }
 
 // ErrSignedOut is what a TokenSource returns when nobody is signed in. cmd/api's
-// adapter maps entraauth's own signed-out error to it.
+// adapter maps signin's own signed-out error to it.
 var ErrSignedOut = errors.New("remotebe: no user is signed in")
 
 // SignedOut is the TokenSource used until the Hub's C1 lands: it always
@@ -79,8 +81,9 @@ func (SignedOut) Token(context.Context, string) (string, error) { return "", Err
 type Config struct {
 	// BaseURL is the broker, e.g. https://broker.<zone>. https only.
 	BaseURL string
-	// Scope is the broker API's scope, api://<client id>/Sandboxes.Access
-	// (task 09's broker_api_scope output).
+	// Scope is the broker's audience scope, "panacea-app-broker" (OD-30,
+	// ruling §4): the realm answers a refresh with scope=openid panacea-app-broker
+	// with a token whose aud holds panacea-app-broker only.
 	Scope  string
 	Tokens TokenSource
 	// ControlPlane is this control plane's install id (task 23's
@@ -140,7 +143,7 @@ func RemoteEndpoint(id string) string { return "remote:" + id }
 |---|---|---|
 | `Create` | `POST /v1/sandboxes` | refuses `spec.Mounts` with `ErrUnsupported` **before any request** (host paths never leave the laptop); sets `Machine` to the backend's and `ControlPlane` to `cfg.ControlPlane` (review I6); sends `MachineMounts`, `WorkDir`, argv, env, attach token. **Never a size** (b05 re-review 4): the body's `resources` stays zero, so the broker's default applies. A cloud session's size is server policy, because it is what the balloons, the LimitRange default and P8-D6's ceiling are all sized to. The laptop's `spec.Resources` (`sessionResources()`, `sessions.go:332-337`, which is `PANACEA_APP_SESSION_*` or `backend.DefaultResources` `{2000, 4096}`, never 0) is ignored on this backend |
 | `Get` / `List` | `GET /v1/sandboxes/{id}` / `GET /v1/sandboxes?controlPlane=<cfg.ControlPlane>` | `brokerapi.Sandbox` → `backend.Sandbox{Kind: KindKata, Endpoint: RemoteEndpoint(id), Labels: <the broker's labels, the control-plane label among them>, …}`; List filters to this backend's machine. It does **not** also filter by control plane on the laptop: that check is the reaper's (task 23), so a broker that ignored the query still cannot make a laptop destroy another's sandbox |
-| `Attach` | `GET /v1/sandboxes/{id}/attach` (WSS) | headers `Authorization: Bearer <entra>` and `Panacea-Attach-Token: <token>`; `SetReadLimit(backend.MaxMessageBytes)` right after the dial — **the fifth site** of the shared rule; an HTTP refusal is decoded and mapped as below, so `attachCloseStatus` (`attach.go:330-343`) sees the same sentinels as for Docker |
+| `Attach` | `GET /v1/sandboxes/{id}/attach` (WSS) | headers `Authorization: Bearer <realm token>` and `Panacea-Attach-Token: <token>`; `SetReadLimit(backend.MaxMessageBytes)` right after the dial — **the fifth site** of the shared rule; an HTTP refusal is decoded and mapped as below, so `attachCloseStatus` (`attach.go:330-343`) sees the same sentinels as for Docker |
 | `Destroy` | `DELETE /v1/sandboxes/{id}` | 204 → nil |
 | `Close` | — | releases idle connections |
 | `WaitReady` | `GET /v1/sandboxes/{id}` every 250 ms | nil at `running`; `ErrNotRunning` at `stopped`; `ErrNotRunning` at the timeout |
@@ -156,7 +159,7 @@ func RemoteEndpoint(id string) string { return "remote:" + id }
 | 403 `attach_rejected` | `ErrUnauthorized` |
 | 429 `quota_exceeded` | `ErrQuotaExceeded` |
 | 409 `machine_full` | `*backend.MachineFullError{SessionsPerMachine: <details.sessionsPerMachine>}` (`errors.Is(err, ErrMachineFull)`; review I5) |
-| 401 `unauthenticated`, 503, any 5xx, a network error, a `TokenSource` error | `ErrUnavailable` (wrapping `ErrSignedOut` when that was the cause) |
+| 401 `unauthenticated` (any `details.reason`, `audience` included: a token not minted for `panacea-app-broker`), 503, any 5xx, a network error, a `TokenSource` error | `ErrUnavailable` (wrapping `ErrSignedOut` when that was the cause) |
 
 #### Tests to write first
 
@@ -171,7 +174,7 @@ fake `TokenSource` that counts calls:
 | `TestNewClientRefusesAMalformedControlPlane` | `""`, `"ABC"` → error | a laptop that stamps nothing |
 | `TestCreateLeavesTheSizeToTheBroker` | a spec with `Resources{CPUMillis: 6000, MemoryMiB: 16384}` → the recorded body has no `resources` or a zero one; the same with `backend.DefaultResources` | the laptop's `PANACEA_APP_SESSION_*` or its 2 CPU / 4 GiB default deciding a cloud session's size, so changing the broker's default, the balloons and the LimitRange together changes no real session (b05 re-review 4) |
 | `TestCreateRefusesHostMountsWithoutARequest` | `spec.Mounts` set → `ErrUnsupported`, broker saw zero requests | a laptop path sent to the cluster |
-| `TestEveryCallAsksForTheBrokerScope` | the token source was asked for `cfg.Scope` on each call | a Hub token sent to the broker (wrong audience — it would 401 anyway, but the laptop must not even ask for it) |
+| `TestEveryCallAsksForTheBrokerScope` | the token source was asked for `cfg.Scope` (`panacea-app-broker`) on each call | a Hub token sent to the broker (wrong audience — it would 401 anyway, but the laptop must not even ask for it) |
 | `TestEndpointIsOpaqueAndNonEmpty` | Get's `Endpoint == "remote:<id>"` | an empty Endpoint the attach handler reads as "not running" (`attach.go:182`) |
 | `TestErrorsMapByCode` | every row of the mapping table, driven by the stand-in | string matching; a quota error shown as "unavailable" |
 | `TestMachineFullCarriesTheCount` | a 409 `machine_full` with `details.sessionsPerMachine: "3"` → `errors.Is(err, backend.ErrMachineFull)`, `errors.As` gives `SessionsPerMachine == 3`, and **not** `ErrNotRunning` or `ErrAlreadyExists`; a body with no details → `SessionsPerMachine == 0` (review I5) | a full machine read as the 409s beside it (`conflict`, `machine_asleep`), so the cockpit says "already exists" or "not running" |
@@ -190,7 +193,7 @@ fake `TokenSource` that counts calls:
 
 #### Steps
 
-- [ ] **Step 1:** Check the Hub contract for `entraauth.TokenSource`'s exact signature and its
+- [ ] **Step 1:** Check hub tasks 30-31 for `signin.TokenSource`'s exact signature and its
   signed-out error; if it differs from `Token(ctx, scope) (string, error)`, keep remotebe's
   interface and write the adapter in task 23.
 - [ ] **Step 2:** `backend/ready.go`; tests; `remotebe`; all pass under `-race`.
