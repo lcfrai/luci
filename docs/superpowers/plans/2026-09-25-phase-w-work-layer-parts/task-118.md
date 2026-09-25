@@ -125,3 +125,93 @@ type InitiativeFeatureRow struct {
 
 `features.lead_id`, `brief_id`, `created_at` are task 74's column names (**UNVERIFIED** until its
 part); `pgx.CollectRows` and `RowToStructByPos` are `pgx/v5`'s, as task 08's store uses pgx.
+
+#### `server/work_initiatives.go`, complete: the read rule and the view
+
+```go
+func (s *Server) registerWorkInitiatives() {
+	s.route("POST /v1/teams/{teamId}/initiatives", s.createInitiative)
+	s.route("GET /v1/teams/{teamId}/initiatives", s.listInitiatives)
+	s.route("GET /v1/initiatives/{initiativeId}", s.getInitiative)
+	s.route("PATCH /v1/initiatives/{initiativeId}", s.patchInitiative)
+	s.route("PUT /v1/features/{featureId}/initiative", s.setFeatureInitiative)
+}
+
+func notFoundInitiative(id string) error {
+	return workProblem(hubapi.CodeInitiativeNotFound, "There is no such initiative that you can see.",
+		"initiativeId", id)
+}
+
+// readableInitiative is decision 4: the owning team's role, or "granted" for a
+// member of a spanned team (who reads and never writes); else 404.
+func readableInitiative(ctx context.Context, tx *Tx, id string, want hubapi.Role) (store.InitiativeRow, []string, error) {
+	in, found, err := store.InitiativeByID(ctx, tx, id)
+	if err != nil || !found {
+		return store.InitiativeRow{}, nil, orErr(err, notFoundInitiative(id))
+	}
+	span, err := store.SpanOf(ctx, tx, id)
+	if err != nil {
+		return store.InitiativeRow{}, nil, err
+	}
+	role, ok, err := TeamRole(ctx, tx, in.TeamID) // H's helper (UNVERIFIED name): the caller's role in a team
+	if err != nil {
+		return store.InitiativeRow{}, nil, err
+	}
+	if ok && role != "" {
+		return in, span, Require(role, true, want, notFoundInitiative(id))
+	}
+	for _, t := range span[1:] {
+		if r, ok, err := TeamRole(ctx, tx, t); err != nil {
+			return store.InitiativeRow{}, nil, err
+		} else if ok && r != "" {
+			if want != hubapi.RoleViewer {
+				return in, span, Require("", true, want, notFoundInitiative(id)) // visible: 403
+			}
+			return in, span, nil
+		}
+	}
+	return store.InitiativeRow{}, nil, notFoundInitiative(id)
+}
+
+// initiativeView: each readable feature's own latest health word and its date,
+// and its criteria with task 120's words. No aggregate, no count (decision 1).
+func (s *Server) initiativeView(ctx context.Context, tx *Tx, in store.InitiativeRow, span []string) (hubapi.InitiativeView, error) {
+	v := hubapi.InitiativeView{Initiative: s.initiativeWire(ctx, tx, in), Teams: span,
+		Features: []hubapi.InitiativeFeature{}}
+	rows, err := store.FeatureRowsOf(ctx, tx, in.ID)
+	if err != nil {
+		return v, err
+	}
+	for _, f := range rows {
+		a, err := workAccess(ctx, tx, f.ProjectID) // task 117: team or grant
+		if err != nil {
+			return v, err
+		}
+		if a.Read(errSkip) != nil {
+			continue // not readable: neither its id nor its name leaves this function
+		}
+		row := hubapi.InitiativeFeature{FeatureID: f.ID, Name: f.Name, Lead: s.userWire(ctx, tx, f.LeadID),
+			Criteria: []hubapi.CriterionWord{}}
+		if u, ok, err := store.LatestUpdate(ctx, tx, hubapi.UpdateSubjectFeature, f.ID); err != nil { // task 119
+			return v, err
+		} else if ok {
+			row.LatestUpdate = &hubapi.UpdateStamp{Health: hubapi.Health(u.Health), At: hubapi.FormatTime(u.At)}
+		}
+		words, err := store.CriterionWords(ctx, tx, f.BriefID) // task 120: settled·contested·open·uncovered
+		if err != nil {
+			return v, err
+		}
+		row.Criteria = append(row.Criteria, words...)
+		v.Features = append(v.Features, row)
+	}
+	return v, nil
+}
+```
+
+`errSkip` is a package-level sentinel (`errors.New("skip")`), never returned to a client: task
+117's `Read` returns the error it is given when the caller may not read, so a `nil` there would
+read every feature as readable. `store.LatestUpdate`
+(task 119, **UNVERIFIED** name: its part names `UpdateMetaRow`, `task-119.md:212`) and
+`store.CriterionWords` (task 120, `task-120.md:97`) are read-only; before those tasks land the
+handler compiles against two stubs in this file that return `(_, false, nil)` and `nil`, deleted
+by 119 and 120 respectively.
