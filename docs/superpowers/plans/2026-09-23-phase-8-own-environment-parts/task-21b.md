@@ -89,10 +89,17 @@ const (
 - The directory is `<OwnedRoot>/bundles`, made mode `0700` at start and emptied then, so a
   restart forgets every id and leaves no file.
 - A live id is an in-memory entry: its creation time, and whether a file is there. Two at most,
-  reserved and stored alike; a third `POST` is `429` before any byte is read. The caller is
-  told, not queued: task 25b maps it to `ErrBundleBusy`, nothing waits or retries, and that land,
-  archive or refresh fails with it, so a third concurrent one on one machine is refused and the
-  user runs it again. Whether phase 3's callers then retry is theirs (S8-P3.4, **UNVERIFIED**).
+  reserved and stored alike; a third `POST` is `429` before any byte is read. `machined` never
+  queues. Who holds a slot (seams review 1 I2, checked against phase-3 `94f954d`): a refresh
+  holds at most one, since phase 3 task 09 now runs each group whole (SendBranch, its Fetches,
+  `done_t`) before the next (`task-09.md:222-228`); a `SyncLane` or a land's `FetchLane` holds
+  one while its `Put` relays (`task-24.md:848`, removed by its `defer`); a remove's
+  `ArchiveLane` holds one the same way. Task 25b's `Reserve` (refresh's `bundle create`, the
+  only reserver) waits on `429` within its `ctx`, since it sends no body; its `Put` cannot,
+  because the runner's stream is already being read, so a `Put` that meets two live ids is
+  `ErrBundleBusy`. A sync then backs off and the sweep retries it (phase-3 `task-07.md:155`); a land or
+  a remove fails and the user runs it again, which now succeeds once either slot frees, because
+  no caller rebuilds the same two bundles at once.
 - `POST` with a body opens `<id>.bundle` with `O_CREATE|O_EXCL`, mode `0600` (phase 3's rule,
   `task-24.md:705-708`). An id whose file exists is drawn again, never reused. It copies the
   body through `io.LimitReader(body, MaxBundleBytes+1)` under a `BundleTimeout` deadline, and
@@ -139,6 +146,7 @@ source are injected.
 | `TestBundleReserveMakesAnIDAndNoFile` | `?reserve=1` → 201 and no file; `?reserve=1` with a body → 400; `GET` of the reserved id → 404 `bundle_not_found` | a reserve that plants an empty file `bundle create` then refuses |
 | `TestBundleGetStreamsAndDeleteIsIdempotent` | `GET` → the bytes; `DELETE` → 204, again → 204; `GET` after → 404; `id` `../x` → 400 | a `DELETE` the laptop's deferred retry turns into an error; a path built from an unchecked id |
 | `TestBundleArgumentIsExactlyALivePath` | real git, `projects/a`. Admitted: `bundle create <path(reserved)> main`, then `bundle verify`, `bundle list-heads` and `fetch <path> +refs/heads/main:refs/panacea/lanes/x/main` on a stored id → 200. Each 400, git never ran: a path for a dead id; `<dir>/../clone/x`; `/tmp/machined-git/no-hooks/x`; the live path on `status`; the live path with `Scope: "none"`; `bundle create` on a stored id | a prefix check on `/tmp/machined-git/`, which lets git write into `no-hooks` or `clone`; an op list left open |
+| `TestBundleFetchFsckEnvIsAdmittedOnlyThere` (seams review 1 I1) | real git, `projects/a`, a stored id. Admitted (200, git ran): phase 3 task 24's step 5 `fetch --atomic … <path> +refs/heads/main:refs/panacea/lanes/x/main` with `Env` exactly `{GIT_CONFIG_COUNT=1, GIT_CONFIG_KEY_0=transfer.fsckObjects, GIT_CONFIG_VALUE_0=true}`, `Class: "local"`; a bundle holding a corrupt object then fails that fetch with 422 and git's fsck sentence. Each 400, git never ran: the set on `bundle verify` of the same path; with `COUNT=2` and a header pair beside it; with `VALUE_0=false`; with `Class: "remote"` | an allowlist that refuses phase 3's fsck `Env`, so no cloud lane syncs, lands or archives; one that admits the set anywhere, or lets a key ride with it |
 | `TestBundleSweepRemovesStaleAndStartEmpties` | fake clock: an id aged `BundleMaxAge` + 1 s → gone with its file; a younger one kept; a stray file the sweep finds → gone; a file present at start → gone | a laptop that died mid-land leaking 1 GiB of `/tmp` per bundle |
 | `TestBundleRoutesTakeTheBearer` | each route with no bearer, or a wrong one → 401 (task 20's check) | a route registered outside the authentication middleware |
 | `TestBundleLandAndRefreshThroughTheRoutes` | real git. Land: a scratch repository bundles one commit; `POST` it; `bundle verify` and `fetch` into `projects/a` through `POST /v1/git`; `DELETE` → `refs/panacea/lanes/x/main` in `projects/a` is that commit. Refresh: `reserve`; `bundle create` from `projects/a`; `GET` → `git bundle verify` in the scratch repository passes; `DELETE` | a break anywhere in ruling 3's two sequences |
