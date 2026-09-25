@@ -261,4 +261,78 @@ var rowOf = map[ActKind]string{
 	ActSpawn: "free-directive-fleet-turn", ActBuildOn: "build-on",
 	ActWiden: "scope-change", ActAbandon: "scope-change",
 }
+
+// Judgement is the gate's answer. Pass: go ahead now. Held: a decide was
+// written and the act waits for it. Never both.
+type Judgement struct {
+	Pass       bool
+	Origin     turns.Origin
+	Escalation string     // es-… when held
+	Deadline   time.Time  // when held
+}
+
+type Gate struct {
+	Turns  CurrentTurner // task 26's Scheduler
+	Held   *Held         // held.go
+	Now    func() time.Time
+}
+
+// CurrentTurner is the one method of turns.Scheduler the gate needs.
+type CurrentTurner interface {
+	CurrentTurn(ctx context.Context, orch model.AgentID) (turns.TurnRef, bool, error)
+}
+
+// Judge applies §7.2. The order is fixed: shape rules that hold in every turn
+// first, then origin. An error is never a pass.
+func (g *Gate) Judge(ctx context.Context, c control.Caller, a Act) (Judgement, error) {
+	if a.Kind == ActNarrow {
+		for _, glob := range a.Globs {
+			if !Within(glob, a.Scope) {
+				return Judgement{}, &wire.Refusal{Code: wire.CodeGlobRefused,
+					Message: "A narrow must stay inside the task's scope.",
+					Details: map[string]string{"reason": "outside_task_scope", "glob": glob}}
+			}
+		}
+	}
+	origin := turns.OriginFleet // decision (c): no turn is a Fleet turn
+	if ref, ok, err := g.Turns.CurrentTurn(ctx, c.Agent); err != nil {
+		return Judgement{}, err
+	} else if ok {
+		origin = ref.Origin
+	}
+	if origin == turns.OriginHuman || fleetTurnPasses[a.Kind] {
+		return Judgement{Pass: true, Origin: origin}, nil
+	}
+	es, deadline, err := g.Held.Hold(ctx, c, a, rowOf[a.Kind])
+	if err != nil {
+		return Judgement{}, err
+	}
+	return Judgement{Origin: origin, Escalation: es, Deadline: deadline}, nil
+}
+
+// Within reports whether glob g names only paths inside scope. It is
+// deliberately conservative: g must equal a scope glob, or a scope glob must
+// be "<dir>/**" and g must start with "<dir>/". A false refusal is possible
+// (a narrow the human can issue in their own turn); a false pass is not.
+func Within(g string, scope []string) bool {
+	for _, s := range scope {
+		if g == s {
+			return true
+		}
+		if dir, ok := strings.CutSuffix(s, "/**"); ok && strings.HasPrefix(g, dir+"/") {
+			return true
+		}
+		if s == "**" {
+			return true
+		}
+	}
+	return false
+}
 ```
+
+`Within` is not glob containment in general (that needs the two globs' languages), and it does
+not claim to be. `web/auth/*.go` inside `web/**` passes; `web/auth/*.go` inside `web/*/*.go`
+does not, though it is. The refusal names the glob, so the Orchestrator can restate the narrow
+under a scope glob's directory (`web/auth/**`), which passes. A false refusal costs one retry; a
+false pass would let a Fleet turn widen a worker. A `narrow` whose glob fails
+`teamtext.ValidGlob` is `glob_refused` before `Within` runs.
