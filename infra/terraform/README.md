@@ -105,8 +105,9 @@ check cannot see a key on the opener line, so one-line file-level blocks are ref
   (`command = plan`) that sets none of them, so each `-var-file` pass plans its own tfvars.
 - **Providers.** Every stack's `provider "azurerm"` block sets `storage_use_azuread = true` and
   `resource_provider_registrations = "none"`: the read-only plan identity cannot register
-  resource providers, so the owner registers them by hand (task 31 §1). The attribute name is
-  **unverified** until `validate` runs in task 02. Modules hold no provider blocks.
+  resource providers, so the owner registers them by hand (task 31 §1). The attribute name and
+  the value `"none"` were verified in task 02: `terraform validate` accepts both against
+  azurerm 4.81.0, with no warning. Modules hold no provider blocks.
 - **Backends.** A stack's `backend.tf` is exactly `terraform { backend "azurerm" {} }`: partial
   configuration, completed by `backends/<env>.hcl` (task 02) at init time in the pipeline.
 - **Line endings.** `.gitattributes` pins `eol=lf` for Terraform files and scripts.

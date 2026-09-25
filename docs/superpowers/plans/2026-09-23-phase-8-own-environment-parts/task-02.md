@@ -39,7 +39,7 @@ terraform {
 provider "azurerm" {
   features {}
   storage_use_azuread            = true   # the account has no shared key; data-plane calls use Entra
-  resource_provider_registrations = "none" # the read-only plan identity cannot register providers; task 31 §1 does (review C3; attribute name UNVERIFIED)
+  resource_provider_registrations = "none" # the read-only plan identity cannot register providers; task 31 §1 does (review C3; name and value verified in task 02, As built)
 }
 
 # variables.tf
@@ -188,24 +188,39 @@ holds under both passes. A bare `terraform test` in the stack, without `-var-fil
 | `the_product_group_exists_before_foundation` | `azurerm_resource_group.product.name == "rg-panacea-app-${var.environment}"` | the group left to `foundation`, so the infra identity's Contributor would need the subscription (review I8) |
 | `no_writers_is_rejected` | `state_writer_object_ids = []` → `expect_failures = [var.state_writer_object_ids]` | the validation removed |
 | `bad_suffix_is_rejected` | `unique_suffix = "K7Q2"` → `expect_failures = [var.unique_suffix]` | a case-insensitive regex |
-| `ip_rules_turn_default_deny_on` | `state_ip_rules = ["203.0.113.0/24"]` → `network_rules[0].default_action == "Deny"` | Deny never set |
-| `the_account_is_locked` | `azurerm_management_lock.state.lock_level == "CanNotDelete"` | the lock removed |
+| `a_five_character_suffix_is_rejected` *(added as built)* | `unique_suffix = "k7q2x"` → `expect_failures = [var.unique_suffix]` | the length relaxed to `{4,6}` (round 2 predicted survivor X1) |
+| `a_three_character_suffix_is_rejected` *(added as built)* | `unique_suffix = "k7q"` → `expect_failures = [var.unique_suffix]` | the length relaxed to `{3,4}` (X2) |
+| `ip_rules_turn_default_deny_on` | `state_ip_rules = ["203.0.113.0/24"]` → `network_rules[0].default_action == "Deny"`; *as built, also* `ip_rules == toset(["203.0.113.0/24"])` | Deny never set; *as built:* `ip_rules = []`, Deny with no rules (E1) |
+| `the_account_is_locked` | `azurerm_management_lock.state.lock_level == "CanNotDelete"`; *as built, also* `scope == azurerm_storage_account.state.id`, so the run applies | the lock removed; *as built:* the lock moved to the product group (predicted survivor S2) or to the container (N2) |
+| `the_state_account_is_hardened` *(added as built)* | Standard ZRS; `TLS1_2` and HTTPS only; OAuth by default; no public nested items and a `private` container; infrastructure encryption; no cross-tenant replication | any of those flags flipped (E2–E9) |
+| `public_access_off_reaches_the_account` *(added as built)* | `state_public_network_access = false` → `public_network_access_enabled == false` | `public_network_access_enabled = true` hard-coded: both committed tfvars say `true`, so `committed_tfvars_plan` cannot tell (predicted survivor S1) |
+| `no_ip_rules_leave_entra_as_the_only_gate` *(added as built)* | `state_ip_rules = []` → `default_action == "Allow"` | `"Deny"` always, which with no rules locks every caller out (E18) |
+| `a_bad_environment_is_rejected` *(added as built)* | `environment = "test"` → `expect_failures = [var.environment]` | the environment validation removed (E17v2) |
+| `state_lives_in_its_own_tagged_group` *(added as built)* | `tags = { cost-centre = "test", stack = "overridden" }` and `location = "australiasoutheast"` (a region no tfvars uses) → the state group is `rg-panacea-app-${var.environment}-tfstate` and holds the account; all three located in `var.location`; each tag map is `cost-centre` plus the stack's own four, `stack = "bootstrap"` winning | the state group sharing the product group's name (E14); the account in the product group (E15); a wrong or overridable tag (E12, N1); a location hard-coded to `australiaeast`, which both tfvars would agree with (round 2 predicted survivor L1; L2, L3) |
+| `the_outputs_name_what_was_built` *(added as built)* | each output equals the resource it names; `state_container_name == "tfstate"` | an output naming the wrong thing (E13, N3); the container renamed (E16) |
+| `the_backend_file_names_this_container` *(added as built)* | `backends/${var.environment}.hcl`, read with `file()`: its `container_name` is the container this stack creates, it sets `use_azuread_auth = true`, and it holds no account, group, key, credential or tenant line. Each tfvars pass reads its own environment's file | `use_azuread_auth = false` (B1; B1p in prod.hcl, the prod pass only); prod's container misnamed (B2, the prod pass only); an account name in the file (B3) |
 
 The GUID in the test's `variables` block is in a `.tftest.hcl`, not a `.tfvars`, so guard G2 does
 not apply; it is the all-ones placeholder and names nobody.
 
 #### Steps
 
-- [ ] **Step 1:** Write `versions.tf` and the test file; `validate.sh infra/terraform/stacks/bootstrap`
-  fails at `validate` (resources missing).
-- [ ] **Step 2:** Write the variables, resources and outputs until every run passes.
-- [ ] **Step 3:** `terraform providers lock -platform=windows_amd64 -platform=linux_amd64` in the
-  stack; `git add` the lock file.
-- [ ] **Step 4:** Write `dev.tfvars` (`environment = "dev"`, `location = "australiaeast"`,
+- [x] **Step 1:** Write `versions.tf` and the test file; `validate.sh infra/terraform/stacks/bootstrap`
+  fails at `test` (resources missing). *As built: two facts differ from the step as first
+  written. Without a lock file `init -lockfile=readonly` fails first ("Provider dependency
+  changes detected"), so step 3 runs before this step. And `terraform validate` accepts a test
+  file whose assertions name undeclared resources, so the red is at `test`, not `validate`:
+  "Reference to undeclared resource", 0 passed, 1 failed, 11 skipped.*
+- [x] **Step 2:** Write the variables, resources and outputs until every run passes.
+- [x] **Step 3:** `terraform providers lock -platform=windows_amd64 -platform=linux_amd64` in the
+  stack; `git add` the lock file. *(Run before step 1's red; see step 1.)*
+- [x] **Step 4:** Write `dev.tfvars` (`environment = "dev"`, `location = "australiaeast"`,
   `unique_suffix`, `state_public_network_access = true`) and `prod.tfvars` (same, `prod`,
   `state_public_network_access = true` with a comment that task 30's runbook flips it to `false`
   after the in-VNet pool exists — the flip is the one planned change to this stack).
-- [ ] **Step 5:** Write `backends/dev.hcl` and `backends/prod.hcl`; run guards and validate; commit.
+  *As built: dev's suffix is `k7q2`, task 07's; prod's is `r4nv`, chosen here, and every later
+  prod tfvars uses it.*
+- [x] **Step 5:** Write `backends/dev.hcl` and `backends/prod.hcl`; run guards and validate; commit.
 
 #### Acceptance
 
@@ -217,8 +232,9 @@ bash infra/scripts/guards.sh
 # guards: 10 of 10 passed
 ```
 
-`terraform test` prints `Success! 12 passed, 0 failed.` twice inside the validate step, once per
-tfvars file (`dev.tfvars`, `prod.tfvars`).
+`terraform test` prints `Success! 21 passed, 0 failed.` twice inside the validate step, once per
+tfvars file (`dev.tfvars`, `prod.tfvars`). *As built: 21, not 12: the nine runs marked "added
+as built" kill the mutants the first twelve let live (As built, below).*
 
 #### What this task does not claim
 
@@ -226,3 +242,53 @@ tfvars file (`dev.tfvars`, `prod.tfvars`).
   endpoints or CMK on storage; task 31 finds out).
 - That hosted agents can reach it: with public access on and no IP rules, Entra RBAC is the only
   gate, which is a deliberate dev choice and is **not** the prod posture.
+- *As built:* that `sttfpanaceaappdevk7q2` and `sttfpanaceaappprodr4nv` are free in Azure's
+  global namespace (no Azure call is allowed here); that the CanNotDelete lock lets a writer's
+  role assignment be removed later; that the operator's `init -migrate-state` (task 31 §2d)
+  works without the operator being, or being in, a writer principal; and that azurerm keeps no
+  account key in bootstrap's state with shared keys off ("Open concerns", below).
+
+#### As built (task 02, 2026-09-25)
+
+- **Verified against azurerm 4.81.0** (`terraform validate`, no warning): every argument in
+  "Resources", including `https_traffic_only_enabled`, `storage_account_id` on the container, and
+  the provider's `resource_provider_registrations` (a bogus value is refused at validate, which
+  lists the legal ones; probe V1).
+- **Step order.** The lock file comes first, and the red is at `test` (step 1).
+- **The mock id.** azurerm validates the container's `storage_account_id` as a Resource Manager id
+  even under `mock_provider` (plan-time validation passes through to the real provider), so a
+  random mock id failed every apply run. The test pins
+  `mock_resource "azurerm_storage_account" { defaults = { id = "/subscriptions/0000…/…/storageAccounts/stmock" } }`.
+  The same pass-through means a hyphen in the account name is refused by azurerm's own name
+  check in the first run, before `state_name_fits_storage_rules` reads it.
+- **Nine runs and two assertions added** (the table's "added as built" rows), in two rounds of
+  the mutation check. Round 1 (the first twelve runs): the two predicted survivors (S1 public
+  access hard-coded, S2 the lock on the product group) and the other untested attributes all
+  lived. Seven runs and two assertions killed them in round 2, which left alive only its own
+  two predicted survivors: L1 (a location hard-coded to the one both tfvars use) and X1 (the
+  suffix length relaxed). Round 3 killed those with a run-level `location` no tfvars uses and
+  the five- and three-character suffix runs.
+- **Mutants the file cannot kill:** `storage_use_azuread = false` (probe V2). Provider
+  configuration is not visible to `terraform test`. It should fail loudly at apply rather than
+  weaken anything, because with shared keys off azurerm has no key to fall back on
+  (**UNVERIFIED**: reasoning, not a run).
+- **Malformed first forms.** `condition = true` in a validation is refused at `init` ("Invalid
+  validation expression": a condition must name its variable), so the "validation removed"
+  mutants delete the block instead (T7v2, T9v2, E17v2).
+
+#### Open concerns (task 02, for task 31)
+
+- **The lock and the role assignments.** Both state roles are scoped beneath the locked account
+  (the container). If a `CanNotDelete` lock also blocks deleting a role assignment at a child
+  scope, then removing a writer or reader (rotating the infra identity, say) needs the lock
+  lifted by hand first. **UNVERIFIED**: no Azure call is allowed here; task 31 finds out the
+  first time a principal changes.
+- **Account keys in state.** `azurerm_storage_account` exports `primary_access_key` and the
+  connection strings as sensitive attributes. Whether azurerm 4.81.0 still reads the keys
+  (`listKeys`, a control-plane call) with `shared_access_key_enabled = false` is **UNVERIFIED**.
+  If it does, the keys sit in `bootstrap.<env>.tfstate`, which the plan identity can read. They
+  authorise nothing while shared keys stay off, and turning them back on is a control-plane
+  write the plan identity cannot make, but the keys would then work at once.
+- **Who migrates the state.** Already covered by task 31 §2 step (d): the operator must hold
+  Storage Blob Data Contributor on the container, so is in the break-glass group, and a 403
+  right after the first apply is role propagation (retry). Nothing more for this stack.
