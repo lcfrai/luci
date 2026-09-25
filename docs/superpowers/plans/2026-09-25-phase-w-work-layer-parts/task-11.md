@@ -311,7 +311,7 @@ func (s *Server) registerWorkSocial(mux *http.ServeMux) {
 }
 ```
 
-**`postRelation`**, inside `s.Write`, in this order (the order is the rule; each step's refusal
+**`postRelation`**, inside `s.WriteReplayable` (see *Replay storage* below), in this order (the order is the rule; each step's refusal
 rolls the transaction back and appends nothing):
 
 1. `server.Decode[hubapi.RelationRequest]`; `!WritableRelationKind(kind)` → 400 `bad_request`,
