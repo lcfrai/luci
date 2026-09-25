@@ -761,3 +761,76 @@ describe("stress.sets", () => {
     }
   });
 ```
+
+```tsx
+  it("lists all eleven states", () => {
+    // Kills: a partial floor, a state renamed, a not-designed state drawn as if it were designed.
+    expect([...FLOOR_STATES]).toEqual([
+      "loading", "empty", "sparse", "dense", "partial", "stale",
+      "offline", "unauthorized", "error", "blocked", "success",
+    ]);
+    render(<DevelopStates />);
+    const cells = [...document.querySelectorAll<HTMLElement>(".ss-state")];
+    expect(cells.map((c) => c.dataset.state)).toEqual([...FLOOR_STATES]);
+    const undesigned = cells.filter((c) => c.dataset.designed === "false").map((c) => c.dataset.state);
+    expect(undesigned).toEqual(["partial", "unauthorized", "blocked"]);
+    for (const cell of cells) {
+      expect(within(cell).queryByText(NOT_DESIGNED) !== null).toBe(cell.dataset.designed === "false");
+    }
+  });
+
+  it("draws the Develop pane only with classes develop.css defines", () => {
+    // Kills: a facsimile that drifted from the real pane, styled by a class that no longer exists.
+    render(<DevelopStates />);
+    const defined = new Set(
+      [...stripCssComments(developCss).matchAll(/\.((?:pane|cols)-?[a-z-]*)/g)].map((m) => m[1]),
+    );
+    const used = new Set(
+      [...document.querySelectorAll(".ss-states [class]")]
+        .flatMap((el) => [...el.classList])
+        .filter((c) => /^(?:pane|cols)\b/.test(c)),
+    );
+    expect(used.size).toBeGreaterThan(10);
+    expect([...used].filter((c) => !defined.has(c))).toEqual([]);
+    expect(Object.keys(DEVELOP_STATES).sort()).toEqual([...FLOOR_STATES].sort());
+  });
+
+  it("keeps registered screens in registration order", async () => {
+    // Kills: a registry that sorts, and a hot reload that registers a screen twice.
+    vi.resetModules();
+    const registry = await import("./stressRegistry");
+    registry.registerStressScreen("a", () => "first a", ["load"]);
+    registry.registerStressScreen("b", () => "b", ["load"]);
+    registry.registerStressScreen("c", () => "c", ["load"]);
+    registry.registerStressScreen("a", () => "second a", ["load"]);
+    const listed = registry.stressScreens("load");
+    expect(listed.map((s) => s.name)).toEqual(["a", "b", "c"]);
+    expect(listed[0].render()).toBe("second a");
+    expect(registry.stressScreens("themes").map((s) => s.name)).toEqual([]);
+  });
+
+  it("renders nothing in production", () => {
+    // Kills: a production module that imports StressSets, a screen or the registry directly,
+    // which would ship them past mount.ts's gate. mount.ts itself is task 32's production test.
+    const sources = import.meta.glob<string>("/src/**/*.{ts,tsx}", {
+      query: "?raw", import: "default", eager: true,
+    });
+    const offenders: string[] = [];
+    for (const [file, text] of Object.entries(sources)) {
+      if (/\.test\.tsx?$/.test(file) || file.startsWith("/src/test/")) continue;
+      if (file.startsWith("/src/components/devtools/") || file.startsWith("/src/devtools/")) continue;
+      for (const m of text.matchAll(/from\s+"([^"]*devtools\/[^"]*)"|import\(\s*"([^"]*devtools\/[^"]*)"/g)) {
+        const target = m[1] ?? m[2];
+        if (file === "/src/App.tsx" && target === "./components/devtools/mount") continue;
+        offenders.push(`${file}  ${target}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+});
+```
+
+The `import.meta.glob` form is `designsystem.test.ts:25-34`'s, for the reason its header gives: a
+glob is expanded from the file system on every run, so a production file a later task adds is
+checked the moment it exists. The class test's floor of ten stops a facsimile that uses no pane
+class at all from passing an empty comparison.
