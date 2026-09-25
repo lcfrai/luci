@@ -136,6 +136,14 @@ variable "agent_allowed_fqdns" {
     "statsig.anthropic.com",
   ]
 }
+variable "realm_host" {
+  type        = string
+  description = "Our Keycloak's exact host, auth.<zone> (OD-30, ruling §9): the Hub and the broker fetch the realm's JWKS from it on 443, back through the edge's public IP. Exact, never a wildcard."
+  validation {
+    condition     = !strcontains(var.realm_host, "*") && startswith(var.realm_host, "auth.")
+    error_message = "realm_host must be our realm's exact host, auth.<zone>."
+  }
+}
 variable "log_analytics_workspace_id" {
   type        = string
   description = "Firewall logs destination."
@@ -159,7 +167,9 @@ one `azurerm_firewall_policy_rule_collection_group` with, in priority order:
 2. application rules — `AzureKubernetesService` FQDN tag on 443 (AKS's own required egress),
    **exactly** `var.acr_login_server` + `var.acr_data_endpoints` on 443 (the ACR rule: our
    registry's login server and data endpoints, never `*.azurecr.io`, which admits every other
-   tenant's registry, review I10), Entra (`login.microsoftonline.com`, `graph.microsoft.com`) on 443;
+   tenant's registry, review I10), Entra (`login.microsoftonline.com`, `graph.microsoft.com`) on 443
+   (this is also Keycloak's route to Entra as the broker, OD-30), and **exactly** `var.realm_host` on
+   443 (the Hub's and the broker's JWKS fetch from our realm, ruling §9);
 3. application rules — **`var.agent_allowed_fqdns` on 443, from `var.source_cidrs`**;
 4. application rules — **`var.ci_agent_allowed_fqdns` on 443, from `var.ci_agent_source_cidrs`
    only** (review C2: the CI pool's agents in `snet-agents`); and, in the same collection,
@@ -297,8 +307,8 @@ variable "dns_zone_name" {
 }
 variable "edge_hostnames" {
   type        = list(string)
-  description = "Record names under dns_zone_name pointing at the edge IP."
-  default     = ["hub", "broker"]
+  description = "Record names under dns_zone_name pointing at the edge IP. auth = our Keycloak (OD-30)."
+  default     = ["hub", "broker", "auth"]
 }
 variable "log_retention_days" {
   type        = number
@@ -428,7 +438,8 @@ simply never gets that far.
   subnets nat mode NATs are the four firewall mode routes),
   `ci_agent_source_cidrs = [module.network.subnet_cidrs.agents]`,
   `acr_login_server = module.registry.login_server` (exactly; review I10) and
-  `acr_data_endpoints = module.registry.data_endpoint_host_names` (task 05 `:72-75`).
+  `acr_data_endpoints = module.registry.data_endpoint_host_names` (task 05 `:72-75`) and
+  `realm_host = "auth.${var.dns_zone_name}"` (OD-30).
   The AKS module gets `outbound_type = var.egress_mode == "nat" ? "userAssignedNATGateway" :
   "userDefinedRouting"` and `authorized_ip_ranges = concat(var.api_authorized_ip_ranges,
   ["${var.egress_mode == "nat" ? module.network.nat_public_ip : module.egress_firewall[0].egress_public_ip}/32"])`
@@ -560,6 +571,7 @@ plan of the committed tfvars works.
 | `wildcard_acr_login_server_is_rejected` | its own `run`: `acr_login_server = "*.azurecr.io"` → `expect_failures = [var.acr_login_server]` | the validation removed, so a caller can pass the wildcard in (review I10) |
 | `agents_get_exactly_the_allowlist` | the agent rule's `destination_fqdns == var.agent_allowed_fqdns` and its protocol is HTTPS 443 only | an allow-all application rule |
 | `dns_goes_only_to_azure_dns` | the DNS network rule's destination is `["168.63.129.16"]` | DNS to `*`, a classic tunnel |
+| `realm_host_is_allowed_exactly` | with `realm_host = "auth.dev.panacea-app.invalid"`: rule 2's FQDNs contain it on HTTPS 443; `realm_host = "*.panacea-app.invalid"` in its own run → `expect_failures = [var.realm_host]` (OD-30) | a Hub and broker that cannot fetch the realm's keys under firewall mode, so nobody signs in; or a wildcard |
 
 `stacks/foundation/tests/foundation.tftest.hcl` (run by `validate.sh` once with `dev.tfvars` and once
 with `prod.tfvars`; its file-level `variables` block holds **only** `cluster_admin_group_object_ids`,
@@ -619,7 +631,7 @@ run) move with the grants to task 30's `grant-pipeline-roles_test.sh`.
 
 #### Steps
 
-- [ ] **Step 1:** `modules/egress-firewall`: variables, tests, resources, outputs — its nine runs pass.
+- [ ] **Step 1:** `modules/egress-firewall`: variables, tests, resources, outputs — its ten runs pass (`realm_host_is_allowed_exactly` added by OD-30).
 - [ ] **Step 2:** The stack's variables, the invariants and the test file; the invariant runs pass
   before any module is called (the preconditions need no module).
 - [ ] **Step 3:** Module calls, `edge.tf`, `grants.tf`, outputs; the remaining runs pass. Then
