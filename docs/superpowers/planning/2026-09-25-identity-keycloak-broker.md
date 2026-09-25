@@ -436,3 +436,54 @@ label or LiteLLM user changes.
 | Keycloak's database and role | **env 08** Postgres | 5 | one database `keycloak` (auth method: section 12, U-9) |
 | The Keycloak release (two replicas), the realm Job, per-environment values | **env 29** `deploy/charts/broker` and `hub` | 5 | add `deploy/charts/keycloak` beside them |
 
+## 10. The Panacea asks, exact
+
+For Panacea's own update of realm `panacea`, dev estate first (`auth.dev.panacea.kpmg`). Where: a new block
+in `deploy/portal/setup-keycloak.sh` beside `panacea-oauth2-proxy` (`:308-373`), in the same
+create-then-PUT-on-409 shape (`:332-361`); it ships through Phase 12's unconditional run
+(`deploy/cloud-shell-deploy.sh:5942`) by Panacea's ADO pipeline. **Nothing in PanaceaApp blocks on it**:
+`devissuer` runs the same flow, and the Panacea issuer is only configuration.
+
+**K1. Public client `panacea-app-desktop`** (name "PanaceaApp Desktop"):
+
+| Field | Value |
+|---|---|
+| `publicClient` | `true` (no secret) |
+| `standardFlowEnabled` | `true`; `implicitFlowEnabled`, `directAccessGrantsEnabled`, `serviceAccountsEnabled`: `false`; OAuth device grant: off |
+| `attributes."pkce.code.challenge.method"` | `S256` (required) |
+| `redirectUris` | `["http://127.0.0.1/*"]` (any loopback port, RFC 8252 §7.3; never `localhost`, facts §8) |
+| `webOrigins` | `[]` (none: the control plane is not a browser, so no CORS) |
+| `consentRequired` | `false` |
+| `attributes."client.offline.session.max.lifespan"` | `604800` (7 days, section 6) |
+| default client scopes | the realm's defaults, unchanged |
+| optional client scopes | `offline_access`, `panacea-app-hub`, `panacea-app-broker`, `panacea-app-gateway`, `panacea-app-fleet`. **Not** `groups` |
+| dedicated mappers | P1 `oid`, P2 `tid`, P3 `roles` (section 4) |
+
+**K2. Four client scopes** `panacea-app-hub`, `panacea-app-broker`, `panacea-app-gateway`,
+`panacea-app-fleet`: protocol `openid-connect`, `include.in.token.scope: true`, one `oidc-audience-mapper`
+each with `included.custom.audience` = the scope's name, access token only (A1-A4).
+
+**K3. IdP `entra` changes**, nothing else about it touched:
+- `config.loginHint: "true"` ("Pass login_hint"). Harmless to Panacea's clients: it forwards a hint only
+  when a client sends one.
+- Mappers M1 (`oid` -> `entra_oid`) and M2 (`tid` -> `entra_tid`), `oidc-user-attribute-idp-mapper`,
+  syncMode `FORCE`. The script's expected mapper count (`:635`) goes from 6 to 8.
+- **Unchanged and relied on:** `prompt` unset, `pkceEnabled:false`, `syncMode: IMPORT` on the IdP,
+  `trustEmail:true`, the `tid` filter, and `firstBrokerLoginFlowAlias = "panacea first broker login"`.
+
+**K4. Realm settings:**
+- User profile declares `entra_oid` and `entra_tid`: permissions view `["admin"]`, edit `["admin"]`,
+  not required, no validators beyond length 36.
+- `offlineSessionMaxLifespanEnabled: true` with `offlineSessionMaxLifespan: 5184000` (60 days, Keycloak's
+  own value once enabled), so K1's 7-day client override takes effect. It caps any other client's offline
+  sessions at 60 days (UNVERIFIED that Panacea has any; section 12).
+- Realm role `hub.org_admin`, assigned by the realm admin to the owner's user.
+
+**K5. Later, only if team mode or the gateway runs against Panacea's realm before phase 8's Keycloak
+exists:** confidential clients `panacea-app-fleet` and `panacea-app-gateway` exactly as section 6. If
+phase 8's Keycloak comes first, they are born in our realm (section 9) and K5 is never asked.
+
+**Check after Panacea applies K1-K4** (owner, about 5 minutes): set `PANACEA_APP_OIDC_ISSUER` to the dev
+realm, launch PanaceaApp signed out, and confirm the browser tab reaches "Signed in. You can return to
+PanaceaApp." with no click; then `GET /v1/auth/status` shows a GUID `oid` and `tid`.
+
