@@ -347,3 +347,165 @@ The first name only (`Dylan`, `Alice`) is the drawing's; a head with no assignee
 *Unassigned*. `not tied · imported` and the cause lines are machine facts, so they are mono
 (`.pw-cause`, task 30's rule); the agent's meaning and a teammate's line are sans.
 
+#### Interfaces — complete: `desktop/src/prototype/work/WorkPrototype.tsx`
+
+```tsx
+// desktop/src/prototype/work/WorkPrototype.tsx — task 38. 05 §4.1's Work drawing on fixtures.
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { JSX } from "react";
+import type { IssueHead } from "../../api/work";
+import { ViewHeader } from "../../components/common/ViewHeader";
+import { useCockpit } from "../../store/store";
+import { PlanPrototype, plainSize } from "./PlanPrototype";
+import { Group, IssueRow } from "./Rows";
+import { protoWorld } from "./world";
+import type { ProtoWorld } from "./world";
+
+/** The default export is the lazy target (mount.ts). One ghost button stands in for G W / G P. */
+export default function WorkPrototype(): JSX.Element {
+  const [screen, setScreen] = useState<"work" | "plan">("work");
+  return screen === "work"
+    ? <WorkScreen onPlan={() => setScreen("plan")} />
+    : <PlanPrototype onWork={() => setScreen("work")} />;
+}
+
+export function WorkScreen(props: { onPlan?: () => void }): JSX.Element {
+  const world: ProtoWorld = useMemo(protoWorld, []);
+  const [heads, setHeads] = useState<Record<string, IssueHead>>(world.heads);
+  const [groups, setGroups] = useState(world.groups);          // the order is frozen at mount
+  const [moving, setMoving] = useState<Record<string, string>>({ [world.held.issueId]: world.held.cause });
+  const [unseen, setUnseen] = useState<string[]>([]);
+  const [ghost, setGhost] = useState<ProtoWorld["departure"] | null>(world.departure);
+  const selection = useCockpit((s) => s.work.selection);
+  const cursor = useCockpit((s) => s.work.cursor);
+  const list = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {                                               // decision 5
+    const { select, moveCursor } = useCockpit.getState();
+    select(world.selected);
+    moveCursor(world.cursor);
+    list.current?.querySelector<HTMLElement>(`[data-issue="${world.cursor}"]`)?.focus();
+  }, [world]);
+
+  const replay = () => {                                          // decision 6: moves.hold, faked
+    const { issueId, to, cause } = world.replay;
+    setHeads((h) => ({ ...h, [issueId]: { ...h[issueId], state: to } }));
+    setMoving((m) => ({ ...m, [issueId]: cause }));
+    setUnseen((u) => [...u, issueId]);
+  };
+  const apply = () => {                                           // the stand-in for N
+    const settled = (id: string) => (["landed", "done"].includes(heads[id].state) ? 1 : 0);
+    setGroups((gs) => gs.map((g) => ({ ...g, issueIds: [...g.issueIds].sort((a, b) => settled(a) - settled(b)) })));
+    setMoving({});
+    setUnseen([]);
+    setGhost(null);
+  };
+
+  return (
+    <div className="pw-screen" data-screen="work">
+      <ViewHeader title={`${world.projectKey} · ${world.featureName}`} route="global"
+        badge={<span className="pw-branch">{world.branch}</span>}
+        actions={<>
+          <span className="pw-grouping">by criterion ▾</span>
+          <kbd className="pw-kbd">Ctrl+K</kbd>
+          {props.onPlan === undefined ? null : <button type="button" className="pw-ghost" onClick={props.onPlan}>Plan</button>}
+        </>} />
+      <div className="pw-dev" aria-label="Prototype controls">
+        <button type="button" className="pw-ghost" onClick={replay}>Replay a land</button>
+        <button type="button" className="pw-ghost" onClick={apply}>Apply held changes</button>
+      </div>
+      <div ref={list} role="listbox" aria-multiselectable="true" aria-label="Issues by criterion" className="pw-list">
+        {groups.map((g) => {
+          const held = g.issueIds.filter((id) => moving[id] !== undefined).length;
+          const size = plainSize(g.issueIds.length, held);
+          return (
+            <Group key={g.criterionId ?? "none"} group={g} briefKey={world.briefKey} size={size}>
+              {g.issueIds.map((id) => (
+                <IssueRow key={id} head={heads[id]} title={world.revisions[id].content.title.text}
+                  readerId={world.reader.id}
+                  agent={world.agent.issueId === id ? world.agent : null}
+                  touch={world.touches.find((t) => t.issueId === id) ?? null}
+                  cause={moving[id] ?? null} unseen={unseen.includes(id)}
+                  selected={selection.includes(id)} cursor={cursor === id}
+                  onFocus={() => useCockpit.getState().moveCursor(id)} />
+              ))}
+            </Group>
+          );
+        })}
+        {ghost === null ? null : (
+          <div className="pw-ghostrow" role="presentation">
+            <span>{ghost.alias} left this view · {ghost.state}</span><span className="pw-gs">N applies</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+```
+
+The dev strip is labelled *Prototype controls* and sits under the header, apart from the view's own
+controls, so the owner never reads *Replay a land* as a product verb. `by criterion ▾` is a label,
+not a control: display options are task 44's.
+
+#### Interfaces — complete: `desktop/src/prototype/work/PlanPrototype.tsx`
+
+```tsx
+// desktop/src/prototype/work/PlanPrototype.tsx — task 38, decision 7. Plan (G P) on fixtures:
+// Triage, Backlog, every criterion with its issues, My issues. No cycles, features board or views.
+import { useMemo } from "react";
+import type { JSX } from "react";
+import { ViewHeader } from "../../components/common/ViewHeader";
+import { useCockpit } from "../../store/store";
+import { Group, IssueRow } from "./Rows";
+import type { ProtoGroup } from "./world";
+import { protoWorld } from "./world";
+
+/** A plain size, Q1 A: a count of issues and, when any is held, of the held ones. Never "N of M". */
+export function plainSize(issues: number, moving = 0): string {
+  const n = `${issues} ${issues === 1 ? "issue" : "issues"}`;
+  return moving === 0 ? n : `${n} · ${moving} moving`;
+}
+
+const CLOSED = new Set(["done", "cancelled", "duplicate"]);
+
+export function PlanPrototype(props: { onWork?: () => void }): JSX.Element {
+  const world = useMemo(protoWorld, []);
+  const selection = useCockpit((s) => s.work.selection);
+  const cursor = useCockpit((s) => s.work.cursor);
+  const shown = Object.keys(world.revisions);                     // cancelled and duplicate are absent
+  const inState = (st: string) => shown.filter((id) => world.heads[id].state === st);
+  const bands: ProtoGroup[] = [
+    { criterionId: null, title: "Triage", convergence: null, issueIds: inState("triage") },
+    { criterionId: null, title: "Backlog", convergence: null, issueIds: inState("backlog") },
+    ...world.groups.filter((g) => g.criterionId !== null),
+    { criterionId: null, title: "My issues", convergence: null,
+      issueIds: shown.filter((id) => world.heads[id].assignee?.id === world.reader.id && !CLOSED.has(world.heads[id].state)) },
+  ];
+  return (
+    <div className="pw-screen" data-screen="plan">
+      <ViewHeader title={`${world.projectKey} · Plan`} route="global"
+        actions={props.onWork === undefined ? undefined
+          : <button type="button" className="pw-ghost" onClick={props.onWork}>Work</button>} />
+      <div role="listbox" aria-multiselectable="true" aria-label="Plan" className="pw-list">
+        {bands.map((g) => (
+          <Group key={`${g.title}`} group={g} briefKey={world.briefKey} size={plainSize(g.issueIds.length)}>
+            {g.issueIds.map((id) => (
+              <IssueRow key={`${g.title}/${id}`} head={world.heads[id]} title={world.revisions[id].content.title.text}
+                readerId={world.reader.id} agent={world.agent.issueId === id ? world.agent : null}
+                touch={world.touches.find((t) => t.issueId === id) ?? null} cause={null} unseen={false}
+                selected={selection.includes(id)} cursor={cursor === id}
+                onFocus={() => useCockpit.getState().moveCursor(id)} />
+            ))}
+          </Group>
+        ))}
+      </div>
+    </div>
+  );
+}
+```
+
+An issue can sit in two bands (EP-167 is under its criterion and in *My issues*), so a row's React
+key is band-scoped here. Task 45 decides whether the product shows it twice; the owner sees both
+readings at task 39. Plan's Triage, Backlog and *My issues* use `Group` with `criterionId: null`, so
+they draw no node and no line: only a criterion is on the thread.
+
