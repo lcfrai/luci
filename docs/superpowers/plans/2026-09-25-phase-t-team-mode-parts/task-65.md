@@ -704,7 +704,8 @@ cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/control-p
 cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team && helm unittest deploy/charts/fleet && shellcheck pipelines/scripts/*.sh pipelines/scripts/lib/*.sh
 ```
 
-Expected: each shell suite ends `ok: N passed, 0 failed` in `secrets-pr_test.sh`'s form; Go
+Expected: each shell suite ends `<suite>: N of N checks passed`, `secrets-pr_test.sh`'s form
+(its last two lines, read 2026-09-25 on `.claude/worktrees/env`), and exits 0; Go
 packages `ok`; `gofmt -l` prints nothing; `helm unittest` reports every suite passed;
 `shellcheck` prints nothing. The live gates are not run here: G3 and G4 need dev's cluster and
 the gate identity (gap 1), and their first run is task 69's M5 dry run.
@@ -714,3 +715,48 @@ the gate identity (gap 1), and their first run is task 69's M5 dry run.
 ```bash
 cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team && git add images/sandbox/claude-code.version pipelines/cli-bump.yml pipelines/scripts/cli-latest.sh pipelines/scripts/cli-pr.sh pipelines/scripts/gate-channel.sh pipelines/scripts/gate-channel_test.sh pipelines/scripts/gate-live.sh pipelines/scripts/publish-digests.sh pipelines/scripts/cli-bump_test.sh pipelines/scripts/lib/gate.sh pipelines/scripts/lib/gate_test.sh infra/smoke/bump control-plane/cmd/gatemint deploy/charts/fleet/tests/fleet_images_test.yaml && git commit -F .superpowers/sdd/team/msg/task-65.txt -- images pipelines infra/smoke/bump control-plane/cmd deploy/charts/fleet control-plane/internal/fleet/sessions
 ```
+
+**What this task does not claim:**
+
+- **That the 24-hour target is met.** Six-hourly detection plus one images run makes it
+  reachable on `dev`; nothing measures it, and prod waits for its approver (gap 2).
+- **That a passing G1–G4 means the new CLI is safe.** They prove our seams still hold: the
+  transcript adapter, the channel and its pre-edit check, the G9 corpus, the gateway path. A
+  behaviour change inside the CLI that none of those exercises goes through.
+- **That the release source is right.** Decision (a) reads the npm `latest` tag; how the pool
+  reaches the registry is **UNVERIFIED** (§10.4).
+- **That running sessions are safe from a bad image.** They keep their version by design, so a
+  session started on a version later found bad keeps it until Restart. Nothing here recalls one.
+- **That G2 and G4 judge the CLI.** They judge our socket's record, the fake upstream's request
+  log, the file on disk and the gatekeeper's log. The CLI's output is never read.
+- **Anything about local mode.** A laptop's CLI is its own (OD-20); this moves only the cloud's.
+
+**Gaps against the skeleton, raised here:**
+
+1. **Two pipeline rights P8-D16's four identities do not hold.** The bump PR needs *Contribute*
+   and *Create branch* on the repository for the `cli-bump` pipeline's build service, and G3/G4
+   need a fifth connection, `PANACEA_APP_DEV_GATE_SERVICE_CONNECTION`: create, get and delete
+   Jobs in dev's `panacea-sandboxes`, and read pod logs in `panacea-gateway`, nothing else. Its
+   ADO checks: pipeline permission `images` only, branch control `dev` and `main`. The owner
+   grants both (task 31 §4a's script); phase 8's identity table gains a row.
+2. **Prod's target.** The design's 24 hours (`05-design.md:1112`) cannot bind prod, whose deploy
+   waits for a human approval (task 30). The owner decides whether prod has a target.
+3. **The first publish needs the canary.** Task 27's artefacts have no `claudeCode`, so the first
+   run after this task counts as a CLI change and needs G1 to `pass`. Until phase 3 task 17 lands,
+   no image publishes on `dev` at all. This is OD-8's rule, but it can stall phase 8's deploys if
+   the order of landing is wrong; the skeleton's dependency column should add phase 3 task 17.
+4. **keysmith's `bump-gate` caller and the gate project.** Phase 6 task 08's caller table and
+   task 19's chart gain the row; dev needs an owner, team and project for gate runs (values
+   `bumpGate.*`) whose budget caps G9's cost. Neither phase 6's plan nor the skeleton names them.
+5. **Where G9's test binary lives.** This part builds task 42's `liveeval` test into the sandbox
+   image at `/opt/panacea/g9/`, and the Job's wrapper prints the `G9-REPORT` line. Task 42's part
+   runs `TestG9Live` from an operator's checkout; it needs the binary target and the line. The
+   owner may prefer a separate `images/g9` built `FROM` the sandbox image, never warm-pooled.
+6. **Who supplies the mirror image.** Task 58's `PUT /v1/mirrors/{projectId}` takes it from its
+   caller; no part says where Fleet gets it. This part adds `PANACEA_APP_FLEET_MIRROR_IMAGE`, and
+   task 59's caller must send it.
+7. **Task 69's gate order.** `task-69.md:208` expects `od8-canary, panacea-channel, g9-corpus,
+   gateway-compat`. This part runs G4 before G3, the cheap gate first, so M5 as written fails a
+   correct run. Task 69's `bumpGates` should read `…, gateway-compat, g9-corpus`.
+8. **The skeleton's file map** has no rows for `control-plane/cmd/gatemint`, `infra/smoke/bump/`,
+   `images/sandbox/claude-code.version` or `pipelines/cli-bump.yml`.
