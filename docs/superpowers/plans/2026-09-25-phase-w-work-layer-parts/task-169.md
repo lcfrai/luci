@@ -323,3 +323,120 @@ No body carries an idempotency field: every create and every *run now* goes thro
 `keyed(op.id)` client, which sends `Idempotency-Key` on each attempt (`task-56.md:89-98`), so a
 double press is one op and one run. `AcceptRequestBody.description` is what the **person** typed,
 and an empty one is legal (task 170). The quote is never a field of it.
+
+#### Interfaces — complete: `work.ts`, part 17: the relay table
+
+```ts
+/** Task 168's W5 relay rows, only the routes a desktop surface calls (170-173), in its order.
+ *  Paths are task 168's, which has no part yet: every path is UNVERIFIED, and the route test
+ *  below reads task 168's Go table by path and fails on any difference. */
+export const WORK_RELAY_W5 = [
+  ["ListRequests", "GET", "/v1/teams/{teamId}/requests"],
+  ["RequestMessages", "GET", "/v1/requests/{requestId}/messages"],
+  ["AcceptRequest", "POST", "/v1/requests/{requestId}/accept"],
+  ["LinkRequest", "POST", "/v1/requests/{requestId}/link"],
+  ["DeclineRequest", "POST", "/v1/requests/{requestId}/decline"],
+  ["MarkImportant", "PUT", "/v1/requests/{requestId}/important"],
+  ["ListIntakeRules", "GET", "/v1/teams/{teamId}/intake-rules"],
+  ["PutIntakeRules", "PUT", "/v1/teams/{teamId}/intake-rules"],
+  ["GetForm", "GET", "/v1/forms/{formId}"],
+  ["PutForm", "PUT", "/v1/teams/{teamId}/forms/{formId}"],
+  ["ConnectTracker", "POST", "/v1/teams/{teamId}/trackers"],
+  ["ListTrackers", "GET", "/v1/teams/{teamId}/trackers"],
+  ["SetTrackerMode", "PUT", "/v1/trackers/{connectionId}/mode"],
+  ["DisconnectTracker", "DELETE", "/v1/trackers/{connectionId}"],
+  ["ListSyncRuns", "GET", "/v1/trackers/{connectionId}/runs"],
+  ["ListLoops", "GET", "/v1/me/loops"],
+  ["TeamLoops", "GET", "/v1/teams/{teamId}/loops"],
+  ["PutLoop", "PUT", "/v1/loops/{loopId}"],
+  ["CreateLoop", "POST", "/v1/me/loops"],
+  ["PauseLoop", "PUT", "/v1/loops/{loopId}/state"],
+  ["ListLoopVersions", "GET", "/v1/loops/{loopId}/versions"],
+  ["ListLoopRuns", "GET", "/v1/loops/{loopId}/runs"],
+  ["RunLoopNow", "POST", "/v1/loops/{loopId}/runs"],
+  ["ListApps", "GET", "/v1/apps"],
+  ["DecideApp", "PUT", "/v1/apps/{appId}/decision"],
+  ["CreateAPIKey", "POST", "/v1/keys"],
+  ["ListAPIKeys", "GET", "/v1/keys"],
+  ["RevokeAPIKey", "DELETE", "/v1/keys/{keyId}"],
+  ["CreateWebhook", "POST", "/v1/teams/{teamId}/webhooks"],
+  ["ListWebhooks", "GET", "/v1/teams/{teamId}/webhooks"],
+  ["DisableWebhook", "DELETE", "/v1/webhooks/{webhookId}"],
+  ["ListDeliveries", "GET", "/v1/webhooks/{webhookId}/deliveries"],
+  ["Redeliver", "POST", "/v1/deliveries/{deliveryId}/redeliver"],
+  ["ListMCPConnectors", "GET", "/v1/mcp-connectors"],
+  ["DecideMCPConnector", "PUT", "/v1/mcp-connectors/{connectorId}"],
+  ["GetHarnessAllow", "GET", "/v1/teams/{teamId}/harness-allow"],
+  ["SetHarnessAllow", "PUT", "/v1/teams/{teamId}/harness-allow"],
+  ["ListTeamSkills", "GET", "/v1/teams/{teamId}/skills"],
+  ["PutTeamSkill", "PUT", "/v1/teams/{teamId}/skills/{name}"],
+] as const satisfies ReadonlyArray<readonly [string, Verb, `/v1/${string}`]>;
+export type RelayMethodW5 = (typeof WORK_RELAY_W5)[number][0];
+
+/** Hub routes a desktop surface must NEVER reach through the relay (task 168's 404 rows). */
+export const W5_NOT_RELAYED = ["/v1/hooks/", "/v1/teams-bot/", "/v1/forms/{formId}/submit", "/mcp"] as const;
+```
+
+Eight rows name a method task 143's list lacks: `RequestMessages` (task 157's thread),
+`SetTrackerMode` (task 153's per-connection switch), `ListLoops`, `TeamLoops`, `CreateLoop` and
+`PauseLoop` (tasks 162-163's own list and pause), `ListApps` and `ListTeamSkills`. They are proposed
+to task 143 with G1. `PauseLoop` is a separate row from `PutLoop` because a team admin may pause a
+teammate's loop but not write a version of it (OD-16, task 172). *Publish to sandboxes* is **not**
+a row here: it posts TM-14's policy route, which is Phase T's relay, not the Work relay, and task
+173 reaches it only once Phase T merges.
+
+#### Interfaces — complete: `work.ts`, part 18: the `WorkIntakeClient` members
+
+```ts
+/** SW.21 on the desktop. WorkClient (task 37) extends it beside WorkRoadmapClient (task 125). */
+export interface WorkIntakeClient {
+  requests(teamId: string, q?: { state?: RequestState } & PageRequest): Promise<Page<Request>>;
+  requestMessages(requestId: string): Promise<RequestMessage[]>;
+  /** One op: the issue and the link together. The answer carries both. */
+  acceptRequest(requestId: string, body: AcceptRequestBody): Promise<{ request: Request; issue: Issue }>;
+  linkRequest(requestId: string, body: LinkRequestBody): Promise<Request>;
+  declineRequest(requestId: string): Promise<Request>;
+  markImportant(requestId: string, important: boolean): Promise<Request>;
+  intakeRules(teamId: string): Promise<{ rules: IntakeRule[]; version: number }>;
+  putIntakeRules(teamId: string, body: PutIntakeRulesBody): Promise<{ rules: IntakeRule[]; version: number }>;
+  form(formId: string): Promise<IntakeForm & { url: string }>;   // url: the Hub form's https link
+  putForm(teamId: string, formId: string, body: PutFormBody): Promise<IntakeForm & { url: string }>;
+  connectTracker(teamId: string, body: ConnectTrackerBody): Promise<{ connection: TrackerConnection; consentUrl: string | null }>;
+  trackers(teamId: string): Promise<TrackerConnection[]>;
+  setTrackerMode(connectionId: string, mode: TrackerMode): Promise<TrackerConnection>;
+  disconnectTracker(connectionId: string): Promise<TrackerConnection>;
+  syncRuns(connectionId: string, page?: PageRequest): Promise<Page<SyncRun>>;
+  myLoops(): Promise<Loop[]>;
+  teamLoops(teamId: string): Promise<Loop[]>;
+  createLoop(body: PutLoopBody): Promise<Loop>;
+  putLoop(loopId: string, body: PutLoopBody): Promise<Loop>;
+  pauseLoop(loopId: string, state: LoopState): Promise<Loop>;
+  loopVersions(loopId: string): Promise<LoopVersion[]>;      // newest first
+  loopRuns(loopId: string, page?: PageRequest): Promise<Page<LoopRun>>;
+  runLoopNow(loopId: string): Promise<LoopRun>;              // outcome "queued"
+  apps(): Promise<App[]>;
+  decideApp(appId: string, body: DecideBody): Promise<App>;
+  createAPIKey(body: CreateAPIKeyBody): Promise<CreatedAPIKey>;
+  apiKeys(q?: { teamId?: string }): Promise<{ keys: APIKey[]; rate: RateReading | null }>;
+  revokeAPIKey(keyId: string): Promise<APIKey>;
+  createWebhook(teamId: string, body: CreateWebhookBody): Promise<CreatedWebhook>;
+  webhooks(teamId: string): Promise<Webhook[]>;
+  disableWebhook(webhookId: string): Promise<Webhook>;
+  deliveries(webhookId: string, page?: PageRequest): Promise<Page<WebhookDelivery>>;
+  redeliver(deliveryId: string): Promise<WebhookDelivery>;
+  mcpConnectors(): Promise<MCPConnector[]>;
+  decideMCPConnector(connectorId: string, allowed: boolean): Promise<MCPConnector>;
+  harnessAllow(teamId: string): Promise<HarnessAllow>;
+  setHarnessAllow(teamId: string, a: HarnessAllow): Promise<HarnessAllow>;
+  teamSkills(teamId: string): Promise<TeamSkill[]>;
+  putTeamSkill(teamId: string, body: PutTeamSkillBody): Promise<TeamSkill>;
+}
+// task 37's declaration becomes: export interface WorkClient extends WorkRoadmapClient, WorkIntakeClient { … }
+```
+
+`makeWorkClient` gains a `w5` helper exactly like task 125's `w4` (a row looked up by name, so a
+renamed row fails the route test), and one line per member over it. `apiKeys` is the one member
+that reads headers: task 37's `send` resolves to the body, so `w5` takes a `{ headers: true }`
+flag for that row only and `rateOf(h)` parses `X-RateLimit-Used`, `X-RateLimit-Limit` and
+`X-RateLimit-Reset` (task 160's names, **UNVERIFIED**), answering `null` when any is absent,
+never a guessed limit.
