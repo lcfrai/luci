@@ -921,3 +921,148 @@ on a 12-comment thread answers `409 thread_too_short`; `draft-update` under the 
 the switch"); a feature of an unreadable project answers the Hub's `404`. The house uses the
 standard library's `testing` (the `require` above is shorthand for the rig's `must*` helpers;
 the control plane has no testify dependency, `control-plane/go.mod`).
+
+#### Tests to write first — desktop, `drafts.test.tsx` and `ThreadSummary.test.tsx`
+
+Over task 126's `roadmapHarness` with task 127's fixtures (feature `ft-ep`, brief `bf-7k2@6`) and a
+`workClient` stub whose three calls the test answers (`assist.facts`, `assist.draft`,
+`assist.summary`, each settable to a value or an `ApiError`). Every test ends with
+`expectNoPrediction(container)`.
+
+```tsx
+import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import { expectNoPrediction } from "../../test/expectNoPrediction";
+import { renderWith, assist, fact } from "../../test/roadmapHarness";
+import { UpdateComposer } from "./UpdateComposer";
+import { ThreadSummary } from "../issue/ThreadSummary";
+import { ApiError } from "../../api/client";
+import { keepAsMine, appendDrafted, fieldAuthor } from "../editor/authorClass";
+
+const composer = () => renderWith(<UpdateComposer subject={{ kind: "feature", id: "ft-ep" }}
+  featureIds={["ft-ep"]} onPosted={() => {}} onCancel={() => {}} />);
+
+describe("task 139: the digest and the drafted update", () => {
+  it("the changes block renders with the gateway down", async () => {
+    assist.facts({ facts: [fact({ key: "f1", kind: "property", line: "target 14 Oct → 21 Oct", by: "Priya" })] });
+    assist.draft(new ApiError(502, { code: "gateway_unavailable" }));
+    const { container } = await composer();
+    expect(screen.getByText("target 14 Oct → 21 Oct")).toBeTruthy();     // kills "a model in the digest"
+    fireEvent.click(screen.getByRole("button", { name: "Draft from these" }));
+    expect(await screen.findByText("Drafting unavailable: the gateway did not answer.")).toBeTruthy();
+    expect(screen.getByText("target 14 Oct → 21 Oct")).toBeTruthy();
+    expectNoPrediction(container);
+  });
+
+  it("a draft enters as text·A, leaves health empty, and Post is refused", async () => {
+    assist.facts({ facts: [fact({ key: "f1", kind: "landed", subject: "issue:is-142", alias: "EP-142" })] });
+    assist.draft({ sentences: [{ text: "EP-142 landed.", cites: ["f1"] }], dropped: 0, route: "global" });
+    const { container } = await composer();
+    fireEvent.click(screen.getByRole("button", { name: "Draft from these" }));
+    await screen.findByText(/1 drafted sentence is not yours yet/);
+    for (const r of screen.getAllByRole("radio")) expect((r as HTMLInputElement).checked).toBe(false); // kills "the model picks health"
+    fireEvent.click(screen.getByLabelText(/At risk/));
+    expect(screen.getByRole("button", { name: "Post" })).toHaveProperty("disabled", true);   // kills "text·A posted as text·H"
+    fireEvent.click(screen.getByRole("button", { name: "Keep as mine" }));
+    expect(screen.getByRole("button", { name: "Post" })).toHaveProperty("disabled", false);
+    expect(within(container.querySelector(".ucmp-cites")!).getByText(/issue:is-142/)).toBeTruthy(); // the cite is a Hub key, not f1
+    expectNoPrediction(container);
+  });
+
+  it("keepAsMine adopts one sentence only", () => {
+    const d = appendDrafted({ markdown: "", authorship: [] }, ["One.", "Two."]);
+    const once = keepAsMine(d, 0, 4);
+    expect(fieldAuthor(once.authorship)).toBe("A");                          // kills "keep all"
+    expect(fieldAuthor(keepAsMine(once, 6, 10).authorship)).toBe("H");
+  });
+
+  it("the kill switch reads as words", async () => {
+    assist.facts({ facts: [fact({ key: "f1" })] });
+    assist.draft(new ApiError(503, { code: "assists_off" }));
+    const { container } = await composer();
+    fireEvent.click(screen.getByRole("button", { name: "Draft from these" }));
+    expect(await screen.findByText("Drafting unavailable: assists are off for this org.")).toBeTruthy();
+    expectNoPrediction(container);
+  });
+});
+
+describe("task 139: the thread summary", () => {
+  it("is absent at 12, offered at 13, and writes nothing", async () => {
+    const p = { issueId: "is-142", rootId: "ic-a1", onJump: () => {}, onPostAsComment: () => {} };
+    const { container, rerender, hub } = await renderWith(<ThreadSummary {...p} liveCount={12} />);
+    expect(screen.queryByRole("button", { name: "Summarise" })).toBeNull();
+    assist.summary({ lines: [{ text: "Quota agreed.", comments: ["ic-a2", "ic-a3"] }], dropped: 0, route: "global" });
+    rerender(<ThreadSummary {...p} liveCount={13} />);
+    fireEvent.click(screen.getByRole("button", { name: "Summarise" }));
+    expect(await screen.findByRole("link", { name: "ic-a2" })).toBeTruthy();   // every line links its span
+    expect(screen.getByText(/Not saved/)).toBeTruthy();
+    expect(hub.writes()).toEqual([]);                                          // kills "summary stored"
+    expectNoPrediction(container);
+  });
+});
+```
+
+`assist` and `fact` extend task 126's harness (the stubbed `WorkDraftsClient` and a `Fact`
+builder with defaults). `ApiError`'s constructor shape is `client.ts:58`'s, taken at build.
+
+#### Steps
+
+1. Write the Go tests and the prompt golden; they fail: no `facts.go`, `draft_update.go`,
+   `summary.go`.
+2. Write `facts.go` (`factOf`, `propertyFact`, `criterionWords`); the two facts tests pass.
+3. Write `draft_update.go`; the cite and health tests pass. Write `summary.go`; the summary and
+   erasure tests pass. Run the switch and AU test against task 136's rig.
+4. Append the three routes to `workassist.go`, add `thread_too_short` to `httpx`'s codes, list the
+   patterns in `routes_audit_test.go`; `go test ./control-plane/... -race -count=1`.
+5. Write the desktop tests; they fail. Append the `work.ts` types and calls and the `authorClass`
+   functions; the `keepAsMine` test passes.
+6. Write `ChangesSinceUpdate.tsx`, `lastUpdateSeq` and `lastUpdateDay`, and the composer delta;
+   the composer tests pass. Write `ThreadSummary.tsx` and the `Comments.tsx` delta; its test passes.
+7. `roadmap.css` and `issue.css` additions (mono ids and times, the drafted mark as a shape and a
+   word, no hue alone); `npm --prefix desktop run typecheck`; commit with
+   `git commit -F <msgfile> -- <paths>`.
+
+#### Acceptance
+
+```bash
+go test ./control-plane/internal/workassist/... ./control-plane/internal/api/... -race -count=1
+# expect: ok for both packages; TestFactsNeedNoGateway, TestUncitedAndForeignCitesAreDropped,
+#         TestDraftNeverCarriesHealth, TestSummaryLinksOnlyItsThread, TestErasedCommentNeverPrompted,
+#         TestKillSwitchAndAURoute among them; no FAIL
+npm --prefix desktop test -- src/components/roadmap/drafts.test.tsx src/components/issue/ThreadSummary.test.tsx src/components/editor/authorClass.test.ts
+# expect: drafts.test.tsx 4 passed; ThreadSummary.test.tsx 1 passed; authorClass.test.ts as before plus none failed
+npm --prefix desktop run typecheck
+# expect: exit 0
+```
+
+Every assist row runs against P6 task 16's fake; with phase 6 not on the sync base, the Go rig
+cannot start and the rows are recorded *not run* in task 142, never *passed*. **Visual acceptance
+is the owner's eyes**: the drafted mark, the block and the summary are judged in the running app.
+
+#### What this task does NOT claim
+
+- That drafts or summaries read well, are accurate, or save anyone time (unmeasured; the cites and
+  the person's edit are the check).
+- Drafted release-note prose (L-147's other half): this row's dependsOn lacks task 131 (gap 1).
+- That the Hub can tell a posted update was drafted: after *Keep as mine*, the body is `text·H` on
+  the wire (gap 3).
+- That the digest shows issues **removed** from the feature: task 123 reads membership now
+  (`task-123.md:33-34`), so an issue moved out is no longer under the feature's scope (gap 4).
+- That the model's routing matches the project's class beyond task 136's route choice, which this
+  task reuses and does not re-derive.
+
+#### Gaps found while writing this part
+
+1. **Task 139's dependsOn lacks 131**, so L-147's drafted prose has no task (the scope's gap 3).
+2. **Task 136 has no part on this tree**: `Service`, `Complete`, `Call`, `Reply`, `ErrAssistsOff`,
+   `ErrGatewayDown`, the rig and the helpers `readableFeature`, `featureProject`, `issueProject`,
+   `assistProblem` are assumed names; the file map has no `workassist` rows (scope gap 2).
+3. **No drafted-then-adopted marker on the wire.** Task 49's gap (one class per field) means *Keep
+   as mine* makes a drafted sentence indistinguishable from typed text; a per-passage class on
+   `AuthoredText` is the Hub-contract owner's call.
+4. **Scope removals are invisible** to the feature-scoped feed; task 87's `ScopeLog` (no part on
+   this tree) may hold them, and the digest should read it when it lands.
+5. **Task 72's feature-updated event** (no part on this tree) must carry the `from` and `to` of a
+   target move for *"target 14 Oct → 21 Oct"*; if it carries `fields` only, the line cannot name
+   the dates without a revision read.
+6. **`thread_too_short`** is a new control-plane problem code; `problem_test.go:35`'s count moves.
