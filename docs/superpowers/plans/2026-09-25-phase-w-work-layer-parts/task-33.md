@@ -319,3 +319,92 @@ whole window, and the reviewer re-picks the set to refresh the line. A `change` 
 a second source of truth for a dev readout. The ground switch for *themes* is the toolbar's own
 *Theme* group (task 32), which already sits one tab stop away; a second switch on the stage would
 be two writers of one flag.
+
+#### Interfaces — complete: `screens/glyphs.tsx` and `screens/viewHeader.tsx`
+
+```tsx
+// desktop/src/components/devtools/screens/glyphs.tsx
+//
+// Every drawn glyph (tasks 28, 29) at both sizes. The rows are DERIVED from the path tables, so a
+// glyph added to paths.ts appears here without an edit, and one the sheet cannot draw fails the
+// test that counts cells. Registered for the four condition sets and for forced colours' layout.
+
+import type { JSX, ReactNode } from "react";
+import { AgentGlyph } from "../../glyphs/AgentGlyph";
+import type { AgentStatus } from "../../glyphs/AgentGlyph";
+import { MarkGlyph } from "../../glyphs/MarkGlyph";
+import type { MarkKind } from "../../glyphs/MarkGlyph";
+import { AGENT_PATHS, MARK_PATHS, NOTCH_TIP, STATE_PATHS } from "../../glyphs/paths";
+import type { GlyphKey } from "../../glyphs/paths";
+import { StateGlyph } from "../../glyphs/StateGlyph";
+import type { GlyphSize, IssueState, Priority } from "../../glyphs/StateGlyph";
+import { registerStressScreen } from "../stressRegistry";
+
+export const SIZES: readonly GlyphSize[] = [14, 16];
+
+export interface SheetRow {
+  key: string;
+  draw: (size: GlyphSize) => ReactNode;
+}
+
+const keys = <T extends string>(table: Record<T, unknown>): T[] => Object.keys(table) as T[];
+
+export const SHEET_ROWS: readonly SheetRow[] = [
+  ...keys<GlyphKey>(STATE_PATHS[16]).map((key): SheetRow => ({
+    key: `state:${key}`,
+    draw: (size) =>
+      key === "done_not_proven"
+        ? <StateGlyph state="done" notProven size={size} />
+        : <StateGlyph state={key as IssueState} size={size} />,
+  })),
+  ...keys<Exclude<Priority, "none">>(NOTCH_TIP[16]).map((p): SheetRow => ({
+    key: `priority:${p}`,
+    draw: (size) => <StateGlyph state="todo" priority={p} size={size} />,
+  })),
+  ...keys<AgentStatus>(AGENT_PATHS[16]).map((status): SheetRow => ({
+    key: `agent:${status}`,
+    draw: (size) => <AgentGlyph status={status} size={size} label={status} />,
+  })),
+  ...keys<MarkKind>(MARK_PATHS[16]).map((kind): SheetRow => ({
+    key: `mark:${kind}`,
+    draw: (size) => <MarkGlyph kind={kind} size={size} />,
+  })),
+  { key: "mark:thread_node:lit", draw: (size) => <MarkGlyph kind="thread_node" size={size} lit /> },
+];
+
+export function GlyphSheet(): JSX.Element {
+  return (
+    <div className="ss-sheet">
+      {SHEET_ROWS.map((row) => (
+        <div key={row.key} className="ss-row">
+          <span className="ss-key">{row.key}</span>
+          {SIZES.map((size) => (
+            <span key={size} className="ss-cell" data-cell={`${row.key}@${String(size)}`}>
+              {row.draw(size)}
+            </span>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+registerStressScreen("Glyphs at 14 and 16 px", () => <GlyphSheet />);
+```
+
+```tsx
+// desktop/src/components/devtools/screens/viewHeader.tsx — task 31's header, each route state.
+import { ViewHeader } from "../../common/ViewHeader";
+import { registerStressScreen } from "../stressRegistry";
+
+registerStressScreen("View header", () => (
+  <>
+    <ViewHeader title="Work" route="global" />
+    <ViewHeader title="Work" route="au" />
+    <ViewHeader title="Work" route={null} />
+  </>
+));
+```
+
+`STATE_PATHS[16]`'s keys are task 28's ten `GlyphKey`s (nine states and `done_not_proven`);
+`NOTCH_TIP[16]`'s are the four drawn priorities. Twenty-three rows, forty-six cells.
