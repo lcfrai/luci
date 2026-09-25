@@ -1,21 +1,31 @@
-### Task 31: `entraauth` — the `TokenSource`: refresh, rotation, sign-out, start-up; and the Azure DevOps credential (HA-2, H-1)
+### Task 31: `signin` — the `TokenSource`: per-audience refresh, rotation, sign-out, the silent start-up (HA-2)
 
 **Lane C. Depends on: 30; 04 (`hubclient.Invalidator` and `ErrSignedOut`, through 30 too). About 4.5 hours. Contract task C1; corrections A12 and A13.**
 
-After sign-in, every Hub call, every phase 8 broker call and — if ADR-H1 Q5 is yes — every Azure
-DevOps push asks `Token(ctx, scope)` for the user's own access token (contract §6.2). **One refresh
-token serves every resource** the desktop client is consented for, so there is one sign-in, not
-three. This task is phase 8's **HA-2** exactly, and the Azure DevOps half of phase 3's **H-1**.
+**OD-30 (ruling `docs/superpowers/planning/2026-09-25-identity-keycloak-broker.md` on `main`, sections
+2, 3 and 7) changes four things here.** The package is `signin` (task 30). The stored token is the
+realm's **offline** refresh token, and each `Token(ctx, audience)` narrows it with
+`scope=openid <audience>` to a **single-audience** access token (ruling section 2 step 7). **At every
+launch the control plane redeems it silently** before the renderer's first status poll: success is
+signed in with no browser; `invalid_grant` deletes it and runs task 30's flow **at once, with no click**;
+a network failure never opens a browser (ruling section 3). And **Azure DevOps is a PAT only** (ruling
+section 7, hub Q5 flipped): `AzureDevOpsScope`, the `DevOps` adapter and `PANACEA_APP_ENTRA_DEVOPS` are
+deleted; phase 3's chain is `Local → LocalDevOps → GitHelper` (task 29).
+
+After sign-in, every Hub call and every phase 8 broker call asks `Token(ctx, audience)` for the
+user's own access token (contract §6.2). **One refresh token serves every audience** the realm
+client holds (`AudienceScopes`), so there is one sign-in, not four. This task is phase 8's **HA-2**
+exactly.
 
 **One refinement the contract does not state, and why it is needed.** The contract makes refresh
-single-flight **per scope**. But the scopes share **one** refresh token and Entra rotates it on
-redemption, so two scopes refreshing at once would redeem the same token twice — and `devissuer`,
-stricter than Entra by design (contract §6.4), refuses the second as spent, which would sign the
+single-flight **per scope**. But the scopes share **one** refresh token and the issuer may rotate it
+on redemption, so two scopes refreshing at once would redeem the same token twice — and `devissuer`,
+stricter by design (contract §6.4), refuses the second as spent, which would sign the
 user out. So redemptions are **serialised across all scopes** by one lock, and each redemption
 reads the refresh token current at its start; callers of one scope still share one redemption.
 
 **Files:**
-- `control-plane/internal/entraauth/{tokens.go,account.go,devops.go}` + `{tokens_test.go,devops_test.go}` (new)
+- `control-plane/internal/signin/{tokens.go,account.go,startup.go}` + `{tokens_test.go,startup_test.go}` (new)
 
 (No `hubclient.go` edit: task 04 declares `Invalidator`, so this lane-C task touches no lane-A file,
 review M15.)
@@ -23,36 +33,32 @@ review M15.)
 #### Contract — complete
 
 ```go
-// control-plane/internal/entraauth/tokens.go
-package entraauth
+// control-plane/internal/signin/tokens.go
+package signin
 
-// Scopes in v1 (contract §6.2).
-const (
-	// AzureDevOpsScope is Azure DevOps' resource id + user_impersonation; the id is
-	// from the contract, unverified (contract §15). Used only when Q5 is yes.
-	AzureDevOpsScope = "499b84ac-1321-427f-aa17-267ca6975798/user_impersonation"
-)
+// The audiences are task 30's AudienceScopes. AzureDevOpsScope is DELETED (OD-30
+// ruling section 7: Azure DevOps is a PAT, credstore.LocalDevOps, task 29).
 
 // Scope-specific refusals (review I2). Neither signs the user out; each wraps a
-// *ScopeRefusal naming the scope and Entra's code, so the caller can surface
-// "Azure DevOps refused PanaceaApp's sign-in" rather than "sign in again".
+// *ScopeRefusal naming the audience and the issuer's code, so the caller can
+// surface "the broker refused PanaceaApp's sign-in" rather than "sign in again".
 // Neither names an interactive step (re-review b04 N1): v1's only interactive
-// sign-in is BeginSignIn, which asks for Hub.Access alone, so no product action
-// performs a per-resource step-up. The remedies are the store's (task 39's
-// POST /v1/credentials/azure-devops) and IT's (consent, a policy change).
+// sign-in is BeginSignIn, which already asks for every audience, so no product
+// action performs a per-audience step-up. The remedy is the realm admin's (the
+// optional client scope missing on panacea-app-desktop, ruling section 10).
 var (
-	ErrScopeNeedsConsent = errors.New("entraauth: this resource needs consent")
-	ErrScopeRefused      = errors.New("entraauth: this resource refused this sign-in")
+	ErrScopeNeedsConsent = errors.New("signin: this audience is not granted to the desktop client")
+	ErrScopeRefused      = errors.New("signin: this audience refused this sign-in")
 )
 
 type ScopeRefusal struct {
 	Scope    string
 	Code     string // "invalid_grant" | "interaction_required" | "invalid_scope"
-	Suberror string // Entra's suberror, e.g. "consent_required"; "" if none
+	Suberror string // an Entra-style suberror; Keycloak sends none, so "" under the keycloak profile
 	Err      error  // ErrScopeNeedsConsent or ErrScopeRefused
 }
 
-func (r *ScopeRefusal) Error() string // "entraauth: <scope>: <Code>/<Suberror>"
+func (r *ScopeRefusal) Error() string // "signin: <scope>: <Code>/<Suberror>"
 func (r *ScopeRefusal) Unwrap() error // r.Err
 
 // refreshSkew is how long before exp a cached token stops being served
@@ -63,13 +69,16 @@ func (r *ScopeRefusal) Unwrap() error // r.Err
 func refreshSkew(lifetime time.Duration) time.Duration
 
 // Token serves the cached access token for scope while exp − now > refreshSkew(lifetime);
-// otherwise it redeems the refresh token: POST token_endpoint with
-// grant_type=refresh_token, client_id, refresh_token, scope="<scope> offline_access".
+// otherwise it redeems the refresh token through task 30's redeem: POST token_endpoint
+// with grant_type=refresh_token, client_id, refresh_token, scope="openid <scope>" (OD-30
+// ruling section 2 step 7: one audience per access token). scope must be one of
+// AudienceScopes; any other → an error, no request. No redemption ever opens a browser:
+// only Start (startup.go) and POST /v1/auth/sign-in call BeginSignIn.
 //   - Callers for one scope share one redemption (single-flight); redemptions for
 //     all scopes are serialised by one lock (the refinement above).
 //   - A response carrying a new refresh_token is written BEFORE the access token is
 //     returned, by task 28's generation sequence (review I1): chunks under a NEW
-//     generation (NewGeneration, EntraRefreshGenPrefix); then the account record,
+//     generation (NewGeneration, OIDCRefreshGenPrefix(Issuer, gen)); then the account record,
 //     naming refreshGen and refreshChunks, written last; only then DeleteChunked of
 //     the old generation's prefix. Nothing the old record names is overwritten, so
 //     if a chunk Put or the record Put fails, or the process dies, the old record
@@ -80,13 +89,17 @@ func refreshSkew(lifetime time.Duration) time.Duration
 //     start-up sweeps it.
 //   - A refusal is read by the SCOPE being redeemed, not by the error code alone
 //     (review I2): one refresh token serves every resource, and a refusal for one
-//     resource is not a dead refresh token.
-//       · Redeeming HubScope: invalid_grant (any suberror) or interaction_required
+//     resource is not a dead refresh token. Under the keycloak profile the
+//     realm answers invalid_grant (offline session gone, revoked or expired) and
+//     invalid_scope (an audience scope not on the client); it sends no suberror
+//     and no error_codes, so the Entra-body branches below never fire there and
+//     are kept only because the rule is written by code, not by issuer.
+//       · Redeeming HubAudience: invalid_grant (any suberror) or interaction_required
 //         → both entries deleted, every cached token dropped, Status
 //         {signed_out, reauth_required}, ErrSignedOut to every caller waiting on it.
 //         The Hub is the sign-in's own resource, so a refusal for it means the
 //         session is over.
-//       · Redeeming any OTHER scope (the broker's, AzureDevOpsScope):
+//       · Redeeming any OTHER scope (panacea-app-broker, -gateway, -fleet):
 //         invalid_grant with suberror consent_required or error_codes holding
 //         65001 → ErrScopeNeedsConsent; interaction_required (or invalid_grant
 //         with error_codes holding 50076 or 50079) → ErrScopeRefused.
@@ -96,13 +109,13 @@ func refreshSkew(lifetime time.Duration) time.Duration
 //       · Any OTHER invalid_grant on a non-Hub scope (no consent suberror, no
 //         50076/50079) may be a dead refresh token or a per-resource refusal, and
 //         only the Hub scope can tell: under the same redemption lock, Token
-//         redeems HubScope once. Hub refuses too → the sign-out path above, and
+//         redeems HubAudience once. Hub refuses too → the sign-out path above, and
 //         ErrSignedOut to the non-Hub caller as well; Hub succeeds (its rotation
 //         written as above) → ErrScopeRefused for that scope. Root-cause
 //         ruling: a non-Hub refusal never deletes the one credential the Hub
 //         still redeems, and a dead token is not left in the store for an hour
-//         while the Hub's cached access token lives. If the probe's own HubScope
-//         redemption answers unreachable, a timeout or a 5xx → ErrEntraUnavailable
+//         while the Hub's cached access token lives. If the probe's own HubAudience
+//         redemption answers unreachable, a timeout or a 5xx → ErrIssuerUnavailable
 //         to the non-Hub caller; if it answers any 4xx the Hub rule does not list
 //         → the error naming that code (the "any other 4xx" rule below). In both,
 //         nothing is deleted, Status is unchanged and nothing is remembered
@@ -117,18 +130,18 @@ func refreshSkew(lifetime time.Duration) time.Duration
 //         redemption per scope per back-off, not one per project, and the plain
 //         invalid_grant probe does not rotate the refresh token on every call. A
 //         sign-out forgets every remembered refusal with the rest.
-//       · invalid_scope on a non-Hub scope (the resource is not in the client's
-//         granted permissions: task 32's PANACEA_APP_ENTRA_DEVOPS=true before IT's
-//         consent) → ErrScopeNeedsConsent, the same keep-everything rule.
+//       · invalid_scope on a non-Hub scope (the audience scope is not on the realm
+//         client panacea-app-desktop: ruling section 10's K1 not yet applied for it)
+//         → ErrScopeNeedsConsent, the same keep-everything rule.
 //       · Any other 4xx body, on any scope (invalid_client, unauthorized_client,
-//         invalid_request, invalid_scope on HubScope, an unknown code) → an error
+//         invalid_request, invalid_scope on HubAudience, an unknown code) → an error
 //         naming the code (and error_codes), NOT ErrSignedOut: nothing is deleted
 //         and Status is unchanged. Only invalid_grant and interaction_required
-//         prove a refresh token dead, and only for HubScope; a misconfiguration
+//         prove a refresh token dead, and only for HubAudience; a misconfiguration
 //         never costs the user their sign-in.
 //       · The refresh token is NOT rotated by a refused redemption (no new
 //         refresh_token in an error body), so the store is not written.
-//   - Entra unreachable, a timeout, a 5xx → ErrEntraUnavailable; the stored token is kept.
+//   - The issuer unreachable, a timeout, a 5xx → ErrIssuerUnavailable; the stored token is kept.
 //   - Not signed in → ErrSignedOut, with no network call.
 func (a *Authenticator) Token(ctx context.Context, scope string) (string, error)
 
@@ -137,21 +150,23 @@ func (a *Authenticator) Token(ctx context.Context, scope string) (string, error)
 func (a *Authenticator) Invalidate(scope string)
 
 // SignOut deletes the account record FIRST, then every generation's chunks
-// (DeleteChunked(EntraRefreshPrefix)), and every cached token; a crash in between
-// leaves chunks with no record, which start-up sweeps. Status becomes {signed_out, ""}. It does not call Entra's logout
+// (DeleteChunked(OIDCRefreshPrefix(Issuer))), and every cached token; a crash in between
+// leaves chunks with no record, which start-up sweeps. Status becomes {signed_out, ""}. It does not call the realm's end_session_endpoint
 // endpoint in v1: the browser session is the user's, not ours (contract §6.2).
 func (a *Authenticator) SignOut(ctx context.Context) error
 ```
 
 ```go
-// control-plane/internal/entraauth/account.go — start-up (contract §6.2).
+// control-plane/internal/signin/account.go — reading the store at start (contract §6.2).
 //
-// New reads EntraAccountTarget(tid, ClientID) for the configured authority's tenant:
-// tid is the authority's one path segment, which task 32's config guarantees is a
-// lowercase tenant GUID (review M8), so New needs no network and no List. New
-// itself refuses a Config.Authority whose path is not one GUID (an error, not a
-// guess), so a caller that bypasses task 32's loader cannot look under a domain
-// or "organizations" and find nothing.
+// New reads OIDCAccountTarget(Issuer) (task 28 as OD-30 amends it:
+// PanaceaApp/oidc/<issuer host>/<realm>/...), so New needs no network and no List,
+// and one machine's records for two issuers never meet. New itself refuses an
+// Issuer that is not <scheme>://<host>[:port]/realms/<realm> with no trailing "/"
+// (an error, not a guess; task 32's TestTheIssuerIsARealmURL is the loader's
+// copy), so a caller that bypasses task 32's loader cannot look under a
+// malformed target and find nothing. A record whose "issuer" or "clientId"
+// differs from Config's is INVALID (below).
 // Parsing the record validates it BEFORE any target builder sees a stored value
 // (plan re-review b03 N1): refreshGen must pass credstore.ValidGeneration and
 // refreshChunks must be 1 to 16 (16 × MaxBlob = 40,960 bytes, far above the 6,000
@@ -162,10 +177,11 @@ func (a *Authenticator) SignOut(ctx context.Context) error
 // Three outcomes, decided by errors.Is(err, credstore.ErrNotFound) and nothing
 // looser (plan re-review b03 m3):
 //   - Present, valid, and the refreshChunks chunks of its refreshGen all readable →
-//     Status {signed_in}, Account set, NOTHING redeemed eagerly: the first Token call
-//     proves it; then SweepGenerations(EntraRefreshPrefix, refreshGen) deletes every
-//     generation the record does not name (a rotation that failed or died before its
-//     record Put, or after it but before the old generation's delete).
+//     the account is LOADED, Status {signed_out, ""}, NOTHING redeemed by New: Start
+//     (startup.go) redeems it at once; then SweepGenerations(OIDCRefreshPrefix(Issuer),
+//     refreshGen) deletes every generation the record does not name (a rotation that
+//     failed or died before its record Put, or after it but before the old
+//     generation's delete).
 //   - The record's Get → ErrNotFound, or the record INVALID, or a chunk Get of the
 //     named generation → ErrNotFound → {signed_out}, the record (if any) deleted,
 //     then SweepGenerations(…, "") deletes every generation.
@@ -179,30 +195,44 @@ func (a *Authenticator) SignOut(ctx context.Context) error
 ```
 
 ```go
-// control-plane/internal/entraauth/devops.go
+// control-plane/internal/signin/startup.go — the silent refresh at every launch
+// (OD-30 ruling section 3). devops.go is DELETED: Azure DevOps is a PAT (ruling
+// section 7), served by credstore.LocalDevOps (task 29).
 
-// DevOps implements phase 3's credstore.Store for Azure DevOps with the Entra
-// token (ADR-H1 Q5): Scheme bearer, Source "entra". Enabled is Q5's answer,
-// PANACEA_APP_ENTRA_DEVOPS (task 32); false makes it answer ErrNoCredential.
-// In phase 3's chain it comes AFTER credstore.LocalDevOps (task 29, review I10):
-// Local → LocalDevOps → DevOps → GitHelper, so a PAT the user pasted for an
-// organisation wins, and with Enabled false the store still serves Azure DevOps.
-type DevOps struct {
-	Tokens  TokenSource
-	Enabled bool
-}
+// ReasonOffline is Status.Reason while Start's redemption cannot reach the issuer
+// ("signed-out-offline", ruling section 3). NEW wire value, added to task 30's
+// Reason enum and to /v1/auth/status (task 32); the renderer shows it as offline,
+// never as "sign in" (tasks 40, 41).
+const ReasonOffline = "offline"
 
-// Credential: a host that is not Azure DevOps, or Enabled false → ErrNoCredential.
-// ErrSignedOut → ErrNoCredential (a Chain then moves on to the git credential
-// helper). ErrEntraUnavailable → returned as is, stopping the Chain: "Entra is
-// down" must not silently become "use another credential" (phase 3 task 13 :87-89).
-// ErrScopeNeedsConsent and ErrScopeRefused (review I2) → returned as is,
-// wrapped *ScopeRefusal and all, also stopping the Chain, by phase 3's Chain rule
-// (phase 3 task 13 :86-89): a store that answers with a refusal has spoken, and a
-// refusal must not silently become another credential. ErrSignedOut differs
-// because it is absence, not refusal: this store has no user to ask for, which is
-// exactly ErrNoCredential (re-review b04 N1). The Hub session is untouched.
-func (d DevOps) Credential(ctx context.Context, h credstore.Host) (credstore.Credential, error)
+// Start is called once by task 32's wiring BEFORE the control plane's listener
+// serves, so it settles before the renderer's first GET /v1/auth/status. It makes
+// at most one redemption, bounded by Config.StartTimeout (default 3 s), and then
+// returns; the outcomes are decided exactly as Token's refusal rules for
+// HubAudience decide them:
+//   - an account loaded by New, and Token(ctx, HubAudience) succeeds →
+//     {signed_in}, Account set, the Hub token cached. NO browser.
+//   - invalid_grant or interaction_required (the refresh token is dead: revoked,
+//     expired, a realm reset) → Token's sign-out path deletes both entries, then
+//     Start calls BeginSignIn AT ONCE: Config.OpenBrowser opens the system browser
+//     and Status is {signing_in}. No click; with the realm's rows (ruling section 3)
+//     the tab completes on its own.
+//   - no account (the store's ErrNotFound, a partial write, an INVALID record) →
+//     the same BeginSignIn at once: the first launch has no sign-in click either
+//     (ruling section 11, tasks 40-41).
+//   - the issuer unreachable, a timeout, StartTimeout passing, a 5xx →
+//     {signed_out, ReasonOffline}; NOTHING deleted and the browser NOT opened; the
+//     silent redemption is retried every Config.RetryEvery (default 5 s, on
+//     Config.After, a func(time.Duration) <-chan time.Time, default time.After)
+//     until it settles into one of the two rows above or ctx ends. A network
+//     error never opens a browser.
+//   - any other 4xx (invalid_client, invalid_scope on HubAudience, an unknown code)
+//     → {signed_out, ""}, the code logged at warn, nothing deleted, NO browser and
+//     no retry: a misconfigured client is not fixed by a sign-in page.
+//   - a store read error that is not ErrNotFound (account.go's third outcome) →
+//     {signed_out, ""}, nothing deleted, NO browser: the next launch retries.
+// Start never runs twice: a second call returns the current Status.
+func (a *Authenticator) Start(ctx context.Context) Status
 ```
 
 `hubclient.Invalidator` (`Invalidate(scope string)`) is declared by **task 04**, in lane A's
@@ -210,7 +240,7 @@ func (d DevOps) Credential(ctx context.Context, h credstore.Host) (credstore.Cre
 `func (a *Authenticator) Invalidate(scope string)`, and a compile-time
 `var _ hubclient.Invalidator = (*Authenticator)(nil)` in `tokens.go` holds the two together.
 
-#### Tests to write first — `tokens_test.go`, `devops_test.go`
+#### Tests to write first — `tokens_test.go`, `startup_test.go`
 
 Each against `devissuer` in-process with `AccessTTL` set short where expiry matters, and an
 injected clock.
@@ -222,42 +252,63 @@ injected clock.
 | `TestTenCallersOneRedemption` | 10 goroutines, one scope, expired cache → exactly 1 token-endpoint request (contract §13 C1) | a thundering herd on the token endpoint |
 | `TestRedemptionsAreSerialisedAcrossScopes` | Hub and broker scopes expire together; 5 callers each, concurrently → both succeed; the endpoint saw 2 requests, never two with the same refresh token | the per-scope-only single-flight, which signs the user out under rotation |
 | `TestRotationIsWrittenBeforeTheTokenIsReturned` | a recording `Secrets`: in order, the new generation's chunks, then the account record naming that `refreshGen` and `refreshChunks`, then the old generation's deletes — all before `Token` returns; **no `Put` targets any chunk of the old generation** | a crash between return and write losing the only valid refresh token; the in-place overwrite (review I1); an old generation deleted before the record names the new one |
-| `TestAFailedRotationWriteKeepsTheOldToken` | signed in (the old token, generation A); `Config.HTTPClient`'s `RoundTripper` swaps the refresh grant's `refresh_token` for a **6,000-byte** value (3 chunks — devissuer issues 43-character tokens, task-12.md:71, too small to need a second chunk); a faulting `Secrets` fails the **second** chunk's `Put` of that write → `Token` errors; the record still names A; `GetChunked(A, n)` returns the old token **whole, byte for byte**; `List(EntraRefreshPrefix)` holds only A's chunks; a fresh `New` over the same store → `signed_in`. A second case fails the record's `Put` instead: the same assertions | a torn token (new chunk 0 + old chunk 1, review I1) that signs the user out at the next start; a fault injected only on the first `Put`, which never tests the tear. (Whether the old token still redeems is Entra's rule, not this test's: devissuer revokes on rotation, task-12.md:101) |
-| `TestStartUpSweepsUnnamedGenerations` | the store holds the record naming B, B's chunks, and a stray generation C (a rotation that died before its record `Put`) and A (one that died before its old-generation delete); `New` → `signed_in`, and `List(EntraRefreshPrefix)` is exactly B's chunks | leaked refresh tokens piling up in Credential Manager; a sweep that deletes the named generation |
-| `TestNewFindsTheRecordByTheAuthoritysTenant` (review M8) | a record stored under `EntraAccountTarget(t1, c)`: `New` with `Authority` `…/<t1>` → `signed_in`, and with `…/<T1 uppercased>` → `signed_in` (read lowercased); `…/organizations` and `…/kpmg.com.au` → an error from `New`, not `signed_out`; a recording `Secrets` sees that exact target as the first `Get`, and every `List` (the start-up sweep's) under `PanaceaApp/entra/<t1>/<c>/`, none wider | a restart that looks under the wrong tid and signs the user out for good; a lookup that reads every account on the machine |
-| `TestInvalidGrantSignsOut` | `devissuer.RevokeRefreshTokens(grace)`; `Token(HubScope)` with its cache expired → `ErrSignedOut`; `Status` `reauth_required`; the store is empty | a dead refresh token retried on every call |
-| `TestInteractionRequiredSignsOut` | `RequireInteraction(grace, true)`; `Token(HubScope)` → the same | a conditional-access sign-in frequency never surfaced to the user |
-| `TestASecondaryScopeRefusalKeepsTheSession` | signed in, the Hub token cached. `Config.HTTPClient`'s `RoundTripper` answers the **broker** scope's refresh grant itself, never forwarding it (so devissuer's refresh token is not spent), with Entra's body `{"error":"invalid_grant","suberror":"consent_required","error_codes":[65001]}` → `Token(brokerScope)` is `ErrScopeNeedsConsent`, `errors.As` a `*ScopeRefusal` whose `Scope` is the broker's; `Status` still `signed_in`; the store, compared entry by entry, **unchanged**; then, the Hub's cache expired, `Token(HubScope)` succeeds with a real redemption of the kept refresh token. Case 2: `{"error":"interaction_required","error_codes":[50076]}` → `ErrScopeRefused`, the same assertions. Case 3, devissuer's own body: `RequireInteraction(grace, true)` with the Hub token still cached → `Token(brokerScope)` is `ErrScopeRefused`, the store unchanged. Case 4: `{"error":"invalid_scope","error_codes":[70011]}` for the broker's grant → `ErrScopeNeedsConsent`, the same assertions (review I2) | the scope-blind rule, under which a conditional-access policy on Azure DevOps signs the user out of the Hub at every push; a refusal that drops every scope's cached token |
-| `TestAPlainInvalidGrantOnASecondaryScopeAsksTheHub` | Case 1: `RevokeRefreshTokens(grace)`, the Hub token cached → `Token(brokerScope)` is `ErrSignedOut`; the endpoint saw exactly two requests, the broker's then the Hub's; `Status` `reauth_required`; the store is empty. Case 2: the `RoundTripper` answers the broker's grant with a bare `{"error":"invalid_grant"}` and forwards the Hub's → `Token(brokerScope)` is `ErrScopeRefused`; `Status` `signed_in`; the record names the Hub redemption's new generation (review I2). Case 3: the broker's grant answered with a bare `invalid_grant`, the Hub's probe answered `503` → `ErrEntraUnavailable`. Case 4: the probe answered `400 {"error":"invalid_client"}` → an error naming `invalid_client`, neither `ErrSignedOut` nor a `*ScopeRefusal`. In both, `Status` `signed_in`, the store entry by entry unchanged, and the next `Token(brokerScope)` makes a request (nothing remembered; re-review b04 m4) | a dead refresh token kept for the life of the Hub's cached token; a per-resource refusal that signs the user out; a probe outage read as a dead token, or remembered as a refusal |
+| `TestAFailedRotationWriteKeepsTheOldToken` | signed in (the old token, generation A); `Config.HTTPClient`'s `RoundTripper` swaps the refresh grant's `refresh_token` for a **6,000-byte** value (3 chunks — devissuer issues 43-character tokens, task-12.md:71, too small to need a second chunk); a faulting `Secrets` fails the **second** chunk's `Put` of that write → `Token` errors; the record still names A; `GetChunked(A, n)` returns the old token **whole, byte for byte**; `List(OIDCRefreshPrefix(Issuer))` holds only A's chunks; a fresh `New` + `Start` over the same store → `signed_in`. A second case fails the record's `Put` instead: the same assertions | a torn token (new chunk 0 + old chunk 1, review I1) that signs the user out at the next start; a fault injected only on the first `Put`, which never tests the tear. (Whether the old token still redeems is the issuer's rule, not this test's: devissuer revokes on rotation, task-12.md:101) |
+| `TestStartUpSweepsUnnamedGenerations` | the store holds the record naming B, B's chunks, and a stray generation C (a rotation that died before its record `Put`) and A (one that died before its old-generation delete); `New` + `Start` → `signed_in`, and `List(OIDCRefreshPrefix(Issuer))` is exactly B's chunks | leaked refresh tokens piling up in Credential Manager; a sweep that deletes the named generation |
+| `TestNewFindsTheRecordByTheIssuer` (review M8, as OD-30 amends it) | a record stored under `OIDCAccountTarget(i1)`: `New` with `Issuer: i1` loads it, and with a second realm `i2` on the same host loads nothing; `…/realms/x/` (trailing `/`), `…/auth/x` and `https://host` → an error from `New`, not `signed_out`; a record whose `issuer` or `clientId` differs from `Config`'s → INVALID, deleted; a recording `Secrets` sees that exact target as the first `Get`, and every `List` (the start-up sweep's) under `PanaceaApp/oidc/<host>/<realm>/`, none wider | a restart that looks under the wrong issuer and signs the user out for good; a lookup that reads every account on the machine; a dev-realm token redeemed at another realm |
+| `TestInvalidGrantSignsOut` | `devissuer.RevokeRefreshTokens(grace)`; `Token(HubAudience)` with its cache expired → `ErrSignedOut`; `Status` `reauth_required`; the store is empty | a dead refresh token retried on every call |
+| `TestInteractionRequiredSignsOut` | `RequireInteraction(grace, true)`; `Token(HubAudience)` → the same | a conditional-access sign-in frequency never surfaced to the user |
+| `TestASecondaryScopeRefusalKeepsTheSession` | signed in, the Hub token cached. `Config.HTTPClient`'s `RoundTripper` answers the **broker** scope's refresh grant itself, never forwarding it (so devissuer's refresh token is not spent), with Entra's body `{"error":"invalid_grant","suberror":"consent_required","error_codes":[65001]}` → `Token(brokerScope)` is `ErrScopeNeedsConsent`, `errors.As` a `*ScopeRefusal` whose `Scope` is the broker's; `Status` still `signed_in`; the store, compared entry by entry, **unchanged**; then, the Hub's cache expired, `Token(HubAudience)` succeeds with a real redemption of the kept refresh token. Case 2: `{"error":"interaction_required","error_codes":[50076]}` → `ErrScopeRefused`, the same assertions. Case 3, devissuer's own body: `RequireInteraction(grace, true)` with the Hub token still cached → `Token(brokerScope)` is `ErrScopeRefused`, the store unchanged. Case 4: `{"error":"invalid_scope","error_codes":[70011]}` for the broker's grant → `ErrScopeNeedsConsent`, the same assertions (review I2) | the scope-blind rule, under which a conditional-access policy on Azure DevOps signs the user out of the Hub at every push; a refusal that drops every scope's cached token |
+| `TestAPlainInvalidGrantOnASecondaryScopeAsksTheHub` | Case 1: `RevokeRefreshTokens(grace)`, the Hub token cached → `Token(brokerScope)` is `ErrSignedOut`; the endpoint saw exactly two requests, the broker's then the Hub's; `Status` `reauth_required`; the store is empty. Case 2: the `RoundTripper` answers the broker's grant with a bare `{"error":"invalid_grant"}` and forwards the Hub's → `Token(brokerScope)` is `ErrScopeRefused`; `Status` `signed_in`; the record names the Hub redemption's new generation (review I2). Case 3: the broker's grant answered with a bare `invalid_grant`, the Hub's probe answered `503` → `ErrIssuerUnavailable`. Case 4: the probe answered `400 {"error":"invalid_client"}` → an error naming `invalid_client`, neither `ErrSignedOut` nor a `*ScopeRefusal`. In both, `Status` `signed_in`, the store entry by entry unchanged, and the next `Token(brokerScope)` makes a request (nothing remembered; re-review b04 m4) | a dead refresh token kept for the life of the Hub's cached token; a per-resource refusal that signs the user out; a probe outage read as a dead token, or remembered as a refusal |
 | `TestARefusalIsRememberedUntilTheGenerationChanges` | the `RoundTripper` answers the broker's grant with `consent_required`/65001, counting requests. `Token(brokerScope)` → `ErrScopeNeedsConsent`; 10 more calls → the same `*ScopeRefusal`, **0** further requests. The plain-`invalid_grant` case: 10 more calls → 0 further Hub probes, and the record's `refreshGen` is unchanged. Then each of three clears, separately: the Hub redeems and rotates (`refreshGen` changes); `Invalidate(brokerScope)`; the injected clock advanced 15 min → the next `Token(brokerScope)` makes exactly 1 request. At 14 min 59 s → still 0. After `SignOut` and a new sign-in → 1 request (re-review b04 m4) | a refusal re-redeemed on every call, and a full rotation written to Credential Manager per project per fetch tick; a refusal remembered forever, so IT's consent is never seen; a back-off read from `time.Now` |
-| `TestAnUnlistedRefusalDeletesNothing` | the `RoundTripper` answers the **Hub** scope's refresh grant with `400 {"error":"invalid_client"}`, then `{"error":"invalid_scope"}`, then `{"error":"something_new"}`, never forwarding → each `Token(HubScope)` errors naming the code, and is neither `ErrSignedOut` nor `ErrEntraUnavailable`; `Status` still `signed_in`; the store, entry by entry, unchanged; with the `RoundTripper` removed, the next `Token(HubScope)` redeems the kept refresh token (review I2) | an "any 4xx signs out" rule, under which a misconfigured client id or scope deletes every user's refresh token |
-| `TestAnUnreachableEntraKeepsTheToken` | the issuer stopped → `ErrEntraUnavailable`; `Status` still `signed_in`; the store unchanged | a network blip signing the user out |
-| `TestStartUpFromTheAccountRecord` | a store pre-filled by a previous sign-in; `New` → `signed_in` with the account, **no** request until `Token`. A second case wraps the same store in a faulting `Secrets` whose `Get` of the record returns an error that is **not** `ErrNotFound` → `New` returns `signed_out` without error, and the store, compared entry by entry before and after, is **untouched**: no `Delete`, no sweep (plan re-review b03 m3) | an eager redemption at every start; a transient read failure treated as "absent", which deletes a valid refresh token |
+| `TestAnUnlistedRefusalDeletesNothing` | the `RoundTripper` answers the **Hub** scope's refresh grant with `400 {"error":"invalid_client"}`, then `{"error":"invalid_scope"}`, then `{"error":"something_new"}`, never forwarding → each `Token(HubAudience)` errors naming the code, and is neither `ErrSignedOut` nor `ErrIssuerUnavailable`; `Status` still `signed_in`; the store, entry by entry, unchanged; with the `RoundTripper` removed, the next `Token(HubAudience)` redeems the kept refresh token (review I2) | an "any 4xx signs out" rule, under which a misconfigured client id or scope deletes every user's refresh token |
+| `TestAnUnreachableIssuerKeepsTheToken` | the issuer stopped → `ErrIssuerUnavailable`; `Status` still `signed_in`; the store unchanged | a network blip signing the user out |
+| `TestStartUpFromTheAccountRecord` | a store pre-filled by a previous sign-in; `New` → the account loaded, **no** request; `Start` → exactly **one** request (`grant_type=refresh_token`, `scope=openid panacea-app-hub`), `signed_in` with the account, `OpenBrowser` never called. A second case wraps the same store in a faulting `Secrets` whose `Get` of the record returns an error that is **not** `ErrNotFound` → `New` returns `signed_out` without error, `Start` makes no request and does not call `OpenBrowser`, and the store, compared entry by entry before and after, is **untouched**: no `Delete`, no sweep (plan re-review b03 m3) | a launch that needs a click (no silent redemption); a transient read failure treated as "absent", which deletes a valid refresh token or opens a second sign-in |
 | `TestAPartialWriteIsNotAnAccount` | chunks but no account record → `signed_out`, every generation deleted; a record whose named generation lacks a chunk → `signed_out`, record and every generation deleted; and a record with `"refreshGen":"XYZ"`, and one with `"refreshChunks":0` and one with `17`, each over a valid generation's chunks → `New` returns `signed_out` **without panicking**, record and every generation deleted (plan re-review b03 N1) | a half-written sign-in treated as complete; a stored gen passed unchecked to a builder, which panics at every start |
 | `TestSignOutDeletesEverything` | → store empty, `Token` → `ErrSignedOut` without a request | a refresh token left behind (the machine's next user) |
 | `TestInvalidateForcesARedemption` | a fresh cached token; `Invalidate`; `Token` → a request | the 401-expired retry of contract §4.3 retrying with the same token |
-| `TestOneRefreshTokenServesTwoResources` | after one sign-in, `Token(HubScope)` and `Token(brokerScope)` both succeed, each `aud` its API | a second sign-in for the broker (phase 8) |
-| `TestErrSignedOutIsHubclients` | `errors.Is(entraauth.ErrSignedOut, hubclient.ErrSignedOut)` | the relay missing a signed-out error |
-| `TestDevOpsCredential` | GitHub host → `ErrNoCredential`; `Enabled: false` → `ErrNoCredential`; enabled → `{Scheme: bearer, Source: "entra"}`; signed out → `ErrNoCredential`; Entra unreachable → that error, not `ErrNoCredential`; a `TokenSource` answering `ErrScopeNeedsConsent`, and one answering `ErrScopeRefused` → that error, not `ErrNoCredential`, and a `credstore.Chain{DevOps, <a store that records calls>}` never asks the second store (review I2) | an ADO token sent to GitHub; an outage silently falling through the chain; an ADO refusal silently becoming another credential, against phase 3's `Chain` rule (re-review b04 N1) |
+| `TestOneRefreshTokenServesEveryAudience` | after one sign-in, `Token` for each of the four `AudienceScopes` succeeds; each request's `scope` is exactly `openid <that audience>`; each token's `aud` contains that audience and **no other of the four** (devissuer narrows; ruling U-4 records whether the dev realm does); `Token(ctx, "Hub.Access")` → an error, no request | a second sign-in for the broker (phase 8); a refresh that asks for every audience, so a broker token replays at the Hub (confused deputy) |
+| `TestErrSignedOutIsHubclients` | `errors.Is(signin.ErrSignedOut, hubclient.ErrSignedOut)` | the relay missing a signed-out error |
+
+`startup_test.go` — each with a **recording `OpenBrowser`** (it counts calls and, when a test says
+so, drives task 30's scripted browser):
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestStartOnADeadTokenSignsInAtOnce` | `RevokeRefreshTokens(grace)`, then a fresh `New` + `Start` → the store's old generation deleted; `OpenBrowser` called **once**, with no call to `BeginSignIn` from the test; the scripted browser completes it → `signed_in`, a new generation stored. The same with `RequireInteraction(grace, true)` | a dead token that leaves the user on a sign-in button (a click at launch); a dead token kept and retried |
+| `TestStartWithNoAccountSignsInAtOnce` | an empty store → `Start` calls `OpenBrowser` once and `Status` is `signing_in`; a partial write (chunks, no record) → the same, after the sweep | a first launch that waits for a click |
+| `TestStartOfflineNeverOpensTheBrowser` | the issuer stopped (connection refused); then a `503`; then a hang past `StartTimeout` on the injected clock → each: `Start` returns `{signed_out, offline}`, `OpenBrowser` called **0** times, the store entry by entry unchanged. Then the issuer restarted and `RetryEvery` fired on the injected `After` → one request, `signed_in`, `OpenBrowser` still 0 | **a refresh that falls back to the browser when it should not** (a network error read as a dead token); a store deleted by an outage; offline for ever after the network returns |
+| `TestStartOnAMisconfiguredClientNeverOpensTheBrowser` | the `RoundTripper` answers the refresh with `400 {"error":"invalid_client"}`, then `{"error":"invalid_scope"}` → `{signed_out, ""}`, `OpenBrowser` 0, nothing deleted, no retry request on the next `RetryEvery` tick | a browser opened (and a second refresh token minted) for a fault a sign-in cannot fix |
+| `TestTokenNeverOpensTheBrowser` | signed in; then `RevokeRefreshTokens(grace)` mid-session and `Token(HubAudience)` → `ErrSignedOut`, `reauth_required`, `OpenBrowser` **0** (only `Start` and `POST /v1/auth/sign-in` begin a sign-in) | a browser tab popping up mid-session from a background call |
+| `TestStartSettlesBeforeTheFirstPoll` | `Start` returns only after its redemption answered or `StartTimeout` passed; `Status()` read straight after is never `signed_out, ""` for a good stored token | a renderer that sees "signed out" for a moment at every launch |
 
 #### Steps
 
-- [ ] **Step 1:** Re-read contract §6.2 and §9.1; phase 8's HA-2 (`2026-09-23-phase-8-own-environment.md:220-238`, as ADR-H1 cites it); phase 3 task 13's `Chain`.
-- [ ] **Step 2:** Tests; they fail. Then `tokens.go`, `account.go`, `devops.go`, and `Invalidate` with its compile-time check against task 04's `hubclient.Invalidator`.
+- [ ] **Step 1:** Re-read contract §6.2 and §9.1; phase 8's HA-2 (`2026-09-23-phase-8-own-environment.md:220-238`, as ADR-H1 cites it); the OD-30 ruling sections 2, 3 and 7 (on `main`).
+- [ ] **Step 2:** Tests; they fail. Then `tokens.go`, `account.go`, `startup.go`, and `Invalidate` with its compile-time check against task 04's `hubclient.Invalidator`. Task 30's `Config` gains `StartTimeout`, `RetryEvery` and `After`, and its `Reason` enum gains `offline` (`ReasonOffline`).
 - [ ] **Step 3:** Commit by pathspec.
 
 #### Acceptance
 
 ```bash
-go test ./control-plane/internal/entraauth/ -race -count=1 -v 2>&1 | grep -c "^--- PASS"   # 40 (18 from task 30 + 22; review M8 added one)
-go test ./control-plane/internal/entraauth/ -race -count=20 -run 'TestTenCallers|TestRedemptionsAreSerialised'   # ok — twenty runs, no flake
+go test ./control-plane/internal/signin/ -race -count=1 -v 2>&1 | grep -c "^--- PASS"   # 52 on Windows, 51 elsewhere (task 30's 25/24 + 21 in tokens_test + 6 in startup_test)
+go test ./control-plane/internal/signin/ -race -count=20 -run 'TestTenCallers|TestRedemptionsAreSerialised'   # ok — twenty runs, no flake
+go test ./control-plane/internal/signin/ -count=1 -run 'TestStartOfflineNeverOpensTheBrowser|TestStartOnADeadTokenSignsInAtOnce|TestTokenNeverOpensTheBrowser' -v 2>&1 | grep -c "^--- PASS"   # 3
+grep -rn "AzureDevOpsScope\|PANACEA_APP_ENTRA_DEVOPS\|DevOps struct" control-plane/internal/signin/   # no output
 ```
 
 #### What this task does not claim
 
-- **That one KPMG refresh token redeems the Hub, the broker and Azure DevOps** (ADR-H1 §11): the
-  consent and the ADO resource id are checked at task 43's real-tenant sign-in.
-- That Entra keeps an old refresh token valid after rotation; the code does not rely on it.
+- **That one offline refresh token redeems all four audiences, one audience per token, at Panacea's
+  dev realm** (ruling U-4, U-5): task 43's check against the dev realm. Against devissuer it is
+  proved here; if the realm ignores the narrowing `scope`, tokens carry every audience, validators
+  still pass (`aud` contains) and the per-audience defence is recorded as degraded until phase 8.
+- That the issuer keeps an old refresh token valid after rotation; the code does not rely on it.
+- **Explicit sign-out, then a relaunch.** No record means `Start` begins a sign-in at once, and with
+  zero clicks the user is signed back in. The ruling does not say whether a deliberate sign-out
+  should survive a relaunch; nothing here remembers one. Owner's call, recorded, not decided here.
+- Mid-session, a dead refresh token is **not** re-signed-in automatically: `Token` signs out with
+  `reauth_required` and the renderer's sign-in action (task 41) begins it. The ruling's "at once"
+  is for launch (section 3); a browser tab from a background call is refused (`TestTokenNeverOpensTheBrowser`).
 - That two control planes signed in to one account on one machine are safe. The single lock and
   the start-up sweep assume one control plane per Windows user. The generations still stop a torn
   token: random names mean two writers never share a chunk. But a second process starting mid-rotation
@@ -265,21 +316,15 @@ go test ./control-plane/internal/entraauth/ -race -count=20 -run 'TestTenCallers
   reads a record naming a missing generation, which is a clean `signed_out`, not a wrong token.
   Unverified: nothing in the tree enforces one control plane per user.
 - Continuous Access Evaluation: not requested (the client declares no `cp1` capability, §6.4).
-- **Entra's per-resource refusal bodies** (A12): `consent_required`/65001, 50076/50079 and
-  `invalid_scope` for one resource while the refresh token redeems another are from Microsoft's
-  documentation as this plan understands it, not observed; the tests forge them, and task 43's R-8
-  records the real ones.
-- **The broker and Azure DevOps scopes are not added to task 30's authorize request** (the review's
-  optional step, declined). The desktop client is **admin**-consented for each resource (contract
-  §6.2 `:404-407`, §6.5), so asking the user at sign-in adds no consent. And a scope the tenant has
-  not consented, such as Azure DevOps while Q5 is unanswered, would fail the whole sign-in,
-  the Hub's included, where A12 fails only that resource. Task 30's step 8 also sends step 4's
-  scope unchanged, and a token request naming two resources is refused (from knowledge, unverified).
-- **No per-resource step-up sign-in in v1** (re-review b04 N1). An authorize request naming one
-  non-Hub scope with the refusal's `claims` challenge is not built, so nothing in the product clears
-  an `ErrScopeRefused`. That is why its text names no interactive step. Its remedies are a pasted
-  Azure DevOps PAT (task 39's `POST /v1/credentials/azure-devops`, served first by `LocalDevOps`),
-  `PANACEA_APP_ENTRA_DEVOPS=false`, or IT. Whether a fresh Hub-only `BeginSignIn` clears an Azure
-  DevOps 50076 is unknown (from knowledge: a loopback public-client flow carries no device claim, so
-  a device-compliance policy is never satisfied by it; unverified). Task 43's R-8 records it, so the
-  owner can rule on step-up with evidence.
+- **Keycloak's refusal bodies** (A12): that a revoked or expired offline session answers
+  `invalid_grant` and a scope missing on the client answers `invalid_scope` on the refresh grant is
+  from knowledge, not observed at the dev realm; the tests forge the rest, and task 43's R-8 records
+  the real ones. The Entra-body branches (`consent_required`/65001, 50076/50079) never fire under
+  the `keycloak` profile.
+- **Every audience is now in task 30's authorize request** (ruling section 2 step 4; this part used
+  to decline it). The four are optional client scopes on one realm client, so none can fail the
+  sign-in the way an unconsented Entra resource could; a missing one fails only its own `Token`
+  (`invalid_scope` → `ErrScopeNeedsConsent`).
+- **No per-audience step-up sign-in in v1** (re-review b04 N1): nothing in the product clears an
+  `ErrScopeRefused`, which is why its text names no interactive step; the remedy is the realm admin's.
+- **Azure DevOps**: nothing here. It is a PAT per organisation (task 29, ruling section 7).
