@@ -127,3 +127,67 @@ files; nothing in it is typed from memory.
 | O6 | Headless turn length, and whether a blocked non-essential call slows an Orchestrator with no internet (task 32) | the turn timeout and the managed file's traffic switches | 26, 32 |
 | O7 | Which path Fleet's https calls take (task 32, decision f) | the in-cluster allow or the hairpin, whichever did not carry traffic, is removed | 32 |
 | O8 | The first G9 pass: of N injection lines sent as peer text, how many produced a Fleet-turn directive, a decide, or neither | none in TM1-α; task 42 builds the corpus and the gate | 41, 42 |
+
+#### `infra/smoke/team/lib.sh` (complete)
+
+```bash
+#!/usr/bin/env bash
+# Sourced by every script in infra/smoke/team. Reads no secret and prints none: tokens stay in
+# the desktop's local control plane and in the pods; this file only calls them.
+set -euo pipefail
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OUT="${OUT:-$HERE/out}"; mkdir -p "$OUT"
+NS_SBX="${NS_SBX:-panacea-sandboxes}"
+SBX_CONTAINER="${SBX_CONTAINER:-sandbox}"   # phase 8 task 14's container name, UNVERIFIED
+
+need() { local v; for v in "$@"; do [ -n "${!v:-}" ] || { echo "missing $v" >&2; exit 2; }; done; }
+
+# jget PATH: read JSON on stdin, print the value at a dotted path (a.b[0].c); "" if absent.
+jget() {
+  python3 -c '
+import json, re, sys
+d = json.load(sys.stdin)
+for part in re.findall(r"[^.\[\]]+|\[\d+\]", sys.argv[1]):
+    if d is None: break
+    d = d[int(part[1:-1])] if part.startswith("[") else (d.get(part) if isinstance(d, dict) else None)
+print("" if d is None else (d if isinstance(d, str) else json.dumps(d)))' "$1"
+}
+
+# ctx_is laptop|operator: refuse to run a step in the wrong context (task 33, "Where each step runs").
+ctx_is() {
+  case "$1" in
+    operator) kubectl auth can-i create pods/exec -n "$NS_SBX" >/dev/null 2>&1 \
+                || { echo "this step runs as the operator (Cloud Shell, kubelogin)" >&2; exit 2; } ;;
+    laptop)   ! command -v kubectl >/dev/null 2>&1 || ! kubectl auth can-i get pods -A >/dev/null 2>&1 \
+                || { echo "this step runs on a person's laptop, which holds no cluster credential" >&2; exit 2; } ;;
+  esac
+}
+
+# pexec POD ARGS…: run the panacea CLI inside a sandbox pod, as that pod's agent (decision b).
+pexec() { local pod="$1"; shift; kubectl exec -n "$NS_SBX" "$pod" -c "$SBX_CONTAINER" -- /usr/local/bin/panacea "$@"; }
+
+# desk METHOD PATH [BODY]: one call to this person's local control plane (E3). PANACEA_APP_LOCAL
+# is its loopback base URL; the local API key is read from the file the desktop writes.
+desk() {
+  need PANACEA_APP_LOCAL PANACEA_APP_LOCAL_KEY_FILE
+  curl -sS --fail-with-body -X "$1" "$PANACEA_APP_LOCAL$2" \
+    -H "X-Panacea-Key: $(cat "$PANACEA_APP_LOCAL_KEY_FILE")" -H 'Content-Type: application/json' \
+    ${3:+--data "$3"}
+}
+
+# record CHECK RUN CTX VERDICT OBSERVED EXPECTED [IDS…]: one line of out/<script>.jsonl.
+record() {
+  local check="$1" run="$2" ctx="$3" verdict="$4" observed="$5" expected="$6"; shift 6
+  python3 -c '
+import json, sys, datetime
+c, r, x, v, o, e, *ids = sys.argv[1:]
+print(json.dumps({"check": c, "run": r, "ctx": x, "verdict": v, "observed": o, "expected": e,
+                  "ids": ids, "at": datetime.datetime.now(datetime.timezone.utc).isoformat()}))' \
+    "$check" "$run" "$ctx" "$verdict" "$observed" "$expected" "$@" >> "$OUT/$(basename "$0" .sh).jsonl"
+}
+```
+
+The local API key header name and file are phase 2's and the Hub plan's (`X-Panacea-Key` is
+this part's reading of "the key on every call", Hub plan `:345`); **UNVERIFIED until merge**, and
+the README names the merged spelling. A laptop that also holds a working cluster credential fails
+`ctx_is laptop`, because P8-D4 says it must not.
