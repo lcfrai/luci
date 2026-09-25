@@ -78,6 +78,7 @@ a prediction (`expectNoPrediction`, OD-27).
 | `desktop/src/work/keys/keymap.ts` ⚑ (task 53) | `"W3"` joins the active slices; the two rows' `verb`s registered |
 | `desktop/src/components/palette/commands.ts` ⚑ (task 59) | *Delegate to my Orchestrator* and *Ask my Orchestrator about this*, hints from `chordFor` |
 | `desktop/src/work/delegate/useDelegate.ts`, `useDelegate.test.ts` | new: the row rule of decision (b), the calls, the chip state |
+| `desktop/src/work/delegate/register.ts` | new: registers the two verbs with task 53's `registerVerb` |
 | `desktop/src/components/work/DelegateChip.tsx`, `DelegateChip.test.tsx` | new: decision (f) |
 | `desktop/src/api/work.ts` ⚑ (task 37) | two `WORK_RELAY` rows, two `WORK_LOCAL` rows, four client methods |
 | `control-plane/internal/api/workdelegate.go`, `workdelegate_test.go` | new: the delegation state and the guarded undo (decision (c)) |
@@ -236,3 +237,140 @@ export function DelegateChip(props: { issueId: string; alias: string }): JSX.Ele
 
 A 409 `first_write` from `undo` turns the chip to *working* at once and says *"Too late to undo:
 your Orchestrator's agent changed a file."* in the chip's place for 4 s; nothing is retried.
+
+#### The deltas on task 53, task 59, TM-52 and TM-53
+
+```ts
+// desktop/src/work/keys/keymap.ts ⚑ (task 53). The two rows exist, inert, as task 53 wrote
+// them: { verb: "delegate", keys: ["Shift+O"], code: "KeyO", shift: true, scope: "issueRow",
+// slice: "W3", … } and { verb: "ask", keys: ["Shift+A"], code: "KeyA", shift: true,
+// scope: "everyRow", slice: "W3", … }. This task changes one constant:
+export const ACTIVE_SLICES: ReadonlySet<KeyBinding["slice"]> = new Set(["W1", "W2", "W3"]);
+// (task 53's name for the set is UNVERIFIED; Step 1 uses its real one)
+
+// desktop/src/work/delegate/register.ts — new, called once from the Work view's mount
+export function registerDelegateVerbs(d: UseDelegate, openOrchestrator: OpenOrchestrator): () => void {
+  const offO = registerVerb("delegate", (row) => void d.delegate(row));
+  const offA = registerVerb("ask", (row) => openOrchestrator(row.projectId, askSubjectOf(row)));
+  return () => { offO(); offA(); };
+}
+
+/** An issue row asks about the issue; Phase T's rows keep their own kinds. */
+export function askSubjectOf(row: RowContext): AskSubject | undefined;
+```
+
+`RowContext` is task 59's type;
+`OpenOrchestrator` is TM-52's slice action (`task-52.md:1028`).
+
+**Palette** (`commands.ts` ⚑): two commands, generated from the two `KEYMAP` rows like every
+other work verb (task 59), with `hint` from `chordFor`. *Delegate to my Orchestrator* is present on
+issue rows of team projects only; on a solo project it is present and disabled, its hint replaced
+by *"needs team mode"*. *Ask my Orchestrator about this* is TM-55's `verb:ask-orchestrator` with
+the row's subject; this task does not add a second ask command, it passes the subject to TM-55's.
+
+**Assembly** (`teamassemble.go` ⚑, TM-52): for each person row, the newest active task's
+`issueId` (task 98); one `Work.Issue` per distinct issue per assembly, as the viewer; `Issue` is
+filled when the read succeeds, and a failed read leaves `issue: null` and the line as TM-52 built
+it. When `Issue.Title.Author == "human"`, `TaskTitle` is set to `nil`.
+
+**Row** (`TeamRow.tsx` ⚑, TM-53): the line is `briefSection.title`, then ` · `, then **`line.issue`
+as `EP-142` in Commit Mono and its title as `AuthoredText compact`** when present, else TM-53's
+`taskTitle`, then ` · N agents`. No other change: the dot, the files and the waiting phrase are
+TM-53's.
+
+#### Tests to write first, each with the mutant it kills
+
+Desktop in Vitest with Testing Library; the control plane in Go. Every desktop surface test ends
+with `expectNoPrediction(container)` (task 20).
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `useDelegate › solo does nothing and says why` | `team: false` → no request; `why.kind === "solo"`; the palette command is disabled with *"needs team mode"* | delegate without an Orchestrator |
+| `useDelegate › a teammate's issue is refused` | assignee Alice, me Dylan → no request; the row reads *"Only Alice can delegate EP-142."* | delegate to another person's agent (OD-16) |
+| `useDelegate › unassigned assigns me first` | one `mutate` assign write, then one `delegateIssue`, in that order | delegating an issue nobody owns |
+| `keys › Shift+O matches the code, not the key` | `{code: "KeyO", key: "O", shiftKey: true}` in a list → delegate; `{key: "O", code: "KeyP"}` (another layout) → nothing; `{code: "KeyO", shiftKey: false}` → nothing | `event.key` matched |
+| `keys › never in a terminal or a field` | the same event inside the xterm host, an `input` and a `contenteditable` → nothing | a chord that steals a terminal key |
+| `DelegateChip › Undo before the first write` | state `undoable` → *Undo*; click → `undoDelegate` once; then *Delegation withdrawn* | undo window ignored |
+| `DelegateChip › gone after the first write` | state `working` → no button; a 409 `first_write` from a stale click → *"Too late to undo …"* | an undo offered after work began |
+| `TestUndoAfterAFileWriteIsRefused` (Go) | `FirstWrite` ok → 409 `first_write` naming the agent; no `WithdrawDelegation` call | a guard only the UI holds |
+| `TestUndoWithoutTheReaderIsRefused` (Go) | `FirstWrite` errors → 503 `team_view_unavailable`; no Hub call | an undo that assumes no write |
+| `TestTheDesktopUndoesOnlyThroughTheGuard` | a source scan of `desktop/src` finds `WithdrawDelegation` only in `api/work.ts`'s table | a surface that skips the guard |
+| `Shift+A › asks about the issue` | on an issue row → `openOrchestrator(pid, {kind: "issue", ref: "issue:is-…@3"})`; the composer is empty; nothing is sent | an ask sent without words |
+| `TestTheLineIsTheIssueTitle` (Go, `teamassemble`) | a task with `issueId` and an `H` title → `issue.title` set, `taskTitle: null`; an `A` title → both set | task title kept |
+| `TeamRow › the line reads the issue` | the row's text is `Sessions survive restart · EP-142 Resume a session after a restart · 2 agents` | a row that computes its own line |
+
+#### Steps
+
+- [ ] **Step 1: Check the sync base.** Tasks 53, 59 and 61 are on it: re-read `KEYMAP`'s two W3
+  rows, the active-slice set's name, `registerVerb`, `RowContext` and `chordFor`, and rename here.
+  TM-52, TM-53 and TM-55 are merged (`grep -n "openOrchestrator" desktop/src/store/slices/*.ts`
+  prints the action). Task 100's two routes are relayed (`grep -n WithdrawDelegation
+  control-plane/internal/hub/hubclient/methods_work_agents.go`). Find the control plane's feed
+  reader for decision (c)'s state; if there is none, stop and raise gap 2 before writing code.
+- [ ] **Step 2: Write the tests first**; run them and see each fail for its reason (no verb
+  registered, no route, no field).
+- [ ] **Step 3: Write the control-plane half** (`workdelegate.go`, the `api.go` line, TM-52's
+  `Line.Issue` and assembly) and run the Go tests to green.
+- [ ] **Step 4: Write the desktop half** (`work.ts` rows, `useDelegate`, `register.ts`,
+  `DelegateChip`, the keymap constant, the palette commands, TM-52's types, TM-53's row) and run
+  the Vitest suites to green.
+- [ ] **Step 5: Prove the tests bite.** Apply each mutant by hand, see its test fail, revert.
+- [ ] **Step 6: Commit** with `git add` for the new files, then `git commit -F <msgfile> --` the
+  paths of *Files*. Message file under `.superpowers/sdd/work/msg/`; last line
+  `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>`.
+- [ ] **Step 7: Owner's eyes.** The chip's three states and the strip line, in the running app on
+  a team project, reviewed by the owner (CLAUDE.md: visual acceptance is the owner's eyes, not a
+  self-report). Record the words the owner used in `docs/verification/2026-09-25-phase-w-results.md`
+  under W3 (task 113).
+
+#### Acceptance
+
+```bash
+cd desktop && npx vitest run src/work/delegate src/components/work/DelegateChip.test.tsx src/work/keys src/components/palette src/components/team/TeamRow.test.tsx 2>&1 | tail -3
+# Test Files  N passed (N)   — every file named above; no skipped test
+cd .. && go test ./control-plane/internal/api/ -race -count=1 -v -run 'TestUndoAfterAFileWriteIsRefused|TestUndoWithoutTheReaderIsRefused|TestTheLineIsTheIssueTitle' 2>&1 | grep -c '^--- PASS'
+# 3
+go test ./control-plane/internal/api/ -race -count=1
+# ok   (TM-52's own team tests and fixtures unchanged but for the added null "issue" key)
+cd desktop && npx tsc --noEmit && npx eslint src/work/delegate src/components/work
+# (no output)
+```
+
+`N` is the count Vitest prints for the named files; it is not predicted here. The TM-52 fixtures
+under `control-plane/internal/api/testdata/team-view/v1/` gain `"issue": null` on every line; the
+diff is that key and nothing else (`git diff START -- control-plane/internal/api/testdata/team-view`
+shows only added `"issue": null` lines).
+
+#### What this task does not claim
+
+- That a delegated issue reaches a running Orchestrator in the cloud (phase 6 and 8, TM1), or
+  that Fleet stops work on `issue.undelegated` (task 98).
+- That the chip looks right. Step 7 is the owner's review; no screenshot is evidence.
+- Bulk delegate (*"Delegate 4 to my Orchestrator"*, L-225, `05-design.md:402`): task 44's
+  `BulkBar` would take the verb; no task in the skeleton adds it, so it is unowned (gap 5). This
+  task registers the single-row verb only.
+- That TM-55's panel answers an `issue` subject well. It opens with the chip; what the
+  Orchestrator does with it is TM-41's and task 110's.
+
+**Parity rows:** closes the W3 half of **L-39** (with task 61: Start in solo mode); makes live the
+`Shift+O` chord that **L-223** names, a W1 row task 53 closes with the chord reserved. Rows
+checked against `05-design.md` on 2026-09-25 (L-39 at `:148`, L-223 at `:400`).
+
+**Corrections to the scope paragraph:** the strip's title rule is assembled in TM-52's control
+plane, not in TM-53's row (decision (e)); Undo is guarded in a new control-plane route because
+the Hub cannot see a file write (decision (c)); the withdraw route is task 100's addition, which
+the scope's *"the delegate route task 100 adds"* did not include.
+
+**Gaps found while writing this part** (for the skeleton's owner and the named tasks):
+
+1. **`AskSubject.kind` has no `"issue"`** (`task-52.md:950`). This part adds it; Phase T's
+   TM-39 attach handler and TM-41's instructions must accept and read it, or `Shift+A` on an
+   issue sends a subject Fleet refuses (UNVERIFIED which task in Phase T owns the decode).
+2. **No delegation read route and no confirmed control-plane feed reader.** Decision (c) reads
+   the delegation's state from the change feed; if the control plane holds no feed, task 100 needs
+   `GET /v1/issues/{issueId}/delegate` (an added route) and this part's Step 1 stops for it.
+3. **Tasks 53, 59 and 61 have no parts yet**; every name taken from their scopes is re-read at
+   Step 1.
+4. **The file map** has no rows for `work/delegate/`, `DelegateChip.tsx` or `api/workdelegate.go`.
+5. **Bulk delegate is unowned.** L-225's row promises *Delegate 4 to my Orchestrator* in the bulk
+   bar; task 44 builds the bar in W1 before any Orchestrator exists, and no W3 task adds the verb.
