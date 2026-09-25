@@ -480,3 +480,63 @@ passes. It does **not** claim that any screen passes: the sets are how the owner
 **UNVERIFIED**). Design: 05 §4.4 C12, §5.3 row 8; 02 C12. Parity: no 01 row; 02 A10 point 8, the
 quality habit.
 
+**34 — the `forced-colors` layer; the reduced-motion running shape and static tick.** Stream WD1,
+2 h. Depends on 29 and 33. Files: new `desktop/src/styles/forced-colors.css`, imported by ⚑ `app.css`
+after the token layer; ⚑ `desktop/src/styles/tokens.css` (the reduced-motion floor at `:174-183`
+gains its `:root[data-motion="reduce"]` twin, task 33's hook); ⚑ `glyphs/glyphs.css` (the tick); ⚑
+`tokens.test.ts` and ⚑ `designsystem.test.ts`. **Forced colours** (05 §4.4 work rule 4; 07 D I8):
+Chromium drops `box-shadow` under `forced-colors: active`, so every ring would vanish; inside
+`@media (forced-colors: active)` each element that carries an `--e-*` elevation, `thread.node`,
+`lease.ring` or the selected-row ring gets a 1px `border` or `outline` in `CanvasText`, the selected
+row a 2px `Highlight` outline and the cursor row 1px, `thread.line` a `CanvasText` hairline, glyphs
+stay `currentColor`, the grain is `display: none`, and an escalated lease keeps the needs-you
+**shape** on its chip. The built focus ring is already an `outline` (`tokens.css:187-191`) and is not
+touched. `prototype/work-layer.html:379-386` sketches the rules; they are rewritten against the real
+class names. **Reduced motion** (05 §4.4 C7, revision 2; 07 D C4): with the breath stopped, running
+keeps task 29's own shape, so shape alone separates running, idle, exited and failed; the state flash
+is replaced by a **static 2px leading tick in `--ink`** that stays while the row carries
+`data-unseen="true"` (the read cursor, AX §6.1; the lens that owns "seen" sets and clears it, tasks
+40-41). The contract is the attribute: `data-unseen` shows the tick under reduced motion and the
+`--dur-flash` flash otherwise. Every reduced-motion rule appears twice, as the media query and as
+the `data-motion` twin, with identical declarations. **Tests first:** designsystem
+`it("gives every ring a forced-colors border or outline")` (collects each selector using `--e-*`,
+`--thread` or `--accent-ring` in a `box-shadow` and requires a forced-colors counterpart; kills a
+ring that vanishes); `it("turns grain off under forced colours")` (kills grain over system colours);
+`it("outlines the selected row in Highlight")` (kills an invisible selection);
+`it("keeps each reduced-motion twin identical to its media rule")` (kills a twin that drifts);
+glyphs `it("keeps running and idle apart with motion reduced")` (kills a colour-only difference);
+`it("shows the tick only on an unseen row, in ink")` (kills a tick that never clears, or one drawn
+in accent); `it("never transitions all")` (the existing rule covers the new file). **Acceptance:**
+`npm --prefix desktop test -- designsystem tokens glyphs` passes. It does **not** claim how a real
+Windows contrast theme looks (the owner checks it through task 33's screen), that WebView2 honours
+`forced-colors` exactly as Chromium does (**UNVERIFIED**), or the live region (task 66). Design: 05
+§4.4 (C7 reduced motion, work rule 4), §5.3 row 17; 07 D C4, D I8. Parity: no 01 row; with task 66 it
+is W1's accessibility floor.
+
+**35 — grain, measured at 150 % in WebView2.** Stream WD1, 2 h. Depends on 31. The grain is a fixed
+2.2 % noise overlay on the shell today (`.grain::after` at `tokens.css:159-171`; applied once, by
+`AppShell.tsx:82`, pinned by `AppShell.test.tsx:192-193`). 05 §4.4 work rule 6 (07 D M6) says it is
+measured, not assumed, before the prototype review. Files: new `desktop/src/styles/grain.css`, which
+takes the rule out of ⚑ `tokens.css` unchanged and adds: off under `:root[data-theme$="-hc"]`, off
+under `forced-colors` (task 34 also says so; one rule, not two), and off under
+`:root[data-grain="off"]`; ⚑ `lib/flags.ts` gains `grain: "on" | "off"`; new
+`devtools/GrainMeter.tsx` (task 33's registered screen) scrolls a 500-row fixture list by
+`requestAnimationFrame` for 5 s, twice, once with grain and once without, records each frame's
+interval in the page, and prints p50 and p95 in ms, in `tabular-nums`, with the device pixel ratio
+it ran at. The measurement runs **inside the real Tauri app in WebView2** at the laptop's own 150 %
+Windows scaling, so no browser automation or remote debugging port is needed. The person running
+it copies the two lines into a *Grain* section of `docs/verification/2026-09-25-phase-w-results.md`
+(the skeleton gives this task no results file; the return lists it). **The rule, recorded rather
+than asserted** (02 C8): if p95 with grain is within 1 ms of p95 without, and under 16.7 ms, grain
+stays; otherwise the numbers go to the owner with the proposal to turn it off at 150 % and above.
+**Tests first:** `it("moves the grain rule without changing it")` (the declaration block is byte-
+identical; kills a tuned opacity slipped in); `it("turns grain off in high-contrast themes")` (kills
+grain on `-hc`); `it("turns grain off with the flag")` (kills a meter that cannot compare);
+`it("reports p50 and p95 from recorded intervals")` (a fed list of intervals gives known
+percentiles; kills a mean reported as p95); `it("keeps grain on the shell only")` (the existing
+`AppShell` test still passes; kills grain per component). **Acceptance:** `npm --prefix desktop test
+-- grain GrainMeter AppShell` passes; the results file holds two measured lines with their DPR. It
+does **not** claim a frame budget met: the numbers are recorded, **UNVERIFIED** until run, and the
+owner accepts them. Design: 05 §4.4 work rule 6, C13 (grain is one of the five marks on dark; `paper`
+carries the thread gutter instead); 02 C13; 07 D M6. Parity: no 01 row.
+
