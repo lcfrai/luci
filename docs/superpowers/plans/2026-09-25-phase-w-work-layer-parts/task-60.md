@@ -77,7 +77,9 @@ on, without leaving the list and without marking anything seen.
 
 - `desktop/src/work/peek.ts` — `PeekKind`, `peekFor`, `spanFacts`, `personIssues`, `HunkSource` (new)
 - `desktop/src/work/peek.test.ts` — the pure choices (new)
-- `desktop/src/components/work/Peek.tsx` — `usePeekController`, `Peek`, the four bodies (new)
+- `desktop/src/components/work/Peek.tsx` — `usePeekController`, `Peek`, three of the bodies (new)
+- `desktop/src/components/work/PeekPerson.tsx` — `peek.person` alone, so its source test means
+  something (decision 7) (new)
 - `desktop/src/components/work/Peek.test.tsx` — keys, surfaces, source guards (new)
 - `desktop/src/components/work/IssueRow.tsx` (task 40's) — `data-row-id`, and no machine id on the
   row (modified)
@@ -352,3 +354,91 @@ function SpanBody(p: {
   );
 }
 ```
+
+`Peek.tsx` also imports `PeekPerson` from `./PeekPerson` (part 4) and `useEffect` for `HunkBody`
+(part 3); the import lines above list what parts 2 and 3 need, and the part-3 block adds its own.
+
+#### Interfaces — complete: `Peek.tsx`, part 3: the hunk body
+
+```tsx
+import { useEffect } from "react";
+import { getHunkSource, hunkRef, type LandHunk } from "../../work/peek";
+import { PeekPerson } from "./PeekPerson";
+
+type HunkState = { sha: string; hunks: LandHunk[] | null; reason: string };
+
+function HunkBody(p: { sha: string; onComment(ref: string): void }): JSX.Element {
+  const [st, setSt] = useState<HunkState>({ sha: p.sha, hunks: null, reason: "" });
+  useEffect(() => {
+    let live = true;                                           // a newer peek replaces this answer
+    getHunkSource().hunksOf(p.sha).then(
+      (hunks) => { if (live) setSt({ sha: p.sha, hunks, reason: "" }); },
+      (err: unknown) => { if (live) setSt({ sha: p.sha, hunks: null, reason: String((err as Error).message ?? err) }); },
+    );
+    return () => { live = false; };
+  }, [p.sha]);
+  return (
+    <div className="pk-hunks">
+      <p className="pk-fact">land commit <span className="pk-id">{p.sha.slice(0, 12)}</span></p>
+      {st.reason !== "" && <p className="pk-fact pk-reason">{st.reason}</p>}
+      {st.hunks?.map((h) => (
+        <section key={hunkRef(p.sha, h)} className="pk-hunk">
+          <p className="pk-fact">
+            <span className="pk-path">{h.path}</span>{" "}
+            @@ -{h.oldStart},{h.oldLines} +{h.newStart},{h.newLines} @@
+          </p>
+          <pre className="pk-diff">{h.lines.join("\n")}</pre>
+          {h.spanRef !== null && <p className="pk-fact pk-src">span {h.spanRef}</p>}
+          <button type="button" className="pk-link" onClick={() => p.onComment(hunkRef(p.sha, h))}>
+            Comment on this
+          </button>
+        </section>
+      ))}
+    </div>
+  );
+}
+```
+
+While the hunks are on their way the body shows the commit line only: no spinner, no
+placeholder rows (the one heartbeat is the only liveness, and a peek is not a live process). The
+body never measures or predicts how long the diff takes.
+
+#### Interfaces — complete: `desktop/src/components/work/PeekPerson.tsx`
+
+```tsx
+// peek.person: a teammate's issues in this project, their states and reasons. It imports no
+// session, no attach registry, no terminal and no transcript (OD-15, OD-8); a source test holds it.
+import type { JSX } from "react";
+import type { User } from "../../api/work";
+import { useWork } from "../../work/replica/replica";           // task 55 (scope words, UNVERIFIED)
+import { personIssues } from "../../work/peek";
+import { StateGlyph } from "../glyphs/StateGlyph";
+
+export function PeekPerson(p: { person: User; projectId: string }): JSX.Element {
+  const rows = useWork((r) => personIssues(
+    r.byProject(p.projectId).map((x) => x.head),
+    (id) => r.get(id)?.revision.content.title.text ?? "",
+    p.person.id, p.projectId,
+  ));
+  return (
+    <div className="pk-person">
+      <p className="pk-who">{p.person.displayName}</p>
+      {rows.length === 0 && <p className="pk-fact">No issues assigned in this project.</p>}
+      <ul className="pk-list">
+        {rows.map((r) => (
+          <li key={r.alias} className="pk-row">
+            <span className="pk-id">{r.alias}</span> <StateGlyph state={r.state} priority="none" notProven={false} />
+            <span className="pk-title">{r.title}</span>
+            {r.stateReason !== "" && <span className="pk-reason">{r.stateReason}</span>}
+            {r.files.length > 0 && <span className="pk-path">{r.files.join(", ")}</span>}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+```
+
+`useWork` compares selections to decide a re-render (task 55's scope, `tasks-41-60.md:483`);
+`personIssues` returns a new array each call, so the part's implementer passes task 55's
+equality helper if its part defines one, else memoises on `r.cursor` (**UNVERIFIED**, gap 4).
