@@ -802,3 +802,32 @@ returns the status and the decoded problem (Hub task 03's `Problem`).
   `TestDelegatedWriteIsV2` and `TestUnlistedRouteIs403` to fail.
 - [ ] **Step 9: Whole suite, vet, format, commit.** The acceptance commands below, then
   `git add` the new files and `git commit -F .superpowers/sdd/team/msg/t05.txt -- <the files>`.
+
+Subject: `feat(hub): delegated callers, Fleet under a delegation; devissuer client credentials
+(Phase T task 05)`; body: the renames of step 1, the four mutants of step 8; last line the
+`Co-Authored-By` line.
+
+#### Acceptance
+
+`LoadConfig`'s new refusals of step 6 are one test, `TestConfidentialClientsAreChecked`
+(`devissuer/config_test.go`): a confidential client with no service principal, a service
+principal oid equal to a user's, an `AppRoles` key naming no API, and a public client with
+either map, each refused.
+
+```bash
+~/.claude/tools/claudezsh/claudezsh 'cd control-plane && go test ./internal/entra/ -count=1 -v -run "^(TestAppCaller|TestDelegatedTokenUnchanged)" 2>&1 | grep -c "^--- PASS"'   # 4
+~/.claude/tools/claudezsh/claudezsh 'cd control-plane && go test ./internal/entra/ -count=1'   # ok, every built test unedited
+~/.claude/tools/claudezsh/claudezsh 'cd control-plane && go test ./internal/hub/server/ -count=1 -v -run "^(TestDelegationHeaderRules|TestIsFeedPathIsExact|TestUserKeyIsPerDelegation|TestRouteFromIsDelegablesName|TestAppOnlyClaimsCarryNoAdmin)$" 2>&1 | grep -c "^--- PASS"'   # 5
+~/.claude/tools/claudezsh/claudezsh 'cd control-plane && go test ./internal/devissuer/ ./cmd/hub/ -count=1 -v -run "^(TestAppTokenFromTheGrant|TestAppGrantRefusals|TestFleetdsFormIsAccepted|TestEnvNamesFleet|TestConfidentialClientsAreChecked|TestFleetClientIDIsChecked)$" 2>&1 | grep -c "^--- PASS"'   # 6
+~/.claude/tools/claudezsh/claudezsh 'cd control-plane && go test -tags integration ./internal/hub/store/ ./internal/hub/server/ -count=1 -v -run "^(TestFleet|TestAgentOwnedBy|TestAuditRowCarriesVia|TestDesktopWithHeader|TestExpiredDelegation|TestRevokedDelegation|TestAnotherTenants|TestTheOwnerIs|TestUnlistedRoute|TestAnotherOwners|TestDelegatedWrite|TestFeedRoute)" 2>&1 | grep -c "^--- PASS"'   # 14
+~/.claude/tools/claudezsh/claudezsh 'cd control-plane && go test ./... -count=1 2>&1 | grep -c "^FAIL"'   # 0
+~/.claude/tools/claudezsh/claudezsh 'cd control-plane && go test -tags integration ./internal/hub/... -count=1 2>&1 | grep -c "^FAIL"'   # 0
+~/.claude/tools/claudezsh/claudezsh 'cd control-plane && go vet ./... && gofmt -l internal cmd | wc -l'   # 0
+~/.claude/tools/claudezsh/claudezsh 'grep -rn "idtyp" control-plane/internal/entra control-plane/internal/devissuer control-plane/internal/hub'   # one line: entra_test.go:331
+```
+
+The integration runs skip, not pass, when `hubtest`'s admin URL is unset (Hub task 06); a count of
+0 there is a missing database, not a green run, and the step is not done until it reads 14.
+
+The last command is decisions (a) and (i) as a fact: nothing reads or writes `idtyp` except the
+built test that sends one to prove it is ignored.
