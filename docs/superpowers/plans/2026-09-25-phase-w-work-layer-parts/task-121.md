@@ -182,3 +182,175 @@ of time zone, and therefore the time, is not guaranteed"*); the forward walk the
 first real minute, 03:00 on 2026-10-04 in Sydney for an `at` of `02:30`. That a zone's gaps are at
 most two hours is from knowledge of the IANA data, **UNVERIFIED** here; the loop's bound is three. The linear scan from `k = 0` is simple and bounded;
 an index from `after` is a later optimisation if a profile asks.
+
+#### The passes (`server/janitor_w4.go`, contract complete)
+
+```go
+package server
+
+// sweepWorkW4 runs in the org's janitor transaction, after task 77's passes,
+// with the org's audit head already locked (H24:86-90). Each pass appends its
+// events with Actor nil and the policy's author in data (decision 5).
+func sweepWorkW4(ctx context.Context, tx *Tx, org string, now time.Time, r *SweepReport) error {
+	if err := passRecurring(ctx, tx, now, r); err != nil {
+		return err
+	}
+	if err := passReminders(ctx, tx, now, r); err != nil {
+		return err
+	}
+	return passHandovers(ctx, tx, now, r)
+}
+
+// passRecurring: for each schedule of a live issue template, dueOccurrence
+// after last_run_at. If due: task 78's prefill copy of the template into task
+// 08's create, state "triage", source "recurring", created_by the schedule's
+// author, Actor nil; emit issue.created; UPDATE last_run_at = the occurrence;
+// emit template.schedule_ran{issueId, occurrenceAt, skipped, by}. A template
+// archived since the schedule was set is skipped, and the schedule stays.
+func passRecurring(ctx context.Context, tx *Tx, now time.Time, r *SweepReport) error
+
+// passReminders: for each policy, since = LatestUpdateAt(subject) or the
+// policy's created_at; daysSince = floor(now−since / 24h). Due when
+// daysSince >= everyDays and (last_reminded_at is null or last_reminded_at <
+// since or now − last_reminded_at >= everyDays·24h). If due: UPDATE
+// last_reminded_at = now; emit update.reminder{subjectKind, lead, daysSince, by}.
+// The lead is the feature's lead (task 76) or the initiative's owner (task 118);
+// a subject that is done or cancelled is skipped, and its policy stays.
+func passReminders(ctx context.Context, tx *Tx, now time.Time, r *SweepReport) error
+
+// passHandovers: for each rotation, the period index p = floor(localDays(
+// startsOn → today in tz) / periodDays), and the index of last_handover_on the
+// same way. If p is greater: from = duty at the recorded period, to = duty at p,
+// both over current members (decision 7); UPDATE last_handover_on = the
+// boundary date; emit triage.handover{from, to, skipped: p − last − 1, by}.
+// A rotation whose current members are empty is skipped and reads onDuty null.
+func passHandovers(ctx context.Context, tx *Tx, now time.Time, r *SweepReport) error
+
+// SweepReport (Hub task 24's struct) gains, additively:
+//	Recurring, Reminded, HandedOver int
+```
+
+`created_by` on the recurring issue is the schedule's author, so the issue's own record says whose
+rule made it and the list shows *"Ada's weekly template"*, not a system user; the event's `actor`
+stays `null`, which is how the feed tells a person's act from the janitor's (05 §3.6, as cited in
+the scope). Whether task 08's create path accepts a `created_by` different from the principal is
+**UNVERIFIED** until its part lands; if it does not, the janitor calls a store function beside it
+with the same checks and no principal, and the part for task 08 is not changed.
+
+```go
+// server/janitor_w4_export_test.go (package server; never in the binary)
+
+// RunJanitorOnce is task 124's hook: one Sweep at now, the W4 passes included.
+func RunJanitorOnce(ctx context.Context, st *store.Store, blobs blobstore.Store, now time.Time) (SweepReport, error) {
+	return Sweep(ctx, st, blobs, JanitorConfig{
+		Interval: time.Minute, Retention: 24 * time.Hour,
+		Now: func() time.Time { return now }, Log: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+}
+```
+
+Task 124 names it `server.RunJanitorOnce(ctx, clk.Now())`; its end to end must be in package
+`server` to call it, or pass `st` and `blobs` as this signature needs. That is a note for 124.
+
+#### The store (`store/work_schedules.go`, signatures complete)
+
+```go
+package store
+
+type ScheduleRow struct {
+	TemplateID, TeamID, By string
+	N                      int
+	Unit, At, TZ, StartsOn string
+	LastRunAt              time.Time
+}
+func PutSchedule(ctx context.Context, tx pgx.Tx, s ScheduleRow) error // upsert on template_id
+func DeleteSchedule(ctx context.Context, tx pgx.Tx, templateID string) (deleted bool, err error)
+func DueSchedules(ctx context.Context, q Querier) ([]ScheduleRow, error) // every row of the org; the pass filters
+func SetLastRun(ctx context.Context, tx pgx.Tx, templateID string, at time.Time) error
+
+type ReminderRow struct {
+	SubjectKind, SubjectID, TeamID, ProjectID, By string // ProjectID "" for an initiative
+	EveryDays                                     int
+	CreatedAt                                     time.Time
+	LastRemindedAt                                *time.Time
+}
+func PutReminderPolicy(ctx context.Context, tx pgx.Tx, r ReminderRow) error // upsert on the subject
+func ReminderPolicies(ctx context.Context, q Querier) ([]ReminderRow, error)
+func SetLastReminded(ctx context.Context, tx pgx.Tx, subjectKind, subjectID string, at time.Time) error
+
+type RotationRow struct {
+	TeamID, By, StartsOn, TZ string
+	Members                  []string
+	PeriodDays               int
+	LastHandoverOn           *string
+}
+func PutRotation(ctx context.Context, tx pgx.Tx, r RotationRow) error // upsert on team_id
+func RotationOf(ctx context.Context, q Querier, teamID string) (RotationRow, bool, error)
+func Rotations(ctx context.Context, q Querier) ([]RotationRow, error)
+func SetLastHandover(ctx context.Context, tx pgx.Tx, teamID, on string) error
+```
+
+#### The routes (`server/work_schedules.go`)
+
+```go
+mux.HandleFunc("PUT /v1/templates/{templateId}/schedule", s.putSchedule)
+mux.HandleFunc("DELETE /v1/templates/{templateId}/schedule", s.deleteSchedule)
+mux.HandleFunc("PUT /v1/reminder-policies", s.putReminderPolicy)
+mux.HandleFunc("PUT /v1/teams/{teamId}/triage-rotation", s.putRotation)
+mux.HandleFunc("GET /v1/teams/{teamId}/triage-rotation", s.getRotation)
+```
+
+- **`putSchedule`**, in `s.Write`: the template found and readable (404 `template_not_found`, task
+  78's code, **UNVERIFIED** name); an org template or a brief template → 422 `field:
+  "templateId"`, `reason` `org_template` or `not_issue_template` (a recurring issue needs one team
+  and an issue shape); the caller a team admin (403 `required: admin`); `TemplateSchedule` decoded,
+  `templateId` absent or equal to the path; T114's `Validate`; `time.LoadLocation(tz)` succeeds
+  (else 422 `field: "tz"`); `startsOn` defaulted (decision 2); `last_run_at` set by decision 3;
+  `PutSchedule`; one `template.schedule_set`; 200 `TemplateSchedule`. **`deleteSchedule`**: the
+  same read and admin checks; deleted → one `template.schedule_cleared`, 204; absent → 204, no
+  event.
+- **`putReminderPolicy`**: the subject readable as a member (404 `feature_not_found` or
+  `initiative_not_found`); the caller the feature's lead, the initiative's owner or a team admin
+  (403 `required: lead`); `everyDays` 1-90 (T114); `PutReminderPolicy` (an existing policy is
+  replaced and its `last_reminded_at` kept); one `reminder.policy_set`; 200 `ReminderPolicy`.
+  There is no delete route in T114's table; a policy is paused by setting `everyDays: 90`, and a
+  delete route is a gap listed below.
+- **`putRotation`**: team admin; every member a **current** member of the team (422
+  `field: "members[n]"`); T114's ranges; `tz` loads; `last_handover_on` set to the current period's
+  boundary, so setting a rotation never announces a handover; one `triage.rotation_set`; 200
+  `TriageRotationView`. **`getRotation`**: any team member, viewer included; no rotation → 404
+  `rotation_not_found` (**G1**: 114 appends the code); `onDuty` and `handoverOn` per decision 7,
+  `handoverOn` the next boundary date, which the stored policy fixes.
+
+**G1, completed:** T114's `TriageRotationView.OnDuty` is a `User`; decision 7's empty-rotation case
+needs `*User` (`null` when every listed member has left), and the code `rotation_not_found`.
+
+#### Tests to write first, part 1 — `server/recur_test.go` (pure)
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestWeeklyOccurrencesKeepLocalTime` | weekly from Monday 2026-09-28 at 09:00 `Australia/Sydney`: occurrence 0 is 23:00Z on 27 September, occurrence 1 is 22:00Z on 4 October (after the change of 2026-10-04) | a fixed offset; UTC for `tz` |
+| `TestTheThirtyFirstFallsBackToTheLastDay` | monthly from 2026-08-31: occurrences on 31 August, 30 September, 31 October, 30 November | a month without the day skipped, or rolled into the next |
+| `TestAGapTimeRunsAtTheFirstRealMinute` | daily at 02:30 Sydney: the occurrence on 2026-10-04 is 03:00 local (+11:00), on 2026-10-05 02:30 local | Go's unspecified choice left in; a skipped day |
+| `TestDueOccurrenceCountsTheSkipped` | `after` three weekly occurrences back → the latest one, `skipped: 2`; `after` equal to the latest → not due | a burst; a run key that re-runs |
+
+#### Tests to write first, part 2 — `server/janitor_w4_integration_test.go` (`//go:build integration`)
+
+The cast is task 11's (Ada, Portal's admin; Grace and Linus as members of Portal's team for the
+rotation; Xavier of another org). Time moves through `RunJanitorOnce(…, now)` only.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestAWeeklyScheduleRunsOncePerOccurrence` | a weekly 09:00 `Australia/Sydney` schedule set on Sunday 2026-09-27 with `startsOn` 2026-09-28; a run at Monday 08:59 local creates nothing, at 09:01 one issue in `triage`, a second run at 09:02 nothing | no run key; UTC for `tz` |
+| `TestSettingAScheduleNeverBackfills` | set on Wednesday 2026-09-30 with `startsOn` 2026-09-28 → runs until Monday 2026-10-05 09:00 local create nothing | a first run that backfills |
+| `TestMissedWeeksMakeOneIssue` | no run for three weekly occurrences → one issue; `template.schedule_ran` `skipped: 2` | a burst of three |
+| `TestAJanitorActHasANullActor` | the `issue.created` and `template.schedule_ran` events have `actor: null`; `schedule_ran.data.by` is Ada; the issue's `createdBy` is Ada | a system user as actor; an anonymous rule |
+| `TestATemplateEditChangesNoRecurringIssue` | PATCH the template's title after a run → the created issue's head is unchanged; the next run uses the new title | a live link to the template |
+| `TestTwoJanitorsCreateOneIssue` | two `RunJanitorOnce` at once on one due schedule → one issue; one report says `Locked: false` | no advisory lock |
+| `TestAStaleFeatureGetsOneReminder` | `everyDays: 7`, last update 9 days ago → one `update.reminder`, `daysSince: 9`, `lead` FT-1's lead, `by` the policy's setter | reminders ignored or mis-addressed |
+| `TestASameDayRerunRemindsNobody` | a second run an hour later → none; seven days later with no update → one more | a reminder every sweep |
+| `TestAnUpdateResetsTheReminder` | Grace posts an update (task 119) on day 9 → no reminder until day 16 | the reminder clock ignoring updates |
+| `TestTheRotationHandsOverAtTheBoundary` | three members, `periodDays: 7`, `startsOn` day 1: `GET` on day 7 reads member 1, on day 8 member 2 with `handoverOn` day 15; one `triage.handover` `{from: 1, to: 2}` | an off-by-one boundary |
+| `TestALeaverIsSkipped` | member 2 leaves the team before day 8 → day 8 reads member 3, and the handover names member 3 | duty given to a non-member |
+| `TestWhoSetsPolicies` | Grace (member) → 403 on the schedule and rotation routes, 403 on a reminder for a feature she does not lead, 200 on one she leads; Xavier → 404 everywhere | a member sets the team's policies |
+| `TestEachPolicyWriteAppendsOneEvent` | each PUT → one event; a DELETE of an absent schedule → none | a write without its event |
