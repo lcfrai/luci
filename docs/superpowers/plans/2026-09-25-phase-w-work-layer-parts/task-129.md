@@ -178,7 +178,7 @@ snap is the cause, per DESIGN-SYSTEM's motion rule).
 ```tsx
 // desktop/src/components/roadmap/TimelineDrag.tsx — wraps one mark (a target or a milestone).
 import type { ReactNode } from "react";
-import { useReplica } from "../../work/replica/useWork";            // SW.16, task 55 (UNVERIFIED name)
+import { mutate } from "../../work/replica/useWork";                // SW.16, as task 127 imports it
 import { useProjectAccess } from "../../work/access/projectAccess"; // task 126
 import type { WorkOp } from "../../work/replica/ops";
 import type { DragSubject, TimelineDrag as Drag } from "./useTimelineDrag";
@@ -226,9 +226,8 @@ const sameSubject = (a: DragSubject, b: DragSubject) =>
 
 /** The Timeline's onDrop: one mutate, then the chip. Undo is the handle's inverse (task 56). */
 export function useDropWriter(showChip: (entryId: string, label: string) => void, fmtDay: (d: string) => string) {
-  const replica = useReplica();
   return (subject: DragSubject, day: string) => {
-    const h = replica.mutate(dropOp(subject, day));
+    const h = mutate(dropOp(subject, day));
     showChip(h.id, `${subject.kind === "feature" ? "Target" : "Milestone"} ${fmtDay(day)}`);
   };
 }
@@ -312,11 +311,11 @@ the violated connector differs by shape as well as by the sentence.
 // writable project; a granted reader gets neither (task 126's write gate, decision 7).
   { id: "feature.blocks", label: "Blocks…", scope: "feature", writes: true,
     run: (ctx) => ctx.pickFeature({ exclude: [ctx.featureId], sameTeam: true },
-      (blocks) => ctx.replica.mutate({ kind: "featureDep.add", featureId: ctx.featureId, blocks })) },
+      (blocks) => mutate({ kind: "featureDep.add", featureId: ctx.featureId, blocks })) },
   { id: "feature.unblock", label: "Remove dependency", scope: "feature", writes: true,
     when: (ctx) => ctx.replica.depsOf(ctx.featureId).some((d) => d.from === ctx.featureId),
     run: (ctx) => ctx.pickFrom(ctx.replica.depsOf(ctx.featureId).filter((d) => d.from === ctx.featureId),
-      (d) => ctx.replica.mutate({ kind: "featureDep.remove", featureId: ctx.featureId, blocks: d.blocks })) },
+      (d) => mutate({ kind: "featureDep.remove", featureId: ctx.featureId, blocks: d.blocks })) },
 ```
 
 `Command`'s `scope`, `writes`, `when`, `pickFeature` and `pickFrom` are task 59's and task 126's
@@ -408,7 +407,7 @@ import { inverseOf } from "../../work/replica/ops";
 
 const mutate = vi.fn();
 let access: "member" | "granted" = "member";
-vi.mock("../../work/replica/useWork", () => ({ useReplica: () => ({ mutate }) }));
+vi.mock("../../work/replica/useWork", () => ({ mutate }));
 vi.mock("../../work/access/projectAccess", () => ({ useProjectAccess: () => access }));
 
 const x = (d: string) => (Date.UTC(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8)) - Date.UTC(2026, 9, 1)) / 86_400_000 * 20;
@@ -579,4 +578,6 @@ cd desktop && grep -n "transition" src/components/roadmap/timeline.css | grep -i
    120's `feature.dependency_added` (`task-120.md:304`). Task 125's copy test settles it; the
    skeleton should pick one.
 4. **No part for tasks 128, 83, 59, 55 or 89.** `timelineScale`, `TimelineRow`, the feature patch
-   op, `buildCommands`'s row shape, `useReplica` and the `D` picker are scope names here.
+   op, `buildCommands`'s row shape and the `D` picker are scope names here; `mutate` as a module
+   export of `useWork.ts` follows task 127's import (`task-127.md:161`), itself unverified
+   against task 55, which has no part.
