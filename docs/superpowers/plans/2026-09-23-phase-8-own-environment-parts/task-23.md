@@ -18,7 +18,7 @@ Tasks 24a and 24b then put cloud machines in front of the user.
 - `control-plane/internal/httpx/problem.go` — `CodeMachineNotFound = "machine_not_found"` (404), the seventeenth code (modify)
 - `control-plane/internal/api/sessions.go`, `attach.go` — route by `MachineID`; the readiness watch prefers `backend.ReadyWaiter` (modify)
 - `control-plane/internal/reaper/reaper.go` and its tests — sweep per machine (modify)
-- `control-plane/cmd/api/config.go`, `main.go` and tests — `PANACEA_APP_BROKER_URL`, `PANACEA_APP_BROKER_SCOPE`; build the set (modify)
+- `control-plane/cmd/api/config.go`, `main.go` and tests — `PANACEA_APP_BROKER_URL`, `PANACEA_APP_BROKER_AUDIENCE`; build the set (modify)
 
 #### Contract (complete)
 
@@ -158,7 +158,7 @@ beside whichever local backend is selected):
 | Variable | Default | Meaning |
 |---|---|---|
 | `PANACEA_APP_BROKER_URL` | `""` | the broker, `https://broker.<zone>`; empty = no cloud machines |
-| `PANACEA_APP_BROKER_SCOPE` | `panacea-app-broker` | the broker's audience scope in the realm (OD-30, ruling §4; was task 09's `broker_api_scope`, withdrawn) |
+| `PANACEA_APP_BROKER_AUDIENCE` | `panacea-app-broker` | the broker's audience scope in the realm (OD-30, ruling §4; was task 09's `broker_api_scope`, withdrawn). The same name the broker reads (task 17 `:152`, task 29), and the same `_AUDIENCE` suffix as the control plane's `PANACEA_APP_HUB_AUDIENCE` (Hub contract §17 §12; OD-30 review-1 M5); was `PANACEA_APP_BROKER_SCOPE` |
 
 `main.go`: when the URL is set, open the session registry first, then
 `machines.InstallID(statepath.Dir("machines"), mustExist)`, with `mustExist` true when any
