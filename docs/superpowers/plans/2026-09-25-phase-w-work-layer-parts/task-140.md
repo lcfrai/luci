@@ -589,7 +589,8 @@ the set (task 56's batch rule). An issue listed under two groups is written once
 
 ```tsx
 // desktop/src/components/desk/deskRows.tsx (task 62) — task 140's registration, beside task 127's.
-import { cycleProposals, type } from "../../work/proposals";
+import { cycleProposals } from "../../work/proposals";
+import type { CycleProposal as CycleProposalT } from "../../api/work";
 import { CycleProposal } from "../plan/CycleProposal";
 import { useCycleName } from "../plan/planSelectors";
 
@@ -615,12 +616,81 @@ registerDeskRow<CycleProposalT>("cycle.proposal", "needs_you", (item) => <CycleP
   (item) => ({ tier: 2, waitingSinceMs: Date.parse(item.arrivedAt) }));
 ```
 
-`CycleProposalT` is `import type { CycleProposal as CycleProposalT } from "../../api/work"` (the
-stray `type` in the first import line above is that import, written in full at build). **The ⚑
-`CycleView.tsx` delta (task 87):** for an upcoming cycle, the header gains *Propose the next cycle*;
+`useState`, `registerDeskRow`, `registerDeskSource` and `DeskItem` are the file's existing imports
+(`task-127.md:399-400`). **The ⚑ `CycleView.tsx` delta (task 87):** for an upcoming cycle, the header gains *Propose the next cycle*;
 pressing it calls `proposeCycle(teamId, cycleId)`, passes the result to `holdCycleProposal`, and
 says *"The proposal is on your Desk."* It does **not** render the proposal in the cycle view: the
 Desk is where a decision waits (AX §5). A failure reads *"Proposal unavailable: …"* in task 139's
 two words. **The ⚑ `drafts.ts` delta (task 92):** its draft list skips drafts `fromDraft` accepts,
 so a proposal never shows as raw JSON; they show on the feature's *Proposed issues* list only.
+
+#### Tests to write first — Go, `propose_issues_test.go` and `propose_cycle_test.go`
+
+Over task 136's rig as task 139 uses it (`newRig`, `r.reply`, `r.prompts`, `r.gateway`), with
+feature `ft-ep` whose brief `bf-7k2@6` has five criteria `c-1`…`c-5`; issues serve `c-1` and `c-2`.
+
+```go
+func TestOneDraftPerUncoveredCriterion(t *testing.T) { // kills "drafts for every criterion"
+	r := newRig(t)
+	r.reply(`{"items":[{"key":"k1","title":"Resume after drop","description":"…"},
+		{"key":"k2","title":"Chunk checksums","description":"…"},{"key":"k3","title":"Quota message","description":"…"}]}`)
+	res, err := r.svc.ProposeIssues(ctx, "pj-ep", ProposeIssuesRequest{FeatureID: "ft-ep"})
+	mustNoErr(t, err)
+	mustEqual(t, []string{"c-3", "c-4", "c-5"}, ids(res.Uncovered))
+	mustEqual(t, 3, len(res.Proposals))
+}
+
+func TestServesIsSetByCode(t *testing.T) { // kills "crossed criteria"
+	r := newRig(t)
+	r.reply(`{"items":[{"key":"k2","title":"B"},{"key":"k1","title":"A"},{"key":"k9","title":"X"},{"key":"k1","title":"A again"}]}`)
+	res, _ := r.svc.ProposeIssues(ctx, "pj-ep", ProposeIssuesRequest{FeatureID: "ft-ep"})
+	for _, p := range res.Proposals {
+		mustEqual(t, p.Criterion.ID, p.Serves[0].CriterionID)
+		mustEqual(t, 1, len(p.Serves))
+		mustEqual(t, hubapi.AuthorAgent, p.Title.Author) // kills "text·H claimed for model text"
+	}
+	mustEqual(t, []string{"c-5"}, res.Missing) // k3 unanswered; k9 and the second k1 ignored
+}
+
+func TestNoCallWhenNothingUncovered(t *testing.T) {
+	r := newRig(t, withServing("c-3", "c-4", "c-5"))
+	res, _ := r.svc.ProposeIssues(ctx, "pj-ep", ProposeIssuesRequest{FeatureID: "ft-ep"})
+	mustEqual(t, 0, len(res.Proposals))
+	mustEqual(t, 0, r.gateway.Calls())
+}
+
+func TestCycleCandidatesExcludeClosedAndUnreadable(t *testing.T) { // kills "leaky backlog"
+	r := newRig(t, withIssues(issue("EP-1", "done"), issue("EP-2", "cancelled"), issue("EP-3", "backlog"),
+		issueIn("pj-other-team", "OT-9", "backlog"), erased("EP-4", "todo")))
+	r.reply(`{"issues":[]}`)
+	_, _ = r.svc.ProposeCycle(ctx, "pj-ep", ProposeCycleRequest{TeamID: "tm-a", CycleID: "cy-14"})
+	p := strings.Join(r.prompts(), "\n")
+	mustContain(t, p, "EP-3")
+	for _, out := range []string{"EP-1", "EP-2", "OT-9", "EP-4"} {
+		mustNotContain(t, p, out)
+	}
+}
+
+func TestCycleGroupsByOwnServesAndDropsUnknownPicks(t *testing.T) {
+	r := newRig(t, withIssues(serving("EP-3", "c-3"), serving("EP-5", "c-3", "c-4"), issue("EP-6", "todo")))
+	r.reply(`{"issues":[{"key":"i1","why":["i1","C3"]},{"key":"i2","why":["i2"]},{"key":"i3","why":["i3"]},
+		{"key":"i99","why":["i99"]},{"key":"i1","why":[]}]}`)
+	cp, _ := r.svc.ProposeCycle(ctx, "pj-ep", ProposeCycleRequest{TeamID: "tm-a", CycleID: "cy-14"})
+	mustEqual(t, []string{"C3", "C4", ""}, labels(cp.Groups)) // EP-5 under both; EP-6 under none, last
+	mustEqual(t, 1, cp.Dropped)                               // i99; the empty-why repeat is ignored, not counted
+}
+
+func TestCycleProposalHasNoForecastField(t *testing.T) { // kills "a forecast", OD-27
+	for _, name := range jsonFieldNames(reflect.TypeOf(CycleProposal{})) {
+		for _, bad := range []string{"percent", "progress", "eta", "forecast", "remaining", "capacity", "velocity", "settle"} {
+			mustNotContain(t, strings.ToLower(name), bad)
+		}
+	}
+}
+```
+
+The switch and AU rows are task 139's `TestKillSwitchAndAURoute` repeated for both calls, plus: a
+cycle whose backlog holds one `au-only` project's issue goes AU even when the team's first project
+is Global (kills "route of the first project"). The route test adds: both routes are `POST`; no Hub
+write follows either (`r.hub.Writes()` empty; kills decision 4's "assist writes").
 
