@@ -247,6 +247,11 @@ type Machine interface {
 	// CloneRoot is the absolute directory this machine's lane clones are created under.
 	// Task 04 copies it into Hardening.LaneRoot, so Git() refuses every call in it.
 	CloneRoot() string
+	// Join joins path elements in this machine's own path syntax (P3A-1, env seams review 1 M4).
+	// Every path phase 3 derives from CloneRoot() is built through it, so a Windows control
+	// plane never hands a cloud machine `\machine\lanes\…`, which its MachineFS refuses.
+	// Local.Join is filepath.Join, so nothing local changes; phase 8's machines.Remote is path.Join.
+	Join(elem ...string) string
 	// FS is this machine's disk for lane create and remove (seam S8-P3.6, env R4 ruling 4).
 	// nil means this process's own disk, lanes.LocalFS (task 03), and is admitted only when
 	// ID() == "local": lanes answers ErrNoMachineFS for a nil FS on any other machine, so a
@@ -264,6 +269,7 @@ type Local struct {
 func (l Local) ID() string        { return "local" }
 func (l Local) Git() Runner       { return l.Runner }
 func (l Local) CloneRoot() string { return l.Root }
+func (l Local) Join(elem ...string) string { return filepath.Join(elem...) }
 func (l Local) FS() MachineFS     { return l.Files }
 
 var _ Machine = Local{}
@@ -486,7 +492,7 @@ child's environment without trusting the code under test.
 | `TestMessageCopiesTheValueByteForByte` | `brief:b-42@6` appears verbatim once | normalising or parsing a key (P5) |
 | `TestMessageIsReadBackByGit` | real git: `git interpret-trailers --parse` on `Message(...)` prints exactly the trailers given | a missing blank line before the trailer block |
 | `TestSpyRecordsWhatExecStarts` | a `Read` call with `Scope Project` → one or more Spawns, the last with `Dir` = the repo, `Argv` ending in `Call.Args`, `Env` holding `GIT_OPTIONAL_LOCKS=0`; a call refused by `ErrCallShape` → no Spawn; after cleanup, a call adds none | a spy fed from `Call` instead of `cmd`, or one left installed |
-| `TestLocalMachineIsLocal` | `Local{Root: r}.ID() == "local"`, `CloneRoot() == r`, `FS() == nil`; `Local{Files: f}.FS() == f` | a Local that rewrites paths, or answers a non-nil default `FS` of its own (the local disk is task 03's `LocalFS`, the one `os` implementation) |
+| `TestLocalMachineIsLocal` | `Local{Root: r}.ID() == "local"`, `CloneRoot() == r`, `FS() == nil`; `Local{Files: f}.FS() == f`; `Join(r, "p-1", "ui-x") == filepath.Join(r, "p-1", "ui-x")` (P3A-1) | a Local that rewrites paths, or answers a non-nil default `FS` of its own (the local disk is task 03's `LocalFS`, the one `os` implementation) |
 | `TestMachineFSIsTheContract` (seam S8-P3.6) | reflection over `MachineFS`: exactly the four methods `CopyGeneratedHooks`, `Exists`, `RemoveTree`, `Seal`, each with the parameter and result types of the block above, `context.Context` first | a drifted spelling (a renamed method, a dropped `ctx`, `Seal` left out) that env tasks 21 and 25, which copy the contract verbatim, would no longer satisfy |
 | `TestScriptFailsOnAnUnscriptedCall` | an unknown argv fails the calling test | a fake that silently succeeds |
 | `TestLocksSerialiseOneProject` | under `-race`: goroutine A holds `Lock(ctx, "p-1")`; B's `Lock(ctx, "p-1")` has not returned 50 ms later; A unlocks → B returns within 1 s; calling A's unlock twice does not release B's hold | a lock keyed per call, or an unlock that frees the next holder |
