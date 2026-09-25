@@ -592,3 +592,89 @@ export function parseCriterionLink(s: string): CriterionLinkTarget | null {
 }
 ```
 
+`BRIEF_KEY` is the Hub's `briefKeyRe` character for character (read in the Hub worktree,
+`control-plane/internal/hub/hubapi/keys.go:57`). Task 49's `openLink` does nothing with a
+criterion link (it is neither an issue link nor `https:`), so a click on one in read-only mode is
+prevented and goes nowhere until Discover (phase 4) says what it opens; that is stated, not hidden.
+
+#### Interfaces — complete: the edit to task 49's `Editor.tsx`
+
+```tsx
+import { useId, useState } from "react";
+import { tableEditing } from "prosemirror-tables";
+import { SlashMenu } from "./SlashMenu";
+import { CLOSED, slashKey, slashMenuPlugin, type LinkSources, type SlashState } from "./slashMenu";
+import { cellKeys, gfmShapePlugin } from "./tables";
+
+export interface EditorProps {
+  /* task 49's five props, unchanged */
+  /** Decision 2: the link items are listed only when the caller passes these. */
+  linkSources?: LinkSources;
+}
+
+//   in Editor(), beside the other refs:
+const listId = `${useId()}-slash`;
+const [slash, setSlash] = useState<SlashState>(CLOSED);
+const menuOpen = (): boolean => (view.current ? slashKey.getState(view.current.state)?.open === true : false);
+/** The idle commit waits while the menu is open: "/ta" is not a revision anyone meant. */
+const idleCommit = (): void => {
+  if (menuOpen()) { idle.current = setTimeout(idleCommit, IDLE_COMMIT_MS); return; }
+  commit();
+};
+
+//   in load(), the plugin list becomes (the slash plugin first: while open, its keys win):
+plugins: [
+  slashMenuPlugin({ listId, sources: () => latest.current.linkSources }),
+  tableEditing(), gfmShapePlugin, keymap(cellKeys),
+  buildInputRules(editorSchema), personTypedPlugin, agentGutterPlugin, history(),
+  keymap({ /* task 49's keys, unchanged */ }),
+  keymap(baseKeymap),
+],
+
+//   in dispatchTransaction, after v.updateState(...), and the timer now arms idleCommit:
+const next = slashKey.getState(v.state) ?? CLOSED;
+setSlash((prev) => (prev === next ? prev : next));
+if (!tr.docChanged) return;
+if (idle.current) clearTimeout(idle.current);
+idle.current = setTimeout(idleCommit, IDLE_COMMIT_MS);
+
+//   handleDOMEvents.blur closes the menu before committing (a blur is leaving):
+blur: () => {
+  if (menuOpen()) view.current!.dispatch(view.current!.state.tr.setMeta(slashKey, CLOSED));
+  commit();
+  return false;
+},
+
+//   the render: the host PM owns, and the menu beside it in a portal
+return (
+  <>
+    <div ref={host} className="ed" data-verbatim data-readonly={readOnly || undefined} />
+    {view.current && <SlashMenu view={view.current} state={slash} listId={listId} sources={props.linkSources} />}
+  </>
+);
+```
+
+The plugin state is the one source of truth; `slash` is React's copy so the menu re-renders, set
+only when the plugin's state object changes (it is replaced, never mutated). The host `div` keeps
+no React children because ProseMirror owns its DOM. `useId` is stable across renders, so the id
+built into the plugin at `load` is the list's id every time. A `readOnly` editor never opens the
+menu: `handleTextInput` is not called when the view is not editable.
+
+#### Interfaces — complete: the edit to `IssueView.tsx` (the link sources)
+
+```tsx
+import { readWork, search } from "../../work/replica/replica";
+import type { LinkSources } from "../editor/slashMenu";
+//   in IssueViewBody, beside task 49's Editor, and passed as linkSources={sources}:
+const sources = useMemo<LinkSources>(() => ({
+  issues: (q) => readWork((r) => search(r, q)).filter((h) => h.id !== head.id),
+  criteria: (q) => readWork((r) => r.criteria(head.projectId, q)),
+}), [head.id, head.projectId]);
+```
+
+The sources read the replica **when the menu asks**, not on every render: `readWork` is a
+non-subscribing read of SW.16's store (the `useWork` hook's snapshot without the subscription).
+Neither `readWork` nor `r.criteria(projectId, q)` exists in any part yet; both are gaps for tasks
+55-58, and `search(r, q)` is used with task 46's assumed signature (`task-46.md:309-311`). An
+issue never offers itself as a link target.
+
