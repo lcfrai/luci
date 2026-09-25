@@ -270,9 +270,10 @@ task 41's keyframes, which animate `opacity` only.
 task 20's `workScenario()` through task 40's test seam, **UNVERIFIED** name as in task 41). The
 world's EP-160 is the imported triage row (`task-20.md:305-308`); the tests that need EP-142 in
 triage override it to `{state: "triage", threadState: {kind: "not_tied", reason: "imported"}}` with
-the title *Resume an upload after a dropped connection*, and add the criterion *Uploads survive a
-dropped connection* (`05-design.md:885`) **after** the fixture's two, so brief order is wrong on
-purpose.
+the title *Keep an upload going after a dropped connection*, and add the criterion *Uploads
+survive a dropped connection* (`05-design.md:885`) **after** the fixture's two, so brief order is
+wrong on purpose. (The title avoids *resume*, which would match the fixture's first criterion and
+make test 1's *not the first* false; its terms are `keep upload going dropped connection`.)
 
 | Test | What it asserts | Mutant it kills |
 |---|---|---|
