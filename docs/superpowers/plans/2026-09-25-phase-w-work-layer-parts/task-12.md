@@ -374,3 +374,81 @@ erased comment → 409 `conflict`; `ValidReactionEmoji` → else 400 `field: "em
 comment. Any member may resolve or reopen a thread (05 §3.2 names no owner of a thread; the
 answering reply is the reader's choice, L-41).
 
+#### The events (drafts; task 13 makes them constants)
+
+| Kind | `teamId` | `projectId` | `subject` | `data` |
+|---|---|---|---|---|
+| `comment.created` | ✓ | ✓ | comment id | `{"issueId", "parentId", "kind", "author", "anchorKind"}`; `parentId` and `anchorKind` are `""` when absent |
+| `comment.mentioned` | ✓ | ✓ | the mentioned user's id | `{"commentId", "issueId"}` |
+| `comment.reacted` | ✓ | ✓ | comment id | `{"emoji", "on"}` |
+| `comment.resolved` | ✓ | ✓ | comment id | `{"resolved"}` |
+
+One event per changed record (hub-contract:1133): a comment with two mentions changes three records
+(the comment and two mention rows), so it appends three events. Every value is a string or a
+boolean (hub-contract:1166). No row carries the body, the anchor's offsets or its `ref`: a `hunk`
+ref names a file path, which is customer code structure, and the feed is metadata only.
+
+#### Tests to write first, part 1 — `hubapi/work_comments_test.go` (pure)
+
+```go
+package hubapi
+
+import "testing"
+
+func TestReactionEmojiIsOneSequence(t *testing.T) {
+	good := []string{"👍", "👍🏽", "❤️", "👩‍💻", "👨‍👩‍👧‍👦", "🇦🇺", "1️⃣", "🏳️‍🌈"}
+	bad := []string{"", ":partyparrot:", ":+1:", "ok", "👍👍", "🇦", "🇦🇺🇳", "👩‍", "‍👩",
+		"1", "1️", "👍 ", "<b>", string(make([]byte, 33))}
+	for _, s := range good {
+		if !ValidReactionEmoji(s) {
+			t.Errorf("ValidReactionEmoji(%q) = false, want true", s)
+		}
+	}
+	for _, s := range bad {
+		if ValidReactionEmoji(s) {
+			t.Errorf("ValidReactionEmoji(%q) = true, want false", s)
+		}
+	}
+}
+
+func TestUTF16LenCountsSurrogatePairs(t *testing.T) {
+	for s, want := range map[string]int{"": 0, "abc": 3, "é": 1, "👍": 2, "a👍b": 4, "👨‍👩‍👧": 8} {
+		if got := UTF16Len(s); got != want {
+			t.Errorf("UTF16Len(%q) = %d, want %d", s, got, want)
+		}
+	}
+}
+
+func TestAnAnchorCarriesOnlyItsOwnFields(t *testing.T) {
+	cases := []struct {
+		a     CommentAnchor
+		field string
+	}{
+		{CommentAnchor{Kind: AnchorText, Revision: 3, Start: 0, End: 4}, ""},
+		{CommentAnchor{Kind: AnchorText, Revision: 3, Start: 4, End: 4}, "anchor.end"},
+		{CommentAnchor{Kind: AnchorText, Revision: 0, Start: 0, End: 4}, "anchor.revision"},
+		{CommentAnchor{Kind: AnchorText, Revision: 3, End: 4, CriterionID: "c-a"}, "anchor.criterionId"},
+		{CommentAnchor{Kind: AnchorCriterion, Revision: 3, CriterionID: "c-a"}, ""},
+		{CommentAnchor{Kind: AnchorCriterion, Revision: 3}, "anchor.criterionId"},
+		{CommentAnchor{Kind: AnchorCriterion, Revision: 3, CriterionID: "c-a", End: 2}, "anchor.start"},
+		{CommentAnchor{Kind: AnchorSpan, Ref: "sp-0123"}, ""},
+		{CommentAnchor{Kind: AnchorHunk, Ref: "3f2a91c src/a.ts:1-9"}, ""},
+		{CommentAnchor{Kind: AnchorHunk, Ref: "a\nb"}, "anchor.ref"},
+		{CommentAnchor{Kind: AnchorSpan, Ref: "sp-0123", Revision: 2}, "anchor.revision"},
+		{CommentAnchor{Kind: "line", Ref: "x"}, "anchor.kind"},
+	}
+	for _, c := range cases {
+		field, ok := ValidateAnchor(c.a)
+		if ok != (c.field == "") || field != c.field {
+			t.Errorf("ValidateAnchor(%+v) = (%q, %v), want %q", c.a, field, ok, c.field)
+		}
+	}
+}
+```
+
+| Test | Mutant it kills |
+|---|---|
+| `TestReactionEmojiIsOneSequence` | a `:shortcode:` accepted (custom emoji is *later*, L-41); two emoji as one reaction; plain text as a reaction; a lone regional indicator |
+| `TestUTF16LenCountsSurrogatePairs` | a length in bytes or in runes, either of which puts a text anchor after an emoji on the wrong characters |
+| `TestAnAnchorCarriesOnlyItsOwnFields` | a loose anchor (a text anchor that also names a criterion), an empty range, a `ref` with a newline that would break the `commit path:lines` form |
+
