@@ -1,5 +1,7 @@
 ### Task 24b: A cloud machine's catalog, a session on it in its lane, and its conversation store (closes S8.3)
 
+HELD until phase 3's tasks 03, 04 and 05 (`lanes.Creator`, `GitDeps.Lanes`, the backing lane) are sync-merged into feat/env (plan P3A-6; `.superpowers/sdd/env/held.md`): the build stream skips this task until then.
+
 Task 24a put cloud machines in `GET /v1/machines`, with ensure-default and wake. This task makes
 them **usable** through the control plane's existing REST surface, every change additive. It is
 the second half of what was one task 24, split because the whole was nearer 5 h than 3 (review
@@ -275,7 +277,8 @@ unescaped, or sent empty).
   control-plane/internal/api/` and `git grep -n 'func (c \*Creator) Create(' --
   control-plane/internal/lanes/` each print one line. Task 20 has landed:
   `git grep -n 'func LaneMachinePath(' -- control-plane/internal/machineapi/` prints one line.
-  The plan row's `dependsOn` orders both first, so this only confirms it. Then the tests; they
+  The HELD line above keeps this task out of the stream until these greps print (plan
+  P3A-6, review-2 I2), so here they only confirm it. Then the tests; they
   fail.
 - [ ] **Step 2:** `machines/agent.go` (typed wrappers over `Client.Stream` for the agent routes,
   `AgentError`, `AsNotALane`); the catalog's `machineId`; `cloudlane.go` and `Deps.CloudLanes`;
