@@ -591,3 +591,40 @@ mirror: "" }`; `templates/deployment.yaml` sets the two variables from them; the
 `helm-values.sh` sets both from the same `image-digests` it already reads for `warm.images`
 (`--set fleet.images.claudeCode=… --set fleet.images.mirror=…`), so Fleet's launch version and
 the warm pool's image come from one artefact, in one deploy.
+
+- [ ] **Step 1: Write the tests, each with the mutant it kills**
+
+`pipelines/scripts/cli-bump_test.sh` and `lib/gate_test.sh` follow `secrets-pr_test.sh`'s shape
+(phase 8 task 28): each case builds a temp directory of fixtures, runs the script, checks exit
+status, output and files. `npm` and `curl` are fakes on `PATH` that record their arguments.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `publish_refuses_each_failed_gate` | four runs, one gate `fail` each: exit 2, `publish: refused: gate <g> is fail`, no `images/.out/publish/digests.json` | a publisher that checks only the canary; one that needs any gate to pass |
+| `publish_refuses_a_missing_gate` | `g9.json` absent → `gate g9 wrote nothing` | a loop over the files present instead of `GATE_NAMES` |
+| `publish_refuses_a_gate_on_another_digest` | `gateway.json`'s image differs in its last hex digit → refused | a stale gate file from an earlier run accepted |
+| `publish_refuses_a_gate_on_another_version` | `channel.json` says `2.1.279`, digests `2.1.280` → refused | the version check dropped |
+| `publish_refuses_a_tag` | each of `sandbox`, `machine`, `broker`, `hub`, `mirror` in turn as `…:2.1.280`, then as `…@sha256:<64 hex>x` → refused naming the key | only `sandbox` checked; the pattern without its `$` anchor |
+| `skipped_canary_blocks_a_cli_change` | canary `skipped`, last `2.1.274`, now `2.1.280` → refused; last `2.1.280` → published, `(same)` | task 27's skip rule applied to a CLI change |
+| `not_required_g9_only_without_a_change` | g9 `not-required` with last `2.1.274` → refused | G3 skipped for the very change it exists for |
+| `empty_last_is_a_change` | last `""`, canary `skipped` → refused | a missing earlier artefact read as "same" |
+| `gate_reason_cannot_forge_a_pass` | `gate_write … fail 'x","result":"pass'` → exit 2, no file | a looser reason alphabet, which lets `gate_field` read `pass` |
+| `gate_write_refuses_bad_values` | a tag image, `2.1`, result `ok`, `not-required` for `channel` → exit 2 each | any one check removed |
+| `latest_compares_numerically` | pin `2.1.99`, registry `2.1.100` → prints `2.1.100`; pin `2.1.274`, registry `2.1.274`, `2.1.270`, `2.2.0-beta.1` → prints nothing, exit 0 | a string comparison; `>=`; a pre-release accepted |
+| `pr_nothing_on_empty` | `cli-pr.sh ""` → the fake `curl` saw no request | a PR opened with no version |
+| `pr_existing_is_left_alone` | the fake API lists an active PR from `bump/claude-code-2.1.280` → no `POST` | a duplicate PR every six hours |
+| `pr_is_one_line_to_dev` | the push changes only `images/sandbox/claude-code.version`, to `2.1.280\n`; target `refs/heads/dev`; `autoCompleteSetBy` set; no `force` | a PR to `main`; a second file touched |
+| `pr_abandons_the_older_bump` | an active `bump/claude-code-2.1.277` PR and new `2.1.280` → that PR `abandoned`, one comment naming `2.1.280` | an older bump completing after a newer one (a downgrade) |
+
+`images/images_test.sh` (task 27's suite) gains three cases:
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `sandbox_build_needs_the_version` | `docker build images/sandbox` with no `--build-arg` exits non-zero | `ARG CLAUDE_CODE_VERSION=latest` |
+| `label_is_the_version_file` | the built image's `PANACEA_APP_CLAUDE_VERSION` label equals `claude-code.version` | a hard-coded label |
+| `digests_json_has_mirror_and_claudeCode` | `build.sh --push` to a local registry writes one line with the six keys in order; `gate_field` reads each | the mirror left out of the run (c) |
+
+`pipelines/scripts/gate-channel_test.sh` runs G2 twice more on the new image, with a test-only
+`GATE_CHANNEL_SOCKET_MODE`: `allow` (the fake socket allows the edit, so `src/a.ts` changes) must
+write `fail`, and `nohook` (the fake upstream sees its second request with no `check --hook`
+before it) must write `fail`. Mutant: a G2 that judges by the CLI's exit status alone.
