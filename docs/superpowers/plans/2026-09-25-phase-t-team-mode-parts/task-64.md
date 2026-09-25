@@ -52,3 +52,86 @@ exported to the mirror (task 60), and the desktop offers **Continue in the cloud
 lane, which is task 21's team launch with that `worktreeId`, creating the agent record (task 06)
 whose `laneRef` names it. Until that launch there is no agent on it, so no lease and no
 presence; the lane appears in teammates' views only once an agent is running on it (task 63).
+
+**Why the duplicate check needs a marker.** Phase 3's lane id is `project.WorktreeID(Path)`, `w-`
+plus 8 hex, **new per creation** (phase 3 `parts/task-03.md:61-69`), and a cloud clone has a
+different path. So the id cannot say "this lane was already moved". Each lane record gains
+`MovedFrom` (on the cloud lane: the laptop lane's id) and `MovedTo` (on the laptop lane: the
+cloud lane's id), and the check is `MovedFrom == laptop id` among the cloud project's lanes.
+
+**Files:**
+- `control-plane/internal/api/lanesmove.go` + `lanesmove_test.go` — `LanesMover`, the two routes
+  (new; the file map's row)
+- `control-plane/internal/lanes/lanes.go`, `create.go` (phase 3 task 03) — `Lane.MovedFrom`,
+  `MovedTo`, `MovedAt`; `CreateRequest.StartAt`, `MovedFrom`; `Store.MarkMoved` (modify;
+  **UNVERIFIED until merge**)
+- `control-plane/internal/api/sessions.go` (phase 2) or phase 3 task 05's lane session path —
+  a local session in a moved lane → `409 lane_moved_to_cloud` (modify; one check, the site named
+  at build time since phase 3's session path is unbuilt)
+- `control-plane/cmd/machined/bundlein.go` (phase 8 task 21, planned) — `POST /project/v1/bundle-in`:
+  a bundle into the machine's project, verified and fetched under §HGH (new on the sibling's
+  code after its merge; **UNVERIFIED**)
+- `control-plane/internal/api/routes_audit_test.go` (phase 3) — the two routes' rows (modify)
+- `desktop/src/components/team/MoveLanes.tsx` + `MoveLanes.test.tsx` (new); `desktop/src/api/team.ts`,
+  `store/types.ts` (task 52) — `laneMoveCandidates`, `moveLanes` (modify)
+
+**Interfaces:**
+- Produces: `api.LanesMover`; `GET` and `POST /v1/projects/{projectId}/team/lanes-move`;
+  `lanes.Lane.MovedFrom`/`MovedTo`/`MovedAt`; `machined`'s `bundle-in`.
+- Consumes: phase 3 task 07's `Syncer.SyncLane`; task 24's `lanegit.Lanes.Live` (a live session
+  in the lane) and `Runner.Fetch` (a fast-forward into an existing cloud lane, R4.5); phase 3
+  task 03's `lanes.Creator` and `Store`; phase 8's cloud `gitx.Machine` (S3-P8.1: project git on
+  `machined` through the broker) and its lanes catalog; task 52's `TeamStrip.Team`.
+
+```go
+// control-plane/internal/api/lanesmove.go
+package api
+
+// MoveCandidate is one laptop lane the owner could move.
+type MoveCandidate struct {
+	WorktreeID  string `json:"worktreeId"`  // the laptop lane's w-…
+	Name        string `json:"name"`
+	Branch      string `json:"branch"`
+	Tip         string `json:"tip"`          // after SyncLane
+	Ahead       int    `json:"ahead"`        // commits the branch's upstream does not reach; ≥ 1
+	Uncommitted int    `json:"uncommitted"`  // paths changed and not committed
+	LiveSession bool   `json:"liveSession"`
+	OnMachine   string `json:"onMachine"`    // "none" | "same" | "behind" | "diverged"
+	CloudLaneID string `json:"cloudLaneId"`  // "" when none
+}
+
+type MoveCandidates struct {
+	ProjectID string          `json:"projectId"`
+	MachineID string          `json:"machineId"` // the owner's cloud machine
+	Lanes     []MoveCandidate `json:"lanes"`     // [] never null; Ahead ≥ 1 only (decision a)
+}
+
+type MoveRequest struct {
+	WorktreeIDs      []string `json:"worktreeIds"`      // 1..20 laptop lane ids, each a candidate
+	LeaveUncommitted []string `json:"leaveUncommitted"` // ids whose committed work alone moves (decision b)
+}
+
+type MoveOutcome struct {
+	WorktreeID  string `json:"worktreeId"`
+	CloudLaneID string `json:"cloudLaneId,omitempty"`
+	Result      string `json:"result"` // "moved" | "updated" | "skipped"
+	Reason      string `json:"reason,omitempty"` // skipped: a code below
+	Tip         string `json:"tip,omitempty"`
+}
+
+type MoveResult struct {
+	Outcomes []MoveOutcome `json:"outcomes"` // one per requested id, in request order
+}
+
+const (
+	CodeNotTeam          = "not_a_team_project"
+	CodeLaneBusy         = "lane_busy"           // a live local session (decision c)
+	CodeLaneBusyInCloud  = "lane_busy_in_cloud"  // "behind", and a cloud session is live in it
+	CodeLaneUncommitted  = "lane_uncommitted"    // decision b, not ticked
+	CodeLaneDiverged     = "lane_diverged"       // the cloud copy has commits the laptop lacks
+	CodeAlreadyMoved     = "already_moved"       // "same": nothing to do
+	CodeNothingAhead     = "nothing_ahead"
+	CodeLaneMovedToCloud = "lane_moved_to_cloud" // a local launch into a moved lane
+	CodeNoCloudMachine   = "no_cloud_machine"
+)
+```
