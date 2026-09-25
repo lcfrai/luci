@@ -336,3 +336,138 @@ function QueuedSince(p: { firedAt: string }): JSX.Element {
 epoch-ms as that file asks (`:7-8`): a measured time since a recorded instant, never a remaining
 time. The row holds no animation and no `aria-busy`. `hhmm` formats in the owner's local zone
 with `tabular-nums`. The `now()` prop is for the non-live columns only (tests pass `FIXED_NOW`).
+
+#### Tests to write first — `loopModel.test.ts`
+
+```ts
+import { readFileSync } from "node:fs";
+import { describe, expect, it } from "vitest";
+import { W5_FEED_KINDS } from "../../work/replica/kinds";
+import { ACTION_CLASSES, type ActionClass, type AutonomyLevel, type LoopVersion } from "../../api/work";
+import { ALICE, DYLAN } from "../../test/workFixtures";
+import { consequence, FALLBACK_OWNER_GRID, gridCells, LOOP_EVENT_KINDS, loopRights, versionDiff } from "./loopModel";
+
+const grid = (over: Partial<Record<ActionClass, AutonomyLevel>> = {}) =>
+  ({ ...Object.fromEntries(ACTION_CLASSES.map((c) => [c, "act_and_tell"])), push: "ask_first",
+     deploy: "ask_first", ...over }) as Record<ActionClass, AutonomyLevel>;
+
+describe("gridCells", () => {
+  // Kills: the Hub's 422 loop_bound_exceeds_owner as the only guard.
+  it("disables every level above the owner's own and names why", () => {
+    const push = gridCells({ turnsPerDay: 6, levels: {} }, grid()).push;
+    expect(push.filter((c) => c.disabled).map((c) => c.level)).toEqual(["propose_and_wait", "act_and_tell", "full"]);
+    expect(push[3]!.why).toBe("Above your own grid (ASK FIRST)");
+  });
+  // Kills: an inherited row drawn as unset, or as chosen.
+  it("an unset class shows the owner's level as inherited, not chosen", () => {
+    const commit = gridCells({ turnsPerDay: 6, levels: {} }, grid()).commit;
+    expect(commit.find((c) => c.inherited)!.level).toBe("act_and_tell");
+    expect(commit.some((c) => c.chosen)).toBe(false);
+  });
+  // Kills: a wider guessed cap when the grid cannot be read (decision 10).
+  it("the fallback grid lets nothing but read above ASK FIRST", () => {
+    const cells = gridCells({ turnsPerDay: 1, levels: {} }, FALLBACK_OWNER_GRID);
+    for (const c of ACTION_CLASSES.filter((k) => k !== "read"))
+      expect(cells[c].filter((x) => !x.disabled).map((x) => x.level)).toEqual(["ask_first"]);
+  });
+});
+
+describe("consequence", () => {
+  // Kills: AX:181's "expect about 4 interruptions per hour" kept.
+  it("states limits and levels, never a rate", () => {
+    const s = consequence({ turnsPerDay: 6, levels: { commit: "ask_first", edit_outside_worktree: "ask_first" } }, grid());
+    expect(s).toBe("Edits stay in its own worktree. Commits only after you approve. " +
+      "Asks before it would push, deploy. At most 6 turns a day.");
+    expect(s).not.toMatch(/expect|about|per hour|interruption|likely/i);
+  });
+});
+
+describe("versionDiff", () => {
+  const v1 = { loopId: "lp-1", version: 1, action: "turn", labelId: null, savedAt: "2026-09-25T22:30:00Z",
+    savedBy: DYLAN, instruction: { text: "Summarise Triage", author: "H" },
+    trigger: { kind: "schedule", eventKinds: [], filter: { labelId: null, fromState: null, toState: null },
+      schedule: { every: "weekday", at: "08:30", tz: "Australia/Sydney" } },
+    bound: { turnsPerDay: 6, levels: { commit: "ask_first" } } } satisfies LoopVersion;
+  // Kills: a diff that reports the stamp fields (version, savedAt) as changes.
+  it("names only the fields the owner changed", () => {
+    const v2 = { ...v1, version: 2, savedAt: "2026-09-26T01:00:00Z", bound: { ...v1.bound, turnsPerDay: 4 } };
+    expect(versionDiff(v1, v2)).toEqual([{ field: "turnsPerDay", before: "6", after: "4" }]);
+  });
+});
+
+describe("LOOP_EVENT_KINDS", () => {
+  // Kills: a kind retyped from memory, and a loop that waits on a loop (decision 9).
+  it("each kind is a W1 constant in workevents.go or a W5 feed kind, and none is a loop's", () => {
+    const go = readFileSync(new URL("../../../../control-plane/internal/hub/hubapi/workevents.go", import.meta.url), "utf8");
+    const w1 = new Set([...go.matchAll(/Event\w+\s*=\s*"([a-z_.]+)"/g)].map((m) => m[1]));
+    for (const k of LOOP_EVENT_KINDS)
+      expect(w1.has(k) || (W5_FEED_KINDS as readonly string[]).includes(k)).toBe(true);
+    expect(LOOP_EVENT_KINDS.some((k) => k.startsWith("loop.") || k === "work.loop_fired")).toBe(false);
+  });
+});
+
+describe("loopRights", () => {
+  // Kills: an admin who edits, resumes or runs another's loop (OD-16, task 162).
+  it("a teammate's loop gives a team admin Pause and nothing else", () => {
+    const loop = { id: "lp-1", teamId: "tm-pay", projectId: "pj-ep", owner: DYLAN, name: "Morning triage",
+      state: "on", pausedCause: null, currentVersion: 1 } as const;
+    expect(loopRights(loop, ALICE.id, true)).toEqual({ edit: false, pause: true, resume: false, runNow: false });
+    expect(loopRights(loop, ALICE.id, false)).toEqual({ edit: false, pause: false, resume: false, runNow: false });
+  });
+});
+```
+
+#### Tests to write first — the components (`LoopEditor`, `LoopList`, `LoopVersions`, `LoopRuns`)
+
+Each uses task 170's `setupWork` (`desktop/src/components/intake/testWork.ts`) with a replica
+seeded with one loop `lp-1` owned by `DYLAN`, version 1 as in `loopModel.test.ts`, and
+`ownerGrid = grid()`.
+
+1. **A save is a new version** — open `lp-1` in `LoopEditor`, change *Turns a day* to 4, press
+   *Save*: `mutate` is called once with `kind: "loop.version"`, `body.bound.turnsPerDay === 4` and
+   `prev.bound.turnsPerDay === 6`; the fake answers version 2; `LoopVersions` then lists *v2* and
+   *v1*, and v1's row still reads 6 in its diff. **Kills** "the version overwritten".
+2. **Above the grid cannot be chosen** — the *push* row's FULL radio is `disabled`, the text
+   *Above your own grid (ASK FIRST)* is visible under the row, and a click on it changes nothing
+   and sends nothing. **Kills** "the Hub's 422 as the only guard".
+3. **No interruption estimate** — render the editor with every class set; the consequence line is
+   present and `expectNoPrediction(container)` passes; the text holds no match for
+   `/interruption|per hour|expect about/i`. **Kills** "AX:181's line kept".
+4. **A teammate's loop offers Pause only** — `LoopList` with `me = ALICE.id`, `teamAdmin = true`:
+   `lp-1`'s row has one button, *Pause*; no *Edit*, *Resume* or *Run now*; clicking the row opens
+   no editor. Pause sends one `loop.state` with `state: "paused"`, `prev: "on"`. With
+   `teamAdmin = false` the *Teammates' loops* group is absent. **Kills** "edit another's loop".
+5. **A double press is one run** — `LoopRuns` for `lp-1` as `DYLAN`: two clicks on *Run now*
+   within one tick; `mutate` is called once with `kind: "loop.runNow"`, and the fake `send` saw
+   one `POST …/runs` whose body `requestId` equals its `Idempotency-Key`. **Kills** "two runs".
+6. **Skipped runs are facts** — seed runs 1-3 with outcomes `ran`, `skipped_budget` and
+   `skipped_paused`: three rows, the second reading *skipped: budget spent*, the third
+   *skipped: paused*; no filter control exists. **Kills** "skipped runs filtered out".
+7. **No spinner while queued** — seed run 4 `queued` fired 12 minutes before the heartbeat's
+   tick: its row reads *queued since* the local time · *12m*; no node in the log has
+   `aria-busy="true"`, `role="progressbar"`, or a class matching `/spin|loading/`. **Kills** "a
+   per-row spinner, against the one heartbeat".
+8. **Local mode has no loops** — `LoopList` with `hub: "local"` renders the one line of decision 8
+   and no *New loop* button. **Kills** "a loop editor that cannot run".
+9. **The cap blocks Save** — type 2,001 characters into the instruction: the count reads
+   *2,001 / 2,000*, *Save* is disabled with *Over 2,000 characters* beside it, and nothing is
+   sent. **Kills** "the Hub's 422 as the only check".
+10. **An unchanged save sends nothing** — open `lp-1` and press *Save* with no edit: the button
+    reads *No changes* and is disabled; `mutate` is not called. **Kills** "a duplicate version
+    for every open".
+
+`vi.useFakeTimers()` with `__resetHeartbeat()` in `afterEach` (heartbeat.ts's test seam) sets
+the tick for test 7; `FIXED_NOW` is task 20's.
+
+#### Steps
+
+1. Write `loopModel.test.ts` and the ten component tests; run them; they fail (no modules).
+2. Write `loopModel.ts`; its tests pass.
+3. Write `LoopEditor.tsx` with the grid and the consequence line; tests 2, 3, 9, 10 pass.
+4. Write `LoopList.tsx`, `LoopVersions.tsx` and `LoopRuns.tsx`; tests 1, 4-8 pass.
+5. Write `loops.css`: `.lp-grid` (a 5-column CSS grid: the class word, then four levels),
+   `.lp-fact` (mono, `tabular-nums`), `.lp-inherited` (the `--ink-3` token, no opacity trick on
+   text), a 1px ring plus layered shadow for the editor card (DESIGN-SYSTEM elevation); no
+   `transition: all`, and a new run row enters with `opacity` only.
+6. Mount `LoopList` in the person's settings (gap 1); `npm --prefix desktop run typecheck`;
+   commit with `git commit -F <msgfile> -- <paths>`.
