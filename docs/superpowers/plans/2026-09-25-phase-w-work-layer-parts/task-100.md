@@ -704,3 +704,104 @@ func (a *API) registerWorkAgents(mux *routes) {
 `registerWork` calls `a.registerWorkAgents(mux)` as its last line. `workAgentCalls()` holds eight
 `workCall`s, each decoding its body and calling the matching `wk.` method, as `workCalls()` does.
 `routes_audit_test.go` gains the eight relay patterns, each `guarded`, in the catalog's order.
+
+#### The matrix rows: `server/work_matrix_rows_integration_test.go` ⚑, key `"100"`
+
+§5.3's six columns, `V M A O N X` (`hub-contract.md:337-339`), with task 07's helpers
+(`task-07.md:355-395`). The fixture gains one thing: `IssueID` is assigned to the `M` column's
+user, so exactly one person can pass the assignee rule. The Fleet columns are below, in their own
+file, because `row.want` is task 07's `[6]int` and a seventh column would change every W1 row.
+
+```go
+	"100": {
+		{"POST /v1/issues/{issueId}/delegate", row{name: "delegate", method: "POST",
+			path: "/v1/issues/{IssueID}/delegate", body: empty,
+			want:     [6]int{403, 422, 403, 404, 404, 404}, // M passes auth; no Orchestrator here
+			wantCode: map[column]string{colM: "orchestrator_unavailable", colO: "issue_not_found",
+				colN: "issue_not_found", colX: "issue_not_found"}}},
+		{"POST /v1/issues/{issueId}/agent-comments", row{name: "agent-comment", method: "POST",
+			path: "/v1/issues/{IssueID}/agent-comments", body: agentNote,
+			want: [6]int{403, 403, 403, 403, 403, 403}}}, // every person: required "delegation"
+		wread("GET /v1/projects/{projectId}/evidence-proposals",
+			"/v1/projects/{ProjectID}/evidence-proposals", "project_not_found"),
+		{"POST /v1/comments/{commentId}/recorded-as", row{name: "recorded-as", method: "POST",
+			path: "/v1/comments/{ProposalID}/recorded-as", body: missingEvidence,
+			want:     [6]int{403, 404, 404, 404, 404, 404},
+			wantCode: map[column]string{colM: "evidence_not_found", colA: "evidence_not_found",
+				colO: "comment_not_found", colN: "comment_not_found", colX: "comment_not_found"}}},
+		wadmin("POST /v1/guidance/{scope}/{scopeId}/versions", "POST",
+			"/v1/guidance/team/{TeamID}/versions", 201, "team_not_found", guidanceV1),
+		wread("GET /v1/guidance/{scope}/{scopeId}/versions",
+			"/v1/guidance/team/{TeamID}/versions", "team_not_found"),
+		wread("GET /v1/guidance/resolve", "/v1/guidance/resolve?team={TeamID}", "team_not_found"),
+		{"GET /v1/orgs/{orgId}/agent-switch", row{name: "switch-read", method: "GET",
+			path: "/v1/orgs/{OrgID}/agent-switch", want: [6]int{200, 200, 200, 200, 200, 404},
+			wantCode: map[column]string{colX: "org_not_found"}}},
+		{"PUT /v1/orgs/{orgId}/agent-switch", row{name: "switch-set", method: "PUT",
+			path: "/v1/orgs/{OrgID}/agent-switch", body: switchOff,
+			want:     [6]int{403, 403, 403, 200, 403, 404}, // only the org admin, member or not
+			wantCode: map[column]string{colX: "org_not_found"}}},
+	},
+```
+
+```go
+func agentNote(f *fixture) any {
+	return map[string]any{"kind": "note", "body": map[string]any{"text": "n", "author": "A"},
+		"attribution": map[string]any{"ownerId": f.MemberID, "agentId": f.AgentID,
+			"model": "claude-opus-4-8", "sessionId": "s-1"}}
+}
+func missingEvidence(*fixture) any { return map[string]any{"evidenceId": "ev-0000000000000000"} }
+func guidanceV1(*fixture) any      { return map[string]any{"text": "prefer small PRs", "baseVersion": 0} }
+func switchOff(*fixture) any {
+	return map[string]any{"orchestrators": false, "reason": "matrix run"}
+}
+```
+
+`workMatrixLive` gains `"100"` in the commit that registers the routes. The fixture's `ProposalID`
+is one `evidence_proposal` written by the fixture's Fleet principal before the columns run;
+`AgentID` is one TM-04 `orchestrator` agent of the `M` user; `OrgID` is the Hub fixture's own.
+`PUT … agent-switch` runs last in the file and the fixture turns Orchestrators back on after it,
+so no later row runs with the switch off. The `O` column is 200 on the switch and 404 on every
+project and team route, which is §5.3's reading: an org admin who is not a member acts on the
+org, not inside a team.
+
+#### The Fleet columns: `server/work_agents_integration_test.go` (`//go:build integration`)
+
+Three principals §5.3 has no column for, each minted by TM-05's `devissuer` client-credentials
+grant: **F+** Fleet with the `M` user's orchestrator delegation, which lists the four W3
+`Delegable` names and `work.issues.create`; **F0** Fleet with no `X-Panacea-Delegation`; **F−**
+Fleet with a delegation that lists none of them.
+
+| Route | F+ | F0 | F− |
+|---|---|---|---|
+| `POST …/delegate`, `POST …/recorded-as`, `POST …/guidance/…/versions`, `PUT …/agent-switch` | 403 `forbidden` `required: route` | 401 `delegation_required` | 403 `required: route` |
+| `POST …/agent-comments` | 201 | 401 | 403 `required: work.agent_comments.create` |
+| `POST /v1/projects/{p}/issues` | 201, stored `triage`, `source: orchestrator` | 401 | 403 `required: work.issues.create` |
+| the three reads | 200 | 401 | 403 `required: <its name>` |
+
+**The sync principal** (SW.3) does not exist until W5 (tasks 145, 150; `task-07.md:29-31`). Its
+half here is the database's: `TestTheSyncActorWritesNoAgentKind` inserts an agent-kind row with
+`hub.work_actor_kind = 'integration'` and `via` null, and `issue_comments_agent_attributed`
+refuses it. Task 150 adds the HTTP column (gap 4).
+
+#### Tests to write first, each with the mutant it kills
+
+All in `server/work_agents_integration_test.go` unless named. Each is written and seen failing
+before the code it covers.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestFleetCannotAttributeANoteToAnotherOwner` | F+ holding Dylan's delegation posts `ownerId: Alice` → 403 `agent_not_owner`; a direct insert with `agent_owner_id` ≠ `created_by` fails `issue_comments_owner_is_writer` | attribution taken from the body |
+| `TestAWorkerCannotWriteOnTheIssue` | an `ag-…` of role `worker` → 403 `required: orchestrator`; the trigger refuses the same insert | five voices per owner |
+| `TestAPersonCannotWriteAnAgentKind` | Dylan's desktop token on `agent-comments` → 403 `required: delegation` | a person forging `text·A` attribution |
+| `TestTheSwitchStopsFleetAndNotPeople` | admin sets off; F+ note → 403 `agents_disabled` and one `org.agent_write_refused`; Dylan's `CreateComment` → 201; F+ reads the switch → 200 | every write blocked; the switch a flag only the UI reads |
+| `TestTheDatabaseHonoursTheSwitch` | with the row off, a direct `hub_app` insert of a note raises `agents_disabled` | a switch held in Go only |
+| `TestOnlyAnOrgAdminSetsTheSwitch` | V, M, A → 403 `required: org_admin`; off without a reason → 400 `field: reason`; a repeat → 200, no event | a team admin who can stop the org |
+| `TestAViewerCannotWriteGuidance` | V on team guidance → 403; M → 403; A → 201 version 1; a stale base → 409 `revision_conflict` with `headVersion: 1` | a viewer or member writing policy text |
+| `TestGuidanceVersionsNeverRewrite` | versions 1 and 2, then version 1's body and `at` are byte-equal to their first read | `PutGuidance` overwrites |
+| `TestAnOrchestratorIssueLandsInTriage` | F+ creates with `state: todo` → stored `triage`, `source: orchestrator`; a direct insert in `todo` fails the trigger | the body's state kept |
+| `TestAProposalIsNeverEvidence` | a proposal appends `comment.created` and **no** `evidence.recorded`; Dylan's `POST /v1/evidence` appends exactly one, actor Dylan; the link appends `comment.proposal_linked` | the proposal inserted as evidence |
+| `TestALinkChecksTheRecord` | another criterion → 422 `field: criterionId`; another commit → `field: commit`; Alice's record → 403 `required: recorder`; a second id → 409 | a link that marks any record |
+| `TestANonAssigneeCannotDelegate` | A (not assignee) → 403 `required: assignee`; M with a live delegation → 200 and `issue.delegated`; again → 200, no event | anyone delegating anyone's issue |
+| `TestNoTextReachesAnEvent` | every event of this file: `data` holds no value equal to any body, `because`, guidance text or reason sent | text in the event (hub-contract §8) |
+| `TestTheSyncActorWritesNoAgentKind` | the insert above fails `issue_comments_agent_attributed` | a sync write taken for an agent's |
