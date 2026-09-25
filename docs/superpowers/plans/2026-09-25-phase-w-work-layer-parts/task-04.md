@@ -1255,3 +1255,84 @@ func (*Client) EraseComment(context.Context, string, hubapi.EraseRequest) (hubap
 ```
 
 The three aliases are unexported and exist only in this file; task 16 deletes them with it.
+
+---
+
+#### Tests first: `fake_work_test.go`, complete, each test with the mutant it kills
+
+Three blocks; the file is their concatenation. It is `package hubclient`, so it reuses
+`fake_test.go`'s helpers (`bg`, `must`, `noErr`, `wantProblem`, `newFake`, `withTeam`,
+`withProject`, `branchBrief`, `write`; `fake_test.go:19-110` at `9f2fa31`). Block 1 is the rig.
+
+```go
+package hubclient
+
+import (
+	"errors"
+	"slices"
+	"strings"
+	"sync"
+	"testing"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubapi"
+)
+
+// workRig is withTeam's Ada (admin) and Grace (member), Linus joined as a
+// viewer, project P with a GitHub remote, and branch brief B at revision 1.
+type workRig struct {
+	f, ada, grace, linus *Fake
+	team                 hubapi.Team
+	p                    hubapi.Project
+	briefKey             string // brief:bf-…@1
+}
+
+var workRemote = hubapi.RemoteRequest{RepoKey: "github.com/lcfrai/panaceaapp", Host: hubapi.HostGitHub}
+
+func newWorkRig(t *testing.T) workRig {
+	t.Helper()
+	f, ada, grace, linus, team := withTeam(t)
+	must(ada.CreateInvite(bg, team.ID, hubapi.CreateInviteRequest{Email: FakeLinus.Email, Role: hubapi.RoleViewer}))(t)
+	must(linus.Me(bg))(t) // binds the invite
+	p := withProject(t, ada, team.ID, "Checkout", workRemote)
+	b := branchBrief(t, ada, p.ID, "refs/heads/evidence-upload")
+	return workRig{f, ada, grace, linus, team, p, write(t, ada, p.ID, b.ID, 0, "complete").Key}
+}
+
+func htext(s string) hubapi.AuthoredText { return hubapi.AuthoredText{Text: s, Author: hubapi.AuthorHuman} }
+
+// chore is the smallest valid create: no criterion, so a reason.
+func chore(title string) hubapi.CreateIssueRequest {
+	return hubapi.CreateIssueRequest{Title: htext(title), Description: htext(""), Serves: []hubapi.Serve{},
+		Implements: []string{}, Labels: []string{}, NotTiedReason: hubapi.NotTiedChore}
+}
+
+// serving is an issue created by Grace serving the given criteria of B.
+func (r workRig) serving(t *testing.T, criteria ...string) hubapi.IssueWithRevision {
+	t.Helper()
+	req := chore("Upload evidence")
+	req.NotTiedReason = ""
+	for _, c := range criteria {
+		req.Serves = append(req.Serves, hubapi.Serve{BriefKey: r.briefKey, CriterionID: c})
+	}
+	return must(r.grace.CreateIssue(bg, r.p.ID, req))(t)
+}
+
+// eventsOf is every feed event so far whose kind starts with prefix. It reads
+// the feed as a caller does, through Changes (H05; after "0" is the start).
+func eventsOf(t *testing.T, view *Fake, prefix string) []hubapi.Event {
+	t.Helper()
+	var out []hubapi.Event
+	for _, e := range must(view.Changes(bg, "0", 200))(t).Events {
+		if strings.HasPrefix(e.Kind, prefix) {
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
+func move(to hubapi.IssueState, cause hubapi.MoveCause) hubapi.StateMove {
+	return hubapi.StateMove{To: to, Cause: cause, Evidence: []string{}}
+}
+
+const commitA, commitB = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+```
