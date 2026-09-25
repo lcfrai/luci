@@ -356,3 +356,73 @@ path, screen-reader use, `first.landing`'s starter repo). **Depends on** 01-69. 
 claim** the cloud demo (the owner's, after phase 6 stream A and phase 8 stream C; skeleton *Start
 lines*), team mode, or any number as a measurement beyond the run it was taken in.
 
+**71 — shipped: issues in the release manifest; *shipped to production, 14:02*.** W1b, a delta on
+phase 7 (rule H2; phase 7's files win, and this task waits for P7-17 and P7-19 on the sync base).
+Files: `control-plane/internal/deploy/sessions/sessions.go` (P7 task 19, P7 plan `:580`; **UNVERIFIED
+until merge**) gains the `Panacea-Issue: is-…` trailer (SW.9) beside `Panacea-Session` in the same
+walk of the shipped commit range, returning `ReleaseIssue{issueId, commits []string}` (ids only,
+never titles, 05 §3.6); `control-plane/internal/api/deploy_drill.go` (P7 plan `:586`) serves them on
+the release's drill route beside its sessions, with one `routes_audit_test.go` ⚑ catalog line;
+`desktop/src/deploy/ReleaseIssues.tsx` (+ test) in the drawer (P7 task 17, `ReleaseDrawer.tsx`,
+`:606`) lists each issue by alias with its chip (task 67); `desktop/src/deploy/api.ts` (P7 plan
+`:593`) gains `ReleaseIssues`. **Shipped is derived, never a state and never stored on the issue**
+(05 §3.3, rule 3): the issue view's head (task 46) and the Desk's LANDED section (a new kind
+`issue.shipped` in `deskRows.tsx` ⚑, SW.17) read *"shipped to production, 14:02"* (the environment
+and the release's confirm time, mono) from the manifest, with the pinned brief key it shipped
+under (*"pinned `brief:bf-…@6`"*, 04 §2.4). A landed issue in no release reads *"Landed, not shipped
+yet"* (`prototype/work-layer.html:687`). **Tests first:** (1) a range with two commits carrying the
+same trailer yields one `ReleaseIssue` with both commits (mutant: one row per commit); (2) a commit
+whose message *mentions* `is-…` in its body but not as a trailer yields nothing (mutant: a
+substring scan instead of SW.9's trailer grammar); (3) the route's JSON carries no title field
+(mutant: titles copied into the manifest); (4) the issue view shows *shipped to production* only
+when a confirmed release lists it, and *staging* never reads as *production* (mutants: shipped on
+`landed`; the first environment wins); (5) the Hub issue head has no `shipped` field after a
+release (mutant: the fact stored on the head); (6) the Desk row appears on the next entry, not
+while open (task 62's rule); (7) `expectNoPrediction` on the drawer block. **Depends on** 22, 64;
+P7-17, P7-19. **Design:** 05 §5.3 (*W1b*), §3.3 (*Shipped is never a state*), §4.5 (Deploy row),
+§2.3. **Closes** L-146; **serves** L-148 (W4, task 131) and L-140 (W5). **Does not claim** release
+notes by criterion or freeze (W4), requester updates (W5), or commits made outside the product
+(outside PRs, W5).
+
+**72 — `hubapi` and `hubclient.WorkPlan`: the W2 wire types and methods.** Stream WH, seam
+**SW.18**, after the W1 proof (task 70) and a sync-merge of `feat/hub` (rule H1). Files:
+`control-plane/internal/hub/hubapi/work_plan.go` + `work_plan_test.go` (new), `hubapi/workids.go`
+(no new prefix: `ft-`, `cy-`, `tp-`, `lb-`, `vw-`, `df-` are task 02's), and
+`control-plane/internal/hub/hubclient/work.go` ⚑ (task 04's file: `Work` gains an embedded
+`WorkPlan`). Complete Go in the part, in `types.go`'s idiom (task 03's scope). **Head fields, added
+to `IssueHead`** (additive; none enters the `issue-revision` canonical form, so task 02's golden
+vectors are unchanged): `estimate *int`, `dueOn *string` (a date), `rank string` (a fractional
+index, `[0-9a-z]{1,32}`), `parentId *string`, `featureId *string`, `cycleId *string`, `subState
+*string`, `movedFrom *IssueAlias`. **Records:** `CustomState{key, teamId, name, band
+"before_started" | "after_landed", order int}` (05 §3.3; a key, not an id, since 05 §3.6 lists no
+prefix; an `after_landed` state holds `done` until a person clears it); `Feature{id ft-, projectId,
+name, branchRef, briefId, lead User, targetDate *string, state FeatureState, priority, labels,
+initiativeId *string, createdAt, createdBy, updatedAt}` with `FeatureState` `planned`·`active`·
+`paused`·`done`·`cancelled` (04 §2.5); `Cycle{id cy-, teamId, number, name *string, startsOn,
+endsOn, state "upcoming" | "current" | "closed"}`; `Cadence{teamId, lengthDays, cooldownDays,
+ahead int (1-15), firstStartsOn, updatedAt, updatedBy}` (L-57-L-59); `ScopeEntry{cycleId, issueId,
+change "added" | "removed", at, by *User}`; `ClosureProposal{id, assignee User, issueIds,
+policyAuthor User, reason, createdAt}` (L-11); `Template{id tp-, teamId *string (nil is org), kind
+"issue", name, title, description AuthoredText, serves, labels, priority, estimate}`;
+`LabelGroup{id lb-, teamId *string, name, exclusive bool}` and `Label.groupId`, `Label.teamId` nil
+for org labels (L-17-L-19); `View{id vw-, teamId, projectId *string, name, filter FilterGroup, layout
+"list" | "board", groupBy, subGroupBy, orderBy, display []string, isTeamDefault bool}` with
+`FilterGroup{op "and" | "or", terms []FilterTerm, groups []FilterGroup}` (depth ≤ 3) and
+`FilterTerm{field, op, values}`; `Draft{id df-, kind "issue" | "comment", issueId *string, body
+AuthoredText, updatedAt, expiresAt}` (private to its author, L-33, L-44); `IssueAlias{projectKey,
+number}`. **Team policy additions:** `estimateScale`, `estimateZero`, `staleAfterDays`, `staleMode
+"propose" | "auto"`, `archiveAfterDays`, `stopAtLanded` unchanged. **Request bodies:**
+`PatchIssuePlanRequest` (pointer fields for the head fields above), `RankRequest{before, after
+*string}`, `MoveIssueRequest{toProjectId}`, `SetSubStateRequest{key *string}`,
+`PromoteToFeatureRequest{name, slug}`, `PutCadenceRequest`, `AnswerClosureRequest{close []string}`,
+and one create/patch body per record. `WorkPlan`'s methods, one per route task 74's migration and
+tasks 75-80 build (the part lists each with its route). **Tests first**, in `types_test.go`'s four
+styles: strict decode and equal re-encode per record (kills a tag like `due_on`); empty slices
+encode `[]` (kills `omitempty`); `band` rejects `started` (kills a custom state inside the fact
+band); a `FilterGroup` four deep is refused (kills unbounded nesting); `rank` outside the charset is
+refused; W1's golden vectors still pass byte for byte (kills a head field leaking into the
+revision); `var _ hubclient.Work = hubclient.NewFake()` compiles only once task 73 lands, so this
+task adds the interface and a failing conformance stub. **Depends on** 70. **Design:** 05 §3.2,
+§3.3, §5.4 (W2); 04 §2.5. **Closes** no row alone; it is the wire of every W2 row. **Does not
+claim** recurring schedules on templates (W4), initiatives (W4), or brief templates (W4, L-122).
+
