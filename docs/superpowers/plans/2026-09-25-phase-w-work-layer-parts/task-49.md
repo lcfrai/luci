@@ -70,7 +70,7 @@ never turn a person's text into something else on the way through (a serializer 
 - `desktop/src/components/editor/editor.css` — owns `.ed-*` (new)
 - `desktop/src/components/editor/{markdown,authorClass,Editor}.test.ts(x)`,
   `desktop/src/components/editor/fixtures/*.md` — the tests and the round-trip set (new)
-- `desktop/package.json` ⚑, `desktop/package-lock.json` — nine `prosemirror-*` packages and
+- `desktop/package.json` ⚑, `desktop/package-lock.json` — ten `prosemirror-*` packages and
   `markdown-it`, each MIT, and `@types/markdown-it` (MIT) as a dev dependency (modified)
 - `desktop/src/components/issue/IssueView.tsx` ⚑ (tasks 46-48's) — `slots.body` defaults to the
   editor on the description (modified)
@@ -87,6 +87,7 @@ never turn a person's text into something else on the way through (a serializer 
 | `prosemirror-keymap` | MIT | `keymap` |
 | `prosemirror-history` | MIT | the editor's own undo, separate from the list's `U` |
 | `prosemirror-inputrules` | MIT | Markdown shortcuts as input rules |
+| `prosemirror-schema-list` | MIT | `Enter` makes a new list item, `Mod-[`/`Mod-]` outdent and indent (not in the scope's list; without it `Enter` in a list splits a paragraph inside the item) |
 | `prosemirror-markdown` | MIT | the CommonMark schema, `MarkdownParser`, `MarkdownSerializer` |
 | `markdown-it` | MIT | the tokenizer under `prosemirror-markdown` |
 | `@types/markdown-it` (dev) | MIT | its types, if the installed `markdown-it` ships none |
@@ -448,6 +449,7 @@ import { baseKeymap, toggleMark } from "prosemirror-commands";
 import { history, redo, undo } from "prosemirror-history";
 import { keymap } from "prosemirror-keymap";
 import type { Node } from "prosemirror-model";
+import { liftListItem, sinkListItem, splitListItem } from "prosemirror-schema-list";
 import { EditorState, Plugin } from "prosemirror-state";
 import { Decoration, DecorationSet, EditorView } from "prosemirror-view";
 import { parseIssueLink, type IssueLinkTarget } from "../../work/links";
@@ -557,7 +559,10 @@ export function Editor(props: EditorProps): JSX.Element {
       buildInputRules(editorSchema), personTypedPlugin, agentGutterPlugin, history(),
       keymap({ "Mod-Enter": () => { commit(); return true; }, "Mod-z": undo, "Mod-y": redo,
         "Mod-Shift-z": redo, "Mod-b": toggleMark(editorSchema.marks.strong),
-        "Mod-i": toggleMark(editorSchema.marks.em) }),
+        "Mod-i": toggleMark(editorSchema.marks.em),
+        Enter: splitListItem(editorSchema.nodes.list_item),
+        "Mod-[": liftListItem(editorSchema.nodes.list_item),
+        "Mod-]": sinkListItem(editorSchema.nodes.list_item) }),
       keymap(baseKeymap),
     ] });
   };
@@ -760,7 +765,7 @@ describe("markdown", () => {
   it("adds only permissive licences", () => {
     const names = ["prosemirror-model", "prosemirror-state", "prosemirror-view", "prosemirror-transform",
       "prosemirror-commands", "prosemirror-keymap", "prosemirror-history", "prosemirror-inputrules",
-      "prosemirror-markdown", "markdown-it"];
+      "prosemirror-schema-list", "prosemirror-markdown", "markdown-it"];
     const pkgs = (lock as { packages: Record<string, { license?: string }> }).packages;
     for (const n of names) {
       expect([n, pkgs[`node_modules/${n}`]?.license]).toEqual([n, expect.stringMatching(/^(MIT|Apache-2\.0|BSD-[23]-Clause|ISC)$/)]);
@@ -941,7 +946,7 @@ would receive. `insertText` at the default selection inserts at the document sta
 
 - [ ] **Step 1: read on the sync base** task 46's `AuthorClass.tsx` (`AUTHOR_PATH` exported),
   task 47's `IssueView.tsx` and `links.ts`, and task 56's `WorkOp` `revise` shape.
-- [ ] **Step 2: install** the ten packages with `--save-exact` (one `npm` command, the list in the
+- [ ] **Step 2: install** the eleven packages with `--save-exact` (one `npm` command, the list in the
   table above), then read each `license` from `desktop/package-lock.json`, the installed
   `prosemirror-markdown`'s `schema.spec.nodes.get("bullet_list").attrs`, its
   `defaultMarkdownParser.tokens.bullet_list`, `@tauri-apps/plugin-opener`'s `openUrl` export, and
