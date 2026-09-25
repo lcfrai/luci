@@ -110,3 +110,86 @@ phase 8's `remotebe` and broker (tasks 17–22, planned), the path the push act 
 task 60 (lane bundles in the mirror with the owner's identity), task 59 (the mirror client), task
 29 (`fleet.land_hints`), task 48 (the fetch credential the mirror's `fetch-remote` uses), task 10
 (the store), task 12 (routes and verbs).
+
+#### Interfaces — complete
+
+```go
+// control-plane/internal/fleet/landq/landq.go
+package landq
+
+import (
+	"context"
+	"errors"
+	"time"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/fleet/model"
+)
+
+type State string
+
+const (
+	StateWaiting   State = "waiting"   // queued; not the head, or held by a hint
+	StateBuilding  State = "building"  // the mirror is building the merge
+	StateReady     State = "ready"     // built, gated, staged on the owner's machine; waits for her click
+	StatePushing   State = "pushing"   // claimed by the owner's click; her machine is pushing
+	StateLanded    State = "landed"    // the mirror read the merge on the remote branch
+	StateRefused   State = "refused"   // Reason says why; the owner fixes and enqueues again
+	StateWithdrawn State = "withdrawn" // the owner took it back
+)
+
+// Live is the set the partial unique indexes below count.
+func (s State) Live() bool {
+	return s == StateWaiting || s == StateBuilding || s == StateReady || s == StatePushing
+}
+
+// Entry is one lane asking to land. OwnerUserID comes from the token at
+// enqueue, never from a body. Paths are repo-relative, never content.
+type Entry struct {
+	ID          string        `json:"id"`          // lq-…, ids.Wide("lq"): Fleet state, not a Hub record
+	OrgID       string        `json:"orgId"`
+	ProjectID   string        `json:"projectId"`
+	Branch      string        `json:"branch"`      // the product branch, a task 03 ValidBranchRef leaf
+	OwnerUserID string        `json:"ownerUserId"` // us-…
+	Agent       model.AgentID `json:"agentId"`     // the lane's worker, the owner's own
+	WorktreeID  string        `json:"worktreeId"`  // wt-…
+	LaneRef     string        `json:"laneRef"`     // refs/panacea/lanes/<owner-hash>/<wt-id>, task 03 ValidLaneRef
+	LaneTip     string        `json:"laneTip"`     // the tip the owner reviewed; ValidSha
+	BriefKey    string        `json:"briefKey"`    // "" or the key the owner saw (phase 3 task 09 step 5)
+	BriefDigest string        `json:"briefDigest"`
+	State       State         `json:"state"`
+	Reason      string        `json:"reason"`      // a Code below; "" while all is well
+	Paths       []string      `json:"paths"`       // a refusal's paths; [] never null; at most 50
+	Base        string        `json:"base"`        // the remote head the merge was built on
+	Merge       string        `json:"merge"`       // the merge commit, once built
+	HeldBy      string        `json:"heldBy"`      // cf-… of the hint holding it, "" when free
+	Rejects     int           `json:"rejects"`     // consecutive remote_moved push rejects (decision e)
+	EnqueuedAt  time.Time     `json:"enqueuedAt"`
+	ReadyAt     time.Time     `json:"readyAt"`     // zero until ready
+	UpdatedAt   time.Time     `json:"updatedAt"`
+}
+
+// Codes, all ST.1-style snake_case, each in the problem body's code.
+const (
+	CodeMergeConflict   = "merge_conflict"           // details: paths (task 09's)
+	CodeSecondApproval  = "second_approval_required" // details: paths, laneTip (task 49's)
+	CodeHubUnavailable  = "hub_unavailable"          // never read as "no approval needed"
+	CodeLaneMoved       = "lane_moved"               // the mirror's lane tip is not the reviewed one
+	CodeBriefMismatch   = "brief_unresolvable"       // task 09 step 5's family
+	CodeReadyExpired    = "ready_expired"            // a requeue reason, not a refusal
+	CodeRemoteMoved     = "remote_moved"             // a requeue reason
+	CodeRemoteContended = "remote_contended"         // the queue stops
+	CodePushUnverified  = "push_unverified"          // the owner said pushed; the remote disagrees
+	CodePushFailed      = "push_failed"              // her machine's push failed for another reason
+	CodeNotLive         = "entry_not_live"
+	CodeAgentNotOwner   = "agent_not_owner"          // task 06's code, reused
+)
+
+const (
+	ReadyFor       = 24 * time.Hour // decision c
+	StopAfter      = 2              // consecutive remote_moved rejects, decision e
+	VerifyAttempts = 3              // FetchRemote reads, 20 s apart, before push_unverified
+	MaxBundle      = 256 << 20      // one handoff; task 59's bundle cap, UNVERIFIED until 59 is written
+)
+
+var ErrStopped = errors.New("landq: the queue is stopped")
+```
