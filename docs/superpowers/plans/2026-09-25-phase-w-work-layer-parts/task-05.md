@@ -553,3 +553,91 @@ func (f *Fake) RemoveRelation(_ context.Context, issueID string, kind hubapi.Rel
 	return w.renderIssue(is), nil
 }
 ```
+
+Block 4: team labels (task 11).
+
+```go
+// Labels is the team's live labels, oldest first; any member reads them.
+func (f *Fake) Labels(_ context.Context, teamID string) ([]hubapi.Label, error) {
+	w := f.w
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	me, err := f.enter("Labels", teamID)
+	if err != nil {
+		return nil, err
+	}
+	if _, _, err := w.teamOf(teamID, me); err != nil {
+		return nil, err
+	}
+	out := []hubapi.Label{}
+	for _, l := range inOrder(w.soc().labels) {
+		if l.label.TeamID == teamID && l.archivedAt == "" {
+			out = append(out, l.label)
+		}
+	}
+	return out, nil
+}
+
+// CreateLabel is a team admin's; the name is unique among live labels,
+// case-insensitively; the colour is a token name.
+func (f *Fake) CreateLabel(_ context.Context, teamID string, req hubapi.CreateLabelRequest) (hubapi.Label, error) {
+	w := f.w
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	me, err := f.enter("CreateLabel", teamID, req)
+	if err != nil {
+		return hubapi.Label{}, err
+	}
+	_, role, err := w.teamOf(teamID, me)
+	if err != nil {
+		return hubapi.Label{}, err
+	}
+	if err := need(role, hubapi.RoleAdmin); err != nil {
+		return hubapi.Label{}, err
+	}
+	name := strings.TrimSpace(req.Name)
+	if n := utf8.RuneCountInString(name); n < 1 || n > 40 || strings.ContainsFunc(name, func(r rune) bool { return r < 0x20 || r == 0x7f }) {
+		return hubapi.Label{}, badRequest("name", "A label name is 1 to 40 characters.")
+	}
+	if !slices.Contains(fkLabelColors, req.Color) {
+		return hubapi.Label{}, badRequest("color", "A label colour is one of the label tokens.")
+	}
+	for _, l := range w.soc().labels {
+		if l.label.TeamID == teamID && l.archivedAt == "" && sameName(l.label.Name, name) {
+			return hubapi.Label{}, problem(409, fkLabelExists, "This team already has that label.", "labelId", l.label.ID)
+		}
+	}
+	l := &fakeLabel{label: hubapi.Label{ID: ids.Wide(hubapi.PrefixLabel), TeamID: teamID, Name: name, Color: req.Color},
+		seq: w.next()}
+	w.soc().labels[l.label.ID] = l
+	w.workEvent(me, fkEventLabelCreated, teamID, "", l.label.ID, map[string]any{"name": name})
+	return l.label, nil
+}
+
+// ArchiveLabel is a team admin's, once; a label outside the caller's teams is
+// 404. Issues keep an archived label they carry.
+func (f *Fake) ArchiveLabel(_ context.Context, labelID string) (hubapi.Label, error) {
+	w := f.w
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	me, err := f.enter("ArchiveLabel", labelID)
+	if err != nil {
+		return hubapi.Label{}, err
+	}
+	l := w.soc().labels[labelID]
+	if l == nil || w.teams[l.label.TeamID].members[me] == nil {
+		return hubapi.Label{}, problem(404, fkLabelNotFound, "There is no such label that you can see.", "labelId", labelID)
+	}
+	if err := need(w.teams[l.label.TeamID].members[me].role, hubapi.RoleAdmin); err != nil {
+		return hubapi.Label{}, err
+	}
+	if l.archivedAt == "" {
+		l.archivedAt = w.stamp()
+		w.workEvent(me, fkEventLabelArchived, l.label.TeamID, "", labelID, map[string]any{"name": l.label.Name})
+	}
+	return l.label, nil
+}
+```
+
+`sameName` is `fake_projects.go:159`'s case-insensitive compare. `inOrder` needs `order()`, which
+`fakeLabel` and `fakeComment` declare in block 1.
