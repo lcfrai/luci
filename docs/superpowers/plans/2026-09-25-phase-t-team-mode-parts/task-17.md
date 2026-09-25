@@ -91,6 +91,15 @@ it is Fleet, not the broker, that mints (S6.5, `:290`; task 20).
 10. **The audit line names all three.** The request logger's line (`task-17.md:130`, "owner hash")
     gains `via` and `delegation`, and for a Fleet principal `owner` is the delegation owner's hash, not
     Fleet's. Fleet's own `oid` is never a label, a selector or an owner.
+11. **A dead delegation may undo its own work, and nothing else.** When a delegation is revoked or
+    lapses, Fleet must still destroy the sandboxes it made (task 20 decision 9, task 11's `Revoker`).
+    So `principalOf` returns a *restricted* principal for a revoked or expired delegation, instead of
+    the 401, on exactly one route: `DELETE /v1/sandboxes/{id}`, and only for a sandbox whose
+    `panacea-app/delegation` label equals that `dl-…`. Every other route under it keeps its 401. The
+    audit line records `via=fleet`, the `dl-…` and `delegation_state=revoked|expired`. Test:
+    `TestRevokedDelegationMayDeleteOnlyItsOwn` — after revocation, `DELETE` of a sandbox labelled
+    `dl-alice` is 204; of Alice's desktop sandbox (no label) is 401 `delegation_revoked`; `GET` is 401.
+    Kills: a revocation that strands running pods, and a revocation that still lets Fleet act.
 
 **Files (all UNVERIFIED until the `feat/env` merge, except `entra`):**
 - `control-plane/internal/entra/entra.go`, `verify.go` — `Config.AppCallers`, `Claims.AppOnly`; the
@@ -362,10 +371,10 @@ Expected: `ok` for each of the four packages; `go vet` prints nothing. These are
 on a fake clientset and run on Windows.
 
 ```bash
-~/.claude/tools/claudezsh/claudezsh 'cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/control-plane && go test -run "^Test(FleetWithout|DesktopCarrying|AppOnlyToken|DelegationFor|DelegationScopes|FleetCreate|ClassMismatch|RevokedDelegation|HubDown|AuditLine|ControlRelay|SourceAddr|FleetMachineRoutes|BrokerDoesNotMint)" -v ./cmd/broker/ | grep -c "^--- PASS"'
+~/.claude/tools/claudezsh/claudezsh 'cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/control-plane && go test -run "^Test(FleetWithout|DesktopCarrying|AppOnlyToken|DelegationFor|DelegationScopes|FleetCreate|ClassMismatch|RevokedDelegation|HubDown|AuditLine|ControlRelay|SourceAddr|FleetMachineRoutes|BrokerDoesNotMint|RevokedDelegationMayDelete)" -v ./cmd/broker/ | grep -c "^--- PASS"'
 ```
 
-Expected: `17`, one per broker row of step 1 (the three `entra` cases run in their own package). A
+Expected: `18`, one per broker row of step 1 plus decision 11's (the three `entra` cases run in their own package). A
 lower number means a row was not written, not that it was skipped: none of them calls `t.Skip`.
 
 - [ ] **Step 7: Commit**, `git add` for the new files, then `git commit -F

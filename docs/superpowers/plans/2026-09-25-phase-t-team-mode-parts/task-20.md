@@ -70,3 +70,77 @@ Neither exists on any branch on 2026-09-25; both are **UNVERIFIED until merge**.
    checks `MintResponse.Route` against it after; a mismatch revokes the key at once and fails the
    session with `gateway_route_mismatch`. There is no retry with different parameters, no Global
    default, and no path in this file that constructs a Global route.
+9. **Revocation can always clean up.** Task 11's feed calls `Revoker.Revoke` on a revoked delegation
+   (`task-11.md:569-582`). By then the broker refuses that delegation, so Fleet could not destroy the
+   pod it made. Task 17 therefore lets `DELETE /v1/sandboxes/{id}` through under a revoked or lapsed
+   delegation **for a sandbox labelled with that same `dl-…`** (task 17 decision 6's label) and for
+   nothing else: a dead delegation may only undo its own work. `Revoke(…, Revoked)` destroys each of
+   the delegation's sandboxes, revokes each keysmith session, and ends each agent with
+   `access_removed`; `Revoke(…, Lapsed)` mints no further keys and stops redialling (task 19 decision
+   5), and `Resume` restarts both. A lapsed agent's current key runs out within its hour.
+
+**Files:**
+- `control-plane/internal/fleet/sessions/sessions.go` — `Sessions`, `Config`, `LaunchRequest`,
+  `Launch`, `EnsureOrchestrator`, `Stop`, `Live`, `Current`, `Revoke`, `Resume`, the spec render (new)
+- `control-plane/internal/fleet/sessions/tokens.go` — `Tokens`: mint at open, refresh, mint per turn,
+  the route check, revoke on end (new)
+- `control-plane/internal/fleet/sessions/http.go` — task 21's three session routes on task 12's server (new)
+- `control-plane/internal/fleet/sessions/{sessions,tokens,http}_test.go` and `fakebroker_test.go`,
+  `fakekeysmith_test.go` (new)
+- `control-plane/internal/fleet/store/migrations/0003_one_orchestrator.sql` (new)
+- `control-plane/internal/backend/remotebe/client.go` — `WithDelegation(ctx, dl)`: `Do` and `Stream`
+  add `X-Panacea-Delegation` when the context carries one (modified; phase 8 task 22's file,
+  **UNVERIFIED until merge**)
+- `control-plane/internal/gateway/wire/wire.go` — `MintRequest.Counterpart` (modified; phase 6 task
+  03's file, **UNVERIFIED until merge**; path as phase 6's plan names it, read at merge)
+- `control-plane/cmd/fleetd/main.go`, `config.go` — build `Sessions` and `Tokens`; five variables below
+  (modified; task 12's files)
+- Nothing in `cmd/broker`: decision 9's `DELETE` rule is task 17's code (its decision 11)
+
+**Interfaces (complete):**
+
+```go
+// control-plane/internal/fleet/sessions/sessions.go
+package sessions
+
+// Broker is what Sessions needs from the broker, over remotebe.Client with
+// the delegation on the context. The fake in fakebroker_test.go implements it.
+type Broker interface {
+	CreateSandbox(ctx context.Context, spec brokerapi.SandboxSpec) (brokerapi.Sandbox, error)
+	DestroySandbox(ctx context.Context, id string) error
+	Source(ctx context.Context, id string) (brokerapi.SourceAddr, error) // task 17
+	DefaultMachine(ctx context.Context) (string, error)                 // POST /v1/machines/default
+}
+
+// Store is the slice of task 10's store.Store this package uses.
+type Store interface {
+	Tx(ctx context.Context, fn func(store.Tx) error) error
+	Agent(ctx context.Context, org string, id model.AgentID) (model.Agent, bool, error)
+	Agents(ctx context.Context, org, project string) ([]model.Agent, error)
+	LiveAgents(ctx context.Context) ([]model.Agent, error) // added here: every non-ended agent, all orgs
+}
+
+// Policies is task 14's Effective.
+type Policies interface {
+	Effective(ctx context.Context, org, project string, class model.Class) (store.PolicyVersion, error)
+}
+
+type Config struct {
+	Broker      Broker
+	Store       Store
+	Policies    Policies
+	Delegations *delegation.Cache // task 11
+	Hub         DelegationFetcher // a cache miss reads GET /v1/delegations/{id} as Fleet under it
+	Tokens      *Tokens
+	Streams     *control.Streams // task 19
+	ControlKey  []byte           // task 19 decision 6's key
+	InstallID   string           // PANACEA_APP_FLEET_INSTALL_ID, 32 lower-case hex (brokerapi.SandboxSpec.ControlPlane)
+	GatewayURL  string           // PANACEA_APP_FLEET_GATEWAY_BASE_URL, the gatekeeper's in-cluster URL
+	Now         func() time.Time
+	Log         *slog.Logger
+}
+
+type DelegationFetcher interface {
+	Delegation(ctx context.Context, owner model.Owner, id string) (delegation.Delegation, error)
+}
+```
