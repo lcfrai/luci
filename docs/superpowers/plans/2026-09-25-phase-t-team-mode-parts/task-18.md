@@ -268,7 +268,7 @@ func Run(argv []string, env Env, stdin io.Reader, stdout, stderr io.Writer) int 
 		fmt.Fprintf(stderr, "panacea %s: %v\nusage: %s\n", v.name, err, v.usage)
 		return ExitUsage
 	}
-	resp, since, ok := dial(env, control.Request{V: 1, ID: "1", Verb: v.name, Args: args})
+	resp, since, ok := dial(env, control.Request{V: 1, ID: "rq-1", Verb: v.name, Args: args})
 	switch {
 	case !ok:
 		return unavailable(stdout, stderr, since) // since is "" → "sandbox start"
@@ -288,7 +288,7 @@ func Run(argv []string, env Env, stdin io.Reader, stdout, stderr io.Writer) int 
 `dial` opens `env.Socket`, sets one deadline of `env.Timeout` on the connection, writes the request
 line, reads one line of at most 8 MiB (a `files` answer for a large tree; `sandboxd`'s stream limit is
 4 MiB, task 16 step 4, so 8 is never the binding cap) and returns `ok == false` on any failure. The id
-is always `"1"`: `sandboxd` rewrites it upstream and restores it (task 16 decision 3), so the CLI needs
+is always `"rq-1"`, task 09's `rq-<n>` form (`task-09.md:363`): `sandboxd` rewrites it upstream and restores it (task 16 decision 3), so the CLI needs
 no counter. `check --hook` is one more `build` function: it decodes stdin into a struct with two
 fields, `tool_input.file_path` and `cwd`, and is lenient on every other key, because the hook input is
 Claude Code's shape, not ours. It requires
