@@ -238,3 +238,45 @@ older samples are dropped. `GET /v1/activity?project=<pj-…>&since=<seq>` (bear
 route) returns the ring's samples for that project with `Seq > since`, at most 500, oldest first;
 `project` is required, so no caller receives every project's activity by omission. `400
 bad_request` for a missing or malformed `project` or `since`.
+
+**The broker's relay.** `GET /v1/machines/{machineId}/activity?project=&since=` on the broker
+(P8-18's machine routes, extended): the owner's token may read any of their machines' projects;
+Fleet may read only under a delegation whose project is `project` and whose owner owns the machine
+(task 17's `X-Panacea-Delegation` check), else `403 forbidden` with `details.required =
+"delegation"`, the broker's existing code. The body is relayed byte for byte, so the broker adds no
+parser for ST.6.
+
+- [ ] **Step 1: Write the tests first, each with the mutant it kills**
+
+`claims_test.go` builds real clones in `t.TempDir()` with a real `git` (skipped, with a message, if
+`git` is absent) and runs `Sample` through phase 3's `gitx.NewExec` with a test `Hardening`, so the
+§HGH prefix under test is the production one. Each "never runs" test uses a marker script that
+writes a file; the assertion is that the file does not exist.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestFsmonitorInCloneConfigNeverRuns` (the skeleton's) | `.git/config` sets `core.fsmonitor=<marker>`; a dirty file; `Sample` → the file is in `Dirty`, no marker | §HGH's `core.fsmonitor=false` not applied to the sweep's calls |
+| `TestFsmonitorThroughIncludeNeverRuns` | the same key set in a file named by `include.path` | a `-c` placed before §HGH's prefix, or reading the include first |
+| `TestIndexHookNeverRuns` | `.git/hooks/post-index-change` writes a marker; stale index stat info so `status` would refresh it → no marker, and `.git/index`'s mtime unchanged | `GIT_OPTIONAL_LOCKS=0` dropped: status rewrote the index and ran the hook |
+| `TestExternalDiffAndTextconvNeverRun` | `diff.external=<marker>` and a `.gitattributes` `diff=x` with `diff.x.textconv=<marker>` → no marker; `Hunks` still read | `--no-ext-diff` or `--no-textconv` dropped from call 3 or 5 |
+| `TestFilterDriverMakesTheCloneUnreadable` | `filter.x.clean=<marker>` with `* filter=x` → `ReadError == "clone_config_untrusted"`, `Dirty` empty, no marker | the H3 check skipped for `Scope Clone` |
+| `TestBidiPathIsDroppedAndCounted` (the skeleton's) | files `ok.go` and `a‮og.txt` modified → `Dirty` holds `ok.go` only, `Dropped == 1`, and the bidi path is in no field of the JSON | escaping instead of dropping; counting without removing from `Hunks` |
+| `TestLongPathIsDropped` | a 201-character path → dropped, counted | the 200-character cap not applied |
+| `TestHunkRangesAreOnHEADsBlob` | a 10-line file; lines 3–4 replaced, a line inserted after 8 → `Base` = `git rev-parse HEAD:<path>`, `Ranges == [[3,2],[8,0]]` | the `+c,d` side parsed instead of `-a,b`; a missing count read as 0 |
+| `TestUnbornBranch` | a fresh `git init` with one untracked file → `Head == ""`, `LastCommit == nil`, the file `untracked`, no error | `rev-parse` exit 1 treated as `git_failed` |
+| `TestLastCommitSubjectIsCleaned` | a commit subject holding an ANSI escape → `Subject == ""`, `Dropped` counts it | an agent's subject reaching another Orchestrator raw |
+| `TestNoReadSet` | the JSON of any sample has exactly the ten keys above | a "files read" field added (§3.3) |
+| `TestAtMostFiftyHunkPaths` | 60 modified files → 50 in `Hunks`, `Truncated` | unbounded per-sweep git calls |
+
+`sweep_test.go`, on a fake `gitx.Runner`:
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestLiveEveryFiveToTenSeconds` | a worktree whose samples differ is due 5–10 s after its last; an unchanged one 60 s after | a fixed 60 s cadence, so holds lag a minute |
+| `TestProjectIsRequiredAndFilters` | `GET /v1/activity` without `project` → 400; with `project=A` → no sample of project B | a caller receiving every project by omission |
+| `TestSeqNeverRepeatsAcrossRestart` | two `Sweeper`s started 1 ms apart on a fake clock → the second's first `Seq` is above the first's last | a counter starting at 1 on each start |
+| `TestGapWhenSinceIsTooOld` | `since` below the ring's oldest → `Gap: true` | a silent miss the poller cannot see |
+| `TestFourAtOnce` | 20 due worktrees; the fake runner counts concurrency ≤ 4 | a git process per lane at once |
+
+The broker's `TestFleetReadsOnlyItsDelegationsProject` (in P8-18's suite): a delegation for `pj-A`
+reading `project=pj-B` → 403; the owner's token reading `pj-B` → 200.
