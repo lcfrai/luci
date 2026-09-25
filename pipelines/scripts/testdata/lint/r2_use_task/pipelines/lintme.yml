@@ -1,0 +1,15 @@
+# Case r2_use_task: a Use*@ runtime task, which installs a runtime no hash here pins.
+trigger:
+  branches:
+    include: [main, dev]
+  paths:
+    include: [desktop/**]
+pr:
+  branches:
+    include: ['*']
+  paths:
+    include: [desktop/**]
+steps:
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '3.12'

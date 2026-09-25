@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Stub go-licenses for licences_test.sh (task 28 fix round 1, review I2). licences.sh runs it as
+# "go-licenses report ./... --ignore <module>…" from inside each module of go.work. Like the real
+# one, it fails on a module of ours that it was not told to skip (none has a LICENSE file), and it
+# needs GOROOT (install-tool.sh builds it -trimpath, so it records none). Its report is the
+# module's fixture CSV, licences.csv (package,licence URL,licence), or nothing if there is none.
+if [ "${1:-} ${2:-}" != "report ./..." ]; then
+  echo "stub go-licenses: want \"report ./...\", got: $*" >&2
+  exit 99
+fi
+if [ "${GOROOT:-}" != /stub/goroot ]; then
+  echo "stub go-licenses: GOROOT is not the stub go's: every standard-library package has no module info" >&2
+  exit 1
+fi
+args=" $* "
+for gm in ../*/go.mod; do
+  own="$(awk '$1 == "module" {print $2; exit}' "$gm")"
+  case "$args" in
+    *" --ignore $own "*) ;;
+    *) echo "stub go-licenses: $own: no LICENSE file found (a workspace module: licences.sh must --ignore it)" >&2
+       exit 1 ;;
+  esac
+done
+if [ -f licences.csv ]; then cat licences.csv; fi
+exit 0

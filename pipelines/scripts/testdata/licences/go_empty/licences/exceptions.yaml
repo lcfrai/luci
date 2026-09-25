@@ -1,0 +1,3 @@
+# Fixture: no exceptions. Neither module has a licences.csv, so the stub go-licenses reports
+# nothing: what a report or parse failure looks like, which must never read as a clean graph.
+exceptions: []

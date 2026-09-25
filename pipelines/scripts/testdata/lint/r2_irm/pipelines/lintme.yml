@@ -1,0 +1,13 @@
+# Case r2_irm: PowerShell's other downloader, Invoke-RestMethod (alias irm), in a Windows step.
+trigger:
+  branches:
+    include: [main, dev]
+  paths:
+    include: [desktop/**]
+pr:
+  branches:
+    include: ['*']
+  paths:
+    include: [desktop/**]
+steps:
+  - pwsh: irm https://example.invalid/tool.zip -OutFile tool.zip

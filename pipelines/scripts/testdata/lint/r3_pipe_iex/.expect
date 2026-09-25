@@ -1,0 +1,2 @@
+1
+R3 no-drift: FAIL pipelines/scripts/hello.ps1:3: a download piped into a shell

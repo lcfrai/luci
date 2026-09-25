@@ -1,0 +1,8 @@
+# Fixture licences/charts.yaml for case repository_changed: the only row has the lock entry's
+# name and version but another repository, so it records nothing about the chart the lock pins.
+dependencies:
+  - name: postgresql
+    repository: https://charts.example.invalid/bitnami
+    version: "16.4.1"
+    licence: Apache-2.0
+    source: https://example.invalid/postgresql/LICENSE

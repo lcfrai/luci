@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Stub cargo for licences_test.sh (task 28 fix round 1, review I2). It accepts exactly
+#   cargo deny --manifest-path desktop/src-tauri/Cargo.toml --config <file> check licenses
+# and prints the deny.toml licences.sh wrote, one "deny.toml: [<section>] <line>" per line that is
+# not blank, a comment or a section header, so a test can read each key with its section. It exits
+# with the status held in the tree's cargo-deny.exit (0 if there is none), as cargo-deny would.
+if [ "$#" -ne 7 ] || [ "$1 $2 $3 $4" != "deny --manifest-path desktop/src-tauri/Cargo.toml --config" ] ||
+   [ "$6 $7" != "check licenses" ]; then
+  echo "stub cargo: unexpected arguments: $*" >&2
+  exit 99
+fi
+sec=""
+while IFS= read -r l; do
+  l="${l#"${l%%[![:space:]]*}"}"
+  case "$l" in
+    '' | '#'*) ;;
+    '['*']') sec="$l" ;;
+    *) echo "deny.toml: $sec $l" ;;
+  esac
+done < "$5"
+st=0
+if [ -f cargo-deny.exit ]; then read -r st < cargo-deny.exit; fi
+exit "$st"

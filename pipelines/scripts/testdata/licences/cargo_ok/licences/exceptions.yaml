@@ -1,0 +1,18 @@
+# Fixture: two cargo exceptions, whose licence texts licences.sh turns into cargo-deny allow ids
+# for that crate only, and one npm exception, which must not reach deny.toml.
+exceptions:
+  - name: unicode-ident
+    ecosystem: cargo
+    licence: (MIT OR Apache-2.0) AND Unicode-3.0
+    why: fixture only
+    approved: 0000000
+  - name: target-lexicon
+    ecosystem: cargo
+    licence: Apache-2.0 WITH LLVM-exception
+    why: fixture only
+    approved: 0000000
+  - name: npm-only
+    ecosystem: npm
+    licence: MPL-2.0
+    why: fixture only
+    approved: 0000000

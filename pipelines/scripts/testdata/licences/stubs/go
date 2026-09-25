@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Stub go for licences_test.sh (task 28 fix round 1): licences.sh asks it only for GOROOT.
+if [ "$*" != "env GOROOT" ]; then
+  echo "stub go: unexpected arguments: $*" >&2
+  exit 99
+fi
+echo /stub/goroot

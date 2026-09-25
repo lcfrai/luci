@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Stub cargo-deny for licences_test.sh: it exists so licences.sh's "need cargo-deny" passes; the
+# stub cargo answers "cargo deny" itself.
+echo "stub cargo-deny: run it as cargo deny" >&2
+exit 99

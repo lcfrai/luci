@@ -1,0 +1,3 @@
+# Fixture: no exceptions. cargo-deny.exit makes the stub cargo deny exit 1, as a crate outside
+# the list would.
+exceptions: []

@@ -66,6 +66,12 @@ check changed_pin_is_verified 1 "SHA-256 mismatch" $? "$out"
 out="$(run "tgz-tool @PLAT@ 2.0.0 tgz pkg/fixture-tool $TGZ_SHA $URL_TGZ" tgz-tool)"
 check tgz_member_installed 0 "install-tool: tgz-tool 2.0.0" $? "$out" 'cmp -s "$T/tgz-tool$exe" "$WORK/src/fixture-tool"'
 
+# Two rows for one tool, another platform's first (with a hash that would fail): this platform's
+# row is the one installed (task 28 fix round 1, review m5). platform() never prints plan9-386.
+out="$(run "plat-tool plan9-386 1.0.0 bin plat-tool $BAD_SHA $URL_BIN
+plat-tool @PLAT@ 1.0.0 bin plat-tool $BIN_SHA $URL_BIN" plat-tool)"
+check this_platforms_row 0 "install-tool: plat-tool 1.0.0" $? "$out" 'cmp -s "$T/plat-tool$exe" "$WORK/src/fixture-tool"'
+
 out="$(run "fixture-tool @PLAT@ 1.0.0 bin fixture-tool $BIN_SHA $URL_BIN" nope)"
 check no_pin_refused 1 "no pin for nope on" $? "$out"
 

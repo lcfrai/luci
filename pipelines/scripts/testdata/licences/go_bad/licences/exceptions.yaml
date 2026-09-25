@@ -1,0 +1,7 @@
+# Fixture: one go exception, so the fail case also proves exceptions are read for Go.
+exceptions:
+  - name: example.com/mpl
+    ecosystem: go
+    licence: MPL-2.0
+    why: fixture only
+    approved: 0000000

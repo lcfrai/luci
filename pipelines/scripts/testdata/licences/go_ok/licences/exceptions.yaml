@@ -1,0 +1,2 @@
+# Fixture: no exceptions. Two modules in go.work, three packages between them, all allowed.
+exceptions: []

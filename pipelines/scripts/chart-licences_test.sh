@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
-# pipelines/scripts/chart-licences_test.sh — the nine cases of the Helm half of the OD-11
-# licence gate (task 28, review m6: the part's eight, and a Chart.yaml with dependencies but no
-# Chart.lock, added by the implementer). Each case is a fixture tree under
+# pipelines/scripts/chart-licences_test.sh — the ten cases of the Helm half of the OD-11
+# licence gate (task 28, review m6: the part's eight; a Chart.yaml with dependencies but no
+# Chart.lock, added by the implementer; and a lock entry whose repository differs from the only
+# row's, task 28 fix round 1, review I1). Each case is a fixture tree under
 # testdata/chart-licences/<case>/ that chart-licences.sh is pointed at; charts.yml runs this
 # before the real check, so a weakened script fails here first.
 #
 #   bash pipelines/scripts/chart-licences_test.sh
 #
 # Output: one line per case, "ok   <case>" or "FAIL <case>: <why>", then
-#         chart-licences_test: <k> of 9 cases passed          exit 0 iff k == 9
+#         chart-licences_test: <k> of 10 cases passed          exit 0 iff k == 10
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -26,6 +27,7 @@ CASES=(
   "no_chart_lock|0|chart-licences: 0 chart dependencies"
   "stale_row|1|chart-licences: FAIL licences/charts.yaml: redis 20.1.0 (https://charts.example.invalid/bitnami): stale, matches no Chart.lock entry"
   "chart_yaml_without_lock|1|chart-licences: FAIL deploy/charts/hub/Chart.yaml: declares dependencies but has no Chart.lock"
+  "repository_changed|1|chart-licences: FAIL deploy/charts/hub/Chart.lock: postgresql 16.4.1 (https://charts.example.invalid/fork): no row in licences/charts.yaml"
 )
 
 pass=0

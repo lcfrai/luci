@@ -1,0 +1,3 @@
+# Fixture: no exceptions. The lock holds only dev packages, so the production graph reads as
+# empty: the desktop ships React, so that is a read failure, never a clean graph.
+exceptions: []
