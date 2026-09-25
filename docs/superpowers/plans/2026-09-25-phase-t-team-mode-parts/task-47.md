@@ -108,7 +108,8 @@ sandbox reaches inference only through the gateway's private path (task 32), nev
 `api.anthropic.com`, which is the Global route.
 
 ```yaml
-# deploy/charts/platform/templates/networkpolicy-sandboxes.yaml (replace egress-internet)
+# deploy/charts/platform/templates/networkpolicy-sandboxes.yaml (replace egress-internet, as
+# task 32 left it: task-32.md:306-312; sandbox-egress-gateway, :313-324, is untouched)
 {{- $n := .Values.namespaces.sandboxes }}
 {{- define "platform.internetExcept" }}
           except:
@@ -136,13 +137,16 @@ spec:
 {{- include "platform.internetExcept" . }}
 ---
 # Session pods of a Global project, and every solo session (the broker stamps "global" when a
-# create names no route). A session pod with no route label matches nothing here.
+# create names no route). A session pod with no route label matches nothing here. Task 32's
+# class exclusion is kept: an Orchestrator (and task 58's mirror) has no internet on any route.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata: { name: egress-internet, namespace: {{ $n }} }
 spec:
   podSelector:
     matchLabels: { panacea-app/component: sandbox, panacea-app/route: global }
+    matchExpressions:
+      - { key: panacea-app/class, operator: NotIn, values: [orchestrator, mirror] }
   policyTypes: [Egress]
   egress:
     - to:
@@ -167,6 +171,8 @@ metadata: { name: egress-au-allowlist, namespace: {{ $n }} }
 spec:
   endpointSelector:
     matchLabels: { panacea-app/component: sandbox, panacea-app/route: au }
+    matchExpressions:
+      - { key: panacea-app/class, operator: NotIn, values: [orchestrator, mirror] }
   egress:
     - toEndpoints:
         - matchLabels:
