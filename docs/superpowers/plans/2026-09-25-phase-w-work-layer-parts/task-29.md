@@ -406,3 +406,74 @@ An `outline` that follows `border-radius` needs Chromium 94 or Safari 16.4. WebV
 Chromium; the WKWebView floor on macOS is **UNVERIFIED** here (`tokens.css:7-8` states Safari
 15.4 for OKLCH). On an older WKWebView the ring draws square round a round disc: still a second
 shape, so running and idle stay apart, and task 33's sheet is where anyone would see it.
+
+#### Tests to write first — `desktop/src/components/glyphs/AgentGlyph.test.tsx`
+
+```tsx
+import { describe, expect, it, vi } from "vitest";
+import { render } from "@testing-library/react";
+import glyphsCss from "./glyphs.css?raw";
+import { AgentGlyph } from "./AgentGlyph";
+import type { AgentStatus } from "./AgentGlyph";
+import { AGENT_PATHS, MARK_PATHS, STATE_PATHS } from "./paths";
+
+const STATUSES: AgentStatus[] = ["starting", "running", "idle", "exited", "failed"];
+const draw = (status: AgentStatus, size: 14 | 16 = 16): SVGSVGElement =>
+  render(<AgentGlyph status={status} size={size} label={`agent ${status}`} />).container.querySelector("svg")!;
+/** The drawing with colour removed: each part's kind and geometry, and nothing else. */
+const shape = (svg: Element): string =>
+  [...svg.querySelectorAll("path")]
+    .map((p) => `${p.classList.contains("gl-agent-ring") ? "ring" : "fill"}:${p.getAttribute("d")}`)
+    .join(";");
+const allD = (table: Record<number, Record<string, ReadonlyArray<{ d: string }>>>): string[] =>
+  Object.values(table).flatMap((set) => Object.values(set).flatMap((parts) => parts.map((p) => p.d)));
+
+describe("AgentGlyph", () => {
+  // Kills: today's colour-only difference (StatusDot.tsx:22-23, both dot-disc).
+  it("gives running and idle different shapes", () => {
+    expect(shape(draw("running"))).not.toBe(shape(draw("idle")));
+    expect([...draw("running").querySelectorAll("path")].map((p) => p.classList[0]))
+      .toEqual(["gl-agent-ring", "gl-agent-fill"]);
+  });
+
+  // Kills: any pair told apart by colour alone, at either size.
+  it("separates all five statuses with colour removed", () => {
+    for (const size of [14, 16] as const) {
+      expect(new Set(STATUSES.map((s) => shape(draw(s, size)))).size, `size ${size}`).toBe(5);
+    }
+  });
+
+  // Kills: a per-row timer, and a breath with its own period.
+  it("breathes on the one heartbeat", () => {
+    // setInterval only: React's scheduler may use timers of its own, and useHeartbeat's one
+    // interval (heartbeat.ts:37) is the mechanism a per-row clock would have to reach for.
+    const interval = vi.spyOn(globalThis, "setInterval");
+    const live = Array.from({ length: 20 }, () => draw("running").querySelector(".gl-agent-live"));
+    expect(interval).not.toHaveBeenCalled();
+    for (const el of live) expect((el as SVGElement).style.animationDelay).toMatch(/^-\d+ms$/);
+    expect(glyphsCss).toMatch(/\.gl-agent-live\s*\{\s*animation:\s*gl-beat var\(--beat\) var\(--ease\) infinite;/);
+    for (const s of STATUSES.filter((x) => x !== "running")) {
+      expect(draw(s).querySelector(".gl-agent-live"), s).toBeNull();
+    }
+  });
+
+  // Kills: an announced breath.
+  it("hides liveness from assistive technology", () => {
+    const svg = draw("running");
+    expect(svg.getAttribute("role")).toBe("img");
+    expect(svg.getAttribute("aria-label")).toBe("agent running");
+    expect(svg.querySelector(".gl-agent-live")?.getAttribute("aria-hidden")).toBe("true");
+    expect(svg.querySelector("[aria-live]")).toBeNull();
+  });
+
+  // Kills: one icon family for issue and agent states (05 §4.4 work rule 1).
+  it("shares no path with the issue glyphs", () => {
+    const issue = new Set(allD(STATE_PATHS));
+    expect(allD(AGENT_PATHS).filter((d) => issue.has(d))).toEqual([]);
+    expect(allD(MARK_PATHS).filter((d) => issue.has(d))).toEqual([]);
+  });
+});
+```
+
+`STATE_PATHS` entries carry `dash` as well as `d`; `allD` reads `d` only, so a dashed ring and a
+solid ring with one `d` would still count as shared, which is the stricter reading.
