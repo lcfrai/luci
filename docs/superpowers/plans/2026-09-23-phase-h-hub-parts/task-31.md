@@ -27,8 +27,10 @@ reads the refresh token current at its start; callers of one scope still share o
 **Files:**
 - `control-plane/internal/signin/{tokens.go,account.go,startup.go}` + `{tokens_test.go,startup_test.go}` (new)
 
-(No `hubclient.go` edit: task 04 declares `Invalidator`, so this lane-C task touches no lane-A file,
-review M15.)
+- `control-plane/internal/hub/hubclient/hubclient.go` — **comments only**: `entraauth` -> `signin` at
+  `:18`, `:23` and `:137` (the OD-30 ruling's section 11 folds this into task 31; verified on
+  `feat/hub` at `3b0dcad`). No code line changes: task 04 declares `Invalidator`, so this lane-C
+  task still changes no lane-A behaviour, review M15.
 
 #### Contract — complete
 
