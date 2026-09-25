@@ -1889,7 +1889,10 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 	report := func(err error) { log.Warn("best-effort step failed", "err", err.Error()) }
 	spend := usage.NewPGStore(pool)
 	reader := usage.NewReader(spend, policy, nil)
-	go (&usage.Sweeper{Keys: spend, Admin: admin, Store: spend, Report: report}).Run(ctx) // task 09, decision (c)
+	// task 09 decisions (c) and (g): Prices and Groups turn on the check that
+	// LiteLLM prices every group above zero (review I-5).
+	go (&usage.Sweeper{Keys: spend, Admin: admin, Store: spend, Report: report,
+		Prices: admin, Groups: cat.Groups()}).Run(ctx)
 	svc, err := keysmith.New(keysmith.Deps{Admin: admin, Store: store, Budgets: policy, Spent: reader,
 		Routes: routes, Groups: cat.Groups(), TTL: cfg.TokenTTL, BaseURL: cfg.BaseURL, Report: report})
 	if err != nil {

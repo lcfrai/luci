@@ -8,7 +8,7 @@
 
 **Evidence never includes a key or a body.** The client redacts every `sk-…` string and truncates every error to 160 characters; it prints statuses, counts, timings, field names and the fake's `/_captured` path and key lists (task 16), which hold no value. The canary for P06 is a fresh random string per run.
 
-**Pricing is a precondition, not a probe.** P03 to P05 and P12 need LiteLLM to put a non-zero cost on a call to the fake. LiteLLM prices from its own model-cost table by model name (training knowledge, **UNVERIFIED**), and task 16's fake echoes the requested id. If the pinned table does not know the public id, spend stays `0`, budgets can never bite, and those probes report **UNKNOWN (unpriced)** rather than a false PASS. The fix then belongs to task 02: explicit per-token costs on the local groups. The script checks spend before it judges any budget.
+**Pricing is a precondition, not a probe.** P03 to P05 and P12 need LiteLLM to put a non-zero cost on a call to the fake. LiteLLM prices from its own model-cost table by model name (training knowledge, **UNVERIFIED**), and task 16's fake echoes the requested id. If the pinned table does not know the public id, spend stays `0`, budgets can never bite, and those probes report **UNKNOWN (unpriced)** rather than a false PASS. Task 02 now renders an explicit per-token price into every group's `model_info` on every target (its decision (f), review I-5), so an unpriced result here means the pinned LiteLLM does not read those `model_info` keys: record which keys it does read, and task 02 moves the prices (its "does not claim" list). The script checks spend before it judges any budget. The operator also writes into the evidence file whether the `/model/info` answer the fake-mode gate reads shows every group's `model_info.input_cost_per_token` and `output_cost_per_token` above zero: that is the shape task 04's `ModelPrices` and task 09's price check assume (**UNVERIFIED** until then).
 
 **Probes, and what each FAIL changes.** P01 to P12 are the skeleton's; **P13 is added here**, because OD-20's "the cloud tracks the latest CLI" depends on it and no other probe covers it. **P14 is added by review C-1**: task 11 drops LiteLLM's body control fields (`proxy.ControlFields`), and P14 asks whether LiteLLM itself would keep an AU request in Australia if one got through.
 
@@ -174,7 +174,7 @@ def v_budget(refused_for_budget, spend):
     if refused_for_budget:
         return "PASS", f"refused for budget after spend {spend:.6f}"
     if not spend:
-        return "UNKNOWN", "spend stayed 0: the model is unpriced (task 02 adds local costs)"
+        return "UNKNOWN", "spend stayed 0: LiteLLM did not read task 02's model_info prices"
     return "FAIL", f"spend {spend:.6f} over a 1e-9 budget and still served"
 
 def v_p06(rows, prompt_hits, reply_hits, log_hits):

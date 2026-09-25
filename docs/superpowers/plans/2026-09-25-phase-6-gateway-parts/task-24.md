@@ -39,7 +39,7 @@ Six claims about the cloud gateway cannot be proven on Docker Desktop, and two o
 | P03 | `p03-pod-source-address.sh` | The address a gateway pod sees is the sandbox pod's own | the echo's reported client IP equals the probe pod's `status.podIP` |
 | P04 | `p04-au-route-bedrock.sh` | A real AU session's Claude Code requests succeed through Bedrock | the pod has the AU launch variable and not the Bedrock one; the gatekeeper logged at least `GW_P04_MIN` (default 5) `/v1/messages` lines for the session, all `route=au`, none with a status ≥ 400 |
 | P05 | `p05-zdr-config.sh` | Our stores and the AWS account keep no prompt | the live LiteLLM config has no callback key and has `store_prompts_in_spend_logs: false`; a data-only dump of the gateway database holds no `GW_CANARY`; Bedrock model-invocation logging is off in `ap-southeast-2` and `ap-southeast-4` |
-| P06 | `p06-budgets-on.sh` | A new project and person get non-zero budgets | LiteLLM's team (the project) and user (the person) both carry a `max_budget` > 0; keysmith's Deployment sets no budget variable to `0` or empty |
+| P06 | `p06-budgets-on.sh` | A new project and person get non-zero budgets, and every group has a price for them to count | LiteLLM's team (the project) and user (the person) both carry a `max_budget` > 0; keysmith's Deployment sets no budget variable to `0` or empty; `GET /model/info` shows every group's input and output price per token above zero (review I-5: an unpriced group spends US$0 and no budget bites) |
 
 **What each script needs from the operator**, all environment variables, none a secret on its own except the two `_FILE`s' contents: `GW_ZONE` (the public DNS zone, P01); `GW_SANDBOX_IMAGE` (the sandbox image **by digest**, P02, P03); `GW_RUNTIME_CLASS` (phase 8's configured Kata class, so the probe runs in a microVM as a session does); `GW_SANDBOX_NODE_SELECTOR` (default `panacea-app/role=sandbox`, **UNVERIFIED** against phase 8's pool labels); `GW_DB_HOST` (the gateway database's private FQDN, P02); `GW_ECHO_IMAGE` (`agnhost` by digest, P03); `GW_P04_SESSION`, `GW_P04_POD`, `GW_P04_MIN` (P04); `GW_GATEKEEPER_SELECTOR` (default `app.kubernetes.io/name=gatekeeper`, task 19's label, **UNVERIFIED** until that chart exists); `GW_LITELLM_CONFIGMAP` (default `litellm-config`); `GW_CANARY`, `GW_DATABASE_URL_FILE` (P05); `GW_LITELLM_URL` (a `kubectl port-forward` the operator opens), `GW_MASTER_KEY_FILE`, `GW_PROJECT`, `GW_PERSON` (P06); `GW_REQUIRE_ALL` (`1` turns every NOT RUN into FAIL).
 
@@ -222,7 +222,11 @@ p06_ok() { local d; d=$(fresh)
   can "$d" p06.team 0 '{"team_id":"p-new","team_info":{"max_budget":1000.0,"budget_duration":"30d"}}'
   can "$d" p06.user 0 '{"user_id":"t-1:o-2","user_info":{"max_budget":200.0}}'
   can "$d" p06.keysmith.env 0 "PANACEA_APP_GATEWAY_SESSION_CAP_USD=25"
+  can "$d" p06.modelinfo 0 "$(priced_groups 0.000005)"
   echo "$d"; }
+# priced_groups AU_INPUT: /model/info with a priced Global group and an AU group at that input price.
+priced_groups() { printf '%s' '{"data":[{"model_name":"global/claude-opus-5","model_info":{"input_cost_per_token":0.000005,"output_cost_per_token":0.000025}},' \
+  "{\"model_name\":\"au/claude-opus-5\",\"model_info\":{\"input_cost_per_token\":$1,\"output_cost_per_token\":0.000025}}]}"; }
 expect "P06 passes on non-zero budgets" p06-budgets-on.sh "$(p06_ok)" 'gateway P06: PASS' 0 "${B[@]}"
 # Mutant: a null budget (unlimited in LiteLLM) read as "a budget exists".
 d=$(p06_ok); can "$d" p06.team 0 '{"team_id":"p-new","team_info":{"max_budget":null}}'
@@ -233,6 +237,9 @@ expect "P06 fails on a zero user budget" p06-budgets-on.sh "$d" 'gateway P06: FA
 # Mutant: keysmith's own defaults not checked, so DEFAULT_TEAM_BUDGET_USD=0 passes.
 d=$(p06_ok); can "$d" p06.keysmith.env 0 "PANACEA_APP_GATEWAY_DEFAULT_TEAM_BUDGET_USD=0"
 expect "P06 fails on a zero default in keysmith" p06-budgets-on.sh "$d" 'gateway P06: FAIL .*DEFAULT_TEAM_BUDGET_USD' 1 "${B[@]}"
+# Mutant (review I-5): budgets set but an AU group unpriced, so it spends US$0 and none bites.
+d=$(p06_ok); can "$d" p06.modelinfo 0 "$(priced_groups null)"
+expect "P06 fails on an unpriced group" p06-budgets-on.sh "$d" 'gateway P06: FAIL .*model/info prices 3 of 4' 1 "${B[@]}"
 
 # A secret never reaches the output, on any case (the scripts' own promise, decision (d)).
 d=$(p06_ok); out=$(env -i PATH="$PATH" GW_CANNED="$d" "${B[@]}" bash "$here/p06-budgets-on.sh" 2>&1)
@@ -244,7 +251,7 @@ echo "gateway smoke tests: $failures failed"
 [ "$failures" -eq 0 ]
 ```
 
-That is thirty-six cases over six scripts: thirty-four verdicts and two leak checks. No case contacts a cluster, a cloud or a network: with `GW_CANNED` set, `run_cmd` never executes its command, and `expect` runs each script under `env -i`, so a variable from the author's own shell cannot make a case pass.
+That is thirty-seven cases over six scripts: thirty-five verdicts and two leak checks. No case contacts a cluster, a cloud or a network: with `GW_CANNED` set, `run_cmd` never executes its command, and `expect` runs each script under `env -i`, so a variable from the author's own shell cannot make a case pass.
 
 - [ ] **Step 3: Run the tests to verify they fail**
 
@@ -593,12 +600,23 @@ tb=$(budget_of "$team"); positive "$tb" || problems+=("team $GW_PROJECT max_budg
 user=$(run_cmd p06.user curl -s -m 10 -H @"$h" "$GW_LITELLM_URL/user/info?user_id=$GW_PERSON") \
   || problems+=("user/info did not answer")
 ub=$(budget_of "$user"); positive "$ub" || problems+=("user $GW_PERSON max_budget is ${ub:-absent}")
+# Review I-5: a group LiteLLM prices at zero spends US$0, so every budget on it is off
+# however well it is set. Every group needs a positive input and output price.
+info=$(run_cmd p06.modelinfo curl -s -m 10 -H @"$h" "$GW_LITELLM_URL/model/info") \
+  || problems+=("model/info did not answer")
+ngroups=$(grep -oE '"model_name":[[:space:]]*"[^"]+"' <<<"$info" | wc -l | tr -d ' ')
+priced=0
+for p in $(grep -oE '"(input|output)_cost_per_token":[[:space:]]*(null|[0-9.eE+-]+)' <<<"$info" | sed 's/.*:[[:space:]]*//'); do
+  positive "$p" && priced=$((priced + 1))
+done
+{ [ "$ngroups" -gt 0 ] && [ "$priced" -eq $((2 * ngroups)) ]; } \
+  || problems+=("model/info prices $priced of $((2 * ngroups)) input and output figures above zero")
 envs=$(run_cmd p06.keysmith.env kubectl get deploy -n panacea-gateway keysmith \
   -o jsonpath='{range .spec.template.spec.containers[*].env[*]}{.name}={.value}{"\n"}{end}')
 zero=$(grep -E '^PANACEA_APP_GATEWAY_(SESSION_CAP|DEFAULT_(USER|TEAM|PROJECT)_BUDGET)_USD=(0+(\.0*)?)?$' <<<"$envs" | cut -d= -f1)
 [ -z "$zero" ] || problems+=("keysmith sets $(echo $zero) to zero or empty")
 if [ "${#problems[@]}" -eq 0 ]; then
-  verdict P06 PASS "team $GW_PROJECT US\$$tb, user $GW_PERSON US\$$ub, keysmith defaults non-zero"
+  verdict P06 PASS "team $GW_PROJECT US\$$tb, user $GW_PERSON US\$$ub, keysmith defaults non-zero, $ngroups groups priced"
 else
   verdict P06 FAIL "${problems[*]}"
 fi
@@ -621,7 +639,7 @@ exit "$rc"
 
 ```bash
 bash infra/smoke/gateway/gateway_smoke_test.sh | tail -1        # expect: gateway smoke tests: 0 failed
-bash infra/smoke/gateway/gateway_smoke_test.sh | grep -c '^ok'  # expect 36
+bash infra/smoke/gateway/gateway_smoke_test.sh | grep -c '^ok'  # expect 37
 command -v shellcheck >/dev/null && shellcheck -x infra/smoke/gateway/*.sh   # expect nothing, if installed
 ```
 
@@ -643,7 +661,7 @@ git commit -F <message file> -- infra/smoke/gateway
 
 Message: `test(smoke): gateway proving scripts P01 to P06, tested on canned output, not run (phase 6 task 24)`, a body naming decisions (a) to (e), and the attribution line.
 
-**Acceptance:** step 6 prints `gateway smoke tests: 0 failed` and `36`; step 7's four edits each turn the named case red; `grep -rn 'kubectl exec\|--admin' infra/smoke/gateway/` prints nothing (no exec into a session, no admin credential).
+**Acceptance:** step 6 prints `gateway smoke tests: 0 failed` and `37`; step 7's four edits each turn the named case red; `grep -rn 'kubectl exec\|--admin' infra/smoke/gateway/` prints nothing (no exec into a session, no admin credential).
 
 **When the environment exists** (not in this phase), the operator runs, from an allowlisted workstation signed in through `kubelogin` as a member of the cluster admin group:
 
@@ -663,6 +681,7 @@ and records each line in phase 8's first-apply results (`docs/verification/phase
 - **P04's answer.** Whether LiteLLM's Anthropic-to-Bedrock translation carries what Claude Code sends is open risk 1; a FAIL moves AU sessions to seam S6.4.
 - **The upstreams' retention.** P05 checks our config, our database and the AWS account's invocation logging. Anthropic's and AWS's ZDR terms are the org's contracts (owner question Q3).
 - **Budget enforcement.** P06 proves budgets are set, not that they bite; biting is task 18's P03 to P05 locally, and task 23's item 5.
+- **That the prices are right.** P06 proves each group has a price above zero, not that it matches what Anthropic or AWS bills. The operator compares `models.yaml`'s AU figures with the AWS price list for `ap-southeast-2` and raises any that is lower, in the same commit that flips an AU `verified` (task 02 decision (f)); every price stays **UNVERIFIED** until then.
 
 **Gaps against the skeleton, for the orchestrator:**
 
