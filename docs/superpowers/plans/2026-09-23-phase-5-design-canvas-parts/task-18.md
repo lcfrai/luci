@@ -288,6 +288,7 @@ above let through:
 | `TestChannelEndedByItsPeer` | the peer drops the channel: an idle stream is reset, `Serve` returns, the next connection is held and served on the next channel | MA: `Serve` without its final `ch.fail` (review I1) |
 | `TestFlowControl_partialWindow` | a full window, then a 1,000-byte WINDOW: sandboxd sends exactly 1,000 more bytes | MG: `upstream` reading a whole `MaxPayload` whenever the window has room (review M1; survived on Windows) |
 | `TestLogs_payloadBlind` (extended) | a peer RESET with reason `secret` is logged as `peer reset: a 6-byte reason`; a fixed reason is logged verbatim | the peer's reason logged verbatim (review M4) |
+| `TestPeerResetReason` | every fixed reason is quoted as itself; an empty, unknown or near-miss reason only by its length | N9: `knownReason` missing a fixed reason (it survived `TestLogs_payloadBlind`, which quotes one) |
 | `TestPeerOpen_endsTheChannel` | a control-plane OPEN, for a new id or a live one, closes the channel with `StatusProtocolError` and resets its streams | the RESET answer to a peer OPEN, unbounded (review M6; MF survived) |
 | `TestListener_closeEndsItsChannel` | `Close` ends the live channel with 1001 and resets its stream; a channel attached after `Close` is refused and leaves no writer goroutine | MD, and the `Serve`-after-`Close` goroutine leak (review M7) |
 | `TestWithoutAttachToken` | the session's environment is sandboxd's minus every `PANACEA_APP_ATTACH_TOKEN` entry, and never nil | the token reaching the session (review M3) |

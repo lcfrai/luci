@@ -193,6 +193,25 @@ func TestFlowControl_partialWindow(t *testing.T) {
 	p.checkClean(t)
 }
 
+// Every fixed reason is quoted in the log, and anything else only by its
+// length (review t18 M4). This list is the second copy that pins
+// knownReason's: TestLogs_payloadBlind quotes one fixed reason only, and a
+// knownReason missing any other survived it (mutant N9).
+func TestPeerResetReason(t *testing.T) {
+	for _, r := range []string{reasonTooMany, reasonWindow, reasonBadWindow, reasonDataAfterClose,
+		reasonLocalRead, reasonLocalWrite, reasonUnexpectedOpen, reasonIDs} {
+		if got := peerResetReason([]byte(r)); got != "peer reset: "+r {
+			t.Errorf("peerResetReason(%q) = %q; a fixed reason is logged as itself", r, got)
+		}
+	}
+	for _, r := range []string{"", "secret", reasonWindow + " ", "Window exceeded"} {
+		want := fmt.Sprintf("peer reset: a %d-byte reason", len(r))
+		if got := peerResetReason([]byte(r)); got != want {
+			t.Errorf("peerResetReason(%q) = %q, want %q", r, got, want)
+		}
+	}
+}
+
 func TestPing_echoedAsPong(t *testing.T) {
 	r := newRelay(t, nil)
 	p := r.attach()
