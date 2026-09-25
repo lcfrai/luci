@@ -296,7 +296,8 @@ beyond. The two differences phase 8 introduces are recorded for the Hub's review
 |---|---|---|---|
 | **P3A-1** | Machine paths are slash-separated on every OS: `gitx.Machine` gains `Join(elem ...string) string` (`Local` → `filepath.Join`, `Remote` → `path.Join`), and phase 3 joins clone paths through it — the control plane runs on Windows | the method is added in phase 3's task 02, or by task 25 in one commit if phase 3 has landed | 25 |
 | **P3A-2** | The lane index for a cloud machine is keyed by machine id | laptop-side, keyed by `(machineId, projectId)`; the single-laptop limitation is stated in the cockpit. It holds for sessions too: a cloud sandbox carries its creator's install id, and only that control plane reaps it (review I6, tasks 18, 22, 23). The default machine's id is derived from its owner, so the index also holds `createdAt` and drops entries when it changes; the broker refuses to delete the default (b09 re-review 4, task 19) | 25 |
-| **P3A-3** | *Answered by phase 3's ruling R4 (review I7, b06, Q18):* §HGH (H1–H5) hardens **project** calls only, and no host git runs with a lane as its repository (R4.2). Lane git runs only through the `/git/v1/` runner, which `machined` serves in the machine pod (P8-D7), and lane work crosses as a bundle verified and fetched in the project (R4.4). For its project calls `machined` adds an explicit `Env` allowlist and an environment without `PANACEA_APP_*`; no credential enters a lane. The read-only `.git/config` bind task 24b builds for cloud sessions is hygiene, as phase 3's is, and nothing is claimed from it (phase 3 plan `2026-09-23-phase-3-git-convergence.md:245`, `:712`) | phase 3's task 02 (§HGH, project-only) and task 24 (the runner and its goldens) land before task 21 starts (task 21 step 1 checks) | 20, 21, 24b, 33 |
+| **P3A-3** | *Answered by phase 3's ruling R4 (review I7, b06, Q18):* §HGH (H1–H5) hardens **project** calls only, and no host git runs with a lane as its repository (R4.2). Lane git runs only through phase 3's `/git/v1/` runner, which is `sandboxd`'s own, in the one pod that mounts the lane: the live session's, or a runner-only pod (P8-D7; env R4 ruling 2). `machined` serves no `/git/v1/`, so R4.3's "phase 8's `machined` serves the same RPC" changes for the cloud (P3A-5). Lane work crosses as a bundle verified and fetched in the project (R4.4). For its project calls `machined` adds an explicit `Env` allowlist and an environment without `PANACEA_APP_*`; no credential enters a lane. The read-only `.git/config` bind task 24b builds for cloud sessions is hygiene, as phase 3's is, and nothing is claimed from it (phase 3 plan `2026-09-23-phase-3-git-convergence.md:245`, `:712`) | phase 3's tasks 02 (§HGH, project-only) and 03 land before task 21 starts (task 21 step 1 checks); phase 3's task 24 (the runner, its goldens and `lanegit`) lands before task 25b starts (task 25b step 1 checks). Task 24 is not a dependency of task 21 | 20, 21, 24b, 25b, 33 |
+| **P3A-5** | *Env R4 re-plan (rulings 2 to 4), not yet answered:* S8-P3.4 (`lanegit.Bundles`, ruling 3), S8-P3.5 (the pool reaches a lane's own machine, task 25b), S8-P3.6 (`gitx.MachineFS`, ruling 4's one contract), and R4.3's cloud half (the runner is `sandboxd`'s, not `machined`'s) | nothing: tasks 21, 21b, 25 and 25b are held out of the build stream until phase 3 answers ("Order", "Held"). Filing the asks on phase 3's side is an orchestrator or owner action; this plan does not edit phase 3 | 21, 21b, 25, 25b, 33 |
 | **P3A-4** | Phase 3's task 05 and this phase's task 14 both edit the sandbox environment and its parity test | phase 3 lands first; task 14 step 0 checks | 14 |
 
 ---
@@ -597,7 +598,7 @@ first.
 | # | Task | Depends on | Hours |
 |---|---|---|---|
 | 20 | `cmd/machined`: the catalog on the machine disk, store deletion (OD-10), authentication, and a worktree path route that answers lane paths only, refusing a primary or linked worktree's id with `worktree_not_a_lane` (R4.1; env R4 rulings 1 and 5) | 15 | 3 |
-| 21 | `machined` git: project calls under §HGH (`LaneRoot` set) with an explicit `Env` allowlist derived from phase 3's call sites, a scrubbed environment, a credentialed add-project clone, and lane creation from the project into `lanes/` in phase 3's current shape (six fixed `--config` keys, `Env == NoFilterEnv`, `NewLane` on the wire, the creating set and `POST /v1/lanes/sealed`), with `MachineFS`' routes confined to `lanes/`; no lane runner (env R4 rulings 2 and 4; review I7, Q18) | 20, **phase 3 tasks 02 (§HGH) and 03, phase 3's S8-P3.3** | 3.5 |
+| 21 | `machined` git: project calls under §HGH (`LaneRoot` set) with an explicit `Env` allowlist derived from phase 3's call sites, a scrubbed environment, a credentialed add-project clone, and lane creation from the project into `lanes/` in phase 3's current shape (six fixed `--config` keys, `Env == NoFilterEnv`, `NewLane` on the wire, the creating set and `POST /v1/lanes/sealed`), with `MachineFS`' routes confined to `lanes/`; no lane runner (env R4 rulings 2 and 4; review I7, Q18) | 20, **phase 3 tasks 02 (§HGH) and 03, phase 3's S8-P3.6** (held, "Order") | 3.5 |
 | 21b | `machined` bundles: `POST /v1/bundles` (body or `?reserve=1`), `GET` and `DELETE`, the one bundle argument `POST /v1/git` admits, the `429` at two live ids, and the sweep (env R4 ruling 3) | 21, 19 (`/tmp` `sizeLimit: 3Gi`, and a streamed bundle `POST` through its proxy) | 2 |
 
 ### Group F — the laptop's control plane serves cloud machines
@@ -608,8 +609,8 @@ first.
 | 23 | `internal/machines`: a backend per machine through sessions, attach, reaper and `main`; the install id, and a reaper that destroys only its own cloud sandboxes (review I6) | 22 | 3.5 |
 | 24a | Cloud machines in `GET /v1/machines`, `POST /v1/machines/default` (ensure-default) and `POST /v1/machines/{machineId}/wake`; the list cache and its invalidation (review m17 split task 24) | 23 | 2 |
 | 24b | Machine-scoped catalog; session create and restart on a cloud machine in the worktree's lane, a primary's or linked worktree's backing lane made on first start (phase 3 task 05's rule; R4.1: no `projects/` mount; env R4 ruling 5), with wake-before-create and `.git/config` bound read-only as hygiene; the cloud conversation store (`cloudstore`, OD-10); closes S8.3 | 24a, 20, **phase 3 task 05** (the backing lane) | 3.5 |
-| 25 | A cloud machine's project-only `gitx.Machine` (`CloneRoot` `/machine/lanes`), its `MachineFS`, and the laptop-side composite catalog that lists lanes from the lane index (S3-P8.1; R4 rulings, task 25) | 24b, 21, **phase 3 tasks 02–04 and 11, phase 3's S8-P3.3** | 2.5 |
-| 25b | Lane git on a cloud machine: phase 3's `Lanes.For` over the broker's sandbox git route, the runner-only pod held from the reaper, and the cloud `lanegit.Bundles` relay (R4 rulings 1–3) | 25, 21b, 18, 15, 23, **phase 3 task 24, phase 3's S8-P3.4 and S8-P3.5** | 2.5 |
+| 25 | A cloud machine's project-only `gitx.Machine` (`CloneRoot` `/machine/lanes`), its `MachineFS`, and the laptop-side composite catalog that lists lanes from the lane index (S3-P8.1; R4 rulings, task 25) | 24b, 21, **phase 3 tasks 02–04 and 11, phase 3's S8-P3.6** (held, "Order") | 2.5 |
+| 25b | Lane git on a cloud machine: phase 3's `Lanes.For` over the broker's sandbox git route, the runner-only pod held from the reaper, and the cloud `lanegit.Bundles` relay (R4 rulings 1–3) | 25, 21b, 18, 15, 23, **phase 3 task 24, phase 3's S8-P3.4 and S8-P3.5** (held, "Order") | 2.5 |
 | 26 | The cockpit shows cloud machines: states, implicit wake, the isolation badge (S8.5), signed-out | 24b (and so 24a) | 3 |
 
 ### Group G — packaging and CI/CD
@@ -644,13 +645,19 @@ wave 1   01  14  16
 wave 2   02  03  04  09  11  15  17  28
 wave 3   05  06  12  13  18  20
 wave 4   07  19  22  27
-wave 5   08  23  27a  29     21 (when phase 3 task 02 has landed)
-wave 6   10  24a  30
+wave 5   08  23  27a  29     21 (held)
+wave 6   10  24a  30         21b (held; after 21 and 19)
 wave 7   24b
-wave 8   25 (when phase 3 tasks 02–04 and 11 have landed)  26  31 (owner-gated, OD-12)
-wave 9   32                  (owner-gated, OD-12; depends on 31)
+wave 8   25 (held)  26  31 (owner-gated, OD-12)
+wave 9   32 (owner-gated, OD-12; depends on 31)   25b (held; after 25, 23, 21b and 18)
 wave 10  33                  (depends on every task)
 ```
+
+**Held** (env R4 re-plan; P3A-5). Tasks 21, 21b, 25 and 25b stay out of the build stream: the
+stream skips them and dispatches no implementer onto a known block. 21 and 25 need phase 3's
+S8-P3.6 (`gitx.MachineFS`) and tasks 02 and 03; 25 also needs tasks 04 and 11; 21b needs 21;
+25b needs phase 3's task 24, S8-P3.4 and S8-P3.5. Each part's Step 1 greps say when its hold
+lifts, and the orchestrator re-admits it then. Task 33 waits for them, as it waits for every task.
 
 **The critical path** is 14 → 15 → 18 → 19 and 16 → 17 → 18 → 22 → 23 → 24a → 24b → 26: the cloud machine
 end to end. The Terraform groups can finish in parallel with it and gate nothing in Go.
