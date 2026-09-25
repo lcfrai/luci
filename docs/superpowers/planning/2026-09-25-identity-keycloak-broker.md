@@ -301,3 +301,57 @@ a client-credentials grant for service clients (section 6). `-profile entra` kee
 Entra-v2 shape for the entra-profile end-to-end row only. `RevokeRefreshTokens(oid)` and
 `RequireInteraction(oid)` (task 12) are unchanged in meaning.
 
+## 6. Service callers
+
+**A service that calls the Hub or the broker in its own name is a confidential client with a service
+account in the realm, using the client-credentials grant.** This replaces Entra workload identity (the
+app-only Entra token with `idtyp=app` and `roles`) **for calls into PanaceaApp services only**. Azure-plane
+access (Postgres, Key Vault, storage, AKS) stays Azure workload identity, unchanged (P8-D10; IT request
+Part 2).
+
+| Client | Who | Token request | Accepted by |
+|---|---|---|---|
+| `panacea-app-fleet` | Fleet, team mode (`cmd/fleetd`) | `grant_type=client_credentials`, `scope=panacea-app-hub` or `scope=panacea-app-broker` (one audience per token, as for people) | the Hub and the broker, as a **service client** (`ServiceClients`) |
+| `panacea-app-gateway` | the gateway's route source and usage roll-up (phase 6 task 13, phase T task 66) | `grant_type=client_credentials`, `scope=panacea-app-hub` | the Hub only, as a service client |
+
+- **Client settings:** `publicClient:false`, `serviceAccountsEnabled:true`, standard flow off, implicit
+  off, direct grants off, no redirect URIs, `clientAuthenticatorType: client-secret`. The audience scopes
+  A1-A2 are optional scopes on it. No `oid`/`tid` mappers: a service token carries no person.
+- **The secret** lives in the environment's Key Vault and reaches the pod through the Secrets Store CSI
+  driver, never an env file, never a laptop. Locally, `devissuer`'s client-credentials grant accepts
+  the dev secret from `dev-tenant.json`.
+- **A service token's `Claims`**: `Service = true`, `ClientID = azp`, `ObjectID` and `TenantID` empty,
+  `Key() == "client/<azp>"` (section 5).
+
+**The delegated-callers amendment keys on `azp`.** Team design `05-design.md:1127` and phase T
+`:419-425` said the Hub's `azp` allowlist "gains Fleet's workload identity". It now gains
+**`panacea-app-fleet`** in the Hub's `ServiceClients`. The rule is otherwise as written: the Hub refuses
+a request with `azp == panacea-app-fleet` unless it names a live 24-hour delegation that the person's own
+desktop token created; the actor recorded is the person, with Fleet as the delegate. The broker's second
+caller (env 17/18 amendment, phase T task 17) is recognised the same way: `Service` true and
+`azp == panacea-app-fleet`, where phase T task 17 said "no `scp`, `azp` = Fleet". Desktop to Fleet stays a
+**person** token: audience `panacea-app-fleet`, `azp == panacea-app-desktop`, owner `(tid, oid)` (phase T
+task 12), validated by `oidcauth` under `keycloak`. The Hub accepts `azp == panacea-app-gateway` only on
+the route-source and usage-roll-up routes (phase T task 66's `PANACEA_APP_HUB_GATEWAY_CLIENT_ID` is set to
+`panacea-app-gateway`).
+
+**The gateway's mint (phase 6) validates its caller under the same profile.** keysmith's
+`PANACEA_APP_GATEWAY_CALLER_AUTH` gains a third mode, **`oidc`**, beside `kube` and `bearer-file`, and
+becomes a comma list (cloud: `kube,oidc`):
+- `kube`: the broker's service account by TokenReview, **unchanged** (phase 6 task 08). The `Owner{TID, OID}`
+  the broker sends is the one it derived from the person's `panacea-app-broker` token (P8-D4, section 1).
+- `oidc`: a person's own token, audience `panacea-app-gateway`, `azp == panacea-app-desktop`, validated by
+  `oidcauth` under `keycloak`. The owner is **the token's `(tid, oid)`**; a request body whose `Owner`
+  differs is refused `403`. This is the local-mode laptop minting against the cloud gateway (phase 6 task 15's
+  `gatewayclient` sends `TokenSource.Token(ctx, "panacea-app-gateway")`). No service client is accepted.
+- LiteLLM's `user_id` stays `"<tid>:<oid>"` (P6-D6), so usage attribution per person is unchanged.
+
+**Leavers.** A person disabled in Entra cannot complete a new broker login, but an offline token already
+issued keeps working until it lapses. The desktop client therefore sets
+`client.offline.session.max.lifespan = 604800` (7 days), which needs the realm's
+`offlineSessionMaxLifespanEnabled: true` (section 10): at most once a week the silent refresh fails and the
+zero-click flow re-checks the person against Entra (the realm's browser SSO session is at most 24 hours,
+`panacea-dev.env:131-133`, so by then Keycloak must go back to Entra). Fleet's 24-hour delegation lapse
+stands. Its daily account-state check (`05-design.md:163-185`) cannot read Entra's state through the realm
+(the IdP has `storeToken:false` and no user sync, facts §3); it stays as that design says, flagged in section 12.
+
