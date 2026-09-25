@@ -1039,3 +1039,45 @@ the project cannot linger in the store. Polling lives in the components that sho
 | `TestThreadsOnlyTheCallersOwn` | Alice's call lists only threads her Orchestrator is party to; Bob's thread with Carol is absent | listing every open thread in the project |
 | `TestMessagesHidesExistence` | Alice asks for Bob–Carol's thread → 404 `thread_not_found`, and `Messages` was never called | a 403 that confirms the thread exists, or a relay that trusts the Hub alone |
 | `TestMessagesUseTheCallersOrchDelegation` | the fake `Messages` receives Alice's Orchestrator's `dl-…`, never Fleet's own or Bob's | reading route 63 under a delegation that is not the caller's |
+
+**Local side** (`teamassemble_test.go` pure; `team_test.go` over `httptest`, a fake `TeamFleet`, a
+fake `TeamHub` recording every call, and a fixed `Viewer` = Dylan):
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestST8KeysAllowlist` | reflection over every ST.8 type's JSON tags equals the written list; no `transcript`, `terminal`, `openingPrompt`, `prompt`, `args`, `attachPath`, `delegation`, `token` anywhere | a view that grows a teammate's terminal or a secret |
+| `TestStripNeverCarriesTeammateWords` | a `TeamHuman` whose fake also holds a directive text, a reply and a message body (planted strings `DV-PLANT`, `RP-PLANT`, `MS-PLANT`); the marshalled strip and every person detail contain none of them | the strip built from the Orchestrator view instead of `TeamHuman` |
+| `TestLabelTable` | each row of `labelFor`'s six cases, and an unknown agent | a label that quotes a body, or calls a teammate's agent "Your" |
+| `TestEveryTextHasAClass` | walk every `TeamText` in all six fixtures: `author` ∈ {agent, human}, `authorAgentId` non-null iff agent, `label` non-empty | a text that reaches the cockpit without its class (§3.3 rule 5) |
+| `TestRowStatusTable` | working beats waiting beats idle; `human` before `lease`; a `starting` agent counts as working | a row that says idle while one agent works, or guesses `waiting on <name>` from a lease wait |
+| `TestHeldByOthersIsARing` | Alice's `auth/session.go` is in Bob's `Files` → in Alice's `heldByOthers`; a path only Alice has is not; a path covered by Bob's `granted` glob `auth/**` is | `heldByOthers` computed from the same person's own leases |
+| `TestChangedAtMovesOnlyOnChange` | two identical `TeamHuman`s 5 s apart: `changedAt` equal; a new first path: moved | a flash on every poll |
+| `TestCardIsTemplated` | `cardFor` for each STATE row; the NEXT line's time is `04:40` in Australia/Sydney for `18:40Z` | a card that prints an agent sentence, or UTC |
+| `TestHorizonKeepsAccepted` | a conflict `accepted` stays in `horizon`; `resolved` and `cleared` leave | dropping HORIZON on `accepted` (§9.3) |
+| `TestHorizonHasNoTime` | `HorizonItem` has no field whose tag contains `eta`, `minutes`, `until` or `expected` | OD-27's banned ETA reintroduced |
+| `TestDecidedIsTypedNotTextual` | an inform whose question starts *"DECIDED WITHOUT YOU:"* but has `fromAgentId` set lands in `since`; one with `fromAgentId` null and `threadId` set lands in `decided`, whatever its text | classifying by the text prefix |
+| `TestUndoAvailability` | accepted+yield → true; accepted+sequence → true; accepted+proceed-both → false; resolved+yield → false | an Undo that tries to reverse a landed lane |
+| `TestUndoWritesOneOwnMessage` | `POST …/undo` calls `WriteHumanMessage` once, `toAgentId` = Dylan's Orchestrator, body = `undoTemplate` filled from typed fields; no other Hub write | an Undo that patches the conflict or messages the other side (OD-16) |
+| `TestAnswerCallsHubOnce` | `POST …/answer` calls `AnswerEscalation` once with `{choice, text}`; a Hub `409` is relayed as `409` with the Hub's code | a retry loop that double-answers |
+| `TestAskTakesNoOwner` | a body carrying `ownerUserId`, `toAgentId` or `userId` is `400 bad_request` (strict decode); the Hub call's `toAgentId` is the viewer's own Orchestrator from `TeamHuman` | an ask addressed to a teammate's Orchestrator |
+| `TestAskSubjectGrammar` | `{kind:"path", ref:"../etc/passwd"}` → 400 before any Hub call; `{kind:"task", ref:"tk-…"}` → the first line `About task tk-…:` | a subject line that carries unvalidated text into a record |
+| `TestSoloProjectIsEmpty` | a solo project: strip `team:false, people:[]`, desk contributes nothing, `ask` → `409 not_team_project`, and no Fleet call was made | a Fleet call on every solo project's poll |
+| `TestFixturesRoundTrip` | each `testdata/team-view/v1/*.json` decodes strictly into its Go type and re-marshals byte-equal (after `json.Indent`) | a fixture drifted from the type |
+
+**Desktop side** (Vitest):
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `team.test.ts › fixtures satisfy the types` | each fixture, read with `fs.readFileSync` from `control-plane/internal/api/testdata/team-view/v1/`, is assigned to its type through a `satisfies` check in a `.ts` helper that `npm run typecheck` compiles | a TS field renamed without the Go one (`types.ts:3-5`) |
+| `team.test.ts › routes and methods` | each client method's URL and method against an injected `fetch`; `userId` and `threadId` are URL-encoded | a hand-built path that breaks on `u-…/../` |
+| `team.test.ts › desk sends since` | `desk("2026-09-24T22:41:00.000Z")` requests `/v1/team/desk?since=2026-09-24T22%3A41%3A00.000Z` | a cursor that is never sent, so everything is new |
+| `teamSlice.test.ts › setters replace` | `setTeamStrip` with one person after three leaves one | a merge that keeps people who left |
+| `teamSlice.test.ts › one answer in flight` | `beginAnswer("es-1")` true, again false, after `endAnswer` true | a double click that answers twice |
+| `store.test.ts › teamSeenAt persists` | `partialize` includes `teamSeenAt` and nothing else new; a snapshot without it rehydrates to `""` | a cursor lost on restart, or the whole team view persisted |
+
+```bash
+cd control-plane && go test ./internal/api/... ./internal/fleet/verbs/... ./internal/fleet/server/... 2>&1 | head -5
+cd desktop && npm test -- team 2>&1 | tail -5
+```
+
+Expected: `undefined: verbs.TeamHuman` and similar; Vitest fails to resolve `./team`. That is the red.
