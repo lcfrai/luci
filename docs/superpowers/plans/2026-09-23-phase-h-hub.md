@@ -226,7 +226,7 @@ theirs.
 
 | Package | Owner (wins a conflict) | This plan's task | The owning part | Where this plan's copy differs from the part |
 |---|---|---|---|---|
-| `control-plane/internal/entra` | phase 8 task 16 | 10 | sibling `feat/env`, `…/2026-09-23-phase-8-own-environment-parts/task-16.md` | the bodies only |
+| `control-plane/internal/oidcauth` (was `internal/entra`; OD-30 ruling §5) | env task 17 step 0 (renames phase 8 task 16's package, adds the `keycloak` profile) | 10 | sibling `feat/env`, `…/2026-09-23-phase-8-own-environment-parts/task-17.md` | none: this plan writes no copy; task 10 takes env's commit unchanged |
 | `control-plane/internal/credstore/credstore.go` | phase 3 task 13 | 29 | sibling `feat/phase-3-git`, `…/2026-09-23-phase-3-git-convergence-parts/task-13.md` | the bodies; phase 3's package comment is dropped (task 28's `secrets.go` holds the package's one); `Credential.Source`'s comment reads `"credential-manager" \| "entra" \| "git-credential-helper"` where phase 3's reads `"hub" \| "git-credential-helper"` (phase 3 `task-13.md:68`) |
 | `control-plane/internal/githost/remote.go` | phase 3 task 13 | 35 | the same part | the bodies only |
 
@@ -286,9 +286,9 @@ parallel worktrees (see §"Order and parallel lanes").
 | `control-plane/internal/hub/server/server.go` | mux, middleware chain, `/healthz`, `/readyz`, 404/405, headers, request logging | new | 08 |
 | `control-plane/internal/hub/boundary_test.go` | the import boundary (ADR-H1 §4.1, contract §2, A9) | new | 09 |
 | `control-plane/cmd/hub/{compose.yaml,devstack.sh,README.md}`, `.gitignore` | the local stack: Postgres in Docker, the two binaries on the host (correction A2); `.out/` ignored | new, modified | 09 |
-| `control-plane/internal/entra/*` | Entra access-token validation — **phase 8 task 16's files**; written here only if that task has not landed | new | 10 |
-| `control-plane/internal/devissuer/*` | the local OIDC issuer, as a package (correction A5) | new | 11, 12 |
-| `control-plane/cmd/devissuer/{main.go,dev-tenant.json}` | its `main`, and the fictional tenant | new | 11 |
+| `control-plane/internal/oidcauth/*` | access-token validation, `keycloak` and `entra` profiles — **env task 17 step 0's files**, merged in, never written here (OD-30 ruling §5) | merged | 10 |
+| `control-plane/internal/devissuer/*` | the local OIDC issuer, as a package (correction A5); Keycloak paths and the `keycloak` profile by default, `-profile entra` for one row (OD-30 ruling §5) | new | 11, 12 |
+| `control-plane/cmd/devissuer/{main.go,dev-tenant.json}` | its `main`, and the fictional realm (`panacea-app-dev`: tenants, clients, audience scopes) | new | 11 |
 | `control-plane/internal/hub/server/{auth,ratelimit}.go` | Origin refusal, rate limits, token validation, principal resolution (contract §5.1) | new | 13 |
 | `control-plane/internal/hub/store/{store,dbauth}.go` | the pool; Entra-only Postgres over the standard library | new | 08 |
 | `control-plane/internal/hub/store/orgs.go` | org enrolment at start; principal resolution | new | 13 |
@@ -409,8 +409,8 @@ with the credential pair (29, 39) phase 7 needs. Four start lines fall inside it
 | 07b | `sql/0001_init.sql`, part 2: the guards and the owner functions (`org_ids`, `lock_audit_head`, a `SECURITY DEFINER` `audit_append`: A18, A19), with a database test for each; merged with 07a | H0 | 07a | 3.5 | ✓ |
 | 08 | `cmd/hub`: config, `serve`, `migrate`, `verify` shell; the server chassis; the pool | H0 | 01, 06, 07b | 3 | ✓ |
 | 09 | the local stack: Postgres-only compose, `devstack.sh`, the README (A2); the import boundary test | H0 | 07b, 08, 12 | 2 | ✓ |
-| 10 | `internal/entra` — phase 8 task 16's part, **only if it has not landed**; phase 8's wins the merge | H1 | — | 3 (0 if landed) | ✓ |
-| 11 | `devissuer`, part 1: the package, config, discovery, JWKS, token minting; `cmd/devissuer` | H1 | — | 2.5 | ✓ |
+| 10 | `internal/oidcauth` — **takes env task 17 step 0's commit unchanged**, writes no validator (OD-30 ruling §5) | H1 | env 17 step 0 | 0.5 | ✓ |
+| 11 | `devissuer`, part 1: the package, config, Keycloak-layout discovery, JWKS, `keycloak`-profile person and service token minting; `cmd/devissuer` | H1 | 10 | 3 | ✓ |
 | 12 | `devissuer`, part 2: `/authorize`, `/token` (code + PKCE S256, rotating refresh) | H1 | 11 | 3 | ✓ |
 | 13 | the Hub's auth pipeline: Origin, rate limits, validation, principal, org enrolment (A7) | H1/H2 | 07b, 08, 10, 11 (review M15) | 3 | ✓ |
 | 14 | the write transaction: audit lock, hash chain, idempotency (contract §10.6) | H2/H7 | 02, 13 | 3.5 | ✓ |
@@ -535,7 +535,7 @@ resolved by keeping both.
 | S-HUB | `hubclient`'s consumer interfaces, `NewFake()`, the conformance suite, and `hubclient.WriteError` / `hubclient.Relay` (the relay rule, as a write and as a value) — every sibling ask answered in task 00 before they freeze. Siblings **consume** these interfaces and `NewFake()`; they never implement them, so an added method is additive for every one of them | tasks 00, 04, 05, 33, 34 | phases 3 (`Evidence`), 4 (`Briefs`), 5 (`Designs`), 7 (`Releases`) |
 | S-LINK | `hublink.Resolver.Project(ctx, localProjectID) (hubapi.Project, hublink.State, error)` — how a handler finds the Hub project behind a local one | task 35 | phases 3, 4, 5, 7: every Hub-backed handler starts here |
 | S-FEED | the control plane's `hubfeed.Poller.Subscribe(kindPrefix, fn)`; the desktop's `hubFeed.subscribe(kindPrefix, fn)`; and the generic cursor headers — `api.CursorSource` in `Deps.CursorSources`, one `Panacea-<Name>-Cursor` each, read by the desktop into `HubHeaders.cursors`, keyed by the lowercased name, through one `onHubHeaders` hook (HA7-4; no `onCursor`, a declared difference) | tasks 36, 40 | phase 4's `provenanceSlice` (`brief.*`), phase 5's approvals (`design.*`), phase 7's releases (`release.*`) and its `Deploy` cursor source |
-| S-ENTRA | `internal/entra` — one validator for the Hub and the broker (HA-1) | task 10 / phase 8 task 16 | phase 8's `cmd/broker` |
+| S-ENTRA | `internal/oidcauth` (was `internal/entra`) — one validator for the Hub and the broker (HA-1), `keycloak` profile by default (OD-30 ruling §5) | env task 17 step 0 (task 10 takes it) | phase 8's `cmd/broker` |
 | S-BIND | `server.bindingClaims(bearer) (member, emailVerified bool)` in `auth.go` — reads `acct` and `xms_edov` from the token `Validate` has just accepted, because `entra.Claims` carries neither (A15, review I12). Fails closed on an absent claim or another JSON type | task 13 | phase 8, by the two sibling asks in A15: when `entra.Claims` gains `Member` and `EmailVerified`, only this function's body changes; and its task 09 registration must configure `acct` and `xms_edov`, or no deployed token carries them. S-BYO's guest-heavy tenants depend on it |
 | S-HOPS | `PANACEA_APP_HUB_TRUSTED_HOPS` — how many proxies append to `X-Forwarded-For` in front of the Hub; the per-IP key is the N-th entry from the right (A14, review I7) | tasks 08, 13 | phase 8's chart sets `1` behind its single ingress, once the sibling ask in A14 lands: its task 29 still sets the retired `TRUST_PROXY=true`, which the Hub refuses |
 | S-CHART | `hub serve` / `hub migrate` / `hub verify`; `:8080`; `/healthz`, `/readyz`; `roles.sql`; `PANACEA_APP_HUB_*` | tasks 06–08 | phase 8 tasks 27 (image), 29 (chart, principals SQL), 30 (pipeline) |
@@ -635,8 +635,10 @@ named it Q11 before that number was taken):
   | HA7-5 `kind` filter | built | 03, 05, 23, 34 |
 
   The sibling line numbers in task 00 move as those plans are edited; the ask ids do not.
-- **Phase 8 task 16** (`internal/entra`) and **phase 3 task 13** (`credstore.go`) are plans, not
-  code. Tasks 10 and 29 write them from those parts only if they have not landed. The parts give
+- **Env task 17 step 0** (`internal/oidcauth`, the rename of phase 8 task 16's BUILT `internal/entra`
+  plus the `keycloak` profile, OD-30 ruling §5) is not yet code. Task 10 **waits** for it and writes no
+  copy. **Phase 3 task 13** (`credstore.go`) is a plan, not code. Task 29 writes it from that part only
+  if it has not landed. The part gives
   declarations, not bodies, so a copy meets the owner's file as an add/add conflict that the owner
   wins (review M5). That our bodies and the owner's behave alike rests on the owner's tests alone,
   which this plan re-runs after the merge.
