@@ -697,6 +697,10 @@ func (p *Lanes) Live(ctx context.Context, laneID string) (live bool, lastExit ti
 // errors.Is(err, backend.ErrUnsupported), and wraps it; never from Kind(), because phase 8's
 // remotebe is KindKata and can serve step 2 (seam S8-P3.5). katabe's Create refuses Mounts
 // with ErrUnsupported (katabe/kata.go:84-85), so katabe's answer is the same as before.
+// The wrap keeps both sentences, fmt.Errorf("%w: %w", ErrNoRunner, err) (env seams review 1,
+// M3): every ValidateSpec failure also wraps ErrUnsupported (backend.go:220-251) and dockerbe's
+// Create returns it, so a broken Resources, image or WorkDir still reads as itself after
+// "no git runner can reach this lane".
 var ErrNoRunner = errors.New("lanegit: no git runner can reach this lane")
 
 // For returns a Runner for lane and a release the caller must call exactly once.
@@ -727,7 +731,8 @@ func (h *HeldSet) Has(sandboxID string) bool
    `-git-worktree` default. Then readiness: `WaitReady(ctx, sb.ID, ReadyTimeout)` when the
    Backend implements `readyWaiter`, else `backend.WaitReady(ctx, sb.Endpoint, ReadyTimeout)`
    (S8-P3.5). The token lives only in the pool's memory. A `Create` error that `errors.Is`
-   `backend.ErrUnsupported` is `ErrNoRunner` wrapping it (katabe's answer); any other `Create`
+   `backend.ErrUnsupported` is `ErrNoRunner` wrapping it with both sentences, `%w: %w` (katabe's
+   answer; a dockerbe `ValidateSpec` refusal keeps its own sentence); any other `Create`
    error is returned as itself. With `Machines` set, `Backend`, `Dial` and `Bundles` in steps 1
    to 5 are the lane's Machine's, and `Held` is the one set for every machine (ids are
    `lg-` + 16 random hex, so they do not collide across machines).
@@ -1021,7 +1026,7 @@ runs with `Machines` nil and `LocalBundles` a `DirBundles`, so it is phase 3's p
 | `TestDirBundlesIDsAndModes` | `Put` and `Reserve` answer `^[0-9a-f]{16}$`, files mode 0600 in a 0700 `Dir` (Unix only), O_EXCL; `Remove` of a gone id → nil; `Path("../x") == ""` | an id that lands outside `Dir` |
 | `TestPoolReachesTheLanesMachine` | `Machines` answers two `lanegittest.Backend`s for `m-1` and `m-2` → each lane's `Create`, `Get`, `Destroy` (after `Idle`, and on `Drop`) go to its own; `Bundles(lane)` answers each machine's; a nil `Bundles` on `m-1` → `ErrNoBundles`, on `local` → `LocalBundles` | lane work sent to another machine, a runner destroyed on the wrong one, or a cloud bundle spooled on the laptop |
 | `TestPoolAsksAReadyWaiter` | a Backend that implements `readyWaiter` and answers `Endpoint "remote:lg-…"` → `WaitReady(ctx, sb.ID, ReadyTimeout)` once, and no HTTP request reaches any listener (a counting `httptest` server as the only one); a Backend without it → `backend.WaitReady` on the endpoint, as before | a `/healthz` poll of an endpoint nothing can dial |
-| `TestPoolNoRunnerIsFromCreate` | a Backend with `Kind() KindKata` whose `Create` succeeds → a runner-only sandbox; one whose `Create` answers an error wrapping `ErrUnsupported` → `errors.Is(err, ErrNoRunner)` and `errors.Is(err, backend.ErrUnsupported)`; any other `Create` error → itself, not `ErrNoRunner` | `ErrNoRunner` decided from `Kind()`, which refuses phase 8's remotebe |
+| `TestPoolNoRunnerIsFromCreate` | a Backend with `Kind() KindKata` whose `Create` succeeds → a runner-only sandbox; one whose `Create` answers an error wrapping `ErrUnsupported` → `errors.Is(err, ErrNoRunner)` and `errors.Is(err, backend.ErrUnsupported)`; a dockerbe-shaped `Create` answering `ValidateSpec`'s `spec.Resources must be positive …` → both `errors.Is` hold and `err.Error()` still contains that sentence (env seams review 1, M3); any other `Create` error → itself, not `ErrNoRunner` | `ErrNoRunner` decided from `Kind()`, which refuses phase 8's remotebe; a single-`%w` wrap that drops the spec refusal's sentence, so a broken `Resources` on dockerbe reads as "no git runner" |
 | `TestNewRunnerTransportCarriesTheRequest` | a recording `RoundTripper` → `POST http://<endpoint>/git/v1/status`, `Authorization: Bearer <token>`, the body `NewRunner` sends; a 302 answer is not followed; `rt` nil → the same as `NewRunner` against an `httptest` server | a transport that bypasses `NewRunner`'s checks |
 
 "A corrupt blob caught by fsck" is built as a commit whose author has no email (fsck's
@@ -1095,8 +1100,9 @@ Real host git, no `gitx`. Each records git's exact words in a comment, as task 0
   local and fake implementations. That phase 8's `machines.Bundles`, `remotebe.DialLane` and
   `laneGit.Machines` satisfy them is env task 25b's claim, UNVERIFIED here; phase 3 never sets
   `Machines`. A cloud `FetchLane`'s `fetch` also needs `machined` to admit its
-  `transfer.fsckObjects` `Call.Env` (step 5), which env task 21's allowlist does not list
-  (seam S8-P3.3, UNVERIFIED on the env side until it answers).
+  `transfer.fsckObjects` `Call.Env` (step 5). Env task 21's allowlist (item 3) now admits
+  exactly that set, alone, on a `project`-scope `local` `fetch` of a live bundle's path (seam
+  S8-P3.3; env seams review 1, I1); UNVERIFIED until env task 21 and 21b are built.
 - **The Kata runner.** On katabe a sessionless lane is `ErrNoRunner`. Phase 8's `machined`
   serves the runner in the machine pod, against the contract above (S3-P8.1), not P8-D7's
   "phase 3's local git runner unchanged, with §HGH", which phase 3 no longer builds.
