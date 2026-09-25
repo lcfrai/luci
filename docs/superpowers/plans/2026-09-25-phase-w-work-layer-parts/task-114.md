@@ -80,6 +80,7 @@ takes the merged names; a rename is a find-and-replace in this part, never a new
 | `hubapi/work_roadmap_test.go` | new: goldens, validation, the no-prediction reflection test, codes |
 | `hubapi/testdata/work-roadmap/*.json` | new: one golden per record and view (nineteen files) |
 | `hubapi/codes.go` ⚑ | appended: the seven W4 codes, in the table's style |
+| `hubapi/workevents.go` ⚑ | appended: the sixteen W4 event kinds and `WorkUpdatePostedData` (task 13's file) |
 | `hubclient/work.go` ⚑ | `Work` embeds `WorkRoadmap`; the `WorkRoadmap` interface, complete |
 | `hubclient/fake_work_roadmap_stub.go` | new: `*Fake` satisfies `WorkRoadmap` with 501s (task 115 deletes it) |
 | `hubclient/client_work_roadmap_stub.go` | new: the HTTP client's 501s (task 124 deletes it) |
@@ -158,12 +159,25 @@ type StatusUpdate struct {
 	Subject     UpdateSubject   `json:"subject"`
 	Health      Health       `json:"health"`
 	Body        AuthoredText `json:"body"`        // author "H" only (task 119)
-	PinnedBrief string       `json:"pinnedBrief"` // brief:bf-…@r, required
+	PinnedBrief string       `json:"pinnedBrief"` // brief:bf-…@r, always set (below)
+	FeaturePins []FeaturePin `json:"featurePins"` // never null; [] for a feature subject
 	Cites       []string     `json:"cites"`       // Hub keys; never null
 	Author      User         `json:"author"`
 	At          string       `json:"at"`
 	ErasedAt    *string      `json:"erasedAt"`
 }
+
+// FeaturePin is one feature an initiative update reports on, pinned to the
+// revision of that feature's branch brief the author wrote against (task
+// 119's G1). An initiative update's stored PinnedBrief is FeaturePins[0]'s,
+// so a reader of the one field is never wrong about either subject.
+type FeaturePin struct {
+	FeatureID   string `json:"featureId"`   // ft-…
+	PinnedBrief string `json:"pinnedBrief"` // brief:bf-…@r of that feature's branch brief
+}
+
+// MaxUpdateCites bounds PostUpdateRequest.Cites (task 119 names it).
+const MaxUpdateCites = 20
 ```
 
 #### `work_roadmap.go`, continued: milestones, dependencies, templates, the janitor's policies
@@ -409,8 +423,9 @@ type SetInitiativeTeamsRequest struct {
 type PostUpdateRequest struct {
 	Health      Health       `json:"health"`
 	Body        AuthoredText `json:"body"`        // author "H", 1-1000 characters (TM-46)
-	PinnedBrief string       `json:"pinnedBrief"` // brief:bf-…@r
-	Cites       []string     `json:"cites"`       // 0-20 Hub keys; never null
+	PinnedBrief string       `json:"pinnedBrief"` // feature: brief:bf-…@r, or "" for the head revision; initiative: ""
+	FeaturePins []FeaturePin `json:"featurePins"` // feature: []; initiative: 1-50, no feature twice
+	Cites       []string     `json:"cites"`       // 0-MaxUpdateCites Hub keys; never null
 }
 
 type CreateMilestoneRequest struct {
@@ -505,16 +520,63 @@ func (r PostUpdateRequest) Validate() error {
 	if n := len([]rune(strings.TrimSpace(r.Body.Text))); n < 1 || n > 1000 || r.Body.Author != AuthorHuman {
 		return &FieldError{"body", ErrUpdateBody}
 	}
-	if _, err := ParseBriefKey(r.PinnedBrief); err != nil { // keys.go:69: the @r is required
-		return &FieldError{"pinnedBrief", ErrPinnedBrief}
+	if r.PinnedBrief != "" {
+		if _, err := ParseBriefKey(r.PinnedBrief); err != nil { // keys.go:69: the @r is required
+			return &FieldError{"pinnedBrief", ErrPinnedBrief}
+		}
 	}
-	if r.Cites == nil || len(r.Cites) > 20 {
+	if r.FeaturePins == nil || len(r.FeaturePins) > 50 {
+		return &FieldError{"featurePins", ErrRoadmapList}
+	}
+	seen := map[string]bool{}
+	for i, p := range r.FeaturePins {
+		at := "featurePins[" + strconv.Itoa(i) + "]"
+		if _, err := ParseBriefKey(p.PinnedBrief); err != nil || seen[p.FeatureID] ||
+			!ValidID(PrefixFeature, p.FeatureID) {
+			return &FieldError{at, ErrPinnedBrief}
+		}
+		seen[p.FeatureID] = true
+	}
+	if r.Cites == nil || len(r.Cites) > MaxUpdateCites {
 		return &FieldError{"cites", ErrRoadmapList}
 	}
 	for i, k := range r.Cites {
 		if _, err := ParseKey(k); err != nil {
 			return &FieldError{"cites[" + strconv.Itoa(i) + "]", ErrInvalidKey}
 		}
+	}
+	return nil
+}
+
+// ValidateFor adds the subject's rule: a feature update names no feature pins
+// (its one pin is PinnedBrief, or the head); an initiative update pins each
+// feature it reports on, and leaves PinnedBrief empty (task 119, G1).
+func (r PostUpdateRequest) ValidateFor(s UpdateSubject) error {
+	if err := r.Validate(); err != nil {
+		return err
+	}
+	switch {
+	case s.Kind == UpdateSubjectFeature && ValidID(PrefixFeature, s.ID):
+		if len(r.FeaturePins) != 0 {
+			return &FieldError{"featurePins", ErrRoadmapList}
+		}
+	case s.Kind == UpdateSubjectInitiative && ValidID(PrefixInitiative, s.ID):
+		if len(r.FeaturePins) == 0 || r.PinnedBrief != "" {
+			return &FieldError{"featurePins", ErrPinnedBrief}
+		}
+	default:
+		return &FieldError{"subject", ErrRoadmapEnum}
+	}
+	return nil
+}
+
+// Validate on the record: every stored update carries its pin (L-76's EXCEED).
+func (u StatusUpdate) Validate() error {
+	if _, err := ParseBriefKey(u.PinnedBrief); err != nil {
+		return &FieldError{"pinnedBrief", ErrPinnedBrief}
+	}
+	if !ValidHealth(u.Health) {
+		return &FieldError{"health", ErrHealth}
 	}
 	return nil
 }
@@ -650,6 +712,49 @@ func (s ReadScope) Validate() error {
 	return nil
 }
 ```
+
+#### The W4 event kinds, appended to task 13's `hubapi/workevents.go` ⚑ (complete)
+
+Every W4 write appends one metadata-only event in its transaction (SW.5's rule); a read, an
+insights query and a cursor move append none (task 123: a cursor is not a change others must
+learn). The kinds carry the `work.` prefix task 119 chose, so none meets Phase T's `note.*`. Data
+is scalars only (task 13's rule): ids, closed words and counts, never text. The table row shape,
+`{Kind, Data, Scope, Visibility}`, is task 13's (**UNVERIFIED** until its part; 119 cites it).
+
+```go
+const (
+	EventWorkGrantAdded            = "work.grant_added"             // 117: projectId, teamId
+	EventWorkGrantRevoked          = "work.grant_revoked"           // 117: projectId, teamId
+	EventWorkInitiativeTeamsSet    = "work.initiative_teams_set"    // 117: initiativeId, teams (a count)
+	EventWorkInitiativeCreated     = "work.initiative_created"      // 118: initiativeId, state
+	EventWorkInitiativeUpdated     = "work.initiative_updated"      // 118: initiativeId, fields (names)
+	EventWorkFeatureInitiativeSet  = "work.feature_initiative_set"  // 118: featureId, initiativeId|""
+	EventWorkUpdatePosted          = "work.update_posted"           // 119: WorkUpdatePostedData
+	EventWorkMilestoneCreated      = "work.milestone_created"       // 120: milestoneId, featureId, criteria (a count)
+	EventWorkMilestoneUpdated      = "work.milestone_updated"       // 120: milestoneId, fields
+	EventWorkMilestoneCriteriaSet  = "work.milestone_criteria_set"  // 120: milestoneId, criteria (a count)
+	EventWorkDependencyAdded       = "work.dependency_added"        // 120: from, blocks
+	EventWorkDependencyRemoved     = "work.dependency_removed"      // 120: from, blocks
+	EventWorkTemplateScheduleSet   = "work.template_schedule_set"   // 121: templateId, unit, n
+	EventWorkTemplateScheduleClear = "work.template_schedule_clear" // 121: templateId
+	EventWorkReminderPolicySet     = "work.reminder_policy_set"     // 121: subjectKind, subjectId, everyDays
+	EventWorkTriageRotationSet     = "work.triage_rotation_set"     // 121: teamId, members (a count), periodDays
+)
+
+// WorkUpdatePostedData is task 119's G2, as its part wrote it.
+type WorkUpdatePostedData struct {
+	SubjectKind string `json:"subjectKind"` // "feature" | "initiative"
+	SubjectID   string `json:"subjectId"`
+	Health      string `json:"health"`      // a closed word, never text
+	PinnedBrief string `json:"pinnedBrief"` // "" for an initiative
+	Pins        int64  `json:"pins"`        // len(featurePins)
+	Cites       int64  `json:"cites"`       // a count; the keys stay in the record
+}
+```
+
+A feature from a template appends task 76's `feature.created`, H's `brief.created` and one
+`issue.created` per issue, and no W4 kind. Task 115's fake appends exactly these kinds, so task
+124's story table and task 125's replica copy the names from here (task 124's gap 5).
 
 #### `hubapi/codes.go` ⚑, appended (complete)
 
@@ -833,7 +938,7 @@ and fails again on its mutant.
 | `TestWorkRoadmapGoldens` | each of the nineteen goldens decodes strictly (`DisallowUnknownFields`) and re-encodes byte for byte | a field renamed or retagged (`target_date`, `pinned_brief`) |
 | `TestWorkRoadmapEmptyListsAreArrays` | a zero `InitiativeTeams`, `StatusUpdate`, `Milestone`, `InsightsResult` built by its constructor encodes `[]`, never `null` | `omitempty` on a list |
 | `TestHealthIsThreeWords` | `ValidHealth` true for the three; `"green"`, `""`, `"On_Track"` false; `PostUpdateRequest.Validate` names `health` | free-text health |
-| `TestAnUpdateIsPinned` | `pinnedBrief` `""`, `brief:bf-…` with no `@r`, and `issue:is-…@1` each fail on `pinnedBrief` | an unpinned update |
+| `TestAnUpdateIsPinned` | a `StatusUpdate` record with `pinnedBrief` `""` fails `Validate`; a request pin `brief:bf-…` with no `@r` or `issue:is-…@1` fails on `pinnedBrief`; an initiative request with `featurePins: []`, or with a `pinnedBrief`, fails `ValidateFor`; a feature request with a feature pin fails | an unpinned update; an initiative update pinned to nothing |
 | `TestAnUpdateIsWrittenByAPerson` | a body with `author: "A"` fails on `body` | an agent-authored update |
 | `TestNoPredictionFields` | the reflection walk below over every W4 type finds no field named for a prediction | a prediction field (OD-27) |
 | `TestPercentilesAreNullWhenUnmeasured` | `InsightsResult{Groups: []…{}, Points: []…{}}` encodes `"p50Ms":null` | an invented zero percentile |
@@ -1002,3 +1107,8 @@ templates, 120); L-150 and L-151 (insights, 122, 132). This task closes none of 
    `criteria` and `issueTemplateIds`, and task 120 must accept `kind: "brief"` on task 78's route.
 6. **Task 124's gap 7** (a caller-scoped list of projects granted to the caller's teams) is not
    in SW.20 either; when task 117 adds the route, `WorkRoadmap` gains one method, additively.
+7. **Task 119's part cites this part's earlier names** `SubjectRef`, `SubjectFeature` and
+   `SubjectInitiative`; they are now `UpdateSubject`, `UpdateSubjectFeature` and
+   `UpdateSubjectInitiative` (decision 8), a mechanical rename at build. Its G1 (`FeaturePin`,
+   `featurePins`, `MaxUpdateCites`, an empty request pin for a feature meaning the head) and G2
+   (`work.update_posted`, `WorkUpdatePostedData`) are carried here as it wrote them.
