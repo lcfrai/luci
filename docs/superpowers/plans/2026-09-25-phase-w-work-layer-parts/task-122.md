@@ -59,3 +59,186 @@ draws it.
 **The one thing this task must not get wrong** is a number nobody measured: a zero-length point
 for an issue that was never started, a percentile of an empty set, a mean passed off as a median,
 or a key in the answer that reads as a forecast. Each is a row below.
+
+**Files:**
+
+- `control-plane/internal/hub/server/insights.go`, `insights_test.go` (new): the pure computation,
+  moves in, `InsightsResult` out
+- `control-plane/internal/hub/store/work_insights.go` (new): the two bounded reads
+- `control-plane/internal/hub/server/work_insights.go` (new): the route
+- `control-plane/internal/hub/server/work_insights_integration_test.go` (new, `-tags integration`)
+- `control-plane/internal/hub/server/matrix_integration_test.go` ⚑: the `"122"` rows
+
+**Interfaces:**
+
+- Produces: `POST /v1/teams/{teamId}/insights/query` (T114's route table; a read that takes a body,
+  so `POST`, and it appends no event); `server.ComputeInsights`
+- Consumes: T114's `InsightsQuery`, `InsightsResult`, `InsightGroup`, `InsightPoint` and the
+  `Measure*` constants; task 13's `issue.created` and `issue.state` kinds and their data; task
+  117's `workAccess` and its granted-project list; task 03's issue fields (assignee, labels,
+  feature, cycle, priority) and task 08's `issue_serves`
+- Consumed by: task 124 (`QueryInsights` over HTTP and the relay), task 132 (the panel and scatter)
+
+#### The computation (`server/insights.go`, complete)
+
+```go
+package server
+
+import (
+	"sort"
+	"time"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubapi"
+)
+
+// Move is one recorded event of an issue's life, in audit order.
+type Move struct {
+	Kind     string    // "issue.created" | "issue.state"
+	At       time.Time // the Hub's clock
+	From, To string    // issue.state only; for issue.created, To is the initial state
+}
+
+// IssueFacts is one issue of the reach, its moves, and its keys per group.
+type IssueFacts struct {
+	ID    string
+	Head  hubapi.IssueState // the head state now
+	Moves []Move
+	Keys  map[string][]string // groupBy → its keys; a field with no value is ["none"]
+}
+
+// windowAndDuration is decisions 1 and 2. ok is false when the issue is not in
+// the measure's population; hasMs is false when it is but has no duration.
+func windowAndDuration(f IssueFacts, measure string) (window time.Time, ms int64, ok, hasMs bool) {
+	var created, firstStarted, standingDone, firstOutOfTriage time.Time
+	var createdInTriage bool
+	for _, m := range f.Moves {
+		if m.Kind == "issue.created" {
+			created, createdInTriage = m.At, m.To == string(hubapi.StateTriage)
+			continue
+		}
+		// Three independent rules: one move (triage → started) can feed two.
+		if m.To == string(hubapi.StateStarted) && firstStarted.IsZero() {
+			firstStarted = m.At
+		}
+		if m.From == string(hubapi.StateTriage) && firstOutOfTriage.IsZero() {
+			firstOutOfTriage = m.At
+		}
+		if m.To == string(hubapi.StateDone) {
+			standingDone = m.At // the last one wins
+		}
+	}
+	isDone := f.Head == hubapi.StateDone || f.Head == hubapi.StateShipped
+	switch measure {
+	case hubapi.MeasureTriageTime:
+		if !createdInTriage || firstOutOfTriage.IsZero() {
+			return time.Time{}, 0, false, false
+		}
+		return firstOutOfTriage, firstOutOfTriage.Sub(created).Milliseconds(), true, true
+	case hubapi.MeasureCount, hubapi.MeasureCycleTime, hubapi.MeasureLeadTime:
+		if !isDone || standingDone.IsZero() {
+			return time.Time{}, 0, false, false
+		}
+		switch measure {
+		case hubapi.MeasureCycleTime:
+			if firstStarted.IsZero() || firstStarted.After(standingDone) {
+				return standingDone, 0, true, false
+			}
+			return standingDone, standingDone.Sub(firstStarted).Milliseconds(), true, true
+		case hubapi.MeasureLeadTime:
+			return standingDone, standingDone.Sub(created).Milliseconds(), true, true
+		}
+		return standingDone, 0, true, false // count: in the population, no duration
+	}
+	return time.Time{}, 0, false, false
+}
+
+// ComputeInsights is decisions 1-4 over the facts the store read. groupBy ""
+// means no grouping: one group, key "all".
+func ComputeInsights(facts []IssueFacts, measure, groupBy string, from, to time.Time) hubapi.InsightsResult {
+	res := hubapi.InsightsResult{Groups: []hubapi.InsightGroup{}, Points: []hubapi.InsightPoint{}}
+	counts := map[string]int{}
+	var ms []int64
+	for _, f := range facts {
+		w, d, ok, hasMs := windowAndDuration(f, measure)
+		if !ok || w.Before(from) || !w.Before(to) {
+			continue
+		}
+		if measure != hubapi.MeasureCount && !hasMs {
+			continue // in the population, not a point: never a zero-length one
+		}
+		if hasMs {
+			res.Points = append(res.Points, hubapi.InsightPoint{Issue: f.ID, Ms: d})
+			ms = append(ms, d)
+		}
+		keys := []string{"all"}
+		if groupBy != "" {
+			keys = f.Keys[groupBy]
+		}
+		for _, k := range keys {
+			counts[k]++ // once per key; the point above is once per issue
+		}
+	}
+	for k, n := range counts {
+		res.Groups = append(res.Groups, hubapi.InsightGroup{Key: k, Count: n})
+	}
+	sort.Slice(res.Groups, func(i, j int) bool { return res.Groups[i].Key < res.Groups[j].Key })
+	sort.Slice(res.Points, func(i, j int) bool { return res.Points[i].Issue < res.Points[j].Issue })
+	res.P50Ms, res.P75Ms, res.P90Ms = nearestRank(ms, 50), nearestRank(ms, 75), nearestRank(ms, 90)
+	return res
+}
+
+// nearestRank is decision 4: the value at rank ceil(p/100 · n) of the sorted
+// values, or nil when there are none. Never interpolated, never a mean.
+func nearestRank(values []int64, p int) *int64 {
+	if len(values) == 0 {
+		return nil
+	}
+	s := append([]int64(nil), values...)
+	sort.Slice(s, func(i, j int) bool { return s[i] < s[j] })
+	// ceil(p·n/100) in integers. In float64, 0.07*100 is 7.000000000000001,
+	// whose ceiling is 8: a float rank is off by one on some (p, n) pairs.
+	rank := (p*len(s) + 99) / 100
+	if rank < 1 {
+		rank = 1
+	}
+	v := s[rank-1]
+	return &v
+}
+```
+
+Groups are sorted by key and points by issue id, so one query answers the same bytes twice and the
+golden test is stable. The `count` measure keeps its points empty (T114: *"empty for `count`"*),
+and its percentiles `nil`, because `hasMs` is false for every issue it counts.
+
+#### The store (`store/work_insights.go`, signatures complete)
+
+```go
+package store
+
+// ReachProjects is decision 5: the team's own projects and the projects
+// granted to it (task 117's work_project_grants), optionally narrowed to one.
+func ReachProjects(ctx context.Context, q Querier, teamID, projectID string) ([]string, error)
+
+// WindowIssues is the first bounded read: the ids of issues in those projects
+// with a window-event candidate in [from, to), capped at limit+1 so the
+// handler can refuse a population above limit (decision 6):
+//   SELECT DISTINCT e.subject FROM audit_events e JOIN issues i ON i.id = e.subject
+//    WHERE e.kind = 'issue.state' AND i.project_id = ANY($1)
+//      AND e.at >= $2 AND e.at < $3
+//      AND (e.data->>'to' = 'done' OR e.data->>'from' = 'triage')
+//    LIMIT $4
+func WindowIssues(ctx context.Context, q Querier, projects []string, from, to time.Time, limit int) ([]string, error)
+
+// IssueFactsOf is the second: every issue.created and issue.state event of
+// those issues in seq order, the head state, and the keys for groupBy (one
+// join per field; labels, issue_serves and the like give several rows).
+func IssueFactsOf(ctx context.Context, q Querier, issueIDs []string, groupBy string) ([]server.IssueFacts, error)
+```
+
+`IssueFactsOf` returning `server.IssueFacts` would make `store` import `server`; the build puts
+`IssueFacts` and `Move` in a small shared package or in `store` itself and `server` aliases them.
+Which of the two is a build-time choice, named so the reader does not read the sketch as an import
+cycle. Row-level security binds both reads to `hub.org_id`; the project list binds them to the
+team's reach. The candidate filter is wider than the window rule (an issue done in the window and
+reopened later is read and then dropped by `windowAndDuration`), which is what makes it safe to
+compute the rule once, in Go.
