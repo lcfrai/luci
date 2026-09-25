@@ -141,6 +141,31 @@ build stream with `args {"stream":"p3","cleared":["b02"]}`.
   - team: run `wf_e90a5a3f-ad5`, args `{"stream":"team"}`;
   - work: run `wf_d0a82d09-d10`, args `{"stream":"work"}`.
 
+**Added 10:00, 2026-09-25: after the second spend-limit stop (09:24).** Ten runs were resumed with
+`resumeFromRunId` and keep their run IDs: close-out, p3 R4 round 4, hub, p4, p5, p7, env and p6's
+build stream. `wave-c-plans` (`wf_33255dc5-1ac`) is **retired**. Only p6's skeleton had finished.
+The team and work skeleton writers were killed by the watchdog while composing a very large return
+(a scope for every task), so the new scripts return task ids only. It is replaced by:
+- **p6 plan continuation**, run `wf_7bc1a1b9-064`: `.superpowers/workflows/wave-c-p6-continue.js`,
+  no args. It writes the 25 part files, then the review.
+- **team plan parts**, run `wf_2b949030-b55`: `.superpowers/workflows/wave-c-plan-parts.js`, args
+  `{"stream":"team"}`. It writes the 69 part files in sections of 10. Each section gets its own
+  reviewer, then one cross-cutting reviewer, then an assembler writes `…-review.md`.
+- **work plan parts**, run `wf_90d7f9c9-ec9`: the same script, args `{"stream":"work"}`. It first
+  finishes the skeleton (the W5 rows), then writes the scopes in `…-scopes/`, then the coverage
+  map `…-scopes/coverage.md`, then the parts and the reviews as for team.
+- Every agent in these two scripts is restart-safe: it finishes a file and never rewrites it. So
+  resume them with `resumeFromRunId`. A cache miss re-runs safely.
+- The section reviews live in `<worktree>/.superpowers/sdd/<stream>/plan-review-sections/`, which
+  is git-ignored. `.superpowers/sdd/.gitignore` (`*`) was added to `team` and `phase-6`, because the
+  gate needs a clean `git status`.
+- **The team and work build streams are STOPPED** (`wf_e90a5a3f-ad5`, `wf_d0a82d09-d10`). Their gate
+  gives up after 5 hours, and their plans take longer (OD-29, all part files now). When
+  `…-phase-t-team-mode-review.md` (or `…-phase-w-work-layer-review.md`) is committed, launch that
+  build stream **FRESH**: no `resumeFromRunId`, because a cached gate result of `ready=false` would
+  replay. Use the session's `build-stream-wf_56772bc5-8a7.js` with `{"stream":"team"}` or
+  `{"stream":"work"}`.
+
 ## 4. After phase 2's fix rounds finish
 
 Still to do for phase 2:
