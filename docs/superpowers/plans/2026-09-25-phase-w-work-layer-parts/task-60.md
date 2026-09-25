@@ -561,3 +561,92 @@ describe("personIssues", () => {
   });
 });
 ```
+
+#### Tests to write first, part 2 — `desktop/src/components/work/Peek.test.tsx` (keys)
+
+The lens is rendered on task 20's `workScenario()` through task 40's test seam
+(`setWorkSourceForTest`, its scope's word, **UNVERIFIED**); `DYLAN` is signed in. The helper
+`press(el, code, {holdMs})` fires `keyDown` then, after `vi.advanceTimersByTime(holdMs)` with
+`performance.now` faked, `keyUp`.
+
+```tsx
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { expectNoPrediction } from "../../test/expectNoPrediction";
+import { DYLAN, workScenario } from "../../test/workFixtures";
+import * as ops from "../../work/replica/ops";
+import { WorkLens, setWorkSourceForTest } from "./WorkLens";
+import { HOLD_MS } from "./Peek";
+
+function press(el: Element, code: string, o: { holdMs?: number } = {}): void {
+  fireEvent.keyDown(el, { code, key: code === "Space" ? " " : code });
+  if (o.holdMs) act(() => { vi.advanceTimersByTime(o.holdMs!); });
+  fireEvent.keyUp(el, { code, key: code === "Space" ? " " : code });
+}
+function lens() {
+  setWorkSourceForTest(workScenario(), { me: DYLAN });
+  const view = render(<WorkLens />);
+  const list = screen.getByRole("grid");                       // task 40's list element
+  list.focus();
+  return { view, list };
+}
+const peek = () => document.querySelector<HTMLElement>(".pk");
+
+beforeEach(() => { vi.useFakeTimers({ toFake: ["setTimeout", "setInterval", "performance"] }); });
+
+describe("peek keys", () => {
+  it("a tap opens, a second tap closes, and a hold closes on release", () => {
+    const { list } = lens();
+    press(list, "Space");
+    expect(peek()).not.toBeNull();
+    press(list, "Space");
+    expect(peek()).toBeNull();
+    press(list, "Space", { holdMs: HOLD_MS + 50 });
+    expect(peek()).toBeNull();
+    // mutant: tap-only peek, where a hold leaves the panel open after release
+  });
+  it("a hold shows the peek while the key is down", () => {
+    const { list } = lens();
+    fireEvent.keyDown(list, { code: "Space", key: " " });
+    fireEvent.keyDown(list, { code: "Space", key: " ", repeat: true });
+    expect(peek()).not.toBeNull();
+    fireEvent.keyUp(list, { code: "Space", key: " " });
+    expect(peek()).toBeNull();
+  });
+  it("down moves the peek to the next row and never scrolls the list", () => {
+    const { list } = lens();
+    list.scrollTop = 120;
+    press(list, "Space");
+    const first = peek()!.getAttribute("aria-label");
+    fireEvent.keyDown(list, { code: "ArrowDown", key: "ArrowDown" });
+    expect(peek()!.getAttribute("aria-label")).not.toBe(first);
+    expect(list.scrollTop).toBe(120);
+    // mutant: moving the list (scrollIntoView on the peek's row)
+  });
+  it("Esc closes", () => {
+    const { list } = lens();
+    press(list, "Space");
+    fireEvent.keyDown(list, { code: "Escape", key: "Escape" });
+    expect(peek()).toBeNull();
+  });
+  it("opening peek marks nothing seen and writes nothing", () => {
+    const spy = vi.spyOn(ops, "mutate");
+    const { list } = lens();
+    const held = screen.queryByText(/new item|arrived/i)?.textContent ?? null;   // task 41's hold line
+    press(list, "Space");
+    fireEvent.keyDown(list, { code: "ArrowDown", key: "ArrowDown" });
+    expect(spy).not.toHaveBeenCalled();
+    expect(screen.queryByText(/new item|arrived/i)?.textContent ?? null).toBe(held);
+    // mutant: peek applies the held arrivals or advances a read cursor through mutate
+  });
+  it("Space in a text field types a space and opens nothing", () => {
+    const { view } = lens();
+    const input = document.createElement("input");
+    view.container.appendChild(input);
+    input.focus();
+    fireEvent.keyDown(input, { code: "Space", key: " " });
+    expect(peek()).toBeNull();
+    // mutant: a keys.list leak, Space bound on document
+  });
+});
+```
