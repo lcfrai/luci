@@ -53,6 +53,12 @@ type MachineMount struct {
 //   - MachineMounts requires Machine
 //   - Mounts and MachineMounts together are refused
 //   - every MachinePath obeys the rules above; every ContainerPath is absolute
+//   - a MachinePath whose first segment is "projects" ("projects" itself, or
+//     "projects/…") is refused, the message naming R4.1: no sandbox mounts a
+//     project repository (phase 3 orchestrator-rulings.md R4.1; env R4 ruling 1).
+//     The first segment is compared whole, so "projectsx/a" is not refused.
+//     ValidateSpec runs on the laptop and in the broker (task-18.md:120, which
+//     answers 400 bad_request), so neither side can build a pod that mounts one.
 ```
 
 ```go
@@ -139,6 +145,7 @@ task 20's `POST /v1/dirs`). Whether `fsGroup` repairs a root-created sub-path un
 | `TestValidateSpecRejectsEscapingMachinePaths` | each of `../x`, `a/../b`, `/abs`, `.`, `a//b`, `a/`, `a b` → `ErrUnsupported` | a sub-path that climbs out of the owner's disk — `..` is the whole attack |
 | `TestValidateSpecRejectsHostAndMachineMountsTogether` | both set → `ErrUnsupported` | a sandbox "on two machines" |
 | `TestValidateSpecRejectsABadMachineID` | `Machine: "M-XYZ"` → `ErrUnsupported` | a claim name built from arbitrary text |
+| `TestValidateSpecRefusesAProjectMount` | each of `projects`, `projects/app`, `projects/app/src`, with `Machine` set → `ErrUnsupported` whose message contains `R4.1`; `projectsx/a` and `lanes/p-1/projects` → nil | a session mounting a project repository the host runs git in (R4.1); a string-prefix match that refuses `projectsx`; a check on the last segment |
 
 `dockerbe` test: `TestCreateRejectsMachineMounts` — `ErrUnsupported`, and the fake Docker client
 saw no `ContainerCreate` (kills a dockerbe that silently ignores the field and starts an agent in
@@ -167,7 +174,9 @@ an empty directory).
 
 - [ ] **Step 1:** Write every test above; they fail to compile.
 - [ ] **Step 2:** `backend.go` types and validation; `dockerbe` refusal; the backend and dockerbe
-  tests pass.
+  tests pass. Mutation check on a `$TEMP` copy, each turning `TestValidateSpecRefusesAProjectMount`
+  red: the `projects` rule deleted; `strings.HasPrefix(p, "projects")` in place of the whole first
+  segment (its `projectsx/a` row).
 - [ ] **Step 3:** `sandbox.Spec`/`Config`/`VolumeMount`/`MachineClaimName`; the pod rendering; the
   sandbox tests pass.
 - [ ] **Step 4:** `katabe.Create`: drop the WorkDir refusal (and its test, replaced), pass machine
