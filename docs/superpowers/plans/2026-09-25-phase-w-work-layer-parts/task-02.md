@@ -183,3 +183,105 @@ func DisplayAlias(projectKey string, number int) string {
 
 `ValidID` (`keys.go:32`) already takes any prefix, so Work ids need no checker of their own:
 `ValidID(PrefixIssue, id)`.
+
+**`workcanonical.go`, complete** (in two blocks; the file is their concatenation). The content
+types are declared **once, here**; task 03's `work.go` reuses them and declares no second copy.
+
+```go
+package hubapi
+
+import (
+	"bytes"
+	"encoding/json"
+	"errors"
+	"strconv"
+	"strings"
+	"unicode/utf8"
+)
+
+// Author classes (05-design §3.2; Phase T's text·H / text·A): who wrote a text.
+const (
+	AuthorHuman = "H"
+	AuthorAgent = "A"
+)
+
+// Issue content limits (04-internal-fit §2.4).
+const (
+	MaxIssueTitleChars       = 200      // code points, as Postgres char_length counts them
+	MaxIssueDescriptionBytes = 16 << 10 // UTF-8 bytes, as Postgres octet_length counts them
+	MaxCriterionIDChars      = 128      // contract §7.10's criterionId rule
+)
+
+var (
+	ErrIssueTitle       = errors.New("hubapi: an issue title is 1 to 200 characters")
+	ErrIssueDescription = errors.New("hubapi: an issue description is at most 16 KiB")
+	ErrAuthor           = errors.New(`hubapi: an author is "H" or "A"`)
+	ErrIssueList        = errors.New("hubapi: serves and implements are arrays, never null")
+	ErrCriterionID      = errors.New("hubapi: a criterionId is 1 to 128 characters")
+	ErrServesRepeat     = errors.New("hubapi: a serves pair appears twice")
+)
+
+// AuthoredText is a text with its author class. The class travels with the
+// text everywhere it is shown or handed to an agent.
+type AuthoredText struct {
+	Text   string `json:"text"`
+	Author string `json:"author"` // AuthorHuman | AuthorAgent
+}
+
+// Serve joins an issue revision to one brief criterion: the thread's link.
+type Serve struct {
+	BriefKey    string `json:"briefKey"`    // brief:bf-…@n
+	CriterionID string `json:"criterionId"` // the criterion's id in that revision
+}
+
+// IssueRevisionContent is what one issue revision fixes. Serves and Implements
+// are always arrays: no omitempty, never null.
+type IssueRevisionContent struct {
+	Title       AuthoredText `json:"title"`
+	Description AuthoredText `json:"description"`
+	Serves      []Serve      `json:"serves"`
+	Implements  []string     `json:"implements"` // design:… keys
+}
+
+// ValidateIssueRevisionContent checks shape and limits, naming the field that
+// failed. It makes no judgement of meaning and no character-hygiene check.
+func ValidateIssueRevisionContent(c IssueRevisionContent) error {
+	title := strings.TrimSpace(c.Title.Text)
+	switch {
+	case title == "" || utf8.RuneCountInString(c.Title.Text) > MaxIssueTitleChars:
+		return &FieldError{"title.text", ErrIssueTitle}
+	case !validAuthor(c.Title.Author):
+		return &FieldError{"title.author", ErrAuthor}
+	case len(c.Description.Text) > MaxIssueDescriptionBytes:
+		return &FieldError{"description.text", ErrIssueDescription}
+	case !validAuthor(c.Description.Author):
+		return &FieldError{"description.author", ErrAuthor}
+	case c.Serves == nil:
+		return &FieldError{"serves", ErrIssueList}
+	case c.Implements == nil:
+		return &FieldError{"implements", ErrIssueList}
+	}
+	seen := make(map[Serve]bool, len(c.Serves))
+	for i, s := range c.Serves {
+		at := "serves[" + strconv.Itoa(i) + "]"
+		if _, err := ParseBriefKey(s.BriefKey); err != nil {
+			return &FieldError{at + ".briefKey", ErrInvalidKey}
+		}
+		if n := utf8.RuneCountInString(s.CriterionID); n < 1 || n > MaxCriterionIDChars {
+			return &FieldError{at + ".criterionId", ErrCriterionID}
+		}
+		if seen[s] {
+			return &FieldError{at, ErrServesRepeat}
+		}
+		seen[s] = true
+	}
+	for i, k := range c.Implements {
+		if _, err := ParseDesignKey(k); err != nil {
+			return &FieldError{"implements[" + strconv.Itoa(i) + "]", ErrInvalidKey}
+		}
+	}
+	return nil
+}
+
+func validAuthor(a string) bool { return a == AuthorHuman || a == AuthorAgent }
+```
