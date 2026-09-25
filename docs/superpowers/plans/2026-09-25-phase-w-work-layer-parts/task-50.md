@@ -38,8 +38,10 @@ Six rules, each one a test:
    hash; the thread node's hash `href` (task 47 decision 5) is a different thing, an in-app anchor.
    What opening a criterion link does is Discover's (phase 4) and not claimed.
 4. **`prosemirror-tables` (MIT) supplies the table nodes and cell navigation**; cells hold inline
-   content only (`cellContent: "inline*"`), which is what a GFM cell can hold, so nothing a
-   person builds in the editor fails to serialize. A `|` inside a cell is written `\|`.
+   text only (`cellContent: "text*"`, marks allowed; no `hard_break`, which a GFM cell cannot
+   hold), so nothing a person builds in the editor fails to serialize. A `|` inside a cell is
+   written `\|`. Every table is kept **GFM-shaped** by a plugin: the first row is header cells, no
+   other row is, and no cell spans (a pasted HTML table is flattened on the way in).
 5. **Task 49's `Editor.tsx` is edited** to mount the menu (the scope's file list omits it; task
    49's gap 5). The edit is additive: a plugin, a state hook and one child element.
 
@@ -53,10 +55,106 @@ Six rules, each one a test:
   the `table` rule, the table tokens and serializer merged in (modified)
 - `desktop/src/components/editor/Editor.tsx` ⚑ (task 49's) — `linkSources`, the menu mounted,
   `tableEditing` and the cell keys (modified)
-- `desktop/src/work/links.ts` ⚑ (task 47's) — `criterionLink` (modified)
+- `desktop/src/work/links.ts` ⚑ (task 47's) — `criterionLink`, `parseCriterionLink` (modified)
+- `desktop/src/components/issue/IssueView.tsx` ⚑ (tasks 46-49's) — passes `linkSources` to the
+  description's editor (modified; not in the scope's list)
 - `desktop/src/components/editor/editor.css` ⚑ — `.ed-slash*` and `.ed-root table` rules (modified)
 - `desktop/src/components/editor/{slashMenu,tables}.test.ts`, `SlashMenu.test.tsx` — tests (new)
 - `desktop/package.json` ⚑, `desktop/package-lock.json` — `prosemirror-tables` (MIT, version
   **UNVERIFIED** until install; its licence read from the lock file by task 49's licence test,
   which this task extends by one name) (modified)
+
+#### The dependency — `desktop/package.json` ⚑
+
+| Package | Licence | Why |
+|---|---|---|
+| `prosemirror-tables` | MIT | `tableNodes`, `tableEditing` (cell selection and `fixTables`), `goToNextCell`, the row and column commands |
+
+Its version is **UNVERIFIED** (not installed in this worktree while writing). Step 2 installs it
+with `--save-exact` and reads its `license` from `desktop/package-lock.json`; task 49's licence
+test gains the name. Its own stylesheet is not imported; `editor.css` styles the two classes it
+sets (`selectedCell`, `column-resize-handle`, the second unused since resizing is off).
+
+#### Interfaces — complete: `desktop/src/components/editor/tables.ts`, part 1: nodes and shape
+
+```ts
+// GFM pipe tables (decision 4 and rule 5): nodes, parser tokens, serializer, commands.
+import type MarkdownIt from "markdown-it";
+import type { MarkdownSerializerState } from "prosemirror-markdown";
+import type { Node, NodeSpec, Schema } from "prosemirror-model";
+import { Plugin, type EditorState } from "prosemirror-state";
+import { goToNextCell, isInTable, selectedRect, tableNodes } from "prosemirror-tables";
+
+type Token = ReturnType<MarkdownIt["parse"]>[number];
+export type Align = "left" | "center" | "right" | null;
+
+export const alignOf = (style: string | null | undefined): Align =>
+  (/text-align:\s*(left|center|right)/.exec(style ?? "")?.[1] as Align | undefined) ?? null;
+
+/** A cell never spans: a pasted colspan/rowspan is read as 1, and fixTables fills the gap. */
+function flat(spec: NodeSpec): NodeSpec {
+  return {
+    ...spec,
+    parseDOM: spec.parseDOM?.map((rule) => ({
+      ...rule,
+      getAttrs: (dom: HTMLElement | string) => {
+        const a = typeof rule.getAttrs === "function" ? rule.getAttrs(dom as HTMLElement) : null;
+        return a === false ? false : { ...(a ?? {}), colspan: 1, rowspan: 1, colwidth: null };
+      },
+    })),
+  };
+}
+
+const specs = tableNodes({
+  tableGroup: "block",
+  cellContent: "text*",                           // decision 4: no hard_break in a GFM cell
+  cellAttributes: {
+    align: {
+      default: null,
+      getFromDOM: (dom) => alignOf((dom as HTMLElement).getAttribute("style")),
+      setDOMAttr: (value, attrs) => { if (value) attrs.style = `text-align: ${String(value)}`; },
+    },
+  },
+});
+
+/** The four nodes task 49's schema adds with `addToEnd` (see the schema edit below). */
+export const tableNodeSpecs: Record<"table" | "table_row" | "table_cell" | "table_header", NodeSpec> = {
+  table: specs.table,
+  table_row: specs.table_row,
+  table_cell: flat(specs.table_cell),
+  table_header: flat(specs.table_header),
+};
+
+/** Decision 4: after every change, row 0 is header cells, no other row is, nothing spans, and
+ *  every cell carries its column's alignment (GFM keeps alignment per column, not per cell). */
+export const gfmShapePlugin = new Plugin({
+  appendTransaction(trs, _old, state) {
+    if (!trs.some((t) => t.docChanged)) return null;
+    const { table, table_header: th, table_cell: td } = state.schema.nodes;
+    const tr = state.tr;
+    state.doc.descendants((node, pos) => {
+      if (node.type !== table) return true;
+      const aligns: Align[] = [];
+      node.firstChild?.forEach((c) => { aligns.push(c.attrs.align as Align); });
+      node.forEach((row, rowOff, r) => {
+        row.forEach((cell, cellOff, c) => {
+          const type = r === 0 ? th : td;
+          const align = r === 0 ? (cell.attrs.align as Align) : aligns[c] ?? null;
+          const a = cell.attrs;
+          if (cell.type === type && a.colspan === 1 && a.rowspan === 1 && a.align === align) return;
+          tr.setNodeMarkup(pos + 1 + rowOff + 1 + cellOff, type, { ...a, colspan: 1, rowspan: 1, align });
+        });
+      });
+      return false;
+    });
+    return tr.docChanged ? tr : null;
+  },
+});
+```
+
+`setNodeMarkup` changes no sizes, so every position computed in the walk stays valid. A row left
+short by flattening is filled by `tableEditing`'s own `fixTables`, which runs in the same
+`appendTransaction` round. The `getFromDOM`/`setDOMAttr` names and `tableNodes`' option shape
+are `prosemirror-tables`' as this plan understands them, **UNVERIFIED** until step 2 reads the
+installed types.
 
