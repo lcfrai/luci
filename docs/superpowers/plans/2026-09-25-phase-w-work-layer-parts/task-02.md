@@ -648,3 +648,91 @@ func TestDisplayAliasFormat(t *testing.T) {
 `constValues` (`keys_test.go:683`) returns `[]namedConst` with `name` and `value`; it parses
 `keys.go` with `go/parser`, so this test reads the Hub's ten from the Hub's own file and follows
 any change there.
+
+**`workcanonical_test.go`, complete** (in two blocks; the file is their concatenation).
+
+```go
+package hubapi
+
+import (
+	"bytes"
+	"encoding/json"
+	"errors"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+type issueVector struct {
+	Envelope struct {
+		V         int                  `json:"v"`
+		Kind      string               `json:"kind"`
+		IssueID   string               `json:"issueId"`
+		Revision  int                  `json:"revision"`
+		ProjectID string               `json:"projectId"`
+		Content   IssueRevisionContent `json:"content"`
+	} `json:"envelope"`
+	Canonical string `json:"canonical"`
+	Bytes     int    `json:"bytes"`
+	Digest    string `json:"digest"`
+}
+
+func loadIssueVector(t *testing.T, name string) (IssueRevisionEnvelope, issueVector) {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join("testdata", "issue-revision", name+".json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var v issueVector
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&v); err != nil {
+		t.Fatalf("%s: %v", name, err)
+	}
+	if v.Envelope.V != 1 || v.Envelope.Kind != "issue-revision" {
+		t.Fatalf("%s: envelope v=%d kind=%q, want 1 and issue-revision", name, v.Envelope.V, v.Envelope.Kind)
+	}
+	return IssueRevisionEnvelope{IssueID: v.Envelope.IssueID, Revision: v.Envelope.Revision,
+		ProjectID: v.Envelope.ProjectID, Content: v.Envelope.Content}, v
+}
+
+// Mutants: a renamed or dropped envelope member ("issueID", no "projectId"),
+// a kind of "issue", omitempty on serves or implements (v1's empty
+// implements vanishes), escapes other than the contract's (v2's TAB, U+0001, é).
+func TestIssueRevisionGoldenVectors(t *testing.T) {
+	for _, name := range []string{"v1", "v2"} {
+		env, want := loadIssueVector(t, name)
+		d, c, err := IssueRevisionDigest(env)
+		if err != nil {
+			t.Fatalf("%s: IssueRevisionDigest: %v", name, err)
+		}
+		if string(c) != want.Canonical {
+			t.Errorf("%s: canonical bytes\n got %s\nwant %s", name, c, want.Canonical)
+		}
+		if len(c) != want.Bytes {
+			t.Errorf("%s: %d bytes, want %d", name, len(c), want.Bytes)
+		}
+		if d.String() != want.Digest {
+			t.Errorf("%s: digest %s, want %s", name, d, want.Digest)
+		}
+	}
+}
+
+// Mutant: a parser that serves content from anything but the stored bytes, or
+// that drops a field on the way back.
+func TestIssueRevisionParseRoundTrips(t *testing.T) {
+	for _, name := range []string{"v1", "v2"} {
+		env, want := loadIssueVector(t, name)
+		got, err := ParseIssueRevisionEnvelope([]byte(want.Canonical))
+		if err != nil {
+			t.Fatalf("%s: ParseIssueRevisionEnvelope: %v", name, err)
+		}
+		a, _ := json.Marshal(got)
+		b, _ := json.Marshal(env)
+		if !bytes.Equal(a, b) {
+			t.Errorf("%s: parsed %s, want %s", name, a, b)
+		}
+	}
+}
+```
