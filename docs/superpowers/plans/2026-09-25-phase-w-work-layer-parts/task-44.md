@@ -64,3 +64,66 @@ may animate position); 02 C8 (`02:276-278`, `confirm.inplace`).
     second press calls the injected `onStart(ids)` once. `Esc` or *Cancel* closes it. Task 61
     wires `onStart` to SW.10; until then the lens passes nothing and the act is not drawn.
 
+**Files** (the skeleton's file map lists `DisplayMenu.tsx` and `BulkBar.tsx`; it omits
+`ConfirmInPlace.tsx`, `store.ts` and `workSlice.ts` for this task, a gap named in the return):
+- `desktop/src/components/work/DisplayMenu.tsx` (+ `DisplayMenu.test.tsx`) — the menu, on the built `Popover` (new)
+- `desktop/src/components/work/BulkBar.tsx` (+ `BulkBar.test.tsx`) — the bar and its batches (new)
+- `desktop/src/components/common/ConfirmInPlace.tsx` (+ `ConfirmInPlace.test.tsx`) — 02 C8's `confirm.inplace` (new)
+- `desktop/src/store/slices/prefsSlice.ts` — `DisplayOptions`, `workDisplay`, `setWorkDisplay` (modified)
+- `desktop/src/store/store.ts` ⚑ — `workDisplay` joins `Persisted` and `partialize` (modified)
+- `desktop/src/store/slices/workSlice.ts` ⚑ (task 37) — `issueSelection` and its three actions (modified)
+- `desktop/src/components/work/WorkLens.tsx`, `IssueRow.tsx`, `BoardView.tsx` — read the options; `X`, `Shift+↓`/`↑`; FLIP (modified)
+- `desktop/src/components/work/work.css` — density, the bar, the selected mark (modified)
+
+#### Interfaces — complete: the `prefsSlice.ts` addition
+
+```ts
+// ── task 44: display options, a preference per view (rule 3). No Hub datum fits these types. ──
+export type WorkViewId = "list" | "board" | "triage";
+export type DisplayGrouping = "criterion" | "state" | "assignee" | "priority";
+export type DisplayOrdering = "priority" | "updated" | "created" | "number";
+
+export interface DisplayOptions {
+  grouping: DisplayGrouping;
+  ordering: DisplayOrdering;
+  density: "default" | "compact";
+  show: { assignee: boolean; labels: boolean; priority: boolean; agentLine: boolean; updated: boolean };
+}
+
+export const DEFAULT_DISPLAY: DisplayOptions = Object.freeze({
+  grouping: "criterion", ordering: "priority", density: "default",
+  show: Object.freeze({ assignee: true, labels: true, priority: true, agentLine: true, updated: true }),
+}) as DisplayOptions;
+
+/** A missing entry, or a stored one from an older build missing a key, reads the default. */
+export function displayFor(all: Partial<Record<WorkViewId, Partial<DisplayOptions>>>, view: WorkViewId): DisplayOptions {
+  const d = all[view] ?? {};
+  return { ...DEFAULT_DISPLAY, ...d, show: { ...DEFAULT_DISPLAY.show, ...(d.show ?? {}) } };
+}
+
+// PrefsSlice gains:
+//   workDisplay: Partial<Record<WorkViewId, Partial<DisplayOptions>>>;
+//   setWorkDisplay(view: WorkViewId, patch: Partial<Omit<DisplayOptions, "show">> & { show?: Partial<DisplayOptions["show"]> }): void;
+// PrefsState's Pick gains "workDisplay"; initialPrefsState gains
+//   workDisplay: Object.freeze({}) as Partial<Record<WorkViewId, Partial<DisplayOptions>>>;
+// setWorkDisplay merges the patch into the view's entry (show merged one level), never replaces it.
+```
+
+`store.ts` adds `"workDisplay"` to the `Persisted` pick and `workDisplay: s.workDisplay` to
+`partialize` (`store.ts:34-48`), with a sentence beside the `sendChordsToTerminal` note saying why
+no version bump is needed. `displayFor` also absorbs a stored value from a later build that knows a
+key this one does not, because the spread keeps only what the type reads.
+
+#### Interfaces — complete: the `workSlice.ts` addition (task 37's file)
+
+```ts
+// ── task 44: the issue selection. NOT persisted: it names Hub objects (rule 3; ADR-H1). ──
+//   issueSelection: ReadonlySet<string>;                       // is- ids, never aliases
+//   toggleIssue(id: string): void;
+//   selectIssues(ids: readonly string[]): void;                 // adds; Shift+↓/↑ call it with one id
+//   clearIssueSelection(): void;
+// initial: issueSelection: new Set<string>()  — and "issueSelection" is absent from partialize.
+```
+
+Test 2 checks that absence as well as the presence of `workDisplay`.
+
