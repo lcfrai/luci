@@ -78,7 +78,7 @@ const T = (body, author, label, ownerUserId, authorAgentId = null) =>
 
 const SAMPLE = {
   strip: { v: 1, projectId: "pj-sample", team: true, generatedAt: "2026-09-25T04:12:10.000Z",
-    route: { current: "global", required: false, raisedAt: null },
+    route: { current: "global", required: false, raisedAt: null, canLower: false },
     people: [
       { userId: "u-alice", displayName: "Alice", you: false, status: "working", waitingOn: null,
         line: { briefSection: { ref: "bs-4f1c", title: "Sessions survive restart" },
@@ -153,12 +153,12 @@ SAMPLE.orchestrator = { v: 1, projectId: "pj-sample",
 SAMPLE.thread = { thread: SAMPLE.orchestrator.threads[0], messages: [
   { id: "ms-0a01", kind: "propose", templated: false, at: "2026-09-25T04:02:10.000Z", tombstoned: false,
     sender: { agentId: "ag-a1orch", userId: "u-alice", label: "Alice's Orchestrator (agent)" },
-    fields: { resolution: { kind: "sequence", first: "ag-a1w2", sides: {}, globs: [], base: null, paths: [] } },
+    fields: { subject: null, inReplyTo: null, proposal: null, resolution: { kind: "sequence", first: "ag-a1w2", sides: {}, globs: [], base: null, paths: [] } },
     text: T("We finish auth/session.go first; ours lands within the hour.", "agent",
             "Alice's Orchestrator (agent)", "u-alice", "ag-a1orch") },
   { id: "ms-0a02", kind: "counter", templated: false, at: "2026-09-25T04:03:02.000Z", tombstoned: false,
     sender: { agentId: "ag-d1orch", userId: "u-dylan", label: "Your Orchestrator (agent)" },
-    fields: { resolution: { kind: "split", first: null, globs: [], base: null, paths: [],
+    fields: { subject: null, inReplyTo: null, proposal: null, resolution: { kind: "split", first: null, globs: [], base: null, paths: [],
               sides: { "ag-a1w2": ["auth/session.go"], "ag-d1w1": ["mobile/**"] } } },
     text: null } ] };
 
