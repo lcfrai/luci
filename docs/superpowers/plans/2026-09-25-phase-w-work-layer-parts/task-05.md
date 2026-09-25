@@ -2063,3 +2063,71 @@ func second[T any](_ T, err error) error { return err }
 The calls that are refusals by rule (`is-x` unknown, `lb-x` unknown, a digest never put) count:
 the test asks only that no answer is the stub's. `EraseIssue` runs last, after `EraseComment`, so
 neither refuses on the other's account; Go evaluates the map literal's values in source order.
+
+Block 2: the attach's two calls, the reason, the erased import, another team's label.
+
+```go
+// TestAttachChecksTheProjectThroughGetBlob: the project rule is GetBlob's.
+// Kills: an attach that reads a blob by digest alone, across projects.
+func TestAttachChecksTheProjectThroughGetBlob(t *testing.T) {
+	r := newWorkRig(t)
+	is := must(r.grace.CreateIssue(bg, r.p.ID, chore("one")))(t).Head.ID
+	_, err := r.grace.AttachBlob(bg, is, hubapi.AttachRequest{Digest: hubapi.DigestOf([]byte("never put"))})
+	calls := r.f.Calls()
+	i := slices.IndexFunc(calls, func(c string) bool { return strings.HasPrefix(c, "AttachBlob(") })
+	if codeOf(err) != hubapi.CodeBlobNotFound || i < 0 || i+1 >= len(calls) || !strings.HasPrefix(calls[i+1], "GetBlob("+r.p.ID) {
+		t.Errorf("err %v, calls %v; want 404 blob_not_found from GetBlob on the issue's project", err, calls)
+	}
+}
+
+// TestTheFeedNeverCarriesTheReason: the reason is checked and dropped.
+// Kills: an erase event that broadcasts a client's matter number.
+func TestTheFeedNeverCarriesTheReason(t *testing.T) {
+	r := newWorkRig(t)
+	is := must(r.grace.CreateIssue(bg, r.p.ID, chore("one")))(t).Head.ID
+	must(r.f.As(orgBoss).EraseIssue(bg, is, hubapi.EraseRequest{Reason: "matter ZQX-14"}))(t)
+	ev := eventsOf(t, r.grace, "issue.erased")
+	if len(ev) != 1 || len(ev[0].Data) != 2 || ev[0].Data["erasedRevisions"] != int64(1) || ev[0].Data["erasedComments"] != int64(0) {
+		t.Fatalf("issue.erased = %+v, want exactly the two counts", ev)
+	}
+	for _, e := range eventsOf(t, r.grace, "") {
+		for k, v := range e.Data {
+			if s, ok := v.(string); ok && strings.Contains(s, "ZQX-14") {
+				t.Errorf("%s data.%s carries the reason", e.Kind, k)
+			}
+		}
+	}
+}
+
+// TestAnErasedImportStaysErased: link and author name go, the external id
+// stays, so a re-import answers existing. Kills: a re-import that re-creates
+// the text an org admin erased (task 15's rule).
+func TestAnErasedImportStaysErased(t *testing.T) {
+	r := newWorkRig(t)
+	batch := hubapi.ImportBatch{Source: hubapi.ImportSourceLinear, Items: []hubapi.ImportItem{{ExternalID: "ENG-7",
+		URL: "https://linear.example/ENG-7", Title: "secret", AuthorName: "A. Person", Labels: []string{}}}}
+	id := must(r.grace.ImportBatch(bg, r.p.ID, batch))(t).Created[0].IssueID
+	must(r.f.As(orgBoss).EraseIssue(bg, id, hubapi.EraseRequest{Reason: "request 9"}))(t)
+	x := must(r.grace.Issue(bg, id))(t).Head.External
+	if x == nil || x.URL != "" || x.AuthorName != "" || x.ExternalID != "ENG-7" {
+		t.Errorf("external = %+v, want the id kept and the words gone", x)
+	}
+	again := must(r.grace.ImportBatch(bg, r.p.ID, batch))(t)
+	if len(again.Created) != 0 || len(again.Existing) != 1 || again.Existing[0].IssueID != id {
+		t.Errorf("re-import = %+v, want the erased issue under existing", again)
+	}
+}
+
+// TestAnotherTeamsLabelIsUnavailable. Kills: a label check by id alone.
+func TestAnotherTeamsLabelIsUnavailable(t *testing.T) {
+	r := newWorkRig(t)
+	other := must(r.grace.CreateTeam(bg, hubapi.CreateTeamRequest{Name: "Billing"}))(t)
+	l := must(r.grace.CreateLabel(bg, other.ID, hubapi.CreateLabelRequest{Name: "Bug", Color: "fail"}))(t)
+	is := must(r.grace.CreateIssue(bg, r.p.ID, chore("one")))(t).Head.ID
+	_, err := r.grace.PatchIssue(bg, is, hubapi.PatchIssueRequest{Labels: &[]string{l.ID}})
+	var he *Error
+	if !errors.As(err, &he) || he.Status != 422 || he.Problem.Error != "label_unavailable" || he.Problem.Details["field"] != "labels[0]" {
+		t.Errorf("err = %v, want 422 label_unavailable naming labels[0]", err)
+	}
+}
+```
