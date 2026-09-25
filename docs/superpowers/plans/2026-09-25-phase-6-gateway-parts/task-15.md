@@ -33,7 +33,7 @@ Seven decisions where the skeleton is silent:
   - `(*Client) Mint(ctx, wire.MintRequest) (wire.MintResponse, error)`, `Refresh(ctx, wire.RefreshRequest) (wire.MintResponse, error)`, `RevokeSession(ctx, sessionID string) error`, `Usage(ctx, scope, id string) ([]wire.UsageRow, error)` (task 21's reader; no retry)
   - `Problem{Status int; Code, Message string}`, the error a keysmith refusal becomes; `errors.As` finds it
   - `WriteToken(dir, token string) error`: `token.tmp` at `0644`, `fsync`, rename to `token`
-  - `Launcher{Client *Client; Routes wire.RouteSource; BaseURL, Network, TokenRoot string; RefreshAt time.Duration; Owner wire.Owner; TeamID string; Record func(sessionID string, s State); Log *slog.Logger}`, built by `NewLauncher(l Launcher) (*Launcher, error)`, which creates `TokenRoot` at `0700`
+  - `Launcher{Client *Client; Routes wire.RouteSource; BaseURL, Network, TokenRoot string; RefreshAt, RaiseCheck time.Duration (`RaiseCheck`, 0 meaning one minute: how often a Global-minted session re-reads its route, so a raise refreshes at once, review C-1); Owner wire.Owner; TeamID string; Record func(sessionID string, s State); Log *slog.Logger}`, built by `NewLauncher(l Launcher) (*Launcher, error)`, which creates `TokenRoot` at `0700`
   - `State{Gateway string ("pending"|"on"|"error"); Error string; Generation int; Route dataclass.Route}`
   - `Prep{Mount backend.Mount; Env map[string]string; Network string; Route dataclass.Route}`
   - `(*Launcher) Prepare(ctx, sessionID, projectID string) (Prep, error)`; `Start(sessionID, projectID, agentID string, generation int, pod netip.Addr)`, which returns at once; `Stop(ctx, sessionID string, keepDir bool) error`; `Resume(sessionID, projectID string, generation int)`
@@ -370,9 +370,10 @@ func TestPrepareSetsTheEnvironmentByRoute(t *testing.T) {
 The session's lifetime, same file:
 
 ```go
-// Kills a refresher that never fires, one that sends the next generation
-// instead of the current (keysmith would mint current+2), and one that
-// outlives its session.
+// Kills a refresher that never fires, one that sends the current generation
+// instead of the new one (task 03's RefreshRequest names the NEW generation,
+// and keysmith refuses a refresh of generation 1 as invalid, task 07), and one
+// that outlives its session.
 func TestTheRefresherRefreshesThenStopsWithTheSession(t *testing.T) {
 	k := &keysmith{script: []reply{{status: 201, body: minted("sk-pa-1", "global")},
 		{status: 201, body: minted("sk-pa-2", "global")}, {status: 204}}}
@@ -388,13 +389,50 @@ func TestTheRefresherRefreshesThenStopsWithTheSession(t *testing.T) {
 	calls, bodies, _ := k.snapshot()
 	var refresh wire.RefreshRequest
 	_ = json.Unmarshal([]byte(bodies[1]), &refresh)
-	if calls[1] != "POST /v1/refresh" || refresh != (wire.RefreshRequest{SessionID: "s-1", Generation: 1}) {
-		t.Errorf("second call %s %+v, want a refresh of generation 1", calls[1], refresh)
+	if calls[1] != "POST /v1/refresh" || refresh != (wire.RefreshRequest{SessionID: "s-1", Generation: 2}) {
+		t.Errorf("second call %s %+v, want a refresh minting generation 2", calls[1], refresh)
 	}
 	n := len(calls)
 	time.Sleep(200 * time.Millisecond) // four refresh periods
 	if after, _, _ := k.snapshot(); len(after) != n {
 		t.Errorf("%d calls after Stop, want none", len(after)-n)
+	}
+}
+
+// raisable is a route source a test can raise while a refresher reads it.
+type raisable struct {
+	mu sync.Mutex
+	r  dataclass.Route
+}
+
+func (s *raisable) Project(_ context.Context, id string) (wire.ProjectInference, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return wire.ProjectInference{ProjectID: id, Route: s.r, Effective: s.r}, nil
+}
+
+// Review C-1, task 07 decision (h). Kills a refresher that waits for
+// RefreshAt (an hour here) after its project is raised from Global to AU.
+func TestARaiseRefreshesAtOnce(t *testing.T) {
+	k := &keysmith{script: []reply{{status: 201, body: minted("sk-pa-1", "global")},
+		{status: 201, body: minted("sk-pa-2", "au")}, {status: 204}}}
+	l, rec := newLauncher(t, k)
+	src := &raisable{r: dataclass.RouteGlobal}
+	l.Routes, l.RaiseCheck = src, 10*time.Millisecond
+	_, _ = l.Prepare(context.Background(), "s-1", "p-global")
+	l.Start("s-1", "p-global", "claude-code", 1, pod)
+	eventually(t, "the first token", func() bool { return tokenIn(l, "s-1") == "sk-pa-1" })
+	time.Sleep(50 * time.Millisecond) // five checks on Global: no refresh yet
+	if calls, _, _ := k.snapshot(); len(calls) != 1 {
+		t.Fatalf("%d keysmith calls before the raise, want only the mint", len(calls))
+	}
+	src.mu.Lock()
+	src.r = dataclass.RouteAU
+	src.mu.Unlock()
+	eventually(t, "the AU token", func() bool { return tokenIn(l, "s-1") == "sk-pa-2" })
+	eventually(t, "the AU route recorded", func() bool { return rec.last("s-1").Route == dataclass.RouteAU })
+	if err := l.Stop(context.Background(), "s-1", false); err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -902,7 +940,7 @@ The `*PathError`s that `WriteToken` wraps name a path and an errno, never the to
 
 - [ ] **Step 6: Write the launcher and the refresher**
 
-One goroutine per session does everything after `Start`: mint, write, then refresh every `RefreshAt` until `Stop` cancels its context. A failed refresh keeps the current token (it is valid until its hour ends) and retries a minute later; the session's `gatewayError` says so, while `gateway` stays `on`.
+One goroutine per session does everything after `Start`: mint, write, then refresh every `RefreshAt`, and at once when a Global-minted session's project rises to AU (checked every `RaiseCheck`, review C-1), until `Stop` cancels its context. Each refresh names the **new** generation, as task 03's `RefreshRequest` requires. A failed refresh keeps the current token (it is valid until its hour ends) and retries a minute later; the session's `gatewayError` says so, while `gateway` stays `on`.
 
 Create `control-plane/internal/gatewayclient/refresh.go`:
 
@@ -958,10 +996,13 @@ type Launcher struct {
 	Network   string
 	TokenRoot string
 	RefreshAt time.Duration
-	Owner     wire.Owner
-	TeamID    string
-	Record    func(sessionID string, s State)
-	Log       *slog.Logger
+	// RaiseCheck is how often a Global-minted session re-reads its project's
+	// route, so a raise to AU refreshes at once (review C-1). 0: one minute.
+	RaiseCheck time.Duration
+	Owner      wire.Owner
+	TeamID     string
+	Record     func(sessionID string, s State)
+	Log        *slog.Logger
 
 	st *launcherState // a pointer, so a Launcher value copies no lock
 }
@@ -1069,24 +1110,27 @@ func (l *Launcher) Start(sessionID, projectID, agentID string, generation int, p
 			return
 		}
 		l.Record(sessionID, State{Gateway: "on", Generation: generation, Route: resp.Route})
-		l.refreshLoop(ctx, sessionID, generation, l.RefreshAt)
+		l.refreshLoop(ctx, sessionID, projectID, generation, resp.Route, l.RefreshAt)
 	}()
 }
 
 // Resume takes over a session that was live before a restart: refresh first.
+// The route at mint is unknown until that refresh answers.
 func (l *Launcher) Resume(sessionID, projectID string, generation int) {
 	ctx := l.track(sessionID)
-	go l.refreshLoop(ctx, sessionID, generation, 0)
+	go l.refreshLoop(ctx, sessionID, projectID, generation, "", 0)
 }
 
-func (l *Launcher) refreshLoop(ctx context.Context, sessionID string, gen int, wait time.Duration) {
+// refreshLoop refreshes every RefreshAt, and at once when a Global-minted
+// session's project rises to AU: keysmith retires that key Grace after its
+// next lookup (task 07 decision (h)), so waiting for RefreshAt would leave the
+// session refused. RefreshRequest.Generation is the NEW one (task 03).
+func (l *Launcher) refreshLoop(ctx context.Context, sessionID, projectID string, gen int, route dataclass.Route, wait time.Duration) {
 	for {
-		select {
-		case <-ctx.Done():
+		if !l.sleepUnlessRaised(ctx, projectID, route, wait) {
 			return
-		case <-time.After(wait):
 		}
-		resp, err := l.Client.Refresh(ctx, wire.RefreshRequest{SessionID: sessionID, Generation: gen})
+		resp, err := l.Client.Refresh(ctx, wire.RefreshRequest{SessionID: sessionID, Generation: gen + 1})
 		if ctx.Err() != nil {
 			return
 		}
@@ -1102,8 +1146,38 @@ func (l *Launcher) refreshLoop(ctx context.Context, sessionID string, gen int, w
 			wait = refreshRetry
 			continue
 		}
+		route = resp.Route
 		l.Record(sessionID, State{Gateway: "on", Generation: gen, Route: resp.Route})
 		wait = l.RefreshAt
+	}
+}
+
+// sleepUnlessRaised waits for wait, re-reading the project's route every
+// RaiseCheck while the key was minted on Global. It returns false when ctx
+// ends, and true when it is time to refresh: the wait is over, or the route
+// is now AU. An unreadable route keeps waiting; the gatekeeper fails closed.
+func (l *Launcher) sleepUnlessRaised(ctx context.Context, projectID string, route dataclass.Route, wait time.Duration) bool {
+	check := l.RaiseCheck
+	if check <= 0 {
+		check = time.Minute
+	}
+	deadline := time.Now().Add(wait)
+	for {
+		step := time.Until(deadline)
+		if route == dataclass.RouteGlobal && step > check {
+			step = check
+		}
+		select {
+		case <-ctx.Done():
+			return false
+		case <-time.After(max(step, 0)):
+		}
+		if !time.Now().Before(deadline) {
+			return true
+		}
+		if pi, err := l.Routes.Project(ctx, projectID); err == nil && pi.Effective == dataclass.RouteAU {
+			return true
+		}
 	}
 }
 
@@ -1466,13 +1540,13 @@ and `api.Deps{…}` gains `Gateway: launcher`. `fail`, `store` and `log` stand f
 ```bash
 cd control-plane
 go test -race -count=1 ./internal/gatewayclient/                                   # expect: ok
-go test -count=1 -v ./internal/gatewayclient/ | grep -c '^--- PASS: Test'          # expect 10
+go test -count=1 -v ./internal/gatewayclient/ | grep -c '^--- PASS: Test'          # expect 11
 go test -race -count=1 ./internal/backend/... ./internal/registry/... ./internal/api/ ./cmd/api/   # expect: ok for each, phase 2's tests included
 ```
 
 The last line is the regression gate: every phase 2 session test runs with `Deps.Gateway` nil and must be unchanged.
 
-- [ ] **Step 11: Kill five mutants by hand**
+- [ ] **Step 11: Kill seven mutants by hand**
 
 | Edit | Test that must fail |
 |---|---|
@@ -1481,6 +1555,8 @@ The last line is the regression gate: every phase 2 session test runs with `Deps
 | `WriteToken`: write `final` directly, no `token.tmp` | `TestWriteTokenIsNeverSeenHalfWritten` |
 | `handleSessionDelete`: the `Stop` block deleted | `TestDeleteStopsTheGateway` |
 | `Prepare`: `if route != dataclass.RouteGlobal` → `if route == dataclass.RouteAU` | `TestPrepareSetsTheEnvironmentByRoute` (the unknown row) |
+| `refreshLoop`: `Generation: gen + 1` → `Generation: gen` | `TestTheRefresherRefreshesThenStopsWithTheSession` |
+| `sleepUnlessRaised`: delete the `if pi, err := l.Routes.Project(…); … { return true }` block | `TestARaiseRefreshesAtOnce` (review C-1) |
 
 - [ ] **Step 12: Vet and format**
 
@@ -1501,12 +1577,12 @@ git commit -F <message file> -- control-plane/internal/gatewayclient/ control-pl
 
 Message: `feat(gateway): the keysmith client and the local control plane's launch (phase 6 task 15)`, a body naming decisions (a) to (g), and the attribution line.
 
-**Acceptance:** step 10 prints `ok`, `10`, and `ok` for every listed package; step 11's five edits each fail the named test; step 12 prints nothing. The end-to-end run, a real sandbox on the gateway network getting a token, is task 17's acceptance and task 23's proof, not this task's.
+**Acceptance:** step 10 prints `ok`, `11`, and `ok` for every listed package; step 11's seven edits each fail the named test; step 12 prints nothing. The end-to-end run, a real sandbox on the gateway network getting a token, is task 17's acceptance and task 23's proof, not this task's.
 
 **What this task does not claim:**
 
 - **The cloud launch.** The broker minting, writing the token into a pod-owned Secret mounted as the directory, refreshing and revoking is ask P8-1. It can reuse `Client` and `WriteToken`'s contract, not `Launcher`, which is Docker-shaped.
-- **That a raise mid-session applies the AU environment.** Decision (a): the route is served AU from the next request; `CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS` stays as launched until a restart.
+- **That a raise mid-session applies the AU environment.** Decision (a): the route is served AU from the next request; `CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS` stays as launched until a restart. The key is re-minted on AU within `RaiseCheck` of the raise (`sleepUnlessRaised`, task 07 decision (h)); the environment is not.
 - **That keysmith accepts a mint after a revoke** (decision (d)); task 07's part decides.
 - **That the token is safe from the user's own code in the sandbox.** Any `dev` process can read `/run/panacea/gateway/token`, as it can run `panacea token`; pod binding (task 10) is what makes a copy useless elsewhere.
 - **Per-person attribution in local mode.** Every local session mints as `PANACEA_APP_GATEWAY_OWNER` (default `local:developer`), because the local control plane without the Hub has no signed-in identity. With phase H's sign-in, the owner is the signed-in `tid`/`oid`; that wiring is not built here.
@@ -1520,3 +1596,4 @@ Message: `feat(gateway): the keysmith client and the local control plane's launc
 4. **The session wire shape gains `gateway`, `gatewayError`, `gatewayRoute`.** Additive, but phase 2's UI contract and `desktop/src/store/types.ts` should list them; task 22 is the first reader.
 5. **`backend.Sandbox.NetworkAddr` and `LabelNetwork` are new seam fields** the skeleton did not name; phase 8's broker has its own pod IP and does not need them.
 6. **Assumed from task 03:** `wire.MintRequest` is comparable (no slice or map fields) and `PodAddr` is a string; `wire.MintResponse` carries no generation, so the client counts generations itself. Both checked against `task-03.md:385-394`. `GET /v1/usage` answers `{"rows": [...]}` (`task-08.md:23`), which `Usage` decodes.
+7. **Fix batch b01 changed the refresher in two ways.** First, it refreshes at once when a Global-minted session's project rises to AU (review C-1, task 07 decision (h) and gap 7). Second, it sends `Generation: gen + 1`. The part used to send the current generation, which task 03's `RefreshRequest` ("mints the NEW generation (≥ 2)", `task-03.md:447`) and task 07's `Refresh` refuse as invalid for generation 1. So every first refresh would have failed. That defect was not in the review, and it is fixed at its root here.

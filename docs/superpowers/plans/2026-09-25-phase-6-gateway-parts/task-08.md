@@ -1528,7 +1528,9 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 	if err != nil {
 		return fmt.Errorf("%w: %v", errConfig, err)
 	}
-	h := newAPI(apiDeps{Keys: svc, Bindings: store, Usage: reader, Auth: auth, MintWait: cfg.MintWait(), Log: log,
+	// Bindings is the Service, not the store: a lookup of a raised project's
+	// Global-minted key retires it (task 07 decision (h), review C-1).
+	h := newAPI(apiDeps{Keys: svc, Bindings: svc, Usage: reader, Auth: auth, MintWait: cfg.MintWait(), Log: log,
 		Ready: func(ctx context.Context) error { // fixed sentences only: the probe never shows an error chain
 			if pool.Ping(ctx) != nil {
 				return errors.New("database unreachable")
@@ -1657,3 +1659,4 @@ Message: `feat(keysmith): the HTTP API, caller authentication and a fail-closed 
 4. **Task 19 must grant keysmith `create` on `tokenreviews`** (a ClusterRoleBinding to `system:auth-delegator`, **UNVERIFIED** name) and set the broker's and gatekeeper's projected tokens to audience `keysmith`. The service-account names `panacea-broker:broker` and `panacea-gateway:gatekeeper` are proposals for ask P8-2.
 5. **Identifiers assumed from parts not yet merged:** task 04's `litellmadmin.New`, `Options`, `ErrNoMasterKey`, `(*Client).Health`; task 05's `binding.Migrate`, `binding.NewPGStore` (now in `task-05.md`). Task 09's `*usage.PGStore` is the sweep's `KeySource` (task 09, decision (c)), so task 05's `Store` needs no new method. Step 1 checks them.
 6. **`PANACEA_APP_GATEWAY_HUB_SCOPE`** is read here as task 13's gap 1 proposes; it is not in the skeleton's shared names.
+7. **`apiDeps.Bindings` is the `*keysmith.Service`, not the store** (fix batch b01, review C-1). `ByKeyHash` retires a raised project's Global-minted key as the gatekeeper looks it up (task 07 decision (h)), and task 07's tests prove that behaviour. The wiring is one line in `run`, and no test here catches a revert to `Bindings: store`. Such a revert would leave a Global-minted key its `global/*` groups until its scheduled refresh, and nothing would fail. Check the line in review; an end-to-end raise is task 23's to observe, if the owner wants it proven.
