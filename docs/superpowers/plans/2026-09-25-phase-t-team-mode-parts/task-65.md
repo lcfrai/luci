@@ -147,3 +147,59 @@ with the one-line change, opens a PR titled `images: Claude Code <old> → <vers
 auto-complete, and if that PR already exists, does nothing. It never force-pushes and never
 touches another branch. A second, newer release while a bump PR is open opens a second PR; the
 older one is abandoned by the script with a comment naming the newer.
+
+**`pipelines/images.yml`, the job graph after this task** (task 27's jobs unchanged unless named):
+
+```text
+PR and dev/main:  build → sbom → scan → canary (G1) ─┐
+                                      channel (G2) ──┴→ [PR stops here: no connection]
+dev/main only:    push (task 27; digests.json kept in the run, NOT yet the artefact)
+                  → gates-live: g9 (G3), gateway (G4)   (cluster connection, dev environment)
+                  → publish: publish-digests.sh → artefact image-digests  (task 30 consumes it)
+```
+
+`push` still pushes by digest to the environment's registry, so the Jobs in `gates-live` can
+pull what they test; a pushed digest that never gets an `image-digests` artefact is inert,
+because task 30's deploy reads only that artefact and `helm-values.sh` takes digests from nowhere
+else (phase 8 `parts/task-27.md:69-71`). On `main`, `gates-live` runs against **dev's** cluster
+and gateway: prod is never the test bed. G3 runs only when the sandbox image's label differs
+from the `claudeCode` of the last published `image-digests` for that branch (a sandboxd-only
+change still runs G1, G2 and G4); `publish-digests.sh` records a skipped G3 as `not-required`
+and accepts it only in that case.
+
+**The gate result, one file per gate** (`images/.out/gates/<gate>.json`, complete):
+
+```json
+{"gate":"channel","image":"acrpanaceaappdevk7q2.azurecr.io/panacea-app/sandbox@sha256:<64 hex>",
+ "claudeCode":"2.1.280","result":"pass","reason":"","at":"2026-09-25T06:14:09Z","run":"20260925.3"}
+```
+
+`result` is `pass`, `fail`, `skipped` (task 27's canary rule when phase 3 task 17 is absent) or
+`not-required` (G3 only, above). `reason` is ≤ 200 characters of our own scripts' words, never a
+tool's output.
+
+**G2, `gate-channel.sh`.** In the new sandbox image, as `dev` (1001): the worker managed file
+(task 13's `policy.Render(policy.Layers{}, model.ClassWorker)` bytes, the same file task 15
+mounts), phase 6 task 16's fake upstream scripted to answer the first request with one `Edit`
+`tool_use` on `src/a.ts` and the second with `end_turn`, and a fake control socket that records
+each request and denies `check --hook` for `src/a.ts`. `claude -p "edit src/a.ts"` runs with a
+workspace holding `src/a.ts` and `PANACEA_APP_CONTROL_SOCKET` set. Pass iff: the socket saw
+`check --hook` for `src/a.ts`; the fake upstream's second request arrived **after** it; `src/a.ts`
+is byte-identical afterwards (the hook's deny held); `panacea team` over the same socket returned
+task 09's fixture. The judgement reads the socket's record, the upstream's request log and the
+file, never the CLI's output, and the exit status only as "it ended".
+
+**G3, `infra/smoke/bump/g9-job.yaml`.** A Job in `panacea-sandboxes` on the pushed digest, in Kata
+(`runtimeClassName` from values), running task 42's `TestG9Live` (`task-42.md:421`) with two
+per-run gateway tokens minted for it (S6.3) and `PANACEA_APP_G9_REPORT` on an `emptyDir`;
+`gate-live.sh` reads the Job's exit and the report's `pass`. The run's tokens are budgeted like
+any session's (OD-24), so a failing version retried every six hours costs at most four G9 runs a
+day; the cheap gates run first and a failure there stops the run before G3.
+
+**G4, `infra/smoke/bump/gateway-job.yaml`.** A Job on the pushed digest with one per-run gateway
+token, running `claude -p "Reply with the single word ready."` through the private gateway path
+(task 32). Pass iff the Job exits 0 **and** the gatekeeper's body-free log (phase 6 task 12) for
+that key hash shows at least one `/v1/messages` upstream `200` and **zero** refusals (path not
+allowed, header refused, model not in the catalogue). The docs warn that *"a gateway that doesn't
+forward them breaks the corresponding features"* (`05-design.md:1106-1108`); zero refusals is how
+that shows up on our side.
