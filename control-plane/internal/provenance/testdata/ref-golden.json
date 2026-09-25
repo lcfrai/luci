@@ -1,0 +1,102 @@
+{
+  "key": "brief:bf-00000000000000a2@5",
+  "resolution": "resolved",
+  "noneReason": "",
+  "present": true,
+  "briefId": "bf-00000000000000a2",
+  "revision": 5,
+  "digest": "sha256:4242424242424242424242424242424242424242424242424242424242424242",
+  "scope": "branch",
+  "projectId": "pj-00000000000000e1",
+  "branchRef": "refs/heads/evidence-upload",
+  "status": "complete",
+  "headRevision": 6,
+  "latestCompleteRevision": 6,
+  "inherits": {
+    "key": "brief:bf-00000000000000b7@5",
+    "briefId": "bf-00000000000000b7",
+    "revision": 5,
+    "digest": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+    "erased": false
+  },
+  "title": "Branch brief — evidence-upload",
+  "headline": "Let client users upload evidence files against an open request.",
+  "audience": "KPMG staff broadly",
+  "constraints": "Existing uploads and their download links",
+  "outOfScope": "Bulk upload; the reviewer side of evidence",
+  "sections": [
+    {
+      "key": "purpose",
+      "heading": "What this is for",
+      "body": "Let client users upload evidence files against an open request.",
+      "items": [],
+      "origin": "override",
+      "replaced": "Client-facing portal for audit engagements: requests, evidence and status."
+    },
+    {
+      "key": "audience",
+      "heading": "Who it is for",
+      "body": "KPMG staff broadly",
+      "items": [],
+      "origin": "project",
+      "replaced": ""
+    },
+    {
+      "key": "constraints",
+      "heading": "What must not break",
+      "body": "Existing uploads and their download links",
+      "items": [],
+      "origin": "override",
+      "replaced": "Existing client data; the published API"
+    },
+    {
+      "key": "done",
+      "heading": "Definition of done",
+      "body": "Upload works for PDF, XLSX and images\nA virus scan runs before any file is visible\nTests pass",
+      "items": [
+        {
+          "id": "c-a0000001",
+          "text": "Upload works for PDF, XLSX and images"
+        },
+        {
+          "id": "c-a0000002",
+          "text": "A virus scan runs before any file is visible"
+        },
+        {
+          "id": "c-a0000003",
+          "text": "Tests pass"
+        }
+      ],
+      "origin": "override",
+      "replaced": "Tests pass; No change to the published API without a version bump"
+    },
+    {
+      "key": "out_of_scope",
+      "heading": "Out of scope",
+      "body": "Bulk upload; the reviewer side of evidence",
+      "items": [],
+      "origin": "override",
+      "replaced": "Billing and invoicing"
+    }
+  ],
+  "criteria": [
+    {
+      "id": "c-a0000001",
+      "text": "Upload works for PDF, XLSX and images",
+      "digest": "sha256:17fc3e3b1d0705eb8e4fcbf0503a70c5d6b506b48ba5640b187d2f2be2eb7cb6"
+    },
+    {
+      "id": "c-a0000002",
+      "text": "A virus scan runs before any file is visible",
+      "digest": "sha256:55f1e88711faa5d88f224ea98b731bb0d99a9bc47ea3afd713330db38f88658c"
+    },
+    {
+      "id": "c-a0000003",
+      "text": "Tests pass",
+      "digest": "sha256:c88379191a17bec72f18cb6d2e1777bee5ebce79e416dfd8e96009b0109cdc20"
+    }
+  ],
+  "savedAt": "2026-09-22T09:12:00.000Z",
+  "savedBy": "Dylan Mackie",
+  "erasedAt": ""
+}
