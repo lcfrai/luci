@@ -106,7 +106,7 @@ writes one task 29 `land_hints` row, `first` the base side, so task 61's queue l
   `task-28.md:166-167`), `Canonical`, `RoundsLeft`; task 29's `Resolver`, `leaseEvent`,
   `DecidedWithoutYou`, `fleet.land_hints`; task 30's `Rules.Classify`, `Service.Decide`,
   `AcceptNeedsDecision`; task 23's `Engine.Request`, `Live`, `Validate` (breadth); task 35's
-  activity table (edited paths, **UNVERIFIED** until its part is read at build time); task 61's
+  `activity.Table.Of(ctx, agent)` for each acceptor-side agent's observed paths (`task-35.md:165`); task 61's
   mirror ops `ExportRange` and its `PathChange`; task 49's `converge.IsAgentConfigPath` and
   `converge.PackageScriptMembers` (exported by task 61).
 - Requires of **task 59's mirror client**: `LaneChanges` (below), beside task 61's three ops.
@@ -139,3 +139,81 @@ type BuildOnOutcome struct {
 	HintID   int64         `json:"hintId"`   // the land_hints row, first = Base
 }
 ```
+
+```go
+// control-plane/internal/fleet/protocol/buildon.go
+package protocol
+
+// AgentConfigLine is one agent-config path a build-on would bring into the
+// builder's sandbox. Kind is task 49's four; Members is set for package.json.
+type AgentConfigLine struct {
+	Path    string   `json:"path"`
+	Kind    string   `json:"kind"`    // instructions | agent-settings | git-hooks | package-scripts
+	Status  string   `json:"status"`  // A | M | D
+	Members []string `json:"members,omitempty"` // package-scripts: which members differ
+}
+
+// LaneDiff is the mirror's typed answer for one lane since its merge base
+// with the integration head: paths and statuses only, never content (ST.7).
+type LaneDiff struct {
+	MergeBase      string              `json:"mergeBase"`
+	Tip            string              `json:"tip"`
+	Changes        []PathChange        `json:"changes"`        // task 61's shape, --no-renames
+	PackageChanged map[string][]string `json:"packageChanged"` // path → members that differ
+}
+
+type PathChange struct {
+	Path   string `json:"path"`
+	Status string `json:"status"`
+}
+
+// BuildOnPort is the wiring's adapter over task 59's mirror client and task
+// 17's broker; protocol runs no git and imports neither.
+type BuildOnPort interface {
+	// LaneChanges asks the mirror for laneRef at tip against
+	// refs/panacea/integration/<branch>. tip must equal the ref's sha, else
+	// ErrStale.
+	LaneChanges(ctx context.Context, project, laneRef, tip, branch string, members []string) (LaneDiff, error)
+	// Bring exports mergeBase..tip from the mirror and stages it into the
+	// builder worker's clone under ref, through the broker, under the
+	// builder's owner's delegation. Refs only: no index, no working tree.
+	Bring(ctx context.Context, builderOwner, project, worktreeID, ref, mergeBase, tip string) error
+}
+
+// buildOnLines classifies a LaneDiff with converge.IsAgentConfigPath, plus
+// every package.json with a non-empty member list. Sorted by Path. Pure.
+func buildOnLines(d LaneDiff) []AgentConfigLine
+
+const buildOnRefPrefix = "refs/panacea/build-on/" // + th-…
+
+// BuildOnRef is the one ref name a build-on uses for a thread.
+func BuildOnRef(thread string) string { return buildOnRefPrefix + thread }
+```
+
+`PathChange` is written again here, not imported from `landq`, so that `protocol` imports no
+queue; both are pinned by the one fixture `testdata/panacea-control/v1/mirror-lane-diff.json`.
+
+```go
+// control-plane/internal/fleet/leases/yield.go (modify): one method.
+
+// Reissue moves l to yielded and requests one new lease for l's holder, mode
+// and task with exactly globs, through Request's own rules (granted or
+// contested, never forced), in one transaction. globs must pass
+// teamtext.CheckSet and the breadth cap; else nothing moves.
+func (e *Engine) Reissue(ctx context.Context, org string, l model.Lease, globs []string) (newID string, err error)
+```
+
+```go
+// control-plane/internal/fleet/escalate/rules.go (modify): KeyOf's split case.
+	case protocol.ResSplit:
+		mine := a.Sides[a.Acceptor]
+		for _, p := range a.EditedByAcceptor {
+			if !teamtext.MatchAny(mine, p) {
+				return "accept-split-moves-edited"
+			}
+		}
+		return "accept-split"
+```
+
+`teamtext.MatchAny(globs, path)` is `Match` over a list; if task 02 does not export it, it is a
+three-line helper in `rules.go`.
