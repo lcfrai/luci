@@ -355,6 +355,17 @@ git -C "$E2E_ROOT/projects/e2e-demo" worktree list
 mkdir -p "$E2E_ROOT/bin"
 ( cd control-plane && go build -o "$E2E_ROOT/bin/panacea-api.exe" ./cmd/api )
 
+# The Docker lock first (SDD docker-daemon-lock.md): mkdir the lock, write owner.txt, then
+# the guard. Any managed container you did not create means: do not start, release, report.
+docker ps -a --filter label=panacea-app.managed=true --format "{{.ID}} {{.Names}} {{.Status}}"
+
+# Exported, not prefixed: the harness reads the identity (g.primary), and step 13 restarts
+# this binary from the same shell. PANACEA_APP_CA_BUNDLE only if step 1 (i) found
+# interception; it is an absolute host path to a PEM file, validated at startup (exit 2).
+export PANACEA_APP_GIT_NAME="Panacea E2E" PANACEA_APP_GIT_EMAIL="e2e@invalid"
+export PANACEA_APP_CA_BUNDLE="<absolute PEM path, or leave unset if (i) passed without it>"
+export PANACEA_APP_REAP_INTERVAL=24h
+
 PANACEA_APP_PROJECTS_DIR="$(cygpath -w "$E2E_ROOT/projects")" \
 PANACEA_APP_STATE_DIR="$(cygpath -w "$E2E_ROOT/state")" \
 PANACEA_APP_SESSION_CPU_MILLIS=250 \
@@ -364,7 +375,9 @@ PANACEA_APP_LOG_LEVEL=debug \
 echo "control plane pid: $!"
 ```
 
-Four choices in that environment, each with a reason. **`PANACEA_APP_STATE_DIR`** points the registry at the throwaway root (`config.go:248-252`), so this run cannot read or corrupt the owner's real `sessions.json`. **The two resource variables** (`config.go:32-33`) shrink each sandbox from the 2-core, 4 GiB default (`backend.go:110`): step 10 runs eleven sessions at once, and at the default that is 44 GiB of limit on a laptop. **`debug`** so the log has everything step 13 reads. **No `PANACEA_APP_ALLOWED_ORIGINS`**: the defaults already include `http://localhost:1420` (`control-plane/internal/httpx/origin.go:46`), and setting the variable *replaces* them (`config.go:225-228`).
+**Three more variables since the fixes, each with a reason** (`control-plane/cmd/api/config.go`, `envGitName`, `envGitEmail`, `envCABundle`). **The git pair is explicit**, so `g.primary` asserts a known author and not whatever the host's `git var GIT_AUTHOR_IDENT` answers; the pair must be complete, or startup exits 2 naming both. **`PANACEA_APP_CA_BUNDLE`** is set exactly when step 1 (i) found interception; startup refuses a relative path, a missing file, a directory, or a file with no `-----BEGIN CERTIFICATE-----` block, each with its own sentence and exit 2. **`PANACEA_APP_REAP_INTERVAL=24h`** is the lock's rule 3. A control plane from `HEAD` reaps only its own instance's sandboxes (`a9c2cec`), so the interval is no longer a safety measure against this build; the lock still binds, because an older build on the daemon still reaps everything (`docker-daemon-lock.md`, amended 2026-09-24). **Release the lock in step 20**, after its `docker ps` guard prints nothing.
+
+Four choices in the rest of that environment, each with a reason. **`PANACEA_APP_STATE_DIR`** points the registry at the throwaway root (`config.go:248-252`), so this run cannot read or corrupt the owner's real `sessions.json`. **The two resource variables** (`config.go:32-33`) shrink each sandbox from the 2-core, 4 GiB default (`backend.go:110`): step 10 runs eleven sessions at once, and at the default that is 44 GiB of limit on a laptop. **`debug`** so the log has everything step 13 reads. **No `PANACEA_APP_ALLOWED_ORIGINS`**: the defaults already include `http://localhost:1420` (`control-plane/internal/httpx/origin.go:46`), and setting the variable *replaces* them (`config.go:225-228`).
 
 **And the cockpit's dev server**, in a second background shell:
 
@@ -1220,6 +1233,10 @@ check("d.cp-restart", "durability: the control plane restarts; sessions and cont
 export PANACEA_APP_PROJECTS_DIR="$(cygpath -w "$E2E_ROOT/projects")"
 export PANACEA_APP_STATE_DIR="$(cygpath -w "$E2E_ROOT/state")"
 export PANACEA_APP_SESSION_CPU_MILLIS=250 PANACEA_APP_SESSION_MEMORY_MIB=512 PANACEA_APP_LOG_LEVEL=debug
+# Step 6's three, unchanged: the respawn inherits process.env, and a respawn without the
+# CA bundle would start sandboxes in which Claude Code cannot reach the API.
+export PANACEA_APP_GIT_NAME="Panacea E2E" PANACEA_APP_GIT_EMAIL="e2e@invalid" PANACEA_APP_REAP_INTERVAL=24h
+export PANACEA_APP_CA_BUNDLE="<the same value as step 6, or unset>"
 export PANACEA_E2E_CP_LOG="$E2E_ROOT/control-plane.log"
 export PANACEA_E2E_CP_BIN="$(cygpath -w "$E2E_ROOT/bin/panacea-api.exe")"
 export PANACEA_E2E_CP_PID=<the pid step 6 printed>
@@ -1230,7 +1247,7 @@ PANACEA_E2E_ONLY=c1.flip,c5.resize,d.detach,d.reload,d.cp-restart npm run e2e
 
 **What each failure means.** `d.detach` throwing *disconnect must not destroy* is the master plan's first refinement broken in a real stack — a regression of the kind the whole phase is organised around, and it goes to the orchestrator first. `d.reload` timing out on one session and not the others usually means that session's pane is off-screen in Columns and was never mounted — check `observed` from `c1.cap` for how many panes the branch holds before calling it a defect. `d.cp-restart` throwing *container changed* means the reaper or restart recovery destroyed a sandbox it should have adopted: task 13's, and serious, because it is the transcript. *Missing after the restart* with an unchanged container means the registry did not survive its own restart — check that `PANACEA_APP_STATE_DIR` is exported in *this* shell, or the respawned control plane opened a different, empty registry and the check is measuring the harness.
 
-- [ ] **Step 14: Retry attach on a genuinely failed attach, and Resume end to end** · AGENT-PROVABLE
+- [ ] **Step 14: Retry attach on a genuinely failed attach, Resume end to end, and git on a primary worktree** · AGENT-PROVABLE
 
 **Carry 10.** Every `retryAttach` test drives `FakeWebSocket`, *"which never performs a handshake"* (`group-d-real-browser-carries.md:119-125`). The gesture became performable in `07119d1`: *"fail an attach, open the `⋯` menu, click Retry attach"* (`:127-129`). The word that matters is **genuinely**. A `failed` pane is one whose retry ladder spent its 60-second budget while the session was *not* exited (`group-d-open-carries.md:30-33`), so the only honest way to produce one is to make the control plane unreachable for longer than that budget. The check stops it for as long as it takes the pane to report `failed` — `data-attach-phase="failed"` on the overlay (`SessionPane.tsx:91`) — then starts it again, and only then presses Retry.
 
@@ -1238,9 +1255,9 @@ PANACEA_E2E_ONLY=c1.flip,c5.resize,d.detach,d.reload,d.cp-restart npm run e2e
 
 **Open carry 2 — `resume` has no end-to-end proof** (`group-d-open-carries.md:43`). Planning this task found why: resume could not have worked. The client sent `resume: from.id` (`desktop/src/api/client.ts:358`) — the **cockpit's** session id, `s-` plus eight hex characters (`control-plane/internal/ids/ids.go:17-25`) — to `argv.go:87-89`'s `--resume`, where the Go contract types it as *"a prior agent session id"* (`2026-09-18-phase-2-go-contract.md:1137`). And a resumed session is a **new sandbox** whose only mount was the worktree at `/home/dev/work` (`api/sessions.go:30,331`), so the old sandbox's `~/.claude` — where `claude --resume` reads its state (`docs/FUNCTIONAL-SPEC.md:36`) — was gone with it.
 
-**A separate task fixes both, and lands before this one.** It mints a UUID per Claude Code session, starts the CLI with `--session-id <uuid>` (which `claude --help` 2.1.274 offers, *"must be a valid UUID"*), resumes by that UUID, and persists the conversation store so it survives into the new sandbox. **This check proves that fix works, and it depends on the fix landing first** — step 1 (h). Against a tree without it, it fails on its first assertion, for the reason above.
+**The Resume fix fixed both, and has landed** (`b4be570`, round 1 `2e3db79`). It mints a UUID per Claude Code session and starts the CLI with `--session-id <uuid>` (which `claude --help` 2.1.274 offers, *"must be a valid UUID"*). It resumes that UUID **as a fork**, `--resume <U> --fork-session --session-id <V>`, because the CLI accepts no other pairing. It persists `/home/dev/.claude/projects` and nothing wider, from `<state>/conversations/local/<worktree>/`, mode 0o700. The desktop still sends the cockpit id, on purpose, and the control plane resolves it (`sessionResolveResume`). And it refuses, with a 409 at the create, to resume a session whose conversation has no transcript (`sessionResumableConversation`). **This check proves that fix works** — step 1 (h) found it at `a38c268`.
 
-**What an agent can prove, and what it cannot.** Context continuing rests on two mechanical facts, and the check asserts both. **Identity**: the source sandbox was started with `--session-id <U>`, U a UUID, and the resumed sandbox with `--resume <U>` — the same U, and not the cockpit's id. **The store**: a marker file written into the source sandbox's conversation store before the kill is present in the resumed sandbox. The marker is a real file in the real persisted directory and stands in for nothing but itself: it proves the directory survives, which is exactly the property the fix adds. What no agent can prove is that the *agent remembers* — that needs a signed-in conversation, and signing in is the owner's (`CLAUDE.md`: users authenticate as themselves). That half is step 18, and the two together are the proof that Resume works.
+**What an agent can prove, and what it cannot.** Context continuing rests on two mechanical facts, and the check asserts both. **Identity**: the source sandbox was started with `--session-id <U>`, U a UUID, and the resumed sandbox with `--resume <U> --fork-session --session-id <V>`: the same U, not the cockpit's id, and V a new UUID. **The store**: the source's transcript `<U>.jsonl` is readable in the resumed sandbox, with the same line count. A session nobody spoke in has no transcript and cannot be resumed at all, so the check first seeds one: `claude -p <nonce> --session-id <U>` in the source sandbox, the way the Resume fix's own proof did (`resume-fix-report.md` §6 step 2). **The transcript is the marker.** It is a real file in the real persisted directory, so the synthetic `.e2e-resume-marker` of the first draft is gone; it proves the directory survives, which is exactly the property the fix adds. What no agent can prove is that the *agent remembers* — that needs a signed-in conversation, and signing in is the owner's (`CLAUDE.md`: users authenticate as themselves). That half is step 18, and the two together are the proof that Resume works.
 
 Insert above `await main();`:
 
@@ -1282,10 +1299,14 @@ check("c10.retry", "real-browser carry 10 + carry 9's overlay: Retry attach afte
   return { overlay: hit, sameTerminal: true };
 });
 
-/** Where Claude Code keeps its conversations inside a sandbox: the image's home is /home/dev
- *  (images/sandbox/Dockerfile). The resume fix decides how this directory survives into a new
- *  sandbox — read its commit, and narrow this constant if it persists only part of it. */
-const CLAUDE_STORE = "/home/dev/.claude";
+/** The persisted part of Claude Code's store inside a sandbox, and ONLY that part: the resume
+ *  fix mounts <state>/conversations/local/<worktree>/ here and nothing wider in ~/.claude
+ *  (sessionConversationDir, control-plane/internal/api/sessions.go; the Dockerfile's
+ *  `RUN mkdir -p /home/dev/.claude/projects`). A transcript is <this>/<cwd-slug>/<uuid>.jsonl,
+ *  and the harness runs in /home/dev/work, so the slug is -home-dev-work. */
+const CLAUDE_STORE = "/home/dev/.claude/projects";
+/** Where the harness runs, so a seeded transcript lands in the same slug as the session's. */
+const WORK = "/home/dev/work";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function argvOf(cid) {
@@ -1295,9 +1316,18 @@ function argvOf(cid) {
   return JSON.parse(m[1]);
 }
 const flagValue = (argv, flag) => { const i = argv.indexOf(flag); return i === -1 ? null : argv[i + 1]; };
-const inSandbox = (cid, script) => execFileSync("docker", ["exec", cid, "sh", "-c", script], { encoding: "utf8" }).trim();
+const inSandbox = (cid, script) => execFileSync("docker", ["exec", "-w", WORK, cid, "sh", "-c", script], { encoding: "utf8" }).trim();
+/** Runs `script` in the sandbox and returns its REAL exit code and output. The code goes
+ *  through a file, never a pipe: `cmd | tail` reports tail's status (the master plan's :52). */
+function runInSandbox(cid, script) {
+  const tag = `/tmp/e2e-${Date.now()}`;
+  inSandbox(cid, `( ${script} ) > ${tag}.out 2>&1; echo $? > ${tag}.rc; true`);
+  return { code: Number(inSandbox(cid, `cat ${tag}.rc`)), out: inSandbox(cid, `cat ${tag}.out; rm -f ${tag}.out ${tag}.rc`) };
+}
+/** `file` may be a glob: sh (dash) does not expand one in a redirection, so it is an argument. */
+const lineCount = (cid, file) => Number(inSandbox(cid, `cat ${file} | wc -l`));
 
-check("o2.resume", "open carry 2: Resume continues the same Claude conversation, with its store, in a new sandbox", async (h) => {
+check("o2.resume", "open carry 2: Resume forks the same Claude conversation, from its persisted transcript, in a new sandbox", async (h) => {
   const source = ctx.claude;
   const sourceCid = containerOf(source);
   if (sourceCid === "") throw new Error("the source session has no running sandbox to resume from");
@@ -1306,9 +1336,20 @@ check("o2.resume", "open carry 2: Resume continues the same Claude conversation,
     throw new Error(`the source was not started with --session-id <uuid> (got ${minted}); the resume fix has not landed — step 1 (h)`);
   }
 
-  // A real file in the real store, written before the kill destroys the source sandbox.
+  // Seed a real conversation. A session nobody spoke in has no transcript, and the control plane
+  // refuses to resume it (409 "Nothing has been said…", sessionResumableConversation). `-p`
+  // writes the user turn before the API call, even when not signed in (resume-fix-report §3), so
+  // its exit code is recorded, not asserted: unsigned, it exits 1 "Not logged in". THE MARKER IS
+  // THE TRANSCRIPT <U>.jsonl — a real file in the real persisted store, standing in for nothing.
   const nonce = `e2e-${Date.now()}`;
-  inSandbox(sourceCid, `mkdir -p ${CLAUDE_STORE} && printf %s ${nonce} > ${CLAUDE_STORE}/.e2e-resume-marker`);
+  const seed = runInSandbox(sourceCid, `claude -p ${nonce} --session-id ${minted}`);
+  const transcript = `${CLAUDE_STORE}/*/${minted}.jsonl`;
+  const seeded = Number(inSandbox(sourceCid, `ls ${transcript} 2>/dev/null | wc -l`));
+  if (seeded !== 1) {
+    throw new Error(`claude -p did not write ${transcript} (found ${seeded}; exit ${seed.code}: ${seed.out.slice(0, 200)})`);
+  }
+  if (!inSandbox(sourceCid, `cat ${transcript}`).includes(nonce)) throw new Error(`${minted}.jsonl does not hold ${nonce}`);
+  const sourceLines = lineCount(sourceCid, transcript);
 
   const before = await api("GET", `/v1/sessions/${source}`);
   await api("DELETE", `/v1/sessions/${source}`);
@@ -1324,33 +1365,81 @@ check("o2.resume", "open carry 2: Resume continues the same Claude conversation,
   ctx.created.push(resumed.id);
   const cid = await until("the resumed sandbox", () => containerOf(resumed.id), 30_000);
 
-  const resumedWith = flagValue(argvOf(cid), "--resume");
+  // A resume FORKS: --resume <U> --fork-session --session-id <V> (argv.go, claudeArgv). The CLI
+  // accepts that pairing and no other, and V names the fork so nothing reads the CLI's output.
+  const argv = argvOf(cid);
+  const resumedWith = flagValue(argv, "--resume");
   if (resumedWith !== minted) {
     throw new Error(`the resumed sandbox runs --resume ${resumedWith}; the source's Claude session id is ${minted}`);
   }
+  if (!argv.includes("--fork-session")) throw new Error(`the resume does not fork: ${JSON.stringify(argv)}`);
+  const fork = flagValue(argv, "--session-id");
+  if (fork === null || !UUID.test(fork)) throw new Error(`the fork is not named by a UUID --session-id (got ${fork})`);
+  if (fork === minted) throw new Error(`the fork reuses the source's id ${minted}; the CLI refuses a --session-id already in use`);
   for (const k of ["harness", "model", "effort", "permissionMode", "worktreeId"]) {
     if (resumed[k] !== before[k]) throw new Error(`resumed ${k} is ${JSON.stringify(resumed[k])}; the source's was ${JSON.stringify(before[k])}`);
   }
-  const marker = inSandbox(cid, `cat ${CLAUDE_STORE}/.e2e-resume-marker 2>/dev/null || true`);
-  if (marker !== nonce) {
-    throw new Error(`the conversation store did not survive into the new sandbox: marker ${JSON.stringify(marker)}, want ${nonce}`);
-  }
-  // Recorded, not asserted: the harness's Claude never signed in, so it wrote no transcript.
-  const transcripts = Number(inSandbox(cid, `ls ${CLAUDE_STORE}/projects/*/${minted}.jsonl 2>/dev/null | wc -l`));
-  inSandbox(cid, `rm -f ${CLAUDE_STORE}/.e2e-resume-marker`);
-  return { claudeSessionId: minted, resumedWith, storeSurvived: true, transcriptFiles: transcripts };
+  // The store survived: the new sandbox reads <U>.jsonl, and the source is untouched by the fork.
+  const readable = runInSandbox(cid, `cat ${transcript} > /dev/null`);
+  if (readable.code !== 0) throw new Error(`the resumed sandbox cannot read ${transcript}: exit ${readable.code} ${readable.out}`);
+  const resumedLines = lineCount(cid, transcript);
+  if (resumedLines !== sourceLines) throw new Error(`${minted}.jsonl has ${resumedLines} lines after the resume; it had ${sourceLines}`);
+  // Recorded, not asserted: whether the fork's own transcript exists yet. The interactive CLI
+  // writes <V>.jsonl only once something is said, and nobody signed in to say it.
+  const forkFiles = Number(inSandbox(cid, `ls ${CLAUDE_STORE}/*/${fork}.jsonl 2>/dev/null | wc -l`));
+  return { claudeSessionId: minted, resumedWith, forkedAs: fork, sourceLines, resumedLines,
+           seedExit: seed.code, forkTranscriptFiles: forkFiles };
+});
+
+/** The identity step 6 exported. The explicit pair wins over the host's git (sandbox fix §4). */
+const GIT_NAME = process.env.PANACEA_APP_GIT_NAME ?? "";
+const GIT_EMAIL = process.env.PANACEA_APP_GIT_EMAIL ?? "";
+const CA_SET = (process.env.PANACEA_APP_CA_BUNDLE ?? "") !== "";
+
+check("g.primary", "sandbox git + CA fix: git works in a session on a primary worktree, as the configured identity", async (h) => {
+  if (GIT_NAME === "" || GIT_EMAIL === "") throw new Error("PANACEA_APP_GIT_NAME/EMAIL are not exported in this shell — step 6");
+  // ctx.worktreeId is feat/e2e's LINKED worktree; this check needs main's, the clone itself.
+  const main = (await api("GET", `/v1/projects/${ctx.projectId}/branches`)).branches.find((b) => b.name === "main");
+  const wt = (await api("GET", `/v1/projects/${ctx.projectId}/worktrees?branchId=${main.id}`)).worktrees[0];
+  if (wt?.isPrimary !== true) throw new Error(`main's worktree is not primary: ${JSON.stringify(wt)}`);
+  const s = await api("POST", "/v1/sessions", { machineId: ctx.machineId, worktreeId: wt.id, harness: "shell", title: "e2e-git" });
+  ctx.created.push(s.id);
+  const cid = await until("the git session's sandbox", () => containerOf(s.id), 30_000);
+
+  // Preflight (h)'s mechanical signal, in a created sandbox: the fix's names in docker inspect.
+  const env = execFileSync("docker", ["inspect", "--format", "{{range .Config.Env}}{{println .}}{{end}}", cid], { encoding: "utf8" });
+  const want = [/^GIT_CONFIG_COUNT=\d+$/m, new RegExp(`^GIT_AUTHOR_NAME=${GIT_NAME}$`, "m"), new RegExp(`^GIT_COMMITTER_EMAIL=${GIT_EMAIL.replace(/\./g, "\\.")}$`, "m")];
+  for (const re of want) if (!re.test(env)) throw new Error(`the sandbox's env lacks ${re}`);
+  if (/^NODE_EXTRA_CA_CERTS=\/etc\/panacea-app\/ca-bundle\.pem$/m.test(env) !== CA_SET) throw new Error(`NODE_EXTRA_CA_CERTS does not follow PANACEA_APP_CA_BUNDLE (set: ${CA_SET})`);
+  if (/^(SSL_CERT_FILE|NODE_TLS_REJECT_UNAUTHORIZED)=/m.test(env)) throw new Error("the sandbox replaces or disables TLS verification");
+
+  // Real exit codes, through a file (runInSandbox), never a pipe.
+  const status = runInSandbox(cid, `git -C ${WORK} status`);
+  if (status.code !== 0) throw new Error(`git status on the primary worktree exited ${status.code}: ${status.out}`);
+  const scope = runInSandbox(cid, `git -C ${WORK} config --show-scope --get-all safe.directory`);
+  if (scope.code !== 0 || !/^command\s.*\/home\/dev\/work$/m.test(scope.out)) throw new Error(`safe.directory is not command-scope ${WORK}: ${scope.out}`);
+  const commit = runInSandbox(cid, `git -C ${WORK} commit --allow-empty -q -m "e2e: g.primary"`);
+  if (commit.code !== 0) throw new Error(`a commit on the primary worktree exited ${commit.code}: ${commit.out}`);
+  const who = inSandbox(cid, `git -C ${WORK} log -1 --format='%an <%ae> / %cn <%ce>'`);
+  const expect = `${GIT_NAME} <${GIT_EMAIL}> / ${GIT_NAME} <${GIT_EMAIL}>`;
+  if (who !== expect) throw new Error(`the commit's author/committer is ${who}; want ${expect}`);
+  return { worktree: wt.id, statusExit: status.code, commitExit: commit.code, identity: who, caMounted: CA_SET };
 });
 ```
 
 ```bash
-PANACEA_E2E_ONLY=c10.retry,o2.resume npm run e2e
+PANACEA_E2E_ONLY=c10.retry,o2.resume,g.primary npm run e2e
 ```
 
 (Run in the same shell as step 13, with its exports still set.)
 
-**What you must see.** `c10.retry` `"ok":true`, with `observed.overlay` reading `{"corner":true,"inTerminal":true,"onStrip":false}`; it takes a minute or more, because the ladder must genuinely spend its budget. `o2.resume` `"ok":true`, with `observed.claudeSessionId` a UUID, `resumedWith` the same UUID, `storeSurvived: true`, and `transcriptFiles: 0` — zero because the harness's Claude Code session never signed in and so never wrote a conversation; step 18 is where a real one exists. Record the whole line.
+**What you must see.** `c10.retry` `"ok":true`, with `observed.overlay` reading `{"corner":true,"inTerminal":true,"onStrip":false}`; it takes a minute or more, because the ladder must genuinely spend its budget. `o2.resume` `"ok":true`, with `observed.claudeSessionId` a UUID U, `resumedWith` the same U, `forkedAs` a different UUID V, and `sourceLines` equal to `resumedLines` (the fork left the source untouched). `seedExit` is recorded, not asserted: `1` with *"Not logged in"* is expected, because `-p` writes the user turn before it fails. `forkTranscriptFiles` is recorded, not asserted, and is most likely `0`: the fork's interactive CLI writes `<V>.jsonl` only once something is said, and nobody signed in to say it. Step 18 is where a reply exists. `g.primary` `"ok":true`, with `statusExit: 0`, `commitExit: 0`, and `identity` reading `Panacea E2E <e2e@invalid> / Panacea E2E <e2e@invalid>`. Record every line whole.
 
-**`o2.resume` failures, each naming a different half.** *The source was not started with `--session-id`* means the resume fix is absent — step 1 (h) should already have said so, and this is not a new finding. *The resumed sandbox runs `--resume X`* with X the cockpit's `s-` id means the fix changed the Go side and not `client.ts:358`, or the reverse. *The conversation store did not survive* means identity is fixed and persistence is not: the resumed agent would know which conversation to open and find nothing there, which is the failure that looks like success. Each goes to the orchestrator against the resume fix, not fixed here. **If `CLAUDE_STORE` is not where the fix persists**, the marker check fails on a harness assumption: read the fix's commit, correct the constant, and say so in the commit body.
+**`o2.resume` failures, each naming a different half.** *The source was not started with `--session-id`* means the resume fix is absent — step 1 (h) should already have said so, and this is not a new finding. *`claude -p` did not write `<U>.jsonl`* means the seeding failed: read `seed.out` in the message. If it says the session id is already in use, the source's interactive CLI claimed U first, which is **unverified**: the Resume fix's own proof seeded a sandbox whose interactive CLI had already exited on TLS. That is a harness assumption failing, so report it and do not work around it. *`409 Nothing has been said in that session yet`* from the Resume click means the control plane found no `<U>.jsonl` in the **host** store (`sessionResumableConversation`, `2e3db79`): the seed wrote somewhere other than the persisted mount. *The resumed sandbox runs `--resume X`* with X the cockpit's `s-` id means the control plane did not resolve the cockpit id (`sessionResolveResume`). The desktop sends the cockpit id on purpose, so `client.ts` is not the suspect. *The resume does not fork*, or *the fork reuses the source's id*, means `argv.go`'s `claudeArgv` regressed, and the CLI would refuse that argv outright. *Cannot read `<U>.jsonl`*, or a line count that moved, means identity is fixed and persistence is not. The resumed agent would know which conversation to open and find nothing there, or a damaged one, which is the failure that looks like success. Each goes to the orchestrator against the resume fix, not fixed here.
+
+**`g.primary` failures.** *The sandbox's env lacks …* means the git + CA fix is absent, or step 6's exports did not reach this binary: check `tasklist` against the PID before calling it a defect. *`git status` exited 128* with "dubious ownership" means `safe.directory` did not arrive. With "not a git repository", the worktree is a linked one: the check picked the wrong worktree. *The commit exited 128* with "Author identity unknown" means the identity did not arrive, and `user.useConfigOnly` refused, which is the fix's design working on a missing input. *The author is someone else* means the explicit pair lost to another source, and it goes to the orchestrator against the git fix.
+
+**A further check the Resume fix's round 1 makes possible is recorded, not built** (reconcile item 12, the owner's call on the count): seed `<U>.jsonl`, Restart the source, then Resume it before anything is said in the restarted sandbox. The resumed argv must carry `--resume <U>`, the conversation the restart cleared (`earlierConversationIds`), not the restart's new id. It is not in the nineteen.
 
 **`c10.retry` failures.** *The pane reconnected without Retry* means `failed` is not terminal, which contradicts `group-d-open-carries.md:30-31` and task 22's design; report it with the socket timings. *Retry rebuilt the terminal* is carry 10's failure — the same claim as carry 1, failing on a different path. A `getByRole("menuitem")` that finds nothing means the `⋯` menu's rows are not `role="menuitem"`; read `SessionMenu.tsx` and select by the row's text instead — that is a harness correction, not an app defect.
 
