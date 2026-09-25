@@ -1048,3 +1048,97 @@ func importContent(it hubapi.ImportItem) hubapi.IssueRevisionContent {
 		Serves: []hubapi.Serve{}, Implements: []string{}}
 }
 ```
+
+Block 2: the imported issue, label matching, and search.
+
+```go
+// matchLabels is the team's live label ids for names, case-insensitively; a
+// name with none is added once to unmatched. An import never creates a label.
+func (w *fakeWorld) matchLabels(teamID string, names []string, unmatched *[]string) []string {
+	out := []string{}
+	for _, n := range names {
+		i := slices.IndexFunc(inOrder(w.soc().labels), func(l *fakeLabel) bool {
+			return l.label.TeamID == teamID && l.archivedAt == "" && sameName(l.label.Name, n)
+		})
+		switch {
+		case i >= 0:
+			if id := inOrder(w.soc().labels)[i].label.ID; !slices.Contains(out, id) {
+				out = append(out, id)
+			}
+		case !slices.ContainsFunc(*unmatched, func(u string) bool { return sameName(u, n) }):
+			*unmatched = append(*unmatched, n)
+		}
+	}
+	return out
+}
+
+// insertImported is CreateIssue's write for an intake item: triage whatever
+// the team's default, not_tied/imported, source intake, one issue.created,
+// and no subscription for the importer (task 15, task 13's exception).
+func (w *fakeWorld) insertImported(me string, p *fakeProject, source string, it hubapi.ImportItem, labels []string) *fakeIssue {
+	wk := w.wk()
+	id := ids.Wide(hubapi.PrefixIssue)
+	content := importContent(it)
+	digest, _, _ := hubapi.IssueRevisionDigest(hubapi.IssueRevisionEnvelope{IssueID: id, Revision: 1,
+		ProjectID: p.id, Content: content}) // checked before the first write
+	priority := it.Priority
+	if priority == "" {
+		priority = hubapi.PriorityNone
+	}
+	wk.numbers[p.id]++
+	now := w.stamp()
+	is := &fakeIssue{teamID: p.teamID, createdBy: me, notTied: hubapi.NotTiedImported, seq: w.next(),
+		head: hubapi.IssueHead{ID: id, ProjectID: p.id, Number: wk.numbers[p.id], State: hubapi.StateTriage,
+			Priority: priority, Labels: labels, HeadRevision: 1, Source: hubapi.SourceIntake,
+			External: &hubapi.ExternalRef{Source: source, ExternalID: it.ExternalID, URL: it.URL, AuthorName: it.AuthorName},
+			CreatedAt: now, UpdatedAt: now}}
+	is.revisions = []*hubapi.IssueRevision{{IssueID: id, Revision: 1, Key: hubapi.IssueKey{IssueID: id, Revision: 1}.String(),
+		Digest: digest, ProjectID: p.id, Content: content, WrittenAt: now, WrittenBy: *w.userRef(me)}}
+	wk.issues[id] = is
+	w.workEvent(me, fkEventIssueCreated, p.teamID, p.id, id, map[string]any{"number": int64(is.head.Number),
+		"key": is.revisions[0].Key, "digest": digest.String(), "state": string(hubapi.StateTriage),
+		"source": string(hubapi.SourceIntake)})
+	return is
+}
+
+// SearchIssues matches titles only, case-insensitively, in the caller's
+// readable projects, never an erased issue's; newest first; at most 50.
+func (f *Fake) SearchIssues(_ context.Context, q hubapi.IssueSearchQuery) ([]hubapi.IssueHead, error) {
+	w := f.w
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	me, err := f.enter("SearchIssues", q)
+	if err != nil {
+		return nil, err
+	}
+	needle := strings.ToLower(strings.TrimSpace(q.Q))
+	limit := q.Limit
+	switch {
+	case needle == "" || utf8.RuneCountInString(needle) > 200:
+		return nil, badRequest("q", "A search is 1 to 200 characters.")
+	case limit == 0:
+		limit = 50
+	case limit < 0 || limit > 50:
+		return nil, badRequest("limit", "A search returns at most 50 issues.")
+	}
+	if q.ProjectID != "" {
+		if _, _, err := w.projectOf(q.ProjectID, me); err != nil {
+			return nil, err
+		}
+	}
+	var rows []*fakeIssue
+	for _, is := range w.wk().issues {
+		if w.teams[is.teamID].members[me] != nil && !w.soc().erased[is.head.ID] &&
+			(q.ProjectID == "" || is.head.ProjectID == q.ProjectID) &&
+			strings.Contains(strings.ToLower(is.headRev().Content.Title.Text), needle) {
+			rows = append(rows, is)
+		}
+	}
+	slices.SortFunc(rows, func(a, b *fakeIssue) int { return int(b.seq - a.seq) })
+	out := []hubapi.IssueHead{}
+	for _, is := range rows[:min(limit, len(rows))] {
+		out = append(out, w.renderIssue(is))
+	}
+	return out, nil
+}
+```
