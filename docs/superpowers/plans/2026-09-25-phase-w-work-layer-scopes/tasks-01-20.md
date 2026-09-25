@@ -421,4 +421,47 @@ settings, with 11), **L-3** (the key and the alias; closed with the desktop row,
 46), **L-13** and **L-38** (priority and the one human assignee; closed with the issue view and
 the lens), **L-239** (every write's attributed event; the Hub's audit route already exists).
 
+**09 — issue revisions, `serves`, restore and attachments; `/v1/refs` resolves `issue:`.** W1,
+stream WH, seam **SW.1** (the revision's server side); depends on 08 and Hub tasks H19 (the batch
+revision write and history), H20 (`/v1/refs`, brief half) and H21 (blobs). Files: new
+`store/work_revisions.go`, `server/work_revisions.go`, `server/work_revisions_integration_test.go`;
+`server/refs.go` ⚑ (Hub task 20's file, the path per the Hub plan's file map, **UNVERIFIED until
+merge**) gains one `case hubapi.KeyIssue`; `hubapi/types.go` ⚑ gains, additively, `Issue
+*IssueRevision "issue"` on `RefResult` (`types.go:322-328`, null for every other kind) and
+`IssueHeads map[string]IssueHeadInfo "issueHeads"` on `RefsResponse` (`:336-339`, `{}` when none;
+`IssueHeadInfo{headRevision, erased}`), so the brief `heads` map keeps its meaning. Routes: `POST
+/v1/issues/{issueId}/revisions` (`WriteIssueRevisionRequest{baseRevision, content}`: 409
+`revision_conflict` on a stale base, gapless revision numbers under two concurrent writers, as
+hub-contract's H3 row :2250 for briefs); `GET /v1/issues/{issueId}/revisions`
+(`Page[IssueRevision]` without `content`, newest first); `GET /v1/issues/{issueId}/revisions/{rev}`;
+`POST /v1/issues/{issueId}/revisions/{rev}/restore` (writes a **new** revision whose content is
+`rev`'s and whose `restoredFrom` is `rev`; L-34); `POST`/`GET /v1/issues/{issueId}/attachments`
+(`{digest}` naming a blob already `PUT` to the project, hub-contract routes 28-29; the blob's
+existence and project are checked; L-45). The store validates each revision with
+`hubapi.ValidateIssueRevisionContent`, checks that every `serves.briefKey` resolves `resolved` in
+the **same** project and that its `criterionId` is a criterion of that brief revision (via the
+brief store's read, never by parsing the brief in the handler), writes `canonical` and `digest`
+from `IssueRevisionDigest`, rewrites `issue_serves` for the new revision only, moves
+`issues.head_revision`, and appends **one** event `issue.revised` `{"key", "revision", "digest",
+"servesCount", "restoredFrom"}` (no text). `/v1/refs` answers an `issue:` key `resolved` (with the
+revision and its content) when readable and its bytes re-hash to the stored digest; `missing` when
+absent, unreadable or failing the re-hash (hub-contract:817-840's rules, unchanged); `erased`
+with `content: null` after task 14's erase. **Tests**, each with its mutant: two writers on base 3
+give one 201 and one 409, and revisions are 1..4 with no gap (kills an unlocked head read);
+restoring `@2` at head `@5` creates `@6` equal in content to `@2` and leaves `@2`'s digest
+untouched (kills an in-place restore); a `serves` naming a brief in another project, or a
+criterion id absent from that brief revision, is 422 naming `content.serves[0]` (kills an issue
+serving a criterion it cannot see, which would break the thread); `/v1/refs` with a mix of 100
+`brief:`, `design:` and `issue:` keys answers each slot in order, and an `issue:` key of another
+team's project is `missing`, not 403 (kills a readability leak, hub-contract T4 :2072); an
+owner-role edit of one revision's `canonical` makes that key `missing` (kills a resolver that
+trusts the stored digest without re-hashing); an attachment naming an unknown digest is 404 and one
+from another project is 404 (kills attaching someone else's blob); `PATCH`ing priority 50 times
+leaves `headRevision` unchanged (the agent's context stays valid; kills a revision per head write).
+It **does not claim** phase 4's parser or `Ref.Kind` (task 18), the editor or the revisions UI
+(tasks 46-50), or erase (14). Parity rows served: **L-34** (autosave history and restore, as
+immutable digested revisions; closed with the issue view's `Revisions`, task 46), **L-45**
+(attachments; closed with task 52), **L-124** (author class stored on every text), and the Hub half
+of **L-191** (what the agent was told is recoverable byte for byte; closed with task 19).
+
 
