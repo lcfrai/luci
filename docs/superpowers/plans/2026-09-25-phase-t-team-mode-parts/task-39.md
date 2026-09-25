@@ -255,3 +255,240 @@ failed handshake.
   a revocation is dropped, never delivered. The relay creates no frame: every up-message is a
   client message, forwarded as the same bytes.
 
+#### `RouteAgent` (modify task 12's `server.go`: one method, complete)
+
+```go
+// RouteAgent registers a route keyed by {ag}, not {p}. It resolves the
+// agent's project, authorises against it exactly as Route does, and folds
+// every refusal that could depend on the agent (no such agent, not a member
+// of its project, a role the verb refuses) into ONE 404, so an ag-… id is
+// not an oracle (task 39 decision b). A Hub outage stays a 503: it says
+// nothing about the agent.
+func (s *Server) RouteAgent(pattern string, v Verb,
+	resolve func(ctx context.Context, ag string) (project string), h Handler) {
+	if _, ok := table[v]; !ok {
+		panic("server: route " + pattern + " names verb " + string(v) + ", which has no §3.4 row")
+	}
+	inner := s.authorize(v, h)
+	s.mux.Handle(pattern, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		project := resolve(r.Context(), r.PathValue("ag"))
+		if project == "" {
+			notFound(w)
+			return
+		}
+		r.SetPathValue("p", project) // authorize reads {p}
+		rec := &refusalFolder{ResponseWriter: w}
+		inner.ServeHTTP(rec, r)
+	}))
+}
+```
+
+`refusalFolder` is a `ResponseWriter` wrapper whose `WriteHeader(403)` writes `notFound`'s bytes
+instead, and passes every other status through; it implements `http.Hijacker` by delegation, so
+the WebSocket upgrade inside the handler still works (`coder/websocket`'s `Accept` needs it).
+`notFound(w)` is `httpx.WriteProblem(w, 404, "agent_not_found", "No such agent.", nil)`, the same
+call the handler makes, so all three refusals are byte-identical. `http.Request.SetPathValue` is
+Go 1.22+, inside the 1.23 floor.
+
+#### `revoke.go` (complete public surface)
+
+```go
+package relay
+
+// socket is one open attach on this replica.
+type socket struct {
+	id        string // at-…, ids.Wide("at"), never leaves Fleet
+	agent     model.Agent
+	dl        string // the delegation it rides, dl-…
+	key       delegation.Key
+	tid, oid  string
+	tokenExp  time.Time
+	live      atomic.Bool
+	client    *websocket.Conn
+	up        *websocket.Conn
+	timer     *time.Timer // fires at tokenExp: close CloseSignIn
+}
+
+type registry struct {
+	mu   sync.Mutex
+	open map[string]*socket // by id
+}
+
+// Store is the cross-replica attach table (decision e).
+type Store interface {
+	PutAttachment(ctx context.Context, id string, agent model.AgentID, replica string, at time.Time) error
+	HeartbeatAttachments(ctx context.Context, replica string, ids []string, at time.Time) error
+	DeleteAttachment(ctx context.Context, id string) error
+	AttachedSince(ctx context.Context, agent model.AgentID, since time.Time) (bool, error)
+	// DeleteReplicaAttachments clears a replica's rows at its start: a crash
+	// must not leave an agent "attached" for ever.
+	DeleteReplicaAttachments(ctx context.Context, replica string) error
+}
+
+// Revoke is delegation.Revoker on the leader: close this replica's sockets
+// riding d, at once. Other replicas close theirs in their own sweep.
+func (r *Relay) Revoke(ctx context.Context, d delegation.Delegation, why delegation.Reason) error
+
+// Resume does nothing for sockets: a renewed delegation re-admits NEW
+// upgrades; a closed socket is not reopened by Fleet (fleetbe re-dials).
+func (r *Relay) Resume(ctx context.Context, d delegation.Delegation) error
+
+// Run is the per-replica loop: every SweepEvery, close each socket whose
+// delegation is gone or expired in THIS replica's cache, or whose owner no
+// longer holds VerbSessionsOwn on the project (uncached Members); every
+// HeartbeatEvery, heartbeat this replica's rows.
+func (r *Relay) Run(ctx context.Context) error
+
+// Attached is task 38's check: any heartbeat inside AttachedWithin, on any
+// replica. A store error answers true (decision e).
+func (r *Relay) Attached(agent model.AgentID) bool
+
+// DialAttach is task 38's ptywriter.AttachDialer, under the agent owner's
+// delegation, through the same BrokerAttach.
+func (r *Relay) DialAttach(ctx context.Context, agent model.AgentID) (*websocket.Conn, error)
+```
+
+**Closing, in order**, for any cause: `live.Store(false)`; `client.Close(code, reason)` with
+`CloseAccessRemoved` / `"access removed"` for a revocation, a lapse or a lost membership, and
+`CloseSignIn` / `"sign in again"` at `tokenExp`; `up.CloseNow()`; `DeleteAttachment`; drop from
+`open`. Closing `up` detaches only: `sandboxd` keeps the process running when a client goes
+(`sandboxd/internal/server/server.go:200-203`), so a revocation ends the **view**, and task 20's
+own `Revoker` half stops the **session** (`task-11.md:576`). Nothing here destroys an agent.
+
+#### `00NN_attachments.sql` (complete; `NN` is the next Fleet migration number at merge)
+
+```sql
+CREATE TABLE fleet.attachments (
+  attach_id     text        PRIMARY KEY CHECK (attach_id ~ '^at-'),
+  agent_id      text        NOT NULL CHECK (agent_id ~ '^ag-'),
+  replica       text        NOT NULL,
+  heartbeat_at  timestamptz NOT NULL
+);
+CREATE INDEX attachments_by_agent ON fleet.attachments (agent_id, heartbeat_at);
+```
+
+The table holds which agent has a live viewer, nothing about who (the owner is the agent's by
+construction) and nothing the socket carried. `at-` is a Fleet-local prefix, like task 09's `ev-`,
+and never reaches the Hub.
+
+- [ ] **Step 1: Write the failing tests first**
+
+Fixture: Alice (`u-a`, member) with worker `ag-a1` on project `pj-1`; Bob (`u-b`, member of
+`pj-1`); Vera (`u-v`, viewer of `pj-1`); Adam (`u-ad`, admin of `pj-1`); Olga (`u-o`, member of
+another project only). Task 12's fake Entra validator and fake `Membership`; task 11's `Cache`
+with Alice's worker delegation `dl-a`; a fake `BrokerAttach` that returns one end of an
+in-process `coder/websocket` pair whose other end records every frame; a fake clock.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestBobCannotAttachToAlicesWorker` | Bob's valid token on `/v1/agents/ag-a1/attach`: 404 `agent_not_found`, **no** broker dial | an ownerless attach; a role check without the owner check |
+| `TestAdminCannotAttachToAlicesWorker` | Adam, admin: the same 404 | "admin sees everything" (OD-15) |
+| `TestNotYoursEqualsNotThere` | Bob on `ag-a1`, Olga on `ag-a1`, Vera on `ag-a1` and Alice on `ag-zz` (no such agent): four responses with identical status, headers `Content-Type` and body bytes | an id-existence oracle (403 vs 404, or a different title) |
+| `TestAliceAttaches` | Alice: `101`, the broker dialled with `dl-a` and the worker's sandbox, a 4 KB replay reaches her client unchanged | a handler that never relays, or re-encodes |
+| `TestOnlyStdinAndResizeGoUp` | Alice's client sends `0x01 "ls"`, `0x02 …`, `0x00 "x"`, `0x03 "y"` and an empty frame: the sandbox side receives exactly the first two, byte for byte | forwarding every kind, or rewriting bytes |
+| `TestNonOwnerInputNeverForwarded` | Bob's refused upgrade leaves zero frames at the sandbox; a frame Alice sends after `live` is set false is dropped | a keystroke racing a revocation |
+| `TestRevocationClosesInside60s` | `dl-a` revoked in the Hub fake: on a **non-leader** replica (no `Revoke` call at all), the socket closes with `4003` within 20 s of fake time (poll 10 s + sweep 10 s), and in every case before 60 s | relying on the leader's `Revoke` alone, which never reaches another replica's sockets |
+| `TestLeaderRevokeClosesAtOnce` | `Revoke(dl-a, Revoked)` on the socket's replica: closed `4003` before `Revoke` returns | a fast path that waits for the sweep |
+| `TestLostMembershipCloses` | Alice removed from `pj-1` in the fake `Membership`, delegation still cached: closed `4003` at the next sweep | re-checking only the delegation, or reading the 60 s cache |
+| `TestTokenExpiryCloses4001` | a token with `exp` at t+5 min: open at t, closed `4001` at t+5 min exactly | a socket outliving the token that opened it |
+| `TestCloseDetachesOnly` | after any close, the sandbox side saw a normal client close and **no** destroy call on the fake broker | a revocation that kills the agent from the relay |
+| `TestAttachedAcrossReplicas` | Alice's socket on replica A; `Attached(ag-a1)` on replica B (same store) is true; 31 s after A's last heartbeat, false; a store error: true | per-replica memory, or failing towards "not attached" |
+| `TestReplicaStartClearsItsRows` | rows left by a crashed replica `r1` are deleted when `r1` starts | an agent "attached" for ever after a crash |
+| `TestRelayOriginatesNoFrame` | over a session with no client input, the sandbox side receives zero frames | a keepalive or a hello written as Stdin |
+| `TestAttachInZ5` | task 12's matrix test gains the attach route: viewer, auditor, compliance, org admin, nobody → the 404; member own → 101; member not own → the 404 | a route outside §3.4 |
+
+```bash
+cd control-plane && go test ./internal/fleet/relay/... ./internal/fleet/server/... 2>&1 | head -3
+```
+
+Expected: `undefined: New` (build failure).
+
+- [ ] **Step 2: `RouteAgent` and `refusalFolder` in task 12's `server.go`**
+
+Add the attach row to `TestTheTableIsSection34`'s route half; run task 12's tests: every existing
+row still passes.
+
+- [ ] **Step 3: `attach.go`, then `revoke.go`, the migration and the store methods**
+
+`memstore` and `pgstore` gain `relay.Store`; `storetest.Suite` gains the heartbeat window and the
+replica-clear case, so both stores pass the same table.
+
+- [ ] **Step 4: `fleetbe`'s close codes (task 21's file)**
+
+`4001`: re-dial once with a fresh token from the desktop's token source; a second `4001` inside
+one minute is returned as `backend.ErrNotRunning` (no loop). `4003`: `backend.ErrNotRunning` at
+once. One test each in `fleetbe`'s `attach_test.go`.
+
+- [ ] **Step 5: Wire it**
+
+In `cmd/fleetd/main.go`: `rel := relay.New(relay.Deps{…, Replica: cfg.ReplicaID})`;
+`DeleteReplicaAttachments(cfg.ReplicaID)` before serving; `srv.RouteAgent("GET
+/v1/agents/{ag}/attach", server.VerbSessionsOwn, rel.Resolve, rel.Handler())` in place of task
+21's `501` stub; add `rel` to task 11's `Revoker` fan-out beside tasks 20 and 23; `go rel.Run(ctx)`;
+hand `rel` to task 38 as `Attached` and as the writer's `AttachDialer`, replacing task 38's
+always-attached stub. `cfg.ReplicaID` is the pod name (`POD_NAME` from the downward API, task
+32's chart); **required of task 12** if its config has no replica id.
+
+- [ ] **Step 6: Acceptance**
+
+```bash
+cd control-plane && go vet ./internal/fleet/... ./internal/backend/fleetbe/... ./cmd/fleetd/... && go test ./internal/fleet/relay/... ./internal/fleet/server/... ./internal/fleet/store/... ./internal/backend/fleetbe/... -count=1 -race
+```
+
+Expected: `ok` for each, `-race` clean; the Postgres half of `storetest.Suite` runs where
+`PANACEA_APP_FLEET_TEST_PG_DSN` is set. Then two guards, each of which must print nothing. No
+Fleet package reuses phase 2's handler:
+
+```bash
+cd control-plane && grep -rn "internal/api\"" internal/fleet cmd/fleetd --include=*.go
+```
+
+and the relay never builds a frame (it forwards client messages only; task 38's guard excludes
+this package by name on that promise):
+
+```bash
+cd control-plane && grep -nE "frameStdin\)|append\(\[\]byte\{|\[\]byte\{0x0" internal/fleet/relay/*.go | grep -v _test.go
+```
+
+The second guard matches a frame being **built**; the kind constants are compared, never written.
+The 60-second bound on the real cluster is task 44's end-to-end revocation test (skeleton task
+list), deferred there because it needs two replicas behind the real load balancer.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add control-plane/internal/fleet/relay control-plane/internal/fleet/store
+git commit -F <msgfile> -- control-plane/internal/fleet/relay control-plane/internal/fleet/server control-plane/internal/fleet/store control-plane/internal/backend/fleetbe/attach.go control-plane/internal/backend/fleetbe/attach_test.go control-plane/cmd/fleetd/main.go
+```
+
+**What this task does NOT claim.**
+- **That a revocation stops the agent.** It closes the view. Task 20's `Revoker` half stops or
+  pauses the session; this task only proves the socket closes.
+- **60 s on the real cluster.** Proven here in fake time, per replica; the two-replica,
+  real-load-balancer run is task 44's.
+- **A teammate view.** No principal but the owner attaches. The opt-in watch view is TM3 (§9.6).
+- **That the relay's up-direction check reads no meaning.** It reads one byte, the frame kind, of
+  a protocol Fleet and `sandboxd` define; never the payload. That is framing, not PTY content, and
+  it is the only byte inspected.
+- **Protection from a compromised Fleet.** A Fleet replica holds every member's delegations and
+  can dial any sandbox through the broker; the broker's own delegation check (task 17) is the
+  second line, and the Hub's audit of every delegation is the third. This handler closes the
+  **front** door only.
+- **That `websocket.Accept`'s default origin rule is right for a browser.** Fleet's only client is
+  `fleetbe` (Go, no `Origin`). A browser client would need an explicit origin list; none exists.
+
+**Gaps against the skeleton, raised here and not resolved alone:**
+1. **Task 21's route has no `{p}`** (`task-21.md:87`) while task 12's `authorize` needs one
+   (`task-12.md:419-420`). Resolved here by `RouteAgent`, a new method on task 12's server; task
+   12's part should list it.
+2. **Task 11's `Revoker` runs on the leader only** (`task-11.md:591-593`); sockets are
+   per-replica. Resolved here by a per-replica sweep over each replica's own `Cache`; tasks 20 and
+   23 should check whether their halves have the same shape of problem (a session or lease held
+   in one replica's memory).
+3. **Task 12 needs a replica id** in its config for `fleet.attachments` (the pod name), and task
+   32's chart must pass `POD_NAME`.
+4. **Task 20 must expose `Current(ctx, agent)` for workers too**, not only Orchestrators (task
+   26 names it for `orch`, `task-26.md:512-514`).
+5. **Close codes.** `4001` and `4003` are defined here and in task 17 (`4003 delegation ended`);
+   one list should live in task 09's wire file so `fleetbe`, the broker and Fleet share it.
+
