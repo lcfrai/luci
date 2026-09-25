@@ -1081,3 +1081,98 @@ cd desktop && npm test -- team 2>&1 | tail -5
 ```
 
 Expected: `undefined: verbs.TeamHuman` and similar; Vitest fails to resolve `./team`. That is the red.
+
+- [ ] **Step 2: The Fleet side**
+
+`teamhuman.go` as above; `BuildHuman` reads `s.Store` for live agents of the project, then per
+agent `Cards`, `Briefs`, `People`, `Activity` (nil reads as no files, TM1-α's state), leases from
+`s.Store`, and `Reports` only for a waiting-on-human worker. `desk.go` registers the three routes
+from task 12's `New` (one call, `s.RegisterDesk(deps)`). Both run under `go test` with task 22's
+fakes; no Postgres.
+
+- [ ] **Step 3: `fleetbe/team.go`**
+
+Three methods on task 21's `do` helper. The thread-message call passes `after` and `limit`
+through as the Hub's `PageRequest` query, never re-paging.
+
+- [ ] **Step 4: `teamview.go`, `teamassemble.go`, then `team.go`**
+
+Types first, then the pure functions until `teamassemble_test.go` is green, then the handlers.
+Each handler: `Viewer.Me`; `Projects.IsTeam` (solo: the empty body, no Fleet call);
+`Projects.HubProject`; the reads (in parallel with `errgroup` for the Desk, one goroutine per team
+project, bounded at 4); assemble; write. The person route reuses the strip's `TeamHuman` if it is
+under 2 s old (one cached value per project, keyed by the Hub project id), so a click-in right
+after a poll makes no Fleet call. `api.go` gains one line beside `a.registerAttach(guarded)`:
+`a.registerTeam(guarded)`.
+
+Write the six fixtures by running the assembly over the test inputs once and **reading** each
+output before committing it; the fixture is then the contract, and task 51's sample must match its
+keys (a key present in one and not the other is a review finding for both tasks).
+
+- [ ] **Step 5: The desktop client, types and slice**
+
+`types.ts` team block and `Session.teamScope`; `createTransport` lifted in `client.ts`; `team.ts`;
+`teamSlice.ts`; `store.ts`. The fixtures helper `desktop/src/test/teamFixtures.ts` reads each JSON
+and checks it with `satisfies` so `npm run typecheck` fails on a drifted field.
+
+- [ ] **Step 6: Acceptance**
+
+```bash
+cd control-plane && go vet ./... && go test ./internal/api/... ./internal/fleet/verbs/... ./internal/fleet/server/... ./internal/backend/fleetbe/... -count=1
+cd desktop && npm run typecheck && npm test
+```
+
+Expected: `ok` for the four Go packages, and every test named above under `-v`; `tsc` prints
+nothing; Vitest reports all files passed, phase 2's `client.test.ts` and `store.test.ts` among
+them unchanged in count. Then the leak guard, which must print nothing:
+
+```bash
+cd control-plane && grep -n "Transcript\|OpeningPrompt\|AttachToken\|Terminal" internal/api/teamview.go internal/fleet/verbs/teamhuman.go
+```
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add control-plane/internal/api/team.go control-plane/internal/api/teamview.go \
+  control-plane/internal/api/teamassemble.go control-plane/internal/api/team_test.go \
+  control-plane/internal/api/teamassemble_test.go control-plane/internal/api/testdata/team-view \
+  control-plane/internal/fleet/verbs/teamhuman.go control-plane/internal/fleet/verbs/teamhuman_test.go \
+  control-plane/internal/fleet/server/desk.go control-plane/internal/fleet/server/desk_test.go \
+  control-plane/internal/backend/fleetbe/team.go desktop/src/api/team.ts desktop/src/api/team.test.ts \
+  desktop/src/store/slices/teamSlice.ts desktop/src/store/slices/teamSlice.test.ts desktop/src/test/teamFixtures.ts
+git commit -F <msgfile> -- control-plane/internal/api control-plane/internal/fleet/verbs/teamhuman.go \
+  control-plane/internal/fleet/verbs/teamhuman_test.go control-plane/internal/fleet/server/desk.go \
+  control-plane/internal/fleet/server/desk_test.go control-plane/internal/backend/fleetbe/team.go \
+  desktop/src/api desktop/src/store desktop/src/test/teamFixtures.ts
+```
+
+**What this task does NOT claim.**
+- That any of it runs against a real Fleet or Hub. Every test uses fakes; task 57 is the first
+  time two real people's desktops read these routes.
+- That activity is present. Until task 35 lands, `Sources.Activity` is nil and every `files` list
+  is empty; the strip then shows the line and status only. Task 53 renders that state correctly,
+  and nothing here pretends otherwise.
+- That the read cursor follows a user across devices (decision e).
+- That the Hub serves turn replies, desk reads of task titles, or a local-to-Hub project id. Each is
+  a gap below; until closed, the matching field is `null` or the route answers `501
+  not_implemented`, and the fixtures show both states.
+- Rendering. Tasks 53–56 own every pixel; this task ships no component.
+
+**Gaps (for the skeleton's owner).**
+- **G52-1.** Task 01 §7.14 (`task-01.md:347-348`) returns a task's `title` only to Fleet·O, but
+  §9.1 shows it on the strip to humans and the scope of task 52 names it in the assembled line.
+  Fleet serves it here from its own `Card` to a desktop under `VerbTeamRead`. Either task 01 admits
+  `desk` readers (recommended: "Fleet·O and members' desktops; never Fleet·W"), or `HumanAgent.Title`
+  is dropped and the line is the brief section and the agent count only. Owner call.
+- **G52-2.** No Hub route reads a turn's kept reply (task 26's *"readable by the owner and an org
+  auditor"*, `task-26.md:678-683`, names no route). Proposed: route 80, `GET
+  /v1/projects/{projectId}/turns?origin=human`, own only, `turns.read` never granted to Fleet·W.
+  Until then `conversation` holds human messages and directives, and no replies.
+- **G52-3.** The file map lacks `cp/internal/fleet/server/desk.go`, `verbs/teamhuman.go` and
+  `fleetbe/team.go`; the three are required because only Fleet holds activity, presence and open
+  thread state.
+- **G52-4.** No task maps the cockpit's project id (`p-…`, `types.ts:10`) to the Hub's `pj-…`
+  (task 21's `TeamProjects` has the same gap, `task-21.md:361-367`).
+- **G52-5.** The spend split's read route is task 37's to define (unwritten here); `spend` is
+  `null` until it exists. Also: task 12's `Member.UserID` comment says `us-…` (`task-12.md:312`)
+  where the Hub's prefix is `u` (`hub …/hubapi/keys.go:18`, checked).
