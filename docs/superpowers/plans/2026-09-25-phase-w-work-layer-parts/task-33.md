@@ -834,3 +834,71 @@ The `import.meta.glob` form is `designsystem.test.ts:25-34`'s, for the reason it
 glob is expanded from the file system on every run, so a production file a later task adds is
 checked the moment it exists. The class test's floor of ten stops a facsimile that uses no pane
 class at all from passing an empty comparison.
+
+#### Tests to change — `desktop/src/lib/flags.test.ts` (task 32)
+
+In *writes each flag to the root element*, after the three `setFlag` calls:
+
+```ts
+    setFlag("motion", "reduce");
+    setFlag("vision", "deuteranopia");
+    expect(root().getAttribute("data-motion")).toBe("reduce");
+    expect(root().getAttribute("data-vision")).toBe("deuteranopia");
+```
+
+In *persists nothing*, before `resetFlags()`: `setFlag("motion", "reduce"); setFlag("vision",
+"deuteranopia");`. Both kill a new flag added to `Flags` but not to `ATTRIBUTE`, which the type
+`{ readonly [K in keyof Flags]: string }` also refuses at compile time.
+
+#### Steps
+
+1. Read the deuteranomaly table in Machado, Oliveira and Fernandes 2009 and confirm the
+   severity-1.0 row against `DEUTERANOPIA_MATRIX`. If it differs, the paper wins and the test's
+   first-row pin changes with it.
+2. Write `StressSets.test.tsx` and the `flags.test.ts` changes. Run
+   `npm --prefix desktop test -- StressSets flags`: the new file fails to import; the two flags
+   tests fail on the missing keys.
+3. Add `motion` and `vision` to `flags.ts`. The flags tests pass.
+4. Write `stressRegistry.ts`, then the three screens and `screens/index.ts`. The order, floor,
+   facsimile and glyph tests pass.
+5. Write `StressSets.tsx` and `stress.css`; edit `DevToolbar.tsx`. The set and matrix tests pass.
+6. Mutate by hand, one at a time, and watch the named test go red, then revert: transpose the
+   matrix; drop `colorInterpolationFilters`; `screens.unshift(screen)` in the registry; set
+   `blocked` to a drawn pane; rename `pane-foot-fact` to `pane-footer-fact` in the facsimile;
+   import `StressSets` from `AppShell.tsx`.
+7. Run the typecheck, the full desktop suite and the build with its grep. `git add` the new
+   files; commit with `git commit -F <msg> -- <paths>`.
+8. By hand, in `npm --prefix desktop run tauri dev`: open each set once. Under
+   *reduced motion × deuteranopia* the app and the stage change colour and the toolbar does not.
+
+#### Acceptance
+
+```bash
+npm --prefix desktop test -- StressSets flags devtools designsystem
+# expect: every test passes: stress.sets' seven, flags' five with the two new keys, task 32's
+# toolbar tests, and the audit over stress.css (token import first, no colour literal)
+
+npm --prefix desktop run typecheck
+# expect: exit 0, no output from tsc
+
+npm --prefix desktop run build && grep -rl "ss-deutan\|ss-stage\|registerStressScreen" desktop/dist
+# expect: the build succeeds, then grep prints nothing (exit 1)
+```
+
+#### What this task does not claim
+
+- **That any screen passes.** The sets are how the owner and reviewers look; the verdict is theirs
+  (`CLAUDE.md`), recorded at task 39.
+- **That the simulation is what a person with deuteranopia sees.** It is one published model at
+  one severity, applied in linear RGB; the matrix is **UNVERIFIED** until step 1.
+- **Forced colours.** Page CSS cannot turn them on; the screen lays the glyphs, rings and pane out
+  and says how. Whether WebView2's DevTools offers *Emulate CSS forced-colors* is **UNVERIFIED**,
+  and so is the Left Alt + Left Shift + Print Screen shortcut on the laptop's Windows 11 build.
+- **Real scaling.** `zoom` is a preview, and the stage says it is not Windows display scaling.
+- **The load set's content.** No surface with a load exists yet; the stage says *No screen is
+  registered for this set yet* until the Desk (task 62) and the team strip register theirs.
+- **The partial, unauthorized and blocked panes.** Phase 2 has none; the cells say so. Designing
+  them is not this task.
+- **macOS WKWebView** (no build exists, **UNVERIFIED**), and the high-contrast theme pair (W2).
+- Design: 05 §4.4 C12, §5.3 row 8; 02 C12; 07 D C4, D I8. Parity: no 01 row; 02 A10 point 8,
+  the quality habit.
