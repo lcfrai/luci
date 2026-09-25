@@ -107,8 +107,8 @@ team mode's stream B; the desktop streams sit beside its stream F and **share on
 | **WD1, look and Work lens** | 20, 26-45 | task 01; the look needs no Hub | `feat/work-layer` |
 | **WD2, issue view, keys, replica, Desk** | 46-70 | tasks 05 and 20 (the fake is enough to start; task 16 brings the real relay) | `feat/work-layer` |
 | **W1b** | 71 | task 22 and phase 7 task 19 | `feat/work-layer` |
-| **W2-W5** | 72-172 | the slice before, per the table | `feat/work-layer` |
-| **WL, the design's *later* rows** | 173-185 | W5's proof (task 172); nothing depends on WL | `feat/work-layer` |
+| **W2-W5** | 72-174 | the slice before, per the table | `feat/work-layer` |
+| **WL, the design's *later* rows** | 175-187 | W5's proof (task 174); nothing depends on WL | `feat/work-layer` |
 
 ---
 
@@ -241,7 +241,7 @@ move (rule H1). Where a slice adds to a W1 file, the later task is listed in the
 | `hubclient/hubclient.go` ⚑ | one line: `Hub` embeds `Work` (`hub-contract.md:1329`) | modified | 04 |
 | `hubclient/fake_work*.go` | the fake's Work rules, in memory | new | 04, 05; 73, 99, 115, 144 |
 | `hubclient/conformance/work*.go` | Work conformance rows, run against the fake and the real Hub | new | 05; 73, 99, 115, 144 |
-| `hubclient/methods_work*.go` | the Work methods over HTTP, with the digest re-check | new | 16; 82, 100, 124, 167 |
+| `hubclient/methods_work*.go` | the Work methods over HTTP, with the digest re-check | new | 16; 82, 100, 124, 168 |
 | `migrate/sql/NNNN_work_*.sql` | one migration per slice, **next free number at sync time**: tables, RLS, grants, guards | new | 06, 07; 74, 100, 116, 145 |
 | `store/work_*.go`, `server/work_*.go` | the store and routes, one pair per aggregate | new | 08-15; W2-W5 Hub tasks |
 | `server/matrix_integration_test.go` ⚑ | authorisation-matrix rows for every Work route | modified | 07 and every WH route task |
@@ -253,14 +253,14 @@ move (rule H1). Where a slice adds to a W1 file, the later task is listed in the
 | `server/work_hooks.go` | host webhooks for outside PRs and commits, both hosts (`OD-4`) | new | 154, 155 |
 | `server/work_forms.go`, `server/work_pages.go` | the Entra-protected intake form; the read-only issue page (W2's https link target) | new | 148; 80 |
 | `mailer/{mailer,graph,fake}.go` | the outbound mail seam (digest, requester updates) and inbound team addresses | new | 81; 149 |
-| `webhooks/{deliver,sign}.go` | HMAC webhooks built on the change feed, metadata only | new | 160 |
+| `webhooks/{deliver,sign}.go` | HMAC webhooks built on the change feed, metadata only | new | 156 |
 | `control-plane/cmd/workmcp/` | the Work MCP server, read-only mode, behind Entra OAuth | new | 161 |
 
 ### The control plane (loopback, per user) and the tools
 
 | Path | Responsibility | Status | Task |
 |---|---|---|---|
-| `control-plane/internal/api/work.go` (+ test) | the `/v1/hub/work/*` relay (contract §4.3, §9.3 pattern) | new | 16; 82, 100, 124, 167 |
+| `control-plane/internal/api/work.go` (+ test) | the `/v1/hub/work/*` relay (contract §4.3, §9.3 pattern) | new | 16; 82, 100, 124, 168 |
 | `control-plane/internal/api/api.go` ⚑, `routes_audit_test.go` ⚑ | `Deps.Work`, `Deps.WorkStart`, `Deps.WorkImport`; registrations; catalog rows | modified | 16, 24, 25 |
 | `control-plane/cmd/api/{config,main}.go` ⚑ | wiring and `PANACEA_APP_WORK_*` variables | modified | 16, 24, 25 |
 | `control-plane/internal/workstart/{start,undo}.go`, `internal/api/workstart.go` | Start from an issue: bind, worktree, session, *Undo Start* until the first file write | new | 24 |
@@ -299,7 +299,7 @@ path **UNVERIFIED until merge**, as Phase T does.
 | `src/lib/flags.ts`, `src/components/devtools/{FlagCompare,StressSets}.tsx` | `flag.compare` and `stress.sets` in the dev toolbar | new | 32, 33 |
 | `src/styles/forced-colors.css`, `src/styles/grain.css` | the Windows contrast layer; grain, off in `-hc` | new | 34, 35 |
 | `src/components/thread/{ThreadNode,ThreadLine,ThreadTrace}.tsx`, `useThreadLit.ts` | the signature primitives | new | 36 |
-| `src/api/work.ts` (+ test), `src/api/client.ts` ⚑ | Work wire types and relay calls | new, modified | 37; 83, 125 |
+| `src/api/work.ts` (+ test), `src/api/client.ts` ⚑ | Work wire types and relay calls | new, modified | 37; 83, 125, 169 |
 | `src/store/slices/workSlice.ts`, `src/store/types.ts` ⚑, `src/store/store.ts` ⚑ | the non-persisted Work view model; `Lens` gains `"work"` (`types.ts:173`) | new, modified | 37 |
 | `src/work/replica/{replica,ops,undo,visibility,search}.ts` | the in-memory Hub replica on `/v1/changes` | new | 55-58 |
 | `src/components/work/{WorkLens,CriterionGroup,IssueRow,AgentLine,HeldLine}.tsx`, `work.css` | the Work lens and its row | new | 40, 41 |
@@ -311,7 +311,7 @@ path **UNVERIFIED until merge**, as Phase T does.
 | `src/components/desk/{Desk,DeskSection,DeskZero,deskModel,deskRows}.tsx`, `desk.css` | **the one Desk frame** (§5.6); team mode's rows plug in | new | 62-65 |
 | `src/components/common/LiveRegion.tsx` | one polite live region per window | new | 66 |
 | `src/components/develop/SessionPaneHeader.tsx` ⚑, `src/components/AppShell.tsx` ⚑ | the issue chip; the Work, Plan and Desk mounts | modified | 67; 40, 45, 62 |
-| `src/components/{plan,roadmap,intake,admin}/*` | W2's features, cycles, views; W4's roadmap and insights; W5's intake and admin | new | 84-96; 126-141; 168-171 |
+| `src/components/{plan,roadmap,intake,admin}/*` | W2's features, cycles, views; W4's roadmap and insights; W5's intake and admin | new | 84-96; 126-141; 169-173 |
 
 ### Proof and documents
 
@@ -319,7 +319,7 @@ path **UNVERIFIED until merge**, as Phase T does.
 |---|---|---|---|
 | `docs/superpowers/planning/2026-09-25-linear-parity/w0-hub-contract-proposal.md` | W0's two Hub-contract edits as a proposal to the `feat/hub` owner | new | 01 |
 | `docs/PROGRAM.md` ⚑, `docs/FUNCTIONAL-SPEC.md` ⚑, `docs/AGENTIC-UX.md` ⚑, `…/2026-09-25-linear-parity/02-linear-design-language.md` ⚑ | Phase W's row; Feature and Issue in the object model; Q13's four amendments; 02's three corrections | modified | 01 |
-| `docs/verification/2026-09-25-phase-w-results.md` | per slice: what was run, what was observed, the parity rows it closes, what stays unverified | new | 70, 97, 113, 142, 172, 185 |
+| `docs/verification/2026-09-25-phase-w-results.md` | per slice: what was run, what was observed, the parity rows it closes, what stays unverified | new | 70, 97, 113, 142, 174, 187 |
 | `docs/verification/2026-09-25-phase-w-prototype-review.md` | the owner's review of the in-app prototype, in the owner's words | new | 39 |
 | `docs/work/agent-rules.md`, `docs/work/method.md` | our published agent interaction rules; the user-facing method page | new | 109; 134 |
 
@@ -327,10 +327,27 @@ path **UNVERIFIED until merge**, as Phase T does.
 
 ## Task list
 
-Each task's full text is in `2026-09-25-phase-w-work-layer-parts/task-NN.md`, written from the
-scope paragraph below. A focused day is 8 hours, and **every task is sized at 1 to 3 hours**: the
-plan's estimate, not a measurement. The design's slice sizes (05 §5.1, about 138 focused days) are
-for one human implementer and are **not reconciled** with these; neither is measured.
+Each task's full text is in `2026-09-25-phase-w-work-layer-parts/task-NN.md` (three digits from
+`task-100.md`), written from its scope paragraph in
+`docs/superpowers/plans/2026-09-25-phase-w-work-layer-scopes/`, one file per 20 ids (the list is
+under *Task scopes* at the end of this file). A focused day is 8 hours, and **every task is sized
+at 1 to 3 hours**: the plan's estimate, not a measurement. The design's slice sizes (05 §5.1, about
+138 focused days) are for one human implementer and are **not reconciled** with these; neither is
+measured.
+
+**Totals, summed from the tables below** (an estimate, not a measurement):
+
+| Slice | Ids | Tasks | Hours | Focused days |
+|---|---|---|---|---|
+| W0 | 01 | 1 | 2 | 0.25 |
+| W1 | 02-70 | 69 | 192 | 24 |
+| W1b | 71 | 1 | 3 | 0.375 |
+| W2 | 72-97 | 26 | 69.5 | 8.7 |
+| W3 | 98-113 | 16 | 46 | 5.75 |
+| W4 | 114-142 | 29 | 79.5 | 9.9 |
+| W5 | 143-174 | 32 | 91 | 11.4 |
+| WL | 175-187 | 13 | 33 | 4.1 |
+| **All** | **01-187** | **187** | **516** | **64.5** |
 
 **dependsOn** names this plan's tasks by number and sibling tasks by prefix: `H` the Hub plan
 (`.claude/worktrees/hub/docs/superpowers/plans/2026-09-23-phase-h-hub.md:396-446`), `P3-` phase 3
@@ -356,9 +373,9 @@ A sibling task is a dependency only once its branch is sync-merged here (rules H
 | **SW.0** | the W0 proposal: the `issue:` key case and the `c-` example | 01 | 02, 18 |
 | **SW.1** | the Work wire, W1: id prefixes, the `issue:` key, `DisplayAlias`, the `issue-revision` canonical form and golden vectors, every W1 type and request body | 02, 03 | 04-19, 24, 25, 37 |
 | **SW.2** | `hubclient.Work` (W1 methods), `NewFake()`'s Work rules, the relay paths `/v1/hub/work/*` | 04, 05, 16 | 19, 21-25, 37, 55, 98 |
-| **SW.3** | who may write what: the authorisation rows and the guards (fact states, `done`, the sync principal) | 07 | 10, 22, 23, 99, 150 |
+| **SW.3** | who may write what: the authorisation rows and the guards (fact states, `done`, the sync principal) | 07 | 10, 22, 23, 99, 145, 150, 159 |
 | **SW.4** | the state move: `StateMove{to, cause, reason}`, the done rule's inputs and its result words | 10 | 22, 23, 48, 63-65, 71 |
-| **SW.5** | the Work feed kinds and their metadata-only payloads | 13 | 55, 62, 98, 123, 160 |
+| **SW.5** | the Work feed kinds and their metadata-only payloads | 13 | 55, 62, 98, 123, 156 |
 | **SW.6** | the import batch: one normalised item per external issue, idempotent by `(source, externalId)` | 15 | 25, 69, 150-153 |
 | **SW.7** | the managed block's issue section: what an agent is told, byte for byte | 19 | 24, 101 |
 | **SW.8** | `expectNoPrediction(container)` and the Work fixtures | 20 | every desktop task |
@@ -374,8 +391,8 @@ A sibling task is a dependency only once its branch is sync-merged here (rules H
 | **SW.18** | the Work wire, W2 (`WorkPlan`) | 72 | 73-96 |
 | **SW.19** | the W3 records: comment kinds `note`, `evidence_proposal`, `negotiation`; guidance; the kill switch | 99 | 100-112 |
 | **SW.20** | the Work wire, W4 (`WorkRoadmap`) | 114 | 115-141 |
-| **SW.21** | the Work wire, W5 (`WorkIntake`) | 143 | 144-171 |
-| **SW.22** | the outbound webhook payload: event metadata only, HMAC-SHA256 signature header | 160 | 156, 157, 161 |
+| **SW.21** | the Work wire, W5 (`WorkIntake`) | 143 | 144-173 |
+| **SW.22** | the outbound webhook payload: event metadata only, HMAC-SHA256 signature header | 156 | 157, 158, 178, 182 |
 
 ### W0 and W1: the first slice a team can adopt
 
