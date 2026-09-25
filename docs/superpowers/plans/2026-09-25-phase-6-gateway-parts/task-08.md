@@ -9,7 +9,8 @@ keysmith is the only process besides LiteLLM that holds the master key, so it is
 - `control-plane/cmd/keysmith/config.go`: `Config`, `loadConfig`, the parsers (new)
 - `control-plane/cmd/keysmith/api.go`: `apiDeps`, `newAPI`, the seven routes, `problemFor` (new)
 - `control-plane/cmd/keysmith/callerauth.go`: `Route`, `Caller`, `Authenticator`, the caller table, `bearerAuth`, `kubeAuth` (new)
-- `control-plane/cmd/keysmith/{main_test.go,config_test.go,api_test.go,callerauth_test.go}`: thirteen tests (new)
+- `control-plane/cmd/keysmith/calleroidc.go`: `oidcAuth`, `chainAuth`, `issuerOf`, `loadOIDC`, `ownerMayAct` (new; decision (g), `OD-30`)
+- `control-plane/cmd/keysmith/{main_test.go,config_test.go,api_test.go,callerauth_test.go,calleroidc_test.go}`: seventeen tests (new)
 
 **Interfaces:**
 - Produces, on the wire (every body JSON, every error the problem shape of `control-plane/internal/httpx/problem.go:93`):
@@ -25,7 +26,7 @@ keysmith is the only process besides LiteLLM that holds the master key, so it is
 | `GET /readyz` | none | | `200 ok` | `503 backend_unavailable` (database or LiteLLM) |
 
   Any other method or path is `404 path_not_allowed`. The status of each `wire` code is `wire.Status(code)` (task 03); the table's `budget_exhausted` status is task 03's.
-- Produces, for operators: `PANACEA_APP_GATEWAY_CALLER_AUTH` = `bearer-file:<path>`, `kube`, or `kube:<path>`; the caller table's line format `name credential routes` (below); exit status `2` on any configuration refusal.
+- Produces, for operators: `PANACEA_APP_GATEWAY_CALLER_AUTH` = a comma list of at most one table mode (`bearer-file:<path>`, `kube`, or `kube:<path>`) and at most one `oidc` (the cloud sets `kube,oidc`; decision (g)); with `oidc`, `PANACEA_APP_OIDC_ISSUER` (required), `PANACEA_APP_OIDC_PROFILE` (`keycloak`, the only value accepted), `PANACEA_APP_GATEWAY_TENANTS` (required, enrolled `tid` GUIDs), `PANACEA_APP_GATEWAY_AUDIENCE` (default `panacea-app-gateway`), `PANACEA_APP_GATEWAY_ALLOWED_CLIENTS` (default `panacea-app-desktop`); the caller table's line format `name credential routes` (below); exit status `2` on any configuration refusal.
 - Consumes:
   - task 07: `keysmith.New`, `Deps`, `(*Service).Mint`, `Refresh`, `RevokeSession`, and its errors (`task-07.md`, committed)
   - task 03: the `wire` request, response and binding types, `wire.Code…`, `wire.Status`, `wire.CheckBaseURL`, `wire.ScopePerson`, `ScopeProject`, `ScopeTeam`, `wire.HashToken`, `wire.ErrNotFound`, `wire.ErrRouteUnknown` (`task-03.md` interface list)
@@ -33,7 +34,8 @@ keysmith is the only process besides LiteLLM that holds the master key, so it is
   - task 05: `binding.Migrate(ctx, *pgxpool.Pool) error`, `binding.NewPGStore(*pgxpool.Pool) *PGStore`
   - task 06: `budget.NewStatic`, `budget.Layered`, `budget.Proposed`, `budget.Limits`, `budget.Monthly` (`task-06.md`, committed)
   - task 09: `usage.NewPGStore`, `usage.NewReader`, `usage.Sweeper` (`task-09.md`, this writer)
-  - task 13: `routesource.NewFile`, `NewHub`, `NewCache`, `WorkloadTokenFromEnv` (`task-13.md` interface list)
+  - task 13: `routesource.NewFile`, `NewHub`, `NewCache`, `ClientCredentialsFromEnv` (`task-13.md` interface list; `OD-30` replaced `WorkloadTokenFromEnv`)
+  - env task 17 step 0 (ruling `2026-09-25-identity-keycloak-broker.md` §5, NOT BUILT; the rename of the built `control-plane/internal/entra`): `oidcauth.New(Config) (*JWKSValidator, error)`, `oidcauth.Validator`, `Config{Profile, Issuer, TenantIDs, Audience, RequiredScope, AllowedClients, ServiceClients}`, `Claims{TenantID, ObjectID, ClientID, Service}`, `(Claims).Key()`, `ProfileKeycloak`, `ErrKeySetUnavailable`, `ErrSignature`
   - task 02: `catalogue.Load`, `(*Catalogue).Groups` (`task-02.md`)
   - `k8s.io/client-go v0.31.1`, `k8s.io/api`, `k8s.io/apimachinery` (already in `control-plane/go.mod:8-10`); `github.com/jackc/pgx/v5` (task 05 adds it)
 - Required by: task 15 (the local control plane's client), task 12 (the gatekeeper's binding reader), task 17 (compose and `secrets/callers`), task 19 (the chart), task 21 (usage), ask P8-1 (the broker)
@@ -60,6 +62,8 @@ The namespace `panacea-broker` is phase 8's (`.claude/worktrees/env/docs/superpo
 
 **(f) Error text reaches the log, not the body, for every `5xx`.** A `5xx` body carries a fixed sentence per code; the error itself is logged as `err` beside `route`, `caller` and `status`. Task 07 already scrubs tokens from its errors; this is the second wall.
 
+**(g) `oidc`: a person's own realm token (`OD-30`; ruling `2026-09-25-identity-keycloak-broker.md` §6).** `CALLER_AUTH` is a comma list: at most one table mode and at most one `oidc`; the cloud sets `kube,oidc`. `oidc` validates the bearer with `oidcauth` under the `keycloak` profile (any other `PANACEA_APP_OIDC_PROFILE` is refused): issuer `PANACEA_APP_OIDC_ISSUER`, audience and required scope `panacea-app-gateway` (the audience scope carries the audience's name, ruling §4), `azp` in `panacea-app-desktop`, `tid` in `PANACEA_APP_GATEWAY_TENANTS`, and **no** service client (`ServiceClients` empty, and a `Service` claim is refused again here). Such a caller is named `person:<tid>/<oid>`, holds `mint`, `refresh` and `revoke` only, and carries its `Owner`, the token's `(tid, oid)`. For it, a mint whose body names another `Owner` is `403 caller_forbidden`, and so is any mint, refresh or revoke of a session one of whose bindings (task 05's `BySession`) has another owner. A table caller carries no `Owner` and is checked exactly as before: the `Owner` the broker sends is the one it derived from the person's `panacea-app-broker` token (P8-D4). **The token's unverified `iss` chooses who decides:** equal to `PANACEA_APP_OIDC_ISSUER`, `oidc`; anything else, the table mode. The peek only chooses; the chosen authenticator verifies everything, and a refusal never falls through to the other. A realm key-set outage is `503`, as a TokenReview outage is. This is the local-mode laptop minting against the cloud gateway (task 15's `oidc` credential). LiteLLM's `user_id` stays `"<tid>:<oid>"` (P6-D6).
+
 - [ ] **Step 1: Preflight**
 
 ```bash
@@ -70,13 +74,15 @@ for p in keysmith litellmadmin binding budget usage routesource inference/wire i
 grep -n 'k8s.io/client-go v0.31.1\|jackc/pgx/v5' go.mod                                       # expect both
 grep -n 'func NewPGStore\|func Migrate' internal/binding/*.go                                  # expect both (task 05)
 grep -n 'ErrNoMasterKey\|func (c \*Client) Health' internal/litellmadmin/client.go             # expect both (task 04)
+grep -n 'ProfileKeycloak\|ServiceClients\|Service  *bool' internal/oidcauth/*.go               # expect all three (env 17 step 0, OD-30)
+grep -n 'func (s \*PGStore) BySession' internal/binding/*.go                                   # expect one (task 05)
 ```
 
 A `MISSING` line is an unmerged dependency; stop and report. If a grep shows a different identifier from gap 5's list, rename in this part's code to match the merged one.
 
 - [ ] **Step 2: Write the failing tests**
 
-Thirteen tests over four files, all `package main`. None needs a database, LiteLLM or a cluster: the service, the binding reader, the usage reader and the TokenReview API are fakes (the last is client-go's own `fake.Clientset`, which phase 2 already uses in `internal/backend/katabe/kata_test.go`).
+Seventeen tests over five files, all `package main`. None needs a database, LiteLLM, a realm or a cluster: the service, the binding reader, the usage reader, the realm validator and the TokenReview API are fakes (the last is client-go's own `fake.Clientset`, which phase 2 already uses in `internal/backend/katabe/kata_test.go`).
 
 Create `control-plane/cmd/keysmith/callerauth_test.go`:
 
@@ -634,7 +640,7 @@ func TestConfigRefusesNamingTheVariable(t *testing.T) {
 		{"ROUTE_SOURCE", ""},
 		{"ROUTE_SOURCE", "s3:bucket"},
 		{"HUB_URL", ""},   // with ROUTE_SOURCE=hub, below
-		{"HUB_SCOPE", ""}, // likewise; task 13's gap 1 names this variable
+		{"HUB_SCOPE", "api://hub/.default"}, // likewise; an Entra scope, refused since OD-30 (task 13's gap 1)
 		{"CALLER_AUTH", "open"},
 		{"CALLER_AUTH", "bearer-file:" + filepath.Join(dir, "absent")},
 		{"BASE_URL", "http://gatekeeper:4000/v1"},
@@ -649,7 +655,7 @@ func TestConfigRefusesNamingTheVariable(t *testing.T) {
 	for _, c := range cases {
 		m := baseEnv(t)
 		if c.variable == "HUB_URL" || c.variable == "HUB_SCOPE" {
-			m[pre+"ROUTE_SOURCE"], m[pre+"HUB_URL"], m[pre+"HUB_SCOPE"] = "hub", "https://hub.example", "api://hub/.default"
+			m[pre+"ROUTE_SOURCE"], m[pre+"HUB_URL"], m[pre+"HUB_SCOPE"] = "hub", "https://hub.example", "panacea-app-hub"
 		}
 		m[pre+c.variable] = c.value
 		_, err := loadConfig(getenv(m))
@@ -715,7 +721,169 @@ func TestRunNeverPrintsASecretFile(t *testing.T) {
 }
 ```
 
-- [ ] **Step 3: Run the tests to verify they fail**
+Create `control-plane/cmd/keysmith/calleroidc_test.go` (decision (g)):
+
+```go
+package main
+
+import (
+	"context"
+	"encoding/base64"
+	"errors"
+	"maps"
+	"net/http"
+	"strings"
+	"testing"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/inference/wire"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/oidcauth"
+)
+
+const realm = "https://auth.example/realms/panacea"
+
+// jwtWithIssuer is an unsigned three-part token whose payload names iss. Only
+// issuerOf reads it; fakeValidator never checks a signature.
+func jwtWithIssuer(iss string) string {
+	enc := base64.RawURLEncoding.EncodeToString
+	return enc([]byte(`{"alg":"RS256"}`)) + "." + enc([]byte(`{"iss":"`+iss+`"}`)) + ".c2ln"
+}
+
+// fakeValidator answers by token text and counts its calls.
+type fakeValidator struct {
+	claims map[string]oidcauth.Claims
+	err    error
+	calls  int
+}
+
+func (f *fakeValidator) Validate(_ context.Context, bearer string) (oidcauth.Claims, error) {
+	f.calls++
+	if f.err != nil {
+		return oidcauth.Claims{}, f.err
+	}
+	if c, ok := f.claims[bearer]; ok {
+		return c, nil
+	}
+	return oidcauth.Claims{}, oidcauth.ErrSignature
+}
+
+type fakeSessions map[string][]wire.Binding
+
+func (f fakeSessions) BySession(_ context.Context, id string) ([]wire.Binding, error) { return f[id], nil }
+
+// Mutants killed: a service token accepted as a person; a person given
+// bindings or usage; a realm key-set outage answered 401 instead of 503.
+func TestOIDCAuthNamesThePersonOnly(t *testing.T) {
+	alice, fleet := jwtWithIssuer(realm), jwtWithIssuer(realm)+"f"
+	v := &fakeValidator{claims: map[string]oidcauth.Claims{
+		alice: {TenantID: "t-1", ObjectID: "o-1", ClientID: "panacea-app-desktop"},
+		fleet: {ClientID: "panacea-app-fleet", Service: true},
+	}}
+	a := oidcAuth{v: v}
+	c, err := a.Identify(withBearer(alice))
+	if err != nil || c.Name != "person:t-1/o-1" || c.RouteList() != "mint,refresh,revoke" ||
+		c.Owner == nil || *c.Owner != (wire.Owner{TID: "t-1", OID: "o-1"}) {
+		t.Fatalf("Identify(alice) = %+v, %v", c, err)
+	}
+	if _, err := a.Identify(withBearer(fleet)); !errors.Is(err, ErrUnauthenticated) {
+		t.Errorf("a service token: err = %v, want ErrUnauthenticated", err)
+	}
+	v.err = oidcauth.ErrKeySetUnavailable
+	if _, err := a.Identify(withBearer(alice)); !errors.Is(err, ErrReviewUnavailable) {
+		t.Errorf("key set down: err = %v, want ErrReviewUnavailable (503)", err)
+	}
+}
+
+// Mutants killed: a realm token that oidc refuses falling through to the
+// table; the table asked about a realm token; a foreign token sent to oidc.
+func TestChainAuthChoosesByIssuerAndNeverFallsThrough(t *testing.T) {
+	realmTok, other := jwtWithIssuer(realm), jwtWithIssuer("https://kubernetes.default.svc")
+	v := &fakeValidator{claims: map[string]oidcauth.Claims{}}
+	broker := Caller{Name: "broker", Routes: map[Route]bool{RouteMint: true}}
+	table := tokenAuth{realmTok: broker, other: broker, "opaque": {Name: "gatekeeper"}}
+	a := chainAuth{issuer: realm, oidc: oidcAuth{v: v}, table: table}
+	if _, err := a.Identify(withBearer(realmTok)); !errors.Is(err, ErrUnauthenticated) || v.calls != 1 {
+		t.Errorf("a refused realm token: err = %v, oidc calls %d; want oidc's refusal alone", err, v.calls)
+	}
+	if c, err := a.Identify(withBearer(other)); err != nil || c.Name != "broker" || v.calls != 1 {
+		t.Errorf("a service-account token: %+v, %v, oidc calls %d", c, err, v.calls)
+	}
+	if c, err := a.Identify(withBearer("opaque")); err != nil || c.Name != "gatekeeper" || v.calls != 1 {
+		t.Errorf("an opaque token: %+v, %v", c, err)
+	}
+	if _, err := (chainAuth{issuer: realm, oidc: oidcAuth{v: v}}).Identify(withBearer(other)); !errors.Is(err, ErrUnauthenticated) {
+		t.Errorf("oidc alone, a foreign token: err = %v", err)
+	}
+}
+```
+
+```go
+// Mutants killed: the body-owner compare deleted; the BySession check deleted
+// (another's session minted, refreshed or revoked); a table caller refused.
+func TestAPIRefusesAPersonActingForAnotherOwner(t *testing.T) {
+	me := wire.Owner{TID: "t-1", OID: "o-1"}
+	person := Caller{Name: "person:t-1/o-1", Owner: &me,
+		Routes: map[Route]bool{RouteMint: true, RouteRefresh: true, RouteRevoke: true}}
+	auth := tokenAuth{"me": person, "broker": {Name: "broker", Routes: person.Routes}}
+	sessions := fakeSessions{"s-1": {{Owner: me}}, "s-2": {{Owner: me}, {Owner: wire.Owner{TID: "t-1", OID: "o-2"}}}}
+	keys := &fakeKeys{}
+	h := testAPI(keys, auth, func(d *apiDeps) { d.Sessions = sessions })
+	other := strings.Replace(mintBody, `"oid":"o-1"`, `"oid":"o-2"`, 1)
+	cases := []struct {
+		path, body, tok string
+		want            int
+	}{
+		{"/v1/mint", mintBody, "me", http.StatusCreated},
+		{"/v1/mint", other, "me", http.StatusForbidden},
+		{"/v1/mint", strings.Replace(mintBody, `"s-1"`, `"s-2"`, 1), "me", http.StatusForbidden},
+		{"/v1/mint", other, "broker", http.StatusCreated}, // a table caller names the owner
+		{"/v1/refresh", `{"sessionId":"s-1","generation":2}`, "me", http.StatusCreated},
+		{"/v1/refresh", `{"sessionId":"s-2","generation":2}`, "me", http.StatusForbidden},
+		{"/v1/revoke", `{"sessionId":"s-2"}`, "me", http.StatusForbidden},
+		{"/v1/revoke", `{"sessionId":"s-1"}`, "me", http.StatusNoContent},
+	}
+	for _, c := range cases {
+		w := do(h, http.MethodPost, c.path, c.body, c.tok)
+		if w.Code != c.want {
+			t.Errorf("%s %s as %s: status %d, want %d", c.path, c.body, c.tok, w.Code, c.want)
+		} else if c.want == http.StatusForbidden && problem(t, w).Error != wire.CodeCallerForbidden {
+			t.Errorf("%s as %s: code %q", c.path, c.tok, problem(t, w).Error)
+		}
+	}
+	if got := strings.Join(keys.calls, ","); got != "mint,mint,refresh,revoke" {
+		t.Errorf("service calls = %s; a refused request reached the service", got)
+	}
+}
+
+// Mutants killed: a second table mode or a second oidc accepted; oidc without
+// its issuer or tenants defaulted instead of refused; the entra profile let in.
+func TestConfigCallerAuthIsACommaList(t *testing.T) {
+	m := baseEnv(t)
+	m[pre+"CALLER_AUTH"] = "kube,oidc"
+	m["PANACEA_APP_OIDC_ISSUER"] = realm + "/"
+	m[pre+"TENANTS"] = "11111111-1111-1111-1111-111111111111"
+	cfg, err := loadConfig(getenv(m))
+	if err != nil || cfg.CallerMode != "kube" || cfg.OIDC == nil || cfg.OIDC.Issuer != realm ||
+		cfg.OIDC.Audience != "panacea-app-gateway" || cfg.OIDC.RequiredScope != "panacea-app-gateway" ||
+		cfg.OIDC.Profile != oidcauth.ProfileKeycloak || len(cfg.OIDC.ServiceClients) != 0 ||
+		strings.Join(cfg.OIDC.AllowedClients, ",") != "panacea-app-desktop" {
+		t.Fatalf("kube,oidc: %v %+v, %v", cfg, cfg.OIDC, err)
+	}
+	for _, c := range []struct{ variable, value string }{
+		{pre + "CALLER_AUTH", "kube,kube"},
+		{pre + "CALLER_AUTH", "oidc,oidc"},
+		{"PANACEA_APP_OIDC_ISSUER", ""},
+		{pre + "TENANTS", ""},
+		{"PANACEA_APP_OIDC_PROFILE", "entra"},
+	} {
+		bad := maps.Clone(m)
+		bad[c.variable] = c.value
+		if _, err := loadConfig(getenv(bad)); err == nil || !strings.Contains(err.Error(), c.variable) {
+			t.Errorf("%s=%q: err = %v, want one naming %s", c.variable, c.value, err, c.variable)
+		}
+	}
+}
+```
+
 
 ```bash
 cd control-plane && go test ./cmd/keysmith/ -count=1 2>&1 | head -5
@@ -763,10 +931,12 @@ const (
 // allRoutes is every route, in the order RouteList prints them.
 var allRoutes = []Route{RouteMint, RouteRefresh, RouteRevoke, RouteBindings, RouteUsage}
 
-// Caller is an authenticated caller and the routes it holds.
+// Caller is an authenticated caller and the routes it holds. Owner is set
+// only for a person's own realm token (decision (g)); a table caller has none.
 type Caller struct {
 	Name   string
 	Routes map[Route]bool
+	Owner  *wire.Owner
 }
 
 // RouteList is the caller's routes, comma-separated, in allRoutes order.
@@ -975,6 +1145,186 @@ func (k *kubeAuth) Identify(r *http.Request) (Caller, error) {
 }
 ```
 
+Create `control-plane/cmd/keysmith/calleroidc.go` (decision (g), `OD-30`):
+
+```go
+package main
+
+import (
+	"context"
+	"encoding/base64"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net/http"
+	"strings"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/httpx"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/inference/wire"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/oidcauth"
+)
+
+// oidcConfig lets config.go hold the validator's settings without the import.
+type oidcConfig = oidcauth.Config
+
+// personRoutes are the only routes a person's own token holds.
+var personRoutes = map[Route]bool{RouteMint: true, RouteRefresh: true, RouteRevoke: true}
+
+// oidcAuth is a person's own realm token, audience panacea-app-gateway.
+type oidcAuth struct{ v oidcauth.Validator }
+
+func newOIDCAuth(cfg oidcConfig) (oidcAuth, error) {
+	v, err := oidcauth.New(cfg)
+	if err != nil {
+		return oidcAuth{}, err
+	}
+	return oidcAuth{v: v}, nil
+}
+
+func (a oidcAuth) Identify(r *http.Request) (Caller, error) {
+	tok, ok := bearerToken(r)
+	if !ok {
+		return Caller{}, ErrUnauthenticated
+	}
+	cl, err := a.v.Validate(r.Context(), tok)
+	switch {
+	case errors.Is(err, oidcauth.ErrKeySetUnavailable): // nobody can be authenticated: 503
+		return Caller{}, fmt.Errorf("%w: %v", ErrReviewUnavailable, err)
+	case err != nil, cl.Service, cl.TenantID == "", cl.ObjectID == "":
+		return Caller{}, ErrUnauthenticated
+	}
+	owner := wire.Owner{TID: cl.TenantID, OID: cl.ObjectID}
+	return Caller{Name: "person:" + cl.Key(), Routes: personRoutes, Owner: &owner}, nil
+}
+
+// issuerOf is a JWT's unverified iss, or "" for anything else. It only
+// chooses an authenticator; the chosen one verifies everything.
+func issuerOf(tok string) string {
+	parts := strings.Split(tok, ".")
+	if len(parts) != 3 || len(parts[1]) > 16<<10 {
+		return ""
+	}
+	raw, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return ""
+	}
+	var p struct {
+		Iss string `json:"iss"`
+	}
+	if json.Unmarshal(raw, &p) != nil {
+		return ""
+	}
+	return p.Iss
+}
+
+// chainAuth is CALLER_AUTH's comma list: oidc decides a token from the realm,
+// the table mode every other token, and neither falls through to the other.
+type chainAuth struct {
+	issuer string
+	oidc   Authenticator // nil: no oidc mode
+	table  Authenticator // nil: no table mode
+}
+
+func (a chainAuth) Identify(r *http.Request) (Caller, error) {
+	tok, ok := bearerToken(r)
+	switch {
+	case !ok:
+		return Caller{}, ErrUnauthenticated
+	case a.oidc != nil && issuerOf(tok) == a.issuer:
+		return a.oidc.Identify(r)
+	case a.table != nil:
+		return a.table.Identify(r)
+	}
+	return Caller{}, ErrUnauthenticated
+}
+```
+
+```go
+// loadOIDC reads decision (g)'s variables; each refusal names its variable.
+func loadOIDC(getenv func(string) string) (*oidcConfig, error) {
+	env := func(k string) string { return strings.TrimSpace(getenv(k)) }
+	bad := func(k, why string) (*oidcConfig, error) { return nil, fmt.Errorf("%s %s", k, why) }
+	profile := oidcauth.Profile(env("PANACEA_APP_OIDC_PROFILE"))
+	if profile == "" {
+		profile = oidcauth.ProfileKeycloak
+	}
+	if profile != oidcauth.ProfileKeycloak {
+		return bad("PANACEA_APP_OIDC_PROFILE", `must be "keycloak" when CALLER_AUTH holds oidc (ruling §6)`)
+	}
+	issuer := strings.TrimSuffix(env("PANACEA_APP_OIDC_ISSUER"), "/")
+	if issuer == "" {
+		return bad("PANACEA_APP_OIDC_ISSUER", "is not set; CALLER_AUTH=oidc needs the realm URL")
+	}
+	tenants := commaList(env(envPrefix + "TENANTS"))
+	if len(tenants) == 0 {
+		return bad(envPrefix+"TENANTS", "is not set; CALLER_AUTH=oidc needs the enrolled tenant ids")
+	}
+	aud := env(envPrefix + "AUDIENCE")
+	if aud == "" {
+		aud = "panacea-app-gateway"
+	}
+	clients := commaList(env(envPrefix + "ALLOWED_CLIENTS"))
+	if len(clients) == 0 {
+		clients = []string{"panacea-app-desktop"}
+	}
+	return &oidcConfig{Profile: profile, Issuer: issuer, TenantIDs: tenants, Audience: aud,
+		RequiredScope: aud, AllowedClients: clients}, nil // ServiceClients stays empty
+}
+
+func commaList(s string) []string {
+	var out []string
+	for _, f := range strings.Split(s, ",") {
+		if f = strings.TrimSpace(f); f != "" {
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
+// sessionBindings is task 05's *binding.PGStore as the owner check uses it.
+type sessionBindings interface {
+	BySession(ctx context.Context, sessionID string) ([]wire.Binding, error)
+}
+
+type callerKey struct{}
+
+// callerOf is the Caller guard authenticated.
+func callerOf(r *http.Request) Caller {
+	c, _ := r.Context().Value(callerKey{}).(Caller)
+	return c
+}
+
+// ownerMayAct passes a table caller. A person passes only when body (if any)
+// is its own Owner and every binding of the session is too; else it writes
+// 403 caller_forbidden, or 503 when the store cannot say.
+func (d apiDeps) ownerMayAct(w http.ResponseWriter, r *http.Request, route string, body *wire.Owner, sessionID string) bool {
+	c := callerOf(r)
+	if c.Owner == nil {
+		return true
+	}
+	refuse := func() bool {
+		d.Log.Warn("caller refused: another owner", "route", route, "caller", c.Name)
+		d.wireProblem(w, wire.CodeCallerForbidden, "a person may act only for their own sessions", nil)
+		return false
+	}
+	if body != nil && *body != *c.Owner {
+		return refuse()
+	}
+	bs, err := d.Sessions.BySession(r.Context(), sessionID)
+	if err != nil {
+		d.Log.Error("session owner lookup failed", "route", route, "err", err.Error())
+		httpx.WriteProblem(w, http.StatusServiceUnavailable, httpx.CodeBackendUnavailable, "the binding store is unavailable", nil)
+		return false
+	}
+	for _, b := range bs {
+		if b.Owner != *c.Owner {
+			return refuse()
+		}
+	}
+	return true
+}
+```
+
 Create `control-plane/cmd/keysmith/api.go`:
 
 ```go
@@ -1014,7 +1364,8 @@ type apiDeps struct {
 	Bindings wire.BindingReader
 	Usage    usageRows
 	Auth     Authenticator
-	MintWait time.Duration // Config.MintWait: MINT_TIMEOUT less 2 s (decision (c))
+	Sessions sessionBindings // task 05's store: a person's session-owner check (decision (g))
+	MintWait time.Duration   // Config.MintWait: MINT_TIMEOUT less 2 s (decision (c))
 	Ready    func(context.Context) error
 	Log      *slog.Logger
 }
@@ -1057,8 +1408,8 @@ func (d apiDeps) guard(route Route, h func(http.ResponseWriter, *http.Request, s
 		case !c.Routes[route]:
 			d.Log.Warn("caller refused", "route", string(route), "caller", c.Name)
 			d.wireProblem(w, wire.CodeCallerForbidden, "this caller may not use "+string(route), nil)
-		default:
-			h(w, r, c.Name)
+		default: // the handler reads c back through callerOf (decision (g))
+			h(w, r.WithContext(context.WithValue(r.Context(), callerKey{}, c)), c.Name)
 		}
 	})
 }
@@ -1077,7 +1428,7 @@ func (d apiDeps) wireProblem(w http.ResponseWriter, code, msg string, details ma
 ```go
 func (d apiDeps) mint(w http.ResponseWriter, r *http.Request, caller string) {
 	var req wire.MintRequest
-	if !httpx.DecodeJSON(w, r, &req) {
+	if !httpx.DecodeJSON(w, r, &req) || !d.ownerMayAct(w, r, "mint", &req.Owner, req.SessionID) {
 		return
 	}
 	d.await(w, r, caller, "mint", func(ctx context.Context) (wire.MintResponse, error) { return d.Keys.Mint(ctx, req) })
@@ -1085,7 +1436,7 @@ func (d apiDeps) mint(w http.ResponseWriter, r *http.Request, caller string) {
 
 func (d apiDeps) refresh(w http.ResponseWriter, r *http.Request, caller string) {
 	var req wire.RefreshRequest
-	if !httpx.DecodeJSON(w, r, &req) {
+	if !httpx.DecodeJSON(w, r, &req) || !d.ownerMayAct(w, r, "refresh", nil, req.SessionID) {
 		return
 	}
 	d.await(w, r, caller, "refresh", func(ctx context.Context) (wire.MintResponse, error) { return d.Keys.Refresh(ctx, req) })
@@ -1124,7 +1475,7 @@ func (d apiDeps) await(w http.ResponseWriter, r *http.Request, caller, route str
 
 func (d apiDeps) revoke(w http.ResponseWriter, r *http.Request, caller string) {
 	var req wire.RevokeRequest
-	if !httpx.DecodeJSON(w, r, &req) {
+	if !httpx.DecodeJSON(w, r, &req) || !d.ownerMayAct(w, r, "revoke", nil, req.SessionID) {
 		return
 	}
 	if _, err := d.Keys.RevokeSession(context.WithoutCancel(r.Context()), req); err != nil {
@@ -1257,9 +1608,10 @@ type Config struct {
 	DatabaseURL   secret
 	RouteSource   string // "hub" or "file:<path>"
 	HubURL        string
-	HubScope      string
-	CallerMode    string // "bearer" or "kube"
+	HubScope      string      // the realm audience scope, default panacea-app-hub (task 13, OD-30)
+	CallerMode    string      // the table mode: "bearer", "kube", or "" when CALLER_AUTH is oidc alone
 	Callers       []entry
+	OIDC          *oidcConfig // set when CALLER_AUTH holds oidc (decision (g))
 	BaseURL       string
 	TokenTTL      time.Duration
 	MintTimeout   time.Duration
@@ -1270,8 +1622,8 @@ type Config struct {
 
 // String is what %v and %+v print: no secret, no caller credential.
 func (c Config) String() string {
-	return fmt.Sprintf("litellm=%s routes=%s callers=%s(%d) base=%s ttl=%v mint=%v",
-		c.LiteLLMURL, c.RouteSource, c.CallerMode, len(c.Callers), c.BaseURL, c.TokenTTL, c.MintTimeout)
+	return fmt.Sprintf("litellm=%s routes=%s callers=%s(%d) oidc=%t base=%s ttl=%v mint=%v",
+		c.LiteLLMURL, c.RouteSource, c.CallerMode, len(c.Callers), c.OIDC != nil, c.BaseURL, c.TokenTTL, c.MintTimeout)
 }
 
 // MintWait is how long the API waits before answering 504 (decision (c)).
@@ -1326,7 +1678,10 @@ func loadConfig(getenv func(string) string) (Config, error) {
 			return bad("HUB_URL", "must be the Hub's http(s) base URL when ROUTE_SOURCE is hub")
 		}
 		if c.HubScope = get("HUB_SCOPE"); c.HubScope == "" {
-			return bad("HUB_SCOPE", "must be the Hub's Entra scope (api://<client id>/.default) when ROUTE_SOURCE is hub")
+			c.HubScope = "panacea-app-hub"
+		}
+		if strings.ContainsAny(c.HubScope, ":/ ") { // an Entra api://…/.default is refused (OD-30)
+			return bad("HUB_SCOPE", "must be the realm's Hub audience scope (panacea-app-hub) when ROUTE_SOURCE is hub")
 		}
 	case strings.HasPrefix(rs, "file:") && len(rs) > len("file:"):
 		c.RouteSource = rs
@@ -1334,21 +1689,33 @@ func loadConfig(getenv func(string) string) (Config, error) {
 		return bad("ROUTE_SOURCE", `must be "hub" or "file:<path>"`)
 	}
 
-	switch ca := get("CALLER_AUTH"); {
-	case ca == "kube":
-		c.CallerMode = "kube"
-		c.Callers, err = parseCallers([]byte(builtinKubeTable), false)
-	case strings.HasPrefix(ca, "kube:"):
-		c.CallerMode = "kube"
-		c.Callers, err = readCallers(strings.TrimPrefix(ca, "kube:"), false)
-	case strings.HasPrefix(ca, "bearer-file:"):
-		c.CallerMode = "bearer"
-		c.Callers, err = readCallers(strings.TrimPrefix(ca, "bearer-file:"), true)
-	default:
-		return bad("CALLER_AUTH", `must be "kube", "kube:<path>" or "bearer-file:<path>"`)
-	}
-	if err != nil {
-		return bad("CALLER_AUTH", err.Error())
+	for _, mode := range strings.Split(get("CALLER_AUTH"), ",") { // decision (g)
+		mode = strings.TrimSpace(mode)
+		if mode == "oidc" && c.OIDC == nil {
+			if c.OIDC, err = loadOIDC(getenv); err != nil {
+				return Config{}, err
+			}
+			continue
+		}
+		if c.CallerMode != "" || mode == "oidc" {
+			return bad("CALLER_AUTH", "names a mode twice: at most one of kube, kube:<path>, bearer-file:<path>, and oidc once")
+		}
+		switch {
+		case mode == "kube":
+			c.CallerMode = "kube"
+			c.Callers, err = parseCallers([]byte(builtinKubeTable), false)
+		case strings.HasPrefix(mode, "kube:"):
+			c.CallerMode = "kube"
+			c.Callers, err = readCallers(strings.TrimPrefix(mode, "kube:"), false)
+		case strings.HasPrefix(mode, "bearer-file:"):
+			c.CallerMode = "bearer"
+			c.Callers, err = readCallers(strings.TrimPrefix(mode, "bearer-file:"), true)
+		default:
+			return bad("CALLER_AUTH", `must be a comma list of one of "kube", "kube:<path>", "bearer-file:<path>", and "oidc"`)
+		}
+		if err != nil {
+			return bad("CALLER_AUTH", err.Error())
+		}
 	}
 
 	if c.BaseURL = get("BASE_URL"); wire.CheckBaseURL(c.BaseURL) != nil {
@@ -1530,7 +1897,7 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 	}
 	// Bindings is the Service, not the store: a lookup of a raised project's
 	// Global-minted key retires it (task 07 decision (h), review C-1).
-	h := newAPI(apiDeps{Keys: svc, Bindings: svc, Usage: reader, Auth: auth, MintWait: cfg.MintWait(), Log: log,
+	h := newAPI(apiDeps{Keys: svc, Bindings: svc, Usage: reader, Auth: auth, Sessions: store, MintWait: cfg.MintWait(), Log: log,
 		Ready: func(ctx context.Context) error { // fixed sentences only: the probe never shows an error chain
 			if pool.Ping(ctx) != nil {
 				return errors.New("database unreachable")
@@ -1564,7 +1931,7 @@ func routeSource(cfg Config) (wire.RouteSource, error) {
 		}
 		inner = f
 	} else {
-		tok, err := routesource.WorkloadTokenFromEnv(cfg.HubScope)
+		tok, err := routesource.ClientCredentialsFromEnv(cfg.HubScope) // the realm, as panacea-app-gateway (OD-30)
 		if err != nil {
 			return nil, err
 		}
@@ -1581,19 +1948,31 @@ func routeSource(cfg Config) (wire.RouteSource, error) {
 	return c, nil
 }
 
+// authenticator is CALLER_AUTH's comma list as one chainAuth (decision (g)).
 func authenticator(cfg Config) (Authenticator, error) {
-	if cfg.CallerMode == "bearer" {
-		return bearerAuthFrom(cfg.Callers), nil
+	var a chainAuth
+	switch cfg.CallerMode {
+	case "bearer":
+		a.table = bearerAuthFrom(cfg.Callers)
+	case "kube":
+		restCfg, err := rest.InClusterConfig()
+		if err != nil {
+			return nil, fmt.Errorf("kube caller authentication needs the in-cluster service account: %v", err)
+		}
+		cs, err := kubernetes.NewForConfig(restCfg)
+		if err != nil {
+			return nil, err
+		}
+		a.table = newKubeAuth(cs.AuthenticationV1().TokenReviews(), cfg.Callers, nil)
 	}
-	restCfg, err := rest.InClusterConfig()
-	if err != nil {
-		return nil, fmt.Errorf("kube caller authentication needs the in-cluster service account: %v", err)
+	if cfg.OIDC != nil {
+		o, err := newOIDCAuth(*cfg.OIDC)
+		if err != nil {
+			return nil, fmt.Errorf("oidc caller authentication: %v", err)
+		}
+		a.issuer, a.oidc = cfg.OIDC.Issuer, o
 	}
-	cs, err := kubernetes.NewForConfig(restCfg)
-	if err != nil {
-		return nil, err
-	}
-	return newKubeAuth(cs.AuthenticationV1().TokenReviews(), cfg.Callers, nil), nil
+	return a, nil
 }
 ```
 
@@ -1603,7 +1982,7 @@ func authenticator(cfg Config) (Authenticator, error) {
 cd control-plane && go test ./cmd/keysmith/ -count=1 -race -v 2>&1 | grep -c '^--- PASS'
 ```
 
-Expected: `13`, and no `--- FAIL` line.
+Expected: `17`, and no `--- FAIL` line.
 
 - [ ] **Step 6: Prove the mutants die**
 
@@ -1619,6 +1998,11 @@ Apply each edit alone, run `go test ./cmd/keysmith/ -count=1`, confirm the named
 | `callerauth.go`, in `parseCallers`: the short-token message gains `+ ": " + cred` | `TestCallerTableRefusesBadLinesWithoutQuotingThem` |
 | `config.go`: `if !strings.HasPrefix(key, "sk-")` → `if false` | `TestConfigRefusesNamingTheVariable` |
 | `main.go`, in `run`: `return 2` → `return 1` | `TestRunRefusesAMissingOrEmptyMasterKey` |
+| `calleroidc.go`, in `oidcAuth.Identify`: delete `cl.Service,` from the refusal case | `TestOIDCAuthNamesThePersonOnly` |
+| `calleroidc.go`, in `chainAuth.Identify`: the oidc case → `if c, err := a.oidc.Identify(r); err == nil { return c, nil }` falling on to the table | `TestChainAuthChoosesByIssuerAndNeverFallsThrough` |
+| `calleroidc.go`, in `ownerMayAct`: delete the `body != nil && *body != *c.Owner` check | `TestAPIRefusesAPersonActingForAnotherOwner` |
+| `calleroidc.go`, in `ownerMayAct`: delete the `for _, b := range bs` loop | `TestAPIRefusesAPersonActingForAnotherOwner` |
+| `config.go`: `if c.CallerMode != "" \|\| mode == "oidc"` → `if mode == "oidc"` | `TestConfigCallerAuthIsACommaList` |
 
 - [ ] **Step 7: Vet, format, build, and prove the binary refuses**
 
@@ -1635,13 +2019,14 @@ Expected: one stderr line, `keysmith: PANACEA_APP_GATEWAY_MASTER_KEY_FILE is not
 ```bash
 git add control-plane/cmd/keysmith/main.go control-plane/cmd/keysmith/config.go control-plane/cmd/keysmith/api.go \
   control-plane/cmd/keysmith/callerauth.go control-plane/cmd/keysmith/main_test.go control-plane/cmd/keysmith/config_test.go \
-  control-plane/cmd/keysmith/api_test.go control-plane/cmd/keysmith/callerauth_test.go
+  control-plane/cmd/keysmith/api_test.go control-plane/cmd/keysmith/callerauth_test.go \
+  control-plane/cmd/keysmith/calleroidc.go control-plane/cmd/keysmith/calleroidc_test.go
 git commit -F <message file> -- control-plane/cmd/keysmith/
 ```
 
-Message: `feat(keysmith): the HTTP API, caller authentication and a fail-closed start (phase 6 task 08)`, a body naming decisions (a) to (f), and the attribution line.
+Message: `feat(keysmith): the HTTP API, caller authentication and a fail-closed start (phase 6 task 08)`, a body naming decisions (a) to (g), and the attribution line.
 
-**Acceptance:** step 5 prints `13` under `-race`; step 6's eight edits each fail the named test; step 7 prints the refusal and `exit 2`. The live path (a mint through the compose stack answering `201`, then a `POST /v1/messages` through the gatekeeper) is task 17's acceptance, which runs this binary.
+**Acceptance:** step 5 prints `17` under `-race`; step 6's thirteen edits each fail the named test; step 7 prints the refusal and `exit 2`. The live path (a mint through the compose stack answering `201`, then a `POST /v1/messages` through the gatekeeper) is task 17's acceptance, which runs this binary.
 
 **What this task does not claim:**
 
@@ -1649,7 +2034,8 @@ Message: `feat(keysmith): the HTTP API, caller authentication and a fail-closed 
 - **The broker's side of the call** (ask P8-1): its service-account name, its projected-token audience, and when it calls.
 - **Transport security.** keysmith listens in plain HTTP on the private network; phase 8's NetworkPolicies are the boundary, and mTLS is seam S6.10.
 - **That a late mint's token reaches anyone.** A mint that finishes after its 504 is superseded by the caller's retry (task 07); its key is live until then, bound to the pod and unused.
-- **That the usage route has a cloud caller.** Only the local control plane holds `usage` (task 17's table).
+- **That the usage route has a cloud caller.** Only the local control plane holds `usage` (task 17's table); a person's `oidc` token holds `mint`, `refresh` and `revoke` only.
+- **That the realm issues what `oidc` expects.** The token's `oid` and `tid` claims, audience and scope `panacea-app-gateway`, and `azp` `panacea-app-desktop` are Panacea's realm settings (ruling §4 mappers, §10 asks), checked by hub task 43 against the dev realm; **UNVERIFIED** here, where the validator is a fake. `oidcauth` itself is env task 17 step 0's, not this task's.
 
 **Gaps against the skeleton, for the orchestrator:**
 
@@ -1658,5 +2044,6 @@ Message: `feat(keysmith): the HTTP API, caller authentication and a fail-closed 
 3. **No cloud caller holds `usage`.** Whoever shows a cloud project's spend (the Hub, or the broker on the cockpit's behalf) needs a line in the `kube` table; task 21's gap 5 raises the same.
 4. **Task 19 must grant keysmith `create` on `tokenreviews`** (a ClusterRoleBinding to `system:auth-delegator`, **UNVERIFIED** name) and set the broker's and gatekeeper's projected tokens to audience `keysmith`. The service-account names `panacea-broker:broker` and `panacea-gateway:gatekeeper` are proposals for ask P8-2.
 5. **Identifiers assumed from parts not yet merged:** task 04's `litellmadmin.New`, `Options`, `ErrNoMasterKey`, `(*Client).Health`; task 05's `binding.Migrate`, `binding.NewPGStore` (now in `task-05.md`). Task 09's `*usage.PGStore` is the sweep's `KeySource` (task 09, decision (c)), so task 05's `Store` needs no new method. Step 1 checks them.
-6. **`PANACEA_APP_GATEWAY_HUB_SCOPE`** is read here as task 13's gap 1 proposes; it is not in the skeleton's shared names.
+6. **`PANACEA_APP_GATEWAY_HUB_SCOPE`** is read here as task 13's gap 1 proposes; it is not in the skeleton's shared names. Since `OD-30` it is the realm audience scope, default `panacea-app-hub`, and an Entra `api://…/.default` is refused.
+7. **`OD-30` adds `PANACEA_APP_GATEWAY_TENANTS`, `_AUDIENCE` and `_ALLOWED_CLIENTS`**, and reads the shared `PANACEA_APP_OIDC_ISSUER` and `_PROFILE` (ruling §2), none in the skeleton's shared names. Task 19's chart sets `CALLER_AUTH=kube,oidc` and the three; hub task 10 waits on env 17 step 0 for `oidcauth`, and so does this task (step 1).
 7. **`apiDeps.Bindings` is the `*keysmith.Service`, not the store** (fix batch b01, review C-1). `ByKeyHash` retires a raised project's Global-minted key as the gatekeeper looks it up (task 07 decision (h)), and task 07's tests prove that behaviour. The wiring is one line in `run`, and no test here catches a revert to `Bindings: store`. Such a revert would leave a Global-minted key its `global/*` groups until its scheduled refresh, and nothing would fail. Check the line in review; an end-to-end raise is task 23's to observe, if the owner wants it proven.
