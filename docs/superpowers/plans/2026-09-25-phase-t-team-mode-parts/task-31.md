@@ -115,3 +115,68 @@ G31-3**: task 22's method is renamed `InForce`, its comment changed; its key and
   claim (modified; task 26's file, `task-26.md:68`, one statement)
 - `control-plane/internal/fleet/escalate/{options.go,escalate.go}` — `Effect.Kind "send-held"`;
   `OnAnswered` calls `Held.Release` for it (modified; task 30's files, gap G31-4)
+
+**Interfaces:**
+- Produces:
+  - `directive.Service` with `Issue(ctx, c control.Caller, a DirectArgs, approvedBy string)
+    (DirectResult, error)`, `Drain(ctx, org string, worker model.AgentID, max int)
+    ([]wire.Directive, error)`, `Ack(ctx, org string, worker model.AgentID, ids []string) error`,
+    `InForce(ctx, worker model.AgentID) []verbs.PendingDirective`, `PauseForDefault(ctx, worker
+    model.AgentID, es string) error`, `Release(ctx, org, es string) error`
+  - `directive.Gate` with `Judge(ctx, c control.Caller, a Act) (Judgement, error)`; `Act`,
+    `Judgement`, and the `Act.Kind` constants task 24's verbs and task 62's `build-on` pass
+  - `wire.Directive` and `wire.Response.Directives` (ST.1, both modules, one fixture)
+  - `verbs.Direct` — the `direct` handler, registered for `ClassOrchestrator` only
+    (`task-09.md:297`)
+- Consumes:
+  - task 26: `turns.Scheduler.CurrentTurn(ctx, orch) (TurnRef, bool, error)` and
+    `RecordIssued(ctx, orch, id)` (`task-26.md:663-665`); `TurnRef.Origin` (`:194-199`)
+  - task 30: `escalate.Service.Decide(ctx, DecideRequest) (string, error)` (`task-30.md:340-352`,
+    `:383`), the `free-directive-fleet-turn` and `scope-change` rows (`task-30.md:203-204`), and
+    `Pauser` (`:370-372`), which `Service` satisfies
+  - task 28: `fleet.message_reads` (`task-28.md:661-663`) for the read list
+  - task 24: the worker's `Agent.Task` and the task card's `Scope` (1..20 globs,
+    `task-24.md:81`), read through task 22's `Sources.Cards`
+  - task 23: `leases.Engine.Live` for a `wait-for` lease's liveness
+  - task 19: `control.Caller`, `control.Handler`, `wire.Refuse` with `Details`
+  - task 11: `outbox.Enqueue`, `outbox.OpDirective` (`task-11.md:133`), whose target is task 07's
+    route 67; task 02: `teamtext.New` with the 600 bound, `teamtext.ValidGlob`
+    (`task-02.md:843`)
+- Requires of **task 07**: `fleetTurnVerbs` = the five typed kinds (G31-1); a decide's optional
+  `evidence` object on route 64 (G31-2); route 67's body carrying task 01's `params`
+  (`task-01.md:431-432`), which task 07's shape (`task-07.md:160-166`) omits (G31-5).
+- Requires of **task 10**: the tables below in both stores and the suite, and `OutboxMarkSent`
+  setting `directive_queue.hub_at = at WHERE outbox_id = id` in the same transaction.
+- Requires of **task 30**: `Effect{Kind: "send-held"}` and, in `OnAnswered`, `Held.Release(ctx,
+  org, es)` when the chosen option's effect is `send-held` (G31-4). Task 30's hold (option 0) is
+  already the default and the safe side.
+
+**The ST.1 shapes, complete.** In `control-plane/internal/fleet/wire/control.go` and, byte for
+byte in its fields and tags, `sandboxd/internal/control/wire.go`:
+
+```go
+// Response gains Directives, placed after OK so a printed frame shows them first.
+type Response struct {
+	ID         string          `json:"id"`
+	OK         bool            `json:"ok"`
+	Directives []Directive     `json:"directives,omitempty"` // task 31: workers only
+	Result     json.RawMessage `json:"result,omitempty"`
+	Error      *Error          `json:"error,omitempty"`
+}
+
+// Directive is one delivery to a worker, from its own Orchestrator. Text is set
+// for kind "free" only, and it is the only place directive text crosses the wire.
+type Directive struct {
+	ID     string    `json:"id"`              // dv-…
+	Kind   string    `json:"kind"`            // pause|resume|narrow|wait-for|rebase|free
+	Globs  []string  `json:"globs,omitempty"` // narrow
+	Lease  string    `json:"lease,omitempty"` // wait-for: ls-…
+	Text   string    `json:"text,omitempty"`  // free: ≤ 600, text·A, already cleaned
+	Author string    `json:"author"`          // always "agent": an Orchestrator wrote it
+	Origin string    `json:"origin"`          // human | fleet
+	At     time.Time `json:"at"`
+}
+
+// MaxPiggyback bounds one response's directives; the rest wait for the next call.
+const MaxPiggyback = 8
+```
