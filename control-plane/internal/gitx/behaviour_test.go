@@ -1034,8 +1034,13 @@ func TestBehaviourFetchStartsAutoMaintenance(t *testing.T) {
 	}
 }
 
-// os.RemoveAll on a clone: Git for Windows writes object files read-only. Record whether
-// RemoveAll copes, and prove the fix (clear the read-only bit during a walk) if it does not.
+// os.RemoveAll on a clone whose pack is read-only. The plan expected it to fail on Windows and
+// named a fix (clear the read-only bit during a walk). Recorded on go1.26.2: it succeeds first
+// time, because os.Remove on Windows clears FILE_ATTRIBUTE_READONLY and retries
+// (GOROOT/src/os/file_windows.go:247-249). The pin asserts that first call, so a toolchain on
+// which it fails goes red here rather than passing through the walk; tasks 03 and 11 remove
+// trees with a plain os.RemoveAll only while this stays green. On a red, the walk still runs and
+// says whether the plan's fix would repair it.
 func TestBehaviourRemoveAllOnAClone(t *testing.T) {
 	t.Parallel()
 	env := hermetic(t)
@@ -1053,8 +1058,10 @@ func TestBehaviourRemoveAllOnAClone(t *testing.T) {
 		t.Fatalf("fixture: the pack is not read-only (stat %v, err %v)", fi, err)
 	}
 	err := os.RemoveAll(dst)
-	t.Logf("os.RemoveAll(clone) on %s: err = %v", runtime.GOOS, err)
+	t.Logf("os.RemoveAll(clone) on %s/%s: err = %v", runtime.GOOS, runtime.Version(), err)
 	if err != nil {
+		t.Errorf("os.RemoveAll on a clone with a read-only pack failed first time: %v; "+
+			"tasks 03 and 11 need the read-only walk (results doc, divergence 6)", err)
 		walkErr := filepath.WalkDir(dst, func(p string, d os.DirEntry, err error) error {
 			if err != nil {
 				return err
@@ -1071,7 +1078,7 @@ func TestBehaviourRemoveAllOnAClone(t *testing.T) {
 		if err := os.RemoveAll(dst); err != nil {
 			t.Fatalf("os.RemoveAll after clearing read-only bits: %v", err)
 		}
-		t.Logf("os.RemoveAll succeeded after os.Chmod(p, 0o600) over the tree")
+		t.Logf("the plan's fix works here: os.RemoveAll succeeded after os.Chmod(p, 0o600) over the tree")
 	}
 	if _, err := os.Stat(dst); !errors.Is(err, os.ErrNotExist) {
 		t.Errorf("the clone is still there after RemoveAll (stat err %v)", err)
