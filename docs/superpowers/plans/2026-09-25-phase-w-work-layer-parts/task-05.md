@@ -1330,7 +1330,7 @@ That is the whole of `fake_work_intake.go`.
 Each row is a function named `w<Name>`, so a failing row's stack names it, and `WorkRowsW1` (the
 last block) lists them in `ID` order. A row asserts **strings** (codes, detail values, event
 kinds), never a fake-only field, so the same row runs on the real Hub in task 16. Rows W-01 to
-W-09 hold part 1 (task 04's rules; tasks 08-10's server); W-10 to W-26 hold part 2. The rows
+W-09 hold part 1 (task 04's rules; tasks 08-10's server); W-10 to W-25 hold part 2. The rows
 add `"bytes"` and `"slices"` to the head's import block above; nothing else in the head changes.
 
 Block 1: numbers, roles, the key, revisions, the patch.
@@ -1845,6 +1845,108 @@ func wErasedTakesNoWrites(t *testing.T, e WorkEnv) {
 	wRefused(t, err, 409, hubapi.CodeConflict, "issueId", iw.Head.ID)
 	if hits, _ := e.Member.SearchIssues(wctx, hubapi.IssueSearchQuery{Q: "secret"}); len(hits) != 0 {
 		t.Errorf("search found %d erased issues", len(hits))
+	}
+}
+```
+
+```go
+// WorkRowsW1 is W1's rows in ID order. An ID is never reused or renumbered;
+// a retired row stays in the list as a t.Skip naming its replacement.
+var WorkRowsW1 = []WorkRow{
+	{"W-01", "numbers_gapless", wNumbersGapless},
+	{"W-02", "viewer_cannot_write", wViewerCannotWrite},
+	{"W-03", "key_is_the_alias", wKeyIsTheAlias},
+	{"W-04", "stale_base_conflicts", wStaleBaseConflicts},
+	{"W-05", "restore_is_a_new_revision", wRestoreIsANewRevision},
+	{"W-06", "patch_writes_no_revision", wPatchWritesNoRevision},
+	{"W-07", "hand_cannot_set_a_fact", wHandCannotSetAFact},
+	{"W-08", "hand_done_of_a_chore_has_no_criteria", wHandDoneOfAChoreHasNoCriteria},
+	{"W-09", "reopen_clears_the_proof_word", wReopenClearsTheProofWord},
+	{"W-10", "relation_reads_the_inverse", wRelationReadsTheInverse},
+	{"W-11", "relation_cycle_refused", wRelationCycleRefused},
+	{"W-12", "relation_removed_from_the_other_end", wRelationRemovedFromTheOtherEnd},
+	{"W-13", "label_names_are_the_teams", wLabelNamesAreTheTeams},
+	{"W-14", "archived_label_is_unavailable", wArchivedLabelIsUnavailable},
+	{"W-15", "policy_gates_the_triage_exit", wPolicyGatesTheTriageExit},
+	{"W-16", "replies_are_one_level", wRepliesAreOneLevel},
+	{"W-17", "text_anchors_count_utf16", wTextAnchorsCountUTF16},
+	{"W-18", "reactions_are_idempotent", wReactionsAreIdempotent},
+	{"W-19", "subscriptions_follow_triggers", wSubscriptionsFollowTriggers},
+	{"W-20", "import_is_idempotent", wImportIsIdempotent},
+	{"W-21", "import_is_all_or_nothing", wImportIsAllOrNothing},
+	{"W-22", "search_reads_only_readable_titles", wSearchReadsOnlyReadableTitles},
+	{"W-23", "attachments_are_this_projects_blobs", wAttachmentsAreThisProjectsBlobs},
+	{"W-24", "erase_keeps_keys_and_blanks_texts", wEraseKeepsKeysAndBlanksTexts},
+	{"W-25", "erased_takes_no_writes", wErasedTakesNoWrites},
+}
+```
+
+That is the whole of `conformance/work.go`: the head, blocks 1 to 7, and this list.
+
+#### `conformance/work_fake_test.go`, complete
+
+H05's `fake_test.go` builds its `Env` inside `TestFakeConforms`'s closure
+(`phase-h-hub-parts/task-05.md:89-120`), with no named builder to call. This file builds the same
+world the same way, and adds the org admin, so no H05 file changes.
+
+```go
+package conformance_test
+
+import (
+	"context"
+	"fmt"
+	"testing"
+	"time"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubapi"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubclient"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubclient/conformance"
+)
+
+// workFakeEnv is TestFakeConforms's world, plus an org admin in no team (the
+// user hubclient's fake_test.go:1044 names orgBoss).
+func workFakeEnv(t *testing.T) conformance.WorkEnv {
+	ctx := context.Background()
+	f := hubclient.NewFake()
+	now := time.Date(2026, 9, 25, 4, 0, 0, 0, time.UTC)
+	f.SetNow(func() time.Time { return now })
+	f.SetReservationTTL(15 * time.Minute)
+	admin := f.As(hubclient.FakeAda)
+	team, err := admin.CreateTeam(ctx, hubapi.CreateTeamRequest{Name: "Work conformance"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	member, viewer := f.As(hubclient.FakeGrace), f.As(hubclient.FakeLinus)
+	for _, p := range []struct {
+		who  *hubclient.Fake
+		u    hubclient.FakeUser
+		role hubapi.Role
+	}{{member, hubclient.FakeGrace, hubapi.RoleMember}, {viewer, hubclient.FakeLinus, hubapi.RoleViewer}} {
+		if _, err := admin.CreateInvite(ctx, team.ID, hubapi.CreateInviteRequest{Email: p.u.Email, Role: p.role}); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := p.who.Me(ctx); err != nil { // binds the invite
+			t.Fatal(err)
+		}
+	}
+	return conformance.WorkEnv{
+		Env: conformance.Env{Admin: admin, Member: member, Viewer: viewer,
+			Outsider: f.As(hubclient.FakeUser{ID: "u-00000000000000a4", DisplayName: "Out Sider", Email: "out@example.test"}),
+			TeamID:   team.ID, Advance: func(d time.Duration) { now = now.Add(d) }, ReservationTTL: 15 * time.Minute},
+		OrgAdmin: f.As(hubclient.FakeUser{ID: "u-00000000000000b1", DisplayName: "Org Boss",
+			Email: "boss@example.test", OrgAdmin: true}),
+	}
+}
+
+func TestWorkRowsOnTheFake(t *testing.T) { conformance.RunWork(t, workFakeEnv) }
+
+// TestWorkRowIDsAreInOrder: W-01 upward, once each, so an ID names one rule
+// for good and task 16's run lists the same names as this one.
+func TestWorkRowIDsAreInOrder(t *testing.T) {
+	for i, r := range conformance.WorkRowsW1 {
+		if want := fmt.Sprintf("W-%02d", i+1); r.ID != want || r.Name == "" || r.Run == nil {
+			t.Errorf("row %d = %s %q, want %s with a name and a body", i, r.ID, r.Name, want)
+		}
 	}
 }
 ```
