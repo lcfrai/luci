@@ -70,7 +70,7 @@ type Account struct{ TenantID, ObjectID, Name, Username string }
 
 type Status struct {
 	State   State
-	Reason  string   // "" | "timeout" | "entra_error" | "exchange_failed" | "reauth_required" | "tenant_not_enrolled"
+	Reason  string   // "" | "timeout" | "entra_error" | "exchange_failed" | "reauth_required" | "tenant_not_enrolled" | "offline" (task 31's Start, OD-30)
 	Account *Account // nil unless SignedIn
 }
 
@@ -90,6 +90,12 @@ type Config struct {
 	OpenBrowser func(authorizeURL string) error
 	// SignInTimeout defaults to 10 minutes (contract §6.1, "failures").
 	SignInTimeout time.Duration
+	// Task 31's Start (the silent refresh at launch, OD-30 ruling section 3):
+	// StartTimeout bounds its one redemption (default 3 s); while offline it
+	// retries every RetryEvery (default 5 s) on After (default time.After).
+	StartTimeout time.Duration
+	RetryEvery   time.Duration
+	After        func(time.Duration) <-chan time.Time
 	// AfterSignIn is step 11: called once with the fresh Hub token already in
 	// the cache (so Token(ctx, HubAudience) answers it). It returns the Hub org's
 	// Entra tenant id from GET /v1/me — correction A6 cross-checks it against the
