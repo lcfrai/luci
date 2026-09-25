@@ -763,3 +763,70 @@ describe("SW.15 the Work wire", () => {
   }
 ```
 
+
+```ts
+  // Kills: a call straight to the Hub, a wrong verb or path, a method with no route, a row with
+  // no method, and a Work path written anywhere in src/ but this file.
+  it("calls only the loopback relay", async () => {
+    const { work, calls } = recorded();
+    for (const [, call] of EVERY) await call(work);
+    expect(calls.map((c) => [c.method, c.url])).toEqual(
+      EVERY.map(([, , verb, path]) => [verb, DEFAULT_BASE_URL + path]),
+    );
+    expect(Object.keys(work).sort()).toEqual(EVERY.map(([m]) => m).sort());
+    expect(EVERY).toHaveLength(WORK_RELAY.length + WORK_LOCAL.length);   // 30 + 5
+    expect(WORK_RELAY.map(([, , hub]) => relayPath(hub)).every((p) => p.startsWith("/v1/hub/work/"))).toBe(true);
+
+    const src = import.meta.glob<string>("/src/**/*.{ts,tsx}", { query: "?raw", import: "default", eager: true });
+    const naming = Object.entries(src)
+      .filter(([p, text]) => !p.endsWith(".test.ts") && !p.endsWith(".test.tsx") && /\/v1\/(hub\/)?work\b/.test(text))
+      .map(([p]) => p);
+    expect(naming).toEqual(["/src/api/work.ts"]);
+  });
+
+  // Kills: a generic error where Stop and discard must be offered, and a refusal whose reason
+  // (details.policy) is dropped on the way to the screen.
+  it("maps first_write to its own problem", async () => {
+    const problem = (status: number, body: object) => () =>
+      new Response(JSON.stringify(body) + "\n", { status });
+    const caught = async (w: WorkClient, call: (w: WorkClient) => Promise<unknown>) =>
+      call(w).then(() => { throw new Error("resolved"); }, (e: unknown) => e as ApiError);
+
+    const first = recorded(problem(409, { error: "first_write", message: "the agent has written a file", details: { next: "discard" } }));
+    const e1 = await caught(first.work, (w) => w.undoStart("s-1"));
+    expect(e1).toBeInstanceOf(ApiError);
+    expect(workProblem(e1)).toEqual({ kind: "first_write", message: "the agent has written a file" });
+
+    const policy = recorded(problem(422, { error: "policy_refused", message: "set a priority first", details: { policy: "priorityToLeaveTriage" } }));
+    const e2 = await caught(policy.work, (w) => w.moveIssueState("is-1", MOVE));
+    expect(workProblem(e2)).toEqual({
+      kind: "refused", code: "policy_refused", message: "set a priority first",
+      details: { policy: "priorityToLeaveTriage" },
+    });
+
+    const down = recorded(problem(503, { error: "upstream_unavailable", message: "hub", details: { upstream: "hub" } }));
+    expect(workProblem(await caught(down.work, (w) => w.issue("is-1"))).kind).toBe("unavailable");
+  });
+
+  // Kills: string concatenation of an id into a path (one id becoming three segments).
+  it("escapes each path segment", async () => {
+    const { work, calls } = recorded();
+    await work.issue("is-1/../teams");
+    expect(calls[0].url).toBe(`${DEFAULT_BASE_URL}/v1/hub/work/issues/is-1%2F..%2Fteams`);
+  });
+
+  // Kills: a comma-joined state list, an empty filter sent as ?assignee=, and a slice route
+  // returned as a page (or a page route unwrapped).
+  it("repeats state, drops empty filters, and unwraps only the slice routes", async () => {
+    const { work, calls } = recorded();
+    const page = await work.issues("pj-1", { states: ["todo", "started"], assignee: "" }, { limit: 20 });
+    expect(calls[0].url).toBe(`${DEFAULT_BASE_URL}/v1/hub/work/projects/pj-1/issues?state=todo&state=started&limit=20`);
+    expect(page).toEqual({ items: [], next: null });
+    expect(await work.labels("tm-1")).toEqual([]);
+  });
+});
+```
+
+The source walk reads `/src/**` the way `styles/designsystem.test.ts:30` does. `work.ts`'s own
+comments name `/v1/hub/work`, which is why it is the one allowed file.
+
