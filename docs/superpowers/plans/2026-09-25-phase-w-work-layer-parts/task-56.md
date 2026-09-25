@@ -497,7 +497,7 @@ Hub answers" is a state the test can stand in, not a race.
 import { describe, expect, it, vi } from "vitest";
 import { ApiError, type ProblemCode } from "../../api/client";
 import type { IssueHead, WorkClient } from "../../api/work";
-import { ALICE, DYLAN, WORK_IDS, makeIssueHead, makeIssueRevision } from "../../test/workFixtures";
+import { ALICE, WORK_IDS, makeIssueHead, makeIssueRevision } from "../../test/workFixtures";
 import { createReplica, type Replica } from "./replica";
 import { createUndoLedger } from "./undo";
 
@@ -620,3 +620,214 @@ describe("mutate paints first and takes back only its own fields", () => {
 `__applyForTest(head)` stands in for a feed event plus its subject fetch: task 55's apply path,
 exposed only under `import.meta.vitest`. If task 55 prints its own seam for this, use that instead;
 the name is this part's (**UNVERIFIED** against task 55).
+
+#### Tests to write first, part 3 — undo, batch, conflict, the closed union (`mutate.test.ts`)
+
+```ts
+describe("undo is a new write; a batch is one entry; a conflict keeps the words", () => {
+  it("U sends the inverse op to the Hub under a new key", async () => {
+    const { r, hub } = await harness();
+    r.mutate({ kind: "setPriority", issueId: EP142, priority: "high" });
+    hub.gates[0].resolve(makeIssueHead({ id: EP142, priority: "high" }));
+    await vi.waitFor(() => expect(r.pendingOf(EP142)).toBeNull());
+    expect(r.undoLatest()).toBe(true);
+    await vi.waitFor(() => expect(hub.calls).toHaveLength(2));
+    expect(hub.calls[1]).toMatchObject({ method: "patchIssue", body: { priority: "none" } });
+    expect(hub.calls[1].key).not.toBe(hub.calls[0].key);
+    expect(r.get(EP142)?.head.priority).toBe("none");         // painted before the answer too
+  }); // kills: a local-only undo (the Hub never hears it); kills: reusing the first op's key
+
+  it("a three-issue batch is one ledger entry whose undo reverts all three", async () => {
+    const ids = [WORK_IDS.ep150, WORK_IDS.ep160, WORK_IDS.ep161];
+    const { r, hub, undo } = await harness(ids.map((id) => makeIssueHead({ id, priority: "none" })));
+    const h = r.mutate(ids.map((issueId) => ({ kind: "setPriority" as const, issueId, priority: "low" as const })));
+    expect(undo.entries()).toHaveLength(1);
+    ids.forEach((id, i) => hub.gates[i].resolve(makeIssueHead({ id, priority: "low" })));
+    await h.settled;
+    h.undo();
+    await vi.waitFor(() => expect(hub.calls).toHaveLength(6));
+    expect(hub.calls.slice(3).map((c) => c.body)).toEqual(ids.map(() => ({ priority: "none" })));
+  }); // kills: one chip per op; kills: undo reverting only the batch's first op
+
+  it("after the window, undo sends nothing", async () => {
+    const { r, hub, tick, undo } = await harness();
+    const h = r.mutate({ kind: "setPriority", issueId: EP142, priority: "high" });
+    hub.gates[0].resolve(makeIssueHead({ id: EP142, priority: "high" }));
+    await h.settled;
+    tick(6001); undo.lapse();
+    h.undo();
+    expect(r.undoLatest()).toBe(false);
+    expect(hub.calls).toHaveLength(1);
+  }); // kills: an undo that never expires (the revision history is the way back, task 47)
+
+  it("a move out of a fact state and a comment get no undo entry", async () => {
+    const { r, undo } = await harness([makeIssueHead({ id: EP142, state: "in_review" })]);
+    const move = r.mutate({ kind: "setState", issueId: EP142,
+      move: { to: "todo", cause: "hand", reason: "", landCommit: "", evidence: [] } });
+    const say = r.mutate({ kind: "comment", issueId: EP142, localId: "lc-1",
+      req: { body: { text: "Looks right", author: "H" }, parentId: null, anchor: null, mentions: [] } });
+    expect([move.undoable, say.undoable]).toEqual([false, false]);
+    expect(undo.entries()).toHaveLength(0);
+  }); // kills: offering an undo the Hub's MoveAllowed would refuse (decision 6)
+
+  it("a revision_conflict keeps the person's text for the new head", async () => {
+    const { r, hub, fetched } = await harness();
+    const patch = { title: { text: "Resume an upload after a drop", author: "H" as const } };
+    const h = r.mutate({ kind: "revise", issueId: EP142, baseRev: 1, patch });
+    hub.gates[0].reject(new ApiError("revision_conflict" as ProblemCode, "Revision 2 is newer", 409));
+    expect(await h.settled).toMatchObject({ code: "revision_conflict" });
+    expect(fetched).toHaveBeenCalledWith([EP142]);
+    expect(r.draftAgain(EP142)).toMatchObject({ issueId: EP142, baseRev: 1, patch });
+  }); // kills: losing a person's words on a conflict
+
+  it("irreversible acts are not ops", () => {
+    // @ts-expect-error erase is confirm.inplace (task 44), never a WorkOp
+    const bad: import("./ops").WorkOp = { kind: "erase", issueId: EP142 };
+    // @ts-expect-error land is a fact the Hub records, never a hand op
+    const land: import("./ops").WorkOp = { kind: "land", issueId: EP142 };
+    expect([bad, land]).toHaveLength(2);
+  }); // kills: widening WorkOp with an act that has no inverse
+});
+```
+
+The `StateMove` and `CreateCommentRequest` literals follow task 37's types (`task-37.md:197-199`,
+`:205-207`), and the hand move copies that part's own `MOVE` fixture (`task-37.md:712`).
+
+#### Tests to write first, part 4 — the window (`undo.test.ts`, `UndoChip.test.tsx`)
+
+```ts
+// desktop/src/work/replica/undo.test.ts
+import { describe, expect, it } from "vitest";
+import { createUndoLedger } from "./undo";
+
+describe("the undo ledger counts unpaused time only", () => {
+  const entry = { id: "op-1", ops: [], before: [], issueIds: ["is-1"] };
+  it("hover and focus pause it; it lapses only after 6 s unpaused", () => {
+    let now = 0;
+    const l = createUndoLedger(() => now, 6000);
+    l.push(entry);
+    now = 2000; l.pause("op-1", "hover", true);
+    now = 20000; expect(l.lapse()).toEqual([]);              // 18 s hovered: still live
+    l.pause("op-1", "focus", true); l.pause("op-1", "hover", false);
+    now = 30000; expect(l.remainingMs("op-1")).toBe(4000);   // focus alone still pauses
+    l.pause("op-1", "focus", false);
+    now = 33999; expect(l.lapse()).toEqual([]);
+    now = 34000; expect(l.lapse()).toEqual(["op-1"]);
+  }); // kills: an unpausing countdown; kills: hover-off resuming while focus still holds
+  it("latestLive is the newest live entry, and take removes it", () => {
+    let now = 0;
+    const l = createUndoLedger(() => now, 6000);
+    l.push(entry); now = 10; l.push({ ...entry, id: "op-2" });
+    expect(l.latestLive()?.id).toBe("op-2");
+    expect(l.take("op-2")?.id).toBe("op-2");
+    expect(l.latestLive()?.id).toBe("op-1");
+  }); // kills: U undoing the oldest op instead of the latest
+});
+```
+
+```tsx
+// desktop/src/components/common/UndoChip.test.tsx
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { createUndoLedger } from "../../work/replica/undo";
+import { expectNoPrediction } from "../../test/expectNoPrediction";
+import { UndoChip } from "./UndoChip";
+
+beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(0); });
+afterEach(() => { vi.useRealTimers(); });
+
+function mount(issueIds: string[]) {
+  const ledger = createUndoLedger(() => Date.now(), 6000);
+  ledger.push({ id: "op-1", ops: [], before: [], issueIds });
+  const onUndo = vi.fn();
+  const view = render(<>
+    {issueIds.map((id) => <div key={id} data-issue-id={id} tabIndex={0}>{id}</div>)}
+    <UndoChip ledger={ledger} entryId="op-1" label="Priority High" onUndo={onUndo} />
+  </>);
+  return { ledger, onUndo, view };
+}
+
+it("a hovered row's chip does not lapse at 6 s, and lapses after the hover ends", () => {
+  const { view } = mount(["is-1"]);
+  act(() => { vi.advanceTimersByTime(1000); });
+  fireEvent.pointerOver(screen.getByText("is-1"));
+  act(() => { vi.advanceTimersByTime(9000); });              // 10 s wall, 1 s unpaused
+  expect(screen.getByRole("button", { name: "Undo" })).toBeTruthy();
+  fireEvent.pointerOut(screen.getByText("is-1"));
+  act(() => { vi.advanceTimersByTime(5000); });              // 6 s unpaused: the beat lapses it
+  act(() => { vi.advanceTimersByTime(1000); });
+  expect(screen.queryByRole("button", { name: "Undo" })).toBeNull();
+  expectNoPrediction(view.container);
+}); // kills: an unpausing countdown
+
+it("a three-issue batch is one chip, and its Undo calls onUndo once", () => {
+  const { onUndo } = mount(["is-1", "is-2", "is-3"]);
+  expect(screen.getAllByRole("button", { name: "Undo" })).toHaveLength(1);
+  fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+  expect(onUndo).toHaveBeenCalledTimes(1);
+}); // kills: per-op chips
+
+it("the seconds are tabular and whole", () => {
+  mount(["is-1"]);
+  act(() => { vi.advanceTimersByTime(2000); });
+  const left = document.querySelector(".undo-chip-left")!;
+  expect(left.textContent).toBe("4s");
+}); // kills: a fractional or ms countdown
+```
+
+The seconds count is a remaining time, not a completion prediction: it is a fixed window the person
+controls, which is why `expectNoPrediction` (rules `percentage`, `n-of-m`, `eta`,
+`task-20.md:60`) passes on it. If task 20's `eta` rule matches `4s`, **that is a conflict to raise,
+not to route around**: say so in the task's return.
+
+#### Steps
+
+- [ ] Make the `api/work.ts` and `api/client.ts` deltas; task 37's tests still pass, and one new
+      case in `client.test.ts` shows `send(..., {idempotencyKey: "op-1"})` sets the header.
+- [ ] Write `ops.test.ts` for `fieldsOf`, `undoable` and `inverseOf` (one case per `WorkOp`
+      kind, plus the per-label and per-relation members); write `ops.ts` until it passes.
+- [ ] Write `mutate.test.ts` (parts 1-3); it fails to find `mutate`. Add the write half to
+      `replica.ts` in the six numbered steps above. Mutate by hand and watch the named test go red,
+      then revert: paint inside the `.then` (test 1); `revertLocal` writing every field of the
+      record (test 2); restore the whole label list (test 3); call listeners from a `useEffect`
+      (test 4); `makeId("op")` inside `sendOp` (test 5); send both label ops at once (test 6);
+      apply the inverse locally without sending (undo test 1).
+- [ ] Write `undo.test.ts` and `undo.ts`; then `UndoChip.test.tsx`, `UndoChip.tsx` and the CSS.
+      Mutant: drop the `pausedSince` branch in `remainingMs`; both window tests go red.
+- [ ] Write `undoVerb.ts` against task 53's `registerVerb`; if task 53 has not landed, keep the file
+      and skip its registration test with a `test.todo` naming task 53 (never a fake keymap).
+- [ ] Add `data-fail` and the refusal line to `IssueRow.tsx`; append the `[data-fail]` rule.
+- [ ] Commit each file as it goes green.
+
+#### Acceptance
+
+```bash
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop test -- src/work/replica src/components/common/UndoChip.test.tsx'
+# expected: ops, mutate, undo and UndoChip suites passing; 13 named cases in mutate and undo
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop test'
+# expected: every suite passing, tasks 37, 40 and 55 included
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop run typecheck'
+# expected: exit 0; the two @ts-expect-error lines are used (an unused one is an error)
+~/.claude/tools/claudezsh/claudezsh 'grep -rnE "\.(patchIssue|moveIssueState|writeIssueRevision|createComment|resolveComment|addRelation|removeRelation)\(" desktop/src --include=*.ts --include=*.tsx'
+# expected: matches only in src/work/replica/ops.ts and src/api/ (one write path)
+```
+
+#### What this task does NOT claim
+
+- **An offline queue that survives a restart** (L-230, a SKIP): the queue is in memory.
+- **The undo announcement** in the live region: task 66 listens to `onRefused` and the ledger.
+- **Start's *Undo Start*** chip: task 61, on `undoStart` (`task-37.md`), not on this ledger.
+- **`budget.paint ≤ 16 ms`**: recorded by task 70's timing run, not asserted here (05 §4.6).
+- **End-to-end dedupe of a desktop retry** at the Hub: it needs task 16's relay to forward the
+  inbound key (decision 3); until then the key stops at the loopback.
+- **The editor's offer of `draftAgain`** on the new head: task 49 reads it.
+
+#### Gaps found while writing this part
+
+1. The skeleton's file map omits `UndoChip.tsx`, `undoVerb.ts`, `mutate.test.ts` and the
+   `api/work.ts` + `api/client.ts` deltas for the `Idempotency-Key` option.
+2. Task 16's relay mints its own key per call (`task-16.md:844`) and does not forward an inbound
+   one; decision 3 needs it to.
+3. Task 55's part was not on the tree: `ReplicaDeps`' snapshot names and the `__applyForTest` seam
+   are proposals, and task 55 wins.
+4. Task 53's `registerVerb` signature and the `optimistic.undo` verb id are the scope's words.
