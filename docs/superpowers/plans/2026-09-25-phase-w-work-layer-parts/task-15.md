@@ -294,3 +294,50 @@ func ImportLabelNames(names []string) []string {
 `work.go` gains the imports `errors`, `fmt`, `net/url`, `strings`, `time` and `unicode/utf8` beside
 task 03's `bytes`, `encoding/json` and `slices` (`task-03.md:86-90`), where it lacks them.
 
+#### `store/work_imports.go` and task 08's row (the contract; one statement each)
+
+```go
+package store
+
+// Additive fields on task 08's IssueRow (shown as the diff); InsertIssue writes
+// them and every IssueRow read selects them:
+//   ExternalAuthorName string     // "" unless imported; blanked by erase_issue
+//   ExternalCreatedAt  *time.Time // nil unless the source gave a time
+
+// ExternalHit is an issue an earlier import made from one (source, externalId).
+type ExternalHit struct {
+	IssueID string
+	Number  int
+}
+
+// IssuesByExternal reads the project's issues made from any of ids under source,
+// erased ones included (an erased import stays erased):
+//   SELECT external_id, id, number FROM issues
+//    WHERE project_id = $1 AND external_source = $2 AND external_id = ANY($3)
+// Row-level security scopes it to the caller's org; issues_external_once makes
+// each key map to one issue.
+func IssuesByExternal(ctx context.Context, q Querier, projectID, source string, ids []string) (map[string]ExternalHit, error)
+
+// MatchLabels maps each name to the team's live label with the same lower(),
+// the rule labels_team_live_name enforces (task-06.md:247), so a name matches
+// at most one label:
+//   SELECT n, l.id FROM unnest($2::text[]) AS n
+//     JOIN labels l ON l.team_id = $1 AND l.archived_at IS NULL AND lower(l.name) = lower(n)
+// A name with no live label is absent from the map. Nothing is written.
+func MatchLabels(ctx context.Context, q Querier, teamID string, names []string) (map[string]string, error)
+
+// InsertIssueLabels: INSERT INTO issue_labels (org_id, issue_id, label_id)
+//   SELECT $1, $2, x FROM unnest($3::text[]) AS x
+// The caller passes distinct ids; "Bug" and "bug" on one item are one label.
+func InsertIssueLabels(ctx context.Context, tx pgx.Tx, org, issueID string, labelIDs []string) error
+```
+
+`issueHead` (task 08) fills `external` as `{source, externalId, url, authorName, createdAt}` when
+`external_source` is set, `createdAt` formatted as the head's own `createdAt` is, or `""` when
+`external_created_at` is NULL. Whether task 08 reads `IssueRow` through one column list or
+several is **UNVERIFIED** until its file lands; every list gains the two columns.
+
+A label is matched to the **project's team**, never to the org: task 06's `issue_labels` foreign
+key names only `(org_id, label_id)` (`task-06.md:249-256`), so the team rule is Go's, and
+`TestALabelOfAnotherTeamIsNotMatched` holds it.
+
