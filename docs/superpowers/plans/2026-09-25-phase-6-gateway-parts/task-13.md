@@ -16,7 +16,7 @@ Five decisions where the skeleton is silent:
 - `control-plane/internal/routesource/cache.go` — package doc, `ErrUnavailable`, `fromFields` (the one place `Effective` is computed), `Cache`, `NewCache` (new)
 - `control-plane/internal/routesource/hub.go` — `Hub`, `NewHub`, the one `GET` (new)
 - `control-plane/internal/routesource/file.go` — `File`, `NewFile`, re-read on change (new)
-- `control-plane/internal/routesource/token.go` — `TokenSource`, `TokenFunc`, `WorkloadToken`, the federated exchange (new)
+- `control-plane/internal/routesource/token.go` — `TokenSource`, `TokenFunc`, `ClientCredentials`, the realm's client-credentials grant (new; `OD-30`)
 - `control-plane/internal/routesource/{cache_test.go,hub_test.go,file_test.go,token_test.go}` — every test below, `package routesource` (new)
 
 **Interfaces:**
@@ -26,7 +26,7 @@ Five decisions where the skeleton is silent:
   - `routesource.NewHub(baseURL string, tokens TokenSource, client *http.Client) (*Hub, error)`: `baseURL` absolute `http` or `https`, no path, no query; nil `client` is a 3-second client that refuses redirects
   - `routesource.NewFile(path string) (*File, error)`: refuses an empty path; the file need not exist yet
   - `routesource.TokenSource` = `interface{ Token(ctx context.Context) (string, error) }`; `routesource.TokenFunc` adapts a function
-  - `routesource.WorkloadToken{AuthorityHost, TenantID, ClientID, TokenFile, Scope string; HTTP *http.Client; Now func() time.Time}`, built by `WorkloadTokenFromEnv(scope string) (*WorkloadToken, error)` from the four `AZURE_*` variables AKS's workload-identity webhook injects (`hub-contract.md:2181-2183`)
+  - `routesource.ClientCredentials{Issuer, ClientID, SecretFile, Scope string; HTTP *http.Client; Now func() time.Time}`, built by `ClientCredentialsFromEnv(scope string) (*ClientCredentials, error)` from `PANACEA_APP_OIDC_ISSUER` (the realm URL, required), `PANACEA_APP_GATEWAY_OIDC_CLIENT_ID` (default `panacea-app-gateway`) and `PANACEA_APP_GATEWAY_OIDC_CLIENT_SECRET_FILE` (required, the Secrets Store CSI mount). **`OD-30`** (ruling `2026-09-25-identity-keycloak-broker.md` §6): the gateway calls the Hub as the realm's confidential client `panacea-app-gateway`, `grant_type=client_credentials`, `scope=panacea-app-hub`; this replaces the Entra `WorkloadToken` (federated assertion from `AZURE_FEDERATED_TOKEN_FILE`). Azure-plane access (Postgres, Key Vault) stays Azure workload identity, unchanged.
   - All three sources satisfy `wire.RouteSource` (compile-time assertions)
 - Consumes: `dataclass.Decide`, `DecodeFields`, `FieldsFromRecord`, `ProjectInferenceFields`, `RouteAU`, `RouteGlobal` (task 01, `task-01.md:29-37`); `wire.ProjectInference`, `wire.RouteSource`, `wire.ErrRouteUnknown` (task 03); `httpx.MaxBodyBytes` (`control-plane/internal/httpx/problem.go:22`).
 - Required by: task 07 (keysmith's `Deps.Routes`), task 08 and task 12 (each binary builds `Cache` over `Hub` or `File` from `PANACEA_APP_GATEWAY_ROUTE_SOURCE`), task 17 (`projects.json`), task 21 (writes the file `File` reads).
@@ -347,7 +347,7 @@ func TestHubOutagesAreUnavailable(t *testing.T) {
 			t.Errorf("%s: err = %v, want ErrUnavailable", name, err)
 		}
 	}
-	failing := TokenFunc(func(context.Context) (string, error) { return "", errors.New("entra said no") })
+	failing := TokenFunc(func(context.Context) (string, error) { return "", errors.New("the realm said no") })
 	hub, calls := hubAt(t, failing, answer(200, recordAUOnlySayingGlobal))
 	if _, err := hub.Project(context.Background(), "pj-00000000000000b2"); !errors.Is(err, ErrUnavailable) || len(calls()) != 0 {
 		t.Errorf("token failure: err = %v with %d Hub calls, want ErrUnavailable and none", err, len(calls()))
@@ -493,7 +493,7 @@ func TestFileMissingOrUnreadableIsUnavailable(t *testing.T) {
 
 - [ ] **Step 4: Write the failing token tests**
 
-The exchange is Entra's client-credentials grant with a federated assertion: the projected service-account token in `AZURE_FEDERATED_TOKEN_FILE` is the `client_assertion`. The form's field names are Entra's documented v2.0 token-endpoint parameters, from training knowledge, **UNVERIFIED** here (the Hub contract uses the same exchange for its database token, `hub-contract.md:2181-2183`, which is corroboration, not a reading of Entra's docs).
+The exchange is the realm's client-credentials grant (`OD-30`, ruling §6): `POST <issuer>/protocol/openid-connect/token` with `grant_type=client_credentials`, `scope=panacea-app-hub`, and the client authenticated as `client_secret_post` (`client_id`, `client_secret` in the form). The secret is a file the Secrets Store CSI driver mounts from Key Vault, read afresh on each exchange because the driver rotates it. That Keycloak's `client-secret` authenticator accepts the secret in the form (as well as in HTTP Basic) is from training knowledge, **UNVERIFIED** here; hub task 43's dev-realm check settles it.
 
 Create `control-plane/internal/routesource/token_test.go`:
 
@@ -514,13 +514,13 @@ import (
 	"time"
 )
 
-func entra(t *testing.T, status int, body string) (*WorkloadToken, *clock, func() []url.Values, string) {
+func realmToken(t *testing.T, status int, body string) (*ClientCredentials, *clock, func() []url.Values, string) {
 	t.Helper()
 	var mu sync.Mutex
 	var forms []url.Values
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost || r.URL.Path != "/tenant-1/oauth2/v2.0/token" {
-			t.Errorf("Entra saw %s %s", r.Method, r.URL.Path)
+		if r.Method != http.MethodPost || r.URL.Path != "/realms/panacea-app/protocol/openid-connect/token" {
+			t.Errorf("the realm saw %s %s", r.Method, r.URL.Path)
 		}
 		_ = r.ParseForm()
 		mu.Lock()
@@ -530,72 +530,81 @@ func entra(t *testing.T, status int, body string) (*WorkloadToken, *clock, func(
 		_, _ = io.WriteString(w, body)
 	}))
 	t.Cleanup(srv.Close)
-	file := filepath.Join(t.TempDir(), "azure-identity-token")
-	if err := os.WriteFile(file, []byte("projected-sa-token-1\n"), 0o600); err != nil {
+	file := filepath.Join(t.TempDir(), "client-secret")
+	if err := os.WriteFile(file, []byte("s3cret-1\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	c := &clock{t: t0}
-	wt := &WorkloadToken{AuthorityHost: srv.URL + "/", TenantID: "tenant-1", ClientID: "client-1",
-		TokenFile: file, Scope: "api://hub-app/.default", Now: c.now}
+	wt := &ClientCredentials{Issuer: srv.URL + "/realms/panacea-app", ClientID: "panacea-app-gateway",
+		SecretFile: file, Scope: "panacea-app-hub", Now: c.now}
 	return wt, c, func() []url.Values { mu.Lock(); defer mu.Unlock(); return append([]url.Values(nil), forms...) }, file
 }
 
 const granted = `{"token_type":"Bearer","expires_in":3600,"access_token":"at-1"}`
 
-// Kills a wrong grant, a missing assertion type, and a token read from
-// somewhere other than the projected file.
-func TestWorkloadTokenExchangeIsTheFederatedForm(t *testing.T) {
-	wt, _, forms, _ := entra(t, 200, granted)
+// Kills a wrong grant, Entra's path, a wrong scope, and a secret read from
+// somewhere other than the mounted file.
+func TestClientCredentialsIsTheRealmForm(t *testing.T) {
+	wt, _, forms, _ := realmToken(t, 200, granted)
 	tok, err := wt.Token(context.Background())
 	if err != nil || tok != "at-1" {
 		t.Fatalf("Token = %q, %v", tok, err)
 	}
-	want := url.Values{"grant_type": {"client_credentials"}, "client_id": {"client-1"},
-		"scope":                 {"api://hub-app/.default"},
-		"client_assertion_type": {"urn:ietf:params:oauth:client-assertion-type:jwt-bearer"},
-		"client_assertion":      {"projected-sa-token-1"}}
+	want := url.Values{"grant_type": {"client_credentials"}, "client_id": {"panacea-app-gateway"},
+		"client_secret": {"s3cret-1"}, "scope": {"panacea-app-hub"}}
 	if got := forms(); len(got) != 1 || got[0].Encode() != want.Encode() {
 		t.Errorf("form %v, want %v", got, want)
 	}
 }
 
 // Kills an exchange per request and kills caching past expiry; and, because
-// kubelet rotates the projected token, kills reading the file only once.
-func TestWorkloadTokenIsCachedAndTheFileReread(t *testing.T) {
-	wt, c, forms, file := entra(t, 200, granted)
+// the CSI driver rotates the secret, kills reading the file only once.
+func TestClientCredentialsIsCachedAndTheFileReread(t *testing.T) {
+	wt, c, forms, file := realmToken(t, 200, granted)
 	_, _ = wt.Token(context.Background())
 	c.add(54 * time.Minute)
 	_, _ = wt.Token(context.Background())
 	if n := len(forms()); n != 1 {
 		t.Fatalf("%d exchanges inside the token's life, want 1", n)
 	}
-	if err := os.WriteFile(file, []byte("projected-sa-token-2"), 0o600); err != nil {
+	if err := os.WriteFile(file, []byte("s3cret-2"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	c.add(2 * time.Minute) // 56 minutes: inside the 5-minute margin
 	_, _ = wt.Token(context.Background())
-	if got := forms(); len(got) != 2 || got[1].Get("client_assertion") != "projected-sa-token-2" {
+	if got := forms(); len(got) != 2 || got[1].Get("client_secret") != "s3cret-2" {
 		t.Errorf("second exchange %v, want one carrying the rotated file", got)
 	}
 }
 
-// Kills echoing Entra's body (it can quote the assertion) or the assertion.
-func TestWorkloadTokenErrorsCarryNoSecret(t *testing.T) {
-	wt, _, _, _ := entra(t, 400, `{"error":"invalid_client","error_description":"bad projected-sa-token-1"}`)
+// Kills echoing the realm's body (it can quote the request) or the secret.
+func TestClientCredentialsErrorsCarryNoSecret(t *testing.T) {
+	wt, _, _, _ := realmToken(t, 401, `{"error":"unauthorized_client","error_description":"bad s3cret-1"}`)
 	_, err := wt.Token(context.Background())
-	if err == nil || strings.Contains(err.Error(), "projected-sa-token") || strings.Contains(err.Error(), "error_description") {
+	if err == nil || strings.Contains(err.Error(), "s3cret") || strings.Contains(err.Error(), "error_description") {
 		t.Fatalf("err = %v", err)
 	}
 }
 
-func TestWorkloadTokenFromEnvNamesWhatIsMissing(t *testing.T) {
-	t.Setenv("AZURE_CLIENT_ID", "client-1")
-	t.Setenv("AZURE_TENANT_ID", "tenant-1")
-	t.Setenv("AZURE_FEDERATED_TOKEN_FILE", "")
-	if _, err := WorkloadTokenFromEnv("api://hub-app/.default"); err == nil || !strings.Contains(err.Error(), "AZURE_FEDERATED_TOKEN_FILE") {
-		t.Fatalf("err = %v, want one naming AZURE_FEDERATED_TOKEN_FILE", err)
+// Kills a missing issuer or secret file defaulted; kills the client id's default dropped.
+func TestClientCredentialsFromEnvNamesWhatIsMissing(t *testing.T) {
+	t.Setenv("PANACEA_APP_OIDC_ISSUER", "https://auth.example/realms/panacea-app/")
+	t.Setenv("PANACEA_APP_GATEWAY_OIDC_CLIENT_ID", "")
+	t.Setenv("PANACEA_APP_GATEWAY_OIDC_CLIENT_SECRET_FILE", "")
+	if _, err := ClientCredentialsFromEnv("panacea-app-hub"); err == nil ||
+		!strings.Contains(err.Error(), "PANACEA_APP_GATEWAY_OIDC_CLIENT_SECRET_FILE") {
+		t.Fatalf("err = %v, want one naming PANACEA_APP_GATEWAY_OIDC_CLIENT_SECRET_FILE", err)
 	}
-	if _, err := WorkloadTokenFromEnv(""); err == nil {
+	t.Setenv("PANACEA_APP_GATEWAY_OIDC_CLIENT_SECRET_FILE", "/mnt/secrets/client-secret")
+	cc, err := ClientCredentialsFromEnv("panacea-app-hub")
+	if err != nil || cc.ClientID != "panacea-app-gateway" || cc.Issuer != "https://auth.example/realms/panacea-app" {
+		t.Fatalf("ClientCredentialsFromEnv = %+v, %v", cc, err)
+	}
+	t.Setenv("PANACEA_APP_OIDC_ISSUER", "")
+	if _, err := ClientCredentialsFromEnv("panacea-app-hub"); err == nil || !strings.Contains(err.Error(), "PANACEA_APP_OIDC_ISSUER") {
+		t.Fatalf("err = %v, want one naming PANACEA_APP_OIDC_ISSUER", err)
+	}
+	if _, err := ClientCredentialsFromEnv(""); err == nil {
 		t.Fatal("an empty scope was accepted")
 	}
 }
@@ -980,52 +989,51 @@ type TokenFunc func(ctx context.Context) (string, error)
 
 func (f TokenFunc) Token(ctx context.Context) (string, error) { return f(ctx) }
 
-const (
-	assertionType = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
-	tokenMargin   = 5 * time.Minute // refresh this long before expiry
-)
+const tokenMargin = 5 * time.Minute // refresh this long before expiry
 
-// WorkloadToken exchanges AKS's projected service-account token for an Entra
-// access token to the Hub (client credentials, federated assertion).
-type WorkloadToken struct {
-	AuthorityHost, TenantID, ClientID, TokenFile, Scope string
-	HTTP                                                *http.Client
-	Now                                                 func() time.Time
+// ClientCredentials is the gateway's own realm token to the Hub: the
+// client-credentials grant as the confidential client panacea-app-gateway
+// (OD-30, ruling §6). The Hub accepts it only on the route-source and
+// usage roll-up routes.
+type ClientCredentials struct {
+	Issuer, ClientID, SecretFile, Scope string
+	HTTP                                *http.Client
+	Now                                 func() time.Time
 
 	mu      sync.Mutex
 	token   string
 	expires time.Time
 }
 
-// WorkloadTokenFromEnv reads the webhook's variables. scope is
-// "api://<hub client id>/.default"; whether the Hub accepts an app-only token
-// is ask H-3.
-func WorkloadTokenFromEnv(scope string) (*WorkloadToken, error) {
+// ClientCredentialsFromEnv reads the realm URL, the client id and the
+// CSI-mounted secret file. scope is the Hub's audience scope, panacea-app-hub.
+func ClientCredentialsFromEnv(scope string) (*ClientCredentials, error) {
 	if scope == "" {
 		return nil, errors.New("routesource: the Hub scope is empty")
 	}
-	w := &WorkloadToken{AuthorityHost: os.Getenv("AZURE_AUTHORITY_HOST"), Scope: scope}
-	if w.AuthorityHost == "" {
-		w.AuthorityHost = "https://login.microsoftonline.com/"
+	env := func(k string) string { return strings.TrimSpace(os.Getenv(k)) }
+	c := &ClientCredentials{Scope: scope, Issuer: strings.TrimSuffix(env("PANACEA_APP_OIDC_ISSUER"), "/"),
+		ClientID: env("PANACEA_APP_GATEWAY_OIDC_CLIENT_ID"), SecretFile: env("PANACEA_APP_GATEWAY_OIDC_CLIENT_SECRET_FILE")}
+	if c.ClientID == "" {
+		c.ClientID = "panacea-app-gateway"
 	}
-	for _, v := range []struct {
-		name string
-		dst  *string
-	}{{"AZURE_CLIENT_ID", &w.ClientID}, {"AZURE_TENANT_ID", &w.TenantID}, {"AZURE_FEDERATED_TOKEN_FILE", &w.TokenFile}} {
-		if *v.dst = os.Getenv(v.name); *v.dst == "" {
-			return nil, fmt.Errorf("routesource: %s is not set (AKS's workload-identity webhook injects it)", v.name)
-		}
+	if c.Issuer == "" {
+		return nil, errors.New("routesource: PANACEA_APP_OIDC_ISSUER is not set (the realm URL)")
 	}
-	return w, nil
+	if c.SecretFile == "" {
+		return nil, fmt.Errorf("routesource: %s is not set (the client secret the CSI driver mounts)",
+			"PANACEA_APP_GATEWAY_OIDC_CLIENT_SECRET_FILE")
+	}
+	return c, nil
 }
 ```
 
 The exchange, same file:
 
 ```go
-// Token returns the cached access token, or exchanges the projected file,
-// read afresh each time because kubelet rotates it.
-func (w *WorkloadToken) Token(ctx context.Context) (string, error) {
+// Token returns the cached access token, or runs the grant with the secret
+// file, read afresh each time because the CSI driver rotates it.
+func (w *ClientCredentials) Token(ctx context.Context) (string, error) {
 	now := time.Now
 	if w.Now != nil {
 		now = w.Now
@@ -1036,13 +1044,13 @@ func (w *WorkloadToken) Token(ctx context.Context) (string, error) {
 	if w.token != "" && t.Before(w.expires.Add(-tokenMargin)) {
 		return w.token, nil
 	}
-	assertion, err := os.ReadFile(w.TokenFile)
-	if err != nil || len(bytes.TrimSpace(assertion)) == 0 {
-		return "", errors.New("routesource: the federated token file is unreadable or empty")
+	secret, err := os.ReadFile(w.SecretFile)
+	if err != nil || len(bytes.TrimSpace(secret)) == 0 {
+		return "", errors.New("routesource: the client secret file is unreadable or empty")
 	}
-	form := url.Values{"grant_type": {"client_credentials"}, "client_id": {w.ClientID}, "scope": {w.Scope},
-		"client_assertion_type": {assertionType}, "client_assertion": {string(bytes.TrimSpace(assertion))}}
-	endpoint := strings.TrimSuffix(w.AuthorityHost, "/") + "/" + url.PathEscape(w.TenantID) + "/oauth2/v2.0/token"
+	form := url.Values{"grant_type": {"client_credentials"}, "client_id": {w.ClientID},
+		"client_secret": {string(bytes.TrimSpace(secret))}, "scope": {w.Scope}}
+	endpoint := strings.TrimSuffix(w.Issuer, "/") + "/protocol/openid-connect/token"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, strings.NewReader(form.Encode()))
 	if err != nil {
 		return "", errors.New("routesource: the token endpoint URL is invalid")
@@ -1118,14 +1126,14 @@ Message: `feat(routesource): the live project route from the Hub or a file, cach
 
 - **Push, or a tightening latency below the TTL.** A raise to AU reaches the gatekeeper and keysmith within `ROUTE_CACHE_TTL` (30 s) of the Hub accepting it, per process, with no signal between. P6-D4's "tighten immediately" therefore means *from the first request after that window*. A change-feed subscription (`hub-contract.md` §7.11) could close the window and is not built.
 - **Tightening during a partial outage.** If the Hub accepts a raise from the desktop while the gatekeeper's path to it is failing, the gatekeeper serves its last answer for up to `ROUTE_STALE_MAX` (10 minutes) from that answer. The window is the price of not refusing every request on a Hub blip; the owner may prefer `ROUTE_STALE_MAX` equal to the TTL, which makes any outage a refusal after 30 s.
-- **That the Hub accepts a workload caller.** The token exchange is written; the Hub validating an app-only token (`roles`, not `scp`, from training knowledge, **UNVERIFIED**) for route 15 is ask H-3, and the Entra tenant permitting the federated credential is **UNVERIFIED**.
+- **That the Hub accepts the gateway's service token.** The grant is written; the Hub taking `azp == panacea-app-gateway` as a service client (`oidcauth` `ServiceClients`, no `oid`/`tid`) on route 15 only is hub task 13's (ruling §6) and ask H-3. The realm client `panacea-app-gateway` (confidential, service account on, audience scope `panacea-app-hub` optional on it) is one of the Panacea asks (ruling §10) until phase 8's own realm; its existence and the `client_secret_post` form are **UNVERIFIED** here.
 - **That the Hub returns task 01's fields.** Until ask H-1 lands, every Hub project is a definitive refusal, which is the fail-closed reading of "the Hub does not know this project's class". Cloud inference is therefore blocked on H-1, by design.
 - **That a Hub record matches the id asked for.** The record's own `id` is not compared with the request; a Hub that answered with another project's record would be believed.
 - **A bound on the cache's size.** One entry per project ever asked for, which is the org's project count.
 
 **Gaps against the skeleton, for the orchestrator:**
 
-1. **A new variable.** The Hub source needs the scope to ask Entra for, `api://<hub client id>/.default`. This part assumes task 12 and task 08 read it as `PANACEA_APP_GATEWAY_HUB_SCOPE`, which is not in the skeleton's shared names. The control plane's own `PANACEA_APP_HUB_SCOPE` (`hub-contract.md:2190`) is a delegated scope (`…/Hub.Access`) and cannot be reused for a client-credentials grant.
+1. **New variables.** The Hub source needs the scope to ask the realm for, `panacea-app-hub` (`OD-30`; was Entra's `api://<hub client id>/.default`). This part assumes task 12 and task 08 read it as `PANACEA_APP_GATEWAY_HUB_SCOPE`, default `panacea-app-hub`, which is not in the skeleton's shared names; likewise `PANACEA_APP_GATEWAY_OIDC_CLIENT_ID` and `_OIDC_CLIENT_SECRET_FILE`, which task 19's chart sets (the file from the Secrets Store CSI driver, never an env file). `PANACEA_APP_OIDC_ISSUER` is the shared realm URL (ruling §2).
 2. `wire.ProjectInference.Version` is a `string` in task 03's part (`task-03.md:517-523`), which this part fills with the content hash of decision (d).
 3. The skeleton's `Hub{BaseURL; Tokens; HTTP}` literal is replaced by `NewHub` with private fields (step 7 says why). `File` and `Cache` likewise have constructors.
 4. `ROUTE_SOURCE=file:<path>` and `hub` are parsed by tasks 08 and 12, not here; both binaries build `Cache` over the source with `ROUTE_CACHE_TTL` and `ROUTE_STALE_MAX`, so keysmith and the gatekeeper can disagree for at most one TTL. keysmith's disagreement is harmless: task 10 takes the tighter of the live route and the route at mint.
