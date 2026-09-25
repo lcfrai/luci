@@ -442,3 +442,47 @@ export function PeekPerson(p: { person: User; projectId: string }): JSX.Element 
 `useWork` compares selections to decide a re-render (task 55's scope, `tasks-41-60.md:483`);
 `personIssues` returns a new array each call, so the part's implementer passes task 55's
 equality helper if its part defines one, else memoises on `r.cursor` (**UNVERIFIED**, gap 4).
+
+#### Interfaces — complete: the edits to `WorkLens.tsx`, `IssueRow.tsx` and `BoardView.tsx`
+
+- **`WorkLens.tsx`** (task 40's). `const peek = usePeekController({rowIds, cursorId, onCursor:
+  setCursor})`, where `rowIds` is the flat order of `hold.shown` (task 41), so a held arrival is
+  never peeked before `N` shows it. The list element's existing `onKeyDown` (task 41's `N`) calls
+  `peek.onKeyDown(e)` first and returns when `e.defaultPrevented`; `onKeyUp={peek.onKeyUp}` is
+  added. When `peek.peekId !== null` the lens renders `<Peek issueId={peek.peekId} me={me}
+  people={people} onOpenSession={openSession}/>` in a `.pk-host` sibling of the list, positioned
+  beside the anchored row by `transform: translateY(<row top - list top>px)`, clamped to the lens.
+  `openSession` is the three store actions task 48 uses (`task-48.md:329-333`). `me` and `people`
+  are what the lens already holds for its assignee picker.
+- **`IssueRow.tsx`** (task 40's). The row element gains `data-row-id={head.id}` (the peek host
+  reads its `offsetTop`). No criterion id, no session id and no brief key renders on the row: the
+  row's `Serves` is the criterion's words, and the machine id is peek's (05 §4.1).
+- **`BoardView.tsx`** (task 43's, `task-43.md:125-130`). The board's focused card list gets the
+  same controller with `rowIds` in column-then-card order, the same `.pk-host`, and the same
+  `onKeyDown` chain before its own keys. The board adds no peek rule of its own.
+
+#### Interfaces — complete: appended to `desktop/src/components/work/work.css`
+
+```css
+/* Peek: a panel beside the anchored row. Elevation is the ring plus layered shadow of --e-raised
+   (tokens.css:121); radius is the card step. Motion is opacity and transform only (02 C7). */
+.pk-host { position: absolute; inset-inline-end: var(--s-3); inset-block-start: 0; width: 360px;
+  pointer-events: none; }
+.pk { pointer-events: auto; background: var(--surface); box-shadow: var(--e-raised);
+  border-radius: var(--r-card); padding: var(--s-3); max-block-size: 60vh; overflow: auto;
+  animation: pk-in var(--dur-peek) var(--ease) both; }
+@keyframes pk-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.pk-head { display: flex; gap: var(--s-2); align-items: center; }
+.pk-title { font: var(--t-ui) / var(--t-ui-lh) var(--sans); color: var(--ink); }
+.pk-id, .pk-fact, .pk-path, .pk-diff, .pk-src, .pk-fact time {
+  font-family: var(--mono); font-size: var(--t-fact); line-height: var(--t-fact-lh);
+  font-variant-numeric: tabular-nums; }
+.pk-src, .pk-reason { color: var(--ink-2); }             /* never --ink-3 on a fact (Global constraints) */
+.pk-diff { white-space: pre; overflow-x: auto; margin: 0; }
+.pk-link { background: none; border: 0; padding: 0; color: var(--accent-ink); cursor: pointer; }
+@media (prefers-reduced-motion: reduce) { .pk { animation: none; } }
+```
+
+Token names are the tree's (`tokens.css:110-152`) and task 26's (`--t-fact`, `--t-fact-lh`,
+`--dur-peek`). `--sans`, `--s-*`, `--t-ui-lh` and `--accent-ink` are task 26's names as its part
+lists them (`task-26.md:420`); where a name differs, task 26 wins.
