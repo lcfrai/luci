@@ -465,7 +465,11 @@ func VerifyIssueRevision(r hubapi.IssueRevision) error {
 	if r.Content == nil {
 		return nil
 	}
-	got, err := hubapi.IssueRevisionDigest(r.IssueID, r.Revision, *r.Content)
+	got, _, err := hubapi.IssueRevisionDigest(hubapi.IssueRevisionEnvelope{
+		V: 1, Kind: "issue-revision",
+		IssueID: r.IssueID, Revision: r.Revision, ProjectID: r.ProjectID,
+		Content: *r.Content,
+	})
 	if err != nil {
 		return fmt.Errorf("%w: %w", ErrDigestMismatch, err)
 	}
@@ -476,8 +480,12 @@ func VerifyIssueRevision(r hubapi.IssueRevision) error {
 }
 ```
 
-`hubapi.IssueRevisionDigest`'s arguments are task 02's; this part reads them as `(issueID,
-revision, content)` and takes task 02's signature at sync (**UNVERIFIED until merge**). `/v1/refs`
+`IssueRevisionDigest(env) (Digest, []byte, error)` and `IssueRevisionEnvelope{v, kind, issueId,
+revision, projectId, content}` are task 02's (scope 02). The envelope names `projectId`, so the
+re-check needs it on every revision the client receives: task 03's `IssueRevision` must carry
+`projectId`, as `BriefRevision` does (`hubapi/types.go:172`). Scope 03's field list omits it; this
+part relies on it being added (gap 5 below), and without it a revision read alone
+(`IssueRevisionAt`) cannot be re-checked at all. `/v1/refs`
 already carries issue revisions after task 09, and `Briefs.Resolve` is H34's: its per-key re-check
 turns a failing revision into `missing`. This task adds the `issue:` case to that loop, one line in
 H34's `methods_briefs.go` calling `VerifyIssueRevision`, so a tampered issue behind a `/v1/refs`
@@ -935,4 +943,7 @@ Parity rows served: none closed alone. It carries every W1 Hub row to the deskto
    one both sides should use, and the real-Hub conformance run is what proves they agree.
 4. **The File map omits** `hubclient/query.go`, `hubclient/verify_work.go` and the one-line edit to
    H34's `hubclient/methods_briefs.go`.
+5. **`IssueRevision` has no `projectId`** in scope 03's field list, but the `issue-revision`
+   envelope (scope 02) hashes it. Task 03 should add `ProjectID string "projectId"`, additively,
+   as `BriefRevision` has it; otherwise no client can re-check a revision it reads on its own.
 
