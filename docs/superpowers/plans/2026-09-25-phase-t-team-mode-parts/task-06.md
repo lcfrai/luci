@@ -59,7 +59,7 @@ fields, so a body that sends one gets 400 `bad_request`.
     `Principal.Delegation` (the loaded row: project, class, routes, expiry), and
     `store.AgentOwnedBy(ctx, tx, agentID, userID) (bool, error)`.
   - from task 02: `teamtext.Bound`, `teamtext.Clean`, `teamtext.ValidGlob`.
-- Produces: the fourteen route handlers below; `server.RequireFleet`, `server.RequireDesktop`,
+- Produces: the ten write and three read handlers below; `server.RequireFleet`, `server.RequireDesktop`,
   `server.RequireRoute`; the event kinds in the table after the routes.
 - Required by: task 07 (reuses the three guards), task 08 (feed kinds; `hubclient.Team` methods,
   one per route here), task 11 (Fleet's delivery calls), task 14 (the agent start carries the
@@ -430,3 +430,259 @@ part is written in parallel; if it calls it something else, rename here). `Forbi
 `auth.forbidden` event through the server's store; in a unit test with no store it must no-op on a
 nil store rather than panic. If Hub task 14's `Forbidden` does not already tolerate that, this test
 file constructs the errors through `Refuse(403, hubapi.CodeForbidden, …)` in a local helper instead.
+
+- [ ] **Step 2: Write the failing integration tests: one world, every route, five callers**
+
+These run on Hub task 06's integration harness (`//go:build integration`, a real Postgres) and use
+Hub task 11's `dev-tenant.json` people, so the columns match the matrix harness of Hub task 16b
+(`task-16b.md:26-36`): **Linus** (member of T), **Grace** (admin of T), **Vera** (viewer of T),
+plus **Fleet** through task 05's client-credentials grant, with and without a delegation header.
+
+```go
+// control-plane/internal/hub/server/team1_world_test.go
+//go:build integration
+
+package server_test
+
+// teamWorld is task 06's piece of the world: project P on team T, one delegation per
+// member and class, and one orchestrator agent each. Built fresh per test.
+type teamWorld struct {
+	h                    *hubHarness // Hub task 06's harness: server, pool, clock
+	ProjectID            string
+	DLLinusOrch, DLLinusWorker, DLGraceOrch string
+	AGLinusOrch, AGGraceOrch             string
+}
+
+// linus, grace, vera call as the desktop (Hub task 11's dev tokens).
+// fleet(dl) calls as Fleet's workload identity naming dl; fleet("") names none.
+func (w *teamWorld) linus() *caller
+func (w *teamWorld) grace() *caller
+func (w *teamWorld) vera() *caller
+func (w *teamWorld) fleet(delegationID string) *caller
+```
+
+The tests, one per rule. Each comment names the mutant that makes it fail; a test with no mutant
+is not written.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestDelegationCreateIsTheUsersOwnCall` | Linus's desktop → 201, `ownerId` = Linus, `expiresAt − createdAt` = 24 h exactly | expiry from config instead of the constant; owner read from a body field |
+| `TestDelegationCreateRefusesAViewer` | Vera → 403 `forbidden`, `required: "member"` | the role floor is `viewer` |
+| `TestDelegationCreateRefusesFleet` | `fleet(DLLinusOrch)` → 403 `required: "desktop"` | `RequireDesktop` omitted, so Fleet mints its own authority |
+| `TestDelegationRoutesAreAClosedSet` | `routes: ["delegations.write"]` → 400, `field: "routes"`; a duplicate → 400 | the set check is a prefix or a regexp |
+| `TestDelegationRenewIsOwnerOnlyAndHidesExistence` | Grace renews Linus's → 404 `delegation_not_found`; Linus → 200, `expiresAt` moved, `revision` 2 | the owner check answers 403, leaking the id |
+| `TestDelegationRenewRevivesALapsedOneButNotARevokedOne` | clock +25 h, renew → 200; `DELETE` then renew → 409 `team_state` | the lapsed check shares the revoked branch |
+| `TestDelegationDeleteIsIdempotentAndEmitsOnce` | two `DELETE`s → 204, 204; one `delegation.revoked` in the audit | the second delete emits again |
+| `TestTaskCreateNeedsFleetUnderAnOrchestratorDelegation` | Linus desktop → 403 `via:fleet`; `fleet("")` → 401 `delegation_required` (task 05); `fleet(DLLinusWorker)` → 403 `delegation.class:orchestrator`; `fleet(DLLinusOrch)` → 201 | any one of the three guards removed |
+| `TestTaskCreateRefusesAnotherOwnersAgent` | `fleet(DLLinusOrch)` with `AGGraceOrch` → 403 `agent_not_owner` | the agent check compares the agent's project, not its owner |
+| `TestTaskPatchIsOwnerOnly` | `fleet(DLGraceOrch)` patching Linus's task → 403 `required: "owner"`, although Grace is team admin | admin exempted from rule 5 |
+| `TestTaskTransitions` | every pair of the 5×5 state table: allowed → 200, others → 409 `team_state` with `from`/`to` | one terminal state left open (e.g. `done → active`) |
+| `TestTaskPatchNeedsTheCurrentRevision` | `ifRevision` 1 after a patch → 409 `revision_conflict` | the `WHERE revision = $n` guard dropped |
+| `TestTaskTextIsBoundedAndCleaned` | title of 141 runes → 400 `text_refused`, `details.field = "title"`; title with `U+202E` → 400 `text_refused`; why-line of 201 → 400 | the bound counts bytes, not runes; `Clean` skipped on the why-line |
+| `TestTaskScopeGlobs` | 21 globs → 400 `glob_refused`; `../x`, `/abs`, `a\b` → 400 `glob_refused` | the count cap applied after dedupe only |
+| `TestAgentStartBindsRoleClassAndParent` | worker with no parent → 400; worker whose parent is Grace's → 403 `agent_not_owner`; role `worker` under an orchestrator delegation → 403 `delegation.class:worker`; a reused `ag-…` → 409 | the parent's owner not checked |
+| `TestAgentStartRecordsThePolicy` | the `agent.started` event's `data` has `policyVersion` and `policyDigest` exactly as sent | the digest is dropped from the event (task 14 then has no audit fact) |
+| `TestAgentEndTwiceIs409` | end, end → 200, 409 `team_state` `ended` | a second end overwrites `exitClass` |
+| `TestLeaseEventsAreAppendOnlyAndGapless` | seq 1, 2 → 201; seq 2 again → 409; seq 4 → 409 | the gap check is `>` instead of `== last + 1` |
+| `TestLeaseEventHolderMustBeTheOwners` | holder `AGGraceOrch` under `DLLinusOrch` → 403 `agent_not_owner` | the holder check skipped when `cause.kind = observed` |
+| `TestAdminReleaseNeedsAnAdminAndIsItsOwnKind` | `admin-released` under Linus's delegation (member) of Grace's lease → 403 `required: "admin"`; under Grace's delegation of Linus's lease → 201 and one `lease.admin_released` | admin release allowed to members; it reuses `lease.changed` |
+| `TestConflictIsWrittenByEitherPartyOnly` | create with Linus's and Grace's agents under `DLLinusOrch` → 201; under a third member's delegation → 403 `required: "party"`; two agents of one owner → 400 | the party check is replaced by rule 5's owner check |
+| `TestConflictResolutionOnlyWithResolved` | `resolved` with no resolution → 400; `negotiating` with one → 400; `cleared` then anything → 409 | resolution accepted on any state |
+| `TestNoTeamBodyCarriesASessionID` | each of the ten write bodies plus `"sessionId": "se-…"` → 400 `bad_request`, `field: "sessionId"`; a phase 2 session id in `laneRef`, `taskId`, `parentAgentId` → 400 | `Decode` with unknown fields allowed; `ValidID` skipped on optional ids |
+| `TestEveryTeamWriteIsOneEventWithNoText` | after one of each write, the audit has exactly one event per write, and no event's canonical `data` contains the title or the why-line | an event emitted per field changed; the title copied into `data` |
+| `TestFleetEventsCarryViaAndDelegation` | every event from a Fleet call has `actor = owner`, `via = fleet`, `delegation = dl-…` | the actor recorded as Fleet's service principal |
+
+Two of them in full; the rest follow the same shape and live beside their route's file.
+
+```go
+// control-plane/internal/hub/server/teamtasks_integration_test.go (excerpt)
+//go:build integration
+
+package server_test
+
+// Mutant killed: the admin exemption. Grace is T's admin and Fleet holds a live
+// delegation of hers; she still may not change Linus's task (§3.3 rule 5).
+func TestTaskPatchIsOwnerOnly(t *testing.T) {
+	w := newTeamWorld(t)
+	tk := w.fleet(w.DLLinusOrch).mustPost(t, "/v1/projects/"+w.ProjectID+"/tasks", map[string]any{
+		"orchestratorAgentId": w.AGLinusOrch,
+		"title":  map[string]any{"body": "Split the export", "author": "human"},
+		"reason": map[string]any{"briefRef": "bf-AAAAAAAAAAAAAAAAAAAAAAAAAA#s-1",
+			"why": map[string]any{"body": "Brief s-1 asks for it", "author": "agent"}},
+		"scope": []string{"services/export/**"}, "state": "planned",
+	}, 201)
+	res := w.fleet(w.DLGraceOrch).patch(t, "/v1/projects/"+w.ProjectID+"/tasks/"+tk.ID(),
+		map[string]any{"ifRevision": 1, "state": "abandoned"})
+	res.wantProblem(t, 403, "forbidden", map[string]string{"required": "owner"})
+	if got := w.h.auditKinds(t); !slices.Contains(got, "auth.forbidden") {
+		t.Fatalf("no auth.forbidden in %v", got)
+	}
+}
+
+// Mutant killed: the session-id rule enforced only on the routes that carry an id field.
+func TestNoTeamBodyCarriesASessionID(t *testing.T) {
+	w := newTeamWorld(t)
+	for _, c := range w.everyTeamWrite() { // ten (caller, method, path, valid body) cases
+		body := maps.Clone(c.body)
+		body["sessionId"] = "se-01J9ZK3Y6N4Q0V9T8W7X6Y5Z4A"
+		res := c.caller.do(t, c.method, c.path, body)
+		res.wantProblem(t, 400, "bad_request", map[string]string{"field": "sessionId"})
+	}
+}
+```
+
+`everyTeamWrite` lives in `team1_world_test.go` and is the list task 43 turns into Z5 matrix rows,
+so the two cannot drift: a route added here and not there fails task 43's count check.
+
+- [ ] **Step 3: Run the tests to verify they fail**
+
+```bash
+cd control-plane && go test ./internal/hub/server/ -run 'TestRequire' -count=1
+```
+
+Expected: a build failure naming the guards, one line per use site, for example
+`./teamguard_test.go:13:9: undefined: DelegationView` if task 05 has not merged, or
+`undefined: RequireFleet` if it has. Then the integration half:
+
+```bash
+cd control-plane && go test -tags integration ./internal/hub/server/ -run 'TestDelegation|TestTask|TestAgent|TestLease|TestAdmin|TestConflict|TestNoTeam|TestEveryTeam|TestFleetEvents' -count=1
+```
+
+Expected: `FAIL` with every route answering 404 `route_not_found`, because nothing is registered.
+
+- [ ] **Step 4: Write the guards, the store functions and the five handler files**
+
+In this order, running the unit tests after the first: `teamguard.go` (above, complete); the store
+functions, one file per record, each a single parameterised statement under `tx` with
+`RETURNING` the full row; then the handlers. The store functions set nothing the handler did not
+pass, and every `UPDATE` carries `WHERE id = $1 AND revision = $2`, so an `ifRevision` race is a
+zero-row update the handler turns into 409 `revision_conflict`.
+
+The route registration, in full:
+
+```go
+// control-plane/internal/hub/server/delegations.go (excerpt)
+func (s *Server) registerTeamPart1() {
+	s.mux.HandleFunc("POST /v1/delegations", s.createDelegation)
+	s.mux.HandleFunc("POST /v1/delegations/{dl}/renew", s.renewDelegation)
+	s.mux.HandleFunc("DELETE /v1/delegations/{dl}", s.revokeDelegation)
+	s.mux.HandleFunc("POST /v1/projects/{p}/tasks", s.createTask)
+	s.mux.HandleFunc("PATCH /v1/projects/{p}/tasks/{tk}", s.patchTask)
+	s.mux.HandleFunc("POST /v1/projects/{p}/agents", s.startAgent)
+	s.mux.HandleFunc("POST /v1/projects/{p}/agents/{ag}/end", s.endAgent)
+	s.mux.HandleFunc("POST /v1/projects/{p}/leases/{ls}/events", s.leaseEvent)
+	s.mux.HandleFunc("POST /v1/projects/{p}/conflicts", s.createConflict)
+	s.mux.HandleFunc("PATCH /v1/projects/{p}/conflicts/{cf}", s.patchConflict)
+	s.mux.HandleFunc("GET /v1/projects/{p}/tasks", s.listTasks)
+	s.mux.HandleFunc("GET /v1/projects/{p}/agents", s.listAgents)
+	s.mux.HandleFunc("GET /v1/projects/{p}/conflicts", s.listConflicts)
+}
+```
+
+Ten writes and three reads. `s.mux` is the name Hub task 13's server uses (**UNVERIFIED until
+merge**; if the field differs, rename).
+
+**The three reads** exist because task 11's `rebuild.go` reloads Hub-owned state after a Fleet
+restart, and the scope paragraph names no route for it (see "Gaps"). They are the Hub's usual
+page shape (`hubapi.Page[T]`, `limit` 1–200, `cursor`), run under `s.Read`, and are open to every
+project role including `viewer` (§3.4 row 1: the team strip). Filters: tasks `?state=` (repeatable),
+agents `?live=true` (no `endedAt`), conflicts `?open=true` (not `resolved` or `cleared`). **A task's
+`title` and `reason.why` are answered only to its owner and to Fleet under an orchestrator-class
+delegation; everyone else gets `null`** (§3.3 row "task": "served to orchestrators only", §5.1).
+`TestTaskTitleIsServedToOrchestratorsAndItsOwnerOnly` pins it: Vera and Grace's desktop see
+`null`, Linus's desktop and `fleet(DLGraceOrch)` see the text. Mutant killed: the redaction applied
+to the list but not to the single-row body of a `PATCH` answer, which is why the `PATCH` answer
+goes through the same `renderTask(p, t)` function.
+
+The new codes, appended to `hubapi/codes.go` beside task 03's:
+
+```go
+	CodeDelegationNotFound = "delegation_not_found" // 404
+	CodeTaskNotFound       = "task_not_found"       // 404
+	CodeAgentNotFound      = "agent_not_found"      // 404
+	CodeLeaseNotFound      = "lease_not_found"      // 404 (task 08's reads)
+	CodeConflictNotFound   = "conflict_not_found"   // 404
+	CodeTeamState          = "team_state"           // 409, details.state or details.from/to
+```
+
+- [ ] **Step 5: Run the tests to verify they pass**
+
+```bash
+cd control-plane && go test ./internal/hub/server/ -run 'TestRequire' -count=1 -v
+cd control-plane && go test -tags integration ./internal/hub/server/ -count=1
+```
+
+Expected: the six guard tests `--- PASS`, and the integration run ends
+`ok  	github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/server	<n>s` with no `FAIL`
+line. Three failures are worth predicting. `TestTaskTransitions` failing on exactly one pair means
+the table was written as a switch with a fall-through. `TestDelegationCreateIsTheUsersOwnCall`
+failing by one millisecond means `expiresAt` was computed from `time.Now()` rather than `tx.Now`,
+which Hub task 14 truncates. `TestEveryTeamWriteIsOneEventWithNoText` counting two events for a
+task create means the handler emitted and the store also emitted; the store never emits.
+
+- [ ] **Step 6: Vet, format, and the whole suite**
+
+```bash
+gofmt -l control-plane/internal/hub
+cd control-plane && go vet ./... && go test ./... -count=1
+cd control-plane && go test -tags integration ./internal/hub/... -count=1
+```
+
+`gofmt -l` prints nothing. Every package reports `ok` or `[no test files]`; no line says `FAIL`.
+The integration run needs Hub task 06's Postgres; without it, it is deferred to task 33 and the
+part's record says so.
+
+- [ ] **Step 7: Commit**
+
+Write the message to `.superpowers/sdd/team/msg/t06.txt`, then:
+
+```bash
+git add control-plane/internal/hub/server/{delegations,teamtasks,agents,leaseevents,conflicts,teamguard}*.go \
+        control-plane/internal/hub/server/team1_world_test.go \
+        control-plane/internal/hub/store/{delegations,teamtasks,agents,leaseevents,conflicts}.go
+git commit -F .superpowers/sdd/team/msg/t06.txt -- control-plane/internal/hub
+```
+
+The message says what changed and why (the owner is never a body field; Fleet writes only under a
+delegation; the Hub records lease changes but does not second-guess them) and ends with
+`Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>`.
+
+#### Acceptance
+
+1. Both `go test` commands of Step 5 pass, and every test in the table of Step 2 exists and names
+   its mutant.
+2. `grep -n '"ownerId"\|"actor"' control-plane/internal/hub/hubapi/team.go` shows `ownerId` only
+   on response types (`Delegation`, `Task`, `AgentStart`), and no request type; the task 01 grep.
+3. `grep -c 'HandleFunc' control-plane/internal/hub/server/delegations.go` prints `13`.
+4. `go test -tags integration ./internal/hub/server/ -run TestEveryTeamWriteIsOneEventWithNoText -v`
+   passes, and a manual `SELECT data FROM hub.audit_events WHERE kind LIKE 'task.%'` on the test
+   database shows ids, enums and counts only.
+
+#### What this task does not claim
+
+- **Not the Z5 matrix rows.** The per-principal rows for these thirteen routes, including *auditor*
+  and *compliance*, are task 43's; this task's tests cover owner, other member, viewer and Fleet
+  with and without a delegation only.
+- **Not revocation end to end.** A revoked delegation stops Hub writes at once (task 05's check),
+  but Fleet noticing it and stopping sessions is task 11, and a member's removal revoking every
+  delegation of theirs is task 44.
+- **Not breadth.** The Hub caps glob count and shape; the 10% breadth check needs the tracked-file
+  list, which only Fleet holds (task 23).
+- **Not the feed.** The kinds are written to the audit chain; making them visible to Fleet's
+  per-org subscription is task 08.
+- **Not that it runs on the Hub branch as built.** Hub tasks 13, 14 and 17 are planned, not built,
+  on 2026-09-25; every sibling file this part names is **UNVERIFIED until merge**.
+
+#### Gaps found in the skeleton
+
+1. **No read routes for rebuild.** Task 11's `rebuild.go` "reloads Hub-owned state", but no scope
+   paragraph adds a team `GET`. This part adds three list reads (tasks, agents, conflicts); threads
+   and escalations need the same in task 07.
+2. **Not-found and state codes.** Task 03's code list has no `*_not_found` for the new records and
+   no state-transition code; this part adds six to `codes.go`. Task 03's part should list them.
+3. **"Fleet for itself".** Task 07's scope has Fleet writing escalations "for itself". With task
+   05's rule (a Fleet token with no delegation is 401), every Fleet write names *some* delegation;
+   this part resolves conflicts, which have two owners, by accepting either party's delegation.
+4. **Team versus solo project.** The scopes name no Hub field that marks a project as a team
+   project (§2.3, Share). Task 08's "team projects only" feed filter needs one; this part does not
+   invent it.
