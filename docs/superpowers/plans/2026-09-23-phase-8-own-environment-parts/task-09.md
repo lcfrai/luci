@@ -1,199 +1,232 @@
-### Task 09: `stacks/identity` — the Entra registrations, as configuration
+### Task 09: `identity` — our own Keycloak realm, as code (OD-30)
 
-OD-6 has the desktop sign in with Entra auth-code + PKCE and the control plane call servers **as
-the user**. That needs registrations in Entra: a public client for the desktop and one resource API
-per server. Survey G-8 (`:429`) found none in code. This stack writes them on the `azuread`
-provider, **as its own stack** so it runs under a different identity from the others. **It is
-owner-run only** (review I8). Creating applications and granting their consent takes tenant-level
-Graph permissions, which in Entra come close to tenant administration (training knowledge,
-UNVERIFIED). No pipeline identity is given them. So the owner either applies this stack once with
-their own credentials from a workstation, or makes the registrations by hand and hands over the
-ids (survey §7.2 item 1, `:539-541`). Task 30's `tf-stack.sh` refuses the stack name in a
-pipeline, and `infra-plan`'s default stack list leaves it out. On the owner's workstation
-`tf-stack.sh` runs it, after the estate guard has checked the subscription's
-`panacea-app-estate` tag (review I3). `stacks/workloads` and the charts read only this
-stack's **outputs**, so either path works. The plan's "Deploy identities" table records the
-decision.
+> **Rewritten 2026-09-25 for OD-30** (ruling `docs/superpowers/planning/2026-09-25-identity-keycloak-broker.md`
+> §9). Was: `stacks/identity`, three Entra app registrations on `azuread` (HA-3, IT request Part 1); that
+> version is in git history before this commit. **No Entra app registration is made for sign-in.**
 
-**The values are the Hub contract's.** HA-3 asked for the exact list; the Hub contract answered it
-(sibling `feat/hub`, `2026-09-23-hub-contract.md` §6.5, `:528-551`, "exact values for phase 8's
-task 09"). The desktop and Hub API rows below are that table, transcribed; the broker API row is
-this plan's own (P8-D4) and follows the Hub API's pattern. Two deliberate differences from the
-table, both recorded for the Hub's reviewer: display names carry an environment suffix outside
-prod (two environments in one tenant would otherwise collide under `prevent_duplicate_names`), and
-the broker API is assignment-required like the Hub API.
+Users sign in through a Keycloak realm that brokers Entra with no clicks (OD-30). Until phase 8 that
+realm is Panacea's dev realm; phase 8 runs **its own Keycloak, modelled on Panacea's (a pattern, no
+source, OD-13)**: realm `panacea-app` at `https://auth.<our domain>/realms/panacea-app`. The move is one
+variable, `PANACEA_APP_OIDC_ISSUER`; the person key `(tid, oid)` is Entra's in both realms (mappers M1,
+M2, P1, P2), so no Hub row, owner label or LiteLLM user changes. This task writes the realm file and the
+Go test that pins it. Keycloak's namespace (task 11), egress (07), database (08) and release and realm
+Job (29) are those tasks' rows (ruling §9 table).
+
+**A correction to the ruling's facts.** Ruling §9 says task 09's "Entra admin groups (cluster admins,
+Postgres admins) stay". Task 09 never created them: they are owner inputs to tasks 06 and 08
+(`var.cluster_admin_group_object_ids`, `var.postgres_admin_group`) and stay there, unchanged. With the
+registrations and the *PanaceaApp Users* and *Org Admins* groups deleted (the IdP's `tid` filter admits
+the tenant; `hub.org_admin` is a realm role), **`infra/terraform/stacks/identity` has no resource left and
+is not written**. P8-D1's `identity` stack and task 30's refusal of it are left for the plan's owner.
+
+**Owner-run, outside this repository** (IT request Part 2, sent when phase 8 provisions):
+- IT adds **one redirect URI**, `https://auth.<our domain>/realms/panacea-app/broker/entra/endpoint`, to
+  the existing registration (the one Panacea's realm brokers through, client id beginning `37f8bd70-`),
+  and **a second client secret** for our Keycloak, so either side rotates without breaking the other.
+- The owner stores that secret in our Key Vault as `keycloak-entra-idp-secret` (task 29 mounts it), and
+  the Fleet and gateway client secrets as `keycloak-client-panacea-app-fleet` and
+  `keycloak-client-panacea-app-gateway` (ruling §6). None is Terraform: the registration is IT's, and a
+  secret value in state is a usable secret in state (P8-D11).
 
 **Files:**
-- `infra/terraform/stacks/identity/{versions,backend,providers,data,main,variables,outputs}.tf` (new)
-- `infra/terraform/stacks/identity/{dev,prod}.tfvars`, `.terraform.lock.hcl`, `tests/identity.tftest.hcl` (new)
+- `deploy/keycloak/realm/panacea-app.json` (new) — the realm in keycloak-config-cli's format (Apache-2.0)
+- `control-plane/internal/realmfile/{doc.go,realm_test.go}` (new) — a test-only package (standard
+  library only) that parses the JSON; `doc.go` holds one line, `// Package realmfile pins deploy/keycloak/realm/panacea-app.json.`
 
-#### What is registered (Hub contract §6.5, plus the broker)
+#### Contract — `deploy/keycloak/realm/panacea-app.json` (complete)
 
-| Setting | Desktop — *PanaceaApp Desktop* | Hub API — *PanaceaApp Hub API* | Broker API — *PanaceaApp Broker API* (phase 8) |
-|---|---|---|---|
-| Sign-in audience | `AzureADMyOrg` | `AzureADMyOrg` | `AzureADMyOrg` |
-| Platform | public client | none | none |
-| Redirect URIs | `http://127.0.0.1` and `http://localhost` | none | none |
-| Credentials | **none** | **none** | **none** |
-| `fallback_public_client_enabled` | `false` | `false` | `false` |
-| Application ID URI | — | `api://<its own client id>` | `api://<its own client id>` |
-| `requested_access_token_version` | — | `2` | `2` |
-| Exposed scope | — | `Hub.Access`, *Admins and users* | `Sandboxes.Access`, *Admins and users* |
-| Pre-authorised clients | — | the desktop, for `Hub.Access` | the desktop, for `Sandboxes.Access` |
-| App roles | — | `Hub.OrgAdmin` (*Users/Groups*) | none |
-| Optional claims | — | access token: `email` | none |
-| `group_membership_claims` | `["None"]` | `["None"]` | `["None"]` |
-| Required resource access | Graph delegated `openid`, `profile`, `offline_access`, `email`; `Hub.Access`; `Sandboxes.Access`; Azure DevOps `user_impersonation` only if `request_azure_devops` (ADR-H1 open question Q5) | none | none |
-| Admin consent | **tenant-wide**, for every row above | — | — |
-| Assignment required | no | **yes** — group *PanaceaApp Users* | **yes** — the same group |
-| Role assignments | — | `Hub.OrgAdmin` → group *PanaceaApp Org Admins* | — |
+`$(env:NAME)` is keycloak-config-cli's variable substitution (`IMPORT_VARSUBSTITUTION_ENABLED=true`,
+set by task 29's Job; syntax **from training knowledge, UNVERIFIED**). Every environment value comes in
+that way; no id, tenant or secret is typed into the file. The Job's variables:
+`PANACEA_APP_ENTRA_TENANT_ID`, `PANACEA_APP_ENTRA_IDP_CLIENT_ID` (both from task 29's values),
+`KC_ENTRA_IDP_SECRET`, `KC_FLEET_SECRET`, `KC_GATEWAY_SECRET` (all three from Key Vault).
 
-**Graph ids are looked up, not typed.** `data "azuread_application_published_app_ids"` gives
-Microsoft Graph's client id, and `data "azuread_service_principal" "graph"` its
-`oauth2_permission_scope_ids` map, so no well-known GUID is transcribed from memory. The Azure
-DevOps resource is looked up the same way when `request_azure_devops` is true.
-
-#### Contract
-
-```hcl
-# versions.tf — azuread 3.9.0 only; backend.tf — backend "azurerm" {}
-# providers.tf — provider "azuread" {}   (tenant from ARM_TENANT_ID)
-
-# variables.tf
-variable "environment" {
-  type        = string
-  description = "dev or prod; non-prod display names carry \" (<env>)\"."
-  validation {
-    condition     = contains(["dev", "prod"], var.environment)
-    error_message = "environment must be dev or prod."
-  }
-}
-variable "user_group_object_id" {
-  type        = string
-  description = "Group PanaceaApp Users: who may obtain a token for the Hub and the broker (owner input, TF_VAR_*)."
-}
-variable "org_admin_group_object_id" {
-  type        = string
-  description = "Group PanaceaApp Org Admins: assigned Hub.OrgAdmin (owner input, TF_VAR_*)."
-}
-variable "owner_object_ids" {
-  type        = list(string)
-  description = "Owners of every registration, so none is orphaned (owner input, TF_VAR_*)."
-  validation {
-    condition     = length(var.owner_object_ids) > 0
-    error_message = "An application with no owner can be changed only by a tenant administrator."
-  }
-}
-variable "request_azure_devops" {
-  type        = bool
-  description = "Whether the desktop also requests Azure DevOps user_impersonation (ADR-H1 Q5). One sign-in then serves ADO too."
-  default     = false
-}
-
-# main.tf — ids fixed once for this repository (not secrets); REPLACE with fresh UUIDs in step 2.
-locals {
-  suffix = var.environment == "prod" ? "" : " (${var.environment})"
-  ids = {
-    hub_scope       = "3f7c2a10-5b8e-4d61-9a0c-7e21b4d9c6a1"
-    broker_scope    = "b8e41d27-0c9a-4f3e-8d52-61a7c3e9f0b4"
-    hub_org_admin   = "d2a9e4c1-7f36-4b08-a5e2-0c9b1f7d3e68"
-  }
-  graph_scopes        = ["openid", "profile", "offline_access", "email"]
-  default_access_role = "00000000-0000-0000-0000-000000000000"
-}
-
-# outputs.tf — every consumer reads these, never a display name
-output "tenant_id" { value = data.azuread_client_config.current.tenant_id }
-output "desktop_client_id" { value = azuread_application.desktop.client_id }
-output "hub_api_client_id" { value = azuread_application.hub.client_id }
-output "hub_api_scope" {
-  description = "PANACEA_APP_HUB_SCOPE (Hub contract §9.1)."
-  value       = "api://${azuread_application.hub.client_id}/Hub.Access"
-}
-output "broker_api_client_id" {
-  description = "The broker's PANACEA_APP_BROKER_ENTRA_AUDIENCE (v2 tokens carry the client id as aud)."
-  value       = azuread_application.broker.client_id
-}
-output "broker_api_scope" {
-  description = "PANACEA_APP_BROKER_SCOPE on the control plane (task 23)."
-  value       = "api://${azuread_application.broker.client_id}/Sandboxes.Access"
+```json
+{
+  "realm": "panacea-app",
+  "enabled": true,
+  "displayName": "PanaceaApp",
+  "sslRequired": "all",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": false,
+  "resetPasswordAllowed": false,
+  "rememberMe": false,
+  "defaultSignatureAlgorithm": "RS256",
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 86400,
+  "ssoSessionMaxLifespan": 86400,
+  "offlineSessionIdleTimeout": 2592000,
+  "offlineSessionMaxLifespanEnabled": true,
+  "offlineSessionMaxLifespan": 5184000,
+  "roles": {
+    "realm": [
+      { "name": "hub.org_admin", "description": "PanaceaApp org administrator (Hub); assigned by the realm admin" }
+    ]
+  },
+  "userProfile": {
+    "attributes": [
+      { "name": "username", "permissions": { "view": ["admin", "user"], "edit": ["admin"] } },
+      { "name": "email", "permissions": { "view": ["admin", "user"], "edit": ["admin"] } },
+      { "name": "firstName", "permissions": { "view": ["admin", "user"], "edit": ["admin"] } },
+      { "name": "lastName", "permissions": { "view": ["admin", "user"], "edit": ["admin"] } },
+      { "name": "entra_oid", "permissions": { "view": ["admin"], "edit": ["admin"] },
+        "validations": { "length": { "max": 36 } } },
+      { "name": "entra_tid", "permissions": { "view": ["admin"], "edit": ["admin"] },
+        "validations": { "length": { "max": 36 } } }
+    ]
+  },
+  "clientScopes": [
+    { "name": "panacea-app-hub", "protocol": "openid-connect",
+      "attributes": { "include.in.token.scope": "true", "display.on.consent.screen": "false" },
+      "protocolMappers": [ { "name": "audience", "protocol": "openid-connect", "protocolMapper": "oidc-audience-mapper",
+        "config": { "included.custom.audience": "panacea-app-hub", "access.token.claim": "true", "id.token.claim": "false" } } ] },
+    { "name": "panacea-app-broker", "protocol": "openid-connect",
+      "attributes": { "include.in.token.scope": "true", "display.on.consent.screen": "false" },
+      "protocolMappers": [ { "name": "audience", "protocol": "openid-connect", "protocolMapper": "oidc-audience-mapper",
+        "config": { "included.custom.audience": "panacea-app-broker", "access.token.claim": "true", "id.token.claim": "false" } } ] },
+    { "name": "panacea-app-gateway", "protocol": "openid-connect",
+      "attributes": { "include.in.token.scope": "true", "display.on.consent.screen": "false" },
+      "protocolMappers": [ { "name": "audience", "protocol": "openid-connect", "protocolMapper": "oidc-audience-mapper",
+        "config": { "included.custom.audience": "panacea-app-gateway", "access.token.claim": "true", "id.token.claim": "false" } } ] },
+    { "name": "panacea-app-fleet", "protocol": "openid-connect",
+      "attributes": { "include.in.token.scope": "true", "display.on.consent.screen": "false" },
+      "protocolMappers": [ { "name": "audience", "protocol": "openid-connect", "protocolMapper": "oidc-audience-mapper",
+        "config": { "included.custom.audience": "panacea-app-fleet", "access.token.claim": "true", "id.token.claim": "false" } } ] }
+  ],
+  "clients": [
+    { "clientId": "panacea-app-desktop", "name": "PanaceaApp Desktop", "enabled": true, "protocol": "openid-connect",
+      "publicClient": true, "standardFlowEnabled": true, "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false, "serviceAccountsEnabled": false, "consentRequired": false,
+      "redirectUris": ["http://127.0.0.1/*"], "webOrigins": [],
+      "attributes": { "pkce.code.challenge.method": "S256", "oauth2.device.authorization.grant.enabled": "false",
+        "client.offline.session.max.lifespan": "604800" },
+      "defaultClientScopes": ["basic", "profile", "email", "roles", "web-origins", "acr"],
+      "optionalClientScopes": ["offline_access", "panacea-app-hub", "panacea-app-broker", "panacea-app-gateway", "panacea-app-fleet"],
+      "protocolMappers": [
+        { "name": "oid", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": { "user.attribute": "entra_oid", "claim.name": "oid", "jsonType.label": "String",
+            "access.token.claim": "true", "id.token.claim": "true", "userinfo.token.claim": "false" } },
+        { "name": "tid", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": { "user.attribute": "entra_tid", "claim.name": "tid", "jsonType.label": "String",
+            "access.token.claim": "true", "id.token.claim": "true", "userinfo.token.claim": "false" } },
+        { "name": "roles", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "config": { "claim.name": "roles", "multivalued": "true", "jsonType.label": "String",
+            "access.token.claim": "true", "id.token.claim": "false", "userinfo.token.claim": "false" } }
+      ] },
+    { "clientId": "panacea-app-fleet", "name": "PanaceaApp Fleet", "enabled": true, "protocol": "openid-connect",
+      "publicClient": false, "clientAuthenticatorType": "client-secret", "secret": "$(env:KC_FLEET_SECRET)",
+      "serviceAccountsEnabled": true, "standardFlowEnabled": false, "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false, "redirectUris": [], "webOrigins": [],
+      "defaultClientScopes": [], "optionalClientScopes": ["panacea-app-hub", "panacea-app-broker"] },
+    { "clientId": "panacea-app-gateway", "name": "PanaceaApp Gateway", "enabled": true, "protocol": "openid-connect",
+      "publicClient": false, "clientAuthenticatorType": "client-secret", "secret": "$(env:KC_GATEWAY_SECRET)",
+      "serviceAccountsEnabled": true, "standardFlowEnabled": false, "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false, "redirectUris": [], "webOrigins": [],
+      "defaultClientScopes": [], "optionalClientScopes": ["panacea-app-hub"] }
+  ],
+  "identityProviders": [
+    { "alias": "entra", "displayName": "Microsoft Entra ID", "providerId": "oidc", "enabled": true,
+      "trustEmail": true, "storeToken": false, "addReadTokenRoleOnCreate": false, "linkOnly": false,
+      "firstBrokerLoginFlowAlias": "panacea-app first broker login",
+      "config": {
+        "clientId": "$(env:PANACEA_APP_ENTRA_IDP_CLIENT_ID)",
+        "clientSecret": "$(env:KC_ENTRA_IDP_SECRET)",
+        "clientAuthMethod": "client_secret_post",
+        "authorizationUrl": "https://login.microsoftonline.com/$(env:PANACEA_APP_ENTRA_TENANT_ID)/oauth2/v2.0/authorize",
+        "tokenUrl": "https://login.microsoftonline.com/$(env:PANACEA_APP_ENTRA_TENANT_ID)/oauth2/v2.0/token",
+        "issuer": "https://login.microsoftonline.com/$(env:PANACEA_APP_ENTRA_TENANT_ID)/v2.0",
+        "jwksUrl": "https://login.microsoftonline.com/$(env:PANACEA_APP_ENTRA_TENANT_ID)/discovery/v2.0/keys",
+        "useJwksUrl": "true", "validateSignature": "true",
+        "defaultScope": "openid profile email", "syncMode": "IMPORT",
+        "loginHint": "true", "pkceEnabled": "false",
+        "filteredByClaim": "true", "claimFilterName": "tid",
+        "claimFilterValue": "$(env:PANACEA_APP_ENTRA_TENANT_ID)"
+      } }
+  ],
+  "identityProviderMappers": [
+    { "name": "email", "identityProviderAlias": "entra", "identityProviderMapper": "oidc-user-attribute-idp-mapper",
+      "config": { "claim": "email", "user.attribute": "email", "syncMode": "INHERIT" } },
+    { "name": "firstName", "identityProviderAlias": "entra", "identityProviderMapper": "oidc-user-attribute-idp-mapper",
+      "config": { "claim": "given_name", "user.attribute": "firstName", "syncMode": "INHERIT" } },
+    { "name": "lastName", "identityProviderAlias": "entra", "identityProviderMapper": "oidc-user-attribute-idp-mapper",
+      "config": { "claim": "family_name", "user.attribute": "lastName", "syncMode": "INHERIT" } },
+    { "name": "username", "identityProviderAlias": "entra", "identityProviderMapper": "oidc-username-idp-mapper",
+      "config": { "template": "${CLAIM.email}", "syncMode": "INHERIT" } },
+    { "name": "entra_oid", "identityProviderAlias": "entra", "identityProviderMapper": "oidc-user-attribute-idp-mapper",
+      "config": { "claim": "oid", "user.attribute": "entra_oid", "syncMode": "FORCE" } },
+    { "name": "entra_tid", "identityProviderAlias": "entra", "identityProviderMapper": "oidc-user-attribute-idp-mapper",
+      "config": { "claim": "tid", "user.attribute": "entra_tid", "syncMode": "FORCE" } }
+  ],
+  "authenticationFlows": [
+    { "alias": "panacea-app first broker login", "providerId": "basic-flow", "topLevel": true, "builtIn": false,
+      "authenticationExecutions": [
+        { "authenticator": "idp-create-user-if-unique", "requirement": "ALTERNATIVE", "priority": 10, "authenticatorFlow": false },
+        { "flowAlias": "panacea-app handle existing account", "requirement": "ALTERNATIVE", "priority": 20, "authenticatorFlow": true }
+      ] },
+    { "alias": "panacea-app handle existing account", "providerId": "basic-flow", "topLevel": false, "builtIn": false,
+      "authenticationExecutions": [
+        { "authenticator": "idp-auto-link", "requirement": "REQUIRED", "priority": 10, "authenticatorFlow": false }
+      ] }
+  ]
 }
 ```
 
-#### Resources (described; names from azuread 3.9.0)
+Why the settings that are not obvious (ruling §4, §6, §9; Panacea's pattern from
+`.superpowers/sdd/identity/facts-panacea-keycloak.md` §3, read-only survey):
+- **The IdP's `prompt` is absent** and there is **no review-profile step**: either would put a click in
+  front of the person (ruling §3). `loginHint` forwards the desktop's `login_hint`.
+- **`FORCE` on M1, M2**: `oid` and `tid` never change, so rewriting them at every login is a no-op for
+  a stable person and repairs a user created before the mapper existed.
+- **`${CLAIM.email}`** is Keycloak's own template, not a `$(env:…)` substitution: the two syntaxes differ
+  on purpose.
+- **Keycloak's built-in scopes** (`basic`, `profile`, `email`, `roles`, `web-origins`, `acr`,
+  `offline_access`) are created with the realm and not declared here. Task 29's Job therefore runs with
+  `IMPORT_MANAGED_CLIENT_SCOPE=no-delete`, so a full-managed import cannot remove them (the default's
+  behaviour for built-ins is **UNVERIFIED**).
+- **The gateway client gets only `panacea-app-hub`**, per ruling §6's table (the Hub is its only
+  acceptor); the ruling's "A1-A2 on it" is read as Fleet's pair.
 
-- `data.azuread_client_config.current`, `data.azuread_application_published_app_ids.well_known`,
-  `data.azuread_service_principal.graph` (by Graph's published client id); and, when
-  `request_azure_devops`, the Azure DevOps service principal the same way.
-- `azuread_application.hub` / `.broker`: display name + `local.suffix`, `sign_in_audience`,
-  `owners`, `prevent_duplicate_names = true`, `group_membership_claims = ["None"]`,
-  `api { requested_access_token_version = 2, oauth2_permission_scope { id, value, type = "User",
-  enabled = true, admin_consent_display_name, admin_consent_description, user_consent_display_name,
-  user_consent_description } }` (`type = "User"` is the portal's *Admins and users*; the Hub's
-  admin display name is the contract's *"Use PanaceaApp's shared workspace as the signed-in
-  user"*); the Hub's `app_role { id = local.ids.hub_org_admin,
-  value = "Hub.OrgAdmin", allowed_member_types = ["User"], display_name = "PanaceaApp org
-  administrator", description, enabled = true }`; the Hub's `optional_claims { access_token {
-  name = "email" } }`; `lifecycle { ignore_changes = [identifier_uris] }`; and
-  `azuread_application_identifier_uri` for `api://${client_id}` (a separate resource because the
-  URI embeds the id).
-- `azuread_application.desktop`: `public_client { redirect_uris = ["http://127.0.0.1/",
-  "http://localhost/"] }` (the provider requires a trailing path; the Hub contract's rule is "the
-  registered path", here `/`), `fallback_public_client_enabled = false`, `required_resource_access`
-  for Graph (the four scope ids from the data source), the Hub, the broker, and ADO when asked.
-- `azuread_application_pre_authorized` × 2 (Hub/`Hub.Access`, broker/`Sandboxes.Access`, each
-  authorising the desktop's client id).
-- `azuread_service_principal` × 3; `app_role_assignment_required` **false** on the desktop,
-  **true** on both APIs.
-- `azuread_service_principal_delegated_permission_grant` × 3 (tenant-wide admin consent: desktop →
-  Graph with the four claim values; desktop → Hub with `Hub.Access`; desktop → broker with
-  `Sandboxes.Access`); a fourth for ADO when asked.
-- `azuread_app_role_assignment`: users group → Hub API (default access role), users group → broker
-  API (default access role), org-admin group → Hub API (`Hub.OrgAdmin`).
+#### Tests to write first (`control-plane/internal/realmfile/realm_test.go`)
 
-#### Tests to write first (`tests/identity.tftest.hcl`, `mock_provider "azuread"`, `override_data` for the Graph lookups)
+The test reads `../../../deploy/keycloak/realm/panacea-app.json` with `encoding/json` into
+`map[string]any` and finds clients, scopes, mappers and flows by name, never by position.
 
-The file-level `variables` block holds no key a tfvars sets (guard G10, review I1); runs that need an
-environment-specific value pin it at run level.
-
-| Run | Asserts | Mutant it kills |
+| Test | Asserts | Mutant it kills |
 |---|---|---|
-| `committed_tfvars_plan` | `command = plan` with no run-level key a tfvars sets, once per tfvars pass | a committed tfvars that does not plan |
-| `desktop_is_a_public_client_on_both_loopbacks` | redirect URIs `http://127.0.0.1/` and `http://localhost/`; no `web` block; no `password` | a confidential client, or a redirect the contract's `PANACEA_APP_ENTRA_REDIRECT_HOST` switch cannot use |
-| `apis_issue_v2_tokens` | Hub and broker `requested_access_token_version == 2` | v1 tokens, whose `aud`/`iss` task 16 rejects |
-| `scopes_are_the_contracts` | Hub scope `Hub.Access`, broker `Sandboxes.Access`, both `type == "User"` | a renamed scope the servers reject |
-| `hub_and_broker_are_separate_audiences` | two applications, distinct scope ids | one API for both (P8-D4) |
-| `desktop_is_pre_authorised_and_consented` | two pre-authorisations naming the desktop; three delegated grants, Graph's claim values exactly `openid profile offline_access email` | a consent prompt at first sign-in; a missing `offline_access` (no refresh token) |
-| `graph_ids_come_from_the_directory` | the Graph `resource_app_id` equals the overridden data source's value | a transcribed GUID |
-| `assignment_is_required_on_the_apis_only` | APIs true, desktop false; users group assigned to both APIs | anyone in the tenant using the APIs; or the desktop blocked before it can show "not assigned" |
-| `org_admin_role_is_assigned` | `Hub.OrgAdmin` on the Hub API, assigned to `org_admin_group_object_id` | no org admin able to erase (ADR-H1 G6) |
-| `email_is_an_optional_claim_on_the_hub` | the Hub's `optional_claims.access_token` has `email` | Hub invites keyed on a missing claim |
-| `names_carry_the_environment_outside_prod` | pins `environment = "dev"` → `PanaceaApp Desktop (dev)` | dev and prod colliding in one tenant |
-| `prod_names_carry_no_suffix` | pins `environment = "prod"` → `PanaceaApp Desktop`, with no `(prod)`. One row with both environments in it was two runs or a pass-dependent one (plan re-review b04 round 1, finding 7); as two pinned runs, each tfvars pass checks both names | a suffix on every environment, prod included, so prod's consent screen shows `(prod)` |
-| `ado_only_when_asked` | `request_azure_devops = false` → no ADO access or grant | a consent the owner did not approve |
-| `no_secret_anywhere` | no `azuread_application_password` or certificate resource | a secret added "for testing" |
+| `TestTheRealmFileParses` | valid JSON; `realm == "panacea-app"`, `sslRequired == "all"`, registration, password reset and email login off | a file the Job refuses at deploy; a self-registration page |
+| `TestDesktopIsAPublicPKCEClientOnLoopback` | public, no `secret`; `S256`; `redirectUris == ["http://127.0.0.1/*"]` exactly; implicit, direct grants, service accounts and device grant off; no consent; `webOrigins` empty | a secret on a laptop; a `localhost` redirect (facts §8); a password grant |
+| `TestDesktopScopesAreExactlyTheRulings` | optional scopes `offline_access` + the four audience scopes, and nothing else; no `groups` anywhere | groups in every token; no `offline_access`, so the silent refresh dies overnight (ruling §2) |
+| `TestEachAudienceScopeNamesItself` | four scopes, each with one `oidc-audience-mapper` whose `included.custom.audience` is the scope's own name, access token only, `include.in.token.scope` true | a broker token that the Hub also accepts (the confused deputy) |
+| `TestPersonClaimsCarryTheEntraIds` | desktop mappers: `entra_oid` → `oid`, `entra_tid` → `tid` (access + id token), realm roles → `roles` (multivalued, access only) | a person keyed on Keycloak's `sub` |
+| `TestIdPMappersForceTheEntraIds` | `oid` → `entra_oid`, `tid` → `entra_tid`, both `syncMode` `FORCE` | a user who never gets `entra_oid` (`IMPORT` writes only at creation) |
+| `TestOnlyAnAdminCanEditTheEntraIds` | user profile: `entra_oid`, `entra_tid` view and edit `["admin"]` | a person rewriting their own `oid` in the account console, becoming someone else |
+| `TestTheIdPIsPinnedToOneTenant` | alias `entra`; all four URLs tenant-specific through `$(env:PANACEA_APP_ENTRA_TENANT_ID)`; `client_secret_post`; `tid` claim filter on; `trustEmail` true; `storeToken` false; `loginHint` true; no `prompt` key; its first-login flow exists | any Entra tenant signing in; an Entra token stored in the realm; a click |
+| `TestFirstLoginHasNoReviewStep` | the flow holds exactly `idp-create-user-if-unique` and the sub-flow with `idp-auto-link`; no `idp-review-profile` anywhere | a profile-review page at first sign-in |
+| `TestServiceClientsCarryNoPerson` | Fleet and gateway: confidential, service accounts on, every browser flow off, no redirects, no protocol mappers; Fleet's optional scopes hub + broker, the gateway's hub only | a service token carrying `oid`; a gateway token the broker could accept |
+| `TestNothingSecretIsTyped` | every `secret` and `clientSecret` matches `^\$\(env:[A-Z_]+\)$`; no GUID anywhere in the file | a secret or a tenant id committed to the repository |
+| `TestLeaversLapseWithinAWeek` | realm `offlineSessionMaxLifespanEnabled` true, `offlineSessionMaxLifespan` 5184000; desktop `client.offline.session.max.lifespan` 604800; `ssoSessionMaxLifespan` 86400 | a person disabled in Entra keeping cloud access for 60 days (ruling §6) |
+| `TestOrgAdminIsARealmRole` | realm role `hub.org_admin` exists | no org admin able to erase (ADR-H1 G6) |
 
 #### Steps
 
-- [ ] **Step 1:** Re-read Hub contract §6.5; if it changed, it wins for the desktop and Hub API
-  rows.
-- [ ] **Step 2:** Variables, locals (**fresh UUIDs** replace the three above — a scope id copied
-  from a document is one someone else may also have copied), tests; validate fails.
-- [ ] **Step 3:** Data sources, resources, outputs until the fourteen runs pass for both tfvars.
-- [ ] **Step 4:** tfvars hold only `environment`; lock file; guards; commit.
+- [ ] **Step 1:** Re-read ruling §4, §6 and §9; if they changed, they win over this part.
+- [ ] **Step 2:** `doc.go` and the tests; `go test` fails (no realm file).
+- [ ] **Step 3:** The realm file until the thirteen tests pass.
+- [ ] **Step 4:** Commit.
 
 #### Acceptance
 
 ```bash
-bash infra/scripts/validate.sh infra/terraform/stacks/identity   # validate: 1 ok, 0 failed (14 runs × 2 tfvars)
-bash infra/scripts/guards.sh                                      # guards: 10 of 10 passed
+go test ./control-plane/internal/realmfile/ -count=1 -v 2>&1 | grep -c '^--- PASS'   # 13
+go vet ./control-plane/internal/realmfile/
 ```
 
 #### What this task does not claim
 
-- That the running identity may grant tenant-wide consent to Microsoft Graph delegated scopes — in
-  Entra that needs a privileged administrator role (**from training knowledge, UNVERIFIED** which
-  one); the owner input "app-registration rights" must include it, or the owner consents by hand
-  once.
-- That Entra accepts `http://127.0.0.1/` as a registered loopback redirect and matches any port
-  (the Hub contract's own unverified item, `:549-551`).
+- That keycloak-config-cli reads this file as written: the `$(env:…)` substitution, the `userProfile`
+  key and the `authenticatorFlow` spelling are **from training knowledge, UNVERIFIED** until task 29's
+  Job applies it to a Keycloak 26 in a cluster (task 31). The test pins the settings, not the format.
+- That `http://127.0.0.1/*` matches any loopback port in Keycloak (the same assumption as ruling §10's
+  K1, UNVERIFIED).
+- That IT has added the redirect URI and the second secret, or that the owner has stored the secrets:
+  both are owner-run (above) and task 31 checks them.
