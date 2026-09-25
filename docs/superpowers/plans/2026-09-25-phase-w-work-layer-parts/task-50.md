@@ -676,5 +676,40 @@ The sources read the replica **when the menu asks**, not on every render: `readW
 non-subscribing read of SW.16's store (the `useWork` hook's snapshot without the subscription).
 Neither `readWork` nor `r.criteria(projectId, q)` exists in any part yet; both are gaps for tasks
 55-58, and `search(r, q)` is used with task 46's assumed signature (`task-46.md:309-311`). An
-issue never offers itself as a link target.
+issue never offers itself as a link target. `head.projectId` is the record's (`task-46.md:491`).
+
+#### Interfaces — complete: the rules appended to `editor.css`
+
+```css
+/* Task 50: the slash menu and tables. Still .ed-* only (plus prosemirror-tables' selectedCell). */
+.ed-slash { position: fixed; z-index: 40; min-inline-size: 240px; max-inline-size: 360px;
+  padding: var(--s-1); background: var(--surface); border-radius: var(--r-card);
+  box-shadow: var(--e-raised); }
+.ed-slash[data-above] { transform: translateY(-100%); }
+.ed-slash-list { margin: 0; padding: 0; list-style: none; max-block-size: 320px; overflow-y: auto; }
+.ed-slash-opt { display: flex; align-items: baseline; gap: var(--s-2); padding: var(--s-1) var(--s-2);
+  border-radius: var(--r-ctl); color: var(--ink); font-family: var(--sans); cursor: default; }
+.ed-slash-opt[aria-selected="true"] { background: var(--hover); box-shadow: inset 2px 0 0 var(--ink); }
+.ed-slash-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ed-slash-fact { font-family: var(--mono); font-size: var(--t-fact); color: var(--ink-2); }
+.ed-slash-kbd { font-family: var(--mono); font-size: var(--t-micro); color: var(--ink-2);
+  white-space: pre; padding-inline: var(--s-1); border-radius: var(--r-chip); box-shadow: var(--e-hair); }
+.ed-slash-none { padding: var(--s-1) var(--s-2); color: var(--ink-2); }
+.ed-root table { border-collapse: collapse; margin-block: var(--s-2); }
+.ed-root th, .ed-root td { border: 1px solid var(--line); padding: var(--s-1) var(--s-2);
+  min-inline-size: 4ch; vertical-align: top; }
+.ed-root th { font-weight: 560; text-align: start; }
+.ed-root .selectedCell { background: var(--hover); }
+@media (forced-colors: active) {
+  .ed-slash-opt[aria-selected="true"], .ed-root .selectedCell { outline: 1px solid Highlight; }
+}
+```
+
+The tokens are the house's own: `--r-card` for a popover, `--r-ctl` for a row, `--r-chip` for a
+`kbd` hint and `--e-raised` for the menu (`desktop/src/styles/tokens.css:110-122`); `--t-micro`
+and `--t-fact` are task 26's (`task-26.md:19`, `:102`), `--t-micro` used on the `kbd` hint only, as
+its rule requires. The active option carries an inset bar as well as a fill, and an outline under
+`forced-colors`, so it is never colour alone. A table's rules are 1px lines between cells, not
+elevation, so the ring-and-shadow rule does not apply. No transition anywhere: the menu appears
+where the caret is, which is the whole of its causality.
 
