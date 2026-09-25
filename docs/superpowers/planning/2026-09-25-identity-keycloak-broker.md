@@ -467,7 +467,7 @@ label or LiteLLM user changes.
 | Part | Task | Wave | Change |
 |---|---|---|---|
 | The realm file and its test (every client, scope, mapper and IdP setting of sections 4, 6, 10, asserted by a Go test that parses the JSON) | **env 09** `stacks/identity` | 2 | Its Entra registrations (*Desktop*, *Hub API*, *Broker API*, HA-3) are **deleted**; its Entra admin groups (cluster admins, Postgres admins) **stay**; the "product users" group is deleted (the realm's `tid` filter admits the tenant) |
-| Keycloak's namespace, Pod Security and network policy | **env 11** `deploy/charts/platform` | 2 | add the `identity` namespace |
+| Keycloak's namespace, Pod Security and network policy | **env 11** `deploy/charts/platform` | 2 | add the `panacea-identity` namespace (env task-11 `:43`, `:96`; task-29 `:215`) |
 | Egress from Keycloak to `login.microsoftonline.com`; Hub and broker to the realm's JWKS | **env 07** `stacks/foundation` | 4 | the egress list gains the realm host (facts-app-identity §2d) |
 | Keycloak's database and role | **env 08** Postgres | 5 | one database `keycloak` (auth method: section 12, U-9) |
 | The Keycloak release (two replicas), the realm Job, per-environment values | **env 29** `deploy/charts/broker` and `hub` | 5 | add `deploy/charts/keycloak` beside them |
