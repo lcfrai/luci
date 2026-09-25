@@ -167,3 +167,104 @@ func grantedKind(kind string) bool {
 `ok` is false and 403 `forbidden` when the role ranks below `want`; the empty role ranks below
 every role. **UNVERIFIED** until H's `Require` merges; `TestAGrantedWriteIs403Not404` pins the
 answer, so a `Require` that ranks `""` otherwise fails it at once.
+
+#### `store/work_grants.go`, complete (signatures and the two queries that carry rules)
+
+```go
+package store
+
+// GrantRow is one work_project_grants row.
+type GrantRow struct {
+	OrgID, ProjectID, TeamID, GrantedBy string
+	GrantedAt                           time.Time
+}
+
+// InsertGrant inserts; exists is true (and nothing written) when the pair is live.
+func InsertGrant(ctx context.Context, tx pgx.Tx, g GrantRow) (exists bool, err error)
+// DeleteGrant deletes; found is false when there was no such grant.
+func DeleteGrant(ctx context.Context, tx pgx.Tx, projectID, teamID string) (found bool, err error)
+// GrantsOf lists a project's grants by team id.
+func GrantsOf(ctx context.Context, q Querier, projectID string) ([]GrantRow, error)
+
+// GrantedTo reports whether userID belongs to a team holding a grant on
+// projectID, and returns the project's owning team. One query, under RLS.
+func GrantedTo(ctx context.Context, q Querier, projectID, userID string) (granted bool, ownerTeam string, err error) {
+	err = q.QueryRow(ctx, `
+		SELECT EXISTS (SELECT 1 FROM hub.work_project_grants g
+		                 JOIN hub.team_members m ON m.team_id = g.team_id
+		                WHERE g.project_id = $1 AND m.user_id = $2),
+		       coalesce((SELECT team_id FROM hub.projects WHERE id = $1), '')`,
+		projectID, userID).Scan(&granted, &ownerTeam)
+	return granted, ownerTeam, err
+}
+
+// TeamsLinked: a live grant in either direction between two teams (decision 5).
+func TeamsLinked(ctx context.Context, q Querier, a, b string) (bool, error) {
+	var linked bool
+	err := q.QueryRow(ctx, `
+		SELECT EXISTS (SELECT 1 FROM hub.work_project_grants g JOIN hub.projects p ON p.id = g.project_id
+		                WHERE (p.team_id = $1 AND g.team_id = $2) OR (p.team_id = $2 AND g.team_id = $1))`,
+		a, b).Scan(&linked)
+	return linked, err
+}
+
+// SetInitiativeTeams replaces the span: DELETE then INSERT in ord order.
+func SetInitiativeTeams(ctx context.Context, tx pgx.Tx, org, initiativeID string, teamIDs []string) error
+```
+
+`hub.team_members` and `hub.projects` are H's table names (**UNVERIFIED** until H's `0001` merges);
+the imports are `context`, `time` and `pgx/v5`, as task 08's store.
+
+#### `server/work_grants.go`, complete: the create; the other two are its shape
+
+```go
+func (s *Server) registerWorkGrants() {
+	s.route("POST /v1/projects/{projectId}/grants", s.grantProject)
+	s.route("GET /v1/projects/{projectId}/grants", s.listGrants)
+	s.route("DELETE /v1/projects/{projectId}/grants/{teamId}", s.revokeGrant)
+}
+
+func (s *Server) grantProject(w http.ResponseWriter, r *http.Request) {
+	projectID := r.PathValue("projectId")
+	s.WriteReplayable(w, r, httpx.MaxBodyBytes, nil, func(tx *Tx, body []byte) (WriteResult, error) {
+		ctx := r.Context()
+		var req hubapi.GrantProjectRequest
+		if err := Decode(body, &req); err != nil {
+			return WriteResult{}, err
+		}
+		role, owner, ok, err := ProjectRole(ctx, tx, projectID) // the owning team only: no grant onward
+		if err != nil {
+			return WriteResult{}, err
+		}
+		if err := Require(role, ok, hubapi.RoleAdmin, notFoundProject(projectID)); err != nil {
+			return WriteResult{}, err
+		}
+		if !hubapi.ValidID(hubapi.PrefixTeam, req.TeamID) || req.TeamID == owner {
+			return WriteResult{}, badField("teamId", "Grant a different team of this org.")
+		}
+		if found, err := store.TeamExists(ctx, tx, req.TeamID); err != nil || !found { // RLS: this org only
+			return WriteResult{}, orErr(err, badField("teamId", "Grant a different team of this org."))
+		}
+		g := store.GrantRow{OrgID: tx.P.OrgID, ProjectID: projectID, TeamID: req.TeamID,
+			GrantedBy: tx.P.UserID, GrantedAt: tx.Now}
+		exists, err := store.InsertGrant(ctx, tx, g)
+		if err != nil {
+			return WriteResult{}, err
+		}
+		if exists {
+			return WriteResult{}, workProblem(hubapi.CodeGrantExists, "That team already has this project.",
+				"projectId", projectID, "teamId", req.TeamID)
+		}
+		tx.Emit(Event{Kind: hubapi.EventWorkGrantAdded, TeamID: owner, ProjectID: projectID, Subject: projectID,
+			Data: map[string]any{"projectId": projectID, "teamId": req.TeamID}})
+		return WriteResult{Status: http.StatusCreated, Body: s.grantWire(ctx, tx, g)}, nil
+	})
+}
+```
+
+`listGrants` is `s.Read` with `ProjectRole` and `RoleViewer` (the owning team only: a granted team
+does not list who else is granted). `revokeGrant` is `s.Write` with `RoleAdmin`, `DeleteGrant`,
+404 `grant_not_found` when absent, `work.grant_revoked`, 204. `badField`, `orErr`, `workProblem`
+(status from `hubapi.WorkRoadmapCodeStatus`) and `store.TeamExists` are small helpers in this file
+or task 08's (**UNVERIFIED** names; Step 1 takes the merged ones). A replay (`rebuild` `nil`)
+answers the stored reply, as H's idempotency does for writes with no content to re-read.
