@@ -81,3 +81,135 @@ it (additive), so the fake keeps none.
 
 No other file changes: task 04's `fake_work.go` calls the five hooks by name, and they move from
 the stub to these files unchanged in signature.
+
+---
+
+#### Interfaces, complete: what `conformance/work.go` exports
+
+```go
+// control-plane/internal/hub/hubclient/conformance/work.go (the head; the rows follow)
+package conformance
+
+import (
+	"context"
+	"errors"
+	"strings"
+	"testing"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubapi"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubclient"
+)
+
+// GroupWork is Phase W's group. Its rows run through RunWork, not Run, so the
+// Hub's AllGroups and its row count are untouched (task 05's decision (a)).
+const GroupWork Group = "work"
+
+// WorkEnv is one fresh world per row: Env's team T and four principals, and
+// an org admin, who is in no team. OrgAdmin nil skips the erase rows.
+type WorkEnv struct {
+	Env
+	OrgAdmin hubclient.Hub
+}
+
+// WorkRow is one named assertion, run against the fake (task 05) and against
+// the real Hub through the HTTP client (task 16). W2-W5 append their own
+// slices (tasks 73, 99, 115, 144) and a RunWork call each.
+type WorkRow struct {
+	ID   string // "W-01" …; never reused, never renumbered
+	Name string // "numbers_gapless" …
+	Run  func(t *testing.T, e WorkEnv)
+}
+
+// RunWork runs every row of rows (WorkRowsW1 when none are given), each as
+// t.Run("work/<ID>_<Name>") with a fresh WorkEnv from newEnv.
+func RunWork(t *testing.T, newEnv func(t *testing.T) WorkEnv, rows ...WorkRow) {
+	t.Helper()
+	if len(rows) == 0 {
+		rows = WorkRowsW1
+	}
+	for _, r := range rows {
+		t.Run(string(GroupWork)+"/"+r.ID+"_"+r.Name, func(t *testing.T) { r.Run(t, newEnv(t)) })
+	}
+}
+
+var bg = context.Background()
+
+// project is a new project of T, made by T's admin; key is "" for none.
+func (e WorkEnv) project(t *testing.T, name, key string) hubapi.Project {
+	t.Helper()
+	p, err := e.Admin.CreateProject(bg, hubapi.CreateProjectRequest{TeamID: e.TeamID, Name: name,
+		Remotes: []hubapi.RemoteRequest{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if key != "" {
+		if _, err := e.Admin.SetProjectKey(bg, p.ID, key); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return p
+}
+
+// chore is the smallest valid create: no criterion, so a reason.
+func chore(title string) hubapi.CreateIssueRequest {
+	return hubapi.CreateIssueRequest{Title: text(title), Description: text(""), Serves: []hubapi.Serve{},
+		Implements: []string{}, Labels: []string{}, NotTiedReason: hubapi.NotTiedChore}
+}
+
+func text(s string) hubapi.AuthoredText { return hubapi.AuthoredText{Text: s, Author: hubapi.AuthorHuman} }
+
+// issue is a new chore in p, created by the member.
+func (e WorkEnv) issue(t *testing.T, p hubapi.Project, title string) hubapi.IssueWithRevision {
+	t.Helper()
+	iw, err := e.Member.CreateIssue(bg, p.ID, chore(title))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return iw
+}
+
+// refused asserts err is a Hub refusal with this status and code, and each
+// detail named in kv ("key", "value", …).
+func refused(t *testing.T, err error, status int, code string, kv ...string) {
+	t.Helper()
+	var he *hubclient.Error
+	if !errors.As(err, &he) || he.Status != status || he.Problem.Error != code {
+		t.Fatalf("err = %v, want %d %s", err, status, code)
+	}
+	for i := 0; i+1 < len(kv); i += 2 {
+		if he.Problem.Details[kv[i]] != kv[i+1] {
+			t.Errorf("details[%q] = %q, want %q", kv[i], he.Problem.Details[kv[i]], kv[i+1])
+		}
+	}
+}
+
+// kinds is the kinds of every event after seq "after" that start with prefix.
+func kinds(t *testing.T, view hubclient.Hub, after, prefix string) []string {
+	t.Helper()
+	page, err := view.Changes(bg, after, 200)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out []string
+	for _, ev := range page.Events {
+		if strings.HasPrefix(ev.Kind, prefix) {
+			out = append(out, ev.Kind)
+		}
+	}
+	return out
+}
+
+// head is the feed's cursor now: events after it are this row's.
+func head(t *testing.T, view hubclient.Hub) string {
+	t.Helper()
+	page, err := view.Changes(bg, "latest", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return page.Next
+}
+```
+
+`head` reads `Changes("latest", 1)`, which H05's part fixes as *"no events and the head as
+`next`"* (`phase-h-hub-parts/task-05.md:163`), so a row counts only its own events, on the fake and
+on a real Hub with history.
