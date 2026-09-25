@@ -335,3 +335,72 @@ const insertTable: Command = (state, dispatch) => {
 };
 ```
 
+#### Interfaces — complete: `slashMenu.ts`, part 2: the list and the filter
+
+```ts
+const none = (): void => {};                      // a pick item never runs; choose() opens its picker
+
+export const SLASH_ITEMS: readonly SlashItem[] = Object.freeze([
+  block("h1", setBlockType(n.heading, { level: 1 }), ["title"]),
+  block("h2", setBlockType(n.heading, { level: 2 })),
+  block("h3", setBlockType(n.heading, { level: 3 })),
+  block("bullet", wrapInList(n.bullet_list, { bullet: "-" }), ["ul"]),
+  block("ordered", wrapInList(n.ordered_list, { order: 1 }), ["ol"]),
+  block("check", toTaskList, ["todo", "task"]),
+  block("quote", wrapIn(n.blockquote), ["blockquote"]),
+  block("code", setBlockType(n.code_block), ["pre"]),
+  block("divider", divider, ["hr", "rule"]),
+  { id: "table", label: "Table", shortcut: "", keywords: ["grid"], when: (s) => !inTable(s), run: cmd(insertTable) },
+  { id: "row_add", label: "Add row below", shortcut: "", when: inTable, run: cmd(addRowAfter) },
+  { id: "column_add", label: "Add column right", shortcut: "", when: inTable, run: cmd(addColumnAfter) },
+  { id: "row_remove", label: "Remove row", shortcut: "", when: inBodyRow, run: cmd(deleteRow) },
+  { id: "column_remove", label: "Remove column", shortcut: "", when: hasColumns, run: cmd(deleteColumn) },
+  { id: "table_remove", label: "Remove table", shortcut: "", when: inTable, run: cmd(deleteTable) },
+  { id: "link_issue", label: "Link an issue", shortcut: "", keywords: ["mention"], pick: "issue", run: none },
+  { id: "link_criterion", label: "Link a criterion", shortcut: "", keywords: ["brief", "spec"], pick: "criterion", run: none },
+]);
+
+/** One row of the open list: an item, or a link candidate once a link item was chosen. */
+export type SlashOption =
+  | { kind: "item"; key: string; label: string; shortcut: string; item: SlashItem }
+  | { kind: "issue"; key: string; label: string; fact: string; issue: IssueCandidate }
+  | { kind: "criterion"; key: string; label: string; fact: string; criterion: CriterionCandidate };
+
+export type SlashMode = "items" | "issue" | "criterion";
+export type SlashState =
+  | { open: false }
+  | { open: true; from: number; query: string; mode: SlashMode; active: number };
+export const CLOSED: SlashState = Object.freeze({ open: false });
+export const slashKey = new PluginKey<SlashState>("ed-slash");
+
+/** Candidates shown at once; more is a longer query, not a longer list. */
+export const MAX_CANDIDATES = 8;
+
+/** Every query word is a prefix of a label word or a keyword, case-insensitive. */
+export function matches(item: SlashItem, query: string): boolean {
+  const words = [...item.label.toLowerCase().split(/\s+/), ...(item.keywords ?? [])];
+  return query.toLowerCase().split(/\s+/).filter(Boolean).every((q) => words.some((w) => w.startsWith(q)));
+}
+
+export function optionsFor(state: EditorState, s: SlashState, sources?: LinkSources): SlashOption[] {
+  if (!s.open) return [];
+  if (s.mode === "issue") {
+    return (sources?.issues(s.query) ?? []).slice(0, MAX_CANDIDATES).map((i) =>
+      ({ kind: "issue", key: `issue-${i.id}`, label: i.title, fact: i.alias, issue: i }));
+  }
+  if (s.mode === "criterion") {
+    return (sources?.criteria(s.query) ?? []).slice(0, MAX_CANDIDATES).map((c) =>
+      ({ kind: "criterion", key: `criterion-${c.criterionId}`, label: c.text, fact: c.criterionId, criterion: c }));
+  }
+  return SLASH_ITEMS
+    .filter((it) => (!it.when || it.when(state)) && (!it.pick || sources !== undefined) && matches(it, s.query))
+    .map((it) => ({ kind: "item", key: it.id, label: it.label, shortcut: it.shortcut, item: it }));
+}
+```
+
+`block()` makes the label and the hint one lookup, so a new row in `SHORTCUTS` with no menu item,
+or a menu item with no row, is caught by the parity test below rather than by a reader. The two
+Markdown shortcuts that are marks (`**`, `` ` ``) have no menu item: the menu inserts blocks and
+links, and a mark is typed around text that already exists. `tab` matches *Table* only while the
+caret is outside a table (inside one, *Remove table* is listed and matches too, which is right).
+
