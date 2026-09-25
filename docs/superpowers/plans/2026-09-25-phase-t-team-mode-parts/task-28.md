@@ -293,7 +293,7 @@ func Deadline(policy time.Duration) time.Duration {
 func Counting(k Kind) bool { return k == KindPropose || k == KindCounter || k == KindReject }
 
 // RoundsLeft is how many counting messages side may still send on t.
-func RoundsLeft(t Thread, side model.AgentID) int { return RoundsPerSide - t.Rounds[side] }
+func RoundsLeft(t Thread, side model.AgentID) int { return t.RoundsCap - t.Rounds[side] }
 
 // StaleAfter reports whether appending m to t makes StaleRoundsStop
 // counting messages in a row with no new typed content (decision b).
@@ -310,8 +310,36 @@ func StaleAfter(t Thread, m Stored) bool {
 // PairAllowed reports whether one more message fits the pair's hour.
 // sent is the pair's count of Orchestrator-sent messages in [now-1h, now];
 // Fleet's templated answers are not counted (nobody's quota paid for them).
-func PairAllowed(sent int) bool { return sent < PairPerHour }
+func PairAllowed(sent, perHour int) bool { return sent < perHour }
+
+// Budgets is the team policy's messageBudgets (task 01 §7.24,
+// task-01.md:465-480): perPairPerHour 1..20 and roundsPerSide 1..3 tighten
+// only; threadDeadlineMinutes 30..1440 lengthens only. The Hub already
+// refuses out-of-range values; Effective clamps again so a stale or absent
+// policy can never loosen a limit.
+type Budgets struct {
+	PerPairPerHour        int `json:"perPairPerHour"`
+	RoundsPerSide         int `json:"roundsPerSide"`
+	ThreadDeadlineMinutes int `json:"threadDeadlineMinutes"`
+}
+
+func Effective(b Budgets) (perHour, rounds int, deadline time.Duration) {
+	perHour, rounds = PairPerHour, RoundsPerSide
+	if b.PerPairPerHour >= 1 && b.PerPairPerHour < perHour {
+		perHour = b.PerPairPerHour
+	}
+	if b.RoundsPerSide >= 1 && b.RoundsPerSide < rounds {
+		rounds = b.RoundsPerSide
+	}
+	return perHour, rounds, Deadline(time.Duration(b.ThreadDeadlineMinutes) * time.Minute)
+}
 ```
+
+`RoundsLeft` uses the thread's `RoundsCap`, set from `Effective` when the thread opens and never
+changed after, so a policy edit mid-thread does not move a live negotiation's goalposts. The
+policy is read from the Hub's team-policy record through task 11's rebuild (cached, the feed
+refreshes it); an absent policy is the zero `Budgets`, which `Effective` turns into the §6.4 and
+§6.6 defaults.
 
 The limit codes, all ST.1 error codes that join task 09's list: `rounds_exhausted`,
 `rate_limited` (with `retryAfter`, the time the oldest counted message leaves the window),
@@ -352,6 +380,7 @@ type Thread struct {
 	Conflict     string           // cf-… when the subject is a conflict
 	State        string           // open | resolved | escalated | expired
 	Rounds       map[model.AgentID]int
+	RoundsCap    int              // Effective(policy) at open; 3 by default
 	StaleRun     int              // counting messages in a row with no new typed content
 	Resolutions  map[string]bool  // Canonical(r) of every resolution seen
 	Live         map[string]model.AgentID // live proposal ms-… -> its sender
@@ -583,6 +612,7 @@ Bob's `oB`, Carol's `oC` (a third member), one thread `th-1` between `oA` and `o
 | `TestCanonicalIgnoresGlobOrder` | `yield [b,a]` equals `yield [a,b,a]` for `Canonical` | order-sensitive canonical form |
 | `TestPairRateTwentyAnHour` | 20 messages between `oA` and `oB` over three threads in 50 min: ok; the 21st → `rate_limited`, `retryAfter` = oldest + 1 h; Fleet's templated answers are not counted | per-thread counting; templated answers counted |
 | `TestDeadlineNeverShorterThanThirtyMinutes` | policy 10 min → 30; policy 2 h → 2 h; policy 48 h → 24 h | the policy value used raw |
+| `TestPolicyBudgetsTightenNeverLoosen` | `Effective{perPairPerHour: 5, roundsPerSide: 2}` → 5 and 2; `{40, 9}` → 20 and 3; the zero value → 20, 3, 30 min; a policy edit after open leaves the thread's `RoundsCap` as it was | a policy that raises a cap; the cap read live per message |
 | `TestDeadlineSweepEscalates` | clock past the deadline: `SweepDeadlines` closes `th-1` `escalated`, `ThreadExhausted(deadline)` once; a second sweep does nothing | the sweep re-escalating every tick |
 | `TestHubPauseStopsNegotiationAndExtendsDeadlines` | `Gate` paused: `peer` → `unavailable` with `since`, `inbox` still answers; after 12 min unpaused, the effective deadline moved out 12 min and the Hub deadline did not | a pause that escalates every open thread at its old deadline |
 | `TestMessageAndWakeCommitTogether` | an injected store failure after the message row: no message, no queue row, no outbox item | the wake enqueued after commit |
@@ -617,7 +647,7 @@ CREATE TABLE IF NOT EXISTS fleet.threads (
   participant_a text NOT NULL, participant_b text NOT NULL CHECK (participant_a < participant_b),
   subject_kind text NOT NULL, subject_ref text NOT NULL, conflict_id text,
   state text NOT NULL CHECK (state IN ('open','resolved','escalated','expired')),
-  rounds jsonb NOT NULL, stale_run integer NOT NULL DEFAULT 0,
+  rounds jsonb NOT NULL, rounds_cap integer NOT NULL DEFAULT 3, stale_run integer NOT NULL DEFAULT 0,
   resolutions text[] NOT NULL DEFAULT '{}', live jsonb NOT NULL DEFAULT '{}',
   deadline timestamptz NOT NULL, hub_deadline timestamptz NOT NULL, revision integer NOT NULL,
   PRIMARY KEY (org_id, thread_id));
