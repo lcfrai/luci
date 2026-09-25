@@ -426,3 +426,205 @@ type GrantProjectRequest struct {
 	TeamID string `json:"teamId"`
 }
 ```
+
+#### `work_roadmap.go`, continued: codes and validation
+
+```go
+// WorkRoadmapCodeStatus is the status each W4 code carries (decision 3).
+// The fake (115) and the server (117-123) read it when writing a problem.
+var WorkRoadmapCodeStatus = map[string]int{
+	CodeInitiativeNotFound:  404,
+	CodeMilestoneNotFound:   404,
+	CodeGrantNotFound:       404,
+	CodeUpdateImmutable:     409,
+	CodeGrantExists:         409,
+	CodeDependencyCycle:     422,
+	CodeCriterionNotOnBrief: 422,
+}
+
+var (
+	ErrHealth       = errors.New(`hubapi: health is "on_track", "at_risk" or "off_track"`)
+	ErrPinnedBrief  = errors.New("hubapi: a status update pins a brief revision, brief:bf-…@r")
+	ErrUpdateBody   = errors.New(`hubapi: an update body is 1 to 1000 characters, author "H"`)
+	ErrRoadmapName  = errors.New("hubapi: a name is 1 to 120 characters")
+	ErrRoadmapDate  = errors.New("hubapi: a date is YYYY-MM-DD")
+	ErrRoadmapList  = errors.New("hubapi: a list is never null and within its bounds")
+	ErrRoadmapEnum  = errors.New("hubapi: a value outside its fixed words")
+	ErrRoadmapRange = errors.New("hubapi: a number outside its range")
+)
+
+var (
+	dateRe  = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
+	clockRe = regexp.MustCompile(`^([01]\d|2[0-3]):[0-5]\d$`)
+)
+
+func validDate(s string) bool {
+	if !dateRe.MatchString(s) {
+		return false
+	}
+	_, err := time.Parse("2006-01-02", s)
+	return err == nil
+}
+
+func validName(s string) bool {
+	n := len([]rune(strings.TrimSpace(s)))
+	return n >= 1 && n <= 120
+}
+
+// ValidHealth is the three words and nothing else (kills "free-text health").
+func ValidHealth(h Health) bool {
+	return h == HealthOnTrack || h == HealthAtRisk || h == HealthOffTrack
+}
+
+func (r PostUpdateRequest) Validate() error {
+	if !ValidHealth(r.Health) {
+		return &FieldError{"health", ErrHealth}
+	}
+	if n := len([]rune(strings.TrimSpace(r.Body.Text))); n < 1 || n > 1000 || r.Body.Author != AuthorHuman {
+		return &FieldError{"body", ErrUpdateBody}
+	}
+	if _, err := ParseBriefKey(r.PinnedBrief); err != nil { // keys.go:69: the @r is required
+		return &FieldError{"pinnedBrief", ErrPinnedBrief}
+	}
+	if r.Cites == nil || len(r.Cites) > 20 {
+		return &FieldError{"cites", ErrRoadmapList}
+	}
+	for i, k := range r.Cites {
+		if _, err := ParseKey(k); err != nil {
+			return &FieldError{"cites[" + strconv.Itoa(i) + "]", ErrInvalidKey}
+		}
+	}
+	return nil
+}
+
+func (r CreateInitiativeRequest) Validate() error {
+	switch {
+	case !validName(r.Name):
+		return &FieldError{"name", ErrRoadmapName}
+	case !ValidID(PrefixUser, r.OwnerID):
+		return &FieldError{"ownerId", ErrInvalidKey}
+	case r.TargetDate != nil && !validDate(*r.TargetDate):
+		return &FieldError{"targetDate", ErrRoadmapDate}
+	case r.State != nil && !validInitiativeState(*r.State):
+		return &FieldError{"state", ErrRoadmapEnum}
+	}
+	return nil
+}
+
+func validInitiativeState(s InitiativeState) bool {
+	switch s {
+	case InitiativePlanned, InitiativeActive, InitiativePaused, InitiativeDone, InitiativeCancelled:
+		return true
+	}
+	return false
+}
+```
+
+```go
+func (r CreateMilestoneRequest) Validate() error {
+	switch {
+	case !validName(r.Name):
+		return &FieldError{"name", ErrRoadmapName}
+	case r.Date != nil && !validDate(*r.Date):
+		return &FieldError{"date", ErrRoadmapDate}
+	}
+	return validCriterionList("criterionIds", r.CriterionIDs)
+}
+
+func (r SetMilestoneCriteriaRequest) Validate() error {
+	return validCriterionList("criterionIds", r.CriterionIDs)
+}
+
+// validCriterionList: 1-100 ids, none repeated. Whether each is on the
+// feature's brief is the Hub's check (criterion_not_on_brief), not the wire's.
+func validCriterionList(field string, ids []string) error {
+	if len(ids) < 1 || len(ids) > 100 {
+		return &FieldError{field, ErrRoadmapList}
+	}
+	seen := make(map[string]bool, len(ids))
+	for i, id := range ids {
+		if n := len(id); n < 1 || n > 128 || seen[id] {
+			return &FieldError{field + "[" + strconv.Itoa(i) + "]", ErrCriterionID}
+		}
+		seen[id] = true
+	}
+	return nil
+}
+
+func (s TemplateSchedule) Validate() error {
+	switch {
+	case s.Every.N < 1 || s.Every.N > 365:
+		return &FieldError{"every.n", ErrRoadmapRange}
+	case s.Every.Unit != "day" && s.Every.Unit != "week" && s.Every.Unit != "month":
+		return &FieldError{"every.unit", ErrRoadmapEnum}
+	case !clockRe.MatchString(s.At):
+		return &FieldError{"at", ErrRoadmapEnum}
+	}
+	if _, err := time.LoadLocation(s.TZ); err != nil || s.TZ == "" || s.TZ == "Local" {
+		return &FieldError{"tz", ErrRoadmapEnum}
+	}
+	return nil
+}
+
+func (p ReminderPolicy) Validate() error {
+	if p.Subject.Kind != SubjectFeature && p.Subject.Kind != SubjectInitiative {
+		return &FieldError{"subject.kind", ErrRoadmapEnum}
+	}
+	if p.EveryDays < 1 || p.EveryDays > 90 {
+		return &FieldError{"everyDays", ErrRoadmapRange}
+	}
+	return nil
+}
+
+func (r TriageRotation) Validate() error {
+	if len(r.Members) < 1 || len(r.Members) > 50 {
+		return &FieldError{"members", ErrRoadmapList}
+	}
+	seen := map[string]bool{}
+	for i, m := range r.Members {
+		if !ValidID(PrefixUser, m) || seen[m] {
+			return &FieldError{"members[" + strconv.Itoa(i) + "]", ErrInvalidKey}
+		}
+		seen[m] = true
+	}
+	switch {
+	case r.PeriodDays < 1 || r.PeriodDays > 28:
+		return &FieldError{"periodDays", ErrRoadmapRange}
+	case !validDate(r.StartsOn):
+		return &FieldError{"startsOn", ErrRoadmapDate}
+	}
+	return nil
+}
+
+func (q InsightsQuery) Validate() error {
+	switch q.Measure {
+	case MeasureCount, MeasureCycleTime, MeasureLeadTime, MeasureTriageTime:
+	default:
+		return &FieldError{"measure", ErrRoadmapEnum}
+	}
+	from, e1 := time.Parse(time.RFC3339, q.From)
+	to, e2 := time.Parse(time.RFC3339, q.To)
+	switch {
+	case e1 != nil:
+		return &FieldError{"from", ErrRoadmapDate}
+	case e2 != nil || !to.After(from) || to.Sub(from) > 366*24*time.Hour:
+		return &FieldError{"to", ErrRoadmapRange}
+	}
+	if q.GroupBy != nil {
+		switch *q.GroupBy {
+		case "state", "assignee", "label", "feature", "cycle":
+		default:
+			return &FieldError{"groupBy", ErrRoadmapEnum}
+		}
+	}
+	return nil
+}
+
+func (s ScopeRef) Validate() error {
+	prefix := map[string]string{"project": PrefixProject, "feature": PrefixFeature, "issue": PrefixIssue}[s.Kind]
+	if prefix == "" || !ValidID(prefix, s.ID) {
+		return &FieldError{"scope", ErrInvalidKey}
+	}
+	return nil
+}
+```
