@@ -79,3 +79,81 @@ func RenderWith(doc discover.Document, opts Options) string
 The paragraph sits under the two header lines, before the first section, so an agent reads it
 before any brief section; it has no heading of its own, because §5.3 adds a paragraph, not a
 section, and a heading would be product text the design did not write.
+
+#### Tests to write first
+
+In `render_test.go`, beside phase 4's own, with its helpers `branchBlock`, `resolve`, `b7` and
+`golden` (`render_test.go:100-130`, built). The first two are the scope paragraph's
+(`2026-09-25-phase-t-team-mode.md:954-955`).
+
+```go
+func TestTeamRenderHasThePointerOnceAndIsDeterministic(t *testing.T) {
+	doc := resolve(t, b7(), nil)
+	first := RenderWith(doc, Options{Team: true})
+	if n := strings.Count(first, TeamPointer); n != 1 {
+		t.Fatalf("pointer appears %d times, want 1 (mutant: written per section, or not at all)", n)
+	}
+	for i := 0; i < 5; i++ {
+		if again := RenderWith(doc, Options{Team: true}); again != first {
+			t.Fatalf("team render %d differs (mutant: a clock or a map order in the team step)", i+2)
+		}
+	}
+	if got, want := first, golden(t, "golden-team.md"); got != want {
+		t.Errorf("render differs from golden-team.md (fix the renderer, never the golden)\n--- got ---\n%s--- want ---\n%s", got, want)
+	}
+	if strings.Count(first, commentOpener) != 2 {
+		t.Error("the team block holds a third \"<!--\" (mutant: the pointer made a marker forgeable)")
+	}
+}
+
+func TestSoloRenderIsByteIdenticalToBefore(t *testing.T) {
+	doc := resolve(t, b7(), nil)
+	if Render(doc) != RenderWith(doc, Options{}) {
+		t.Fatal("Render is not RenderWith(doc, Options{}) (mutant: two bodies that drift)")
+	}
+	if got, want := Render(doc), golden(t, "golden-project.md"); got != want {
+		t.Fatal("the solo block moved (mutant: the pointer written unconditionally)")
+	}
+	if strings.Contains(Render(doc), "panacea") {
+		t.Fatal("a solo block names panacea (mutant: Team defaulted true)")
+	}
+}
+
+func TestTeamBlockIsTheSoloBlockPlusOneInsertion(t *testing.T) {
+	doc := resolve(t, b7(), nil)
+	solo, team := Render(doc), RenderWith(doc, Options{Team: true})
+	anchor := "your edits inside it will be lost.\n"
+	i := strings.Index(solo, anchor) + len(anchor)
+	if want := solo[:i] + "\n" + TeamPointer + "\n" + solo[i:]; team != want {
+		t.Fatal("the team block differs from solo by more than the pointer " +
+			"(mutant: a teammate's text or a second line added beside it)")
+	}
+}
+
+func TestTeamPointerIsTheDesignsParagraph(t *testing.T) {
+	// 05-design.md §5.3's quote block, read from the repository so the two
+	// cannot drift. Each line loses its "> " and the outer "*…*", and the
+	// lines join with one space.
+	got := designPointer(t, "../../../docs/superpowers/planning/2026-09-24-team-collaboration/05-design.md")
+	if got != TeamPointer {
+		t.Fatalf("TeamPointer differs from §5.3\n got: %q\nwant: %q (mutant: an edited sentence)", TeamPointer, got)
+	}
+}
+```
+
+`designPointer` reads the file, finds the first line after `### 5.3` that starts with `> *`,
+collects lines while they start with `> `, strips `> ` from each, joins with one space, and trims
+one `*` from each end. It fails the test if it finds no such block, so a moved heading is a
+failure, not a pass. **The path is relative to the package directory**; `go test` runs there
+(standard behaviour). Whether `feat/team-mode` carries `docs/superpowers/planning/…/05-design.md`
+at merge is **UNVERIFIED** (the planning set lives in the main worktree today); if it does not,
+the test pins the paragraph to a copy in `testdata/design-5.3.txt` with a comment naming its
+source, and gap 1 records it.
+
+| Test | Mutant it kills |
+|---|---|
+| `TestTeamRenderHasThePointerOnceAndIsDeterministic` | the pointer written per section, or not at all; a non-deterministic team step; a forgeable marker |
+| `TestSoloRenderIsByteIdenticalToBefore` | the pointer written unconditionally; `Team` defaulting true; two render bodies |
+| `TestTeamBlockIsTheSoloBlockPlusOneInsertion` | anything but the pointer added to a team block, which is where a teammate's text would go |
+| `TestTeamPointerIsTheDesignsParagraph` | the product sentence edited in code without the design, or the reverse |
+| phase 4's existing suite, unchanged | any byte of the solo goldens moved (`golden-branch.md`, `golden-project.md`, `golden-neutralised.md`) |
