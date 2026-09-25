@@ -55,6 +55,84 @@ exactly, so a later role added to `id-hub` fails the plan.
   with lock names `panacea-app-hub-audit-stream` and `panacea-app-hub-audit-anchor`.
 - **Anchors are sent every hour even when the head has not moved,** so their absence is a signal.
 - **Streaming is off unless configured**: `PANACEA_APP_HUB_AUDIT_SINK` is `off` (local, the
-  default), `fake` (tests, dev) or `logs`. `hub serve` refuses to start with `off` when
-  `PANACEA_APP_HUB_TEAM_MODE=on` (task 06's switch, **UNVERIFIED**: its name on the merged branch),
-  which is how "part of the gate before the first real teammate" is enforced in code.
+  default), `fake` (tests, dev) or `logs`. While it is not `logs`, `Server.TeamModeAllowed` answers
+  503 `unavailable`, `details.reason = "audit_not_streaming"`, and the write that sets a project's
+  `mode` to `team` calls it first. That is how "part of the gate before the first real teammate" is
+  enforced in code. No part owns that write yet (`task-06.md:699-701`); Gap 1 below.
+
+**Files:**
+- `control-plane/internal/hub/auditsink/record.go` + `record_test.go` — `EventRecord`,
+  `AnchorRecord`, `FromRow`, `StreamEnums` (new)
+- `control-plane/internal/hub/auditsink/sink.go` — `Sink`, `Anchors`, `Fake` (new)
+- `control-plane/internal/hub/auditsink/logs.go` + `logs_test.go` — the Logs Ingestion sender and
+  the Log Analytics query reader, both over `httptest` in the tests (new)
+- `control-plane/internal/hub/store/auditstream.go` — `StreamCursor`, `AdvanceStream`,
+  `EventsAfter`, `Heads` (new)
+- `control-plane/internal/hub/migrate/sql/00NN_audit_stream.sql` — `audit_stream_cursors` (new;
+  the number is the next free one after the sync-merge)
+- `control-plane/internal/hub/server/auditstream.go` — `RunAuditStream`, `RunAuditAnchor`,
+  `StreamOnce`, `AnchorOnce`, `TeamModeAllowed` (new)
+- `control-plane/internal/hub/server/auditstream_integration_test.go` (new)
+- `control-plane/cmd/hub/{config.go,serve.go}` — the sink settings; start both loops (modify)
+- `control-plane/cmd/hub/verify.go` + `verify_integration_test.go` — the `anchor` check, after
+  Hub task 27's `audit` (modify)
+- `infra/terraform/modules/observability/hubaudit.tf` + `tests/hubaudit.tftest.hcl` — the DCE,
+  two tables, the DCR, Sentinel onboarding, the missing-anchor rule (new; phase 8 task 04's module)
+- `infra/terraform/modules/observability/{variables,outputs}.tf` — `hub_principal_id`; the DCE and
+  DCR outputs (modify)
+- `infra/terraform/role-allowlist.txt` — `Monitoring Metrics Publisher`, `Log Analytics Reader`
+  (modify; phase 8 task 10's file, `task-10.md:39`)
+- `docs/superpowers/contracts/2026-09-23-hub-contract.md` — §11 T5's residual, §12's settings,
+  §15's line (modify)
+
+**Interfaces:**
+- Consumes: Hub task 14's `store.Head`, `LockHead`, `AuditRow`, `InFeed` and the chain rule
+  (Hub `task-14.md:140-178`); Hub task 27's `audit` verify check and its org walk by
+  `hub.org_ids()` (Hub `task-27.md:48-61`); Hub task 24's advisory-lock loop; Hub task 08's verify
+  runner (`ok <name>` / `FAULT <name>: <what>`, Hub `task-08.md:264-266`); `hubapi.AuditEnvelope`
+  and `ParseAuditEnvelope` (real, `hubapi/envelope.go:264-276` at `9f2fa31`); phase 8 task 04's
+  workspace and task 10's `id-hub`.
+- Produces: `auditsink.Sink`, `auditsink.Anchors`, `auditsink.Fake`, `auditsink.EventRecord`,
+  `auditsink.AnchorRecord`, `auditsink.FromRow`; `server.StreamOnce`, `server.AnchorOnce`,
+  `server.TeamModeAllowed`; the verify check `anchor`; the Terraform outputs
+  `hub_audit_dce_endpoint`, `hub_audit_dcr_immutable_id`.
+- Required by: task 57 (the TM1 gate names "audit streams to Sentinel"), task 46 (an erasure
+  tombstone is streamed as metadata like any event), task 44 (its `delegation.revoked` reasons
+  leave as enums).
+
+#### The records — complete source
+
+```go
+// control-plane/internal/hub/auditsink/record.go
+package auditsink
+
+// EventRecord is one audit event as it leaves the Hub: the row's columns and
+// hashes, the NAMES of its data keys, and only the data values that cannot be
+// text. Field names are the custom table's columns (hubaudit.tf).
+type EventRecord struct {
+	TimeGenerated string           `json:"TimeGenerated"` // the event's at, RFC 3339 ms
+	OrgID         string           `json:"OrgId"`
+	Seq           int64            `json:"Seq"`
+	Kind          string           `json:"Kind"`
+	Feed          bool             `json:"Feed"`
+	TeamID        string           `json:"TeamId"`
+	ProjectID     string           `json:"ProjectId"`
+	Subject       string           `json:"Subject"`
+	ActorUserID   string           `json:"ActorUserId"`
+	Hash          string           `json:"Hash"`     // 64 lowercase hex
+	PrevHash      string           `json:"PrevHash"` // 64 lowercase hex
+	DataKeys      []string         `json:"DataKeys"` // sorted, every key, values or not
+	DataValues    map[string]any   `json:"DataValues"` // int64 | bool | an allowed enum string
+	Dropped       int              `json:"Dropped"`  // string values withheld
+}
+
+// AnchorRecord is one org's chain head at one moment.
+type AnchorRecord struct {
+	TimeGenerated string `json:"TimeGenerated"` // when it was read
+	OrgID         string `json:"OrgId"`
+	Seq           int64  `json:"Seq"`  // audit_heads.seq; 0 for an org with no events
+	Hash          string `json:"Hash"` // audit_heads.hash, 64 lowercase hex
+	StreamedSeq   int64  `json:"StreamedSeq"` // the stream cursor at the same moment
+	Replica       string `json:"Replica"`     // the pod name, for the missing-anchor rule
+}
+```
