@@ -1142,3 +1142,90 @@ func (f *Fake) SearchIssues(_ context.Context, q hubapi.IssueSearchQuery) ([]hub
 	return out, nil
 }
 ```
+
+Block 3: attachments and the sixth hook. `AttachBlob` reads the blob through the fake's own
+`GetBlob`, outside the world's lock, so this file knows nothing of H05's blob store: a digest that
+another project holds and one never put are the same 404 `blob_not_found`, the body `GetBlob`
+already answers (task 09's `TestAttachmentsAreThisProjectsBlobs`). The cost is one extra
+`GetBlob(…)` line in `Calls()` after the `AttachBlob(…)` line, which the fake-only test pins.
+
+```go
+// AttachBlob names a blob already put to the issue's project. A repeat
+// answers the first attachment and appends no event.
+func (f *Fake) AttachBlob(ctx context.Context, issueID string, req hubapi.AttachRequest) (hubapi.IssueAttachment, error) {
+	projectID, err := f.attachTarget(issueID, req)
+	if err != nil {
+		return hubapi.IssueAttachment{}, err
+	}
+	rc, blob, err := f.GetBlob(ctx, projectID, req.Digest.String()) // H05's 404, same body both ways
+	if err != nil {
+		return hubapi.IssueAttachment{}, err
+	}
+	rc.Close()
+	w := f.w
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	is := w.wk().issues[issueID]
+	if err := w.erasedWrite(is); err != nil { // erased between the two locks
+		return hubapi.IssueAttachment{}, err
+	}
+	list := w.soc().attached[issueID]
+	if i := slices.IndexFunc(list, func(a hubapi.IssueAttachment) bool { return a.Digest == req.Digest }); i >= 0 {
+		return list[i], nil
+	}
+	me := f.as.ID
+	a := hubapi.IssueAttachment{IssueID: issueID, Digest: req.Digest, ContentType: blob.ContentType,
+		Size: int(blob.Size), AddedAt: w.stamp(), AddedBy: *w.userRef(me)}
+	w.soc().attached[issueID] = append(list, a)
+	w.workEvent(me, fkEventIssueAttached, is.teamID, is.head.ProjectID, issueID, map[string]any{"digest": req.Digest.String()})
+	return a, nil
+}
+
+// attachTarget is the issue's project, once the caller may attach to it.
+func (f *Fake) attachTarget(issueID string, req hubapi.AttachRequest) (string, error) {
+	w := f.w
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	me, err := f.enter("AttachBlob", issueID, req)
+	if err != nil {
+		return "", err
+	}
+	is, role, err := w.issueOf(issueID, me)
+	switch {
+	case err != nil:
+		return "", err
+	case req.Digest.IsZero():
+		return "", badRequest("digest", "An attachment names a blob by its digest.")
+	}
+	if err := need(role, hubapi.RoleMember); err != nil {
+		return "", err
+	}
+	if err := w.erasedWrite(is); err != nil {
+		return "", err
+	}
+	return is.head.ProjectID, nil
+}
+
+// Attachments is oldest first; a viewer reads them.
+func (f *Fake) Attachments(_ context.Context, issueID string) ([]hubapi.IssueAttachment, error) {
+	w := f.w
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	me, err := f.enter("Attachments", issueID)
+	if err != nil {
+		return nil, err
+	}
+	if _, _, err := w.issueOf(issueID, me); err != nil {
+		return nil, err
+	}
+	return append([]hubapi.IssueAttachment{}, w.soc().attached[issueID]...), nil
+}
+
+// erasedWrite is task 14's rule: an erased issue takes no write, 409 conflict.
+func (w *fakeWorld) erasedWrite(is *fakeIssue) error {
+	if is != nil && w.soc().erased[is.head.ID] {
+		return problem(409, hubapi.CodeConflict, "That issue was erased; it takes no more writes.", "issueId", is.head.ID)
+	}
+	return nil
+}
+```
