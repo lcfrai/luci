@@ -53,3 +53,75 @@ Five decisions the scope left open, made here.
 ask for and claims nothing the platform did not see: no fact state, no label, no subscription, no
 thread. A test kills each of those four.
 
+Three consequences of the decisions, stated so nobody "fixes" them.
+
+- **An erased import stays erased.** Task 14's erase blanks the title, the URL and (from this task)
+  the author name, but keeps `external_source` and `external_id`: a tracker id is not a person's
+  words. A re-import of the same file therefore finds the erased issue and answers it under
+  `existing`; it never re-creates the text an org admin erased. The test is
+  `TestAReimportDoesNotResurrectAnErasedIssue`.
+- **The route answers 200, never 201**, as task 07's matrix row says (`task-07.md:463-468`) and task 16's
+  `WorkRoute{"ImportBatch", …, Created: false}` (`task-16.md:155`): a batch may create nothing.
+- **The reply holds no issue text.** `ImportResult` carries ids, numbers, external ids and unmatched
+  label names only, so it is stored whole in `idempotency_keys` when the relay sends an
+  `Idempotency-Key` (`s.WriteLimit`, `H14:123-126`), and no replay can re-serve an erased title.
+  An import that answered heads would not be (task 14 put the title on the head).
+
+**The body cap.** `httpx.MaxBodyBytes` is 1 MiB (`control-plane/internal/httpx/problem.go:22`,
+verified at `feat/hub` `3b0dcad`), and 500 items of 16 KiB descriptions is 8 MiB. The route
+therefore uses `s.WriteLimit(…, hubapi.MaxImportBatchBytes, …)` with 9 MiB, the second route after
+Hub route 26 to name its own cap (`H14:123-125` says "only route 26" of the Hub plan; this plan
+adds one, a delta on sibling code under rule H2). A body over it is 400 `field: "body"` before
+`BEGIN`. What 9 MiB costs in Hub memory under load is **unmeasured**.
+
+**Files:**
+
+- `control-plane/internal/hub/hubapi/work.go` ⚑ (task 03's, additive): `ExternalRef.CreatedAt`,
+  `ImportSources`, the `MaxImport*` limits, the `ErrImport*` errors, `ValidateImportBatch`,
+  `ImportLabelNames`
+- `control-plane/internal/hub/hubapi/work_test.go` ⚑ (task 03's): the `IssueHead` example gains
+  `"createdAt"` inside `external` (task 03's `workExamples` has every field present, `:644-649`)
+- `control-plane/internal/hub/hubapi/work_import_test.go` (new): the pure rules
+- `control-plane/internal/hub/migrate/sql/NNNN_work_w1.sql` ⚑ (task 06's file; a section appended,
+  or the next free number if task 06 has merged into `feat/hub`, rule H1)
+- `control-plane/internal/hub/store/work_imports.go` (new)
+- `control-plane/internal/hub/store/work_issues.go` ⚑ (task 08's): `IssueRow` gains
+  `ExternalAuthorName` and `ExternalCreatedAt`; `InsertIssue` writes them; the head projection reads
+  them
+- `control-plane/internal/hub/server/work_imports.go` (new); `server/server.go` ⚑ gains
+  `s.registerWorkImports(mux)` beside task 13's `registerWorkSubscriptions`
+- `control-plane/internal/hub/server/work_issues.go` ⚑ (task 08's): `issueHead` fills
+  `external.authorName` and `external.createdAt`
+- `control-plane/internal/hub/server/work_imports_integration_test.go` (new, `-tags integration`)
+- `control-plane/internal/hub/server/work_feed_integration_test.go` ⚑ (task 13's): `fullRun` gains
+  one import carrying the canary in its title, description, URL and author name (`task-13.md:516`)
+- `control-plane/internal/hub/hubclient/fake_work*.go` ⚑ (task 05's file): only where a rule here
+  differs from what 05 wrote; the conformance rows are the arbiter. Task 05's part is not written
+  at this writing, so its import rows are **UNVERIFIED**
+
+**Interfaces:**
+
+- Produces:
+  - the route, in 07's list and 07's matrix row `"15"` (`task-07.md:463-468`): `POST
+    /v1/projects/{projectId}/imports` (✓ for `M A O`; 403 `required: member` for `V`; 404
+    `project_not_found` for `N X`)
+  - `hubapi.ExternalRef.CreatedAt`, `hubapi.ValidateImportBatch`, `hubapi.ImportLabelNames`,
+    `hubapi.MaxImportBatchBytes` and the other limits below
+  - `store.IssuesByExternal`, `store.MatchLabels`, `store.InsertIssueLabels`
+  - one `issue.created` event per created issue (task 13's `EventIssueCreated`, `task-13.md:122`,
+    and `IssueCreatedData`, `:142-148`), `source: "intake"`, `state: "triage"`
+- Consumes:
+  - task 03: `ImportBatch`, `ImportItem`, `ImportResult`, `IssueRef`, `ExternalRef`,
+    `ImportSourceLinear`, `ImportSourceCSV` (`task-03.md:240-244`, `:271-277`, `:398-411`, `:534-552`)
+  - task 02: `ValidateIssueRevisionContent`, `IssueRevisionDigest`, `AuthorHuman`,
+    `MaxIssueTitleChars`, `MaxIssueDescriptionBytes` (`task-02.md:204-256`)
+  - task 06: `issues`, `issue_labels`, `labels`, `issues_external_once` (`task-06.md:155-196`,
+    `:236-256`); task 08: `NextIssueNumber`, `InsertIssue`, `InsertIssueRevision`,
+    `MoveIssueHead`, `issueHead` (`task-08.md:205-263`, `:400-416`); task 11: the project's team
+    and the rule that intake never takes the policy's default (`task-11.md:369-372`); task 13:
+    `emitWork` (`task-13.md:332`); task 14: `SetHeadTitle` (`task-14.md:206`), `erase_issue`
+  - Hub task 14: `server.WriteLimit`, `server.Decode`, `ProjectRole`, `Require`, `(*Tx)`
+    (`H14:117-138`); the org's write lock, hub-contract §10.6 (`:2035`)
+- Consumed by: task 16 (`hubclient.Work.ImportBatch` and its relay), task 25 (the Linear and CSV
+  adapters, `task-25.md:186-188`), task 69 (the import dialog), tasks 150-153 (W5's sync)
+
