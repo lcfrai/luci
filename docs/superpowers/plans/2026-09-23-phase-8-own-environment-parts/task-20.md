@@ -236,7 +236,18 @@ by a source anchor, since timing is not unit-testable); `TestNoMachinedGetChange
 - [ ] **Step 2:** `config.go`, `server.go` (auth, routes, problem bodies), `catalog.go` (the
   Scanner over `<root>/projects`; `Path` stripped of the root prefix; the worktree path route in
   the five steps above, its lane half `Lstat` only), `dirs.go`.
-- [ ] **Step 3:** Full run; `CGO_ENABLED=0 GOOS=linux go build ./control-plane/cmd/machined`
+- [ ] **Step 3: Mutation check** (rule 7), each on a `$TEMP` copy, each verified applied and
+  turning the named test red:
+  (1) step 2 moved after step 4 → `TestAPrimaryIdIsNotALane`, on its rows with a valid `lane`;
+  (2) step 4's walk `os.Stat` instead of `os.Lstat` → `TestASymlinkedLaneSegmentIsRefused`;
+  (3) step 4 checks the leaf only → the same test, on its `lanes/p` row;
+  (4) `LanePathShapeOK` without the `..` check → `TestADotDotLanePathIsRefused`;
+  (5) the `.git` lookup through `rev-parse --git-dir` in the lane → `TestTheLanePathRouteRunsNoGitInALane`;
+  (6) `LaneMachinePath` without the backslash replace → `TestLaneMachinePath`, on `\machine\lanes\p\d`.
+  The two named beforehand as likeliest to survive are (3), because only a symlinked middle
+  segment tells a leaf check from a walk, and (5), because git's answer for a clean lane is the
+  same `.git`, so only the spy `Runner` sees it. Each is killed only by the row named beside it.
+- [ ] **Step 4:** Full run; `CGO_ENABLED=0 GOOS=linux go build ./control-plane/cmd/machined`
   succeeds (task 27 builds it this way); commit.
 
 #### Acceptance
@@ -249,9 +260,10 @@ go test ./sandboxd/... ./control-plane/... -race -count=1                       
 
 #### What this task does not claim
 
-- Phase 3's composite catalog (lanes beside `git worktree list`, its task 11): `machined` serves
-  phase 2's Scanner until task 25 switches it to phase 3's enumerator, which is the seam
-  S3-P8.2 names.
+- Phase 3's composite catalog (lanes beside `git worktree list`, its task 11): `machined` keeps
+  phase 2's Scanner over `projects/`, and nothing switches it. The composition runs on the
+  laptop, from the laptop's lane index (task 25, P3A-2). An enumerator here that listed lanes
+  would make step 2 refuse every lane id as `linked`.
 - Lane git. `machined` serves no `/git/v1/`: a lane's git runs in `sandboxd` in the pod that
   mounts it, a session or a runner-only pod (env ruling 2; tasks 25b and 18). Lane creation,
   the creating set and `lane_creating` are task 21's (env ruling 4).
