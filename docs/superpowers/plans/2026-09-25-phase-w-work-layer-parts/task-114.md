@@ -815,7 +815,7 @@ and fails again on its mutant.
 | `TestScheduleBounds` | `every.n` 0 and 366, unit `"year"`, `at` `"24:00"`, tz `"Local"` and `"Mars/Base"` each fail on its field | an unbounded or local-clock schedule |
 | `TestInsightsWindow` | `to` before `from`, and a window over 366 days, fail on `to`; `groupBy: "priority"` fails | an unbounded query |
 | `TestScopeKinds` | `ScopeRef{"cycle", …}` fails; a `feature` scope with an `is-` id fails | a scope of the wrong kind |
-| `TestWorkRoadmapCodes` | each of the seven codes is in `WorkRoadmapCodeStatus` with its table status, and no code is also in another Work map | a wrong status; a code declared twice |
+| `TestWorkRoadmapCodes` | each of the seven codes is in `WorkRoadmapCodeStatus` with its table status, and the map holds exactly those seven | a wrong status; a code with no status |
 
 The reflection test, complete, because it is the rule OD-27 makes mechanical:
 
@@ -876,3 +876,97 @@ Word matching, not substring matching: `metadata` and `beta` hold `eta` and must
 `etaMs` and `percentDone` must fail. `TestNoPredictionFieldsCatchesOne` runs `walk` over a local
 `struct{ EtaMs int64 \`json:"etaMs"\` }` and wants exactly one error, so the test cannot pass
 by never matching.
+
+`hubclient/work_roadmap_test.go`, complete:
+
+```go
+package hubclient
+
+// Compile-time: Work embeds WorkRoadmap, and both implementations satisfy it.
+// Removing the embed, or a stub method, fails the build (kills "not embedded").
+var (
+	_ WorkRoadmap = (*Fake)(nil)
+	_ WorkRoadmap = (*Client)(nil)
+	_ WorkRoadmap = Work(nil)
+	_ Work        = Hub(nil)
+)
+```
+
+`_ WorkRoadmap = Work(nil)` compiles only if every `WorkRoadmap` method is in `Work`'s method set,
+which is the embed. `hubclient.go:147-148` already holds `_ Hub = (*Client)(nil)` and
+`_ Hub = (*Fake)(nil)`, so the stubs keep those lines compiling.
+
+**The goldens**, under `hubapi/testdata/work-roadmap/`, one per shape, each written by hand from
+the structs above and never generated from the code (a generated golden cannot catch a retag):
+`initiative.json`, `initiative-teams.json`, `status-update.json`, `status-update-erased.json`,
+`milestone.json`, `milestone-view.json`, `feature-dependency-view.json`, `brief-template.json`,
+`template-schedule.json`, `reminder-policy.json`, `triage-rotation-view.json`,
+`insights-query.json`, `insights-result.json`, `insights-result-empty.json` (the `null`
+percentiles), `read-cursor.json`, `project-grant.json`, `initiative-view.json` (one feature with
+`latestUpdate: null`, one with a stamp). Seventeen.
+
+#### Steps
+
+- [ ] **Step 1: Sync and re-read (15 min).** Sync-merge `feat/hub` (rule H1). Re-read the anchors
+  above; take the merged names of task 02's prefixes, task 72's `Feature`, and Phase T's `nt-`
+  prefix. A renamed symbol is a find-and-replace in this part; record it in the commit.
+- [ ] **Step 2: Tests first (60 min).** Write `work_roadmap_test.go`, the seventeen goldens and
+  `hubclient/work_roadmap_test.go`. `go test ./control-plane/internal/hub/hubapi/` fails to
+  build: the types do not exist.
+- [ ] **Step 3: The wire (75 min).** Write `work_roadmap.go`, the `codes.go` block, the
+  `WorkRoadmap` interface and the embed, and the two stub files. `go vet` and the tests, until
+  green; then run each mutant in the table by hand once (rename a tag, add `omitempty`, add a
+  field `EtaMs`, delete the embed) and see its test fail.
+- [ ] **Step 4: Commit by pathspec (5 min)**, the eight paths in *Files* plus the goldens'
+  directory, message `feat(hub-w4): the W4 wire, SW.20` ending with the attribution line.
+
+#### Acceptance
+
+```bash
+go build ./control-plane/...
+# (no output)
+go test ./control-plane/internal/hub/hubapi/ -race -count=1 -v -run '^Test(WorkRoadmapGoldens|WorkRoadmapEmptyListsAreArrays|HealthIsThreeWords|AnUpdateIsPinned|AnUpdateIsWrittenByAPerson|NoPredictionFields|NoPredictionFieldsCatchesOne|PercentilesAreNullWhenUnmeasured|ScheduleBounds|InsightsWindow|ScopeKinds|WorkRoadmapCodes)$' 2>&1 | grep -c '^--- PASS'
+# 12
+go test ./control-plane/internal/hub/... -race -count=1
+# ok for every package; W1-W3's goldens unchanged
+ls control-plane/internal/hub/hubapi/testdata/work-roadmap/ | wc -l
+# 17
+grep -c '^func (f \*Fake)' control-plane/internal/hub/hubclient/fake_work_roadmap_stub.go
+# 31
+```
+
+Twelve: the eleven table rows and `TestNoPredictionFieldsCatchesOne`. The golden test's
+seventeen sub-tests are indented under `-v`, so `^--- PASS` counts their parent once.
+
+#### What this task does not claim
+
+- **Not that the Hub accepts these rows.** No route exists until tasks 117-123; the round trip is
+  task 124's end to end. This task is types, a method set and 501 stubs.
+- **Not the fake's rules.** Immutability, the cycle refusal, the grant's reach and the cursor's
+  one-way move are task 115's rows; the stubs refuse everything.
+- **Not the calibrated dial's acceptance counts (L-53, task 136).** 05 places them nowhere; §3.1's
+  rule suggests the Hub. They are not in SW.20 (a gap, below).
+- **Not that the no-prediction test is complete.** It catches the five words in field names and
+  JSON tags. A prediction smuggled into a field with an innocent name (`hint`, `score`) passes it;
+  review is the second defence, and OD-27's rule is the reviewer's standard.
+- **Not Phase T's `nt-` prefix or the note's 404 code** (decision 4); both are read from the Phase
+  T plan and are **UNVERIFIED** until TM-46 merges.
+
+**Parity rows carried (closed by the tasks named):** L-32 (recurring issues, 121, 134); L-50
+(triage rotation, 121, 134); L-67 (cross-team feature, 117, 126); L-72 (milestones, 120, 130,
+PARTIAL by design); L-74 and L-75 (feature dependencies and the timeline, 120, 128-129); L-76 and
+L-77 (updates and reminders, 119, 121, 127); L-83 to L-88 (initiatives, 117-119, 127); L-89 to
+L-92 (the roadmap views, 128-129); L-118 and L-119 (read cursors, 123, 133); L-122 (brief
+templates, 120); L-150 and L-151 (insights, 122, 132). This task closes none of them.
+
+#### Gaps found
+
+1. **L-53's acceptance counts have no home in SW.20** (the scope's own note). Task 136 must either
+   add a record here, additively, or keep the counts desktop-side and say so.
+2. **`SetMilestoneCriteria` and `FeatureDependencies` have no path in task 120's scope**; this
+   task fixed them (the † rows). Task 120's part must register exactly those.
+3. **Not-found codes.** The scope lists four codes; the routes need three 404s (decision 4).
+4. **The W2 split is not repeated.** 72 declared `WorkPlan` standalone and 73 embedded it; this
+   scope embeds at once. The stub files keep every commit building; task 115's part must delete
+   `fake_work_roadmap_stub.go` in the commit that adds the real methods, and task 124's
+   `client_work_roadmap_stub.go`.
