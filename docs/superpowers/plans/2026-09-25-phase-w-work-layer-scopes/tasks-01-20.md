@@ -172,4 +172,53 @@ custom emoji, which L-41 leaves *later*). It **does not claim** any route, store
 route task and its desktop surface): L-8, L-9, L-10, L-13, L-17, L-24, L-38, L-41, L-42, L-46,
 L-48, L-117, L-124, L-220.
 
+**04 — `hubclient.Work` and the fake, part 1: issues, revisions, numbers, the project key,
+states.** W1, stream WH, seam **SW.2** (first half); depends on 03 and Hub tasks H04-H05 (the
+interfaces, `Error`, `ErrUnavailable`, `NewFake()` and its feed). Files: new
+`control-plane/internal/hub/hubclient/work.go`, `fake_work.go`, `fake_work_stub.go`,
+`fake_work_test.go`; and one line in `hubclient/hubclient.go` ⚑, where `type Hub interface`
+(`hubclient.go:101`; hub-contract:1329 reads `{ Projects; Briefs; Designs; Releases; Evidence;
+Feed }`) gains `Work` — the only edit to a Hub file. `work.go` declares `type Work interface {
+WorkIssues }` (W2-W5 append `WorkPlan`, `WorkAgents`, `WorkRoadmap`, `WorkIntake`, tasks 72, 99,
+114, 143) and the **whole** W1 method set on `WorkIssues`, in the style of `Briefs`
+(`hubclient.go:52-64`: `ctx` first, `hubapi` types in and out): `SetProjectKey(ctx, projectID,
+key) (hubapi.ProjectKey, error)`; `CreateIssue(ctx, projectID, req) (hubapi.IssueWithRevision,
+error)`; `Issue(ctx, issueID)`; `IssueByNumber(ctx, projectID, number)`; `Issues(ctx, projectID,
+q hubapi.IssueQuery, page hubapi.PageRequest) (hubapi.Page[hubapi.IssueHead], error)`;
+`PatchIssue`; `WriteIssueRevision`; `IssueRevisions`; `IssueRevisionAt(ctx, issueID, rev)`;
+`RestoreIssueRevision`; `MoveIssueState(ctx, issueID, hubapi.StateMove) (hubapi.IssueHead,
+error)`; then, implemented by task 05, `AddRelation`, `RemoveRelation`, `Labels`, `CreateLabel`,
+`ArchiveLabel`, `TeamPolicy`, `PutTeamPolicy`, `Comments`, `CreateComment`, `React`, `Resolve`,
+`Subscribe`, `Subscriptions`, `ImportBatch`, `SearchIssues`, `AttachBlob`, `EraseIssue`,
+`EraseComment`. (`IssueWithRevision`, `IssueQuery` and `ProjectKey` are added to `hubapi/work.go`
+here if task 03 did not declare them; additive only.) `fake_work.go` extends `fakeWorld`
+(`fake.go:56-72`) with `issues`, `issueRevisions`, `projectKeys` and a per-project number counter,
+behind the fake's one lock, and implements part 1's rules exactly as the real Hub will (task 08-10
+re-run them): numbers **gapless per project from 1**; a project key only by a team `admin`
+(`need(have, want)`, `fake.go:218`), `ValidProjectKey`, unique per team, and a changed key changes
+every `alias` but no key; a create writes the head **and** revision 1 in one write; a
+`PatchIssue` never writes a revision (04 §2.4: reprioritising all afternoon invalidates no agent's
+context); a revision write with a stale `baseRevision` is 409 `revision_conflict` and writes
+nothing; each revision's digest is `hubapi.IssueRevisionDigest` of what is stored; a restore writes
+a **new** revision with `restoredFrom`; `MoveIssueState` follows 05 §3.3 as drafted for SW.4
+(human moves among `triage`, `backlog`, `todo`, `cancelled`, `duplicate`; a fact state only with
+a fact cause; a hand-set `done` on an issue whose revision serves criteria needs a non-empty
+`reason` and records `stateReason: "done_not_proven"`), and task 10 is where the real server fixes
+SW.4 and any drift is corrected here; **every write appends exactly one event** to the fake's feed
+(hub-contract:1131), with the Work kind names task 13 fixes (SW.5; drafted here as
+`issue.created`, `issue.changed`, `issue.revised`, `issue.state`). `fake_work_stub.go` makes
+part 2's methods return a 501 `not_implemented` problem so the package compiles; task 05 deletes
+the file. **Tests** (`fake_work_test.go`), each with its mutant: 20 goroutines create in one project
+and get numbers 1 to 20 with no gap or repeat (kills a counter read outside the lock); a `viewer`
+creating is 403 and a `member` setting the key is 403 (kills a missing role check); after
+`SetProjectKey("EP"→"PAY")` issue 142's `alias` is `PAY-142` and its revision keys are unchanged
+(kills a stored alias); a stale-base write is 409 and `IssueRevisions` still lists one revision
+(kills last-writer-wins); `PatchIssue` of priority leaves `headRevision` at 1 (kills a revision per
+head write); the stored digest equals a fresh `IssueRevisionDigest` (kills a digest over non-canonical
+bytes); a reasonless hand-set `done` on an issue with `serves` is refused with `details.field =
+"reason"` (kills the silent done); a create appends exactly one event (kills head and revision as
+two events). It **does not claim** the HTTP client (task 16), the real Hub (tasks 08-10) or part 2's
+rules (task 05). Parity rows served: L-3, L-8, L-9, L-13, L-34, L-38 (closed by 08-10 and the
+desktop).
+
 
