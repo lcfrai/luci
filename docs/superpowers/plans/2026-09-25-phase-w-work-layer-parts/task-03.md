@@ -78,7 +78,7 @@ each saying so; task 13 writes `workevents.go` beside it.
 
 #### `work.go`, complete
 
-The file is the concatenation of the six blocks below, in order.
+The file is the concatenation of the seven blocks below, in order.
 
 ```go
 package hubapi
@@ -569,6 +569,44 @@ type IssueSearchQuery struct {
 }
 ```
 
+A seventh block: the three types `hubclient.WorkIssues` (task 04) names for attachments and
+erase. Task 04 depends on this task alone, so its interface can only name types that exist here.
+`AttachRequest` and `IssueAttachment` are **task 09's part's declarations, verbatim**
+(`task-09.md:153-167` at `a7720de`), moved here so task 04 compiles; task 09 drops its copy and
+keeps its additive `RestoreRevisionRequest.BaseRevision`. The erase body is the Hub's own
+`EraseRequest` (`types.go:565`); only the answer is new, shaped like `EraseResponse`
+(`types.go:569-573`) with task 14's scope's fields.
+
+```go
+// AttachRequest names a blob already uploaded to the issue's project.
+type AttachRequest struct {
+	Digest Digest `json:"digest"`
+}
+
+// IssueAttachment is one attached file. Content type and size are the blob's.
+type IssueAttachment struct {
+	IssueID     string `json:"issueId"`
+	Digest      Digest `json:"digest"`
+	ContentType string `json:"contentType"`
+	Size        int    `json:"size"`
+	AddedAt     string `json:"addedAt"`
+	AddedBy     User   `json:"addedBy"`
+}
+
+// WorkEraseResponse answers an issue's or a comment's erase (task 14). A
+// second erase answers zeros. CommentID is "" for an issue's erase.
+type WorkEraseResponse struct {
+	IssueID         string `json:"issueId"`
+	CommentID       string `json:"commentId"`
+	ErasedRevisions int    `json:"erasedRevisions"`
+	ErasedComments  int    `json:"erasedComments"`
+	ErasedAt        string `json:"erasedAt"`
+}
+```
+
+The tests' `workResponseTypes` hold `IssueAttachment{}` and `WorkEraseResponse{}`, and
+`workRequestTypes` holds `AttachRequest{}`.
+
 And the one method on task 02's type that texts outside a revision need (a comment's body, task
 12; an import's texts, task 15), appended as the file's last lines:
 
@@ -649,12 +687,12 @@ func TestWorkFieldNamesMatchTheExamples(t *testing.T) {
 ```go
 var workResponseTypes = []any{IssueHead{}, IssueRevision{}, IssueWithRevision{}, ThreadState{},
 	Relation{}, ExternalRef{}, ProjectKey{}, Label{}, TeamPolicy{}, Comment{}, CommentAnchor{},
-	Reaction{}, Subscription{}, IssueRef{}, ImportResult{}}
+	Reaction{}, Subscription{}, IssueRef{}, ImportResult{}, IssueAttachment{}, WorkEraseResponse{}}
 
 var workRequestTypes = []any{CreateIssueRequest{}, PatchIssueRequest{}, WriteIssueRevisionRequest{},
 	RestoreRevisionRequest{}, StateMove{}, RelationRequest{}, CreateLabelRequest{},
 	PutTeamPolicyRequest{}, SetProjectKeyRequest{}, CreateCommentRequest{}, ReactRequest{},
-	ResolveRequest{}, SubscribeRequest{}, ImportBatch{}}
+	ResolveRequest{}, SubscribeRequest{}, ImportBatch{}, AttachRequest{}}
 
 // Mutant: omitempty on any response field; the desktop indexes serves,
 // labels, relations, mentions and reactions, and a missing key reads as
@@ -869,7 +907,7 @@ Every test fails to compile before Step 3 (`undefined: IssueHead` and the rest).
   the commit message.
 - [ ] **Step 3: Write `work_test.go`**, run
   `go test ./control-plane/internal/hub/hubapi/ -count=1`, watch it fail to compile.
-- [ ] **Step 4: Write `work.go`**, the six blocks and the `ValidAuthor` lines, in order.
+- [ ] **Step 4: Write `work.go`**, the seven blocks and the `ValidAuthor` lines, in order.
 - [ ] **Step 5: Run to green**; `go vet` and `gofmt -l` on the package print nothing.
 - [ ] **Step 6: Prove the tests bite.** Apply each mutant by hand, run, see the named test fail,
   revert. None is committed.
