@@ -463,3 +463,166 @@ func (rd *Reader) ReadIssues(ctx context.Context, r Range) (IssueResult, error)
 `gitx.TrailerIssue` is task 21's name for SW.9's key (**UNVERIFIED**, task 21's part not read
 here). Step 1's parse is `filter.ParseFilter`, and step 2's test is `Filter.Touches`.
 
+#### Control-plane routes — complete wire, on ⚑ `api/deploy_drill.go`
+
+```
+GET {P}/notes?deploymentId=engagement-portal-build-x7k2p
+  200 Notes, e.g.
+      { "state": "ok", "message": "", "deploymentId": "engagement-portal-build-x7k2p",
+        "pinnedBrief": "brief:bf-1a2b3c4d5e6f7a8b@6", "from": "<40 hex>", "commit": "<40 hex>",
+        "settled": [ { "criterionId": "done:2", "text": "Uploads survive a dropped connection",
+                       "issues": [ { "issueId": "is-…", "alias": "EP-142", "title": "Resume uploads",
+                                     "evidence": ["evidence:ev-…"] } ] } ],
+        "alsoShipped": [ { "issueId": "is-…", "alias": "EP-150", "title": "Fix footer spacing" } ],
+        "truncated": false }
+  400 bad_request        deploymentId missing, or outside [a-z0-9.-]            (task 19's check)
+  404 deploy_not_found   no row with that deploymentId in the view             (task 19's)
+  409 deploy_precondition details.reason "no_commit"                           (task 19's)
+  503 upstream_unavailable the watcher has no snapshot (details.upstream "panacea"), or the Hub
+                         did not answer for the heads (details.upstream "hub")
+  States in a 200 that list nothing as settled: "previous_unknown", "commit_not_local",
+  "previous_not_local" (task 19's sentences), "filter_invalid", "no_pin".
+
+GET {P}/shipped?issueId=is-0123456789abcdef
+  200 IssueShipped, e.g.
+      { "issueId": "is-…", "state": "ok", "message": "",
+        "environments": [
+          { "environment": "production", "deploymentId": "…-k3m9q", "reachedAt": "2026-09-26T04:02:00Z",
+            "pinnedBrief": "brief:bf-…@6", "commit": "<40 hex>", "servingNow": true },
+          { "environment": "staging", "deploymentId": "…-p2r7t", "reachedAt": "2026-09-25T23:40:00Z",
+            "pinnedBrief": "brief:bf-…@6", "commit": "<40 hex>", "servingNow": true } ] }
+  400 bad_request        issueId not ^is-[0-9a-f]{16}$
+  503 upstream_unavailable no snapshot yet (details.upstream "panacea")
+  A 200 with "environments": [] and state "ok" is *"Landed, not shipped yet"* (task 71's line).
+```
+
+```go
+// deploy_drill.go ⚑ — the shipped answer (decision 8).
+type ShippedEnv struct {
+	Environment  string    `json:"environment"`  // the view's environmentRow, else the raw name (task 19's join)
+	DeploymentID string    `json:"deploymentId"`
+	ReachedAt    time.Time `json:"reachedAt"`    // the deployment's CompletedAt: its go-live, task 19's cut
+	PinnedBrief  string    `json:"pinnedBrief"`  // the Hub release's pin; "" when none
+	Commit       string    `json:"commit"`
+	ServingNow   bool      `json:"servingNow"`   // the environment's current commit still has it
+}
+type IssueShipped struct {
+	IssueID      string       `json:"issueId"`
+	State        string       `json:"state"`   // "ok" | "commit_not_local" (a deployment's commit is not in this clone)
+	Message      string       `json:"message"`
+	Environments []ShippedEnv `json:"environments"` // newest ReachedAt first; [] never null
+}
+```
+
+**How `shipped` is read**, with no Hub write and at most `1 + 2·E + D` git commands for `E`
+environments and `D` deployments tried (each Class Read):
+1. `git log --no-color --max-count=201 --format=%H%x00<TrailerFormat(TrailerIssue)>%x1e <newest
+   succeeded commit of any environment>` finds the commits carrying the issue's trailer (the
+   issue's commits). None: `environments: []`.
+2. Per environment, its `succeeded` rows oldest `CompletedAt` first: `git merge-base
+   --is-ancestor <issueCommit> <row.Commit>` for the issue's oldest commit; the first yes is the
+   reach. Rows past task 08's 200-row history are not read (does-not-claim).
+3. `servingNow`: the same test against `deploywatch.CurrentAt(…, env, now)`'s commit.
+
+The two `catalogReadOnlyRoutes` lines, in task 19's form: *"notes: reads criterion states at two
+commits with phase 3's evaluator, the release filter with git show, and issue heads from the Hub;
+writes nothing."* and *"shipped: reads Panacea-Issue trailers and ancestry from the local clone
+with git log and merge-base (Class Read, no optional locks); writes nothing."*
+
+#### Interfaces — complete: the deltas on ⚑ `desktop/src/deploy/types.ts` and `api.ts`
+
+```ts
+// types.ts ⚑ — field for field with the Go above.
+export type NotesState = "ok" | "previous_unknown" | "commit_not_local" | "previous_not_local"
+  | "filter_invalid" | "no_pin";
+export interface IssueRef { issueId: string; alias: string; title: string }
+export interface ServingIssue extends IssueRef { evidence: string[] }
+export interface SettledCriterion { criterionId: string; text: string; issues: ServingIssue[] }
+export interface ReleaseNotes {
+  state: NotesState; message: string; deploymentId: string; pinnedBrief: string;
+  from: string; commit: string; settled: SettledCriterion[]; alsoShipped: IssueRef[]; truncated: boolean;
+}
+export interface ShippedEnv {
+  environment: string; deploymentId: string; reachedAt: string; pinnedBrief: string;
+  commit: string; servingNow: boolean;
+}
+export interface IssueShipped { issueId: string; state: "ok" | "commit_not_local"; message: string; environments: ShippedEnv[] }
+/** The proposed Hub record (gap 1); AuthoredText and User are task 37's. */
+export interface EnvironmentFreeze { projectId: string; environment: string; reason: AuthoredText; by: User; at: string }
+/** Null until tasks 114/124/125 add the freeze rows (decision 5): the toggle then says so. */
+export interface FreezeApi {
+  freezes(hubProjectId: string): Promise<EnvironmentFreeze[]>;
+  set(hubProjectId: string, env: string, reason: string): Promise<EnvironmentFreeze>;
+  clear(hubProjectId: string, env: string): Promise<void>;
+}
+```
+
+```ts
+// api.ts ⚑ — DeployApi gains two reads beside task 19's releaseSessions, in its idiom.
+  releaseNotes: (projectId: string, deploymentId: string) =>
+    get<ReleaseNotes>(`/v1/projects/${enc(projectId)}/deploy/notes?deploymentId=${enc(deploymentId)}`),
+  issueShipped: (projectId: string, issueId: string) =>
+    get<IssueShipped>(`/v1/projects/${enc(projectId)}/deploy/shipped?issueId=${enc(issueId)}`),
+// client.ts's ProblemCode gains "deploy_frozen" (P7 task 13 owns the list).
+```
+
+`get` and `enc` are P7 task 13's helper names as its file map implies them (**UNVERIFIED**).
+
+#### Interfaces — complete: `desktop/src/deploy/ReleaseNotes.tsx`
+
+```tsx
+// desktop/src/deploy/ReleaseNotes.tsx — the drawer's notes block. Facts only; the drafted prose
+// is task 139's and is not rendered here.
+import type { JSX } from "react";
+import type { ReleaseNotes as Notes } from "./types";
+import { KeyLink } from "../components/common/KeyLink";           // as task 127 imports it
+import { copyMarkdown } from "../components/editor/copyMarkdown";  // task 92 (UNVERIFIED name)
+
+/** The Markdown a person copies: the Hub key on every line (task 92's rule), no drafted text. */
+export function notesMarkdown(n: Notes): string {
+  const out = [`Release notes · pinned ${n.pinnedBrief || "no brief"}`, ""];
+  for (const c of n.settled) {
+    out.push(`## ${c.text} (${c.criterionId})`);
+    for (const i of c.issues) out.push(`- ${i.alias} ${i.title} (issue:${i.issueId})${i.evidence.length ? " · " + i.evidence.join(", ") : ""}`);
+    if (c.issues.length === 0) out.push("- settled by work no shipped issue serves");
+  }
+  if (n.alsoShipped.length) {
+    out.push("", "## Also shipped");
+    for (const i of n.alsoShipped) out.push(`- ${i.alias} ${i.title} (issue:${i.issueId})`);
+  }
+  return out.join("\n");
+}
+
+export function ReleaseNotes({ notes }: { notes: Notes }): JSX.Element {
+  if (notes.state !== "ok" && notes.state !== "no_pin") {
+    return <section className="rn"><h3>Notes</h3><p className="rn-fact">{notes.message}</p></section>;
+  }
+  return (
+    <section className="rn" aria-label="Release notes">
+      <header className="rn-head">
+        <h3>Settled by this release</h3>
+        <KeyLink value={notes.pinnedBrief} />
+        <button type="button" onClick={() => copyMarkdown(notesMarkdown(notes))}>Copy as Markdown</button>
+      </header>
+      {notes.state === "no_pin" && <p className="rn-fact">{notes.message}</p>}
+      {notes.settled.length === 0 && notes.state === "ok" && <p className="rn-fact">No criterion settled with this release.</p>}
+      {notes.settled.map((c) => (
+        <div key={c.criterionId} className="rn-crit">
+          <p className="rn-ctext">{c.text}</p>
+          <ul>{c.issues.map((i) => (
+            <li key={i.issueId}><span className="rn-alias">{i.alias}</span> {i.title}
+              {i.evidence.map((k) => <KeyLink key={k} value={k} />)}</li>
+          ))}</ul>
+        </div>
+      ))}
+      {notes.alsoShipped.length > 0 && (
+        <div className="rn-also"><h4>Also shipped</h4>
+          <ul>{notes.alsoShipped.map((i) => <li key={i.issueId}><span className="rn-alias">{i.alias}</span> {i.title}</li>)}</ul>
+        </div>
+      )}
+      {notes.truncated && <p className="rn-fact">Only the newest 200 commits were read.</p>}
+    </section>
+  );
+}
+```
+
