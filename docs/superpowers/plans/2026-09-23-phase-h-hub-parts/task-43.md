@@ -1,4 +1,4 @@
-### Task 43: the end-to-end proof — two teammates through `devissuer`; the real-tenant checklist; the results record
+### Task 43: the end-to-end proof — two teammates through `devissuer`; the dev-realm check; the results record
 
 **`feat/hub`, after every other task. Depends on: 01–42. About 5 hours (3 before review M4: a 12-step end-to-end test, debugged
 across two control planes and a Hub, plus a re-run of every other task's acceptance block, does
@@ -9,7 +9,15 @@ own control plane and their own credential store, sign in through the real PKCE 
 repository's project, and see each other's brief revision, design approval, release pin and
 evidence — through every layer that will run on the owner's laptop, with nothing mocked but the
 browser's click. Then it writes down, as a checklist for the owner's batched session (`OD-12`),
-what only a **real KPMG tenant** can prove, and records honestly what was and was not observed.
+what only **Panacea's dev realm brokering KPMG's Entra** can prove, and records honestly what was and
+was not observed.
+
+**OD-30** (main `docs/superpowers/planning/2026-09-25-identity-keycloak-broker.md`; Hub contract §17).
+The issuer is a Keycloak realm, not Entra: the test runs `devissuer` under the `keycloak` profile, the
+Hub validates with `oidcauth`, the control planes sign in with `signin`. The real-tenant checklist is
+**replaced** by the ruling's section 10 check against Panacea's dev realm, plus the section 12 items
+this task settles (U-4, U-4b, U-5, U-6, U-7, U-15). Nothing is asked of KPMG IT; the precondition is
+Panacea applying K1-K4.
 
 **Files:**
 - `control-plane/internal/hub/e2e_integration_test.go` (new)
@@ -19,21 +27,21 @@ what only a **real KPMG tenant** can prove, and records honestly what was and wa
 
 One test, `TestTwoTeammatesShareTheThread`, in steps, each a `t.Run` so a failure names its step.
 The world: `hubtest.Migrated`; `devissuer` in-process with `Auto` and `AccessTTL` **10 min**; the
-Hub's real handler (`server.New` + `entra.New`, `AllowInsecureAuthority`) on an `httptest.Server`;
+Hub's real handler (`server.New` + `oidcauth.New` under `keycloak`, `AllowInsecureAuthority`) on an `httptest.Server`;
 **two** control planes (`api.New`), one per teammate, each with its own `credstore.Memory()`, its
-own `entraauth.Authenticator`, `hubclient.Client`, `hublink.Resolver`, `hubfeed.Poller` (interval
+own `signin.Authenticator`, `hubclient.Client`, `hublink.Resolver`, `hubfeed.Poller` (interval
 1 s) and local key; a temporary git repository whose `origin` is
 `https://github.com/lcfrai/panaceaapp.git` as each control plane's only project.
 
 **One clock (review I9).** A single test clock, `clk` — a mutex-guarded `time.Time` with `Now()`
 and `Advance(d)` — is passed as `Now` to `devissuer` (task 11's `Config.Now`), to both teammates'
-`entraauth.Config.Now` (task 30), and to the Hub's validator, `entra.Config.Now` (task 10), and
+`signin.Config.Now` (task 30), and to the Hub's validator, `oidcauth.Config.Now` (task 10), and
 its authentication middleware, `server.AuthConfig.Now` (task 13). It starts at the wall time the test begins and stays **frozen**
 through steps 1–8: nothing expires, so no refresh grant is made, and every token a teammate holds is
 the one sign-in gave them. Only step 9 moves it. Two clocks would break the test the other way:
 tokens minted on an advanced issuer clock carry an `nbf` in the Hub's future. The poll intervals
 and step 5's latency bound are **wall** time, on the ticker and `time.Since`, not on `clk`. Each
-teammate's `entraauth.Config.HTTPClient` wraps its transport in a counting `RoundTripper` that
+teammate's `signin.Config.HTTPClient` wraps its transport in a counting `RoundTripper` that
 counts `POST`s to the token endpoint with `grant_type=refresh_token`; that count, per teammate, is
 what step 9 reads (`devissuer` itself keeps no count).
 
@@ -47,44 +55,54 @@ what step 9 reads (`devissuer` itself keeps no count).
 | 6 `the_design_thread` | as Grace (phase 5's calls): upload a manifest and a file, approve `design:cv-…@1` against revision 1 | Vera resolves the design key with the approval; `approvedBy` is Grace |
 | 7 `the_release_thread` | as Vera (phase 7's calls): reserve a run on the branch, confirm, join `d-e2e1` | the pin is revision 1 `ship_head`; Grace's `Releases(deploymentId: d-e2e1)` finds it; `reservedBy` is Vera |
 | 8 `the_evidence_thread` | as Grace (phase 3's call): record evidence against revision 1 on the repo | Vera's `EvidenceByDigest` returns it; `recordedBy` formats as `Grace Example <grace@example.test>` |
-| 9 `tokens_refresh_unseen` | before: each teammate's refresh-grant count is **0** (steps 1–8 made none). `clk.Advance(10 min)`, past the access token's life; a Hub call from Grace's control plane; then wait (bounded, 3 s wall) for Vera's poller to make its next Hub call | Grace's call succeeds; Grace's count is exactly **1** and Vera's exactly **1** (her poller's, sharing one redemption), and neither moves over a further 2 s of polling: the new tokens live 10 min on a frozen clock; each store's account record names a new `refreshGen` (task 31's rotation) |
-| 10 `revocation_signs_out` | `devissuer.RevokeRefreshTokens(vera)`; expire her token with `Invalidate(HubScope)` on her `Authenticator` (task 31), not the clock, so Grace's session is not touched; a Hub call | 401 `signed_out` from her control plane; `GET /v1/auth/status` → `reauth_required`; her store is empty |
+| 9 `tokens_refresh_unseen` | before: each teammate's refresh-grant count is **0** (steps 1–8 made none). `clk.Advance(10 min)`, past the access token's life; a Hub call from Grace's control plane; then wait (bounded, 3 s wall) for Vera's poller to make its next Hub call | Grace's call succeeds; Grace's count is exactly **1** and Vera's exactly **1** (her poller's, sharing one redemption), and neither moves over a further 2 s of polling: the new tokens live 10 min on a frozen clock; each store, entry by entry, is **unchanged**: the sign-in's original offline token is kept and no narrowed grant's refresh token is written (task 31, OD-30 U-4b) |
+| 10 `revocation_signs_out` | `devissuer.RevokeRefreshTokens(vera)`; expire her token with `Invalidate(HubAudience)` on her `Authenticator` (task 31), not the clock, so Grace's session is not touched; a Hub call | 401 `signed_out` from her control plane; `GET /v1/auth/status` → `reauth_required`; her store is empty |
 | 11 `the_local_key_holds` | a request to Grace's control plane without the key; one with Vera's key | both 401 `local_key_required` |
 | 12 `the_chain_verifies` | `hub verify` against the database | exit 0, `ok revisions`, `ok audit` |
 
 `hubclient/conformance`'s `TestAllGroupsAreDetected` and `TestTheRealHubConforms` (task 34) must
 also pass in this run, with **all eight groups**.
 
-#### The real-tenant checklist — written into the results record, run in the owner's batched session
+#### The dev-realm check — written into the results record, run in the owner's batched session
 
-Nothing below can be run until KPMG IT has created the registrations of ADR-H1 §9 (items 1–6).
-Each item gets **expected**, **observed** and **verdict** columns in the record, left empty until
-the session. The configuration for it: the control plane with `PANACEA_APP_ENTRA_AUTHORITY=https://login.microsoftonline.com/<KPMG tenant id, a GUID; not the domain, task 32>`,
-the desktop client id and the Hub scope; the Hub run **on the host** (so it uses the Windows
-certificate store, and the corporate proxy's CA, for `login.microsoftonline.com`) with
-`PANACEA_APP_HUB_ENV=local`, `PANACEA_APP_HUB_DEV_ISSUER=false`, the real tenant, audience and
-allowed client.
+Ruling section 10's check, plus the section 12 items this task settles. Nothing below can be run
+until Panacea has applied K1-K4 to realm `panacea` on its dev estate (ruling §10; nothing is asked of
+KPMG IT, OD-30). Each item gets **expected**, **observed** and **verdict** columns in the record, left
+empty until the session. The configuration for it: the control plane with
+`PANACEA_APP_OIDC_ISSUER=https://auth.dev.panacea.kpmg/realms/panacea`, `PANACEA_APP_OIDC_PROFILE=keycloak`,
+`PANACEA_APP_OIDC_CLIENT_ID=panacea-app-desktop`, `PANACEA_APP_OIDC_IDP_HINT=entra` and
+`PANACEA_APP_HUB_AUDIENCE=panacea-app-hub`; the Hub run **on the host** (so it uses the Windows
+certificate store, and the corporate proxy's CA, for the realm's JWKS) with `PANACEA_APP_HUB_ENV=local`,
+`PANACEA_APP_HUB_DEV_ISSUER=false`, the same issuer and profile, KPMG's tenant id, audience
+`panacea-app-hub` and allowed client `panacea-app-desktop`. Claims are recorded by **name and type**,
+never a value beyond `typ`, `aud`, `azp`, `scope`, `email_verified` and `exp - iat`.
 
 | # | Check | Expected | Risk it retires |
 |---|---|---|---|
-| R-1 | The two registrations and the enterprise app match contract §6.5 row by row | every row | a misconfigured registration mistaken for a code bug |
-| R-2 | *Sign in* opens the default browser on Microsoft's page; after sign-in the tab says *"You're signed in to PanaceaApp"* | as described | ADR-H1 R2: conditional access blocking a public client with a loopback redirect |
-| R-3 | The loopback redirect is accepted on a random port with `127.0.0.1`; if not, with `PANACEA_APP_ENTRA_REDIRECT_HOST=localhost` | one of the two works; record which | contract §6.5's unverified redirect matching |
-| R-4 | A real Hub access token's **claim names** (never values beyond `ver`, `scp`, `acct` and `xms_edov`) against task 11's table: `ver 2.0`, `aud` a GUID, `azp`, `scp` containing `Hub.Access`, `tid`, `oid`, `name`, `preferred_username`, `email`, **`acct`** and **`xms_edov`** (both optional claims, configured per contract §6.5 as A15 amends it, by IT from ADR-H1 §9 item 3 or by phase 8's task 09 Terraform, each as amended — plan re-review b05 N1). If either is absent, first read the registration's `optionalClaims.accessToken` in its manifest: a missing entry there is the cause, not the Hub. Record the JSON **type and value** of `acct` (expected the number `0` for the owner, a member) and of `xms_edov` (expected a boolean), and that an invite for the owner's `email` binds at their `GET /v1/me` (`invitesBound: 1`). If a B2B guest test account is available, record its `acct` (expected `1`) and that an invite for its `email` does **not** bind unless its `xms_edov` is `true` | all present; `acct` a number, `xms_edov` a boolean; the owner's invite binds | ADR-H1 R9: `devissuer` diverging from Entra; review I12: binding gated on two optional claims whose presence and JSON types are known only from documentation — an absent or string-typed claim fails closed, and then no invite binds |
-| R-5 | The refresh token's size in bytes, and so the chunk count | recorded | ADR-H1 R1 |
-| R-6 | `cmdkey /list` shows the `PanaceaApp/entra/…` entries, persisted on this machine | present | `OD-6`'s store actually used |
-| R-7 | After the access token expires (60–90 min), a Hub call still succeeds without a prompt | no prompt | refresh and rotation against Entra |
-| R-8 | `Token(Sandboxes.Access)` succeeds from the same sign-in; then `Token` for Azure DevOps' scope, **whether or not** IT granted it (Q5). A refusal for either secondary scope is recorded with its `error`, `suberror` and `error_codes` (the AADSTS numbers) as Entra sent them, and after it `Status` is still `signed_in` and a Hub call still succeeds with no prompt (correction A12). If Azure DevOps answers 50076 or 50079 (or any `ErrScopeRefused`): sign out, sign in again with a fresh `BeginSignIn` (Hub-only, completing any MFA it asks for), and record whether the next `Token` for Azure DevOps still refuses and with which codes (re-review b04 N1). Then paste a PAT for the same organisation (R-11) and record that `LocalDevOps` serves it while the refusal stands | success; or `ErrScopeNeedsConsent` / `ErrScopeRefused` with the Hub session intact; and, for a 50076, "cleared by a fresh sign-in: yes/no" as observed | one refresh token for three resources (ADR-H1 §11); review I2's per-resource refusal bodies, known so far only from documentation, and a secondary refusal signing the user out of the Hub; the evidence the owner needs to rule on a per-resource step-up sign-in (task 31, "does not claim") |
-| R-9 | The owner's token carries `roles: ["Hub.OrgAdmin"]`; `GET /v1/audit` answers 200 for them | as stated | the app-role assignment |
-| R-10 | A colleague outside *PanaceaApp Users* cannot obtain a Hub token | Entra refuses | "assignment required" (ADR-H1 §9 item 4) |
-| R-11 | A real Azure DevOps PAT, minted by the owner for one organisation, pasted through `POST /v1/credentials/azure-devops` (task 39); record its **length** and whether it is all `[A-Za-z0-9]` (never its value); then `credstore.LocalDevOps` serves it and a `git ls-remote` of a repository in that organisation, with `PANACEA_APP_ENTRA_DEVOPS` unset, succeeds through phase 3's chain | 204; listed by `GET /v1/credentials`; `ls-remote` exit 0 | review I10: task 39's PAT bound `^[A-Za-z0-9]{52,256}$` is from knowledge, and the local ADO path is the only one until Q5 |
+| R-1 | Panacea's realm matches ruling §10 K1-K4 row by row, read by its realm admin: the client, the `panacea app desktop browser` flow binding, the four scopes, P1-P3, M1/M2 and the `email` mapper at `FORCE`, `loginHint`, the user profile (`entra_oid`, `entra_tid`, `email` admin-edit; `unmanagedAttributePolicy` not `ENABLED`), the offline caps, `hub.org_admin` | every row | a live realm that differs from the script (ruling U-2) mistaken for a code bug |
+| R-2 | Launch PanaceaApp signed out: the tab reaches **"Signed in. You can return to PanaceaApp."** with **no click**; `GET /v1/auth/status` shows a GUID `oid` and `tid`; record whether `login_hint` was sent and whether any Entra screen appeared | no click; GUIDs | ruling §10 check 1; U-6 (PRT browser SSO), U-7 (the Windows UPN), U-3 (the loopback port form of `http://127.0.0.1/callback`) |
+| R-3 | Paste the authorize URL **without `kc_idp_hint`** | still lands on Entra; no Keycloak username/password page | ruling §10 check 2; review-1 I1 (the realm's password form and Cookie step bypassing Entra) |
+| R-4 | As the owner, `POST` a changed `entra_oid`, and separately a changed `email`, to `/realms/panacea/account` | both refused | ruling §10 check 3; review-1 M2 (a forged `oid`), I3 (a self-edited invite address) |
+| R-5 | A real Hub access token's claims: `typ` `Bearer`; `aud` contains `panacea-app-hub` and **no other `panacea-app-*`**; `azp` `panacea-app-desktop`; `scope` contains `panacea-app-hub`; `oid`, `tid` GUID strings; `roles`; `email`; `email_verified` the boolean `true`. An invite for the owner's `email` binds at their `GET /v1/me` (`invitesBound: 1`) | as listed; the invite binds | U-4 (narrowing honoured) and review-1 I2; I3's binding rule on the real claims; ADR-H1 R9 (`devissuer` diverging from the realm) |
+| R-6 | One stored token, four calls in turn: Hub → broker → gateway → Hub (`Token` for each audience, the last with the Hub's cache invalidated). Each token's `aud` holds its one audience; the last Hub call succeeds; `cmdkey /list` and the account record are unchanged across all four | single audiences; the last call 200; the store unchanged | U-4b and review-1 I4 (a narrowed refresh token written back, the Hub dark); if any token has two audiences every validator refuses it (`ErrAudience`), recorded for the owner |
+| R-7 | `exp - iat` of one access token | `600` | U-15 and review-1 M4: the 600 s override applies on Keycloak 25.0.0; otherwise 1800 s, 30 minutes of revocation latency |
+| R-8 | The offline refresh token's size in bytes, and so the chunk count | recorded | ADR-H1 R1 |
+| R-9 | `cmdkey /list` shows the `PanaceaApp/oidc/auth.dev.panacea.kpmg/panacea/…` entries, persisted on this machine | present | `OD-6`'s store actually used (task 28's targets) |
+| R-10 | Quit and relaunch: signed in with **no** browser tab; if Panacea restarts its Keycloak pod, relaunch again | silent; after a restart at most one zero-click sign-in | ruling §3 silent refresh; U-5 (offline sessions over a one-replica, `--cache=local` restart) |
+| R-11 | The owner's token carries `roles: ["hub.org_admin"]`; `GET /v1/audit` answers 200 for them | as stated | K4's realm role |
+| R-12 | A real Azure DevOps PAT, minted by the owner for one organisation, pasted through `POST /v1/credentials/azure-devops` (task 39); record its **length** and whether it is all `[A-Za-z0-9]` (never its value); then `credstore.LocalDevOps` serves it and a `git ls-remote` of a repository in that organisation succeeds through phase 3's chain | 204; listed by `GET /v1/credentials`; `ls-remote` exit 0 | review I10: task 39's PAT bound `^[A-Za-z0-9]{52,256}$` is from knowledge; the PAT is the only ADO path (OD-30 ruling §7) |
+
+Dropped from the earlier Entra checklist, with the reason: the registration rows (§6.5 is deleted),
+`PANACEA_APP_ENTRA_REDIRECT_HOST=localhost` (the realm registers `127.0.0.1` only), `acct`/`xms_edov`
+(a realm token carries neither), Azure DevOps' Entra scope (deleted), and "assignment required" (the
+realm's `tid` filter admits the tenant; ruling §9).
 
 #### The results record
 
 `docs/verification/2026-09-23-phase-h-results.md` holds, in this order: the commit it was run at;
 every acceptance command of tasks 01–42 **as run**, with its output's last line; the end-to-end
 test's output; what the implementer observed in `npm run tauri dev` in tasks 38, 41 and 42 —
-labelled **the implementer's observation**; the real-tenant checklist with its three empty
+labelled **the implementer's observation**; the dev-realm check with its three empty
 columns; and a closing list, **Unverified**, that names at least: the owner's visual acceptance of
 tasks 41 and 42 (`OD-12`), every R-item, Azure Postgres (only `postgres:16-alpine` was used), the
 workload-identity database login, and phase 8's deployed chart.
@@ -101,7 +119,7 @@ workload-identity database login, and phase 8's deployed chart.
 ```bash
 go test -tags integration ./control-plane/internal/hub/ -run TestTwoTeammatesShareTheThread -race -count=1 -v 2>&1 | grep -c "^    --- PASS"   # 12
 go test -tags integration ./control-plane/internal/hub/... ./control-plane/cmd/hub/ -race -count=1                                                 # ok
-grep -c "^| R-" docs/verification/2026-09-23-phase-h-results.md                                                                                   # 11
+grep -c "^| R-" docs/verification/2026-09-23-phase-h-results.md                                                                                   # 12
 grep -n "Unverified" docs/verification/2026-09-23-phase-h-results.md                                                                              # present
 ```
 
