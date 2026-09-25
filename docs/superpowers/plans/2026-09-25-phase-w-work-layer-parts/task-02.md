@@ -388,3 +388,56 @@ func ParseIssueRevisionEnvelope(canonical []byte) (IssueRevisionEnvelope, error)
 (`canonical.go:183`, `envelope.go:234`, `:54`, `:57`), so this file needs no new plumbing. A
 content that decodes but was written with a missing list (`"serves":null`) fails inside
 `Canonical` as `content.serves`, never silently re-encoded as `[]`.
+
+#### The golden vectors, complete
+
+Computed on 2026-09-25 by hub-contract §3.5's method: Python `json.dumps(sort_keys=True,
+separators=(",",":"), ensure_ascii=False)` over the envelope, UTF-8 encoded, SHA-256; vector 1
+again with `printf '%s' '<canonical>' | sha256sum`. **Both methods agree on vector 1**
+(`a77f7648…4ab6`), and `sha256sum` over the Python-written bytes agrees on both. Each file holds
+the envelope as a writer would build it, the canonical text as a JSON string (decode it to get the
+exact bytes), their length, and the digest. The files are written with `ensure_ascii=True` and
+`indent=2`, so they are pure ASCII and survive any editor; the **canonical bytes** are UTF-8
+(`é` is `C3 A9`).
+
+**v1**: ASCII, one `serves` pair, an empty `implements`. 402 bytes,
+`sha256:a77f7648208b0456120f438ceecde358da929e501f0bfeee5cad8246fb604ab6`.
+`testdata/issue-revision/v1.json`:
+
+```json
+{
+  "envelope": {
+    "v": 1,
+    "kind": "issue-revision",
+    "issueId": "is-00000000000000c3",
+    "revision": 1,
+    "projectId": "pj-00000000000000b2",
+    "content": {
+      "title": {
+        "text": "Resume an upload after the connection drops",
+        "author": "H"
+      },
+      "description": {
+        "text": "Uploads over 40 MB restart from zero when the network drops.",
+        "author": "H"
+      },
+      "serves": [
+        {
+          "briefKey": "brief:bf-00000000000000a1@5",
+          "criterionId": "c-91e2a0b3c4d5e6f7"
+        }
+      ],
+      "implements": []
+    }
+  },
+  "canonical": "{\"content\":{\"description\":{\"author\":\"H\",\"text\":\"Uploads over 40 MB restart from zero when the network drops.\"},\"implements\":[],\"serves\":[{\"briefKey\":\"brief:bf-00000000000000a1@5\",\"criterionId\":\"c-91e2a0b3c4d5e6f7\"}],\"title\":{\"author\":\"H\",\"text\":\"Resume an upload after the connection drops\"}},\"issueId\":\"is-00000000000000c3\",\"kind\":\"issue-revision\",\"projectId\":\"pj-00000000000000b2\",\"revision\":1,\"v\":1}",
+  "bytes": 402,
+  "digest": "sha256:a77f7648208b0456120f438ceecde358da929e501f0bfeee5cad8246fb604ab6"
+}
+```
+
+The canonical text of v1, as bytes on one line:
+
+```
+{"content":{"description":{"author":"H","text":"Uploads over 40 MB restart from zero when the network drops."},"implements":[],"serves":[{"briefKey":"brief:bf-00000000000000a1@5","criterionId":"c-91e2a0b3c4d5e6f7"}],"title":{"author":"H","text":"Resume an upload after the connection drops"}},"issueId":"is-00000000000000c3","kind":"issue-revision","projectId":"pj-00000000000000b2","revision":1,"v":1}
+```
