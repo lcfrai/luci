@@ -374,3 +374,77 @@ them (the `claudeCode` of the downloaded `last/digests.json`, empty when there i
 task 27's older shape without the key); `publish` needs no connection. The YAML shape follows
 Azure Pipelines' documented schema from training knowledge (**UNVERIFIED** until the first run,
 as task 27's own is).
+
+**`control-plane/cmd/gatemint/main.go`, complete.** Two verbs. `policy` prints the worker managed
+file, so G2 on the CI agent and G3/G4 in the cluster judge the same bytes task 15 mounts. `mint`
+is decision (f). It never prints a token.
+
+```go
+// Command gatemint serves the CLI bump job's gates (task 65), nothing else.
+//
+//	gatemint policy                    the worker managed file on stdout
+//	gatemint mint <session-id> <dir>   mints for $POD_IP, writes <dir>/token; exit 1 on refusal
+package main
+
+import (
+	"context"
+	"fmt"
+	"net/netip"
+	"os"
+	"time"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/fleet/model"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/gatewayclient"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/inference/wire"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/policy"
+)
+
+func main() { os.Exit(run(os.Args[1:], os.Getenv, os.Stdout, os.Stderr)) }
+
+func run(args []string, getenv func(string) string, out, errw *os.File) int {
+	switch {
+	case len(args) == 1 && args[0] == "policy":
+		file, _, err := policy.Render(policy.Layers{}, model.ClassWorker)
+		if err != nil {
+			fmt.Fprintln(errw, "gatemint: render:", err)
+			return 1
+		}
+		_, _ = out.Write(file)
+		return 0
+	case len(args) == 3 && args[0] == "mint":
+		if _, err := netip.ParseAddr(getenv("POD_IP")); err != nil {
+			fmt.Fprintln(errw, "gatemint: POD_IP is not an address")
+			return 1
+		}
+		c, err := gatewayclient.New(getenv("PANACEA_APP_GATEMINT_KEYSMITH_URL"),
+			getenv("PANACEA_APP_GATEMINT_CALLER_TOKEN_FILE"), gatewayclient.Options{})
+		if err != nil {
+			fmt.Fprintln(errw, "gatemint:", err)
+			return 1
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		res, err := c.Mint(ctx, wire.MintRequest{
+			SessionID: args[1], Generation: 1,
+			Owner:     wire.Owner{TID: getenv("PANACEA_APP_GATEMINT_OWNER_TID"), OID: getenv("PANACEA_APP_GATEMINT_OWNER_OID")},
+			TeamID:    getenv("PANACEA_APP_GATEMINT_TEAM_ID"), ProjectID: getenv("PANACEA_APP_GATEMINT_PROJECT_ID"),
+			AgentID:   args[1], SessionClass: wire.ClassWorker, PodAddr: getenv("POD_IP"),
+		})
+		if err != nil {
+			fmt.Fprintln(errw, "gatemint: mint refused:", err) // gatewayclient's errors carry no token
+			return 1
+		}
+		if err := gatewayclient.WriteToken(args[2], res.Token); err != nil {
+			fmt.Fprintln(errw, "gatemint:", err)
+			return 1
+		}
+		fmt.Fprintln(out, "gatemint: minted key", res.KeyID) // the key id, never the token
+		return 0
+	}
+	fmt.Fprintln(errw, "usage: gatemint policy | gatemint mint <session-id> <dir>")
+	return 2
+}
+```
+
+`PodAddr` is a string in `MintRequest` with an `Addr()` accessor (`parts/task-03.md:30`), so the
+pre-check only gives a clearer error than keysmith's `400`.
