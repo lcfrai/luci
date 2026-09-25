@@ -161,3 +161,79 @@ export function stressScreens(set: StressSet): readonly StressScreen[] {
 
 No unregister and no subscription: every screen registers at import, before the toolbar's first
 render, and a dev session never removes one.
+
+#### Interfaces — complete: `desktop/src/components/devtools/StressSets.tsx`
+
+One file, given in two blocks in source order. The first holds the data: the matrix, the words
+each set shows, and the filter.
+
+```tsx
+// desktop/src/components/devtools/StressSets.tsx
+//
+// stress.sets (Phase W task 33; 02 C12; 05 §4.4 C12). Picks a set, then renders every screen
+// registered for it on a full-window stage portalled beside #root. The toolbar is not filtered
+// and not zoomed, so the controls stay readable whatever the set does to the app.
+
+import type { JSX } from "react";
+import { useState } from "react";
+import { createPortal } from "react-dom";
+import { setFlag } from "../../lib/flags";
+import { STRESS_SETS, stressScreens } from "./stressRegistry";
+import type { StressSet } from "./stressRegistry";
+
+/** Deuteranopia, severity 1.0: Machado, Oliveira and Fernandes, "A Physiologically-based Model
+ *  for Simulation of Color Vision Deficiency", IEEE TVCG 15(6), 2009, the severity-1.0 row of
+ *  their deuteranomaly table. Defined on LINEAR RGB, so the filter declares linearRGB. Each RGB
+ *  row sums to 1 (white stays white). Rows are feColorMatrix's: r g b a offset. */
+export const DEUTERANOPIA_MATRIX: readonly number[] = [
+  0.367322, 0.860646, -0.227968, 0, 0,
+  0.280085, 0.672501, 0.047413, 0, 0,
+  -0.01182, 0.04294, 0.968881, 0, 0,
+  0, 0, 0, 1, 0,
+];
+
+export const SET_LABEL: Readonly<Record<StressSet, string>> = {
+  themes: "Themes",
+  states: "States",
+  load: "Load",
+  "reduced-deuteranopia": "Reduced motion × deuteranopia",
+  "forced-colors": "Windows contrast theme",
+  scaling: "125 % and 150 %",
+};
+
+export const SET_NOTE: Readonly<Record<StressSet, string>> = {
+  themes: "Flip the ground on this screen. Paper is task 26's provisional block, not a reviewed theme.",
+  states:
+    "The eleven states of the design system's floor. A cell that says not designed has no Phase 2 design yet.",
+  load: "Each screen here shows one surface at several sizes of work.",
+  "reduced-deuteranopia":
+    "Motion is reduced and a deuteranopia simulation covers the app. Look for any two states told apart by colour alone.",
+  "forced-colors":
+    "Page CSS cannot turn forced colours on. Turn on a Windows contrast theme: Settings, Accessibility, Contrast themes, or Left Alt + Left Shift + Print Screen.",
+  scaling:
+    "A CSS zoom preview. It is not the same as Windows display scaling, which changes text rendering, hit targets and the window frame. For the real check set Settings, System, Display, Scale.",
+};
+
+export const NO_SCREEN = "No screen is registered for this set yet.";
+
+/** Portalled once into <body>; stress.css points #root and the stage at it by data-vision. */
+function VisionFilter(): JSX.Element {
+  return createPortal(
+    <svg className="ss-defs" aria-hidden="true" focusable="false" width="0" height="0">
+      <filter id="ss-deutan" colorInterpolationFilters="linearRGB">
+        <feColorMatrix type="matrix" values={DEUTERANOPIA_MATRIX.join(" ")} />
+      </filter>
+    </svg>,
+    document.body,
+  );
+}
+
+/** The live answer to "is a contrast theme on?", read at render; jsdom's stub says no. */
+function forcedColoursActive(): boolean {
+  return window.matchMedia("(forced-colors: active)").matches;
+}
+```
+
+The matrix values are from memory of the paper's table, not re-read: **UNVERIFIED** until step 1
+checks them against the paper. The row-sum test holds whatever the source says, and a transposed
+matrix fails it (its first column sums to 0.635587).
