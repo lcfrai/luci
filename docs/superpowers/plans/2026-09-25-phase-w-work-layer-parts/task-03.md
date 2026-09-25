@@ -60,3 +60,91 @@ real erase; neither may add a field later without reopening SW.1.
 `Priorities`, …), so task 06's `CHECK` sets and task 07's `TestWorkCheckSetsMatchHubapi` compare
 against one Go list, and a missing member is a compile-time or test-time failure, never a
 silent `""`.
+
+**Files** (under `control-plane/internal/hub/hubapi/`):
+
+| Path | Change |
+|---|---|
+| `work.go` | new: every W1 Work enum, record and request body |
+| `work_test.go` | new: the four `types_test.go` styles, run over the Work types |
+
+No existing file changes. Later W1 tasks append to `work.go` additively (08, 09, 11, 12, 15),
+each saying so; task 13 writes `workevents.go` beside it.
+
+---
+
+#### `work.go`, complete
+
+The file is the concatenation of the five blocks below, in order.
+
+```go
+package hubapi
+
+import (
+	"bytes"
+	"encoding/json"
+	"slices"
+)
+
+// ── Phase W, W1: the Work wire (SW.1, second half) ─────────────────────────
+// Issues are Hub records on the provenance thread (05-design §3). Every list
+// field encodes as [] when empty and no response field has omitempty.
+
+// IssueState is one of nine. There is no "shipped": it is derived from the
+// release manifest, never stored (05-design §3.3).
+type IssueState string
+
+const (
+	StateTriage    IssueState = "triage"
+	StateBacklog   IssueState = "backlog"
+	StateTodo      IssueState = "todo"
+	StateStarted   IssueState = "started"   // fact: a lane was bound
+	StateInReview  IssueState = "in_review" // fact: a bound lane was queued to land
+	StateLanded    IssueState = "landed"    // fact: a land commit carries Panacea-Issue
+	StateDone      IssueState = "done"      // proven, or hand-set with a reason
+	StateCancelled IssueState = "cancelled"
+	StateDuplicate IssueState = "duplicate"
+)
+
+// IssueStates is every state, in the order the product shows them.
+var IssueStates = []IssueState{StateTriage, StateBacklog, StateTodo, StateStarted,
+	StateInReview, StateLanded, StateDone, StateCancelled, StateDuplicate}
+
+// FactStates are written only by the fact that causes them, as the person
+// whose act caused it, and never by a sync or integration principal (rule 2).
+var FactStates = []IssueState{StateStarted, StateInReview, StateLanded, StateDone}
+
+// InitialStates are the only states an issue may be created in.
+var InitialStates = []IssueState{StateTriage, StateBacklog, StateTodo}
+
+func ValidIssueState(s IssueState) bool   { return slices.Contains(IssueStates, s) }
+func IsFactState(s IssueState) bool       { return slices.Contains(FactStates, s) }
+func ValidInitialState(s IssueState) bool { return slices.Contains(InitialStates, s) }
+
+// Priority (L-13). "none" is a value, never an absent field.
+type Priority string
+
+const (
+	PriorityNone   Priority = "none"
+	PriorityUrgent Priority = "urgent"
+	PriorityHigh   Priority = "high"
+	PriorityMedium Priority = "medium"
+	PriorityLow    Priority = "low"
+)
+
+var Priorities = []Priority{PriorityNone, PriorityUrgent, PriorityHigh, PriorityMedium, PriorityLow}
+
+func ValidPriority(p Priority) bool { return slices.Contains(Priorities, p) }
+
+// RelationKind is what a person writes (L-24). Task 11 adds the two read-only
+// inverse words (blocked_by, duplicated_by) beside these.
+type RelationKind string
+
+const (
+	RelationBlocks     RelationKind = "blocks"
+	RelationDuplicates RelationKind = "duplicates"
+	RelationRelates    RelationKind = "relates"
+)
+
+var RelationKinds = []RelationKind{RelationBlocks, RelationDuplicates, RelationRelates}
+```
