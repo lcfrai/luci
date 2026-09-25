@@ -67,10 +67,11 @@ takes the merged names; a rename is a find-and-replace in this part, never a new
    `UpdateSubject`, `ReadScope` with `String` and `ParseReadScope`, `ScopedChangesPage`,
    `FeatureFromTemplate`, `TriageRotationView.NextHandoverOn`, the method names and plain-argument
    signatures, `ScopedChanges`, and its `WorkRoadmapRoutes` (`task-124.md:96-135`) as SW.20's route
-   table. One consequence: **brief templates have no W4 method.** Task 124 carries none, and task
-   120's scope puts them on task 78's route with `kind: "brief"`; so task 72's `Template` gains
-   `criteria` and `issueTemplateIds` (both `[]` on an issue template), an added field under SW.18's
-   rule, and the scope's separate `BriefTemplate` record is not declared.
+   table. One consequence: **brief templates have no `WorkRoadmap` method.** Task 124 carries
+   none, and task 120's part serves them on task 78's routes with `kind: "brief"`
+   (`task-120.md:310-317`), decoding this part's `BriefTemplate`, `CreateBriefTemplateRequest` and
+   `PatchBriefTemplateRequest`, which stay declared here as wire types. Task 120 also names
+   `FeatureDependencyView`; it is an alias of `FeatureDependency`, so both parts compile.
 
 #### Files
 
@@ -220,13 +221,25 @@ type FeatureDependency struct {
 	OrderViolated bool   `json:"orderViolated"`
 }
 
-// Brief templates (L-122) are task 72's Template with Kind "brief", on task
-// 78's routes (decision 8). Template gains two fields, both [] on an issue
-// template, and task 72's create and patch bodies gain the same two:
-//
-//	Criteria         []AuthoredText `json:"criteria"`         // author "H"; 1-50 on a brief template
-//	IssueTemplateIDs []string       `json:"issueTemplateIds"` // tp-… of kind "issue"
+// BriefTemplate sits beside task 78's issue Template in the tp- space and is
+// served on task 78's routes with kind "brief" (decision 8; task 120 adds its
+// content field, task-120.md:54-57). It has no WorkRoadmap method.
+type BriefTemplate struct {
+	ID               string         `json:"id"` // tp-…
+	TeamID           *string        `json:"teamId"`
+	Kind             string         `json:"kind"` // always TemplateKindBrief
+	Name             string         `json:"name"`
+	Criteria         []AuthoredText `json:"criteria"`         // author "H"; 1-50 items
+	IssueTemplateIDs []string       `json:"issueTemplateIds"` // tp-… of kind "issue"; never null
+	CreatedAt        string         `json:"createdAt"`
+	UpdatedAt        string         `json:"updatedAt"`
+}
+
 const TemplateKindBrief = "brief"
+
+// FeatureDependencyView is task 120's name for the same shape (an alias, so
+// both parts compile against one type; the derived field is on it).
+type FeatureDependencyView = FeatureDependency
 
 // FeatureFromTemplate is what CreateFeatureFromTemplate returns: the feature,
 // its branch brief at revision 1, and one issue per issue template (task 120).
@@ -447,8 +460,19 @@ type FeatureDependencyRequest struct {
 	Blocks string `json:"blocks"` // ft-…
 }
 
-// A brief template is created and patched through task 78's template bodies
-// with kind "brief" and the two fields above; no W4 body of its own.
+// The bodies task 120's handler decodes on task 78's template routes when
+// kind is "brief" (task 120 adds kind and content, task-120.md:54-57).
+type CreateBriefTemplateRequest struct {
+	Name             string         `json:"name"`
+	Criteria         []AuthoredText `json:"criteria"`
+	IssueTemplateIDs []string       `json:"issueTemplateIds"`
+}
+
+type PatchBriefTemplateRequest struct {
+	Name             *string         `json:"name,omitempty"`
+	Criteria         *[]AuthoredText `json:"criteria,omitempty"`
+	IssueTemplateIDs *[]string       `json:"issueTemplateIds,omitempty"`
+}
 
 // CreateFeatureFromTemplateRequest creates the feature, its branch brief at
 // revision 1 from the template's criteria, and one issue per issue template,
@@ -872,7 +896,8 @@ task 120 registers them.
 | `MarkSeen` | `POST /v1/me/read-cursors/mark-seen` | 123 | self |
 | `ScopedChanges` | `GET /v1/changes?after={seq}&scope={kind}:{id}` | 123 | V, G; filtered per caller |
 
-Brief templates ride task 78's template routes with `kind: "brief"` (A to write, V to read).
+Brief templates ride task 78's template routes with `kind: "brief"` (A to write, V to read), with
+this part's `BriefTemplate` bodies; they are not in `WorkRoadmapRoutes` (gap 5).
 
 #### `hubclient/fake_work_roadmap_stub.go`, complete
 
@@ -969,7 +994,7 @@ func camelWords(s string) []string {
 
 func TestNoPredictionFields(t *testing.T) {
 	types := []any{Initiative{}, InitiativeTeams{}, StatusUpdate{}, Milestone{}, MilestoneView{},
-		FeatureDependency{}, FeatureFromTemplate{}, ScopedChangesPage{}, TemplateSchedule{},
+		FeatureDependency{}, FeatureFromTemplate{}, ScopedChangesPage{}, BriefTemplate{}, TemplateSchedule{},
 		ReminderPolicy{}, TriageRotation{}, TriageRotationView{}, InsightsQuery{}, InsightsResult{},
 		InsightGroup{}, InsightPoint{}, ReadCursor{}, ProjectGrant{}, InitiativeView{},
 		InitiativeFeature{}, UpdateStamp{}, CriterionWord{}}
@@ -1030,7 +1055,7 @@ which is the embed. `hubclient.go:147-148` already holds `_ Hub = (*Client)(nil)
 the structs above and never generated from the code (a generated golden cannot catch a retag):
 `initiative.json`, `initiative-teams.json`, `status-update.json`, `status-update-erased.json`,
 `milestone.json`, `milestone-view.json`, `feature-dependency.json` (`orderViolated: true`),
-`template-brief.json` (task 72's `Template` with `kind: "brief"` and the two new fields),
+`brief-template.json`,
 `feature-from-template.json`, `template-schedule.json`, `reminder-policy.json`,
 `triage-rotation-view.json`, `insights-query.json`, `insights-result.json`,
 `insights-result-empty.json` (the `null` percentiles), `read-cursor.json`, `project-grant.json`,
@@ -1102,9 +1127,10 @@ templates, 120); L-150 and L-151 (insights, 122, 132). This task closes none of 
    scope embeds at once. The stub files keep every commit building; task 115's part must delete
    `fake_work_roadmap_stub.go` in the commit that adds the real methods, and task 124's
    `client_work_roadmap_stub.go`.
-5. **The scope's `BriefTemplate` record and its method set are replaced** by two added fields on
-   task 72's `Template` (decision 8). Task 72's and 78's parts, not yet written, must carry
-   `criteria` and `issueTemplateIds`, and task 120 must accept `kind: "brief"` on task 78's route.
+5. **No client method reaches a brief template.** `BriefTemplate` rides task 78's routes, whose
+   HTTP client is W2's task 82; neither 82's scope nor 124's part carries a brief-template
+   method, so the desktop (task 134's method page, L-122) has no `hubclient` path to them yet.
+   Task 82 or 124 must add one, additively.
 6. **Task 124's gap 7** (a caller-scoped list of projects granted to the caller's teams) is not
    in SW.20 either; when task 117 adds the route, `WorkRoadmap` gains one method, additively.
 7. **Task 119's part cites this part's earlier names** `SubjectRef`, `SubjectFeature` and
