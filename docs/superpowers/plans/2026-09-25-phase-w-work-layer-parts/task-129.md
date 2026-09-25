@@ -38,9 +38,12 @@ drawn in `--signal` with a sentence saying so. Nothing moves a date except a per
    animates (AX §9's no-stage rule; 05 §4.4 motion).
 6. **A loop is the Hub's refusal, not the desktop's check.** *Blocks…* paints the connector at once
    (task 56's optimism) and sends `featureDep.add` (`task-125.md:520`). A `dependency_cycle` refusal
-   rolls it back through `onRefused`, and the fact line names the loop from the refusal's
-   `details.path` (*"EP-2 → EP-5 → EP-2"*); when `details` has no path the line names only the pair
-   (a gap for task 114, below).
+   rolls it back through `onRefused`. Task 120's refusal carries only `details.from` and
+   `details.blocks` (`task-120.md:304`), so the fact line finds the loop in the replica's own
+   dependencies, a walk from `blocks` back to `from` (`findLoop`, below), and names it (*"EP-2 →
+   EP-5 → EP-2"*). The walk only words the refusal; it never refuses. When the replica cannot see
+   the path (a link through a feature the caller cannot read), the line reads *"EP-2 blocking EP-5
+   would close a loop"* and names no feature it cannot see.
 7. **A granted reader has no handle.** `useProjectAccess(projectId)` (`task-126.md:86-88`) answering
    `"granted"` renders marks without the drag handle, the date picker and the palette verbs; the
    write gate of `task-126.md:43-48` closes the keyboard path.
@@ -169,3 +172,176 @@ export function useTimelineDrag(scale: TimelineScale, rangeFrom: string, cb: Dra
 `dx` is the only thing the preview renders: a `transform` of `translateX(dx px)` on the mark and
 its label. No `left`, no `width`, no `transition` on the drag (it follows the hand; the
 snap is the cause, per DESIGN-SYSTEM's motion rule).
+
+#### Interfaces — complete: `desktop/src/components/roadmap/TimelineDrag.tsx`
+
+```tsx
+// desktop/src/components/roadmap/TimelineDrag.tsx — wraps one mark (a target or a milestone).
+import type { ReactNode } from "react";
+import { useReplica } from "../../work/replica/useWork";            // SW.16, task 55 (UNVERIFIED name)
+import { useProjectAccess } from "../../work/access/projectAccess"; // task 126
+import type { WorkOp } from "../../work/replica/ops";
+import type { DragSubject, TimelineDrag as Drag } from "./useTimelineDrag";
+
+export interface TimelineDragProps {
+  projectId: string;
+  subject: DragSubject;
+  drag: Drag;                 // one useTimelineDrag per Timeline, shared by its rows
+  fmtDay(day: string): string;  // "14 Oct", the axis's format (task 128)
+  children: ReactNode;          // the mark task 128 draws
+}
+
+/** The op a drop writes (decision 3). `feature.patch` is task 83's op name (UNVERIFIED). */
+export function dropOp(subject: DragSubject, day: string): WorkOp {
+  return subject.kind === "feature"
+    ? ({ kind: "feature.patch", featureId: subject.featureId,
+         req: { targetDate: day }, prev: { targetDate: subject.start } } as WorkOp)
+    : ({ kind: "milestone.patch", milestoneId: subject.milestoneId,
+         req: { date: day }, prev: { date: subject.start } } as WorkOp);
+}
+
+export function TimelineDrag({ projectId, subject, drag, fmtDay, children }: TimelineDragProps) {
+  const granted = useProjectAccess(projectId) === "granted";
+  const s = drag.state;
+  const mine = s.phase === "dragging" && sameSubject(s.subject, subject);
+  const dx = mine ? s.dx : 0;
+  if (granted) return <span className="tl-mark">{children}</span>;   // decision 7: no handle
+  return (
+    <span className="tl-mark tl-mark--draggable" data-dragging={mine || undefined}>
+      <span className="tl-mark-body" style={{ transform: `translateX(${dx}px)` }}
+        role="slider" tabIndex={0}
+        aria-label={`${subject.kind === "feature" ? "Target" : "Milestone"} ${fmtDay(subject.start)}`}
+        aria-valuetext={fmtDay(mine ? s.day : subject.start)}
+        {...drag.handleProps(subject)}>
+        {children}
+      </span>
+      {mine && <span className="tl-drag-day" style={{ transform: `translateX(${dx}px)` }}>{fmtDay(s.day)}</span>}
+    </span>
+  );
+}
+
+const sameSubject = (a: DragSubject, b: DragSubject) =>
+  a.kind === b.kind && (a.kind === "feature" ? a.featureId === (b as typeof a).featureId
+                                             : a.milestoneId === (b as typeof a).milestoneId);
+
+/** The Timeline's onDrop: one mutate, then the chip. Undo is the handle's inverse (task 56). */
+export function useDropWriter(showChip: (entryId: string, label: string) => void, fmtDay: (d: string) => string) {
+  const replica = useReplica();
+  return (subject: DragSubject, day: string) => {
+    const h = replica.mutate(dropOp(subject, day));
+    showChip(h.id, `${subject.kind === "feature" ? "Target" : "Milestone"} ${fmtDay(day)}`);
+  };
+}
+```
+
+`showChip` mounts task 56's `<UndoChip ledger entryId label onUndo/>` (`task-56.md:745`), whose
+lapse is `--undo-window` (SW.11). `.tl-drag-day` is `font-family: var(--mono)` with
+`font-variant-numeric: tabular-nums`, so the date under the hand does not jitter as it changes.
+The keyboard path is not here: task 89's `D` opens the date picker on the focused mark, and the
+picker's pick calls the same `dropOp`, so both paths write the same op.
+
+#### Interfaces — complete: `desktop/src/components/roadmap/DependencyLines.tsx`
+
+```tsx
+// desktop/src/components/roadmap/DependencyLines.tsx — one connector per dependency, drawn in SVG
+// over the rows. The Hub's orderViolated wins; the preview covers only the time until it answers.
+import type { Feature, FeatureDependencyView } from "../../api/work";
+import { orderViolated, violationSentence } from "./orderViolated";
+
+export interface DependencyLinesProps {
+  deps: readonly FeatureDependencyView[];       // replica.depsOf, both directions (task 125)
+  features: ReadonlyMap<string, Feature & { alias: string }>;
+  /** The mark's centre, from task 128's layout; null when the feature has no target set. */
+  anchor(featureId: string): { x: number; y: number } | null;
+  /** Feature ids with a write in flight (task 56's pendingOf for the feature patch). */
+  pending: ReadonlySet<string>;
+  fmtDay(day: string): string;
+}
+
+/** Hub value unless one end has a write in flight; then the copied rule on the painted dates. */
+export function violatedNow(d: FeatureDependencyView, features: DependencyLinesProps["features"],
+                            pending: ReadonlySet<string>): boolean {
+  if (!pending.has(d.from) && !pending.has(d.blocks)) return d.orderViolated;
+  return orderViolated(features.get(d.from)?.targetDate ?? null, features.get(d.blocks)?.targetDate ?? null);
+}
+
+export function DependencyLines({ deps, features, anchor, pending, fmtDay }: DependencyLinesProps) {
+  return (
+    <svg className="tl-deps" aria-hidden="false" role="list">
+      {deps.map((d) => {
+        const a = anchor(d.from), b = anchor(d.blocks);
+        if (!a || !b) return null;            // a feature with no target has no mark to join
+        const bad = violatedNow(d, features, pending);
+        const blocker = features.get(d.from)!, blocked = features.get(d.blocks)!;
+        const text = bad
+          ? violationSentence({ targetDate: blocked.targetDate! }, { alias: blocker.alias, targetDate: blocker.targetDate! }, fmtDay)
+          : `${blocker.alias} blocks ${blocked.alias}`;
+        return (
+          <g key={`${d.from}>${d.blocks}`} role="listitem" aria-label={text}
+             className={bad ? "tl-dep tl-dep--violated" : "tl-dep"} data-dep={`${d.from}>${d.blocks}`}>
+            <path d={`M${a.x},${a.y} C${a.x + 24},${a.y} ${b.x - 24},${b.y} ${b.x},${b.y}`} />
+            {bad && <text x={b.x + 8} y={b.y - 6} className="tl-dep-why">{text}</text>}
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+```
+
+```css
+/* timeline.css ⚑ (task 128) — appended. No animation, no transition on a connector. */
+.tl-dep path { fill: none; stroke: var(--line-strong); stroke-width: 1px; }
+.tl-dep--violated path { stroke: var(--signal); stroke-dasharray: 4 3; }   /* shape, not only hue */
+.tl-dep-why { font: 12px var(--sans); fill: var(--signal); }
+.tl-mark--draggable .tl-mark-body { cursor: ew-resize; touch-action: none; }
+.tl-drag-day { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+@media (forced-colors: active) {
+  .tl-dep--violated path { stroke: CanvasText; }   /* the dash and the sentence carry it */
+  .tl-dep-why { fill: CanvasText; }
+}
+```
+
+`--line-strong` is task 26's token name (**UNVERIFIED**, no part read for it); the dash is there so
+the violated connector differs by shape as well as by the sentence.
+
+#### Interfaces — complete: the delta on ⚑ `desktop/src/components/palette/commands.ts` (task 59)
+
+```ts
+// Appended to buildCommands(state) (task 59's generator). Both need a focused feature and a
+// writable project; a granted reader gets neither (task 126's write gate, decision 7).
+  { id: "feature.blocks", label: "Blocks…", scope: "feature", writes: true,
+    run: (ctx) => ctx.pickFeature({ exclude: [ctx.featureId], sameTeam: true },
+      (blocks) => ctx.replica.mutate({ kind: "featureDep.add", featureId: ctx.featureId, blocks })) },
+  { id: "feature.unblock", label: "Remove dependency", scope: "feature", writes: true,
+    when: (ctx) => ctx.replica.depsOf(ctx.featureId).some((d) => d.from === ctx.featureId),
+    run: (ctx) => ctx.pickFrom(ctx.replica.depsOf(ctx.featureId).filter((d) => d.from === ctx.featureId),
+      (d) => ctx.replica.mutate({ kind: "featureDep.remove", featureId: ctx.featureId, blocks: d.blocks })) },
+```
+
+`Command`'s `scope`, `writes`, `when`, `pickFeature` and `pickFrom` are task 59's and task 126's
+names as their scopes imply them (**UNVERIFIED**). *Blocks…* offers features of the same team only
+(task 120 refuses a cross-team dependency, `task-120.md:42`, `:363`).
+
+The loop's words, appended to `orderViolated.ts`:
+
+```ts
+/** The path blocks → … → from through deps the replica holds, or null. Words a dependency_cycle
+ *  refusal only (decision 6); the Hub is the guard. Breadth first, so the shortest loop is named. */
+export function findLoop(deps: readonly { from: string; blocks: string }[], from: string, blocks: string): string[] | null {
+  const next = new Map<string, string[]>();
+  for (const d of deps) next.set(d.from, [...(next.get(d.from) ?? []), d.blocks]);
+  const prev = new Map<string, string>([[blocks, ""]]);
+  const queue = [blocks];
+  while (queue.length) {
+    const at = queue.shift()!;
+    if (at === from) {
+      const path = [from];
+      for (let p = prev.get(from)!; p !== ""; p = prev.get(p)!) path.unshift(p);
+      return [from, ...path];                  // from → blocks → … → from
+    }
+    for (const n of next.get(at) ?? []) if (!prev.has(n)) { prev.set(n, at); queue.push(n); }
+  }
+  return null;
+}
+```
