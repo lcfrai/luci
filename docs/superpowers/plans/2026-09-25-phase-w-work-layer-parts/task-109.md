@@ -457,3 +457,347 @@ sync-merged the path becomes `docs/superpowers/planning/2026-09-24-team-collabor
 and step 5 rewrites the three `Source:` lines (the doc test fails until it does). Rule 7's source
 row is L-158's section; its words are ours.
 
+#### Tests to write first — `control-plane/internal/fleet/work/killswitch_test.go`
+
+```go
+package work
+
+import (
+	"context"
+	"errors"
+	"testing"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubapi"
+)
+
+type fakeSwitch struct {
+	on    bool // Orchestrators on
+	err   error
+	reads int
+}
+
+func (f *fakeSwitch) GetAgentSwitch(context.Context, string) (hubapi.AgentSwitch, error) {
+	f.reads++
+	return hubapi.AgentSwitch{Orchestrators: f.on}, f.err
+}
+
+type countQueue struct{ got []Turn }
+
+func (q *countQueue) Enqueue(_ context.Context, t Turn) error { q.got = append(q.got, t); return nil }
+
+type refusals struct{ codes []string }
+
+func (r *refusals) Refused(_ context.Context, _ Turn, code string) { r.codes = append(r.codes, code) }
+
+var allOrigins = []Origin{OriginDelegate, OriginMention, OriginRelation, OriginHandover, OriginBlocker, OriginAsk}
+
+func TestSwitchOffEnqueuesNoTurnForAnyOrigin(t *testing.T) {
+	sw, q, r := &fakeSwitch{on: false}, &countQueue{}, &refusals{}
+	g := Gate{Switch: sw, Next: q, Refused: r}
+	for _, o := range allOrigins {
+		if err := g.Enqueue(context.Background(), Turn{OrgID: "or-1", Origin: o}); !errors.Is(err, ErrAgentsDisabled) {
+			t.Fatalf("%s: err = %v, want agents_disabled", o, err)
+		}
+	}
+	if len(q.got) != 0 || len(r.codes) != len(allOrigins) {
+		t.Fatalf("queued %d, refused %d; want 0 and %d", len(q.got), len(r.codes), len(allOrigins))
+	}
+}
+
+func TestSwitchOnPassesEveryOrigin(t *testing.T) {
+	q := &countQueue{}
+	g := Gate{Switch: &fakeSwitch{on: true}, Next: q, Refused: &refusals{}}
+	for _, o := range allOrigins {
+		if err := g.Enqueue(context.Background(), Turn{OrgID: "or-1", Origin: o}); err != nil {
+			t.Fatalf("%s: %v", o, err)
+		}
+	}
+	if len(q.got) != len(allOrigins) {
+		t.Fatalf("queued %d, want %d", len(q.got), len(allOrigins))
+	}
+}
+
+func TestHubUnreadableFailsClosed(t *testing.T) {
+	q, r := &countQueue{}, &refusals{}
+	g := Gate{Switch: &fakeSwitch{on: true, err: errors.New("dial tcp: refused")}, Next: q, Refused: r}
+	err := g.Enqueue(context.Background(), Turn{OrgID: "or-1", Origin: OriginMention})
+	if !errors.Is(err, ErrSwitchUnknown) || len(q.got) != 0 || r.codes[0] != "switch_unknown" {
+		t.Fatalf("err=%v queued=%d codes=%v", err, len(q.got), r.codes)
+	}
+}
+
+func TestEveryCallReadsTheSwitchAgain(t *testing.T) {
+	sw := &fakeSwitch{on: true}
+	g := Gate{Switch: sw, Next: &countQueue{}, Refused: &refusals{}}
+	_ = g.Enqueue(context.Background(), Turn{OrgID: "or-1", Origin: OriginAsk})
+	sw.on = false // an admin turns Orchestrators off between two turns
+	if err := g.Allow(context.Background(), Turn{OrgID: "or-1", Origin: OriginAsk}); !errors.Is(err, ErrAgentsDisabled) {
+		t.Fatalf("second call passed after the switch went off: %v", err)
+	}
+	if sw.reads != 2 {
+		t.Fatalf("reads = %d, want 2 (no cache)", sw.reads)
+	}
+}
+```
+
+The human-message path (TM-37) gets one row in Phase T's own budget test, added by this task:
+with the switch off, a human's message to their Orchestrator starts no turn and the person sees
+`agents_disabled` (**UNVERIFIED until merge**: the test file is TM-37's).
+
+#### Tests to write first — `desktop/src/components/admin/KillSwitch.test.tsx`
+
+```tsx
+import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { expectNoPrediction } from "../../test/expectNoPrediction";
+import { KillSwitch } from "./KillSwitch";
+import { agentsOffLine } from "./agentsOff";
+
+const OFF = { orchestrators: false, by: "u-admin", at: "2026-09-25T04:10:00Z", reason: "incident 12" };
+const ON = { orchestrators: true, by: null, at: null, reason: null };
+const nameOf = (u: string) => (u === "u-admin" ? "Priya" : u);
+const api = (sw: typeof OFF | typeof ON, set = vi.fn()) => ({ agentSwitch: vi.fn().mockResolvedValue(sw), setAgentSwitch: set });
+
+describe("KillSwitch", () => {
+  it("names who turned Orchestrators off and when", () => {
+    expect(agentsOffLine(OFF, nameOf, () => "25 Sep 14:10")).toBe(
+      "Orchestrators are off for this org (set by Priya, 25 Sep 14:10)");
+    expect(agentsOffLine(ON, nameOf)).toBeNull();
+  });
+  it("offers no control to a member who is not an org admin", async () => {
+    const { container } = render(<KillSwitch api={api(ON)} orgId="or-1" isOrgAdmin={false} nameOf={nameOf} />);
+    await screen.findByText("Orchestrators are on");
+    expect(screen.queryByRole("button")).toBeNull();
+    expectNoPrediction(container);
+  });
+  it("sends the flip with a reason, and never without one", async () => {
+    const set = vi.fn().mockResolvedValue(OFF);
+    render(<KillSwitch api={api(ON, set)} orgId="or-1" isOrgAdmin nameOf={nameOf} />);
+    const btn = await screen.findByRole("button", { name: "Turn Orchestrators off" });
+    expect((btn as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText("Reason"), { target: { value: "incident 12" } });
+    fireEvent.click(btn);
+    await waitFor(() => expect(set).toHaveBeenCalledWith("or-1", { orchestrators: false, reason: "incident 12" }));
+    await screen.findByText(/Orchestrators are off for this org \(set by Priya,/);
+  });
+  it("shows the Hub's refusal and keeps the old state", async () => {
+    const set = vi.fn().mockRejectedValue({ code: "forbidden" });
+    render(<KillSwitch api={api(ON, set)} orgId="or-1" isOrgAdmin nameOf={nameOf} />);
+    fireEvent.change(await screen.findByLabelText("Reason"), { target: { value: "x" } });
+    fireEvent.click(screen.getByRole("button", { name: "Turn Orchestrators off" }));
+    await screen.findByText("Not changed: forbidden");
+    expect(screen.getByRole("status").textContent).toBe("Orchestrators are on");
+  });
+});
+```
+
+#### Tests to write first — `desktop/src/components/admin/AgentGuidance.test.tsx`
+
+```tsx
+import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { Guidance } from "../../api/work";
+import { expectNoPrediction } from "../../test/expectNoPrediction";
+import { AgentGuidance } from "./AgentGuidance";
+
+const g = (scope: Guidance["scope"], version: number, text: string): Guidance =>
+  ({ id: `gd-${scope}`, scope, scopeId: `x-${scope}`, text, version, author: "u-d", at: "2026-09-25T01:00:00Z" });
+
+function fakeApi() {
+  const store: Guidance[] = [g("person", 1, "prefer small commits")];
+  return {
+    store,
+    guidanceHistory: vi.fn(async () => [...store].reverse()),
+    resolvedGuidance: vi.fn(async () => ({ layers: [store[store.length - 1], g("team", 3, "team rule"), g("org", 7, "org rule")] })),
+    putGuidance: vi.fn(async (r: { text: string; baseVersion: number }) => {
+      if (r.baseVersion !== store.length) throw { code: "stale_version" };
+      const next = g("person", store.length + 1, r.text); store.push(next); return next;
+    }),
+    agentSwitch: vi.fn(), setAgentSwitch: vi.fn(), pauseMine: vi.fn(),
+  };
+}
+
+describe("AgentGuidance", () => {
+  it("shows the person's layer first, then team, then org, each with its version", async () => {
+    const { container } = render(<AgentGuidance api={fakeApi()} teamId="tm-1" writable={[]} nameOf={() => "Dylan"} />);
+    await waitFor(() => expect(container.querySelectorAll(".ag-merged > li").length).toBe(3));
+    const layers = [...container.querySelectorAll(".ag-merged > li")].map((li) => li.getAttribute("data-layer"));
+    expect(layers).toEqual(["person", "team", "org"]);
+    expect(container.querySelector(".ag-meta")?.textContent).toMatch(/^yours · v1 · Dylan/);
+    expectNoPrediction(container);
+  });
+  it("saves an edit as a new version and keeps the old one", async () => {
+    const api = fakeApi();
+    render(<AgentGuidance api={api} teamId="tm-1" writable={[{ scope: "person", scopeId: "u-d" }]} nameOf={() => "Dylan"} />);
+    fireEvent.change(await screen.findByLabelText("Guidance, yours"), { target: { value: "prefer tiny commits" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save as version 2" }));
+    await waitFor(() => expect(api.store.map((x) => x.version)).toEqual([1, 2]));
+    expect(api.putGuidance).toHaveBeenCalledWith(expect.objectContaining({ baseVersion: 1 }));
+    expect(api.store[0].text).toBe("prefer small commits");
+    await screen.findByText(/^v1 · Dylan/);
+  });
+});
+```
+
+#### Tests to write first — appended to task 62's `desktop/src/components/desk/Desk.test.tsx`
+
+```tsx
+describe("pause all (task 109)", () => {
+  it("sends only project ids, never an agent or person id, and reports the count", async () => {
+    const pauseMine = vi.fn().mockResolvedValue({ paused: ["ag-1", "ag-2"] });
+    const { container } = renderDesk({ teamProjectIds: ["pj-a"], pauseMine });
+    fireEvent.click(screen.getByRole("button", { name: "pause all" }));
+    await screen.findByText("2 agents paused, yours only");
+    expect(pauseMine.mock.calls).toEqual([["pj-a"]]);
+    expectNoPrediction(container);
+  });
+  it("is disabled in local mode and says why", () => {
+    renderDesk({ teamProjectIds: [], pauseMine: vi.fn() });
+    const btn = screen.getByRole("button", { name: "pause all" }) as HTMLButtonElement;
+    expect(btn.disabled).toBe(true);
+    expect(btn.title).toBe("local sessions have no pause");
+  });
+});
+```
+
+`renderDesk(extra)` is task 62's render helper with these two props added; if task 62 has none,
+step 4 adds one at the top of this block.
+
+#### Tests to write first — `desktop/src/docs/agentRules.test.ts`
+
+```ts
+import { readFileSync, existsSync } from "node:fs";
+import { resolve } from "node:path";
+import { describe, expect, it } from "vitest";
+
+const ROOT = resolve(__dirname, "../../..");
+const RULES = readFileSync(resolve(ROOT, "docs/work/agent-rules.md"), "utf8");
+const SOURCE = /^\s*Source: `([^`]+)` `([^`]+)`\s*$/;
+
+/** Every rule line pairs with one Source line; returns [rule number, file, heading]. */
+export function citations(md: string): [number, string, string][] {
+  const out: [number, string, string][] = [];
+  let rule = 0;
+  for (const line of md.split(/\r?\n/)) {
+    const n = /^(\d+)\. \*\*/.exec(line);
+    if (n) rule = Number(n[1]);
+    const s = SOURCE.exec(line);
+    if (s) out.push([rule, s[1], s[2]]);
+  }
+  return out;
+}
+
+describe("docs/work/agent-rules.md", () => {
+  const cites = citations(RULES);
+  it("gives every rule exactly one source", () => {
+    const rules = [...RULES.matchAll(/^(\d+)\. \*\*/gm)].map((m) => Number(m[1]));
+    expect(cites.map((c) => c[0])).toEqual(rules);
+  });
+  it.each(cites)("rule %i cites a heading that exists in %s", (_n, file, heading) => {
+    const path = resolve(ROOT, file);
+    expect(existsSync(path)).toBe(true);
+    const headings = readFileSync(path, "utf8").split(/\r?\n/).filter((l) => l.startsWith("#"));
+    expect(headings).toContain(heading);
+  });
+  it("fails on a heading that does not exist (the mutant, run in-process)", () => {
+    const bad = "1. **x.** y\n   Source: `docs/AGENTIC-UX.md` `## 99. Nowhere`\n";
+    const [[, file, heading]] = citations(bad);
+    const headings = readFileSync(resolve(ROOT, file), "utf8").split(/\r?\n/);
+    expect(headings).not.toContain(heading);
+  });
+});
+```
+
+`ROOT` is three levels up from `desktop/src/docs/`, the repository root. The rules file is not
+product UI, so no `expectNoPrediction` runs on it; rule 2 states the rule in words.
+
+| Test | Mutant it kills |
+|---|---|
+| switch off, no origin enqueued | one path (`mention`, `relation`, `ask` …) bypasses the gate |
+| switch on, every origin passes | the gate refuses everything and nobody notices it is miswired |
+| Hub unreadable fails closed | a failed read treated as *on* |
+| every call reads again | a cached switch lets a turn through after an admin turns it off |
+| who and when | a bare *"agents disabled"* with no author or time |
+| no control for a member | any member flips it (the Hub's 403 is task 100's row) |
+| flip needs a reason | a switch flipped with no *why* |
+| refusal keeps old state | the UI shows the new state before the Hub accepts it |
+| person, team, org order | org wins, or the layers re-sorted |
+| a new version, the old kept | `putGuidance` overwrites in place, or saves without `baseVersion` |
+| pause sends project ids only | pauses the org, or a teammate's agent named in the request (OD-16) |
+| pause disabled in local mode | a stop disguised as a pause |
+| every rule has one source; each heading exists | a rule without a source, or a source section that moved |
+
+#### Steps
+
+- [ ] **Step 1: read on the sync base** task 99's `hubapi/work_agents.go` (the `AgentSwitch` field
+  names, `Guidance`, the method names), task 100's relay rows in `internal/api/work.go`, task 62's
+  `Desk.tsx` and `Desk.test.tsx`, task 26's token names, and on `feat/team-mode` TM-26's turn type
+  and `Enqueue`, and TM-37's human-message and human-pause paths. Rename in this part's files only.
+- [ ] **Step 2: the Go test first.** `go test ./control-plane/internal/fleet/work/ -race -count=1
+  -run Switch\|Hub\|Every` fails on the missing `Gate`.
+- [ ] **Step 3: `killswitch.go`**, then Fleet's wiring: every constructor that took TM-26's queue
+  takes the `Gate` instead, and TM-37's human path calls `gate.Allow` first. A grep in step 6
+  shows no caller holds the bare queue.
+- [ ] **Step 4: the desktop tests first**, then `work.ts`'s append, `agentsOff.ts`, `KillSwitch.tsx`,
+  `AgentGuidance.tsx`, `admin.css` and the `Desk.tsx` edit. Mount the two settings sections where
+  task 62 or the app's settings surface puts org and personal settings (gap 1).
+- [ ] **Step 5: `docs/work/agent-rules.md`**, then `agentRules.test.ts`. If `feat/team-mode` is
+  merged, rewrite rules 1, 4 and 5's `Source:` paths to the merged path.
+- [ ] **Step 6: run the acceptance commands.** Commit by path after steps 3, 4 and 5, each message
+  ending with the `Co-Authored-By` line.
+
+#### Acceptance
+
+```bash
+go test ./control-plane/internal/fleet/work/ -race -count=1 -run 'Switch|Hub|Every' -v
+# expect: 4 tests, all PASS
+go test ./control-plane/... -race -count=1
+# expect: ok for every package; no FAIL line
+npm --prefix desktop test -- admin desk/Desk docs/agentRules
+# expect: every file passes; this part adds 3 files and 15 tests
+#   (KillSwitch 4, AgentGuidance 2, agentRules 1 + 1 per rule + 1, i.e. 9 with seven rules)
+#   plus 2 in Desk.test.tsx
+npm --prefix desktop run typecheck
+# expect: exit 0
+grep -rnE "\.Next\.Enqueue|queue\.Enqueue" control-plane/internal/fleet --include='*.go' | grep -v _test.go | grep -v fleet/work/killswitch.go
+# expect: no output (only the gate calls the bare queue)
+```
+
+The counts are this part's plan, not a run. Visual acceptance of the settings sections and the
+horizon bar is the owner's eyes (`CLAUDE.md`).
+
+#### What this task does NOT claim
+
+- That KPMG's managed policy leaves the switch reachable on a laptop: the switch is a Hub record
+  set through the desktop, and whether a managed desktop can reach that settings route is untested.
+- That guidance reaches an agent. This part stores, merges and shows it; delivery into a session
+  (TM-13's layers or a managed-block section) is **UNVERIFIED** and undesigned (gap 2).
+- That *pause all* pauses anything in local mode: no local pause verb exists (decision 8, gap 4).
+- That Fleet's turn queue has no second entry point besides TM-26's `Enqueue` and TM-37's human
+  path; step 6's grep checks Fleet's tree at the sync base only.
+- That a running worker stops when Orchestrators go off. It does not; that is by design.
+
+**Parity** (`05-design.md` rows). Closes **L-158** (`:320`: org, team and personal guidance; the
+org switch; *pause all* on the horizon bar, in team mode), **L-183** (`:350`: records with history,
+org → team → person), **L-194** (`:361`: our published rules) and **L-246** (`:428`, as L-158).
+L-158's *pause all* half is closed for team projects only; the local-mode half is gap 4.
+
+#### Gaps found while writing this part
+
+1. **No settings surface is in the file map.** The skeleton gives `src/components/admin/*` to W5's
+   tasks 169-173 only (`2026-09-25-phase-w-work-layer.md:314`); this task needs the row too, and a
+   named mount point for org and personal settings, which no W1 task builds.
+2. **Where guidance sits in an agent's context is undesigned.** TM-13 merges managed-settings JSON
+   across org and project (Phase T plan `:546-557`); guidance is free text across org, team and
+   person. Whether guidance joins TM-13's layers, TM-14's versioned store, or SW.7's managed block
+   is a question for the owner and the Phase T owner.
+3. **Docs have no test runner.** The scope asks for a doc test *beside* `agent-rules.md`; `docs/`
+   has none, so the test lives at `desktop/src/docs/agentRules.test.ts`. The file map needs the row.
+4. **Local mode has no pause.** Neither `control-plane/internal/api/*.go` nor
+   `desktop/src/api/client.ts` has a pause verb on 2026-09-25. L-158's *pause all* for local
+   sessions needs one (phase 2's owner), or the row is closed for team projects only.
+5. **Fleet has no W3 row in the file map** (`control-plane/internal/fleet/work/*`), shared by tasks
+   103, 105, 109 and 110.
+6. **The turn origins are this part's words.** TM-26 owns the origin enum; the six W3 origins in
+   `killswitch.go` must be added there, or mapped, when `feat/team-mode` is merged.
+
