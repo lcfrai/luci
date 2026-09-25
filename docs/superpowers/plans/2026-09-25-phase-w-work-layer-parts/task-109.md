@@ -230,3 +230,230 @@ export function agentsOffLine(
 `desktop/src/lib/time.ts` exports only `formatElapsed` (`:27`) and `formatWaiting` (`:49`) on
 2026-09-25, neither a wall-clock stamp, so the stamp is local here and injectable for tests. The
 caller prints the sentence with the time in Commit Mono.
+
+#### Interfaces — complete: `desktop/src/components/admin/KillSwitch.tsx`
+
+```tsx
+import { useEffect, useState } from "react";
+import type { AgentSwitch, WorkAgentSettingsApi } from "../../api/work";
+import { agentsOffLine } from "./agentsOff";
+import "./admin.css";
+
+export interface KillSwitchProps {
+  api: Pick<WorkAgentSettingsApi, "agentSwitch" | "setAgentSwitch">;
+  orgId: string;
+  isOrgAdmin: boolean;      // from the Hub's membership read; courtesy only (decision 2)
+  nameOf: (u: string) => string;
+}
+
+export function KillSwitch({ api, orgId, isOrgAdmin, nameOf }: KillSwitchProps) {
+  const [sw, setSw] = useState<AgentSwitch | null>(null);
+  const [reason, setReason] = useState("");
+  const [refused, setRefused] = useState<string | null>(null);
+  useEffect(() => { void api.agentSwitch(orgId).then(setSw); }, [api, orgId]);
+  if (!sw) return <p className="ks-fact">Reading the org switch…</p>;
+
+  const line = agentsOffLine(sw, nameOf) ?? "Orchestrators are on";
+  const flip = async () => {
+    if (!reason.trim()) return;
+    try {
+      setSw(await api.setAgentSwitch(orgId, { orchestrators: !sw.orchestrators, reason: reason.trim() }));
+      setReason(""); setRefused(null);
+    } catch (e) {
+      setRefused((e as { code?: string }).code ?? "refused");
+    }
+  };
+  return (
+    <section className="ks" aria-labelledby="ks-title">
+      <h3 id="ks-title">Orchestrators for this org</h3>
+      <p className="ks-fact" role="status">{line}</p>
+      {sw.reason && <p className="ks-reason">{sw.reason}</p>}
+      {isOrgAdmin && (
+        <div className="ks-act">
+          <label htmlFor="ks-why">Reason</label>
+          <input id="ks-why" value={reason} onChange={(e) => setReason(e.target.value)} />
+          <button type="button" disabled={!reason.trim()} onClick={() => void flip()}>
+            {sw.orchestrators ? "Turn Orchestrators off" : "Turn Orchestrators on"}
+          </button>
+          <p className="ks-note">Stops the next turn. Running agents keep running; each person pauses their own.</p>
+        </div>
+      )}
+      {refused && <p className="ks-refused" role="alert">Not changed: {refused}</p>}
+    </section>
+  );
+}
+```
+
+A reason is required both ways, so the fact line always has a *why* beside *who* and *when*. The
+button is a toggle between two named acts, never a switch control with an unlabelled state.
+
+#### Interfaces — complete: `desktop/src/components/admin/AgentGuidance.tsx`
+
+```tsx
+import { useEffect, useState } from "react";
+import type { Guidance, GuidanceScope, ResolvedGuidance, WorkAgentSettingsApi } from "../../api/work";
+import "./admin.css";
+
+const LAYER_WORD: Record<GuidanceScope, string> = { person: "yours", team: "team", org: "org" };
+
+export interface AgentGuidanceProps {
+  api: WorkAgentSettingsApi;
+  teamId: string | null;
+  /** The layers this person may write: always "person"; "team" for a team admin; "org" for an org admin. */
+  writable: { scope: GuidanceScope; scopeId: string }[];
+  nameOf: (u: string) => string;
+}
+
+/** The merged view, most local first (decision 6), then one editor and one history per layer. */
+export function AgentGuidance({ api, teamId, writable, nameOf }: AgentGuidanceProps) {
+  const [merged, setMerged] = useState<ResolvedGuidance | null>(null);
+  const reload = () => void api.resolvedGuidance(teamId).then(setMerged);
+  useEffect(reload, [api, teamId]);
+  return (
+    <section className="ag" aria-labelledby="ag-title">
+      <h3 id="ag-title">Guidance your agents are given</h3>
+      <ol className="ag-merged">
+        {merged?.layers.map((g) => (
+          <li key={g.id} data-layer={g.scope}>
+            <p className="ag-meta">{LAYER_WORD[g.scope]} · v{g.version} · {nameOf(g.author)} · {g.at}</p>
+            <pre className="ag-text">{g.text}</pre>
+          </li>
+        ))}
+      </ol>
+      {writable.map((w) => (
+        <LayerEditor key={w.scope} api={api} scope={w.scope} scopeId={w.scopeId} nameOf={nameOf} onSaved={reload} />
+      ))}
+    </section>
+  );
+}
+
+function LayerEditor(p: { api: WorkAgentSettingsApi; scope: GuidanceScope; scopeId: string;
+  nameOf: (u: string) => string; onSaved: () => void }) {
+  const [history, setHistory] = useState<Guidance[]>([]);
+  const [draft, setDraft] = useState("");
+  const [refused, setRefused] = useState<string | null>(null);
+  const load = () => void p.api.guidanceHistory(p.scope, p.scopeId).then((h) => { setHistory(h); setDraft(h[0]?.text ?? ""); });
+  useEffect(load, [p.api, p.scope, p.scopeId]);
+  const current = history[0]?.version ?? 0;
+  const save = async () => {
+    try {
+      await p.api.putGuidance({ scope: p.scope, scopeId: p.scopeId, text: draft, baseVersion: current });
+      setRefused(null); load(); p.onSaved();
+    } catch (e) { setRefused((e as { code?: string }).code ?? "refused"); }
+  };
+  return (
+    <div className="ag-layer" data-scope={p.scope}>
+      <label htmlFor={`ag-${p.scope}`}>Guidance, {LAYER_WORD[p.scope]}</label>
+      <textarea id={`ag-${p.scope}`} value={draft} onChange={(e) => setDraft(e.target.value)} />
+      <button type="button" disabled={draft === (history[0]?.text ?? "")} onClick={() => void save()}>
+        Save as version {current + 1}
+      </button>
+      {refused && <p role="alert">Not saved: {refused}</p>}
+      <ol className="ag-history" aria-label={`Versions, ${LAYER_WORD[p.scope]}`}>
+        {history.map((g) => (
+          <li key={g.version}>
+            <span className="ag-meta">v{g.version} · {p.nameOf(g.author)} · {g.at}</span>
+            <button type="button" onClick={() => setDraft(g.text)}>Copy into editor</button>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+```
+
+`.ag-meta` and `.ks-fact` set `font-family: var(--mono)` at `var(--t-fact)` with `tabular-nums`
+(SW.11); ids, versions and times are facts. Neither component starts a timer.
+
+#### Interfaces — complete: the edit to `desktop/src/components/desk/Desk.tsx` (task 62's)
+
+Task 62's horizon bar gains one control. The props below are **added** to task 62's `DeskProps`;
+nothing of task 62's is renamed.
+
+```tsx
+// Added to DeskProps (task 62):
+  /** Team projects the caller is a member of; empty in local mode. */
+  teamProjectIds: string[];
+  pauseMine: (projectId: string) => Promise<{ paused: string[] }>;
+
+// Added inside the horizon bar, after task 62's own controls:
+<PauseAll teamProjectIds={props.teamProjectIds} pauseMine={props.pauseMine} />
+
+// Added at the foot of Desk.tsx:
+function PauseAll({ teamProjectIds, pauseMine }: Pick<DeskProps, "teamProjectIds" | "pauseMine">) {
+  const [done, setDone] = useState<string | null>(null);
+  if (teamProjectIds.length === 0) {
+    return <button type="button" className="desk-pause" disabled title="local sessions have no pause">pause all</button>;
+  }
+  const run = async () => {
+    const results = await Promise.all(teamProjectIds.map((p) => pauseMine(p)));
+    const n = results.reduce((a, r) => a + r.paused.length, 0);
+    setDone(n === 0 ? "none of your agents was running" : `${n} agents paused, yours only`);
+  };
+  return (
+    <>
+      <button type="button" className="desk-pause" onClick={() => void run()}>pause all</button>
+      {done && <span className="desk-pause-fact" role="status">{done}</span>}
+    </>
+  );
+}
+```
+
+*"3 agents paused, yours only"* is a count of a completed act, with no "of" in it, so no "N of M"
+guard can read it as progress; the Desk test runs `expectNoPrediction` over it. The request names only a project; Fleet resolves *the caller's own* agents from the
+caller's token (TM-37's human pause), so no teammate id can be sent.
+
+#### Interfaces — complete: `desktop/src/components/admin/admin.css`
+
+```css
+.ks, .ag { display: grid; gap: var(--space-2); }
+.ks-fact, .ag-meta, .desk-pause-fact {
+  font-family: var(--mono); font-size: var(--t-fact); font-variant-numeric: tabular-nums; color: var(--ink-2);
+}
+.ks-refused { color: var(--danger-ink); }
+.ag-text { font-family: var(--sans); white-space: pre-wrap; margin: 0; }
+.ag-merged > li + li { border-top: 1px solid var(--line-1); padding-top: var(--space-2); }
+.ag-history { font-size: var(--t-fact); }
+```
+
+`--ink-3` carries no fact (skeleton, *Faces*). Token names other than SW.11's are task 26's; step 1
+renames here if task 26 named them otherwise.
+
+#### Interfaces — complete: `docs/work/agent-rules.md`
+
+Each rule is one line of ours, then `Source:` with a repository-relative file and a heading that
+exists in it, in backticks; the doc test reads exactly that shape.
+
+```markdown
+# How agents behave in Panacea App
+
+These are the rules every agent in Panacea App follows, and the product enforces them. Each names
+where it comes from.
+
+1. **Nobody steers another person's agent.** Your agents answer to you; a teammate's answer to
+   them, and the only channel between people's agents is their Orchestrators.
+   Source: `.claude/worktrees/team/docs/superpowers/planning/2026-09-24-team-collaboration/05-design.md` `## 4. The Orchestrator and its workers (OD-16)`
+2. **Agents cannot claim progress.** No agent writes a percentage, a bar or "N of M"; what shows
+   is what was observed.
+   Source: `docs/AGENTIC-UX.md` `## 4. Principles`
+3. **Agents propose evidence and people record it.** A proposal never counts until a person
+   presses *Record*, with a reason, as themselves.
+   Source: `docs/superpowers/planning/2026-09-25-linear-parity/05-design.md` `### 2.1 Agents that are real teammates on the issue`
+4. **Agent text is marked.** Every field an agent wrote carries `text·A`; a person's carries `text·H`.
+   Source: `.claude/worktrees/team/docs/superpowers/planning/2026-09-24-team-collaboration/05-design.md` `## 3. The data model`
+5. **Agent text reaches another agent only quoted.** It arrives as tool output in a fixed envelope
+   naming its author, never as instructions.
+   Source: `.claude/worktrees/team/docs/superpowers/planning/2026-09-24-team-collaboration/05-design.md` `### 7.1 The chain OD-16 adds`
+6. **No confidence number without its history.** An agent shows a confidence figure only where a
+   calibration record exists.
+   Source: `docs/AGENTIC-UX.md` `## 10. Anti-patterns`
+7. **An org admin can turn Orchestrators off.** It stops every next turn; each person pauses
+   their own running agents.
+   Source: `docs/superpowers/planning/2026-09-25-linear-parity/05-design.md` `### L. Linear's own AI (L-155 to L-178)`
+```
+
+Rules 1, 4 and 5 cite the team design at its path **on `feat/team-mode`**; once that branch is
+sync-merged the path becomes `docs/superpowers/planning/2026-09-24-team-collaboration/05-design.md`
+and step 5 rewrites the three `Source:` lines (the doc test fails until it does). Rule 7's source
+row is L-158's section; its words are ours.
+
