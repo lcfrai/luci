@@ -1260,7 +1260,7 @@ The three aliases are unexported and exist only in this file; task 16 deletes th
 
 #### Tests first: `fake_work_test.go`, complete, each test with the mutant it kills
 
-Three blocks; the file is their concatenation. It is `package hubclient`, so it reuses
+Four blocks; the file is their concatenation. It is `package hubclient`, so it reuses
 `fake_test.go`'s helpers (`bg`, `must`, `noErr`, `wantProblem`, `newFake`, `withTeam`,
 `withProject`, `branchBrief`, `write`; `fake_test.go:19-110` at `9f2fa31`). Block 1 is the rig.
 
@@ -1509,4 +1509,88 @@ func TestAHandSetDoneNeedsAReason(t *testing.T) {
 		t.Errorf("a chore's hand-set done reads %q, want no_criteria", h.Proof)
 	}
 }
+
+// Mutant: a person setting a fact state by hand; a repeated fact that writes a
+// second event (task 22's hook fires twice).
+func TestFactStatesNeedTheirFactCause(t *testing.T) {
+	r := newWorkRig(t)
+	is := r.serving(t, "c1")
+	_, err := r.grace.MoveIssueState(bg, is.Head.ID, move(hubapi.StateStarted, hubapi.CauseHand))
+	wantProblem(t, err, 422, fkStateNotAllowed, "from", "triage", "to", "started", "cause", "hand")
+	for range 2 {
+		must(r.grace.MoveIssueState(bg, is.Head.ID, move(hubapi.StateStarted, hubapi.CauseLaneBound)))(t)
+	}
+	if n := len(eventsOf(t, r.ada, fkEventIssueState)); n != 1 {
+		t.Errorf("issue.state events = %d, want 1", n)
+	}
+	_, err = r.grace.MoveIssueState(bg, is.Head.ID, move(hubapi.StateDone, hubapi.CauseEvidenceObserved))
+	wantProblem(t, err, 422, fkStateNotAllowed, "from", "started", "to", "done")
+}
+
+// Mutant: a second landing that silently replaces the first proof; a chore
+// that waits at landed forever.
+func TestALandingIsRecordedOnce(t *testing.T) {
+	r := newWorkRig(t)
+	is := r.serving(t, "c1")
+	land := func(commit string) (hubapi.IssueHead, error) {
+		m := move(hubapi.StateLanded, hubapi.CauseLandTrailer)
+		m.LandCommit = commit
+		return r.grace.MoveIssueState(bg, is.Head.ID, m)
+	}
+	h := must(land(commitA))(t)
+	if h.State != hubapi.StateLanded || h.Proof != hubapi.ProofWaiting || h.LandCommit != commitA {
+		t.Fatalf("head = %s, %q, %s; want landed, waiting, A", h.State, h.Proof, h.LandCommit)
+	}
+	must(land(commitA))(t) // the same commit: 200, no write
+	_, err := land(commitB)
+	wantProblem(t, err, 409, fkStateConflict, "landCommit", commitA)
+	if n := len(eventsOf(t, r.ada, fkEventIssueState)); n != 1 {
+		t.Errorf("issue.state events = %d, want 1", n)
+	}
+	c := must(r.grace.CreateIssue(bg, r.p.ID, chore("tidy")))(t)
+	m := move(hubapi.StateLanded, hubapi.CauseLandTrailer)
+	m.LandCommit = commitA
+	if h := must(r.grace.MoveIssueState(bg, c.Head.ID, m))(t); h.State != hubapi.StateDone || h.Proof != hubapi.ProofNoCriteria {
+		t.Errorf("a chore lands at %s, %q; want done, no_criteria", h.State, h.Proof)
+	}
+}
+
+// Mutant: done on the first criterion's evidence; evidence at another commit
+// accepted; a partial evidence move refused instead of recorded.
+func TestEvidenceClosesWhenEveryCriterionIsCited(t *testing.T) {
+	r := newWorkRig(t)
+	is := r.serving(t, "c1", "c2")
+	m := move(hubapi.StateLanded, hubapi.CauseLandTrailer)
+	m.LandCommit = commitA
+	must(r.grace.MoveIssueState(bg, is.Head.ID, m))(t)
+	record := func(criterion, commit string) string {
+		return must(r.grace.RecordEvidence(bg, hubapi.EvidenceRequest{Repo: workRemote.RepoKey, BriefKey: r.briefKey,
+			CriterionID: criterion, CriterionDigest: hubapi.DigestOf([]byte(criterion)), Commit: commit,
+			Verdict: hubapi.VerdictSettled, Because: "the check exited 0"}))(t).ID
+	}
+	cite := func(ids ...string) (hubapi.IssueHead, error) {
+		e := move(hubapi.StateDone, hubapi.CauseEvidenceObserved)
+		e.Evidence = ids
+		return r.grace.MoveIssueState(bg, is.Head.ID, e)
+	}
+	_, err := cite(record("c1", commitB))
+	wantProblem(t, err, 422, fkEvidenceNotApplicable, "field", "evidence[0]", "why", "commit")
+	if h := must(cite(record("c1", commitA)))(t); h.State != hubapi.StateLanded || h.Proof != hubapi.ProofWaiting {
+		t.Fatalf("after c1: %s, %q; want landed, waiting", h.State, h.Proof)
+	}
+	if h := must(cite(record("c2", commitA)))(t); h.State != hubapi.StateDone || h.Proof != hubapi.ProofProven {
+		t.Errorf("after c2: %s, %q; want done, proven", h.State, h.Proof)
+	}
+}
 ```
+
+Eleven top-level tests: `TestIssueNumbersAreGaplessUnderRace`, `TestWorkRolesAreChecked`,
+`TestAKeyChangeChangesAliasesNotKeys`, `TestACreateIsOneIssueEvent`,
+`TestAStaleBaseIsAConflictAndWritesNothing`, `TestAPatchWritesNoRevision`,
+`TestTheStoredDigestIsTheCanonicalOne`, `TestAHandSetDoneNeedsAReason`,
+`TestFactStatesNeedTheirFactCause`, `TestALandingIsRecordedOnce`,
+`TestEvidenceClosesWhenEveryCriterionIsCited`; and one compile-time check, `var _ Hub =
+(*Fake)(nil)` and `(*Client)(nil)` (`hubclient.go:147-148`), which kills a Work method missing
+from the fake or the client stub. Every test that counts events reads H05's `Changes`, and the
+evidence test calls H05's `RecordEvidence`, so they run once H05 is merged, which is this task's
+dependency.
