@@ -29,7 +29,7 @@
 | **P11** | Is `/key/delete` effective at once? | the first call after the delete is refused | none needed: the gatekeeper's binding revocation (≤ 10 s) enforces; the delay measured is recorded for task 07 |
 | **P12** | Does `/key/info` report per-key spend? | `info.spend > 0` within 60 s of a call | task 09's sweep needs another source (spend logs by key hash) |
 | **P13** | Does the Global path forward what the CLI sends, unchanged? | a top-level `zz_future_field`, `thinking`, and the `anthropic-beta` header all reach the fake from a model **without** `drop_params` | task 02's Global group, and the gatekeeper's docs-mandated pass-through (task 11) is undone downstream; a blocker for OD-20 raised to the owner |
-| **P14** | Can a body `fallbacks` on an `au/` group reach the Global upstream? | a call to `au/claude-opus-4-8` carrying `"fallbacks": ["global/claude-opus-4-8"]` and `"mock_testing_fallbacks": true`, made directly to LiteLLM with two production-shaped keys (an AU-minted key naming only `au/*`, and a Global-minted key naming both groups, which is what a raise leaves live), adds **no** request to `fakeanthropic-global` for either key, and adds none to `fakeanthropic-au` (so the mocked failure did fire) | **blocker for OD-19's AU route**, raised to the owner like P06. A FAIL on the both-groups key alone means LiteLLM honours a body fallback within a key's models: task 11's `ControlFields` is then the only guard on the request, and task 07's decision (h) bounds how long such a key lives after a raise. A FAIL on the AU-only key means LiteLLM ignores the key's model list on a fallback, so decision (d) protects nothing |
+| **P14** | Can a body `fallbacks` on an `au/` group reach the Global upstream? | a call to `au/claude-opus-4-8` carrying `"fallbacks": ["global/claude-opus-4-8"]` and `"mock_testing_fallbacks": true`, made directly to LiteLLM with two production-shaped keys (an AU-minted key naming only `au/*`, and a Global-minted key naming both groups, which is what a raise leaves live), adds **no** request to `fakeanthropic-global` for either key, and adds none to `fakeanthropic-au` (so the mocked failure did fire). Both keys must mint (a key that did not is a FAIL) and both calls must reach the router (a status of 0, 401 or 403 is UNKNOWN), and the stack must be in task 17's fake mode (probe.sh exits 2 otherwise), so "nothing at either fake" is never a request that went nowhere or to the real provider | **blocker for OD-19's AU route**, raised to the owner like P06. A FAIL on the both-groups key alone means LiteLLM honours a body fallback within a key's models: task 11's `ControlFields` is then the only guard on the request, and task 07's decision (h) bounds how long such a key lives after a raise. A FAIL on the AU-only key means LiteLLM ignores the key's model list on a fallback, so decision (d) protects nothing |
 
 **Files:**
 - `deploy/local/gateway/probe.sh` — the driver (bash) and one embedded Python program, run in three modes: `self-test` on the host, `client` inside the LiteLLM container, `verdict` on the host for the database probes (new)
@@ -38,7 +38,7 @@
 **Interfaces:**
 - Produces:
   - `bash deploy/local/gateway/probe.sh --self-test` → `PASS: probe self-test (<n> cases)`, no Docker needed
-  - `bash deploy/local/gateway/probe.sh` → one line per probe, `P<nn> PASS|FAIL|UNKNOWN <evidence>`, in id order, plus a header line `digest <repo@sha256:…>`; exit 0 unless P06, P13 or P14 is `FAIL` (exit 3) or the stack is not up (exit 2)
+  - `bash deploy/local/gateway/probe.sh` → one line per probe, `P<nn> PASS|FAIL|UNKNOWN <evidence>`, in id order, plus a header line `digest <repo@sha256:…>`; exit 0 unless P06, P13 or P14 is `FAIL` (exit 3), or the stack is not up or not in task 17's fake mode (exit 2, checked through `/model/info` before any probe runs)
   - the results document, whose `#p07` anchor task 02's loader accepts as `apiBaseEvidence` (task 02, `models.yaml`'s `litellm.apiBaseForm`)
 - Consumes: task 17's running stack (`docker compose` in `deploy/local/gateway`, the secrets, the network `panacea-app-gateway`, services `litellm`, `postgres`, `fakeanthropic-global`, and `fakeanthropic-au` for P14, `task-17.md:47`); task 16's `GET /_captured` record fields `seq`, `path`, `headerNames`, `bodyKeys`; task 02's rendered group names `global/claude-opus-4-8` (the public id the docs use as their example) and `au/claude-opus-4-8` (`task-02.md:103`); task 11's `proxy.ControlFields`, of which P14 sends two.
 - Consumed by: task 02 (`apiBaseForm`, pricing), task 07 (P01, P02, P11, P14), task 09 (P12), task 11 (P08, P14), task 06 (P03 to P05), task 23 (the digest it runs against), task 25 (what stays **UNVERIFIED**).
@@ -110,6 +110,18 @@ def self_test():
         ("p14 both leaks", v_p14([("au-only", 0, 0, 200), ("both", 1, 0, 200)])[0], "FAIL"),
         ("p14 au-only leaks", v_p14([("au-only", 1, 0, 200), ("both", 0, 0, 400)])[0], "FAIL"),
         ("p14 never fired", v_p14([("au-only", 0, 1, 200), ("both", 0, 0, 200)])[0], "UNKNOWN"),
+        # A refused or absent key sends nothing to either fake (kills a PASS that
+        # never looks at the status, and a mint failure read as "held"; re-review R-2).
+        ("p14 unauthorised", v_p14([("au-only", 0, 0, 401), ("both", 0, 0, 200)])[0], "UNKNOWN"),
+        ("p14 no key", v_p14([("au-only", 0, 0, None), ("both", 0, 0, 200)])[0], "FAIL"),
+        # probe.sh runs nothing unless both groups go to their fakes (kills a P14
+        # PASS, and real provider calls, in task 17's anthropic mode; re-review R-2).
+        ("upstreams fake", v_upstreams([("global/claude-opus-4-8", "http://fakeanthropic-global:4900/v1/messages"),
+                                        ("au/claude-opus-4-8", "http://fakeanthropic-au:4901")]), None),
+        ("upstreams real global", v_upstreams([("global/claude-opus-4-8", "https://api.anthropic.com/v1/messages"),
+                                               ("au/claude-opus-4-8", "http://fakeanthropic-au:4901")]) is None, False),
+        ("upstreams no api_base", v_upstreams([("global/claude-opus-4-8", None),
+                                               ("au/claude-opus-4-8", "http://fakeanthropic-au:4901")]) is None, False),
         # Evidence never carries a key (kills printing a reply that echoes one).
         ("redact", "sk-pa-abc123" in redact('{"key":"sk-pa-abc123"}'), False),
     ]
@@ -136,7 +148,7 @@ Expected: exit 1 with `NameError: name 'v_p01' is not defined`.
 These go **above** `self_test` in the embedded program. Every verdict returns `(verdict, evidence)`; `v_p07` adds the form task 02 records.
 
 ```python
-import json, os, re, secrets, sys, time, urllib.error, urllib.request
+import json, os, re, secrets, sys, time, urllib.error, urllib.parse, urllib.request
 
 def redact(s):
     """Evidence only: no sk- key survives, and nothing longer than 160 chars."""
@@ -234,15 +246,42 @@ def v_p13(body_keys, header_names):
     return "PASS", "unknown body field, thinking and anthropic-beta all forwarded"
 
 def v_p14(results):
-    """results: (key shape, new global-fake records, new au-fake records, status)."""
+    """results: (key shape, new global-fake records, new au-fake records, status).
+    A status of None means the key never minted (re-review R-2)."""
     leaked = [shape for shape, g, _, _ in results if g]
     if leaked:
         return "FAIL", (f"a body fallback on au/ reached the global upstream for {leaked}: "
                         "BLOCKER for OD-19's AU route")
+    unminted = [shape for shape, _, _, st in results if st is None]
+    if unminted:
+        return "FAIL", f"could not mint the P14 key for {unminted}: BLOCKER for OD-19's AU route"
+    # 0 is no answer at all, 401 and 403 a key LiteLLM refused: the request never
+    # reached the router, so "nothing at either fake" measured nothing.
+    refused = [(shape, st) for shape, _, _, st in results if st in (0, 401, 403)]
+    if refused:
+        return "UNKNOWN", f"the P14 request never reached the router: {refused}"
     unfired = [shape for shape, _, a, _ in results if a]
     if unfired:
         return "UNKNOWN", f"mock_testing_fallbacks ignored, the au primary answered for {unfired}"
     return "PASS", "; ".join(f"{shape}: status {st}, nothing at either fake" for shape, _, _, st in results)
+
+def v_upstreams(rows):
+    """rows: (model_name, api_base) pairs from LiteLLM's /model/info. None when every
+    global/ group goes to fakeanthropic-global and every au/ group to fakeanthropic-au,
+    else why not. Task 17's anthropic mode points global/ at the real provider: a
+    leaked P14 fallback would reach it, record nothing at the fake, and pass, and
+    every probe would be a real provider call (re-review R-2)."""
+    want = {"global/": "fakeanthropic-global", "au/": "fakeanthropic-au"}
+    seen = set()
+    for name, base in rows:
+        prefix = next((p for p in want if (name or "").startswith(p)), None)
+        host = urllib.parse.urlparse(base or "").hostname
+        if prefix is None or host != want[prefix]:
+            return f"{name} goes to {host or 'no api_base'}, not its fake"
+        seen.add(prefix)
+    if seen != set(want):
+        return f"groups found {sorted(seen)}, want both global/ and au/"
+    return None
 ```
 
 - [ ] **Step 4: Write the client, the half that runs inside the LiteLLM container**
@@ -360,6 +399,9 @@ def client(run, canary, tmp_master):
     p14 = []
     for shape, models in (("au-only", [AU_MODEL]), ("both", [AU_MODEL, MODEL])):
         k14 = prod_key(master, u("p14"), u("t14"), models)
+        if not k14:                           # v_p14 reads None as "never minted": FAIL
+            p14.append((shape, 0, 0, None))
+            continue
         g0, a0 = fake_seq(FAKE), fake_seq(FAKE_AU)
         st = call("POST", LL + "/v1/messages", k14, msg(AU_MODEL, "p14",
                   fallbacks=[MODEL], mock_testing_fallbacks=True))[0]
@@ -436,6 +478,12 @@ if __name__ == "__main__":
     mode = sys.argv[1]
     if mode == "self-test":
         self_test()
+    elif mode == "upstreams":                 # probe.sh runs this first; not "OK" means exit 2
+        master = open("/run/secrets/master_key").read().strip()
+        st, b = call("GET", LL + "/model/info", master)
+        rows = [] if st != 200 else [(m.get("model_name"), (m.get("litellm_params") or {}).get("api_base"))
+                                     for m in json.loads(b).get("data") or []]
+        print("OK" if st == 200 and not v_upstreams(rows) else f"status {st}: {v_upstreams(rows)}")
     elif mode == "client":
         client(sys.argv[2], sys.argv[3], sys.argv[4])
     elif mode == "verdict-p06":
@@ -475,7 +523,8 @@ general_settings:
 #!/usr/bin/env bash
 # probe.sh [--self-test]: what the pinned LiteLLM actually does (phase 6, task 18).
 # Runs against task 17's stack; prints "P<nn> PASS|FAIL|UNKNOWN <evidence>".
-# Never prints a key or a body. Exit 0; 2 if the stack is not up; 3 if P06, P13 or P14 FAILs.
+# Never prints a key or a body. Exit 0; 2 if the stack is not up or not in fake mode;
+# 3 if P06, P13 or P14 FAILs.
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 cd "$here"
@@ -494,6 +543,13 @@ if [ "${1:-}" = "--self-test" ]; then emit_py | python3 - self-test; exit; fi
 ll="$(docker compose ps -q litellm 2>/dev/null || true)"
 if [ -z "$ll" ] || [ "$(docker inspect -f '{{.State.Health.Status}}' "$ll")" != healthy ]; then
   echo "probe: task 17's stack is not up; run docker compose up -d --wait" >&2
+  exit 2
+fi
+# Fake mode only (re-review R-2). In anthropic mode global/ is the real provider:
+# every probe would be a real call, and a leaked P14 fallback would pass unseen.
+up="$(emit_py | docker compose exec -T litellm python3 - upstreams 2>/dev/null || true)"
+if [ "$up" != OK ]; then
+  echo "probe: needs PANACEA_APP_GATEWAY_LOCAL_UPSTREAM=fake; /model/info says: ${up:-no answer}" >&2
   exit 2
 fi
 img="$(docker inspect -f '{{.Config.Image}}' "$ll")"
@@ -559,7 +615,7 @@ A row count of `0` because the table name is wrong would make P06 `UNKNOWN`, nev
 ~/.claude/tools/claudezsh/claudezsh 'bash deploy/local/gateway/probe.sh --self-test'
 ```
 
-Expected: `PASS: probe self-test (35 cases)`. Then change `v_p06`'s first test to `if rows < 0:` and re-run: it must fail with `FAIL: p06 no row: got 'PASS', want 'UNKNOWN'`. Restore it. A P06 that passes with no spend row would declare zero retention on a LiteLLM that logged nothing at all. Do the same for P14: change `v_p14`'s `if unfired:` to `if False:` and re-run. It must fail with `FAIL: p14 never fired: got 'PASS', want 'UNKNOWN'`. Restore it. A P14 that passes when LiteLLM ignored `mock_testing_fallbacks` would clear the AU route on a fallback that never ran.
+Expected: `PASS: probe self-test (40 cases)`. Then change `v_p06`'s first test to `if rows < 0:` and re-run: it must fail with `FAIL: p06 no row: got 'PASS', want 'UNKNOWN'`. Restore it. A P06 that passes with no spend row would declare zero retention on a LiteLLM that logged nothing at all. Do the same for P14: change `v_p14`'s `if unfired:` to `if False:` and re-run. It must fail with `FAIL: p14 never fired: got 'PASS', want 'UNKNOWN'`. Restore it. A P14 that passes when LiteLLM ignored `mock_testing_fallbacks` would clear the AU route on a fallback that never ran. Then change `v_p14`'s `if refused:` to `if False:`: it must fail with `FAIL: p14 unauthorised: got 'PASS', want 'UNKNOWN'`. Restore it. Then change `v_upstreams`'s `host != want[prefix]` to `False`: it must fail with `FAIL: upstreams real global: got True, want False`. Restore it. The first would clear the AU route on a request LiteLLM refused before routing; the second would run every probe against the real provider (re-review R-2).
 
 - [ ] **Step 7: Run the probe against the stack**
 
@@ -671,6 +727,7 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
 - **That a PASS holds for any other digest.** LiteLLM changes quickly; task 17's pin and this document move together.
 - **That P06's PASS is the whole of ZDR.** It covers LiteLLM's database and stdout. The upstreams' retention terms are the org's contracts (owner question Q3), and the gatekeeper's and keysmith's logs are tasks 12 and 08's canary tests.
 - **That the admin paths and spend-log names are right.** They are LiteLLM's API as remembered; a wrong one shows as `FAIL` or `UNKNOWN` with its status, which tells task 04 what to change, but this task does not correct task 04 itself.
+- **That `/model/info` shows each group's `api_base`.** The fake-mode gate reads `litellm_params.api_base` from it (training knowledge of LiteLLM, **UNVERIFIED** against the pinned image). If the image hides the field, the gate fails closed: probe.sh exits 2 with `no api_base` on every run, and the fix is to read the same pairs from the container's `/app/config.yaml`, never to drop the gate.
 - **That P14 covers every way out of Australia.** It sends two of task 11's twenty-four `ControlFields` (`fallbacks`, `mock_testing_fallbacks`) straight to LiteLLM, and forces the primary to fail with LiteLLM's own mock. It measures neither a real upstream failure, nor `context_window_fallbacks`, nor the other twenty-two names (the Bedrock credential fields included). The gatekeeper's drop of all twenty-four is task 11's unit tests, not a probe.
 - **That P03 to P05 name the dimension that refused.** Each exhausts one budget and sets the other two out of reach, so the dimension is known by construction. LiteLLM's refusal text is only matched for the word `budget`.
 - **That P09's timing is precise.** It measures on one host, inside Docker, with a 1 s ping gap; it tells buffering from relaying and nothing finer.
