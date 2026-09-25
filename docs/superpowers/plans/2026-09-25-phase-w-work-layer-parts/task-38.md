@@ -47,7 +47,8 @@ list. Task 40 promotes what the owner kept into `components/work/` and deletes t
    group brightens only its gutter.
 6. **`moves.hold`, faked honestly.** *Replay a land* moves EP-150 from `in_review` to `landed` in
    the prototype's own state. The list order is frozen at mount, so the row stays, takes its new
-   glyph, sets `data-unseen="true"` (task 34's flash or tick) and shows one mono cause line; the
+   glyph, sets `data-changed="unseen"` (task 34's flash or tick, the attribute task 41 also
+   sets, `task-34.md:23-25`) and shows one mono cause line; the
    group header gains `· 1 moving`, and *Apply held changes* re-sorts. Task 41 builds the real
    rule; this only lets the owner see it.
 7. **Plan** (05 §4.1, `G P`): Triage, Backlog, every criterion with its issues, and *My issues*.
@@ -291,7 +292,7 @@ export function IssueRow(props: RowFacts & { selected: boolean; cursor: boolean;
   const mine = head.assignee?.id === props.readerId;
   return (
     <div role="option" aria-selected={props.selected} tabIndex={props.cursor ? 0 : -1}
-      className="pw-row" data-issue={head.id} data-unseen={props.unseen ? "true" : undefined}
+      className="pw-row" data-issue={head.id} data-changed={props.unseen ? "unseen" : undefined}
       onFocus={props.onFocus}>
       <div className="pw-ir">
         <span className="pw-sel">{props.selected ? <MarkGlyph kind="selected" size={14} /> : null}</span>
@@ -508,4 +509,69 @@ An issue can sit in two bands (EP-167 is under its criterion and in *My issues*)
 key is band-scoped here. Task 45 decides whether the product shows it twice; the owner sees both
 readings at task 39. Plan's Triage, Backlog and *My issues* use `Group` with `criterionId: null`, so
 they draw no node and no line: only a criterion is on the thread.
+
+#### Interfaces — complete: `desktop/src/prototype/work/prototype.css`
+
+Tokens only (built: `--r-ctl`, `--r-chip`, `--mono`, `--sans`, `--ease`, `--dur-fast` in
+`tokens.css`; task 26: `--row-h`, `--s-*`, `--t-*`, `--accent-tint`, `--inset`, `--surface`). No
+hex, no `rgba()`, no `transition: all`; the flash and the tick are task 34's, keyed on
+`data-changed="unseen"`, so this file draws no motion of its own.
+
+```css
+/* desktop/src/prototype/work/prototype.css — task 38. Owns .pw-* only. Deleted by task 40. */
+.pw-screen { display: flex; flex-direction: column; min-height: 0; height: 100%; }
+.pw-branch, .pw-kbd, .pw-alias, .pw-gs, .pw-agent-who, .pw-live, .pw-cause {
+  font-family: var(--mono); font-size: var(--t-fact); line-height: var(--t-fact-lh);
+  font-variant-numeric: tabular-nums;
+}
+.pw-branch { color: var(--ink-2); }
+.pw-grouping { font: 400 var(--t-meta)/var(--t-meta-lh) var(--sans); color: var(--ink-2); }
+.pw-kbd { color: var(--ink-3); }
+.pw-ghost {
+  font: 500 var(--t-ui)/var(--t-ui-lh) var(--sans); color: var(--ink-2); background: none;
+  border: 0; border-radius: var(--r-ctl); padding: var(--s-1) var(--s-2); cursor: default;
+}
+.pw-ghost:hover { background: var(--hover); color: var(--ink); }
+.pw-ghost:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--accent-ring); }
+.pw-dev { display: flex; gap: var(--s-2); padding: var(--s-1) var(--s-4); box-shadow: 0 1px 0 var(--line-soft); }
+.pw-list { flex: 1; min-height: 0; overflow: auto; padding: var(--s-2) var(--s-4) var(--s-6); }
+
+.pw-grp { margin-bottom: var(--s-3); }
+.pw-gh { display: flex; align-items: center; gap: var(--s-2); padding: var(--s-2) var(--s-2) var(--s-1) var(--s-1);
+  border-radius: var(--r-ctl); }
+.pw-gh-gap { width: 14px; flex: none; }
+.pw-gt { font: 600 var(--t-head)/var(--t-head-lh) var(--sans); color: var(--ink); min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pw-conv { font: 400 var(--t-meta)/var(--t-meta-lh) var(--sans); color: var(--ink-2); }
+.pw-gs { margin-left: auto; color: var(--ink-2); white-space: nowrap; }
+
+.pw-row { position: relative; border-radius: var(--r-ctl); outline: none; }
+.pw-ir { display: grid; grid-template-columns: 16px 16px 62px minmax(0, 1fr) auto; align-items: center;
+  gap: var(--s-2); min-height: var(--row-h); padding: 0 var(--s-2); }
+.pw-row:hover { background: var(--surface); }
+.pw-row[tabindex="0"] { background: var(--inset); }
+.pw-row:focus-visible { box-shadow: 0 0 0 2px var(--accent-ring); }
+/* Selected is a ring and a check (decision 5); lit never reaches a row (task 36). */
+.pw-row[aria-selected="true"] { background: var(--accent-tint); box-shadow: inset 0 0 0 1px var(--accent-ring); }
+.pw-sel { display: inline-flex; color: var(--accent); }
+.pw-alias { color: var(--ink-2); }
+.pw-title { font: 400 var(--t-body)/var(--t-body-lh) var(--sans); color: var(--ink); min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pw-who { font: 400 var(--t-meta)/var(--t-meta-lh) var(--sans); color: var(--ink-2); white-space: nowrap; }
+.pw-agent { display: grid; grid-template-columns: 16px auto minmax(0, 1fr) auto; align-items: center;
+  gap: var(--s-2); padding: 0 var(--s-2) var(--s-1) calc(16px + 16px + var(--s-2) * 2 + var(--s-2)); }
+.pw-agent-who { color: var(--ink-2); }
+.pw-agent-meaning, .pw-touch { font: 400 var(--t-meta)/var(--t-meta-lh) var(--sans); color: var(--ink-2);
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pw-touch { padding: 0 var(--s-2) var(--s-1) calc(16px + 16px + 62px + var(--s-2) * 3 + var(--s-2)); }
+.pw-live { color: var(--ink-3); }
+.pw-cause { color: var(--ink-2); padding: 0 var(--s-2) var(--s-1) calc(16px + 16px + 62px + var(--s-2) * 3 + var(--s-2)); }
+.pw-ghostrow { display: flex; justify-content: space-between; min-height: var(--row-h); align-items: center;
+  padding: 0 var(--s-2) 0 calc(16px + 16px + var(--s-2) * 3); color: var(--ink-2);
+  font: 400 var(--t-meta)/var(--t-meta-lh) var(--sans); }
+```
+
+`--t-head`, `--t-body`, `--t-meta` and `--t-ui` are task 26's; `.pw-gt` uses `--t-head` because a
+criterion header is the list's heading. The selected ring is `inset`, so a selected row that is
+also focused shows both rings, the outer one the focus.
 
