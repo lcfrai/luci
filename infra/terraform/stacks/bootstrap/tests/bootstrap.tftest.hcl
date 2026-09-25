@@ -182,6 +182,39 @@ run "a_reader_that_is_a_writer_in_another_case_is_rejected" {
   expect_failures = [var.state_reader_object_ids]
 }
 
+# Case is not the only second spelling (task 02 fix round 2, third agent: probes BR1 and WS1
+# planned on the case-folded check). azurerm does not check principal_id at plan, so a reader
+# typed {GUID}, or with a stray space, passed the disjointness check against the same GUID bare
+# among the writers. Every object id must be a bare GUID. The three runs put the stray text at
+# both ends, at the end only and at the start only, on both lists between them, so a check
+# missing on either list or anchored at one end only finds nothing wrong.
+run "a_reader_in_braces_is_rejected" {
+  command = plan
+  variables {
+    state_writer_object_ids = ["33333333-3333-3333-3333-333333333333"]
+    state_reader_object_ids = ["{33333333-3333-3333-3333-333333333333}"]
+  }
+  expect_failures = [var.state_reader_object_ids]
+}
+
+run "a_writer_with_a_trailing_space_is_rejected" {
+  command = plan
+  variables {
+    state_writer_object_ids = ["11111111-1111-1111-1111-111111111111", "33333333-3333-3333-3333-333333333333 "]
+    state_reader_object_ids = ["33333333-3333-3333-3333-333333333333"]
+  }
+  expect_failures = [var.state_writer_object_ids]
+}
+
+run "a_reader_with_a_leading_space_is_rejected" {
+  command = plan
+  variables {
+    state_writer_object_ids = ["33333333-3333-3333-3333-333333333333"]
+    state_reader_object_ids = [" 33333333-3333-3333-3333-333333333333"]
+  }
+  expect_failures = [var.state_reader_object_ids]
+}
+
 run "the_product_group_exists_before_foundation" {
   command = plan
   assert {
