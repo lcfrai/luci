@@ -243,8 +243,8 @@ shadow the route. A test pins it (`TestSearchIsNotAnIssueID`).
 **`eraseIssue`**, inside `s.Write`, in this order: the principal is not an org admin →
 `server.Forbidden("org_admin")`; `server.Decode[hubapi.EraseRequest]`; `reason` trimmed 1-500
 characters → else 400 `field: "reason"`; `IssueForErase` → not found is 404 `issue_not_found`;
-`EraseIssue`; `emitWork(tx, EventIssueErased, team, project, issueID,
-IssueErasedData{revisions, comments}, reason)` through `emitWorkErase` (below); 200
+`EraseIssue`; `emitWorkErase(tx, EventIssueErased, team, project, issueID,
+IssueErasedData{revisions, comments}, reason)` (below), appended on a second erase too; 200
 `IssueEraseResponse`. `eraseComment` is the same with `CommentForErase`, `EraseComment`, 404
 `comment_not_found` and `comment.erased`.
 
@@ -260,4 +260,71 @@ task 26's projection lists the two kinds beside `brief.erased`; and task 13's
 these two kinds. How task 26 strips the key (a per-kind list or a rule) is **UNVERIFIED** until its
 code lands; this task adds its two kinds to whichever it is. `IssueErasedData` itself has no
 `reason` field, so nothing but the erase handlers can put one there.
+
+**`searchIssues`**, inside `s.Read`: `q` trimmed 1-`MaxSearchQueryChars` characters → else 400
+`field: "q"`; `limit` 1-50, 0 or absent meaning 50 → else 400 `field: "limit"`; `projectId`, when
+set, a project the caller can read → else 404 `project_not_found`. Then:
+
+1. **The alias first.** When `q` matches `^([A-Z]{2,5})-([1-9][0-9]{0,8})$` after trimming, and the
+   key part satisfies task 02's `ValidProjectKey` (`task-02.md:167`), `IssueByAlias` looks it up
+   in the caller's readable projects **through `project_keys` now**; a hit goes first. The alias
+   is matched case-sensitively, as `DisplayAlias` writes it (`task-02.md:179`); `ep-142` is a
+   title search. An alias is never stored, never parsed as a key, and a key that moved (`EP` →
+   `PAY`) finds the issue under `PAY-142` and not `EP-142`.
+2. **Then the titles.** `SearchIssueTitles` with `EscapeLike(q)`; the alias hit, if any, is
+   dropped from this list so it appears once.
+3. `Page[IssueHead]` with `next: null` (search does not page in W1: at most 50, the desktop narrows
+   `q`), each head built by task 08's projection, so `alias`, `title` and `threadState` read as on
+   every other route.
+
+```jsonc
+// GET /v1/issues/search?q=resume&projectId=pj-…&limit=20     any caller; their readable issues only
+{ "items": [
+    { "id": "is-0a1b…", "projectId": "pj-…", "number": 142, "alias": "EP-142",
+      "title": "Resume a dropped upload", "state": "todo", … IssueHead … } ],
+  "next": null }
+
+// POST /v1/issues/is-0a1b…/erase                               org admin only
+{ "reason": "Client request 2026-11-02, matter 4471" }
+// → 200
+{ "issueId": "is-0a1b…", "erasedRevisions": 3, "erasedComments": 5, "erasedAt": "2026-11-02T01:15:07.000Z" }
+// Again → 200 { … "erasedRevisions": 0, "erasedComments": 0, "erasedAt": "<the first time>" }
+
+// POST /v1/comments/ic-4e2f…/erase                             org admin only
+{ "reason": "Pasted a customer password" }
+// → 200 { "commentId": "ic-4e2f…", "erased": 1, "erasedAt": "…" }
+
+// GET /v1/issues/is-0a1b… after the erase: number, key, alias, digests intact; text gone
+{ "id": "is-0a1b…", "number": 142, "alias": "EP-142", "title": "", "stateReason": "",
+  "headKey": "issue:is-0a1b…@3", "external": { "source": "linear", "externalId": "LIN-88",
+  "url": "", "authorName": "" }, … }
+```
+
+After an erase every text reads `""`, and the record says so: `IssueRevision.erasedAt` and
+`Comment.erasedAt` are set (task 03's decision (e)), and `/v1/refs` answers each revision key
+`erased` with its digest (task 09). An erased issue refuses every further write with 409
+`conflict`, because task 07's guard refuses any `hub_app` change after `erased_at`
+(`task-07.md:164`) and the handlers check first so the answer is a 409, not a 500.
+
+#### Tests to write first, part 1 — `hubapi/work_search_test.go` (pure)
+
+```go
+package hubapi
+
+import "testing"
+
+func TestEscapeLikeMakesTheQueryLiteral(t *testing.T) {
+	for in, want := range map[string]string{
+		"resume": "resume", "50%": `50\%`, "a_b": `a\_b`, `c:\tmp`: `c:\\tmp`, `%_\`: `\%\_\\`,
+	} {
+		if got := EscapeLike(in); got != want {
+			t.Errorf("EscapeLike(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+```
+
+| Test | Mutant it kills |
+|---|---|
+| `TestEscapeLikeMakesTheQueryLiteral` | a search for `50%` or `a_b` that matches every title, and a backslash that escapes the next character instead of itself |
 
