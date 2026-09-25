@@ -482,7 +482,8 @@ func TestMarkerSafe(t *testing.T) {
 		want bool
 	}{
 		{"bf-00000000000000a2", true},
-		{"bf-!a2", true}, // the rule is the marker's, not the Hub's id grammar
+		{"bf-!a2", true},    // the rule is the marker's, not the Hub's id grammar
+		{"bf-\x01a2", true}, // a control byte that is not white space reads back
 		{"", false},
 		{"bf a2", false},
 		{"bf\ta2", false},

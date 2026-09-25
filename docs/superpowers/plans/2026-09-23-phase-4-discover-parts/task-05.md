@@ -405,8 +405,12 @@ Where this differs from the text above, this wins:
    returns a zero `Block` on every error.
 7. **The begin marker's line is exactly** `BeginPrefix + " brief=" + id + " rev=" + n + " -->"`,
    then `\r?\n`: `id` passes `discover.MarkerSafe` (As built 4); `n` matches `[1-9][0-9]*` and fits
-   an `int`. Anything else is `ErrBadMarker` (20 rows in `TestInspectReadsTheMarker`: 16 at
-   `eb6075d`, V4's at `c2005fd`, and `>`, a tab and a no-break space in the id at fix round 1).
+   an `int`. Anything else is `ErrBadMarker` (22 rows in `TestInspectReadsTheMarker`: 16 at
+   `eb6075d`, V4's at `c2005fd`, and at fix round 1 `>`, a tab and a no-break space in the id,
+   and white space at either edge of it, which is part of the id and never trimmed). The rule is
+   the marker's read-back and nothing more: an id holding a control byte that is not white space
+   (`bf-\x01a2`) resolves and reads back (`TestMarkerSafe`, `TestEveryResolvedIDReadsBack`); a
+   Hub id never holds one (hub contract §3.1 `:46`).
 8. **`DiffLines`** trims the common prefix and suffix, runs the LCS on the middle, bounded at 2^20
    cells (past it: every render line removed, then every file line added, still a true diff), puts
    the render's line (removed) before the file's (added) at a change, and is never nil. The 400-line

@@ -528,6 +528,9 @@ func TestInspectReadsTheMarker(t *testing.T) {
 		BeginPrefix + " brief=bf->a2 rev=5 -->",
 		BeginPrefix + " brief=bf-\ta2 rev=5 -->",
 		BeginPrefix + " brief=bf- a2 rev=5 -->",
+		// White space at the edge of the id is in the id: never trimmed away.
+		BeginPrefix + " brief= " + branchID + " rev=5 -->",
+		BeginPrefix + " brief=" + branchID + "  rev=5 -->",
 	} {
 		if got, ok, err := Inspect(line + body); !errors.Is(err, ErrBadMarker) || ok || !reflect.DeepEqual(got, Block{}) {
 			t.Errorf("Inspect(%q) = %+v, %v, %v; want ErrBadMarker", line, got.Marker, ok, err)
@@ -547,6 +550,7 @@ func TestEveryResolvedIDReadsBack(t *testing.T) {
 	}{
 		{branchID, true},
 		{"bf-!a2", true},
+		{"bf-\x01a2", true}, // a control byte that is not white space reads back
 		{"bf->a2", false},
 		{"bf-<a2", false},
 		{"bf-<!--a2", false},
