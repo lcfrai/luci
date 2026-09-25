@@ -375,3 +375,82 @@ below is what holds the thread's counterpart.
 In `tokens.test.ts` (task 26's file), `"--thread-lit"` joins `THEME_COLOUR_NAMES` after
 `"--thread"`, and that list's `toHaveLength(34)` becomes `toHaveLength(35)`.
 
+#### Tests to write first — `desktop/src/components/thread/thread.test.tsx`
+
+```tsx
+import { afterEach, describe, expect, it } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { ThreadLine, ThreadNode, ThreadTrace, useThreadLit } from "./index";
+import { __resetThreadLit } from "./useThreadLit";
+// Read as text: jsdom applies no media query and runs no animation (decision 6).
+import threadCss from "./thread.css?raw";
+import forcedCss from "../../styles/forced-colors.css?raw";
+
+afterEach(() => {
+  cleanup();            // unmount first, so no listener outlives the store reset
+  __resetThreadLit();
+});
+
+/** A stand-in for a group header (task 40): the element that IS the criterion binds lit. */
+function Header(props: { criterionId: string }) {
+  const { bind } = useThreadLit(props.criterionId);
+  return <button {...bind}>criterion {props.criterionId}</button>;
+}
+
+const node = (c: string, href = `#brief/${c}`, label = `Brief, criterion ${c}`) => (
+  <ThreadNode criterionId={c} href={href} label={label} />
+);
+const litIn = (root: HTMLElement) =>
+  [...root.querySelectorAll('[data-lit="true"]')].map((e) => e.getAttribute("data-criterion"));
+
+/** The body of the first rule whose selector list is exactly `sel`, in a CSS text. */
+function rule(css: string, sel: string): string {
+  const at = css.indexOf(`${sel} {`);
+  return at < 0 ? "" : css.slice(at, css.indexOf("}", at));
+}
+
+describe("SW.14 thread primitives", () => {
+  // Kills: a sourceless node drawn anyway (02 C2; AX Principle 7), and one nobody can name.
+  it("renders no node without a source", () => {
+    const { container } = render(<>{node("c-1", "")}{node("c-2", "#brief/c-2", " ")}</>);
+    expect(container.innerHTML).toBe("");
+  });
+
+  // Kills: a decorative node (a span, or a link with no name or no target).
+  it("makes the node a named link to its span", () => {
+    render(node("c-1"));
+    const link = screen.getByRole("link", { name: "Brief, criterion c-1" });
+    expect(link.getAttribute("href")).toBe("#brief/c-1");
+    expect(link.querySelector('svg[data-glyph="mark:thread_node"]')).not.toBeNull();
+  });
+
+  // Kills: lit held in React context or per lens, so a second tree never hears of it.
+  it("lights every node of a criterion across two trees", async () => {
+    const user = userEvent.setup();
+    const a = render(<>{node("c-1")}</>).container;
+    const b = render(<>{node("c-1")}{node("c-2")}<ThreadLine criterionId="c-1">x</ThreadLine></>).container;
+    await user.hover(a.querySelector("a")!);
+    expect(litIn(a)).toEqual(["c-1"]);
+    expect(litIn(b)).toEqual(["c-1", "c-1"]);                     // b's node and b's line
+    expect(b.querySelector('[data-criterion="c-1"] svg')!.classList.contains("gl-mark-lit")).toBe(true);
+    await user.unhover(a.querySelector("a")!);
+    expect(litIn(a).concat(litIn(b))).toEqual([]);
+  });
+
+  // Kills: a pointer-only thread, and a one-slot store that goes dark when the pointer leaves.
+  it("lights on focus as well as hover", async () => {
+    const user = userEvent.setup();
+    const { container } = render(<>{node("c-1")}{node("c-2")}</>);
+    await user.tab();                                              // the keyboard is on c-1
+    expect(litIn(container)).toEqual(["c-1"]);
+    await user.hover(screen.getByRole("link", { name: "Brief, criterion c-2" }));
+    expect(litIn(container)).toEqual(["c-2"]);                     // hover wins (decision 3)
+    await user.unhover(screen.getByRole("link", { name: "Brief, criterion c-2" }));
+    expect(litIn(container)).toEqual(["c-1"]);                     // falls back, not dark
+    await user.tab();
+    await user.tab();
+    expect(litIn(container)).toEqual([]);                          // focus left the thread
+  });
+```
+
