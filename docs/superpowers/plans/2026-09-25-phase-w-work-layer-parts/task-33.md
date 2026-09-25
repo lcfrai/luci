@@ -237,3 +237,85 @@ function forcedColoursActive(): boolean {
 The matrix values are from memory of the paper's table, not re-read: **UNVERIFIED** until step 1
 checks them against the paper. The row-sum test holds whatever the source says, and a transposed
 matrix fails it (its first column sums to 0.635587).
+
+The second block, the component:
+
+```tsx
+type Zoom = 100 | 125 | 150;
+const ZOOMS: readonly Zoom[] = [100, 125, 150];
+
+/** Entering reduced-deuteranopia writes both flags; leaving it, or closing, clears both. */
+function applySet(set: StressSet | null): void {
+  const on = set === "reduced-deuteranopia";
+  setFlag("motion", on ? "reduce" : "system");
+  setFlag("vision", on ? "deuteranopia" : "normal");
+}
+
+export function StressSets(): JSX.Element {
+  const [set, setSet] = useState<StressSet | null>(null);
+  const [zoom, setZoom] = useState<Zoom>(100);
+  const choose = (next: StressSet | null): void => {
+    applySet(next);
+    setSet(next);
+  };
+  const screens = set === null ? [] : stressScreens(set);
+  return (
+    <>
+      <fieldset className="dt-group">
+        <legend className="dt-legend">Stress set</legend>
+        {STRESS_SETS.map((s) => (
+          <label key={s} className="dt-option">
+            <input type="radio" name="dt-stress" value={s} checked={set === s} onChange={() => choose(s)} />
+            {SET_LABEL[s]}
+          </label>
+        ))}
+        {set !== null && (
+          <button type="button" className="dt-reset" onClick={() => choose(null)}>
+            Close the stage
+          </button>
+        )}
+      </fieldset>
+      <VisionFilter />
+      {set !== null &&
+        createPortal(
+          <section className="ss-stage" data-set={set} data-zoom={set === "scaling" ? zoom : undefined} aria-label="Stress stage">
+            <div className="ss-bar">
+              <p className="ss-note">{SET_NOTE[set]}</p>
+              {set === "forced-colors" && (
+                <p className="ss-fact" data-forced={forcedColoursActive() ? "active" : "off"}>
+                  forced colours: {forcedColoursActive() ? "active" : "not active"}
+                </p>
+              )}
+              {set === "scaling" && (
+                <div className="ss-zoom" role="radiogroup" aria-label="Preview zoom">
+                  {ZOOMS.map((z) => (
+                    <label key={z} className="dt-option">
+                      <input type="radio" name="ss-zoom" checked={zoom === z} onChange={() => setZoom(z)} />
+                      {z} %
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="ss-screens">
+              {screens.length === 0 && <p className="ss-note">{NO_SCREEN}</p>}
+              {screens.map((screen) => (
+                <article key={screen.name} className="ss-screen" aria-label={screen.name}>
+                  <h2 className="ss-name">{screen.name}</h2>
+                  {screen.render()}
+                </article>
+              ))}
+            </div>
+          </section>,
+          document.body,
+        )}
+    </>
+  );
+}
+```
+
+`forcedColoursActive()` is read at render and not subscribed: toggling a contrast theme repaints the
+whole window, and the reviewer re-picks the set to refresh the line. A `change` listener would be
+a second source of truth for a dev readout. The ground switch for *themes* is the toolbar's own
+*Theme* group (task 32), which already sits one tab stop away; a second switch on the stage would
+be two writers of one flag.
