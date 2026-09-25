@@ -1,6 +1,6 @@
 ### Task 21: `machined` git — the project's git on the machine, and lane creation from it
 
-HELD until phase 3's tasks 02 (§HGH, `gitx`) and 03 (`lanes`) are sync-merged into feat/env and phase 3 answers S8-P3.6 (`gitx.MachineFS`, with `Sealed`; `.superpowers/sdd/env/held.md`): the build stream skips this task until then.
+HELD until phase 3's tasks 02 (§HGH, `gitx`) and 03 (`lanes`) are sync-merged into feat/env, with phase 3's S8-P3.6 (`gitx.MachineFS`, with `Seal`), planned at phase-3 `task-02.md:286-299` and `task-03.md:293-303` (`.superpowers/sdd/env/held.md`): the build stream skips this task until then.
 
 Phase 3's ruling R4 (sibling `phase-3` worktree, `.superpowers/sdd/p3/orchestrator-rulings.md:3-67`,
 R4 rules 1-6) splits git by the repository it runs in. This task applies it to a cloud machine,
