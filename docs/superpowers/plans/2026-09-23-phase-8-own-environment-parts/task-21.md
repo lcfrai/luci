@@ -21,32 +21,15 @@ re-plan rulings order (`.superpowers/sdd/env/r4-env-rulings.md`, rulings 2 and 4
 - **Bundles** (lane work in, product commits out) live in `machined`'s owned root and are task
   21b's: the bundle routes, and the one bundle argument `POST /v1/git` admits (ruling 3).
 
-**Re-plan required before this task starts (review Q18).** The body below this block predates R4.
-Where it and this block disagree, this block holds. Retired, and not to be built: every
-`Scope: "clone"` path (the wire value, `clone_config_untrusted`, H3's Clone allowlist, credential
-`Env` "in a lane"); every `lanes/…` `Dir` on `POST /v1/git`, which is now `400`; the read-only
-`.git/config` bind as a defence (after R4 it is hygiene, phase 3 plan `:245`, `:712`); a session
-on the primary worktree writing `projects/<name>/.git` (R4.1 runs it in a backing lane); and the
-tests `TestGitLaneFilterNeverRuns`, `TestGitCredentialEnvIsRefusedInALane` and the lane rows of
-`TestGitRefusesGITDIRInEnv`, `TestGitHooksNeverRun` and `TestGitScopeMustFollowDir`, with mutants
-(4) and (6). Survives: `POST /v1/git` for `Scope` `project` and `none`, the `Env` allowlist, the
-add-project clone, the scrub and the output cap. Open, for the re-plan:
-1. **The lane runner route.** One `machined` serves every lane, where one `sandboxd` serves one,
-   so the lane must be named on the request (a path prefix or a header); and step 1 records
-   whether `machined` vendors `sandboxd` as a module or serves the ops itself against the goldens
-   (phase 3 leaves it to this phase, `task-24.md:29-32`).
-2. **What the runner's git reaches.** Phase 3's runner runs as the agent's uid with only its lane
-   mounted, so its checks protect nothing on the host (`task-24.md:51-60`). In the machine pod it
-   would run beside the whole disk and `PANACEA_APP_MACHINED_TOKEN`, so it must reach no more than
-   a session does: no write to `projects/`, no read of the token. How is **UNVERIFIED** (a
-   separate uid that owns only `lanes/`; or a runner-only pod per lane, as phase 3's pool step 2,
-   `task-24.md:678-684`, which would amend P8-D7).
-3. **Where a bundle file lives.** Phase 3's host half keeps it in `<Hardening.OwnedRoot>/bundles`
-   (`task-24.md:706`); here that is `machined`'s `/tmp/machined-git/bundles`, never the disk. How
-   a bundle the laptop received from the runner reaches it is task 25's, with this item.
-4. **Phase 3's lane create has moved** (seam S8-P3.3): six `--config` keys, `NoFilterEnv` in
-   `Call.Env`, and step 4a's two `config` calls in the new lane (phase-3 `task-03.md:161-173`),
-   so the lane-create shape in item 2 below is stale.
+**Retired by R4, and not built here.** Every `Scope: "clone"` path (the wire value,
+`clone_config_untrusted`, H3's Clone allowlist, credential `Env` "in a lane"); every lane `Dir`
+on `POST /v1/git` outside a create's window; the read-only `.git/config` bind as a defence
+(after R4 it is hygiene, task 24b); a session on the primary worktree writing
+`projects/<name>/.git` (it runs in its backing lane, env ruling 5); the lane runner route and the
+vendor-or-reimplement question (ruling 2: the cloud runner *is* `sandboxd`'s); and the tests
+`TestGitLaneFilterNeverRuns` and `TestGitCredentialEnvIsRefusedInALane`, with their mutants. The
+review's four open items are closed by env rulings 1 and 2 (the route, and what the runner
+reaches), 3 (bundles, task 21b) and 4 (the create shape, below).
 
 **Depends on, all in phase 3 (sibling `phase-3` worktree, parts read at `339b607`):**
 - **task 02 with §HGH** (`internal/gitx`: `Call` with `Scope`, `RemoteURL` and `NewLane`,
