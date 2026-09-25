@@ -10,8 +10,8 @@ and phase 7 builds a second write path into the same store. This task is the one
 and phase 7's "connect" surfaces call them (task 40 gives the desktop the client functions).
 The contract also leaves the store with **no Azure DevOps credential** until ADR-H1 Q5 is yes (**Q5 is now No, flipped by OD-30, ADR-H1 §12: the PAT is the only Azure DevOps path**)
 (review I10), against OD-4 (*both hosts, from v1*) and OD-6 (*one store*); so this path also takes
-a pasted Azure DevOps PAT per organisation, which the Entra path supersedes, with no write-path
-change, for any user who has not pasted one.
+a pasted Azure DevOps PAT per organisation, the only Azure DevOps credential (no Entra path
+supersedes it, OD-30 ruling §7).
 
 **Files:**
 - `control-plane/internal/api/credentials.go` + `credentials_test.go` (new)
@@ -25,7 +25,7 @@ change, for any user who has not pasted one.
 |---|---|---|---|---|
 | POST | `/v1/credentials/{kind}` | `{"scope":"…","token":"…","subject":"…"}` (`subject` optional, ≤ 256 characters) | `204`, no body | 400 `bad_request` `field: kind` / `scope` / `token` / `subject`; 503 `backend_unavailable` is **not** used — a store failure is 500 `internal` with the cause logged, never the token |
 | DELETE | `/v1/credentials/{kind}?scope=…` | — | `204` (absent is not an error) | 400 `field: kind` / `scope` |
-| GET | `/v1/credentials` | — | `200 {"items":[{"kind":"github","scope":"lcfrai","subject":"octocat","savedAt":"…"}]}` from `credstore.Inventory` — GitHub, Azure DevOps, Panacea and the Entra account entry; **no token, ever** | — |
+| GET | `/v1/credentials` | — | `200 {"items":[{"kind":"github","scope":"lcfrai","subject":"octocat","savedAt":"…"}]}` from `credstore.Inventory` — GitHub, Azure DevOps, Panacea and the sign-in's account entry (kind `oidc`, task 29); **no token, ever** | — |
 
 The rules per `kind`:
 
@@ -43,7 +43,7 @@ and **never logged**; the access log line names the route pattern and the status
 
 **The seam, as the consumers see it (S-CRED):** phase 3 reads GitHub tokens through
 `credstore.Local` and Azure DevOps PATs through `credstore.LocalDevOps` (task 29) in its `Chain`,
-ordered `Local → LocalDevOps → entraauth.DevOps → GitHelper`; phase 7 reads its token with
+ordered `Local → LocalDevOps → GitHelper` (OD-30 deletes the `entraauth.DevOps` link, task 29); phase 7 reads its token with
 `credstore.PanaceaTokens{Secrets: deps.Secrets}.Get(apiHost)` in its Panacea client — and neither
 writes: both send the user here.
 
@@ -56,7 +56,7 @@ writes: both send the user here.
 | `TestStoreAPanaceaToken` | POST `panacea`, scope `dev.panacea.kpmg` → 204; `PanaceaTokens.Get("dev.panacea.kpmg")` returns it | phase 7 building its own path (A8) |
 | `TestStoreAnAzureDevOpsPAT` | POST `azure-devops`, scope `KPMGcomau`, a 52-character PAT → 204; `credstore.LocalDevOps{…}.Credential(Host{AzureDevOps,"dev.azure.com","kpmgcomau"})` returns it with `Scheme == BasicPAT` (review I10) | OD-4's ADO path with an empty store; a PAT sent as a bearer token |
 | `TestShapesAreChecked` | `ghp_short`, `token123`, a Panacea token without `pnc_`, a scope `Evil/Owner`, `https://dev.panacea.kpmg`, a kind `gitlab`, an `azure-devops` scope `""` and one of 51 characters, an `azure-devops` token of 51 characters and one containing `-` → 400 naming the field | a pasted URL or a mistyped secret stored as if valid; an ADO PAT stored for no organisation |
-| `TestNothingEverReturnsTheToken` | after storing all three kinds, `GET /v1/credentials` lists three entries (plus the Entra account when signed in) whose JSON contains no token; the POST's response body is empty | a listing that leaks what it lists |
+| `TestNothingEverReturnsTheToken` | after storing all three kinds, `GET /v1/credentials` lists three entries (plus the `oidc` sign-in account when signed in) whose JSON contains no token; the POST's response body is empty | a listing that leaks what it lists |
 | `TestDeleteIsIdempotent` | delete → 204; again → 204; `GET` no longer lists it | — |
 | `TestTheBodyIsNeverLogged` | a captured log across every request above contains no token | T10: a token in a log |
 | `TestUnknownFieldsAreRefused` | `{"scope":"x","token":"ghp_…","expiresAt":"…"}` → 400 `bad_request` | a field silently dropped that the caller thought was kept |
