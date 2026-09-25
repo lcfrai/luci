@@ -150,3 +150,70 @@ export const INSTRUCTION_MAX = 2000;
 `JSON.stringify` of `trigger` and `levels` is a text diff over a stable shape (task 169's field
 order; `levels` is built from `ACTION_CLASSES` in order by the editor, so two equal grids
 stringify equally). The diff view renders `trigger` through `triggerWords` below, never raw JSON.
+
+**Two more decisions, made while writing the components:**
+
+9. **A loop never waits on a loop.** The *when* picker offers `LOOP_EVENT_KINDS` only: W1 kinds
+   copied by name from task 13's `hubapi/workevents.go`, and W5 kinds from task 169's
+   `W5_FEED_KINDS`. It never offers `loop.*` or `work.loop_fired`, so one loop's run cannot fire
+   another's (a chain the owner never wrote). Task 162 checks the list on the Hub as well.
+10. **An unreadable owner grid fails closed.** Until gap 2 names where Phase T keeps the owner's
+    own grid, the editor caps every class at ASK FIRST except `read` (FULL), shows the line
+    *Your own grid is not readable yet, so this loop can only ask first*, and never guesses a
+    wider cap. A narrower cap than the real one is safe; a wider one is not.
+
+#### Interfaces — complete: `loopModel.ts`, continued: trigger words, events, rights
+
+```ts
+// appended to desktop/src/components/loops/loopModel.ts
+import type { Loop, LoopTrigger } from "../../api/work";
+
+/** Decision 9. W1: task 13's hubapi/workevents.go. W5: task 169's W5_FEED_KINDS. Test-held. */
+export const LOOP_EVENT_KINDS = [
+  "issue.created", "issue.state", "issue.attached", "comment.created", "comment.mentioned",
+  "request.created", "request.accepted", "request.linked", "sync.run", "external_link.created",
+] as const;
+export type LoopEventKind = (typeof LOOP_EVENT_KINDS)[number];
+export const EVENT_WORDS: Readonly<Record<LoopEventKind, string>> = {
+  "issue.created": "an issue is created", "issue.state": "an issue moves",
+  "issue.attached": "evidence is attached", "comment.created": "a comment is posted",
+  "comment.mentioned": "someone is mentioned", "request.created": "a request arrives",
+  "request.accepted": "a request is accepted", "request.linked": "a request is linked",
+  "sync.run": "a tracker sync runs", "external_link.created": "an item is imported",
+};
+const EVERY_WORDS = { day: "every day", weekday: "every weekday", week: "every week" } as const;
+
+/** "every weekday at 08:30 (Australia/Sydney)", or "when an issue moves, triage → todo, label ux".
+ *  A kind this build does not know renders as itself, never dropped. */
+export function triggerWords(t: LoopTrigger, labelName: (id: string) => string): string {
+  if (t.kind === "schedule" && t.schedule)
+    return `${EVERY_WORDS[t.schedule.every]} at ${t.schedule.at} (${t.schedule.tz})`;
+  const what = t.eventKinds.map((k) => EVENT_WORDS[k as LoopEventKind] ?? k).join(" or ");
+  const f = t.filter;
+  const move = f.fromState || f.toState ? `, ${f.fromState ?? "any"} → ${f.toState ?? "any"}` : "";
+  const label = f.labelId ? `, label ${labelName(f.labelId)}` : "";
+  return `when ${what}${move}${label}`;
+}
+
+/** Decision 10: the cap used while the owner's own grid cannot be read. */
+export const FALLBACK_OWNER_GRID: Readonly<Record<ActionClass, AutonomyLevel>> = Object.fromEntries(
+  ACTION_CLASSES.map((c) => [c, c === "read" ? "full" : "ask_first"])) as Record<ActionClass, AutonomyLevel>;
+
+/** Decision 4, from ids and the team role only (task 162's rule, OD-16). */
+export interface LoopRights { edit: boolean; pause: boolean; resume: boolean; runNow: boolean }
+export function loopRights(loop: Loop, me: string, teamAdmin: boolean): LoopRights {
+  const own = loop.owner.id === me;
+  const on = loop.state === "on";
+  return { edit: own, pause: on && (own || teamAdmin), resume: own && !on, runNow: own && on };
+}
+
+/** Builds a bound's levels in ACTION_CLASSES order, so equal grids stringify equally. */
+export function orderedLevels(levels: LoopBound["levels"]): LoopBound["levels"] {
+  const out: LoopBound["levels"] = {};
+  for (const c of ACTION_CLASSES) if (levels[c] !== undefined) out[c] = levels[c];
+  return out;
+}
+```
+
+`loopRights` is the only place the list and the editor ask *may I*; the Hub's 403 (task 162) is
+the second check. A team admin who owns a loop is simply its owner: `own` wins.
