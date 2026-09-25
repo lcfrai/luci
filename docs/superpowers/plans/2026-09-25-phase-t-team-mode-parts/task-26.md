@@ -204,7 +204,8 @@ type Store interface {
 	// unbatched event older than now-CoalesceWindow, and no live claim.
 	OrchestratorsDue(ctx context.Context, now time.Time) ([]model.AgentID, error)
 	// ClaimTurn inserts row as the orchestrator's one live claim and marks
-	// row.EventIDs batched, iff no unexpired claim exists.
+	// row.EventIDs batched, iff no claim row exists (a lapsed one included:
+	// only LoseTurn removes it, because only LoseTurn un-batches its events).
 	ClaimTurn(ctx context.Context, row ClaimRow) (ok bool, err error)
 	ClaimedTurn(ctx context.Context, orch model.AgentID) (ClaimRow, bool, error)
 	// EndTurn deletes the claim and its batched events, writes session and
@@ -653,3 +654,194 @@ in `row.EventIDs` whose queue entry already has `Retried` set; those are exactly
 `LoseTurn` deletes, so the record names them before the transaction runs and the store never
 touches a payload (task 11: a payload is never re-marshalled). `LoseTurn` is the only writer of
 `Retried`.
+
+- [ ] **Step 1: Write the tests, each with the mutant it kills**
+
+All tests run on task 10's `memstore`, a fake `Pusher` that records frames, a fake `Sandboxes`, a
+fake `TokenMeter` and a fixed clock. `package turns`.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestPeerEventIsNotDelayedByCoalescing` | one `peer.message` at t0; `Ready` at t0 returns it; `TryBegin` pushes `turn.begin` at t0 | `Immediate` returns false for `peer.message`; the 60 s rule applied to every kind |
+| `TestConflictOpenedIsImmediate` | same for `conflict.opened` | `Immediate` lists only `peer.message` |
+| `TestWorkerReportsCoalesceForSixtySeconds` | three `worker.done` at t0, t0+10s, t0+20s: `Ready` is nil at t0+59s, returns all three at t0+60s; one push, `Input(3)` | `Ready` fires per event; the window measured from the newest event |
+| `TestImmediateEventCarriesTheWaitingOnes` | a `worker.done` at t0 and a `peer.message` at t0+5s: one batch of two at t0+5s, peer first | the batch holds immediate kinds only, leaving the report for a second turn |
+| `TestHumanMessageMakesOriginHuman` | a batch of `worker.done` + `human.message` authored by the owner: `row.Origin == human`, `KeepReply == true` | `OriginOf` checks the first event only; origin fixed to `fleet` |
+| `TestForeignHumanMessageIsRefused` | `Enqueue` of a `human.message` whose `Author` is another principal returns `ErrNotOwnHuman`; nothing appended | the author check removed from `Enqueue` |
+| `TestOriginOfIgnoresAForeignRowWrittenAroundEnqueue` | a store row with a foreign author passed straight to `OriginOf` yields `fleet` | `OriginOf` trusts `Kind` alone |
+| `TestEscalationAnsweredIsFleetOrigin` | a batch of one `escalation.answered`: origin `fleet` | `escalation.answered` treated as human |
+| `TestTemplateCarriesNoEventByte` | for every event in `internal/fleet/turns/testdata/events.json` (12 events, one per kind plus three whose refs and authors hold distinctive strings such as `IGNORE-PREVIOUS` and a bidi override; task 41's `testdata/team-events/` is a different, later corpus), the pushed `Input` is exactly `Input(len(batch))`, and contains none of the fixture's `id`, `ref`, `kind` or `author` strings | a template that names the first event's kind, or its count by kind |
+| `TestInputExactSentences` | `Input(1)`, `Input(3)`, `Input(50)` equal the three literal strings | wording drift; singular/plural swapped |
+| `TestOneTurnAtATime` | two due batches for one orchestrator: second `TryBegin` returns false while the first is claimed | `ClaimTurn` result ignored |
+| `TestTwoReplicasOneTurn` | two `Scheduler`s on one `memstore`, 50 concurrent `TryBegin`: exactly one push | the claim taken after the push |
+| `TestTurnEndNeedsTheNonce` | `End` with the right turn and a wrong nonce: `ErrTurnMismatch`, claim unchanged | nonce not compared; compared with `==` on the turn id only |
+| `TestTurnEndRefusesLost` | `End` with `exit: "lost"`: `ErrTurnMismatch` | the exit whitelist removed |
+| `TestReplyKeptOnlyForHumanOrigin` | a fleet-origin `End` with a reply: the outbox item's record has no `reply`; a human-origin one has it, cleaned | the reply stored whatever the origin |
+| `TestReplyCleaned` | a reply with an ANSI escape and a bidi override: `Clean` is called with `MaxReplyBytes`, the stored reply has neither | `Clean` bypassed |
+| `TestSessionNewThenResume` | first turn `mode: new` with a uuid; after `End(ok)`, the next is `resume` with the same uuid | the uuid re-minted per turn; resume on the first turn |
+| `TestSessionNewAfterPodReplaced` | after `End(ok)` on sandbox `sb-1`, `Current` returns `sb-2`: next is `new`, fresh uuid | `SessionFor` ignores the sandbox id |
+| `TestSessionNewAfterUncleanEnd` | `End(failed)` then next turn: `new` | the session kept on failure |
+| `TestLostTurnRequeuesOnce` | push fails: events un-batched and `Retried`; the next `TryBegin` runs them; a second loss deletes them and the `ot-` record lists them in `droppedEvents` | re-queue forever; drop on first loss |
+| `TestLapsedClaimIsLost` | clock past `Until`: `SweepLapsed` ends the turn `lost`, writes one `ot-` item, and a new turn can begin | the sweep only logs |
+| `TestTurnRecordWrittenInTheEndTransaction` | `EndTurn` on `memstore` with an injected outbox failure leaves the claim in place and no event deleted | the item appended after commit |
+| `TestTokensAbsentWhenMeterUnknown` | meter `ok=false`: the record's JSON has no `tokens` key; meter 1234: `"tokens":1234` | `Tokens` written as 0 |
+| `TestIssuedIdsReachTheRecord` | two `RecordIssued` calls during a turn: the record's `issued` holds both | `Issued` not carried from the claim |
+
+Wire tests, in both modules, extend task 09's round-trip suite by glob: the five new fixtures
+decode, re-encode byte-identically, and an extra field (`"origin":"human"` inside `turn.begin`) is
+refused. The mutant is a `TurnBegin` that carries origin to the pod: the pod has no use for it,
+and a field that reaches the pod reaches, in the worst case, the child.
+
+- [ ] **Step 2: Run the tests and watch them fail**
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/control-plane && GOPROXY=off go test ./internal/fleet/turns/... ./internal/fleet/wire/...
+```
+
+Expected: compile failure, `undefined: Ready`, `undefined: Input`, `undefined: SessionFor`,
+`undefined: Scheduler`, `undefined: wire.TurnBegin`. A test that passes here tests nothing.
+
+- [ ] **Step 3: Write `template.go`, `origin.go`, `session.go` and the two `turn.go` wire files**
+
+As fenced above. Run the template, origin and session tests; they pass. The sandbox copy's test
+runs in its own module:
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/sandboxd && GOPROXY=off GOFLAGS=-mod=vendor go test ./internal/control/...
+```
+
+- [ ] **Step 4: Write `queue.go`, then `scheduler.go`**
+
+`Tick` lists `OrchestratorsDue(now)` and calls `TryBegin` for each; a `TryBegin` error is logged
+with the orchestrator id and never stops the loop. `SweepLapsed` lists `LapsedClaims(now)` and
+calls `lose` for each; a claim that another replica already ended returns `ErrTurnMismatch` from
+`LoseTurn`, which is skipped silently (two sweepers are one too many, not an error, though task
+12's advisory lock means there is one). `StreamLost` calls `lose` for the live claim, if any, and
+does nothing else: the relaunch is task 20's.
+
+- [ ] **Step 5: Add `turns.Store` to `memstore`, `pgstore` and `storetest.Suite`**
+
+This is task 10's code; the methods are added there, in task 10's files, as that task's
+extension. The schema adds to `0001_fleet.sql` only if task 10 has not merged; otherwise a new
+`0002_turns.sql`:
+
+```sql
+-- fleet.turn_events: the per-orchestrator queue. No text column exists.
+CREATE TABLE IF NOT EXISTS fleet.turn_events (
+  org_id        text        NOT NULL,
+  event_id      text        NOT NULL,
+  orchestrator  text        NOT NULL,              -- ag-…
+  kind          text        NOT NULL,
+  ref           text        NOT NULL,              -- a Hub id or Fleet row id
+  author_tid    text        NOT NULL DEFAULT '',
+  author_oid    text        NOT NULL DEFAULT '',
+  at            timestamptz NOT NULL,
+  turn_id       text,                              -- NULL until batched
+  retried       boolean     NOT NULL DEFAULT false,
+  PRIMARY KEY (org_id, event_id)
+);
+CREATE INDEX IF NOT EXISTS turn_events_open
+  ON fleet.turn_events (orchestrator, at) WHERE turn_id IS NULL;
+
+-- fleet.turn_claims: at most one live claim per orchestrator.
+CREATE TABLE IF NOT EXISTS fleet.turn_claims (
+  orchestrator  text        PRIMARY KEY,
+  org_id        text        NOT NULL,
+  turn_id       text        NOT NULL UNIQUE,       -- ot-…
+  nonce         text        NOT NULL,
+  origin        text        NOT NULL CHECK (origin IN ('human','fleet')),
+  event_ids     text[]      NOT NULL,
+  issued        text[]      NOT NULL DEFAULT '{}',
+  mode          text        NOT NULL CHECK (mode IN ('new','resume')),
+  session_id    uuid        NOT NULL,
+  sandbox_id    text        NOT NULL,
+  began         timestamptz NOT NULL,
+  until         timestamptz NOT NULL
+);
+
+-- fleet.orch_sessions: the ST.5 session state, a fact about now.
+CREATE TABLE IF NOT EXISTS fleet.orch_sessions (
+  orchestrator  text        PRIMARY KEY,
+  org_id        text        NOT NULL,
+  session_id    uuid,
+  sandbox_id    text        NOT NULL DEFAULT '',
+  turns         integer     NOT NULL DEFAULT 0
+);
+```
+
+`ClaimTurn` in `pgstore` is `INSERT … ON CONFLICT (orchestrator) DO NOTHING` plus the `UPDATE
+turn_events SET turn_id` in the same transaction; zero rows inserted is `ok == false`. A lapsed
+claim is **not** overwritten here, even though that would save up to one sweep interval: its
+events are batched under the old turn id, and only `LoseTurn` un-batches them. So the interface
+comment's "iff no unexpired claim exists" is implemented as "iff no claim row exists", and the
+sweep (every 5 s) is what turns a lapsed claim into no claim. Row-level security, if task 10
+applies it to `fleet.*`, covers these tables by the same `org_id` policy; **UNVERIFIED** until
+task 10's part is read.
+
+The absence of a text column in `turn_events` is itself a property: a `storetest.Suite` row
+asserts the table's columns, from `information_schema.columns`, are exactly the ten above. A
+later edit that adds `body text` fails the suite.
+
+- [ ] **Step 6: Wire into `fleetd`**
+
+In task 12's `main.go`: build one `turns.Queue` and one `turns.Scheduler`; hand the `Queue` to
+every producer (tasks 23–25, 28, 30, 52 take it as a constructor argument, never a global);
+register `turn.end` in task 19's dispatch table for the `orchestrator` class only, calling
+`Scheduler.End`; run `Tick` every second on every replica and `SweepLapsed` on the deadline-sweeper
+singleton; register `Scheduler.StreamLost` with task 19's `Streams`. Parse
+`PANACEA_APP_FLEET_TURN_TIMEOUT` in `config.go`.
+
+- [ ] **Step 7: Run everything**
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/control-plane && GOPROXY=off go test ./internal/fleet/... ./cmd/fleetd/... && GOPROXY=off go vet ./internal/fleet/... ./cmd/fleetd/... && gofmt -l internal/fleet cmd/fleetd
+```
+
+Expected: `ok` for `internal/fleet/turns`, `internal/fleet/wire`, `internal/fleet/store/...` and
+`cmd/fleetd`; `go vet` silent; `gofmt -l` prints nothing. With `PANACEA_APP_FLEET_TEST_PG` unset
+the `pgstore` half of the suite reports `SKIP` (task 10's convention, **UNVERIFIED** until its
+part is read), and that skip is recorded, not read as a pass.
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team && grep -rn "Event.Ref\|Event.Author\|\.Kind" control-plane/internal/fleet/turns/template.go
+```
+
+Expected: no output. `template.go` reads no event field.
+
+- [ ] **Step 8: Commit**
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team && git add control-plane/internal/fleet/turns control-plane/internal/fleet/wire/turn.go sandboxd/internal/control/turn.go testdata/panacea-control/v1/turn-*.json && git commit -F .superpowers/sdd/team/msg/task-26.txt -- control-plane/internal/fleet/turns control-plane/internal/fleet/wire/turn.go sandboxd/internal/control/turn.go testdata/panacea-control/v1 control-plane/internal/fleet/store control-plane/cmd/fleetd
+```
+
+**What this task does not claim:**
+
+- **That a turn runs.** Nothing here starts a harness. The runner is task 27; a real turn on a
+  real pod is task 33's (TM1-α on the cluster).
+- **That tokens are known at `turn.end`.** They come from phase 6's usage store through
+  `TokenMeter`, whose implementation is task 20's `tokens.go` over P6 task 15's
+  `gatewayclient` (**UNVERIFIED until the phase 6 merge**). The meter's lag is unmeasured; a
+  record written before the gateway has the numbers says `tokens` absent, and task 37 reconciles.
+- **That 60 seconds is the right window**, or 10 minutes the right turn timeout. Both are
+  proposals from §4.2 and this part; task 33 measures turn length on the pinned CLI.
+- **That the queue survives a Fleet restart with no duplicate turn.** It survives (Postgres), and
+  a claim survives with it, so a restarted replica cannot double-start a turn. A runner whose
+  `turn.end` arrives while both replicas are down retries it (task 27); if the claim lapsed in
+  the meantime, the turn is recorded `lost` and its events run once more. That duplicate is
+  accepted: every Orchestrator verb is idempotent over typed state or refused by the limits
+  (tasks 28, 30), and the `ot-` records show both.
+- **Anything about rotation or DIVE.** `SessionFor`'s `rotateDue` is always false here; task 40
+  sets it and parks the runner for DIVE.
+
+**Gaps against the skeleton, raised here and not resolved alone:**
+
+1. The scope says `turn.end` "comes back with the turn's token use"; OD-8 makes that impossible
+   for the runner, so tokens come from the gateway (decision b). The skeleton's sentence should
+   read "the turn's token use is read from the gateway for the turn's key".
+2. `human.message` coalesces like any non-thread event, so a message typed in the panel may wait
+   up to 60 s for its turn. §4.2 and the scope say so; the product may want it immediate. That is
+   an owner call, not a planner's.
+3. Task 16's part says the runner receives `turn.begin` "through `Server.Events`", but the runner
+   is a separate process and task 16's socket is one-request-per-connection. Task 27 adds the
+   private descriptor that carries it; task 16's part should point there.
+
