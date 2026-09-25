@@ -221,3 +221,81 @@ Route 48, before the renewal `UPDATE`, when the check is not `off`:
 		s.log.Warn("account check failed; renewing", "err", err) // cannot tell: never revoke
 	}
 ```
+
+"Cannot tell" renews on purpose: a Graph outage must not stop every agent in the org. The lapse
+still bounds a disabled leaver at 24 hours, and the next renewal or sweep asks again.
+
+```go
+// control-plane/internal/hub/server/accountsweep.go
+
+// SweepConfig: Interval 24 h; Pause 100 ms between Graph calls (a 429 backs
+// off to the next round, never retried in a loop).
+type SweepConfig struct {
+	Interval time.Duration
+	Pause    time.Duration
+	Now      func() time.Time
+	Log      *slog.Logger
+}
+
+// RunAccountSweep is Hub task 24's janitor shape (Hub task-24.md:80-90): each
+// round takes pg_try_advisory_lock(hashtext('panacea-app-hub-accounts')) on one
+// connection, so one replica sweeps; for each org of hub.org_ids(), in its own
+// transaction with set_config('hub.org_id', org, true), it pages
+// store.LiveOwners and asks AccountState about each owner outside the
+// transaction. A disabled or unknown owner gets RevokeForAccount in a new
+// transaction with the head locked, one delegation.revoked each, actor NULL.
+// It returns the number revoked this round, for the log and the test.
+func RunAccountSweep(ctx context.Context, s *Server, a AccountState, c SweepConfig) error
+func (s *Server) SweepAccountsOnce(ctx context.Context, a AccountState) (revoked int, err error)
+```
+
+`cmd/hub/config.go` reads `PANACEA_APP_HUB_ACCOUNT_CHECK` (`off` · `fake` · `graph`, default `off`,
+anything else a start-up error); `main.go` starts `RunAccountSweep` when it is not `off`. `fake` is
+refused when `PANACEA_APP_HUB_ENV=prod` (**UNVERIFIED**: the variable's name on the Hub branch).
+
+#### The lease effect — complete source
+
+```go
+// control-plane/internal/fleet/leases/revoke.go
+package leases
+
+// Revoker is the leases half of task 11's delegation.Revoker
+// (task-11.md:580-585). Revoke withdraws every live lease held by an agent
+// started under d, for either reason: a lapsed owner holds nothing while
+// paused, so a teammate is not blocked by a person who cannot act. The
+// withdrawn leases are released through EndAgent (task-23.md:139-143), which
+// emits lease.released to the Hub. Resume does nothing: a resumed agent asks
+// again, and Request runs the overlap check afresh.
+type Revoker struct {
+	Engine *Engine
+	Store  store.Store
+}
+
+func (r Revoker) Revoke(ctx context.Context, d delegation.Delegation, why delegation.Reason) error {
+	agents, err := r.Store.Agents(ctx, d.Key.OrgID, d.Key.ProjectID) // task-10.md:94
+	if err != nil {
+		return err
+	}
+	var errs []error
+	for _, a := range agents {
+		if a.Delegation != d.ID { // task-09.md:139; ended agents hold nothing, EndAgent finds 0
+			continue
+		}
+		if _, err := r.Engine.EndAgent(ctx, d.Key.OrgID, a.ID); err != nil {
+			errs = append(errs, fmt.Errorf("agent %s: %w", a.ID, err))
+		}
+	}
+	return errors.Join(errs...) // idempotent: a repeat finds no live lease
+}
+
+func (r Revoker) Resume(context.Context, delegation.Delegation) error { return nil }
+```
+
+`cmd/fleetd/main.go` (task 12), after the line at `task-12.md:850`:
+
+```go
+	revokers.add(leases.Revoker{Engine: leaseEngine, Store: st})
+```
+
+The fan-out tries every effect whichever fails (`task-12.md:984-991`), so a lease error does not
+stop the sessions half, and the feed retries the whole act (`task-11.md:693-700`).
