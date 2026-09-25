@@ -171,3 +171,122 @@ The column names are task 116's scope's (`work_read_cursors`, *one row per perso
 are renamed at build time if its part chose others. A feature with hundreds of issues gives
 `ScopeSubjects` a long list; the build may turn it into a subquery inside the feed read instead of
 an array parameter. Either is the same rule; which is faster is **unmeasured**.
+
+#### The routes
+
+```go
+// server/work_cursors.go
+mux.HandleFunc("GET /v1/me/read-cursors", s.getReadCursor)
+mux.HandleFunc("PUT /v1/me/read-cursors", s.advanceReadCursor)
+mux.HandleFunc("POST /v1/me/read-cursors/mark-seen", s.markSeen)
+// server/changes.go ⚑: no new pattern; Hub task 26's GET /v1/changes gains `scope`.
+```
+
+**The read rule, shared.** `readScope(tx, principal, ScopeRef)`: `ParseScopeRef` (400 `field:
+"scope"`); `ScopeSubjects`; not found, or the object not readable by the principal under task 13's
+readable-project rule → 404 with the object's own code: `project_not_found`, `feature_not_found`
+or `issue_not_found`, exactly what `GET` of that object answers, so a cursor never tells more than
+the object's own route (`hub-contract:242`, `:273`). A task 117 grant makes a granted project's
+scopes readable, as it makes the objects readable.
+
+- **`getReadCursor`**, in `s.Read`: `RequireDesktop` (403 `required: desktop`); `readScope`;
+  `Cursor`; 200 `ReadCursor`. Any query parameter but `scope` is ignored (decision 6).
+- **`advanceReadCursor`**, in a write transaction **that appends no event** (decision 3):
+  `RequireDesktop`; `Decode[hubapi.ReadCursor]`; `readScope`; `seq` from 0 to `HeadSeq` (else 422
+  `field: "seq"`); `AdvanceCursor`; 200 `ReadCursor` with the stored `seq`, lower or not.
+- **`markSeen`**, the same in **one** transaction over `MarkSeenRequest.Scopes` (1-200, T114): any
+  scope failing `readScope` fails the whole request with that scope's 404 and `details.index`, and
+  none moves; 200 `[]ReadCursor` in request order.
+- **`GET /v1/changes?scope=…`** (⚑ Hub task 26's handler): when `scope` is absent, the handler is
+  byte-for-byte what it was. When present: `readScope`; then the Hub's own feed query **with its
+  caller filter first** (task 13's readable-project join and `SubjectOnlyKinds`), narrowed by
+  `projectId = <scope's project>` and, for a feature or an issue, `subject = ANY(<subjects>) OR
+  data->>'briefKey' LIKE <prefix>`; `after` and `limit` as the Hub's (limit 1-500, default 200);
+  no `after` → the newest `FirstLookLimit` events in seq order, `truncated` when a 201st exists;
+  `after=latest` → no events and the head, as the Hub's rule (`hub-contract:1101-1102`). The answer
+  is `ScopedChangesPage`.
+
+How Hub task 26 builds its feed query (one SQL string or composed clauses) is **UNVERIFIED** until
+its code lands; this task adds its narrowing **inside** that query, after the caller filter, never
+as a post-filter over a page, so a page is never short and `more` stays true to the rows.
+
+#### Tests to write first — `server/work_cursors_integration_test.go` (`//go:build integration`)
+
+The cast is task 11's (Grace, a Portal member; Linus, Billing only; Xavier, another org), Grace's
+desktop and her Orchestrator's Fleet principal. Portal has features FT-1 and FT-2; EP-142 is under
+FT-1 and EP-143 under FT-2.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestACursorOnlyAdvances` | PUT `seq` 7 → 7; PUT 5 → 200 and 7; GET → 7; PUT above the head → 422 `field: seq` | cursor goes back; the future marked seen |
+| `TestACursorIsTheCallersOwn` | Grace sets 9 on `project:<Portal>`; Linus, granted nothing, gets 404 on the same scope; `GET …?scope=…&userId=<Grace>` as Ada answers Ada's own `0` | a cursor readable by others |
+| `TestOnlyADesktopMovesACursor` | the Fleet principal under Grace's delegation → 403 `required: desktop` on all three routes | an Orchestrator marking a person's work seen |
+| `TestAnUnreadableScopeIs404` | Linus on `project:<Portal>` → 404 `project_not_found`; on `feature:<FT-1>` → 404 `feature_not_found`; on an id that exists nowhere → the same answers | existence leak (`hub-contract:273`) |
+| `TestTheScopeFilterFollowsTheTree` | a comment on EP-142 and a milestone on FT-1 appear under `feature:<FT-1>` and `project:<Portal>`, never under `feature:<FT-2>`; EP-143's state move only under FT-2 and Portal | scope ignored |
+| `TestTheScopeFilterNeverWidens` | a `subject` Grace cannot read (a Billing issue id placed in a Portal feature's list by a fixture) never appears; `SubjectOnly` kinds for Ada never reach Grace | a filter applied before the caller filter |
+| `TestAFirstLookIsBounded` | 250 events under FT-1, no `after` → 200 events, the newest, in seq order, `truncated: true`; with 150 events → 150 and `truncated: false` | an unbounded first read |
+| `TestNoScopeIsTheHubsFeed` | `GET /v1/changes` without `scope` → the same bytes as Hub task 26's own test expects | a changed Hub route |
+| `TestMarkSeenIsAllOrNothing` | three scopes → three cursors in one transaction; one unreadable scope among them → 404 `details.index: 2`, and none of the three moved | a partial mark |
+| `TestACursorMoveAppendsNoEvent` | the org's head `seq` is the same before and after twenty advances and a mark-seen | cursor moves flood the feed |
+
+#### The matrix rows (`workMatrixRows["123"]`, appended)
+
+Columns V M A O N X (`hub-contract:341`), each principal on a scope in Portal. The routes are
+*self*: every role that can read the scope moves its **own** cursor.
+
+| Route | V | M | A | O | N | X | Granted member |
+|---|---|---|---|---|---|---|---|
+| `GET /v1/me/read-cursors?scope=project:<Portal>` | 200 | 200 | 200 | 404 | 404 | 404 | 200 |
+| `PUT /v1/me/read-cursors` | 200 | 200 | 200 | 404 | 404 | 404 | 200 |
+| `POST /v1/me/read-cursors/mark-seen` | 200 | 200 | 200 | 404 | 404 | 404 | 200 |
+| `GET /v1/changes?scope=project:<Portal>` | 200 | 200 | 200 | 404 | 404 | 404 | 200 |
+
+A viewer moves a cursor: reading is what a viewer does, and a cursor records only that. The Hub's
+own `GET /v1/changes` row (`hub-contract:357`) is unchanged; these are additional rows for the
+`scope` form.
+
+#### Steps
+
+- [ ] **Step 1:** Confirm the sync base (rule H1): Hub task 26's feed, tasks 13, 114, 116, 117,
+  119 and 120 committed; TM tasks 52 and 54 on the sync base or waited for (rule H2). Re-read
+  `hub-contract:1088-1110` and task 13's feed filter at the base.
+- [ ] **Step 2:** Check T114 for G1; if missing, stop and raise it against 114 (and name 124's
+  `ReadScope` spelling in the same note).
+- [ ] **Step 3:** Write the integration test and the matrix rows; every row fails.
+- [ ] **Step 4:** `store/work_scope.go` and `store/work_cursors.go`; then the three cursor routes;
+  their rows go green.
+- [ ] **Step 5:** The `scope` branch of Hub task 26's handler; `TestNoScopeIsTheHubsFeed` and Hub
+  task 26's own feed tests stay green; then the scope rows.
+- [ ] **Step 6:** Rerun task 13's feed tests and task 115's cursor conformance rows against the
+  fake; they agree on 7 then 5 reading 7.
+- [ ] **Step 7:** `git diff -- go.work control-plane/go.mod` shows nothing; commit by pathspec.
+
+#### Acceptance
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/work
+go test -tags integration ./control-plane/internal/hub/server/ -race -count=1 -v \
+  -run '^Test(ACursorOnlyAdvances|ACursorIsTheCallersOwn|OnlyADesktopMovesACursor|AnUnreadableScopeIs404|TheScopeFilterFollowsTheTree|TheScopeFilterNeverWidens|AFirstLookIsBounded|NoScopeIsTheHubsFeed|MarkSeenIsAllOrNothing|ACursorMoveAppendsNoEvent)$' \
+  2>&1 | grep -c "^--- PASS"                                                                    # 10
+go test -tags integration ./control-plane/internal/hub/... -race -count=1                      # ok
+go test ./control-plane/... -race -count=1                                                      # ok
+```
+
+#### What this task does not claim
+
+- Session or branch cursors (AX §6.1 names both; they are the cockpit's, not the Work layer's).
+- The four delta classes, or any surface: task 133 derives and draws them from this read.
+- That Phase T's `teamSeenAt` and this cursor are one record: they are two until the sync with
+  Phase T decides (the proposal above), and task 62's control moves both.
+- That a feature's scope holds events of issues that **left** it: membership is read now
+  (decision 4).
+- Any read speed for a feature with many issues (unmeasured).
+
+**Parity rows served:** none alone. It carries **L-118** and **L-119** for task 133, which closes
+them.
+
+**Gaps for the skeleton and siblings:** G1 (`ScopeRef.String`, `ParseScopeRef`,
+`ScopedChangesPage`, `FirstLookLimit`) belongs to task 114, and 124 spells them `ReadScope`; the
+global constraint *"every Hub write appends one event"* needs decision 3's named exception for
+read cursors; Phase T's `teamSeenAt` (TM tasks 52 and 54) is a second cursor for the sync to fold
+into this one.
