@@ -209,3 +209,69 @@ CREATE FUNCTION conflict_paths_ok(p jsonb) RETURNS boolean LANGUAGE sql IMMUTABL
   END
 $$;
 ```
+
+**Piece 3, the two columns on `0001`'s tables, the event kinds, and their two triggers.**
+
+```sql
+-- ── projects.mode (decision f) ───────────────────────────────────────────────
+ALTER TABLE projects ADD COLUMN mode project_mode NOT NULL DEFAULT 'solo';
+
+CREATE FUNCTION guard_project_mode() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF OLD.mode = 'team' AND NEW.mode IS DISTINCT FROM 'team' THEN
+    RAISE EXCEPTION 'hub: project % is a team project and stays one', OLD.id
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER projects_mode_one_way BEFORE UPDATE OF mode ON projects
+  FOR EACH ROW EXECUTE FUNCTION guard_project_mode();
+
+-- ── audit_events.fleet_feed and the team kinds (decision e) ──────────────────
+ALTER TABLE audit_events ADD COLUMN fleet_feed boolean NOT NULL DEFAULT false;
+CREATE INDEX audit_fleet_feed ON audit_events (org_id, seq) WHERE fleet_feed;
+
+-- Reference data, not org data: no org_id, no row-level security, SELECT only for hub_app.
+CREATE TABLE team_event_kinds (
+  kind       text    PRIMARY KEY CHECK (kind ~ '^[a-z]+(_[a-z]+)*\.[a-z]+(_[a-z]+)*$'),
+  feed       boolean NOT NULL,           -- the member feed, contract §7.11
+  fleet_feed boolean NOT NULL,           -- Fleet's feed, contract §7.26
+  CHECK (fleet_feed OR NOT feed)         -- a member-feed kind is Fleet's too
+);
+INSERT INTO team_event_kinds (kind, feed, fleet_feed) VALUES
+  ('delegation.created', false, true),       ('delegation.renewed', false, true),
+  ('delegation.revoked', false, true),       ('task.created', true, true),
+  ('task.updated', true, true),              ('agent.started', true, true),
+  ('agent.ended', true, true),               ('lease.state_changed', true, true),
+  ('conflict.raised', true, true),           ('conflict.updated', true, true),
+  ('thread.opened', false, true),            ('thread.updated', false, true),
+  ('message.appended', false, true),         ('escalation.created', false, true),
+  ('escalation.answered', false, true),      ('directive.appended', false, true),
+  ('orchestrator_turn.recorded', false, false), ('human_message.appended', false, true),
+  ('note.created', true, true),              ('team_policy.updated', true, true),
+  ('team_policy.route_changed', true, true), ('usage.rolled_up', false, false);
+
+-- OVERRIDES the Hub's Go: for a team kind both flags are the table's, whatever the INSERT
+-- said, so no Go bug can put an escalation, directive or human message in every member's
+-- feed (§3.4). Every other kind keeps its feed and is not Fleet's; Fleet reads the org's
+-- team.member_removed by kind, in task 08's query, not by this flag. Named to fire after
+-- 07b's audit_events_append (same-timing triggers fire in name order); the flags are not in
+-- the canonical bytes, so the order does not touch the chain.
+CREATE FUNCTION audit_feed_flags() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE k hub.team_event_kinds%ROWTYPE;
+BEGIN
+  SELECT * INTO k FROM hub.team_event_kinds WHERE kind = NEW.kind;
+  IF FOUND THEN
+    NEW.feed := k.feed;
+    NEW.fleet_feed := k.fleet_feed;
+  ELSE
+    NEW.fleet_feed := false;
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER audit_events_feed_flags BEFORE INSERT ON audit_events
+  FOR EACH ROW EXECUTE FUNCTION audit_feed_flags();
+```
+
+Postgres fires `BEFORE` row triggers of one event in name order (from knowledge, **UNVERIFIED**
+until `TestFeedFlagsComeFromTheKind` runs); nothing here depends on it except the comment.
