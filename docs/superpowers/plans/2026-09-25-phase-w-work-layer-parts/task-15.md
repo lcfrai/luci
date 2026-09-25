@@ -490,3 +490,138 @@ and `store` packages, as task 08's `work_issues.go` does. A 500-item batch is ab
 statements in one transaction holding the org's write lock; how long that holds other writers in
 the org is **unmeasured**, and the page size of 500 is the knob if a measurement says so.
 
+#### Wire shapes
+
+```jsonc
+// POST /v1/projects/pj-…/imports                  member; 200 always (a batch may create none)
+{ "source": "linear",
+  "items": [ { "externalId": "ENG-9", "url": "https://linear.app/acme/issue/ENG-9",
+               "title": "Retry the webhook", "description": "…", "priority": "high",
+               "labels": ["Bug", "Infra"], "authorName": "A. Person",
+               "createdAt": "2025-11-02T09:14:00Z" } ] }
+// → 200
+{ "created": [ { "issueId": "is-3f2a…", "number": 143, "externalId": "ENG-9" } ],
+  "existing": [], "unmatchedLabels": ["Infra"] }
+
+// the same body again → 200, nothing written, no event; existing items' labels are not read
+{ "created": [], "existing": [ { "issueId": "is-3f2a…", "number": 143, "externalId": "ENG-9" } ],
+  "unmatchedLabels": [] }
+
+// GET /v1/issues/is-3f2a… → the head (task 08's shape, task 14's title, this task's createdAt)
+{ "id": "is-3f2a…", "state": "triage", "priority": "high", "labels": ["lb-…"],
+  "threadState": { "kind": "not_tied", "reason": "imported" }, "source": "intake",
+  "external": { "source": "linear", "externalId": "ENG-9", "url": "https://linear.app/acme/issue/ENG-9",
+                "authorName": "A. Person", "createdAt": "2025-11-02T09:14:00Z" },
+  "createdAt": "2026-09-25T…", "createdBy": { "id": "u-…", … }, … }
+
+// refusals: nothing is written by any of them
+400 bad_request       { "field": "items[2].title" }       // 201 characters
+400 bad_request       { "field": "items" }                // 0 or 501 items
+400 bad_request       { "field": "items[0].url" }         // javascript:, http:, https://a@b, HTTPS://
+400 bad_request       { "field": "items[1].externalId" }  // the batch names ENG-9 twice
+400 bad_request       { "field": "source" }               // "jira" in W1
+400 bad_request       { "field": "body" }                 // over 9 MiB, refused before BEGIN
+400 bad_request                                           // an unknown key, e.g. items[0].state (Decode)
+403 forbidden         { "required": "member" }            // a viewer of the team
+404 project_not_found                                     // not in the team, or another org's project
+```
+
+`details.field` names the item by its index in **this** batch. The control plane (task 25) cuts a
+file into chunks, so it adds the chunk's offset to show a row number; that is its arithmetic, not
+the Hub's.
+
+#### Tests to write first, part 1 — `hubapi/work_import_test.go` (pure, complete)
+
+```go
+package hubapi
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"reflect"
+	"strings"
+	"testing"
+)
+
+func goodItem(id string) ImportItem {
+	return ImportItem{ExternalID: id, URL: "https://linear.app/acme/issue/" + id, Title: "Retry",
+		Description: "", Priority: PriorityHigh, Labels: []string{"Bug"}, AuthorName: "A. Person",
+		CreatedAt: "2025-11-02T09:14:00Z"}
+}
+
+// Mutants: a partial check that lets item 3's title through; a field named by
+// its canonical path (items[2].title.text); a limit off by one either way.
+func TestValidateImportBatchNamesTheField(t *testing.T) {
+	many := make([]ImportItem, MaxImportItems+1)
+	for i := range many {
+		many[i] = goodItem(fmt.Sprint(i))
+	}
+	cases := []struct {
+		name  string
+		edit  func(b *ImportBatch)
+		field string // "" = valid
+	}{
+		{"good", func(*ImportBatch) {}, ""},
+		{"jira in W1", func(b *ImportBatch) { b.Source = "jira" }, "source"},
+		{"no items", func(b *ImportBatch) { b.Items = nil }, "items"},
+		{"500 items", func(b *ImportBatch) { b.Items = many[:MaxImportItems] }, ""},
+		{"501 items", func(b *ImportBatch) { b.Items = many }, "items"},
+		{"title 200 é", func(b *ImportBatch) { b.Items[2].Title = strings.Repeat("é", 200) }, ""},
+		{"title 201 é", func(b *ImportBatch) { b.Items[2].Title = strings.Repeat("é", 201) }, "items[2].title"},
+		{"blank title", func(b *ImportBatch) { b.Items[0].Title = "   " }, "items[0].title"},
+		{"desc 16 KiB", func(b *ImportBatch) { b.Items[0].Description = strings.Repeat("a", 16384) }, ""},
+		{"desc 16 KiB + 1", func(b *ImportBatch) { b.Items[0].Description = strings.Repeat("a", 16385) }, "items[0].description"},
+		{"javascript: url", func(b *ImportBatch) { b.Items[0].URL = "javascript:alert(1)" }, "items[0].url"},
+		{"http url", func(b *ImportBatch) { b.Items[0].URL = "http://linear.app/x" }, "items[0].url"},
+		{"userinfo url", func(b *ImportBatch) { b.Items[0].URL = "https://linear.app@evil.example/x" }, "items[0].url"},
+		{"upper-case scheme", func(b *ImportBatch) { b.Items[0].URL = "HTTPS://linear.app/x" }, "items[0].url"},
+		{"no host", func(b *ImportBatch) { b.Items[0].URL = "https:///x" }, "items[0].url"},
+		{"no url", func(b *ImportBatch) { b.Items[0].URL = "" }, ""},
+		{"external id 200", func(b *ImportBatch) { b.Items[0].ExternalID = strings.Repeat("a", 200) }, ""},
+		{"external id 201", func(b *ImportBatch) { b.Items[0].ExternalID = strings.Repeat("a", 201) }, "items[0].externalId"},
+		{"external id twice", func(b *ImportBatch) { b.Items[1].ExternalID = b.Items[0].ExternalID }, "items[1].externalId"},
+		{"priority p1", func(b *ImportBatch) { b.Items[0].Priority = "p1" }, "items[0].priority"},
+		{"51 labels", func(b *ImportBatch) { b.Items[0].Labels = make([]string, 51) }, "items[0].labels"},
+		{"padded label", func(b *ImportBatch) { b.Items[0].Labels = []string{" Bug"} }, "items[0].labels[0]"},
+		{"label 61", func(b *ImportBatch) { b.Items[0].Labels = []string{strings.Repeat("l", 61)} }, "items[0].labels[0]"},
+		{"author 201", func(b *ImportBatch) { b.Items[0].AuthorName = strings.Repeat("a", 201) }, "items[0].authorName"},
+		{"createdAt prose", func(b *ImportBatch) { b.Items[0].CreatedAt = "yesterday" }, "items[0].createdAt"},
+		{"no createdAt", func(b *ImportBatch) { b.Items[0].CreatedAt = "" }, ""},
+	}
+	for _, c := range cases {
+		b := ImportBatch{Source: ImportSourceLinear, Items: []ImportItem{goodItem("ENG-9"), goodItem("ENG-10"), goodItem("ENG-11")}}
+		c.edit(&b)
+		err := ValidateImportBatch(b)
+		var fe *FieldError
+		if c.field == "" && err != nil {
+			t.Errorf("%s: refused: %v", c.name, err)
+		} else if c.field != "" && (!errors.As(err, &fe) || fe.Field != c.field) {
+			t.Errorf("%s: got %v, want field %q", c.name, err, c.field)
+		}
+	}
+}
+
+// Mutants: case-sensitive dedupe (Bug and bug both reported); the last spelling
+// kept; an unsorted report; nil for none, which encodes as null, not [].
+func TestImportLabelNamesDedupesAndSorts(t *testing.T) {
+	got := ImportLabelNames([]string{"infra", "Bug", "bug", "Infra", "api"})
+	if want := []string{"api", "Bug", "infra"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("got %q, want %q", got, want)
+	}
+	if b, _ := json.Marshal(ImportLabelNames(nil)); string(b) != "[]" {
+		t.Errorf("none encodes as %s, want []", b)
+	}
+}
+
+// Mutant: a state (or done) field added to ImportItem, so an import could claim
+// a fact state the platform never observed (skeleton rule 2).
+func TestAnImportItemCarriesNoState(t *testing.T) {
+	for _, f := range jsonFields(reflect.TypeOf(ImportItem{})) {
+		if f.name == "state" || f.name == "stateReason" || f.name == "proof" {
+			t.Errorf("ImportItem has %q: an import never carries a state", f.name)
+		}
+	}
+}
+```
+
