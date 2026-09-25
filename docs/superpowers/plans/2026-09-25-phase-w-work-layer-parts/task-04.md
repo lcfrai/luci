@@ -231,3 +231,90 @@ type WorkIssues interface {
 	EraseComment(ctx context.Context, commentID string, req hubapi.EraseRequest) (hubapi.WorkEraseResponse, error)
 }
 ```
+
+#### `fake_work.go`, complete
+
+Five blocks; the file is their concatenation. Block 1 is the state and the helpers.
+
+```go
+package hubclient
+
+import (
+	"context"
+	"regexp"
+	"slices"
+	"strconv"
+	"strings"
+	"sync"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubapi"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/ids"
+)
+
+// Phase W, part 1: issues, revisions, numbers, project keys and state moves.
+// The rules are tasks 08-10's; task 05's conformance rows hold the fake and the
+// Hub to them. Part 2 is task 05's fake_work_social.go and fake_work_intake.go.
+
+// Tasks 08, 10 and 13 declare these in hubapi after this task. Until then the
+// fake spells them with the same strings (task 04's decisions (e) and (f)).
+const (
+	fkIssueNotFound         = "issue_not_found"         // 404, details.issueId
+	fkProjectKeyTaken       = "project_key_taken"       // 409, details.key, details.projectId
+	fkStateNotAllowed       = "state_not_allowed"       // 422, details.from, .to, .cause
+	fkStateConflict         = "state_conflict"          // 409, details.landCommit
+	fkEvidenceNotApplicable = "evidence_not_applicable" // 422, details.field, .why
+
+	fkEventIssueCreated  = "issue.created"
+	fkEventIssueUpdated  = "issue.updated"
+	fkEventIssueRevised  = "issue.revised"
+	fkEventIssueState    = "issue.state"
+	fkEventProjectKeySet = "project.key_set"
+)
+
+var landCommitRe = regexp.MustCompile(`^[0-9a-f]{40}$`)
+
+// fakeWork is one world's Work state. Every field is guarded by the world's mu.
+type fakeWork struct {
+	issues  map[string]*fakeIssue         // by id
+	numbers map[string]int                // by project id: the last number taken
+	keys    map[string]*hubapi.ProjectKey // by project id
+	cited   map[string]string             // evidence id → the issue citing it now
+}
+
+type fakeIssue struct {
+	head      hubapi.IssueHead // Alias, HeadKey and ThreadState are made at read
+	teamID    string
+	notTied   hubapi.NotTiedReason
+	handSet   bool   // the done was set by hand
+	landedAt  string // the landed move's time; "" before
+	startedBy string // who made the started move; "" before
+	citations []string
+	revisions []*hubapi.IssueRevision // revisions[i] is revision i+1, immutable
+	seq       int64
+}
+
+func (is *fakeIssue) order() int64 { return is.seq }
+
+func (is *fakeIssue) headRev() *hubapi.IssueRevision { return is.revisions[len(is.revisions)-1] }
+
+// workWorlds finds each world's Work state, so fake.go gains no field
+// (decision (i)). A fake lives as long as the test process.
+var workWorlds sync.Map // *fakeWorld → *fakeWork
+
+// wk is w's Work state, made on first use. Call it with w.mu held.
+func (w *fakeWorld) wk() *fakeWork {
+	v, _ := workWorlds.LoadOrStore(w, &fakeWork{issues: map[string]*fakeIssue{},
+		numbers: map[string]int{}, keys: map[string]*hubapi.ProjectKey{}, cited: map[string]string{}})
+	return v.(*fakeWork)
+}
+
+// workEvent appends one event to the feed. It is the fake's only call of H05's
+// feed helper (UNVERIFIED name, appendEvent: Step 1 takes the merged one).
+func (w *fakeWorld) workEvent(me, kind, teamID, projectID, subject string, data map[string]any) {
+	e := hubapi.Event{Kind: kind, TeamID: &teamID, Subject: subject, Actor: w.userRef(me), Data: data}
+	if projectID != "" {
+		e.ProjectID = &projectID
+	}
+	w.appendEvent(e) // H05 assigns Seq and At
+}
+```
