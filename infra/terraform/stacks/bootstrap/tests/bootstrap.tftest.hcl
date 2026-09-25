@@ -296,9 +296,13 @@ run "no_private_endpoint_unless_one_is_given" {
 # apply: the connection's target is the account's computed id. The endpoint sits in the state
 # group, on the subnet and blob zone given (foundation's subnet_ids.private_endpoints and
 # private_dns_zone_ids.blob), auto-approved: the operator who applies bootstrap owns the account.
+# Public access stays ON here: endpoint first, flip second, so the endpoint must be made while
+# public access is still on (fix round 1's predicted survivor PC1 made it only once off). The
+# location is one no tfvars uses, or a hard-coded australiaeast agrees with both (PL1).
 run "a_private_endpoint_puts_state_on_the_vnet" {
   variables {
-    state_public_network_access = false
+    state_public_network_access = true
+    location                    = "australiasoutheast"
     state_private_endpoint = {
       subnet_id           = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-mock/providers/Microsoft.Network/virtualNetworks/vnet-mock/subnets/private_endpoints"
       private_dns_zone_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-mock/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net"
@@ -404,7 +408,8 @@ run "the_backend_file_names_this_container" {
   # An allow-list, not a deny-list (task 02 review I2): a list of refused keys let
   # client_secret, oidc_token and every other credential it did not name through. Every line is
   # blank, a # comment, or one of the two settings, whole. Anything else fails, a // or /* */
-  # comment included: this file is config, and free text is the secret scan's to read.
+  # comment included: this file is config, and free text is the secret scan's to read (task
+  # 28's gitleaks over every PR's commits).
   assert {
     condition = alltrue([
       for l in split("\n", replace(file("${path.module}/../../backends/${var.environment}.hcl"), "\r", "")) :
