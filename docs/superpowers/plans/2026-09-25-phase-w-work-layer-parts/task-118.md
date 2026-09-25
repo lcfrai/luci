@@ -215,3 +215,120 @@ read every feature as readable. `store.LatestUpdate`
 `store.CriterionWords` (task 120, `task-120.md:97`) are read-only; before those tasks land the
 handler compiles against two stubs in this file that return `(_, false, nil)` and `nil`, deleted
 by 119 and 120 respectively.
+
+```go
+func (s *Server) createInitiative(w http.ResponseWriter, r *http.Request) {
+	teamID := r.PathValue("teamId")
+	s.WriteReplayable(w, r, httpx.MaxBodyBytes, nil, func(tx *Tx, body []byte) (WriteResult, error) {
+		ctx := r.Context()
+		var req hubapi.CreateInitiativeRequest
+		if err := Decode(body, &req); err != nil {
+			return WriteResult{}, err
+		}
+		role, ok, err := TeamRole(ctx, tx, teamID)
+		if err != nil {
+			return WriteResult{}, err
+		}
+		if err := Require(role, ok && role != "", hubapi.RoleMember, notFoundTeam(teamID)); err != nil {
+			return WriteResult{}, err
+		}
+		if err := req.Validate(); err != nil {
+			return WriteResult{}, fieldError(err) // H's FieldError → 400 naming the field
+		}
+		if r, ok, err := TeamRoleOf(ctx, tx, teamID, req.OwnerID); err != nil || !ok || r == "" {
+			return WriteResult{}, orErr(err, badField("ownerId", "The owner must be a member of the team."))
+		}
+		state := hubapi.InitiativePlanned
+		if req.State != nil {
+			state = *req.State
+		}
+		row := store.InitiativeRow{ID: ids.Wide(hubapi.PrefixInitiative), OrgID: tx.P.OrgID, TeamID: teamID,
+			Name: strings.TrimSpace(req.Name), OwnerID: req.OwnerID, TargetDate: req.TargetDate,
+			State: string(state), CreatedBy: tx.P.UserID, CreatedAt: tx.Now, UpdatedAt: tx.Now}
+		if err := store.InsertInitiative(ctx, tx, row); err != nil {
+			return WriteResult{}, err
+		}
+		tx.Emit(Event{Kind: hubapi.EventWorkInitiativeCreated, TeamID: teamID, Subject: row.ID,
+			Data: map[string]any{"initiativeId": row.ID, "state": string(state)}})
+		return WriteResult{Status: http.StatusCreated, Body: s.initiativeWire(ctx, tx, row)}, nil
+	})
+}
+```
+
+`listInitiatives` is `s.Read` with `TeamRole` and `RoleViewer` (the owning team only; a spanned
+team lists its own). `getInitiative` is `s.Read`, `readableInitiative(…, RoleViewer)` and
+`initiativeView`. `patchInitiative` is `s.Write`, `readableInitiative(…, RoleMember)`, the
+`ownerId` membership check again when present, `store.PatchInitiative` and one
+`work.initiative_updated` naming `changed` (no event when nothing changed). `setFeatureInitiative`
+is `s.Write`: task 76's feature read with `workAccess(...).Write(RoleMember)` on the feature's
+project; for a non-null id, `readableInitiative(…, RoleViewer)` and the span check of decision 5;
+then `store.SetFeatureInitiative` and `work.feature_initiative_set`. `TeamRole`, `TeamRoleOf`,
+`notFoundTeam`, `fieldError` and `userWire` are H's or task 08's helpers (**UNVERIFIED** names).
+
+#### Tests first: `server/work_initiatives_integration_test.go` (`//go:build integration`)
+
+Seeded with task 116's fixture: team T (Ada admin, Grace member, Vic viewer), feature F in T's
+project P; team U (Uma admin, Gus member) with feature H in project Q.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestTheViewHasNoAggregate` | `GET /v1/initiatives/{id}` decoded into `map[string]any` has exactly the keys `initiative`, `teams`, `features`; each feature row exactly `featureId`, `name`, `lead`, `latestUpdate`, `criteria` | computed health; a progress or count field |
+| `TestNoUpdateReadsNull` | F attached, no update posted: `latestUpdate` is JSON `null`; after Grace posts `at_risk` (task 119), it is `{"health":"at_risk","at":<that post's at>}` | defaults to `on_track` |
+| `TestAnotherTeamsInitiativeIs404` | Gus's `GET` of T's initiative is 404 `initiative_not_found`, byte-equal to an unknown id's reply | cross-team read without a grant |
+| `TestAWiderSpanReadsButDoesNotWrite` | after task 117's span `[T, U]`, Gus reads it (200) and his `PATCH` is 403 `forbidden` | a spanned team writes |
+| `TestTheOwnerIsAMember` | create with `ownerId` Gus (not in T) is 400 `ownerId`; a `PATCH` to Gus likewise; Vic may not create (403) | owner outside the team; viewer writes |
+| `TestAttachNeedsTheSpan` | Gus attaching H to T's initiative before the span is 422 `initiativeId`; after it, 200; detaching with `null` clears `features.initiative_id` | a feature joins any initiative |
+| `TestEachWriteHasOneEvent` | create, patch (a real change), patch (no change), attach: events `1, 1, 0, 1` of their kinds, each in the write's transaction (a forced rollback leaves neither) | write without event; an event per no-op |
+| `TestCriteriaWordsAreRecorded` | F's brief has criteria c1 (served by a live issue, no verdict) and c2 (served by none): the row reads `open` and `uncovered`; after a `settled` verdict on c1, `settled` | optimistic word |
+| `TestAnUnreadableFeatureNeverAppears` | H attached to T's initiative through the span, then Uma revokes nothing but H's project has no grant to T: Grace's view has no row for H and the reply contains neither H's id nor its name | an unreadable feature's name leaks |
+
+**Matrix rows, `"118"`:** `wwrite` for create and patch and the attach; `wread` for the list and
+the view; each with the `X`, `O`, `N` columns 404 `initiative_not_found` or `team_not_found`, and
+`"118"` appended to `workMatrixLive` in the commit that registers the routes.
+
+#### Steps
+
+- [ ] **Step 1: Sync and bind (15 min).** Sync-merge `feat/hub`; bind `TeamRole`, `TeamRoleOf`,
+  task 74's feature columns, task 117's `workAccess`; note whether 119 and 120 have landed.
+- [ ] **Step 2: Tests first (35 min).** All nine and the matrix rows; they fail (no routes).
+- [ ] **Step 3: Store and routes (70 min).** Green, except `TestNoUpdateReadsNull`'s second half
+  and `TestCriteriaWordsAreRecorded`, which need 119 and 120 and are skipped by name until then.
+- [ ] **Step 4: After 119 and 120 (15 min).** Delete the two stubs, un-skip, run green.
+- [ ] **Step 5: Commit by pathspec**, `feat(hub-w4): initiatives and the roll-up without a score`,
+  ending with the attribution line.
+
+#### Acceptance
+
+```bash
+go test ./control-plane/internal/hub/server/ -tags integration -race -count=1 -v \
+  -run '^Test(TheViewHasNoAggregate|NoUpdateReadsNull|AnotherTeamsInitiativeIs404|AWiderSpanReadsButDoesNotWrite|TheOwnerIsAMember|AttachNeedsTheSpan|EachWriteHasOneEvent|CriteriaWordsAreRecorded|AnUnreadableFeatureNeverAppears)$' \
+  2>&1 | grep -c '^--- PASS'
+# 9   (7 plus 2 SKIP before tasks 119 and 120 land)
+go test ./control-plane/internal/hub/... -tags integration -race -count=1
+# ok for every package; the matrix includes the "118" rows
+```
+
+#### What this task does not claim
+
+- **Not that a roll-up is useful to leads** (05 §2.6): the view shows words and dates; whether a
+  lead can read convergence from them is the owner's judgement at task 127's review.
+- **Not the graph Linear draws** (L-85): replaced by convergence across criteria and task 77's
+  scope log (Q1), which task 127 draws.
+- **Not initiatives across orgs, sub-initiatives or nested teams** (SKIP, Q12).
+- **No measured cost.** The view reads one latest update and one criterion list per feature.
+
+**Parity rows:** closes **L-83**, **L-84**, **L-85** and **L-88** on the Hub (task 127 the
+desktop); **L-87** with task 119.
+
+#### Gaps found
+
+1. **The criterion words** are task 120's four; the scope's test says `open` for "no evidence",
+   which is right only for a served criterion (decision 3). Task 125's gap 3 is answered here.
+2. **`TeamRole` and `TeamRoleOf`** are assumed H helpers (a caller's, and a named user's, role in
+   a team); if H exposes only `ProjectRole`, this task adds them beside it in a Work file.
+3. **Task 120's decision 4 keeps dependencies inside one team**, while task 115's fake lets a
+   granted feature be a dependency; one of the two must change (the owner of 115 and 120).
+4. **Event kind names disagree:** task 114's table spells `work.milestone_created` and
+   `work.dependency_added`; task 120's part spells `milestone.created` and
+   `feature.dependency_added` (`task-120.md:99-100`). This task's kinds are 114's
+   (`work.initiative_*`); the two parts must converge before task 124's story table.
