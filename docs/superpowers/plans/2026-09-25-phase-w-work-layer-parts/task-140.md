@@ -417,3 +417,117 @@ export const holdCycleProposal = (p: CycleProposal): void => { byCycle.set(p.cyc
 export const clearCycleProposal = (cycleId: string): void => { byCycle.delete(cycleId); };
 export const cycleProposals = (): readonly CycleProposal[] => [...byCycle.values()];
 ```
+
+#### Interfaces — complete: `desktop/src/components/plan/ProposeIssues.tsx`
+
+```tsx
+// desktop/src/components/plan/ProposeIssues.tsx — L-82's W4 half. One draft per uncovered criterion.
+import { useEffect, useState } from "react";
+import type { Draft } from "../../api/work";
+import { useWorkClient } from "../../api/useWorkClient";
+import { ApiError } from "../../api/client";
+import { mutate } from "../../work/replica/useWork";
+import { encodeDraft, fromDraft, toDraftBody, type ProposedIssueDraft } from "../../work/proposals";
+import { offerUndo } from "../common/UndoChip";                  // task 56's chip (UNVERIFIED export name)
+import { Editor } from "../editor/Editor";
+import { docFromAuthored, toAuthored } from "../editor/authorClass";
+
+export interface ProposeIssuesProps { featureId: string; projectId: string; uncoveredCount: number }
+
+type Card = { draftId: string; p: ProposedIssueDraft };
+
+export function ProposeIssues(props: ProposeIssuesProps): JSX.Element {
+  const work = useWorkClient();
+  const [cards, setCards] = useState<Card[]>([]);
+  const [missing, setMissing] = useState<string[]>([]);
+  const [note, setNote] = useState<string | null>(null);
+  const [editing, setEditing] = useState<string | null>(null);
+
+  // Decision 3: the cards are the person's df- drafts for this feature, read from the Hub on mount.
+  useEffect(() => {
+    work.listDrafts().then((ds: Draft[]) => setCards(ds.flatMap((d) => {
+      const p = fromDraft(d);
+      return p && p.featureId === props.featureId ? [{ draftId: d.id, p }] : [];
+    })));
+  }, [props.featureId]);
+
+  const propose = async () => {
+    setNote(null);
+    try {
+      const r = await work.proposeIssues(props.featureId);
+      const saved = await Promise.all(r.proposals.map((p) =>
+        work.saveDraft({ kind: "issue", issueId: null, body: toDraftBody(props.featureId, p) })));
+      setCards((c) => [...c, ...saved.map((d) => ({ draftId: d.id, p: fromDraft(d)! }))]);
+      setMissing(r.uncovered.filter((u) => r.missing.includes(u.id)).map((u) => u.label));
+    } catch (e) {
+      setNote(e instanceof ApiError && e.code === "assists_off"
+        ? "Proposals unavailable: assists are off for this org." : "Proposals unavailable: the gateway did not answer.");
+    }
+  };
+
+  const create = async (c: Card) => {
+    const issue = await work.createIssue(props.projectId, {   // as the person; task 03's CreateIssueRequest
+      title: c.p.title, description: c.p.description, serves: c.p.serves, implements: [],
+      state: "triage", priority: "none", assigneeId: null, labels: [], notTiedReason: "" });
+    await work.deleteDraft(c.draftId);
+    return issue;
+  };
+
+  const accept = async (c: Card) => { await create(c); setCards((cs) => cs.filter((x) => x.draftId !== c.draftId)); };
+
+  const acceptAll = async () => {                               // decision 8: one Undo for the set
+    const all = cards;
+    const made = [];
+    for (const c of all) made.push(await create(c));
+    setCards([]);
+    offerUndo(`${made.length} issues created`, async () => {
+      mutate(made.map((i) => ({ kind: "setState", issueId: i.id,
+        move: { to: "cancelled", reason: "Undone: proposed issues accepted by mistake" } })));   // one batch
+      const back = await Promise.all(all.map((c) => work.saveDraft({ kind: "issue", issueId: null, body: encodeDraft(c.p) })));
+      setCards(back.map((d) => ({ draftId: d.id, p: fromDraft(d)! })));
+    });
+  };
+
+  const discard = async (c: Card) => { await work.deleteDraft(c.draftId); setCards((cs) => cs.filter((x) => x !== c)); };
+
+  return (
+    <section className="pi" aria-label="Proposed issues">
+      {props.uncoveredCount > 0 && cards.length === 0 && (
+        <button type="button" onClick={propose}>
+          Propose issues for {props.uncoveredCount} uncovered {props.uncoveredCount === 1 ? "criterion" : "criteria"}
+        </button>)}
+      {note && <p className="pi-note" role="status">{note}</p>}
+      {missing.map((l) => <p key={l} className="pi-note">No draft for {l}. Write one yourself.</p>)}
+      {cards.map((c) => (
+        <article key={c.draftId} className="pi-card" data-author="A">
+          <header className="pi-crit"><span className="pi-label">{c.p.criterionLabel}</span> {c.p.criterionText}</header>
+          {editing === c.draftId
+            ? <Editor value={docFromAuthored(c.p.title)} ariaLabel="Title" onCommit={(d) => {
+                const p = { ...c.p, title: toAuthored(d) };
+                void work.saveDraft({ id: c.draftId, kind: "issue", issueId: null, body: encodeDraft(p) });
+                setCards((cs) => cs.map((x) => (x.draftId === c.draftId ? { ...x, p } : x)));
+                setEditing(null); }} />
+            : <h4 className="pi-title"><span className="pi-drafted">Drafted</span> {c.p.title.text}</h4>}
+          <p className="pi-serves">Serves {c.p.criterionLabel}</p>
+          <div className="pi-acts">
+            <button type="button" onClick={() => accept(c)}>Accept</button>
+            <button type="button" onClick={() => setEditing(c.draftId)}>Edit</button>
+            <button type="button" onClick={() => discard(c)}>Discard</button>
+          </div>
+        </article>))}
+      {cards.length > 1 && <button type="button" onClick={acceptAll}>Accept all</button>}
+    </section>
+  );
+}
+```
+
+The editor's commit keeps task 49's rule: a title the person rewrote is `H`, one left as drafted
+stays `A` (`toAuthored`), so an accepted issue's revision carries the class the text really has.
+`encodeDraft(p)` is `proposals.ts`'s `{text: canon(p), author: "A"}` (added beside `toDraftBody`,
+which calls it), so every save of a proposal draft is the same canonical bytes. `listDrafts`,
+`saveDraft`, `deleteDraft` and `createIssue` are task 37's client over task 80's `/v1/me/drafts`
+routes and task 04's issue create (**UNVERIFIED** method names). The Undo is task 56's chip offered
+with a callback, because the inverse of a create is not a `WorkOp` (`task-56.md:157-168` has no
+create kind); inside it, the cancel moves are **one** `mutate([...])` batch (`task-56.md:47-48`),
+and `cancelled` with a reason is a person's move, never a fact state (skeleton rule 2). Whether the
+chip takes a callback is a gap (gap 3).
