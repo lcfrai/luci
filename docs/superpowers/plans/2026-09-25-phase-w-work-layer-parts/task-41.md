@@ -457,3 +457,74 @@ describe("the hold model", () => {
 `2026-09-18T04:02:00Z` is 14:02 in Sydney (AEST, UTC+10; daylight time starts on 4 October 2026),
 so the time-zone assertion is fixed, not the machine's zone.
 
+#### Tests to write first, part 2 — `desktop/src/components/work/hold.test.tsx` (the lens)
+
+The lens reads through `useWork` (SW.16). Before task 55 the test feeds it `workScenario()` (SW.8)
+through **task 40's test seam**, written here as `setWorkSourceForTest(world)` (**UNVERIFIED**:
+task 40's part was not on the tree at this writing; the seam it defines is used, and these
+assertions do not change). The world is grouped by criterion; EP-167 (`todo`), EP-166 (`backlog`)
+and EP-142 are made to serve `c-91e2a4b0` so that group holds three rows.
+
+| Test | What it asserts | Mutant it kills |
+|---|---|---|
+| `the header reads a plain count with the moving word` | focus a row in `c-91e2a4b0`; the world moves EP-167 to serve `c-40aa17c3`; the header's `.wk-count` reads exactly `3 issues · 1 moving`; EP-167 is still the row at its index; then `expectNoPrediction(container)` | a `1 of 3` or `2/3` counter; a row that jumps |
+| `a held move shows its new glyph and its cause at once` | the same move with a state change to `started`; the row's `StateGlyph` label reads the started word, its `.wk-cause` is in the DOM, and it has `data-changed="unseen"` and a `data-flash` value | a glyph that waits for `N`; a flag nobody draws |
+| `N on the list applies; N in a field does nothing; N on the body does nothing` | `fireEvent.keyDown(list, {code: "KeyN", key: "n"})` relocates EP-167 and clears `data-changed`; the same event on a lens `input` (task 40's filter field) and on `document.body` leaves the hold unchanged | a `document` listener; a handler that ignores text targets |
+| `unmount and remount applies everything held` | hold one arrival and one departure; unmount; remount on the same world; no `HeldLine`, no ghost, the arrival drawn in its place | held state kept in a slice or module that outlives the view |
+
+A fifth, structural check rides in the same file: it reads `work.css` as text (the
+`StatusDot.test.tsx:82` pattern) and asserts that no rule contains `transition: all` and that
+every `@keyframes` block in the file sets only `opacity` or `transform` (kills a flash that
+animates `background-color` or `height`).
+
+#### Steps
+
+- [ ] Write `hold.test.ts`; run `npm --prefix desktop test -- src/work/hold.test.ts`: it fails to
+      import `./hold`.
+- [ ] Write `hold.ts` (types, then `initialHold`, `applyHeld`, `reconcile`, `causeLine`,
+      `groupSize`, `heldWords`); the six model tests pass. Mutate by hand, one at a time, and watch
+      the named test go red, then revert: insert arrivals into `rows` (test 1); drop the
+      `watched(g.key)` pin (test 2); pin on `to !== g.key` alone (test 3); drop the ghost branch
+      (test 4); set `HEADER_FLASH_OVER = 9` (test 5); print `(${detail})` unconditionally (test 6).
+- [ ] Write `listKeys.ts` and `HeldLine.tsx`.
+- [ ] Write `hold.test.tsx`; it fails on the missing `data-changed` and `.wk-count`.
+- [ ] Make the edits to `WorkLens.tsx`, `CriterionGroup.tsx` and `IssueRow.tsx`; append the CSS.
+      The five surface checks pass; task 40's own tests still pass.
+- [ ] Commit each file as it goes green.
+
+#### Acceptance
+
+```bash
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop test -- src/work/hold.test.ts src/components/work/hold.test.tsx'
+# expected: 2 files, 11 tests, all passing (6 model, 4 lens, 1 structural)
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop test'
+# expected: every suite passing, task 40's included
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop run typecheck'
+# expected: exit 0, no output after the tsc banner
+~/.claude/tools/claudezsh/claudezsh 'grep -rn "addEventListener(\"keydown\"" desktop/src/components/work desktop/src/work'
+# expected: no output (N is bound on the list element, never on document or window)
+```
+
+#### What this task does NOT claim
+
+- **FLIP re-sort** on an explicit re-sort: task 44, the only place a row may animate position.
+- **The live-region announcement** of a held change: task 66.
+- **The reduced-motion tick's styling** for `data-changed="unseen"`: task 34, not upstream of 41.
+- **Board cards, Plan sections and Desk rows** using the model: tasks 43, 45 and 62 call it.
+- **`N` in `KEYMAP`** and the `?` sheet's line for it: task 53.
+- That the prototype's flash colour is the owner's choice: `--accent-ring` is a proposal, and
+  visual acceptance is the owner's eyes at task 39's review, not this task's tests.
+
+#### Gaps found while writing this part
+
+1. The skeleton's file map omits `desktop/src/work/hold.ts`, `hold.test.ts` and the new
+   `desktop/src/work/listKeys.ts` (shared by tasks 42 and 44 until task 53).
+2. The scope's *focus outside its group* is read as *attention in neither the shown nor the home
+   group*, and attention includes the pointer (decisions 2 and the note under the types); without
+   it a move out of a group into a watched group has nowhere to be drawn.
+3. The evidence `detail` (`test run, exit 0`) has no W1 feed field (`task-20.md:330-331` carries
+   `to` and `cause` only); task 37 must say where the desktop reads it, or the line prints without
+   the parenthesis.
+4. Task 40's part, its class names and its test seam were not on the tree; the names here are
+   proposals and task 40 wins.
+
