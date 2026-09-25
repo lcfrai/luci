@@ -947,3 +947,196 @@ type UsageRollupRequest struct {
 The usage day is **UNVERIFIED** in its time zone: `Australia/Sydney` is this part's choice, since
 the gateway's usage store is in Australia East (§2.5), and task 66 confirms or changes it with the
 gateway's own roll-up boundary.
+
+- [ ] **Step 1: Write the failing tests, `team_test.go` part 1: enums, route sets, grammars**
+
+It lives in package `hubapi`, so it reuses `types_test.go`'s helpers as they stand: `jsonFields`,
+`typeKeyPaths`, `decodeInto`, `problemOf`, and `keys_test.go`'s `contractSection`.
+
+```go
+package hubapi
+
+import (
+	"encoding/json"
+	"reflect"
+	"regexp"
+	"slices"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/ids"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/teamtext"
+)
+
+func TestTeamEnumsAcceptTheirSetOnly(t *testing.T) {
+	// mutant: a constant missing from its Valid set, or Valid accepting "".
+	for name, c := range map[string]struct {
+		valid func(string) bool
+		want  []string
+	}{
+		"DelegationClass": {func(s string) bool { return DelegationClass(s).Valid() }, []string{"orchestrator", "worker"}},
+		"RevokeReason":    {func(s string) bool { return RevokeReason(s).Valid() }, []string{"owner", "admin", "member_removed", "account_disabled"}},
+		"TaskState":       {func(s string) bool { return TaskState(s).Valid() }, []string{"planned", "active", "blocked", "done", "abandoned"}},
+		"AgentRole":       {func(s string) bool { return AgentRole(s).Valid() }, []string{"orchestrator", "worker"}},
+		"ExitClass":       {func(s string) bool { return ExitClass(s).Valid() }, []string{"done", "stopped", "failed", "access_removed", "lapsed"}},
+		"LeaseMode":       {func(s string) bool { return LeaseMode(s).Valid() }, []string{"intent", "hold", "bulk"}},
+		"LeaseState":      {func(s string) bool { return LeaseState(s).Valid() }, []string{"requested", "granted", "contested", "yielded", "released", "expired", "admin-released"}},
+		"ConflictTier":    {func(s string) bool { return ConflictTier(s).Valid() }, []string{"P", "H", "M", "S"}},
+		"ConflictState":   {func(s string) bool { return ConflictState(s).Valid() }, []string{"raised", "negotiating", "accepted", "resolved", "escalated", "cleared"}},
+		"ResolutionKind":  {func(s string) bool { return ResolutionKind(s).Valid() }, []string{"split", "sequence", "yield", "build-on", "proceed-both"}},
+		"ThreadState":     {func(s string) bool { return ThreadState(s).Valid() }, []string{"open", "resolved", "escalated", "expired"}},
+		"SubjectKind":     {func(s string) bool { return SubjectKind(s).Valid() }, []string{"conflict", "lease", "free"}},
+		"MessageKind":     {func(s string) bool { return MessageKind(s).Valid() }, []string{"ask", "answer", "inform", "propose", "accept", "reject", "counter", "withdraw"}},
+		"EscalationKind":  {func(s string) bool { return EscalationKind(s).Valid() }, []string{"inform", "decide"}},
+		"DirectiveKind":   {func(s string) bool { return DirectiveKind(s).Valid() }, []string{"pause", "resume", "narrow", "wait-for", "rebase", "free"}},
+		"DeliveryRung":    {func(s string) bool { return DeliveryRung(s).Valid() }, []string{"piggyback", "inbox-socket", "pty-nudge"}},
+		"TurnOrigin":      {func(s string) bool { return TurnOrigin(s).Valid() }, []string{"human", "fleet"}},
+		"NoteTargetKind":  {func(s string) bool { return NoteTargetKind(s).Valid() }, []string{"project", "task", "user"}},
+		"InferenceRoute":  {func(s string) bool { return InferenceRoute(s).Valid() }, []string{"global", "au"}},
+		"EscalationFloor": {func(s string) bool { return EscalationFloor(s).Valid() }, []string{"yield-unedited", "accept-split", "proceed-both-ps", "sequence-short"}},
+	} {
+		for _, v := range c.want {
+			if !c.valid(v) {
+				t.Errorf("%s(%q) invalid", name, v)
+			}
+		}
+		for _, v := range []string{"", "bogus", strings.ToUpper(c.want[0])} {
+			if v != c.want[0] && c.valid(v) {
+				t.Errorf("%s(%q) valid", name, v)
+			}
+		}
+	}
+}
+
+func TestOnlyFreeDirectivesNeedADecide(t *testing.T) {
+	// mutant: Typed() true for free, so the Hub's second taint layer never fires.
+	for _, k := range []DirectiveKind{DirectivePause, DirectiveResume, DirectiveNarrow, DirectiveWaitFor, DirectiveRebase} {
+		if !k.Typed() {
+			t.Errorf("%s not typed", k)
+		}
+	}
+	if DirectiveFree.Typed() || DirectiveKind("wait").Typed() {
+		t.Error("free, or an unknown kind, counted as typed")
+	}
+}
+
+func TestClassRouteSets(t *testing.T) {
+	name := regexp.MustCompile(`^[a-z_]+\.[a-z_]+$`)
+	orch, work := ClassRoutes[DelegationClassOrchestrator], ClassRoutes[DelegationClassWorker]
+	// mutant: a route name added to the table but not to the orchestrator set.
+	if len(orch) != 23 || len(work) != 10 {
+		t.Fatalf("orchestrator %d routes, worker %d; want 23 and 10", len(orch), len(work))
+	}
+	for _, r := range orch {
+		if !name.MatchString(string(r)) {
+			t.Errorf("%q is not a route name", r)
+		}
+	}
+	for _, r := range work {
+		if !slices.Contains(orch, r) {
+			t.Errorf("worker route %s is not an orchestrator route", r)
+		}
+	}
+	// mutant: the worker class gains the cross-user channel (OD-16).
+	for _, r := range []RouteName{RouteMessagesAppend, RouteDirectivesAppend, RouteEscalationsCreate,
+		RouteThreadsCreate, RouteTasksCreate, RouteTurnsRecord, RouteHumanMessagesRead} {
+		if DelegationClassWorker.Allows(r) {
+			t.Errorf("worker class allows %s", r)
+		}
+	}
+	if DelegationClass("admin").Allows(RouteTasksRead) {
+		t.Error("an unknown class allows a route")
+	}
+}
+
+func TestTeamGrammars(t *testing.T) {
+	bf := ids.Wide(PrefixBrief)
+	for _, c := range []struct {
+		ok     bool
+		got    bool
+		mutant string
+	}{
+		{true, ValidBriefRef("brief:" + bf + "@3#export"), "the brief key half refused"},
+		{false, ValidBriefRef("brief:" + bf + "@3"), "a ref without a section accepted"},
+		{false, ValidBriefRef("brief:" + bf + "@3#Export"), "an upper-case section accepted"},
+		{false, ValidBriefRef("design:cv-1234@3#x"), "a design key accepted as a brief ref"},
+		{true, ValidLaneRef("refs/panacea/lanes/ag-3f2a91c07b1e4d2a/main"), "a lane ref refused"},
+		{false, ValidLaneRef("refs/heads/main"), "a branch accepted as a lane"},
+		{false, ValidLaneRef("refs/panacea/lanes/"), "an empty lane accepted"},
+		{false, ValidLaneRef("refs/panacea/lanes/a..b"), "branch component rules not applied"},
+		{true, ValidHarness(Harness{"claude-code", "2.1.4"}), "a real harness refused"},
+		{false, ValidHarness(Harness{"Claude Code", "2.1.4"}), "a harness id with a space accepted"},
+		{false, ValidHarness(Harness{"claude-code", ""}), "an unpinned version accepted"},
+		{true, ValidSha(strings.Repeat("a", 40)), "a SHA-1 refused"},
+		{true, ValidSha(strings.Repeat("b", 64)), "a SHA-256 refused"},
+		{false, ValidSha(strings.Repeat("c", 41)), "a 41-hex sha accepted"},
+		{true, DataClass("confidential").Valid(), "a plain data class refused"},
+		{false, DataClass("").Valid(), "an empty data class accepted"},
+	} {
+		if c.got != c.ok {
+			t.Errorf("mutant survives: %s", c.mutant)
+		}
+	}
+	// mutant: a new prefix collides with an old one, or ids.Wide output fails ValidID.
+	all := []string{PrefixOrg, PrefixUser, PrefixTeam, PrefixInvite, PrefixProject, PrefixBrief,
+		PrefixApproval, PrefixLink, PrefixRelease, PrefixEvidence, PrefixDelegation, PrefixTask,
+		PrefixAgent, PrefixLease, PrefixConflict, PrefixThread, PrefixMessage, PrefixEscalation,
+		PrefixDirective, PrefixTurn, PrefixHumanMessage, PrefixNote}
+	seen := map[string]bool{}
+	for _, p := range all {
+		if seen[p] {
+			t.Errorf("prefix %q twice", p)
+		}
+		seen[p] = true
+		if id := ids.Wide(p); !ValidID(p, id) {
+			t.Errorf("ids.Wide(%q) = %q fails ValidID", p, id)
+		}
+	}
+}
+
+// teamResponses and teamRequests are every team type; a new one must join a list.
+var (
+	teamResponses = []any{Delegation{}, Task{}, AgentStart{}, LeaseEvent{}, Conflict{}, Thread{},
+		Message{}, Escalation{}, Directive{}, TurnRecorded{}, HumanMessage{}, Note{}, TeamPolicy{}}
+	teamRequests = []any{CreateDelegationRequest{}, CreateTaskRequest{}, PatchTaskRequest{},
+		AgentStartRequest{}, AgentEndRequest{}, LeaseEventRequest{}, CreateConflictRequest{},
+		PatchConflictRequest{}, CreateThreadRequest{}, PatchThreadRequest{}, AppendMessageRequest{},
+		CreateEscalationRequest{}, AnswerEscalationRequest{}, AppendDirectiveRequest{},
+		RecordTurnRequest{}, CreateHumanMessageRequest{}, CreateNoteRequest{},
+		PutTeamPolicyRequest{}, RouteChangeRequest{}, UsageRollupRequest{}}
+)
+
+func TestTeamResponsesNeverOmitAField(t *testing.T) {
+	// mutant: omitempty on a response field (contract §7.1), e.g. Conflict.threadId.
+	for _, v := range teamResponses {
+		typ := reflect.TypeOf(v)
+		for _, f := range jsonFields(typ) {
+			if f.omitempty {
+				t.Errorf("%s.%s carries omitempty", typ, f.name)
+			}
+		}
+		p := reflect.New(typ).Interface()
+		EnsureLists(p)
+		b, _ := json.Marshal(p)
+		var got map[string]json.RawMessage
+		if err := json.Unmarshal(b, &got); err != nil || len(got) != len(jsonFields(typ)) {
+			t.Errorf("%s marshals %d keys, has %d fields (%v)", typ, len(got), len(jsonFields(typ)), err)
+		}
+	}
+}
+
+func TestTeamRequestsRefuseActorFields(t *testing.T) {
+	// mutant: a request type grows an owner, actor, via, delegation or session field,
+	// so a body could name who acted (ADR-H1 §5.10 rule 4).
+	for _, v := range teamRequests {
+		for _, k := range []string{"ownerUserId", "actor", "actorUserId", "via", "delegationId", "sessionId"} {
+			dst := reflect.New(reflect.TypeOf(v)).Interface()
+			rec, ok := decodeInto(dst, `{"`+k+`":"x"}`)
+			if ok || rec.Code != 400 || problemOf(t, rec).Error != CodeBadRequest {
+				t.Errorf("%T accepted %q", v, k)
+			}
+		}
+	}
+}
+```
