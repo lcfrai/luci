@@ -313,3 +313,274 @@ only when the value changes, so a `PATCH` of priority (task 08) never pays for t
 lookup and can never be refused by it. `issues_initial_state_guard` is the `INSERT` half: without
 it, `INSERT … state = 'done'` would skip every rule above, because a row that is born `done` never
 *moves* into it. Task 03's `ValidInitialState` is the Go half; the two layers are tested apart.
+
+#### The matrix rows — `server/work_matrix_rows_integration_test.go`
+
+The rows follow §5.3's columns (`V M A O N X`, hub-contract `:337-339`) and its nearest Hub rows:
+*read a project and anything under it* (`:349`) for every read; *create a brief; write revisions*
+(`:351`) for every issue and comment write; *rename a project* (`:350`) for team Work settings; and
+*erase a brief* (`:359`) for erase. Two rows have no Hub twin and are decided here: the
+subscription `PUT` is ✓ for `V` too (following an issue is not a write to it), and
+`GET /v1/me/subscriptions` answers everyone, an empty list for a caller in no team, as `GET
+/v1/me` does. Bodies are `map[string]any` in task 03's JSON names, so this file depends on the wire,
+not on Go field names.
+
+```go
+//go:build integration
+
+package server_test
+
+// workW1Routes is the complete W1 Work route list, as ServeMux patterns. It is appended to
+// hub-contract §7's table as rows 46 onward (the next free number at sync time) by the WH
+// proposal; no Hub row is edited. /v1/refs (row 27) and /v1/changes (row 43) are extended
+// by tasks 09 and 13, not added, so they are not here.
+var workW1Routes = []string{
+	"PUT /v1/projects/{projectId}/key", "POST /v1/projects/{projectId}/issues",
+	"GET /v1/projects/{projectId}/issues", "GET /v1/projects/{projectId}/issues/by-number/{n}",
+	"GET /v1/issues/{issueId}", "PATCH /v1/issues/{issueId}",
+	"POST /v1/issues/{issueId}/revisions", "GET /v1/issues/{issueId}/revisions",
+	"GET /v1/issues/{issueId}/revisions/{rev}", "POST /v1/issues/{issueId}/revisions/{rev}/restore",
+	"POST /v1/issues/{issueId}/attachments", "GET /v1/issues/{issueId}/attachments",
+	"POST /v1/issues/{issueId}/state",
+	"POST /v1/issues/{issueId}/relations", "DELETE /v1/issues/{issueId}/relations/{kind}/{otherId}",
+	"GET /v1/teams/{teamId}/labels", "POST /v1/teams/{teamId}/labels", "POST /v1/labels/{labelId}/archive",
+	"GET /v1/teams/{teamId}/work-policy", "PUT /v1/teams/{teamId}/work-policy",
+	"GET /v1/issues/{issueId}/comments", "POST /v1/issues/{issueId}/comments",
+	"POST /v1/comments/{commentId}/reactions", "POST /v1/comments/{commentId}/resolve",
+	"PUT /v1/issues/{issueId}/subscription", "GET /v1/me/subscriptions",
+	"GET /v1/issues/search", "POST /v1/issues/{issueId}/erase", "POST /v1/comments/{commentId}/erase",
+	"POST /v1/projects/{projectId}/imports",
+}
+
+// workRow is H16b's row plus the pattern it exercises, so a meta-test can compare rows
+// with the route list and with (*Server).Patterns() without parsing a path.
+type workRow struct {
+	pattern string
+	row     row
+}
+
+// workMatrixLive names the tasks whose routes are registered. Tasks 08-15 each append
+// their id here in the commit that registers their routes. Task 07 lands it empty.
+var workMatrixLive = []string{}
+
+func init() {
+	for _, id := range workMatrixLive {
+		rows := make([]row, 0, len(workMatrixRows[id]))
+		for _, w := range workMatrixRows[id] {
+			rows = append(rows, w.row)
+		}
+		allRows = append(allRows, rows)
+	}
+}
+
+func nf(code string) map[column]string {
+	return map[column]string{colO: code, colN: code, colX: code}
+}
+func wread(p, path, code string) workRow {
+	return workRow{p, row{name: p, method: "GET", path: path, want: [6]int{200, 200, 200, 404, 404, 404}, wantCode: nf(code)}}
+}
+func wwrite(p, method, path string, ok int, code string, body func(*fixture) any) workRow {
+	return workRow{p, row{name: p, method: method, path: path, body: body, want: [6]int{403, ok, ok, 404, 404, 404}, wantCode: nf(code)}}
+}
+func wadmin(p, method, path string, ok int, code string, body func(*fixture) any) workRow {
+	return workRow{p, row{name: p, method: method, path: path, body: body, want: [6]int{403, 403, ok, 404, 404, 404}, wantCode: nf(code)}}
+}
+func werase(p, path string) workRow {
+	return workRow{p, row{name: p, method: "POST", path: path, body: empty, want: [6]int{403, 403, 403, 200, 403, 403}}}
+}
+func empty(*fixture) any { return map[string]any{} }
+func h(text string) map[string]any { return map[string]any{"text": text, "author": "H"} }
+
+// workMatrixRows is every W1 row, keyed by the task that registers the route.
+var workMatrixRows = map[string][]workRow{
+	"08": {
+		wadmin("PUT /v1/projects/{projectId}/key", "PUT", "/v1/projects/{ProjectID}/key", 200, "project_not_found",
+			func(*fixture) any { return map[string]any{"key": "PAY"} }),
+		wwrite("POST /v1/projects/{projectId}/issues", "POST", "/v1/projects/{ProjectID}/issues", 201, "project_not_found",
+			func(*fixture) any {
+				return map[string]any{"title": h("Resume uploads"), "description": h(""), "serves": []any{},
+					"state": "triage", "priority": "none", "labels": []any{}, "notTiedReason": "chore"}
+			}),
+		wread("GET /v1/projects/{projectId}/issues", "/v1/projects/{ProjectID}/issues", "project_not_found"),
+		wread("GET /v1/projects/{projectId}/issues/by-number/{n}", "/v1/projects/{ProjectID}/issues/by-number/{IssueNumber}", "project_not_found"),
+		wread("GET /v1/issues/{issueId}", "/v1/issues/{IssueID}", "issue_not_found"),
+		wwrite("PATCH /v1/issues/{issueId}", "PATCH", "/v1/issues/{IssueID}", 200, "issue_not_found",
+			func(*fixture) any { return map[string]any{"priority": "high"} }),
+	},
+	"09": {
+		wwrite("POST /v1/issues/{issueId}/revisions", "POST", "/v1/issues/{IssueID}/revisions", 201, "issue_not_found",
+			func(*fixture) any {
+				return map[string]any{"baseRevision": 2, "content": map[string]any{"title": h("Resume uploads, v3"),
+					"description": h(""), "serves": []any{}, "implements": []any{}}}
+			}),
+		wread("GET /v1/issues/{issueId}/revisions", "/v1/issues/{IssueID}/revisions", "issue_not_found"),
+		wread("GET /v1/issues/{issueId}/revisions/{rev}", "/v1/issues/{IssueID}/revisions/1", "issue_not_found"),
+		wwrite("POST /v1/issues/{issueId}/revisions/{rev}/restore", "POST", "/v1/issues/{IssueID}/revisions/1/restore", 201, "issue_not_found",
+			func(*fixture) any { return map[string]any{"fromRevision": 1} }),
+		wwrite("POST /v1/issues/{issueId}/attachments", "POST", "/v1/issues/{IssueID}/attachments", 201, "issue_not_found",
+			func(f *fixture) any { return map[string]any{"digest": f.WorkBlob} }),
+		wread("GET /v1/issues/{issueId}/attachments", "/v1/issues/{IssueID}/attachments", "issue_not_found"),
+	},
+	"10": {
+		wwrite("POST /v1/issues/{issueId}/state", "POST", "/v1/issues/{IssueID}/state", 200, "issue_not_found",
+			func(*fixture) any { return map[string]any{"to": "todo", "cause": "hand", "reason": ""} }),
+	},
+	"11": {
+		wwrite("POST /v1/issues/{issueId}/relations", "POST", "/v1/issues/{IssueID}/relations", 201, "issue_not_found",
+			func(f *fixture) any { return map[string]any{"kind": "relates", "issueId": f.Issue2ID} }),
+		wwrite("DELETE /v1/issues/{issueId}/relations/{kind}/{otherId}", "DELETE", "/v1/issues/{IssueID}/relations/blocks/{Issue2ID}", 204, "issue_not_found", nil),
+		wread("GET /v1/teams/{teamId}/labels", "/v1/teams/{TeamID}/labels", "team_not_found"),
+		wadmin("POST /v1/teams/{teamId}/labels", "POST", "/v1/teams/{TeamID}/labels", 201, "team_not_found",
+			func(*fixture) any { return map[string]any{"name": "Bug", "color": "red"} }),
+		wadmin("POST /v1/labels/{labelId}/archive", "POST", "/v1/labels/{LabelID}/archive", 200, "label_not_found", empty),
+		wread("GET /v1/teams/{teamId}/work-policy", "/v1/teams/{TeamID}/work-policy", "team_not_found"),
+		wadmin("PUT /v1/teams/{teamId}/work-policy", "PUT", "/v1/teams/{TeamID}/work-policy", 200, "team_not_found",
+			func(*fixture) any {
+				return map[string]any{"defaultState": "backlog", "priorityToLeaveTriage": false, "stopAtLandedWithoutServes": false}
+			}),
+	},
+	"12": {
+		wread("GET /v1/issues/{issueId}/comments", "/v1/issues/{IssueID}/comments", "issue_not_found"),
+		wwrite("POST /v1/issues/{issueId}/comments", "POST", "/v1/issues/{IssueID}/comments", 201, "issue_not_found",
+			func(*fixture) any { return map[string]any{"body": h("Looks right"), "mentions": []any{}} }),
+		wwrite("POST /v1/comments/{commentId}/reactions", "POST", "/v1/comments/{CommentID}/reactions", 200, "comment_not_found",
+			func(*fixture) any { return map[string]any{"emoji": "👍", "on": true} }),
+		wwrite("POST /v1/comments/{commentId}/resolve", "POST", "/v1/comments/{CommentID}/resolve", 200, "comment_not_found",
+			func(*fixture) any { return map[string]any{"resolved": true} }),
+	},
+	"13": {
+		{"PUT /v1/issues/{issueId}/subscription", row{name: "PUT /v1/issues/{issueId}/subscription", method: "PUT",
+			path: "/v1/issues/{IssueID}/subscription", body: func(*fixture) any { return map[string]any{"subscribed": false} },
+			want: [6]int{200, 200, 200, 404, 404, 404}, wantCode: nf("issue_not_found")}},
+		{"GET /v1/me/subscriptions", row{name: "GET /v1/me/subscriptions", method: "GET",
+			path: "/v1/me/subscriptions", want: [6]int{200, 200, 200, 200, 200, 200}}},
+	},
+	"14": {
+		wread("GET /v1/issues/search", "/v1/issues/search?projectId={ProjectID}&q=resume", "project_not_found"),
+		werase("POST /v1/issues/{issueId}/erase", "/v1/issues/{IssueID}/erase"),
+		werase("POST /v1/comments/{commentId}/erase", "/v1/comments/{CommentID}/erase"),
+	},
+	"15": {
+		wwrite("POST /v1/projects/{projectId}/imports", "POST", "/v1/projects/{ProjectID}/imports", 200, "project_not_found",
+			func(*fixture) any {
+				return map[string]any{"source": "csv", "items": []any{map[string]any{"externalId": "row-1", "url": "",
+					"title": "Imported", "description": "", "priority": "none", "labels": []any{}, "createdAt": "2026-09-25T00:00:00Z"}}}
+			}),
+	},
+}
+```
+
+The edit to H16b's `matrix_integration_test.go`, whole:
+
+```go
+// type fixture struct { …, appended by Phase W task 07, never renamed:
+	IssueID, Issue2ID, IssueNumber, IssueRevision, CommentID, LabelID, WorkBlob string
+
+// in the fixture builder, after the project, its remote and its blob exist:
+	buildWorkFixture(t, f)
+```
+
+`buildWorkFixture(t *testing.T, f *fixture)` lives in this task's file. It returns at once when
+`workMatrixLive` is empty, so the Hub's rows cost nothing extra until a Work route exists. Otherwise
+it writes, as `hub_app` with `hub.org_id` set and **by SQL, not by route** (task 07 lands before
+any Work route): issue `IssueID` at number 1 with revisions 1 and 2 (head 2, `IssueRevision` =
+`"2"`), issue `Issue2ID` at number 2, a `blocks` relation from the first to the second, the label
+`LabelID` (`"Chore"`), a comment `CommentID` on the first, and `WorkBlob`, a second project blob.
+Both issues are `not_tied` with reason `chore`, `state` `todo`, created by Grace. The rows it writes
+obey task 06's keys and this task's guards, so a builder that breaks a guard fails loudly in the
+harness rather than hiding in a cell. The database handle it writes through is the one H16b's
+builder already holds; its name is **UNVERIFIED** (H16b's builder body is not on `feat/hub` at this
+writing).
+
+**Problem codes.** The 404 cells name `issue_not_found`, `label_not_found` and
+`comment_not_found`, beside the Hub's own `project_not_found` and `team_not_found`. The three new
+codes are added to the Hub's problem-code list additively by the task that first answers them (08,
+11, 12); this task only names them.
+
+#### Tests to write first
+
+`migrate/work_guards_integration_test.go` (`//go:build integration`), on task 06's `seedWork`. The
+state tests set the two settings with `set_config(…, true)` inside `asApp`'s transaction, exactly as
+task 10's store will.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestDoneWithoutACauseIsRefused` | as `hub_app`, an issue whose head serves one criterion; `UPDATE issues SET state = 'done'` with neither setting → `42501`, message prefix `hub: work:` | a guard on the Go side only |
+| `TestAHandSetDoneNeedsAReasonWhenItServes` | `person`, `hand`, empty `state_reason`, head serves a criterion → `42501`; the same with reason `"verified by hand on staging"` → ok; an issue serving nothing, `hand`, no reason → ok | a reasonless hand-set done; a reason demanded where task 10 does not |
+| `TestAnIntegrationNeverWritesAFact` | `hub.work_actor_kind = 'integration'`, cause `evidence_observed` → `42501` for `done`; `land_trailer` → `42501` for `landed`; `hand` → `42501` for `started`; `integration` and `hand` → ok for `backlog` | a sync token writing `done` (SW.3's pin); a guard that trusts the cause when the actor is not a person |
+| `TestAnUnsetActorIsNotAPerson` | cause `lane_bound`, `hub.work_actor_kind` unset → `42501` for `started` | a guard that reads `NULL` as allowed |
+| `TestEachFactHasItsOneCause` | for each of `started`, `in_review`, `landed`: its cause → ok; each of the other five causes → `42501`; `hand` into `started` → `42501`; `lane_bound` into `todo` → `42501` | a hand-faked fact; a fact cause accepted for the wrong state |
+| `TestLandTrailerLandsAtDoneOnlyWithoutServes` | cause `land_trailer`, `to done`: head serves nothing → ok; head serves one criterion → `42501` | task 10's `no_criteria` shortcut applied to an issue that has criteria |
+| `TestAnIssueIsNotBornAFact` | `INSERT` an issue with `state` = `done`, `landed`, `started`, `in_review` → `42501` each; `triage` → ok | a row born `done`, which never moves into it and so skips the state guard |
+| `TestARevisionIsImmutableOutsideErase` | as `hub_owner` directly, `UPDATE issue_revisions SET canonical = …` → `42501`; `DELETE` → `42501`; `TRUNCATE` → `42501` | a mutable revision; a guard that trusts the owner role for anything but erasure |
+| `TestTheHeadMovesOneStepOntoARealRevision` | head 1 → 3 → `42501`; head 1 → 2 before revision 2 exists → `42501`; after → ok | a head that skips or points at nothing |
+| `TestNumberProjectAndCreatorAreFrozen` | as `hub_owner`, `UPDATE issues SET number = 9`, `created_by = …`, `project_id = …` → `42501` | the grant as the only layer (06's belt, this task's braces) |
+| `TestTheTeamIsTheProjectsTeam` | `INSERT` an issue or a project key whose `team_id` is another team of the same org → `42501` | a denormalised `team_id` that drifts from the project's |
+| `TestACounterOnlyCountsUp` | `last_number` 4 → 5 ok; 5 → 3 → `42501`; 5 → 7 → `42501` | a counter reset, which would re-issue `EP-1` |
+| `TestEraseIssueBlanksAndKeeps` | `erase_issue` as `hub_app` → returns the revision count; every revision has `canonical` NULL and its `digest` and number unchanged; `external_url` is `''`; a second call returns 0; `UPDATE issues SET priority` after erase → `42501` | an erase that drops keys or digests; an erased issue that still takes edits |
+| `TestEraseRefusesAnotherOrg` | `hub.org_id` = A; `erase_issue(<B's issue>)` and `erase_comment(<B's comment>)` → `P0002` (`no_data_found`) | an owner function that trusts its argument |
+| `TestEraseCommentBlanksBodyAndAnchor` | after `erase_comment`: `body` `''`, `anchor` NULL, `resolved_*` kept; as `hub_app`, `UPDATE issue_comments SET body = 'x'` → `42501` | a comment edit through the back door |
+| `TestAppendOnlyWorkTables` | `UPDATE`, `DELETE` and `TRUNCATE` on `issue_serves`, `comment_mentions`, `issue_attachments`, as `hub_owner` → `42501` | a table missing from the append-only loop |
+| `TestWorkCheckSetsMatchHubapi` | for each `…_known` constraint of task 06, the quoted values in `pg_get_constraintdef` equal the Go list from `hubapi` (states, priorities, reasons, sources, relation kinds, causes of subscription, default states = `InitialStates`, comment kinds = `{"comment"}`) | a Go constant added without a migration, or the reverse |
+
+`server/work_matrix_rows_integration_test.go`, beside the rows:
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestWorkRowsCoverTheW1RouteList` | pure, no server: the set of `workRow.pattern` across **every** group equals `workW1Routes`, each exactly once; each row's `name` equals its `pattern` | a W1 route with no row (the scope's "shipped without its authorisation", caught even before the route exists); a row with a typo'd pattern |
+| `TestLiveWorkRowsMatchTheRouteTable` | builds the server; every pattern of every **live** group is in `(*Server).Patterns()`; and every pattern of `workW1Routes` that `Patterns()` lists belongs to a live group | a row switched on before its route (the matrix would 404 the `M` cell); a route registered while its task id is missing from `workMatrixLive` (H16b's meta-test catches it too; this one names the task) |
+| `TestAWorkRowFailsWithoutItsCheck` | a fixture route `POST /v1/issues/{issueId}/probe`, registered only in this test through H16b's test-only hook with **no** authorisation call, run through the harness as a `wwrite` row → the `V` cell fails (200, want 403) | a harness that passes a row whatever the handler does |
+
+`TestAWorkRowFailsWithoutItsCheck` needs a way to register a route in a test. If H16b's
+`export_test.go` has none, the test is dropped and the gap is listed; it is **not** added to a Hub
+file by this task (rule H1).
+
+#### Steps
+
+- [ ] **Step 1: Check the base.** Read hub-contract §5.3 and §10.2-§10.4 on the sync base, H16b's
+  harness as merged, and task 06's file. If task 06 is already merged into `feat/hub`, the guards
+  go in `<next>_work_w1_guards.sql`; otherwise they are appended to `NNNN_work_w1.sql`.
+- [ ] **Step 2: Guard tests first.** Write `work_guards_integration_test.go`. Run it: every test
+  fails (no trigger, no function).
+- [ ] **Step 3: The guards.** Append the SQL above. Run the guard tests and task 06's tests
+  until every one passes; then H07a's and H07b's tests on the same database, unchanged.
+- [ ] **Step 4: The rows.** Write `work_matrix_rows_integration_test.go` with `workMatrixLive`
+  empty, and make the two-line fixture edit in H16b's file. Run `TestWorkRowsCoverTheW1RouteList`
+  (green), `TestLiveWorkRowsMatchTheRouteTable` (green: nothing live, nothing registered) and H16b's
+  three tests (green, unchanged: no Work row is in `allRows` yet).
+- [ ] **Step 5: Commit by pathspec**, the four files. The message names the migration file the
+  guards went into and the one line changed in H16b's file.
+
+#### Acceptance
+
+```bash
+export PANACEA_APP_HUB_TEST_DATABASE_URL='postgres://postgres@127.0.0.1:5433/postgres?sslmode=disable'
+go test ./control-plane/internal/hub/migrate/... -tags integration -race -count=1 -v \
+  -run 'Done|HandSet|Integration|UnsetActor|OneCause|LandTrailer|BornAFact|Immutable|OneStep|Frozen|TeamIsThe|CountsUp|Erase|AppendOnly|CheckSets' \
+  2>&1 | grep -c '^--- PASS'                                                     # 17
+go test ./control-plane/internal/hub/server/ -tags integration -race -count=1 -v \
+  -run 'TestWorkRows|TestLiveWorkRows|TestAWorkRow|TestAuthorisationMatrix|TestTheXColumn|TestEveryRoute'
+go test ./control-plane/internal/hub/migrate/... ./control-plane/internal/hub/server/... -tags integration -race -count=1
+```
+
+Expected: the first prints `17`; the second shows each named test `--- PASS` (or
+`TestAWorkRowFailsWithoutItsCheck` absent, per the note above) and ends `ok`; the third ends `ok`
+for both packages, so no Hub test changed colour. With the variable unset, every test is `--- SKIP`
+and that is reported as a skip, not a pass.
+
+#### What this task does not claim
+
+- **No route exists.** The rows are written and switched off; tasks 08-15 register the routes and
+  switch their rows on. Until then the matrix proves nothing about a Work handler.
+- **Not the evidence rule.** The guard checks that `done` has an evidence *cause*; it does not check
+  that the evidence exists, matches the criterion, or was recorded at the land commit. That is task
+  10's rule in Go, with the `issue_proofs` row as its record, and task 23's observation.
+- **Not that Entra issues an integration principal.** `integration` and `app` are reserved values
+  here; W5 (tasks 145, 150, 159) creates the principals that set them.
+- **Not the janitor.** Deleting an attached blob still fails on task 06's key; the janitor skipping
+  it is Hub task 24's, as a proposed edit (**UNVERIFIED**).
+- **No measured cost.** The state guard adds one indexed lookup per state move; nobody has timed it.
+
+**Parity rows served:** none closed alone. It pins 05 §3.6's authorisation rows behind **L-8**
+(fact states are facts) and **L-239** (every write attributed to a person), and the database half of
+skeleton rule 2 (*done means proven*; no sync token writes a fact).
