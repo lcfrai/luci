@@ -514,7 +514,7 @@ falls through, so it still splits the line.
 #### Interfaces — complete: `desktop/src/components/editor/SlashMenu.tsx`
 
 ```tsx
-import type { JSX } from "react";
+import { useLayoutEffect, type JSX } from "react";
 import { createPortal } from "react-dom";
 import type { EditorView } from "prosemirror-view";
 import { choose, optionId, optionsFor, slashKey, type LinkSources, type SlashState } from "./slashMenu";
@@ -532,6 +532,18 @@ export interface SlashMenuProps { view: EditorView; state: SlashState; listId: s
 /** Rule 6: fixed at the caret, in a portal on <body> (a transformed panel would otherwise become
  *  its containing block), and nothing here scrolls or takes focus. */
 export function SlashMenu({ view, state, listId, sources }: SlashMenuProps): JSX.Element | null {
+  // The active option is kept in view by scrolling the LIST's own box, never scrollIntoView,
+  // which would also scroll every scrollable ancestor, the document included (rule 6).
+  useLayoutEffect(() => {
+    const li = view.dom.getAttribute("aria-activedescendant");
+    const el = li ? document.getElementById(li) : null;
+    const ul = el?.parentElement;
+    if (!el || !ul) return;
+    if (el.offsetTop < ul.scrollTop) ul.scrollTop = el.offsetTop;
+    else if (el.offsetTop + el.offsetHeight > ul.scrollTop + ul.clientHeight) {
+      ul.scrollTop = el.offsetTop + el.offsetHeight - ul.clientHeight;
+    }
+  });
   if (!state.open) return null;
   const opts = optionsFor(view.state, state, sources);
   const box = caretBox(view, state.from);
@@ -686,7 +698,8 @@ issue never offers itself as a link target. `head.projectId` is the record's (`t
   padding: var(--s-1); background: var(--surface); border-radius: var(--r-card);
   box-shadow: var(--e-raised); }
 .ed-slash[data-above] { transform: translateY(-100%); }
-.ed-slash-list { margin: 0; padding: 0; list-style: none; max-block-size: 320px; overflow-y: auto; }
+.ed-slash-list { position: relative; /* the options' offsetParent, for the list's own scroll */
+  margin: 0; padding: 0; list-style: none; max-block-size: 320px; overflow-y: auto; }
 .ed-slash-opt { display: flex; align-items: baseline; gap: var(--s-2); padding: var(--s-1) var(--s-2);
   border-radius: var(--r-ctl); color: var(--ink); font-family: var(--sans); cursor: default; }
 .ed-slash-opt[aria-selected="true"] { background: var(--hover); box-shadow: inset 2px 0 0 var(--ink); }
