@@ -321,9 +321,11 @@ func SetResolved(ctx context.Context, tx pgx.Tx, commentID string, resolved bool
 func MentionedUsers(ctx context.Context, q Querier, commentID string) ([]string, error)
 ```
 
-Task 09's store read of one revision (its content and its `serves`) is named here as
-`store.IssueRevisionAt(ctx, q, issueID, rev)`; the name is **UNVERIFIED** until task 09's part
-fixes it, and a different name is a find-and-replace.
+The read of one revision (its canonical bytes and its `serves`) is task 08's
+`store.IssueRevisionAt(ctx, q, issueID, rev) (RevisionRow, bool, error)` (`task-08.md:275-276`,
+read at this writing); the description is decoded from `RevisionRow.Canonical` with task 02's
+content decoder, and an erased revision (`Canonical == nil`) answers 422 `anchor.revision`, because
+there is no text left to anchor to.
 
 #### The routes (`server/work_comments.go`)
 
