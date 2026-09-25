@@ -159,6 +159,27 @@ func TestFakeMeProvisionsAndBindsInvites(t *testing.T) {
 		t.Errorf("Linus's Me = bound %d teams %+v, want 1 bound and admin kept", got.InvitesBound, got.Teams)
 	}
 
+	// A revoked invite never binds: revoking is how an admin withdraws a grant
+	// before the person signs in (contract §7.2 binds `pending` invites only;
+	// task 04 review I1). Vera's withdrawn admin invite leaves her in no team.
+	vera := f.As(FakeUser{ID: "u-00000000000000c1", DisplayName: "Vera Example", Email: "vera@example.test"})
+	withdrawn := must(ada.CreateInvite(bg, team.ID, hubapi.CreateInviteRequest{Email: "vera@example.test", Role: hubapi.RoleAdmin}))(t)
+	noErr(t, ada.RevokeInvite(bg, team.ID, withdrawn.ID))
+	if got := must(vera.Me(bg))(t); got.InvitesBound != 0 || len(got.Teams) != 0 {
+		t.Errorf("Vera's Me after her invite was revoked = bound %d teams %+v, want 0 and none", got.InvitesBound, got.Teams)
+	}
+	_, err := vera.Team(bg, team.ID)
+	wantProblem(t, err, 404, "team_not_found", "teamId", team.ID)
+	var kept *hubapi.Invite
+	for _, inv := range must(ada.Invites(bg, team.ID))(t) {
+		if inv.ID == withdrawn.ID {
+			kept = &inv
+		}
+	}
+	if kept == nil || kept.State != hubapi.InviteRevoked || kept.BoundUser != nil {
+		t.Errorf("the revoked invite after Vera's Me = %+v, want it kept, revoked, bound to nobody", kept)
+	}
+
 	// orgAdmin is the principal's, and an email is matched lowercased (§5.1).
 	boss := f.As(FakeUser{ID: "u-00000000000000b1", DisplayName: "Org Boss", Email: "Boss@Example.TEST", OrgAdmin: true})
 	must(ada.CreateInvite(bg, team.ID, hubapi.CreateInviteRequest{Email: "BOSS@example.test", Role: hubapi.RoleViewer}))(t)
@@ -236,6 +257,27 @@ func TestFakeTeamRoles(t *testing.T) {
 		t.Errorf("a revoked invite reads %s, want revoked (the row is kept)", got[0].State)
 	}
 	wantProblem(t, ada.RevokeInvite(bg, team.ID, "iv-0000000000000000"), 404, "invite_not_found", "inviteId", "iv-0000000000000000")
+
+	// "One pending invite" is per team and pending only (contract §7.3; the
+	// index team_invites_one_pending is (team_id, email) WHERE state = 'pending'):
+	// a revoked invite no longer blocks the email, and a pending one in Portal
+	// never blocks it in another team (task 04 review I1).
+	again := must(ada.CreateInvite(bg, team.ID, x))(t)
+	if again.State != hubapi.InvitePending || again.ID == invites[0].ID {
+		t.Errorf("a re-invite after a revoke = %+v, want a new pending invite", again)
+	}
+	lt := must(linus.CreateTeam(bg, hubapi.CreateTeamRequest{Name: "Linus's"}))(t)
+	theirs := must(linus.CreateInvite(bg, lt.ID, x))(t)
+	if theirs.State != hubapi.InvitePending || theirs.TeamID != lt.ID {
+		t.Errorf("x's invite to Linus's team while pending in Portal = %+v, want pending in his team", theirs)
+	}
+	// A team's revoke route reaches only that team's invites: Ada, admin of
+	// Portal, cannot withdraw Linus's team's invite through Portal (contract §5.3,
+	// "create or revoke an invite": A of that team; task 04 review I2).
+	wantProblem(t, ada.RevokeInvite(bg, team.ID, theirs.ID), 404, "invite_not_found", "inviteId", theirs.ID)
+	if got := must(linus.Invites(bg, lt.ID))(t); len(got) != 1 || got[0].ID != theirs.ID || got[0].State != hubapi.InvitePending {
+		t.Errorf("Linus's invites after Ada's cross-team revoke = %+v, want his one invite still pending", got)
+	}
 
 	// Members: a user of the org is added by id with addedBy the caller; a role is
 	// one of the three; an unknown user is member_not_found.
@@ -436,6 +478,10 @@ func TestFakeBriefExistsAndArchiveFreesTheRef(t *testing.T) {
 	wantProblem(t, err, 409, "brief_archived", "briefId", b1.ID)
 	_, err = grace.Rebind(bg, b1.ID, "refs/heads/elsewhere")
 	wantProblem(t, err, 409, "brief_archived", "briefId", b1.ID)
+	// Onto the ref b2 now holds: brief_archived still, not brief_exists (part D5:
+	// a write to an archived brief is always refused, whatever the ref).
+	_, err = grace.Rebind(bg, b1.ID, feat)
+	wantProblem(t, err, 409, "brief_archived", "briefId", b1.ID)
 	if h := headOf(t, ada, b1.ID); h.ArchivedAt == nil || *h.ArchivedAt != *arch.ArchivedAt {
 		t.Errorf("the archived brief reads %+v", h)
 	}
@@ -538,6 +584,21 @@ func TestFakeRevisionNumberingAndConflict(t *testing.T) {
 	for _, bad := range []hubapi.PageRequest{{Limit: -1}, {Limit: 201}, {After: "x"}} {
 		_, err = ada.Revisions(bg, b.ID, bad)
 		wantProblem(t, err, 400, "bad_request")
+	}
+	// The cursor is any canonical decimal ≥ 0 (part D4, as fix round 1 words it;
+	// task 19's store takes afterRevision int): "0" is the whole history, the
+	// head or past it an empty last page; any other spelling is 400 (review M2).
+	if got := must(ada.Revisions(bg, b.ID, hubapi.PageRequest{After: "0"}))(t); len(got.Items) != 3 || got.Next != nil {
+		t.Errorf("Revisions after 0 = %+v, want 1, 2, 3 with no next", got)
+	}
+	for _, past := range []string{"3", "99"} {
+		if got := must(ada.Revisions(bg, b.ID, hubapi.PageRequest{After: past}))(t); got.Items == nil || len(got.Items) != 0 || got.Next != nil {
+			t.Errorf("Revisions after %s = %+v, want items [] and no next", past, got)
+		}
+	}
+	for _, spelled := range []string{"01", "-1", "+1", " 1", "1.0"} {
+		_, err = ada.Revisions(bg, b.ID, hubapi.PageRequest{After: spelled})
+		wantProblem(t, err, 400, "bad_request", "field", "after")
 	}
 }
 
@@ -676,7 +737,9 @@ func TestFakeListBriefs(t *testing.T) {
 	b2 := branchBrief(t, grace, p.ID, "refs/heads/two")
 	must(grace.Archive(bg, gone.ID))(t)
 	elsewhere := withProject(t, ada, team.ID, "Elsewhere")
-	branchBrief(t, ada, elsewhere.ID, "refs/heads/one")
+	foreign := branchBrief(t, ada, elsewhere.ID, "refs/heads/one")
+	lt := must(linus.CreateTeam(bg, hubapi.CreateTeamRequest{Name: "Linus's"}))(t)
+	theirs := branchBrief(t, linus, withProject(t, linus, lt.ID, "L").ID, "refs/heads/one")
 
 	list := func(q hubapi.BriefQuery) []string {
 		t.Helper()
@@ -732,6 +795,11 @@ func TestFakeListBriefs(t *testing.T) {
 		{hubapi.BriefQuery{BranchRef: "one"}, "branchRef"},
 		{hubapi.BriefQuery{Page: hubapi.PageRequest{Limit: 201}}, "limit"},
 		{hubapi.BriefQuery{Page: hubapi.PageRequest{After: "bf-0000000000000000"}}, "after"},
+		// A brief of another project is no cursor of this list, whether the
+		// caller can read it or not: the same 400 as an id that names nothing, so
+		// the cursor is no existence oracle across teams (task 04 review M1).
+		{hubapi.BriefQuery{Page: hubapi.PageRequest{After: foreign.ID}}, "after"},
+		{hubapi.BriefQuery{Page: hubapi.PageRequest{After: theirs.ID}}, "after"},
 	} {
 		_, err := ada.List(bg, p.ID, bad.q)
 		wantProblem(t, err, 400, "bad_request", "field", bad.field)
@@ -897,8 +965,13 @@ func TestFakeResolveStates(t *testing.T) {
 	if er.BriefID != e.ID || er.ErasedRevisions != 2 || er.ErasedAt == "" {
 		t.Errorf("EraseBrief = %+v, want two revisions erased", er)
 	}
+	first := headOf(t, ada, e.ID)
 	if again := must(boss.EraseBrief(e.ID, "again"))(t); again.ErasedRevisions != 0 {
 		t.Errorf("a second erase erased %d, want 0", again.ErasedRevisions)
+	}
+	// "The head is archived if it was not" (§7.12): a second erase moves nothing.
+	if h := headOf(t, ada, e.ID); first.ArchivedAt == nil || h.ArchivedAt == nil || *h.ArchivedAt != *first.ArchivedAt || h.UpdatedAt != first.UpdatedAt {
+		t.Errorf("a second erase moved the head: %+v -> %+v (task 04 review M3)", first, h)
 	}
 
 	keys := []string{
