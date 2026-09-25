@@ -93,7 +93,7 @@ turn: the digest. The turn input is still `Input(n)`; the Orchestrator reads wha
 
 **Interfaces:**
 - Produces:
-  - `budget.Gate` with `Admit(ctx, orch, owner, batch, now) (Admitted, error)` and
+  - `budget.Gate` with `Admit(ctx, orch, owner, pending, now) (Admitted, error)` and
     `Record(ctx, Admitted, turnID) error`, consumed by task 26's scheduler;
   - `(*Gate).TurnCapCents(ctx, orch) int`, consumed by task 20's per-turn mint;
   - `budget.HumanPause` / `HumanResume`, consumed by task 52's panel actions through `fleetbe`;
@@ -156,5 +156,199 @@ type Settings struct {
 	TurnCapCents int // 5 .. 500
 	UpdatedAt    time.Time
 }
+
+// Store is what the gate needs of task 10's fleet store, beside its two
+// counterpart methods. Every method is one transaction.
+type Store interface {
+	Settings(ctx context.Context, orch model.AgentID) (Settings, bool, error)
+	PutSettings(ctx context.Context, orch model.AgentID, s Settings) error
+	// LogTurn records a begun turn: its origin, counterparts, digest flag.
+	LogTurn(ctx context.Context, row TurnLog) error
+	// TurnsSince counts begun turns of orch at or after since, all origins.
+	TurnsSince(ctx context.Context, orch model.AgentID, since time.Time) (int, error)
+	// LastCounterpartTurn is the begin time of orch's last turn that admitted
+	// an event from counterpart; ok == false if none in the window.
+	LastCounterpartTurn(ctx context.Context, orch model.AgentID,
+		counterpart model.Owner) (time.Time, bool, error)
+	SetTurnTokens(ctx context.Context, turnID string, in, out int64) error
+	TurnLogs(ctx context.Context, orch model.AgentID, from, to time.Time) ([]TurnLog, error)
+	Paused(ctx context.Context, owner model.Owner, project string) (bool, error)
+	SetPaused(ctx context.Context, owner model.Owner, project string, paused bool) error
+	LastNotice(ctx context.Context, orch model.AgentID) (time.Time, bool, error)
+	SetLastNotice(ctx context.Context, orch model.AgentID, at time.Time) error
+	CounterpartTurns(ctx context.Context, org string, owner, counterpart model.Owner,
+		since time.Time) (int, error) // task 10's, unchanged
+	AddCounterpartTurn(ctx context.Context, org string, owner, counterpart model.Owner,
+		at time.Time) error // task 10's, unchanged
+}
+
+// TurnLog is one begun turn. Tokens are nil until the meter answers.
+type TurnLog struct {
+	Orch         model.AgentID
+	TurnID       string        // ot-…
+	Origin       turns.Origin
+	Counterparts []model.Owner // sorted, distinct; empty for a human-only batch
+	Digest       bool
+	Began        time.Time
+	InTokens     *int64
+	OutTokens    *int64
+}
+
+// Policy is the team policy's ceiling (task 11's HubState, required there).
+type Policy interface {
+	TurnsPerHour(ctx context.Context, org, project string) (int, error)
+}
+
+// Notifier is task 30's Fleet-written inform to the orchestrator's own human.
+type Notifier interface {
+	InformOwnHuman(ctx context.Context, orch model.AgentID, msg string) error
+}
+
+// NoticeSpent is the one sentence the owner is told. Product text, not an
+// agent's; it names no count of turns left and no time (OD-27).
+const NoticeSpent = "Your Orchestrator has used this hour's coordination budget. " +
+	"Team events are waiting; your own messages still go through."
+
+type Gate struct {
+	Store        Store
+	Policy       Policy
+	Counterparts Counterparts // counterpart.go
+	Notify       Notifier
+	Org          func(orch model.AgentID) (org, project string) // from task 10's agent row
+	Now          func() time.Time
+}
+
+// Admitted is the gate's answer: the events that may run now, and why.
+type Admitted struct {
+	Orch         model.AgentID
+	Owner        model.Owner
+	Batch        []turns.Queued // nil: no turn now; the rest stay queued
+	Counterparts []model.Owner
+	Digest       bool
+	HumanBypass  bool
+}
 ```
+
+**`Admit`, in order.** It takes the Orchestrator's **pending** events, not `Ready`'s batch,
+because a digest admits held events that `Ready`'s cut may have left out. It calls
+`turns.Ready(pending, now)` first; `nil` means no turn is due and it returns at once. Otherwise it
+is a function of that batch, `pending` and five store reads, and it never writes: `Record` writes
+after `ClaimTurn` wins, so a lost claim race counts nothing twice.
+
+1. **Human bypass.** If the batch holds a `human.message` (task 26's `Enqueue` has already
+   refused any whose author is not the owner, `task-26.md:439-441`), admit **the whole batch**,
+   `HumanBypass: true`. Peer events in it ride along; that is cheaper than a second turn and it
+   cannot delay the human, who is already first.
+2. **Human pause.** If `Paused(owner, project)`, admit nothing that is not a human event; return
+   `Batch: nil`.
+3. **Turn budget.** `limit = min(Settings.TurnsPerHour or DefaultTurnsPerHour,
+   Policy.TurnsPerHour)`. If `TurnsSince(orch, now-Window) >= limit`, admit nothing; if
+   `LastNotice` is older than `NoticeEvery` (or absent), call `Notify.InformOwnHuman(orch,
+   NoticeSpent)` and `SetLastNotice`. The events stay queued; the next sweep after the oldest turn
+   leaves the window admits them.
+4. **Counterpart holds** (`counterpart.go`). Resolve each event's counterpart. For each
+   counterpart at or over `CounterpartCap` in the window, **drop its events from this batch**
+   unless its digest is due (`now - LastCounterpartTurn >= DigestEvery`); if a digest is due,
+   admit **every** held event of that counterpart (from task 26's `PendingEvents`, still unbatched),
+   `Digest: true`, and no other over-cap counterpart's.
+5. What is left is the batch, cut to `turns.MaxBatch`. Empty means `Batch: nil`.
+
+`Record(ctx, a, turnID)` writes `LogTurn` and one `AddCounterpartTurn` per counterpart, in one
+`Store.Tx`. `TurnCapCents(ctx, orch)` returns the owner's setting or the default; task 20 calls it
+at each per-turn mint.
+
+A held event keeps its Orchestrator in task 26's `OrchestratorsDue` (it is unbatched and older
+than the coalesce window), so `TryBegin` calls `Admit` on every scheduler tick while it is held
+and gets `nil`. That costs one indexed read per tick per held Orchestrator and no turn; it is
+accepted rather than adding a "held until" column to task 26's prefilter.
+
+#### `counterpart.go` (complete)
+
+```go
+package budget
+
+import (
+	"context"
+	"sort"
+	"time"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/fleet/model"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/fleet/turns"
+)
+
+// Counterparts resolves the other person behind an event (decision d).
+// cmd/fleetd implements it over task 28's messages, task 25's working copy
+// and task 29's threads. ok == false: the event has no counterpart.
+type Counterparts interface {
+	Of(ctx context.Context, owner model.Owner, e model.Event) (model.Owner, bool)
+}
+
+// peerKinds are the kinds that can have a counterpart. A worker report, a
+// lease event and an escalation answer are the owner's own business.
+var peerKinds = map[model.EventKind]bool{
+	model.EventPeerMessage: true, model.EventConflictOpened: true,
+	model.EventThreadResolved: true, model.EventSequenceGo: true,
+}
+
+// holds splits a batch by counterpart state: kept events, the over-cap
+// counterparts whose events were held, and the one digest to run, if due.
+func (g *Gate) holds(ctx context.Context, org string, orch model.AgentID, owner model.Owner,
+	batch, pending []turns.Queued, now time.Time) (kept []turns.Queued, digest model.Owner,
+	cps []model.Owner, err error) {
+	over := map[model.Owner]bool{}
+	seen := map[model.Owner]bool{}
+	cpOf := func(q turns.Queued) (model.Owner, bool) {
+		if !peerKinds[q.Event.Kind] {
+			return "", false
+		}
+		return g.Counterparts.Of(ctx, owner, q.Event)
+	}
+	for _, q := range batch {
+		cp, ok := cpOf(q)
+		if !ok {
+			kept = append(kept, q)
+			continue
+		}
+		if _, known := over[cp]; !known {
+			n, err := g.Store.CounterpartTurns(ctx, org, owner, cp, now.Add(-Window))
+			if err != nil {
+				return nil, "", nil, err
+			}
+			over[cp] = n >= CounterpartCap
+		}
+		if !over[cp] {
+			kept = append(kept, q)
+			seen[cp] = true
+			continue
+		}
+		if digest == "" {
+			last, ok, err := g.Store.LastCounterpartTurn(ctx, orch, cp)
+			if err != nil {
+				return nil, "", nil, err
+			}
+			if !ok || !now.Before(last.Add(DigestEvery)) {
+				digest = cp
+			}
+		}
+	}
+	if digest != "" {
+		for _, q := range pending { // every held event of that counterpart
+			if cp, ok := cpOf(q); ok && cp == digest && q.TurnID == "" && !contains(kept, q) {
+				kept = append(kept, q)
+			}
+		}
+		seen[digest] = true
+	}
+	for cp := range seen {
+		cps = append(cps, cp)
+	}
+	sort.Slice(cps, func(i, j int) bool { return cps[i] < cps[j] })
+	return kept, digest, cps, nil
+}
+```
+
+`contains` compares `Event.ID`. `model.EventSequenceGo` is task 26's `sequence.go` kind
+(`task-26.md:126`); if task 09 spells it differently, task 09 wins. The digest turn's size is
+bounded by `turns.MaxBatch` in `Admit`'s step 5, so a counterpart who sent 200 events in 15
+minutes costs the receiver one turn of 50 and the next digest takes the rest, 15 minutes later.
 
