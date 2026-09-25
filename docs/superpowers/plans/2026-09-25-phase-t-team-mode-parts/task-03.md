@@ -961,6 +961,7 @@ import (
 	"reflect"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -1140,3 +1141,113 @@ func TestTeamRequestsRefuseActorFields(t *testing.T) {
 	}
 }
 ```
+
+- [ ] **Step 2: `team_test.go` part 2: the contract's keys, value goldens, the time pin**
+
+```go
+// teamKeys is every JSON key a type can carry, nested structs included, with
+// teamtext.Text a leaf (its keys are task 02's, pinned there).
+func teamKeys(t reflect.Type) []string {
+	var out []string
+	var walk func(reflect.Type)
+	walk = func(t reflect.Type) {
+		for _, f := range jsonFields(t) {
+			out = append(out, f.name)
+			ft := f.typ
+			for k := ft.Kind(); k == reflect.Pointer || k == reflect.Slice || k == reflect.Map || k == reflect.Array; k = ft.Kind() {
+				ft = ft.Elem()
+			}
+			if ft.Kind() == reflect.Struct && ft != reflect.TypeFor[teamtext.Text]() {
+				walk(ft)
+			}
+		}
+	}
+	walk(t)
+	return out
+}
+
+func TestTeamTypesNameOnlyContractKeys(t *testing.T) {
+	// mutant: a field added to a team type with no word of it in the contract.
+	var doc strings.Builder
+	for n := 13; n <= 26; n++ {
+		doc.WriteString(contractSection(t, "7."+strconv.Itoa(n)))
+	}
+	text := doc.String()
+	for _, v := range append(slices.Clone(teamResponses), teamRequests...) {
+		for _, k := range teamKeys(reflect.TypeOf(v)) {
+			if !strings.Contains(text, `"`+k+`"`) && !strings.Contains(text, "`"+k+"`") {
+				t.Errorf("%T: key %q is named nowhere in contract §7.13–§7.26", v, k)
+			}
+		}
+	}
+}
+
+func TestTeamGoldens(t *testing.T) {
+	const at = "2026-09-25T01:00:00.000Z"
+	t0 := time.Date(2026, 9, 25, 1, 0, 0, 0, time.UTC)
+	said := teamtext.Text{Body: "mine is narrower", Author: teamtext.AuthorAgent, AuthorAgent: "ag-1", Owner: "u-1", At: t0}
+	for name, c := range map[string]struct {
+		v    any
+		want string
+	}{
+		// mutants: revokedReason as "" instead of null; routes as null when empty.
+		"delegation": {&Delegation{ID: "dl-1", ProjectID: "pj-1", OwnerUserID: "u-1", Class: DelegationClassWorker,
+			Routes: []RouteName{RouteAgentsStart}, CreatedAt: at, ExpiresAt: "2026-09-26T01:00:00.000Z"},
+			`{"id":"dl-1","projectId":"pj-1","ownerUserId":"u-1","class":"worker","routes":["agents.start"],` +
+				`"createdAt":"` + at + `","expiresAt":"2026-09-26T01:00:00.000Z","renewedAt":null,"revokedAt":null,"revokedReason":null}`},
+		// mutant: a hidden title omitted rather than null (§7.1), or why leaking.
+		"task, as a member reads it": {&Task{ID: "tk-1", ProjectID: "pj-1", OwnerUserID: "u-1", OrchestratorAgentID: "ag-1",
+			Reason: TaskReason{BriefRef: "brief:bf-1@3#export"}, Scope: []string{"src/export/**"}, State: TaskActive,
+			Revision: 2, CreatedAt: at, UpdatedAt: at},
+			`{"id":"tk-1","projectId":"pj-1","ownerUserId":"u-1","orchestratorAgentId":"ag-1","title":null,` +
+				`"reason":{"briefRef":"brief:bf-1@3#export","why":null},"scope":["src/export/**"],"state":"active",` +
+				`"revision":2,"createdAt":"` + at + `","updatedAt":"` + at + `"}`},
+		// mutant: LineRange as an object; threadId "" instead of null.
+		"conflict": {&Conflict{ID: "cf-1", ProjectID: "pj-1", AgentA: "ag-1", AgentB: "ag-2", Tier: TierH,
+			Paths: []ConflictPath{{Path: "src/a.ts", Lines: []LineRange{{10, 24}}}}, Basis: ConflictBasis{A: "a1", B: "b2"},
+			State: ConflictRaised, Revision: 1, CreatedAt: at, UpdatedAt: at},
+			`{"id":"cf-1","projectId":"pj-1","agentA":"ag-1","agentB":"ag-2","tier":"H",` +
+				`"paths":[{"path":"src/a.ts","lines":[[10,24]]}],"basis":{"a":"a1","b":"b2"},"state":"raised",` +
+				`"resolution":null,"threadId":null,"revision":1,"createdAt":"` + at + `","updatedAt":"` + at + `"}`},
+		// mutant: the flat union omits the keys its kind does not own.
+		"message, a split proposal": {&Message{ID: "ms-1", ThreadID: "th-1", ProjectID: "pj-1", SenderAgentID: "ag-1",
+			SenderUserID: "u-1", Kind: MessagePropose, Fields: MessageFields{Resolution: &ResolutionProposal{
+				Kind: ResolutionSplit, Sides: map[string][]string{"ag-1": {"src/a/**"}, "ag-2": {"src/b/**"}}}},
+			Text: &said, CreatedAt: at},
+			`{"id":"ms-1","threadId":"th-1","projectId":"pj-1","senderAgentId":"ag-1","senderUserId":"u-1",` +
+				`"kind":"propose","fields":{"subject":null,"inReplyTo":null,"resolution":{"kind":"split",` +
+				`"sides":{"ag-1":["src/a/**"],"ag-2":["src/b/**"]},"first":null,"globs":[],"base":null,"paths":[]},` +
+				`"proposal":null},"text":{"body":"mine is narrower","author":"agent","authorAgentId":"ag-1",` +
+				`"ownerUserId":"u-1","at":"` + at + `"},"templated":false,"createdAt":"` + at + `","tombstonedAt":null}`},
+		// mutant: params.leaseId omitted on a narrow; origin dropped.
+		"directive, a narrow": {&Directive{ID: "dv-1", ProjectID: "pj-1", OwnerUserID: "u-1", FromAgentID: "ag-1",
+			ToAgentID: "ag-3", Kind: DirectiveNarrow, Params: DirectiveParams{Globs: []string{"src/a/**"}},
+			Rung: RungPiggyback, Origin: OriginFleet, Read: []string{"ms-1"}, CreatedAt: at},
+			`{"id":"dv-1","projectId":"pj-1","ownerUserId":"u-1","fromAgentId":"ag-1","toAgentId":"ag-3",` +
+				`"kind":"narrow","params":{"globs":["src/a/**"],"leaseId":null},"text":null,"rung":"piggyback",` +
+				`"origin":"fleet","read":["ms-1"],"approvedBy":null,"createdAt":"` + at + `"}`},
+	} {
+		EnsureLists(c.v)
+		b, err := json.Marshal(c.v)
+		if err != nil || string(b) != c.want {
+			t.Errorf("%s:\n got %s\nwant %s (%v)", name, b, c.want, err)
+		}
+	}
+}
+
+func TestTextTimeIsFormatTime(t *testing.T) {
+	// mutant: teamtext's copy of the layout drifts from FormatTime's.
+	for _, at := range []time.Time{time.Date(2026, 9, 25, 1, 0, 0, 0, time.UTC),
+		time.Date(2026, 9, 25, 11, 0, 0, 7_000_000, time.FixedZone("AEST", 10*3600))} {
+		b, _ := json.Marshal(teamtext.Text{Body: "x", Author: teamtext.AuthorHuman, Owner: "u-1", At: at})
+		var m map[string]any
+		if err := json.Unmarshal(b, &m); err != nil || m["at"] != FormatTime(at) {
+			t.Errorf("Text at = %v, FormatTime = %s", m["at"], FormatTime(at))
+		}
+	}
+}
+```
+
+`EnsureLists` is the Hub's own writer step, so the goldens are what the Hub actually sends. Five
+types are pinned by value (the five whose `null`-versus-`[]` choices a handler most easily gets
+wrong); all thirteen response types are pinned by key count and by the contract's key names.
