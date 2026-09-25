@@ -225,3 +225,115 @@ export function AgentByline(props: {
 // renders: <span class="who">you · orchestrator (agent)</span> · claude-opus-4-8 · 3f2a91c0
 // all Commit Mono at --t-fact, --ink-2; the session id a button only with onOpenSession
 ```
+
+**The composer** (`CommentComposer.tsx` ⚑): on post, `routeToOwnOrchestrator` is
+`routesToOwnOrchestrator(markdown)` and is sent only when true. While the body holds the token, the
+composer reads task 109's `WorkAgentSettingsApi.agentSwitch(orgId)` (`task-109.md:198-203`) once
+per focus, and when `orchestrators` is false it shows, under the editor, *"Orchestrators are off
+for this org, so @me:orchestrator will not reach yours."* The comment still posts: a person's
+comment is never blocked by the switch (task 100 (d)); only the turn is refused, by the gate. On a
+solo project the picker has no *my Orchestrator* row and the input rule does not fire, so the
+literal stays text.
+
+**The thread** (`Comments.tsx` ⚑): a comment whose `kind` is not `comment` renders
+`AgentByline` on its first line, then task 51's `A` mark and *text·A · agent*, then the body. A
+`note` reads *note* in the byline's mono after the session; an `evidence_proposal` is drawn by task
+104 and a `negotiation` by task 106 (the negotiation row), so this task renders them only with
+their byline and a one-line pointer (*"proposed evidence, shown under its criterion"*,
+*"negotiation, shown as its row"*). A `comment` with an `ORCH_HREF` link renders the chip `orchMentionLabel(writer,
+reader)`, a link-styled span, not a button: it does nothing on click.
+
+#### Tests to write first, each with the mutant it kills
+
+Desktop in Vitest with Testing Library, every surface test ending with
+`expectNoPrediction(container)` (task 20); Fleet and Hub in Go.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `AgentByline › names owner, agent, model and session` | `alice · orchestrator (agent) · claude-opus-4-8 · 3f2a91c0`, each in `.mono`; `title` holds the full session id | model or session dropped (L-173) |
+| `AgentByline › the owner is always named` | the reader is the owner → `you · orchestrator (agent)`; an unknown owner → `former member · orchestrator (agent)` | a byline that hides the owner |
+| `AgentByline › a teammate's session is not a link` | no `onOpenSession` → the id is text; with it → one button, calling it with the full id | opening another person's session |
+| `Comments › agent text is marked` | every `note` body carries `<AuthorClass author="A"/>` and *text·A · agent* | agent text unlabelled (§2.1 point 3) |
+| `mentionPlugin › @me:orchestrator becomes the token` | typing `@me:orchestrator ` inserts `orchMentionMarkdown`; the post sends `routeToOwnOrchestrator: true` | a token that routes by typed text |
+| `mentionPlugin › another person's Orchestrator stays text` | typing `@dylan:orchestrator ` inserts nothing; the post sends no flag | any Orchestrator addressable |
+| `Comments › the chip is relative to the writer` | Alice's comment read by Dylan → *@Alice's Orchestrator*; read by Alice → *@your Orchestrator* | a token that names the reader's Orchestrator |
+| `CommentComposer › the switch is said, the comment still posts` | `orchestrators: false` → the sentence shows; *Comment* posts once | a composer that blocks people; a switch never said |
+| `TestAMentionEnqueuesTheWritersOrchestrator` (`fleet/work`) | Alice's routed comment on **Dylan's** issue → one `Enqueue` with `OwnerID` Alice, `SubjectID` the comment; Dylan's Orchestrator gets nothing | route to the issue owner (OD-16) |
+| `TestAMentionIsEnqueuedOnce` | the same event applied twice → one `Enqueue` | a replayed page doubling turns |
+| `TestAMentionWhileOffEnqueuesNothing` | the gate refuses (`agents_disabled`) → no turn; the comment is marked; switching on later enqueues nothing | switch bypassed; an old mention replayed |
+| `TestAnUnroutedCommentIsIgnored` | `comment.created` without the flag, and every other kind → no call to `Orchs` or `Gate` | an intake that reads every comment |
+| `TestTheRouteFlagMatchesTheLink` (Hub, integration, and the fake) | flag without link → 400 `field: routeToOwnOrchestrator`; link without flag → 400; both → 201 and `routeToOwnOrchestrator: true` in the event's data | a flag the text does not back |
+| `TestWorkerReportsNeverReachTheIssue` (`fleet/verbs`) | five worker `report` calls on a task bound to EP-142 → zero `AddAgentComment` calls; the Orchestrator's one `issue.note` → one comment; a second inside five minutes → `rate_limited` | worker report forwarded (04 §4.5) |
+
+#### Steps
+
+- [ ] **Step 1: Check the sync base.** Tasks 51, 100, 101 and 109 are on it: re-read
+  `mentionPlugin.ts`'s options, `CommentComposer`'s post, task 104's `AgentAttribution` in
+  `work.ts`, task 109's `Gate`, `Turn`, `OriginMention` and its package path, and rename here.
+  Phase T's `Feed.Also` and TM-12's kinds list are merged (`grep -n "func (f \*Feed) Also"
+  control-plane/internal/fleet/delegation/*.go`).
+- [ ] **Step 2: Write the tests first**; run them and see each fail for its reason.
+- [ ] **Step 3: The Hub delta** (the field, the match check, the event key; the fake too) and
+  its two tests, green on the fake and with `-tags integration` on the Hub.
+- [ ] **Step 4: The Fleet intake**, registered with `feed.Also(m.Apply)` in `fleetd`, and
+  `comment.created` added to the kinds list; its four tests green.
+- [ ] **Step 5: The desktop** (`commentModel`, `mentionPlugin`, `CommentComposer`, `Comments`,
+  `AgentByline`, `work.ts`), green.
+- [ ] **Step 6: Prove the tests bite.** Apply each mutant by hand, see its test fail, revert.
+- [ ] **Step 7: Commit** with `git add` for the new files, then `git commit -F <msgfile> --` the
+  paths of *Files*. Message file under `.superpowers/sdd/work/msg/`; last line
+  `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>`.
+- [ ] **Step 8: Owner's eyes** on the byline and the chip in the running app (CLAUDE.md: visual
+  acceptance is the owner's eyes), recorded under W3 in the results file (task 113).
+
+#### Acceptance
+
+```bash
+go test ./control-plane/internal/fleet/work/ ./control-plane/internal/fleet/verbs/ -race -count=1 -v -run 'TestAMention|TestAnUnroutedCommentIsIgnored|TestWorkerReportsNeverReachTheIssue' 2>&1 | grep -c '^--- PASS'
+# 5
+go test ./control-plane/internal/hub/hubclient/ -race -count=1 -run TestTheRouteFlagMatchesTheLink
+# ok
+PANACEA_APP_HUB_TEST_DATABASE_URL='postgres://postgres@127.0.0.1:5433/postgres?sslmode=disable' \
+  go test -tags integration ./control-plane/internal/hub/server/ -race -count=1 -run TestTheRouteFlagMatchesTheLink
+# ok
+cd desktop && npx vitest run src/components/issue 2>&1 | tail -3
+# Test Files  N passed (N)   — task 51's files and AgentByline.test.tsx; no skipped test
+npx tsc --noEmit
+# (no output)
+```
+
+`N` is what Vitest prints; it is not predicted here.
+
+#### What this task does not claim
+
+- That a model name is correct beyond what the session record states. Phase 6 names it; the
+  byline shows the record (**UNVERIFIED** that phase 6's record carries it for every harness).
+- That an Orchestrator answers a mention, or answers it well. The turn is enqueued; what it does is
+  TM-41's instructions and TM-26's loop.
+- That the answer to a mention on another person's issue is visible to that person. It goes to the
+  writer's Orchestrator panel (decision (e)); nothing is posted on the other person's issue.
+- Worker comments on issues: there are none, by the Hub's guard (task 100) and TM-09's class table
+  (task 101). This task renders what the Hub stores and never a worker's report.
+- Negotiation and proposal rows: tasks 106 and 104.
+
+**Parity rows:** closes **L-156** (PARTIAL: `@me:orchestrator` routes to your own Orchestrator
+only) and **L-173** (every agent comment names owner, agent, model and session). Checked against
+`05-design.md` on 2026-09-25 (`:318`, `:335`).
+
+**Corrections to the scope paragraph:** the token lives in task 51's mention files, not task 50's
+editor (decision (a)); the author block is task 100's `attribution` (`ownerId`, `agentId`, `model`,
+`sessionId`), not `{kind: agent, owner, agent, model, session}`; the flag is checked against the
+body and not stored (decision (c)); the Hub delta and TM-09's event kind are added to the files.
+
+**Gaps found while writing this part** (for the skeleton's owner and the named tasks):
+
+1. **`control-plane/internal/fleet/work/` has no row in the file map**, and no Phase T or Phase W
+   task owns Fleet-side Work intake; this part creates the package.
+2. **Task 101's `InTurn` reads the running turn's events**; this part puts `issue.mentioned` with
+   `Ref` = the issue id into TM-09's `Event`. TM-26 must hold it in `Turn.Events` for `InTurn` to
+   find it (UNVERIFIED until TM-26's part is re-read).
+3. **`AgentByline.role`** comes from TM-52's agent view; an agent comment names an `ag-…`, and the
+   desktop has no read of an arbitrary agent's role outside the strip. Task 107's task-card page
+   (`who.label`) is the natural owner of that lookup.
+4. **Task 51's thread is W1 and renders `kind` as `comment` only**; this part widens it. Task 51's
+   part should say its row shape grows in W3.
