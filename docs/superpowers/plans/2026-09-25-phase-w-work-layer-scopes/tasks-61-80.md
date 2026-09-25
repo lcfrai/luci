@@ -411,7 +411,8 @@ for org labels (L-17-L-19); `View{id vw-, teamId, projectId *string, name, filte
 `FilterTerm{field, op, values}`; `Draft{id df-, kind "issue" | "comment", issueId *string, body
 AuthoredText, updatedAt, expiresAt}` (private to its author, L-33, L-44); `IssueAlias{projectKey,
 number}`. **Team policy additions:** `estimateScale`, `estimateZero`, `staleAfterDays`, `staleMode
-"propose" | "auto"`, `archiveAfterDays`, `stopAtLanded` unchanged. **Request bodies:**
+"propose" | "auto"`, `archiveAfterDays` (task 03's `stopAtLandedWithoutServes` unchanged).
+**Request bodies:**
 `PatchIssuePlanRequest` (pointer fields for the head fields above), `RankRequest{before, after
 *string}`, `MoveIssueRequest{toProjectId}`, `SetSubStateRequest{key *string}`,
 `PromoteToFeatureRequest{name, slug}`, `PutCadenceRequest`, `AnswerClosureRequest{close []string}`,
@@ -421,8 +422,74 @@ styles: strict decode and equal re-encode per record (kills a tag like `due_on`)
 encode `[]` (kills `omitempty`); `band` rejects `started` (kills a custom state inside the fact
 band); a `FilterGroup` four deep is refused (kills unbounded nesting); `rank` outside the charset is
 refused; W1's golden vectors still pass byte for byte (kills a head field leaking into the
-revision); `var _ hubclient.Work = hubclient.NewFake()` compiles only once task 73 lands, so this
-task adds the interface and a failing conformance stub. **Depends on** 70. **Design:** 05 §3.2,
+revision). To keep every commit building, this task declares `WorkPlan` **standalone** in
+`hubclient/work.go`; task 73 embeds it in `Work` together with the fake's implementation, so
+`var _ hubclient.Work = hubclient.NewFake()` never fails to compile between them. **Depends on** 70. **Design:** 05 §3.2,
 §3.3, §5.4 (W2); 04 §2.5. **Closes** no row alone; it is the wire of every W2 row. **Does not
 claim** recurring schedules on templates (W4), initiatives (W4), or brief templates (W4, L-122).
+
+**73 — the fake's W2 rules and conformance rows.** Stream WH, seam **SW.18** (frozen here the way
+WS0 froze SW.2: afterwards only added methods, fields or routes). Files:
+`control-plane/internal/hub/hubclient/work.go` ⚑ (`Work` embeds task 72's `WorkPlan`),
+`hubclient/fake_work_plan.go` (new, in memory, beside task 04-05's `fake_work*.go`),
+`hubclient/conformance/work_plan.go` (new rows, run against `NewFake()` here and against the real
+Hub in task 82). **The rules, each a conformance row the real Hub must also pass:** a sub-state
+is accepted only while the head's state is in its band (`before_started`: `triage`, `backlog`,
+`todo`; `after_landed`: `landed`), and an `after_landed` sub-state refuses the evidence `done` move
+(`409 held_by_substate`) until a person clears it (05 §3.3); creating a feature reserves
+`refs/heads/<slug>` and creates its branch brief at once, and a second feature or brief on that
+ref is `409 brief_exists` (`hub-contract.md:253`, 04 §2.5); *promote to feature* returns the new
+`ft-` with the issue as its first child and the issue's `serves` copied onto nothing (they stay on
+the issue revision) (L-23); cycle numbers are gapless per team, `PutCadence` creates `ahead`
+upcoming cycles, and rollover moves every issue not `done`, `cancelled` or `duplicate` to the next
+cycle with one event each and `actor: null` (04 §2.5, L-60); a `started` move puts the issue in the
+current cycle, written as the person (L-61); a cycle change after `startsOn` appends a
+`ScopeEntry` (L-63); a parent chain may not loop and a parent stays out of `done` while a child is
+open or a served criterion is unsettled (L-20, L-21); two labels of one `exclusive` group on one
+issue is `422 exclusive_label_group` (L-18); an estimate outside the team's scale, or zero when
+`estimateZero` is off, is `422` (L-16); `Rank` between two neighbours sorts between them (L-14);
+`MoveIssue` gives a new number in the target project, the old alias resolves to the moved issue
+with `movedFrom`, and no number is ever reused (L-35); closing a blocker turns its `blocks` into
+`relates` in one event written as the closer (L-25); only a team admin sets `isTeamDefault`
+(L-105); another user's draft is `404`, not `403` (no existence leak, L-33); a closure proposal
+answered closes only the ids named, as the assignee (L-11). **Tests first** (each row fails on its
+mutant): the sub-state row (mutant: bands unchecked); the held-done row (mutant: `after_landed`
+decorative); the reserve row (mutant: a second feature on the ref); the gapless row (mutant:
+numbers from a global sequence); the rollover row (mutant: `done` issues rolled, or the actor set);
+the loop row (mutant: parent cycles accepted); the exclusive row (mutant: last label wins
+silently); the alias row (mutant: the old number freed); the blocker row (mutant: the relation
+deleted); the draft row (mutant: `403`); `go test ./control-plane/internal/hub/hubclient/...
+-race -count=1` green. **Depends on** 72. **Design:** 05 §3.2, §3.3, §5.4 W2; 04 §2.5. **Closes**
+no row alone (the Hub routes, 75-80, and the desktop, 84-94, close them). **Does not claim** the
+real Hub's behaviour (task 82 runs these rows there) or the digest (task 81).
+
+**74 — the W2 migration, its guards and matrix rows.** Stream WH. Files:
+`control-plane/internal/hub/migrate/sql/NNNN_work_plan.sql` (the **next free number at sync time**,
+renumbered on a clash; rule H1), `server/matrix_integration_test.go` ⚑ (one row per W2 route ×
+every principal, the Hub plan's file at `phase-h-hub.md:298`), and the migration's own test in the
+Hub's migration-test file (per the Hub plan's file map; path followed as found, rule H1). **Tables**,
+each with `org_id`, row-level security on `hub.org_id` (hub-contract §5.1 step 6, §10.3) and the
+grants task 06's migration uses: `custom_states`, `features` (unique `(project_id, branch_ref)`),
+`cycles` (unique `(team_id, number)`), `cadences`, `cycle_scope`, `closure_proposals`,
+`templates`, `label_groups` (plus `labels.group_id`, and `labels.team_id` nullable for org
+labels), `views`, `drafts` (a second policy: readable and writable only by `author_id`), and
+`issue_aliases` (primary key `(project_id, number)`, never deleted); `issue_heads` gains the SW.18
+columns (`estimate`, `due_on`, `rank`, `parent_id`, `feature_id`, `cycle_id`, `sub_state`). **Guards
+in the database**, so a bug in Go cannot bypass them: a `CHECK` that `custom_states.band` is one of
+the two human bands; a trigger that refuses `sub_state` outside its band; a trigger refusing two
+labels of one exclusive group; a trigger refusing a parent loop; `issue_aliases` rows immutable; the
+W1 guards (task 07, SW.3: no sync principal writes a fact state or `done`) extended to the new head
+columns, so the janitor may write only `cycle_id` with `actor: null`. **Matrix rows** (contract
+§5.2 roles: viewer, member, team admin, org admin, another team's member, the sync principal):
+members write issues' plan fields, features, views and drafts; team admins write cadences, custom
+states, team templates and team defaults; org admins write org labels and org templates and read
+no project content (§5.2); the sync principal writes none of them. **Tests first:** the band
+`CHECK` (mutant: dropped); the draft policy (mutant: org-wide RLS only, so a teammate reads a
+draft); the alias immutability (mutant: `UPDATE` allowed); the exclusive trigger (mutant: none);
+the janitor column rule (mutant: janitor writes `state`); each matrix row, which fails on a
+route whose role check is missing (mutant: member sets a team default); `go test
+./control-plane/... -race -count=1 -tags integration` against `control-plane/cmd/hub/compose.yaml`.
+**Depends on** 72. **Design:** 05 §3.1-§3.3, §3.6; hub-contract §5, §10. **Closes** no row alone.
+**Does not claim** a migration applied anywhere shared (they are applied nowhere shared until
+merged, rule H1), or W4's tables.
 
