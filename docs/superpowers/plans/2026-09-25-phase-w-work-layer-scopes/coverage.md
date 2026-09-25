@@ -79,3 +79,83 @@ against the desktop tree (UNVERIFIED).
 | 36 | Undo | MATCH | W1 | 56, 66 · serves 61 · proof 70 |  |
 | 37 | Due dates with colour-coded urgency and due-soon alerts | MATCH | W2 | 79, 89, 94 · serves 81 |  |
 | 38 | Exactly one human assignee; `I` assigns to me | MATCH | W1 | 46, 53 · serves 03, 04, 08, 17 · proof 70 |  |
+| 39 | Agent delegate alongside the human assignee | EXCEED | W1 / W3 | 24, 48, 61, 100, 102 · serves 98, 99 · proof 70, 113 |  |
+| 40 | Personal auto-assign automations | MATCH | later | 176 |  |
+| 41 | Comment threads, resolve with the answering reply, reactions, custom emoji | PARTIAL | W1 | 51 · serves 03, 05, 12, 17 · proof 70 |  |
+| 42 | Inline comments on highlighted text | EXCEED | W1 | 51 · serves 03, 05, 12, 17 · proof 70 |  |
+| 43 | AI summaries of resolved threads and long discussions | EXCEED | W4 | 139 · proof 142 |  |
+| 44 | Comment drafts persist | MATCH | W2 | 80, 92 · serves 72 |  |
+| 45 | Attachments by drag-drop, paperclip or shortcut | MATCH | W2 | 52 · serves 05, 09 · proof 70 |  |
+| 46 | Per-team Triage inbox, hidden from other views | MATCH | W1 | 11, 42, 45 · serves 03, 05, 17, 63, 69 · proof 70 |  |
+| 47 | Number-key triage actions: accept, duplicate, decline, snooze | EXCEED | W1 | 11, 24, 42, 53, 61 · proof 70 |  |
+| 48 | Require priority before an issue leaves Triage | MATCH | W1 | 11, 42 · serves 03, 05, 17 · proof 70 |  |
+| 49 | Ordered triage rules | MATCH | W5 | 147, 170 · proof 174 |  |
+| 50 | Triage responsibility with rotation from PagerDuty, Opsgenie, Rootly, incident.io | PARTIAL | W4 | 114, 121, 134, 184 · proof 142 |  |
+| 51 | Triage Intelligence suggestions for team, project, assignee, labels | EXCEED | W4 | 136 · proof 142 |  |
+| 52 | "Why" reasoning on every suggestion | EXCEED | W4 | 136 · proof 142 |  |
+| 53 | Per-property Show, Hide or Auto-apply dial | EXCEED | W4 | 114, 136 · proof 142 |  |
+| 54 | Duplicate and related-issue detection | MATCH | W4 | 137 · proof 142 |  |
+| 55 | Layered written AI guidance, most local wins | MATCH | W4 | 137 · proof 142 |  |
+| 56 | Lightweight suggestions in the composer on all plans | MATCH | W4 | 137 · proof 142 |  |
+| 57 | Automatic repeating cycles, 1 to 8 weeks | MATCH | W2 | 77, 87 |  |
+| 58 | Cooldown periods | MATCH | W2 | 77, 87 |  |
+| 59 | Up to 15 upcoming cycles | MATCH | W2 | 77, 87 |  |
+| 60 | Automatic rollover of unfinished work | MATCH | W2 | 77, 87 · serves 73 |  |
+| 61 | Auto-add started issues to the current cycle | MATCH | W2 | 77, 87 · serves 73 |  |
+| 62 | Capacity dial from recent velocity | SKIP | — | — | A capacity number is a prediction (AX anti-pattern 2). We show the last three cycles' closed counts as plain facts instead (Q1) |
+| 63 | Cycle graph: scope, started, completed, target | EXCEED | W2 | 77, 87 · serves 73 |  |
+| 64 | Cycle calendar feed | MATCH | W2 | 77, 87 |  |
+| 65 | Edit cycle names and dates; "cycles paused" gaps | MATCH | W2 | 77, 87 |  |
+| 66 | AI "plan the next cycle" from backlog themes | EXCEED | W4 | 140 · proof 142 |  |
+| 67 | Multi-team projects with one lead, members, fuzzy or exact dates | MATCH | W2 / W4 | 76, 85, 114, 117, 126 · proof 142 |  |
+| 68 | Project tabs, including saved views as extra tabs | MATCH | W2 | 85 |  |
+| 69 | Project overview: document-style description, resources, milestones | EXCEED | W2 | 76, 85 |  |
+| 70 | Project statuses: five categories, custom names, set manually | EXCEED | W2 | 76, 85 |  |
+| 71 | Project priority and project labels | MATCH | W2 | 76, 85 |  |
+| 72 | Milestones with progress, suggested milestone on new issues | PARTIAL | W4 | 114, 120, 130 · proof 142 |  |
+| 73 | Project graph with predicted completion and optimistic and pessimistic bounds | SKIP | — | — | Prediction is banned (AX anti-pattern 2; AX:237). Convergence per criterion replaces it (Q1) |
+| 74 | Project dependencies, violation colouring, drag-to-bump chains | PARTIAL | W4 | 114, 120, 129 · proof 142 |  |
+| 75 | Project templates with milestones and issues | MATCH | W4 | 114, 120 · proof 142 |  |
+| 76 | Project updates with On track, At risk, Off track health | EXCEED | W4 | 114, 119, 127 · proof 142 |  |
+| 77 | Update reminders, follow-up nudges, "update missing" and grey stale health | MATCH | W4 | 114, 119, 121, 127 · proof 142 |  |
+| 78 | Agent-drafted updates from changes and Slack | EXCEED | W4 | 119, 139 · serves 141 · proof 142 |  |
+| 79 | Automatic property-change digest inside updates | MATCH | W4 | 139 · proof 142 |  |
+| 80 | Updates posted to Slack or Teams with synced comments | MATCH | W5 | 157, 182 · proof 174 |  |
+| 81 | Project notifications by bell, and per-project Slack channels | MATCH | W5 | 157 · proof 174 |  |
+| 82 | Agent drafts a whole project from workspace context | EXCEED | exists / W4 | 140 · proof 142 |  |
+| 83 | Initiatives: status, priority, owner or lead team, target, labels, resources | MATCH | W4 | 114, 117, 118, 127 · proof 142 |  |
+| 84 | Health roll-up of an initiative's projects | MATCH | W4 | 114, 118, 127 · proof 142 |  |
+| 85 | Initiative graph | EXCEED | W4 | 114, 118, 127 · proof 142 |  |
+| 86 | Sub-initiatives up to 5 levels with roll-up | SKIP | — | — | Needs cross-team grants (L-4's reason). Later, with org-level initiatives |
+| 87 | Initiative updates | MATCH | W4 | 114, 118, 119, 127 · proof 142 |  |
+| 88 | Team-led and private initiatives | MATCH | W4 | 114, 118, 127 · proof 142 |  |
+| 89 | Timeline layout with day, week, month, quarter zoom | MATCH | W4 | 114, 128 · proof 142 |  |
+| 90 | Drag to reschedule projects and milestones on the timeline | MATCH | W4 | 114, 129 · proof 142 |  |
+| 91 | Team cycles overlaid on the timeline | MATCH | W4 | 114, 128 · proof 142 |  |
+| 92 | Group the timeline by initiative or other attributes | MATCH | W4 | 114, 128 · proof 142 |  |
+| 93 | Saved custom views of issues, projects or initiatives | MATCH | W2 | 80, 91 |  |
+| 94 | View scopes workspace, team, personal; view owner | PARTIAL | W2 | 80, 91 |  |
+| 95 | Save any filtered list as a view, `Alt+V` | MATCH | W2 | 80, 91 |  |
+| 96 | Subscribe to a view for added, completed, canceled events | MATCH | W2 | 91, 94 · serves 81 |  |
+| 97 | Post a view's changes to a Slack channel | MATCH | W5 | 157, 182 · proof 174 |  |
+| 98 | Filters encoded in the URL, so every screen is a link | EXCEED | W1 / W2 | 47, 67, 80, 93 · proof 70 |  |
+| 99 | Advanced AND/OR nested filter groups | MATCH | W2 | 80, 91 |  |
+| 100 | AI natural-language filters | MATCH | W4 | 138 · proof 142 |  |
+| 101 | List, board and timeline layouts | MATCH | W1 / W4 | 40, 41, 43, 45, 66, 128 · proof 70, 142 |  |
+| 102 | Grouping and sub-grouping swim lanes; drag sets the property | EXCEED | W1 / W2 | 40, 43, 91 · proof 70 |  |
+| 103 | Ordering options including shared manual order | MATCH | W2 | 79, 89 |  |
+| 104 | Display-property toggles per row | MATCH | W1 | 44 · proof 70 |  |
+| 105 | "Set as default" pushes display options to everyone | MATCH | W2 | 80, 91 · serves 73 |  |
+| 106 | Workspace search `/`, view search, jump to issue `O I` | MATCH | W1 | 58 · serves 05, 14, 17 · proof 70 |  |
+| 107 | `@`-mentions in search become filters | MATCH | W2 | 91 |  |
+| 108 | Peek preview on `Space` | EXCEED | W1 | 60 · proof 70 |  |
+| 109 | Favourites with folders | MATCH | W2 | 91 |  |
+| 110 | Label views and user views | EXCEED | W2 / TM | 91 |  |
+| 111 | Ad hoc issue lists by URL | MATCH | W2 | 91, 93 |  |
+| 112 | My Issues with a focus order (urgent, SLA, blockers, cycle) | EXCEED | W1 | 45, 65 · serves 62, 63 · proof 70 |  |
+| 113 | Keyboard-driven Inbox | EXCEED | W1 | 65, 66 · serves 62, 64 · proof 70 |  |
+| 114 | Priority inbox | EXCEED | W1 | 62, 64 · serves 63, 65 · proof 70 |  |
+| 115 | Snooze and reminders with natural-language times | PARTIAL | W2 | 94 |  |
+| 116 | Notification channels: desktop, mobile, Slack, email digest | PARTIAL | W2 / W5 | 81, 94 |  |
+| 117 | Automatic and manual subscriptions | MATCH | W2 | 52 · serves 03, 05, 13, 17, 81 · proof 70 |  |
+| 118 | Pulse feed: For me, Popular, Recent, custom feeds | PARTIAL | W4 | 114, 123, 133 · proof 142 |  |
