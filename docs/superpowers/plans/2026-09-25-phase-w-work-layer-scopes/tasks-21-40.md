@@ -422,3 +422,61 @@ it; phase 6 enforces it), nor the Desk's or Plan's headers (tasks 45, 62). Desig
 02 C5, D2 step 2; `OD-19` (the switch made visible). Parity: no 01 row names chrome; it is the
 visible half of `OD-19`'s per-project route.
 
+**32 — `flag.compare` in the dev toolbar: old and new look, the three sans candidates (02 D2 step
+7).** Stream WD1, 2 h. Depends on 27 and 31. Files: new `desktop/src/lib/flags.ts` (+ test), new
+`desktop/src/components/devtools/FlagCompare.tsx`, `devtools.css` (+ test); the toolbar mounts in
+`desktop/src/App.tsx` behind `import.meta.env.DEV` (App.tsx is not in the skeleton's file map; the
+return lists it). **Complete:** `export type Look = "old" | "new"`; `export type SansCandidate =
+"segoe" | "atkinson" | "geist"`; `export type ThemeName = "graphite" | "paper"`; `export interface
+Flags { look: Look; sans: SansCandidate; theme: ThemeName }`; `export function getFlags(): Flags`;
+`export function setFlag<K extends keyof Flags>(key: K, value: Flags[K]): void`; `export function
+useFlags(): Flags` (a `useSyncExternalStore` hook). `setFlag` writes `data-look`, `data-sans` and
+`data-theme` on `<html>`, which tasks 26, 30 and 31's rules read, so a flip is a two-second
+comparison on the **same** screen with no remount and no reload (02 C12). Flags live in memory only:
+they are preferences for a dev session, never persisted. **The sans candidates** (05 §4.4 C3,
+revision 2): `OD-28` chose Segoe UI Variable, and the toolbar still sets it beside Atkinson
+Hyperlegible Next and Geist so the owner's eyes confirm the choice at task 39. The two alternatives
+are dev-only files under `desktop/src/devtools/fonts/`, each with its OFL text, loaded by a dynamic
+`import()` inside the `DEV` branch, so a production build carries neither (Atkinson Hyperlegible
+Next's licence and weights are **UNVERIFIED** until fetched; the part records the release and
+SHA-256 of each file). **Tests first:** `it("writes each flag to the root element")` (kills a flag
+that never reaches CSS); `it("flips the look without remounting")` (a typed value in an input
+survives `setFlag("look", "old")`; kills a flip that reloads); `it("renders nothing in production")`
+(with `DEV` false; kills shipping dev chrome); `it("applies each sans candidate")` (kills a candidate
+the CSS ignores); `it("persists nothing")` (`localStorage` and `indexedDB` spies see no write; kills
+a flag written to disk). **Acceptance:** `npm --prefix desktop test -- flags devtools` passes;
+`npm --prefix desktop run build`, then `grep -rli "geist\|atkinson" desktop/dist` prints nothing.
+It does **not** claim which look or face is better (the owner decides at task 39), a keyboard chord
+for the toggle (none, so no cockpit chord is shadowed), or macOS rendering. Design: 05 §4.4 C3, C12;
+02 C12, D2 step 7; `OD-1` (the review gate this makes cheap), `OD-28`. Parity: no 01 row; it serves
+the review gate.
+
+**33 — `stress.sets` with its three new screens.** Stream WD1, 3 h. Depends on 29 and 32. Files: new
+`desktop/src/components/devtools/StressSets.tsx` (+ test), new `devtools/GrainMeter.tsx` (task 35
+fills it; not in the skeleton's file map), and fixture screens built only from what exists by then:
+the glyph sheet (every `StateGlyph`, `AgentGlyph` and `MarkGlyph` at 14 and 16px), `ViewHeader`, and a
+Develop pane in each of DESIGN-SYSTEM's eleven states (loading, empty, sparse, dense, partial, stale,
+offline, unauthorized, error, blocked, success; `docs/DESIGN-SYSTEM.md:90`). **Complete:** `export
+function registerStressScreen(name: string, render: () => ReactNode): void` (later surfaces, tasks
+38-48 and 62, register theirs); `export type StressSet = "themes" | "states" | "load" |
+"reduced-deuteranopia" | "forced-colors" | "scaling"`; `export function StressSets(): JSX.Element`,
+mounted in the dev toolbar beside `FlagCompare`. **The three new screens** (05 §4.4 C12; 07 D C4,
+D I8): (1) **reduced motion × deuteranopia**: sets `data-motion="reduce"` on `<html>` (every reduced-
+motion rule is written twice, as the media query and as this attribute, which task 34 holds to) and
+applies an SVG `feColorMatrix` deuteranopia filter over the app root, using a published simulation
+matrix the part cites by paper and severity; (2) **the Windows contrast theme**: `forced-colors`
+cannot be simulated in page CSS, so the screen lays out every glyph, ring and selected row and tells
+the reviewer to turn on a Windows contrast theme (or DevTools' *Emulate CSS forced-colors*, which
+WebView2's DevTools is **UNVERIFIED** to offer); (3) **125 % and 150 % scaling**: a CSS `zoom`
+preview, labelled *not the same as Windows display scaling*, beside the instruction to set Windows
+scaling for the real check. Appearance covers `graphite` and `paper` (the high-contrast pair is W2).
+**Tests first:** `it("applies each new set's attribute or filter")` (kills a set that changes
+nothing); `it("uses the cited deuteranopia matrix")` (kills a wrong matrix); `it("renders every
+glyph at both sizes on both grounds")` (kills a missing glyph); `it("lists all eleven states")`
+(kills a partial floor); `it("keeps registered screens in registration order")`; `it("renders nothing
+in production")` (kills shipping it). **Acceptance:** `npm --prefix desktop test -- StressSets`
+passes. It does **not** claim that any screen passes: the sets are how the owner and reviewers look
+(`CLAUDE.md`: visual acceptance is the owner's eyes), nor macOS WKWebView (no build exists,
+**UNVERIFIED**). Design: 05 §4.4 C12, §5.3 row 8; 02 C12. Parity: no 01 row; 02 A10 point 8, the
+quality habit.
+
