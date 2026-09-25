@@ -345,3 +345,238 @@ export function findLoop(deps: readonly { from: string; blocks: string }[], from
   return null;
 }
 ```
+
+#### Tests to write first — `desktop/src/components/roadmap/useTimelineDrag.test.ts`
+
+```ts
+import { describe, expect, it } from "vitest";
+import { addDays, dayAt } from "./useTimelineDrag";
+import { findLoop, orderViolated } from "./orderViolated";
+
+/** A 20 px-per-day scale from 1 Oct, the shape task 128's timelineScale returns for day zoom. */
+const days = (a: string, b: string) => (Date.UTC(+b.slice(0, 4), +b.slice(5, 7) - 1, +b.slice(8)) -
+  Date.UTC(+a.slice(0, 4), +a.slice(5, 7) - 1, +a.slice(8))) / 86_400_000;
+const scale = { x: (d: string) => days("2026-10-01", d) * 20, ticks: [] };
+
+describe("dates are whole calendar days", () => {
+  // mutant killed: "fractional dates" (a drop writes an instant or a part-day)
+  it("a drop 2.4 days in lands on the nearest whole day, as YYYY-MM-DD", () => {
+    const d = dayAt(scale as never, "2026-10-01", 48);
+    expect(d).toBe("2026-10-03");
+    expect(d).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+  // mutant killed: "addDays through local time" (Sydney's 4 Oct 2026 has 23 hours)
+  it("adding a day across Sydney's daylight-saving change is one calendar day", () => {
+    expect(addDays("2026-10-03", 1)).toBe("2026-10-04");
+    expect(addDays("2026-10-04", 1)).toBe("2026-10-05");
+  });
+});
+
+describe("the optimistic rule is the Hub's rule", () => {
+  // The cases of task 120's TestOrderViolatedIsDerived (task-120.md:362) and task 115's depOf
+  // (task-115.md:657-661). Gap: task 115 has no order row to read by path (below).
+  const cases: [blocker: string | null, blocked: string | null, want: boolean][] = [
+    ["2026-11-01", "2026-10-15", true],   // FT-1 blocks FT-2, FT-2 due first
+    ["2026-11-01", "2026-11-20", false],  // FT-2 moved after its blocker
+    ["2026-11-01", "2026-11-01", false],  // the same day is not before
+    [null, "2026-10-15", false],          // either date missing is not a violation
+    ["2026-11-01", null, false],
+  ];
+  // mutant killed: "two rules drift" (<= for <, or null read as a date)
+  it.each(cases)("blocker %s, blocked %s → %s", (a, b, want) => expect(orderViolated(a, b)).toBe(want));
+});
+
+describe("a refused loop is named from the replica", () => {
+  it("EP-2 blocking EP-5, with EP-5 → EP-2 held, is EP-2 → EP-5 → EP-2", () => {
+    expect(findLoop([{ from: "ft-5", blocks: "ft-2" }], "ft-2", "ft-5")).toEqual(["ft-2", "ft-5", "ft-2"]);
+  });
+  it("no held path is null, so the line names no feature the caller cannot see", () => {
+    expect(findLoop([{ from: "ft-7", blocks: "ft-2" }], "ft-2", "ft-5")).toBeNull();
+  });
+});
+```
+
+#### Tests to write first — `desktop/src/components/roadmap/TimelineDrag.test.tsx`
+
+```tsx
+import { fireEvent, render, screen } from "@testing-library/react";
+import { beforeEach, expect, it, vi } from "vitest";
+import { expectNoPrediction } from "../../test/expectNoPrediction";
+import { useTimelineDrag, type DragSubject } from "./useTimelineDrag";
+import { TimelineDrag, dropOp } from "./TimelineDrag";
+import { inverseOf } from "../../work/replica/ops";
+
+const mutate = vi.fn();
+let access: "member" | "granted" = "member";
+vi.mock("../../work/replica/useWork", () => ({ useReplica: () => ({ mutate }) }));
+vi.mock("../../work/access/projectAccess", () => ({ useProjectAccess: () => access }));
+
+const x = (d: string) => (Date.UTC(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8)) - Date.UTC(2026, 9, 1)) / 86_400_000 * 20;
+const scale = { x, ticks: [] } as never;
+const fmt = (d: string) => `${+d.slice(8)} Oct`;
+const EP2: DragSubject = { kind: "feature", featureId: "ft-2", start: "2026-10-10" };
+
+function Harness({ onDrop }: { onDrop: (s: DragSubject, day: string) => void }) {
+  const drag = useTimelineDrag(scale, "2026-10-01", { onDrop });
+  return <TimelineDrag projectId="pj-1" subject={EP2} drag={drag} fmtDay={fmt}><i>◆</i></TimelineDrag>;
+}
+function mount() {
+  const writes: WorkOpLike[] = [];
+  const onDrop = (s: DragSubject, day: string) => writes.push(dropOp(s, day) as WorkOpLike);
+  const view = render(<Harness onDrop={onDrop} />);
+  return { writes, view, handle: () => screen.queryByRole("slider") };
+}
+type WorkOpLike = { kind: string; req: Record<string, string>; prev: Record<string, string> };
+const drag = (el: Element, toPx: number, end: "up" | "escape" = "up") => {
+  fireEvent.pointerDown(el, { pointerId: 1, clientX: x("2026-10-10") });
+  for (let px = x("2026-10-10"); px <= toPx; px += 7) fireEvent.pointerMove(el, { pointerId: 1, clientX: px });
+  if (end === "escape") fireEvent.keyDown(el, { key: "Escape" });
+  fireEvent.pointerUp(el, { pointerId: 1, clientX: toPx });
+};
+
+beforeEach(() => { mutate.mockReset(); access = "member"; });
+
+// mutant killed: "a write per pointer move"
+it("a drop sends exactly one patch, with the new date", () => {
+  const { writes, handle } = mount();
+  drag(handle()!, x("2026-10-14"));
+  expect(writes).toEqual([{ kind: "feature.patch", featureId: "ft-2",
+    req: { targetDate: "2026-10-14" }, prev: { targetDate: "2026-10-10" } }]);
+});
+
+// mutant killed: "cancel still writes"
+it("Escape mid-drag sends nothing, and the mark returns", () => {
+  const { writes, handle } = mount();
+  drag(handle()!, x("2026-10-14"), "escape");
+  expect(writes).toEqual([]);
+  expect((handle() as HTMLElement).style.transform).toBe("translateX(0px)");
+});
+
+// mutant killed: "undo re-sends the new date": the inverse is built from prev
+it("Undo writes one patch back to the old date", () => {
+  // task 56's inverseOf reads a roadmap op's prev as its before (task-125.md:529-531)
+  const inv = inverseOf(dropOp(EP2, "2026-10-14"), new Map(), {} as never) as unknown as WorkOpLike;
+  expect(inv).toMatchObject({ kind: "feature.patch", req: { targetDate: "2026-10-10" }, prev: { targetDate: "2026-10-14" } });
+  const ms = { kind: "milestone", milestoneId: "ml-1", start: "2026-10-20" } as const;
+  const msInv = inverseOf(dropOp(ms, "2026-10-22"), new Map(), {} as never) as unknown as WorkOpLike;
+  expect(msInv).toMatchObject({ kind: "milestone.patch", req: { date: "2026-10-20" } });
+});
+
+// mutant killed: "drag around the grant"
+it("a granted reader's mark has no handle", () => {
+  access = "granted";
+  const { handle, view } = mount();
+  expect(handle()).toBeNull();
+  expect(view.container.querySelector(".tl-mark--draggable")).toBeNull();
+});
+
+it("the date under the hand is mono and states no forecast", () => {
+  const { handle, view } = mount();
+  fireEvent.pointerDown(handle()!, { pointerId: 1, clientX: x("2026-10-10") });
+  fireEvent.pointerMove(handle()!, { pointerId: 1, clientX: x("2026-10-12") });
+  expect(view.container.querySelector(".tl-drag-day")!.textContent).toBe("12 Oct");
+  expectNoPrediction(view.container);
+});
+```
+
+The Undo test pins the inverse this task's op produces. Sending it once, and the chip's lapse, are
+task 56's tests (`task-56.md:728-760`), not repeated here.
+
+#### Tests to write first — `desktop/src/components/roadmap/DependencyLines.test.tsx`
+
+```tsx
+import { render, screen } from "@testing-library/react";
+import { expect, it } from "vitest";
+import { expectNoPrediction } from "../../test/expectNoPrediction";
+import { DependencyLines } from "./DependencyLines";
+
+const f = (id: string, alias: string, targetDate: string | null) => [id, { id, alias, targetDate }] as const;
+const features = new Map([f("ft-2", "EP-2", "2026-10-10"), f("ft-5", "EP-5", "2026-10-03")]) as never;
+const anchor = (id: string) => (id === "ft-2" ? { x: 180, y: 20 } : { x: 40, y: 60 });
+const fmt = (d: string) => `${+d.slice(8)} Oct`;
+const dep = (orderViolated: boolean) => [{ from: "ft-2", blocks: "ft-5", orderViolated }];
+
+// mutant killed: "signal by colour alone" (forced-colors strips --signal; the words remain)
+it("a violated order reads by its sentence, visible and as the accessible name", () => {
+  const { container } = render(<DependencyLines deps={dep(true)} features={features} anchor={anchor}
+    pending={new Set()} fmtDay={fmt} />);
+  const g = screen.getByRole("listitem");
+  expect(g.getAttribute("aria-label")).toBe("targets 3 Oct, before its blocker EP-2's 10 Oct");
+  expect(container.querySelector(".tl-dep-why")!.textContent).toBe(g.getAttribute("aria-label"));
+  expect(getComputedStyle(container.querySelector(".tl-dep--violated path")!).animationName ?? "none")
+    .toMatch(/^(none|)$/);                                  // never animated
+  expectNoPrediction(container);
+});
+
+// mutant killed: "the preview overrides the Hub" once nothing is in flight
+it("with no write in flight, the Hub's false wins over the copied rule", () => {
+  render(<DependencyLines deps={dep(false)} features={features} anchor={anchor} pending={new Set()} fmtDay={fmt} />);
+  expect(screen.getByRole("listitem").getAttribute("aria-label")).toBe("EP-2 blocks EP-5");
+});
+
+it("while a drop is in flight, the copied rule previews the Hub's answer", () => {
+  render(<DependencyLines deps={dep(false)} features={features} anchor={anchor} pending={new Set(["ft-5"])} fmtDay={fmt} />);
+  expect(screen.getByRole("listitem").getAttribute("aria-label")).toMatch(/^targets 3 Oct/);
+});
+```
+
+A fourth test sits in `TimelineDrag.test.tsx` beside the others, over task 56's real replica
+harness (`task-56.md:526-540`, extended by task 125's `RoadmapRecords`): *Blocks…* on EP-2 → EP-5
+with `ft-5 → ft-2` held paints a connector, the gate rejects with
+`ApiError("dependency_cycle", …, 422)` and `details {from: "ft-2", blocks: "ft-5"}`, and then no
+`[data-dep="ft-2>ft-5"]` remains and the fact line reads *"EP-2 → EP-5 → EP-2"* (mutant killed: "a
+phantom dependency").
+
+#### Steps
+
+1. Write `useTimelineDrag.test.ts`; run it; it fails on the missing module.
+2. Write `orderViolated.ts` (the rule, the sentence, `findLoop`) and `useTimelineDrag.ts`; the pure
+   tests pass.
+3. Write `TimelineDrag.test.tsx` and `DependencyLines.test.tsx`; they fail.
+4. Write `TimelineDrag.tsx` and `DependencyLines.tsx`; mount them in ⚑ `TimelineRow.tsx` (each
+   target and milestone mark) and ⚑ `Timeline.tsx` (one `useTimelineDrag`, one `DependencyLines`
+   over the rows, `useDropWriter` as `onDrop`); append the CSS.
+5. Add the two commands to ⚑ `commands.ts`; task 59's hint test must still pass (neither has a
+   chord, so neither has a hint).
+6. Run the acceptance; commit with the four new test files.
+
+#### Acceptance
+
+```bash
+cd desktop && npx vitest run src/components/roadmap/useTimelineDrag.test.ts \
+  src/components/roadmap/TimelineDrag.test.tsx src/components/roadmap/DependencyLines.test.tsx
+# expect: 3 files passed; 18 tests passed (9 pure incl. 5 table rows, 6 drag, 3 lines); 0 failed
+cd desktop && npx vitest run src/components/palette && npx tsc --noEmit
+# expect: the palette tests pass as before; tsc exit 0
+cd desktop && grep -n "transition" src/components/roadmap/timeline.css | grep -i -E "dep|drag"
+# expect: no output (nothing on a connector or a drag animates)
+```
+
+#### What this task does NOT claim
+
+- That any date a person sets is right, or achievable. It records who set it; nothing here judges
+  it (`OD-27`).
+- Automatic rescheduling of dependants. There is none: moving EP-2 moves no other feature, and a
+  violated order is shown, not fixed.
+- A drag on touch screens beyond pointer events, or smooth dragging at any row count (unmeasured).
+- The timeline's layout, zoom, cycle band or grouping (task 128).
+- That the feature patch op is task 83's name, or that task 128's `x` takes a day string: both
+  are **UNVERIFIED** until those parts land.
+
+#### Gaps found while writing this part
+
+1. **No shared order fixture.** The scope says the two rules agree *"on task 115's conformance
+   fixture"*; task 115's `WorkRowsW4` has no order row (`task-115.md:768-783`, W4-01 to W4-14).
+   This part copies task 120's `TestOrderViolatedIsDerived` cases and task 115's `depOf`. Proposed:
+   task 115 adds `W4-15 order_violated_derived`, and task 114 a golden
+   `testdata/work-roadmap/order-violated-cases.json` that this test then reads by path.
+2. **The cycle refusal names no path.** Task 120's `dependency_cycle` carries only `details.from`
+   and `details.blocks` (`task-120.md:304`); the loop is found client-side (decision 6). A
+   `details.path` from task 120 would let the line name a loop through a feature the caller cannot
+   see without the desktop guessing.
+3. **The dependency event kind has three names.** Task 125's `feature_dep.added`
+   (`task-125.md:435`), task 115's `hubapi.EventWorkDependencyAdded` (`task-115.md:651`) and task
+   120's `feature.dependency_added` (`task-120.md:304`). Task 125's copy test settles it; the
+   skeleton should pick one.
+4. **No part for tasks 128, 83, 59, 55 or 89.** `timelineScale`, `TimelineRow`, the feature patch
+   op, `buildCommands`'s row shape, `useReplica` and the `D` picker are scope names here.
