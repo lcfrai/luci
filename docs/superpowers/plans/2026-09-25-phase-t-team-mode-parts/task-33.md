@@ -191,3 +191,62 @@ The local API key header name and file are phase 2's and the Hub plan's (`X-Pana
 this part's reading of "the key on every call", Hub plan `:345`); **UNVERIFIED until merge**, and
 the README names the merged spelling. A laptop that also holds a working cluster credential fails
 `ctx_is laptop`, because P8-D4 says it must not.
+
+#### `infra/smoke/team/20-plan.sh` (complete) — M2
+
+```bash
+#!/usr/bin/env bash
+# Run A's overlapping plan. Operator context. Inputs from 10-launch.sh's out/agents.env:
+# ORCH_A_POD, ORCH_B_POD (pod names), ORCH_A, ORCH_B (ag-… ids), BRIEF_REF (a brief section id).
+source "$(dirname "$0")/lib.sh"; ctx_is operator
+source "$OUT/agents.env"; need ORCH_A_POD ORCH_B_POD ORCH_A ORCH_B BRIEF_REF
+
+task_a=$(pexec "$ORCH_A_POD" task create --args "{\"title\":\"Session refresh\",\"briefRef\":\"$BRIEF_REF\",
+  \"why\":\"smoke: overlapping plan, side A\",\"scope\":[\"web/auth/**\"]}" | jget result.task)
+task_b=$(pexec "$ORCH_B_POD" task create --args "{\"title\":\"Session API\",\"briefRef\":\"$BRIEF_REF\",
+  \"why\":\"smoke: overlapping plan, side B\",\"scope\":[\"web/auth/session.go\",\"web/api/**\"]}" | jget result.task)
+printf 'TASK_A=%s\nTASK_B=%s\n' "$task_a" "$task_b" >> "$OUT/agents.env"
+
+# The conflict must exist now, and no worker may exist for either task yet.
+cf=""
+for _ in $(seq 1 12); do                      # up to 60 s: the forecaster runs on task create (task 25)
+  cf=$(pexec "$ORCH_B_POD" check web/auth/session.go | jget result.conflicts[0].id) && [ -n "$cf" ] && break
+  sleep 5
+done
+workers=$(pexec "$ORCH_A_POD" team | python3 -c '
+import json, sys
+d = json.load(sys.stdin)["result"]
+print(sum(1 for w in d.get("workers", []) if w.get("task") in sys.argv[1:]))' "$task_a" "$task_b")
+
+if [ -n "$cf" ] && [ "$workers" = "0" ]; then
+  record M2 A operator held "conflict $cf open; 0 workers on $task_a or $task_b" \
+    "a tier-P conflict before either task has a worker" "$cf" "$task_a" "$task_b"
+else
+  record M2 A operator broke "conflict='${cf:-none}'; workers on the two tasks=$workers" \
+    "a tier-P conflict before either task has a worker" "$task_a" "$task_b"
+fi
+tier=$(pexec "$ORCH_B_POD" check web/auth/session.go | jget result.conflicts[0].tier)
+[ "$tier" = "P" ] || record M2-tier A operator broke "tier=$tier" "tier P" "$cf"
+thread=$(pexec "$ORCH_A_POD" inbox | jget result.threads[0].id)
+printf 'CONFLICT=%s\nTHREAD=%s\n' "$cf" "$thread" >> "$OUT/agents.env"
+```
+
+The result keys (`result.task`, `result.conflicts[0].id`, `.tier`, `result.workers[].task`,
+`result.threads[0].id`) are tasks 22, 24 and 28's result shapes as their parts name them; each is
+checked against the merged fixture set (`testdata/panacea-control/v1/`) in step 1 below, and the
+script is corrected to the fixture, never the reverse. That a process started by `kubectl exec` is
+stamped as the pod's agent is task 16's socket rule (it stamps by pod; only the runner's verbs are
+checked by pid, `task-18.md:59-61`), **UNVERIFIED on a Kata pod** until this script runs.
+
+#### The other scripts, in order (each writes its checks with `record`)
+
+- **`00-preflight.sh`** (either context, both halves): E1–E7. Fleet's and the Hub's `/readyz`
+  answer 200 through their https hosts; `helm list -n panacea-fleet` shows `fleet` deployed
+  (operator); each laptop's `desk GET /api/team/escalations` answers 200 (E3); the image label
+  `org.opencontainers.image.version` of the sandbox image, read from both classes' pods, is equal
+  (E7).
+- **`10-launch.sh`** (laptop, then operator): each person launches one worker in the team project
+  from the cockpit's route (`desk POST /api/sessions` with the team project, task 21), which makes
+  Fleet create their Orchestrator first (task 20). The operator maps each `ag-…` to its pod by the
+  broker's labels and writes `out/agents.env`. **M1**: two Orchestrators and two workers, each
+  pod labelled with its owner's hash (P8-D4) and `panacea-app/class` (G32-2).
