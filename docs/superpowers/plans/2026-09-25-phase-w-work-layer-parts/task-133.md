@@ -167,3 +167,57 @@ unseen Hub event across the scopes; with no unseen event there is no local fact,
 invents a window (gap 2: `ReadCursor` has no `at`). Task 45's `convergenceWord` is verified
 (`task-45.md:90`); the other four sources are their scopes' names (**UNVERIFIED**: there are no
 parts for tasks 63, 64 or 71, and task 22's lane index is read by name only).
+
+#### Interfaces — complete: `desktop/src/work/since/handover.ts`
+
+```ts
+// desktop/src/work/since/handover.ts — one product-language sentence per fact, from fixed
+// templates (decision 3). This module imports no gateway, inference or draft client: a test
+// reads its source. A drafted handover is task 139's, never this.
+import { aging, type Classes, type SinceFact } from "./classify";
+
+/** A claim and what makes it true. Every `ref` occurs in `text`; the renderer links each one. */
+export interface SinceLink { ref: string; eventSeq: number; issueId: string }
+export interface Sentence { cls: keyof Classes; text: string; links: SinceLink[] }
+
+/** "14:02", the person's clock, mono in the renderer (decision 4). */
+export type ClockFmt = (iso: string) => string;
+
+function template(f: SinceFact, now: number, clock: ClockFmt): string {
+  switch (f.fact) {
+    case "landed":            return `${f.alias} landed ${clock(f.at)}`;
+    case "done_proven":       return `${f.alias} is done, proven ${clock(f.at)}`;
+    case "shipped":           return `${f.alias} shipped to ${f.environment} ${clock(f.at)}`;
+    case "criterion_settled": return `${f.alias}'s criterion ${f.criterionKey} settled ${clock(f.at)}`;
+    case "question":          return `${f.alias} waits on your answer to ${f.from}, waiting ${aging(f.at, now)}`;
+    case "review":            return `${f.alias} waits on your review, waiting ${aging(f.at, now)}`;
+    case "blocking_agent":    return `${f.alias} blocks ${f.blocked}'s agent, waiting ${aging(f.at, now)}`;
+    case "lane_failed":       return `${f.alias}'s worktree ${f.laneId} failed ${clock(f.at)}`;
+    case "done_unproven":     return `${f.alias} was moved to done, not proven ${clock(f.at)}`;
+    case "decided_without_you": return `${f.alias}: ${f.what}, decided without you ${clock(f.at)}`;
+    case "criterion_drifted": return `${f.alias} serves ${f.criterionKey}, which the brief no longer has`;
+  }
+}
+
+/** Every link names the issue at the event; a criterion fact links its key too. */
+function linksOf(f: SinceFact): SinceLink[] {
+  const l: SinceLink[] = [{ ref: f.alias, eventSeq: f.seq, issueId: f.issueId }];
+  if (f.fact === "criterion_settled" || f.fact === "criterion_drifted") {
+    l.push({ ref: f.criterionKey, eventSeq: f.seq, issueId: f.issueId });
+  }
+  return l;
+}
+
+/** The four classes, in AX §6.2's order, never merged: one sentence per fact. */
+export function handover(c: Classes, now: number, clock: ClockFmt): Sentence[] {
+  const order: (keyof Classes)[] = ["waiting", "failed", "assumed", "landed"];
+  return order.flatMap((cls) => c[cls].map((f) => ({ cls, text: template(f, now, clock), links: linksOf(f) })));
+}
+```
+
+AX §6.2 (`docs/AGENTIC-UX.md:159`) names the classes LANDED, WAITING, FAILED, ASSUMED and ranks
+none. The rendering order here is this part's choice, from the same section's weights: WAITING
+first (*"aging matters"*), then FAILED, then ASSUMED (*"highest risk"*), then LANDED (*"low
+attention"*). It is an order of four headed lists, never an interleaving: the lists stay four
+(decision 2). The templates follow §6.3's product language, and §6.4's *"every claim … is a link
+to its span"* is the `links` field.
