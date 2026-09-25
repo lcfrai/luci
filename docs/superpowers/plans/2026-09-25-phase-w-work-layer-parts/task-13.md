@@ -410,3 +410,99 @@ The clause only removes rows, so every Hub test of task 26 still passes; `next` 
 cursor. The column names follow Hub task 07's `audit_events` table and are **UNVERIFIED** until
 that table lands; the clause is re-written against it, not the other way round.
 
+#### The routes (`server/work_subscriptions.go`) and their wire
+
+```go
+func (s *Server) registerWorkSubscriptions(mux *http.ServeMux) {
+	mux.HandleFunc("PUT /v1/issues/{issueId}/subscription", s.putSubscription)
+	mux.HandleFunc("GET /v1/me/subscriptions", s.mySubscriptions)
+}
+```
+
+```jsonc
+// PUT /v1/issues/is-0a1b…/subscription           viewer, member or admin of the issue's team
+{ "subscribed": false }
+// → 200 Subscription (the caller's own row; nobody sets another person's)
+{ "issueId": "is-0a1b…", "user": { "id": "u-…", "displayName": "Grace", "email": "…" },
+  "cause": "manual", "subscribed": false }
+// Issue outside the caller's readable set → 404 issue_not_found. An unchanged PUT → 200, no event.
+
+// GET /v1/me/subscriptions?after=&limit=           any caller; their rows on issues they can read now
+{ "items": [ { "issueId": "is-0a1b…", "user": { … }, "cause": "manual", "subscribed": false } ],
+  "next": null }
+```
+
+A viewer may subscribe: following an issue is reading, not writing it (07's row: ✓ for `V M A`).
+There is no route to subscribe someone else; the triggers are the only way a row is written for a
+person other than the caller, and each is caused by a write that person's team can see.
+
+#### Tests to write first, part 1 — `hubapi/workevents_test.go` (pure)
+
+```go
+package hubapi
+
+import (
+	"reflect"
+	"testing"
+)
+
+func TestEveryWorkDataFieldIsAScalar(t *testing.T) {
+	for _, k := range WorkEventKinds {
+		rt := reflect.TypeOf(k.Data)
+		if rt.Kind() != reflect.Struct {
+			t.Errorf("%s: data %s is not a struct", k.Kind, rt)
+			continue
+		}
+		for i := 0; i < rt.NumField(); i++ {
+			f := rt.Field(i)
+			switch f.Type.Kind() {
+			case reflect.String, reflect.Int64, reflect.Bool:
+			default:
+				t.Errorf("%s: %s.%s is %s; data holds only string, int64 and bool (hub-contract §8)",
+					k.Kind, rt.Name(), f.Name, f.Type)
+			}
+			if tag := f.Tag.Get("json"); tag == "" || tag == "-" {
+				t.Errorf("%s: %s.%s has no json name", k.Kind, rt.Name(), f.Name)
+			}
+		}
+	}
+}
+
+func TestWorkKindsAreUniqueAndNamed(t *testing.T) {
+	seen := map[string]bool{}
+	for _, k := range WorkEventKinds {
+		if seen[k.Kind] {
+			t.Errorf("kind %q declared twice", k.Kind)
+		}
+		seen[k.Kind] = true
+	}
+	if len(WorkEventKinds) != 18 {
+		t.Errorf("W1 declares 18 Work kinds, the registry has %d", len(WorkEventKinds))
+	}
+}
+
+func TestOnlySubscriptionSetIsSubjectOnlyInW1(t *testing.T) {
+	if got := SubjectOnlyKinds(); !reflect.DeepEqual(got, []string{EventSubscriptionSet}) {
+		t.Fatalf("SubjectOnlyKinds() = %v", got)
+	}
+}
+
+func TestEventDataUsesTheJSONNames(t *testing.T) {
+	got := EventData(CommentReactedData{Emoji: "👍", On: true})
+	want := map[string]any{"emoji": "👍", "on": true}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("EventData = %#v, want %#v", got, want)
+	}
+	if got := EventData(IssueRevisedData{Revision: 4}); got["revision"] != int64(4) {
+		t.Fatalf("revision = %#v, want int64(4)", got["revision"])
+	}
+}
+```
+
+| Test | Mutant it kills |
+|---|---|
+| `TestEveryWorkDataFieldIsAScalar` | an array, a map, a pointer or a float in `data` (a `[]string` for `fields`, a `float64` count), which the canonical encoding cannot carry (hub-contract:1166) |
+| `TestWorkKindsAreUniqueAndNamed` | a kind declared twice with two data types; a kind dropped from the registry (the count is W1's 18; W2 raises it) |
+| `TestOnlySubscriptionSetIsSubjectOnlyInW1` | a private kind shown to the whole team, or a public kind hidden from it |
+| `TestEventDataUsesTheJSONNames` | stored keys in Go field names (`OtherIssueID`) instead of the wire names the desktop reads; an `int` stored where `Tx.Emit` expects `int64` |
+
