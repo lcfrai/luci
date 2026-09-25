@@ -271,6 +271,106 @@ as its scope spells them; task 03's part wins on spelling.
 well-formed anchor that names a revision that does not exist, an `end` past that revision's
 description, or a criterion that revision does not serve is 422 `anchor_unresolvable`: the
 request is well formed and points at nothing. The split matches the Hub's own (`bad_request` for
-a malformed key, `key_unresolvable` for a key that names nothing, hub-contract §4.2 at `:233` and
-`:260`).
+a malformed key, `key_unresolvable` for a key that names nothing, hub-contract §4.2 at `:235` and
+`:263`).
+
+#### The store (`store/work_comments.go`, signatures complete)
+
+```go
+package store
+
+// InsertComment writes the comment row and its mention rows. The caller has
+// validated everything; the database's CHECKs and keys are the second layer.
+func InsertComment(ctx context.Context, tx pgx.Tx, org string, c CommentRow) error
+
+type CommentRow struct {
+	ID, IssueID string
+	ParentID    string // "" for a top-level comment
+	AuthorClass string // "H" | "A"
+	Body        string
+	Anchor      []byte // the anchor as JSON, or nil
+	Mentions    []string
+	CreatedAt   time.Time
+	CreatedBy   string
+}
+
+// CommentForWrite loads a comment inside the caller's readable issues, with
+// its issue's team and project, locking the row (FOR UPDATE) for resolve.
+func CommentForWrite(ctx context.Context, tx pgx.Tx, commentID string) (CommentRef, bool, error)
+
+type CommentRef struct {
+	ID, IssueID, TeamID, ProjectID string
+	ParentID                       string // "" when top-level
+	Resolved                       bool
+	Erased                         bool
+}
+
+// ListComments is Page[Comment] oldest first, keyset on (created_at, id); each
+// comment carries its mentions and reactions, aggregated in the same query.
+func ListComments(ctx context.Context, q Querier, issueID string, pr hubapi.PageRequest) (hubapi.Page[hubapi.Comment], error)
+
+// SetReaction inserts or deletes one (comment, user, emoji) row; changed is
+// false when the row was already in the asked state.
+func SetReaction(ctx context.Context, tx pgx.Tx, org, commentID, userID, emoji string, on bool, at time.Time) (changed bool, err error)
+
+// SetResolved sets or clears resolved_at and resolved_by; changed is false when
+// the comment was already in the asked state.
+func SetResolved(ctx context.Context, tx pgx.Tx, commentID string, resolved bool, by string, at time.Time) (changed bool, err error)
+
+// MentionedUsers is the mention rows of one comment, for task 13's trigger.
+func MentionedUsers(ctx context.Context, q Querier, commentID string) ([]string, error)
+```
+
+Task 09's store read of one revision (its content and its `serves`) is named here as
+`store.IssueRevisionAt(ctx, q, issueID, rev)`; the name is **UNVERIFIED** until task 09's part
+fixes it, and a different name is a find-and-replace.
+
+#### The routes (`server/work_comments.go`)
+
+```go
+func (s *Server) registerWorkComments(mux *http.ServeMux) {
+	mux.HandleFunc("GET /v1/issues/{issueId}/comments", s.listComments)
+	mux.HandleFunc("POST /v1/issues/{issueId}/comments", s.postComment)
+	mux.HandleFunc("POST /v1/comments/{commentId}/reactions", s.postReaction)
+	mux.HandleFunc("POST /v1/comments/{commentId}/resolve", s.postResolve)
+	// Deliberately nothing else under /v1/comments/: a comment is append-only
+	// (05 §3.2). Task 14 adds POST /v1/comments/{commentId}/erase, an org admin's.
+}
+```
+
+**`postComment`**, inside `s.Write`, in this order:
+
+1. `server.Decode[hubapi.CreateCommentRequest]` (a `kind` is an unknown field: 400).
+2. The issue inside the caller's readable set → 404 `issue_not_found`; role below `member` →
+   `server.Forbidden("member")`. An erased issue (task 14) → 409 `conflict`: nothing new is
+   written onto an erased record.
+3. `body.author` is `H` or `A` (task 03's `AuthoredText` check) → else 400 `field:
+   "body.author"`; `body.text` trimmed non-empty and at most `MaxCommentBodyBytes` → else 400
+   `field: "body.text"`. `author: "A"` means *an agent drafted this and the person posted it*;
+   the principal is the person, and `createdBy` records them. W1 has no other writer (W3 adds the
+   Orchestrator path, task 99).
+4. `parentId`, when set: a comment on **this** issue (else 422 `comment_not_top_level`, `field:
+   "parentId"`, and not 404, because the caller can read it) that is itself top-level (the same
+   422 for a reply to a reply: one level of thread, L-41).
+5. `anchor`, when set: `ValidateAnchor` → 400 with its field; then against the database: the
+   revision exists on this issue (else 422 `anchor_unresolvable`, `anchor.revision`); for `text`,
+   `end <= UTF16Len(description.text)` of **that** revision (else `anchor.end`); for `criterion`,
+   the revision's `serves` contains `criterionId` (else `anchor.criterionId`). `span` and `hunk`
+   refs are stored verbatim and never parsed by the Hub (05 §3.2).
+6. `mentions`: at most `MaxMentions`, each a `u-` id of a **current** member of the issue's team,
+   duplicates removed in order → else 400 `bad_request`, `field: "mentions[n]"` (400, not 404:
+   the id is a field of this request, and saying "not a member" leaks nothing the caller's team
+   list does not already show).
+7. `ids.Wide("ic")`; `InsertComment`; `Emit` one `comment.created` (subject the comment id) and
+   one `comment.mentioned` per mention (subject the mentioned user), in that order.
+8. 201 with the stored comment, read back through the same projection `listComments` uses.
+
+**`postReaction`**: the comment in the readable set → 404 `comment_not_found`; member role; an
+erased comment → 409 `conflict`; `ValidReactionEmoji` → else 400 `field: "emoji"`; `SetReaction`;
+`changed` → one `comment.reacted` `{"emoji", "on"}`; 200 with the comment either way.
+
+**`postResolve`**: as above to the comment; a reply → 422 `comment_not_top_level`, `field:
+"commentId"`; `SetResolved`; `changed` → one `comment.resolved` `{"resolved"}`; 200 with the
+comment. Any member may resolve or reopen a thread (05 §3.2 names no owner of a thread; the
+answering reply is the reader's choice, L-41).
 
