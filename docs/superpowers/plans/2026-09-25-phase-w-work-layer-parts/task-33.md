@@ -408,3 +408,92 @@ registerStressScreen("View header", () => (
 
 `STATE_PATHS[16]`'s keys are task 28's ten `GlyphKey`s (nine states and `done_not_proven`);
 `NOTCH_TIP[16]`'s are the four drawn priorities. Twenty-three rows, forty-six cells.
+
+#### Interfaces — complete: `screens/developStates.tsx`
+
+The copy in each cell is the pane's own where the tree has it (`EmptyDevelop.tsx:89`,
+`SessionPane.tsx:178`, `:210-217`, `attachLabel` at `SessionPaneFooter.tsx:33-48`); the offline
+reason is fixture text, marked so.
+
+```tsx
+// desktop/src/components/devtools/screens/developStates.tsx
+//
+// The Develop pane in the eleven floor states (docs/DESIGN-SYSTEM.md:90). A FACSIMILE on the
+// pane's real classes: SessionPane reads the one global store and mounts a live xterm, so eleven
+// real panes cannot hold eleven states. StressSets.test.tsx fails any pane-/cols- class used here
+// that develop.css does not define. A state with no Phase 2 design says so, in words.
+
+import type { JSX, ReactNode } from "react";
+import { StatusDot } from "../../common/StatusDot";
+import { registerStressScreen } from "../stressRegistry";
+
+export const FLOOR_STATES = [
+  "loading", "empty", "sparse", "dense", "partial", "stale",
+  "offline", "unauthorized", "error", "blocked", "success",
+] as const;
+export type FloorState = (typeof FLOOR_STATES)[number];
+
+export const NOT_DESIGNED = "Not designed: Phase 2 has no pane for this state.";
+
+function Pane(props: { status: "running" | "idle" | "exited"; foot: string; children?: ReactNode }): JSX.Element {
+  return (
+    <section className="pane" aria-label={`evidence-upload — ${props.status}`}>
+      <header className="pane-head">
+        <StatusDot status={props.status} live={props.status === "running"} label={props.status} />
+        <span className="pane-title">evidence-upload</span>
+        <span className="pane-sub">Claude Code</span>
+      </header>
+      <div className="pane-body">
+        <pre className="ss-term">{"$ npm test\n  ✓ 41 passed"}</pre>
+        {props.children}
+      </div>
+      <footer className="pane-foot">
+        <span className="pane-foot-fact">{props.foot}</span>
+      </footer>
+    </section>
+  );
+}
+
+const attach = (phase: string, text: string): JSX.Element => (
+  <div className={phase === "connecting" ? "pane-attach pane-attach--centre" : "pane-attach pane-attach--corner"} data-attach-phase={phase}>
+    {text}
+  </div>
+);
+
+export const DEVELOP_STATES: Readonly<Record<FloorState, (() => ReactNode) | null>> = {
+  loading: () => <Pane status="running" foot="0m · connecting 3s">{attach("connecting", "connecting 3s")}</Pane>,
+  empty: () => (
+    <div className="pane-empty">
+      <p className="pane-empty-line">Select a branch in the rail to start working on it.</p>
+    </div>
+  ),
+  sparse: () => <Pane status="running" foot="12m · attached" />,
+  dense: () => (
+    <div className="cols-scroll">
+      {["running", "running", "idle", "running", "idle", "exited"].map((s, i) => (
+        <div key={i} className="cols-pane">
+          <Pane status={s as "running" | "idle" | "exited"} foot={`${String(3 + i)}m · attached`} />
+        </div>
+      ))}
+    </div>
+  ),
+  partial: null,
+  stale: () => <Pane status="running" foot="40m · reconnecting 8s">{attach("reconnecting", "reconnecting 8s")}</Pane>,
+  offline: () => (
+    <Pane status="running" foot="40m · not attached">
+      {attach("failed", "Fixture reason: the control plane stopped answering.")}
+    </Pane>
+  ),
+  unauthorized: null,
+  error: () => (
+    <Pane status="exited" foot="1h 2m · ended">
+      <div className="pane-exit">
+        <span className="pane-exit-why">the process exited</span>
+        <button type="button" className="pane-exit-restart">Restart</button>
+      </div>
+    </Pane>
+  ),
+  blocked: null,
+  success: () => <Pane status="idle" foot="18m · attached" />,
+};
+```
