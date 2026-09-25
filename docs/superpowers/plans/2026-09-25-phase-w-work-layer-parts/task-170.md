@@ -67,6 +67,7 @@ new issue in the team's default state, linked, and the issue now lists *Requeste
 - `desktop/src/components/intake/IntakeRulesEditor.tsx` (+ `IntakeRulesEditor.test.tsx`) — ordered rules (new)
 - `desktop/src/components/intake/IntakeFormEditor.tsx` (+ `IntakeFormEditor.test.tsx`) — typed fields (new)
 - `desktop/src/components/intake/intake.css` — `.ik-*` (new)
+- `desktop/src/components/intake/testWork.ts` — the tests' `setupWork` harness; tasks 171-173 reuse it (new)
 - `desktop/src/components/intake/registerIntakeDesk.ts` and `UnroutedRow.tsx` — the `request.unrouted` Desk row (new)
 - `desktop/src/components/work/TriageView.tsx` ⚑ (task 42) — request rows beside issue rows (modified)
 - `desktop/src/components/issue/IssueView.tsx` ⚑ (task 46) — the *Requested by* line (modified)
@@ -380,6 +381,55 @@ describe("RequestPanel", () => {
 });
 ```
 
-`setupWork` is task 56's test harness (a fake `WorkClient`, the replica and `mutate`, `undo`,
-with `refuse` mapping an op kind to a Hub code); `base` holds `thread: []`, `projectId: "pj-ep"`,
-`criteria: []` and `onClose`. If task 56 names the harness otherwise, these tests follow it.
+`setupWork` is written here, in `desktop/src/components/intake/testWork.ts` (no part on the tree
+exports a shared harness; grep `setupWork|renderWith` finds only per-file helpers): about 25
+lines that build task 56's `makeWorkClient` over a fake `send`, a replica, and return `user`
+(`@testing-library/user-event`), `mutate`, `undo` and `replica`, with `refuse` mapping an op kind
+to a Hub code the fake answers 409 or 422 with. `base` holds `thread: []`, `projectId: "pj-ep"`,
+`criteria: []` and `onClose`.
+
+#### Tests to write first — `TriageView` (appended to task 42's test), the editors, the Desk row
+
+1. **No request noun before one exists** — task 42's Triage fixture with `teamHasRequests` false:
+   `queryByRole("heading", { name: "Requests" })` is null and no element has `data-kind="request"`
+   or the text *requests* in the filter bar. Add one request to the replica: the heading and one
+   row appear. **Kills** "the noun shown before it exists" (05:861).
+2. **Oldest first, by the one clock** — two requests created 3h and 2d apart render the 2d one
+   first; with `now` advanced 60 s by the heartbeat fixture the age text changes and no
+   `setInterval` was registered by the row (a spy on `window.setInterval` counts zero). **Kills**
+   "newest first" and "a per-row timer".
+3. **The row holds no quote text** — the row's `textContent` contains no word of the quote.
+   **Kills** "a truncated quote shown as the ask".
+4. **Number keys do nothing on a request row** — focus a request row, press `1`: `mutate` is not
+   called. **Kills** "`1` accepts a request with no title".
+5. **Link writes one op** — *Link*, choose `EP-7`: one `request.link` with `issueId` equal to the
+   `is-` id, never the alias. **Kills** "the alias sent as the key".
+6. **Requesters by name on the issue** — after an accept and a link to `EP-7`, `IssueView` for
+   `EP-7` reads *Requested by Priya Nair, Tom Ruiz* and contains no digit next to *request*.
+   **Kills** "a request count badge" (L-135 SKIP).
+7. **A member reads rules** — `IntakeRulesEditor` with `canEdit: false`: no button, no
+   `draggable`, no input, and the line *Only a team admin edits intake rules*. **Kills** "an
+   editable list the Hub will refuse".
+8. **Reorder is one write, with the version** — as admin, `Alt+↓` on rule 1: one `rules.put` whose
+   `body.rules` positions are `1, 2` in the new order and whose `version` is the one read. A
+   `conflict` answer reloads and shows *changed the rules; showing* theirs. **Kills** "a reorder
+   per row" and "last writer wins silently".
+9. **The form refuses a bad field in place** — a `select` with one option: *Save* is blocked and
+   the field shows *A choice field needs at least two options*; zero sends. **Kills** "the Hub's
+   422 as the only check".
+10. **`request.unrouted` appears in FAILED** — a signal event of that kind puts one row under the
+    FAILED header of task 62's Desk (on the next entry, per its hold rule), naming the requester.
+    **Kills** "an unrouted request vanishes".
+11. **No new key bound** — `KEYMAP` (task 53) has the same keys before and after
+    `registerIntakeDesk()` and the intake modules load. **Kills** "a request key added without 05".
+
+#### Steps
+
+1. Write the tests above and `testWork.ts`; run them; they fail (no intake components).
+2. Write `RequestRow.tsx`, `RequestPanel.tsx`, `LinkPicker.tsx` and `intake.css` (`.ik-row`,
+   `.ik-quote`, `.ik-sub`; elevation by DESIGN-SYSTEM's ring plus shadow, radius from the scale,
+   `transform`/`opacity` only). The panel tests pass.
+3. Apply the `TriageView.tsx` and `IssueView.tsx` deltas; tests 1-6 pass.
+4. Write both editors; tests 7-9 pass. Write `registerIntakeDesk.ts` and `UnroutedRow.tsx`, call it
+   where task 62 registers its own kinds; tests 10-11 pass.
+5. `npm --prefix desktop run typecheck`; commit with `git commit -F <msgfile> -- <paths>`.
