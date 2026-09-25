@@ -475,5 +475,66 @@ stream leader. After a failover the new leader has no counter, so a generation i
 `max(last+1, unix seconds of now)`: always above anything an earlier leader minted, without storing
 anything. Keysmith treats a replayed generation as the same mint (P6-08, *"the caller's retry of the
 same generation is safe"*); that it accepts a generation that skips numbers is **UNVERIFIED** until
-phase 6 task 07's part is read at merge. Worker
-refresh is a 45-minute timer per held stream, started by `Open` and stopped when the stream detaches.
+phase 6 task 07's part is read at merge. Worker refresh is a 45-minute timer per held stream,
+started by `Open` and stopped when the stream detaches.
+
+- [ ] **Step 4: Wire into `fleetd`**
+
+In task 12's `main.go`: build `remotebe.NewClient` with `BaseURL = PANACEA_APP_FLEET_BROKER_URL`
+(task 19's variable), `Scope = PANACEA_APP_FLEET_BROKER_SCOPE`, Fleet's workload token source and
+`ControlPlane = PANACEA_APP_FLEET_INSTALL_ID`; `gatewayclient` over `PANACEA_APP_FLEET_KEYSMITH_URL`
+with the token file; `Tokens`; `Sessions`. Register `sessions.Live` as task 19's `Targets`,
+`Tokens.Open` with `Streams.OnOpen`, `Tokens.BeforeTurn` with `Streams.Before("turn.begin", …)`,
+`Sessions.Revoke`/`Resume` into task 11's `Revoker` fan-out, and the three routes on task 12's server.
+Keysmith's `Fleet → mint, refresh, revoke` caller entry is **off until seam S6.5**
+(`2026-09-25-phase-6-gateway.md:232`); this task's acceptance runs on the fake keysmith, and turning the
+entry on is task 32's chart value.
+
+- [ ] **Step 5: Run the tests and the acceptance commands**
+
+```bash
+~/.claude/tools/claudezsh/claudezsh 'cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/control-plane && go test ./internal/fleet/sessions/ ./internal/fleet/store/... ./cmd/fleetd/ && go vet ./internal/fleet/sessions/'
+```
+
+Expected: `ok` for each, `go vet` silent. As in task 19, the `pgstore` case of the one-Orchestrator
+index runs only with task 10's test database URL set.
+
+```bash
+~/.claude/tools/claudezsh/claudezsh 'cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/control-plane && go test -race -count=3 -run "Concurrent|SecondOrchestrator|AUProject|AURouteDown" -v ./internal/fleet/sessions/ | grep -c "^--- PASS"'
+```
+
+Expected: `12` (four tests, three runs each), under the race detector because the one-Orchestrator
+property is a concurrency property.
+
+```bash
+~/.claude/tools/claudezsh/claudezsh 'cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/control-plane && grep -rn "RouteGlobal\|\"global\"" internal/fleet/sessions/ --include=*.go | grep -v _test.go'
+```
+
+Expected: no output. Decision 8's "no path in this file constructs a Global route", checked by text.
+
+- [ ] **Step 6: Commit**, after `git add` of the new files: `git commit -F
+  .superpowers/sdd/team/msg/t20.txt -- control-plane/internal/fleet/sessions
+  control-plane/internal/fleet/store control-plane/cmd/fleetd control-plane/internal/backend/remotebe
+  control-plane/internal/gateway/wire`.
+
+**What this task does not claim.**
+
+- That a real broker, keysmith or gatekeeper accepts any of this. All three are fakes here; task 33 runs
+  the path on the cluster, and task 32 turns keysmith's Fleet caller on.
+- That the gateway key reaches Claude Code. The key is `Send`-ed and task 16 writes it where `panacea
+  token` reads; that the CLI calls its `apiKeyHelper` at the TTL is phase 6 task 23's observation.
+- That `status: idle` after a ready pod is the agent's true state. Status beyond `starting` and `ended`
+  comes from task 34's observed activity and the cloud hook's `Notification` (§3.3 agent row); this
+  task sets only the two it knows.
+- **Gap S20-1 — the Orchestrator's delegation.** Task 21 creates a `worker` delegation per cockpit
+  launch (`task-21.md:440`); nothing in the skeleton or a written part creates the owner's
+  `orchestrator`-class delegation, which only the owner's desktop can (route 46 is desk-only,
+  `task-01.md:229`). Until task 21 (or task 52) creates and renews it on a member's first team launch,
+  decision 4's "awaiting-delegation" is the answer and TM1-α has no Orchestrator. **This blocks task 33.**
+- **Gap S20-2 — the counterpart tag.** Phase 6's `MintRequest` has no counterpart
+  (`task-03.md:30`); this task adds `Counterpart` as a phase 6 delta the skeleton's delta table does not
+  list for task 20, and `Counterparts` needs a producer (task 26's scheduler knows a turn's events; task
+  37 owns the per-counterpart budget). Owner `tid`/`oid` for the tags depend on Gap S17-1.
+- **Gap S20-3 — a worker's worktree in the cloud.** The broker requires a machine and the worker needs
+  its lane mounted from it; the machine-agent worktree call (phase 8 tasks 24b–25) is not wired here, and
+  task 21's `CreateAgentRequest` carries no machine or mount (`task-21.md:99-110`).
