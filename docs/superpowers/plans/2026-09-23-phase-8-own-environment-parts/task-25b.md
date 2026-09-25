@@ -1,6 +1,6 @@
 ### Task 25b: lane git on a cloud machine: phase 3's `Lanes.For` over the broker, the runner-only pod, and the bundle relay
 
-HELD until phase 3's task 24 (the runner, `lanegit`) is sync-merged into feat/env, phase 3 answers S8-P3.4 (`lanegit.Bundles`) and S8-P3.5 (the pool reaches a lane's own machine), and tasks 25 and 21b land (`.superpowers/sdd/env/held.md`): the build stream skips this task until then.
+HELD until phase 3's task 24 (the runner, `lanegit`), with its S8-P3.4 (`lanegit.Bundles`, planned at phase-3 `task-24.md:767-830`) and S8-P3.5 (the pool reaches a lane's own machine, planned at phase-3 `task-24.md:629-668`, `:731-740`), is sync-merged into feat/env, and tasks 25 and 21b land (`.superpowers/sdd/env/held.md`): the build stream skips this task until then.
 
 Split out of task 25 by the env R4 rulings of 2026-09-25 (`.superpowers/sdd/env/r4-env-rulings.md`,
 "What each task changes", task 25). Task 25 builds **project** git on a cloud machine. This task
@@ -11,7 +11,7 @@ builds the laptop's half of **lane** git, which never runs in the machine pod (r
   `Panacea-Attach-Token: <token>`. The request names no directory.
 - **Step 2, a runner-only pod.** Phase 3's pool asks this machine's `remotebe.Backend` for a pod
   whose one mount is the lane at `/home/dev/work` (ruling 2; phase-3 `task-24.md:678-684`). Its id
-  is in phase 3's `HeldSet`, so the reaper keeps it (`task-24.md:661-668`, `:690-695`).
+  is in phase 3's `HeldSet`, so the reaper keeps it (`task-24.md:709-718`, `:934-936`).
 - **Bundles.** The cloud `lanegit.Bundles` (seam S8-P3.4, ruling 3) over `machined`'s bundle
   routes (task 21b), and the relay: lane work streams from the runner into `POST /v1/bundles`
   through an `io.Pipe`; a refresh bundle streams from `GET /v1/bundles/{id}` into `Runner.Fetch`.
@@ -21,15 +21,16 @@ No call here reads a lane's `.git`, and no lane git request reaches `machined` (
 
 **Two places the rulings are silent, and the smallest thing consistent with R4.**
 (Phase 3 citations say `phase-3`; bare `task-NN.md` is this plan's part.)
-- **Phase 3's pool serves one backend.** `Lanes` holds one `Backend` and one `Dial`
-  (phase-3 `task-24.md:621-636`), and phase 3's callers hold one `*lanegit.Lanes` (phase-3
-  `task-07.md:70`, `task-09.md:92`, `task-11.md:160`, `task-16.md:177`). Step 2 calls
-  `backend.WaitReady` on the sandbox's `Endpoint` (phase-3 `task-24.md:683`), and remotebe's
-  `Endpoint` is `remote:<id>`, never dialled (`task-22.md:13-17`). Step 2 is `ErrNoRunner` "on
-  katabe" (phase-3 `task-24.md:684`), and remotebe's `Kind()` is `KindKata`
-  (`task-22.md:128-130`). `NewRunner` dials `"http://" + endpoint` (phase-3
-  `task-24.md:574-579`). So this task asks phase 3 for **S8-P3.5** (below): the pool reaches a
-  lane on the lane's own machine. This task does not start without it.
+- **Phase 3's pool served one backend** (before S8-P3.5). `Lanes` held one `Backend` and one
+  `Dial`, and phase 3's callers hold one `*lanegit.Lanes` (phase-3 `task-07.md:70`,
+  `task-09.md:92`, `task-11.md:160`, `task-16.md:177`). Step 2 called `backend.WaitReady` on the
+  sandbox's `Endpoint`, and remotebe's `Endpoint` is `remote:<id>`, never dialled
+  (`task-22.md:13-17`). remotebe's `Kind()` is `KindKata` (`task-22.md:128-130`). `NewRunner`
+  dials `"http://" + endpoint` (phase-3 `task-24.md:576-579`). So this task asked phase 3 for
+  **S8-P3.5** (below), and phase 3 planned it: `Lanes.Machines` and `Machine` (phase-3
+  `task-24.md:629-668`), step 2's `readyWaiter` readiness and `ErrNoRunner` from `Create`'s
+  `ErrUnsupported` (`:727-735`), `NewRunnerTransport` (`:587`). This task does not start until
+  that code is on feat/env.
 - **The agent proxy caps request bodies at 16 MiB** (`task-19.md:91-94`), and ruling 3 sends a
   bundle of up to `MaxBundleBytes` (1 GiB) through it to `POST /v1/bundles`. Task 19 owns the
   exception: on that one path the body streams through a `GitMaxBundleBytes` cap with
@@ -41,8 +42,9 @@ bundle routes), task 19 (the proxy's bundle cap and `/tmp`'s `sizeLimit`), task 
 git route and the runner-only admission, `task-18.md:127-133`, `:155`), task 15
 (`ValidateSpec` refuses a `projects/` mount), task 23 (`machines.Set`, and the per-machine reaper
 that honours `Held`), task 24b (`machines.Agent.WorktreePath`), phase 3 task 24 (`lanegit`), and
-phase 3's **acceptance of S8-P3.4 and S8-P3.5**. The plan holds 25b out of the build stream until
-phase 3 answers (plan, "Order", "Held"; P3A-5); Step 1 checks.
+phase 3's **S8-P3.4 and S8-P3.5**, answered in phase 3's plan (task 24, citations above) and
+pending as code. The plan holds 25b out of the build stream until that code is sync-merged into
+feat/env (plan, "Order", "Held"; P3A-5); Step 1 checks.
 
 **Files:**
 - `control-plane/internal/backend/remotebe/lanegit.go`, `lanegit_test.go` — the runner-only spec
@@ -56,13 +58,13 @@ phase 3 answers (plan, "Order", "Held"; P3A-5); Step 1 checks.
 - `control-plane/internal/machineapi/bundles.go` — the bundle wire, if task 21b has not already
   added it (new; task 21b owns it, and its spelling wins)
 - `control-plane/cmd/api/main.go` — `laneGit.Machines` (modify, where phase 3 builds `laneGit`,
-  phase-3 `task-24.md:841-850`)
+  phase-3 `task-24.md:930-951`)
 - `control-plane/cmd/api/lanegit_cloud_test.go` — the pool against a fake broker (new)
 
 #### Contract (complete)
 
-S8-P3.5, the shape this plan asks of phase 3's `lanegit` (phase 3's spelling wins; if it answers
-with another, Step 1 adapts the wiring and leaves remotebe and `machines` alone):
+S8-P3.5, the shape phase 3's `lanegit` plans (phase-3 `task-24.md:629-668`; phase 3's spelling
+wins; if its code differs, Step 1 adapts the wiring and leaves remotebe and `machines` alone):
 
 ```go
 package lanegit
@@ -76,10 +78,11 @@ type Machine struct {
 
 // Lanes gains one field:
 //
-//	// Machines answers the machine a lane is on, by lane.MachineID (phase-3 task-03.md:67).
-//	// nil means every lane is on {Backend, Dial, the local Bundles}: phase 3 exactly. For
-//	// calls it with lane.MachineID; Live and Drop find the lane with Store.ByID first. A pool
-//	// entry remembers the Machine it created on, so the Idle timer and Drop destroy there.
+//	// Machines answers the machine a lane is on, by lane.MachineID (phase-3 task-03.md:68).
+//	// nil means every lane is on {Backend, Dial, LocalBundles}: phase 3 exactly. For calls it
+//	// with lane.MachineID; Drop finds the lane with Store.ByID first. A pool entry remembers
+//	// the Machine it created on, so the Idle timer and Drop destroy there. Live reads only the
+//	// registry, as before (phase-3 task-24.md:647-651).
 //	Machines func(ctx context.Context, machineID string) (Machine, error)
 //
 // and one method, for the callers of FetchLane, ArchiveLane and SendBranch (tasks 07, 09, 11):
@@ -98,9 +101,9 @@ type Machine struct {
 func NewRunnerTransport(endpoint, token string, rt http.RoundTripper) Runner
 ```
 
-How phase 3 decides `ErrNoRunner` today is **UNVERIFIED**: its plan says only "on katabe"
-(phase-3 `task-24.md:684`). If it already decides from `Create`'s answer, that half of the ask is
-answered.
+Phase 3 decides `ErrNoRunner` from `Create`'s answer and wraps it with both sentences, `%w: %w`
+(phase-3 `task-24.md:695-704`, `:731-735`; seams review 1 M3), so that half of the ask is
+answered in its plan.
 
 remotebe's additions (`lanegit.go`):
 
