@@ -309,3 +309,69 @@ Trigger order: Postgres fires `BEFORE` row triggers in name order, so on `work_u
 actor guard (`…_actor`) fires before `…_immutable`, and on `work_feature_deps` before
 `…_acyclic`; either order refuses the same writes, and the tests name the error they expect.
 `features.initiative_id` is written by task 118 on `features`, whose guard is task 74's.
+
+#### `NNNN_work_roadmap.sql`, continued: row-level security and grants
+
+```sql
+-- hub-contract §10.3's loop (task 06's shape), over exactly the W4 tables.
+DO $$
+DECLARE t text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY['work_initiatives', 'work_initiative_teams', 'work_update_meta',
+      'work_milestones', 'work_milestone_criteria', 'work_feature_deps', 'work_brief_templates',
+      'work_template_schedules', 'work_reminder_policies', 'work_triage_rotations',
+      'work_read_cursors', 'work_project_grants'] LOOP
+    EXECUTE format('ALTER TABLE hub.%I ENABLE ROW LEVEL SECURITY', t);
+    EXECUTE format('CREATE POLICY org_isolation ON hub.%I TO hub_app
+                    USING (org_id = current_setting(''hub.org_id'', true))
+                    WITH CHECK (org_id = current_setting(''hub.org_id'', true))', t);
+  END LOOP;
+END $$;
+
+-- A cursor is its person's own (decision 5): a second, restrictive policy.
+CREATE POLICY own_cursor ON work_read_cursors AS RESTRICTIVE TO hub_app
+  USING (user_id = current_setting('hub.user_id', true))
+  WITH CHECK (user_id = current_setting('hub.user_id', true));
+
+-- Explicit grants (task 06's rule: 0001's GRANT covered only the tables that existed then).
+GRANT SELECT, INSERT ON work_initiatives, work_initiative_teams, work_update_meta,
+      work_milestones, work_milestone_criteria, work_feature_deps, work_brief_templates,
+      work_template_schedules, work_reminder_policies, work_triage_rotations,
+      work_read_cursors, work_project_grants TO hub_app;
+GRANT UPDATE (name, owner_id, target_date, state, updated_at) ON work_initiatives TO hub_app;
+GRANT UPDATE (name, date, updated_at) ON work_milestones TO hub_app;
+GRANT UPDATE (name, criteria, issue_template_ids, updated_at) ON work_brief_templates TO hub_app;
+GRANT UPDATE (every_n, every_unit, at_time, tz, last_fired_on, updated_at, updated_by)
+      ON work_template_schedules TO hub_app;
+GRANT UPDATE (every_days, last_reminded_on, updated_at, updated_by) ON work_reminder_policies TO hub_app;
+GRANT UPDATE (members, period_days, starts_on, updated_at, updated_by) ON work_triage_rotations TO hub_app;
+GRANT UPDATE (seq, updated_at) ON work_read_cursors TO hub_app;
+GRANT UPDATE (initiative_id) ON features TO hub_app;
+-- DELETE only where a row's removal is the operation: a span replaced, a criteria list
+-- replaced, an edge removed, a schedule cleared, a grant revoked. Never an update or a cursor.
+GRANT DELETE ON work_initiative_teams, work_milestone_criteria, work_feature_deps,
+      work_template_schedules, work_project_grants TO hub_app;
+```
+
+No `UPDATE` or `DELETE` on `work_update_meta` is granted at all, so the immutability trigger is the
+second defence, not the only one; the test disables neither and expects the privilege error first
+(`42501`), then, as the table owner, the trigger's.
+
+#### Tests first: `migrate/work_roadmap_integration_test.go` (`//go:build integration`)
+
+Each test runs against `control-plane/cmd/hub/compose.yaml`'s Postgres with the Hub's migrations
+applied, on task 06's `seedWork` (two orgs, team T with a project and a feature, team U).
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestW4AppliesOnEmptyAndOnW3` | the full chain applies to an empty database; and, from a dump of W3's schema with rows, `NNNN` alone applies | depends on unapplied state |
+| `TestW4EveryTableHasRLS` | for each of the twelve tables, a row inserted in org A is invisible to `hub_app` with `hub.org_id` = B (the `X` column), with the Go check off through H16b's test-only hook | RLS missing on a table |
+| `TestW4HealthIsThreeWords` | inserting `health = 'green'` fails the `CHECK` (`23514`) | free-text health |
+| `TestW4UpdatesNeverChange` | as `hub_app`: `UPDATE … SET health` is `42501`; as owner: the trigger raises `hub: update_immutable`; `DELETE` likewise | updates editable |
+| `TestW4EraseKeepsTheUpdate` | TM-46's erase of the note blanks its text; the meta row keeps `note_id`, `health`, `pinned_brief`, `cites` byte for byte | erase drops the row |
+| `TestW4CycleRefused` | A→B, B→C inserted; C→A is `P0001` `hub: dependency_cycle`; A→A fails the `CHECK`; two sessions inserting A→D and D→A concurrently: exactly one commits | cycle accepted; a race past the check |
+| `TestW4CursorNeverGoesBack` | seq 7, then `UPDATE … seq = 5` reads 7; then 9 reads 9 | cursor goes back |
+| `TestW4CursorIsPrivate` | with `hub.user_id` = Grace, a `SELECT` of Linus's cursor returns no row | a teammate reads a cursor |
+| `TestW4SyncPrincipalWritesNothing` | with `hub.work_actor_kind` = `integration`, then `app`, then `''`, an `INSERT` into each of the twelve tables is `42501` | SW.3 not extended |
+| `TestW4JanitorTouchesTwoColumns` | as `janitor`, `UPDATE work_template_schedules SET last_fired_on` succeeds; `SET every_n` in the same statement fails; an `INSERT` fails | the janitor as a person |
+| `TestW4GrantsAreExactlyTheList` | the privileges of `hub_app` on the twelve tables, read from `information_schema.role_column_grants` and `role_table_grants`, equal the literal list above | a grant widened by accident |
