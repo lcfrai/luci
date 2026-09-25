@@ -187,11 +187,66 @@ does not keep `laneRef`, this task adds the field to Fleet's cache, not to `mode
 
 **The local route** (`api/team.go`, task 52's pattern): `GET
 /v1/projects/{projectId}/team/lanes`, the signed-in user's token through `fleetbe`, the body
-relayed as ST.8's `TeamLanes`, byte for byte except that every `displayName` passes task 52's
-`labelFor` (so the viewer's own reads *"You"*). A solo project (`TeamStrip.Team == false`)
+relayed as ST.8's `TeamLanes`, byte for byte. The desktop draws *"You"* from the `you` flag, as
+task 52's `PersonRow.You` does; `labelFor` (`task-52.md:741`) is for texts and is not used here. A solo project (`TeamStrip.Team == false`)
 answers `{"v":1,"projectId":…,"lanes":[]}` without calling Fleet.
 
 **The refusal on the local diff route** (phase 3 task 16's `GET …/changes/diff`): a
 `worktreeId` that is not a lane of this machine's project (phase 3's `lanes.Store`) is `404
 lane_not_local`, before any git runs. Phase 3 already refuses an unknown id; this names the case a
 desktop bug would hit, so the test can pin it.
+
+**The desktop half — complete types and the join.**
+
+```ts
+// desktop/src/store/types.ts (modify): the team block, field for field with verbs.TeamLanes.
+export interface LaneStat { path: string; status: "A" | "M" | "D" | "T"; added: number; deleted: number; binary: boolean }
+export interface TeamLaneConflict { id: string; tier: "M"; paths: string[]; with: string }
+export interface TeamLane {
+  owner: PersonRef; you: boolean; agentId: string; worktreeId: WorktreeId; laneRef: string;
+  tip: string; mergeBase: string; paths: LaneStat[]; added: number; deleted: number;
+  truncated: boolean; more: number; conflicts: TeamLaneConflict[];
+  queued: { entry: string; state: string } | null;
+  unread: "" | "mirror_unavailable" | "lane_moved";
+}
+export interface TeamLanes { v: 1; projectId: ProjectId; branch: string; lanes: TeamLane[]; readAt: string }
+```
+
+```ts
+// desktop/src/components/lens/files/model.ts (modify)
+
+/** A teammate's touch: counts only. `kind` tells PathDiff never to ask for hunks. */
+export interface RemoteTouch {
+  kind: "remote"; worktreeId: WorktreeId; owner: PersonRef;
+  status: LaneStat["status"]; added: number; deleted: number; binary: boolean;
+}
+export interface LocalTouch extends Touch { kind: "local"; owner: PersonRef | null } // null: solo
+export type AnyTouch = LocalTouch | RemoteTouch;
+export interface TeamPathRow extends Omit<PathRow, "touches"> { touches: AnyTouch[] }
+
+/**
+ * withTeammates joins phase 3's Changes (the viewer's own clones) with TeamLanes.
+ * Own touches get the viewer's PersonRef; every teammate lane path becomes a RemoteTouch
+ * on its row (a new row when only teammates touch it). A path the viewer and a teammate
+ * both touch is marked "conflicts" iff a TeamLaneConflict lists it, else "both-edit"
+ * (decision c); phase 3's own "conflicts" between two of the viewer's clones is kept.
+ * Pure; sorted by path; lanes with unread !== "" contribute no paths.
+ */
+export function withTeammates(changes: Changes, team: TeamLanes | null, me: PersonRef): TeamPathRow[];
+```
+
+**What the lenses draw.**
+
+- **Files, the path list** (`PathList.tsx`): each touch shows its owner's name before the worktree
+  name (*"Alice Chen · auth-refresh"*, *"You · export"*), ids in Commit Mono (OD-28), counts as
+  `+12 −3` in `tabular-nums`. A row only teammates touch is shown, marked neither `conflicts` nor
+  `both-edit` unless two of them overlap (the same rule over their touches).
+- **Files, one path** (`PathDiff.tsx`): a `RemoteTouch` renders one line, *"Alice Chen's lane
+  changes this file: 12 lines added, 3 removed. Its content stays in her lane."*, and no hunk
+  area. `PathDiff` calls phase 3's diff client for `kind: "local"` touches only.
+- **Merge, a lane card** (`LaneCard.tsx`): on a team project, the owner label (*"You"*) heads the
+  card and commit rows show subject, sha and time, **not** `authorName`. Solo: unchanged.
+- **Merge, teammates' lanes** (`TeammateLanes.tsx`, under phase 3's queue): one row per teammate
+  lane: owner, worktree id, `N paths · +A −D`, *"queued"* with its state when `queued` is set,
+  and each tier-M conflict with one of the viewer's lanes as *"conflicts with your <wt> on 2
+  files"*. No action on another person's lane: rows are read-only (OD-16).
