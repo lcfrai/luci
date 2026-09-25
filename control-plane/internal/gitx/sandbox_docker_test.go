@@ -220,8 +220,16 @@ func TestSandboxCloneHasWorkingGit(t *testing.T) {
 	if out, errs, code := inSandbox(t, lane, env, nil, "git status --porcelain"); code != 0 || out != "" {
 		t.Errorf("task 03 clone in the sandbox: status exit %d, stdout %q, stderr %q; want exit 0 and nothing", code, out, errs)
 	}
-	if out, errs, code := inSandbox(t, lane, env, nil, "rm a.txt && git checkout -- a.txt"); code != 0 {
+	// The link's shape is asked in the sandbox too: the mutation check found that a real host
+	// symlink (core.symlinks=true) also leaves status empty here, since Docker Desktop's bind
+	// mount shows it as a Linux symlink, so only this line tells task 03's shape apart.
+	out, errs, code = inSandbox(t, lane, env, nil,
+		"rm a.txt && git checkout -- a.txt && if [ -L link ]; then echo symlink; else printf file: && cat link; fi")
+	if code != 0 {
 		t.Fatalf("rm a.txt && git checkout -- a.txt: exit %d, %q %q", code, out, errs)
+	}
+	if out != "file:t.txt" {
+		t.Errorf("the sandbox sees link as %q; want file:t.txt, task 03's core.symlinks=false shape", out)
 	}
 	if got := readFile(t, filepath.Join(lane, "a.txt")); strings.Contains(got, "\r") {
 		t.Errorf("the sandbox's checkout of a.txt wrote %q; want no \\r", got)
