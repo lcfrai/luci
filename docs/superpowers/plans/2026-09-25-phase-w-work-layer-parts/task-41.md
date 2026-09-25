@@ -68,3 +68,88 @@ This is Architecture rule 4, *rows never move under the reader* (05 §4.1, work 
 - `desktop/src/components/work/work.css` — `.wk-held`, `.wk-ghost`, `.wk-cause`, the flash keyframes (modified, task 40's)
 - `desktop/src/components/work/hold.test.tsx` — four surface tests (new)
 
+#### Interfaces — complete: `desktop/src/work/hold.ts`, the types and signatures
+
+```ts
+// desktop/src/work/hold.ts — task 41. arrivals.hold, moves.hold and departures (05 §4.1 D C2,
+// §4.4 C7; 02 C7). Pure: no React, no replica, no DOM. The lens owns one HoldState per mount.
+import type { IssueState } from "../components/glyphs/StateGlyph"; // SW.12
+
+/** Task 03's six causes (`task-03.md:211-216`), mirrored until task 37 exports them (SW.15). */
+export type MoveCause =
+  | "hand" | "lane_bound" | "lane_queued" | "land_trailer" | "evidence_observed" | "evidence_recorded";
+
+/** The last state move the replica holds for an issue: SW.4's StateMove plus when and by whom. */
+export interface MoveFact {
+  to: IssueState;
+  cause: MoveCause;
+  at: string;       // RFC 3339, the move event's time
+  byName: string;   // the person whose act caused it (rule 2: facts are written as the person)
+  commit: string;   // 40 hex, or "" unless land_trailer or an evidence cause
+  detail: string;   // e.g. "test run, exit 0" from the evidence record; "" when none is known
+}
+
+/** One row as the view's selector hands it over: already filtered, grouped and ordered. */
+export interface RowFact {
+  issueId: string;  // is-…, the key; never the alias
+  alias: string;    // "EP-142", display only (SW.1 DisplayAlias)
+  state: IssueState;
+  cause: string;    // causeLine(lastMove, tz), or "" when the replica holds no move
+}
+
+export interface GroupedIssues {
+  groups: readonly { key: string; rows: readonly RowFact[] }[];
+  /** Issues the replica knows that this view's filter now excludes, with the one word why
+   *  ("cancelled", "duplicate", "moved to another team"). Absent means "no longer visible". */
+  left: ReadonlyMap<string, string>;
+}
+
+export type HeldChange =
+  | { kind: "arrival"; issueId: string; groupKey: string }
+  | { kind: "move"; issueId: string; fromGroup: string; toGroup: string; cause: string }
+  | { kind: "departure"; issueId: string; groupKey: string; alias: string; why: string };
+
+export type ShownRow =
+  /** `home` is the group the facts put it in at the last reconcile; `cause` non-null means a
+   *  change the reader has not applied: the row shows the line and carries data-changed="unseen". */
+  | { kind: "row"; row: RowFact; home: string; cause: string | null }
+  | { kind: "ghost"; issueId: string; alias: string; why: string };
+
+export interface ShownGroup {
+  key: string;
+  rows: readonly ShownRow[];
+  arrivals: number;  // held arrivals into this group: the HeldLine's count
+  moving: number;    // rows held here whose home is another group: the header's "· N moving"
+}
+
+/** The order the reader sees, plus what is held. */
+export interface HoldState {
+  shown: readonly ShownGroup[];
+  held: readonly HeldChange[];
+  /** One flash per update: rows flash unless their group had more than HEADER_FLASH_OVER changes,
+   *  in which case the header flashes and no row does (D M9). `seq` restarts the CSS animation. */
+  flash: { seq: number; rows: ReadonlySet<string>; groups: ReadonlySet<string> };
+}
+
+/** D M9: more than three changes in one group in one update flash the header, not the rows. */
+export const HEADER_FLASH_OVER = 3;
+
+/** Where the reader is: the group with keyboard focus, else the group under the pointer. */
+export interface Attention { groupKey: string | null }
+
+export function initialHold(next: GroupedIssues, seq?: number): HoldState;
+export function reconcile(prev: HoldState, next: GroupedIssues, focus: Attention): HoldState;
+export function applyHeld(state: HoldState, next: GroupedIssues): HoldState;
+export function causeLine(move: MoveFact, timeZone: string): string;
+/** "3 issues", "1 issue", "3 issues · 1 moving": a plain count, never "of". */
+export function groupSize(group: ShownGroup): string;
+/** The HeldLine's words: "One change is held, so no row moves under you." / "2 changes are held, …" */
+export function heldWords(n: number): string;
+```
+
+`RowFact.cause` is formatted by the selector (task 40's), so the model is free of time zones and
+compares strings only. A move is held **in place** while the reader's attention is in its shown
+group **or** its home group; it relocates at once only when attention is in neither. That is how the
+scope's *focus outside its group* is read here, so that a row can never vanish from one group
+while the other holds it out: a gap in the scope's wording, named in the return.
+
