@@ -60,3 +60,40 @@ failing one is a FAIL. A check is **observed-only** when the design already mark
 **UNVERIFIED** and plans a fallback; its result re-plans the task that owns the fallback, not the
 slice. The table below names which is which, before anything runs, so the verdict cannot be
 chosen after the fact.
+
+**(e) The verdict is one of three words.** **PASS**: every must-hold check observed as required.
+**FAIL**: any must-hold check observed otherwise, or not observed at all (a check that could not
+run is a FAIL, not a skip, because TM1 would be built on it). **BLOCKED**: an entry condition was
+not met, so nothing was judged; the record says which. Observed-only results are listed under the
+verdict with the task each one re-plans.
+
+**Entry conditions.** `00-preflight.sh` checks each and stops at the first unmet one, which makes
+the verdict BLOCKED:
+
+| # | Condition | Why |
+|---|---|---|
+| E1 | Tasks 01–32 merged on `feat/team-mode`, the Hub, phase 8 and phase 6 branches sync-merged, and the environment deployed by phase 8's pipeline with P8-31's smoke and P8-32's Kata checklist green | nothing here re-proves phase 8 |
+| E2 | Gap S20-1 closed: the owner's `orchestrator`-class delegation is created on a first team launch (`task-20.md:529-533`, "**This blocks task 33**") | with no delegation there is no Orchestrator |
+| E3 | Gap G33-1 closed: the desktop can post a human message, list its escalations and answer one (below) | the humans' half of the run |
+| E4 | Gaps G31-1 (the Hub's taint set), G32-3 (`fleetd migrate`) and G32-4 (Entra Postgres auth) closed | without them `resume` is refused, or Fleet does not start |
+| E5 | The owner's runbook done: the `fleet-control-key` secret in Key Vault; `fleet-principals.sql` run by a human admin; keysmith's Fleet caller on (task 32); Alice and Bob members of one team project with data class set (OD-24) | each is a human act by design |
+| E6 | A test repository with `web/auth/login.go`, `web/auth/session.go` and `web/api/routes.go`, and each worker's clone prepared by the operator (gap S20-3, `task-20.md:538-540`) | the worker needs a worktree; phase 8's machine mount is not wired in TM1-α |
+| E7 | The pinned Claude Code CLI version recorded from the sandbox image's label, and the same in both classes' pods | every UNVERIFIED CLI behaviour below is at this version only |
+
+**Files:**
+- `infra/smoke/team/lib.sh` — shared: the contexts, `need`, `jget` (python3; `jq` is not assumed),
+  `pexec`, `desk`, `hubids`, `record` (new)
+- `infra/smoke/team/00-preflight.sh` — the entry conditions (new)
+- `infra/smoke/team/10-launch.sh` — each person's first team launch; the four agents' ids (new)
+- `infra/smoke/team/20-plan.sh` — Run A's overlapping plan and the conflict-before-spawn check (new)
+- `infra/smoke/team/30-settle.sh` — Run A's `sequence`, the inform and the decide (new)
+- `infra/smoke/team/40-podkill.sh` — the pod kill between turns and mid-turn (new)
+- `infra/smoke/team/50-policy.sh` — the managed file, `/status`, the env scan, the empty folder (new)
+- `infra/smoke/team/60-live.sh` — Run B, and the first G9 pass (new)
+- `infra/smoke/team/README.md` — the order, the contexts, and what each script writes (new)
+- `docs/verification/2026-09-25-phase-t-alpha-results.md` — the record (new, from the template below)
+
+Each script writes `out/<script>.jsonl`, one JSON object per check:
+`{"check","run","ctx","cmd","observed","expected","ids":[…],"verdict","at"}`, with `verdict` one of
+`held`, `broke`, `not-observed`, `observed` (observed-only checks). The record is written from these
+files; nothing in it is typed from memory.
