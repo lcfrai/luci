@@ -223,3 +223,90 @@ read from the Go comments (`task-03.md:557-569`, hub `types.go:201`); task 16 de
 **UNVERIFIED** until task 16 merges; a mismatch is a one-line change in `query()` below, and
 task 17's end-to-end run is where it would show.
 
+#### Interfaces — complete: `work.ts`, part 4: the local wire (tasks 24 and 25)
+
+```ts
+/** SW.10, task 24: POST /v1/work/start. `requestId` is 8-64 of [A-Za-z0-9._-]; a repeat of the
+ *  same id returns the first result, so a double click starts one agent. */
+export interface StartRequest {
+  projectId: string; issueId: string; branch: string; requestId: string;
+  accept?: boolean; route?: "global" | "au"; harness?: string;
+}
+export interface StartResult {
+  issueKey: string; worktreeId: string; sessionId: string; branch: string;
+  route: "global" | "au"; routeForced: boolean; undo: "undo_start";
+}
+/** `cost` is null in local mode: nothing is estimated (OD-27). */
+export interface UndoStartResult { undone: true; stateRestored: IssueState | null; cost: null }
+export interface DiscardStartResult { discarded: true; stateRestored: IssueState | null }
+
+/** Task 25: one body for /v1/work/import/preview and /v1/work/import. The Linear key goes to the
+ *  loopback control plane in this body and nowhere else; no slice holds it. */
+export type ImportRequest =
+  | { projectId: string; source: "linear"; linear: { apiKey: string; teamKey?: string } }
+  | { projectId: string; source: "csv"; csv: { content: string } };
+export interface ImportRefusal { at: string; reason: string }
+export interface ImportPreview {
+  ready: number; created: null; unchanged: null; refused: ImportRefusal[]; unmatchedLabels: null;
+}
+export interface ImportOutcome {
+  created: number; unchanged: number; refused: ImportRefusal[]; unmatchedLabels: string[];
+}
+```
+
+#### Interfaces — complete: `work.ts`, part 5: the route tables
+
+```ts
+export type Verb = "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
+
+/** Task 16's WorkRoutes, row for row and in its order (task-16.md:127-158): the Go method, the
+ *  verb, the Hub's pattern. Never called directly: relayPath() derives the loopback path. */
+export const WORK_RELAY = [
+  ["SetProjectKey", "PUT", "/v1/projects/{projectId}/key"],
+  ["CreateIssue", "POST", "/v1/projects/{projectId}/issues"],
+  ["Issues", "GET", "/v1/projects/{projectId}/issues"],
+  ["IssueByNumber", "GET", "/v1/projects/{projectId}/issues/by-number/{n}"],
+  ["Issue", "GET", "/v1/issues/{issueId}"],
+  ["PatchIssue", "PATCH", "/v1/issues/{issueId}"],
+  ["WriteIssueRevision", "POST", "/v1/issues/{issueId}/revisions"],
+  ["IssueRevisions", "GET", "/v1/issues/{issueId}/revisions"],
+  ["IssueRevisionAt", "GET", "/v1/issues/{issueId}/revisions/{rev}"],
+  ["RestoreIssueRevision", "POST", "/v1/issues/{issueId}/revisions/{rev}/restore"],
+  ["MoveIssueState", "POST", "/v1/issues/{issueId}/state"],
+  ["AttachBlob", "POST", "/v1/issues/{issueId}/attachments"],
+  ["Attachments", "GET", "/v1/issues/{issueId}/attachments"],
+  ["AddRelation", "POST", "/v1/issues/{issueId}/relations"],
+  ["RemoveRelation", "DELETE", "/v1/issues/{issueId}/relations/{kind}/{otherId}"],
+  ["Labels", "GET", "/v1/teams/{teamId}/labels"],
+  ["CreateLabel", "POST", "/v1/teams/{teamId}/labels"],
+  ["ArchiveLabel", "POST", "/v1/labels/{labelId}/archive"],
+  ["TeamPolicy", "GET", "/v1/teams/{teamId}/work-policy"],
+  ["PutTeamPolicy", "PUT", "/v1/teams/{teamId}/work-policy"],
+  ["Comments", "GET", "/v1/issues/{issueId}/comments"],
+  ["CreateComment", "POST", "/v1/issues/{issueId}/comments"],
+  ["React", "POST", "/v1/comments/{commentId}/reactions"],
+  ["ResolveComment", "POST", "/v1/comments/{commentId}/resolve"],
+  ["Subscribe", "PUT", "/v1/issues/{issueId}/subscription"],
+  ["Subscriptions", "GET", "/v1/me/subscriptions"],
+  ["SearchIssues", "GET", "/v1/issues/search"],
+  ["ImportBatch", "POST", "/v1/projects/{projectId}/imports"],
+  ["EraseIssue", "POST", "/v1/issues/{issueId}/erase"],
+  ["EraseComment", "POST", "/v1/comments/{commentId}/erase"],
+] as const satisfies ReadonlyArray<readonly [string, Verb, `/v1/${string}`]>;
+
+/** Task 16's Relay(): the Hub path with its leading "/v1" replaced by "/v1/hub/work". */
+export const relayPath = (hubPath: string): string => "/v1/hub/work" + hubPath.slice("/v1".length);
+
+/** Tasks 24 and 25: served by the control plane itself, never relayed. */
+export const WORK_LOCAL = [
+  ["start", "POST", "/v1/work/start"],
+  ["undoStart", "POST", "/v1/work/start/{sessionId}/undo"],
+  ["discardStart", "POST", "/v1/work/start/{sessionId}/discard"],
+  ["importPreview", "POST", "/v1/work/import/preview"],
+  ["importRun", "POST", "/v1/work/import"],
+] as const satisfies ReadonlyArray<readonly [string, Verb, `/v1/work/${string}`]>;
+
+export type RelayMethod = (typeof WORK_RELAY)[number][0];
+export type LocalMethod = (typeof WORK_LOCAL)[number][0];
+```
+
