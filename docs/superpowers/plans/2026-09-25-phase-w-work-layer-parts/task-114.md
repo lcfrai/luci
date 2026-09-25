@@ -61,3 +61,188 @@ takes the merged names; a rename is a find-and-replace in this part, never a new
    whole wire and task 118 adds no type.
 7. **`MarkSeen` is in the method set.** Task 123's scope adds `POST /v1/me/read-cursors/mark-seen`,
    which 114's scope does not list; it is declared now so SW.20 does not grow after it freezes.
+
+#### Files
+
+| Path (under `control-plane/internal/hub/`) | Change |
+|---|---|
+| `hubapi/work_roadmap.go` | new: every W4 record, view, request, enum, code and `Validate` |
+| `hubapi/work_roadmap_test.go` | new: goldens, validation, the no-prediction reflection test, codes |
+| `hubapi/testdata/work-roadmap/*.json` | new: one golden per record and view (seventeen files) |
+| `hubapi/codes.go` ⚑ | appended: the seven W4 codes, in the table's style |
+| `hubclient/work.go` ⚑ | `Work` embeds `WorkRoadmap`; the `WorkRoadmap` interface, complete |
+| `hubclient/fake_work_roadmap_stub.go` | new: `*Fake` satisfies `WorkRoadmap` with 501s (task 115 deletes it) |
+| `hubclient/client_work_roadmap_stub.go` | new: the HTTP client's 501s (task 124 deletes it) |
+| `hubclient/work_roadmap_test.go` | new: the compile-time embed assertions |
+
+#### `hubapi/work_roadmap.go`, complete: initiatives and status updates
+
+```go
+package hubapi
+
+import (
+	"errors"
+	"regexp"
+	"strconv"
+	"strings"
+	"time"
+)
+
+// InitiativeState reuses the feature's five words (decision 1; 04 §2.5).
+type InitiativeState string
+
+const (
+	InitiativePlanned   InitiativeState = "planned"
+	InitiativeActive    InitiativeState = "active"
+	InitiativePaused    InitiativeState = "paused"
+	InitiativeDone      InitiativeState = "done"
+	InitiativeCancelled InitiativeState = "cancelled"
+)
+
+// Initiative groups features toward one outcome. Per team in v1 (05 §3.2).
+type Initiative struct {
+	ID         string          `json:"id"` // in-…
+	TeamID     string          `json:"teamId"`
+	Name       string          `json:"name"` // 1-120 characters
+	Owner      User            `json:"owner"`
+	TargetDate *string         `json:"targetDate"` // YYYY-MM-DD or null
+	State      InitiativeState `json:"state"`
+	CreatedAt  string          `json:"createdAt"`
+	CreatedBy  User            `json:"createdBy"`
+	UpdatedAt  string          `json:"updatedAt"`
+}
+
+// InitiativeTeams is W4's span (Q12): the owning team first, then each other
+// team whose readable features the initiative may list.
+type InitiativeTeams struct {
+	InitiativeID string   `json:"initiativeId"`
+	TeamIDs      []string `json:"teamIds"` // never null; TeamIDs[0] is the owning team
+}
+
+// Health is a person's word, never a computed score (Q1, OD-27).
+type Health string
+
+const (
+	HealthOnTrack  Health = "on_track"
+	HealthAtRisk   Health = "at_risk"
+	HealthOffTrack Health = "off_track"
+)
+
+// SubjectRef names what a status update or a reminder is about.
+type SubjectRef struct {
+	Kind string `json:"kind"` // SubjectFeature | SubjectInitiative
+	ID   string `json:"id"`   // ft-… | in-…
+}
+
+const (
+	SubjectFeature    = "feature"
+	SubjectInitiative = "initiative"
+)
+
+// StatusUpdate is a TM-46 note (nt-) with kind "update": immutable once
+// posted; erase empties Body.Text and keeps every other field (task 116).
+type StatusUpdate struct {
+	ID          string       `json:"id"`   // nt-…
+	Kind        string       `json:"kind"` // always "update"
+	Subject     SubjectRef   `json:"subject"`
+	Health      Health       `json:"health"`
+	Body        AuthoredText `json:"body"`        // author "H" only (task 119)
+	PinnedBrief string       `json:"pinnedBrief"` // brief:bf-…@r, required
+	Cites       []string     `json:"cites"`       // Hub keys; never null
+	Author      User         `json:"author"`
+	At          string       `json:"at"`
+	ErasedAt    *string      `json:"erasedAt"`
+}
+```
+
+#### `work_roadmap.go`, continued: milestones, dependencies, templates, the janitor's policies
+
+```go
+// Milestone is a named subset of the feature's branch-brief criteria, with a
+// date (04 §2.5). "Reached" is never stored: MilestoneView derives it.
+type Milestone struct {
+	ID           string   `json:"id"` // ml-…
+	FeatureID    string   `json:"featureId"`
+	Name         string   `json:"name"` // 1-120 characters
+	Date         *string  `json:"date"` // YYYY-MM-DD or null
+	CriterionIDs []string `json:"criterionIds"` // never null; each on the feature's brief
+	CreatedAt    string   `json:"createdAt"`
+	UpdatedAt    string   `json:"updatedAt"`
+}
+
+// CriterionWord is one criterion with task 10's thread-state word at the
+// branch head: open, waiting, proven, proven_self_attested, and so on.
+type CriterionWord struct {
+	CriterionID string `json:"criterionId"`
+	Word        string `json:"word"`
+}
+
+// MilestoneView names which criteria are settled. It prints no count and no
+// bar (OD-27; L-72 PARTIAL on purpose); Reached is derived at read.
+type MilestoneView struct {
+	Milestone Milestone       `json:"milestone"`
+	Criteria  []CriterionWord `json:"criteria"` // in Milestone.CriterionIDs order
+	Reached   bool            `json:"reached"`  // every listed criterion settled, at read
+}
+
+// FeatureDependency is "From blocks Blocks": both ft- in one team's reach.
+type FeatureDependency struct {
+	From   string `json:"from"`   // ft-… the blocker
+	Blocks string `json:"blocks"` // ft-… the blocked
+}
+
+// FeatureDependencyView adds the derived signal task 129 colours: the blocked
+// feature's target date is before its blocker's. Never stored.
+type FeatureDependencyView struct {
+	FeatureDependency
+	OrderViolated bool `json:"orderViolated"`
+}
+
+// BriefTemplate sits beside task 78's issue Template in the tp- space.
+type BriefTemplate struct {
+	ID               string         `json:"id"` // tp-…
+	TeamID           *string        `json:"teamId"`
+	Kind             string         `json:"kind"` // always "brief"
+	Name             string         `json:"name"`
+	Criteria         []AuthoredText `json:"criteria"`         // author "H"; 1-50 items
+	IssueTemplateIDs []string       `json:"issueTemplateIds"` // tp-… of kind "issue"; never null
+	CreatedAt        string         `json:"createdAt"`
+	UpdatedAt        string         `json:"updatedAt"`
+}
+
+// Every is a recurrence: N units apart.
+type Every struct {
+	N    int    `json:"n"`    // 1-365
+	Unit string `json:"unit"` // "day" | "week" | "month"
+}
+
+// TemplateSchedule makes an issue template recurring (task 121).
+type TemplateSchedule struct {
+	TemplateID string `json:"templateId"`
+	Every      Every  `json:"every"`
+	At         string `json:"at"` // HH:MM, 24-hour, in TZ
+	TZ         string `json:"tz"` // an IANA zone, e.g. "Australia/Sydney"
+}
+
+// ReminderPolicy asks the lead or owner for an update every EveryDays days.
+type ReminderPolicy struct {
+	Subject   SubjectRef `json:"subject"`
+	EveryDays int        `json:"everyDays"` // 1-90
+}
+
+// TriageRotation is a stored policy. The read adds who is on duty and the
+// next handover date, dates the policy fixes, not a forecast (task 121).
+type TriageRotation struct {
+	TeamID     string   `json:"teamId"`
+	Members    []string `json:"members"` // u-…, 1-50, no repeats
+	PeriodDays int      `json:"periodDays"` // 1-28
+	StartsOn   string   `json:"startsOn"`   // YYYY-MM-DD
+}
+
+// TriageRotationView is the rotation and its two policy-fixed facts.
+type TriageRotationView struct {
+	Rotation   TriageRotation `json:"rotation"`
+	OnDuty     User           `json:"onDuty"`
+	HandoverOn string         `json:"handoverOn"` // YYYY-MM-DD, from StartsOn and PeriodDays
+}
+```
