@@ -539,4 +539,41 @@ A sibling task is a dependency only once its branch is sync-merged here (rules H
 | 141 | an agent's edit to an issue or brief is a proposal, shown as a diff | W4 | 0.3 (2.5 h) | 47, 136 | — |
 | 142 | W4's proof and results | W4 | 0.3 (2.5 h) | 114-141 | — |
 
+### W5: intake and the ecosystem
+
+| Id | Task | Slice | Focused days | dependsOn | Seams |
+|---|---|---|---|---|---|
+| 143 | `hubapi` and `hubclient.WorkIntake`: the W5 wire types and methods | W5 | 0.375 (3 h) | 97 | SW.21 |
+| 144 | the fake's W5 rules and conformance rows | W5 | 0.375 (3 h) | 143 | SW.21 |
+| 145 | the W5 migration, its guards and matrix rows: no sync principal or app writes a fact state or `done` | W5 | 0.375 (3 h) | 07, 143 | SW.3 |
+| 146 | requests `rq-`: the requester, the verbatim quote as `text·H`, *important*, accept or link in `triage`, erase | W5 | 0.375 (3 h) | 14, 145; H27 | — |
+| 147 | intake rules, first match wins with the author on the event; form defaults for members and non-members | W5 | 0.3 (2.5 h) | 146 | — |
+| 148 | intake forms with typed, required fields; the Entra-protected Hub web form | W5 | 0.375 (3 h) | 147 | — |
+| 149 | mail: an intake address per team; the requester hears *shipped*, with the release name, where they asked | W5 | 0.375 (3 h) | 81, 131, 146 | — |
+| 150 | tracker sync, part 1: the engine, the integration principal, links by `(source, externalId)`, one way in to `triage` | W5 | 0.375 (3 h) | 15, 145 | SW.6 |
+| 151 | tracker sync, part 2: Azure Boards, one way in | W5 | 0.375 (3 h) | 150 | — |
+| 152 | tracker sync, part 3: GitHub Issues, one way in | W5 | 0.3 (2.5 h) | 150 | — |
+| 153 | tracker sync, part 4: Jira one way in; then two way for comments only, on all three | W5 | 0.375 (3 h) | 151, 152 | — |
+| 154 | outside PRs, part 1: host webhooks in from Azure DevOps and GitHub; commit links; closing and non-closing magic words | W5 | 0.375 (3 h) | 21, 22, 145 | SW.9 |
+| 155 | outside PRs, part 2: linkbacks and autolinks; a PR-body magic word files an issue; copy `ep-142-slug`, the first push is `started` | W5 | 0.375 (3 h) | 154 | — |
+| 156 | outbound webhooks: metadata-only payloads on the change feed, actor and previous values, HMAC-SHA256, retries, the delivery log | W5 | 0.375 (3 h) | 13, 145 | SW.22 |
+| 157 | the Teams app, part 1: intake from a Teams message with its thread synced to the request; a channel per feature; view changes to a channel | W5 | 0.375 (3 h) | 146, 156 | — |
+| 158 | the public API: published docs; TypeScript and Go clients generated from the contract | W5 | 0.375 (3 h) | 143, 156 | — |
+| 159 | apps: Entra OAuth apps that act as a person, their manifests, admin approval | W5 | 0.375 (3 h) | 145 | SW.3 |
+| 160 | keys and limits: personal and team-scoped API keys, admin-revocable; per-token rate limits with headers | W5 | 0.3 (2.5 h) | 159 | — |
+| 161 | the Work MCP server on the Hub behind Entra OAuth, with read-only mode; the MCP connector allow-list | W5 | 0.375 (3 h) | 159, 160 | — |
+| 162 | loops `lp-`, part 1: the record and its versions; event and schedule triggers in the janitor, as turns of the owner's Orchestrator within their grid, billed to them | W5 | 0.375 (3 h) | 145; TM-26, TM-37 | — |
+| 163 | loops, part 2: the run log and *run now*; the first-pass triage loop, "on accept, Start" for a label | W5 | 0.375 (3 h) | 24, 162 | SW.10 |
+| 164 | CI outside us: `panacea release`, an Azure Pipelines task and a GitHub Action | W5 | 0.375 (3 h) | 131, 160; P7-08 (a release-create route is **UNVERIFIED**) | — |
+| 165 | the Teams app, part 2: the Desk digest, at most once per 15 minutes; ask **your own** Orchestrator from Teams | W5 | 0.375 (3 h) | 94, 157; TM-07, TM-28 | — |
+| 166 | the per-team harness allow-list, Claude Code first; team skills in the sandbox image or a team library, the harness unmodified | W5 | 0.3 (2.5 h) | 145; TM-13, TM-15 | — |
+| 167 | audit: each event says person or agent, and whose agent; streaming to Microsoft Sentinel | W5 | 0.3 (2.5 h) | 145; H27 | — |
+| 168 | `hubclient`'s W5 methods over HTTP, the relay rows, W5's Hub end to end | W5 | 0.375 (3 h) | 144, 146-167 | SW.21 |
+| 169 | desktop W5 wire types and replica kinds | W5 | 0.25 (2 h) | 125, 144 | — |
+| 170 | requests in Triage: the quote, *important*, accept or link, the criterion suggestion; the form and rules editors | W5 | 0.375 (3 h) | 42, 169 | — |
+| 171 | trackers on the desktop: connect Azure Boards, GitHub Issues or Jira; *not tied · imported*; the sync log | W5 | 0.3 (2.5 h) | 169 | — |
+| 172 | loops on the desktop: the editor, versions, the run log, *run now* | W5 | 0.3 (2.5 h) | 169 | — |
+| 173 | admin on the desktop: apps, keys, webhooks, MCP connectors, the harness allow-list | W5 | 0.375 (3 h) | 169 | — |
+| 174 | W5's proof and results | W5 | 0.3 (2.5 h) | 143-173 | — |
+
 ---
