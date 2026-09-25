@@ -916,5 +916,5 @@ Message: `feat(gatekeeper): the proxy, one JSON value rewritten and everything e
 
 1. The skeleton's "decode as `map[string]json.RawMessage` … re-encode" cannot pass its own byte-for-byte test (decision (a)); this part splices instead.
 2. `Config` gains `Now`, `Observe` and `Transport`, and `Catalogue` is the interface `Resolver` (decisions (b), (e)). Task 12 must pass `Observe`.
-3. The Go identifiers `wire.CodePathNotAllowed`, `wire.CodeModelNotOffered` and `wire.CodeRouteUnknown` are assumed from task 03's code list; task 03's part fixes the real names.
+3. The Go identifiers `wire.CodePathNotAllowed`, `wire.CodeModelNotOffered` and `wire.CodeRouteUnknown` match task 03's part (`task-03.md:554-557`).
 4. The skeleton's "idle-read timeout above 300 s" is not built (the note at the end of step 4 says why).

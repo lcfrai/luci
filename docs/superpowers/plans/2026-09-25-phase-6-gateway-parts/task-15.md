@@ -166,11 +166,11 @@ func TestMintRetriesTheSameGenerationOnTimeoutAnd5xx(t *testing.T) {
 
 // Kills retrying a refusal: a budget or a route does not change in 500 ms.
 func TestMintDoesNotRetryARefusal(t *testing.T) {
-	k := &keysmith{script: []reply{{status: 403, body: `{"error":"budget_exhausted","message":"The project's budget is spent.","details":{"dimension":"project"}}`}}}
+	k := &keysmith{script: []reply{{status: 402, body: `{"error":"budget_exhausted","message":"The project's budget is spent.","details":{"dimension":"project"}}`}}}
 	_, err := newClient(t, k, time.Second).Mint(context.Background(), mintReq)
 	var p *Problem
-	if !errors.As(err, &p) || p.Status != 403 || p.Code != "budget_exhausted" {
-		t.Fatalf("err = %v, want Problem 403 budget_exhausted", err)
+	if !errors.As(err, &p) || p.Status != 402 || p.Code != "budget_exhausted" {
+		t.Fatalf("err = %v, want Problem 402 budget_exhausted (task-03.md:278)", err)
 	}
 	if calls, _, _ := k.snapshot(); len(calls) != 1 {
 		t.Fatalf("%d calls, want 1", len(calls))
@@ -779,12 +779,14 @@ func (c *Client) RevokeSession(ctx context.Context, sessionID string) error {
 
 // Usage is task 21's read. It is not retried: the cockpit polls.
 func (c *Client) Usage(ctx context.Context, scope, id string) ([]wire.UsageRow, error) {
-	var out []wire.UsageRow
+	var out struct {
+		Rows []wire.UsageRow `json:"rows"` // task 08: {"rows": [...]}, never null
+	}
 	q := url.Values{"scope": {scope}, "id": {id}}
 	if err := c.do(ctx, http.MethodGet, "/v1/usage?"+q.Encode(), nil, http.StatusOK, &out, false); err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out.Rows, nil
 }
 ```
 
@@ -1517,4 +1519,4 @@ Message: `feat(gateway): the keysmith client and the local control plane's launc
 3. **The token file mode is `0644`, not `0600`** (decision (e)).
 4. **The session wire shape gains `gateway`, `gatewayError`, `gatewayRoute`.** Additive, but phase 2's UI contract and `desktop/src/store/types.ts` should list them; task 22 is the first reader.
 5. **`backend.Sandbox.NetworkAddr` and `LabelNetwork` are new seam fields** the skeleton did not name; phase 8's broker has its own pod IP and does not need them.
-6. **Assumed from task 03:** `wire.MintRequest` is comparable (no slice or map fields) and `PodAddr` is a string; `wire.MintResponse` carries no generation, so the client counts generations itself. **From task 08:** `GET /v1/usage` answers a bare JSON array of `UsageRow`.
+6. **Assumed from task 03:** `wire.MintRequest` is comparable (no slice or map fields) and `PodAddr` is a string; `wire.MintResponse` carries no generation, so the client counts generations itself. Both checked against `task-03.md:385-394`. `GET /v1/usage` answers `{"rows": [...]}` (`task-08.md:23`), which `Usage` decodes.

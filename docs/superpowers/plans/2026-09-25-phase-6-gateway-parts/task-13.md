@@ -1126,6 +1126,6 @@ Message: `feat(routesource): the live project route from the Hub or a file, cach
 **Gaps against the skeleton, for the orchestrator:**
 
 1. **A new variable.** The Hub source needs the scope to ask Entra for, `api://<hub client id>/.default`. This part assumes task 12 and task 08 read it as `PANACEA_APP_GATEWAY_HUB_SCOPE`, which is not in the skeleton's shared names. The control plane's own `PANACEA_APP_HUB_SCOPE` (`hub-contract.md:2190`) is a delegated scope (`…/Hub.Access`) and cannot be reused for a client-credentials grant.
-2. `wire.ProjectInference.Version` is assumed to be a `string` (the content hash of decision (d)); task 03 fixes it.
+2. `wire.ProjectInference.Version` is a `string` in task 03's part (`task-03.md:517-523`), which this part fills with the content hash of decision (d).
 3. The skeleton's `Hub{BaseURL; Tokens; HTTP}` literal is replaced by `NewHub` with private fields (step 7 says why). `File` and `Cache` likewise have constructors.
 4. `ROUTE_SOURCE=file:<path>` and `hub` are parsed by tasks 08 and 12, not here; both binaries build `Cache` over the source with `ROUTE_CACHE_TTL` and `ROUTE_STALE_MAX`, so keysmith and the gatekeeper can disagree for at most one TTL. keysmith's disagreement is harmless: task 10 takes the tighter of the live route and the route at mint.
