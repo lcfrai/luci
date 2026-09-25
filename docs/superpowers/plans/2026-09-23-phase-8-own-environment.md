@@ -602,7 +602,8 @@ first.
 | 23 | `internal/machines`: a backend per machine through sessions, attach, reaper and `main`; the install id, and a reaper that destroys only its own cloud sandboxes (review I6) | 22 | 3.5 |
 | 24a | Cloud machines in `GET /v1/machines`, `POST /v1/machines/default` (ensure-default) and `POST /v1/machines/{machineId}/wake`; the list cache and its invalidation (review m17 split task 24) | 23 | 2 |
 | 24b | Machine-scoped catalog; session create and restart on a cloud machine in the worktree's lane, a primary's or linked worktree's backing lane made on first start (phase 3 task 05's rule; R4.1: no `projects/` mount; env R4 ruling 5), with wake-before-create and `.git/config` bound read-only as hygiene; the cloud conversation store (`cloudstore`, OD-10); closes S8.3 | 24a, 20, **phase 3 task 05** (the backing lane) | 3.5 |
-| 25 | Phase 3's `gitx.Machine` for a cloud machine (S3-P8.1) | 24b, 21, **phase 3 tasks 02–04 and 11** | 2.5 |
+| 25 | A cloud machine's project-only `gitx.Machine` (`CloneRoot` `/machine/lanes`), its `MachineFS`, and the laptop-side composite catalog that lists lanes from the lane index (S3-P8.1; R4 rulings, task 25) | 24b, 21, **phase 3 tasks 02–04 and 11, phase 3's S8-P3.3** | 2.5 |
+| 25b | Lane git on a cloud machine: phase 3's `Lanes.For` over the broker's sandbox git route, the runner-only pod held from the reaper, and the cloud `lanegit.Bundles` relay (R4 rulings 1–3) | 25, 21b, 18, 15, 23, **phase 3 task 24, phase 3's S8-P3.4 and S8-P3.5** | 2.5 |
 | 26 | The cockpit shows cloud machines: states, implicit wake, the isolation badge (S8.5), signed-out | 24b (and so 24a) | 3 |
 
 ### Group G — packaging and CI/CD
