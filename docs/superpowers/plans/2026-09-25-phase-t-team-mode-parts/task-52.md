@@ -1068,7 +1068,7 @@ fake `TeamHub` recording every call, and a fixed `Viewer` = Dylan):
 
 | Test | Asserts | Mutant it kills |
 |---|---|---|
-| `team.test.ts › fixtures satisfy the types` | each fixture, read with `fs.readFileSync` from `control-plane/internal/api/testdata/team-view/v1/`, is assigned to its type through a `satisfies` check in a `.ts` helper that `npm run typecheck` compiles | a TS field renamed without the Go one (`types.ts:3-5`) |
+| `team.test.ts › fixtures satisfy the types` | each fixture, imported as a JSON module from `control-plane/internal/api/testdata/team-view/v1/` (`resolveJsonModule`, `desktop/tsconfig.json:12`; `node:fs` does not typecheck here, `styles/designsystem.test.ts:9-11`), is assigned to its type through a `satisfies` check in a `.ts` helper that `npm run typecheck` compiles | a TS field renamed without the Go one (`types.ts:3-5`) |
 | `team.test.ts › routes and methods` | each client method's URL and method against an injected `fetch`; `userId` and `threadId` are URL-encoded | a hand-built path that breaks on `u-…/../` |
 | `team.test.ts › desk sends since` | `desk("2026-09-24T22:41:00.000Z")` requests `/v1/team/desk?since=2026-09-24T22%3A41%3A00.000Z` | a cursor that is never sent, so everything is new |
 | `teamSlice.test.ts › setters replace` | `setTeamStrip` with one person after three leaves one | a merge that keeps people who left |
@@ -1112,7 +1112,7 @@ keys (a key present in one and not the other is a review finding for both tasks)
 - [ ] **Step 5: The desktop client, types and slice**
 
 `types.ts` team block and `Session.teamScope`; `createTransport` lifted in `client.ts`; `team.ts`;
-`teamSlice.ts`; `store.ts`. The fixtures helper `desktop/src/test/teamFixtures.ts` reads each JSON
+`teamSlice.ts`; `store.ts`. The fixtures helper `desktop/src/test/teamFixtures.ts` imports each JSON by relative path
 and checks it with `satisfies` so `npm run typecheck` fails on a drifted field.
 
 - [ ] **Step 6: Acceptance**
