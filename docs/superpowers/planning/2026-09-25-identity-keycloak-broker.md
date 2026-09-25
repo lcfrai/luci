@@ -219,3 +219,85 @@ Why each non-obvious setting:
   realm has them (facts §5). P3's flat `roles` duplicates `realm_access.roles` so both profiles read one
   claim name.
 
+## 5. The validator
+
+env task 16 BUILT `control-plane/internal/entra` (commits `669204b` .. `1772f25`); it has no importer yet
+(facts-app-identity §2a), and every Entra-only rule in it (tenant first, `ver`, `iss .../<tid>/v2.0`, GUID
+`aud`/`azp`, `scp`, the `/discovery/v2.0/keys` path) refuses every Keycloak token.
+
+**Ruling: the package is renamed `control-plane/internal/oidcauth` and gains a claims profile.** One
+package, two profiles (`keycloak`, `entra`), so a later direct-Entra issuer is configuration, not code.
+The rename is a `git mv` (history kept); a package named `entra` validating Keycloak tokens would mislead
+every reader. The IdP-neutral parts (RS256 only, alg refusal, size limits, exp/nbf skew, JWKS cache and
+refresh, `Middleware`, `ClaimsFrom`) are kept as they are.
+
+**Exported API change** (everything not listed is unchanged):
+
+```go
+package oidcauth
+
+type Profile string
+const (
+    ProfileKeycloak Profile = "keycloak"
+    ProfileEntra    Profile = "entra"
+)
+
+type Config struct {
+    Profile        Profile  // NEW, required; New refuses "". Callers default it from PANACEA_APP_OIDC_PROFILE.
+    Issuer         string   // NEW, keycloak: exact iss; JWKS at Issuer + "/protocol/openid-connect/certs".
+    AuthorityHost  string   // entra only, unchanged.
+    TenantIDs      []string // both: enrolled tids, GUIDs. keycloak: checked AFTER the signature.
+    Audience       string   // keycloak: a client-id string, aud must CONTAIN it. entra: GUID, unchanged.
+    RequiredScope  string   // keycloak: in `scope`. entra: in `scp`, unchanged.
+    AllowedClients []string // person clients (azp). keycloak: strings. entra: GUIDs, unchanged.
+    ServiceClients []string // NEW, keycloak only: azp values accepted with NO oid and NO tid (section 6).
+    ClockSkew time.Duration; AllowInsecureAuthority bool // now also permits a loopback http Issuer
+    HTTPClient *http.Client; Now func() time.Time
+}
+
+type Claims struct { // existing fields kept; NEW: Issuer, Subject string; Service bool
+    ... ; Issuer, Subject string; Service bool
+}
+func (c Claims) Key() string // person: "tid/oid" (unchanged). service: "client/" + ClientID.
+
+var ErrType = errors.New("oidcauth: typ is not Bearer") // NEW; keycloak profile only
+```
+
+**`keycloak` profile order:** size and alg -> signature against the issuer's JWKS -> exp/nbf -> `iss` equals
+`Issuer` -> `typ == "Bearer"` -> `aud` contains `Audience` -> `azp` in `AllowedClients` or `ServiceClients`
+-> `RequiredScope` in `scope` -> person: `oid` a GUID and `tid` a GUID in `TenantIDs`; service: `oid` and
+`tid` both absent, `Service = true`. `ErrVersion` is never returned under `keycloak`. `New` refuses:
+an empty `Profile`, a non-https `Issuer` (a loopback http one only with `AllowInsecureAuthority`),
+`ServiceClients` under `entra`, and a client id in both lists.
+
+**Tests that change:**
+- `entra_test.go`, `jwks_test.go`, `testkey_test.go`, `middleware_test.go` move with the package; every
+  `Config` literal in the existing suite gains `Profile: ProfileEntra`. Their assertions stay: the Entra
+  profile's behaviour is pinned exactly as task 16 built it.
+- `testkey_test.go` gains a Keycloak token builder (`iss`, `typ`, array `aud`, string `azp`, `scope`,
+  `oid`, `tid`, `roles`).
+- NEW `keycloak_test.go`, one row per rule: a good person token; wrong `iss`; `typ` `ID`; `aud` as string
+  and as array; `aud` missing; `azp` not allowed; person token with no `oid`; `tid` not enrolled
+  (`ErrTenant`), and a badly signed token with a foreign `tid` returns `ErrSignature` (order pinned);
+  `scope` without `RequiredScope`; a service token (Fleet) accepted with `Key() == "client/panacea-app-fleet"`;
+  a service token carrying `oid` refused; each `New` refusal above.
+- NEW cross-profile rows: a Keycloak token under `ProfileEntra` is refused, an Entra token under
+  `ProfileKeycloak` is refused (`ErrIssuer`).
+- `jwks_test.go` gains the `/protocol/openid-connect/certs` path row.
+
+**Who does it:** **env task 17** (`cmd/broker` authentication), as its **step 0, committed before any
+broker code**. It is the earliest unbuilt task in env's build order that touches the package (wave 2,
+`phase-8-own-environment.md:625-646`; 01, 14, 16 and 28 are built). The package lives on `feat/env`, so
+the rework stays there, one package, not two (HA-1).
+**Hub task 10** (lane B, first) then writes no validator: it takes env 17's step-0 commit of
+`internal/oidcauth` unchanged, through the orchestrator's merge, never a copy. Hub 10 therefore waits for
+env 17 step 0, and hub 13 (which waits for 10) inherits that wait.
+
+**`devissuer` emits the `keycloak` profile by default** (hub tasks 11-12, NOT BUILT, lane B): Keycloak
+paths (section 2), `iss = <base>/realms/panacea-app-dev`, `typ`, per-audience `aud` by requested scope,
+`azp`, `scope`, `oid`/`tid` from `dev-tenant.json`, `roles`, `email`; `offline_access` refresh tokens
+with narrowing `scope` on refresh; `kc_idp_hint` accepted and ignored; `login_hint` selects the dev user;
+a client-credentials grant for service clients (section 6). `-profile entra` keeps task 11's
+Entra-v2 shape for the entra-profile end-to-end row only. `RevokeRefreshTokens(oid)` and
+`RequireInteraction(oid)` (task 12) are unchanged in meaning.
+
