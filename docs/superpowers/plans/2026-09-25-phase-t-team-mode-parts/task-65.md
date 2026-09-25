@@ -592,6 +592,28 @@ mirror: "" }`; `templates/deployment.yaml` sets the two variables from them; the
 (`--set fleet.images.claudeCode=… --set fleet.images.mirror=…`), so Fleet's launch version and
 the warm pool's image come from one artefact, in one deploy.
 
+**The dry run and the run's result, for task 69's M5.** `images.yml` gains one runtime parameter,
+`dryRun` (boolean, default `false`). With it set, every gate runs (G3 is never `not-required`,
+because a dry run exists to exercise all four), `gate-live.sh` records the warm pool's image
+(`deploy/warm-balloon`'s first container, phase 8 task 12) as `pool-before` before G4 and
+`pool-after` after G3, and `publish-digests.sh` under `PUBLISH_DRY_RUN=1` does every check above
+but writes **only** `images/.out/publish/bump-result.json`, uploaded as artefact `bump-result`,
+never `image-digests`. Every run, dry or not, writes that file. Its shape, complete, is task 69's
+`BumpCheck` (`task-69.md:131-143`):
+
+```json
+{"ran":true,
+ "gates":[{"name":"od8-canary","passed":true},{"name":"panacea-channel","passed":true},
+          {"name":"gateway-compat","passed":true},{"name":"g9-corpus","passed":true}],
+ "promote":"acrpanaceaappdevk7q2.azurecr.io/panacea-app/sandbox@sha256:<64 hex>",
+ "dryRun":true,"poolBefore":"<ref>","poolAfter":"<ref>"}
+```
+
+`passed` is `result == "pass"`. The names map G1 → `od8-canary`, G2 → `panacea-channel`,
+G4 → `gateway-compat`, G3 → `g9-corpus`, listed **in the order they ran**: G4 before G3, the
+cheap gate first (gap 7). `promote` is the sandbox digest the publisher checked, so it is a digest
+by construction; a refused publish writes `"promote":""` and the failing gate's `passed: false`.
+
 - [ ] **Step 1: Write the tests, each with the mutant it kills**
 
 `pipelines/scripts/cli-bump_test.sh` and `lib/gate_test.sh` follow `secrets-pr_test.sh`'s shape
