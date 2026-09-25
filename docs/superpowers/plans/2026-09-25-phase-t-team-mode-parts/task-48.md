@@ -308,3 +308,57 @@ The first two are the scope paragraph's (`2026-09-25-phase-t-team-mode.md:939-94
   licence beyond Stakeholder or Basic as the org requires, and grant it *Read* on the one
   repository only (both portal steps from knowledge, **UNVERIFIED**).
 - [ ] **Step 8: Commit** each group with `git commit -F <msg> -- <paths>`.
+
+#### Acceptance
+
+```bash
+cd control-plane
+go test ./internal/remote/ -run 'TestPushWithTheFetchCredential' -count=1
+# ok  	github.com/kpmg-au-emu/panacea-app/control-plane/internal/remote	…
+go test ./internal/githost/ -run 'TestOpenPullRequestRefuses|TestGitHubApp|TestAWiderToken|TestFetchEnv|TestProveAccess' -count=1
+# ok  	…/internal/githost	…
+go test ./cmd/broker/ -run 'TestAFailedReproof|TestProofRoute|TestTheFetchRoute|TestTheAuditLine|TestNoSessionSandbox|TestBindingsValidate' -count=1
+# ok  	…/cmd/broker	…
+go test ./internal/api/ -run TestSigninSends -count=1 && go vet ./...
+cd .. && bash infra/scripts/guards.sh | tail -1      # guards: 11 of 11 passed (task 47's count)
+```
+
+The live half, a real installation token fetching one lane on the real environment while its
+owner is signed out and a push with it refused by our code, is **deferred to task 57**: it needs
+the GitHub App installed and an Azure DevOps grant, both owner actions (OD-12).
+
+#### What this task does not claim
+
+- **Not that the host enforces read-only as we read it.** That an installation token narrowed by
+  `repositories` and `permissions` cannot push is GitHub's documented behaviour as remembered, and
+  an Azure DevOps Read grant's scope is the org admin's setting; both are **UNVERIFIED** until
+  task 57's live push is refused by the host as well as by us.
+- **Not revocation within seconds.** A token already minted lives about an hour (GitHub's
+  installation-token life, from knowledge); a failed proof stops the *next* mint. A member whose
+  repository access is removed keeps fetch-only reach into her own clones until the next sign-in
+  or the proof TTL, which is the design's stated bound (`05-design.md:1061-1062`).
+- **Not fetching for solo projects.** A solo cloud project keeps phase 3's own path (the person
+  signed in). OD-22 is per team project.
+- **Not the Orchestrator reading `origin` itself.** An Orchestrator has no machine disk (task 15);
+  its view of `origin` is what the owner's machine last fetched, through task 22's read verbs.
+- **Not push or PR from the cloud.** Both stay human acts with the lane owner's own token, per act,
+  in memory only (phase 3 task 13; global rule 8).
+
+#### Gaps found in the skeleton
+
+1. **Where the timer runs.** The skeleton says the credential is "used only by `machined` runners
+   (phase 3 task 12's slow-timer fetch…)". `machined` serves routes and holds only the token the
+   broker presents (phase 8 `task-20.md:24`); it calls nobody. So the timer runs **in the broker**,
+   and `machined` runs the one git call. The fetch still executes on the machine, as the scope
+   intends; only the loop moves.
+2. **The audit sink.** "Every fetch audited to the project" has no Hub route in task 01's table;
+   this part uses the broker's own audit line to Log Analytics. If the owner wants fetches in the
+   Hub's chain, it is a new Hub route and task 45's stream carries it.
+3. **Per-project Azure DevOps identities** mean one user-assigned identity per team project in
+   Terraform, plus a manual Azure DevOps grant each; fine for TM1's one repository, not for many.
+   A provisioning service is not planned anywhere.
+4. **The sign-in hook.** Hub task 33 owns the desktop's sign-in completion; whether it exposes an
+   after-sign-in hook is **UNVERIFIED**. If not, the proof runs on the control plane's first team
+   read after a token refresh.
+5. **Leavers.** Task 44 should delete a leaver's proofs (`DELETE` of the annotation entry) so her
+   machine stops fetching at once rather than at the TTL; task 44's scope does not say so.
