@@ -264,3 +264,87 @@ The second `common.css` twin is task 29's addition to the reduced block (`task-2
 If a Work row (task 40) draws its own `::before`, the tick and it collide on one pseudo-element;
 task 40's part was not on the tree at this writing, so that is **UNVERIFIED**, and the fix would
 be task 40's (an `::after` or a child), because the tick is the floor.
+
+#### Tests to write first — `desktop/src/styles/designsystem.test.ts`, the four predicates
+
+Appended after task 31's predicates, reusing `rulesOf`, `splitTop`, `REDUCED_MOTION` and task
+31's `OLD_LOOK`:
+
+```ts
+const FORCED = /forced-colors:\s*active/;
+const TWIN = ':root[data-motion="reduce"]';
+/** CSS Color 4's system colours: legal only inside a forced-colours block. */
+const SYSTEM_COLOUR =
+  /(?<![\w-])(?:CanvasText|Canvas|Highlight|HighlightText|LinkText|VisitedText|ActiveText|ButtonFace|ButtonText|ButtonBorder|Field|FieldText|GrayText|Mark|MarkText|SelectedItem|SelectedItemText|AccentColor|AccentColorText)(?![\w-])/g;
+
+const parts = (selector: string): string[] => splitTop(selector, ",").map((s) => s.trim());
+const inForced = (r: Rule): boolean => r.within.some((at) => FORCED.test(at));
+
+/** Every selector whose box-shadow Chromium drops needs a forced-colours line that draws it
+ *  another way: a border, an outline, or an opt-out. Old-look and twin selectors are exempt:
+ *  the first is deleted at task 39, the second restates a rule that is itself checked. */
+function ringsWithoutForcedColours(t: Tree): string[] {
+  const all = t.css.flatMap((file) => rulesOf(t.read(file)).map((r) => ({ file, r })));
+  const redrawn = new Set(
+    all
+      .filter(({ r }) => inForced(r))
+      .filter(({ r }) => r.decls.some((d) => /^(?:border|outline|forced-color-adjust)/.test(d.property)))
+      .flatMap(({ r }) => parts(r.selector).map((p) => p.replace(/:not\(:focus-visible\)$/, ""))),
+  );
+  const offenders: string[] = [];
+  for (const { file, r } of all) {
+    if (inForced(r) || r.within.some((at) => at.startsWith("@keyframes"))) continue;
+    if (!r.decls.some((d) => d.property === "box-shadow" && d.value !== "none")) continue;
+    for (const p of parts(r.selector)) {
+      if (p.startsWith(OLD_LOOK) || p.startsWith(TWIN) || redrawn.has(p)) continue;
+      offenders.push(`${file}  ${p}  box-shadow with no forced-colors border, outline or opt-out`);
+    }
+  }
+  return offenders;
+}
+
+/** Each rule inside a reduced-motion media block has, in the same file, a top-level twin whose
+ *  every selector is prefixed with the attribute and whose declarations are identical. */
+function twinFaults(t: Tree): string[] {
+  const offenders: string[] = [];
+  for (const file of t.css) {
+    const rules = rulesOf(t.read(file));
+    for (const r of rules.filter((x) => x.within.some((at) => REDUCED_MOTION.test(at)))) {
+      const want = parts(r.selector).map((p) => `${TWIN} ${p}`).join(", ");
+      const twin = rules.find((x) => x.within.length === 0 && parts(x.selector).join(", ") === want);
+      if (twin === undefined) offenders.push(`${file}  ${r.selector}  has no ${TWIN} twin`);
+      else if (JSON.stringify(twin.decls) !== JSON.stringify(r.decls)) {
+        offenders.push(`${file}  ${r.selector}  twin declarations differ`);
+      }
+    }
+  }
+  return offenders;
+}
+
+/** A system colour outside a forced-colours block bypasses the palette in the normal look. */
+function systemColoursOutside(t: Tree): string[] {
+  const offenders: string[] = [];
+  for (const file of t.css) {
+    for (const r of rulesOf(t.read(file))) {
+      if (inForced(r)) continue;
+      for (const d of r.decls) {
+        for (const m of d.value.matchAll(SYSTEM_COLOUR)) offenders.push(`${file}  ${r.selector}  ${m[0]}`);
+      }
+    }
+  }
+  return offenders;
+}
+
+/** The forced-colours rules that declare `property: value` for exactly `selector`. */
+function forcedDecl(t: Tree, selector: string, property: string): string[] {
+  return t.css.flatMap((file) =>
+    rulesOf(t.read(file))
+      .filter((r) => inForced(r) && parts(r.selector).includes(selector))
+      .flatMap((r) => r.decls.filter((d) => d.property === property).map((d) => d.value)),
+  );
+}
+```
+
+`SYSTEM_COLOUR` is case-sensitive on purpose: CSS keywords are case-insensitive, but the tree
+writes them in this case, and a lowercase `canvas` is far likelier to be a word in a comment than a
+colour. `rulesOf` strips comments first (`designsystem.test.ts:116`), so comments never reach it.
