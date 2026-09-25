@@ -238,3 +238,88 @@ Start's session and worktree. Task 172 needs every one of them. They are written
 desktop needs them and **proposed to task 143** (gap G1); the golden test fails until task 143
 carries them, which is the signal the two parts disagree, exactly as task 125 did for
 `featurePins`.
+
+#### Interfaces — complete: `work.ts`, part 15: the admin records (never in the replica)
+
+```ts
+export type AppScope = "read" | "write";
+export interface AppManifest { scopes: AppScope[]; redirectUris: string[]; webhookUrl: string | null }
+export type AppState = "pending" | "approved" | "revoked";
+/** An Entra OAuth app that acts as a person (task 159). actsAs is the consenting person. */
+export interface App {
+  id: string;                  // oa-…
+  name: string; entraClientId: string; manifest: AppManifest;
+  actsAs: User | null;
+  state: AppState; decidedBy: User | null; decidedAt: string | null;
+}
+
+export type KeyScope = "personal" | "team";
+/** No field holds the secret (task 143's reflection test; decision 5). shown = first 8 chars. */
+export interface APIKey {
+  id: string;                  // ak-…
+  scope: KeyScope; ownerId: string; teamId: string | null;
+  name: string; shown: string;
+  createdAt: string; expiresAt: string;   // required, at most 365 days on
+  lastUsedAt: string | null; revokedAt: string | null; revokedBy: User | null;
+}
+/** Returned once by createAPIKey. Held by task 173's dialog in component state, nowhere else. */
+export interface CreatedAPIKey { key: APIKey; secret: string }
+/** Task 160's per-token headers, read as facts: used this hour, and the limit. */
+export interface RateReading { used: number; limit: number; resetsAt: string }
+
+export type WebhookState = "active" | "disabled";
+export interface Webhook {
+  id: string;                  // wh-…
+  teamId: string; projectId: string | null;
+  url: string;                 // https only (task 143's Validate)
+  kinds: string[];             // SW.5 kinds only
+  state: WebhookState; createdBy: User; secretVersion: number;
+}
+export interface CreatedWebhook { webhook: Webhook; secret: string }
+export type DeliveryStatus = "ok" | "failed" | "pending";
+export interface WebhookDelivery {
+  id: string;                  // wd-…
+  webhookId: string; eventSeq: string; attempt: number;
+  status: DeliveryStatus; responseCode: number | null;
+  at: string; nextAttemptAt: string | null;   // a scheduled retry time, not a forecast
+}
+
+export interface MCPConnector {
+  id: string;                  // mc-…
+  name: string; url: string; allowed: boolean; decidedBy: User; at: string;
+}
+
+export interface HarnessPin { name: string; versionPin: string | null }
+/** Order is the team's preference; "claude-code" first by default (task 166). */
+export interface HarnessAllow { teamId: string; harnesses: HarnessPin[] }
+/** source "library" pins ref to a 40-hex commit; "image" names the sandbox image digest. */
+export interface TeamSkill { teamId: string; name: string; source: "image" | "library"; ref: string }
+/** TM-14's policy route answer when task 173 publishes (UNVERIFIED until Phase T merges). */
+export interface PublishedPolicy { version: number; digest: string }
+```
+
+`App.actsAs` is not in task 143's scope; task 173 needs *"the person it acts as"* on each manifest
+(scope 173), so it is proposed to task 143 with G1. `RateReading` is not a wire record: task 160
+sends it as response headers, and `rateOf(res)` below reads them.
+
+#### Interfaces — complete: `work.ts`, part 16: request bodies
+
+```ts
+export interface AcceptRequestBody { title: string; description: AuthoredText; projectId: string }
+export interface LinkRequestBody { issueId: string }
+export interface PutIntakeRulesBody { rules: Omit<IntakeRule, "id" | "author" | "version">[]; version: number }
+export interface PutFormBody { name: string; fields: FormField[]; defaults: IntakeForm["defaults"] }
+export interface ConnectTrackerBody { projectId: string; target: TrackerTarget; mode: TrackerMode }
+export interface PutLoopBody extends Omit<Loop, "id" | "ownerId" | "author" | "at" | "version" | "state"> {
+  version: number | null;      // null creates; otherwise the version this edit was read at
+}
+export interface CreateAPIKeyBody { name: string; scope: KeyScope; teamId: string | null; expiresAt: string }
+export interface CreateWebhookBody { projectId: string | null; url: string; kinds: string[] }
+export interface DecideBody { decision: "approve" | "revoke" }
+export interface PutTeamSkillBody { name: string; source: TeamSkill["source"]; ref: string }
+```
+
+No body carries an idempotency field: every create and every *run now* goes through task 56's
+`keyed(op.id)` client, which sends `Idempotency-Key` on each attempt (`task-56.md:89-98`), so a
+double press is one op and one run. `AcceptRequestBody.description` is what the **person** typed,
+and an empty one is legal (task 170). The quote is never a field of it.
