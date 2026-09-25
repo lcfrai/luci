@@ -436,3 +436,120 @@ func (f *Fake) PutTeamPolicy(_ context.Context, teamID string, req hubapi.PutTea
 	return *p, nil
 }
 ```
+
+Block 3: relations (task 11: stored once, the other end reads the inverse word).
+
+```go
+func fkInverse(k hubapi.RelationKind) hubapi.RelationKind {
+	switch k {
+	case hubapi.RelationBlocks:
+		return fkRelationBlockedBy
+	case fkRelationBlockedBy:
+		return hubapi.RelationBlocks
+	case hubapi.RelationDuplicates:
+		return fkRelationDuplicatedBy
+	case fkRelationDuplicatedBy:
+		return hubapi.RelationDuplicates
+	}
+	return k // relates is its own inverse
+}
+
+// findRelation is the stored row for (kind, from, to); relates matches either way.
+func (w *fakeWorld) findRelation(kind hubapi.RelationKind, from, to string) int {
+	return slices.IndexFunc(w.soc().relations, func(r *fakeRelation) bool {
+		return r.kind == kind && (r.from == from && r.to == to ||
+			kind == hubapi.RelationRelates && r.from == to && r.to == from)
+	})
+}
+
+func (w *fakeWorld) relationEvent(me, kind string, is, other *fakeIssue, k hubapi.RelationKind) {
+	owner := other.assignee
+	if owner == me {
+		owner = ""
+	}
+	w.workEvent(me, kind, is.teamID, is.head.ProjectID, is.head.ID, map[string]any{
+		"kind": string(k), "otherIssueId": other.head.ID, "otherAssigneeId": owner})
+}
+
+func (f *Fake) AddRelation(_ context.Context, issueID string, req hubapi.RelationRequest) (hubapi.IssueHead, error) {
+	w := f.w
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	me, err := f.enter("AddRelation", issueID, req)
+	if err != nil {
+		return hubapi.IssueHead{}, err
+	}
+	is, role, err := w.issueOf(issueID, me)
+	if err != nil {
+		return hubapi.IssueHead{}, err
+	}
+	if err := need(role, hubapi.RoleMember); err != nil {
+		return hubapi.IssueHead{}, err
+	}
+	if err := w.erasedWrite(is); err != nil {
+		return hubapi.IssueHead{}, err
+	}
+	switch req.Kind {
+	case hubapi.RelationBlocks, hubapi.RelationDuplicates, hubapi.RelationRelates:
+	default:
+		return hubapi.IssueHead{}, badRequest("kind", "A relation is blocks, duplicates or relates.")
+	}
+	if req.IssueID == issueID {
+		return hubapi.IssueHead{}, badRequest("issueId", "An issue cannot relate to itself.")
+	}
+	other, _, err := w.issueOf(req.IssueID, me) // unreadable is the same 404, naming the other id
+	if err != nil {
+		return hubapi.IssueHead{}, err
+	}
+	if w.findRelation(req.Kind, issueID, other.head.ID) >= 0 {
+		return w.renderIssue(is), nil // a repeat: the same head, no event
+	}
+	if req.Kind != hubapi.RelationRelates && w.findRelation(req.Kind, other.head.ID, issueID) >= 0 {
+		return hubapi.IssueHead{}, problem(422, fkRelationCycle, "The other issue already points back at this one.",
+			"kind", string(req.Kind), "otherId", other.head.ID)
+	}
+	w.soc().relations = append(w.soc().relations, &fakeRelation{kind: req.Kind, from: issueID, to: other.head.ID})
+	is.head.Relations = append(is.head.Relations, hubapi.Relation{Kind: req.Kind, IssueID: other.head.ID})
+	other.head.Relations = append(other.head.Relations, hubapi.Relation{Kind: fkInverse(req.Kind), IssueID: issueID})
+	w.relationEvent(me, fkEventIssueRelated, is, other, req.Kind)
+	return w.renderIssue(is), nil
+}
+
+// RemoveRelation takes any of the five words from either end (task 11).
+func (f *Fake) RemoveRelation(_ context.Context, issueID string, kind hubapi.RelationKind, otherID string) (hubapi.IssueHead, error) {
+	w := f.w
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	me, err := f.enter("RemoveRelation", issueID, string(kind), otherID)
+	if err != nil {
+		return hubapi.IssueHead{}, err
+	}
+	is, role, err := w.issueOf(issueID, me)
+	if err != nil {
+		return hubapi.IssueHead{}, err
+	}
+	if err := need(role, hubapi.RoleMember); err != nil {
+		return hubapi.IssueHead{}, err
+	}
+	stored, from, to := kind, issueID, otherID
+	if kind == fkRelationBlockedBy || kind == fkRelationDuplicatedBy {
+		stored, from, to = fkInverse(kind), otherID, issueID
+	}
+	i := w.findRelation(stored, from, to)
+	if i < 0 {
+		return hubapi.IssueHead{}, problem(404, fkRelationNotFound, "There is no such relation.",
+			"kind", string(kind), "otherId", otherID)
+	}
+	r := w.soc().relations[i]
+	w.soc().relations = slices.Delete(w.soc().relations, i, i+1)
+	a, b := w.wk().issues[r.from], w.wk().issues[r.to]
+	a.head.Relations = slices.DeleteFunc(a.head.Relations, func(x hubapi.Relation) bool { return x.IssueID == r.to && x.Kind == r.kind })
+	b.head.Relations = slices.DeleteFunc(b.head.Relations, func(x hubapi.Relation) bool { return x.IssueID == r.from && x.Kind == fkInverse(r.kind) })
+	other := b
+	if b == is {
+		other = a
+	}
+	w.relationEvent(me, fkEventIssueUnrelated, is, other, r.kind)
+	return w.renderIssue(is), nil
+}
+```
