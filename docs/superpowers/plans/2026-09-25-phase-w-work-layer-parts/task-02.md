@@ -285,3 +285,106 @@ func ValidateIssueRevisionContent(c IssueRevisionContent) error {
 
 func validAuthor(a string) bool { return a == AuthorHuman || a == AuthorAgent }
 ```
+
+```go
+// kindIssueRevision is the issue revision's envelope kind (contract §3.6's
+// table gains this row through the W0 proposal's later ask; never "issue").
+const kindIssueRevision = "issue-revision"
+
+// IssueRevisionEnvelope is the canonical record of one issue revision. Its
+// bytes are what issue_revisions.canonical stores (task 06) and what the
+// digest covers. The head (state, priority, assignee, labels) is never in it.
+type IssueRevisionEnvelope struct {
+	IssueID   string // is-…
+	Revision  int    // ≥ 1
+	ProjectID string // pj-…
+	Content   IssueRevisionContent
+}
+
+func (e IssueRevisionEnvelope) check() error {
+	switch {
+	case !ValidID(PrefixIssue, e.IssueID):
+		return bad("issueId")
+	case e.Revision < 1:
+		return bad("revision")
+	case !ValidID(PrefixProject, e.ProjectID):
+		return bad("projectId")
+	}
+	return nil
+}
+
+// Canonical encodes {"v":1,"kind":"issue-revision","issueId",…,"content"}
+// with the Hub's one encoder. It validates content first, so no invalid
+// revision ever has bytes, and fails ErrEnvelopeTooLarge past MaxEnvelopeBytes.
+func (e IssueRevisionEnvelope) Canonical() ([]byte, error) {
+	if err := e.check(); err != nil {
+		return nil, err
+	}
+	if err := ValidateIssueRevisionContent(e.Content); err != nil {
+		return nil, under("content", err)
+	}
+	out, err := Canonical(map[string]any{
+		"v": 1, "kind": kindIssueRevision, "issueId": e.IssueID, "revision": e.Revision,
+		"projectId": e.ProjectID, "content": e.Content,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if len(out) > MaxEnvelopeBytes {
+		return nil, &FieldError{"content", ErrEnvelopeTooLarge}
+	}
+	return out, nil
+}
+
+// IssueRevisionDigest is DigestOf(e.Canonical()): the one function the Hub
+// writes with (task 09) and hubclient re-checks with (task 16).
+func IssueRevisionDigest(e IssueRevisionEnvelope) (Digest, []byte, error) {
+	c, err := e.Canonical()
+	if err != nil {
+		return Digest{}, nil, err
+	}
+	return DigestOf(c), c, nil
+}
+
+var issueRevisionKeys = []string{"v", "kind", "issueId", "revision", "projectId", "content"}
+
+// ParseIssueRevisionEnvelope reads stored canonical bytes back: how the Hub
+// serves content (by parsing C, never from a second copy) and how hubclient
+// re-checks a revision it received. It accepts exactly what Canonical writes:
+// the six members, v 1, the issue-revision kind, content with exactly the four
+// members, and bytes that are already canonical.
+func ParseIssueRevisionEnvelope(canonical []byte) (IssueRevisionEnvelope, error) {
+	m, err := readEnvelope(canonical, kindIssueRevision, issueRevisionKeys)
+	if err != nil {
+		return IssueRevisionEnvelope{}, err
+	}
+	var e IssueRevisionEnvelope
+	id, ok1 := m["issueId"].(string)
+	rev, ok2 := m["revision"].(int64)
+	pj, ok3 := m["projectId"].(string)
+	for i, ok := range []bool{ok1, ok2, ok3} {
+		if !ok {
+			return IssueRevisionEnvelope{}, bad(issueRevisionKeys[2+i])
+		}
+	}
+	e.IssueID, e.Revision, e.ProjectID = id, int(rev), pj
+	dec := json.NewDecoder(bytes.NewReader(encode(m["content"])))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&e.Content); err != nil {
+		return IssueRevisionEnvelope{}, bad("content")
+	}
+	again, err := e.Canonical()
+	if err != nil {
+		return IssueRevisionEnvelope{}, err
+	}
+	if !bytes.Equal(again, canonical) {
+		return IssueRevisionEnvelope{}, bad("") // parsed, but not as Canonical writes it
+	}
+	return e, nil
+}
+```
+
+`encode`, `readEnvelope`, `bad` and `under` are `hubapi`'s own unexported helpers
+(`canonical.go:183`, `envelope.go:234`, `:54`, `:57`), so this file needs no new plumbing. A
+content that decodes but was written with a missing list (`"serves":null`) fails inside
+`Canonical` as `content.serves`, never silently re-encoded as `[]`.
