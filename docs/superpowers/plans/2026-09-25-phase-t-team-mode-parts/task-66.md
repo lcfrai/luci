@@ -866,9 +866,16 @@ type QuotaView struct {
 	Currency  string        `json:"currency"`  // always "USD" (task 66 decision a)
 	CanEdit   bool          `json:"canEdit"`   // the viewer is a team admin; the Hub still decides
 	Revision  int           `json:"revision"`  // the team policy's, sent back on PUT
-	Ceiling   QuotaCeiling  `json:"ceiling"`
-	Project   ProjectQuota  `json:"project"`
-	Members   []MemberQuota `json:"members"` // an admin: every member; anyone else: themselves
+	Ceiling     QuotaCeiling  `json:"ceiling"`
+	MemberDaily MemberDaily   `json:"memberDaily"` // the one member quota of this project
+	Project     ProjectQuota  `json:"project"`
+	Members     []MemberQuota `json:"members"` // an admin: every member; anyone else: themselves
+}
+
+// MemberDaily is the project's member quota: one number for every member.
+type MemberDaily struct {
+	DailyCents    int64 `json:"dailyCents"`    // the team admin's quota
+	EnforcedCents int64 `json:"enforcedCents"` // min(quota, the org's member ceiling)
 }
 
 // QuotaCeiling is the org admin's (route 80), shown so an admin knows the bound.
@@ -929,7 +936,8 @@ name; counterparts by cost, descending, then name.
 
 **The `PUT`** reads route 74 once more, copies every field of the current policy into a
 `hubapi.PutTeamPolicyRequest` except the two quotas, and sends it to route 75 with the body's
-`revision`. The Hub's answer is relayed unchanged: 422 with `reason: "above_org_ceiling"` and
+`revision`. On success it answers `200` with a freshly composed `QuotaView`. A refusal is relayed
+unchanged: 422 with `reason: "above_org_ceiling"` and
 `ceilingCents`, 409 `conflict` on a stale revision, 403 for a non-admin. The local control plane
 checks nothing the Hub checks (`task-52.md:42-43`). A solo project answers `GET` with an empty,
 `team: false` body and `PUT` with `409 not_team_project`, task 52's rule (`task-52.md:618-619`).
