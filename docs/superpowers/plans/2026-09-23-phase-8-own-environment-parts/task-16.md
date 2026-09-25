@@ -1,5 +1,14 @@
 ### Task 16: `internal/entra` — one Entra access-token validator for the broker and the Hub
 
+> **Superseded in part by OD-30 (2026-09-25).** This task is **BUILT** as written (commits `669204b`,
+> `9096ead`, `002fcaa`, `2687a06`, `09ddbdb`, `1772f25`) and this part is kept as the record of what was
+> built. Users now sign in through a Keycloak realm brokering Entra, and every Entra-only rule below
+> (tenant first, `ver`, `iss .../<tid>/v2.0`, GUID `aud`/`azp`, `scp`, the `/discovery/v2.0/keys` path)
+> refuses every realm token. The rework, the rename to `control-plane/internal/oidcauth` with a
+> `keycloak` and an `entra` claims profile, is **task 17 step 0** (`task-17.md`, "Step 0"), committed
+> before any broker code. This part's behaviour survives unchanged as the `entra` profile. Ruling:
+> `docs/superpowers/planning/2026-09-25-identity-keycloak-broker.md` §5.
+
 The broker must know **who** is calling before it creates a pod (P8-D4), and ADR-H1 made this
 package the Hub's validator too: the Hub is a second binary in the control-plane module and
 "`control-plane/cmd/broker` imports `control-plane/internal/entra` … HA-1 … is satisfied by
