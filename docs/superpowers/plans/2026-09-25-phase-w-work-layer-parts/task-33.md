@@ -902,3 +902,25 @@ npm --prefix desktop run build && grep -rl "ss-deutan\|ss-stage\|registerStressS
 - **macOS WKWebView** (no build exists, **UNVERIFIED**), and the high-contrast theme pair (W2).
 - Design: 05 §4.4 C12, §5.3 row 8; 02 C12; 07 D C4, D I8. Parity: no 01 row; 02 A10 point 8,
   the quality habit.
+
+**Interfaces:**
+- Produces: `StressSet`, `STRESS_SETS`, `CONDITION_SETS`, `StressScreen`,
+  `registerStressScreen(name, render, sets?)`, `stressScreens(set)` in
+  `components/devtools/stressRegistry.ts`; `StressSets()`, `DEUTERANOPIA_MATRIX`, `SET_LABEL`,
+  `SET_NOTE`, `NO_SCREEN` in `StressSets.tsx`; `GlyphSheet`, `SHEET_ROWS`, `SIZES`;
+  `DevelopStates`, `DEVELOP_STATES`, `FLOOR_STATES`, `FloorState`, `NOT_DESIGNED`
+- Produces in `flags.ts`: `Motion`, `Vision`, and the attributes `data-motion="reduce"` and
+  `data-vision="deuteranopia"` on `<html>`, each absent at its default
+- Produces for task 34: `data-motion="reduce"`, the hook every reduced-motion twin keys on, and
+  the forced-colours screen that task 34's layer is looked at through
+- Produces for task 35: `screens/index.ts`, where `import "./grain";` goes, and the stage the
+  grain meter renders on
+- Produces for tasks 38-48 and 62: the rule that a surface registers from its own file under
+  `components/devtools/screens/`, with the sets it belongs to; the load set waits for them
+- Consumes: task 32's `DevToolbar`, `.dt-group`, `.dt-legend`, `.dt-option`, `.dt-reset`,
+  `setFlag`, `resetFlags`; task 28's `StateGlyph`, `GlyphKey`, `STATE_PATHS`, `NOTCH_TIP`,
+  `GlyphSize`; task 29's `AgentGlyph`, `MarkGlyph`, `AGENT_PATHS`, `MARK_PATHS`; task 31's
+  `ViewHeader`; the built `StatusDot` (`common/StatusDot.tsx:31-35`, verified), the pane classes
+  (`develop.css:25-293`, verified), `--page`, `--surface`, `--ink*`, `--e-hair` (verified);
+  task 26's `--t-ui`, `--t-fact` and their `-lh`, `--s-1` … `--s-5`, `--row-h`
+- Amends: nothing in the Hub. No wire shape changes.
