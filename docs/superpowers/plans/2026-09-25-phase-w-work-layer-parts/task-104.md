@@ -148,9 +148,16 @@ func RecordProposal(ctx context.Context, s Store, l Linker, in ProposalRecord) (
 		return Record{}, false, err
 	}
 	for _, r := range prior {
-		if r.Commit == in.Commit && r.CriterionID == p.CriterionID {
-			return r, in.Proposal.RecordedAs == r.ID, ErrAlreadySettled
+		if r.Commit != in.Commit || r.CriterionID != p.CriterionID {
+			continue
 		}
+		linked = in.Proposal.RecordedAs == r.ID
+		// Link again (the row's retry): the person's own unlinked record is linked, never re-written.
+		if !linked && s.Shared() && r.RecordedBy == in.Identity {
+			_, lerr := l.LinkEvidenceProposal(ctx, in.Proposal.ID, r.ID)
+			linked = lerr == nil
+		}
+		return r, linked, ErrAlreadySettled
 	}
 	rec, err = s.Record(ctx, Record{Repo: in.Repo, ProjectID: in.ProjectID, BriefKey: p.BriefKey,
 		CriterionID: p.CriterionID, CriterionDigest: in.CriterionDigest, Commit: in.Commit,
@@ -373,3 +380,363 @@ export interface ProposalView {
 //   recordEvidence answers { record: EvidenceRecord; linked: boolean } when proposalId is set.
 listEvidenceProposals(projectId: ProjectId, q: { issueId: string } | { briefKey: string }): Promise<ProposalView[]>;
 ```
+
+#### Interfaces — complete: `desktop/src/components/issue/ProposedEvidence.tsx`
+
+```tsx
+// The status is the control plane's (proposals.go), never computed here. The because is an
+// agent's words and always carries the text·A mark. No terminal, PTY or transcript import (OD-8).
+import { useCallback, useEffect, useState, type JSX } from "react";
+import { api } from "../../api";
+import type { ProposalView } from "../../api/work";
+import { AuthorClass } from "./AuthorClass";
+
+export type ProposalQuery = { issueId: string } | { briefKey: string };
+const short = (sha: string): string => sha.slice(0, 7);
+const shortId = (id: string): string => `${id.slice(0, 6)}…`; // c-40aa17c3 → "c-40aa…"
+
+/** One read per surface, again whenever `stamp` changes (the replica's cursor for the issue, or
+ *  the Merge lens's poller tick). A failed read keeps the last answer and sets `down`. */
+export function useProposals(projectId: string, q: ProposalQuery, stamp: unknown):
+  { views: ProposalView[]; down: boolean; reload(): void } {
+  const [views, setViews] = useState<ProposalView[]>([]);
+  const [down, setDown] = useState(false);
+  const key = "issueId" in q ? `i:${q.issueId}` : `b:${q.briefKey}`;
+  const reload = useCallback(() => {
+    api.listEvidenceProposals(projectId, q).then((v) => { setViews(v); setDown(false); }, () => setDown(true));
+  }, [projectId, key]); // eslint-disable-line react-hooks/exhaustive-deps -- q is keyed by `key`
+  useEffect(reload, [reload, stamp]);
+  return { views, down, reload };
+}
+
+/** Under its own criterion and nowhere else; an erased proposal is not shown. */
+export function proposalsFor(views: ProposalView[], criterionId: string): ProposalView[] {
+  return views.filter((v) => v.proposal.proposal.criterionId === criterionId && v.proposal.erasedAt === null);
+}
+
+function StatusPart(props: { v: ProposalView; onRecord(): void; onLinkAgain(): void }): JSX.Element {
+  const { v } = props;
+  const ev = <span className="iv-fact" data-evidence={v.evidenceId}>{v.evidenceId}</span>;
+  switch (v.status) {
+    case "open": return <button type="button" className="pe-record" onClick={props.onRecord}>Record</button>;
+    case "observed": return <span className="pe-status">observed · {ev}</span>;
+    case "criterion_gone": return <span className="pe-status">this criterion is no longer in the brief</span>;
+    case "recorded":
+      if (!v.shared) return <span className="pe-status">recorded on this machine only · {ev}</span>;
+      if (v.linked) return <span className="pe-status">recorded as {ev}</span>;
+      return (
+        <span className="pe-status">recorded as {ev} · not yet linked on the Hub{" "}
+          <button type="button" className="iv-link" onClick={props.onLinkAgain}>Link again</button></span>
+      );
+  }
+}
+
+export function ProposedEvidence(props: {
+  views: ProposalView[]; criterionId: string; onRecord(v: ProposalView): void; onLinkAgain(v: ProposalView): void;
+}): JSX.Element | null {
+  const rows = proposalsFor(props.views, props.criterionId);
+  if (rows.length === 0) return null;
+  return (
+    <ul className="pe" aria-label={`Proposed evidence for ${props.criterionId}`}>
+      {rows.map((v) => {
+        const p = v.proposal.proposal, a = v.proposal.attribution;
+        return (
+          <li key={v.proposal.id} className="pe-row" data-status={v.status} data-proposal={v.proposal.id}>
+            <span className="pe-lead">proposed evidence</span>{" "}
+            <span className="iv-fact">{shortId(p.criterionId)}</span> at{" "}
+            <span className="iv-fact">{short(p.commit)}</span> ·{" "}
+            <span className="iv-fact">{p.artefact.kind} {p.artefact.ref}</span> ·{" "}
+            <q className="pe-because"><AuthorClass author="A" />{p.because}</q>{" "}
+            <span className="iv-fact pe-by">{a.agentId} · {a.model}</span>{" "}
+            <StatusPart v={v} onRecord={() => props.onRecord(v)} onLinkAgain={() => props.onLinkAgain(v)} />
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+```
+
+The row is 05 §2.1's sketch, `▸ proposed evidence c-40aa… at 7c1f0a2 · "…" [Record]`, with the
+artefact and the agent's byline added as facts. *Link again* re-sends the record body with
+`proposalId`: the control plane answers `already_settled` with the same id and then links, so a
+retry never writes a second record. Every id, sha, model and artefact is Commit Mono at
+`--t-fact` (`.iv-fact`, task 46); the `.pe*` rules are appended to `issue.css` and add no motion.
+
+#### Interfaces — complete: the edits to phase 3's `EvidenceDialog.tsx` and `LaneCard.tsx`
+
+```tsx
+// EvidenceDialog.tsx — the props become a union; phase 3's own call sites are unchanged.
+export interface ProposalSeed { id: string; commit: string; because: string }
+type Base = { briefKey: string; criterion: { id: string; digest: string; text: string };
+  onClose(): void; onRecorded(): void; projectId?: string };
+export type EvidenceDialogProps =
+  | (Base & { conv: Convergence; proposal?: undefined })   // phase 3's, as task 20 wrote it
+  | (Base & { conv?: Convergence; proposal: ProposalSeed; projectId: string });
+export function EvidenceDialog(props: EvidenceDialogProps): JSX.Element;
+
+// With `proposal` set, three things differ and nothing else does:
+//  1. the commit is proposal.commit, shown in mono as "at 7c1f0a2, the commit the agent named";
+//     phase 3's head/worktree chooser is not rendered;
+//  2. Because starts as proposal.because with <AuthorClass author="A"/> beside the field; the
+//     first edit removes the mark (`edited` state) and the field is never re-filled;
+//  3. Record sends api.recordEvidence(projectId, {…phase 3's input, commit: proposal.commit,
+//     proposalId: proposal.id}); a 409 already_settled calls onRecorded() (the row re-reads and
+//     reads recorded), and proposal_mismatch shows the control plane's message verbatim.
+// The Record button's rule is phase 3's, unchanged: disabled until the trimmed because has
+// 1-2000 characters (task-20.md:118, :143).
+```
+
+```tsx
+// LaneCard.tsx — where phase 3 task 19's DoDSlot mounts DefinitionOfDone (read on the sync base;
+// UNVERIFIED until merge). One read per card, re-read on the poller's good tick (task 18's
+// onGoodTick subscription), and one dialog at a time.
+const { views, reload } = useProposals(project.id, { briefKey }, tick);
+const [seed, setSeed] = useState<{ v: ProposalView; c: { id: string; digest: string; text: string } } | null>(null);
+<DefinitionOfDone ref={ref}
+  onRecordEvidence={phase3OnRecordEvidence}                       // S4-P3.3, unchanged
+  criterionFooter={(id) => (
+    <ProposedEvidence views={views} criterionId={id}
+      onRecord={(v) => setSeed({ v, c: criterionOf(ref, id) })}
+      onLinkAgain={(v) => void api.recordEvidence(project.id, relinkBody(v, criterionOf(ref, id))).finally(reload)} />
+  )} />
+{seed && <EvidenceDialog projectId={project.id} briefKey={briefKey} criterion={seed.c}
+  proposal={{ id: seed.v.proposal.id, commit: seed.v.proposal.proposal.commit, because: seed.v.proposal.proposal.because }}
+  onClose={() => setSeed(null)} onRecorded={() => { setSeed(null); reload(); }} />}
+```
+
+`criterionOf(ref, id)` reads the criterion's `{id, digest, text}` from the `Ref` the card already
+holds (phase 4's `RefCriterion`); `relinkBody` is the proposal's criterion, commit and the
+because as last sent, with `proposalId`. Neither is new state.
+
+#### Interfaces — complete: phase 4's `DefinitionOfDone.tsx` and task 47's `Serves.tsx`
+
+```tsx
+// DefinitionOfDone.tsx — one added optional prop (an ask to phase 4 beside S4-P3.3). It renders
+// under each criterion's row, after the state word, inside that criterion's <li>. Absent → the
+// component renders byte for byte as phase 4 task 17 left it (its snapshot test holds that).
+criterionFooter?: (criterionId: string) => ReactNode;
+```
+
+```tsx
+// Serves.tsx — ServeRow gains two props from Serves, which reads once per issue:
+//   const { views, reload } = useProposals(localProjectId, { issueId }, cursor);
+// `cursor` is the replica's per-issue event cursor (SW.16; its field is read on the sync base,
+// gap 3) and `localProjectId` the local project bound to the issue's Hub project (task 24's
+// binding). With no bound project the rows show and Record reads "clone this project on this
+// machine to record evidence" as a fact, not a disabled button with no reason.
+<ProposedEvidence views={views} criterionId={serve.criterionId}
+  onRecord={(v) => openDialog(v, c)} onLinkAgain={(v) => relink(v, c).finally(reload)} />
+```
+
+The issue view opens the same `EvidenceDialog` with `proposal` set and no `conv`: the dialog is
+phase 3's one Record, reached from two places, and never a second form.
+
+#### Tests to write first — `desktop/src/components/issue/ProposedEvidence.test.tsx`
+
+```tsx
+import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import type { ProposalView } from "../../api/work";
+import { expectNoPrediction } from "../../test/expectNoPrediction";
+import { BRIEF_KEY, WORK_IDS } from "../../test/workFixtures";
+import { ProposedEvidence } from "./ProposedEvidence";
+import src from "./ProposedEvidence.tsx?raw";
+
+const TIP = "7c1f0a2e5b9d4c3a2f1e0d9c8b7a6f5e4d3c2b1a";
+const view = (over: Partial<ProposalView> = {}, criterionId: string = WORK_IDS.criterionUpload): ProposalView => ({
+  status: "open", linked: false, shared: true,
+  proposal: { id: "ic-00000000000000p1", issueId: WORK_IDS.ep142, kind: "evidence_proposal", recordedAs: null,
+    createdAt: "2026-09-25T01:00:00Z", erasedAt: null,
+    attribution: { ownerId: WORK_IDS.dylan, agentId: "ag-0000000000000002", model: "model-x", sessionId: "se-9" },
+    proposal: { briefKey: BRIEF_KEY, criterionId, issueId: WORK_IDS.ep142, commit: TIP,
+      artefact: { kind: "test_run", ref: "pytest -q tests/upload" }, because: "upload tests pass at this commit" } },
+  ...over,
+});
+const noop = (): void => undefined;
+
+describe("ProposedEvidence", () => {
+  it("shows a proposal under its own criterion and nowhere else", () => {
+    const views = [view(), view({}, WORK_IDS.criterionResume)];
+    const { container } = render(<ProposedEvidence views={views} criterionId={WORK_IDS.criterionUpload} onRecord={noop} onLinkAgain={noop} />);
+    expect(container.querySelectorAll(".pe-row")).toHaveLength(1);
+    expect(container.textContent).toContain("c-40aa…");
+    expect(container.textContent).not.toContain("c-91e2");
+  });
+  it("marks the because as an agent's words and names the agent and model", () => {
+    const { container } = render(<ProposedEvidence views={[view()]} criterionId={WORK_IDS.criterionUpload} onRecord={noop} onLinkAgain={noop} />);
+    expect(container.querySelector(".pe-because [data-author='A']")).not.toBeNull();
+    expect(container.textContent).toContain("ag-0000000000000002 · model-x");
+    expect(container.textContent).toContain("7c1f0a2");
+  });
+  it("offers Record only while open, and hands the proposal to the caller", () => {
+    const onRecord = vi.fn();
+    render(<ProposedEvidence views={[view()]} criterionId={WORK_IDS.criterionUpload} onRecord={onRecord} onLinkAgain={noop} />);
+    fireEvent.click(screen.getByRole("button", { name: "Record" }));
+    expect(onRecord.mock.calls[0][0].proposal.id).toBe("ic-00000000000000p1");
+  });
+  it("after Record names the evidence and offers no second Record", () => {
+    const v = view({ status: "recorded", evidenceId: "ev-00000000000a", linked: true });
+    const { container } = render(<ProposedEvidence views={[v]} criterionId={WORK_IDS.criterionUpload} onRecord={noop} onLinkAgain={noop} />);
+    expect(screen.queryByRole("button", { name: "Record" })).toBeNull();
+    expect(container.querySelector("[data-evidence='ev-00000000000a']")).not.toBeNull();
+  });
+  it("reads observed evidence as observed, with no Record", () => {
+    render(<ProposedEvidence views={[view({ status: "observed", evidenceId: "ev-obs" })]} criterionId={WORK_IDS.criterionUpload} onRecord={noop} onLinkAgain={noop} />);
+    expect(screen.getByText(/observed/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Record" })).toBeNull();
+  });
+  it("an unlinked record offers Link again, never Record", () => {
+    render(<ProposedEvidence views={[view({ status: "recorded", evidenceId: "ev-1", linked: false })]} criterionId={WORK_IDS.criterionUpload} onRecord={noop} onLinkAgain={noop} />);
+    expect(screen.getByRole("button", { name: "Link again" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Record" })).toBeNull();
+  });
+  it("predicts nothing, and reads nothing from a terminal", () => {
+    const { container } = render(<ProposedEvidence views={[view(), view({ status: "observed", evidenceId: "ev-2" })]} criterionId={WORK_IDS.criterionUpload} onRecord={noop} onLinkAgain={noop} />);
+    expectNoPrediction(container);
+    expect(src).not.toMatch(/attachRegistry|xterm|Terminal|transcript|setInterval|setTimeout/);
+  });
+});
+```
+
+| Test | Mutant it kills |
+|---|---|
+| under its own criterion | "grouped by issue": every proposal on the issue drawn under each criterion |
+| the because as an agent's words | agent text unlabelled (§2.1 point 3); model or agent dropped (L-173) |
+| Record only while open | Record wired to nothing, or to a different proposal |
+| no second Record | "double record" |
+| observed, with no Record | "observed evidence needs a click" (§2.1 point 4) |
+| Link again, never Record | a link failure that re-offers Record |
+| predicts nothing | an "N of M criteria proposed" line (`OD-27`); PTY-derived meaning (`OD-8`) |
+
+#### Tests to write first — `desktop/src/components/lens/merge/EvidenceDialog.proposal.test.tsx`
+
+```tsx
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { api } from "../../../api";
+import { DefinitionOfDone } from "../../../provenance/DefinitionOfDone";
+import { aRef } from "../../../provenance/testRefs";        // phase 4 task 17's fixture; name read on the sync base
+import { expectNoPrediction } from "../../../test/expectNoPrediction";
+import { BRIEF_KEY, WORK_IDS } from "../../../test/workFixtures";
+import { EvidenceDialog } from "./EvidenceDialog";
+
+const TIP = "7c1f0a2e5b9d4c3a2f1e0d9c8b7a6f5e4d3c2b1a";
+const crit = { id: WORK_IDS.criterionUpload, digest: "sha256:40", text: "an upload survives a restart" };
+const seed = { id: "ic-00000000000000p1", commit: TIP, because: "upload tests pass at this commit" };
+const open = (onRecorded = vi.fn()) => render(<EvidenceDialog projectId="p1" briefKey={BRIEF_KEY}
+  criterion={crit} proposal={seed} onClose={vi.fn()} onRecorded={onRecorded} />);
+beforeEach(() => vi.restoreAllMocks());
+
+describe("EvidenceDialog with a proposal", () => {
+  it("records as the person at the proposal's commit, carrying proposalId and no agent field", async () => {
+    const rec = vi.spyOn(api, "recordEvidence").mockResolvedValue({ record: { id: "ev-1" }, linked: true } as never);
+    open();
+    fireEvent.click(screen.getByRole("button", { name: "Record" }));
+    await waitFor(() => expect(rec).toHaveBeenCalledOnce());
+    const body = rec.mock.calls[0][1] as unknown as Record<string, unknown>;
+    expect(body).toMatchObject({ commit: TIP, proposalId: seed.id, criterionId: crit.id });
+    expect(Object.keys(body)).not.toEqual(expect.arrayContaining(["agentId"]));
+    expect(JSON.stringify(body)).not.toMatch(/ag-|sessionId|onBehalfOf|via/);
+  });
+  it("refuses an empty because", () => {
+    open();
+    fireEvent.change(screen.getByLabelText("Because"), { target: { value: "   " } });
+    expect((screen.getByRole("button", { name: "Record" }) as HTMLButtonElement).disabled).toBe(true);
+  });
+  it("marks the prefilled because as the agent's until the person edits it", () => {
+    const { container } = open();
+    expect(container.querySelector("[data-author='A']")).not.toBeNull();
+    fireEvent.change(screen.getByLabelText("Because"), { target: { value: "I ran it myself" } });
+    expect(container.querySelector("[data-author='A']")).toBeNull();
+  });
+  it("offers no commit chooser: the commit is the one the agent named", () => {
+    open();
+    expect(screen.queryByRole("radio")).toBeNull();
+    expect(screen.getByText(/7c1f0a2/)).toBeTruthy();
+  });
+  it("leaves the criterion's word unchanged while a proposal waits", () => {
+    const ref = aRef({ criteria: [crit], criterionStates: [{ criterionId: crit.id, state: "open" }] });
+    const { container } = render(<DefinitionOfDone ref={ref} criterionFooter={() => <span>proposed evidence</span>} />);
+    expect(container.querySelector(`[data-criterion='${crit.id}'] [data-state]`)?.getAttribute("data-state")).toBe("open");
+    expectNoPrediction(container);
+  });
+});
+```
+
+| Test | Mutant it kills |
+|---|---|
+| records as the person | "recorded as the agent": the agent's attribution in the body, or Record sent through a delegated path |
+| refuses an empty because | "reason optional" (phase 3's `3-D5`) |
+| marks the prefilled because | an agent's words shown as the person's before the person has touched them |
+| no commit chooser | a proposal recorded at the branch head the agent never named |
+| the criterion's word unchanged | "a proposal settles" (§2.1 point 4) |
+
+#### Steps
+
+- [ ] **Step 1: read on the sync base** phase 3's `internal/evidence` (task 15's `Store`, task
+  23's `Observed`, `IssueID`), its evidence route file and `EvidenceDialog.tsx`/`LaneCard.tsx`/
+  `DoDSlot`, phase 4's `DefinitionOfDone.tsx` and its test fixtures, task 99's `hubapi` proposal
+  names and task 100's link route. Rename in this part's files only; a missing seam waits (H2).
+- [ ] **Step 2: the Go tests**; `go test ./control-plane/internal/evidence/... -race -count=1`
+  fails on the missing symbols.
+- [ ] **Step 3: `proposals.go`**, then the route, its three tests and the catalog row.
+- [ ] **Step 4: the desktop tests**; `npm --prefix desktop test -- ProposedEvidence EvidenceDialog`
+  fails on the missing module and props.
+- [ ] **Step 5: `work.ts`/`client.ts` appends, `ProposedEvidence.tsx`, the `EvidenceDialog`,
+  `DefinitionOfDone`, `LaneCard` and `Serves` edits**, and the `.pe*` rules in `issue.css`.
+- [ ] **Step 6: the acceptance commands.** Commit by path after steps 3 and 5, each message ending
+  with the `Co-Authored-By` line.
+
+#### Acceptance
+
+```bash
+go test ./control-plane/internal/evidence/... ./control-plane/internal/api/... -race -count=1
+# expect: ok for both; proposals_test.go runs 9 tests, evidence_test.go gains 3 rows
+npm --prefix desktop test -- ProposedEvidence EvidenceDialog DefinitionOfDone issue/Serves
+# expect: every file passes; this part adds 2 files and 12 tests (ProposedEvidence 7, dialog 5);
+#   phase 3's EvidenceDialog.test.tsx and phase 4's DefinitionOfDone tests stay green unchanged
+npm --prefix desktop run typecheck
+# expect: exit 0
+grep -rnE "attachRegistry|xterm|transcript" desktop/src/components/issue/ProposedEvidence.tsx | wc -l
+# expect: 0
+```
+
+Visual acceptance is the owner's eyes.
+
+#### What this task does NOT claim
+
+- That people press *Record* with judgement rather than by habit (05 §2.1 *Unproven*); AX §7's
+  calibration record is the later check. Recording the prefilled because unchanged is allowed.
+- That an agent's proposal is correct, or that its artefact still exists: the row shows the
+  agent's claim as `text·A`, and the person decides.
+- Browser testing inside the sandbox as a kind of observed evidence: it stays *later*, and
+  **UNVERIFIED** on Kata.
+- That phase 3's dialog, lane card and evidence routes, or phase 4's `DefinitionOfDone`, have the
+  paths and names used here: all are **UNVERIFIED until merge** (rule H2), and step 1 re-reads them.
+- That the Hub's link route exists or refuses a link to another person's record: task 99's method
+  list has no link method (gap 2).
+- Recording from the cloud: with no local project bound to the issue's Hub project, the row says so
+  and records nothing (the team-mode path through Fleet is not this task's).
+
+**Parity.** Closes the W3 half of **L-166** (with task 101's `panacea evidence propose`).
+
+#### Gaps found while writing this part
+
+1. **No W3 desktop wire task.** The file map gives `desktop/src/api/work.ts` to tasks 37, 83, 125
+   and 169 (W1, W2, W4, W5) and none to W3, so SW.19's desktop types have no owner; this part
+   appends the proposal types, and tasks 102, 103, 106 and 107 need the rest. The skeleton should
+   add a W3 desktop wire row (or give it to task 100).
+2. **Task 99's method list has no link from a proposal to its record.** `recordedAs` needs
+   `LinkEvidenceProposal(proposalId, evidenceId)`, checked on the Hub (the evidence exists, same
+   criterion and commit, recorded by the caller); tasks 99 and 100 should add it, with a matrix row.
+3. **SW.16 names no per-issue event cursor**, which a surface needs to re-read data the replica
+   does not hold (comments, proposals). Tasks 55-58 should expose one; until then the issue view
+   re-reads on mount only.
+4. **Phase 4's `DefinitionOfDone` has no per-criterion slot.** `criterionFooter?` is an ask to
+   phase 4 beside S4-P3.3; until it lands the fallback of phase 3 task 20 (`task-20.md:112-115`)
+   is used.
+5. **The skeleton's delta row for the Merge lens (`:284`) says "paths UNVERIFIED"**, but phase 3's
+   plan does name them (`:558-559`, `components/lens/merge/*`); the row can cite them.
+6. **The local-to-Hub project binding** this part reads (task 24's) has no named desktop selector;
+   task 37 or 61 should export one.
