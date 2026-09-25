@@ -338,24 +338,32 @@ driver here would run it beside all of that. Phase 3 closes this for the laptop'
    `409 lane_not_creating`, and Create's failure path removes the directory, which needs no
    entry. After an entry closes, `machined` never runs git in that path again (R4.5).
 3. **An explicit `Env` allowlist, derived from phase 3's call sites.** Every `Call.Env` phase 3
-   writes, found by grepping its parts for `Env`, `GIT_AUTHOR`, `GIT_COMMITTER` and
-   `commit-tree` at phase-3 `e816a59` (2026-09-24): task 08's `forecastCommit` (identity and a
-   fixed `DATE`, phase-3 `task-08.md:55-57`, because `commit-tree` has no date flag); task 09's
-   land step 11 and its sync merge (`task-09.md:97`, `:206`) and task 10's revert
-   (`task-10.md:89`), each a `commit-tree` with the user's identity in `GIT_AUTHOR_*` /
-   `GIT_COMMITTER_*`; and task 12's `remote.Auth.Env`, which task 13's `PushEnv` fills
-   (`task-12.md:34-37`, `task-13.md:168-174`, `:190`). Task 02's Exec adds its own headless
+   writes, found by grepping its parts for `Env`, `GIT_CONFIG`, `GIT_AUTHOR`, `GIT_COMMITTER` and
+   `commit-tree` at phase-3 `94f954d` (2026-09-26; the grep at `e816a59` had no `GIT_CONFIG`
+   and missed task 24, seams review 1 I1): task 08's `forecastCommit` (identity and a
+   fixed `DATE`, phase-3 `task-08.md:83-85`, because `commit-tree` has no date flag); task 09's
+   land step 11 and its sync merge (`task-09.md:121`, `:366`) and task 10's revert
+   (`task-10.md:132`), each a `commit-tree` with the user's identity in `GIT_AUTHOR_*` /
+   `GIT_COMMITTER_*`; task 12's `remote.Auth.Env`, which task 13's `PushEnv` fills
+   (`task-12.md:34-37`, `task-13.md:168-174`, `:190`); task 03's `NoFilterEnv` on the lane
+   clone (`task-03.md:220-226`); and task 24's `FetchLane`/`ArchiveLane` step 5 fetch, which
+   sets `transfer.fsckObjects=true` as `GIT_CONFIG_COUNT=1`, `KEY_0`, `VALUE_0`
+   (`task-24.md:860-862`). Task 02's Exec adds its own headless
    defaults (`GIT_TERMINAL_PROMPT=0`, `GCM_INTERACTIVE=never`, `GIT_PAGER=cat`,
-   `GIT_EDITOR=false`, and `GIT_OPTIONAL_LOCKS=0` on a Read, `task-02.md:150-154`) inside
+   `GIT_EDITOR=false`, and `GIT_OPTIONAL_LOCKS=0` on a Read, `task-02.md:188-190`) inside
    `machined`, so none of them needs to cross the wire. Task 05's `sessionEnv` is the sandbox's
    environment, not a `Call.Env`, and never reaches this route. So only these keys are admitted:
    - `GIT_CONFIG_COUNT`, a decimal from 1 to 4;
    - `GIT_CONFIG_KEY_<n>` and `GIT_CONFIG_VALUE_<n>`, both present, for each `n` below the count.
      Every `KEY_<n>` must be `http.https://<host>[:<port>]/.extraHeader` (compared lowercased),
      the form phase 3's `PushEnv` writes (phase 3 task 13, `PushEnv`), and `<host>` must be
-     `RemoteURL`'s host. The one other `GIT_CONFIG_*` set admitted is exactly
+     `RemoteURL`'s host. A second `GIT_CONFIG_*` set admitted is exactly
      `lanes.NoFilterEnv`, and only on the lane-create clone (item 2), where no other key may join
-     it;
+     it. The third is exactly `{GIT_CONFIG_COUNT=1, GIT_CONFIG_KEY_0=transfer.fsckObjects,
+     GIT_CONFIG_VALUE_0=true}`, alone, and only on a `project`-scope, `local`-class call whose
+     `Args` begin `fetch` and whose file argument is a live bundle's path (task 21b's one
+     admitted path under the owned root). Before task 21b there is no live bundle, so this set
+     is `400` on every call;
    - the six commit identity keys, `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_AUTHOR_DATE`,
      `GIT_COMMITTER_NAME`, `GIT_COMMITTER_EMAIL` and `GIT_COMMITTER_DATE`. Each is data that
      names no program and no path, so any value is admitted but one holding a NUL or a newline;
@@ -446,7 +454,7 @@ with a fake `git` first on `PATH` that writes a marker on any start. A marker sc
 | `TestGitRunsInTheMachinePath` | `rev-parse --show-toplevel` with `Dir: "projects/a"`, `Scope: "project"` prints `<root>/projects/a` | a Dir resolved against the process's cwd |
 | `TestGitDirOutsideTheRootIsRefused` | `Dir: "../x"`, `"/etc"` → 400, git never ran | git run anywhere on the pod |
 | `TestGitRefusesGITDIRInEnv` | review I7 (d): `Env: {GIT_DIR: "/machine/projects/b/.git"}` on a `projects/a` call → 400 naming `GIT_DIR`, git never ran | a `Dir` confinement that `Env` undoes |
-| `TestGitEnvIsAnExplicitAllowlist` | table, each → 400 naming the key and git never ran: `LD_PRELOAD`, `GIT_WORK_TREE`, `GIT_COMMON_DIR`, `GIT_EXEC_PATH`, `GIT_SSH_COMMAND`, `GIT_EXTERNAL_DIFF`, `GIT_CONFIG_PARAMETERS`, `GIT_CONFIG_GLOBAL`, `GIT_ASKPASS`; `KEY_0=core.sshCommand`; the bare `KEY_0=http.extraHeader`; `COUNT=2` with one pair; `KEY_0` for `https://evil.example/` when `RemoteURL` is `https://github.com/…`; `GIT_TERMINAL_PROMPT=1`; `GIT_AUTHOR_NAME` holding a newline. Admitted (git ran): `GIT_OPTIONAL_LOCKS=0`; one host-scoped header pair; all six identity keys at once, with phase 3 task 08's forecast values | a `^GIT_` prefix match; a header sent to a host the call does not name; an allowlist that refuses phase 3's commit identity, so every forecast and land on a cloud machine fails |
+| `TestGitEnvIsAnExplicitAllowlist` | table, each → 400 naming the key and git never ran: `LD_PRELOAD`, `GIT_WORK_TREE`, `GIT_COMMON_DIR`, `GIT_EXEC_PATH`, `GIT_SSH_COMMAND`, `GIT_EXTERNAL_DIFF`, `GIT_CONFIG_PARAMETERS`, `GIT_CONFIG_GLOBAL`, `GIT_ASKPASS`; `KEY_0=core.sshCommand`; the bare `KEY_0=http.extraHeader`; `COUNT=2` with one pair; `KEY_0` for `https://evil.example/` when `RemoteURL` is `https://github.com/…`; `GIT_TERMINAL_PROMPT=1`; `GIT_AUTHOR_NAME` holding a newline; the fsck set (`COUNT=1`, `KEY_0=transfer.fsckObjects`, `VALUE_0=true`) on a `status` call and on a `fetch` whose file is not a live bundle's path (seams review 1 I1; the admitted case is task 21b's `TestBundleFetchFsckEnvIsAdmittedOnlyThere`). Admitted (git ran): `GIT_OPTIONAL_LOCKS=0`; one host-scoped header pair; all six identity keys at once, with phase 3 task 08's forecast values | a `^GIT_` prefix match; a header sent to a host the call does not name; an allowlist that refuses phase 3's commit identity, so every forecast and land on a cloud machine fails |
 | `TestGitCommitTreeTakesTheCallersIdentity` | a `projects/a` repository, `Scope: "project"`, `Class: "local"`: `commit-tree <its HEAD tree> -m "panacea forecast"` with the forecast's `Env` (`GIT_AUTHOR_NAME`/`GIT_COMMITTER_NAME` `panacea-forecast`, `EMAIL` `forecast@panacea.invalid`, `DATE` `@0 +0000`) → 200, and the id equals the one the same `commit-tree` prints when run directly with that environment on the test's own git; run twice, the same id | the identity keys dropped on the way to git (the id changes with the machine's clock and identity); phase 3's forecast not deterministic on a cloud machine |
 | `TestGitExtraHeaderReachesGit` | `ls-remote` with `Scope: "project"`, `Class: "remote"`, against phase 3's `gitxtest.HTTPSRemote` stand-in that records `Authorization`, with `KEY_0=http.<RemoteURL's origin>/.extraHeader`, `VALUE_0=Authorization: Bearer t0k` → the stand-in saw `Bearer t0k` | phase 3's push credential path broken on cloud machines |
 | `TestGitSecretsNeverLeaveInLogsOrErrors` | the same value, on a failing call → neither the log nor the problem body contains `t0k` | a host token in a log |
