@@ -134,3 +134,83 @@ does not list; it is added additively (a skeleton gap: an archived label must re
 `TeamPolicy.updatedAt` and `updatedBy` are `null` for a team that never set one, so a client can
 tell "the defaults" from "an admin chose these values".
 
+#### `hubapi/work.go`, the additions (complete)
+
+```go
+// ── Task 11: relations, labels, the team policy, triage ─────────────────────
+// Appended to work.go (task 03's file). Additive only: no existing field moves.
+
+// The two read-only relation words. A relation is stored once; the other end
+// reads the inverse. A RelationRequest naming one of these is 400 bad_request.
+const (
+	RelationBlockedBy    RelationKind = "blocked_by"
+	RelationDuplicatedBy RelationKind = "duplicated_by"
+)
+
+// WritableRelationKind is true for the three kinds a person may write.
+func WritableRelationKind(k RelationKind) bool {
+	switch k {
+	case RelationBlocks, RelationDuplicates, RelationRelates:
+		return true
+	}
+	return false
+}
+
+// InverseRelation is the word the other end reads. relates is its own inverse.
+func InverseRelation(k RelationKind) RelationKind {
+	switch k {
+	case RelationBlocks:
+		return RelationBlockedBy
+	case RelationBlockedBy:
+		return RelationBlocks
+	case RelationDuplicates:
+		return RelationDuplicatedBy
+	case RelationDuplicatedBy:
+		return RelationDuplicates
+	}
+	return k
+}
+
+// Additive fields (declared on task 03's structs; shown here as the diff):
+//   IssueHead:         SnoozedUntil *string `json:"snoozedUntil"`   // RFC 3339; null when not snoozed
+//   PatchIssueRequest: SnoozedUntil *string `json:"snoozedUntil,omitempty"` // "" clears
+//   Label:             ArchivedAt   *string `json:"archivedAt"`     // null while live
+
+// Policy names, the values of details.policy on 422 policy_refused.
+const PolicyPriorityToLeaveTriage = "priorityToLeaveTriage"
+
+// DefaultTeamPolicy is what a team with no row reads (L-9's default status).
+func DefaultTeamPolicy(teamID string) TeamPolicy {
+	return TeamPolicy{TeamID: teamID, DefaultState: StateBacklog}
+}
+
+// TriageExitRefused is L-48: under priorityToLeaveTriage, an issue with no
+// priority may leave triage only to be declined (cancelled) or marked a
+// duplicate. It is pure so the Hub (task 10's move path) and the fake (task
+// 05) cannot disagree.
+func TriageExitRefused(from, to IssueState, p Priority, pol TeamPolicy) bool {
+	if !pol.PriorityToLeaveTriage || from != StateTriage || to == StateTriage {
+		return false
+	}
+	if to == StateCancelled || to == StateDuplicate {
+		return false
+	}
+	return p == PriorityNone
+}
+
+// Work codes task 11 needs. If task 03 declared them, these lines are dropped.
+const (
+	CodeIssueNotFound    = "issue_not_found"    // 404, details.issueId
+	CodeLabelNotFound    = "label_not_found"    // 404, details.labelId
+	CodeRelationNotFound = "relation_not_found" // 404, details.kind, details.otherId
+	CodeLabelExists      = "label_exists"       // 409, details.labelId (the live label)
+	CodeRelationCycle    = "relation_cycle"     // 422, details.kind, details.otherId
+	CodeLabelUnavailable = "label_unavailable"  // 422, details.field = "labels[n]"
+	CodePolicyRefused    = "policy_refused"     // 422, details.policy, details.issueId
+)
+```
+
+`TeamPolicy` keeps task 03's field list; `UpdatedAt` and `UpdatedBy` must be pointer types
+(`*string`, `*User`) so the defaults encode as `null`. If task 03 declared them as values, this
+is the one non-additive edit, and it is announced at WS0 (skeleton, *Start lines*).
+
