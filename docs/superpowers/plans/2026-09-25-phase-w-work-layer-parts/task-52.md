@@ -551,5 +551,189 @@ describe("blob", () => {
 | `refuses past the desktop ceiling …` | reading a 2 GB file into memory to hash it |
 | `does not hand over downloaded bytes …` | trusting the bytes because the route said so |
 
-`ApiError`'s fourth argument is `details` (`client.ts:62`); if its constructor takes them in
-another order, the test follows the client (**UNVERIFIED** against the file's current signature).
+`ApiError`'s constructor is `(code, message, status, details?)` (`desktop/src/api/client.ts:64`,
+checked on this tree), so the 413 test builds the Hub's refusal exactly as the client raises it.
+
+#### Tests to write first — `Attachments.test.tsx` and `Subscribe.test.tsx`
+
+```tsx
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { api } from "../../api";
+import { expectNoPrediction } from "../../test/expectNoPrediction";
+import { ALICE, WORK_IDS } from "../../test/workFixtures";
+import { makeBlobs, sha256Hex, type BlobTransport } from "../../work/blob";
+import { mutate } from "../../work/replica/ops";
+import source from "./Attachments.tsx?raw";
+import { __clearNamesForTest, Attachments } from "./Attachments";
+import { Subscribe } from "./Subscribe";
+
+vi.mock("../../api", () => ({ api: { work: { attachments: vi.fn(), attachBlob: vi.fn() } } }));
+vi.mock("../../work/replica/ops", () => ({ mutate: vi.fn(() => ({ id: "op-1", undoable: true, undo: vi.fn(), settled: Promise.resolve("applied") })) }));
+
+const enc = (s: string) => new TextEncoder().encode(s).buffer as ArrayBuffer;
+const SVG = enc(`<svg xmlns="http://www.w3.org/2000/svg" onload="x()"><script>alert(1)</script></svg>`);
+const att = (digest: string, contentType = "image/svg+xml") =>
+  ({ issueId: WORK_IDS.ep142, digest, contentType, size: SVG.byteLength, addedAt: "2026-09-18T04:02:00Z", addedBy: ALICE });
+const t = (get: BlobTransport["get"]): BlobTransport => ({ get, put: vi.fn(async (_p, hex, b, type) =>
+  ({ digest: `sha256:${hex}`, size: b.byteLength, contentType: type })) });
+
+beforeEach(() => { __clearNamesForTest(); vi.mocked(api.work.attachBlob).mockResolvedValue(att("x") as never); });
+afterEach(() => vi.restoreAllMocks());
+
+describe("Attachments", () => {
+  it("never puts an SVG into the DOM as markup, and never into an <img>", async () => {
+    const d = `sha256:${await sha256Hex(SVG)}`;
+    vi.mocked(api.work.attachments).mockResolvedValue([att(d)] as never);
+    const { container } = render(<Attachments issueId={WORK_IDS.ep142} projectId="pj-1" blobs={makeBlobs(t(async () => SVG))} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Open" }));
+    await screen.findByText("Save as");
+    expect(container.querySelector("svg, script, img, iframe, object, embed")).toBeNull();
+    expect(container.innerHTML).not.toContain("alert(1)");
+  });
+  it("does not open bytes that do not hash to their digest", async () => {
+    vi.mocked(api.work.attachments).mockResolvedValue([att(`sha256:${"a".repeat(64)}`, "image/png")] as never);
+    const created = vi.spyOn(URL, "createObjectURL");
+    render(<Attachments issueId={WORK_IDS.ep142} projectId="pj-1" blobs={makeBlobs(t(async () => enc("abc")))} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Open" }));
+    expect(await screen.findByText(/do not hash to sha256:a{64}; not opened/)).toBeTruthy();
+    expect(created).not.toHaveBeenCalled();
+  });
+  it("shows the Hub's limitBytes on a 413, in the refusal line", async () => {
+    vi.mocked(api.work.attachments).mockResolvedValue([] as never);
+    const { ApiError } = await import("../../api/client");
+    const blobs = makeBlobs({ get: vi.fn(), put: vi.fn(async () => {
+      throw new ApiError("blob_too_large" as never, "too large", 413, { limitBytes: "16777216" }); }) });
+    const { container } = render(<Attachments issueId={WORK_IDS.ep142} projectId="pj-1" blobs={blobs} />);
+    const input = container.querySelector("input[type=file]") as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [new File(["abc"], "big.bin")] } });
+    expect(await screen.findByText(/blob_too_large · the Hub's limit is 16777216 bytes · 16 MiB/)).toBeTruthy();
+    expect(api.work.attachBlob).not.toHaveBeenCalled();
+  });
+  it("touches no storage, cache or file API during upload and view", async () => {
+    const setItem = vi.spyOn(Storage.prototype, "setItem");
+    const idb = vi.spyOn(globalThis.indexedDB ?? { open: () => null }, "open" as never);
+    vi.mocked(api.work.attachments).mockResolvedValue([] as never);
+    const { container } = render(<Attachments issueId={WORK_IDS.ep142} projectId="pj-1" blobs={makeBlobs(t(async () => SVG))} />);
+    fireEvent.change(container.querySelector("input[type=file]")!, { target: { files: [new File([SVG], "a.svg")] } });
+    await waitFor(() => expect(api.work.attachBlob).toHaveBeenCalledOnce());
+    expect(setItem).not.toHaveBeenCalled();
+    expect(idb).not.toHaveBeenCalled();
+    expect(source).not.toMatch(/localStorage|sessionStorage|indexedDB|caches\.|plugin-fs|writeFile|dangerouslySetInnerHTML|<iframe|<object|<embed/);
+    expectNoPrediction(container);
+  });
+});
+
+describe("Subscribe", () => {
+  const sub = (cause: string, subscribed = true) =>
+    ({ issueId: WORK_IDS.ep142, user: ALICE, cause, subscribed }) as never;
+  it("shows the Hub's cause verbatim in data-cause, and its words", () => {
+    const { container } = render(<Subscribe issueId={WORK_IDS.ep142} sub={sub("mention")} />);
+    expect(container.querySelector(".iv-sub")!.getAttribute("data-cause")).toBe("mention");
+    expect(screen.getByText("Subscribed · you were mentioned")).toBeTruthy();
+  });
+  it("reads no row as not subscribed with no cause, and a false row as the person's choice", () => {
+    const a = render(<Subscribe issueId={WORK_IDS.ep142} sub={null} />);
+    expect(a.getByText("Not subscribed")).toBeTruthy();
+    a.unmount();
+    render(<Subscribe issueId={WORK_IDS.ep142} sub={sub("manual", false)} />);
+    expect(screen.getByText("Not subscribed · your choice")).toBeTruthy();
+  });
+  it("unsubscribes with exactly one op, and returns the handle Undo uses", () => {
+    render(<Subscribe issueId={WORK_IDS.ep142} sub={sub("comment")} />);
+    fireEvent.click(screen.getByRole("button", { name: "Unsubscribe" }));
+    expect(vi.mocked(mutate).mock.calls).toEqual([[{ kind: "subscribe", issueId: WORK_IDS.ep142, subscribed: false }]]);
+    expect(vi.mocked(mutate).mock.results[0].value.undoable).toBe(true);
+  });
+  it("binds no key: Shift+S on the control does nothing", () => {
+    vi.mocked(mutate).mockClear();
+    render(<Subscribe issueId={WORK_IDS.ep142} sub={sub("comment")} />);
+    fireEvent.keyDown(screen.getByRole("button", { name: "Unsubscribe" }), { key: "S", code: "KeyS", shiftKey: true });
+    expect(mutate).not.toHaveBeenCalled();
+  });
+});
+```
+
+| Test | Mutant it kills |
+|---|---|
+| `never puts an SVG into the DOM as markup …` | script in an attachment; an SVG rendered through `<img>` or inline |
+| `does not open bytes that do not hash …` | trusting downloaded bytes; an object URL made before the check |
+| `shows the Hub's limitBytes on a 413 …` | a generic error; attaching a digest whose upload was refused |
+| `touches no storage, cache or file API …` | a blob cache on disk for a fast re-open (`ADR-H1:467-474`) |
+| `shows the Hub's cause verbatim …` | a reason guessed on the desktop from what it saw locally |
+| `reads no row … a false row as the person's choice` | *Not subscribed* shown as if the Hub forgot; a cause invented for no row |
+| `unsubscribes with exactly one op …` | a silent toggle with no undo; two ops for one click |
+| `binds no key …` | a Linear `Shift+S` wired to subscribe (05 §4.3 rule 3) |
+
+The Undo itself (the inverse op is sent) is task 56's test, `U sends the inverse op`
+(`task-56.md`, part 3); this part asserts only that the click goes through `mutate` and gets its
+handle, which is how that test's inverse reaches this control.
+
+#### Steps
+
+- [ ] Write `blob.test.ts` from the block above; run it; every test fails (no `blob.ts`).
+- [ ] Write `blob.ts` parts 1 and 2 as printed; `npx vitest run src/work/blob.test.ts` passes 7.
+- [ ] Add `controlPlaneBlobs()` beside `send` in `api/client.ts` (raw body, same bearer) or, if
+      the client already has a raw path, call it. Check contract §4.3's relay table for the blob
+      routes and record the result in the task's return (a missing row is a finding on task 16).
+- [ ] Write `Attachments.test.tsx` and `Subscribe.test.tsx`; run them; they fail.
+- [ ] Write `Attachments.tsx` (parts 1-3) and `Subscribe.tsx`; add `useSubscription` to
+      `issueData.ts`; make the two-line `IssueHead.tsx` edit and the `IssueView.tsx` slot default.
+- [ ] Append the CSS block to `issue.css`.
+- [ ] Run task 46's and task 51's issue tests unchanged; `IssueHead.test.tsx` passes `sub={null}`
+      where it renders `IssueHead` (one prop added, no assertion changed).
+- [ ] Commit: `feat(issue): attachments by blob digest; subscribe with the Hub's reason`.
+
+#### Acceptance
+
+```bash
+cd desktop
+npx vitest run src/work/blob.test.ts src/components/issue/Attachments.test.tsx src/components/issue/Subscribe.test.tsx
+# expected: Test Files  3 passed (3); Tests  15 passed (15)
+npx vitest run src/components/issue
+# expected: every file passes; no test in tasks 46-51 changed its assertions
+npx tsc --noEmit -p .
+# expected: no output, exit 0
+git grep -nE "localStorage|indexedDB|caches\.|writeFile|dangerouslySetInnerHTML" -- src/work/blob.ts src/components/issue/Attachments.tsx src/components/issue/Subscribe.tsx
+# expected: no output, exit 1
+```
+
+A pass shows that the desktop hashes, refuses and renders as stated against a fake transport. It
+does not show that the Hub's blob routes are reachable from the desktop: that needs task 16's relay
+row and a signed-in run, which is the owner's to watch.
+
+#### What this task does NOT claim
+
+- **The blob routes are relayed.** `git grep -n blob task-16.md` finds only the attachment types
+  (`task-16.md:572-581`), no `PUT`/`GET …/blobs/{sha}` row. Until task 16 adds one, `Attachments`
+  refuses every upload at the control plane, and says so in its refusal line.
+- **The file name survives a restart or reaches a teammate.** It is session memory (decision 7).
+- **Multi-file drop, paste of an image, or drag out.** One file per drop in W1.
+- **A saved copy is erased with the issue.** The person's *Save as* is theirs (decision 5); the
+  WebView2 download flow under Tauri 2 is **UNVERIFIED**.
+- **Live arrival of a teammate's attachment.** It shows on the next open (decision 8).
+- **The Desk digest of subscriptions** (L-116, W2), subscribing to a view (L-96, W2), or
+  per-person notification settings.
+- **`budget.paint` for the subscribe toggle.** Task 56 records it; this part asserts nothing about
+  time.
+
+Parity: closes **L-45** (attachments) and **L-117** (subscribe and unsubscribe, with task 13's
+server-side triggers), both moved into W1 by 05 §5.3 rows 4 and 12.
+
+#### Gaps found while writing this part
+
+1. **Task 16**: no relay row for `PUT` and `GET /v1/projects/{projectId}/blobs/{sha}`
+   (`hub-contract.md:590-591`, `:846-866`). This part names `/v1/hub/projects/{id}/blobs/{sha}` as
+   the proposal; task 16 wins the path.
+2. **Task 03 / SW.1**: `IssueAttachment` has no `name` (`task-37.md:163-165`); an additive
+   `name` on the attach body would let a teammate see *resume-trace.png* rather than
+   *image/png · 3f2a…*. Not invented here.
+3. **Task 37**: `WorkSend` is JSON only (`task-37.md:372-374`); a raw-bytes transport is added
+   beside it here. The File map does not list `api/client.ts` for task 52.
+4. **Task 55**: the replica needs `subscription(issueId): Subscription | null` (beside task 56's
+   `subscribed(issueId)`), and `setSubscribed` must paint `cause: "manual"`, which is the Hub's own
+   rule for the manual `PUT` (`task-13.md:57`). Task 55's part prints both.
+5. **The File map** omits `Subscribe.tsx`, `blob.ts`'s test, and the `issueData.ts` edit.
+6. **Task 51's CSS** uses `--r-sm` and `--ring`, which neither `tokens.css` nor task 26 defines
+   (`tokens.css:110-122` has `--r-chip`, `--r-ctl`, `--r-card`, `--e-hair`, `--e-card`). This part
+   uses the defined names; task 51 should follow.
