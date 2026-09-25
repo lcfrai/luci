@@ -396,3 +396,43 @@ answer. Phase 7 task 11's grantee resolution to a Keycloak user is already consi
 Panacea ever adds it, the desktop requests one more audience scope and the paste step goes; until then
 nothing in phase 7 waits on it.
 
+## 9. Phase 8: our own Keycloak
+
+**Phase 8 runs its own Keycloak, modelled on Panacea's, with the realm as code.** Realm `panacea-app`
+at `https://auth.<our domain>/realms/panacea-app`. The move is one variable
+(`PANACEA_APP_OIDC_ISSUER`); the person key `(tid, oid)` is the same in both realms, so no Hub row, owner
+label or LiteLLM user changes.
+
+**What is copied from Panacea's pattern (as a pattern, no source, OD-13), and what is not:**
+- **The same Entra IdP on the SAME registration** (client id `37f8bd70-...`), alias `entra`, tenant-specific
+  endpoints, `clientAuthMethod: client_secret_post`, `tid` claim filter, `trustEmail:true`,
+  `storeToken:false`, the email/name/username mappers, and a first-broker-login flow of
+  `idp-create-user-if-unique` or `idp-auto-link` with no review-profile step (Panacea
+  `setup-keycloak.sh:375-635`). Plus section 4's M1, M2, UP, P1-P3, A1-A4, the "Pass login_hint" switch,
+  and section 6's service clients.
+- **One Entra change, the only Entra ask OD-30 leaves:** IT adds **one redirect URI**,
+  `https://auth.<our domain>/realms/panacea-app/broker/entra/endpoint`, to the registration, and **a
+  second client secret** for our Keycloak (so either side rotates without breaking the other), stored in
+  our Key Vault. It joins IT request Part 2 and is sent when phase 8 provisions.
+- **Not copied: Panacea's outage class** (ADR-H1 §6.1). Two replicas with Keycloak's persistent user
+  sessions in Postgres, not one replica on `--cache=local` (`deploy/main.tf:928`, `:954-957`); the image
+  pinned by digest to the current Keycloak 26 release, not the chart default.
+- **Realm as code that converges, not import-once:** `deploy/keycloak/realm/panacea-app.json` in
+  keycloak-config-cli's format (Apache-2.0), applied in-cluster by a Job on every deploy, like Panacea's
+  unconditional Phase 12 run (`deploy/cloud-shell-deploy.sh:5942`, `:2453`). The admin API is never
+  exposed beyond the cluster. `--import-realm` is not used: it skips a realm that exists, so a changed file
+  would never land ("exists" is not "correct").
+- **Switching issuers:** the credstore target for the refresh token names the issuer (section 11, hub
+  task 28), so a token from Panacea's realm is never offered to ours; the first launch after the switch
+  finds none, and the zero-click flow signs the person in to the new realm.
+
+**Which tasks carry it** (earliest unbuilt tasks in env's build order that touch each part; none is new):
+
+| Part | Task | Wave | Change |
+|---|---|---|---|
+| The realm file and its test (every client, scope, mapper and IdP setting of sections 4, 6, 10, asserted by a Go test that parses the JSON) | **env 09** `stacks/identity` | 2 | Its Entra registrations (*Desktop*, *Hub API*, *Broker API*, HA-3) are **deleted**; its Entra admin groups (cluster admins, Postgres admins) **stay**; the "product users" group is deleted (the realm's `tid` filter admits the tenant) |
+| Keycloak's namespace, Pod Security and network policy | **env 11** `deploy/charts/platform` | 2 | add the `identity` namespace |
+| Egress from Keycloak to `login.microsoftonline.com`; Hub and broker to the realm's JWKS | **env 07** `stacks/foundation` | 4 | the egress list gains the realm host (facts-app-identity §2d) |
+| Keycloak's database and role | **env 08** Postgres | 5 | one database `keycloak` (auth method: section 12, U-9) |
+| The Keycloak release (two replicas), the realm Job, per-environment values | **env 29** `deploy/charts/broker` and `hub` | 5 | add `deploy/charts/keycloak` beside them |
+
