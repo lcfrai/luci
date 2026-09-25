@@ -309,3 +309,86 @@ export function FlagCompare(): JSX.Element {
 `paper` is task 26's **provisional** block: task 26 says nothing sets `data-theme` until a sheet
 renders it by hand. This toolbar is that hand. The label says *provisional* so nobody reads the
 paper look as reviewed.
+
+#### Interfaces — complete: `devtools.css`
+
+```css
+/* desktop/src/components/devtools/devtools.css
+ *
+ * The dev toolbar (Phase W tasks 32, 33, 35). Dev builds only: mount.ts loads it behind
+ * import.meta.env.DEV. It still keeps the design system, because the owner reviews the product
+ * with this panel open beside it. Elevation is the raised ring plus shadow, never a border. No
+ * transition: it opens and closes without motion, because nothing about opening it is causal.
+ * z-index sits under the grain overlay (9999, tokens.css .grain::after), so the grain covers it
+ * as it covers the rest of the window. */
+@import "../../styles/tokens.css";
+
+.dt {
+  position: fixed;
+  inset-block-end: var(--s-3);
+  inset-inline-end: var(--s-3);
+  z-index: 9000;
+  max-inline-size: 280px;
+  background: var(--surface);
+  border-radius: var(--r-card);
+  box-shadow: var(--e-raised);
+  color: var(--ink-2);
+  font-family: var(--sans);
+  font-size: var(--t-meta);
+  line-height: var(--t-meta-lh);
+}
+
+.dt-summary {
+  cursor: pointer;
+  padding: var(--s-2) var(--s-3);
+  color: var(--ink);
+}
+
+.dt-body {
+  display: grid;
+  gap: var(--s-3);
+  padding: 0 var(--s-3) var(--s-3);
+}
+
+.dt-group {
+  display: grid;
+  gap: var(--s-1);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.dt-legend {
+  padding: 0;
+  color: var(--ink-2);
+}
+
+.dt-option {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-block-size: var(--row-h);
+  color: var(--ink);
+}
+
+.dt-option input {
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.dt-reset {
+  justify-self: start;
+  padding: var(--s-1) var(--s-2);
+  border: 0;
+  border-radius: var(--r-ctl);
+  background: var(--surface);
+  box-shadow: var(--e-btn);
+  color: var(--ink);
+  font: inherit;
+}
+```
+
+Longhands, not the `font` shorthand, on `.dt`: the audit's numeric rule (`designsystem.test.ts:674`)
+fails a shorthand that resets `font-variant-numeric` on a carrier. `.dt-reset`'s `font: inherit`
+is `app.css:47`'s own form for controls. The accent on a checked radio marks the current choice,
+which is what 02 C5 allows accent for.
