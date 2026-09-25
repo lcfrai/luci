@@ -386,6 +386,9 @@ checks before the transaction (the recipient is a live Orchestrator; the event c
 author, so the own-human check does not arise). A send writes no `read_log` row: sending is not
 reading.
 
+`ExtendDeadlines` is called once when task 11's `Gate` reports an org unpaused, with the pause's
+length. `DueThreads` excludes threads in a paused org: the sweep asks the `Gate` first.
+
 **`ask.go`, the templated answer, complete in its types.** Built from task 22's `Sources` only.
 It is the §5.1 Orchestrator view of the asked side's card, and nothing the asked Orchestrator
 wrote outside its typed records.
@@ -668,6 +671,32 @@ round-trip suite picks them up by glob).
 cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team && git add control-plane/internal/fleet/protocol control-plane/internal/fleet/verbs/peer.go control-plane/internal/fleet/verbs/inbox.go control-plane/internal/fleet/verbs/peer_test.go control-plane/internal/fleet/verbs/inbox_test.go testdata/panacea-control/v1/peer-*.json testdata/panacea-control/v1/inbox-*.json && git commit -F .superpowers/sdd/team/msg/task-28.txt -- control-plane/internal/fleet testdata/panacea-control/v1 control-plane/cmd/fleetd
 ```
 
+**What this task does not claim:**
 
-`ExtendDeadlines` is called once when task 11's `Gate` reports an org unpaused, with the pause's
-length. `DueThreads` excludes threads in a paused org: the sweep asks the `Gate` first.
+- **That any negotiation resolves anything.** An `accept` is stored and the proposal leaves the
+  live set; what it does to leases and conflicts is task 29's `Resolve`.
+- **That the templated answer is enough for an Orchestrator to decide.** It is the §5.1 card,
+  which is what the design allows; G9's scripted two-Orchestrator run (task 42) measures whether
+  negotiations stall on it.
+- **That 20 an hour, 3 rounds and 30 minutes are the right numbers.** They are §6.4 and §6.6's
+  proposals; the median-thread criterion (§6.4, "resolves without a deadline escalation") is
+  measured in TM1 (task 57).
+- **That peer text is harmless once quoted.** G4 makes it data in a tool result; §7.3 is explicit
+  that no fence closes a model being persuaded. The authority limit is task 31's taint rule.
+- **That a real Hub accepts these writes.** The outbox items follow task 07's bodies; delivery
+  against the real Hub is task 33's.
+
+**Gaps against the skeleton, raised here:**
+
+1. **Messages in Fleet's Postgres.** Task 10's scope says "No Hub record is stored except as an
+   outbox payload"; Global constraint 2 allows "open thread working state". This part keeps an
+   open thread's messages in `fleet.messages` as working state (deleted 24 h after close, rebuilt
+   from route 63 after a restart) so `inbox` and the stale-round rule work while the Hub is
+   paused. If the owner reads task 10's sentence strictly, `inbox` must read route 63 through the
+   delegation instead and `peer` answers `unavailable` whenever the Hub is; the tests are the same
+   except `TestHubPauseStopsNegotiationAndExtendsDeadlines`, whose `inbox` half inverts.
+2. **Effective deadline vs the Hub's.** Task 07's route 61 cannot patch a thread's deadline, so a
+   pause-extended deadline lives only in Fleet. Either route 61 gains `deadline` (only later) or
+   the decide task 30 writes states the effective one, as this part assumes.
+3. **`counter` in TM1-α.** The scope lists it among this task's kinds; it is schema-checked here
+   and refused until task 62 gives it an effect, as decision (c) says.
