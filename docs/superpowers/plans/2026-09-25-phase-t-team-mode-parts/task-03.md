@@ -170,3 +170,299 @@ func (v ExitClass) Valid() bool {
 	return false
 }
 ```
+
+**Block 2, the rest of the enums.** Each is the same shape, so it is written compactly: a type, its
+constants, and a `Valid` over a set built once.
+
+```go
+type (
+	LeaseMode          string
+	LeaseState         string
+	ConflictTier       string
+	ConflictState      string
+	ResolutionKind     string
+	ThreadState        string
+	SubjectKind        string
+	MessageSubjectKind string
+	MessageKind        string
+	EscalationKind     string
+	DirectiveKind      string
+	DeliveryRung       string
+	TurnOrigin         string
+	NoteTargetKind     string
+	InferenceRoute     string
+	EscalationFloor    string
+)
+
+const (
+	LeaseIntent LeaseMode = "intent"
+	LeaseHold   LeaseMode = "hold"
+	LeaseBulk   LeaseMode = "bulk"
+
+	LeaseRequested     LeaseState = "requested"
+	LeaseGranted       LeaseState = "granted"
+	LeaseContested     LeaseState = "contested"
+	LeaseYielded       LeaseState = "yielded"
+	LeaseReleased      LeaseState = "released"
+	LeaseExpired       LeaseState = "expired"
+	LeaseAdminReleased LeaseState = "admin-released"
+
+	TierP ConflictTier = "P"
+	TierH ConflictTier = "H"
+	TierM ConflictTier = "M"
+	TierS ConflictTier = "S"
+
+	ConflictRaised      ConflictState = "raised"
+	ConflictNegotiating ConflictState = "negotiating"
+	ConflictAccepted    ConflictState = "accepted"
+	ConflictResolved    ConflictState = "resolved"
+	ConflictEscalated   ConflictState = "escalated"
+	ConflictCleared     ConflictState = "cleared"
+
+	ResolutionSplit       ResolutionKind = "split"
+	ResolutionSequence    ResolutionKind = "sequence"
+	ResolutionYield       ResolutionKind = "yield"
+	ResolutionBuildOn     ResolutionKind = "build-on"
+	ResolutionProceedBoth ResolutionKind = "proceed-both"
+
+	ThreadOpen      ThreadState = "open"
+	ThreadResolved  ThreadState = "resolved"
+	ThreadEscalated ThreadState = "escalated"
+	ThreadExpired   ThreadState = "expired"
+
+	SubjectConflict SubjectKind = "conflict"
+	SubjectLease    SubjectKind = "lease"
+	SubjectFree     SubjectKind = "free"
+
+	MessageSubjectTask     MessageSubjectKind = "task"
+	MessageSubjectLease    MessageSubjectKind = "lease"
+	MessageSubjectPath     MessageSubjectKind = "path"
+	MessageSubjectConflict MessageSubjectKind = "conflict"
+
+	MessageAsk      MessageKind = "ask"
+	MessageAnswer   MessageKind = "answer"
+	MessageInform   MessageKind = "inform"
+	MessagePropose  MessageKind = "propose"
+	MessageAccept   MessageKind = "accept"
+	MessageReject   MessageKind = "reject"
+	MessageCounter  MessageKind = "counter"
+	MessageWithdraw MessageKind = "withdraw"
+
+	EscalationInform EscalationKind = "inform"
+	EscalationDecide EscalationKind = "decide"
+
+	DirectivePause   DirectiveKind = "pause"
+	DirectiveResume  DirectiveKind = "resume"
+	DirectiveNarrow  DirectiveKind = "narrow"
+	DirectiveWaitFor DirectiveKind = "wait-for"
+	DirectiveRebase  DirectiveKind = "rebase"
+	DirectiveFree    DirectiveKind = "free"
+
+	RungPiggyback   DeliveryRung = "piggyback"
+	RungInboxSocket DeliveryRung = "inbox-socket"
+	RungPTYNudge    DeliveryRung = "pty-nudge"
+
+	OriginHuman TurnOrigin = "human"
+	OriginFleet TurnOrigin = "fleet"
+
+	NoteTargetProject NoteTargetKind = "project"
+	NoteTargetTask    NoteTargetKind = "task"
+	NoteTargetUser    NoteTargetKind = "user"
+
+	InferenceGlobal InferenceRoute = "global"
+	InferenceAU     InferenceRoute = "au"
+
+	FloorYieldUnedited EscalationFloor = "yield-unedited"
+	FloorAcceptSplit   EscalationFloor = "accept-split"
+	FloorProceedBothPS EscalationFloor = "proceed-both-ps"
+	FloorSequenceShort EscalationFloor = "sequence-short"
+)
+
+// oneOf builds a Valid function over a closed set.
+func oneOf[T ~string](vs ...T) func(T) bool {
+	set := make(map[T]bool, len(vs))
+	for _, v := range vs {
+		set[v] = true
+	}
+	return func(v T) bool { return set[v] }
+}
+
+var (
+	validLeaseMode  = oneOf(LeaseIntent, LeaseHold, LeaseBulk)
+	validLeaseState = oneOf(LeaseRequested, LeaseGranted, LeaseContested, LeaseYielded,
+		LeaseReleased, LeaseExpired, LeaseAdminReleased)
+	validTier          = oneOf(TierP, TierH, TierM, TierS)
+	validConflictState = oneOf(ConflictRaised, ConflictNegotiating, ConflictAccepted,
+		ConflictResolved, ConflictEscalated, ConflictCleared)
+	validResolution = oneOf(ResolutionSplit, ResolutionSequence, ResolutionYield,
+		ResolutionBuildOn, ResolutionProceedBoth)
+	validThreadState = oneOf(ThreadOpen, ThreadResolved, ThreadEscalated, ThreadExpired)
+	validSubject     = oneOf(SubjectConflict, SubjectLease, SubjectFree)
+	validMsgSubject  = oneOf(MessageSubjectTask, MessageSubjectLease, MessageSubjectPath,
+		MessageSubjectConflict)
+	validMessageKind = oneOf(MessageAsk, MessageAnswer, MessageInform, MessagePropose,
+		MessageAccept, MessageReject, MessageCounter, MessageWithdraw)
+	validEscalation = oneOf(EscalationInform, EscalationDecide)
+	validDirective  = oneOf(DirectivePause, DirectiveResume, DirectiveNarrow, DirectiveWaitFor,
+		DirectiveRebase, DirectiveFree)
+	validRung       = oneOf(RungPiggyback, RungInboxSocket, RungPTYNudge)
+	validOrigin     = oneOf(OriginHuman, OriginFleet)
+	validNoteTarget = oneOf(NoteTargetProject, NoteTargetTask, NoteTargetUser)
+	validRoute      = oneOf(InferenceGlobal, InferenceAU)
+	validFloor      = oneOf(FloorYieldUnedited, FloorAcceptSplit, FloorProceedBothPS,
+		FloorSequenceShort)
+)
+
+func (v LeaseMode) Valid() bool          { return validLeaseMode(v) }
+func (v LeaseState) Valid() bool         { return validLeaseState(v) }
+func (v ConflictTier) Valid() bool       { return validTier(v) }
+func (v ConflictState) Valid() bool      { return validConflictState(v) }
+func (v ResolutionKind) Valid() bool     { return validResolution(v) }
+func (v ThreadState) Valid() bool        { return validThreadState(v) }
+func (v SubjectKind) Valid() bool        { return validSubject(v) }
+func (v MessageSubjectKind) Valid() bool { return validMsgSubject(v) }
+func (v MessageKind) Valid() bool        { return validMessageKind(v) }
+func (v EscalationKind) Valid() bool     { return validEscalation(v) }
+func (v DirectiveKind) Valid() bool      { return validDirective(v) }
+func (v DeliveryRung) Valid() bool       { return validRung(v) }
+func (v TurnOrigin) Valid() bool         { return validOrigin(v) }
+func (v NoteTargetKind) Valid() bool     { return validNoteTarget(v) }
+func (v InferenceRoute) Valid() bool     { return validRoute(v) }
+func (v EscalationFloor) Valid() bool    { return validFloor(v) }
+
+// Terminal: nothing follows it on a lease (contract §7.16).
+func (v LeaseState) Terminal() bool {
+	return v == LeaseYielded || v == LeaseReleased || v == LeaseExpired || v == LeaseAdminReleased
+}
+
+// Terminal: a conflict no PATCH may leave.
+func (v ConflictState) Terminal() bool { return v == ConflictResolved || v == ConflictCleared }
+
+// Typed reports whether a Fleet-started turn may issue the directive without
+// an answered decide (05-design.md §7.2 item 2; contract §7.20).
+func (v DirectiveKind) Typed() bool { return v.Valid() && v != DirectiveFree }
+```
+
+**Block 3, delegation constants, route names, and the grammar helpers:**
+
+```go
+// ── delegation (ADR-H1 §5.10) ───────────────────────────────────────────────
+
+const (
+	// HeaderDelegation names the delegation a Fleet request acts under.
+	HeaderDelegation = "X-Panacea-Delegation"
+	// ViaFleet is the audit event's via for a delegated write (v2).
+	ViaFleet = "fleet"
+	// App roles, read from each token's roles claim (contract §5.2).
+	AppRoleFleet      = "Hub.Fleet"
+	AppRoleAuditor    = "Hub.Auditor"
+	AppRoleCompliance = "Hub.Compliance"
+)
+
+// RouteName is what a delegation lists (contract §7.0, team routes table).
+type RouteName string
+
+const (
+	RouteDelegationsRead   RouteName = "delegations.read"
+	RouteTasksCreate       RouteName = "tasks.create"
+	RouteTasksUpdate       RouteName = "tasks.update"
+	RouteTasksRead         RouteName = "tasks.read"
+	RouteAgentsStart       RouteName = "agents.start"
+	RouteAgentsEnd         RouteName = "agents.end"
+	RouteAgentsRead        RouteName = "agents.read"
+	RouteLeasesEvents      RouteName = "leases.events"
+	RouteConflictsCreate   RouteName = "conflicts.create"
+	RouteConflictsUpdate   RouteName = "conflicts.update"
+	RouteConflictsRead     RouteName = "conflicts.read"
+	RouteThreadsCreate     RouteName = "threads.create"
+	RouteThreadsUpdate     RouteName = "threads.update"
+	RouteMessagesAppend    RouteName = "messages.append"
+	RouteMessagesRead      RouteName = "messages.read"
+	RouteEscalationsCreate RouteName = "escalations.create"
+	RouteEscalationsRead   RouteName = "escalations.read"
+	RouteDirectivesAppend  RouteName = "directives.append"
+	RouteDirectivesRead    RouteName = "directives.read"
+	RouteTurnsRecord       RouteName = "turns.record"
+	RouteHumanMessagesRead RouteName = "human_messages.read"
+	RouteNotesRead         RouteName = "notes.read"
+	RoutePolicyRead        RouteName = "policy.read"
+)
+
+// workerRoutes is a worker-class delegation's whole set: no message,
+// directive or escalation, which are the cross-user channel (OD-16).
+var workerRoutes = []RouteName{
+	RouteDelegationsRead, RouteTasksRead, RouteAgentsStart, RouteAgentsEnd, RouteAgentsRead,
+	RouteLeasesEvents, RouteConflictsCreate, RouteConflictsUpdate, RouteConflictsRead,
+	RoutePolicyRead,
+}
+
+// ClassRoutes is each delegation class's allowed set (contract §7.0). A
+// delegation's routes must be a subset of its class's.
+var ClassRoutes = map[DelegationClass][]RouteName{
+	DelegationClassOrchestrator: {
+		RouteDelegationsRead, RouteTasksCreate, RouteTasksUpdate, RouteTasksRead,
+		RouteAgentsStart, RouteAgentsEnd, RouteAgentsRead, RouteLeasesEvents,
+		RouteConflictsCreate, RouteConflictsUpdate, RouteConflictsRead, RouteThreadsCreate,
+		RouteThreadsUpdate, RouteMessagesAppend, RouteMessagesRead, RouteEscalationsCreate,
+		RouteEscalationsRead, RouteDirectivesAppend, RouteDirectivesRead, RouteTurnsRecord,
+		RouteHumanMessagesRead, RouteNotesRead, RoutePolicyRead,
+	},
+	DelegationClassWorker: workerRoutes,
+}
+
+// Allows reports whether class c may list route r.
+func (c DelegationClass) Allows(r RouteName) bool {
+	for _, x := range ClassRoutes[c] {
+		if x == r {
+			return true
+		}
+	}
+	return false
+}
+
+// MaxDelegationRoutes bounds a delegation's list (contract §7.13).
+const MaxDelegationRoutes = 25
+
+// ── grammars ────────────────────────────────────────────────────────────────
+
+var (
+	sectionIDRe   = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,63}$`)
+	harnessIDRe   = regexp.MustCompile(`^[a-z][a-z0-9-]{0,31}$`)
+	harnessVerRe  = regexp.MustCompile(`^[0-9A-Za-z.+-]{1,32}$`)
+	shaRe         = regexp.MustCompile(`^(?:[0-9a-f]{40}|[0-9a-f]{64})$`)
+	dataClassRe   = regexp.MustCompile(`^[a-z][a-z0-9-]{0,31}$`)
+	laneRefPrefix = "refs/panacea/lanes/"
+)
+
+// ValidBriefRef: a brief key (contract §3.2), "#", a section id. The section
+// grammar is UNVERIFIED against phase 4's section ids until P4's merge.
+func ValidBriefRef(s string) bool {
+	key, section, ok := strings.Cut(s, "#")
+	if !ok || !sectionIDRe.MatchString(section) {
+		return false
+	}
+	_, err := ParseBriefKey(key)
+	return err == nil
+}
+
+// ValidLaneRef: OD-2's lane namespace, with a branch ref's component rules.
+func ValidLaneRef(s string) bool {
+	rest, ok := strings.CutPrefix(s, laneRefPrefix)
+	return ok && rest != "" && ValidBranchRef("refs/heads/"+rest)
+}
+
+// ValidHarness: the harness id and pinned version of an agent start.
+func ValidHarness(h Harness) bool {
+	return harnessIDRe.MatchString(h.ID) && harnessVerRe.MatchString(h.Version)
+}
+
+// ValidSha: a git object id, SHA-1 or SHA-256.
+func ValidSha(s string) bool { return shaRe.MatchString(s) }
+
+// DataClass is the project's classification (OD-24). Its values are
+// UNVERIFIED until the merged project record fixes them (task 43), so only
+// the grammar is checked here.
+type DataClass string
+
+func (v DataClass) Valid() bool { return dataClassRe.MatchString(string(v)) }
+```
