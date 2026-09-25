@@ -459,3 +459,248 @@ END $$;
 CREATE TRIGGER issues_orchestrator_triage BEFORE INSERT ON issues
   FOR EACH ROW EXECUTE FUNCTION work_orchestrator_files_triage();
 ```
+
+```sql
+-- ── row-level security: task 06's loop, over exactly the three new tables ──────────────────
+DO $$
+DECLARE t text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY['org_agent_switches', 'issue_delegations', 'guidance_versions'] LOOP
+    EXECUTE format('ALTER TABLE hub.%I ENABLE ROW LEVEL SECURITY', t);
+    EXECUTE format('CREATE POLICY org_isolation ON hub.%I TO hub_app
+                    USING (org_id = current_setting(''hub.org_id'', true))
+                    WITH CHECK (org_id = current_setting(''hub.org_id'', true))', t);
+  END LOOP;
+END $$;
+
+-- ── grants: explicit, as task 06's are ────────────────────────────────────────────────────
+GRANT SELECT, INSERT ON org_agent_switches, issue_delegations, guidance_versions TO hub_app;
+GRANT UPDATE (orchestrators, reason, set_at, set_by) ON org_agent_switches TO hub_app;
+GRANT UPDATE (recorded_as)                           ON issue_comments     TO hub_app;
+GRANT EXECUTE ON FUNCTION agents_disabled(text) TO hub_app;
+-- No UPDATE or DELETE on issue_delegations or guidance_versions: a new version is a new row,
+-- and a delegation is never rewritten. Erasing guidance text is not granted here (gap 3).
+-- No UPDATE of issue_comments' kind, agent_*, via, proposal or negotiation, ever.
+```
+
+The trigger functions run as the invoker, so their reads of `agents` and `issues` pass through
+the same `org_isolation` policy as the insert they guard: a row of another org is invisible to
+them and the guard refuses, never leaks. The three messages are **database codes**, not problem
+codes: the store never returns them to a caller, because Go refuses first (decision (b)-(e)); a
+test that sees one on the wire has found a Go check that is missing.
+
+#### The store, `store/work_agents.go`, signatures complete
+
+```go
+// control-plane/internal/hub/store/work_agents.go
+package store
+
+// Each function runs inside the caller's Tx (Hub task 14): one statement set, the event
+// appended by the caller's WriteResult. None opens its own transaction; none reads text into
+// an event.
+
+// AgentSwitch reads the org's row; no row answers on, by nobody (decision (d)).
+func AgentSwitch(ctx context.Context, tx *Tx, orgID string) (hubapi.AgentSwitch, error)
+
+// SetAgentSwitch upserts the row and reports whether the value changed; unchanged writes
+// nothing, so the handler appends no event.
+func SetAgentSwitch(ctx context.Context, tx *Tx, orgID string, on bool, reason, by string) (hubapi.AgentSwitch, bool, error)
+
+// Delegate inserts the (issue, owner) row. It answers the existing row and false on a repeat.
+func Delegate(ctx context.Context, tx *Tx, issueID, ownerID, delegationID string) (hubapi.IssueDelegation, bool, error)
+
+// LiveOrchestratorDelegation finds the owner's unexpired, unrevoked orchestrator-class
+// delegation for the project (TM-04's delegations), or "" when none.
+func LiveOrchestratorDelegation(ctx context.Context, tx *Tx, projectID, ownerID string) (string, error)
+
+// AgentRole answers the agent's role and owner, and whether it has ended (TM-04's agents).
+func AgentRole(ctx context.Context, tx *Tx, agentID string) (role hubapi.AgentRole, ownerID string, ended bool, err error)
+
+// InsertAgentComment writes one agent-kind comment; ownerID is the principal's (decision (b)).
+func InsertAgentComment(ctx context.Context, tx *Tx, issueID, ownerID string, req hubapi.AgentCommentRequest) (hubapi.Comment, error)
+
+// Proposals lists evidence_proposal comments of the project, oldest first, filtered by issue
+// or brief key; erased rows are listed with blank text, never dropped.
+func Proposals(ctx context.Context, tx *Tx, projectID string, q hubapi.ProposalQuery) ([]hubapi.EvidenceProposalComment, error)
+
+// LinkProposal sets recorded_as once. changed is false on a repeat of the same id; a second
+// id is ErrRecordedAs, which the handler answers as 409 conflict.
+func LinkProposal(ctx context.Context, tx *Tx, commentID, evidenceID string) (hubapi.EvidenceProposalComment, bool, error)
+
+// EvidenceForLink reads the one evidence row the link checks: project, criterion, commit, and
+// who recorded it (hub-contract §7.10's columns).
+func EvidenceForLink(ctx context.Context, tx *Tx, evidenceID string) (projectID, criterionID, commit, recordedBy string, err error)
+
+// AppendGuidance inserts version base+1; a UNIQUE violation is ErrGuidanceConflict (409).
+func AppendGuidance(ctx context.Context, tx *Tx, scope hubapi.GuidanceScope, scopeID string, base int, text, by string) (hubapi.Guidance, error)
+
+// GuidanceVersions lists one scope's versions, newest first; GuidanceHeads reads the newest
+// version of each of up to three scopes, for ResolveGuidance.
+func GuidanceVersions(ctx context.Context, tx *Tx, scope hubapi.GuidanceScope, scopeID string) ([]hubapi.Guidance, error)
+func GuidanceHeads(ctx context.Context, tx *Tx, orgID, teamID, userID string) ([]hubapi.Guidance, error)
+
+var (
+	ErrRecordedAs       = errors.New("store: recorded_as is already another evidence id")
+	ErrGuidanceConflict = errors.New("store: a guidance version at base+1 exists")
+)
+```
+
+#### The routes, `server/work_agents.go`: registration, the gate, and the agent-comment order
+
+The chassis calls are task 08's (`s.route`, `WriteReplayable`, `ProjectRole`, `Require`,
+`tx.Emit`; `task-08.md:313-372`) and task 12's `Forbidden(required)` (`task-12.md:356`). The
+other seven handlers follow `postAgentComment`'s shape: decode, role, the rule, the store call,
+one `tx.Emit`, the answer. Their rule lists are the wire section above, in that order.
+
+```go
+// control-plane/internal/hub/server/work_agents.go
+package server
+
+// registerWorkAgents is called once from server.go, beside registerWorkIssues.
+func (s *Server) registerWorkAgents() {
+	d := func(name hubapi.RouteName, h http.HandlerFunc) http.HandlerFunc {
+		return Delegable(name, h).ServeHTTP // TM-05: a route without a name is Fleet-forbidden
+	}
+	s.route("POST /v1/issues/{issueId}/delegate", s.postDelegate)
+	s.route("POST /v1/issues/{issueId}/agent-comments", d(hubclient.RouteWorkAgentComment, s.postAgentComment))
+	s.route("GET /v1/projects/{projectId}/evidence-proposals", d(hubclient.RouteWorkProposalsRead, s.listProposals))
+	s.route("POST /v1/comments/{commentId}/recorded-as", s.postRecordedAs)
+	s.route("POST /v1/guidance/{scope}/{scopeId}/versions", s.postGuidance)
+	s.route("GET /v1/guidance/{scope}/{scopeId}/versions", s.listGuidance)
+	s.route("GET /v1/guidance/resolve", d(hubclient.RouteWorkGuidanceResolve, s.resolveGuidance))
+	s.route("GET /v1/orgs/{orgId}/agent-switch", d(hubclient.RouteWorkAgentSwitchRead, s.getAgentSwitch))
+	s.route("PUT /v1/orgs/{orgId}/agent-switch", s.putAgentSwitch)
+}
+
+// agentSwitchGate is the one call TM-05's resolveCaller makes after it builds a delegated
+// principal (decision (d)). Reads pass. A refused write appends org.agent_write_refused in its
+// own transaction, so the refusal is audited even though the write never ran.
+func (s *Server) agentSwitchGate(r *http.Request, p Principal) error {
+	if p.Via != hubapi.ViaFleet || r.Method == http.MethodGet {
+		return nil
+	}
+	off, err := s.orgAgentsDisabled(r.Context(), p.OrgID) // store.AgentSwitch in a read Tx
+	if err != nil || !off {
+		return err
+	}
+	s.appendOwnEvent(r.Context(), p, Event{Kind: "org.agent_write_refused", Subject: p.OrgID,
+		Data: map[string]any{"route": string(RouteFrom(r.Context())), "delegationId": p.DelegationID}})
+	return Refuse(http.StatusForbidden, "agents_disabled", nil)
+}
+
+func (s *Server) postAgentComment(w http.ResponseWriter, r *http.Request) {
+	issueID := r.PathValue("issueId")
+	s.WriteReplayable(w, r, httpx.MaxBodyBytes, s.rebuildComment, func(tx *Tx, body []byte) (WriteResult, error) {
+		ctx := r.Context()
+		if tx.P.Via != hubapi.ViaFleet { // 1. a person never writes an agent kind
+			return WriteResult{}, Forbidden("delegation")
+		}
+		var req hubapi.AgentCommentRequest
+		if err := Decode(body, &req); err != nil {
+			return WriteResult{}, err
+		}
+		if err := req.Valid(); err != nil { // 2. task 99: kind, model, sessionId, author "A", payload
+			return WriteResult{}, err
+		}
+		if req.Attribution.OwnerID != tx.P.UserID { // 3. decision (b): never the body's owner
+			return WriteResult{}, Refuse(http.StatusForbidden, "agent_not_owner", nil)
+		}
+		role, owner, ended, err := store.AgentRole(ctx, tx, req.Attribution.AgentID)
+		if err != nil || owner != tx.P.UserID || ended {
+			return WriteResult{}, orErr(err, Refuse(http.StatusForbidden, "agent_not_owner", nil))
+		}
+		if role != hubapi.AgentRoleOrchestrator { // 4. decision (c): one voice per owner
+			return WriteResult{}, Forbidden("orchestrator")
+		}
+		head, err := s.readableIssue(ctx, tx, issueID, hubapi.RoleMember) // 5. 404 before 403
+		if err != nil {
+			return WriteResult{}, err
+		}
+		if head.AssigneeID == nil || *head.AssigneeID != tx.P.UserID { // 6. the owner's issue only
+			return WriteResult{}, Forbidden("assignee")
+		}
+		if err := s.checkAgentPayload(ctx, tx, head, req); err != nil { // 7. brief key, thread
+			return WriteResult{}, err
+		}
+		c, err := store.InsertAgentComment(ctx, tx, issueID, tx.P.UserID, req)
+		if err != nil {
+			return WriteResult{}, err
+		}
+		tx.Emit(Event{Kind: "comment.created", TeamID: head.TeamID, ProjectID: head.ProjectID,
+			Subject: c.ID, Data: map[string]any{"issueId": issueID, "kind": string(req.Kind),
+				"ownerId": tx.P.UserID, "agentId": req.Attribution.AgentID}})
+		return WriteResult{Status: http.StatusCreated, Body: c}, nil
+	})
+}
+```
+
+New helpers in this file: `orgAgentsDisabled` (a read `Tx` over `store.AgentSwitch`),
+`appendOwnEvent` (one event in its own transaction, the refusal's audit), `checkAgentPayload`
+(a proposal's `briefKey` resolves in the issue's project, else 422 `key_unresolvable`; a
+negotiation's `threadId` is a TM-04 thread of the project whose participants include the agent,
+else 422 `thread_unresolvable`) and `orErr`. **Assumed from the sync base, UNVERIFIED:** `Refuse`
+(a problem with a code and details), `readableIssue` (task 08's read-then-role order, 404 before
+403), `rebuildComment` (task 12's replay rebuild) and `WriteResult{Status, Body}`. Step 1 maps each
+to its real name; none is a new rule.
+
+**The rule order of the other handlers**, each a refusal before any write:
+
+- `postDelegate`: a person (`Via == ""`, since the route is not `Delegable`); the issue readable
+  as member (404, then 403 `required: member`); not erased (409 `conflict`); `assignee == caller`
+  (403 `required: assignee`); `store.LiveOrchestratorDelegation` non-empty (422
+  `orchestrator_unavailable`); `store.Delegate`; `issue.delegated` only when the row is new.
+- `postRecordedAs`: the comment exists and is readable (404 `comment_not_found`); kind
+  `evidence_proposal` (422 `proposal_mismatch`, `field: kind`); `store.EvidenceForLink` (404
+  `evidence_not_found`, also for another project's record, never a 403 that confirms it exists);
+  criterion and commit equal the proposal's (422 `proposal_mismatch`); `recordedBy == caller`
+  (403 `required: recorder`); `store.LinkProposal`; `comment.proposal_linked` only when changed.
+- `postGuidance`: scope `org` needs `tx.P.OrgAdmin`, `team` the team's admin role, `person` that
+  `scopeId == tx.P.UserID`; text bounds; `store.AppendGuidance`; `guidance.versioned`.
+- `putAgentSwitch`: `{orgId} == tx.P.OrgID` (404 `org_not_found` otherwise); `tx.P.OrgAdmin`
+  (403 `required: org_admin`); turning off needs a reason; `store.SetAgentSwitch`;
+  `org.agent_switch_set` only when changed. Under a delegation `OrgAdmin` is always false
+  (TM-05 decision (e)), and the route is not `Delegable`, so Fleet can never turn itself on.
+- The three reads: role `viewer` on the project or team, the caller's own person layer only.
+
+**`server/work_issues.go` ⚑, `createIssue`, the three changed lines** (decision (e)):
+
+```go
+		source := hubapi.SourcePerson
+		if tx.P.Via == hubapi.ViaFleet { // an Orchestrator files for a person, into triage
+			req.State, source = ptr(hubapi.StateTriage), hubapi.SourceOrchestrator
+		}
+		content, state, err := s.checkCreate(ctx, tx, teamID, projectID, &req)
+		// … unchanged, except Source: source in store.IssueRow and "source": string(source)
+```
+
+and its registration becomes `s.route("POST /v1/projects/{projectId}/issues",
+Delegable(hubclient.RouteWorkIssueCreate, http.HandlerFunc(s.createIssue)).ServeHTTP)`.
+`req.State`'s type is task 03's `*IssueState` (UNVERIFIED; if it is a value, drop `ptr`).
+
+#### The relay: `control-plane/internal/api/work.go` ⚑
+
+```go
+// registerWorkAgents mounts the W3 relay rows, in task 16's pattern. AddAgentComment has no
+// relay: the desktop holds a person's session, and the Hub refuses a person that route.
+func (a *API) registerWorkAgents(mux *routes) {
+	calls := workAgentCalls()
+	for _, rt := range hubclient.WorkAgentRoutes {
+		if rt.Method == "AddAgentComment" {
+			continue
+		}
+		call, ok := calls[rt.Method]
+		if !ok {
+			panic("api: no relay handler for hubclient.WorkAgentRoutes row " + rt.Method)
+		}
+		delete(calls, rt.Method)
+		mux.Handle(rt.Relay(), a.relayWork(rt, call))
+	}
+	for name := range calls {
+		panic("api: relay handler " + name + " has no hubclient.WorkAgentRoutes row")
+	}
+}
+```
+
+`registerWork` calls `a.registerWorkAgents(mux)` as its last line. `workAgentCalls()` holds eight
+`workCall`s, each decoding its body and calling the matching `wk.` method, as `workCalls()` does.
+`routes_audit_test.go` gains the eight relay patterns, each `guarded`, in the catalog's order.
