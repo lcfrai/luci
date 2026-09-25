@@ -9,6 +9,18 @@ browser"*, with *Cancel*), **signed in** (the name, with *Sign out* in its menu)
 to sign in again** (the same control, and a sentence saying why). With no Hub configured the footer
 is exactly phase 2's: the product works on one laptop without anyone signing in.
 
+**OD-30: zero clicks** (main `docs/superpowers/planning/2026-09-25-identity-keycloak-broker.md` §3;
+Hub contract §17 §6.1 steps 5-7, §6.2). **There is no sign-in click at launch.** The control plane
+redeems the stored token silently before the first status read; on `invalid_grant`, or with no token,
+it starts the flow itself and **opens the system browser itself** (`ShellExecuteW`, task 30), so the
+footer goes straight to *signing in* and then *signed in*, with nothing for the user to press. The
+browser tab ends on the control plane's loopback page, **"Signed in. You can return to PanaceaApp."**
+(task 30), and task 40's `bringToFront` brings the window forward. The **Sign in** control is
+for what zero clicks cannot cover: a mid-session `reauth_required` (task 31 never opens a browser from
+a background call), a timeout, a cancelled or failed flow. Even then **Sign in** calls `signIn()` and
+the control plane opens the browser; this component calls `openUrl` only from the fallback link, shown
+after **15 s** of *signing in* with no callback (contract §17 §6.1 step 5).
+
 **Read `docs/DESIGN-SYSTEM.md` first.** Its non-negotiables, as they bind this surface:
 - **No spinner.** The signing-in state's only motion is a `StatusDot` with `live`, which is the only
   component allowed to call `beatDelayStyle()` (`components/common/StatusDot.tsx:2`) — so it
@@ -48,7 +60,8 @@ with *no prototype*, Step 0 is skipped and the hour is returned.
 // desktop/src/components/rail/AccountControl.tsx
 
 /** The signed-in person, or the way to sign in. Reads store.auth (task 40); acts through the
- *  client; opens the browser through @tauri-apps/plugin-opener's openUrl, lazily imported the way
+ *  client. The control plane opens the browser (OD-30); this component opens it only from the
+ *  15 s fallback link, through @tauri-apps/plugin-opener's openUrl, lazily imported the way
  *  components/menu/ContextMenu.tsx:44 imports revealItemInDir. Renders null while auth is null
  *  (before the first status read) and when !auth.hubConfigured. */
 export function AccountControl(props: {
@@ -64,16 +77,18 @@ these are the surface's sentences for states it renders itself):
 | State (`auth.state`, `auth.reason`) | What is shown |
 |---|---|
 | `signed_out`, `""` | a button **Sign in** |
-| `signing_in` | `StatusDot status="starting" live label="Waiting for your browser"`, the sentence **Finish signing in in your browser.**, a button **Cancel**, and a quiet link **Open the sign-in page again** (re-opens the last `authorizeUrl`, held in component state only) |
+| `signing_in` | `StatusDot status="starting" live label="Waiting for your browser"`, the sentence **Finish signing in in your browser.**, a button **Cancel**, and, only after 15 s in this state, a quiet link **Open the sign-in page** (opens the `authorizeUrl` this component's own `signIn()` returned, held in component state only; a flow the control plane started at launch returns no URL to the renderer, so there the recovery is **Cancel**, then **Sign in**) |
 | `signed_in` | the account's **name**; activating it opens a menu (the existing `common/Popover`) holding the username and **Sign out** |
 | `signed_out`, `reauth_required` | **Your sign-in has expired. Sign in again to see your team's shared work.** and **Sign in** |
 | `signed_out`, `timeout` | **The sign-in wasn't finished in time.** and **Sign in** |
 | `signed_out`, `entra_error` or `exchange_failed` | **Microsoft sign-in didn't complete.** and **Sign in** |
 | `signed_out`, `tenant_not_enrolled` | **Your organisation isn't set up for shared work yet.** — and no button: signing in again cannot change it |
+| `signed_out`, `offline` (task 30, OD-30) | **PanaceaApp can't reach sign-in right now. It will keep trying.** — and no button: the control plane retries on the heartbeat and never opens a browser for a network error (ruling §3) |
 | a `signIn()` call that rejects | the `ApiError`'s `message`, verbatim (e.g. the control plane's sentence for 503 `upstream_unavailable`, `entra`) |
 
-After **Sign in**: `client.signIn()` → `openUrl(authorizeUrl)` → `store.setSignInExpiresAt(expiresAt)`;
-the state then moves by the `Panacea-Auth-State` header (task 40), not by a timer in this component.
+After **Sign in**: `client.signIn()` → `store.setSignInExpiresAt(expiresAt)`; the control plane has
+already opened the browser (OD-30). The state then moves by the `Panacea-Auth-State` header (task 40);
+this component's one timer is the 15 s fallback link's.
 **Sign out** acts at once — no confirm dialog (DESIGN-SYSTEM's interaction standard) — and the
 footer shows **Sign in** on the next status read.
 
@@ -82,10 +97,12 @@ footer shows **Sign in** on the next status read.
 | Test | Asserts | Mutant it kills |
 |---|---|---|
 | `nothing new without a Hub` | `auth.hubConfigured: false` → the component renders null; `RailFooter` still reads *This machine* | a sign-in offered that cannot work |
-| `sign in opens the browser` | click **Sign in** → `signIn` once, `openUrl` with its URL, `signInExpiresAt` set | a URL opened in the webview instead of the system browser (ADR-H1 §5.2) |
+| `a launch needs no click` | the store moves `null` → `signing_in` → `signed_in` with no user event → the signing-in state, then the name; `signIn` and `openUrl` never called | a launch that waits for a click (OD-30 zero clicks); a second browser tab opened by the renderer |
+| `sign in lets the control plane open the browser` | click **Sign in** → `signIn` once, `openUrl` **not** called, `signInExpiresAt` set | a second tab (the control plane already opened one, OD-30); a URL opened in the webview (ADR-H1 §5.2) |
 | `signing in breathes on the heartbeat, not a spinner` | in `signing_in`: exactly one element with class `dot-live`; no element whose class names `spin` or whose style animates `transform` | a per-row spinner (DESIGN-SYSTEM, *"never a spinner per row"*) |
 | `cancel cancels` | **Cancel** → `cancelSignIn` once | — |
-| `open again re-opens the same URL` | the link → `openUrl` with the first URL, no second `signIn` | a second sign-in that cancels the first |
+| `the fallback link waits 15 s` | fake timers in `signing_in`: at 14.9 s no link; at 15 s the link; activating it → `openUrl` with the `authorizeUrl`, no second `signIn` | a link that races the control plane's own tab; a second sign-in that cancels the first |
+| `offline offers no button` | `signed_out`, `offline` → its sentence, no **Sign in** | a click that opens a browser for a network error (ruling §3) |
 | `signed in shows the name and signs out` | `signed_in` → the name; open the menu; **Sign out** → `signOut` once, no dialog | a confirm dialog on a non-destructive act |
 | `each reason has its sentence` | one row per line of the table above | a generic "error" where the user needs to know what to do |
 | `tenant not enrolled offers no button` | no **Sign in** in that state | a loop the user cannot win |
@@ -109,7 +126,8 @@ footer shows **Sign in** on the next status read.
 - [ ] **Step 2:** Tests; they fail. Then the component, the two `RailFooter` lines, the CSS.
 - [ ] **Step 3:** `cd desktop && npm test && npm run typecheck`.
 - [ ] **Step 4:** In `npm run tauri dev` against `devstack.sh up` and a control plane with the four
-  variables: sign in as Grace through `devissuer`'s page; see the name; sign out. **Record what was
+  variables and `PANACEA_APP_DEVISSUER_AUTO=true` with `PANACEA_APP_OIDC_LOGIN_HINT=grace@example.test`:
+  launch, and see Grace's name **with no click** (OD-30); sign out; relaunch. **Record what was
   seen as the implementer's observation**, and mark the visual design *unverified by the owner*
   (`OD-12`).
 - [ ] **Step 5:** Commit by pathspec.
@@ -117,7 +135,7 @@ footer shows **Sign in** on the next status read.
 #### Acceptance
 
 ```bash
-cd desktop && npx vitest run src/components/rail/AccountControl.test.tsx 2>&1 | tail -2   # 11 passed
+cd desktop && npx vitest run src/components/rail/AccountControl.test.tsx 2>&1 | tail -2   # 13 passed (OD-30 adds 2)
 cd desktop && npm test 2>&1 | tail -3                                                      # all passed, designsystem.test.ts included
 cd desktop && npm run typecheck                                                            # no output
 ```
@@ -126,7 +144,7 @@ cd desktop && npm run typecheck                                                 
 
 - **That it looks right.** Only the owner's eyes accept a surface (`CLAUDE.md`, working
   agreements), batched to the end (`OD-12`).
-- That Entra's page opens in the owner's default browser under KPMG's policies: task 43's
-  real-tenant checklist.
+- That the realm-to-Entra hop completes with zero clicks in the owner's default browser under KPMG's
+  policies (ruling U-6): task 43's check against Panacea's dev realm.
 - Any surface that needs the Hub (Discover, Design, Deploy): those lenses show their own
   `signed_out` or `unavailable` states (contract §9.5); none blocks the Develop lens.
