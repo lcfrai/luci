@@ -63,3 +63,79 @@ paints in the same frame, sends once with a key that survives retries, and on a 
    the ledger keeps `startedAt` and `pausedMs` against an injected clock, and the chip re-reads it on
    the one 1 Hz tick, `useHeartbeat()` (`hooks/heartbeat.ts:64`). A chip therefore lapses at the
    first beat after 6 s of unpaused time, up to one second late; that is recorded, not hidden.
+
+**Files** (the skeleton's File map lists `src/work/replica/{…,ops,undo,…}.ts` for 55-58, `:304`;
+it omits `UndoChip.tsx` and the two `api/` deltas, gaps named in the return):
+- `desktop/src/work/replica/ops.ts` — `WorkOp`, `FieldPath`, `fieldsOf`, `readField`,
+  `writeField`, `inverseOf`, `sendOp` (new)
+- `desktop/src/work/replica/ops.test.ts` — the op tests (new)
+- `desktop/src/work/replica/undo.ts` — `UndoLedger`, `createUndoLedger`, `useUndoEntry` (new)
+- `desktop/src/work/replica/undo.test.ts` — the window tests (new)
+- `desktop/src/work/replica/replica.ts` (task 55) — `mutate`, `onRefused`, `pendingOf`,
+  `draftAgain`, the per-issue send queue, `ReplicaWriteView` (modified)
+- `desktop/src/work/replica/mutate.test.ts` — the rollback, key and conflict tests (new)
+- `desktop/src/components/common/UndoChip.tsx` — the chip (new)
+- `desktop/src/components/common/UndoChip.test.tsx` — the pause and batch tests (new)
+- `desktop/src/components/common/common.css` ⚑ — `.undo-chip` (modified)
+- `desktop/src/work/keys/undoVerb.ts` — registers `U` through task 53's `registerVerb` (new)
+- `desktop/src/api/work.ts` ⚑ (task 37) — `WorkSend` gains `opts`; `WorkClient` gains `keyed(key)`
+  (modified)
+- `desktop/src/api/client.ts` ⚑ — `send` passes `Idempotency-Key` when given (modified)
+
+#### Interfaces — complete: the deltas on `api/work.ts` and `api/client.ts`
+
+```ts
+// desktop/src/api/work.ts, part 7 (task-37.md:373): WorkSend gains an optional fourth argument.
+export interface SendOptions {
+  /** 1-64 of [A-Za-z0-9_-] (hub-contract §1). Sent as Idempotency-Key on every attempt. */
+  idempotencyKey?: string;
+}
+export type WorkSend = (verb: Verb, route: string, body?: unknown, opts?: SendOptions) => Promise<unknown>;
+
+// WorkClient (task-37.md:318) gains one member, after importRun:
+  /** The same client with every call carrying `key` as its Idempotency-Key. The replica calls
+   *  `keyed(op.id)` once per op and reuses that client for each attempt of the op. */
+  keyed(key: string): WorkClient;
+
+// makeWorkClient (task-37.md:399) takes the options it forwards; its two helpers pass them on:
+export function makeWorkClient(send: WorkSend, opts: SendOptions = {}): WorkClient {
+  const relay = <T,>(m: RelayMethod, args: ReadonlyArray<string | number>, body?: unknown, q = ""): Promise<T> => {
+    const [, verb, hub] = WORK_RELAY.find((r) => r[0] === m)!;
+    return send(verb, relayPath(fill(hub, args)) + q, body, opts) as Promise<T>;
+  };
+  const local = <T,>(m: LocalMethod, args: ReadonlyArray<string>, body?: unknown): Promise<T> => {
+    const [, verb, path] = WORK_LOCAL.find((r) => r[0] === m)!;
+    return send(verb, fill(path, args), body, opts) as Promise<T>;
+  };
+  // … the thirty-five members exactly as task 37 prints them, then:
+  //   keyed: (key) => makeWorkClient(send, { ...opts, idempotencyKey: key }),
+}
+```
+
+```ts
+// desktop/src/api/client.ts. `send` (:245) takes the options; the header joins the one it sends.
+  async function send(method: Method, route: string, body?: unknown, opts?: SendOptions): Promise<Reply> {
+    // …
+      const headers: Record<string, string> = {};
+      if (body !== undefined) headers["Content-Type"] = "application/json";
+      if (opts?.idempotencyKey) headers["Idempotency-Key"] = opts.idempotencyKey;
+      const res = await doFetch(url, {
+        method,
+        signal: controller.signal,
+        headers: Object.keys(headers).length === 0 ? undefined : headers,
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
+// and the `work` line task 37 adds (task-37.md:521) forwards the fourth argument:
+  const work = makeWorkClient(async (verb, route, body, o) => parseJson<unknown>(await send(verb, route, body, o)));
+```
+
+`headers: undefined` when there is nothing to send keeps the built `client.test.ts` assertions on a
+body-less `GET` byte-identical. The webview's origin is not the loopback's, so `Idempotency-Key`
+is a non-safelisted header and the browser preflights it. The built control plane allows
+`Content-Type` only (`control-plane/internal/httpx/origin.go:170`, `corsHeaders = "Content-Type"`,
+pinned by `origin_test.go:172`), so without the Go delta below every keyed write fails its
+preflight. Two more files join the list:
+- `control-plane/internal/httpx/origin.go` ⚑ — `corsHeaders` becomes `"Content-Type, Idempotency-Key"`
+  (modified). If phase H's C3 local-key header lands first, the two names join one list; the
+  owner phase's file wins (rule H2).
+- `control-plane/internal/httpx/origin_test.go` ⚑ — the expectation at `:172` follows (modified)
