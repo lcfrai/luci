@@ -358,4 +358,78 @@ func (s *Server) resolveCaller(ctx context.Context, tx pgx.Tx, now time.Time) (p
 	}
 	return s.resolveDelegated(ctx, tx, now, c)
 }
+
+// resolveDelegated is §5.10 rules 2, 3 and 6 for a named delegation: the lookup,
+// then expiry, revocation and the route, in that order (decision c). The
+// principal is built before the route check, so the 403's auth.forbidden event
+// has an org and an actor (the owner, via Fleet).
+func (s *Server) resolveDelegated(ctx context.Context, tx pgx.Tx, now time.Time, c Claims) (Principal, bool, error) {
+	id := c.DelegationID
+	d, err := store.FleetDelegation(ctx, tx, c.TenantID, id)
+	if errors.Is(err, store.ErrDelegationUnknown) {
+		return Principal{}, false, Refuse(401, hubapi.CodeDelegationRevoked,
+			"That delegation is not in force.", map[string]string{"delegationId": id, "reason": "unknown"})
+	}
+	if err != nil {
+		return Principal{}, false, err
+	}
+	if !now.Before(d.ExpiresAt) {
+		return Principal{}, false, Refuse(401, hubapi.CodeDelegationExpired,
+			"That delegation has expired.", map[string]string{"delegationId": id})
+	}
+	if d.RevokedAt != nil {
+		return Principal{}, false, Refuse(401, hubapi.CodeDelegationRevoked,
+			"That delegation was revoked.", map[string]string{"delegationId": id, "reason": string(d.RevokedReason)})
+	}
+	p := Principal{
+		OrgID: d.OrgID, UserID: d.OwnerUserID, TenantID: c.TenantID, ObjectID: d.OwnerOID,
+		Name: d.OwnerName, Email: d.OwnerEmail,
+		OrgAdmin:     false, // decision (e): read from a token, and Fleet holds none of the owner's
+		Via:          hubapi.ViaFleet,
+		DelegationID: id,
+		Delegation: DelegationView{ID: id, ProjectID: d.ProjectID, Class: d.Class,
+			Routes: d.Routes, ExpiresAt: d.ExpiresAt},
+	}
+	name, ok := RouteFrom(ctx)
+	if !ok {
+		return p, false, Forbidden("route") // routes 46, 48, 49 and every non-team route
+	}
+	// Listed, and allowed for the class: task 06 refuses a delegation whose routes
+	// exceed its class, and this second check holds even for a row written around it.
+	if !slices.Contains(d.Routes, name) || !d.Class.Allows(name) {
+		return p, false, Forbidden(string(name))
+	}
+	return p, false, nil
+}
 ```
+
+`Principal` (Hub task 14's `tx.go`) gains three fields, after `OrgAdmin`:
+
+```go
+	Via          string         // "" for a desktop caller; hubapi.ViaFleet under a delegation or on the feed
+	DelegationID string         // the dl-… acted under; "" on the feed and for a desktop caller
+	Delegation   DelegationView // zero unless DelegationID is set
+```
+
+**The one change to `Read` and `Write`.** Each replaces its `store.ResolvePrincipal` call with
+`p, created, err := s.resolveCaller(ctx, tx, now)` and keeps everything after it: `err` rolls
+back and is answered as any handler's error is (an `*APIError` as its problem, `ErrNotEnrolled`
+as 403 `tenant_not_enrolled`, anything else 500 `internal`); `set_config('hub.org_id', p.OrgID,
+true)` follows; `created` gates `auth.user_provisioned` exactly as `rp.Created` did. `tx.P = p`.
+A returned `Forbidden` is recorded by Hub task 14's own short transaction with that `p`.
+
+**Every audit row comes from one function (decision f).** Hub task 14 builds a `store.AuditRow`
+in two places, `Write`'s pending events and `Forbidden`'s short transaction. Both call:
+
+```go
+// auditRow is the only constructor of a store.AuditRow in package server.
+func auditRow(p Principal, at time.Time, e Event) store.AuditRow {
+	return store.AuditRow{At: at, Kind: e.Kind, TeamID: e.TeamID, ProjectID: e.ProjectID,
+		Subject: e.Subject, ActorUserID: p.UserID, Data: e.Data,
+		Via: p.Via, DelegationID: p.DelegationID}
+}
+```
+
+On the feed `p.Via` is `fleet` and `p.DelegationID` is `""`. The feed is a read and writes no
+event; if it ever did, `AuditEnvelope.check()` refuses `via` without `delegationId`
+(`task-03.md:1336`), so the write fails closed with 500, never a v2 event with no delegation.
