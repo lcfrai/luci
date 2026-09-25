@@ -261,6 +261,75 @@ pseudo-element task 41 flashes), and the reason stays under its title until the 
 :root[data-motion="reduce"] .wk-row[data-fail]::after { animation: none; }
 ```
 
-`--fail` is the built status token (**UNVERIFIED** name: if `tokens.css` calls it otherwise, the
-built name is used and this rule follows it); `wk-flash` is task 41's keyframes.
+`--fail` is the built status token (`desktop/src/styles/tokens.css:76`, 6.06:1); `wk-flash` is
+task 41's keyframes, which animate `opacity` only.
+
+#### Tests to write first
+
+`suggestCriterion.test.ts` (pure), `CriterionPicker.test.tsx` and `TriageView.test.tsx` (rendered on
+task 20's `workScenario()` through task 40's test seam, **UNVERIFIED** name as in task 41). The
+world's EP-160 is the imported triage row (`task-20.md:305-308`); the tests that need EP-142 in
+triage override it to `{state: "triage", threadState: {kind: "not_tied", reason: "imported"}}` with
+the title *Resume an upload after a dropped connection*, and add the criterion *Uploads survive a
+dropped connection* (`05-design.md:885`) **after** the fixture's two, so brief order is wrong on
+purpose.
+
+| Test | What it asserts | Mutant it kills |
+|---|---|---|
+| `ranks the criterion with more shared words first` | for EP-142's text and criteria [*the resume test passes*, *upload works for PDF, XLSX and images*, *Uploads survive a dropped connection*], `suggestCriteria` returns the third first with `matched: ["dropped", "connection"]`, then the second with `["upload"]`, and not the first | brief-order output |
+| `ties keep brief order; no match is no suggestion` | two criteria sharing one word each come back in brief order; a criterion sharing only stop words (`the`, `a`) is absent | a sort that is unstable, or counts stop words |
+| `normalises case and diacritics` | `Résumé` in the issue matches `resume` in a criterion | an accent-sensitive match |
+| `shows the matched words and no number` | open `CriterionPicker`; the first option's note reads `matches: dropped, connection`; no option's text contains a digit; `expectNoPrediction(container)` passes | a similarity percentage or a score |
+| `1 in a text field and 1 in the Work list do nothing` | `keyDown {key: "1"}` on the decline field and on task 40's Work list send no op (a `mutate` spy); on a Triage row it sends one `setState` to `backlog` | a global number-key binding |
+| `2 sends the relation and the state as one op with one Undo` | `2`, choose EP-150; the spy saw **one** `mutate` call whose argument is an array of two ops; one Undo chip | a state-only duplicate, or two chips |
+| `3 declines with an optional reason; Esc sends nothing` | `3`, type *Superseded*, `Enter` → one `setState` to `cancelled` with that reason; `3`, `Esc` → none | a decline without its reason, or a field that sends on close |
+| `4 snoozes to the next 09:00 and the row stays` | `now` = `FIXED_NOW` (09:00Z, 19:00 in Sydney), zone `Australia/Sydney`; `4` sends `snooze` with `until: "2026-09-18T23:00:00.000Z"`; the row is still listed, last, reading `snoozed until` | a snooze that hides the row |
+| `a priority refusal rolls the row back and opens the picker` | the fake refuses with `policy_refused` / `priorityToLeaveTriage`; the row is back in Triage, has `data-fail`, reads *Needs a priority to leave Triage*, and a `listbox` labelled *Change priority* is open (task 46's `PriorityPicker`) | an accept that never rolls back, or a refusal shown as a toast only |
+| `an imported row reads not tied · imported until T` | the row's text contains `not tied · imported` and no `.thr-node`; `T`, `Enter` on the first suggestion; after the fake's answer the row has a `ThreadNode` and not the words | hiding the thread state, or a desktop that sets it |
+
+#### Steps
+
+- [ ] Write `suggestCriterion.test.ts`; it fails to import. Write `suggestCriterion.ts`; three pass.
+      Mutate: sort by `order` only (test 1 red); drop the stop-word filter (test 2 red); drop the
+      `normalize` call (test 3 red). Revert each.
+- [ ] Write `CriterionPicker.test.tsx`, then `CriterionPicker.tsx`; its test passes.
+- [ ] Write `TriageView.test.tsx`; it fails to import. Write `TriageView.tsx` (the list, the rows
+      with `threadWords` or `ThreadNode`s, the key handler after `isBareListKey`, the decline field,
+      the snooze, the refusal effect), then the *Triage* action in `WorkLens`'s `ViewHeader`.
+- [ ] Append the CSS. Run the whole suite and the typecheck. Commit each file as it goes green.
+
+#### Acceptance
+
+```bash
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop test -- src/work/suggestCriterion.test.ts src/components/work/CriterionPicker.test.tsx src/components/work/TriageView.test.tsx'
+# expected: 3 files, 10 tests, all passing
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop test'
+# expected: every suite passing
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop run typecheck'
+# expected: exit 0
+~/.claude/tools/claudezsh/claudezsh 'grep -n "score\|confidence\|%" desktop/src/work/suggestCriterion.ts desktop/src/components/work/CriterionPicker.tsx'
+# expected: no output
+```
+
+#### What this task does NOT claim
+
+- **Gateway suggestions** of team, assignee, labels or criterion, and their why-links (L-51, L-52):
+  W4. The shape `CriterionSuggestion` is kept for them; the source changes.
+- **Defer with a reason and a chosen time** (`H`): W2 (05:1237). `4` is a fixed next-morning snooze.
+- **`Shift+R` accept-and-Start** (L-47's EXCEED half): task 61.
+- **Triage items on the Desk** (L-46's second half): task 63.
+- **Stemming or synonyms** in the matcher; `upload` does not match `uploads`.
+- That the suggestion is *good*: it is a text match, named as one, and the owner judges it at the
+  demo (task 70), not this task's tests.
+
+#### Gaps found while writing this part
+
+1. The skeleton's row gives 42 `dependsOn: 40`; it also needs **46** (`Picker`, `handMove`,
+   `DuplicateOfPicker`, `PriorityPicker`) and **41** (`listKeys.ts`, the hold model). The scope's
+   *which tasks 46 and 47 reuse* runs the other way for `CriterionPicker`; 46's part does not use it.
+2. The file map omits `suggestCriterion.ts`, `CriterionPicker.tsx` and their tests.
+3. Task 56's `WorkOp` union needs `snooze` and `serves` (above); its `Refusal` shape is assumed.
+4. The scope's `4` **UNVERIFIED** is resolved by task 11 (`snoozedUntil`); no finding against task 03.
+5. Where the view reads the project's briefs' criteria in brief order is task 37/55's; phase 4's
+   loader (**UNVERIFIED until merge**) is the source task 45 names.
 
