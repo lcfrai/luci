@@ -155,3 +155,81 @@ export function useFlags(): Flags {
   return useSyncExternalStore(subscribe, getFlags, getFlags);
 }
 ```
+
+#### Interfaces — complete: `mount.ts`, `DevToolbar.tsx` and the `App.tsx` edit
+
+```ts
+// desktop/src/components/devtools/mount.ts
+//
+// The one gate between the product and the dev toolbar (Phase W task 32). Vite replaces
+// import.meta.env.DEV with a literal at build time, so in a production build the import() below
+// is dead code. The acceptance grep over dist/ is what proves no chunk was emitted for it.
+
+import { lazy } from "react";
+import type { JSX, LazyExoticComponent } from "react";
+
+export const DevToolbar: LazyExoticComponent<() => JSX.Element> | null = import.meta.env.DEV
+  ? lazy(() => import("./DevToolbar"))
+  : null;
+```
+
+```tsx
+// desktop/src/components/devtools/DevToolbar.tsx
+//
+// The dev toolbar: flag.compare now, stress.sets (task 33) and the grain meter (task 35) beside
+// it. Portalled into <body>, outside App's root, so the assembled-app test that App adds no
+// chrome (defects.test.tsx:193-201) still holds. A <details>, closed by default, so it covers
+// nothing until opened; no keyboard chord, so no cockpit chord is shadowed.
+
+import "./devtools.css";
+import "../../devtools/fonts/candidates.css";
+import type { JSX } from "react";
+import { createPortal } from "react-dom";
+import { resetFlags } from "../../lib/flags";
+import { FlagCompare } from "./FlagCompare";
+
+export default function DevToolbar(): JSX.Element {
+  return createPortal(
+    <details className="dt">
+      <summary className="dt-summary">Dev</summary>
+      <div className="dt-body">
+        <FlagCompare />
+        {/* task 33: <StressSets /> */}
+        <button type="button" className="dt-reset" onClick={resetFlags}>
+          Reset
+        </button>
+      </div>
+    </details>,
+    document.body,
+  );
+}
+```
+
+`createPortal` returns a `ReactPortal`, which is a `ReactElement` and so a `JSX.Element`; the
+return type typechecks without a cast (**UNVERIFIED** against `@types/react` 19 until step 6's
+typecheck runs; the fallback is `<>{createPortal(…)}</>`).
+
+`App.tsx`, the import line `:11` and the return at `:240`:
+
+```tsx
+import { Suspense, useEffect } from "react";
+// … the imports at :12-20 unchanged, then:
+import { DevToolbar } from "./components/devtools/mount";
+```
+
+```tsx
+  return (
+    <>
+      <AppShell />
+      {DevToolbar !== null && (
+        <Suspense fallback={null}>
+          <DevToolbar />
+        </Suspense>
+      )}
+    </>
+  );
+```
+
+The comment at `:229-230` ("this component renders AppShell and nothing else") gains one
+sentence: *In a dev build it also renders the dev toolbar, which portals out of this root and owns
+no store and no poller.*
