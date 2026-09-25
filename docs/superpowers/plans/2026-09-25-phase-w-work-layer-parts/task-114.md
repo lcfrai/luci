@@ -797,3 +797,82 @@ func (f *Fake) ProjectGrants(_ context.Context, id string) ([]hubapi.ProjectGran
 `(c *Client)` and every body `return <zero>, ErrNotConfigured` (task 04's client idiom,
 `task-04.md:1169`), and no `pr` alias (it reuses this file's, same package). Step 3 derives it
 from this file and checks it with `go vet`; task 124 deletes it.
+
+#### Tests first
+
+`hubapi/work_roadmap_test.go`, in `types_test.go`'s styles. Every row fails before the code exists
+and fails again on its mutant.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestWorkRoadmapGoldens` | each of the seventeen goldens decodes strictly (`DisallowUnknownFields`) and re-encodes byte for byte | a field renamed or retagged (`target_date`, `pinned_brief`) |
+| `TestWorkRoadmapEmptyListsAreArrays` | a zero `InitiativeTeams`, `StatusUpdate`, `Milestone`, `InsightsResult` built by its constructor encodes `[]`, never `null` | `omitempty` on a list |
+| `TestHealthIsThreeWords` | `ValidHealth` true for the three; `"green"`, `""`, `"On_Track"` false; `PostUpdateRequest.Validate` names `health` | free-text health |
+| `TestAnUpdateIsPinned` | `pinnedBrief` `""`, `brief:bf-…` with no `@r`, and `issue:is-…@1` each fail on `pinnedBrief` | an unpinned update |
+| `TestAnUpdateIsWrittenByAPerson` | a body with `author: "A"` fails on `body` | an agent-authored update |
+| `TestNoPredictionFields` | the reflection walk below over every W4 type finds no field named for a prediction | a prediction field (OD-27) |
+| `TestPercentilesAreNullWhenUnmeasured` | `InsightsResult{Groups: []…{}, Points: []…{}}` encodes `"p50Ms":null` | an invented zero percentile |
+| `TestScheduleBounds` | `every.n` 0 and 366, unit `"year"`, `at` `"24:00"`, tz `"Local"` and `"Mars/Base"` each fail on its field | an unbounded or local-clock schedule |
+| `TestInsightsWindow` | `to` before `from`, and a window over 366 days, fail on `to`; `groupBy: "priority"` fails | an unbounded query |
+| `TestScopeKinds` | `ScopeRef{"cycle", …}` fails; a `feature` scope with an `is-` id fails | a scope of the wrong kind |
+| `TestWorkRoadmapCodes` | each of the seven codes is in `WorkRoadmapCodeStatus` with its table status, and no code is also in another Work map | a wrong status; a code declared twice |
+
+The reflection test, complete, because it is the rule OD-27 makes mechanical:
+
+```go
+var predictionWords = map[string]bool{
+	"percent": true, "progress": true, "eta": true, "forecast": true, "remaining": true,
+}
+
+// camelWords splits "latestUpdate" or "p50Ms" into lower-case words.
+func camelWords(s string) []string {
+	var out []string
+	start := 0
+	for i := 1; i <= len(s); i++ {
+		if i == len(s) || (unicode.IsUpper(rune(s[i])) && !unicode.IsUpper(rune(s[i-1]))) {
+			out = append(out, strings.ToLower(s[start:i]))
+			start = i
+		}
+	}
+	return out
+}
+
+func TestNoPredictionFields(t *testing.T) {
+	types := []any{Initiative{}, InitiativeTeams{}, StatusUpdate{}, Milestone{}, MilestoneView{},
+		FeatureDependency{}, FeatureDependencyView{}, BriefTemplate{}, TemplateSchedule{},
+		ReminderPolicy{}, TriageRotation{}, TriageRotationView{}, InsightsQuery{}, InsightsResult{},
+		InsightGroup{}, InsightPoint{}, ReadCursor{}, ProjectGrant{}, InitiativeView{},
+		InitiativeFeature{}, UpdateStamp{}, CriterionWord{}}
+	seen := map[reflect.Type]bool{}
+	var walk func(reflect.Type, string)
+	walk = func(rt reflect.Type, at string) {
+		for rt.Kind() == reflect.Pointer || rt.Kind() == reflect.Slice {
+			rt = rt.Elem()
+		}
+		if rt.Kind() != reflect.Struct || seen[rt] {
+			return
+		}
+		seen[rt] = true
+		for i := 0; i < rt.NumField(); i++ {
+			f := rt.Field(i)
+			tag := strings.Split(f.Tag.Get("json"), ",")[0]
+			for _, name := range []string{f.Name, tag} {
+				for _, w := range camelWords(name) {
+					if predictionWords[w] {
+						t.Errorf("%s.%s: %q is a prediction word (OD-27)", at, f.Name, w)
+					}
+				}
+			}
+			walk(f.Type, at+"."+f.Name)
+		}
+	}
+	for _, v := range types {
+		walk(reflect.TypeOf(v), reflect.TypeOf(v).Name())
+	}
+}
+```
+
+Word matching, not substring matching: `metadata` and `beta` hold `eta` and must pass;
+`etaMs` and `percentDone` must fail. `TestNoPredictionFieldsCatchesOne` runs `walk` over a local
+`struct{ EtaMs int64 \`json:"etaMs"\` }` and wants exactly one error, so the test cannot pass
+by never matching.
