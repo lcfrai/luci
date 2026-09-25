@@ -149,3 +149,61 @@ and C7; 02 C8 (`02:276-278`). Parity: closes L-104 and L-225 (its *Delegate N to
 is W3's). Does not claim: *Set as default for everyone* (L-105), saved views (L-93), manual ordering
 (L-103), all W2.
 
+**45 — Plan (`G P`): Triage, Backlog, criteria with their issues, *My issues*.** Files:
+`src/components/work/PlanSurface.tsx` (+ test), edits to `src/components/AppShell.tsx` ⚑ (the Plan
+mount; task 40 mounted Work there and task 62 mounts the Desk, in task order) and `work.css`. Plan is
+the **project** surface (05 §4.1's table); it mounts the way task 40 mounts Work (a `workSlice`
+surface value, not a seventh lens tab; **UNVERIFIED** until task 40's part fixes the mechanism) and
+is reached in W1 from a *Plan* action in the Work lens's `ViewHeader` (SW.13); `G P` is bound by task
+54 and the palette verb by task 59. W1's Plan holds **exactly four sections, in order**: *Triage*
+(task 42's `TriageView`, embedded), *Backlog* (issues in `backlog`, grouped by criterion),
+*Criteria* (every criterion of the project's briefs, each with its convergence word `settled`,
+`open`, `contested`, `drifting` or `uncovered`, a plain issue count and its issues under
+`thread.line`, SW.14) and *My issues* (assignee is the signed-in person, from `/v1/auth/status`'s
+account, grouped by criterion). The features board, cycles, initiatives and saved views are **not
+drawn at all** until their slices bring them, because 05 §4.1 shows a noun only once a team has one.
+A criterion's convergence word is **read** from phase 4's criterion state (the planned
+`desktop/src/provenance/loader.ts`, P4 tasks 16-17, **UNVERIFIED until merge**), never computed on the
+desktop from issue states, because *done* and *settled* are two facts (05 §3.3). Uses SW.15, SW.16's
+`useWork`, SW.12's glyphs and task 41's hold model in every section. Tests first: the four sections
+render in order and nothing else (kills empty W2 placeholders); a criterion no issue serves reads
+`uncovered` and stays listed (kills hiding it); a criterion whose three issues are all `done` but
+whose evidence does not hold at the head reads `open` (kills deriving `settled` from issue states);
+*My issues* lists the reader's assigned issues and not issues whose agents the reader owns or
+issues the reader subscribes to (kills the wrong filter); every group size is a plain count and
+`expectNoPrediction` passes (kills a coverage percentage). Depends on 42. Design: 05 §4.1 (Plan
+row), §4.5 (Discover marks an unserved criterion), §3.3 (convergence words), §4.2 (the Desk, not
+*My issues*, is the ranking). Parity: closes L-112's view (the ranking is the Desk, tasks 62-65) and
+L-46's second home; serves L-101. Does not claim: the features board (L-67 onward), cycles (L-57
+onward), initiatives, saved views and favourites (W2, W4).
+
+**46 — the issue view, part 1: head fields and their pickers.** Files:
+`src/components/issue/IssueView.tsx` and `IssueHead.tsx` (+ tests), and new
+`src/components/issue/pickers/{StatePicker,PriorityPicker,AssigneePicker,LabelPicker}.tsx` (+ tests;
+not yet in the File map), which the row keys `S`, `P`, `A`, `I` and `L` open in task 53. The view uses
+the one `ViewHeader` (SW.13) with the route badge `Global`/`AU`; the head shows the title in sans, the
+alias `EP-142` in mono from `DisplayAlias(projectKey, n)` (SW.1), which is **display only**: every
+link, key and write uses the `is-` id (05 §3.6). Facts (alias, times, ids) are Commit Mono at
+`--t-fact` in `--ink-2` or stronger, never `--ink-3` (SW.11). *State*: the nine states with their
+`StateGlyph` (SW.12); `backlog`, `todo`, `cancelled`, `duplicate` (with a duplicate-of picker, as
+task 42's `2`) and `done` on an issue with an empty `serves` are selectable; `started`, `in_review`
+and `landed` are **listed with the fact each waits on and cannot be chosen**; `done` on an issue that
+serves criteria is marked *needs a reason*, and task 48 adds that step. Writes go as SW.4's
+`StateMove{to, cause, reason}` through SW.16's `mutate`. *Priority*: the five levels `none`, `urgent`,
+`high`, `medium`, `low`, drawn as the glyph's notch in ink, never a colour, urgent included (05 §4.4
+work rule 2). *Assignee*: people only, never an agent or a session (`OD-16`); *Assign to me* first.
+*Labels*: the team's labels (task 11). When the issue has **another owner's live agents** (a derived
+fact from their sessions' `IssueRef`, task 19), the assignee picker's commit becomes *Ask Dylan to
+hand over*, a reassign request through SW.2 (the method name is task 04's, **UNVERIFIED** here), and
+the head reads *reassign requested by Alice* until the owner decides on the Desk (task 65; 05 §3.7
+rule 2). Tests first: choosing `started` is impossible and sends nothing (kills a picker that fakes a
+fact); the urgent notch uses no `--need` or other signal colour (kills colour-coded priority); the
+assignee list has no agent or session entries (kills an agent assignee); a reassign on an issue with
+someone else's agents sends a request and leaves the assignee unchanged (kills steering another
+person's agent); changing the fixture's project key changes the alias and no link or key (kills the
+alias used as a key); no fact element carries the `--ink-3` class (kills an unreadable fact);
+`expectNoPrediction` passes. Depends on 37, 39. Design: 05 §4.1 (issue view), §3.3, §3.6, §3.7 rules
+1-2, §4.4 C3, C5 and work rules 1-2. Parity: closes L-13, L-38, L-17's team labels (org labels and
+groups are W2), L-181, and the display half of L-3 (with task 08); L-8's W1 part (fact states shown as
+facts). Does not claim: estimate `E` (L-16), due date (L-37), cycle and feature fields (W2).
+
