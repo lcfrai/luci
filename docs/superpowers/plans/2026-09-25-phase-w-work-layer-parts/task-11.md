@@ -294,3 +294,84 @@ var ErrLabelExists = errors.New("store: a live label of that name exists in the 
 `*pgxpool.Pool`; the name is **UNVERIFIED** until that file lands, and a different name is a
 find-and-replace.
 
+#### The routes (`server/work_relations.go`, `work_labels.go`, `work_policies.go`)
+
+Registered beside Hub task 08's mux entries, with Go 1.22 method patterns, so `server.Patterns()`
+lists them and task 07's matrix rows go live:
+
+```go
+func (s *Server) registerWorkSocial(mux *http.ServeMux) {
+	mux.HandleFunc("POST /v1/issues/{issueId}/relations", s.postRelation)
+	mux.HandleFunc("DELETE /v1/issues/{issueId}/relations/{kind}/{otherId}", s.deleteRelation)
+	mux.HandleFunc("GET /v1/teams/{teamId}/labels", s.listLabels)
+	mux.HandleFunc("POST /v1/teams/{teamId}/labels", s.postLabel)
+	mux.HandleFunc("POST /v1/labels/{labelId}/archive", s.archiveLabel)
+	mux.HandleFunc("GET /v1/teams/{teamId}/work-policy", s.getWorkPolicy)
+	mux.HandleFunc("PUT /v1/teams/{teamId}/work-policy", s.putWorkPolicy)
+}
+```
+
+**`postRelation`**, inside `s.Write`, in this order (the order is the rule; each step's refusal
+rolls the transaction back and appends nothing):
+
+1. `server.Decode[hubapi.RelationRequest]`; `!WritableRelationKind(kind)` → 400 `bad_request`,
+   `field: "kind"`; a malformed `issueId` → 400, `field: "issueId"`.
+2. Load the subject inside the caller's readable set (task 08's lookup) → 404 `issue_not_found`;
+   the caller's role on its team below `member` → `server.Forbidden("member")`.
+3. Load the other issue **inside the same readable set** → 404 `issue_not_found` naming
+   `details.issueId` = the other id; the other issue's `team_id` ≠ the subject's → the same 404
+   (decision 3: a relation never tells a reader another team's issue exists).
+4. `subject == other` → 400 `bad_request`, `field: "issueId"`, "An issue cannot relate to
+   itself." The handler refuses before the `INSERT`, so task 06's `issue_relations_not_self`
+   `CHECK` is the second layer and never the answer a person sees.
+5. `NormaliseRelation`; for `blocks` and `duplicates`, `ReverseExists` → 422 `relation_cycle`.
+6. `InsertRelation`; `inserted == false` → 200 with the head and **no** `Emit`.
+7. `Emit(Event{Kind: "issue.related", TeamID, ProjectID, Subject: subjectID, Data: {"kind",
+   "otherIssueId", "otherAssigneeId"}})`, where `otherAssigneeId` is the other issue's assignee
+   when that assignee is set **and is not the writer**, else `""` (05 §3.7 rule 3: the owner is
+   informed, never their agents). 201 with the subject's head.
+
+`deleteRelation` accepts any of the five words in `{kind}` (the read words included, because the
+desktop deletes what it shows), normalises, and deletes; nothing deleted → 404
+`relation_not_found`; else one `issue.unrelated` event with the same `data` and 200.
+
+**`postLabel`** (admin): `name` trimmed, 1-40 characters, no control characters → else 400
+`field: "name"`; `color` must be one of `LabelColors` → else 400 `field: "color"`; `ErrLabelExists`
+→ 409 `label_exists`, `details.labelId` the live label's id. One `label.created` `{"name"}` event
+with `TeamID` set and `ProjectID` empty (a label is team metadata; hub-contract §8 already carries
+a team's and a project's `name` in `data`, `:1139` and `:1145`, and forbids only brief content,
+blob bytes, evidence `because` text and tokens, `:1133-1134`; a label name follows that precedent).
+**`archiveLabel`** (admin of the label's team; the label outside the caller's teams → 404
+`label_not_found`): sets `archived_at` once; a second call is 200 and no event. Issues keep an
+archived label they already carry (history is not rewritten); a new `PATCH` cannot add one.
+
+**`putWorkPolicy`** (admin): all three fields required (a missing one is 400 naming it);
+`defaultState` must satisfy `hubapi.ValidInitialState` → else 400 `field: "defaultState"`;
+`PutTeamPolicy` returns the changed field names; none changed → 200 and no event; else one
+`team.work_policy_set` `{"fields": "defaultState,priorityToLeaveTriage"}` (a comma-joined
+string: `data` carries no arrays, hub-contract §8's last paragraph).
+
+**The label palette.** `LabelColors` is the list of `docs/DESIGN-SYSTEM.md` token names a label may
+use, declared once in `hubapi/work.go` as `[]string`, and a Go test reads the token names out of
+`desktop/src/styles/tokens.css` and fails when one in the list is not a token there. The exact
+list is task 26's to fix (the tokens task); until it lands this task ships the six the design
+system already names for status (`neutral`, `accent`, `success`, `warning`, `danger`, `info`),
+**UNVERIFIED** against `tokens.css` until that test runs.
+
+**The create and patch paths (task 08's file, edited in task order).** `CreateIssueRequest` with an
+empty `state` takes `TeamPolicy(team).DefaultState`; a non-empty one must satisfy
+`ValidInitialState` (task 03). An import (task 15) and intake (W5) **always** pass `triage`, so the
+policy never applies to them. `PatchIssueRequest.labels`: each id must be a live label of the
+issue's own team → else 422 `label_unavailable`, `details.field = "labels[n]"`; the list replaces
+the issue's labels (`DELETE` then `INSERT` on `issue_labels`, one `issue.updated` event with
+`fields: "labels"`). `PatchIssueRequest.snoozedUntil`: an RFC 3339 time in the future, allowed only
+while the issue is in `triage` (else 422 `bad_request`, `field: "snoozedUntil"`), and `""` clears
+it; a move out of `triage` clears it in the same `UPDATE` (task 10's path).
+
+**The move path (task 10's file).** Before the `UPDATE` of a `hand` move, `TriageExitRefused(from,
+to, priority, TeamPolicy(team))` → 422 `policy_refused`, `details.policy =
+"priorityToLeaveTriage"`, no event. The check applies to `hand` moves only. A fact move out of
+`triage` (Start on an issue nobody accepted) is task 24's to prevent or allow; whether task 24
+accepts the issue first is **UNVERIFIED** here, and the conformance row in task 05 is where the two
+must agree.
+
