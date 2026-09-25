@@ -132,7 +132,7 @@ schedules:
 jobs:
   - job: detect
     pool:
-      name: $(PANACEA_APP_POOL)  # task 30's Managed DevOps Pool; the variable name is UNVERIFIED
+      name: $(PANACEA_APP_CI_POOL)  # task 30's Managed DevOps Pool (phase 8 parts/task-30.md:200)
     steps:
       - checkout: self
         persistCredentials: false
@@ -308,3 +308,69 @@ echo "publish: $sandbox claudeCode $cc ($change)"
 `last` comes from the previous `image-digests` of the same branch (the `publish` job below). A
 first publish on a branch has none, so it needs all four gates to `pass`: until phase 3 task 17's
 canary exists, **no image publishes on a fresh branch** (gap 3).
+
+**(f) The live gates mint their own per-run tokens, as a keysmith caller of their own.** A gateway
+binding is pinned to the pod's address (`wire.MintRequest.PodAddr`, phase 6 `parts/task-03.md:30`),
+so the token must be minted after the Job's pod has one. Each Job's init container runs
+`gatemint`, a new ~50-line `control-plane/cmd/gatemint` on phase 6 task 15's
+`gatewayclient.New(keysmithURL, callerTokenFile, o)` and `Mint` (`parts/task-15.md:763,792`),
+shipped in the **broker** image (`build.sh` step 1 gains it), never in the sandbox image. It runs as
+service account `bump-gate` in `panacea-sandboxes`, a row in keysmith's caller table
+(`name credential routes`, phase 6 `parts/task-08.md:45`) with routes `mint` only. It mints for
+`status.podIP` with session id `gate-<run>-<gate>-<n>`, the owner, team and project in
+`bumpGate.*` values (a dev-only "platform gate" project whose budget is the G9 cost cap), and
+writes the token to an `emptyDir` with `gatewayclient.WriteToken`. Tokens die at their TTL and
+with the pod; nothing else holds them. Gap 4 is the keysmith row and the gate project.
+
+**`pipelines/images.yml`, the three new jobs** (appended to task 27's `jobs:`; `canary`, `push`
+and the rest unchanged but for `push` no longer publishing `image-digests`):
+
+```yaml
+  - job: channel                      # G2; no connection, so PR builds run it
+    dependsOn: build
+    pool: { name: $(PANACEA_APP_CI_POOL) }
+    steps:
+      - download: current
+        artifact: images-local        # task 27's build output (name UNVERIFIED until merge)
+      - bash: pipelines/scripts/gate-channel.sh images/.out/gates
+        displayName: G2 the panacea channel on the new image
+
+  - job: gates_live                   # G3, G4; dev's cluster even on main (never prod)
+    dependsOn: [push, canary, channel]
+    condition: and(succeeded(), in(variables['Build.SourceBranch'], 'refs/heads/dev', 'refs/heads/main'))
+    pool: { name: $(PANACEA_APP_CI_POOL) }
+    steps:
+      - download: current
+        artifact: pushed-digests      # push's digests.json, kept in the run (renamed by this task)
+      - download: current
+        artifact: gates               # canary's and channel's result files
+      - task: DownloadPipelineArtifact@2
+        inputs: { buildType: specific, project: $(System.TeamProjectId), definition: $(System.DefinitionId),
+                  buildVersionToDownload: latestFromBranch, branchName: $(Build.SourceBranch),
+                  artifactName: image-digests, targetPath: $(Agent.TempDirectory)/last }
+        continueOnError: true         # none yet on this branch: publish treats it as a CLI change
+      - task: AzureCLI@2
+        inputs:
+          azureSubscription: $(PANACEA_APP_DEV_GATE_SERVICE_CONNECTION)   # gap 1: a fifth identity
+          scriptType: bash
+          scriptLocation: scriptPath
+          scriptPath: pipelines/scripts/gate-live.sh
+          arguments: $(Pipeline.Workspace)/pushed-digests/digests.json images/.out/gates $(Agent.TempDirectory)/last
+
+  - job: publish                      # the ONLY writer of image-digests
+    dependsOn: gates_live
+    pool: { name: $(PANACEA_APP_CI_POOL) }
+    steps:
+      - download: current             # pushed-digests and gates, as above
+      - bash: >
+          pipelines/scripts/publish-digests.sh $(Pipeline.Workspace)/pushed-digests/digests.json
+          $(Pipeline.Workspace)/gates-final "$(cat $(Pipeline.Workspace)/gates-final/last-claudeCode)"
+      - publish: images/.out/publish
+        artifact: image-digests
+```
+
+`gate-live.sh` publishes the four result files as `gates-final`, with `last-claudeCode` beside
+them (the `claudeCode` of the downloaded `last/digests.json`, empty when there is none or it is
+task 27's older shape without the key); `publish` needs no connection. The YAML shape follows
+Azure Pipelines' documented schema from training knowledge (**UNVERIFIED** until the first run,
+as task 27's own is).
