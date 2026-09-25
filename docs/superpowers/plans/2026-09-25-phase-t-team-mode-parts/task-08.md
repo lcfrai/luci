@@ -75,7 +75,8 @@ approximated.
 // Fleet's outbox can hold one method expression per operation (task-11.md:534-540).
 // subjectID is the record id in the path, or "" for a create whose path has none.
 type Team interface {
-	// Desktop: routes 46–49.
+	// Desktop: routes 46, 48, 49. Route 47 (Delegation) also Fleet, under the
+	// delegation it reads (delegations.read, task-06.md's route 47).
 	CreateDelegation(ctx context.Context, req hubapi.CreateDelegationRequest) (hubapi.Delegation, error)
 	Delegation(ctx context.Context, delegationID string) (hubapi.Delegation, error)
 	RenewDelegation(ctx context.Context, delegationID string) (hubapi.Delegation, error)
@@ -179,7 +180,8 @@ func IdempotencyKeyFrom(ctx context.Context) string {
 ```
 
 The HTTP client (Hub task 33's `do`, **UNVERIFIED until merge**) gains two lines where it builds a
-request: `if dl := DelegationFrom(ctx); dl != "" { req.Header.Set("X-Panacea-Delegation", dl) }`,
+request: `if dl := DelegationFrom(ctx); dl != "" { req.Header.Set(hubapi.HeaderDelegation, dl) }`
+(`"X-Panacea-Delegation"`, `task-03.md:352-353`, the constant task 05's `Authenticate` reads),
 and, for a `POST`, `IdempotencyKeyFrom(ctx)` in place of `ids.UUID()` when it is non-empty. A key
 that fails the Hub's grammar (`^[A-Za-z0-9_-]{1,64}$`, `task-14.md:103`) is refused **locally**
 with a `bad_request` `*Error` before any network call, so a malformed outbox id never costs a
@@ -353,7 +355,8 @@ One row in full, the one the scope paragraph names:
 func rowRevocationWithinOnePoll(t *testing.T, e Env) {
 	ctx := context.Background()
 	dl, err := e.Member.CreateDelegation(ctx, hubapi.CreateDelegationRequest{
-		ProjectID: e.ProjectID, Class: hubapi.AgentRoleOrchestrator, Routes: []string{"tasks.create"}})
+		ProjectID: e.ProjectID, Class: hubapi.DelegationClassOrchestrator,
+		Routes: []hubapi.RouteName{hubapi.RouteTasksCreate}}) // task-03.md:488-492
 	if err != nil {
 		t.Fatal(err)
 	}
