@@ -801,6 +801,9 @@ call sites by grep.
 
 Lane observation and task ordering. Line numbers are for the tree at this batch's last commit.
 "parts/" means `2026-09-23-phase-3-git-convergence-parts/`.
+*Superseded (re-review b04-2 issue 6):* the round-1 tables below cite task-11 lines that now
+hold other text, and name a dry-run probe that no longer exists. The round-2 section is the
+current map, and R4 (task 24, task 11's runner-based `Inspect`) supersedes both for task 11.
 
 ### I7: briefref and the lock get owners; no dependency edge changes
 
@@ -867,6 +870,11 @@ cannot see a ref-write failure. See "Fix batch b04, round 2" below.)
 - Which call fails first for a loose ref that names a missing object: the listing, or the
   archive. Since round 2 the first ends in `Unlisted` (and a wildcard archive), the second in
   `Unarchivable`; either way the human is asked.
+  *Corrected (re-review b04-2 issue 1):* on git 2.53.0 neither call failed: `--no-merged` left
+  the ref out and exited 0, so nothing was asked. Since R4, task 11 takes `Merged` from
+  `--merged` only (r4-review-2 I-3), so the ref is `Elsewhere`, and the runner's bundle of it
+  fails "fatal: bad object" (probed by R4 U9) → `Unarchivable`, which is asked. The wildcard is
+  gone (task-11 `OffBranchRefspecs` names each ref).
 
 ### Fix batch b04, round 2: re-review b04-1's five issues
 

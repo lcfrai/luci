@@ -291,8 +291,9 @@ GitLineEndings` and `{"core.eol", eol.EOL}` in `sessions.go`; both 1 at `10fa5fd
 3's branch when task 04 starts, the implementer stops and reports; phase 3 does not re-implement
 them. Task 04 needs them itself: it edits session create and restart (its mount guard). Before tasks 04–06 append to a
 contract section, each preflight runs `git diff 3303fd6 HEAD -- docs/superpowers/contracts/` and
-reads every hunk in the sections it amends (Go §2, §3.1, §3.2, §5.1; UI §2, §6.5, §7.7), because
-the fix already edited §2.2, §5.1, §6.5 and §7.7. If the fix merges with a different
+reads every hunk in the sections it amends (Go §2, §3.1, §3.2, §3.7, §4, §5.1; UI §2, §6.5,
+§7.7), because the fix already edited Go §2.2, §2.6, §4 and §5.1 and UI §6.5 and §7.7 (the
+`--stat` above; re-review b03-2 Minor 4). If the fix merges with a different
 shape from the one quoted above (`sessionEnv`'s pairs, `GitIdentity`'s signature,
 `LinkedWorktreeNote`'s condition), tasks 04–06
 re-read it and adjust their preflight greps, and the change is reported in the task's commit.
@@ -482,7 +483,7 @@ control-plane/
   cmd/api/config.go                 (p2) three PANACEA_APP_* rows                          04 07 12
   cmd/api/main.go                   (p2) wire lanes, syncer, fetch timer, deps;
                                     phase 2's resolvers unchanged (R4.6, gate G5);
-                                    the lanegit pool, its HeldSet before the reaper          04 07 12 13 24
+                                    the lanegit pool, its HeldSet before the reaper          04 07 09 12 13 24
   cmd/api/lanegit_spy_test.go       TestHostNeverRunsGitInALane (R4.2)                       24
   internal/gitx/                    runner.go error.go machine.go trailers.go harden.go (§HGH)
                                     locks.go (the one per-project lock, review I7)
@@ -642,8 +643,10 @@ both 10 and 13.
 **Shared-file hazards inside phase 3.** Task 04 adds exactly two lines to `api/api.go`
 (`Deps.Git *GitDeps` and `a.registerGit(guarded)`); after that, phase 3's dependencies live in
 `api/gitdeps.go` and its routes in `api/gitroutes.go`, both phase 3's own files. Each later task
-appends a **contiguous, commented block** (`// ── task NN ──`) to `GitDeps`, to `gitRoutes()`
-and to `serve`'s phase 3 wiring in `cmd/api/main.go`, never between another task's lines, so
+appends a **contiguous, commented block** (`// ── task NN ──`) to `GitDeps`, to `gitRoutes()`,
+to `serve`'s phase 3 wiring in `cmd/api/main.go`, and to task 04's `TestServeWiresGit` (tasks
+09 and 12 each append one assertion there; re-review b04-2 issue 5), never between another
+task's lines, so
 parallel lanes merge mechanically (`dependency-graph-and-order.md` §4.2's rule for `api.go`,
 made structural). `routes_audit_test.go` gets one line per GET, appended. Task 05 no longer
 touches `main.go`, since phase 2's resolvers are the phase-2 stream's (R4.6, gate G5). Task 24
