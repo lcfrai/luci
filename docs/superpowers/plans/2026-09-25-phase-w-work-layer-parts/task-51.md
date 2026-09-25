@@ -421,3 +421,155 @@ caret, which they caused, and scrolls nothing. `fetching` shows the revision num
 ellipsis in text, not a spinner (`DESIGN-SYSTEM.md`'s one-heartbeat rule); a refusal shows the
 relay's message verbatim; an anchor whose offsets fall outside its own revision says so with the
 numbers rather than quoting a clamped guess.
+
+#### Interfaces — complete: `Comments.tsx`, part 2: one comment
+
+```tsx
+const time = (iso: string): string =>
+  new Date(iso).toLocaleTimeString("en-AU", { hour: "2-digit", minute: "2-digit", hour12: false });
+
+/** A mention renders the member's CURRENT name, found by id (decision 3). */
+function Body(props: { text: string; people: readonly User[] }): JSX.Element {
+  const parts: ReactNode[] = [];
+  let at = 0;
+  for (const m of props.text.matchAll(/\[@([^\]]*)\]\(([^)\s]+)\)/g)) {
+    const id = userIdOfHref(m[2]);
+    if (id === null) continue;                       // not a mention; stays text
+    parts.push(props.text.slice(at, m.index));
+    const who = props.people.find((p) => p.id === id);
+    parts.push(<span key={m.index} className="iv-cm-mention" data-user={id}>
+      @{who ? who.displayName : m[1]}{who ? null : <span className="iv-fact"> · former member</span>}</span>);
+    at = (m.index ?? 0) + m[0].length;
+  }
+  parts.push(props.text.slice(at));
+  return <div className="iv-cm-body">{parts}</div>;
+}
+
+function Reactions(props: { c: IssueComment; me: User }): JSX.Element {
+  const { c, me } = props;
+  const toggle = (emoji: string) => {
+    const { on } = nextReactions(c.reactions, me, emoji);
+    mutate({ kind: "reaction", issueId: c.issueId, commentId: c.id, emoji, on });
+  };
+  return (
+    <div className="iv-cm-reactions" role="group" aria-label="Reactions">
+      {c.reactions.map((r) => (
+        <button key={r.emoji} type="button" className="iv-cm-reaction" aria-pressed={r.users.some((u) => u.id === me.id)}
+          onClick={() => toggle(r.emoji)}>
+          <span aria-hidden="true">{r.emoji}</span>
+          <span className="iv-cm-who">{r.users.map((u) => u.displayName).join(", ")}</span>
+        </button>
+      ))}
+      <span className="iv-cm-add" role="group" aria-label="Add a reaction">
+        {REACTIONS.filter((e) => !c.reactions.some((r) => r.emoji === e)).map((e) => (
+          <button key={e} type="button" aria-label={REACTION_WORD[e]} onClick={() => toggle(e)}>{e}</button>
+        ))}
+      </span>
+    </div>
+  );
+}
+
+function OneComment(props: { c: IssueComment; me: User; people: readonly User[]; head: IssueRevision;
+  onReply?(): void; onResolve?(): void }): JSX.Element {
+  const { c, me, people, head, onReply, onResolve } = props;
+  if (c.erasedAt !== null) {
+    return <article className="iv-cm" data-comment={c.id} data-erased=""><span className="iv-fact">erased · {time(c.erasedAt)}</span></article>;
+  }
+  return (
+    <article className="iv-cm" data-comment={c.id} data-author={c.body.author}>
+      <header className="iv-cm-by">
+        <AuthorClass author={c.body.author} />
+        <span className="iv-cm-name">{c.createdBy.displayName}</span>
+        <time className="iv-fact" dateTime={c.createdAt}>{time(c.createdAt)}</time>
+      </header>
+      {c.anchor ? <AnchorLine issueId={c.issueId} anchor={c.anchor} head={head} /> : null}
+      <Body text={c.body.text} people={people} />
+      <Reactions c={c} me={me} />
+      <footer className="iv-cm-acts">
+        {onReply ? <button type="button" onClick={onReply}>Reply</button> : null}
+        {onResolve ? <button type="button" onClick={onResolve}>Resolve</button> : null}
+      </footer>
+    </article>
+  );
+}
+```
+
+The body is rendered as text with mentions lifted out, **not** through `innerHTML`: a comment is
+the person's Markdown, and task 49's read-only rendering of it is the richer path the implementer
+may swap in later (`Editor` with `readOnly`, `task-49.md:525`); one ProseMirror view per comment
+is the cost this part declines in W1, and it does not depend on that swap. No digit appears in a reaction: the names are the count (decision 5). The add row
+offers only the emoji nobody has used yet, so one emoji never shows twice.
+
+#### Interfaces — complete: `Comments.tsx`, part 3: the thread and the list
+
+```tsx
+function Thread(props: { t: CommentThread; me: User; people: readonly User[]; head: IssueRevision;
+  onOwn(localId: string): void }): JSX.Element {
+  const { t, me, people, head, onOwn } = props;
+  const [replying, setReplying] = useState(false);
+  const r = t.root;
+  const resolve = (resolved: boolean) => mutate({ kind: "resolve", issueId: r.issueId, commentId: r.id, resolved });
+  if (r.resolvedAt !== null && r.erasedAt === null) {
+    return (
+      <div className="iv-cm-thread" data-thread={r.id} data-resolved="">
+        <span className="iv-cm-folded">Resolved by {r.resolvedBy?.displayName ?? "someone"} · {time(r.resolvedAt)}</span>
+        <span className="iv-fact"> · {1 + t.replies.length} comments</span>
+        <button type="button" onClick={() => resolve(false)}>Reopen</button>
+      </div>
+    );
+  }
+  return (
+    <div className="iv-cm-thread" data-thread={r.id}>
+      <OneComment c={r} me={me} people={people} head={head}
+        onReply={() => setReplying(true)} onResolve={r.erasedAt === null ? () => resolve(true) : undefined} />
+      {t.replies.map((c) => <OneComment key={c.id} c={c} me={me} people={people} head={head} />)}
+      {replying ? (
+        <CommentComposer issueId={r.issueId} parentId={r.id} anchor={null} people={people}
+          label={`Reply to ${r.createdBy.displayName}`} onPosted={(id) => { setReplying(false); onOwn(id); }} />
+      ) : null}
+    </div>
+  );
+}
+
+/** The default `activity` slot (task 46). `head` is the head revision; anchors fetch their own. */
+export function Comments(props: { issueId: string; me: User; people: readonly User[]; head: IssueRevision }): JSX.Element {
+  const { issueId, me, people, head } = props;
+  const comments = useIssueComments(issueId);
+  const pending = useContext(PendingCtx);
+  const [own, setOwn] = useState<string | null>(null);
+  const list = useRef<HTMLDivElement>(null);
+
+  // The ONE scroll: to a comment this person just posted (decision 8). Nothing else scrolls.
+  useLayoutEffect(() => {
+    if (own === null) return;
+    const el = list.current?.querySelector<HTMLElement>(`[data-comment="${CSS.escape(own)}"]`);
+    if (el) { el.scrollIntoView({ block: "nearest" }); setOwn(null); }
+  }, [own, comments]);
+
+  return (
+    <section className="iv-cm-list" aria-label="Comments" ref={list}>
+      {threads(comments).map((t) => (
+        <Thread key={t.root.id} t={t} me={me} people={people} head={head} onOwn={setOwn} />
+      ))}
+      <div className="iv-cm-new">
+        {pending?.anchor ? (
+          <div className="iv-cm-pending">
+            <AnchorLine issueId={issueId} anchor={pending.anchor} head={head} />
+            <button type="button" onClick={pending.clear}>Drop the anchor</button>
+          </div>
+        ) : null}
+        <CommentComposer issueId={issueId} parentId={null} anchor={pending?.anchor ?? null} people={people}
+          label="New comment" onPosted={(id) => { pending?.clear(); setOwn(id); }} />
+      </div>
+    </section>
+  );
+}
+```
+
+The resolved fold keeps the thread's **size** in words (*· 3 comments*), not a badge. *Reopen* is a
+new write by the person, the same op with `resolved: false`; task 56's `U` and chip undo a
+`resolve` the same way, because `inverseOf` of a resolve is the resolve flipped (`task-56.md:234`,
+**UNVERIFIED** that its switch has the `resolve` arm until task 56's code runs; the test below
+holds it). The painted comment keeps `localId` as its `data-comment` until the Hub's `cm-` record
+replaces it (`task-56.md:375`); the scroll runs on the painted element, in the same frame as the
+post, so the id change does not matter to it.
