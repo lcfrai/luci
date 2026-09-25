@@ -37,9 +37,12 @@ Fleet's `azp` only on a request that names a delegation in `X-Panacea-Delegation
 Hub makes the delegation's owner the actor (task 05). So `delegation.Client` holds a cache of live
 delegations keyed by *(org, owner, project)*, and every call it makes goes out under one: the
 context carries the `dl-…` (task 08's `hubclient.WithDelegation`), and the call fails locally with
-`ErrNoDelegation` before any network if the cache has none. There is no code path that calls the
-Hub as Fleet-for-itself except the per-org feed read and the two escalation writes the contract
-allows Fleet in its own name (task 07); those use `hubclient.AsFleet(ctx)` and are listed below.
+`ErrNoDelegation` before any network if the cache has none, or `ErrRouteNotDelegated` if the
+delegation does not list the route name (task 01's §7.0 team table, `task-01.md:226-273`). Exactly
+one call names no delegation: the per-org feed read, exempt by name (`task-01.md:26-29`). Records
+Fleet itself authors — a conflict, a thread, a Fleet escalation — still go out under the delegation
+of the owner the record is **first about** (`task-01.md:31-36`), so the outbox has no
+Fleet-in-its-own-name write at all.
 
 **A revoked delegation stops what it authorised within 60 seconds; a lapsed one pauses it**
 (`05-design.md` §2.4 item 4, lines 174-181). The two are different acts and the `Revoker` is told
@@ -72,14 +75,15 @@ revision.
 
 **Interfaces:**
 - Produces:
-  - `outbox.Item`, `outbox.Op`, `outbox.State`, `outbox.Queue`, `outbox.Sender`, `outbox.Deliverer` with `New`, `(*Deliverer).RunOnce`, `(*Deliverer).Paused`, `outbox.Gate`, `outbox.Classify`, `outbox.Enqueue`, `outbox.PauseAfter` (10 min), `outbox.Retention` (24 h)
+  - `outbox.Item`, `outbox.Op`, `outbox.State`, `outbox.Queue`, `outbox.Sender`, `outbox.Deliverer` with `New`, `(*Deliverer).RunOnce`, `(*Deliverer).Paused`, `(*Deliverer).Janitor`, `outbox.Gate`, `outbox.Classify`, `outbox.Enqueue`, `outbox.AllOps`, `outbox.PauseAfter` (10 min), `outbox.Retention` (24 h) — consumed by 06–07's payload shapes, 14, 20, 23–31 (every Fleet write), 12 (runs the loop)
   - `delegation.Key`, `delegation.Delegation`, `delegation.Cache` with `Put`/`Get`/`Drop`/`Expired`, `delegation.Client` with `Ctx`, `delegation.ErrNoDelegation`
   - `delegation.Revoker`, `delegation.Reason` (`revoked`, `lapsed`), `delegation.Feed` with `Poll`, `delegation.PollEvery` (10 s)
   - `delegation.HubState`, `delegation.Rebuild`
 - Consumes:
   - task 10 — `store.Store` and its `Tx(ctx, func(store.Tx) error) error`; the store implements `outbox.Queue` (the outbox **owns** `Item`; the store imports `outbox`, never the reverse), and `store.Tx` has `AppendOutbox(ctx, outbox.Item) error`; `store.Store.OrgsWithAgents(ctx) ([]string, error)` for the rebuild
-  - task 08 — `hubclient.Team` (one method per task 06–07 route), `hubclient.OrgFeed` with `OrgChanges(ctx, org, after string, kinds []string) (hubapi.ChangePage, error)`, `hubclient.WithDelegation(ctx, dl string) context.Context`, `hubclient.WithIdempotencyKey(ctx, key string) context.Context`, `hubclient.AsFleet(ctx) context.Context`, and the fake's team half
+  - task 08 — `hubclient.Team` (one method per task 06–07 route), `hubclient.OrgFeed` with `OrgChanges(ctx, org, after string, kinds []string) (hubapi.ChangePage, error)`, `hubclient.WithDelegation(ctx, dl string) context.Context`, `hubclient.WithIdempotencyKey(ctx, key string) context.Context`, and the fake's team half
   - task 03 — `hubapi.Delegation` (`ID`, `OrgID`, `Owner{TID,OID}`, `ProjectID`, `Class`, `Routes`, `ExpiresAt`, `RevokedAt`), the list types for tasks, threads and escalations, and the feed kinds `delegation.created`, `delegation.renewed`, `delegation.revoked`
+  - task 01 — the delegable route names (`task-01.md:226-261`), the class route sets (`:267-273`), the one exempt route (`:26-29`), "first about" for Fleet-authored records (`:31-36`), and the codes `delegation_required`, `delegation_revoked`, `delegation_expired`
   - Hub (built) — `hubclient.Error{Status, Problem, RetryAfter}`, `hubclient.ErrUnavailable` and `hubclient.Code` (`hub/hubclient/hubclient.go:111-135` on `feat/hub`); `hubclient.TokenSource` (`:19-20`); `ids.Wide` (`internal/ids/ids.go:61`)
 - Amends: **the hubclient's own fresh key per call** (`hub-contract.md:1345`: "a fresh `Idempotency-Key` (UUID, `ids.UUID()`) on every `POST`, reused across its own retries") is right for a desktop and wrong for an outbox, whose retries span process restarts. `WithIdempotencyKey` overrides it for one call. If task 08's part does not add it, this task adds it to `hubclient/client.go`, eight lines, and says so in its commit.
 
@@ -98,32 +102,38 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"slices"
 	"sync"
 	"time"
 
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubclient"
 )
 
-// Op names the Hub route an Item is delivered to; Sender maps it to one
-// hubclient team method. Adding an Op without a Sender case is a test failure.
+// Op is the Hub route an Item is delivered to, spelled as task 01's
+// delegable route name (task-01.md:226-261), so the Sender's route check and
+// the Hub's are the same string. Only write routes appear; reads never queue.
 type Op string
 
 const (
-	OpTaskCreate      Op = "task.create"
-	OpTaskPatch       Op = "task.patch"
-	OpAgentStart      Op = "agent.start"
-	OpAgentEnd        Op = "agent.end"
-	OpLeaseEvent      Op = "lease.event"
-	OpConflictCreate  Op = "conflict.create"
-	OpConflictPatch   Op = "conflict.patch"
-	OpThreadCreate    Op = "thread.create"
-	OpThreadPatch     Op = "thread.patch"
-	OpMessageAppend   Op = "message.append"
-	OpEscalation      Op = "escalation.create"
-	OpDirective       Op = "directive.append"
-	OpTurn            Op = "turn.record"
-	OpPolicyVersion   Op = "policy.version" // task 14
+	OpTaskCreate     Op = "tasks.create"
+	OpTaskUpdate     Op = "tasks.update"
+	OpAgentStart     Op = "agents.start"
+	OpAgentEnd       Op = "agents.end"
+	OpLeaseEvent     Op = "leases.events"
+	OpConflictCreate Op = "conflicts.create"
+	OpConflictUpdate Op = "conflicts.update"
+	OpThreadCreate   Op = "threads.create"
+	OpThreadUpdate   Op = "threads.update"
+	OpMessageAppend  Op = "messages.append"
+	OpEscalation     Op = "escalations.create"
+	OpDirective      Op = "directives.append"
+	OpTurn           Op = "turns.record"
 )
+
+// AllOps is every Op; TestEveryOpHasADeliverer ranges over it.
+var AllOps = []Op{OpTaskCreate, OpTaskUpdate, OpAgentStart, OpAgentEnd, OpLeaseEvent,
+	OpConflictCreate, OpConflictUpdate, OpThreadCreate, OpThreadUpdate, OpMessageAppend,
+	OpEscalation, OpDirective, OpTurn}
 
 type State string
 
@@ -150,11 +160,13 @@ type Item struct {
 	Seq          int64  // assigned by the store; the delivery order within an org
 	ID           string // ids.Wide("ob"); also the Idempotency-Key (19 chars, [a-z0-9-])
 	OrgID        string
-	OwnerTID     string // with OwnerOID, the delegation owner; both empty iff AsFleet
-	OwnerOID     string
+	OwnerTID     string // with OwnerOID, the owner the record is first about
+	OwnerOID     string //   (task-01.md:31-36); always set, never Fleet's own id
 	ProjectID    string // pj-…
-	Delegation   string // dl-…; empty iff AsFleet
-	AsFleet      bool   // only the two Fleet-in-its-own-name escalation writes (task 07)
+	Class        string // model.Class of the delegation: "orchestrator" | "worker"
+	// No dl-… is stored: the Sender resolves the owner's live delegation at
+	// delivery, so a renewal between enqueue and delivery is used, and a
+	// revocation fails the write locally (permanent) instead of at the Hub.
 	Op           Op
 	Subject      string // the record id the write concerns (tk-…, ag-…, th-…), for logs
 	Payload      json.RawMessage
@@ -189,8 +201,11 @@ func Enqueue(ctx context.Context, tx Appender, it Item) error {
 	if it.ID == "" || it.OrgID == "" || it.Op == "" || len(it.Payload) == 0 {
 		return errors.New("outbox: id, org, op and payload are required")
 	}
-	if it.AsFleet != (it.Delegation == "") || it.AsFleet != (it.OwnerOID == "") {
-		return errors.New("outbox: a write is either under a delegation with its owner, or AsFleet with neither")
+	if it.OwnerTID == "" || it.OwnerOID == "" || it.ProjectID == "" || it.Class == "" {
+		return errors.New("outbox: every write names its owner, project and class: Fleet never writes as itself")
+	}
+	if !slices.Contains(AllOps, it.Op) {
+		return errors.New("outbox: unknown op " + string(it.Op))
 	}
 	it.State = StatePending
 	return tx.AppendOutbox(ctx, it)
@@ -328,3 +343,204 @@ func backoff(attempt int) time.Duration {
 	return b
 }
 ```
+
+`control-plane/internal/fleet/delegation/client.go`:
+
+```go
+// Package delegation makes Fleet a delegated Hub caller (ADR-H1's amendment,
+// task 01): every call but the per-org feed names a live dl-… of the owner
+// it acts for, and the Hub records that owner as the actor.
+package delegation
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"slices"
+	"sync"
+	"time"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/fleet/model"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/fleet/outbox"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubapi"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubclient"
+)
+
+// Key is what a delegation is found by. An owner holds at most one live
+// delegation per project and class (05-design.md §2.4 item 2).
+type Key struct {
+	OrgID, OwnerTID, OwnerOID, ProjectID string
+	Class                                model.Class
+}
+
+type Delegation struct {
+	ID        string   // dl-…
+	Key       Key
+	Routes    []string // task 01's route names
+	ExpiresAt time.Time
+}
+
+func FromHub(d hubapi.Delegation) Delegation {
+	return Delegation{
+		ID: d.ID, Routes: slices.Clone(d.Routes), ExpiresAt: d.ExpiresAt,
+		Key: Key{OrgID: d.OrgID, OwnerTID: d.Owner.TID, OwnerOID: d.Owner.OID,
+			ProjectID: d.ProjectID, Class: model.Class(d.Class)},
+	}
+}
+
+var (
+	ErrNoDelegation      = errors.New("delegation: no live delegation for this owner, project and class")
+	ErrRouteNotDelegated = errors.New("delegation: the live delegation does not list this route")
+)
+
+// Cache holds live delegations in memory only (Fleet persists no Hub record).
+type Cache struct {
+	mu   sync.RWMutex
+	byK  map[Key]Delegation
+	byID map[string]Key
+}
+
+func NewCache() *Cache { return &Cache{byK: map[Key]Delegation{}, byID: map[string]Key{}} }
+
+// Put replaces the entry for d.Key: a newer delegation for the same key wins.
+func (c *Cache) Put(d Delegation) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if old, ok := c.byK[d.Key]; ok {
+		delete(c.byID, old.ID)
+	}
+	c.byK[d.Key], c.byID[d.ID] = d, d.Key
+}
+
+// Get is false for an absent or an expired entry: an expired delegation is
+// never used, even before the sweeper removes it.
+func (c *Cache) Get(k Key, now time.Time) (Delegation, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	d, ok := c.byK[k]
+	return d, ok && now.Before(d.ExpiresAt)
+}
+
+func (c *Cache) Drop(id string) (Delegation, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	k, ok := c.byID[id]
+	if !ok {
+		return Delegation{}, false
+	}
+	d := c.byK[k]
+	delete(c.byID, id)
+	delete(c.byK, k)
+	return d, true
+}
+
+// Expired removes and returns every entry with ExpiresAt <= now: the lapsed.
+func (c *Cache) Expired(now time.Time) []Delegation {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	var out []Delegation
+	for k, d := range c.byK {
+		if !now.Before(d.ExpiresAt) {
+			out = append(out, d)
+			delete(c.byK, k)
+			delete(c.byID, d.ID)
+		}
+	}
+	slices.SortFunc(out, func(a, b Delegation) int { return a.ExpiresAt.Compare(b.ExpiresAt) })
+	return out
+}
+
+// Client attaches the owner's delegation to a call's context.
+type Client struct {
+	cache *Cache
+	now   func() time.Time
+}
+
+func NewClient(c *Cache, now func() time.Time) *Client { return &Client{cache: c, now: now} }
+
+// Ctx returns ctx carrying k's live dl-…, checked locally against route so a
+// doomed call never leaves the process. The Hub checks both again (task 05).
+func (c *Client) Ctx(ctx context.Context, k Key, route string) (context.Context, error) {
+	d, ok := c.cache.Get(k, c.now())
+	if !ok {
+		return ctx, ErrNoDelegation
+	}
+	if !slices.Contains(d.Routes, route) {
+		return ctx, fmt.Errorf("%w: %s", ErrRouteNotDelegated, route)
+	}
+	return hubclient.WithDelegation(ctx, d.ID), nil
+}
+
+// Sender is outbox.Sender over the Hub: the row id is the Idempotency-Key,
+// and the delegation is resolved now, not at enqueue.
+type Sender struct {
+	Client *Client
+	Hub    hubclient.Team
+}
+
+func (s Sender) Send(ctx context.Context, it outbox.Item) error {
+	k := Key{OrgID: it.OrgID, OwnerTID: it.OwnerTID, OwnerOID: it.OwnerOID,
+		ProjectID: it.ProjectID, Class: model.Class(it.Class)}
+	ctx, err := s.Client.Ctx(ctx, k, string(it.Op))
+	if err != nil {
+		return err
+	}
+	deliver, ok := deliverers[it.Op]
+	if !ok {
+		return fmt.Errorf("delegation: no deliverer for op %q", it.Op)
+	}
+	return deliver(hubclient.WithIdempotencyKey(ctx, it.ID), s.Hub, it)
+}
+
+type deliverer func(ctx context.Context, h hubclient.Team, it outbox.Item) error
+
+// call adapts one task 08 method, whose path ids are (projectID, subject) or
+// (projectID) alone, to a deliverer that decodes Payload into its request.
+func call[Req, Res any](m func(hubclient.Team, context.Context, string, string, Req) (Res, error)) deliverer {
+	return func(ctx context.Context, h hubclient.Team, it outbox.Item) error {
+		var req Req
+		if err := json.Unmarshal(it.Payload, &req); err != nil {
+			return fmt.Errorf("delegation: payload for %s: %w", it.Op, err)
+		}
+		_, err := m(h, ctx, it.ProjectID, it.Subject, req)
+		return err
+	}
+}
+
+// deliverers has one entry per outbox.Op; TestEveryOpHasADeliverer fails on
+// a missing one. Subject is "" for a create and the record id otherwise.
+var deliverers = map[outbox.Op]deliverer{
+	outbox.OpTaskCreate:     call(hubclient.Team.CreateTask),
+	outbox.OpTaskUpdate:     call(hubclient.Team.PatchTask),
+	outbox.OpAgentStart:     call(hubclient.Team.StartAgent),
+	outbox.OpAgentEnd:       call(hubclient.Team.EndAgent),
+	outbox.OpLeaseEvent:     call(hubclient.Team.AppendLeaseEvent),
+	outbox.OpConflictCreate: call(hubclient.Team.CreateConflict),
+	outbox.OpConflictUpdate: call(hubclient.Team.PatchConflict),
+	outbox.OpThreadCreate:   call(hubclient.Team.CreateThread),
+	outbox.OpThreadUpdate:   call(hubclient.Team.PatchThread),
+	outbox.OpMessageAppend:  call(hubclient.Team.AppendMessage),
+	outbox.OpEscalation:     call(hubclient.Team.CreateEscalation),
+	outbox.OpDirective:      call(hubclient.Team.AppendDirective),
+	outbox.OpTurn:           call(hubclient.Team.RecordTurn),
+}
+```
+
+**The shape this consumes from task 08, stated so task 08 can match it.** `call` takes a method
+expression of the form `func(hubclient.Team, context.Context, projectID, subjectID string, req Req)
+(Res, error)`. Every task 06–07 write route has a project in its path and at most one record id
+after it (`task-01.md:233-252`: `/v1/projects/{p}/tasks/{tk}`, `…/agents/{ag}/end`,
+`…/leases/{ls}/events`, …), so one uniform signature covers all thirteen. A create method ignores
+`subjectID`, except `AppendLeaseEvent` and `AppendMessage`, whose subject is the lease and the
+thread. The method names above are this part's proposal; **if task 08's part names them otherwise,
+task 08 wins** and only this map changes. The request types are task 03's (`CreateTaskRequest`,
+`PatchTaskRequest`, `AgentStartRequest`, `AgentEndRequest`, `LeaseEventRequest`,
+`CreateConflictRequest`, `PatchConflictRequest`, as `task-06.md:49-51` lists them, and task 07's
+thread, message, escalation, directive and turn requests).
+
+**The route names are task 01's, not task 06's.** `task-01.md:226-261` names thirteen write routes,
+one per verb (`tasks.create`, `tasks.update`, `agents.start`, …); `task-06.md:80-82` lists a coarser
+set (`tasks.write`, `agents.write`, …). ST.3 is defined in task 01 (skeleton seam table), so this
+part follows task 01, and the disagreement is reported as a gap. Whichever set wins, it lives in one
+place here: the `Op` constants.
