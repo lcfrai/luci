@@ -195,6 +195,19 @@ stopped and resumed with `resumeFromRunId`. **Parallel runs resume from cache no
 - 17:58: a runaway `python -` REPL (PID 23092) had filled C: with a 38 GB task log. It is killed and
   deleted, and disk is back to 47 GB. The watcher now flags any task `.output` over 500 MB.
 
+**Added 21:50, 2026-09-25: a fourth spend stop (21:17), and a correction.**
+- Resuming does NOT work for `wave-c-plan-parts`: its nested parallel steps miss the cache, so each
+  resume re-ran finished writers and reviews. The team and work runs (`wf_2b949030-b55`,
+  `wf_90d7f9c9-ec9`) are RETIRED.
+- They are replaced by `.superpowers/workflows/wave-c-plan-finish.js`, which is idempotent. A
+  state agent reads the disk, then only missing parts and unreviewed sections are dispatched,
+  followed by the cross-cutting review and the assembler. The assembler includes
+  `sec-90-identity.md`, and for team it runs the stage-2 repair re-reviews of sections 1 and 5.
+  - team: `wf_1bf44b8c-f6f`, `{"stream":"team"}`.
+  - work: `wf_3c2c558c-b5b`, `{"stream":"work"}`.
+  - **After any stop, launch it FRESH with the same args. Do not resume it.**
+- SALVAGE commits `aab769f` (main) and `dd7cb16` (env) hold OD-30 fix-1's stranded edits.
+
 **Added 13:40, 2026-09-25: OD-30 (sign-in) and the env R4 re-plan.**
 - **OD-30:** sign-in goes through a Keycloak broker on Panacea's existing Entra registration, with
   zero clicks. The IT request's Part 1 is no longer needed. Run `wf_579f2bb3-bfb`
