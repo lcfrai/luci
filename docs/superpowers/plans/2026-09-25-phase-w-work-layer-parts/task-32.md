@@ -658,3 +658,52 @@ describe("flag.compare", () => {
 keeps that overload is **UNVERIFIED** until step 2 runs it. `?raw` on a CSS import is the tree's
 existing pattern (`vitest.config.ts`'s `css.include`), and `ruleBody` strips comments before it
 looks, because the file's header comment names both selectors.
+
+#### Steps
+
+1. Fetch the two faces into `desktop/src/devtools/fonts/`: one variable `woff2` each, the OFL text
+   each release ships, and the `fonts.lock.json` entries (release, source, upstream name,
+   SHA-256). Read each file's `wght` axis and set the two `font-weight` ranges from it. If a
+   licence is not a permissive one, drop that face from `SANS_CANDIDATES` and record why.
+2. Write `flags.test.ts` and `FlagCompare.test.tsx`. Run
+   `npm --prefix desktop test -- flags devtools`: both fail to import.
+3. Write `flags.ts`. The five flags tests pass.
+4. Write `mount.ts`, `DevToolbar.tsx`, `FlagCompare.tsx`, `devtools.css` and `candidates.css`.
+   The five toolbar tests pass.
+5. Edit `App.tsx` (the import, the return, the comment). Run
+   `npm --prefix desktop test -- defects designsystem`: `defects.test.tsx:193-201` passes
+   unchanged; the audit passes over the two new stylesheets (token import first, no literal
+   colour, no transition). If React logs a suspended-outside-`act` warning from the lazy toolbar
+   in `defects`, that is a test-noise defect to fix here, not to ignore.
+6. Mutate by hand, one at a time, and watch the named test go red, then revert:
+   `root().setAttribute(ATTRIBUTE[key], value)` for every value (the default test);
+   `return { ...current }` in `getFlags` (the snapshot test); drop `--sans-small` from the
+   geist rule (the candidate test); `import.meta.env.MODE === "development"` in `mount.ts` (the
+   production test).
+7. Run `npm --prefix desktop run build`, then the grep below. If it prints a file, the dead
+   branch was not eliminated: move the gate into `vite.config.ts` as a `resolve.alias` that maps
+   `./components/devtools/mount` to a module exporting `DevToolbar = null` when
+   `mode === "production"`, and re-run.
+8. Run the typecheck and the full desktop suite. `git add` the new files; commit with
+   `git commit -F <msg> -- <paths>`.
+
+#### Acceptance
+
+```bash
+npm --prefix desktop test -- flags devtools defects designsystem
+# expect: every test passes: flags' five, flag.compare's five, the assembled-app suite
+# unchanged, and the audit over devtools.css and candidates.css
+
+npm --prefix desktop run typecheck
+# expect: exit 0, no output from tsc
+
+npm --prefix desktop run build && grep -rli "geist\|atkinson" desktop/dist
+# expect: the build succeeds, then grep prints nothing (exit 1)
+
+grep -rl "DevToolbar\|dt-summary" desktop/dist
+# expect: nothing; the toolbar's module and stylesheet are not in the production bundle
+```
+
+Then, by hand, in `npm --prefix desktop run tauri dev`: open *Dev*, type in the palette, flip
+*Old* and back, and each sans. The typed text stays; the rail and the Develop pane change look.
+That is the owner's two-second comparison working; it is not an acceptance of either look.
