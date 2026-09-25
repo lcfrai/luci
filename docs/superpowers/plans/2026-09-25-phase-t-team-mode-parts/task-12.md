@@ -48,7 +48,7 @@ it in a Hub outage (the outbox's pause, task 11, is the designed behaviour there
 (`task-01.md:226-261`) gives Fleet the per-org feed and delegated reads, but no way to resolve an
 Entra `(tid, oid)` to a Hub user and their team role, and `hubapi.User` carries no `tid`/`oid`
 (`hubapi/types.go:95-99`). This part therefore consumes a `Membership` interface and states the
-Hub read it needs, `GET /v1/orgs/{orgId}/principals?tid=&oid=&projectId=` (Fleet, **no
+Hub read it needs, `GET /v1/principals?tid=&oid=&projectId=` (Fleet, **no
 delegation**, metadata only: user id, team role, `orgAdmin`, `auditor`, `compliance`), as a
 **skeleton gap** for task 01 and 08 to add. Until it lands, `hubMembership` is written against the
 proposed `hubclient.Team.Principal` method and the tests run on a fake `Membership`.
@@ -75,7 +75,7 @@ proposed `hubclient.Team.Principal` method and the tests run on a fake `Membersh
   - Hub, built — `hubapi.CodeUnauthenticated`, `hubapi.CodeForbidden` (`hubapi/codes.go:20-22`): Fleet answers auth failures with the Hub's two codes, so the desktop switches on one set; `hubapi.Role` (`types.go:20-25`); `hubclient.New(baseURL, scope, tokens, httpClient)` (`hubclient/client.go:21`, a stub until Hub tasks 33–34)
   - task 10 — `pgstore.Open(ctx, dsn string) (*pgstore.Store, error)` and `(*pgstore.Store).Pool() *pgxpool.Pool`, `pgstore.Migrate(ctx, pool) error`
   - task 11 — `outbox.New`, `(*Deliverer).RunOnce`, `(*Deliverer).Janitor`; `delegation.NewCache`, `NewClient`, `NewFeed`, `Rebuild`, `(*Feed).Poll`, `Sweep`, `Reset`, `Orgs`, `FeedKinds`, `PollEvery`
-  - task 08 (proposed, see the gap above) — `hubclient.Team.Principal(ctx, orgID, tid, oid, projectID string) (hubapi.Principal, error)` over `GET /v1/orgs/{orgId}/principals`
+  - task 08 (proposed, see the gap above) — `hubclient.Team.Principal(ctx, tid, oid, projectID string) (hubapi.Principal, error)` over `GET /v1/principals`
 
 **`control-plane/cmd/fleetd/config.go`, complete:**
 
@@ -248,3 +248,311 @@ someone "fixes" the clamp. Failing start makes the bound visible in the chart's 
 32), so a password in the DSN is either a leftover or a second credential nobody rotates. Which
 Azure Database for PostgreSQL token flow `pgx` uses for it (a `BeforeConnect` that sets the
 password to an Entra access token) is task 10's and task 32's, **UNVERIFIED** here.
+
+**`control-plane/internal/fleet/server/authz.go`, complete:**
+
+```go
+package server
+
+import (
+	"context"
+	"net/http"
+	"sync"
+	"time"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/entra"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubapi"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/httpx"
+)
+
+// Verb is one row of 05-design.md §3.4, as data. Every Fleet route names one.
+type Verb string
+
+const (
+	VerbTeamRead      Verb = "team.read"          // the strip and task cards
+	VerbLaunch        Verb = "sessions.launch"    // launch an Orchestrator or a worker; hold leases
+	VerbSessionsOwn   Verb = "sessions.own"       // list, stop, attach to one's own sessions
+	VerbThreadRead    Verb = "threads.read"       // a thread's messages
+	VerbPrivateRead   Verb = "private.read"       // escalations, directives, human messages
+	VerbNoteWrite     Verb = "notes.write"
+	VerbTeamPolicy    Verb = "team_policy.write"  // quotas, budgets, more asking: within floors
+	VerbRouteRaise    Verb = "route.raise"        // to AU
+	VerbRouteLower    Verb = "route.lower"        // back to Global, audited
+	VerbLeaseForce    Verb = "leases.release_stale"
+	VerbOrgPolicy     Verb = "policy.org"         // OD-23 org layer, read and write (task 14)
+	VerbProjectPolicy Verb = "policy.project"     // OD-23 project layer, read and write (task 14)
+)
+
+// grant is who holds a verb. own marks the §3.4 cells "own only" and
+// "parties only": the handler must still check the object against UserID.
+type grant struct {
+	viewer, member, admin, auditor, compliance, orgAdmin bool
+	own                                                  bool // applies to member and admin grants
+}
+
+// table is §3.4, row for row, plus task 14's two policy verbs. A verb
+// missing here is refused for everyone, and TestEveryVerbHasARow fails.
+var table = map[Verb]grant{
+	VerbTeamRead:      {viewer: true, member: true, admin: true, auditor: true},
+	VerbLaunch:        {member: true, admin: true, own: true},
+	VerbSessionsOwn:   {member: true, admin: true, own: true},
+	VerbThreadRead:    {member: true, admin: true, auditor: true, own: true},
+	VerbPrivateRead:   {member: true, admin: true, auditor: true, own: true},
+	VerbNoteWrite:     {member: true, admin: true},
+	VerbTeamPolicy:    {admin: true},
+	VerbRouteRaise:    {member: true, admin: true},
+	VerbRouteLower:    {compliance: true},
+	VerbLeaseForce:    {admin: true},
+	VerbOrgPolicy:     {orgAdmin: true},
+	VerbProjectPolicy: {admin: true},
+}
+
+// Member is what the Hub says about a principal, for one project.
+type Member struct {
+	UserID     string      // us-…; "" if the principal has never signed in to the Hub
+	OrgID      string
+	Role       hubapi.Role // on the project's team; "" if not a member, or no project
+	OrgAdmin   bool
+	Auditor    bool // org auditor: task 43 adds it to the Hub; false until then
+	Compliance bool // org compliance: likewise
+}
+
+// Principal is the authorised caller of one request.
+type Principal struct {
+	TID, OID  string // from the token, never from a body
+	ProjectID string // the route's {p}, "" for org routes
+	Member
+	// OwnOnly is true when the grant was member or admin on an own-only verb:
+	// the handler must refuse an object whose owner is not UserID.
+	OwnOnly bool
+}
+
+// Allowed applies the table, broadest grant first: an auditor who is also a
+// member reads every thread, not only their own (§3.4's auditor column).
+func Allowed(v Verb, p Principal) (ok, ownOnly bool) {
+	g, found := table[v]
+	if !found || p.UserID == "" {
+		return false, false
+	}
+	switch {
+	case g.orgAdmin && p.OrgAdmin, g.compliance && p.Compliance, g.auditor && p.Auditor:
+		return true, false
+	case g.admin && p.Role == hubapi.RoleAdmin, g.member && p.Role == hubapi.RoleMember:
+		return true, g.own
+	case g.viewer && p.Role == hubapi.RoleViewer:
+		return true, false
+	}
+	return false, false
+}
+
+// OwnOnly reports whether v carries an object check for member and admin grants.
+func OwnOnly(v Verb) bool { return table[v].own }
+
+// Membership is the Hub's answer for (tid, oid) on a project. hubMembership
+// (main.go) implements it over the proposed Team.Principal; tests fake it.
+type Membership interface {
+	Lookup(ctx context.Context, tid, oid, projectID string) (Member, error)
+}
+
+// MembershipTTL is the most a cached answer may be trusted (§2.4 item 4).
+const MembershipTTL = 60 * time.Second
+
+type memKey struct{ tid, oid, project string }
+
+type memEntry struct {
+	m  Member
+	at time.Time
+}
+
+// MembershipCache caches answers, negative ones included, for ttl. Errors are
+// never cached: a Hub blip must not become a minute of refusals.
+type MembershipCache struct {
+	next Membership
+	ttl  time.Duration
+	now  func() time.Time
+	mu   sync.Mutex
+	m    map[memKey]memEntry
+}
+
+func NewMembershipCache(next Membership, ttl time.Duration, now func() time.Time) *MembershipCache {
+	if ttl <= 0 || ttl > MembershipTTL {
+		ttl = MembershipTTL
+	}
+	return &MembershipCache{next: next, ttl: ttl, now: now, m: map[memKey]memEntry{}}
+}
+
+func (c *MembershipCache) Lookup(ctx context.Context, tid, oid, project string) (Member, error) {
+	k := memKey{tid, oid, project}
+	c.mu.Lock()
+	e, ok := c.m[k]
+	c.mu.Unlock()
+	if ok && c.now().Sub(e.at) < c.ttl {
+		return e.m, nil
+	}
+	m, err := c.next.Lookup(ctx, tid, oid, project)
+	if err != nil {
+		return Member{}, err
+	}
+	c.mu.Lock()
+	c.m[k] = memEntry{m: m, at: c.now()}
+	c.mu.Unlock()
+	return m, nil
+}
+
+type principalKey struct{}
+
+// PrincipalFrom is for code below a Route handler that was not handed p.
+func PrincipalFrom(ctx context.Context) (Principal, bool) {
+	p, ok := ctx.Value(principalKey{}).(Principal)
+	return p, ok
+}
+
+// authorize runs after entra.Middleware, which has already refused a bad
+// token, a wrong audience, a missing scope and any azp but the desktop's.
+func (s *Server) authorize(v Verb, h Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		c, ok := entra.ClaimsFrom(r.Context())
+		if !ok { // unreachable behind the middleware; refuse rather than trust
+			httpx.WriteProblem(w, http.StatusUnauthorized, hubapi.CodeUnauthenticated, "Sign in again.", nil)
+			return
+		}
+		project := r.PathValue("p")
+		m, err := s.members.Lookup(r.Context(), c.TenantID, c.ObjectID, project)
+		if err != nil {
+			s.log.Warn("membership lookup failed", "err", err, "verb", v)
+			httpx.WriteProblem(w, http.StatusServiceUnavailable, CodeUpstreamUnavailable,
+				"The team service cannot reach the Hub right now.", map[string]string{"upstream": "hub"})
+			return
+		}
+		p := Principal{TID: c.TenantID, OID: c.ObjectID, ProjectID: project, Member: m}
+		if org := r.PathValue("org"); org != "" && org != m.OrgID {
+			httpx.WriteProblem(w, http.StatusForbidden, hubapi.CodeForbidden,
+				"That organisation is not yours.", map[string]string{"required": "org"})
+			return
+		}
+		allowed, own := Allowed(v, p)
+		if !allowed {
+			httpx.WriteProblem(w, http.StatusForbidden, hubapi.CodeForbidden,
+				"Your role on this project does not allow that.", map[string]string{"required": string(v)})
+			return
+		}
+		p.OwnOnly = own
+		h(w, r.WithContext(context.WithValue(r.Context(), principalKey{}, p)), p)
+	})
+}
+```
+
+`CodeUpstreamUnavailable = "upstream_unavailable"` (503, `details.upstream`) is declared in
+`server.go`: it is the string the Hub's relay already uses for the same condition (the
+`ErrUnavailable` comment, `hubclient/hubclient.go:131-133`), so the desktop maps one code.
+
+**`control-plane/internal/fleet/server/server.go`, complete:**
+
+```go
+// Package server is fleetd's HTTP surface: Entra on every request, §3.4's
+// table on every route, and the two probes that need nothing.
+package server
+
+import (
+	"context"
+	"errors"
+	"log/slog"
+	"net/http"
+	"sync/atomic"
+	"time"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/entra"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/httpx"
+)
+
+const (
+	CodeUpstreamUnavailable = "upstream_unavailable" // 503, details.upstream
+	CodeNotReady            = "not_ready"            // 503, details.dependency
+	CodeRouteNotFound       = "route_not_found"      // 404, the Hub's string (hubapi/codes.go:32)
+	readyTimeout            = 2 * time.Second
+)
+
+// Handler is an authorised route's body; p is never the zero value.
+type Handler func(w http.ResponseWriter, r *http.Request, p Principal)
+
+// Pinger is a readiness dependency.
+type Pinger interface {
+	Ping(ctx context.Context) error
+}
+
+type Deps struct {
+	Validator entra.Validator // entra.New(cfg), audience Fleet, AllowedClients the desktop's
+	Members   Membership      // already wrapped in NewMembershipCache
+	Postgres  Pinger
+	Hub       Pinger // GET {hub}/readyz
+	Log       *slog.Logger
+}
+
+type Server struct {
+	root    *http.ServeMux // the probes, and everything else behind Entra
+	mux     *http.ServeMux // authorised routes only
+	members Membership
+	pg, hub Pinger
+	log     *slog.Logger
+	rebuilt atomic.Bool
+}
+
+func New(d Deps) (*Server, error) {
+	if d.Validator == nil || d.Members == nil || d.Postgres == nil || d.Hub == nil || d.Log == nil {
+		return nil, errors.New("server: Validator, Members, Postgres, Hub and Log are all required")
+	}
+	s := &Server{root: http.NewServeMux(), mux: http.NewServeMux(), members: d.Members,
+		pg: d.Postgres, hub: d.Hub, log: d.Log}
+	s.root.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"status":"ok"}`))
+	})
+	s.root.HandleFunc("GET /readyz", s.readyz)
+	s.mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
+		httpx.WriteProblem(w, http.StatusNotFound, CodeRouteNotFound, "No such route.", nil)
+	})
+	s.root.Handle("/", entra.Middleware(d.Validator, s.mux))
+	return s, nil
+}
+
+func (s *Server) Handler() http.Handler { return s.root }
+
+// Route registers an authorised route. A verb with no §3.4 row is a
+// programming error and panics at start, not a 403 in production.
+func (s *Server) Route(pattern string, v Verb, h Handler) {
+	if _, ok := table[v]; !ok {
+		panic("server: route " + pattern + " names verb " + string(v) + ", which has no §3.4 row")
+	}
+	s.mux.Handle(pattern, s.authorize(v, h))
+}
+
+// MarkRebuilt is called once, after this replica's first Rebuild (task 11).
+func (s *Server) MarkRebuilt() { s.rebuilt.Store(true) }
+
+func (s *Server) readyz(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), readyTimeout)
+	defer cancel()
+	for _, dep := range []struct {
+		name string
+		p    Pinger
+	}{{"postgres", s.pg}, {"hub", s.hub}} {
+		if err := dep.p.Ping(ctx); err != nil {
+			s.log.Warn("not ready", "dependency", dep.name, "err", err)
+			httpx.WriteProblem(w, http.StatusServiceUnavailable, CodeNotReady,
+				"Not ready.", map[string]string{"dependency": dep.name})
+			return
+		}
+	}
+	if !s.rebuilt.Load() {
+		httpx.WriteProblem(w, http.StatusServiceUnavailable, CodeNotReady,
+			"Not ready.", map[string]string{"dependency": "rebuild"})
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = w.Write([]byte(`{"status":"ready"}`))
+}
+```
+
+**`/healthz` and `/readyz` are outside Entra, and nothing else is.** They are registered on the
+root mux with methods; every other path, including an unknown one, goes through
+`entra.Middleware` first, so a probe for a route's existence without a token is a 401, not a 404.
