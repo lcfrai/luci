@@ -389,6 +389,74 @@ loads the held row, deletes it, and re-invokes its verb through the dispatcher's
 the same caller under `withApproval(ctx, es)`, an unexported context key of package
 `directive`; the verb's gate call reads it through `approvalFrom` and passes without a second
 decide. `approvedBy` is never an argument: no field of any verb's args can set it, and a sandbox
-frame cannot set a Go context value. A replay that now fails validation (the worker ended, the lease
+frame cannot set a Go context value.
+
+**The migration, complete** (`00NN_directives.sql`, numbered after task 30's at build time):
+
+```sql
+-- fleet.directive_queue: undelivered directives, a fact about now. The dv-… record is
+-- the Hub's (route 67); this row only says "not yet handed to the worker". The
+-- body is the delivery shape, never re-derived from the outbox payload.
+CREATE TABLE IF NOT EXISTS fleet.directive_queue (
+  org_id        text        NOT NULL,
+  id            text        NOT NULL,                 -- dv-…
+  worker        text        NOT NULL,                 -- ag-…
+  orchestrator  text        NOT NULL,                 -- ag-…, the worker's parent
+  kind          text        NOT NULL CHECK (kind IN
+                  ('pause','resume','narrow','wait-for','rebase','free')),
+  body          jsonb       NOT NULL,                 -- wire.Directive
+  outbox_id     text        NOT NULL UNIQUE,          -- ob-…
+  hub_at        timestamptz,                          -- set with the outbox row's sent state
+  created_at    timestamptz NOT NULL,
+  delivered_at  timestamptz,
+  PRIMARY KEY (org_id, id)
+);
+CREATE INDEX IF NOT EXISTS directive_queue_due
+  ON fleet.directive_queue (worker, created_at)
+  WHERE delivered_at IS NULL AND hub_at IS NOT NULL;
+
+-- fleet.held_actions: an act waiting for its owner's decide (decision d).
+CREATE TABLE IF NOT EXISTS fleet.held_actions (
+  org_id        text        NOT NULL,
+  escalation    text        NOT NULL,                 -- es-…
+  orchestrator  text        NOT NULL,
+  owner_tid     text        NOT NULL,
+  owner_oid     text        NOT NULL,
+  kind          text        NOT NULL,                 -- directive.ActKind
+  verb          text        NOT NULL,
+  args          jsonb       NOT NULL,                 -- validated; may hold a spawn prompt
+  deadline      timestamptz NOT NULL,
+  PRIMARY KEY (org_id, escalation)
+);
+
+ALTER TABLE fleet.orch_sessions ADD COLUMN IF NOT EXISTS human_spoke_at timestamptz;
+```
+
+Delivered rows are deleted after 24 h by task 12's hourly janitor (one more `DELETE` in its
+list); held rows are deleted by `Release`, by a "Do not send it", and by the janitor an hour past
+`deadline`. `held_actions.args` may hold an opening prompt, which is private (OD-24): it is read
+only by `Release` and by the owner's own panel through task 52, never by a Hub write.
+
+**`directive.Store`, the part of task 10's store this task adds.**
+
+```go
+type Store interface {
+	EnqueueDirective(ctx context.Context, tx store.Tx, row QueueRow) error
+	Due(ctx context.Context, org string, worker model.AgentID, max int) ([]QueueRow, error)
+	MarkDelivered(ctx context.Context, org string, ids []string, at time.Time) error
+	DropUndelivered(ctx context.Context, tx store.Tx, org string, worker model.AgentID) (int, error)
+	Delivered(ctx context.Context, org string, worker model.AgentID) ([]QueueRow, error) // InForce
+	PutHeld(ctx context.Context, tx store.Tx, h HeldRow) error
+	TakeHeld(ctx context.Context, org, es string) (HeldRow, bool, error) // select and delete
+	HumanSpokeAt(ctx context.Context, orch model.AgentID) (time.Time, bool, error)
+	ReadSince(ctx context.Context, orch model.AgentID, since time.Time, max int) (ids []string, total int, err error)
+}
+```
+
+`Due` returns rows with `hub_at IS NOT NULL AND delivered_at IS NULL`, oldest first. That
+`hub_at` guard **is** property 2: a row whose outbox item has not reached the Hub is not due.
+`InForce` reads `Delivered` since the worker's start, keeping the newest `pause`/`resume`, the
+newest `narrow`, and each `wait-for` whose lease `Engine.Live` still returns.
+ A replay that now fails validation (the worker ended, the lease
 lapsed) is reported to the Orchestrator as an `escalation.answered` event with the refusal code,
 and nothing is issued. A decide that expires or is answered "Do not send it" deletes the row.
