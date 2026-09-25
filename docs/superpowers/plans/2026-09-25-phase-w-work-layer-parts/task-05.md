@@ -1778,3 +1778,73 @@ func wAttachmentsAreThisProjectsBlobs(t *testing.T, e WorkEnv) {
 `put` reads the digest back from `PutBlob`'s answer, not from `DigestOf`, so the row holds H05's
 upload and this task's attach to one digest. `hubapi.DigestOf` is `hubapi/keys.go:114` on
 `feat/hub`; `hubapi.IssueQuery{}` is task 03's list filter, its zero value filtering nothing.
+
+Block 7: erase, and the list.
+
+```go
+// wErased is an issue with two revisions and one comment, erased by the org
+// admin; nil OrgAdmin skips the row, as Advance nil does.
+func wErased(t *testing.T, e WorkEnv) (hubapi.IssueWithRevision, hubapi.Comment) {
+	t.Helper()
+	if e.OrgAdmin == nil {
+		t.Skip("this Hub has no org-admin principal; the erase rows need one")
+	}
+	iw := e.issue(t, e.project(t, "Portal", "EP"), "secret title")
+	next := iw.Revision.Content
+	next.Description = wText("secret words")
+	if _, err := e.Member.WriteIssueRevision(wctx, iw.Head.ID, hubapi.WriteIssueRevisionRequest{BaseRevision: 1, Content: next}); err != nil {
+		t.Fatal(err)
+	}
+	c, err := wSay(e.Member, iw.Head.ID, "secret comment", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = e.Admin.EraseIssue(wctx, iw.Head.ID, hubapi.EraseRequest{Reason: "matter 7"})
+	wRefused(t, err, 403, hubapi.CodeForbidden, "required", "org_admin")
+	_, err = e.OrgAdmin.EraseIssue(wctx, iw.Head.ID, hubapi.EraseRequest{Reason: "   "})
+	wRefused(t, err, 400, hubapi.CodeBadRequest, "field", "reason")
+	res, err := e.OrgAdmin.EraseIssue(wctx, iw.Head.ID, hubapi.EraseRequest{Reason: "matter 7"})
+	if err != nil || res.ErasedRevisions != 2 || res.ErasedComments != 1 {
+		t.Fatalf("erase = %+v, %v; want 2 revisions, 1 comment", res, err)
+	}
+	return iw, c
+}
+
+func wEraseKeepsKeysAndBlanksTexts(t *testing.T, e WorkEnv) {
+	iw, c := wErased(t, e)
+	got, err := e.Member.Issue(wctx, iw.Head.ID)
+	if err != nil || got.Head.Number != 1 || got.Head.Alias != "EP-1" || got.Head.HeadKey != "issue:"+iw.Head.ID+"@2" {
+		t.Fatalf("erased head = %+v, %v; want number, alias and key kept", got.Head, err)
+	}
+	one, _ := e.Member.IssueRevisionAt(wctx, iw.Head.ID, 1)
+	if one.Content.Title.Text != "" || one.ErasedAt == nil || one.Digest != iw.Revision.Digest {
+		t.Errorf("revision 1 = %q erasedAt %v; want \"\", set, and the same digest", one.Content.Title.Text, one.ErasedAt)
+	}
+	page, _ := e.Member.Comments(wctx, iw.Head.ID, hubapi.PageRequest{})
+	if len(page.Items) != 1 || page.Items[0].ID != c.ID || page.Items[0].Body.Text != "" || page.Items[0].ErasedAt == nil {
+		t.Errorf("comments = %+v; want the one id kept, its body blank", page.Items)
+	}
+	from := wHead(t, e.Member)
+	again, err := e.OrgAdmin.EraseIssue(wctx, iw.Head.ID, hubapi.EraseRequest{Reason: "matter 7"})
+	if err != nil || again.ErasedRevisions != 0 || again.ErasedComments != 0 {
+		t.Errorf("second erase = %+v, %v; want zeros", again, err)
+	}
+	if got := wKinds(t, e.Member, from, "issue.erased"); len(got) != 1 {
+		t.Errorf("the second erase appended %d issue.erased, want 1: every attempt is audited", len(got))
+	}
+}
+
+func wErasedTakesNoWrites(t *testing.T, e WorkEnv) {
+	iw, _ := wErased(t, e)
+	high := hubapi.PriorityHigh
+	_, err := e.Member.PatchIssue(wctx, iw.Head.ID, hubapi.PatchIssueRequest{Priority: &high})
+	wRefused(t, err, 409, hubapi.CodeConflict, "issueId", iw.Head.ID)
+	_, err = wSay(e.Member, iw.Head.ID, "new words", nil, nil)
+	wRefused(t, err, 409, hubapi.CodeConflict, "issueId", iw.Head.ID)
+	_, err = e.Member.MoveIssueState(wctx, iw.Head.ID, hubapi.StateMove{To: hubapi.StateTodo, Cause: hubapi.CauseHand, Evidence: []string{}})
+	wRefused(t, err, 409, hubapi.CodeConflict, "issueId", iw.Head.ID)
+	if hits, _ := e.Member.SearchIssues(wctx, hubapi.IssueSearchQuery{Q: "secret"}); len(hits) != 0 {
+		t.Errorf("search found %d erased issues", len(hits))
+	}
+}
+```
