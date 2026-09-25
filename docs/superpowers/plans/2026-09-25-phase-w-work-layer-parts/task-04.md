@@ -588,4 +588,83 @@ func (f *Fake) IssueByNumber(_ context.Context, projectID string, number int) (h
 	return hubapi.IssueWithRevision{}, problem(404, fkIssueNotFound, "There is no such issue that you can see.",
 		"number", strconv.Itoa(number))
 }
+
+// Issues is task 08's list: number descending; after is the last number seen.
+func (f *Fake) Issues(_ context.Context, projectID string, q hubapi.IssueQuery, page hubapi.PageRequest) (hubapi.Page[hubapi.IssueHead], error) {
+	w := f.w
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	var zero hubapi.Page[hubapi.IssueHead]
+	me, err := f.enter("Issues", projectID, q, page)
+	if err != nil {
+		return zero, err
+	}
+	if _, _, err := w.projectOf(projectID, me); err != nil {
+		return zero, err
+	}
+	limit, err := pageLimit(page.Limit)
+	if err != nil {
+		return zero, err
+	}
+	after := 0
+	if page.After != "" {
+		if after, err = strconv.Atoi(page.After); err != nil || after < 1 {
+			return zero, badRequest("after", "A cursor is a number the list gave you.")
+		}
+	}
+	for i, s := range q.States {
+		if !hubapi.ValidIssueState(s) {
+			return zero, badRequest("state["+strconv.Itoa(i)+"]", "That is not a state.")
+		}
+	}
+	var rows []*fakeIssue
+	for _, is := range w.wk().issues {
+		switch {
+		case is.head.ProjectID != projectID, after > 0 && is.head.Number >= after,
+			len(q.States) > 0 && !slices.Contains(q.States, is.head.State),
+			q.Assignee == "none" && is.assignee != "",
+			q.Assignee != "" && q.Assignee != "none" && is.assignee != q.Assignee,
+			q.Label != "" && !slices.Contains(is.head.Labels, q.Label):
+			continue
+		}
+		rows = append(rows, is)
+	}
+	slices.SortFunc(rows, func(a, b *fakeIssue) int { return b.head.Number - a.head.Number })
+	return pageOf(rows, limit, func(is *fakeIssue) string { return strconv.Itoa(is.head.Number) },
+		w.renderIssue), nil
+}
+
+// PatchIssue writes the head only: never a revision (04 §2.4). One event
+// names every field that changed; a patch that changes nothing writes nothing.
+func (f *Fake) PatchIssue(_ context.Context, issueID string, req hubapi.PatchIssueRequest) (hubapi.IssueHead, error) {
+	w := f.w
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	me, err := f.enter("PatchIssue", issueID, req)
+	if err != nil {
+		return hubapi.IssueHead{}, err
+	}
+	is, role, err := w.issueOf(issueID, me)
+	if err != nil {
+		return hubapi.IssueHead{}, err
+	}
+	if err := need(role, hubapi.RoleMember); err != nil {
+		return hubapi.IssueHead{}, err
+	}
+	setA, assignee, err := req.AssigneeChange()
+	switch {
+	case err != nil:
+		return hubapi.IssueHead{}, badRequest("assigneeId", "An assignee is a user id or null.")
+	case req.Priority != nil && !hubapi.ValidPriority(*req.Priority):
+		return hubapi.IssueHead{}, badRequest("priority", "That is not a priority.")
+	case req.NotTiedReason != nil && !hubapi.ValidNotTiedReason(*req.NotTiedReason):
+		return hubapi.IssueHead{}, badRequest("notTiedReason", "That is not a reason.")
+	case setA && assignee != "" && !w.assignable(is.teamID, assignee):
+		return hubapi.IssueHead{}, badRequest("assigneeId", "An assignee is a member of this team.")
+	}
+	if req.Labels != nil {
+		if err := w.checkIssueLabels(is.teamID, "labels", *req.Labels); err != nil {
+			return hubapi.IssueHead{}, err
+		}
+	}
 ```
