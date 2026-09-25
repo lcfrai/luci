@@ -140,6 +140,7 @@ minutes behind the gateway; the owner's own line from task 37 stays exact.
 
 #### The contract text (the words the Hub's docs gain)
 
+*(Rule 9's first sentence is superseded; see the reconciliation at the end of this part.)*
 **ADR-H1 §5.10 rule 9, "The gateway caller".** *A token whose `idtyp` is `app` is also accepted
 when its `azp` equals `PANACEA_APP_HUB_GATEWAY_CLIENT_ID` **and** its `roles` contain
 `Hub.Gateway`. It carries no delegation (the header is refused 403 `forbidden`, `details.required =
@@ -268,6 +269,9 @@ create index usage_rollups_project_day on hub.usage_rollups (project_id, day);
 The Hub's schema name `hub.` is **UNVERIFIED until merge** (Hub task 07a); match it.
 
 #### `server/auth.go`, the rule 9 hunk (task 05's app-only branch)
+
+> **Superseded** by *Reconciliation with tasks 05 and 43* at the end of this part. Task 05 reads no
+> `idtyp` and authenticates ahead of the mux, so this hunk as written refuses every gateway token.
 
 ```go
 // After task 05's Fleet branch. A second app-only identity, three routes only.
@@ -1069,4 +1073,68 @@ tests prove only the number keysmith sends.
    (**UNVERIFIED** which task) that no task yet lists.
 6. **The skeleton's file map** lists only `QuotaAdmin.tsx` and task 66's phase 6 row; it has no
    row for `teamquota/`, `api/teamquotas.go` or the Hub files above, nor for routes 80–81.
+
+#### Reconciliation with tasks 05 and 43 (both now on disk, re-read 2026-09-25)
+
+This part was written before tasks 05 and 43 existed. Read against them, three facts break the
+rule 9 hunk above, and one closes gap 2.
+
+1. **No `idtyp`.** Task 05 admits an app-only token by *"no `scp`, a listed `azp`, the listed
+   role; `idtyp` is not read"* (`task-05.md:29-31`), and `devissuer` writes no `idtyp`
+   (`task-05.md:571-572`). The built `entra.Claims` has `ClientID // azp` and `Roles`, and no
+   `idtyp` field (`entra.go:44-54` on `feat/env`, read 2026-09-25). `claims.Idtyp == "app"` never
+   holds, offline or on Entra unless the optional claim is configured.
+2. **Authentication runs ahead of the mux.** Task 05's header rules run in `Authenticate`,
+   *"Before the mux routes"* (`task-05.md:33`), so `r.Pattern` is `""` there and
+   `gatewayRoutes[r.Pattern]` refuses all three routes. Task 05 carries the route by name in the
+   context instead: `Delegable(name, h)` and `RouteFrom(ctx)` (`task-05.md:315-327`).
+3. **An app-only token without a header is 401.** `delegationHeader` answers
+   `delegation_required` to any app-only caller off the feed (`task-05.md:252-253`). The gateway
+   never names a delegation, so it needs its own case ahead of that one.
+4. **Task 43's `DefaultTeamPolicy`** writes `Quotas{MemberDailyCents: 2500, ProjectDailyCents:
+   20000}` as a literal (`task-43.md:195-198`). The numbers equal `DefaultQuotas`; the name is
+   not used. Gap 2 closes with one hunk below.
+
+**What replaces the rule 9 hunk.** Every name below is task 05's where task 05 has one.
+
+`hubapi` (task 03's file, one anchored hunk after `AppRoleCompliance` and after `RoutePolicyRead`,
+`task-03.md:357-359`, `:388`):
+
+```go
+	// AppRoleGateway is the gateway's workload identity (§5.10 rule 9).
+	AppRoleGateway = "Hub.Gateway"
+	// ViaGateway is the audit event's via for a rule 9 write.
+	ViaGateway = "gateway"
+
+	// Routes 80 and 76 (T66). Named so rule 9 can list them; in no class's
+	// set (ClassRoutes), so no delegation can ever carry them.
+	RouteOrgQuotasRead    RouteName = "org_quotas.read"
+	RouteUsageRollupsPost RouteName = "usage_rollups.post"
+```
+
+`hubapi/team.go`, task 43's `DefaultTeamPolicy` (`task-43.md:198`), one line:
+
+```go
+		Quotas:                   DefaultQuotas, // T66: one source for the default quotas
+```
+
+`cmd/hub/serve.go`, task 05's `fleetCallers` (`task-05.md:608-616`) becomes:
+
+```go
+// appCallers is every app-only identity the Hub admits: Fleet (rule 1) and,
+// when configured, the gateway (rule 9). The two ids must differ, or a Fleet
+// call without a delegation would pass as the gateway.
+func appCallers(cfg Config) ([]entra.AppCaller, error) {
+	out := []entra.AppCaller{{ClientID: cfg.FleetClientID, Role: hubapi.AppRoleFleet}}
+	if cfg.GatewayClientID == "" {
+		return out, nil // rule 9 off: every gateway token is refused as before
+	}
+	if strings.EqualFold(cfg.GatewayClientID, cfg.FleetClientID) {
+		return nil, errors.New("hub: config: the gateway and Fleet client ids are the same")
+	}
+	return append(out, entra.AppCaller{ClientID: cfg.GatewayClientID, Role: hubapi.AppRoleGateway}), nil
+}
+```
+
+`cfg.GatewayClientID` is `PANACEA_APP_HUB_GATEWAY_CLIENT_ID`, read beside task 05's Fleet id.
 
