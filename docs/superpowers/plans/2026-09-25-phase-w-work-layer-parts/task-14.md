@@ -205,9 +205,9 @@ var ErrNotInOrg = errors.New("store: no such record in this org")
 // every MoveIssueHead (task 08's create, task 09's write and restore).
 func SetHeadTitle(ctx context.Context, tx pgx.Tx, issueID, title string) error
 
-// SearchIssueTitles is the search query. alias, when non-nil, is the issue a
-// q like "EP-142" names, placed first; the rest are title matches, newest
-// first, excluding erased issues and the alias hit.
+// SearchIssueTitles is the title half of the search: case-insensitive
+// substring matches, newest first, erased issues excluded. The handler puts
+// IssuesByAlias's hits first and drops them from this list.
 //   SELECT … FROM issues i JOIN projects p ON p.id = i.project_id
 //    WHERE i.erased_at IS NULL
 //      AND i.team_id IN (SELECT team_id FROM team_members WHERE user_id = $1)
