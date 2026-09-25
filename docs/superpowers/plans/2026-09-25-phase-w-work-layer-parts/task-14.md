@@ -331,3 +331,79 @@ func TestEscapeLikeMakesTheQueryLiteral(t *testing.T) {
 |---|---|
 | `TestEscapeLikeMakesTheQueryLiteral` | a search for `50%` or `a_b` that matches every title, and a backslash that escapes the next character instead of itself |
 
+#### Tests to write first, part 2 — `server/work_erase_integration_test.go` (`//go:build integration`)
+
+The cast and harness are task 11's, plus **Olga**, an org admin (token `roles: ["Hub.OrgAdmin"]`)
+who is in no team, and **Xena**, an org admin of Xavier's org. EP-142 is created with the canary
+`ZQX-14` in its title and description, revised twice (revision 3's title too), carries a hand-set
+`done` reason holding the canary, two comments (one with a hunk ref holding the canary), and each
+of those writes sent with an `Idempotency-Key`; Olga's `reason` never holds the canary (the audit keeps the reason by design). `markerHits` is Hub task 27's helper (`H27:72`),
+reused unchanged: every `text`, `varchar`, `jsonb` and `bytea` column of schema `hub`, as the
+administrator, so row-level security hides nothing.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestOnlyAnOrgAdminErases` | Ada (team admin) and Grace → 403 `required: org_admin`, one `auth.forbidden` each; Olga → 200 though she is in no team | a team role that erases; an erase that needs team membership (`H27:32-34`) |
+| `TestAnotherOrgsAdminGets404` | Xena erasing EP-142 or its comment → 404 `issue_not_found` / `comment_not_found` | an erase reaching another tenant |
+| `TestAReasonIsRequired` | `reason` `""`, `"   "` and 501 characters → 400 `field: reason`; nothing erased | an unaccountable erase |
+| `TestEraseKeepsEveryKeyAndNumber` | after Olga's erase: `/v1/refs` answers `issue:EP-142@1..3` each `erased` with the digest it had before; `GET` of the issue shows `number: 142`, `alias: EP-142`, `headKey` unchanged, `title: ""`; the comments list keeps both ids with `body.text: ""` and `erasedAt` set | deleting rows, which orphans every trailer, chip and key |
+| `TestEraseLeavesNoTextAnywhere` | before the erase `markerHits(ZQX-14)` finds the canary only in `issue_revisions.canonical`, `issues.head_title`, `issues.state_reason` and `issue_comments.body`/`anchor`; after it, `markerHits` is empty, including `idempotency_keys.response` | a denormalised copy (`head_title`) or a stored reply left behind |
+| `TestAReplayAfterEraseAnswersBlank` | each `Idempotency-Key` sent again → `Idempotent-Replay: true`, the texts `""`, no canary; still one event per original write | a replay that resurrects erased text, or a purge that re-runs the writes |
+| `TestASecondEraseIsZeroAndAudited` | erase twice → `3, 2`, then `0, 0`; two `issue.erased` events; a comment erased twice → `1`, then `0`, two `comment.erased` | an attempt that leaves no trace (`H27:37-39`) |
+| `TestTheFeedHidesTheReason` | Grace's `/v1/changes` shows `issue.erased` with `erasedRevisions` and `erasedComments` and no `reason`; Olga's `/v1/audit` shows the reason | a client's matter number broadcast to the team |
+| `TestAnErasedIssueTakesNoWrites` | after the erase, `PATCH`, a revision, a state move, a comment and a relation on EP-142 → 409 `conflict`, none a 500 | new text written onto an erased record |
+| `TestHubVerifyPassesAfterErase` | `hub verify` (Hub task 27's `audit` check) → exit 0, `ok audit (…)` | an erase that breaks the hash chain |
+| `TestSearchOnlyReadsReadableTitles` | Linus (Billing only) searching `Resume` never sees a Portal title; Grace does; Xavier sees nothing | search before readability |
+| `TestSearchSkipsErasedIssues` | a title match on an erased issue is absent | a search that leaks an erased title through `head_title` |
+| `TestAnAliasGoesFirst` | `q=EP-142` → issue 142 first even when newer titles contain `EP-142`; after the key moves to `PAY`, `q=PAY-142` finds it and `q=EP-142` is a plain title search | a stored alias, or a search that ignores it |
+| `TestSearchIsLiteralAndBounded` | `q=50%` matches only a title containing `50%`; `q` of 201 characters → 400; `limit=51` → 400; 60 matches → 50 items, `next: null` | a wildcard query or an unbounded page |
+| `TestSearchIsNotAnIssueID` | `GET /v1/issues/search?q=x` reaches search, not task 08's `GET /v1/issues/{issueId}` | a shadowed route answering 404 `issue_not_found` |
+| `TestTheHeadCarriesItsTitle` | a revision with a new title → `GET` of the head and every list row read the new title; a `PATCH` of priority leaves it | a `head_title` out of step with the head revision |
+
+#### Steps
+
+- [ ] **Step 1:** Confirm the sync base (rule H1): Hub task 27 merged and sync-merged; tasks 07-13
+  committed. Re-read hub-contract §7.12 and `H27:24-61` at the new base; follow any move.
+- [ ] **Step 2:** Write `hubapi/work_search_test.go`; it fails to compile; append the `hubapi`
+  block; it passes.
+- [ ] **Step 3:** Append the migration section; add `issues.head_title` to task 06's grant-list
+  test; `hub migrate` against the compose stack applies it.
+- [ ] **Step 4:** Write `server/work_erase_integration_test.go`; every row fails.
+- [ ] **Step 5:** `SetHeadTitle` beside every `MoveIssueHead` (tasks 08, 09); `Title` in the head
+  projection; blank `head.title` in every `Stored` reply (tasks 08, 09, 11).
+  `TestTheHeadCarriesItsTitle` goes green.
+- [ ] **Step 6:** `store/work_erase.go`, the two erase handlers, `emitWorkErase`, the feed
+  projection's two kinds; then `store/work_search.go` and `searchIssues`. Run until green.
+- [ ] **Step 7:** Rerun tasks 08-13's integration tests and Hub task 27's `audit_integration_test.go`;
+  all green. Run task 05's erase and search conformance rows against the fake.
+- [ ] **Step 8:** `git diff -- go.work control-plane/go.mod` shows nothing; commit by pathspec.
+
+#### Acceptance
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/work
+go test ./control-plane/internal/hub/hubapi/ -race -count=1 -v -run '^TestEscapeLikeMakesTheQueryLiteral$' 2>&1 | grep -c "^--- PASS"   # 1
+go test -tags integration ./control-plane/internal/hub/server/ -race -count=1 -v \
+  -run '^Test(OnlyAnOrgAdminErases|AnotherOrgsAdminGets404|AReasonIsRequired|EraseKeepsEveryKey|EraseLeavesNoText|AReplayAfterErase|ASecondEraseIsZero|TheFeedHidesTheReason|AnErasedIssueTakesNo|HubVerifyPassesAfter|SearchOnlyReads|SearchSkipsErased|AnAliasGoesFirst|SearchIsLiteral|SearchIsNotAnIssueID|TheHeadCarriesItsTitle)$' \
+  2>&1 | grep -c "^--- PASS"                                                                    # 16
+go test -tags integration ./control-plane/internal/hub/... -race -count=1                      # ok
+go test ./control-plane/... -race -count=1                                                      # ok
+```
+
+`TestTheFeedHidesTheReason` in this list and Hub task 27's test of the same name are in one
+package; if the name clashes at compile time, this one is renamed `TestTheFeedHidesTheWorkReason`
+and the regex follows.
+
+#### What this task does not claim
+
+- Request erase (W5, task 146), blob deletion (the Hub plan's, **UNVERIFIED**), or the replica's
+  erase handling (task 57).
+- That erasure removes text from **backups**: Hub task 27 names the same limit for briefs
+  (`H27:118-126`), and it holds here unchanged.
+- Description or comment search: W1 matches titles only (L-106's Hub half); the desktop's `/`
+  searches the replica (task 58).
+- Any measured search speed; a trigram index is a later task if a measurement asks for one.
+
+**Parity rows served:** **L-106** (the Hub half of search and jump; closed with task 58),
+**L-239** (the erase is audited with its reason). 05 §3.6's erase has no L row of its own.
+
