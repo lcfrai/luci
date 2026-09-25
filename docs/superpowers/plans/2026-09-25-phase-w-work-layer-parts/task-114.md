@@ -43,7 +43,8 @@ takes the merged names; a rename is a find-and-replace in this part, never a new
    compiling between 114 and 115, this task adds `hubclient/fake_work_roadmap_stub.go`: every
    `WorkRoadmap` method on `*Fake` returns `workNotInFakeYet`, and task 115 deletes the file in the
    commit that adds the real ones. The HTTP client gets the same stub (`client_work_roadmap_stub.go`,
-   501 `not_in_client_yet`), which task 124 deletes.
+   every method `ErrNotConfigured`, task 04's client idiom, `task-04.md:138-147`), which task 124
+   deletes.
 3. **The codes carry a status map.** `codes.go` has no map today; the scope's test *"the new codes
    map to their statuses"* needs one. `hubapi.WorkRoadmapCodeStatus` is a `map[string]int` in
    `work_roadmap.go`, read by the fake (115) and the server (117-123) when they write a problem, so
@@ -628,3 +629,115 @@ func (s ScopeRef) Validate() error {
 	return nil
 }
 ```
+
+#### `hubapi/codes.go` ⚑, appended (complete)
+
+```go
+// Work layer, W4 (task 114). Statuses are WorkRoadmapCodeStatus's.
+const (
+	CodeInitiativeNotFound  = "initiative_not_found"   // 404, details.initiativeId
+	CodeMilestoneNotFound   = "milestone_not_found"    // 404, details.milestoneId
+	CodeGrantNotFound       = "grant_not_found"        // 404, details.projectId, details.teamId
+	CodeUpdateImmutable     = "update_immutable"       // 409, details.updateId
+	CodeGrantExists         = "grant_exists"           // 409, details.projectId, details.teamId
+	CodeDependencyCycle     = "dependency_cycle"       // 422, details.from, details.blocks
+	CodeCriterionNotOnBrief = "criterion_not_on_brief" // 422, details.field "criterionIds[n]"
+)
+```
+
+#### `hubclient/work.go` ⚑: `Work` embeds `WorkRoadmap` (complete)
+
+`Work` becomes `interface { WorkIssues; WorkPlan; WorkAgents; WorkRoadmap }` (the first three as
+tasks 04, 73 and 99 leave it). The interface, appended to the file:
+
+```go
+// WorkRoadmap is W4 (SW.20): initiatives, updates, milestones, dependencies,
+// brief templates, the janitor's policies, insights, read cursors and grants.
+// Every route is in the table below; task 124 is the HTTP half.
+type WorkRoadmap interface {
+	CreateInitiative(ctx context.Context, teamID string, req hubapi.CreateInitiativeRequest) (hubapi.Initiative, error)
+	Initiatives(ctx context.Context, teamID string, page hubapi.PageRequest) (hubapi.Page[hubapi.Initiative], error)
+	// Initiative is the view: each readable feature's latest health and date.
+	Initiative(ctx context.Context, initiativeID string) (hubapi.InitiativeView, error)
+	PatchInitiative(ctx context.Context, initiativeID string, req hubapi.PatchInitiativeRequest) (hubapi.Initiative, error)
+	SetFeatureInitiative(ctx context.Context, featureID string, req hubapi.SetFeatureInitiativeRequest) (hubapi.Feature, error)
+	SetInitiativeTeams(ctx context.Context, initiativeID string, req hubapi.SetInitiativeTeamsRequest) (hubapi.InitiativeTeams, error)
+
+	// PostUpdate mints an immutable nt- update; a second write is update_immutable.
+	PostUpdate(ctx context.Context, subject hubapi.SubjectRef, req hubapi.PostUpdateRequest) (hubapi.StatusUpdate, error)
+	// Updates lists a subject's updates, newest first; erased ones included.
+	Updates(ctx context.Context, subject hubapi.SubjectRef, page hubapi.PageRequest) (hubapi.Page[hubapi.StatusUpdate], error)
+
+	CreateMilestone(ctx context.Context, featureID string, req hubapi.CreateMilestoneRequest) (hubapi.MilestoneView, error)
+	Milestones(ctx context.Context, featureID string) ([]hubapi.MilestoneView, error)
+	PatchMilestone(ctx context.Context, milestoneID string, req hubapi.PatchMilestoneRequest) (hubapi.MilestoneView, error)
+	SetMilestoneCriteria(ctx context.Context, milestoneID string, req hubapi.SetMilestoneCriteriaRequest) (hubapi.MilestoneView, error)
+
+	AddFeatureDependency(ctx context.Context, featureID string, req hubapi.FeatureDependencyRequest) (hubapi.FeatureDependencyView, error)
+	RemoveFeatureDependency(ctx context.Context, featureID, blocksID string) error
+	FeatureDependencies(ctx context.Context, projectID string) ([]hubapi.FeatureDependencyView, error)
+
+	CreateBriefTemplate(ctx context.Context, teamID string, req hubapi.CreateBriefTemplateRequest) (hubapi.BriefTemplate, error)
+	BriefTemplates(ctx context.Context, teamID string) ([]hubapi.BriefTemplate, error)
+	PatchBriefTemplate(ctx context.Context, templateID string, req hubapi.PatchBriefTemplateRequest) (hubapi.BriefTemplate, error)
+	CreateFeatureFromTemplate(ctx context.Context, projectID string, req hubapi.CreateFeatureFromTemplateRequest) (hubapi.Feature, error)
+
+	SetTemplateSchedule(ctx context.Context, templateID string, s hubapi.TemplateSchedule) (hubapi.TemplateSchedule, error)
+	ClearTemplateSchedule(ctx context.Context, templateID string) error
+	SetReminderPolicy(ctx context.Context, p hubapi.ReminderPolicy) (hubapi.ReminderPolicy, error)
+	SetTriageRotation(ctx context.Context, teamID string, r hubapi.TriageRotation) (hubapi.TriageRotationView, error)
+	TriageRotation(ctx context.Context, teamID string) (hubapi.TriageRotationView, error)
+
+	// QueryInsights reads recorded state moves only; never an estimate.
+	QueryInsights(ctx context.Context, q hubapi.InsightsQuery) (hubapi.InsightsResult, error)
+
+	// GetReadCursor is Seq 0 for a scope never looked at.
+	GetReadCursor(ctx context.Context, scope hubapi.ScopeRef) (hubapi.ReadCursor, error)
+	// AdvanceReadCursor ignores a lower Seq and returns the stored cursor.
+	AdvanceReadCursor(ctx context.Context, c hubapi.ReadCursor) (hubapi.ReadCursor, error)
+	MarkSeen(ctx context.Context, req hubapi.MarkSeenRequest) ([]hubapi.ReadCursor, error)
+
+	GrantProject(ctx context.Context, projectID string, req hubapi.GrantProjectRequest) (hubapi.ProjectGrant, error)
+	RevokeProjectGrant(ctx context.Context, projectID, teamID string) error
+	ProjectGrants(ctx context.Context, projectID string) ([]hubapi.ProjectGrant, error)
+}
+```
+
+Thirty-one methods. A granted team's comment is task 12's `CreateComment`, unchanged: the grant
+widens who may call it (task 117), not its shape.
+
+#### The routes (SW.20), one per method; the route task registers each
+
+`V` viewer, `M` member, `A` admin of the owning team; **G** a member of a granted team (task 117).
+Paths the scopes of 117-123 fix are theirs; the three marked † are this task's, since those scopes
+name the method and not the path.
+
+| Method | Route | Task | Who |
+|---|---|---|---|
+| `CreateInitiative` / `Initiatives` | `POST` / `GET /v1/teams/{teamId}/initiatives` | 118 | M / V |
+| `Initiative` / `PatchInitiative` | `GET` / `PATCH /v1/initiatives/{initiativeId}` | 118 | V / M |
+| `SetFeatureInitiative` | `PUT /v1/features/{featureId}/initiative` | 118 | M |
+| `SetInitiativeTeams` | `PUT /v1/initiatives/{initiativeId}/teams` | 117 | A |
+| `PostUpdate` / `Updates` | `POST` / `GET /v1/features/{featureId}/updates` and `…/v1/initiatives/{initiativeId}/updates` | 119 | M, a person / V, G |
+| `CreateMilestone` / `Milestones` | `POST` / `GET /v1/features/{featureId}/milestones` | 120 | M / V, G |
+| `PatchMilestone` | `PATCH /v1/milestones/{milestoneId}` | 120 | M |
+| `SetMilestoneCriteria` † | `PUT /v1/milestones/{milestoneId}/criteria` | 120 | M |
+| `AddFeatureDependency` | `POST /v1/features/{featureId}/dependencies` | 120 | M |
+| `RemoveFeatureDependency` | `DELETE /v1/features/{featureId}/dependencies/{blocks}` | 120 | M |
+| `FeatureDependencies` † | `GET /v1/projects/{projectId}/feature-dependencies` | 120 | V, G |
+| `CreateBriefTemplate` / `BriefTemplates` | `POST` / `GET /v1/teams/{teamId}/templates` (`kind: "brief"`; task 78's route) | 120 | A / V |
+| `PatchBriefTemplate` | `PATCH /v1/templates/{templateId}` (task 78's route) | 120 | A |
+| `CreateFeatureFromTemplate` | `POST /v1/projects/{projectId}/features:fromTemplate` | 120 | M |
+| `SetTemplateSchedule` / `ClearTemplateSchedule` | `PUT` / `DELETE /v1/templates/{templateId}/schedule` | 121 | A |
+| `SetReminderPolicy` | `PUT /v1/reminder-policies` | 121 | the lead, the owner, or A |
+| `SetTriageRotation` / `TriageRotation` | `PUT` / `GET /v1/teams/{teamId}/triage-rotation` | 121 | A / V |
+| `QueryInsights` | `POST /v1/teams/{teamId}/insights/query` | 122 | V |
+| `GetReadCursor` / `AdvanceReadCursor` | `GET /v1/me/read-cursors?scope={kind}:{id}` / `PUT /v1/me/read-cursors` | 123 | self |
+| `MarkSeen` | `POST /v1/me/read-cursors/mark-seen` | 123 | self |
+| `GrantProject` / `ProjectGrants` | `POST` / `GET /v1/projects/{projectId}/grants` | 117 | A / V |
+| `RevokeProjectGrant` † | `DELETE /v1/projects/{projectId}/grants/{teamId}` | 117 | A |
+
+† `RevokeProjectGrant`'s path is 117's (`…/grants/{teamId}`); the dagger marks only that its
+`{teamId}` segment name is fixed here. `features:fromTemplate` is one literal path segment, which
+Go 1.22's `ServeMux` accepts (a wildcard must be a whole segment; a literal with a colon is not a
+wildcard).
