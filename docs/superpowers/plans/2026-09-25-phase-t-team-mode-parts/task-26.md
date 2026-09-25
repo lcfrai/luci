@@ -101,7 +101,9 @@ task 09's `control.go` and `wire.go` stay that task's alone.
   - task 11: `outbox.Writer` for the `ot-…` record; task 07's Hub `turns.go` route is its target
   - task 19: `control.Streams.Push(ctx, agent model.AgentID, event any) error`
   - task 20: `sessions.Current(ctx, orch) (sandboxID string, ok bool)`
-  - phase 2: `ids.New`, `ids.Token`, `ids.UUID` (`control-plane/internal/ids/ids.go:20,30,46`)
+  - phase 2: `ids.Token`, `ids.UUID` (`control-plane/internal/ids/ids.go:30,46`); `ids.Wide` for
+    `ot-…` (`internal/ids/ids.go:61` on `feat/hub`, built; arrives with the Hub sync-merge)
+  - task 02: `teamtext.Clean` (G3), passed in as the `Cleaner`
 - Requires of **task 10** (cross-task, not satisfiable here): the `turns.Store` methods, in both
   `memstore` and `pgstore`, and in `storetest.Suite`. If task 10's names differ, a three-line
   adapter in `scheduler.go` maps them; the semantics below are the contract.
@@ -502,9 +504,13 @@ type Pusher interface { // task 19's control.Streams
 type Sandboxes interface { // task 20's sessions
 	Current(ctx context.Context, orch model.AgentID) (sandboxID string, ok bool)
 }
-// Cleaner is task 02's hygiene for agent text; it returns the cleaned,
-// bounded string or an error naming the rule it broke.
-type Cleaner func(s string, max int) (string, error)
+// Cleaner is task 02's G3 hygiene, teamtext.Clean: it refuses, it never
+// strips, and its error names the rule. Bounding is End's (MaxReplyBytes).
+type Cleaner func(s string) error
+
+// ReplyWithheld replaces a reply that G3 refuses. The turn record keeps the
+// fact and the rule, never the refused bytes.
+const ReplyWithheld = "Reply withheld: it contained characters the product does not store."
 
 type Scheduler struct {
 	Store       Store
@@ -602,11 +608,14 @@ func (s *Scheduler) End(ctx context.Context, orch model.AgentID, e wire.TurnEnd)
 	}
 	rec := s.record(ctx, row, e.Exit)
 	if row.Origin == OriginHuman && e.Reply != "" {
-		reply, err := s.Clean(e.Reply, MaxReplyBytes)
-		if err != nil {
-			return err // bad_request up the stream; the claim stays until the sweep
+		if len(e.Reply) > MaxReplyBytes {
+			return ErrTurnMismatch // the runner cuts at MaxReplyBytes; more is not a runner
 		}
-		rec.Reply, rec.ReplyTruncated = reply, e.ReplyTruncated
+		rec.Reply, rec.ReplyTruncated = e.Reply, e.ReplyTruncated
+		if err := s.Clean(e.Reply); err != nil {
+			rec.Reply, rec.ReplyTruncated = ReplyWithheld, false
+			s.Log.Warn("turn reply withheld", "turn", row.TurnID, "rule", err.Error())
+		}
 	} // a reply on a fleet-origin turn is dropped: nobody asked for it
 	next := SessionState{} // any unclean end: next turn is a new session
 	if e.Exit == wire.ExitOK {
@@ -678,7 +687,8 @@ fake `TokenMeter` and a fixed clock. `package turns`.
 | `TestTurnEndNeedsTheNonce` | `End` with the right turn and a wrong nonce: `ErrTurnMismatch`, claim unchanged | nonce not compared; compared with `==` on the turn id only |
 | `TestTurnEndRefusesLost` | `End` with `exit: "lost"`: `ErrTurnMismatch` | the exit whitelist removed |
 | `TestReplyKeptOnlyForHumanOrigin` | a fleet-origin `End` with a reply: the outbox item's record has no `reply`; a human-origin one has it, cleaned | the reply stored whatever the origin |
-| `TestReplyCleaned` | a reply with an ANSI escape and a bidi override: `Clean` is called with `MaxReplyBytes`, the stored reply has neither | `Clean` bypassed |
+| `TestReplyRefusedByG3IsWithheld` | a reply with an ANSI escape: the stored reply is exactly `ReplyWithheld`, the turn still ends, and the log line names the rule, not the bytes | `Clean` bypassed; the whole `End` failed on a refused reply, losing the turn record |
+| `TestOversizeReplyRefused` | a reply of `MaxReplyBytes+1` bytes: `ErrTurnMismatch`, claim unchanged | the bound trusted to the runner |
 | `TestSessionNewThenResume` | first turn `mode: new` with a uuid; after `End(ok)`, the next is `resume` with the same uuid | the uuid re-minted per turn; resume on the first turn |
 | `TestSessionNewAfterPodReplaced` | after `End(ok)` on sandbox `sb-1`, `Current` returns `sb-2`: next is `new`, fresh uuid | `SessionFor` ignores the sandbox id |
 | `TestSessionNewAfterUncleanEnd` | `End(failed)` then next turn: `new` | the session kept on failure |
