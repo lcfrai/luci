@@ -194,41 +194,45 @@ type MachineFS interface {
 | `POST /v1/lanes/sealed` | `204`, idempotent | `400` (not `lanes/<p>/<d>`) |
 | `GET /v1/worktrees/{worktreeId}/path` (task 20's) | unchanged | adds `409 lane_creating` while the lane is in the set |
 
-**What `machined` does to every call (review I7).** *Pre-R4 text: after R4 this route takes
-project calls only, no session mounts `projects/<name>`, and a `lanes/…` `Dir` is `400` (the
-block at the top holds). The paragraph is kept for the re-plan.* A lane clone's `.git` is inside that lane's
-session mount. So is a project's `.git` whenever a session runs on the project's primary
-worktree: its `machinePath` is `projects/<name>` (task 20, `TestWorktreePathIsRelativeToTheRoot`),
-and task 24b mounts the worktree's machine path read-write at `/home/dev/work`. The agent can
-therefore write any key into either `config`, any file into either `hooks/`, and any
-`.gitattributes`. A git that obeyed them would run code the agent chose **in the machine pod**,
-which holds the whole disk (every project, lane and conversation, where a session sees only its
-own sub-paths) and receives the user's host token. Phase 3 closes the same hole for the laptop's
-git with §HGH. `machined` runs §HGH unchanged, and adds the four things below that the machine
-needs.
+**What `machined` does to every call (review I7, restated for R4).** No sandbox mounts
+`projects/<name>` (R4.1; env ruling 5 runs a primary-worktree session in its backing lane), and
+no lane git runs here (ruling 2). So this route takes three kinds of call, and no other:
+- **project calls**: `Dir` `projects/<name>`, `Scope` `project`;
+- **the add-project clone**: `Dir` `""`, `Scope` `none` (below);
+- **a lane create's calls** (ruling 4), the only git that names a lane, inside R4.5's window
+  before any pod mounts it (item 2).
+
+The agent still reaches a project's *content*: a land fetches the lane's commits into it (task
+21b), so tracked files and `.gitattributes` there are agent-written. Its `.git/config` and
+`.git/hooks` are the user's, and may name drivers (Git LFS). The machine pod holds the whole disk
+(every project, lane and conversation) and receives the user's host token, so a git that ran a
+driver here would run it beside all of that. Phase 3 closes this for the laptop's git with §HGH.
+`machined` runs §HGH unchanged, and adds the four things below.
 
 1. **Phase 3's hardening, whole.** The runner is `gitx.NewExec(h)`, with
-   `h = gitx.MachineHardening(ctx, "/tmp/machined-git")`. That root is on the machine pod's own
-   `emptyDir` `/tmp` (task 19), never on the disk, so no session can reach its `no-hooks`
-   directory. Every call then gets:
+   `h = gitx.MachineHardening(ctx, "/tmp/machined-git")` and then `h.LaneRoot = <root>/lanes`,
+   as phase 3's task 04 sets `LaneRoot` to its Machine's `CloneRoot()` (phase-3
+   `task-02.md:115`, `:120-121`). Phase 3's own `ErrLaneDir` then refuses any call that runs in a
+   lane but a create's `NewLane` call (`task-02.md:139-149`, `:523-524`), under `machined`'s own
+   check (item 2). The owned root is on the machine pod's `emptyDir` `/tmp` (task 19), never on
+   the disk, so no pod can reach its `no-hooks` directory. Every call then gets:
    - H1's command-scope prefix: hooks, `core.fsmonitor`, `core.sshCommand`, every transport but
      `file` (and `https` on a Remote call), `core.askPass`, gpg signing, submodule recursion,
      every repository credential helper, and `--upload-pack` / `--receive-pack`;
    - H2's machine-owned proxy and TLS on a Remote call;
-   - H3's `git config --local --no-includes --list -z` check before git acts. For
-     `Scope: Clone` that is a closed allowlist. For `Scope: Project` it is the refusal list,
-     which refuses `filter.*`, `diff.*.textconv`, `diff.*.command`, `diff.external`,
-     `merge.*.driver`, `include.*`, `includeIf.*` and `extensions.worktreeConfig`, among others;
-   - H5, both halves. The layout pin: Exec sets `GIT_DIR`, `GIT_COMMON_DIR` and
+   - H3's `git config --local --no-includes --list -z` check before git acts, on every
+     `Scope: Project` call: the refusal list, which refuses `filter.*`, `diff.*.textconv`,
+     `diff.*.command`, `diff.external`, `merge.*.driver`, `include.*`, `includeIf.*` and
+     `extensions.worktreeConfig`, among others. `Scope: None` has no check (`task-02.md:534`).
+     `machined` admits it for `version`, for the add-project clone (no repository exists yet),
+     and for a create's `NewLane` writes, whose config at that moment holds only the six keys
+     the clone's `--config` wrote and the closed writes before it (item 2);
+   - H5's layout pin (`task-02.md:562-570`): Exec sets `GIT_DIR`, `GIT_COMMON_DIR` and
      `GIT_WORK_TREE` itself, so a planted `commondir` cannot swap the config that H3 checked.
-     And the read-only config (phase-3 `task-02.md:482-487`): H3 reads `.git/config` a few
-     milliseconds before git does, so an agent that rewrites it inside that window would defeat
-     H3. Phase 3 closes that window by binding `<path>/.git/config` read-only in the sandbox, in
-     its task 05's `sessionMounts`, which builds only the laptop's Docker mounts. A cloud session
-     gets its mounts from task 24b instead, so **task 24b binds that file read-only** (from
-     task 20's `WorktreePath.GitConfig`), and `machined` depends on it: without the bind, a lane
-     or primary-worktree agent that loops a `filter.*` write and removal would sometimes pass H3
-     with a config git then reads dirty.
+     H5's read-only `.git/config` bind is hygiene (`task-02.md:556-560`), and `machined` does
+     not depend on it: no agent can write a config this route reads, because no pod mounts a
+     project (R4.1), and no pod mounts a lane in the creating set (task 20's path route answers
+     `409 lane_creating` for it, below).
 
    `machined` writes no `-c` of its own. The two it wrote before this batch are H1's first two
    rows. It refuses to start (exit 2, naming the key) if `MachineHardening` finds any system or
