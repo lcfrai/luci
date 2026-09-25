@@ -1145,3 +1145,113 @@ func (f *Fake) EraseComment(_ context.Context, commentID string, req hubapi.Eras
 	return hubapi.WorkEraseResponse{}, f.workNotInFakeYet("EraseComment", commentID, req)
 }
 ```
+
+#### `client_work_stub.go`, complete
+
+```go
+package hubclient
+
+import (
+	"context"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubapi"
+)
+
+// The HTTP client's Work methods, as placeholders in client.go's own idiom:
+// every one answers ErrNotConfigured. Phase W task 16 deletes this file in the
+// commit that adds methods_work.go. It is not client.go, which H33 replaces
+// file for file (decision (j)).
+
+type (
+	iwr   = hubapi.IssueWithRevision
+	ihead = hubapi.IssueHead
+	irev  = hubapi.IssueRevision
+)
+
+func (*Client) SetProjectKey(context.Context, string, string) (hubapi.ProjectKey, error) {
+	return hubapi.ProjectKey{}, ErrNotConfigured
+}
+func (*Client) CreateIssue(context.Context, string, hubapi.CreateIssueRequest) (iwr, error) {
+	return iwr{}, ErrNotConfigured
+}
+func (*Client) Issue(context.Context, string) (iwr, error) { return iwr{}, ErrNotConfigured }
+func (*Client) IssueByNumber(context.Context, string, int) (iwr, error) {
+	return iwr{}, ErrNotConfigured
+}
+func (*Client) Issues(context.Context, string, hubapi.IssueQuery, hubapi.PageRequest) (hubapi.Page[ihead], error) {
+	return hubapi.Page[ihead]{}, ErrNotConfigured
+}
+func (*Client) PatchIssue(context.Context, string, hubapi.PatchIssueRequest) (ihead, error) {
+	return ihead{}, ErrNotConfigured
+}
+func (*Client) WriteIssueRevision(context.Context, string, hubapi.WriteIssueRevisionRequest) (irev, error) {
+	return irev{}, ErrNotConfigured
+}
+func (*Client) IssueRevisions(context.Context, string, hubapi.PageRequest) (hubapi.Page[irev], error) {
+	return hubapi.Page[irev]{}, ErrNotConfigured
+}
+func (*Client) IssueRevisionAt(context.Context, string, int) (irev, error) { return irev{}, ErrNotConfigured }
+func (*Client) RestoreIssueRevision(context.Context, string, hubapi.RestoreRevisionRequest) (irev, error) {
+	return irev{}, ErrNotConfigured
+}
+func (*Client) MoveIssueState(context.Context, string, hubapi.StateMove) (ihead, error) {
+	return ihead{}, ErrNotConfigured
+}
+func (*Client) AddRelation(context.Context, string, hubapi.RelationRequest) (ihead, error) {
+	return ihead{}, ErrNotConfigured
+}
+func (*Client) RemoveRelation(context.Context, string, hubapi.RelationKind, string) (ihead, error) {
+	return ihead{}, ErrNotConfigured
+}
+func (*Client) Labels(context.Context, string) ([]hubapi.Label, error) { return nil, ErrNotConfigured }
+func (*Client) CreateLabel(context.Context, string, hubapi.CreateLabelRequest) (hubapi.Label, error) {
+	return hubapi.Label{}, ErrNotConfigured
+}
+func (*Client) ArchiveLabel(context.Context, string) (hubapi.Label, error) {
+	return hubapi.Label{}, ErrNotConfigured
+}
+func (*Client) TeamPolicy(context.Context, string) (hubapi.TeamPolicy, error) {
+	return hubapi.TeamPolicy{}, ErrNotConfigured
+}
+func (*Client) PutTeamPolicy(context.Context, string, hubapi.PutTeamPolicyRequest) (hubapi.TeamPolicy, error) {
+	return hubapi.TeamPolicy{}, ErrNotConfigured
+}
+func (*Client) Comments(context.Context, string, hubapi.PageRequest) (hubapi.Page[hubapi.Comment], error) {
+	return hubapi.Page[hubapi.Comment]{}, ErrNotConfigured
+}
+func (*Client) CreateComment(context.Context, string, hubapi.CreateCommentRequest) (hubapi.Comment, error) {
+	return hubapi.Comment{}, ErrNotConfigured
+}
+func (*Client) React(context.Context, string, hubapi.ReactRequest) (hubapi.Comment, error) {
+	return hubapi.Comment{}, ErrNotConfigured
+}
+func (*Client) ResolveComment(context.Context, string, hubapi.ResolveRequest) (hubapi.Comment, error) {
+	return hubapi.Comment{}, ErrNotConfigured
+}
+func (*Client) Subscribe(context.Context, string, hubapi.SubscribeRequest) (hubapi.Subscription, error) {
+	return hubapi.Subscription{}, ErrNotConfigured
+}
+func (*Client) Subscriptions(context.Context, hubapi.PageRequest) (hubapi.Page[hubapi.Subscription], error) {
+	return hubapi.Page[hubapi.Subscription]{}, ErrNotConfigured
+}
+func (*Client) SearchIssues(context.Context, hubapi.IssueSearchQuery) ([]ihead, error) {
+	return nil, ErrNotConfigured
+}
+func (*Client) ImportBatch(context.Context, string, hubapi.ImportBatch) (hubapi.ImportResult, error) {
+	return hubapi.ImportResult{}, ErrNotConfigured
+}
+func (*Client) AttachBlob(context.Context, string, hubapi.AttachRequest) (hubapi.IssueAttachment, error) {
+	return hubapi.IssueAttachment{}, ErrNotConfigured
+}
+func (*Client) Attachments(context.Context, string) ([]hubapi.IssueAttachment, error) {
+	return nil, ErrNotConfigured
+}
+func (*Client) EraseIssue(context.Context, string, hubapi.EraseRequest) (hubapi.WorkEraseResponse, error) {
+	return hubapi.WorkEraseResponse{}, ErrNotConfigured
+}
+func (*Client) EraseComment(context.Context, string, hubapi.EraseRequest) (hubapi.WorkEraseResponse, error) {
+	return hubapi.WorkEraseResponse{}, ErrNotConfigured
+}
+```
+
+The three aliases are unexported and exist only in this file; task 16 deletes them with it.
