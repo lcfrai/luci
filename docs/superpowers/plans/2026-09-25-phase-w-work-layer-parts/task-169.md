@@ -498,3 +498,130 @@ export const W5_GOLDENS = {
 field (`form_field_required`), task 172 the level (`loop_outside_grid`) and task 171 the refused
 move (`principal_cannot_move_state`). `FormField` is checked inside `intake-form.json`
 (`fields[i]`), as task 125 checks `InitiativeFeature`.
+
+#### Interfaces — complete: the delta on ⚑ `desktop/src/work/replica/kinds.ts` (task 125)
+
+```ts
+// appended — the W5 feed kinds (SW.5, SW.21). COPIED BY NAME from task 144's
+// fake_work_intake.go; kinds.test.ts reads that file and fails on any difference.
+
+/** Kinds whose subject is a Work record the replica holds. */
+export const W5_FEED_KINDS = [
+  "request.created", "request.accepted", "request.linked", "request.declined",
+  "request.important_set", "request.erased", "request.message_added",
+  "intake_rules.set", "intake_form.set",
+  "tracker.connected", "tracker.mode_set", "tracker.disconnected", "sync.run",
+  "external_link.created",
+  "loop.version_put", "loop.state_set", "loop.run_queued", "loop.run_ended",
+] as const;
+export type W5FeedKind = (typeof W5_FEED_KINDS)[number];
+
+/** Admin kinds: the replica reads these only to skip them (decision 4). */
+export const W5_ADMIN_KINDS = [
+  "app.registered", "app.decided", "api_key.created", "api_key.revoked",
+  "webhook.created", "webhook.disabled", "webhook.delivered", "mcp_connector.decided",
+  "harness_allow.set", "team_skill.put",
+] as const;
+
+/** Signals the replica passes on and does not store: the Desk row of task 170. */
+export const W5_SIGNAL_KINDS: ReadonlySet<string> = new Set(["request.unrouted"]);
+
+export const W5_SUBJECT_PREFIX = { "rq-": "request", "ir-": "intakeRule", "fm-": "intakeForm",
+  "tc-": "tracker", "xl-": "externalLink", "lp-": "loop", "lr-": "loopRun" } as const;
+
+export const isW5Kind = (k: string): k is W5FeedKind => (W5_FEED_KINDS as readonly string[]).includes(k);
+export const isW5Admin = (k: string): boolean => (W5_ADMIN_KINDS as readonly string[]).includes(k);
+```
+
+Every kind above is this part's word, because task 144 has no part: **all of them are
+UNVERIFIED** until it lands, and the copy test (fake kinds = `W5_FEED_KINDS` ∪ `W5_ADMIN_KINDS` ∪
+`W5_SIGNAL_KINDS`, exactly) is what makes them true. `request.unrouted` is 05 §4.2's FAILED row
+(*"an intake rule could not route a request"*), named by task 170's scope. A kind the Hub appends
+that none of the three lists holds is **ignored**, as task 125's rule 2.
+
+#### Interfaces — complete: the deltas on ⚑ `replica.ts` (task 55), ⚑ `ops.ts` (task 56), ⚑ `visibility.ts` (task 57)
+
+```ts
+// desktop/src/work/replica/replica.ts — task 169 adds these record maps beside task 125's.
+import type { ExternalLink, IntakeForm, IntakeRule, Loop, LoopRun, Request, RequestMessage,
+  SyncRun, TrackerConnection } from "../../api/work";
+
+/** What the replica holds for W5. Keys are Hub ids; every record passes task 57's admit(). */
+export interface IntakeRecords {
+  requests: ReadonlyMap<string, Request>;                  // rq-…, only of the caller's teams
+  requestThreads: ReadonlyMap<string, RequestMessage[]>;   // by requestId, append-only, by `at`
+  rules: ReadonlyMap<string, IntakeRule[]>;                // by teamId, by position
+  forms: ReadonlyMap<string, IntakeForm>;                  // fm-…
+  trackers: ReadonlyMap<string, TrackerConnection>;        // tc-…
+  links: ReadonlyMap<string, ExternalLink>;                // by issueId: at most one per issue
+  syncRuns: ReadonlyMap<string, SyncRun[]>;                // by connectionId, newest first, last 50
+  loops: ReadonlyMap<string, Loop>;                        // lp-…, the caller's own, latest version
+  loopRuns: ReadonlyMap<string, LoopRun[]>;                // by loopId, newest first, last 50
+}
+// Replica (task 55) gains:
+//   intake(): IntakeRecords
+//   requestsOf(issueId: string): Request[]      // accepted or linked to it: the issue's requesters
+//   teamHasRequests(teamId: string): boolean    // task 170's "only once the team has a request"
+```
+
+```ts
+// desktop/src/work/replica/ops.ts — task 56's Op union gains these; each has an inverse for U.
+export type IntakeOp =
+  | { kind: "request.accept"; requestId: string; body: AcceptRequestBody }   // one op, issue + link
+  | { kind: "request.link"; requestId: string; issueId: string }
+  | { kind: "request.decline"; requestId: string }
+  | { kind: "request.important"; requestId: string; important: boolean; prev: boolean }
+  | { kind: "rules.put"; teamId: string; body: PutIntakeRulesBody; prev: PutIntakeRulesBody }
+  | { kind: "form.put"; teamId: string; formId: string; body: PutFormBody; prev: PutFormBody }
+  | { kind: "tracker.mode"; connectionId: string; mode: TrackerMode; prev: TrackerMode }
+  | { kind: "loop.put"; loopId: string | null; body: PutLoopBody }          // a new version
+  | { kind: "loop.state"; loopId: string; state: LoopState; prev: LoopState }
+  | { kind: "loop.runNow"; loopId: string };                                // no inverse
+// Deliberately absent: any op for keys, apps, webhooks, connectors, harness or skills (decision
+// 4: task 173 calls WorkClient directly and holds the answer in component state), and any
+// "loop.patch" (decision 6). intake.test.ts asserts both.
+```
+
+**Inverses** (task 56's `inverseOf(op, before)`): `request.important` inverts to the `prev` value;
+`rules.put`, `form.put`, `tracker.mode` and `loop.state` to a put of `prev`; `loop.put` to a
+`loop.put` of the version read before (a **new** version equal to the old one, so the history
+keeps both, decision 6). `request.accept` and `request.link` invert to a Hub *unlink* only if task
+146 has one; its scope names none, so `U` is refused with the fact line *"Accepting cannot be
+undone here; decline the issue from its page"* (gap G3). `request.decline` has no reopen in task
+143's list; `U` is refused the same way. `loop.runNow` has no inverse: a queued run is a fact.
+
+**How W5 enters the replica**, in order, beside task 55's and task 125's paths:
+
+1. **Load.** For each team the caller is a member of: `requests(teamId)` (all pages; open and the
+   last 90 days of closed), `intakeRules`, `trackers`; for each tracker, the first page of
+   `syncRuns`; then `myLoops()` and, for each, the first page of `loopRuns`. A request's thread
+   (`requestMessages`) loads on first open by task 170, not at start. `ExternalLink`s arrive with
+   the issues task 55 loads, where task 150 embeds them (**UNVERIFIED**: task 150 names the link
+   record, not how it rides; gap G4).
+2. **Each event** whose kind `isW5Kind` re-fetches its subject by the prefix map and puts it in one
+   `transact`. `request.accepted` and `request.linked` apply **in feed order** (by `seq`), so a
+   link after an accept adds a second issue's requester and never replaces the first. A kind that
+   `isW5Admin` is skipped with no fetch and no store. A signal kind goes to `signals` listeners.
+3. **`request.erased`** runs task 57's erase pattern: `quote.text` becomes `""`, the requester's
+   `displayName` and `email` become `""`, and id, state and `issueId` stay.
+
+```ts
+// desktop/src/work/replica/visibility.ts — task 57's admit() gains the request team rule
+// (decision 8). callerTeams is task 57's set of the caller's member teams.
+export function admitRequest(r: Pick<Request, "teamId">, callerTeams: ReadonlySet<string>): boolean {
+  // A grant (task 117) lets another team read a project's issues; it never lets them read the
+  // quote of a request routed to that project. Only the request's own team sees it.
+  return callerTeams.has(r.teamId);
+}
+/** Runs before task 57's classify for request.* kinds: another team's request is "none". */
+export function classifyRequest(e: FeedEventLike & { data?: Record<string, unknown> },
+                                callerTeams: ReadonlySet<string>): VisibilityAction | null {
+  if (!e.kind.startsWith("request.")) return null;
+  const teamId = typeof e.data?.teamId === "string" ? e.data.teamId : null;
+  return teamId && callerTeams.has(teamId) ? null : { kind: "none" };
+}
+```
+
+`classifyRequest` answering `null` hands the event on to the normal fetch path; `{ kind: "none" }`
+drops it before any fetch, so another team's quote never crosses the loopback. `data.teamId` on a
+`request.*` event is task 144's metadata (SW.5 carries ids, never text), **UNVERIFIED**.
