@@ -178,3 +178,106 @@ export function DivePane(props: { projectId: ProjectId; orch: { agentId: string;
 // diveSession.ts
 export function diveSession(projectId: ProjectId, agentId: string, attachPath: string): Session;
 ```
+
+The typed-field sentence `ThreadPane` prints for each message kind, fixed here so no agent words
+stand in for it (the text, when present, follows it as `AuthoredText`):
+
+| Kind | Sentence (names from `ThreadRow.other` and the viewer) |
+|---|---|
+| `ask` | *"asks about <subject.kind> <subject.ref>"* |
+| `answer` | *"answers <inReplyTo>"* |
+| `inform` | *"informs about <subject.kind> <subject.ref>"* |
+| `propose`, `counter` | *"proposes <resolution.kind>"*, then per kind: `sequence` *"<first's side> first"*; `split` *"<side>: <globs>; <side>: <globs>"*; `yield` *"yield <globs>"*; `build-on` *"build on <base>"*; `proceed-both` *"both proceed on <paths>"* |
+| `accept`, `reject`, `withdraw` | *"accepts <proposal>"*, *"rejects <proposal>"*, *"withdraws <proposal>"* |
+
+A side is named *"your side"* or *"<name>'s side"* from the agent's owner in `TeamHuman`, never
+from the message.
+
+- [ ] **Step 1: Write the failing tests first**
+
+Vitest + RTL over task 52's `orchestrator.json` and `thread.json` fixtures and a fake transport;
+Go over a fake `DiveFleet` and a fake `TeamFleet`.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `ConvLine › a markdown link is text` | the fixture reply containing `[the thread](https://example.invalid)` renders no `a` element; `textContent` holds the brackets and the URL | markdown rendering of `text·A` (§7.3) |
+| `ConvLine › HTML and escapes are text` | a reply body `<img src=x onerror=1>` and one holding `\u001b[31m` render no `img`, and the characters as text | HTML or terminal rendering of an agent's words |
+| `ThreadPane › the author class on every line` | every message element contains its `sender.label`; the fixture's two lines carry *"Alice's Orchestrator (agent)"* and *"Your Orchestrator (agent)"* | a thread line without its author (§9.4) |
+| `ThreadPane › typed fields, not words, say what was proposed` | the counter with `text: null` still reads *"proposes split"* and both sides' globs | a message shown only through its text |
+| `ThreadList › typed state` | the row reads `Alice · auth/session.go · round 2 of 3 · by 04:40`, the time in `tabular-nums` | a thread list built from message bodies |
+| `Conversation › directives inline, in time order` | order is human `hm-01aa`, directive `dv-01ab` as *"→ told mobile worker: Leave store/ alone until I say otherwise."*, reply `ot-01ac` | directives shown in a separate log, or out of order |
+| `Conversation › no jump when scrolled up` | with `scrollTop` set above the bottom, a new poll with one more entry leaves `scrollTop` unchanged and shows *"New below"* | scroll-jump on every poll (`CLAUDE.md`) |
+| `Composer › sends once, with the subject` | Enter with subject `{path, auth/session.go}` calls `ask(pid, text, subject)` once; the chip's remove button clears it; Shift+Enter inserts a newline | a double send, or a subject that cannot be removed |
+| `Composer › a refusal stays in the box` | the fake answers `400 text_refused`: the problem message shows under the box, the text is still there, `store.toasts` is `[]` | a lost message, or a toast |
+| `DivePane › absent for a non-owner` | `canDive: false`: no DIVE button in the panel | DIVE offered to anyone who can open a panel |
+| `DivePane › start, then attach` | click DIVE: `beginDive(pid)` once, then a `Terminal` mounted with a session whose `attachPath` is `/v1/projects/<pid>/orchestrator/attach`; the store's `sessions` is unchanged | a fake session written into the store, which the rail would show |
+| `DivePane › waiting is a count` | `DiveState.waiting = 3` renders *"3 team events waiting"*; no `%`, no bar | a progress display (OD-27) |
+| `palette › one command, team projects only` | `buildCommands` on a solo project has no `verb:ask-orchestrator`; on a team project it has one, and `run()` opens the panel | ⌘K offering a panel that cannot answer |
+| `orchestrator.go › takes no agent id` | the four routes have no `{ag}` path value and ignore an `?agent=` query; each calls `DiveFleet` with the viewer's own Orchestrator from `TeamHuman`, even when a teammate's Orchestrator is listed first | a DIVE or attach into someone else's Orchestrator |
+| `orchestrator.go › no Orchestrator is 404` | no live Orchestrator of the viewer's: `404 orchestrator_not_found`, and `DiveFleet` was not called | a DIVE request sent to Fleet with an empty id |
+| `orchestrator.go › Fleet's busy is relayed` | `BeginDive` answering `409 orchestrator_busy` with `details.retry: "after_turn"` reaches the desktop with both | a busy DIVE shown as "Fleet is down" |
+
+```bash
+cd desktop && npm test -- orchestrator 2>&1 | tail -5
+cd control-plane && go test ./internal/api/... -run Orchestrator 2>&1 | head -5
+```
+
+Expected: imports fail (`./OrchestratorPanel`, `undefined: DiveFleet`). That is the red.
+
+- [ ] **Step 2: The local routes and `fleetbe/dive.go`**
+
+`dive.go` is three calls on task 21's `do` helper and one dial mirroring `fleetbe/attach.go`
+(task 21 Step 3) with the agent id in place of a resolved ref.
+
+- [ ] **Step 3: `api/orchestrator.ts`, `diveSession.ts`, the `Terminal` prop**
+
+`Terminal`'s change is one line at the store lookup (`Terminal.tsx:113`):
+`const current = props.session ?? useCockpit.getState().sessions[sessionId];`, and `sessionId`
+for a DIVE is `diveSession(...).id`, `"orch-<agentId>"`, which no registry id can equal (phase 2
+ids are `s-…`, `store/types.ts:13`).
+
+- [ ] **Step 4: The panel**
+
+`ConvLine`, `Conversation`, `Composer`, `ThreadList`, `ThreadPane`, `DivePane`, then
+`OrchestratorPanel` and the mount; then the palette command. `orchestrator.css` imports the token
+layer first and adds no transition beyond the audited list (opacity at `var(--dur-fast)` for the
+sheet's fade, `designsystem.test.ts:181`).
+
+- [ ] **Step 5: Acceptance**
+
+```bash
+cd control-plane && go vet ./... && go test ./internal/api/... ./internal/backend/fleetbe/... -count=1
+cd desktop && npm run typecheck && npm test
+```
+
+Expected: `ok` for both Go packages; `tsc` silent; every Vitest file passes, phase 2's
+`Terminal.test.tsx` and `commands.test.ts` and the design-system audit unchanged. Visual
+acceptance against task 51's states `7` and `8` is the owner's.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add desktop/src/components/orchestrator desktop/src/api/orchestrator.ts \
+  desktop/src/api/orchestrator.test.ts control-plane/internal/api/orchestrator.go \
+  control-plane/internal/api/orchestrator_test.go control-plane/internal/backend/fleetbe/dive.go
+git commit -F <msgfile> -- desktop/src/components/orchestrator desktop/src/api/orchestrator.ts \
+  desktop/src/api/orchestrator.test.ts desktop/src/components/Terminal.tsx \
+  desktop/src/components/AppShell.tsx desktop/src/components/palette/commands.ts \
+  control-plane/internal/api/orchestrator.go control-plane/internal/api/orchestrator_test.go \
+  control-plane/internal/backend/fleetbe/dive.go
+```
+
+**What this task does NOT claim.**
+- That replies appear. Until the Hub serves turn replies (task 52's gap G52-2), `conversation`
+  holds human messages and directives only; the panel renders that state, and the fixture has both.
+- That DIVE works end to end. It is proven against fakes; tasks 39 and 40 are the Fleet halves,
+  and task 57 is the first real DIVE.
+- That the panel works for an org auditor. An auditor's reads of other people's conversations are
+  the Hub's (routes 63, 66, 68, 71 admit *auditor*), and no auditor surface is in TM1.
+
+**Gaps (for the skeleton's owner).**
+- **G55-1.** The skeleton maps task 55 to `desktop/src/components/orchestrator/*` only; DIVE also
+  needs `control-plane/internal/api/orchestrator.go` and `fleetbe/dive.go` (decision a), because the
+  Orchestrator is outside the laptop's registry by design (task 21).
+- **G55-2.** Task 40's `DiveState` lives in Fleet's `turns` package as read here
+  (`task-40.md:324-330`); if task 40 moves it to `wire`, `DiveFleet`'s return type follows.
