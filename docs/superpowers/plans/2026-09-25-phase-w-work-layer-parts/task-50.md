@@ -25,9 +25,11 @@ Six rules, each one a test:
 **Decisions made here, so nobody re-derives them:**
 
 1. **The menu is a listbox the editor points at.** Focus stays in the editor (the person keeps
-   typing to filter); while the menu is open the editor's root carries `aria-expanded="true"`,
-   `aria-controls` naming the list and `aria-activedescendant` naming the active option, which the
-   `textbox` role supports. The list is `role="listbox"`, each item `role="option"`.
+   typing to filter); the editor's root carries `aria-haspopup="listbox"` always and, while the
+   menu is open, `aria-controls` naming the list and `aria-activedescendant` naming the active
+   option. WAI-ARIA 1.2 lists `textbox` among the roles for both; it does **not** list `textbox`
+   for `aria-expanded`, so that attribute is not used. The list is `role="listbox"`, each item
+   `role="option"`.
 2. **The link items take their candidates from the caller.** The editor knows no project and
    reads no replica; `EditorProps` gains `linkSources?: {issues(q); criteria(q)}`, which the issue
    view supplies (task 58's `search` and the replica's criteria read, task 47's gap 2). With no
@@ -403,4 +405,103 @@ or a menu item with no row, is caught by the parity test below rather than by a 
 Markdown shortcuts that are marks (`**`, `` ` ``) have no menu item: the menu inserts blocks and
 links, and a mark is typed around text that already exists. `tab` matches *Table* only while the
 caret is outside a table (inside one, *Remove table* is listed and matches too, which is right).
+
+#### Interfaces — complete: `slashMenu.ts`, part 3: the plugin
+
+```ts
+/** Rule 1: at a textblock's start or after whitespace; never in a code block or inline code. */
+export function opensAt(state: EditorState, pos: number): boolean {
+  const $p = state.doc.resolve(pos);
+  if (!$p.parent.isTextblock || $p.parent.type.spec.code) return false;
+  if ($p.marks().some((m) => m.type.spec.code)) return false;
+  const before = $p.parent.textBetween(0, $p.parentOffset, undefined, "￼");
+  return before === "" || /\s$/.test(before);
+}
+
+/** Follow the open menu through a change: the "/" must survive, the caret must stay after it in
+ *  the same block, the selection must be empty; the query is the text between. */
+function follow(state: EditorState, prev: Extract<SlashState, { open: true }>, from: number): SlashState {
+  const sel = state.selection;
+  if (!sel.empty || state.doc.textBetween(from, Math.min(from + 1, state.doc.content.size)) !== "/") return CLOSED;
+  if (sel.head <= from || state.doc.resolve(from).parent !== sel.$head.parent) return CLOSED;
+  const query = state.doc.textBetween(from + 1, sel.head);
+  if (prev.mode === "items" && /\s/.test(query)) return CLOSED;   // "/ " is a slash and a space
+  return { ...prev, from, query, active: query === prev.query ? prev.active : 0 };
+}
+
+export function choose(view: EditorView, s: SlashState, opt: SlashOption | undefined): void {
+  if (!s.open || !opt) return;
+  const { state } = view;
+  const head = state.selection.head;
+  if (opt.kind === "item" && opt.item.pick) {     // keep the "/", drop the query, open the picker
+    view.dispatch(state.tr.delete(s.from + 1, head)
+      .setMeta(slashKey, { ...s, query: "", mode: opt.item.pick, active: 0 }));
+    return;
+  }
+  if (opt.kind === "item") {
+    view.dispatch(state.tr.delete(s.from, head).setMeta(slashKey, CLOSED));
+    opt.item.run(view);
+    return;
+  }
+  // Rule 4: the target is the id; the alias or the criterion's words are only the shown text.
+  const href = opt.kind === "issue" ? issueLink(opt.issue.id)
+    : criterionLink(opt.criterion.briefKey, opt.criterion.criterionId);
+  const text = opt.kind === "issue" ? opt.issue.alias : opt.criterion.text;
+  const link = editorSchema.marks.link.create({ href, title: null });
+  view.dispatch(state.tr.replaceWith(s.from, head, editorSchema.text(text, [link]))
+    .removeStoredMark(editorSchema.marks.link).setMeta(slashKey, CLOSED));
+}
+
+export interface SlashConfig { listId: string; sources(): LinkSources | undefined }
+export const optionId = (listId: string, o: SlashOption): string => `${listId}-${o.key}`;
+
+export function slashMenuPlugin(cfg: SlashConfig): Plugin<SlashState> {
+  const open = (st: EditorState) => { const s = slashKey.getState(st); return s?.open ? s : null; };
+  return new Plugin<SlashState>({
+    key: slashKey,
+    state: {
+      init: () => CLOSED,
+      apply(tr, prev, _old, state) {
+        const meta = tr.getMeta(slashKey) as SlashState | undefined;
+        if (meta) return meta;
+        if (!prev.open || (!tr.docChanged && !tr.selectionSet)) return prev;
+        const mapped = tr.mapping.mapResult(prev.from, 1);
+        return mapped.deleted ? CLOSED : follow(state, prev, mapped.pos);
+      },
+    },
+    props: {
+      handleTextInput(view, from, to, text) {
+        if (text !== "/" || open(view.state) || !opensAt(view.state, from)) return false;
+        // Rule 6: no scrollIntoView on this transaction; the caret is where the person typed.
+        view.dispatch(view.state.tr.insertText("/", from, to)
+          .setMeta(slashKey, { open: true, from, query: "", mode: "items", active: 0 }));
+        return true;
+      },
+      handleKeyDown(view, e) {
+        const s = open(view.state);
+        if (!s) return false;
+        const opts = optionsFor(view.state, s, cfg.sources());
+        const step = e.key === "ArrowDown" ? 1 : e.key === "ArrowUp" ? -1 : 0;
+        if (step !== 0 && opts.length > 0) {
+          const active = (s.active + step + opts.length) % opts.length;
+          view.dispatch(view.state.tr.setMeta(slashKey, { ...s, active }));
+          return true;
+        }
+        if (e.key === "Escape") { view.dispatch(view.state.tr.setMeta(slashKey, CLOSED)); return true; }
+        if (e.key !== "Enter") return false;
+        if (opts.length === 0) { view.dispatch(view.state.tr.setMeta(slashKey, CLOSED)); return false; }
+        choose(view, s, opts[s.active]);
+        return true;
+      },
+      attributes(state) {
+        const s = open(state);
+        if (!s) return { "aria-haspopup": "listbox" };
+        const active = optionsFor(state, s, cfg.sources())[s.active];
+        return { "aria-haspopup": "listbox", "aria-controls": cfg.listId,
+          ...(active ? { "aria-activedescendant": optionId(cfg.listId, active) } : {}) };
+      },
+    },
+  });
+}
+```
 
