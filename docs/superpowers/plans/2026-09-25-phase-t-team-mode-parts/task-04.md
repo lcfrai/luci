@@ -858,6 +858,98 @@ at the limit and one past it, in `é` (two bytes in UTF-8), so a byte count woul
 | `TestAFleetFreeDirectiveNeedsAnApproval` | `origin` `fleet`, `kind` `free`, no `approved_by` → `23514`; with an escalation of Linus's → ok; `origin` `fleet`, `kind` `pause`, none → ok; `free` without text → `23514`; `pause` with text → `23514`; `read_ids` of 101, or one `s-…` → `23514` | the taint rule's database layer dropped (§7.20), leaving Fleet's verb handler the only check |
 | `TestDelegationShapes` | a `worker` listing `messages.append` → `23514`; 26 routes, or one repeated → `23514`; `expires_at` 24 h + 1 s after `created_at` → `23514`, exactly 24 h → ok; `revoked_at` without a reason → `23514` | a worker delegation that can speak across owners (OD-16); a delegation that outlives the TTL cap |
 | `TestConflictAndThreadShapes` | a conflict with `agent_a = agent_b` → `23514`; 51 paths → `23514`; a range `[5, 3]` or `[0, 2]` → `23514`; an absolute path → `23514`; `resolved` with no resolution → `23514`; a thread whose opener is not a participant, or with two equal participants, or `free` with a subject id, or `conflict` with an `ls-…` → `23514` | the shape checks dropped, so a malformed record reaches every reader |
-| `TestFeedFlagsComeFromTheKind` | as `hub_app`, chained audit events: `escalation.created` inserted with `feed = true` → stored `feed = false, fleet_feed = true`; `task.created` with `feed = false` → `true, true`; `orchestrator_turn.recorded` → `false, false`; a Hub kind (`brief.saved`) with `feed = true` → `true, false`. Then `team_event_kinds` equals a Go table of task 01's 22 rows | the trigger dropped: a Go bug puts escalations in every member's feed (§3.4); a kind's flags respelled |
+| `TestFeedFlagsComeFromTheKind` | as `hub_app`, chained audit events: `escalation.created` inserted with `feed = true` → stored `feed = false, fleet_feed = true`; `task.created` with `feed = false` → `true, true`; `orchestrator_turn.recorded` → `false, false`; a Hub kind (`brief.revised`, Hub `task-26.md:49`) with `feed = true` → `true, false`. Then `team_event_kinds` equals a Go table of task 01's 22 rows | the trigger dropped: a Go bug puts escalations in every member's feed (§3.4); a kind's flags respelled |
 | `TestATeamProjectStaysTeam` | `solo` → `team` ok; `team` → `solo` → `42501`; renaming a team project → ok | a project un-shared under its live delegations |
 | `TestFleetLookupsStayInTheTenant` | `fleet_org(A's tenant)` → A; an unknown tenant → NULL; `fleet_delegation(A's tenant, A's dl)` → one row, org A; `(B's tenant, A's dl)` → no row; `(A's tenant, an unknown dl)` → no row; a revoked one → one row with `revoked_at` and `revoked_reason` | the tenant join dropped: a token for tenant B reads A's delegation, and task 05 would make B's Fleet act as A's member |
+
+#### Steps
+
+- [ ] **Step 1: Re-read the merged `0001_init.sql` for the names this part relies on.** From the
+  repo root, after the sync-merge of `feat/hub`:
+
+  ```bash
+  ~/.claude/tools/claudezsh/claudezsh 'ls control-plane/internal/hub/migrate/sql/ && grep -c "UNIQUE (org_id, id)" control-plane/internal/hub/migrate/sql/0001_init.sql && grep -n "FUNCTION forbid_change\|POLICY org_isolation\|feed          boolean\|entra_tenant_id uuid" control-plane/internal/hub/migrate/sql/0001_init.sql'
+  ```
+
+  Expected: the highest file number (this part's `NN` is it plus one); a count of at least 9;
+  one line each for `forbid_change`, the loop's `org_isolation`, `audit_events.feed` and
+  `orgs.entra_tenant_id`. A missing name means Hub task 07a or 07b changed at build time: use the
+  merged name everywhere in this file, and record it in the commit message.
+
+- [ ] **Step 2: Move the four Hub tests this migration changes.** Each edit is the smallest that
+  keeps its test true:
+  1. `TestMigrationAppliesAndReappliesClean` (07a): the expected first `Apply` is every embedded
+     version (`for _, m := range migrate.Embedded()`), not `[1]`; `Current` = `Latest()`, not `1`.
+  2. `TestHubAppGrantsAreExactlyTheList` (07a): its expected table and column lists gain piece
+     10's grants, verbatim, and `UPDATE (mode)` on `projects`.
+  3. `TestACrossOrgReferenceIsRefused` (07a): one case per named key of pieces 4 to 8, 41 in all
+     (`delegations_project_fk` … `team_policies_project_fk`), each an org-A row naming org B's
+     parent in that one column. Its own "the set exercised equals the catalog's set" assertion is
+     what makes a forgotten case fail.
+  4. `TestHubAppExecutesExactlyTheOwnerFunctions` (07b): the list gains `fleet_org` and
+     `fleet_delegation`.
+
+  **UNVERIFIED until merge:** the shape of each test's expected list. If a test reads its list
+  from the contract rather than from code, the edit is task 01's contract text, not this file.
+
+- [ ] **Step 3: Write `team_schema_integration_test.go`, run it, watch it fail.** Every test fails
+  with `42P01` (`relation "hub.agents" does not exist`) or its type's equivalent; that is the red run.
+
+- [ ] **Step 4: Write `sql/00NN_team.sql` as pieces 1 to 10, in order. Run to green:**
+
+  ```bash
+  ~/.claude/tools/claudezsh/claudezsh 'cd control-plane && go test -tags integration ./internal/hub/migrate/ -race -count=1 2>&1 | tail -n 1'
+  ```
+
+  Expected: `ok  	github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/migrate	N.NNNs`.
+  This needs Hub task 06's Postgres container; if Docker is not available the step is deferred to
+  task 33's environment and says so in the commit message.
+
+- [ ] **Step 5: Kill four mutants by hand**, one at a time, each reverted before the next:
+  1. `text_ok`'s `char_length(body)` → `octet_length(body)`. Expected: `TestTheDatabaseBoundsText`
+     fails at the limit (`é` × 600).
+  2. `messages_sender_fk` → `FOREIGN KEY (org_id, sender_agent_id) REFERENCES agents (org_id, id)`.
+     Expected: `TestOnlyTheOwnersAgentsAct` fails on the message row.
+  3. Drop `messages_guard`. Expected: `TestAppendOnlyHoldsForBothRoles` fails for the owner.
+  4. In `audit_feed_flags`, drop `NEW.feed := k.feed;`. Expected: `TestFeedFlagsComeFromTheKind`
+     fails on `escalation.created`.
+
+- [ ] **Step 6: Commit** the migration, the new test file and the two modified Hub test files, by
+  pathspec, message under `.superpowers/sdd/team/msg/t04.txt`. Do not migrate a persistent
+  database from this commit until task 46's migration is written: task 46 replaces three of this
+  file's function bodies, which is safe, but a hand-applied `00NN` edited later is `ErrEdited`
+  (Hub `task-06.md:54`).
+
+#### Acceptance
+
+```bash
+~/.claude/tools/claudezsh/claudezsh 'cd control-plane && go test -tags integration ./internal/hub/migrate/ -count=1 -v 2>&1 | grep -c "^--- PASS: Test\(Team\|OnlyTheOwners\|AgentIDs\|TheDatabase\|TextCarries\|Globs\|AppendOnlyHolds\|Nothing\|AnEscalation\|EscalationShapes\|AFleet\|Delegation\|ConflictAnd\|FeedFlags\|ATeam\|FleetLookups\)"'   # 17
+~/.claude/tools/claudezsh/claudezsh 'grep -c "^CREATE TABLE" control-plane/internal/hub/migrate/sql/*_team.sql'     # 13
+~/.claude/tools/claudezsh/claudezsh 'grep -c "CREATE POLICY" control-plane/internal/hub/migrate/sql/*_team.sql'     # 1 (the loop)
+~/.claude/tools/claudezsh/claudezsh 'cd control-plane && go vet -tags integration ./internal/hub/migrate/ && echo vet-clean'  # vet-clean
+```
+
+The prefix list is chosen so no Hub test matches it (Hub 07b's `TestAppendOnlyTriggersHoldEvenForTheOwner`
+is why the pattern says `AppendOnlyHolds`).
+
+#### What this task does not claim
+
+- **That the Hub's erasure route covers these rows.** The tombstone columns exist and every guard
+  refuses to set them; task 46 writes the erasure functions and replaces the three guard bodies.
+- **That these checks are the first layer.** Every refusal here is the second layer behind Go
+  (tasks 05 to 07), which answers first with the contract's codes. A `23514` reaching a client
+  is a Go bug, answered 500 `internal` by the Hub's error mapping.
+- **Any state machine.** A terminal task, a second agent end, a lease `seq` that is not the last
+  plus one, an event after a terminal lease state, `rounds` only growing, a thread's two owners
+  differing, a parent that is an Orchestrator, a human message's target being one, and the
+  deadline windows: all Go's. The database holds shapes, owners, bounds and append-only.
+- **The data class, usage roll-ups, or turn rows.** The class's home is task 43's (**UNVERIFIED
+  until merge**); `usage_rollups` is task 66's own migration (`task-66.md:79-80`); an
+  Orchestrator turn is an audit event with no row (§7.21).
+- **That this runs on Azure Postgres Flexible Server unchanged.** Tested on Hub task 06's
+  container, as Hub task 07a; phase 8's first apply is the check.
+- **That `char_length` is `utf8.RuneCountInString` for every input.** Both count code points in a
+  UTF-8 database; the Hub database's encoding is not stated in Hub task 06's part (**UNVERIFIED**:
+  step 4's `é` cases fail loudly if it is not UTF-8).
+- **That `projects.mode` has a writer.** The column, its grant and its one-way guard exist; which
+  route moves a project to `team` is task 43's or the Share task's.
