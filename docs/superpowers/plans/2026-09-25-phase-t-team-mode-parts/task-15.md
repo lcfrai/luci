@@ -565,7 +565,7 @@ on the real cluster (it needs phase 8's cluster and the pinned CLI, neither of w
   (**UNVERIFIED**; phase 6's image already has the directory, so it should not arise).
 - That the policy reaches a **solo** cloud session. OD-23 says every cloud sandbox; this task makes
   `PolicyFile` mandatory for every Kata pod, so phase 8's solo path must pass one, and the
-  simplest correct value is `policy.Render(policy.Layers{}, ClassWorker)` (defaults and the
+  simplest correct value is `policy.Render(policy.Layers{}, model.ClassWorker)` (defaults and the
   fragment). Getting the org's layer into a solo session needs a policy lookup phase 8 does not
   plan; that is a gap, not built here.
 - The mirror class (task 58), the Orchestrator's egress (task 32), and measuring 250m / 512 MiB
