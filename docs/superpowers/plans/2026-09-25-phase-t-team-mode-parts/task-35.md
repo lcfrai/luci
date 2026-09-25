@@ -56,3 +56,58 @@ lease, audited. Fleet writes nothing in an admin's name (global constraint 3, ta
 admin as actor and puts `lease.admin_released` on Fleet's feed; Fleet's feed consumer moves the
 lease to `admin-released` (task 23's table row, `task-23.md:164`) and reevaluates. The Hub route is
 task 44's (task 23 assigns the transition there); this task builds Fleet's half. **Gap G35-3.**
+
+**Files:**
+- `control-plane/internal/fleet/activity/activity.go` — `Table` (the 45 s activity table), `Fold`
+  (a page into edits), `Of` (task 22's `Activity`), `LastEdit` (task 23's `Contested` input) (new)
+- `control-plane/internal/fleet/activity/poller.go` — `Poller`: one broker poll per live
+  (machine, team project) pair, every 5 s, under that project's delegation (new; not in the file
+  map, it keeps the network out of the table)
+- `control-plane/internal/fleet/activity/presence.go` — `Presence`, the 90 s TTL, `POST
+  /v1/presence` (new)
+- `control-plane/internal/fleet/leases/observed.go` — `Engine.Observe` (holds from edits),
+  `Engine.Bulk`, `Engine.ExpireDue`, `Engine.AdminReleased`, `Collapse` (new, in task 23's
+  package, so its transition-table test covers them)
+- `control-plane/internal/fleet/activity/{activity,poller,presence}_test.go`,
+  `control-plane/internal/fleet/leases/observed_test.go` (new)
+- `control-plane/internal/fleet/model/event.go` — `EventLeaseBulk EventKind = "lease.bulk"` and
+  its place in the kinds list (modified; task 09's file)
+- `control-plane/internal/fleet/verbs/sources.go` — `Sources.Activity` wired (task 22 left it nil,
+  `task-22.md:71`) (modified; one line in `fleetd`'s wiring, none in task 22's logic)
+- `control-plane/cmd/fleetd/main.go` — start the poller on every replica, the expiry sweep on the
+  deadline-sweeper singleton, the presence route (modified; task 12's file)
+- `control-plane/internal/api/presence.go` — the local control plane's `PUT /api/team/presence`
+  and its 30 s relay to Fleet with the user's own token (new; the desktop's one call is below)
+- `desktop/src/api/client.ts` — `putPresence(projectIds)` on project open and on the one global
+  heartbeat tick (modified; one function)
+
+**Interfaces:**
+- Produces:
+  - `activity.Table` with `Fold(ctx, machine string, page machineapi.ActivityPage) ([]Edit,
+    error)`, `Of(ctx, agent model.AgentID) (verbs.Observed, bool)`, `LastEdit(agent
+    model.AgentID, path string) (time.Time, bool)`
+  - `activity.Edit{Org, Project, Agent, Owner, Path, At, Commit bool}`
+  - `leases.Engine.Observe(ctx, edits []activity.Edit) (ObserveResult, error)`, `Bulk`, `ExpireDue(ctx,
+    now) (int, error)`, `AdminReleased(ctx, org, lease string, at time.Time) error`, `Collapse(paths
+    []string, max int) []string`
+  - `activity.Presence` with `Put(owner model.Owner, projects []string, at time.Time)` and
+    `Online(owner) (projects []string, ok bool)`; Fleet route `POST /v1/presence`
+  - `model.EventLeaseBulk`
+- Consumes:
+  - task 34: `machineapi.ActivityPage`, `ActivitySample`, `Gap`, the broker's `GET
+    /v1/machines/{m}/activity`
+  - task 23: `Engine.RequestIn` (holds are requests with the observed flag below), `Live`,
+    `Reevaluate`, `leaseEvent`, the table rows `expired` and `admin-released`, `HoldTTL`
+  - task 10: `Tx.TouchLeasePath`, `Tx.LeasePathEdits`, `Tx.PutLease`
+  - task 22: `verbs.Activity`, `verbs.Observed`, `verbs.Hunk` (`task-22.md:136-153`)
+  - task 26: `turns.Queue.Enqueue` for `lease.bulk` and `lease.expiring` (to the owner's
+    Orchestrator)
+  - task 11: the feed consumer's hook for `lease.admin_released`; task 12: `Server.Route`,
+    `Singleton`
+  - task 02: `teamtext.ValidPath`, `teamtext.MaxGlobs`, `teamtext.Match`
+- Requires of **task 20**: a way to map a sample's `(projectId, worktreeId)` to the worker `ag-…`
+  on it, and each live worker's machine id: `sessions.Lanes(ctx, org, project) ([]Lane, error)`
+  with `Lane{Agent, Owner, Machine, Worktree}` (G35-1; it follows task 20's own gap S20-3,
+  `task-20.md:538-540`).
+- Requires of **task 44**: the Hub route that records an admin's release and its feed kind
+  `lease.admin_released` (G35-3).
