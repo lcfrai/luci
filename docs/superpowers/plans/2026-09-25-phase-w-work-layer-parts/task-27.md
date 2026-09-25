@@ -81,7 +81,12 @@ says so.
  * load in one frame. The terminal does not rely on this rule: it waits for the face itself.
  *
  * Segoe UI Variable is NOT here and must never be: it is the Windows system face and its licence
- * does not allow redistribution. fonts.test.ts fails on any @font-face or file naming Segoe. */
+ * does not allow redistribution. fonts.test.ts fails on any @font-face or file naming Segoe.
+ *
+ * The token import below is required, not decorative: designsystem.test.ts:648-650
+ * (importNotFirst, TOKEN_IMPORT at :238) fails any stylesheet but tokens.css whose first line is
+ * not it. app.css imports tokens.css too; Vite's CSS import resolution inlines a file once. */
+@import "./tokens.css";
 
 @font-face {
   font-family: "Commit Mono";
@@ -456,6 +461,10 @@ ls desktop/src/assets/fonts desktop/dist/assets | grep -ci segoe
 - **Not a legal review of the licence.** OFL 1.1 is on `OD-11`'s allowed list; that Commit Mono's
   release carries OFL 1.1 is **UNVERIFIED** until step 1 reads it.
 - **Not which files the release ships**, its tag or its URL: all **UNVERIFIED** until fetched.
+- **Not that the token layer is inlined once.** `fonts.css` must open with the token import (the
+  audit's rule); that Vite drops the second copy under `app.css` is **UNVERIFIED**. A duplicate
+  would be harmless (identical declarations) and larger; step 6 can check `dist/assets/*.css`
+  for one `--t-fact:` occurrence.
 - **Not that xterm measures at `open()`.** The gate covers `open()` and the first `fit()` so the
   claim does not matter; which of the two measures in xterm 6 is **UNVERIFIED**.
 - **Not a visible change the owner has accepted.** Every fact in the terminal and in mono CSS
