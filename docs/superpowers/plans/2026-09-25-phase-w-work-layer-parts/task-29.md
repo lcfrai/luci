@@ -647,3 +647,67 @@ The eighteen direct dependencies at `f7ea2a2`, read from `desktop/package-lock.j
 plan was written: `@tauri-apps/api`, `@tauri-apps/cli` (`Apache-2.0 OR MIT`),
 `@tauri-apps/plugin-opener` (`MIT OR Apache-2.0`), `typescript` (`Apache-2.0`), and fourteen `MIT`.
 The check passes today; its job is the next dependency.
+
+#### Steps
+
+1. Write the four test files and the `StatusDot.test.tsx` edits. Run `npm --prefix desktop test
+   -- glyphs StatusDot`: the new files fail to import; the two rewritten StatusDot tests fail on
+   `dot-disc`; the licence test passes already (it is a guard, and the tree is clean).
+2. Append `AGENT_PATHS` and `MARK_PATHS` to `paths.ts`; write `AgentGlyph.tsx` and `MarkGlyph.tsx`;
+   append the agent and mark rules to `glyphs.css`. Re-run: the glyph tests pass.
+3. Change `StatusDot.tsx`'s map and its `:2` sentence; add `.dot-run` and the reduced-motion rule
+   to `common.css` with its new comment; replace the `tokens.css` sentence. Re-run: all pass.
+4. Mutate by hand and watch the named test go red, then revert: map `running` back to `dot-disc`;
+   give `idle` running's two parts; add a `setInterval` to `AgentGlyph`; drop the core's
+   `aria-hidden`; reuse `RING16` as running's ring; set the selection mark to the node ring; drop
+   `.gl-mark-need`'s geometry (an empty `d`); change `permitted` to `alt.includes("MIT")`; add
+   `"lucide-react"` to `devDependencies` (then remove it and restore the lockfile).
+5. Run the full desktop suite: the design-system audit walks `glyphs.css` (the new loop has its
+   stand-in; no named colour; no gradient) and `common.css` (the audit's `.dot-live` canary at
+   `designsystem.test.ts:706` still finds its loop). Typecheck; commit.
+
+#### Acceptance
+
+```bash
+npm --prefix desktop test -- glyphs StatusDot
+# expect: AgentGlyph 5, MarkGlyph 4, licence 5, StateGlyph 8, StatusDot 6 — all passed
+
+npm --prefix desktop test -- designsystem
+# expect: all pass; the loop list now includes "src/components/glyphs/glyphs.css  .gl-agent-live"
+
+npm --prefix desktop run typecheck
+# expect: exit 0
+```
+
+StatusDot's six are the five built tests (`:14`, `:35`, `:41`, `:51`, `:67`; the first has one
+table row changed and the last is rewritten) plus the one added. The implementer reports the
+numbers the run prints; the plan's counts are not the evidence.
+
+#### What this task does not claim
+
+- **Not AX's seven statuses.** `docs/AGENTIC-UX.md` lists seven; the built wire has four
+  (`StatusDot.tsx:9-15`, `store/types.ts:134`) and the Work layer adds only the observed `failed`.
+- **Not the reduced-motion tick** (task 34), nor the forced-colors rendering of any glyph or dot.
+- **Not a licence review by legal** (**UNVERIFIED**). The test reads what each package *declares*;
+  a package that mis-declares its licence passes it.
+- **Not that the lockfile is current.** The check reads `package-lock.json`; a dependency
+  installed without updating it is invisible here, which is why the first test compares it with
+  `package.json`.
+- **Not that the new running dot reads well** in the rail at 125 % or 150 % (task 33), nor that
+  an old WKWebView rounds the outline (**UNVERIFIED**; see above).
+- **Not any Work surface using these glyphs.** Tasks 36 (`ThreadNode`), 40 and 46 are the first.
+- Design: 05 §4.1, §4.4 (C6, C7, rules 1 and 4); 02 C2, C6. Parity: gives **L-184**'s states a
+  shape each and **L-225**'s multi-select its check; it closes neither alone.
+
+**Interfaces:**
+- Produces (seam **SW.12**, completed):
+  - `AgentStatus` (five); `AgentGlyph({ status, size?, label }): JSX.Element`
+  - `MarkKind` (`selected`, `needs_you`, `thread_node`); `MarkGlyph({ kind, size?, lit? }): JSX.Element`
+  - `paths.ts`: `AgentPart`, `AGENT_PATHS`, `MARK_PATHS`
+  - `glyphs.css`: `.gl-agent-*` (ring, fill, the five statuses, live) and `.gl-mark-*` (selected,
+    need, node, lit); `@keyframes gl-beat`
+  - `StatusDot`: `running` → `dot-run`; `.dot-run` in `common.css`
+- Consumes: task 28's `GlyphSize`, `Stroke`, `STATE_PATHS`, `glyphs.css`; `beatDelayStyle()`
+  (`hooks/heartbeat.ts:23`); `--run`, `--fail`, `--need`, `--idle`, `--exited`, `--thread`,
+  `--accent-ring`, `--beat`, `--ease`, `--icon-stroke`, `--icon-sm-stroke` (built or task 26)
+- Amends: nothing in the Hub. Task 36's `ThreadNode` renders `MarkGlyph kind="thread_node"`.
