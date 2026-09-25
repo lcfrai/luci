@@ -46,7 +46,7 @@ byte, so the golden vectors in `hubapi/canonical_test.go` (contract §3.5) do no
 - `docs/superpowers/contracts/2026-09-23-hub-contract.md` — §3.1 prefix rows; §3.6 the audit
   event v2; §4.2 eight codes (the scope's six, plus `delegation_revoked` so Fleet can
   tell *renew* from *stop*, and `delegation_not_found` for the owner's own routes); §5.1 the delegated step; §5.3 the team rows; §7.0 rows 46 onward;
-  new **§7.13 to §7.20**; §8 the team events; §12.2 two variables (modified)
+  new **§7.13 to §7.26**; §8 the team events; §12.2 two variables (modified)
 - `docs/superpowers/contracts/team-records-fieldcheck.txt` — one line per `05-design.md` §3.3
   field, the acceptance script's input (new)
 
@@ -259,6 +259,7 @@ token. The **route name** is what a delegation lists; a route with no name canno
 | 76 | POST | `/v1/orgs/{orgId}/usage-rollups` | the gateway's identity — **caller rule open**, see §7.25 | — | T66 | §7.25 |
 | 77 | GET | `/v1/projects/{projectId}/usage` | A (every member), M (own) | — | T66 | §7.25 |
 | 78 | GET | `/v1/orgs/{orgId}/changes?after=&kinds=` | Fleet, **no delegation** (§5.10 rule 7) | — | T08 | §7.26 |
+| 79 | POST | `/v1/projects/{projectId}/team-policy/route` | desk: M raises to `au`; only org *compliance* lowers to `global` | — | T43 | §7.24 |
 ```
 
 `T06` means Phase T task 06. §7.0's closing sentence becomes *"Nothing else is routed than these two
@@ -421,3 +422,287 @@ re-checks the taint rule** (`05-design.md` §7.2) as a second layer to Fleet's v
 "ownerUserId", "toAgentId", "text": Text·human, "createdAt", "tombstonedAt": null}`. Readable by the
 owner (desk, or Fleet·O under the owner's delegation) and an org *auditor* only. Erasure tombstones
 it (task 46): `text` becomes `null`, the audit event stays.
+
+- [ ] **Step 8: Contract §7.23 to §7.26 — note, team policy, usage roll-up, Fleet's feed**
+
+**§7.23 Notes.** `POST …/notes`, body `{"target": {"kind": "project"|"task"|"user", "id"}, "text"}`,
+`text` ≤ 1,000, by any M as themselves; the Hub mints `nt-…`; the author is the token's user. The
+record is `{"id", "projectId", "authorUserId", "target", "text": Text·human, "createdAt",
+"tombstonedAt": null}`, **immutable**. `GET` serves V and Fleet·O; Fleet passes a note to an
+Orchestrator only through `panacea inbox`, quoted with its author's name, and to no worker
+(`07` M2, task 46).
+
+**§7.24 Team policy.** One record per team project:
+
+```json
+{ "projectId": "pj-…", "dataClass": "…", "route": "global",
+  "quotas": { "memberDailyCents": 2500, "projectDailyCents": 20000 },
+  "orchestratorTurnsPerHour": 30,
+  "escalationFloors": ["yield-unedited", "accept-split", "proceed-both-ps", "sequence-short"],
+  "messageBudgets": { "perPairPerHour": 20, "roundsPerSide": 3, "threadDeadlineMinutes": 30 },
+  "revision": 4, "updatedAt": "…" }
+```
+
+`PUT` (an A, body without `projectId`, `dataClass`, `route`, `updatedAt`) enforces, each as 422
+`bad_request` with `details.field`: every quota > 0 (OD-24, budgets on by default);
+`orchestratorTurnsPerHour` 1 to 30; `perPairPerHour` 1 to 20, `roundsPerSide` 1 to 3 (tighten only,
+§6.6); `threadDeadlineMinutes` 30 to 1,440 (lengthen only, §6.4); `escalationFloors` a subset of
+the four §6.5 rows whose default is *act*, since a floor only adds asking. `dataClass` is the
+project's own, set at creation (OD-24), read-only here; its values and its home on the project
+record are **UNVERIFIED until merge** (task 43 reuses whatever the merged project record carries).
+Route 79 moves `route`: any M may raise it to `au`; only a token whose `roles` contain
+`Hub.Compliance` may lower it to `global`, and that write's audit event says so.
+
+**§7.25 Usage roll-ups.** `POST /v1/orgs/{orgId}/usage-rollups`, body `{"day": "2026-09-25",
+"rows": [ {"userId", "teamId", "projectId", "agentId", "route", "counterpartUserId" (or ""),
+"inputTokens", "outputTokens", "costCents"} ]}`, ≤ 5,000 rows, one post per `(org, day)`,
+replacing any earlier post for that day. **Its caller is open:** it is the gateway's own
+workload identity, a third caller that §5.10 does not admit. This contract fixes the record only;
+the caller rule is Phase T task 66's to write, as a §5.10 rule 9, before any code calls the route.
+`GET …/usage?from=&to=` serves an A every row of the project, an M their own.
+
+**§7.26 Fleet's feed.** `GET /v1/orgs/{orgId}/changes?after=&kinds=`, Fleet only, no delegation.
+The same response and cursor as §7.11, over **team projects only** (a project whose mode is
+`team`, set by Share, `05-design.md` §2.3, §10.1), plus `team.member_removed` and every
+`delegation.*` event of the org. `kinds` is an optional comma list of §8 kinds. `orgId` must be
+the org of Fleet's token `tid`, else 404 `route_not_found`. Metadata only, as every feed row.
+
+- [ ] **Step 9: Contract §8 — the team events**
+
+Append to §8's table. Every kind matches the audit table's `CHECK (kind ~
+'^[a-z]+(_[a-z]+)*\.[a-z]+(_[a-z]+)*$')` (`hub-contract.md:1766`). **In the feed** is now three
+values: `yes` (the member feed of §7.11 **and** Fleet's feed), `fleet` (Fleet's feed only; the
+audit row's new `fleet_feed` flag, task 04), `no` (audit only). `data` never holds text.
+
+```markdown
+| `delegation.created` | ✓ | ✓ | delegation id | `{"class","expiresAt"}` | fleet |
+| `delegation.renewed` | ✓ | ✓ | delegation id | `{"expiresAt","lapsed"}` | fleet |
+| `delegation.revoked` | ✓ | ✓ | delegation id | `{"reason"}` | fleet |
+| `task.created` | ✓ | ✓ | task id | `{"state","orchestratorAgentId"}` | yes |
+| `task.updated` | ✓ | ✓ | task id | `{"state","revision"}` | yes |
+| `agent.started` | ✓ | ✓ | agent id | `{"role","parentAgentId","harnessId","harnessVersion","policyVersion"}` | yes |
+| `agent.ended` | ✓ | ✓ | agent id | `{"exitClass"}` | yes |
+| `lease.state_changed` | ✓ | ✓ | lease id | `{"seq","state","mode","holderAgentId"}` | yes |
+| `conflict.raised` | ✓ | ✓ | conflict id | `{"tier","agentA","agentB"}` | yes |
+| `conflict.updated` | ✓ | ✓ | conflict id | `{"state","resolution"}` | yes |
+| `thread.opened` | ✓ | ✓ | thread id | `{"subjectKind","participants"}` | fleet |
+| `thread.updated` | ✓ | ✓ | thread id | `{"state","rounds"}` | fleet |
+| `message.appended` | ✓ | ✓ | message id | `{"threadId","kind","senderAgentId"}` | fleet |
+| `escalation.created` | ✓ | ✓ | escalation id | `{"kind","deadline","fromAgentId"}` | fleet |
+| `escalation.answered` | ✓ | ✓ | escalation id | `{"choice"}` | fleet |
+| `directive.appended` | ✓ | ✓ | directive id | `{"kind","rung","origin","fromAgentId","toAgentId","approvedBy"}` | fleet |
+| `orchestrator_turn.recorded` | ✓ | ✓ | turn id | `{"orchestratorAgentId","origin","consumed","issued","inputTokens","outputTokens"}` | no |
+| `human_message.appended` | ✓ | ✓ | human message id | `{"toAgentId"}` | fleet |
+| `note.created` | ✓ | ✓ | note id | `{"targetKind","targetId"}` | yes |
+| `team_policy.updated` | ✓ | ✓ | project id | `{"revision"}` | yes |
+| `team_policy.route_changed` | ✓ | ✓ | project id | `{"route","by"}`; `by` is `member` or `compliance` | yes |
+| `usage.rolled_up` | — | — | org id | `{"day","rows"}` | no |
+```
+
+Escalations, directives and human messages are `fleet`, never `yes`, because §3.4 makes them
+readable by their owner and an auditor only, and the member feed is read by every member. Every
+delegated write's event is the audit-event `v: 2` of §3.6.
+
+- [ ] **Step 10: Contract §5.2 and §5.3 — the two org capabilities and the team rows**
+
+**§5.2**, append: *"**Org auditor** (`Hub.Auditor`) reads escalations, directives, human messages
+and thread messages across owners, in every project of the org, and nothing else of project
+content. **Org compliance** (`Hub.Compliance`) may lower a team project's route to `global` (route
+79), audited. Both are Entra app roles read from each token, like `Hub.OrgAdmin`, and grant no
+write of any team record."*
+
+**§5.3**, add a second table, **Team rows**. Columns: `V`, `M` (a member, on their **own** record),
+`M′` (a member, on **another** member's record), `A` (an admin, on another's), `Au` (org auditor,
+not a member), `N`, `X`, as §5.3; `F` Fleet under the record owner's live delegation listing the
+route; `F∅` Fleet with no delegation; `Fx` Fleet under **another** owner's delegation; `D` a desktop
+token carrying `X-Panacea-Delegation`. **401d** is `delegation_required`; **403a** is
+`agent_not_owner`; **—** means the caller cannot reach the route at all (a Fleet-only or desk-only
+route).
+
+```markdown
+| Operation | V | M | M′ | A | Au | N | X | F | F∅ | Fx | D |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| create a delegation (46) | 403 | ✓ | — | ✓ own | 404 | 404 | 404 | — | 401d | — | 403 |
+| revoke a delegation (49) | 403 | ✓ | 403 | ✓ | 404 | 404 | 404 | — | 401d | — | 403 |
+| create or update a task (50, 51) | — | — | — | — | — | — | — | ✓ | 401d | 403a | 403 |
+| start or end an agent (53, 54) | — | — | — | — | — | — | — | ✓ | 401d | 403a | 403 |
+| append a lease event (56) | — | — | — | — | — | — | — | ✓ | 401d | 403a | 403 |
+| raise or update a conflict (57, 58) | — | — | — | — | — | — | — | ✓ | 401d | 403a | 403 |
+| open or update a thread; append a message (60–62) | — | — | — | — | — | — | — | ✓ | 401d | 403a | 403 |
+| read a thread's messages (63) | — | — | — | — | ✓ | 404 | 404 | ✓ party | 401d | 403 | 403 |
+| create an escalation (64) | — | — | — | — | — | — | — | ✓ | 401d | 403a | 403 |
+| answer an escalation (65) | 403 | ✓ | 403 | 403 | 403 | 404 | 404 | 403 | 403 | 403 | 403 |
+| read escalations, directives, human messages (66, 68, 71) | ∅ | ✓ own | ∅ | ∅ | ✓ | 404 | 404 | ✓ own | 401d | ∅ | 403 |
+| append a directive; record a turn (67, 69) | — | — | — | — | — | — | — | ✓ | 401d | 403a | 403 |
+| write a human message (70) | 403 | ✓ | — | ✓ own | 404 | 404 | 404 | 403 | 401d | 403 | 403 |
+| write a note (72) | 403 | ✓ | ✓ | ✓ | 404 | 404 | 404 | 403 | 401d | 403 | 403 |
+| set team policy (75) | 403 | 403 | 403 | ✓ | 404 | 404 | 404 | 403 | 401d | 403 | 403 |
+| read tasks, agents, conflicts, notes, policy (52, 55, 59, 73, 74) | ✓ | ✓ | ✓ | ✓ | 404 | 404 | 404 | ✓ | 401d | ✓ | 403 |
+```
+
+`∅` means 200 with an empty list: the route answers, the other person's rows are absent. A `—` in
+a desk column is 403 `forbidden` with `details.required = "fleet"` when a desktop calls a Fleet-only
+route. **Nobody writes another person's task, lease, message, directive or escalation, whatever
+their role**: no `✓` stands in an `M′` or `A` cell of a write row, and `Fx` is refused on every
+owner-bound write.
+
+- [ ] **Step 11: The field check — written before the check is run, so it is the test**
+
+For a documents task the test is a list the documents must satisfy. Write
+`docs/superpowers/contracts/team-records-fieldcheck.txt`, one line per `05-design.md` §3.3 field
+of a Hub-owned record, `record|field as the design names it|the token the contract must contain`:
+
+```text
+delegation|owner|"ownerUserId"
+delegation|project|"projectId"
+delegation|class|"class": "orchestrator"
+delegation|allowed routes|"routes"
+delegation|expiresAt (24 h)|"expiresAt"
+delegation|revokedAt|"revokedAt"
+task|orchestrator ag|"orchestratorAgentId"
+task|title <= 140, text·H or text·A|"titleSource"
+task|reason briefRef|"briefRef"
+task|why-line <= 200|"why"
+task|intended scope <= 20 globs|"scope"
+task|state planned..abandoned|`abandoned`
+agent|role orchestrator·worker|"role"
+agent|parent orchestrator|"parentAgentId"
+agent|harness id and pinned version|"harness"
+agent|task|"taskId"
+agent|lane ref|"laneRef"
+agent|exitClass|"exitClass"
+lease|holder ag|"holderAgentId"
+lease|globs|"globs"
+lease|mode intent·hold·bulk|`bulk`
+lease|expiresAt|"expiresAt"
+lease|state incl. admin-released|`admin-released`
+conflict|agent pair|"agentB"
+conflict|tier P·H·M·S|"tier"
+conflict|paths and line ranges|"lines"
+conflict|basis shas|"basis"
+conflict|state raised..cleared|`cleared`
+conflict|resolution kind|`proceed-both`
+thread|participants|"participants"
+thread|subject conflict·lease·free|"subject"
+thread|state open..expired|`expired`
+thread|round count|"rounds"
+thread|deadline (Fleet-set, 30 min)|"deadline"
+message|thread|"threadId"
+message|sender ag and its owner|"senderAgentId"
+message|kind|`withdraw`
+message|typed fields per kind|"fields"
+message|free-text answer only under standing permission|"templated"
+escalation|owner (a human)|"ownerUserId"
+escalation|from orchestrator or Fleet|"fromAgentId"
+escalation|kind inform·decide|"kind": "inform"
+escalation|question <= 300|"question"
+escalation|up to 4 options with consequence|"consequence"
+escalation|default set by Fleet|"default"
+escalation|answer text·H|"answer"
+escalation|answeredAt|"answeredAt"
+directive|from Orchestrator ag|"fromAgentId"
+directive|to worker ag|"toAgentId"
+directive|typed kind pause..free|`wait-for`
+directive|delivery rung|"rung"
+directive|turn origin human·fleet|"origin"
+directive|peer messages and cards read|"read"
+directive|approving es|"approvedBy"
+orchestrator turn|event ids consumed|"consumed"
+orchestrator turn|directives and messages issued|"issued"
+orchestrator turn|tokens used|"tokens"
+human message|to own Orchestrator|"toAgentId"
+human message|tombstoned on erasure|"tombstonedAt"
+note|author from token|"authorUserId"
+note|target project·task·person|"target"
+team policy|data classification|"dataClass"
+team policy|route|"route"
+team policy|non-zero default quotas|"quotas"
+team policy|Orchestrator turn budget|"orchestratorTurnsPerHour"
+team policy|escalation floors|"escalationFloors"
+team policy|message budgets|"messageBudgets"
+usage|counterpart for peer-triggered turns|"counterpartUserId"
+usage|tokens and cost|"costCents"
+```
+
+The mutant this list kills: a record section that drops a design field (for example, a directive
+with no `"read"`, which loses §7.2's taint evidence) fails the check by name.
+
+Then write the check itself to `.superpowers/sdd/team/t01-check.sh` (git-ignored; a script, not a
+heredoc, per the shell rules):
+
+```bash
+#!/usr/bin/env bash
+# Phase T task 01 acceptance. Run from the repo root.
+set -u
+C=docs/superpowers/contracts/2026-09-23-hub-contract.md
+A=docs/superpowers/adr/ADR-H1-hub-architecture.md
+F=docs/superpowers/contracts/team-records-fieldcheck.txt
+S=$(awk '/^### 7\.13 /,/^## 8\. /' "$C")
+E=$(awk '/^## 8\. /,/^## 9\. /' "$C")
+fail=0
+while IFS='|' read -r rec field tok; do
+  [ -z "$rec" ] && continue
+  printf '%s\n' "$S" | grep -qF -- "$tok" || { echo "MISSING $rec: $field ($tok)"; fail=1; }
+done < "$F"
+echo "fields: $(grep -c . "$F")"
+if printf '%s\n' "$S" | grep -nE '"(actor|actorUserId|via|delegationId|sessionId)"'; then
+  echo "A TEAM SECTION NAMES AN ACTOR FIELD"; fail=1
+fi
+bad=$(printf '%s\n' "$E" | grep -oE '^\| `[^`]+`' | sed 's/^| `//; s/`$//' \
+  | grep -vcE '^[a-z]+(_[a-z]+)*\.[a-z]+(_[a-z]+)*$')
+echo "bad event kinds: $bad"; [ "$bad" = 0 ] || fail=1
+[ "$(grep -c '^### 5\.10 Delegated callers' "$A")" = 1 ] || { echo "NO 5.10"; fail=1; }
+[ "$(grep -c '^| R12 |' "$A")" = 1 ] || { echo "NO R12"; fail=1; }
+[ "$(grep -c '→ §5.10 for Fleet' "$A")" = 3 ] || { echo "REPLACED ROWS NOT MARKED"; fail=1; }
+[ "$(grep -cE '^### 7\.(1[3-9]|2[0-6]) ' "$C")" = 14 ] || { echo "NOT 14 TEAM SECTIONS"; fail=1; }
+echo "result: $([ "$fail" = 0 ] && echo PASS || echo FAIL)"
+exit "$fail"
+```
+
+Run it **now, before Steps 2 to 10 are written into the two documents**:
+
+```bash
+~/.claude/tools/claudezsh/claudezsh 'bash .superpowers/sdd/team/t01-check.sh | tail -4'
+```
+
+Expected: `MISSING` lines for every field, `NO 5.10`, `NO R12`, `REPLACED ROWS NOT MARKED`,
+`NOT 14 TEAM SECTIONS`, and `result: FAIL`. That is the failing test.
+
+- [ ] **Step 12: Write Steps 2 to 10 into the documents, then run the check to green**
+
+Write each section from Steps 2 to 10. **The fenced blocks are normative and copied verbatim**; the
+Conventions paragraph of Step 6 is the first paragraph of §7.13. Then:
+
+```bash
+~/.claude/tools/claudezsh/claudezsh 'bash .superpowers/sdd/team/t01-check.sh'
+```
+
+Expected, exactly:
+
+```text
+fields: 69
+bad event kinds: 0
+result: PASS
+```
+
+Then the one check the script cannot make: read §5.3's team rows against §3.4 of `05-design.md`
+row by row, and confirm no `✓` is in an `M′` or `A` cell of a write row. Record *"matrix read
+against §3.4: yes"* in the commit message.
+
+- [ ] **Step 13: Commit**
+
+```bash
+~/.claude/tools/claudezsh/claudezsh 'git add docs/superpowers/contracts/team-records-fieldcheck.txt && git commit -F .superpowers/sdd/team/msg/t01.txt -- docs/superpowers/adr/ADR-H1-hub-architecture.md docs/superpowers/contracts/2026-09-23-hub-contract.md docs/superpowers/contracts/team-records-fieldcheck.txt'
+```
+
+The message file's subject: `docs(hub): ADR-H1 5.10 delegated callers; contract 7.13-7.26 team
+records (Phase T task 01)`, then the matrix line, then the `Co-Authored-By` line.
+
+**What this task does not claim.**
+- That the Hub accepts any of it. Tasks 03 (types), 04 (tables), 05 (auth), 06 and 07 (routes),
+  08 (feed and client), 43 (policy and matrix), 46 (notes and erasure) build it.
+- That the caller of route 76 is settled. §7.25 leaves it open for task 66, on purpose.
+- That the data class values, or the project's `mode` flag, exist on the merged project record:
+  both are **UNVERIFIED until merge**; §7.24 and §7.26 name them, and task 43 reuses or adds them.
+- That the section ids in `briefRef` match phase 4's: **UNVERIFIED** until P4's merge.
+- That a delegation makes Fleet safe. R12 says what it bounds and what remains.
