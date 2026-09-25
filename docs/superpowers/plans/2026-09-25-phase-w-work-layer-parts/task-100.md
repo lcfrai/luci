@@ -285,8 +285,10 @@ Hub's (`hub-contract.md`, §7). Every refusal is the Hub's problem shape with `c
 
 // GET /v1/projects/{projectId}/evidence-proposals?issue=is-…&brief=brief:bf-…@6
 // 200 { "items": [ EvidenceProposalComment ] }  oldest first; a project read (V ✓)
-// EvidenceProposalComment = { "comment": Comment, "proposal": EvidenceProposal,
-//                             "recordedAs": "ev-…" | "" }
+// EvidenceProposalComment, flat, as task 104's TypeScript reads it (task-104.md:358-370):
+// { "id": "ic-…", "issueId": "is-…", "kind": "evidence_proposal", "proposal": EvidenceProposal,
+//   "attribution": AgentAttribution, "recordedAs": "ev-…" | null, "createdAt": "…",
+//   "erasedAt": null }
 
 // POST /v1/comments/{commentId}/recorded-as     (a person's own; not Delegable)
 { "evidenceId": "ev-…" }
