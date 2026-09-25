@@ -4,7 +4,7 @@ This task is the launcher's side of the gateway for local mode: the one client e
 
 **The one thing this task must not get wrong is that session start never waits on a mint.** Panacea's `/key/generate` ran inside a request's shared 15-second context and took the next call down with it (skeleton pitfall 3). Here the sandbox is created, the session is recorded and answered `201`, and only then, in a goroutine with its own deadline, is the token minted. The one process that waits is `panacea token`, inside the sandbox, for at most 20 seconds.
 
-Seven decisions where the skeleton is silent:
+Eight decisions where the skeleton is silent (the eighth from review I-4):
 
 - **(a) The route is read before the sandbox exists.** `CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS=1` must be in an AU session's launch environment (P6-D3), and the environment is fixed at create. So `Prepare` reads the project's effective route from task 13's `File` source first. An **unknown** route sets the variable too: the mint will refuse that project anyway (`route_unknown`), and the conservative environment costs nothing. A project **raised** to AU mid-session keeps its launch environment; its requests are served AU from the next one (P6-D4) but may carry pre-release betas Bedrock rejects. The session JSON's `gatewayRoute` shows the route at launch so the cockpit can say "restart to apply AU fully"; task 22 decides whether to.
 - **(b) The pod address is the container's address on the gateway network.** `backend.Spec.Network` joins it (docker only, skeleton); `backend.Sandbox.NetworkAddr` is new and carries the address back, read from `docker inspect`'s `NetworkSettings.Networks[<network>]`. A sandbox created on the network but reporting no address is recorded `gateway: "error"` and gets no token.
@@ -13,6 +13,7 @@ Seven decisions where the skeleton is silent:
 - **(e) The token file is `0644` in a `0755` session directory under a `0700` root.** The skeleton says `0600`. On a Linux Docker host a bind mount keeps the host's owner and mode, and the sandbox's `dev` user (uid 1001, `images/sandbox/Dockerfile:19`) is not the host user, so a `0600` token would be unreadable inside and every session would fail. The `0700` root (`<state dir>/gateway-tokens/`) keeps other host users out; inside the container only the one mounted directory is visible, read-only. On Docker Desktop for Windows, where the product runs today, file modes on bind mounts are emulated and none of this bites either way.
 - **(f) Retries repeat the same generation and nothing else.** Mint and refresh retry twice on a timeout, a connection failure or a 5xx (including keysmith's own `504 mint_timeout`), with the same request body, which task 07 makes safe. A 4xx is never retried: `budget_exhausted` or `route_unknown` will not change in 500 ms.
 - **(g) Revocation failures do not block deletion.** Delete destroys the sandbox whatever keysmith says; a failed revoke is logged, and the key dies at its one-hour expiry anyway, off a pod that no longer exists (pod binding makes it useless meanwhile).
+- **(h) The base URL is the image's, not a setting.** Task 14's fragment pins `ANTHROPIC_BASE_URL` to `gatewayclient.SandboxBaseURL`, `http://gatekeeper.panacea-gateway.svc.cluster.local:4000`, because a repository's `.claude/settings.json` could otherwise move it (review I-4; task 14 decision (e)). `Prepare` still puts the same value in the launch environment, so a shell in the sandbox (task 23's `curl`) and a drop-in the CLI fails to read (task 14's first "does not claim") both land on the gatekeeper. A second value would split the CLI from everything else, so `NewLauncher` refuses any other `BaseURL` and `cmd/api` refuses any other `PANACEA_APP_GATEWAY_BASE_URL`, naming the variable. Task 17 gives the gatekeeper this name as an alias on `panacea-app-gateway`; that network holds the gatekeeper alone (review I-6).
 
 **Files:**
 - `control-plane/internal/gatewayclient/client.go` — `Client`, `New`, `Mint`, `Refresh`, `RevokeSession`, `Usage`, `Problem`, `WriteToken` (new)
@@ -33,13 +34,14 @@ Seven decisions where the skeleton is silent:
   - `(*Client) Mint(ctx, wire.MintRequest) (wire.MintResponse, error)`, `Refresh(ctx, wire.RefreshRequest) (wire.MintResponse, error)`, `RevokeSession(ctx, sessionID string) error`, `Usage(ctx, scope, id string) ([]wire.UsageRow, error)` (task 21's reader; no retry)
   - `Problem{Status int; Code, Message string}`, the error a keysmith refusal becomes; `errors.As` finds it
   - `WriteToken(dir, token string) error`: `token.tmp` at `0644`, `fsync`, rename to `token`
+  - `SandboxBaseURL = "http://gatekeeper.panacea-gateway.svc.cluster.local:4000"`, the only `Launcher.BaseURL` `NewLauncher` accepts (decision (h))
   - `Launcher{Client *Client; Routes wire.RouteSource; BaseURL, Network, TokenRoot string; RefreshAt, RaiseCheck time.Duration (`RaiseCheck`, 0 meaning one minute: how often a Global-minted session re-reads its route, so a raise refreshes at once, review C-1); Owner wire.Owner; TeamID string; Record func(sessionID string, s State); Log *slog.Logger}`, built by `NewLauncher(l Launcher) (*Launcher, error)`, which creates `TokenRoot` at `0700`
   - `State{Gateway string ("pending"|"on"|"error"); Error string; Generation int; Route dataclass.Route}`
   - `Prep{Mount backend.Mount; Env map[string]string; Network string; Route dataclass.Route}`
   - `(*Launcher) Prepare(ctx, sessionID, projectID string) (Prep, error)`; `Start(sessionID, projectID, agentID string, generation int, pod netip.Addr)`, which returns at once; `Stop(ctx, sessionID string, keepDir bool) error`; `Resume(sessionID, projectID string, generation int)`
 - Produces, package `backend`: `Spec.Network string` (docker only; `""` is the default bridge); `Sandbox.NetworkAddr netip.Addr` (docker only; the zero value when `Spec.Network` was empty); `LabelNetwork = "panacea-app.network"`.
 - Produces, the session wire shape (additive to phase 2's `sessionJSON`, `control-plane/internal/api/sessions.go:593-620`): `"gateway": "off"|"pending"|"on"|"error"`, `"gatewayError": "<one sentence>"`, `"gatewayRoute": "global"|"au"|""`.
-- Produces, `cmd/api` variables: `PANACEA_APP_GATEWAY_KEYSMITH_URL` (unset: the gateway is off), `_BASE_URL` (default `http://gatekeeper:4000`, the address **inside** the gateway network), `_NETWORK` (default `panacea-app-gateway`, task 17's network), `_CALLER` (`file`, the default, or `oidc`: the person's own `panacea-app-gateway` realm token from the Hub sign-in, `OD-30`), `_CALLER_TOKEN_FILE` (required when on with `file`, refused with `oidc`), `_ROUTE_SOURCE` (required when on; `file:<path>` only until S6.1), `_MINT_TIMEOUT` (`20s`), `_REFRESH_AT` (`45m`, and below `55m`), `_OWNER` (`<tid>:<oid>`, default `local:developer`), `_TEAM` (default `local`).
+- Produces, `cmd/api` variables: `PANACEA_APP_GATEWAY_KEYSMITH_URL` (unset: the gateway is off), `_BASE_URL` (default `gatewayclient.SandboxBaseURL`, `http://gatekeeper.panacea-gateway.svc.cluster.local:4000`, the address **inside** the gateway network and the value task 14's fragment pins; any other value is refused, decision (h)), `_NETWORK` (default `panacea-app-gateway`, task 17's network), `_CALLER` (`file`, the default, or `oidc`: the person's own `panacea-app-gateway` realm token from the Hub sign-in, `OD-30`), `_CALLER_TOKEN_FILE` (required when on with `file`, refused with `oidc`), `_ROUTE_SOURCE` (required when on; `file:<path>` only until S6.1), `_MINT_TIMEOUT` (`20s`), `_REFRESH_AT` (`45m`, and below `55m`), `_OWNER` (`<tid>:<oid>`, default `local:developer`), `_TEAM` (default `local`).
 - Consumes: `wire.MintRequest`, `MintResponse`, `RefreshRequest`, `RevokeRequest`, `UsageRow`, `Owner`, `RouteSource`, `ErrRouteUnknown`, `ProjectInference.LiveRoute` (task 03; `Prepare` and the raise check read the route by it, so the refresher sees every raise keysmith retires on, re-review R-6); keysmith's `POST /v1/mint` (201), `POST /v1/refresh` (201), `POST /v1/revoke` (204), `GET /v1/usage?scope=&id=` (task 08); `routesource.NewFile` (task 13); `dataclass.Route` (task 01); `httpx.Problem` (`problem.go:26-34`).
 - Required by: task 17 (the compose network and the callers file this reads), task 21 (`Usage`, and the same `ROUTE_SOURCE` file), task 22 (renders `gateway`, `gatewayError`), task 23 (the whole local path), ask P8-1 (the broker uses this client).
 
@@ -122,7 +124,7 @@ func (k *keysmith) snapshot() (calls, bodies, auths []string) {
 
 func minted(token string, route dataclass.Route) string {
 	b, _ := json.Marshal(wire.MintResponse{Token: token, KeyID: "k-1", Route: route,
-		ExpiresAt: time.Now().Add(time.Hour), BaseURL: "http://gatekeeper:4000", MaxBudgetUSD: 25})
+		ExpiresAt: time.Now().Add(time.Hour), BaseURL: SandboxBaseURL, MaxBudgetUSD: 25})
 	return string(b)
 }
 
@@ -280,7 +282,7 @@ func (r *recorder) last(id string) State {
 func newLauncher(t *testing.T, k *keysmith) (*Launcher, *recorder) {
 	t.Helper()
 	rec := &recorder{states: map[string][]State{}}
-	l, err := NewLauncher(Launcher{Client: newClient(t, k, 5*time.Second), BaseURL: "http://gatekeeper:4000",
+	l, err := NewLauncher(Launcher{Client: newClient(t, k, 5*time.Second), BaseURL: SandboxBaseURL,
 		Routes: routes{"p-global": dataclass.RouteGlobal, "p-au": dataclass.RouteAU}, Network: "panacea-app-gateway",
 		TokenRoot: filepath.Join(t.TempDir(), "gateway-tokens"), RefreshAt: time.Hour, TeamID: "local",
 		Owner: wire.Owner{TID: "local", OID: "developer"}, Record: rec.record, Log: slog.New(slog.NewTextHandler(io.Discard, nil))})
@@ -355,7 +357,7 @@ func TestPrepareSetsTheEnvironmentByRoute(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if p.Env["ANTHROPIC_BASE_URL"] != "http://gatekeeper:4000" || (p.Env["CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS"] == "1") != wantFlag {
+		if p.Env["ANTHROPIC_BASE_URL"] != "http://gatekeeper.panacea-gateway.svc.cluster.local:4000" || (p.Env["CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS"] == "1") != wantFlag {
 			t.Errorf("%s: env %v", project, p.Env)
 		}
 		for _, banned := range []string{"ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "CLAUDE_CODE_USE_BEDROCK"} {
@@ -368,6 +370,20 @@ func TestPrepareSetsTheEnvironmentByRoute(t *testing.T) {
 		}
 		if st, err := os.Stat(p.Mount.HostPath); err != nil || !st.IsDir() {
 			t.Errorf("%s: the token directory does not exist: %v", project, err)
+		}
+	}
+}
+
+// Kills a launch environment that disagrees with the base URL the image's
+// fragment pins (decision (h), review I-4): empty, the pre-I-4 local name,
+// and the double-pathed /v1/messages.
+func TestNewLauncherRefusesAnyOtherBaseURL(t *testing.T) {
+	for _, base := range []string{"", "http://gatekeeper:4000", SandboxBaseURL + "/v1/messages"} {
+		_, err := NewLauncher(Launcher{Client: newClient(t, &keysmith{}, time.Second), BaseURL: base,
+			Routes: routes{}, Network: "panacea-app-gateway", TokenRoot: filepath.Join(t.TempDir(), "t"),
+			RefreshAt: time.Hour, Record: func(string, State) {}})
+		if err == nil {
+			t.Errorf("BaseURL %q accepted", base)
 		}
 	}
 }
@@ -675,7 +691,7 @@ func gatewayEnv(t *testing.T, gw *fakeGateway) (*sessionsEnv, *sessionsStore) {
 func auPrep(dir string) gatewayclient.Prep {
 	return gatewayclient.Prep{Network: "panacea-app-gateway", Route: dataclass.RouteAU,
 		Mount: backend.Mount{HostPath: dir, ContainerPath: "/run/panacea/gateway", ReadOnly: true},
-		Env:   map[string]string{"ANTHROPIC_BASE_URL": "http://gatekeeper:4000", "CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS": "1"}}
+		Env:   map[string]string{"ANTHROPIC_BASE_URL": gatewayclient.SandboxBaseURL, "CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS": "1"}}
 }
 
 // Kills forgetting the network, the environment, the mount or the mint, and
@@ -695,7 +711,7 @@ func TestCreateWithTheGatewayJoinsTheNetworkAndStartsTheMintAfterTheSandbox(t *t
 		t.Errorf("gateway %q route %q, want pending au", s.Gateway, s.GatewayRoute)
 	}
 	spec := env.be.specs[0]
-	if spec.Network != "panacea-app-gateway" || spec.Env["ANTHROPIC_BASE_URL"] != "http://gatekeeper:4000" ||
+	if spec.Network != "panacea-app-gateway" || spec.Env["ANTHROPIC_BASE_URL"] != gatewayclient.SandboxBaseURL ||
 		spec.Env["CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS"] != "1" || spec.Mounts[len(spec.Mounts)-1] != gw.prep.Mount {
 		t.Errorf("spec network %q env %v mounts %v", spec.Network, spec.Env, spec.Mounts)
 	}
@@ -1041,6 +1057,12 @@ import (
 // ContainerTokenDir is the skeleton's shared name; task 14 reads it.
 const ContainerTokenDir = "/run/panacea/gateway"
 
+// SandboxBaseURL is the one ANTHROPIC_BASE_URL a sandbox has: task 14's
+// managed fragment pins it (decision (e), review I-4), task 17 gives the
+// gatekeeper this name as a network alias, task 19 is the cloud Service.
+// The launch environment carries the same value, never another (decision (h)).
+const SandboxBaseURL = "http://gatekeeper.panacea-gateway.svc.cluster.local:4000"
+
 const refreshRetry = time.Minute
 
 var sessionRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$`)
@@ -1090,8 +1112,10 @@ func NewLauncher(l Launcher) (*Launcher, error) {
 	switch {
 	case l.Client == nil || l.Routes == nil || l.Record == nil:
 		return nil, errors.New("gatewayclient: Launcher needs a Client, Routes and Record")
-	case l.BaseURL == "" || l.TokenRoot == "" || l.RefreshAt <= 0:
-		return nil, errors.New("gatewayclient: Launcher needs BaseURL, TokenRoot and a positive RefreshAt")
+	case l.BaseURL != SandboxBaseURL:
+		return nil, fmt.Errorf("gatewayclient: BaseURL %q: the sandbox image pins %s (task 14 decision (e)), so a launch environment that says otherwise splits the CLI from everything else", l.BaseURL, SandboxBaseURL)
+	case l.TokenRoot == "" || l.RefreshAt <= 0:
+		return nil, errors.New("gatewayclient: Launcher needs TokenRoot and a positive RefreshAt")
 	}
 	if l.Log == nil {
 		l.Log = slog.New(slog.NewTextHandler(io.Discard, nil))
@@ -1557,7 +1581,10 @@ func loadGatewayConfig(raw func(string) string, backendKind string) (GatewayConf
 	if backendKind != "docker" {
 		return c, fmt.Errorf("%sKEYSMITH_URL is set but the backend is %q: the local gateway joins a Docker network, and a cloud session's token is the broker's (ask P8-1)", gw, backendKind)
 	}
-	c.BaseURL, c.Network, c.Team = get("BASE_URL", "http://gatekeeper:4000"), get("NETWORK", "panacea-app-gateway"), get("TEAM", "local")
+	c.BaseURL, c.Network, c.Team = get("BASE_URL", gatewayclient.SandboxBaseURL), get("NETWORK", "panacea-app-gateway"), get("TEAM", "local")
+	if c.BaseURL != gatewayclient.SandboxBaseURL { // decision (h): the image's fragment pins it
+		return c, fmt.Errorf("%sBASE_URL %q: the sandbox image pins %s (task 14 decision (e)); unset it", gw, c.BaseURL, gatewayclient.SandboxBaseURL)
+	}
 	c.Caller, c.CallerTokenFile = get("CALLER", "file"), get("CALLER_TOKEN_FILE", "")
 	switch {
 	case c.Caller == "oidc" && c.CallerTokenFile != "":
@@ -1595,7 +1622,7 @@ func loadGatewayConfig(raw func(string) string, backendKind string) (GatewayConf
 }
 ```
 
-`parseDuration(name, value, def)` is phase 2's (`config.go:421`). `config_test.go` gains a table in the file's existing style: unset `KEYSMITH_URL` gives `On == false` and no other variable is read; set, each missing or bad variable fails naming itself (`CALLER_TOKEN_FILE`, `CALLER=entra`, `CALLER=oidc` with a `CALLER_TOKEN_FILE`, `CALLER=oidc` without `OWNER`, `ROUTE_SOURCE=hub`, `OWNER=nobody`, `REFRESH_AT=58m`), and the kata backend with the gateway on fails naming `KEYSMITH_URL`.
+`parseDuration(name, value, def)` is phase 2's (`config.go:421`). `config_test.go` gains a table in the file's existing style: unset `KEYSMITH_URL` gives `On == false` and no other variable is read; set, each missing or bad variable fails naming itself (`CALLER_TOKEN_FILE`, `CALLER=entra`, `CALLER=oidc` with a `CALLER_TOKEN_FILE`, `CALLER=oidc` without `OWNER`, `ROUTE_SOURCE=hub`, `OWNER=nobody`, `REFRESH_AT=58m`, and `BASE_URL=http://gatekeeper:4000`, the pre-I-4 default, decision (h)), unset `BASE_URL` gives `gatewayclient.SandboxBaseURL`, and the kata backend with the gateway on fails naming `KEYSMITH_URL`. `config.go` imports `gatewayclient` for the constant (`main.go` already does, for `NewLauncher`).
 
 `control-plane/cmd/api/main.go`, after the registry store is opened and before `api.New` (`main.go:147`):
 
@@ -1643,13 +1670,13 @@ and `api.Deps{…}` gains `Gateway: launcher`. `fail`, `store` and `log` stand f
 ```bash
 cd control-plane
 go test -race -count=1 ./internal/gatewayclient/                                   # expect: ok
-go test -count=1 -v ./internal/gatewayclient/ | grep -c '^--- PASS: Test'          # expect 12
+go test -count=1 -v ./internal/gatewayclient/ | grep -c '^--- PASS: Test'          # expect 13
 go test -race -count=1 ./internal/backend/... ./internal/registry/... ./internal/api/ ./cmd/api/   # expect: ok for each, phase 2's tests included
 ```
 
 The last line is the regression gate: every phase 2 session test runs with `Deps.Gateway` nil and must be unchanged.
 
-- [ ] **Step 11: Kill nine mutants by hand**
+- [ ] **Step 11: Kill eleven mutants by hand**
 
 | Edit | Test that must fail |
 |---|---|
@@ -1662,6 +1689,8 @@ The last line is the regression gate: every phase 2 session test runs with `Deps
 | `sleepUnlessRaised`: delete the `if raisedToAU(…) { return true }` block | `TestARaiseRefreshesAtOnce` (both rows; review C-1) |
 | `raisedToAU`: `r, err := pi.LiveRoute()` → `r, err := pi.Effective, error(nil)` | `TestARaiseRefreshesAtOnce/class` alone (re-review R-6) |
 | `bearer`: `c.tokens.Token(ctx, gatewayAudience)` → `c.tokens.Token(ctx, "panacea-app-hub")` | `TestTheOIDCCredentialIsThePersonsGatewayToken` (`OD-30`) |
+| `NewLauncher`: `case l.BaseURL != SandboxBaseURL:` → `case l.BaseURL == "":` | `TestNewLauncherRefusesAnyOtherBaseURL` (the two non-empty rows; review I-4) |
+| `loadGatewayConfig`: the `c.BaseURL != gatewayclient.SandboxBaseURL` block deleted | `config_test.go`'s `BASE_URL=http://gatekeeper:4000` row (decision (h)) |
 
 - [ ] **Step 12: Vet and format**
 
@@ -1680,9 +1709,9 @@ git add control-plane/internal/gatewayclient/client.go control-plane/internal/ga
 git commit -F <message file> -- control-plane/internal/gatewayclient/ control-plane/internal/backend/backend.go control-plane/internal/backend/backend_test.go control-plane/internal/backend/dockerbe/docker.go control-plane/internal/backend/dockerbe/docker_test.go control-plane/internal/backend/katabe/kata.go control-plane/internal/backend/katabe/kata_test.go control-plane/internal/registry/session.go control-plane/internal/api/api.go control-plane/internal/api/sessions.go control-plane/internal/api/sessions_test.go control-plane/internal/api/sessions_gateway_test.go control-plane/cmd/api/config.go control-plane/cmd/api/config_test.go control-plane/cmd/api/main.go
 ```
 
-Message: `feat(gateway): the keysmith client and the local control plane's launch (phase 6 task 15)`, a body naming decisions (a) to (g), and the attribution line.
+Message: `feat(gateway): the keysmith client and the local control plane's launch (phase 6 task 15)`, a body naming decisions (a) to (h), and the attribution line.
 
-**Acceptance:** step 10 prints `ok`, `12`, and `ok` for every listed package; step 11's nine edits each fail the named test; step 12 prints nothing. The end-to-end run, a real sandbox on the gateway network getting a token, is task 17's acceptance and task 23's proof, not this task's.
+**Acceptance:** step 10 prints `ok`, `13`, and `ok` for every listed package; step 11's eleven edits each fail the named test; step 12 prints nothing. The end-to-end run, a real sandbox on the gateway network getting a token, is task 17's acceptance and task 23's proof, not this task's.
 
 **What this task does not claim:**
 
