@@ -59,3 +59,68 @@ characters after trimming spaces; a description may be empty.
 limits. The Unicode checks (the tag block, bidi controls) run where the Hub accepts a write
 (task 09) with the same `teamtext` rules Phase T's task 02 builds, if that package has landed on
 the sync base, else as task 09 names. This task makes no claim about them.
+
+**Files** (all under `control-plane/internal/hub/hubapi/`, on `feat/work-layer` after the sync):
+
+| Path | Change |
+|---|---|
+| `keys.go` ⚑ | **append only**: `KeyIssue`, `issueKeyRe`, `IssueKey`, `ParseIssueKey`, one `ParseKey` case |
+| `keys_test.go` ⚑ | **append only**: `TestIssueKey*` (three functions) |
+| `workids.go` | new: the twelve Work prefixes, `ValidWorkID`, `ValidProjectKey`, `DisplayAlias` |
+| `workids_test.go` | new |
+| `workcanonical.go` | new: `AuthoredText`, `Serve`, `IssueRevisionContent`, `IssueRevisionEnvelope`, `IssueRevisionDigest`, `ParseIssueRevisionEnvelope`, `ValidateIssueRevisionContent` |
+| `workcanonical_test.go` | new |
+| `testdata/issue-revision/v1.json`, `v2.json` | new: the golden vectors |
+
+No other file changes; `git diff --stat` after the task lists exactly these nine.
+
+---
+
+#### Interfaces, complete
+
+**`keys.go`: the lines appended.** Three edits, each additive. Into the `KeyKind` const block
+(`keys.go:49-52`), after `KeyDesign`:
+
+```go
+	KeyIssue  KeyKind = "issue" // Phase W; contract §3.2 as proposed in w0-hub-contract-proposal.md
+```
+
+Into the regex block (`keys.go:56-59`), after `designKeyRe`:
+
+```go
+	issueKeyRe  = regexp.MustCompile(`^issue:(is-[0-9a-f]{16})@([1-9][0-9]{0,8})$`)
+```
+
+Into `ParseKey`'s `switch` (`keys.go:97-102`), after the `designKeyRe` case:
+
+```go
+	case issueKeyRe.MatchString(s):
+		return KeyIssue, nil
+```
+
+And after `ParseDesignKey` (before `ParseKey`), the type and its parser, shaped exactly like
+`BriefKey`:
+
+```go
+// IssueKey names one immutable issue revision: issue:<issueId>@<revision>.
+// The revision is the Hub's, gapless per issue from 1; 0 never appears in a key.
+// "EP-142" is a display alias, never a key: see DisplayAlias.
+type IssueKey struct {
+	IssueID  string
+	Revision int // 1 … 999,999,999
+}
+
+func (k IssueKey) String() string { return "issue:" + k.IssueID + "@" + strconv.Itoa(k.Revision) }
+
+func ParseIssueKey(s string) (IssueKey, error) {
+	m := issueKeyRe.FindStringSubmatch(s)
+	if m == nil {
+		return IssueKey{}, ErrInvalidKey
+	}
+	n, _ := strconv.Atoi(m[2]) // the grammar bounds it to nine digits
+	return IssueKey{IssueID: m[1], Revision: n}, nil
+}
+```
+
+`KeyIssue` and `issueKeyRe` are as long as `KeyBrief` and `briefKeyRe`, so `gofmt` realigns
+nothing: `git diff keys.go` shows only added lines (`git diff --numstat` deletions `0`).
