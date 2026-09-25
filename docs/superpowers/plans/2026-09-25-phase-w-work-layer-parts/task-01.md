@@ -134,3 +134,54 @@ edit to a Hub task in flight, and only after `feat/hub` is sync-merged into `fea
 5. **One authorisation guard** Phase W needs from day one: no sync or integration principal may
    write an issue's fact states (`started`, `in_review`, `landed`) or `done`.
 `````
+
+---
+
+#### The four document edits, exact text
+
+**1. `docs/PROGRAM.md`.** Append one row after row **9** (`PROGRAM.md:65`), in the table's own
+three-cell shape and bold-letter style (row **H** at `:59` is the model):
+
+```markdown
+| **W** | **The work layer — issues on the provenance thread, Linear parity-plus** (added 2026-09-25, `OD-25`–`OD-28`; lettered so no number moves) | No — built alongside team mode; W1 demos in local mode first (`OD-20`) |
+```
+
+Insert one section after *Phase 9* (`:124-125`), before `## Cross-cutting constraints` (`:127`):
+
+```markdown
+### Phase W — The work layer
+Added 2026-09-25 (`OD-25` to `OD-28`). Issues are Hub records on the provenance thread: each one names the brief criteria it serves, so brief → criterion → design → issue → session → land → evidence → release reads as one chain. Built **alongside team mode** on its own streams, never on its critical path (`OD-25`); **everything, W0 to W5** (`OD-26`): W0 the key grammar and these documents, W1 the first slice a team can adopt (import, triage, the issue view, Start from a row, done only when proven), W2 planning, W3 agents on the work with team mode's Orchestrators, W4 roadmap, release and reporting, W5 intake and the ecosystem. Progress is proof per criterion and plain counts, never a percentage, bar, ETA or "N of M" (`OD-27`). Every id, path and time is Commit Mono; the sans is Segoe UI Variable (`OD-28`). Its plan is `docs/superpowers/plans/2026-09-25-phase-w-work-layer.md`.
+```
+
+**2. `docs/FUNCTIONAL-SPEC.md`.** Append two rows after **Environment** (`FUNCTIONAL-SPEC.md:16`):
+
+```markdown
+| **Feature** | many per project; its spec is its branch brief (`ft-`) | Yes — it is what Linear calls a project |
+| **Issue** | many per project, optionally one feature; a mutable head (`is-`) and immutable revisions (`issue:is-…@r`) whose `serves` names brief criteria | Yes — shown as `EP-142`, a display alias that is never a key |
+```
+
+**3. `docs/AGENTIC-UX.md`.** Four one-line insertions (Q13, accepted under `OD-27`). Each goes on
+the line **after** the text it amends, indented to continue the list item it follows, and ends
+with its decision id. No existing line changes.
+
+| # | After | Inserted line |
+|---|---|---|
+| 1 | anti-pattern 10 (`:245`) | `   *Amended (OD-27, Q13 1):* a plain group size for a set people committed to (a cycle, a triage queue) is allowed; a completion prediction is not.` |
+| 2 | anti-pattern 1 (`:236`) | `   *Amended (OD-27, Q13 2):* "… a nameable transcript span, **or the Hub record and revision it shows**", since a person's issue has no span.` |
+| 3 | §5's lead paragraph (`:87`) | `*Amended (OD-27, Q13 3):* the Desk's RUNNING shows three-line cards only for agents that changed since you looked, and one folded line for the steady.` |
+| 4 | anti-pattern 2 (`:237`) | `   *Amended (OD-27, Q13 4):* a projection that names its rule and source span (*"next decision ~14:22 · rule: migration gate"*) is not an ETA.` |
+
+Insert in the order 1, 4, 2, 3 (bottom of the file first), so each anchor line is still where
+this table says when it is used. Amendment 3 sits under §5's heading (`:85`), after its first
+paragraph (`:87`), because anti-pattern 3 (`:238`) stays the rule at rest.
+
+**4. `02-linear-design-language.md`.** The three corrections of 05 §5.5 row *02*
+(`05-design.md:1310`). The live claim is struck inline and one line is inserted after it.
+
+| Where | Inline strike | Inserted line (next line) |
+|---|---|---|
+| C8 `hub.replica` (`:274`) | `~~Tauri stores it on disk;~~` | `  - *Corrected (Q5, ADR-H1:467-474):* the replica is held **in memory only**; nothing from the Hub is written to disk, so an erase cannot be outlived by a laptop copy.` |
+| C7 `arrivals.hold` (`:267`) | `~~*"2 new · R to show"*~~` | `  - *Corrected (05 §5.5 row 02):* the line reads *"2 new · N to show"*; `N` applies every held change at once; **`moves.hold`** sits beside it: a row whose sort place changed stays put, marked, until `N`.` |
+| C3 faces (`:222`) | `~~**Owner decision needed:** the mono licence~~` | `  - *Decided (OD-28):* **Commit Mono** (OFL), bundled as files with its licence, for every id, path and time; the sans is **Segoe UI Variable**, the Windows system face, never bundled. D1 item 1 (`:360`) is closed by this line.` |
+
+These change no token and no code; tasks 26-27 build what they describe.
