@@ -707,3 +707,59 @@ describe("SW.15 the Work wire", () => {
   });
 ```
 
+
+```ts
+  const MOVE: StateMove = { to: "todo", cause: "hand", reason: "", landCommit: "", evidence: [] };
+  const csv = { projectId: "pj-1", source: "csv", csv: { content: "title\nA" } } as const;
+  const X = {} as never;   // a body the stub never reads
+  /** [method, call, verb, the path the loopback must see]: written out, not derived, so a wrong
+   *  derivation in work.ts cannot agree with itself here. */
+  const EVERY: ReadonlyArray<[keyof WorkClient, (w: WorkClient) => Promise<unknown>, string, string]> = [
+    ["setProjectKey", (w) => w.setProjectKey("pj-1", "EP"), "PUT", "/v1/hub/work/projects/pj-1/key"],
+    ["createIssue", (w) => w.createIssue("pj-1", X), "POST", "/v1/hub/work/projects/pj-1/issues"],
+    ["issues", (w) => w.issues("pj-1"), "GET", "/v1/hub/work/projects/pj-1/issues"],
+    ["issueByNumber", (w) => w.issueByNumber("pj-1", 142), "GET", "/v1/hub/work/projects/pj-1/issues/by-number/142"],
+    ["issue", (w) => w.issue("is-1"), "GET", "/v1/hub/work/issues/is-1"],
+    ["patchIssue", (w) => w.patchIssue("is-1", {}), "PATCH", "/v1/hub/work/issues/is-1"],
+    ["writeIssueRevision", (w) => w.writeIssueRevision("is-1", X), "POST", "/v1/hub/work/issues/is-1/revisions"],
+    ["issueRevisions", (w) => w.issueRevisions("is-1"), "GET", "/v1/hub/work/issues/is-1/revisions"],
+    ["issueRevisionAt", (w) => w.issueRevisionAt("is-1", 2), "GET", "/v1/hub/work/issues/is-1/revisions/2"],
+    ["restoreIssueRevision", (w) => w.restoreIssueRevision("is-1", 2), "POST", "/v1/hub/work/issues/is-1/revisions/2/restore"],
+    ["moveIssueState", (w) => w.moveIssueState("is-1", MOVE), "POST", "/v1/hub/work/issues/is-1/state"],
+    ["attachBlob", (w) => w.attachBlob("is-1", "sha256:00"), "POST", "/v1/hub/work/issues/is-1/attachments"],
+    ["attachments", (w) => w.attachments("is-1"), "GET", "/v1/hub/work/issues/is-1/attachments"],
+    ["addRelation", (w) => w.addRelation("is-1", { kind: "blocks", issueId: "is-2" }), "POST", "/v1/hub/work/issues/is-1/relations"],
+    ["removeRelation", (w) => w.removeRelation("is-1", "blocks", "is-2"), "DELETE", "/v1/hub/work/issues/is-1/relations/blocks/is-2"],
+    ["labels", (w) => w.labels("tm-1"), "GET", "/v1/hub/work/teams/tm-1/labels"],
+    ["createLabel", (w) => w.createLabel("tm-1", { name: "infra", color: "accent-2" }), "POST", "/v1/hub/work/teams/tm-1/labels"],
+    ["archiveLabel", (w) => w.archiveLabel("lb-1"), "POST", "/v1/hub/work/labels/lb-1/archive"],
+    ["teamPolicy", (w) => w.teamPolicy("tm-1"), "GET", "/v1/hub/work/teams/tm-1/work-policy"],
+    ["putTeamPolicy", (w) => w.putTeamPolicy("tm-1", X), "PUT", "/v1/hub/work/teams/tm-1/work-policy"],
+    ["comments", (w) => w.comments("is-1"), "GET", "/v1/hub/work/issues/is-1/comments"],
+    ["createComment", (w) => w.createComment("is-1", X), "POST", "/v1/hub/work/issues/is-1/comments"],
+    ["react", (w) => w.react("ic-1", "+1", true), "POST", "/v1/hub/work/comments/ic-1/reactions"],
+    ["resolveComment", (w) => w.resolveComment("ic-1", true), "POST", "/v1/hub/work/comments/ic-1/resolve"],
+    ["subscribe", (w) => w.subscribe("is-1", true), "PUT", "/v1/hub/work/issues/is-1/subscription"],
+    ["subscriptions", (w) => w.subscriptions(), "GET", "/v1/hub/work/me/subscriptions"],
+    ["searchIssues", (w) => w.searchIssues({ q: "upload" }), "GET", "/v1/hub/work/issues/search?q=upload"],
+    ["importBatch", (w) => w.importBatch("pj-1", X), "POST", "/v1/hub/work/projects/pj-1/imports"],
+    ["eraseIssue", (w) => w.eraseIssue("is-1", "GDPR request"), "POST", "/v1/hub/work/issues/is-1/erase"],
+    ["eraseComment", (w) => w.eraseComment("ic-1", "GDPR request"), "POST", "/v1/hub/work/comments/ic-1/erase"],
+    ["start", (w) => w.start(X), "POST", "/v1/work/start"],
+    ["undoStart", (w) => w.undoStart("s-1"), "POST", "/v1/work/start/s-1/undo"],
+    ["discardStart", (w) => w.discardStart("s-1", ""), "POST", "/v1/work/start/s-1/discard"],
+    ["importPreview", (w) => w.importPreview(csv), "POST", "/v1/work/import/preview"],
+    ["importRun", (w) => w.importRun(csv), "POST", "/v1/work/import"],
+  ];
+
+  /** A client over a fetch that records each call and answers an empty page. */
+  function recorded(reply = () => new Response('{"items":[],"next":null}\n', { status: 200 })) {
+    const calls: Array<{ url: string; method: string | undefined }> = [];
+    const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      calls.push({ url: String(input), method: init?.method });
+      return reply();
+    }) as unknown as typeof globalThis.fetch;
+    return { work: createClient({ fetch }).work, calls };
+  }
+```
+
