@@ -101,10 +101,18 @@ type LandRequest struct {
 }
 
 // TeamLand is what a team project's land needs from the Hub. The API handler
-// fills it; Land never calls the Hub itself, so converge keeps no Hub import.
+// fills it from route 86; Land never calls the Hub, and converge imports no
+// Hub package (Approval is its own four fields, copied by the handler).
 type TeamLand struct {
-	LaneOwner string                                     // the lane agent's ownerUserId
-	Approvals func(ctx context.Context) ([]hubapi.LandApproval, error) // route 86, this lane's agent
+	LaneOwner string // the lane agent's ownerUserId
+	Approvals func(ctx context.Context) ([]Approval, error)
+}
+
+type Approval struct {
+	State          string   // "requested" | "approved"
+	LaneTip        string
+	ApproverUserID string   // "" while requested
+	Paths          []string
 }
 
 // Step 9a, after 9 (merge-tree clean) and before 10 (no object written yet):
@@ -119,3 +127,78 @@ type TeamLand struct {
 
 `detailList` is phase 3's (`task-09.md:115-116`). The approval is looked up at land time, so an
 approval written a second ago counts and one for an older tip never does.
+
+#### The Hub routes — complete wire (a Hub delta, after `feat/hub`'s sync-merge)
+
+Three routes after task 46's 81 to 83. Desktop only, no route name, so no delegation can list
+them and no agent can request or give an approval. The Hub mints `la-…`.
+
+**Route 84, `POST /v1/projects/{p}/land-approvals`**: the lane owner's desktop, role `member` or
+`admin`. The lane owner asks.
+
+```jsonc
+{ "agentId": "ag-…",                   // a worker of the caller's (task 06's agents row), else 403 agent_not_owner
+  "base": "<40|64 hex>", "laneTip": "<40|64 hex>",
+  "paths": [ "CLAUDE.md", ".claude/settings.json", "package.json" ] }   // 1–50, each teamtext glob-valid, no wildcard
+// 201
+{ "id": "la-…", "projectId": "pj-…", "agentId": "ag-…", "ownerUserId": "u-…",
+  "base": "…", "laneTip": "…", "paths": [ … ], "state": "requested",
+  "approverUserId": null, "approvedAt": null, "createdAt": "…" }
+```
+
+**Route 85, `POST /v1/land-approvals/{landApprovalId}/approve`**: body `{}`, the desktop of a
+**current member of the project other than `ownerUserId`**, role `member` or `admin`. The owner →
+403 `forbidden`, `required: "second_member"`; a viewer → 403; a second approve → 409 `conflict`.
+It sets `state: "approved"`, `approverUserId` from the token and `approvedAt`. There is no
+reject: a reviewer who disagrees says so to the owner, and the land stays refused.
+
+**Route 86, `GET /v1/projects/{p}/land-approvals?agentId=&state=`**: V (desktop) or Fleet·O
+(`land_approvals.read`, a new orchestrator-class route name, so an Orchestrator can tell its
+human that a land waits for a teammate). Newest first, at most 100.
+
+Events, task 01's §8 shape: `land_approval.requested` (`{"agentId","pathCount"}`, feed `yes`, so
+every member's strip can show *"Linus asks for a second look at 3 agent-config files"*) and
+`land_approval.approved` (`{"agentId","approverUserId"}`, feed `yes`). Paths are in the record,
+never in `data`. Record, id prefix `la-` and code `second_member` join task 03's `team.go`, the
+contract's §7.0 team table, §3.1 and §8, and the Z5 matrix (task 43's test).
+
+#### The review — complete source
+
+```go
+// control-plane/internal/converge/teamreview.go
+
+// TeamReview is what the land review adds on a team project. Everything in it is
+// a fact the owner can check: Hub records and git's own output.
+type TeamReview struct {
+	Conflicts   []ReviewConflict    `json:"conflicts"`   // every cf-… the lane's agent was party to
+	AgentConfig []AgentConfigChange `json:"agentConfig"` // [] when none
+	Approval    *ReviewApproval     `json:"approval"`    // nil when AgentConfig is empty
+}
+
+type ReviewConflict struct {
+	ID         string   `json:"id"`         // cf-…
+	Tier       string   `json:"tier"`       // P | H | M | S
+	OtherOwner string   `json:"otherOwner"` // display name of the other agent's owner
+	Paths      []string `json:"paths"`
+	State      string   `json:"state"`
+	Resolution string   `json:"resolution"` // "" when unresolved
+}
+
+type ReviewApproval struct {
+	Status   string `json:"status"`             // "missing" | "requested" | "approved" | "stale"
+	ID       string `json:"id,omitempty"`       // la-…
+	Approver string `json:"approver,omitempty"` // display name
+}
+
+// ReviewFor builds the review for one lane: the lane's agents are those whose
+// laneRef names the lane (task 06's agents list); conflicts are route 59's rows
+// with agentA or agentB among them, every state, oldest first; AgentConfig is
+// AgentConfigChanges(branch tip, lane tip); Approval is the newest route-86 row
+// for the lane's agent: "stale" when its laneTip is not the lane's tip now or
+// its paths do not cover AgentConfig.
+func ReviewFor(ctx context.Context, src ReviewSources, projectPath, branchTip, laneTip, laneRef string) (TeamReview, error)
+```
+
+`GET /v1/projects/{projectId}/branches/{branchId}/lands/{worktreeId}/review` on the local control
+plane answers `TeamReview` (every list `[]`, never `null`, phase 3's rule, `task-09.md:65-70`); for a
+solo project, `404 not_a_team_project`, and the lens does not ask.
