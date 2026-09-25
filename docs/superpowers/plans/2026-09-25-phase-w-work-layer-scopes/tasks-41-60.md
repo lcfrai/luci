@@ -454,3 +454,66 @@ outside it switches at once (kills a sticky submenu). Depends on 53. Design: 05 
 and L-227. Does not claim: open by number itself (task 58), the Desk and Orchestrator targets'
 surfaces (tasks 62-65, W3).
 
+**55 — the replica, part 1: in memory, full load, the cursor on `/v1/changes`; the no-persistence
+test.** Files: new `src/work/replica/replica.ts` (+ test) and `src/work/replica/noPersistence.test.ts`.
+Adds `interface ReplicaDeps {listAll(projectId): Promise<WorkSnapshot>; changes(after: string):
+Promise<{events: HubEvent[]; next: string; more: boolean}>; fetchSubjects(ids): Promise<WorkRecord[]>}`
+over SW.2's relay (`/v1/hub/work/*`, task 16; the list convention `?limit=&after=` →
+`{items, next}`, `hub-contract.md:48-49`) and the relayed feed `GET /v1/hub/changes?after=`
+(`:1372`); `createReplica(deps) → Replica` with `status: "empty" | "loading" | "ready" | "resyncing"`,
+`cursor`, `get(id)` and `byProject(projectId)`; and `useWork<T>(selector) → T`, the read half of
+SW.16. **Order of the first load**: take the head with `after=latest` (`:1101`), load every readable
+project's Work records, then read the feed after the cursor taken **before** the load, so a write made
+during the load is not lost; apply by `seq`, drop an event at or below the last applied `seq`, and ask
+again at once on `more: true` (`:1099-1100`). Feed events are metadata only (SW.5), so applying one
+**re-fetches its subject** in a batch; the event's `data` is never used as the record. Afterwards the
+replica reads the feed **once per change** of the `Panacea-Hub-Cursor` header on `GET /v1/sessions`
+(`:1377-1385`), which phase 4 task 16's loader reads (**UNVERIFIED until merge**, rule H2; the
+skeleton's dependsOn for 55 names only task 37). The replica lives outside the persisted store and
+beside task 37's non-persisted `workSlice`. **The no-persistence test** has two halves: a static scan of
+`src/work/**` and `src/components/{work,issue,editor,desk}/**` for `localStorage`, `sessionStorage`,
+`indexedDB`, `caches.open`, `@tauri-apps/plugin-fs`, `@tauri-apps/plugin-store`, `writeFile` and
+`writeTextFile`, expecting none; and a runtime spy on `Storage.prototype.setItem` and `indexedDB.open`
+through a full load and 100 events, expecting only the preference keys the store already persists,
+with the store's `partialize` output checked for Work keys as `store.test.ts:335` does. Tests first: an
+event committed during the load is applied (kills loading and then asking `after=latest`); a repeated
+event changes nothing (kills double-apply); `more: true` fetches again in the same turn (kills waiting
+a poll tick); an unchanged cursor header causes no feed read and a changed one causes exactly one
+(kills a feed read per tick); applying `issue.revised` fetches the subject (kills using event metadata
+as content); `useWork` re-renders a component only when its selection changes (kills whole-tree
+renders); both no-persistence halves pass (kills a disk cache for a fast return). Depends on 37.
+Design: 05 §5.3 (*The replica, reconciled with 02*), §4.4 (*One correction to 02*: in memory), §3.1;
+`ADR-H1:467-474`; 02 C8 `hub.replica` and `sync.checkpoint` (`02:274-275`); hub-contract §7.11. Parity:
+closes L-228 with task 56 and L-229's W1 part with task 57; L-230 is a SKIP and stays one. Does not
+claim: `budget.return ≤ 2s` after a restart (05 §4.4 marks it **UNVERIFIED** for large projects;
+task 70 records it), writes (task 56), visibility and resync (task 57).
+
+**56 — the replica, part 2: optimistic writes, rollback on refusal, `optimistic.undo`, `U`.** Files:
+new `src/work/replica/ops.ts` and `undo.ts` (+ tests), new `src/components/common/UndoChip.tsx` (+
+test; not yet in the File map), and edits to `replica.ts`. Adds `type WorkOp` (a closed union:
+`setState` with SW.4's `StateMove`, `setPriority`, `setAssignee`, `labels {add, remove}`, `revise
+{baseRev, patch}`, `relation {add | remove}`, `comment`, `reaction`, `resolve`, `subscribe`, each
+naming its issue), `mutate(op | op[]) → {undo(): void; settled: Promise<"applied" | Refusal>}`,
+`onRefused(listener) → unsubscribe` and `interface Refusal {op; code; message; issueId}`: the write
+half of SW.16. `mutate` changes the replica in the same frame (`budget.paint ≤ 16 ms`, 05 §4.6,
+recorded not asserted), sends through SW.2 with an `Idempotency-Key` that is **reused across retries**
+(`hub-contract.md:2256`), and reconciles with the Hub's returned record. On a refusal it reverts
+**only the op's own fields**, so a teammate's change that arrived meanwhile survives; the row flashes
+`--fail` with the Hub's code and message; `onRefused` fires once (task 66 speaks it). A
+`revision_conflict` 409 on `revise` (`:2250`) keeps the person's text in memory and offers it again on
+the new head. Irreversible acts are **not** in `WorkOp` (erase, land, push and deploy are
+`confirm.inplace`, task 44), which a `@ts-expect-error` test pins. `UndoChip` counts `--undo-window`
+(6000 ms, SW.11) in `tabular-nums` seconds and **pauses while its row has focus or hover** (05 §4.6);
+a batch is one chip; `U` (registered through task 53's `registerVerb`) undoes the latest op still in
+its window by sending the **inverse op as a new write** by the person; after the window the revision
+history (task 47) is the way back. Ops queue in memory across a network drop and never survive a
+restart. Tests first: the row repaints before the request resolves (kills paint-after-server); a
+refusal after a concurrent teammate event reverts only the op's field (kills whole-record snapshot
+restore); a refusal shows code and message and fires `onRefused` once (kills a silent rollback); a
+retry reuses the key (kills duplicate writes); with fake timers a hovered chip does not lapse at 6 s and
+lapses after the hover ends (kills an unpausing countdown); `U` sends the inverse op (kills a local-only
+undo); a three-issue batch is one chip that reverts all three (kills per-op chips); a conflict keeps the
+text (kills losing a person's words). Depends on 55. Design: 05 §4.6 (*Undo, revision 2*), §5.3 row
+14; 02 C8 (`02:276-278`). Parity: closes L-36 and, with task 55, L-228. Does not claim: an offline queue
+that survives a restart (L-230, SKIP), the undo announcement (task 66), Start's *Undo Start* (task 61).
+
