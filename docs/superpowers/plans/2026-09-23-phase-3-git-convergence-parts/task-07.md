@@ -106,13 +106,16 @@ func (s *Syncer) Told(worktreeID, received string)
 // on it (task 09; review r4-1 I-6). Run's step b skips it while Live says so. Forget clears
 // worktreeID's told and adds it to forgot, so task 09's next refresh sends that lane the
 // no-basis bundle without asking its claim (a clone that lost objects its told claimed, review
-// r4-1 I-8; or a claim that failed verify, review r4-2 I-1). Told removes the id from forgot.
+// r4-1 I-8; or a claim it does not hold, review r4-2 I-1). Task 09 calls it on the runner's
+// prerequisite_missing (lanegit.ErrPrerequisiteMissing) and on nothing else, so any other
+// failure only backs off (review r4-4 I-1). Told removes the id from forgot.
 // Both are memory only, as told is.
 func (s *Syncer) Defer(worktreeID, tip string)
 func (s *Syncer) Forget(worktreeID string)
 
 // Broken records that worktreeID's clone answered task 24's lane_broken (a ref outside the
-// runner's namespace names a missing object; task 09, review r4-3 I-2), with the lane's
+// runner's namespace names a missing object, or the repair met a symlink or a garbled
+// packed-refs inside it; task 09, review r4-3 I-2, r4-4 I-2), with the lane's
 // SyncState.Tip at that moment. Run's step b leaves the lane out of stale while its Tip still
 // equals the recorded one, whatever the branch tip does: no bundle can mend the lane, so a
 // retry would only repeat a bundle create under the project lock. A lane commit, which moves
@@ -163,7 +166,7 @@ func (s *Syncer) Run(ctx context.Context)
 
 // SyncLane syncs one lane now, and is what a land (task 09) and a removal (task 11) call so
 // they act on the clone's latest committed work, not on the last sweep's. For each lane:
-//  1. `runner.Refs{names: [refs/heads/<branch>]}`, the runner from task 24's `Lanes.For`, which
+//  1. `runner.Refs{Names: [refs/heads/<branch>]}`, the runner from task 24's `Lanes.For`, which
 //     runs `for-each-ref` inside the sandbox; the answer is the agent's claim, used only to
 //     decide whether to fetch;
 //  1b. `runner.Status` on the same runner, kept as SyncState.Observed (a failure here is Err
