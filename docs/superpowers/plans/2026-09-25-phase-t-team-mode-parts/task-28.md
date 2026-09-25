@@ -71,6 +71,8 @@ the thread's escalation record (task 30) states the effective one.
   the effective deadline, and the deadline sweep (new)
 - `control-plane/internal/fleet/protocol/ask.go` — `CardAnswer`, the templated answer (new)
 - `control-plane/internal/fleet/protocol/inbox.go` — `Envelope`, `Unread`, the read log (new)
+- `control-plane/internal/fleet/protocol/service.go` — `Service`: `Send` in the order below,
+  `Inbox`, `SweepDeadlines`, `OpenForConflict` (new)
 - `control-plane/internal/fleet/verbs/peer.go`, `verbs/inbox.go` — the two handlers over
   `control.Dispatcher` (new)
 - `control-plane/internal/fleet/protocol/*_test.go`, `verbs/{peer,inbox}_test.go` (new)

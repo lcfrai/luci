@@ -56,3 +56,116 @@ becomes phase 3's land event; the row and the restore are unchanged.
 owner's own delegation, one per human. Its `question` is a product template filled from typed
 fields only (the resolution kind, the other owner's display name, globs or paths, the conflict
 id), never from a message's text. §6.5's "act; Fleet informs" rows are this same item.
+
+**Files:**
+- `control-plane/internal/fleet/protocol/resolve.go` — `Resolver`: `CheckProposal`, `Resolve`,
+  `ApplyApproved`, `TaskEnded`; the three appliers (new)
+- `control-plane/internal/fleet/protocol/decided.go` — `Decided`: the two inform items, the
+  template (new)
+- `control-plane/internal/fleet/leases/yield.go` — `Engine.Yield`, `Engine.Demote`,
+  `Engine.Restore`: the `yielded` transition task 23's table assigns to task 29 (new, in task 23's
+  package)
+- `control-plane/internal/fleet/protocol/{resolve,decided}_test.go`,
+  `control-plane/internal/fleet/leases/yield_test.go` (new)
+- `control-plane/internal/fleet/protocol/service.go` — task 28's `Service.Send`: the
+  `CheckProposal` call in step 4 and the `Resolve` call in step 9 (modified; task 28's file)
+- `control-plane/internal/fleet/verbs/task.go` — task 24's `task update` path calls
+  `Resolver.TaskEnded` on `done` and `abandoned` (modified; task 24's file, one call)
+
+`decided.go` and `yield.go` are not in the file map; the map's `resolve.go` row covers the
+resolutions, and the lease moves belong in the lease engine, not beside the protocol, so that task
+23's transition-table test covers them.
+
+**Interfaces:**
+- Produces:
+  - `protocol.Resolver` with `CheckProposal(ctx, t Thread, sender model.AgentID, r Resolution)
+    error`, `Resolve(ctx, t Thread, accept Stored) (Outcome, error)`, `ApplyApproved(ctx, org,
+    thread, proposal, escalation string) (Outcome, error)` (task 30 calls it when a human approves
+    a pending accept), `TaskEnded(ctx, org, task string) error`
+  - `protocol.Action`, `protocol.Verdict`, and the `Rules` interface task 30 implements
+  - `protocol.Outcome` — what was applied, for task 31's instructions and task 52's read model
+  - `leases.Engine.Yield`, `Demote`, `Restore`
+  - `protocol.DecidedWithoutYou(t Thread, o Outcome, names Names) [2]outbox.Item`
+- Consumes:
+  - task 28: `Thread`, `Stored`, `Resolution` and its kinds, `Canonical`, `protocol.Store`, the
+    `Escalator` interface (extended below)
+  - task 23: `leases.Engine.Live`, `Reevaluate`, the transition table (`granted`·`contested` →
+    `yielded`, task 29's row), `leaseEvent` for every Hub lease event
+  - task 22: `verbs.Conflicts.Open` for the conflict's tier and paths; `verbs.People.DisplayName`
+  - task 26: `turns.Queue.Enqueue` for the other side's wake after a resolution
+  - task 11: `outbox.OpConflictPatch`, `OpThreadPatch`, `OpEscalation`, `OpLeaseEvent`; task
+    06's route 58 and task 07's routes 61 and 64 are their targets
+- Requires of **task 30**: `Rules.Classify(ctx, Action) (Verdict, error)`, and on the `Escalator`
+  one more method, `AcceptNeedsDecision(ctx, t Thread, accept Stored, a Action) error`. Until
+  task 30 lands, `StubRules` (below) is wired.
+- Requires of **task 10**: `fleet.land_hints` and `fleet.lease_demotions` (below), and the
+  pending-accept marker on a thread's live proposal.
+
+**`resolve.go`, the types, complete.**
+
+```go
+package protocol
+
+import (
+	"context"
+	"errors"
+	"time"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/fleet/model"
+)
+
+var (
+	ErrNotHeld = errors.New("protocol: resolution_not_held")  // at propose
+	ErrStale   = errors.New("protocol: resolution_stale")     // at accept
+	ErrTier    = errors.New("protocol: proceed-both paths not in the conflict")
+)
+
+// Action is what an accept would do, typed, as task 30's rules read it.
+type Action struct {
+	Resolution ResolutionKind
+	Tier       string          // the conflict's P | H | M | S; "" for a free thread
+	Proposer   model.AgentID   // the side that proposed
+	Acceptor   model.AgentID
+	Globs      []string        // yield
+	First      model.AgentID   // sequence
+	Paths      []string        // proceed-both
+	EditedByProposer []string  // globs the proposer's side has edited (TM1; empty in α)
+	ForecastWait time.Duration // sequence: forecast wait of the second side; 0 if unknown
+}
+
+type Verdict string
+
+const (
+	VerdictAct    Verdict = "act"    // apply; Fleet informs both
+	VerdictDecide Verdict = "decide" // do not apply; task 30 asks the human(s)
+)
+
+type Rules interface {
+	Classify(ctx context.Context, a Action) (Verdict, error)
+}
+
+// StubRules is wired until task 30: the one always-decide row TM1-α can
+// reach, proceed-both on H or M; everything else acts.
+type StubRules struct{}
+
+func (StubRules) Classify(_ context.Context, a Action) (Verdict, error) {
+	if a.Resolution == ResProceedBoth && (a.Tier == "H" || a.Tier == "M") {
+		return VerdictDecide, nil
+	}
+	return VerdictAct, nil
+}
+
+// Outcome is what Resolve did.
+type Outcome struct {
+	Thread     string
+	Conflict   string
+	Resolution ResolutionKind
+	Applied    bool            // false: pending a human decision
+	Yielded    []string        // ls-… moved to yielded
+	Reissued   []string        // ls-… granted/contested with the remaining globs
+	Demoted    []string        // ls-… moved to intent (sequence)
+	First      model.AgentID   // sequence
+	Paths      []string        // proceed-both
+	At         time.Time
+}
+```
