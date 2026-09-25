@@ -52,8 +52,9 @@ tell it to call `seed` first in any session with no history; the managed `claude
 session). Its result is Fleet's typed state only: the `panacea team` view (task 22), open threads
 by id, kind, state and counterpart (task 28, no message bodies), its human's escalation policy rows
 (task 30), open escalations by id, and its **own human's** last five messages (`hm-…`, `text·H`,
-from the Hub). No `ms-…` body, no turn reply, nothing an agent wrote. Peer text still reaches it
-only through `panacea inbox`, quoted (§7.1).
+from the Hub). No `ms-…` body, no turn reply, nothing the old session wrote. Peer words appear only
+where the `team` view already quotes them (task 22's fence); thread bodies still come only through
+`panacea inbox`, quoted (§7.1).
 
 **(e) DIVE is a claimed turn with origin `human`, so nothing else can run.** `POST
 /v1/agents/{ag}/dive` claims a turn through task 26's `ClaimTurn` (the two-replica guard) with
@@ -309,4 +310,115 @@ func (r *Runner) dive(ctx context.Context, b control.DiveBegin) control.DiveEnd
 claim holds, so a sign of a bug) is answered with a `dive.end` of `exit: failed`, `code: -3`, and
 the turn is untouched. While the DIVE child runs, `Run` keeps calling `events.wait` on its own
 goroutine for `dive.stop` only; any `turn.begin` arriving then is refused the same way, `code: -3`.
+
+#### `control-plane/internal/fleet/turns/dive.go` (complete public surface)
+
+```go
+package turns
+
+var (
+	ErrBusy       = errors.New("turns: a turn or a DIVE is already in flight")
+	ErrNotRunning = errors.New("turns: the orchestrator has no live sandbox")
+)
+
+// DiveState is what GET …/dive and task 55's panel show. Waiting is a count
+// of queued events, a fact, not a fraction (OD-27).
+type DiveState struct {
+	Active  bool      `json:"active"`
+	Turn    string    `json:"turn,omitempty"`  // ot-…
+	Since   time.Time `json:"since,omitempty"`
+	Waiting int       `json:"waiting"`         // team events queued behind it
+}
+
+// BeginDive claims a turn with Origin human, EventIDs empty, Mode resume on
+// the current uuid (new if none), Until now+DiveMax, and pushes dive.begin.
+// ErrBusy if ClaimTurn loses (a turn in flight, or another DIVE); the owner
+// retries when the turn ends. The claim is written through the outbox as
+// the DIVE's start: an ot-… record, origin human, exit "dive-started".
+func (s *Scheduler) BeginDive(ctx context.Context, orch model.AgentID) (DiveState, error)
+
+// EndDive accepts the runner's dive.end: the claimed turn and its nonce,
+// once, constant time (as End). It writes the ot-… record's end (origin
+// human, Issued = every id RecordIssued saw in the DIVE, exit), deletes the
+// claim, and wakes the scheduler so the queued events run at once.
+func (s *Scheduler) EndDive(ctx context.Context, e wire.DiveEnd) error
+
+// StopDive pushes dive.stop for the owner's DELETE, for the claim's Until,
+// and for task 11's Revoker (reason access_removed). The runner ends the
+// child; EndDive then closes the claim. A lapsed claim with no dive.end is
+// swept like a lost turn (task 26 (d)), with no events to re-queue.
+func (s *Scheduler) StopDive(ctx context.Context, orch model.AgentID, reason string) error
+```
+
+The DIVE's `ot-…` record is one record with two writes, start and end, through task 07's route 69
+(`task-26.md:580-594`). `exit` gains two Fleet-only values, `dive-started` and `dive`, and the
+record's `consumed` is empty (a DIVE consumes no event; the queued ones run after it). **Requires
+of task 07**: route 69 accepts a second write to the same `ot-…` id when the first carried
+`dive-started` (a revision, not a new record), or the start is its own `ot-…` and the end another;
+this part prefers the first and lists it. Every directive issued inside a DIVE is `origin: human`,
+because `CurrentTurn` returns the DIVE's claim (`task-31.md:41-44`) and task 31's gate lets a
+human-origin `free` pass (`task-31.md:471`).
+
+#### The routes, `server/dive.go`
+
+All three through task 39's `RouteAgent` with `VerbSessionsOwn`, so a non-owner, a viewer, an
+auditor and a missing agent all get the same `404 agent_not_found`; the agent must be of class
+`orchestrator`, else the same 404.
+
+```jsonc
+// POST /v1/agents/{ag}/dive          → 202 DiveState {"active":true,"turn":"ot-…","since":…,"waiting":3}
+//   409 orchestrator_busy (a turn in flight; details.retry "after_turn"), 409 agent_not_running
+// GET  /v1/agents/{ag}/dive          → 200 DiveState
+// DELETE /v1/agents/{ag}/dive        → 202 DiveState {"active":true,…} (dive.stop sent; the
+//   runner's dive.end closes it); 404 when no DIVE is active
+```
+
+The owner then attaches to the **Orchestrator's** terminal through task 39's `GET
+/v1/agents/{ag}/attach`, exactly as to a worker's. Starting a DIVE does not attach and attaching
+does not start a DIVE: attached without a DIVE, the owner sees the parked runner's one fixed line,
+*"Orchestrator parked. Start a DIVE from the panel to talk to it here."*; the runner writes it
+once at start and after each turn and DIVE, beside task 27's status lines (its `slog` handler on
+the PTY, `task-27.md:318`, never child output).
+
+#### The `seed` verb (`verbs/seed.go`, complete result shape)
+
+```go
+package verbs
+
+// SeedResult is a new session's typed world (decision d). Nothing in it was
+// written by the old session: no turn reply, no message this Orchestrator
+// sent, no transcript byte. Peer words appear only where `panacea team`
+// already quotes them, in task 22's fence, attributed.
+type SeedResult struct {
+	Team        TeamOrchestrator `json:"team"`      // task 22 (task-22.md:218-224), as `panacea team`
+	Threads     []SeedThread   `json:"threads"`     // open, by id; bodies via `panacea inbox`
+	Escalations []SeedEsc      `json:"escalations"` // open es-… of this Orchestrator
+	Policy      SeedPolicy     `json:"policy"`      // the owner's escalation rows (task 30)
+	Human       []teamtext.Text `json:"human"`      // own human's last ≤ 5 hm-…, text·H only
+	Rotated     string         `json:"rotated"`     // "" | "day" | "task-boundary" | "pod"
+}
+
+type SeedThread struct {
+	ID          string `json:"id"`          // th-…
+	Conflict    string `json:"conflict"`    // cf-… or ""
+	State       string `json:"state"`       // open | escalated
+	Counterpart string `json:"counterpart"` // the other Orchestrator's owner display name
+	Round       int    `json:"round"`
+}
+
+type SeedEsc struct {
+	ID    string `json:"id"`    // es-…
+	Kind  string `json:"kind"`  // inform | decide
+	State string `json:"state"` // open
+}
+
+type SeedPolicy struct {
+	Floors []string `json:"floors"` // task 30's escalation floors in force
+}
+```
+
+`Human` is filtered twice: author class `text·H` **and** author the Orchestrator's owner (task
+02's `Text.Author`, `Text.Owner`); anything else is dropped, so a teammate's human text can never
+reach another Orchestrator's seed. `Rotated` tells the new session why it is new, as a fixed enum.
+`seed-result.json` is the fixture, with one of each.
 
