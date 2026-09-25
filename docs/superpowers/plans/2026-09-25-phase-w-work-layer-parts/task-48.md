@@ -574,4 +574,137 @@ describe("glyphPropsOf (decision 8)", () => {
 | not proven from the word | an ordinary done glyph on a hand-set done; *proven, self-attested* drawn as not proven |
 | one rule in three places | the row or the board card drawing an ordinary done glyph |
 
+#### Tests to write first — `desktop/src/components/issue/ProofLine.test.tsx`
+
+```tsx
+import { describe, expect, it } from "vitest";
+import { render } from "@testing-library/react";
+import { expectNoPrediction } from "../../test/expectNoPrediction";
+import { ALICE, makeIssueHead } from "../../test/workFixtures";
+import { ProofLine, proofHeadOf, type ProofCitation, type ProofHead } from "./ProofLine";
+
+const LAND = "7c1f0a2" + "0".repeat(33);
+const cite = (over: Partial<ProofCitation> = {}): ProofCitation => ({
+  criterionId: "c-91e2a4b0", cause: "evidence_observed", commit: LAND,
+  because: "test -f resume.ok, exit 0, run by the platform at 14:02", recordedAt: "2026-09-25T04:02:00Z", ...over,
+});
+const at = (over: Partial<ProofHead>): ProofHead => ({
+  ...proofHeadOf(makeIssueHead({ state: "done", landCommit: LAND })), proofCitations: [cite()], ...over,
+});
+const text = (h: ProofHead) => render(<ProofLine head={h} />).container.textContent ?? "";
+
+describe("ProofLine (SW.4's words, rendered)", () => {
+  it("renders observed evidence with its commit and exit code, and never 'not proven'", () => {
+    const t = text(at({ proof: "proven" }));
+    expect(t).toContain("own evidence at 7c1f0a2");
+    expect(t).toContain("exit 0");
+    expect(t).not.toMatch(/not proven/);
+  });
+  it("says self-attested when the Hub says so", () => {
+    expect(text(at({ proof: "proven_self_attested", proofCitations: [cite({ cause: "evidence_recorded" })] })))
+      .toContain("proven, self-attested");
+  });
+  it("shows a hand-set done's reason, its author and its time", () => {
+    const t = text(at({ proof: "not_proven", stateReason: "shipped behind a flag, 80% of users",
+      stateMovedBy: ALICE, stateMovedAt: "2026-09-25T01:02:00Z", proofCitations: [] }));
+    expect(t).toMatch(/^done, not proven · shipped behind a flag, 80% of users · Alice Example, /);
+  });
+  it("says set by hand when the Hub has not said who", () => {
+    expect(text(at({ proof: "not_proven", stateReason: "r", proofCitations: [] }))).toMatch(/set by hand$/);
+  });
+  it("draws nothing before landed", () => {
+    expect(text(at({ proof: "", state: "started" }))).toBe("");
+  });
+  it("makes no prediction in any of the six words, a verbatim 80% included", () => {
+    for (const proof of ["proven", "proven_self_attested", "not_proven", "no_criteria", "waiting"] as const) {
+      const { container } = render(<ProofLine head={at({ proof, stateReason: "80% of users" })} />);
+      expectNoPrediction(container);
+    }
+  });
+});
+```
+
+| Test | Mutant it kills |
+|---|---|
+| observed evidence with commit and exit code | conflating observed evidence with *not proven*; a line with no commit |
+| self-attested says so | hiding *self-attested* behind a plain *proven* |
+| reason, author, time | the mark without its reason (task 39's mutant, now in the product) |
+| set by hand | an invented author when the Hub gave none |
+| nothing before landed | a proof line on a started issue (a prediction by another name) |
+| no prediction | a `%` outside the verbatim reason, a bar or an ETA on the line |
+
+#### Tests to write first — `desktop/src/components/issue/Relations.test.tsx`
+
+```tsx
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { api } from "../../api";
+import { useCockpit } from "../../store/store";
+import { FIXED_NOW, aSession } from "../../test/fixtures";
+import { ALICE, DYLAN, WORK_IDS, makeIssueHead } from "../../test/workFixtures";
+import { mutate } from "../../work/replica/ops";
+import { search } from "../../work/replica/replica";
+import { useIssueSummaries } from "./issueData";
+import { Relations, relationOp } from "./Relations";
+
+// Every session verb CockpitClient has (desktop/src/api/client.ts, the interface as read on
+// 2026-09-25); none may be called by a relation, whoever owns the other issue.
+const SESSION_VERBS = ["createSession", "renameSession", "restartSession", "killSession",
+  "purgeSession", "resumeSession", "forkSession", "openAttach"] as const;
+vi.mock("../../api", () => ({ api: Object.fromEntries(
+  ["createSession", "renameSession", "restartSession", "killSession", "purgeSession",
+   "resumeSession", "forkSession", "openAttach"].map((k) => [k, vi.fn()])) }));
+vi.mock("../../hooks/heartbeat", () => ({ useHeartbeat: () => FIXED_NOW }));
+vi.mock("../../work/replica/ops", () => ({ mutate: vi.fn() }));
+vi.mock("../../work/replica/replica", () => ({ useWork: (f: (r: unknown) => unknown) => f({}), search: vi.fn() }));
+vi.mock("./issueData", () => ({ useIssueSummaries: vi.fn(() => new Map()) }));
+
+const h = (id: string, over = {}) => ({ ...makeIssueHead({ id, ...over }), reassignRequest: null } as never);
+beforeEach(() => { vi.mocked(mutate).mockClear(); useCockpit.setState({ sessions: {} }); });
+
+describe("Relations", () => {
+  it("writes blocked-by as the other issue blocking this one, and each end reads its word", () => {
+    expect(relationOp(WORK_IDS.ep142, "blocked_by", WORK_IDS.ep150)).toEqual(
+      { kind: "relation", issueId: WORK_IDS.ep150, add: { kind: "blocks", issueId: WORK_IDS.ep142 } });
+    const { unmount } = render(<Relations me={DYLAN}
+      head={h(WORK_IDS.ep150, { relations: [{ kind: "blocks", issueId: WORK_IDS.ep142 }] })} />);
+    expect(screen.getByText("blocking")).toBeTruthy();
+    unmount();
+    render(<Relations me={DYLAN} head={h(WORK_IDS.ep142, { relations: [{ kind: "blocked_by", issueId: WORK_IDS.ep150 }] })} />);
+    expect(screen.getByText("blocked by")).toBeTruthy();
+  });
+  it("sends one relation op to an issue another person owns, and no act at any session", async () => {
+    const user = userEvent.setup();
+    vi.mocked(search).mockReturnValue([{ id: WORK_IDS.ep150, alias: "EP-150", title: "Alice's issue" }] as never);
+    vi.mocked(useIssueSummaries).mockReturnValue(new Map([[WORK_IDS.ep150,
+      { head: h(WORK_IDS.ep150, { assignee: ALICE, state: "started" }), title: "Alice's issue" }]]));
+    render(<Relations me={DYLAN} head={h(WORK_IDS.ep142)} />);
+    await user.click(screen.getByRole("button", { name: "Add a relation" }));
+    await user.click(screen.getByRole("option", { name: "related" }));
+    await user.click(screen.getByRole("option", { name: /EP-150/ }));
+    expect(vi.mocked(mutate).mock.calls.map((c) => c[0])).toEqual([
+      { kind: "relation", issueId: WORK_IDS.ep142, add: { kind: "relates", issueId: WORK_IDS.ep150 } }]);
+    const verbs = api as unknown as Record<(typeof SESSION_VERBS)[number], ReturnType<typeof vi.fn>>;
+    for (const k of SESSION_VERBS) expect(verbs[k]).not.toHaveBeenCalled();
+  });
+  it("shows my idle agent on the issue this one blocks, with the wait in mono", () => {
+    useCockpit.setState({ sessions: { "s-1": aSession({ id: "s-1", status: "idle",
+      issueRef: `issue:${WORK_IDS.ep142}@3`, lastOutputAt: new Date(FIXED_NOW - 42 * 60_000).toISOString() }) } as never });
+    render(<Relations me={DYLAN} head={h(WORK_IDS.ep150, { state: "todo", relations: [{ kind: "blocks", issueId: WORK_IDS.ep142 }] })} />);
+    const line = screen.getByText("blocking dylan · agent 1 · waiting 42m");
+    expect(line.className).toContain("iv-fact");
+  });
+  it("shows no stall once the blocker has landed", () => {
+    useCockpit.setState({ sessions: { "s-1": aSession({ id: "s-1", status: "idle", issueRef: `issue:${WORK_IDS.ep142}@3` }) } as never });
+    render(<Relations me={DYLAN} head={h(WORK_IDS.ep150, { state: "landed", relations: [{ kind: "blocks", issueId: WORK_IDS.ep142 }] })} />);
+    expect(screen.queryByText(/blocking dylan/)).toBeNull();
+  });
+});
+```
+
+The mock factory repeats the verb list because a `vi.mock` factory is hoisted above the module's
+constants and cannot read `SESSION_VERBS` (the rule `AppShell.test.tsx:31` already notes). Step 1
+re-reads `CockpitClient` on the sync base and adds any session verb task 37 or later has added.
+
 
