@@ -56,3 +56,79 @@ poll + one fan-out call (`task-11.md:565-567`), asserted as ≤ 60 s.
 - `control-plane/internal/hub/hubclient/conformance/conformance.go` (task 08) — the skip removed (modify)
 - `docs/superpowers/contracts/2026-09-23-hub-contract.md` — §7.13's revocation sentence, route 48's
   `account_disabled`, the §8 `delegation.revoked` reasons (modify)
+
+**Interfaces:**
+- Consumes:
+  - task 01: §7.13's delegation record and `revokedReason` (`task-01.md:320-331`); the §8 row
+    `delegation.revoked`; `team.member_removed` on route 78's feed (`:500`).
+  - task 03: `hubapi.RevokeReason` and its four values (`task-03.md:108-120`), `Delegation`.
+  - task 04: the `delegations` table and the `revoke_reason` enum (`task-04.md:116`).
+  - task 06: routes 48 and 49 (`task-06.md:111-119`), the delegation store.
+  - task 08: `hubclient.OrgFeed`, the fake's `RemoveMember`, the conformance row
+    `team-feed/member-removed-revokes` (`task-08.md:343`).
+  - task 11: `delegation.Revoker`, `Reason` (`Revoked`, `Lapsed`), `Feed`, `Cache`, `Sweep`,
+    `PollEvery` (`task-11.md:565-600`).
+  - task 12: the `fanout` (`task-12.md:976-999`); task 20: `Sessions.Revoke`/`Resume`; task 23:
+    `Engine.EndAgent` (`task-23.md:143`); task 39: `Relay.Revoke`/`Resume`.
+  - Hub task 14: `Tx`, `Emit`, `Event`; Hub task 15: `RemoveMember`, the member role change.
+- Produces: `store.RevokeForLeaver`, `store.RevokeForAccount`, `store.LiveOwners`;
+  `server.AccountState`, `server.FakeAccounts`, `server.AccountSweep`; `hubapi.CodeAccountDisabled`;
+  `leases.Revoker`.
+- Required by: task 57 (a leaver is part of the TM1 proof), task 52 (the card's *ended: access
+  removed* line reads the agent's `access_removed` exit), task 45 (the revocations are audited).
+
+#### The Hub half — complete source
+
+`store/delegations.go` (task 06), added:
+
+```go
+// RevokeForLeaver revokes every live delegation userID owns for any project
+// of teamID, reason member_removed. It runs inside the caller's Tx (the
+// removal's own), and returns the revoked rows so the caller emits one
+// delegation.revoked each. A second call finds nothing and returns nil.
+func RevokeForLeaver(ctx context.Context, tx *Tx, teamID, userID string) ([]hubapi.Delegation, error) {
+	rows, err := tx.Query(ctx, `
+		UPDATE delegations d
+		   SET revoked_at = $3, revoked_reason = 'member_removed'
+		  FROM projects p
+		 WHERE d.org_id = p.org_id AND d.project_id = p.id
+		   AND p.team_id = $1 AND d.owner_user_id = $2
+		   AND d.revoked_at IS NULL
+		RETURNING d.id, d.project_id, d.owner_user_id, d.class, d.routes,
+		          d.created_at, d.expires_at, d.renewed_at, d.revoked_at, d.revoked_reason`,
+		teamID, userID, tx.Now)
+	if err != nil {
+		return nil, err
+	}
+	return scanDelegations(rows) // task 06's scanner
+}
+
+// RevokeForAccount is the same act for an account the directory reports
+// disabled: every live delegation the user owns in the org, any team.
+func RevokeForAccount(ctx context.Context, tx *Tx, userID string) ([]hubapi.Delegation, error)
+
+// LiveOwners lists the distinct owners of live (unrevoked, unexpired)
+// delegations in the org, for the daily sweep. At most 5,000 per call.
+func LiveOwners(ctx context.Context, tx *Tx, after string) (userIDs []string, err error)
+```
+
+`store/teams.go` (Hub task 15), in `RemoveMember` after the membership `DELETE`, and in the
+member-role write when the new role is `viewer` (a viewer launches nothing, §3.4):
+
+```go
+	revoked, err := RevokeForLeaver(ctx, tx, teamID, userID)
+	if err != nil {
+		return err
+	}
+	for _, d := range revoked {
+		tx.Emit(Event{Kind: "delegation.revoked", TeamID: teamID, ProjectID: d.ProjectID,
+			Data: map[string]any{"delegationId": d.ID, "reason": hubapi.RevokeReasonMemberRemoved}})
+	}
+	tx.Emit(Event{Kind: "team.member_removed", TeamID: teamID,
+		Data: map[string]any{"userId": userID, "role": newRole}}) // newRole "" on removal
+```
+
+`team.member_removed` fires for a downgrade to `viewer` too, with `role: "viewer"`, because for
+team mode the person has left the set of people whose agents may act. Rows stay: the leaver's
+tasks, agents, messages and escalations are accountability facts and are never deleted or
+reassigned (Global constraint 3: nobody writes another person's records).
