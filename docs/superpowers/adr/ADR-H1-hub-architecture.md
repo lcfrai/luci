@@ -6,7 +6,7 @@ under `OD-1`; nothing here is built. **Branch:** `feat/hub`, based on `3303fd6`.
 **Decisions it rests on:** `docs/superpowers/planning/2026-09-23-owner-decisions.md` — `OD-3`
 (shared from day one), `OD-4` (both git hosts), `OD-5` (our own server side, in this monorepo),
 `OD-6` (Entra, auth-code + PKCE, tokens in Windows Credential Manager), `OD-11` (clean-room canvas,
-permissive licences only), `OD-13` (Panacea stays a separate API).
+permissive licences only), `OD-13` (Panacea stays a separate API). **Amended by `OD-30` (§12).**
 
 ---
 
@@ -307,7 +307,7 @@ Each answer is the decision; the contract holds the exact routes, JSON, DDL and 
   `upstream_unavailable`, `details.upstream = "hub"`** — ruling R4's code and kind, with a third
   upstream name. No new desktop `ProblemKind` is needed.
 
-### 5.2 Identity
+### 5.2 Identity — **issuer, token profile and validator superseded by `OD-30`; see §12**
 
 **The control plane runs the sign-in and holds the tokens. The renderer never sees one.**
 
@@ -595,7 +595,7 @@ H5 land. Until then, each phase codes to `hubclient`'s interface with its in-mem
 
 ## 6. Rejected alternatives
 
-### 6.1 A broker (Keycloak) in front of Entra
+### 6.1 A broker (Keycloak) in front of Entra — **reversed by `OD-30`: the broker is adopted; see §12**
 
 Rejected. **`OD-6`** asks for Entra SSO with auth-code + PKCE, and a broker adds a second token
 issuer the Hub must trust and the owner must operate. Panacea's Keycloak is a recurring outage class:
@@ -713,7 +713,7 @@ second style doubles the error model for no caller that needs streaming or graph
 
 ---
 
-## 9. What the owner and KPMG IT must provide
+## 9. What the owner and KPMG IT must provide — **items 1-6 and 9 withdrawn by `OD-30`: nothing is asked of IT for sign-in; see §12**
 
 Nothing below blocks development: `devissuer` runs the whole flow locally. Items 1–6 block the
 **first real sign-in**. Item 9 is phase 8's and is listed so the whole ask goes to IT once.
@@ -740,7 +740,7 @@ Nothing below blocks development: `devissuer` runs the whole flow locally. Items
 | Q2 | What does **erasure** of a brief do to a release that pinned it? (provenance contract Q5) | Content removed; key, digest, author and time kept; the pin renders **"erased on <date>"** — a state distinct from `missing` (§5.6) |
 | Q3 | May a designer approve their own design? | **Yes in v1**, as the prototype draws; separation of duties is an org policy later (§5.9 item 8) |
 | Q4 | How do teammates join? | A team admin **invites an email address in the same tenant**; it binds at that person's first sign-in. No Graph people picker in v1 |
-| Q5 | Should Azure DevOps use the **same Entra sign-in**? | **Yes** — one refresh token serves ADO, so no ADO PAT is needed (`OD-4`, `OD-6`). Needs item 2's optional permission. GitHub keeps its own token in the same store |
+| Q5 | Should Azure DevOps use the **same Entra sign-in**? | **No — flipped by `OD-30` (§12; ruling §7).** A realm token cannot be an Azure DevOps token, so each user pastes an ADO personal access token (Code, Read & write) once; it is stored in Windows Credential Manager (`OD-4`, `OD-6`'s store). GitHub keeps its own token in the same store. *Was: "Yes — one refresh token serves ADO, so no ADO PAT is needed"* |
 | Q6 | When the Hub is down, may writes queue and replay? | **No.** A queued approval or pin would record the wrong moment. Writes are refused and say why |
 | Q7 | Does the Hub, in its first cut, hold canvas documents? | **No** — phase 5's v1 keeps them in the control plane; the Hub hosts that package in v2 (§5.5) |
 
@@ -771,6 +771,37 @@ Nothing below blocks development: `devissuer` runs the whole flow locally. Items
 - **Azure Postgres Flexible Server** supporting major version 16 and the core functions used
   (`sha256`, `gen_random_uuid`, row-level security) is from knowledge and phase 8's choice, not
   from a provisioned server.
+
+---
+
+## 12. Amendment — OD-30, sign-in through a Keycloak broker (2026-09-25)
+
+**Decision:** `OD-30` (main `docs/superpowers/planning/2026-09-23-owner-decisions.md:166`). **Ruling,
+applied without re-arguing:** main `docs/superpowers/planning/2026-09-25-identity-keycloak-broker.md`
+("the ruling"). Users sign in through a **Keycloak realm that brokers Entra, with no clicks**, on the
+Entra registration Panacea's Keycloak already uses (client id beginning `37f8bd70-`, ruling §1). Where
+this section and §1-§11 disagree, **this section wins**; task 44a folds it into the body (ruling §11 `:503`).
+
+| Superseded here | By | What stands |
+|---|---|---|
+| §5.2 "runs PKCE against Entra directly ... No broker" (`:310-396`) | ruling §2-§5 | The one-shot `127.0.0.1:0` listener, the system browser, the refresh token in Windows Credential Manager, the renderer never holding a token. **Changes:** the issuer is `PANACEA_APP_OIDC_ISSUER` (Panacea's dev realm until phase 8, then phase 8's own realm, ruling §2 `:87-99`); client `panacea-app-desktop`, public, S256; `kc_idp_hint=entra`, `login_hint=<UPN>`, `offline_access`; the control plane opens the browser itself; one audience per access token by a narrowing refresh (`panacea-app-hub` for the Hub); the `keycloak` token profile (ruling §4); the validator `internal/oidcauth` (ruling §5) |
+| §6.1 "A broker (Keycloak) in front of Entra — Rejected" (`:598-607`) | ruling §1, §9 | **Reversed.** The outage class is met by offline tokens (they survive Panacea's in-memory sessions, ruling §2 `:82-85`) and by phase 8's own two-replica Keycloak, which does not copy that class (ruling §9 `:417-419`) |
+| §5.3's org admin "the Entra app role `Hub.OrgAdmin`, assigned by IT" (`:430`) | ruling §4 `:187`, `:193` | the realm role **`hub.org_admin`**, flat in the token's `roles`, assigned by the realm's admin; no read of project content, as before |
+| §9 items 1-6 and 9, IT's registrations (`:716-733`) | ruling §1 `:21-28`, §10 | **Withdrawn: nothing is asked of IT for sign-in.** Keycloak asks K1-K4 go to Panacea's own update of its dev realm; phase 8's only Entra ask (one broker redirect URI and a second client secret) joins the IT request's Part 2, sent when phase 8 provisions |
+| Q5 "Azure DevOps uses the same Entra sign-in ... no ADO PAT" (`:743`) | ruling §7 | **Flipped to No:** Azure DevOps is a personal access token per user, scope Code (Read & write), in the same Credential Manager store; GitHub unchanged |
+| §6.3 and §4.1's package name `entra` | ruling §5 `:228-232` | `control-plane/internal/oidcauth`, one package for the Hub and the broker (HA-1 stands) |
+| §11's Entra-behaviour bullets | ruling §12 U-1..U-14 | the ruling's list of what is unverified |
+
+**Stands unchanged:** the person key `(tid, oid)`, Entra's ids carried through the realm as claims (ruling
+§4 `:166-174`), so every Hub row and owner label is the same; `OD-6`'s system browser, Credential Manager,
+users always themselves, nothing pooled; §6.6 (membership is the Hub's own; the desktop requests no
+`groups`); the Hub's rate-limit and audit keys.
+
+**Open, not decided by the ruling (for task 13 and task 44a):** correction A15's invite binding reads
+Entra's `acct` and `xms_edov`, which a realm token never carries (ruling §4 lists `email` and
+`email_verified` only). As planned, it fails closed, so **no invite binds** under `keycloak`. The rule that
+replaces it (for example `email_verified == true`, which Panacea's `trustEmail:true` makes true for every
+brokered user) needs an owner or orchestrator ruling; it is not made here.
 
 *End of ADR-H1. The contract is `docs/superpowers/contracts/2026-09-23-hub-contract.md`.*
 
