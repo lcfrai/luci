@@ -448,3 +448,102 @@ A lease event's holder is referenced by `(org_id, id)` only: an `admin-released`
 under an admin's delegation (§7.16), so its recorder is not the holder's owner. That the recorder
 is the holder's owner **or** an admin of the project, and that `seq` is the last plus one, are
 Go's (task 06); the primary key refuses a repeated `seq`.
+
+**Piece 6, threads, conflicts and messages.** A thread's two participants are two columns, not an
+array, so each has a foreign key. Its deadline is Fleet's clock and `created_at` the Hub's, so the
+database checks only that the deadline is after creation; the 30-minute to 24-hour window, with
+whatever skew tolerance it needs, is Go's (task 07).
+
+```sql
+-- ── §7.18 threads ────────────────────────────────────────────────────────────
+CREATE TABLE threads (
+  id              text           PRIMARY KEY CHECK (id ~ '^th-[0-9a-f]{16}$'),
+  org_id          text           NOT NULL REFERENCES orgs (id),
+  project_id      text           NOT NULL,
+  owner_user_id   text           NOT NULL,     -- the opener's owner, the delegation's
+  opener_agent_id text           NOT NULL,
+  participant_a   text           NOT NULL,
+  participant_b   text           NOT NULL,
+  subject_kind    thread_subject NOT NULL,
+  subject_id      text,
+  state           thread_state   NOT NULL DEFAULT 'open',
+  rounds          integer        NOT NULL DEFAULT 0 CHECK (rounds >= 0),
+  deadline        timestamptz    NOT NULL,
+  revision        integer        NOT NULL DEFAULT 1 CHECK (revision >= 1),
+  created_at      timestamptz    NOT NULL DEFAULT now(),
+  UNIQUE (org_id, id),
+  CONSTRAINT threads_project_fk FOREIGN KEY (org_id, project_id) REFERENCES projects (org_id, id),
+  CONSTRAINT threads_owner_fk   FOREIGN KEY (org_id, owner_user_id) REFERENCES users (org_id, id),
+  CONSTRAINT threads_opener_fk  FOREIGN KEY (org_id, owner_user_id, opener_agent_id)
+    REFERENCES agents (org_id, owner_user_id, id),
+  CONSTRAINT threads_participant_a_fk FOREIGN KEY (org_id, participant_a) REFERENCES agents (org_id, id),
+  CONSTRAINT threads_participant_b_fk FOREIGN KEY (org_id, participant_b) REFERENCES agents (org_id, id),
+  CHECK (participant_a <> participant_b),
+  CHECK (opener_agent_id IN (participant_a, participant_b)),
+  CHECK (CASE subject_kind WHEN 'free'     THEN subject_id IS NULL
+                           WHEN 'conflict' THEN coalesce(subject_id ~ '^cf-[0-9a-f]{16}$', false)
+                           ELSE coalesce(subject_id ~ '^ls-[0-9a-f]{16}$', false) END),
+  CHECK (deadline > created_at)
+);
+
+-- ── §7.17 conflicts: Fleet's forecaster, under agent A's owner's delegation ──
+CREATE TABLE conflicts (
+  id            text           PRIMARY KEY CHECK (id ~ '^cf-[0-9a-f]{16}$'),
+  org_id        text           NOT NULL REFERENCES orgs (id),
+  project_id    text           NOT NULL,
+  owner_user_id text           NOT NULL,
+  agent_a       text           NOT NULL,
+  agent_b       text           NOT NULL,
+  tier          conflict_tier  NOT NULL,
+  paths         jsonb          NOT NULL CHECK (hub.conflict_paths_ok(paths)),
+  basis_a       text           NOT NULL CHECK (basis_a ~ '^([0-9a-f]{40}|[0-9a-f]{64})$'),
+  basis_b       text           NOT NULL CHECK (basis_b ~ '^([0-9a-f]{40}|[0-9a-f]{64})$'),
+  state         conflict_state NOT NULL DEFAULT 'raised',
+  resolution    resolution_kind,
+  thread_id     text,
+  revision      integer        NOT NULL DEFAULT 1 CHECK (revision >= 1),
+  created_at    timestamptz    NOT NULL DEFAULT now(),
+  updated_at    timestamptz    NOT NULL DEFAULT now(),
+  UNIQUE (org_id, id),
+  CONSTRAINT conflicts_project_fk FOREIGN KEY (org_id, project_id) REFERENCES projects (org_id, id),
+  CONSTRAINT conflicts_owner_fk   FOREIGN KEY (org_id, owner_user_id) REFERENCES users (org_id, id),
+  CONSTRAINT conflicts_agent_a_fk FOREIGN KEY (org_id, owner_user_id, agent_a)
+    REFERENCES agents (org_id, owner_user_id, id),
+  CONSTRAINT conflicts_agent_b_fk FOREIGN KEY (org_id, agent_b) REFERENCES agents (org_id, id),
+  CONSTRAINT conflicts_thread_fk  FOREIGN KEY (org_id, thread_id) REFERENCES threads (org_id, id),
+  CHECK (agent_a <> agent_b),
+  CHECK (state NOT IN ('accepted', 'resolved') OR resolution IS NOT NULL)   -- §7.17
+);
+
+-- ── §7.18 messages: append-only, tombstoned on erasure (task 46) ─────────────
+CREATE TABLE messages (
+  id              text         PRIMARY KEY CHECK (id ~ '^ms-[0-9a-f]{16}$'),
+  org_id          text         NOT NULL REFERENCES orgs (id),
+  project_id      text         NOT NULL,
+  thread_id       text         NOT NULL,
+  sender_agent_id text         NOT NULL,
+  sender_user_id  text         NOT NULL,     -- the sender's owner, the delegation's
+  kind            message_kind NOT NULL,
+  fields          jsonb        NOT NULL CHECK (jsonb_typeof(fields) = 'object'),
+  text_body       text,
+  text_author     text_author  CHECK (text_author = 'agent'),   -- always an agent's (§7.18)
+  text_agent      text,
+  templated       boolean      NOT NULL,
+  created_at      timestamptz  NOT NULL DEFAULT now(),
+  tombstoned_at   timestamptz,
+  UNIQUE (org_id, id),
+  CONSTRAINT messages_project_fk FOREIGN KEY (org_id, project_id) REFERENCES projects (org_id, id),
+  CONSTRAINT messages_thread_fk  FOREIGN KEY (org_id, thread_id) REFERENCES threads (org_id, id),
+  CONSTRAINT messages_sender_fk  FOREIGN KEY (org_id, sender_user_id, sender_agent_id)
+    REFERENCES agents (org_id, owner_user_id, id),
+  CHECK (hub.text_ok(text_body, text_author, text_agent, 600)),
+  CHECK (text_author IS NULL OR text_agent = sender_agent_id),     -- a text is its sender's
+  CHECK (tombstoned_at IS NULL OR text_body IS NULL),
+  CHECK (kind NOT IN ('ask', 'inform') OR text_author IS NOT NULL), -- text required (§7.18)
+  CHECK (kind <> 'withdraw' OR text_author IS NULL)                 -- withdraw has none
+);
+```
+
+A message's `text_author` stays set after erasure, so "had text" survives a tombstone and the two
+kind `CHECK`s hold for an erased row. The per-kind `fields` keys, and `accept`·`reject`'s shorter
+300-character reason, are Go's (task 07); the database holds 600, the widest.
