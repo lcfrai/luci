@@ -754,3 +754,170 @@ The composer's time zone is the person's (`useMe().timeZone`, task 126's harness
 (`issue:is-…`, `ev-…`, `feature:ft-…`), because task 119's `cites` are Hub keys; a fact key `f1` never
 leaves the composer. The health radio group is untouched: a draft never sets `health`, and the
 `Draft from these` handler has no reference to it (the test reads the radios after a draft).
+
+#### Interfaces — complete: `desktop/src/components/issue/ThreadSummary.tsx`
+
+```tsx
+// desktop/src/components/issue/ThreadSummary.tsx — L-43. An index over the thread, never stored.
+import { useState } from "react";
+import type { ThreadSummary as Summary } from "../../api/work";
+import { useWorkClient } from "../../api/useWorkClient";
+import { ApiError } from "../../api/client";
+
+export const SUMMARY_THRESHOLD = 12;   // decision 8; mirrors workassist.SummaryThreshold
+
+export interface ThreadSummaryProps {
+  issueId: string;
+  rootId: string;                     // "" for the whole activity
+  liveCount: number;                  // non-erased comments in the thread
+  onJump(commentId: string): void;    // scrolls the thread to ic-…, no navigation
+  onPostAsComment(text: string): void; // opens task 51's reply editor with text·A
+}
+
+export function ThreadSummary(p: ThreadSummaryProps): JSX.Element | null {
+  const work = useWorkClient();
+  const [s, setS] = useState<Summary | null>(null);   // memory only: gone on unmount (decision 7)
+  const [note, setNote] = useState<string | null>(null);
+  if (p.liveCount <= SUMMARY_THRESHOLD) return null;
+
+  const run = async () => {
+    setNote(null);
+    try { setS(await work.summariseThread(p.issueId, p.rootId)); }
+    catch (e) {
+      const code = e instanceof ApiError ? e.code : "";
+      setNote(code === "assists_off" ? "Summaries unavailable: assists are off for this org."
+        : "Summaries unavailable: the gateway did not answer.");
+    }
+  };
+
+  if (s === null) {
+    return (
+      <div className="ts">
+        <button type="button" onClick={run}>Summarise</button>
+        {note && <p className="ts-note" role="status">{note}</p>}
+      </div>
+    );
+  }
+  return (
+    <section className="ts" aria-label="Thread summary" data-author="A">
+      <p className="ts-head"><span className="ts-drafted">Drafted</span> · Not saved. Post it as a comment to keep it.</p>
+      <ul className="ts-lines">
+        {s.lines.map((l, i) => (
+          <li key={i} className="ts-line">
+            <span className="ts-text">{l.text}</span>{" "}
+            {l.comments.map((id) => (
+              <a key={id} href={`#${id}`} className="ts-cite"
+                onClick={(e) => { e.preventDefault(); p.onJump(id); }}>{id}</a>))}
+          </li>))}
+      </ul>
+      {s.dropped > 0 && <p className="ts-note">{s.dropped} {s.dropped === 1 ? "line was" : "lines were"} left out: cited outside this thread.</p>}
+      <button type="button" onClick={() => p.onPostAsComment(s.lines.map((l) => `${l.text} (${l.comments.join(", ")})`).join("\n"))}>
+        Post as comment
+      </button>
+    </section>
+  );
+}
+```
+
+**The ⚑ `Comments.tsx` delta (task 51).** Above a top-level comment whose thread holds more than
+`SUMMARY_THRESHOLD` non-erased comments, `Comments` renders `<ThreadSummary issueId rootId
+liveCount onJump onPostAsComment />`. `onJump` scrolls to `[data-comment="ic-…"]`
+(`task-51.md:467`'s attribute) and focuses it; `onPostAsComment` opens that thread's reply editor
+with `docFromAuthored({text, author: "A"})`, so the posted comment is `text·A` unless the person
+edits it (task 49's rule). The summary is **not** part of the thread's list, so it never reaches
+the replica's comment store and never becomes a Hub write on its own.
+
+#### Tests to write first — Go, `control-plane/internal/workassist/{facts,draft_update,summary}_test.go`
+
+Over task 136's test rig (**UNVERIFIED** name `newRig(t)`): a `hubclient.Fake` seeded with project
+`EP` (data class `au-only` in one case), feature `ft-ep`, its brief `bf-7k2`, issues EP-142 and
+EP-150; P6 task 16's `fakeanthropic` on two ports labelled `global` and `au`, answering with a
+canned body the test sets (`rig.reply(json)`); and task 136's kill switch (`rig.switchOn()`).
+`rig.prompts()` returns the request bodies the fake received (P6-16's `_captured` holds hashes
+only, so the rig's own capture wraps the gateway client, test-only).
+
+```go
+func TestFactsNeedNoGateway(t *testing.T) { // kills "a model in the digest"
+	r := newRig(t)
+	r.hub.Emit(stateEvent("is-142", "in_review", "landed", "Priya"))
+	r.gateway.Stop()
+	res, err := r.svc.Facts(ctx, "ft-ep", "")
+	require.NoError(t, err)
+	require.Len(t, res.Facts, 1)
+	require.Equal(t, FactLanded, res.Facts[0].Kind)
+	require.Zero(t, r.gateway.Calls())
+}
+
+func TestFactsCarryNoText(t *testing.T) { // kills "comment text in a fact"
+	r := newRig(t)
+	r.hub.Comment("is-142", "the storage quota is the blocker, ask Sam")
+	res, _ := r.svc.Facts(ctx, "ft-ep", "")
+	b, _ := json.Marshal(res)
+	require.NotContains(t, string(b), "storage quota")
+}
+
+func TestUncitedAndForeignCitesAreDropped(t *testing.T) { // kills "a claim with no span", "a hallucinated cite"
+	r := newRig(t)
+	r.hub.Emit(stateEvent("is-142", "in_review", "landed", "Priya"))
+	r.reply(`{"sentences":[{"text":"EP-142 landed.","cites":["f1"]},
+		{"text":"Morale is high.","cites":[]},{"text":"EP-9 shipped.","cites":["f1","f7"]}]}`)
+	res, err := r.svc.DraftUpdate(ctx, "pj-ep", DraftUpdateRequest{FeatureID: "ft-ep"})
+	require.NoError(t, err)
+	require.Equal(t, []DraftSentence{{Text: "EP-142 landed.", Cites: []string{"f1"}}}, res.Sentences)
+	require.Equal(t, 2, res.Dropped)
+}
+
+func TestDraftNeverCarriesHealth(t *testing.T) { // kills "the model picks health"
+	r := newRig(t)
+	r.hub.Emit(stateEvent("is-142", "in_review", "landed", "Priya"))
+	r.reply(`{"health":"on_track","sentences":[{"text":"On track.","cites":["f1"]}]}`)
+	res, _ := r.svc.DraftUpdate(ctx, "pj-ep", DraftUpdateRequest{FeatureID: "ft-ep"})
+	require.Empty(t, res.Sentences)
+	_, has := reflect.TypeOf(DraftUpdateResponse{}).FieldByName("Health")
+	require.False(t, has)
+}
+
+func TestSummaryLinksOnlyItsThread(t *testing.T) { // kills "cross-thread links"
+	r := newRig(t)
+	root := r.hub.Thread("is-142", 14) // 14 comments, ic-a1…
+	other := r.hub.Thread("is-150", 1)[0]
+	r.reply(`{"lines":[{"text":"Quota agreed.","comments":["c2","c3"]},
+		{"text":"See the other issue.","comments":["` + other.ID + `"]}]}`)
+	s, err := r.svc.SummariseThread(ctx, "pj-ep", ThreadSummaryRequest{IssueID: "is-142", RootID: root[0].ID})
+	require.NoError(t, err)
+	require.Equal(t, []string{root[1].ID, root[2].ID}, s.Lines[0].Comments)
+	require.Len(t, s.Lines, 1)
+	require.Equal(t, 1, s.Dropped)
+	require.Zero(t, r.hub.WritesSince(root[13].ID)) // kills "summary stored"
+}
+
+func TestErasedCommentNeverPrompted(t *testing.T) { // kills "erased text sent"
+	r := newRig(t)
+	cs := r.hub.Thread("is-142", 14)
+	r.hub.EraseComment(cs[4].ID, "secret-token-shaped words")
+	r.reply(`{"lines":[]}`)
+	_, _ = r.svc.SummariseThread(ctx, "pj-ep", ThreadSummaryRequest{IssueID: "is-142", RootID: cs[0].ID})
+	require.NotContains(t, strings.Join(r.prompts(), "\n"), "secret-token-shaped words")
+	golden.Assert(t, "testdata/draft/summary-prompt.json", r.prompts()[0])
+}
+
+func TestKillSwitchAndAURoute(t *testing.T) { // kills "switch ignored", "Global for AU data"
+	r := newRig(t, withDataClass("pj-ep", "au-only"))
+	r.hub.Emit(stateEvent("is-142", "in_review", "landed", "Priya"))
+	r.reply(`{"sentences":[{"text":"EP-142 landed.","cites":["f1"]}]}`)
+	res, _ := r.svc.DraftUpdate(ctx, "pj-ep", DraftUpdateRequest{FeatureID: "ft-ep"})
+	require.Equal(t, "au", res.Route)
+	require.Equal(t, 1, r.gateway.CallsOn("au"))
+	r.switchOn()
+	_, err := r.svc.DraftUpdate(ctx, "pj-ep", DraftUpdateRequest{FeatureID: "ft-ep"})
+	require.ErrorIs(t, err, ErrAssistsOff)
+	require.Equal(t, 1, r.gateway.Calls()) // no second call
+}
+```
+
+A route test in `internal/api/workassist_test.go` adds: `POST /v1/work/assist/summarise-thread`
+on a 12-comment thread answers `409 thread_too_short`; `draft-update` under the switch answers
+`503 assists_off`; the facts route answers `200` with the switch on (kills "the digest behind
+the switch"); a feature of an unreadable project answers the Hub's `404`. The house uses the
+standard library's `testing` (the `require` above is shorthand for the rig's `must*` helpers;
+the control plane has no testify dependency, `control-plane/go.mod`).
