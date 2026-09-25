@@ -336,14 +336,87 @@ on both.
 
 **The chain, `fleet/e2e/leaver_integration_test.go`** (build tag `integration`; the real Hub
 in process on Hub task 34's harness; Fleet's real `delegation.Feed`, `Cache`, `fanout`,
-`sessions.Sessions`, `leases.Engine` and `attach.Relay` on task 10's Postgres store; task 20's
+`sessions.Sessions`, `leases.Engine` and task 39's `relay.Relay` on task 10's Postgres store; task 20's
 broker fake; one `fakeClock` driving the feed ticker and Fleet's clocks):
 
 | Test | Asserts | Mutant it kills |
 |---|---|---|
-| `TestRemovalStopsEverythingWithinSixtySeconds` | Linus's worker running, a hold on `src/**`, a viewer socket open; Grace removes him through route 9 at `t0`; the clock advances in 1 s steps → by `t0 + 60 s`: the broker sandbox destroyed, the agent's exit `access_removed`, the lease `released`, the socket closed with task 39's close code, and the Hub's projection shows `agent.ended {"exit":"access_removed"}`; the measured lag is ≤ `PollEvery` + one fan-out (`task-11.md:568-570`) | any effect missing from the fan-out; the Hub's removal not reaching the feed |
+| `TestRemovalStopsEverythingWithinSixtySeconds` | Linus's worker running, a hold on `src/**`, a viewer socket open; Grace removes him through route 9 at `t0`; the clock advances in 1 s steps → by `t0 + 60 s`: the broker sandbox destroyed, the agent's exit `access_removed`, the lease `released`, the socket closed `4003` *access removed* (`task-39.md:58`), and the Hub's projection shows `agent.ended {"exit":"access_removed"}`; the measured lag is ≤ `PollEvery` + one fan-out (`task-11.md:568-570`) | any effect missing from the fan-out; the Hub's removal not reaching the feed |
 | `TestLapsePausesAndWithdrawsThenResumes` | no renewal for 24 h + 1 s → sessions paused (not destroyed), leases released, sockets closed; Linus renews (route 48) → the next poll resumes the session and the hold is not re-granted until asked | a lapse treated as a removal; a lapse that never resumes |
 | `TestDisabledAccountChain` | check `fake`, Linus disabled, his desktop renews → 403; within 60 s the same effects as a removal | the renewal check not reaching Fleet |
 
 The conformance row `team-feed/member-removed-revokes` (`task-08.md:343`) now runs against the real
 Hub: its `t.Skip("task 44")` is deleted, and the run has zero `--- SKIP` lines in the team groups.
+
+#### The contract lines
+
+Hub contract (`2026-09-23-hub-contract.md`, as task 01 extends it):
+- §7.13, after the delegation record: *"Removing a member from a team, or setting them to
+  `viewer`, revokes in the same transaction every live delegation they own for that team's projects,
+  `revokedReason = "member_removed"`. A renewal by an account the directory reports disabled or
+  unknown revokes every live delegation its owner holds in the org, `account_disabled`, and answers
+  403 `account_disabled`; a directory that cannot answer renews."*
+- §4.2: `account_disabled` | 403 | the caller's directory account is disabled | — .
+- §8, `delegation.revoked`: `data.reason` is one of the four `RevokeReason` values
+  (`task-03.md:110-115`); actor NULL for the sweep.
+
+#### Steps
+
+- [ ] **Step 1: Read, after the sync-merge of `feat/hub`.** Hub task 15's `RemoveMember` and route
+  8 handler as merged; Hub task 06's `server/delegations.go` route 48; Hub task 24's janitor. If a
+  signature differs from this part's, the store functions follow the merged one and this part's
+  tests do not change.
+- [ ] **Step 2: Hub tests.** Write `leaver_integration_test.go`; it fails (`undefined:
+  RevokeForLeaver`, `FakeAccounts`).
+- [ ] **Step 3: Store and handlers.** `RevokeForLeaver`, `RevokeForAccount`, `LiveOwners`; the
+  calls in routes 8 and 9; the Hub tests of removal pass.
+- [ ] **Step 4: Account check.** `accountstate.go`, route 48's check, `CodeAccountDisabled`,
+  `config.go`; then `accountsweep.go` and its start in `main.go`. The Hub tests pass.
+- [ ] **Step 5: Leases.** `revoke_test.go` fails, then `revoke.go` and the `fleetd` line; it passes.
+- [ ] **Step 6: The chain and the conformance row.** `fleet/e2e/leaver_integration_test.go`;
+  delete the `t.Skip("task 44")`; both pass.
+- [ ] **Step 7: Contract.** The three edits above.
+- [ ] **Step 8: Commit.** `git add` the new files; `git commit -F <msg> -- <paths>`.
+
+#### Acceptance
+
+```bash
+cd control-plane && go test -tags integration ./internal/hub/server/ -run 'TestRemoval|TestSelfRemoval|TestDowngrade|TestUpgrade|TestRenewal|TestUnknownAccount|TestCheckOff|TestSweep' -count=1
+# ok  	…/internal/hub/server	…   (13 tests)
+cd control-plane && go test ./internal/fleet/leases/ -run 'TestRevoke|TestLapse|TestResume' -count=1
+# ok  	…/internal/fleet/leases	…
+cd control-plane && go test -tags integration ./internal/fleet/e2e/ -run 'TestRemovalStops|TestLapsePauses|TestDisabledAccountChain' -count=1 -v | grep -E '^(--- |ok|FAIL)'
+# --- PASS: TestRemovalStopsEverythingWithinSixtySeconds   (the ≤ 60 s bound is asserted inside)
+# --- PASS: TestLapsePausesAndWithdrawsThenResumes
+# --- PASS: TestDisabledAccountChain
+cd control-plane && go test -tags integration ./internal/hub/... -run Conformance -count=1 -v | grep -c -- '--- SKIP: .*team'
+# 0
+```
+
+#### What this task does not claim
+
+- **That the Graph read works in KPMG's tenant.** `GraphAccounts` is built and unit-tested against
+  an `httptest` server only; `User.Read.All` as an application permission needs a tenant admin's
+  consent, which is §14.1's open item. Until it is granted the check ships `off`, and a disabled
+  leaver who is still a team member is bounded by the 24-hour lapse alone.
+- **That an Entra disablement reaches the Hub faster than the next renewal or the daily sweep.**
+  There is no push from Entra; a change-notification subscription is a later option.
+- **That a leaver's past work is removed.** Their tasks, messages, escalations and agents stay, as
+  accountability facts, and a teammate may re-own an open task through the normal routes.
+- **Anything about a removed member's own solo projects.** Removal is per team; solo delegations
+  are revoked only by the account check.
+
+#### Gaps found in the skeleton
+
+1. **The skeleton's scope says "a daily account-state check at renewal"**; a renewal and a daily
+   sweep are two triggers, and this part builds both. Without the sweep, a disabled leaver whose
+   desktop is off is caught only by the lapse, which is the same bound, so the sweep is cheap
+   insurance, not a new guarantee.
+2. **The fake's `RemoveMember` records `team.member_removed` for a downgrade?** Task 08 does not say
+   (`task-08.md:280-283`). This part emits `team.member_set` for a downgrade on the real Hub; if the
+   fake records `team.member_removed` for it, task 08's fake should change to match.
+3. **`LiveOwners` needs each owner's `tenantId` and `objectId`**, which this part assumes Hub task
+   15's `users` table keeps (Hub task 14's `Principal` carries both, Hub `task-14.md:50-55`).
+   **UNVERIFIED until merge.**
+4. **`PANACEA_APP_HUB_ENV`** as the guard against `fake` in production is **UNVERIFIED**: the Hub
+   branch may name its environment differently.
