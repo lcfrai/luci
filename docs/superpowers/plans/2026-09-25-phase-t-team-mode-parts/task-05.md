@@ -831,3 +831,49 @@ The integration runs skip, not pass, when `hubtest`'s admin URL is unset (Hub ta
 
 The last command is decisions (a) and (i) as a fact: nothing reads or writes `idtyp` except the
 built test that sends one to prove it is ignored.
+
+#### What this task does not claim
+
+- **That any team route is delegable.** Only the four test routes are. Tasks 06 to 08 register
+  each team route through `Delegable` with its task 03 name; a route they forget is safe by
+  default (Fleet gets 403 `required: route`), not open.
+- **That a delegation exists.** This task reads rows task 06 will create; its tests seed them
+  through `OwnerConn`.
+- **An audit event for the refusals of `Authenticate`.** The desktop-with-header 403 and the
+  header 400s are logged only (the reason is above); the route 403 of `resolveDelegated` is an
+  `auth.forbidden` event.
+- **That Entra's app-only tokens look like `devissuer`'s.** `azp` in a v2 app token, `oid` as the
+  service principal's, `roles` as the assigned app roles and no `scp` are Entra's documented shape
+  (**UNVERIFIED** against our registration); no real-tenant check covers an app token yet (Gaps).
+- **That the Hub caches nothing.** It does not: every request re-reads the delegation in its
+  own transaction, so a revocation holds from the next request. What is not claimed is how soon
+  Fleet *stops trying*; that is its feed poll (task 08) and task 44's end-to-end proof.
+- **`Principal.Auditor`.** Not added here; task 07 adds it (`task-07.md:40-41`), and must read it
+  only for a desktop token, as `OrgAdmin` is here (Gaps).
+- **The broker's admission.** Only the shared `entra` field is this task's; task 17 builds the
+  broker's header rules and cache on it.
+- **That Fleet serves more than one tenant.** The Hub admits any enrolled tenant's Fleet token,
+  and the dev file gives Fleet a service principal in two; `fleetd` caches one token per scope
+  (`task-12.md:714`, `:755`), so it acts for one tenant.
+
+#### Gaps (raised in this task's return)
+
+1. `task-06.md:392-394`'s `fleetP` builds `DelegationView{Class: hubapi.AgentRole, Routes:
+   []string}`; this part's fields are task 03's `hubapi.DelegationClass` and
+   `[]hubapi.RouteName`. Task 06 renames mechanically, as its `:440` allows.
+2. `task-17.md:107` and `:236` put its three `entra` tests in `verify_test.go`, which the built package
+   does not have (`entra_test.go`, `testkey_test.go`). They are this part's `appcaller_test.go`,
+   so task 17 adds none.
+3. **No real-tenant check of an app-only token.** Hub task 43's R-4 checks a delegated token's
+   claim names only. Phase T task 43, or whichever part carries the real-tenant checklist, needs a
+   row: Fleet's token from Entra has `azp`, `oid`, `roles ∋ Hub.Fleet` and no `scp`.
+4. **Multi-tenant Fleet is unplanned.** `fleetd`'s token cache is keyed on scope alone (Not
+   claimed, last item); a Fleet that serves two customer tenants needs a token per tenant.
+5. `task-01.md:114`'s §5.10 rule 1 text says "a token whose `idtyp` is `app`"; decision (a) and this
+   part never read `idtyp`. The contract sentence should read "a token with no `scp`", or the Hub
+   and its contract disagree on the signal.
+6. Task 07's `Principal.Auditor` must be false under a delegation, as `OrgAdmin` is (decision e);
+   its part says only "from the token's `Hub.Auditor` app role".
+7. Decision (c)'s order answers a revoked **and** expired delegation `delegation_expired`, so a
+   removed member's Orchestrator may be told "expired", not "revoked". Task 44 must read the
+   feed's `delegation.revoked`, not this code, to tell the user their access was removed.
