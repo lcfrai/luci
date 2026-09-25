@@ -722,3 +722,128 @@ func TestWorkRequestsRejectUnknownFields(t *testing.T) {
 	}
 }
 ```
+
+```go
+// Mutant: an issue created already started, landed or done, which would skip
+// the done rule; or a "shipped" state, which 05-design §3.3 derives and never stores.
+func TestWorkStateSets(t *testing.T) {
+	if len(IssueStates) != 9 || len(FactStates) != 4 || len(InitialStates) != 3 {
+		t.Fatalf("states %d, facts %d, initial %d; want 9, 4, 3", len(IssueStates), len(FactStates), len(InitialStates))
+	}
+	for _, s := range IssueStates {
+		if s == "shipped" {
+			t.Error(`IssueStates holds "shipped", which is derived, never a state`)
+		}
+		if IsFactState(s) && ValidInitialState(s) {
+			t.Errorf("%s is both a fact and an initial state", s)
+		}
+	}
+	for _, s := range FactStates {
+		if ValidInitialState(s) {
+			t.Errorf("ValidInitialState(%q) = true; no issue is created in a fact state", s)
+		}
+	}
+	if ValidIssueState("shipped") || ValidIssueState("") || ValidInitialState("") {
+		t.Error(`"shipped" or "" accepted as a state`)
+	}
+}
+
+// Mutant: a duplicate or empty member in any value list, which task 06's
+// CHECK sets and task 07's TestWorkCheckSetsMatchHubapi are compared against.
+func TestWorkValueListsAreSets(t *testing.T) {
+	lists := map[string][]string{
+		"IssueStates": strs(IssueStates), "Priorities": strs(Priorities),
+		"RelationKinds": strs(RelationKinds), "NotTiedReasons": strs(NotTiedReasons),
+		"IssueSources": strs(IssueSources), "SubscriptionCauses": strs(SubscriptionCauses),
+		"MoveCauses": strs(MoveCauses),
+	}
+	want := map[string]int{"IssueStates": 9, "Priorities": 5, "RelationKinds": 3,
+		"NotTiedReasons": 4, "IssueSources": 3, "SubscriptionCauses": 5, "MoveCauses": 6}
+	for name, l := range lists {
+		c := slices.Clone(l)
+		slices.Sort(c)
+		if len(slices.Compact(c)) != len(l) || slices.Contains(l, "") || len(l) != want[name] {
+			t.Errorf("%s = %v: want %d distinct non-empty values", name, l, want[name])
+		}
+	}
+	if len(Proofs) != 6 || Proofs[0] != ProofNone {
+		t.Errorf("Proofs = %v: want six, the first \"\"", Proofs)
+	}
+}
+
+func strs[T ~string](xs []T) []string {
+	out := make([]string, len(xs))
+	for i, x := range xs {
+		out[i] = string(x)
+	}
+	return out
+}
+
+// Mutant: not_tied with no reason (05-design §2.3's "silent open end"), or a
+// reason carried by an issue that is on the thread.
+func TestThreadStateValid(t *testing.T) {
+	for _, c := range []struct {
+		ts   ThreadState
+		want bool
+	}{
+		{ThreadState{ThreadOnThread, ""}, true},
+		{ThreadState{ThreadProjectLevel, ""}, true},
+		{ThreadState{ThreadNotTied, NotTiedImported}, true},
+		{ThreadState{ThreadNotTied, ""}, false},
+		{ThreadState{ThreadNotTied, "later"}, false},
+		{ThreadState{ThreadOnThread, NotTiedChore}, false},
+		{ThreadState{"", ""}, false},
+	} {
+		if got := c.ts.Valid(); got != c.want {
+			t.Errorf("%+v.Valid() = %v, want %v", c.ts, got, c.want)
+		}
+	}
+}
+
+// Mutant: an author class other than H or A accepted on a comment or import text.
+func TestAuthoredTextValidAuthor(t *testing.T) {
+	for a, want := range map[string]bool{"H": true, "A": true, "": false, "h": false, "agent": false, "HA": false} {
+		if got := (AuthoredText{Text: "x", Author: a}).ValidAuthor(); got != want {
+			t.Errorf("author %q: ValidAuthor() = %v, want %v", a, got, want)
+		}
+	}
+}
+
+// Mutants: absent read as "clear"; null read as "keep"; a number accepted as
+// a user id; AssignTo or Unassign writing a shape AssigneeChange cannot read.
+func TestAssigneeChangeIsTriState(t *testing.T) {
+	for _, c := range []struct {
+		body       string
+		set        bool
+		user       string
+		wantErrors bool
+	}{
+		{`{}`, false, "", false},
+		{`{"assigneeId":null}`, true, "", false},
+		{`{"assigneeId":"u-00000000000000a2"}`, true, "u-00000000000000a2", false},
+		{`{"assigneeId":7}`, true, "", true},
+		{`{"assigneeId":""}`, true, "", true},
+	} {
+		var r PatchIssueRequest
+		if err := json.Unmarshal([]byte(c.body), &r); err != nil {
+			t.Fatalf("%s: %v", c.body, err)
+		}
+		set, user, err := r.AssigneeChange()
+		if set != c.set || user != c.user || (err != nil) != c.wantErrors {
+			t.Errorf("%s: (%v, %q, %v), want (%v, %q, error=%v)", c.body, set, user, err, c.set, c.user, c.wantErrors)
+		}
+	}
+	for _, r := range []PatchIssueRequest{{}, {AssigneeID: Unassign()}, {AssigneeID: AssignTo("u-00000000000000a2")}} {
+		b, _ := json.Marshal(r)
+		var back PatchIssueRequest
+		_ = json.Unmarshal(b, &back)
+		s1, u1, _ := r.AssigneeChange()
+		s2, u2, _ := back.AssigneeChange()
+		if s1 != s2 || u1 != u2 {
+			t.Errorf("%s does not round-trip: (%v, %q) became (%v, %q)", b, s1, u1, s2, u2)
+		}
+	}
+}
+```
+
+Every test fails to compile before Step 3 (`undefined: IssueHead` and the rest).
