@@ -464,4 +464,53 @@ immutable digested revisions; closed with the issue view's `Revisions`, task 47)
 (attachments; closed with task 52), **L-124** (author class stored on every text), and the Hub half
 of **L-191** (what the agent was told is recoverable byte for byte; closed with task 19).
 
+**10 — states, thread state and the done rule on the server.** W1, stream WH, seam **SW.4** (the
+state move, the done rule's inputs and its result words; tasks 04's fake and 22-23's callers
+conform to it); depends on 09 and Hub task H25 (evidence, hub-contract §7.10). Files: new
+`store/work_states.go`, `server/work_states.go`, `server/work_states_integration_test.go`; a
+small table `issue_proofs (org_id, issue_id, land_commit, landed_at, landed_by, evidence_ids
+text[], proof, decided_at)` appended to the W1 migration (or the next number, rule H1);
+`hubapi/work.go` gains, additively, `IssueHead.proof` and `IssueHead.landCommit`. Route: `POST
+/v1/issues/{issueId}/state` with `StateMove{to, cause, reason, landCommit, evidence []string}`.
+**Causes** (the complete W1 set): `hand` (a person's move among `triage`, `backlog`, `todo`,
+`cancelled`, `duplicate`, a reopen, or a hand-set `done`); `lane_bound` → `started`; `lane_queued`
+→ `in_review`; `land_trailer` → `landed`, carrying `landCommit` (task 22); `evidence_observed` and
+`evidence_recorded` → `done`, carrying `evidence` ids (task 23). The store sets 07's
+`hub.work_cause` and `hub.work_actor_kind = 'person'` before the update, so the database guard and
+the Go rule agree. **The done rule** (05 §3.3, revision 2): an issue becomes `done` by evidence
+only when it is `landed` with a recorded `landCommit`, and for **every** criterion its head
+revision serves there is an evidence record in `evidence` that is in the same project, names that
+`briefKey` and `criterionId`, has `verdict: settled`, was recorded at or after `landed_at`, and
+has `commit` equal to `landCommit` — the Hub cannot test git ancestry, so a later commit is
+accepted only when the move names it and phase 3's evaluator (task 23) checked the ancestry; that
+check is the evaluator's claim, not the Hub's. Hub evidence carries no issue id today
+(`EvidenceRecord`, `types.go:517-529`), so **the citation is the move's `evidence` list, recorded in
+`issue_proofs`**: a sibling issue's move cannot reuse a record already cited by another issue for
+the same criterion unless both issues landed in the same commit. **Result words** on
+`IssueHead.proof`: `proven` (every record `evidence_observed`), `proven_self_attested` (a record
+`evidence_recorded` by the person who created the issue **and** made its `started` move; observed
+evidence is never self-attested), `not_proven` (a hand-set `done`, which needs a non-empty `reason`
+when the revision serves criteria), `no_criteria` (empty `serves`: the `landed` move lands at
+`done` in the same write, unless the team policy's `stopAtLandedWithoutServes` holds it at
+`landed`), `waiting` (landed, some criterion without evidence), and `""` before `landed`. A reopen
+clears `proof`. **Thread state** is computed on every head read from the head revision: `on_thread`
+when it serves a criterion of a branch-scoped brief, `project_level` when it serves only the
+project brief's criteria (brief `scope: project`), otherwise `not_tied` with the stored reason; a
+`not_tied` issue with no reason is refused at create and at `serves` removal (05 §2.3 point 4).
+Each move appends **one** `issue.state` event `{"from", "to", "cause", "proof", "landCommit"}`.
+**Tests**, each with its mutant: evidence recorded before `landed_at` leaves the issue `landed`
+(kills a rule without the time bound); a sibling issue's evidence for the same criterion, at a
+different commit, is 422 (kills matching evidence by criterion alone); two served criteria with
+evidence for one stays `landed` with `proof: waiting` (kills *any* criterion instead of *every*);
+`to: started` with cause `hand` is 422 (kills a hand-faked fact); a hand-set `done` with a reason
+reads `not_proven` and without one is 400 naming `reason`; the same person creates, starts and
+presses Record → `proven_self_attested`, while the same person with `evidence_observed` →
+`proven` (kills marking observed evidence as self-attested); an empty-`serves` issue reaches
+`done` at `landed`, and with the team switch stays `landed` (kills the switch ignored); an issue
+serving a project-brief criterion reads `project_level` (kills scope ignored). It **does not
+claim** that a test run was watched (task 23), that the lane facts arrive (22), custom states (W2)
+or parent roll-up (L-21, W2). Parity rows served: **L-8** (fixed fact states; closed with 22 and
+the glyphs, task 28), **L-10** (the `duplicate` state), and the Hub half of 05 §2.3's *done means
+proven*, which no L row names alone; it underlies **L-146** and **L-201** (closed with 21-22).
+
 
