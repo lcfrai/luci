@@ -303,6 +303,9 @@ func (g *Gate) Judge(ctx context.Context, c control.Caller, a Act) (Judgement, e
 	if origin == turns.OriginHuman || fleetTurnPasses[a.Kind] {
 		return Judgement{Pass: true, Origin: origin}, nil
 	}
+	if es, ok := approvalFrom(ctx); ok { // only Release sets it; no frame can
+		return Judgement{Pass: true, Origin: origin, Escalation: es}, nil
+	}
 	es, deadline, err := g.Held.Hold(ctx, c, a, rowOf[a.Kind])
 	if err != nil {
 		return Judgement{}, err
@@ -336,3 +339,56 @@ does not, though it is. The refusal names the glob, so the Orchestrator can rest
 under a scope glob's directory (`web/auth/**`), which passes. A false refusal costs one retry; a
 false pass would let a Fleet turn widen a worker. A `narrow` whose glob fails
 `teamtext.ValidGlob` is `glob_refused` before `Within` runs.
+
+**`Service.Issue`, the order.** One `Tx` from step 5 to step 7; nothing is written before it.
+
+1. Decode `DirectArgs` strictly; the kind/field combination rule; `Text` through
+   `teamtext.New(..., 600)` and `Clean` (task 02) for `free`, refused `text_refused` otherwise.
+2. Load `to` (task 10's `Agent`); refuse unless `Class == worker`, `Parent == c.Agent`, and it is
+   live. Load its card for `Scope` (task 22's `Sources.Cards`). For `wait-for`, the lease must be
+   live in the caller's project (task 23's `Engine.Live`), whoever holds it: waiting for a
+   teammate's lease is the point, and the lease id leaks nothing the caller's `team` view lacks.
+3. `Gate.Judge`. Held → return `DirectResult{Escalation, Deadline, Origin}`; no `dv-…` exists.
+4. Build the read list (decision f) and `approvedBy` (the releasing `es-…`, or `""`).
+5. Mint `dv-…` (`ids`, task 09's prefix). `outbox.Enqueue` an `OpDirective` item under the
+   owner's `orchestrator`-class delegation, the payload being route 67's body with task 01's
+   `params`, `rung: "piggyback"`, `origin`, `read`, `approvedBy`.
+6. Insert the `directive_queue` row with `outbox_id` and `hub_at NULL`.
+7. Commit. Then `RecordIssued(ctx, c.Agent, dv)` (task 26), outside the `Tx`: a lost call loses
+   one id from the turn record's `issued`, never a directive.
+
+A `free` issued in a `human` turn is also what task 55's panel shows "inline, as issued" (§7.2
+item 3): the panel reads the `dv-…` from task 52's read model; this task adds no push for it.
+
+**`held.go`, the decide, complete in its words.** `Hold` validates nothing itself (the caller's
+verb already did), writes the `held_actions` row and calls task 30's `Decide`:
+
+```go
+// holdQuestion is the only prose Fleet writes here. Every value is typed.
+// %s: the act's product name; %s: the worker's display label; %d: reads.
+const holdQuestion = "Your Orchestrator wants to %s for %s during a turn it started itself, " +
+	"after reading %d teammate messages since you last spoke. Send it?"
+
+var holdOptions = []escalate.Option{
+	{Label: "Do not send it", Consequence: "Nothing changes. Your Orchestrator is told you said no.",
+		Effect: escalate.Effect{Kind: "hold"}},
+	{Label: "Send it", Consequence: "Fleet sends it in your name, exactly as shown.",
+		Effect: escalate.Effect{Kind: "send-held"}},
+}
+
+var actName = map[ActKind]string{
+	ActFree: "send a free instruction", ActNewTask: "create a new task",
+	ActSpawn: "start a new worker", ActWiden: "widen a task's scope",
+	ActAbandon: "abandon a task", ActBuildOn: "build on a teammate's lane",
+}
+```
+
+The decide carries route 64's `evidence` (gap G31-2): `verb`, `toAgentId`, `task`, `text` for
+`free` only, `read` and `readTotal`. `Group` is empty (one decider, `Own`). `Release(org, es)`
+loads the held row, deletes it, and re-invokes its verb through the dispatcher's handler table as
+the same caller under `withApproval(ctx, es)`, an unexported context key of package
+`directive`; the verb's gate call reads it through `approvalFrom` and passes without a second
+decide. `approvedBy` is never an argument: no field of any verb's args can set it, and a sandbox
+frame cannot set a Go context value. A replay that now fails validation (the worker ended, the lease
+lapsed) is reported to the Orchestrator as an `escalation.answered` event with the refusal code,
+and nothing is issued. A decide that expires or is answered "Do not send it" deletes the row.
