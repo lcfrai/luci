@@ -401,15 +401,19 @@ org *auditor* only: another member's `GET` is filtered to their own, so a teamma
 appears, and their `answer` on it is 403 `forbidden`.
 
 **§7.20 Directives.** `POST …/directives`, **append-only**, body `{"id", "fromAgentId",
-"toAgentId", "kind", "text"?, "rung", "origin", "read", "approvedBy"?}`. `kind` `pause`·`resume`·
-`narrow`·`wait-for`·`rebase`·`free`; `text` ≤ 600, required for `free` and refused otherwise;
+"toAgentId", "kind", "params", "text"?, "rung", "origin", "read", "approvedBy"?}`. `kind`
+`pause`·`resume`·`narrow`·`wait-for`·`rebase`·`free`; `params` is `{"globs": [globs]}` for
+`narrow`, `{"leaseId": "ls-…"}` for `wait-for`, `{}` otherwise; `text` ≤ 600, required for `free`
+and refused otherwise;
 `rung` `piggyback`·`inbox-socket`·`pty-nudge`; `origin` `human`·`fleet`; `read` ≤ 100 ids
 (`ms-`, `tk-`, `nt-`, `es-`) the Orchestrator session read since its human last spoke;
 `approvedBy` an `es-…`. `from` is the owner's Orchestrator, `to` the owner's worker. **The Hub
-re-checks the taint rule** (`05-design.md` §7.2) as a second layer to Fleet's verb handler: when
-`origin` is `fleet` and `kind` is not `pause`, `narrow` or `wait-for`, `approvedBy` must name a
+re-checks the kind half of the taint rule** (`05-design.md` §7.2 item 2) as a second layer to
+Fleet's verb handler: when `origin` is `fleet` and `kind` is `free`, `approvedBy` must name a
 `decide` escalation of the same owner **answered by that owner**, else 403 `forbidden` with
-`details.required = "decide"`. Readable by the owner and an org *auditor* only.
+`details.required = "decide"`. The typed five (`pause`, `resume`, `narrow`, `wait-for`, `rebase`)
+pass; whether a `narrow` stays inside the task's scope is Fleet's check alone, since the Hub does
+not evaluate glob containment. Readable by the owner and an org *auditor* only.
 
 **§7.21 Orchestrator turns.** `POST …/turns`, body `{"id", "orchestratorAgentId", "origin",
 "consumed" (≤ 200 event ids), "issued" (≤ 100 `dv-`/`ms-`/`es-` ids), "tokens": {"input",
