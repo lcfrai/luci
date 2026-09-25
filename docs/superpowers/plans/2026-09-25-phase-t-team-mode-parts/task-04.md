@@ -275,3 +275,82 @@ CREATE TRIGGER audit_events_feed_flags BEFORE INSERT ON audit_events
 
 Postgres fires `BEFORE` row triggers of one event in name order (from knowledge, **UNVERIFIED**
 until `TestFeedFlagsComeFromTheKind` runs); nothing here depends on it except the comment.
+
+**Piece 4, delegations and agents.** Every foreign key is named, because the cross-org test's case
+table is keyed by constraint name (step 2). A delegation's times are written by Go from **one**
+clock reading (task 06 asserts `expiresAt − createdAt` equals the TTL exactly, `task-06.md:481`),
+so the `CHECK` compares values of one clock; the column default serves a hand-written row only.
+
+```sql
+-- ── §7.13 delegations ────────────────────────────────────────────────────────
+CREATE FUNCTION all_distinct(a text[]) RETURNS boolean LANGUAGE sql IMMUTABLE AS
+  $$ SELECT cardinality(a) = (SELECT count(DISTINCT x) FROM unnest(a) AS x) $$;
+
+CREATE TABLE delegations (
+  id             text             PRIMARY KEY CHECK (id ~ '^dl-[0-9a-f]{16}$'),
+  org_id         text             NOT NULL REFERENCES orgs (id),
+  project_id     text             NOT NULL,
+  owner_user_id  text             NOT NULL,
+  class          delegation_class NOT NULL,
+  routes         text[]           NOT NULL,
+  created_at     timestamptz      NOT NULL DEFAULT now(),
+  expires_at     timestamptz      NOT NULL,
+  renewed_at     timestamptz,
+  revoked_at     timestamptz,
+  revoked_reason revoke_reason,
+  UNIQUE (org_id, id),
+  CONSTRAINT delegations_project_fk FOREIGN KEY (org_id, project_id) REFERENCES projects (org_id, id),
+  CONSTRAINT delegations_owner_fk   FOREIGN KEY (org_id, owner_user_id) REFERENCES users (org_id, id),
+  CHECK ((revoked_at IS NULL) = (revoked_reason IS NULL)),
+  -- 1 to 25 distinct route names, each in its class's set (task 03's ClassRoutes, verbatim)
+  CHECK (cardinality(routes) BETWEEN 1 AND 25 AND hub.all_distinct(routes)),
+  CHECK (routes <@ CASE class
+    WHEN 'worker' THEN ARRAY['delegations.read', 'tasks.read', 'agents.start', 'agents.end',
+      'agents.read', 'leases.events', 'conflicts.create', 'conflicts.update', 'conflicts.read',
+      'policy.read']
+    ELSE ARRAY['delegations.read', 'tasks.create', 'tasks.update', 'tasks.read', 'agents.start',
+      'agents.end', 'agents.read', 'leases.events', 'conflicts.create', 'conflicts.update',
+      'conflicts.read', 'threads.create', 'threads.update', 'messages.append', 'messages.read',
+      'escalations.create', 'escalations.read', 'directives.append', 'directives.read',
+      'turns.record', 'human_messages.read', 'notes.read', 'policy.read'] END),
+  -- PANACEA_APP_HUB_DELEGATION_TTL is at most 24h (contract §12.2, task 01)
+  CHECK (expires_at > coalesce(renewed_at, created_at)
+     AND expires_at <= coalesce(renewed_at, created_at) + interval '24 hours'),
+  CHECK (renewed_at IS NULL OR renewed_at >= created_at)
+);
+CREATE INDEX delegations_live ON delegations (org_id, owner_user_id, project_id)
+  WHERE revoked_at IS NULL;
+
+-- ── §7.15 agents: start, end and role (status is Fleet's, never here) ─────────
+CREATE TABLE agents (
+  id              text        PRIMARY KEY CHECK (hub.is_agent_id(id)),
+  org_id          text        NOT NULL REFERENCES orgs (id),
+  project_id      text        NOT NULL,
+  owner_user_id   text        NOT NULL,
+  role            agent_role  NOT NULL,
+  parent_agent_id text        CHECK (hub.is_agent_id(parent_agent_id)),
+  task_id         text        CHECK (task_id ~ '^tk-[0-9a-f]{16}$'),
+  harness_id      text        NOT NULL CHECK (harness_id ~ '^[a-z][a-z0-9-]{0,31}$'),
+  harness_version text        NOT NULL CHECK (harness_version ~ '^[0-9A-Za-z.+-]{1,32}$'),
+  lane_ref        text        NOT NULL CHECK (left(lane_ref, 19) = 'refs/panacea/lanes/'
+                                          AND char_length(lane_ref) BETWEEN 20 AND 255),
+  policy_version  integer     NOT NULL CHECK (policy_version >= 1),
+  policy_digest   text        NOT NULL CHECK (policy_digest ~ '^sha256:[0-9a-f]{64}$'),
+  started_at      timestamptz NOT NULL DEFAULT now(),
+  ended_at        timestamptz,
+  exit_class      exit_class,
+  UNIQUE (org_id, id),
+  UNIQUE (org_id, owner_user_id, id),        -- the target of every "acts" key (decision c)
+  CONSTRAINT agents_project_fk FOREIGN KEY (org_id, project_id) REFERENCES projects (org_id, id),
+  CONSTRAINT agents_owner_fk   FOREIGN KEY (org_id, owner_user_id) REFERENCES users (org_id, id),
+  -- a worker's parent is the same owner's (§7.15); that the parent is an Orchestrator is Go's
+  CONSTRAINT agents_parent_fk  FOREIGN KEY (org_id, owner_user_id, parent_agent_id)
+    REFERENCES agents (org_id, owner_user_id, id),
+  CHECK (role = 'worker' OR parent_agent_id IS NULL),    -- an Orchestrator has no parent
+  CHECK ((ended_at IS NULL) = (exit_class IS NULL)),
+  CHECK (ended_at IS NULL OR ended_at >= started_at)
+);
+```
+
+The lane ref's component rules (`hubapi.ValidBranchRef`) stay Go's; the database holds the OD-2
+prefix and the 255 bound. `agents.task_id`'s key is added after `team_tasks` exists (piece 5).
