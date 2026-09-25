@@ -550,4 +550,46 @@ Alice's worker is `ag-a1`.
 | `TestTurnEventDuringDiveWaits` | during a DIVE, three team events and one `human.message` are appended: `Tick` pushes no `turn.begin`, `DiveState.Waiting` is 4; after `EndDive`, the next `Tick` pushes one `turn.begin` with all four | events run beside a DIVE, or are dropped behind it |
 | `TestDiveNeverRotates` | session started yesterday, pending set: `BeginDive` pushes `mode resume` on the same uuid | a DIVE into a fresh, empty conversation |
 | `TestDiveBusy` | a turn in flight: `409 orchestrator_busy`; a second `BeginDive` during a DIVE: `409 orchestrator_busy`; no live pod: `409 agent_not_running` | two claims, or a DIVE into nothing |
+| `TestDiveRecordsStartAndEnd` | route 69's fake sees two writes to one `ot-…`: first `origin human`, `consumed []`, `exit dive-started`; then `exit dive`, `issued` = the `dv-…` recorded during it | a DIVE with no audit record, or only an end |
+| `TestDiveDirectiveIsHumanOrigin` | a directive issued through task 31's gate during the DIVE carries `origin: human` and is listed in the end record's `issued` | a DIVE's directive recorded as agent-origin (it would be gated as peer-driven) |
+| `TestEndDiveNonceOnce` | a wrong nonce: rejected, claim kept; the right one: claim gone; the same `dive.end` replayed: `turn_mismatch`, no second record | a DIVE ended by anyone who knows the `ot-…` id; a double end record |
+| `TestStopDiveReasons` | `DELETE …/dive`: `dive.stop` reason `owner`; the claim's `Until` passing: `deadline`; task 11's `Revoke` on Alice's Orchestrator delegation: `access_removed`; `Revoke` of an unrelated delegation: no push | a DIVE that outlives its owner's access |
+| `TestLapsedDiveSwept` | no `dive.end` and the clock past `Until` + 5 s: `SweepLapsed` removes the claim, writes the end `exit lost`, and the queued events run at the next `Tick` | a runner crash leaving the Orchestrator claimed for ever |
+| `TestBobCannotDive` | Bob's valid token on `POST /v1/agents/ag-oa/dive`: `404 agent_not_found`, no claim, no push | an ownerless DIVE |
+| `TestAdminCannotDive` | Adam, admin: the same 404 (OD-15: nobody else's agent, not even an admin) | "admin sees everything" |
+| `TestDiveNotYoursEqualsNotThere` | Bob on `ag-oa`, Alice on `ag-zz`, Alice on her **worker** `ag-a1`: identical status, `Content-Type` and body bytes | an id-existence or class oracle |
+| `TestDiveFixturesRoundTrip` (both modules) | each of `dive-begin.json`, `dive-end.json`, `dive-stop.json`, `seed-result.json` decodes and re-encodes byte for byte; the same with one extra field is refused | the two copies drifting; a lax decoder |
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/sandboxd && GOPROXY=off GOFLAGS=-mod=vendor go test ./internal/runner/... ./internal/control/... 2>&1 | head -3
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/control-plane && GOPROXY=off go test ./internal/fleet/turns/... ./internal/fleet/verbs/... ./internal/fleet/server/... 2>&1 | head -3
+```
+
+Expected: build failures, `undefined: DiveArgv` and `undefined: RotateDue` (or the first missing
+name in each module).
+
+- [ ] **Step 2: The wire and the fixtures, both modules**
+
+`wire/dive.go` and `control/dive.go` as fenced; the four fixtures under
+`testdata/panacea-control/v1/`; `TestDiveFixturesRoundTrip` passes in both modules.
+
+- [ ] **Step 3: The runner: `rotate.go`, `dive.go`, then task 27's two files**
+
+`ChildEnv(parent, home)` in `argv.go` (every task 27 caller passes `SessionHome(root, uuid)`; task
+27's `TestChildEnvIsTheAllowlist` now expects that `HOME`); then `Run`'s `dive.begin` branch and the
+`PrepareHome`/`PruneHomes` calls. Every sandbox test above passes; task 27's still pass.
+
+- [ ] **Step 4: Fleet: `rotate.go`, the two scheduler hunks, the migration and the store methods**
+
+`memstore` and `pgstore` gain `SetRotatePending`, `RotatePending`, `StartedAt`, the conditional
+clear in `EndTurn`, and `ClaimRow.Rotated`; `storetest.Suite` gains the flag-survives row and the
+`CHECK` row, so both stores pass one table. Then task 24's `done`/`abandoned` transitions call
+`MarkBoundary` after their outbox write.
+
+- [ ] **Step 5: `dive.go`, the routes, the `seed` verb, the `Revoker`, and wiring**
+
+In `cmd/fleetd/main.go`: register `dive.end` and `seed` in task 19's dispatch table for the
+`orchestrator` class only; `srv.RouteAgent("POST /v1/agents/{ag}/dive", server.VerbSessionsOwn,
+…)` and its `GET` and `DELETE`; add the `Scheduler` to task 11's `Revoker` fan-out; `StopDive` on
+`Until` runs on the deadline-sweeper singleton beside `SweepLapsed`.
 
