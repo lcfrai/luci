@@ -501,7 +501,7 @@ control-plane/internal/api/cloudlane.go        a cloud session's lane: a primary
 control-plane/internal/api/catalog.go          handleMachines moves out (24a); machineId on the catalog routes (24b)   24a, 24b
 control-plane/internal/httpx/problem.go        machine_not_found; quota_exceeded, machine_full     23, 24a, 24b
 control-plane/internal/reaper/reaper.go        sweeps per machine; rule 4 on a cloud machine acts on its own install id only (review I6)   23
-control-plane/cmd/api/{config,main}.go         RUNTIME_CLASS (14); BROKER_URL, BROKER_SCOPE (23)   14, 23
+control-plane/cmd/api/{config,main}.go         RUNTIME_CLASS (14); BROKER_URL, BROKER_AUDIENCE (23)   14, 23
 control-plane/internal/gitx/remote.go          phase 3's Machine for a cloud machine (S3-P8.1)     25
 desktop/src/{store,api}/…, components/rail/{MachineChip,MachinesPopover}.tsx   cloud machines      26
 docs/superpowers/contracts/2026-09-18-phase-2-ui-contract.md §2   amended with types.ts            26
