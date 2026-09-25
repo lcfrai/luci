@@ -56,3 +56,101 @@ rows through a `RulesSource` whose TM1-α implementation returns none, so every 
 defaults plus the team's floors. The standing permission for free-text answers is one user row
 (`free-text-answers`, default off) and is therefore off for everyone until the record exists.
 Recorded as a gap.
+
+**Files:**
+- `control-plane/internal/fleet/escalate/rules.go` — the §6.5 table as data, `Rules` (task 29's
+  interface), floors and user rows, the lock (new)
+- `control-plane/internal/fleet/escalate/escalate.go` — `Service`: `Inform`, `Ask`, `Decide`,
+  and task 28's and 29's `Escalator` and `Permissions` methods; `OnAnswered`; `SweepDeadlines`
+  (new)
+- `control-plane/internal/fleet/escalate/options.go` — a thread decide's options and their
+  typed effects; the contested worker (new)
+- `control-plane/internal/fleet/verbs/human.go` — `human inform` and `human ask` (new)
+- `control-plane/internal/fleet/escalate/{rules,escalate,options}_test.go`,
+  `verbs/human_test.go` (new)
+- `testdata/panacea-control/v1/human-inform.json`, `human-ask.json`, `human-ask-result.json`
+  (new, in task 09's set)
+
+`options.go` is not in the file map; it keeps the one piece with real branching, "what does each
+choice do", out of the service.
+
+**Interfaces:**
+- Produces:
+  - `escalate.Rules`, satisfying task 29's `protocol.Rules` (`Classify(ctx, Action) (Ruling,
+    error)`), replacing `StubRules` in `fleetd`
+  - `escalate.Service`, satisfying task 28's `protocol.Escalator` (`InformOwnHuman`,
+    `ThreadExhausted`), task 29's `AcceptNeedsDecision`, and task 28's `protocol.Permissions`
+    (`FreeTextAnswers`)
+  - `escalate.Service.Decide(ctx, DecideRequest) (string, error)` — the one way any task writes
+    a decide; task 31's `direct` calls it for the taint rule's decides
+  - `escalate.Row` keys, the table's vocabulary, used by task 52's read model and task 67's admin
+    view
+- Consumes:
+  - task 28: `protocol.Thread`, `Stored`, `Exhaustion`, `Service.Thread`; task 29:
+    `protocol.Action`, `Ruling`, `Verdict`, `Resolver.ApplyApproved`, `Engine.Yield`/`Demote`
+    through the resolver's appliers (an option's effect is applied as a resolution)
+  - task 23: `leases.Contested`, `leases.RightOfWay`, `leases.Side`, `Engine.Live`
+  - task 26: `turns.Queue.Enqueue` with `escalation.answered`; `turns.Scheduler.CurrentTurn`
+    (a `human ask`'s origin); `RecordIssued` for each `es-…`
+  - task 11: `outbox.Enqueue`, `OpEscalation`; task 07's route 64 body (`task-07.md:127-142`)
+    and route 65's answer shape (`:144-151`), read from task 08's feed kind
+    `escalation.answered` (**UNVERIFIED** that task 08 names it so; the feed row is task 01's
+    event of that name)
+  - task 01 §7.24's team policy: `escalationFloors`, `messageBudgets.threadDeadlineMinutes`
+  - task 02: `teamtext.New` with `KindQuestion` (300), `KindOptionLabel` (80),
+    `KindConsequence` (200)
+- Requires of **task 31**: `Pauser.PauseForDefault(ctx, worker model.AgentID, es string) error`,
+  a `pause` directive written by Fleet from the worker's own Orchestrator (route 67 requires
+  `fromAgentId` be the worker's parent), `origin: "fleet"`, `approvedBy: es`. Until task 31
+  lands, `fleetd` wires a `Pauser` that records the pause in `fleet.default_pauses` and task 31's
+  piggyback delivers it; the tests here use a recording fake.
+- Requires of **task 10**: `fleet.open_escalations` (below).
+
+**The ST.1 shapes of `human inform` and `human ask`, complete.**
+
+```go
+package escalate
+
+import "time"
+
+// InformArgs is `panacea human inform <text>`. To the caller's own human.
+type InformArgs struct {
+	Text   string `json:"text"`             // ≤ 300 (route 64's question), text·A
+	Thread string `json:"thread,omitempty"` // th-… the caller is party to, or ""
+}
+
+// AskArgs is `panacea human ask`. Default and Deadline are accepted so an
+// Orchestrator's request decodes, and then IGNORED: Fleet sets both.
+type AskArgs struct {
+	Question string      `json:"question"` // ≤ 300
+	Options  []AskOption `json:"options"`  // 1..3; Fleet prepends option 0
+	Thread   string      `json:"thread,omitempty"`
+	Default  *int        `json:"default,omitempty"`  // ignored, recorded in the audit line
+	Deadline string      `json:"deadline,omitempty"` // ignored, recorded in the audit line
+}
+
+type AskOption struct {
+	Label       string `json:"label"`       // ≤ 80
+	Consequence string `json:"consequence"` // ≤ 200
+}
+
+// AskResult tells the Orchestrator what Fleet actually wrote.
+type AskResult struct {
+	Escalation string    `json:"escalation"` // es-…
+	Default    int       `json:"default"`    // always 0
+	Deadline   time.Time `json:"deadline"`   // ≥ now + 30 min
+	Overridden []string  `json:"overridden,omitempty"` // "default", "deadline"
+}
+
+// HoldLabel and HoldConsequence are option 0 of every Orchestrator ask.
+const (
+	HoldLabel       = "Hold: nothing changes until you choose"
+	HoldConsequence = "Your orchestrator waits; no worker is paused and nothing is undone."
+)
+```
+
+`Overridden` tells the Orchestrator plainly that its default or deadline was not used, so its
+next turn's reasoning starts from the truth. Accepting the two fields and ignoring them, rather
+than refusing them, is deliberate: a refusal teaches a prompt-injected Orchestrator which fields
+matter; an override is recorded in the audit line (`requestedDefault`, `requestedDeadline`) where
+an auditor sees the attempt.
