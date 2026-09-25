@@ -164,7 +164,7 @@ Slices: **A** the contract (pure Go, no I/O) · **B** keysmith · **C** gatekeep
 | 05 | Binding store: memory, Postgres, behaviour suite | B | 0.4 (3 h) | 03 | P8-4 |
 | 06 | Budgets: three dimensions, defaults on, the per-key slice | B | 0.25 (2 h) | 01, 03 | S6.2 |
 | 07 | keysmith core: mint, refresh, revoke | B | 0.4 (3 h) | 04, 05, 06 | — |
-| 08 | `cmd/keysmith`: API, caller authentication, config, fail-closed start | B | 0.4 (3 h) | 07 | S6.3, S6.5 |
+| 08 | `cmd/keysmith`: API, caller authentication, config, fail-closed start | B | 0.4 (3 h) | 07; **env 17 step 0 merged** (`internal/oidcauth`, cross-tree; OD-30 review-1 M5) | S6.3, S6.5 |
 | 09 | Usage rollup and the team-budget reader | B | 0.25 (2 h) | 04, 06 | S6.2 |
 | 10 | gatekeeper authorisation | C | 0.3 (2.5 h) | 03, 05 | — |
 | 11 | gatekeeper proxy: allowlist, `model` rewrite, headers, streaming | C | 0.4 (3 h) | 02, 10 | S6.4 |
@@ -191,7 +191,7 @@ Slices: **A** the contract (pure Go, no I/O) · **B** keysmith · **C** gatekeep
 2. 03, 20
 3. 04, 05, 06, 13, 14
 4. 07, 09, 10
-5. 08, 11
+5. 08 (also waits for env task 17 step 0, merged from `feat/env`: `oidcauth`), 11
 6. 12, 15, 19
 7. 17, 21
 8. 18, 22, 24
