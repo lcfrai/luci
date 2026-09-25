@@ -19,7 +19,7 @@ stream's fix). After this task the product has two process launchers; the commen
 - `control-plane/internal/gitx/harden.go` — `Scope`, `Hardening`, the §HGH prefix, the H3 config check, the lane-dir guard (`ErrLaneDir`), `UntrustedConfig` (new)
 - `control-plane/internal/gitx/error.go` — `*Error`, `Sentence`, `AsError` (new)
 - `control-plane/internal/gitx/version.go` — `CheckVersion` (new)
-- `control-plane/internal/gitx/machine.go` — `Machine`, `Local` (new)
+- `control-plane/internal/gitx/machine.go` — `Machine`, `Local`, `MachineFS` (seam S8-P3.6) (new)
 - `control-plane/internal/gitx/trailers.go` — trailer keys, `Message`, `TrailerFormat` (new)
 - `control-plane/internal/gitx/locks.go` — `Locks`, the one per-project lock that land, undo,
   revert, the branch verbs, fetch and push all take, and every clone refresh runs under (review
@@ -236,7 +236,7 @@ func CheckVersion(ctx context.Context, r Runner) (string, error)
 package gitx
 
 // Machine is where git runs for one machine id (brief A6). Phase 3 has one, Local. Phase 8
-// adds a Kata machine behind the same three methods: phase 8's machine serves the runner
+// adds a Kata machine behind the same four methods: phase 8's machine serves the runner
 // (P8-D7), and lane work crosses to the control plane as a bundle, which is data (ruling
 // R4.4), the same model phase 3 builds with task 24's runner.
 type Machine interface {
@@ -247,18 +247,60 @@ type Machine interface {
 	// CloneRoot is the absolute directory this machine's lane clones are created under.
 	// Task 04 copies it into Hardening.LaneRoot, so Git() refuses every call in it.
 	CloneRoot() string
+	// FS is this machine's disk for lane create and remove (seam S8-P3.6, env R4 ruling 4).
+	// nil means this process's own disk, lanes.LocalFS (task 03), and is admitted only when
+	// ID() == "local": lanes answers ErrNoMachineFS for a nil FS on any other machine, so a
+	// cloud machine never falls back to the laptop's disk.
+	FS() MachineFS
 }
 
 // Local is this machine.
 type Local struct {
 	Runner Runner
-	Root   string // absolute; cmd/api validates it (task 04)
+	Root   string    // absolute; cmd/api validates it (task 04)
+	Files  MachineFS // nil: lanes.LocalFS, the laptop's disk. Only tests set it (task 03's Seal order)
 }
 
 func (l Local) ID() string        { return "local" }
 func (l Local) Git() Runner       { return l.Runner }
 func (l Local) CloneRoot() string { return l.Root }
+func (l Local) FS() MachineFS     { return l.Files }
+
+var _ Machine = Local{}
 ```
+
+```go
+package gitx
+
+import "context"
+
+// MachineFS is the filesystem half of lane create and remove (phase-3
+// task-03.md:153-154, :189-190, :227-268). Paths are absolute on that machine.
+// The local implementation is os, on the laptop's disk.
+type MachineFS interface {
+	// Exists is os.Lstat at path: exists is false only for not-exist; dir is true only for a
+	// real directory, never a symlink. Step 3 reads exists; Catalog.Path's worktree.Verify reads dir.
+	Exists(ctx context.Context, path string) (exists, dir bool, err error)
+	// RemoveTree is task 03's RemoveTree(root, path): it refuses a path not under root.
+	RemoveTree(ctx context.Context, root, path string) error
+	// CopyGeneratedHooks is the copy half of task 03's CopyGeneratedHooks: its Lstat
+	// guards, its SameFile check and its 64-file / 1 MiB budget. Its ls-files check and
+	// the take-back stay in lanes.CopyGeneratedHooks, over m.Git() and RemoveTree.
+	CopyGeneratedHooks(ctx context.Context, projectTop, cloneTop, rel string) (int, error)
+	// Seal ends R4.5's window for path: Create calls it after step 6, before Store.Add.
+	// Locally it does nothing; on a cloud machine it closes machined's creating-set entry.
+	Seal(ctx context.Context, path string) error
+}
+```
+
+`MachineFS` is phase 8's contract, copied verbatim from env R4 ruling 4 ("The one S8-P3.6
+contract", `.superpowers/sdd/env/r4-env-rulings.md:248-273` in the env tree), which env tasks 21
+and 25 copy too. Its spelling changes only with theirs, in the same change (env task 33, row
+S8-P3.6). Task 02 declares it; task 03 builds `lanes.LocalFS`, the `os` one, over its own
+`RemoveTree` and copy half, and routes step 3, the failure path, the copy, `Catalog.Path` and a
+`Seal` through it. Phase 8's `machines.Remote.FS()` (env task 25) is the other implementation.
+Phase 3's local behaviour does not change: `Local{Runner, Root}` answers a nil `FS`, which is
+`LocalFS`, which is the `os` calls task 03 already makes.
 
 ```go
 package gitx
@@ -444,7 +486,8 @@ child's environment without trusting the code under test.
 | `TestMessageCopiesTheValueByteForByte` | `brief:b-42@6` appears verbatim once | normalising or parsing a key (P5) |
 | `TestMessageIsReadBackByGit` | real git: `git interpret-trailers --parse` on `Message(...)` prints exactly the trailers given | a missing blank line before the trailer block |
 | `TestSpyRecordsWhatExecStarts` | a `Read` call with `Scope Project` → one or more Spawns, the last with `Dir` = the repo, `Argv` ending in `Call.Args`, `Env` holding `GIT_OPTIONAL_LOCKS=0`; a call refused by `ErrCallShape` → no Spawn; after cleanup, a call adds none | a spy fed from `Call` instead of `cmd`, or one left installed |
-| `TestLocalMachineIsLocal` | `Local{Root: r}.ID() == "local"`, `CloneRoot() == r` | a Local that rewrites paths |
+| `TestLocalMachineIsLocal` | `Local{Root: r}.ID() == "local"`, `CloneRoot() == r`, `FS() == nil`; `Local{Files: f}.FS() == f` | a Local that rewrites paths, or answers a non-nil default `FS` of its own (the local disk is task 03's `LocalFS`, the one `os` implementation) |
+| `TestMachineFSIsTheContract` (seam S8-P3.6) | reflection over `MachineFS`: exactly the four methods `CopyGeneratedHooks`, `Exists`, `RemoveTree`, `Seal`, each with the parameter and result types of the block above, `context.Context` first | a drifted spelling (a renamed method, a dropped `ctx`, `Seal` left out) that env tasks 21 and 25, which copy the contract verbatim, would no longer satisfy |
 | `TestScriptFailsOnAnUnscriptedCall` | an unknown argv fails the calling test | a fake that silently succeeds |
 | `TestLocksSerialiseOneProject` | under `-race`: goroutine A holds `Lock(ctx, "p-1")`; B's `Lock(ctx, "p-1")` has not returned 50 ms later; A unlocks → B returns within 1 s; calling A's unlock twice does not release B's hold | a lock keyed per call, or an unlock that frees the next holder |
 | `TestLocksLetOtherProjectsRun` | A holds `"p-1"`; `Lock(ctx, "p-2")` returns at once | one global mutex that stalls every project behind a slow push |
@@ -635,7 +678,7 @@ section. The observer and the origin refresh are lane git, so they run in the sa
 #### Acceptance
 
 ```
-go test ./control-plane/internal/gitx/... -race -count=1        → PASS (40 new tests, 18 of them §HGH, plus task 01's)
+go test ./control-plane/internal/gitx/... -race -count=1        → PASS (41 new tests, 18 of them §HGH, plus task 01's)
 go test ./control-plane/internal/project/ -run TestEveryGitCommandIsReadOnly -count=1 → PASS, unchanged
 git diff --stat control-plane/go.mod go.work                     → empty
 ```
@@ -645,6 +688,9 @@ git diff --stat control-plane/go.mod go.work                     → empty
 - Nothing calls `gitx` yet except its tests. Task 03 is the first consumer.
 - `CheckVersion` is not yet wired; task 04 calls it at startup.
 - `Machine` has no second implementation; phase 8 owns it (seam S3-P8.1).
+- `MachineFS` has no implementation here. Task 03 builds `lanes.LocalFS` and the
+  `ErrNoMachineFS` refusal; phase 8's `remoteFS` (env task 25) and `machined`'s routes (env
+  task 21) are the cloud half, and whether they satisfy this interface is theirs to test.
 - §HGH hardens `gitx.Exec` only. Phase 2's `project.ExecRunner`, and the scanner that runs git
   in the primary worktree's repository, are not covered here. Since ruling R4.1 no sandbox
   mounts that repository, so its config is the user's and the cockpit's (plan Q-table row Q6,
