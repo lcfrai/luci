@@ -76,7 +76,7 @@ from an outage or a restored Hub without a blank screen, and keeps no text an er
 it omits the two surface edits and `ResyncLine.tsx`, gaps named at the end):
 - `desktop/src/work/replica/visibility.ts` — `ProjectScope`, `classify`, `resyncFor`,
   `eraseInMemory`, `resyncLine` (new)
-- `desktop/src/work/replica/visibility.test.ts` — the pure rules (new)
+- `desktop/src/work/replica/visibility.test.tsx` — the pure rules and the line (new)
 - `desktop/src/work/replica/replica.ts` (task 55) — `scope`, `admit`, `accessLost`, `resyncSince`,
   the membership and resync paths (modified)
 - `desktop/src/work/replica/access.test.ts` — the replica against a fake Hub (new)
@@ -189,4 +189,131 @@ export interface ReplicaVisibility {
   resyncSince(): number | null;
 }
 // `interface Replica extends ReplicaVisibility` — task 55's Replica gains these members.
+```
+
+**How the paths run inside `createReplica`**, in order:
+
+1. **Start.** `scope = await readableProjects()` before task 55's first load, which then calls
+   `listAll` only for ids in `scope`. Every record entering by any path goes through `admit`.
+2. **Each applied event** is first run through `classify(e, callerId)`:
+   `drop_team` → one `transact` deletes every record of every `scope` project of `e.teamId`,
+   removes them from `scope` and sets `accessLost` for each; `relist` → `readableProjects()`, then
+   each new id gets `listAll` and one `transact` puts its records, and each id no longer listed is
+   dropped as `drop_team` drops; `erase` → one `transact` rewrites every held copy through
+   `eraseHead`, `eraseRevision` and `eraseComment` **before** task 55's usual subject re-fetch.
+3. **A subject fetch** that omits an asked id drops that record in the same `transact` as the
+   answer, then re-lists once for the batch (decision 3's fallback).
+4. **A failed `changes` call** goes through task 37's `workProblem`; `healthAfterFailure` marks
+   the feed down on `unavailable` only. The first time it goes down, `status = "resyncing"` and
+   `since = clock()`. Refusals keep today's status and surface as task 55 already does.
+5. **Each page** is run through `planForPage` before its events apply. `"full"`: `status =
+   "resyncing"`, `since = clock()`; take the cursor with `after=latest`; re-list; `listAll` every
+   `scope` project into **new** maps; swap them in with one `transact`; then read the feed after
+   that cursor; `status = "ready"`. `"resume"`: apply the page, `status = "ready"`, `since =
+   null`, re-list, then call task 56's `resume()` so the painted writes go out in op order.
+
+#### Interfaces — complete: `ResyncLine.tsx` and the two surface edits
+
+```tsx
+// desktop/src/components/work/ResyncLine.tsx — one fact line in a view header; never per row.
+import { resyncLine } from "../../work/replica/visibility";
+
+export interface ResyncLineProps { status: string; since: number | null; timeZone: string }
+
+/** No role: task 66's one live region speaks for the window. No motion: the line appearing is
+ *  the whole message. The time is mono and tabular so it does not jitter when it changes. */
+export function ResyncLine({ status, since, timeZone }: ResyncLineProps): JSX.Element | null {
+  const text = resyncLine(status, since, timeZone);
+  if (!text) return null;
+  const cut = text.lastIndexOf(" ") + 1;
+  return (
+    <p className="wk-resync">
+      {text.slice(0, cut)}<span className="wk-resync-at">{text.slice(cut)}</span>
+    </p>
+  );
+}
+```
+
+```css
+/* desktop/src/components/work/work.css ⚑ — appended (the `.wk-` prefix is task 40's) */
+.wk-resync { margin: 0; color: var(--ink-3); font-family: var(--sans);
+  font-size: var(--t-fact); line-height: var(--t-fact-lh); }
+.wk-resync-at { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+```
+
+- **`WorkLens.tsx`** (task 40) renders `<ResyncLine status={r.status} since={r.resyncSince()}
+  timeZone={tz} />` as the last child of its `ViewHeader` (task 31). One per view, never per row.
+- **`IssueView.tsx`** (task 46): when `r.accessLost(head.projectId)` is set, the body is replaced
+  by one fact line, `You no longer have access to {projectKey}`, in `--ink-2`, with the issue's
+  alias kept in the header so the reader knows what they were looking at. No retry button: there
+  is nothing to retry until someone adds them back, and then decision 3 loads it.
+
+One more file joins the list: `desktop/src/components/work/work.css` ⚑ (modified).
+
+#### Tests to write first, part 1 — `desktop/src/work/replica/visibility.test.tsx` (pure rules, one render)
+
+```ts
+import { describe, expect, it } from "vitest";
+import { render } from "@testing-library/react";
+import { DYLAN, ALICE, WORK_IDS, makeComment, makeIssueRevision } from "../../test/workFixtures";
+import { expectNoPrediction } from "../../test/expectNoPrediction";
+import { ResyncLine } from "../../components/work/ResyncLine";
+import { classify, eraseComment, eraseRevision, healthAfterFailure, planForPage, resyncLine } from "./visibility";
+
+const ev = (kind: string, subject: string, seq = 1044) =>
+  ({ seq, at: "2026-09-25T01:02:00Z", kind, teamId: WORK_IDS.team, projectId: null, subject });
+
+describe("membership events act only when they name the caller", () => {
+  it("removal naming the caller drops the team; naming Alice does nothing", () => {
+    expect(classify(ev("team.member_removed", DYLAN.id), DYLAN.id))
+      .toEqual({ kind: "drop_team", teamId: WORK_IDS.team });
+    expect(classify(ev("team.member_removed", ALICE.id), DYLAN.id)).toEqual({ kind: "none" });
+  }); // kills: dropping a team's records whenever anyone leaves it
+  it("being set as a member re-lists", () => {
+    expect(classify(ev("team.member_set", DYLAN.id), DYLAN.id)).toEqual({ kind: "relist", teamId: WORK_IDS.team });
+  }); // kills: ignoring an add and waiting for feed events that were filtered out
+  it("both erase kinds are recognised", () => {
+    expect(classify(ev("issue.erased", WORK_IDS.ep142), DYLAN.id)).toMatchObject({ what: "issue" });
+    expect(classify(ev("comment.erased", WORK_IDS.comment), DYLAN.id)).toMatchObject({ what: "comment" });
+  }); // kills: an erase applied as an ordinary revise (text re-fetched into memory)
+});
+
+describe("a gap is never read from seq", () => {
+  const h = { lastSeq: 1043, down: false };
+  it("a next below the last applied seq is a restore", () => {
+    expect(planForPage(h, "12")).toBe("full");
+  }); // kills: ignoring a restored Hub (its new events would all be dropped as repeats)
+  it("a hole in the seqs is normal", () => {
+    expect(planForPage(h, "1100")).toBe("none");
+  }); // kills: a contiguity check that resyncs on every filtered-out event
+  it("an outage then an answer resumes; a refusal is not an outage", () => {
+    const down = healthAfterFailure(h, "unavailable");
+    expect(planForPage(down, "1043")).toBe("resume");
+    expect(healthAfterFailure(h, "refused").down).toBe(false);
+  }); // kills: a full reload per network blip; kills: hiding a refusal behind a resume
+});
+
+describe("erase keeps identity and loses words", () => {
+  it("a JSON dump of an erased revision and comment holds key and digest, not text", () => {
+    const r = makeIssueRevision({ issueId: WORK_IDS.ep142, key: "issue:is-3f2a91c07b1e4d2a@3",
+      digest: "d".repeat(64), content: { title: { text: "Resume an upload after a drop", author: "H" },
+        description: { text: "When the network drops at 80 MB", author: "H" }, serves: [], implements: [] } });
+    const c = makeComment({ body: { text: "The 80 MB case is the one", author: "H" } });
+    const dump = JSON.stringify([eraseRevision(r, "t"), eraseComment(c, "t")]);
+    expect(dump).toContain("issue:is-3f2a91c07b1e4d2a@3");
+    expect(dump).toContain("d".repeat(64));
+    for (const words of ["Resume an upload", "80 MB"]) expect(dump).not.toContain(words);
+  }); // kills: an erase that sets erasedAt and keeps the text
+});
+
+describe("the resync line", () => {
+  it("says what and since when, and nothing while ready", () => {
+    const at = Date.UTC(2026, 8, 25, 1, 2);
+    expect(resyncLine("resyncing", at, "UTC")).toBe("Reloading · since 01:02");
+    expect(resyncLine("ready", at, "UTC")).toBe("");
+    const { container } = render(<ResyncLine status="resyncing" since={at} timeZone="UTC" />);
+    expect(container.querySelectorAll(".wk-resync")).toHaveLength(1);
+    expectNoPrediction(container);
+  }); // kills: a progress count on the resync line (OD-27)
+});
 ```
