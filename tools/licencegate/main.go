@@ -1,6 +1,13 @@
 package main
 
-// exitCode is a red stub.
-func exitCode(fs []Finding) int { return 0 }
+// exitCode is 1 when any enforced dep failed, else 0. A report never counts.
+func exitCode(fs []Finding) int {
+	for _, f := range fs {
+		if f.Verdict == Fail {
+			return 1
+		}
+	}
+	return 0
+}
 
 func main() {}

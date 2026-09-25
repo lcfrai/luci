@@ -4,6 +4,12 @@
 // registry cache), so it runs where module downloads do not.
 package main
 
+import (
+	"fmt"
+	"strings"
+	"time"
+)
+
 // Allowed is OD-11 rule 3 as SPDX identifiers (plan decision P5-P). 0BSD is
 // a BSD licence; the owner can drop it by deleting one line.
 var Allowed = map[string]bool{
@@ -79,10 +85,103 @@ type Exception struct {
 	ReviewedOn string    `json:"reviewedOn"` // YYYY-MM-DD
 }
 
-// Denied is a red stub.
-func Denied(eco Ecosystem, name string) bool { return false }
+// deniedWhy is the sentence every denied package fails with.
+const deniedWhy = "denied by OD-11 rule 3: tldraw's licence requires a commercial key in production; no exception can cover it"
 
-// Evaluate is a red stub.
+// Denied fails whatever licence it declares, and cannot be excepted. OD-11
+// rule 3: tldraw's licence requires a commercial key in production. The match
+// is exact, never a string prefix (review I9): an npm name equal to "tldraw";
+// an npm name whose scope, the part before the first "/", equals "@tldraw";
+// a Go module path equal to "github.com/tldraw" or under "github.com/tldraw/".
+// Names compare lower-cased: npm folds legacy upper-case names, and GitHub
+// owners are case-insensitive, so "github.com/TLDraw/x" is the same repository.
+func Denied(eco Ecosystem, name string) bool {
+	n := strings.ToLower(name)
+	switch eco {
+	case Npm:
+		if n == "tldraw" {
+			return true
+		}
+		if strings.HasPrefix(n, "@") {
+			scope, _, _ := strings.Cut(n, "/")
+			return scope == "@tldraw"
+		}
+	case Go:
+		return n == "github.com/tldraw" || strings.HasPrefix(n, "github.com/tldraw/")
+	}
+	return false
+}
+
+// checkException refuses an exception that could launder a licence: one that
+// names a denied package, one whose Resolved expression is not itself allowed,
+// and one missing the fields that make it a review.
+func checkException(e Exception) error {
+	key := fmt.Sprintf("%s %s@%s", e.Ecosystem, e.Name, e.Version)
+	if Denied(e.Ecosystem, e.Name) {
+		return fmt.Errorf("exception %s: %s", key, deniedWhy)
+	}
+	if e.Ecosystem == "" || e.Name == "" || e.Version == "" || e.Reason == "" || e.ReviewedBy == "" {
+		return fmt.Errorf("exception %s: ecosystem, name, version, reason and reviewedBy are all required", key)
+	}
+	if _, err := time.Parse("2006-01-02", e.ReviewedOn); err != nil {
+		return fmt.Errorf("exception %s: reviewedOn %q is not YYYY-MM-DD", key, e.ReviewedOn)
+	}
+	x, err := ParseSPDX(e.Resolved)
+	if err != nil {
+		return fmt.Errorf("exception %s: resolved: %w", key, err)
+	}
+	if !x.allowed() {
+		return fmt.Errorf("exception %s: resolved %q is not allowed by OD-11 rule 3, so no exception can pass it", key, e.Resolved)
+	}
+	return nil
+}
+
+// Evaluate is pure: deps and exceptions in, findings out, one finding per
+// dep in order. An exception whose Resolved expression is itself not allowed
+// is refused, and an exception naming a denied package is refused. An
+// exception covers a dep only on an exact ecosystem, name, version and
+// declared match, so an upgrade or a changed licence is re-reviewed.
 func Evaluate(deps []Dep, exceptions []Exception) (findings []Finding, err error) {
-	return nil, nil
+	for _, e := range exceptions {
+		if err := checkException(e); err != nil {
+			return nil, err
+		}
+	}
+	for _, d := range deps {
+		findings = append(findings, judge(d, exceptions))
+	}
+	return findings, nil
+}
+
+func judge(d Dep, exceptions []Exception) Finding {
+	failed := func(why string) Finding {
+		if d.Enforced {
+			return Finding{Dep: d, Verdict: Fail, Why: why}
+		}
+		return Finding{Dep: d, Verdict: Report, Why: why}
+	}
+	if Denied(d.Ecosystem, d.Name) {
+		return failed(deniedWhy)
+	}
+	if d.Broken {
+		return failed(d.Why)
+	}
+	x, perr := ParseSPDX(d.Declared)
+	if perr == nil && x.allowed() {
+		return Finding{Dep: d, Verdict: Pass, Why: d.Declared + " is allowed"}
+	}
+	for _, e := range exceptions {
+		if e.Ecosystem == d.Ecosystem && e.Name == d.Name && e.Version == d.Version && e.Declared == d.Declared {
+			return Finding{Dep: d, Verdict: Excepted, Why: "reviewed by " + e.ReviewedBy + " on " + e.ReviewedOn + " as " + e.Resolved + ": " + e.Reason}
+		}
+	}
+	switch {
+	case d.Why != "":
+		return failed(d.Why)
+	case perr != nil:
+		return failed(perr.Error())
+	case d.Declared == "":
+		return failed("no licence declared")
+	}
+	return failed(d.Declared + " is not MIT, Apache-2.0, BSD or ISC (OD-11 rule 3)")
 }
