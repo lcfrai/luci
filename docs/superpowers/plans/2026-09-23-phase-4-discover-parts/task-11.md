@@ -84,7 +84,7 @@ type OpsResponse struct {
 | Source | Status, code | `details` |
 |---|---|---|
 | `*hubclient.Error` 4xx except 401 | **unchanged** status, code, message, details (Hub contract §4.3) | the Hub's |
-| `*hubclient.Error` 401 after the client's own refresh, or `entraauth.ErrSignedOut` | 401 `signed_out` (Hub task C1's code) | `reason` |
+| `*hubclient.Error` 401 after the client's own refresh, or `signin.ErrSignedOut` | 401 `signed_out` (Hub task C1's code) | `reason` |
 | `hubclient.ErrUnavailable` | 503 `upstream_unavailable` (R4's code) | `upstream: "hub"` |
 | `discoverhub.ErrHubOff` on a write | 503 `hub_not_configured` (C1's code) | — |
 | `discoverhub.ErrNotBound`, `ErrNoRemote` on a write | 409 `project_not_shared` (**new**) | `state`: `unbound` · `no_remote` |
