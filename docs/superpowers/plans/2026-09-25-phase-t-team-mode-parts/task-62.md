@@ -315,3 +315,26 @@ and the caller is `Outcome.BuildOn.Builder`; otherwise `bad_request`. It is type
 the taint rule the way `narrow` does (`task-31.md:473`). The worker's instructions (task 41's
 `worker-cloud.md`) gain one fixed paragraph: *merge the named ref into your branch with `git
 merge --no-ff`, run the project's checks, and report* — the worker's own act in its own clone.
+
+- [ ] **Step 1: Write the tests, each with the mutant it kills**
+
+On task 10's `memstore`, task 08's Hub fake, task 30's `Service` with a fake `Sources`, and a fake
+`BuildOnPort`. `oA` is Alice's Orchestrator, `oB` Bob's; `wA`, `wB` their party workers.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestCounterPastTheRoundCapEscalates` | `oA` proposes, `oB` counters, `oA` counters, `oB` counters, `oA` counters, `oB` counters: all stored, `oB` has 0 left; `oB`'s fourth counter → `rounds_exhausted`, not stored, thread `escalated`, `ThreadExhausted(rounds)` once, two decides | a counter that does not count; the cap skipped for counters |
+| `TestCounterReplacesTheProposal` | after `oB` counters `ms-1` with `ms-2`: `liveProposals == [ms-2]`; `oB` accepting `ms-2` → `bad_request` (own); `oA` accepting `ms-1` → `bad_request` (not live); `oA` accepting `ms-2` → `Resolve` with `ms-2`'s resolution | both proposals left live; the old one applied |
+| `TestCounterOfOwnProposalRefused` | `oA` counters `oA`'s own proposal → `counter_own_proposal` | counter used as an un-counted withdraw-and-propose |
+| `TestCounterRepeatingAResolutionIsStale` | propose X, counter Y, counter X: the third is not new; with one more non-new counting message the thread closes `escalated` (task 28 (b)) | canonical form ignored for counters |
+| `TestCounterOfAnAwaitingHumanProposalRefused` | a `proceed-both` on tier H accepted (decide pending); `oB` counters it → `resolution_stale` | a proposal swapped under a human's decision |
+| `TestSplitMustPartitionTheConflict` | conflict paths `a.go`, `b.go`: sides `{oA: [a.go], oB: [b.go]}` stored; `{oA: [a.go], oB: [a.go]}` → `split_not_a_partition` naming `a.go`; `{oA: [a.go], oB: []}` → refused naming `b.go`; a third key → `bad_request` | overlap or gap accepted |
+| `TestSplitReissuesEachSidesLeases` | `wA` holds `auth/**`, `wB` holds `auth/session.go`; split `{oA: [auth/login.go], oB: [auth/session.go]}` on conflict path `auth/session.go`: `wA`'s lease `yielded`, a new one `[auth/login.go]`; `wB`'s re-issued `[auth/session.go]`; no other lease moved | a split that touches unrelated leases; a merge of old and new globs |
+| `TestSplitMovingAcceptorsEditsIsADecide` | `wB` edited `auth/session.go`; the split gives it to `oA`; `oB` accepts → `Ruling{decide, accept-split-moves-edited, [oB]}`, nothing applied; with `wB`'s edits all inside `Sides[oB]` → act, both informed | the edited-path test missing (the task 30 stub) |
+| `TestBuildOnAcceptWithoutTheHumanAppliesNothing` | `oB` proposes `build-on base: oB` (Alice's side builds on Bob's lane); `oA` accepts: one decide, to Alice's human only; the fake port saw `LaneChanges` and **no** `Bring`; no lease event, no conflict patch, no `land_hints` row, no directive admitted for `wA` | build-on applied on the agents' accept |
+| `TestBuildOnDecideListsAgentConfigPaths` | `LaneChanges` → `M .claude/settings.json`, `M src/x.go`, `package.json` members `["scripts"]`: the Hub fake's decide has `agentConfig` `[{.claude/settings.json, agent-settings, M}, {package.json, package-scripts, M, [scripts]}]`, and `src/x.go` in neither the lines nor the question | lines folded into the question; a non-config path listed; package.json dropped |
+| `TestBuildOnUnlistableWithholdsApply` | `LaneChanges` errors: the decide has options `hold` and `decline-proposal` only, and its question says the files could not be listed | "could not list" read as "none" |
+| `TestBuildOnLockedAgainstFloorsAndErrors` | a user row, a team floor and a `Sources` error each leave the `build-on` ruling `decide` | an unlocked always-decide row |
+| `TestBuildOnApplyBringsExactlyTheApprovedTip` | Alice chooses `apply-proposal`; the base lane has since moved to a descendant: `Bring` gets `BaseTip`, not the new tip; ref `refs/panacea/build-on/<th>`; one `land_hints` row `first = oB`; conflict `resolved`, `build-on`; a rewritten base (not a descendant) → `resolution_stale`, nothing brought | the latest tip brought; no hint |
+| `TestBuildOnDirectiveOnlyForTheAppliedRef` | `oA` `direct wA build-on --ref <the ref>` in a Fleet turn → issued; another ref, another worker, or `oB` calling → `bad_request` | a free-form ref directive through a typed kind |
+| `TestRoute64AgentConfigIsFleetOnly` | route 64 with `fromAgentId` and `agentConfig` → 400; Fleet's own with 51 entries → 400; with 2 → 201 and the read returns them, `[]` when absent | an Orchestrator forging lines |
