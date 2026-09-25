@@ -59,3 +59,90 @@ refusals (`task-119.md:34-49`). Step 1 takes the merged names.
 6. **Insights read the feed, not the heads.** `QueryInsights` walks the fake's events of kind
    `issue.state` and `issue.created` in the window, never a head field, so a percentile is only
    ever a measured move. Nearest-rank percentiles; `nil` when no point was measured.
+
+#### Files
+
+| Path (under `control-plane/internal/hub/hubclient/`) | Change |
+|---|---|
+| `fake_work_roadmap.go` | new: W4's state, the grant reach, and all twenty-nine `WorkRoadmap` methods |
+| `fake_work_roadmap_stub.go` | **deleted** (task 114's), in the same commit |
+| `fake_work.go` ⚑ | task 04's `issueOf`: the grant fallback (decision 2), four lines |
+| `fake_work_social.go` ⚑ | task 05's `CreateComment`: `roleGranted` may comment, two lines |
+| `fake_work_plan.go` ⚑ | task 73's feature and milestone reads call `workProjectOf` (UNVERIFIED names) |
+| `fake_work_roadmap_test.go` | new: the fake-only tests (the helpers, the percentile rule) |
+| `conformance/work_roadmap.go` | new: `WorkRowsW4`, fourteen rows |
+| `conformance/work_roadmap_fake_test.go` | new: `RunWork(t, fakeEnv, WorkRowsW4...)` |
+
+#### `fake_work_roadmap.go`, complete: state and the grant reach
+
+```go
+package hubclient
+
+import (
+	"context"
+	"reflect"
+	"slices"
+	"sort"
+	"strconv"
+	"sync"
+	"time"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubapi"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/ids"
+)
+
+// roleGranted is a caller whose only reach into a project is a grant. It
+// ranks 0 (fake.go:204-214), so every need(role, …) refuses it (decision 2).
+const roleGranted hubapi.Role = "granted"
+
+type fakeRoadmap struct {
+	grants      map[[2]string]*hubapi.ProjectGrant   // (projectId, teamId)
+	initiatives map[string]*hubapi.Initiative        // by in- id
+	spans       map[string][]string                  // initiative id → team ids, owner first
+	featureIn   map[string]string                    // feature id → initiative id
+	updates     map[string][]*hubapi.StatusUpdate    // "feature:ft-…" → newest last
+	milestones  map[string]*hubapi.Milestone         // by ml- id
+	deps        map[[2]string]bool                   // (from, blocks)
+	schedules   map[string]hubapi.TemplateSchedule   // by template id
+	reminders   map[string]hubapi.ReminderPolicy     // by subject key
+	rotations   map[string]hubapi.TriageRotation     // by team id
+	cursors     map[[2]string]int64                  // (user id, scope string) → seq
+}
+
+var roadmapWorlds sync.Map // *fakeWorld → *fakeRoadmap
+
+// rm is w's W4 state, made on first use. Call it with w.mu held.
+func (w *fakeWorld) rm() *fakeRoadmap {
+	v, _ := roadmapWorlds.LoadOrStore(w, &fakeRoadmap{
+		grants: map[[2]string]*hubapi.ProjectGrant{}, initiatives: map[string]*hubapi.Initiative{},
+		spans: map[string][]string{}, featureIn: map[string]string{},
+		updates: map[string][]*hubapi.StatusUpdate{}, milestones: map[string]*hubapi.Milestone{},
+		deps: map[[2]string]bool{}, schedules: map[string]hubapi.TemplateSchedule{},
+		reminders: map[string]hubapi.ReminderPolicy{}, rotations: map[string]hubapi.TriageRotation{},
+		cursors: map[[2]string]int64{}})
+	return v.(*fakeRoadmap)
+}
+
+// grantedTo reports whether me is a member of a team holding a live grant on
+// projectID. A revoked grant is deleted, so revocation is immediate.
+func (w *fakeWorld) grantedTo(projectID, me string) bool {
+	for k := range w.rm().grants {
+		if k[0] == projectID && w.teams[k[1]] != nil && w.teams[k[1]].members[me] != nil {
+			return true
+		}
+	}
+	return false
+}
+
+// workProjectOf is projectOf for Work reads only: the caller's role in the
+// owning team, else roleGranted through a grant, else 404 as projectOf is.
+func (w *fakeWorld) workProjectOf(projectID, me string) (*fakeProject, hubapi.Role, error) {
+	if p, role, err := w.projectOf(projectID, me); err == nil {
+		return p, role, nil
+	}
+	if p := w.projects[projectID]; p != nil && w.grantedTo(projectID, me) {
+		return p, roleGranted, nil
+	}
+	return w.projectOf(projectID, me) // the same 404, byte for byte
+}
+```
