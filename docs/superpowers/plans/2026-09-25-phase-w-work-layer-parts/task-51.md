@@ -215,10 +215,17 @@ export function queryAt(state: EditorState): { query: string; from: number; to: 
   return { query: m[1], from: to - m[1].length - 1, to };
 }
 
-/** `onQuery(null)` whenever the cursor leaves a trigger, so the picker closes on its own. */
-export function mentionPlugin(onQuery: (q: MentionQuery | null) => void, viewRef: { current: EditorView | null }): Plugin {
+/** `onQuery(null)` whenever the cursor leaves a trigger, so the picker closes on its own.
+ *  `onKey` sees keydowns first while the editor has focus; it returns true only for the picker's
+ *  own keys (arrows, Enter, Tab) while a query is open, so every other key stays the editor's. */
+export function mentionPlugin(
+  onQuery: (q: MentionQuery | null) => void,
+  viewRef: { current: EditorView | null },
+  onKey: (e: KeyboardEvent) => boolean,
+): Plugin {
   return new Plugin({
     key: mentionKey,
+    props: { handleKeyDown: (_view, e) => onKey(e) },
     view(view) {
       viewRef.current = view;
       return {
@@ -247,3 +254,100 @@ export function insertMention(view: EditorView, q: { from: number; to: number },
 
 `tr.scrollIntoView()` keeps the **caret** of the person typing in view; it is the editor's own
 caret, which the person moved, not a comment arriving (decision 8).
+
+#### Interfaces — complete: `desktop/src/components/issue/CommentComposer.tsx`
+
+```tsx
+import { useMemo, useRef, useState, type JSX } from "react";
+import type { EditorView } from "prosemirror-view";
+import type { CommentAnchor, User } from "../../api/work";
+import { mutate } from "../../work/replica/ops";
+import { Popover } from "../common/Popover";
+import { Editor, type MarkdownDoc } from "../editor/Editor";
+import { authorOf, mentionHref, mentionsIn, MAX_MENTIONS } from "./commentModel";
+import { insertMention, mentionPlugin, type MentionQuery } from "./mentionPlugin";
+
+const EMPTY: MarkdownDoc = { markdown: "", authorship: [] };
+
+/** One composer: a new thread (parentId null) or a reply. `anchor` is the pending anchor, shown
+ *  above the editor by the caller; it rides with the post and is cleared by `onPosted`. */
+export function CommentComposer(props: {
+  issueId: string; parentId: string | null; anchor: CommentAnchor | null;
+  people: readonly User[]; onPosted(): void; label: string;
+}): JSX.Element {
+  const { issueId, parentId, anchor, people, onPosted, label } = props;
+  const [draft, setDraft] = useState<MarkdownDoc>(EMPTY);
+  const [round, setRound] = useState(0);                 // remounts the Editor empty after a post
+  const [q, setQ] = useState<MentionQuery | null>(null);
+  const [active, setActive] = useState(0);
+  const view = useRef<EditorView | null>(null);
+
+  const matches = useMemo(() => {
+    if (!q) return [];
+    const needle = q.query.toLocaleLowerCase("en-AU");
+    return people.filter((p) => p.displayName.toLocaleLowerCase("en-AU").startsWith(needle)).slice(0, 8);
+  }, [q, people]);
+
+  const choose = (u: User) => {
+    if (view.current && q && mentionsIn(draft.markdown).length < MAX_MENTIONS) {
+      insertMention(view.current, q, u.displayName, mentionHref(u.id));
+    }
+    setQ(null);
+  };
+  const qRef = useRef<{ q: MentionQuery | null; matches: User[]; active: number }>({ q: null, matches: [], active: 0 });
+  qRef.current = { q, matches, active };
+  const onKey = (e: KeyboardEvent): boolean => {
+    const s = qRef.current;
+    if (!s.q || s.matches.length === 0) return false;
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      setActive((i) => (i + (e.key === "ArrowDown" ? 1 : s.matches.length - 1)) % s.matches.length);
+      return true;
+    }
+    if (e.key === "Enter" || e.key === "Tab") { choose(s.matches[s.active]); return true; }
+    return false;
+  };
+  const plugins = useMemo(() => [mentionPlugin((next) => { setQ(next); setActive(0); }, view, onKey)], [round]);
+
+  const post = (doc: MarkdownDoc) => {
+    if (doc.markdown.trim() === "") return;
+    mutate({
+      kind: "comment", issueId,
+      req: { body: { text: doc.markdown, author: authorOf(doc) }, parentId, anchor, mentions: mentionsIn(doc.markdown) },
+    });
+    setDraft(EMPTY);
+    setRound((n) => n + 1);
+    onPosted();
+  };
+
+  return (
+    <div className="iv-cm-composer">
+      <Editor key={round} value={EMPTY} ariaLabel={label} plugins={plugins}
+        onCommit={setDraft} onSubmit={post} />
+      <button type="button" className="iv-cm-post" disabled={draft.markdown.trim() === ""}
+        onClick={() => post(draft)}>
+        Comment <kbd className="iv-kbd">Ctrl+Enter</kbd>
+      </button>
+      <Popover anchor={q && matches.length > 0 ? q.at : null} onClose={() => setQ(null)}>
+        <ul className="iv-cm-people" role="listbox" aria-label="Mention a teammate">
+          {matches.map((u, i) => (
+            <li key={u.id} role="option" aria-selected={i === active} data-user={u.id}
+              onMouseDown={(e) => { e.preventDefault(); choose(u); }}>{u.displayName}</li>
+          ))}
+        </ul>
+      </Popover>
+    </div>
+  );
+}
+```
+
+Three props on `Editor` are this part's, not task 49's scope: **`plugins`** (extra ProseMirror
+plugins, appended after the editor's own), **`onSubmit(doc)`** (fired by `Ctrl+Enter` with the
+current document; when set, `Ctrl+Enter` does not also call `onCommit`), and, for the description,
+**`onSelectionChange`** (below). Each is optional and additive, so task 49's description use is
+unchanged; they are named as gaps against task 49. The *Comment* button posts `draft`, which is
+current because a click blurs the editor first and task 49 commits on blur (mousedown, blur, click
+is the DOM's order). `onMouseDown` + `preventDefault` on a person row keeps the editor focused, so
+choosing a person does not blur and commit mid-mention. The picker lists only the issue's team
+(`people`, task 46's `issueData`): the Hub checks each mention against the team through task 08's
+membership read (`task-12.md:83`; the refusal code is task 12's and is not printed here), and the
+picker never offers someone that check would refuse.
