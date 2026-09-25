@@ -466,6 +466,8 @@ func TestEvaluateFailureShowsOpen(t *testing.T) {
 		{"none", func(EvalQuery) ([]Verdict, error) { return nil, nil }},
 		{"out of order", func(EvalQuery) ([]Verdict, error) { v := good(); v[0], v[1] = v[1], v[0]; return v, nil }},
 		{"a stranger's id", func(EvalQuery) ([]Verdict, error) { v := good(); v[2].CriterionID = "c-ffffffff"; return v, nil }},
+		// Mutant R2-P1: an open verdict's because is never shown.
+		{"open verdicts that give a because", func(EvalQuery) ([]Verdict, error) { return verdicts(ref, StateOpen, "no CI run yet"), nil }},
 		// Mutant P2: an Evaluate that reorders the query's criteria in place
 		// and answers in its new order. The readings keep Build's order.
 		{"a query reordered in place", func(q EvalQuery) ([]Verdict, error) {
@@ -632,6 +634,21 @@ func TestRefHasNoDenominator(t *testing.T) {
 				t.Errorf("%s Ref has a denominator-shaped key %q at %v", name, k, path)
 			}
 		})
+	}
+}
+
+// TestHeadsAreCarriedAsGiven: a head at an open revision above the latest
+// complete one tells headRevision from latestCompleteRevision, which
+// superseded is derived from (P4-B; mutants R2-P2, R2-P3: the two swapped).
+func TestHeadsAreCarriedAsGiven(t *testing.T) {
+	h := Head{HeadRevision: 7, LatestCompleteRevision: 6, Archived: true}
+	for name, ref := range map[string]Ref{
+		"built":  mustBuild(t, key42, src42(), h),
+		"erased": ErasedRef(key42, branchBrief, 5, dig42, stamp, "Dylan Mackie", stamp, h),
+	} {
+		if ref.HeadRevision != 7 || ref.LatestCompleteRevision != 6 {
+			t.Errorf("%s: headRevision %d latestCompleteRevision %d, want 7 and 6", name, ref.HeadRevision, ref.LatestCompleteRevision)
+		}
 	}
 }
 
