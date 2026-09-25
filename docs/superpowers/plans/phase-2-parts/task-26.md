@@ -38,13 +38,13 @@ And one ruling that the phase deferred to its own end: **open carry 12, `proxy.R
 
 **Interfaces:**
 - Produces:
-  - `docs/SEAMS.md` — thirty-two seams with ids `SX.1`–`SX.10` (every later phase, or no phase yet), `S3.1`–`S3.5`, `S4.1`–`S4.4`, `S5.1`–`S5.2` and `S8.1`–`S8.11`. It was twenty-eight: the Resume fix and the sandbox git + CA fix added four more mounts that `katabe` refuses, `S8.8`–`S8.11`, and each is recorded in Go contract §2.6 and in `backend.Mount`'s doc comment. The id is the key a later plan cites: *"this task consumes S4.1 and changes S4.2"*
+  - `docs/SEAMS.md` — thirty-two seams with ids `SX.1`–`SX.10` (every later phase, or no phase yet), `S3.1`–`S3.5`, `S4.1`–`S4.4`, `S5.1`–`S5.2` and `S8.1`–`S8.11`. It was twenty-eight: the Resume fix and the sandbox git + CA fix added six more mounts that `katabe` refuses, in four seams `S8.8`–`S8.11` (S8.8 and S8.11 each hold two), and each mount is recorded in Go contract §2.6 and in `backend.Mount`'s doc comment. The id is the key a later plan cites: *"this task consumes S4.1 and changes S4.2"*
   - `npm test -- src/seams.test.ts` and `go test ./control-plane/internal/backend/ -run Seam -count=1` — the two commands a later phase runs to check every seam is where `docs/SEAMS.md` says
   - `DiscoverLens`, `DesignLens`, `FilesLens`, `MergeLens`, `DeployLens` — each `(): JSX.Element`, each in `desktop/src/components/lens/`
 - Consumes: task 25's results document, cited in `docs/SEAMS.md`'s preamble as the evidence that the substrate these seams sit in was running when they were named; task 24's `defects.test.tsx` shape (anchors, `codeOnly`), copied rather than imported, because a test file importing another test file's internals is how two suites start failing together; task 15's contract §2 byte gate (`task-15.md:276-279`), re-expressed as a test
 - Required by: every later phase plan. `dependency-graph-and-order.md:315` gates any edit to `AppShell.tsx` on *"after the lens-seam task (0b)"*; after this task that edit is unnecessary
 - **Adds no selector, no fixture, no store key and no route.** A seam test that needed a new selector would be a seam test that changed the thing it pins
-- **Does not decide anything the planning pass left to the orchestrator or the owner.** Three seams are gaps with a pending decision — who calls `Materialise` (decision 0c, `dependency-graph-and-order.md:233`), who owns the `Files` lens (open carry 8), and how Kata receives a worktree (Phase 8's first problem). `docs/SEAMS.md` names each, cites the decision, and pins the **current** state with a tripwire anchor, so the day the decision lands the manifest fails and the document is updated with it. That is the whole of this task's part in each. The four mount seams `S8.8`–`S8.11` are the same Phase 8 problem as `S8.3`, one mount each, and are pinned the same way
+- **Does not decide anything the planning pass left to the orchestrator or the owner.** Three seams are gaps with a pending decision — who calls `Materialise` (decision 0c, `dependency-graph-and-order.md:233`), who owns the `Files` lens (open carry 8), and how Kata receives a worktree (Phase 8's first problem). `docs/SEAMS.md` names each, cites the decision, and pins the **current** state with a tripwire anchor, so the day the decision lands the manifest fails and the document is updated with it. That is the whole of this task's part in each. The four mount seams `S8.8`–`S8.11` are the same Phase 8 problem as `S8.3`, six mounts between them (two each in `S8.8` and `S8.11`, one each in `S8.9` and `S8.10`), and are pinned the same way
 - **Runs after the resume fix** (`b4be570`, round 1 `2e3db79`) **and the sandbox git + CA fix** (`2d6d95b`…`31576b7`), both landed ahead of task 25. Seam SX.10 names the mechanism the Resume fix built — Claude's own session id, a resume that forks it, and a conversation store that outlives its sandbox — and pins it. Step 1 (g) checks it landed
 
 **Every shell command below runs through `~/.claude/tools/claudezsh/claudezsh '<command>'`**, per the device-wide rule; the blocks show them bare.
@@ -77,7 +77,7 @@ test ! -e docs/SEAMS.md && test ! -e desktop/src/seams.test.ts \
 
 # (d) The Kata create-path gap is as the preamble states it. Both halves. Since the resume fix
 #     and the git + CA fix, the create path builds its mounts in ONE function, sessionMounts:
-#     the worktree first, then up to five more, each a Phase 8 seam (S8.8-S8.11).
+#     the worktree first, then up to six more, in four Phase 8 seams (S8.8-S8.11).
 grep -cE '^\tmounts := \[\]backend\.Mount\{\{HostPath: worktreePath, ContainerPath: sessionWorkDir\}\}$' \
   control-plane/internal/api/sessions.go                                    # 1
 grep -cE '^\t\tMounts:\s+sandboxMounts,$'      control-plane/internal/api/sessions.go         # 2 — create and restart
@@ -503,10 +503,10 @@ The Phase 5 and Phase 8 seams, closing the array:
       { file: "control-plane/internal/api/attach.go", present: /\bproxy\.RelayHooked\(r\.Context\(\), client, upstream, / },
     ],
   },
-  /* The four mounts after the worktree, each refused by katabe's `len(spec.Mounts) > 0`
-   * (S8.3's anchor), each a thing Phase 8 must provide another way: Go contract §2.6 and
-   * backend.Mount's doc comment record every one. One seam per mount, so the day Phase 8
-   * delivers one, exactly one row moves. */
+  /* The six mounts after the worktree, in four seams, each refused by katabe's `len(spec.Mounts) > 0`
+   * (S8.3's anchor); Go contract §2.6 and backend.Mount's doc comment record every one. One seam per
+   * thing Phase 8 must provide another way, so the day it provides one, exactly one row moves: S8.8
+   * holds the store and a fork's carried transcript, S8.11 the two git files. */
   {
     id: "S8.8",
     name: "the conversation store (and a fork's carried transcript): a volume per user and worktree that outlives the pod",
@@ -525,6 +525,7 @@ The Phase 5 and Phase 8 seams, closing the array:
     anchors: [
       { file: "control-plane/internal/api/sessions.go", present: /^const sessionCABundlePath = "\/etc\/panacea-app\/ca-bundle\.pem"$/m },
       { file: "control-plane/internal/api/sessions.go", present: /^\t\tmounts = append\(mounts, backend\.Mount\{HostPath: caBundle, ContainerPath: sessionCABundlePath, ReadOnly: true\}\)$/m },
+      { file: "control-plane/internal/api/sessions.go", present: /^\t\tenv\["NODE_EXTRA_CA_CERTS"\] = sessionCABundlePath$/m },
     ],
     tests: [{ file: "control-plane/internal/api/sessions_sandboxenv_test.go", decl: /^func TestACABundleIsMountedReadOnlyAndNamedByNodeExtraCACerts\(/m }],
   },
@@ -1031,7 +1032,7 @@ forgets it, and each is already enforced where cited.
 | S8.6 | 8 | `desktop/src/api/client.ts:6-8` — no `Authorization` header | Add auth with its server half, together | Add a header "for safety" in an earlier phase | seams.test.ts `S8.6` (see note) |
 | S8.7 | 8 | `proxy.RelayHooked` (`proxy/proxy.go`), called once at `api/attach.go:216` | Reach pods through it | Add a second relay; `proxy.Relay` was deleted by task 26 (open carry 12) | seams.test.ts `S8.7` |
 | S8.8 | 8 | The conversation store: `<state>/conversations/local/<worktree>/` mounted read-write at `sessionConversationDir` (`api/sessions.go:58,346`), and a fork's staged read-only copy of its source's transcript (`carried`, `:349`); refused by S8.3's `len(spec.Mounts) > 0` | Provide a volume per user and worktree that outlives the pod and holds `projects/` only (Go contract §2.6), so SX.10's resume survives a pod | Put the store in the pod's `emptyDir` home; share one store across users or worktrees | `TestCreateMountsOnlyThisWorktreesConversationStore`, `TestAForkIsShownAStagedReadOnlyCopyOfTheSourcesTranscript`; seams.test.ts `S8.8` |
-| S8.9 | 8 | The CA bundle: `PANACEA_APP_CA_BUNDLE` mounted read-only at `sessionCABundlePath` = `/etc/panacea-app/ca-bundle.pem` and named by `NODE_EXTRA_CA_CERTS` (`api/sessions.go:296,352`); refused by S8.3's check | Deliver the operator's CA to the pod another way, at the same path and named by the same variable | Drop `NODE_EXTRA_CA_CERTS`, without which Claude Code cannot start on a TLS-inspecting network; set `SSL_CERT_FILE` or `NODE_TLS_REJECT_UNAUTHORIZED`, which tests assert are absent | `TestACABundleIsMountedReadOnlyAndNamedByNodeExtraCACerts`; seams.test.ts `S8.9` |
+| S8.9 | 8 | The CA bundle: `PANACEA_APP_CA_BUNDLE` mounted read-only at `sessionCABundlePath` = `/etc/panacea-app/ca-bundle.pem` and named by `NODE_EXTRA_CA_CERTS` (`api/sessions.go:296,352,452`); refused by S8.3's check | Deliver the operator's CA to the pod another way, at the same path and named by the same variable | Drop `NODE_EXTRA_CA_CERTS`, without which Claude Code cannot start on a TLS-inspecting network; set `SSL_CERT_FILE` or `NODE_TLS_REJECT_UNAUTHORIZED`, which tests assert are absent | `TestACABundleIsMountedReadOnlyAndNamedByNodeExtraCACerts`; seams.test.ts `S8.9` |
 | S8.10 | 8 | A primary worktree's `.git/worktrees`, mounted read-only over itself at `sessionWorktreeAdminDir` (`api/sessions.go:40,343`); refused by S8.3's check | Decide it with S8.3's worktree delivery; under OD-2's one local clone per worktree it may vanish, and this row with it | Make it writable: the sandbox's git calls every linked worktree prunable, and a `git worktree prune` there deletes the host's metadata (`sessionWorktreeAdmin`'s comment, `:562-570`) | `TestAPrimaryWorktreesLinkedWorktreeMetadataIsReadOnlyInTheSandbox`; seams.test.ts `S8.10` |
 | S8.11 | 8 | The host git's global excludes and attributes files, read-only at `sessionGitExcludesPath` and `sessionGitAttributesPath` (`api/sessions.go:304-305,355,358`), mounted only when the host's git reads them; refused by S8.3's check | Carry the user's own git config into the pod, or state that a cloud sandbox has none | Copy a file the host's git does not read; make either writable | `TestTheHostsGlobalGitFilesReachTheSandboxReadOnlyAndOnlyWhenTheHostsGitReadsThem`; seams.test.ts `S8.11` |
 ```
@@ -1055,8 +1056,8 @@ and this note is rewritten to say where it went.
 Every create and restart sends host-path mounts, the worktree first, and a working directory
 (`api/sessions.go:992-993`, `:1678-1679`), and `katabe.Create` refuses both, correctly — *"a host
 path on an AKS node is meaningless"*, and silently dropping the mount would hand the agent *"an
-empty worktree with no error anywhere"* (`kata.go:92-106`). The four mounts after the worktree
-are seams of their own, S8.8 to S8.11: each is refused by the same check, and each needs its own
+empty worktree with no error anywhere"* (`kata.go:92-106`). The six mounts after the worktree
+are seams of their own, four of them, S8.8 to S8.11: each is refused by the same check, and each needs its own
 answer once the worktree has one. So under `PANACEA_APP_BACKEND=kata` every
 session create fails today. `katabe`'s header used to say turning it on was *"a configuration
 change and not a rewrite"*; task 26 corrected it to say this instead. **Before Phase 8 does

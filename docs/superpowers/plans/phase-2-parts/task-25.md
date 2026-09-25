@@ -24,7 +24,7 @@ Task 24 ends with the cockpit reading from a live control plane and a claim it i
 
 - **The Resume fix** (`b4be570`, round 1 `2e3db79`). It persists `/home/dev/.claude/projects` and nothing wider, resumes with `--resume <U> --fork-session --session-id <V>`, and refuses (409) to resume a session whose conversation has no transcript. `o2.resume` (step 14) seeds a real transcript and asserts the fork.
 - **The sandbox git + CA fix** (`2d6d95b`…`4f6d698`, then its rounds through `31576b7`: line endings, no auto gc, the host's global excludes and attributes files, and X-1's host-owned-config-only resolvers). Git works on a primary worktree, as a configured identity (`PANACEA_APP_GIT_NAME` and `PANACEA_APP_GIT_EMAIL`, or the host's own `git var GIT_AUTHOR_IDENT`), and `PANACEA_APP_CA_BUNDLE` lets Claude Code through a TLS-intercepting proxy. Steps 1 and 6 set and check it; the new check `g.primary` (step 14) proves git.
-- **The reaper-scope fix** (`a9c2cec`, `2cce576`). A control plane from HEAD reaps only its own instance's sandboxes. The Docker lock (`docker-daemon-lock.md`) still binds step 6, because an older build on the daemon still reaps everything.
+- **The reaper-scope fix** (`a9c2cec`, `2cce576`). A control plane from HEAD reaps only its own instance's sandboxes. The Docker lock (`docker-daemon-lock.md`) still binds, because an older build on the daemon still reaps everything. **It is taken at step 2 and held through step 20** (amended 2026-09-26, reconcile review M4): step 2 is the first step that changes the daemon — it rebuilds and retags `panacea-app/sandbox:dev`, which changes the image another holder's next sandbox gets — and steps 3–4 run a `panacea-app.managed=true` probe, which trips another holder's guard and which a pre-`a9c2cec` build reaps. It is not released between step 4 and step 6, because the image steps 2–3 proved is the image the run must use, and a retag in that gap would make the run prove a different one. Step 1's two TLS probes run before it: they are unlabelled `docker run --rm` reads of the image and change nothing another agent depends on. If the task stops anywhere after step 2, release the lock as step 20 does.
 
 The check count this changes is **nineteen** (it was eighteen); every restatement below says so.
 
@@ -202,6 +202,12 @@ The image must contain `382f056`. **A timestamp is necessary and not sufficient*
 git status --porcelain -- sandboxd images/sandbox                           # expect no output
 git merge-base --is-ancestor 382f056 HEAD && echo "382f056: in HEAD"
 
+# The Docker lock, before the first command that changes the daemon, held through step 20
+# (SDD docker-daemon-lock.md, steps 1-2): mkdir the lock, write owner.txt with this task's
+# label, port 8730 and the time, then the guard. Any managed container you did not create
+# means: do not build, release, report.
+docker ps -a --filter label=panacea-app.managed=true --format "{{.ID}} {{.Names}} {{.Status}}"
+
 docker image inspect panacea-app/sandbox:dev --format '{{.Created}}'        # before
 git log -1 --format='%cI %h %s' 382f056
 
@@ -355,8 +361,9 @@ git -C "$E2E_ROOT/projects/e2e-demo" worktree list
 mkdir -p "$E2E_ROOT/bin"
 ( cd control-plane && go build -o "$E2E_ROOT/bin/panacea-api.exe" ./cmd/api )
 
-# The Docker lock first (SDD docker-daemon-lock.md): mkdir the lock, write owner.txt, then
-# the guard. Any managed container you did not create means: do not start, release, report.
+# The Docker lock is already held, since step 2. The guard again before starting (the lock
+# doc's step 2 binds even while you hold it): steps 3-4's probe is gone, so this prints
+# nothing. Any managed container you did not create means: do not start, release, report.
 docker ps -a --filter label=panacea-app.managed=true --format "{{.ID}} {{.Names}} {{.Status}}"
 
 # Exported, not prefixed: the harness reads the identity (g.primary), and step 13 restarts
@@ -1627,9 +1634,10 @@ Task 5's Q3 and Q4: `docker port` printed <verbatim>; `State` read `<running>` t
 
 ## Owner-observed
 
-<Items 1–19 from steps 16–18, numbered as there, each with the item's one-line title and the
-owner's answer in the owner's words. Every item reads PENDING OWNER until the owner answers.
-The implementer writes none of these.>
+<Items 1–19 from steps 16–18, numbered as there, one line each, in exactly this form:
+`<n>. **<the item's one-line title>**: PENDING OWNER`. The owner replaces `PENDING OWNER` with
+the answer in the owner's words; until then every item reads PENDING OWNER. The implementer
+writes none of the answers. Step 20's guard counts these lines by that form.>
 
 ## Findings
 
@@ -1714,7 +1722,7 @@ docker ps -a --filter label=panacea-app.managed=true --format '{{.Names}} {{.Sta
 netstat -ano | grep -E ':(8730|1420|9222)\s' | grep LISTENING
 ```
 
-**What you must see:** the `docker ps` line prints nothing — the harness `DELETE`d every session it made, and `DELETE` destroys the sandbox. A leftover `panacea-app-*` container means a check threw before `main()` reached its cleanup loop; remove it by name with `docker rm -f`, after `docker inspect` confirms its `panacea-app.session-id` label is one this run created. The `netstat` line prints nothing. `$E2E_ROOT` is left in the temp directory for the owner to inspect and is not deleted by this task. **Only then release the Docker lock** that step 6 took: `rm <lock>/owner.txt && rmdir <lock>` (`docker-daemon-lock.md` step 4).
+**What you must see:** the `docker ps` line prints nothing — the harness `DELETE`d every session it made, and `DELETE` destroys the sandbox. A leftover `panacea-app-*` container means a check threw before `main()` reached its cleanup loop; remove it by name with `docker rm -f`, after `docker inspect` confirms its `panacea-app.session-id` label is one this run created. The `netstat` line prints nothing. `$E2E_ROOT` is left in the temp directory for the owner to inspect and is not deleted by this task. **Only then release the Docker lock** that step 2 took: `rm <lock>/owner.txt && rmdir <lock>` (`docker-daemon-lock.md` step 4).
 
 **Then the guards.** Anchored, per shared shape §3A.
 
@@ -1743,7 +1751,10 @@ grep -c  'e2e-resume-marker'                                  desktop/e2e/phase2
 
 # The results document exists and the implementer answered no owner item.
 ls docs/verification/*-phase-2-results.md
-grep -c 'PENDING OWNER' docs/verification/*-phase-2-results.md          # 19, unless the owner has answered
+# The item lines only, by the form the skeleton gives them. A bare grep -c 'PENDING OWNER'
+# reads 21 on a correct document: the "What was tested" row and the OC 2 carry row hold the
+# words too (reconcile review M1).
+grep -cE '^([1-9]|1[0-9])\. \*\*.+\*\*: PENDING OWNER$' docs/verification/*-phase-2-results.md  # 19, unless the owner has answered
 
 git status --porcelain | sort
 ```
