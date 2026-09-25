@@ -56,3 +56,113 @@ list. Task 40 promotes what the owner kept into `components/work/` and deletes t
    writes only tokens and task 30's sans/mono rule, so `data-look` and `data-theme` restyle it.
    Both screens register with task 33's `stress.sets` by name.
 
+**Files** (the skeleton's file map has no row for any of these; a gap, named in the return):
+- `desktop/src/prototype/work/world.ts` — the scenario plus its overrides (new)
+- `desktop/src/prototype/work/mount.ts` — the DEV gate and the stress registration (new)
+- `desktop/src/prototype/work/WorkPrototype.tsx`, `PlanPrototype.tsx` — the two screens (new)
+- `desktop/src/prototype/work/Rows.tsx` — the row and the group, shared by both screens (new)
+- `desktop/src/prototype/work/Launcher.tsx` — the toolbar's *Open the Work prototype* (new)
+- `desktop/src/prototype/work/prototype.css` — owns `.pw-*` (new)
+- `desktop/src/prototype/work/prototype.test.tsx` — eight tests (new)
+- `desktop/src/lib/flags.ts` ⚑ (task 32) — `prototype: "off" | "on"` (modified)
+- `desktop/src/components/devtools/DevToolbar.tsx` ⚑ (task 32) — mounts `Launcher` (modified)
+- `desktop/src/components/AppShell.tsx` ⚑ — `LensRouter` gains its `"work"` arm (modified)
+
+#### Interfaces — complete: the delta on ⚑ `lib/flags.ts`
+
+```ts
+export type PrototypeFlag = "off" | "on";
+
+export interface Flags {
+  look: Look;
+  sans: SansCandidate;
+  theme: ThemeName;
+  /** Task 38: the dev-only Work and Plan prototype. Off is the production DOM. */
+  prototype: PrototypeFlag;
+}
+// FLAG_DEFAULTS gains   prototype: "off",
+// ATTRIBUTE gains       prototype: "data-prototype",
+```
+
+No stylesheet reads `data-prototype`; the attribute exists because task 32's rule is one attribute
+per flag, and `resetFlags` clears it with the others.
+
+#### Interfaces — complete: `desktop/src/prototype/work/mount.ts`
+
+```ts
+// desktop/src/prototype/work/mount.ts — task 38. The one import of the prototype from product
+// code. Vite replaces import.meta.env.DEV with a literal, so in a production build both branches
+// below are dead and no prototype chunk is emitted (the acceptance grep over dist/ holds that).
+import { lazy } from "react";
+import type { JSX, LazyExoticComponent } from "react";
+
+export const WorkPrototype: LazyExoticComponent<() => JSX.Element> | null = import.meta.env.DEV
+  ? lazy(() => import("./WorkPrototype"))
+  : null;
+
+if (import.meta.env.DEV) {
+  // Registers "Work prototype" and "Plan prototype" with task 33's stress.sets.
+  void import("./register").then((m) => m.register());
+}
+```
+
+`register.ts` (new, six lines, in the same directory):
+
+```ts
+import { registerStressScreen } from "../../components/devtools/StressSets";
+import WorkPrototype from "./WorkPrototype";
+import { PlanPrototype } from "./PlanPrototype";
+
+export function register(): void {
+  registerStressScreen("Work prototype", () => <WorkPrototype />);
+  registerStressScreen("Plan prototype", () => <PlanPrototype />);
+}
+```
+
+It holds JSX, so its name is `register.tsx`; the `import("./register")` above resolves it.
+
+#### Interfaces — complete: the delta on ⚑ `components/AppShell.tsx`
+
+```tsx
+import { Suspense } from "react";
+import { useFlags } from "../lib/flags";
+import { WorkPrototype } from "../prototype/work/mount";
+
+// LensRouter, a new arm before `default` (AppShell.tsx:67). Task 40 replaces it with the lens.
+    case "work":
+      return <WorkArm />;
+
+/** Nothing unless all three gates hold (decision 1). A hook, so it lives in its own component. */
+function WorkArm(): JSX.Element {
+  const { prototype } = useFlags();
+  if (WorkPrototype === null || prototype !== "on") return <></>;
+  return (
+    <Suspense fallback={null}>
+      <WorkPrototype />
+    </Suspense>
+  );
+}
+```
+
+#### Interfaces — complete: `Launcher.tsx`, and the delta on ⚑ `DevToolbar.tsx`
+
+```tsx
+// desktop/src/prototype/work/Launcher.tsx — task 38, decision 2. Loaded only by the dev toolbar.
+import type { JSX } from "react";
+import { setFlag } from "../../lib/flags";
+import { useCockpit } from "../../store/store";
+import { WORK_IDS } from "../../test/workFixtures";
+
+export function Launcher(): JSX.Element {
+  const open = () => {
+    setFlag("prototype", "on");
+    useCockpit.getState().openWork(WORK_IDS.project, "feat/resumable-uploads");
+  };
+  return <button type="button" className="dt-reset" onClick={open}>Open the Work prototype</button>;
+}
+```
+
+In `DevToolbar.tsx`, `import { Launcher } from "../../prototype/work/Launcher";` and
+`<Launcher />` after `<FlagCompare />`. It borrows task 32's `.dt-reset` look, so the toolbar
+gains no class.
+
