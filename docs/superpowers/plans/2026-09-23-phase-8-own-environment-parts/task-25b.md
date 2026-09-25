@@ -86,7 +86,7 @@ type Machine struct {
 //     never from Kind(): remotebe's Kind is KindKata (task-22.md:128-130) and it can serve step 2.
 
 // NewRunnerTransport is NewRunner with the http.Client's Transport set to rt. nil rt is
-// NewRunner. Every check NewRunner makes (task-24.md:562-579) is unchanged.
+// NewRunner. Every check NewRunner makes (phase-3 task-24.md:562-579) is unchanged.
 func NewRunnerTransport(endpoint, token string, rt http.RoundTripper) Runner
 ```
 
@@ -142,3 +142,114 @@ func (c *Client) GitTransport(sandboxID string) http.RoundTripper
 // pod IP.
 func DialLane(c *Client) func(endpoint, token string) lanegit.Runner
 ```
+
+The bundle wire, which task 21b serves (task 21b owns `machineapi`'s bundle file; its spelling
+wins):
+
+```go
+package machineapi
+
+const (
+	PathBundles = "/v1/bundles"               // POST: body a bundle, or ?reserve=1 and no body
+	BundleDir   = "/tmp/machined-git/bundles" // machined's owned root + "/bundles" (ruling 3)
+)
+
+// BundleID is POST /v1/bundles's 201. ID matches ^[0-9a-f]{16}$. GET and DELETE are
+// PathBundles + "/" + ID.
+type BundleID struct {
+	ID string `json:"id"`
+}
+```
+
+The cloud `Bundles` (`internal/machines/bundles.go`). Ruling 3 names `Put(io.Reader)`,
+`Reserve()`, `Open(id)`, `Remove(id)` and `Path(id)`; the four that cross the network also take a
+`ctx`, the one change made here.
+
+```go
+package machines
+
+// Bundles is lanegit.Bundles (S8-P3.4) on one cloud machine: machined's bundle routes
+// (task 21b) through the broker's agent proxy, /v1/machines/<MachineID>/agent/v1/bundles…
+// (task-19.md:89), sent with remotebe's Raw. Every id it takes or answers is checked against
+// ^[0-9a-f]{16}$: an answered id is machined's claim, and every id lands in a path.
+type Bundles struct {
+	Client    *remotebe.Client
+	MachineID string // ^m-[0-9a-f]{8}$
+}
+
+var _ lanegit.Bundles = Bundles{}
+
+// ErrBundleBusy: machined already holds two live bundles (429 bundle_busy). Nothing here waits
+// or retries.
+var ErrBundleBusy = errors.New("machines: the machine already holds two bundles")
+
+// BundleError is every other problem on a bundle route: 413 too_large, 504 git_timeout, 404 for
+// an id that is not live, 409 machine_asleep from the proxy. Error() is "<status> <code>".
+type BundleError struct {
+	Status int
+	Code   string
+}
+
+func (e *BundleError) Error() string
+
+// Put streams r as the body of POST …/v1/bundles, chunked (ContentLength -1), never read ahead,
+// and answers the 201's id. On any failure it closes r when r is an io.Closer, so a relay's
+// io.PipeWriter (the runner's Bundle) unblocks with io.ErrClosedPipe instead of leaking.
+func (b Bundles) Put(ctx context.Context, r io.Reader) (string, error)
+
+// Reserve is POST …/v1/bundles?reserve=1 with no body: an id and no file, for SendBranch's
+// bundle create into Path(id) through POST /v1/git (ruling 3, project to lane).
+func (b Bundles) Reserve(ctx context.Context) (string, error)
+
+// Open is GET …/v1/bundles/{id}, streamed, for the caller to close. It is Runner.Fetch's body,
+// unread here (phase-3 task-24.md:570).
+func (b Bundles) Open(ctx context.Context, id string) (io.ReadCloser, error)
+
+// Remove is DELETE …/v1/bundles/{id}: nil on 204, which machined also answers for an id already
+// gone (ruling 3).
+func (b Bundles) Remove(ctx context.Context, id string) error
+
+// Path is machineapi.BundleDir + "/" + id + ".bundle": a path on the MACHINE, the one argument
+// machined's POST /v1/git admits under /tmp/machined-git/ while the id is live (ruling 3). A
+// malformed id answers "". The laptop never opens it.
+func (b Bundles) Path(id string) string
+```
+
+The relay, as phase 3's `FetchLane` spools after S8-P3.4 (ruling 3, lane to project). It is phase
+3's code; this is what `Bundles` must make work:
+
+```go
+pr, pw := io.Pipe()
+go func() { _, err := runner.Bundle(ctx, req, pw); pw.CloseWithError(err) }()
+id, err := bundles.Put(ctx, pr) // ctx: BundleTimeout + 5 s, one deadline over both legs
+if err != nil { return err }
+defer bundles.Remove(context.WithoutCancel(ctx), id) // every path, success included
+// bundle verify, bundle list-heads and fetch on bundles.Path(id): Scope Project, POST /v1/git
+```
+
+The wiring in `cmd/api/main.go`, beside phase 3's `laneGit` (phase-3 `task-24.md:850`):
+
+```go
+laneGit.Machines = func(ctx context.Context, id string) (lanegit.Machine, error) {
+	if id == "" || id == machines.LocalID {
+		return lanegit.Machine{Backend: be, Bundles: localBundles}, nil // phase 3's own (S8-P3.4)
+	}
+	b, err := set.Backend(ctx, id) // task 23: ErrUnknownMachine for an id that is not this user's
+	if err != nil {
+		return lanegit.Machine{}, err
+	}
+	c := set.Cloud() // non-nil: Backend answers a cloud id only when a broker is configured
+	return lanegit.Machine{Backend: b, Dial: remotebe.DialLane(c),
+		Bundles: machines.Bundles{Client: c, MachineID: id}}, nil
+}
+```
+
+The one `HeldSet` (phase-3 `task-24.md:845`) holds runner-only ids on every machine: ids are
+`lg-` + 16 random hex, so they do not collide across machines.
+
+#### Asks of phase 3, recorded here (task 33 lists the phase's asks)
+
+| Ask | What | Why | Plan proceeds on |
+|---|---|---|---|
+| **S8-P3.4** `lanegit.Bundles` (ruling 3) | `FetchLane`, `ArchiveLane` and `SendBranch` take `gitx.Runner` and a `Bundles` (`Put`, `Reserve`, `Open`, `Remove`, `Path`), four of them with `ctx` | today they take `*gitx.Exec` and write `<OwnedRoot>/bundles` on the laptop (phase-3 `task-24.md:704-745`), the wrong disk for a cloud lane | nothing: without it this task does not start |
+| **S8-P3.5** the pool reaches a lane's own machine | `Lanes.Machines`, `Lanes.Bundles`, step 2's `ReadyWaiter` and `ErrUnsupported` rules, `NewRunnerTransport` (above) | one `Backend` and one `Dial` per pool, a readiness poll of an undialled endpoint, a Kind-based `ErrNoRunner`, and a runner that dials `http://<endpoint>` | nothing: without it this task does not start |
