@@ -970,3 +970,72 @@ export type { Problem };
 
 Path segments are `encodeURIComponent`-ed; no method builds a query string by hand except
 `desk`, which sends `?since=` through `URLSearchParams`.
+
+`send` is today a closure inside `createClient` (`client.ts:245`). This task lifts it, unchanged,
+into an exported `createTransport(opts): { baseUrl; send }` in the same file, which `createClient`
+calls first; phase 2's `client.test.ts` passes untouched, which is the proof that nothing moved.
+`client.ts` therefore joins the modified files.
+
+#### `desktop/src/store/slices/teamSlice.ts` (complete surface)
+
+```ts
+import type { StateCreator } from "zustand";
+import type { CockpitState } from "../store";
+import type { OrchestratorView, PersonDetail, ProjectId, TeamDesk, TeamSettings, TeamStrip,
+  ThreadView, AskSubject } from "../types";
+
+export interface TeamSlice {
+  teamStrips: Record<ProjectId, TeamStrip>;
+  teamPeople: Record<`${ProjectId}:${string}`, PersonDetail>;
+  teamDesk: TeamDesk | null;
+  orchestrators: Record<ProjectId, OrchestratorView>;
+  threads: Record<`${ProjectId}:${string}`, ThreadView>;
+  teamSettings: Record<ProjectId, TeamSettings>;
+  /** Persisted. The SINCE YOU LAST LOOKED cursor (decision e). "" = never looked. */
+  teamSeenAt: string;
+  /** The Orchestrator panel's open state and attached subject (task 55 renders it). */
+  orchestratorPanel: { projectId: ProjectId; subject: AskSubject | null } | null;
+  /** Answers in flight, by escalation id: the one-call guard task 54 tests. */
+  answering: Record<string, true>;
+
+  setTeamStrip(s: TeamStrip): void;
+  setTeamPerson(d: PersonDetail): void;
+  setTeamDesk(d: TeamDesk): void;
+  setOrchestrator(v: OrchestratorView): void;
+  setThread(projectId: ProjectId, v: ThreadView): void;
+  setTeamSettings(s: TeamSettings): void;
+  markTeamSeen(at: string): void;
+  openOrchestrator(projectId: ProjectId, subject?: AskSubject): void;
+  closeOrchestrator(): void;
+  beginAnswer(escalationId: string): boolean; // false if already in flight
+  endAnswer(escalationId: string): void;
+}
+
+export const initialTeamState: Pick<TeamSlice, "teamStrips" | "teamPeople" | "teamDesk" |
+  "orchestrators" | "threads" | "teamSettings" | "teamSeenAt" | "orchestratorPanel" | "answering">;
+
+export const createTeamSlice: StateCreator<CockpitState, [], [], TeamSlice>;
+```
+
+`store.ts` adds `TeamSlice` to `CockpitState` and `teamSeenAt` to `Persisted` and `partialize`. The
+root-level shallow merge (`store.ts:1-5`) is why a snapshot without the key rehydrates to `""`
+safely, the same argument `store.ts` already makes for `sendChordsToTerminal`; no version bump.
+Setters **replace** a view whole; nothing merges a new strip into an old one, so a person who left
+the project cannot linger in the store. Polling lives in the components that show a view (task
+53's strip polls `strip` every 5 s while mounted, with phase 2's `startPolling` pattern,
+`poller.ts:30`); the slice holds no timer.
+
+- [ ] **Step 1: Write the failing tests first**
+
+**Fleet side** (`teamhuman_test.go`, `desk_test.go`), over task 22's fakes for `Sources` and task
+12's test server:
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestHumanKeysAllowlist` | reflection over `TeamHuman`, `HumanAgent`, `HumanFile`, `HumanConflict` JSON tags equals a written list; none of `transcript`, `terminal`, `openingPrompt`, `prompt`, `args`, `reply`, `directive`, `text`, `why`, `lastCommitSubject` | a later field that ships a teammate's words or prompt to every desktop (§9.2) |
+| `TestHumanWordsOnlyWhenWaitingOnHuman` | a worker `working` with an open blocked report: `words` absent; `waiting`/`human`: present, class `text·A`, `by` = the worker | a stale report shown under a working agent |
+| `TestHumanOmitsEnded` | an `ended` agent is absent; a `starting` one is present | a finished agent kept on the strip |
+| `TestTeamRouteIsViewerAndUp` | viewer 200; a non-member 403 `forbidden` | the route registered under `VerbPrivateRead` or with no verb |
+| `TestThreadsOnlyTheCallersOwn` | Alice's call lists only threads her Orchestrator is party to; Bob's thread with Carol is absent | listing every open thread in the project |
+| `TestMessagesHidesExistence` | Alice asks for Bob–Carol's thread → 404 `thread_not_found`, and `Messages` was never called | a 403 that confirms the thread exists, or a relay that trusts the Hub alone |
+| `TestMessagesUseTheCallersOrchDelegation` | the fake `Messages` receives Alice's Orchestrator's `dl-…`, never Fleet's own or Bob's | reading route 63 under a delegation that is not the caller's |
