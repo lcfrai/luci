@@ -625,6 +625,35 @@ status, output and files. `npm` and `curl` are fakes on `PATH` that record their
 | `digests_json_has_mirror_and_claudeCode` | `build.sh --push` to a local registry writes one line with the six keys in order; `gate_field` reads each | the mirror left out of the run (c) |
 
 `pipelines/scripts/gate-channel_test.sh` runs G2 twice more on the new image, with a test-only
-`GATE_CHANNEL_SOCKET_MODE`: `allow` (the fake socket allows the edit, so `src/a.ts` changes) must
-write `fail`, and `nohook` (the fake upstream sees its second request with no `check --hook`
-before it) must write `fail`. Mutant: a G2 that judges by the CLI's exit status alone.
+`GATE_CHANNEL_SOCKET_MODE=allow` (the fake socket allows the edit, so `src/a.ts` changes) must
+write `fail`; `GATE_CHANNEL_POLICY=testdata/no-hook.json` (a managed file without the
+`PreToolUse` hook, so the socket never sees `check --hook`) must write `fail`. Both variables are
+refused unless `GATE_CHANNEL_TEST=1`, which `images.yml` never sets. Mutant: a G2 that judges by
+the CLI's exit status alone.
+
+Go tests, on task 12's and task 20's fakes and phase 6 task 15's fake keysmith:
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `fleetd` · `TestClaudeVersionRequired` | absent, `latest`, `2.1` → an error beginning `PANACEA_APP_FLEET_CLAUDE_VERSION` | a default of `""` or `latest` |
+| `fleetd` · `TestMirrorImageMustBeADigest` | `…/mirror:1` → an error beginning `PANACEA_APP_FLEET_MIRROR_IMAGE` | a tag accepted |
+| `sessions` · `TestLaunchVersionIsFleetsNotTheCallers` | `LaunchRequest.Version = "9.9.9"`, config `2.1.280` → the stored agent and the Hub outbox item carry `2.1.280` | the caller's value kept |
+| `sessions` · `TestRunningAgentKeepsItsVersion` | launch under `2.1.274`; a new `Sessions` on the same store with `2.1.280` (a deploy); the first record still `2.1.274`, its sandbox spec unchanged, no broker call for it; a Restart makes a new record at `2.1.280` | a reconcile that rewrites versions; a Restart that reuses the record |
+| `gatemint` · `TestMintNeverPrintsTheToken` | fake keysmith answers token `tok-7f…`: neither stdout nor stderr holds it; `<dir>/token` does; stdout names the key id | printing the response |
+| `gatemint` · `TestMintSendsThePodAddress` | `POD_IP=10.4.0.9` → the request's `podAddr` is it; `POD_IP` empty → exit 1, no request | minting for no address, or for a fixed one |
+| `gatemint` · `TestPolicyIsTheWorkerFile` | stdout equals `policy.Render(policy.Layers{}, model.ClassWorker)`'s bytes | the orchestrator class; a stale embedded copy |
+
+The chart gains `tests/fleet_images_test.yaml` (helm-unittest, as task 32's): `claudeCode:
+latest` and a tagged `mirror` each fail the schema; good values set both variables. Mutant: the
+schema without the patterns.
+
+- [ ] **Step 2: Run the tests and watch them fail**
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team && bash pipelines/scripts/cli-bump_test.sh; bash pipelines/scripts/lib/gate_test.sh
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/control-plane && GOPROXY=off go test ./cmd/fleetd/ ./cmd/gatemint/ ./internal/fleet/sessions/ -run "ClaudeVersion|MirrorImage|Version|Mint|Policy"
+```
+
+Expected: the shell suites fail with `No such file or directory` for the scripts; Go fails to
+compile on `undefined: envClaudeVersion`, `no Go files in …/cmd/gatemint`, and
+`s.cfg.ClaudeCodeVersion undefined`.
