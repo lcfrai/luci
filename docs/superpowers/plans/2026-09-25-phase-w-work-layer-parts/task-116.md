@@ -454,3 +454,67 @@ task 123's own-cursor routes, 200 for G on G's own cursor). **Mutant it kills:**
 handler forgets `workAccess` (a G read comes back 404) or uses it for writes (a G write comes back
 200). `TestEveryWorkRouteHasAGrantedRow`, the meta-test, fails a registered Work pattern that
 `allWorkRoutes()` lacks once `"117"` is live.
+
+#### Steps
+
+- [ ] **Step 1: Sync and number (15 min).** Sync-merge `feat/hub` (rule H1). Take the next free
+  migration number; confirm the names `teams`, `users`, `projects` (H), `features`, `templates`
+  (task 74), `notes` (TM-46), `hub.user_id` (task 74's draft policy) and the janitor's actor kind
+  (task 77). A differing name is a mechanical rename in this part and in 119's and 120's sections.
+- [ ] **Step 2: Tests first (50 min).** Write `work_roadmap_integration_test.go` and the matrix
+  additions. Run: every test fails (no tables); `TestWorkGrantedPrincipal` skips.
+- [ ] **Step 3: The migration (70 min).** Write the three SQL blocks in order: tables, guards,
+  security and grants. Run until green; then run task 06's and task 07's guard tests and H16b's
+  whole matrix, which must be unchanged.
+- [ ] **Step 4: Mutants (20 min).** Drop each guard in turn (the `health` `CHECK`, the immutable
+  trigger, the acyclic trigger, the forward trigger, one table from the RLS loop, one from the actor
+  loop, the `own_cursor` policy) and see its test fail; restore.
+- [ ] **Step 5: Commit by pathspec (5 min)**, the four files, naming the migration number in the
+  message, `feat(hub-w4): the W4 migration, guards and the granted principal`, ending with the
+  attribution line.
+
+#### Acceptance
+
+```bash
+docker compose -f control-plane/cmd/hub/compose.yaml up -d --wait
+export PANACEA_APP_HUB_TEST_DATABASE_URL='postgres://postgres@127.0.0.1:5433/postgres?sslmode=disable'
+go test ./control-plane/internal/hub/migrate/ -tags integration -race -count=1 -v -run '^TestW4' 2>&1 | grep -c '^--- PASS'
+# 11
+go test ./control-plane/internal/hub/... -tags integration -race -count=1
+# ok for every package; TestWorkGrantedPrincipal SKIP until task 117
+grep -c "EXECUTE FUNCTION" control-plane/internal/hub/migrate/sql/*_work_roadmap.sql
+# 5   (three named triggers, the actor loop's one format string, 119's pins trigger once appended)
+```
+
+The last count is 4 before task 119 appends its section and 5 after; read it as a check that no
+trigger was lost, not as a fixed number.
+
+#### What this task does not claim
+
+- **Not the migration number.** It is taken at sync time and renumbered on a clash.
+- **Not that any handler uses these tables.** Tasks 117-123 write the stores and routes; this task
+  proves the guards alone.
+- **Not that the janitor's actor kind is `janitor`.** The spelling is task 77's; decision 4 names
+  the exception, and Step 1 binds the spelling.
+- **Not that a grant reaches the brief.** `work_project_grants` is read by Work routes only (task
+  117's `workAccess`); H's brief, refs and design reads never join it.
+- **No measured cost.** The cycle check is a recursive query under a per-org lock; its cost on a
+  large graph has not been measured.
+
+**Parity rows:** closes none; it is the storage of L-32, L-50, L-67, L-72, L-74, L-76, L-77,
+L-83 to L-88, L-118, L-119, L-122 and L-150, closed by tasks 117-123 with their surfaces.
+
+#### Gaps found
+
+1. **Task 119 names `work_features (id)`** for its pin's foreign key (`task-119.md:122`); the
+   feature table is task 74's `features` (scope `tasks-61-80.md:475`). One of the two parts is
+   renamed at build; this part follows task 74's scope.
+2. **The janitor's actor kind** is not fixed by any part yet (task 07 fixes `person`,
+   `integration`, `app`); task 77 or 121 must name it, and task 07's guard must accept it for
+   `cycle_id` as task 74's scope requires.
+3. **`hub.user_id`** as a session setting is assumed from task 74's scope (drafts readable only by
+   their author); H's contract sets only `hub.org_id` (`hub-contract.md:309`). If no task sets
+   `hub.user_id`, both policies need it added to §5.1 step 6, a contract proposal.
+4. **A cross-org grant** is refused only by the foreign keys meeting RLS (a team of org B is
+   invisible under org A's `hub.org_id`); there is no explicit `CHECK`. Task 117's handler checks
+   it too.
