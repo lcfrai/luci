@@ -214,3 +214,83 @@ const (
 (`*string`, `*User`) so the defaults encode as `null`. If task 03 declared them as values, this
 is the one non-additive edit, and it is announced at WS0 (skeleton, *Start lines*).
 
+#### The migration section (appended to `NNNN_work_w1.sql`, complete)
+
+Task 06 already carries most of what this task needs, read in its part at this writing:
+`labels_team_live_name`, a unique index on `(team_id, lower(name)) WHERE archived_at IS NULL`
+(`task-06.md:247`), so a name is unique among a team's **live** labels case-insensitively and an
+archived `Bug` frees the name; `issue_relations` with `PRIMARY KEY (issue_id, kind,
+other_issue_id)`, `issue_relations_kind_known` and `issue_relations_not_self` (`:259-273`); and
+`team_work_policies` (`:276-289`). One column is missing: the snooze.
+
+```sql
+-- ── task 11: triage snooze (05 §4.2; AX §7.4: deferred items age visibly) ────────
+-- A snoozed issue stays in triage and sorts after the rest; it is never hidden.
+ALTER TABLE issues ADD COLUMN snoozed_until timestamptz;
+GRANT UPDATE (snoozed_until) ON issues TO hub_app;
+CREATE INDEX issues_triage_order ON issues (project_id, (snoozed_until IS NOT NULL), created_at DESC)
+  WHERE state = 'triage';
+```
+
+Task 06's `TestWorkGrantsAreExactlyTheList` gains `issues.snoozed_until` in its expected list in
+this task (the test is in task 06's file; the list is data, and adding a granted column without
+adding it there is the red that test exists for). One mismatch is recorded and not fixed here:
+task 06's `team_work_policies.default_state` has `DEFAULT 'triage'`, while this task's absent-row
+default is `backlog` (scope 11, L-9). The store never relies on the column default, because a `PUT`
+writes every column, so the mismatch is harmless; it is listed as a gap so task 06's owner can
+align it.
+
+#### The store (`store/work_relations.go`, `work_labels.go`, `work_policies.go`, signatures complete)
+
+```go
+package store
+
+// Every function runs inside the caller's write or read transaction (Hub task 14's
+// server.Tx wraps a pgx.Tx), after set_config('hub.org_id') and, for writes, after
+// the org's audit head lock, so a check-then-insert here cannot race another write
+// in the same org (hub-contract §10.6, "one lock order").
+
+// RelationRow is one stored row, in the normal form: relates has the smaller id
+// first; blocks and duplicates point from the writer's subject to the target.
+type RelationRow struct {
+	IssueID, OtherIssueID string
+	Kind                  string // blocks | duplicates | relates
+	CreatedAt             time.Time
+	CreatedBy             string
+}
+
+// NormaliseRelation turns (subject, kind, other), where kind may be a read word,
+// into the stored row's (issue, kind, other). blocked_by B from A is (B blocks A).
+func NormaliseRelation(subject string, kind hubapi.RelationKind, other string) (issue, storedKind, otherID string)
+
+// InsertRelation inserts the row; inserted is false when the row already existed
+// (ON CONFLICT DO NOTHING), in which case the caller emits no event.
+func InsertRelation(ctx context.Context, tx pgx.Tx, org string, r RelationRow) (inserted bool, err error)
+
+// ReverseExists is the two-cycle check: a directed row (other, kind, issue).
+func ReverseExists(ctx context.Context, tx pgx.Tx, issue, kind, other string) (bool, error)
+
+// DeleteRelation deletes the normalised row; deleted is false when none existed.
+func DeleteRelation(ctx context.Context, tx pgx.Tx, issue, kind, other string) (deleted bool, err error)
+
+// RelationsOf reads both ends: rows where issue_id = id as stored, and rows where
+// other_issue_id = id with the inverse word. Ordered by kind, then created_at.
+func RelationsOf(ctx context.Context, q Querier, id string) ([]hubapi.Relation, error)
+
+func InsertLabel(ctx context.Context, tx pgx.Tx, org string, l hubapi.Label, by string, at time.Time) error // 23505 on labels_team_live_name → ErrLabelExists
+func LiveLabelByName(ctx context.Context, q Querier, teamID, name string) (hubapi.Label, bool, error)
+func LabelByID(ctx context.Context, q Querier, id string) (hubapi.Label, bool, error)
+func ArchiveLabel(ctx context.Context, tx pgx.Tx, id string, at time.Time) (changed bool, err error)
+func ListLabels(ctx context.Context, q Querier, teamID string, withArchived bool, pr hubapi.PageRequest) (hubapi.Page[hubapi.Label], error)
+
+// TeamPolicy answers the stored row or hubapi.DefaultTeamPolicy(teamID).
+func TeamPolicy(ctx context.Context, q Querier, teamID string) (hubapi.TeamPolicy, error)
+func PutTeamPolicy(ctx context.Context, tx pgx.Tx, org string, p hubapi.TeamPolicy) (changed []string, err error) // the field names that differ
+
+var ErrLabelExists = errors.New("store: a live label of that name exists in the team")
+```
+
+`Querier` is whatever Hub task 08's `store.go` names the common interface of `pgx.Tx` and
+`*pgxpool.Pool`; the name is **UNVERIFIED** until that file lands, and a different name is a
+find-and-replace.
+
