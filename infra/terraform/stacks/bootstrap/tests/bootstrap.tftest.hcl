@@ -507,8 +507,10 @@ run "the_one_input_from_a_later_stack_is_declared" {
     condition     = strcontains(try(regex("(?s)\n## Stack order\n(.*?)\n## ", replace(replace(file("${path.module}/../../README.md"), "\r", ""), "/(?s)<!--.*?-->/", ""))[0], ""), "`state_private_endpoint`")
     error_message = "infra/terraform/README.md's Stack order section does not declare state_private_endpoint, the one input bootstrap takes from a later stack, so the rule reads as unbroken."
   }
+  # A data block, not the word: variables.tf's description says "never through
+  # terraform_remote_state", and a bare-word check fails on that sentence.
   assert {
-    condition     = alltrue([for f in fileset(path.module, "*.tf") : !strcontains(file("${path.module}/${f}"), "terraform_remote_state")])
-    error_message = "A bootstrap file names terraform_remote_state: the declared exception is ids copied by hand on an operator pass, never a read of a later stack's state."
+    condition     = alltrue([for f in fileset(path.module, "*.tf") : length(regexall("(?m)^\\s*data\\s+\"terraform_remote_state\"", file("${path.module}/${f}"))) == 0])
+    error_message = "A bootstrap file declares a terraform_remote_state data source: the declared exception is ids copied by hand on an operator pass, never a read of a later stack's state."
   }
 }

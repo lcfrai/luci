@@ -29,6 +29,18 @@ bootstrap → foundation → data → identity → workloads
 That is the only direction data flows. A later stack reads an earlier one's outputs with
 `terraform_remote_state`; an earlier stack never reads a later one.
 
+One exception, declared (task 02 fix round 2). Bootstrap's optional `state_private_endpoint`
+takes two of foundation's ids, `subnet_ids.private_endpoints` and `private_dns_zone_ids.blob`.
+The operator copies them into `TF_VAR_state_private_endpoint` on a bootstrap pass after
+foundation exists (task 31's prod section). Bootstrap never reads them through
+`terraform_remote_state`, and its first apply never needs them. The price is a cycle: once
+public access is off, every stack's state, foundation's included, is reached through an
+endpoint on foundation's subnet, resolved by a record in foundation's `blob` zone. So:
+- while that endpoint exists, foundation never replaces or destroys that subnet or that zone
+  (`prevent_destroy`, tasks 03 and 07);
+- tearing an environment down starts with a bootstrap pass that turns public access back on
+  and drops the endpoint.
+
 ## Commands
 
 The only Terraform commands this phase runs are the ones `validate.sh` runs (the one exception

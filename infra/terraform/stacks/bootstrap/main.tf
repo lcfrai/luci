@@ -95,8 +95,11 @@ resource "azurerm_role_assignment" "state_reader" {
 # today, and in prod by the bootstrap pass task 31's prod section runs after foundation, before
 # public access goes off (carried from task 02 review I4). It lives here, not in foundation:
 # the operator who applies bootstrap owns the account, so the connection is auto-approved and
-# no pipeline identity gains a right on the state group; and the endpoint is not in
-# foundation's state, so no foundation plan can destroy the one path to the state it writes.
+# no pipeline identity gains a right on the state group; and the validation that refuses the
+# flip without it sits in the same stack as the flip. Its subnet and DNS zone are foundation's,
+# though, so a foundation plan that replaced either would still cut state off. That is
+# README's one declared exception to the stack order, and why tasks 03 and 07 hold both with
+# prevent_destroy (task 02 re-review I1).
 resource "azurerm_private_endpoint" "state" {
   count               = var.state_private_endpoint == null ? 0 : 1
   name                = "pe-panacea-app-${var.environment}-tfstate"
