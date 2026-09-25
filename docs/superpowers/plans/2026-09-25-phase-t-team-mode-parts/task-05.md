@@ -869,9 +869,9 @@ built test that sends one to prove it is ignored.
    row: Fleet's token from Entra has `azp`, `oid`, `roles ∋ Hub.Fleet` and no `scp`.
 4. **Multi-tenant Fleet is unplanned.** `fleetd`'s token cache is keyed on scope alone (Not
    claimed, last item); a Fleet that serves two customer tenants needs a token per tenant.
-5. `task-01.md:114`'s §5.10 rule 1 text says "a token whose `idtyp` is `app`"; decision (a) and this
-   part never read `idtyp`. The contract sentence should read "a token with no `scp`", or the Hub
-   and its contract disagree on the signal.
+5. *Resolved in task 01:* §5.10 rule 1 now reads "a token with no `scp`" (`task-01.md:116`).
+   Still open: `task-66.md:143`'s rule 9 ("the gateway caller") says "a token whose `idtyp` is
+   `app`"; it should read "a token with no `scp`", or the Hub and its contract disagree.
 6. Task 07's `Principal.Auditor` must be false under a delegation, as `OrgAdmin` is (decision e);
    its part says only "from the token's `Hub.Auditor` app role".
 7. Decision (c)'s order answers a revoked **and** expired delegation `delegation_expired`, so a

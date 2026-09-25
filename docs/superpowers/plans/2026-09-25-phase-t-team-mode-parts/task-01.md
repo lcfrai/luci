@@ -17,7 +17,9 @@ and tasks 03 to 08 build what it says.
 Four decisions the design left open are made here, so no later task re-derives them.
 
 **(a) Fleet is an app-only caller, and the amendment says so.** Fleet runs as an AKS workload
-identity. Its Entra token is app-only (`idtyp=app`, no `scp`), which `ADR-H1:369` refuses today.
+identity. Its Entra token is app-only (no `scp`), which `ADR-H1:369` refuses today. The Hub reads
+the absence of `scp`, never `idtyp`: Entra emits `idtyp` only as a configured optional claim
+(**UNVERIFIED** for our registration; task 05, decision (a)).
 The amendment therefore changes **five** lines, not the four the design lists: `:369` gains the
 app-only case, gated on an app role (`Hub.Fleet`) **and** on `azp` being Fleet's client id **and**
 on the request naming a delegation. The design's §2.4 list misses `:369`; this is recorded as a
@@ -111,7 +113,7 @@ expiry of 24 hours. Nothing about a solo project changes.
 
 **The rule, in the order the Hub applies it.**
 
-1. **A second caller, app-only, one identity.** A token whose `idtyp` is `app` is accepted only
+1. **A second caller, app-only, one identity.** A token with no `scp` is accepted only
    when its `azp` equals `PANACEA_APP_HUB_FLEET_CLIENT_ID` **and** its `roles` contain
    `Hub.Fleet`. Any other app-only token is refused, as before. *(Replaces `:369`, "A token with
    no `scp` … is rejected: the Hub is delegated-only", for this one identity.)*
