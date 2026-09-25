@@ -139,3 +139,77 @@ preflight. Two more files join the list:
   (modified). If phase H's C3 local-key header lands first, the two names join one list; the
   owner phase's file wins (rule H2).
 - `control-plane/internal/httpx/origin_test.go` ⚑ — the expectation at `:172` follows (modified)
+
+#### Interfaces — complete: `desktop/src/work/replica/ops.ts`, part 1: the op and its fields
+
+```ts
+// desktop/src/work/replica/ops.ts — SW.16's write half, task 56.
+//
+// One op is one person's change to one issue, named by the fields it touches. The replica keeps
+// the op's BEFORE value of those fields and nothing else, so a refusal takes back only its own
+// change. Irreversible acts (erase, land, push, deploy) are not ops: they are confirm.inplace.
+import type {
+  CreateCommentRequest, IssueComment, IssueHead, IssueRevision, IssueRevisionContent,
+  Priority, Relation, StateMove, User, WorkClient,
+} from "../../api/work";
+
+export type WorkOp =
+  | { kind: "setState"; issueId: string; move: StateMove }
+  | { kind: "setPriority"; issueId: string; priority: Priority }
+  /** `assignee` is the picked User so the row paints a name; the wire gets its id. */
+  | { kind: "setAssignee"; issueId: string; assignee: User | null }
+  | { kind: "labels"; issueId: string; add: readonly string[]; remove: readonly string[] }
+  | { kind: "revise"; issueId: string; baseRev: number; patch: Partial<IssueRevisionContent> }
+  | { kind: "relation"; issueId: string; change: "add" | "remove"; relation: Relation }
+  /** `localId` names the painted comment until the Hub returns its cm- id. */
+  | { kind: "comment"; issueId: string; localId: string; req: CreateCommentRequest }
+  | { kind: "reaction"; issueId: string; commentId: string; emoji: string; on: boolean }
+  | { kind: "resolve"; issueId: string; commentId: string; resolved: boolean }
+  | { kind: "subscribe"; issueId: string; subscribed: boolean };
+export type WorkOpKind = WorkOp["kind"];
+
+/** One field an op can touch. Labels, relations and reactions are per member, so two people
+ *  adding two different labels never take each other's back. */
+export type FieldPath =
+  | "state" | "priority" | "assignee" | "subscribed"
+  | `label:${string}` | `relation:${Relation["kind"]}:${string}`
+  | "title" | "description" | "serves" | "implements"
+  | `comment:${string}` | `reaction:${string}:${string}` | `resolved:${string}`;
+
+/** The replica's records as an op reads them (task 55 holds them; decision 1). */
+export interface ReplicaReadView {
+  readonly me: User;
+  head(issueId: string): IssueHead | undefined;
+  revision(issueId: string): IssueRevision | undefined;
+  comments(issueId: string): readonly IssueComment[];
+  subscribed(issueId: string): boolean;
+}
+/** The one way an op changes the replica. `transact` notifies useWork once per call. */
+export interface ReplicaWriteView extends ReplicaReadView {
+  transact(fn: (w: ReplicaWriter) => void): void;
+}
+export interface ReplicaWriter {
+  putHead(h: IssueHead): void;
+  putRevision(r: IssueRevision): void;
+  /** Adds, or replaces the comment with the same id. */
+  putComment(c: IssueComment): void;
+  dropComment(issueId: string, commentId: string): void;
+  setSubscribed(issueId: string, on: boolean): void;
+}
+
+/** A field's value as the rollback compares it: JSON-equal, so arrays compare by content. */
+export type FieldValue = string | number | boolean | null | readonly unknown[] | Record<string, unknown>;
+export type Snapshot = ReadonlyMap<FieldPath, FieldValue>;
+
+export function fieldsOf(op: WorkOp): FieldPath[];
+export function readField(view: ReplicaReadView, issueId: string, path: FieldPath): FieldValue;
+export function writeField(w: ReplicaWriter, view: ReplicaReadView, issueId: string, path: FieldPath, v: FieldValue): void;
+/** Paints the op; returns the before and after snapshots of fieldsOf(op). */
+export function applyLocal(view: ReplicaWriteView, op: WorkOp): { before: Snapshot; after: Snapshot };
+/** Writes `before` back only where the field still equals `after` (decision 1). */
+export function revertLocal(view: ReplicaWriteView, op: WorkOp, before: Snapshot, after: Snapshot): FieldPath[];
+```
+
+`fieldsOf` needs only the op: a `revise` touches only the content keys its `patch` names, and a
+`labels` op touches one path per added or removed name. `revertLocal` returns the paths it wrote
+back, so the test can say which fields a rollback touched.
