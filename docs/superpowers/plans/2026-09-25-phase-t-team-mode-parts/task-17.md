@@ -57,8 +57,11 @@ it is Fleet, not the broker, that mints (S6.5, `:290`; task 20).
    the `dl-…`. Every route calls it; no route reads an owner, a project or a class from a body.
 5. **Fleet's scope is narrower than the owner's.** Under a delegation Fleet sees only the owner's
    sandboxes **in the delegation's project** (a second label selector, `panacea-app/project`), may create
-   only sandboxes of the delegation's class (task 15's `Spec.Class`; a mismatch is `403
-   delegation_class_mismatch`), and may use `control` and `source`, which a desktop token may not.
+   only the classes the delegation's class covers (task 15's `Spec.Class`): a `worker` delegation
+   creates `worker` sandboxes only; an `orchestrator` delegation creates the Orchestrator and the
+   workers it spawns (`panacea worker spawn`, task 24), because both act for the same owner and task
+   01 gives the Orchestrator class every route (`task-01.md:292-293`). Anything else is `403
+   delegation_class_mismatch`. Fleet may also use `control` and `source`, which a desktop token may not.
 6. **Every object Fleet creates is labelled for audit, not for authority.** `panacea-app/via: fleet`,
    `panacea-app/delegation: dl-…` and `panacea-app/project: <id>` join the owner and control-plane
    labels. Authority still comes from the owner label and a fresh delegation check; the labels let an
@@ -132,7 +135,7 @@ const (
 	CodeDelegationRevoked       = "delegation_revoked"        // 401
 	CodeDelegationExpired       = "delegation_expired"        // 401
 	CodeDelegationUnverifiable  = "delegation_unverifiable"   // 503 — Hub unreachable, nothing cached
-	CodeDelegationClassMismatch = "delegation_class_mismatch" // 403 — spec class ≠ delegation class
+	CodeDelegationClassMismatch = "delegation_class_mismatch" // 403 — the spec class is not one the delegation covers
 	CodeControlRejected         = "control_rejected"          // 403 — sandboxd refused the control token
 )
 
@@ -205,7 +208,7 @@ Alice's desktop token, and Fleet's app-only token. Two delegations: `dl-alice` (
 | `TestDelegationForAliceCannotListBob` | Bob's desktop creates `s-b`; Fleet under `dl-alice` lists → `s-b` absent; `GET /v1/sandboxes/s-b` → 404 `sandbox_not_found` | selecting on project without owner |
 | `TestDelegationScopesToItsProject` | Alice's desktop creates `s-solo` (no project label); Fleet under `dl-alice` lists → absent | selecting on owner without project |
 | `TestFleetCreateCarriesOwnerLabel` | Fleet creates under `dl-alice`; the pod's `panacea-app/owner` = `OwnerLabelValue(alice)`, and Alice's desktop `GET /v1/sandboxes` lists it | labelling with Fleet's identity |
-| `TestClassMismatchIs403` | a `worker` delegation creating `Class: "orchestrator"` → 403 `delegation_class_mismatch`, no pod | trusting the spec's class |
+| `TestClassMismatchIs403` | a `worker` delegation creating `Class: "orchestrator"` → 403 `delegation_class_mismatch`, no pod; an `orchestrator` delegation creating `worker` → 201 | trusting the spec's class, or a rule so strict an Orchestrator cannot spawn |
 | `TestRevokedDelegationFailsWithinTTL` | at t0 a call succeeds (cached); revoke at t0+1 s; at t0+59 s the cache may still admit; at t0+60 s → 401 `delegation_revoked` | a cache without a lifetime, or one longer than 60 s |
 | `TestHubDownWithNothingCachedIs503` | the source errors, no entry → 503 `delegation_unverifiable` | failing open when the Hub is unreachable |
 | `TestAuditLineNamesTheDelegation` | a captured `slog` line for Fleet's create holds `via=fleet`, `delegation=dl-alice`, `owner=<alice hash>`, and no `oid` of Fleet | an audit line naming only the caller |
@@ -306,7 +309,7 @@ has no `forbidden` code (its 403s are `forbidden_origin` and `forbidden_host`, `
 `brokerapi` adds `CodeForbidden = "forbidden"`, the Hub's spelling. The owner view every handler then uses is
 `d.Manager.WithOwner(p.Owner)`, plus `.WithLabels(map[string]string{"panacea-app/project": p.Project})`
 when `p.Via == "fleet"`. On create under Fleet, the labels are all three of decision 6, the class is
-checked against `p.Class` before any Kubernetes call, and P8-1's mint is skipped (decision 7).
+checked against what `p.Class` covers (decision 5) before any Kubernetes call, and P8-1's mint is skipped (decision 7).
 
 The request logger reads the principal from the request context (`principalOf` stores it with
 `context.WithValue` under an unexported key) and logs `owner`, `via` and `delegation`; for a request
