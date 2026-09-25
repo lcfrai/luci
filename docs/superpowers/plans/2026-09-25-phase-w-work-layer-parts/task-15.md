@@ -716,7 +716,7 @@ go test -tags integration ./control-plane/internal/hub/server/ -race -count=1 -v
 go test -tags integration ./control-plane/internal/hub/server/ -race -count=1 -run '^TestNoWorkTextReachesTheFeed$'  # ok
 go test -tags integration ./control-plane/internal/hub/... -race -count=1                      # ok
 go test ./control-plane/... -race -count=1                                                      # ok
-grep -n 15 control-plane/internal/hub/server/work_matrix_rows_integration_test.go            # the row map key, and "15" in workMatrixLive
+grep -n '"15"' control-plane/internal/hub/server/work_matrix_rows_integration_test.go        # the row map key, and "15" in workMatrixLive
 ```
 
 The two counts are the proof per criterion (OD-27); a green `./...` alone is not.
