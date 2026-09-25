@@ -601,7 +601,7 @@ export function ReleaseNotes({ notes }: { notes: Notes }): JSX.Element {
     <section className="rn" aria-label="Release notes">
       <header className="rn-head">
         <h3>Settled by this release</h3>
-        <KeyLink value={notes.pinnedBrief} />
+        <KeyLink k={notes.pinnedBrief} />
         <button type="button" onClick={() => copyMarkdown(notesMarkdown(notes))}>Copy as Markdown</button>
       </header>
       {notes.state === "no_pin" && <p className="rn-fact">{notes.message}</p>}
@@ -611,7 +611,7 @@ export function ReleaseNotes({ notes }: { notes: Notes }): JSX.Element {
           <p className="rn-ctext">{c.text}</p>
           <ul>{c.issues.map((i) => (
             <li key={i.issueId}><span className="rn-alias">{i.alias}</span> {i.title}
-              {i.evidence.map((k) => <KeyLink key={k} value={k} />)}</li>
+              {i.evidence.map((k) => <KeyLink key={k} k={k} />)}</li>
           ))}</ul>
         </div>
       ))}
@@ -625,4 +625,86 @@ export function ReleaseNotes({ notes }: { notes: Notes }): JSX.Element {
   );
 }
 ```
+
+#### Interfaces — complete: `desktop/src/deploy/FreezeToggle.tsx`
+
+```tsx
+// desktop/src/deploy/FreezeToggle.tsx — in GovernancePanel, one row per environment. A freeze is
+// a person's decision with a reason; lifting it is too. Admins only (the Hub decides; this offers).
+import { useState, type JSX } from "react";
+import type { EnvironmentFreeze, FreezeApi } from "./types";
+
+/** The Ship bar's line and the panel's: who, since when, why. */
+export function frozenLine(f: EnvironmentFreeze, hhmm: (iso: string) => string): string {
+  return `${f.environment} is frozen by ${f.by.name} since ${hhmm(f.at)} · ${f.reason.text}`;
+}
+
+export function FreezeToggle(p: {
+  api: FreezeApi | null; hubProjectId: string; environment: string;
+  freeze: EnvironmentFreeze | null; isAdmin: boolean; hhmm(iso: string): string; onChanged(): void;
+}): JSX.Element {
+  const [reason, setReason] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  if (p.api === null) {
+    return <p className="gv-fact">Freezing {p.environment} is not available yet: the Hub does not hold freezes.</p>;
+  }
+  const api = p.api;
+  if (p.freeze) {
+    return (
+      <div className="gv-freeze" data-frozen="">
+        <p>{frozenLine(p.freeze, p.hhmm)}</p>
+        {p.isAdmin && <button type="button" onClick={() =>
+          api.clear(p.hubProjectId, p.environment).then(p.onChanged, (e: Error) => setError(e.message))}>Lift freeze</button>}
+        {error && <p className="gv-fact" role="status">{error}</p>}
+      </div>
+    );
+  }
+  if (!p.isAdmin) return <p className="gv-fact">{p.environment} is not frozen.</p>;
+  return (
+    <form className="gv-freeze" onSubmit={(e) => {
+      e.preventDefault();
+      api.set(p.hubProjectId, p.environment, reason.trim()).then(p.onChanged, (err: Error) => setError(err.message));
+    }}>
+      <label>Reason <input value={reason} maxLength={280} onChange={(e) => setReason(e.target.value)} required /></label>
+      <button type="submit" disabled={reason.trim() === ""}>Freeze {p.environment}</button>
+      {error && <p className="gv-fact" role="status">{error}</p>}
+    </form>
+  );
+}
+```
+
+`ShipBar.tsx` ⚑ (P7 task 16) shows `frozenLine` in place of its readiness sentence when
+`readiness.reason === "frozen"`, and the Ship button stays disabled. The Governance panel reads the
+admin role from `/v1/me` as task 126's `useIsTeamAdmin` does (`task-126.md:90-93`).
+
+#### Interfaces — complete: `desktop/src/deploy/IssueShipped.tsx`, and the Desk case
+
+```tsx
+// desktop/src/deploy/IssueShipped.tsx — under task 71's head line on the issue view. Every
+// environment the issue reached, newest first, each with its own name (decision 8).
+import type { JSX } from "react";
+import type { IssueShipped as Shipped } from "./types";
+import { KeyLink } from "../components/common/KeyLink";
+
+export function IssueShipped({ s, hhmm }: { s: Shipped; hhmm(iso: string): string }): JSX.Element {
+  if (s.state !== "ok") return <p className="is-fact">{s.message}</p>;
+  if (s.environments.length === 0) return <p className="is-fact">Landed, not shipped yet</p>;
+  return (
+    <ul className="is-shipped" aria-label="Shipped to">
+      {s.environments.map((e) => (
+        <li key={e.deploymentId}>
+          <span>shipped to {e.environment}, </span><time className="is-at" dateTime={e.reachedAt}>{hhmm(e.reachedAt)}</time>
+          {e.pinnedBrief && <> · pinned <KeyLink k={e.pinnedBrief} /></>}
+          {!e.servingNow && <span className="is-fact"> · no longer serving</span>}
+        </li>
+      ))}
+    </ul>
+  );
+}
+```
+
+`deskRows.tsx` ⚑: task 71's `issue.shipped` row gains its second case. When an issue already
+shipped to one environment reaches another, the row names the new one: *"EP-142 shipped to
+production, 14:02"* after *"… staging, 09:40"*. The ranking and the hold are task 62's. `.is-at` is
+mono with `tabular-nums`.
 
