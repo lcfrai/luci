@@ -73,3 +73,168 @@ never enter the replica. It draws nothing: tasks 170 to 173 do.
 them is their scope's (`…-scopes/tasks-141-160.md:124-229`, `tasks-161-180.md:29-365`) and
 **UNVERIFIED**; task 143's part wins any difference, and this file follows it. The desktop source
 files named above are planned by those tasks and do not exist on `main` yet.
+
+#### Interfaces — complete: `work.ts`, part 13: requests, rules and forms
+
+```ts
+// desktop/src/api/work.ts (appended) — SW.21's desktop half. Every field is task 143's JSON tag.
+
+export type RequesterKind = "person" | "email" | "teams";
+/** Who asked. userId is set for a person known to Entra; email for mail intake; displayName always. */
+export interface Requester { kind: RequesterKind; userId: string | null; email: string | null; displayName: string }
+
+export type RequestChannel = "form" | "email" | "teams" | "tracker";
+export type RequestState = "open" | "accepted" | "linked" | "declined";
+export interface FormAnswer { fieldId: string; value: string }
+/** Task 42's CriterionRef shape: which criterion of which brief. A suggestion, never a score. */
+export interface SuggestedCriterion { briefKey: string; criterionId: string }
+
+export interface Request {
+  id: string;                  // rq-…
+  teamId: string;
+  projectId: string | null;
+  requester: Requester;
+  quote: AuthoredText;         // task 37's {text, author}; author is always "H"; the words verbatim
+  channel: RequestChannel;
+  channelRef: string;          // the form id, the mail message id, the Teams message ref
+  important: boolean;
+  answers: FormAnswer[];
+  state: RequestState;
+  issueId: string | null;      // is-…, set by accept or link
+  suggestedCriterion: SuggestedCriterion | null;
+  ruleId: string | null;       // ir-… of the rule that routed it; null when none matched
+  createdAt: string;
+}
+
+/** Append-only: task 157's Teams replies. body is text·H, the external author's words. */
+export interface RequestMessage {
+  requestId: string; channelRef: string; authorName: string;
+  userId: string | null; body: string; at: string;
+}
+
+export interface RuleMatch {
+  channel: RequestChannel | null; formId: string | null;
+  senderDomain: string | null; textContains: string | null;
+}
+export interface RuleRoute {
+  projectId: string; labels: string[]; priority: Priority | null; assigneeId: string | null;
+}
+/** position orders the list; the lowest matching position wins (task 147). */
+export interface IntakeRule {
+  id: string;                  // ir-…
+  teamId: string; position: number;
+  match: RuleMatch; route: RuleRoute;
+  author: User;                // the person who last wrote it; the event names them
+  version: number;
+}
+
+export const FORM_FIELD_KINDS = ["text", "longtext", "select", "date", "number", "person"] as const;
+export type FormFieldKind = (typeof FORM_FIELD_KINDS)[number];
+export interface FormField {
+  id: string; label: string; kind: FormFieldKind; required: boolean;
+  options: string[];           // [] unless kind is "select"
+}
+export interface FormDefault { labels: string[]; priority: Priority | null; assigneeId: string | null }
+export interface IntakeForm {
+  id: string;                  // fm-…
+  teamId: string; name: string;
+  fields: FormField[];
+  defaults: { member: FormDefault; nonMember: FormDefault };
+}
+/** The team's mail intake address (task 149). */
+export interface IntakeAddress { teamId: string; address: string; formId: string | null }
+```
+
+`Priority` is task 37's (the four words and `none`); `User` and `AuthoredText` are task 37's. Task
+143 writes the optional Go fields as `projectId?`, `issueId?` and so on; this file follows task
+125's convention and types them `T | null`, because the Go tags carry no `omitempty` in task 114's
+goldens and the golden test fails if task 143 chooses otherwise, which is the signal to switch the
+field to `?:`.
+
+#### Interfaces — complete: `work.ts`, part 14: trackers and loops
+
+```ts
+/** SW.6's ImportSource gains these three in task 143 (task 15 fixed "linear" and "csv"). */
+export type TrackerSource = "azure_boards" | "github" | "jira";
+/** The external project in the tracker's own terms (task 171 validates each before the call). */
+export type TrackerTarget =
+  | { source: "azure_boards"; organisation: string; project: string; areaPath: string | null }
+  | { source: "github"; owner: string; repository: string }
+  | { source: "jira"; site: string; projectKey: string };
+/** "in" = one way into Triage; "in_and_comments" adds comments both ways. Never a state mode. */
+export type TrackerMode = "in" | "in_and_comments";
+export type TrackerState = "active" | "disconnected";
+export interface TrackerConnection {
+  id: string;                  // tc-…
+  teamId: string; projectId: string;
+  source: TrackerSource; target: TrackerTarget; mode: TrackerMode;
+  principalId: string;         // the integration principal (task 150); never a token
+  state: TrackerState;
+  lastRunAt: string | null;
+  createdBy: User;
+}
+/** An issue imported from outside: *not tied · imported* until a person ties it (task 42). */
+export interface ExternalLink {
+  id: string;                  // xl-…
+  source: TrackerSource; externalId: string; issueId: string; url: string; lastSeenAt: string;
+}
+export interface SyncError { externalId: string; code: ProblemCode }
+/** One engine pass (task 150): counts are measured facts of that pass, not a total to reach. */
+export interface SyncRun {
+  connectionId: string; at: string;
+  created: number; existing: number; commentsIn: number; commentsOut: number;
+  errors: SyncError[];
+}
+
+/** AX §7's rows and columns (`docs/AGENTIC-UX.md:179`), as wire words. */
+export const ACTION_CLASSES = ["read", "edit_own_worktree", "edit_outside_worktree", "run_tests",
+  "install_dependency", "run_migration", "touch_infra", "commit", "push", "deploy"] as const;
+export type ActionClass = (typeof ACTION_CLASSES)[number];
+export const AUTONOMY_LEVELS = ["ask_first", "propose_and_wait", "act_and_tell", "full"] as const;
+export type AutonomyLevel = (typeof AUTONOMY_LEVELS)[number];
+/** A class absent from the map inherits the owner's own grid (shown greyed by task 172). */
+export type LoopGrid = Partial<Record<ActionClass, AutonomyLevel>>;
+
+export type ScheduleEvery = "day" | "weekday" | "week";
+export interface LoopTrigger {
+  kind: "event" | "schedule";
+  eventKinds: string[];        // SW.5 and SW.21 kinds; [] for a schedule
+  filter: { labels: string[]; states: string[] };   // event triggers only
+  every: ScheduleEvery | null; at: string | null;   // HH:MM
+  tz: string | null;           // IANA, the owner's
+}
+export type LoopAction = { kind: "turn" } | { kind: "start_on_accept"; label: string };
+export type LoopState = "active" | "paused";
+export interface Loop {
+  id: string;                  // lp-…
+  ownerId: string; teamId: string;
+  name: string;                // 1-80 characters
+  trigger: LoopTrigger;
+  instruction: AuthoredText;   // text·H, at most 2000 characters
+  action: LoopAction;
+  grid: LoopGrid;
+  version: number;             // the Hub's; a write sends the version it read
+  state: LoopState;
+  author: User; at: string;    // who wrote this version, and when
+}
+/** One element of ListLoopVersions: the loop as it was at `version`. A desktop name only. */
+export type LoopVersion = Loop;
+
+export type LoopCause = "event" | "schedule" | "run_now";
+export type LoopOutcome = "queued" | "ran" | "skipped_budget" | "skipped_paused" | "refused_bound" | "failed";
+export interface LoopRun {
+  id: string;                  // lr-…
+  loopId: string; version: number; cause: LoopCause;
+  startedAt: string; endedAt: string | null;
+  outcome: LoopOutcome;
+  turnRef: string | null;      // ot-… (Phase T's Orchestrator turn)
+  sessionId: string | null; worktree: string | null;   // set when the action was a Start
+}
+```
+
+Task 143's scope types `Loop` without `name`, `action`, `trigger.filter`, `author` or `at`,
+`Loop.grid` as one level name, `LoopRun.outcome` as an unnamed string, and `LoopRun` without the
+Start's session and worktree. Task 172 needs every one of them. They are written here as the
+desktop needs them and **proposed to task 143** (gap G1); the golden test fails until task 143
+carries them, which is the signal the two parts disagree, exactly as task 125 did for
+`featurePins`.
