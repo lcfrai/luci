@@ -588,3 +588,38 @@ with a direct Hub call and says so.
    (HA7-1); the boundary rule treats two null environments as one. If phase 7 decides otherwise,
    `lastAttributed` changes and `TestOtherEnvironmentHasItsOwnBoundary` with it.
 
+#### Reconciliation with tasks 03, 05 and 21 (now on disk, re-read 2026-09-25)
+
+**One hunk this part missed.** Naming a route is not enough. Task 05's `resolveDelegated` admits
+a Fleet call only when the name is in the delegation's routes **and** its class allows it
+(`task-05.md:397-401`), and task 06 refuses to create a delegation whose routes exceed its
+class's set, `hubapi.ClassRoutes` (`task-03.md:399-412`). Without the hunk below, task 21 cannot
+create a delegation that lists `lands.record`, and every Fleet call to routes 82 and 83 is 403.
+`Fleet·O` in rows 82–83 is Fleet under an `orchestrator`-class delegation (`task-01.md:246-247`),
+so both names join that class's set, and **not** `workerRoutes`: a worker never records a land,
+the queue does, in its owner's name.
+
+`hubapi/team.go` (task 03's file), `ClassRoutes[DelegationClassOrchestrator]`, one anchored hunk
+after `RoutePolicyRead,`:
+
+```go
+		RouteLandsRecord, RouteLandsRead, // T68: the team land queue, rows 82–83
+```
+
+Routes 82 and 83 register through task 05's `Delegable(hubapi.RouteLandsRecord, …)` and
+`Delegable(hubapi.RouteLandsRead, …)` inside `registerLands()` (step 3); a route registered
+without it has no name, and Fleet calling it is 403 (`task-05.md:315-316`).
+
+| Test (`hubapi/team_test.go`, `server/lands_test.go`) | Asserts | Mutant it kills |
+|---|---|---|
+| `TestLandRoutesInOrchestratorClassOnly` | both names are in the orchestrator set and in neither `workerRoutes` nor any other class | the names added to `workerRoutes`, or to no class |
+| `TestFleetRecordsALandUnderOrchestrator` | an orchestrator-class delegation listing `lands.record` posts route 82: 201; a worker-class one written around task 06: 403 `lands.record` | `registerLands()` without `Delegable`, or the class check skipped |
+
+Step 3 adds the `Delegable` wrapping; step 4's delegation is task 21's orchestrator-class one.
+Acceptance gains `go test ./internal/hub/hubapi/ ./internal/hub/server/ -run
+'LandRoutesInOrchestratorClassOnly|FleetRecordsALandUnderOrchestrator' -count=1`, expect ok.
+
+**Gaps 1 and 2, re-checked the same day, stand.** Neither task 59 nor task 61 carries an
+`ownerTrailer`, and task 21 lists neither land route. New, gap 5: the hunk above edits task 03's
+`ClassRoutes`, which the skeleton's file map should list under task 68.
+
