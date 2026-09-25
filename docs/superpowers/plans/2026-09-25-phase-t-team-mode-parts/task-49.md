@@ -62,3 +62,60 @@ confirms it** (gap 3).
   and the fake's half (modify)
 - `desktop/src/components/lens/merge/TeamLandReview.tsx` + test, and `LaneCard.tsx` (phase 3
   task 19): the conflicts list, the approval requirement, the approver's action (new / modify)
+- `control-plane/internal/fleet/server/landdiff.go` + test: the approver's read of the diff (new),
+  and `verbs.TreeSource.Diff` (task 22's interface, one method; modify)
+
+#### Interfaces — complete
+
+```go
+// control-plane/internal/converge/agentconfig.go
+package converge
+
+// AgentConfigChange is one agent-config path the land would change.
+type AgentConfigChange struct {
+	Path   string `json:"path"`   // repo-relative, "/" separators
+	Kind   string `json:"kind"`   // "instructions" | "agent-settings" | "git-hooks" | "package-scripts"
+	Status string `json:"status"` // "A" | "M" | "D", from diff --name-status --no-renames
+}
+
+// AgentConfigChanges runs, in the project with Scope Project (task-02 §HGH),
+//   git diff --name-status -z --no-renames --no-ext-diff --no-textconv <base> <tip>
+// and, for every changed package.json, cat-file blob <base>:<path> and <tip>:<path>,
+// comparing the four members as canonical JSON (encoding/json decode, re-encode with
+// sorted keys). A package.json that does not parse on either side counts as a
+// package-scripts change: unparseable is not proof of harmless. Sorted by Path.
+// Pure over the gitx.Machine it is given; no write, no hook, no textconv.
+func AgentConfigChanges(ctx context.Context, m gitx.Machine, projectPath, base, tip string) ([]AgentConfigChange, error)
+
+// IsAgentConfigPath is the path half of the table, for paths alone (package.json
+// is false here: only AgentConfigChanges can see its members).
+func IsAgentConfigPath(p string) (kind string, ok bool)
+```
+
+```go
+// control-plane/internal/converge/land.go (modify)
+
+type LandRequest struct {
+	// … phase 3 task 09's fields, unchanged …
+	Team *TeamLand // nil for a solo project: every step below is skipped
+}
+
+// TeamLand is what a team project's land needs from the Hub. The API handler
+// fills it; Land never calls the Hub itself, so converge keeps no Hub import.
+type TeamLand struct {
+	LaneOwner string                                     // the lane agent's ownerUserId
+	Approvals func(ctx context.Context) ([]hubapi.LandApproval, error) // route 86, this lane's agent
+}
+
+// Step 9a, after 9 (merge-tree clean) and before 10 (no object written yet):
+//   changes = AgentConfigChanges(ProjectPath, old, laneTip)          (git_failed)
+//   len(changes) > 0 and no approval a with
+//       a.State == "approved", a.LaneTip == laneTip,
+//       a.ApproverUserID != Team.LaneOwner, and every change's Path in a.Paths
+//   → *Refusal{Reason: "second_approval_required",
+//              Details: {"paths": detailList(paths), "laneTip": laneTip}}
+//   Approvals erroring → *Refusal{Reason: "hub_unavailable"}: never "no approval needed".
+```
+
+`detailList` is phase 3's (`task-09.md:115-116`). The approval is looked up at land time, so an
+approval written a second ago counts and one for an older tip never does.
