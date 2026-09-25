@@ -1988,3 +1988,78 @@ W-10 to W-25 fail with 501 `not_in_fake_yet` (step 2 pins that).
 
 W-25's search clause is weak on the fake, where the title is read from the blanked revision; on
 the Hub it is the check on task 14's denormalised `head_title`, which is where the leak would be.
+
+#### Tests first: `fake_work_social_test.go`, complete, the fake-only tests
+
+What no row can say, because it is the fake's own shape: no stub is left, the attach's project
+check is `GetBlob`'s, the feed never carries the reason, an erased import stays erased. It is
+`package hubclient` and reuses task 04's rig (`newWorkRig`, `chore`, `htext`, `eventsOf`) and
+`fake_test.go`'s `bg`, `must` and `orgBoss` (`fake_test.go:1044` at `9f2fa31`). Two blocks.
+
+```go
+package hubclient
+
+import (
+	"errors"
+	"slices"
+	"strings"
+	"testing"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubapi"
+)
+
+// codeOf is the Hub code of err, or "" for nil and for a non-Hub error.
+func codeOf(err error) string {
+	var he *Error
+	if errors.As(err, &he) {
+		return he.Problem.Error
+	}
+	return ""
+}
+
+// TestNoPartTwoMethodIsAStub: every one of the nineteen answers by its rule.
+// Kills: a method left at fake_work_stub.go's 501 when the file goes.
+func TestNoPartTwoMethodIsAStub(t *testing.T) {
+	r := newWorkRig(t)
+	is := must(r.grace.CreateIssue(bg, r.p.ID, chore("one")))(t).Head.ID
+	c := must(r.grace.CreateComment(bg, is, hubapi.CreateCommentRequest{Body: htext("hi"), Mentions: []string{}}))(t)
+	boss := r.f.As(orgBoss)
+	calls := map[string]error{
+		"AddRelation":    second(r.grace.AddRelation(bg, is, hubapi.RelationRequest{Kind: hubapi.RelationRelates, IssueID: "is-x"})),
+		"RemoveRelation": second(r.grace.RemoveRelation(bg, is, hubapi.RelationRelates, "is-x")),
+		"Labels":         second(r.grace.Labels(bg, r.team.ID)),
+		"CreateLabel":    second(r.ada.CreateLabel(bg, r.team.ID, hubapi.CreateLabelRequest{Name: "Bug", Color: "fail"})),
+		"ArchiveLabel":   second(r.ada.ArchiveLabel(bg, "lb-x")),
+		"TeamPolicy":     second(r.grace.TeamPolicy(bg, r.team.ID)),
+		"PutTeamPolicy":  second(r.ada.PutTeamPolicy(bg, r.team.ID, hubapi.PutTeamPolicyRequest{DefaultState: hubapi.StateTodo})),
+		"Comments":       second(r.grace.Comments(bg, is, hubapi.PageRequest{})),
+		"CreateComment":  second(r.grace.CreateComment(bg, is, hubapi.CreateCommentRequest{Body: htext("two"), Mentions: []string{}})),
+		"React":          second(r.grace.React(bg, c.ID, hubapi.ReactRequest{Emoji: "👍", On: true})),
+		"ResolveComment": second(r.grace.ResolveComment(bg, c.ID, hubapi.ResolveRequest{Resolved: true})),
+		"Subscribe":      second(r.grace.Subscribe(bg, is, hubapi.SubscribeRequest{Subscribed: false})),
+		"Subscriptions":  second(r.grace.Subscriptions(bg, hubapi.PageRequest{})),
+		"SearchIssues":   second(r.grace.SearchIssues(bg, hubapi.IssueSearchQuery{Q: "one"})),
+		"ImportBatch": second(r.grace.ImportBatch(bg, r.p.ID, hubapi.ImportBatch{Source: hubapi.ImportSourceCSV,
+			Items: []hubapi.ImportItem{{ExternalID: "1", Title: "in"}}})),
+		"AttachBlob":   second(r.grace.AttachBlob(bg, is, hubapi.AttachRequest{Digest: hubapi.DigestOf([]byte("x"))})),
+		"Attachments":  second(r.grace.Attachments(bg, is)),
+		"EraseComment": second(boss.EraseComment(bg, c.ID, hubapi.EraseRequest{Reason: "test"})),
+		"EraseIssue":   second(boss.EraseIssue(bg, is, hubapi.EraseRequest{Reason: "test"})),
+	}
+	if len(calls) != 19 {
+		t.Fatalf("%d methods called, want part 2's nineteen", len(calls))
+	}
+	for m, err := range calls {
+		if codeOf(err) == "not_in_fake_yet" {
+			t.Errorf("%s still answers the stub's 501", m)
+		}
+	}
+}
+
+// second drops a call's value and keeps its error.
+func second[T any](_ T, err error) error { return err }
+```
+
+The calls that are refusals by rule (`is-x` unknown, `lb-x` unknown, a digest never put) count:
+the test asks only that no answer is the stub's. `EraseIssue` runs last, after `EraseComment`, so
+neither refuses on the other's account; Go evaluates the map literal's values in source order.
