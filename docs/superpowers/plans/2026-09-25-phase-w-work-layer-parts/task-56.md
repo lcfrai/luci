@@ -384,3 +384,104 @@ export interface ReplicaWriteDeps {
 `undo()` pushes `inverseOf` **lazily**: an `{inverseOf: id}` marker joins each issue's queue, and
 the inverse is built when the marker reaches the head, from the op's `before` and the replica at
 that moment. That is why a revise's inverse carries the revision the op wrote as its `baseRev`.
+
+#### Interfaces — complete: `desktop/src/work/replica/undo.ts`
+
+```ts
+// desktop/src/work/replica/undo.ts — optimistic.undo's window (05 §4.6, revision 2).
+//
+// One entry per mutate() call, so a batch is one entry and one chip. Time is an injected clock
+// (performance.now in the app, a fake in tests); nothing here owns a timer.
+import { useSyncExternalStore } from "react";
+import { useHeartbeat } from "../../hooks/heartbeat";
+import type { Snapshot, WorkOp } from "./ops";
+
+export interface UndoEntry {
+  readonly id: string;
+  readonly ops: readonly WorkOp[];
+  readonly before: readonly Snapshot[];      // one per op, same order
+  readonly issueIds: readonly string[];      // the rows whose hover or focus pauses it
+  readonly startedAt: number;
+  pausedMs: number;
+  pausedSince: number | null;
+}
+
+export interface UndoLedger {
+  push(e: Omit<UndoEntry, "startedAt" | "pausedMs" | "pausedSince">): void;
+  /** Hover or focus on one of the entry's rows. Counted per source, so leaving hover while the
+   *  row keeps focus stays paused. */
+  pause(id: string, source: "hover" | "focus", on: boolean): void;
+  remainingMs(id: string): number;
+  /** The newest entry still inside its window: what `U` undoes. */
+  latestLive(): UndoEntry | null;
+  /** Removes and returns the entry (undo pressed, or its op refused). */
+  take(id: string): UndoEntry | null;
+  /** Drops every entry whose window has run out; returns their ids. */
+  lapse(): string[];
+  subscribe(listener: () => void): () => void;
+  entries(): readonly UndoEntry[];
+}
+
+/** `windowMs` is --undo-window read once at start (6000 in tokens.css, task-26.md:85). */
+export function createUndoLedger(clock: () => number, windowMs: number): UndoLedger;
+
+/** The chip's view of one entry: whole seconds left, re-read on the 1 Hz heartbeat. It calls
+ *  ledger.lapse() on each beat, so an entry lapses on the first beat after its window. */
+export function useUndoEntry(ledger: UndoLedger, id: string): { secondsLeft: number; live: boolean };
+```
+
+`remainingMs` is `windowMs - (clock() - startedAt - pausedMs - (pausedSince ? clock() - pausedSince : 0))`,
+floored at 0. A paused entry's remaining time does not fall, which is the whole of revision 2.
+
+#### Interfaces — complete: `UndoChip` and the `U` verb
+
+```tsx
+// desktop/src/components/common/UndoChip.tsx
+export interface UndoChipProps {
+  ledger: UndoLedger;
+  entryId: string;
+  /** "Moved to Todo", "3 issues to Todo": the act, never "Success". */
+  label: string;
+  onUndo(): void;
+}
+/** <span class="undo-chip" role="group" aria-label={label}>
+ *    {label} · <button type="button">Undo</button> <kbd>U</kbd>
+ *    <span class="undo-chip-left" aria-hidden="true">{secondsLeft}s</span>
+ *  </span>
+ *  Pauses through a pointerover/focusin listener on document that tests
+ *  `target.closest("[data-issue-id]")` against the entry's issueIds: one listener per chip,
+ *  and at most a few chips exist. Renders nothing once !live. */
+export function UndoChip(props: UndoChipProps): JSX.Element | null;
+```
+
+```ts
+// desktop/src/work/keys/undoVerb.ts — `U` through task 53's registry (KEYMAP's `optimistic.undo`
+// row; its VerbId is task 53's, UNVERIFIED here).
+import { registerVerb } from "./keymap";
+export function registerUndoVerb(replica: { undoLatest(): boolean }): () => void {
+  return registerVerb("optimistic.undo", () => { replica.undoLatest(); });
+}
+// Replica gains `undoLatest(): boolean` — `ledger.latestLive()`, then that handle's undo();
+// false when nothing is live, and then `U` does nothing and says nothing.
+```
+
+```css
+/* desktop/src/components/common/common.css ⚑ */
+.undo-chip { display: inline-flex; align-items: center; gap: 6px; padding: 0 6px;
+  border-radius: var(--r-chip); background: var(--inset); color: var(--ink-2);
+  font-family: var(--sans); font-size: var(--t-fact); line-height: var(--t-fact-lh); }
+.undo-chip button { color: var(--ink); }
+.undo-chip-left { font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--ink-3); }
+```
+
+The chip has no enter animation: it appears with the row's own change, which already explains
+the cause. (`--t-fact` and `--t-fact-lh` are task 26's pair, `task-26.md:19-22`.)
+
+**The refusal on the row.** `ReplicaWrites` gains `failedOf(issueId): {seq: number; code: string;
+message: string} | null`, set by step 5 and cleared by the next op on that issue. Task 40's
+`IssueRow.tsx` renders it as `data-fail={seq}` plus one fact line, `refused · policy_refused ·
+Priority is required to leave Triage`, in `--fail` mono. The flash reuses task 41's mechanism
+(`data-flash={seq}` restarts one `opacity` animation over `--dur-flash`, `task-41.md:49-52`) with
+`--fail-tint` (`tokens.css:80`) as its ground. Two more files join the list:
+- `desktop/src/components/work/IssueRow.tsx` ⚑ (task 40) — `data-fail` and the refusal line (modified)
+- `desktop/src/components/work/work.css` ⚑ — `[data-fail]` flashes `--fail-tint` (modified)
