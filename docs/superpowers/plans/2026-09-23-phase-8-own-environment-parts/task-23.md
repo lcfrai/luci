@@ -138,7 +138,19 @@ func (a *API) backendFor(ctx context.Context, machineID string) (backend.Backend
 //	// laptop destroy another's sessions. Rules 1-3 and the local backend's
 //	// sweep are unchanged.
 //	InstallID string
+//
+//	// Held is phase 3's (task-24.md:690-695, reaper.Config.Held): rule 4
+//	// skips a held id. It applies on EVERY machine: a cloud machine's rule 4
+//	// asks Held before the InstallID check, exactly as the local one does, so
+//	// a runner-only pod the laptop's pool holds (task 25b) is never reaped as
+//	// an orphan. Both sweeps call the one rule-4 function; no second Held.
 ```
+
+**`Held`, if phase 3's task 24 has not landed** (`git grep -n "Held func" --
+control-plane/internal/reaper/` prints nothing): the field does not exist yet, so this task adds
+none and records that in its commit message. The cloud sweep still calls the one rule-4 function,
+so phase 3's check arrives on both sweeps at once. Task 25b's `TestTheReaperKeepsAHeldCloudRunner`
+proves it either way (env R4 review 1, I2).
 
 Configuration added to `cmd/api/config.go` (neither is backend-scoped: they add cloud machines
 beside whichever local backend is selected):
@@ -224,6 +236,10 @@ with `newReaper(t, store, be, 0, 0)` (`:428`), so `InstallID` is `""`, and the p
 check (`Labels[k] != installID` → skip) reads `"" == ""` for an unlabelled Docker sandbox and
 still destroys it. The real regression shows only with a broker configured: `InstallID` is set,
 and the local sweep would never reap a Docker orphan again.
+`TestTheCloudSweepSkipsAHeldSandbox` (only once `reaper.Config.Held` exists): a cloud machine
+lists an `lg-…` sandbox labelled with this `InstallID`, with no record and older than the grace.
+`Held` true → not destroyed; `Held` false → destroyed. Kills the mutant "the cloud sweep has a
+rule 4 of its own that never asks `Held`".
 
 `cmd/api` config tests: `TestBrokerURLNeedsAScope`, `TestBrokerURLMustBeHTTPS`,
 `TestNoBrokerIsPhase2` (which also asserts that no `install-id` file was created), and
