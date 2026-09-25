@@ -354,3 +354,97 @@ CREATE TABLE agents (
 
 The lane ref's component rules (`hubapi.ValidBranchRef`) stay Go's; the database holds the OD-2
 prefix and the 255 bound. `agents.task_id`'s key is added after `team_tasks` exists (piece 5).
+
+**Piece 5, human messages, tasks and lease events.** `human_messages` comes before `team_tasks`
+because a task's `titleSource` names one of the owner's (§7.14).
+
+```sql
+-- ── §7.22 human messages: append-only, tombstoned on erasure (task 46) ────────
+CREATE TABLE human_messages (
+  id            text        PRIMARY KEY CHECK (id ~ '^hm-[0-9a-f]{16}$'),
+  org_id        text        NOT NULL REFERENCES orgs (id),
+  project_id    text        NOT NULL,
+  owner_user_id text        NOT NULL,
+  to_agent_id   text        NOT NULL,
+  text_body     text,
+  text_author   text_author NOT NULL CHECK (text_author = 'human'),
+  text_agent    text,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  tombstoned_at timestamptz,
+  UNIQUE (org_id, id),
+  UNIQUE (org_id, owner_user_id, id),
+  CONSTRAINT human_messages_project_fk FOREIGN KEY (org_id, project_id) REFERENCES projects (org_id, id),
+  CONSTRAINT human_messages_owner_fk   FOREIGN KEY (org_id, owner_user_id) REFERENCES users (org_id, id),
+  -- to the owner's own agent (§7.22); that it is an Orchestrator is Go's
+  CONSTRAINT human_messages_to_fk      FOREIGN KEY (org_id, owner_user_id, to_agent_id)
+    REFERENCES agents (org_id, owner_user_id, id),
+  CHECK (hub.text_ok(text_body, text_author, text_agent, 2000)),
+  CHECK ((text_body IS NULL) = (tombstoned_at IS NOT NULL))   -- a body until erased, then none
+);
+
+-- ── §7.14 tasks ──────────────────────────────────────────────────────────────
+CREATE TABLE team_tasks (
+  id                    text        PRIMARY KEY CHECK (id ~ '^tk-[0-9a-f]{16}$'),
+  org_id                text        NOT NULL REFERENCES orgs (id),
+  project_id            text        NOT NULL,
+  owner_user_id         text        NOT NULL,
+  orchestrator_agent_id text        NOT NULL,
+  title_body            text        NOT NULL,
+  title_author          text_author NOT NULL,
+  title_agent           text,
+  title_source          text,
+  -- a brief key, '#', a section id. The key's grammar is Go's (ParseBriefKey); 400 is above
+  -- the longest key a 255-byte branch ref allows, plus a 64-character section.
+  brief_ref             text        NOT NULL CHECK (brief_ref ~ '#[a-z0-9][a-z0-9-]{0,63}$'
+                                                AND char_length(brief_ref) <= 400),
+  why_body              text        NOT NULL,
+  why_author            text_author NOT NULL CHECK (why_author = 'agent'),
+  why_agent             text,
+  scope                 text[]      NOT NULL CHECK (hub.globs_ok(scope)),
+  state                 task_state  NOT NULL DEFAULT 'planned',
+  revision              integer     NOT NULL DEFAULT 1 CHECK (revision >= 1),
+  created_at            timestamptz NOT NULL DEFAULT now(),
+  updated_at            timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (org_id, id),
+  UNIQUE (org_id, owner_user_id, id),
+  CONSTRAINT team_tasks_project_fk      FOREIGN KEY (org_id, project_id) REFERENCES projects (org_id, id),
+  CONSTRAINT team_tasks_owner_fk        FOREIGN KEY (org_id, owner_user_id) REFERENCES users (org_id, id),
+  CONSTRAINT team_tasks_orchestrator_fk FOREIGN KEY (org_id, owner_user_id, orchestrator_agent_id)
+    REFERENCES agents (org_id, owner_user_id, id),
+  CONSTRAINT team_tasks_title_source_fk FOREIGN KEY (org_id, owner_user_id, title_source)
+    REFERENCES human_messages (org_id, owner_user_id, id),
+  CHECK (hub.text_ok(title_body, title_author, title_agent, 140)),
+  CHECK (hub.text_ok(why_body, why_author, why_agent, 200)),
+  CHECK ((title_author = 'human') = (title_source IS NOT NULL))  -- §7.14: a source makes it human
+);
+
+-- a worker works on its owner's task
+ALTER TABLE agents ADD CONSTRAINT agents_task_fk FOREIGN KEY (org_id, owner_user_id, task_id)
+  REFERENCES team_tasks (org_id, owner_user_id, id);
+
+-- ── §7.16 lease events: append-only; Fleet stays authoritative for the lease ──
+CREATE TABLE lease_events (
+  org_id          text        NOT NULL REFERENCES orgs (id),
+  project_id      text        NOT NULL,
+  lease_id        text        NOT NULL CHECK (lease_id ~ '^ls-[0-9a-f]{16}$'),
+  seq             integer     NOT NULL CHECK (seq >= 1),
+  recorded_by     text        NOT NULL,   -- the delegation's owner: the holder's, or an admin's
+  holder_agent_id text        NOT NULL,
+  mode            lease_mode  NOT NULL,
+  globs           text[]      NOT NULL CHECK (cardinality(globs) >= 1 AND hub.globs_ok(globs)),
+  tracked_files   integer     NOT NULL CHECK (tracked_files >= 0),
+  state           lease_state NOT NULL,
+  expires_at      timestamptz NOT NULL,
+  at              timestamptz NOT NULL,
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (org_id, lease_id, seq),
+  CONSTRAINT lease_events_project_fk  FOREIGN KEY (org_id, project_id) REFERENCES projects (org_id, id),
+  CONSTRAINT lease_events_recorder_fk FOREIGN KEY (org_id, recorded_by) REFERENCES users (org_id, id),
+  CONSTRAINT lease_events_holder_fk   FOREIGN KEY (org_id, holder_agent_id) REFERENCES agents (org_id, id)
+);
+```
+
+A lease event's holder is referenced by `(org_id, id)` only: an `admin-released` event is written
+under an admin's delegation (§7.16), so its recorder is not the holder's owner. That the recorder
+is the holder's owner **or** an admin of the project, and that `seq` is the last plus one, are
+Go's (task 06); the primary key refuses a repeated `seq`.
