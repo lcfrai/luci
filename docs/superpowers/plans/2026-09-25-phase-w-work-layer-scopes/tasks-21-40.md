@@ -214,3 +214,74 @@ tasks 150-153), comment import, or that `api.linear.app` is reachable from the c
 §2.3 point 4, §3.6. Parity: closes the W1 part of **L-220** (Linear and CSV importers), and with task
 15 **L-9**'s *intake always lands in `triage`*.
 
+**26 — tokens: 02 D2 step 1, `--t-fact`, the provisional `paper` block.** Stream WD1, defines the
+token half of seam **SW.11**, 2 h, no dependency (the look needs no Hub). Files: ⚑
+`desktop/src/styles/tokens.css` (191 lines today; `:root` from line 19, `--ink-3` 3.43:1 at `:47`,
+motion at `:135-142`, faces at `:151-152`, the reduced-motion floor at `:174-183`, the focus ring
+at `:187-191`) and ⚑ `desktop/src/styles/tokens.test.ts` (its `describe("the token layer")` at
+`:41`, which already bans literal hex and `transition: all`). It adds to `:root`, each with a
+one-line comment naming its source: `--dur-flash: 600ms`, `--dur-peek: 120ms`, `--undo-window: 6000ms`
+(02 C7; 05 §4.6); the spacing scale `--s-1` … `--s-6` = 4 · 8 · 12 · 16 · 24 · 32 px (02 C4 names
+`--s-1 … --s-8` but lists six values, so six are declared and the return lists it); `--row-h: 32px`,
+`--row-h-compact: 28px`, `--card-3line: 76px` (02 C4; 05 §4.4 C4); the type scale `--t-micro` 11/14
+(mono, **`kbd` hints only**), **`--t-fact` 12/16 mono** (new in 05 §4.4 C3: every id, key, path,
+time, cost and duration), `--t-meta` 12/16, `--t-ui` 13/20, `--t-body` 14/22, `--t-head` 16/22 at
+weight 560, `--t-display` 24/28 mono (02 C3), each as a size token and a line-height token; and
+`--icon` 16px / 1.5px stroke, `--icon-sm` 14px / 1.25px (02 C6). The prototype
+(`prototype/work-layer.html:40-41`) sets `--t-body` 13px; this task follows 02 C3, where 13px is
+`--t-ui`. It then adds one **provisional** `[data-theme="paper"]` block: a light ground re-derived
+by hand in OKLCH (not an inversion of graphite), `color-scheme: light`, the same token names, and
+status colours `--run`, `--need`, `--fail`, `--drift` with lightness re-derived for the light ground
+so their meaning never changes (02 C1). It is provisional because W2's generator (tasks 95, 96)
+replaces it with emitted blocks; the names it declares are the contract the generator must keep.
+**Tests first**, appended to `tokens.test.ts`: `it("declares 02 D2 step 1's tokens")` (kills a
+missing token); `it("sets --t-fact to 12px and --t-micro to 11px")` (kills facts at 11px, 05 §4.4
+C3); `it("keeps --undo-window at 6000ms and --dur-flash at 600ms")` (kills drift from 05 §4.6 and
+DESIGN-SYSTEM's flash); a contrast helper (OKLCH → sRGB → WCAG relative luminance, written in the
+test, no dependency) and `it("clears the ink floors in graphite and paper")`: `--ink` ≥ 15:1,
+`--ink-2` ≥ 7:1 (the floor for any fact), `--ink-3` ≥ 3:1 on `--page`, `--canvas` and `--surface`
+(kills a paper block whose inks fall below graphite's floors); `it("gives paper its own status
+lightness")` (each status colour ≥ 3:1 on paper's `--page`; kills graphite's status values copied
+unchanged); the existing no-hex rule now also covers the paper block (kills a hex literal there).
+**Acceptance:** `npm --prefix desktop test -- tokens` passes; `npm --prefix desktop run typecheck`
+is clean; `grep -c "^  --t-fact" desktop/src/styles/tokens.css` prints `1`. It does **not** claim
+any visible change (nothing uses the tokens until tasks 30-31), a theme picker (C11 `first.keys`,
+later), the high-contrast pair (W2), that existing component CSS uses only `--s-*` (only new
+Phase W directories are held to it, by task 30's audit rule), or that paper looks right: that is
+the owner's eyes at task 39. Design: 05 §4.4 (C1, C3, C4, C7); 02 C1, C3, C4, C6, C7, D2 step 1.
+Parity: the W1 part of **L-234** (a light theme beside the dark one; the generated four are W2).
+
+**27 — faces: Commit Mono bundled with its licence; Segoe UI Variable as the sans.** Stream WD1,
+the face half of seam **SW.11** (`--mono`, `--sans`), 2 h. Depends on 26. `OD-28` decides both faces
+(Q10, Q14). Files: new `desktop/src/assets/fonts/CommitMono-*.woff2` (the weights the tokens use,
+400 and 500 at least; which files the current Commit Mono release ships, static or variable, is
+**UNVERIFIED** until fetched, and a part records the release tag and each file's SHA-256), new
+`desktop/src/assets/fonts/OFL-CommitMono.txt` (the licence text from that release, verbatim), new
+`desktop/src/styles/fonts.css` (`@font-face` rules, `font-display: block`, local `url()` imports
+Vite fingerprints) imported first by ⚑ `desktop/src/styles/app.css`, and ⚑ `tokens.css:151-152`:
+`--mono: "Commit Mono", "Cascadia Mono", ui-monospace, "SF Mono", Menlo, Consolas, "DejaVu Sans Mono",
+monospace` (a real monospace chain, because xterm.js is configured with `--mono`, `tokens.css:149-150`)
+and the sans kept on the system face with optical sizes: `--sans: "Segoe UI Variable Text", "Segoe
+UI", -apple-system, system-ui, sans-serif`, plus `--sans-small` (`"Segoe UI Variable Small"`, for
+`--t-meta`) and `--sans-display` (`"Segoe UI Variable Display"`, for `--t-head`), each falling back
+to `--sans`. **Segoe UI Variable is never bundled**: it is the Windows system face and its licence
+does not allow redistribution; on macOS and Linux the stack falls to the platform sans. The terminal
+must not measure its cells from a fallback: `desktop/src/components/Terminal.tsx` awaits
+`document.fonts.load('12px "Commit Mono"')` (bounded at 1 s, then proceeds) before `fit()`. The
+Tauri CSP is `null` today (`desktop/src-tauri/tauri.conf.json:21`), so local fonts need no CSP
+change; a part that finds a CSP adds `font-src 'self'`. The prototype lists `"Berkeley Mono"` first
+(`prototype/work-layer.html:38`); production does not. **Tests first:** `it("ships a licence beside
+every bundled face")` (every family in `assets/fonts/` has an `OFL-<Family>.txt` containing "SIL Open
+Font License" and "Version 1.1"; kills a font with no licence); `it("bundles no Segoe face")` (no
+`@font-face` or file names Segoe; kills redistributing a system font); `it("puts Commit Mono first
+in --mono and keeps a monospace fallback")` (kills Berkeley first, and a chain ending in a
+proportional face); `it("imports fonts.css before any rule")` (kills a late import that shifts
+layout); `Terminal.test.tsx`: `it("fits after the mono face loads")` with `document.fonts` stubbed
+(kills a fit measured on the fallback). **Acceptance:** `npm --prefix desktop test` passes;
+`npm --prefix desktop run build` succeeds and `ls desktop/dist/assets | grep -c woff2` prints at
+least `1`. It does **not** claim the sans candidates' comparison (task 32, where Segoe UI Variable
+stands beside the two alternatives 05 §4.4 C3 names, for the owner's eyes), how the faces render at
+125 % and 150 % (task 33), or that Commit Mono's licence was reviewed by legal (**UNVERIFIED**; OFL
+1.1 is on `OD-11`'s allowed list). Design: 05 §4.4 C3 (faces, revision 2); 02 C3; `OD-28`, `OD-11`.
+Parity: no 01 row names a face; it serves **L-234**'s look with task 26.
+
