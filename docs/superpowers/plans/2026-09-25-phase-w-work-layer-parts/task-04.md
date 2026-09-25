@@ -959,6 +959,9 @@ func (f *Fake) MoveIssueState(_ context.Context, issueID string, move hubapi.Sta
 		return hubapi.IssueHead{}, problem(422, fkStateNotAllowed, "That move is not allowed from this state.",
 			"from", string(from), "to", string(move.To), "cause", string(move.Cause))
 	}
+	if err := w.policyRefuses(is, move.To); err != nil { // before any write: no event
+		return hubapi.IssueHead{}, err
+	}
 	repeat := from == move.To && move.Cause != hubapi.CauseHand
 	switch move.Cause {
 	case hubapi.CauseHand:
@@ -1078,9 +1081,11 @@ import (
 // whole and gives every hook and method below its rule in fake_work_social.go
 // and fake_work_intake.go; no line of fake_work.go changes when it does.
 
-// The five hooks part 1 calls, at their part-1 bodies. erasedWrite is task
-// 14's rule (an erased issue takes no writes, 409); nothing erases before task 05.
-func (w *fakeWorld) erasedWrite(*fakeIssue) error { return nil }
+// The six hooks part 1 calls, at their part-1 bodies. erasedWrite is task
+// 14's rule (an erased issue takes no writes, 409); policyRefuses is task 11's
+// priorityToLeaveTriage. Neither can refuse before task 05.
+func (w *fakeWorld) erasedWrite(*fakeIssue) error                    { return nil }
+func (w *fakeWorld) policyRefuses(*fakeIssue, hubapi.IssueState) error { return nil }
 func (w *fakeWorld) checkIssueLabels(_, field string, labels []string) error {
 	if len(labels) > 0 { // task 08's decision 8 until team labels exist
 		return badRequest(field, "Labels arrive with team labels (Phase W task 05).")
@@ -1675,9 +1680,9 @@ grep -c 'func (f \*Fake) ' control-plane/internal/hub/hubclient/fake_work.go con
 - The HTTP client's Work methods or the relay (task 16), the real Hub's routes (tasks 08-10), or
   that the real Hub passes any row (task 05 writes the rows; task 16 runs them against it).
 - Part 2's rules: relations, labels, policies, comments, subscriptions, import, search,
-  attachments, erase (task 05). Until then those methods answer 501 and the five hooks hold their
+  attachments, erase (task 05). Until then those methods answer 501 and the six hooks hold their
   part-1 bodies (labels `[]`, default `backlog`, no stop at `landed`, no subscription, nothing
-  erased).
+  erased, no policy refusal).
 - That `fakeMoveAllowed` **is** `hubapi.MoveAllowed`. It is the same table by reading; task 10
   makes it one function.
 - `evidenceCommit` (a later commit than the land commit, task 10's decision 3), a restore's

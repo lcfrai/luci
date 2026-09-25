@@ -72,14 +72,14 @@ it (additive), so the fake keeps none.
 
 | Path | Change |
 |---|---|
-| `fake_work_social.go` | new: relations, labels, the team policy, comments, reactions, resolve, subscriptions; four of task 04's hooks |
-| `fake_work_intake.go` | new: import, search, attachments, erase; the fifth hook, `erasedWrite` |
+| `fake_work_social.go` | new: relations, labels, the team policy, comments, reactions, resolve, subscriptions; five of task 04's hooks |
+| `fake_work_intake.go` | new: import, search, attachments, erase; the sixth hook, `erasedWrite` |
 | `fake_work_social_test.go` | new: the fake-only tests, each with its mutant |
 | `fake_work_stub.go` | **deleted** |
 | `conformance/work.go` | new: `GroupWork`, `WorkEnv`, `RunWork`, the `W-NN` rows |
 | `conformance/work_fake_test.go` | new: `RunWork` against `NewFake()` |
 
-No other file changes: task 04's `fake_work.go` calls the five hooks by name, and they move from
+No other file changes: task 04's `fake_work.go` calls the six hooks by name, and they move from
 the stub to these files unchanged in signature.
 
 ---
