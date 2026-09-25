@@ -76,3 +76,74 @@ approver's (gap 2).
 and task 20's `LaunchRequest.Version` (`task-20.md:154`) is read from that config at each launch,
 so the Hub's agent record carries the version of the digest that pod was created from. A Restart is
 a new pod and a new record.
+
+**Files:**
+- `images/sandbox/claude-code.version` — one line, `2.1.274` today (new)
+- `images/sandbox/Dockerfile` — the pin read from a build argument, and the label (modify; built)
+- `images/build.sh` (phase 8 task 27) — reads the version file into `--build-arg`; `digests.json`
+  gains `claudeCode` from the label (modify; planned)
+- `pipelines/cli-bump.yml` + `pipelines/scripts/cli-latest.sh`, `cli-pr.sh` — the scheduled
+  detector and the PR (new)
+- `pipelines/images.yml` (phase 8 task 27) — the `channel` job (G2) beside `canary` (G1); on
+  `dev`/`main`, `gates-live` (G3, G4) after `push`; `publish` after all four (modify; planned)
+- `pipelines/scripts/gate-channel.sh`, `gate-live.sh`, `publish-digests.sh` + one test script,
+  `pipelines/scripts/cli-bump_test.sh` (new)
+- `infra/smoke/bump/{g9-job.yaml,gateway-job.yaml}` — the two dev-cluster Jobs (new)
+- `deploy/charts/fleet/values.yaml`, `templates/deployment.yaml` (task 32) —
+  `PANACEA_APP_FLEET_CLAUDE_VERSION` from the artefact (modify)
+- `control-plane/cmd/fleetd/config.go` (task 12), `internal/fleet/sessions/sessions.go` (task 20) —
+  the version read at each launch (modify; one field, one line)
+
+**`images/sandbox/Dockerfile`, the changed lines, complete** (replacing `:15-17`):
+
+```dockerfile
+# Agent harnesses. Pinned so a sandbox image is reproducible. The version is
+# images/sandbox/claude-code.version, passed by images/build.sh; the CLI bump
+# pipeline (pipelines/cli-bump.yml) moves it by pull request, never by hand-edit here.
+ARG CLAUDE_CODE_VERSION
+RUN test -n "$CLAUDE_CODE_VERSION" \
+    && npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
+LABEL PANACEA_APP_CLAUDE_VERSION="${CLAUDE_CODE_VERSION}"
+```
+
+`test -n` makes a build without the argument fail loudly rather than install `latest`. The label
+is written by the build from the same argument; nothing reads `claude --version`.
+
+**`pipelines/cli-bump.yml`, complete.**
+
+```yaml
+# pipelines/cli-bump.yml — notices a Claude Code release and opens the one-line pin PR (task 65).
+# It builds nothing and holds no registry or cluster connection. The PR's own images build runs
+# G1 and G2; G3 and G4 run on dev after the merge (pipelines/images.yml).
+trigger: none
+pr: none
+schedules:
+  - cron: "0 */6 * * *"          # every 6 hours, UTC: four chances inside the 24-hour target
+    displayName: claude-code release check
+    branches:
+      include: [dev]
+    always: true                 # run even when dev has not changed; a release is outside the repo
+
+jobs:
+  - job: detect
+    pool:
+      name: $(PANACEA_APP_POOL)  # task 30's Managed DevOps Pool; the variable name is UNVERIFIED
+    steps:
+      - checkout: self
+        persistCredentials: false
+      - bash: pipelines/scripts/cli-latest.sh images/sandbox/claude-code.version > $(Agent.TempDirectory)/new.txt
+        displayName: latest stable release, or nothing
+      - bash: pipelines/scripts/cli-pr.sh "$(cat $(Agent.TempDirectory)/new.txt)"
+        displayName: open or refresh the bump PR
+        condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
+        env:
+          SYSTEM_ACCESSTOKEN: $(System.AccessToken)   # the build service's token; gap 1
+```
+
+`cli-latest.sh <pinfile>` prints the new version, or nothing and exit 0 when there is none
+(decision a). `cli-pr.sh <version>` does nothing on an empty argument; otherwise, through the Azure
+DevOps REST API with that token only, it creates branch `bump/claude-code-<version>` from `dev`
+with the one-line change, opens a PR titled `images: Claude Code <old> → <version>` with
+auto-complete, and if that PR already exists, does nothing. It never force-pushes and never
+touches another branch. A second, newer release while a bump PR is open opens a second PR; the
+older one is abandoned by the script with a comment naming the newer.
