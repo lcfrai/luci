@@ -35,7 +35,7 @@ Seven decisions the scope left open, made here.
    branch brief and may name an earlier revision of **that** brief; any other brief, or a revision
    that does not exist, is 422 `bad_request`, `field: "pinnedBrief"`. For an initiative, the author
    pins **each feature they report on**, and one field cannot hold that: task 114's `StatusUpdate`
-   carries one `pinnedBrief` (`task-114.md:152`). **Gap G1, fixed in 114:** `StatusUpdate` and
+   carries one `pinnedBrief` (its `StatusUpdate`). **Gap G1, fixed in 114:** `StatusUpdate` and
    `PostUpdateRequest` gain `featurePins [{featureId, pinnedBrief}]`, non-empty for an initiative
    subject and empty for a feature; the stored `pinnedBrief` of an initiative update is its first
    pin, so the record's one field is never empty. This task appends the child table
@@ -146,10 +146,10 @@ as every Hub table.
 
 #### The wire: task 114's types, and what 114 must add (G1 and G2)
 
-Task 114's part (`task-114.md`, in progress at this writing) declares `Health` (`:124-131`),
-`SubjectRef` and `SubjectFeature`/`SubjectInitiative` (`:133-142`), `StatusUpdate` (`:144-157`:
-`Body AuthoredText`, `PinnedBrief` required, `ErasedAt`) and `PostUpdateRequest` (`:379-384`:
-`Body AuthoredText`, author `H`). This task uses them as written. Two additions it needs are not
+Task 114's part (`task-114.md`, in progress at this writing, so cited by type name rather than
+line) declares `Health`, `SubjectRef` with `SubjectFeature`/`SubjectInitiative`, `StatusUpdate`
+(`Body AuthoredText`, `PinnedBrief` required, `ErasedAt`) and `PostUpdateRequest` (`Body
+AuthoredText`, author `H`). This task uses them as written. Two additions it needs are not
 there, and are written here as 114 must carry them:
 
 ```go
@@ -170,7 +170,7 @@ type FeaturePin struct {
 // FeaturePins[0].PinnedBrief, so 114's rule "a StatusUpdate always has a
 // PinnedBrief" holds for both subjects and a reader of one field is never wrong.
 
-const MaxUpdateCites = 20 // 114's "0-20 Hub keys" (task-114.md:383), named
+const MaxUpdateCites = 20 // 114's "0-20 Hub keys" on PostUpdateRequest.Cites, named
 ```
 
 `PostUpdateRequest.PinnedBrief` may be `""` for a **feature** subject, meaning *the head revision*
@@ -291,11 +291,11 @@ null` and rebuilds `body` and `erasedAt` from the rows on replay, TM-46's patter
 (a granted team reads a feature's updates, task 117; an initiative's are read under 118's rule),
 `after` and `limit` as `ListUpdates`, `200 Page[StatusUpdate]`. **`patchUpdate`**: `UpdateByID`
 under the caller's read rule, else 404 `note_not_found` (TM-46's code, **UNVERIFIED** name, as
-`task-114.md:55-56` says); otherwise 409 `update_immutable`, always,
+task 114's decision 4 says); otherwise 409 `update_immutable`, always,
 with nothing written and no event (a refused write changes no record, `hub-contract:1133`).
 
-**G3, codes:** `initiative_not_found` is 114's (`task-114.md:638`); an unknown update is TM-46's
-`note_not_found`, as 114 decides (`:52-56`); `feature_not_found` is W2's if task 72 declares it
+**G3, codes:** `initiative_not_found` is 114's (its `codes.go` block); an unknown update is TM-46's
+`note_not_found`, as 114's decision 4 decides; `feature_not_found` is W2's if task 72 declares it
 (its part is not yet written) and 114's to append if not. This task declares none.
 
 #### Tests to write first — `server/work_updates_integration_test.go` (`//go:build integration`)
