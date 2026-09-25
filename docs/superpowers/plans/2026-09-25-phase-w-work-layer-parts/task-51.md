@@ -908,7 +908,7 @@ is not fixed; `toLocaleTimeString` with `hour12: false` is the source.
   `reaction`, `resolve` arms and `inverseOf`'s `resolve` case). Where one differs from what this
   part cites, the built file wins and the rename lands here.
 - [ ] **Step 2: the two test files first**; run them and see them fail on the missing modules.
-- [ ] **Step 3: `commentModel.ts`**; `commentModel.test.ts` passes (8 tests).
+- [ ] **Step 3: `commentModel.ts`**; `commentModel.test.ts` passes (7 tests).
 - [ ] **Step 4: the three `Editor` props** in task 49's `Editor.tsx`; task 49's `Editor.test.tsx`
   still passes unchanged (the props are optional).
 - [ ] **Step 5: `mentionPlugin.ts`, `CommentComposer.tsx`, `Comments.tsx`**, the `issueData.ts`
@@ -921,7 +921,7 @@ is not fixed; `toLocaleTimeString` with `hour12: false` is the source.
 
 ```bash
 npm --prefix desktop test -- issue editor
-# expect: every file passes; this part adds 2 files and 18 tests (commentModel 8, Comments 10)
+# expect: every file passes; this part adds 2 files and 17 tests (commentModel 7, Comments 10)
 npm --prefix desktop run typecheck
 # expect: exit 0
 grep -rn "scrollTo\|scrollTop *=\|dangerouslySetInnerHTML\|innerHTML" desktop/src/components/issue/Comments.tsx desktop/src/components/issue/CommentComposer.tsx | wc -l
