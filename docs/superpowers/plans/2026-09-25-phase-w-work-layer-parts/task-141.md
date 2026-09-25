@@ -234,3 +234,69 @@ export function servesDiff(add: readonly Serve[], remove: readonly Serve[]): str
 Joining a row's parts, `same` and `del` give the old line and `same` and `add` the new one, byte
 for byte (a test pins it), so the diff never shows words the texts do not hold. `lineDiff` is
 imported, not copied, so task 47's output and this one cannot drift.
+
+#### Interfaces — complete: `desktop/src/components/proposal/ProposalDiff.tsx`
+
+```tsx
+// desktop/src/components/proposal/ProposalDiff.tsx — L-130. Shape and word, never colour alone.
+import type { ReactNode } from "react";
+import { textDiff, type DiffRow } from "../../work/diff/wordDiff";
+import { KeyLink } from "../common/KeyLink";
+
+export interface ProposalAuthor {
+  owner: string;          // "dylan"
+  agent: string;          // "agent 1" (decision 2) or "agent · s-7f2c"
+  model: string;          // "claude-sonnet-…"
+  sessionId: string;      // "s-7f2c…"
+  at: string;             // RFC 3339
+  onRevision: number | null; // 3 for an issue; null for a brief answer
+}
+
+export interface ProposalDiffProps {
+  fields: readonly { label: string; base: string; proposed: string }[];   // Title, Description; or the answer
+  extra?: ReactNode;                     // the serves line for an issue
+  why: readonly string[];
+  author: ProposalAuthor;
+  timeZone: string;
+}
+
+function Row({ r }: { r: DiffRow }): JSX.Element {
+  if (r.kind === "same") return <div className="pd-line">{r.text}</div>;
+  if (r.kind === "add") return <div className="pd-line"><ins className="pd-add" aria-label="added">{r.text}</ins></div>;
+  if (r.kind === "del") return <div className="pd-line"><del className="pd-del" aria-label="removed">{r.text}</del></div>;
+  return (
+    <div className="pd-line">
+      {r.parts.map((p, i) => p.op === "same" ? <span key={i}>{p.text}</span>
+        : p.op === "add" ? <ins key={i} className="pd-add" aria-label="added">{p.text}</ins>
+        : <del key={i} className="pd-del" aria-label="removed">{p.text}</del>)}
+    </div>
+  );
+}
+
+export function ProposalDiff(p: ProposalDiffProps): JSX.Element {
+  const a = p.author;
+  const time = new Intl.DateTimeFormat("en-AU", { hour: "2-digit", minute: "2-digit", timeZone: p.timeZone }).format(new Date(a.at));
+  return (
+    <section className="pd" aria-label="Proposed edit" data-author="A">
+      <p className="pd-head">
+        Proposed by {a.owner} · {a.agent} (<span className="pd-mono">{a.model}</span>, session{" "}
+        <span className="pd-mono">{a.sessionId}</span>) at <time className="pd-mono" dateTime={a.at}>{time}</time>
+        {a.onRevision !== null && <>, on <span className="pd-mono">@{a.onRevision}</span></>}
+      </p>
+      {p.fields.map((f) => (
+        <div key={f.label} className="pd-field">
+          <h4 className="pd-label">{f.label}{f.base === f.proposed && <span className="pd-same"> · unchanged</span>}</h4>
+          {f.base !== f.proposed && <div className="pd-body">{textDiff(f.base, f.proposed).map((r, i) => <Row key={i} r={r} />)}</div>}
+        </div>))}
+      {p.extra}
+      {p.why.length > 0 && <p className="pd-why">Why: {p.why.map((k) => <KeyLink key={k} k={k} />)}</p>}
+    </section>
+  );
+}
+```
+
+`<ins>` and `<del>` carry their meaning to assistive technology, and the `aria-label` names it in
+the reader's words; `proposal.css` draws `del` struck through and `ins` underlined with a 2px
+offset line, the colour on top of those shapes only (`forced-colors: active` keeps both lines).
+Text inside the diff is plain text nodes, never parsed Markdown, so a proposal cannot inject
+markup or a live link into the page.
