@@ -796,3 +796,177 @@ then each list sorted newest first by `At` (HORIZON and DECIDED WITHOUT YOU) or 
 first (NEEDS YOU). The sort is done once per response, and the order is stable for equal keys
 (`sort.SliceStable`), so an unchanged Desk never reorders under the cursor
 (`docs/AGENTIC-UX.md:146`).
+
+#### ST.8 on the desktop: the team block of `store/types.ts` (complete)
+
+Appended after the `Session` interface, which gains one field. `TextA` and `TextH` are distinct
+types, so a component that takes `TextH` (a human's words) cannot be handed an agent's line
+without a compile error, and every component that renders agent text must say so in its props.
+
+```ts
+/* ── team mode (ST.8, Phase T task 52) ─────────────────────────────────────────────── */
+
+export type TeamScope = "" | "team" | "outside";
+// Session gains:  /** task 21: "" solo, "team" a Fleet session, "outside" local on a team project. */
+//                 teamScope: TeamScope;
+
+export type HubUserId = string;   // "u-…"
+export type AgentId = string;     // "ag-…"
+
+interface TeamTextBase {
+  body: string;
+  ownerUserId: HubUserId;
+  at: string;
+  /** Assembled from typed fields by the control plane. Render beside the body, always. */
+  label: string;
+}
+/** An agent's words (text·A). Plain text only: no markdown, no HTML, no terminal. */
+export interface TextA extends TeamTextBase { author: "agent"; authorAgentId: AgentId; }
+/** A human's words (text·H). */
+export interface TextH extends TeamTextBase { author: "human"; authorAgentId: null; }
+export type TeamText = TextA | TextH;
+
+export interface PersonRef { userId: HubUserId; displayName: string; }
+export interface AgentRef { agentId: AgentId; name: string; }
+export interface BriefSection { ref: string; title: string; }
+export interface RouteState {
+  current: "global" | "au"; required: boolean; raisedAt: string | null; canLower: boolean;
+}
+
+export type RowStatus = "working" | "waiting" | "idle";
+export type WaitingOn =
+  | { kind: "human"; name: string; words: TextA | null }
+  | { kind: "lease" | "peer"; name: null; words: null };
+
+export interface PersonRow {
+  userId: HubUserId; displayName: string; you: boolean;
+  status: RowStatus; waitingOn: WaitingOn | null;
+  line: { briefSection: BriefSection | null; taskTitle: TeamText | null; agents: number };
+  files: { recent: string[]; more: number; heldByOthers: string[] };
+  changedAt: string;
+}
+export interface TeamStrip {
+  v: 1; projectId: string; team: boolean; generatedAt: string;
+  route: RouteState; people: PersonRow[];
+}
+
+export interface AgentCard { state: string; meaning: string; next: string; }
+export interface PersonDetail {
+  v: 1; projectId: string; userId: HubUserId; displayName: string; you: boolean;
+  tasks: { id: string; state: string; title: TeamText | null; briefSection: BriefSection | null }[];
+  agents: (AgentRef & { role: "orchestrator" | "worker"; harness: string; taskId: string;
+                        status: string; card: AgentCard })[];
+  files: { path: string; lastEdit: string; heldByOthers: boolean }[];
+  leases: { id: string; agentId: AgentId; globs: string[]; mode: "intent" | "hold" | "bulk";
+            state: string; expiresAt: string }[];
+  conflicts: { id: string; tier: "P" | "H" | "M" | "S"; state: string; paths: string[]; withMine: string }[];
+}
+
+export interface HorizonItem {
+  conflictId: string; projectId: string; tier: "P" | "H" | "M" | "S";
+  state: "raised" | "negotiating" | "accepted" | "escalated"; paths: string[];
+  mine: AgentRef; theirs: PersonRef & { agentId: AgentId }; at: string;
+}
+export interface DecideItem {
+  escalationId: string; projectId: string; threadId: string | null; fromAgentId: AgentId | null;
+  question: TextA; options: { label: TextA; consequence: TextA }[];
+  default: number; deadline: string;
+}
+export type SinceItem =
+  | { kind: "inform"; projectId: string; at: string; escalationId: string; question: TextA }
+  | { kind: "answer"; projectId: string; at: string; messageId: string; threadId: string;
+      to: PersonRef; text: TextA };
+export type Resolution = "split" | "sequence" | "yield" | "build-on" | "proceed-both";
+export interface DecidedItem {
+  escalationId: string; conflictId: string; projectId: string; resolution: Resolution;
+  other: PersonRef; globs: string[]; at: string; undo: { available: boolean };
+}
+export interface TeamDesk {
+  v: 1; generatedAt: string; horizon: HorizonItem[]; needsYou: DecideItem[];
+  sinceYouLastLooked: { since: string; items: SinceItem[] }; decidedWithoutYou: DecidedItem[];
+}
+```
+
+```ts
+export type ConvEntry =
+  | { kind: "human"; at: string; id: string; text: TextH }
+  | { kind: "reply"; at: string; turnId: string; text: TextA;
+      exit: "ok" | "failed" | "timeout" | "lost"; truncated?: boolean }
+  | { kind: "directive"; at: string; id: string;
+      directiveKind: "pause" | "resume" | "narrow" | "wait-for" | "rebase" | "free";
+      to: AgentRef; params: { globs: string[]; leaseId: string | null }; text?: TextA };
+export interface ThreadRow {
+  id: string; state: "open" | "escalated"; other: PersonRef;
+  subject: { kind: "conflict" | "lease" | "free"; id: string | null };
+  subjectLabel: string; round: number; maxRounds: number; deadline: string;
+}
+export interface OrchestratorView {
+  v: 1; projectId: string;
+  orchestrator: { agentId: AgentId; status: string; canDive: boolean } | null;
+  conversation: ConvEntry[]; threads: ThreadRow[];
+}
+export type MessageKind =
+  "ask" | "answer" | "inform" | "propose" | "accept" | "reject" | "counter" | "withdraw";
+export interface ResolutionProposal {
+  kind: Resolution; sides: Record<AgentId, string[]>; first: AgentId | null;
+  globs: string[]; base: string | null; paths: string[];
+}
+export interface ThreadMessage {
+  id: string; kind: MessageKind; templated: boolean; at: string; tombstoned: boolean;
+  sender: { agentId: AgentId; userId: HubUserId; label: string };
+  /** The Hub's flat union, verbatim (task 03 Block 5): every key present. */
+  fields: {
+    subject: { kind: "task" | "lease" | "path" | "conflict"; ref: string } | null;
+    inReplyTo: string | null; resolution: ResolutionProposal | null; proposal: string | null;
+  };
+  text: TextA | null;
+}
+export interface ThreadView { thread: ThreadRow; messages: ThreadMessage[]; }
+
+export interface TeamSettings {
+  v: 1; projectId: string; dataClass: string; route: RouteState;
+  spend: { day: string; workersCents: number; coordinationCents: number; quotaCents: number } | null;
+}
+
+export interface AskSubject { kind: "task" | "path" | "agent" | "conflict"; ref: string; }
+export interface Created { id: string; }
+```
+
+Every `ConvEntry` of kind `human` carries a `TextH` and every `reply` a `TextA`; the key set of
+each kind is exactly the Go struct's non-omitted keys for that kind (Step 1's fixture test checks
+it both ways).
+
+#### `desktop/src/api/team.ts` (complete surface)
+
+A second client beside `createClient`, built on the same `send`, timeout and `Problem` handling,
+so the team routes fail with the same `ProblemCode`s the cockpit already renders
+(`client.ts:40-50`). It is not merged into `CockpitClient`, so phase 2's interface does not move.
+
+```ts
+import type { ClientOptions, Problem } from "./client";
+import type { AskSubject, Created, DecideItem, OrchestratorView, PersonDetail, ProjectId,
+  TeamDesk, TeamSettings, TeamStrip, ThreadView } from "../store/types";
+
+export interface TeamClient {
+  strip(projectId: ProjectId): Promise<TeamStrip>;
+  person(projectId: ProjectId, userId: string): Promise<PersonDetail>;
+  /** since: RFC 3339, the persisted teamSeenAt. */
+  desk(since: string): Promise<TeamDesk>;
+  orchestrator(projectId: ProjectId): Promise<OrchestratorView>;
+  thread(projectId: ProjectId, threadId: string): Promise<ThreadView>;
+  settings(projectId: ProjectId): Promise<TeamSettings>;
+  ask(projectId: ProjectId, text: string, subject?: AskSubject): Promise<Created>;
+  /** Once per click: the caller disables the control until it settles (task 54). */
+  answer(escalationId: string, choice: number, text?: string): Promise<DecideItem>;
+  undo(escalationId: string): Promise<Created>;
+  note(projectId: ProjectId, target: { kind: "project" | "task" | "user"; id: string },
+       text: string): Promise<Created>;
+  raiseRoute(projectId: ProjectId): Promise<TeamSettings>;
+}
+
+export function createTeamClient(opts?: ClientOptions): TeamClient;
+export type { Problem };
+```
+
+Path segments are `encodeURIComponent`-ed; no method builds a query string by hand except
+`desk`, which sends `?since=` through `URLSearchParams`.
