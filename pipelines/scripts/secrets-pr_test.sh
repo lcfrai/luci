@@ -75,5 +75,14 @@ check target_not_fetched refs/heads/release 0 2 \
 check not_a_pull_request -unset- 0 2 \
   "secrets-pr: SYSTEM_PULLREQUEST_TARGETBRANCH is empty: not a pull-request build" "stub gitleaks"
 
+# HEAD at the PR's own tip D (A-C-D), not a merge commit: the range is still every PR commit,
+# A..HEAD, not only the last one (HEAD^1..HEAD). Kills mutant N7, which takes the merge commit's
+# first parent for the base: the same commit as the merge base in the merge shape above.
+if ! { D="$(g commit-tree "$T" -p "$C" -m 'D, the pull request')" && g update-ref --no-deref HEAD "$D"; }; then
+  echo "secrets-pr_test: cannot move HEAD to the PR tip"; exit 2
+fi
+check pr_tip_checkout refs/heads/main 0 0 \
+  "stub gitleaks: git --no-banner --redact --config .gitleaks.toml --log-opts=$A..HEAD ."
+
 echo "secrets-pr_test: $pass of $n checks passed"
 [ "$pass" -eq "$n" ]

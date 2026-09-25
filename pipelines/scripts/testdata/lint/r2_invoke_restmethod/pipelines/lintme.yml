@@ -1,0 +1,13 @@
+# Case r2_invoke_restmethod: Invoke-RestMethod by its full name (r2_irm uses the alias).
+trigger:
+  branches:
+    include: [main, dev]
+  paths:
+    include: [desktop/**]
+pr:
+  branches:
+    include: ['*']
+  paths:
+    include: [desktop/**]
+steps:
+  - powershell: Invoke-RestMethod -Uri https://example.invalid/tool.zip -OutFile tool.zip
