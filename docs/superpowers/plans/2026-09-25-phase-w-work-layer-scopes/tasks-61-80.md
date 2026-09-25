@@ -608,9 +608,10 @@ when every child is closed **and** every criterion it serves is settled (L-21, 0
 last child closing re-runs the done rule on the parent, written as the person who closed the child;
 children may be agent tasks below them only in team mode (TM-05 §3.3; nothing here); a template
 may pre-fill `serves`, labels, priority and estimate, and creating from one is a client prefill
-(no server-side merge), so a template edit never changes existing issues (L-26); a label in an
-`exclusive` group replaces its sibling on the issue in one write, not a `422`, when the patch sends
-the new one alone, and two in one patch are `422 exclusive_label_group` (L-18); org labels are
+(no server-side merge), so a template edit never changes existing issues (L-26); `labels` is a
+whole list (task 03's `PatchIssueRequest`), so two labels of one `exclusive` group in it are `422
+exclusive_label_group` (L-18), the same rule as task 73's fake and task 74's trigger, and the
+picker swaps the sibling client-side (task 90); org labels are
 visible to every team and written by org admins only, who still read no project content
 (`hub-contract.md` §5.2). Events `issue.parent_set`, `template.*`, `label_group.*`. **Tests
 first:** (1) A → B → A is `422` at the route and at the trigger (mutant: the route check alone);
@@ -619,10 +620,80 @@ ignored); (3) closing the last child makes the parent `done` as the closer when 
 settled, and not when one is open (mutants: auto-close on children alone; `actor: null`); (4) a
 cross-project parent is `422` (mutant: any issue); (5) editing a template leaves an issue made from
 it unchanged (mutant: live-linked templates); (6) a member cannot write an org label, and an org
-admin creating one reads no issue (mutant: org admin gets project reads); (7) the exclusive rule
-both ways (mutants: two kept; replacement refused); (8) each write has one event. **Depends on**
+admin creating one reads no issue (mutant: org admin gets project reads); (7) a list with two
+labels of one exclusive group is `422` at the route (mutant: last label wins silently);
+(8) each write has one event. **Depends on**
 74. **Design:** 05 §3.2 (label, template rows), §2.3, §5.4 W2. **Closes** the Hub halves of L-17's
 org half, L-18, L-20, L-21 and L-26 (the desktop is 88-90; L-19's shorthand and L-22's split are
 desktop only). **Does not claim** recurring issues (W4, L-32), form templates (W5, L-27), or
 copying templates between teams (later, L-7).
+
+**79 — estimates, due dates, rank, move with redirect, the resolved-blocker rule.** Stream WH.
+Files: `control-plane/internal/hub/store/work_plan_fields.go`, `server/work_plan_fields.go`,
+`store/work_move.go`, `server/work_move.go` (+ tests), task 11's `PUT
+/v1/teams/{teamId}/work-policy` (the estimate scale and the stale and archive days of task 72's
+`TeamPolicy` additions), task 10's state route (the blocker clause), task 08's `by-number` route
+(the redirect), `server/matrix_integration_test.go` ⚑. **Routes:** `PATCH
+/v1/issues/{issueId}/plan` (`PatchIssuePlanRequest{estimate, dueOn}`); `POST
+/v1/issues/{issueId}/rank` (`RankRequest{before, after}`); `POST /v1/issues/{issueId}/move`
+(`MoveIssueRequest{toProjectId}`, a member of both teams). **Rules:** an estimate is an integer
+on the team's scale (`none`, `exponential`, `fibonacci`, `linear`, `tshirt` mapped to integers;
+zero only with `estimateZero`; L-16, 04 §2.4); `dueOn` is a date with no time and no colour on
+the wire (colour is the desktop's signal, L-37); `rank` is a fractional index shared by the team,
+computed by the server between the two neighbours named (never trusted from the client), with a
+rebalance when a gap is exhausted that writes one event per moved issue (L-14, L-103); a move keeps
+the `is-` id, takes the next number in the target project, and records `issue_aliases` so
+`GET /v1/projects/{projectId}/issues/by-number/{n}` for the old number answers the moved issue
+with `movedFrom`, and the old number is never reused (L-35; trailers carry ids, so none breaks, 05
+§3.6); **the resolved-blocker rule** (L-25): when an issue moves to `done`, `cancelled` or
+`duplicate`, each of its `blocks` relations becomes `relates` in the same transaction, one event,
+written as the person whose act closed it (for a fact `done`, the lander, rule 2). **Tests
+first:** (1) `5` on a Fibonacci team is `422`, `0` is `422` unless `estimateZero` (mutants: any
+integer; zero always); (2) a `dueOn` with a time is `422` (mutant: timestamps accepted); (3) rank
+between A and B sorts between them on a fresh read, and a client-sent rank string is ignored
+(mutants: client-trusted rank; rank not persisted); (4) 40 inserts between the same neighbours
+trigger one rebalance and keep the order (mutant: the key grows past 32 characters); (5) the old
+alias resolves after a move and a new issue in the old project never takes the number (mutants:
+404 after a move; the number reused); (6) closing a blocker turns `blocks` into `relates` with the
+closer as actor, and a `todo` blocker keeps `blocks` (mutants: relation deleted; `actor: null`);
+(7) a move by a member of only the source team is `403` (mutant: source membership alone);
+(8) each write has one event. **Depends on** 74. **Design:** 05 §1 rows L-14, L-16, L-25, L-35,
+L-37, §3.2, §5.4 W2; 04 §2.4. **Closes** the Hub halves of L-14, L-16, L-25, L-35, L-37 and
+L-103 (the desktop is task 89). **Does not claim** due-soon on the Desk digest (task 81/94),
+moves between orgs, or rank across teams.
+
+**80 — views `vw-`, drafts `df-`, https links and the read-only page, CSV export.** Stream WH.
+Files: `control-plane/internal/hub/store/work_views.go`, `server/work_views.go`,
+`store/work_filter.go` (the one Go evaluator of `FilterGroup`), `store/work_drafts.go`,
+`server/work_drafts.go`, `server/work_export.go`, `server/work_pages.go` (the file map's page
+file), `hubapi/testdata/view-filter/*.json` (shared vectors the desktop's evaluator, tasks 83 and
+91, runs too), `server/matrix_integration_test.go` ⚑ (+ tests). **Routes:** `POST
+/v1/teams/{teamId}/views`, `GET`, `PATCH`, `POST .../archive`, and `PUT
+/v1/views/{viewId}/team-default` (team admin, L-105); personal views stay desktop preferences (L-94);
+`POST`, `PUT`, `GET` and `DELETE /v1/me/drafts[/{draftId}]` (the author only; others get `404`;
+expiry is task 77's janitor); `GET /v1/projects/{projectId}/issues.csv?viewId=` and
+`/features.csv` (`text/csv`); and the **read-only page** `GET /p/issues/{issueId}[@{rev}]`. The
+page is a browser surface, which the Hub contract forbids on `/v1` (*"No browsers"*,
+`hub-contract.md:38`), and 05 needs it (L-98, L-233); so it lives **outside `/v1`**, server-rendered
+HTML with no script and a strict CSP, signed in by Entra auth code into an `HttpOnly`,
+`SameSite=Strict` session, showing the head and the named revision read-only with an *Open in
+Panacea* button (`panacea://issue/…`, task 93). That browser session is a **proposed Hub-contract
+addition**: the part writes it as `docs/superpowers/planning/2026-09-25-linear-parity/w2-hub-
+browser-surface-proposal.md` for the `feat/hub` owner (as W0 did) and the page merges only after
+review. **Rules:** a view's filter is evaluated by one Go function over readable rows only (RLS);
+CSV cells that begin `=`, `+`, `-` or `@` are prefixed with `'` (formula injection); an erased
+issue exports as `erased` with no text (05 §3.6). **Tests first:** (1) each shared filter vector
+gives the same ids in Go as its `expected` list (mutant: `or` evaluated as `and`); (2) a member
+cannot set a team default (mutant: role check missing); (3) another user's draft is `404` (mutant:
+`403` leaks existence); (4) a title `=HYPERLINK(...)` exports as `'=HYPERLINK(...)` (mutant: raw
+cell); (5) the CSV holds no row of a project the caller cannot read (mutant: export bypasses RLS);
+(6) an erased issue's page and CSV row carry no text (mutant: cached title); (7) the page sends
+`Content-Security-Policy` with `script-src 'none'` and no `/v1` route accepts its cookie (mutants:
+script allowed; cookie honoured on the API); (8) each write has one event. **Depends on** 74.
+**Design:** 05 §1 group G (L-93-L-99, L-105, L-111), §5.4 W2 (*https Hub links*), L-33, L-44,
+L-153, L-233. **Closes** the Hub halves of L-93, L-94, L-95, L-99, L-105, L-33, L-44, L-98's W2
+half and L-153's issues, views and features (the desktop is 91-94). **Does not claim** intake CSV
+(W5), subscriptions to a view (the digest, task 81), https links opening the installed app
+directly on Windows (**UNVERIFIED**; the page's button is the path), or that this task fits three
+hours (a reported sizing gap).
 
