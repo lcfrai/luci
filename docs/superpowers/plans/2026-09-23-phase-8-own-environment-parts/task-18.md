@@ -135,9 +135,14 @@ reaches phase 3's runner, `sandboxd`'s `/git/v1/`, in the one pod that mounts th
    directory, and the broker adds none (phase-3 `task-24.md:91-94`).
 3. **Caps, per direction** (phase-3 `task-24.md:91-93`, `:365-370`): `fetch` request
    `MaxBundleBytes`, response `MaxJSONBytes`; `bundle` request `MaxJSONBytes`, response
-   `MaxBundleBytes`; every other op `MaxJSONBytes` both ways. The values are phase 3's host copies
-   (`lanegit`, which declares the same four, `:361`); tests lower them through the handler's
-   fields. Both directions stream through `io.Copy` over an `io.LimitReader` of cap + 1, never
+   `MaxBundleBytes`; every other op `MaxJSONBytes` both ways. The values are four constants this
+   task adds to `brokerapi/wire.go`: `GitMaxJSONBytes = 8 << 20`, `GitMaxBundleBytes = 1 << 30`,
+   `GitReadTimeout = 30 * time.Second`, `GitBundleTimeout = 120 * time.Second`, phase 3's four
+   restated (`:361-370`), because control-plane cannot import sandboxd's `gitrunner` and phase
+   3's `lanegit` copy is not on this branch yet. `TestGitLimitsMatchPhase3` compares them with
+   phase 3's `testdata/gitrunner/limits.json` (`:361-363`), skipped with a message while that file
+   is absent. Task 19's proxy uses the same two bundle values. Tests lower them through the
+   handler's fields. Both directions stream through `io.Copy` over an `io.LimitReader` of cap + 1, never
    buffered. A request past its cap is `413` in the runner's envelope, so phase 3's client
    decodes a `RunnerError{413, "too_large"}` (`:388`), not "the runner did not answer"
    (`:582-583`). A response past its cap is cut: the status is sent, so the broker stops and
@@ -391,6 +396,7 @@ timeouts lowered through the handler's fields):
 | `TestSandboxGitCapsEachDirection` | cap `C`: a `fetch` body of `C` → proxied, `C + 1` → `413 {"code":"too_large"}`, `application/json`; a `status` body past the JSON cap → the same 413; a `bundle` answer of `C + 1` → the caller reads at most `C` bytes, then an error; a `fetch` answer past the JSON cap → cut the same way | the bundle cap on the wrong direction; a 413 in the httpx envelope, which phase 3's client reads as "did not answer" |
 | `TestSandboxGitDeadlineIsTheOpsTimeoutPlusFive` | with `ReadTimeout` 50 ms and the 5 s slack lowered to 50 ms, a stand-in that never answers `status` → `504 {"code":"git_timeout"}` between 100 ms and 1 s; `fetch` waits `BundleTimeout` + slack | one deadline for every op; no deadline |
 | `TestCreateAdmitsARunnerOnlySpecAtRunnerSize` | `SessionID ""`, `Machine` set, one `lanes/p-1/d-0a1b2c` mount at `/home/dev/work` → 201, the pod's requests and limits are `500m` / `1024Mi` though the body asked more; the same with a second (`conversations/…`) mount → the session size; a `projects/app` mount → `400 bad_request` naming R4.1 | a runner-only pod sized as a session, taking a session's place on the machine; detection keyed on `SessionID` alone |
+| `TestGitLimitsMatchPhase3` (`brokerapi`) | the four `Git*` constants equal `testdata/gitrunner/limits.json`'s values; skipped with a message naming phase 3 task 24 while the file is absent | a broker cap that drifts from the runner's, so a bundle the runner accepts is refused on the way |
 
 #### Steps
 
