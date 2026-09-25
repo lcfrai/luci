@@ -9,6 +9,13 @@ handler**, the rest of §10.7's "Database" column: a revision never changes, a h
 onto a real revision, a pin never moves, append-only tables are append-only, and the audit chain is
 gapless and hashed.
 
+**OD-30 changes nothing here** (main `docs/superpowers/planning/2026-09-25-identity-keycloak-broker.md`
+§4, §11; Hub contract §17: "the `orgs` and `users` keys of §10 are unchanged"). The issuer is now a
+Keycloak realm brokering Entra, but the token's `tid` and `oid` are still **Entra's** tenant and object
+ids, carried through the realm (ruling §4, mappers M1/M2, P1/P2). So `entra_tenant_id`, `entra_oid`,
+`ensure_org` and `resolve_principal` keep their names and meaning, and `TestResolvePrincipal` is
+unchanged. A service caller (no `tid`, no `oid`) never reaches `resolve_principal` (task 13).
+
 **One file, one migration.** `0001_init.sql` stays the only migration, so `Latest()` stays 1.
 Task 06's runner refuses an applied migration whose text has changed (`ErrEdited`), so nothing
 applies 0001 to a persistent database between 07a and 07b. The tests run on fresh databases
