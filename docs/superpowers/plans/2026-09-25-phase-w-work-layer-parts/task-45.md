@@ -67,3 +67,92 @@ empty heading: 05 §4.1 shows a noun only once a team has one, and W2 and W4 bri
 - `desktop/src/components/work/WorkLens.tsx` — the *Plan* action in its `ViewHeader` (modified, task 40's)
 - `desktop/src/components/work/work.css` — `.wk-plan`, `.wk-section`, `.wk-conv` (modified)
 
+#### Interfaces — complete: `desktop/src/components/work/PlanSurface.tsx`, the exported half
+
+```tsx
+// desktop/src/components/work/PlanSurface.tsx — task 45. The project surface (05 §4.1, Plan row).
+import type { JSX } from "react";
+import type { User } from "../../api/work";                              // SW.15
+import type { CriterionReading } from "../../api/discover";             // P4 task 15; UNVERIFIED until merge
+import type { BriefCriterion } from "../../work/suggestCriterion";      // task 42
+import type { Route } from "../common/ViewHeader";                      // SW.13
+
+/** 05 §3.3's five words for a criterion, kept from 04 §3.3. Never a count, never a share. */
+export type Convergence = "settled" | "open" | "contested" | "drifting" | "uncovered";
+
+/** A criterion as Plan lists it: the brief's own, in brief order, with phase 4's reading. */
+export interface PlanCriterion extends BriefCriterion {
+  reading: CriterionReading | null;   // null when phase 4 has not read it yet
+  inBrief: boolean;                   // false for a served id the brief no longer has (drifting)
+}
+
+/** Decision 2. The inputs are the reading and two serves facts; no issue state is an input. */
+export function convergenceWord(c: { reading: CriterionReading | null; inBrief: boolean }, servedBy: number): Convergence {
+  if (!c.inBrief) return "drifting";
+  const s = c.reading?.state;
+  if (s === "settled" || s === "contested") return s;
+  return servedBy === 0 ? "uncovered" : "open";
+}
+
+/** The four sections, in order (the test pins this list and its order). */
+export const PLAN_SECTIONS = ["Triage", "Backlog", "Criteria", "My issues"] as const;
+
+export function PlanSurface(props: {
+  projectId: string;
+  me: User;                               // GET /v1/me, decision 4
+  route: Route | null;                    // the project's, for the ViewHeader badge
+  criteria: readonly PlanCriterion[];     // brief order; drifting ids appended after
+  timeZone: string;                       // passed to the embedded TriageView
+  now(): number;
+  onBack(): void;                         // the ViewHeader's Work action
+}): JSX.Element;
+
+/** The mount: builds `criteria` from the phase 4 loader's criterionStatesByKey (P4 task 16) and
+ *  the served ids in the replica, and `me` from GET /v1/me. Renders PlanSurface. */
+export function PlanMount(): JSX.Element;
+```
+
+`PlanMount` appends a `drifting` entry for every `serves` criterion id the replica's issue
+revisions carry that is not among the brief's criteria (its `text` from the newest revision that
+names it, `reading: null`, `inBrief: false`). It holds no state of its own and writes nothing.
+
+#### How each section is built, inside `PlanSurface`
+
+```tsx
+const backlog = useWork((r) => groupByCriterion(issuesOf(r, projectId).filter((h) => h.state === "backlog"), criteria));
+const mine    = useWork((r) => groupByCriterion(issuesOf(r, projectId).filter((h) => h.assignee?.id === me.id), criteria));
+const serving = useWork((r) => servedByCount(r, projectId));       // Map<criterionKey, issue ids>, from serves only
+// …
+<section className="wk-section" aria-labelledby="plan-triage"><h2 id="plan-triage">Triage</h2>
+  <TriageView projectId={projectId} timeZone={timeZone} now={now} /></section>
+<section className="wk-section" aria-labelledby="plan-backlog"><h2 id="plan-backlog">Backlog</h2>
+  <HeldGroups section="backlog" grouped={backlog} /></section>
+<section className="wk-section" aria-labelledby="plan-criteria"><h2 id="plan-criteria">Criteria</h2>
+  {criteria.map((c) => <PlanCriterionRow key={`${c.briefKey}#${c.criterionId}`} c={c}
+     word={convergenceWord(c, serving.get(key(c))?.length ?? 0)} issueIds={serving.get(key(c)) ?? []} />)}</section>
+<section className="wk-section" aria-labelledby="plan-mine"><h2 id="plan-mine">My issues</h2>
+  <HeldGroups section="mine" grouped={mine} /></section>
+```
+
+`issuesOf`, `groupByCriterion` and `servedByCount` are selectors over SW.16's replica: the first
+two are task 40's (the Work lens groups the same way; **UNVERIFIED** names, task 40 wins), and
+`servedByCount` is this task's, reading only each head revision's `serves`. `HeldGroups` is the
+Work lens's group list over one task 41 `HoldState` (task 40's `CriterionGroup` in a loop).
+`PlanCriterionRow` renders `ThreadLine` > the criterion's `ThreadNode` and text in sans, then
+`<span className="wk-conv" data-word={word}>{word}</span> · <span className="wk-count">{n} issue(s)</span>`,
+then its issues as task 40's rows. An `uncovered` criterion keeps its row and reads
+*No issue serves this criterion. C files one.* (task 43's `EMPTY_CRITERION`, one string).
+
+#### `work.css`, appended
+
+```css
+/* task 45 — Plan. Section headings are the one type step above a row; no card grid. */
+.wk-plan { display: flex; flex-direction: column; gap: var(--s-5); padding: var(--s-4) var(--s-5); }
+.wk-section > h2 { font-size: var(--t-ui); font-weight: 600; color: var(--ink-2); margin: 0 0 var(--s-2); }
+.wk-conv { font-size: var(--t-ui); color: var(--ink-2); }
+.wk-conv[data-word="uncovered"], .wk-conv[data-word="drifting"], .wk-conv[data-word="contested"] { color: var(--ink); }
+```
+
+The word carries the meaning; the ink only lifts the three that ask for attention. No colour, bar
+or fill encodes convergence (02 C13: nothing fills as work progresses).
+
