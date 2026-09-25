@@ -8,7 +8,10 @@ git's own output, copied from the `-v` log.
 **Where it ran.** Host: Windows 11 Enterprise 10.0.26200, `git version 2.53.0.windows.2`,
 `go1.26.2` (module `go 1.23`). Sandbox: `panacea-app/sandbox:dev`
 (`sha256:469a07f6c43d…`, built 2026-09-23T06:52Z), whose git is **2.39.5**, with no `ssh`, no
-`git-lfs` and no `/etc/gitconfig`. The host's system file,
+`git-lfs` and no `/etc/gitconfig`. Between 19:17 and 19:21 (between two mutation runs) the same tag's `.Id` came to read
+`sha256:5d9a580e035b…`, an OCI image index (`docker image inspect --format "{{json .Descriptor}}"`),
+with the same `Created` to the nanosecond (`2026-09-23T06:52:05.425529555Z`). The mutation runs
+after that time used it. That it is the same build is inferred from `Created`, not proven. The host's system file,
 `C:/Program Files/Git/etc/gitconfig`, holds `core.autocrlf=true`, `core.symlinks=true`,
 `credential.helper=manager`, `diff.astextplain.textconv` and `init.defaultbranch=master`.
 
@@ -39,7 +42,7 @@ outside git), so every pin calls `t.Parallel()`. The full behaviour run takes ab
 | 3 | `TestBehaviourLocalCloneHasNoAlternates` | Neither clone writes `.git/objects/info/alternates`. | 03 |
 | 4 | `TestBehaviourSystemAutocrlfReachesAClone` | Production-shaped. A plain `clone --no-hardlinks` writes `a.txt` as `x\r\ny\r\n`, and `config --local --get core.autocrlf` exits 1. Task 03's four keys write `a.txt` as `x\ny\n` and `b.bat` (`eol=crlf`) as CRLF, all four keys land in `config --local`, and `status --porcelain` is empty. | 03 |
 | 5 | `TestBehaviourCloneSymlinksFollowTheSystemConfig` | This user **can** create symlinks (Developer Mode or the privilege). System `core.symlinks=true`: no local `core.symlinks`, and `link` is a real symlink. System file without it: the clone writes `core.symlinks=false` locally and `link` is a file holding `t.txt`. `--config core.symlinks=false`: a file holding `t.txt` under both. | 03 |
-| 6 | `TestBehaviourEmptyFilterEnvChecksOutTheBlob` | Production-shaped with a system `filter.lfs` (smudge writes a marker, `clean = cat`, `required = true`). A plain clone writes `SMUDGED` and the marker. With task 03's NoFilterEnv, `a.bin` equals its blob, there is no marker, and a later production-shaped `status` exits 0. | 03 |
+| 6 | `TestBehaviourEmptyFilterEnvChecksOutTheBlob` | Production-shaped with a system `filter.lfs` (smudge writes a marker, `clean = cat`, `required = true`). A plain clone writes `SMUDGED` and the marker. With task 03's NoFilterEnv, `a.bin` equals its blob, there is no marker, and a later production-shaped `status` exits 0. **Added after the mutation check** (M6 survived, see below): the same with git-lfs's real shape, a system `filter.lfs.process` as well. A plain clone runs the process driver and exits 128 ("fatal: the remote end hung up unexpectedly", then "warning: Clone succeeded, but checkout failed."). NoFilterEnv: exit 0, the blob, no driver run. `process=` and `required=false` alone: the same. `smudge=` and `process=` without `required=false`: exit 128, "fatal: a.bin: smudge filter lfs failed". | 03 |
 | 7 | `TestBehaviourLongPathNeedsCoreLongpaths` | A 354-character path (clone root 93). Without `core.longpaths`: exit 128, "fatal: cannot create directory at 'aaaa…/aaaa…/aaaa…': Filename too long", then "warning: Clone succeeded, but checkout failed." With `--config core.longpaths=true`: exit 0, empty status. | 03, 04 |
 | 8 | `TestBehaviourCloneBranchSetsUpstream` | `clone --branch feat/x` checks out `feat/x`; `branch.feat/x.remote` is `origin`, `.merge` is `refs/heads/feat/x`. | 03, 09 |
 | 9 | `TestBehaviourMergeTreeCleanExitsZeroWithATree` | Exit 0; stdout is exactly a 40-hex tree id and one NUL. | 07, 08 |
@@ -59,7 +62,7 @@ outside git), so every pin calls `t.Parallel()`. The full behaviour run takes ab
 | 23 | `TestBehaviourRemoveSectionExitCodes` | `--remove-section branch.nope`: exit 128, "fatal: no such section: branch.nope". A present section: exit 0. With `.git/config.lock` held: exit **255**, "error: could not lock config file .git/config". `branch -D x` then exits 0, stdout "Deleted branch x (was 9cf81c2).", stderr **two** lines: "error: could not lock config file .git/config" and "warning: update of config-file failed"; `[branch "x"]` stays in `.git/config` and `refs/heads/x` is gone. | 11 |
 | 24 | `TestBehaviourBranchRenameMovesACheckoutsHead` | `branch -m main renamed` with `main` checked out: exit 0, no output; `symbolic-ref HEAD` prints `refs/heads/renamed`. | 11 |
 | 25 | `TestBehaviourFetchStartsAutoMaintenance` | Under `GIT_TRACE=1`, `fetch --no-tags --quiet <src> +refs/heads/main:refs/x` logs `run_command: git maintenance run --auto --quiet --detach`. With `--no-auto-maintenance` and `maintenance.auto=true` in `.git/config`: no `maintenance run` line (the trace does echo the argv's `--no-auto-maintenance`). | 07, 09, 11, 12 |
-| 26 | `TestBehaviourRemoveAllOnAClone` | Git wrote the clone's pack `-rw-rw-rw-` (not read-only). The pin then sets it `0o444` (FILE_ATTRIBUTE_READONLY) and checks that took. `os.RemoveAll(clone)` on `go1.26.2` succeeded **first time**, read-only pack and all; the chmod walk was not needed. | 11 |
+| 26 | `TestBehaviourRemoveAllOnAClone` | Git wrote the clone's pack `-rw-rw-rw-` (not read-only). The pin then sets it `0o444` (FILE_ATTRIBUTE_READONLY) and checks that took. `os.RemoveAll(clone)` on `go1.26.2` succeeded **first time**, read-only pack and all; the chmod walk was not needed. **Changed after the mutation check** (M26 survived, see below): the pin now asserts that first call, so it goes red on a toolchain where it fails; the walk runs only on that red, to say whether the plan's fix repairs it. | 03, 11 |
 
 ## Sandbox pins (`-tags docker`)
 
@@ -77,7 +80,7 @@ step-4 argv and NoFilterEnv. The fixture holds LF blobs, a symlink entry and an 
 
 | Test | What happened | Consumed by |
 |---|---|---|
-| `TestSandboxCloneHasWorkingGit` | Control 1 (C2's mechanism: plain `clone --local`, session without the two line-ending pairs): `status --porcelain` exit 0 listing **4** entries, ` M .gitattributes`, ` M a.txt`, ` M sub/b.txt`, ` M t.txt`. **C2 reproduces.** (`a.bin` is `-text`; the host's real symlink was not listed.) Control 2 (the I-1 mutant, `true`/`crlf` in the argv and the session): status empty, `a.txt` on disk `x\r\ny\r\n`. Task 03's clone with `false`/`lf`: status prints nothing; `rm a.txt && git checkout -- a.txt` in the sandbox writes no `\r`; `commit --allow-empty` exits 0 with author and committer the injected identity. | 03, 04, 05 |
+| `TestSandboxCloneHasWorkingGit` | Control 1 (C2's mechanism: plain `clone --local`, session without the two line-ending pairs): `status --porcelain` exit 0 listing **4** entries, ` M .gitattributes`, ` M a.txt`, ` M sub/b.txt`, ` M t.txt`. **C2 reproduces.** (`a.bin` is `-text`; the host's real symlink was not listed.) Control 2 (the I-1 mutant, `true`/`crlf` in the argv and the session): status empty, `a.txt` on disk `x\r\ny\r\n`. Task 03's clone with `false`/`lf`: status prints nothing; `rm a.txt && git checkout -- a.txt` in the sandbox writes no `\r`; the sandbox sees `link` as a regular file holding `t.txt` (added after the mutation check: D6 survived, see below); `commit --allow-empty` exits 0 with author and committer the injected identity. | 03, 04, 05 |
 | `TestSandboxCloneCannotFetch` | Control, origin left at the Windows path clone wrote (`C:\Users\AU-DEV~1\…\src`): `git fetch` exit 128, "error: cannot run ssh: No such file or directory" / "fatal: unable to fork". With step 4a's URLs: `git fetch` exit 128 and `git pull` exit **1**, both "fatal: '/panacea-app/no-remote/the-cockpit-fetches-origin-and-upstream-for-this-worktree' does not appear to be a git repository" / "fatal: Could not read from remote repository." / "Please make sure you have the correct access rights" / "and the repository exists."; `git push origin HEAD` exit 128, the same four lines naming `/panacea-app/no-remote/the-cockpit-lands-this-worktree-and-pushes-the-branch`. | 03, 04; the sentences wait here for a later agent-docs task |
 | `TestSandboxGitHonoursEnvHooksPath` | `core.hooksPath=/opt/panacea/githooks` as `GIT_CONFIG_KEY_8`, the directory bind-mounted read-only (it lists `-rwxrwxrwx 1 root root 58 … prepare-commit-msg`): the commit carries `Panacea-Session: s-sandbox`. `git --version` in the image: `git version 2.39.5`. | 05 |
 
@@ -154,10 +157,14 @@ beyond that, each with the task it touches.
    `merge-tree --merge-base` (row 14); the sandbox has neither the flag nor the need, since
    every merge-tree runs on the host. Anything task 24's runner runs in the sandbox is limited to
    2.39 (`GIT_CONFIG_COUNT` needs 2.31, which it has).
-6. **`os.RemoveAll` needs no read-only fix on `go1.26.2` (task 11).** Git for Windows wrote the
-   pack `-rw-rw-rw-`, and even a pack forced read-only was removed first time. The chmod walk
-   the part names is a fallback, not a requirement, on this toolchain. An older Go is not
-   covered.
+6. **`os.RemoveAll` needs no read-only fix on `go1.26.2` (tasks 03, 11).** Git for Windows wrote
+   the pack `-rw-rw-rw-`, and even a pack forced read-only was removed first time. The reason is
+   Go's, not git's: `os.Remove` on Windows clears `FILE_ATTRIBUTE_READONLY` and retries
+   (`GOROOT/src/os/file_windows.go:247-249`, go1.26.2). The chmod walk the part names is a
+   fallback, not a requirement, on this toolchain. Task 03's `RemoveTree` comment ("os.RemoveAll
+   fails on them") is wrong here, and its `TestRemoveTreeDeletesReadOnlyObjects` cannot go red
+   against a plain `os.RemoveAll`: task 03 either drops the walk and leans on this pin, or keeps
+   it and states the red it shows (a Go change, not git). An older Go is not covered.
 7. **merge-tree `-z` messages end in a newline before their NUL (tasks 07, 08).** Each
    informational record is `<count>\0<path>…\0<type>\0<text>\n\0`. A parser that takes the
    paths up to the empty field (row 10) never reads them; one that shows messages trims the
@@ -171,3 +178,71 @@ beyond that, each with the task it touches.
 10. **C2 in the sandbox covers text files only.** Control 1 listed the four text files; the
     LFS pointer (`-text`) and the host's real symlink were not listed. The symlink shape is
     task 03's `core.symlinks=false` either way.
+11. **NoFilterEnv's empty `smudge` is redundant (task 03, review Minor 13).** Git skips
+    `smudge` and `clean` whenever `filter.<d>.process` is set, and an empty `process` runs
+    nothing, so `filter.lfs.process=` alone turns every LFS driver off for the call. The
+    load-bearing pair is `process=` and `required=false`: without `required=false` a
+    `required = true` driver that runs nothing is a failure, and the checkout dies ("fatal:
+    a.bin: smudge filter lfs failed"). Keep all three keys (the empty smudge costs nothing);
+    task 03's test should not claim the smudge key is what does it. The part's row 6 fixture
+    (no `process`) did not model git-lfs's real config; the pin now does.
+12. **The sandbox's empty status does not tell a symlink from a file (task 03, review
+    Minor 15).** With `core.symlinks=true` in the argv and a user who may make symlinks, the
+    host writes a real symlink, Docker Desktop shows it to the sandbox as a Linux symlink, and
+    status is still empty. The part said the empty status covers Minor 15 in the real sandbox;
+    it does not. The pin now asks the shape in the sandbox. The reason task 03 writes the key is
+    that the answer otherwise depends on the machine (row 5), not that the sandbox breaks.
+13. **A plain clone's CRLF checkout stays dirty with the pairs too (task 05).** Control 1 listed
+    the same four files with the two line-ending pairs restored (mutant D4). The session pairs
+    cannot repair a checkout that task 03's argv did not make LF; they only keep the sandbox's
+    reading of an LF checkout consistent. In this image they change nothing at all: `false` and
+    `lf` are what Linux git uses when no config sets them, and the image has no
+    `/etc/gitconfig`. They guard against an image or a mounted config that does set them, which
+    no pin here models.
+
+## Mutation check
+
+Run on copies under `scratchpad/p3/t01-mut-*`, built from `git archive HEAD` (plus the
+uncommitted test file where a round needed it). `scratchpad/p3/t01-mutants.py` applies each
+mutant as an exact, once-only replacement and stops if an anchor does not match exactly once,
+so no mutant that failed to apply can pass as a survivor. Each mutant makes one plan assumption
+false, or removes one thing task 03 or 05 does.
+
+**Round 1** (copies from `4612f00`). M1 to M26, one per behaviour pin, in one copy (each edits
+only its own pin's body); D1 to D3 in a second copy (each a different sandbox pin); D4, D5, D6
+alone. Named before running as the two most likely survivors: M26 and D4.
+
+| Result | Mutants |
+|---|---|
+| Killed, 24 of 26 | M1 to M5, M7 to M25: all 24 pins failed, each on its own mutant's change (`scratchpad/p3/t01-mut-b.reasons`) |
+| Killed | D1 (`true`/`crlf` in argv and session: "the sandbox's checkout of a.txt wrote "x\r\ny\r\n"; want no \r"), D2 (no NoFetchURL: fetch and pull named ssh, not the no-remote path), D3 (no env `core.hooksPath`: no hook line), D5 (no NoFilterEnv on the host: status ` M a.bin`) |
+| **Survived: M26** | the walk's chmod mode `0o600` → `0o400`. Predicted. The first `os.RemoveAll` succeeds, so the walk never ran. Fixed in `2bb826e`: the pin asserts the first call (row 26) |
+| **Survived: M6** | NoFilterEnv's `smudge` key renamed. Not predicted. The fixture had no `process` driver. Fixed in `abb8842`: the git-lfs-shaped half (row 6, divergence 11) |
+| **Survived: D4** | control 1 keeps the two line-ending pairs. Predicted, and equivalent: the pairs are the image's defaults (divergence 13). Control 1 is record-only by the part |
+| **Survived: D6** | `core.symlinks=true` in the sandbox pin's argv. Not predicted. Fixed in `9674b53`: the pin asks the link's shape in the sandbox (divergence 12) |
+
+**Round 2** (after `abb8842`). M6r2, the smudge key renamed again on the new two-half pin:
+**survived**, and is equivalent: the pin itself records that `process=` and `required=false`
+alone turn the driver off (divergence 11). M6b, M6c and D6r2 were started four `go test` runs at
+once; three test binaries died at start with `exit status 0xc0000142` (Windows could not
+initialise the process) before any test ran, so they were **not results** and were rerun in
+round 3. Run `go test` processes one at a time on this laptop.
+
+**Round 3** (copies from `9674b53` plus the new RemoveAll pin, one run at a time). Named
+before running as the two most likely survivors: M26 on the new pin, and M26c on the old one.
+
+| Mutant | Pin | Result |
+|---|---|---|
+| M26c: the first `os.RemoveAll(dst)` → `os.Remove(dst)` | row 26 **before** `2bb826e` | **survived**, as predicted: "The directory is not empty", then the walk and a second RemoveAll, then PASS. The old pin let a failing first call through |
+| M26c | row 26 **after** `2bb826e` | killed: "os.RemoveAll on a clone with a read-only pack failed first time … tasks 03 and 11 need the read-only walk" |
+| M26d: the fixture's `0o444` → `0o644` | row 26 after | killed: "fixture: the pack is not read-only" |
+| M26: the walk's mode `0o600` → `0o400` | row 26 after | **survived**, as predicted, and equivalent here: the walk runs only after the pin has already gone red |
+| M6b: NoFilterEnv's `process` key renamed | row 6 | killed: "NoFilterEnv: the system process driver ran", exit 128 |
+| M6c: NoFilterEnv's `required` key renamed | row 6 | killed: the NoFilterEnv clone over the `required = true` smudge exits 128 |
+| D6r2: `core.symlinks=true` in the argv | `TestSandboxCloneHasWorkingGit` after `9674b53` | killed: "the sandbox sees link as "symlink\n"; want file:t.txt, task 03's core.symlinks=false shape" |
+| none (control) | rows 6 and 26 | both PASS on the unmutated copy |
+
+Survivors against the pins as committed, all declared and all equivalent on this laptop and
+image: D4, M6r2, and M26 against the new row 26. Round 1's M6, M26 and D6 each led to a stronger
+pin, and the mutants run against those pins (M6b, M6c, M26c, M26d, D6r2) are killed. M26c's
+survival on the old pin is the evidence that the old pin was weaker, not a survivor of this one.
