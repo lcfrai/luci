@@ -505,3 +505,90 @@ export function slashMenuPlugin(cfg: SlashConfig): Plugin<SlashState> {
 }
 ```
 
+`follow` maps the slash's position with `assoc 1`, so text typed before the slash moves it and
+text deleted over it closes the menu. Closing is always a state change, never a document change:
+`Esc`, a space in the query, a click elsewhere and an arrow out of the block all leave `/` and
+the query in the text exactly as typed (rule 2). `Enter` with nothing listed closes the menu and
+falls through, so it still splits the line.
+
+#### Interfaces — complete: `desktop/src/components/editor/SlashMenu.tsx`
+
+```tsx
+import type { JSX } from "react";
+import { createPortal } from "react-dom";
+import type { EditorView } from "prosemirror-view";
+import { choose, optionId, optionsFor, slashKey, type LinkSources, type SlashState } from "./slashMenu";
+
+/** The caret on screen; null where there is no layout (jsdom has no Range rects). */
+export function caretBox(view: EditorView, pos: number): { left: number; top: number; bottom: number } | null {
+  try { const c = view.coordsAtPos(pos); return { left: c.left, top: c.top, bottom: c.bottom }; }
+  catch { return null; }
+}
+
+const HEADINGS = { items: "Insert", issue: "Link an issue", criterion: "Link a criterion" } as const;
+
+export interface SlashMenuProps { view: EditorView; state: SlashState; listId: string; sources?: LinkSources }
+
+/** Rule 6: fixed at the caret, in a portal on <body> (a transformed panel would otherwise become
+ *  its containing block), and nothing here scrolls or takes focus. */
+export function SlashMenu({ view, state, listId, sources }: SlashMenuProps): JSX.Element | null {
+  if (!state.open) return null;
+  const opts = optionsFor(view.state, state, sources);
+  const box = caretBox(view, state.from);
+  const above = box !== null && box.bottom > window.innerHeight * 0.6;
+  const style = box ? { left: box.left, top: above ? box.top - 4 : box.bottom + 4 } : undefined;
+  const none = state.mode === "items" ? `Nothing matches /${state.query}. Esc keeps the text.`
+    : `No ${state.mode} matches “${state.query}”.`;
+  return createPortal(
+    <div className="ed-slash" data-above={above || undefined} style={style}>
+      <ul id={listId} role="listbox" aria-label={HEADINGS[state.mode]} className="ed-slash-list">
+        {opts.map((o, i) => (
+          <li key={o.key} id={optionId(listId, o)} role="option" aria-selected={i === state.active}
+            className="ed-slash-opt"
+            // mousedown, prevented: a click must not blur the editor (a blur commits, task 49)
+            onMouseDown={(e) => { e.preventDefault(); choose(view, slashKey.getState(view.state) ?? state, o); }}>
+            {o.kind !== "item" && <span className="ed-slash-fact">{o.fact}</span>}
+            <span className="ed-slash-label">{o.label}</span>
+            {o.kind === "item" && o.shortcut !== "" && <kbd className="ed-slash-kbd">{o.shortcut}</kbd>}
+          </li>
+        ))}
+        {opts.length === 0 && <li className="ed-slash-none" role="presentation">{none}</li>}
+      </ul>
+    </div>,
+    document.body,
+  );
+}
+```
+
+The empty line is words, not a blank list: a person who typed `/xyz` learns the menu is open and
+how to leave it. A candidate row puts the fact first in mono (`EP-142`, the criterion's id) and
+the words after in sans, the house split (`voice.split`, 02 C3).
+
+#### Interfaces — complete: the edit to task 47's `desktop/src/work/links.ts`
+
+```ts
+// Decision 3: a criterion link. The brief key is the Hub's grammar; a criterionId is any 1-128
+// characters (task-02.md:212, :270), so it is percent-encoded and decoded back exactly.
+const CRITERION_PREFIX = "panacea://criterion/";
+const BRIEF_KEY = /^brief:bf-[0-9a-f]{16}@[1-9][0-9]{0,8}$/;
+
+export interface CriterionLinkTarget { briefKey: string; criterionId: string }
+
+export function criterionLink(briefKey: string, criterionId: string): string {
+  if (!BRIEF_KEY.test(briefKey)) throw new Error(`criterionLink: not a brief key: ${JSON.stringify(briefKey)}`);
+  if (criterionId.length < 1 || [...criterionId].length > 128) throw new Error("criterionLink: criterionId is 1 to 128 characters");
+  return `${CRITERION_PREFIX}${briefKey}/${encodeURIComponent(criterionId)}`;
+}
+
+export function parseCriterionLink(s: string): CriterionLinkTarget | null {
+  if (!s.startsWith(CRITERION_PREFIX)) return null;
+  const rest = s.slice(CRITERION_PREFIX.length);
+  const slash = rest.indexOf("/");
+  if (slash < 0 || !BRIEF_KEY.test(rest.slice(0, slash))) return null;
+  try {
+    const criterionId = decodeURIComponent(rest.slice(slash + 1));
+    return criterionId.length > 0 ? { briefKey: rest.slice(0, slash), criterionId } : null;
+  } catch { return null; }                        // a malformed %-escape is not a link
+}
+```
+
