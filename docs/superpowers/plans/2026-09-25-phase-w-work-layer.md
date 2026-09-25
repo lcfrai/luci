@@ -576,4 +576,25 @@ A sibling task is a dependency only once its branch is sync-merged here (rules H
 | 173 | admin on the desktop: apps, keys, webhooks, MCP connectors, the harness allow-list | W5 | 0.375 (3 h) | 169 | — |
 | 174 | W5's proof and results | W5 | 0.3 (2.5 h) | 143-173 | — |
 
+### WL: the design's *later* rows
+
+05 §1 marks twelve MATCH or EXCEED items *later*: designed for, not scheduled. `OD-26` commits all
+257 items less the 27 skips, so each has a task here. Nothing in W0 to W5 depends on WL.
+
+| Id | Task | Slice | Focused days | dependsOn | Seams |
+|---|---|---|---|---|---|
+| 175 | *Copy from team…* on templates, views and policies (L-7) | WL | 0.3 (2.5 h) | 174 | — |
+| 176 | personal auto-assign rules in settings (L-40) | WL | 0.25 (2 h) | 174 | — |
+| 177 | dashboards: a secondary surface under Work, never the landing page; measured counts only (L-152) | WL | 0.375 (3 h) | 132, 174 | — |
+| 178 | warehouse and spreadsheet sync through the public API and webhooks; the first named connector (L-154) | WL | 0.3 (2.5 h) | 156, 158, 174 | SW.22 |
+| 179 | syntax-aware diff and file categories through a permissively licensed differ, behind the licence gate (L-171) | WL | 0.375 (3 h) | 174; P3-16, P3-21 | — |
+| 180 | guided review: a large change grouped by the criterion each change serves, core first, each hunk with its span (L-172) | WL | 0.375 (3 h) | 179; P3-19 | — |
+| 181 | signed land commits for agent sessions (L-176; **UNVERIFIED** whether phase 3 signs today) | WL | 0.3 (2.5 h) | 174; P3-09 | — |
+| 182 | Slack, after Teams: intake, feature feeds and the Desk digest (L-206) | WL | 0.375 (3 h) | 157, 165, 174 | SW.22 |
+| 183 | alert intake into `triage`: Azure Monitor first, then Sentry (L-209) | WL | 0.3 (2.5 h) | 146, 174 | — |
+| 184 | triage rotation imported from PagerDuty or Opsgenie (L-218) | WL | 0.25 (2 h) | 134, 174 | — |
+| 185 | Entra group to team mapping (L-238; **UNVERIFIED** whether the Hub plan has it) | WL | 0.3 (2.5 h) | 174 | — |
+| 186 | the in-app changelog; making it public is KPMG's call (L-254) | WL | 0.25 (2 h) | 174 | — |
+| 187 | WL's proof and results | WL | 0.3 (2.5 h) | 175-186 | — |
+
 ---
