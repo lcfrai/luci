@@ -353,8 +353,8 @@ git grep -n "HostPath" -- control-plane/internal/backend/remotebe/ # only lanegi
 - Ruling 2's Kata probes: that a subPath confines the runner inside the Kata guest, kubelet's
   subPath symlink safety under Kata, that a runner-only pod fits beside the machine pod, and its
   cold start. All UNVERIFIED; task 32 probes them.
-- That phase 3 accepts S8-P3.4 or S8-P3.5. The shapes above are this plan's asks (UNVERIFIED
-  until phase 3 answers).
+- That phase 3's code for S8-P3.4 and S8-P3.5 matches the shapes above. Its plan does
+  (seams review 1, "What checks out"); the code is UNVERIFIED until it is sync-merged.
 - The runner-only pod's size: task 18's runner-only admission sets it (ruling 2, "the smallest
   resources the broker admits"); remotebe sends none, as for sessions (`task-17.md:40`).
 - A cockpit sentence for a broker failure before the proxy (`sandbox_not_found`,

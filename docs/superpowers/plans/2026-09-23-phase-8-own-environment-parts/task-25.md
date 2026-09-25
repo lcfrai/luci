@@ -36,7 +36,8 @@ it never enumerates `lanes/`. The switch is the laptop's.
 S8-P3.6** (`gitx.MachineFS`), task 20 (`machineapi.MachineRoot`), task 21 (the create shapes,
 the `/v1/fs/…` routes, `sealed`) and task 24b (`machines.Agent`, the agent catalog). If S8-P3.6
 is declined, a cloud machine cannot create lanes (ruling 4): Step 1 stops and reports. The plan
-holds this task out of the build stream until phase 3 answers ("Order", "Held"; P3A-5). Task
+holds this task out of the build stream until phase 3's code for it (planned, phase-3
+`task-02.md:286-299`) is sync-merged into feat/env ("Order", "Held"; P3A-5). Task
 25b depends on this task.
 
 **Files:**
