@@ -707,4 +707,132 @@ The mock factory repeats the verb list because a `vi.mock` factory is hoisted ab
 constants and cannot read `SESSION_VERBS` (the rule `AppShell.test.tsx:31` already notes). Step 1
 re-reads `CockpitClient` on the sync base and adds any session verb task 37 or later has added.
 
+#### Tests to write first — `desktop/src/components/issue/IssueAgentLine.test.tsx`
+
+```tsx
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { useCockpit } from "../../store/store";
+import { aSession } from "../../test/fixtures";
+import { ALICE, DYLAN, WORK_IDS, makeIssueHead } from "../../test/workFixtures";
+import { IssueAgentLine } from "./IssueAgentLine";
+import agentSrc from "./IssueAgentLine.tsx?raw";
+import relSrc from "./Relations.tsx?raw";
+import proofSrc from "./ProofLine.tsx?raw";
+import pickerSrc from "./pickers/StatePicker.tsx?raw";
+
+vi.mock("../work/AgentLine", () => ({
+  AgentLine: (p: { sessionId: string; whoLabel: string }) => <span data-testid="agent-line">{p.whoLabel}</span>,
+}));
+
+const head = (over = {}) => ({ ...makeIssueHead(over), reassignRequest: null } as never);
+const ref = (n: number) => `issue:${WORK_IDS.ep142}@${n}`;
+beforeEach(() => useCockpit.setState({ sessions: {} }));
+
+describe("IssueAgentLine", () => {
+  it("draws one line per own live agent, numbered by start, exited ones keeping their number", () => {
+    useCockpit.setState({ sessions: {
+      a: aSession({ id: "a", createdAt: "2026-09-25T01:00:00Z", issueRef: ref(2), status: "exited" }),
+      b: aSession({ id: "b", createdAt: "2026-09-25T01:10:00Z", issueRef: ref(3), status: "running" }),
+      c: aSession({ id: "c", createdAt: "2026-09-25T01:20:00Z", issueRef: `issue:${WORK_IDS.ep150}@1` }),
+    } } as never);
+    render(<IssueAgentLine head={head({ assignee: DYLAN, state: "started" })} me={DYLAN} />);
+    expect(screen.getAllByTestId("agent-line").map((e) => e.textContent)).toEqual(["dylan · agent 2"]);
+    expect(screen.getByRole("button", { name: "open session" })).toBeTruthy();
+  });
+  it("shows a teammate's work as the person, with no dot and no count", () => {
+    const { container } = render(<IssueAgentLine head={head({ assignee: ALICE, state: "started" })} me={DYLAN} />);
+    expect(container.textContent).toBe("Alice Example is working on this issue");
+    expect(container.querySelector("[data-glyph^='agent:']")).toBeNull();
+    expect(container.textContent).not.toMatch(/\d/);
+  });
+  it("derives nothing from the terminal: no attach registry, no xterm, no transcript", () => {
+    expect(agentSrc).not.toMatch(/attachRegistry|Terminal|xterm|transcript|openAttach/);
+  });
+  it("starts no timer of its own anywhere in this part", () => {
+    for (const src of [agentSrc, relSrc, proofSrc, pickerSrc]) {
+      expect(src).not.toMatch(/setInterval|setTimeout|requestAnimationFrame/);
+    }
+  });
+});
+```
+
+| Test | Mutant it kills |
+|---|---|
+| one line per own live agent | a dot per agent, a count, or an agent renumbered when an earlier one exits |
+| a teammate's work | fleet dots or `+2` for another person's agents (05 §4.4 rule 3) |
+| nothing from the terminal | PTY-derived meaning (`OD-8`) |
+| no timer of its own | a per-row clock (one heartbeat, `DESIGN-SYSTEM.md`) |
+
+`expectNoPrediction` runs in `ProofLine.test.tsx` over all six words; the view as a whole is run
+through it by task 46's `IssueHead.test.tsx`, which, after this task's `IssueView` edit, renders
+the proof line, the agent line and the relations too. Step 6 re-runs that file.
+
+#### Steps
+
+- [ ] **Step 1: read on the sync base** task 40's `AgentLine.tsx` and `IssueRow.tsx`, task 43's
+  `BoardView.tsx` (the card's `StateGlyph` call), task 37's `IssueHead` (does it carry
+  `stateMovedBy`, `stateMovedAt`, `proofCitations`, the five relation words?), task 56's `WorkOp`
+  (`relation`, `setState`), and `CockpitClient`'s session verbs. Rename in this part's files only.
+- [ ] **Step 2: the six test files first**; `npm --prefix desktop test -- issue` fails on the
+  missing modules and on task 46's `StatePicker` still refusing `done`.
+- [ ] **Step 3: `glyphOf.ts`**, and the one-line edits in `IssueHead.tsx`, `IssueRow.tsx` and
+  `BoardView.tsx`; `glyphOf.test.ts` passes.
+- [ ] **Step 4: `ProofLine.tsx`**, then the reason step in `StatePicker.tsx`.
+- [ ] **Step 5: the `issueData.ts` append, `Relations.tsx`, `IssueAgentLine.tsx`**, the
+  `IssueView.tsx` edits and the `issue.css` append.
+- [ ] **Step 6: run the acceptance commands**; tasks 46 and 47's tests stay green. Commit by path,
+  one commit per step 3-5, each message ending with the `Co-Authored-By` line.
+
+#### Acceptance
+
+```bash
+npm --prefix desktop test -- issue work/IssueRow work/BoardView
+# expect: every file passes; this part adds 5 files and 19 tests
+#   (reason 3, glyphOf 2, ProofLine 6, Relations 4, IssueAgentLine 4)
+npm --prefix desktop run typecheck
+# expect: exit 0
+grep -rnE "setInterval|setTimeout" desktop/src/components/issue/ | grep -v test | wc -l
+# expect: 0
+```
+
+Tasks 40, 43, 46 and 47's files run in the same command and must stay green. Visual acceptance
+is the owner's eyes.
+
+#### What this task does NOT claim
+
+- Sub-issues (`L-20`), the W3 negotiation line (§4.1), the *touching …* line for a teammate (W3,
+  needs Fleet).
+- Land order from `blocks` (phase 3's hint), and a resolved blocker becoming *related* (`L-25`, W2).
+- That an agent is stalled **because of** its blocker: the line puts two facts side by side.
+- The Desk row with the cost of the wait (task 63), or the other owner's *inform* (task 65).
+- That the Hub keeps one record for both ends (task 11's `TestTheSameRelationTwiceIsOneRowAndOneEvent`
+  and its inverse-word test hold it), or that the replica refreshes the other end (gap 1).
+- The evidence detail on a real Hub: `proofCitations` is not on the wire yet (gap 4).
+- *done · c-91e2 still open (EP-150 not landed)*: that phrase needs the other issues serving the
+  criterion, a replica read no W1 task names (gap 5); the `serves` row's convergence word (task 47)
+  says *open* meanwhile.
+
+**Parity** (`05-design.md` rows). Closes **L-24**'s W1 part (`05:133`: the kinds and the
+stalled-agent fact), **L-10**'s relation half (`05:119`, with task 46's duplicate-of step),
+**L-39**'s W1 part (`05:148`: the only agents shown are the reader's own, started by the reader)
+and, with task 46, **L-181** (`05:348`).
+
+#### Gaps found while writing this part
+
+1. **The replica must re-fetch `otherIssueId` on `issue.related` and `issue.unrelated`**
+   (`task-13.md:166-170`); task 55's scope re-fetches the subject only, so the other end would
+   read a stale relation list until its own next event.
+2. **Tasks 40 and 43 are not in this task's dependsOn**, but this part edits `IssueRow.tsx` and
+   `BoardView.tsx` (decision 8); the skeleton row for 48 should read `46, 40, 43`.
+3. **`IssueHead` has no author or time for a state move** (`stateMovedBy`, `stateMovedAt`), which
+   the scope's *"the reason, its author and time"* needs; a gap for tasks 10 and 37.
+4. **No W1 read returns an issue's cited evidence.** `proofCitations` on the head (or a
+   `GET /v1/issues/{id}/proof`) is a gap for task 10, whose `issue_proof_citations` already holds it.
+5. **No replica read lists the issues serving a criterion**, which *"c-91e2 still open (EP-150 not
+   landed)"* needs; task 40's groups need the same list, so it is one read for tasks 55-57.
+6. **Task 20's `Relation.kind` fixture type** has the three writable words only
+   (`task-20.md:178`); `blocked_by` and `duplicated_by` must be added for these tests.
+7. The File map's `src/components/issue/` row lists neither `ProofLine.tsx` nor `glyphOf.ts`.
+
 
