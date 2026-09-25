@@ -607,16 +607,20 @@ is not committed — phase 3's 3-D6); OQ-11 (Figma via its MCP is v2, behind own
   `license-checker`; P5-P). Verified 2026-09-24: `npm ls --all --json --long` on npm 11.12.1 carries
   `path` (in the long form, even when the working directory was reached by an 8.3 short name) and
   `license`, and, for a link, `resolved: "file:…"` relative to the link's **parent** directory,
-  while a `file:` tarball's is relative to the project and carries no link marker, so the gate
-  never reads it; the project's `package-lock.json` states each link as `"link": true` with
+  while a `file:` tarball's is an absolute `file:C:\…\vendor\g-1.0.0.tgz` (task 04's run,
+  2026-09-25) and carries no link marker, so the gate never reads it; the project's `package-lock.json` states each link as `"link": true` with
   `resolved` relative to the project (two fixtures); `go list -deps -json` under `go.work` marks
   both workspace modules `"Main": true`; on go1.26.2, `syscall.GetLongPathName` expands an 8.3
   short name and keeps a junction in the path, where `filepath.EvalSymlinks` did not; `cargo metadata --offline --locked` runs in `desktop/src-tauri` from the local registry
-  cache; `typescript` 6.0.3's parser returns exact import specifiers where a regex does not.
+  cache; `typescript` 6.0.3's parser returns exact import specifiers where a regex does not; a
+  worktree's junctioned `node_modules` (rule 5) makes `npm ls --all --json --long` exit 1
+  (`ELSPROBLEMS`, `invalid: @panacea-app/canvas-editor`) once a `file:` dependency is installed
+  (re-review b05-2 probe, npm 11.12.1), and Node and Vite there resolve the **main** tree's
+  `canvas/editor`, so the gate refuses a linked `node_modules` before npm runs (exit 2, naming
+  the link and `npm ci`); go1.26.2's `Lstat` reports a `mklink /J` junction as `ModeIrregular`
+  (`?rw-rw-rw-`, task 04's `TestNpmDeps_linkedNodeModules`, 2026-09-25).
   Unverified: whether `npm ls` prints a deduplicated node's children (the gate unions by path
-  either way); how `npm ls` prints the nodes under a worktree's junctioned `node_modules` (the
-  gate takes links from the lockfile alone, so a node npm shows as a link and the lockfile does
-  not is checked, never exempted); and whether the CI agent has `cargo` and its `cargo fetch --locked` step gets
+  either way); and whether the CI agent has `cargo` and its `cargo fetch --locked` step gets
   through: `--offline` reads only the registry cache, which a fresh hosted agent does not have, so
   the cache, not `cargo` alone, decides whether CI's report runs (the gate prints
   `REPORT cargo: not scanned` when it does not).

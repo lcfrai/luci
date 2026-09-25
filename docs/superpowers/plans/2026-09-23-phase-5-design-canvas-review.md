@@ -1259,7 +1259,7 @@ first named mutant (`:1227-1228`): first party is no longer "inside `-root`".
 | RR-I9-2 tests | the Go row flipped: a directory `replace` into `<root>/third_party/gpl-lib` is classified and fails; the npm row adds a `GPL-3.0` link into `<root>/vendor/x`, which fails "not a scanned project"; the Cargo row skips only the `workspace_members` id, and an in-root path crate that is not a member is a `Dep` | `parts/task-04.md:395`, `:397`, `:400` |
 | RR-I9-3 `license.md` on a case-sensitive CI agent | `Classify` matches its names case-insensitively over `os.ReadDir` (`strings.EqualFold`), never by opening a fixed name, and `source` is the entry's real name. Read on 2026-09-24: `github.com/josharian/intern@v1.0.0` in the module cache holds `README.md`, `go.mod`, `intern.go`, `intern_test.go` and `license.md` (the MIT text), nothing else | `parts/task-04.md:209-218` |
 | RR-I9-3 test | `TestClassify` adds a directory holding only `license.md` → `MIT`, source `license.md`. The source assertion kills the open-a-fixed-name mutant on Windows too, because the open succeeds there but reports `LICENSE.md` | `parts/task-04.md:401` |
-| RR-M1 8.3 short paths | `canon`: `filepath.Abs`, then on Windows `syscall.GetLongPathName` (standard library, so the module stays stdlib-only), then `filepath.Clean`; compared with `strings.EqualFold` on Windows. New files `canon_windows.go`, `canon_other.go`. A missing path is exit 2. `TestCanon` covers case, the `<r>-fork` prefix, a short `os.TempDir()`, and a junction | `parts/task-04.md:40-41`, `:102-129`, `:396`; plan `:384-385`, `:546-547` |
+| RR-M1 8.3 short paths | `canon`: `filepath.Abs`, then on Windows `syscall.GetLongPathName` (standard library, so the module stays stdlib-only), then `filepath.Clean`; compared with `strings.EqualFold` on Windows. New files `canon_windows.go`, `canon_other.go`. A missing path is exit 2 on every platform: `canon` calls `os.Stat` before the platform line (task 04, carried RR2-M1; `GetLongPathName` alone checked it on Windows only). `TestCanon` covers case, the `<r>-fork` prefix, a short `os.TempDir()`, and a junction | `parts/task-04.md:40-41`, `:102-129`, `:396`; plan `:384-385`, `:546-547` |
 | RR-M2 Cargo `/` with spaces | `/` is OR with or without spaces; the tree's four forms are named with counts (`Unlicense/MIT` 2, `MIT/Apache-2.0` 11, `BSD-3-Clause/MIT` 1, `Apache-2.0 / MIT` 1, read from the re-review's saved `cargo metadata`); `TestCargoDeps` asserts the spaced form | `parts/task-04.md:285-291`, `:400` |
 | RR-M3 the CI Cargo cache | a `cargo fetch --locked` step before the gate, `continueOnError: true`, which prints a line when `cargo` is absent; the text now says the cache, not `cargo` alone, decides whether CI's report runs | `parts/task-04.md:362-365` (YAML), `:370-378`; plan `:552-555` |
 | RR-M4 the walk's extensions | `.mts`, `.cts` and `.cjs` join the walk; `TestShippedImports` finds a bare import in each | `parts/task-04.md:310-311`, `:393` |
@@ -1278,7 +1278,11 @@ first named mutant (`:1227-1228`): first party is no longer "inside `-root`".
   entry, get checked, and fail as `UNLICENSED` in every worktree. A probe on 2026-09-24 (go1.26.2,
   Windows, a junction made with `mklink /J` in the scratchpad) showed `GetLongPathName` keeping
   `\j\f.txt` and expanding `AU-DEV~1`. On the same probe, `EvalSymlinks` returned "The system
-  cannot find the path specified". Commit `c9a0016` replaced it.
+  cannot find the path specified". Commit `c9a0016` replaced it. *(Task 04, carried RR2-1:)* the
+  gate no longer reads a junctioned `node_modules` at all; it exits 2 and says to run `npm ci`.
+  `canon` still keeps junctions, because a real install holds one: `file:../canvas/editor`
+  installs `desktop/node_modules/@panacea-app/canvas-editor` as a junction, and its location must
+  stay inside the project to find its lockfile entry.
 - Hours stay at 4. The round's changes are contract wording, one small platform file and test
   rows inside the existing tests, so the plan's total (`:433`) is unchanged.
 
@@ -1296,8 +1300,12 @@ Every hit was changed, or already agreed with this round. The gate's later calle
 `:164`) run `go run ./tools/licencegate -root .` and need no change.
 
 **Unverified:**
-- How `npm ls` prints the nodes under a worktree's junctioned `node_modules`. The gate takes links
-  from the lockfile alone, so a node that npm shows as a link but the lockfile does not is checked.
+- *(Resolved by task 04, carried b05-2 RR2-1.)* A junctioned `node_modules` makes `npm ls --all
+  --json --long` exit 1 (`ELSPROBLEMS`, `invalid: @panacea-app/canvas-editor`) once a `file:`
+  dependency is installed (re-review probe, npm 11.12.1), and the package that ships there is the
+  main tree's. `NpmDeps` refuses a `node_modules` that `Lstat` reports as `ModeSymlink` or
+  `ModeIrregular` before npm runs: exit 2, naming the link and "run npm ci". On go1.26.2 a
+  `mklink /J` junction reports `?rw-rw-rw-` (`ModeIrregular`), measured 2026-09-25.
 - How `go list` prints `Module.Dir` under a short working directory. `canon` makes it not matter.
 - Whether the hosted CI agent has `cargo`, and whether its `cargo fetch --locked` gets through.
 - The case of the other 56 third-party Go modules' licence file names on Linux. Case-insensitive

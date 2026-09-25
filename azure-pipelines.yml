@@ -9,11 +9,11 @@ steps:
   - task: GoTool@0
     inputs:
       version: '1.23'
-  - script: go build ./canvas/... ./sandboxd/... ./control-plane/...
+  - script: go build ./canvas/... ./sandboxd/... ./control-plane/... ./tools/...
     displayName: Build
-  - script: go test ./canvas/... ./sandboxd/... ./control-plane/... -race -count=1
+  - script: go test ./canvas/... ./sandboxd/... ./control-plane/... ./tools/... -race -count=1
     displayName: Test
-  - script: go vet ./canvas/... ./sandboxd/... ./control-plane/...
+  - script: go vet ./canvas/... ./sandboxd/... ./control-plane/... ./tools/...
     displayName: Vet
   # 24.x, not the sandbox image's 20: vitest 5.0.1 and jsdom 30.1.0 declare
   # engines node ^22.12.0 || ^24 (jsdom ^24.15.0); the package is tested locally on 24.15.0.
@@ -22,3 +22,16 @@ steps:
       versionSpec: '24.x'
   - script: cd canvas/editor && npm ci && npx tsc --noEmit && npx vitest run
     displayName: Canvas editor
+  # Task 04, the licence gate (OD-11 rule 3). It reads only what is installed:
+  # node_modules (npm ls), the Go module cache (go list) and the Cargo registry
+  # cache (cargo metadata --offline), so each is filled first.
+  - script: cd desktop && npm ci
+    displayName: Desktop dependencies
+  - script: |
+      if command -v cargo >/dev/null; then cargo fetch --locked --manifest-path desktop/src-tauri/Cargo.toml; else echo "cargo not on PATH: the licence gate prints REPORT cargo: not scanned"; fi
+    displayName: Cargo registry cache (licence report only)
+    continueOnError: true
+  - script: node --test tools/licencegate/imports.test.cjs
+    displayName: Licence gate import parser
+  - script: go run ./tools/licencegate -root .
+    displayName: Licence gate

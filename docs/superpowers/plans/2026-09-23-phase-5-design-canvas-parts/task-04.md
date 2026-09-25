@@ -36,7 +36,13 @@ by the export code, and passes `vitest`.
 ## Files
 
 - `tools/licencegate/go.mod` (new module, `go 1.23`, standard library only) and `go.work` (`use ./tools/licencegate`)
-- `tools/licencegate/main.go`, `gate.go`, `spdx.go`, `classify.go`, `sources.go`, `imports.go` (new)
+- `tools/licencegate/main.go`, `gate.go`, `spdx.go`, `classify.go`, `sources.go`, `imports.go` (new).
+  *As built:* `sources.go` is three files, `gosource.go` (`Runner`, `GoDeps`), `npmsource.go`
+  (`NpmDeps`) and `cargosource.go` (`CargoDeps`), and the printing is `output.go`; `canon` itself
+  is `canon.go`
+- `tools/licencegate/testdata/npm/firstparty/` (a real npm 11.12.1 run) and
+  `testdata/repo-with-mpl/` (the done-when's fixture repository, committed with its
+  `desktop/node_modules`, so `.gitignore` gains one `!` line for it)
 - `tools/licencegate/canon_windows.go` and `canon_other.go` (new): `canon`'s one platform line,
   `syscall.GetLongPathName` on Windows, nothing elsewhere (re-review RR-M1)
 - `tools/licencegate/imports.cjs` and `imports.test.cjs` (new): the one Node helper, which asks the
@@ -91,8 +97,9 @@ func Denied(eco Ecosystem, name string) bool
 //     "../b", "link": true} and "node_modules/c": {"resolved": "sub/c",
 //     "link": true}). npm ls --long's own "resolved" is relative to a
 //     different base per kind ("file:../../../b" from the link's parent for a
-//     link, "file:vendor/g-1.0.0.tgz" from the project for a tarball), so the
-//     gate never reads it. A file: tarball has no "link" and installs as a real
+//     link; for a tarball an absolute "file:C:\…\vendor\g-1.0.0.tgz", measured
+//     by task 04's run, not the "file:vendor/g-1.0.0.tgz" first written
+//     here), so the gate never reads it. A file: tarball has no "link" and installs as a real
 //     copy: it is third party and checked. A link to a directory inside -root
 //     that is not a scanned project fails with "first-party link <path> is not
 //     a scanned project: add it to the scan list, or install a vendored copy
@@ -113,15 +120,27 @@ func Denied(eco Ecosystem, name string) bool
 // program's rule 5), so resolving links would move every node's location
 // out of its project, and on the same probe EvalSymlinks of a path through
 // the junction returned an error, "The system cannot find the path
-// specified". On Windows, samePath and insideRoot compare with
+// specified". (Carried b05-2 RR2-1: the gate does not read a junctioned
+// node_modules at all. There, npm ls exits 1 ELSPROBLEMS once a file:
+// dependency is installed, and Node and Vite resolve the main tree's
+// canvas/editor, so a gate that took npm's JSON anyway would clear source
+// that is not what ships. NpmDeps Lstats <dir>/node_modules first; a
+// ModeSymlink or ModeIrregular (a junction, go1.26.2: measured) is exit 2:
+// "<dir>/node_modules is a link into <target>: the gate reads this project's
+// own installed tree; remove the link (never rm -rf through it) and run npm
+// ci in <dir>". canon still keeps junctions: a real install holds one, the
+// file:../canvas/editor link node.) On Windows, samePath and insideRoot compare with
 // strings.EqualFold (filepath.Rel already does, per element). "Inside -root"
 // is filepath.Rel of the two canon forms with no leading "..". How go list
 // prints Module.Dir under a short working directory is unverified; canon
 // makes it not matter. A registry package named "desktop-notify",
 // "@panacea-app/x" or "github.com/kpmg-au-emu/panacea-app/x" (a published copy
 // with Main false) is third party.
-// GetLongPathName needs the path to exist, so canon of a missing path (a link
-// whose target is gone) is an error, and the run exits 2, never a skip. The
+// canon calls os.Stat on every platform before the platform line (carried
+// b05-2 RR2-M1: GetLongPathName alone made this Windows-only, and on ubuntu
+// CI a broken in-root link failed as "not a scanned project"), so canon of a
+// missing path (a link whose target is gone) is an error, and the run exits
+// 2, never a skip, on every platform. TestCanon has the row. The
 // module stays standard-library only: syscall is the standard library.
 // Each source in sources.go applies its line of this rule through these:
 func canon(p string) (string, error)
@@ -318,6 +337,13 @@ func CargoDeps(root, dir string, run Runner) (deps []Dep, notScanned string, err
 // bundling; `import { type A, b }` is kept, because b ships) and specifiers
 // starting ".", "/", "node:", "virtual:" or "\x00". "@s/n/sub" names "@s/n",
 // "n/sub" names "n", and a "?query" suffix is dropped.
+// As built (task 04): a Node builtin ("fs", marked by imports.cjs through
+// module.isBuiltin) names no package unless one of that name is installed
+// under <dir>/node_modules ("events"), which is how Vite resolves it; a "#x"
+// subpath import is kept as a name, so it fails "not installed" (fail closed:
+// package.json "imports" can map it to any package; neither project uses one).
+// imports.cjs is embedded (go:embed) and written to a temporary file, and
+// files go 40 per node call (the Windows command-line cap).
 func ShippedImports(dir, srcDir string, run Runner) (map[string]string, error)
 ```
 
@@ -350,9 +376,20 @@ scans   Go: GoDeps from -root. npm: NpmDeps and ShippedImports for desktop (src:
         line, or the gate fails its link as "not a scanned project".
 exit 0  every enforced dep is pass or excepted
 exit 1  at least one enforced dep failed (each printed: FAIL <eco> <name> <version> <declared> — <why>)
-exit 2  the gate could not run (a command failed, a file is unreadable)
+exit 2  the gate could not run (a command failed, a file is unreadable, a node_modules is a
+        link into another tree (carried RR2-1), an exception is refused, no scanned project
+        exists under -root)
 every non-enforced dep that would have failed prints REPORT <eco> <name> <version> <declared> — <why>,
 and never changes the exit code; the Cargo lines print whether or not cargo ran (CargoDeps)
+As built: every enforced finding prints "<VERDICT> <eco> <name> <version> <declared> — <why>
+(<via>, from <from>)", "(none)" for no licence and "-" for no version; a Cargo line always
+prints ("cargo: N crates scanned, reported only …" or "REPORT cargo: not scanned: …"), then a
+summary. A scanned project absent from -root prints "SKIP go: …" or "SKIP npm <dir>: …" and
+changes nothing (the done-when's fixture holds only a desktop); none present is exit 2, so a
+mistyped -root never passes vacuously. -exceptions defaults to
+<root>/tools/licencegate/exceptions.json, none when absent; a named file must exist; unknown
+fields are refused. An npm alias of a denied package ("my-canvas": "npm:tldraw@…") fails as
+denied under its installed name.
 ```
 
 ```yaml
@@ -363,9 +400,14 @@ and never changes the exit code; the Cargo lines print whether or not cargo ran 
       if command -v cargo >/dev/null; then cargo fetch --locked --manifest-path desktop/src-tauri/Cargo.toml; else echo "cargo not on PATH: the licence gate prints REPORT cargo: not scanned"; fi
     displayName: Cargo registry cache (licence report only)
     continueOnError: true
+  - script: node --test tools/licencegate/imports.test.cjs
+    displayName: Licence gate import parser
   - script: go run ./tools/licencegate -root .
     displayName: Licence gate
 ```
+
+*As built:* the `node --test` step is added (task 04), so the parser test that step 2 runs
+locally also runs in CI, after `desktop`'s `npm ci` has installed `typescript`.
 
 The gate needs `node` (for `npm ls` and `imports.cjs`, already on the agent for the desktop steps)
 and, for the Cargo report only, `cargo` **and a populated registry cache**, because `--offline`
@@ -390,17 +432,19 @@ enforced ecosystems alone, so a missing report is visible, never silent.
 | `TestEvaluate_devDepReportsOnly` | a non-enforced `GPL-3.0` dep (a devDependency no shipped file reaches) → `report`, exit code 0 | P5-P reversed silently |
 | `TestEvaluate_denyMatchesExactly` (table) | `tldraw` ✗ and `@tldraw/editor` ✗ whatever they declare; `tldraw-helpers` declaring `MIT` ✓; `@tldrawx/y` declaring `MIT` ✓; Go `github.com/tldraw/tldraw-go` ✗; Go `github.com/tldrawx/y` declaring `MIT` ✓ | a deny list matched by string prefix, or by substring |
 | `TestNpmDeps_importedDevDepIsEnforced` (hole 1; fixture tree + injected `Runner`) | `html-to-image` declared only in `devDependencies`, declaring `GPL-3.0`, imported by `src/export/png.ts` → `Enforced`, `Via` names that file, verdict `fail`; its production child is `Enforced` too; `vitest`, imported only by `src/a.test.ts` and `src/test/setup.ts`, stays `report`; an imported name with no `node_modules/<name>` node → `fail` "not installed" | the review's case: a bundled dev import only reported; a closure that stops at the direct package |
-| `TestShippedImports` (hole 1; table, injected `Runner` for `imports.cjs`) | `import type` skipped, `import { type A, b }` kept; `@s/n/sub` → `@s/n`, `n/sub` → `n`, `x?raw` → `x`; `./`, `node:`, `virtual:` skipped; `a.test.tsx`, `a.spec.ts` and `src/test/x.ts` not walked; `src/test/helper.ts` **is** walked when a shipped file imports it; `src/latest/x.ts` and `src/contest.tsx` **are** walked (a directory named exactly `test`, not a substring); a bare import in each of `a.mts`, `a.cts` and `a.cjs` is found (RR-M4); CSS `@import "pkg/a.css"` → `pkg`, and one inside `/* */` is not | a walk that trusts file names alone; a test helper that ships unscanned |
+| `TestShippedImports` (hole 1; table, injected `Runner` for `imports.cjs`) | `import type` skipped, `import { type A, b }` kept; `@s/n/sub` → `@s/n`, `n/sub` → `n`, `x?raw` → `x`; `./`, `node:`, `virtual:` skipped; `a.test.tsx`, `a.spec.ts` and `src/test/x.ts` not walked; `src/test/helper.ts` **is** walked when a shipped file imports it; `src/latest/x.ts` and `src/contest.tsx` **are** walked (a directory named exactly `test`, not a substring); a bare import in each of `a.mts`, `a.cts` and `a.cjs` is found (RR-M4); CSS `@import "pkg/a.css"` → `pkg`, and one inside `/* */` is not; *as built:* a builtin `fs` dropped, `events` kept when `node_modules/events` exists, `#internal` kept as a name | a walk that trusts file names alone; a test helper that ships unscanned |
 | `imports.test.cjs` (`node --test`, real `typescript` from the project) | a fixture holding a comment `// import x from "c"`, JSX text `<p>Can't "d"</p>`, a regex `/"/g` and five real import forms yields exactly the five | a regex scanner substituted for the parser |
-| `TestNpmDeps_firstPartyIsStructural` (hole 2; RR-I9-1, RR-I9-2) | every fixture's `npm ls --long` JSON and `package-lock.json` is copied from a real npm run, and the test's comment names the npm version and the command, because a fixture composed from the rule's own words agrees with a wrong rule. Registry packages named `desktop-notify` and `@panacea-app/x` (`resolved: "https://registry…"`) are checked, and a `GPL-3.0` one fails; a link (lockfile `"link": true`) whose target is a scanned project's root is skipped and not descended; a link into `<root>/vendor/x`, not a scanned project, declaring `GPL-3.0`, fails "not a scanned project"; a link into `<root>-fork/x` declaring `UNLICENSED` fails (npm ls prints `resolved: "file:../../../<root>-fork/x"` for it, which joined to the node's `path` lands inside `-root`); a `file:vendor/g-1.0.0.tgz` tarball declaring `GPL-3.0`, no `link` in the lockfile, is checked and fails; a node with no lockfile entry is checked; the project root is skipped | first party matched by name or prefix; `insideRoot` as a string-prefix test; the link target joined to `path` (or to `filepath.Dir(path)`) from npm ls's `resolved`; any `file:` read as a link; "inside -root" read as "ours" |
-| `TestCanon` (RR-M1) | `samePath` of a path and its case-flipped form is true on Windows, false elsewhere; `insideRoot("<r>", "<r>-fork/x")` false; on Windows, when `os.TempDir()` holds a `~` (it does on the owner's machine: `C:\Users\AU-DEV~1\…`), `canon` of it has no `~` and `insideRoot(short, long form of a child)` is true; the case is skipped, and says so, where TEMP has no short element; on Windows, a junction `j` made under `t.TempDir()` (`mklink /J`, skipped with a message if it cannot be made) → `canon` of `j/f` still ends `\j\f` | a root given in 8.3 form putting every in-root link outside the root; `canon` as `filepath.EvalSymlinks`, which moves a worktree's junctioned `node_modules` into the main tree |
+| `TestNpmDeps_firstPartyIsStructural` (hole 2; RR-I9-1, RR-I9-2) | every fixture's `npm ls --long` JSON and `package-lock.json` is copied from a real npm run, and the test's comment names the npm version and the command, because a fixture composed from the rule's own words agrees with a wrong rule. Registry packages named `desktop-notify` and `@panacea-app/x` (`resolved: "https://registry…"`) are checked, and a `GPL-3.0` one fails; a link (lockfile `"link": true`) whose target is a scanned project's root is skipped and not descended; a link into `<root>/vendor/x`, not a scanned project, declaring `GPL-3.0`, fails "not a scanned project"; a link into `<root>-fork/x` declaring `UNLICENSED` fails (npm ls prints `resolved: "file:../../../<root>-fork/x"` for it, which joined to the node's `path` lands inside `-root`); a `file:vendor/g-1.0.0.tgz` tarball declaring `MIT`, no `link` in the lockfile, is checked and **passes** (carried b05-2 RR2-M2: declaring `GPL-3.0` it failed under the mutant "any `file:` is a link" too, as "not a scanned project", so the row could not tell them apart); a `GPL-3.0` devDependency tarball no shipped file imports is `report`; a node with no lockfile entry is checked; the project root is skipped | first party matched by name or prefix; `insideRoot` as a string-prefix test; the link target joined to `path` (or to `filepath.Dir(path)`) from npm ls's `resolved`; any `file:` read as a link; "inside -root" read as "ours" |
+| `TestCanon` (RR-M1) | `samePath` of a path and its case-flipped form is true on Windows, false elsewhere; `insideRoot("<r>", "<r>-fork/x")` false; on Windows, when `os.TempDir()` holds a `~` (it does on the owner's machine: `C:\Users\AU-DEV~1\…`), `canon` of it has no `~` and `insideRoot(short, long form of a child)` is true; the case is skipped, and says so, where TEMP has no short element; on Windows, a junction `j` made under `t.TempDir()` (`mklink /J`, skipped with a message if it cannot be made) → `canon` of `j/f` still ends `\j\f`; on **every** platform, `canon` of a missing path returns an error and `insideRoot` of a missing child is false (carried RR2-M1) | a root given in 8.3 form putting every in-root link outside the root; `canon` as `filepath.EvalSymlinks`, which moves a worktree's junctioned `node_modules` into the main tree |
 | `TestGoDeps_firstPartyIsStructural` (hole 2; RR-I9-2) | `Main: true` skipped; `github.com/kpmg-au-emu/panacea-app/x` with `Main: false` is checked; a directory `replace` into `<root>/third_party/gpl-lib` holding a `GPL-3.0` text is classified from `Replace.Dir` and fails, and one outside `-root` is classified too; `.Standard` skipped; a module under two packages is one `Dep` | first party matched by module path; a vendored fork inside the repository exempted as first party; first-party code failing its own gate |
 | `TestClassify_noLicenceFile` + `TestGoDeps_noLicenceFileFails` (hole 3) | an empty module dir → `("", "none", nil)`; that module's `Dep` fails with why "no licence file in …", exit 1, not 2 | a module with no licence passing, or aborting the run |
 | `TestNpmDeps_readsEachCopyAtItsPath` (hole 4) | `node_modules/x` 1.0.0 `MIT` and `node_modules/y/node_modules/x` 2.0.0 `GPL-3.0` are two `Dep`s, each `license` read from its own `path`; the nested one fails; a node printed twice at one path, once without children, keeps its children | a `node_modules/<name>` guess; one copy shadowing another |
 | `TestCargoDeps` (I10; fixture `cargo metadata` JSON) | every non-first-party package is a `Dep` with `Enforced` = `CargoEnforced` (false); `MPL-2.0` → `report`, exit 0; `Unlicense/MIT` read as `Unlicense OR MIT` → pass, and so do `Apache-2.0 / MIT` and `BSD-3-Clause/MIT` (RR-M2); the one id in `workspace_members` skipped, and a path crate (`source: null`) inside `-root` that is not a member is a `Dep`; why carries the normal-edge chain, and "(proc-macro)" for a proc-macro-only crate; the runner failing → `notScanned` set, `err` nil | Cargo enforced by accident; a missing cargo aborting the gate, or skipped with no line |
 | `TestClassify` (fixtures in `testdata/licenses/`) | the six allowed texts each classify to their id; a GPL-3.0 text → `GPL-3.0-only`; MPL text → `MPL-2.0`; Apache + a CC-BY-4.0 section in one file → `Apache-2.0 AND LicenseRef-unclassified`; `LICENSE-MIT` + `LICENSE-APACHE` → `MIT OR Apache-2.0`; a directory holding only `license.md` (the MIT text, as in `josharian/intern` v1.0.0) → `MIT` with source `license.md`, the entry's real name (RR-I9-3) | a classifier that returns MIT for any permissive-looking text; names matched exactly, by `==` over the entries or by opening `LICENSE.md` (on Windows the open finds the file, but source then reads `LICENSE.md`, so the assertion on source kills it there too) |
 | `TestNpmDeps` (fixture `npm ls --long` JSON + fixture `package.json` files) | `--omit=dev` entries are enforced; dev-only entries no shipped file imports are not; `licenses: [{type:"MIT"},{type:"ISC"}]` → `MIT AND ISC` | dev deps enforced by accident |
-| `TestMain_exitCodes` | runs `run()` with fixtures: 0 when clean, 1 with the MPL fixture, 2 when the Go or npm runner errors; 0 with an `MPL-2.0` crate in the Cargo fixture (a `REPORT cargo` line printed); 0 with the cargo runner failing (a `REPORT cargo: not scanned` line printed) | a gate that exits 0 on a tool failure; Cargo flipping the exit code before the owner rules |
+| `TestMain_exitCodes` | runs `run()` with fixtures: 0 when clean, 1 with the MPL fixture, 2 when the Go or npm runner errors; 0 with an `MPL-2.0` crate in the Cargo fixture (a `REPORT cargo` line printed); 0 with the cargo runner failing (a `REPORT cargo: not scanned` line printed); 2 when `desktop/node_modules` is a junction (Windows, `mklink /J`) or a symlink (elsewhere) into another tree, stderr naming "node_modules is a link into" (carried RR2-1; skipped with a message where no link can be made); 2 for an exception naming `tldraw`; 2 with no scanned project under `-root`; every run that is not 2 prints a Cargo line | a gate that exits 0 on a tool failure; Cargo flipping the exit code before the owner rules; a gate that reads a junctioned worktree's main-tree packages |
+| `TestNpmDeps_linkedNodeModules` (carried RR2-1; added by task 04) | `isLinkMode` true for `ModeSymlink` and `ModeIrregular`, false for a directory; a real junction (Windows) or symlink (elsewhere) as `<dir>/node_modules` → error naming the link, "never rm -rf through it" and "run npm ci in", and npm is never run. Logs the `Lstat` mode: `?rw-rw-rw-` (`ModeIrregular`) on go1.26.2, Windows | a check of `ModeSymlink` alone, which a junction does not carry |
+| `TestMain_repoWithMPL` (added by task 04) | the real runner on `testdata/repo-with-mpl`: exit 1 and `FAIL npm mpl-fixture 1.0.0 MPL-2.0 — …`; skipped where `npm` is not on PATH | the spec's done-when, as a test and not only an acceptance command |
 
 ## Steps
 
@@ -408,7 +452,9 @@ enforced ecosystems alone, so a missing report is visible, never silent.
    GPL, MPL and CC texts are fixtures, never code, and carry nothing copied from any canvas).
 2. Implement `spdx.go`, `classify.go`, `gate.go`, `sources.go`, `imports.go`, `imports.cjs`,
    `main.go` until green; then `node --test tools/licencegate/imports.test.cjs` from the repository
-   root, with `desktop/node_modules` present (the junction in a worktree), until green.
+   root, with `desktop/node_modules` present, until green. `node --test` needs only
+   `typescript`, so a junction serves it; the gate run in step 3 needs a **real** install in
+   each scanned project, because a junctioned `node_modules` is refused (exit 2, carried RR2-1).
 3. Run it on the real repository. For each `fail` on an **existing** dependency (the control
    plane's Kubernetes and Docker trees predate `OD-11`), read the licence file, and either add a
    reviewed exception or record the dependency in the report below as a real violation for the
