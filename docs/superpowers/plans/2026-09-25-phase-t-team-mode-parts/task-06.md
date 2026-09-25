@@ -1,7 +1,7 @@
 ### Task 06: Hub routes, part 1: delegations, tasks, agents, lease events, conflicts
 
-**Slice TM1-α. Depends on: 05, H14, H17. About 3 hours. Seams: ST.2 (defines the routes), ST.3
-(creates the delegation record task 05 authenticates).**
+**Slice TM1-α. Depends on: 05, H14, H17. About 3.5 hours (route 80 added by fix batch b01).
+Seams: ST.2 (defines the routes), ST.3 (creates the delegation record task 05 authenticates).**
 
 This task gives the Hub its first team writes. It is a **delta on the Hub branch**, built on
 `feat/team-mode` only after the sync-merge of `feat/hub`, and it extends two sibling files that are
@@ -33,6 +33,7 @@ fields, so a body that sends one gets 400 `bad_request`.
 | routes 46, 48, 49 (create, renew, revoke a delegation) | the user's **desktop** token only; Fleet cannot reach them, because they have no route name to delegate | the user's own call creates the delegation (§2.4 item 2); Fleet cannot extend its own authority |
 | routes 50, 51, 53, 54, 56, 57, 58 (task, agent, lease event, conflict writes) | **Fleet under a delegation** only; a desktop token is 403 `forbidden`, `required: "fleet"` (`task-01.md:543-545`) | these records are written by an Orchestrator through `panacea` or by Fleet's forecaster (§3.3 "Written by") |
 | routes 47, 52, 55, 59 (reads) | the desktop, or Fleet under a delegation listing the read | the team strip is visible to every project role (§3.4 row 1) |
+| route 80 (a project's mode, fix batch b01) | the **desktop** of the project's team `admin` only; no route name | turning a project to team is a human act, one way, behind the audit gate |
 
 **Files:**
 - `control-plane/internal/hub/server/delegations.go` + `delegations_integration_test.go` (new)
@@ -45,6 +46,12 @@ fields, so a body that sends one gets 400 `bad_request`.
 - `control-plane/internal/hub/server/server.go`: `s.registerTeamPart1()` (modify: one line)
 - `control-plane/internal/hub/server/sessionlinks.go` (Hub task 20's route 33): the team-project
   refusal (modify: one check)
+- `control-plane/internal/hub/server/projectmode.go` + `projectmode_integration_test.go`: route 80
+  and `teamModeGate` (new; fix batch b01)
+- `control-plane/internal/hub/store/projectmode.go`: `ProjectMode(ctx, tx, id)` (read under route
+  46 and 80) and `SetProjectMode(ctx, tx, id)`, the only `SET mode` statement (new; fix batch b01)
+- `control-plane/cmd/hub/config.go` + `config_test.go`: `PANACEA_APP_HUB_TEAM_MODE_UNSTREAMED`,
+  refused unless `PANACEA_APP_HUB_ENV` is `local` or `dev` (modify; fix batch b01)
 
 **Interfaces:**
 - Consumes:
@@ -59,9 +66,12 @@ fields, so a body that sends one gets 400 `bad_request`.
     `conflict`). Task 03 keeps these names (`task-03.md:27-32`) and wins wherever the two differ.
     Also its `RouteName` constants (`task-03.md:362-388`), `ClassRoutes`, `DelegationClass`
     (`DelegationClassOrchestrator`, `DelegationClassWorker`, `task-03.md:100-101`) and `ViaFleet`.
+    For route 80 (fix batch b01): `ProjectMode` (`ProjectModeSolo`, `ProjectModeTeam`),
+    `hubapi.Project.Mode`, `SetProjectModeRequest` and `EventProjectModeSet` (task 03).
   - from task 04: the tables `delegations`, `team_tasks`, `agents`, `lease_events`, `conflicts`,
     `human_messages` under the Hub's RLS pattern, the audit row's `fleet_feed` flag, and a
-    project's `mode` (`solo`·`team`).
+    project's `mode` (`solo`·`team`) with its one-way trigger and `GRANT UPDATE (mode)`
+    (`task-04.md:216-228`, `:797`), which route 80 writes and route 46 reads.
   - from task 05: `Principal.Via` (`""` or `"fleet"`), `Principal.DelegationID`,
     `Principal.Delegation` (a `DelegationView`: project, class, routes, expiry), the route-name
     check, the v2 audit write, and `store.AgentOwnedBy(ctx, tx, agentID, userID) (bool, error)`
@@ -69,13 +79,17 @@ fields, so a body that sends one gets 400 `bad_request`.
     Fleet-reachable route here is registered through (task 05 decision (d), `task-05.md:49-53`,
     `:837-839`). A route registered bare has no name, so Fleet calling it is 403.
   - from task 02: `teamtext.Bound`, `teamtext.Clean`, `teamtext.ValidGlob`, `teamtext.Author`.
-- Produces: the ten write and four read handlers below; `server.RequireDesktop`,
+- Produces: the ten write and four read handlers below, plus route 80's write (`projects.mode`,
+  the only writer) and `Server.teamModeGate` with `PANACEA_APP_HUB_TEAM_MODE_UNSTREAMED`, the
+  TM1-α seam task 45 fills; `server.RequireDesktop`,
   `server.RequireFleet`, `server.OwnedAgent`, `server.EitherAgent`; `store.HumanMessageEquals`
   (reads task 04's `human_messages` table, for `titleSource`); `renderTask(p, t)`.
 - Required by: task 07 (reuses the four guards), task 08 (feed kinds; `hubclient.Team` methods,
   one per route here), task 11 (Fleet's delivery calls), task 14 (the agent start carries the
   policy version and digest), task 21 (the desktop creates the delegation at launch), task 43 (Z5
-  rows), task 44 (revocation end to end).
+  rows), task 44 (revocation end to end); for route 80: task 08 (`hubclient.SetProjectMode`),
+  task 21 (`TeamProjects.MakeTeam`), task 33 (E5 runs it), task 45 (fills the gate), task 56 (the
+  Share path calls it).
 
 #### The routes — complete wire
 
@@ -109,6 +123,12 @@ No delegation route (46 to 49) has a route name, so no delegation can create, re
 another. Fleet calling route 46 is refused by task 05's route check (403 `forbidden`) before this
 handler runs; `RequireDesktop` below is the second layer. `ownerUserId` is `tx.P.UserID`, and it
 appears in responses only.
+
+**Route 46 on a solo project is 409 `conflict`, `details.reason = "not_team_project"`** (fix
+batch b01, X-C1). The handler reads `projects.mode` in the write's transaction and refuses unless it
+is `team`. Every Fleet call but route 78 (the feed, which serves team projects only) needs a
+delegation (`task-01.md:120-124`), and route 46 is the only way to make one, so this one check puts
+every team record behind route 80, and route 80 behind the audit gate. Without it, the gate before the first real teammate guards a column nothing reads.
 
 **Route 47, `GET /v1/delegations/{dl}`**: its owner's desktop, or Fleet under that same
 delegation (`delegations.read`). Anyone else is 404 `delegation_not_found`, so an id does not leak.
@@ -180,6 +200,60 @@ agents.
 project whose mode is `team` (`task-01.md:465-466`), route 33 answers 409 `conflict` with
 `details.use = "agents"`, so a team session cannot be linked by a machine-local id.
 
+**Route 80, `POST /v1/projects/{p}/mode`** (fix batch b01, X-C1): the only writer of
+`projects.mode`. Desktop only, `admin` of the project's team (`A`); the Hub has no project owner
+role, because a project's access is exactly its team's membership (Hub contract §5.2,
+`2026-09-23-hub-contract.md:326-333`), so the team admin is the owner the review names. It has
+**no route name**, so no delegation can list it and Fleet is 403 before the handler runs (task 05);
+`RequireDesktop` is the second layer. Registered bare in `registerTeamPart1`.
+
+```jsonc
+// request: "team" is the only value; the move is one way
+{ "mode": "team" }
+// 200: the project record (Hub contract §7.4) with task 03's "mode" field
+{ "id": "pj-…", "teamId": "tm-…", "mode": "team", … }
+```
+
+The handler, in this order, inside one `s.Write`:
+
+1. `RequireDesktop`; `ProjectRole` (Hub task 17): not a member 404 `project_not_found`, `viewer`
+   or `member` 403 `forbidden`, `required: "admin"`.
+2. `mode` other than `"team"` (`"solo"` included) is 400 `bad_request`, `details.field = "mode"`.
+   The one-way trigger of task 04 is the second layer; the handler never lets it be the first,
+   because its `RAISE` would answer 500.
+3. **The audit gate, before any write:** `s.teamModeGate()`. Under TM1-α it is nil only when
+   `PANACEA_APP_HUB_TEAM_MODE_UNSTREAMED=true` (below); otherwise 503 `unavailable`,
+   `details.reason = "audit_not_streaming"`, and nothing is written. Task 45 swaps its body for
+   `TeamModeAllowed` (`task-45.md`, Gap 1). The gate runs even when the project is already `team`,
+   so a replay does not tell a caller the gate's state is open when it is not.
+4. Already `team`: 200 with the record, **no event** (as route 49's second `DELETE`).
+5. `UPDATE projects SET mode = 'team' WHERE id = $1` (task 04's `GRANT UPDATE (mode)`), one
+   event `project.mode_set`, `data {"from":"solo","to":"team"}`; 200.
+
+**The TM1-α audit gate, a seam.** Task 45's sink does not exist before TM1, and TM1-α's first
+real run (task 33) needs a team project. So this task adds one variable to `cmd/hub/config.go`:
+`PANACEA_APP_HUB_TEAM_MODE_UNSTREAMED` (`false` by default). `true` is a **start-up error unless
+`PANACEA_APP_HUB_ENV` is `local` or `dev`** (Hub contract §12.2, `:2158`), so a production Hub
+cannot turn a project to team with its audit inside the building. It is a dev-only bypass of the
+gate, stated as one: under it the audit stays in the Hub's own table, which an owner-role
+credential can rewrite (Hub contract T5, `:2073`). Task 45 keeps the exception only with its
+`fake` sink and still refuses it in `prod`.
+
+```go
+// control-plane/internal/hub/server/projectmode.go
+// teamModeGate answers nil when a project may become a team project.
+// TM1-α: the dev-only flag, refused in prod by loadConfig. Task 45 replaces the
+// body with `return s.TeamModeAllowed()`, which keeps the flag's exception.
+func (s *Server) teamModeGate() error {
+	if s.cfg.TeamModeUnstreamed {
+		return nil
+	}
+	return Refuse(http.StatusServiceUnavailable, hubapi.CodeUnavailable,
+		"Team projects need the audit to leave the Hub first; it is not configured.",
+		map[string]string{"reason": "audit_not_streaming"})
+}
+```
+
 **Route 56, `POST /v1/projects/{p}/leases/{ls}/events`**: Fleet, `leases.events`, the holder's
 owner. **Fleet is authoritative for leases** (§3.3 row "lease"); the Hub checks shape, owner, that
 `seq` is the lease's last `seq` + 1 (409 `conflict` otherwise) and that nothing follows a terminal
@@ -247,6 +321,11 @@ here. **In the feed** is task 01's three-valued column: `yes` (the member feed a
 | `lease.state_changed` | ✓ | lease id | `{"seq","state","mode","holderAgentId"}` | yes |
 | `conflict.raised` | ✓ | conflict id | `{"tier","agentA","agentB"}` | yes |
 | `conflict.updated` | ✓ | conflict id | `{"state","resolution"}` | yes |
+| `project.mode_set` | ✓ | project id | `{"from","to"}` | yes |
+
+`project.mode_set` is a desktop write (`v: 1`, the admin as actor). It is the first event of a new
+team project on Fleet's per-org feed (route 78 serves team projects only), which is how Fleet
+learns the project exists (`05-design.md` §10.1 step 2).
 
 Every event of a delegated write is the audit-event `v: 2` of task 01's §3.6 (`task-01.md:184-188`):
 `actorUserId = owner`, `via = "fleet"`, `delegationId`, set by task 05's write path, not by these
@@ -462,10 +541,13 @@ plus **Fleet** through task 05's client-credentials grant, with and without a de
 package server_test
 
 // teamWorld is task 06's piece of the world: project P on team T, one delegation per
-// member and class, and one orchestrator agent each. Built fresh per test.
+// member and class, and one orchestrator agent each. Built fresh per test. The harness
+// runs with PANACEA_APP_HUB_TEAM_MODE_UNSTREAMED=true, and P becomes a team project by
+// Grace calling route 80, never by SQL, so every test below runs the real writer.
+// SoloID is a second project on T that stays solo (route 33's and route 46's refusals).
 type teamWorld struct {
 	h                    *hubHarness // Hub task 06's harness: server, pool, clock
-	ProjectID            string
+	ProjectID, SoloID    string
 	DLLinusOrch, DLLinusWorker, DLGraceOrch string
 	AGLinusOrch, AGGraceOrch             string
 }
@@ -502,7 +584,12 @@ is not written.
 | `TestAgentStartBindsParent` | a worker whose parent is Grace's Orchestrator → 403 `agent_not_owner`; an Orchestrator with a parent → 400; a reused `ag-…` with another body → 409 `conflict`; the same body and key → replay | the parent's owner not checked |
 | `TestAgentStartRecordsThePolicyVersion` | the `agent.started` event's `data.policyVersion` is exactly as sent | the version dropped from the event (task 14 then has no audit fact) |
 | `TestAgentEndTwiceIs409` | end, end → 200, 409 `conflict` | a second end overwrites `exitClass` |
-| `TestSessionLinkRefusedOnATeamProject` | route 33 on the team project → 409 `conflict`, `details.use = "agents"`; on a solo project → 201 as before | route 33 left open to team projects |
+| `TestSessionLinkRefusedOnATeamProject` | route 33 on the team project → 409 `conflict`, `details.use = "agents"`; on `SoloID` → 201 as before | route 33 left open to team projects |
+| `TestDelegationCreateNeedsATeamProject` (b01) | Linus, route 46 on `SoloID` → 409 `conflict`, `details.reason = "not_team_project"`, no row, no event; on P → 201 | the mode read dropped from route 46, so Fleet writes team records on a project that never passed the audit gate |
+| `TestProjectModeIsTheAdminsCall` (b01) | route 80 on `SoloID`: Vera → 403 `required: "admin"`; Linus → 403 `required: "admin"`; a user of another team → 404 `project_not_found`; `fleet(DLGraceOrch)` → 403 `required: "route"`; Grace → 200, `mode: "team"` | the role floor is `member`; the route given a route name |
+| `TestProjectModeIsOneWay` (b01) | Grace, `{"mode":"solo"}` on P → 400 `bad_request`, `details.field = "mode"` (not 500 from the trigger), P still `team`; `{"mode":"team"}` on P again → 200, exactly one `project.mode_set` for P in the audit | the body's value written as sent; the idempotent replay emitting a second event |
+| `TestProjectModeWaitsForTheAuditGate` (b01) | a second server on the same pool with the flag `false`: Grace, route 80 on `SoloID` → 503 `unavailable`, `details.reason = "audit_not_streaming"`; `SoloID` still `solo`; no `project.mode_set` | the gate called after the `UPDATE`, or not at all |
+| `TestProjectModeSetIsOneEventOnTheFeed` (b01) | the Grace call's event is `project.mode_set`, `v: 1`, `actorUserId` Grace, `data` exactly `{"from":"solo","to":"team"}`, a feed row (route 78 itself is task 08's, which asserts Fleet reads it) | the event written with no feed row, so Fleet never learns the project |
 | `TestLeaseEventsAreGaplessAndStopAtTerminal` | seq 1, 2 → 201; seq 2 again → 409; seq 4 → 409; after `released`, seq n+1 → 409 | the gap check is `>` instead of `== last + 1` |
 | `TestLeaseEventHolderMustBeTheOwners` | holder `AGGraceOrch` under `DLLinusOrch` → 403 `agent_not_owner` | the holder check skipped for `expired` |
 | `TestAdminReleaseNeedsAnAdmin` | `admin-released` of Grace's lease under Linus's delegation → 403 `required: "admin"`; of Linus's lease under Grace's → 201, `actorUserId` Grace | admin release allowed to members |
@@ -514,6 +601,12 @@ is not written.
 | `TestEveryTeamWriteIsOneEventWithNoText` | one event per write; no event's canonical `data` contains the title or the why | an event per field changed; the title copied into `data` |
 | `TestFleetEventsAreV2` | every event of a Fleet call is `v: 2` with `actorUserId` = owner, `via = fleet`, `delegationId` | the actor recorded as Fleet's service principal |
 | `TestEveryFleetRouteIsNamed` (`delegations_integration_test.go`) | for each of the eleven named routes, Fleet under a delegation of the right class listing exactly that route → no 403 with `required: "route"`; for routes 46, 48 and 49, Fleet → 403 `required: "route"` | one route registered bare (Fleet shut out of a route it holds), or a desktop route given a name |
+
+One unit test, in `cmd/hub/config_test.go` (b01): `TestTeamModeUnstreamedIsDevOnly`:
+`PANACEA_APP_HUB_TEAM_MODE_UNSTREAMED=true` with `PANACEA_APP_HUB_ENV=prod` → `loadConfig`
+error naming both variables; with `local` and with `dev` → `cfg.TeamModeUnstreamed == true`; unset
+→ `false`; `yes` → an error (a boolean only). Mutant: the env check dropped, so a production Hub
+turns projects to team with its audit unstreamed.
 
 Two of them in full; the rest follow the same shape and live beside their route's file.
 
@@ -572,10 +665,12 @@ Expected: a build failure naming the guards, one line per use site, for example
 `undefined: RequireFleet` if it has. Then the integration half:
 
 ```bash
-cd control-plane && go test -tags integration ./internal/hub/server/ -run 'TestDelegation|TestTask|TestAgent|TestLease|TestAdmin|TestConflict|TestNoTeam|TestEveryTeam|TestFleetEvents' -count=1
+cd control-plane && go test -tags integration ./internal/hub/server/ -run 'TestDelegation|TestTask|TestAgent|TestLease|TestAdmin|TestConflict|TestNoTeam|TestEveryTeam|TestFleetEvents|TestProjectMode' -count=1
+cd control-plane && go test ./cmd/hub/ -run 'TestTeamModeUnstreamedIsDevOnly' -count=1
 ```
 
-Expected: `FAIL` with every route answering 404 `route_not_found`, because nothing is registered.
+Expected: `FAIL` with every route answering 404 `route_not_found`, because nothing is registered;
+the config test fails to compile on `cfg.TeamModeUnstreamed`.
 
 - [ ] **Step 4: Write the guards, the store functions and the five handler files**
 
@@ -595,6 +690,8 @@ func (s *Server) registerTeamPart1() {
 	s.mux.HandleFunc("POST /v1/delegations", s.createDelegation)
 	s.mux.HandleFunc("POST /v1/delegations/{dl}/renew", s.renewDelegation)
 	s.mux.HandleFunc("DELETE /v1/delegations/{dl}", s.revokeDelegation)
+	// Route 80 (fix batch b01): desktop admin only, bare for the same reason.
+	s.mux.HandleFunc("POST /v1/projects/{p}/mode", s.setProjectMode)
 
 	// Fleet-reachable (routes 47, 50-59): each under its task 03 name.
 	d := func(pattern string, name hubapi.RouteName, h http.HandlerFunc) {
@@ -614,7 +711,8 @@ func (s *Server) registerTeamPart1() {
 }
 ```
 
-Routes 46 to 59: ten writes and four reads; three bare, eleven named. `s.mux` is the name Hub
+Routes 46 to 59: ten writes and four reads; three bare, eleven named. Route 80 is one more bare
+write, outside `everyTeamWrite` (it writes no team record; its own tests cover it). `s.mux` is the name Hub
 task 13's server uses (**UNVERIFIED until merge**; if the field differs, rename). A desktop call
 to a named route is unaffected: `Delegable` only puts the name in the context, and task 05 reads it
 only for an app-only token. Mutant killed by `TestEveryFleetRouteIsNamed` (Step 2): one `d(…)`
@@ -687,17 +785,23 @@ delegation; the Hub records lease changes but does not second-guess them) and en
 2. `grep -n 'json:"ownerUserId\|json:"actor\|json:"via\|json:"delegationId' control-plane/internal/hub/hubapi/team.go`
    shows `ownerUserId` only on record types (`Delegation`, `Task`, `Agent`) and none of the four on
    any `…Request` type; task 01's acceptance grep.
-3. `grep -c 's.mux.HandleFunc(' control-plane/internal/hub/server/delegations.go` prints `3` (routes
-   46, 48, 49) and `grep -c '^	d("' control-plane/internal/hub/server/delegations.go` prints `11`.
+3. `grep -c 's.mux.HandleFunc(' control-plane/internal/hub/server/delegations.go` prints `4` (routes
+   46, 48, 49 and 80) and `grep -c '^	d("' control-plane/internal/hub/server/delegations.go` prints `11`.
+5. (b01) `grep -rn "SET mode" control-plane/internal/hub/` prints exactly one line, in
+   `store/projectmode.go`; in `server/projectmode.go`, `grep -n "teamModeGate()\|SetProjectMode("`
+   shows the gate's line number smaller than the store call's: the gate runs first.
 4. `go test -tags integration ./internal/hub/server/ -run TestEveryTeamWriteIsOneEventWithNoText -v`
    passes, and a manual `SELECT data FROM hub.audit_events WHERE kind LIKE 'task.%'` on the test
    database shows ids, enums and counts only.
 
 #### What this task does not claim
 
-- **Not the Z5 matrix rows.** The per-principal rows for these fourteen routes, including *auditor*
-  and *compliance*, are task 43's; this task's tests cover owner, other member, viewer and Fleet
-  with and without a delegation only.
+- **Not the Z5 matrix rows.** The per-principal rows for these fourteen routes and route 80,
+  including *auditor* and *compliance*, are task 43's; this task's tests cover owner, other member,
+  viewer and Fleet with and without a delegation only. Route 80 is not in `everyTeamWrite`, so
+  task 43's count check does not catch a missing row for it: task 43 adds it by hand.
+- **Not a streamed audit.** Under TM1-α a project turns team only with the dev-only
+  `PANACEA_APP_HUB_TEAM_MODE_UNSTREAMED=true`; the real gate is task 45's `TeamModeAllowed`.
 - **Not revocation end to end.** A revoked delegation stops Hub writes at once (task 05's check),
   but Fleet noticing it and stopping sessions is task 11, and a member's removal revoking every
   delegation of theirs is task 44.
@@ -715,6 +819,8 @@ delegation; the Hub records lease changes but does not second-guess them) and en
 2. **Codes task 03 must carry.** Task 01 uses 409 `conflict` throughout; the Hub's `codes.go` as
    built has no such code, and the skeleton's task 03 list omits it. Task 01 names no 404 for a
    task, agent or conflict.
-3. **Who sets a project's `mode` to `team`.** Task 01's §7.26 filters on it ("set by Share"), and
-   route 33's refusal here reads it, but no scope paragraph owns the write (task 21's team launch
-   or a Share route are the candidates).
+3. **Who sets a project's `mode` to `team`. Resolved by fix batch b01 (review X-C1):** this task
+   owns route 80, the only writer, and route 46 refuses a solo project so the write gates every
+   team record. Task 21 wraps it as `TeamProjects.MakeTeam`; task 56's Share path is its product
+   caller (`05-design.md` §2.3, §10.1: Share turns a solo project into a team one); task 33's E5
+   runs it on the real cluster; task 45 fills the gate. The skeleton's scope for 06 lists it.
