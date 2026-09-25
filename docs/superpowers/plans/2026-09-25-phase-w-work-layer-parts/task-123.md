@@ -61,3 +61,113 @@ of its cursor or its delta. A cursor on an unreadable project that answers `seq:
 confirms the project exists (`hub-contract:273`); a scope filter applied before the caller filter
 leaks another team's events. `TestAnUnreadableScopeIs404` and `TestTheScopeFilterNeverWidens` hold
 both.
+
+**Files:**
+
+- `control-plane/internal/hub/store/work_cursors.go`, `server/work_cursors.go` (new): three routes
+- `control-plane/internal/hub/store/work_scope.go` (new): the subjects under a scope (decision 4)
+- `control-plane/internal/hub/server/changes.go` ⚑ (Hub task 26's route; tasks 13 and 117 before
+  this): the `scope` parameter, and nothing else
+- `control-plane/internal/hub/server/work_cursors_integration_test.go` (new, `-tags integration`)
+- `control-plane/internal/hub/server/matrix_integration_test.go` ⚑: the `"123"` rows
+
+**Interfaces:**
+
+- Produces: `GET /v1/me/read-cursors?scope={kind}:{id}`, `PUT /v1/me/read-cursors`, `POST
+  /v1/me/read-cursors/mark-seen` (T114's route table), and `scope` on `GET /v1/changes` (task 124's
+  `ScopedChanges` row); `store.ScopeSubjects`, `store.AdvanceCursor`
+- Consumes: T114's `ScopeRef`, `ReadCursor`, `MarkSeenRequest`; task 116's `work_read_cursors` and
+  its trigger; task 13's feed filter (`SubjectOnlyKinds`, the readable-project join) and its kinds
+  (SW.5); tasks 76, 12, 119 and 120 for the rows decision 4 joins; TM task 07's `RequireDesktop`;
+  the Hub's `ChangesPage` (`hubapi/types.go:547-551`) and `PageRequest` (`:201-205`)
+- Consumed by: task 124 (`GetReadCursor`, `AdvanceReadCursor`, `MarkSeen`, `ScopedChanges` over
+  HTTP), task 133 (the four delta classes, drawn from the scoped read after the cursor), and TM
+  task 54 through 133
+
+**G1, task 114.** T114 carries `ScopeRef {kind, id}` but not its text form or the scoped page.
+Task 124 needs both and names them `ReadScope`, `ParseReadScope` and `ScopedChangesPage`
+(`task-124.md`, *Gaps* 2); this part keeps T114's `ScopeRef` name and writes the rest as 114 must
+carry it. One name wins at sync; the wire is the same.
+
+```go
+// control-plane/internal/hub/hubapi/work_roadmap.go (task 114's file) — G1, additive
+
+const (
+	ScopeKindProject = "project"
+	ScopeKindFeature = "feature"
+	ScopeKindIssue   = "issue"
+)
+
+// String is the query form, "feature:ft-…".
+func (s ScopeRef) String() string { return s.Kind + ":" + s.ID }
+
+// ParseScopeRef reads "kind:id"; the id must carry the kind's prefix
+// (pj-, ft-, is-; task 02's ValidID), so "feature:is-…" is refused.
+func ParseScopeRef(v string) (ScopeRef, error) {
+	kind, id, ok := strings.Cut(v, ":")
+	prefix := map[string]string{ScopeKindProject: PrefixProject, ScopeKindFeature: PrefixFeature, ScopeKindIssue: PrefixIssue}[kind]
+	if !ok || prefix == "" || !ValidID(prefix, id) {
+		return ScopeRef{}, &FieldError{"scope", ErrScope}
+	}
+	return ScopeRef{Kind: kind, ID: id}, nil
+}
+
+var ErrScope = errors.New("scope must be project:pj-…, feature:ft-… or issue:is-…")
+
+// ScopedChangesPage is ChangesPage plus Truncated: true only on a first look
+// (no after) when older events under the scope were left out (decision 5).
+type ScopedChangesPage struct {
+	Events    []Event `json:"events"`
+	Next      string  `json:"next"`
+	More      bool    `json:"more"`
+	Truncated bool    `json:"truncated"`
+}
+
+const FirstLookLimit = 200
+```
+
+`PrefixFeature` and `PrefixIssue` are task 02's names for `ft-` and `is-` (`hubapi/workids.go`), and
+`PrefixProject` the Hub's (`envelope.go`'s `ValidID(PrefixProject, …)`, built). `ScopedChangesPage`
+repeats `ChangesPage`'s three fields rather than embedding it, so its JSON is flat and a client
+decoding either gets the same keys.
+
+#### The store (signatures complete)
+
+```go
+package store
+
+// store/work_scope.go
+
+// ScopeSubjects is decision 4: the subject ids whose events lie under the
+// scope, and the scope's project. found is false when the scope's object does
+// not exist in the org; the handler then applies the object's read rule.
+//   project: projectID only (the feed filters on projectId, not on subjects)
+//   feature: ft- ∪ its bf- ∪ is- WHERE feature_id = ft ∪ ic- of those ∪ ml- of ft
+//            ∪ nt- of work_update_meta WHERE subject = ft ∪ briefKey prefix for evidence
+//   issue:   is- ∪ ic- WHERE issue_id = is
+func ScopeSubjects(ctx context.Context, q Querier, s hubapi.ScopeRef) (projectID string, subjects []string, briefKeyPrefix string, found bool, err error)
+
+// store/work_cursors.go
+
+// Cursor reads the principal's cursor on a scope; 0 when never set.
+func Cursor(ctx context.Context, q Querier, userID string, s hubapi.ScopeRef) (int64, error)
+
+// AdvanceCursor is decision 2 in one statement:
+//   INSERT INTO work_read_cursors (org_id, user_id, scope_kind, scope_id, seq, updated_at)
+//   VALUES (…) ON CONFLICT (org_id, user_id, scope_kind, scope_id)
+//   DO UPDATE SET seq = GREATEST(work_read_cursors.seq, EXCLUDED.seq),
+//                 updated_at = CASE WHEN EXCLUDED.seq > work_read_cursors.seq
+//                                   THEN EXCLUDED.updated_at ELSE work_read_cursors.updated_at END
+//   RETURNING seq
+// GREATEST keeps task 116's "seq only increases" trigger from ever firing on
+// this path; the trigger is the guard for any other writer.
+func AdvanceCursor(ctx context.Context, tx pgx.Tx, org, userID string, s hubapi.ScopeRef, seq int64, at time.Time) (int64, error)
+
+// HeadSeq is the org's current audit head, for the 422 of decision 2.
+func HeadSeq(ctx context.Context, q Querier) (int64, error)
+```
+
+The column names are task 116's scope's (`work_read_cursors`, *one row per person and scope*) and
+are renamed at build time if its part chose others. A feature with hundreds of issues gives
+`ScopeSubjects` a long list; the build may turn it into a subquery inside the feed read instead of
+an array parameter. Either is the same rule; which is faster is **unmeasured**.
