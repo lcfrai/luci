@@ -224,3 +224,167 @@ type Stored struct {
 	At        time.Time       `json:"at"`
 }
 ```
+
+**`Validate`, the G2 table.** `Validate(s Send, t *Thread, sender model.AgentID) error` runs before
+anything else, on a decoder that already refused unknown fields (task 09's strict decode). Every
+row's refusal is `bad_request` with the field named, unless another code is given.
+
+| Kind | Required | Refused | Text |
+|---|---|---|---|
+| `ask` | `subject`; `thread` or `to` | `inReplyTo`, `resolution`, `proposal` | required, `KindMessage` ≤ 600 |
+| `answer` | `thread`, `inReplyTo` (an `ask` of this thread by the **other** side) | `subject`, `resolution`, `proposal`, `to` | required; `permission_required` without task 30's standing permission |
+| `inform` | `subject`; `thread` or `to` | `inReplyTo`, `resolution`, `proposal` | required, ≤ 600 |
+| `propose` | `resolution`; `thread` or `to` | `inReplyTo`, `proposal`, `subject` | optional rationale, ≤ 600 |
+| `accept` · `reject` | `thread`, `proposal` (a live `propose`·`counter` of this thread by the **other** side) | everything else | optional reason, `KindReason` ≤ 300 |
+| `counter` | — | always: `kind_not_enabled` (task 62) | — |
+| `withdraw` | `thread`, `proposal` (the sender's own, live) | `text` and everything else | refused |
+
+Resolutions: `yield` needs `globs` (1 to `teamtext.MaxGlobs`, each `ValidGlob`); `sequence` needs
+`first`, a participant of the thread; `proceed-both` needs `paths` (1 to 20, each `ValidPath`, a
+literal file: shared paths are named, never globbed); `split` and `build-on` are
+`kind_not_enabled`. A resolution carrying a field of another kind is refused. A `subject.ref` is
+checked by kind: `tk-`/`ls-`/`cf-` id grammar (task 03's), or `ValidPath`. Text goes through
+`teamtext.New(kind, body, AuthorAgent, sender, owner, now)`; a G3 refusal is `text_refused` with
+task 02's rule, never the offending bytes. **Validation reads no text for meaning**: nothing here
+looks for words.
+
+**`limits.go`, complete.**
+
+```go
+package protocol
+
+import (
+	"time"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/fleet/model"
+)
+
+const (
+	RoundsPerSide   = 3                // §6.4
+	MinDeadline     = 30 * time.Minute // §6.4; team policy may lengthen, never shorten
+	MaxDeadline     = 24 * time.Hour   // task 07's route 60 bound
+	PairPerHour     = 20               // §6.6, both directions, every thread of the pair
+	StaleRoundsStop = 2                // §6.6: two rounds with no new typed content
+)
+
+// Exhaustion is why a thread closed escalated; task 30 writes the decide.
+type Exhaustion string
+
+const (
+	ExhaustedRounds   Exhaustion = "rounds"
+	ExhaustedDeadline Exhaustion = "deadline"
+	ExhaustedStale    Exhaustion = "stale"
+)
+
+// Deadline clamps a team policy's thread deadline: lengthen, never shorten.
+func Deadline(policy time.Duration) time.Duration {
+	switch {
+	case policy < MinDeadline:
+		return MinDeadline
+	case policy > MaxDeadline:
+		return MaxDeadline
+	}
+	return policy
+}
+
+// Counting is decision (a): the kinds that are a round.
+func Counting(k Kind) bool { return k == KindPropose || k == KindCounter || k == KindReject }
+
+// RoundsLeft is how many counting messages side may still send on t.
+func RoundsLeft(t Thread, side model.AgentID) int { return RoundsPerSide - t.Rounds[side] }
+
+// StaleAfter reports whether appending m to t makes StaleRoundsStop
+// counting messages in a row with no new typed content (decision b).
+func StaleAfter(t Thread, m Stored) bool {
+	if !m.Counting {
+		return false
+	}
+	if m.Fresh {
+		return false
+	}
+	return t.StaleRun+1 >= StaleRoundsStop
+}
+
+// PairAllowed reports whether one more message fits the pair's hour.
+// sent is the pair's count of Orchestrator-sent messages in [now-1h, now];
+// Fleet's templated answers are not counted (nobody's quota paid for them).
+func PairAllowed(sent int) bool { return sent < PairPerHour }
+```
+
+The limit codes, all ST.1 error codes that join task 09's list: `rounds_exhausted`,
+`rate_limited` (with `retryAfter`, the time the oldest counted message leaves the window),
+`thread_closed` (a message to a thread not `open`), `kind_not_enabled`, `permission_required`,
+`not_participant`. Three ways a thread closes `escalated`, each in the transaction of the call
+that caused it, so an Orchestrator can neither spin on a closed thread nor close one silently:
+
+- a side's fourth counting message: **refused** (`rounds_exhausted`), not stored, thread closed;
+- a counting message that leaves **both** sides with no round left and no accepted proposal:
+  stored, then the thread closed (waiting for a fourth attempt would only wait for the deadline);
+- a stale run reaching `StaleRoundsStop`: the message is stored (it is valid), then the thread
+  closed.
+
+Each calls `Escalator.ThreadExhausted` with its `Exhaustion`, and task 30 writes the decide to
+both humans. The deadline sweep is the fourth way (`ExhaustedDeadline`).
+
+**`threads.go`, the working state and the store surface, complete.**
+
+```go
+package protocol
+
+import (
+	"context"
+	"time"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/fleet/model"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/fleet/outbox"
+)
+
+// Thread is Fleet's working state for one open thread (Global constraint:
+// Fleet state is "a fact about now"; the th-… record itself is the Hub's).
+type Thread struct {
+	ID           string
+	Org, Project string
+	Participants [2]model.AgentID // Orchestrators, different owners
+	Owners       [2]model.Owner
+	Subject      Subject          // as opened; Kind maps onto route 60's
+	Conflict     string           // cf-… when the subject is a conflict
+	State        string           // open | resolved | escalated | expired
+	Rounds       map[model.AgentID]int
+	StaleRun     int              // counting messages in a row with no new typed content
+	Resolutions  map[string]bool  // Canonical(r) of every resolution seen
+	Live         map[string]model.AgentID // live proposal ms-… -> its sender
+	Deadline     time.Time        // effective: Hub's deadline + every pause
+	HubDeadline  time.Time        // as sent to the Hub at open
+	Revision     int              // the Hub thread's, for route 61's PATCH
+}
+
+// Store is what this package needs of task 10's store. Each method that
+// changes state takes the outbox items to append in the same transaction.
+type Store interface {
+	Thread(ctx context.Context, org, id string) (Thread, bool, error)
+	ThreadFor(ctx context.Context, org string, a, b model.AgentID, s Subject) (Thread, bool, error)
+	OpenThreads(ctx context.Context, orch model.AgentID) ([]Thread, error)
+	DueThreads(ctx context.Context, now time.Time) ([]Thread, error) // open, Deadline <= now
+	PutThread(ctx context.Context, t Thread, hub ...outbox.Item) error
+	AppendMessage(ctx context.Context, t Thread, m Stored, wake *model.Event, hub ...outbox.Item) error
+	Messages(ctx context.Context, org, thread string) ([]Stored, error)
+	Unread(ctx context.Context, orch model.AgentID) ([]Stored, error)
+	MarkRead(ctx context.Context, orch model.AgentID, ids []string, at time.Time) error
+	PairSent(ctx context.Context, a, b model.AgentID, since time.Time) (count int, oldest time.Time, err error)
+	ExtendDeadlines(ctx context.Context, org string, by time.Duration) (int, error)
+}
+```
+
+`AppendMessage` writes the message row, the updated thread, the outbox items and, when `wake` is
+non-nil, the `peer.message` row of the other side's turn queue (task 26's `fleet.turn_events`),
+all in one transaction through task 10's `store.Tx` (`task-11.md:80`). So a crash can never leave
+a message the other side is not told about, or a nudge for a message that does not exist. The
+signature is therefore `AppendMessage(ctx, t, m, wake *model.Event, hub ...outbox.Item)`, and
+after commit the service calls task 26's `Queue.Wake` (the `peer.message` kind is immediate).
+Task 26's `Queue.Enqueue` does its own owner and class checks; this path makes the same two
+checks before the transaction (the recipient is a live Orchestrator; the event carries no
+author, so the own-human check does not arise). A send writes no `read_log` row: sending is not
+reading.
+
+`ExtendDeadlines` is called once when task 11's `Gate` reports an org unpaused, with the pause's
+length. `DueThreads` excludes threads in a paused org: the sweep asks the `Gate` first.
