@@ -485,6 +485,57 @@ test sets, a recording `escalate` fake for `Decide`, and a fixed clock. The last
 | `TestPauseForDefaultIsFromTheParent` | task 30's `PauseForDefault(w1, es)` → payload `fromAgentId` = w1's parent, `origin: "fleet"`, `approvedBy: es`, kind `pause` | Fleet writing the directive as itself |
 | `TestInForceShowsStandingStateWithoutText` | `pause`, then `narrow`, then `free`: `check`'s `directives` = pause and narrow, no `free`, no text | text leaking through `check`; the latest `resume` ignored |
 | `TestEndedWorkerDropsItsQueue` | `EndAgent` in the same `Tx` deletes undelivered rows | directives delivered to a successor with the same id |
+| `TestOutboxSentStampsHubAt` (storetest suite, both stores) | `OutboxMarkSent(ob)` sets `hub_at` on the queue row naming `ob`, in one transaction; a crash between is impossible because it is one statement pair in one `Tx` | the stamp done by a second, later call |
+
+Run: `cd control-plane && go test ./internal/fleet/directive/... ./internal/fleet/verbs/ -run
+'Direct|Free|Narrow|Within|Piggy|Ack|Release|Approval|Spawn|ReadList|Pause|InForce|Ended' -count=1`.
+Expected: every test fails to compile (the package does not exist yet).
+
+- [ ] **Step 2: The wire.** Add `Response.Directives` and `wire.Directive` to both modules; add
+  the five fixtures; extend both round-trip tests to read `response-piggyback.json`. `go test
+  ./internal/fleet/wire/` in `control-plane` and `./internal/control/` in `sandboxd` pass.
+- [ ] **Step 3: The store.** The migration; the `directive.Store` methods in `memstore` and
+  `pgstore`; the `OutboxMarkSent` stamp; the suite rows. `go test ./internal/fleet/store/...` and
+  `go test -tags integration ./internal/fleet/store/...` pass.
+- [ ] **Step 4: `taint.go` and `held.go`.** Gate, `Within`, `Hold`, `Release`, the context key.
+- [ ] **Step 5: `directive.go` and `verbs/direct.go`.** `Issue`, `Drain`, `Ack`, `InForce`,
+  `PauseForDefault`; register `direct` with `OwnArgs("to")`.
+- [ ] **Step 6: The seams in other tasks' files.** Task 19's drain and ack; task 18's envelope
+  prints `directives` first under the header line `Directives from your Orchestrator:`; task 24's
+  four `Judge` calls; task 26's `human_spoke_at` stamp; task 30's `send-held` effect; task 22's
+  `InForce`. `fleetd` wires `directive.Service` as task 30's `Pauser`, replacing the stub.
+- [ ] **Step 7: Acceptance.**
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/control-plane && go vet ./... && go test ./internal/fleet/... -count=1 -race
+```
+Expected: `ok` for every package under `internal/fleet/`, including `directive`, `verbs`,
+`control`, `wire`, `escalate` and `turns`.
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/sandboxd && go vet ./... && go test ./internal/control/ ./internal/panaceacli/ -count=1
+```
+Expected: `ok` for both; `TestPiggybackPrintsFirst` in `panaceacli` sees the directives block
+above the result.
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team && grep -rn "PtyWrite\|pty\.\|Nudge{" control-plane/internal/fleet/directive/
+```
+Expected: no output. Directive text has no path to a PTY or a socket post (property 3).
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team && grep -rn "approvedBy\|ApprovedBy" control-plane/internal/fleet/verbs/direct.go
+```
+Expected: no output. The verb has no approval field (`TestApprovalCannotComeFromArgs` is the
+behavioural half).
+
+Step 4 of the acceptance for the Hub half: task 07's `TestTaintAllows` table run against this
+task's issued payloads (`go test -tags integration ./internal/hub/server/ -run TestTaint`). With
+task 07 as written, the `fleet resume` and `fleet rebase` rows fail: that is G31-1, and the fix
+is task 07's.
+
+- [ ] **Step 8: Commit** with `git add` on each new file, then `git commit -F <msgfile> --
+  <paths>`, the message ending with the plan's co-author line.
  A replay that now fails validation (the worker ended, the lease
 lapsed) is reported to the Orchestrator as an `escalation.answered` event with the refusal code,
 and nothing is issued. A decide that expires or is answered "Do not send it" deletes the row.
