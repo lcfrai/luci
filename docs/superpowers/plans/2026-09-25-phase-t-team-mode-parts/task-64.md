@@ -134,4 +134,88 @@ const (
 	CodeLaneMovedToCloud = "lane_moved_to_cloud" // a local launch into a moved lane
 	CodeNoCloudMachine   = "no_cloud_machine"
 )
+
+// LanesMover is wired in cmd/api when the Hub, fleetbe and a cloud backend are
+// all configured; otherwise both routes answer 404, as phase 2 does for any
+// unwired route.
+type LanesMover struct {
+	Local    LocalLanes // the laptop: phase 3's Syncer, lanes.Store, lanegit.Lanes, the local Machine
+	Cloud    CloudLanes // the owner's cloud machine through S8.1's backend
+	IsTeam   func(ctx context.Context, projectID string) (bool, error) // task 52's TeamStrip.Team
+	Now      func() time.Time
+}
+
+type LocalLanes interface {
+	Candidates(ctx context.Context, projectID string) ([]lanes.Lane, error)
+	Sync(ctx context.Context, lane lanes.Lane) (tip string, err error)                  // task 07's SyncLane
+	Ahead(ctx context.Context, lane lanes.Lane, tip string) (ahead, uncommitted int, err error)
+	Live(ctx context.Context, lane lanes.Lane) (bool, error)                            // task 24's Lanes.Live
+	// Bundle runs host git in the laptop's PROJECT repository (§HGH, Scope Project),
+	// never in the lane clone: git bundle create - <lane ref> ^<each basis sha>.
+	Bundle(ctx context.Context, lane lanes.Lane, basis []string, w io.Writer) (int64, error)
+	MarkMoved(ctx context.Context, laneID, cloudLaneID string, at time.Time) error
+}
+
+type CloudLanes interface {
+	MachineID(ctx context.Context) (string, error)                                    // no_cloud_machine
+	ByMovedFrom(ctx context.Context, projectID, laptopLaneID string) (lanes.Lane, bool, error)
+	Basis(ctx context.Context, projectID, branch string) ([]string, error)             // shas its project holds
+	Relation(ctx context.Context, projectID, cloudTip, laptopTip string) (string, error) // same | behind | diverged
+	BundleIn(ctx context.Context, projectID, ref string, bundle io.Reader) (tip string, err error)
+	Create(ctx context.Context, req lanes.CreateRequest) (lanes.Lane, error)          // phase 3's Creator on the cloud Machine
+	FastForward(ctx context.Context, cloudLane lanes.Lane, bundle io.Reader, tip string) error // task 24's Runner.Fetch, R4.5
+	Live(ctx context.Context, cloudLane lanes.Lane) (bool, error)
+}
+
+// Candidates is GET …/team/lanes-move. It reads; it moves nothing.
+func (m *LanesMover) Candidates(ctx context.Context, projectID string) (MoveCandidates, error)
+
+// Move is POST …/team/lanes-move, the owner's click, and the ONLY caller of
+// Local.Bundle and Cloud.BundleIn in the module (TestOnlyMoveExportsALane).
+func (m *LanesMover) Move(ctx context.Context, projectID string, req MoveRequest) (MoveResult, error)
 ```
+
+```go
+// control-plane/internal/lanes (phase 3 task 03, modify): the fields added.
+type Lane struct {
+	// … phase 3's fields, unchanged …
+	MovedFrom string    `json:"movedFrom,omitempty"` // cloud lane: the laptop lane id it came from
+	MovedTo   string    `json:"movedTo,omitempty"`   // laptop lane: the cloud lane id
+	MovedAt   time.Time `json:"movedAt,omitempty"`
+}
+
+type CreateRequest struct {
+	// … phase 3's fields, unchanged …
+	StartAt   string // "" = the branch tip (phase 3's behaviour); else a sha the project holds
+	MovedFrom string
+}
+
+// MarkMoved sets MovedTo and MovedAt on one lane, through WriteAtomic like every mutation.
+// Store gains: MarkMoved(id, movedTo string, at time.Time) error
+```
+
+**`Move`, per lane, in request order.** Each lane is independent: one lane's failure is its
+outcome, never the whole call's (the answer is 200 with every outcome).
+
+1. `IsTeam` false → the whole call `409 not_a_team_project`. `Cloud.MachineID` fails →
+   `409 no_cloud_machine`.
+2. The id is a laptop lane of this project with `MovedTo == ""`; else `skipped`,
+   `already_moved` (moved before) or `404`-class `bad_request` (unknown id).
+3. `Local.Live` → `lane_busy`. `Local.Sync` → tip. `Local.Ahead` → 0 → `nothing_ahead`;
+   uncommitted > 0 and the id not in `LeaveUncommitted` → `lane_uncommitted`.
+4. `Cloud.ByMovedFrom`. Found: `Relation(cloudTip, tip)` → `same` → `skipped`, `already_moved`,
+   and `Local.MarkMoved` if the laptop lane was not marked (a crash between steps 6 and 7 last
+   time); `diverged` → `lane_diverged`; `behind` and `Cloud.Live` → `lane_busy_in_cloud`;
+   `behind` → `Local.Bundle(basis = [cloudTip])` into `Cloud.FastForward` → `updated`.
+5. Not found: `Cloud.Basis(branch)` → `Local.Bundle(basis)` → `Cloud.BundleIn(ref
+   refs/panacea/moved/<laptop id>)` → the tip it reports must equal `tip`, else `git_failed`.
+6. `Cloud.Create{Branch, Name: the laptop lane's name, or phase 3's derived one if taken,
+   StartAt: tip, MovedFrom: laptop id}` → the cloud lane.
+7. `Local.MarkMoved(laptop id, cloud lane id, now)` → `moved`.
+
+Step 4's recovery makes the call idempotent: asking twice, or after a crash, never creates a
+second cloud lane. `BundleIn` on `machined` (phase 8 task 21's project half, planned): the body
+is a bundle of at most task 24's bundle limit, written to the project's private temp directory,
+`git bundle verify`, then fetched into the one ref named under `refs/panacea/moved/`, all as
+project calls under §HGH with P8-D7's `Env` allowlist; the ref name is checked by
+`check-ref-format` and the prefix, never taken as a path.
