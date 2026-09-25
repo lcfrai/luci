@@ -195,6 +195,8 @@ func (r *fatalRecorder) Fatalf(format string, args ...any) {
 // ("exit 3221225794, want 128") under machine load (results doc, divergence 14). The helper
 // must stop the pin with a sentence naming the machine, and leave every real code alone
 // (task-01 review M-3). `cmd /c exit N` stands in for git: it exits with N and nothing else.
+// The sentence starts with the program's own name, so a docker.exe that never started is not
+// reported as git (fix-round mutant MH6 survived a check that asked for no name).
 func TestPinHelperNamesAProgramThatNeverStarted(t *testing.T) {
 	t.Parallel()
 	if !runtimeWindows {
@@ -206,7 +208,10 @@ func TestPinHelperNamesAProgramThatNeverStarted(t *testing.T) {
 	if uint32(code) != 0xC0000142 {
 		t.Fatalf("fixture: cmd /c exit -1073741502 exited %d, want 3221225794 (0xC0000142)", code)
 	}
-	for _, want := range []string{"could not start", "0xC0000142", "STATUS_DLL_INIT_FAILED", "not a finding"} {
+	if !strings.HasPrefix(rec.fatal, "cmd could not start") {
+		t.Errorf("a program that never started: the helper said %q, want a fatal sentence starting %q", rec.fatal, "cmd could not start")
+	}
+	for _, want := range []string{"0xC0000142", "STATUS_DLL_INIT_FAILED", "not a finding"} {
 		if !strings.Contains(rec.fatal, want) {
 			t.Errorf("a program that never started: the helper said %q, want a fatal sentence holding %q", rec.fatal, want)
 		}
