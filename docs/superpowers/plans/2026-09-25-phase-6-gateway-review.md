@@ -131,4 +131,37 @@ Line numbers are as of commit `8b8a7d7`. Parts are in `2026-09-25-phase-6-gatewa
 
 **Deferred:** none. **Owner questions:** none new. A P14 FAIL reaches the owner through task 18's step 9.
 
+## Fix batch b01, round 2 (re-review R-1 to R-7), 2026-09-25
+
+Fixes the open issues of `.superpowers/sdd/p6/plan-rereview-b01-1.md`. Line numbers are as of commit `ab7b680`, with task 15 as of `c1a8c58`. The counts in round 1 above (fifteen names, 35 cases, 13 task 07 mutants) are superseded by the ones below.
+
+**R-1 (Important), the escaped row now escapes.**
+- Cause: the Edit tool decodes a backslash-u escape in its arguments, so the round-1 text lost it. The escape is now written through a script that builds the backslash with `chr(92)`, and `od -c` confirms the bytes `f \ u 0 0 6 1 l l b a c k s`.
+- `task-11.md:298`, the row sends `"f\u0061llbacks"` in a Go raw string. `:21`, decision (f) shows the escaped spelling.
+- `task-11.md:1016`, a new step 6 mutant: `drop: controlField[key] && bytes.Contains(body[prev:begin], []byte(key))`, a raw-bytes match. It is killed by `TestLiteLLMControlFieldsNeverReachUpstream/escaped_fallbacks` alone. `:1007`, a grep that proves the escape reached the test file before that mutant runs. Hand mutants 7 → 8 (`:1005`, `:1074`).
+- Skeleton `:240` shows the escape and says the escaped row kills a raw-bytes key match.
+
+**R-2 (Important), P14 cannot pass vacuously.**
+- Path 1, no key: `task-18.md:402`, the client records a key that did not mint as status `None`. `v_p14` (`:248`) makes that a FAIL (`:255`). A status of `0`, `401` or `403` is UNKNOWN (`:260`). The leak check stays first, so a record at the Global fake is a FAIL whatever the status.
+- Path 2, anthropic mode: `v_upstreams` (`:268`) and the `upstreams` entry mode (`:481`) read `/model/info` inside the LiteLLM container. `probe.sh` (`:548`) exits 2 unless every `global/` group's `api_base` host is `fakeanthropic-global` and every `au/` group's is `fakeanthropic-au`. No probe then runs against the real provider.
+- Self-test: `p14 unauthorised` → UNKNOWN, `p14 no key` → FAIL (`:115`), and three `upstreams` cases (`:119`), 35 → 40 (`:618`). Two more vacuity mutants in step 6 (`:618`).
+- The nine P14 and upstreams rows were evaluated against the functions as the plan writes them: 9 of 9 give the planned verdict, and there are 40 cases in total. That was a scratch Python run on the text, not the real `probe.sh`.
+- Restatements: the P14 row (`:32`), the interface line (`:41`), the script header, a new "does not claim" bullet (`:730`: `/model/info` exposing `api_base` is **UNVERIFIED**, and the gate fails closed if it does not), skeleton `:258`.
+
+**R-3 (Minor), one delete per retirement.** `task-07.md:871`, `Refresh` schedules its delete inside the "date the revocation" branch. A retried refresh, or a refresh after decision (h)'s retire, schedules nothing. `:604`, the decision (h) test refreshes after the retire and asserts one scheduled delete. `:1234` is the mutant. `:31`, decision (c) says so, and says that LiteLLM's answer to deleting a missing key stays **UNVERIFIED**, since nothing now asks it.
+
+**R-4 (Minor), the delay is tested.** `task-07.md:180`, `:202`, the rig records `(d, f)` pairs. Both tests assert the delete waits 5 minutes: `:434` for `Refresh` (the survivor from before b01) and `:595` for `ByKeyHash`. The mutants are `:1232` and `:1233`. Task 07 has 13 → 16 mutants (`:1255`) and still 16 tests.
+
+**R-5 (Minor), the Bedrock credential fields are dropped.** `task-11.md:577` (`ControlFields`) and `:284` (the test's copy) gain `aws_access_key_id`, `aws_secret_access_key`, `aws_session_token`, `aws_role_name`, `aws_session_name`, `aws_profile_name`, `aws_web_identity_token`, `aws_sts_endpoint` and `custom_llm_provider`, 15 → 24 (`:14`, 3 + 5 + 16). The rename-mutant loop is at `:1031`. Every "fifteen" in the part now says twenty-four. The restatements are skeleton `:240`, `task-18.md:731` and `task-25.md:125`. The names are still **UNVERIFIED** against the pinned image.
+
+**R-6 (Minor), one live-route rule.** The fix is at the root, wider than the re-review's two sides, because the gatekeeper was a third copy.
+- `task-03.md:21`, decision (g): `wire.ProjectInference.LiveRoute()` (`:558`) is `Tighter(Decide(class, route), Effective)`, and an error for anything unparsed. `TestLiveRoute` (`:215`) has six rows. There are two mutants (`:703`), and the gap is at `:766`.
+- The callers: `task-07.md:1027` (keysmith's `route`, with a preflight grep at `:57`), `task-10.md:473` (step 7, with its mutant row at `:506` renamed), and `task-15.md:1261` (`raisedToAU`, used by `sleepUnlessRaised`) and `:1128` (`Prepare`).
+- `task-15.md:430`: `TestARaiseRefreshesAtOnce` gains a `class` row that raises through `DataClass` alone while `Effective` stays on Global. Its mutant (`:1663`) reads `Effective` alone. The fakes carry a class (`:248`, `:414`).
+- Skeleton `:220` and `:250`.
+
+**R-7 (Minor), P6-D4 states the part's bound.** Skeleton `:68`: the key is retired, not narrowed. The bound after the first request following the raise is the route cache (≤ 30 s) plus the binding cache (≤ 10 s) plus `Grace` (5 min), task 07's own words at `:45`. The refresher re-mints within `RaiseCheck` (1 min) of its route source showing the raise. The re-review's note (narrow the key with `/key/update` when it is retired) is not built. It rests on an **UNVERIFIED** LiteLLM property, and the gatekeeper already sends the key's requests as `au/`.
+
+**Deferred:** none. **Owner questions:** none new.
+
 
