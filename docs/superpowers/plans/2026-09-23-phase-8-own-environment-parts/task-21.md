@@ -78,14 +78,20 @@ task 24 (the runner) is **not** a dependency: `machined` serves no runner (rulin
 ```go
 package machineapi
 
-// GitCall is POST /v1/git's body: gitx.Call on the wire. A non-empty Dir is
-// relative to the machine root (/machine). Dir "" is the one exception: it maps
-// to machined's own <OwnedRoot>/clone (/tmp/machined-git/clone), never to
-// /machine, and it is admitted only with Scope "none".
+import "time"
+
+// GitCall is POST /v1/git's body: gitx.Call on the wire. A non-empty Dir, and
+// NewLane, are slash-separated and relative to the machine root (/machine).
+// Dir "" is the one exception: it maps to machined's own <OwnedRoot>/clone
+// (/tmp/machined-git/clone), never to /machine, and only with Scope "none".
 // Class is "read" | "local" | "remote" (gitx.Read/Local/Remote).
-// Scope is "clone" | "project" | "none" (gitx.Clone/Project/None, phase 3 §HGH
-// H3); it has no default, and it must follow Dir (below). RemoteURL is
-// gitx.Call.RemoteURL: required for Class "remote", an https URL.
+// Scope is "project" | "none" (gitx.Project/None, phase 3 §HGH H3). It has no
+// default, and it must follow Dir (below). "clone" is not a scope: R4.2 deleted
+// it, and it is 400 like any unknown value. RemoteURL is gitx.Call.RemoteURL:
+// required for Class "remote", an https URL.
+// NewLane is gitx.Call.NewLane (phase-3 task-02.md:90-96): "" on every call but
+// a lane create's writes in its new clone (task-03.md:169-181), where it equals
+// Dir and names a lane in machined's creating set.
 // Stdin is base64 in JSON ([]byte). Env is an explicit allowlist (below), not a
 // prefix match; values may be secrets (phase 3 task 13's PushEnv passes a
 // host-scoped http.<url>.extraHeader through GIT_CONFIG_COUNT/KEY_n/VALUE_n) and
@@ -96,6 +102,7 @@ type GitCall struct {
 	Class     string            `json:"class"`
 	Scope     string            `json:"scope"`
 	RemoteURL string            `json:"remoteUrl,omitempty"`
+	NewLane   string            `json:"newLane,omitempty"`
 	Stdin     []byte            `json:"stdin,omitempty"`
 	Env       map[string]string `json:"env,omitempty"`
 	OKExit    []int             `json:"okExit,omitempty"`
@@ -121,20 +128,88 @@ type GitResult struct {
 // is a problem body with code "conflict" (409) and these details, from which the
 // laptop rebuilds the *gitx.UntrustedConfig (task 25), exactly as phase 3's API
 // maps it on the laptop:
-//   details.reason    "clone_config_untrusted" | "project_config_untrusted"
+//   details.reason    "project_config_untrusted" (the only scope H3 checks)
 //   details.key       the refused key, lowercased; never its value
+// The lane routes' state refusals are "conflict" (409) with details.reason:
+//   "lane_path_invalid"  a segment of lanes/<p>/<d> is not a directory by Lstat
+//                        (a symlink included), ruling 1's reason
+//   "lane_not_creating"  the lane is not in the creating set; nothing ran
+//   "lane_creating"      task 20's path route: the lane is still being created
 const (
 	DetailGitSays  = "gitSays"
 	DetailExitCode = "exitCode"
 	DetailTimedOut = "timedOut"
 	DetailReason   = "reason"
 	DetailKey      = "key"
+
+	ReasonLanePathInvalid = "lane_path_invalid"
+	ReasonLaneNotCreating = "lane_not_creating"
+	ReasonLaneCreating    = "lane_creating"
 )
+
+// LanePath is the body of POST /v1/lanes/exists, /v1/lanes/remove-tree and
+// /v1/lanes/sealed. Path is relative to the root and is lanes/<projectId>/<dir>,
+// or, on remove-tree only, a path below a lane that is in the creating set.
+type LanePath struct {
+	Path string `json:"path"`
+}
+
+// LaneExists answers POST /v1/lanes/exists: whether anything is at Path, read
+// with Lstat, so a symlink counts (phase-3 task-03.md:152-154, Create's step 3).
+type LaneExists struct {
+	Exists bool `json:"exists"`
+}
+
+// CopyHooks is POST /v1/lanes/copy-hooks' body, MachineFS.CopyGeneratedHooks on
+// the wire. Project is projects/<name>, Lane is a lane in the creating set, and
+// Rel is a value lanes.CopyableHooksPath accepts.
+type CopyHooks struct {
+	Project string `json:"project"`
+	Lane    string `json:"lane"`
+	Rel     string `json:"rel"`
+}
+
+// CopiedHooks answers it: the files copied, 0 when a guard refused (not an error).
+type CopiedHooks struct {
+	Copied int `json:"copied"`
+}
+
+// CreatingTTL is how long a lane stays in the creating set with no seal (ruling 4).
+const CreatingTTL = 5 * time.Minute
+```
+
+**The ask of phase 3, seam S8-P3.3** (ruling 4). Phase 3 owns the final shape; this one is
+**UNVERIFIED** until phase 3 answers, and step 1 greps for what landed. `machined` serves it,
+and the laptop's cloud implementation over these routes is task 25's.
+
+```go
+package gitx
+
+import "context"
+
+// MachineFS is the filesystem half of a lane create on a Machine (phase-3
+// task-03.md:153-154, :189-190, :227-268). Paths are absolute on that machine.
+// The local implementation is os, on the laptop's disk.
+type MachineFS interface {
+	// Exists is Create step 3's os.Lstat: true when anything, a symlink too, is at path.
+	Exists(ctx context.Context, path string) (bool, error)
+	// RemoveTree is task 03's RemoveTree(CloneRoot(), path).
+	RemoveTree(ctx context.Context, path string) error
+	// CopyGeneratedHooks is the copy half of task 03's CopyGeneratedHooks: its Lstat
+	// guards, its SameFile check and its 64-file / 1 MiB budget. Its ls-files check and
+	// the take-back stay in lanes.CopyGeneratedHooks, over m.Git() and RemoveTree.
+	CopyGeneratedHooks(ctx context.Context, projectTop, cloneTop, rel string) (int, error)
+}
 ```
 
 | Route | Answer | Failures |
 |---|---|---|
-| `POST /v1/git` | `200 GitResult` | `400 bad_request` (a `Dir` that escapes the root, an unknown `Class` or `Scope`, a `Scope` that does not follow `Dir`, an `Env` key outside the allowlist, credential `Env` on a `clone`-scope call, a `clone` outside its two shapes, empty `Args`, or `gitx.ErrCallShape`; the message names the field or key, never a value) · `409 conflict` with `reason` and `key` (phase 3's H3 refused the repository's config; git never ran) · `422 git_failed` with the three details · `413` above 16 MiB of stdin |
+| `POST /v1/git` | `200 GitResult` | `400 bad_request` (a `Dir` that escapes the root or is none of the three forms in item 2, an unknown `Class` or `Scope`, `"clone"` included, a `Scope` that does not follow `Dir`, a `NewLane` that is not `Dir`, an `Env` key outside the allowlist, a `clone` outside its two shapes, a `NewLane` call outside its shapes, an argument that names a lane or the owned root, empty `Args`, or `gitx.ErrCallShape` / `gitx.ErrLaneDir`; the message names the field, key or argument index, never a value) · `409 conflict` `project_config_untrusted` with `key` (H3 refused; git never ran) · `409 conflict` `lane_not_creating` (git never ran) · `422 git_failed` with the three details · `413` above 16 MiB of stdin |
+| `POST /v1/lanes/exists` | `200 LaneExists` | `400` (not `lanes/<p>/<d>`) · `409 lane_path_invalid` |
+| `POST /v1/lanes/remove-tree` | `204`, also when nothing was there | `400` · `409 lane_path_invalid` · `409 lane_not_creating` (a path below a lane not in the set) |
+| `POST /v1/lanes/copy-hooks` | `200 CopiedHooks` | `400` · `409 lane_path_invalid` · `409 lane_not_creating` |
+| `POST /v1/lanes/sealed` | `204`, idempotent | `400` (not `lanes/<p>/<d>`) |
+| `GET /v1/worktrees/{worktreeId}/path` (task 20's) | unchanged | adds `409 lane_creating` while the lane is in the set |
 
 **What `machined` does to every call (review I7).** *Pre-R4 text: after R4 this route takes
 project calls only, no session mounts `projects/<name>`, and a `lanes/…` `Dir` is `400` (the
