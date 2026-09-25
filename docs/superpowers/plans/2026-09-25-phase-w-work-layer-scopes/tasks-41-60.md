@@ -517,3 +517,62 @@ text (kills losing a person's words). Depends on 55. Design: 05 §4.6 (*Undo, re
 14; 02 C8 (`02:276-278`). Parity: closes L-36 and, with task 55, L-228. Does not claim: an offline queue
 that survives a restart (L-230, SKIP), the undo announcement (task 66), Start's *Undo Start* (task 61).
 
+**57 — the replica, part 3: only what the caller may read; resync on a gap; erase.** Files: new
+`src/work/replica/visibility.ts` (+ test) and edits to `replica.ts`. Uses the Hub's per-caller filter
+(the feed carries an event only for a project the caller can read or a team the caller is in,
+`hub-contract.md:1103-1104`, matrix row `:357`), the membership events `team.member_set` and
+`team.member_removed` (`:1140-1141`), SW.5's Work kinds and task 14's erase. Rules: the replica lists
+Work records **only** for projects the caller can read, and a subject fetch answered 403 or 404 drops
+that record at once. `team.member_removed` naming the caller drops every record of that team's
+projects in the same tick, and an open view of one says *You no longer have access to EP* as a fact.
+`team.member_set` that makes a project newly readable triggers a **full load of that project**,
+because its earlier events were filtered out of this caller's feed and will never arrive. **A gap
+cannot be seen by `seq`**: the org's sequence is gapless but filtered per caller (`:1099`, `:1103`),
+so the replica never checks contiguity. It resyncs on: a feed `next` below the last applied `seq`
+(a restored Hub: full resync); a relay error or `upstream_unavailable` 503 followed by recovery
+(resume from the last applied cursor, no full load); and the membership events above. During a
+resync `status` is `"resyncing"`, the current rows stay on screen, one fact line says *Reloading ·
+since 11:02* (no spinner, no per-row state), and the result enters through task 41's hold model, so
+nothing moves under the reader. **Erase**: an erase event for an issue or a comment (kind names are
+task 13's, **UNVERIFIED** here) replaces its text in memory with the `erased` resolution and keeps
+the key, digest and number, so chips and links still resolve, as *erased* (05 §3.6). Tests first:
+removal from a team drops all its records in one tick (kills a drop at the next load); being added
+loads the new project in full (kills waiting for feed events that never come); a 403 subject fetch
+drops the record (kills keeping it); against a fake Hub, the replica never requests a project outside
+the caller's list (kills listing every org project); a `next` below the last applied `seq` resyncs
+while the old rows stay visible (kills ignoring a restore, and kills a blank flash); an outage and
+recovery resumes from the cursor with no full load (kills a reload per network blip); after an erase,
+a JSON dump of the replica holds the key and digest and none of the erased text (kills text kept in a
+revision cache); the resync shows one line and no spinner (kills per-row spinners). Depends on 55.
+Design: 05 §5.3 (*loading only what the caller may read*), §3.6 (erase), §3.1 (three homes);
+hub-contract §7.11 and §8. Parity: closes L-229's W1 part with task 55. Does not claim: the Hub-side
+filter for Work kinds (task 13; 05 §5.3 still marks that filter **UNVERIFIED** for Work), erase's
+admin surface (task 14's route has no desktop UI here).
+
+**58 — the replica, part 4: `/` search and `O I` open by number.** Files: new
+`src/work/replica/search.ts` (+ test), new `src/components/work/{SearchField,OpenByNumber}.tsx`
+(+ tests; not yet in the File map), and one registration through task 53's `registerVerb`. Adds
+`search(q, opts?: {projectId?; limit?}) → SearchHit[]`, `interface SearchHit {issueId; alias; title;
+matched: "alias" | "title" | "description"; rev}` (the last of SW.16's four signatures) and
+`resolveAlias(projectKey, n) → IssueId | null`, which looks the number up in the replica's
+`(projectId, number)` index and **never parses the alias into a key** (05 §3.6). The index is derived
+from replica records and updated on each change, so an erased record, which carries no text, never
+matches. Matching: NFKD, diacritics stripped, lower case, token prefixes; an exact alias first, then
+title hits above description hits. `/` in list focus opens `SearchField` over the current view (view
+search and jump, L-106); inside the editor `/` stays task 50's slash menu. `O` then `I` (task 54's
+sequence) calls the verb `issue.openByNumber`, registered here: a mono number prompt; `Enter` opens
+the issue view at the head; an unknown number says *No EP-999 in EP* and goes nowhere. While the
+replica is still `"loading"` after a restart, `search` asks the Hub's title search (task 14) once
+through the relay and labels those results *from the Hub · titles only*. `budget.palette ≤ 50 ms` is
+timed over a 10,000-issue fixture and **recorded, not asserted** (05 §4.6). Tests first: `resume`
+ranks EP-142's title hit above a description-only hit (kills unranked results); `EP-142` and `142`
+both put EP-142 first (kills alias-as-plain-text); `resumé` finds `resume` (kills a naive
+`includes`); an erased issue's old title finds nothing (kills an index that keeps text); `/` in a list
+opens search and `/` in the editor does not (kills a global `/`); `O I 142 Enter` opens EP-142 and `O
+I 999` navigates nowhere (kills opening a wrong issue); after the fixture's project key changes to
+`UP`, `EP-142` does not resolve and `UP-142` does (kills parsing the alias); a search while loading
+calls the Hub once and labels the results (kills empty results after a restart). Depends on 53, 55.
+Design: 05 §4.3 (`/`, `O` then `I`), §4.6, §3.6; 02 C8 budgets (`02:280-286`). Parity: closes L-106's
+W1 part. Does not claim: `@person`, `#label` and `EP-` filter prefixes inside search (L-107, W2),
+natural-language filters (L-100, W4), a moved issue's old number redirecting (L-35, W2).
+
