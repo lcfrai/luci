@@ -573,8 +573,8 @@ thread designsystem tokens` passes. It does **not** claim that any surface carri
 owner judges at task 39. Design: 05 §2.3, §4.1 (lit is not selected), §4.4 C2 and C13, §4.5 rule
 4; 02 C2. Parity: no 01 row; this is the part Linear has no object to build (05 §2.3).
 
-**37 — desktop Work wire types, relay calls and `workSlice`; `Lens` gains `"work"`.** Stream WD2
-(the skeleton's WD1 row lists it with the lens), defines seam **SW.15**, 2.5 h. Depends on 05 (SW.2
+**37 — desktop Work wire types, relay calls and `workSlice`; `Lens` gains `"work"`.** Stream WD1
+(the streams table puts 20 and 26-45 there), defines seam **SW.15**, 2.5 h. Depends on 05 (SW.2
 frozen at WS0) and 20 (`src/test/workFixtures.ts`). Files: new `desktop/src/api/work.ts` and
 `work.test.ts`; ⚑ `desktop/src/api/client.ts` (`CockpitClient` at `:132` gains `work: WorkClient`;
 `createClient` at `:236`); new `desktop/src/store/slices/workSlice.ts`; ⚑ `store/types.ts` (`Lens` at
@@ -607,4 +607,68 @@ on the new member). **Acceptance:** `npm --prefix desktop test -- work store Sub
 rendered surface (38-48), or that the types match a running Hub (task 17 does). Design: 05 §4.1
 (Work is a lens, not a tab), §3.1 (three homes: the desktop keeps no Hub data); `ADR-H1:467-474`.
 Parity: with tasks 55-58 it serves **L-228** (the in-memory replica); it closes no row alone.
+
+**38 — prototype, part 1: the Work lens and Plan in the app, behind `flag.compare`, on fixtures.**
+Stream WD1, 3 h. Depends on 32, 36 and 37. `OD-1` keeps Phase W's review gate: the owner sees the
+work surfaces **in the app, in the new look**, before tasks 40-45 are sized (05 §5.3 row 10; row 11
+is "resized after row 10's review"). This is a prototype, not the product: it reads task 20's
+fixtures (`src/test/workFixtures.ts`: EP-142, EP-150, EP-139, EP-131, EP-155, EP-128 and their
+criteria), talks to no Hub and no replica, and lives in its own dev-only directory,
+`desktop/src/prototype/work/` (`WorkPrototype.tsx`, `PlanPrototype.tsx`, `prototype.css`, tests),
+which the skeleton's file map does not list; task 40 promotes what the owner kept into
+`components/work/` and deletes the rest. It mounts in ⚑ `AppShell.tsx` when `lens === "work"`,
+`import.meta.env.DEV` holds and a new flag `prototype: "on"` is set (⚑ `lib/flags.ts`). **The Work
+screen** follows 05 §4.1's drawing: `ViewHeader` (`EP · Resumable uploads`, the branch in mono, the
+route badge, *by criterion ▾*, `Ctrl+K`); one group per brief criterion, its header the criterion in
+sans with its convergence word and plain size (`open · 3 issues · 1 moving`); rows hanging from
+`ThreadLine`, each with its `ThreadNode`, `StateGlyph` column, alias in mono and assignee; one agent
+line on the reader's own issue (`dylan · agent 1` in mono, the meaning in sans, one `AgentGlyph`);
+a teammate's issue as a person only; EP-139 held in place with its mono cause line (`→ done · own
+evidence at 7c1f0a2 (test run, exit 0) · 14:02`); *Serves no criterion* last; the departure ghost
+(`EP-128 left this view · cancelled · N applies`); three rows selected and a fourth lit, together. A
+dev button replays one land so `moves.hold` and the flash can be seen. **The Plan screen** (`G P`,
+05 §4.1): Triage, Backlog, every criterion with its issues, *My issues*; no cycles, features or views
+(W2). Both screens render in `graphite` and `paper`, old and new look, through task 32's toolbar, and
+register with task 33's `stress.sets`. `prototype/work-layer.html` (`#v-work`, `#v-plan` at
+`:441-447`) is the look to match; nothing is copied from it but our own tokens. **Tests first:**
+`expectNoPrediction(container)` on both screens (kills a `%`, a bar, an ETA or "1 of 3 proven");
+`it("groups by criterion, not by state")` (kills Linear's default, 05 §4.4 C13's structural check);
+`it("puts Serves no criterion last")`; `it("gives the reader's issue one agent line and one
+glyph")` (kills a dot per agent); `it("shows a teammate's issue with no dot and no count")` (kills
+`+2` and dots, 05 §4.4 rule 3); `it("prints no count outside a group header")` (kills `2 agents` on
+a row); `it("shows lit and selected apart")` (kills lit rendered as selection); `it("does not exist
+in production")` (kills shipping the prototype). **Acceptance:** `npm --prefix desktop test --
+prototype` passes; `npm --prefix desktop run tauri dev` opens it for the owner. It does **not** claim
+real data, the keys (53-54), the replica, or any size for tasks 40-45. Design: 05 §4.1, §4.4, §5.3
+rows 10-11; `OD-1`. Parity: none closed; it is the check before L-46, L-101, L-102 and L-112 are
+built.
+
+**39 — prototype, part 2: the issue view and the Desk; the owner's review, recorded.** Stream WD1,
+3 h. Depends on 38. Files: `desktop/src/prototype/work/IssuePrototype.tsx`, `DeskPrototype.tsx`
+(+ tests), and new `docs/verification/2026-09-25-phase-w-prototype-review.md`. **The issue view**
+(05 §2.1's drawing and §5.3 row 12): head (alias, title, `StateGlyph` with its priority notch,
+assignee, labels), `serves` as `brief:bf-3a…@6 › done › c-91e2…` in mono with the criterion's words
+in sans and a `ThreadNode`, the live agent line, the files observed in mono, an *observed evidence*
+line, a revision list, and a second fixture issue that reads ***done, not proven*** with its one-line
+reason; nothing from W3 (no proposed evidence, no Orchestrator note). **The Desk** (05 §4.2): the
+fixed sections in their fixed order, NEEDS YOU → DECIDED WITHOUT YOU → FAILED → LANDED → RUNNING,
+issue rows in them, RUNNING folded as *"N steady, all live"* with three-line cards only for agents
+that changed, never live while shown, and the zero state as one fact line, the demo's last frame:
+*"Nothing needs you. EP-142 landed and proven at 14:02."* **The review** is shown at 125 % Windows
+scaling in `graphite` and `paper`, with the old and new look and the three sans candidates on the
+toolbar. The results file is a template the task fills with facts only (date, commit, scaling,
+themes, the screens shown, C13's not-a-clone checks, the five-minute noun test of 05 §4.1, the
+confirmation or reversal of `OD-28`'s Segoe UI Variable, and the sizes of tasks 40-45 as resized),
+and the **owner's words verbatim**, quoted, dated and attributed. The task never writes a verdict
+for the owner: until the owner has looked, the file says *not yet reviewed*, and
+`feat/work-layer` is not merged onward (`OD-1`, `OD-12`). **Tests first:** `expectNoPrediction` on
+both screens; `it("keeps the Desk's section order fixed")` (kills a re-ranked section order);
+`it("shows done, not proven with its reason")` (kills the mark without a reason); `it("draws the
+zero state as one line of fact")` (kills an illustration or a projection with no rule);
+`it("sets the criterion's words sans and its key mono")` (kills the split reversed). **Acceptance:**
+`npm --prefix desktop test -- prototype` passes; `grep -c "^> " docs/verification/2026-09-25-phase-w-
+prototype-review.md` prints at least `1` only after the owner has spoken (a file with no quote is
+the honest *not yet reviewed* state, not a pass). It does **not** claim the owner's approval, the
+real issue view (46-48) or the Desk frame (62). Design: 05 §2.1, §4.2, §5.3 rows 10 and 12; `OD-1`,
+`OD-12`, `OD-28`. Parity: none closed; the check before L-112 to L-114 and L-34 are built.
 
