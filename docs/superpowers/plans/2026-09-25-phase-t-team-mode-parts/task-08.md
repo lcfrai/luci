@@ -34,6 +34,8 @@ the append-only triggers, a `CHECK` bound) is named in "What this task does not 
 approximated.
 
 **Files:**
+- `control-plane/internal/hub/hubapi/teamquery.go` + `teamquery_test.go`: `TaskQuery`,
+  `AgentQuery`, `ConflictQuery` (new; task 03 does not define them)
 - `control-plane/internal/hub/hubclient/hubclient.go`: `Team`, `OrgFeed`, `Hub` (modify)
 - `control-plane/internal/hub/hubclient/context.go`: `WithDelegation`, `WithIdempotencyKey`,
   `DelegationFrom`, `IdempotencyKeyFrom` (new)
@@ -135,9 +137,75 @@ type Hub interface {
 }
 ```
 
-`Tasks` takes `hubapi.TaskQuery{State []TaskState; hubapi.PageRequest}`, not the bare
-`PageRequest` task 11's part proposes (`task-11.md:86`), because route 52 has a `state` filter;
-a zero `TaskQuery` is the same call. **This is the one change task 11's map needs.** `Teams`
+`Tasks` takes `hubapi.TaskQuery`, not the bare `PageRequest` task 11's part first proposed,
+because route 52 has a `state` filter; a zero `TaskQuery` is the same call. Task 03 does not
+define the three query types (`task-03.md` has none, checked 2026-09-25), so this task adds them,
+in `hubapi`, beside task 03's `team.go`:
+
+```go
+// control-plane/internal/hub/hubapi/teamquery.go — complete (new)
+package hubapi
+
+import (
+	"net/url"
+	"strconv"
+)
+
+// TaskQuery is route 52's query: ?state= (repeatable, task-06.md) and the page.
+type TaskQuery struct {
+	State []TaskState
+	PageRequest
+}
+
+// AgentQuery is route 55's: ?live=true omits ended agents.
+type AgentQuery struct {
+	Live bool
+	PageRequest
+}
+
+// ConflictQuery is route 59's: ?open=true omits resolved and cleared ones.
+type ConflictQuery struct {
+	Open bool
+	PageRequest
+}
+
+func (q TaskQuery) Values() url.Values {
+	v := q.PageRequest.values()
+	for _, s := range q.State {
+		v.Add("state", string(s))
+	}
+	return v
+}
+
+func (q AgentQuery) Values() url.Values    { return flag(q.PageRequest.values(), "live", q.Live) }
+func (q ConflictQuery) Values() url.Values { return flag(q.PageRequest.values(), "open", q.Open) }
+
+func (p PageRequest) values() url.Values {
+	v := url.Values{}
+	if p.After != "" {
+		v.Set("after", p.After)
+	}
+	if p.Limit != 0 {
+		v.Set("limit", strconv.Itoa(p.Limit))
+	}
+	return v
+}
+
+func flag(v url.Values, name string, on bool) url.Values {
+	if on {
+		v.Set(name, "true")
+	}
+	return v
+}
+```
+
+`PageRequest{After, Limit}` is the built type (`hub` worktree `hubapi/types.go:201-205`). If
+Hub task 33's transport already has a page-to-query helper, `values` is replaced by it. Its test,
+in `hubapi/teamquery_test.go`: `TaskQuery{State: []TaskState{TaskActive, TaskBlocked}}.Values().Encode()`
+is `state=active&state=blocked` (`task-03.md:127-133`), and `ConflictQuery{}.Values().Encode()` is `""` (mutants: `Set`
+for `Add`, dropping the second state; `open=false` sent for a zero query, which the Hub's strict
+parse would refuse). **This is the one change task 11's map needs**, plus
+`ConflictQuery{State: "open"}` at `task-11.md:888` becoming `ConflictQuery{Open: true}`. `Teams`
 (Hub task 04, plural, team membership) and `Team` (this task, team mode) differ by one letter; the
 doc comment on each says which, and no file embeds one without the other's comment beside it.
 
@@ -481,3 +549,7 @@ git commit -F .superpowers/sdd/team/msg/t08.txt -- control-plane/internal/hub
 3. **`Tasks` takes a query, not a page.** Task 11's part proposes `Tasks(ctx, projectID,
    hubapi.PageRequest)`; this part uses `hubapi.TaskQuery`, which embeds it. Task 11's call site
    changes by one composite literal.
+4. **The three query types had no owner.** Neither the skeleton's scope for 03 nor task 03's part
+   defines `TaskQuery`, `AgentQuery` or `ConflictQuery`, yet task 11 already calls them; this part
+   adds `hubapi/teamquery.go`. Task 11's `ConflictQuery{State: "open"}` (`task-11.md:888`) must
+   read `ConflictQuery{Open: true}`, matching route 59's `?open=true` (task 06).

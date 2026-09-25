@@ -622,7 +622,8 @@ line written as a bare `HandleFunc`, which answers Fleet 403 `required: "route"`
 delegation lists.
 
 **The three reads** (routes 52, 55, 59) are what task 11's `rebuild.go` reloads after a Fleet
-restart. They are the Hub's usual page shape (`hubapi.Page[T]`, `limit` 1–200, `cursor`), run
+restart. They are the Hub's usual page shape (`hubapi.Page[T]`, `?limit=` 1–200 and `?after=`,
+the built `hubapi.PageRequest`, `hub` worktree `hubapi/types.go:201-205`), run
 under `s.Read`, and open to every project role including `viewer` (§3.4 row 1: the team strip);
 an org *auditor* who is not a member gets 404 (`task-01.md:540`). Filters: tasks `?state=`
 (repeatable), agents `?live=true`, conflicts `?open=true`. The title redaction of route 52 lives in
