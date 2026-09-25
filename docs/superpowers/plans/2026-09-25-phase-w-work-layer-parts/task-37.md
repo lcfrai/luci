@@ -527,3 +527,99 @@ The comment above `ProblemCode` (`:35-39`) says "The sixteen codes"; it becomes 
 Hub codes the list does not name (`policy_refused`, `revision_conflict`, `issue_not_found`, …)
 still arrive intact through `toProblem`, and `workProblem` files them as `refused`.
 
+#### Interfaces — complete: `desktop/src/store/slices/workSlice.ts`
+
+```ts
+// desktop/src/store/slices/workSlice.ts — SW.15, task 37.
+//
+// The Work lens's view state and nothing else. No Hub record lives here: heads, revisions and
+// comments come from the replica (SW.16, tasks 55-58), and until then from task 20's fixtures.
+// None of it is persisted (ADR-H1:467-474); store.ts's partialize never names `work`.
+
+import type { StateCreator } from "zustand";
+import type { CockpitState } from "../store";
+
+export interface WorkView {
+  /** The Hub project id (pj-…). Mapping the rail's local project to it is hublink's (Hub task 35). */
+  projectId: string | null;
+  /** The branch whose brief the thread hangs from; null is the project brief alone. */
+  branch: string | null;
+  /** revision null is the head. */
+  openIssue: { id: string; revision: number | null } | null;
+  /** The multi-select, in the order the reader made it. Issue ids. */
+  selection: string[];
+  /** The keyboard's row. Lit follows it (task 36); selected does not. */
+  cursor: string | null;
+}
+
+export interface WorkSlice {
+  work: WorkView;
+  /** Moves to the Work lens. A different project or branch clears the issue, selection, cursor. */
+  openWork(projectId: string, branch: string | null): void;
+  /** null closes the issue view. Opening one also moves to the Work lens (an issue chip, task 67). */
+  openIssue(id: string | null, revision?: number | null): void;
+  /** Replaces the multi-select; a repeated id is kept once, at its first place. */
+  select(ids: readonly string[]): void;
+  moveCursor(id: string | null): void;
+}
+
+export type WorkState = Pick<WorkSlice, "work">;
+
+/** FROZEN, as initialUiState is (uiSlice.ts:91-92). */
+export const initialWorkState: WorkState = Object.freeze({
+  work: Object.freeze({
+    projectId: null, branch: null, openIssue: null,
+    selection: Object.freeze([]) as unknown as string[], cursor: null,
+  }),
+});
+
+export const createWorkSlice: StateCreator<
+  CockpitState,
+  [["zustand/persist", unknown]],
+  [],
+  WorkSlice
+> = (set) => ({
+  ...initialWorkState,
+
+  openWork: (projectId, branch) =>
+    set((s) =>
+      s.work.projectId === projectId && s.work.branch === branch
+        ? { lens: "work" }
+        : { lens: "work", work: { projectId, branch, openIssue: null, selection: [], cursor: null } },
+    ),
+  openIssue: (id, revision = null) =>
+    set((s) =>
+      id === null
+        ? { work: { ...s.work, openIssue: null } }
+        : { lens: "work", work: { ...s.work, openIssue: { id, revision } } },
+    ),
+  select: (ids) => set((s) => ({ work: { ...s.work, selection: [...new Set(ids)] } })),
+  moveCursor: (id) => set((s) => ({ work: { ...s.work, cursor: id } })),
+});
+```
+
+#### Interfaces — complete: the deltas on ⚑ `store/types.ts` and ⚑ `store/store.ts`
+
+```ts
+// store/types.ts:171-173
+/** The lenses. Six are sub-rail rows, with no order, no numbering and no completion state
+ *  (docs/AGENTIC-UX.md §4 rule 12). "work" is a lens and NOT a row (05 §4.1, 07 D M7): it opens
+ *  from G W, Plan and every issue chip, and the sub-rail's LENSES stays six. */
+export type Lens = "discover" | "design" | "develop" | "files" | "merge" | "deploy" | "work";
+```
+
+```ts
+// store/store.ts
+import { createWorkSlice, initialWorkState, type WorkSlice } from "./slices/workSlice";
+export type CockpitState = DataSlice & UiSlice & PrefsSlice & WorkSlice;          // :14
+// in createCockpitStore's initialiser, after createPrefsSlice:
+        ...createWorkSlice(...a),
+// resetCockpit:
+  useCockpit.setState({ ...initialDataState, ...initialUiState, ...initialPrefsState, ...initialWorkState });
+```
+
+`Persisted` and `partialize` (`store.ts:20-46`) are not edited: they name their keys, so a new
+slice is unpersisted by default, and the test below keeps it that way. `PERSIST_VERSION` stays 1:
+no persisted shape changed, and `lens: "work"` is a new value of a persisted key, which `migrate`
+(`:58-61`) passes through untouched.
+
