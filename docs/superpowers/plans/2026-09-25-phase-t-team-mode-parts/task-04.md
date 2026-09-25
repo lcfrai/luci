@@ -808,16 +808,20 @@ $$;
 -- The named delegation, only when its org is the tenant's. No row for an unknown id and none
 -- for another org's: the caller answers both 401 delegation_revoked, reason "unknown", so
 -- Fleet cannot probe for ids (task 01 §4.2). Expiry and revocation are returned, not
--- filtered, so the caller can say which of the two it is.
+-- filtered, so the caller can say which of the two it is. The owner's identity comes with
+-- it because task 05 builds the principal from it before hub.org_id is set, and Fleet's own
+-- (tid, oid) is never a principal (§5.10 rule 3).
 CREATE FUNCTION fleet_delegation(p_tenant uuid, p_id text)
 RETURNS TABLE (org_id text, owner_user_id text, project_id text, class hub.delegation_class,
                routes text[], expires_at timestamptz, revoked_at timestamptz,
-               revoked_reason hub.revoke_reason)
+               revoked_reason hub.revoke_reason, owner_entra_oid uuid, owner_name text,
+               owner_email text)
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = hub, pg_temp AS $$
   SELECT d.org_id, d.owner_user_id, d.project_id, d.class, d.routes, d.expires_at,
-         d.revoked_at, d.revoked_reason
+         d.revoked_at, d.revoked_reason, u.entra_oid, u.display_name, u.email
     FROM hub.delegations d
-    JOIN hub.orgs o ON o.id = d.org_id AND o.entra_tenant_id = p_tenant
+    JOIN hub.orgs o  ON o.id = d.org_id AND o.entra_tenant_id = p_tenant
+    JOIN hub.users u ON u.org_id = d.org_id AND u.id = d.owner_user_id
    WHERE d.id = p_id
 $$;
 
