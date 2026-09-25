@@ -224,3 +224,69 @@ can name a client's matter.
 `note.created` is task 01's row (`task-01.md:530`), feed `yes`: every member's desktop and Fleet
 learn that a note exists, and read its words through route 73. A second erasure emits a second
 event with the same `subject`, so an attempt always leaves a trace.
+
+#### Fleet: a note in `panacea inbox`, and nowhere else — complete source
+
+Task 28's `Envelope` (`task-28.md:502-508`) gains one field. `omitempty` keeps every task 09 and
+task 28 golden fixture byte-identical when no note is unread, so the control wire stays `v: 1`.
+
+```go
+// control-plane/internal/fleet/protocol/inbox.go (modify: one field, one type, one func)
+
+type Envelope struct {
+	V        int          `json:"v"` // 1
+	Notice   string       `json:"notice"`
+	Messages []InboxItem  `json:"messages"`
+	More     bool         `json:"more"`
+	Threads  []ThreadView `json:"threads"`
+	Notes    []NoteItem   `json:"notes,omitempty"` // task 46: unread notes for this owner, ≤ 20
+}
+
+// NoteItem is a person's note, quoted. By is the author's display name
+// (never an agent id: a note is text·H); Text.Author is always "human".
+// A tombstoned note is never delivered, and one erased after delivery is
+// not recalled: the Orchestrator's transcript is not the Hub's to edit.
+type NoteItem struct {
+	ID     string             `json:"id"`     // nt-…
+	Target hubapi.NoteTarget  `json:"target"`
+	By     string             `json:"by"`     // "Grace Hopper"
+	Text   teamtext.Text      `json:"text"`
+	At     time.Time          `json:"at"`
+}
+
+// NoteRecipients is who a note is for: the owners whose Orchestrators
+// receive it through inbox. A project note: every current member but the
+// author. A task note: the task's owner. A user note: that user. The author
+// is always removed, so a note never echoes to its own writer.
+func NoteRecipients(n hubapi.Note, members []string, taskOwner func(string) string) []string
+```
+
+Fleet learns of a note from `note.created` on its per-org feed (task 08), reads it through route 73
+under the recipient's `orchestrator` delegation, and holds it **only** in the in-memory unread set
+that task 28's inbox already keeps per Orchestrator (no Fleet Postgres row: a note is a Hub
+record, rule 2 of the global constraints). A restart rebuilds the set from route 73 with `after`
+at the owner's last-read id, which task 28 already persists for messages. A `note.erased` event
+drops the id from every unread set. Delivery is the inbox only: task 38's PTY writer carries a
+fixed template, never a note; task 31's piggyback carries directive ids, never a note; task 16's
+`team.json` and task 22's `WorkerSnapshot` have no note field. **A note addressed to me also makes
+an `inform`** (`05-design.md:735`), raised by task 30's rules for the recipient's own desktop; that
+row is task 30's, and this task only feeds it the note id.
+
+#### Tests to write first
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestAnErasedNoteIsATombstoneAndItsAuditRemains` | Linus writes `nt-A` on the project (marker `ZQX-NOTE-7731` in the text); Ada (org admin) erases it → `{erased: true}`; route 73 lists `nt-A` with `text: null`, `tombstonedAt` set, target and author unchanged; the audit (route 44) still holds `note.created` for `nt-A` **and** one `note.erased` with `by: org_admin`; `markerHits` (Hub task 27) over schema `hub` is empty, `idempotency_keys` included | a tombstone that deletes the row, or the audit event with it; the stored reply keeping the words |
+| `TestAWorkersTeamNeverContainsANote` | with three notes in the project (on the project, on the worker's task, on its owner), `panacea team` from a worker-class session and task 16's `team.json` snapshot contain none of the marker strings and no `nt-…`; a `worker`-class delegation calling route 73 → 403 `forbidden`, `required: "route"` | `notes.read` added to the worker class set, or `WorkerSnapshot` given a notes field |
+| `TestANoteReachesAnOrchestratorOnlyByInboxQuoted` | Grace's Orchestrator's `panacea inbox` holds `nt-A` in `notes` with `by: "Linus Torvalds"`, `text.author: "human"`; her `team`, the turn template (task 26) and the PTY writer's output (task 38) hold neither the text nor the id | a note spliced into the turn template or a nudge |
+| `TestTheAuthorMayEraseTheirOwnNoteOnly` | Linus erases his `nt-A` → 200 `by: author`; Grace (team admin) erasing `nt-A` → 403 `required: "org_admin"`; Linus erasing Grace's note → 403 | the team admin treated as an eraser; the author check by team, not by user |
+| `TestAThreadMessageIsErasedByTheOrgAdminOnly` | Linus (the sender's owner) → 403; Ada → 200; route 63 then lists the message with `text: null`, `kind` and typed `fields` unchanged | the sender's owner allowed to rewrite a negotiation the other side relied on |
+| `TestAHumanMessageIsErasedByItsOwner` | Linus erases his `hm-…` → 200 `by: owner`; Audrey (auditor) → 403; Grace → 404 (she cannot see it, and the route does not reveal it exists) | the auditor treated as an eraser; a 403 that confirms the record exists |
+| `TestASecondEraseIsFalseAndAudited` | erase twice → `erased: true`, then `false` with the same `tombstonedAt`; two `note.erased` events | an attempt that leaves no trace; the time moved by the second call |
+| `TestEraseIsOrgScoped` | Xavier (admin of org 2) erasing `nt-A` → 404 `note_not_found` | a `SECURITY DEFINER` function that ignores `hub.org_id` |
+| `TestTheGuardAllowsOnlyTheTombstoneShape` | as `hub_app`, a direct `UPDATE notes SET text_body = NULL` → `42501`; as `hub_owner` outside the function, changing `target_id` with the tombstone → `42501`; un-tombstoning → `42501`; `DELETE` → `42501` | a guard that trusts the caller, or allows a second write |
+| `TestTheFeedHidesTheEraseReason` | Grace's `GET /v1/changes` shows `note.erased` with `by` and no `reason`; Ada's route 44 shows the reason | a client's matter number broadcast to the team |
+| `TestNoteTargetsAreInTheProject` | a `tk-…` of another project → 422 `target`; a `u-…` who left the team → 422; `project` naming another `pj-…` → 422; a note on Grace's task by Linus → 201 | a target validated by prefix only |
+| `TestNoteTextBoundsAndHygiene` | 1,001 runes → 422 `text_refused`; ANSI `ESC[2J` → 422; a body field `authorUserId` → 400 | the author taken from the body |
+| `TestFleetCannotWriteANote` | Fleet·O under Linus's delegation `POST`s route 72 → 403 `required: "desktop"` | an Orchestrator writing notes that other Orchestrators then quote as a person's |
+| `TestAReplayAfterEraseHasNoWords` | route 72 with `Idempotency-Key: k1`; erase; `k1` again → 201, `Idempotent-Replay: true`, `text: null`, `tombstonedAt` set; same for route 70 | the stored-reply leak (Hub review I6) on the team routes |
