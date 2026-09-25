@@ -50,3 +50,95 @@ S8-P3.5**. The rulings keep 25b gated until phase 3 answers (their "Stream order
 - `control-plane/cmd/api/main.go` — `laneGit.Machines` (modify, where phase 3 builds `laneGit`,
   phase-3 `task-24.md:841-850`)
 - `control-plane/cmd/api/lanegit_cloud_test.go` — the pool against a fake broker (new)
+
+#### Contract (complete)
+
+S8-P3.5, the shape this plan asks of phase 3's `lanegit` (phase 3's spelling wins; if it answers
+with another, Step 1 adapts the wiring and leaves remotebe and `machines` alone):
+
+```go
+package lanegit
+
+// Machine is how the pool reaches the lanes of one machine (S8-P3.5).
+type Machine struct {
+	Backend backend.Backend
+	Dial    func(endpoint, token string) Runner // nil means the pool's Dial, then NewRunner
+	Bundles Bundles                             // S8-P3.4; the local machine's is the OwnedRoot files
+}
+
+// Lanes gains one field:
+//
+//	// Machines answers the machine a lane is on, by lane.MachineID (phase-3 task-03.md:67).
+//	// nil means every lane is on {Backend, Dial, the local Bundles}: phase 3 exactly. For
+//	// calls it with lane.MachineID; Live and Drop find the lane with Store.ByID first. A pool
+//	// entry remembers the Machine it created on, so the Idle timer and Drop destroy there.
+//	Machines func(ctx context.Context, machineID string) (Machine, error)
+//
+// and one method, for the callers of FetchLane, ArchiveLane and SendBranch (tasks 07, 09, 11):
+//
+//	// Bundles answers the Bundles of the machine lane is on.
+//	func (p *Lanes) Bundles(ctx context.Context, lane lanes.Lane) (Bundles, error)
+//
+// Step 2 changes in two places. Neither changes dockerbe or katabe:
+//   - readiness: when the Machine's Backend implements backend.ReadyWaiter (task 22), step 2
+//     calls its WaitReady(ctx, sb.ID, ReadyTimeout), not backend.WaitReady on sb.Endpoint;
+//   - ErrNoRunner is decided from Create's answer, errors.Is(err, backend.ErrUnsupported),
+//     never from Kind(): remotebe's Kind is KindKata (task-22.md:128-130) and it can serve step 2.
+
+// NewRunnerTransport is NewRunner with the http.Client's Transport set to rt. nil rt is
+// NewRunner. Every check NewRunner makes (task-24.md:562-579) is unchanged.
+func NewRunnerTransport(endpoint, token string, rt http.RoundTripper) Runner
+```
+
+How phase 3 decides `ErrNoRunner` today is **UNVERIFIED**: its plan says only "on katabe"
+(phase-3 `task-24.md:684`). If it already decides from `Create`'s answer, that half of the ask is
+answered.
+
+remotebe's additions (`lanegit.go`):
+
+```go
+package remotebe
+
+// RunnerWorkDir is phase 3's sessionWorkDir and sandboxd's -git-worktree default
+// (phase-3 task-24.md:680-683).
+const RunnerWorkDir = "/home/dev/work"
+
+// SandboxHost is the host DialLane gives NewRunnerTransport. .invalid never resolves (RFC 2606),
+// so a request that bypassed GitTransport fails closed.
+const SandboxHost = "sandbox.invalid"
+
+// laneMount maps phase 3's runner-only spec onto this backend's machine. Mounts that are exactly
+// one {HostPath: gitx.MachineRoot + "/lanes/<p>/<d>", ContainerPath: RunnerWorkDir, ReadOnly:
+// false}, with MachineMounts empty, become Mounts nil and MachineMounts
+// [{MachinePath: "lanes/<p>/<d>", ContainerPath: RunnerWorkDir}]. <p> and <d> are one segment
+// each: not "", "." or "..", no "/" or "\". No Mounts: the spec is returned unchanged. Any other
+// Mounts: ErrUnsupported naming the field, before any request. remotebe's host is its machine,
+// and the only host path it maps is one lane. Create runs laneMount, then backend.ValidateSpec
+// (task 15's projects/ refusal), then the request, as today (task-22.md:124-126).
+func laneMount(s backend.Spec) (backend.Spec, error)
+
+// Raw sends body to path with the Entra bearer and returns the response whatever its status,
+// for the caller to read and close. Only a TokenSource failure or a network error is an error:
+// ErrUnavailable, wrapping ErrSignedOut when that was the cause, as Do maps them
+// (task-22.md:159). The sandbox git route and the bundle routes use it: their non-2xx bodies
+// are the runner's or machined's, which Do would re-map (ruling 1 passes them through).
+func (c *Client) Raw(ctx context.Context, method, path string, hdr http.Header, body io.Reader) (*http.Response, error)
+
+// GitTransport takes the request NewRunnerTransport built, POST http://sandbox.invalid/git/v1/<op>
+// with "Authorization: Bearer <attach token>", and sends it through Raw as
+//
+//	POST /v1/sandboxes/<sandboxID>/git/v1/<op>
+//	Panacea-Attach-Token: <attach token>   (brokerapi.HeaderAttachToken, task-18.md:34)
+//	Content-Type: as received
+//
+// with the request's context, body and ContentLength. <op> is one segment of [a-z-]. A method
+// other than POST, another host or path, or no bearer is an error before any request. The
+// answer comes back as received: status, headers, body (phase 3's client decodes it).
+func (c *Client) GitTransport(sandboxID string) http.RoundTripper
+
+// DialLane is Machine.Dial for a cloud machine. An endpoint "remote:<id>" (task 22's opaque
+// endpoint) answers lanegit.NewRunnerTransport(SandboxHost, token, c.GitTransport(id)). Any
+// other endpoint answers a Runner whose transport refuses every op: a cloud lane never dials a
+// pod IP.
+func DialLane(c *Client) func(endpoint, token string) lanegit.Runner
+```
