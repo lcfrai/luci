@@ -190,8 +190,9 @@ func cloudMounts(lane machineapi.WorktreePath, railID string) []backend.MachineM
    lane's, never the rail's: task 20 refuses a primary's id whatever `lane` names. A
    `LaneMachinePath` error is `409 conflict`, reason `lane_path_invalid`. The agent's 409 with
    reason `lane_path_invalid`, `git_config_not_a_file` or `lane_creating` (task 21) is `409
-   conflict` with that reason. Its 404 is `worktree_not_found`. On any of them no sandbox is
-   created.
+   conflict` with that reason. Its 404 is `worktree_not_found`. An answer whose `MachinePath`
+   is not exactly the lane sent is `409 conflict`, reason `lane_path_invalid`: the laptop's index
+   names the directory, never the agent (ruling 1). On any of them no sandbox is created.
 4. `cloudStore.Ensure(ctx, worktreeID)`, then `cloudMounts(path, worktreeID)` → `MachineMounts`;
    `WorkDir: sessionWorkDir` (`sessions.go:33`), `Mounts: nil`, `Machine: machineID`. When
    `gitConfig` is set the `MachineMounts` are three, the file mount listed after the lane mount
@@ -237,7 +238,8 @@ user would wait for a recovery that is not coming.
 go through `conversationStoreFor` in this task (`git grep` for its delete call first); if it has
 not, the local implementation of `Forget`/`Remove` is written here to the same behaviour and the
 follow-up uses the interface. Either way a cloud session's Forget reaches the machine agent's
-`DELETE /v1/conversations/…` (task 20).
+`DELETE /v1/conversations/…` (task 20), keyed by the rail's `WorktreeID`. Removing a primary or
+linked worktree's backing lane is phase 3's lane removal, not this task's.
 
 #### Tests to write first
 
@@ -246,20 +248,41 @@ follow-up uses the interface. Either way a cloud session's Forget reaches the ma
 | `TestCatalogWithoutMachineIDIsUnchanged` | every existing catalog test passes; local objects gain only `machineId: "local"` | a changed phase 2 shape |
 | `TestCloudCatalogComesFromTheMachineAgent` | `?machineId=m-…` → the stand-in agent's projects, each with `machineId` | a cloud catalog read from the laptop's disk |
 | `TestASleepingMachinesCatalogIs409AndDoesNotWake` | 409, `details.state = "sleeping"`, no wake call | a GET that boots a VM |
-| `TestCloudCreateSendsMachineMountsNeverHostMounts` | a stand-in agent whose `WorktreePath` has no `gitConfig`: the fake backend received `Mounts == nil`, two `MachineMounts` with the agent's path and `conversations/<w>`, `WorkDir == "/home/dev/work"` | S8.3 "fixed" by dropping katabe's refusal |
-| `TestCloudCreateBindsTheCloneConfigReadOnly` | the stand-in answers `gitConfig: "lanes/p-1/w-2/.git/config"` → three `MachineMounts`, the second exactly `{MachinePath: "lanes/p-1/w-2/.git/config", ContainerPath: "/home/dev/work/.git/config", ReadOnly: true}`, listed after the worktree mount; the stand-in answering 409 `git_config_not_a_file` → `409 conflict` with that reason and no `Create` | the hygiene bind dropped on cloud machines, or made writable; a session created over a config Kubernetes would make a directory (a `projects/a` mount is retired by R4.1, above) |
+| `TestCloudCreateSendsMachineMountsNeverHostMounts` | lane `w-2` of machine `m-1` in the lane index at `/machine/lanes/p-1/w-2-a1b2c3`, and a stand-in agent whose `WorktreePath` has no `gitConfig`: the agent was asked `/v1/worktrees/w-2/path?lane=lanes%2Fp-1%2Fw-2-a1b2c3` and never without `lane`; the fake backend received `Mounts == nil`, two `MachineMounts`, `lanes/p-1/w-2-a1b2c3` then `conversations/w-2`, and `WorkDir == "/home/dev/work"` | S8.3 "fixed" by dropping katabe's refusal; a lane path taken from the agent, not the laptop's index (ruling 1) |
+| `TestCloudCreateOnPrimaryMountsItsBackingLane` | the stand-in answers `w-p` with 409 `worktree_not_a_lane`, `kind "primary"`, `projectId "p-1"`, `branch "main"`, `path "projects/a"`; a fake `laneCreator` records one `CreateRequest{Project: <the agent's p-1, Path "projects/a">, Branch: "main", Name: "w-p"}` and returns lane `w-l` at `/machine/lanes/p-1/w-p-d4e5f6`. The path is asked for `w-l` with that lane; the first `MachineMount` is `lanes/p-1/w-p-d4e5f6`, the store is `conversations/w-p`, and the recorded session's `WorktreeID` is `w-p`. A second create and a restart on `w-p` find `w-l` by `ByProject`: the creator sees no second call. The same with `kind "linked"` | a session that mounts `projects/<name>` (R4.1); a new lane per start; a conversation store keyed by the lane, which a new lane would orphan |
+| `TestCloudCreateNeverMountsProjects` | over every create and restart the other rows make (a lane, a primary, a linked worktree, a later start), no `MachineMount.MachinePath` is `projects` or starts `projects/`; and a stand-in agent that answers a `WorktreePath` of `projects/a` is `409 conflict`, `lane_path_invalid`, with no `Create` | a mount of the project repository through any path, including an agent that answers one |
+| `TestCloudCreateDetachedIs409` | `worktree_not_a_lane` with `branch ""` and `path "projects/a"` → `409 conflict`, `details.reason "worktree_detached"`, `details.worktreeId "w-p"`, the message exactly phase 3's sentence with `projects/a`; the creator, `POST /v1/dirs` and the backend's `Create` never called; no session recorded | a detached worktree mounted as it is, or a lane cloned from a guessed branch |
+| `TestCloudCreateWithoutCloudLanesIs503` | `Deps.CloudLanes == nil` and a primary id with no backing lane → `503 backend_unavailable`, `details.cloud "lanes_unwired"`, no `Create`; a lane already in the index still starts | a fallback that mounts the primary while task 25 is unbuilt |
+| `TestCloudCreatePassesTheLanePathRefusals` | the stand-in answers the path with 409 `lane_path_invalid`, then `git_config_not_a_file`, then `lane_creating`, then 404 → `409 conflict` with each reason, then `404 worktree_not_found`; no `Create` on any; a lane of machine `m-2` asked on `m-1` → 404 and no agent call | a session started on a lane `machined` refused, or one borrowed from another machine |
+| `TestCloudCreateBindsTheCloneConfigReadOnly` | the stand-in answers `gitConfig: "lanes/p-1/w-2-a1b2c3/.git/config"` → three `MachineMounts`, the second exactly `{MachinePath: "lanes/p-1/w-2-a1b2c3/.git/config", ContainerPath: "/home/dev/work/.git/config", ReadOnly: true}`, listed after the lane mount | the hygiene bind dropped on cloud machines, or made writable |
 | `TestCloudCreateMakesTheStoreBeforeTheSandbox` | the agent saw `POST /v1/dirs` for `conversations/<w>` before the backend saw `Create` | a root-owned store the agent cannot write |
-| `TestCreateOnASleepingMachineWakesItFirst` | wake, then polls, then `Create`; the record was `starting` meanwhile; with the list cached beforehand, the next `GET /v1/machines` after the wake makes a fresh broker call (plan re-review b08-1 issue 5) | "machine asleep" shown to a user who just typed; an implicit wake that leaves the rail at `sleeping` for 5 s, so task 26's waking state never shows |
+| `TestCreateOnASleepingMachineWakesItFirst` | wake, then polls, then the agent's first request, then `Create`; the record was `starting` meanwhile; with the list cached beforehand, the next `GET /v1/machines` after the wake makes a fresh broker call (plan re-review b08-1 issue 5) | "machine asleep" shown to a user who just typed; an agent asked before its pod exists; an implicit wake that leaves the rail at `sleeping` for 5 s, so task 26's waking state never shows |
 | `TestQuotaIs429WithTheLimit` | `ErrQuotaExceeded` from the backend's `Create` → 429 `quota_exceeded`, `details.limit` | a quota shown as "unavailable" |
 | `TestAFullMachineIs409MachineFullWithASentence` | the fake backend returns `&backend.MachineFullError{SessionsPerMachine: 3}` → 409 `machine_full`, `details.sessionsPerMachine = "3"`, the message exactly the first form above; with `1` → `"1"` and exactly the singular form (never "1 sessions"); with `0` → no `sessionsPerMachine` key and exactly the third form, which says nothing of stopping a session (review I5; b05 re-review 6) | a full machine shown as "backend unavailable" or as `conflict` |
-| `TestLocalCreateIsUnchanged` | a local create still sends phase 2's host mounts (`TestCreateBuildsASpecThatMountsTheWorktreeAndCarriesTheArgv`, `sessions_test.go:749`, passes unchanged) | the local machine broken by the cloud branch |
-| `TestCloudForgetReachesTheMachineAgent` | Forget on a cloud session → `DELETE /v1/conversations/<w>/<id>` at the agent | OD-10 honoured on the laptop only |
+| `TestLocalCreateIsUnchanged` | a local create and restart are phase 3 task 05's: its `TestPrimarySessionRunsInALane` and phase 2's `TestCreateBuildsASpecThatMountsTheWorktreeAndCarriesTheArgv` (`sessions_test.go:762` in this tree) pass unchanged, and `Deps.CloudLanes` is never called for `"local"` | the local machine broken by the cloud branch |
+| `TestCloudForgetReachesTheMachineAgent` | Forget on a cloud session on primary `w-p` → `DELETE /v1/conversations/w-p/<id>` at the agent, never the backing lane's id | OD-10 honoured on the laptop only, or on the wrong store |
+
+`machines/agent_test.go`: `TestAsNotALaneDecodesTheDetails` (a 409 with `reason
+"worktree_not_a_lane"` and the four keys → `NotALane` with each; a 409 with another reason, a
+404 and a non-`AgentError` → `ok == false`; kills a decoder that treats every 409 as a primary)
+and `TestWorktreePathEscapesTheLane` (the request's raw query is exactly
+`lane=lanes%2Fp-1%2Fw-2-a1b2c3`; with `lane == ""` there is no query at all; kills a lane sent
+unescaped, or sent empty).
 
 #### Steps
 
-- [ ] **Step 1:** Tests; they fail.
-- [ ] **Step 2:** `machines/agent.go` (typed wrappers over `Client.Stream` for the agent routes);
-  the catalog's `machineId`; `cloudstore.go`; the create path; `CodeMachineFull`.
+- [ ] **Step 1: Preflight.** Phase 3 task 05 has landed: `git grep -n 'ReasonWorktreeDetached' --
+  control-plane/internal/api/` and `git grep -n 'func (c \*Creator) Create(' --
+  control-plane/internal/lanes/` each print one line. Task 20 has landed:
+  `git grep -n 'func LaneMachinePath(' -- control-plane/internal/machineapi/` prints one line.
+  The plan row's `dependsOn` orders both first, so this only confirms it. Then the tests; they
+  fail.
+- [ ] **Step 2:** `machines/agent.go` (typed wrappers over `Client.Stream` for the agent routes,
+  `AgentError`, `AsNotALane`); the catalog's `machineId`; `cloudlane.go` and `Deps.CloudLanes`;
+  `cloudstore.go` and `cloudMounts`; create's and restart's cloud arm in the five steps above;
+  `CodeMachineFull`. Show `TestCloudCreateOnPrimaryMountsItsBackingLane` and
+  `TestCloudCreateNeverMountsProjects` red first against the pre-R4 create, which mounts the
+  agent's path for the rail's id.
 - [ ] **Step 3:** Full run; commit. This task registers no route, so the route audits are
   unchanged and still pass.
 
@@ -267,7 +290,9 @@ follow-up uses the interface. Either way a cloud session's Forget reaches the ma
 
 ```bash
 go test ./sandboxd/... ./control-plane/... -race -count=1        # ok
+go test ./control-plane/internal/api/ -run 'TestCloudCreate|TestLocalCreateIsUnchanged|TestPrimarySessionRunsInALane' -count=1 -v   # every test PASS
 go test ./control-plane/internal/api/ -run 'TestRoutes|TestNoRegisteredGet' -count=1 -v   # unchanged since task 24a
+git grep -n '"projects/' -- control-plane/internal/api/cloudlane.go control-plane/internal/api/cloudstore.go   # no output: no cloud mount is built from projects/
 ```
 
 #### What this task does not claim
@@ -277,6 +302,23 @@ go test ./control-plane/internal/api/ -run 'TestRoutes|TestNoRegisteredGet' -cou
   `docs/superpowers/contracts/2026-09-18-phase-2-ui-contract.md` §2 and `types.ts` together
   (rule SX.2).
 - Adding a project to a cloud machine (a clone through task 21's route): seam S8-P3.2.
+- **A cloud lane is made here only in tests.** The creator for a cloud machine is task 25's
+  (`gitx.Remote`, and the `MachineFS` of env ruling 4); it sets `Deps.CloudLanes`. Until it
+  lands, a cloud create that needs a new backing lane answers `503 backend_unavailable`,
+  `details.cloud "lanes_unwired"`, and mounts nothing. The tests use a fake `laneCreator`, as
+  phase 3's own tests use fakes. Phase 3 has one `GitDeps.Machine` and `GitDeps.Creator`, for the
+  local machine (phase-3 `task-04.md:62-66`, `:256-262`), and no per-machine resolver; so
+  `Deps.CloudLanes` is this plan's, not a phase 3 seam.
+- **A backing lane is made once**, on the branch checked out at the first start: phase 3's own
+  limit (phase-3 `task-05.md:290-292`). Bringing commits in is phase 3 task 09's.
+- **Two first starts on one primary at once.** The second gets phase 3's `name_taken`, exactly as
+  locally. There is no cloud-only retry, so there is one rule, not a cloud twin.
+- **That the rail lists a cloud machine's lanes.** That is task 25's switch to phase 3's
+  composite catalog. Until then `machined` lists primary and linked worktrees only, and a
+  session on one of them runs in a backing lane the rail does not show.
+- **That `LaneMachinePath` reads a lane path a Windows laptop holds.** `Lane.Path` comes from
+  `filepath.Join` over the cloud `CloneRoot`. Task 20 accepts both separators, but what
+  task 25's `gitx.Remote` hands the Creator is **UNVERIFIED** until task 25 exists.
 - **UNVERIFIED:** that a Kata guest enforces a `readOnly` `subPath` **file** mount, so that the
   agent's `git config` write and git's `config.lock` rename onto `/home/dev/work/.git/config`
   both fail inside the microVM. Phase 3's `TestSandboxCloneConfigIsReadOnly` covers Docker
