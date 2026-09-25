@@ -787,40 +787,38 @@ import (
 
 type pr = hubapi.PageRequest
 
+func (f *Fake) GrantProject(_ context.Context, id, t string) (hubapi.ProjectGrant, error) { return hubapi.ProjectGrant{}, f.workNotInFakeYet("GrantProject", id, t) }
+func (f *Fake) ProjectGrants(_ context.Context, id string) ([]hubapi.ProjectGrant, error) { return nil, f.workNotInFakeYet("ProjectGrants", id) }
+func (f *Fake) RevokeProjectGrant(_ context.Context, id, t string) error { return f.workNotInFakeYet("RevokeProjectGrant", id, t) }
+func (f *Fake) SetInitiativeTeams(_ context.Context, id string, ts []string) (hubapi.InitiativeTeams, error) { return hubapi.InitiativeTeams{}, f.workNotInFakeYet("SetInitiativeTeams", id, ts) }
 func (f *Fake) CreateInitiative(_ context.Context, t string, r hubapi.CreateInitiativeRequest) (hubapi.Initiative, error) { return hubapi.Initiative{}, f.workNotInFakeYet("CreateInitiative", t, r) }
 func (f *Fake) Initiatives(_ context.Context, t string, p pr) (hubapi.Page[hubapi.Initiative], error) { return hubapi.Page[hubapi.Initiative]{}, f.workNotInFakeYet("Initiatives", t, p) }
 func (f *Fake) Initiative(_ context.Context, id string) (hubapi.InitiativeView, error) { return hubapi.InitiativeView{}, f.workNotInFakeYet("Initiative", id) }
 func (f *Fake) PatchInitiative(_ context.Context, id string, r hubapi.PatchInitiativeRequest) (hubapi.Initiative, error) { return hubapi.Initiative{}, f.workNotInFakeYet("PatchInitiative", id, r) }
-func (f *Fake) SetFeatureInitiative(_ context.Context, id string, r hubapi.SetFeatureInitiativeRequest) (hubapi.Feature, error) { return hubapi.Feature{}, f.workNotInFakeYet("SetFeatureInitiative", id, r) }
-func (f *Fake) SetInitiativeTeams(_ context.Context, id string, r hubapi.SetInitiativeTeamsRequest) (hubapi.InitiativeTeams, error) { return hubapi.InitiativeTeams{}, f.workNotInFakeYet("SetInitiativeTeams", id, r) }
+func (f *Fake) SetFeatureInitiative(_ context.Context, id string, in *string) (hubapi.Feature, error) { return hubapi.Feature{}, f.workNotInFakeYet("SetFeatureInitiative", id, in) }
 func (f *Fake) PostUpdate(_ context.Context, s hubapi.UpdateSubject, r hubapi.PostUpdateRequest) (hubapi.StatusUpdate, error) { return hubapi.StatusUpdate{}, f.workNotInFakeYet("PostUpdate", s, r) }
 func (f *Fake) Updates(_ context.Context, s hubapi.UpdateSubject, p pr) (hubapi.Page[hubapi.StatusUpdate], error) { return hubapi.Page[hubapi.StatusUpdate]{}, f.workNotInFakeYet("Updates", s, p) }
-func (f *Fake) CreateMilestone(_ context.Context, id string, r hubapi.CreateMilestoneRequest) (hubapi.MilestoneView, error) { return hubapi.MilestoneView{}, f.workNotInFakeYet("CreateMilestone", id, r) }
+func (f *Fake) CreateMilestone(_ context.Context, id string, r hubapi.CreateMilestoneRequest) (hubapi.Milestone, error) { return hubapi.Milestone{}, f.workNotInFakeYet("CreateMilestone", id, r) }
 func (f *Fake) Milestones(_ context.Context, id string) ([]hubapi.MilestoneView, error) { return nil, f.workNotInFakeYet("Milestones", id) }
-func (f *Fake) PatchMilestone(_ context.Context, id string, r hubapi.PatchMilestoneRequest) (hubapi.MilestoneView, error) { return hubapi.MilestoneView{}, f.workNotInFakeYet("PatchMilestone", id, r) }
-func (f *Fake) SetMilestoneCriteria(_ context.Context, id string, r hubapi.SetMilestoneCriteriaRequest) (hubapi.MilestoneView, error) { return hubapi.MilestoneView{}, f.workNotInFakeYet("SetMilestoneCriteria", id, r) }
-func (f *Fake) AddFeatureDependency(_ context.Context, id string, r hubapi.FeatureDependencyRequest) (hubapi.FeatureDependencyView, error) { return hubapi.FeatureDependencyView{}, f.workNotInFakeYet("AddFeatureDependency", id, r) }
+func (f *Fake) PatchMilestone(_ context.Context, id string, r hubapi.PatchMilestoneRequest) (hubapi.Milestone, error) { return hubapi.Milestone{}, f.workNotInFakeYet("PatchMilestone", id, r) }
+func (f *Fake) SetMilestoneCriteria(_ context.Context, id string, cs []string) (hubapi.Milestone, error) { return hubapi.Milestone{}, f.workNotInFakeYet("SetMilestoneCriteria", id, cs) }
+func (f *Fake) AddFeatureDependency(_ context.Context, id, b string) (hubapi.FeatureDependency, error) { return hubapi.FeatureDependency{}, f.workNotInFakeYet("AddFeatureDependency", id, b) }
+func (f *Fake) FeatureDependencies(_ context.Context, id string) ([]hubapi.FeatureDependency, error) { return nil, f.workNotInFakeYet("FeatureDependencies", id) }
 func (f *Fake) RemoveFeatureDependency(_ context.Context, id, b string) error { return f.workNotInFakeYet("RemoveFeatureDependency", id, b) }
-func (f *Fake) FeatureDependencies(_ context.Context, id string) ([]hubapi.FeatureDependencyView, error) { return nil, f.workNotInFakeYet("FeatureDependencies", id) }
-func (f *Fake) CreateBriefTemplate(_ context.Context, t string, r hubapi.CreateBriefTemplateRequest) (hubapi.BriefTemplate, error) { return hubapi.BriefTemplate{}, f.workNotInFakeYet("CreateBriefTemplate", t, r) }
-func (f *Fake) BriefTemplates(_ context.Context, t string) ([]hubapi.BriefTemplate, error) { return nil, f.workNotInFakeYet("BriefTemplates", t) }
-func (f *Fake) PatchBriefTemplate(_ context.Context, id string, r hubapi.PatchBriefTemplateRequest) (hubapi.BriefTemplate, error) { return hubapi.BriefTemplate{}, f.workNotInFakeYet("PatchBriefTemplate", id, r) }
-func (f *Fake) CreateFeatureFromTemplate(_ context.Context, id string, r hubapi.CreateFeatureFromTemplateRequest) (hubapi.Feature, error) { return hubapi.Feature{}, f.workNotInFakeYet("CreateFeatureFromTemplate", id, r) }
+func (f *Fake) CreateFeatureFromTemplate(_ context.Context, id string, r hubapi.CreateFeatureFromTemplateRequest) (hubapi.FeatureFromTemplate, error) { return hubapi.FeatureFromTemplate{}, f.workNotInFakeYet("CreateFeatureFromTemplate", id, r) }
 func (f *Fake) SetTemplateSchedule(_ context.Context, id string, s hubapi.TemplateSchedule) (hubapi.TemplateSchedule, error) { return hubapi.TemplateSchedule{}, f.workNotInFakeYet("SetTemplateSchedule", id, s) }
 func (f *Fake) ClearTemplateSchedule(_ context.Context, id string) error { return f.workNotInFakeYet("ClearTemplateSchedule", id) }
 func (f *Fake) SetReminderPolicy(_ context.Context, p hubapi.ReminderPolicy) (hubapi.ReminderPolicy, error) { return hubapi.ReminderPolicy{}, f.workNotInFakeYet("SetReminderPolicy", p) }
 func (f *Fake) SetTriageRotation(_ context.Context, t string, r hubapi.TriageRotation) (hubapi.TriageRotationView, error) { return hubapi.TriageRotationView{}, f.workNotInFakeYet("SetTriageRotation", t, r) }
 func (f *Fake) TriageRotation(_ context.Context, t string) (hubapi.TriageRotationView, error) { return hubapi.TriageRotationView{}, f.workNotInFakeYet("TriageRotation", t) }
-func (f *Fake) QueryInsights(_ context.Context, q hubapi.InsightsQuery) (hubapi.InsightsResult, error) { return hubapi.InsightsResult{}, f.workNotInFakeYet("QueryInsights", q) }
+func (f *Fake) QueryInsights(_ context.Context, t string, q hubapi.InsightsQuery) (hubapi.InsightsResult, error) { return hubapi.InsightsResult{}, f.workNotInFakeYet("QueryInsights", t, q) }
 func (f *Fake) GetReadCursor(_ context.Context, s hubapi.ReadScope) (hubapi.ReadCursor, error) { return hubapi.ReadCursor{}, f.workNotInFakeYet("GetReadCursor", s) }
-func (f *Fake) AdvanceReadCursor(_ context.Context, c hubapi.ReadCursor) (hubapi.ReadCursor, error) { return hubapi.ReadCursor{}, f.workNotInFakeYet("AdvanceReadCursor", c) }
-func (f *Fake) MarkSeen(_ context.Context, r hubapi.MarkSeenRequest) ([]hubapi.ReadCursor, error) { return nil, f.workNotInFakeYet("MarkSeen", r) }
-func (f *Fake) GrantProject(_ context.Context, id string, r hubapi.GrantProjectRequest) (hubapi.ProjectGrant, error) { return hubapi.ProjectGrant{}, f.workNotInFakeYet("GrantProject", id, r) }
-func (f *Fake) RevokeProjectGrant(_ context.Context, id, t string) error { return f.workNotInFakeYet("RevokeProjectGrant", id, t) }
-func (f *Fake) ProjectGrants(_ context.Context, id string) ([]hubapi.ProjectGrant, error) { return nil, f.workNotInFakeYet("ProjectGrants", id) }
+func (f *Fake) AdvanceReadCursor(_ context.Context, s hubapi.ReadScope, n int64) (hubapi.ReadCursor, error) { return hubapi.ReadCursor{}, f.workNotInFakeYet("AdvanceReadCursor", s, n) }
+func (f *Fake) MarkSeen(_ context.Context, ss []hubapi.ReadScope, n int64) ([]hubapi.ReadCursor, error) { return nil, f.workNotInFakeYet("MarkSeen", ss, n) }
+func (f *Fake) ScopedChanges(_ context.Context, s hubapi.ReadScope, a string, l int) (hubapi.ScopedChangesPage, error) { return hubapi.ScopedChangesPage{}, f.workNotInFakeYet("ScopedChanges", s, a, l) }
 ```
 
-**`hubclient/client_work_roadmap_stub.go`** is the same thirty-one lines with the receiver
+**`hubclient/client_work_roadmap_stub.go`** is the same twenty-nine lines with the receiver
 `(c *Client)` and every body `return <zero>, ErrNotConfigured` (task 04's client idiom,
 `task-04.md:1169`), and no `pr` alias (it reuses this file's, same package). Step 3 derives it
 from this file and checks it with `go vet`; task 124 deletes it.
@@ -832,7 +830,7 @@ and fails again on its mutant.
 
 | Test | Asserts | Mutant it kills |
 |---|---|---|
-| `TestWorkRoadmapGoldens` | each of the seventeen goldens decodes strictly (`DisallowUnknownFields`) and re-encodes byte for byte | a field renamed or retagged (`target_date`, `pinned_brief`) |
+| `TestWorkRoadmapGoldens` | each of the nineteen goldens decodes strictly (`DisallowUnknownFields`) and re-encodes byte for byte | a field renamed or retagged (`target_date`, `pinned_brief`) |
 | `TestWorkRoadmapEmptyListsAreArrays` | a zero `InitiativeTeams`, `StatusUpdate`, `Milestone`, `InsightsResult` built by its constructor encodes `[]`, never `null` | `omitempty` on a list |
 | `TestHealthIsThreeWords` | `ValidHealth` true for the three; `"green"`, `""`, `"On_Track"` false; `PostUpdateRequest.Validate` names `health` | free-text health |
 | `TestAnUpdateIsPinned` | `pinnedBrief` `""`, `brief:bf-…` with no `@r`, and `issue:is-…@1` each fail on `pinnedBrief` | an unpinned update |
@@ -866,7 +864,7 @@ func camelWords(s string) []string {
 
 func TestNoPredictionFields(t *testing.T) {
 	types := []any{Initiative{}, InitiativeTeams{}, StatusUpdate{}, Milestone{}, MilestoneView{},
-		FeatureDependency{}, FeatureDependencyView{}, BriefTemplate{}, TemplateSchedule{},
+		FeatureDependency{}, FeatureFromTemplate{}, ScopedChangesPage{}, TemplateSchedule{},
 		ReminderPolicy{}, TriageRotation{}, TriageRotationView{}, InsightsQuery{}, InsightsResult{},
 		InsightGroup{}, InsightPoint{}, ReadCursor{}, ProjectGrant{}, InitiativeView{},
 		InitiativeFeature{}, UpdateStamp{}, CriterionWord{}}
@@ -926,18 +924,20 @@ which is the embed. `hubclient.go:147-148` already holds `_ Hub = (*Client)(nil)
 **The goldens**, under `hubapi/testdata/work-roadmap/`, one per shape, each written by hand from
 the structs above and never generated from the code (a generated golden cannot catch a retag):
 `initiative.json`, `initiative-teams.json`, `status-update.json`, `status-update-erased.json`,
-`milestone.json`, `milestone-view.json`, `feature-dependency-view.json`, `brief-template.json`,
-`template-schedule.json`, `reminder-policy.json`, `triage-rotation-view.json`,
-`insights-query.json`, `insights-result.json`, `insights-result-empty.json` (the `null`
-percentiles), `read-cursor.json`, `project-grant.json`, `initiative-view.json` (one feature with
-`latestUpdate: null`, one with a stamp). Seventeen.
+`milestone.json`, `milestone-view.json`, `feature-dependency.json` (`orderViolated: true`),
+`template-brief.json` (task 72's `Template` with `kind: "brief"` and the two new fields),
+`feature-from-template.json`, `template-schedule.json`, `reminder-policy.json`,
+`triage-rotation-view.json`, `insights-query.json`, `insights-result.json`,
+`insights-result-empty.json` (the `null` percentiles), `read-cursor.json`, `project-grant.json`,
+`scoped-changes-page.json` (`truncated: true`), `initiative-view.json` (one feature with
+`latestUpdate: null`, one with a stamp). Nineteen.
 
 #### Steps
 
 - [ ] **Step 1: Sync and re-read (15 min).** Sync-merge `feat/hub` (rule H1). Re-read the anchors
   above; take the merged names of task 02's prefixes, task 72's `Feature`, and Phase T's `nt-`
   prefix. A renamed symbol is a find-and-replace in this part; record it in the commit.
-- [ ] **Step 2: Tests first (60 min).** Write `work_roadmap_test.go`, the seventeen goldens and
+- [ ] **Step 2: Tests first (60 min).** Write `work_roadmap_test.go`, the nineteen goldens and
   `hubclient/work_roadmap_test.go`. `go test ./control-plane/internal/hub/hubapi/` fails to
   build: the types do not exist.
 - [ ] **Step 3: The wire (75 min).** Write `work_roadmap.go`, the `codes.go` block, the
@@ -957,13 +957,13 @@ go test ./control-plane/internal/hub/hubapi/ -race -count=1 -v -run '^Test(WorkR
 go test ./control-plane/internal/hub/... -race -count=1
 # ok for every package; W1-W3's goldens unchanged
 ls control-plane/internal/hub/hubapi/testdata/work-roadmap/ | wc -l
-# 17
+# 19
 grep -c '^func (f \*Fake)' control-plane/internal/hub/hubclient/fake_work_roadmap_stub.go
-# 31
+# 29
 ```
 
 Twelve: the eleven table rows and `TestNoPredictionFieldsCatchesOne`. The golden test's
-seventeen sub-tests are indented under `-v`, so `^--- PASS` counts their parent once.
+nineteen sub-tests are indented under `-v`, so `^--- PASS` counts their parent once.
 
 #### What this task does not claim
 
@@ -990,10 +990,15 @@ templates, 120); L-150 and L-151 (insights, 122, 132). This task closes none of 
 
 1. **L-53's acceptance counts have no home in SW.20** (the scope's own note). Task 136 must either
    add a record here, additively, or keep the counts desktop-side and say so.
-2. **`SetMilestoneCriteria` and `FeatureDependencies` have no path in task 120's scope**; this
-   task fixed them (the † rows). Task 120's part must register exactly those.
+2. **`SetMilestoneCriteria` and `FeatureDependencies` have no path in task 120's scope**; task
+   124 fixed them (the † rows) and task 120's part must register exactly those.
 3. **Not-found codes.** The scope lists four codes; the routes need three 404s (decision 4).
 4. **The W2 split is not repeated.** 72 declared `WorkPlan` standalone and 73 embedded it; this
    scope embeds at once. The stub files keep every commit building; task 115's part must delete
    `fake_work_roadmap_stub.go` in the commit that adds the real methods, and task 124's
    `client_work_roadmap_stub.go`.
+5. **The scope's `BriefTemplate` record and its method set are replaced** by two added fields on
+   task 72's `Template` (decision 8). Task 72's and 78's parts, not yet written, must carry
+   `criteria` and `issueTemplateIds`, and task 120 must accept `kind: "brief"` on task 78's route.
+6. **Task 124's gap 7** (a caller-scoped list of projects granted to the caller's teams) is not
+   in SW.20 either; when task 117 adds the route, `WorkRoadmap` gains one method, additively.
