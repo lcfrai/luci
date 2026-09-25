@@ -35,10 +35,12 @@ on record.
 - `control-plane/internal/hub/server/taint.go` + `taint_integration_test.go`: the Hub's copy of
   the rule (new)
 - `control-plane/internal/hub/server/team2_world_test.go`: task 06's world plus threads (new)
+- `control-plane/internal/hub/server/escalations_test.go`: `TestFleetIsNeverAnAuditor`, a unit test (new)
 - `control-plane/internal/hub/store/{threads,messages,escalations,directives,humanmsgs}.go` (new)
 - `control-plane/internal/hub/server/server.go`: `s.registerTeamPart2()` (modify: one line)
-- `control-plane/internal/hub/server/auth.go` (task 05): `Principal.Auditor bool` from the
-  token's `Hub.Auditor` app role (modify, if task 05 has not already added it; see "Gaps")
+- `control-plane/internal/hub/server/auth.go` (task 05): `Principal.Auditor bool` from a desktop
+  token's `Hub.Auditor` app role, always false under a delegation (modify; task 05 leaves it to
+  this task, `task-05.md:851-852`)
 
 **Interfaces:**
 - Consumes:
@@ -48,8 +50,10 @@ on record.
     `AppendMessageRequest`, `MessageKind`, `Resolution`, `Escalation`, `CreateEscalationRequest`,
     `AnswerEscalationRequest`, `Directive`, `AppendDirectiveRequest`, `DirectiveKind`, `Rung`,
     `TurnOrigin`, `RecordTurnRequest`, `HumanMessage`, `CreateHumanMessageRequest`, and
-    `teamtext.Text` on every text field. **Task 03's part is not yet written; where it names a
-    type differently, task 03 wins and this part is renamed mechanically.**
+    `teamtext.Text` on every text field; the `RouteName` constants (`task-03.md:377-386`). Task 03
+    wins wherever a name here differs (`task-03.md:27-32`).
+  - from task 05: `Principal.Via`, `Principal.Delegation`, and `Delegable(name, h)`, through which
+    every Fleet-reachable route here is registered (`task-05.md:49-53`, `:315-327`, `:837-839`).
   - from task 04: tables `threads`, `messages` (append-only), `escalations`, `directives`
     (append-only), `human_messages` (append-only, `tombstoned_at`), each keyed by `org_id` under
     RLS, with the database `CHECK` bounds that mirror task 02.
@@ -394,20 +398,29 @@ separate function (`store.EscalationsForAuditor`), so no call site passes an emp
 ```go
 // control-plane/internal/hub/server/threads.go (excerpt)
 func (s *Server) registerTeamPart2() {
-	s.mux.HandleFunc("POST /v1/projects/{p}/threads", s.openThread)
-	s.mux.HandleFunc("PATCH /v1/projects/{p}/threads/{th}", s.patchThread)
-	s.mux.HandleFunc("POST /v1/projects/{p}/threads/{th}/messages", s.appendMessage)
-	s.mux.HandleFunc("GET /v1/projects/{p}/threads/{th}/messages", s.listMessages)
-	s.mux.HandleFunc("POST /v1/projects/{p}/escalations", s.createEscalation)
+	// Desktop only (routes 65, 70): no route name, so Fleet is 403 by construction.
 	s.mux.HandleFunc("POST /v1/escalations/{es}/answer", s.answerEscalation)
-	s.mux.HandleFunc("GET /v1/projects/{p}/escalations", s.listEscalations)
-	s.mux.HandleFunc("POST /v1/projects/{p}/directives", s.appendDirective)
-	s.mux.HandleFunc("GET /v1/projects/{p}/directives", s.listDirectives)
-	s.mux.HandleFunc("POST /v1/projects/{p}/turns", s.recordTurn)
 	s.mux.HandleFunc("POST /v1/projects/{p}/human-messages", s.writeHumanMessage)
-	s.mux.HandleFunc("GET /v1/projects/{p}/human-messages", s.listHumanMessages)
+
+	// Fleet-reachable: each under its task 03 name (task 05 decision (d)).
+	d := func(pattern string, name hubapi.RouteName, h http.HandlerFunc) {
+		s.mux.Handle(pattern, Delegable(name, h))
+	}
+	d("POST /v1/projects/{p}/threads", hubapi.RouteThreadsCreate, s.openThread)
+	d("PATCH /v1/projects/{p}/threads/{th}", hubapi.RouteThreadsUpdate, s.patchThread)
+	d("POST /v1/projects/{p}/threads/{th}/messages", hubapi.RouteMessagesAppend, s.appendMessage)
+	d("GET /v1/projects/{p}/threads/{th}/messages", hubapi.RouteMessagesRead, s.listMessages)
+	d("POST /v1/projects/{p}/escalations", hubapi.RouteEscalationsCreate, s.createEscalation)
+	d("GET /v1/projects/{p}/escalations", hubapi.RouteEscalationsRead, s.listEscalations)
+	d("POST /v1/projects/{p}/directives", hubapi.RouteDirectivesAppend, s.appendDirective)
+	d("GET /v1/projects/{p}/directives", hubapi.RouteDirectivesRead, s.listDirectives)
+	d("POST /v1/projects/{p}/turns", hubapi.RouteTurnsRecord, s.recordTurn)
+	d("GET /v1/projects/{p}/human-messages", hubapi.RouteHumanMessagesRead, s.listHumanMessages)
 }
 ```
+
+Two bare, ten named. Task 06's `TestEveryFleetRouteIsNamed` gains these twelve rows (ten named,
+routes 65 and 70 bare); its mutant is the same, one `d(…)` written as a bare `HandleFunc`.
 
 The private reads share one helper so the filter cannot be forgotten on one of them:
 
@@ -423,9 +436,25 @@ func privateOwner(p Principal) (owner string, all bool) {
 }
 ```
 
-`Principal.Auditor` is read from the token's `roles` claim (`Hub.Auditor`, task 01 §5.2) where
-Hub task 13 reads `Hub.OrgAdmin` for `OrgAdmin`. If task 05 already added it, this task only uses
-it.
+`Principal.Auditor` is read from a desktop token's `roles` claim (`Hub.Auditor`, task 01 §5.2)
+where Hub task 13 reads `Hub.OrgAdmin` for `OrgAdmin`, and task 05's `resolveDelegated` leaves it
+false exactly as it leaves `OrgAdmin` false (task 05 decision (e), `task-05.md:875-876`). So the
+`p.Via == ""` term above is a second layer, not the only one. Its test is a plain unit test (no
+database) in `escalations_test.go`, written with Step 1's and run by the default `go test`:
+
+```go
+// Mutant killed: the p.Via == "" term dropped, so a principal that is both
+// delegated and marked Auditor (task 05's decision (e) regressed) reads every
+// member's escalations through Fleet.
+func TestFleetIsNeverAnAuditor(t *testing.T) {
+	if o, all := privateOwner(Principal{UserID: "u-L", Auditor: true, Via: hubapi.ViaFleet}); all || o != "u-L" {
+		t.Fatalf("delegated auditor: owner %q, all %v", o, all)
+	}
+	if _, all := privateOwner(Principal{UserID: "u-A", Auditor: true}); !all {
+		t.Fatal("a desktop auditor was narrowed to its own rows")
+	}
+}
+```
 
 - [ ] **Step 5: Run the tests to verify they pass**
 
@@ -468,7 +497,8 @@ git commit -F .superpowers/sdd/team/msg/t07.txt -- control-plane/internal/hub/se
 1. Step 5 passes, and the three tests the scope paragraph names exist by those names:
    `TestGraceCannotReadLinussEscalation` (Bob cannot read Alice's), `TestDirectivesHaveNoPatch`,
    `TestEscalationAnsweredBySomeoneElseIs403`.
-2. `grep -c 'HandleFunc' control-plane/internal/hub/server/threads.go` prints `12`.
+2. `grep -c 's.mux.HandleFunc(' control-plane/internal/hub/server/threads.go` prints `2` (routes 65,
+   70) and `grep -c '^	d("' control-plane/internal/hub/server/threads.go` prints `10`.
 3. `grep -n 'func.*Update\|UPDATE ' control-plane/internal/hub/store/{messages,directives,humanmsgs}.go`
    prints nothing: the append-only records have no update path in Go (task 04 holds the database
    half).
@@ -497,8 +527,9 @@ git commit -F .superpowers/sdd/team/msg/t07.txt -- control-plane/internal/hub/se
 
 1. **The auditor principal.** §3.4 and task 01 §5.2 give reads to an org *auditor*, but neither
    task 05's scope nor task 43's ("*auditor* and *compliance*") says which task adds
-   `Principal.Auditor` before task 07 needs it. This part adds it if task 05 has not; task 43
-   should then only add its matrix rows.
+   `Principal.Auditor` before task 07 needs it. Task 05 leaves it here (`task-05.md:851-852`), so
+   this part adds it; task 43 should only add its matrix rows. The skeleton's scope for 07 should
+   say so.
 2. **Thread and escalation reads for rebuild.** Task 11's `rebuild.go` needs Fleet's open threads
    and unanswered escalations after a restart. Route 63 lists a thread's messages but there is no
    route that lists **threads**. Fleet can rebuild them from its own feed cursor only if it never
