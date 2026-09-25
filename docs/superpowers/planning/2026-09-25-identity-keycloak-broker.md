@@ -161,3 +161,61 @@ needs Keycloak **token exchange** (external to internal), a preview feature Pana
 enable; (3) it adds a native WAM binding to the control plane. The system-browser flow already has zero
 clicks. Revisit only in phase 8, on our own Keycloak, if the owner judges the brief browser tab a problem.
 
+## 4. The token profile (`keycloak`)
+
+**The person key is `(tid, oid)`: Entra's tenant id and object id, carried through Keycloak as claims.**
+Never `sub`. Keycloak's `sub` is its own user id and changes if the user is re-created in another realm;
+Entra's `oid` is fixed per person per tenant across every app. Carrying `oid` means the key survives the
+move to phase 8's own Keycloak (same registration, same `oid`) and a later move to direct Entra (native
+`oid`). It also means every BUILT consumer of `(tid, oid)` stands unchanged: `Claims.Key()`
+(env `control-plane/internal/entra/entra.go:56-58`), `sandbox.OwnerLabelValue(tenantID, objectID)`
+(env `control-plane/internal/sandbox/manager.go:138-141`), `hubapi.Org.TenantID` (hub
+`control-plane/internal/hub/hubapi/types.go:104`), the Hub schema `(entra_tenant_id, entra_oid)` and
+phase 6's `wire.Owner{TID, OID}`.
+
+**Access-token claims a validator relies on:**
+
+| Claim | Value | Rule |
+|---|---|---|
+| `iss` | exactly `PANACEA_APP_OIDC_ISSUER` | exact string compare |
+| `typ` | `Bearer` | required; refuses id and refresh tokens |
+| `aud` | string or array, **contains** the service's audience: `panacea-app-hub`, `panacea-app-broker`, `panacea-app-gateway` or `panacea-app-fleet`. May also hold Keycloak's `account`. | contains, not equals |
+| `azp` | `panacea-app-desktop` for a person; a service client id for a service caller (section 6) | in the service's allowlist |
+| `oid` | Entra object id, GUID | **required** for a person token; absent on a service token |
+| `tid` | Entra tenant id, GUID | required for a person; must be an enrolled tenant (the Hub's org key) |
+| `scope` | space-separated; contains the audience scope's name | Keycloak's `scope` replaces Entra's `scp` |
+| `roles` | flat array of realm role names; the Hub reads **`hub.org_admin`** | replaces the Entra app role `Hub.OrgAdmin` (hub ADR-H1 `:430`) |
+| `email`, `email_verified` | from Entra through Panacea's `email` IdP mapper, `trustEmail:true` | the Hub's invite match (contract `:318-319`, unchanged) |
+| `name`, `preferred_username` | `preferred_username` = the email (Panacea's username mapper, `setup-keycloak.sh:568-579`) | display only |
+| `sub` | Keycloak user id | logged, never a key |
+| `groups` | **absent**: the desktop does not request Panacea's optional `groups` scope | Hub membership is the Hub's own (ADR-H1 §6.6 stands) |
+
+`hub.org_admin` is a **realm role** assigned by the realm's admin (Panacea's team now, ours in phase 8),
+not by IT. Scopes `Hub.Access` and `Sandboxes.Access` no longer exist; the audience scopes replace them.
+
+**Every mapper, and nothing else is added:**
+
+| # | Where | Type | Config |
+|---|---|---|---|
+| M1 | IdP `entra` | `oidc-user-attribute-idp-mapper` | claim `oid` -> user attribute `entra_oid`, **syncMode `FORCE`** |
+| M2 | IdP `entra` | `oidc-user-attribute-idp-mapper` | claim `tid` -> user attribute `entra_tid`, **syncMode `FORCE`** |
+| UP | realm user profile | attribute declarations | `entra_oid`, `entra_tid`: view `admin`, edit `admin` only |
+| P1 | client `panacea-app-desktop` (dedicated scope) | `oidc-usermodel-attribute-mapper` | `entra_oid` -> claim `oid`, String; access token + id token |
+| P2 | same | `oidc-usermodel-attribute-mapper` | `entra_tid` -> claim `tid`, String; access token + id token |
+| P3 | same | `oidc-usermodel-realm-role-mapper` | claim `roles`, multivalued; access token only |
+| A1-A4 | client scopes `panacea-app-hub`, `-broker`, `-gateway`, `-fleet`, each **optional** on the desktop client, `include.in.token.scope: true` | `oidc-audience-mapper` | `included.custom.audience` = the scope's own name; access token only |
+
+Why each non-obvious setting:
+- **`FORCE`, not the IdP's `IMPORT`** (`setup-keycloak.sh:495-507`): Panacea's users already exist in the
+  realm. An `IMPORT` mapper writes only when a user is first created, so every existing user would never
+  get `entra_oid`. `oid` and `tid` never change, so `FORCE` rewrites the same value at each login.
+- **UP, admin-only**: Keycloak 24 and later always run the declarative user profile; an undeclared attribute
+  is "unmanaged", which a realm may drop. Declaring it admin-edit-only also stops a user rewriting their own
+  `entra_oid` in the account console, which would let them become someone else.
+- **Audience scopes, optional**: the authorize request asks for all four; each refresh narrows to one
+  (section 2, step 7), so a token given to the broker cannot be replayed at the Hub (the Hub contract's
+  confused-deputy defence, `:2070`, kept).
+- Keycloak's built-in scopes (`basic`, `profile`, `email`, `roles`, `web-origins`, `acr`) are left as the
+  realm has them (facts §5). P3's flat `roles` duplicates `realm_access.roles` so both profiles read one
+  claim name.
+
