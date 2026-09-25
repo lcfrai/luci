@@ -417,3 +417,72 @@ describe("grain", () => {
 finds. `flags.ts`, `FlagCompare.tsx` (`flag="grain"`) and `GrainMeter.tsx` (`setFlag("grain", …)`)
 name the flag, not the class, and are the two exclusions. That no other source file holds the
 literal today is **UNVERIFIED** until step 2 runs it; a hit would name its file.
+
+#### Tests to write first — `desktop/src/components/devtools/GrainMeter.test.tsx`
+
+```tsx
+import { afterEach, describe, expect, it } from "vitest";
+import { resetFlags, setFlag } from "../../lib/flags";
+import { grainRule, measureGrain, percentile, resultLine, scrollPass, summarise } from "./GrainMeter";
+
+afterEach(() => resetFlags());
+
+describe("the grain meter", () => {
+  it("reports p50 and p95 from recorded intervals", () => {
+    // Kills: a mean reported as p95 (18.55), the max reported as p95 (50), an off-by-one rank.
+    const intervals = [...Array.from({ length: 18 }, () => 16), 50, 33];
+    expect(summarise(intervals)).toEqual({ frames: 20, p50: 16, p95: 33 });
+    expect(percentile([1, 2, 3, 4], 50)).toBe(2);
+    expect(percentile([], 95)).toBeNaN();
+  });
+
+  it("applies the recorded rule and prints the device pixel ratio", () => {
+    // Kills: a rule that ignores the 16.7 ms frame, one that ignores the 1 ms margin, and a line
+    // that drops the DPR the numbers were taken at.
+    const s = (p95: number) => ({ frames: 300, p50: 16.6, p95 });
+    expect(grainRule(s(16.4), s(15.9))).toBe("grain stays");
+    expect(grainRule(s(17.0), s(16.5))).toBe("to the owner");
+    expect(grainRule(s(14.0), s(12.5))).toBe("to the owner");
+    expect(resultLine("grain on", s(16.4), 1.5)).toBe("grain on  p50 16.6 ms  p95 16.4 ms  frames 300  dpr 1.5");
+  });
+
+  it("records one interval per frame and stops at the time limit", async () => {
+    // Kills: a pass that counts the first frame as an interval, or never stops.
+    let t = 0;
+    const raf = (cb: (now: number) => void): number => {
+      const now = t;
+      t += 16;
+      queueMicrotask(() => cb(now));
+      return 0;
+    };
+    const intervals = await scrollPass(document.createElement("div"), 100, raf);
+    expect(intervals).toEqual([16, 16, 16, 16, 16, 16, 16]);
+  });
+
+  it("measures once with grain and once without, then restores the flag", async () => {
+    // Kills: two passes under one condition, and a meter that leaves grain off afterwards.
+    setFlag("grain", "on");
+    const seen: (string | null)[] = [];
+    const pass = async (): Promise<number[]> => {
+      seen.push(document.documentElement.getAttribute("data-grain"));
+      return [16, 17];
+    };
+    const { on, off } = await measureGrain(document.createElement("div"), pass);
+    expect(seen).toEqual([null, "off"]);
+    expect([on.frames, off.frames]).toEqual([2, 2]);
+    expect(document.documentElement.hasAttribute("data-grain")).toBe(false);
+  });
+});
+```
+
+The fake frame clock starts at 0 and steps 16 ms; the pass stops on the first frame at or past
+100 ms (the frame at 112), so it records seven intervals. `AppShell.test.tsx:192-193` and
+`defects.test.tsx:193-201` are not edited: they pin that the shell carries `grain`, which this
+task keeps.
+
+#### Tests to change — `desktop/src/lib/flags.test.ts`
+
+In *writes each flag to the root element*: `setFlag("grain", "off");` and
+`expect(root().getAttribute("data-grain")).toBe("off");`. In *removes the attribute when a flag
+returns to its default*: `setFlag("grain", "off"); setFlag("grain", "on");` and
+`expect(root().hasAttribute("data-grain")).toBe(false);`.
