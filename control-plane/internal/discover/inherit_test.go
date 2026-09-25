@@ -417,6 +417,11 @@ func TestResolveRefusesAMalformedRevision(t *testing.T) {
 	// on one line.
 	projectOnABranch := rvProject()
 	projectOnABranch.BranchRef = "refs/heads/main"
+	projectRef := func(ref string) *Revision {
+		r := rvProject()
+		r.BranchRef = ref
+		return r
+	}
 	withRef := func(ref string) *Revision {
 		r := rvBranch()
 		r.BranchRef = ref
@@ -439,6 +444,10 @@ func TestResolveRefusesAMalformedRevision(t *testing.T) {
 		{"a brief id with a no-break space", withID("bf- b7"), nil},
 		{"revision 0", zero, nil},
 		{"a project revision with a branch ref", projectOnABranch, nil},
+		{"a project revision with a bare name", projectRef("main"), nil},
+		{"a project revision with a space", projectRef(" "), nil},
+		{"a branch ref in capitals", rvProject(), withRef("REFS/HEADS/evidence-upload")},
+		{"a branch ref with one capital", rvProject(), withRef("Refs/heads/evidence-upload")},
 		{"a branch revision with no branch ref", rvProject(), withRef("")},
 		{`a branch ref of "refs/heads/" alone`, rvProject(), withRef("refs/heads/")},
 		{"a branch ref that is a bare name", rvProject(), withRef("evidence-upload")},
