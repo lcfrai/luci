@@ -652,6 +652,9 @@ func (f *Fake) PatchIssue(_ context.Context, issueID string, req hubapi.PatchIss
 	if err := need(role, hubapi.RoleMember); err != nil {
 		return hubapi.IssueHead{}, err
 	}
+	if err := w.erasedWrite(is); err != nil {
+		return hubapi.IssueHead{}, err
+	}
 	setA, assignee, err := req.AssigneeChange()
 	switch {
 	case err != nil:
@@ -736,6 +739,9 @@ func (f *Fake) WriteIssueRevision(_ context.Context, issueID string, req hubapi.
 		return hubapi.IssueRevision{}, err
 	}
 	if err := need(role, hubapi.RoleMember); err != nil {
+		return hubapi.IssueRevision{}, err
+	}
+	if err := w.erasedWrite(is); err != nil {
 		return hubapi.IssueRevision{}, err
 	}
 	if req.BaseRevision != is.head.HeadRevision {
@@ -825,6 +831,9 @@ func (f *Fake) RestoreIssueRevision(_ context.Context, issueID string, req hubap
 		return hubapi.IssueRevision{}, err
 	}
 	if err := need(role, hubapi.RoleMember); err != nil {
+		return hubapi.IssueRevision{}, err
+	}
+	if err := w.erasedWrite(is); err != nil {
 		return hubapi.IssueRevision{}, err
 	}
 	from := req.FromRevision
@@ -935,6 +944,9 @@ func (f *Fake) MoveIssueState(_ context.Context, issueID string, move hubapi.Sta
 		return hubapi.IssueHead{}, err
 	}
 	if err := need(role, hubapi.RoleMember); err != nil {
+		return hubapi.IssueHead{}, err
+	}
+	if err := w.erasedWrite(is); err != nil {
 		return hubapi.IssueHead{}, err
 	}
 	from, serves := is.head.State, is.headRev().Content.Serves
@@ -1066,7 +1078,9 @@ import (
 // whole and gives every hook and method below its rule in fake_work_social.go
 // and fake_work_intake.go; no line of fake_work.go changes when it does.
 
-// The four hooks part 1 calls, at their part-1 bodies.
+// The five hooks part 1 calls, at their part-1 bodies. erasedWrite is task
+// 14's rule (an erased issue takes no writes, 409); nothing erases before task 05.
+func (w *fakeWorld) erasedWrite(*fakeIssue) error { return nil }
 func (w *fakeWorld) checkIssueLabels(_, field string, labels []string) error {
 	if len(labels) > 0 { // task 08's decision 8 until team labels exist
 		return badRequest(field, "Labels arrive with team labels (Phase W task 05).")
@@ -1661,8 +1675,9 @@ grep -c 'func (f \*Fake) ' control-plane/internal/hub/hubclient/fake_work.go con
 - The HTTP client's Work methods or the relay (task 16), the real Hub's routes (tasks 08-10), or
   that the real Hub passes any row (task 05 writes the rows; task 16 runs them against it).
 - Part 2's rules: relations, labels, policies, comments, subscriptions, import, search,
-  attachments, erase (task 05). Until then those methods answer 501 and the four hooks hold their
-  part-1 bodies (labels `[]`, default `backlog`, no stop at `landed`, no subscription).
+  attachments, erase (task 05). Until then those methods answer 501 and the five hooks hold their
+  part-1 bodies (labels `[]`, default `backlog`, no stop at `landed`, no subscription, nothing
+  erased).
 - That `fakeMoveAllowed` **is** `hubapi.MoveAllowed`. It is the same table by reading; task 10
   makes it one function.
 - `evidenceCommit` (a later commit than the land commit, task 10's decision 3), a restore's
