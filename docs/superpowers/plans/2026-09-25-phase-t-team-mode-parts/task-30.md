@@ -407,3 +407,62 @@ same name if present, so it is false for everyone in TM1-α (decision d).
 A decide written for a thread uses the thread's **effective** deadline plus 30 minutes, so the
 humans always have at least 30 minutes after negotiation stops.
 
+**`options.go`: what each decide offers, and what each choice does.** Every label below is
+product text; `<other>` is the other owner's CleanName'd display name, `<paths>` task 29's
+shrinking `list`. The question is Fleet's template from typed state, never a message's text.
+
+| Decide | Asked | Option 0 (default) | Option 1 | Option 2 | Option 3 |
+|---|---|---|---|---|---|
+| **Accept on a decide row** (`AcceptNeedsDecision`) | each side in `Ruling.Sides` | *Hold: the agreement waits* · `hold` | *Apply what the orchestrators agreed* · `apply-proposal`, `Both` when `len(Sides) == 2` | *Do not apply it* · `decline-proposal` | — |
+| **Exhausted** (`ThreadExhausted`) | both | *Hold: nothing changes; at the deadline the contested worker pauses* · `hold` | *My side gives up <paths>* · `yield-mine` (the chooser's own globs on the conflict's paths) | *My side goes second* · `go-second` | *Both proceed; the land review decides* · `proceed-both`, `Both` (not offered on tier H or M, where it is exactly the decision that failed) |
+| **Orchestrator ask** (`Ask`) | the caller's own | Fleet's *Hold* · `hold` | the caller's options, each `none` | … | … |
+
+A choice applies as follows, in `OnAnswered`, each in one transaction with its outbox items:
+
+- `hold`: nothing. The decide stays open until its deadline.
+- `apply-proposal`: record the approval; when every decide of the `Group` has it, call task 29's
+  `Resolver.ApplyApproved` with the approving `es-…` ids.
+- `decline-proposal`: task 28's `withdraw` of the pending proposal, written by Fleet; the thread
+  stays `open`; the other decide of the group is answered by an inform.
+- `yield-mine`, `go-second`: applied at once as a resolution on the chooser's own side only
+  (task 29's appliers with the chooser as proposer); the conflict closes; the other human's
+  decide gets an inform, *"Resolved by <name>'s choice"*.
+- `proceed-both`: applied when both decides of the group chose it.
+- `none` (an Orchestrator's own option): nothing but the `escalation.answered` event.
+
+Every answer enqueues `escalation.answered` (task 26) for the asking Orchestrator, or for each
+participant's Orchestrator when Fleet asked, so the next turn sees the answer through `panacea
+inbox`'s escalation list. An answer after the deadline (task 07 accepts it, `task-07.md:148-150`)
+is applied the same way when its effect is still possible, and otherwise recorded with an inform
+saying what already happened.
+
+**The contested worker, one function.** For a conflict with paths `P` between workers `a` and `b`:
+`Contested(a, b, p, lastEdit)` (task 23, `task-23.md:225-232`) for every `p` in `P`; the worker named
+for more paths is the contested one; a tie goes to the side **without** right of way on the whole
+conflict (`RightOfWay(a, b)`). One worker, always. `lastEdit` is nil in TM1-α, so the answer is
+the side without right of way, which is task 23's rule for "neither has edited".
+
+**`SweepDeadlines`**: for each open decide with `deadline <= now` and no answer: `hold` is the
+default, so the safe default is applied **once** per group, not per decide: for a thread decide,
+`Pauser.PauseForDefault(contested, es)`; for an Orchestrator's own ask, nothing; then an inform to
+each asked human, *"The deadline passed. <worker> is paused on <paths>; nothing was undone."*, and
+the group is marked `defaulted`. A later answer can still resume or resolve (above).
+
+**The table task 10 adds:**
+
+```sql
+CREATE TABLE IF NOT EXISTS fleet.open_escalations (
+  org_id text NOT NULL, es_id text NOT NULL, grp text NOT NULL,
+  owner_tid text NOT NULL, owner_oid text NOT NULL, from_agent text NOT NULL DEFAULT '',
+  thread_id text NOT NULL DEFAULT '', conflict_id text NOT NULL DEFAULT '',
+  proposal_id text NOT NULL DEFAULT '', row_key text NOT NULL,
+  effects jsonb NOT NULL,             -- option index -> Effect
+  deadline timestamptz NOT NULL,
+  state text NOT NULL CHECK (state IN ('open','approved','declined','applied','defaulted','closed')),
+  PRIMARY KEY (org_id, es_id));
+CREATE INDEX IF NOT EXISTS open_escalations_due ON fleet.open_escalations (deadline) WHERE state = 'open';
+```
+
+No question, label or answer text is stored here: those are the Hub's `es-…` record. This row is
+the typed effect of each option, which is Fleet working state.
+
