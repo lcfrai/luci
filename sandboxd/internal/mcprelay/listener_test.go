@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"io"
+	"log/slog"
 	"net"
 	"strings"
 	"sync"
@@ -163,6 +164,42 @@ func TestListener_holdTimeout(t *testing.T) {
 	p.noOpen(t, 500*time.Millisecond)
 	if !strings.Contains(r.log.String(), "no channel") {
 		t.Errorf("the log does not say why the connection closed:\n%s", r.log)
+	}
+}
+
+// flakyListener fails its first Accept, as a process out of file descriptors
+// would, then accepts normally.
+type flakyListener struct {
+	net.Listener
+	once sync.Once
+}
+
+func (f *flakyListener) Accept() (net.Conn, error) {
+	fail := false
+	f.once.Do(func() { fail = true })
+	if fail {
+		return nil, errors.New("accept: too many open files")
+	}
+	return f.Listener.Accept()
+}
+
+// A transient accept failure must not end the relay for the sandbox's life.
+func TestListener_survivesAnAcceptError(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	logs := &syncBuffer{}
+	l := serveOn(&flakyListener{Listener: ln}, slog.New(slog.NewTextHandler(logs, nil)), realAfter)
+	r := relayOn(t, l, logs)
+	c := r.client()
+	p := r.attach()
+	s := p.nextOpen(t)
+	if err := exchange(c, s, []byte("after the failure"), []byte("still served")); err != nil {
+		t.Fatalf("a stream after an accept error: %v", err)
+	}
+	if !strings.Contains(logs.String(), "accept failed") {
+		t.Errorf("the accept error was not logged:\n%s", logs)
 	}
 }
 

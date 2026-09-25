@@ -59,6 +59,12 @@ func newRelay(t *testing.T, after afterFunc) *relay {
 	if err != nil {
 		t.Fatalf("listen: %v", err)
 	}
+	return relayOn(t, l, logs)
+}
+
+// relayOn serves l's channel over a real WebSocket, as server.go does.
+func relayOn(t *testing.T, l *Listener, logs *syncBuffer) *relay {
+	t.Helper()
 	r := &relay{t: t, l: l, log: logs, served: make(chan error, 16)}
 	r.srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		c, err := websocket.Accept(w, req, nil)

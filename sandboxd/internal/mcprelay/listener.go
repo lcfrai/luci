@@ -74,12 +74,18 @@ func listen(addr string, log *slog.Logger, after afterFunc) (*Listener, error) {
 		ln.Close()
 		return nil, fmt.Errorf("mcprelay: %s bound %s, which is not loopback", addr, ln.Addr())
 	}
+	return serveOn(ln, log, after), nil
+}
+
+// serveOn starts the accept loop on a bound listener; a test hands it one
+// whose Accept fails, which a real socket cannot be made to do on demand.
+func serveOn(ln net.Listener, log *slog.Logger, after afterFunc) *Listener {
 	if log == nil {
 		log = slog.Default()
 	}
 	l := &Listener{ln: ln, log: log, after: after}
 	go l.accept()
-	return l, nil
+	return l
 }
 
 func loopbackOnly(addr string) error {

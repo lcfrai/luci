@@ -79,6 +79,26 @@ func TestMCPChannel_requiresToken(t *testing.T) {
 	}
 }
 
+// A browser cannot set Authorization on a WebSocket, so the token already
+// keeps pages out; the origin check is kept on as well, and a foreign Origin
+// is refused even with the right token. The control plane sends none.
+func TestMCPChannel_refusesABrowserOrigin(t *testing.T) {
+	srv := newServer(t, server.Config{Command: "/bin/sh", AttachToken: testToken, MCP: relayListener(t)})
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	opts := &websocket.DialOptions{HTTPHeader: http.Header{}}
+	opts.HTTPHeader.Set("Authorization", "Bearer "+testToken)
+	opts.HTTPHeader.Set("Origin", "https://evil.example")
+	c, resp, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(srv.URL, "http")+mcprelay.ChannelPath, opts)
+	if err == nil {
+		c.CloseNow()
+		t.Fatalf("a foreign Origin was accepted on %s", mcprelay.ChannelPath)
+	}
+	if resp == nil || resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("status = %v, want 403", resp)
+	}
+}
+
 func TestMCPChannel_disabled(t *testing.T) {
 	srv := newServer(t, server.Config{Command: "/bin/sh", AttachToken: testToken})
 	for _, token := range []string{"", testToken} {
