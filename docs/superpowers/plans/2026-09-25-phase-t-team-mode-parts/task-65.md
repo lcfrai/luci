@@ -679,3 +679,38 @@ cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/control-p
 Expected: the shell suites fail with `No such file or directory` for the scripts; Go fails to
 compile on `undefined: envClaudeVersion`, `no Go files in …/cmd/gatemint`, and
 `s.cfg.ClaudeCodeVersion undefined`.
+
+Two more cases in `cli-bump_test.sh`, for the dry run: `dry_run_never_writes_image_digests`
+(`PUBLISH_DRY_RUN=1`, four passes → `bump-result.json` with `dryRun: true` and no
+`digests.json` under `publish/`; mutant: a dry run that promotes) and
+`result_lists_gates_in_run_order` (the four names in G1, G2, G4, G3 order; a refused publish has
+`promote: ""`; mutant: a result claiming a promote reference for a refused run).
+
+- [ ] **Step 3: `lib/gate.sh` and `publish-digests.sh`; run `lib/gate_test.sh` and the publish
+  cases of `cli-bump_test.sh`.** Pure bash, no network.
+- [ ] **Step 4: `claude-code.version`, the Dockerfile lines, `build.sh`'s steps 2, 3a and 5;
+  run `images/images_test.sh` on Docker Desktop.** Needs the npm registry once (decision a).
+- [ ] **Step 5: `cli-latest.sh`, `cli-pr.sh`, `cli-bump.yml`; run their cases.**
+- [ ] **Step 6: `cmd/gatemint`, then `gate-channel.sh` and its test on the image from step 4.**
+  G2 needs phase 6 task 16's fake upstream and task 09's fixture; both are planned
+  (**UNVERIFIED until merge**).
+- [ ] **Step 7: The Fleet config, the `Launch` line, the chart values and schema;
+  `gate-live.sh`, the two Jobs and the three `images.yml` jobs.**
+- [ ] **Step 8: Run everything**
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team && bash pipelines/scripts/cli-bump_test.sh && bash pipelines/scripts/lib/gate_test.sh && bash pipelines/scripts/gate-channel_test.sh && bash images/images_test.sh
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/control-plane && GOPROXY=off go test ./cmd/fleetd/ ./cmd/gatemint/ ./internal/fleet/sessions/ && GOPROXY=off go vet ./... && gofmt -l cmd internal
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team && helm unittest deploy/charts/fleet && shellcheck pipelines/scripts/*.sh pipelines/scripts/lib/*.sh
+```
+
+Expected: each shell suite ends `ok: N passed, 0 failed` in `secrets-pr_test.sh`'s form; Go
+packages `ok`; `gofmt -l` prints nothing; `helm unittest` reports every suite passed;
+`shellcheck` prints nothing. The live gates are not run here: G3 and G4 need dev's cluster and
+the gate identity (gap 1), and their first run is task 69's M5 dry run.
+
+- [ ] **Step 9: Commit**
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team && git add images/sandbox/claude-code.version pipelines/cli-bump.yml pipelines/scripts/cli-latest.sh pipelines/scripts/cli-pr.sh pipelines/scripts/gate-channel.sh pipelines/scripts/gate-channel_test.sh pipelines/scripts/gate-live.sh pipelines/scripts/publish-digests.sh pipelines/scripts/cli-bump_test.sh pipelines/scripts/lib/gate.sh pipelines/scripts/lib/gate_test.sh infra/smoke/bump control-plane/cmd/gatemint deploy/charts/fleet/tests/fleet_images_test.yaml && git commit -F .superpowers/sdd/team/msg/task-65.txt -- images pipelines infra/smoke/bump control-plane/cmd deploy/charts/fleet control-plane/internal/fleet/sessions
+```
