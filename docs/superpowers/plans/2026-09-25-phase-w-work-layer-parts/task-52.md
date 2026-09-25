@@ -212,3 +212,172 @@ export function makeBlobs(t: BlobTransport) {
 }
 export type Blobs = ReturnType<typeof makeBlobs>;
 ```
+
+`makeBlobs` has one production transport, `controlPlaneBlobs(send)`, over the client's raw
+`fetch` path: `PUT blobRoute(…)` with the body as an `ArrayBuffer` and `Content-Type` set, and
+`GET blobRoute(…)` read with `response.arrayBuffer()`. Whether `api/client.ts` exposes a raw-body
+send today is **UNVERIFIED** (its `send` is JSON, `task-37.md:372-374`); if it does not, the
+transport is ten lines of `fetch` against the same base URL and bearer, written beside `send`
+and nowhere else. The relay row is the gap either way.
+
+#### Interfaces — complete: `desktop/src/components/issue/Attachments.tsx`, part 1: the list's state
+
+```tsx
+// desktop/src/components/issue/Attachments.tsx — task 52. Fetched, not replicated (decision 8).
+import { useCallback, useEffect, useRef, useState, type JSX } from "react";
+import type { IssueAttachment } from "../../api/work";
+import { api } from "../../api";
+import { BlobError, bytesFact, type BlobRefusal, type Blobs, type Verified } from "../../work/blob";
+
+/** digest → the file name the uploader picked, this session only (decision 7). Module scope,
+ *  in memory: it dies with the window and is never written anywhere. */
+const namesThisSession = new Map<string, string>();
+export const nameFor = (digest: string): string | null => namesThisSession.get(digest) ?? null;
+export function __clearNamesForTest(): void { namesThisSession.clear(); }
+
+export type AttachLine =
+  | { kind: "none" }
+  | { kind: "uploading"; name: string }
+  | { kind: "refused"; refusal: BlobRefusal; name: string };
+
+/** One fact line per refusal, in the words of the Hub's own numbers (decision 6). */
+export function refusalWords(r: BlobRefusal): string {
+  switch (r.kind) {
+    case "too_large": return r.source === "hub"
+      ? `blob_too_large · the Hub's limit is ${factOrRaw(r.limitBytes)}`
+      : `not read · the desktop reads at most ${factOrRaw(r.limitBytes)} to hash a file`;
+    case "quota": return `quota_exceeded · this project's blob quota is ${factOrRaw(r.limitBytes)}`;
+    case "digest_mismatch": return r.got === null
+      ? `digest_mismatch · the Hub refused the bytes as sent`
+      : `digest_mismatch · expected ${r.expected}, the Hub answered ${r.got}; not attached`;
+    case "not_found": return "blob_not_found · the Hub holds no bytes under this digest";
+    case "other": return `${r.code} · ${r.status}`;
+  }
+}
+/** "16777216" → "16777216 bytes · 16 MiB"; a value that is not a whole number is shown as sent. */
+const factOrRaw = (s: string): string => (/^\d+$/.test(s) ? bytesFact(Number(s)) : s === "" ? "not stated" : s);
+
+export const shortDigest = (digest: string): string => digest.replace(/^sha256:/, "").slice(0, 12);
+
+/** The list, read on mount and after the person's own attach. A teammate's file shows on the
+ *  next open (decision 8). `blobs` is injected so the tests hold the transport. */
+export function useAttachmentList(issueId: string): {
+  items: readonly IssueAttachment[]; reload(): void; failed: string | null;
+} {
+  const [items, setItems] = useState<readonly IssueAttachment[]>([]);
+  const [failed, setFailed] = useState<string | null>(null);
+  const [n, setN] = useState(0);
+  useEffect(() => {
+    let live = true;
+    api.work.attachments(issueId).then(
+      (xs) => { if (live) { setItems(xs); setFailed(null); } },
+      (e: { code?: string }) => { if (live) setFailed(e.code ?? "unavailable"); });
+    return () => { live = false; };
+  }, [issueId, n]);
+  return { items, reload: useCallback(() => setN((k) => k + 1), []), failed };
+}
+```
+
+A failed list read keeps the last list on screen and adds one fact line (*attachments not read ·
+upstream_unavailable*); it never empties the list to look like "no files".
+
+#### Interfaces — complete: `Attachments.tsx`, part 2: one row, preview, *Save as*
+
+```tsx
+/** One attachment. Nothing is fetched until the person opens it: a list of twenty files costs
+ *  one list call, not twenty downloads. Opening fetches, verifies, then shows. */
+function AttachmentRow(props: { a: IssueAttachment; projectId: string; blobs: Blobs }): JSX.Element {
+  const { a, projectId, blobs } = props;
+  const [shown, setShown] = useState<{ v: Verified; url: string } | { refused: BlobRefusal } | null>(null);
+  const urlRef = useRef<string | null>(null);
+  useEffect(() => () => { if (urlRef.current) URL.revokeObjectURL(urlRef.current); }, []);
+  const name = nameFor(a.digest);
+  async function open() {
+    try {
+      const v = await blobs.fetchVerified(projectId, a.digest);
+      // The Blob's type is the SNIFFED one or octet-stream, never a.contentType (decision 3).
+      const url = URL.createObjectURL(new Blob([v.bytes], { type: v.image ?? "application/octet-stream" }));
+      if (urlRef.current) URL.revokeObjectURL(urlRef.current);
+      urlRef.current = url;
+      setShown({ v, url });
+    } catch (e) {
+      if (e instanceof BlobError) setShown({ refused: e.refusal }); else throw e;
+    }
+  }
+  return (
+    <li className="iv-at" data-digest={a.digest}>
+      <span className="iv-at-name">{name ?? a.contentType}</span>
+      <span className="iv-fact" data-fact="size">{bytesFact(a.size)}</span>
+      <span className="iv-fact" data-fact="digest" title={a.digest}>{shortDigest(a.digest)}</span>
+      <span className="iv-at-by">added by {a.addedBy.displayName}</span>
+      {shown === null ? <button type="button" onClick={() => void open()}>Open</button> : null}
+      {shown && "refused" in shown ? (
+        <p className="iv-fact iv-at-refused" data-fact="refused" role="status">
+          {shown.refused.kind === "digest_mismatch" && shown.refused.got
+            ? `the bytes do not hash to ${a.digest}; not opened` : refusalWords(shown.refused)}
+        </p>
+      ) : null}
+      {shown && "v" in shown ? (
+        <>
+          {shown.v.image ? <img className="iv-at-img" src={shown.url} alt={name ?? `attachment ${shortDigest(a.digest)}`} /> : null}
+          <a className="iv-at-save" href={shown.url} download={name ?? shortDigest(a.digest)}>Save as</a>
+          <span className="iv-at-note">saved copies are yours to delete</span>
+        </>
+      ) : null}
+    </li>
+  );
+}
+```
+
+There is no `dangerouslySetInnerHTML`, no `<iframe>`, no `<object>` and no `<embed>` in this file,
+and a structural test says so. An SVG opens as a file row with *Save as* and nothing else: its bytes
+never reach an `<img>` either, because `sniffImage` answers `null` for it, so no SVG is rendered
+even through the image path (an `<img>`-loaded SVG runs no script, but it can still load
+external resources, which a verified-bytes rule has no reason to allow).
+
+#### Interfaces — complete: `Attachments.tsx`, part 3: the list and the drop target
+
+```tsx
+export function Attachments(props: { issueId: string; projectId: string; blobs: Blobs }): JSX.Element {
+  const { issueId, projectId, blobs } = props;
+  const list = useAttachmentList(issueId);
+  const [line, setLine] = useState<AttachLine>({ kind: "none" });
+  async function attach(file: File) {
+    setLine({ kind: "uploading", name: file.name });
+    try {
+      const up = await blobs.uploadAttachment(projectId, file);
+      namesThisSession.set(up.digest, up.name);
+      await api.work.attachBlob(issueId, up.digest);
+      setLine({ kind: "none" });
+      list.reload();
+    } catch (e) {
+      if (e instanceof BlobError) setLine({ kind: "refused", refusal: e.refusal, name: file.name });
+      else setLine({ kind: "refused", name: file.name,
+        refusal: { kind: "other", code: (e as { code?: string }).code ?? "unavailable", status: 0 } });
+    }
+  }
+  const pick = useRef<HTMLInputElement>(null);
+  return (
+    <section className="iv-at-list" aria-label="Attachments"
+      onDragOver={(e) => { if (e.dataTransfer.types.includes("Files")) e.preventDefault(); }}
+      onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) void attach(f); }}>
+      <h3 className="iv-sub-h">Attachments</h3>
+      {list.failed ? <p className="iv-fact" data-fact="list-failed">attachments not read · {list.failed}</p> : null}
+      {list.items.length === 0 && !list.failed ? <p className="iv-at-empty">No files. Drop one here.</p> : null}
+      <ul className="iv-at-rows">
+        {list.items.map((a) => <AttachmentRow key={a.digest} a={a} projectId={projectId} blobs={blobs} />)}
+      </ul>
+      {line.kind === "uploading" ? <p className="iv-fact" data-fact="uploading">hashing and sending {line.name}</p> : null}
+      {line.kind === "refused" ? (
+        <p className="iv-fact iv-at-refused" data-fact="refused" role="status">{line.name} · {refusalWords(line.refusal)}</p>
+      ) : null}
+      <button type="button" onClick={() => pick.current?.click()}>Attach a file</button>
+      <input ref={pick} type="file" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void attach(f); e.target.value = ""; }} />
+    </section>
+  );
+}
+```
+
+One file per drop in W1: a multi-file drop attaches the first and says nothing of the rest, which
+the *does not claim* list records. The *uploading* line names the act, not a percentage: the
+desktop does not know how far a `PUT` has gone and does not pretend to (`OD-27`).
