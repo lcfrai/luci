@@ -190,8 +190,9 @@ retry with the same `Idempotency-Key` replays (§1)."* All twelve are disjoint f
 and from the control plane's five.
 
 **§3.6**, replace the audit event row's field list with: `v` (`1`, or `2` for a delegated write),
-`kind`, `orgId`, `seq`, `at`, `actorUserId` (or `""`), `event`, `projectId` (or `""`), `subject`,
-`data`, and **only when `v` is 2**, `via` (`"fleet"`) and `delegationId`. Add: *"A v1 event's bytes
+`kind`, `orgId`, `seq`, `at`, `actorUserId` (or `""`), `event`, `teamId` (or `""`; the key
+`hubapi.AuditEnvelope` already writes, `hubapi/envelope.go:264-276`, plan correction A10),
+`projectId` (or `""`), `subject`, `data`, and **only when `v` is 2**, `via` (`"fleet"`) and `delegationId`. Add: *"A v1 event's bytes
 are unchanged by this amendment; the §3.5 golden vectors stand. A v2 golden vector is added by
 Phase T task 03."*
 
@@ -514,7 +515,7 @@ audit row's new `fleet_feed` flag, task 04), `no` (audit only). `data` never hol
 | `lease.state_changed` | ✓ | ✓ | lease id | `{"seq","state","mode","holderAgentId"}` | yes |
 | `conflict.raised` | ✓ | ✓ | conflict id | `{"tier","agentA","agentB"}` | yes |
 | `conflict.updated` | ✓ | ✓ | conflict id | `{"state","resolution"}` | yes |
-| `thread.opened` | ✓ | ✓ | thread id | `{"subjectKind","participants"}` | fleet |
+| `thread.opened` | ✓ | ✓ | thread id | `{"subjectKind","participantA","participantB"}` | fleet |
 | `thread.updated` | ✓ | ✓ | thread id | `{"state","rounds"}` | fleet |
 | `message.appended` | ✓ | ✓ | message id | `{"threadId","kind","senderAgentId"}` | fleet |
 | `escalation.created` | ✓ | ✓ | escalation id | `{"kind","deadline","fromAgentId"}` | fleet |
@@ -527,6 +528,11 @@ audit row's new `fleet_feed` flag, task 04), `no` (audit only). `data` never hol
 | `team_policy.route_changed` | ✓ | ✓ | project id | `{"route","by"}`; `by` is `member` or `compliance` | yes |
 | `usage.rolled_up` | — | — | org id | `{"day","rows"}` | no |
 ```
+
+**`data` values are strings, integers and booleans only** (`hubapi.AuditEnvelope.check`,
+`hubapi/envelope.go:287-311`), so no event carries a list: a thread's two participants are two
+keys, and a turn's `consumed` and `issued` are its ids joined by `,` in the order Fleet consumed or
+issued them (at most 200 and 100 ids, so at most about 4 KB).
 
 Escalations, directives and human messages are `fleet`, never `yes`, because §3.4 makes them
 readable by their owner and an auditor only, and the member feed is read by every member. Every
