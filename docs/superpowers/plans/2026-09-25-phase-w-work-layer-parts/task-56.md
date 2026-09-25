@@ -308,3 +308,79 @@ export async function sendOp(op: WorkOp, client: WorkClient, view: ReplicaReadVi
   }
 }
 ```
+
+#### Interfaces — complete: the deltas on `replica.ts` (task 55)
+
+```ts
+// desktop/src/work/replica/replica.ts — task 56 adds the write half. Task 55's Replica keeps
+// every member it declares; these join it.
+import { makeId } from "../../lib/ids";
+import { workProblem } from "../../api/work";
+import type { ApiError } from "../../api/client";
+import type { IssueRevisionContent, WorkClient } from "../../api/work";
+import { applyLocal, revertLocal, sendOp, undoable, inverseOf, type Snapshot, type WorkOp } from "./ops";
+import type { UndoLedger } from "./undo";
+
+/** Why a write did not stand. `code` and `message` are the server's own (workProblem). */
+export interface Refusal {
+  op: WorkOp; issueId: string; code: string; message: string; details: Record<string, string>;
+}
+/** A revise the Hub refused as revision_conflict: the person's words, kept for the new head. */
+export interface DraftAgain {
+  issueId: string; baseRev: number; headRev: number; patch: Partial<IssueRevisionContent>;
+}
+/** What a row shows about its own write. Absent: nothing pending. */
+export type PendingMark = "sending" | "not_sent" | "not_confirmed";
+
+export interface MutateHandle {
+  /** The op's id, also its Idempotency-Key; a batch's id is its first op's. */
+  readonly id: string;
+  /** False for a comment and for a move out of a fact state or done (decision 6). */
+  readonly undoable: boolean;
+  /** Sends the inverse as a new write by the person; a no-op once lapsed or when !undoable. */
+  undo(): void;
+  /** "applied" when every op of the batch stood; else the first Refusal. */
+  readonly settled: Promise<"applied" | Refusal>;
+}
+
+export interface ReplicaWrites {
+  mutate(op: WorkOp | readonly WorkOp[]): MutateHandle;
+  /** Fires once per refused op; task 66 speaks it. Returns the unsubscribe. */
+  onRefused(listener: (r: Refusal) => void): () => void;
+  pendingOf(issueId: string): PendingMark | null;
+  draftAgain(issueId: string): DraftAgain | null;
+  /** The ops painted but not sent because the Hub was unreachable (decision 4). */
+  queued(): number;
+  /** Task 57 calls this when the relay answers again; the queue drains in op order. */
+  resume(): void;
+}
+// `interface Replica extends ReplicaWrites` — task 55's Replica gains these members.
+
+/** Task 55's ReplicaDeps gains the two things the write half needs. */
+export interface ReplicaWriteDeps {
+  work: Pick<WorkClient, "keyed">;
+  undo: UndoLedger;
+}
+```
+
+**How `mutate` runs**, in order, inside `createReplica`:
+
+1. For each op: `id = makeId("op")`; `{before, after} = applyLocal(view, op)` in **one**
+   `transact`, so `useWork` re-renders once for a batch; `pending[issueId] = "sending"`.
+2. `ledger.push({id, ops, before, issueIds})` when every op is `undoable(op, before)`; a batch
+   with one non-undoable op gets no chip (it would undo only part of what the person did).
+3. The op joins its issue's queue. The queue's head runs `sendOp(op, work.keyed(id), view)`; a
+   `unavailable` answer leaves it at the head, marks it `not_sent`, and waits for `resume()`
+   (a comment whose request left is `not_confirmed` instead and is not resent, decision 6).
+4. On success: `transact` puts the Hub's record (`head`, `revision`, or `comment` replacing the
+   local id), then **re-applies the painted fields of the ops still queued on that issue**, so a
+   second quick op's paint is not overwritten by the first op's answer.
+5. On `refused` or `signed_out`: `revertLocal(view, op, before, after)`; the row flashes
+   `--fail` for `--dur-flash` with the code and message; every listener gets the `Refusal` once;
+   the ledger entry is dropped; the rest of that issue's queue still runs.
+6. On `revision_conflict` for a `revise`: fetch the head (task 55's `fetchSubjects`), put it,
+   and store `DraftAgain {baseRev, headRev, patch}`; the settled value is the `Refusal`.
+
+`undo()` pushes `inverseOf` **lazily**: an `{inverseOf: id}` marker joins each issue's queue, and
+the inverse is built when the marker reaches the head, from the op's `before` and the replica at
+that moment. That is why a revise's inverse carries the revision the op wrote as its `baseRev`.
