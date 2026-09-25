@@ -645,7 +645,8 @@ and by reading `issue.css` as text, not by computed style (jsdom computes no fon
 
 ```css
 /* issue.css owns .iv-* and no other prefix. Facts: Commit Mono at --t-fact, --ink-2 or stronger,
-   never --ink-3 (SW.11; tokens.css:47 gives --ink-3 3.43:1). No colour codes a priority. */
+   never the third ink (SW.11; tokens.css:47 gives it 3.43:1; a test holds that this file never
+   names it, so this comment does not either). No colour codes a priority. */
 .iv { display: grid; grid-template-rows: auto auto 1fr; min-height: 0; }
 .iv-head { display: grid; gap: var(--s-2); padding: 0 var(--s-4) var(--s-3); }
 .iv-fields { display: flex; flex-wrap: wrap; gap: var(--s-1); }
@@ -688,4 +689,239 @@ renamed to task 26's words if they differ. The fact-state option is not greyed: 
 `--ink-3` would put a fact (what the state waits on) in the one ink that may not carry one. The
 label dot's `currentColor` is set per `[data-color]` by task 11's token list, appended here when
 task 11's allowed names are read (**UNVERIFIED**: the list is task 11's).
+
+#### Tests to write first — `desktop/src/components/issue/pickers/stateOptions.test.ts`
+
+```ts
+import { describe, expect, it } from "vitest";
+import { WORK_STATES } from "../../../test/workFixtures";
+import { stateOptions } from "./stateOptions";
+
+describe("stateOptions (SW.4 as the picker reads it)", () => {
+  it("never offers a fact state as a choice, from any state, serving or not", () => {
+    for (const from of WORK_STATES) for (const serving of [false, true]) {
+      const facts = stateOptions(from, serving).filter((o) => o.kind === "fact").map((o) => o.state);
+      expect(facts).toEqual(["started", "in_review", "landed"]);
+    }
+  });
+  it("names the fact each fact state waits on", () => {
+    for (const o of stateOptions("todo", false).filter((x) => x.kind === "fact")) {
+      expect(o.note).toMatch(/^moves when /);
+    }
+  });
+  it("asks a reason for done only on an issue that serves a criterion", () => {
+    expect(stateOptions("landed", false).find((o) => o.state === "done")?.kind).toBe("choose");
+    expect(stateOptions("landed", true).find((o) => o.state === "done")?.kind).toBe("needs_reason");
+  });
+  it("offers triage, backlog, todo and cancelled as hand moves, and duplicate through its picker", () => {
+    const kinds = Object.fromEntries(stateOptions("todo", true).map((o) => [o.state, o.kind]));
+    expect(kinds).toMatchObject({ triage: "choose", backlog: "choose", todo: "choose",
+      cancelled: "choose", duplicate: "pick_duplicate" });
+  });
+  it("lists all nine states, in order, once each", () => {
+    expect(stateOptions("todo", false).map((o) => o.state)).toEqual(WORK_STATES);
+  });
+});
+```
+
+| Test | Mutant it kills |
+|---|---|
+| never offers a fact state | a picker that fakes a fact (`started` as `choose`) |
+| names the fact each waits on | a fact state listed with no reason why it cannot be picked |
+| asks a reason for done only when serving | `done` always free (a reasonless done on a serving issue), or `done` never free |
+| offers the hand moves | `triage` dropped (task 10 decision 1 allows it); duplicate sent with no *of which* |
+| lists all nine | a state hidden instead of shown as a fact |
+
+#### Tests to write first — `desktop/src/components/issue/pickers/pickers.test.tsx`, part 1
+
+```tsx
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { ALICE, DYLAN, WORK_IDS, makeIssueHead } from "../../../test/workFixtures";
+import issueCss from "../issue.css?raw";
+import { mutate } from "../../../work/replica/ops";
+import { StatePicker } from "./StatePicker";
+import { PriorityPicker } from "./PriorityPicker";
+import { AssigneePicker } from "./AssigneePicker";
+
+vi.mock("../../../work/replica/ops", () => ({ mutate: vi.fn(() => ({ undo: vi.fn(), settled: Promise.resolve("applied") })) }));
+vi.mock("../../../work/replica/replica", () => ({ useWork: vi.fn(() => []), search: vi.fn(() => []) }));
+
+const sent = () => vi.mocked(mutate).mock.calls.map((c) => c[0]);
+const head = (over = {}) => ({ ...makeIssueHead(over), reassignRequest: null });
+beforeEach(() => vi.mocked(mutate).mockClear());
+
+describe("StatePicker", () => {
+  it("sends nothing when a fact state is clicked or entered", async () => {
+    const user = userEvent.setup();
+    render(<StatePicker issueId={WORK_IDS.ep142} state="todo" serving={false} onClose={() => {}} />);
+    await user.click(screen.getByRole("option", { name: /Started/ }));
+    await user.type(screen.getByRole("combobox"), "in review{Enter}");
+    expect(sent()).toEqual([]);
+    // No jest-dom in this repo (test/setup.ts): attributes are read with getAttribute.
+    expect(screen.getByRole("option", { name: /Started/ }).getAttribute("aria-disabled")).toBe("true");
+  });
+  it("sends one hand move for a chosen state", async () => {
+    const user = userEvent.setup();
+    render(<StatePicker issueId={WORK_IDS.ep142} state="todo" serving={false} onClose={() => {}} />);
+    await user.click(screen.getByRole("option", { name: /Backlog/ }));
+    expect(sent()).toEqual([{ kind: "setState", issueId: WORK_IDS.ep142,
+      move: { to: "backlog", cause: "hand", reason: "", landCommit: "", evidence: [], evidenceCommit: "" } }]);
+  });
+  it("keeps done shown and unsendable on a serving issue until task 48", async () => {
+    const user = userEvent.setup();
+    render(<StatePicker issueId={WORK_IDS.ep142} state="landed" serving onClose={() => {}} />);
+    const done = screen.getByRole("option", { name: /Done/ });
+    expect(within(done).getByText("needs a reason")).toBeTruthy();
+    await user.click(done);
+    expect(sent()).toEqual([]);
+  });
+});
+```
+
+#### Tests to write first — `pickers.test.tsx`, part 2
+
+```tsx
+describe("PriorityPicker", () => {
+  it("draws urgent in ink: no signal colour on an option, none in issue.css", () => {
+    render(<PriorityPicker issueId={WORK_IDS.ep142} state="todo" priority="none" onClose={() => {}} />);
+    const urgent = screen.getByRole("option", { name: /Urgent/ });
+    for (const el of [urgent, ...Array.from(urgent.querySelectorAll("*"))]) {
+      expect(`${el.getAttribute("class") ?? ""} ${el.getAttribute("style") ?? ""}`).not.toMatch(/need|fail|warn|danger|red|urgent/i);
+    }
+    expect(issueCss).not.toMatch(/--need|--fail|--warn/);
+    expect(urgent.querySelector("[data-glyph]")).not.toBeNull();   // the notch, drawn by StateGlyph
+  });
+});
+
+describe("AssigneePicker", () => {
+  const people = [DYLAN, ALICE];
+  it("lists people only: me first, then no one, then the team", () => {
+    render(<AssigneePicker head={head()} me={DYLAN} people={people} onClose={() => {}} />);
+    const opts = screen.getAllByRole("option");
+    expect(opts.map((o) => o.textContent)).toEqual(["Assign to me", "No assignee", "Alice Example"]);
+    for (const o of opts) expect(o.textContent).not.toMatch(/agent|session/i);
+  });
+  it("assigns at once when no one else's lane is bound", async () => {
+    const user = userEvent.setup();
+    render(<AssigneePicker head={head({ state: "todo", assignee: DYLAN })} me={ALICE} people={people} onClose={() => {}} />);
+    await user.click(screen.getByRole("option", { name: /Assign to me/ }));
+    expect(sent()).toEqual([{ kind: "setAssignee", issueId: WORK_IDS.ep142, assigneeId: ALICE.id }]);
+  });
+  it("asks the owner to hand over, and moves no assignee, when their lane is bound", async () => {
+    const user = userEvent.setup();
+    const h = head({ state: "started", assignee: DYLAN });
+    render(<AssigneePicker head={h} me={ALICE} people={people} onClose={() => {}} />);
+    expect(screen.getByRole("dialog", { name: "Ask Dylan to hand over" })).toBeTruthy();
+    await user.click(screen.getByRole("option", { name: /Assign to me/ }));
+    await user.click(screen.getByRole("option", { name: /No assignee/ }));
+    expect(sent()).toEqual([{ kind: "requestReassign", issueId: WORK_IDS.ep142, toUserId: ALICE.id }]);
+  });
+  it("treats my own started issue as mine to reassign", async () => {
+    const user = userEvent.setup();
+    render(<AssigneePicker head={head({ state: "started", assignee: DYLAN })} me={DYLAN} people={people} onClose={() => {}} />);
+    await user.click(screen.getByRole("option", { name: /Alice Example/ }));
+    expect(sent()).toEqual([{ kind: "setAssignee", issueId: WORK_IDS.ep142, assigneeId: ALICE.id }]);
+  });
+});
+```
+
+| Test | Mutant it kills |
+|---|---|
+| sends nothing for a fact state | a picker that fakes a fact, by click or by Enter |
+| one hand move | a patch instead of `StateMove`; a cause other than `hand` |
+| done unsendable on a serving issue | a reasonless hand-done shipped before task 48 |
+| urgent in ink | colour-coded priority (`--need` or a red on urgent) |
+| people only | an agent or session as assignee (`OD-16`) |
+| assigns at once | a decide for every reassign (task 65's mutant) |
+| asks the owner | steering another person's agent; *No assignee* as a back door |
+| my own started issue | a request sent to myself |
+
+`AssigneePicker`'s *Assign to me* note reads *asks Dylan to hand over* in the third test, so
+`name: /Assign to me/` still matches: the note is inside the option.
+
+#### Tests to write first — `desktop/src/components/issue/IssueHead.test.tsx`
+
+```tsx
+import { describe, expect, it, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { expectNoPrediction } from "../../test/expectNoPrediction";
+import { ALICE, DYLAN, WORK_IDS, makeIssueHead, makeIssueRevision, makeLabel } from "../../test/workFixtures";
+import issueCss from "./issue.css?raw";
+import { useIssueViewData } from "./issueData";
+import { IssueView } from "./IssueView";
+
+vi.mock("./issueData", () => ({ useIssueViewData: vi.fn() }));
+vi.mock("../../work/replica/ops", () => ({ mutate: vi.fn() }));
+vi.mock("../../work/replica/replica", () => ({ useWork: vi.fn(() => []), search: vi.fn(() => []) }));
+
+function show(over: Record<string, unknown> = {}) {
+  vi.mocked(useIssueViewData).mockReturnValue({
+    head: { ...makeIssueHead(over), reassignRequest: null, ...over } as never,
+    headRevision: makeIssueRevision(), teamLabels: [makeLabel()], people: [DYLAN, ALICE],
+  });
+  return render(<IssueView issueId={WORK_IDS.ep142} revision={null} me={DYLAN} route="au" />);
+}
+
+/** Every attribute value in the tree except visible text: ids, keys, aria-*, data-*. */
+const attrs = (root: HTMLElement) => Array.from(root.querySelectorAll("*")).flatMap((el) =>
+  Array.from(el.attributes).map((a) => a.value));
+
+describe("IssueView head", () => {
+  it("uses the alias as display only: a new project key changes text and no identity", () => {
+    const { container, rerender } = show({ alias: "EP-142" });
+    const before = attrs(container);
+    expect(screen.getByText("EP-142")).toBeTruthy();
+    vi.mocked(useIssueViewData).mockReturnValue({
+      head: { ...makeIssueHead({ alias: "EPX-142" }), reassignRequest: null } as never,
+      headRevision: makeIssueRevision(), teamLabels: [makeLabel()], people: [DYLAN, ALICE],
+    });
+    rerender(<IssueView issueId={WORK_IDS.ep142} revision={null} me={DYLAN} route="au" />);
+    expect(screen.getByText("EPX-142")).toBeTruthy();
+    expect(attrs(container).filter((v) => !v.includes("EP")))       // aria-label "Issue EP-142" is text
+      .toEqual(before.filter((v) => !v.includes("EP")));
+    expect(container.querySelector("[data-issue]")?.getAttribute("data-issue")).toBe(WORK_IDS.ep142);
+  });
+  it("puts no fact in --ink-3 and every fact in mono", () => {
+    const { container } = show();
+    for (const f of Array.from(container.querySelectorAll("[data-fact]"))) {
+      expect(f.className).toMatch(/\biv-fact\b/);
+      expect(f.className).not.toMatch(/ink-3|muted|faint/);
+    }
+    expect(issueCss).not.toContain("--ink-3");
+    expect(/\.iv-fact, \.iv-alias \{[^}]*font-family: var\(--mono\)[^}]*color: var\(--ink-2\)/.test(issueCss)).toBe(true);
+  });
+  it("shows the route badge from its prop, never a default", () => {
+    show();
+    expect(screen.getByLabelText("Inference route: AU")).toBeTruthy();
+  });
+  it("reads reassign requested by Alice while the owner decides", () => {
+    show({ reassignRequest: { to: ALICE, by: ALICE, at: "2026-09-25T01:04:00Z" }, state: "started" });
+    expect(screen.getByRole("status").textContent).toMatch(/^reassign requested by Alice Example/);
+    expect(screen.getByLabelText(/Assignee: Dylan Example/)).toBeTruthy();
+  });
+  it("shows the title's author class as a word", () => {
+    show();
+    expect(screen.getByText(/text·H · person/)).toBeTruthy();
+  });
+  it("makes no prediction", () => {
+    const { container } = show({ state: "in_review" });
+    expectNoPrediction(container);
+  });
+});
+```
+
+| Test | Mutant it kills |
+|---|---|
+| alias as display only | the alias used as a React key, an id, `aria-controls` or `data-issue` |
+| no fact in `--ink-3` | an unreadable fact (SW.11); a fact in sans |
+| route badge from its prop | a hard-coded `Global` |
+| reassign requested | the assignee moved at once on a request; the request hidden |
+| author class as a word | colour-only authorship on the title |
+| no prediction | a `%`, a bar or an ETA on the head (`OD-27`) |
+
+The alias test filters out attribute values containing `EP` because the view's `aria-label` is
+`Issue EP-142`, which is text a screen reader speaks, not identity; every other attribute must be
+byte-identical across the key change.
 
