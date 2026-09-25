@@ -457,8 +457,8 @@ colours?" would pass it, and a ring would still vanish.
    naming every selector in the `forced-colors.css` block above (that failure **is** the list;
    if it names one this part does not, that selector gets a line in the same group); grain,
    selection and twin tests fail; the system-colour test passes (nothing uses one yet); the six
-   canaries pass their planted half and fail their real-tree half only if the tree already has
-   the fault; the tick test fails; the glyph test passes (task 29's shapes already differ) and is
+   canaries pass already (each reads only its planted file, which the real tree lacks); the tick
+   test fails; the glyph test passes (task 29's shapes already differ) and is
    a guard for step 4.
 2. Write `forced-colors.css` and its `main.tsx` import; append the dev sheets' lines. The ring,
    grain and selection tests pass.
