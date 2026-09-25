@@ -237,42 +237,76 @@ driver here would run it beside all of that. Phase 3 closes this for the laptop'
    `machined` writes no `-c` of its own. The two it wrote before this batch are H1's first two
    rows. It refuses to start (exit 2, naming the key) if `MachineHardening` finds any system or
    global credential helper, so the only credential a call can carry is the one in its `Env`.
-2. **`Scope` follows `Dir`, and `machined` checks it.** A `Dir` under `lanes/` must be
-   `"clone"`, a `Dir` equal to `projects/<name>` must be `"project"`, and `Dir: ""` must be
-   `"none"`. Any other `Dir` is `400`. **`Dir: ""` never means the disk root `/machine`.**
-   `machined` runs a `none`-scope call in `<OwnedRoot>/clone` (`/tmp/machined-git/clone`), an
-   empty directory it creates at start beside phase 3's `no-hooks`, as phase 3's `GitHelper`
-   runs in `<OwnedRoot>/credential` (phase-3 `task-13.md:108`). It is a subdirectory, not
-   `OwnedRoot` itself, because phase 3's `None` rule admits "a `Dir` under
-   `Hardening.OwnedRoot`" (phase-3 `task-02.md:452`), and that wording does not settle whether
-   the root itself counts. The laptop's `Call` for such a call carries `Dir: ""` (task 25).
-   `"none"` is admitted for exactly two shapes: `Args == ["version"]`, and the add-project clone
-   below. Any other pairing is `400` before gitx sees the call. The laptop names the scope
-   (task 25), but `machined` does not take it on trust, because the scope decides whether a lane
-   is read against the closed allowlist and whether the token may enter it.
+2. **`Scope` follows `Dir`, and `machined` checks it before gitx sees the call.** `Dir` has
+   three forms. Any other `Dir`, `Scope` `""`, `"clone"` or any unknown value is `400`:
+   - **`projects/<name>`** (the name rule below): `Scope` must be `"project"`, `NewLane` `""`.
+   - **`""`**: `Scope` must be `"none"`. **`Dir: ""` never means the disk root `/machine`.**
+     `machined` runs it in `<OwnedRoot>/clone` (`/tmp/machined-git/clone`), an empty directory it
+     creates at start beside phase 3's `no-hooks`, as phase 3's `GitHelper` runs in
+     `<OwnedRoot>/credential` (phase-3 `task-13.md:108`). It is a subdirectory, not `OwnedRoot`
+     itself, because phase 3's `None` rule admits "a `Dir` under `Hardening.OwnedRoot`"
+     (`task-02.md:523`, `:534`), which does not settle whether the root itself counts. It is
+     admitted for exactly two shapes: `Args == ["version"]`, and the add-project clone below.
+   - **`lanes/<p>/<d>`**: task 20's lane-path check first (three segments, no `..`, each an
+     `Lstat` directory; otherwise `409 lane_path_invalid`). Then `Scope` must be `"none"`,
+     `NewLane` must equal `Dir`, and the path must be in the creating set (otherwise
+     `409 lane_not_creating`, git never ran), and `Args` must be one of the create writes below.
+
+   The laptop names the scope (task 25), but `machined` does not take it on trust, because the
+   scope decides whether H3 runs.
 
    **Two `clone` shapes, one per scope.** Any call whose `Args[0]` is `clone` must be one of
    them; any other `clone` is `400`, naming the argument:
    - `Scope: "none"`: the add-project clone below.
-   - `Scope: "project"`: **phase 3's lane create** (its `lanes.Creator` step 4, built by the
-     unexported `cloneArgv(branch, src, dst)`, phase-3 `task-03.md:157-160`, `:286`; run with
-     `Dir` the project and `Scope Project`, `:179-181`). It is admitted when all of these hold:
-     `Dir` is `projects/<name>`; `Class` is `"local"`; `Env` is empty (a lane create carries no
-     credential); the options before `--` are drawn only from `--no-hardlinks`, `--origin origin`,
-     `--branch <b>` with `<b>` not starting with `-`, and `--config <k>=<v>` with `<k>` one of the
-     four clone keys H3's Clone allowlist admits (`core.autocrlf`, `core.eol`,
-     `core.checkStat`, `core.trustctime`); after `--` come exactly two paths (`/machine` below is
-     `machined`'s root, `PANACEA_APP_MACHINED_ROOT`, task 20, and a test's temp root); the first
-     equals `/machine/<Dir>`, so H3 checked the very repository being cloned; and the second is
-     `/machine/lanes/<a>/<b>`, two path elements, each non-empty, neither `.` nor `..`, holding no
-     `/`, `\` or NUL, that does not exist yet, and whose parent, with symlinks resolved, is still
-     under `/machine/lanes`. The option list is closed because a clone's `--config` is written
-     into the new clone **before its checkout**, and H3 first reads that clone on the next call:
-     `--config filter.x.smudge=<cmd>` would run on the machine pod during the clone itself. The
-     destination is confined because a clone anywhere else would plant a repository in
-     `projects/` (read under the Project rule) or in `/tmp/machined-git` (where `None` calls run
-     unchecked). A change to phase 3's `cloneArgv` needs the matching change here first (seam
-     S8-P3.3, task 33).
+   - `Scope: "project"`: **phase 3's lane create**, its `lanes.Creator` step 4 (phase-3
+     `task-03.md:161-168`, built by the unexported `cloneArgv`, `:392`), exactly as env ruling 4
+     states it. It is admitted when all of these hold:
+     - `Dir` is `projects/<name>`, `Class` is `"local"` and `NewLane` is `""`;
+     - `Env` **equals `lanes.NoFilterEnv`**, key for key and value for value, imported from
+       phase 3 and never copied (`GIT_CONFIG_COUNT=3`, `filter.lfs.smudge=""`,
+       `filter.lfs.process=""`, `filter.lfs.required=false`; `task-03.md:212-218`);
+     - the options before `--` are exactly this set, each once, in any order: `--no-hardlinks`,
+       `--branch <b>` with `<b>` not starting with `-`, `--origin origin`, and `--config` for
+       exactly `core.autocrlf=false`, `core.eol=lf`, `core.checkStat=minimal`,
+       `core.trustctime=false`, `core.longpaths=true` and `core.symlinks=false`;
+     - after `--` come exactly two paths (`/machine` is `machined`'s root,
+       `PANACEA_APP_MACHINED_ROOT`, task 20, and a test's temp root). The first equals
+       `/machine/<Dir>`, so H3 checked the very repository being cloned. The second is
+       `/machine/lanes/<a>/<b>`: two path elements, each non-empty, neither `.` nor `..`,
+       holding no `/`, `\` or NUL; it does not exist yet; and its parent, with symlinks
+       resolved, is still under `/machine/lanes`.
+
+     The option list is closed because a clone's `--config` is written into the new clone
+     **before its checkout**: `--config filter.x.smudge=<cmd>` would run on the machine pod
+     during the clone itself. The destination is confined because a clone anywhere else would
+     plant a repository in `projects/` (read under the Project rule) or in `/tmp/machined-git`
+     (where `None` calls run unchecked). Once admitted, and **before git starts**, the
+     destination joins the creating set (below). A change to phase 3's `cloneArgv` needs the
+     matching change here first (seam S8-P3.3, task 33).
+
+   **A create's writes in its new lane** (R4.5's window; `task-03.md:169-181`, `:191-198`).
+   `Dir == NewLane`, a lane in the creating set, `Scope` `"none"`, `Env` empty, and `Args`
+   exactly one of these; any other is `400`:
+   - `config remote.origin.url <v>` with `v == lanes.NoFetchURL`, and
+     `config remote.origin.pushurl <v>` with `v == lanes.NoPushURL` (`:207-210`);
+   - `config user.name <v>` and `config user.email <v>`, `<v>` non-empty, holding no NUL or
+     newline and not starting with `-` (step 5, `:174-177`);
+   - `config core.hooksPath <v>` with `lanes.CopyableHooksPath(v)` (step 6, `:178-181`,
+     `:220-225`);
+   - `ls-files --others --exclude-standard -- <rel>` with `lanes.CopyableHooksPath(rel)`
+     (CopyGeneratedHooks' check, `:253-256`).
+
+   `None` skips H3, so this list *is* the check: the lane's config then holds only the clone's six
+   keys and these values, none of which names a program, and H1 overrides `core.hooksPath` on
+   every call anyway.
+
+   **The creating set.** An in-memory map from a lane's relative path to a deadline. The entry
+   is made when its clone is admitted, with no deadline while git runs, and gets
+   `CreatingTTL` from the clone's exit, success or failure (so Create's failure path can still
+   remove it). It closes on `POST /v1/lanes/sealed`, on its deadline, or on a whole-lane
+   `remove-tree`. A restart empties it: an in-flight create's next write is
+   `409 lane_not_creating`, and Create's failure path removes the directory, which needs no
+   entry. After an entry closes, `machined` never runs git in that path again (R4.5).
 3. **An explicit `Env` allowlist, derived from phase 3's call sites.** Every `Call.Env` phase 3
    writes, found by grepping its parts for `Env`, `GIT_AUTHOR`, `GIT_COMMITTER` and
    `commit-tree` at phase-3 `e816a59` (2026-09-24): task 08's `forecastCommit` (identity and a
