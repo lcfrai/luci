@@ -20,7 +20,7 @@ every revision on every query), and erase must blank it, which is why both live 
 why the erase test reads **every** text column in the schema rather than a list: a denormalised
 copy is exactly what a list forgets.
 
-Four decisions the scope left open, made here.
+Five decisions the scope left open, made here.
 
 1. **Erase follows Hub task 27's brief erase, route for route.** Org admin only: every team role
    gets 403 `forbidden`, `required: org_admin` (`H27:31-34`); the issue or comment is found by id
@@ -34,13 +34,20 @@ Four decisions the scope left open, made here.
    erased, and appends **one** `issue.erased` event with both counts (`{erasedRevisions,
    erasedComments}`, task 13's `IssueErasedData`), as `brief.erased` is one event for many
    revisions. A comment's own erase appends one `comment.erased`.
-3. **Three columns task 07's functions do not blank are blanked here, through task 07's file.**
-   `issues.head_title` (added here), `issues.state_reason` (a hand-set *done, not proven* reason
-   is a person's words) and task 15's `issues.external_author_name`. The owner function is the only
-   writer that may touch them after erase, so `erase_issue` is **replaced** (`CREATE OR REPLACE`,
-   same signature, same checks) in this plan's W1 migration with the three extra assignments; its
-   guard (`guard_issue`, task 07) gains the three columns in its "owner only, once" list. This is
-   an edit to task 07's SQL in this plan's own file, in task order; it is not a Hub file.
+3. **Two columns task 07's function does not blank are blanked here.** `issues.head_title` (added
+   here) and `issues.state_reason` (a hand-set *done, not proven* reason is a person's words).
+   `erase_issue` is **replaced** (`CREATE OR REPLACE`, same signature, same org check) by a
+   section appended to this plan's W1 migration; task 15 appends one more replacement for its
+   `external_author_name`. Task 07's `guard_issue` needs no change: after `erased_at` is set it
+   already refuses every change by anyone but `hub_owner` (`task-07.md:164`), so `hub_app` can
+   never write a title or a reason back onto an erased issue. This extends task 07's SQL in this
+   plan's own file, in task order; it is not a Hub file.
+5. **The head carries its title, additively.** Task 03's `IssueHead` has no title
+   (`task-03.md:282-303`), so a search hit, like every list row, would be a number with no name.
+   With `head_title` stored, every head read fills `IssueHead.Title` (`""` once erased). Because
+   the head now holds issue text, **every stored replay that holds a head blanks `head.title`** as
+   it already blanks revision content: task 08's create (`task-08.md:378`), task 09's revision
+   writes and task 11's relation reply. Task 14's canary test is the check that none was missed.
 4. **Search is `ILIKE` on `head_title`, with no index.** At 10,000 issues its speed is
    **unmeasured**; a trigram index (`pg_trgm`) is a later task if a measurement asks for it, and
    whether the Hub's Postgres build ships `pg_trgm` is **UNVERIFIED**. `q` is matched as a literal:
