@@ -271,3 +271,60 @@ closes L-24's W1 part (the kinds and the stalled-agent fact; land order is phase
 becomes related is L-25, W2), L-10's relation, L-39's W1 part (the delegate is the assignee's own
 agent) and, with task 46, L-181. Does not claim: sub-issues (L-20), the W3 negotiation line (§4.1).
 
+**49 — the editor, part 1: one Markdown editor on `prosemirror-*` (MIT), author class kept.**
+Files: new `src/components/editor/{Editor.tsx,schema.ts,markdown.ts,authorClass.ts,editor.css}`
+(+ tests) and `desktop/package.json` ⚑, which gains `prosemirror-model`, `-state`, `-view`,
+`-transform`, `-commands`, `-keymap`, `-history`, `-inputrules` and `-markdown` (with `markdown-it`
+under it), each with a licence line (MIT; the part confirms each from `package-lock.json` at
+install, versions **UNVERIFIED** here). Adds `interface EditorProps {value: MarkdownDoc; onCommit(next:
+MarkdownDoc): void; readOnly?: boolean; ariaLabel: string}`, `type MarkdownDoc = {markdown: string;
+authorship: readonly AuthorSpan[]}`, `interface AuthorSpan {from: number; to: number; cls: "text·H" |
+"text·A"}` over offsets in the Markdown string, and `parseMarkdown(md) → Node`,
+`serializeMarkdown(doc) → string`; `AuthorSpan` maps onto SW.1's authorship field on a revision (the
+field name is task 03's, **UNVERIFIED** here). One editor serves the issue description here and
+comments in task 51. Markdown shortcuts are input rules (`# `, `- `, `1. `, `> `, a fence, `**`,
+`` ` ``, `[ ] `); raw HTML is off (`markdown-it` `html: false`); only `https:`, `http:` and
+`panacea:` links are live; nothing embeds (L-128 is a SKIP: links stay text). **Author class is
+kept** (TM-05 §3.3 as 05 L-124 cites it): an agent passage stays `text·A`; a person's edit inside it
+turns only the edited range `text·H`; pasted text is the person's; an agent passage carries a gutter
+mark (`<MarkGlyph kind/>`, SW.12) and a word in its accessible name, never colour alone. The
+description commits as **one revision write** on blur, on `Ctrl+Enter`, or after 3 s idle (a
+proposed cadence, the owner's to judge), never per keystroke; editor undo is ProseMirror's history,
+separate from the list's `U`. Text is sans (`voice.split`, 05 §4.4 C3); code is Commit Mono. Tests
+first: the fixture set round-trips byte for byte (kills a serializer that rewrites `*` as `_` or drops
+a trailing newline); `<script>` in Markdown renders as text (kills `html: true`); a `javascript:` link
+is not live (kills an unsafe href); typing inside an agent passage splits it and marks only the typed
+range `text·H` (kills flipping the whole passage, and kills losing the agent mark on any edit); an
+agent passage has a non-colour mark and a word (kills colour-only authorship); `C`, `S`, `N` and `1`
+typed in the editor insert characters and fire no work verb (kills a `keys.list` leak into text
+fields); one blur sends one revision write (kills per-keystroke writes); every added dependency's
+licence in the lock file is MIT (kills a copyleft addition). Depends on 46. Design: 05 §4.4 C3, §3.4
+(issue text reaches an agent only as adopted spec-class text after the Hub's checks), §1 row I.
+Parity: closes L-124 and L-126's Markdown half (the slash menu is task 50); serves L-34 (each commit
+is a revision, task 47). Does not claim: multiplayer editing (L-121, team mode's TM2), the Discover
+brief editor (phase 4's), drafts (L-33, W2), agent edits shown as proposals (L-130, W4).
+
+**50 — the editor, part 2: the slash menu and tables.** Files: new
+`src/components/editor/{slashMenu.ts,SlashMenu.tsx,tables.ts}` (+ tests), edits to task 49's
+`schema.ts` and `markdown.ts`, and `desktop/package.json` ⚑ (`prosemirror-tables`, MIT, with its
+licence line). Adds `const SLASH_ITEMS: readonly SlashItem[]` with `interface SlashItem {id; label;
+shortcut: string; run(view): void}`: headings 1-3, bulleted, numbered and check lists, quote, code
+block, divider, table, *Link an issue* (searches the replica by alias and inserts the `is-` link,
+shown as its alias; task 47's `issueLink`) and *Link a criterion* (inserts the brief key and
+criterion id, shown as the criterion's words). Each item shows its Markdown shortcut as a `kbd` hint
+(`--t-micro` mono, 02 C9) read from the **same table** the input rules use, so the menu teaches the
+shortcuts and cannot drift from them (L-226's rule, inside the editor). `/` opens the menu only at
+the start of a block or after whitespace; typing filters; `Enter` inserts; `Esc` closes and leaves
+the literal `/`. The menu is a `listbox` with `aria-activedescendant`, placed at the caret without
+scrolling the document. Tables are GFM pipe tables: `markdown-it` parses them and `tables.ts` adds
+the serializer; `Tab` and `Shift+Tab` move between cells; add and remove a row or column from the
+menu. Tests first: `/` at a block start opens the menu and `/` inside a word types a slash (kills an
+always-open trigger); `tab` filters to *Table* and `Enter` inserts a table with a header row (kills a
+broken filter); a table serialises to a pipe table that re-parses to an equal document (kills lossy
+tables); `Esc` leaves `/` in the text (kills eating the character); every item's hint equals its input
+rule's trigger (kills a second, drifting table); *Link an issue* inserts an `is-` link, never the
+alias text as the target (kills an alias key); opening the menu does not change the document's scroll
+position (kills a scroll jump). Depends on 49. Design: 05 §1 row I (L-126, L-127), §4.4 C3, §3.6.
+Parity: closes L-126's slash menu and L-127's table part. Does not claim: callouts (task 92, W2),
+Mermaid and collapsibles (L-127's *later* part), embeds (L-128, SKIP).
+
