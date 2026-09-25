@@ -1,6 +1,6 @@
 ### Task 10: `internal/oidcauth` — the one validator, **env task 17 step 0's**, taken unchanged (OD-30)
 
-**Lane B. Depends on: env task 17 step 0 (through the orchestrator's merge) and task 11. About 1 hour.
+**Lane B. Depends on: env task 17 step 0 (through the orchestrator's merge). About 0.5 hours.
 Contract task H1 (HA-1).** Ruling: main `docs/superpowers/planning/2026-09-25-identity-keycloak-broker.md`
 §5 (`:222-302`); it supersedes this part's earlier "write phase 8 task 16 here if it has not landed".
 
@@ -9,10 +9,11 @@ Phase 8 task 16 BUILT it as `control-plane/internal/entra` on `feat/env` (`66920
 Entra-only rules that refuse every Keycloak token. **Env task 17's step 0** renames it by `git mv` to
 `control-plane/internal/oidcauth` and adds the `keycloak` claims profile, committed before any broker code.
 **This task writes no validator** and copies nothing: it takes that commit unchanged through the
-orchestrator's merge. Task 13 waits for this task and inherits the wait.
+orchestrator's merge. Tasks 11 and 13 wait for this task (11's tests validate minted tokens with
+`oidcauth`) and inherit the wait.
 
-**Files:** `control-plane/internal/devissuer/oidcauth_test.go` (new, package `devissuer_test`). Nothing
-under `control-plane/internal/oidcauth/` is written by this lane.
+**Files:** none written. `control-plane/internal/oidcauth/*` arrives from `feat/env`; the plan's progress
+notes gain one line.
 
 #### Contract — the exported API the Hub relies on (ruling §5, complete)
 
@@ -66,28 +67,24 @@ service: both absent, `Service = true`. Hub mapping: `ErrType` → `ReasonMalfor
 
 #### Tests to write first
 
-`TestADevissuerKeycloakTokenValidates` (in `oidcauth_test.go`): start `devissuer` in process (task 11,
-default profile), mint a person token for audience scope `panacea-app-hub`, and validate it with
-`oidcauth.New(Config{Profile: ProfileKeycloak, Issuer: <devissuer>/realms/panacea-app-dev, Audience:
-"panacea-app-hub", RequiredScope: "panacea-app-hub", AllowedClients: ["panacea-app-desktop"], TenantIDs:
-[dev tid], AllowInsecureAuthority: true})`. Asserts `Key() == "<tid>/<oid>"` of the dev user and
-`Service == false`. **Kills** a `devissuer` whose token the Hub can never validate locally (a wrong `iss`
-path, a string-only `aud`, `scp` in place of `scope`, or no `typ`). A second row mints the Fleet
-client-credentials token and asserts `Key() == "client/panacea-app-fleet"` when Fleet is in `ServiceClients`.
+None in this lane: the package's suite is env's (ruling §5 `:273-286`: the moved Entra suite with
+`Profile: ProfileEntra`, `keycloak_test.go`, the cross-profile rows, the `/protocol/openid-connect/certs`
+row). The Hub-side proof that a local token validates is **task 11's** `TestAMintedAccessTokenValidates`,
+which runs `oidcauth` under `keycloak` against `devissuer`. It kills a validator the Hub can never use
+locally, and replaces this part's earlier `TestADevissuerShapedTokenValidates`.
 
 #### Steps
 
 - [ ] **Step 1: Preflight.** `ls control-plane/internal/oidcauth/` on this lane's base. If absent, stop and
   report "task 10 waits for env 17 step 0"; never write the package here.
 - [ ] **Step 2:** run its suite unchanged; record "task 10: env 17 step 0 at `<sha>`" in the plan's notes.
-- [ ] **Step 3:** write the test above; it passes against task 11's `devissuer`. Commit by pathspec.
+- [ ] **Step 3:** `git grep -n "internal/entra\"" -- control-plane` finds no importer. Commit the note by pathspec.
 
 #### Acceptance
 
 ```bash
 go test ./control-plane/internal/oidcauth/ -race -count=1 2>&1 | tail -1         # ok
-go test ./control-plane/internal/devissuer/ -run TestADevissuerKeycloakTokenValidates -race -count=1 -v \
-  2>&1 | grep -c "^--- PASS"                                                     # 1
+ls control-plane/internal/entra 2>&1 | head -1                                    # No such file or directory
 git diff --stat <env 17 step 0 sha> -- control-plane/internal/oidcauth           # empty
 git diff --stat control-plane/go.mod control-plane/go.sum                        # empty
 ```
