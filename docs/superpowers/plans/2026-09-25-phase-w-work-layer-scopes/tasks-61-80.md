@@ -556,3 +556,73 @@ a viewer cannot create, the sync principal cannot promote. **Depends on** 74; P4
 L-69, L-70 and L-71 (the desktop is 85-86). **Does not claim** multi-team features (W4, L-67),
 milestones (W4, L-72), initiatives, or the brief's drafted text (phase 4).
 
+**77 — cycles `cy-`: cadence, the janitor's creation and rollover, scope log, iCal; closure
+proposals and archive.** Stream WH. Files: `control-plane/internal/hub/store/work_cycles.go`,
+`server/work_cycles.go` (+ tests, new pair), `server/janitor.go` ⚑ (the Hub plan's file,
+`phase-h-hub.md:306`, H task 24; contract §12.5 at `hub-contract.md:2229`, run under
+`pg_try_advisory_lock`, per org with `hub.org_id` set), task 10's state route (the `started` move
+joins the current cycle), `server/matrix_integration_test.go` ⚑. **Routes:** `PUT
+/v1/teams/{teamId}/cadence` (team admin) `PutCadenceRequest{lengthDays, cooldownDays, ahead
+(1-15), firstStartsOn}`; `GET /v1/teams/{teamId}/cycles?state=`; `PATCH /v1/cycles/{cycleId}`
+(team admin: name and dates, never overlapping a neighbour; a pause is a cadence gap, L-65);
+`PUT /v1/issues/{issueId}/cycle` (`SetCycleRequest`); `GET /v1/cycles/{cycleId}/scope-log`
+(`ScopeEntry` rows, L-63); `GET /v1/closure-proposals?mine=true` and `POST
+/v1/closure-proposals/{id}/answer` (`AnswerClosureRequest`, the assignee); and the **iCal feed**.
+The Hub refuses browsers and needs a bearer token (`hub-contract.md:38`), which calendar clients
+cannot send, so the feed is `GET /cal/{feedToken}.ics` **outside `/v1`**: a per-person token minted
+by `POST /v1/me/calendar-token`, revocable, carrying only cycle numbers, names and dates (no issue
+text); this is a design choice 05 does not make, so the part marks it **UNVERIFIED pending the Hub
+owner's review**, with a bearer-only `GET /v1/teams/{teamId}/cycles.ics` download as the fallback.
+**The janitor's W2 passes**, each event with `actor: null` and the policy's author named (05 §3.6):
+create cycles ahead up to `ahead` (L-57-L-59); at `endsOn` close the cycle and move every issue not
+`done`, `cancelled` or `duplicate` to the next, one event per issue (L-60); issues untouched for
+`staleAfterDays` become **one** `ClosureProposal` per assignee on their Desk (AX §7 batching), or
+close if the team chose `staleMode: auto` (L-11); archive closed items after `archiveAfterDays`,
+still searchable (L-12); expire drafts after six months (task 80's records, L-33). A `started`
+move sets `cycleId` to the team's current cycle when it has none, written as the person (L-61).
+**Tests first:** (1) cadence 14/0/3 from Monday makes three upcoming cycles numbered without gaps
+(mutant: numbers from a global sequence); (2) a second janitor run is a no-op (mutant: duplicate
+cycles, i.e. no advisory lock or no idempotence); (3) rollover moves a `todo` and skips a `done`
+and a `cancelled` issue, one event each, `actor: null` (mutants: closed issues rolled; one bulk
+event; an actor set); (4) adding an issue on day 4 writes a scope entry with its person (mutant:
+scope log from current membership); (5) the `.ics` body holds no issue title and a revoked token is
+`404` (mutants: titles in the feed; token not revocable); (6) six stale issues of one assignee make
+one proposal, and answering with three ids closes exactly those three as the assignee (mutants: six
+proposals; closes all six); (7) an overlapping date edit is `422` (mutant: overlaps accepted);
+(8) matrix rows: a member cannot set the cadence; the sync principal cannot answer a proposal.
+**Depends on** 74. **Design:** 05 §1 group D, §3.2 (cycle row), §3.6, §5.4 W2; 04 §2.5; AX §7.
+**Closes** the Hub halves of L-11, L-12, L-57-L-61, L-63's scope log, L-64 and L-65 (the desktop is
+task 87). **Does not claim** convergence per criterion (desktop, task 87, from phase 4's words),
+*propose the next cycle* (W4, L-66), or a capacity figure (L-62 is a SKIP).
+
+**78 — sub-issues and the parent rule; templates `tp-`; label groups and org labels.** Stream WH.
+Files: `control-plane/internal/hub/store/work_parents.go`, `store/work_templates.go`,
+`store/work_labels_plan.go` and their `server/` twins (+ tests), task 10's done rule (the parent
+clause), task 11's label route (the group check), `server/matrix_integration_test.go` ⚑.
+**Routes:** `PUT /v1/issues/{issueId}/parent` (`SetParentRequest`; same project, no loop, the
+database trigger of task 74 as the second guard); `POST /v1/teams/{teamId}/templates` (team admin)
+and `POST /v1/org/templates` (org admin), `GET /v1/teams/{teamId}/templates` (team and org),
+`PATCH` and `POST .../archive`; `POST /v1/teams/{teamId}/label-groups` (team admin), `POST
+/v1/org/labels` and `POST /v1/org/label-groups` (org admin). **Rules:** a parent is `done` only
+when every child is closed **and** every criterion it serves is settled (L-21, 05 §2.3), so the
+last child closing re-runs the done rule on the parent, written as the person who closed the child;
+children may be agent tasks below them only in team mode (TM-05 §3.3; nothing here); a template
+may pre-fill `serves`, labels, priority and estimate, and creating from one is a client prefill
+(no server-side merge), so a template edit never changes existing issues (L-26); a label in an
+`exclusive` group replaces its sibling on the issue in one write, not a `422`, when the patch sends
+the new one alone, and two in one patch are `422 exclusive_label_group` (L-18); org labels are
+visible to every team and written by org admins only, who still read no project content
+(`hub-contract.md` §5.2). Events `issue.parent_set`, `template.*`, `label_group.*`. **Tests
+first:** (1) A → B → A is `422` at the route and at the trigger (mutant: the route check alone);
+(2) a parent with one open child stays out of `done` after its own evidence holds (mutant: children
+ignored); (3) closing the last child makes the parent `done` as the closer when its criteria are
+settled, and not when one is open (mutants: auto-close on children alone; `actor: null`); (4) a
+cross-project parent is `422` (mutant: any issue); (5) editing a template leaves an issue made from
+it unchanged (mutant: live-linked templates); (6) a member cannot write an org label, and an org
+admin creating one reads no issue (mutant: org admin gets project reads); (7) the exclusive rule
+both ways (mutants: two kept; replacement refused); (8) each write has one event. **Depends on**
+74. **Design:** 05 §3.2 (label, template rows), §2.3, §5.4 W2. **Closes** the Hub halves of L-17's
+org half, L-18, L-20, L-21 and L-26 (the desktop is 88-90; L-19's shorthand and L-22's split are
+desktop only). **Does not claim** recurring issues (W4, L-32), form templates (W5, L-27), or
+copying templates between teams (later, L-7).
+
