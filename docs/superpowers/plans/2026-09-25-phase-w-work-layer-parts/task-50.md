@@ -253,3 +253,85 @@ sentinels inside a table are stripped by `serializeWithAuthorship` like any othe
 after the constant exists. Escaping at a paragraph's line start may write `\-` for a cell that
 starts with `-`; that re-parses to the same text and is the serializer's, not this task's.
 
+#### Interfaces — complete: `desktop/src/components/editor/slashMenu.ts`, part 1: the items
+
+```ts
+// The slash menu (rules 1-4, decision 1). Items are data; block items take their label AND their
+// hint from task 49's SHORTCUTS, so the menu cannot teach a shortcut the editor does not have.
+import { setBlockType, wrapIn } from "prosemirror-commands";
+import { wrapInList } from "prosemirror-schema-list";
+import { Plugin, PluginKey, TextSelection, type Command, type EditorState } from "prosemirror-state";
+import { addColumnAfter, addRowAfter, deleteColumn, deleteRow, deleteTable } from "prosemirror-tables";
+import { findWrapping } from "prosemirror-transform";
+import type { EditorView } from "prosemirror-view";
+import { criterionLink, issueLink } from "../../work/links";
+import { SHORTCUTS, type ShortcutId } from "./inputRules";
+import { editorSchema } from "./schema";
+import { createTable, hasColumns, inBodyRow, inTable } from "./tables";
+
+export interface IssueCandidate { id: string; alias: string; title: string }
+export interface CriterionCandidate { briefKey: string; criterionId: string; text: string }
+/** Decision 2: the caller's reads. The editor knows no project and reads no replica. */
+export interface LinkSources {
+  issues(q: string): readonly IssueCandidate[];
+  criteria(q: string): readonly CriterionCandidate[];
+}
+
+export interface SlashItem {
+  id: string;
+  label: string;
+  /** The Markdown that does the same, from SHORTCUTS; "" when there is none (rule 3). */
+  shortcut: string;
+  /** More words the filter matches ("ul", "todo"); never shown. */
+  keywords?: readonly string[];
+  /** Listed only while this holds (the row and column items: inside a table). */
+  when?(state: EditorState): boolean;
+  /** A link item opens a picker over this source instead of running (rule 4). */
+  pick?: "issue" | "criterion";
+  run(view: EditorView): void;
+}
+
+const n = editorSchema.nodes;
+const cmd = (c: Command) => (v: EditorView): void => { c(v.state, v.dispatch, v); };
+
+/** A block item whose label and hint are its SHORTCUTS row, by construction. */
+function block(id: ShortcutId, c: Command, keywords: readonly string[] = []): SlashItem {
+  const s = SHORTCUTS.find((x) => x.id === id)!;
+  return { id, label: s.label, shortcut: s.trigger, keywords, run: cmd(c) };
+}
+
+/** A task list in one transaction, so one undo step (task 49's check rule, from a command). */
+const toTaskList: Command = (state, dispatch) => {
+  const range = state.selection.$from.blockRange();
+  const wrap = range && findWrapping(range, n.bullet_list, { bullet: "-" });
+  if (!range || !wrap) return false;
+  wrap[wrap.length - 1] = { type: n.list_item, attrs: { checked: false } };
+  dispatch?.(state.tr.wrap(range, wrap));
+  return true;
+};
+
+/** An empty line becomes the rule; otherwise the rule goes after the line. A paragraph follows a
+ *  rule that would end the document, so the caret has somewhere to go. */
+const divider: Command = (state, dispatch) => {
+  const $f = state.selection.$from;
+  const empty = $f.parent.content.size === 0;
+  const tr = empty ? state.tr.replaceRangeWith($f.before(), $f.after(), n.horizontal_rule.create())
+    : state.tr.insert($f.after(), n.horizontal_rule.create());
+  const end = tr.mapping.map($f.after());
+  if (end >= tr.doc.content.size) tr.insert(tr.doc.content.size, n.paragraph.create());
+  dispatch?.(tr.setSelection(TextSelection.near(tr.doc.resolve(Math.min(end + 1, tr.doc.content.size)))));
+  return true;
+};
+
+/** Rule 5's table: a header row and one body row of three cells, the caret in the first header. */
+const insertTable: Command = (state, dispatch) => {
+  const $f = state.selection.$from;
+  if ($f.parent.type.spec.code || inTable(state)) return false;
+  const at = $f.parent.content.size === 0 ? $f.before() : $f.after();
+  const tr = at === $f.before() ? state.tr.replaceWith(at, $f.after(), createTable(editorSchema))
+    : state.tr.insert(at, createTable(editorSchema));
+  dispatch?.(tr.setSelection(TextSelection.create(tr.doc, at + 3)));   // table, row, cell: +1 each
+  return true;
+};
+```
+
