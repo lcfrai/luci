@@ -518,3 +518,73 @@ func AgentOwnedBy(ctx context.Context, tx pgx.Tx, agentID, userID string) (bool,
 `store.AuditRow` (Hub task 14, `task-14.md:159-168`) gains, after `Data`, `Via string` and
 `DelegationID string`, and `Append` copies both onto the `hubapi.AuditEnvelope` it builds. It adds
 no check of its own: the envelope's `check()` is the one rule (`task-03.md:1336-1341`).
+
+**`devissuer`, the client-credentials grant (decision i; ADR-H1 §5.10 rule 8).** Hub task 11's
+`Client` (`task-11.md:92-95`) gains three fields; the grant is a third row of Hub task 12's
+`/token` table (`task-12.md:71-74`).
+
+```go
+// control-plane/internal/devissuer/config.go — Client, complete after this task
+type Client struct {
+	ClientID string `json:"clientId"`
+	Name     string `json:"name"`
+	// Confidential marks a workload identity. It may use client_credentials
+	// only; a public client may not use it (unauthorized_client both ways).
+	Confidential bool `json:"confidential"`
+	// ServicePrincipals maps a tenant id to the client's service-principal oid
+	// there: an app-only token's oid, as Entra writes it. A tenant absent here
+	// cannot issue this client a token. Required non-empty when Confidential.
+	ServicePrincipals map[string]string `json:"servicePrincipals"`
+	// AppRoles maps an API's client id to the app roles assigned to this client
+	// on it, carried as roles in its app-only token for that API.
+	AppRoles map[string][]string `json:"appRoles"`
+}
+
+// LoadConfig gains: a Confidential client has ≥ 1 service principal, each key a
+// configured tenant and each value a GUID unique across every oid in the file
+// (users and service principals); every AppRoles key is a configured API and
+// every role non-empty; a public client has neither map. The desktop stays the
+// only public client the file names.
+```
+
+```go
+// control-plane/internal/devissuer/issuer.go — addition
+
+// MintAppToken signs the app-only token the client_credentials grant answers,
+// without HTTP — for tests only, as MintAccessToken is. It refuses a tenant,
+// client or API not in the configuration, and a public client.
+func (i *Issuer) MintAppToken(tid, clientID, apiClientID string) (string, error)
+
+// Env gains, last, PANACEA_APP_HUB_FLEET_CLIENT_ID: the first confidential
+// client whose AppRoles for the Hub API hold "Hub.Fleet", or the line is absent.
+```
+
+| Grant | Required | Checks | Answer |
+|---|---|---|---|
+| `client_credentials` | `client_id`, `scope`, `client_assertion_type`, `client_assertion` | the client is configured (`invalid_client`) and confidential, and has a service principal in the path's tenant (both else `unauthorized_client`); `client_assertion_type` is `urn:ietf:params:oauth:client-assertion-type:jwt-bearer` and `client_assertion` is non-empty (else `invalid_client`); `scope` is exactly one value, `api://<API client id>/.default`, for a configured API (else `invalid_scope`) | `{"token_type":"Bearer","expires_in":<AccessTTL in s>,"ext_expires_in":<same>,"access_token":"<JWS>"}`: no refresh token, no `id_token`, no `scope` key, as Entra answers this grant |
+
+A confidential client presenting `authorization_code` or `refresh_token`, or reaching
+`/authorize`, is `unauthorized_client`, a code Hub task 12's list gains. The **app-only access
+token**'s claims: `ver` `"2.0"`, `iss`, `aud` (the API's client id), `azp` (the client id), `tid`
+(the path's), `oid` and `sub` (both the service principal's oid, as Entra's app tokens have them),
+`roles` (the client's `AppRoles` for that API, omitted when none), `iat`, `nbf`, `exp`, `uti`.
+**Never** `scp`, `name`, `preferred_username`, `email`, `acct`, `xms_edov` or `idtyp`: decision (a)
+reads none of them for an app caller, and `devissuer` not writing `idtyp` keeps any offline code
+from coming to depend on a claim Entra writes only when configured.
+
+Discovery's `grant_types_supported` gains `"client_credentials"` and
+`token_endpoint_auth_methods_supported` gains `"private_key_jwt"`.
+
+`cmd/devissuer/dev-tenant.json`'s `clients` gains one entry, fictional and secret-free:
+
+```json
+{ "clientId": "77777777-7777-4777-8777-777777777777", "name": "PanaceaApp Fleet (dev)",
+  "confidential": true,
+  "servicePrincipals": { "11111111-1111-4111-8111-111111111111": "dddddddd-0000-4000-8000-000000000001",
+                         "44444444-4444-4444-8444-444444444444": "dddddddd-0000-4000-8000-000000000002" },
+  "appRoles": { "33333333-3333-4333-8333-333333333333": ["Hub.Fleet"],
+                "55555555-5555-4555-8555-555555555555": ["Sandboxes.Fleet"] } }
+```
+
+The second tenant's service principal is what the cross-tenant test needs; the broker role is
+task 17's (`Sandboxes.Fleet`, `task-17.md:37`), listed here so one file serves both.
