@@ -79,7 +79,7 @@ server, and it is what the native implementation must pass. §10.2 names this se
 | Piece | Task | Why it is Panacea's | At the lift |
 |---|---|---|---|
 | `connection.Config.NewClient` and `.Version`, closures over `panacea.New` and `panacea.Version` in `main.go` | 05 | the wiring point: two closures, not one line | replaced by the native deployer's constructor |
-| `connection.Manager`: `Connect` proves an origin with `Version`, then a `pnc_` token with `Whoami`; stores the token at `PanaceaApp/panacea/<host>` and the origin in `connection.json`; its states `awaiting_approval` and `token_rejected` | 05 | Panacea's origin, its API-key kind and its account model | removed or reduced to "connected": the native deployer uses the Hub's Entra identity (7P-1, *The swap*) |
+| `connection.Manager`: `Connect` proves an origin with `Version`, then a `pnc_` token with `Whoami`; stores the token at `PanaceaApp/panacea/<host>` and the origin in `connection.json`; its states `awaiting_approval` and `token_rejected` | 05 | Panacea's origin, its API-key kind and its account model | removed or reduced to "connected": the native deployer uses the Hub's realm identity (`OD-30`; 7P-1, *The swap*) |
 | `GET`, `PUT`, `DELETE /v1/deploy/connection` and `POST /v1/deploy/connection/check`, with the `pnc_` prefix check in `deploy_connection.go` | 05 | routes for pasting a Panacea key | removed, with their `catalogReadOnlyRoutes` line and any problem code no other route answers |
 | `desktop/src/deploy/ConnectPanel.tsx`, and the lens's `not_connected`, `awaiting_approval` and `token_rejected` states | 14 | a Panacea address, a `pnc_` token, Panacea's team approval | removed, or one "not connected" state |
 | `deploy.Account.Approved` | 01 | Panacea's team-approval flag, in a domain type | kept and always true, or dropped from `Account` with its lens state |
@@ -137,7 +137,7 @@ it was.
 | **OD-1** | Built on the briefs' recommendations; UI branch stays unmerged until the owner has looked |
 | **OD-3** | Releases and their pins live in the **Hub**, not the state directory. This **answers brief decision `D1`** (per person vs per project) with its option *b* and **without** the Panacea metadata ask: a teammate's Ship reserved its pin in the same Hub my cockpit reads, so their release shows its brief on my screen |
 | **OD-4** | The binding (§3.3, 7P-6) matches a Panacea project's `repoUrl` against the local remote through phase 3's `githost.ParseRemote`, which recognises GitHub and Azure DevOps. Nothing in phase 7 parses a host or copies a key pattern: task 06 asks the Hub's own `hubapi.HostOfRepoKey` whether a missed key is in a form the Hub accepts, and that only chooses a sentence. **Azure DevOps Ship rests on HA7-6** (§9): phase 3's `RepoKey()` and the Hub must spell Azure DevOps alike. The plans agree (the Hub's correction A1 takes phase 3's form); the Hub contract's §7.4 text and phase 3's H-3 row still show the old form (review I6, plan re-review b05 R-1) |
-| **OD-6** | Identity is the Hub's. Phase 7 never runs a sign-in; it takes `hubclient.Releases` (which carries the Entra token) and `credstore.Secrets` (which holds the `pnc_` token) from the Hub's tasks C1/C2 |
+| **OD-6** | Identity is the Hub's. Phase 7 never runs a sign-in; it takes `hubclient.Releases` (which carries the realm token: Keycloak brokering Entra, `OD-30`) and `credstore.Secrets` (which holds the `pnc_` token) from the Hub's tasks C1/C2 |
 | **OD-12** | Every owner-observed step — the live Ship against dev Panacea, the lens's look — is batched to the end and stays **unverified** until then |
 | **OD-13** | Panacea is called as a client over its existing API; **no Panacea source is copied**; the deploy side is the `deploy.Deployer` interface so the lift is a swap of it, plus the connection surface §2 lists (§2, S7-N1; review M28) |
 
@@ -165,9 +165,13 @@ it was.
 ### 3.3 This plan's own decisions — each with its evidence and its cost if wrong
 
 **7P-1 — The control plane authenticates to Panacea with the user's own `pnc_` token, held in
-Windows Credential Manager. Not with an Entra token.**
+Windows Credential Manager. Not with a realm token.**
 
-The task asked for this to be decided and justified. The Entra option fails on four facts read
+*`OD-30` (ruling `2026-09-25-identity-keycloak-broker.md` §8): the desktop now holds a token from
+the Keycloak realm that brokers Entra, not a direct Entra token. 7P-1 stands. Reasons 1 and 3 hold
+as written; reasons 2 and 4 read "a realm token" for "an Entra token" and reach the same answer.*
+
+The task asked for this to be decided and justified. The realm-token option fails on four facts read
 from Panacea's source, any one of which is enough:
 
 1. **`panacea-api` does not accept a user JWT as a bearer.** `middleware.AuthWithOptions`
@@ -179,13 +183,15 @@ from Panacea's source, any one of which is enough:
    Panacea's own code calls *"an UNVERIFIED claim about the END USER"*.
 2. **The verifier is single-issuer, single-audience.** `backstageVerifierFromEnv`
    (`middleware/jwks.go:149-151`) checks one `BACKSTAGE_JWT_ISSUER` and one
-   `BACKSTAGE_JWT_AUDIENCE`. Our desktop's Entra access token has `aud` = the **Hub API's** client
-   id (Hub contract §6.3).
+   `BACKSTAGE_JWT_AUDIENCE`, deployed as the Backstage portal's keys and audience
+   (`deploy/portal/deploy-portal.yaml:605-621`). Our desktop's realm access token has the realm's
+   keys and issuer, and `aud` = **`panacea-app-hub`** (ruling §4): all three differ. Panacea's F3
+   (`deploy/f3-entra-cutover.sh:3`) cuts over to Entra, not Keycloak, so it does not help either.
 3. **Forwarding that token would break ADR-H1 §5.8**: *"Hub, broker, Azure DevOps and Panacea tokens
    are four audiences, and none is ever forwarded to another service."*
-4. **Getting a Panacea-audience Entra token** would need a Panacea app registration exposing a
-   delegated scope, our desktop pre-authorised on it, and `panacea-api` taught to accept a raw
-   bearer JWT on its REST chain. All three are changes to Panacea, which `OD-13` keeps separate and
+4. **Getting a Panacea-audience realm token** would need an audience scope `panacea-api` in the
+   realm, Panacea's verifier taught to trust the realm as a second issuer, and `panacea-api` taught
+   to accept a raw bearer JWT on its REST chain. All three are changes to Panacea, which `OD-13` keeps separate and
    which is being updated by another team right now. `VerifyBearerToken` (`auth.go:475`) exists,
    but it serves the MCP and conduit surfaces (`routes/mcp_wiring.go:117`, `routes.go:3296`), not
    the REST chain phase 7 needs.
@@ -206,10 +212,11 @@ pooled.
   the governance routes. The connection surface that collects it (`connection.Manager`, the
   `/v1/deploy/connection` routes, `ConnectPanel`) does not, and is part of the lift (§2 *The swap
   is not one line*, review M28). The native deployer after the lift authenticates with the Hub's
-  Entra identity; the `pnc_` row is then deleted by a migration step named in S7-N1 (§10.2).
-- **Cost if wrong:** if Panacea later accepts Entra bearer tokens for our audience, `panacea.Client`
-  gains a second `Authorizer` and the connect screen loses its paste step. Nothing above the
-  connector changes.
+  realm identity (`OD-30`); the `pnc_` row is then deleted by a migration step named in S7-N1 (§10.2).
+- **Cost if wrong:** if Panacea later trusts the realm as a second issuer with an audience
+  `panacea-api` (not asked of Panacea now, ruling §8), the desktop requests one more audience scope,
+  `panacea.Client` gains a second `Authorizer` and the connect screen loses its paste step. Nothing
+  above the connector changes, and nothing in phase 7 waits on it.
 
 **7P-2 — One domain interface, `deploy.Deployer`, and a conformance suite that every
 implementation passes.** Complete source in task 01. It speaks in our types (`deploy.Environment`,
