@@ -187,3 +187,296 @@ func ChildEnv(parent []string) []string {
 (task 13's invariants pin `permissions.defaultMode` and the Orchestrator's allowed tools), or
 exactly the thing this runner must not do. The test asserts the full argv, element by element,
 for both modes, so adding any flag fails it.
+
+**`preflight.go`, complete.**
+
+```go
+package runner
+
+import (
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+)
+
+// ErrPreflight wraps every reason a turn is refused before the child starts.
+var ErrPreflight = errors.New("runner: preflight")
+
+// instructionNames are the files and folders Claude Code reads instructions
+// or settings from, walking up from the working directory. The list is the
+// documented set at 2.1.27x; which of them the pinned CLI reads is
+// UNVERIFIED (task 33's /status check).
+var instructionNames = []string{"CLAUDE.md", "CLAUDE.local.md", ".claude"}
+
+// Preflight refuses a turn unless dir is an empty 0700 directory, and no
+// instruction file exists in dir, its ancestors or home's ~/.claude.
+// Transcripts under ~/.claude/projects are expected and not checked.
+func Preflight(dir, home string) error {
+	fi, err := os.Lstat(dir)
+	if err != nil || !fi.IsDir() || fi.Mode().Perm() != 0o700 {
+		return fmt.Errorf("%w: %s is not a 0700 directory", ErrPreflight, dir)
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil || len(entries) != 0 {
+		return fmt.Errorf("%w: %s is not empty", ErrPreflight, dir)
+	}
+	for d := filepath.Dir(dir); ; d = filepath.Dir(d) {
+		for _, n := range instructionNames {
+			if _, err := os.Lstat(filepath.Join(d, n)); err == nil {
+				return fmt.Errorf("%w: %s exists", ErrPreflight, filepath.Join(d, n))
+			}
+		}
+		if d == filepath.Dir(d) {
+			break
+		}
+	}
+	for _, n := range []string{"CLAUDE.md", "CLAUDE.local.md"} {
+		p := filepath.Join(home, ".claude", n)
+		if _, err := os.Lstat(p); err == nil {
+			return fmt.Errorf("%w: %s exists", ErrPreflight, p)
+		}
+	}
+	return nil
+}
+```
+
+The ancestor walk skips `dir` itself, which the emptiness check already covers. `$HOME` is the
+pod's `emptyDir` (task 15), which is not an ancestor of `/run/panacea/orch`, so `~/.claude/`
+(where the CLI keeps transcripts) is checked only for the two instruction files, not for its
+existence. The error names the path it found, which is a product path, never peer text.
+
+**`client.go`, the surface.** One request per connection (task 16, rule 2):
+
+```go
+package runner
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+
+	"github.com/kpmg-au-emu/panacea-app/sandboxd/internal/control"
+)
+
+var (
+	ErrUnavailable  = errors.New("runner: control unavailable")    // retry
+	ErrTurnMismatch = errors.New("runner: fleet refused turn.end") // give up
+	ErrForbidden    = errors.New("runner: sandboxd refused: not the runner pid")
+)
+
+type Client struct {
+	Socket string // control.DefaultSocketPath
+	dial   func(ctx context.Context, path string) (conn, error) // net.Dial in production
+}
+
+// Wait sends events.wait and returns the next pushed event, or nil after
+// sandboxd's 50 s empty answer.
+func (c *Client) Wait(ctx context.Context) (json.RawMessage, error)
+
+// End sends turn.end; ok, ErrUnavailable, ErrTurnMismatch or ErrForbidden.
+func (c *Client) End(ctx context.Context, e control.TurnEnd) error
+```
+
+`End` maps the ST.1 error codes: `unavailable` → `ErrUnavailable`; `turn_mismatch` →
+`ErrTurnMismatch`; `forbidden` → `ErrForbidden` (a bug: the runner is not the PTY's pid, and the
+runner exits 1 so the pod restarts rather than spin); anything else → an error carrying the code.
+
+**`runner.go`, the loop, complete in its control flow.**
+
+```go
+package runner
+
+import (
+	"context"
+	"encoding/json"
+	"io"
+	"log/slog"
+	"sync/atomic"
+	"time"
+	"unicode/utf8"
+
+	"github.com/kpmg-au-emu/panacea-app/sandboxd/internal/control"
+)
+
+const (
+	MaxReplyBytes = 8000             // task 26's MaxReplyBytes
+	killMargin    = 15 * time.Second // kill this long before Fleet's deadline
+	maxTurn       = time.Hour        // cap on a deadline, whatever Fleet sent
+	grace         = 10 * time.Second // SIGTERM → SIGKILL
+	endRetryFor   = 15 * time.Minute
+)
+
+type Config struct {
+	Claude  string   // absolute path, resolved once at start
+	Workdir string   // /run/panacea/orch
+	Home    string   // $HOME
+	Env     []string // os.Environ(); filtered by ChildEnv per turn
+	Client  *Client
+	Start   func(argv, env []string, dir string) (Child, error) // startChild in production
+	Now     func() time.Time
+	Log     *slog.Logger // to the PTY: status lines only, never child output
+}
+
+// Child is one running harness process in its own process group.
+type Child interface {
+	Stdout() io.Reader
+	Wait() (code int, err error)
+	KillGroup(sig Signal) error // the whole group, stragglers included
+}
+
+type Runner struct {
+	cfg    Config
+	parked atomic.Bool
+}
+
+func New(cfg Config) *Runner { r := &Runner{cfg: cfg}; r.parked.Store(true); return r }
+
+// Parked is true between turns (task 40's DIVE attaches only then).
+func (r *Runner) Parked() bool { return r.parked.Load() }
+
+// Run returns nil on a stop event, an error on ErrForbidden or ctx end.
+func (r *Runner) Run(ctx context.Context) error {
+	for {
+		raw, err := r.cfg.Client.Wait(ctx)
+		switch {
+		case ctx.Err() != nil:
+			return ctx.Err()
+		case err != nil:
+			r.cfg.Log.Warn("events.wait failed; retrying", "err", err)
+			sleep(ctx, time.Second)
+			continue
+		case raw == nil:
+			continue // 50 s empty answer; re-dial
+		}
+		var head struct{ Event string `json:"event"` }
+		if json.Unmarshal(raw, &head) != nil {
+			r.cfg.Log.Warn("undecodable event dropped")
+			continue
+		}
+		switch head.Event {
+		case control.EventStop:
+			return nil
+		case control.EventTurnBegin:
+			var b control.TurnBegin
+			if err := strictDecode(raw, &b); err != nil {
+				r.cfg.Log.Warn("turn.begin refused", "err", err)
+				continue // no turn id we trust; Fleet's sweep records it lost
+			}
+			if err := r.deliver(ctx, r.turn(ctx, b)); err != nil {
+				return err // only ErrForbidden escapes
+			}
+		default:
+			r.cfg.Log.Info("event ignored", "kind", head.Event) // nudge, snapshot, …
+		}
+	}
+}
+
+// turn runs one child and returns the turn.end to send. It never fails:
+// every failure is an exit value Fleet records.
+func (r *Runner) turn(ctx context.Context, b control.TurnBegin) control.TurnEnd {
+	r.parked.Store(false)
+	defer r.parked.Store(true)
+	start := r.cfg.Now()
+	end := control.TurnEnd{Turn: b.Turn, Nonce: b.Nonce, Exit: control.ExitFailed, Code: -2}
+	argv, err := Argv(r.cfg.Claude, b)
+	if err == nil {
+		err = Preflight(r.cfg.Workdir, r.cfg.Home)
+	}
+	if err != nil {
+		r.cfg.Log.Warn("turn refused before start", "turn", b.Turn, "err", err)
+		end.DurationMs = r.cfg.Now().Sub(start).Milliseconds()
+		return end
+	}
+	child, err := r.cfg.Start(argv, ChildEnv(r.cfg.Env), r.cfg.Workdir)
+	if err != nil {
+		r.cfg.Log.Warn("child did not start", "turn", b.Turn, "err", err)
+		return end
+	}
+	r.cfg.Log.Info("turn started", "turn", b.Turn, "mode", b.Session.Mode)
+
+	killAt := b.Deadline
+	if cap := start.Add(maxTurn); killAt.After(cap) {
+		killAt = cap
+	}
+	timer := time.AfterFunc(killAt.Sub(r.cfg.Now())-killMargin, func() {
+		_ = child.KillGroup(SIGTERM)
+		time.AfterFunc(grace, func() { _ = child.KillGroup(SIGKILL) })
+	})
+	type out struct {
+		s string
+		t bool
+	}
+	got := make(chan out, 1)
+	go func() { s, t := collect(child.Stdout(), b.KeepReply); got <- out{s, t} }()
+	code, _ := child.Wait()      // the group leader only, not the pipe
+	killed := !timer.Stop()
+	_ = child.KillGroup(SIGKILL) // stragglers: nothing outlives a turn
+	o := <-got                   // the pipe closes once the whole group is gone
+	reply, truncated := o.s, o.t
+
+	end.Code, end.DurationMs = code, r.cfg.Now().Sub(start).Milliseconds()
+	switch {
+	case killed:
+		end.Exit, end.Code = control.ExitTimeout, -1
+	case code == 0:
+		end.Exit = control.ExitOK
+	default:
+		end.Exit = control.ExitFailed
+	}
+	if b.KeepReply {
+		end.Reply, end.ReplyTruncated = reply, truncated
+	}
+	r.cfg.Log.Info("turn ended", "turn", b.Turn, "exit", end.Exit, "ms", end.DurationMs)
+	return end
+}
+
+// collect reads stdout to EOF. With keep, it keeps the first MaxReplyBytes,
+// cut back to a rune boundary; without, it discards. It never inspects the
+// bytes (OD-8): no field, no line, no marker is looked for.
+func collect(r io.Reader, keep bool) (string, bool) {
+	if !keep {
+		_, _ = io.Copy(io.Discard, r)
+		return "", false
+	}
+	buf := make([]byte, MaxReplyBytes+1)
+	n, _ := io.ReadFull(r, buf)
+	_, _ = io.Copy(io.Discard, r)
+	if n <= MaxReplyBytes {
+		return string(buf[:n]), false
+	}
+	cut := MaxReplyBytes
+	for cut > 0 && !utf8.RuneStart(buf[cut]) {
+		cut--
+	}
+	return string(buf[:cut]), true
+}
+
+// deliver sends turn.end until it is answered. Only ErrForbidden escapes.
+func (r *Runner) deliver(ctx context.Context, e control.TurnEnd) error {
+	wait, until := time.Second, r.cfg.Now().Add(endRetryFor)
+	for {
+		err := r.cfg.Client.End(ctx, e)
+		switch {
+		case err == nil, errors.Is(err, ErrTurnMismatch):
+			return nil
+		case errors.Is(err, ErrForbidden):
+			return err
+		case ctx.Err() != nil || r.cfg.Now().After(until):
+			r.cfg.Log.Warn("turn.end not delivered; fleet's sweep will record it", "turn", e.Turn)
+			return nil
+		}
+		sleep(ctx, wait)
+		if wait *= 2; wait > 30*time.Second {
+			wait = 30 * time.Second
+		}
+	}
+}
+```
+
+`strictDecode` is `json.Decoder` with `DisallowUnknownFields` and a check for trailing bytes, the
+same as task 09's decoders; `sleep` is a `select` on `ctx.Done()` and a timer. `runner.go` imports
+`errors` besides those shown. `control.EventStop` is task 09's constant; `control.EventTurnBegin`
+is task 26's sandbox copy. The kill timer's duration can be negative (a deadline already inside
+the margin), in which case `AfterFunc` fires at once and the turn ends `timeout`, which is the
+honest record.
