@@ -773,3 +773,57 @@ func TestRecordedBodiesNameTheirSource(t *testing.T) {
 		t.Errorf("testdata holds %d files, want the part's 22", len(entries))
 	}
 }
+
+// TestRunNameIsTheOneAsked: a run answered with no name reads as the run asked for, which
+// GetPipelineRun read by that name (clients/pipeline.go:1064), never "", which would break the
+// run-to-deployment join (mutation survivor N1, named before the t03 run).
+func TestRunNameIsTheOneAsked(t *testing.T) {
+	rs := serveRecorded(t, map[string]fixture{
+		"GET /api/v1/projects/engagement-portal/pipelines/r1": {body: `{"data":{"status":"Pending"}}`},
+	})
+	got, err := rs.c.Run(context.Background(), project, "r1")
+	if err != nil || got.Run != "r1" || got.Build != deploy.BuildRunning {
+		t.Errorf("Run(r1) with no name = (%+v, %v), want Run r1, running", got, err)
+	}
+}
+
+// TestReadsAcceptOnly200: every read's handler answers 200 on success, so any other 2xx is an
+// answer this code does not know: KindUnavailable with that status, never decoded as success
+// (mutation survivor N2, named before the t03 run).
+func TestReadsAcceptOnly200(t *testing.T) {
+	const P = "GET /api/v1/projects/engagement-portal"
+	rs := serveRecorded(t, map[string]fixture{
+		"GET /api/v1/me":                   {file: "me-approved.json", status: 202},
+		"GET /api/v1/projects":             {file: "projects.json", status: 203},
+		P + "/environments":                {file: "environments.json", status: 201},
+		P + "/branches/feat%2Fx/access":    {file: "branch-access-feat-x.json", status: 202},
+		P + "/deploys/latest":              {file: "latest.json", status: 202},
+		P + "/deployments":                 {file: "deployments.json", status: 206},
+		P + "/pipelines/r1":                {file: "run-running.json", status: 202},
+		P + "/security-status?deployId=d1": {file: "security-status.json", status: 202},
+		P + "/environments/e1/pods":        {file: "pods.json", status: 202},
+		P + "/environments/e1/events":      {file: "events.json", status: 202},
+		P + "/environments/e1/diagnose":    {file: "diagnose-ai.json", status: 202},
+	})
+	ctx := context.Background()
+	_, e1 := rs.c.Whoami(ctx)
+	_, e2 := rs.c.Projects(ctx)
+	_, e3 := rs.c.Environments(ctx, project)
+	_, e4 := rs.c.EnvironmentFor(ctx, project, "feat/x")
+	_, ok, e5 := rs.c.Latest(ctx, project)
+	_, e6 := rs.c.Deployments(ctx, project)
+	_, e7 := rs.c.Run(ctx, project, "r1")
+	_, e8 := rs.c.Scans(ctx, project, "", "d1")
+	_, e9 := rs.c.Pods(ctx, project, "e1")
+	_, e10 := rs.c.Events(ctx, project, "e1")
+	_, e11 := rs.c.Diagnosis(ctx, project, "e1")
+	want := []int{202, 203, 201, 202, 202, 206, 202, 202, 202, 202, 202}
+	for i, err := range []error{e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11} {
+		if deploy.KindOf(err) != deploy.KindUnavailable || asDeployError(t, err).Status != want[i] {
+			t.Errorf("read %d answered %d = %v, want KindUnavailable with Status %d", i+1, want[i], err, want[i])
+		}
+	}
+	if ok {
+		t.Error("Latest answered 202 read as a deployment")
+	}
+}
