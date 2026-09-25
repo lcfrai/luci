@@ -257,3 +257,55 @@ records each call's argument and an Undo spy on the returned `{undo}`.
 | `X in a field does nothing; Shift+↓ extends` | `X` in the lens's filter `input` selects nothing; `Shift+ArrowDown` from EP-142 selects EP-142 and the next row, and focus moves | a document listener; an extend that does not move |
 | `no prediction` | with the bar open and the menu open, `expectNoPrediction(container)` passes; the bar's count reads `3 selected` | an `N of M` count |
 
+#### Steps
+
+- [ ] Write `ConfirmInPlace.test.tsx`, then `ConfirmInPlace.tsx` and its CSS; its test passes.
+- [ ] Add `DisplayOptions`, `DEFAULT_DISPLAY`, `displayFor`, `workDisplay` and `setWorkDisplay` to
+      `prefsSlice.ts`; add `workDisplay` to `store.ts`'s `Persisted` and `partialize`. The built
+      `store.test.ts` still passes (it pins the version-1 shallow merge).
+- [ ] Add `issueSelection` and its actions to `workSlice.ts` (task 37's file), outside `partialize`.
+- [ ] Write `DisplayMenu.test.tsx`; then `DisplayMenu.tsx` on `Popover`, with `groupingsFor`. Wire
+      the lens, `IssueRow` (the `show` toggles, `data-density`) and `BoardView` (`grouping`).
+- [ ] Write `BulkBar.test.tsx`; then `BulkBar.tsx`, the batches, `startConsequence` and the
+      `ConfirmInPlace` step; add `X`, `Shift+ArrowDown`/`ArrowUp` and `Esc` to the lens's list
+      `onKeyDown` after `isBareListKey`; add FLIP to the ordering change.
+- [ ] Mutate by hand and watch each named test go red, then revert: `grouping: "state"` in
+      `DEFAULT_DISPLAY` (1); put `issueSelection` in `partialize` (2); read `show.labels` in
+      `IssueView` (3); `ids.forEach((id) => mutate(...))` (4); call `onStart` on the first press (5);
+      give `ConfirmInPlace` `role="dialog"` (7); write `28px` in the compact rule (8).
+- [ ] Run the suite and the typecheck; commit each file as it goes green.
+
+#### Acceptance
+
+```bash
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop test -- src/components/work/DisplayMenu.test.tsx src/components/work/BulkBar.test.tsx src/components/common/ConfirmInPlace.test.tsx'
+# expected: 3 files, 10 tests, all passing
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop test'
+# expected: every suite passing, store.test.ts included
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop run typecheck'
+# expected: exit 0
+~/.claude/tools/claudezsh/claudezsh 'grep -rn "role=\"dialog\"\|aria-modal" desktop/src/components/common/ConfirmInPlace.tsx desktop/src/components/work/BulkBar.tsx'
+# expected: no output
+```
+
+#### What this task does NOT claim
+
+- **Set as default for everyone** (L-105), **saved views** (L-93) and **manual ordering** (L-103): W2.
+- **Delegate N to my Orchestrator** (L-225's W3 half): W3.
+- **Starting the lanes**: `onStart` is task 61's, over SW.10. This task proves the two-step
+  confirm and the one call, not that three agents start.
+- **A cost line** on *Start N worktrees*: none is observed before a run (`OD-27`: no predictions).
+- **`X` and `Shift+↓` in `KEYMAP`** and the `?` sheet: task 53.
+- That FLIP *looks* right: jsdom has no layout, so the test proves the `transform` and the
+  reduced-motion rule, not the motion; the owner judges it at task 39.
+
+#### Gaps found while writing this part
+
+1. The scope's `selection` in `workSlice` collides with the cockpit's persisted `selection`
+   (`uiSlice.ts:35`, `store.ts:45`); this part names it `issueSelection`. Task 37 must carry it.
+2. The file map omits `ConfirmInPlace.tsx`, and task 44's edits to `store.ts` ⚑ and `workSlice.ts` ⚑.
+3. Task 46's `assign` calls `mutate` itself; bulk needs `assignOp(head, me, to): WorkOp | null`.
+4. The skeleton's row gives 44 `dependsOn: 40`; it also needs 41, 42, 43 and 46.
+5. `DisplayOptions` has no `layout` field, so task 43's List/Board choice stays lens-local; adding
+   `layout: "list" | "board"` here would need the `WorkViewId` split to change (the owner's call).
+
