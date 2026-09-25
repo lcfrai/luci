@@ -487,8 +487,8 @@ control-plane/internal/backend/ready.go        ReadyWaiter, ErrQuotaExceeded, Er
 control-plane/internal/backend/katabe/kata.go  owner scope, WorkDir, machine mounts; ControlPlane passed through (18)   14, 15, 18
 control-plane/internal/backend/dockerbe/docker.go  refuses MachineMounts                           15
 control-plane/internal/backend/remotebe/       Client and Backend over the broker                  22
-control-plane/internal/entra/                  Entra token validation (Hub contract §6.3)          16
-  -> internal/oidcauth/ (OD-30)                renamed + keycloak profile (ruling §5)              17 step 0
+control-plane/internal/oidcauth/               realm-token validation, keycloak + entra profiles (ruling §5)   17 step 0
+  (was internal/entra/, BUILT by task 16)      renamed by task 17 step 0 (OD-30); no internal/entra remains   16
 control-plane/internal/brokerapi/              codes (17), sandbox wire (18), machine wire (19)    17-19
 control-plane/cmd/broker/                      the broker                                          17-19
 control-plane/internal/machineapi/             machine-agent wire: catalog (20), git (21)          20, 21
