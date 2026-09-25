@@ -208,6 +208,24 @@ stopped and resumed with `resumeFromRunId`. **Parallel runs resume from cache no
   - **After any stop, launch it FRESH with the same args. Do not resume it.**
 - SALVAGE commits `aab769f` (main) and `dd7cb16` (env) hold OD-30 fix-1's stranded edits.
 
+**Added 22:30, 2026-09-25: cross-stream order fixes.**
+- **env R4 re-plan: DONE.** Review 1's 4 Criticals are fixed. Review 2 left 2 Importants, which the
+  seams run below fixes.
+- **p3 was missing task 24** (the sandboxd git runner, added by R4 after p3's triage ran). Tasks 07,
+  08, 09, 11 and 16 depend on it. `build-stream-current.js` now takes `args.insertBefore`, and p3 is
+  resumed with `{"stream":"p3","cleared":["b02"],"insertBefore":{"07":[{"id":"24",…}]}}`. **Every p3
+  resume must pass those args** (copy them from task `wlt02zfzi`'s launch).
+- **Build streams can now hold tasks.** Both `build-stream-as-launched.js` and
+  `build-stream-current.js` take `args.hold` (a list of ids). Held tasks are skipped and logged, and
+  kept out of `done`, so the cache still holds. They are built later by a fresh run.
+- **Run `wf_e83c0311-995`** (`.superpowers/workflows/env-p3-seams.js`):
+  - it files phase 8's asks S8-P3.3, S8-P3.4 and S8-P3.5 into the phase 3 plan, task 02 first
+    because p3 reaches it soon;
+  - it fixes env review-2's I1, I2 and M1 to M5;
+  - it returns env's **held set**, recorded in `env/.superpowers/sdd/env/held.md`.
+  **Then restart the env stream with `{"stream":"env","hold":[<held ids>]}`**, before env reaches
+  task 20 (position 17; env is on task 02).
+
 **Added 13:40, 2026-09-25: OD-30 (sign-in) and the env R4 re-plan.**
 - **OD-30:** sign-in goes through a Keycloak broker on Panacea's existing Entra registration, with
   zero clicks. The IT request's Part 1 is no longer needed. Run `wf_579f2bb3-bfb`
