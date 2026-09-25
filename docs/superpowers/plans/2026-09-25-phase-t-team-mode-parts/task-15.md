@@ -70,7 +70,9 @@ built by something that is not this manager). On the cloud side the guarantee is
 - `control-plane/internal/sandbox/class_test.go` — the class shapes and the policy mount, on the fake clientset (new)
 - `control-plane/internal/sandbox/manager_test.go` — the refused-create and delete tests extended to the second Secret (modified)
 - `sandboxd/internal/policycheck/policycheck.go`, `policycheck_test.go` — `Check`, `Env`, `Dir`, the four refusals (new)
-- `sandboxd/cmd/sandboxd/main.go` — the one call before `newServer`; `main_test.go` gains the tampered-file process test (modified)
+- `sandboxd/cmd/sandboxd/main.go` — the one call before `newServer`, and `policyDir`; `main_test.go` gains the tampered-file process test (modified)
+- `testdata/policy/v1/{worker.json,worker.sha256}` — the shared digest fixture: `policy.Render(policy.Layers{}, worker)` and its digest (new)
+- `control-plane/internal/policy/fixture_test.go` — `TestTheSharedFixtureIsCurrent`, which regenerates the fixture under `-update` and otherwise fails if `Render` no longer produces it (new)
 - **Not** `images/sandbox/Dockerfile`: phase 6's image already creates `/etc/claude-code/` for its drop-in (`phase-6 …/task-14.md:202,260`), which is the mount point; if a merged image lacks it, the runtime creates the mount point before the rootfs goes read-only (runc's order; for the Kata agent **UNVERIFIED**, and task 33's first pod shows it)
 
 **Interfaces:**
@@ -420,8 +422,155 @@ func readBounded(path string) ([]byte, error) {
 ```go
 	// OD-23: the harness starts only under the policy the control plane
 	// rendered. Before newServer, because newServer starts the PTY.
-	if err := policycheck.Check(policycheck.Dir, os.Getenv(policycheck.Env)); err != nil {
+	if err := policycheck.Check(policyDir(), os.Getenv(policycheck.Env)); err != nil {
 		slog.Error("refusing to start the harness", "err", err)
 		os.Exit(3)
 	}
 ```
+
+**One fixture pins the two digests.** `control-plane` computes the digest in `policy.Digest` and in
+`sandbox.policyDigest`; `sandboxd` in `policycheck`. The three share
+`testdata/policy/v1/{worker.json,worker.sha256}` at the repository root — task 13's rendered
+worker default and its digest — and each module's test reads it by relative path, as the ST.1
+fixtures are read (skeleton file map). A change to any one of the three digest functions fails at
+least one test against the shared bytes.
+
+- [ ] **Step 1: Write the failing tests**
+
+`control-plane/internal/sandbox/class_test.go` uses the fake clientset phase 8's tests already use
+(`k8s.io/client-go/kubernetes/fake`), and a `classSpec(class)` helper returning a valid spec with
+`PolicyFile` = the fixture's bytes.
+
+| File · test | What it proves | The mutant it kills |
+|---|---|---|
+| sandbox · `TestAnOrchestratorPodHasNoMachineVolumeAndNoAffinity` | the pod's volumes are exactly `home`, `tmp`, `policy`, `run-panacea`, `snapshot`; `Affinity` is nil | the orchestrator given the worker's shape (C2) |
+| sandbox · `TestAnOrchestratorRefusesAMachine` (after P8-15 merges) | `Machine: "m-0a1b2c3d"` → error, and the fake saw **no** create of any kind | the check made after the Secrets exist |
+| sandbox · `TestAnOrchestratorRunsTheRunner` | `Command` `""` → the pod's `PANACEA_APP_COMMAND` is `/usr/local/bin/panacea-orchestrator`; `Command: "claude"` → error | a worker CLI run in a diskless pod |
+| sandbox · `TestAnOrchestratorDefaultsTo250mAnd512Mi` | requests and limits `250m`/`512Mi` when unset; a caller's `500m`/`1Gi` wins | the class size lost, or forced over the caller's |
+| sandbox · `TestAWorkerKeepsItsShape` | `Class ""` and `worker` give byte-identical pods, and (after P8-15) a worker with `Machine` keeps P8-15's volume and affinity | the class branch changing the worker |
+| sandbox · `TestEveryClassMountsThePolicyReadOnly` | for both classes: Secret `<pod>-policy` holds exactly `{managed-settings.json: PolicyFile}`; volume `policy` projects only that key, mode `0444`; mount `/etc/claude-code`, `ReadOnly: true`; env `PANACEA_APP_POLICY_SHA256` = the fixture's digest | a writable mount; the attach token projected as a file; a digest of anything but the file |
+| sandbox · `TestAPolicylessSpecCreatesNothing` | `PolicyFile` empty → error; the fake saw no create | a cloud sandbox with no policy (OD-23) |
+| sandbox · `TestTheControlTokenIsAReference` | `ControlToken` set: the attach Secret has key `control`; `PANACEA_APP_CONTROL_TOKEN` is a `secretKeyRef`, and the token string appears nowhere in the marshalled pod | a token in the pod spec, readable by any pod reader |
+| sandbox · `TestAControlTokenNeedsASessionID` | `ControlToken` without `SessionID` → error | a `/control` stream sandboxd cannot stamp |
+| sandbox · `TestCallerEnvCannotSetTheTeamVariables` | `Env{"PANACEA_APP_CLASS": "orchestrator", "PANACEA_APP_POLICY_SHA256": "sha256:0…"}` on a worker → the pod has `worker` and the true digest, each once | a caller overriding the class or the digest through `Env` |
+| sandbox · `TestARefusedPodDeletesBothSecrets` | the fake refuses the pod create with 422 → neither Secret remains | the policy Secret orphaned |
+| sandbox · `TestAFailedPolicySecretReleasesTheClaim` | the fake fails the policy Secret create → the attach Secret is deleted too, and a second `Create` succeeds | an id locked forever by a half-made claim |
+| sandbox · `TestBothSecretsAreOwnedByThePod` and `TestDeleteRemovesAllThree` | owner references on both; `Delete` removes pod and both Secrets, and tolerates any already gone | a Secret outliving its pod |
+| backend · `TestTheEnvEntriesMatchThePod` (phase 8's pin, extended) | `EnvEntries()` and `containerEnv` agree for a team spec | the two orders drifting |
+| dockerbe · `TestLocalModeRefusesTeamSpecs` | orchestrator, `PolicyFile`, `ControlToken` → `ErrUnsupported` each | a team sandbox run where no policy can be mounted |
+| policycheck · `TestLocalModePasses` | `want ""`, no file → nil | local mode broken (OD-20) |
+| policycheck · `TestEachHalfStateIsRefused` | `want` set, no file → `ErrMissing`; file, no `want` → `ErrUnexpected`; `want` `sha256:ABC` → `ErrMalformed` | a failed mount treated as local mode |
+| policycheck · `TestATamperedFileIsRefused` | the fixture with one byte changed → `ErrMismatch`, and the message has no byte of the file | a check that trusts the mount; content leaking into logs |
+| policycheck · `TestADropInIsRefused` | a `managed-settings.d/` directory beside the file → `ErrExtra`; `..data` and `..2026_09_25_…` entries → pass | a drop-in merged outside the digest |
+| policycheck · `TestAnOversizedFileIsRefused` | 64 KiB + 1 → error | an unbounded read |
+| sandboxd · `TestATamperedFileExitsBeforeThePTY` | below | the check placed after `newServer`, or its exit ignored |
+
+The process test, complete, because *before the PTY starts* is the property and only a process can
+show it. It uses the helper-process pattern: the test binary re-runs itself as `sandboxd`, with a
+command that would leave a marker file if a PTY ever ran it.
+
+```go
+func TestATamperedFileExitsBeforeThePTY(t *testing.T) {
+	if os.Getenv("SANDBOXD_HELPER") == "1" {
+		os.Args = append([]string{"sandboxd"}, strings.Split(os.Getenv("SANDBOXD_ARGS"), "\x1f")...)
+		main()
+		return
+	}
+	dir, marker := t.TempDir(), filepath.Join(t.TempDir(), "pty-ran")
+	good, err := os.ReadFile(filepath.Join("..", "..", "..", "testdata", "policy", "v1", "worker.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	digest, _ := os.ReadFile(filepath.Join("..", "..", "..", "testdata", "policy", "v1", "worker.sha256"))
+	tampered := append(bytes.Clone(good[:len(good)-2]), []byte(" }")...) // same length, other bytes
+	if err := os.WriteFile(filepath.Join(dir, "managed-settings.json"), tampered, 0o444); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(os.Args[0], "-test.run=^TestATamperedFileExitsBeforeThePTY$")
+	cmd.Env = append(os.Environ(), "SANDBOXD_HELPER=1",
+		"PANACEA_APP_POLICY_SHA256="+strings.TrimSpace(string(digest)),
+		"PANACEA_APP_POLICY_DIR_FOR_TEST="+dir,
+		"SANDBOXD_ARGS="+strings.Join([]string{"-addr", "127.0.0.1:0", "-allow-unauthenticated",
+			"-command", "/bin/sh", "-args-json", `["-c","touch `+marker+`"]`}, "\x1f"))
+	out, err := cmd.CombinedOutput()
+	var ee *exec.ExitError
+	if !errors.As(err, &ee) || ee.ExitCode() != 3 {
+		t.Fatalf("sandboxd exited %v; want exit 3 before the PTY. Output:\n%s", err, out)
+	}
+	if _, err := os.Stat(marker); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatal("the PTY ran the command: the check came after newServer")
+	}
+	if bytes.Contains(out, tampered[:40]) {
+		t.Fatal("sandboxd logged the file's content")
+	}
+}
+```
+
+The test needs the directory to be a temp dir, so `main.go`'s `policyDir()` is `policycheck.Dir`
+unless `PANACEA_APP_POLICY_DIR_FOR_TEST` is set **and** the binary is a test binary
+(`testing.Testing()`, Go 1.21+); a production `sandboxd` cannot be pointed elsewhere:
+
+```go
+func policyDir() string {
+	if d := os.Getenv("PANACEA_APP_POLICY_DIR_FOR_TEST"); d != "" && testing.Testing() {
+		return d
+	}
+	return policycheck.Dir
+}
+```
+
+`testing.Testing()` reports true only in a test binary, so the override is dead code in the shipped
+one. Importing `testing` into `main` adds nothing a user can reach; if a reviewer objects to the
+import, the alternative is a `-policy-dir` flag hidden from `-help`, which a pod spec could then set,
+which is worse.
+
+Run: `cd control-plane && go test ./internal/sandbox/ ./internal/backend/... ./internal/policy/
+-count=1` and `cd sandboxd && go test ./internal/policycheck/ ./cmd/sandboxd/ -count=1`. Expected
+before step 2: compile failures naming `ClassOrchestrator`, `PolicySecretName`, `policycheck.Check`.
+
+- [ ] **Step 2: The fixture.** Write `fixture_test.go`, run `go test ./internal/policy/ -run
+  TestTheSharedFixtureIsCurrent -update`, then without `-update`. Expected: `ok`, and
+  `testdata/policy/v1/worker.sha256` holds one `sha256:` line. Commit (with `git add` for the two new
+  fixture files): `test(policy): the shared rendered-policy fixture for both modules`.
+
+- [ ] **Step 3: `policycheck` and the `main.go` call.** Run the `sandboxd` command above. Expected:
+  `ok` twice. Commit: `feat(sandboxd): refuse to start the harness unless the managed file matches its digest`.
+
+- [ ] **Step 4: The manager, `backend.Spec`, `katabe`, `dockerbe`.** Before writing, check the
+  merged tree: `grep -n "run/panacea\|Machine " control-plane/internal/sandbox/manager.go`. If
+  P8-15's `Machine` is there, keep the `validateClass` check and write
+  `TestAnOrchestratorRefusesAMachine`; if phase 6 already mounts `/run/panacea`, drop this task's
+  `run-panacea` volume and mount. Run the `control-plane` command above. Expected: `ok` for every
+  package. Commit: `feat(sandbox): task 14b's orchestrator class, the policy Secret and mount, the team variables`.
+
+- [ ] **Step 5: Acceptance**
+
+```
+cd control-plane && go vet ./internal/sandbox/ ./internal/backend/... && go test ./internal/sandbox/ ./internal/backend/... ./internal/policy/ -count=1 -race
+cd ../sandboxd && go vet ./... && go test ./... -count=1
+cd .. && grep -rn "PANACEA_APP_POLICY_SHA256\|PANACEA_APP_CONTROL_TOKEN" control-plane/internal/sandbox/manager.go sandboxd/internal/policycheck/policycheck.go
+```
+
+Expected: `go vet` silent twice; every package `ok`; the `grep` prints exactly three lines — the two
+constants in `manager.go` and `Env` in `policycheck.go` — so no second spelling of either name has
+crept in. The real-pod half — that the kubelet projects the Secret at `/etc/claude-code/` on a Kata
+guest with a read-only rootfs, that `sandboxd` exits 3 on a tampered file there, and that Claude
+Code's `/status` shows this file as the managed source — is **deferred to task 33**, which runs it
+on the real cluster (it needs phase 8's cluster and the pinned CLI, neither of which a unit test has).
+
+**What this task does not claim.**
+- That Claude Code reads `/etc/claude-code/managed-settings.json` at the pinned version, or that a
+  directory with only that file is what it expects (**UNVERIFIED**; task 33's `/status`).
+- That the Kata agent creates a missing mount point before the rootfs goes read-only
+  (**UNVERIFIED**; phase 6's image already has the directory, so it should not arise).
+- That the policy reaches a **solo** cloud session. OD-23 says every cloud sandbox; this task makes
+  `PolicyFile` mandatory for every Kata pod, so phase 8's solo path must pass one, and the
+  simplest correct value is `policy.Render(policy.Layers{}, ClassWorker)` (defaults and the
+  fragment). Getting the org's layer into a solo session needs a policy lookup phase 8 does not
+  plan; that is a gap, not built here.
+- The mirror class (task 58), the Orchestrator's egress (task 32), and measuring 250m / 512 MiB
+  (task 47).
+- That `sandboxd`'s check stops an agent that later rewrites its own environment: the check is at
+  start. The mount is read-only and root-owned by the kubelet, the agent runs as uid 1001 with
+  every capability dropped (`manager.go:337-344`), so it cannot rewrite the file; it can set its own
+  `env` for child processes, which is §7.3's open question and task 33's check.
