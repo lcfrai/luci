@@ -376,3 +376,220 @@ order and whitespace, so a retried row would be a different body. `turn_events.a
 append-only: the runtime role Fleet connects as (task 32) is granted `INSERT, SELECT` only on
 `policy_versions`; **which role that is, and whether it is not the migration owner, is
 UNVERIFIED** until task 32 writes the chart and the database identity.
+
+#### `pgstore` — the three places the database decides
+
+```go
+// control-plane/internal/fleet/store/pgstore/pgstore.go (excerpts)
+
+// Open connects and pings. Task 12 calls it once at start (task-12.md:76).
+func Open(ctx context.Context, dsn string) (*Store, error)
+
+func (s *Store) Pool() *pgxpool.Pool
+
+// Migrate applies migrations/*.sql in name order, each in its own transaction,
+// under pg_advisory_xact_lock(hashtext('fleet.migrate')) so two replicas starting
+// together apply each file once. Applied names are kept in fleet.schema_migrations,
+// which Migrate creates first. A file already applied is skipped by name; a file
+// whose recorded sha256 differs from the embedded one fails start, naming it.
+func Migrate(ctx context.Context, pool *pgxpool.Pool) error
+
+const claimSQL = `
+INSERT INTO fleet.turn_claims (orchestrator, org_id, turn_id, nonce, origin, event_ids,
+  issued, mode, session_id, sandbox_id, began, until)
+VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+ON CONFLICT (orchestrator) DO NOTHING`
+
+const batchSQL = `
+UPDATE fleet.turn_events SET turn_id = $1
+WHERE org_id = $2 AND orchestrator = $3 AND event_id = ANY($4) AND turn_id IS NULL`
+
+// ClaimTurn: zero rows inserted is ok == false (another replica holds the claim).
+// Then every named event must be batched by this statement; fewer rows means an
+// event was already batched or never queued, and the whole Tx is ErrConflict.
+func (t *tx) ClaimTurn(ctx context.Context, c store.TurnClaim) (bool, error)
+
+const putLeaseSQL = `
+INSERT INTO fleet.leases AS l (org_id, lease_id, project_id, holder, owner, task_id, globs,
+  mode, state, seq, tracked_files, expires_at, updated_at)
+VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,1,$10,$11,$12)
+ON CONFLICT (org_id, lease_id) DO UPDATE SET
+  globs = EXCLUDED.globs, mode = EXCLUDED.mode, state = EXCLUDED.state,
+  tracked_files = EXCLUDED.tracked_files, expires_at = EXCLUDED.expires_at,
+  updated_at = EXCLUDED.updated_at, seq = l.seq + 1
+WHERE l.state NOT IN ('yielded','released','expired','admin-released')
+  AND l.holder = EXCLUDED.holder
+RETURNING seq`
+
+// PutLease: no row returned means the lease was terminal or held by another agent;
+// both are ErrConflict. The returned seq is what the outbox row must carry
+// (task 06's gapless rule at the Hub).
+func (t *tx) PutLease(ctx context.Context, l model.Lease) (model.Lease, error)
+```
+
+The outbox's order is `nextval('fleet.outbox_seq')`, assigned by the database at insert, so two
+replicas enqueueing for one org cannot give two rows one `seq`. `OutboxHeads` is `SELECT DISTINCT
+ON (org_id) … WHERE state = 'pending' AND next_at <= $1 ORDER BY org_id, seq`: one head per org,
+the lowest `seq`, which is task 11's in-order delivery (`task-11.md:187-188`).
+
+**`memstore`** is one `sync.Mutex` around maps, and `Tx` copies the maps, runs `fn` on the copy,
+and swaps them in only when `fn` returns nil, so a failed `Tx` leaves no partial write, exactly as
+Postgres rolls back. It enforces every `CHECK` of the migration that a Go caller could violate
+(class, status, mode, state, the `ag-` prefix, 1 to 20 globs, the digest grammar), so a test that
+passes on memory fails the same way it would on Postgres.
+
+- [ ] **Step 1: Write the failing suite**
+
+`storetest.Run(t *testing.T, open func(t *testing.T) store.Store)` runs every row as
+`t.Run("<row>")` on a fresh store. `memstore_test.go` calls it with `memstore.New`;
+`pgstore_test.go` calls it with a fresh schema per row on the database named by
+`PANACEA_APP_FLEET_TEST_PG_DSN` (the variable task 12 reuses, `task-12.md:1023`), and **skips the
+whole run, saying so, when it is unset**.
+
+| Row | Asserts | Mutant it kills |
+|---|---|---|
+| `ClaimTurnOneWinner` | 20 goroutines call `ClaimTurn` for one Orchestrator with distinct turn ids over the same events; exactly one `ok`, the rest `ok == false`, no error; the events carry the winner's turn id | a read-then-insert claim (the two-replica bug) |
+| `ClaimTurnNeedsUnbatchedEvents` | claim over an event already batched → `ErrConflict`, and the claim row does not exist after | the batch `UPDATE`'s row count ignored |
+| `DropClaimDoneDeletesNotDoneUnbatches` | after `DropClaim(done)`, `PendingEvents` is empty; after `DropClaim(!done)`, the events are pending again with `Retried` true | un-batching on a completed turn, so a turn replays |
+| `LapsedClaimStillBlocks` | a claim with `Until` in the past still makes a second `ClaimTurn` `ok == false` | overwriting a lapsed claim, which orphans its batched events (`task-26.md:803-806`) |
+| `LeaseSeqIncrements` | `PutLease` new → seq 1; two updates → 2, 3; the returned lease carries it | seq taken from the caller's struct |
+| `LeaseTerminalIsFinal` | after `released`, `PutLease` → `ErrConflict`, stored state unchanged | the `WHERE` terminal guard dropped, so Fleet writes an event the Hub will refuse |
+| `LeaseHolderCannotChange` | `PutLease` of an existing id with another holder → `ErrConflict` | a lease silently transferred |
+| `LeasePathsCascade` | `TouchLeasePath` twice for one path keeps the later time; paths of a deleted lease vanish | a per-path clock that keeps the first edit |
+| `OutboxOrderPerOrg` | 3 rows for org A, 2 for B, interleaved; `OutboxHeads` returns one per org, each the lowest `seq`; after `MarkSent` of A's head, A's next | a global head, which lets one org's failing row stall another's |
+| `OutboxPayloadBytesExact` | a payload `{"b":1, "a":2}` with a space comes back byte for byte | `jsonb` storage |
+| `OutboxOwnerRequired` | `AppendOutbox` with `Owner` "" → error | a Fleet-as-itself write reaching the Hub |
+| `OutboxFailingSinceSurvivesReopen` | `MarkRetry` with `failingSince`; reopen (pg: a new pool; mem: skipped); `OutboxFailingSince` has it | the gate's clock held in memory only (task 11) |
+| `TxRollsBackAll` | a `Tx` that puts an agent, appends an outbox row and then returns an error leaves neither | memstore mutating in place |
+| `AgentStatusAndEnd` | `SetStatus(waiting, human)` then `EndAgent(lapsed)`; `Agents` omits ended ones; `Agent` still finds it with `Exit = lapsed` | ended agents listed as live |
+| `DelegationsInUseLiveOnly` | two live agents under one `dl-…`, one ended under another; the result is the one live `dl-…` once | ended agents keep a delegation "in use", so rebuild renews a dead one |
+| `PolicyVersionsAppendOnly` | `PutPolicy` v1, v2; `CurrentPolicy` is v2; `PutPolicy` v2 again → `ErrConflict`; project `""` and `pj-…` are separate scopes | versions overwritten |
+| `CounterpartWindow` | 3 turns at t−70 min, t−30, t−10; `CounterpartTurns(since t−60 min)` = 2 | a count with no window |
+| `EventKindChecked` | `AppendEvent` with kind `turn.begin` → error | a wire event queued as a model event |
+
+The central row in full:
+
+```go
+// control-plane/internal/fleet/store/storetest/suite.go (excerpt)
+
+// Mutant killed: ClaimTurn implemented as "SELECT claim; if none, INSERT", which two
+// replicas pass through together. The primary key on orchestrator is the guard.
+func claimTurnOneWinner(t *testing.T, s store.Store) {
+	ctx := context.Background()
+	orch := seedOrchestrator(t, s) // an agent row plus three queued events
+	evs := pendingIDs(t, s, orch)
+	var wins atomic.Int32
+	var wg sync.WaitGroup
+	for i := 0; i < 20; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			err := s.Tx(ctx, func(tx store.Tx) error {
+				ok, err := tx.ClaimTurn(ctx, claim(orch, fmt.Sprintf("ot-%016d", i), evs))
+				if ok {
+					wins.Add(1)
+				}
+				return err
+			})
+			if err != nil && !errors.Is(err, store.ErrConflict) {
+				t.Errorf("claim %d: %v", i, err)
+			}
+		}(i)
+	}
+	wg.Wait()
+	if got := wins.Load(); got != 1 {
+		t.Fatalf("%d winners, want exactly 1", got)
+	}
+}
+```
+
+A loser that reaches the batch `UPDATE` after the winner committed finds zero rows and returns
+`ErrConflict`; one that loses at the `INSERT` returns `ok == false` and nil. Both are "not the
+winner", which is why the row accepts either.
+
+- [ ] **Step 2: Run the suite to verify it fails**
+
+```bash
+cd control-plane && go test ./internal/fleet/store/... -count=1
+```
+
+Expected: a build failure (`undefined: memstore.New`, `undefined: storetest.Run`).
+
+- [ ] **Step 3: Write `store.go`, the migration, `memstore`, then `pgstore`**
+
+Add the dependency first, from `control-plane/`: `go get github.com/jackc/pgx/v5@v5.7.5`, then
+`go mod tidy`. Write `memstore` until every row passes in memory, then `pgstore` against a local
+Postgres 16 (`docker run --rm -e POSTGRES_PASSWORD=x -p 5439:5432 postgres:16`, then
+`PANACEA_APP_FLEET_TEST_PG_DSN=postgres://postgres:x@127.0.0.1:5439/postgres?sslmode=disable`).
+
+- [ ] **Step 4: Run the suite to verify it passes, in memory and on Postgres**
+
+```bash
+cd control-plane && go test ./internal/fleet/store/... -count=1 -race -v
+```
+
+Expected: every row `--- PASS` under `TestMemstore`, and under `TestPgstore` when the DSN is set;
+without it, one line `--- SKIP: TestPgstore (PANACEA_APP_FLEET_TEST_PG_DSN unset)`. `ClaimTurnOneWinner`
+failing only on Postgres with 2 winners means the claim was split into a `SELECT` and an `INSERT`;
+failing on memory with 0 winners means `Tx`'s swap drops a successful claim.
+
+- [ ] **Step 5: Vet, format, the whole module**
+
+```bash
+gofmt -l control-plane/internal/fleet/store
+cd control-plane && go vet ./... && go test ./... -count=1
+```
+
+- [ ] **Step 6: Commit**
+
+`.superpowers/sdd/team/msg/t10.txt` (the database decides every race; no Hub record but the
+outbox payload), ending `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>`:
+
+```bash
+git add control-plane/internal/fleet/store control-plane/go.mod control-plane/go.sum
+git commit -F .superpowers/sdd/team/msg/t10.txt -- control-plane/internal/fleet/store control-plane/go.mod control-plane/go.sum
+```
+
+#### Acceptance
+
+1. Step 4 passes in memory; on a real Postgres it passes too, or the run records the skip and
+   the Postgres half is deferred to task 33, where Fleet's database first exists.
+2. `grep -n "hubapi" -r control-plane/internal/fleet/store` prints nothing: no Hub type is stored.
+3. `grep -n "pgx/v5 " control-plane/go.mod` prints `github.com/jackc/pgx/v5 v5.7.5`.
+4. `ClaimTurnOneWinner` passes 50 times running: `go test ./internal/fleet/store/... -run
+   'TestMemstore/ClaimTurnOneWinner|TestPgstore/ClaimTurnOneWinner' -count=50`.
+
+#### Handoffs to tasks built later
+
+- **Task 11** converts at its boundary: `outbox.Item` ⇄ `store.OutboxRow` (identical fields, `Op`
+  and `State` typed there), and `store.DelegationUse` → `delegation.Use{ID, Key{…}}`. Its part
+  says the store imports `outbox` (`task-11.md:85`); built in this order it cannot, so task 11
+  either adds the two converters or, once `outbox` exists, changes these signatures to its types
+  in these files, keeping every suite row.
+- **Task 26** composes `EndTurn` and `LoseTurn` from `DropClaim`, `AppendOutbox` and a session
+  write it adds, and needs no migration: its three tables are in `0001` with the one column change
+  above.
+- **Tasks 19, 28, 29** add `0002` onward. Task 19 and task 26 both named `0002`
+  (`task-19.md:69`, `task-26.md:754`); with the turn tables here, only task 19 needs it.
+
+#### What this task does not claim
+
+- **Not row-level security.** Fleet's schema has one tenant, Fleet; every method takes an org,
+  and no request reaches SQL without one. Hub-style RLS is not added (**a decision**, reversible
+  by one migration).
+- **Not the runtime role or the Azure Postgres token flow** (task 32; `task-12.md:1212`).
+- **Not the thread working state**, which task 28's migration owns.
+- **Not a server.** Nothing here listens; task 12 opens it.
+
+#### Gaps found in the skeleton and in written parts
+
+1. **Open-thread working state** is in task 10's scope and in task 28's written DDL; this part
+   leaves it to task 28.
+2. **`author_tid`/`author_oid`** in task 26's DDL disagree with its own `model.Owner` author; this
+   part stores one `author` (`u-…`).
+3. **Migration `0002` is claimed twice** (tasks 19 and 26); resolved by absorbing task 26's tables.
+4. **Task 11's import direction** (store imports outbox) is impossible in build order; see
+   "Handoffs".
+5. **Task 24's `reports` table** (`task-24.md:241`) is required of task 10 but not in its scope;
+   not added here. `panacea report` writes an event (`worker.*`) and the agent's status, which
+   this schema holds; if task 24 needs the report text kept, that is a Hub or task 24 decision.
