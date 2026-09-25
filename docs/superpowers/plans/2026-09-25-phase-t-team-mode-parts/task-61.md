@@ -151,7 +151,7 @@ type Entry struct {
 	Branch      string        `json:"branch"`      // the product branch, a task 03 ValidBranchRef leaf
 	OwnerUserID string        `json:"ownerUserId"` // u-… (hubapi.PrefixUser)
 	Agent       model.AgentID `json:"agentId"`     // the lane's worker, the owner's own
-	WorktreeID  string        `json:"worktreeId"`  // wt-…
+	WorktreeID  string        `json:"worktreeId"`  // phase 3 lane id, w- plus 8 hex
 	LaneRef     string        `json:"laneRef"`     // refs/panacea/lanes/<owner-hash>/<wt-id>, task 03 ValidLaneRef
 	LaneTip     string        `json:"laneTip"`     // the tip the owner reviewed; ValidSha
 	BriefKey    string        `json:"briefKey"`    // "" or the key the owner saw (phase 3 task 09 step 5)
@@ -409,7 +409,7 @@ changes the entry's state.
 ```json
 {"id":"lq-5d4c3b2a19087f6e","orgId":"org-1a2b3c4d5e6f7081","projectId":"pj-0f1e2d3c4b5a6978",
  "branch":"main","ownerUserId":"u-5b4c3d2e1f0a9b8c","agentId":"ag-9e8d7c6b5a493827",
- "worktreeId":"wt-3c2b1a0f","laneRef":"refs/panacea/lanes/7f3a9c1e/wt-3c2b1a0f",
+ "worktreeId":"w-3c2b1a0f","laneRef":"refs/panacea/lanes/7f3a9c1e/w-3c2b1a0f",
  "laneTip":"4b825dc642cb6eb9a060e54bf8d69288fbee4904","briefKey":"","briefDigest":"",
  "state":"refused","reason":"second_approval_required","paths":[".claude/settings.json"],
  "base":"9fceb02d0ae598e95dc970b74767f19372d61af8","merge":"","heldBy":"","rejects":0,
