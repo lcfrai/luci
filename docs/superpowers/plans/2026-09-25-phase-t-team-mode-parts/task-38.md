@@ -51,8 +51,9 @@ no leading `!`, `/` or `#`, no `!` anywhere, one trailing `\r`. The design's dir
 begins with `[`, which after an `ESC` would read as a CSI sequence; no template contains `ESC`, and
 decision (e) keeps the writer away from a terminal someone else is typing into, so nothing can
 precede it. **UNVERIFIED:** that `\r` submits and
-`0x03` interrupts in the pinned Claude Code, mid-generation and mid-tool-call; task 47's probes
-settle both, and a failure changes a constant in this file, not the design.
+`0x03` interrupts in the pinned Claude Code, mid-generation and mid-tool-call. No task in the
+skeleton probes it yet (task 47's probes are egress and region); gap 6 asks for a probe, and a
+failure changes a constant in this file, not the design.
 
 **(d) Idle is a byte count the pod reports, never content.** Phase 2's idle is derived from bytes
 crossing the relay (`control-plane/internal/registry/session.go:22-23`, and the reaper's
@@ -501,9 +502,10 @@ git commit -F <msgfile> -- control-plane/internal/fleet/ptywriter control-plane/
 - **That a nudge makes the worker act.** It types a sentence and Enter; the model decides. The
   directive's text reaches it only when it runs `panacea check` (rung 1).
 - **That `\r` submits and `0x03` interrupts** in the pinned Claude Code, in every state
-  (generating, in a tool call, in a permission prompt). **UNVERIFIED** until task 47's probes; a
-  template typed into a permission prompt could answer it, which is one more reason rung 3 fires
-  only when the byte count says the terminal is quiet, and one more probe task 47 owes.
+  (generating, in a tool call, in a permission prompt). **UNVERIFIED** until the probe gap 6
+  asks for; a template typed into a permission prompt could answer it, which is one more reason
+  rung 3 fires only when the byte count says the terminal is quiet, and one more case that probe
+  must cover.
 - **Rung 2.** The interface and the off switch exist; no inbox-socket code ships in TM1.
 - **Exactly one nudge per 3 minutes across a restart or a replica hand-over.** `lastNudge` is in
   memory; a deploy can cost one extra nudge per worker.
@@ -528,4 +530,9 @@ git commit -F <msgfile> -- control-plane/internal/fleet/ptywriter control-plane/
    editing (task 25's `Raise`, after task 35's observed edits), a lease it asked for granted (task
    23), and a directive (here). The first two callers are one line each in `cmd/fleetd`; neither
    task's part names them yet.
+6. **No task probes the templates against the real CLI.** Whether `\r` submits, whether `0x03`
+   interrupts, and what a template does when typed into a permission prompt need a probe on the
+   pinned Claude Code image. Task 47's probes are egress and region; the natural home is task 33's
+   TM1-α run (it already drives a real worker) or task 42's scripted run. The skeleton should name
+   one.
 
