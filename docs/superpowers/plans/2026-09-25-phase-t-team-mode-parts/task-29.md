@@ -244,3 +244,105 @@ A mode change is not a state change, so task 23's transition table is untouched 
 `Restore`; the lease event carries the new `mode` with the unchanged `state`, which task 01's
 §7.16 lease-event body already has fields for (`task-23.md:155`, `"mode"`). The Hub's lease
 history therefore shows the demotion.
+
+**`decided.go`, complete.** The template is the only prose Fleet writes here, and every value in
+it is a typed field, a G3-clean display name, or a G3-clean path.
+
+```go
+package protocol
+
+import (
+	"encoding/json"
+	"fmt"
+	"strings"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/fleet/outbox"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/ids"
+)
+
+// Names are the two owners' display names, CleanName'd (task 22's People).
+type Names struct{ Self, Other [2]string } // index = participant index
+
+// decidedQuestion renders the inform's question (route 64, ≤ 300 runes)
+// for the human at index i, naming at most max globs or paths. It reads only
+// Outcome's typed fields and the names.
+func decidedQuestion(o Outcome, i int, n Names, self bool, max int) string {
+	who := "Your orchestrator and " + n.Other[i] + "'s orchestrator agreed"
+	var what string
+	switch o.Resolution {
+	case ResYield:
+		side := n.Other[i] + "'s side"
+		if self {
+			side = "your side"
+		}
+		what = fmt.Sprintf("%s gives up %s", side, list(o.YieldedGlobs, max))
+	case ResSequence:
+		what = "the first to land is " + o.FirstName
+	case ResProceedBoth:
+		what = "both sides proceed on " + list(o.Paths, max) + "; the land review will show it"
+	}
+	return fmt.Sprintf("DECIDED WITHOUT YOU: %s: %s (%s).", who, what, o.Conflict)
+}
+
+// list joins up to max items and says how many more, never cutting a path.
+// With max 0 it only counts.
+func list(xs []string, max int) string {
+	switch {
+	case len(xs) <= max:
+		return strings.Join(xs, ", ")
+	case max == 0:
+		return fmt.Sprintf("%d paths", len(xs))
+	}
+	return strings.Join(xs[:max], ", ") + fmt.Sprintf(" and %d more", len(xs)-max)
+}
+
+// DecidedWithoutYou builds one inform per human, route 64's body, Fleet as
+// the writer (fromAgentId ""), each under that human's own delegation.
+func DecidedWithoutYou(t Thread, o Outcome, n Names, item func(i int, body []byte) outbox.Item) [2]outbox.Item {
+	var out [2]outbox.Item
+	for i := 0; i < 2; i++ {
+		self := o.Proposer == t.Participants[i]
+		q := decidedQuestion(o, i, n, self, 3)
+		for _, max := range []int{1, 0} { // shrink the list, never cut a path
+			if len([]rune(q)) <= 300 {
+				break
+			}
+			q = decidedQuestion(o, i, n, self, max)
+		}
+		body, _ := json.Marshal(map[string]any{
+			"id": ids.Wide("es"), "fromAgentId": "", "kind": "inform",
+			"threadId": t.ID, "question": q, "options": []any{},
+		})
+		out[i] = item(i, body)
+	}
+	return out
+}
+```
+
+`Outcome` carries, besides the fields shown earlier, `Proposer model.AgentID`, `YieldedGlobs
+[]string` and `FirstName string` for this template; they are set by the appliers. The question
+is bounded by shrinking, not cutting: three items, then one, then a count. With `max` 0 the
+longest question is the fixed words, two display names and a conflict id, well under 300 for any
+name task 22's `People` returns (display names are CleanName'd and ≤ 80 in the Hub, **UNVERIFIED**
+until task 03's part is read). The full lists are in the thread's typed state, which the human's
+Orchestrator panel shows on click-in (task 55).
+
+**Two tables task 10 adds** (a migration after task 28's):
+
+```sql
+CREATE TABLE IF NOT EXISTS fleet.land_hints (
+  org_id text NOT NULL, hint_id bigserial, project_id text NOT NULL,
+  conflict_id text NOT NULL, thread_id text NOT NULL,
+  first_orch text NOT NULL, second_orch text NOT NULL,
+  first_task text NOT NULL,          -- the task whose done/abandoned restores
+  created_at timestamptz NOT NULL,
+  PRIMARY KEY (org_id, hint_id));
+CREATE INDEX IF NOT EXISTS land_hints_by_task ON fleet.land_hints (org_id, first_task);
+CREATE TABLE IF NOT EXISTS fleet.lease_demotions (
+  org_id text NOT NULL, hint_id bigint NOT NULL, lease_id text NOT NULL,
+  was_mode text NOT NULL CHECK (was_mode IN ('hold','bulk')),
+  PRIMARY KEY (org_id, hint_id, lease_id));
+```
+
+`was_mode` excludes `intent`: demoting an intent is a no-op and writes no row, so a restore can
+never turn an intent into something stronger than it was.
