@@ -63,7 +63,8 @@ desktop renderer --(loopback)--> control plane --(system browser)--> Keycloak re
    `scope=openid offline_access panacea-app-hub panacea-app-broker panacea-app-gateway panacea-app-fleet`,
    `state`, `nonce`, `code_challenge`, `code_challenge_method=S256`, `kc_idp_hint=entra`,
    `login_hint=<Windows UPN>`. Nothing else (section 3 says why no `prompt`, no `domain_hint`).
-5. **Broker.** Keycloak skips its own page (`kc_idp_hint`), redirects to Entra's tenant-specific
+5. **Broker.** Keycloak skips its own page (the desktop client's browser-flow override, K1; `kc_idp_hint`
+   is sent too but only as a hint), redirects to Entra's tenant-specific
    authorize endpoint through the IdP alias `entra` (Panacea `deploy/portal/setup-keycloak.sh:395`,
    `:482`, `:489`), with the IdP's own confidential credentials (`client_secret_post`, `:488`). Entra
    answers Keycloak's broker endpoint; the IdP's `tid` filter refuses any other tenant (`:509`);
@@ -77,7 +78,9 @@ desktop renderer --(loopback)--> control plane --(system browser)--> Keycloak re
    code-exchange access token (which carries every audience) is **discarded, never sent**. Each call
    site asks `TokenSource.Token(ctx, "<audience scope>")`, which refreshes with
    `scope=openid <audience scope>` to get a **single-audience** access token, cached in memory until
-   60 seconds before `exp`. The renderer never holds any token.
+   60 seconds before `exp`. The refresh token returned by a narrowed refresh is **never written back**:
+   the stored offline token stays the original, all-scope one (section 12, U-4b). The renderer never
+   holds any token.
 
 **Why `offline_access`.** Panacea's realm runs one replica with in-memory sessions (`deploy/main.tf:928`,
 `:941-957`) and prod keeps the 10-hour SSO maximum (`setup-keycloak.sh:157-158`). A plain refresh token
@@ -111,7 +114,7 @@ Each screen that could appear, and what removes it:
 
 | Screen | Removed by |
 |---|---|
-| Keycloak's login page (username/password + "Microsoft (KPMG)" button) | **`kc_idp_hint=entra`** on every authorize request. Needs no realm change: the hint overrides the Identity Provider Redirector and Panacea sets no redirector (facts §4, §8). |
+| Keycloak's login page (username/password + "Microsoft (KPMG)" button) | **K1's browser-flow override** on `panacea-app-desktop`: flow `panacea app desktop browser`, one step, the Identity Provider Redirector with `defaultProvider = entra`; **no Cookie step and no username/password form** (section 10). Every interactive sign-in therefore goes to Entra, so conditional access always applies and M1/M2 run at every sign-in. `kc_idp_hint=entra` is still sent but is **cosmetic**: a client-supplied parameter carries no trust, and dropping it lands on Entra all the same (OD-30 review-1 I1). |
 | Entra home-realm discovery | Nothing to remove: the IdP already calls the **tenant-specific** endpoint `login.microsoftonline.com/<KPMG tenant>/...` (`setup-keycloak.sh:482`, `:489`). **`domain_hint` is not sent**: Keycloak 25.0.0 cannot forward it (forwarded query parameters exist on `main` only, facts §8) and it would add nothing. |
 | Entra account picker / password | The user's **Windows sign-in session** (the device's Primary Refresh Token, used by Edge natively and by Chrome through the Windows Accounts extension) plus **`login_hint=<UPN>`**, forwarded by the IdP's "Pass login_hint" switch (config `loginHint: "true"`, a Panacea ask, section 10; today it is off, facts §3). |
 | Entra consent | None expected: the registration is already consented for `openid profile email` by Panacea's use (`defaultScope`, `setup-keycloak.sh:508`). |
@@ -153,6 +156,12 @@ which flashes the taskbar button. It never steals focus a second time.
 - **A Keycloak required action** set on the user by the realm admin (terms, profile update). None is
   configured by Panacea's script; the live realm is UNVERIFIED (section 12).
 
+**Out of scope for zero clicks: multi-user hosts** (AVD session hosts, jump boxes, any machine where
+another user's process can listen on `127.0.0.1`). With consent off, a flow someone else starts with their
+own PKCE verifier completes silently, and PKCE does not stop that. Zero clicks is ruled for a single-user
+managed Windows device only. If multi-user hosts are ever supported, a Keycloak client policy requiring
+consent for them comes first (a later owner decision; nothing builds it now).
+
 **Why WAM plus token exchange is NOT used now.** Windows' Web Account Manager would get an Entra token
 from the PRT with no browser tab at all, but (1) it needs a broker redirect URI
 (`ms-appx-web://Microsoft.AAD.BrokerPlugin/<client id>`) on the Entra registration, which is an IT change
@@ -179,13 +188,13 @@ phase 6's `wire.Owner{TID, OID}`.
 |---|---|---|
 | `iss` | exactly `PANACEA_APP_OIDC_ISSUER` | exact string compare |
 | `typ` | `Bearer` | required; refuses id and refresh tokens |
-| `aud` | string or array, **contains** the service's audience: `panacea-app-hub`, `panacea-app-broker`, `panacea-app-gateway` or `panacea-app-fleet`. May also hold Keycloak's `account`. | contains, not equals |
+| `aud` | string or array, **contains** the service's audience: `panacea-app-hub`, `panacea-app-broker`, `panacea-app-gateway` or `panacea-app-fleet`. May also hold Keycloak's `account`. | contains the service's own, and **no other `panacea-app-*` audience** (section 5) |
 | `azp` | `panacea-app-desktop` for a person; a service client id for a service caller (section 6) | in the service's allowlist |
 | `oid` | Entra object id, GUID | **required** for a person token; absent on a service token |
 | `tid` | Entra tenant id, GUID | required for a person; must be an enrolled tenant (the Hub's org key) |
 | `scope` | space-separated; contains the audience scope's name | Keycloak's `scope` replaces Entra's `scp` |
 | `roles` | flat array of realm role names; the Hub reads **`hub.org_admin`** | replaces the Entra app role `Hub.OrgAdmin` (hub ADR-H1 `:430`) |
-| `email`, `email_verified` | from Entra through Panacea's `email` IdP mapper, `trustEmail:true` | the Hub's invite match (contract `:318-319`, unchanged) |
+| `email`, `email_verified` | from Entra through Panacea's `email` IdP mapper, syncMode **`FORCE`** (K3), `trustEmail:true`; user-profile `email` is admin-edit only (K4) | the Hub's invite match: **`bindEmail` = `email` only when `email_verified == true` and `azp == panacea-app-desktop`**; otherwise no invite binds. Never `preferred_username`. This replaces the pre-A15 contract rule (`:318-319`) and plan-h's `acct`/`xms_edov` binding (`:194`, `:539`), which fail closed under `keycloak` (ADR-H1 `:800-804`) |
 | `name`, `preferred_username` | `preferred_username` = the email (Panacea's username mapper, `setup-keycloak.sh:568-579`) | display only |
 | `sub` | Keycloak user id | logged, never a key |
 | `groups` | **absent**: the desktop does not request Panacea's optional `groups` scope | Hub membership is the Hub's own (ADR-H1 §6.6 stands) |
@@ -214,7 +223,9 @@ Why each non-obvious setting:
   `entra_oid` in the account console, which would let them become someone else.
 - **Audience scopes, optional**: the authorize request asks for all four; each refresh narrows to one
   (section 2, step 7), so a token given to the broker cannot be replayed at the Hub (the Hub contract's
-  confused-deputy defence, `:2070`, kept).
+  confused-deputy defence, `:2070`, kept). Every validator also **refuses a token carrying a second
+  `panacea-app-*` audience** (section 5), so if narrowing ever fails (U-4) sign-in breaks loudly instead
+  of the defence lapsing quietly.
 - Keycloak's built-in scopes (`basic`, `profile`, `email`, `roles`, `web-origins`, `acr`) are left as the
   realm has them (facts §5). P3's flat `roles` duplicates `realm_access.roles` so both profiles read one
   claim name.
@@ -264,7 +275,8 @@ var ErrType = errors.New("oidcauth: typ is not Bearer") // NEW; keycloak profile
 ```
 
 **`keycloak` profile order:** size and alg -> signature against the issuer's JWKS -> exp/nbf -> `iss` equals
-`Issuer` -> `typ == "Bearer"` -> `aud` contains `Audience` -> `azp` in `AllowedClients` or `ServiceClients`
+`Issuer` -> `typ == "Bearer"` -> `aud` contains `Audience` **and contains no other `panacea-app-*`
+audience** (`ErrAudience`; Keycloak's `account` is ignored) -> `azp` in `AllowedClients` or `ServiceClients`
 -> `RequiredScope` in `scope` -> person: `oid` a GUID and `tid` a GUID in `TenantIDs`; service: `oid` and
 `tid` both absent, `Service = true`. `ErrVersion` is never returned under `keycloak`. `New` refuses:
 an empty `Profile`, a non-https `Issuer` (a loopback http one only with `AllowInsecureAuthority`),
@@ -277,7 +289,8 @@ an empty `Profile`, a non-https `Issuer` (a loopback http one only with `AllowIn
 - `testkey_test.go` gains a Keycloak token builder (`iss`, `typ`, array `aud`, string `azp`, `scope`,
   `oid`, `tid`, `roles`).
 - NEW `keycloak_test.go`, one row per rule: a good person token; wrong `iss`; `typ` `ID`; `aud` as string
-  and as array; `aud` missing; `azp` not allowed; person token with no `oid`; `tid` not enrolled
+  and as array; `aud` missing; `aud` = `[panacea-app-hub, panacea-app-broker]` refused `ErrAudience`
+  (two audiences); `aud` = `[panacea-app-hub, account]` accepted; `azp` not allowed; person token with no `oid`; `tid` not enrolled
   (`ErrTenant`), and a badly signed token with a foreign `tid` returns `ErrSignature` (order pinned);
   `scope` without `RequiredScope`; a service token (Fleet) accepted with `Key() == "client/panacea-app-fleet"`;
   a service token carrying `oid` refused; each `New` refusal above.
@@ -331,9 +344,21 @@ desktop token created; the actor recorded is the person, with Fleet as the deleg
 caller (env 17/18 amendment, phase T task 17) is recognised the same way: `Service` true and
 `azp == panacea-app-fleet`, where phase T task 17 said "no `scp`, `azp` = Fleet". Desktop to Fleet stays a
 **person** token: audience `panacea-app-fleet`, `azp == panacea-app-desktop`, owner `(tid, oid)` (phase T
-task 12), validated by `oidcauth` under `keycloak`. The Hub accepts `azp == panacea-app-gateway` only on
-the route-source and usage-roll-up routes (phase T task 66's `PANACEA_APP_HUB_GATEWAY_CLIENT_ID` is set to
-`panacea-app-gateway`).
+task 12), validated by `oidcauth` under `keycloak`.
+
+**The gateway's Hub routes, the one list** (every other file points here; phase T task 66's
+`PANACEA_APP_HUB_GATEWAY_CLIENT_ID` is set to `panacea-app-gateway`). The Hub accepts
+`Service && azp == panacea-app-gateway` on these read/write routes only, and refuses it on every other:
+
+| Route | Why | Source |
+|---|---|---|
+| `GET /v1/projects/{projectId}` (the project record; path UNVERIFIED, phase 6 task 13 names it) | the route source (phase 6 task 13's one `GET`) | phase 6 task-13 `:17`, `:26` |
+| 74 `GET /v1/projects/{projectId}/team-policy` | team budgets (team mode) | team task-01 `:281`; task-66 `:931` |
+| 76 `POST /v1/orgs/{orgId}/usage-rollups` | the daily usage roll-up | team task-01 `:283` |
+| 80 `GET /v1/orgs/{orgId}/quotas` | the org quota ceiling (team mode) | team task-66 `:156` |
+
+Routes 74, 76 and 80 exist only once phase T is built; before then the list is the project read alone.
+Adding a route to this list is a ruling change.
 
 **The gateway's mint (phase 6) validates its caller under the same profile.** keysmith's
 `PANACEA_APP_GATEWAY_CALLER_AUTH` gains a third mode, **`oidc`**, beside `kube` and `bearer-file`, and
@@ -350,10 +375,20 @@ becomes a comma list (cloud: `kube,oidc`):
 issued keeps working until it lapses. The desktop client therefore sets
 `client.offline.session.max.lifespan = 604800` (7 days), which needs the realm's
 `offlineSessionMaxLifespanEnabled: true` (section 10): at most once a week the silent refresh fails and the
-zero-click flow re-checks the person against Entra (the realm's browser SSO session is at most 24 hours,
-`panacea-dev.env:131-133`, so by then Keycloak must go back to Entra). Fleet's 24-hour delegation lapse
+zero-click flow re-checks the person against Entra (K1's browser flow has no Cookie step, so every
+interactive sign-in goes back to Entra, whatever the realm's SSO session). Fleet's 24-hour delegation lapse
 stands. Its daily account-state check (`05-design.md:163-185`) cannot read Entra's state through the realm
 (the IdP has `storeToken:false` and no user sync, facts §3); it stays as that design says, flagged in section 12.
+
+**Revocation latency.** Services validate access tokens offline (JWKS, no introspection), so a revoked or
+leaver session stays valid at every service until its last access token expires. K1 sets the desktop
+client's access-token lifespan to **600 seconds** (Panacea's dev realm default is 1800, facts `:91`), so the
+bound is at most 10 minutes after a refresh first fails, **on top of** the 7-day offline cap.
+
+**The realm-admin trust boundary.** Until phase 8, whoever administers Panacea's realm can set any user's
+`entra_oid`/`entra_tid`, assign `hub.org_admin`, or impersonate a user, and so become any PanaceaApp
+person. PanaceaApp trusts Panacea's realm admins exactly as far as it trusts its own; that ends when phase 8's
+realm (our admins only) replaces it. Nothing in PanaceaApp can detect it (section 12, U-15).
 
 ## 7. Azure DevOps and GitHub
 
@@ -409,7 +444,8 @@ label or LiteLLM user changes.
   `storeToken:false`, the email/name/username mappers, and a first-broker-login flow of
   `idp-create-user-if-unique` or `idp-auto-link` with no review-profile step (Panacea
   `setup-keycloak.sh:375-635`). Plus section 4's M1, M2, UP, P1-P3, A1-A4, the "Pass login_hint" switch,
-  and section 6's service clients.
+  section 10's K1 browser-flow override, K3's `email` mapper on `FORCE`, K4's user-profile permissions and
+  `unmanagedAttributePolicy`, K6's rule for person clients, and section 6's service clients.
 - **One Entra change, the only Entra ask OD-30 leaves:** IT adds **one redirect URI**,
   `https://auth.<our domain>/realms/panacea-app/broker/entra/endpoint`, to the registration, and **a
   second client secret** for our Keycloak (so either side rotates without breaking the other), stored in
@@ -451,13 +487,22 @@ create-then-PUT-on-409 shape (`:332-361`); it ships through Phase 12's unconditi
 | `publicClient` | `true` (no secret) |
 | `standardFlowEnabled` | `true`; `implicitFlowEnabled`, `directAccessGrantsEnabled`, `serviceAccountsEnabled`: `false`; OAuth device grant: off |
 | `attributes."pkce.code.challenge.method"` | `S256` (required) |
-| `redirectUris` | `["http://127.0.0.1/*"]` (any loopback port, RFC 8252 §7.3; never `localhost`, facts §8) |
+| `redirectUris` | `["http://127.0.0.1/callback"]`: the one path the listener serves, any loopback port (RFC 8252 §7.3); never `localhost` (facts §8); never a `/*` path. U-3 settles the port form |
 | `webOrigins` | `[]` (none: the control plane is not a browser, so no CORS) |
-| `consentRequired` | `false` |
+| `consentRequired` | `false` (zero clicks; single-user devices only, section 3 "Out of scope") |
+| `authenticationFlowBindingOverrides.browser` | the id of flow **`panacea app desktop browser`** (below). No `direct_grant` override: direct grants are off |
 | `attributes."client.offline.session.max.lifespan"` | `604800` (7 days, section 6) |
+| `attributes."access.token.lifespan"` | `600` (10 minutes): bounds how long a revoked or leaver session stays valid at the offline validators (section 6) |
 | default client scopes | the realm's defaults, unchanged |
 | optional client scopes | `offline_access`, `panacea-app-hub`, `panacea-app-broker`, `panacea-app-gateway`, `panacea-app-fleet`. **Not** `groups` |
 | dedicated mappers | P1 `oid`, P2 `tid`, P3 `roles` (section 4) |
+
+**K1 flow `panacea app desktop browser`** (a new top-level flow, `providerId: basic-flow`; Panacea's
+realm `browser` flow is not touched): **one** execution, `identity-provider-redirector`, requirement
+`REQUIRED`, config `defaultProvider = entra`. Nothing else: no `auth-cookie`, no
+`auth-username-password-form`, no OTP form. The client-supplied `kc_idp_hint` therefore decides
+nothing (section 3). Refresh and offline grants do not run a browser flow, so silent launches are
+unaffected. Env 09's realm test asserts the same flow and binding for phase 8's realm.
 
 **K2. Four client scopes** `panacea-app-hub`, `panacea-app-broker`, `panacea-app-gateway`,
 `panacea-app-fleet`: protocol `openid-connect`, `include.in.token.scope: true`, one `oidc-audience-mapper`
@@ -468,12 +513,24 @@ each with `included.custom.audience` = the scope's name, access token only (A1-A
   when a client sends one.
 - Mappers M1 (`oid` -> `entra_oid`) and M2 (`tid` -> `entra_tid`), `oidc-user-attribute-idp-mapper`,
   syncMode `FORCE`. The script's expected mapper count (`:635`) goes from 6 to 8.
+- Panacea's existing `email` IdP mapper (facts `:47`, `:57-58`, today INHERIT, so `IMPORT`) becomes
+  syncMode **`FORCE`**, so Entra rewrites `email` at every login and a stale or self-edited value never
+  survives one (the Hub's invite match relies on it, section 4).
 - **Unchanged and relied on:** `prompt` unset, `pkceEnabled:false`, `syncMode: IMPORT` on the IdP,
   `trustEmail:true`, the `tid` filter, and `firstBrokerLoginFlowAlias = "panacea first broker login"`.
+
+**Order: K4 lands in the same script block as K3, and before it**, and the script re-asserts K4's user
+profile on every run (the create-then-PUT shape). If K3's FORCE mappers ran first, or a later run PUT a
+user profile without the two declarations, `entra_oid` would be unmanaged, and a user could then edit
+it (a forged `oid`).
 
 **K4. Realm settings:**
 - User profile declares `entra_oid` and `entra_tid`: permissions view `["admin"]`, edit `["admin"]`,
   not required, no validators beyond length 36.
+- User profile `email`: permissions edit `["admin"]`, view `["admin","user"]`, so a user cannot change
+  it in the account console (Keycloak's default lets the user edit it; the live realm is UNVERIFIED).
+- User profile `unmanagedAttributePolicy` is stated, and is **not `ENABLED`** (absent, or
+  `ADMIN_VIEW`/`ADMIN_EDIT`), so no undeclared attribute is ever user-editable.
 - `offlineSessionMaxLifespanEnabled: true` with `offlineSessionMaxLifespan: 5184000` (60 days, Keycloak's
   own value once enabled), so K1's 7-day client override takes effect. It caps any other client's offline
   sessions at 60 days (UNVERIFIED that Panacea has any; section 12).
@@ -483,9 +540,22 @@ each with `included.custom.audience` = the scope's name, access token only (A1-A
 exists:** confidential clients `panacea-app-fleet` and `panacea-app-gateway` exactly as section 6. If
 phase 8's Keycloak comes first, they are born in our realm (section 9) and K5 is never asked.
 
-**Check after Panacea applies K1-K4** (owner, about 5 minutes): set `PANACEA_APP_OIDC_ISSUER` to the dev
-realm, launch PanaceaApp signed out, and confirm the browser tab reaches "Signed in. You can return to
-PanaceaApp." with no click; then `GET /v1/auth/status` shows a GUID `oid` and `tid`.
+**K6. Every realm client that carries a person** (the desktop now; the Hub pages client and approved
+third-party app clients, phase W, when they are asked for) gets **P1 and P2** (`oid`, `tid`) as dedicated
+mappers and **only the audience scopes it needs** as optional scopes, or its tokens carry no `oid` and
+every validator refuses them. The Hub pages client is **confidential** (`panacea-app-hub-pages`,
+`publicClient:false`, standard flow on, redirect URIs = the Hub pages' own callback, no service account,
+optional scope `panacea-app-hub` only, K1's browser-flow override). Its exact redirect URI and the
+third-party clients are phase W's to name (findings-work); the rule above is this ruling's.
+
+**Check after Panacea applies K1-K4** (owner, about 10 minutes): set `PANACEA_APP_OIDC_ISSUER` to the dev
+realm, launch PanaceaApp signed out, and confirm:
+1. The browser tab reaches "Signed in. You can return to PanaceaApp." with no click; then
+   `GET /v1/auth/status` shows a GUID `oid` and `tid`.
+2. **Drop `kc_idp_hint` by hand** (paste the authorize URL without it): it still lands on Entra, and
+   no Keycloak username/password page appears (K1's flow override, I1).
+3. **As the user, POST a changed `entra_oid`** (and a changed `email`) to
+   `/realms/panacea/account`: both are refused (K4).
 
 ## 11. The per-plan change list
 
@@ -528,7 +598,7 @@ written; **none** = verified to need no change. Built code is never edited outsi
 | phase-7 | plan `:140`, `:167-192`, `:205-212` | — | doc | "Entra token" -> "realm token"; 7P-1 stands (section 8) | edit |
 | phase-4 | parts `task-23.md:29`, `:129` | 23 | no | none: devissuer stays the local issuer | none |
 | team | `05-design.md` `:120`, `:161-162`, `:189-191`, `:853`, `:1127`; phase T plan and parts 01, 05, 12, 17, 21, 66 | T* | no | section 6: Fleet and gateway service clients, `azp` keys, audience `panacea-app-fleet` | findings |
-| work | phase W plan `:127`, `:254`, `:257`, `:568`, `:581`; scopes 141-160, 161-180, 181-187 | W* | no | the MCP server's `authorization_servers` = the realm; Hub pages sign in through the realm; third-party apps are realm clients; groups via broker mappers | findings |
+| work | phase W plan `:127`, `:254`, `:257`, `:568`, `:581`; scopes 141-160, 161-180, 181-187 | W* | no | the MCP server's `authorization_servers` = the realm; Hub pages sign in through the realm as a confidential client (K6); third-party apps are realm clients under K6's rule; `groups` stays absent (section 4) | findings |
 
 ## 12. UNVERIFIED
 
@@ -539,7 +609,8 @@ Each item names who settles it. None changes a decision above; each says what ha
 | U-1 | That OD-30's "Panacea Platform API" is the registration Panacea's IdP uses (`37f8bd70-...`, named `AU-PROD-Panacea-RITM6316333`; facts §10) | the owner, one look | the ruling holds: it keys on that client id, not the name |
 | U-2 | Panacea's **live** realm: no Identity Provider Redirector default, no required actions, the IdP bound to `panacea first broker login`, IdP settings as scripted (facts §3, §4) | Panacea's team when applying K1-K4 | a live difference is fixed in Panacea's script, not worked around in PanaceaApp |
 | U-3 | The live Keycloak is 25.0.0 (chart default, pod not inspected); loopback any-port, `kc_idp_hint` and the `loginHint` switch in exactly 25.0.0 (facts §1, §8) | section 10's check | if a loopback port is refused, K1 lists `http://127.0.0.1:*/*`-style entries per Keycloak's own doc for that version |
-| U-4 | Keycloak honours a narrowing `scope` on the refresh-token grant, so each access token has one audience | hub task 31 against devissuer, then task 43 against the dev realm | tokens carry all four audiences; validators still pass (`aud` contains); the per-audience defence is recorded as degraded until phase 8 |
+| U-4 | Keycloak honours a narrowing `scope` on the refresh-token grant, so each access token has one audience | hub task 31 against devissuer, then task 43 against the dev realm | tokens carry all four audiences and **every validator refuses them** (`ErrAudience`, section 5): a loud failure at hub task 43, never quiet degradation. The owner then decides (per-audience clients, or phase 8's own Keycloak) |
+| U-4b | The refresh token Keycloak returns from a **narrowed** refresh keeps the **original** scope (all four audience scopes plus `offline_access`) | hub task 43's dev-realm check: Hub -> broker -> gateway -> Hub on one stored token | the narrowed refresh token would make the next `Token(hub)` fail `invalid_scope`. So task 31 **never writes back a refresh token returned by a narrowed grant**; it keeps the original offline token (safe: `revokeRefreshToken` is false, facts `:94-96`). devissuer (task 12) pins that keep-original behaviour. This rule holds whether U-4b is true or false |
 | U-5 | Offline sessions survive a pod restart of Panacea's one-replica, `--cache=local` Keycloak; the realm's default roles include `offline_access` | section 10's check, then a pod restart | a restart costs one zero-click re-sign-in; nothing else changes |
 | U-6 | Zero clicks on KPMG devices: the PRT browser SSO (Edge; Chrome with Windows Accounts), conditional-access behaviour, and existing consent for `openid profile email` on the registration | section 10's check, by the owner | the prompts are Entra's and correct (section 3); none is worked around |
 | U-7 | `GetUserNameExW(NameUserPrincipal)` returns the Entra UPN on KPMG's (hybrid or Entra-joined) devices | hub task 30, one run on the owner's laptop | `login_hint` is omitted; Entra relies on the browser session |
@@ -549,5 +620,6 @@ Each item names who settles it. None changes a decision above; each says what ha
 | U-11 | Tauri `setFocus` against Windows' foreground lock | hub task 40 | the taskbar flash is the whole behaviour |
 | U-12 | Fleet's daily account-state check (`05-design.md:163-185`) has no way to see Entra disablement through the realm | the team plan's writers (findings) | the 7-day offline cap (section 6) is the leaver bound |
 | U-13 | Keycloak token exchange is still preview, and keycloak-config-cli supports the Keycloak 26 release pinned in phase 8 (both from knowledge, not fetched) | env tasks 09 and 29 | WAM stays out (section 3 has two other reasons); the realm Job's tool is re-chosen by env 09 from Apache/MIT tools only |
+| U-15 | Panacea's realm admins can set `entra_oid`, assign `hub.org_admin` or impersonate, and so become any PanaceaApp person (section 6); and the 600 s access-token override takes effect on Keycloak 25.0.0 | accepted by this ruling until phase 8; the override by section 10's check (decode one token's `exp - iat`) | the risk stands until phase 8's own realm; if the override is ignored, the realm's 1800 s applies and revocation latency is 30 minutes |
 | U-14 | Line numbers for hub parts 07a, 15, 17, 21, 27, 34, 36, 37, 39, 40, 41, 42, and the phase 6, team and work rows of section 11, are from `facts-app-identity.md`, not re-read here | each task's implementer re-verifies its part's citations (OD-29) | the edit lands on the right text, not the cited line |
 
