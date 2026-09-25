@@ -80,8 +80,13 @@ field that could hold agent free text, so an over-eager Fleet cannot leak one in
   request per connection, the 64 KiB cap, the re-stamp (new)
 - `sandboxd/internal/control/snapshot.go` — `Snapshot` and its worker-visible element types, the
   strict decode, the atomic `0444` write (new)
-- `sandboxd/internal/control/server_test.go`, `socket_test.go`, `snapshot_test.go` — `package control`
-  (new)
+- `sandboxd/internal/control/token.go` — the `token` event: Fleet's per-session gateway key written
+  where `panacea token` reads it (new, step 6b)
+- `sandboxd/internal/control/peer_linux.go`, `peer_other.go` — the `SO_PEERCRED` pid for `events.wait` (new)
+- `sandboxd/internal/control/server_test.go`, `socket_test.go`, `snapshot_test.go`, `token_test.go`,
+  `peer_linux_test.go` — `package control` (new)
+- `sandboxd/internal/ptysession/session.go`, `sandboxd/internal/hub/hub.go` — one `Pid()` accessor each
+  (modified, step 7)
 - `sandboxd/internal/server/server.go` — **extends** the built file: one field, `Config.Control
   http.Handler`, and one line beside `:85-86` mounting it at `/control` when non-nil (modified)
 - `sandboxd/cmd/sandboxd/main.go` — **extends** the built file: reads `PANACEA_APP_CONTROL_TOKEN`,
@@ -1000,6 +1005,34 @@ func applySnapshot(path string, frame []byte) error {
 Re-marshalling the decoded struct, rather than writing Fleet's bytes, is the point: whatever Fleet
 sent, the file holds only the keys the type has.
 
+- [ ] **Step 6b: The gateway token arrives on the stream (`token.go`)**
+
+In team mode Fleet mints each session's gateway key (S6.5; task 20), a fresh one per Orchestrator
+turn, and the broker does not (task 17 decision 7). The key reaches the pod as one more pushed event,
+`{"event":"token","token":"<key>","expiresAt":"<RFC 3339>"}`, which `sandboxd` writes to
+`$PANACEA_APP_GATEWAY_TOKEN_DIR/token` (default `/run/panacea/gateway`, a memory-backed `emptyDir` for a
+Fleet sandbox) exactly as phase 6's `gatewayclient.WriteToken` does: `token.tmp` at `0600`, `fsync`,
+rename. So `panacea token` (phase 6 task 14) reads the same file it always reads and its behaviour does
+not change. The event is never queued for `events.wait` and never logged beyond its kind.
+
+```go
+// sandboxd/internal/control/token.go
+type TokenEvent struct {
+	Event     string    `json:"event"` // "token"
+	Token     string    `json:"token"`
+	ExpiresAt time.Time `json:"expiresAt"`
+}
+
+// applyToken writes tok atomically. The error never contains the token.
+func applyToken(dir string, frame []byte) error
+```
+
+The read loop's `switch` gains `case d.Event == "token":` before the generic event case. Tests:
+`TestTokenEventWritesTheFilePanaceaTokenReads` (kills a direct, partial write: a reader polling during
+the write never sees a prefix); `TestTokenEventIsNeverQueued` (kills routing it to `events.wait`, which
+would hand the key to the runner's socket); `TestTokenErrorHoldsNoToken` (an unwritable directory's
+error message does not contain the key; kills `%v` of the frame).
+
 - [ ] **Step 7: Wire it into the built files**
 
 `sandboxd/internal/ptysession/session.go` gains `func (s *Session) Pid() int { return
@@ -1036,7 +1069,7 @@ When `controlToken` is set and `agentID` or `class` is not, `sandboxd` exits `1`
 variable. The child's environment is `os.Environ()` with `PANACEA_APP_CONTROL_TOKEN` removed, passed
 as `server.Config.Env`: the agent can still read `/proc/<sandboxd>/environ` (decision 8), but a token
 that is not in the child's own environment does not land in a transcript the first time an agent runs
-`env`. The log line at `:63` gains `"control", controlToken != ""` and never the token.
+`env`. The log line at `:64` gains `"control", controlToken != ""` and never the token.
 
 - [ ] **Step 8: Run the tests and the acceptance commands**
 
@@ -1084,7 +1117,7 @@ The message file says what the task adds and ends with the co-author line.
   mislead itself, and nothing in Fleet reads the file back. A true read-only mount needs a second
   container (a writer sidecar) and is a skeleton-level decision, not this task's.
 - **Gap S16-2 — frames ST.1 does not list.** Task 09's scope names three event kinds and no stamped
-  request; this task needs `Stamped`, the `snapshot` event, the local verb `events.wait` and the code
-  `forbidden`. They are written in full above against task 09's fixture directory; task 09 should
+  request; this task needs `Stamped`, the `snapshot` and `token` events, the local verb `events.wait`
+  and the code `forbidden`. They are written in full above against task 09's fixture directory; task 09 should
   adopt them, or this part renames to task 09's spelling.
 - That `/panacea/team.json` is read by any harness before its first tool call. It is a fallback.
