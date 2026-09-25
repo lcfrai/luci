@@ -576,3 +576,59 @@ Design: 05 §4.3 (`/`, `O` then `I`), §4.6, §3.6; 02 C8 budgets (`02:280-286`)
 W1 part. Does not claim: `@person`, `#label` and `EP-` filter prefixes inside search (L-107, W2),
 natural-language filters (L-100, W4), a moved issue's old number redirecting (L-35, W2).
 
+**59 — the palette: every work verb with its chord, the four prefixes, opens beside the row.**
+Files: `src/components/palette/commands.ts` ⚑, `CommandPalette.tsx` ⚑ (+ their tests) and
+`palette.css`. `buildCommands(state)` (`commands.ts:72`) gains the work verbs **generated from task
+53's `KEYMAP`**, one source, each `Command.hint` (`:17-18`) set from task 54's `chordFor(verb)`: every
+W1 verb of 05 §4.3's table, *Go to Work*, *Plan* and *Desk*, *Apply held changes*, *Copy link* (task
+47), *Subscribe* and *Unsubscribe* (no key, so no hint) and *Start* (`Shift+R`). Adds
+`parsePrefix(query) → {scope: "all" | "issues" | "people" | "commands" | "sessions"; needle}`: `#`
+issues through task 58's `search`, `@` people of the reader's teams from the replica, `>` commands
+only, `~` the built session commands; inside a scope `filterCommands` (`:219`) keeps its label-only
+rule, whose comment says why `meta` is not matched. Adds `openPalette({anchor: DOMRect; row:
+RowContext})`: invoked from a row (`Ctrl+K` with a row focused, or a row's menu), the palette opens
+**beside that row**, not centred, and lists that row's verbs first; from anywhere else it opens as
+built, including from a terminal with `OD-9`'s toggle. Selection stays by id, never by index
+(`CommandPalette.tsx:4`). `budget.palette ≤ 50 ms` is recorded, not asserted. Tests first: every work
+command's hint equals `chordFor` for its verb, across all active `KEYMAP` rows (kills hand-written
+hints that drift); `#resume` lists EP-142 and no commands (kills an ignored prefix); `>` lists only
+commands, `@al` lists Alice and `~` lists sessions (kills a prefix mapped to the wrong scope); an
+unprefixed query still matches labels only and the built palette tests stay green (kills widening to
+`meta`); opened from a focused row, the palette sits beside it and its first rows are that row's
+verbs (kills a centred palette in global order); *Subscribe* carries no hint (kills a `Shift+S`
+hint); *Delegate* and *Ask* are absent in W1 (kills inert W3 verbs); a verb run from an anchored
+palette acts on the anchored row even when the list cursor sits elsewhere (kills acting on the wrong
+issue). Depends on 54, 58. Design: 05 §4.3 (*The palette*), §4.1 (the Palette row), §4.6. Parity:
+closes L-221's W1 part and L-222, and L-226's palette half (task 54 did the menus); serves L-29
+(`C` from the palette; create is task 68). Does not claim: an assistant in the palette (L-155, team
+mode), W2's *Save as view* (L-95).
+
+**60 — peek on `Space`: `peek.span`, `peek.hunk`, `peek.person`.** Files:
+`src/components/work/Peek.tsx` (+ test), new `src/work/peek.ts` (+ test; not yet in the File map),
+edits to task 40's `IssueRow.tsx`, task 43's `BoardView.tsx` and `work.css`. Adds `type PeekKind =
+"issue" | "span" | "hunk" | "person"` and `peekFor(row) → PeekKind`: an issue row peeks the record
+(head, `serves` with its criterion ids such as `c-91e2` in mono, since 05 §4.1 keeps machine ids in
+peek and off the row); a row with the reader's own agent line peeks **`peek.span`**, the observed
+facts behind that line (the session status change, the lane event, the files observed, the exit code,
+each with its time and source, in mono) plus an *open session* link; a landed row peeks
+**`peek.hunk`**, the land commit's hunks, each with its span where one exists (phase 3's land and diff
+records; paths **UNVERIFIED until merge**, rule H2); a teammate's row peeks **`peek.person`**: that
+person's issues in this project, their states and reasons, and files only where an observed fact
+exists, **never their transcript or terminal** (`OD-15`). From a span or hunk peek, *Comment on this*
+calls task 51's `addComment({anchor})`. Behaviour (02 C9, `02:307-312`): `Space` tap opens and closes,
+hold peeks while held; `↑`/`↓` move the peek down the list and never scroll it; peek never marks
+anything seen and closes on `Esc`; it paints from the replica first (`budget.peek ≤ 100 ms`, recorded)
+and later facts stream in; it enters with `--dur-peek` on `opacity` and `transform` only. Tests first:
+tap opens, a second tap closes, and hold-then-release closes (kills tap-only peek); `↓` with peek open
+moves it to the next row and the list's `scrollTop` is unchanged (kills moving the list); opening peek
+leaves the read cursor where it was (kills marking seen); `Esc` closes; `peek.person` makes no attach
+or terminal call and renders no transcript line (kills showing a teammate's session); `Peek` imports
+nothing from `src/api/attachRegistry.ts` (kills PTY-derived meaning, `OD-8`); `c-91e2` appears in
+peek in mono and not on the row (kills machine ids on the row); `Space` in a text field types a space
+(kills a `keys.list` leak); the peek's CSS animates only `opacity` and `transform` (kills layout
+motion); `expectNoPrediction` passes. Depends on 40, 55. Design: 05 §4.3 (`Space`), §4.1 (*other
+agents are one `Space` away*; `peek.person`), §4.6; 02 C9. Parity: closes L-108's W1 part. Does not
+claim: 02 C9's twelve transcript lines around a span, which need a harness transcript read through
+`OD-8`'s pinned adapter (L-185, W3; no W1 source satisfies `OD-8`); leases in `peek.person` (W3);
+create an issue from a span or hunk (task 68).
+
