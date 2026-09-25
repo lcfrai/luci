@@ -201,8 +201,7 @@ type DeskThread struct {
 	Participants []string             `json:"participants"` // two ag-…
 	OtherUserID  string               `json:"otherUserId"`
 	Subject      hubapi.ThreadSubject `json:"subject"`
-	Rounds       int                  `json:"rounds"`    // rounds used so far, both sides
-	MaxRounds    int                  `json:"maxRounds"` // 2 × team policy's roundsPerSide
+	Rounds       protocol.Rounds      `json:"rounds"`    // task 28: mine, theirs, cap (task-28.md:207-211)
 	Deadline     time.Time            `json:"deadline"`
 }
 
@@ -283,5 +282,209 @@ type RouteState struct {
 	Required  bool    `json:"required"`  // the data class allows AU only
 	RaisedAt  *string `json:"raisedAt"`  // when the team ratchet moved it to au; null otherwise
 	CanLower  bool    `json:"canLower"`  // the caller holds org compliance
+}
+```
+
+```go
+// ── the strip and click-in (task 53) ────────────────────────────────────────
+
+// TeamStrip is GET /v1/projects/{projectId}/team. People holds every person
+// with a live agent on the project, the viewer included, ordered: the viewer
+// last, others by their earliest live agent's startedAt. The UI caps at 5.
+type TeamStrip struct {
+	V           int         `json:"v"` // 1
+	ProjectID   string      `json:"projectId"`
+	Team        bool        `json:"team"` // false: a solo project, People is []
+	GeneratedAt string      `json:"generatedAt"`
+	Route       RouteState  `json:"route"`
+	People      []PersonRow `json:"people"`
+}
+
+type PersonRow struct {
+	UserID      string     `json:"userId"`
+	DisplayName string     `json:"displayName"`
+	You         bool       `json:"you"`
+	Status      string     `json:"status"` // "working" | "waiting" | "idle": the row's one dot
+	WaitingOn   *WaitingOn `json:"waitingOn"`
+	Line        Line       `json:"line"`
+	Files       RowFiles   `json:"files"`
+	ChangedAt   string     `json:"changedAt"` // last change of task, files or status; drives the flash
+}
+
+// WaitingOn: Kind "human" names the person the agent waits on (its own owner)
+// and may carry the agent's words; "lease" and "peer" are Fleet's own facts
+// and carry neither.
+type WaitingOn struct {
+	Kind  string    `json:"kind"`  // "human" | "lease" | "peer"
+	Name  *string   `json:"name"`  // kind human only
+	Words *TeamText `json:"words"` // kind human only, text·A
+}
+
+// Line is the assembled line (§9.1): never a model summary.
+type Line struct {
+	BriefSection *BriefSection `json:"briefSection"` // the person's newest active task's section
+	TaskTitle    *TeamText     `json:"taskTitle"`    // null when Fleet withholds it (gap G52-1)
+	Agents       int           `json:"agents"`       // live agents, the Orchestrator excluded
+}
+
+type RowFiles struct {
+	Recent       []string `json:"recent"`       // ≤ 3, newest edit first
+	More         int      `json:"more"`         // the rest of the person's observed paths
+	HeldByOthers []string `json:"heldByOthers"` // the subset of Recent someone else also holds
+}
+
+// PersonDetail is GET /v1/projects/{projectId}/team/people/{userId}.
+type PersonDetail struct {
+	V           int              `json:"v"`
+	ProjectID   string           `json:"projectId"`
+	UserID      string           `json:"userId"`
+	DisplayName string           `json:"displayName"`
+	You         bool             `json:"you"`
+	Tasks       []DetailTask     `json:"tasks"`
+	Agents      []DetailAgent    `json:"agents"`
+	Files       []DetailFile     `json:"files"`
+	Leases      []DetailLease    `json:"leases"`
+	Conflicts   []DetailConflict `json:"conflicts"`
+}
+
+type DetailTask struct {
+	ID           string        `json:"id"` // tk-…
+	State        string        `json:"state"`
+	Title        *TeamText     `json:"title"`
+	BriefSection *BriefSection `json:"briefSection"` // the provenance link
+}
+
+// Card is the Desk's three-line agent card (docs/AGENTIC-UX.md:148), each line
+// a template over typed fields (cardFor), never an agent's words.
+type Card struct {
+	State   string `json:"state"`   // "WORKING" | "WAITING ON PRIYA" | "WAITING ON A LEASE" | "IDLE" | "STARTING"
+	Meaning string `json:"meaning"` // "<brief section title> · tk-…"
+	Next    string `json:"next"`    // "holds auth/** until 04:40" | "no lease held"
+}
+
+type DetailAgent struct {
+	AgentRef
+	Role    string `json:"role"`
+	Harness string `json:"harness"`
+	TaskID  string `json:"taskId"`
+	Status  string `json:"status"`
+	Card    Card   `json:"card"`
+}
+
+type DetailFile struct {
+	Path         string `json:"path"`
+	LastEdit     string `json:"lastEdit"`
+	HeldByOthers bool   `json:"heldByOthers"`
+}
+
+type DetailLease struct {
+	ID        string   `json:"id"` // ls-…
+	AgentID   string   `json:"agentId"`
+	Globs     []string `json:"globs"`
+	Mode      string   `json:"mode"`  // intent | hold | bulk
+	State     string   `json:"state"`
+	ExpiresAt string   `json:"expiresAt"`
+}
+
+// DetailConflict: WithMine is the viewer's agent on the other side, or ""
+// when the conflict is between two agents neither of which is the viewer's.
+type DetailConflict struct {
+	ID       string   `json:"id"`
+	Tier     string   `json:"tier"`
+	State    string   `json:"state"`
+	Paths    []string `json:"paths"`
+	WithMine string   `json:"withMine"`
+}
+```
+
+```go
+// ── the Desk (task 54): GET /v1/team/desk?since=<RFC 3339> ─────────────────
+
+// TeamDesk is account-level (the Desk is above projects, docs/AGENTIC-UX.md
+// §5): every team project the viewer is a member of, merged, newest first
+// within each list. No section is new; each list lands in an existing one.
+type TeamDesk struct {
+	V                  int            `json:"v"`
+	GeneratedAt        string         `json:"generatedAt"`
+	Horizon            []HorizonItem  `json:"horizon"`
+	NeedsYou           []DecideItem   `json:"needsYou"`
+	SinceYouLastLooked SinceBlock     `json:"sinceYouLastLooked"`
+	DecidedWithoutYou  []DecidedItem  `json:"decidedWithoutYou"`
+}
+
+// HorizonItem is an open conflict one of the viewer's agents is party to, kept
+// until the conflict is resolved or cleared (never dropped on accepted). No
+// time-to-collision field exists (decision c, OD-27).
+type HorizonItem struct {
+	ConflictID string    `json:"conflictId"`
+	ProjectID  string    `json:"projectId"`
+	Tier       string    `json:"tier"`  // P | H | M | S: how it was predicted
+	State      string    `json:"state"` // raised | negotiating | accepted | escalated
+	Paths      []string  `json:"paths"`
+	Mine       AgentRef  `json:"mine"`
+	Theirs     TheirSide `json:"theirs"`
+	At         string    `json:"at"` // the conflict's createdAt
+}
+
+type TheirSide struct {
+	UserID      string `json:"userId"`
+	DisplayName string `json:"displayName"`
+	AgentID     string `json:"agentId"`
+}
+
+// DecideItem is an unanswered decide escalation (route 66, own only).
+type DecideItem struct {
+	EscalationID string         `json:"escalationId"`
+	ProjectID    string         `json:"projectId"`
+	ThreadID     *string        `json:"threadId"`
+	FromAgentID  *string        `json:"fromAgentId"` // null when Fleet raised it
+	Question     TeamText       `json:"question"`
+	Options      []DecideOption `json:"options"` // 1–4, the Hub's bound
+	Default      int            `json:"default"` // index into Options; the safe default
+	Deadline     string         `json:"deadline"`
+}
+
+type DecideOption struct {
+	Label       TeamText `json:"label"`
+	Consequence TeamText `json:"consequence"`
+}
+
+// SinceBlock: Items are informs (not DECIDED WITHOUT YOU) and the free-text
+// answers the viewer's Orchestrator sent a peer, after Since, oldest first.
+type SinceBlock struct {
+	Since string      `json:"since"`
+	Items []SinceItem `json:"items"`
+}
+
+// SinceItem is a flat union on Kind. "inform": EscalationID, Question.
+// "answer": MessageID, ThreadID, To, Text. Keys of the other kind are omitted.
+type SinceItem struct {
+	Kind         string     `json:"kind"` // "inform" | "answer"
+	ProjectID    string     `json:"projectId"`
+	At           string     `json:"at"`
+	EscalationID string     `json:"escalationId,omitempty"`
+	Question     *TeamText  `json:"question,omitempty"`
+	MessageID    string     `json:"messageId,omitempty"`
+	ThreadID     string     `json:"threadId,omitempty"`
+	To           *PersonRef `json:"to,omitempty"`
+	Text         *TeamText  `json:"text,omitempty"`
+}
+
+// DecidedItem is task 29's Fleet-written inform (fromAgentId null, threadId
+// set), joined to its conflict by threadId. Globs: the yielded globs for a
+// yield, the conflict's paths otherwise.
+type DecidedItem struct {
+	EscalationID string    `json:"escalationId"`
+	ConflictID   string    `json:"conflictId"`
+	ProjectID    string    `json:"projectId"`
+	Resolution   string    `json:"resolution"` // split | sequence | yield | build-on | proceed-both
+	Other        PersonRef `json:"other"`
+	Globs        []string  `json:"globs"`
+	At           string    `json:"at"`
+	Undo         Undo      `json:"undo"`
+}
+
+type Undo struct {
+	Available bool `json:"available"` // conflict accepted, resolution yield or sequence
 }
 ```
