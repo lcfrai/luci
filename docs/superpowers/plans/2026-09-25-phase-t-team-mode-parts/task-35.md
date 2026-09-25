@@ -86,8 +86,8 @@ task 44's (task 23 assigns the transition there); this task builds Fleet's half.
   - `activity.Table` with `Fold(ctx, machine string, page machineapi.ActivityPage) ([]Edit,
     error)`, `Of(ctx, agent model.AgentID) (verbs.Observed, bool)`, `LastEdit(agent
     model.AgentID, path string) (time.Time, bool)`
-  - `activity.Edit{Org, Project, Agent, Owner, Path, At, Commit bool}`
-  - `leases.Engine.Observe(ctx, edits []activity.Edit) (ObserveResult, error)`, `Bulk`, `ExpireDue(ctx,
+  - `leases.Edit{Org, Project, Agent, Owner, Path, At, Commit bool}` (aliased as `activity.Edit`)
+  - `leases.Engine.Observe(ctx, edits []leases.Edit) (ObserveResult, error)`, `Bulk`, `ExpireDue(ctx,
     now) (int, error)`, `AdminReleased(ctx, org, lease string, at time.Time) error`, `Collapse(paths
     []string, max int) []string`
   - `activity.Presence` with `Put(owner model.Owner, projects []string, at time.Time)` and
@@ -124,16 +124,10 @@ const (
 	BulkOver     = 25               // more than this many distinct paths in BulkWindow is bulk
 )
 
-// Edit is one observed edit, attributed to the worker whose worktree it is in.
-// Owner comes from the Lane (task 20), never from the sample.
-type Edit struct {
-	Org, Project string
-	Agent        model.AgentID
-	Owner        model.Owner
-	Path         string
-	At           time.Time
-	Commit       bool // the path is in a new LastCommit, not only dirty
-}
+// Edit is leases.Edit (below): it lives in package leases because verbs
+// imports leases and this package imports verbs, so an activity.Edit that
+// leases used would be an import cycle.
+type Edit = leases.Edit
 
 // Lanes is task 20's sessions.Lanes (G35-1).
 type Lanes interface {
@@ -183,6 +177,17 @@ func (t *Table) BulkDue() map[model.AgentID][]string
 ```go
 package leases
 
+// Edit is one observed edit, attributed to the worker whose worktree it is in.
+// Owner comes from the Lane (task 20), never from the sample.
+type Edit struct {
+	Org, Project string
+	Agent        model.AgentID
+	Owner        model.Owner
+	Path         string
+	At           time.Time
+	Commit       bool // the path is in a new LastCommit, not only dirty
+}
+
 // ObserveResult is what one fold changed, for the tests and the logs.
 type ObserveResult struct {
 	NewHolds []model.Lease // one per newly held path
@@ -196,7 +201,7 @@ type ObserveResult struct {
 // requested through RequestIn with Mode hold, which writes it granted or
 // contested with its Hub events, like any request. The breadth check does
 // not apply to a one-path hold (a literal path is never broad).
-func (e *Engine) Observe(ctx context.Context, edits []activity.Edit) (ObserveResult, error)
+func (e *Engine) Observe(ctx context.Context, edits []Edit) (ObserveResult, error)
 
 // Bulk writes one bulk lease for agent over Collapse(paths, teamtext.MaxGlobs)
 // and releases, in the same Tx, the agent's holds from the window that the
@@ -221,3 +226,73 @@ func (e *Engine) AdminReleased(ctx context.Context, org, lease string, at time.T
 // of one path stays literal; a group becomes "<dir>/**". Never returns "**".
 func Collapse(paths []string, max int) []string
 ```
+
+**`Collapse` cannot always stay under 20 without reaching the root.** Twenty-one top-level
+directories each with one edited file already need 21 globs; then `Collapse` keeps the 20 largest
+groups and the rest become one glob per remaining top-level directory, cut at `max`, and the bulk
+lease's Hub event says `truncated` in its `trackedFiles` count (the real number of paths). A bulk
+lease is advisory and ranked last, so an under-covering bulk lease loses nothing a hold would have
+protected: the paths it misses keep their own per-path holds.
+
+#### The poller, and who writes
+
+Every replica runs a `Poller`: every 5 s, for each team project with a live worker, it asks task
+20's `Lanes` for the (machine, worktree, agent) triples and polls each machine once through the
+broker, under that project's `worker`-class delegation of the machine's owner (task 17), with
+`since` = the last `Next` it saw for that machine. Every replica folds into its own `Table`, so
+`team` and `check` answer on any replica. **Only the replica holding the `fleet-activity`
+singleton** (task 12's advisory lock, a fourth name beside its three) passes the edits to
+`Engine.Observe` and runs `BulkDue` and `Bulk`, so two replicas never write two holds for one edit.
+`ExpireDue` runs on the deadline-sweeper singleton every 30 s. A poll that fails leaves the table
+as it was; after `TTL` with no sample, `Of` answers absent and `team` shows the worker's activity
+as unknown, never as idle.
+
+#### `activity/presence.go` (complete in its surface) and the route
+
+```go
+package activity
+
+const PresenceTTL = 90 * time.Second // three missed 30 s beats
+
+// Presence is in memory only. A person is online while their desktop's last
+// beat is under PresenceTTL old; projects are the ones that beat named.
+type Presence struct {
+	mu   sync.Mutex
+	now  func() time.Time
+	seen map[model.Owner]beat
+}
+
+func (p *Presence) Put(owner model.Owner, projects []string, at time.Time)
+func (p *Presence) Online(owner model.Owner) (projects []string, ok bool)
+```
+
+`POST /v1/presence` on Fleet, through task 12's `Route` with verb `presence.put` (any role that
+may read the project, §3.4), body `{"projects": ["pj-…"]}`, at most 20 ids, each a project the
+principal is a member of (task 12's `Membership`, cached ≤ 60 s), else 403 naming the id; `204`.
+The owner is the token's principal, never a body field (global constraint 3). The local control
+plane's `PUT /api/team/presence` takes the same body from the desktop and relays it every 30 s
+while the desktop keeps calling; the desktop calls it when the open project changes and on the one
+global heartbeat clock's 30 s tick (`CLAUDE.md` frontend rules), never on a timer of its own.
+Presence is shown by task 53's strip; this task only keeps it.
+
+- [ ] **Step 1: Write the tests first, each with the mutant it kills**
+
+All on task 10's `memstore`, a fake broker serving ST.6 fixtures (`testdata/activity/v1/`), a
+fake `Lanes`, a fake queue and a fixed clock.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestFormatterRunIsOneBulkLease` (the skeleton's) | 40 files dirty across two samples 10 s apart → exactly one live lease for the worker, mode `bulk`, ≤ 20 globs; no per-path hold left live; `RightOfWay` against a later one-path hold → the hold, `not-bulk`; one `lease.bulk` event queued for the owner's Orchestrator | per-path holds kept beside the bulk lease; bulk given right of way |
+| `TestEditingAnotherPathDoesNotExtendAHold` (the skeleton's) | a hold on `a.go` edited at t0; `b.go` edited at t0+20 min → `a.go`'s hold `ExpiresAt == t0+30 min`, and at t0+30 min `ExpireDue` expires it | expiry measured from the worker's last edit anywhere |
+| `TestFirstEditMakesAHoldUnasked` | a worker with no lease edits `x.go` → one granted hold on `["x.go"]` with two Hub events (requested, granted) | holds only for requested paths |
+| `TestEditInsideOwnIntentMakesNoHold` | the worker's task intent covers `web/**`; an edit to `web/a.go` → no new lease; the path's edit time recorded | a second lease beside the intent |
+| `TestUnchangedDirtyPathExpires` | a dirty path identical in every sample for 31 min → its hold expires | every sweep counted as an edit |
+| `TestCommitCountsAsEdit` | a new `LastCommit` naming `y.go` → `y.go` edited at the commit's time | commits invisible once the tree is clean |
+| `TestRestartBaselineRebuildsInOneSweep` | a fresh `Table` and one page with `Gap` → `Of` answers for every worker in it; no hold's `ExpiresAt` moved; an uncovered dirty path got a hold expiring now+30 min | a restart re-editing every dirty path, or losing activity until the next change |
+| `TestOnlyTheSingletonWrites` | two `Table`s fold the same page; only the one with the lock calls `Observe` → one hold | duplicate holds from two replicas |
+| `TestUnknownWorktreeIgnored` | a sample for a worktree no `Lane` names → no edit, no entry | a solo lane's activity entering Fleet |
+| `TestFleetRechecksPaths` | a fixture sample with a bidi path (a `machined` that skipped hygiene) → dropped here too | trusting the source's hygiene alone |
+| `TestActivityAbsentAfterTTL` | no sample for 46 s → `Of` ok=false | a stale picture read as current |
+| `TestEveryEndReleases` | a worker with a hold, a bulk lease and an intent: `EndAgent` releases hold and bulk, `EndTask` the intent; a lapsed delegation (task 11's path) expires the rest; a `lease.admin_released` feed item moves a live lease to `admin-released` with no second Hub event | one end path forgetting observed leases |
+| `TestPresenceTTLAndOwner` | a beat at t0 → online until t0+90 s; a body naming a project the principal is not in → 403; the owner is the token's | presence set from a body field; no expiry |
+| `TestCollapseNeverRoot` | 40 paths under `src/` and `test/` → `["src/**", "test/**"]`-shaped, never `**`, ≤ 20 | a bulk lease on the whole repository |
