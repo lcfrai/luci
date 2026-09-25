@@ -57,3 +57,84 @@ task that builds the real surface (46-48 for the issue view, 62 for the Desk fra
    said it. The owner's words go in `>` quotes, dated and attributed. A file with no `>` line is
    the honest *not yet reviewed* state, not a failure and not a pass.
 
+**Files** (the skeleton's file map has no row for any of these, as for task 38; named in the return):
+- `desktop/src/prototype/work/issueWorld.ts` — the issue view's overrides (new)
+- `desktop/src/prototype/work/IssuePrototype.tsx` — the issue view on fixtures (new)
+- `desktop/src/prototype/work/DeskPrototype.tsx` — the Desk on fixtures (new)
+- `desktop/src/prototype/work/IssueDesk.test.tsx` — seven tests (new)
+- `desktop/src/prototype/work/WorkPrototype.tsx` ⚑ (task 38) — the four-way switch (modified)
+- `desktop/src/prototype/work/register.tsx` ⚑ (task 38) — two more stress screens (modified)
+- `desktop/src/prototype/work/prototype.css` ⚑ (task 38) — `.pw-switch`, `.pw-iv-*`, `.pw-desk-*` (modified)
+- `docs/verification/2026-09-25-phase-w-prototype-review.md` — the review record (new; the
+  directory exists and holds `2026-09-17-phase-1-results.md` and `phase-1-operator-runbook.md`)
+
+#### Interfaces — complete: `desktop/src/prototype/work/issueWorld.ts`
+
+```ts
+// desktop/src/prototype/work/issueWorld.ts — task 39, decision 3. Overrides on protoWorld(); no
+// builder is declared here (task 20's rule). Times and words are the drawing's, printed as given.
+import type { IssueHead, IssueRevision, Label } from "../../api/work";
+import { WORK_IDS, makeIssueRevision, makeLabel, workScenario } from "../../test/workFixtures";
+import { protoWorld } from "./world";
+import type { ProtoAgent, ProtoWorld } from "./world";
+
+/** One line of the revision list, in the prototype's words (task 47 computes them). Newest first. */
+export interface ProtoRevisionLine { revision: number; who: string; words: string; time: string }
+/** The platform watched this proof (05 §2.1 rule 4): an observation, so no click records it. */
+export interface ProtoObserved { criterionId: string; commit: string; what: string; by: string; time: string }
+
+export interface ProtoIssue {
+  head: IssueHead;
+  /** The head revision: the title, the description and what the issue serves. */
+  revision: IssueRevision;
+  labels: Label[];
+  /** The words of the criterion the issue serves; null when it serves none. */
+  criterionText: string | null;
+  agent: ProtoAgent | null;
+  /** Paths the lane was observed to change, in the order seen (05 §2.1's `files` line). */
+  files: string[];
+  observed: ProtoObserved | null;
+  revisions: ProtoRevisionLine[];
+  /** "started 09:12"; null when the issue is not started. */
+  startedWords: string | null;
+}
+
+export interface IssueWorld { world: ProtoWorld; live: ProtoIssue; notProven: ProtoIssue }
+
+export function issueWorld(): IssueWorld {
+  const world = protoWorld();
+  const [resume] = workScenario().criteria;
+  const r1 = world.revisions[WORK_IDS.ep167];                    // task 38's revision 1
+  const r3 = makeIssueRevision({ issueId: WORK_IDS.ep167, revision: 3, content: { ...r1.content,
+    description: { text: "Record the offset each chunk reached, so a resumed upload starts there.", author: "H" } } });
+  const live: ProtoIssue = {
+    head: { ...world.heads[WORK_IDS.ep167], labels: [WORK_IDS.label] },   // headRevision is 3 (task 20)
+    revision: r3,
+    labels: [makeLabel()],
+    criterionText: resume.text,
+    agent: world.agent,
+    files: ["store/chunks.go", "store/chunks_test.go", "services/api/upload.go"],
+    // 7c1f0a2 is the drawing's lane commit: EP-167 has not landed, so the world's LAND is not it.
+    observed: { criterionId: resume.id, commit: "7c1f0a2", what: "resume test, exit 0", by: "run by the platform", time: "14:01" },
+    revisions: [
+      { revision: 3, who: "Dylan", words: "edited the description", time: "11:40" },
+      { revision: 2, who: "Dylan", words: "wrote the description", time: "09:20" },
+      { revision: 1, who: "Dylan", words: "created it, serving the resume test", time: "09:05" },
+    ],
+    startedWords: "started 09:12",
+  };
+  const notProven: ProtoIssue = {
+    head: world.heads[WORK_IDS.ep161],                            // done, not_proven, with its stateReason
+    revision: world.revisions[WORK_IDS.ep161],
+    labels: [], criterionText: resume.text, agent: null, files: [], observed: null,
+    revisions: [{ revision: 1, who: "Dylan", words: "created it, serving the resume test", time: "09:03" }],
+    startedWords: null,
+  };
+  return { world, live, notProven };
+}
+```
+
+Revision 2 has no content object here: the list shows it as a line, and nothing in this task
+reads its body; restore and revision-pinned reading are task 47's. `makeLabel()`'s default name is
+`resume` (`task-20.md:267-269`).
+
