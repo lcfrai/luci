@@ -135,7 +135,9 @@ beyond that, each with the task it touches. Divergence 14 is about running the p
 about git's answers. Divergence 15 comes from a probe, not a pin. Only task 02's part reads
 this section in its preflight. So each divergence that changes another task is also carried
 to that task in the stream's `carried/` files (local and git-ignored, `.superpowers/sdd/p3/carried/`;
-fix round 1). D5, D7 and D10 are not carried, and `carried/INDEX.md` gives the reasons.
+fix round 1). D5, D7 and D10 are not carried, and `carried/INDEX.md` gives the reasons. It also
+gives them for each task a carried divergence names but is not carried to (D1 for tasks 08
+and 10, D8 for task 09, D15 for task 07).
 
 1. **Host git invents an identity on Windows (tasks 02, 03; 08, 09, 10).** With no
    `user.name`/`user.email` in any config and no `GIT_AUTHOR_*`/`EMAIL`, Git for Windows
