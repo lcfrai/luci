@@ -448,3 +448,78 @@ func run(args []string, getenv func(string) string, out, errw *os.File) int {
 
 `PodAddr` is a string in `MintRequest` with an `Addr()` accessor (`parts/task-03.md:30`), so the
 pre-check only gives a clearer error than keysmith's `400`.
+
+**`infra/smoke/bump/gateway-job.yaml`, complete (G4).** `gate-live.sh` fills the `${…}` with
+`envsubst` from the pushed digests and the dev values; keysmith and gatekeeper URLs are task 32's
+(`task-32.md:168-169`). keysmith's caller row is `bump-gate system:serviceaccount:panacea-sandboxes:bump-gate mint`
+(kube mode, audience `keysmith`, phase 6 `parts/task-08.md:45,59`).
+
+```yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: gate-gateway-${RUN}
+  namespace: panacea-sandboxes
+  labels: { app.kubernetes.io/part-of: panacea-app, panacea.app/gate: gateway }
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 600
+  ttlSecondsAfterFinished: 900
+  template:
+    metadata:
+      labels: { panacea.app/gate: gateway, panacea.app/class: worker }  # the worker egress policy applies
+    spec:
+      runtimeClassName: ${RUNTIME_CLASS}
+      serviceAccountName: bump-gate
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      securityContext: { runAsUser: 1001, runAsGroup: 1001, runAsNonRoot: true, fsGroup: 1001 }
+      volumes:
+        - { name: gateway, emptyDir: { medium: Memory, sizeLimit: 1Mi } }
+        - { name: managed, emptyDir: { medium: Memory, sizeLimit: 1Mi } }
+        - name: keysmith-sa
+          projected: { sources: [ { serviceAccountToken: { audience: keysmith, expirationSeconds: 600, path: token } } ] }
+      initContainers:
+        - name: policy
+          image: ${BROKER_IMAGE}
+          command: [/bin/sh, -c, "/gatemint policy > /etc/claude-code/managed-settings.json"]
+          volumeMounts: [ { name: managed, mountPath: /etc/claude-code } ]
+        - name: mint
+          image: ${BROKER_IMAGE}
+          command: [/gatemint, mint, "gate-${RUN}-gateway-1", /run/panacea/gateway]
+          env:
+            - { name: POD_IP, valueFrom: { fieldRef: { fieldPath: status.podIP } } }
+            - { name: PANACEA_APP_GATEMINT_KEYSMITH_URL, value: "http://keysmith.panacea-gateway.svc.cluster.local:4100" }
+            - { name: PANACEA_APP_GATEMINT_CALLER_TOKEN_FILE, value: /var/run/keysmith/token }
+            - { name: PANACEA_APP_GATEMINT_OWNER_TID, value: "${GATE_OWNER_TID}" }
+            - { name: PANACEA_APP_GATEMINT_OWNER_OID, value: "${GATE_OWNER_OID}" }
+            - { name: PANACEA_APP_GATEMINT_TEAM_ID, value: "${GATE_TEAM_ID}" }
+            - { name: PANACEA_APP_GATEMINT_PROJECT_ID, value: "${GATE_PROJECT_ID}" }
+          volumeMounts:
+            - { name: gateway, mountPath: /run/panacea/gateway }
+            - { name: keysmith-sa, mountPath: /var/run/keysmith, readOnly: true }
+      containers:
+        - name: cli
+          image: ${SANDBOX_IMAGE}
+          command: [claude, -p, "Reply with the single word ready."]
+          env:
+            - { name: ANTHROPIC_BASE_URL, value: "http://gatekeeper.panacea-gateway.svc.cluster.local:4000" }
+          volumeMounts:
+            - { name: gateway, mountPath: /run/panacea/gateway, readOnly: true }
+            - { name: managed, mountPath: /etc/claude-code, readOnly: true }
+          resources: { limits: { cpu: "1", memory: 2Gi } }
+```
+
+The broker image's shell (`/bin/sh`) is **UNVERIFIED**: if task 29's broker image is distroless,
+`gatemint policy` gains an `--out <path>` flag instead. The keysmith token is mounted into the
+init container only; the CLI's container sees the gateway token file, as a real sandbox does.
+
+**`infra/smoke/bump/g9-job.yaml`** is the same Job but for: `name: gate-g9-${RUN}`, two `mint`
+init containers (`gate-${RUN}-g9-ada`, `gate-${RUN}-g9-linus`, each into its own `emptyDir`),
+`activeDeadlineSeconds: 3600`, and a `cli` container that runs task 42's test binary
+(`g9.test -test.run '^TestG9Live$'`, built `linux && liveeval` into the sandbox image's
+`/opt/panacea/g9/`, gap 5) with `PANACEA_APP_G9_REPORT=/run/g9/report.json` on an `emptyDir`.
+The downward API cannot read an image label, so `PANACEA_APP_CLAUDE_VERSION` is set to
+`${CLAUDE_CODE}`, which `gate-live.sh` takes from `digests.json`. A finished pod cannot be copied
+from, so the report leaves the pod as one log line the container's wrapper prints after the test,
+`G9-REPORT <base64 of report.json>`: our own format, read by `gate-live.sh`, never the CLI's.
