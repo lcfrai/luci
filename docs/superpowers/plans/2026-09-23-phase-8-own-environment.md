@@ -591,7 +591,7 @@ first.
 
 | # | Task | Depends on | Hours |
 |---|---|---|---|
-| 20 | `cmd/machined`: the catalog on the machine disk, store deletion (OD-10), authentication | 15 | 2.5 |
+| 20 | `cmd/machined`: the catalog on the machine disk, store deletion (OD-10), authentication, and a worktree path route that answers lane paths only, refusing a primary or linked worktree's id with `worktree_not_a_lane` (R4.1; env R4 rulings 1 and 5) | 15 | 3 |
 | 21 | `machined` git: phase 3's `/git/v1/` lane runner contract served in the machine pod (S3-P8.1, R4.3), lane work as bundles verified in the project, project calls under §HGH with an explicit `Env` allowlist derived from phase 3's call sites, no token in a lane, a scrubbed environment, a credentialed add-project clone, and lane creation from the project into `lanes/` (review I7, b06 re-review, Q18) | 20, **phase 3 tasks 02 (§HGH, project-only) and 24 (the runner)** | 3.5 |
 
 ### Group F — the laptop's control plane serves cloud machines
