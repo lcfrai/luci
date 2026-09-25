@@ -321,7 +321,7 @@ only for an id reused with a different body and a lease `seq` out of order.
 { "id": "dl-3f2a91c07b1e4d2a", "projectId": "pj-…", "ownerUserId": "u-…",
   "class": "orchestrator", "routes": ["tasks.create", "agents.start"],
   "createdAt": "2026-09-25T01:00:00Z", "expiresAt": "2026-09-26T01:00:00Z",
-  "renewedAt": null, "revokedAt": null, "revokedReason": "" }
+  "renewedAt": null, "revokedAt": null, "revokedReason": null }
 ```
 
 `class` is `orchestrator`·`worker`. `routes` is 1 to 25 distinct names from the class's set.
@@ -360,14 +360,16 @@ is an Orchestrator of the **same owner**. `harness.id` `^[a-z][a-z0-9-]{0,31}$`,
 `^[0-9A-Za-z.+-]{1,32}$`. `laneRef` starts `refs/panacea/lanes/` (OD-2) and passes
 `hubapi.ValidBranchRef`'s component rules. `policy` is the OD-23 version and digest the sandbox was
 started with (Phase T task 13). `POST …/agents/{agentId}/end`, body `{"exitClass"}`, one of
-`done`·`stopped`·`failed`·`access_removed`·`lapsed`; a second end is 409 `conflict`. Status
+`done`·`stopped`·`failed`·`access_removed`·`lapsed`; a second end is 409 `conflict`. The record
+is the start body plus `projectId`, `ownerUserId`, `startedAt`, `endedAt` and `exitClass`, the
+last two `null` while the agent runs. Status
 (`working`, `waiting`, …) is Fleet state and never reaches the Hub. Solo projects keep §7.8's
 `session_link`; a team project's route 33 is 409 `conflict` with `details.use = "agents"`.
 
 **§7.16 Lease events.** `POST …/leases/{leaseId}/events`, body
 `{"seq", "holderAgentId", "mode", "globs", "trackedFiles", "state", "expiresAt", "at"}`. `mode`
 `intent`·`hold`·`bulk`; `state` `requested`·`granted`·`contested`·`yielded`·`released`·`expired`·
-`admin-released`. Fleet stays authoritative: the Hub checks shape, owner and that `seq` is the
+`admin-released`. The 201 is `{"leaseId", "seq", "state", "at"}`. Fleet stays authoritative: the Hub checks shape, owner and that `seq` is the
 lease's last `seq` + 1 (409 `conflict` otherwise), and that nothing follows a terminal state
 (`yielded`, `released`, `expired`, `admin-released`). **One exception to "the holder's owner"**:
 an `admin-released` event is written under the delegation of an A of the project, and records it.
@@ -383,7 +385,7 @@ an `admin-released` event is written under the delegation of an A of the project
 `tier` `P`·`H`·`M`·`S`; ≤ 50 paths, ≤ 20 line ranges each, `1 ≤ start ≤ end`; the two agents
 differ. The record adds `state` (`raised` at create; then `negotiating`·`accepted`·`resolved`·
 `escalated`·`cleared`), `resolution` (`split`·`sequence`·`yield`·`build-on`·`proceed-both`, or
-`""`), `threadId`, `revision`, `createdAt`, `updatedAt`. `PATCH` body `{"revision", "state",
+`null`), `threadId` (or `null`), `projectId`, `revision`, `createdAt`, `updatedAt`. `PATCH` body `{"revision", "state",
 "resolution"?, "threadId"?}`; `resolution` is required with `resolved` and `accepted`.
 
 - [ ] **Step 7: Contract §7.18 to §7.22 — thread, message, escalation, directive, turn, human message**
@@ -410,7 +412,9 @@ is **append-only**, body `{"id", "senderAgentId", "kind", "fields", "text"?, "te
 `{"kind": "build-on", "base": "ag-…"}`, `{"kind": "proceed-both", "paths": [globs]}`. A message
 whose `senderAgentId` is not a participant is 403 `forbidden`; not the owner's, 403
 `agent_not_owner`. `GET` returns messages to Fleet·O **for a participant's owner** and to an org
-*auditor*, to nobody else; text is always a `Text` with `author = "agent"`.
+*auditor*, to nobody else; text is always a `Text` with `author = "agent"`. A message record is
+the body plus `threadId`, `projectId`, `senderUserId` (the sender's owner), `createdAt` and
+`tombstonedAt` (erasure, task 46); a thread record adds `projectId` too.
 
 **§7.19 Escalations.** `POST …/escalations`, body `{"id", "fromAgentId" ("" when Fleet raises it
 for itself), "kind": "inform"|"decide", "threadId"?, "question", "options", "default",

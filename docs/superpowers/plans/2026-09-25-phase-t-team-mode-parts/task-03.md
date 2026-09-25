@@ -466,3 +466,324 @@ type DataClass string
 
 func (v DataClass) Valid() bool { return dataClassRe.MatchString(string(v)) }
 ```
+
+**Block 4, delegation, task, agent, lease event and conflict (contract §7.13–§7.17):**
+
+```go
+// ── §7.13 delegations ───────────────────────────────────────────────────────
+
+type Delegation struct {
+	ID            string          `json:"id"`
+	ProjectID     string          `json:"projectId"`
+	OwnerUserID   string          `json:"ownerUserId"`
+	Class         DelegationClass `json:"class"`
+	Routes        []RouteName     `json:"routes"`
+	CreatedAt     string          `json:"createdAt"`
+	ExpiresAt     string          `json:"expiresAt"`
+	RenewedAt     *string         `json:"renewedAt"`
+	RevokedAt     *string         `json:"revokedAt"`
+	RevokedReason *RevokeReason   `json:"revokedReason"`
+}
+
+type CreateDelegationRequest struct {
+	ProjectID string          `json:"projectId"`
+	Class     DelegationClass `json:"class"`
+	Routes    []RouteName     `json:"routes"`
+}
+
+// ── §7.14 tasks ─────────────────────────────────────────────────────────────
+
+// TaskReason: Why is null to every reader but Fleet·O (05-design.md §5.1).
+type TaskReason struct {
+	BriefRef string         `json:"briefRef"`
+	Why      *teamtext.Text `json:"why"`
+}
+
+// Task: Title is null to every reader but Fleet·O, like Reason.Why.
+type Task struct {
+	ID                  string         `json:"id"`
+	ProjectID           string         `json:"projectId"`
+	OwnerUserID         string         `json:"ownerUserId"`
+	OrchestratorAgentID string         `json:"orchestratorAgentId"`
+	Title               *teamtext.Text `json:"title"`
+	Reason              TaskReason     `json:"reason"`
+	Scope               []string       `json:"scope"`
+	State               TaskState      `json:"state"`
+	Revision            int            `json:"revision"`
+	CreatedAt           string         `json:"createdAt"`
+	UpdatedAt           string         `json:"updatedAt"`
+}
+
+type TaskReasonRequest struct {
+	BriefRef string `json:"briefRef"`
+	Why      string `json:"why"`
+}
+
+type CreateTaskRequest struct {
+	ID                  string            `json:"id"`
+	OrchestratorAgentID string            `json:"orchestratorAgentId"`
+	Title               string            `json:"title"`
+	TitleSource         *string           `json:"titleSource,omitempty"` // the owner's hm-…
+	Reason              TaskReasonRequest `json:"reason"`
+	Scope               []string          `json:"scope"`
+	TrackedFiles        int               `json:"trackedFiles"`
+	State               *TaskState        `json:"state,omitempty"` // default planned
+}
+
+type PatchTaskRequest struct {
+	Revision     int        `json:"revision"`
+	State        *TaskState `json:"state,omitempty"`
+	Scope        []string   `json:"scope,omitempty"`
+	TrackedFiles *int       `json:"trackedFiles,omitempty"`
+	Why          *string    `json:"why,omitempty"`
+}
+
+// ── §7.15 agents ────────────────────────────────────────────────────────────
+
+type Harness struct {
+	ID      string `json:"id"`
+	Version string `json:"version"`
+}
+
+// PolicyRef is the OD-23 policy the sandbox started with (Phase T task 13).
+type PolicyRef struct {
+	Version int    `json:"version"`
+	Digest  Digest `json:"digest"`
+}
+
+type AgentStartRequest struct {
+	ID            string    `json:"id"`
+	Role          AgentRole `json:"role"`
+	ParentAgentID *string   `json:"parentAgentId,omitempty"`
+	TaskID        *string   `json:"taskId,omitempty"`
+	Harness       Harness   `json:"harness"`
+	LaneRef       string    `json:"laneRef"`
+	Policy        PolicyRef `json:"policy"`
+}
+
+// AgentStart is the Hub's agent record: its start, its end and its role.
+// Status (working, waiting, …) is Fleet state and is never here.
+type AgentStart struct {
+	ID            string     `json:"id"`
+	ProjectID     string     `json:"projectId"`
+	OwnerUserID   string     `json:"ownerUserId"`
+	Role          AgentRole  `json:"role"`
+	ParentAgentID *string    `json:"parentAgentId"`
+	TaskID        *string    `json:"taskId"`
+	Harness       Harness    `json:"harness"`
+	LaneRef       string     `json:"laneRef"`
+	Policy        PolicyRef  `json:"policy"`
+	StartedAt     string     `json:"startedAt"`
+	EndedAt       *string    `json:"endedAt"`
+	ExitClass     *ExitClass `json:"exitClass"`
+}
+
+type AgentEndRequest struct {
+	ExitClass ExitClass `json:"exitClass"`
+}
+
+// ── §7.16 lease events ──────────────────────────────────────────────────────
+
+type LeaseEventRequest struct {
+	Seq           int        `json:"seq"`
+	HolderAgentID string     `json:"holderAgentId"`
+	Mode          LeaseMode  `json:"mode"`
+	Globs         []string   `json:"globs"`
+	TrackedFiles  int        `json:"trackedFiles"`
+	State         LeaseState `json:"state"`
+	ExpiresAt     string     `json:"expiresAt"`
+	At            string     `json:"at"`
+}
+
+type LeaseEvent struct {
+	LeaseID string     `json:"leaseId"`
+	Seq     int        `json:"seq"`
+	State   LeaseState `json:"state"`
+	At      string     `json:"at"`
+}
+
+// ── §7.17 conflicts ─────────────────────────────────────────────────────────
+
+// LineRange is [start, end], 1 ≤ start ≤ end.
+type LineRange [2]int
+
+type ConflictPath struct {
+	Path  string      `json:"path"`
+	Lines []LineRange `json:"lines"`
+}
+
+type ConflictBasis struct {
+	A string `json:"a"`
+	B string `json:"b"`
+}
+
+type CreateConflictRequest struct {
+	ID     string         `json:"id"`
+	AgentA string         `json:"agentA"`
+	AgentB string         `json:"agentB"`
+	Tier   ConflictTier   `json:"tier"`
+	Paths  []ConflictPath `json:"paths"`
+	Basis  ConflictBasis  `json:"basis"`
+}
+
+type Conflict struct {
+	ID         string          `json:"id"`
+	ProjectID  string          `json:"projectId"`
+	AgentA     string          `json:"agentA"`
+	AgentB     string          `json:"agentB"`
+	Tier       ConflictTier    `json:"tier"`
+	Paths      []ConflictPath  `json:"paths"`
+	Basis      ConflictBasis   `json:"basis"`
+	State      ConflictState   `json:"state"`
+	Resolution *ResolutionKind `json:"resolution"`
+	ThreadID   *string         `json:"threadId"`
+	Revision   int             `json:"revision"`
+	CreatedAt  string          `json:"createdAt"`
+	UpdatedAt  string          `json:"updatedAt"`
+}
+
+type PatchConflictRequest struct {
+	Revision   int             `json:"revision"`
+	State      ConflictState   `json:"state"`
+	Resolution *ResolutionKind `json:"resolution,omitempty"`
+	ThreadID   *string         `json:"threadId,omitempty"`
+}
+```
+
+**Block 5, thread, message and escalation (contract §7.18–§7.19).** A message's `fields` is a flat
+union: every key is present on the wire, and only the kind's own keys carry a value (the table in
+contract §7.18); the rest are `null`, `[]` or `{}`. Task 07's handler refuses a request that sets a
+key its kind does not own.
+
+```go
+// ── §7.18 threads and messages ──────────────────────────────────────────────
+
+// ThreadSubject: ID is null for a free thread.
+type ThreadSubject struct {
+	Kind SubjectKind `json:"kind"`
+	ID   *string     `json:"id"`
+}
+
+type CreateThreadRequest struct {
+	ID            string        `json:"id"`
+	OpenerAgentID string        `json:"openerAgentId"`
+	Participants  []string      `json:"participants"` // exactly 2
+	Subject       ThreadSubject `json:"subject"`
+	Deadline      string        `json:"deadline"`
+}
+
+type Thread struct {
+	ID            string        `json:"id"`
+	ProjectID     string        `json:"projectId"`
+	OpenerAgentID string        `json:"openerAgentId"`
+	Participants  []string      `json:"participants"`
+	Subject       ThreadSubject `json:"subject"`
+	State         ThreadState   `json:"state"`
+	Rounds        int           `json:"rounds"`
+	Deadline      string        `json:"deadline"`
+	Revision      int           `json:"revision"`
+	CreatedAt     string        `json:"createdAt"`
+}
+
+type PatchThreadRequest struct {
+	Revision int          `json:"revision"`
+	State    *ThreadState `json:"state,omitempty"`
+	Rounds   *int         `json:"rounds,omitempty"`
+}
+
+type MessageSubject struct {
+	Kind MessageSubjectKind `json:"kind"`
+	Ref  string             `json:"ref"` // tk-…, ls-…, cf-…, or a repo-relative path
+}
+
+// ResolutionProposal is contract §7.18's Resolution: Sides for split, First
+// for sequence, Globs for yield, Base for build-on, Paths for proceed-both.
+type ResolutionProposal struct {
+	Kind  ResolutionKind      `json:"kind"`
+	Sides map[string][]string `json:"sides"`
+	First *string             `json:"first"`
+	Globs []string            `json:"globs"`
+	Base  *string             `json:"base"`
+	Paths []string            `json:"paths"`
+}
+
+type MessageFields struct {
+	Subject    *MessageSubject     `json:"subject"`    // ask, inform
+	InReplyTo  *string             `json:"inReplyTo"`  // answer
+	Resolution *ResolutionProposal `json:"resolution"` // propose, counter
+	Proposal   *string             `json:"proposal"`   // accept, reject, withdraw
+}
+
+type AppendMessageRequest struct {
+	ID            string        `json:"id"`
+	SenderAgentID string        `json:"senderAgentId"`
+	Kind          MessageKind   `json:"kind"`
+	Fields        MessageFields `json:"fields"`
+	Text          *string       `json:"text,omitempty"`
+	Templated     bool          `json:"templated"`
+}
+
+type Message struct {
+	ID            string         `json:"id"`
+	ThreadID      string         `json:"threadId"`
+	ProjectID     string         `json:"projectId"`
+	SenderAgentID string         `json:"senderAgentId"`
+	SenderUserID  string         `json:"senderUserId"`
+	Kind          MessageKind    `json:"kind"`
+	Fields        MessageFields  `json:"fields"`
+	Text          *teamtext.Text `json:"text"`
+	Templated     bool           `json:"templated"`
+	CreatedAt     string         `json:"createdAt"`
+	TombstonedAt  *string        `json:"tombstonedAt"`
+}
+
+// ── §7.19 escalations ───────────────────────────────────────────────────────
+
+type EscalationOptionRequest struct {
+	Label       string `json:"label"`       // ≤ 80
+	Consequence string `json:"consequence"` // ≤ 200
+}
+
+type CreateEscalationRequest struct {
+	ID          string                    `json:"id"`
+	FromAgentID *string                   `json:"fromAgentId,omitempty"` // absent when Fleet raises it
+	Kind        EscalationKind            `json:"kind"`
+	ThreadID    *string                   `json:"threadId,omitempty"`
+	Question    string                    `json:"question"`
+	Options     []EscalationOptionRequest `json:"options"`
+	Default     *int                      `json:"default,omitempty"` // required for decide
+	Deadline    string                    `json:"deadline"`
+}
+
+// EscalationOption: both texts are an agent's, so both carry their class.
+type EscalationOption struct {
+	Label       teamtext.Text `json:"label"`
+	Consequence teamtext.Text `json:"consequence"`
+}
+
+type EscalationAnswer struct {
+	Choice     int            `json:"choice"`
+	Text       *teamtext.Text `json:"text"`
+	AnsweredAt string         `json:"answeredAt"`
+}
+
+type Escalation struct {
+	ID          string             `json:"id"`
+	ProjectID   string             `json:"projectId"`
+	OwnerUserID string             `json:"ownerUserId"`
+	FromAgentID *string            `json:"fromAgentId"`
+	Kind        EscalationKind     `json:"kind"`
+	ThreadID    *string            `json:"threadId"`
+	Question    teamtext.Text      `json:"question"`
+	Options     []EscalationOption `json:"options"`
+	Default     *int               `json:"default"`
+	Deadline    string             `json:"deadline"`
+	Answer      *EscalationAnswer  `json:"answer"`
+	CreatedAt   string             `json:"createdAt"`
+}
+
+type AnswerEscalationRequest struct {
+	Choice int     `json:"choice"`
+	Text   *string `json:"text,omitempty"` // ≤ 300
+}
+```
