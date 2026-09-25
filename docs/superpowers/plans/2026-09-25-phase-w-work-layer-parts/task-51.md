@@ -26,8 +26,8 @@ refuses all four, and each refusal is a test.
    `useRevision`, so an anchor on @3 reads @3 when the head is @4 and says *on @3*. It is never
    re-mapped onto the head: offsets carried across a rewrite point at different words.
 3. **A mention is a link in the text; `mentions` is derived from it.** `@` in the composer opens a
-   people picker of the issue's team; choosing Priya inserts the link `[@Priya](panacea:user/u-…)`
-   (task 49 keeps `panacea:` links live). On post, `mentions` is the distinct `u-` ids of those
+   people picker of the issue's team; choosing Priya inserts the link `[@Priya](panacea://user/u-…)`
+   (task 49 keeps `panacea://` links live, `task-49.md:190`). On post, `mentions` is the distinct `u-` ids of those
    links, at most `MaxMentions` (20, `task-12.md:141`). A rendered mention shows the member's
    **current** `displayName`, looked up by id, so a renamed person still resolves; the name in the
    link text is a fallback for a person no longer on the team, shown as *former member*.
@@ -111,16 +111,16 @@ export function threads(comments: readonly IssueComment[]): CommentThread[] {
   return out;
 }
 
-const MENTION_HREF = /^panacea:user\/(u-[0-9a-f]{16})$/;
+const MENTION_HREF = /^panacea:\/\/user\/(u-[0-9a-f]{16})$/;
 /** The link the picker inserts (decision 3). The name is a fallback, never the identity. */
-export const mentionHref = (userId: string): string => `panacea:user/${userId}`;
+export const mentionHref = (userId: string): string => `panacea://user/${userId}`;
 export const mentionMarkdown = (u: User): string => `[@${u.displayName.replace(/[[\]]/g, "")}](${mentionHref(u.id)})`;
 export const userIdOfHref = (href: string): string | null => MENTION_HREF.exec(href)?.[1] ?? null;
 
 /** Distinct u- ids in the order they first appear, capped at MAX_MENTIONS. */
 export function mentionsIn(markdown: string): string[] {
   const ids: string[] = [];
-  for (const m of markdown.matchAll(/\]\((panacea:user\/u-[0-9a-f]{16})\)/g)) {
+  for (const m of markdown.matchAll(/\]\((panacea:\/\/user\/u-[0-9a-f]{16})\)/g)) {
     const id = userIdOfHref(m[1]);
     if (id && !ids.includes(id)) ids.push(id);
     if (ids.length === MAX_MENTIONS) break;
@@ -340,11 +340,15 @@ export function CommentComposer(props: {
 }
 ```
 
-Three props on `Editor` are this part's, not task 49's scope: **`plugins`** (extra ProseMirror
-plugins, appended after the editor's own), **`onSubmit(doc)`** (fired by `Ctrl+Enter` with the
-current document; when set, `Ctrl+Enter` does not also call `onCommit`), and, for the description,
-**`onSelectionChange`** (below). Each is optional and additive, so task 49's description use is
-unchanged; they are named as gaps against task 49. The *Comment* button posts `draft`, which is
+Three props on `Editor` are this part's, not in task 49's `EditorProps` (`task-49.md:522-528`):
+**`plugins`** (extra ProseMirror plugins, placed **before** the editor's own in `load()`,
+`task-49.md:558-566`, because ProseMirror asks plugins in order and the editor's `Enter` keymap
+would otherwise split the paragraph before the picker saw the key), **`onSubmit(doc)`** (called by
+the `Mod-Enter` binding, `task-49.md:560`, in place of `commit()` when set, so `Ctrl+Enter` posts a
+comment and still commits a description), and, for the description, **`onSelectionChange`**
+(below). Each is optional and additive, so task 49's description use is unchanged; they are named
+as gaps against task 49, and this task's implementer adds them there (a three-line edit to
+`Editor.tsx`, task 49's file, listed below). The *Comment* button posts `draft`, which is
 current because a click blurs the editor first and task 49 commits on blur (mousedown, blur, click
 is the DOM's order). `onMouseDown` + `preventDefault` on a person row keeps the editor focused, so
 choosing a person does not blur and commit mid-mention. The picker lists only the issue's team
