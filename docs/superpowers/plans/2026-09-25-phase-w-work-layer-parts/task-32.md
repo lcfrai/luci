@@ -707,3 +707,40 @@ grep -rl "DevToolbar\|dt-summary" desktop/dist
 Then, by hand, in `npm --prefix desktop run tauri dev`: open *Dev*, type in the palette, flip
 *Old* and back, and each sans. The typed text stays; the rail and the Develop pane change look.
 That is the owner's two-second comparison working; it is not an acceptance of either look.
+
+#### What this task does not claim
+
+- **Which look or face is better.** The toolbar makes the comparison cheap; the owner decides at
+  task 39 (`OD-1`), and `OD-28` stands until the owner changes it.
+- **A keyboard chord for the toolbar.** There is none, so no cockpit chord (task 64's key map,
+  AGENTIC-UX's `Space`) is shadowed. It is reached by pointer or by Tab.
+- **macOS or Linux rendering.** Segoe UI Variable is absent there and the stacks fall to the
+  platform face; nobody has looked, and no macOS build exists.
+- **That a production build carries none of it** until step 7's grep has run. Dead-branch
+  elimination of a dynamic import under Vite 8 is **UNVERIFIED**; the grep is the proof.
+- **The two licences and weight ranges** until step 1 fetches the files (**UNVERIFIED**).
+- **A theme setting.** `theme` is a dev flag over task 26's provisional `paper` block. When C11's
+  theme picker ships a user-facing `data-theme`, that task takes `theme` out of `Flags`, because
+  two writers of one attribute is a defect.
+- **That every visual change is behind the flag.** Tasks 30 and 31 kept their old look under
+  `:root[data-look="old"]`; later visual tasks must do the same for the toggle to mean anything,
+  and task 39 deletes every old-look block once the owner has chosen.
+- Design: 05 §4.4 C3, C12; 02 C12, D2 step 7; `OD-1`, `OD-28`. Parity: no 01 row; it serves the
+  review gate.
+
+**Interfaces:**
+- Produces: `Look`, `SansCandidate`, `ThemeName`, `Flags`, `FLAG_DEFAULTS`, `getFlags()`,
+  `setFlag(key, value)`, `useFlags()`, `resetFlags()` in `desktop/src/lib/flags.ts`; the
+  attributes `data-look="old"`, `data-sans="atkinson" | "geist"`, `data-theme="paper"` on
+  `<html>`, each absent at its default
+- Produces for task 33: `DevToolbar.tsx`'s body, where `<StressSets />` goes beside
+  `<FlagCompare />`; the `.dt-*` classes; `mount.ts`'s gate, which task 33's production test reuses
+- Produces for task 35: `FLAG_DEFAULTS` and `ATTRIBUTE`, the two places `grain` is added, and
+  `Group`'s shape for a fourth radio group in `FlagCompare`
+- Produces for task 38: `useFlags().look`, the one production-safe read of the toggle
+- Consumes: task 27's `--sans`, `--sans-small`, `--sans-display`; task 26's `--t-meta`,
+  `--t-meta-lh`, `--s-1` … `--s-3`, `--row-h` and the `paper` block; task 30's and task 31's
+  `:root[data-look="old"]` blocks; the built `--surface`, `--ink*`, `--accent`, `--r-card`,
+  `--r-ctl`, `--e-raised`, `--e-btn` (`tokens.css:32`, `:110-122`, verified); `stripCssComments`
+  (`test/fakes.ts:259`, verified)
+- Amends: nothing in the Hub. No wire shape changes.
