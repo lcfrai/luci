@@ -184,6 +184,8 @@ The team and work skeleton writers were killed by the watchdog while composing a
   **Stage 2, after the main team run (`wf_2b949030-b55`) finishes:** re-review sections 1 (01-10)
   and 5 (41-50). Their section files will flag the missing parts. Then re-run the cross-cutting
   review and the assembler. Launch the team build stream only after that.
+  **Stage 1 is DONE** (all of 01-05 and 41-45 exist). Its writers' 13 gaps are in
+  `team/.superpowers/sdd/team/repair-gaps.md`, and stage 2's reviewers must read that file.
 
 **Added 13:40, 2026-09-25: OD-30 (sign-in) and the env R4 re-plan.**
 - **OD-30:** sign-in goes through a Keycloak broker on Panacea's existing Entra registration, with
