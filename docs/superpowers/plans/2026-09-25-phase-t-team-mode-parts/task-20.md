@@ -143,4 +143,172 @@ type Config struct {
 type DelegationFetcher interface {
 	Delegation(ctx context.Context, owner model.Owner, id string) (delegation.Delegation, error)
 }
+
+// LaunchRequest is one agent to start. Principal is task 12's, already
+// authorised for server.VerbLaunch; nothing here names an owner directly.
+type LaunchRequest struct {
+	Principal  server.Principal // TID, OID, Member{UserID, OrgID, Role}
+	Project    string           // pj-…
+	Class      model.Class      // orchestrator | worker
+	Harness    string           // catalogue id, e.g. "claude-code"
+	Version    string           // the harness's pinned version, for agents.start
+	Command    string
+	Args       []string // may hold the private opening prompt (OD-24): into the spec, nowhere else
+	Delegation string   // dl-…
+	Task       string   // tk-… or ""
+	Parent     model.AgentID
+	Ref        string // task 21's laptop ref; "" when Fleet-spawned
+	Instance   string // task 21's instance id; "" when Fleet-spawned
+}
+
+// Launched is Launch's answer. Orchestrator is set on a worker launch: the
+// owner's Orchestrator id, or "" with OrchestratorState "awaiting-delegation".
+type Launched struct {
+	Agent             model.Agent
+	Orchestrator      model.AgentID
+	OrchestratorState string // "live" | "created" | "awaiting-delegation" | "" for an orchestrator launch
+}
+
+var (
+	ErrViewer          = errors.New("sessions: a viewer launches nothing")  // 403 role_forbids
+	ErrDelegation      = errors.New("sessions: no live delegation")        // 401 delegation_expired
+	ErrPolicyInvalid   = errors.New("sessions: the policy does not render") // 409 policy_invalid
+	ErrAlreadyExists   = errors.New("sessions: ref already launched")      // 409 already_exists
+)
+
+func New(cfg Config) (*Sessions, error)
+
+func (s *Sessions) Launch(ctx context.Context, r LaunchRequest) (Launched, error)
+
+// EnsureOrchestrator returns the owner's live Orchestrator for the project,
+// creating it under dl (an orchestrator-class delegation) if there is none.
+func (s *Sessions) EnsureOrchestrator(ctx context.Context, p server.Principal, project, dl string) (model.Agent, bool, error)
+
+// Stop ends one agent: destroy, revoke its keys, end it with exit, outbox agents.end.
+func (s *Sessions) Stop(ctx context.Context, org string, id model.AgentID, exit model.ExitClass) error
+
+// Live is task 19's control.Targets.
+func (s *Sessions) Live(ctx context.Context) ([]control.Target, error)
+
+// Current is task 26's turns.Sandboxes (task-26.md:504-506).
+func (s *Sessions) Current(ctx context.Context, orch model.AgentID) (sandboxID string, ok bool)
+
+// Revoke and Resume are the sessions half of task 11's Revoker (task-11.md:578-582).
+func (s *Sessions) Revoke(ctx context.Context, d delegation.Delegation, why delegation.Reason) error
+func (s *Sessions) Resume(ctx context.Context, d delegation.Delegation) error
 ```
+
+```go
+// control-plane/internal/fleet/sessions/tokens.go
+
+// Minter is phase 6's gatewayclient (P6-15) as Fleet uses it.
+type Minter interface {
+	Mint(ctx context.Context, r gwire.MintRequest) (gwire.MintResponse, error)
+	RevokeSession(ctx context.Context, sessionID string) error
+}
+
+// Counterparts tells which owner a turn's events came from, for the
+// counterpart tag. Task 26's Scheduler or task 37 satisfies it (Gap S20-2).
+type Counterparts interface {
+	Counterpart(ctx context.Context, orch model.AgentID, turnID string) (model.Owner, bool, error)
+}
+
+type Tokens struct{ /* minter, routes, counterparts, streams, sources, generations */ }
+
+func NewTokens(m Minter, routes gwire.RouteSource, c Counterparts, st *control.Streams, now func() time.Time) *Tokens
+
+// Open mints generation 1 (or the next) for t and Sends it. Registered as
+// Streams.OnOpen. A worker's key is refreshed at 45 minutes (P6's REFRESH_AT).
+func (k *Tokens) Open(ctx context.Context, t control.Target) error
+
+// BeforeTurn mints a fresh key for an Orchestrator's turn and Sends it before
+// the turn.begin is written. Registered as Streams.Before("turn.begin", …).
+func (k *Tokens) BeforeTurn(ctx context.Context, t control.Target, event json.RawMessage) error
+
+// End revokes every key of the session. Called by Stop and Revoke.
+func (k *Tokens) End(ctx context.Context, agent model.AgentID) error
+
+var ErrRouteMismatch = errors.New("sessions: keysmith returned a route the project may not use")
+```
+
+`gwire` is phase 6's `wire` package (`task-03.md:26-40`); `gwire.RouteSource` is its project route
+source (task 13 there, "Hub, file, cache, fail closed"). The phase 6 delta this task adds, one field:
+
+```go
+// In gwire.MintRequest, after AgentID. Empty for a worker and for a
+// human-origin turn. Validated with the other ids: 1–128 of [A-Za-z0-9._:-].
+Counterpart string `json:"counterpart,omitempty"`
+```
+
+```sql
+-- control-plane/internal/fleet/store/migrations/0003_one_orchestrator.sql
+-- One live Orchestrator per person per project (OD-16). Two replicas launching
+-- at once: the second insert fails and EnsureOrchestrator reads the first.
+CREATE UNIQUE INDEX one_live_orchestrator
+    ON fleet.agents (org_id, project_id, owner)
+    WHERE class = 'orchestrator' AND status <> 'ended';
+```
+
+**The spec, as rendered.** Every value the pod receives, and where each is consumed:
+
+```go
+// spec builds the broker's create body. It never reads a value from the
+// request body except Command, Args and Harness; everything that proves
+// identity is derived here.
+func (s *Sessions) spec(a model.Agent, r LaunchRequest, pv store.PolicyVersion, route string, machine string) brokerapi.SandboxSpec {
+	env := map[string]string{
+		"PANACEA_APP_AGENT_ID":         string(a.ID),         // task 16: the stamp
+		"PANACEA_APP_CLASS":            string(a.Class),      // task 16: the stamp
+		"PANACEA_APP_CONTROL_TOKEN":    control.ControlToken(s.cfg.ControlKey, a.ID), // task 16; via the pod Secret, below
+		policy.EnvDigest:               pv.Digest,            // task 15's policycheck
+		"ANTHROPIC_BASE_URL":           s.cfg.GatewayURL,     // phase 6: the gatekeeper, never a provider
+		"PANACEA_APP_GATEWAY_TOKEN_DIR": "/run/panacea/gateway", // task 16 step 6b writes here
+	}
+	if route == "au" {
+		env["CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS"] = "1" // phase 6 task 14's AU rule
+	}
+	return brokerapi.SandboxSpec{
+		ID: string(a.ID), SessionID: string(a.ID), Command: r.Command, Args: r.Args, Env: env,
+		AttachToken:  attachToken(s.cfg.ControlKey, a.ID),
+		Machine:      machine, // "" for an Orchestrator (task 15: no machine disk)
+		ControlPlane: s.cfg.InstallID,
+		// Task 15 adds Class and PolicyFile to SandboxSpec; the broker writes
+		// PolicyFile into the per-pod Secret "<pod>-policy" and moves
+		// PANACEA_APP_CONTROL_TOKEN from Env into that pod's attach Secret, as
+		// it does AttachToken (env task-18.md:52), so neither is in the pod spec.
+		Class: string(a.Class), PolicyFile: pv.Body,
+	}
+}
+```
+
+`route` is `"au"` or `"global"`, from `gwire.RouteSource` before the create; if the source errors, no
+create happens (decision 8). A worker's `MachineMounts` (its worktree on the owner's machine) is phase 8
+task 24b's machine agent's to create and is **not** rendered in TM1-α (*Gap S20-3*); task 33's script
+prepares the clone.
+
+**Routes (task 21's wire, `task-21.md:80-87`), on task 12's server:**
+
+| Route | Verb (task 12) | Handler |
+|---|---|---|
+| `POST /v1/projects/{p}/agents` | `server.VerbLaunch` | decode task 21's `CreateAgentRequest` strictly; `Launch`; `201 AgentJSON`. `ErrViewer` → `403 role_forbids`; `ErrDelegation` → `401 delegation_expired`; `ErrAlreadyExists` → `409 already_exists`; `ErrPolicyInvalid` → `409 policy_invalid` |
+| `GET /v1/agents?instance=<id>[&ref=<ref>]` | `server.VerbSessionsOwn` | the caller's own agents with that instance only (task 21 decision 2: a Fleet-spawned agent has no instance and never appears) |
+| `DELETE /v1/agents/{ag}` | `server.VerbSessionsOwn` | the caller's own agent only, else `404 agent_not_found`; `Stop(…, stopped)`; `204` |
+
+`AgentJSON` is built from `model.Agent` and holds no args, token, pod address or node (task 21's
+`TestAgentJSONHasNoArgs`, `task-21.md:131-133`). `GET /v1/agents/{ag}/attach` stays task 39's.
+
+**Configuration** (task 12's `config.go`, a bad value fails start naming it):
+`PANACEA_APP_FLEET_INSTALL_ID` (32 lower-case hex), `PANACEA_APP_FLEET_GATEWAY_BASE_URL` (http(s), the
+gatekeeper's Service URL), `PANACEA_APP_FLEET_KEYSMITH_URL`, `PANACEA_APP_FLEET_KEYSMITH_TOKEN_FILE`
+(the projected service-account token keysmith's `kube` caller auth reviews, phase 6 task 08), and
+`PANACEA_APP_FLEET_BROKER_SCOPE` (`api://<broker>/.default`).
+
+Consumes: task 09 `model.*`; task 10 `store.Tx.PutAgent`, `EndAgent`, `AppendOutbox`,
+`store.PolicyVersion`, `store.ErrConflict`; task 11 `outbox.Item`, `outbox.OpAgentStart`,
+`OpAgentEnd`, `delegation.Cache`, `delegation.Key`, `delegation.Reason`; task 12 `server.Principal`,
+`Server.Route`, `VerbLaunch`, `VerbSessionsOwn`; task 13 `policy.EnvDigest`; task 14 `Effective`; task
+17 `brokerapi.SourceAddr` and the Fleet routes; task 19 `control.Target`, `Streams.Send`, `OnOpen`,
+`Before`, `ControlToken`; phase 6 `gatewayclient`, `gwire.MintRequest`, `MintResponse`,
+`RouteSource`; phase 8 `remotebe.Client`, `brokerapi.SandboxSpec`. Consumed by: task 19 (`Live`), task
+24 (`worker spawn|stop` call `Launch` and `Stop`), task 26 (`Current`), task 11 (`Revoke`, `Resume`),
+task 21 (the routes), task 37 (the counterpart tag), task 39 (`attachToken`).
