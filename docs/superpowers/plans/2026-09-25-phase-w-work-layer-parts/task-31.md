@@ -352,3 +352,86 @@ The old block restores **every** declaration this task changed and nothing else,
 compares exactly `chrome.dim` against Phase 2. The heading reset and `ViewHeader` have no old
 twin: the Phase 2 placeholder's `<h2>` was the only heading, and a flag that brought back a
 second header pattern would fail this task's own audit.
+
+#### Tests to write first — `desktop/src/components/common/ViewHeader.test.tsx`
+
+jsdom computes no style from an imported stylesheet, so the two CSS claims read the stylesheet's
+bytes through Vite's `?raw`, the way `StatusDot.test.tsx:7` reads `common.css`.
+
+```tsx
+import { describe, expect, it } from "vitest";
+import { render, screen, within } from "@testing-library/react";
+import { stripCssComments } from "../../test/fakes";
+import { ViewHeader } from "./ViewHeader";
+import viewheaderCss from "./viewheader.css?raw";
+
+/** The declarations of one flat rule in viewheader.css. */
+function rule(selector: string): string {
+  const css = stripCssComments(viewheaderCss);
+  const at = css.indexOf(`${selector} {`);
+  if (at < 0) throw new Error(`no rule ${selector}`);
+  return css.slice(at, css.indexOf("}", at));
+}
+
+describe("ViewHeader", () => {
+  it("renders the route badge in mono", () => {
+    // Kills: the badge dropped, or set in the sans at --t-ui like the scope chip beside it.
+    render(<ViewHeader title="Work" route="au" />);
+    const badge = screen.getByLabelText("Inference route: AU");
+    expect(badge.textContent).toBe("AU");
+    expect(badge.className).toBe("vh-route");
+    expect(rule(".vh-route")).toContain("font-family: var(--mono)");
+    expect(rule(".vh-route")).toContain("font-size: var(--t-fact)");
+  });
+
+  it("reads Global for the default route", () => {
+    // Kills: a swapped label map, which would show AU on a Global project.
+    render(<ViewHeader title="Work" route="global" />);
+    expect(screen.getByLabelText("Inference route: Global").textContent).toBe("Global");
+    expect(screen.queryByText("AU")).toBeNull();
+  });
+
+  it("hides the badge when the route is unknown", () => {
+    // Kills: `route ?? "global"`, a header that guesses the default (OD-19 made visible).
+    const { container } = render(<ViewHeader title="Work" route={null} />);
+    expect(container.querySelector(".vh-route")).toBeNull();
+    expect(screen.queryByText("Global")).toBeNull();
+    expect(screen.queryByText("AU")).toBeNull();
+  });
+
+  it("puts actions after the title in one row", () => {
+    // Kills: a second layout (actions in a row of their own, or a header per slot).
+    const { container } = render(
+      <ViewHeader
+        title="Work"
+        route="global"
+        badge={<span>EP · Resumable uploads</span>}
+        actions={<button type="button">Filter</button>}
+      />,
+    );
+    const headers = container.querySelectorAll("header");
+    expect(headers).toHaveLength(1);
+    const kids = [...headers[0].children].map((el) => el.className);
+    expect(kids).toEqual(["vh-title", "vh-scope", "vh-route", "vh-actions"]);
+    expect(within(headers[0]).getByRole("button", { name: "Filter" })).not.toBeNull();
+    expect(rule(".vh")).toContain("display: flex");
+    expect(rule(".vh-actions")).toContain("margin-inline-start: auto");
+  });
+
+  it("renders the title as the one level-1 heading, in the head step", () => {
+    // Kills: a title at h2 in one view and h1 in another, and a title that skips --t-head.
+    render(<ViewHeader title="Work" route={null} />);
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+    expect(screen.getByRole("heading", { level: 1, name: "Work" })).not.toBeNull();
+    expect(rule(".vh-title")).toContain("font-size: var(--t-head)");
+    expect(rule(".vh-title")).toContain("font-weight: var(--t-head-weight)");
+  });
+
+  it("renders no empty slot when badge and actions are absent", () => {
+    // Kills: an empty .vh-actions that still takes the gap and pushes the badge off its place.
+    const { container } = render(<ViewHeader title="Work" route="au" />);
+    expect(container.querySelector(".vh-scope")).toBeNull();
+    expect(container.querySelector(".vh-actions")).toBeNull();
+  });
+});
+```
