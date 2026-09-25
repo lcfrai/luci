@@ -127,7 +127,8 @@ The raw logs are `scratchpad/p3/r12/r12-round2.log` and `r12.log`.
 ## Divergences: what a later task must change or know
 
 No pin was inverted: all 29 held as the part states them. These are the facts the pins found
-beyond that, each with the task it touches.
+beyond that, each with the task it touches. Divergence 14 is about running the pins, not
+about git's answers.
 
 1. **Host git invents an identity on Windows (tasks 02, 03; 08, 09, 10).** With no
    `user.name`/`user.email` in any config and no `GIT_AUTHOR_*`/`EMAIL`, Git for Windows
@@ -199,6 +200,23 @@ beyond that, each with the task it touches.
     `lf` are what Linux git uses when no config sets them, and the image has no
     `/etc/gitconfig`. They guard against an image or a mounted config that does set them, which
     no pin here models.
+14. **Under load, `git.exe` can fail to start, and the exit code is then Windows' (task 02).**
+    An acceptance run at 21:11 to 21:17 on 2026-09-25, on the pins as committed at `2bb826e`,
+    failed 12 of 26 (`.superpowers/sdd/p3/t01-acc-behaviour.out`, git-ignored). The load at
+    21:17 was not recorded; at 21:52 the machine held 13 other agents' `go.exe` and about 600
+    processes. Single pins took up to 106 s in that run. Each of the 12 had one git call read `exit 3221225794`
+    with empty stdout and stderr: that is `0xC0000142`, `STATUS_DLL_INIT_FAILED`, the Windows
+    loader failing before git's `main` ran, not an answer from git. One of them, row 25, first
+    failed inside a git that had started: `fetch` exited 1 with "error: <src> did not send all
+    necessary objects", a child of it presumably having failed the same way (inferred; the trace
+    does not say). The same pins passed in full at 21:29 (the race run) and
+    at 21:48 to 21:59 (26 of 26, 244.7 s). **Change:** task 02's runner must not read
+    3221225794 as git's exit code. An `OKExit` list, or a caller's "128 means no such ref",
+    would otherwise file a git that never ran as an answer. Its `*Error` should name it
+    ("git could not start"). Retrying that one code is safe, because no git code ran; a git
+    that started and then failed, like the `fetch` above, cannot be told from a real failure
+    and is not retried. For these pins: an `exit 3221225794` in this package's log is the
+    machine, not a finding. Rerun with fewer processes live.
 
 ## Mutation check
 
