@@ -138,3 +138,65 @@ grouping), so those pairs return `none`. The component turns an intent into at m
 `{kind: "setState", issueId, move}`; `offer` sets the column's offer lines; `pickDuplicate` opens
 `DuplicateOfPicker` anchored in the target column.
 
+#### The drag, inside `BoardView` (decision 5)
+
+```tsx
+const drag = useRef<{ issueId: string; from: string; x0: number; y0: number; el: HTMLElement } | null>(null);
+const DEAD_ZONE = 4; // px: a click is not a drag
+
+function onPointerDown(e: PointerEvent<HTMLElement>, issueId: string, from: string): void {
+  if (e.button !== 0) return;
+  e.currentTarget.setPointerCapture(e.pointerId);
+  drag.current = { issueId, from, x0: e.clientX, y0: e.clientY, el: e.currentTarget };
+  setOffer(null);
+}
+function onPointerMove(e: PointerEvent<HTMLElement>): void {
+  const d = drag.current;
+  if (d === null) return;
+  const dx = e.clientX - d.x0, dy = e.clientY - d.y0;
+  if (Math.hypot(dx, dy) < DEAD_ZONE && !d.el.dataset.dragging) return;
+  d.el.dataset.dragging = "true";
+  d.el.style.transform = `translate(${dx}px, ${dy}px)`;      // transform only: no left, top or width
+}
+function endDrag(e: PointerEvent<HTMLElement> | null): void {
+  const d = drag.current;
+  drag.current = null;
+  if (d === null) return;
+  const moved = d.el.dataset.dragging === "true";
+  d.el.style.transform = "";
+  delete d.el.dataset.dragging;
+  if (!moved || e === null) return;                         // a click, or Esc
+  const to = (props.hitTest ?? defaultHitTest)(e.clientX, e.clientY);
+  if (to === null) return;
+  act(d.issueId, columnOf(d.from), columnOf(to));           // dropIntent → at most one mutate
+}
+```
+
+`columnOf` inverts `colKey` over the columns on screen; `act` is the table in decision 1. The
+`Esc` handler on the board calls `endDrag(null)`. `defaultHitTest` is
+`(x, y) => document.elementFromPoint(x, y)?.closest<HTMLElement>("[data-col]")?.dataset.col ?? null`.
+
+#### `work.css`, appended
+
+```css
+/* task 43 — the board. Columns and cards use the elevation recipe (a 1px ring plus a layered
+   shadow), never a flat border; the drag moves transform only. */
+.wk-board { display: flex; gap: var(--s-3); align-items: flex-start; overflow-x: auto; padding: var(--s-4) var(--s-5); }
+.wk-col { flex: 0 0 292px; display: flex; flex-direction: column; border-radius: var(--r-card);
+  background: var(--canvas); box-shadow: var(--e-hair); }
+.wk-col-head { padding: var(--s-2) var(--s-3); }
+.wk-col-count { font-family: var(--mono); font-size: var(--t-fact); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.wk-col-offer { font-size: var(--t-ui); color: var(--ink); padding: var(--s-2) var(--s-3); }
+.wk-col-empty { font-size: var(--t-ui); color: var(--ink-2); padding: var(--s-3); }
+.wk-cards { display: flex; flex-direction: column; gap: var(--s-2); padding: var(--s-2); min-block-size: 40px; }
+.wk-card { position: relative; border-radius: var(--r-ctl); background: var(--surface); box-shadow: var(--e-card);
+  padding: var(--s-2) var(--s-3); touch-action: none; }
+.wk-card[data-dragging] { z-index: 2; opacity: 0.92; will-change: transform; }
+.wk-card-set { font-family: var(--mono); font-size: var(--t-fact); color: var(--ink-2); }
+```
+
+`--r-card`, `--r-ctl`, `--e-hair`, `--e-card`, `--canvas` and `--surface` are the prototype's names
+(`work-layer.html:203`, `:211`); whether each is in `tokens.css` after task 26 is **UNVERIFIED**
+here (step 1 below greps them, and a missing one is task 26's, not a literal here). There is no
+`transition` in the block, so a returning card snaps back rather than animating layout.
+
