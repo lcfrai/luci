@@ -65,3 +65,260 @@ an owner call.
 The Tauri CSP is `null` (`desktop/src-tauri/tauri.conf.json:21`, verified), so local fonts need no
 CSP change. An implementer who finds a CSP there at the sync base adds `font-src 'self'` to it and
 says so.
+
+#### Interfaces — complete: `desktop/src/styles/fonts.css`
+
+```css
+/* desktop/src/styles/fonts.css
+ *
+ * Bundled faces (Phase W task 27, OD-28). Local files only: the app is offline-first and a face
+ * fetched from a network is a layout shift on a corporate laptop. Vite fingerprints each url()
+ * into dist/assets. Every family here has an OFL-<Family>.txt beside its files in
+ * src/assets/fonts/, and fonts.lock.json records where each file came from.
+ *
+ * font-display: block. A fact set in a fallback for 100ms and then re-set in Commit Mono moves
+ * every column it sits in; a short invisible period is the lesser failure for local files, which
+ * load in one frame. The terminal does not rely on this rule: it waits for the face itself.
+ *
+ * Segoe UI Variable is NOT here and must never be: it is the Windows system face and its licence
+ * does not allow redistribution. fonts.test.ts fails on any @font-face or file naming Segoe. */
+
+@font-face {
+  font-family: "Commit Mono";
+  src: url("../assets/fonts/CommitMono-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+
+@font-face {
+  font-family: "Commit Mono";
+  src: url("../assets/fonts/CommitMono-500.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: block;
+}
+```
+
+#### Interfaces — complete: `app.css` and `tokens.css`
+
+`app.css`, one line added directly after `:10`:
+
+```css
+@import "./tokens.css";
+@import "./fonts.css";
+```
+
+`tokens.css:144-152`, the type comment and the two stacks, replaced by:
+
+```css
+  /* ── Faces (OD-28; Phase W task 27) ───────────────────────────────────────────────
+   * Human language is sans; every machine fact is mono (05 §4.4 C3, voice.split).
+   * Commit Mono is bundled (OFL 1.1, src/assets/fonts/, declared in fonts.css). Segoe UI
+   * Variable is the Windows system face and is never bundled; on macOS and Linux the sans
+   * stacks fall to the platform face. The --mono stack is the one Terminal.tsx reads, so it
+   * must end in real monospace faces on every platform: xterm lays out a grid, and a
+   * proportional fallback would break it. */
+  --sans: "Segoe UI Variable Text", "Segoe UI", -apple-system, system-ui, sans-serif;
+  --sans-small: "Segoe UI Variable Small", var(--sans);     /* --t-meta: 12px optical size */
+  --sans-display: "Segoe UI Variable Display", var(--sans); /* --t-head: 16px optical size */
+  --mono: "Commit Mono", "Cascadia Mono", ui-monospace, "SF Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace;
+```
+
+`var()` inside a `font-family` list is legal: the custom property substitutes its token list,
+so `--sans-small` resolves to `"Segoe UI Variable Small", "Segoe UI Variable Text", "Segoe UI",
+…`. `--sans` is unchanged from `:151`; it is restated so the block reads whole.
+
+#### Interfaces — complete: `desktop/src/assets/fonts/fonts.lock.json`
+
+The shape, with the values step 1 fills in. Nothing reads it at run time; `fonts.test.ts` checks
+that every bundled file has an entry, and the acceptance command checks the hashes.
+
+```json
+{
+  "commit-mono": {
+    "family": "Commit Mono",
+    "licence": "OFL-1.1",
+    "licenceFile": "OFL-CommitMono.txt",
+    "release": "<the release tag, e.g. v1.143 — UNVERIFIED until fetched>",
+    "source": "https://github.com/eigilnikolajsen/commit-mono/releases/tag/<tag>",
+    "files": [
+      { "ours": "CommitMono-400.woff2", "upstream": "<name in the release>", "sha256": "<64 hex>" },
+      { "ours": "CommitMono-500.woff2", "upstream": "<name in the release>", "sha256": "<64 hex>" }
+    ]
+  }
+}
+```
+
+The upstream repository and the `v1.143` example tag are **UNVERIFIED** (from memory, not fetched);
+step 1 confirms both before anything is committed.
+
+#### Interfaces — complete: `Terminal.tsx`
+
+Added after `TERM_FG_TOKEN` (`:19`):
+
+```ts
+/** Task 27 (OD-28). The mono stack comes from the token layer, like the theme below. The literal
+ *  is what jsdom and a webview without tokens.css get; it leads with the same face. */
+const TERM_MONO_TOKEN = "--mono";
+export const TERM_MONO_FALLBACK = '"Commit Mono", "Cascadia Mono", ui-monospace, Menlo, Consolas, monospace';
+
+/** The face the grid is measured in, at the size makeTerm sets (fontSize 12). */
+export const MONO_FACE = '12px "Commit Mono"';
+/** How long a terminal waits for that face before it opens on whatever it has. Bounded, so a
+ *  missing file costs one second of an empty pane, never a pane that never opens. */
+export const MONO_WAIT_MS = 1000;
+
+export function termFontFamily(): string {
+  const value = getComputedStyle(document.documentElement).getPropertyValue(TERM_MONO_TOKEN).trim();
+  return value === "" ? TERM_MONO_FALLBACK : value;
+}
+
+/** True when the grid can be measured now: the face is loaded, or there is no FontFaceSet to ask
+ *  (jsdom), in which case nothing is rendered anyway. */
+function monoFaceReady(): boolean {
+  const fonts = document.fonts as FontFaceSet | undefined;
+  return fonts === undefined || fonts.check(MONO_FACE);
+}
+
+/** Resolves when the face loads, when its load fails, or after MONO_WAIT_MS, whichever is first.
+ *  Never rejects: every outcome means "open now". */
+function whenMonoFace(): Promise<void> {
+  return Promise.race([
+    document.fonts.load(MONO_FACE).then(() => undefined, () => undefined),
+    new Promise<void>((resolve) => { setTimeout(resolve, MONO_WAIT_MS); }),
+  ]);
+}
+```
+
+In `makeTerm`, `:38` becomes `fontFamily: termFontFamily(),`. Nothing else in `makeTerm` changes.
+
+In `TerminalImpl`, one ref beside `handleRef`, kept current on every render, so a terminal that
+opens late still takes the caret it was given while it waited:
+
+```ts
+  const focusedRef = useRef(focused);
+  focusedRef.current = focused;
+```
+
+The mount effect's body from `:118` to the end of its cleanup becomes:
+
+```ts
+    node.appendChild(handle.element);
+
+    /* Task 27. Open, fit and observe only once the grid can be measured in Commit Mono. On the
+     * ready path (the face is cached, or jsdom) this runs synchronously, exactly as before, so
+     * the ordering tests above this change still hold. On the waiting path `live` stops a
+     * terminal from opening into a pane that has since unmounted. */
+    let live = true;
+    let ro: ResizeObserver | null = null;
+    const open = (): void => {
+      if (!live) return;
+      handle.mount();                              // AFTER the append: xterm measures a
+      fitAddons.get(handle.term)?.fit();           // rendered element, never a detached one
+      ro = new ResizeObserver(() => fitAddons.get(handle.term)?.fit());
+      ro.observe(node);
+      if (focusedRef.current) handle.focus();      // the focus effect ran before we opened
+    };
+    if (monoFaceReady()) open();
+    else void whenMonoFace().then(open);
+
+    return () => {
+      live = false;
+      ro?.disconnect();
+      if (handle.element.parentNode === node) node.removeChild(handle.element);
+      handleRef.current = null;
+      releaseAttach(sessionId);
+    };
+```
+
+The two long `EDITED BY TASK 21's FIX ROUND 1` comments stay where they are, above the observer
+line, which moves inside `open`. A comment `EDITED BY PHASE W TASK 27, as a declared departure`
+opens the new block, in the file's own convention for a closed task's file.
+
+`handle.mount()` is idempotent (`attachRegistry.ts:184-188`, `if (held.opened) return;`), so a
+terminal re-parented between Columns and Canvas after its face loaded opens once, as before.
+
+#### Tests to write first — `desktop/src/styles/fonts.test.ts` (new)
+
+```ts
+import { describe, expect, it } from "vitest";
+import appCss from "./app.css?raw";
+import fontsCss from "./fonts.css?raw";
+import tokensCss from "./tokens.css?raw";
+import lock from "../assets/fonts/fonts.lock.json";
+import { stripCssComments } from "../test/fakes";
+
+/** Every file in assets/fonts, keyed by name. Only names and the .txt bodies are read: a woff2
+ *  decoded as text is meaningless, so its hash is checked by the acceptance command instead. */
+const RAW = import.meta.glob<string>("/src/assets/fonts/*", { query: "?raw", import: "default", eager: true });
+const FILES = new Map(Object.entries(RAW).map(([k, v]) => [k.replace("/src/assets/fonts/", ""), v]));
+const FACES = [...FILES.keys()].filter((n) => n.endsWith(".woff2")).sort();
+const stack = (name: string): string[] => {
+  const m = new RegExp(`\\n\\s*${name}\\s*:\\s*([^;]+);`).exec(stripCssComments(tokensCss));
+  return m ? m[1].split(",").map((s) => s.trim()) : [];
+};
+
+describe("the bundled faces", () => {
+  it("bundles at least one face", () => {
+    expect(FACES.length).toBeGreaterThan(0);   // guards every loop below from passing on nothing
+  });
+
+  // Kills: a font with no licence beside it.
+  it("ships a licence beside every bundled face", () => {
+    for (const family of new Set(FACES.map((n) => n.split("-")[0]))) {
+      const licence = FILES.get(`OFL-${family}.txt`);
+      expect(licence, `OFL-${family}.txt`).toBeDefined();
+      expect(licence).toContain("SIL Open Font License");
+      expect(licence).toContain("Version 1.1");
+    }
+  });
+
+  // Kills: redistributing a system font.
+  it("bundles no Segoe face", () => {
+    expect([...FILES.keys()].filter((n) => /segoe/i.test(n))).toEqual([]);
+    expect(stripCssComments(fontsCss)).not.toMatch(/segoe/i);
+  });
+
+  // Kills: a face with no recorded origin, or a placeholder left in the manifest.
+  it("records every bundled file in fonts.lock.json", () => {
+    const entries = Object.values(lock).flatMap((f) => f.files);
+    expect(entries.map((e) => e.ours).sort()).toEqual(FACES);
+    for (const e of entries) expect(e.sha256).toMatch(/^[0-9a-f]{64}$/);
+    expect(JSON.stringify(lock)).not.toMatch(/UNVERIFIED|<[^>]*>/);
+  });
+
+  // Kills: a network font, and a url() naming a file that is not there.
+  it("loads only local files, each blocking", () => {
+    const css = stripCssComments(fontsCss);
+    const urls = [...css.matchAll(/url\("([^"]+)"\)/g)].map((m) => m[1]);
+    expect(urls.length).toBe(FACES.length);
+    for (const u of urls) expect(FACES).toContain(u.replace("../assets/fonts/", ""));
+    expect(css.match(/@font-face/g)?.length).toBe(css.match(/font-display: block;/g)?.length);
+  });
+
+  // Kills: Berkeley (the prototype's first entry) left first, and a chain ending in a proportional face.
+  it("puts Commit Mono first in --mono and keeps a monospace fallback", () => {
+    const mono = stack("--mono");
+    expect(mono[0]).toBe('"Commit Mono"');
+    expect(mono[mono.length - 1]).toBe("monospace");
+    expect(mono.join(",")).not.toMatch(/Berkeley|sans-serif|system-ui/);
+  });
+
+  // Kills: an optical-size stack that does not fall back to the sans.
+  it("keeps the sans on the system face, with its optical sizes", () => {
+    expect(stack("--sans")[0]).toBe('"Segoe UI Variable Text"');
+    expect(stack("--sans-small")).toEqual(['"Segoe UI Variable Small"', "var(--sans)"]);
+    expect(stack("--sans-display")).toEqual(['"Segoe UI Variable Display"', "var(--sans)"]);
+  });
+
+  // Kills: a late import that shifts layout, and a fonts import that displaces the token layer.
+  it("imports fonts.css before any rule", () => {
+    const lines = stripCssComments(appCss).split("\n").map((l) => l.trim()).filter(Boolean);
+    expect(lines.slice(0, 2)).toEqual(['@import "./tokens.css";', '@import "./fonts.css";']);
+  });
+});
+```
+
+`stack()` matches a declaration at the start of a line, so `--sans` does not match inside
+`--sans-small`'s `var(--sans)`.
