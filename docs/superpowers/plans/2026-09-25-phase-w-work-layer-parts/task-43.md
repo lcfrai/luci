@@ -195,8 +195,73 @@ function endDrag(e: PointerEvent<HTMLElement> | null): void {
 .wk-card-set { font-family: var(--mono); font-size: var(--t-fact); color: var(--ink-2); }
 ```
 
-`--r-card`, `--r-ctl`, `--e-hair`, `--e-card`, `--canvas` and `--surface` are the prototype's names
-(`work-layer.html:203`, `:211`); whether each is in `tokens.css` after task 26 is **UNVERIFIED**
-here (step 1 below greps them, and a missing one is task 26's, not a literal here). There is no
+`--canvas`, `--surface`, `--r-ctl`, `--r-card`, `--e-hair` and `--e-card` are built
+(`desktop/src/styles/tokens.css:31-32`, `:111-112`, `:118`, `:120`); `--s-2` … `--s-5`, `--t-ui` and
+`--t-fact` are task 26's (`task-26.md:91-108`). Radius follows size: the column is a card
+(`--r-card`, 10px), the card inside it a control-sized surface (`--r-ctl`, 8px). There is no
 `transition` in the block, so a returning card snaps back rather than animating layout.
+
+#### Tests to write first — `desktop/src/components/work/BoardView.test.tsx`
+
+Rendered on `workScenario()` through task 40's test seam (**UNVERIFIED** name, as in task 41), with
+a `mutate` spy and a `hitTest` stub that returns whatever column key the test names. The world's
+criteria are *the resume test passes* (`c-91e2a4b0`) then *upload works for PDF, XLSX and images*
+(`c-40aa17c3`), in brief order; a third criterion no issue serves is added for test 6.
+
+| Test | What it asserts | Mutant it kills |
+|---|---|---|
+| `default columns are criteria in brief order, Serves no criterion last` | with no `grouping` from task 44, the column headers read the two criteria in brief order, then the added third, then *Serves no criterion*; no header is a state word | a state-column default (C13) |
+| `a drop on started sends nothing and offers Start` | state board; drag EP-167 (`todo`) to `s:started`; the spy was not called; the `started` column's `status` reads *Start a lane? Shift+R* and `FACT_WAITS_ON.started`; and, looping `dropIntent` over every state pair, no intent is a `setState` to a fact state | faking the fact |
+| `a drop on landed offers no override` | drag to `s:landed`; no call; the column holds `FACT_WAITS_ON.landed` and **no** `button` | a manual `landed` |
+| `backlog to todo sends exactly one op, as the person` | drag EP-166 (`backlog`) to `s:todo`; the spy saw one call, `{kind: "setState", issueId: ep166, move: {to: "todo", cause: "hand", …}}` | a no-op drop, or two ops |
+| `a cross-criterion drop is one revision that drops the source` | drag EP-142 from `c-91e2a4b0` to `c-40aa17c3`; one call, `{kind: "serves", add: [c-40aa17c3], remove: [c-91e2a4b0]}` | appending both criteria |
+| `an empty criterion column says so` | the third criterion's column holds *No issue serves this criterion. C files one.* | hiding uncovered criteria |
+| `the drag moves transform only, and the CSS has no transition: all` | after `pointerDown` and a `pointerMove` of 40px, the card's `style.transform` is `translate(40px, 0px)` and `style.left`, `style.top`, `style.width` are empty; after `pointerUp` the transform is empty; `work.css` read as text contains no `transition: all` and no `transition` inside a `.wk-card` or `.wk-col` rule | a layout-animating drag |
+| `no prediction on the board` | `expectNoPrediction(container)`; every column count matches `/^\d+ issues?$/` | an `N of M` column total |
+
+#### Steps
+
+- [ ] Write `BoardView.test.tsx`; it fails to import.
+- [ ] Write the exported half (`Column`, `colKey`, `dropIntent`, the offer strings), then the
+      columns from the selector (task 40's grouping, `grouping` prop), the cards from task 40's
+      row parts, the hold model per column (task 41), the offers, the drag, `DuplicateOfPicker`.
+- [ ] Mutate by hand and watch each named test go red, then revert: default `grouping` to
+      `"state"` (1); make `started` return `setState` (2); add an *Override* button (3); return
+      `none` for human-band drops (4); `remove: []` on a re-point (5); skip empty columns (6);
+      set `style.left` in `onPointerMove` (7).
+- [ ] Add the *Layout* group to `WorkLens`'s `ViewHeader` actions; append the CSS.
+- [ ] Run the suite and the typecheck; commit each file as it goes green.
+
+#### Acceptance
+
+```bash
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop test -- src/components/work/BoardView.test.tsx'
+# expected: 1 file, 8 tests, all passing
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop test'
+# expected: every suite passing
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop run typecheck'
+# expected: exit 0
+~/.claude/tools/claudezsh/claudezsh 'grep -n "transition" desktop/src/components/work/work.css'
+# expected: no line in a .wk-card, .wk-col or .wk-board rule
+```
+
+#### What this task does NOT claim
+
+- **Sub-groups and swimlanes** (L-102's W2 part), and **a shared manual order** inside a column
+  (L-14, L-103): W2.
+- **The timeline** layout (L-101's third): W4.
+- **Starting a lane from the offer**: `Shift+R` is task 61's; this task names the key only.
+- **The reason step for a hand-set done**: task 48; until then the offer points at the issue view.
+- **The convergence word** in a column header: task 45 reads it from phase 4 for Plan; the board
+  header shows the criterion, its node and a plain count only.
+- That dragging *feels* right: visual acceptance is the owner's eyes (task 39), not these tests.
+
+#### Gaps found while writing this part
+
+1. The skeleton's row gives 43 `dependsOn: 40`; it also needs **41** (hold model), **42** (the
+   `serves` op) and **46** (`handMove`, `FACT_WAITS_ON`, `DuplicateOfPicker`).
+2. The List/Board choice has no home in task 44's `DisplayOptions`; it is lens-local here and does
+   not survive a remount. Task 44 may add `layout: "list" | "board"` per view.
+3. What a drop into *Serves no criterion* should do is not in the scope; decision 1 makes it an
+   offer, because untying needs a reason (05 §2.3 point 4).
 
