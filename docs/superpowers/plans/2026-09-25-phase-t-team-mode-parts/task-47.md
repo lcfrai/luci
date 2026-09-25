@@ -154,3 +154,74 @@ spec:
 Task 11's `each of network.* if it lies outside those` entries of the `except` list are kept in
 `platform.internetExcept` exactly as task 11 renders them (the helper above shows the five fixed
 entries only). `networkpolicy-defaults.yaml`, `allow-dns` and both ingress policies are untouched.
+
+```yaml
+# deploy/charts/platform/templates/networkpolicy-sandboxes.yaml (append)
+---
+# An AU project's session pods: DNS through Cilium's DNS proxy (so it learns name -> address),
+# then 443 to the allowlist only. Task 32's gateway allow and the Orchestrator class's egress
+# are separate policies and still apply; Kubernetes and Cilium policies are a union of allows.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata: { name: egress-au-allowlist, namespace: {{ $n }} }
+spec:
+  endpointSelector:
+    matchLabels: { panacea-app/component: sandbox, panacea-app/route: au }
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports: [ { port: "53", protocol: ANY } ]
+          rules:
+            dns: [ { matchPattern: "*" } ]
+    - toFQDNs:
+{{- range .Values.sandboxes.auEgress.fqdns }}
+        - matchName: {{ . | quote }}
+{{- end }}
+{{- range .Values.sandboxes.auEgress.patterns }}
+        - matchPattern: {{ . | quote }}
+{{- end }}
+      toPorts:
+        - ports: [ { port: "443", protocol: TCP } ]
+```
+
+The DNS rule allows every lookup and resolves nothing it does not allow to connect to: a name
+off the list resolves, and the connection to its address is dropped. That the DNS rule must be in
+the same policy as `toFQDNs` for Cilium to populate the name cache is from Cilium's documentation
+as remembered, **UNVERIFIED**; P28 checks it.
+
+**The broker stamps the label** (phase 8 tasks 17–18, planned; built after the merge):
+
+```go
+// control-plane/internal/brokerapi (modify: one field on SandboxSpec)
+
+	// Route is the project's inference route, "global" or "au" (05-design.md §2.5).
+	// The broker stamps it as the pod label panacea-app/route, which selects the
+	// pod's egress policy. "" is "global": a solo create from remotebe names no
+	// route, and keeps phase 8's egress exactly. Any other value is 400
+	// bad_request, details.field "route", and no pod is created.
+	Route string `json:"route,omitempty"`
+```
+
+The label is set by the broker from the spec, never by a caller-supplied label map: task 17's
+`WithLabels` (`task-17.md:325`) rejects the key `panacea-app/route` from any caller, so Fleet cannot
+spell `global` for an AU project by a second path. Fleet sets `Route` from the value it already
+reads through `gwire.RouteSource` before every create (`task-20.md:284`), and a route source error
+still means no create. **A solo AU project's sessions still get `global` egress** until remotebe
+sends `Route` (gap 2).
+
+**The cluster feature** (phase 8 task 06's `modules/aks`, planned):
+
+```hcl
+# infra/terraform/modules/aks/main.tf (modify: inside network_profile)
+    advanced_networking {
+      observability_enabled = false
+      security_enabled      = true   # Cilium FQDN policy for AU sandboxes (Phase T task 47)
+    }
+```
+
+The block's shape is azurerm 4.81.0's, as phase 8's Q1 names it; the pinned provider version at
+merge decides, **UNVERIFIED**. ACNS is billed per node (from knowledge, **UNVERIFIED** amount); the
+cost goes in phase 8's cost model row as an owner-visible line (gap 4).
