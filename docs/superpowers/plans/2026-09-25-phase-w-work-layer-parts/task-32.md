@@ -563,3 +563,98 @@ describe("flags", () => {
 jsdom has no `indexedDB`, so the stub is the only one a write could reach. `renderHook`'s first
 render count is read after mount (`settled`) because `StrictMode` is not in play in `renderHook`
 and React may still render twice in development; the assertion is on the difference.
+
+#### Tests to write first — `desktop/src/components/devtools/FlagCompare.test.tsx`
+
+```tsx
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import candidatesCss from "../../devtools/fonts/candidates.css?raw";
+import { resetFlags } from "../../lib/flags";
+import { stripCssComments } from "../../test/fakes";
+import DevToolbar from "./DevToolbar";
+import { FlagCompare, SANS_CANDIDATES } from "./FlagCompare";
+
+afterEach(() => {
+  resetFlags();
+  vi.unstubAllEnvs();
+  vi.resetModules();
+});
+
+/** The declarations of one rule, by exact selector. */
+function ruleBody(css: string, selector: string): string | null {
+  const bare = stripCssComments(css);
+  const at = bare.indexOf(`${selector} {`);
+  if (at < 0) return null;
+  const open = bare.indexOf("{", at);
+  return bare.slice(open + 1, bare.indexOf("}", open));
+}
+
+describe("flag.compare", () => {
+  it("flips the look without remounting", async () => {
+    // Kills: a flip that reloads, or re-keys the app so its state is lost.
+    render(
+      <>
+        <input aria-label="probe" />
+        <FlagCompare />
+      </>,
+    );
+    const probe = screen.getByLabelText("probe");
+    await userEvent.type(probe, "half a sentence");
+    await userEvent.click(screen.getByRole("radio", { name: "Old (Phase 2)" }));
+    expect(document.documentElement.getAttribute("data-look")).toBe("old");
+    expect(screen.getByLabelText("probe")).toBe(probe);
+    expect(probe).toHaveProperty("value", "half a sentence");
+    expect(screen.getByRole("radio", { name: "Old (Phase 2)" })).toHaveProperty("checked", true);
+  });
+
+  it("applies each sans candidate", async () => {
+    // Kills: a candidate the CSS ignores, a rule that sets --sans alone, a family-name typo.
+    render(<FlagCompare />);
+    for (const candidate of SANS_CANDIDATES) {
+      await userEvent.click(screen.getByRole("radio", { name: candidate.label }));
+      const body = ruleBody(candidatesCss, `:root[data-sans="${candidate.value}"]`);
+      if (candidate.value === "segoe") {
+        expect(document.documentElement.hasAttribute("data-sans")).toBe(false);
+        expect(body).toBeNull();
+        continue;
+      }
+      expect(document.documentElement.getAttribute("data-sans")).toBe(candidate.value);
+      for (const token of ["--sans", "--sans-small", "--sans-display"]) {
+        expect(body).toMatch(new RegExp(`${token}:\\s*"${candidate.family}",`));
+      }
+      expect(candidatesCss).toContain(`font-family: "${candidate.family}";`);
+    }
+  });
+
+  it("offers OD-28's choice as the default", () => {
+    // Kills: a toolbar that opens on a candidate the owner did not choose.
+    render(<FlagCompare />);
+    expect(screen.getByRole("radio", { name: "Segoe UI Variable (OD-28)" })).toHaveProperty("checked", true);
+    expect(screen.getByRole("radio", { name: "New" })).toHaveProperty("checked", true);
+  });
+
+  it("renders outside the app root", () => {
+    // Kills: a toolbar rendered in place, which breaks defects.test.tsx:199-200's "no chrome".
+    const { container } = render(<DevToolbar />);
+    expect(container.childElementCount).toBe(0);
+    expect(document.body.querySelector("details.dt")).not.toBeNull();
+  });
+
+  it("renders nothing in production", async () => {
+    // Kills: shipping dev chrome, a gate on MODE or on a variable Vite does not replace.
+    vi.stubEnv("DEV", false);
+    vi.resetModules();
+    expect((await import("./mount")).DevToolbar).toBeNull();
+    vi.stubEnv("DEV", true);
+    vi.resetModules();
+    expect((await import("./mount")).DevToolbar).not.toBeNull();
+  });
+});
+```
+
+`vi.stubEnv` takes a boolean for `DEV`, `PROD` and `SSR` in vitest's documentation; that 5.0.1
+keeps that overload is **UNVERIFIED** until step 2 runs it. `?raw` on a CSS import is the tree's
+existing pattern (`vitest.config.ts`'s `css.include`), and `ruleBody` strips comments before it
+looks, because the file's header comment names both selectors.
