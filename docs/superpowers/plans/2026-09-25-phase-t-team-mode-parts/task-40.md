@@ -125,7 +125,7 @@ e); neither can live in the pod.
   - task 16: `events.wait`, and the same-pid rule for a runner's upstream verb, which `dive.end`
     joins (`task-16.md:137-143`, `task-27.md:45-51`);
   - task 39: `Server.RouteAgent`, the 404 fold, the owner check (`task-39.md`);
-  - task 22: the team view (`TeamResult`); task 28: `Store.OpenThreads` (`task-28.md:366`);
+  - task 22: the team view (`TeamResult`); task 28: `Store.OpenThreads` (`task-28.md:397`);
     task 30: the owner's policy rows; task 07: the human messages read (`hm-…`);
   - task 31: `CurrentTurn`'s origin drives the directive's `origin` (`task-31.md:132-133`).
 
@@ -496,4 +496,34 @@ ALTER TABLE fleet.turn_claims
 side. Task 26's `storetest.Suite` row that pins `turn_events` to ten columns is untouched (these are
 other tables); the suite gains one row pinning `turn_claims.rotated`'s `CHECK` by inserting `'x'`
 and expecting a violation.
+
+**DIVE and revocation.** `turns` gains a fourth implementer of task 11's `Revoker` (`task-11.md:582-583`,
+beside tasks 20, 23 and 39): `(*Scheduler).Revoke(ctx, d, why)` calls `StopDive(orch,
+"access_removed")` when `d` is an Orchestrator's delegation and a DIVE is active, and does nothing
+otherwise. Task 39's relay closes the owner's socket on the same revocation; the two are
+independent, so the child is stopped even if the socket had already gone.
+
+- [ ] **Step 1: Write the failing tests first**
+
+Sandbox side, `package runner`: task 27's fakes (`Client`, `Child`, clock, `t.TempDir()` as
+`root`), plus a fake `Child` that records the three descriptors it was started with.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestDiveArgvIsExact` | resume: `[claude --resume <uuid>]`; new: `[claude --session-id <uuid>]`, element by element | reuse of task 27's `Argv` (adds `-p`, `--output-format`); a fork builder |
+| `TestDiveArgvNeverForks` | both modes: no element is `--fork-session`, `--continue`, `-c`, `-p`, or starts with `--dangerously` | a "safe default" fork; a headless DIVE |
+| `TestDiveArgvRefusesBadSession` | uuid `../x`, uppercase, mode `fork`, mode `""`: each `ErrBadSession`, no child | the uuid check skipped for DIVE |
+| `TestDiveChildOwnsThePTY` | the child's stdin, stdout and stderr are the runner's own three (`os.Stdin`…), not pipes | the runner reads the conversation through a pipe (OD-8) |
+| `TestDiveEnvIsTheAllowlistPlusTerm` | parent env with both tokens, `ANTHROPIC_API_KEY`, `TERM=xterm-256color`: child env is exactly `HOME=<session home>`, `PATH`, `TERM=xterm-256color` | the parent env passed through; `TERM=dumb` kept (an unusable interactive UI) |
+| `TestDiveNonceNeverReachesTheChild` | argv and env of the child hold no substring of `Nonce` or `Turn` | the nonce passed for correlation |
+| `TestDiveOnlyWhileParked` | `dive.begin` while a turn's child runs: `dive.end` `failed`, `code -3`, the turn's child unsignalled and its `turn.end` sent as normal | a DIVE started over a running turn |
+| `TestTurnBeginDuringDiveRefused` | a `turn.begin` while the DIVE child runs: refused `code -3`, no second child | two children on one PTY |
+| `TestDiveStopKillsTheGroup` | `dive.stop` for this turn: `SIGTERM`, `SIGKILL` 10 s later, `dive.end` `ok`; a `dive.stop` naming another turn: ignored | stop ignored; stop honoured for any turn id |
+| `TestDiveDeadlineIsTimeout` | the child never exits: killed at `Deadline`, `dive.end` `timeout`, `Code -1` | no deadline in the runner |
+| `TestDiveEndRetried` | `End` answers `unavailable` twice: three calls, then parked again | a lost `dive.end` leaving Fleet's claim until the sweep |
+| `TestEachSessionHasItsOwnHome` | two turns on uuid A then one on B: `HOME` is `SessionHome(root, A)` twice, then `…/B` | one shared `HOME` (the old transcript survives) |
+| `TestPrepareHomeNewMustNotExist` | mode `new` with `…/<uuid>/home` present: turn refused `code -2`, no child | a reused uuid silently resuming old state |
+| `TestPruneAfterStartOnly` | `new` on B with A's home present: A gone after B's child started; B's start fails: A still present | pruning first, losing the resumable session on a failed start |
+| `TestPruneLeavesWhatItDidNotMake` | under `root`: a non-uuid directory, a uuid-named **symlink** to a temp dir with a file in it, a uuid-named file: all three left, the symlink target's file intact | `RemoveAll` of every entry; following a symlink out of `root` |
+| `TestPruneNeverReadsInsideHome` (Linux) | A's home holds a FIFO and a mode-`0000` file: `PruneHomes` returns within 1 s and A is gone | any "summarise before delete" that opens a file (it blocks on the FIFO) |
 
