@@ -712,7 +712,7 @@ That is the owner's two-second comparison working; it is not an acceptance of ei
 
 - **Which look or face is better.** The toolbar makes the comparison cheap; the owner decides at
   task 39 (`OD-1`), and `OD-28` stands until the owner changes it.
-- **A keyboard chord for the toolbar.** There is none, so no cockpit chord (task 64's key map,
+- **A keyboard chord for the toolbar.** There is none, so no cockpit chord (tasks 53-54's keys,
   AGENTIC-UX's `Space`) is shadowed. It is reached by pointer or by Tab.
 - **macOS or Linux rendering.** Segoe UI Variable is absent there and the stacks fall to the
   platform face; nobody has looked, and no macOS build exists.
