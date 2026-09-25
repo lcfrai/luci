@@ -104,7 +104,7 @@ type laneCreator interface {
 // CloudLanes answers the creator that makes lanes on one cloud machine. It shares
 // phase 3's one lane index (GitDeps.Lanes, phase-3 task-04.md:65), so a cloud lane
 // is found by the same ByID and ByProject as a local one. Task 25 sets it to
-// &lanes.Creator{Machine: <that machine's gitx.Remote>, Store: GitDeps.Lanes}.
+// &lanes.Creator{Machine: <that machine's machines.Remote>, Store: GitDeps.Lanes}.
 // A nil CloudLanes, or ok false, is errCloudLanesUnwired.
 type CloudLanes func(machineID string) (c laneCreator, ok bool)
 

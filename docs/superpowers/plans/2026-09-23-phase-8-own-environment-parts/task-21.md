@@ -135,7 +135,7 @@ const (
 )
 
 // S8-P3.6's wire (env ruling 4, "The one S8-P3.6 contract"; task 25's
-// gitx.Remote.FS() is its client). Every path is relative to the root.
+// machines.Remote.FS() is its client). Every path is relative to the root.
 const (
 	PathFSLstat      = "/v1/fs/lstat"
 	PathFSRemoveTree = "/v1/fs/remove-tree"
