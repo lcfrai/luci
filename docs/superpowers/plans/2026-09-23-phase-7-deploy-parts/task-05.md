@@ -284,7 +284,7 @@ status useless to the desktop, which switches on the **code** anyway (`problems.
 //   deploy.KindRejected     → 422 deploy_rejected,       e.Message
 //   *hubclient.Error        → the Hub's status and problem, UNCHANGED (Hub contract §4.3)
 //   hubclient.ErrUnavailable→ 503 upstream_unavailable, details {"upstream":"hub"}
-//   entraauth.ErrSignedOut  → 401 signed_out (the Hub's C1 code)
+//   signin.ErrSignedOut  → 401 signed_out (the Hub's C1 code)
 //   anything else           → a.internal(…)
 // Every deploy_* problem, and Panacea's upstream_unavailable, carries details
 // {"upstream":"panacea","status":<e.Status, a JSON number; 0 = no HTTP answer>} (review M26:
