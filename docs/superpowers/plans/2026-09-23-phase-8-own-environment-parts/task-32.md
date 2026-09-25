@@ -1,6 +1,6 @@
 ### Task 32: The Kata proving checklist — every Azure fact this plan assumed, as a check with a result slot
 
-HELD until tasks 21, 25 and 25b land, which wait for phase 3's tasks 02 to 05, 11 and 24 on feat/env and its answers to S8-P3.4, S8-P3.5 and S8-P3.6 (P18 needs a cloud session; review-2 I1; `.superpowers/sdd/env/held.md`): the build stream skips this task until then.
+HELD until tasks 21, 25 and 25b land, which wait for phase 3's tasks 02 to 05, 11 and 24 on feat/env with S8-P3.4, S8-P3.5 and S8-P3.6, which phase 3 has planned (P18 needs a cloud session; review-2 I1; `.superpowers/sdd/env/held.md`): the build stream skips this task until then.
 
 **Owner-gated.** This task writes a checklist and the scripts that measure it. It runs them only
 when the environment exists, and the checks that need a person (a signed-in user, the KPMG network,

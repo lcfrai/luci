@@ -1,6 +1,6 @@
 ### Task 21b: `machined` bundles — lane work in and product commits out, as files in its owned root
 
-HELD until task 21 lands (itself held on phase 3's tasks 02 and 03 and S8-P3.6) and phase 3 answers S8-P3.4 (`lanegit.Bundles`; `.superpowers/sdd/env/held.md`): the build stream skips this task until then.
+HELD until task 21 lands (itself held on phase 3's tasks 02 and 03 and S8-P3.6) and phase 3's S8-P3.4 (`lanegit.Bundles`, planned at phase-3 `task-24.md:767-830`) is sync-merged into feat/env (`.superpowers/sdd/env/held.md`): the build stream skips this task until then.
 
 Phase 3's ruling R4.4 moves lane work across as a `git bundle`, which is data, verified and
 fetched in the project under §HGH. On a cloud machine the project is on the machine disk and the
