@@ -8,8 +8,9 @@
 # passes. A bare `terraform test` without -var-file stops at "No value for required
 # variable": intended, validate.sh is the only caller.
 #
-# The GUIDs are placeholders that name nobody (all zeros, or all ones through all sixes). This
-# is a .tftest.hcl, not a .tfvars, so guard G2 does not apply. The private endpoint's subnet
+# The GUIDs are placeholders that name nobody (all zeros, all ones through all sixes, and one
+# mixed-case abcdef00-... id for the case run). This is a .tftest.hcl, not a .tfvars, so guard
+# G2 does not apply. The private endpoint's subnet
 # and zone ids below are well-formed placeholders in the all-zeros subscription.
 #
 # No file-level state_private_endpoint: its default, null, is dev's posture. If prod.tfvars
@@ -254,6 +255,11 @@ run "the_account_is_locked" {
   assert {
     condition     = can(regex("(?i)terraform state", azurerm_management_lock.state.notes))
     error_message = "The lock's notes do not say it guards the Terraform state; whoever meets the lock is told nothing."
+  }
+  # Fix round 2's predicted survivor LN1: a name hard-coded to one environment.
+  assert {
+    condition     = azurerm_management_lock.state.name == "lock-panacea-app-${var.environment}-tfstate"
+    error_message = "The state account's lock is not named for this environment."
   }
 }
 
