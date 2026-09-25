@@ -266,8 +266,10 @@ UI", -apple-system, system-ui, sans-serif`, plus `--sans-small` (`"Segoe UI Vari
 `--t-meta`) and `--sans-display` (`"Segoe UI Variable Display"`, for `--t-head`), each falling back
 to `--sans`. **Segoe UI Variable is never bundled**: it is the Windows system face and its licence
 does not allow redistribution; on macOS and Linux the stack falls to the platform sans. The terminal
-must not measure its cells from a fallback: `desktop/src/components/Terminal.tsx` awaits
-`document.fonts.load('12px "Commit Mono"')` (bounded at 1 s, then proceeds) before `fit()`. The
+must not measure its cells from a fallback: `desktop/src/components/Terminal.tsx` hard-codes its
+own stack today (`fontFamily: '"Cascadia Mono", …'` at `:38`, not `--mono`), so it gains Commit Mono
+first, and it awaits `document.fonts.load('12px "Commit Mono"')` (bounded at 1 s, then proceeds)
+before its first `fit()` (`:120`). The
 Tauri CSP is `null` today (`desktop/src-tauri/tauri.conf.json:21`), so local fonts need no CSP
 change; a part that finds a CSP adds `font-src 'self'`. The prototype lists `"Berkeley Mono"` first
 (`prototype/work-layer.html:38`); production does not. **Tests first:** `it("ships a licence beside
@@ -284,4 +286,76 @@ stands beside the two alternatives 05 §4.4 C3 names, for the owner's eyes), how
 125 % and 150 % (task 33), or that Commit Mono's licence was reviewed by legal (**UNVERIFIED**; OFL
 1.1 is on `OD-11`'s allowed list). Design: 05 §4.4 C3 (faces, revision 2); 02 C3; `OD-28`, `OD-11`.
 Parity: no 01 row names a face; it serves **L-234**'s look with task 26.
+
+**28 — drawn glyphs, part 1: the nine issue states, *done, not proven*, the priority notch.**
+Stream WD1, defines `<StateGlyph/>` in seam **SW.12**, 3 h. Depends on 26 (`--icon`, `--icon-sm`).
+Files: new `desktop/src/components/glyphs/StateGlyph.tsx`, `glyphs/paths.ts` (our path data, with
+a header saying it was drawn for PanaceaApp from no third-party source, `OD-11`), `glyphs/glyphs.css`
+(owns the `.gl-*` prefix and no other) and `StateGlyph.test.tsx`. **SW.12's first member,
+complete:** `export type IssueState = "triage" | "backlog" | "todo" | "started" | "in_review" |
+"landed" | "done" | "cancelled" | "duplicate"`; `export type Priority = "none" | "urgent" | "high" |
+"medium" | "low"`; `export function StateGlyph(props: { state: IssueState; priority?: Priority;
+notProven?: boolean; size?: 14 | 16 }): JSX.Element`. Task 37's desktop issue-state type must be
+assignable to `IssueState` (a type test there), since this task lands first. **The drawing** (05
+§4.4 C6 and work rules 1-2): SVG in `currentColor`, `fill="none"` strokes, one **distinct outline
+shape per state**, none that fills as work progresses, so the component takes no progress input at
+all; the 14px and 16px sizes are drawn separately at 1.25px and 1.5px strokes, never one drawing
+scaled. `prototype/work-layer.html:393-404` sketches `g-triage` … `g-cancel` and `g-dnp`; it has no
+`duplicate`, which is drawn here. ***Done, not proven*** (05 §3.3) is its own shape, not a colour,
+and applies only with `state="done"`. **Priority is a notch** cut into the glyph's leading edge, its
+depth growing from `low` to `urgent`, `none` uncut, so a row carries one glyph, not a second set of
+signal bars; urgent is ink like the rest, because `--need` means only *someone is waiting on you*.
+Each glyph is `role="img"` with an `aria-label` such as "In review, high priority" or "Done, not
+proven". **Tests first:** `it("draws nine distinct state shapes and a distinct not-proven")` (the
+serialised geometry of all ten is unique; kills two states sharing a shape); `it("accepts no progress
+input")` (`// @ts-expect-error` on a `progress` prop; kills a filling icon, 02 C13); `it("uses
+currentColor and no status colour")` (no `--run`, `--need`, `--fail` in `.gl-*` rules; kills an issue
+state coloured like an agent state, rule 1); `it("draws priority as one notched glyph")` (five
+priorities → five leading edges, one `<svg>`, identical body; kills signal bars); `it("never colours
+urgent")` (kills rule 2's breach); `it("shows not-proven only on done")` (`notProven` with `landed`
+renders `landed`; kills the mark on a state it cannot mean); `it("names every glyph for assistive
+technology")` (kills an unlabelled image); `it("draws 14 and 16 separately")` (kills a scaled
+drawing). **Acceptance:** `npm --prefix desktop test -- glyphs` passes; typecheck is clean. It does
+**not** claim the glyphs read well at 125 % and 150 % or on `paper` (task 33 renders them; the
+owner's eyes judge at task 39), the forced-colors rendering (task 34), or any surface using them.
+Design: 05 §3.3, §4.4 (C6, work rules 1 and 2); 02 C6, C13. Parity: gives **L-8**'s states and
+**L-13**'s five priorities their shapes; it closes neither alone (tasks 40, 46 show them).
+
+**29 — drawn glyphs, part 2: agent shapes, selection, needs-you, `thread.node`; the licence check.**
+Stream WD1, completes seam **SW.12**, 3 h. Depends on 28. Files: new `glyphs/AgentGlyph.tsx`,
+`glyphs/MarkGlyph.tsx` and tests; ⚑ `desktop/src/components/common/StatusDot.tsx` and `common.css`
+(not in the skeleton's file map, see below); new `desktop/src/components/glyphs/licence.test.ts`.
+**Complete:** `export type AgentStatus = "starting" | "running" | "idle" | "exited" | "failed"`;
+`export function AgentGlyph(props: { status: AgentStatus; size?: 14 | 16; label: string }):
+JSX.Element`; `export type MarkKind = "selected" | "needs_you" | "thread_node"`; `export function
+MarkGlyph(props: { kind: MarkKind; size?: 14 | 16; lit?: boolean }): JSX.Element`. **Agent shapes**
+(05 §4.4 C7, reduced motion): **running is a disc inside a 1px open ring**, idle a plain disc, starting
+an open ring, exited a square, failed a square with a cut, so shape alone separates them; colour
+(`--run`, `--fail`) is added on top. The built dot has the defect this fixes: `StatusDot.tsx:18-27`
+maps `running` and `idle` both to `dot-disc`, so they differ by colour alone. `StatusDot` therefore
+maps `running` to a new `dot-run` drawn from the same geometry, so the rail and the Work lens speak
+one vocabulary; its flash (`FLASH_MS = 600`, `:29`) and its contract comment stay. The breath uses
+`beatDelayStyle()` (`desktop/src/hooks/heartbeat.ts:23`), the one heartbeat, and the live part is
+`aria-hidden` with `label` as its text. `failed` is shown only where the wire carries an observed
+failure (a bound lane failed, 05 §4.4 rule 1); it is never inferred. **Marks:** `selected` is a
+leading check, a shape, because *lit is not selected* (05 §4.1); `needs_you` is a shape in `--need`,
+so an escalation is never amber alone (05 §4.4 rule 4); `thread_node` is the 5px ring in `--thread`
+(`tokens.css:57`) at `--e-hair` geometry, brighter when `lit` (02 C2), which task 36's `ThreadNode`
+renders. **The licence check** (05 §5.3 row 9; 02 C6): `licence.test.ts` reads
+`desktop/package.json` and each direct dependency's own `package.json` and fails on any licence
+outside MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC or OFL-1.1 (an SPDX `OR` passes if one
+alternative does); W1 adds **no** icon family: every glyph, including the prototype's `i-*` icons,
+is drawn by us. **Tests first:** `it("gives running and idle different shapes")` (kills today's
+colour-only difference); `it("separates all five statuses with colour removed")` (kills any pair
+told apart by colour); `it("breathes on the one heartbeat")` (a `setInterval` spy sees no call; kills a
+per-row timer); `it("hides liveness from assistive technology")` (kills an announced breath);
+`StatusDot.test.tsx`: `it("draws running as dot-run")` (kills the rail keeping the old shape);
+`it("draws selection as a check")` (kills selection by ring alone); `it("gives needs-you a shape")`
+(kills amber alone); `it("draws thread_node as a ring, not a disc")`; `it("shares no path with the
+issue glyphs")` (kills one icon family for issue and agent states, rule 1); `it("allows only
+permissive licences")` (kills a GPL, AGPL or commercial dependency). **Acceptance:** `npm --prefix
+desktop test -- glyphs StatusDot` passes. It does **not** claim AX's seven statuses (the built wire
+has four, `StatusDot.tsx:9-15`), the reduced-motion tick (task 34) or a licence review by legal
+(**UNVERIFIED**). Design: 05 §4.1, §4.4 (C6, C7, rules 1 and 4); 02 C2, C6. Parity: gives **L-184**'s
+states a shape each and **L-225**'s multi-select its check; it closes neither alone.
 
