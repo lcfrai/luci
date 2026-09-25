@@ -310,6 +310,14 @@ type fakeComment struct {
 
 func (c *fakeComment) order() int64 { return c.seq }
 
+// seqOr0 is a nil-safe seq: a cursor the list did not issue lists from the start.
+func (c *fakeComment) seqOr0() int64 {
+	if c == nil {
+		return 0
+	}
+	return c.seq
+}
+
 type fakeSub struct {
 	cause      hubapi.SubscriptionCause
 	subscribed bool
@@ -736,7 +744,80 @@ func (f *Fake) Comments(_ context.Context, issueID string, page hubapi.PageReque
 }
 ```
 
-`seqOr0` is a nil-safe `seq` read, so an unknown cursor lists from the start (as the Hub's list
-routes treat a cursor they did not issue, `fake.go:239-262`'s idiom):
-`func (c *fakeComment) seqOr0() int64 { if c == nil { return 0 }; return c.seq }`, gofmt'd over
-four lines, declared beside `order()` in block 1.
+The cursor is the last comment id seen; `seqOr0` (block 1) makes an unknown one list from the
+start.
+
+```go
+// CreateComment appends. There is no edit method: a correction is a new comment.
+func (f *Fake) CreateComment(_ context.Context, issueID string, req hubapi.CreateCommentRequest) (hubapi.Comment, error) {
+	w := f.w
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	me, err := f.enter("CreateComment", issueID, req)
+	if err != nil {
+		return hubapi.Comment{}, err
+	}
+	is, role, err := w.issueOf(issueID, me)
+	if err != nil {
+		return hubapi.Comment{}, err
+	}
+	if err := need(role, hubapi.RoleMember); err != nil {
+		return hubapi.Comment{}, err
+	}
+	if err := w.erasedWrite(is); err != nil {
+		return hubapi.Comment{}, err
+	}
+	body := strings.TrimSpace(req.Body.Text)
+	switch {
+	case !req.Body.ValidAuthor():
+		return hubapi.Comment{}, badRequest("body.author", `An author is "H" or "A".`)
+	case body == "" || len(req.Body.Text) > hubapi.MaxIssueDescriptionBytes:
+		return hubapi.Comment{}, badRequest("body.text", "A comment is 1 character to 16 KiB.")
+	case len(req.Mentions) > 20:
+		return hubapi.Comment{}, badRequest("mentions", "A comment mentions at most 20 people.")
+	}
+	if req.ParentID != nil {
+		p := w.soc().comments[*req.ParentID]
+		if p == nil || p.c.IssueID != issueID || p.c.ParentID != nil {
+			return hubapi.Comment{}, problem(422, fkCommentNotTopLevel, "A reply answers a top-level comment of this issue.",
+				"field", "parentId")
+		}
+	}
+	if err := w.checkAnchor(is, req.Anchor); err != nil {
+		return hubapi.Comment{}, err
+	}
+	var mentions []string
+	for i, u := range req.Mentions {
+		if w.teams[is.teamID].members[u] == nil { // a viewer is a member of the team
+			return hubapi.Comment{}, badRequest("mentions["+strconv.Itoa(i)+"]", "A mention names a member of this team.")
+		}
+		if !slices.Contains(mentions, u) {
+			mentions = append(mentions, u)
+		}
+	}
+	fc := &fakeComment{teamID: is.teamID, projectID: is.head.ProjectID, createdBy: me, seq: w.next(),
+		c: hubapi.Comment{ID: ids.Wide(hubapi.PrefixIssueComment), IssueID: issueID, ParentID: req.ParentID,
+			Kind: hubapi.CommentKindComment, Body: req.Body, Anchor: req.Anchor, Mentions: mentions,
+			CreatedAt: w.stamp()}}
+	w.soc().comments[fc.c.ID] = fc
+	anchorKind, parent := "", ""
+	if req.Anchor != nil {
+		anchorKind = req.Anchor.Kind
+	}
+	if req.ParentID != nil {
+		parent = *req.ParentID
+	}
+	w.workEvent(me, fkEventCommentCreated, is.teamID, is.head.ProjectID, fc.c.ID, map[string]any{
+		"issueId": issueID, "parentId": parent, "kind": hubapi.CommentKindComment,
+		"author": req.Body.Author, "anchorKind": anchorKind})
+	for _, u := range mentions {
+		w.workEvent(me, fkEventCommentMentioned, is.teamID, is.head.ProjectID, u,
+			map[string]any{"commentId": fc.c.ID, "issueId": issueID})
+	}
+	w.subscribeOn(is, me, hubapi.SubscribeComment)
+	for _, u := range mentions {
+		w.subscribeOn(is, u, hubapi.SubscribeMention)
+	}
+	return w.renderComment(fc), nil
+}
+```
