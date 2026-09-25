@@ -446,6 +446,23 @@ through `ArchiveLane` carries for a detached HEAD, review r4-2 C-1; `refs` takes
 | **S3-P5.1** A worktree created from a design | `POST …/worktrees` | phase 5 creates a worktree like any other and materialises its handoff bundle into it, excluded (3-D6) | commit the bundle |
 | **S3-Hx.1** More harness adapters | `internal/transcript/<harness>` | one harness at a time (3-D7 c) | make any feature require an adapter |
 
+### Sibling asks from phase 8
+
+Phase 8's R4 re-plan (env tree `.superpowers/sdd/env/r4-env-rulings.md`, rulings 3 and 4; env
+task 33's seam table, `task-33.md:23-26`) asks phase 3 for these. The ids are the env plan's.
+The env plan now numbers `gitx.MachineFS` **S8-P3.6**; S8-P3.3 is `machined`'s pins of phase
+3's `Call.Env` keys and lane-create clone options. Each ask is an interface phase 3's local
+machine also implements, or a seam whose nil is phase 3's own path, so local behaviour does not
+change. Every one is UNVERIFIED against phase 8's code until env tasks 21, 21b, 25 and 25b land.
+
+| Ask | What phase 3 builds | Phase 3 task | Env task that consumes it |
+|---|---|---|---|
+| **S8-P3.6** `gitx.MachineFS` (`Exists`, `RemoveTree`, `CopyGeneratedHooks`, `Seal`), the env ruling's contract verbatim | the interface, `Machine.FS()`, `Local.Files` (02); `lanes.LocalFS`, `FSOf`, `ErrNoMachineFS`, Create's steps 0, 3, 6a (`Seal`) and failure path, the `CopyGeneratedHooks` split, `Catalog.FS` (03); Remove's step 3 (11) | **02**, 03, 11 | 25 (`machines.Remote.FS()`, `remoteFS`); 21 (`/v1/fs/…` and `/v1/lanes/sealed`, served through `lanes.LocalFS`) |
+| **S8-P3.4** `lanegit.Bundles` (`Put`, `Reserve`, `Open`, `Remove`, `Path`) | `Bundles`, `DirBundles`; `FetchLane`, `ArchiveLane`, `SendBranch` take `gitx.Runner` and a `Bundles`; `FetchLane`'s `io.Pipe` relay; `Sent.ID` (24); the call sites (07, 09, 11) | **24**, 07, 09, 11 | 25b (`machines.Bundles`); 21b (the bundle routes) |
+| **S8-P3.5** the pool reaches a lane's own machine | `Machine`, `Lanes.Machines`, `Lanes.Bundles`, `ErrNoBundles`, the `readyWaiter` seam, `ErrNoRunner` from `Create`'s `ErrUnsupported` and never `Kind()`, `NewRunnerTransport` | **24** | 25b (`laneGit.Machines`, `remotebe.DialLane`) |
+| **S8-P3.3** `machined` pins phase 3's `Call.Env` keys and `cloneArgv` options | nothing new: a phase 3 change that adds a `Call.Env` key or a clone option needs env task 21's matching row in the same change. **Open:** task 24's `FetchLane` fetch sets `transfer.fsckObjects` through `GIT_CONFIG_KEY_0` (`task-24.md`, `FetchLane` step 5), which env task 21's allowlist (`task-21.md:350-356`) does not admit, so a cloud `FetchLane` would be refused | the writers: 03, 08, 09, 10, 12, 13, 24 | 21 (`TestGitEnvIsAnExplicitAllowlist`, `TestGitLaneCreateCloneIsAdmitted`) |
+| **P3A-1** `Machine.Join` (env `task-25.md:243`) | not filed here: not among the asks this change answers. Env task 25 adds it itself if task 02 has landed | — | 25 |
+
 ## Open questions — recorded, with the recommendation this plan builds on
 
 None blocks a task. Each is built on the recommendation; the owner overrules by saying so, and the
@@ -581,21 +598,23 @@ Local-only first: nothing before task 13 needs a credential, a network or the Hu
 and 24 are the Go track (24 also edits `sandboxd`); 18–22 the desktop track, which starts when G2 holds and task 18's types match
 the Go parts (it codes against the part files' shapes and fakes, not a running server). Each task
 is sized for one implementer in one to three hours, except task 07 at three and a half since
-review I4 added the sweep's tip-change refresh, task 24 at five since ruling R4 puts both
-halves of the runner (sandbox and host) in one task and reviews r4-1 and r4-2 added the pool's
-seams and `ArchiveLane`, and task 09 at five since review I5 added `BringIn`, review I4 the
+review I4 added the sweep's tip-change refresh, task 03 at three and a half since phase 8's
+S8-P3.6 routes its disk calls through `FSOf`, task 24 at seven since ruling R4 puts both
+halves of the runner (sandbox and host) in one task, reviews r4-1 and r4-2 added the pool's
+seams and `ArchiveLane`, and phase 8's S8-P3.4 and S8-P3.5 added `Bundles` and the per-machine
+pool, and task 09 at five since review I5 added `BringIn`, review I4 the
 refresh route, and review r4-2 I-1 the claim basis. Task 09 splits cleanly at its `#### Bring in origin/<branch>` heading if one lane must stay
 under three.
 
 | # | Task | Depends on | Est. |
 |---|---|---|---|
 | 01 | Verify the git and sandbox behaviours the plan rests on; measure clones on this laptop (R12) | — | 2 h |
-| 02 | `gitx`: the write runner, timeout classes, `*gitx.Error`, the `Machine` seam, trailers, `Locks`, a real-git test helper | 01 | 2 h |
-| 03 | `lanes`: the lane index, clone create, identity copy, the composite catalog; the `briefref` interfaces | 02 | 3 h |
+| 02 | `gitx`: the write runner, timeout classes, `*gitx.Error`, the `Machine` seam and `MachineFS` (S8-P3.6), trailers, `Locks`, a real-git test helper | 01 | 2 h |
+| 03 | `lanes`: the lane index, clone create through `FSOf` with `Seal` (S8-P3.6), identity copy, the composite catalog; the `briefref` interfaces | 02 | 3.5 h |
 | 04 | Create-worktree route, `kind` on the Go wire, config and wiring | 03, G1, G5 | 2 h |
 | 05 | Git in the sandbox for clones: every session in a lane (R4.1), `core.hooksPath`, `PANACEA_APP_SESSION_ID`, the hook dispatcher | 02, G1, G5; 04 for its lane tests and Docker step (the order below runs it after 04 anyway) | 3 h |
 | 06 | The linked-worktree notice deleted (R4.1): `kind` in `types.ts`, the shared-index note (3-D2) | 04, 05, G1 | 2 h |
-| 24 | sandboxd git runner: the /git/v1/ RPC on the attach token, status/refs/bundle/fetch/diff, bundle verify and limits, the host client and runner pool with `Drop`, `Live` and the `Dial` test seam (R4; review r4-1); the ref repair, `lane_broken` and the shared Validation goldens (review r4-3); the host's reached-ref split, fetch Sets, `prerequisite_missing` and the unreadable-file repair (review r4-4) | 02, 04 | 6 h |
+| 24 | sandboxd git runner: the /git/v1/ RPC on the attach token, status/refs/bundle/fetch/diff, bundle verify and limits, the host client and runner pool with `Drop`, `Live` and the `Dial` test seam (R4; review r4-1); the ref repair, `lane_broken` and the shared Validation goldens (review r4-3); the host's reached-ref split, fetch Sets, `prerequisite_missing` and the unreadable-file repair (review r4-4); phase 8's `Bundles` (S8-P3.4) and per-machine pool (S8-P3.5) | 02, 03, 04 | 7 h |
 | 07 | Lane sync and observed claims; the sweep's tip-change clone refresh (review I4) | 04, 24 | 3.5 h |
 | 08 | The chained forecast, queue order, remote reading, and the convergence GET | 07 (24 through 07) | 3 h |
 | 09 | Land, with the merge link and the clones' origin and upstream refresh; bring in origin/<branch> (review I5); the refresh route (review I4), a bundle into each lane's runner (R4.5) | 08, 24 | 5 h |
