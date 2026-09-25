@@ -426,6 +426,54 @@ type Result struct {
 func LoadScenarios(dir string) ([]Scenario, error)            // strict; sorted by name
 func ScoreLog(sc Scenario, log []VerbRecord) Score            // pure; the whole scorer
 func Run(ctx context.Context, sc Scenario, d Driver) (Result, error)
+
+// World is the in-process Fleet a run drives. Run uses Ada's Orchestrator
+// only; task 42's pair run drives both in one World. Its fields are
+// unexported: a caller reaches Fleet only through Enqueue, Step and Facts.
+type World struct{ /* store, hub fake, queue, scheduler, dispatcher, fakes */ }
+
+// Clock selects the world's clock: Fake for CI (Step advances it past the
+// coalescing window), Real for live runs, where hop time is measured.
+type Clock int
+
+const (
+	Fake Clock = iota
+	Real
+)
+
+func NewWorld(name string, clock Clock) (*World, error)                      // "pair" | "pair-held"
+func (w *World) Orchestrator(user string) model.AgentID                      // "ada" | "linus"
+func (w *World) Enqueue(ctx context.Context, orch model.AgentID, e EventSpec) error
+func (w *World) Step(ctx context.Context, orch model.AgentID, d Driver) (turn int, err error)
+func (w *World) Log(orch model.AgentID) []VerbRecord
+
+// Facts is Fleet's typed state after a run, read from the store and the Hub
+// fake, never from a driver: every dv-… with its kind, origin, globs and
+// target, every es-…, every PTY write task 38's writer made, and each
+// worker's last team and check answers.
+func (w *World) Facts(ctx context.Context) (Facts, error)
+```
+
+`Run` is `NewWorld`, then one `Enqueue`/`Step` pair per `TurnSpec` on Ada's Orchestrator, then
+`ScoreLog(sc, w.Log(ada))`. `Facts`, complete (`world.go`):
+
+```go
+type Facts struct {
+	Directives []FactDirective // every dv-… the Hub fake holds, both owners
+	Held       []string        // every es-… a gated act became (task 31's held_actions)
+	PTYWrites  [][]byte        // the exact bytes task 38's writer sent, via its test dialer
+	WorkerSees map[model.AgentID][]byte // each worker's last team and check results, raw
+}
+
+type FactDirective struct {
+	ID       string           // dv-…
+	Kind     string           // task 31's wire.Directive.Kind
+	Origin   model.TurnOrigin // the turn's origin, as task 31 stamped it
+	Approval string           // es-… when Release passed it after a decide; "" otherwise
+	Worker   model.AgentID
+	Globs    []string
+	Scope    []string // the worker's task scope at issue time, from the store
+}
 ```
 
 #### How `Run` works
