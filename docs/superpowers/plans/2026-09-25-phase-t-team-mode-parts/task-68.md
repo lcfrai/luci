@@ -272,3 +272,319 @@ and `tx.Now` are this part's names for Hub task 14's store helpers and pgx's cal
 until merge**; `hub.projects` is the Hub's project table. The ownership check is not here: the
 handler has already run `OwnedAgent` (rule 5) before the store call, as task 06's handlers do.
 
+#### `store/releases.go`, the attribution step (Hub task 23's `Reserve`, after its pin step)
+
+```go
+// attribute fixes a release's attribution inside the reservation's
+// transaction (decision c). src is the source release the pin step already
+// resolved for a rollback or a run with sourceDeploymentId; nil otherwise.
+func attribute(ctx context.Context, tx *Tx, projectID string, req hubapi.ReserveRequest,
+	team bool, src *releaseRow) (hubapi.Attribution, *int, []string, error) {
+	none := func(r hubapi.AttributionReason) (hubapi.Attribution, *int, []string, error) {
+		return hubapi.Attribution{Status: hubapi.AttributionNone, Reason: r, Lands: []hubapi.AttributedLand{}}, nil, nil, nil
+	}
+	switch {
+	case !team:
+		return none(hubapi.AttrSoloProject)
+	case req.SourceDeploymentID != nil && src == nil:
+		return none(hubapi.AttrSourceUnknown)
+	case req.SourceDeploymentID != nil: // rollback, or a re-run: copy the source's, as the pin is copied
+		a, ids, err := attributionOf(ctx, tx, src.ID)
+		if err != nil {
+			return hubapi.Attribution{}, nil, nil, err
+		}
+		a.Status, a.Reason = hubapi.AttributionInherited, hubapi.AttrInherited
+		return a, src.LastSequence, ids, nil
+	case req.Commit == nil || req.BranchRef == nil:
+		return none(hubapi.AttrCommitNotLanded)
+	}
+	branch := *req.BranchRef
+	head, ok, err := landByCommit(ctx, tx, projectID, branch, *req.Commit)
+	if err != nil {
+		return hubapi.Attribution{}, nil, nil, err
+	}
+	if !ok {
+		return none(hubapi.AttrCommitNotLanded)
+	}
+	from := 0 // the previous confirmed release's last land, for this app and environment
+	if prev, ok, err := lastAttributed(ctx, tx, projectID, req.PanaceaProject, req.Environment, branch); err != nil {
+		return hubapi.Attribution{}, nil, nil, err
+	} else if ok && prev < head.Sequence {
+		from = prev
+	}
+	lands, more, err := landsBetween(ctx, tx, projectID, branch, from, head.Sequence, hubapi.MaxAttributedLands)
+	if err != nil {
+		return hubapi.Attribution{}, nil, nil, err
+	}
+	ids := make([]string, len(lands))
+	for i, l := range lands {
+		ids[i] = l.LandID
+	}
+	last := head.Sequence
+	return hubapi.Attribution{Status: hubapi.AttributionListed, Reason: hubapi.AttrTeamLands,
+		Lands: lands, More: more}, &last, ids, nil
+}
+```
+
+`Reserve` writes the three columns and `hub.release_lands` (one row per id, `position` from 1)
+in the same transaction as the pin. `landsBetween` answers the lands with `from < sequence ≤ to`,
+the **latest** `limit` of them in ascending order, and `more` when earlier ones exist; each land's
+`Owner` is joined from the Hub's users as `reservedBy` is. `lastAttributed` answers the
+`attribution_last_sequence` of the latest `confirmed` release of the project with the same
+`panaceaProject`, `branchRef` and requested `environment` (both null counts as the same). When
+that boundary is at or past this head (an older commit shipped after a newer one), `from` stays 0
+and the release lists the latest 200 lands up to its head, with `more`: re-shipping older work
+names everyone in it rather than nobody. Only a `confirmed` release moves the boundary: an
+abandoned or expired reservation attributed nothing that shipped. `hubapi.ReserveRequest` is the
+built type (`hubapi/types.go:428-444` on `feat/hub`, `BranchRef` and `Environment` both
+`*string`); `releaseRow`, `LastSequence` and the store helpers are Hub task 23's names as assumed
+here.
+
+#### `server/lands.go` (complete)
+
+```go
+package server
+
+import (
+	"net/http"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubapi"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/store"
+)
+
+func (s *Server) registerLands() {
+	s.mux.HandleFunc("POST /v1/projects/{p}/lands", s.recordLand) // 82
+	s.mux.HandleFunc("GET /v1/projects/{p}/lands", s.listLands)   // 83
+}
+
+// recordLand: Fleet·O only, the lane owner's delegation, task 06's order:
+// caller class, then the project, then the body, then ownership.
+func (s *Server) recordLand(w http.ResponseWriter, r *http.Request) {
+	projectID := r.PathValue("p")
+	s.Write(w, r, func(tx *Tx, body []byte) (WriteResult, error) {
+		if err := RequireFleet(tx.P, projectID); err != nil {
+			return WriteResult{}, err
+		}
+		if _, _, ok, err := ProjectRole(r.Context(), tx, projectID); err != nil {
+			return WriteResult{}, err
+		} else if !ok {
+			return WriteResult{}, Refuse(404, hubapi.CodeProjectNotFound, "No such project.", nil)
+		}
+		var req hubapi.RecordLandRequest
+		if err := Decode(body, &req); err != nil { // strict: an owner or actor field is 400
+			return WriteResult{}, err
+		}
+		if field := validateLand(req); field != "" {
+			return WriteResult{}, Refuse(422, hubapi.CodeBadRequest, "A land field is invalid.", map[string]any{"field": field})
+		}
+		if err := OwnedAgent(r.Context(), tx, req.AgentID); err != nil { // 403 agent_not_owner
+			return WriteResult{}, err
+		}
+		if !store.IsWorker(r.Context(), tx, projectID, req.AgentID) {
+			return WriteResult{}, Refuse(422, hubapi.CodeBadRequest, "A lane is a worker's.", map[string]any{"field": "agentId"})
+		}
+		l, err := store.RecordLand(r.Context(), tx, projectID, tx.P.UserID, req)
+		if err != nil {
+			return WriteResult{}, err
+		}
+		tx.Emit(Event{Kind: "land.recorded", ProjectID: projectID, Subject: l.ID, Data: map[string]any{
+			"agentId": l.AgentID, "branchRef": l.BranchRef, "mergeCommit": l.MergeCommit, "sequence": l.Sequence}})
+		return WriteResult{Status: 201, Body: l}, nil
+	})
+}
+
+// validateLand names the first bad field: id (ld-, ValidID), agentId (ag-),
+// branchRef (ValidBranchRef, refs/heads/ only), mergeCommit and laneTip
+// (ValidSha), and laneTip == mergeCommit (a land is a merge, never a no-op).
+func validateLand(req hubapi.RecordLandRequest) string {
+	switch {
+	case !hubapi.ValidIDWithPrefix(req.ID, hubapi.PrefixLand):
+		return "id"
+	case !hubapi.ValidIDWithPrefix(req.AgentID, hubapi.PrefixAgent):
+		return "agentId"
+	case !hubapi.ValidBranchRef(req.BranchRef):
+		return "branchRef"
+	case !hubapi.ValidSha(req.MergeCommit):
+		return "mergeCommit"
+	case !hubapi.ValidSha(req.LaneTip) || req.LaneTip == req.MergeCommit:
+		return "laneTip"
+	}
+	return ""
+}
+
+// listLands: V (desk) or Fleet·O; ?branchRef= required, ?after=<sequence>,
+// 100 a page in sequence order, next = the last sequence when more remain.
+func (s *Server) listLands(w http.ResponseWriter, r *http.Request) {
+	projectID := r.PathValue("p")
+	s.Read(w, r, func(tx *Tx) (any, error) {
+		if _, _, ok, err := ProjectRole(r.Context(), tx, projectID); err != nil || !ok {
+			return nil, orNotFound(err)
+		}
+		branch, after, err := landsQuery(r.URL.Query()) // 422 field "branchRef" / "after"
+		if err != nil {
+			return nil, err
+		}
+		return store.LandsPage(r.Context(), tx, projectID, branch, after, 100) // hubapi.Page[hubapi.Land]
+	})
+}
+```
+
+`ValidIDWithPrefix` is task 03's `ValidID` with its prefix argument, as its name is at merge;
+`orNotFound`, `landsQuery` and `store.IsWorker` (the agent record's `role == worker`) are this
+part's names. A `land.recorded` event carries ids and shas only, no free text, as every team event
+does (contract §3.6's metadata-only rule).
+
+#### `fleet/landq/record.go` (complete; task 61's package)
+
+```go
+package landq
+
+import (
+	"context"
+	"errors"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubapi"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/ids"
+)
+
+// ErrTrailerOwner: the pushed merge names another principal in its
+// Panacea-Owner trailer than the entry's owner. Nothing is recorded.
+var ErrTrailerOwner = errors.New("landq: the merge's Panacea-Owner trailer is not the lane owner")
+
+// Outbox is task 11's durable path: the write reaches the Hub exactly once,
+// under the named owner's delegation, retried with the same id.
+type Outbox interface {
+	Enqueue(ctx context.Context, owner, route string, projectID string, body any) error
+}
+
+// Recorded is called once per entry, after the push is verified in the
+// mirror (task 61 decision d) and before members are told of the new head.
+func (q *Queue) Recorded(ctx context.Context, e Entry, trailerOwner string) error {
+	if trailerOwner != e.Owner {
+		return ErrTrailerOwner
+	}
+	if e.LandID == "" {
+		e.LandID = ids.Wide(hubapi.PrefixLand) // minted once, stored on the entry, reused on retry
+		if err := q.store.SetLandID(ctx, e.ID, e.LandID); err != nil {
+			return err
+		}
+	}
+	return q.outbox.Enqueue(ctx, e.Owner, string(hubapi.RouteLandsRecord), e.ProjectID, hubapi.RecordLandRequest{
+		ID: e.LandID, AgentID: e.AgentID, BranchRef: e.BranchRef,
+		MergeCommit: e.MergeCommit, LaneTip: e.LaneTip})
+}
+```
+
+`Entry`, `Queue`, `q.store` and `q.outbox` are task 61's (`task-61.md`; its part is being written,
+so these names are **UNVERIFIED** against it); `Entry` gains `LandID` and the trailer's principal
+comes from the mirror's typed result for the merge (task 59, ST.7, one added field
+`ownerTrailer`). `ids.Wide` is the Hub branch's addition to phase 2's `control-plane/internal/ids`
+(`ids.go:61` on `feat/hub`, checked; absent on `feat/team-mode` until the sync-merge). A trailer mismatch is logged with the entry id and both principals, the land still
+counts as pushed (the push was the owner's own act), and the release it goes into will say
+`commit_not_landed`, which is the honest answer when the record and the commit disagree.
+
+#### The contract text
+
+**§5.3, two rows after task 66's row 81:**
+
+```text
+| 82 | POST | `/v1/projects/{projectId}/lands` | Fleet·O, the lane owner's delegation | `lands.record` | T68 | §7.28 |
+| 83 | GET | `/v1/projects/{projectId}/lands?branchRef=&after=` | V (desk), or Fleet·O | `lands.read` | T68 | §7.28 |
+```
+
+**§7.9**, the `Release` shape gains, after `designKey`:
+`"attribution": { "status": "listed" | "inherited" | "none", "reason": "team_lands" | "inherited" |
+"solo_project" | "commit_not_landed" | "source_unknown", "lands": [AttributedLand], "more": false }`,
+and the pin table gains one sentence: *"The attribution is taken in the same transaction as the
+pin, by §7.28's rule, and never changes."*
+
+**§7.28 Lands and release attribution.** *A land is written by Fleet under the lane owner's
+delegation after the owner's push is verified. The owner is the delegation's; the task and the
+brief section are the Hub's, read from the agent record and its task. `sequence` numbers the
+lands of one `(project, branchRef)` from 1 with no gaps. A `run` release whose `commit` is a land's
+`mergeCommit` on its `branchRef` lists the lands after the previous confirmed release of the same
+Panacea project, environment and branch, up to that land, at most 200, latest first kept; any other
+run is `none` / `commit_not_landed`; a rollback or a run with `sourceDeploymentId` inherits its
+source's. An `AttributedLand` carries no title and no free text.*
+
+#### The tests, first (each names the mutant it kills)
+
+Integration tests against Hub task 16's test server and a real Postgres, with task 08's fake
+Fleet delegation helper; one land-queue test on task 61's fakes.
+
+| Test | Asserts | Mutant killed |
+|---|---|---|
+| `TestReleaseListsTwoPeoplesLanes` | Alice's worker (task `tk-a`, brief ref `…#auth`) and Bob's (task `tk-b`, `…#billing`) land in turn; a run release at Bob's merge commit: `listed`, two lands in sequence order, owners Alice and Bob, each with its own `taskId` and `briefRef` | the scope's test; one person per release, or the reserver credited for everyone |
+| `TestSecondReleaseListsOnlyNewLands` | release 1 at land 2 confirmed; lands 3, 4; release 2 at land 4: lands 3 and 4 only | every release listing all of history |
+| `TestAbandonedReleaseMovesNoBoundary` | release 1 at land 2 abandoned; release 2 at land 3: lands 1–3 | an abandoned reservation hiding lands from the next release |
+| `TestOtherEnvironmentHasItsOwnBoundary` | staging confirmed at land 3; production at land 3: lands 1–3 | "new since the last release anywhere" |
+| `TestCommitNotLandedSaysSo` | a run whose commit no land produced: `none` / `commit_not_landed`, `lands: []` | a guessed attribution by nearest land |
+| `TestAttributionFixedAtReserve` | reserve at land 2; land 3 recorded; confirm; `GET` the release: still lands 1–2 | attribution read at GET time (P2 broken for people) |
+| `TestRollbackInherits` | a rollback to release 1's deployment: `inherited`, release 1's lands; unknown source: `none` / `source_unknown` | a rollback re-deriving from the branch head |
+| `TestSoloReleaseIsNone` | a solo project's release: `none` / `solo_project`, the field present | a missing field a reader must special-case |
+| `TestLandOwnerIsTheDelegations` | a body with `ownerUserId`: 400 `bad_request`; Fleet under Alice's delegation naming Bob's `ag-…`: 403 `agent_not_owner`; a desk token: 403 `required` `fleet` | an owner from the body; a land in a teammate's name |
+| `TestLandTaskAndSectionAreDerived` | the land body has no task field; the stored land's `taskId` and `briefRef` equal the agent's task's | a caller choosing the brief section its lane "served" |
+| `TestLandSequenceGapFreeUnderRace` | two concurrent lands on one branch: sequences 1 and 2, never 1 and 1; a replay of land 1's id and body: 201 with the stored land, no third row | a lost row lock; a retry that double-counts |
+| `TestLandRefusesOrchestratorAndNoOp` | an Orchestrator's `ag-…`: 422 `agentId`; `laneTip == mergeCommit`: 422 `laneTip` | a coordination agent credited with a lane |
+| `TestAttributedLandHasNoTitle` | reflection over `AttributedLand` and the JSON of a listed release: no `title`, no `why`, no `teamtext.Text` | Fleet·O-only text leaking into a release every viewer reads |
+| `TestAttributionCapsAt200` | 205 lands, one release at the last: 200 lands (6 to 205), `more: true`; route 83 pages the rest | an unbounded release body |
+| `TestTrailerMismatchRecordsNothing` (`landq`) | the mirror reports trailer principal Bob for Alice's entry: `ErrTrailerOwner`, no `Enqueue` | a land recorded against a commit that names someone else |
+
+#### Steps
+
+1. **After the Hub sync-merge, and after Hub tasks 23 and 24 are merged there.** Write the
+   integration tests; run them; each fails (routes 82–83 answer 404; `Release` has no
+   `attribution`).
+2. Write `hubapi/lands.go` and the `types.go` field; update Hub task 23's golden `Release`
+   fixtures with the solo value; `go test ./internal/hub/hubapi/` green.
+3. Write the migration, `store/lands.go` and the attribution step in `store/releases.go`; then
+   `server/lands.go` and `registerLands()` beside task 06's registrations; add rows 82–83 to the
+   matrix test.
+4. Add `RecordLand` and `Lands` to `hubclient` and its fake (task 08's pattern); add `lands.record`
+   and `lands.read` to the delegation task 21 creates for a worker-owning session.
+5. Write `landq/record.go` and its test; call `Recorded` from task 61's verified-push step.
+6. Amend the contract (§5.3 rows 82–83, §7.9, §7.28) word for word as above. Commit.
+
+#### Acceptance
+
+```bash
+cd control-plane
+go test ./internal/hub/server/ -run 'Release|Land|Attribut|Solo|Rollback|Commit|Environment|Abandoned' -count=1 -v 2>&1 | grep -c '^--- PASS'
+# expect at least 14 (this task's 14 Hub tests, plus Hub task 23-24's that match)
+go test ./internal/fleet/landq/ -run TrailerMismatch -count=1   # expect ok
+go test ./... && go vet ./...                                   # expect ok; vet prints nothing
+grep -n '"title"\|Why' internal/hub/hubapi/lands.go             # expect no output
+```
+
+The live proof, a real release on the cluster naming two people, is task 69 item 3's last
+observation; it needs phase 7's Ship call, which has no plan yet, so task 69 reserves the release
+with a direct Hub call and says so.
+
+#### What this task does NOT claim
+
+- **Anything on phase 7's side.** How the Deploy lens shows the list, and whether Panacea stores it,
+  are phase 7's to plan; this part fixes only what the Hub answers.
+- **That a release's contents are known when the queue was bypassed.** A push outside the queue,
+  or a commit made on top of a land, yields `commit_not_landed`. The Hub has no git and does not
+  walk history.
+- **Per-commit authorship inside a lane.** A lane is one owner's worktree; its commits are
+  attributed to that owner as a whole, by principal, never by git author (`04` §7.3).
+- **That the brief section is still current.** `briefRef` is the section the task named when it
+  was created; if the brief was revised since, the reader resolves the revision through the pin's
+  brief key, as the Deploy lens does for a solo release.
+
+#### Gaps, raised here and not resolved alone
+
+1. **Task 61 expects this task to read the `Panacea-Owner` trailer** (`task-61.md:45-47`). The Hub
+   cannot read git, so this task reads a land record instead and uses the trailer only as Fleet's
+   pre-write check. Task 59's typed result (ST.7) must carry the merge's trailer principal
+   (`ownerTrailer`), which it does not list today.
+2. **Task 21's delegation route list** must include `lands.record` and `lands.read`; task 21's
+   part is written without them.
+3. **The skeleton's file map** has no row for `hubapi/lands.go`, `server/lands.go`,
+   `landq/record.go` or routes 82–83; its delta row for task 68 (`:262`) names only "per-lane
+   attribution on a team release".
+4. **The release's environment.** `Release.Environment` can be null until a join names it
+   (HA7-1); the boundary rule treats two null environments as one. If phase 7 decides otherwise,
+   `lastAttributed` changes and `TestOtherEnvironmentHasItsOwnBoundary` with it.
+
