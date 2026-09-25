@@ -502,7 +502,7 @@ func (s *Service) Inheritable(ctx context.Context, t Target) (Inheritable, error
      A key whose pieces are all cached stays `resolved`, whatever the Hub is doing;
    - every other brief key is `unavailable` when the Hub call that would answer it fails for any
      reason (`*hubclient.Error` of any status, `hubclient.ErrUnavailable`, a transport error or
-     the route's deadline), when it returns `entraauth.ErrSignedOut`, and when `Config.Hub` is nil
+     the route's deadline), when it returns `signin.ErrSignedOut`, and when `Config.Hub` is nil
      (rule 6). That covers each split case the same way: the first call succeeds and the second
      (the pinned project revisions) fails; or the branch revision is cached while its pin has
      expired or been evicted (the entries have their own TTLs and the 4096 cap, so the window is
@@ -529,7 +529,7 @@ func (s *Service) Inheritable(ctx context.Context, t Target) (Inheritable, error
 
    Every **other** method (`Binding`, `Bind`, `View`, `History`, `HeadRef`, `Inheritable`) returns
    each Hub error **unchanged** (`*hubclient.Error`, `hubclient.ErrUnavailable`,
-   `entraauth.ErrSignedOut`): the relay is task 11's.
+   `signin.ErrSignedOut`): the relay is task 11's.
 6. A nil `Config.Hub` makes `Binding` answer `hub_off`, `View` answer a view with that binding and
    no brief, `Resolve` answer `unavailable` for every brief key (rule 5; **not** `missing`),
    `Inheritable` answer none, and `HeadRef` answer a `none` Ref with **no error** — the same
