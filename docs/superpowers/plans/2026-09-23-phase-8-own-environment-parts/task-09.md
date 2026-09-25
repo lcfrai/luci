@@ -190,8 +190,13 @@ Why the settings that are not obvious (ruling §4, §6, §9; Panacea's pattern f
   a stable person and repairs a user created before the mapper existed.
 - **The desktop's browser flow is one Identity Provider Redirector to `entra`** (ruling K1 `:500-505`,
   review-1 I1): no Cookie step and no username/password form, so every interactive sign-in goes through
-  Entra and its conditional access, M1/M2 run each time, and `kc_idp_hint` decides nothing. Refresh and
-  offline grants run no browser flow, so silent launches are unaffected.
+  Entra and its conditional access, M1/M2 run each time. Refresh and offline grants run no browser flow,
+  so silent launches are unaffected.
+- **`entra` is the realm's only IdP** (ruling K1's invariant, review-2 I1): the redirector reads a
+  client-supplied `kc_idp_hint` before `defaultProvider`, so the hint can only name `entra`, and an empty
+  or unknown hint fails closed (UNVERIFIED; task 31 runs ruling §10 check 2). A second IdP, such as a
+  customer BYO-Entra one, is an OD-30 ruling change first, never a realm-file edit: a hint could pick
+  it, and a user auto-linked through it by email would carry the person's FORCE-written `entra_oid`.
 - **`email` is admin-edit and its IdP mapper `FORCE`** (ruling K3, K4, review-1 I3): the Hub binds
   invites by `email` when `email_verified` is true, so a user must not be able to rewrite it.
 - **`unmanagedAttributePolicy` is `ADMIN_VIEW`, never `ENABLED`** (ruling K4, review-1 M2): an
@@ -206,7 +211,7 @@ Why the settings that are not obvious (ruling §4, §6, §9; Panacea's pattern f
   `IMPORT_MANAGED_CLIENT_SCOPE=no-delete`, so a full-managed import cannot remove them (the default's
   behaviour for built-ins is **UNVERIFIED**).
 - **The gateway client gets only `panacea-app-hub`**, per ruling §6's table (the Hub is its only
-  acceptor); the ruling's "A1-A2 on it" is read as Fleet's pair.
+  acceptor), as ruling §6 now says: Fleet A1-A2, the gateway A1 only.
 
 #### Tests to write first (`control-plane/internal/realmfile/realm_test.go`)
 
@@ -217,7 +222,7 @@ The test reads `../../../deploy/keycloak/realm/panacea-app.json` with `encoding/
 |---|---|---|
 | `TestTheRealmFileParses` | valid JSON; `realm == "panacea-app"`, `sslRequired == "all"`, registration, password reset and email login off | a file the Job refuses at deploy; a self-registration page |
 | `TestDesktopIsAPublicPKCEClientOnLoopback` | public, no `secret`; `S256`; `redirectUris == ["http://127.0.0.1/callback"]` exactly; implicit, direct grants, service accounts and device grant off; no consent; `webOrigins` empty; `access.token.lifespan` `"600"` | a secret on a laptop; a `localhost` redirect (facts §8); a `/*` path (review-1 M3); a password grant; 30 minutes of revocation latency (M4) |
-| `TestEveryBrowserSignInGoesToEntra` | the desktop's `authenticationFlowBindingOverrides.browser` names `panacea-app desktop browser`; that flow is top-level with exactly one execution, `identity-provider-redirector`, `REQUIRED`, whose config has `defaultProvider` `entra`; no `auth-cookie`, `auth-username-password-form` or OTP execution in it | a realm password form or SSO cookie that mints a token without Entra (review-1 I1) |
+| `TestEveryBrowserSignInGoesToEntra` | the desktop's `authenticationFlowBindingOverrides.browser` names `panacea-app desktop browser`; that flow is top-level with exactly one execution, `identity-provider-redirector`, `REQUIRED`, whose config has `defaultProvider` `entra`; no `auth-cookie`, `auth-username-password-form` or OTP execution in it; `identityProviders` has **exactly one** entry, alias `entra`, `enabled` true | a realm password form or SSO cookie that mints a token without Entra (review-1 I1); a second IdP that a client's `kc_idp_hint` could pick (review-2 I1) |
 | `TestDesktopScopesAreExactlyTheRulings` | optional scopes `offline_access` + the four audience scopes, and nothing else; no `groups` anywhere | groups in every token; no `offline_access`, so the silent refresh dies overnight (ruling §2) |
 | `TestEachAudienceScopeNamesItself` | four scopes, each with one `oidc-audience-mapper` whose `included.custom.audience` is the scope's own name, access token only, `include.in.token.scope` true | a broker token that the Hub also accepts (the confused deputy) |
 | `TestPersonClaimsCarryTheEntraIds` | desktop mappers: `entra_oid` → `oid`, `entra_tid` → `tid` (access + id token), realm roles → `roles` (multivalued, access only) | a person keyed on Keycloak's `sub` |
@@ -255,5 +260,12 @@ go vet ./control-plane/internal/realmfile/
   sits in `userProfile` as written (UNVERIFIED): task 31's run against the cluster settles all three.
 - That the account console refuses a user's own edit of `entra_oid` or `email` at runtime: ruling
   §10's check 3, run against our realm when task 31 applies this file. This test pins the permissions only.
+- That a **first-time user** is still created with no click, and gets `email`, `email_verified`,
+  `entra_oid` and `entra_tid`, while `username`, `email`, `firstName` and `lastName` are admin-edit only
+  (ruling U-16, review-2 I2: `idp-create-user-if-unique` writes through the user profile in a user
+  context; UNVERIFIED). Task 31 runs ruling §10 check 4 against our realm: a user absent from it signs
+  in and the token is read. If it fails, the owner picks the fallback; nothing is loosened here first.
+- That an empty or unknown `kc_idp_hint` fails closed at runtime: ruling §10 check 2, run by task 31.
+  The test pins one IdP only.
 - That IT has added the redirect URI and the second secret, or that the owner has stored the secrets:
   both are owner-run (above) and task 31 checks them.
