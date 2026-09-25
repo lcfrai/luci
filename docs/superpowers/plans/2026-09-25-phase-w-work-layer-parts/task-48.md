@@ -314,3 +314,190 @@ second; the second closes the whole add. `useHeartbeat` is the one clock (`heart
 1 Hz tick shared by the window): no component in this part starts a timer, so a *waiting* figure
 changes only on the beat.
 
+#### Interfaces — complete: `desktop/src/components/issue/IssueAgentLine.tsx`
+
+```tsx
+// The line's source is the control plane's sessions with an issueRef (task 19) and task 40's
+// AgentLine, which reads status and lane facts. Nothing here imports the terminal, the attach
+// registry (src/api/attachRegistry.ts) or any transcript (OD-8); a test holds that by source.
+import type { JSX } from "react";
+import type { IssueHead, User } from "../../api/work";
+import { useCockpit } from "../../store/store";
+import type { Session } from "../../store/types";
+import { AgentLine } from "../work/AgentLine";
+
+function openSession(s: Session): void {
+  const st = useCockpit.getState();
+  st.selectWorktree(s.worktreeId);                   // uiSlice.ts:58
+  st.focusSession(s.id);                             // uiSlice.ts:60
+  st.setLens("develop");                             // uiSlice.ts:61
+}
+
+export function IssueAgentLine(props: { head: IssueHead; me: User }): JSX.Element | null {
+  const { head, me } = props;
+  const all = useCockpit((s) => s.sessions);
+  // Numbered over every session this reader ran on the issue, exited ones included, so an agent
+  // keeps its number when an earlier one exits (the rule of task 47's agentsWhoRead).
+  const mine = Object.values(all)
+    .filter((s) => s.issueRef.startsWith(`issue:${head.id}@`))
+    .sort((x, y) => x.createdAt.localeCompare(y.createdAt));
+  const first = (me.displayName.split(" ")[0] ?? me.displayName).toLowerCase();
+  const live = mine.map((s, n) => ({ s, who: `${first} · agent ${n + 1}` })).filter((x) => x.s.status !== "exited");
+  if (live.length === 0) {
+    const other = head.assignee !== null && head.assignee.id !== me.id
+      && (head.state === "started" || head.state === "in_review");
+    // A teammate's work: the person, no dot, no count (05 §4.4 rule 3). *Touching …* is W3.
+    return other ? <p className="iv-agents-other">{head.assignee!.displayName} is working on this issue</p> : null;
+  }
+  return (
+    <ul className="iv-agents" aria-label="Your agents on this issue">
+      {live.map(({ s, who }) => (
+        <li key={s.id} className="iv-agent">
+          <AgentLine sessionId={s.id} whoLabel={who} />
+          <button type="button" className="iv-link" onClick={() => openSession(s)}>open session</button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+```
+
+`AgentLine(props: { sessionId: string; whoLabel: string })` is task 40's complete prop list
+(`tasks-21-40.md:687`): it draws `who.label` in mono, the meaning in sans from observed facts
+only, one `AgentGlyph`, and coarsens liveness (`live` under 10 s, then `quiet 2m`) on the beat.
+This part adds no liveness of its own. *open session* is a button styled as a link: the desktop
+has no router (`task-36.md:41-43`), so "open" is three store actions, and nothing navigates away.
+
+#### Interfaces — complete: `desktop/src/components/issue/pickers/StatePicker.tsx` (task 46's, as this task leaves it)
+
+```tsx
+import { useEffect, useRef, useState, type JSX } from "react";
+import type { StateMove } from "../../../api/work";
+import { mutate } from "../../../work/replica/ops";
+import { StateGlyph, type IssueState } from "../../glyphs/StateGlyph";
+import { DuplicateOfPicker } from "./DuplicateOfPicker";
+import { Picker } from "./Picker";
+import { stateOptions } from "./stateOptions";
+
+export function handMove(to: IssueState, reason = ""): StateMove {
+  return { to, cause: "hand", reason, landCommit: "", evidence: [], evidenceCommit: "" };
+}
+
+export function StatePicker(props: {
+  issueId: string; state: IssueState; serving: boolean; onClose(): void;
+}): JSX.Element {
+  const { issueId, state, serving, onClose } = props;
+  const [step, setStep] = useState<"list" | "duplicate" | "reason">("list");
+  if (step === "duplicate") return <DuplicateOfPicker issueId={issueId} onClose={onClose} />;
+  if (step === "reason") return <ReasonStep issueId={issueId} onBack={() => setStep("list")} onDone={onClose} />;
+  const items = stateOptions(state, serving).map((o) => ({
+    id: o.state, label: o.label, note: o.note, selected: o.current,
+    lead: <StateGlyph state={o.state} size={14} />,
+    disabled: o.kind === "fact",                 // needs_reason is now enabled: it opens the step
+  }));
+  const onChoose = (id: string) => {
+    const opt = stateOptions(state, serving).find((o) => o.state === id);
+    if (!opt || opt.current) return;
+    if (opt.kind === "pick_duplicate") { setStep("duplicate"); return; }
+    if (opt.kind === "needs_reason") { setStep("reason"); return; }
+    mutate({ kind: "setState", issueId, move: handMove(opt.state) });
+  };
+  return <Picker label="Change state" items={items} onChoose={onChoose}
+    onClose={() => { if (step === "list") onClose(); }} />;
+}
+
+/** Decision 5: one line, trimmed, required. Enter sends; Esc goes back to the list. */
+function ReasonStep(props: { issueId: string; onBack(): void; onDone(): void }): JSX.Element {
+  const { issueId, onBack, onDone } = props;
+  const [text, setText] = useState("");
+  const input = useRef<HTMLInputElement>(null);
+  useEffect(() => input.current?.focus(), []);
+  const reason = text.trim();
+  const send = () => {
+    if (reason === "") return;                   // a reasonless hand-done cannot be sent
+    mutate({ kind: "setState", issueId, move: handMove("done", reason) });
+    onDone();
+  };
+  return (
+    <form className="iv-reason" role="dialog" aria-label="Done, not proven"
+      onSubmit={(e) => { e.preventDefault(); send(); }}>
+      <label className="iv-reason-label" htmlFor={`${issueId}-reason`}>
+        This issue serves criteria and has no evidence of its own. Why is it done?
+      </label>
+      <input id={`${issueId}-reason`} ref={input} className="iv-reason-input" value={text}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Escape") { e.preventDefault(); onBack(); } }} />
+      <button type="submit" disabled={reason === ""}>Mark done, not proven</button>
+    </form>
+  );
+}
+```
+
+The picker closes over `step` in its `onClose` because `Picker` calls `onClose` after every single
+choice; a choice that opens a step must not close the popover. The input's `id` joins the `is-` id,
+never the alias. Nothing in this step changes the glyph by itself: the replica's optimistic write
+(task 56) sets `state: "done"`, and `proof: "not_proven"` arrives with the Hub's head, so until the
+answer the row draws an ordinary done for a moment. That is the Hub deciding the word, as SW.4
+says; a desktop that set `not_proven` itself would be computing the rule (a gap only if the owner
+finds the moment visible: task 56's reconcile is one frame after the answer, **UNVERIFIED**).
+
+#### Interfaces — complete: the edits to `IssueView.tsx` and `IssueHead.tsx`
+
+```tsx
+// IssueView.tsx (task 47's IssueViewBody), three additions and one replacement:
+import { IssueAgentLine } from "./IssueAgentLine";
+import { ProofLine, proofHeadOf } from "./ProofLine";
+import { Relations } from "./Relations";
+//   after <IssueHead … />:
+      <ProofLine head={proofHeadOf(head)} />
+      <IssueAgentLine head={head} me={me} />
+//   in place of {slots.relations ?? null}:
+      {slots.relations ?? <Relations head={head} me={me} />}
+
+// IssueHead.tsx (task 46's), the state button's glyph:
+import { glyphPropsOf } from "./glyphOf";
+          <StateGlyph {...glyphPropsOf(head)} size={16} />
+
+// ProofLine.tsx, beside ProofHead: the three gap fields read as absent until SW.15 has them.
+export function proofHeadOf(head: IssueHead): ProofHead {
+  const h = head as IssueHead & Partial<Pick<ProofHead, "stateMovedBy" | "stateMovedAt" | "proofCitations">>;
+  return {
+    state: h.state, proof: h.proof, landCommit: h.landCommit, stateReason: h.stateReason,
+    stateMovedBy: h.stateMovedBy ?? null, stateMovedAt: h.stateMovedAt ?? null,
+    proofCitations: h.proofCitations ?? [],
+  };
+}
+```
+
+`proofHeadOf` is the one place the three gap fields (decisions 6 and 7) are read; once task 37's
+`IssueHead` carries them, its cast becomes a no-op and the typecheck still passes.
+
+#### Interfaces — complete: appended to `desktop/src/components/issue/issue.css`
+
+```css
+/* Task 48: relations, agents, the proof line, the reason step. */
+.iv-rels, .iv-agents-wrap { display: grid; gap: var(--s-2); padding: var(--s-3) var(--s-4); }
+.iv-rel-list, .iv-agents { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-1); }
+.iv-rel { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); min-block-size: var(--row-h); }
+.iv-rel-word { font-family: var(--sans); color: var(--ink-2); min-inline-size: 9ch; }
+.iv-rel-title { font-family: var(--sans); color: var(--ink); }
+.iv-rel-owner { font-family: var(--sans); color: var(--ink-2); }
+.iv-rel-remove, .iv-rel-add { font: inherit; font-family: var(--sans); }
+.iv-agent { display: flex; align-items: center; gap: var(--s-2); }
+.iv-agents-other { margin: 0 var(--s-4); font-family: var(--sans); color: var(--ink); }
+.iv-proof { margin: 0 var(--s-4); font-family: var(--sans); color: var(--ink); }
+.iv-proof-because, .iv-reason-text { font-family: var(--sans); }
+.iv-reason { display: grid; gap: var(--s-2); padding: var(--s-3); min-inline-size: 320px;
+  border-radius: var(--r-md); background: var(--surface-2); box-shadow: 0 0 0 1px var(--ring), var(--shadow-2); }
+.iv-reason-label { font-family: var(--sans); color: var(--ink); }
+.iv-reason-input { font: inherit; font-family: var(--sans); padding: var(--s-1) var(--s-2);
+  border: 0; border-radius: var(--r-sm); background: var(--page); color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--ring); }
+.iv-reason-input:focus-visible { outline: 2px solid var(--accent-ring); outline-offset: 1px; }
+```
+
+No rule here names `--need`, `--fail` or a status hue: *done, not proven* is a shape (task 28's
+open ring) and a sentence, and the stalled line is a fact in mono, not an alarm. The Desk (task
+63) is where a wait earns amber.
+
+
