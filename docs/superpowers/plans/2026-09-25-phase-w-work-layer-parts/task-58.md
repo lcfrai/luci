@@ -193,3 +193,139 @@ export function hubHit(h: { id: string; alias: string; headRevision: number; tit
   return { issueId: h.id, alias: h.alias, title: h.title ?? "", matched: "title", rev: h.headRevision };
 }
 ```
+
+#### Interfaces — complete: `SearchField`, `OpenByNumber` and the two verbs
+
+```tsx
+// desktop/src/components/work/SearchField.tsx
+export interface SearchFieldProps {
+  replica: Replica;
+  work: Pick<WorkClient, "searchIssues">;
+  /** The view's project, when the view has one; search spans every readable project otherwise. */
+  projectId?: string;
+  onOpen(issueId: string): void;
+  /** Esc, or a click outside. Focus returns to the list row that had it (task 40's roving tab). */
+  onClose(): void;
+}
+/** <div class="wk-search" role="search">
+ *    <input aria-label="Search issues" aria-controls="wk-search-hits" aria-activedescendant=…/>
+ *    <p class="wk-search-from">from the Hub · titles only</p>        (only when from === "hub")
+ *    <ul id="wk-search-hits" role="listbox">
+ *      <li role="option" id="hit-{issueId}" aria-selected>
+ *        <span class="wk-search-alias">EP-142</span> <span>Resume an upload after a drop</span>
+ *        <span class="wk-search-where">in description</span>        (only when matched === "description")
+ *  `↓`/`↑` move the selection BY ID (the id survives a re-rank as the replica changes); `Enter`
+ *  opens the selected hit. No count of hits is shown: a list of fifty is its own evidence. */
+export function SearchField(props: SearchFieldProps): JSX.Element;
+```
+
+```tsx
+// desktop/src/components/work/OpenByNumber.tsx
+export interface OpenByNumberProps {
+  /** The current view's project key, printed as the prompt's fixed prefix: "EP-". */
+  projectKey: string;
+  /** replica.resolveAlias bound to projectKey. */
+  resolve(n: number): string | null;
+  onOpen(issueId: string): void;
+  onClose(): void;
+}
+/** <form class="wk-open"><label><span class="wk-open-key">EP-</span>
+ *    <input inputMode="numeric" aria-label="Issue number" /></label>
+ *    <p class="wk-open-miss">No EP-999 in EP</p></form>              (only after a miss)
+ *  Only digits enter the field (a non-digit is ignored, not an error). Enter on a miss keeps the
+ *  prompt open with the digits selected, so the next number replaces them. */
+export function OpenByNumber(props: OpenByNumberProps): JSX.Element;
+```
+
+```ts
+// desktop/src/work/keys/searchVerbs.ts — both verbs through task 53's one registry.
+import { registerVerb } from "./keymap";
+export function registerSearchVerbs(open: { search(): void; byNumber(): void }): () => void {
+  const offSearch = registerVerb("list.search", open.search);
+  const offNumber = registerVerb("issue.openByNumber", open.byNumber);
+  return () => { offSearch(); offNumber(); };
+}
+```
+
+```css
+/* desktop/src/components/work/work.css ⚑ — appended */
+.wk-search, .wk-open { border-radius: var(--r-panel); background: var(--raised);
+  box-shadow: 0 0 0 1px var(--ring), var(--shadow-2); padding: 6px; }
+.wk-search-alias, .wk-open-key { font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--ink-2); }
+.wk-search-where, .wk-search-from, .wk-open-miss { font-size: var(--t-fact); color: var(--ink-3); }
+.wk-search [aria-selected="true"] { background: var(--inset); }
+```
+
+The token names `--r-panel`, `--raised`, `--ring` and `--shadow-2` are **UNVERIFIED** here against
+`tokens.css`; task 26 owns the names, and the rule's shape (a 1px ring plus a layered shadow, a radius
+from the size scale) is the design system's, whatever the names are.
+
+`WorkLens.tsx` ⚑ (task 40) owns the two open states: it calls `registerSearchVerbs` in an effect,
+renders `SearchField` above the list and `OpenByNumber` in the view header while open, and passes
+`onOpen` through to task 46's issue route. One more file joins the list: `WorkLens.tsx` (modified).
+
+#### Tests to write first, part 1 — `desktop/src/work/replica/search.test.ts` (the index)
+
+```ts
+import { describe, expect, it } from "vitest";
+import { WORK_IDS } from "../../test/workFixtures";
+import { createSearchIndex, fold, type IndexInput } from "./search";
+
+const P = WORK_IDS.project;
+const rec = (over: Partial<IndexInput>): IndexInput => ({ issueId: "is-x", projectId: P, number: 1,
+  title: "", description: "", rev: 1, updatedAt: "2026-09-25T00:00:00Z", ...over });
+function fixture(key = "EP") {
+  const ix = createSearchIndex();
+  ix.put(rec({ issueId: WORK_IDS.ep142, number: 142, title: "Resume an upload after a drop" }));
+  ix.put(rec({ issueId: WORK_IDS.ep150, number: 150, title: "Chunk sizes for large files",
+    description: "so a client can resume mid-file", updatedAt: "2026-09-25T09:00:00Z" }));
+  ix.put(rec({ issueId: WORK_IDS.ep160, number: 160, title: "Résumé upload on the profile page" }));
+  let k = key;
+  return { ix, keyOf: () => k, rekey: (nk: string) => { k = nk; } };
+}
+
+describe("search ranks, folds and formats", () => {
+  it("a title hit ranks above a newer description-only hit", () => {
+    const { ix, keyOf } = fixture();
+    const hits = ix.query("resume", keyOf);
+    expect(hits.map((h) => [h.alias, h.matched])).toEqual([
+      ["EP-160", "title"], ["EP-142", "title"], ["EP-150", "description"]]);
+  }); // kills: unranked results (EP-150 is the newest and would lead by time alone)
+  it("EP-142, ep-142 and 142 all put EP-142 first", () => {
+    const { ix, keyOf } = fixture();
+    for (const q of ["EP-142", "ep-142", "142"]) expect(ix.query(q, keyOf)[0]).toMatchObject({ alias: "EP-142", matched: "alias" });
+  }); // kills: alias as plain text (tokens "ep" and "142" match nothing in any title)
+  it("resumé finds resume, and resume finds Résumé", () => {
+    const { ix, keyOf } = fixture();
+    expect(fold("Résumé")).toBe("resume");
+    expect(ix.query("resumé", keyOf).map((h) => h.alias)).toContain("EP-142");
+    expect(ix.query("resume", keyOf).map((h) => h.alias)).toContain("EP-160");
+  }); // kills: a naive includes() with no folding
+  it("an erased issue's old title finds nothing; its number still resolves", () => {
+    const { ix, keyOf } = fixture();
+    ix.put(rec({ issueId: WORK_IDS.ep142, number: 142, title: "", description: "" }));   // task 57's erase
+    expect(ix.query("upload after", keyOf)).toEqual([]);
+    expect(ix.byNumber(P, 142)).toBe(WORK_IDS.ep142);
+  }); // kills: an index that keeps text after an erase
+  it("after the key changes to UP, UP-142 resolves and EP-142 does not", () => {
+    const { ix, keyOf, rekey } = fixture();
+    rekey("UP");
+    expect(ix.query("UP-142", keyOf)[0]).toMatchObject({ alias: "UP-142", matched: "alias" });
+    expect(ix.query("EP-142", keyOf).filter((h) => h.matched === "alias")).toEqual([]);
+  }); // kills: parsing or storing the alias
+  it("records the palette budget over 10,000 issues (recorded, not asserted)", () => {
+    const ix = createSearchIndex();
+    for (let n = 1; n <= 10_000; n++) ix.put(rec({ issueId: `is-${n}`, number: n, title: `Issue ${n} upload retry`,
+      description: "a resumable chunked upload", updatedAt: `2026-09-${String(1 + (n % 28)).padStart(2, "0")}T00:00:00Z` }));
+    const t0 = performance.now();
+    ix.query("resum up", () => "EP");
+    console.info(`budget.palette search over ${ix.size()} issues: ${(performance.now() - t0).toFixed(1)} ms`);
+    expect(ix.size()).toBe(10_000);
+  }); // records, never fails on time (OD-27)
+});
+```
+
+In the first test, EP-160 leads EP-142 inside the title tier because the fixture gives both the same
+`updatedAt` and the alias breaks the tie (`EP-142` < `EP-160` sorts EP-142 first). **Correct it
+when writing**: with equal times `localeCompare` puts EP-142 first, so the expected order is
+`EP-142, EP-160, EP-150`. The mutant it kills is the same.
