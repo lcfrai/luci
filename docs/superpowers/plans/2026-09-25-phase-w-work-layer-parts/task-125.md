@@ -67,43 +67,54 @@ export type HealthWord = (typeof HEALTH_WORDS)[number];
 /** The feature's state words, reused for an initiative (task 114 fixes them). */
 export type InitiativeState = "planned" | "active" | "paused" | "done" | "cancelled";
 
-/** 05 §3.3's five convergence words for a criterion, from task 10's thread state. */
+/** 05 §3.3's five convergence words for a criterion. Task 114 types CriterionWord.word as a
+ *  string and its comment names task 10's thread-state words; the list is the desktop's known
+ *  set, and an unknown word renders as itself (a gap, below). */
 export const CONVERGENCE_WORDS = ["settled", "open", "contested", "drifting", "uncovered"] as const;
 export type ConvergenceWord = (typeof CONVERGENCE_WORDS)[number];
-export interface CriterionWord { criterionId: string; word: ConvergenceWord }
+export interface CriterionWord { criterionId: string; word: string }
 
 export interface Initiative {
   id: string;            // in-…
   teamId: string;        // the owning team
-  name: string;
-  owner: string;         // u-…, a member of teamId
+  name: string;          // 1-120 characters
+  owner: User;           // task 37's User; a member of teamId
   targetDate: string | null; // YYYY-MM-DD, set by a person
   state: InitiativeState;
+  createdAt: string; createdBy: User; updatedAt: string;
 }
+/** W4's span: teamIds[0] is the owning team. */
 export interface InitiativeTeams { initiativeId: string; teamIds: string[] }
 
-/** One feature row of an initiative's view. latestUpdate is null when none was posted: never a
- *  default word. There is no aggregate field anywhere in the view (L-84). */
-export interface InitiativeFeatureRow {
-  featureId: string; name: string; lead: string | null;
-  latestUpdate: { health: HealthWord; at: string } | null;
+export interface UpdateStamp { health: HealthWord; at: string }
+/** One feature row of an initiative's view (task 114's InitiativeFeature). latestUpdate is null
+ *  when none was posted: never a default word. No aggregate field anywhere (L-84). */
+export interface InitiativeFeature {
+  featureId: string; name: string; lead: User;
+  latestUpdate: UpdateStamp | null;
   criteria: CriterionWord[];
 }
-export interface InitiativeView { initiative: Initiative; features: InitiativeFeatureRow[] }
+/** Only features the caller may read are listed (task 117's rule). */
+export interface InitiativeView { initiative: Initiative; teams: string[]; features: InitiativeFeature[] }
 
-export type UpdateSubjectKind = "feature" | "initiative";
-export interface UpdateSubject { kind: UpdateSubjectKind; id: string }
+export type SubjectKind = "feature" | "initiative";
+export interface SubjectRef { kind: SubjectKind; id: string }
+
+/** Task 119's G1 (`task-119.md:147-170`), additive to task 114: an initiative update pins each
+ *  feature it reports on. [] for a feature update. */
+export interface FeaturePin { featureId: string; pinnedBrief: string }
 
 /** Immutable once posted. body is text·H; pinnedBrief is "brief:bf-…@r"; cites are keys. */
 export interface StatusUpdate {
   id: string;            // nt-…
   kind: "update";
-  subject: UpdateSubject;
+  subject: SubjectRef;
   health: HealthWord;
   body: AuthoredText;    // task 37's {text, author}; empty text when erased
-  pinnedBrief: string;
+  pinnedBrief: string;   // for an initiative, featurePins[0]'s pin (task 119)
+  featurePins: FeaturePin[];
   cites: string[];
-  author: string;        // u-…, always a person (task 119)
+  author: User;          // always a person (task 119)
   at: string;
   erasedAt: string | null;
 }
@@ -111,20 +122,25 @@ export interface StatusUpdate {
 export interface Milestone {
   id: string;            // ml-…
   featureId: string; name: string;
-  date: string;          // YYYY-MM-DD
+  date: string | null;   // YYYY-MM-DD
   criterionIds: string[];
+  createdAt: string; updatedAt: string;
 }
 /** reached is derived by the Hub at read; the desktop never computes or stores it. */
 export interface MilestoneView { milestone: Milestone; criteria: CriterionWord[]; reached: boolean }
 
-/** `from` blocks `blocks`. orderViolated is the Hub's, derived from the two target dates. */
-export interface FeatureDependency { from: string; blocks: string; orderViolated: boolean }
+/** `from` blocks `blocks`. The view adds orderViolated, derived by the Hub at read. */
+export interface FeatureDependency { from: string; blocks: string }
+export interface FeatureDependencyView extends FeatureDependency { orderViolated: boolean }
 
 export interface BriefTemplate {
   id: string;            // tp-…
+  teamId: string | null;
   kind: "brief";
+  name: string;
   criteria: AuthoredText[];
   issueTemplateIds: string[];
+  createdAt: string; updatedAt: string;
 }
 export type ScheduleUnit = "day" | "week" | "month";
 export interface TemplateSchedule {
@@ -132,59 +148,74 @@ export interface TemplateSchedule {
   at: string;            // HH:MM, local to tz
   tz: string;            // IANA, e.g. Australia/Sydney
 }
-export interface ReminderPolicy { subject: UpdateSubject; everyDays: number }
+export interface ReminderPolicy { subject: SubjectRef; everyDays: number }   // 1-90
 export interface TriageRotation { teamId: string; members: string[]; periodDays: number; startsOn: string }
 /** The read adds who is on duty and the policy's next handover date: a date, not a forecast. */
-export interface TriageRotationView { rotation: TriageRotation; onDuty: string | null; nextHandoverOn: string }
+export interface TriageRotationView { rotation: TriageRotation; onDuty: User; handoverOn: string }
 ```
 
 #### Interfaces — complete: `work.ts`, part 10: insights, cursors, grants, request bodies
 
 ```ts
 export type InsightsMeasure = "count" | "cycle_time" | "lead_time" | "triage_time";
+/** Task 114 lists the first five (`task-114.md:270`); task 122's scope adds priority and
+ *  criterion (a gap for 114). */
 export type InsightsGroupBy = "state" | "assignee" | "label" | "feature" | "cycle" | "priority" | "criterion";
 export interface InsightsQuery {
-  teamId: string; projectId?: string;
+  teamId: string; projectId: string | null;
   from: string; to: string;          // RFC 3339; from < to, at most 366 days (task 122)
-  measure: InsightsMeasure; groupBy?: InsightsGroupBy;
+  measure: InsightsMeasure; groupBy: InsightsGroupBy | null;
 }
+export interface InsightGroup { key: string; count: number }
+export interface InsightPoint { issue: string; ms: number }   // is-…, a measured duration
 /** Measured only. The percentiles are null when there is no point, never 0. Held in memory. */
 export interface InsightsResult {
-  groups: { key: string; count: number }[];
-  points: { issue: string; ms: number }[];
+  groups: InsightGroup[]; points: InsightPoint[];
   p50Ms: number | null; p75Ms: number | null; p90Ms: number | null;
 }
 
-export type ReadScopeKind = "project" | "feature" | "issue";
-export interface ReadScope { kind: ReadScopeKind; id: string }
-/** The caller's own cursor; seq is a hubapi.Event.Seq. Held in memory, never on disk. */
-export interface ReadCursor { scope: ReadScope; seq: number }
-/** Task 123's scoped read: at most 200 events on a first look, then truncated is true. */
+export type ScopeKind = "project" | "feature" | "issue";
+export interface ScopeRef { kind: ScopeKind; id: string }
+/** The caller's own cursor; seq is a hubapi.Event.Seq, 0 for never looked. Memory only. */
+export interface ReadCursor { scope: ScopeRef; seq: number }
+export interface MarkSeenRequest { scopes: ScopeRef[]; seq: number }   // 1-200 scopes
+/** Task 123's scoped read: at most 200 events on a first look, then truncated is true
+ *  (task 124's gap 2: not yet in task 114). */
 export interface ScopedChangesPage { events: FeedEvent[]; next: string; more: boolean; truncated: boolean }
-export const scopeParam = (s: ReadScope): string => `${s.kind}:${s.id}`;
+export const scopeParam = (s: ScopeRef): string => `${s.kind}:${s.id}`;
 
 export interface ProjectGrant {
   projectId: string; teamId: string;
   scope: "read_comment";             // the only grant there is (Q12)
-  grantedBy: string; at: string;
+  grantedBy: User; at: string;
 }
 
-export interface CreateInitiativeRequest { name: string; owner: string; targetDate: string | null }
-export interface PatchInitiativeRequest {
-  name?: string; owner?: string; targetDate?: string | null; state?: InitiativeState;
+export interface CreateInitiativeRequest {
+  name: string; ownerId: string; targetDate: string | null; state?: InitiativeState;
 }
-/** health has no default: the composer (task 127) cannot build this without a person's pick. */
-export interface PostUpdateRequest { health: HealthWord; body: AuthoredText; pinnedBrief: string; cites: string[] }
-export interface CreateMilestoneRequest { name: string; date: string; criterionIds: string[] }
-export interface PatchMilestoneRequest { name?: string; date?: string }
+/** Absent leaves a field; targetDate null clears it (task 114's RawMessage idiom). */
+export interface PatchInitiativeRequest {
+  name?: string; ownerId?: string; targetDate?: string | null; state?: InitiativeState;
+}
+export interface SetInitiativeTeamsRequest { teamIds: string[] }   // [0] the owning team
+export interface SetFeatureInitiativeRequest { initiativeId: string | null }
+/** health has no default: the composer (task 127) cannot build this without a person's pick.
+ *  A feature update names pinnedBrief (task 119 would default it; the composer never relies on
+ *  that) and featurePins []; an initiative update names featurePins and no pinnedBrief. */
+export interface PostUpdateRequest {
+  health: HealthWord; body: AuthoredText; pinnedBrief?: string; featurePins: FeaturePin[]; cites: string[];
+}
+export interface CreateMilestoneRequest { name: string; date: string | null; criterionIds: string[] }
+export interface PatchMilestoneRequest { name?: string; date?: string | null }
+export interface SetMilestoneCriteriaRequest { criterionIds: string[] }
+export interface FeatureDependencyRequest { blocks: string }
+export interface CreateBriefTemplateRequest { name: string; criteria: AuthoredText[]; issueTemplateIds: string[] }
+export interface PatchBriefTemplateRequest { name?: string; criteria?: AuthoredText[]; issueTemplateIds?: string[] }
 export interface CreateFeatureFromTemplateRequest { templateId: string; name: string; branchRef: string }
-/** Task 120's one-transaction create: the feature, its brief at revision 1, one issue per template. */
-export interface FeatureFromTemplate { feature: Feature; brief: BriefRevision; issues: IssueWithRevision[] }
 ```
 
 `FeedEvent` is task 55's decoded `hubapi.Event` (task 57's `FeedEventLike` plus `actor` and
-`data`); `Feature` is task 83's; `BriefRevision` is the H-plan's desktop type
-(`desktop/src/api/hub.ts`, **UNVERIFIED until merge**); `AuthoredText`, `IssueWithRevision` and
+`data`); `Feature` is task 83's; `AuthoredText`, `User` and
 `Page` are task 37's.
 
 #### Interfaces — complete: `work.ts`, part 11: the relay table and the `WorkClient` members
@@ -211,7 +242,7 @@ export const WORK_RELAY_W4 = [
   ["PatchMilestone", "PATCH", "/v1/milestones/{milestoneId}"],
   ["SetMilestoneCriteria", "PUT", "/v1/milestones/{milestoneId}/criteria"],
   ["AddFeatureDependency", "POST", "/v1/features/{featureId}/dependencies"],
-  ["FeatureDependencies", "GET", "/v1/features/{featureId}/dependencies"],
+  ["FeatureDependencies", "GET", "/v1/projects/{projectId}/feature-dependencies"],
   ["RemoveFeatureDependency", "DELETE", "/v1/features/{featureId}/dependencies/{blocks}"],
   ["CreateFeatureFromTemplate", "POST", "/v1/projects/{projectId}/features:fromTemplate"],
   ["SetTemplateSchedule", "PUT", "/v1/templates/{templateId}/schedule"],
@@ -225,7 +256,15 @@ export const WORK_RELAY_W4 = [
   ["MarkSeen", "POST", "/v1/me/read-cursors/mark-seen"],
   ["ScopedChanges", "GET", "/v1/changes"],
 ] as const satisfies ReadonlyArray<readonly [string, Verb, `/v1/${string}`]>;
-export type RelayMethodW4 = (typeof WORK_RELAY_W4)[number][0];
+
+/** Task 124's briefTemplateRoutes: task 78's template paths, relayed by W2's rows (task 82), so
+ *  the same loopback path; listed apart so nothing registers or counts them twice. */
+export const WORK_RELAY_W4_SHARED = [
+  ["CreateBriefTemplate", "POST", "/v1/teams/{teamId}/templates"],
+  ["BriefTemplates", "GET", "/v1/teams/{teamId}/templates"],
+  ["PatchBriefTemplate", "PATCH", "/v1/templates/{templateId}"],
+] as const satisfies ReadonlyArray<readonly [string, Verb, `/v1/${string}`]>;
+export type RelayMethodW4 = (typeof WORK_RELAY_W4)[number][0] | (typeof WORK_RELAY_W4_SHARED)[number][0];
 ```
 
 ```ts
@@ -242,37 +281,43 @@ export interface WorkRoadmapClient {
   initiative(initiativeId: string): Promise<InitiativeView>;
   patchInitiative(initiativeId: string, req: PatchInitiativeRequest): Promise<Initiative>;
   setFeatureInitiative(featureId: string, initiativeId: string | null): Promise<Feature>;
-  postUpdate(subject: UpdateSubject, req: PostUpdateRequest): Promise<StatusUpdate>;
-  updates(subject: UpdateSubject, page?: PageRequest): Promise<Page<StatusUpdate>>;
-  createMilestone(featureId: string, req: CreateMilestoneRequest): Promise<Milestone>;
+  postUpdate(subject: SubjectRef, req: PostUpdateRequest): Promise<StatusUpdate>;
+  updates(subject: SubjectRef, page?: PageRequest): Promise<Page<StatusUpdate>>;
+  createMilestone(featureId: string, req: CreateMilestoneRequest): Promise<MilestoneView>;
   milestones(featureId: string): Promise<MilestoneView[]>;
-  patchMilestone(milestoneId: string, req: PatchMilestoneRequest): Promise<Milestone>;
-  setMilestoneCriteria(milestoneId: string, criterionIds: string[]): Promise<Milestone>;
-  addFeatureDependency(featureId: string, blocks: string): Promise<FeatureDependency>;
-  featureDependencies(featureId: string): Promise<FeatureDependency[]>;
+  patchMilestone(milestoneId: string, req: PatchMilestoneRequest): Promise<MilestoneView>;
+  setMilestoneCriteria(milestoneId: string, criterionIds: string[]): Promise<MilestoneView>;
+  addFeatureDependency(featureId: string, blocks: string): Promise<FeatureDependencyView>;
+  /** Every dependency in a project, both directions (task 114's † path). */
+  featureDependencies(projectId: string): Promise<FeatureDependencyView[]>;
   removeFeatureDependency(featureId: string, blocks: string): Promise<void>;
-  createFeatureFromTemplate(projectId: string, req: CreateFeatureFromTemplateRequest): Promise<FeatureFromTemplate>;
+  createBriefTemplate(teamId: string, req: CreateBriefTemplateRequest): Promise<BriefTemplate>;
+  briefTemplates(teamId: string): Promise<BriefTemplate[]>;
+  patchBriefTemplate(templateId: string, req: PatchBriefTemplateRequest): Promise<BriefTemplate>;
+  createFeatureFromTemplate(projectId: string, req: CreateFeatureFromTemplateRequest): Promise<Feature>;
   setTemplateSchedule(templateId: string, s: TemplateSchedule): Promise<TemplateSchedule>;
   clearTemplateSchedule(templateId: string): Promise<void>;
   setReminderPolicy(p: ReminderPolicy): Promise<ReminderPolicy>;
   setTriageRotation(teamId: string, r: TriageRotation): Promise<TriageRotationView>;
   triageRotation(teamId: string): Promise<TriageRotationView>;
-  queryInsights(teamId: string, q: InsightsQuery): Promise<InsightsResult>;
-  readCursor(scope: ReadScope): Promise<ReadCursor>;
-  advanceReadCursor(scope: ReadScope, seq: number): Promise<ReadCursor>;
-  markSeen(scopes: ReadScope[], seq: number): Promise<ReadCursor[]>;
-  scopedChanges(scope: ReadScope, after?: string, limit?: number): Promise<ScopedChangesPage>;
+  /** The team is q.teamId (task 114's signature). */
+  queryInsights(q: InsightsQuery): Promise<InsightsResult>;
+  readCursor(scope: ScopeRef): Promise<ReadCursor>;
+  advanceReadCursor(cursor: ReadCursor): Promise<ReadCursor>;
+  markSeen(req: MarkSeenRequest): Promise<ReadCursor[]>;
+  scopedChanges(scope: ScopeRef, after?: string, limit?: number): Promise<ScopedChangesPage>;
 }
 // task 37's declaration becomes: export interface WorkClient extends WorkRoadmapClient { … }
 ```
 
-`makeWorkClient` (task 37, part 7) gains one helper and the 29 members, each one line over it.
+`makeWorkClient` (task 37, part 7) gains one helper and the 32 members (task 114's 31 methods
+and task 124's `ScopedChanges`), each one line over it.
 `fill` is task 37's segment filler (`encodeURIComponent` per `{…}`); `w4` looks a row up by name
 so a renamed row fails the route test, not a person's click.
 
 ```ts
 // inside makeWorkClient(send), after task 37's members
-  const row = (m: RelayMethodW4) => WORK_RELAY_W4.find((r) => r[0] === m)!;
+  const row = (m: RelayMethodW4) => [...WORK_RELAY_W4, ...WORK_RELAY_W4_SHARED].find((r) => r[0] === m)!;
   /** q is task 37's query() output: "" or "?…". */
   const w4 = (m: RelayMethodW4, args: string[], q = "", body?: unknown) => {
     const [, verb, hub] = row(m);
@@ -280,12 +325,12 @@ so a renamed row fails the route test, not a person's click.
   };
   // task 37's own `items` takes a Page; these routes answer a bare {items}, so a second name.
   const listOf = async <T,>(p: Promise<unknown>) => ((await p) as { items: T[] }).items;
-  const byKind = (s: UpdateSubject, f: RelayMethodW4, i: RelayMethodW4) => (s.kind === "feature" ? f : i);
+  const byKind = (s: SubjectRef, f: RelayMethodW4, i: RelayMethodW4) => (s.kind === "feature" ? f : i);
   const roadmap: WorkRoadmapClient = {
     grantProject: (p, teamId) => w4("GrantProject", [p], "", { teamId }) as Promise<ProjectGrant>,
     projectGrants: (p) => listOf<ProjectGrant>(w4("ProjectGrants", [p])),
     revokeProjectGrant: async (p, t) => void (await w4("RevokeProjectGrant", [p, t])),
-    setInitiativeTeams: (i, teamIds) => w4("SetInitiativeTeams", [i], "", { initiativeId: i, teamIds }) as Promise<InitiativeTeams>,
+    setInitiativeTeams: (i, teamIds) => w4("SetInitiativeTeams", [i], "", { teamIds }) as Promise<InitiativeTeams>,
     createInitiative: (t, req) => w4("CreateInitiative", [t], "", req) as Promise<Initiative>,
     initiatives: (t, page) => w4("Initiatives", [t], pageQ(page)) as Promise<Page<Initiative>>,
     initiative: (i) => w4("Initiative", [i]) as Promise<InitiativeView>,
@@ -293,23 +338,26 @@ so a renamed row fails the route test, not a person's click.
     setFeatureInitiative: (f, initiativeId) => w4("SetFeatureInitiative", [f], "", { initiativeId }) as Promise<Feature>,
     postUpdate: (s, req) => w4(byKind(s, "PostFeatureUpdate", "PostInitiativeUpdate"), [s.id], "", req) as Promise<StatusUpdate>,
     updates: (s, page) => w4(byKind(s, "FeatureUpdates", "InitiativeUpdates"), [s.id], pageQ(page)) as Promise<Page<StatusUpdate>>,
-    createMilestone: (f, req) => w4("CreateMilestone", [f], "", req) as Promise<Milestone>,
+    createMilestone: (f, req) => w4("CreateMilestone", [f], "", req) as Promise<MilestoneView>,
     milestones: (f) => listOf<MilestoneView>(w4("Milestones", [f])),
-    patchMilestone: (m, req) => w4("PatchMilestone", [m], "", req) as Promise<Milestone>,
-    setMilestoneCriteria: (m, criterionIds) => w4("SetMilestoneCriteria", [m], "", { criterionIds }) as Promise<Milestone>,
-    addFeatureDependency: (f, blocks) => w4("AddFeatureDependency", [f], "", { blocks }) as Promise<FeatureDependency>,
-    featureDependencies: (f) => listOf<FeatureDependency>(w4("FeatureDependencies", [f])),
+    patchMilestone: (m, req) => w4("PatchMilestone", [m], "", req) as Promise<MilestoneView>,
+    setMilestoneCriteria: (m, criterionIds) => w4("SetMilestoneCriteria", [m], "", { criterionIds }) as Promise<MilestoneView>,
+    addFeatureDependency: (f, blocks) => w4("AddFeatureDependency", [f], "", { blocks }) as Promise<FeatureDependencyView>,
+    featureDependencies: (p) => listOf<FeatureDependencyView>(w4("FeatureDependencies", [p])),
     removeFeatureDependency: async (f, b) => void (await w4("RemoveFeatureDependency", [f, b])),
-    createFeatureFromTemplate: (p, req) => w4("CreateFeatureFromTemplate", [p], "", req) as Promise<FeatureFromTemplate>,
+    createBriefTemplate: (t, req) => w4("CreateBriefTemplate", [t], "", { kind: "brief", ...req }) as Promise<BriefTemplate>,
+    briefTemplates: (t) => listOf<BriefTemplate>(w4("BriefTemplates", [t], query([["kind", "brief"]]))),
+    patchBriefTemplate: (id, req) => w4("PatchBriefTemplate", [id], "", req) as Promise<BriefTemplate>,
+    createFeatureFromTemplate: (p, req) => w4("CreateFeatureFromTemplate", [p], "", req) as Promise<Feature>,
     setTemplateSchedule: (t, s) => w4("SetTemplateSchedule", [t], "", s) as Promise<TemplateSchedule>,
     clearTemplateSchedule: async (t) => void (await w4("ClearTemplateSchedule", [t])),
     setReminderPolicy: (p) => w4("SetReminderPolicy", [], "", p) as Promise<ReminderPolicy>,
     setTriageRotation: (t, r) => w4("SetTriageRotation", [t], "", r) as Promise<TriageRotationView>,
     triageRotation: (t) => w4("TriageRotation", [t]) as Promise<TriageRotationView>,
-    queryInsights: (t, q) => w4("QueryInsights", [t], "", q) as Promise<InsightsResult>,
+    queryInsights: (q) => w4("QueryInsights", [q.teamId], "", q) as Promise<InsightsResult>,
     readCursor: (s) => w4("GetReadCursor", [], query([["scope", scopeParam(s)]])) as Promise<ReadCursor>,
-    advanceReadCursor: (s, seq) => w4("AdvanceReadCursor", [], "", { scope: s, seq }) as Promise<ReadCursor>,
-    markSeen: (scopes, seq) => listOf<ReadCursor>(w4("MarkSeen", [], "", { scopes, seq })),
+    advanceReadCursor: (c) => w4("AdvanceReadCursor", [], "", c) as Promise<ReadCursor>,
+    markSeen: (req) => listOf<ReadCursor>(w4("MarkSeen", [], "", req)),
     scopedChanges: (s, after, limit) =>
       w4("ScopedChanges", [], query([["scope", scopeParam(s)], ["after", after], ["limit", limit]])) as Promise<ScopedChangesPage>,
   };
@@ -324,47 +372,54 @@ nothing, so `scopedChanges(s)` sends only `?scope=`. No member reads or writes `
 
 ```ts
 // appended inside task 37's WIRE_KEYS object; keys<T>() holds each list to its type both ways
-  initiative: keys<Initiative>({ id: true, teamId: true, name: true, owner: true, targetDate: true, state: true }),
+  initiative: keys<Initiative>({ id: true, teamId: true, name: true, owner: true, targetDate: true,
+    state: true, createdAt: true, createdBy: true, updatedAt: true }),
   initiativeTeams: keys<InitiativeTeams>({ initiativeId: true, teamIds: true }),
-  initiativeFeatureRow: keys<InitiativeFeatureRow>({ featureId: true, name: true, lead: true, latestUpdate: true, criteria: true }),
-  initiativeView: keys<InitiativeView>({ initiative: true, features: true }),
+  initiativeFeature: keys<InitiativeFeature>({ featureId: true, name: true, lead: true, latestUpdate: true, criteria: true }),
+  initiativeView: keys<InitiativeView>({ initiative: true, teams: true, features: true }),
   statusUpdate: keys<StatusUpdate>({ id: true, kind: true, subject: true, health: true, body: true,
-    pinnedBrief: true, cites: true, author: true, at: true, erasedAt: true }),
-  milestone: keys<Milestone>({ id: true, featureId: true, name: true, date: true, criterionIds: true }),
+    pinnedBrief: true, featurePins: true, cites: true, author: true, at: true, erasedAt: true }),
+  milestone: keys<Milestone>({ id: true, featureId: true, name: true, date: true, criterionIds: true,
+    createdAt: true, updatedAt: true }),
   milestoneView: keys<MilestoneView>({ milestone: true, criteria: true, reached: true }),
-  featureDependency: keys<FeatureDependency>({ from: true, blocks: true, orderViolated: true }),
-  briefTemplate: keys<BriefTemplate>({ id: true, kind: true, criteria: true, issueTemplateIds: true }),
+  featureDependencyView: keys<FeatureDependencyView>({ from: true, blocks: true, orderViolated: true }),
+  briefTemplate: keys<BriefTemplate>({ id: true, teamId: true, kind: true, name: true, criteria: true,
+    issueTemplateIds: true, createdAt: true, updatedAt: true }),
   templateSchedule: keys<TemplateSchedule>({ templateId: true, every: true, at: true, tz: true }),
   reminderPolicy: keys<ReminderPolicy>({ subject: true, everyDays: true }),
-  triageRotation: keys<TriageRotation>({ teamId: true, members: true, periodDays: true, startsOn: true }),
+  triageRotationView: keys<TriageRotationView>({ rotation: true, onDuty: true, handoverOn: true }),
   insightsQuery: keys<InsightsQuery>({ teamId: true, projectId: true, from: true, to: true, measure: true, groupBy: true }),
   insightsResult: keys<InsightsResult>({ groups: true, points: true, p50Ms: true, p75Ms: true, p90Ms: true }),
   readCursor: keys<ReadCursor>({ scope: true, seq: true }),
   projectGrant: keys<ProjectGrant>({ projectId: true, teamId: true, scope: true, grantedBy: true, at: true }),
 
-/** The golden file of task 114 each W4 type is held to: testdata/work-roadmap/<file>.json. */
+/** Task 114's seventeen goldens (`task-114.md:899-906`), each file → the WIRE_KEYS entry it is
+ *  held to. Two files share a type (an erased update; an empty insights result). */
 export const W4_GOLDENS = {
-  initiative: "initiative", initiativeTeams: "initiative-teams", initiativeView: "initiative-view",
-  statusUpdate: "status-update", milestone: "milestone", milestoneView: "milestone-view",
-  featureDependency: "feature-dependency", briefTemplate: "brief-template",
-  templateSchedule: "template-schedule", reminderPolicy: "reminder-policy",
-  triageRotation: "triage-rotation", insightsQuery: "insights-query",
-  insightsResult: "insights-result", readCursor: "read-cursor", projectGrant: "project-grant",
-} as const satisfies Partial<Record<keyof typeof WIRE_KEYS, string>>;
+  "initiative": "initiative", "initiative-teams": "initiativeTeams", "initiative-view": "initiativeView",
+  "status-update": "statusUpdate", "status-update-erased": "statusUpdate",
+  "milestone": "milestone", "milestone-view": "milestoneView",
+  "feature-dependency-view": "featureDependencyView", "brief-template": "briefTemplate",
+  "template-schedule": "templateSchedule", "reminder-policy": "reminderPolicy",
+  "triage-rotation-view": "triageRotationView", "insights-query": "insightsQuery",
+  "insights-result": "insightsResult", "insights-result-empty": "insightsResult",
+  "read-cursor": "readCursor", "project-grant": "projectGrant",
+} as const satisfies Record<string, keyof typeof WIRE_KEYS>;
 ```
 
-The fifteen types the scope lists each have a golden; `InitiativeFeatureRow` is checked inside
-`initiative-view.json`. The golden file names are this part's; task 114's part fixes them and
-this map follows (a gap if 114 names none).
+`InitiativeFeature` is checked inside `initiative-view.json` (each `features[i]`). Task 119's G1
+adds `featurePins` to `StatusUpdate`; until task 114 takes it, `status-update.json` lacks the key
+and the golden test fails on that one field, which is the signal the two parts disagree.
 
 ```ts
-// desktop/src/api/client.ts ⚑ — ProblemCode gains task 114's four appended codes
+// desktop/src/api/client.ts ⚑ — ProblemCode gains task 114's appended codes (task-114.md:633-645)
   /* the W4 Work wire (tasks 114, 124) */
   | "dependency_cycle" | "criterion_not_on_brief" | "update_immutable" | "grant_exists"
+  | "initiative_not_found" | "milestone_not_found" | "grant_not_found"
 ```
 
-The comment above `ProblemCode` (task 37 made it "twenty-seven") becomes "thirty-one", plus
-whatever task 83 added before this. `workProblem` files all four as `refused`, with `details`
+The comment above `ProblemCode` (task 37 made it "twenty-seven") becomes "thirty-four", plus
+whatever task 83 added before this. `workProblem` files all seven as `refused`, with `details`
 intact, so the timeline and the composer can say which dependency and which criterion.
 
 #### Interfaces — complete: `desktop/src/work/replica/kinds.ts`
@@ -375,7 +430,7 @@ intact, so the timeline and the composer can say which dependency and which crit
 // on any difference. Never retype one of these from memory.
 export const W4_FEED_KINDS = [
   "initiative.created", "initiative.updated", "initiative.teams_set",
-  "update.posted", "update.erased",
+  "work.update_posted", "update.erased",   // work.update_posted is task 119's (task-119.md:181)
   "milestone.created", "milestone.updated",
   "feature_dep.added", "feature_dep.removed",
   "grant.created", "grant.revoked",
@@ -402,22 +457,25 @@ export const isW4Kind = (k: string): k is W4FeedKind => (W4_FEED_KINDS as readon
 
 Of the thirteen held kinds, eight are the ones task 124's story appends (`task-124.md`, *the
 story*); five it does not reach (`initiative.updated`, `update.erased`, `milestone.updated`,
-`feature_dep.removed`, `triage.handover`). **All seventeen names are UNVERIFIED until task 115's
-part lands**; the copy test is what makes them true, and it fails until they are.
+`feature_dep.removed`, `triage.handover`). Only `work.update_posted` is fixed by a written part
+(task 119); `update.reminder` and `triage.handover` are task 121's scope's words; the other
+fourteen are this part's. **All of them are UNVERIFIED until task 115's part lands**; the copy
+test is what makes them true, and it fails until they are. If task 115 moves every W4 kind to
+task 119's `work.` prefix, this list follows by the copy test, not by hand.
 
 #### Interfaces — complete: the deltas on ⚑ `replica.ts` (task 55), ⚑ `ops.ts` (task 56)
 
 ```ts
 // desktop/src/work/replica/replica.ts — task 125 adds these record maps beside task 55's.
-import type { FeatureDependency, Initiative, MilestoneView, ProjectGrant, StatusUpdate } from "../../api/work";
+import type { FeatureDependencyView, Initiative, MilestoneView, ProjectGrant, StatusUpdate, SubjectRef } from "../../api/work";
 
 /** What the replica holds for W4. Keys are Hub ids; every record passes task 57's admit(). */
 export interface RoadmapRecords {
-  initiatives: ReadonlyMap<string, Initiative>;          // in-…
-  updates: ReadonlyMap<string, StatusUpdate>;            // nt-…, per subject newest first on read
-  milestones: ReadonlyMap<string, MilestoneView>;        // ml-…
-  featureDeps: ReadonlyMap<string, FeatureDependency>;   // `${from}>${blocks}`
-  grants: ReadonlyMap<string, ProjectGrant>;             // `${projectId}/${teamId}`
+  initiatives: ReadonlyMap<string, Initiative>;              // in-…
+  updates: ReadonlyMap<string, StatusUpdate>;                // nt-…, per subject newest first on read
+  milestones: ReadonlyMap<string, MilestoneView>;            // ml-…
+  featureDeps: ReadonlyMap<string, FeatureDependencyView>;   // `${from}>${blocks}`
+  grants: ReadonlyMap<string, ProjectGrant>;                 // `${projectId}/${teamId}`
 }
 
 /** Task 55's ReplicaDeps gains one member: every project granted to one of the caller's teams.
@@ -427,17 +485,18 @@ export interface ReplicaGrantDeps { grantedProjects(): Promise<ProjectScope[]> }
 
 // Replica (task 55) gains:
 //   roadmap(): RoadmapRecords
-//   updatesOf(subject: UpdateSubject): StatusUpdate[]     // newest first, by `at` then id
-//   milestonesOf(featureId: string): MilestoneView[]      // by date
-//   depsOf(featureId: string): FeatureDependency[]        // both directions
+//   updatesOf(subject: SubjectRef): StatusUpdate[]        // newest first, by `at` then id
+//   milestonesOf(featureId: string): MilestoneView[]      // by date, dateless last
+//   depsOf(featureId: string): FeatureDependencyView[]    // both directions
 //   signals(listener: (e: FeedEvent) => void): () => void // update.reminder, triage.handover
 ```
 
 **How W4 enters the replica**, in order, beside task 55's paths:
 
 1. **Load.** For each `scope` project, after task 55's `listAll`, the replica loads the team's
-   `initiatives` (one call per team, not per project), and for each feature: `updates`,
-   `milestones`, `featureDependencies`; for each project the caller's team **owns**:
+   `initiatives` (one call per team, not per project), `featureDependencies(projectId)` (one call
+   per project, task 114's † route), and for each feature: `updates` and `milestones`; for each
+   project the caller's team **owns**:
    `projectGrants`. A granted project (`ProjectScope.access === "granted"`) loads the same
    records except grants, which the Hub refuses to a granted team.
 2. **Each event** whose kind `isW4Kind` re-fetches its subject by the prefix map and puts it in
@@ -454,7 +513,7 @@ export type RoadmapOp =
   | { kind: "initiative.patch"; initiativeId: string; req: PatchInitiativeRequest; prev: PatchInitiativeRequest }
   | { kind: "initiative.teams"; initiativeId: string; teamIds: string[]; prev: string[] }
   | { kind: "feature.initiative"; featureId: string; initiativeId: string | null; prev: string | null }
-  | { kind: "update.post"; subject: UpdateSubject; req: PostUpdateRequest }   // no inverse: U is refused
+  | { kind: "update.post"; subject: SubjectRef; req: PostUpdateRequest }   // no inverse: U is refused
   | { kind: "milestone.create"; featureId: string; req: CreateMilestoneRequest }
   | { kind: "milestone.patch"; milestoneId: string; req: PatchMilestoneRequest; prev: PatchMilestoneRequest }
   | { kind: "milestone.criteria"; milestoneId: string; criterionIds: string[]; prev: string[] }
@@ -518,22 +577,25 @@ const HUB_TABLE = import.meta.glob<string>(
 describe("SW.20 the W4 wire", () => {
   // Kills: a renamed field (target for targetDate) that tsc alone misses, on either side.
   it("each W4 golden's keys are its desktop type's keys", () => {
-    expect(Object.keys(W4)).toHaveLength(Object.keys(W4_GOLDENS).length);
-    for (const [type, file] of Object.entries(W4_GOLDENS)) {
+    expect(Object.keys(W4)).toHaveLength(17); // task 114's seventeen
+    for (const [file, type] of Object.entries(W4_GOLDENS)) {
       const path = Object.keys(W4).find((p) => p.endsWith(`/${file}.json`));
       expect(path, file).toBeDefined();
       const v = JSON.parse(W4[path!]) as Record<string, unknown>;
-      expect(Object.keys(v).sort(), file).toEqual(WIRE_KEYS[type as keyof typeof W4_GOLDENS]);
-      expect(canon(pick(v, WIRE_KEYS[type as keyof typeof W4_GOLDENS])), file).toBe(canon(v));
+      expect(Object.keys(v).sort(), file).toEqual(WIRE_KEYS[type]);
+      expect(canon(pick(v, WIRE_KEYS[type])), file).toBe(canon(v));
+      if (file === "initiative-view")
+        for (const f of v.features as Record<string, unknown>[])
+          expect(Object.keys(f).sort(), "features[i]").toEqual(WIRE_KEYS.initiativeFeature);
     }
   });
 
-  // Kills: a W4 relay row that drifts from task 124's Go table.
-  it("WORK_RELAY_W4 is task 124's WorkRoadmapRoutes, row for row", () => {
+  // Kills: a W4 relay row that drifts from task 124's Go tables (relayed, then client-only).
+  it("WORK_RELAY_W4 and _SHARED are task 124's tables, row for row", () => {
     const go = Object.values(HUB_TABLE)[0];
     const rows = [...go.matchAll(/\{"(\w+)", http\.Method(\w+), "([^"]+)", (?:true|false)\}/g)]
       .map(([, m, verb, path]) => [m, verb.toUpperCase(), path]);
-    expect(rows).toEqual(WORK_RELAY_W4.map((r) => [...r]));
+    expect(rows).toEqual([...WORK_RELAY_W4, ...WORK_RELAY_W4_SHARED].map((r) => [...r]));
   });
 
   // Kills: the scoped row relayed onto H's whole feed.
@@ -603,8 +665,14 @@ npm --prefix desktop run typecheck
    teams' projects only (`hub-contract.md:347`), and task 117's `GET …/grants` is per project, for
    the owning team. A restarted desktop cannot find its granted projects. Task 117 needs a
    caller-scoped list (for example `GET /v1/me/project-grants`), and task 124's table a 32nd row.
-2. **Task 114** must carry `StatusUpdate.erasedAt`, `MilestoneView.reached` and the golden file
-   names; its scope lists neither field.
-3. **Task 120** names no milestone delete, so `milestone.create` has no Undo.
-4. **Task 55's** part is not written; `ReplicaDeps`, `listAll`, `transact` and the
-   no-persistence grep are its scope's names.
+2. **Task 114 and task 119 disagree on `featurePins`.** Task 119's G1 adds it to `StatusUpdate`
+   and `PostUpdateRequest` (`task-119.md:147-170`); task 114's part does not carry it. This part
+   mirrors 119, so `status-update.json` fails the golden test until 114 takes G1.
+3. **`CriterionWord.word`.** Task 114 types it as a string and names task 10's thread-state words
+   (`task-114.md:175-180`); 05 §3.3 and task 127 need the five convergence words. Task 114 or task
+   118 must say which vocabulary the Hub sends; the desktop renders an unknown word as itself.
+4. **`InsightsGroupBy`.** Task 114's comment lists five group keys; task 122's scope adds
+   `priority` and `criterion`.
+5. **Task 120** names no milestone delete, so `milestone.create` has no Undo. **Task 55's** part is
+   not written; `ReplicaDeps`, `listAll`, `transact` and the no-persistence grep are its scope's
+   names.
