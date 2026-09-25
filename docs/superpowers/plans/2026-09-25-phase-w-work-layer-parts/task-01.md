@@ -178,10 +178,45 @@ paragraph (`:87`), because anti-pattern 3 (`:238`) stays the rule at rest.
 **4. `02-linear-design-language.md`.** The three corrections of 05 §5.5 row *02*
 (`05-design.md:1310`). The live claim is struck inline and one line is inserted after it.
 
-| Where | Inline strike | Inserted line (next line) |
-|---|---|---|
-| C8 `hub.replica` (`:274`) | `~~Tauri stores it on disk;~~` | `  - *Corrected (Q5, ADR-H1:467-474):* the replica is held **in memory only**; nothing from the Hub is written to disk, so an erase cannot be outlived by a laptop copy.` |
-| C7 `arrivals.hold` (`:267`) | `~~*"2 new · R to show"*~~` | `  - *Corrected (05 §5.5 row 02):* the line reads *"2 new · N to show"*; `N` applies every held change at once; **`moves.hold`** sits beside it: a row whose sort place changed stays put, marked, until `N`.` |
-| C3 faces (`:222`) | `~~**Owner decision needed:** the mono licence~~` | `  - *Decided (OD-28):* **Commit Mono** (OFL), bundled as files with its licence, for every id, path and time; the sans is **Segoe UI Variable**, the Windows system face, never bundled. D1 item 1 (`:360`) is closed by this line.` |
+Inline strikes: at `:274` wrap `Tauri stores it on disk;` as `~~Tauri stores it on disk;~~`; at
+`:267` wrap `*"2 new · R to show"*` as `~~*"2 new · R to show"*~~`; at `:222` wrap
+`**Owner decision needed:** the mono licence` in `~~ … ~~`. Then insert one line after each:
 
-These change no token and no code; tasks 26-27 build what they describe.
+```markdown
+  - *Corrected (Q5, ADR-H1:467-474):* the replica is held **in memory only**; nothing from the Hub is written to disk, so an erase cannot be outlived by a laptop copy.
+  - *Corrected (05 §5.5 row 02):* the line reads *"2 new · N to show"*; `N` applies every held change at once; **`moves.hold`** sits beside it: a row whose sort place changed stays put, marked, until `N`.
+  - *Decided (OD-28):* **Commit Mono** (OFL), bundled as files with its licence, for every id, path and time; the sans is **Segoe UI Variable**, the Windows system face, never bundled. D1 item 1 (`:360`) is closed by this line.
+```
+
+(the first after `:274`, the second after `:267`, the third after `:222`; bottom first).
+`ADR-H1` is `.claude/worktrees/hub/docs/superpowers/adr/ADR-H1-hub-architecture.md`, lines
+467-474 read at `9f2fa31`: *"neither the renderer nor the control plane persists Hub data to
+disk"*. These change no token and no code; tasks 26-27 build what they describe.
+
+---
+
+#### Tests first: the acceptance greps, each with the mutant it kills
+
+A documents task has no unit tests, so its tests are greps, written down **before** the edits and
+run once to watch them fail. The exact commands are the script under *Acceptance*; this table
+names what each one proves.
+
+| # | Checks | Expected after | Before | Mutant it kills |
+|---|---|---|---|---|
+| T1 | proposal lines starting `issue key` | `1` | no file | a proposal that names the case but gives no grammar line |
+| T2 | the exact regex `^issue:(is-[0-9a-f]{16})@([1-9][0-9]{0,8})$` in the proposal | `1` | no file | a loosened grammar (`[0-9]+`, which admits `@0` and `@01`) |
+| T3 | proposal lines holding `done:2` | `2`, both inside item 2 | no file | a proposal that shows the fix but never the old value |
+| T4 | proposal lines naming `:1065` and naming `:1079` | at least 1 each | no file | a proposal that forgets one of the two sites |
+| T5 | `OD-27` in `AGENTIC-UX.md` | `4` | `0` | an amendment added without its decision id |
+| T6 | `Q13 1` … `Q13 4` in `AGENTIC-UX.md` | `4`, each once | `0` | one amendment dropped |
+| T7 | `Tauri stores` in `02` outside a `~~` strike | nothing | `:274` | a correction that leaves the on-disk claim live |
+| T8 | `R to show` in `02` outside a `~~` strike | nothing | `:267` | `arrivals.hold` still bound to `R` |
+| T9 | `moves.hold` in `02` | `1` | `0` | the `N` fix without `moves.hold` |
+| T10 | `OD-28` in `02` | `1` | `0` | the faces question left open |
+| T11 | the **W** row in `PROGRAM.md` | `1` | `0` | the phase missing from the order table |
+| T12 | `### Phase W` in `PROGRAM.md` | `1` | `0` | a row with no section behind it |
+| T13 | **Feature** and **Issue** rows in `FUNCTIONAL-SPEC.md` | `2` | `0` | one object added, the other forgotten |
+| T14 | deletions in `git diff --numstat` against the start commit | `0` for `AGENTIC-UX.md`, `PROGRAM.md`, `FUNCTIONAL-SPEC.md`; `3` for `02` | — | an amendment that rewrites a line instead of inserting one |
+
+T14's `3` for `02` is the three inline strikes (each rewrites one line by adding `~~`); nothing
+else in `02` moves.
