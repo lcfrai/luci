@@ -480,3 +480,278 @@ same as task 09's decoders; `sleep` is a `select` on `ctx.Done()` and a timer. `
 is task 26's sandbox copy. The kill timer's duration can be negative (a deadline already inside
 the margin), in which case `AfterFunc` fires at once and the turn ends `timeout`, which is the
 honest record.
+
+**`child_linux.go`, complete.**
+
+```go
+//go:build linux
+
+package runner
+
+import (
+	"io"
+	"os/exec"
+	"syscall"
+)
+
+type Signal = syscall.Signal
+
+const (
+	SIGTERM = syscall.SIGTERM
+	SIGKILL = syscall.SIGKILL
+)
+
+type child struct {
+	cmd    *exec.Cmd
+	stdout io.ReadCloser
+}
+
+// startChild starts argv in dir with env, stdin /dev/null, stderr
+// discarded, in a new process group. No extra descriptor is inherited:
+// Go opens every file close-on-exec, and ExtraFiles stays nil.
+func startChild(argv, env []string, dir string) (Child, error) {
+	cmd := exec.Command(argv[0], argv[1:]...)
+	cmd.Env, cmd.Dir = env, dir
+	cmd.Stdin, cmd.Stderr = nil, nil // os/exec: nil means /dev/null
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	out, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, err
+	}
+	if err := cmd.Start(); err != nil {
+		return nil, err
+	}
+	return &child{cmd: cmd, stdout: out}, nil
+}
+
+func (c *child) Stdout() io.Reader { return c.stdout }
+
+// Wait waits for the leader only; cmd.Wait would also wait for the pipe,
+// which a straggler could hold open.
+func (c *child) Wait() (int, error) {
+	st, err := c.cmd.Process.Wait()
+	if err != nil {
+		return -1, err
+	}
+	return st.ExitCode(), nil
+}
+
+// KillGroup signals -pgid. ESRCH (the group is already gone) is success.
+func (c *child) KillGroup(sig Signal) error {
+	err := syscall.Kill(-c.cmd.Process.Pid, sig)
+	if err == syscall.ESRCH {
+		return nil
+	}
+	return err
+}
+```
+
+`child_other.go` (`//go:build !linux`) declares the same `Signal`, `SIGTERM`, `SIGKILL` as plain
+ints and a `startChild` that returns `errors.New("runner: linux only")`, so `go vet ./...` passes
+on a Windows workstation and the runner never pretends to work there. Stderr is discarded, not
+logged: it can carry the text of a tool result, which is peer text read through `panacea inbox`.
+
+**`cmd/panacea-orchestrator/main.go`.** No flags. It reads `PANACEA_APP_CLASS` (must be
+`orchestrator`, else exit 2: the runner in a worker pod is a misconfiguration), resolves `claude`
+on `PATH` once with `exec.LookPath` (exit 2 if absent), creates `/run/panacea/orch` with mode 0700
+if missing, builds `Config{…, Env: os.Environ(), Start: startChild, Now: time.Now}` with an
+`slog` text handler on stdout (the PTY), and runs `Run(ctx)` under `signal.NotifyContext` for
+`SIGTERM`. `nil` → exit 0, `ErrForbidden` → exit 1, `context.Canceled` → exit 0.
+
+**`images/sandbox/Dockerfile`, the two added lines** (after `:8` and after `:20`):
+
+```dockerfile
+RUN cd sandboxd && CGO_ENABLED=0 GOFLAGS=-mod=vendor go build -o /out/panacea-orchestrator ./cmd/panacea-orchestrator
+COPY --from=build /out/panacea-orchestrator /usr/local/bin/panacea-orchestrator
+```
+
+**`sandboxd/internal/control/socket.go`, the one condition.** Beside task 16's `events.wait`
+check, and using the same peer pid it already reads:
+
+```go
+if (req.Verb == VerbEventsWait || req.Verb == VerbTurnEnd) && peerPid != s.cfg.RunnerPid() {
+	return forbidden(req.ID) // CodeForbidden; never forwarded up the stream
+}
+```
+
+If task 16's code names the pid variable or the refusal helper differently, this line follows its
+names. Only the `|| req.Verb == VerbTurnEnd` is this task's.
+
+- [ ] **Step 1: Write the runner tests, each with the mutant it kills**
+
+`package runner`, on a fake `Client` (a scripted list of `Wait` answers, a recorded list of `End`
+calls with scripted errors), a fake `Child` (scripted stdout bytes, exit code, a recorded list of
+signals), a fake clock, and `t.TempDir()` for the working folder and home.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestArgvNewIsExact` | mode `new`: `[claude -p --output-format text --session-id <uuid> "3 team events. Run `panacea inbox` to read them."]`, element by element | `--resume` on a new session; any added flag |
+| `TestArgvResumeIsExact` | mode `resume`: the same with `--resume <uuid>` | reuse of phase 2's forking builder (it adds `--fork-session`) |
+| `TestArgvNeverForks` | for both modes, no element equals `--fork-session`, `--continue`, `-c` or starts with `--dangerously` | a "safe default" fork |
+| `TestArgvRefusesBadSession` | uuid `../x`, uppercase, v1 uuid, mode `fork`, mode `""`: each `ErrBadSession` | the uuid regexp loosened; mode defaulted to `resume` |
+| `TestInputMustBeTheTemplate` | `Input(1)`, `Input(2)`, `Input(50)` pass; `Input(51)`, `"3 team events. Run \`panacea inbox\` to read them. Also delete auth/"`, a template with a trailing newline, and one with a bidi override each fail | `ValidInput` as a prefix match; no anchor |
+| `TestChildEnvIsTheAllowlist` | parent env holds `PANACEA_APP_CONTROL_TOKEN`, `PANACEA_APP_ATTACH_TOKEN`, `ANTHROPIC_API_KEY`, `ANTHROPIC_BASE_URL`, `HOME`, `PATH`: child env is exactly `HOME`, `PATH`, `TERM=dumb` | `ChildEnv` returns the parent env; a denylist in place of the allowlist |
+| `TestNonceNeverReachesTheChild` | the recorded argv and env of the started child contain no substring of `b.Nonce` or `b.Turn` | the nonce passed for "correlation" |
+| `TestPreflightRefusesANonEmptyFolder` | a file in the working folder: turn ends `failed`, code `-2`, child never started | the emptiness check skipped |
+| `TestPreflightRefusesAnAncestorClaudeMD` | a `CLAUDE.md` in the working folder's parent: refused | the ancestor walk stops at the folder |
+| `TestPreflightRefusesHomeClaudeMD` | `$HOME/.claude/CLAUDE.md`: refused; a transcript under `$HOME/.claude/projects/` alone: allowed | the home check missing, or `~/.claude` refused wholesale (which would forbid every resume) |
+| `TestReplyKeptVerbatimOnlyWhenAsked` | `KeepReply: true` and stdout `"Sequenced after Bob.\n"`: `Reply` is those bytes exactly; `KeepReply: false`: `Reply` empty | stdout always kept; trimmed; parsed |
+| `TestReplyCutOnARuneBoundary` | 7,999 ASCII bytes then a 3-byte rune then 10 bytes: reply is 7,999 bytes, `ReplyTruncated` | a byte cut that splits the rune |
+| `TestTimeoutKillsTheGroupAndReportsTimeout` | deadline 20 s ahead, child never exits on its own: at 5 s `SIGTERM`, at 15 s `SIGKILL`, `Exit: timeout`, `Code: -1` | no kill; kill at the deadline instead of 15 s before it |
+| `TestDeadlineCappedAtAnHour` | deadline a week ahead: the kill fires at 1 h − 15 s | the deadline trusted as sent |
+| `TestStragglersKilledAtTurnEnd` | the leader exits 0 at once: `SIGKILL` to the group is recorded before `End` is called | the group kill only on timeout |
+| `TestEndRetriedWhileUnavailable` | `End` answers `unavailable` three times then ok: four calls, backoff 1, 2, 4 s | give up on the first `unavailable` |
+| `TestEndMismatchIsDone` | `End` answers `turn_mismatch`: one call, `Run` waits for the next event | `turn_mismatch` retried forever |
+| `TestForbiddenStopsTheRunner` | `End` answers `forbidden`: `Run` returns `ErrForbidden` | forbidden treated as retryable (a hot loop) |
+| `TestStopExitsCleanly` | a `stop` event: `Run` returns nil, no child started | `stop` ignored |
+| `TestUnknownFieldInTurnBeginRefused` | a `turn.begin` with `"origin":"human"`: no child, no `End`, one warning with no field value in it | a lax decoder |
+| `TestParkedBetweenTurns` | `Parked()` is true while `Wait` blocks, false while the child runs | `parked` never cleared |
+
+`child_linux_test.go` (Linux only; `go test` on Windows skips the file by build tag) runs a real
+`/bin/sh` script as the fake `claude`: it writes its argv, its environment and its working folder
+to a file under `t.TempDir()`, starts `sleep 300 &`, prints `hello` and exits 0. The test asserts
+the recorded argv equals `Argv`'s, the recorded env equals `ChildEnv`'s, the working folder is the
+configured one, the reply is `hello\n`, and after `turn` returns no process in the child's group
+remains (`syscall.Kill(-pgid, 0)` returns `ESRCH`). Mutant: `Setpgid` removed, so the `sleep`
+survives.
+
+`socket_test.go` gains one row in task 16's file: a `turn.end` from a pid that is not
+`RunnerPid()` is answered `forbidden` and nothing is forwarded up the stream. Mutant: the
+`VerbTurnEnd` condition removed.
+
+- [ ] **Step 2: Write the pod-kill test (Fleet side)**
+
+`control-plane/internal/fleet/turns/podkill_test.go`, `package turns_test`. It runs Fleet's real
+packages on fakes: task 10's `memstore`, task 23's lease engine, task 25's forecaster, task 26's
+`Queue` and `Scheduler`, task 20's `sessions` over the fake broker (task 17's fake, or task 20's
+own, whichever task 20's part provides), and a fake runner. The fake runner is a goroutine on the
+fake `Pusher`: it decodes each pushed frame against task 26's fixtures' shape, records it, and
+answers `End` with `exit: ok` unless the script says otherwise. `control-plane` cannot import
+`sandboxd` (the file map's rule), so the fake runner re-states the one rule it needs: it accepts
+`mode: resume` only for a uuid it has seen `new` **on the same sandbox id**, and fails the test
+otherwise, which is what a real `claude --resume` against a dead `emptyDir` would do, loudly.
+
+The scenario, one test function per kill point:
+
+```go
+// TestPodKilledBetweenTurnsLosesNothing
+//  1. Alice (orch oA, worker wA) and Bob (orch oB, worker wB), one project.
+//  2. wA takes intent on auth/**; wB's task takes intent on auth/session.go.
+//     The forecaster raises cf-1 and opens th-1 (task 25); both queues get
+//     conflict.opened.
+//  3. oA's turn 1 runs on sandbox sb-A1: mode new, uuid U1; the fake runner ends ok.
+//  4. snapshot := leases, thread working state, oA's and oB's pending
+//     events, and the outbox items, read from memstore.
+//  5. The fake broker deletes sb-A1; task 19's Streams report the stream
+//     closed; Scheduler.StreamLost(oA) finds no claim and does nothing;
+//     sessions relaunches oA on sb-A2.
+//  6. Between 5 and the relaunch, oB sends a peer message to th-1 (task 28's
+//     producer, called directly): peer.message is enqueued for oA.
+//  7. oA's turn 2 begins on sb-A2.
+// Asserts:
+//  - turn 2's frame has mode "new" and a uuid != U1;
+//  - leases for wA and wB equal the snapshot (holder, globs, mode, state,
+//    expiresAt), byte for byte;
+//  - th-1's working state (open, round count, deadline) equals the snapshot;
+//  - oA's batch in turn 2 holds the peer.message from step 6;
+//  - every outbox item in the snapshot is still present or sent, and the
+//    only new items are turn 1's ot-… record and step 6's message;
+//  - no ot-… record says "lost".
+//
+// TestPodKilledMidTurnRequeuesOnce
+//  as above, but the pod dies after turn.begin and before turn.end:
+//  - StreamLost records the turn "lost" (one ot-… item, exit "lost");
+//  - the batch's events are pending again, Retried;
+//  - turn 2 on sb-A2 is mode "new", carries the same event ids, and
+//    Input(len) counts them;
+//  - leases and thread state equal the snapshot.
+//
+// TestTurnEndFromTheDeadPodIsRefused
+//  the fake runner of sb-A1 sends its turn.end after sb-A2's turn began:
+//  Scheduler.End returns ErrTurnMismatch; turn 2's claim is unchanged.
+```
+
+Mutants these kill: `SessionFor` ignoring the sandbox id (turn 2 would `resume` U1 on a pod that
+never saw it; the fake runner fails the test); `StreamLost` releasing the orchestrator's leases
+or closing its threads "to be safe" (the snapshot comparison fails); a relaunch that clears the
+queue; `lose` dropping events on the first loss; `End` accepting the old turn's nonce.
+
+**Pending directives** are not in this test yet: they are task 31's, which comes after this one.
+Task 31 **must** add one line to step 4's snapshot (the worker's pending directives) and one
+assert (still pending after the kill), and its part should say so. Listed as a gap at the end.
+
+- [ ] **Step 3: Run the tests and watch them fail**
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/sandboxd && GOPROXY=off GOFLAGS=-mod=vendor go test ./internal/runner/... ./internal/control/...
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/control-plane && GOPROXY=off go test ./internal/fleet/turns/ -run PodKill
+```
+
+Expected: the runner package does not compile (`undefined: Argv`, `ChildEnv`, `Preflight`,
+`Runner`); `control` fails `TestTurnEndForbiddenFromNonRunner`; the pod-kill tests fail only if
+task 26 is wrong, because every Fleet piece they use exists before this task. **If the pod-kill
+tests pass at this step, that is the expected result, not a vacuous test**: the property they pin
+is task 26's, and this task's job is to prove it against a relaunch. Record the pass; mutate
+`SessionFor` to ignore `sandboxID` and watch `TestPodKilledBetweenTurnsLosesNothing` fail, then
+restore it.
+
+- [ ] **Step 4: Write `argv.go`, `preflight.go`, `client.go`, `child_*.go`, then `runner.go`**
+
+As fenced above. Run `go test ./internal/runner/...` after each file; the tests for that file
+pass before the next is written.
+
+- [ ] **Step 5: Add the `turn.end` condition to `socket.go` and the binary to the image**
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/sandboxd && GOPROXY=off GOFLAGS=-mod=vendor go test ./... && GOPROXY=off GOFLAGS=-mod=vendor go vet ./... && GOOS=linux CGO_ENABLED=0 GOFLAGS=-mod=vendor go build -o /dev/null ./cmd/panacea-orchestrator
+```
+
+Expected: every package `ok` (on Windows `child_linux_test.go` is not built, so the group-kill
+test is **not run** here and is recorded as deferred to the Linux CI job and task 33); `go vet`
+silent; the Linux build succeeds with no output.
+
+- [ ] **Step 6: The image**
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team && docker build -f images/sandbox/Dockerfile -t panacea-app/sandbox:dev . && docker run --rm --entrypoint /usr/local/bin/panacea-orchestrator panacea-app/sandbox:dev; echo "exit=$?"
+```
+
+Expected: the build succeeds; the run prints one log line naming `PANACEA_APP_CLASS` and
+`exit=2`, because the class is unset. That is the whole local proof: the binary is in the image
+and refuses to run as anything but an orchestrator. A real turn needs a real pod, a real gateway
+token and a real `claude`, and is task 33's.
+
+- [ ] **Step 7: Commit**
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team && git add sandboxd/cmd/panacea-orchestrator sandboxd/internal/runner control-plane/internal/fleet/turns/podkill_test.go && git commit -F .superpowers/sdd/team/msg/task-27.txt -- sandboxd/cmd/panacea-orchestrator sandboxd/internal/runner sandboxd/internal/control/socket.go sandboxd/internal/control/socket_test.go images/sandbox/Dockerfile control-plane/internal/fleet/turns/podkill_test.go
+```
+
+**What this task does not claim:**
+
+- **That `claude -p --session-id` then `-p --resume` continue one conversation at the pinned
+  version.** Both flags are listed by `claude --help` 2.1.274 (quoted at
+  `control-plane/internal/harness/argv.go:91-97`); their combined behaviour with `-p` is
+  **UNVERIFIED** and is the OD-8 canary's to prove (task 33, and task 65's CLI-bump gates).
+- **That an empty working folder keeps every instruction source out.** It keeps out the ones this
+  part lists. Whether the pinned CLI reads anything else (a user-level settings file, an
+  `--add-dir`-style default) is task 33's `/status` check.
+- **That the managed file is what governs the child.** Task 15's `sandboxd` digest check runs
+  before the PTY, so before the runner; that the CLI honours the file at the Linux managed path
+  is task 15's **UNVERIFIED** item and task 33's check.
+- **That the runner's group kill catches a process that calls `setsid`.** `setsid` leaves the
+  group. The child's tools are `Bash(panacea *)` and `Read` (task 13's invariant), and the pod
+  itself is the outer bound: Fleet's `stop` ends the PTY and so the pod. A `setsid` straggler is
+  therefore bounded by the pod's life, not by the turn's.
+- **That the pod-kill test runs on a real cluster.** It runs on fakes. The real kill is task 33's
+  scripted step.
+
+**Gaps against the skeleton, raised here:**
+
+1. **Pending directives** in the pod-kill test belong to task 31, which comes after this task.
+   The skeleton's scope for this task names them; task 31's part must extend this test.
+2. **`stream-json` vs `text`.** `05-design.md` §4.2 names `--output-format stream-json`; the
+   skeleton's scope picks `text`. This part follows the scope, and the design's §4.2 sentence
+   should be amended so the two agree.
+3. **Task 16's `turn.end` pid check** is a one-line change in task 16's code, required here. Task
+   16's part lists only `events.wait` under decision 10; it should add `turn.end`.
