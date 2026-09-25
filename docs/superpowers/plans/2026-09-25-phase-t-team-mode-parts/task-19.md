@@ -239,7 +239,9 @@ func (s *Streams) Push(ctx context.Context, agent model.AgentID, event any) erro
 func (s *Streams) Send(ctx context.Context, agent model.AgentID, event any) error
 
 func (s *Streams) OnOpen(fn func(ctx context.Context, t Target) error)
-func (s *Streams) Before(kind string, fn func(ctx context.Context, t Target) error)
+// Before runs fn with the pushed event's own bytes, so task 20 can read the turn id
+// from a turn.begin and mint a key tagged for that turn's counterpart.
+func (s *Streams) Before(kind string, fn func(ctx context.Context, t Target, event json.RawMessage) error)
 func (s *Streams) OnLost(fn func(ctx context.Context, agent model.AgentID) error)
 
 // Run is the singleton's loop: every 2 s reconcile Live() against held
