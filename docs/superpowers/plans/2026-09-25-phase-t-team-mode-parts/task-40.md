@@ -95,8 +95,8 @@ phase 2.
   `started_at` on a `new` session (modify, task 26's file, two anchored hunks)
 - `control-plane/internal/fleet/verbs/seed.go` — the `seed` verb, Orchestrator class only (new)
 - `control-plane/internal/fleet/server/dive.go` — the three DIVE routes (new)
-- `control-plane/internal/fleet/store/migrations/00NN_rotation.sql` — two columns on task 26's
-  session state (new, numbered after the last Fleet migration at merge)
+- `control-plane/internal/fleet/store/migrations/00NN_rotation.sql` — three columns on task 26's
+  two tables (new, numbered after the last Fleet migration at merge)
 - `control-plane/internal/fleet/store/{memstore,pgstore}.go`, `.../storetest/suite.go` (modify)
 - `control-plane/cmd/fleetd/main.go` — registers `seed`, the DIVE routes, `MarkBoundary` in task
   24's verbs (modify, one hunk)
@@ -163,7 +163,7 @@ func RotateDue(s SessionState, pending bool, now time.Time) bool {
 // abandoned. Idempotent. It never ends a turn in flight or a DIVE: the flag
 // is read at the next claim.
 func (s *Scheduler) MarkBoundary(ctx context.Context, orch model.AgentID) error {
-	return s.Store.SetRotatePending(ctx, orch, true)
+	return s.Store.SetRotatePending(ctx, orch, s.Now())
 }
 
 func mustZone(name string) *time.Location {
@@ -175,10 +175,13 @@ func mustZone(name string) *time.Location {
 }
 ```
 
-`SessionState` gains `StartedAt time.Time` and `Store` gains `SetRotatePending(ctx, orch, bool)`
-and `RotatePending(ctx, orch) (bool, error)`; `End` on a `new` turn writes `StartedAt = Began` and
-clears the flag in the same transaction as the session row (task 26's `EndTurn`). A lost `new`
-turn keeps the flag set, so the next turn is `new` again, which is the safe side.
+`SessionState` gains `StartedAt time.Time` and `Store` gains `SetRotatePending(ctx, orch, at
+time.Time)` (stamps `rotate_pending_at` if it is null, so the earliest request is kept) and
+`RotatePending(ctx, orch) (bool, error)`; `End` on a `new` turn writes `StartedAt = Began` and
+clears the flag **only if it was set at or before `Began`**, in the same transaction as the session
+row (task 26's `EndTurn`). A boundary marked during the new session's first turn therefore
+survives it, and a lost `new` turn keeps the flag, so the next turn is `new` again: the safe side.
+Both times come from `Scheduler.Now`, never the database's `now()`, so the fake clock governs.
 
 #### `sandboxd/internal/runner/rotate.go` (complete)
 
@@ -207,8 +210,10 @@ func SessionHome(root, uuid string) string { return filepath.Join(root, uuid, "h
 func PrepareHome(root, uuid, mode string) (string, error)
 
 // PruneHomes removes every session directory under root except keep, each
-// with one os.RemoveAll. It reads directory NAMES under root only: it never
-// opens, lists or stats anything inside a session's HOME (OD-8).
+// with one os.RemoveAll. Its own code reads directory NAMES under root only
+// (one os.ReadDir(root), then Lstat per entry: a uuid-named real directory,
+// never a symlink). It never opens or reads a file inside a session's HOME;
+// os.RemoveAll lists names inside only to unlink them (OD-8: nothing is read).
 func PruneHomes(root, keep string) error
 ```
 
