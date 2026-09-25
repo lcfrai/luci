@@ -301,3 +301,165 @@ type Open struct {
 `(*Forecaster).Open` fills `verbs.Conflict.Mergeable` from it. That field does not exist in task
 22's `verbs.Conflict` (`task-25.md:200`) or in ST.1's `check` answer; both gain `mergeable`
 (boolean, default `false`) in their owners' files (gap 2).
+
+#### `00NN_mirror.sql` (complete)
+
+```sql
+-- Task 60: what Fleet knows each project's mirror holds. A fact about now
+-- (global constraint 1), rebuilt by nothing: losing it costs one full resend.
+CREATE TABLE fleet.mirror_tips (
+    project_id  text        NOT NULL,
+    lane_owner  text        NOT NULL CHECK (lane_owner ~ '^([0-9a-f]{16}|base)$'),
+    lane_wt     text        NOT NULL CHECK (lane_wt ~ '^[a-z0-9][a-z0-9-]{0,62}$'),
+    tip         text        NOT NULL CHECK (tip ~ '^([0-9a-f]{40}|[0-9a-f]{64})$'),
+    ingested_at timestamptz NOT NULL,
+    PRIMARY KEY (project_id, lane_owner, lane_wt)
+);
+```
+
+The base is the row `lane_owner = 'base'`, `lane_wt` = the default branch name's check-ref-format
+form lower-cased (a branch outside `^[a-z0-9][a-z0-9-]{0,62}$`, such as `release/2.0`, is stored
+as the first 16 hex of its sha256, since the row is a key, not a display). `store.MirrorTipStore`:
+`PutTip(ctx, project, key, tip, at) error`, `Tips(ctx, project) (map[mirror.LaneKey]string,
+error)`, `ClearTips(ctx, project) error`. Rows are deleted with the project (task 58's
+`DeleteMirror` caller) and for a leaver's owner hash with `prune-owner`.
+
+#### `mirror/sender.go` (complete surface and rule)
+
+```go
+// Sender moves lane work into a project's mirror through the broker. It never
+// holds bundle bytes: it asks the broker to copy, and records the answer.
+type Sender struct {
+	Broker BundleRelay         // POST /v1/mirrors/{p}/bundles, under the owner's delegation
+	Tips   store.MirrorTipStore
+	Now    func() time.Time
+	// per-lane coalescing state (decision (f)): in memory, a derivative of
+	// activity, lost harmlessly on restart (the next commit sends again)
+}
+
+const SendEvery = 10 * time.Second
+
+// BundleRelay is the broker call. The broker answers the mirror's IngestResult.
+type BundleRelay interface {
+	Bundle(ctx context.Context, org string, owner model.Owner, project string, req BundleReq) (IngestResult, error)
+}
+
+// BundleReq is the broker route's body (below), minus the path's project.
+type BundleReq struct {
+	Kind    string   `json:"kind"`              // lane | base
+	Machine string   `json:"machine"`           // the owner's machine id
+	Lane    *LaneKey `json:"lane,omitempty"`    // lane: its key in the mirror
+	Head    string   `json:"head"`              // refs/heads/<branch>
+	Basis   []string `json:"basis"`             // shas the mirror holds; may be empty
+}
+
+// Send is decision (f) then (g): coalesce; basis = [the lane's tip, the base
+// tip] that Tips holds; on need-base, one base bundle then one resend; on a
+// second need-base, ClearTips and one resend with an empty basis. Answers the
+// lane's new tip, or "" when coalesced, refused or still missing its base.
+func (s *Sender) Send(ctx context.Context, org, project string, lane LaneKey, owner model.Owner,
+	machine, head string) (string, error)
+```
+
+Every `IngestResult` is validated (task 59's `IngestResult.Validate`) before `PutTip`. A
+`refused` answer records nothing and is logged with its code and the lane key; the lane stays at its
+last ingested tip in the mirror, so tier M goes on answering for the last good tip until a bundle is
+accepted. That is the scope's *"a bundle that fails verify is dropped and reported"*, seen from Fleet.
+
+#### The broker's bundle route (wire complete)
+
+`POST /v1/mirrors/{projectId}/bundles`, Fleet under a delegation (task 17's normal rule, not task
+58's exception, because it reads the owner's machine). Body `BundleReq` with
+`DisallowUnknownFields`; for kind `lane`, `lane.owner` must equal `mirror.OwnerHash` of the delegation's
+owner, so one owner's delegation can never write into another owner's lane namespace. The broker
+computes it from the owner the verified delegation names, in `model.Owner`'s spelling (task 09);
+that the delegation answer carries that spelling is task 17's gap S17-1 (`task-17.md:51-54`),
+**UNVERIFIED** until task 05 answers it. The broker: checks the delegation's project is `{projectId}` and that
+`machine` is the delegation owner's (`403 forbidden` otherwise, never `404`, so a guess learns
+nothing); asks that machine's `machined` for the bundle (kind `lane`: the lane runner's `Bundle` op
+over `basis`; kind `base`: the project repository's one-branch bundle); spools at most
+`MaxBundleBytes` (phase 3's constant, `task-24.md:764-766`) without reading it; opens the mirror's
+`/control` as in task 58; sends the `ingest` request and the bytes; returns the mirror's JSON answer
+as its body with `200`. Errors: `413 bundle_too_large`, `404 mirror_not_found`, `409
+mirror_not_running`, `502 machine_unavailable`, `503 delegation_unverifiable`. `machined`'s own
+`bundle_empty` (the basis already reaches the head) is `409 bundle_empty` without contacting the
+mirror; the `Sender` answers `""` for it, and no pair is asked, because nothing new reached the
+mirror. An agent that moved its branch **back** (`reset --hard HEAD~2`) therefore leaves the
+mirror's lane ref on the discarded commits until its next commit; phase 3's step 3b fix
+(`task-07.md:180-190`) is not repeated here, and the part says so in its non-claims.
+
+- [ ] **Step 1: Write the failing tests**
+
+`forecast/tierm_test.go` uses task 25's fakes, task 36's `Activity` fake with a `Paths` answer,
+and a `fakeMirror` that records every `Pairs` request and answers from a table.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestAnUnflaggedPairNeverReachesMergeTree` | Alice's worker commits; Bob's worker has no open conflict with it and no path in common → `fakeMirror.Pairs` is never called (the lane is still sent) | asking M for every teammate, the `n²` the design rules out |
+| `TestOnlyPairsWithTheCommittingLaneAreAsked` | three owners; A–B and B–C flagged; A commits → exactly one pair asked, `(A, B)` | re-asking every flagged pair on each commit |
+| `TestANoisyOverlapIsFlaggedForM` | A and B share only `package-lock.json` (no open conflict, since P dropped it) → the pair is asked; an M `conflicts` answer raises a `cf-…` at tier `M` on `package-lock.json` | "flagged" read as "open conflict" only, so noisy files never raise at M (task 36's promise) |
+| `TestACleanMergeOnAPFlaggedPairIsStillAConflict` | an open tier-P conflict on `auth/session.go`; M answers `clean` with that path listed → the conflict stays open, `Open(…)` shows `Mergeable: true`, no new `cf-…`, no outbox write | a clean merge clearing the record, or a second raise |
+| `TestACleanMergeWithNoConflictRaisesPMergeable` | no open conflict, a live overlap on `api/routes.go`, M `clean` with it listed → one `cf-…` at tier `P`, `Mergeable: true` | the scope's second test dropped when P had not yet run |
+| `TestACleanLockfileRaisesNothing` | the same with only `go.sum` → no `cf-…` | M's clean answer bypassing the noise rule |
+| `TestMConflictRaisesStrongestToM` | open tier-P conflict; M `conflicts` on `auth/session.go` lines `[[10,14]]` → `Strongest == "M"`, `Lines` equals M's, one working-copy update, no second `cf-…` | M treated as a new conflict, or H's lines kept over M's |
+| `TestAStaleAnswerIsDropped` | the fake moves B's recorded tip between the ask and the answer → nothing changes | a forecast applied to lanes that have moved on |
+| `TestUnknownChangesNothing` | `unknown`/`git_failed` → no raise, no mark | an unanswerable pair read as clean |
+| `TestNoMirrorIsTM1` | `Deps.Mirror == nil` → `OnCommit` returns nil and calls nothing | tier M wired on a TM1 build |
+
+`mirror/sender_test.go`, with a fake `BundleRelay` and the memory `MirrorTipStore`:
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestBurstIsCoalesced` | five `Send`s for one lane inside 10 s → two relay calls (the first, then one with the newest head after the window) | a bundle per commit |
+| `TestBasisIsWhatTheMirrorHolds` | tips recorded for the lane and the base → the relay's `Basis` is exactly those two | a basis the mirror lacks, forcing need-base each time |
+| `TestNeedBaseSendsTheBaseThenResends` | first answer `need-base` → one `base` call, then the lane again; its tip is recorded | a lane stuck behind a missing base |
+| `TestSecondNeedBaseClearsAndResendsEmpty` | `need-base` twice → `ClearTips`, then `Basis: []` | a lost mirror disk wedging every lane |
+| `TestARefusedBundleIsReportedAndNotRecorded` | `refused`/`fsck_failed` → no `PutTip`; one log line with the code and lane key; `Send` answers `""` | a refused lane recorded as ingested, so M forecasts a tip the mirror lacks |
+| `TestAnInvalidAnswerIsRefused` | the relay answers `fetched` with a non-sha tip → treated as refused | trusting the mirror's answer shape |
+
+`cmd/broker/mirrorbundles_test.go`: `TestBundleRouteNeedsTheOwnersDelegation` (a delegation for
+another project → 403); `TestBundleRouteRefusesAnotherOwnersLaneKey` (`lane.owner` not the
+delegation owner's hash → 403); `TestBundleRouteNeverDecodesTheBytes` (a stand-in `machined`
+serving random bytes; the stand-in mirror receives them byte for byte; the broker's logs hold none);
+`TestBundleEmptyIsNotSent` (`machined` 409 `bundle_empty` → 409, the mirror stand-in saw no request).
+
+- [ ] **Step 2: `tierm.go`, the `Open` fields, the `Activity.Paths` hunk.** `go test
+  ./internal/fleet/forecast/ -count=1` → `ok`; task 25's and task 36's tests still pass.
+- [ ] **Step 3: The sender, the migration and the store methods.** `go test ./internal/fleet/mirror/
+  ./internal/fleet/store/... -count=1` → `ok` (the Postgres suite skips without its variable, as
+  task 10's does).
+- [ ] **Step 4: The broker route.** `go test ./cmd/broker/ -run Bundle -count=1 -v | grep -c
+  "^--- PASS"` → `4`.
+- [ ] **Step 5: Wire `fleetd`.** Task 35's sample handler calls `OnCommit` when `lastCommit.sha`
+  changes; `go build ./cmd/fleetd` succeeds.
+
+- [ ] **Step 6: Acceptance**
+
+```bash
+cd control-plane
+go vet ./internal/fleet/forecast/ ./internal/fleet/mirror/ ./cmd/broker/ ./cmd/fleetd/
+go test ./internal/fleet/forecast/ ./internal/fleet/mirror/ ./internal/fleet/store/... ./cmd/broker/ -count=1 -race
+go test ./internal/fleet/forecast/ -run 'Unflagged|OnlyPairs' -count=1 -v | grep -c "^--- PASS"   # 2
+```
+
+**Deferred to task 69:** two real members' `machined`s sending into a real mirror; the time from
+a commit to a tier-M `cf-…` on the other member's Desk, measured, not promised.
+
+- [ ] **Step 7: Commit** by pathspec, one commit per step 2 to 5.
+
+**What this task does NOT claim:**
+- That tier M sees uncommitted work. It sees commits only; tiers P and H see the working tree.
+- That a lane reset backwards is followed before its next commit (the `bundle_empty` note above).
+- A latency. The 10-second window and one merge-tree per flagged pair bound the work, not the time.
+- That `machined` serves a one-branch project bundle; phase 8 tasks 20–21 are planned, and the
+  name of that op is theirs (**UNVERIFIED until merge**).
+- That a clean merge means the change is safe. It means git merges the text; tier S (TM3) is the
+  build-and-test answer.
+
+**Gaps found in the skeleton and in sibling parts:**
+1. Task 35 must add `Activity.Paths` and call `OnCommit` when a sample's `lastCommit` moves; task
+   34 must carry `lastCommit.sha`, the worktree id and the machine id in ST.6.
+2. Task 22's `verbs.Conflict` and ST.1's `check` answer need a `mergeable` boolean.
+3. The skeleton's file map has no row for `mirror/sender.go`, `00NN_mirror.sql` or the broker's
+  `mirrorbundles.go`.
+4. Task 17's gap S17-1 (the owner's ids in the delegation answer) is now needed by this route too.
