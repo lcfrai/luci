@@ -94,7 +94,16 @@ func (g npmGraph) add(name string, e *lsEntry) (string, error) {
 	}
 	sort.Strings(names)
 	for _, k := range names {
-		ck, err := g.add(k, e.Dependencies[k])
+		c := e.Dependencies[k]
+		// npm prints an optional peer dependency that is not installed as {}
+		// (npm 11.12.1, desktop's "@rolldown/plugin-babel", read 2026-09-25)
+		// and exits 0. Nothing is installed, so nothing ships; an import of
+		// it still fails "not installed". A missing required dep carries
+		// "missing": true (npm ls exits 1) and stays an error.
+		if c == nil || (c.Path == "" && c.Version == "" && !c.Missing && len(c.Dependencies) == 0) {
+			continue
+		}
+		ck, err := g.add(k, c)
 		if err != nil {
 			return "", err
 		}

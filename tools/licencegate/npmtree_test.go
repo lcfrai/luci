@@ -227,7 +227,10 @@ func TestNpmDeps(t *testing.T) {
 	obj := p.node("node_modules/obj", "obj", "1.0.0", "", nil)
 	writeFile(t, filepath.Join(obj.Path, "package.json"), []byte(`{"name":"obj","version":"1.0.0","license":{"type":"ISC"}}`))
 	alias := p.node("node_modules/my-canvas", "tldraw", "3.0.0", "MIT", nil)
-	dev := p.node("node_modules/dev-tool", "dev-tool", "1.0.0", "MIT", nil)
+	// npm 11.12.1 prints an optional peer dependency that is not installed as
+	// {} (desktop's @vitejs/plugin-react -> "@rolldown/plugin-babel": {},
+	// read 2026-09-25): nothing is installed, so nothing ships; skipped.
+	dev := p.node("node_modules/dev-tool", "dev-tool", "1.0.0", "MIT", kids("opt-peer", &lsNode{}))
 	prod := p.write(kids("two", two, "obj", obj, "my-canvas", alias))
 	all := p.write(kids("two", two, "obj", obj, "my-canvas", alias, "dev-tool", dev))
 	var calls [][]string

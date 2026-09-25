@@ -86,6 +86,11 @@ func firstPartyTree(t *testing.T, base string, lock []byte) (root, proj string) 
 	mkdirs(t, filepath.Join(proj, "src"), filepath.Join(nm, "@panacea-app", "b"), filepath.Join(nm, "forkx"), filepath.Join(nm, "vx"))
 	pkgJSON(t, filepath.Join(nm, "desktop-notify"), "picocolors", "1.1.1", "ISC")
 	pkgJSON(t, filepath.Join(nm, "@panacea-app", "x"), "siginfo", "2.0.0", "GPL-3.0")
+	// The tarballs npm installed from, as in the real run: a gate that read
+	// any file: as a link would find vendor/g-1.0.0.tgz inside -root and
+	// fail g as "not a scanned project" (carried RR2-M2), not error out.
+	writeFile(t, filepath.Join(proj, "vendor", "g-1.0.0.tgz"), nil)
+	writeFile(t, filepath.Join(proj, "vendor", "gpl-dev-1.0.0.tgz"), nil)
 	pkgJSON(t, filepath.Join(nm, "g"), "g", "1.0.0", "MIT")
 	pkgJSON(t, filepath.Join(nm, "gpl-dev"), "gpl-dev", "1.0.0", "GPL-3.0")
 	pkgJSON(t, filepath.Join(root, "b"), "@panacea-app/b", "0.1.0", "UNLICENSED")
