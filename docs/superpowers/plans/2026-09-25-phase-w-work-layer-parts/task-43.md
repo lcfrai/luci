@@ -65,3 +65,76 @@ C files one.* (`work-layer.html:662`): the uncovered criterion, as a fact.
    (`work-layer.html:553`). Task 44's `DisplayOptions` has no layout field, so the choice does not
    survive a remount (a gap for task 44, named in the return).
 
+**Files** (the skeleton's file map lists `BoardView.tsx`; its test is implied):
+- `desktop/src/components/work/BoardView.tsx` (+ `BoardView.test.tsx`) — the board, `dropIntent` and the drag (new)
+- `desktop/src/components/work/WorkLens.tsx` — the *Layout* group in the `ViewHeader` actions (modified, task 40's)
+- `desktop/src/components/work/work.css` — `.wk-board`, `.wk-col`, `.wk-card`, the offer line (modified)
+
+#### Interfaces — complete: `desktop/src/components/work/BoardView.tsx`, the exported half
+
+```tsx
+// desktop/src/components/work/BoardView.tsx — task 43. Columns are criteria by default (05 §4.4 C13).
+import type { JSX } from "react";
+import type { IssueState, Serve } from "../../api/work";                  // SW.15, task 37
+import { FACT_WAITS_ON, handMove } from "../issue/pickers/StatePicker";    // task 46
+import type { StateMove } from "../../api/work";
+
+export type Grouping = "criterion" | "state";   // task 44's DisplayOptions.grouping, board subset
+
+/** A column's identity: `data-col` on its element is `colKey(column)`. */
+export type Column =
+  | { kind: "criterion"; briefKey: string; criterionId: string }
+  | { kind: "no_criterion" }
+  | { kind: "state"; state: IssueState };
+
+export const colKey = (c: Column): string =>
+  c.kind === "criterion" ? `c:${c.briefKey}#${c.criterionId}` : c.kind === "state" ? `s:${c.state}` : "none";
+
+export const START_OFFER = "Start a lane? Shift+R";
+export const UNTIE_OFFER = "An issue leaves the thread with a reason, from its issue view.";
+export const DONE_OFFER = "Done by hand needs a reason. Open the issue.";
+export const EMPTY_CRITERION = "No issue serves this criterion. C files one.";
+
+export type DropIntent =
+  | { kind: "none" }
+  | { kind: "serves"; add: readonly Serve[]; remove: readonly Serve[] }
+  | { kind: "setState"; move: StateMove }
+  | { kind: "pickDuplicate" }
+  | { kind: "offer"; lines: readonly string[] };   // shown in the target column; nothing is sent
+
+export function dropIntent(card: { state: IssueState; serves: readonly Serve[] }, from: Column, to: Column): DropIntent {
+  if (colKey(from) === colKey(to)) return { kind: "none" };
+  if (to.kind === "no_criterion") return from.kind === "criterion" ? { kind: "offer", lines: [UNTIE_OFFER] } : { kind: "none" };
+  if (to.kind === "criterion") {
+    if (from.kind === "state") return { kind: "none" };
+    const target: Serve = { briefKey: to.briefKey, criterionId: to.criterionId };
+    const has = card.serves.some((s) => s.briefKey === target.briefKey && s.criterionId === target.criterionId);
+    const remove = from.kind === "criterion" ? [{ briefKey: from.briefKey, criterionId: from.criterionId }] : [];
+    return { kind: "serves", add: has ? [] : [target], remove };
+  }
+  if (from.kind !== "state") return { kind: "none" };
+  switch (to.state) {
+    case "started": return { kind: "offer", lines: [START_OFFER, FACT_WAITS_ON.started] };
+    case "in_review": case "landed": return { kind: "offer", lines: [FACT_WAITS_ON[to.state]] };
+    case "done": return card.serves.length > 0 ? { kind: "offer", lines: [DONE_OFFER] } : { kind: "setState", move: handMove("done") };
+    case "duplicate": return { kind: "pickDuplicate" };
+    default: return { kind: "setState", move: handMove(to.state) };   // triage, backlog, todo, cancelled
+  }
+}
+
+export function BoardView(props: {
+  projectId: string;
+  grouping: Grouping;                                   // "criterion" unless task 44 says otherwise
+  /** Geometry seam: the column under a point. jsdom has no layout, so tests stub it. */
+  hitTest?: (x: number, y: number) => string | null;    // returns a colKey
+}): JSX.Element;
+```
+
+`dropIntent` is total over the three column kinds and the nine states, and it never returns a
+`setState` whose `to` is `started`, `in_review` or `landed`, which is the property test 2's loop
+checks. A drop **between** a criterion board and a state board cannot happen (one board has one
+grouping), so those pairs return `none`. The component turns an intent into at most one `mutate`:
+`serves` → `{kind: "serves", issueId, add, remove}` (task 42's op), `setState` →
+`{kind: "setState", issueId, move}`; `offer` sets the column's offer lines; `pickDuplicate` opens
+`DuplicateOfPicker` anchored in the target column.
+
