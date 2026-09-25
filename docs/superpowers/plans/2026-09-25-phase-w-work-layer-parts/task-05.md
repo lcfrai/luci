@@ -820,4 +820,77 @@ func (f *Fake) CreateComment(_ context.Context, issueID string, req hubapi.Creat
 	}
 	return w.renderComment(fc), nil
 }
+
+// fkEmojiOK stands in for task 12's ValidReactionEmoji until it lands: no
+// ASCII at all (so no :shortcode: and no plain text), 1 to 32 bytes.
+func fkEmojiOK(s string) bool {
+	return s != "" && len(s) <= 32 && utf8.ValidString(s) &&
+		!strings.ContainsFunc(s, func(r rune) bool { return r < 0x80 })
+}
+
+// React is idempotent per (comment, user, emoji): on twice is one row and one
+// event; off removes it; off again is 200 and no event.
+func (f *Fake) React(_ context.Context, commentID string, req hubapi.ReactRequest) (hubapi.Comment, error) {
+	w := f.w
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	me, err := f.enter("React", commentID, req)
+	if err != nil {
+		return hubapi.Comment{}, err
+	}
+	fc, role, err := w.commentOf(commentID, me)
+	if err != nil {
+		return hubapi.Comment{}, err
+	}
+	if err := need(role, hubapi.RoleMember); err != nil {
+		return hubapi.Comment{}, err
+	}
+	if !fkEmojiOK(req.Emoji) {
+		return hubapi.Comment{}, badRequest("emoji", "A reaction is one emoji.")
+	}
+	pair := [2]string{req.Emoji, me}
+	i := slices.Index(fc.reactions, pair)
+	switch {
+	case req.On && i < 0:
+		fc.reactions = append(fc.reactions, pair)
+	case !req.On && i >= 0:
+		fc.reactions = slices.Delete(fc.reactions, i, i+1)
+	default:
+		return w.renderComment(fc), nil
+	}
+	w.workEvent(me, fkEventCommentReacted, fc.teamID, fc.projectID, commentID,
+		map[string]any{"emoji": req.Emoji, "on": req.On})
+	return w.renderComment(fc), nil
+}
+
+// ResolveComment resolves a top-level comment only; a repeat is no event.
+func (f *Fake) ResolveComment(_ context.Context, commentID string, req hubapi.ResolveRequest) (hubapi.Comment, error) {
+	w := f.w
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	me, err := f.enter("ResolveComment", commentID, req)
+	if err != nil {
+		return hubapi.Comment{}, err
+	}
+	fc, role, err := w.commentOf(commentID, me)
+	if err != nil {
+		return hubapi.Comment{}, err
+	}
+	if err := need(role, hubapi.RoleMember); err != nil {
+		return hubapi.Comment{}, err
+	}
+	if fc.c.ParentID != nil {
+		return hubapi.Comment{}, problem(422, fkCommentNotTopLevel, "Only a top-level comment is resolved.", "field", "commentId")
+	}
+	if req.Resolved == (fc.c.ResolvedAt != nil) {
+		return w.renderComment(fc), nil
+	}
+	fc.c.ResolvedAt, fc.c.ResolvedBy = nil, nil
+	if req.Resolved {
+		at := w.stamp()
+		fc.c.ResolvedAt, fc.c.ResolvedBy = &at, w.userRef(me)
+	}
+	w.workEvent(me, fkEventCommentResolved, fc.teamID, fc.projectID, commentID, map[string]any{"resolved": req.Resolved})
+	return w.renderComment(fc), nil
+}
 ```
