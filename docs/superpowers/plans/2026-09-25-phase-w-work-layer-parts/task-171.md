@@ -25,9 +25,11 @@ text will leave the product.
 1. **The surface never holds a tracker credential.** The connect form has no token, PAT, password
    or key field. How the Hub authorises is tasks 150-153's (a `secret_ref` or the Hub's workload
    identity). When `connectTracker` answers a `consentUrl` (a GitHub App installation, a Jira OAuth
-   consent), the desktop opens it in the **system browser** through the shell's external-open
-   (as sign-in does, OD-6), and the connection reads *waiting for consent* until the Hub's next
-   `tracker.connected` event. The webview never loads a tracker page.
+   consent), the desktop opens it in the **system browser** through `@tauri-apps/plugin-opener`'s
+   `openUrl` (the plugin is already a dependency: `desktop/package.json:17`, used at
+   `desktop/src/components/menu/ContextMenu.tsx:44`), only when the URL is `https:`, and the
+   connection reads *waiting for consent* until the Hub's next `tracker.connected` event. The
+   webview never loads a tracker page.
 2. **The target is validated before the Hub call, in the tracker's own terms.** `validateTarget`
    below checks each field against the tracker's naming rule as recorded here and names the field
    and the rule. The Hub's 422 stays a second check, never the only one.
@@ -66,3 +68,62 @@ host exists when this lands, `TrackerList` mounts on the team's Triage header me
 scopes' (`tasks-141-160.md:418-545`) and **UNVERIFIED**. The naming rules in `validateTarget` are
 recorded from the trackers' public behaviour as this part understands it and are **UNVERIFIED**
 against each tracker's current documentation; the tests fix what the desktop accepts.
+
+#### Interfaces — complete: `desktop/src/components/intake/trackerTarget.ts`
+
+```ts
+// desktop/src/components/intake/trackerTarget.ts — task 171 (decision 2). Pure; no network.
+import type { TrackerSource, TrackerTarget } from "../../api/work";   // task 169
+
+export interface TargetProblem { field: string; rule: string }
+
+const AZ_ORG = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,48}[A-Za-z0-9])?$/;       // 1-50, no edge hyphen
+const AZ_PROJECT_BAD = /[\\/:*?"<>|;#$*{},+=[\]]/;                      // reserved characters
+const GH_OWNER = /^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$/; // 1-39, single hyphens
+const GH_REPO = /^[A-Za-z0-9._-]{1,100}$/;
+const JIRA_SITE = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.atlassian\.net$/;   // Jira Cloud
+const JIRA_KEY = /^[A-Z][A-Z0-9_]{1,9}$/;                               // the default key rule
+
+/** Every problem, in field order; [] means the Hub may be called. */
+export function validateTarget(t: TrackerTarget): TargetProblem[] {
+  const out: TargetProblem[] = [];
+  const need = (field: string, v: string, ok: boolean, rule: string) => { if (!ok || v.trim() !== v) out.push({ field, rule }); };
+  switch (t.source) {
+    case "azure_boards":
+      need("organisation", t.organisation, AZ_ORG.test(t.organisation), "letters, digits and inner hyphens, 1-50");
+      need("project", t.project, t.project.length > 0 && t.project.length <= 64 && !AZ_PROJECT_BAD.test(t.project)
+        && !t.project.startsWith("_") && !t.project.endsWith("."), "1-64 characters, none of \\ / : * ? \" < > | ; # $ { } , + = [ ]");
+      if (t.areaPath !== null)
+        need("areaPath", t.areaPath, t.areaPath === t.project || t.areaPath.startsWith(`${t.project}\\`),
+          "starts with the project name, levels split by \\");
+      break;
+    case "github":
+      need("owner", t.owner, GH_OWNER.test(t.owner), "letters, digits and single inner hyphens, 1-39");
+      need("repository", t.repository, GH_REPO.test(t.repository) && t.repository !== "." && t.repository !== "..",
+        "letters, digits, . _ -, 1-100");
+      break;
+    case "jira":
+      need("site", t.site, JIRA_SITE.test(t.site), "a Jira Cloud site, name.atlassian.net");
+      need("projectKey", t.projectKey, JIRA_KEY.test(t.projectKey), "2-10 capitals, digits or _, a capital first");
+      break;
+  }
+  return out;
+}
+
+/** The tracker's own words for the form (decision 2): what each field is called there. */
+export const TARGET_LABELS: Readonly<Record<TrackerSource, readonly [string, string][]>> = {
+  azure_boards: [["organisation", "Organisation"], ["project", "Project"], ["areaPath", "Area path (optional)"]],
+  github: [["owner", "Owner"], ["repository", "Repository"]],
+  jira: [["site", "Site"], ["projectKey", "Project key"]],
+};
+
+export const SOURCE_NAME: Readonly<Record<TrackerSource, string>> = {
+  azure_boards: "Azure Boards", github: "GitHub Issues", jira: "Jira",
+};
+```
+
+`JIRA_KEY` is Jira's **default** project-key rule; a Jira admin can change the pattern, so a key
+the site accepts may be refused here (gap 2). The refusal names the rule, so the person knows why,
+and the Hub's own call is never reached with a key this form refused. Task 153 pins Jira Cloud;
+a Jira Data Center site (not `*.atlassian.net`) is refused with the rule's words, which is the
+scope's *Jira Cloud* claim and nothing more.
