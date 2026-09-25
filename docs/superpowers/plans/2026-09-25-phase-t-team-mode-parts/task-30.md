@@ -154,3 +154,157 @@ next turn's reasoning starts from the truth. Accepting the two fields and ignori
 than refusing them, is deliberate: a refusal teaches a prompt-injected Orchestrator which fields
 matter; an override is recorded in the audit line (`requestedDefault`, `requestedDeadline`) where
 an auditor sees the attempt.
+
+**`rules.go`, the table, complete.** One row per §6.5 line that is keyed on a typed action. The
+row that is not (*"a peer asks why"*) is task 28's templated answer, not a verdict.
+
+```go
+package escalate
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"time"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/fleet/model"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/fleet/protocol"
+)
+
+type Who int // whose human decides, relative to the Action
+
+const (
+	Proposer Who = iota
+	Acceptor
+	Second   // sequence: the side that waits
+	Builder  // build-on: the side that builds on the other's lane
+	Both
+	Own      // an Orchestrator's own human (direct, scope change)
+)
+
+type Row struct {
+	Key     string
+	Verdict protocol.Verdict
+	Who     Who
+	Locked  bool // always-decide: no source may change it (OD-24)
+	Why     string
+}
+
+// Table is §6.5 (05-design.md:722-735). Order is irrelevant; keys are unique.
+var Table = []Row{
+	{"yield-unedited", protocol.VerdictAct, Proposer, false, "nothing is lost"},
+	{"yield-edited", protocol.VerdictDecide, Proposer, false, "work would be discarded"},
+	{"accept-split", protocol.VerdictAct, Acceptor, false, "my side keeps every edited path"},
+	{"accept-split-moves-edited", protocol.VerdictDecide, Acceptor, false, "a split can move my edited work"},
+	{"proceed-both-ps", protocol.VerdictAct, Both, false, "the land will show it"},
+	{"proceed-both-hm", protocol.VerdictDecide, Both, true, "a clean merge can hide a semantic conflict"},
+	{"sequence-short", protocol.VerdictAct, Second, false, "a wait under an hour"},
+	{"sequence-long", protocol.VerdictDecide, Second, false, "a long wait is a scheduling choice"},
+	{"build-on", protocol.VerdictDecide, Builder, true, "it runs their code in my sandbox"},
+	{"scope-change", protocol.VerdictDecide, Own, false, "it changes what I asked for"},
+	{"exhausted", protocol.VerdictDecide, Both, true, "negotiation failed"},
+	{"free-directive-fleet-turn", protocol.VerdictDecide, Own, true, "the injection fence"},
+}
+
+// Floorable are the four act rows a team admin may floor (task-01.md:471-480).
+var Floorable = map[string]bool{
+	"yield-unedited": true, "accept-split": true, "proceed-both-ps": true, "sequence-short": true,
+}
+
+var ErrLoosen = errors.New("escalate: a rule may only add asking")
+
+// Sources are the floors (team policy) and each user's own rows.
+type Sources interface {
+	Floors(ctx context.Context, org, project string) ([]string, error)
+	UserRows(ctx context.Context, owner model.Owner) ([]string, error) // none in TM1-α
+	OwnerOf(ctx context.Context, orch model.AgentID) (model.Owner, error)
+}
+
+type Rules struct{ Src Sources }
+
+// KeyOf maps a typed action to its row. Unknown forecast wait counts as
+// short: TM1-α has no forecast (decision recorded under the gaps).
+func KeyOf(a protocol.Action) string {
+	switch a.Resolution {
+	case protocol.ResYield:
+		if len(a.EditedByProposer) > 0 {
+			return "yield-edited"
+		}
+		return "yield-unedited"
+	case protocol.ResSequence:
+		if a.ForecastWait >= time.Hour {
+			return "sequence-long"
+		}
+		return "sequence-short"
+	case protocol.ResProceedBoth:
+		if a.Tier == "H" || a.Tier == "M" {
+			return "proceed-both-hm"
+		}
+		return "proceed-both-ps"
+	case protocol.ResBuildOn:
+		return "build-on"
+	case protocol.ResSplit:
+		return "accept-split" // task 62 adds the moves-edited test
+	}
+	return ""
+}
+
+// Classify is task 29's Rules. Order: the row; a locked row is final; a
+// team floor or a deciding side's own user row turns act into decide.
+// Nothing turns decide into act: there is no code path that could.
+func (r Rules) Classify(ctx context.Context, a protocol.Action) (protocol.Ruling, error) {
+	key := KeyOf(a)
+	row, ok := rowByKey[key]
+	if !ok {
+		return protocol.Ruling{}, fmt.Errorf("escalate: no row for %q", a.Resolution)
+	}
+	sides := sidesFor(row.Who, a)
+	if row.Verdict == protocol.VerdictDecide {
+		return protocol.Ruling{Verdict: protocol.VerdictDecide, Row: key, Sides: sides}, nil
+	}
+	floors, err := r.Src.Floors(ctx, a.Org, a.Project)
+	if err != nil {
+		return decideOnError(key, sides), nil // cannot read the floors: ask
+	}
+	if contains(floors, key) {
+		return protocol.Ruling{Verdict: protocol.VerdictDecide, Row: key, Sides: sides}, nil
+	}
+	var asking []model.AgentID
+	for _, s := range sides {
+		owner, err := r.Src.OwnerOf(ctx, s)
+		if err != nil {
+			return decideOnError(key, sides), nil
+		}
+		rows, err := r.Src.UserRows(ctx, owner)
+		if err != nil {
+			return decideOnError(key, sides), nil
+		}
+		if contains(rows, key) {
+			asking = append(asking, s) // a user tightens for their own side only
+		}
+	}
+	if len(asking) > 0 {
+		return protocol.Ruling{Verdict: protocol.VerdictDecide, Row: key, Sides: asking}, nil
+	}
+	return protocol.Ruling{Verdict: protocol.VerdictAct, Row: key}, nil
+}
+
+// decideOnError: a rule source that cannot be read never loosens; it asks.
+func decideOnError(key string, sides []model.AgentID) protocol.Ruling {
+	return protocol.Ruling{Verdict: protocol.VerdictDecide, Row: key, Sides: sides}
+}
+```
+
+`rowByKey` is built from `Table` at `init`, which panics on a duplicate key (a programming error
+caught by the first test run, never at run time in a released build). `sidesFor` maps `Who` to
+Orchestrator ids: `Proposer` → `a.Proposer`; `Acceptor` → `a.Acceptor`; `Second` → the
+participant that is not `a.First`; `Builder` → the participant that is not the base; `Both` →
+both; `Own` → the caller (the directive and scope rows, where `Action.Proposer` is set to the
+calling Orchestrator by task 31). `contains` is a linear scan.
+
+**Validating a floor list** (the Hub already refuses non-floorable keys, task 01 §7.24; Fleet
+checks again because it must not trust a stale cache): `ValidateFloors(keys []string) error`
+returns `ErrLoosen` naming the first key that is not in `Floorable`, including every locked and
+every decide row (flooring a decide row is meaningless, and accepting it would hide a typo). A bad
+cached floor list is treated as "every floorable row floored" until the next policy read, which
+only adds asking.

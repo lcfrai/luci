@@ -130,6 +130,7 @@ var (
 
 // Action is what an accept would do, typed, as task 30's rules read it.
 type Action struct {
+	Org, Project string        // for the team policy's floors (task 30)
 	Resolution ResolutionKind
 	Tier       string          // the conflict's P | H | M | S; "" for a free thread
 	Proposer   model.AgentID   // the side that proposed
