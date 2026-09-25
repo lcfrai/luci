@@ -8,7 +8,7 @@ and phase 7 builds a second write path into the same store. This task is the one
 **control-plane** routes — none on the Hub, which never holds a git or Panacea credential (ADR-H1
 §5.2) — **write-only for the secret**: a token goes in, and no route ever returns one. Phase 3's
 and phase 7's "connect" surfaces call them (task 40 gives the desktop the client functions).
-The contract also leaves the store with **no Azure DevOps credential** until ADR-H1 Q5 is yes
+The contract also leaves the store with **no Azure DevOps credential** until ADR-H1 Q5 is yes (**Q5 is now No, flipped by OD-30, ADR-H1 §12: the PAT is the only Azure DevOps path**)
 (review I10), against OD-4 (*both hosts, from v1*) and OD-6 (*one store*); so this path also takes
 a pasted Azure DevOps PAT per organisation, which the Entra path supersedes, with no write-path
 change, for any user who has not pasted one.
