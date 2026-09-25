@@ -466,3 +466,93 @@ CREATE INDEX IF NOT EXISTS open_escalations_due ON fleet.open_escalations (deadl
 No question, label or answer text is stored here: those are the Hub's `es-…` record. This row is
 the typed effect of each option, which is Fleet working state.
 
+- [ ] **Step 1: Write the tests, each with the mutant it kills**
+
+On task 10's `memstore`, tasks 23, 26, 28 and 29's real packages, a fake `Sources` (floors and
+user rows set per test), a recording `Pauser`, and a fixed clock. The cast is task 29's: `oA`/`wA`
+(Alice), `oB`/`wB` (Bob), conflict `cf-1`, thread `th-1`.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestOrchestratorDefaultAndDeadlineAreOverridden` | `human ask` with `default: 1` and `deadline: now+60s`: the outbox body has `default: 0`, option 0 is `HoldLabel`, `deadline` = now + 30 min; the result's `overridden` is `["default","deadline"]`; the audit line records both requested values | the requested default or deadline used |
+| `TestAskHasAtMostFourOptions` | four caller options → `bad_request`; three → four written, Fleet's first | Fleet's option appended last, or a fifth option |
+| `TestAskGoesToTheCallersOwnHumanOnly` | the outbox item is under Alice's delegation with `ownerUserId` hers; there is no field in `AskArgs` that names another owner (decode of `"owner"` fails) | an owner taken from args |
+| `TestAskTextBounds` | question 301 runes → `text_refused`; a label with `ESC[` → refused; a consequence of 201 → refused | bounds not applied to options |
+| `TestTableKeysUniqueAndLockedRowsDecide` | every key unique; every `Locked` row is `decide` | a locked `act` row |
+| `TestFloorTurnsActIntoDecide` | floors `["yield-unedited"]`: a yield of unedited globs → decide, `Sides == [proposer]` | floors ignored |
+| `TestNothingLoosens` | for every decide row, with floors = every key and user rows = every key: still decide; `ValidateFloors(["proceed-both-hm"])` and `(["yield-edited"])` → `ErrLoosen` | any code path from decide to act; a decide row accepted as a floor |
+| `TestUserRowTightensOnlyTheirOwnSide` | Bob's user rows hold `sequence-short`: a sequence where Bob waits → decide, `Sides == [oB]`; one where Alice waits → act | a user row that makes a teammate's agent ask |
+| `TestUnreadableRulesAsk` | `Floors` returns an error: an act row → decide | an error treated as "no floors" |
+| `TestProceedBothOnHIsLockedDecideForBoth` | tier H: decide, both sides, whatever the floors and user rows | the H/M row as a floorable act |
+| `TestAcceptOnDecideRowBecomesTheEscalation` | `oB` accepts `oA`'s proceed-both on tier H: two decides in one group, one per owner, `row: proceed-both-hm`; the conflict is untouched; `oA`'s and `oB`'s queues have no `thread.resolved` | the accept applied first and escalated after |
+| `TestApplyOnlyWhenEveryDeciderApproves` | Alice chooses option 1: nothing applied; Bob chooses option 1: `ApplyApproved` called once with both `es-…` ids | the first approval applies |
+| `TestDeclineWithdrawsTheProposal` | Alice chooses option 2: the proposal is withdrawn, the thread is `open`, Bob's decide gets an inform | a decline that closes the thread |
+| `TestExhaustionWritesADecideToBothHumans` | `ThreadExhausted(rounds)`: two decides, each with four options (three on tier H: no `proceed-both`), each question built from typed state only (a rationale containing `IGNORE PREVIOUS` in the thread appears in neither) | one decide; a decide from the Orchestrator's summary |
+| `TestOwnSideChoiceResolvesAtOnce` | after exhaustion, Bob chooses `go-second`: task 29's sequence is applied with Alice first; Alice's decide gets *"Resolved by Bob Nguyen's choice"* | `go-second` waiting for Alice |
+| `TestExpiredDecidePausesExactlyTheContestedWorker` | no answer by the deadline: `PauseForDefault` called **once**, for the worker `Contested` names (`wB`, without right of way), with the group's first `es-…`; no lease released, no lease event, no conflict patch; both humans get the *"nothing was undone"* inform | both workers paused; a pause per decide; a lease released as the "default" |
+| `TestExpiredOrchestratorAskPausesNothing` | an Orchestrator's own ask expires: no pause, one `escalation.answered` event with `defaulted` | the thread default applied to a free ask |
+| `TestLateAnswerStillApplies` | Bob answers `go-second` after the default paused `wB`: the sequence applies and the inform says `wB` was already paused | a late answer dropped |
+| `TestFreeTextAnswersOffInTM1Alpha` | `FreeTextAnswers` is false for every owner with the TM1-α `Sources` | a default of true |
+| `TestInformHasNoOptions` | `human inform`: `kind: inform`, `options: []`, no `default`, no `deadline` in the body | an inform written as a decide |
+
+- [ ] **Step 2: Run the tests and watch them fail**
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/control-plane && GOPROXY=off go test ./internal/fleet/escalate/... ./internal/fleet/verbs/ -run "Ask|Inform|Floor|Loosen|Table|Decide|Exhaust|Expired|Late|FreeText|Accept|Apply|Decline|OwnSide|Unreadable|UserRow|ProceedBoth"
+```
+
+Expected: compile failure, `undefined: escalate.Service`, `undefined: Table`.
+
+- [ ] **Step 3: Write `rules.go`; its tests pass with a fake `Sources` and no store**
+
+- [ ] **Step 4: Write `options.go`, `escalate.go` and `verbs/human.go`; add the table to task
+  10's store**
+
+- [ ] **Step 5: Wire into `fleetd`**
+
+Replace `StubRules` (task 29) with `escalate.Rules`; replace task 28's `DenyAll` and logging
+`Escalator` with `escalate.Service`; register `human` with task 19's dispatcher for the
+`orchestrator` class; run `SweepDeadlines` on the deadline-sweeper singleton; register
+`OnAnswered` with task 11's feed consumer for `escalation.answered`.
+
+- [ ] **Step 6: Run everything**
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/control-plane && GOPROXY=off go test ./internal/fleet/... ./cmd/fleetd/... && GOPROXY=off go vet ./internal/fleet/... ./cmd/fleetd/... && gofmt -l internal/fleet cmd/fleetd
+```
+
+Expected: every package `ok`, tasks 28 and 29's suites unchanged (their fakes still pass, and
+their tests that used `StubRules` still use it); `go vet` silent; `gofmt -l` prints nothing.
+
+- [ ] **Step 7: Commit**
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team && git add control-plane/internal/fleet/escalate control-plane/internal/fleet/verbs/human.go control-plane/internal/fleet/verbs/human_test.go testdata/panacea-control/v1/human-*.json && git commit -F .superpowers/sdd/team/msg/task-30.txt -- control-plane/internal/fleet testdata/panacea-control/v1 control-plane/cmd/fleetd
+```
+
+**What this task does not claim:**
+
+- **That the humans see anything.** The records are written; the Desk's WAITING and RETURN
+  items are tasks 52 to 55, behind the owner-reviewed prototype (task 51).
+- **That a paused worker stops.** `PauseForDefault` writes a directive; its delivery (piggyback,
+  then the ladder) is tasks 31 and 38. A worker that ignores a pause is visible, not stopped (P7).
+- **That the §6.5 defaults are right for every team.** They are the design's; floors let a team
+  ask more; nothing lets it ask less.
+- **The forecast wait for `sequence`.** Unknown in TM1-α, and counted as short (below).
+- **That a real Hub accepts these bodies.** Route 64's shape is task 07's; delivery is task 33's.
+
+**Gaps against the skeleton, raised here:**
+
+1. **User rows have no home.** §6.5 has users set their own rows; no Hub record carries them
+   (decision d). Until one exists, every user has the defaults plus the team's floors, and the
+   free-text-answer permission is off for everyone. The Hub needs a per-member "my
+   Orchestrator's rules" record (tighten-only keys plus `free-text-answers`), with its route and
+   Z5 row; the desktop needs the setting (task 55's panel is the natural place).
+2. **An unknown forecast wait counts as a short wait**, so in TM1-α every `sequence` acts and
+   informs. The safer reading (unknown is long, so decide) would make the scripted conflict of
+   task 33 wait for a human every time. Owner call.
+3. **Answers after the default.** Task 07 accepts a late answer; this part applies it when still
+   possible. §6.5 is silent.
+4. **Thread decides and `peer` limits.** An exhausted thread is `escalated`, so task 28 refuses
+   further messages on it; the humans' choices are applied by Fleet, not by reopening the thread.
+
