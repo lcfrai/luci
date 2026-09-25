@@ -1,20 +1,30 @@
 ### Task 11: gatekeeper proxy: allowlist, `model` rewrite, headers, streaming
 
-This is the half of the gatekeeper that touches bytes. Task 10 decides whether a request may pass and on which route; this task turns that decision into one forwarded request to LiteLLM and one relayed response, and it has to do so while changing **exactly one JSON value**. Everything Claude Code sends that we do not understand, a field added in next month's release, a beta header nobody here has heard of, must reach LiteLLM unchanged, because OD-20 has the cloud track the latest CLI and the gateway docs forbid the alternative: *"Forward `anthropic-version` and `anthropic-beta` unchanged … don't allowlist individual values, because the set changes with Claude Code releases"* (https://code.claude.com/docs/en/llm-gateway-protocol, as read by the skeleton on 2026-09-25; **not re-read here**, the corporate network was not tried).
+This is the half of the gatekeeper that touches bytes. Task 10 decides whether a request may pass and on which route; this task turns that decision into one forwarded request to LiteLLM and one relayed response, and it has to do so while changing **exactly one JSON value** and dropping **a named list of LiteLLM's own control fields** (decision (f)). Everything else Claude Code sends that we do not understand, a field added in next month's release, a beta header nobody here has heard of, must reach LiteLLM unchanged, because OD-20 has the cloud track the latest CLI and the gateway docs forbid the alternative: *"Forward `anthropic-version` and `anthropic-beta` unchanged … don't allowlist individual values, because the set changes with Claude Code releases"* (https://code.claude.com/docs/en/llm-gateway-protocol, as read by the skeleton on 2026-09-25; **not re-read here**, the corporate network was not tried).
 
-**The one thing this task must not get wrong is that the route is enforced on the value LiteLLM will actually read.** LiteLLM picks the upstream from the body's `model`. If a sandbox can get a model name past the rewrite, it chooses its own route, and an AU project leaves Australia. Three ways to do that are closed here, each by a test: naming a LiteLLM group directly (`"model": "global/claude-opus-4-8"` is not a public id, so `Resolve` refuses it); sending `model` twice (Go's decoder and Python's `json` both keep the **last** duplicate, so rewriting the first would forward the attacker's second; a duplicate is refused); and spelling the key with an escape (`"model"` decodes to `model` in both languages, so the key is compared **decoded**).
+**The one thing this task must not get wrong is that the route is enforced on the value LiteLLM will actually read.** LiteLLM picks the upstream from the body's `model`. If a sandbox can get a model name past the rewrite, it chooses its own route, and an AU project leaves Australia. Three ways to do that are closed here, each by a test: naming a LiteLLM group directly (`"model": "global/claude-opus-4-8"` is not a public id, so `Resolve` refuses it); sending `model` twice (Go's decoder and Python's `json` both keep the **last** duplicate, so rewriting the first would forward the attacker's second; a duplicate is refused); and spelling the key with an escape (`"model"` decodes to `model` in both languages, so the key is compared **decoded**). A fourth way does not touch `model` at all: LiteLLM's proxy reads routing parameters of its own from the body, such as a client-side `"fallbacks": ["global/claude-opus-4-8"]`, and a forced primary failure (`mock_testing_fallbacks`) would then send an AU project's prompt to the Global group. Decision (f) closes it (review C-1).
 
-Five decisions where the skeleton is silent, made here so task 12 does not re-derive them.
+Six decisions where the skeleton is silent, made here so task 12 does not re-derive them.
 
 - **(a) The rewrite splices, it does not re-encode.** The skeleton says "decode as `map[string]json.RawMessage` … re-encode". `json.Marshal` of a `RawMessage` is not byte-preserving: it compacts whitespace and, with its default HTML escaping, turns `<` in a prompt into `\u003c`. The value is equivalent JSON but not the same bytes, and the skeleton's own test ("keeps it byte for byte") would fail. So `rewriteModel` walks the top level with `json.Decoder.Token`, finds the byte range of the one `model` string, and replaces that range in the original slice. Every other byte, including key order and whitespace, is the sender's. The map decode survives only as the check that the body is one JSON object.
 - **(b) `Config.Catalogue` is the interface `Resolver`**, which `*catalogue.Catalogue` satisfies (a compile-time assertion pins it). The skeleton names the concrete type; the interface lets these tests run on a two-line fake instead of on whatever `models.yaml` holds this month. Task 12 passes the concrete catalogue unchanged.
 - **(c) Credential-shaped headers are stripped, not only `x-litellm-*`.** The skeleton forwards "the credential as `Authorization: Bearer` alone". This task makes that literal: `Authorization`, `x-api-key`, `api-key`, `x-goog-api-key`, `ocp-apim-subscription-key`, `proxy-authorization` and `cookie` are all removed before the one `Authorization` is set. The reason is pod binding. A sandbox could present its own bound token in `Authorization` to pass task 10, and a second session's stolen token in `api-key`; if LiteLLM prefers that header (its header precedence is **UNVERIFIED** against the pinned image, task 18), the stolen key spends without its pod. Stripping costs nothing.
 - **(d) `x-litellm-*` and `litellm-*` are stripped from responses too.** LiteLLM answers with headers such as its model `api_base` and the key's spend (names from training knowledge, **UNVERIFIED**). They tell a sandbox the internal topology and invite tooling to depend on a component it must never reach. The rest of the response, body included, is relayed as LiteLLM sent it: an error body echoes the caller's own request back to the caller, which is not a disclosure.
 - **(e) The proxy reports each request through `Config.Observe(Outcome)`**, once, after the response ends, and `Outcome` has no field that can hold a body or a header value. Task 12's logger is that callback, so "bodies are never logged" (Global constraint 3) is a property of a type, not a habit.
+- **(f) A named denylist of LiteLLM control fields is dropped from the top level of the body** (review C-1). The route must not rest on `model` alone, because LiteLLM's proxy reads parameters of its own from a request body and acts on them before, or instead of, the group `model` names. `proxy.ControlFields` holds fifteen names, in three kinds:
+  - **Fallbacks, which move a request to another group:** `fallbacks`, `context_window_fallbacks`, `content_policy_fallbacks`.
+  - **Mocks, which force the router's failure path or skip the upstream:** `mock_testing_fallbacks`, `mock_testing_context_fallbacks`, `mock_testing_content_policy_fallbacks`, `mock_testing_rate_limit_error`, `mock_response`.
+  - **Client-side upstream and credentials, which replace what the catalogue chose:** `api_base`, `base_url`, `api_key`, `api_version`, `aws_region_name`, `aws_bedrock_runtime_endpoint`, `user_config`. A body `aws_region_name` on an `au/` group would move a Bedrock call out of `ap-southeast-2`.
+
+  The review names seven of these; the other eight are the same kind, from the same source. The source is training knowledge of LiteLLM's proxy, **UNVERIFIED** against the pinned image, and so is whether its `/v1/messages` path honours each one. Task 18's P14 measures the two most dangerous against the running image. The list is dropped whether or not the image honours a name, since dropping costs nothing. None of the fifteen is an Anthropic Messages parameter (training knowledge of the Messages API, **UNVERIFIED** against future releases), so Claude Code never needs one to reach the provider.
+
+  A field is dropped silently, as a credential header is (decision (c)). It is not refused, because a client that sent one would get a `400` on its first request with no way to find out why. The match is on the **decoded** key, exact and case-sensitive, as Python's `dict.get` reads it, so `"fallbacks"` is dropped too. Only the top level is touched. P08 decides `metadata.tags`, the one nested field in question.
+
+  This is **a denylist, not an allowlist**. The gateway docs forbid an allowlist, and task 18's P13 checks that an unknown field still reaches the provider. Removing a field keeps every other byte: the splice of decision (a) also leaves out a dropped member's byte range, and the separating comma with it.
 
 **Files:**
 - `control-plane/internal/gatekeeper/proxy/proxy.go` — `Config`, `Decider`, `Resolver`, `Outcome`, `New`, `RequestFrom`, header hygiene, the `ReverseProxy` (new)
-- `control-plane/internal/gatekeeper/proxy/rewrite.go` — `rewriteModel`, the splice, its errors (new)
+- `control-plane/internal/gatekeeper/proxy/rewrite.go` — `ControlFields`, `rewriteModel`, the splice that rewrites `model` and leaves out the control fields, its errors (new)
 - `control-plane/internal/gatekeeper/proxy/proxy_test.go` — every test below, `package proxy` (new)
 
 **Interfaces:**
@@ -27,8 +37,9 @@ Five decisions where the skeleton is silent, made here so task 12 does not re-de
   - `proxy.RequestFrom(r *http.Request, now time.Time) authz.Request`: the source address from `r.RemoteAddr` alone, IPv4-mapped addresses unmapped; task 12 reuses it for `/v1/models`
   - `proxy.NewTransport() *http.Transport`: no environment proxy, no response-header deadline
   - `proxy.AllowedPaths` = `[]string{"/v1/messages", "/v1/messages/count_tokens"}`
+  - `proxy.ControlFields []string`: the fifteen top-level body keys dropped before the forward (decision (f)); task 18's P14 cites it
 - Consumes: `authz.Request`, `authz.Decision` (task 10); `dataclass.Route`, `RouteGlobal`, `RouteAU` (task 01); `wire.CodePathNotAllowed`, `wire.CodeModelNotOffered` (task 03; the Go identifiers are this part's assumption, see the gap list in the return); `httpx.WriteProblem`, `httpx.CodeInvalidJSON`, `httpx.CodeBackendUnavailable` (`control-plane/internal/httpx/problem.go:45`, `:60`, `:93`).
-- Required by: task 12 (mounts `New` behind `/v1/models` and `/api/hello`, logs `Outcome`, reuses `RequestFrom`), task 17 (the local stack), task 18 (P08 decides whether this rewrite also drops `metadata.tags`).
+- Required by: task 12 (mounts `New` behind `/v1/models` and `/api/hello`, logs `Outcome`, reuses `RequestFrom`), task 17 (the local stack), task 18 (P08 decides whether this rewrite also drops `metadata.tags`; P14 measures whether LiteLLM itself would honour a body `fallbacks` that `ControlFields` drops).
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -262,6 +273,70 @@ func TestTheRouteCannotBeChosenByTheBody(t *testing.T) {
 	}
 }
 
+// The test's own copy of decision (f)'s list, so a name deleted from
+// ControlFields is a red row here, not a row that disappears with it.
+var wantDropped = []string{
+	"fallbacks", "context_window_fallbacks", "content_policy_fallbacks",
+	"mock_testing_fallbacks", "mock_testing_context_fallbacks",
+	"mock_testing_content_policy_fallbacks", "mock_testing_rate_limit_error", "mock_response",
+	"api_base", "base_url", "api_key", "api_version",
+	"aws_region_name", "aws_bedrock_runtime_endpoint", "user_config",
+}
+
+// Each row is one LiteLLM control field on an AU request (review C-1). Kills
+// deleting any one name from ControlFields (that row's field reaches upstream),
+// and kills matching the raw key bytes instead of the decoded key (the
+// escaped row). The length check keeps the two lists in step.
+func TestLiteLLMControlFieldsNeverReachUpstream(t *testing.T) {
+	if len(ControlFields) != len(wantDropped) {
+		t.Fatalf("ControlFields has %d names, the test knows %d: add a row for each", len(ControlFields), len(wantDropped))
+	}
+	rows := map[string]string{
+		"escaped fallbacks": `{"model":"claude-opus-4-8","fallbacks":["global/claude-opus-4-8"]}`,
+	}
+	for _, f := range wantDropped {
+		rows[f] = `{"model":"claude-opus-4-8","` + f + `":["global/claude-opus-4-8"]}`
+	}
+	for name, body := range rows {
+		t.Run(name, func(t *testing.T) {
+			up, s := upstream(t, nil)
+			w := post(gate(t, up, allow{dataclass.RouteAU}), http.MethodPost, "/v1/messages", body, nil)
+			if w.Code != 200 || len(s.all()) != 1 {
+				t.Fatalf("status %d with %d upstream calls, body %s", w.Code, len(s.all()), w.Body)
+			}
+			if got, want := string(s.all()[0].body), `{"model":"au/claude-opus-4-8"}`; got != want {
+				t.Errorf("upstream body %s, want %s", got, want)
+			}
+		})
+	}
+}
+
+// Kills leaving the separator behind (a dropped first member would forward
+// `{ ,"model"…`, which is not JSON) and kills re-encoding what is kept.
+func TestDroppingAFieldKeepsEveryOtherByte(t *testing.T) {
+	for name, tc := range map[string]struct{ in, want string }{
+		"first": {"{ \"fallbacks\" : [\"global/x\"] ,\n \"model\":\"claude-opus-4-8\", \"system\":\"<b>&</b>\"}",
+			"{\n \"model\":\"au/claude-opus-4-8\", \"system\":\"<b>&</b>\"}"},
+		"middle": {`{"model":"claude-opus-4-8", "api_base":"http://x/v1/messages",  "stream":true}`,
+			`{"model":"au/claude-opus-4-8",  "stream":true}`},
+		"last": {`{"model":"claude-opus-4-8","mock_response":"hi" }`, `{"model":"au/claude-opus-4-8" }`},
+		"two leading": {`{"fallbacks":[],"user_config":{},"model":"claude-opus-4-8"}`,
+			`{"model":"au/claude-opus-4-8"}`},
+	} {
+		t.Run(name, func(t *testing.T) {
+			up, s := upstream(t, nil)
+			w := post(gate(t, up, allow{dataclass.RouteAU}), http.MethodPost, "/v1/messages", tc.in, nil)
+			if w.Code != 200 || len(s.all()) != 1 {
+				t.Fatalf("status %d with %d upstream calls, body %s", w.Code, len(s.all()), w.Body)
+			}
+			got := s.all()[0].body
+			if string(got) != tc.want || !json.Valid(got) {
+				t.Errorf("upstream body %q (valid %v), want %q", got, json.Valid(got), tc.want)
+			}
+		})
+	}
+}
+
 // Kills an unbounded read: the limit is the proxy's, not the upstream's.
 func TestABodyOverTheLimitIsRefused(t *testing.T) {
 	up, s := upstream(t, nil)
@@ -464,6 +539,8 @@ Expected: a build failure naming the symbols this task adds, for example `undefi
 
 `json.Decoder.InputOffset` after decoding a value is the offset just past it, and a `RawMessage` decoded by a `Decoder` holds the value's exact bytes with no leading whitespace. So the value sits at `body[end-len(raw):end]`. The code checks that equality instead of trusting it: if a future Go release changed either behaviour, the proxy would refuse every request with `invalid_json`, loudly, rather than splice at the wrong offset.
 
+Decision (f)'s drop uses the same offsets. Each member's **segment** runs from the end of the previous value (or just past `{`) to the end of its own value, so the segments tile the object's inside and never overlap, however many are dropped. A segment after the first starts with its separating comma. The output is the head through `{`, then every kept segment with the one `model` value spliced, then the tail. A kept segment becomes the first one written only when every member before it was dropped, and then it loses its leading whitespace-and-comma. With nothing dropped, the output is the input with one value changed, as before.
+
 Create `control-plane/internal/gatekeeper/proxy/rewrite.go`:
 
 ```go
@@ -483,21 +560,54 @@ var (
 	errNoModel      = errors.New("body has no string model")
 )
 
+// ControlFields are request-body parameters LiteLLM's proxy reads for itself,
+// not for the provider. Each can move a request to another group, to an
+// upstream the catalogue did not choose, or to a canned reply, so each is
+// dropped from the top level, matched on the decoded key (decision (f)). A
+// denylist, not an allowlist: every field not named here is relayed.
+var ControlFields = []string{
+	"fallbacks", "context_window_fallbacks", "content_policy_fallbacks",
+	"mock_testing_fallbacks", "mock_testing_context_fallbacks",
+	"mock_testing_content_policy_fallbacks", "mock_testing_rate_limit_error", "mock_response",
+	"api_base", "base_url", "api_key", "api_version",
+	"aws_region_name", "aws_bedrock_runtime_endpoint", "user_config",
+}
+
+var controlField = func() map[string]bool {
+	m := make(map[string]bool, len(ControlFields))
+	for _, f := range ControlFields {
+		m[f] = true
+	}
+	return m
+}()
+
+// member is one top-level key and value. Its segment, body[seg:end], runs
+// from the end of the previous value (or just past '{') to the end of its own
+// value; val is where the value starts. Segments tile the object's inside.
+type member struct {
+	seg, val, end int
+	drop, model   bool
+}
+
 // rewriteModel replaces the value of the top-level "model" key with the result
-// of resolve, and returns the new body and the public id it found. Every byte
-// outside that one string literal is the caller's, in the caller's order.
+// of resolve, leaves out every ControlFields member, and returns the new body
+// and the public id it found. Every other byte is the caller's, in the
+// caller's order.
 //
 // It refuses a body in which "model" appears twice (after unescaping the key),
 // because the upstream keeps the LAST duplicate and a rewrite of the first
-// would forward a model the sender chose.
+// would forward a model the sender chose. The same uniqueness rule means a
+// control field cannot hide behind a second copy of itself.
 func rewriteModel(body []byte, resolve func(publicID string) (group string, ok bool)) ([]byte, string, error) {
 	dec := json.NewDecoder(bytes.NewReader(body))
 	if tok, err := dec.Token(); err != nil || tok != json.Delim('{') {
 		return nil, "", errNotOneObject
 	}
 	keys := map[string]bool{}
-	start, end := -1, -1
+	var members []member
+	prev := int(dec.InputOffset()) // just past '{'
 	var public string
+	found := false
 	for dec.More() {
 		tok, err := dec.Token()
 		if err != nil {
@@ -512,18 +622,20 @@ func rewriteModel(body []byte, resolve func(publicID string) (group string, ok b
 		if err := dec.Decode(&raw); err != nil {
 			return nil, "", errNotOneObject
 		}
-		if key != "model" {
-			continue
-		}
 		stop := int(dec.InputOffset())
 		begin := stop - len(raw)
-		if begin < 0 || !bytes.Equal(body[begin:stop], raw) {
+		if begin < prev || !bytes.Equal(body[begin:stop], raw) {
 			return nil, "", errNotOneObject // see Step 3's note: never splice at a guessed offset
 		}
-		if err := json.Unmarshal(raw, &public); err != nil {
-			return nil, "", errNoModel
+		m := member{seg: prev, val: begin, end: stop, drop: controlField[key], model: key == "model"}
+		if m.model {
+			if err := json.Unmarshal(raw, &public); err != nil {
+				return nil, "", errNoModel
+			}
+			found = true
 		}
-		start, end = begin, stop
+		members = append(members, m)
+		prev = stop
 	}
 	if tok, err := dec.Token(); err != nil || tok != json.Delim('}') {
 		return nil, "", errNotOneObject
@@ -531,7 +643,7 @@ func rewriteModel(body []byte, resolve func(publicID string) (group string, ok b
 	if _, err := dec.Token(); err != io.EOF {
 		return nil, "", errNotOneObject // a second value after the object
 	}
-	if start < 0 {
+	if !found {
 		return nil, "", errNoModel
 	}
 	group, ok := resolve(public)
@@ -539,10 +651,34 @@ func rewriteModel(body []byte, resolve func(publicID string) (group string, ok b
 		return nil, public, errNoModel
 	}
 	lit, _ := json.Marshal(group) // a catalogue group id; it cannot fail
+	return splice(body, members, prev, lit), public, nil
+}
+
+// splice writes the head through '{', every kept member's segment with the
+// model value replaced by lit, and the tail from last on. A kept segment
+// written first, after dropped members, loses its leading separator.
+func splice(body []byte, ms []member, last int, lit []byte) []byte {
 	out := make([]byte, 0, len(body)+len(lit))
-	out = append(out, body[:start]...)
-	out = append(out, lit...)
-	return append(out, body[end:]...), public, nil
+	out = append(out, body[:ms[0].seg]...)
+	first := true
+	for i, m := range ms {
+		if m.drop {
+			continue
+		}
+		head := body[m.seg:m.val]
+		if first && i > 0 {
+			// Only whitespace precedes the comma: seg is the previous value's end.
+			head = head[bytes.IndexByte(head, ',')+1:]
+		}
+		first = false
+		out = append(out, head...)
+		if m.model {
+			out = append(out, lit...)
+		} else {
+			out = append(out, body[m.val:m.end]...)
+		}
+	}
+	return append(out, body[last:]...)
 }
 ```
 
@@ -556,7 +692,8 @@ Create `control-plane/internal/gatekeeper/proxy/proxy.go`, first half:
 
 ```go
 // Package proxy is the byte-handling half of the gatekeeper: it forwards the two
-// Messages paths to LiteLLM with exactly one JSON value changed.
+// Messages paths to LiteLLM with exactly one JSON value changed and LiteLLM's
+// own control fields (ControlFields) left out.
 package proxy
 
 import (
@@ -722,7 +859,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 4. The rewrite: one value, on the decided route.
+	// 4. The rewrite: one value, on the decided route; the control fields left out.
 	out, _, err := rewriteModel(body, func(id string) (string, bool) { return h.c.Catalogue.Resolve(id, d.Route) })
 	switch {
 	case errors.Is(err, errNotOneObject):
@@ -856,12 +993,12 @@ There is no idle-read deadline on the upstream connection either. The skeleton a
 ```bash
 cd control-plane
 go test -race -count=1 ./internal/gatekeeper/proxy/                    # expect: ok
-go test -count=1 -v ./internal/gatekeeper/proxy/ | grep -c '^--- PASS: Test'   # expect 12
+go test -count=1 -v ./internal/gatekeeper/proxy/ | grep -c '^--- PASS: Test'   # expect 14
 ```
 
-- [ ] **Step 6: Kill four mutants by hand**
+- [ ] **Step 6: Kill seven mutants by hand, then fifteen by script**
 
-Each edit is made, the package run, and the edit reverted. Each must turn the named test red.
+Each edit is made, the package run, and the edit reverted. Each must turn the named test red. The fifteen come after the table: one per `ControlFields` name.
 
 | Edit | Test that must fail |
 |---|---|
@@ -869,8 +1006,30 @@ Each edit is made, the package run, and the edit reverted. Each must turn the na
 | `ServeHTTP`: `h.c.Catalogue.Resolve(id, d.Route)` → `h.c.Catalogue.Resolve(id, dataclass.RouteGlobal)` | `TestRewriteChangesOnlyTheModelValue` (the AU row) |
 | `rewriteModel`: delete the `if keys[key] { return … }` block | `TestTheRouteCannotBeChosenByTheBody/model_twice` and `/escaped_key` |
 | `New`: `FlushInterval: -1` → `FlushInterval: 0`, and `Flush` removed from `statusWriter` | `TestAStreamIsRelayedEventByEvent` |
+| `rewriteModel`: `drop: controlField[key]` → `drop: false` | every row of `TestLiteLLMControlFieldsNeverReachUpstream` |
+| `splice`: delete the `if first && i > 0 { … }` block | `TestDroppingAFieldKeepsEveryOtherByte/first` and `/two_leading` |
+| `splice`: delete `first = false` | `TestDroppingAFieldKeepsEveryOtherByte/middle` (the kept `stream` loses its comma) |
 
-The last row needs both halves. With `FlushInterval: 0` alone, `ReverseProxy` still flushes an upstream it recognises as `text/event-stream` (training knowledge of `net/http/httputil`, **UNVERIFIED**), so the test stays green; that is a second guard, not a reason to drop the first.
+The fourth row of the table needs both halves. With `FlushInterval: 0` alone, `ReverseProxy` still flushes an upstream it recognises as `text/event-stream` (training knowledge of `net/http/httputil`, **UNVERIFIED**), so the test stays green; that is a second guard, not a reason to drop the first.
+
+The fifteen name mutants **rename** a name rather than delete it. Deleting one would trip the test's length check first, which proves the lists are in step but not that the name's own row catches it. Write this to a file in the `$TEMP` copy's `control-plane/` and run it with `claudezsh 'bash <file>'`:
+
+```bash
+f=internal/gatekeeper/proxy/rewrite.go
+cp "$f" "$f.orig"
+for n in fallbacks context_window_fallbacks content_policy_fallbacks mock_testing_fallbacks \
+         mock_testing_context_fallbacks mock_testing_content_policy_fallbacks \
+         mock_testing_rate_limit_error mock_response api_base base_url api_key api_version \
+         aws_region_name aws_bedrock_runtime_endpoint user_config; do
+  cp "$f.orig" "$f" && sed -i "s/\"$n\"/\"${n}_x\"/" "$f"
+  grep -q "\"${n}_x\"" "$f" || { echo "NOT APPLIED $n"; continue; }
+  go test -count=1 -run "TestLiteLLMControlFieldsNeverReachUpstream/^${n}\$" ./internal/gatekeeper/proxy/ > m.out 2>&1
+  echo "$n exit $?"                                   # expect: exit 1 for every name
+done
+cp "$f.orig" "$f" && rm "$f.orig" m.out
+```
+
+Expected: fifteen lines, each `<name> exit 1`, and no `NOT APPLIED`. An `exit 0` means that name's row does not reach it: the row is wrong, not the list.
 
 - [ ] **Step 7: Vet, format, and confirm the import set**
 
@@ -900,13 +1059,14 @@ git add control-plane/internal/gatekeeper/proxy/proxy.go control-plane/internal/
 git commit -F <message file> -- control-plane/internal/gatekeeper/proxy/proxy.go control-plane/internal/gatekeeper/proxy/rewrite.go control-plane/internal/gatekeeper/proxy/proxy_test.go
 ```
 
-Message: `feat(gatekeeper): the proxy, one JSON value rewritten and everything else relayed (phase 6 task 11)`, a body naming decisions (a) to (e), and the attribution line.
+Message: `feat(gatekeeper): the proxy, one JSON value rewritten, LiteLLM's control fields dropped, everything else relayed (phase 6 task 11)`, a body naming decisions (a) to (f), and the attribution line.
 
-**Acceptance:** step 5 prints `ok` and `12`; step 6's four edits each fail the named test; step 7 prints nothing and then the six lines.
+**Acceptance:** step 5 prints `ok` and `14`; step 6's seven edits each fail the named test, and its script prints fifteen `exit 1` lines; step 7 prints nothing and then the six lines.
 
 **What this task does not claim:**
 
-- **That LiteLLM reads only the body's `model` to choose a group.** If the pinned image also honours a routing header or a body field (for example `metadata.tags` with tag-based routing), a sandbox could steer through it. The header side is closed by stripping every `x-litellm-*` and `litellm-*`; the body side is task 18's P08, and if P08 shows body tags matter, this rewrite gains exactly one more edit, dropping `metadata.tags`, with its own test.
+- **That LiteLLM reads only the body's `model` and the fifteen `ControlFields` to choose a group.** If the pinned image also honours a routing header or another body field (for example `metadata.tags` with tag-based routing, or a control field added in a later LiteLLM release), a sandbox could steer through it. The header side is closed by stripping every `x-litellm-*` and `litellm-*`. On the body side, P08 decides `metadata.tags`: if body tags matter, this rewrite gains one more edit, dropping `metadata.tags`, with its own test. P14 decides whether LiteLLM would honour a body fallback outside the gatekeeper. A new LiteLLM digest means re-reading its request-parameter list against `ControlFields`, which task 18's per-digest rule already requires of every probe.
+- **That the fifteen names are complete or exact.** They are LiteLLM's proxy parameters from training knowledge, **UNVERIFIED** against the pinned image. A wrong name costs nothing; a missing one is the residual that P14 and task 07's decision (h) bound.
 - **That LiteLLM prefers `Authorization` to any other credential header.** It does not need to: decision (c) leaves it only one.
 - **That streaming survives LiteLLM.** This task proves the gatekeeper does not buffer. Whether LiteLLM relays SSE pings unbuffered is task 18's P09.
 - **That the error body LiteLLM returns is safe to relay.** It is relayed unchanged to the caller that sent the request; task 12's canary test proves it never reaches a log. Whether it can carry another tenant's data is a LiteLLM property, **UNVERIFIED**.
@@ -918,3 +1078,4 @@ Message: `feat(gatekeeper): the proxy, one JSON value rewritten and everything e
 2. `Config` gains `Now`, `Observe` and `Transport`, and `Catalogue` is the interface `Resolver` (decisions (b), (e)). Task 12 must pass `Observe`.
 3. The Go identifiers `wire.CodePathNotAllowed`, `wire.CodeModelNotOffered` and `wire.CodeRouteUnknown` match task 03's part (`task-03.md:554-557`).
 4. The skeleton's "idle-read timeout above 300 s" is not built (the note at the end of step 4 says why).
+5. The skeleton's "replaces that one value" is now one value replaced and `ControlFields` dropped (decision (f), review C-1). The skeleton's task 11 scope line says so.

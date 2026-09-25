@@ -756,8 +756,9 @@ Create `control-plane/cmd/gatekeeper/main.go`, first half:
 
 ```go
 // Command gatekeeper is the only listener a sandbox can reach (P6-D1). It
-// authorises each request (task 10), rewrites one JSON value and relays the
-// rest (task 11), and answers /v1/models and HEAD /api/hello itself.
+// authorises each request (task 10), rewrites one JSON value, drops
+// LiteLLM's control fields and relays the rest (task 11), and answers
+// /v1/models and HEAD /api/hello itself.
 package main
 
 import (
