@@ -125,3 +125,77 @@ adds one, a delta on sibling code under rule H2). A body over it is 400 `field: 
 - Consumed by: task 16 (`hubclient.Work.ImportBatch` and its relay), task 25 (the Linear and CSV
   adapters, `task-25.md:186-188`), task 69 (the import dialog), tasks 150-153 (W5's sync)
 
+#### The migration section (appended to `NNNN_work_w1.sql`, complete)
+
+```sql
+-- ── task 15: what an import keeps from its source; blanked by erase ─────────────
+-- The author's display name is a person's words (erased); the external creation
+-- time is metadata (kept). Neither is ever updated: no column grant is added, and
+-- task 06's table-level INSERT on issues covers both.
+ALTER TABLE issues ADD COLUMN external_author_name text NOT NULL DEFAULT ''
+  CHECK (octet_length(external_author_name) <= 1024);
+ALTER TABLE issues ADD COLUMN external_created_at timestamptz;
+ALTER TABLE issues ADD CONSTRAINT issues_external_detail_needs_source
+  CHECK (external_source IS NOT NULL OR (external_author_name = '' AND external_created_at IS NULL));
+
+-- erase_issue, replaced again: task 14's body plus external_author_name.
+CREATE OR REPLACE FUNCTION erase_issue(p_issue text) RETURNS integer
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = hub, pg_temp AS $$
+DECLARE v_org text := current_setting('hub.org_id', true); v_n integer;
+BEGIN
+  IF v_org IS NULL OR NOT EXISTS (SELECT 1 FROM issues i WHERE i.id = p_issue AND i.org_id = v_org) THEN
+    RAISE EXCEPTION 'hub: work: no issue % in this org', p_issue USING ERRCODE = 'no_data_found';
+  END IF;
+  UPDATE issue_revisions SET canonical = NULL, erased_at = now()
+   WHERE issue_id = p_issue AND canonical IS NOT NULL;
+  GET DIAGNOSTICS v_n = ROW_COUNT;
+  UPDATE issues SET external_url = '', external_author_name = '', head_title = '', state_reason = '',
+                    erased_at = coalesce(erased_at, now()), updated_at = now()
+   WHERE id = p_issue AND erased_at IS NULL;
+  RETURN v_n;
+END $$;
+REVOKE ALL ON FUNCTION erase_issue(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION erase_issue(text) TO hub_app;
+```
+
+The 1024-byte cap is task 14's reasoning for `head_title` (`task-14.md:140-143`): 200 characters
+of UTF-8 are at most 800 bytes, and the `CHECK` is the second layer, never the answer a person
+sees. The named constraint keeps a person-made issue from carrying an author name it never had.
+Task 06's `TestWorkGrantsAreExactlyTheList` is **unchanged**: no column is added to any `UPDATE`
+list, which is the point.
+
+#### `hubapi/work.go`, the additions (complete)
+
+```go
+// ── Task 15: the import batch (SW.6) ────────────────────────────────────────
+
+// Additive field on task 03's ExternalRef (shown as the diff):
+//   CreatedAt string `json:"createdAt"` // the source's own creation time, RFC 3339; "" if unknown
+
+// ImportSources is W1's closed set; W5 (task 150) appends, with task 06's
+// issues_external_source_known widened in the same slice.
+var ImportSources = []string{ImportSourceLinear, ImportSourceCSV}
+
+const (
+	MaxImportItems           = 500     // per call; the control plane pages (task 25)
+	MaxImportBatchBytes      = 9 << 20 // the route's body cap: 500 × 16 KiB, titles and JSON
+	MaxImportLabels          = 50      // label names per item
+	MaxLabelNameChars        = 60      // task 06's CHECK on labels.name
+	MaxImportAuthorNameChars = 200     // code points
+	MaxExternalIDChars       = 200     // task 06's CHECK on issues.external_id
+	MaxExternalURLBytes      = 2048    // task 06's CHECK on issues.external_url
+)
+
+var (
+	ErrImportSource     = errors.New("hubapi: an import source is linear or csv")
+	ErrImportSize       = errors.New("hubapi: an import batch holds 1 to 500 items")
+	ErrImportExternalID = errors.New("hubapi: an external id is 1 to 200 characters")
+	ErrImportDuplicate  = errors.New("hubapi: an external id appears twice in one batch")
+	ErrImportURL        = errors.New("hubapi: an imported link is https with a host, or empty")
+	ErrImportPriority   = errors.New("hubapi: an imported priority is one of the five")
+	ErrImportLabels     = errors.New("hubapi: an item names at most 50 labels, each 1 to 60 characters")
+	ErrImportAuthorName = errors.New("hubapi: an author name is at most 200 characters")
+	ErrImportCreatedAt  = errors.New("hubapi: an external creation time is RFC 3339, or empty")
+)
+```
+
