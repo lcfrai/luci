@@ -198,3 +198,157 @@ pretends to be data.
 `IssueHead` carries no `title` in task 37's type (`task-37.md:121-128`; task 58's gap 2): the title
 comes from the head revision, `r.get(id)?.revision.content.title.text`, which the caller passes as
 `titleOf`.
+
+#### Interfaces — complete: `desktop/src/components/work/Peek.tsx`, part 1: the controller
+
+```tsx
+// Space tap opens and closes; Space held peeks while held; arrows move the peek, never the list.
+// Bound on the list element, gated by task 53's isListKeyTarget, so a text field or a terminal
+// host types a space. No setInterval, no mutate, no read-cursor write (decisions 2, 4, 5).
+import { useCallback, useRef, useState, type KeyboardEvent } from "react";
+import { isListKeyTarget } from "../../work/keys/keymap";     // task 53 (scope words, UNVERIFIED)
+
+export const HOLD_MS = 300;                                    // a design value, not a measurement
+
+export interface PeekController {
+  peekId: string | null;
+  openedAt: number;                                            // performance.now() of the press
+  onKeyDown(e: KeyboardEvent<HTMLElement>): void;
+  onKeyUp(e: KeyboardEvent<HTMLElement>): void;
+  close(): void;
+}
+
+export function usePeekController(p: {
+  rowIds: readonly string[]; cursorId: string | null; onCursor(id: string): void;
+}): PeekController {
+  const [peekId, setPeekId] = useState<string | null>(null);
+  const down = useRef<{ at: number; repeated: boolean; wasOpen: boolean } | null>(null);
+  const openedAt = useRef(0);
+  const close = useCallback(() => { setPeekId(null); down.current = null; }, []);
+
+  const onKeyDown = useCallback((e: KeyboardEvent<HTMLElement>) => {
+    if (!isListKeyTarget(e.target)) return;                    // Space in a field types a space
+    if (e.code === "Space") {
+      e.preventDefault();
+      if (e.repeat) { if (down.current) down.current.repeated = true; return; }
+      const wasOpen = peekId !== null;
+      down.current = { at: performance.now(), repeated: false, wasOpen };
+      if (!wasOpen && p.cursorId !== null) { openedAt.current = down.current.at; setPeekId(p.cursorId); }
+      return;
+    }
+    if (peekId === null) return;
+    if (e.code === "Escape") { e.preventDefault(); close(); return; }
+    if (e.code === "ArrowDown" || e.code === "ArrowUp") {
+      e.preventDefault();                                      // the list never scrolls under peek
+      const i = p.rowIds.indexOf(peekId);
+      const j = e.code === "ArrowDown" ? Math.min(i + 1, p.rowIds.length - 1) : Math.max(i - 1, 0);
+      const next = p.rowIds[j];
+      if (next !== undefined && next !== peekId) { setPeekId(next); p.onCursor(next); }
+    }
+  }, [peekId, p, close]);
+
+  const onKeyUp = useCallback((e: KeyboardEvent<HTMLElement>) => {
+    if (e.code !== "Space" || down.current === null) return;
+    const d = down.current;
+    down.current = null;
+    const held = d.repeated || performance.now() - d.at >= HOLD_MS;
+    if (d.wasOpen) { close(); return; }                        // a second tap closes
+    if (held) close();                                         // a hold peeks only while held
+  }, [close]);
+
+  return { peekId, openedAt: openedAt.current, onKeyDown, onKeyUp, close };
+}
+```
+
+`p.onCursor` moves the list's cursor with the peek (decision 4), and the lens owns scrolling: it
+calls `scrollIntoView` only on its own `j`/`k`, never on `onCursor` from peek, which the
+`scrollTop` test holds. `isListKeyTarget(target: EventTarget | null): boolean` is task 53's
+signature as its scope words it; if its part names it otherwise, its name wins.
+
+#### Interfaces — complete: `Peek.tsx`, part 2: the panel, the issue body and the span body
+
+```tsx
+import { useState, type JSX } from "react";
+import type { CommentAnchor, IssueHead, User } from "../../api/work";
+import { useCockpit } from "../../store/store";
+import { useWork } from "../../work/replica/replica";           // task 55 (scope words, UNVERIFIED)
+import { mySessionsOn, peekFor, spanFacts, type PeekKind } from "../../work/peek";
+import { StateGlyph } from "../glyphs/StateGlyph";
+import { AgentGlyph } from "../glyphs/AgentGlyph";
+import { CommentComposer } from "../issue/CommentComposer";
+import { refAnchor } from "../issue/commentModel";
+
+/** Wall-clock time of a record's timestamp, in the reader's zone, for a mono fact. */
+export function clock(at: string): string {
+  return new Date(at).toLocaleTimeString("en-GB", { hour12: false });
+}
+
+export function Peek(p: {
+  issueId: string; me: User; people: readonly User[]; onOpenSession(sessionId: string): void;
+}): JSX.Element | null {
+  const rec = useWork((r) => r.get(p.issueId));
+  const sessions = useCockpit((s) => s.sessions);
+  const [anchor, setAnchor] = useState<CommentAnchor | null>(null);
+  if (!rec) return null;
+  const head = rec.head;
+  const all = Object.values(sessions);
+  const kind: PeekKind = peekFor(head, p.me, all);
+  return (
+    <aside className="pk" data-peek-kind={kind} aria-label={`Peek: ${head.alias}`}>
+      <header className="pk-head">
+        <span className="pk-id">{head.alias}</span>
+        <StateGlyph state={head.state} priority={head.priority} notProven={head.proof === "not_proven"} />
+        <span className="pk-title">{rec.revision.content.title.text}</span>
+      </header>
+      {kind === "issue" && <IssueBody head={head} serves={rec.revision.content.serves} />}
+      {kind === "span" && (
+        <SpanBody sessions={mySessionsOn(head, all)} onOpen={p.onOpenSession}
+          onComment={(ref) => setAnchor(refAnchor("span", ref))} />
+      )}
+      {kind === "hunk" && <HunkBody sha={head.landCommit} onComment={(ref) => setAnchor(refAnchor("hunk", ref))} />}
+      {kind === "person" && head.assignee && <PersonBody person={head.assignee} projectId={head.projectId} />}
+      {anchor && (
+        <CommentComposer issueId={head.id} parentId={null} anchor={anchor} people={p.people}
+          label={`Comment on ${head.alias}`} onPosted={() => setAnchor(null)} />
+      )}
+    </aside>
+  );
+}
+
+function IssueBody(p: { head: IssueHead; serves: readonly { briefKey: string; criterionId: string }[] }): JSX.Element {
+  const { head } = p;
+  return (
+    <dl className="pk-fields">
+      <dt>Assignee</dt><dd>{head.assignee?.displayName ?? "No one"}</dd>
+      <dt>Labels</dt><dd>{head.labels.length ? head.labels.join(", ") : "None"}</dd>
+      <dt>Serves</dt>
+      <dd>{p.serves.length === 0 ? "No criterion" : p.serves.map((s) => (
+        <span key={s.criterionId} className="pk-fact">{s.criterionId} <span className="pk-src">{s.briefKey}</span></span>
+      ))}</dd>
+    </dl>
+  );
+}
+
+function SpanBody(p: {
+  sessions: readonly import("../../store/types").Session[]; onOpen(id: string): void; onComment(ref: string): void;
+}): JSX.Element {
+  return (
+    <div className="pk-spans">
+      {p.sessions.map((s) => (
+        <section key={s.id} className="pk-span">
+          <p className="pk-who"><AgentGlyph status={s.status} /> <span className="pk-id">{s.id}</span></p>
+          <ol className="pk-facts">
+            {spanFacts(s).map((f) => (
+              <li key={f.ref + f.what} className="pk-fact">
+                <time dateTime={f.at}>{clock(f.at)}</time> · {f.what} · <span className="pk-src">{f.source}</span>
+                <button type="button" className="pk-link" onClick={() => p.onComment(f.ref)}>Comment on this</button>
+              </li>
+            ))}
+          </ol>
+          <button type="button" className="pk-link" onClick={() => p.onOpen(s.id)}>open session</button>
+        </section>
+      ))}
+    </div>
+  );
+}
+```
