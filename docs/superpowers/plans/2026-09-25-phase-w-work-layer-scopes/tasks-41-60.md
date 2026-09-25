@@ -387,3 +387,70 @@ desktop); unsubscribe sends one op and Undo restores (kills a silent toggle). De
 L-117, each moved into W1 by 05 §5.3. Does not claim: the Desk digest for subscriptions (L-116, W2),
 subscribing to a view (L-96, W2), per-person notification settings.
 
+**53 — keys, part 1: `keys.list`, `isCockpitChord` extended, `event.code` for agent keys, the dead
+Linear chords, the single-key switch.** Files: new `src/work/keys/keymap.ts` (+ test), edits to
+`src/hooks/useKeyboardMap.ts` ⚑ (+ its tests), `src/store/slices/prefsSlice.ts` (one preference) and,
+for the switch, one toggle row in `src/components/palette/commands.ts` ⚑ (before task 59 in task
+order; the File map names only 59 there). Adds `type KeyScope = "list" | "issueRow" | "triage" |
+"deskDecision" | "everyRow"`, `interface KeyBinding {verb: VerbId; keys: readonly string[]; code?:
+string; shift?: boolean; scope: KeyScope; slice: "W1" | "W2" | "W3"; label: string; linear: "match" |
+"depart" | "none"}`, `const KEYMAP: readonly KeyBinding[]` (05 §4.3's table, W1 rows active, W2 and
+W3 rows present and inert), `const DEAD_LINEAR_CHORDS` (`Shift+D`, `Shift+E`, `Shift+P`, `Shift+M`,
+`Shift+S`, each with our equivalent), `isListKeyTarget(target) → boolean` (inside a
+`[data-work-list]` grid or listbox; false inside a terminal host by `isInsideTerminal`,
+`useKeyboardMap.ts:90`, and in an input, textarea, select or contenteditable),
+`matchListKey(event, scope) → KeyBinding | null`, and `registerVerb(verb, run) → unregister`, the one
+registry every row verb goes through. **The chord predicate is extended by a sibling branch, not by
+new keys**: `useKeyboardMap` gains a list-focus branch that runs only when no Ctrl, Meta or Alt is
+held, and `CHORD_KEYS`, `SHIFTED_CHORD_KEYS` (`:55-56`) and `isCockpitChord`'s pinned source (`:45-80`)
+stay unchanged, because a key added to those lists is one xterm skips and the agent stops receiving
+(`:63-71`); `OD-9`'s toggle keeps meaning what it means. Agent keys match the physical key:
+`event.code === "KeyR" && event.shiftKey`, never `event.key`. **No `Shift`+letter is a record act**:
+range select is `Shift+↓`/`Shift+↑`. The list-local bindings of tasks 41, 42 and 44 (`N`, `1`-`4`, `X`,
+`Shift+↓`) move into `KEYMAP` unchanged. The single-key switch (`singleKeyShortcuts`, a persisted
+preference beside `sendChordsToTerminal`, `prefsSlice.ts:40`, `:69`) turns every single key and
+sequence off and leaves chords and the palette (WCAG 2.1.4); 05 places it in *Settings → Keyboard*,
+which the desktop does not have yet, so it is a palette toggle row on `OD-9`'s pattern
+(`commands.ts:19-28`) until one exists. Tests first: `S` in a work list opens the state picker and `S`
+in an input, the editor or a terminal host does nothing (kills a document-level single key); `Ctrl+K`
+still opens the palette from a list, and both chord lists equal their pre-task values (kills a list
+branch that swallows chords, and kills single keys added to the chord lists); `Shift+R` with code
+`KeyR` starts, `R` from Caps Lock without Shift does not, and an AZERTY `event.key` with code `KeyR`
+still starts (kills `event.key` matching); each dead chord dispatches no verb (kills a Linear chord
+wired to an agent or a subscribe); a structural test over `KEYMAP` finds every Shift+letter bound to
+an agent verb (kills a Shift record act); with the switch off `S`, `N` and `1` do nothing and `Ctrl+K`
+works (kills a switch that misses sequences or kills chords); `Shift+O` and `Shift+A` are inert in W1
+(kills an Orchestrator key before W3). Depends on 40. Design: 05 §4.3 (the four rules and the table);
+02 C9 (`02:292`); the skeleton's *Global constraints*, Keys. Parity: closes L-223's single-key half
+(sequences are task 54); binds L-47's and L-38's keys. Does not claim: `E`, `Y`, `B`, `D` (W2),
+`Shift+O` and `Shift+A` (W3), the verbs' own behaviour (their tasks).
+
+**54 — keys, part 2: `G`, `O` and `M` sequences, the generated `?` sheet, chords in menus, the safe
+triangle.** Files: new `src/work/keys/sequences.ts` (+ test), `src/components/work/ShortcutSheet.tsx`
+(+ test), new `src/components/common/menuAim.ts` (+ test; not yet in the File map), edits to task
+53's `keymap.ts` and to the menus built on `Popover.tsx` (task 44's `DisplayMenu`, task 46's pickers).
+Adds `const SEQUENCES` (`G` then `I` Desk, `M` my issues, `T` Triage, `B` backlog, `W` Work, `P`
+Plan, and inert until their slice `V` current cycle and `O` my Orchestrator; `O` then `I` open by
+number, `P` a project, and inert `C` and `F`; `M` then `B` `X` `R` `D`, which open task 48's relation
+picker with `blocked by`, `blocking`, `related` or `duplicate of` chosen), a pending-sequence state
+with `SEQ_WINDOW_MS = 1200` (a proposal, recorded not measured) shown as a `G …` `kbd` hint in the
+`ViewHeader` (SW.13), cancelled by `Esc` or an unknown key; `chordFor(verb) → string | null`, which
+every menu item renders so a menu teaches its keys (02 `:305`); and `useMenuAim(parentRect,
+submenuRect)`, the submenu safe triangle as **geometry with no timer** (02 `menu.aim`, `02:265`),
+written from the idea and not from anyone's code (`OD-11`). `O I` calls the verb `issue.openByNumber`,
+which task 58 registers. The `?` sheet is **generated** from `KEYMAP`, `SEQUENCES` and
+`DEAD_LINEAR_CHORDS`: active bindings only, grouped by scope, the five Linear chords that do nothing
+here with our equivalent for each, the line *Space peeks*, and the single-key switch's state (05 §4.4
+work rule 5). Same list-focus rule as task 53. Tests first: `G` then `P` opens Plan, and the same keys
+in a text field do nothing (kills sequences outside list focus); `G`, a wait past the window, then
+`P` does nothing (kills an unbounded pending prefix); `G V` before W2 does nothing and the sheet does
+not list it (kills listing inert keys); `M B` opens the relation picker on `blocked by` (kills the
+wrong kind); `O I` reaches a stub `issue.openByNumber` (kills an unrouted verb); the sheet's rows are
+exactly `KEYMAP`'s active rows (kills a hand-written, drifting sheet); a menu item shows the new chord
+after its binding changes in `KEYMAP` (kills hard-coded hints); a pointer path across a sibling item
+inside the triangle keeps the submenu with no timer advanced (kills a hover-timeout menu), and a path
+outside it switches at once (kills a sticky submenu). Depends on 53. Design: 05 §4.3, §4.4 work rule 5;
+02 C7 and C9. Parity: closes L-223 (with 53), L-224, L-226's menus (the palette's hints are task 59)
+and L-227. Does not claim: open by number itself (task 58), the Desk and Orchestrator targets'
+surfaces (tasks 62-65, W3).
+
