@@ -330,3 +330,80 @@ type ProjectKey struct {
 	SetBy     User   `json:"setBy"`
 }
 ```
+
+```go
+// Label is team-owned (L-17). Color is a token name ("accent-2"), never a hex.
+type Label struct {
+	ID     string `json:"id"` // lb-…
+	TeamID string `json:"teamId"`
+	Name   string `json:"name"`
+	Color  string `json:"color"`
+}
+
+// TeamPolicy is a team's Work switches (L-9, L-48, 05-design §3.3). UpdatedAt
+// and UpdatedBy are null for a team that never set one.
+type TeamPolicy struct {
+	TeamID                    string     `json:"teamId"`
+	DefaultState              IssueState `json:"defaultState"` // one of InitialStates
+	PriorityToLeaveTriage     bool       `json:"priorityToLeaveTriage"`
+	StopAtLandedWithoutServes bool       `json:"stopAtLandedWithoutServes"`
+	UpdatedAt                 *string    `json:"updatedAt"`
+	UpdatedBy                 *User      `json:"updatedBy"`
+}
+
+// Comment is append-only: there is no edit route; a correction is a new one.
+type Comment struct {
+	ID         string         `json:"id"` // ic-…
+	IssueID    string         `json:"issueId"`
+	ParentID   *string        `json:"parentId"` // a top-level comment's id, or null
+	Kind       string         `json:"kind"`     // CommentKindComment in W1
+	Body       AuthoredText   `json:"body"`
+	Anchor     *CommentAnchor `json:"anchor"`
+	Mentions   []string       `json:"mentions"` // u- ids of team members
+	Reactions  []Reaction     `json:"reactions"`
+	ResolvedAt *string        `json:"resolvedAt"`
+	ResolvedBy *User          `json:"resolvedBy"`
+	CreatedAt  string         `json:"createdAt"`
+	CreatedBy  User           `json:"createdBy"`
+	ErasedAt   *string        `json:"erasedAt"`
+}
+
+// CommentAnchor pins a comment to a text range of one revision, a criterion
+// that revision serves, a transcript span or a hunk (L-42). Fields that do not
+// apply are 0 or "", never omitted; task 12 declares the kinds and the checks.
+type CommentAnchor struct {
+	Kind        string `json:"kind"` // text | criterion | span | hunk
+	Revision    int    `json:"revision"`
+	Start       int    `json:"start"`
+	End         int    `json:"end"`
+	CriterionID string `json:"criterionId"`
+	Ref         string `json:"ref"` // a provenance key or a span id
+}
+
+type Reaction struct {
+	Emoji string `json:"emoji"`
+	Users []User `json:"users"`
+}
+
+type Subscription struct {
+	IssueID    string            `json:"issueId"`
+	User       User              `json:"user"`
+	Cause      SubscriptionCause `json:"cause"`
+	Subscribed bool              `json:"subscribed"`
+}
+
+// IssueRef names an issue an import created or found.
+type IssueRef struct {
+	IssueID    string `json:"issueId"`
+	Number     int    `json:"number"`
+	ExternalID string `json:"externalId"`
+}
+
+// ImportResult: Created and Existing hold one ref per item; UnmatchedLabels
+// are names the team has no label for (reported, never created; task 15).
+type ImportResult struct {
+	Created         []IssueRef `json:"created"`
+	Existing        []IssueRef `json:"existing"`
+	UnmatchedLabels []string   `json:"unmatchedLabels"`
+}
+```
