@@ -127,3 +127,89 @@ the site accepts may be refused here (gap 2). The refusal names the rule, so the
 and the Hub's own call is never reached with a key this form refused. Task 153 pins Jira Cloud;
 a Jira Data Center site (not `*.atlassian.net`) is refused with the rule's words, which is the
 scope's *Jira Cloud* claim and nothing more.
+
+#### Interfaces — complete: `desktop/src/components/intake/SyncLog.tsx`, the exported half
+
+```tsx
+// desktop/src/components/intake/SyncLog.tsx — task 171 (decision 4). A view, not a wire type.
+import type { JSX } from "react";
+import type { ExternalLink, ProblemCode, SyncRun, TrackerSource } from "../../api/work";
+import { SOURCE_NAME } from "./trackerTarget";
+
+export type SyncResult = "imported" | "refused" | "upstream" | "run";
+/** One log row. `direction` is "in" for every row W5 can write, "out" for a posted comment. */
+export interface SyncLogEntry {
+  at: string; direction: "in" | "out"; externalId: string | null;
+  result: SyncResult; words: string;   // the row's reason or summary, in sans
+  url: string | null;                  // the external item, https only
+}
+
+const REFUSAL: Partial<Record<ProblemCode, string>> = {
+  principal_cannot_move_state: "not applied: sync never moves a state",
+  validation_failed: "not imported: the item failed a check",
+  forbidden: "not applied: sync may not write this",
+};
+const trackerName = (s: TrackerSource) => (s === "azure_boards" ? "Azure Boards" : s === "github" ? "GitHub" : "Jira");
+
+/** An upstream change, as the fact it is: "closed in Jira · not applied: sync never moves a state". */
+export function upstreamWords(field: string, source: TrackerSource): string {
+  const act = field === "state" ? "closed" : field === "assignee" ? "reassigned" : `${field} changed`;
+  return `${act} in ${trackerName(source)} · not applied: sync never moves a state`;
+}
+
+/** Runs newest first; links imported at or before a run and after the previous one belong to it. */
+export function syncLogRows(runs: readonly SyncRun[], links: readonly ExternalLink[], source: TrackerSource): SyncLogEntry[] {
+  const rows: SyncLogEntry[] = [];
+  for (const run of runs) {
+    rows.push({ at: run.at, direction: "in", externalId: null, result: "run", url: null,
+      words: `run · ${run.created} created, ${run.existing} existing` +
+        (run.commentsIn + run.commentsOut > 0 ? `, ${run.commentsIn} comments in, ${run.commentsOut} out` : "") });
+    for (const e of run.errors)
+      rows.push({ at: run.at, direction: "in", externalId: e.externalId, result: "refused", url: null,
+        words: REFUSAL[e.code] ?? `not applied: ${e.code}` });
+  }
+  for (const l of links) {
+    rows.push({ at: l.lastSeenAt, direction: "in", externalId: l.externalId, result: "imported", url: l.url, words: "imported" });
+    if (l.upstream) rows.push({ at: l.upstream.at, direction: "in", externalId: l.externalId, result: "upstream",
+      url: l.url, words: upstreamWords(l.upstream.field, source) });
+  }
+  return rows.sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
+}
+
+export function SyncLog(props: { connectionId: string; source: TrackerSource; now(): number }): JSX.Element;
+```
+
+The imported row's `at` is `lastSeenAt`, the time the Hub last saw the item, which is the import
+time for an item not seen since; task 150 records no separate *importedAt* (gap 3). `SOURCE_NAME`
+labels the log's header (*Jira · PAY*). Times and external ids render in mono (`--t-fact`,
+`tabular-nums`); `words` in sans. The log pages through `syncRuns` and `trackerLinks` with a *Show
+older* button, never infinite scroll that jumps; it throttles appends to about 10 Hz and never
+scrolls when the reader has scrolled up (DESIGN-SYSTEM's log-pane rule).
+
+#### Interfaces — complete: `TrackerConnect.tsx` and `TrackerList.tsx`, the exported halves
+
+```tsx
+// desktop/src/components/intake/TrackerConnect.tsx — task 171 (decisions 1-3).
+export function TrackerConnect(props: {
+  teamId: string;
+  projects: readonly { id: string; key: string; name: string }[];   // the team's projects
+  onConnected(c: TrackerConnection): void;
+  onCancel(): void;
+}): JSX.Element;
+// Step 1: three buttons, Azure Boards · GitHub Issues · Jira. Step 2: the project it lands in,
+// then TARGET_LABELS[source]'s fields (text inputs, no password type, no "token" anywhere), the
+// line "One way in, into Triage", and Connect. Connect runs validateTarget; any problem is shown
+// under its field and nothing is sent. Otherwise one connectTracker(projectId, {target, mode:
+// "in"}) call; a consentUrl opens through openUrl (https only) and the row waits for consent.
+
+// desktop/src/components/intake/TrackerList.tsx — task 171 (decisions 3, 6).
+export function TrackerList(props: { teamId: string; canEdit: boolean; now(): number }): JSX.Element;
+// One row per TrackerConnection: SOURCE_NAME, the target in its own terms (mono), the direction
+// line, "last run 14:02" (mono; "not run yet" before the first), the comments-both-ways switch
+// (role="switch", aria-checked), Disconnect, and the SyncLog under a disclosure. A member sees the
+// same rows read-only. A disconnected row stays, reading "disconnected · links kept".
+```
+
+`mode` is always `"in"` at connect: the switch is on the row, not in the form, so a new connection
+cannot start in `in_and_comments` (decision 3). The switch sends task 169's `tracker.mode` op with
+`prev`, one Undo.
