@@ -267,7 +267,13 @@ the stored one (0 when none) or 409 `revision_conflict`. 200 `TeamPolicy`, revis
 `RouteChangeRequest`. The handler reads the project's class and current route, then:
 
 ```go
+	if role == "" && !p.Compliance { // not on the team, and not compliance
+		return Refuse(404, hubapi.CodeProjectNotFound, "No such project.", nil)
+	}
 	actor := dataclass.Actor{Member: Can(p, role, CapRaiseRoute), Compliance: p.Compliance}
+	if !actor.Member && !actor.Compliance { // a viewer
+		return Forbidden("member")
+	}
 	switch err := dataclass.CanChange(class, from, to, actor); {
 	case errors.Is(err, dataclass.ErrNeedsCompliance):
 		return Refuse(403, hubapi.CodeNeedsCompliance, "Only compliance may lower this route.", nil)
@@ -282,3 +288,140 @@ A non-member with `Compliance` passes this (Priya is no member), so route 79 is 
 where `N` with the role is not 404. A same-route request is 200 with no event. Otherwise 200
 `TeamPolicy`, and one event `team_policy.route_changed` `{"route", "by"}`, `by` = `compliance`
 when the change lowered the route, else `member`.
+
+#### The Z5 matrix for team routes — the harness, complete
+
+Hub task 16b's `row` has six columns (`want [6]int`, `hub …/task-16b.md:50-58`). Team rows need
+eleven, and three kinds of 403 and an "empty list" that a bare status cannot say, so they get their
+own row type beside it, in the same file, run by the same fresh-fixture loop.
+
+```go
+// control-plane/internal/hub/server/matrix_integration_test.go (added)
+
+// teamColumn is task-01.md:554-560's legend. "Own" and "another's" are about
+// the record the row's path names: Linus's record unless the row says so.
+type teamColumn int
+
+const (
+	tcV     teamColumn = iota // Vera, viewer of T
+	tcM                       // Linus, on his own record
+	tcMp                      // Linus, on Grace's record (M′)
+	tcA                       // Grace, admin of T, on Linus's record
+	tcAu                      // Audrey, org auditor, in no team
+	tcN                       // Out Sider, same org, in no team
+	tcX                       // Xavier, another enrolled org
+	tcF                       // Fleet under Linus's live delegation listing the route
+	tcFnone                   // Fleet naming no delegation
+	tcFx                      // Fleet under Grace's delegation, on Linus's record
+	tcD                       // Linus's desktop token sending X-Panacea-Delegation
+	teamColumns
+)
+
+// teamCell is one expected answer.
+type teamCell struct {
+	status   int
+	code     string // the problem code, "" when the status alone is the answer
+	required string // details.required on a 403 forbidden
+	empty    bool   // 200 whose list holds none of the other person's rows (∅)
+}
+
+var (
+	ok      = teamCell{status: 200}
+	created = teamCell{status: 201}
+	gone    = teamCell{status: 404}
+	d401    = teamCell{status: 401, code: "delegation_required"}
+	a403    = teamCell{status: 403, code: "agent_not_owner"}
+	f403    = teamCell{status: 403, code: "forbidden", required: "fleet"}
+	k403    = teamCell{status: 403, code: "forbidden", required: "desktop"}
+	r403    = func(req string) teamCell { return teamCell{status: 403, code: "forbidden", required: req} }
+	empty   = teamCell{status: 200, empty: true}
+)
+
+// teamRow is one team route (or one case of it). path uses teamFixture's
+// fields; mine selects Linus's record, theirs Grace's (for the M′ column).
+type teamRow struct {
+	name   string
+	method string
+	path   func(f *teamFixture, record string) string
+	body   func(f *teamFixture, record string) any
+	want   [teamColumns]teamCell
+}
+
+// teamFixture is task 07's newTeam2World plus Priya (compliance) and one
+// record of each kind per owner, built fresh per cell.
+type teamFixture struct {
+	w                        *team2World
+	LinusTask, GraceTask     string // tk-…
+	LinusLease, GraceLease   string // ls-…
+	LinusEsc, GraceEsc       string // es-…
+	Thread                   string // th-…, Linus's and Grace's Orchestrators
+}
+
+// allTeamRows is appended to by each team task's var block: rowsT06, rowsT07,
+// rowsT43, rowsT44, rowsT46.
+var allTeamRows = [][]teamRow{rowsT06, rowsT07, rowsT43}
+
+// orgRows are the cells no team column holds: Ada (org admin) and Priya
+// (compliance), one row per route that treats them specially.
+var orgRows = []orgRow{ /* see the table below */ }
+
+type orgRow struct {
+	name   string
+	who    string // "ada" | "priya"
+	method string
+	path   func(f *teamFixture) string
+	body   func(f *teamFixture) any
+	want   teamCell
+}
+```
+
+`TestTeamAuthorisationMatrix` runs every `teamRow` × every column and every `orgRow` on a fresh
+`teamFixture`; for `empty` it also asserts the list holds none of the other owner's ids. Hub task
+16b's `TestEveryRouteHasAMatrixRow` is extended: a `/v1` pattern is covered by a row in `allRows`
+**or** in `allTeamRows`. `TestTheXColumnHoldsWithoutGoChecks` gains the `tcX` cell of every team
+row, with `disableGoAuthz` on.
+
+#### The rows
+
+Task 01's team table (`task-01.md:562-579`) is the source for routes 46–73, cell for cell; this
+part only translates its marks: `✓` is `ok`/`created`, `401d` is `d401`, `403a` is `a403`, a `—`
+in a desk column is `f403`, a `—` in a Fleet column is `k403`, `∅` is `empty`, and a bare `403`
+is `r403(<the route's required role>)`. `rowsT06` and `rowsT07` are generated from task 06's
+`everyTeamWrite` and task 07's route list, one row per (route, case), so the two cannot drift:
+`TestEveryTeamWriteHasAZ5Row` fails if `everyTeamWrite` names a (method, path) with no row.
+`rowsT43` is new:
+
+| Operation | V | M | M′ | A | Au | N | X | F | F∅ | Fx | D |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| read team policy (74) | ✓ | ✓ | ✓ | ✓ | 404 | 404 | 404 | ✓ | 401d | ✓ | 403 |
+| set team policy (75) | 403 admin | 403 admin | 403 admin | ✓ | 404 | 404 | 404 | k403 | 401d | k403 | 403 |
+| raise the route to `au` (79) | 403 member | ✓ | ✓ | ✓ | 404 | 404 | 404 | k403 | 401d | k403 | 403 |
+| lower the route to `global` (79) | 403 member | 403 needs_compliance | 403 needs_compliance | 403 needs_compliance | 404 | 404 | 404 | k403 | 401d | k403 | 403 |
+
+Route 74 to 79 are project-level, so `M` and `M′` are the same person on the same record and hold
+the same cell; the column stays so the table has one shape. `D` (a desktop token that sends a
+delegation header) is 403 on every team route: a desktop acts as its user, never as a delegate
+(`task-01.md:560`).
+
+`orgRows`, complete:
+
+| Who | Operation | Want |
+|---|---|---|
+| Priya (compliance, no team) | lower the route of an `internal` · `any` project (79) | `ok`; event `by: "compliance"` |
+| Priya | lower the route of an `au-only` project (79) | 422 `below_floor` |
+| Priya | read team policy (74), set team policy (75) | `gone`, `gone` |
+| Priya | read escalations, directives, human messages, thread messages (66, 68, 71, 63) | `gone` |
+| Ada (org admin, no team) | set team policy (75), lower the route (79) | `gone`, `gone` |
+| Ada | read escalations (66) | `gone`: the org admin is not an auditor |
+| Audrey (auditor) | raise the route (79), set team policy (75) | `gone`, `gone` |
+
+**The rule-5 check is structural, not per row.** `TestNoWriteRowLetsAnyoneWriteAnothersRecord`
+walks `allTeamRows`: for every row whose method is not `GET`, the cells `tcMp`, `tcA`, `tcAu` and
+`tcFx` must each be a status ≥ 400, except the project-level rows 74–79, which the test lists by
+route number. A later task adding a write row with a `✓` in one of those cells fails the build
+before any handler runs.
+
+**`TestCapTableAgreesWithTheMatrix`** maps each `TeamCap` to the rows of its routes
+(`CapReadAcross` → 63, 66, 68, 71's `tcAu` cells; `CapSetPolicy` → 75; `CapLowerRoute` → the
+Priya row; …) and asserts `Can`'s answer for each column's principal equals "the cell is ≤ 299".
+`capTable` and the matrix can then only change together.
