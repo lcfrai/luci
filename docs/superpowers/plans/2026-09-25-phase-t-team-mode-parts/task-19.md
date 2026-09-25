@@ -100,7 +100,7 @@ type Handler func(ctx context.Context, c Caller, args json.RawMessage) (any, err
 type Option func(*route)
 
 // OwnArgs names top-level args keys whose value (a string id, or an array of
-// them) must belong to the caller's owner. A missing object is not_owner too,
+// them) must belong to the caller's owner. A missing object is agent_not_owner too,
 // so a probe cannot tell "not yours" from "does not exist".
 func OwnArgs(keys ...string) Option
 
@@ -158,7 +158,7 @@ proposes, and task 09 wins where it differs (*Gap S19-1*):
 | `unknown_session` | the target's agent is absent from the store or `ended` | warn |
 | `unknown_verb` | no handler is registered | info |
 | `forbidden_class` | task 09's table does not give this class this verb | info |
-| `not_owner` | an `OwnArgs` key names an object of another owner, or none | **security**, warn |
+| `agent_not_owner` | an `OwnArgs` key names an object of another owner, or none | **security**, warn |
 | `internal` | a handler's non-refusal error or its 10 s deadline | error |
 
 ```go
@@ -286,10 +286,10 @@ the way task 16 does.
 | Test | What it checks | Mutant it kills |
 |---|---|---|
 | `TestWorkerCallingPeerIsRefused` | `peer` registered; frame from `ag-a-w1` (`worker`) → `forbidden_class`, probe not called | dispatch without the class table |
-| `TestAliceCannotStopBobsWorker` | `worker` registered with `OwnArgs("agent")`; `ag-a-orch` sends `{"op":"stop","agent":"ag-b-w1"}` → `not_owner`, probe not called | skipping `OwnArgs`, or checking the caller's class but not the object's owner |
+| `TestAliceCannotStopBobsWorker` | `worker` registered with `OwnArgs("agent")`; `ag-a-orch` sends `{"op":"stop","agent":"ag-b-w1"}` → `agent_not_owner`, probe not called | skipping `OwnArgs`, or checking the caller's class but not the object's owner |
 | `TestAliceStopsHerOwnWorker` | the same with `ag-a-w1` → ok, the probe's `Caller.Owner` is `alice` | an `OwnArgs` that refuses everything |
-| `TestNonexistentObjectIsNotOwner` | `{"agent":"ag-nope"}` → `not_owner`, not a distinct code | disclosing existence |
-| `TestArrayOfIDsIsCheckedWhole` | `OwnArgs("agents")` with `["ag-a-w1","ag-b-w1"]` → `not_owner` | checking only the first element |
+| `TestNonexistentObjectIsNotOwner` | `{"agent":"ag-nope"}` → `agent_not_owner`, not a distinct code | disclosing existence |
+| `TestArrayOfIDsIsCheckedWhole` | `OwnArgs("agents")` with `["ag-a-w1","ag-b-w1"]` → `agent_not_owner` | checking only the first element |
 | `TestStampMismatchIsRefusedAndLogged` | the stream's target is `ag-a-w1`; the frame says `ag-a-orch` → `stamp_mismatch` and one `level=ERROR` log with `security=true` | trusting the stamp over the stream |
 | `TestCallerComesFromTheStreamNotTheFrame` | a frame whose `args` carries `"owner":"bob"` for a verb that takes no owner: the probe's `Caller.Owner` is `alice` and the probe's own `Decode` refuses the unknown key | reading identity from the body |
 | `TestUnknownVerbAndUnknownField` | verb `frobnicate` → `unknown_verb`; a frame with top-level `"x":1` → `bad_request` | a lenient frame decode |
@@ -305,7 +305,7 @@ func TestWorkerCallingPeerIsRefused(t *testing.T) {
 	d, probe := newDispatcher(t)
 	d.Handle("peer", probe.handler)
 	got := d.Dispatch(ctx, targetFor("ag-a-w1"), frame("ag-a-w1", "worker", "peer", `{"kind":"ask"}`))
-	if got.OK || got.Error == nil || got.Error.Code != CodeForbiddenClass || probe.calls != 0 {
+	if got.OK || got.Error == nil || got.Error.Code != wire.CodeForbiddenClass || probe.calls != 0 {
 		t.Fatalf("got %+v, calls %d; want forbidden_class and no call", got, probe.calls)
 	}
 }
@@ -315,18 +315,18 @@ func TestAliceCannotStopBobsWorker(t *testing.T) {
 	d.Handle("worker", probe.handler, OwnArgs("agent"))
 	got := d.Dispatch(ctx, targetFor("ag-a-orch"),
 		frame("ag-a-orch", "orchestrator", "worker", `{"op":"stop","agent":"ag-b-w1"}`))
-	if got.OK || got.Error == nil || got.Error.Code != CodeNotOwner || probe.calls != 0 {
-		t.Fatalf("got %+v, calls %d; want not_owner and no call", got, probe.calls)
+	if got.OK || got.Error == nil || got.Error.Code != wire.CodeAgentNotOwner || probe.calls != 0 {
+		t.Fatalf("got %+v, calls %d; want agent_not_owner and no call", got, probe.calls)
 	}
 }
 ```
 
 `peer` is an Orchestrator verb and `worker` is registered for Orchestrators only in task 09's table
 (§5.2, `05-design.md:547-558`); the tests register them here with a probe so the class check is tested
-without tasks 24 and 28. The code constants are `CodeTooLarge`, `CodeStampMismatch`,
-`CodeUnknownSession`, `CodeUnknownVerb`, `CodeForbiddenClass`, `CodeNotOwner` and `CodeInternal`,
-declared in `dispatch.go` beside the table above until task 09 moves them into `wire`; `bad_request`
-is task 09's `wire.CodeBadRequest` (`task-22.md:53`).
+without tasks 24 and 28. Every code above is task 09's, in `control-plane/internal/fleet/wire/codes.go`
+(`task-09.md:418-458`): `wire.CodeBadRequest`, `CodeTooLarge`, `CodeStampMismatch`,
+`CodeUnknownSession`, `CodeUnknownVerb`, `CodeForbiddenClass`, `CodeInternal` and
+`CodeAgentNotOwner`. Dispatch declares none of its own.
 
 - [ ] **Step 2: Write the failing tests for the streams (`streams_test.go`)**
 
@@ -373,7 +373,7 @@ type frame struct {
 
 func (d *Dispatcher) Dispatch(ctx context.Context, bound Target, raw []byte) wire.Response {
 	if len(raw) > MaxFrameBytes {
-		return refuse("", CodeTooLarge, "frame too large")
+		return refuse("", wire.CodeTooLarge, "frame too large")
 	}
 	var f frame
 	dec := json.NewDecoder(bytes.NewReader(raw))
@@ -384,25 +384,25 @@ func (d *Dispatcher) Dispatch(ctx context.Context, bound Target, raw []byte) wir
 	if f.Agent != bound.Agent || f.Class != bound.Class {
 		d.log.Error("control: stamp does not match stream", "security", true,
 			"stream_agent", bound.Agent, "stamp_agent", f.Agent, "verb", f.Verb)
-		return refuse(f.ID, CodeStampMismatch, "stamp does not match stream")
+		return refuse(f.ID, wire.CodeStampMismatch, "stamp does not match stream")
 	}
 	a, ok, err := d.sessions.Agent(ctx, bound.Org, bound.Agent)
 	if err != nil {
 		return d.internal(f, err)
 	}
 	if !ok || a.Status == model.StatusEnded {
-		return refuse(f.ID, CodeUnknownSession, "no live session")
+		return refuse(f.ID, wire.CodeUnknownSession, "no live session")
 	}
 	d.mu.RLock()
 	r, known := d.routes[f.Verb]
 	d.mu.RUnlock()
 	switch {
 	case !known:
-		return refuse(f.ID, CodeUnknownVerb, "unknown verb")
+		return refuse(f.ID, wire.CodeUnknownVerb, "unknown verb")
 	case !model.ClassMay(bound.Class, f.Verb):
-		return refuse(f.ID, CodeForbiddenClass, "this class may not call "+f.Verb)
+		return refuse(f.ID, wire.CodeForbiddenClass, "this class may not call "+f.Verb)
 	case len(f.Args) > MaxArgsBytes:
-		return refuse(f.ID, CodeTooLarge, "args too large")
+		return refuse(f.ID, wire.CodeTooLarge, "args too large")
 	}
 	args := f.Args
 	if len(args) == 0 {
@@ -416,8 +416,11 @@ func (d *Dispatcher) Dispatch(ctx context.Context, bound Target, raw []byte) wir
 	defer cancel()
 	res, err := r.h(hctx, c, args)
 	if err != nil {
-		if rf, ok := wire.AsRefusal(err); ok {
-			return refuse(f.ID, rf.Code, rf.Message)
+		var rf *wire.Refusal
+		if errors.As(err, &rf) {
+			r := refuse(f.ID, rf.Code, rf.Message)
+			r.Error.Details = rf.Details
+			return r
 		}
 		return d.internal(f, err)
 	}
@@ -431,10 +434,11 @@ func (d *Dispatcher) Dispatch(ctx context.Context, bound Target, raw []byte) wir
 
 `checkOwned` decodes `args` into `map[string]json.RawMessage` (an object is required, else
 `bad_request`), and for each owned key reads a string or an array of strings; every id goes through
-`owners.OwnerOf`, and any miss or mismatch returns `CodeNotOwner` and logs `security=true` with the verb
-and the key, never the value. `wire.AsRefusal(err) (Refusal, bool)` is the reverse of task 09's
-`wire.Refuse`; if task 09 names it differently, this call is renamed. `model.StatusEnded` is task 09's
-spelling of the agent status `ended` (§3.3 agent row). The session check reads Fleet's store on every
+`owners.OwnerOf`, and any miss or mismatch returns `wire.CodeAgentNotOwner` and logs `security=true`
+with the verb and the key, never the value. `*wire.Refusal` is what task 09's `wire.Refuse` and
+`RefuseWith` return (`task-09.md:470-484`), so `errors.As` recovers it and its `Details`; any other
+error is `internal` with a fixed message, never the Go error string, as task 09 requires.
+`model.StatusEnded` is task 09's (`task-09.md:100`). The session check reads Fleet's store on every
 request; at a handful of agents per project that is one indexed read, and it is what makes a stopped
 agent's late request fail rather than act.
 
@@ -531,9 +535,10 @@ racing a socket close.
 - That `OwnArgs` alone keeps owners apart. It is the generic check; each handler still refuses what its
   own verb forbids (task 23's own-lease rule, task 31's own-worker rule), and the Hub's `agent_not_owner`
   check (`task-01.md:127-133`) is the last layer.
-- **Gap S19-1 — ST.1's code list.** Dispatch needs seven refusal codes (`too_large`, `stamp_mismatch`,
-  `unknown_session`, `unknown_verb`, `forbidden_class`, `not_owner`, `internal`) that no written part
-  defines; task 09 should publish them in `wire`, with `AsRefusal`, and this part renames to fit.
+- **S19-1 — resolved.** Dispatch's codes were a gap until task 09's part landed; they are now
+  task 09's `wire` constants, `ClassMay` is task 09's (`task-09.md:305-307`), and local verbs
+  (`token`, `events.wait`) have no registration, so they reach `unknown_verb` as task 09 asks
+  (`:274-276`).
 - **Gap S19-2 — `fleet.pushes` is a schema change outside task 10.** The skeleton's file map gives
   Fleet's schema to task 10 alone. Durable cross-replica push (decision 2) needs one table; it is added
   here as migration `0002` rather than reopening task 10's `0001`.
