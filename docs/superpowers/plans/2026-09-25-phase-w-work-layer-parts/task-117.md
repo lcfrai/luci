@@ -268,3 +268,77 @@ does not list who else is granted). `revokeGrant` is `s.Write` with `RoleAdmin`,
 (status from `hubapi.WorkRoadmapCodeStatus`) and `store.TeamExists` are small helpers in this file
 or task 08's (**UNVERIFIED** names; Step 1 takes the merged ones). A replay (`rebuild` `nil`)
 answers the stored reply, as H's idempotency does for writes with no content to re-read.
+
+#### The two ⚑ edits, complete
+
+Task 08's `readableIssue` (`task-08.md:397-400`), the one line that changes:
+
+```go
+	// was: role, _, ok, err := ProjectRole(ctx, tx, row.ProjectID); Require(role, ok, want, nf)
+	a, err := workAccess(ctx, tx, row.ProjectID)
+	if err != nil {
+		return store.IssueRow{}, "", err
+	}
+	if want == hubapi.RoleViewer {
+		err = a.Read(notFoundIssue(id))
+	} else {
+		err = a.Write(want, notFoundIssue(id))
+	}
+	role := a.Role
+	if a.Granted && role == "" {
+		role = roleGranted // "granted"; task 12's comment create accepts it (below)
+	}
+```
+
+Task 12's comment create calls `readableIssue(ctx, tx, id, hubapi.RoleMember, true)`; it changes to
+`hubapi.RoleViewer` and then refuses a **granted** caller any comment kind but `note` (task 99's
+kinds: an evidence proposal or a negotiation is a member's act), 403 `forbidden`,
+`required: "member"`. Every other Work write keeps its `want`, so it is refused as above.
+
+Task 13's feed query in `server/changes.go` gains one disjunct in its per-caller `WHERE`
+(**UNVERIFIED** shape until task 13's part; the clause is the rule):
+
+```sql
+   OR (e.project_id IN (SELECT g.project_id FROM hub.work_project_grants g
+                          JOIN hub.team_members m ON m.team_id = g.team_id
+                         WHERE m.user_id = $caller)
+       AND e.kind LIKE ANY ($granted_kinds))   -- grantedFeedKinds, each with '%' appended
+```
+
+#### `server/work_initiative_teams.go`, after task 118
+
+`PUT /v1/initiatives/{initiativeId}/teams`: `s.Write`; `store.InitiativeByID` (task 118) or 404
+`initiative_not_found` (a spanned team's member reads the initiative, task 118's rule, but only an
+admin of the owning team writes this); `Require(role, ok, RoleAdmin)` on the **owning** team;
+`teamIds[0]` must be the owning team, at most ten, none twice (400 `teamIds`); each other id must
+be `store.TeamsLinked` to the owner, else 422 `bad_request`, `field: "teamIds[i]"`; then
+`store.SetInitiativeTeams` and `work.initiative_teams_set`. Features of a spanned team appear in the
+initiative's view only for readers who may read them (task 118's view calls `workAccess` per
+feature), so a span never shows a name its reader could not open.
+
+#### `w4-hub-contract-proposal.md`, complete
+
+`````markdown
+# W4: one proposed edit to the Hub contract, from Phase W
+
+**To:** the owner of `feat/hub` (`docs/superpowers/contracts/2026-09-23-hub-contract.md`).
+**From:** Phase W, task 117 (cross-team planning, Q12).
+**Status:** proposed. Nothing on `feat/hub` has been changed. Read at `feat/hub` `1271ddb`.
+
+## Item 1: a granted team may read the branch brief of a shared feature
+
+**Where:** §5.2 (`hub-contract:333`, *"There are no per-project grants in v1"*) and §5.3's
+`GET /v1/refs` row (`:356`).
+
+**Today** Phase W adds a project-scoped read-and-comment grant for **Work objects only** (issues,
+features, milestones, updates, comments). A granted team sees a feature but not its spec, because
+the spec is the branch brief, and briefs and `/v1/refs` stay team-only.
+
+**Propose** one sentence under §5.2: *"A team holding a Phase W `read_comment` grant on a project
+may read that project's branch briefs of features it can see, and `/v1/refs` resolves their keys
+for it; it writes none of them."* And the `/v1/refs` row gains *"and briefs readable through a
+Phase W grant"*.
+
+**If declined**, nothing changes: the feature header (task 126) shows the brief's key and says it
+is readable by the owning team only. Nothing in Phase W depends on the answer.
+`````
