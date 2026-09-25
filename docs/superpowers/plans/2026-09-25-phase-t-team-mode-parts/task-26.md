@@ -122,6 +122,13 @@ is renamed, not the other way round.
 | `worker.done` · `worker.blocked` · `worker.assumed` | task 24, `panacea report` | no | `fleet` |
 | `lease.contested` · `lease.expiring` | task 23 (and task 35's expiry) | no | `fleet` |
 | `escalation.answered` | task 30, its human answers an `es-…` | no | `fleet` |
+| `thread.resolved` | task 29, a resolution applied on one of its threads | **yes** | `fleet` |
+| `sequence.go` | task 29, the first side of a `sequence` finished; its own side may proceed | no | `fleet` |
+
+`thread.resolved` is a thread event in §4.2's sense (the negotiation's last step), so it is
+immediate: the proposer's Orchestrator must direct its workers to match, and pacing that by the
+batcher would leave both sides' workers on the old plan for up to a minute. §4.2 lists only the
+two it names; this third one follows its rule and is recorded as a gap.
 
 `escalation.answered` is `fleet`, not `human`, on purpose: the answer is a typed choice among the
 options Fleet wrote, applied by Fleet (task 30), and §7.2 grants a `human`-origin turn its wider
@@ -172,7 +179,8 @@ var (
 
 // Immediate reports whether a kind skips coalescing (§4.2, 06 I8).
 func Immediate(k model.EventKind) bool {
-	return k == model.EventPeerMessage || k == model.EventConflictOpened
+	return k == model.EventPeerMessage || k == model.EventConflictOpened ||
+		k == model.EventThreadResolved
 }
 
 // Queued is an event as the queue holds it.
@@ -867,7 +875,9 @@ cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team && git ad
    Fleet never pushes a `turn.end`; a turn Fleet ends itself is recorded `lost`, and the runner
    learns of it only through `stop` (task 27). Task 09's event list should drop `turn.end`, and
    task 16's `events.wait` queue then never sees one.
-4. **The human-origin reply has no Hub home.** §4.2 and §3.3 keep it "with the turn's `ot-…`
+4. **Two event kinds beyond §4.2's list**, `thread.resolved` (immediate) and `sequence.go`, are
+   added for task 29. Task 09's `model.EventKind` list must carry them.
+5. **The human-origin reply has no Hub home.** §4.2 and §3.3 keep it "with the turn's `ot-…`
    record as `text·A`"; task 07's route 69 is metadata-only with a strict body. See "Requires of
    task 07" above.
 

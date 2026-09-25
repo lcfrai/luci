@@ -68,7 +68,13 @@ id), never from a message's text. §6.5's "act; Fleet informs" rows are this sam
 - `control-plane/internal/fleet/protocol/{resolve,decided}_test.go`,
   `control-plane/internal/fleet/leases/yield_test.go` (new)
 - `control-plane/internal/fleet/protocol/service.go` — task 28's `Service.Send`: the
-  `CheckProposal` call in step 4 and the `Resolve` call in step 9 (modified; task 28's file)
+  `CheckProposal` call in step 4 and the `Resolve` call in step 9; `SendResult` gains
+  `Outcome *Outcome` (`json:"outcome,omitempty"`), so the acceptor sees what was applied in its
+  own `peer` result (modified; task 28's file)
+- `control-plane/internal/fleet/protocol/inbox.go` — task 28's `Envelope` gains `Resolved
+  []Outcome` (`json:"resolved"`): every outcome on the caller's threads since its last `inbox`,
+  so the proposer's side learns it the same way it learns everything else (modified; task 28's
+  file, plus one fixture `inbox-resolved-yield.json`)
 - `control-plane/internal/fleet/verbs/task.go` — task 24's `task update` path calls
   `Resolver.TaskEnded` on `done` and `abandoned` (modified; task 24's file, one call)
 
@@ -169,3 +175,72 @@ type Outcome struct {
 	At         time.Time
 }
 ```
+
+**`Resolve`, the order.** One transaction from step 3 to step 6; the verdict is read before it.
+
+1. Find the accepted proposal in the thread (`accept.Fields.proposal`), its sender (the
+   proposer) and its `Resolution`. The accept's sender is the acceptor.
+2. Build the `Action` (tier from `verbs.Conflicts.Open`, `""` for a free thread) and call
+   `Rules.Classify`. **`decide`**: mark the proposal `awaiting-human` in the thread's live set,
+   call `Escalator.AcceptNeedsDecision`, return `Outcome{Applied: false}`. Nothing else moves.
+3. Re-check the parameters against current state (`resolution_stale` on any miss): `yield`'s
+   globs still held by the proposer's side; `sequence`'s `first` still a participant; the
+   conflict still open.
+4. Apply, per kind (below), writing every lease event through task 23's `leaseEvent`.
+5. Close: thread → `resolved` (route 61, `OpThreadPatch`); conflict → `resolved` with the
+   resolution for `yield` and `sequence`, `accepted` with `proceed-both` for `proceed-both`
+   (route 58, `OpConflictPatch`, `task-06.md:210-215`).
+6. Write `DecidedWithoutYou`'s two items (`OpEscalation`), and a `thread.resolved` event (task
+   26's kind, immediate) for the proposer's Orchestrator, which must now direct its workers; the
+   acceptor is mid-turn and sees the `Outcome` in its `peer` result.
+7. After commit, `Engine.Reevaluate(org, project)`: a lease that was contested only by what was
+   just yielded becomes `granted`.
+
+`ApplyApproved(org, thread, proposal, es)` is steps 3 to 7 for a proposal marked
+`awaiting-human`, called by task 30 once the human (or, for a two-human decide, both) chose the
+applying option; the approving `es-…` id goes into the conflict patch's audit metadata through
+task 07, and into the `Outcome`. A human who declines leaves the thread `open` with the proposal
+withdrawn; the rounds already spent stay spent.
+
+**The three appliers.**
+
+| Kind | Leases | Other Fleet state | Hub |
+|---|---|---|---|
+| `yield` | for each live lease L of the proposer's side with a yielded glob: `Yield(L, globs)` → L `yielded`; if globs remain, a new lease with them | none | L's `yielded` event, the new lease's `requested` and outcome |
+| `sequence` | every live lease of the **second** side whose globs overlap the conflict's paths (task 02's `Match`): `Demote(L)` → mode `intent`; one row in `fleet.lease_demotions` with the old mode | a row in `fleet.land_hints (org, project, conflict, first, second, created_at)` | a mode-change lease event per demoted lease; the conflict patch |
+| `proceed-both` | none | none | the conflict patch, `accepted`, `proceed-both`; `paths` must be a non-empty subset of the conflict's paths, else `ErrTier`-class `bad_request` at propose |
+
+"The proposer's side" and "the second side" are the Orchestrator and every worker whose
+`parentAgentId` is that Orchestrator (task 20's agent records). The first side is `First`; the
+second is the other participant's side.
+
+**`TaskEnded(org, task)`** looks up `land_hints` where the task belongs to the first side's
+agent that was party to the conflict; for each, `Restore` every row of `lease_demotions` for that
+hint (mode back to the stored one, one lease event each), deletes the rows, and enqueues a
+`sequence.go` event (task 26's kind) for the second side's Orchestrator so it can tell its
+workers the way is clear. Idempotent: a second call finds no rows.
+
+**`leases/yield.go`, the surface, complete.**
+
+```go
+package leases
+
+// Yield moves l to yielded and, when globs of l remain, requests a new
+// lease with them for the same holder, mode and task, in one transaction.
+// It fails with ErrNotHeld-class agent_not_owner unless every yielded glob
+// is, as a string, one of l.Globs.
+func (e *Engine) Yield(ctx context.Context, org string, l model.Lease, globs []string) (reissued string, err error)
+
+// Demote sets l's mode to intent (a hold or bulk becomes intent) and writes
+// a lease event; state is unchanged. Returns the previous mode.
+func (e *Engine) Demote(ctx context.Context, org string, l model.Lease) (was model.LeaseMode, err error)
+
+// Restore sets l's mode back to was, if l is still live; a lease that ended
+// meanwhile is skipped, not an error.
+func (e *Engine) Restore(ctx context.Context, org string, id string, was model.LeaseMode) error
+```
+
+A mode change is not a state change, so task 23's transition table is untouched by `Demote` and
+`Restore`; the lease event carries the new `mode` with the unchanged `state`, which task 01's
+§7.16 lease-event body already has fields for (`task-23.md:155`, `"mode"`). The Hub's lease
+history therefore shows the demotion.
