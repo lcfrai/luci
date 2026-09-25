@@ -283,3 +283,55 @@ describe("syncLogRows", () => {
    calls the mocked `openUrl` once with it; a `consentUrl` of `http://…` or `javascript:…` calls
    it zero times and shows *The tracker's consent link was not https; not opened*. **Kills** "a
    tracker page in the webview" and "an unsafe link opened".
+
+#### Steps
+
+1. Write the tests above (reusing task 170's `testWork.ts`, with `vi.mock("@tauri-apps/plugin-opener")`
+   for test 7); run them; they fail (no modules).
+2. Write `trackerTarget.ts`; its tests pass.
+3. Write `SyncLog.tsx` with `syncLogRows`; its tests pass.
+4. Write `TrackerConnect.tsx` and `TrackerList.tsx` and the `.ik-trk-*` and `.ik-log-*` rules in
+   `intake.css` (the log is a mono table; rows enter with `opacity` only, no layout animation);
+   component tests 1-7 pass.
+5. Mount `TrackerList` in team settings (or the Triage header menu, gap 1).
+6. `npm --prefix desktop run typecheck`; commit with `git commit -F <msgfile> -- <paths>`.
+
+#### Acceptance
+
+```bash
+npm --prefix desktop test -- src/components/intake/trackerTarget.test.ts src/components/intake/SyncLog.test.tsx src/components/intake/TrackerConnect.test.tsx src/components/intake/TrackerList.test.tsx
+# expect: trackerTarget.test.ts 3 passed; SyncLog.test.tsx 3 passed;
+#         TrackerConnect.test.tsx and TrackerList.test.tsx together 7 passed; no failed
+npm --prefix desktop run typecheck
+# expect: exit 0
+grep -rn -i -E "password|access.?token|personal access" desktop/src/components/intake/Tracker*.tsx
+# expect: no output, exit 1
+```
+
+Visual acceptance is the owner's eyes: the connect form, a connection row and a log with each of
+the four row kinds, opened in the running app against the fake client.
+
+#### What this task does NOT claim
+
+- A sync against a real tracker: tasks 151-153 are tested against recorded shapes, and whether
+  the Hub can reach any tracker from its network is **UNVERIFIED** (task 150's scope).
+- That the naming rules in `validateTarget` match each tracker's current rules; they fix what the
+  desktop accepts, and a mismatch is a one-line change with its test.
+- That comments posted out reached the tracker: the log shows the Hub's `commentsOut` count.
+
+#### Gaps found while writing this part
+
+1. **No team-settings host is named.** The File map puts intake under `src/components/intake/`
+   and says nothing of where team settings are drawn; no part on the tree names a *Team settings*
+   surface (task 11's policy is Hub-side). Tasks 170, 171 and 173 all need one. The skeleton
+   should name its owner, or this part's fallback (the Triage header menu) stands.
+2. **Jira's project-key pattern is configurable per site.** `JIRA_KEY` is the default rule; a
+   site with a custom pattern cannot connect from the form. Task 153 could expose a
+   `validate-target` route that asks the tracker, and the form would call it before connect.
+3. **No per-item import time.** `ExternalLink` has `lastSeenAt`, not `importedAt`, so an item seen
+   again later moves down the log as if imported later. Task 150 should record `importedAt`.
+4. **Per-item *updated* and *skipped* rows** need task 150 to record them (task 169 G5); until
+   then the log shows counts per run and a row per refusal and per upstream change.
+5. **Run now.** Task 150 names `POST /v1/trackers/{connectionId}/run` (admin: run now); task 169's
+   relay has no row for it because this scope names no *Run now* button. Adding one is a row in
+   task 168 and task 169 and one button here.
