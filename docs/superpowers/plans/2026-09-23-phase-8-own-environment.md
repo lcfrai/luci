@@ -490,6 +490,7 @@ control-plane/internal/machines/               the machine set and InstallID (23
 control-plane/internal/api/{api,sessions,attach}.go   route by machine; the machine routes (24a); cloud create (24b)   23, 24a, 24b
 control-plane/internal/api/machines.go         cloud machines: list, ensure-default, wake          24a
 control-plane/internal/api/cloudstore.go       the cloud conversation store                        24b
+control-plane/internal/api/cloudlane.go        a cloud session's lane: a primary's backing lane (R4.1)   24b
 control-plane/internal/api/catalog.go          handleMachines moves out (24a); machineId on the catalog routes (24b)   24a, 24b
 control-plane/internal/httpx/problem.go        machine_not_found; quota_exceeded, machine_full     23, 24a, 24b
 control-plane/internal/reaper/reaper.go        sweeps per machine; rule 4 on a cloud machine acts on its own install id only (review I6)   23
@@ -600,7 +601,7 @@ first.
 | 22 | `remotebe`: `backend.Backend` over the broker, with the Hub's token source (HA-2) | 18 | 3 |
 | 23 | `internal/machines`: a backend per machine through sessions, attach, reaper and `main`; the install id, and a reaper that destroys only its own cloud sandboxes (review I6) | 22 | 3.5 |
 | 24a | Cloud machines in `GET /v1/machines`, `POST /v1/machines/default` (ensure-default) and `POST /v1/machines/{machineId}/wake`; the list cache and its invalidation (review m17 split task 24) | 23 | 2 |
-| 24b | Machine-scoped catalog, session create on a cloud machine with wake-before-create and `.git/config` bound read-only (phase 3 H5), the cloud conversation store (`cloudstore`, OD-10); closes S8.3 | 24a, 20 | 3 |
+| 24b | Machine-scoped catalog; session create and restart on a cloud machine in the worktree's lane, a primary's or linked worktree's backing lane made on first start (phase 3 task 05's rule; R4.1: no `projects/` mount; env R4 ruling 5), with wake-before-create and `.git/config` bound read-only as hygiene; the cloud conversation store (`cloudstore`, OD-10); closes S8.3 | 24a, 20, **phase 3 task 05** (the backing lane) | 3.5 |
 | 25 | Phase 3's `gitx.Machine` for a cloud machine (S3-P8.1) | 24b, 21, **phase 3 tasks 02–04 and 11** | 2.5 |
 | 26 | The cockpit shows cloud machines: states, implicit wake, the isolation badge (S8.5), signed-out | 24b (and so 24a) | 3 |
 
