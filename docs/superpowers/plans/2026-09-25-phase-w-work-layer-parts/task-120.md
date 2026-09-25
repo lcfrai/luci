@@ -366,3 +366,73 @@ posted through `POST /v1/evidence` as the tests need it.
 | `TestATemplateEditChangesNoFeature` | PATCH TP-1's criteria after FT-1 was made → FT-1's brief, its criterion list and its issues are unchanged | a live link to the template |
 | `TestOnlyAnAdminWritesBriefTemplates` | Grace's `POST …/templates {kind: brief}` → 403 `required: admin`; Ada's with content status `complete` → 422 `content.status`; `issueCriteria` naming `done:7` → 422 | a member edits the team's spec template; an unvalidated template |
 | `TestEachWriteAppendsItsEvents` | a milestone create, a criteria set, a dependency add and remove → one event each; `fromTemplate` with four issues → exactly `feature.created`, `brief.created`, `brief.revised` and four `issue.created`, in that order | a write without its event; an event per request instead of per record |
+| `TestMilestonesReadInOneEvidenceQuery` | twenty milestones on FT-1 → `GET …/milestones` issues one `evidence` query (counted through the store's test query log, the pattern task 13's feed test uses) | N+1 reads; its speed at any size is not claimed |
+
+`feature.created` and `brief.created` are task 76's and the Hub's; this task asserts their order,
+not their `data`.
+
+#### The matrix rows (`workMatrixRows["120"]`, appended)
+
+Columns V M A O N X (`hub-contract:341`); the granted member is task 117's row.
+
+| Route | V | M | A | O | N | X | Granted member |
+|---|---|---|---|---|---|---|---|
+| `POST /v1/features/{featureId}/milestones` | 403 | 201 | 201 | 404 | 404 | 404 | 403 |
+| `GET /v1/features/{featureId}/milestones` | 200 | 200 | 200 | 404 | 404 | 404 | 200 |
+| `PATCH /v1/milestones/{milestoneId}` | 403 | 200 | 200 | 404 | 404 | 404 | 403 |
+| `PUT /v1/milestones/{milestoneId}/criteria` | 403 | 200 | 200 | 404 | 404 | 404 | 403 |
+| `POST /v1/features/{featureId}/dependencies` | 403 | 201 | 201 | 404 | 404 | 404 | 403 |
+| `DELETE /v1/features/{featureId}/dependencies/{blocks}` | 403 | 204 | 204 | 404 | 404 | 404 | 403 |
+| `GET /v1/projects/{projectId}/feature-dependencies` | 200 | 200 | 200 | 404 | 404 | 404 | 200 |
+| `POST /v1/teams/{teamId}/templates` (`kind: brief`) | 403 | 403 | 201 | 404 | 404 | 404 | — |
+| `GET /v1/teams/{teamId}/templates?kind=brief` | 200 | 200 | 200 | 404 | 404 | 404 | — |
+| `PATCH /v1/templates/{templateId}` (a brief template) | 403 | 403 | 200 | 404 | 404 | 404 | — |
+| `POST /v1/projects/{projectId}/features:fromTemplate` | 403 | 201 | 201 | 404 | 404 | 404 | 403 |
+
+Templates are a team's, not a project's, so a grant (project-scoped) never reaches them: `—`.
+
+#### Steps
+
+- [ ] **Step 1:** Confirm the sync base (rule H1): tasks 76, 78, 114 and 116 committed; task 09's
+  decision 4 unchanged. Re-read task 76's create path and task 78's template route at the base.
+- [ ] **Step 2:** Check T114 carries G1 and G2; if not, stop and raise it against 114.
+- [ ] **Step 3:** Append the migration section; `hub migrate` on the compose stack applies it;
+  task 116's migration test still passes on an empty database and on W3's schema.
+- [ ] **Step 4:** Write the integration test and the matrix rows; every row fails.
+- [ ] **Step 5:** `store/work_criteria.go`; then milestones; then dependencies; run each group's
+  rows green before the next.
+- [ ] **Step 6:** The brief branch of task 78's template handlers, then
+  `createFeatureFromTemplate`; run until green.
+- [ ] **Step 7:** Rerun tasks 76, 78 and 08's integration tests unchanged; run task 115's
+  milestone, dependency and template conformance rows against the fake.
+- [ ] **Step 8:** `git diff -- go.work control-plane/go.mod` shows nothing; commit by pathspec.
+
+#### Acceptance
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/work
+go test -tags integration ./control-plane/internal/hub/server/ -race -count=1 -v \
+  -run '^Test(ACriterionOffTheBriefIsRefused|ReachedFlipsOnlyOnTheLast|WordsStartUncoveredOrOpen|TheViewCountsNothing|ACycleIsRefused|OrderViolatedIsDerived|DependenciesStayInOneTeam|ATemplateMakesAThreadedFeature|AFailedIssueRollsTheFeatureBack|ATemplateEditChangesNoFeature|OnlyAnAdminWritesBriefTemplates|EachWriteAppendsItsEvents|MilestonesReadInOneEvidenceQuery)$' \
+  2>&1 | grep -c "^--- PASS"                                                                    # 13
+go test -tags integration ./control-plane/internal/hub/... -race -count=1                      # ok
+go test ./control-plane/... -race -count=1                                                      # ok
+```
+
+#### What this task does not claim
+
+- That a milestone is reached **at the branch head** (04 §2.5): the Hub reads the latest recorded
+  verdict, not git (decision 2). Task 130 draws `drifting`, which the Hub never answers.
+- That a hand-written brief's milestone criteria are on the brief: the writer checks them
+  (decision 1); a Hub-wide check needs phase 4's writer to publish criterion ids, a Hub-contract
+  proposal that task 09's gap already names.
+- That a branch exists for a template-made feature: the first Start cuts it (04 §2.5, task 24).
+- The timeline, the picker or any surface (tasks 128-130); any read speed.
+
+**Parity rows served:** **L-72** (milestones, PARTIAL on purpose: words, not a bar), **L-75**
+(project templates: a brief template plus issue templates), **L-122** (brief templates per team),
+and the Hub half of **L-74** (dependencies; task 129 draws them).
+
+**Gaps for the skeleton and siblings:** G1 (template `content`, `criterionIds`, `issueCriteria`,
+`kind`; the four criterion words) and G2 (seven event kinds) belong to task 114; task 09's
+membership decision and T114's `validCriterionList` comment disagree, and this part follows task
+09; task 124's dependency-list path differs from T114's, and this part follows 114.
