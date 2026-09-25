@@ -64,3 +64,73 @@ person *why* EP-142 stayed in triage.
 - `control-plane/internal/hub/hubclient/fake_work*.go` ⚑ (task 05's file): only if a rule here
   differs from what 05 wrote; the conformance rows (task 05) are the arbiter
 
+**Interfaces:**
+
+- Produces:
+  - the routes, in 07's list and 07's matrix rows: `POST /v1/issues/{issueId}/relations`,
+    `DELETE /v1/issues/{issueId}/relations/{kind}/{otherId}`, `GET` and `POST
+    /v1/teams/{teamId}/labels`, `POST /v1/labels/{labelId}/archive`, `GET` and `PUT
+    /v1/teams/{teamId}/work-policy`
+  - `hubapi.RelationBlockedBy`, `hubapi.RelationDuplicatedBy` (read-only kinds),
+    `hubapi.WritableRelationKind(k) bool`, `hubapi.InverseRelation(k) RelationKind`
+  - `hubapi.DefaultTeamPolicy(teamID) TeamPolicy`, `hubapi.TriageExitRefused(from, to, priority,
+    policy) bool`, the one rule the Hub and the fake both call
+  - `IssueHead.snoozedUntil` and `PatchIssueRequest.snoozedUntil` (additive)
+  - the events `issue.related`, `issue.unrelated`, `label.created`, `label.archived`,
+    `team.work_policy_set`, as drafts that task 13 makes constants (SW.5)
+- Consumes:
+  - task 03: `RelationKind`, `Relation`, `RelationRequest`, `Label`, `CreateLabelRequest`,
+    `TeamPolicy`, `PutTeamPolicyRequest`, `IssueState`, `Priority`, `PatchIssueRequest`
+  - task 06: `labels`, `issue_labels`, `issue_relations`, `team_work_policies`, the named constraint
+    `labels_team_live_name`, `issue_relations_kind_known`
+  - task 07: the matrix rows for these seven routes; `hub.work_cause` (the triage exit is a `hand`
+    move and sets nothing new)
+  - task 08: `store.LockIssue`, the readable-issue lookup, the create and patch paths
+  - task 10: the `hand` move path, where the triage exit check runs before the `UPDATE`
+  - Hub task 14: `server.Write`, `server.Read`, `(*Tx).Emit`, `server.Refuse`, `server.Forbidden`,
+    `server.Decode` (`H14:27-138`); Hub task 15: the caller's team role
+- Consumed by: task 13 (the kinds), task 15 (the label match and the policy it must override),
+  task 42 (the triage keys: accept, duplicate, decline, snooze), task 44 (labels in the display
+  menu), task 63 (the Desk's *inform* for a relation on someone else's issue)
+
+The names of task 03's identifiers (`hubapi.StateTriage`, `hubapi.PriorityNone`,
+`hubapi.RelationBlocks` and the rest) are written here as task 03's part spells them; where it
+spells one differently, task 03 wins and this part is a find-and-replace.
+
+#### Wire shapes
+
+```jsonc
+// POST /v1/issues/is-0a1b…/relations            member; 201 new, 200 existing (no event)
+{ "kind": "blocks", "issueId": "is-9f8e…" }
+// → 201 | 200: the subject's head, relations read from its own end
+{ "id": "is-0a1b…", "relations": [ { "kind": "blocks", "issueId": "is-9f8e…" } ], … IssueHead … }
+
+// GET /v1/issues/is-9f8e…   the other end reads the inverse word
+{ "id": "is-9f8e…", "relations": [ { "kind": "blocked_by", "issueId": "is-0a1b…" } ], … }
+
+// DELETE /v1/issues/is-9f8e…/relations/blocked_by/is-0a1b…  → 200 head; 404 relation_not_found
+// Either end may delete, with either word: the pair is normalised before the lookup.
+
+// POST /v1/teams/tm-…/labels                      admin; 201
+{ "name": "Bug", "color": "danger" }
+// → { "id": "lb-…", "teamId": "tm-…", "name": "Bug", "color": "danger", "archivedAt": null }
+// GET /v1/teams/tm-…/labels?archived=true         viewer; Page[Label], name order, live first
+// POST /v1/labels/lb-…/archive                    admin; 200 Label; a second call 200, no event
+
+// GET /v1/teams/tm-…/work-policy                  viewer; the defaults when no row exists
+{ "teamId": "tm-…", "defaultState": "backlog", "priorityToLeaveTriage": false,
+  "stopAtLandedWithoutServes": false, "updatedAt": null, "updatedBy": null }
+// PUT /v1/teams/tm-…/work-policy                  admin; every field present (a PUT, not a PATCH)
+{ "defaultState": "todo", "priorityToLeaveTriage": true, "stopAtLandedWithoutServes": false }
+
+// POST /v1/issues/is-…/state  {"to":"todo","cause":"hand"} on an un-prioritised triage issue
+// → 422
+{ "error": "policy_refused", "message": "This team needs a priority before an issue leaves triage.",
+  "details": { "policy": "priorityToLeaveTriage", "issueId": "is-…" } }
+```
+
+`Label.archivedAt` is one field this task needs that task 03's `Label{id, teamId, name, color}`
+does not list; it is added additively (a skeleton gap: an archived label must read as archived).
+`TeamPolicy.updatedAt` and `updatedBy` are `null` for a team that never set one, so a client can
+tell "the defaults" from "an admin chose these values".
+
