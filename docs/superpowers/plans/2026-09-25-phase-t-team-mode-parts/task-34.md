@@ -265,7 +265,7 @@ writes a file; the assertion is that the file does not exist.
 | `TestHunkRangesAreOnHEADsBlob` | a 10-line file; lines 3–4 replaced, a line inserted after 8 → `Base` = `git rev-parse HEAD:<path>`, `Ranges == [[3,2],[8,0]]` | the `+c,d` side parsed instead of `-a,b`; a missing count read as 0 |
 | `TestUnbornBranch` | a fresh `git init` with one untracked file → `Head == ""`, `LastCommit == nil`, the file `untracked`, no error | `rev-parse` exit 1 treated as `git_failed` |
 | `TestLastCommitSubjectIsCleaned` | a commit subject holding an ANSI escape → `Subject == ""`, `Dropped` counts it | an agent's subject reaching another Orchestrator raw |
-| `TestNoReadSet` | the JSON of any sample has exactly the ten keys above | a "files read" field added (§3.3) |
+| `TestNoReadSet` | the JSON of a readable sample has exactly the ten keys above (`readError` is omitted when empty) | a "files read" field added (§3.3) |
 | `TestAtMostFiftyHunkPaths` | 60 modified files → 50 in `Hunks`, `Truncated` | unbounded per-sweep git calls |
 
 `sweep_test.go`, on a fake `gitx.Runner`:
@@ -280,3 +280,57 @@ writes a file; the assertion is that the file does not exist.
 
 The broker's `TestFleetReadsOnlyItsDelegationsProject` (in P8-18's suite): a delegation for `pj-A`
 reading `project=pj-B` → 403; the owner's token reading `pj-B` → 200.
+
+Run: `cd control-plane && go test ./internal/converge/ ./cmd/machined/ -run
+'Fsmonitor|IndexHook|External|Filter|Bidi|LongPath|Hunk|Unborn|Subject|NoReadSet|Live|Project|Seq|Gap|FourAtOnce'`.
+Expected: compile failure (`undefined: Sample`, `undefined: Sweeper`).
+
+- [ ] **Step 2: Confirm the siblings landed.** `git grep -n "func ParseStatus\|type UntrustedConfig\|func MachineHardening\|DirLanes" -- control-plane/internal/converge control-plane/internal/gitx control-plane/internal/machineapi`
+  returns four lines. If not, stop: this task builds on them and invents neither.
+- [ ] **Step 3:** `machineapi/activity.go` and the three fixtures.
+- [ ] **Step 4:** `claims.go`: the six calls, the numstat and `ls-tree` parsers, `ParseHunkHeaders`,
+  the hygiene pass. The `claims_test.go` rows pass.
+- [ ] **Step 5:** `sweep.go` and the route; the broker's relay and its test.
+- [ ] **Step 6: Acceptance.**
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/control-plane && go vet ./... && go test ./internal/converge/ ./internal/machineapi/ ./cmd/machined/ ./cmd/broker/ -count=1 -race
+```
+Expected: `ok` for the four packages. On the Windows build laptop the real-git tests run against
+Git for Windows; the marker scripts are `sh` scripts, so where `sh` is absent they skip with a
+message, and the Linux CI job is the run of record (as P8-21's are).
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team && grep -n '"diff"\|"status"' control-plane/internal/converge/claims.go | grep -v "no-ext-diff\|porcelain=v2"
+```
+Expected: no output: every `diff` call carries `--no-ext-diff`, and `status` is only the
+porcelain v2 form.
+
+- [ ] **Step 7: Commit** after `git add` of the new files: `git commit -F
+  .superpowers/sdd/team/msg/t34.txt -- control-plane/internal/machineapi control-plane/internal/converge
+  control-plane/cmd/machined control-plane/cmd/broker testdata/activity`.
+
+**What this task does not claim:**
+
+- **That a guest's write is visible to `machined` within one sweep.** The session pod and the
+  machine pod share the disk (P8-D6); whether a write in one Kata VM is visible to the other at
+  once is **UNVERIFIED**, and task 47 probes it.
+- **That §HGH's `Clone` list is complete.** This task adds the read switches and tests the six
+  paths above; any other config-driven command git grows is phase 3's list to close.
+- **That an agent cannot hide activity.** It can make its clone unreadable (decision on
+  `clone_config_untrusted`), commit and reset, or edit outside its worktree's clone; the sample
+  shows the first, and the others are the edges of what "observed" means.
+- **Fleet's use of the samples** (holds, bulk, presence): task 35. The laptop's solo-project
+  poller is not wired here.
+- **That `Seq` is monotonic across a clock step back** at restart.
+
+**Gaps against the skeleton and sibling parts, raised here:**
+
+- **G34-1.** The skeleton says the sample is "sent to Fleet over the broker"; `machined` accepts
+  only the broker's ingress and has no egress into the cluster (P8-D12), so it is **pulled**
+  through a new broker relay (decision c). P8-18's route list gains one route.
+- **G34-2.** Task 22's `Observed.LastCommitSubj` (`task-22.md:145`) needs the last commit's
+  subject, which the skeleton's ST.6 description ("the last commit's sha and changed paths") does
+  not list; ST.6 carries it, cleaned and cut.
+- **G34-3.** Phase 3's R4.2 says the host never reads a lane's config; P8-21 already reads clones
+  from `machined` with `Scope Clone`, and this task follows P8-21, not R4.2's laptop rule.
