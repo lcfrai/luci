@@ -4,6 +4,8 @@ environment   = "prod"
 location      = "australiaeast"
 unique_suffix = "r4nv" # prod's suffix, chosen here in task 02; every prod stack uses it
 
-# true until the in-VNet agent pool exists: then task 30's runbook flips this to false. That
-# flip is the one planned change to this stack.
+# true until task 31's prod section (carried from task 02 review I4): once foundation has made
+# the VNet and the in-VNet pool, a bootstrap pass with TF_VAR_state_private_endpoint adds the
+# account's private endpoint; once the pool resolves the account to that endpoint, this flips
+# to false. Endpoint first, flip second: false without the endpoint is refused at plan.
 state_public_network_access = true

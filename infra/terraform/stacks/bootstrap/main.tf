@@ -47,7 +47,8 @@ resource "azurerm_storage_account" "state" {
   public_network_access_enabled     = var.state_public_network_access
   tags                              = local.tags
 
-  # No IP rules: allow, and Entra RBAC is the only gate (the dev posture, not prod's).
+  # No IP rules: allow, and Entra RBAC is the only gate (the dev posture, not prod's: prod goes
+  # private through azurerm_private_endpoint.state, below).
   network_rules {
     default_action = length(var.state_ip_rules) > 0 ? "Deny" : "Allow"
     ip_rules       = var.state_ip_rules
@@ -88,6 +89,33 @@ resource "azurerm_role_assignment" "state_reader" {
   scope                = local.state_container_scope
   role_definition_name = "Storage Blob Data Reader"
   principal_id         = each.value
+}
+
+# The account's private endpoint, made only when state_private_endpoint is given: never in dev
+# today, and in prod by the bootstrap pass task 31's prod section runs after foundation, before
+# public access goes off (carried from task 02 review I4). It lives here, not in foundation:
+# the operator who applies bootstrap owns the account, so the connection is auto-approved and
+# no pipeline identity gains a right on the state group; and the endpoint is not in
+# foundation's state, so no foundation plan can destroy the one path to the state it writes.
+resource "azurerm_private_endpoint" "state" {
+  count               = var.state_private_endpoint == null ? 0 : 1
+  name                = "pe-panacea-app-${var.environment}-tfstate"
+  resource_group_name = azurerm_resource_group.state.name
+  location            = azurerm_resource_group.state.location
+  subnet_id           = var.state_private_endpoint.subnet_id
+  tags                = local.tags
+
+  private_service_connection {
+    name                           = "psc-panacea-app-${var.environment}-tfstate"
+    private_connection_resource_id = azurerm_storage_account.state.id
+    subresource_names              = ["blob"]
+    is_manual_connection           = false
+  }
+
+  private_dns_zone_group {
+    name                 = "blob"
+    private_dns_zone_ids = [var.state_private_endpoint.private_dns_zone_id]
+  }
 }
 
 resource "azurerm_management_lock" "state" {

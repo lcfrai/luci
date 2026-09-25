@@ -9,7 +9,7 @@ variable "environment" {
 
 variable "location" {
   type        = string
-  description = "Azure region, e.g. australiaeast. Every stack must use the same value (foundation's check enforces it)."
+  description = "Azure region, e.g. australiaeast. Every stack's tfvars must set the same value; nothing checks it across stacks here (task 07 is to check the product group's location, carried from task 02 review m3)."
 }
 
 variable "unique_suffix" {
@@ -41,7 +41,20 @@ variable "state_reader_object_ids" {
 
 variable "state_public_network_access" {
   type        = bool
-  description = "Whether the state account accepts traffic from outside a private endpoint. true in dev (hosted agents have no fixed IP); prod sets false once the in-VNet pool exists (task 30)."
+  description = "Whether the state account accepts traffic from outside its private endpoint. true in dev (hosted agents have no fixed IP), and in prod until task 31's prod section: a bootstrap pass that adds state_private_endpoint first, then this set to false (carried from task 02 review I4)."
+  validation {
+    condition     = var.state_public_network_access || var.state_private_endpoint != null
+    error_message = "state_public_network_access = false needs state_private_endpoint: with no endpoint every caller, the in-VNet pool included, is locked out of state."
+  }
+}
+
+variable "state_private_endpoint" {
+  type = object({
+    subnet_id           = string
+    private_dns_zone_id = string
+  })
+  description = "The state account's private endpoint, on foundation's subnet_ids.private_endpoints and private_dns_zone_ids.blob. null (the default) makes none: dev's posture, and prod's until task 31's prod section. Supplied as TF_VAR_state_private_endpoint, never in tfvars (the ids carry the subscription id, guard G2)."
+  default     = null
 }
 
 variable "state_ip_rules" {
