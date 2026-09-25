@@ -194,3 +194,137 @@ network:
 `tuning.membershipTtl` one of `15s`, `30s`, `45s`, `60s`. **There is no `devInsecure` key**:
 `PANACEA_APP_FLEET_DEV_INSECURE` is never rendered, so a cluster cannot run Fleet against an http
 Hub or authority (task 12, `:110`).
+
+#### What the Fleet templates render
+
+`deployment.yaml` — `Deployment/fleet`, `replicas` from values, pod labels
+`app.kubernetes.io/name: fleet`, `app.kubernetes.io/component: server`,
+`azure.workload.identity/use: "true"`; priority class `panacea-platform-critical`
+(`task-11.md:105`: Fleet is on the path of every team agent, so it must not be preempted by a
+session burst); `topologySpreadConstraints` over `topology.kubernetes.io/zone`, `maxSkew: 1`,
+`whenUnsatisfiable: ScheduleAnyway`; `terminationGracePeriodSeconds: 30`;
+`automountServiceAccountToken: false`; non-root, read-only root, all capabilities dropped,
+`RuntimeDefault` seccomp (`restricted` Pod Security, `task-11.md:93-99`); requests equal limits
+from `resources`. Liveness `/healthz`, readiness `/readyz` on 8080 (`task-12.md:40-45`). Volumes:
+the CSI secret (`/run/panacea/fleet/control-key`, read-only) and a projected service-account
+token with `audience: <gatewayService.keysmithAudience>`, `expirationSeconds: 3600`
+(`/run/panacea/fleet/keysmith/token`). The environment, every variable literal:
+
+| Variable | Value |
+|---|---|
+| `PANACEA_APP_FLEET_ADDR` | `0.0.0.0:8080` |
+| `PANACEA_APP_FLEET_PG_DSN` | `postgres://<database.appUser>@<database.host>:5432/<database.name>?sslmode=verify-full&pool_max_conns=<database.maxConns>` |
+| `PANACEA_APP_FLEET_PG_AUTH` | `entra` (G32-4) |
+| `PANACEA_APP_FLEET_MIGRATE` | `job` (G32-3) |
+| `PANACEA_APP_FLEET_HUB_URL`, `_HUB_SCOPE` | `hub.url`, `hub.scope` |
+| `PANACEA_APP_FLEET_TOKEN_URL`, `_CLIENT_ID` | `entra.tokenUrl`, `serviceAccount.clientId` |
+| `PANACEA_APP_FLEET_ASSERTION_FILE` | `$(AZURE_FEDERATED_TOKEN_FILE)`, the webhook-injected path (`task-29.md:158-160`) |
+| `PANACEA_APP_FLEET_ENTRA_AUTHORITY`, `_ENTRA_TENANTS`, `_AUDIENCE`, `_DESKTOP_CLIENTS` | from `entra` |
+| `PANACEA_APP_FLEET_REQUIRED_SCOPE` | `Fleet.Access` |
+| `PANACEA_APP_FLEET_MEMBERSHIP_TTL`, `_OUTBOX_TICK`, `_LOG_LEVEL` | from `tuning` |
+| `PANACEA_APP_FLEET_CONTROL_KEY_FILE` | `/run/panacea/fleet/control-key/fleet-control-key` |
+| `PANACEA_APP_FLEET_BROKER_URL`, `_BROKER_SCOPE` | `broker.url`, `broker.scope` |
+| `PANACEA_APP_FLEET_INSTALL_ID` | `installId` |
+| `PANACEA_APP_FLEET_GATEWAY_BASE_URL`, `_KEYSMITH_URL` | from `gatewayService` |
+| `PANACEA_APP_FLEET_KEYSMITH_TOKEN_FILE` | `/run/panacea/fleet/keysmith/token` |
+
+No value is a secret: the control key is a file, the database password does not exist, and the
+Hub token is minted from the projected assertion. `$(AZURE_FEDERATED_TOKEN_FILE)` relies on
+Kubernetes' dependent-variable expansion of a variable the webhook injects into the same
+container; **that the webhook's variable is visible to that expansion is UNVERIFIED**, and the
+fallback is the literal path the webhook documents, pinned by a test either way.
+
+`serviceaccount.yaml` — `ServiceAccount/fleet`, annotation `azure.workload.identity/client-id:
+<serviceAccount.clientId>`. `service.yaml` — `Service/fleet`, ClusterIP, 80 → 8080.
+`httproute.yaml` — `HTTPRoute/fleet` on `host`, parent the edge Gateway, backend `fleet:80`, as the
+Hub's route. `pdb.yaml` — `PodDisruptionBudget/fleet`, `minAvailable: 1`. `secretproviderclass.yaml`
+— `SecretProviderClass/fleet-control-key`, provider `azure`, `clientID` the serving identity,
+object `controlKeySecret`, **no** `secretObjects` (the key is never synced into a Kubernetes
+Secret). `migrate-job.yaml` — the Hub's three hooks, renamed (`task-29.md:166-183`):
+`ServiceAccount/fleet-migrate` at weight `-10`, `NetworkPolicy/fleet-migrate-egress` at `-5`
+(kube-dns, the private-endpoint CIDR on 5432, 443 outside the private ranges for Entra), and
+`Job/fleet-migrate` at `0` running `["/fleetd", "migrate"]` with the migrate DSN and
+`backoffLimit: 0`.
+
+#### Contract — `deploy/charts/fleet/templates/networkpolicy.yaml` (complete)
+
+```yaml
+{{- $private := list "10.0.0.0/8" "172.16.0.0/12" "192.168.0.0/16" "169.254.0.0/16" "168.63.129.16/32" }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: fleet-server
+  namespace: {{ .Values.namespace }}
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: fleet, app.kubernetes.io/component: server }
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:   # the desktop, through the edge only
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ .Values.gateway.namespace }} } }
+          podSelector: { matchLabels: { app.kubernetes.io/name: traefik } }
+      ports: [ { port: 8080, protocol: TCP } ]
+  egress:
+    - to:     # DNS
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
+          podSelector: { matchLabels: { k8s-app: kube-dns } }
+      ports: [ { port: 53, protocol: UDP }, { port: 53, protocol: TCP } ]
+    - to:     # Postgres, the Hub's server's private endpoint
+        - ipBlock: { cidr: {{ required "network.privateEndpointsCidr" .Values.network.privateEndpointsCidr }} }
+      ports: [ { port: 5432, protocol: TCP } ]
+    - to:     # the Hub and the broker at their https hosts, in-cluster path (decision f)
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ .Values.gateway.namespace }} } }
+          podSelector: { matchLabels: { app.kubernetes.io/name: traefik } }
+      ports: [ { port: {{ .Values.edge.httpsPort }}, protocol: TCP } ]
+    - to:     # keysmith: per-session gateway tokens (task 20)
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: panacea-gateway } }
+          podSelector: { matchLabels: { app.kubernetes.io/name: keysmith } }
+      ports: [ { port: 4100, protocol: TCP } ]
+    - to:     # Entra, and the Hub or broker if their hosts resolve to the edge's public address
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+{{- range $private }}
+              - {{ . }}
+{{- end }}
+      ports: [ { port: 443, protocol: TCP } ]
+```
+
+Fleet has **no** rule to `panacea-sandboxes`: every byte it exchanges with a sandbox goes through
+the broker's relay (decision a), so a Fleet compromise does not add a network path to a sandbox.
+It has no rule to the gatekeeper or LiteLLM: Fleet never calls a model. The Traefik label is
+P8-13's (**UNVERIFIED** until merge; `task-29.md:107` says the broker's policy uses "the same
+labels task 13's `traefik-*` policies select", and this chart reads them from the same helper).
+
+#### Contract — the platform chart's additions (complete)
+
+`values.yaml` gains `namespaces.fleet: panacea-fleet` (schema: required, a DNS-1123 label).
+`namespaces.yaml` renders a fifth `Namespace` with the same labels as `panacea-hub`, including
+`panacea-app/edge-routes: "true"`; `networkpolicy-defaults.yaml` ranges over all five.
+`networkpolicy-sandboxes.yaml` changes one selector and gains two policies:
+
+```yaml
+# egress-internet: unchanged rules; the selector now leaves out the orchestrator class (decision b).
+spec:
+  podSelector:
+    matchExpressions:
+      - { key: panacea-app/class, operator: NotIn, values: [orchestrator] }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: sandbox-egress-gateway, namespace: {{ .Values.namespaces.sandboxes }} }
+spec:
+  podSelector: {}           # every sandbox, machine and orchestrator pod (decision c)
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: panacea-gateway } }
+          podSelector: { matchLabels: { app.kubernetes.io/name: gatekeeper } }
+      ports: [ { port: 4000, protocol: TCP } ]
+```
+
+The `orchestrator` class needs no policy of its own: with `egress-internet` no longer selecting
+it, its egress is exactly `allow-dns` plus `sandbox-egress-gateway`, and its ingress is the
+existing `session-ingress-from-broker` on 8080 (`task-11.md:151-152`), provided task 15 keeps the
+`panacea-app/component: sandbox` label on it. Machines gain the gateway allow too; that is harmless
+(a machine pod holds no gateway token) and keeps one rule instead of two.
