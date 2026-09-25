@@ -246,7 +246,15 @@ core.fsmonitor=false -c core.alternateRefsCommand=true -C <GitWorktree> --litera
    fetches it here). The body is a bundle, read through `http.MaxBytesReader(MaxBundleBytes)` into
    a mode-0600 file in a fresh `os.MkdirTemp("/tmp", "gitrunner-")` directory. Headers are
    `FetchRequest`'s. In order:
-   1. **Repair: refs naming a missing object** (review r4-3 I-2). `G for-each-ref
+   1. **Repair: stale locks, then refs naming a missing object** (review r4-3 I-2, r4-5 M-2).
+      First, step 2's walk (below) runs for lock files alone: a regular file whose name ends
+      `.lock` and whose mtime is older than `BundleTimeout` is removed with `os.Remove` (a
+      symlink is left to step 2). The runner holds the op semaphore, so no lock of its own is
+      live, and an agent's live ref lock is milliseconds old. A stale `<dst>.lock`, left by a
+      runner op killed while it held the lock (see Timeouts), otherwise fails every later fetch
+      into that `<dst>`, and this step's own `update-ref -d` of that ref: `error: cannot lock ref
+      '<dst>': … File exists`, exit 1, while verify exits 0 (r4-5 Probe 7, 2.39.5). Then `G
+      for-each-ref
       --format=%(objectname)%00%(symref)%00%(refname) refs/remotes/origin/ refs/remotes/upstream/`,
       the runner's own namespace (Validation limits every `<dst>`, Set and delete to it); the shas
       of the rows whose `%(symref)` is empty go on stdin to `G cat-file --batch-check`, and each
@@ -261,7 +269,8 @@ core.fsmonitor=false -c core.alternateRefsCommand=true -C <GitWorktree> --litera
       `filepath.WalkDir`, which follows no symlink, walks `D/refs/remotes/origin` and
       `D/refs/remotes/upstream`. An entry that is neither a directory nor a regular file (a
       symlink) is 409 `lane_broken`, `Ref` its refname, and nothing is fetched. A regular file is
-      unreadable when its name does not end `.lock` (a live lock may be the agent's git), step 1's
+      unreadable when its name does not end `.lock` (a live lock may be the agent's git, and
+      step 1 has removed the stale ones), step 1's
       listing omits its refname (git skips an empty or garbled file with `warning: ignoring
       broken ref`), its bytes do not begin `ref: ` (a dangling symref, which git skips silently
       and which breaks neither verify nor fetch), and `G rev-parse -q --verify <refname>` still
@@ -277,7 +286,15 @@ core.fsmonitor=false -c core.alternateRefsCommand=true -C <GitWorktree> --litera
       0, dangling or not): `fetch` writes through a symref `<dst>`, so an agent's
       `refs/remotes/upstream/<b>` → `refs/heads/y` moved `y`, and one → `refs/heads/nothing`
       created it (fix round 5 probe, both gits). Symrefs are loose files only, so the walk sees
-      every one.
+      every one. When this step removed a file with `os.Remove`, step 1's listing and deletes
+      run again (not its lock sweep) before step 3 (review r4-5 M-1). A removed loose file can
+      uncover a `packed-refs` line that names a missing object, which the first listing could
+      not see: git read the broken loose file for that refname, warned `ignoring broken ref` and
+      omitted it. Without the second run verify and fetch still fail (2.39.5 `fatal: bad object
+      <ref>`, 128; 2.53 `not connected`, 1), and the runner would answer `lane_broken` for a ref
+      inside its own namespace. The second listing names it ` missing`, and `update-ref
+      --no-deref -d` exits 0 and drops the packed line; verify and fetch then exit 0 and
+      `refs/remotes/origin/HEAD` resolves (r4-5 Probe 3, both gits).
    3. **Prerequisites** (review r4-4 I-1). The runner reads the bundle's header itself, up to its
       first empty line and at most `MaxJSONBytes`: a first line `# v2 git bundle` or `# v3 git
       bundle`, `@` capability lines skipped, each `-<sha> …` line a prerequisite (40 or 64 hex).
@@ -301,10 +318,11 @@ core.fsmonitor=false -c core.alternateRefsCommand=true -C <GitWorktree> --litera
 
    A failed verify or fetch is `git_failed` and nothing is fetched, except that one whose
    `fatal:` line is `fatal: bad object <ref>`, `<ref>` being `HEAD` or beginning `refs/`, is 409
-   **`lane_broken`** with `Ref` = `<ref>`, whatever git's exit code. After steps 1 and 2 such a
-   `<ref>` is outside the runner's namespace (`refs/heads/bad` in the probe), or inside it only
-   through what they leave (a garbled `packed-refs`): the agent's to fix, and no bundle the host
-   sends can mend it. The runner deletes only what it owns, so it never repairs one outside.
+   **`lane_broken`** with `Ref` = `<ref>`, whatever git's exit code. After steps 1 and 2, and
+   step 1's second run when step 2 removed a file, such a `<ref>` is outside the runner's
+   namespace (`refs/heads/bad` in the probe), or inside it only through a garbled `packed-refs`,
+   which no step repairs (review r4-5 M-1): the agent's to fix, and no bundle the host sends can
+   mend it. The runner deletes only what it owns, so it never repairs one outside.
    The runner never writes `refs/heads/…`: product-branch commits arrive as remote-tracking
    refs, step 2 drops a symref at a `<dst>` before the fetch, `--no-deref` keeps one from
    redirecting a Set or delete, and what the lane does with them is the agent's.
@@ -357,8 +375,15 @@ const (
   It orders only the runner's calls, so its `fetch` and `update-ref` never interleave with its
   reads; the agent's own git is not ordered by it, which is why the reads set
   `GIT_OPTIONAL_LOCKS=0`.
-- **Timeouts.** One `context.WithTimeout` per op; `exec.CommandContext` kills git; the answer is
-  504 `git_timeout`.
+- **Timeouts.** One `context.WithTimeout` per op, and git runs under `exec.CommandContext` with
+  `cmd.Cancel` sending SIGTERM and `cmd.WaitDelay = KillDelay`, after which Go sends SIGKILL;
+  the answer is 504 `git_timeout`. `CommandContext`'s default Cancel is SIGKILL, and git removes
+  its lock files on SIGTERM, SIGINT and SIGHUP but cannot on SIGKILL, so a killed `fetch`, Set
+  or step 1 delete would leave its `<dst>.lock` (review r4-5 M-2; from git's tempfile design,
+  not probed). `KillDelay = 2 * time.Second` is the runner's own (`runner.go`), not a contract
+  limit: 2 s keeps the 504 inside the host client's deadline, the op's timeout plus 5 s. A lock
+  that SIGKILL still leaves (git past `KillDelay`, or `sandboxd` itself killed) is fetch step
+  1's to sweep.
 - **Size.** A JSON result is encoded to a buffer and git's stdout is read through the same cap;
   past `MaxJSONBytes` either one is 413 `too_large`. So is a request body past its cap.
 
@@ -476,7 +501,13 @@ test is red before its code exists.
     `refs/remotes/origin/dang` kept. A symlink `refs/remotes/origin/link` → 409
     `lane_broken`, `Ref` `refs/remotes/origin/link`, the recorder holds no `fetch`. A
     `refs/remotes/upstream/main` symref to `refs/heads/y`, with `upstream/main` a refspec
-    `<dst>` → 200, `upstream/main` a plain ref at the tip, `refs/heads/y` unmoved.
+    `<dst>` → 200, `upstream/main` a plain ref at the tip, `refs/heads/y` unmoved. An
+    uncovered packed ref (review r4-5 M-1), red first without step 1's second run: a lane
+    cloned with `--no-hardlinks`, so its origin refs are in `packed-refs`, whose
+    `refs/remotes/origin/other` line names a missing object, under an empty loose file of that
+    name → the same `fetch` is 200, `packed-refs` holds no `origin/other` line, and
+    `origin/HEAD` resolves. The mutant answers 409 `lane_broken`, `Ref`
+    `refs/remotes/origin/other`, on 2.39.5, and 422 `git_failed` on 2.53.
 13. **`fetch` takes Sets** (review r4-4 C-1). A lane at T, with A an ancestor of T: a bundle
     of `refs/heads/main` over basis T, refspec `+refs/heads/main:refs/remotes/origin/main`
     and Set `refs/remotes/upstream/main <A>` → 200, `FetchResponse` holds both, `upstream/main`
@@ -486,6 +517,17 @@ test is red before its code exists.
     prerequisite the lane lacks → 409 `prerequisite_missing`, `Missing` that sha, no ref moved,
     and the recorder holds no `bundle verify`; a Set whose sha the lane lacks → the same, with
     that sha. A truncated header → 422 `git_failed`, from verify.
+15. **A killed op leaves no lock behind** (review r4-5 M-2). Red first without the sweep: a
+    `refs/remotes/origin/main.lock` whose mtime `os.Chtimes` sets `BundleTimeout` plus 1 s ago
+    → a `fetch` into `origin/main` is 200 and the lock is gone; the same lock 1 s old → 422
+    `git_failed`, `gitSays` git's `cannot lock ref` line, and the lock kept. Red against the
+    walk skipping every `.lock` (the first case), and a sweep with no age test (the second).
+    Then a stand-in `git`, first on `PATH` by `t.Setenv`, a script the test writes with a
+    marker path in it: `trap 'touch <marker>; exit 143' TERM; sleep 30 & wait`. With
+    `ReadTimeout` 200 ms by `newWithLimits`, `status` is 504 `git_timeout` and the marker
+    exists: red against `CommandContext`'s default Cancel (SIGKILL). A stand-in that ignores
+    SIGTERM (`trap '' TERM; sleep 30`) → 504 within `ReadTimeout` + `KillDelay` + 1 s: red
+    against a SIGTERM Cancel with no `WaitDelay`, which waits out the 30 s.
 
 #### The host side: `control-plane/internal/lanegit` (edit unit U2)
 
@@ -557,7 +599,9 @@ var ErrBundleEmpty = errors.New("lanegit: the lane has nothing the basis lacks")
 
 // ErrLaneBroken is what errors.Is finds on a RunnerError with Code "lane_broken" (409): a ref
 // outside the runner's namespace names a missing object, or one inside it is a symlink or sits
-// in a garbled packed-refs, which the repair leaves; no bundle can refresh the lane.
+// in a garbled packed-refs. Fetch's steps 1 and 2, with step 1 run again after step 2 removes
+// a file, clear every other broken ref inside it (review r4-5 M-1); no bundle can refresh the
+// lane.
 var ErrLaneBroken = errors.New("lanegit: a lane ref names a missing object")
 ```
 
@@ -816,7 +860,8 @@ project call stays `git_failed`, and a `RunnerError` is `git_failed` 500 as abov
 is one argument.
 
 **`lanegittest.Fake`** is a `Runner` for tests. It runs plain `os/exec` git with `-C <Dir>` in a
-test clone, the same argv as the runner's ops above, `fetch`'s two repair steps, its
+test clone, the same argv as the runner's ops above, `fetch`'s two repair steps (step 1's
+lock sweep and its second run included, review r4-5), its
 prerequisite check (`prerequisite_missing`), its Sets and its `lane_broken` rule included
 (review r4-4). Before any git it runs the runner's **Validation**
 (`lanegittest/validate.go`: the host's copy, since Go's internal rule keeps `control-plane`
@@ -854,6 +899,8 @@ round-trips every fixture through its own types with `DisallowUnknownFields`, an
 | `TestRunnerFetchRepairsUnreadableRefs` | test 12's second half (review r4-4 I-2): empty and garbled ref files in `refs/remotes/{origin,upstream}/` removed, a dangling symref kept, a symlink `lane_broken`, a symref `<dst>` dropped before the fetch | a repair that only lists refs, which git's own listing skips; a fetch through an agent's symref |
 | `TestRunnerFetchTakesSets` | test 13 (review r4-4 C-1) | a Set that trusts the lane holds its sha; a Set or delete without `--no-deref` |
 | `TestRunnerNamesAMissingPrerequisite` | test 14 (review r4-4 I-1) | a missing prerequisite answered as `git_failed` `git exited 1`, which task 09 cannot tell from any other failure |
+| `TestRunnerFetchRepairsAnUncoveredPackedRef` | test 12's packed-ref case (review r4-5 M-1): an empty loose `origin/other` over a `packed-refs` line naming a missing object → 200, the line gone, `origin/HEAD` resolves | step 1 run once, before step 2 uncovers the packed line: `lane_broken` for a ref in the runner's own namespace |
+| `TestRunnerLeavesNoLockBehind` | test 15 (review r4-5 M-2): a lock older than `BundleTimeout` swept, a fresh one kept; a timed-out git gets SIGTERM, and one that ignores it is killed after `KillDelay` | a sweep that skips every `.lock`, or one with no age test; `CommandContext`'s default SIGKILL; a Cancel with no `WaitDelay` |
 | `TestRunnerFetchStartsNoMaintenance` | the recorded `fetch` argv holds `--no-auto-maintenance`; with `GIT_TRACE` on the runner's git, no `maintenance` or `gc` child starts | a `fetch` that auto-gcs the agent's lane mid-op |
 | `TestSandboxRunnerStatusIsPorcelainV2Z` | Docker, behind a `docker` build tag (no test in either module starts Docker today, grep 2026-09-24; this is the first), run by hand with `go test -tags docker ./sandboxd/internal/gitrunner/`: in the built image (`images/sandbox/Dockerfile`, its `apt-get install … git` line, bookworm's git), started as a **runner-only** sandbox is (no session env, `sleep infinity`, `docker exec` of `sandboxd`), with the lane a host-created `t.TempDir()` bind-mounted by `-v <tempdir>:/home/dev/work`, so its owner is not `dev`: `status` on a lane with one change of each kind answers `1 `, `2 `, `u `, `? ` records, NUL-terminated, and `# branch.oid` headers absent | a `G` without `-c safe.directory` (git's `dubious ownership`, exit 128, is 422 `git_failed`); a runner, or a bookworm git, that answers another shape |
 
@@ -940,14 +987,19 @@ Real host git, no `gitx`. Each records git's exact words in a comment, as task 0
 - **That a runner's answer is true.** `status`, `refs` and `diff` are the agent's claim about
   its own lane (the trust note). A host lane or archive ref moves in exactly two ways: to a
   tip a bundle the host verified brought in, or (task 07's `ErrBundleEmpty` branch, and
-  ArchiveLane's reached refs, review r4-4 C-1) to a commit the project already holds and that
-  is an ancestor of one of the project's own basis shas, checked in the project with `cat-file
-  -e` and `merge-base --is-ancestor`. The second moves a host ref only to an object the host
-  already reached from its own refs, so R4.4's "only a verified bundle brings objects in" is
-  not weakened (review r4-1 I-1).
+  ArchiveLane's reached refs, review r4-4 C-1) to a commit the project already holds, below a
+  basis sha the project holds, checked in the project with `cat-file -e` and `merge-base
+  --is-ancestor`. For task 07 step 3b the basis is host ref values, so there the commit is one
+  a host ref reaches. ArchiveLane's basis also holds the lane's claimed `origin/<b>` sha
+  (task-11.md:138-142), and `cat-file -e` shows only that the project holds it, not that a
+  project ref reaches it (review r4-5 M-3). Either way the second way brings no object in, and
+  every object the project holds came from the user or from a bundle the host verified, so
+  R4.4's "only a verified bundle brings objects in" is not weakened (review r4-1 I-1).
 - **A garbled `packed-refs` in the lane.** The repair clears loose ref files only; a
   `packed-refs` git cannot parse is `lane_broken` or `git_failed`, the agent's to fix (review
-  r4-4 I-2, residual).
+  r4-4 I-2, residual). The lock sweep, likewise, covers `refs/remotes/{origin,upstream}/` only:
+  a `packed-refs.lock` that a SIGKILL leaves is not swept, since it is the agent's file too;
+  the SIGTERM Cancel lets git remove it first (review r4-5 M-2, residual).
 - **That a stopped agent runs nothing.** `G`'s `core.hooksPath=/dev/null` and
   `core.fsmonitor=false` stop hooks and fsmonitor in a runner-only sandbox. Lane-defined clean
   filter drivers still run on `status` there (review r4-1 I-5, residual).
