@@ -338,7 +338,7 @@ granted `EXECUTE` to `hub_app` only. **The fact-state guard** `guard_issue_state
 OF state ON issues`: a move **into** `started`, `in_review`, `landed` or `done` is refused unless
 the transaction set `hub.work_cause` (transaction-local, `set_config(…, true)`, set only by the
 Work store in task 10) to a fact cause (`lane_bound`, `lane_queued`, `land_trailer`,
-`evidence_observed`) **or** the move is `done` with cause `hand` and a non-empty `state_reason`;
+`evidence_observed`, `evidence_recorded`; task 10's complete set) **or** the move is `done` with cause `hand` and a non-empty `state_reason`;
 and it is refused whatever the cause when `hub.work_actor_kind` is anything but `person`, so the
 sync principal W5 adds (tasks 145, 150) can never write a fact state or `done` (05 §3.3, §3.6).
 `number`, `project_id` and `created_by` are also frozen by the trigger (belt to 06's grants). The
@@ -512,5 +512,50 @@ claim** that a test run was watched (task 23), that the lane facts arrive (22), 
 or parent roll-up (L-21, W2). Parity rows served: **L-8** (fixed fact states; closed with 22 and
 the glyphs, task 28), **L-10** (the `duplicate` state), and the Hub half of 05 §2.3's *done means
 proven*, which no L row names alone; it underlies **L-146** and **L-201** (closed with 21-22).
+
+**11 — relations, team labels, `triage` and team policies.** W1, stream WH; no seam; depends on
+08. Files: new pairs `store/work_relations.go` + `server/work_relations.go`,
+`store/work_labels.go` + `server/work_labels.go`, `store/work_policies.go` +
+`server/work_policies.go`, and `server/work_social_integration_test.go`; it touches 08's create
+path (the default state) and 10's move path (the triage exit) in this plan's own files, in task
+order. Routes (07's list): `POST /v1/issues/{issueId}/relations` (`RelationRequest{kind,
+issueId}`) and `DELETE /v1/issues/{issueId}/relations/{kind}/{otherId}`; `GET`/`POST
+/v1/teams/{teamId}/labels` (`CreateLabelRequest{name, color}`), `POST /v1/labels/{labelId}/archive`;
+`GET`/`PUT /v1/teams/{teamId}/work-policy` (`PutTeamPolicyRequest` → `TeamPolicy`). **Rules:** a
+relation joins two issues of projects **in the same team** (a project's access is exactly its
+team's membership, hub-contract:334), never an issue to itself, never the same `(kind, pair)`
+twice (a repeat is 200 with the existing relation and **no** event), and `A blocks B` refuses `B
+blocks A`; `relates` and `duplicates` are stored once and read from both ends, `blocks` reads as
+`blocked_by` from the other end; marking `duplicates` never moves the state by itself (the triage
+`2` key does both, as two writes, task 42). When the other issue's assignee is not the writer,
+the event carries `otherAssigneeId` so the Desk can show that owner an *inform* in solo mode (05
+§3.7 rule 3; W3 turns it into an Orchestrator proposal, task 99 onward). Labels are team-owned
+`lb-`, names unique per team case-insensitively, `color` a palette token name from
+`docs/DESIGN-SYSTEM.md` (never a hex), archived and never deleted, and an issue carries only its own
+team's unarchived labels (`PatchIssueRequest.labels`, validated here). The team policy
+(`TeamPolicy`, absent row = defaults `defaultState: backlog`, `priorityToLeaveTriage: false`,
+`stopAtLandedWithoutServes: false`) is read by 08's create when the request names no state (L-9;
+intake and import always use `triage`, whatever the policy) and by 10's move: leaving `triage` for
+any state but `cancelled` or `duplicate` with `priority: none` under `priorityToLeaveTriage` is 422
+`policy_refused` with `details.policy = "priorityToLeaveTriage"` (L-48). **Triage verbs** on the
+server: *accept* is a `hand` move out of `triage`; *decline* is `hand` → `cancelled` with a
+`reason`; *snooze* adds, additively, `IssueHead.snoozedUntil` and a `PatchIssueRequest.snoozedUntil`
+(an RFC 3339 time; a snoozed issue stays in `triage` and is listed after the rest, never hidden,
+because deferred items age visibly, AX §7.4). Events: `issue.related`, `issue.unrelated` `{"kind",
+"otherIssueId", "otherAssigneeId"}`, `label.created`, `label.archived` `{"name"}` (a label name is
+team metadata, not customer text — the part confirms against hub-contract §8's rule, **UNVERIFIED**),
+`team.work_policy_set` `{"fields"}`. **Tests**, each with its mutant: a relation to an issue in
+another team's project is 404 (kills a relation that leaks another team's issue id); the same
+`blocks` twice gives one row and one event (kills a double event); `B blocks A` after `A blocks
+B` is 422 (kills a two-cycle); `GET` of B shows `blocked_by A` (kills a one-sided read); a label
+`Bug` then `bug` is 409 (kills case-sensitive uniqueness); an issue given another team's label or
+an archived label is 422 naming `labels[0]`; under the policy, `triage → todo` with `priority:
+none` is 422 and appends no event, `triage → cancelled` passes (kills a policy that blocks
+declining); a create with no state lands in the policy's `defaultState`, an import lands in
+`triage` (kills intake using the default); a `member` `PUT`ting the policy is 403 (07's row). It
+**does not claim** label groups or org labels (L-18, L-19, W2), custom states (W2), or the triage
+UI (task 42). Parity rows served: **L-2**, **L-9**, **L-10**, **L-17**, **L-24** (blocks,
+related, duplicate; the Desk cost-of-waiting half closes with task 63), **L-46** and **L-47**
+(the server half; closed with task 42), **L-48**.
 
 
