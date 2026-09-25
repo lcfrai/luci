@@ -596,4 +596,48 @@ W3's kinds (99). Parity rows served: **L-41** (threads, resolve, reactions; cust
 *later*; closed with task 51), **L-42** (anchors to text, a criterion, a span or a hunk; closed with
 51 and 60), **L-124** (author class on every comment).
 
+**13 — subscriptions; the change feed's Work kinds, filtered per caller.** W1, stream WH, seam
+**SW.5** (the Work feed kinds and their metadata-only payloads, consumed by the replica 55, the
+Desk 62, Fleet 98, W4's handover 123 and W5's webhooks 156); depends on 11, 12 and Hub task H26 (the
+change feed, hub-contract §7.11). Files: new `store/work_subscriptions.go`,
+`server/work_subscriptions.go`, `hubapi/workevents.go` (the kind constants and one `data` struct per
+kind, so the Hub writes and the desktop's types, task 37, read one list), and
+`server/work_feed_integration_test.go`; `server/changes.go` ⚑ (Hub task 26's file, **UNVERIFIED
+until merge**) gains one additive rule. Routes (07's list): `PUT /v1/issues/{issueId}/subscription`
+(`SubscribeRequest{subscribed}` → `Subscription`) and `GET /v1/me/subscriptions`
+(`Page[Subscription]`). **Subscription rules** (L-117, pulled into W1 by 05 §5.3 row 4): the
+creator on create, the assignee on assign, each mentioned user on mention and the commenter on
+comment are subscribed in the **same** transaction as the triggering write, with that `cause`; an
+explicit `subscribed: false` is kept and no later trigger turns it back on; a person leaving the
+team keeps the row and stops receiving (readability already filters). **SW.5, the W1 kinds**, every
+one with non-null `teamId` and `projectId` and `data` values that are only strings, integers or
+booleans (hub-contract §8): `issue.created` `{number, key, digest, state, source}` ·
+`issue.updated` `{fields}` (a comma-joined list of field names, since `data` carries no arrays) ·
+`issue.revised` `{key, revision, digest, servesCount, restoredFrom}` · `issue.state` `{from, to,
+cause, proof, landCommit}` · `issue.related` / `issue.unrelated` `{kind, otherIssueId,
+otherAssigneeId}` · `issue.attached` `{digest}` · `issue.erased` `{erasedRevisions}` ·
+`project.key_set` `{key, previousKey}` · `label.created` / `label.archived` `{name}` ·
+`team.work_policy_set` `{fields}` · `comment.created` `{issueId, parentId, kind, author,
+anchorKind}` · `comment.mentioned` (subject the user) `{commentId, issueId}` · `comment.reacted`
+`{emoji, on}` · `comment.resolved` `{resolved}` · `comment.erased` `{}` · `subscription.set`
+(subject the user) `{issueId, subscribed, cause}`. Tasks 08-12 used these names as drafts; this
+task makes them constants and fixes any drift in those files. **Per caller:** hub-contract §7.11
+already shows an event only to readers of its project or team; this task adds that
+`subscription.set` (and, from W2, every draft kind, `df-`) is shown **only to its subject**, the
+one per-caller rule, marked on the kind in `workevents.go` as `Visibility: SubjectOnly`. **Tests**,
+each with its mutant: a canary string written as a title, description, comment body and import
+text across every W1 route never appears in any `/v1/changes` page (kills content in the feed,
+hub-contract:1133-1134); every Work event in a full run has non-null `teamId` and `projectId`
+(kills an event that nobody, or everybody, sees); a reflection test over `workevents.go` refuses
+any `data` field that is not a string, integer or boolean (kills an array in `data`); user B's feed
+never shows user A's `subscription.set` while it does show A's `comment.created` on the same issue
+(kills a private kind in the team feed); unsubscribe, then a mention of that user, and
+`GET /v1/me/subscriptions` still reads `subscribed: false` (kills a trigger overriding the choice);
+assigning C subscribes C with `cause: assign` in the same transaction (kills a subscription written
+after commit, which a crash would lose). It **does not claim** the Desk digest or any notification
+delivery (W2, tasks 81 onward; AX anti-pattern 8), the replica (55) or webhooks (156). Parity rows
+served: **L-117** (automatic and manual subscriptions; closed with task 52), **L-229** (the delta
+sync log gains the Work kinds; closed with the replica, task 55), and the metadata-only base of
+**L-251** (W5).
+
 
