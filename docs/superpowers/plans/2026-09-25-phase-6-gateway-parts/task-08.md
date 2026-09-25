@@ -1522,7 +1522,7 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 	report := func(err error) { log.Warn("best-effort step failed", "err", err.Error()) }
 	spend := usage.NewPGStore(pool)
 	reader := usage.NewReader(spend, policy, nil)
-	go (&usage.Sweeper{Keys: store, Admin: admin, Store: spend, Report: report}).Run(ctx)
+	go (&usage.Sweeper{Keys: spend, Admin: admin, Store: spend, Report: report}).Run(ctx) // task 09, decision (c)
 	svc, err := keysmith.New(keysmith.Deps{Admin: admin, Store: store, Budgets: policy, Spent: reader,
 		Routes: routes, Groups: cat.Groups(), TTL: cfg.TokenTTL, BaseURL: cfg.BaseURL, Report: report})
 	if err != nil {
@@ -1655,5 +1655,5 @@ Message: `feat(keysmith): the HTTP API, caller authentication and a fail-closed 
 2. **Exit status `2`, not `1`,** for a configuration refusal (decision (a)): the skeleton's "exits 1" conflicts with phase 2's convention.
 3. **No cloud caller holds `usage`.** Whoever shows a cloud project's spend (the Hub, or the broker on the cockpit's behalf) needs a line in the `kube` table; task 21's gap 5 raises the same.
 4. **Task 19 must grant keysmith `create` on `tokenreviews`** (a ClusterRoleBinding to `system:auth-delegator`, **UNVERIFIED** name) and set the broker's and gatekeeper's projected tokens to audience `keysmith`. The service-account names `panacea-broker:broker` and `panacea-gateway:gatekeeper` are proposals for ask P8-2.
-5. **Identifiers assumed from parts not yet merged:** task 04's `litellmadmin.New`, `Options`, `ErrNoMasterKey`, `(*Client).Health`; task 05's `binding.Migrate`, `binding.NewPGStore`, and `*PGStore` also satisfying task 09's `usage.KeySource` (`Recent`, task 09's gap 1). Step 1 checks them.
+5. **Identifiers assumed from parts not yet merged:** task 04's `litellmadmin.New`, `Options`, `ErrNoMasterKey`, `(*Client).Health`; task 05's `binding.Migrate`, `binding.NewPGStore` (now in `task-05.md`). Task 09's `*usage.PGStore` is the sweep's `KeySource` (task 09, decision (c)), so task 05's `Store` needs no new method. Step 1 checks them.
 6. **`PANACEA_APP_GATEWAY_HUB_SCOPE`** is read here as task 13's gap 1 proposes; it is not in the skeleton's shared names.
