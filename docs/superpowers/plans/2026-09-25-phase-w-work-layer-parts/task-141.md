@@ -300,3 +300,108 @@ the reader's words; `proposal.css` draws `del` struck through and `ins` underlin
 offset line, the colour on top of those shapes only (`forced-colors: active` keeps both lines).
 Text inside the diff is plain text nodes, never parsed Markdown, so a proposal cannot inject
 markup or a live link into the page.
+
+#### Interfaces — complete: `desktop/src/components/proposal/ProposalStrip.tsx`
+
+```tsx
+// desktop/src/components/proposal/ProposalStrip.tsx — the strip above the head fields; three acts.
+import { useState } from "react";
+import { editProposalOf, type AuthoredText, type EditProposal, type IssueComment, type IssueRevision, type Serve, type User } from "../../api/work";
+import { mutate, useWork } from "../../work/replica/useWork";
+import { Editor } from "../editor/Editor";
+import { docFromAuthored, toAuthored } from "../editor/authorClass";
+import { servesDiff } from "../../work/diff/wordDiff";
+import { ProposalDiff, type ProposalAuthor } from "./ProposalDiff";
+import { agentLabel } from "./agentLabel";
+
+export interface ProposalStripProps { issueId: string; head: IssueRevision; me: User; timeZone: string; alias: string }
+
+type Open = { c: IssueComment; p: EditProposal };
+
+/** Decision 6: open proposals, newest first. Resolved or erased ones are gone. */
+export function openProposals(cs: readonly IssueComment[]): Open[] {
+  return cs.flatMap((c) => { const p = c.resolvedAt === null ? editProposalOf(c) : null; return p ? [{ c, p }] : []; })
+    .sort((x, y) => y.c.createdAt.localeCompare(x.c.createdAt));
+}
+
+const key = (s: Serve) => `${s.briefKey}#${s.criterionId}`;
+
+/** The serves after the proposal, applied to the head it is shown against (decision 4). */
+export function proposedServes(head: readonly Serve[], p: EditProposal): Serve[] {
+  const rm = new Set(p.servesRemove.map(key));
+  const kept = head.filter((s) => !rm.has(key(s)));
+  const have = new Set(kept.map(key));
+  return [...kept, ...p.servesAdd.filter((s) => !have.has(key(s)))];
+}
+
+export function ProposalStrip(props: ProposalStripProps): JSX.Element | null {
+  const comments = useWork((r) => r.commentsOf(props.issueId));          // task 57's replica read (UNVERIFIED name)
+  const sessions = useWork((r) => r.sessions());                           // the control plane's session list
+  const moverOf = useWork((r) => r.revisionWriter(props.issueId, props.head.revision));
+  const open = openProposals(comments);
+  const [reviewing, setReviewing] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [readStale, setReadStale] = useState(false);
+  const [title, setTitle] = useState<AuthoredText | null>(null);
+  const [description, setDescription] = useState<AuthoredText | null>(null);
+  if (open.length === 0) return null;
+
+  const { c, p } = open[0];
+  const stale = p.baseRevision < props.head.revision;
+  const h = props.head.content;
+  const proposedTitle = title ?? p.title ?? h.title;                       // an edited text wins over the proposal
+  const proposedDesc = description ?? p.description ?? h.description;
+  const author: ProposalAuthor = { owner: c.createdBy.displayName.split(" ")[0].toLowerCase(),
+    agent: agentLabel(p.proposer, c.createdBy, props.me, sessions), model: p.proposer.model,
+    sessionId: p.proposer.sessionId, at: c.createdAt, onRevision: p.baseRevision };
+
+  const accept = () => {                                                   // decisions 3 and 4
+    mutate({ kind: "revise", issueId: props.issueId, baseRev: props.head.revision, patch: {
+      title: proposedTitle, description: proposedDesc, serves: proposedServes(h.serves, p) } });
+    mutate({ kind: "resolve", issueId: props.issueId, commentId: c.id, resolved: true });
+    setReviewing(false); setEditing(false);
+  };
+  const decline = () => { mutate({ kind: "resolve", issueId: props.issueId, commentId: c.id, resolved: true }); setReviewing(false); };
+
+  return (
+    <div className="ps" role="region" aria-label="Proposed edit">
+      <p className="ps-line">
+        Proposed edit · {author.owner} · {author.agent} · <time className="ps-mono" dateTime={c.createdAt}>
+          {new Intl.DateTimeFormat("en-AU", { hour: "2-digit", minute: "2-digit", timeZone: props.timeZone }).format(new Date(c.createdAt))}
+        </time> · on <span className="ps-mono">@{p.baseRevision}</span>
+        {open.length > 1 && <> · <a href={`#${open[1].c.id}`}>{open.length - 1} more {open.length === 2 ? "proposal" : "proposals"}</a></>}
+        {!reviewing && <button type="button" onClick={() => setReviewing(true)}>Review</button>}
+      </p>
+      {stale && (
+        <p className="ps-stale">Stale: {props.alias} moved to <span className="ps-mono">@{props.head.revision}</span> ({moverOf}
+          ) since this was proposed on <span className="ps-mono">@{p.baseRevision}</span>.</p>)}
+      {reviewing && !editing && (
+        <ProposalDiff timeZone={props.timeZone} author={author} why={p.why}
+          fields={[{ label: "Title", base: h.title.text, proposed: proposedTitle.text },
+                   { label: "Description", base: h.description.text, proposed: proposedDesc.text }]}
+          extra={(p.servesAdd.length + p.servesRemove.length > 0) && <p className="pd-serves">{servesDiff(p.servesAdd, p.servesRemove)}</p>} />)}
+      {reviewing && editing && (
+        <div className="ps-edit">
+          <Editor value={docFromAuthored(proposedTitle)} ariaLabel="Title" onCommit={(d) => setTitle(toAuthored(d))} />
+          <Editor value={docFromAuthored(proposedDesc)} ariaLabel="Description" onCommit={(d) => setDescription(toAuthored(d))} />
+        </div>)}
+      {reviewing && (
+        <div className="ps-acts">
+          {stale && !readStale && <button type="button" onClick={() => setReadStale(true)}>I have read the changes against @{props.head.revision}</button>}
+          <button type="button" onClick={accept} disabled={stale && !readStale}>Accept</button>
+          {!editing && <button type="button" onClick={() => setEditing(true)}>Edit</button>}
+          <button type="button" onClick={decline}>Decline</button>
+        </div>)}
+    </div>
+  );
+}
+```
+
+The diff is always **head → proposed**, so a stale proposal is shown against the head the person
+would overwrite (the stale line names that head and who wrote it). A field the proposal leaves
+`null` is the head's own text, which reads *unchanged* in the diff and is sent unchanged in the
+patch with the head's own class. `agentLabel` (in `agentLabel.ts`, this task) is decision 2: task
+47's `agentsWhoRead` numbering when the comment's owner is the reader, else `agent · s-7f2c`
+(the first six characters of the session id). Both writes go through task 56's `mutate`, so each
+has its Undo chip; *Accept* is two ops in two `mutate` calls because a resolve that the Hub refuses
+must not roll back an accepted revision.
