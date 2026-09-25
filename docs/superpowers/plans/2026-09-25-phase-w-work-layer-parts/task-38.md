@@ -55,6 +55,11 @@ list. Task 40 promotes what the owner kept into `components/work/` and deletes t
 8. **Old and new look, graphite and paper** come from task 32's toolbar for free: the prototype
    writes only tokens and task 30's sans/mono rule, so `data-look` and `data-theme` restyle it.
    Both screens register with task 33's `stress.sets` by name.
+9. **The node sits on the group header, once per criterion.** The drawing (05 §4.1) and the
+   prototype HTML (`.gh .tnode`, `prototype/work-layer.html:128-129`) put the ring at the head of
+   the line, and the rows hang from the line. A node per row would put a link inside every
+   `role="option"`, an interactive element inside another, and a tab stop per row. The scope's
+   "each with its `ThreadNode`" is read as each *group*; the owner can reverse it at task 39.
 
 **Files** (the skeleton's file map has no row for any of these; a gap, named in the return):
 - `desktop/src/prototype/work/world.ts` — the scenario plus its overrides (new)
@@ -261,4 +266,84 @@ the prototype's words for the world's heads, which carry no title of their own (
 does; the title is revision content, `task-03.md:305-319`). `4f1c2e9` is the first seven of the world's `LAND`
 (`task-20.md:295`). The times are the drawing's words, printed as given; the prototype formats
 nothing.
+
+#### Interfaces — complete: `desktop/src/prototype/work/Rows.tsx`
+
+```tsx
+// desktop/src/prototype/work/Rows.tsx — task 38. One row and one group, shared by Work and Plan.
+import type { JSX, ReactNode } from "react";
+import type { IssueHead } from "../../api/work";
+import { AgentGlyph } from "../../components/glyphs/AgentGlyph";
+import { MarkGlyph } from "../../components/glyphs/MarkGlyph";
+import { StateGlyph } from "../../components/glyphs/StateGlyph";
+import { ThreadLine, ThreadNode, useThreadLit } from "../../components/thread";
+import type { ProtoAgent, ProtoGroup, ProtoTouch } from "./world";
+import "./prototype.css";
+
+export interface RowFacts {
+  head: IssueHead; title: string; readerId: string;
+  agent: ProtoAgent | null; touch: ProtoTouch | null; cause: string | null; unseen: boolean;
+}
+
+/** The row. Selected is the ring plus a leading check (a shape, 05 §4.1); lit never touches it. */
+export function IssueRow(props: RowFacts & { selected: boolean; cursor: boolean; onFocus(): void }): JSX.Element {
+  const { head, agent, touch } = props;
+  const mine = head.assignee?.id === props.readerId;
+  return (
+    <div role="option" aria-selected={props.selected} tabIndex={props.cursor ? 0 : -1}
+      className="pw-row" data-issue={head.id} data-unseen={props.unseen ? "true" : undefined}
+      onFocus={props.onFocus}>
+      <div className="pw-ir">
+        <span className="pw-sel">{props.selected ? <MarkGlyph kind="selected" size={14} /> : null}</span>
+        <StateGlyph state={head.state} priority={head.priority} notProven={head.proof === "not_proven"} size={14} />
+        <span className="pw-alias">{head.alias}</span>
+        <span className="pw-title">{props.title}</span>
+        <span className="pw-who">{head.assignee?.displayName.split(" ")[0] ?? "Unassigned"}</span>
+      </div>
+      {mine && agent !== null ? (
+        <div className="pw-agent">
+          <AgentGlyph status={agent.status} size={14} label={`${agent.who}, ${agent.status}`} />
+          <span className="pw-agent-who">{agent.who}</span>
+          <span className="pw-agent-meaning">{agent.meaning}</span>
+          <span className="pw-live">{agent.liveness}</span>
+        </div>
+      ) : null}
+      {!mine && touch !== null ? <div className="pw-touch">{touch.line}</div> : null}
+      {head.threadState.kind === "not_tied" ? (
+        <div className="pw-cause">not tied · {head.threadState.reason}</div>
+      ) : null}
+      {props.cause !== null ? <div className="pw-cause">{props.cause}</div> : null}
+    </div>
+  );
+}
+
+/** The group: the criterion in words (sans) and its plain size (mono), rows hanging from the
+ *  line. The header binds lit fully; the rows bind focus only, so moving the pointer down a list
+ *  does not light every group in turn (task 36, decision 2). */
+export function Group(props: { group: ProtoGroup; briefKey: string; size: string; children: ReactNode }): JSX.Element {
+  const { criterionId, title, convergence } = props.group;
+  const { bind } = useThreadLit(criterionId);
+  const rows = (
+    <div role="presentation" onFocus={bind.onFocus} onBlur={bind.onBlur}>{props.children}</div>
+  );
+  return (
+    <section className="pw-grp" aria-label={title} data-criterion={criterionId ?? "none"}>
+      <div className="pw-gh" {...bind}>
+        {criterionId === null ? <span className="pw-gh-gap" /> : (
+          <ThreadNode criterionId={criterionId} href={`#peek/${props.briefKey}/${criterionId}`}
+            label={`Brief criterion: ${title}`} />
+        )}
+        <span className="pw-gt">{title}</span>
+        {convergence === null ? null : <span className="pw-conv">{convergence}</span>}
+        <span className="pw-gs">{props.size}</span>
+      </div>
+      {criterionId === null ? rows : <ThreadLine criterionId={criterionId}>{rows}</ThreadLine>}
+    </section>
+  );
+}
+```
+
+The first name only (`Dylan`, `Alice`) is the drawing's; a head with no assignee reads
+*Unassigned*. `not tied · imported` and the cause lines are machine facts, so they are mono
+(`.pw-cause`, task 30's rule); the agent's meaning and a teammate's line are sans.
 
