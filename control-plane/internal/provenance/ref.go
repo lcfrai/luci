@@ -182,11 +182,12 @@ var ErrBadSource = errors.New("provenance: the source is not the revision the ke
 // branch skipped stays "".
 //
 // The error (task 06 as built): a source the key does not name - another
-// revision, a key that is not a brief key, a pin passed to a project
-// revision, an erased pin beside a pin in hand, a pin that is not a brief
-// key - is ErrBadSource, and a pin that is not the one the revision holds is
-// discover.ErrInheritMismatch. Either way the Ref is UnavailableRef(key):
-// never one key on another revision's text.
+// revision or brief, a key that is not a brief key, a pin passed to or held
+// by a project revision, an erased pin beside a pin in hand or on a revision
+// that pins nothing, a pin that is not a brief key - is ErrBadSource, and a
+// pin that is not the one the revision holds is discover.ErrInheritMismatch.
+// Either way the Ref is UnavailableRef(key): never one key on another
+// revision's text.
 func Build(key string, src Source, head Head) (Ref, error) {
 	doc, pin, err := document(key, src)
 	if err != nil {

@@ -194,6 +194,10 @@ func TestBuildWithAnErasedPinHoldsNoInheritedText(t *testing.T) {
 	if ref.Resolution != Resolved || !ref.Present || ref.Audience != "" {
 		t.Errorf("resolution %q present %v audience %q, want resolved, true, \"\"", ref.Resolution, ref.Present, ref.Audience)
 	}
+	// The title is the key's, erased pin or not (mutant R4-P2).
+	if ref.Title != "Branch brief — evidence-upload" {
+		t.Errorf("Title = %q, want the branch revision's title", ref.Title)
+	}
 	for _, s := range ref.Sections {
 		if s.Origin == discover.OriginProject || s.Replaced != "" {
 			t.Errorf("section %q origin %q replaced %q: erased project text is in the Ref", s.Key, s.Origin, s.Replaced)
@@ -239,8 +243,9 @@ func TestBuildTitlesAnOpenRevisionByTheOneRule(t *testing.T) {
 	if want := discover.Title(&branch); ref.Title != want || want != "Branch brief — evidence-upload" {
 		t.Errorf("Title = %q, discover.Title = %q, want both %q", ref.Title, want, "Branch brief — evidence-upload")
 	}
-	if ref.BranchRef != branch.BranchRef || ref.Status != "open" || ref.Resolution != Resolved {
-		t.Errorf("branchRef %q status %q resolution %q", ref.BranchRef, ref.Status, ref.Resolution)
+	// An open revision is resolved and present like any other (mutant R4-P1).
+	if ref.BranchRef != branch.BranchRef || ref.Status != "open" || ref.Resolution != Resolved || !ref.Present {
+		t.Errorf("branchRef %q status %q resolution %q present %v", ref.BranchRef, ref.Status, ref.Resolution, ref.Present)
 	}
 	if len(ref.Sections) != 1 || ref.Sections[0].Key != discover.KeyPurpose || ref.Sections[0].Origin != discover.OriginBranch {
 		t.Errorf("sections = %+v, want the one settled answer, no inheritance, no draft", ref.Sections)
