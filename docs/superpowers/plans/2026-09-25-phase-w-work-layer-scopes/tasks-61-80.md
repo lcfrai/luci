@@ -98,3 +98,72 @@ a section edge); (8) `expectNoPrediction` passes on a full fixture Desk. **Depen
 (closed by 65). **Does not claim** the horizon bar or quiet mode, any row content (63-65), or
 making the Desk the landing surface before the owner's review (task 39); it adds the route only.
 
+**63 — the Desk: issue rows in NEEDS YOU, aging, *blocking someone's agent*.** The first row kinds
+in task 62's frame, and the move of the frame's snapshot from `workSlice` onto the replica
+(`useWork`, SW.16). Files: `desktop/src/components/desk/deskRows.tsx` ⚑ (with 64, 65, 71 in task
+order), `desktop/src/components/desk/rows/IssueNeedRow.tsx` (+ test),
+`desktop/src/work/desk/needs.ts` (+ test: the pure selectors). Four kinds register under
+`needs_you` (05 §4.2): `issue.triage_mine` (state `triage`, `assignee` is me), `issue.urgent_mine`
+(`priority: "urgent"`, assignee me, not closed), `issue.mention` (an unresolved `Comment` whose
+`mentions` names me; W1 does not infer "a question", so any unresolved mention qualifies), and
+`issue.blocking` (my issue X `blocks` Y, X not `landed`, Y in `started` or `in_review`, i.e. a lane
+is bound to it: *"EP-150 blocks EP-142 (Alice), started 1h 12m ago"*). The `in_review`
+*"where you are the reviewer"* row is **not built**: SW.1's `IssueHead` has no reviewer field
+(task 03's scope), which this file reports as a gap. Each row carries `rankReason` and `ifNothing`
+(AX §5, L-114): blocking is tier 1, the rest tier 2; the urgent row earns `--need` and
+`<MarkGlyph kind="needs_you"/>` here and only here (05 §4.4 rule 2: priority is otherwise a notch
+in ink). **Age** (*"waiting 2h 10m"*, mono, `tabular-nums`) runs from the SW.5 feed event that made
+the row true, else the head's `updatedAt`, and ticks on the one heartbeat. Row verbs reuse what
+exists: triage's `1` accept and `4` snooze (task 42's actions, with Triage's own policy check),
+`I` assign to me, `Enter` opens the issue view beside the Desk. **Tests first:** (1) a `triage`
+issue assigned to Alice makes no row of mine (mutant: every triage issue); (2) an urgent row has
+`--need`, a `high` one assigned to me has no row (mutant: priority as colour); (3) with the feed
+event at 09:00 and the clock at 11:10 the age reads `waiting 2h 10m` and survives a re-render
+(mutant: age from first render); (4) X blocks Y with Y in `todo` makes no row, Y `started` makes a
+tier-1 row (mutant: any `blocks` relation); (5) after X lands, the row is gone on the next Desk
+entry and still present while open (mutants: stale row; live removal under the reader); (6) a
+resolved mention makes no row (mutant: ignores `resolvedAt`); (7) the blocking row ranks above an
+older urgent row (mutant: age before tier); (8) `expectNoPrediction` on the section. **Depends on**
+55, 62. **Design:** 05 §4.2 (NEEDS YOU row), §4.4 rule 2, §3.3; AX §5, §7.3. **Closes** L-15 and
+L-24's Desk half (the relation itself is task 11/48); **serves** L-46 (items naming a person join
+their Desk; closed by 42), L-112 and L-114. **Does not claim** the reviewer row, a `decide`
+escalation from an Orchestrator (W3, TM-54), the cost of waiting in money (no gateway in W1; the
+wait is shown as time), or inferring questions from text.
+
+**64 — the Desk: FAILED with *Restart from checkpoint* and *Abandon*; LANDED; RUNNING's fold.**
+Files: `desktop/src/components/desk/deskRows.tsx` ⚑, `desktop/src/components/desk/rows/{FailedRow,
+LandedRow,RunningCard,RunningFold}.tsx` (+ tests), `desktop/src/work/desk/agents.ts` (+ test).
+**FAILED** (`lane.failed`, 07 D C5): a session bound to my issue (`Session.IssueRef`, task 19) that
+is `status: "exited"` with a non-empty `exitReason` (`registry/session.go:88-89`; the reaper sets it,
+`reaper/reaper.go:636`) that is not my own stop; the row states the fact (*"exit at 02:14 ·
+<exitReason>"*, mono) and two verbs: *Restart from checkpoint* calls phase 2's
+`restartSession(id)` (`desktop/src/api/client.ts:153`, route `sessions.go:723`), which resumes in
+the same worktree, so its commits are the checkpoint; *Abandon* is `confirm.inplace` with the
+consequence line (*"the worktree and its uncommitted changes are deleted"*) and goes through SW.10's
+`stopAndDiscard`; the session record stays listed (FUNCTIONAL-SPEC). An intake-rule failure joins
+FAILED in W5. **LANDED** (`issue.landed`, `issue.done`): *"EP-142 landed and proven at 14:02"*
+for observed evidence, *"proven, self-attested"* for a solo Record, *"done, not proven"* in its
+glyph for a hand-set done, and *"done · c-91e2 still open (EP-150 not landed)"* when a served
+criterion is not settled (05 §3.3), words from SW.4's result; a criterion-settled row appears only
+where phase 4's loader gives the convergence word (P4-16, **UNVERIFIED until merge**). *Mark seen*
+is `optimistic.undo`. Task 71 adds *shipped* here. **RUNNING** (05 §4.2, revision 2): an agent of
+mine on my issue that **changed since my last Desk visit** (a new status, `idle`, or no output for
+over 10 minutes by `lastOutputAt`) gets AX §5's card of exactly three lines: STATE (status word
+and *"running 41m · last output 3s ago"*), MEANING (the issue alias and title as `text·H`; W1 has
+no gateway to write a sentence and never reads PTY bytes, OD-8), NEXT (the next fact it waits on,
+by rule, never a time, `OD-27`). The steady rest fold into one line, *"23 steady, all live"* (or
+*"21 steady, 2 idle"*), that expands in place with `aria-expanded`. The last-visit time is held in
+memory, a preference, not Hub data. **Tests first:** (1) an exited session I stopped makes no FAILED
+row (mutant: every exit is a failure); (2) *Restart* calls `restartSession` once and the Desk does
+not navigate (mutant: routes to Develop); (3) *Abandon* needs two presses and shows the consequence
+line (mutant: one press); (4) the three LANDED wordings each render from their SW.4 result and
+never swap (mutant: every landed row says *proven*); (5) output 11 minutes old gives a card of
+exactly three lines, output 3 s old folds (mutants: four lines; no fold); (6) the fold counts only
+steady agents and says `idle` when one is (mutant: *"all live"* regardless); (7) no row shows
+`~4m`, a `%` or a bar (`expectNoPrediction`; mutant: AX's *"will need you in ~4m"* copied).
+**Depends on** 62 (and on 19 and 24 through their seams). **Design:** 05 §4.2 (*RUNNING's shape*),
+§3.3, §4.6; AX §5; 07 D C5. **Closes** L-114's FAILED, LANDED and RUNNING sections (with 62, 63,
+65); **serves** L-113, L-184 and L-189 (both *exist*). **Does not claim** the issue's state after
+*Abandon* (05 names no fact move back from `started`, a reported gap), a generated MEANING line
+(W4 gateway), or that 30 agents fit one screen at 125 % (measured in task 70).
+
