@@ -806,7 +806,8 @@ therefore makes `email` admin-edit only (K4) and its IdP mapper `FORCE` (K3), so
 every login.
 
 **Also ruled after review-1, restated here:** every interactive sign-in goes through Entra (K1's
-browser-flow override; `kc_idp_hint` is cosmetic, I1); a token with a second `panacea-app-*` audience is
+browser-flow override, which holds while `entra` is the realm's only enabled IdP; an empty or unknown
+`kc_idp_hint` must fail closed, ruling section 10 check 2; I1); a token with a second `panacea-app-*` audience is
 refused (I2); a narrowed refresh's returned refresh token is never written back (U-4b, I4); the redirect
 is `http://127.0.0.1/callback` and multi-user hosts are out of scope for zero clicks (M3); access tokens
 live 600 s and Panacea's realm admins are inside the trust boundary until phase 8 (§6, U-15, M4).
