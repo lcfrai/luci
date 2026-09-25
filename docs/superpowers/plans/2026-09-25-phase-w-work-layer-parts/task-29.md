@@ -569,3 +569,81 @@ And one test is added after it:
     expect(run).toContain("border-radius: 50%");
   });
 ```
+
+#### Tests to write first — `desktop/src/components/glyphs/licence.test.ts`
+
+```ts
+// 05 §5.3 row 9; 02 C6; OD-11. Every direct dependency of the desktop app, and every bundled
+// face, is under a licence on OD-11's list. Read from the lockfile: npm copies each package's
+// own `license` field into packages["node_modules/<name>"].license, and ?raw needs no node:fs.
+import { describe, expect, it } from "vitest";
+import pkgRaw from "../../../package.json?raw";
+import lockRaw from "../../../package-lock.json?raw";
+
+/** Task 27's manifest, if it has landed. A glob, so this file does not depend on task 27. */
+const FONT_LOCKS = import.meta.glob<Record<string, { licence: string }>>(
+  "/src/assets/fonts/fonts.lock.json", { eager: true, import: "default" },
+);
+
+const ALLOWED = new Set(["MIT", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "ISC", "OFL-1.1"]);
+
+/** SPDX, the subset this tree uses. An OR passes if one alternative does; an alternative passes
+ *  only if every AND term is allowed. Parentheses, WITH and anything unreadable FAIL CLOSED: a
+ *  person reads that licence and extends this function, rather than a regex guessing. */
+function permitted(expr: string | undefined): boolean {
+  if (expr === undefined || expr.trim() === "" || /[()]|\bWITH\b/.test(expr)) return false;
+  return expr.split(/\s+OR\s+/).some((alt) => alt.split(/\s+AND\s+/).every((t) => ALLOWED.has(t.trim())));
+}
+
+const pkg = JSON.parse(pkgRaw) as { dependencies?: Record<string, string>; devDependencies?: Record<string, string> };
+const lock = JSON.parse(lockRaw) as { lockfileVersion: number; packages: Record<string, { license?: string }> };
+const DIRECT = [...Object.keys(pkg.dependencies ?? {}), ...Object.keys(pkg.devDependencies ?? {})].sort();
+
+describe("the licence check", () => {
+  // Kills: a vacuous pass over an empty or unreadable lockfile.
+  it("reads every direct dependency from a version-3 lockfile", () => {
+    expect(lock.lockfileVersion).toBeGreaterThanOrEqual(3);
+    expect(DIRECT.length).toBeGreaterThan(10);
+    expect(DIRECT.filter((n) => lock.packages[`node_modules/${n}`] === undefined)).toEqual([]);
+  });
+
+  // Kills: a GPL, AGPL or commercial dependency.
+  it("allows only permissive licences", () => {
+    const refused = DIRECT
+      .map((n) => [n, lock.packages[`node_modules/${n}`]?.license] as const)
+      .filter(([, licence]) => !permitted(licence))
+      .map(([n, licence]) => `${n}  ${licence ?? "<no licence field>"}`);
+    expect(refused).toEqual([]);
+  });
+
+  // Kills: a parser that lets a copyleft alternative or an unreadable expression through.
+  it("reads SPDX the strict way", () => {
+    expect(permitted("MIT")).toBe(true);
+    expect(permitted("Apache-2.0 OR MIT")).toBe(true);
+    expect(permitted("MIT OR GPL-3.0-only")).toBe(true);        // one allowed alternative suffices
+    expect(permitted("MIT AND GPL-3.0-only")).toBe(false);
+    expect(permitted("AGPL-3.0-only")).toBe(false);
+    expect(permitted("LicenseRef-Commercial")).toBe(false);
+    expect(permitted("(MIT OR Apache-2.0)")).toBe(false);       // fails closed
+    expect(permitted("Apache-2.0 WITH LLVM-exception")).toBe(false);
+    expect(permitted(undefined)).toBe(false);
+  });
+
+  // Kills: an icon family added in W1 (every glyph is drawn by us, 02 C6).
+  it("adds no icon family", () => {
+    expect(DIRECT.filter((n) => /icon|lucide|heroicons|phosphor|tabler|feather|remix/i.test(n))).toEqual([]);
+  });
+
+  // Kills: a bundled face under a licence outside the list (task 27's manifest, once it exists).
+  it("holds every bundled face to the same list", () => {
+    for (const manifest of Object.values(FONT_LOCKS)) {
+      for (const face of Object.values(manifest)) expect(permitted(face.licence)).toBe(true);
+    }
+  });
+});
+```
+
+The eighteen direct dependencies at `f7ea2a2`, read from `desktop/package-lock.json` while this
+plan was written: `@tauri-apps/api`, `@tauri-apps/cli` (`Apache-2.0 OR MIT`),
+`@tauri-apps/plugin-opener` (`MIT OR Apache-2.0`), `typescript` (`Apache-2.0`), and fourteen `MIT`.
+The check passes today; its job is the next dependency.
