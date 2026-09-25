@@ -873,4 +873,49 @@ cross-project brief); ten hostile strings (fixture, until TM-05's injection corp
 18), and the context half of **L-175** (Start opens the issue in a session with the issue in
 context; closed with tasks 24 and 61).
 
+**20 — desktop test kit: `expectNoPrediction` and the Work fixtures.** W1, stream WD1, seam
+**SW.8** (called by every desktop surface task); no dependency. Files: new
+`desktop/src/test/expectNoPrediction.ts` and `expectNoPrediction.test.ts`,
+`desktop/src/test/workFixtures.ts` and `workFixtures.test.ts`; nothing else. It follows the kit's
+existing rules (`desktop/src/test/fixtures.ts:1-9`: builders declared **once**, a variant is an
+override object, `FIXED_NOW` reused from `fixtures.ts:23-24`) and runs under the existing
+`setupFiles` (`desktop/vitest.config.ts:11`). **`expectNoPrediction(container: HTMLElement):
+void`** (`OD-27`; AX anti-pattern 2, `AGENTIC-UX.md:237`) throws with the offending text and a CSS
+path when the container holds: a percentage (`/\d+(\.\d+)?\s?%/`) in text, `aria-label`,
+`aria-valuetext` or `title`; any `role="progressbar"` or `role="meter"`, a `<progress>` or
+`<meter>` element, or an `aria-valuenow`; an "N of M" completion figure (`/\b\d+\s+of\s+\d+\b/i`
+and `/\b\d+\s*\/\s*\d+\s+(done|complete|proven|met|closed)\b/i`); or an ETA (`/\bETA\b/`,
+`/\b(\d+\s?(s|m|min|h|d)|\d+\s+(minutes?|hours?|days?))\s+(left|remaining|to go)\b/i`,
+`/\b(done|ready|finished|complete) by\b/i`, `/\bestimated\b/i`). **Two exemptions, each by an
+explicit attribute and never by a heuristic:** an element with `data-verbatim` (quoted transcript,
+file or diff text, which may legitimately contain `50%`) is skipped whole; an element with
+`data-projection-rule` may carry a time projection such as *"next decision ~14:22 · rule: migration
+gate"* (Q13 amendment 4), and is still checked for percentages, bars and "N of M". Plain counts per
+group (*"4 issues"*), times (*"14:02"*), aging (*"waiting 2h 10m"*) and ids (*"EP-142"*) pass.
+**`workFixtures.ts`** exports `WORK_IDS` (Hub-shaped: `pj-`, `bf-`, `is-` + 16 hex, `ic-`, `lb-`,
+`c-` criterion ids, `u-` users, matching task 02's grammar), and one builder per SW.1 record —
+`makeIssueHead`, `makeIssueRevision`, `makeServe`, `makeCriterion`, `makeComment`, `makeLabel`,
+`makeTeamPolicy`, `makeWorkEvent` — plus `workScenario()`, the demo's world (05 §5.3): project
+key `EP`; a branch brief with criteria `c-91e2…` (*the resume test passes*) and `c-40aa…`; EP-142
+serving `c-91e2…` at revision 3, `landed` then `done` with `proof: proven` at `14:02`; EP-150
+`blocks` EP-142 and is not landed; an imported `triage` item reading `not_tied · imported`; one
+hand-set `done` with `proof: not_proven` and its reason; one `proven_self_attested`; a teammate's
+issue with Alice's comment and mention. Until task 37 (SW.15) exists, the builders are typed by
+local types in this file that mirror task 03's JSON field names exactly; task 37 replaces them with
+imports from `src/api/work.ts`, and its typecheck proves the two agree. **Tests**, each with its
+mutant: `expectNoPrediction` throws on `"40%"`, on `aria-label="60% done"` (kills a text-only
+check), on `<div role="progressbar">`, on `<progress>`, on `"3 of 5 criteria"`, on `"ETA 14:22"`,
+on `"about 5 min left"` and on `"done by Friday"` (each kills a missing rule); it passes on
+`"EP-142"`, `"14:02"`, `"4 issues"`, `"waiting 2h 10m"` and `"c-91e2 still open (EP-150 not
+landed)"` (kills an over-broad rule that would ban facts); `"50%"` inside `data-verbatim` passes
+and `"~14:22 · rule: migration gate"` inside `data-projection-rule` passes while `"40%"` inside the
+same element still throws (kills an exemption that disables every rule); every `WORK_IDS` id matches
+the Hub's grammar (kills a fixture id the real Hub would refuse); `workScenario()` holds every one of
+the nine issue states and every `proof` word at least once (kills a fixture set that hides a glyph
+or a state from surface tests); no fixture string trips `expectNoPrediction` when rendered as text
+(kills a fixture that would force exemptions). Acceptance: `npm --prefix desktop test --
+src/test/` and `npm --prefix desktop run typecheck` pass. It **does not claim** to detect a bar drawn
+by CSS widths alone (the owner's review, task 39, covers the look), and it closes no L row alone; it
+enforces `OD-27` on every surface task that closes one.
+
 
