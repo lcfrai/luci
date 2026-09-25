@@ -496,6 +496,8 @@ func TestResolveRefusesAMalformedRevision(t *testing.T) {
 		{`a branch brief id with ">"`, rvProject(), branchID("bf->a2")},
 		{"a branch brief id with a tab", rvProject(), branchID("bf-\ta2")},
 		{"a branch brief id with a comment opener", rvProject(), branchID("bf-<!--a2")},
+		{"a branch brief id with a vertical tab", rvProject(), branchID("bf-\va2")},
+		{"a branch brief id with a form feed", rvProject(), branchID("bf-\fa2")},
 		{"a branch revision numbered 0", rvProject(), branchZero},
 		{"revision -1", negative, nil},
 		{"a branch revision numbered -1", rvProject(), branchNegative},
@@ -568,6 +570,12 @@ func TestMarkerSafe(t *testing.T) {
 		{"bf\ta2", false},
 		{"bf\na2", false},
 		{"bf\ra2", false},
+		// The rest of unicode.IsSpace's ASCII and Latin-1 set: the read-back
+		// tests cannot see a rule that narrows here, because both sides share
+		// it (fix round 2, R5-P1 let \v and \f through and passed them).
+		{"bf\va2", false},
+		{"bf\fa2", false},
+		{"bf\u0085a2", false},
 		{"bf a2", false},
 		{"bf a2", false},
 		{"bf-<a2", false},

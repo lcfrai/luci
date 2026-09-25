@@ -405,7 +405,9 @@ Where this differs from the text above, this wins:
    scope), because until this round only its scope row reached it, and only by its error kind.
    `TestResolveNamesTheKeyAndThePin` resolves a branch @8 over a project @3, so a document that
    names one revision's number in the other's place fails in `discover`, not only in `claudemd`'s
-   golden. Round 1 had two copies, `discover.markerSafe` and `claudemd.markerID`, each pinned only
+   golden. A read-back test cannot see a rule that is wrong on both sides at once, so the rule's
+   exact set is `TestMarkerSafe`'s: it holds `\v`, `\f` and U+0085 as well (16 ids; a `MarkerSafe`
+   that let `\v` and `\f` through passed every other test). Round 1 had two copies, `discover.markerSafe` and `claudemd.markerID`, each pinned only
    for `<`, a space and `""`: the review's RV1, RV1c and RV2 dropped `>` or narrowed white space to
    `' '` in either copy, and both packages stayed green.
 5. **Every question skipped** still renders the key: the intro, then `No question in this brief has
