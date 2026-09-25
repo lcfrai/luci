@@ -588,3 +588,89 @@ Discovery's `grant_types_supported` gains `"client_credentials"` and
 
 The second tenant's service principal is what the cross-tenant test needs; the broker role is
 task 17's (`Sandboxes.Fleet`, `task-17.md:37`), listed here so one file serves both.
+
+**`cmd/hub`, the one variable.** Hub task 08's `config.go` (`task-08.md:37-100`):
+
+```go
+	envFleetClientID = "PANACEA_APP_HUB_FLEET_CLIENT_ID" // "": Fleet disabled (contract §12.2)
+
+// Config gains, after AllowedClients:
+	FleetClientID string // a GUID, lower-cased, or ""
+
+// loadConfig gains: a non-empty value must be a GUID ("PANACEA_APP_HUB_FLEET_CLIENT_ID:
+// not a GUID"), and must not be in AllowedClients ("…_FLEET_CLIENT_ID is also in
+// …_ALLOWED_CLIENTS"), the same rule entra.New enforces (decision h), stated at the
+// variable so the operator reads which one to change.
+```
+
+```go
+// control-plane/cmd/hub/serve.go — the entra.Config literal gains one field
+	AppCallers: fleetCallers(cfg),
+
+// fleetCallers is nil when Fleet is disabled: no app-only token passes, as
+// before this task.
+func fleetCallers(cfg Config) []entra.AppCaller {
+	if cfg.FleetClientID == "" {
+		return nil
+	}
+	return []entra.AppCaller{{ClientID: cfg.FleetClientID, Role: hubapi.AppRoleFleet}}
+}
+```
+
+**`export_test.go`, four test-only routes.** Hub task 13 proves its pipeline through a test-only
+route (`task-13.md:20`); this task adds four beside it, registered only in the test binary:
+
+```go
+// registerFleetTestRoutes: every route runs behind Authenticate, as a real one does.
+func registerFleetTestRoutes(s *Server, mux *http.ServeMux) {
+	// A delegable read that answers the principal it ran as.
+	mux.Handle("GET /v1/_test/whoami", Delegable(hubapi.RouteTasksRead,
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var p Principal
+			if err := s.Read(r.Context(), func(tx *Tx) error { p = tx.P; return nil }); err != nil {
+				writeError(w, err) // Hub task 14's mapping of a returned error
+				return
+			}
+			WriteJSON(w, 200, p)
+		})))
+	// A delegable write that names an agent, checks it (rule 5) and emits one event.
+	mux.Handle("POST /v1/_test/agent-write", Delegable(hubapi.RouteTasksCreate,
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			s.Write(w, r, func(tx *Tx, body []byte) (WriteResult, error) {
+				var b struct {
+					ProjectID string `json:"projectId"`
+					AgentID   string `json:"agentId"`
+				}
+				if err := Decode(body, &b); err != nil {
+					return WriteResult{}, err
+				}
+				ok, err := store.AgentOwnedBy(r.Context(), tx, b.AgentID, tx.P.UserID)
+				if err != nil {
+					return WriteResult{}, err
+				}
+				if !ok {
+					return WriteResult{}, Refuse(403, hubapi.CodeAgentNotOwner, "That agent is not yours.",
+						map[string]string{"agentId": b.AgentID})
+				}
+				tx.Emit(Event{Kind: "task.created", ProjectID: b.ProjectID, Subject: "tk-00000000000000a1",
+					Data: map[string]any{"test": true}})
+				return WriteResult{Status: 201, Body: map[string]string{"ok": "yes"}}, nil
+			})
+		})))
+	// A route with no name: Fleet is 403 required "route" on it.
+	mux.Handle("GET /v1/_test/undelegable", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = s.Read(r.Context(), func(*Tx) error { return nil })
+		w.WriteHeader(204)
+	}))
+	// A stand-in for task 08's feed, so the exemption is tested before task 08 exists.
+	mux.Handle("GET /v1/orgs/{orgId}/changes", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var p Principal
+		_ = s.Read(r.Context(), func(tx *Tx) error { p = tx.P; return nil })
+		WriteJSON(w, 200, map[string]string{"orgId": p.OrgID, "via": p.Via})
+	}))
+}
+```
+
+`writeError`, `WriteJSON` and `Decode` stand for Hub task 14's helpers (`task-14.md:130-138`); the
+implementer uses whatever names the merged `tx.go` has (**UNVERIFIED until merge**).
+`task.created` is a real team kind (`task-04.md:243`), so the row passes task 04's kind check.
