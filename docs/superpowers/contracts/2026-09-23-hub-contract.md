@@ -295,7 +295,7 @@ the desktop may see is listed above; `desktop/src/api/problems.ts` maps them all
 
 ## 5. Principals and authorisation
 
-### 5.1 From token to principal — every `/v1` request, in this order — **amended by OD-30, see §16**
+### 5.1 From token to principal — every `/v1` request, in this order — **amended by OD-30, see §17**
 
 1. Refuse any request with an `Origin` header: 403 `forbidden_origin`.
 2. Apply the per-IP pre-auth limit (§11.3).
@@ -364,9 +364,9 @@ the Go check disabled through a test-only hook.
 
 ---
 
-## 6. Identity — the flow, step by step — **amended by OD-30 (a Keycloak realm brokering Entra), see §16**
+## 6. Identity — the flow, step by step — **amended by OD-30 (a Keycloak realm brokering Entra), see §17**
 
-### 6.1 Sign-in (task C1; control plane) — **amended, §16**
+### 6.1 Sign-in (task C1; control plane) — **amended, §17**
 
 | Step | Who | What, exactly |
 |---|---|---|
@@ -392,7 +392,7 @@ closed. The token exchange refused → `reason: "exchange_failed"`. `/v1/me` ans
 `localhost` may resolve to `::1` first. `PANACEA_APP_ENTRA_REDIRECT_HOST=localhost` switches it if
 KPMG's registration can only carry `http://localhost` (§6.5).
 
-### 6.2 Tokens after sign-in — **amended, §16**
+### 6.2 Tokens after sign-in — **amended, §17**
 
 - **Serving a token.** `TokenSource.Token(ctx, scope)` returns the cached access token for `scope`
   while `exp − now > 5 min`. Otherwise it redeems the refresh token: `POST token_endpoint` with
@@ -414,7 +414,7 @@ KPMG's registration can only carry `http://localhost` (§6.5).
 - **Sign-out.** `POST /v1/auth/sign-out` deletes both entries and the in-memory tokens. It does
   not call Entra's logout endpoint in v1: the browser session is the user's, not ours.
 
-### 6.3 Token validation — `control-plane/internal/entra` (HA-1) — **replaced by `internal/oidcauth`, §16**
+### 6.3 Token validation — `control-plane/internal/entra` (HA-1) — **replaced by `internal/oidcauth`, §17**
 
 Phase 8's task 16 owns this package; its part file did not exist on 2026-09-23. This is the
 interface the Hub needs. **If task 16 lands first with a different shape, the Hub adapts to it in
@@ -493,7 +493,7 @@ var (
 | `scp` | contains `RequiredScope`. A token with `roles` but no `scp` (app-only) fails here | `ErrScope` |
 | `oid` | present, a GUID | `ErrMalformed` |
 
-### 6.4 `devissuer` — the local OIDC issuer (task H1) — **`keycloak` profile by default, §16**
+### 6.4 `devissuer` — the local OIDC issuer (task H1) — **`keycloak` profile by default, §17**
 
 `control-plane/cmd/devissuer`, standard library only, **binds loopback only** and refuses any other
 address. It mirrors Entra's path layout, so the validator's issuer rule is the same string with a
@@ -525,7 +525,7 @@ different host.
 The Hub accepts `devissuer` only when `PANACEA_APP_HUB_DEV_ISSUER=true` **and**
 `PANACEA_APP_HUB_ENV=local`; otherwise an `http` authority is a start-up error.
 
-### 6.5 The registrations — exact values for phase 8's task 09 (HA-3) — **deleted by OD-30, §16**
+### 6.5 The registrations — exact values for phase 8's task 09 (HA-3) — **deleted by OD-30, §17**
 
 | Setting | Desktop — *PanaceaApp Desktop* | Hub API — *PanaceaApp Hub API* |
 |---|---|---|
@@ -1171,7 +1171,7 @@ audited** (§11.5).
 
 ## 9. The control-plane side
 
-### 9.1 `credstore` and `entraauth` (task C1) — **amended: `signin`, no ADO Entra path, §16**
+### 9.1 `credstore` and `entraauth` (task C1) — **amended: `signin`, no ADO Entra path, §17**
 
 **Credential Manager layout.** Generic credentials (`CRED_TYPE_GENERIC`),
 `CRED_PERSIST_LOCAL_MACHINE`, the `UserName` field set to the subject for display:
@@ -2067,7 +2067,7 @@ default `READ COMMITTED`.
 | # | Threat | Asset | Controls | Residual |
 |---|---|---|---|---|
 | T1 | **A stolen access token** replayed against the Hub | a user's projects | 60–90 min lifetime; refresh token only in Credential Manager; the token never enters the renderer, a log, a sandbox or a URL; TLS only (deployed) | usable until `exp`; CAE not in v1 |
-| T2 | **A token minted for another API or app** presented to the Hub (confused deputy); **defence amended by OD-30, §16** | every route | `aud` = the Hub's id; `scp` ∋ `Hub.Access`; `azp` allowlist; `iss` per enrolled tenant (§6.3) | — |
+| T2 | **A token minted for another API or app** presented to the Hub (confused deputy); **defence amended by OD-30, §17** | every route | `aud` = the Hub's id; `scp` ∋ `Hub.Access`; `azp` allowlist; `iss` per enrolled tenant (§6.3) | — |
 | T3 | **Cross-tenant read** — a missed `WHERE org_id` | another org's data | org from the token; row-level security (§10.3); the `X` column of the matrix test run with the Go check disabled | a bug in a `SECURITY DEFINER` function; there are three, each reviewed |
 | T4 | **Cross-team read inside an org** | another team's briefs | Go checks before any content read; 404 not 403; `missing` in `/v1/refs`; the matrix test | Go only — the one single-layer control (§10.7) |
 | T5 | **Rewriting history** — a revision, an approval, a pin | provenance (P3, P7) | §10.7's two layers; digests re-checked by `hubclient` (§9.2); `hub verify` walks the audit chain | the owner role can still rewrite; it is used only by the migrate Job; audit anchoring is later (ADR §5.9) |
@@ -2146,7 +2146,7 @@ The control plane then needs four variables: `PANACEA_APP_HUB_URL=http://127.0.0
 `PANACEA_APP_ENTRA_CLIENT_ID=<dev desktop client id>`, `PANACEA_APP_HUB_SCOPE=api://<dev hub id>/Hub.Access`
 — all four values are in `dev-tenant.json`, which the compose README prints.
 
-### 12.2 Configuration — every variable — **amended: `PANACEA_APP_OIDC_*`, §16**
+### 12.2 Configuration — every variable — **amended: `PANACEA_APP_OIDC_*`, §17**
 
 Read in one block per binary, as `control-plane/cmd/api/config.go:18-45` does; no other package
 calls `os.Getenv`. **No variable holds a secret in any deployed environment.**
@@ -2298,7 +2298,7 @@ disabled to prove row-level security alone holds.
 
 ---
 
-## 16. Amendment — OD-30, sign-in through a Keycloak broker (2026-09-25)
+## 17. Amendment — OD-30, sign-in through a Keycloak broker (2026-09-25)
 
 **Ruling, applied as written:** main `docs/superpowers/planning/2026-09-25-identity-keycloak-broker.md`
 ("the ruling"); ADR-H1 §12. **This section wins over §5.1, §6, §9.1, §9.5, §11.1 T2 and §12 where they
