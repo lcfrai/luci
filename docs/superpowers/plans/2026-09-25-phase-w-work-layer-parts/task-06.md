@@ -276,7 +276,7 @@ CREATE INDEX issue_relations_other ON issue_relations (other_issue_id, kind);
 CREATE TABLE team_work_policies (
   org_id                        text        NOT NULL REFERENCES orgs (id),
   team_id                       text        NOT NULL PRIMARY KEY,
-  default_state                 text        NOT NULL DEFAULT 'triage',
+  default_state                 text        NOT NULL DEFAULT 'backlog',  -- task 11's DefaultTeamPolicy
   priority_to_leave_triage      boolean     NOT NULL DEFAULT false,
   stop_at_landed_without_serves boolean     NOT NULL DEFAULT false,
   updated_at                    timestamptz NOT NULL DEFAULT now(),

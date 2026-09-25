@@ -428,7 +428,7 @@ var workMatrixRows = map[string][]workRow{
 	"11": {
 		wwrite("POST /v1/issues/{issueId}/relations", "POST", "/v1/issues/{IssueID}/relations", 201, "issue_not_found",
 			func(f *fixture) any { return map[string]any{"kind": "relates", "issueId": f.Issue2ID} }),
-		wwrite("DELETE /v1/issues/{issueId}/relations/{kind}/{otherId}", "DELETE", "/v1/issues/{IssueID}/relations/blocks/{Issue2ID}", 204, "issue_not_found", nil),
+		wwrite("DELETE /v1/issues/{issueId}/relations/{kind}/{otherId}", "DELETE", "/v1/issues/{IssueID}/relations/blocks/{Issue2ID}", 200, "issue_not_found", nil), // 200 and the head: task 11
 		wread("GET /v1/teams/{teamId}/labels", "/v1/teams/{TeamID}/labels", "team_not_found"),
 		wadmin("POST /v1/teams/{teamId}/labels", "POST", "/v1/teams/{TeamID}/labels", 201, "team_not_found",
 			func(*fixture) any { return map[string]any{"name": "Bug", "color": "red"} }),
