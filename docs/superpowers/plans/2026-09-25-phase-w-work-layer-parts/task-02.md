@@ -441,3 +441,57 @@ The canonical text of v1, as bytes on one line:
 ```
 {"content":{"description":{"author":"H","text":"Uploads over 40 MB restart from zero when the network drops."},"implements":[],"serves":[{"briefKey":"brief:bf-00000000000000a1@5","criterionId":"c-91e2a0b3c4d5e6f7"}],"title":{"author":"H","text":"Resume an upload after the connection drops"}},"issueId":"is-00000000000000c3","kind":"issue-revision","projectId":"pj-00000000000000b2","revision":1,"v":1}
 ```
+
+**v2**: a title with `é` (U+00E9), a description with a TAB and U+0001 by an `"A"` author, two
+`serves` pairs and one `implements` key. 451 bytes,
+`sha256:528b7d48da2a74a65653828fc78e9cad0422b9ba2f8854aa8e0f6ef4f5c4eb01`. In the canonical bytes
+the TAB is the two characters `\t` and U+0001 is the six characters `\u0001` (lowercase hex,
+hub-contract §3.4 rule 2); `é` is its two UTF-8 bytes, not an escape.
+`testdata/issue-revision/v2.json`:
+
+```json
+{
+  "envelope": {
+    "v": 1,
+    "kind": "issue-revision",
+    "issueId": "is-00000000000000c3",
+    "revision": 2,
+    "projectId": "pj-00000000000000b2",
+    "content": {
+      "title": {
+        "text": "Café upload resumes",
+        "author": "H"
+      },
+      "description": {
+        "text": "Step one\tthen\u0001end",
+        "author": "A"
+      },
+      "serves": [
+        {
+          "briefKey": "brief:bf-00000000000000a1@5",
+          "criterionId": "c-91e2a0b3c4d5e6f7"
+        },
+        {
+          "briefKey": "brief:bf-00000000000000a1@5",
+          "criterionId": "c-0a1b2c3d4e5f6071"
+        }
+      ],
+      "implements": [
+        "design:cv-7c01d2e3f4a5b6c7@11"
+      ]
+    }
+  },
+  "canonical": "{\"content\":{\"description\":{\"author\":\"A\",\"text\":\"Step one\\tthen\\u0001end\"},\"implements\":[\"design:cv-7c01d2e3f4a5b6c7@11\"],\"serves\":[{\"briefKey\":\"brief:bf-00000000000000a1@5\",\"criterionId\":\"c-91e2a0b3c4d5e6f7\"},{\"briefKey\":\"brief:bf-00000000000000a1@5\",\"criterionId\":\"c-0a1b2c3d4e5f6071\"}],\"title\":{\"author\":\"H\",\"text\":\"Café upload resumes\"}},\"issueId\":\"is-00000000000000c3\",\"kind\":\"issue-revision\",\"projectId\":\"pj-00000000000000b2\",\"revision\":2,\"v\":1}",
+  "bytes": 451,
+  "digest": "sha256:528b7d48da2a74a65653828fc78e9cad0422b9ba2f8854aa8e0f6ef4f5c4eb01"
+}
+```
+
+The canonical text of v2, with the two escapes as they appear in the bytes:
+
+```
+{"content":{"description":{"author":"A","text":"Step one\tthen\u0001end"},"implements":["design:cv-7c01d2e3f4a5b6c7@11"],"serves":[{"briefKey":"brief:bf-00000000000000a1@5","criterionId":"c-91e2a0b3c4d5e6f7"},{"briefKey":"brief:bf-00000000000000a1@5","criterionId":"c-0a1b2c3d4e5f6071"}],"title":{"author":"H","text":"Café upload resumes"}},"issueId":"is-00000000000000c3","kind":"issue-revision","projectId":"pj-00000000000000b2","revision":2,"v":1}
+```
+
+To regenerate either file, the implementer runs the same method and **must** get these digests;
+a different digest is a bug in the regeneration, never a reason to change the file.
