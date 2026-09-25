@@ -56,12 +56,21 @@ takes the merged names; a rename is a find-and-replace in this part, never a new
    its 404 is TM-46's (**UNVERIFIED** code name, `note_not_found` in the Phase T plan).
 5. **Percentiles are pointers.** `InsightsResult.P50Ms` and its siblings are `*int64`, `null` when no
    point was measured. A zero would be a number nobody measured (Q1, OD-27).
-6. **Derived fields live on views, never on records.** `Milestone` has no *reached*;
-   `FeatureDependency` has no `orderViolated`. Both are computed at read into `MilestoneView` and
-   `FeatureDependencyView`. `InitiativeView` (task 118's read) is declared here too, so SW.20 is the
-   whole wire and task 118 adds no type.
+6. **Derived fields are never stored.** `Milestone` has no *reached*: `MilestoneView` computes it
+   at read. `FeatureDependency.orderViolated` is on the record's wire shape, as the scope writes
+   it, and has no column: every read computes it. `InitiativeView` (task 118's read) is declared
+   here too, so SW.20 is the whole wire and task 118 adds no type.
 7. **`MarkSeen` is in the method set.** Task 123's scope adds `POST /v1/me/read-cursors/mark-seen`,
    which 114's scope does not list; it is declared now so SW.20 does not grow after it freezes.
+8. **Task 124's part is followed.** It was written first, against the scopes, and asked this task
+   for its names (`task-124.md`, *Gaps found*, items 2-3). They are taken as written:
+   `UpdateSubject`, `ReadScope` with `String` and `ParseReadScope`, `ScopedChangesPage`,
+   `FeatureFromTemplate`, `TriageRotationView.NextHandoverOn`, the method names and plain-argument
+   signatures, `ScopedChanges`, and its `WorkRoadmapRoutes` (`task-124.md:96-135`) as SW.20's route
+   table. One consequence: **brief templates have no W4 method.** Task 124 carries none, and task
+   120's scope puts them on task 78's route with `kind: "brief"`; so task 72's `Template` gains
+   `criteria` and `issueTemplateIds` (both `[]` on an issue template), an added field under SW.18's
+   rule, and the scope's separate `BriefTemplate` record is not declared.
 
 #### Files
 
@@ -69,7 +78,7 @@ takes the merged names; a rename is a find-and-replace in this part, never a new
 |---|---|
 | `hubapi/work_roadmap.go` | new: every W4 record, view, request, enum, code and `Validate` |
 | `hubapi/work_roadmap_test.go` | new: goldens, validation, the no-prediction reflection test, codes |
-| `hubapi/testdata/work-roadmap/*.json` | new: one golden per record and view (seventeen files) |
+| `hubapi/testdata/work-roadmap/*.json` | new: one golden per record and view (nineteen files) |
 | `hubapi/codes.go` ⚑ | appended: the seven W4 codes, in the table's style |
 | `hubclient/work.go` ⚑ | `Work` embeds `WorkRoadmap`; the `WorkRoadmap` interface, complete |
 | `hubclient/fake_work_roadmap_stub.go` | new: `*Fake` satisfies `WorkRoadmap` with 501s (task 115 deletes it) |
@@ -130,15 +139,15 @@ const (
 	HealthOffTrack Health = "off_track"
 )
 
-// SubjectRef names what a status update or a reminder is about.
-type SubjectRef struct {
-	Kind string `json:"kind"` // SubjectFeature | SubjectInitiative
+// UpdateSubject names what a status update or a reminder is about.
+type UpdateSubject struct {
+	Kind string `json:"kind"` // UpdateSubjectFeature | UpdateSubjectInitiative
 	ID   string `json:"id"`   // ft-… | in-…
 }
 
 const (
-	SubjectFeature    = "feature"
-	SubjectInitiative = "initiative"
+	UpdateSubjectFeature    = "feature"
+	UpdateSubjectInitiative = "initiative"
 )
 
 // StatusUpdate is a TM-46 note (nt-) with kind "update": immutable once
@@ -146,7 +155,7 @@ const (
 type StatusUpdate struct {
 	ID          string       `json:"id"`   // nt-…
 	Kind        string       `json:"kind"` // always "update"
-	Subject     SubjectRef   `json:"subject"`
+	Subject     UpdateSubject   `json:"subject"`
 	Health      Health       `json:"health"`
 	Body        AuthoredText `json:"body"`        // author "H" only (task 119)
 	PinnedBrief string       `json:"pinnedBrief"` // brief:bf-…@r, required
@@ -188,28 +197,29 @@ type MilestoneView struct {
 }
 
 // FeatureDependency is "From blocks Blocks": both ft- in one team's reach.
+// OrderViolated is derived at every read, the signal task 129 colours: the
+// blocked feature's target date is before its blocker's. It has no column
+// (task 116's work_feature_deps holds from and blocks only).
 type FeatureDependency struct {
-	From   string `json:"from"`   // ft-… the blocker
-	Blocks string `json:"blocks"` // ft-… the blocked
+	From          string `json:"from"`   // ft-… the blocker
+	Blocks        string `json:"blocks"` // ft-… the blocked
+	OrderViolated bool   `json:"orderViolated"`
 }
 
-// FeatureDependencyView adds the derived signal task 129 colours: the blocked
-// feature's target date is before its blocker's. Never stored.
-type FeatureDependencyView struct {
-	FeatureDependency
-	OrderViolated bool `json:"orderViolated"`
-}
+// Brief templates (L-122) are task 72's Template with Kind "brief", on task
+// 78's routes (decision 8). Template gains two fields, both [] on an issue
+// template, and task 72's create and patch bodies gain the same two:
+//
+//	Criteria         []AuthoredText `json:"criteria"`         // author "H"; 1-50 on a brief template
+//	IssueTemplateIDs []string       `json:"issueTemplateIds"` // tp-… of kind "issue"
+const TemplateKindBrief = "brief"
 
-// BriefTemplate sits beside task 78's issue Template in the tp- space.
-type BriefTemplate struct {
-	ID               string         `json:"id"` // tp-…
-	TeamID           *string        `json:"teamId"`
-	Kind             string         `json:"kind"` // always "brief"
-	Name             string         `json:"name"`
-	Criteria         []AuthoredText `json:"criteria"`         // author "H"; 1-50 items
-	IssueTemplateIDs []string       `json:"issueTemplateIds"` // tp-… of kind "issue"; never null
-	CreatedAt        string         `json:"createdAt"`
-	UpdatedAt        string         `json:"updatedAt"`
+// FeatureFromTemplate is what CreateFeatureFromTemplate returns: the feature,
+// its branch brief at revision 1, and one issue per issue template (task 120).
+type FeatureFromTemplate struct {
+	Feature Feature             `json:"feature"`
+	Brief   BriefWithRevision   `json:"brief"`
+	Issues  []IssueWithRevision `json:"issues"` // never null
 }
 
 // Every is a recurrence: N units apart.
@@ -228,8 +238,8 @@ type TemplateSchedule struct {
 
 // ReminderPolicy asks the lead or owner for an update every EveryDays days.
 type ReminderPolicy struct {
-	Subject   SubjectRef `json:"subject"`
-	EveryDays int        `json:"everyDays"` // 1-90
+	Subject   UpdateSubject `json:"subject"`
+	EveryDays int           `json:"everyDays"` // 1-90
 }
 
 // TriageRotation is a stored policy. The read adds who is on duty and the
@@ -243,9 +253,9 @@ type TriageRotation struct {
 
 // TriageRotationView is the rotation and its two policy-fixed facts.
 type TriageRotationView struct {
-	Rotation   TriageRotation `json:"rotation"`
-	OnDuty     User           `json:"onDuty"`
-	HandoverOn string         `json:"handoverOn"` // YYYY-MM-DD, from StartsOn and PeriodDays
+	Rotation       TriageRotation `json:"rotation"`
+	OnDuty         User           `json:"onDuty"`
+	NextHandoverOn string         `json:"nextHandoverOn"` // YYYY-MM-DD, from StartsOn and PeriodDays
 }
 ```
 
@@ -292,23 +302,43 @@ type InsightsResult struct {
 	P90Ms  *int64         `json:"p90Ms"`
 }
 
-// ScopeRef is what a read cursor watches (task 123).
-type ScopeRef struct {
+// ReadScope is what a read cursor watches (task 123).
+type ReadScope struct {
 	Kind string `json:"kind"` // "project" | "feature" | "issue"
 	ID   string `json:"id"`
+}
+
+// String is the query form, "feature:ft-…" (task 124's ?scope=).
+func (s ReadScope) String() string { return s.Kind + ":" + s.ID }
+
+// ParseReadScope is String's inverse; it validates as Validate does.
+func ParseReadScope(v string) (ReadScope, error) {
+	kind, id, _ := strings.Cut(v, ":")
+	s := ReadScope{Kind: kind, ID: id}
+	return s, s.Validate()
 }
 
 // ReadCursor is one person's last-seen feed seq on one scope. It only
 // advances: a lower Seq is ignored and the stored cursor returned.
 type ReadCursor struct {
-	Scope ScopeRef `json:"scope"`
-	Seq   int64    `json:"seq"` // an Event.Seq (types.go:537); 0 is "never looked"
+	Scope ReadScope `json:"scope"`
+	Seq   int64     `json:"seq"` // an Event.Seq (types.go:537); 0 is "never looked"
 }
 
 // MarkSeenRequest advances several cursors to one seq (task 123).
 type MarkSeenRequest struct {
-	Scopes []ScopeRef `json:"scopes"` // 1-200
-	Seq    int64      `json:"seq"`
+	Scopes []ReadScope `json:"scopes"` // 1-200
+	Seq    int64       `json:"seq"`
+}
+
+// ScopedChangesPage is ChangesPage (types.go:547-551) for one scope, plus
+// Truncated: a read with no cursor returns the scope's last 200 events and
+// true, so a first look is never an unbounded read (task 123).
+type ScopedChangesPage struct {
+	Events    []Event `json:"events"`
+	Next      string  `json:"next"`
+	More      bool    `json:"more"`
+	Truncated bool    `json:"truncated"`
 }
 
 // ProjectGrant lets a second team read a project's Work objects and comment
@@ -402,17 +432,8 @@ type FeatureDependencyRequest struct {
 	Blocks string `json:"blocks"` // ft-…
 }
 
-type CreateBriefTemplateRequest struct {
-	Name             string         `json:"name"`
-	Criteria         []AuthoredText `json:"criteria"`
-	IssueTemplateIDs []string       `json:"issueTemplateIds"`
-}
-
-type PatchBriefTemplateRequest struct {
-	Name             *string         `json:"name,omitempty"`
-	Criteria         *[]AuthoredText `json:"criteria,omitempty"`
-	IssueTemplateIDs *[]string       `json:"issueTemplateIds,omitempty"`
-}
+// A brief template is created and patched through task 78's template bodies
+// with kind "brief" and the two fields above; no W4 body of its own.
 
 // CreateFeatureFromTemplateRequest creates the feature, its branch brief at
 // revision 1 from the template's criteria, and one issue per issue template,
@@ -568,7 +589,7 @@ func (s TemplateSchedule) Validate() error {
 }
 
 func (p ReminderPolicy) Validate() error {
-	if p.Subject.Kind != SubjectFeature && p.Subject.Kind != SubjectInitiative {
+	if p.Subject.Kind != UpdateSubjectFeature && p.Subject.Kind != UpdateSubjectInitiative {
 		return &FieldError{"subject.kind", ErrRoadmapEnum}
 	}
 	if p.EveryDays < 1 || p.EveryDays > 90 {
@@ -621,7 +642,7 @@ func (q InsightsQuery) Validate() error {
 	return nil
 }
 
-func (s ScopeRef) Validate() error {
+func (s ReadScope) Validate() error {
 	prefix := map[string]string{"project": PrefixProject, "feature": PrefixFeature, "issue": PrefixIssue}[s.Kind]
 	if prefix == "" || !ValidID(prefix, s.ID) {
 		return &FieldError{"scope", ErrInvalidKey}
@@ -651,36 +672,41 @@ const (
 tasks 04, 73 and 99 leave it). The interface, appended to the file:
 
 ```go
-// WorkRoadmap is W4 (SW.20): initiatives, updates, milestones, dependencies,
-// brief templates, the janitor's policies, insights, read cursors and grants.
-// Every route is in the table below; task 124 is the HTTP half.
+// WorkRoadmap is W4 (SW.20): grants, initiatives, updates, milestones,
+// dependencies, a feature from a template, the janitor's policies, insights,
+// read cursors and the scoped feed. The names and signatures are task 124's
+// (decision 8); its WorkRoadmapRoutes (task-124.md:96-135) is the route table.
 type WorkRoadmap interface {
+	// task 117: a project-scoped read-and-comment grant; an initiative's span.
+	GrantProject(ctx context.Context, projectID, teamID string) (hubapi.ProjectGrant, error)
+	ProjectGrants(ctx context.Context, projectID string) ([]hubapi.ProjectGrant, error)
+	RevokeProjectGrant(ctx context.Context, projectID, teamID string) error
+	SetInitiativeTeams(ctx context.Context, initiativeID string, teamIDs []string) (hubapi.InitiativeTeams, error)
+
+	// task 118
 	CreateInitiative(ctx context.Context, teamID string, req hubapi.CreateInitiativeRequest) (hubapi.Initiative, error)
 	Initiatives(ctx context.Context, teamID string, page hubapi.PageRequest) (hubapi.Page[hubapi.Initiative], error)
 	// Initiative is the view: each readable feature's latest health and date.
 	Initiative(ctx context.Context, initiativeID string) (hubapi.InitiativeView, error)
 	PatchInitiative(ctx context.Context, initiativeID string, req hubapi.PatchInitiativeRequest) (hubapi.Initiative, error)
-	SetFeatureInitiative(ctx context.Context, featureID string, req hubapi.SetFeatureInitiativeRequest) (hubapi.Feature, error)
-	SetInitiativeTeams(ctx context.Context, initiativeID string, req hubapi.SetInitiativeTeamsRequest) (hubapi.InitiativeTeams, error)
+	// SetFeatureInitiative: nil detaches.
+	SetFeatureInitiative(ctx context.Context, featureID string, initiativeID *string) (hubapi.Feature, error)
 
 	// PostUpdate mints an immutable nt- update; a second write is update_immutable.
-	PostUpdate(ctx context.Context, subject hubapi.SubjectRef, req hubapi.PostUpdateRequest) (hubapi.StatusUpdate, error)
+	PostUpdate(ctx context.Context, subject hubapi.UpdateSubject, req hubapi.PostUpdateRequest) (hubapi.StatusUpdate, error)
 	// Updates lists a subject's updates, newest first; erased ones included.
-	Updates(ctx context.Context, subject hubapi.SubjectRef, page hubapi.PageRequest) (hubapi.Page[hubapi.StatusUpdate], error)
+	Updates(ctx context.Context, subject hubapi.UpdateSubject, page hubapi.PageRequest) (hubapi.Page[hubapi.StatusUpdate], error)
 
-	CreateMilestone(ctx context.Context, featureID string, req hubapi.CreateMilestoneRequest) (hubapi.MilestoneView, error)
+	// task 120. The list is the view (each criterion's word); writes return the record.
+	CreateMilestone(ctx context.Context, featureID string, req hubapi.CreateMilestoneRequest) (hubapi.Milestone, error)
 	Milestones(ctx context.Context, featureID string) ([]hubapi.MilestoneView, error)
-	PatchMilestone(ctx context.Context, milestoneID string, req hubapi.PatchMilestoneRequest) (hubapi.MilestoneView, error)
-	SetMilestoneCriteria(ctx context.Context, milestoneID string, req hubapi.SetMilestoneCriteriaRequest) (hubapi.MilestoneView, error)
-
-	AddFeatureDependency(ctx context.Context, featureID string, req hubapi.FeatureDependencyRequest) (hubapi.FeatureDependencyView, error)
-	RemoveFeatureDependency(ctx context.Context, featureID, blocksID string) error
-	FeatureDependencies(ctx context.Context, projectID string) ([]hubapi.FeatureDependencyView, error)
-
-	CreateBriefTemplate(ctx context.Context, teamID string, req hubapi.CreateBriefTemplateRequest) (hubapi.BriefTemplate, error)
-	BriefTemplates(ctx context.Context, teamID string) ([]hubapi.BriefTemplate, error)
-	PatchBriefTemplate(ctx context.Context, templateID string, req hubapi.PatchBriefTemplateRequest) (hubapi.BriefTemplate, error)
-	CreateFeatureFromTemplate(ctx context.Context, projectID string, req hubapi.CreateFeatureFromTemplateRequest) (hubapi.Feature, error)
+	PatchMilestone(ctx context.Context, milestoneID string, req hubapi.PatchMilestoneRequest) (hubapi.Milestone, error)
+	SetMilestoneCriteria(ctx context.Context, milestoneID string, criterionIDs []string) (hubapi.Milestone, error)
+	AddFeatureDependency(ctx context.Context, featureID, blocks string) (hubapi.FeatureDependency, error)
+	// FeatureDependencies is every edge touching the feature, either side.
+	FeatureDependencies(ctx context.Context, featureID string) ([]hubapi.FeatureDependency, error)
+	RemoveFeatureDependency(ctx context.Context, featureID, blocks string) error
+	CreateFeatureFromTemplate(ctx context.Context, projectID string, req hubapi.CreateFeatureFromTemplateRequest) (hubapi.FeatureFromTemplate, error)
 
 	SetTemplateSchedule(ctx context.Context, templateID string, s hubapi.TemplateSchedule) (hubapi.TemplateSchedule, error)
 	ClearTemplateSchedule(ctx context.Context, templateID string) error
@@ -688,45 +714,50 @@ type WorkRoadmap interface {
 	SetTriageRotation(ctx context.Context, teamID string, r hubapi.TriageRotation) (hubapi.TriageRotationView, error)
 	TriageRotation(ctx context.Context, teamID string) (hubapi.TriageRotationView, error)
 
-	// QueryInsights reads recorded state moves only; never an estimate.
-	QueryInsights(ctx context.Context, q hubapi.InsightsQuery) (hubapi.InsightsResult, error)
+	// task 122: recorded state moves only; never an estimate. q.TeamID must equal teamID.
+	QueryInsights(ctx context.Context, teamID string, q hubapi.InsightsQuery) (hubapi.InsightsResult, error)
 
-	// GetReadCursor is Seq 0 for a scope never looked at.
-	GetReadCursor(ctx context.Context, scope hubapi.ScopeRef) (hubapi.ReadCursor, error)
-	// AdvanceReadCursor ignores a lower Seq and returns the stored cursor.
-	AdvanceReadCursor(ctx context.Context, c hubapi.ReadCursor) (hubapi.ReadCursor, error)
-	MarkSeen(ctx context.Context, req hubapi.MarkSeenRequest) ([]hubapi.ReadCursor, error)
-
-	GrantProject(ctx context.Context, projectID string, req hubapi.GrantProjectRequest) (hubapi.ProjectGrant, error)
-	RevokeProjectGrant(ctx context.Context, projectID, teamID string) error
-	ProjectGrants(ctx context.Context, projectID string) ([]hubapi.ProjectGrant, error)
+	// task 123. GetReadCursor is Seq 0 for a scope never looked at.
+	GetReadCursor(ctx context.Context, scope hubapi.ReadScope) (hubapi.ReadCursor, error)
+	// AdvanceReadCursor ignores a lower seq and returns the stored cursor.
+	AdvanceReadCursor(ctx context.Context, scope hubapi.ReadScope, seq int64) (hubapi.ReadCursor, error)
+	MarkSeen(ctx context.Context, scopes []hubapi.ReadScope, seq int64) ([]hubapi.ReadCursor, error)
+	// ScopedChanges is GET /v1/changes?after=&scope=: only events under scope.
+	ScopedChanges(ctx context.Context, scope hubapi.ReadScope, after string, limit int) (hubapi.ScopedChangesPage, error)
 }
 ```
 
-Thirty-one methods. A granted team's comment is task 12's `CreateComment`, unchanged: the grant
-widens who may call it (task 117), not its shape.
+Twenty-nine methods behind thirty-one routes: `PostUpdate` and `Updates` each serve a feature's
+and an initiative's route, chosen by `UpdateSubject.Kind`. A granted team's comment is task 12's
+`CreateComment`, unchanged: the grant widens who may call it (task 117), not its shape. Brief
+templates have no method here: they are task 78's template methods with `kind: "brief"`
+(decision 8). The request types above (`SetInitiativeTeamsRequest`, `SetFeatureInitiativeRequest`,
+`SetMilestoneCriteriaRequest`, `FeatureDependencyRequest`, `GrantProjectRequest`,
+`MarkSeenRequest`, and `ReadCursor` as the `PUT` body) are the wire bodies the client builds from
+the plain arguments and the server decodes.
 
 #### The routes (SW.20), one per method; the route task registers each
 
-`V` viewer, `M` member, `A` admin of the owning team; **G** a member of a granted team (task 117).
-Paths the scopes of 117-123 fix are theirs; the three marked † are this task's, since those scopes
-name the method and not the path.
+The paths are task 124's `WorkRoadmapRoutes` (`task-124.md:96-135`), thirty-one rows; this table
+adds who may call each. `V` viewer, `M` member, `A` admin of the owning team; **G** a member of a
+granted team (task 117). The two marked † are in no route task's scope (task 124's gap 1), and
+task 120 registers them.
 
 | Method | Route | Task | Who |
 |---|---|---|---|
+| `GrantProject` / `ProjectGrants` | `POST` / `GET /v1/projects/{projectId}/grants` | 117 | A / V |
+| `RevokeProjectGrant` | `DELETE /v1/projects/{projectId}/grants/{teamId}` | 117 | A |
+| `SetInitiativeTeams` | `PUT /v1/initiatives/{initiativeId}/teams` | 117 | A |
 | `CreateInitiative` / `Initiatives` | `POST` / `GET /v1/teams/{teamId}/initiatives` | 118 | M / V |
 | `Initiative` / `PatchInitiative` | `GET` / `PATCH /v1/initiatives/{initiativeId}` | 118 | V / M |
 | `SetFeatureInitiative` | `PUT /v1/features/{featureId}/initiative` | 118 | M |
-| `SetInitiativeTeams` | `PUT /v1/initiatives/{initiativeId}/teams` | 117 | A |
 | `PostUpdate` / `Updates` | `POST` / `GET /v1/features/{featureId}/updates` and `…/v1/initiatives/{initiativeId}/updates` | 119 | M, a person / V, G |
 | `CreateMilestone` / `Milestones` | `POST` / `GET /v1/features/{featureId}/milestones` | 120 | M / V, G |
 | `PatchMilestone` | `PATCH /v1/milestones/{milestoneId}` | 120 | M |
 | `SetMilestoneCriteria` † | `PUT /v1/milestones/{milestoneId}/criteria` | 120 | M |
 | `AddFeatureDependency` | `POST /v1/features/{featureId}/dependencies` | 120 | M |
+| `FeatureDependencies` † | `GET /v1/features/{featureId}/dependencies` | 120 | V, G |
 | `RemoveFeatureDependency` | `DELETE /v1/features/{featureId}/dependencies/{blocks}` | 120 | M |
-| `FeatureDependencies` † | `GET /v1/projects/{projectId}/feature-dependencies` | 120 | V, G |
-| `CreateBriefTemplate` / `BriefTemplates` | `POST` / `GET /v1/teams/{teamId}/templates` (`kind: "brief"`; task 78's route) | 120 | A / V |
-| `PatchBriefTemplate` | `PATCH /v1/templates/{templateId}` (task 78's route) | 120 | A |
 | `CreateFeatureFromTemplate` | `POST /v1/projects/{projectId}/features:fromTemplate` | 120 | M |
 | `SetTemplateSchedule` / `ClearTemplateSchedule` | `PUT` / `DELETE /v1/templates/{templateId}/schedule` | 121 | A |
 | `SetReminderPolicy` | `PUT /v1/reminder-policies` | 121 | the lead, the owner, or A |
@@ -734,13 +765,9 @@ name the method and not the path.
 | `QueryInsights` | `POST /v1/teams/{teamId}/insights/query` | 122 | V |
 | `GetReadCursor` / `AdvanceReadCursor` | `GET /v1/me/read-cursors?scope={kind}:{id}` / `PUT /v1/me/read-cursors` | 123 | self |
 | `MarkSeen` | `POST /v1/me/read-cursors/mark-seen` | 123 | self |
-| `GrantProject` / `ProjectGrants` | `POST` / `GET /v1/projects/{projectId}/grants` | 117 | A / V |
-| `RevokeProjectGrant` † | `DELETE /v1/projects/{projectId}/grants/{teamId}` | 117 | A |
+| `ScopedChanges` | `GET /v1/changes?after={seq}&scope={kind}:{id}` | 123 | V, G; filtered per caller |
 
-† `RevokeProjectGrant`'s path is 117's (`…/grants/{teamId}`); the dagger marks only that its
-`{teamId}` segment name is fixed here. `features:fromTemplate` is one literal path segment, which
-Go 1.22's `ServeMux` accepts (a wildcard must be a whole segment; a literal with a colon is not a
-wildcard).
+Brief templates ride task 78's template routes with `kind: "brief"` (A to write, V to read).
 
 #### `hubclient/fake_work_roadmap_stub.go`, complete
 
@@ -766,8 +793,8 @@ func (f *Fake) Initiative(_ context.Context, id string) (hubapi.InitiativeView, 
 func (f *Fake) PatchInitiative(_ context.Context, id string, r hubapi.PatchInitiativeRequest) (hubapi.Initiative, error) { return hubapi.Initiative{}, f.workNotInFakeYet("PatchInitiative", id, r) }
 func (f *Fake) SetFeatureInitiative(_ context.Context, id string, r hubapi.SetFeatureInitiativeRequest) (hubapi.Feature, error) { return hubapi.Feature{}, f.workNotInFakeYet("SetFeatureInitiative", id, r) }
 func (f *Fake) SetInitiativeTeams(_ context.Context, id string, r hubapi.SetInitiativeTeamsRequest) (hubapi.InitiativeTeams, error) { return hubapi.InitiativeTeams{}, f.workNotInFakeYet("SetInitiativeTeams", id, r) }
-func (f *Fake) PostUpdate(_ context.Context, s hubapi.SubjectRef, r hubapi.PostUpdateRequest) (hubapi.StatusUpdate, error) { return hubapi.StatusUpdate{}, f.workNotInFakeYet("PostUpdate", s, r) }
-func (f *Fake) Updates(_ context.Context, s hubapi.SubjectRef, p pr) (hubapi.Page[hubapi.StatusUpdate], error) { return hubapi.Page[hubapi.StatusUpdate]{}, f.workNotInFakeYet("Updates", s, p) }
+func (f *Fake) PostUpdate(_ context.Context, s hubapi.UpdateSubject, r hubapi.PostUpdateRequest) (hubapi.StatusUpdate, error) { return hubapi.StatusUpdate{}, f.workNotInFakeYet("PostUpdate", s, r) }
+func (f *Fake) Updates(_ context.Context, s hubapi.UpdateSubject, p pr) (hubapi.Page[hubapi.StatusUpdate], error) { return hubapi.Page[hubapi.StatusUpdate]{}, f.workNotInFakeYet("Updates", s, p) }
 func (f *Fake) CreateMilestone(_ context.Context, id string, r hubapi.CreateMilestoneRequest) (hubapi.MilestoneView, error) { return hubapi.MilestoneView{}, f.workNotInFakeYet("CreateMilestone", id, r) }
 func (f *Fake) Milestones(_ context.Context, id string) ([]hubapi.MilestoneView, error) { return nil, f.workNotInFakeYet("Milestones", id) }
 func (f *Fake) PatchMilestone(_ context.Context, id string, r hubapi.PatchMilestoneRequest) (hubapi.MilestoneView, error) { return hubapi.MilestoneView{}, f.workNotInFakeYet("PatchMilestone", id, r) }
@@ -785,7 +812,7 @@ func (f *Fake) SetReminderPolicy(_ context.Context, p hubapi.ReminderPolicy) (hu
 func (f *Fake) SetTriageRotation(_ context.Context, t string, r hubapi.TriageRotation) (hubapi.TriageRotationView, error) { return hubapi.TriageRotationView{}, f.workNotInFakeYet("SetTriageRotation", t, r) }
 func (f *Fake) TriageRotation(_ context.Context, t string) (hubapi.TriageRotationView, error) { return hubapi.TriageRotationView{}, f.workNotInFakeYet("TriageRotation", t) }
 func (f *Fake) QueryInsights(_ context.Context, q hubapi.InsightsQuery) (hubapi.InsightsResult, error) { return hubapi.InsightsResult{}, f.workNotInFakeYet("QueryInsights", q) }
-func (f *Fake) GetReadCursor(_ context.Context, s hubapi.ScopeRef) (hubapi.ReadCursor, error) { return hubapi.ReadCursor{}, f.workNotInFakeYet("GetReadCursor", s) }
+func (f *Fake) GetReadCursor(_ context.Context, s hubapi.ReadScope) (hubapi.ReadCursor, error) { return hubapi.ReadCursor{}, f.workNotInFakeYet("GetReadCursor", s) }
 func (f *Fake) AdvanceReadCursor(_ context.Context, c hubapi.ReadCursor) (hubapi.ReadCursor, error) { return hubapi.ReadCursor{}, f.workNotInFakeYet("AdvanceReadCursor", c) }
 func (f *Fake) MarkSeen(_ context.Context, r hubapi.MarkSeenRequest) ([]hubapi.ReadCursor, error) { return nil, f.workNotInFakeYet("MarkSeen", r) }
 func (f *Fake) GrantProject(_ context.Context, id string, r hubapi.GrantProjectRequest) (hubapi.ProjectGrant, error) { return hubapi.ProjectGrant{}, f.workNotInFakeYet("GrantProject", id, r) }
@@ -814,7 +841,7 @@ and fails again on its mutant.
 | `TestPercentilesAreNullWhenUnmeasured` | `InsightsResult{Groups: []…{}, Points: []…{}}` encodes `"p50Ms":null` | an invented zero percentile |
 | `TestScheduleBounds` | `every.n` 0 and 366, unit `"year"`, `at` `"24:00"`, tz `"Local"` and `"Mars/Base"` each fail on its field | an unbounded or local-clock schedule |
 | `TestInsightsWindow` | `to` before `from`, and a window over 366 days, fail on `to`; `groupBy: "priority"` fails | an unbounded query |
-| `TestScopeKinds` | `ScopeRef{"cycle", …}` fails; a `feature` scope with an `is-` id fails | a scope of the wrong kind |
+| `TestScopeKinds` | `ReadScope{"cycle", …}` fails; a `feature` scope with an `is-` id fails | a scope of the wrong kind |
 | `TestWorkRoadmapCodes` | each of the seven codes is in `WorkRoadmapCodeStatus` with its table status, and the map holds exactly those seven | a wrong status; a code with no status |
 
 The reflection test, complete, because it is the rule OD-27 makes mechanical:
