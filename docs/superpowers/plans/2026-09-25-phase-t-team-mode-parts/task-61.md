@@ -284,4 +284,111 @@ type Hint struct {
 	Second   model.AgentID
 	Parties  [2]model.AgentID // the conflict's agentA, agentB (task 03's Conflict)
 }
+
+// Queue is one per fleetd; Advance runs under task 12's singleton loop, one
+// project at a time, so at most one entry per project is ever past waiting.
+type Queue struct {
+	Store     Store     // task 10's store, the methods below
+	Mirror    Mirror
+	Machines  Machines
+	Approvals Approvals
+	Hints     Hints
+	Agents    func(ctx context.Context, org string, id model.AgentID) (model.Agent, error) // task 10
+	Notify    func(ctx context.Context, e Entry, template string) error                   // task 30's inform, Fleet-authored
+	Now       func() time.Time
+}
+
+// Enqueue: the owner (from the token) asks to land one of her own lanes.
+// agent_not_owner when the agent's OwnerUserID is not the caller; one live
+// entry per worktree (a second call returns the first, 200 not 201).
+func (q *Queue) Enqueue(ctx context.Context, org, project, ownerUserID string, r EnqueueRequest) (e Entry, created bool, err error)
+func (q *Queue) Withdraw(ctx context.Context, org, project, ownerUserID, entry string) (Entry, error)
+// Advance takes one step for one project (below) and returns what moved.
+func (q *Queue) Advance(ctx context.Context, org, project string) ([]Entry, error)
+// Claim: the owner's click. ready → pushing; returns Merge and Base for her
+// push's --force-with-lease. Any other state → entry_not_live.
+func (q *Queue) Claim(ctx context.Context, org, project, ownerUserID, entry string) (Entry, error)
+// Report: what her machine's push did. Only the owner, only while pushing.
+func (q *Queue) Report(ctx context.Context, org, project, ownerUserID, entry string, r PushReport) (Entry, error)
+func (q *Queue) Resume(ctx context.Context, org, project, memberUserID string) error
+
+type EnqueueRequest struct {
+	Agent       model.AgentID `json:"agentId"`
+	WorktreeID  string        `json:"worktreeId"`
+	LaneTip     string        `json:"laneTip"`
+	Branch      string        `json:"branch"`
+	BriefKey    string        `json:"briefKey,omitempty"`
+	BriefDigest string        `json:"briefDigest,omitempty"` // required with BriefKey
+}
+
+type PushReport struct {
+	Outcome string `json:"outcome"` // "pushed" | "rejected" | "failed"
+	Reason  string `json:"reason,omitempty"` // rejected: "remote_moved"; failed: git's class, ≤ 64, no text
+}
 ```
+
+```go
+// control-plane/internal/fleet/landq/order.go
+package landq
+
+// Order returns one project's waiting entries in landing order, and for each
+// held entry the cf-… holding it. An entry E is held by a live hint H iff
+// E.Agent is one of H.Parties and parent(E.Agent) == H.Second (task 29's
+// "second side"); held entries keep their place behind every free one that
+// arrived before them. Otherwise order is EnqueuedAt, then ID. Pure.
+func Order(waiting []Entry, hints []Hint, parent func(model.AgentID) model.AgentID) (order []Entry, heldBy map[string]string)
+```
+
+```go
+// control-plane/internal/fleet/landq/gate.go
+package landq
+
+// Gate is task 49's step 9a over a mirror build (decision f). changes =
+// b.Changes whose path converge.IsAgentConfigPath accepts, plus every
+// package.json in b.PackageChanged with a non-empty member list. None → nil.
+// Otherwise one approval a must have State "approved", LaneTip == e.LaneTip,
+// ApproverUserID != e.OwnerUserID, and every change's path in a.Paths; else
+// *Refusal{CodeSecondApproval, paths}. ListLandApprovals erroring →
+// *Refusal{CodeHubUnavailable}: never "none needed".
+func Gate(ctx context.Context, ap Approvals, e Entry, b LandBuilt) error
+
+type Refusal struct {
+	Code  string
+	Paths []string
+}
+
+func (r *Refusal) Error() string { return "landq: " + r.Code }
+```
+
+**`Advance`, the order.** Every read of a sibling is before the state write it justifies.
+
+1. Stopped (`fleet.land_queue_stops` has a row) → return `ErrStopped`; nothing moves.
+2. A `ready` entry older than `ReadyFor` → `waiting`, `Reason: ready_expired`, `EnqueuedAt =
+   now` (it yields the head), `Notify` once. A `building`, `ready` or `pushing` entry otherwise →
+   return: one at a time. A `pushing` entry past its report deadline (10 minutes) is verified as
+   step 9 below, and `push_unverified` if the remote does not show it.
+3. `Order` the waiting entries; write `HeldBy` on each. No free head → return.
+4. Head → `building`. `Mirror.FetchRemote(branch)` → `base`.
+5. `Machines.Identity(owner)` → name and email, through `teamtext` (bounds, G3). The message is
+   phase 3's `gitx.Message("Land <wt-id> into <branch>", …)` with task 09's trailers plus
+   `Panacea-Owner: <ownerUserId>`. A brief key is re-resolved against the Hub's brief record; a
+   digest that differs → `refused`, `brief_unresolvable`.
+6. `Mirror.BuildLand`. `LaneMoved` → `refused`, `lane_moved`. `Conflicted` → `refused`,
+   `merge_conflict`, `Paths`.
+7. `Gate(e, built)` → a `*Refusal` → `refused` with its code and paths.
+8. `Mirror.ExportRange(base, merge)` → `Machines.Stage(owner, …)` into `refs/panacea/landq/<id>`
+   → `ready`, `ReadyAt = now`, `Notify(e, "land-ready")`.
+9. On `Report{pushed}`: up to `VerifyAttempts` `FetchRemote(branch)` reads; `head == Merge` →
+   `landed`, `Rejects = 0`, then `Hints.FirstLanded` for every live hint whose `First` is
+   `parent(e.Agent)` and whose `Parties` hold `e.Agent`, then the refresh (below). Otherwise
+   `refused`, `push_unverified`.
+10. On `Report{rejected, remote_moved}`: `Rejects++`; `Rejects < StopAfter` → `waiting`, keeping
+    `EnqueuedAt` (still the head, rebuilt on the new base). `Rejects == StopAfter` → `refused`,
+    `remote_contended`, one stop row, `Notify` every member once. `Report{failed}` → `refused`,
+    `push_failed`, `Reason` from the report.
+
+**Refresh** (`refresh.go`, decision d): for each current member with a machine, `ExportRange(her
+last told head for this branch, merge)` and `Machines.Refresh(member, …)` into
+`refs/panacea/integration/<branch>`; `fleet.land_told` records the told head. A failure is
+logged per member and retried on her machine's next start (task 20's start hook); it never
+changes the entry's state.
