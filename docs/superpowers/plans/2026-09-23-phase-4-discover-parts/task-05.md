@@ -393,7 +393,11 @@ Where this differs from the text above, this wins:
    begin-marker parser calls, so the two sides cannot drift (`TestMarkerSafe`; `claudemd`'s
    `TestEveryResolvedIDReadsBack`: for each of the review's candidate ids, `Resolve` succeeds
    exactly when `Inspect` accepts a begin marker holding it, and then `Inspect(Render(doc))` names
-   it). Round 1 had two copies, `discover.markerSafe` and `claudemd.markerID`, each pinned only
+   it). **Both keys are checked** (fix round 2, re-review 1 R-I1): on a branch key the marker names
+   the branch revision's id and number, so the id and number rules are pinned on the branch
+   revision as well as the project one (`TestResolveRefusesAMalformedRevision`'s branch-side rows;
+   `TestEveryResolvedIDReadsBack` resolves each id as the project key, `Resolve(r, nil)`, and as
+   the branch key, `Resolve(b7(), r)`). Round 1 had two copies, `discover.markerSafe` and `claudemd.markerID`, each pinned only
    for `<`, a space and `""`: the review's RV1, RV1c and RV2 dropped `>` or narrowed white space to
    `' '` in either copy, and both packages stayed green.
 5. **Every question skipped** still renders the key: the intro, then `No question in this brief has

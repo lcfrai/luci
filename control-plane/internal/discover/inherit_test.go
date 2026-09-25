@@ -410,6 +410,16 @@ func TestResolveRefusesAMalformedRevision(t *testing.T) {
 		r.BriefID = id
 		return r
 	}
+	// On a branch key the begin marker names the BRANCH revision's id and
+	// number (Document.BriefID and Revision are the branch's), so the id and
+	// number rules hold on that side too (re-review 1 R-I1).
+	branchID := func(id string) *Revision {
+		r := rvBranch()
+		r.BriefID = id
+		return r
+	}
+	branchZero := rvBranch()
+	branchZero.Number = 0
 	// A project revision's envelope has branchRef "" (Hub contract §3.3,
 	// §7.5 :759); a branch revision's is "refs/heads/<name>", name non-empty
 	// with no ASCII control character, space or DEL (§3.3; the Hub's own
@@ -443,6 +453,11 @@ func TestResolveRefusesAMalformedRevision(t *testing.T) {
 		{"a brief id with a line break", withID("bf-\nb7"), nil},
 		{"a brief id with a no-break space", withID("bf- b7"), nil},
 		{"revision 0", zero, nil},
+		{"a branch revision with no brief id", rvProject(), branchID("")},
+		{`a branch brief id with ">"`, rvProject(), branchID("bf->a2")},
+		{"a branch brief id with a tab", rvProject(), branchID("bf-\ta2")},
+		{"a branch brief id with a comment opener", rvProject(), branchID("bf-<!--a2")},
+		{"a branch revision numbered 0", rvProject(), branchZero},
 		{"a project revision with a branch ref", projectOnABranch, nil},
 		{"a project revision with a bare name", projectRef("main"), nil},
 		{"a project revision with a space", projectRef(" "), nil},
@@ -459,6 +474,7 @@ func TestResolveRefusesAMalformedRevision(t *testing.T) {
 		{"a branch ref with 0x1f", rvProject(), withRef("refs/heads/evidence\x1fupload")},
 		{"a branch ref with a space", rvProject(), withRef("refs/heads/evidence upload")},
 		{"a branch ref ending in a line break", rvProject(), withRef("refs/heads/evidence-upload\n")},
+		{"a branch name starting with a tab", rvProject(), withRef("refs/heads/\tevidence-upload")},
 	}
 	for _, tc := range cases {
 		doc, err := Resolve(tc.project, tc.branch)
@@ -479,6 +495,9 @@ func TestResolveRefusesAMalformedRevision(t *testing.T) {
 	}
 	if _, err := Resolve(withID("bf-!b7"), nil); err != nil {
 		t.Errorf(`brief id "bf-!b7": %v`, err)
+	}
+	if _, err := Resolve(rvProject(), branchID("bf-!a2")); err != nil {
+		t.Errorf(`branch brief id "bf-!a2": %v`, err)
 	}
 }
 

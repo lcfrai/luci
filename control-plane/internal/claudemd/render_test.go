@@ -541,7 +541,9 @@ func TestInspectReadsTheMarker(t *testing.T) {
 // Every id Resolve accepts reads back through Inspect, and every id it
 // refuses, Inspect refuses in a begin marker: one rule, discover.MarkerSafe,
 // on both sides, so a block Render(Resolve(…)) writes is never broken on the
-// next start (review I1; part As built 4). The ids are the review's.
+// next start (review I1; part As built 4). The ids are the review's. Each
+// is tried on both keys: on a branch key the marker names the branch
+// revision's id, not the project revision it inherits (re-review 1 R-I1).
 func TestEveryResolvedIDReadsBack(t *testing.T) {
 	body := strings.TrimPrefix(branchBlock(t), beginLine)
 	for _, tc := range []struct {
@@ -560,22 +562,32 @@ func TestEveryResolvedIDReadsBack(t *testing.T) {
 		{"bf a2", false},
 		{"", false},
 	} {
-		r := b7()
-		r.BriefID = tc.id
-		doc, rerr := discover.Resolve(r, nil)
-		if (rerr == nil) != tc.resolves {
-			t.Errorf("Resolve(brief %q): err %v, want resolves %v", tc.id, rerr, tc.resolves)
-		}
-		_, ok, ierr := Inspect(BeginPrefix + " brief=" + tc.id + " rev=5 -->" + body)
-		if ok != (rerr == nil) || (ierr == nil) != (rerr == nil) {
-			t.Errorf("brief %q: Resolve err %v, but Inspect of its marker: ok %v, err %v", tc.id, rerr, ok, ierr)
-		}
-		if rerr != nil {
-			continue
-		}
-		b, ok, err := Inspect("A\n\n" + Render(doc))
-		if err != nil || !ok || b.Marker != (Marker{BriefID: tc.id, Revision: 5}) {
-			t.Errorf("brief %q: Inspect(Render(Resolve)) = %+v, %v, %v", tc.id, b.Marker, ok, err)
+		project := b7()
+		project.BriefID = tc.id
+		branch := b42()
+		branch.BriefID = tc.id
+		for _, key := range []struct {
+			name            string
+			project, branch *discover.Revision
+		}{
+			{"project key", project, nil},
+			{"branch key", b7(), branch},
+		} {
+			doc, rerr := discover.Resolve(key.project, key.branch)
+			if (rerr == nil) != tc.resolves {
+				t.Errorf("%s, Resolve(brief %q): err %v, want resolves %v", key.name, tc.id, rerr, tc.resolves)
+			}
+			_, ok, ierr := Inspect(BeginPrefix + " brief=" + tc.id + " rev=5 -->" + body)
+			if ok != (rerr == nil) || (ierr == nil) != (rerr == nil) {
+				t.Errorf("%s, brief %q: Resolve err %v, but Inspect of its marker: ok %v, err %v", key.name, tc.id, rerr, ok, ierr)
+			}
+			if rerr != nil {
+				continue
+			}
+			b, ok, err := Inspect("A\n\n" + Render(doc))
+			if err != nil || !ok || b.Marker != (Marker{BriefID: tc.id, Revision: 5}) {
+				t.Errorf("%s, brief %q: Inspect(Render(Resolve)) = %+v, %v, %v", key.name, tc.id, b.Marker, ok, err)
+			}
 		}
 	}
 }
