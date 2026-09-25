@@ -1320,3 +1320,81 @@ func eraseComment(c *fakeComment, now string) bool {
 	return true
 }
 ```
+
+That is the whole of `fake_work_intake.go`.
+
+---
+
+#### The rows, complete: `conformance/work.go`, after the head
+
+Each row is a function named `w<Name>`, so a failing row's stack names it, and `WorkRowsW1` (the
+last block) lists them in `ID` order. A row asserts **strings** (codes, detail values, event
+kinds), never a fake-only field, so the same row runs on the real Hub in task 16. Rows W-01 to
+W-09 hold part 1 (task 04's rules; tasks 08-10's server); W-10 to W-26 hold part 2. The rows
+add `"bytes"` and `"slices"` to the head's import block above; nothing else in the head changes.
+
+Block 1: numbers, roles, the key, revisions, the patch.
+
+```go
+func wNumbersGapless(t *testing.T, e WorkEnv) {
+	p := e.project(t, "Portal", "")
+	var got []int
+	for i, title := range []string{"one", "", "two", "three"} { // the "" create is refused
+		iw, err := e.Member.CreateIssue(wctx, p.ID, wChore(title))
+		if i == 1 {
+			wRefused(t, err, 400, hubapi.CodeBadRequest)
+			continue
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		got = append(got, iw.Head.Number)
+	}
+	if !slices.Equal(got, []int{1, 2, 3}) {
+		t.Errorf("numbers = %v, want [1 2 3]: a refused create takes no number", got)
+	}
+}
+
+func wViewerCannotWrite(t *testing.T, e WorkEnv) {
+	p := e.project(t, "Portal", "")
+	_, err := e.Viewer.CreateIssue(wctx, p.ID, wChore("no"))
+	wRefused(t, err, 403, hubapi.CodeForbidden, "required", "member")
+	iw := e.issue(t, p, "yes")
+	_, err = e.Outsider.Issue(wctx, iw.Head.ID)
+	wRefused(t, err, 404, "issue_not_found", "issueId", iw.Head.ID)
+}
+
+func wKeyIsTheAlias(t *testing.T, e WorkEnv) {
+	p := e.project(t, "Portal", "EP")
+	iw := e.issue(t, p, "first")
+	if iw.Head.Alias != "EP-1" || iw.Head.HeadKey != "issue:"+iw.Head.ID+"@1" {
+		t.Errorf("alias %q, headKey %q; want EP-1 and the id key", iw.Head.Alias, iw.Head.HeadKey)
+	}
+	p2 := e.project(t, "Billing", "")
+	_, err := e.Admin.SetProjectKey(wctx, p2.ID, "EP")
+	wRefused(t, err, 409, "project_key_taken", "key", "EP")
+	if _, err := e.Admin.SetProjectKey(wctx, p.ID, "PAY"); err != nil {
+		t.Fatal(err)
+	}
+	again, err := e.Member.Issue(wctx, iw.Head.ID)
+	if err != nil || again.Head.Alias != "PAY-1" || again.Head.HeadKey != iw.Head.HeadKey {
+		t.Errorf("after the key moved: %+v, %v; want PAY-1 and the same key", again.Head, err)
+	}
+}
+
+func wStaleBaseConflicts(t *testing.T, e WorkEnv) {
+	p := e.project(t, "Portal", "")
+	iw := e.issue(t, p, "v1")
+	next := iw.Revision.Content
+	next.Title = wText("v2")
+	if _, err := e.Member.WriteIssueRevision(wctx, iw.Head.ID, hubapi.WriteIssueRevisionRequest{BaseRevision: 1, Content: next}); err != nil {
+		t.Fatal(err)
+	}
+	next.Title = wText("lost")
+	_, err := e.Admin.WriteIssueRevision(wctx, iw.Head.ID, hubapi.WriteIssueRevisionRequest{BaseRevision: 1, Content: next})
+	wRefused(t, err, 409, hubapi.CodeRevisionConflict)
+	if got, _ := e.Member.Issue(wctx, iw.Head.ID); got.Head.HeadRevision != 2 || got.Revision.Content.Title.Text != "v2" {
+		t.Errorf("head = %d %q, want 2 v2: a stale write wrote", got.Head.HeadRevision, got.Revision.Content.Title.Text)
+	}
+}
+```
