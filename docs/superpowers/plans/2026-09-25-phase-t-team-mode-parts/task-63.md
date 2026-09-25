@@ -250,3 +250,74 @@ export function withTeammates(changes: Changes, team: TeamLanes | null, me: Pers
   lane: owner, worktree id, `N paths · +A −D`, *"queued"* with its state when `queued` is set,
   and each tier-M conflict with one of the viewer's lanes as *"conflicts with your <wt> on 2
   files"*. No action on another person's lane: rows are read-only (OD-16).
+
+- [ ] **Step 1: Write the tests, each with the mutant it kills**
+
+Go tests on task 22's fake `Sources` and a fake `LanesSource`; the mirror half on real git in task
+59's harness; desktop tests with Vitest and Testing Library, a spy on the phase 3 diff client.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestSameGitAuthorDifferentPrincipalsShowTwoNames` (Go) | two teammate lanes whose commits both carry author `Panacea Agent <agent@x>`, agents owned by Alice and Priya: two `TeamLane`s, owners *Alice Chen* and *Priya Rao* | owner derived from git author or committer |
+| `TestOwnerHashIsNotIdentity` (Go) | a lane ref whose `<owner-hash>` segment is Priya's hash, on an agent owned by Alice: owner Alice | the ref segment parsed as the owner |
+| `TestOwnLanesCarryNoStats` (Go) | the caller's two lanes: `you: true`, `paths: []`, and the fake `Stats` saw no call for them | teammates' path fetch applied to own lanes (double counting) |
+| `TestTeamLanesHasNoContentField` (Go) | reflection over `TeamLanes`, `TeamLane`, `mirror.LaneStat`: every field is in the allowlist (path, status, counts, ids, shas, names, states); a `string` field named like `line`, `text`, `hunk`, `patch`, `content` fails | a content field added later |
+| `TestMirrorDownIsUnreadNotAnError` (Go) | `Stats` errors for one lane: 200, that lane `unread: "mirror_unavailable"`, `paths: []`, owner and `queued` still set | one lane failing the whole read |
+| `TestMirrorLaneStatsNumstat` (sandboxd, real git) | a lane adding 12 lines to `a.go`, deleting `b.txt`, adding a PNG: `a.go M 12 0`, `b.txt D 0 n`, `x.png A binary`; the op's output bytes contain none of the files' lines | content leaking through the op; binary as zero |
+| `TestDiffRouteRefusesATeammatesLane` (Go, phase 3's handler) | `GET …/changes/diff?worktreeId=<a teammate's wt>` → 404 `lane_not_local`, and task 24's spy saw no git | a teammate's id served by a local lookup |
+| `withTeammates sets owners and marks by Hub conflict only` (TS) | own `a.go` + Alice's `a.go`, no conflict → `both-edit`; with a tier-M conflict listing `a.go` → `conflicts`; Alice-only `c.go` → a row with one remote touch | a local "conflicts" guessed across people |
+| `PathDiff never fetches a teammate's hunks` (TS) | selecting a path whose touches are one local and one remote: the diff client is called once, for the local worktree; the remote renders the counts sentence | fetching remote content for display |
+| `LaneCard hides authorName on a team project` (TS) | team: no element contains the commit's `authorName`; the owner label reads *You*; solo: `authorName` renders as before | git author shown as identity |
+| `TeammateLanes rows are read-only` (TS) | no button, link or menu in a teammate row; `queued` renders its state; counts use `tabular-nums` | an action on another person's lane |
+
+- [ ] **Step 2: Run the tests and watch them fail**
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/control-plane && GOPROXY=off go test ./internal/fleet/verbs/ ./internal/api/ -run "Lanes|GitAuthor|OwnerHash|Teammate|NoContent|Unread"
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/desktop && npm test -- lens/files lens/merge
+```
+
+Expected: `undefined: TeamLanes`, `undefined: Lanes`; Vitest fails to import `withTeammates`.
+
+- [ ] **Step 3: `LaneStats` in the mirror (op and client); its real-git test.**
+- [ ] **Step 4: `verbs/lanes.go`, the Fleet route, the local relay, the diff refusal.**
+- [ ] **Step 5: The TS types, `teamLanes()`, the slice; `withTeammates`; then the four views.**
+  Read `docs/DESIGN-SYSTEM.md` and `docs/AGENTIC-UX.md` first; the approved prototype (task 51)
+  is the visual reference for owner labels. No percentages, bars or projections (OD-27).
+- [ ] **Step 6: Run everything**
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/control-plane && GOPROXY=off go test ./... && GOPROXY=off go vet ./... && gofmt -l internal
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/sandboxd && GOFLAGS=-mod=vendor go test ./cmd/panacea-mirror/... && GOFLAGS=-mod=vendor go vet ./...
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/desktop && npm run typecheck && npm test
+```
+
+Expected: every package `ok`; phase 3's lens tests pass unedited except `LaneCard`'s team case;
+typecheck clean.
+
+- [ ] **Step 7: Commit**
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team && git add control-plane/internal/fleet/verbs/lanes.go control-plane/internal/fleet/verbs/lanes_test.go control-plane/internal/fleet/server/lanes.go control-plane/internal/fleet/server/lanes_test.go desktop/src/components/lens/merge/TeammateLanes.tsx desktop/src/components/lens/merge/TeammateLanes.test.tsx && git commit -F .superpowers/sdd/team/msg/task-63.txt -- control-plane sandboxd/cmd/panacea-mirror desktop/src
+```
+
+Visual acceptance is the owner's eyes (`CLAUDE.md` working agreements); the two-person check that
+a teammate's lane shows her name and counts on the real environment is task 69's.
+
+**What this task does not claim:**
+
+- **That the Hub principal proves who wrote the code.** It proves whose agent published the lane.
+  A person can still paste someone else's code; signed commits are not proposed for v1 (`04`
+  §7.3).
+- **Line counts as a size of risk.** `+12 −3` is `numstat`; a one-line change can matter more.
+- **Phase 3's landed history** (task 20) by principal. Lands through task 61 carry
+  `Panacea-Owner`, and history could read it; that is not in this task's scope (gap 2).
+
+**Gaps against the skeleton, raised here:**
+
+1. **Fleet does not keep a lane ref per agent.** `model.Agent` has none (`task-09.md:131-145`);
+   the Hub record does. This task reads it through task 11's cache and adds it there if absent.
+2. **History by principal.** The scope names tasks 16, 19 and 21, not 20; landed history keeps
+   `authorName` until a task reads task 61's `Panacea-Owner` trailer.
+3. **The design names no route for teammates' lanes.** `GET /v1/projects/{p}/team/lanes` is this
+   part's; task 01's contract is not involved (Fleet state and mirror facts, not Hub records).
