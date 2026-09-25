@@ -445,7 +445,8 @@ export type Author = "H" | "A";
 export const AUTHOR_WORD: Readonly<Record<Author, string>> = { H: "person", A: "agent" };
 export const AUTHOR_CLASS: Readonly<Record<Author, string>> = { H: "text·H", A: "text·A" };
 
-const PATH: Readonly<Record<Author, string>> = {
+/** Exported for the editor's gutter (task 49), which builds the same mark as plain DOM. */
+export const AUTHOR_PATH: Readonly<Record<Author, string>> = {
   H: "M5 2.5h2v7H5z",
   A: "M8.5 2.5H4.5v7h4M4.5 2.5v7",
 };
@@ -457,7 +458,7 @@ export function AuthorClass(props: { author: Author; word?: boolean }): JSX.Elem
   return (
     <span className="iv-author" data-author={author}>
       <svg width={12} height={12} viewBox="0 0 12 12" aria-hidden="true" focusable="false">
-        <path d={PATH[author]} className={author === "H" ? "iv-author-fill" : "iv-author-ring"} />
+        <path d={AUTHOR_PATH[author]} className={author === "H" ? "iv-author-fill" : "iv-author-ring"} />
       </svg>
       {word ? <span className="iv-author-word">{AUTHOR_CLASS[author]} · {AUTHOR_WORD[author]}</span> : null}
     </span>

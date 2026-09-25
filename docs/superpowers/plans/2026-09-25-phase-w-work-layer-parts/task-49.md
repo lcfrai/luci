@@ -362,4 +362,318 @@ blank line; the round-trip fixture holds which is right (**UNVERIFIED** until st
 `len += ch.length` counts UTF-16 units, the unit JavaScript string offsets use, so an emoji in a
 passage moves the offsets by two, as `String.prototype.slice` expects.
 
+#### Interfaces — complete: `desktop/src/components/editor/inputRules.ts`
+
+```ts
+// Decision 7: the Markdown shortcuts as DATA. The input rules are built from this table, and task
+// 50's slash menu shows each item's hint from it, so the menu teaches exactly what typing does.
+import { InputRule, inputRules, textblockTypeInputRule, wrappingInputRule } from "prosemirror-inputrules";
+import type { MarkType, Schema } from "prosemirror-model";
+import { findWrapping } from "prosemirror-transform";
+import type { Plugin } from "prosemirror-state";
+
+export type ShortcutId = "h1" | "h2" | "h3" | "bullet" | "ordered" | "check" | "quote" | "code"
+  | "divider" | "bold" | "code_inline";
+export interface Shortcut { id: ShortcutId; trigger: string; label: string }
+
+export const SHORTCUTS: readonly Shortcut[] = Object.freeze([
+  { id: "h1", trigger: "# ", label: "Heading 1" },
+  { id: "h2", trigger: "## ", label: "Heading 2" },
+  { id: "h3", trigger: "### ", label: "Heading 3" },
+  { id: "bullet", trigger: "- ", label: "Bulleted list" },
+  { id: "ordered", trigger: "1. ", label: "Numbered list" },
+  { id: "check", trigger: "[ ] ", label: "Check list" },
+  { id: "quote", trigger: "> ", label: "Quote" },
+  { id: "code", trigger: "```", label: "Code block" },
+  { id: "divider", trigger: "---", label: "Divider" },
+  { id: "bold", trigger: "**", label: "Bold" },
+  { id: "code_inline", trigger: "`", label: "Inline code" },
+]);
+
+const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+/** A block trigger typed at the start of a textblock; its trailing space may be any space. */
+export const blockPattern = (trigger: string): RegExp => new RegExp(`^${esc(trigger).replace(/ $/, "\\s")}$`);
+
+function markRule(re: RegExp, type: MarkType): InputRule {
+  return new InputRule(re, (state, m, start, end) =>
+    state.tr.replaceWith(start, end, state.schema.text(m[1], [type.create()])).removeStoredMark(type));
+}
+
+export function buildInputRules(schema: Schema): Plugin {
+  const n = schema.nodes;
+  const t = (id: ShortcutId) => SHORTCUTS.find((s) => s.id === id)!.trigger;
+  const rules: InputRule[] = [
+    textblockTypeInputRule(blockPattern(t("h1")), n.heading, { level: 1 }),
+    textblockTypeInputRule(blockPattern(t("h2")), n.heading, { level: 2 }),
+    textblockTypeInputRule(blockPattern(t("h3")), n.heading, { level: 3 }),
+    wrappingInputRule(blockPattern(t("bullet")), n.bullet_list, { bullet: "-" }),
+    wrappingInputRule(/^(\d+)\.\s$/, n.ordered_list, (m) => ({ order: +m[1] }),
+      (m, node) => node.childCount + node.attrs.order === +m[1]),
+    new InputRule(blockPattern(t("check")), (state, _m, start, end) => {
+      const tr = state.tr.delete(start, end);
+      const $s = tr.doc.resolve(start);
+      if ($s.depth >= 2 && $s.node(-1).type === n.list_item) {
+        return tr.setNodeMarkup($s.before(-1), undefined, { ...$s.node(-1).attrs, checked: false });
+      }
+      const range = $s.blockRange();
+      const wrap = range && findWrapping(range, n.bullet_list, { bullet: "-" });
+      if (!range || !wrap) return null;
+      wrap[wrap.length - 1] = { type: n.list_item, attrs: { checked: false } };
+      return tr.wrap(range, wrap);
+    }),
+    wrappingInputRule(blockPattern(t("quote")), n.blockquote),
+    textblockTypeInputRule(blockPattern(t("code")), n.code_block),
+    new InputRule(blockPattern(t("divider")), (state, _m, start) => {
+      const $s = state.doc.resolve(start);
+      return state.tr.replaceRangeWith($s.before(), $s.after(), n.horizontal_rule.create());
+    }),
+    markRule(/\*\*([^*]+)\*\*$/, schema.marks.strong),
+    markRule(/`([^`]+)`$/, schema.marks.code),
+  ];
+  return inputRules({ rules });
+}
+```
+
+`blockPattern("- ")` is `/^-\s$/`, so the rule fires only when the typed trigger is the whole
+start of the block: a hyphen and a space in the middle of a sentence stay text. The numbered-list
+rule takes any number, as CommonMark does; its **hint** is `1. `. The divider rule fires on the
+third hyphen of an otherwise empty paragraph. `prosemirror-inputrules` skips a textblock whose
+type is `code`, so nothing inside a code block is rewritten.
+
+#### Interfaces — complete: `desktop/src/components/editor/Editor.tsx`, part 1: the gutter
+
+```tsx
+import { useEffect, useRef, type JSX } from "react";
+import { baseKeymap, toggleMark } from "prosemirror-commands";
+import { history, redo, undo } from "prosemirror-history";
+import { keymap } from "prosemirror-keymap";
+import type { Node } from "prosemirror-model";
+import { EditorState, Plugin } from "prosemirror-state";
+import { Decoration, DecorationSet, EditorView } from "prosemirror-view";
+import { parseIssueLink, type IssueLinkTarget } from "../../work/links";
+import { AUTHOR_PATH } from "../issue/AuthorClass";
+import { fieldAuthor, personTypedPlugin, type MarkdownDoc } from "./authorClass";
+import { buildInputRules } from "./inputRules";
+import { parseMarkdown, serializeWithAuthorship, trailingNewlines } from "./markdown";
+import { LIVE_LINK, editorSchema } from "./schema";
+import "./editor.css";
+
+const SVG = "http://www.w3.org/2000/svg";
+
+/** The gutter mark: task 46's agent shape and the words "text·A · agent", as plain DOM because a
+ *  widget is not React. contenteditable=false, so it is never typed into or copied as text. */
+function gutterMark(): HTMLElement {
+  const box = document.createElement("span");
+  box.className = "ed-gutter";
+  box.contentEditable = "false";
+  box.dataset.author = "A";
+  const svg = document.createElementNS(SVG, "svg");
+  svg.setAttribute("width", "12"); svg.setAttribute("height", "12"); svg.setAttribute("viewBox", "0 0 12 12");
+  svg.setAttribute("aria-hidden", "true"); svg.setAttribute("focusable", "false");
+  const path = document.createElementNS(SVG, "path");
+  path.setAttribute("d", AUTHOR_PATH.A); path.setAttribute("class", "ed-gutter-ring");
+  svg.appendChild(path);
+  const word = document.createElement("span");
+  word.className = "ed-vh";
+  word.textContent = "text·A · agent: ";
+  box.append(svg, word);
+  return box;
+}
+
+const hasAgent = (block: Node): boolean => {
+  let found = false;
+  block.descendants((n) => { if (n.marks.some((m) => m.type === editorSchema.marks.agent)) found = true; return !found; });
+  return found;
+};
+
+/** One gutter mark per textblock that holds agent text; recomputed per change (issue texts are
+ *  short; a long brief would want an incremental set, phase 4's concern, not this editor's). */
+export const agentGutterPlugin = new Plugin({
+  props: {
+    decorations(state) {
+      const out: Decoration[] = [];
+      state.doc.descendants((n, pos) => {
+        if (!n.isTextblock) return true;
+        if (hasAgent(n)) {
+          out.push(Decoration.widget(pos + 1, gutterMark, { side: -1, key: "ed-gutter", ignoreSelection: true }));
+          out.push(Decoration.node(pos, pos + n.nodeSize, { class: "ed-agent-block" }));
+        }
+        return false;
+      });
+      return DecorationSet.create(state.doc, out);
+    },
+  },
+});
+```
+
+The visible mark is the shape; the word is in a visually hidden span, so a screen reader reads
+*"text·A · agent:"* before the passage and a sighted reader sees the bracket in the gutter. Inside
+the passage the `.ed-agent` span carries a dotted underline as well, so the class survives in
+`forced-colors`, where every colour is repainted (task 34).
+
+#### Interfaces — complete: `Editor.tsx`, part 2: the component
+
+```tsx
+/** A proposed cadence (rule 4), the owner's to judge. A debounce, not a clock: nothing shows it. */
+export const IDLE_COMMIT_MS = 3000;
+
+export interface EditorProps {
+  value: MarkdownDoc;
+  onCommit(next: MarkdownDoc): void;
+  readOnly?: boolean;
+  ariaLabel: string;
+  onOpenIssue?(target: IssueLinkTarget): void;
+}
+
+function openLink(href: string, onOpenIssue?: (t: IssueLinkTarget) => void): void {
+  const issue = parseIssueLink(href);
+  if (issue) { onOpenIssue?.(issue); return; }
+  if (/^https?:\/\//i.test(href)) void import("@tauri-apps/plugin-opener").then((m) => m.openUrl(href));
+}
+
+export function Editor(props: EditorProps): JSX.Element {
+  const { value, readOnly = false, ariaLabel } = props;
+  const host = useRef<HTMLDivElement>(null);
+  const view = useRef<EditorView | null>(null);
+  const committed = useRef<Node | null>(null);
+  const trailing = useRef("");
+  const idle = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latest = useRef(props);
+  latest.current = props;
+
+  const commit = () => {
+    if (idle.current) { clearTimeout(idle.current); idle.current = null; }
+    const v = view.current;
+    if (!v || committed.current === null || v.state.doc.eq(committed.current)) return;   // decision 4
+    committed.current = v.state.doc;
+    latest.current.onCommit(serializeWithAuthorship(v.state.doc, trailing.current));
+  };
+
+  const load = (d: MarkdownDoc): EditorState => {
+    trailing.current = trailingNewlines(d.markdown);
+    const doc = parseMarkdown(d.markdown, fieldAuthor(d.authorship));
+    committed.current = doc;
+    return EditorState.create({ doc, plugins: [
+      buildInputRules(editorSchema), personTypedPlugin, agentGutterPlugin, history(),
+      keymap({ "Mod-Enter": () => { commit(); return true; }, "Mod-z": undo, "Mod-y": redo,
+        "Mod-Shift-z": redo, "Mod-b": toggleMark(editorSchema.marks.strong),
+        "Mod-i": toggleMark(editorSchema.marks.em) }),
+      keymap(baseKeymap),
+    ] });
+  };
+
+  useEffect(() => {
+    const v = new EditorView(host.current!, {
+      state: load(value),
+      editable: () => !latest.current.readOnly,
+      attributes: { class: "ed-root", role: "textbox", "aria-multiline": "true", "aria-label": ariaLabel },
+      dispatchTransaction(tr) {
+        v.updateState(v.state.apply(tr));
+        if (!tr.docChanged) return;
+        if (idle.current) clearTimeout(idle.current);
+        idle.current = setTimeout(commit, IDLE_COMMIT_MS);
+      },
+      handleDOMEvents: {
+        keydown: (_v, e) => {
+          // Decision 5: plain keys never reach a list's verbs; Ctrl+Enter never reaches New session.
+          if (!(e.ctrlKey || e.metaKey) || e.key === "Enter") e.stopPropagation();
+          return false;
+        },
+        blur: () => { commit(); return false; },
+      },
+      handleClick: (_v, _pos, e) => {
+        const a = (e.target as Element | null)?.closest("a.ed-link");
+        if (!a) return false;
+        e.preventDefault();                           // never a webview navigation (decision 6)
+        if (!latest.current.readOnly) return false;   // editing: a click places the caret
+        const href = a.getAttribute("href") ?? "";
+        if (LIVE_LINK.test(href)) openLink(href, latest.current.onOpenIssue);
+        return true;
+      },
+    });
+    view.current = v;
+    return () => { commit(); v.destroy(); view.current = null; };
+  }, []);                                             // one view per mount; props are read via `latest`
+
+  // PM reads `editable` only on an update, so a readOnly change asks for one.
+  useEffect(() => { view.current?.setProps({}); }, [readOnly]);
+
+  // A new value from outside (another person's revision) replaces the doc only when this one has
+  // nothing uncommitted; otherwise the person's text wins and task 56's conflict rule applies.
+  // Keyed on strings, not on the value object, which a caller rebuilds every render; and a value
+  // that parses to the doc already shown changes nothing, so the caret and history survive.
+  const cls = fieldAuthor(value.authorship);
+  useEffect(() => {
+    const v = view.current;
+    if (!v || committed.current === null || !v.state.doc.eq(committed.current)) return;
+    if (parseMarkdown(value.markdown, cls).eq(v.state.doc)) return;
+    v.updateState(load(value));
+  }, [value.markdown, cls]);
+
+  return <div ref={host} className="ed" data-readonly={readOnly || undefined} />;
+}
+```
+
+Four things in that component are deliberate. `latest` holds the newest props so the one view,
+built once, never calls a stale `onCommit`. Unmounting commits, so closing the issue view with
+uncommitted text is a blur, not a loss. `openUrl` is `@tauri-apps/plugin-opener`'s v2 call as
+this plan understands it (the repo already imports the plugin dynamically for `revealItemInDir`,
+`components/menu/ContextMenu.tsx:44`); the name is **UNVERIFIED** until step 2 reads the
+installed types. The idle timer is a debounce inside one component, not a displayed clock, so the
+one-heartbeat rule (`DESIGN-SYSTEM.md`) does not apply to it; it is cleared on every commit and on
+unmount.
+
+#### Interfaces — complete: the edit to `IssueView.tsx` (the description)
+
+```tsx
+import { Editor } from "../editor/Editor";
+import { docFromAuthored, toAuthored } from "../editor/authorClass";
+import { mutate } from "../../work/replica/ops";
+//   in IssueViewBody, in place of task 47's plain-text fallback for slots.body:
+{slots.body ?? (
+  <Editor
+    ariaLabel={`Description of ${head.alias}`}
+    value={docFromAuthored(shown.value.content.description)}
+    readOnly={at !== headRevision.revision}
+    onOpenIssue={(t) => props.onOpenIssue?.(t)}
+    onCommit={(next) => mutate({ kind: "revise", issueId: head.id, baseRev: headRevision.revision,
+      patch: { description: toAuthored(next) } })}
+  />
+)}
+```
+
+`IssueView` gains `onOpenIssue?(target: IssueLinkTarget): void`, which its mount wires to open the
+issue at `target.rev` (task 40's). An old revision is read-only: its description can be read and
+its links followed, and editing starts from the head (task 47's rule 1). The `revise` op carries
+the description only; its `baseRev` is the head, so a teammate's newer revision is task 56's 409
+and the person's text is kept.
+
+#### Interfaces — complete: `desktop/src/components/editor/editor.css`
+
+```css
+/* editor.css owns .ed-* and no other prefix. Text is sans; code is Commit Mono (voice.split). */
+.ed { position: relative; padding: var(--s-3) var(--s-4) var(--s-3) calc(var(--s-4) + 16px); }
+.ed-root { min-block-size: 4lh; outline: none; font-family: var(--sans); color: var(--ink);
+  white-space: pre-wrap; word-wrap: break-word; }
+.ed-root:focus-visible { box-shadow: 0 0 0 1px var(--ring); border-radius: var(--r-sm); }
+.ed-root code, .ed-root pre { font-family: var(--mono); font-size: var(--t-fact); }
+.ed-root pre { padding: var(--s-2); border-radius: var(--r-sm); box-shadow: 0 0 0 1px var(--ring); }
+.ed-agent { text-decoration: underline dotted 1px; text-underline-offset: 3px; }
+.ed-agent-block { position: relative; }
+.ed-gutter { position: absolute; inset-inline-start: -16px; inset-block-start: 0.2em; color: var(--ink-2);
+  user-select: none; }
+.ed-gutter-ring { fill: none; stroke: currentColor; stroke-width: 1.25; }
+.ed-vh { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); }
+.ed-link { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }
+.ed-link-dead { color: var(--ink); }
+.ed[data-readonly] .ed-root { cursor: default; }
+.ed-root li[data-checked]::marker { font-family: var(--mono); }
+.ed-root li[data-checked="false"]::marker { content: "[ ] "; }
+.ed-root li[data-checked="true"]::marker { content: "[x] "; }
+```
+
+A dead link is ink with no underline: it reads as text, which it is. The task item's marker is the
+Markdown it came from, in mono, so the item teaches its own shortcut; a clickable checkbox is not
+in W1 (toggling one is an edit like any other, by typing).
+
 
