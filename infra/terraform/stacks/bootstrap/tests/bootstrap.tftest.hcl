@@ -8,10 +8,19 @@
 # passes. A bare `terraform test` without -var-file stops at "No value for required
 # variable": intended, validate.sh is the only caller.
 #
-# The GUIDs are placeholders that name nobody (all ones, all twos, all threes). This is a
+# The GUIDs are placeholders that name nobody (all zeros, ones, twos, threes). This is a
 # .tftest.hcl, not a .tfvars, so guard G2 does not apply.
 
-mock_provider "azurerm" {}
+# The account's id is pinned to a well-formed Resource Manager id: azurerm validates the
+# container's storage_account_id as one even against a mock, and a random mock string fails
+# the apply runs ("parsing the StorageAccount ID").
+mock_provider "azurerm" {
+  mock_resource "azurerm_storage_account" {
+    defaults = {
+      id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-mock/providers/Microsoft.Storage/storageAccounts/stmock"
+    }
+  }
+}
 
 variables {
   state_writer_object_ids = ["11111111-1111-1111-1111-111111111111"]
