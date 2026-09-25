@@ -36,7 +36,7 @@ with no output beside it is not closed, whatever a part or a person says.
    and its time (`docs/verification/phase-w/w5-run.md`). The frames are the scope's run, in its
    order, one frame per clause.
 5. **Observed, never inferred.** A frame's observation is what a person saw or a command printed,
-   quoted. *"The rule routed it"* is not an observation; *"`GET /v1/teams/tm-…/work/requests`
+   quoted. *"The rule routed it"* is not an observation; *"`GET /v1/teams/tm-…/requests`
    returned the request, and its `request.created` event carries `ruleId` and `ruleAuthor`"* is. Nothing is read from a harness's terminal
    (`OD-8`); what an agent or a loop did is read from the Hub's events and Fleet's records.
 6. **The owner's look is its own row.** The W5 surfaces (the request row and panel, the form and
