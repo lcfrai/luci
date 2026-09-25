@@ -375,3 +375,82 @@ applied, on task 06's `seedWork` (two orgs, team T with a project and a feature,
 | `TestW4SyncPrincipalWritesNothing` | with `hub.work_actor_kind` = `integration`, then `app`, then `''`, an `INSERT` into each of the twelve tables is `42501` | SW.3 not extended |
 | `TestW4JanitorTouchesTwoColumns` | as `janitor`, `UPDATE work_template_schedules SET last_fired_on` succeeds; `SET every_n` in the same statement fails; an `INSERT` fails | the janitor as a person |
 | `TestW4GrantsAreExactlyTheList` | the privileges of `hub_app` on the twelve tables, read from `information_schema.role_column_grants` and `role_table_grants`, equal the literal list above | a grant widened by accident |
+
+#### The matrix: the principal `G` and its guard rows
+
+H16b's `row` runs as all six columns (`want [6]int`, `task-07.md:379-387`). A granted member is not
+a seventh column (the scope's rule, so §5.3 stays additive): `G` runs **its own** rows, through a
+second, small runner in task 07's file. The fixture gains the principal; nothing in H16b's `row`
+changes.
+
+```go
+// server/matrix_integration_test.go ⚑ (H16b's fixture, fields "added by later tasks, never renamed")
+//	Granted  *client // a member of team U only; U holds a read_comment grant on T's project
+//	TeamUID  string
+
+// buildW4Fixture makes team U and its member, and writes the grant row directly as the
+// table owner, so the G rows need no route of task 117's to set up.
+func buildW4Fixture(t *testing.T, f *fixture) {
+	t.Helper()
+	f.TeamUID, f.Granted = f.newTeamWithMember(t, "Risk", "g@example.test") // H16b's helper (UNVERIFIED name)
+	f.ownerExec(t, `INSERT INTO hub.work_project_grants
+	  (org_id, project_id, team_id, granted_by, granted_at) VALUES ($1, $2, $3, $4, now())`,
+		f.OrgID, f.ProjectID, f.TeamUID, f.AdminID)
+}
+```
+
+```go
+// server/work_matrix_rows_integration_test.go ⚑ (task 07's file), appended
+
+// grantedRow is one route as G, the member of a granted team. G's rows switch
+// on with task 117 ("117" in workMatrixLive), which makes a grant mean anything.
+type grantedRow struct {
+	pattern string
+	method  string
+	path    string
+	want    int
+	body    func(*fixture) any
+}
+
+// grantedExpect is the one rule (Q12): a Work read of the granted project is
+// 200, a comment is 201, every other Work write is 403, and anything scoped to
+// team T itself (its labels, policy, cadence, states, initiatives) is 404.
+func grantedExpect(pattern string) int {
+	method, path, _ := strings.Cut(pattern, " ")
+	switch {
+	case strings.HasPrefix(path, "/v1/teams/{teamId}"):
+		return 404
+	case pattern == "POST /v1/issues/{issueId}/comments":
+		return 201
+	case strings.HasSuffix(path, "/erase"):
+		return 403 // org admin only, as for every member
+	case method == "GET":
+		return 200
+	}
+	return 403
+}
+
+func TestWorkGrantedPrincipal(t *testing.T) {
+	if !slices.Contains(workMatrixLive, "117") {
+		t.Skip("task 117 has not registered the grant reach")
+	}
+	f := buildFixture(t) // H16b's builder, which now calls buildW4Fixture
+	for _, p := range allWorkRoutes() {
+		t.Run("G/"+p, func(t *testing.T) {
+			r := grantedRowFor(f, p) // fills path ids from f, and a valid body per route
+			if got := f.Granted.do(t, r.method, r.path, r.body(f)); got != r.want {
+				t.Errorf("%s as G: %d, want %d", p, got, r.want)
+			}
+		})
+	}
+}
+```
+
+`allWorkRoutes()` is `workW1Routes` plus task 74's and task 99's lists (**UNVERIFIED** names) plus
+each W4 route task's own list (117-123 append theirs); `grantedRowFor` takes the path and body
+builders from the route's row in `workMatrixRows`, so no route is described twice. The expected
+status is `grantedExpect(pattern)`, except where a route task registers an override (for example
+task 123's own-cursor routes, 200 for G on G's own cursor). **Mutant it kills:** a Work route whose
+handler forgets `workAccess` (a G read comes back 404) or uses it for writes (a G write comes back
+200). `TestEveryWorkRouteHasAGrantedRow`, the meta-test, fails a registered Work pattern that
+`allWorkRoutes()` lacks once `"117"` is live.
