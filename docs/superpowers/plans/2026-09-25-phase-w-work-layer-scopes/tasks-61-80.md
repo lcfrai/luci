@@ -697,3 +697,27 @@ half and L-153's issues, views and features (the desktop is 91-94). **Does not c
 directly on Windows (**UNVERIFIED**; the page's button is the path), or that this task fits three
 hours (a reported sizing gap).
 
+---
+
+**Gaps in the skeleton these scopes found** (reported to the orchestrator; the skeleton is not
+edited here):
+
+1. **The Desk frame (62).** The row says *five fixed sections*; TM-54 also fills HORIZON and SINCE
+   YOU LAST LOOKED, and §3.7's informs land in the latter, so SW.17 gains two bands. SW.17's
+   `registerDeskRow(kind, section, render, rank)` names no item source; 62 adds
+   `registerDeskSource`.
+2. **SW.1 lacks three things** later W1 tasks need: a reviewer on `IssueHead` (63's *in review
+   where you are the reviewer* row is not built), a pending-reassign record and its two routes
+   (65 builds against the fake only), and `origin` on `CreateIssueRequest` (68 adds it as a field).
+3. **File map misses:** `desktop/src/components/common/{Toasts,StatusDot}.tsx` (66; `Toasts.tsx:42`
+   already holds a live region), the `desktop/src/work/{start,desk,firstRun}/` modules (61, 63-65,
+   69), `desktop/src/deploy/ReleaseIssues.tsx` (71), and task 76's one-line refusal in task 24's
+   `internal/workstart` (a reserved branch name).
+4. **Unowned or undefined:** the Undo pause on focus and hover (05 §4.6, §5.3 row 17; put in 66);
+   the issue's state after *Abandon* (05 names no move back from `started`; 64); the W1 RUNNING
+   card's MEANING and NEXT lines without a gateway (64 defines them from facts); an id prefix for
+   custom states (75 uses team-scoped keys); `first.landing`'s starter repo, which does not exist (69).
+5. **The Hub's browser surface.** The read-only page (80) and the iCal feed (77) conflict with
+   `hub-contract.md:38` (*"No browsers"*, bearer only); both sit outside `/v1` and need the
+   `feat/hub` owner's review, and task 80 is likely over three hours.
+
