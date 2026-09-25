@@ -593,3 +593,44 @@ In `cmd/fleetd/main.go`: register `dive.end` and `seed` in task 19's dispatch ta
 …)` and its `GET` and `DELETE`; add the `Scheduler` to task 11's `Revoker` fan-out; `StopDive` on
 `Until` runs on the deadline-sweeper singleton beside `SweepLapsed`.
 
+- [ ] **Step 6: Acceptance**
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/sandboxd && GOPROXY=off GOFLAGS=-mod=vendor go test ./... -count=1 && GOPROXY=off GOFLAGS=-mod=vendor go vet ./... && GOOS=linux CGO_ENABLED=0 GOFLAGS=-mod=vendor go build -o /dev/null ./cmd/panacea-orchestrator
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/control-plane && GOPROXY=off go test ./internal/fleet/... ./cmd/fleetd/... -count=1 -race && GOPROXY=off go vet ./internal/fleet/... ./cmd/fleetd/... && gofmt -l internal/fleet cmd/fleetd
+```
+
+Expected: `ok` for every package, `-race` clean, `go vet` silent, `gofmt -l` prints nothing, the
+Linux build succeeds. On Windows `TestPruneNeverReadsInsideHome` is skipped by build tag and runs in
+task 32's Linux CI job. The Postgres half of `storetest.Suite` runs where
+`PANACEA_APP_FLEET_TEST_PG_DSN` is set. Then three guards. The DIVE command line carries no
+headless or fork flag (prints nothing):
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team && grep -nE '"(--fork-session|-p|--print|--output-format|--continue|-c)"' sandboxd/internal/runner/dive.go
+```
+
+The runner's two new files read one directory listing and nothing else:
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team && grep -cE "os\.(Open|OpenFile|ReadFile|ReadDir)|filepath\.(Walk|WalkDir|Glob)|io\.ReadAll" sandboxd/internal/runner/rotate.go sandboxd/internal/runner/dive.go
+```
+
+Expected: `sandboxd/internal/runner/rotate.go:1` (the `os.ReadDir(root)`) and
+`sandboxd/internal/runner/dive.go:0`. And the seed verb reads no agent-written text (prints
+nothing):
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team && grep -nE "\.Reply\b|\.Body\b|[Tt]ranscript|\.Summary\b" control-plane/internal/fleet/verbs/seed.go
+```
+
+The end-to-end case, a real Orchestrator rotating overnight and a real owner diving into it from
+the desktop, is task 44's; this task stops at the fakes and the Linux child test.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add sandboxd/internal/runner/rotate.go sandboxd/internal/runner/dive.go sandboxd/internal/runner/rotate_test.go sandboxd/internal/runner/dive_test.go sandboxd/internal/control/dive.go control-plane/internal/fleet/wire/dive.go control-plane/internal/fleet/turns/rotate.go control-plane/internal/fleet/turns/dive.go control-plane/internal/fleet/turns/rotate_test.go control-plane/internal/fleet/turns/dive_test.go control-plane/internal/fleet/verbs/seed.go control-plane/internal/fleet/verbs/seed_test.go control-plane/internal/fleet/server/dive.go control-plane/internal/fleet/server/dive_test.go control-plane/internal/fleet/store/migrations testdata/panacea-control/v1
+git commit -F <msgfile> -- sandboxd/internal/runner sandboxd/internal/control/dive.go control-plane/internal/fleet/wire/dive.go control-plane/internal/fleet/turns control-plane/internal/fleet/verbs control-plane/internal/fleet/server/dive.go control-plane/internal/fleet/store control-plane/cmd/fleetd/main.go testdata/panacea-control/v1
+```
+
