@@ -583,3 +583,168 @@ The `serve` row's focus mark is a dotted outline in `--ink-2`, **not** the selec
 *the keyboard is here* from *this is selected*. `.iv-kbd` is the one 11px mono size SW.11 allows
 (`kbd` hints only).
 
+#### Tests to write first — `desktop/src/work/links.test.ts`
+
+```ts
+import { describe, expect, it } from "vitest";
+import { WORK_IDS } from "../test/workFixtures";
+import { criterionHref, issueKey, issueLink, parseIssueLink } from "./links";
+
+const id = WORK_IDS.ep142;                     // "is-3f2a91c07b1e4d2a"
+
+describe("links (05 §3.6)", () => {
+  it("pins a link to the revision it names, and to nothing when asked for the head", () => {
+    expect(issueLink(id, 3)).toBe("panacea://issue/is-3f2a91c07b1e4d2a@3");
+    expect(issueLink(id)).toBe("panacea://issue/is-3f2a91c07b1e4d2a");
+  });
+  it("round-trips an id and a revision", () => {
+    expect(parseIssueLink(issueLink(id, 12))).toEqual({ id, rev: 12 });
+    expect(parseIssueLink(issueLink(id))).toEqual({ id, rev: null });
+  });
+  it("never parses an alias, in any form", () => {
+    for (const s of ["EP-142", "panacea://issue/EP-142", "panacea://issue/EP-142@3", "ep-142"]) {
+      expect(parseIssueLink(s)).toBeNull();
+    }
+  });
+  it("refuses a malformed revision or id rather than guessing", () => {
+    for (const s of [`panacea://issue/${id}@0`, `panacea://issue/${id}@03`, `panacea://issue/${id}@`,
+      `panacea://issue/${id}/`, `panacea://issue/${id.toUpperCase()}`, `issue:${id}@3`]) {
+      expect(parseIssueLink(s)).toBeNull();
+    }
+  });
+  it("will not build a link from an alias", () => {
+    expect(() => issueLink("EP-142", 3)).toThrow(/not an issue id/);
+  });
+  it("writes the key and the criterion href in their own forms", () => {
+    expect(issueKey(id, 3)).toBe(`issue:${id}@3`);
+    expect(criterionHref("brief:bf-00000000000000a2@2", "c-91e2a4b0")).toBe("#brief:bf-00000000000000a2@2/c-91e2a4b0");
+  });
+});
+```
+
+#### Tests to write first — `desktop/src/components/issue/revisionWords.test.ts`
+
+```ts
+import { describe, expect, it } from "vitest";
+import { aSession } from "../../test/fixtures";
+import { DYLAN, WORK_IDS, makeIssueRevision, makeServe } from "../../test/workFixtures";
+import { agentsWhoRead, changeWords, lineDiff } from "./revisionWords";
+
+const r = (revision: number, over = {}) => makeIssueRevision({ revision, ...over });
+
+describe("changeWords", () => {
+  it("says opened, restored and erased", () => {
+    expect(changeWords(null, r(1))).toBe("opened");
+    expect(changeWords(r(3), r(4, { restoredFrom: 2 }))).toBe("restored @2");
+    expect(changeWords(r(3), r(4, { erasedAt: "2026-09-25T02:00:00Z" }))).toBe("erased");
+  });
+  it("names what changed in words, serves included", () => {
+    const a = r(2);
+    const b = r(3, { content: { ...a.content, title: { text: "Resume after restart", author: "H" },
+      serves: [makeServe({ criterionId: WORK_IDS.criterionUpload })] } });
+    expect(changeWords(a, b)).toBe("changed the title; serves c-40aa17c3; no longer serves c-91e2a4b0");
+  });
+});
+
+describe("lineDiff", () => {
+  it("keeps equal lines and marks added and removed ones", () => {
+    expect(lineDiff("a\nb\nc", "a\nc\nd")).toEqual([
+      { op: "same", text: "a" }, { op: "del", text: "b" }, { op: "same", text: "c" }, { op: "add", text: "d" },
+    ]);
+  });
+});
+
+describe("agentsWhoRead", () => {
+  it("names only my agents given exactly this revision, numbered by start", () => {
+    const k3 = `issue:${WORK_IDS.ep142}@3`;
+    const s = [
+      aSession({ id: "s-2", createdAt: "2026-09-25T01:10:00Z", issueRef: k3 }),
+      aSession({ id: "s-1", createdAt: "2026-09-25T01:00:00Z", issueRef: `issue:${WORK_IDS.ep142}@2` }),
+      aSession({ id: "s-3", createdAt: "2026-09-25T01:20:00Z", issueRef: `issue:${WORK_IDS.ep150}@3` }),
+    ];
+    expect(agentsWhoRead(k3, WORK_IDS.ep142, s, DYLAN)).toEqual(["dylan · agent 2"]);
+  });
+});
+```
+
+| Test | Mutant it kills |
+|---|---|
+| pins a link to its revision | links that always point at the head |
+| round-trips | a parser that drops the revision |
+| never parses an alias | alias parsing (05 §3.6) |
+| refuses malformed input | a lenient parser that opens `@0` or `@03` as some revision |
+| will not build from an alias | a *Copy link* that writes `EP-142` |
+| key and href forms | the key form used as a link, or a navigating href |
+| opened, restored, erased | a restore shown as an ordinary edit (history reads as rewritten) |
+| names what changed | a change count instead of words |
+| line diff | a diff that shows only the new text |
+| agents who read | another issue's or another revision's agent claimed as a reader |
+
+#### Tests to write first — `desktop/src/components/issue/Revisions.test.tsx`
+
+```tsx
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { api } from "../../api";
+import { useCockpit } from "../../store/store";
+import { expectNoPrediction } from "../../test/expectNoPrediction";
+import { aSession } from "../../test/fixtures";
+import { ALICE, DYLAN, WORK_IDS, makeIssueHead, makeIssueRevision } from "../../test/workFixtures";
+import { mutate } from "../../work/replica/ops";
+import { useIssueViewData } from "./issueData";
+import { IssueView } from "./IssueView";
+
+vi.mock("../../api", () => ({ api: { work: { issueRevisions: vi.fn(), issueRevisionAt: vi.fn() } } }));
+vi.mock("../../work/replica/ops", () => ({ mutate: vi.fn() }));
+vi.mock("../../work/replica/replica", () => ({ useWork: vi.fn(() => []), search: vi.fn(() => []) }));
+vi.mock("./issueData", () => ({ useIssueViewData: vi.fn(), useCriterion: vi.fn(() => undefined) }));
+
+const id = WORK_IDS.ep142;
+const rev = (n: number, over = {}) => makeIssueRevision({ revision: n, writtenBy: n === 5 ? ALICE : DYLAN,
+  writtenAt: `2026-09-25T01:0${n}:00Z`, ...over });
+
+function world(headRev: number, revs = [1, 2, 3, 4, 5].filter((n) => n <= headRev).map((n) => rev(n))) {
+  vi.mocked(useIssueViewData).mockReturnValue({
+    head: { ...makeIssueHead({ headRevision: headRev }), reassignRequest: null } as never,
+    headRevision: revs[revs.length - 1], teamLabels: [], people: [DYLAN, ALICE],
+  });
+  vi.mocked(api.work.issueRevisions).mockResolvedValue({ items: revs, next: "" });
+  vi.mocked(api.work.issueRevisionAt).mockImplementation(async (_i: string, n: number) => revs[n - 1]);
+}
+const open = (revision: number | null) =>
+  render(<IssueView issueId={id} revision={revision} me={DYLAN} route="global" />);
+
+beforeEach(() => { vi.mocked(mutate).mockClear(); useCockpit.setState({ sessions: {} }); });
+
+describe("Revisions", () => {
+  it("restores by writing a new revision, and keeps every old one", async () => {
+    const user = userEvent.setup();
+    world(3);
+    const { rerender } = open(null);
+    const row2 = await screen.findByText("@2");
+    await user.click(within(row2.closest("li")!).getByRole("button", { name: "Restore" }));
+    expect(vi.mocked(mutate).mock.calls.map((c) => c[0])).toEqual([{ kind: "restore", issueId: id, fromRevision: 2 }]);
+    world(4, [rev(1), rev(2), rev(3), rev(4, { restoredFrom: 2 })]);
+    rerender(<IssueView issueId={id} revision={null} me={DYLAN} route="global" />);
+    await waitFor(() => expect(screen.getByText("restored @2")).toBeTruthy());
+    for (const n of [1, 2, 3, 4]) expect(screen.getByText(`@${n}`)).toBeTruthy();
+  });
+  it("gives every revision its author class as a word", async () => {
+    world(3, [rev(1), rev(2), rev(3, { content: { ...rev(3).content, description: { text: "x", author: "A" } } })]);
+    const { container } = open(null);
+    await screen.findByText("@1");
+    const revRows = Array.from(container.querySelectorAll("li.iv-rev"));
+    expect(revRows).toHaveLength(3);                       // newest first: @3 is revRows[0]
+    for (const li of revRows) expect(li.textContent).toMatch(/text·[HA] · (person|agent)/);
+    expect(revRows[0].textContent).toContain("text·A · agent");
+  });
+  it("says which of my agents read which revision", async () => {
+    useCockpit.setState({ sessions: { "s-1": aSession({ id: "s-1", issueRef: `issue:${id}@3` }) } as never });
+    world(5);
+    open(null);
+    expect(await screen.findByText("dylan · agent 1 read @3")).toBeTruthy();
+  });
+});
+```
+
