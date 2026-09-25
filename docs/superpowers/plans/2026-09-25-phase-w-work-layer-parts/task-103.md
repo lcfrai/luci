@@ -71,3 +71,157 @@ session record states it, then ` · ` and the session id's first 8 characters. T
 opens the session only when it is the reader's own (their Orchestrator's); for a teammate's agent
 it is text, with the full id in `title`. The owner is always shown, as L-173 requires, even when
 the reader is the owner (`you · orchestrator (agent)`).
+
+**Files:**
+
+| Path | Change |
+|---|---|
+| `desktop/src/components/issue/AgentByline.tsx`, `AgentByline.test.tsx` | new: decision (f) |
+| `desktop/src/components/issue/Comments.tsx` ⚑ (task 51) | an agent-kind comment renders `AgentByline` above its body; a `note` reads *note* |
+| `desktop/src/components/issue/commentModel.ts` ⚑ (task 51) | `ORCH_HREF`, `routesToOwnOrchestrator(markdown)` |
+| `desktop/src/components/issue/mentionPlugin.ts` ⚑ (task 51) | the *my Orchestrator* picker row; the `@me:orchestrator` input rule |
+| `desktop/src/components/issue/CommentComposer.tsx` ⚑ (task 51) | sends the flag; the switch-off sentence |
+| `desktop/src/api/work.ts` ⚑ (task 37) | `Comment` gains `kind` and `attribution`; `CreateCommentRequest` gains the flag |
+| `control-plane/internal/hub/hubapi/work.go` ⚑ (task 12's additions) | `CreateCommentRequest.RouteToOwnOrchestrator` |
+| `control-plane/internal/hub/server/work_comments.go` ⚑ (task 12) | the match check; the event field |
+| `control-plane/internal/hub/hubclient/fake_work_social.go` ⚑ (task 05) | the same check and field in the fake |
+| `control-plane/internal/fleet/work/mention.go`, `mention_test.go` | new: the intake of decision (d) |
+| `control-plane/internal/fleet/model/event.go` ⚑ (TM-09) | one `EventKind`, `issue.mentioned` |
+
+The scope named task 50's `editor/*` for the token; mentions are task 51's (`mentionPlugin.ts`,
+`commentModel.ts`), so the token goes there. The three Hub files are this task's Hub delta, under
+rule H1 (an added field and an added event key; nothing renamed). `fleet/work/` is a new Fleet
+package the file map does not name (gap 1).
+
+#### The wire, complete
+
+```go
+// hubapi/work.go ⚑ — task 12's CreateCommentRequest gains one field
+	// RouteToOwnOrchestrator is true exactly when Body holds the link
+	// [@me:orchestrator](panacea://orchestrator/me) (task 103). The Hub checks the match;
+	// it never routes anything itself.
+	RouteToOwnOrchestrator bool `json:"routeToOwnOrchestrator,omitempty"`
+
+// OrchestratorMeHref is the one link the check looks for.
+const OrchestratorMeHref = "panacea://orchestrator/me"
+```
+
+```jsonc
+// POST /v1/issues/{issueId}/comments, as task 12, with the field
+{ "body": { "text": "[@me:orchestrator](panacea://orchestrator/me) can you check the 8 MB guess?",
+            "author": "H" },
+  "mentions": [], "routeToOwnOrchestrator": true }
+// 400 invalid_request {field:"routeToOwnOrchestrator"} when the flag and the link disagree
+// event comment.created, task 13's data plus one key, only when true:
+{ "issueId": "is-…", "kind": "comment", "routeToOwnOrchestrator": true }
+// the event's actor is the writer (task 13's envelope); no text reaches data
+```
+
+```go
+// fleet/model/event.go ⚑ (TM-09): one kind. Ref is the issue id; the comment id travels as
+// the gate's Turn.SubjectID (task 109), so an Orchestrator's inbox shows "mentioned on EP-142".
+const EventIssueMentioned EventKind = "issue.mentioned"
+```
+
+`issue.mentioned` is a non-thread event, so it coalesces with the Orchestrator's other events for
+up to 60 s (TM-05 §4.2, as task 98's two kinds do). It carries no text: the Orchestrator reads the
+comment with `panacea issue show`, as data.
+
+#### `control-plane/internal/fleet/work/mention.go`, complete in shape
+
+```go
+package work
+
+// Mentions turns a routed comment into one Orchestrator turn for its writer (decision (d)).
+// It is registered with TM-11's Feed.Also, and "comment.created" joins the kinds list TM-12's
+// fleetd passes to Feed.Poll. It reads only the event's metadata: never the comment's text.
+type Mentions struct {
+	Orchs  Orchestrators // the actor's live Orchestrator in the project, from TM-10's store
+	Gate   Enqueuer      // task 109's Gate, which wraps TM-26's queue; the only way in
+	Seen   Seen          // comment ids already enqueued (idempotence across a replayed page)
+	Refuse Refusals      // task 109's metadata-only refusal rows
+}
+
+// Orchestrators finds the owner's running Orchestrator agent for a project.
+type Orchestrators interface {
+	Live(ctx context.Context, org, project string, owner model.Owner) (model.AgentID, bool, error)
+}
+
+// Seen is a set keyed by (org, comment id), in TM-10's store so a restart keeps it.
+type Seen interface {
+	Has(ctx context.Context, org, commentID string) (bool, error)
+	Mark(ctx context.Context, org, commentID string) error
+}
+
+// Enqueuer and Refusals are task 109's types, restated so this file compiles against them.
+type Enqueuer interface {
+	Enqueue(ctx context.Context, t killswitch.Turn) error
+}
+type Refusals interface {
+	Refused(ctx context.Context, t killswitch.Turn, code string)
+}
+
+// Apply is the Feed.Also consumer. Every other event returns nil untouched. The rule order:
+//  1. kind "comment.created" and data.routeToOwnOrchestrator == true, else nil;
+//  2. the owner is the event's actor (ev.Actor.ID), never the issue's assignee;
+//  3. Seen.Has(org, subject) → nil (already enqueued or refused once);
+//  4. Orchs.Live for (org, project, actor): none → Refused(t, "no_orchestrator"), Mark, nil;
+//  5. Gate.Enqueue(Turn{OrgID, ProjectID, OwnerID: actor, Origin: OriginMention,
+//     SubjectID: the comment id}); the gate records its own refusal while Orchestrators are
+//     off; then Mark.
+// An Enqueue error other than the gate's refusal is returned without Mark, so TM-11's Poll
+// re-reads the page and the mention is tried again, once.
+func (m *Mentions) Apply(ctx context.Context, ev hubapi.Event) error
+```
+
+A mention made while Orchestrators are off is refused **and marked**: turning them back on does
+not replay old mentions into turns nobody asked for at that time. The package name `killswitch` is task 109's
+(`task-109.md:84-131`; its file path is **UNVERIFIED**, step 1 re-reads it).
+
+#### Desktop interfaces, complete
+
+```ts
+// commentModel.ts ⚑ (task 51)
+export const ORCH_HREF = "panacea://orchestrator/me";
+export const orchMentionMarkdown = "[@me:orchestrator](panacea://orchestrator/me)";
+/** True when the markdown holds the link; the composer sends it as routeToOwnOrchestrator. */
+export function routesToOwnOrchestrator(markdown: string): boolean;
+/** The chip's words, relative to the writer (decision (b)). */
+export function orchMentionLabel(writer: User, reader: User): string; // "your Orchestrator" | "Alice's Orchestrator"
+```
+
+```ts
+// mentionPlugin.ts ⚑ (task 51): the picker's first row on team projects, and an input rule
+export interface MentionPluginOptions {
+  people: () => readonly User[];
+  team: () => boolean;             // TM-52's strip team flag for the project
+}
+/** Matches exactly "@me:orchestrator" then a space or one of ,.;:!? — nothing else. */
+export const ORCH_INPUT_RULE: RegExp; // /(^|\s)@me:orchestrator(?=[\s,.;:!?])$/
+```
+
+```ts
+// work.ts ⚑ (task 37): the comment grows the W3 fields task 104 already declared
+export interface Comment {
+  /* …task 37's fields… */
+  kind: CommentKind;                      // task 104's type
+  attribution: AgentAttribution | null;   // non-null exactly for note, evidence_proposal, negotiation
+}
+export interface CreateCommentRequest {
+  /* …task 37's fields… */
+  routeToOwnOrchestrator?: true;          // sent only when true
+}
+```
+
+```tsx
+// AgentByline.tsx
+export function AgentByline(props: {
+  attribution: AgentAttribution;
+  owner: User | null;       // looked up by attribution.ownerId; null → "former member"
+  reader: User;
+  role: "orchestrator" | "worker";   // from TM-52's agent view; a worker should never appear (gap 3)
+  onOpenSession?: (sessionId: string) => void; // present only when the session is the reader's own
+}): JSX.Element;
+// renders: <span class="who">you · orchestrator (agent)</span> · claude-opus-4-8 · 3f2a91c0
+// all Commit Mono at --t-fact, --ink-2; the session id a button only with onOpenSession
+```
