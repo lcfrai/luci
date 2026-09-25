@@ -20,7 +20,8 @@ adds no transaction machinery of its own.
 
 **The one thing this task must not get wrong is who the owner is.** A team write names no owner in
 its body. The owner is `tx.P.UserID`, and for a Fleet call task 05 has already made that the
-delegation's owner and set `tx.P.Via = "fleet"` and `tx.P.DelegationID`. So every handler compares
+delegation's owner and set `tx.P.Via = hubapi.ViaFleet` (`"fleet"`, `task-03.md:354-355`) and
+`tx.P.DelegationID` (`task-05.md:386-391`). So every handler compares
 record owners with `tx.P.UserID` and never reads a user id out of JSON. A request type that grew an
 `ownerUserId` or `actor` field would make task 01's acceptance grep fail, and `Decode` refuses unknown
 fields, so a body that sends one gets 400 `bad_request`.
@@ -55,14 +56,18 @@ fields, so a body that sends one gets 400 `bad_request`.
     `AgentStart`, `AgentStartRequest`, `AgentEndRequest`, `LeaseEventRequest`, `LeaseEvent`,
     `Conflict`, `CreateConflictRequest`, `PatchConflictRequest`), the enums with `Valid()`, the
     codes of `task-01.md:193-205` including `delegation_not_found`, and `CodeConflict` (409
-    `conflict`). **Task 03's part is not yet written; where it names a type differently, task 03
-    wins and this part is renamed mechanically.**
+    `conflict`). Task 03 keeps these names (`task-03.md:27-32`) and wins wherever the two differ.
+    Also its `RouteName` constants (`task-03.md:362-388`), `ClassRoutes`, `DelegationClass`
+    (`DelegationClassOrchestrator`, `DelegationClassWorker`, `task-03.md:100-101`) and `ViaFleet`.
   - from task 04: the tables `delegations`, `team_tasks`, `agents`, `lease_events`, `conflicts`,
     `human_messages` under the Hub's RLS pattern, the audit row's `fleet_feed` flag, and a
     project's `mode` (`solo`·`team`).
   - from task 05: `Principal.Via` (`""` or `"fleet"`), `Principal.DelegationID`,
     `Principal.Delegation` (a `DelegationView`: project, class, routes, expiry), the route-name
-    check, the v2 audit write, and `store.AgentOwnedBy(ctx, tx, agentID, userID) (bool, error)`.
+    check, the v2 audit write, and `store.AgentOwnedBy(ctx, tx, agentID, userID) (bool, error)`
+    (`task-05.md:115-121`, `:303-311`, `:506-510`); and `server.Delegable(name, h)`, which every
+    Fleet-reachable route here is registered through (task 05 decision (d), `task-05.md:49-53`,
+    `:837-839`). A route registered bare has no name, so Fleet calling it is 403.
   - from task 02: `teamtext.Bound`, `teamtext.Clean`, `teamtext.ValidGlob`, `teamtext.Author`.
 - Produces: the ten write and four read handlers below; `server.RequireDesktop`,
   `server.RequireFleet`, `server.OwnedAgent`, `server.EitherAgent`; `store.HumanMessageEquals`
@@ -274,7 +279,7 @@ func RequireDesktop(p Principal) error {
 // RequireFleet refuses a desktop call to a Fleet-only route (task-01.md:543-545), and a
 // Fleet call whose delegation is for another project than the path names.
 func RequireFleet(p Principal, projectID string) error {
-	if p.Via != "fleet" {
+	if p.Via != hubapi.ViaFleet {
 		return Forbidden("fleet")
 	}
 	if p.Delegation.ProjectID != projectID {
@@ -389,8 +394,8 @@ import (
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubapi"
 )
 
-func fleetP(user, project string, class hubapi.AgentRole, routes ...string) Principal {
-	return Principal{UserID: user, Via: "fleet", DelegationID: "dl-TEST",
+func fleetP(user, project string, class hubapi.DelegationClass, routes ...hubapi.RouteName) Principal {
+	return Principal{UserID: user, Via: hubapi.ViaFleet, DelegationID: "dl-TEST",
 		Delegation: DelegationView{ProjectID: project, Class: class, Routes: routes}} // u-… ids: task 01's §7.13 sample
 }
 
@@ -413,7 +418,7 @@ func TestRequireFleetRefusesADesktopCaller(t *testing.T) {
 
 // Mutant killed: the project comparison is dropped, so Linus's delegation for P writes into Q.
 func TestRequireFleetRefusesAnotherProjectsDelegation(t *testing.T) {
-	p := fleetP("u-L", "pj-P", hubapi.AgentRoleOrchestrator, "tasks.create")
+	p := fleetP("u-L", "pj-P", hubapi.DelegationClassOrchestrator, hubapi.RouteTasksCreate)
 	if got := required(t, RequireFleet(p, "pj-Q")); got != "delegation.project" {
 		t.Fatalf("required = %q", got)
 	}
@@ -437,8 +442,8 @@ func TestRequireDesktopRefusesAnyDelegatedCaller(t *testing.T) {
 `OwnedAgent` and `EitherAgent` read the database, so their tests are integration tests (Step 2:
 `TestTaskCreateRefusesAnotherOwnersAgent`, `TestConflictUpdateByEitherParty`).
 
-`DelegationView` is task 05's name for the loaded row on the principal (**UNVERIFIED**: task 05's
-part is written in parallel; if it calls it something else, rename here). `Forbidden` records an
+`DelegationView` is task 05's name for the loaded row on the principal, with `Class
+hubapi.DelegationClass` and `Routes []hubapi.RouteName` (`task-05.md:303-311`). `Forbidden` records an
 `auth.forbidden` event through the server's store; in a unit test with no store it must no-op on a
 nil store rather than panic. If Hub task 14's `Forbidden` does not already tolerate that, this test
 file constructs the errors through `Refuse(403, hubapi.CodeForbidden, …)` in a local helper instead.
@@ -508,6 +513,7 @@ is not written.
 | `TestTaskTitleIsServedToFleetOrchestratorOnly` | route 52: Linus's desktop, Vera and `fleet(DLLinusWorker)` get no `title` or `reason.why`; `fleet(DLGraceOrch)` gets both | the redaction keyed on the owner, not on Fleet·O |
 | `TestEveryTeamWriteIsOneEventWithNoText` | one event per write; no event's canonical `data` contains the title or the why | an event per field changed; the title copied into `data` |
 | `TestFleetEventsAreV2` | every event of a Fleet call is `v: 2` with `actorUserId` = owner, `via = fleet`, `delegationId` | the actor recorded as Fleet's service principal |
+| `TestEveryFleetRouteIsNamed` (`delegations_integration_test.go`) | for each of the eleven named routes, Fleet under a delegation of the right class listing exactly that route → no 403 with `required: "route"`; for routes 46, 48 and 49, Fleet → 403 `required: "route"` | one route registered bare (Fleet shut out of a route it holds), or a desktop route given a name |
 
 Two of them in full; the rest follow the same shape and live beside their route's file.
 
@@ -584,25 +590,36 @@ The route registration, in full:
 ```go
 // control-plane/internal/hub/server/delegations.go (excerpt)
 func (s *Server) registerTeamPart1() {
+	// Desktop only (routes 46, 48, 49): no route name, so Fleet is 403 here by
+	// construction (task-05.md:49-53), before RequireDesktop runs.
 	s.mux.HandleFunc("POST /v1/delegations", s.createDelegation)
-	s.mux.HandleFunc("GET /v1/delegations/{dl}", s.getDelegation)
 	s.mux.HandleFunc("POST /v1/delegations/{dl}/renew", s.renewDelegation)
 	s.mux.HandleFunc("DELETE /v1/delegations/{dl}", s.revokeDelegation)
-	s.mux.HandleFunc("POST /v1/projects/{p}/tasks", s.createTask)
-	s.mux.HandleFunc("PATCH /v1/projects/{p}/tasks/{tk}", s.patchTask)
-	s.mux.HandleFunc("POST /v1/projects/{p}/agents", s.startAgent)
-	s.mux.HandleFunc("POST /v1/projects/{p}/agents/{ag}/end", s.endAgent)
-	s.mux.HandleFunc("POST /v1/projects/{p}/leases/{ls}/events", s.leaseEvent)
-	s.mux.HandleFunc("POST /v1/projects/{p}/conflicts", s.createConflict)
-	s.mux.HandleFunc("PATCH /v1/projects/{p}/conflicts/{cf}", s.patchConflict)
-	s.mux.HandleFunc("GET /v1/projects/{p}/tasks", s.listTasks)
-	s.mux.HandleFunc("GET /v1/projects/{p}/agents", s.listAgents)
-	s.mux.HandleFunc("GET /v1/projects/{p}/conflicts", s.listConflicts)
+
+	// Fleet-reachable (routes 47, 50-59): each under its task 03 name.
+	d := func(pattern string, name hubapi.RouteName, h http.HandlerFunc) {
+		s.mux.Handle(pattern, Delegable(name, h))
+	}
+	d("GET /v1/delegations/{dl}", hubapi.RouteDelegationsRead, s.getDelegation)
+	d("POST /v1/projects/{p}/tasks", hubapi.RouteTasksCreate, s.createTask)
+	d("PATCH /v1/projects/{p}/tasks/{tk}", hubapi.RouteTasksUpdate, s.patchTask)
+	d("POST /v1/projects/{p}/agents", hubapi.RouteAgentsStart, s.startAgent)
+	d("POST /v1/projects/{p}/agents/{ag}/end", hubapi.RouteAgentsEnd, s.endAgent)
+	d("POST /v1/projects/{p}/leases/{ls}/events", hubapi.RouteLeasesEvents, s.leaseEvent)
+	d("POST /v1/projects/{p}/conflicts", hubapi.RouteConflictsCreate, s.createConflict)
+	d("PATCH /v1/projects/{p}/conflicts/{cf}", hubapi.RouteConflictsUpdate, s.patchConflict)
+	d("GET /v1/projects/{p}/tasks", hubapi.RouteTasksRead, s.listTasks)
+	d("GET /v1/projects/{p}/agents", hubapi.RouteAgentsRead, s.listAgents)
+	d("GET /v1/projects/{p}/conflicts", hubapi.RouteConflictsRead, s.listConflicts)
 }
 ```
 
-Routes 46 to 59: ten writes and four reads. `s.mux` is the name Hub task 13's server uses (**UNVERIFIED until
-merge**; if the field differs, rename).
+Routes 46 to 59: ten writes and four reads; three bare, eleven named. `s.mux` is the name Hub
+task 13's server uses (**UNVERIFIED until merge**; if the field differs, rename). A desktop call
+to a named route is unaffected: `Delegable` only puts the name in the context, and task 05 reads it
+only for an app-only token. Mutant killed by `TestEveryFleetRouteIsNamed` (Step 2): one `d(…)`
+line written as a bare `HandleFunc`, which answers Fleet 403 `required: "route"` on a route its
+delegation lists.
 
 **The three reads** (routes 52, 55, 59) are what task 11's `rebuild.go` reloads after a Fleet
 restart. They are the Hub's usual page shape (`hubapi.Page[T]`, `limit` 1–200, `cursor`), run
@@ -669,7 +686,8 @@ delegation; the Hub records lease changes but does not second-guess them) and en
 2. `grep -n 'json:"ownerUserId\|json:"actor\|json:"via\|json:"delegationId' control-plane/internal/hub/hubapi/team.go`
    shows `ownerUserId` only on record types (`Delegation`, `Task`, `Agent`) and none of the four on
    any `…Request` type; task 01's acceptance grep.
-3. `grep -c 'HandleFunc' control-plane/internal/hub/server/delegations.go` prints `14`.
+3. `grep -c 's.mux.HandleFunc(' control-plane/internal/hub/server/delegations.go` prints `3` (routes
+   46, 48, 49) and `grep -c '^	d("' control-plane/internal/hub/server/delegations.go` prints `11`.
 4. `go test -tags integration ./internal/hub/server/ -run TestEveryTeamWriteIsOneEventWithNoText -v`
    passes, and a manual `SELECT data FROM hub.audit_events WHERE kind LIKE 'task.%'` on the test
    database shows ids, enums and counts only.
