@@ -943,3 +943,203 @@ be applied, and the delegation would stay cached as live until its expiry, up to
 the head first puts that revocation after the cursor, so the next `Poll` applies it.
 `TestAdoptReadsTheHeadBeforeTheRecord` pins the order with a fake that revokes between the calls.
 
+- [ ] **Step 1: Write the failing outbox tests**
+
+`control-plane/internal/fleet/outbox/outbox_test.go`, package `outbox`. The fixture is a
+`memQueue` (a slice guarded by a mutex, implementing `Queue` and `Appender`, 60 lines, in the test
+file: task 10's `memstore` is not imported, so this package's tests do not wait on task 10's
+schema), a `scriptSender` whose answer per call is a queue of errors, and a `fakeClock` with
+`Advance(d)`. Every test drives `RunOnce` directly; no goroutine, no sleep.
+
+| Test | What it proves | The mutant it kills |
+|---|---|---|
+| `TestEnqueueRefusesAWriteWithNoOwner` | an `Item` with `Owner == ""` is refused; so is an unknown `Op` | a Fleet-in-its-own-name write slipping in (task 01 (c) forbids one) |
+| `TestRetriesResendTheSameRowUnchanged` | three transient failures then success: the sender saw the same `Item.ID` and byte-identical `Payload` four times | a retry that re-marshals the body or re-mints the id (either one makes the Hub's replay check fail, `hub-contract.md:52-53`) |
+| `TestOneOrgsFailureDoesNotHoldAnother` | org A's head fails transiently; org B's two rows are both delivered in two `RunOnce`s | a global head-of-line (one `Heads` row, not one per org) |
+| `TestOrderIsPerOrgFIFO` | A1 fails once, A2 is queued behind it: A2 is not sent until A1 is | `Heads` returning any due row instead of the lowest `Seq` |
+| `TestA429IsTransientAndA400IsPermanent` | `&hubclient.Error{Status:429}` → retry; `{Status:400}` → `dead` with the problem body; `hubclient.ErrUnavailable` wrapped in `fmt.Errorf("%w")` → retry | `Classify` comparing with `==` instead of `errors.Is`/`errors.As` |
+| `TestIdempotencyMismatchIsDeadNotRetried` | 422 `idempotency_mismatch` → `dead` after one attempt | treating every 4xx as transient, which retries a re-marshalled body forever |
+| `TestBackoffDoublesToThirtySeconds` | attempts 1..7 → 1, 2, 4, 8, 16, 30, 30 s; attempt 64 → 30 s, not a negative shift | an unbounded shift overflowing to zero, which retries in a hot loop |
+| `TestElevenMinuteOutagePausesAndLosesNothing` | below | a pause keyed on attempts instead of `FailingSince`; a pause that drops rows; a pause that never clears |
+| `TestPauseSurvivesARestart` | fail for 11 min, build a **new** `Deliverer` on the same queue: `Paused` is true at once | the pause held only in the loop's memory |
+| `TestPausedIsReadOnAReplicaThatDoesNotDeliver` | a second `Deliverer` that never calls `RunOnce` answers `Paused` true | only the lock holder knowing the Hub is down |
+| `TestJanitorDeletesOnlySentRowsPastRetention` | a sent row 25 h old goes; a sent row 23 h old and a pending row 3 days old stay | deleting pending rows, which loses writes |
+| `TestEveryOpHasADeliverer` | lives in package `delegation`, ranges `outbox.AllOps` over `deliverers` | a new `Op` with no route, which would dead-letter every row of it |
+
+The outage test, complete, because it is the property the design names (§2.2 item 3):
+
+```go
+func TestElevenMinuteOutagePausesAndLosesNothing(t *testing.T) {
+	ctx := context.Background()
+	clk := newFakeClock(time.Date(2026, 9, 25, 9, 0, 0, 0, time.UTC))
+	q := newMemQueue()
+	for i := 0; i < 5; i++ {
+		mustEnqueue(t, q, testItem("org-a", i))
+	}
+	down := true
+	s := &scriptSender{fn: func(Item) error {
+		if down {
+			return fmt.Errorf("dial: %w", hubclient.ErrUnavailable)
+		}
+		return nil
+	}}
+	d := New(q, s, clk.Now)
+
+	for clk.Since() < 11*time.Minute {
+		if _, err := d.RunOnce(ctx); err != nil {
+			t.Fatal(err)
+		}
+		clk.Advance(5 * time.Second)
+		if got, _ := d.Paused("org-a"); clk.Since() < PauseAfter && got {
+			t.Fatalf("paused after %s; the pause is at %s", clk.Since(), PauseAfter)
+		}
+	}
+	if got, since := d.Paused("org-a"); !got || !since.Equal(clk.start) {
+		t.Fatalf("Paused = %v since %s after 11 min down; want true since %s", got, since, clk.start)
+	}
+	if n := q.count(StatePending); n != 5 {
+		t.Fatalf("%d rows pending after the outage; want all 5, none dropped or dead", n)
+	}
+
+	down = false
+	for i := 0; i < 5; i++ {
+		clk.Advance(backoffMax) // every row is due again
+		if _, err := d.RunOnce(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if n := q.count(StateSent); n != 5 {
+		t.Fatalf("%d rows sent after recovery; want 5", n)
+	}
+	clk.Advance(gateTTL)
+	if got, _ := d.Paused("org-a"); got {
+		t.Fatal("still paused after the Hub came back")
+	}
+	if got := s.ids(); !slices.Equal(dedupe(got), q.idsInSeqOrder()) {
+		t.Fatalf("delivery order %v; want %v", dedupe(got), q.idsInSeqOrder())
+	}
+}
+```
+
+Run it and see it fail for the right reason:
+
+```
+cd control-plane && go test ./internal/fleet/outbox/ -run . -count=1
+```
+
+Expected before step 2: `undefined: New` and the other names — a compile failure, which is the
+failure a test-first file has before its package exists.
+
+- [ ] **Step 2: Write `outbox.go`** exactly as the interface block above, then run step 1's command.
+  Expected: `ok  	github.com/kpmg-au-emu/panacea-app/control-plane/internal/fleet/outbox`.
+  Commit: `feat(fleet): the Hub outbox, per-org FIFO, row-id keys, the 10-minute pause`.
+
+- [ ] **Step 3: Write the failing delegation tests**
+
+`control-plane/internal/fleet/delegation/delegation_test.go`, package `delegation`, on task 08's
+fake (`hubclient.NewFake()` with its team half) and the same `fakeClock`. A `recRevoker` records
+every `Revoke(d, why)` and `Resume(d)` with the fake time it was called at. `leader` is a
+`*atomic.Bool` the test flips.
+
+| Test | What it proves | The mutant it kills |
+|---|---|---|
+| `TestCtxRefusesWithoutADelegation` | no cache entry → `ErrNoDelegation`, and the fake saw **no** request | calling the Hub without the header and letting it answer 401 |
+| `TestCtxRefusesARouteTheDelegationDoesNotList` | a worker-class delegation and `messages.append` → `ErrRouteNotDelegated` | a route check that trusts the Hub alone, so a doomed call still leaves |
+| `TestAnExpiredEntryIsNeverUsed` | `ExpiresAt` one ms in the past, before any sweep → `ErrNoDelegation` | `Get` ignoring expiry until the sweeper runs |
+| `TestSenderSetsTheRowIdAsTheKeyAndTheDelegation` | the fake records `Idempotency-Key = it.ID` and `X-Panacea-Delegation = dl-…` for an `agents.start` | the hubclient's fresh key surviving; the header missing |
+| `TestSenderResolvesTheDelegationAtDelivery` | enqueue under dl-1, renew to dl-2 (a new launch), deliver: the fake saw dl-2 | a dl id frozen into the row at enqueue |
+| `TestRevocationReachesTheRevokerInsideSixtySeconds` | below | a feed consumer that only refreshes the cache; a poll period over 60 s |
+| `TestALapseWithTheFeedDownStillReachesTheRevoker` | the fake's feed returns `ErrUnavailable` throughout; `ExpiresAt` passes; within one `Sweep` period `Revoke(d, Lapsed)` | expiry noticed only through feed events |
+| `TestRenewalAfterALapseResumes` | lapse, then `delegation.renewed`: one `Resume`, and a second lapse later is acted on again | `done` never cleared on renewal, so the second lapse is ignored |
+| `TestRevokedOutranksLapsed` | lapse then revoke → two calls, `Lapsed` then `Revoked`; revoke then a stale sweep → one call | a lapse repeated after the final revocation |
+| `TestAFollowerNeverCallsTheRevoker` | `leader=false`: events applied, cache updated, zero Revoker calls | every replica stopping the same sessions |
+| `TestLeaderChangeCannotLoseARevocation` | leader A reads `revoked` and dies before `Revoke`; follower B advanced its cursor; B takes the lock, `Reset` + `Rebuild` → one `Revoke(Revoked)` | revocation by event only |
+| `TestRebuildIsGapless` | a fake hook commits `delegation.revoked` after `OrgChanges(latest)` returns and before `Delegation(id)` returns; the next `Poll` applies it | reading the head **after** the state |
+| `TestAdoptReadsTheHeadBeforeTheRecord` | the same hook on `Adopt`; the next `Poll` revokes | `Adopt` in the other order (a 24-hour window) |
+| `TestRebuildPersistsNothing` | after `Rebuild`, the `InUse` fake saw only its one read, and no method of task 10's store that writes was called | Hub records drifting into Fleet's schema (`ADR-H1:467-474`) |
+| `TestEveryOpHasADeliverer` | `outbox.AllOps` ⊆ keys of `deliverers`, and every Op is in task 01's orchestrator route set | a new `Op` with no route |
+
+The revocation test, complete, because its number is a design commitment (§2.4 item 4):
+
+```go
+func TestRevocationReachesTheRevokerInsideSixtySeconds(t *testing.T) {
+	ctx := context.Background()
+	clk := newFakeClock(time.Date(2026, 9, 25, 9, 0, 0, 0, time.UTC))
+	hub := hubclient.NewFake(hubclient.WithClock(clk.Now))
+	dl := hub.SeedDelegation(t, "org-a", "us-alice", "pj-one", "worker") // task 08's seed helper
+	rev := &recRevoker{now: clk.Now}
+	leader := &atomic.Bool{}
+	leader.Store(true)
+	f := NewFeed(hub, hub, NewCache(), rev, leader.Load, clk.Now)
+	if _, err := f.Adopt(ctx, "org-a", dl); err != nil {
+		t.Fatal(err)
+	}
+
+	hub.RevokeDelegation(t, dl) // the owner's DELETE, route 49
+	revokedAt := clk.Now()
+	for clk.Since() < 2*time.Minute && len(rev.calls) == 0 {
+		clk.Advance(PollEvery)
+		if _, err := f.Poll(ctx, "org-a", FeedKinds); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(rev.calls) != 1 || rev.calls[0].why != Revoked || rev.calls[0].d.ID != dl {
+		t.Fatalf("revoker calls %+v; want exactly one Revoked for %s", rev.calls, dl)
+	}
+	if lag := rev.calls[0].at.Sub(revokedAt); lag > 60*time.Second {
+		t.Fatalf("revocation reached the Revoker after %s; §2.4 item 4 allows 60 s", lag)
+	}
+	if _, err := NewClient(f.cache, clk.Now).Ctx(ctx, Key{OrgID: "org-a",
+		Owner: "us-alice", ProjectID: "pj-one", Class: "worker"}, "agents.start"); !errors.Is(err, ErrNoDelegation) {
+		t.Fatalf("Ctx after revocation = %v; want ErrNoDelegation", err)
+	}
+}
+```
+
+`hubclient.WithClock`, `SeedDelegation` and `RevokeDelegation` are fake-only helpers this test needs
+from task 08; if task 08's fake names them otherwise, rename here.
+
+Run: `cd control-plane && go test ./internal/fleet/delegation/ -count=1`. Expected: a compile
+failure naming `NewFeed`, `NewCache`, `Rebuild` and the rest.
+
+- [ ] **Step 4: Write `client.go`, `feed.go` and `rebuild.go`** exactly as above. If task 08's
+  merged `hubclient` lacks `WithIdempotencyKey`, add it now to `hubclient/client.go` (a context key,
+  read where the client sets the header today, falling back to `ids.UUID()`), with one test in
+  `hubclient_test.go`, `TestWithIdempotencyKeyOverridesTheFreshKey`, whose mutant is the override
+  being ignored. Run step 3's command. Expected: `ok`.
+  Commit: `feat(fleet): Fleet as a delegated Hub caller: cache, feed, sweep, gapless rebuild`.
+
+- [ ] **Step 5: Acceptance**
+
+```
+cd control-plane
+go vet ./internal/fleet/... ./internal/hub/hubclient/...
+go test ./internal/fleet/outbox/ ./internal/fleet/delegation/ ./internal/hub/hubclient/... -count=1 -race
+grep -rn "time.Sleep" internal/fleet/outbox internal/fleet/delegation
+grep -rn "internal/fleet/store" internal/fleet/outbox internal/fleet/delegation
+```
+
+Expected: `go vet` prints nothing; three `ok` lines (the `-race` run matters: `Paused` is read from
+request goroutines while `RunOnce` writes); both `grep`s print nothing — no test sleeps, and
+neither package imports task 10's store (the store imports them).
+
+**What this task does not claim.**
+- Nothing here runs a loop. Task 12 owns the goroutines, the 500 ms delivery tick, the 10 s poll and
+  sweep, and the advisory locks `fleet.outbox` and `fleet.feed`; this task proves the bodies.
+- The `Revoker`'s effects — sessions stopped or paused, sockets closed, leases withdrawn, cards
+  marked — are tasks 20, 23 and 39, and closing a socket held by the **other** replica is task 39's
+  fan-out. Task 44 proves member removal end to end against the real Hub.
+- The 10-minute pause is the design's **proposed** figure (§2.2 item 3); it is a constant, not a
+  measurement. Whether 10 minutes is right is for task 33's run to question.
+- It does not check a leaver's Entra account state at renewal or daily (§2.4 item 4, **UNVERIFIED**
+  which Graph read KPMG's tenant permits); a disabled account is caught here only by the 24-hour
+  lapse.
+- Its tests run on task 08's fake. That the real Hub answers route 47 with 401
+  `delegation_revoked` / `delegation_expired` for a Fleet caller under a dead delegation is task
+  05's rule (`task-01.md:113-117`) and is proven against the real Hub by task 08's conformance rows,
+  not here.
+- `Classify` treats every 4xx but 408 and 429 as permanent. A Hub that answers a transient
+  condition with another 4xx would dead-letter a good write; the dead-letter row keeps the problem
+  body so an operator can replay it by hand, and no replay tool is built here.
+
+
