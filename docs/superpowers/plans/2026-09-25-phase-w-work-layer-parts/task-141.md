@@ -72,3 +72,165 @@ for that owner and **not** applied by this task.
 7. **Proposals never reach an agent.** The Materialiser renders the issue revision, never
    comments (05 §3.4; skeleton rule 6). A Go test pins that an open `edit_proposal` leaves SW.7's
    managed block byte-identical.
+
+**Files:**
+
+- `desktop/src/work/diff/wordDiff.ts` — `wordDiff`, `textDiff`, `servesDiff` (new)
+- `desktop/src/work/diff/wordDiff.test.ts` — the diff tests (new)
+- `desktop/src/components/proposal/ProposalDiff.tsx` — the diff and its head line (new)
+- `desktop/src/components/proposal/ProposalStrip.tsx` — the strip, the three acts, stale (new)
+- `desktop/src/components/proposal/proposal.css` — their styles (new)
+- `desktop/src/components/proposal/proposal.test.tsx` — the surface tests (new)
+- `desktop/src/api/work.ts` ⚑ — `EditProposal`, `ProposerRef`, `IssueComment.kind` widened (modified)
+- `desktop/src/components/issue/IssueView.tsx` ⚑ (task 46) — the strip above the head fields (modified)
+- `desktop/src/components/issue/Comments.tsx` ⚑ (task 51) — an `edit_proposal` renders as a link line (modified)
+- `desktop/src/components/discover/BriefPanel.tsx` ⚑ (P4 task 18, **UNVERIFIED until merge**) — a replacing `model_drafted` answer as `ProposalDiff` (modified)
+- `control-plane/internal/claudemd/render_test.go` ⚑ (task 19) — the byte-identical row (modified)
+
+#### The wire — proposed for task 114's `hubapi` (complete; **not applied by this task**)
+
+```go
+// CommentKindEditProposal is an agent's edit to an issue, filed as a comment
+// on its owner's behalf (05 §3.6; L-130). Body.Author is always "A"; Body.Text
+// is EditProposal's canonical JSON.
+const CommentKindEditProposal = "edit_proposal"
+
+// ProposerRef names the agent that proposed an edit. The comment's CreatedBy
+// is its owner; the agent never appears as a writer.
+type ProposerRef struct {
+	AgentID   string `json:"agentId"`   // the harness agent id the session carries
+	SessionID string `json:"sessionId"` // s-…, the control plane's session id
+	Model     string `json:"model"`     // the public model id, e.g. claude-sonnet-…
+}
+
+// EditProposal is an edit an agent proposes. At least one of Title,
+// Description, ServesAdd or ServesRemove is set; Why keys resolve via /v1/refs.
+type EditProposal struct {
+	BaseRevision int           `json:"baseRevision"` // ≥ 1, the revision the agent read
+	Title        *AuthoredText `json:"title"`        // author "A"; null when unchanged
+	Description  *AuthoredText `json:"description"`  // author "A"; null when unchanged
+	ServesAdd    []Serve       `json:"servesAdd"`    // never null
+	ServesRemove []Serve       `json:"servesRemove"` // never null
+	Why          []string      `json:"why"`          // Hub keys, 1-10, each resolvable
+	Proposer     ProposerRef   `json:"proposer"`
+}
+
+var ErrEditProposalEmpty = errors.New("hubapi: an edit proposal changes nothing")
+
+// Validate is the Hub's check before the comment is stored (task 114 owns the call site).
+func (p EditProposal) Validate() error {
+	if p.BaseRevision < 1 {
+		return errors.New("hubapi: edit proposal baseRevision must be at least 1")
+	}
+	if p.Title == nil && p.Description == nil && len(p.ServesAdd) == 0 && len(p.ServesRemove) == 0 {
+		return ErrEditProposalEmpty
+	}
+	for _, t := range []*AuthoredText{p.Title, p.Description} {
+		if t != nil && t.Author != AuthorAgent {
+			return errors.New("hubapi: proposed text must be author A")
+		}
+	}
+	if len(p.Why) == 0 || len(p.Why) > 10 {
+		return errors.New("hubapi: edit proposal needs 1-10 why keys")
+	}
+	if p.Proposer.SessionID == "" || p.Proposer.Model == "" {
+		return errors.New("hubapi: edit proposal must name its session and model")
+	}
+	return nil
+}
+```
+
+The rest of the 114 gap, in words: `Comment.Kind` accepts `edit_proposal`; a comment of that kind
+must carry `Body.Author == "A"` and a `Body.Text` that decodes to a valid `EditProposal` under
+`DisallowUnknownFields`; the fake (task 115) and the migration's `work_comments.kind` `CHECK` (task
+116) list it; the writer is the owner's principal on an agent's behalf (05 §3.6), so the
+authorisation rows are task 99's for `note`, reused. Whether a `why` key resolves is checked with
+the Hub's `/v1/refs` at write (L-52's rule).
+
+#### Interfaces — complete: `desktop/src/api/work.ts` ⚑, appended
+
+```ts
+// Task 141. Mirrors the proposed hubapi.EditProposal (task 114's gap).
+export interface ProposerRef { agentId: string; sessionId: string; model: string }
+export interface EditProposal {
+  baseRevision: number; title: AuthoredText | null; description: AuthoredText | null;
+  servesAdd: Serve[]; servesRemove: Serve[]; why: string[]; proposer: ProposerRef;
+}
+/** IssueComment.kind widens from task 37's "comment" (task-37.md:155) to the SW.19 set plus this. */
+export type CommentKind = "comment" | "note" | "evidence_proposal" | "negotiation" | "edit_proposal";
+
+/** The proposal inside an edit_proposal comment, or null for anything that is not one. */
+export function editProposalOf(c: IssueComment): EditProposal | null {
+  if (c.kind !== "edit_proposal" || c.body.author !== "A" || c.erasedAt !== null) return null;
+  try {
+    const p = JSON.parse(c.body.text) as EditProposal;
+    return typeof p.baseRevision === "number" && Array.isArray(p.why) ? p : null;
+  } catch { return null; }
+}
+```
+
+#### Interfaces — complete: `desktop/src/work/diff/wordDiff.ts`
+
+```ts
+// desktop/src/work/diff/wordDiff.ts — decision 1. Lines by task 47's lineDiff; words inside a
+// changed pair by the same LCS. Our own code; no dependency.
+import { lineDiff, type DiffLine } from "../../components/issue/revisionWords";
+import type { Serve } from "../../api/work";
+
+export interface WordPart { op: "same" | "add" | "del"; text: string }
+/** A line of the rendered diff: unchanged, wholly added or removed, or changed word by word. */
+export type DiffRow =
+  | { kind: "same"; text: string }
+  | { kind: "add" | "del"; text: string }
+  | { kind: "changed"; parts: WordPart[] };
+
+/** Words and the spaces after them are tokens, so joining the parts gives the text back. */
+const tokens = (s: string): string[] => s.match(/\S+\s*|\s+/g) ?? [];
+
+export function wordDiff(from: string, to: string): WordPart[] {
+  const a = tokens(from), b = tokens(to);
+  const L: number[][] = Array.from({ length: a.length + 1 }, () => new Array<number>(b.length + 1).fill(0));
+  for (let i = a.length - 1; i >= 0; i--)
+    for (let j = b.length - 1; j >= 0; j--)
+      L[i][j] = a[i] === b[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+  const out: WordPart[] = [];
+  const push = (op: WordPart["op"], text: string) => {
+    const last = out[out.length - 1];
+    if (last && last.op === op) last.text += text; else out.push({ op, text });
+  };
+  let i = 0, j = 0;
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) { push("same", a[i]); i++; j++; }
+    else if (L[i + 1][j] >= L[i][j + 1]) push("del", a[i++]);
+    else push("add", b[j++]);
+  }
+  while (i < a.length) push("del", a[i++]);
+  while (j < b.length) push("add", b[j++]);
+  return out;
+}
+
+/** lineDiff's output, unchanged, with each adjacent del+add pair refined to words. */
+export function textDiff(from: string, to: string): DiffRow[] {
+  const lines: DiffLine[] = lineDiff(from, to);
+  const rows: DiffRow[] = [];
+  for (let k = 0; k < lines.length; k++) {
+    const l = lines[k], next = lines[k + 1];
+    if (l.op === "del" && next?.op === "add") { rows.push({ kind: "changed", parts: wordDiff(l.text, next.text) }); k++; }
+    else if (l.op === "same") rows.push({ kind: "same", text: l.text });
+    else rows.push({ kind: l.op, text: l.text });
+  }
+  return rows;
+}
+
+/** Serves changes as criterion ids, the words task 47's changeWords uses (task-47.md:140-148). */
+export function servesDiff(add: readonly Serve[], remove: readonly Serve[]): string {
+  const w: string[] = [];
+  if (add.length > 0) w.push(`adds ${add.map((s) => s.criterionId).join(", ")}`);
+  if (remove.length > 0) w.push(`removes ${remove.map((s) => s.criterionId).join(", ")}`);
+  return w.join(" · ");
+}
+```
+
+Joining a row's parts, `same` and `del` give the old line and `same` and `add` the new one, byte
+for byte (a test pins it), so the diff never shows words the texts do not hold. `lineDiff` is
+imported, not copied, so task 47's output and this one cannot drift.
