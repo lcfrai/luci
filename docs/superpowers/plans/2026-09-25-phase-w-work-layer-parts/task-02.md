@@ -70,9 +70,9 @@ the sync base, else as task 09 names. This task makes no claim about them.
 | `workids_test.go` | new |
 | `workcanonical.go` | new: `AuthoredText`, `Serve`, `IssueRevisionContent`, `IssueRevisionEnvelope`, `IssueRevisionDigest`, `ParseIssueRevisionEnvelope`, `ValidateIssueRevisionContent` |
 | `workcanonical_test.go` | new |
-| `testdata/issue-revision/v1.json`, `v2.json` | new: the golden vectors |
+| `testdata/issue-revision/v1.json`, `v2.json`, `v3.json` | new: the golden vectors |
 
-No other file changes; `git diff --stat` after the task lists exactly these nine.
+No other file changes; `git diff --stat` after the task lists exactly these ten.
 
 ---
 
@@ -734,7 +734,7 @@ func loadIssueVector(t *testing.T, name string) (IssueRevisionEnvelope, issueVec
 // a kind of "issue", omitempty on serves or implements (v1's empty
 // implements vanishes), escapes other than the contract's (v2's TAB, U+0001, é).
 func TestIssueRevisionGoldenVectors(t *testing.T) {
-	for _, name := range []string{"v1", "v2"} {
+	for _, name := range []string{"v1", "v2", "v3"} {
 		env, want := loadIssueVector(t, name)
 		d, c, err := IssueRevisionDigest(env)
 		if err != nil {
@@ -755,7 +755,7 @@ func TestIssueRevisionGoldenVectors(t *testing.T) {
 // Mutant: a parser that serves content from anything but the stored bytes, or
 // that drops a field on the way back.
 func TestIssueRevisionParseRoundTrips(t *testing.T) {
-	for _, name := range []string{"v1", "v2"} {
+	for _, name := range []string{"v1", "v2", "v3"} {
 		env, want := loadIssueVector(t, name)
 		got, err := ParseIssueRevisionEnvelope([]byte(want.Canonical))
 		if err != nil {
@@ -864,7 +864,7 @@ and every test in the two new files fail to compile until Step 3.
   `grep -n "func (e BriefEnvelope) Digest" control-plane/internal/hub/hubapi/envelope.go` prints
   one. Re-read every anchor in *Anchors*; if one moved, follow it and note the new line here.
 - [ ] **Step 2: Write the tests and the vectors.** Append the three tests to `keys_test.go`;
-  create `workids_test.go`, `workcanonical_test.go` and the two `testdata/issue-revision/*.json`
+  create `workids_test.go`, `workcanonical_test.go` and the three `testdata/issue-revision/*.json`
   files exactly as above. Run
   `go test ./control-plane/internal/hub/hubapi/ -count=1` and watch it fail to compile
   (`undefined: KeyIssue`, `undefined: WorkPrefixes`, `undefined: IssueRevisionEnvelope`).
@@ -881,22 +881,16 @@ and every test in the two new files fail to compile until Step 3.
 | `issueKeyRe` with `@([0-9]+)` | `TestIssueKeyRejectsEverythingOutsideTheGrammar` (`@0`, `@01`) |
 | `PrefixMilestone = "ms"` | `TestWorkPrefixesAreDisjoint` (`ms-` is Phase T's message) |
 | `projectKeyRe` as `^[A-Za-z]{1,6}$` | `TestValidProjectKey` |
-| `Serves []Serve \`json:"serves,omitempty"\`` | `TestIssueRevisionGoldenVectors` (neither vector changes: both have a pair) **and** `TestValidateIssueRevisionContent` does not catch it either, so the mutant is killed by the next row's test |
-| `Implements []string \`json:"implements,omitempty"\`` | `TestIssueRevisionGoldenVectors` (v1's `"implements":[]` vanishes) |
+| `omitempty` on the `serves` tag | `TestIssueRevisionGoldenVectors` (v3's `"serves":[]` vanishes; v1 and v2 cannot see it) |
+| `omitempty` on the `implements` tag | `TestIssueRevisionGoldenVectors` (v1's and v3's `"implements":[]` vanish) |
 | `kindIssueRevision = "issue"` | `TestIssueRevisionGoldenVectors` |
 | `> MaxIssueTitleChars` as `>= MaxIssueTitleChars` | `TestValidateIssueRevisionContent` (`title 200 é`) |
 | `len(c.Title.Text)` for the title count | `TestValidateIssueRevisionContent` (`title 200 é` is 400 bytes) |
 | drop the `bytes.Equal` check in the parser | `TestIssueRevisionEnvelopeRefuses` (`whitespace`) |
 
-The `serves,omitempty` row is named honestly: with an empty `serves` list the canonical bytes
-lose `"serves":[]`, and no vector has an empty `serves`. It is killed by **adding a third golden
-row** in Step 5: the implementer computes, by the method above, the digest of v1 with
-`"serves":[]`, adds it as `testdata/issue-revision/v3.json` and `"v3"` to both vector loops, and
-records its digest here. That digest is **not yet computed**; this part does not predict it.
-
 - [ ] **Step 6: Commit**, one commit for the code and its tests:
-  `git add` the six new files, then `git commit -F <msgfile> --` the nine paths of *Files* plus
-  `v3.json`. Message file under `.superpowers/sdd/work/msg/`; last line
+  `git add` the eight new files, then `git commit -F <msgfile> --` the ten paths of *Files*.
+  Message file under `.superpowers/sdd/work/msg/`; last line
   `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>`.
 
 #### Acceptance
@@ -918,3 +912,19 @@ The 11 are `TestIssueKeyRoundTrips`, `TestIssueKeyRejectsEverythingOutsideTheGra
 `TestValidProjectKey`, `TestDisplayAliasFormat`, `TestIssueRevisionGoldenVectors`,
 `TestIssueRevisionParseRoundTrips`, `TestValidateIssueRevisionContent` and
 `TestIssueRevisionEnvelopeRefuses`.
+
+**What this task does not claim.**
+
+- That the Hub stores, numbers or serves an issue (tasks 06, 08, 09), or that `/v1/refs` resolves
+  an `issue:` key (task 09).
+- That phase 4's `provenance` parser accepts `issue:` (task 18), or that the `feat/hub` owner has
+  accepted the grammar case (task 01's proposal; rule H1's merge carries it).
+- That `criterionId` is checked against the brief revision it names. Here it is 1-128 characters;
+  whether the criterion exists in `briefKey`'s revision is the write route's check (task 09).
+- Any character hygiene on title or description (decision (f); task 09).
+- That these vectors match a TypeScript encoder. None exists or may be written (hub-contract §3.4);
+  the desktop never computes a digest.
+
+**Parity rows served.** **L-3** (the display alias; closed with task 08 and the desktop rows),
+**L-34** (immutable, digested revisions; closed with tasks 09 and 47), **L-124** (the author class
+on every text; closed with tasks 03, 12 and the issue view).
