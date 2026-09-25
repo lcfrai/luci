@@ -497,3 +497,99 @@ export const DEVELOP_STATES: Readonly<Record<FloorState, (() => ReactNode) | nul
   success: () => <Pane status="idle" foot="18m · attached" />,
 };
 ```
+
+The same file, continued: the grid and its registration.
+
+```tsx
+export function DevelopStates(): JSX.Element {
+  return (
+    <div className="ss-states">
+      {FLOOR_STATES.map((state) => {
+        const draw = DEVELOP_STATES[state];
+        return (
+          <figure key={state} className="ss-state" data-state={state} data-designed={draw === null ? "false" : "true"}>
+            <figcaption className="ss-key">{state}</figcaption>
+            {draw === null ? <p className="ss-note">{NOT_DESIGNED}</p> : draw()}
+          </figure>
+        );
+      })}
+    </div>
+  );
+}
+
+registerStressScreen("Develop pane, eleven states", () => <DevelopStates />, [
+  "states", "themes", "reduced-deuteranopia", "forced-colors", "scaling",
+]);
+```
+
+#### Interfaces — complete: `screens/index.ts` and the `DevToolbar.tsx` delta
+
+```ts
+// desktop/src/components/devtools/screens/index.ts
+//
+// Import order is list order. A later surface appends one line here and registers from its own
+// file in this directory, never from its production module (the import-boundary test).
+import "./glyphs";
+import "./viewHeader";
+import "./developStates";
+// task 35: import "./grain";
+```
+
+`DevToolbar.tsx`, two imports after `import "../../devtools/fonts/candidates.css";` and one
+element in place of the `{/* task 33: <StressSets /> */}` comment:
+
+```tsx
+import "./stress.css";
+import "./screens";
+import { StressSets } from "./StressSets";
+```
+
+```tsx
+        <FlagCompare />
+        <StressSets />
+```
+
+#### Interfaces — complete: `stress.css`
+
+```css
+/* desktop/src/components/devtools/stress.css
+ *
+ * stress.sets' stage (Phase W task 33). Dev only, loaded with the toolbar. The deuteranopia filter
+ * covers #root and the stage and never the toolbar, so the controls stay readable. zoom is a
+ * preview of scaling, labelled in the stage as not Windows display scaling. */
+@import "../../styles/tokens.css";
+
+.ss-defs {
+  position: absolute;
+  inline-size: 0;
+  block-size: 0;
+  overflow: hidden;
+}
+
+:root[data-vision="deuteranopia"] #root,
+:root[data-vision="deuteranopia"] .ss-stage {
+  filter: url("#ss-deutan");
+}
+
+.ss-stage {
+  position: fixed;
+  inset: 0;
+  z-index: 8000;
+  overflow: auto;
+  background: var(--page);
+  color: var(--ink);
+}
+
+.ss-stage[data-zoom="125"] .ss-screens { zoom: 1.25; }
+.ss-stage[data-zoom="150"] .ss-screens { zoom: 1.5; }
+
+.ss-bar {
+  position: sticky;
+  inset-block-start: 0;
+  display: grid;
+  gap: var(--s-2);
+  padding: var(--s-3) var(--s-4);
+  background: var(--surface);
+  box-shadow: var(--e-hair);
+}
+```
