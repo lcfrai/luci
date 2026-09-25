@@ -26,7 +26,7 @@ Every request a sandbox sends reaches the gatekeeper first (P6-D1), and this tas
 | 4 | `RevokedAt` set and `Now` not before it | `401 token_revoked` |
 | 5 | `Now` not before `ExpiresAt` | `401 token_expired` |
 | 6 | `wire.NormalAddr(Source) != Binding.PodAddr` | `403 binding_mismatch` |
-| 7 | `Routes.Project(Binding.ProjectID)`, then `Decide(class, route)` tightened by the source's `Effective`, then `Tighter(that, Binding.RouteAtMint)`; any failure or an unknown result | `503 route_unknown` |
+| 7 | `Routes.Project(Binding.ProjectID)`, then `Decide(class, route)` tightened by the source's `Effective` (task 03's `ProjectInference.LiveRoute`, the one rule keysmith and the refresher also call), then `Tighter(that, Binding.RouteAtMint)`; any failure or an unknown result | `503 route_unknown` |
 
 Cheap, local checks come first, so a stolen or stale key costs one binding read (cached by task 12) and never a route read. The pod check comes before the route read so that a replayed token from outside its pod learns nothing about the project's route. Revocation comes before expiry because a key that is both is more usefully reported revoked.
 
@@ -462,20 +462,20 @@ func credential(authorization, apiKey string) (string, string) {
 	return "", wire.CodeUnauthenticated
 }
 
-// route is step 7: the live route recomputed from the class (decision (c)),
-// then never looser than the route at mint (P6-D4).
+// route is step 7: the live route recomputed from the class (decision (c)) by
+// wire's one rule, which keysmith and the session refresher also call (task 03
+// decision (g), re-review R-6), then never looser than the route at mint (P6-D4).
 func (a *Authorizer) route(ctx context.Context, b wire.Binding) (dataclass.Route, bool) {
 	pi, err := a.Routes.Project(ctx, b.ProjectID)
 	if err != nil {
 		return "", false
 	}
-	live, err := dataclass.Decide(pi.DataClass, pi.Route)
+	live, err := pi.LiveRoute()
 	if err != nil {
 		return "", false
 	}
-	live = dataclass.Tighter(live, pi.Effective)
 	r := dataclass.Tighter(live, b.RouteAtMint)
-	return r, live.Valid() && r.Valid()
+	return r, r.Valid()
 }
 
 func deny(code string, b wire.Binding) Decision {
@@ -503,7 +503,7 @@ Apply each edit alone, run `go test ./internal/gatekeeper/authz/ -count=1`, conf
 |---|---|
 | `r := dataclass.Tighter(live, b.RouteAtMint)` → `r := b.RouteAtMint` | `TestARaiseAfterMintIsServedAU` |
 | `r := dataclass.Tighter(live, b.RouteAtMint)` → `r := live` | `TestALoweringAfterAnAUMintStaysAU` |
-| in `route`, replace the `Decide`/`Tighter` pair with `live := pi.Effective` | `TestAnAUOnlyRecordMarkedGlobalIsServedAU` |
+| in `route`, `live, err := pi.LiveRoute()` → `live, err := pi.Effective, error(nil)` | `TestAnAUOnlyRecordMarkedGlobalIsServedAU` |
 | in `route`, `return "", false` after `Routes.Project` → `return dataclass.RouteGlobal, true` | `TestAnUnknownRouteFailsClosed` |
 | `wire.NormalAddr(r.Source) != wire.NormalAddr(b.PodAddr)` → `r.Source != b.PodAddr` | `TestTheSourceMustBeTheBoundPod` |
 | `!r.Now.Before(*b.RevokedAt)` → `r.Now.After(*b.RevokedAt)` | `TestRevokedAndExpiredAtTheirBoundaries`, `TestStepsFourAndFiveAgreeWithLiveAt` |

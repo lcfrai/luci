@@ -40,7 +40,7 @@ A sandbox's only credential is a one-hour LiteLLM virtual key that keysmith mint
 
 **(h) A raise retires every Global-minted key within one refresh's grace** (review C-1). Decision (d) narrows an AU-minted key to `au/*`, but a key minted while its project was Global names every `global/*` group. Until now it kept them until its scheduled refresh, up to about 50 minutes after a raise. A body fallback that got past task 11, or a gatekeeper bug, could then take an AU project's request out of Australia on that key.
 
-So `*Service` is itself a `wire.BindingReader`. Task 08 serves `GET /v1/bindings/{keyHash}` from it instead of from the store (task 08's gap 7), and every gatekeeper lookup reaches it through the gatekeeper's binding cache (≤ 10 s, P6-D7). `ByKeyHash` acts only on a binding that is live and was minted on Global, and whose project's route (`s.route`, the same check `mint` makes) is now AU. It dates that binding's revocation `Grace` from now and deletes its LiteLLM key after `Grace`: exactly what `Refresh` does to the generation it replaces, so a stream in flight is not cut. It never moves an earlier date later.
+So `*Service` is itself a `wire.BindingReader`. Task 08 serves `GET /v1/bindings/{keyHash}` from it instead of from the store (task 08's gap 7), and every gatekeeper lookup reaches it through the gatekeeper's binding cache (≤ 10 s, P6-D7). `ByKeyHash` acts only on a binding that is live and was minted on Global, and whose project's route (`s.route`, the same check `mint` makes, which is task 03's `ProjectInference.LiveRoute`) is now AU. Task 15's refresher reads a raise by the same function, so a raise keysmith retires on is a raise the refresher re-mints on (re-review R-6). It dates that binding's revocation `Grace` from now and deletes its LiteLLM key after `Grace`: exactly what `Refresh` does to the generation it replaces, so a stream in flight is not cut. It never moves an earlier date later.
 
 The bound, after the first request following a raise: at most the route cache (≤ 30 s) plus the binding cache (≤ 10 s) plus `Grace` (5 min). A Global-minted key that is not used after the raise carries nothing, because only the gatekeeper and keysmith can reach LiteLLM (P6-D1). If the route cannot be read, `ByKeyHash` changes nothing and reports it. The gatekeeper reads the route itself and fails closed (task 10), so a Hub blip must not turn into a refusal of every binding lookup.
 
@@ -54,6 +54,7 @@ test -d internal/keysmith && echo "STOP: internal/keysmith exists" || echo "ok: 
 for p in inference/wire litellmadmin binding budget dataclass; do test -d internal/$p && echo "ok $p" || echo "MISSING $p"; done
 grep -n 'func NewMemStore\|ErrExists' internal/binding/*.go | head -3                               # expect both names
 grep -n 'type GenerateKeyResponse\|func (c \*Client) GenerateKey' internal/litellmadmin/client.go  # expect both
+grep -n 'func (pi ProjectInference) LiveRoute' internal/inference/wire/wire.go                     # expect one line (task 03 decision (g))
 ```
 
 Every `MISSING` line is a dependency not merged yet (tasks 01, 03, 04, 05, 06); stop and report. If the last two greps show different identifiers from the ones this part assumes (gap 4), rename in this part's code to match the merged ones; do not change theirs.
@@ -1015,20 +1016,17 @@ func (s *Service) mint(ctx context.Context, sub subject, gen int) (wire.MintResp
 		BaseURL: s.d.BaseURL, MaxBudgetUSD: maxUSD}, nil
 }
 
-// route is the project's route now: the class's floor and the chosen route
-// through dataclass.Decide, tightened by what the source computed. Anything
-// unparsed is route_unknown, never Global (P6-D5).
+// route is the project's route now, by wire's one rule (task 03 decision (g)),
+// which the session refresher also uses to see a raise (re-review R-6).
+// Anything unparsed is route_unknown, never Global (P6-D5).
 func (s *Service) route(ctx context.Context, project string) (dataclass.Route, error) {
 	pi, err := s.d.Routes.Project(ctx, project)
 	if err != nil {
 		return "", fmt.Errorf("%w: project %s: %v", wire.ErrRouteUnknown, project, err)
 	}
-	r, err := dataclass.Decide(pi.DataClass, pi.Route)
+	r, err := pi.LiveRoute()
 	if err != nil {
 		return "", fmt.Errorf("%w: project %s: %v", wire.ErrRouteUnknown, project, err)
-	}
-	if r = dataclass.Tighter(r, pi.Effective); !r.Valid() {
-		return "", fmt.Errorf("%w: project %s: effective route %q", wire.ErrRouteUnknown, project, pi.Effective)
 	}
 	return r, nil
 }

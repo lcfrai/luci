@@ -18,10 +18,11 @@ Six decisions the skeleton leaves open, made here so no later part re-derives th
 - **(d) Addresses are normalised once.** `NormalAddr` unmaps an IPv4-mapped IPv6 address (`::ffff:10.244.1.7` → `10.244.1.7`) and drops any zone. `MintRequest.Validate` refuses a zone, the unspecified address and a mapped form, so a stored `Binding.PodAddr` is always normal, and task 10 compares `NormalAddr(source) == b.PodAddr`. Without this, a dual-stack listener that reports the mapped form would fail every request with `binding_mismatch`.
 - **(e) Ids are refused, not escaped.** `SessionID`, `TeamID`, `ProjectID`, `AgentID`, `Owner.TID` and `Owner.OID` must be 1–128 characters of `[A-Za-z0-9._-]`. `SessionID` becomes part of a LiteLLM `key_alias` (`sess/<session>/<generation>`, P6-D6) and `<tid>:<oid>` a LiteLLM `user_id`, so a `/`, a `:` or a space in either would be ambiguous there. `Owner.OID` and `TID` are Entra GUIDs in the cloud and short strings locally (`local`, `dev` in task 17's script); both fit.
 - **(f) Codes and statuses live together.** `Status(code)` returns the HTTP status for each of this package's codes, and a test pins the whole table. No wire code equals one of `httpx`'s sixteen (`control-plane/internal/httpx/problem.go:45-60`), so the cockpit's single `switch` on `Problem.Error` never sees one string with two meanings.
+- **(g) `(ProjectInference) LiveRoute()` lives here** (re-review R-6). The live route is `Tighter(Decide(DataClass, Route), Effective)`, an error for anything unparsed. keysmith (task 07's `route`, used by decision (h)'s retire), the gatekeeper (task 10's step 7) and the session refresher (task 15's raise check) each computed it, and the refresher read `Effective` alone. With an AU-only class and a stale Global `Effective`, keysmith retired the key but the refresher saw no raise, which left the session refused for up to 55 minutes. One function, like decision (b), means they cannot drift.
 
 **Files:**
 - `control-plane/internal/inference/wire/wire.go` — every type, interface, sentinel, code and helper below (new)
-- `control-plane/internal/inference/wire/wire_test.go` — golden JSON, `Validate`, `LiveAt`, `MessagesURL`, `HashToken`, the code table (new)
+- `control-plane/internal/inference/wire/wire_test.go` — golden JSON, `Validate`, `LiveAt`, `LiveRoute`, `MessagesURL`, `HashToken`, the code table (new)
 
 **Interfaces:**
 - Produces:
@@ -32,7 +33,7 @@ Six decisions the skeleton leaves open, made here so no later part re-derives th
   - `wire.RefreshRequest{SessionID string; Generation int}` with `Validate()`; `wire.RevokeRequest{SessionID string}` with `Validate()`
   - `wire.Binding{KeyHash, KeyID, SessionID string; Generation int; Owner Owner; TeamID, ProjectID, AgentID string; PodAddr netip.Addr; RouteAtMint dataclass.Route; CreatedAt, ExpiresAt time.Time; RevokedAt *time.Time}` with `LiveAt(time.Time) bool`
   - `wire.UsageRow{Scope, ID string; PeriodStart time.Time; SpendUSD, BudgetUSD float64; Requests int64}` and `ScopePerson`, `ScopeProject`, `ScopeTeam`
-  - `wire.ProjectInference{ProjectID string; DataClass dataclass.Class; Route, Effective dataclass.Route; Version string}`
+  - `wire.ProjectInference{ProjectID string; DataClass dataclass.Class; Route, Effective dataclass.Route; Version string}` with `LiveRoute() (dataclass.Route, error)` (decision (g))
   - `wire.BindingReader`, `wire.RouteSource`; sentinels `wire.ErrNotFound`, `wire.ErrRouteUnknown`
   - the thirteen `wire.Code…` constants, `wire.Status(code) (int, bool)`, `wire.Codes() []string`
   - `wire.HashToken(string) string`, `wire.CheckBaseURL(string) error`, `wire.MessagesURL(string) (string, error)`, `wire.NormalAddr(netip.Addr) netip.Addr`
@@ -204,6 +205,33 @@ func TestLiveAt(t *testing.T) {
 		b := Binding{ExpiresAt: t1, RevokedAt: tc.revoked}
 		if got := b.LiveAt(tc.at); got != tc.want {
 			t.Errorf("%s: LiveAt = %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}
+
+// Decision (g), re-review R-6. Kills reading Effective alone (the stale row),
+// dropping the Effective tightening (the source row), and an unparsed
+// class or route read as Global.
+func TestLiveRoute(t *testing.T) {
+	anyRes := dataclass.Class{Level: dataclass.LevelInternal, Residency: dataclass.ResidencyAny}
+	auOnly := dataclass.Class{Level: dataclass.LevelInternal, Residency: dataclass.ResidencyAUOnly}
+	g, au := dataclass.RouteGlobal, dataclass.RouteAU
+	cases := []struct {
+		name string
+		pi   ProjectInference
+		want dataclass.Route // "" means an error
+	}{
+		{"global", ProjectInference{DataClass: anyRes, Route: g, Effective: g}, g},
+		{"chosen au", ProjectInference{DataClass: anyRes, Route: au, Effective: au}, au},
+		{"stale effective", ProjectInference{DataClass: auOnly, Route: g, Effective: g}, au},
+		{"source tightened", ProjectInference{DataClass: anyRes, Route: g, Effective: au}, au},
+		{"no class", ProjectInference{Route: g, Effective: g}, ""},
+		{"unknown effective", ProjectInference{DataClass: anyRes, Route: g, Effective: "mars"}, ""},
+	}
+	for _, tc := range cases {
+		got, err := tc.pi.LiveRoute()
+		if got != tc.want || (err == nil) != (tc.want != "") {
+			t.Errorf("%s: LiveRoute = %q, %v; want %q", tc.name, got, err, tc.want)
 		}
 	}
 }
@@ -522,6 +550,22 @@ type ProjectInference struct {
 	Version   string          `json:"version"` // changes when any field above changes
 }
 
+// LiveRoute is the route the project runs on now: the class's floor and the
+// chosen route through dataclass.Decide, tightened by the source's Effective,
+// so a stale Effective can never loosen an AU-only class (decision (g)).
+// keysmith, the gatekeeper and the session refresher all call it. Anything
+// unparsed is an error, never Global (P6-D5).
+func (pi ProjectInference) LiveRoute() (dataclass.Route, error) {
+	r, err := dataclass.Decide(pi.DataClass, pi.Route)
+	if err != nil {
+		return "", err
+	}
+	if r = dataclass.Tighter(r, pi.Effective); !r.Valid() {
+		return "", fmt.Errorf("effective route %q", pi.Effective)
+	}
+	return r, nil
+}
+
 // BindingReader finds a token's binding by HashToken. A miss is ErrNotFound.
 type BindingReader interface {
 	ByKeyHash(ctx context.Context, keyHash string) (Binding, error)
@@ -641,6 +685,7 @@ Expected:
 --- PASS: TestMintRequestValidate (0.00s)
 --- PASS: TestRefreshAndRevokeValidate (0.00s)
 --- PASS: TestLiveAt (0.00s)
+--- PASS: TestLiveRoute (0.00s)
 --- PASS: TestNormalAddrAndAddr (0.00s)
 --- PASS: TestMessagesURL (0.00s)
 --- PASS: TestHashToken (0.00s)
@@ -655,6 +700,8 @@ ok  	github.com/kpmg-au-emu/panacea-app/control-plane/internal/inference/wire
 | `Binding.PodAddr` tag `podAddr` → `podAddress` | `TestJSONKeysAreGolden` |
 | `RevokedAt` tag gains `,omitempty` | `TestAnUnrevokedBindingSaysNull` |
 | `LiveAt`: `now.Before(*b.RevokedAt)` → `false` | `TestLiveAt` (`revocation scheduled`) |
+| `LiveRoute`: its first line → `return pi.Effective, nil` | `TestLiveRoute` (`stale effective`, `no class`) |
+| `LiveRoute`: `dataclass.Tighter(r, pi.Effective)` → `r` | `TestLiveRoute` (`source tightened`, `unknown effective`) |
 | `Addr`: delete the `a != NormalAddr(a)` condition | `TestMintRequestValidate` (`v4-mapped`, `zoned`) |
 | `CheckBaseURL`: the `default` case returns `nil` | `TestMessagesURL` (`/v1`, `/api`) |
 | `statuses`: `CodeTokenExpired` → `http.StatusForbidden` | `TestCodesAndStatuses` |
@@ -699,7 +746,7 @@ in /v1/messages or has any path, query or credentials.
 Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
 ```
 
-**Acceptance:** step 4's ten lines; each row of step 5 turns its test red and reverting turns it green; step 6 prints nothing and then the two lines.
+**Acceptance:** step 4's eleven lines; each row of step 5 turns its test red and reverting turns it green; step 6 prints nothing and then the two lines.
 
 **What this task does not claim:**
 
@@ -716,3 +763,4 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
 3. **`NormalAddr`, `CheckBaseURL`, `Owner.UserID`, `MintRequest.Addr`, `Status`, `Codes` and `SessionClass` constants** are additions. Task 10 compares `wire.NormalAddr(source) == b.PodAddr`; task 07's `BaseURL` check can become `wire.CheckBaseURL`; task 07's `EnsureUser` id is `Owner.UserID()`.
 4. **`RefreshRequest.Generation` is the new generation** (task 07's reading); the skeleton's `RefreshRequest{SessionID, Generation}` did not say which.
 5. **`budget_exhausted` is `402`**, the status task 07 already assumed; the skeleton gave no status.
+6. **`(ProjectInference) LiveRoute` is an addition** (decision (g), re-review R-6). Task 07's `route`, task 10's `route` and task 15's `Prepare` and `sleepUnlessRaised` call it; each part says so.

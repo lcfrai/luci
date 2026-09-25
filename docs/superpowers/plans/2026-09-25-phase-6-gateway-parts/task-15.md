@@ -40,7 +40,7 @@ Seven decisions where the skeleton is silent:
 - Produces, package `backend`: `Spec.Network string` (docker only; `""` is the default bridge); `Sandbox.NetworkAddr netip.Addr` (docker only; the zero value when `Spec.Network` was empty); `LabelNetwork = "panacea-app.network"`.
 - Produces, the session wire shape (additive to phase 2's `sessionJSON`, `control-plane/internal/api/sessions.go:593-620`): `"gateway": "off"|"pending"|"on"|"error"`, `"gatewayError": "<one sentence>"`, `"gatewayRoute": "global"|"au"|""`.
 - Produces, `cmd/api` variables: `PANACEA_APP_GATEWAY_KEYSMITH_URL` (unset: the gateway is off), `_BASE_URL` (default `http://gatekeeper:4000`, the address **inside** the gateway network), `_NETWORK` (default `panacea-app-gateway`, task 17's network), `_CALLER_TOKEN_FILE` (required when on), `_ROUTE_SOURCE` (required when on; `file:<path>` only until S6.1), `_MINT_TIMEOUT` (`20s`), `_REFRESH_AT` (`45m`, and below `55m`), `_OWNER` (`<tid>:<oid>`, default `local:developer`), `_TEAM` (default `local`).
-- Consumes: `wire.MintRequest`, `MintResponse`, `RefreshRequest`, `RevokeRequest`, `UsageRow`, `Owner`, `RouteSource`, `ErrRouteUnknown` (task 03); keysmith's `POST /v1/mint` (201), `POST /v1/refresh` (201), `POST /v1/revoke` (204), `GET /v1/usage?scope=&id=` (task 08); `routesource.NewFile` (task 13); `dataclass.Route` (task 01); `httpx.Problem` (`problem.go:26-34`).
+- Consumes: `wire.MintRequest`, `MintResponse`, `RefreshRequest`, `RevokeRequest`, `UsageRow`, `Owner`, `RouteSource`, `ErrRouteUnknown`, `ProjectInference.LiveRoute` (task 03; `Prepare` and the raise check read the route by it, so the refresher sees every raise keysmith retires on, re-review R-6); keysmith's `POST /v1/mint` (201), `POST /v1/refresh` (201), `POST /v1/revoke` (204), `GET /v1/usage?scope=&id=` (task 08); `routesource.NewFile` (task 13); `dataclass.Route` (task 01); `httpx.Problem` (`problem.go:26-34`).
 - Required by: task 17 (the compose network and the callers file this reads), task 21 (`Usage`, and the same `ROUTE_SOURCE` file), task 22 (renders `gateway`, `gatewayError`), task 23 (the whole local path), ask P8-1 (the broker uses this client).
 
 - [ ] **Step 1: Write the failing client tests**
@@ -243,12 +243,18 @@ The launcher, same file. `routes` is a two-project fake; `recorder` collects wha
 ```go
 type routes map[string]dataclass.Route
 
+// A class LiveRoute accepts, so the chosen route decides (task 03 decision (g)).
+var (
+	anyRes = dataclass.Class{Level: dataclass.LevelInternal, Residency: dataclass.ResidencyAny}
+	auOnly = dataclass.Class{Level: dataclass.LevelInternal, Residency: dataclass.ResidencyAUOnly}
+)
+
 func (r routes) Project(_ context.Context, id string) (wire.ProjectInference, error) {
 	route, ok := r[id]
 	if !ok {
 		return wire.ProjectInference{}, wire.ErrRouteUnknown
 	}
-	return wire.ProjectInference{ProjectID: id, Route: route, Effective: route}, nil
+	return wire.ProjectInference{ProjectID: id, DataClass: anyRes, Route: route, Effective: route}, nil
 }
 
 type recorder struct {
@@ -399,40 +405,53 @@ func TestTheRefresherRefreshesThenStopsWithTheSession(t *testing.T) {
 	}
 }
 
-// raisable is a route source a test can raise while a refresher reads it.
+// raisable is a route source a test can raise while a refresher reads it, by
+// its route or by its class. A class raise leaves Effective stale on Global,
+// as a source that has not recomputed it would (re-review R-6).
 type raisable struct {
-	mu sync.Mutex
-	r  dataclass.Route
+	mu    sync.Mutex
+	r     dataclass.Route
+	class dataclass.Class
 }
 
 func (s *raisable) Project(_ context.Context, id string) (wire.ProjectInference, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return wire.ProjectInference{ProjectID: id, Route: s.r, Effective: s.r}, nil
+	return wire.ProjectInference{ProjectID: id, DataClass: s.class, Route: s.r, Effective: s.r}, nil
 }
 
 // Review C-1, task 07 decision (h). Kills a refresher that waits for
-// RefreshAt (an hour here) after its project is raised from Global to AU.
+// RefreshAt (an hour here) after its project is raised from Global to AU,
+// and (the class row, re-review R-6) one that reads Effective alone, which
+// misses an AU-only class whose Effective is still Global.
 func TestARaiseRefreshesAtOnce(t *testing.T) {
-	k := &keysmith{script: []reply{{status: 201, body: minted("sk-pa-1", "global")},
-		{status: 201, body: minted("sk-pa-2", "au")}, {status: 204}}}
-	l, rec := newLauncher(t, k)
-	src := &raisable{r: dataclass.RouteGlobal}
-	l.Routes, l.RaiseCheck = src, 10*time.Millisecond
-	_, _ = l.Prepare(context.Background(), "s-1", "p-global")
-	l.Start("s-1", "p-global", "claude-code", 1, pod)
-	eventually(t, "the first token", func() bool { return tokenIn(l, "s-1") == "sk-pa-1" })
-	time.Sleep(50 * time.Millisecond) // five checks on Global: no refresh yet
-	if calls, _, _ := k.snapshot(); len(calls) != 1 {
-		t.Fatalf("%d keysmith calls before the raise, want only the mint", len(calls))
+	raises := map[string]func(*raisable){
+		"route": func(s *raisable) { s.r = dataclass.RouteAU },
+		"class": func(s *raisable) { s.class = auOnly },
 	}
-	src.mu.Lock()
-	src.r = dataclass.RouteAU
-	src.mu.Unlock()
-	eventually(t, "the AU token", func() bool { return tokenIn(l, "s-1") == "sk-pa-2" })
-	eventually(t, "the AU route recorded", func() bool { return rec.last("s-1").Route == dataclass.RouteAU })
-	if err := l.Stop(context.Background(), "s-1", false); err != nil {
-		t.Fatal(err)
+	for name, raise := range raises {
+		t.Run(name, func(t *testing.T) {
+			k := &keysmith{script: []reply{{status: 201, body: minted("sk-pa-1", "global")},
+				{status: 201, body: minted("sk-pa-2", "au")}, {status: 204}}}
+			l, rec := newLauncher(t, k)
+			src := &raisable{r: dataclass.RouteGlobal, class: anyRes}
+			l.Routes, l.RaiseCheck = src, 10*time.Millisecond
+			_, _ = l.Prepare(context.Background(), "s-1", "p-global")
+			l.Start("s-1", "p-global", "claude-code", 1, pod)
+			eventually(t, "the first token", func() bool { return tokenIn(l, "s-1") == "sk-pa-1" })
+			time.Sleep(50 * time.Millisecond) // five checks on Global: no refresh yet
+			if calls, _, _ := k.snapshot(); len(calls) != 1 {
+				t.Fatalf("%d keysmith calls before the raise, want only the mint", len(calls))
+			}
+			src.mu.Lock()
+			raise(src)
+			src.mu.Unlock()
+			eventually(t, "the AU token", func() bool { return tokenIn(l, "s-1") == "sk-pa-2" })
+			eventually(t, "the AU route recorded", func() bool { return rec.last("s-1").Route == dataclass.RouteAU })
+			if err := l.Stop(context.Background(), "s-1", false); err != nil {
+				t.Fatal(err)
+			}
+		})
 	}
 }
 
@@ -1050,9 +1069,9 @@ func (l *Launcher) Prepare(ctx context.Context, sessionID, projectID string) (Pr
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return Prep{}, fmt.Errorf("gatewayclient: create %s: %w", dir, err)
 	}
-	var route dataclass.Route
+	var route dataclass.Route // "" (unknown) unless wire's one rule reads it (task 03 decision (g))
 	if pi, err := l.Routes.Project(ctx, projectID); err == nil {
-		route = pi.Effective
+		route, _ = pi.LiveRoute()
 	}
 	env := map[string]string{"ANTHROPIC_BASE_URL": l.BaseURL}
 	if route != dataclass.RouteGlobal { // AU, or unknown: the conservative environment
@@ -1175,10 +1194,23 @@ func (l *Launcher) sleepUnlessRaised(ctx context.Context, projectID string, rout
 		if !time.Now().Before(deadline) {
 			return true
 		}
-		if pi, err := l.Routes.Project(ctx, projectID); err == nil && pi.Effective == dataclass.RouteAU {
+		if raisedToAU(ctx, l.Routes, projectID) {
 			return true
 		}
 	}
+}
+
+// raisedToAU reads a raise by wire's one rule (task 03 decision (g)), the rule
+// keysmith retires a Global-minted key on (task 07 decision (h)). Reading
+// Effective alone missed a raise through the data class (re-review R-6). An
+// unreadable route is no raise: keysmith changes nothing on one either.
+func raisedToAU(ctx context.Context, src wire.RouteSource, projectID string) bool {
+	pi, err := src.Project(ctx, projectID)
+	if err != nil {
+		return false
+	}
+	r, err := pi.LiveRoute()
+	return err == nil && r == dataclass.RouteAU
 }
 
 func (l *Launcher) write(sessionID, token string) error {
@@ -1546,7 +1578,7 @@ go test -race -count=1 ./internal/backend/... ./internal/registry/... ./internal
 
 The last line is the regression gate: every phase 2 session test runs with `Deps.Gateway` nil and must be unchanged.
 
-- [ ] **Step 11: Kill seven mutants by hand**
+- [ ] **Step 11: Kill eight mutants by hand**
 
 | Edit | Test that must fail |
 |---|---|
@@ -1556,7 +1588,8 @@ The last line is the regression gate: every phase 2 session test runs with `Deps
 | `handleSessionDelete`: the `Stop` block deleted | `TestDeleteStopsTheGateway` |
 | `Prepare`: `if route != dataclass.RouteGlobal` → `if route == dataclass.RouteAU` | `TestPrepareSetsTheEnvironmentByRoute` (the unknown row) |
 | `refreshLoop`: `Generation: gen + 1` → `Generation: gen` | `TestTheRefresherRefreshesThenStopsWithTheSession` |
-| `sleepUnlessRaised`: delete the `if pi, err := l.Routes.Project(…); … { return true }` block | `TestARaiseRefreshesAtOnce` (review C-1) |
+| `sleepUnlessRaised`: delete the `if raisedToAU(…) { return true }` block | `TestARaiseRefreshesAtOnce` (both rows; review C-1) |
+| `raisedToAU`: `r, err := pi.LiveRoute()` → `r, err := pi.Effective, error(nil)` | `TestARaiseRefreshesAtOnce/class` alone (re-review R-6) |
 
 - [ ] **Step 12: Vet and format**
 
@@ -1577,7 +1610,7 @@ git commit -F <message file> -- control-plane/internal/gatewayclient/ control-pl
 
 Message: `feat(gateway): the keysmith client and the local control plane's launch (phase 6 task 15)`, a body naming decisions (a) to (g), and the attribution line.
 
-**Acceptance:** step 10 prints `ok`, `11`, and `ok` for every listed package; step 11's seven edits each fail the named test; step 12 prints nothing. The end-to-end run, a real sandbox on the gateway network getting a token, is task 17's acceptance and task 23's proof, not this task's.
+**Acceptance:** step 10 prints `ok`, `11`, and `ok` for every listed package; step 11's eight edits each fail the named test; step 12 prints nothing. The end-to-end run, a real sandbox on the gateway network getting a token, is task 17's acceptance and task 23's proof, not this task's.
 
 **What this task does not claim:**
 
