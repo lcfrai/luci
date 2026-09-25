@@ -780,28 +780,36 @@ Nothing below blocks development: `devissuer` runs the whole flow locally. Items
 applied without re-arguing:** main `docs/superpowers/planning/2026-09-25-identity-keycloak-broker.md`
 ("the ruling"). Users sign in through a **Keycloak realm that brokers Entra, with no clicks**, on the
 Entra registration Panacea's Keycloak already uses (client id beginning `37f8bd70-`, ruling §1). Where
-this section and §1-§11 disagree, **this section wins**; task 44a folds it into the body (ruling §11 `:503`).
+this section and §1-§11 disagree, **this section wins**; task 44a folds it into the body (ruling §11 `:573`).
 
 | Superseded here | By | What stands |
 |---|---|---|
 | §5.2 "runs PKCE against Entra directly ... No broker" (`:310-396`) | ruling §2-§5 | The one-shot `127.0.0.1:0` listener, the system browser, the refresh token in Windows Credential Manager, the renderer never holding a token. **Changes:** the issuer is `PANACEA_APP_OIDC_ISSUER` (Panacea's dev realm until phase 8, then phase 8's own realm, ruling §2 `:87-99`); client `panacea-app-desktop`, public, S256; `kc_idp_hint=entra`, `login_hint=<UPN>`, `offline_access`; the control plane opens the browser itself; one audience per access token by a narrowing refresh (`panacea-app-hub` for the Hub); the `keycloak` token profile (ruling §4); the validator `internal/oidcauth` (ruling §5) |
 | §6.1 "A broker (Keycloak) in front of Entra — Rejected" (`:598-607`) | ruling §1, §9 | **Reversed.** The outage class is met by offline tokens (they survive Panacea's in-memory sessions, ruling §2 `:82-85`) and by phase 8's own two-replica Keycloak, which does not copy that class (ruling §9 `:417-419`) |
-| §5.3's org admin "the Entra app role `Hub.OrgAdmin`, assigned by IT" (`:430`) | ruling §4 `:187`, `:193` | the realm role **`hub.org_admin`**, flat in the token's `roles`, assigned by the realm's admin; no read of project content, as before |
+| §5.3's org admin "the Entra app role `Hub.OrgAdmin`, assigned by IT" (`:430`) | ruling §4 `:196`, `:202` | the realm role **`hub.org_admin`**, flat in the token's `roles`, assigned by the realm's admin; no read of project content, as before |
 | §9 items 1-6 and 9, IT's registrations (`:716-733`) | ruling §1 `:21-28`, §10 | **Withdrawn: nothing is asked of IT for sign-in.** Keycloak asks K1-K4 go to Panacea's own update of its dev realm; phase 8's only Entra ask (one broker redirect URI and a second client secret) joins the IT request's Part 2, sent when phase 8 provisions |
 | Q5 "Azure DevOps uses the same Entra sign-in ... no ADO PAT" (`:743`) | ruling §7 | **Flipped to No:** Azure DevOps is a personal access token per user, scope Code (Read & write), in the same Credential Manager store; GitHub unchanged |
 | §6.3 and §4.1's package name `entra` | ruling §5 `:228-232` | `control-plane/internal/oidcauth`, one package for the Hub and the broker (HA-1 stands) |
-| §11's Entra-behaviour bullets | ruling §12 U-1..U-14 | the ruling's list of what is unverified |
+| §11's Entra-behaviour bullets | ruling §12 U-1..U-15 (with U-4b) | the ruling's list of what is unverified |
 
 **Stands unchanged:** the person key `(tid, oid)`, Entra's ids carried through the realm as claims (ruling
 §4 `:166-174`), so every Hub row and owner label is the same; `OD-6`'s system browser, Credential Manager,
 users always themselves, nothing pooled; §6.6 (membership is the Hub's own; the desktop requests no
 `groups`); the Hub's rate-limit and audit keys.
 
-**Open, not decided by the ruling (for task 13 and task 44a):** correction A15's invite binding reads
-Entra's `acct` and `xms_edov`, which a realm token never carries (ruling §4 lists `email` and
-`email_verified` only). As planned, it fails closed, so **no invite binds** under `keycloak`. The rule that
-replaces it (for example `email_verified == true`, which Panacea's `trustEmail:true` makes true for every
-brokered user) needs an owner or orchestrator ruling; it is not made here.
+**Invite binding, now ruled** (ruling §4 `:197`, after OD-30 review-1 I3; hub task 13, contract §17
+§5.1). Correction A15's `acct`/`xms_edov` rule, which a realm token can never satisfy, is **replaced**:
+`bindEmail` is the `email` claim, lowercased, only when `email_verified` is the JSON boolean `true` and
+`azp == panacea-app-desktop`; otherwise no invite binds; never `preferred_username`. `email_verified`
+alone is not enough, because a user could otherwise rewrite `email` in the account console: the realm
+therefore makes `email` admin-edit only (K4) and its IdP mapper `FORCE` (K3), so Entra rewrites it at
+every login.
+
+**Also ruled after review-1, restated here:** every interactive sign-in goes through Entra (K1's
+browser-flow override; `kc_idp_hint` is cosmetic, I1); a token with a second `panacea-app-*` audience is
+refused (I2); a narrowed refresh's returned refresh token is never written back (U-4b, I4); the redirect
+is `http://127.0.0.1/callback` and multi-user hosts are out of scope for zero clicks (M3); access tokens
+live 600 s and Panacea's realm admins are inside the trust boundary until phase 8 (§6, U-15, M4).
 
 *End of ADR-H1. The contract is `docs/superpowers/contracts/2026-09-23-hub-contract.md`.*
 
