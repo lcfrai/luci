@@ -357,3 +357,186 @@ task 10's `memstore`, with the push methods.
 ```
 
 Expected: `undefined: NewDispatcher` (build failure).
+
+- [ ] **Step 4: Implement `Dispatch`**
+
+```go
+// frame is task 16's Stamped, decoded strictly.
+type frame struct {
+	V     int             `json:"v"`
+	ID    string          `json:"id"`
+	Verb  string          `json:"verb"`
+	Args  json.RawMessage `json:"args"`
+	Agent model.AgentID   `json:"agent"`
+	Class model.Class     `json:"class"`
+}
+
+func (d *Dispatcher) Dispatch(ctx context.Context, bound Target, raw []byte) wire.Response {
+	if len(raw) > MaxFrameBytes {
+		return refuse("", CodeTooLarge, "frame too large")
+	}
+	var f frame
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.DisallowUnknownFields()
+	if dec.Decode(&f) != nil || f.V != 1 || f.ID == "" || f.Verb == "" {
+		return refuse(f.ID, wire.CodeBadRequest, "not a panacea control v1 frame")
+	}
+	if f.Agent != bound.Agent || f.Class != bound.Class {
+		d.log.Error("control: stamp does not match stream", "security", true,
+			"stream_agent", bound.Agent, "stamp_agent", f.Agent, "verb", f.Verb)
+		return refuse(f.ID, CodeStampMismatch, "stamp does not match stream")
+	}
+	a, ok, err := d.sessions.Agent(ctx, bound.Org, bound.Agent)
+	if err != nil {
+		return d.internal(f, err)
+	}
+	if !ok || a.Status == model.StatusEnded {
+		return refuse(f.ID, CodeUnknownSession, "no live session")
+	}
+	d.mu.RLock()
+	r, known := d.routes[f.Verb]
+	d.mu.RUnlock()
+	switch {
+	case !known:
+		return refuse(f.ID, CodeUnknownVerb, "unknown verb")
+	case !model.ClassMay(bound.Class, f.Verb):
+		return refuse(f.ID, CodeForbiddenClass, "this class may not call "+f.Verb)
+	case len(f.Args) > MaxArgsBytes:
+		return refuse(f.ID, CodeTooLarge, "args too large")
+	}
+	args := f.Args
+	if len(args) == 0 {
+		args = json.RawMessage("{}")
+	}
+	c := Caller{Org: bound.Org, Project: bound.Project, Agent: bound.Agent, Owner: bound.Owner, Class: bound.Class}
+	if code := d.checkOwned(ctx, c, r.owned, args); code != "" {
+		return refuse(f.ID, code, "an argument names an object that is not yours")
+	}
+	hctx, cancel := context.WithTimeout(ctx, d.timeout)
+	defer cancel()
+	res, err := r.h(hctx, c, args)
+	if err != nil {
+		if rf, ok := wire.AsRefusal(err); ok {
+			return refuse(f.ID, rf.Code, rf.Message)
+		}
+		return d.internal(f, err)
+	}
+	b, err := json.Marshal(res)
+	if err != nil {
+		return d.internal(f, err)
+	}
+	return wire.Response{ID: f.ID, OK: true, Result: b}
+}
+```
+
+`checkOwned` decodes `args` into `map[string]json.RawMessage` (an object is required, else
+`bad_request`), and for each owned key reads a string or an array of strings; every id goes through
+`owners.OwnerOf`, and any miss or mismatch returns `CodeNotOwner` and logs `security=true` with the verb
+and the key, never the value. `wire.AsRefusal(err) (Refusal, bool)` is the reverse of task 09's
+`wire.Refuse`; if task 09 names it differently, this call is renamed. `model.StatusEnded` is task 09's
+spelling of the agent status `ended` (§3.3 agent row). The session check reads Fleet's store on every
+request; at a handful of agents per project that is one indexed read, and it is what makes a stopped
+agent's late request fail rather than act.
+
+- [ ] **Step 5: Implement `Streams`**
+
+`Run(ctx)` loops on two tickers. Every 2 s: `Live()`, then for each new target start a goroutine
+`hold(t)`, and cancel the goroutine of each target no longer live. Every 250 ms: for each held agent,
+`PendingPushes(agent, now, 32)`; for each row run the `Before` hook for its kind (a hook error skips the
+row this tick and logs it; the row stays), write `Body` to the socket, then `DeletePush(id)`.
+
+`hold(t)` is the reconnect loop:
+
+```go
+func (s *Streams) hold(ctx context.Context, t Target) {
+	backoff := time.Second
+	for ctx.Err() == nil {
+		d, ok := s.cfg.Delegations.Get(t.Delegation, s.cfg.Now())
+		if !ok {
+			s.cfg.Log.Info("control: no live delegation; not dialling", "agent", t.Agent)
+			return // task 11's Revoker ends the session
+		}
+		conn, err := s.cfg.Dialer.DialControl(ctx, t, d.ID, ControlToken(s.cfg.ControlKey, t.Agent))
+		var gone *Gone
+		var revoked *Revoked
+		switch {
+		case errors.As(err, &gone):
+			s.lost(ctx, t.Agent)
+			return
+		case errors.As(err, &revoked):
+			return
+		case err != nil:
+			sleepJitter(ctx, backoff)
+			backoff = min(backoff*2, 30*time.Second)
+			continue
+		}
+		backoff = time.Second
+		s.attach(t, conn) // Send and the drain can now reach it
+		s.runOnOpen(ctx, t)
+		s.readLoop(ctx, t, conn) // each frame: go-dispatch, write the Response back
+		s.detach(t, conn)
+	}
+}
+```
+
+`readLoop` reads with `SetReadLimit(MaxFrameBytes)` and dispatches each frame in its own goroutine, so a
+slow `check` does not hold up a `lease`; writes to the socket go through one mutex per connection.
+`sleepJitter` sleeps `backoff ± 20%` or until `ctx` ends. `ControlToken` is
+`base64.RawURLEncoding.EncodeToString(hmac(sha256, key, "panacea-control/v1/"+agent))`.
+
+The broker `Dialer` (`brokerDialer`, in `streams.go`) is a `websocket.Dial` to
+`{PANACEA_APP_FLEET_BROKER_URL}/v1/sandboxes/{t.Sandbox}/control` with `Authorization: Bearer <Fleet's
+workload token for the broker audience>`, `X-Panacea-Delegation` and `Panacea-Control-Token`. It maps
+the broker's HTTP answer before the upgrade: `404 sandbox_not_found` → `*Gone`; `401` with a
+`delegation_*` code → `*Revoked`; anything else → a plain error. The workload token source is task 11's
+(`delegation`'s token source, audience changed); **UNVERIFIED** that task 11 exposes an audience
+parameter, else this task adds one.
+
+- [ ] **Step 6: Wire into `fleetd`**
+
+In task 12's `main.go`: read `PANACEA_APP_FLEET_CONTROL_KEY_FILE` (required, at least 32 bytes, else
+exit naming the variable) and `PANACEA_APP_FLEET_BROKER_URL` (required, `https` unless loopback) in
+`config.go`; build one `Dispatcher` and hand it to every `verbs.Register` (tasks 22–31); build
+`Streams` with task 20's `sessions` as `Targets`; run `Streams.Run` under
+`server.NewSingleton(pool, "streams", log)`. Task 26's step 6 then registers `turn.end` on this
+`Dispatcher` and `Scheduler.StreamLost` with `Streams.OnLost` (`task-26.md:810-812`).
+
+- [ ] **Step 7: Run the tests and the acceptance commands**
+
+```bash
+~/.claude/tools/claudezsh/claudezsh 'cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/control-plane && go test ./internal/fleet/control/ ./internal/fleet/store/... ./cmd/fleetd/ && go vet ./internal/fleet/control/ ./internal/fleet/store/...'
+```
+
+Expected: `ok` for each; `go vet` silent. The `pgstore` half of the suite (`TestSendIsNeverPersisted`'s
+`CHECK` case and the push rows) runs only with task 10's `PANACEA_APP_FLEET_TEST_DATABASE_URL` set; when
+it is unset those cases skip and say so, and the CI job that sets it is the gate.
+
+```bash
+~/.claude/tools/claudezsh/claudezsh 'cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/control-plane && go test -race -run "Dropped|Reconnect|NoConnectionWhileDown|PushFromAnyReplica" -count=5 ./internal/fleet/control/'
+```
+
+Expected: `ok`. Five runs under the race detector, because the reconnect path is the one with goroutines
+racing a socket close.
+
+- [ ] **Step 8: Commit**, after `git add` of the new files: `git commit -F
+  .superpowers/sdd/team/msg/t19.txt -- control-plane/internal/fleet/control
+  control-plane/internal/fleet/store control-plane/cmd/fleetd`.
+
+**What this task does not claim.**
+
+- That the stream reaches a real `sandboxd` through a real broker. The test's `Dialer` dials a fake
+  sandbox directly; task 33 runs the path on the cluster.
+- That one stream-holding replica is enough at scale. It is enough for TM1-α's two people; sharding is
+  noted in decision 1 and not built.
+- That `OwnArgs` alone keeps owners apart. It is the generic check; each handler still refuses what its
+  own verb forbids (task 23's own-lease rule, task 31's own-worker rule), and the Hub's `agent_not_owner`
+  check (`task-01.md:127-133`) is the last layer.
+- **Gap S19-1 — ST.1's code list.** Dispatch needs seven refusal codes (`too_large`, `stamp_mismatch`,
+  `unknown_session`, `unknown_verb`, `forbidden_class`, `not_owner`, `internal`) that no written part
+  defines; task 09 should publish them in `wire`, with `AsRefusal`, and this part renames to fit.
+- **Gap S19-2 — `fleet.pushes` is a schema change outside task 10.** The skeleton's file map gives
+  Fleet's schema to task 10 alone. Durable cross-replica push (decision 2) needs one table; it is added
+  here as migration `0002` rather than reopening task 10's `0001`.
+- **Gap S19-3 — the control token.** The skeleton says task 15 puts "the control token" in the pod spec
+  but not who makes it. This part derives it (decision 6), so task 20 renders
+  `PANACEA_APP_CONTROL_TOKEN = ControlToken(K, agent)` into the spec and task 15 only mounts it.
