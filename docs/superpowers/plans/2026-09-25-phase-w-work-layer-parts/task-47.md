@@ -65,6 +65,8 @@ digested revision (05 §3.6; `L-34`), and an agent's managed block names the exa
   add through `T`, remove (new)
 - `desktop/src/components/issue/IssueView.tsx` ⚑ (task 46's) — reads the revision it was opened
   at; mounts `ReadingLine`, `Serves` and `Revisions` (modified)
+- `desktop/src/components/issue/issueData.ts` ⚑ (task 46's) — `CriterionView` and `useCriterion`,
+  appended (modified)
 - `desktop/src/components/issue/issue.css` ⚑ (task 46's) — the `.iv-rev*`, `.iv-serve*`,
   `.iv-reading` and `.iv-diff*` rules, appended (modified)
 - `desktop/src/work/links.test.ts`, `desktop/src/components/issue/revisionWords.test.ts`,
@@ -746,5 +748,183 @@ describe("Revisions", () => {
     expect(await screen.findByText("dylan · agent 1 read @3")).toBeTruthy();
   });
 });
+
+describe("the view at a revision", () => {
+  it("opens at the revision it was sent to, and says the head is elsewhere", async () => {
+    world(5);
+    open(3);
+    const note = await screen.findByRole("note");
+    expect(note.textContent).toBe("You are reading @3; the head is @5 (Alice, 11:05)");
+    expect(api.work.issueRevisionAt).toHaveBeenCalledWith(id, 3);
+  });
+  it("copies a link pinned to the revision being read, and one to the head", async () => {
+    const user = userEvent.setup();
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    world(5);
+    open(3);
+    await screen.findByRole("note");
+    await user.click(screen.getByRole("button", { name: "Copy link" }));
+    await user.click(screen.getByRole("button", { name: "Copy link to head" }));
+    expect(writeText.mock.calls).toEqual([[`panacea://issue/${id}@3`], [`panacea://issue/${id}`]]);
+  });
+  it("goes to the head from the reading line", async () => {
+    const user = userEvent.setup();
+    world(5);
+    open(3);
+    await user.click(within(await screen.findByRole("note")).getByRole("button"));
+    expect(screen.queryByRole("note")).toBeNull();
+  });
+  it("makes no prediction", async () => {
+    world(5);
+    const { container } = open(3);
+    await screen.findByText("@1");
+    expectNoPrediction(container);
+  });
+});
 ```
+
+The clock in the reading line prints local time. The expected `11:05` holds with the test run's
+`TZ=Australia/Sydney` (+10:00 on 2026-09-25, before daylight saving starts on 2026-10-04), which
+vitest's config must pin; if `desktop/vitest.config.ts` pins no time zone, step 1 adds
+`process.env.TZ = "Australia/Sydney"` to `test/setup.ts`, or the expectation uses `clock()` of
+the fixture's time (**UNVERIFIED**: no time zone pin was found in `test/setup.ts`, read
+2026-09-25).
+
+| Test | Mutant it kills |
+|---|---|
+| restores by writing a new revision | an in-place rewrite (a `revise` of @2, or @2 replaced in the list) |
+| author class as a word | colour-only authorship on a revision |
+| which of my agents read which | a reader line on the wrong revision, or none |
+| opens at the revision it was sent to | silently showing the head (05 §4.5 rule 1) |
+| copies a pinned link | links that always point at the head |
+| goes to the head | a reading line with no way out |
+| no prediction | a `%`, a bar or an ETA among revisions (`OD-27`) |
+
+#### Tests to write first — `desktop/src/components/issue/Serves.test.tsx`
+
+```tsx
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { __resetThreadLit } from "../thread/useThreadLit";
+import { BRIEF_KEY, WORK_IDS, makeIssueRevision, makeServe } from "../../test/workFixtures";
+import { mutate } from "../../work/replica/ops";
+import { useCriterion } from "./issueData";
+import { Serves } from "./Serves";
+
+vi.mock("../../work/replica/ops", () => ({ mutate: vi.fn() }));
+vi.mock("./issueData", () => ({ useCriterion: vi.fn() }));
+vi.mock("../work/CriterionPicker", () => ({ CriterionPicker: () => <div role="dialog" aria-label="Choose a criterion" /> }));
+
+const id = WORK_IDS.ep142;
+const two = makeIssueRevision({ revision: 4, content: { ...makeIssueRevision().content,
+  serves: [makeServe(), makeServe({ criterionId: WORK_IDS.criterionUpload })] } });
+
+beforeEach(() => {
+  __resetThreadLit();
+  vi.mocked(mutate).mockClear();
+  vi.mocked(useCriterion).mockImplementation((_b, c) => ({ id: c, text: `words of ${c}`, word: "open" }));
+});
+
+describe("Serves", () => {
+  it("lights its criterion on focus and never marks the row selected", () => {
+    render(<Serves issueId={id} revision={two} isHead play={false} />);
+    const row = screen.getByText(`words of ${WORK_IDS.criterionResume}`).closest("li")!;
+    const before = row.className;
+    act(() => row.focus());                // React's onFocus listens to focusin, which focus() fires
+    const node = row.querySelector("a.thr-node")!;
+    expect(node.getAttribute("data-lit")).toBe("true");
+    expect(row.className).toBe(before);
+    expect(row.hasAttribute("aria-selected")).toBe(false);
+  });
+  it("removes a criterion by writing a revision on the head", () => {
+    render(<Serves issueId={id} revision={two} isHead play={false} />);
+    fireEvent.click(screen.getByRole("button", { name: `Stop serving words of ${WORK_IDS.criterionResume}` }));
+    expect(vi.mocked(mutate).mock.calls.map((c) => c[0])).toEqual([{ kind: "revise", issueId: id, baseRev: 4,
+      patch: { serves: [{ briefKey: BRIEF_KEY, criterionId: WORK_IDS.criterionUpload }] } }]);
+  });
+  it("opens the picker on T in the list, and not on an old revision", () => {
+    const { rerender } = render(<Serves issueId={id} revision={two} isHead play={false} />);
+    fireEvent.keyDown(screen.getByRole("list"), { code: "KeyT", key: "t" });
+    expect(screen.getByRole("dialog", { name: "Choose a criterion" })).toBeTruthy();
+    rerender(<Serves issueId={WORK_IDS.ep150} revision={two} isHead={false} play={false} />);
+    expect(screen.queryByRole("button", { name: /Stop serving/ })).toBeNull();
+  });
+  it("draws no node for a criterion whose brief is not in memory", () => {
+    vi.mocked(useCriterion).mockReturnValue(undefined);
+    const { container } = render(<Serves issueId={id} revision={two} isHead play={false} />);
+    expect(container.querySelector("a.thr-node")).toBeNull();
+  });
+});
+```
+
+| Test | Mutant it kills |
+|---|---|
+| lights on focus, never selected | lit rendered as selection (a ring, a class or `aria-selected`) |
+| removes by a revision | a mutable field patch on `serves`; a write on a stale base |
+| `T` in the list, not on an old revision | a global `T`; an edit offered on a non-head revision |
+| no node without its brief | a decorative, sourceless node (02 C2) |
+
+*Undo returns it* (the scope's half of the removal test) is held where the inverse is made: task
+56's `U` sends the inverse of a `revise` as another `revise` (`tasks-41-60.md:507-509`). This part
+holds the half it owns, that removal **is** a `revise`, so its inverse cannot be a field patch.
+
+#### Steps
+
+- [ ] **Step 1: read on the sync base** task 36's `components/thread/` (SW.14 as built), task 42's
+  `CriterionPicker` props, task 37's `WorkClient` names for the two revision reads, task 56's
+  `WorkOp` members, and task 46's `IssueView.tsx` as landed. Rename in this part's files only.
+- [ ] **Step 2: the four test files first**; `npm --prefix desktop test -- links revisionWords
+  Revisions Serves` fails on the missing modules.
+- [ ] **Step 3: `links.ts`** and **`revisionWords.ts`**; their two test files pass.
+- [ ] **Step 4: `useRevision.ts`, `ReadingLine.tsx`, `Revisions.tsx`**, the `useCriterion`
+  append to `issueData.ts`, then **`Serves.tsx`**.
+- [ ] **Step 5: `IssueView.tsx`** as above, and the `issue.css` append; task 46's tests stay green.
+- [ ] **Step 6: run the acceptance commands**; commit by path, one commit per step 3-5, each
+  message ending with the `Co-Authored-By` line.
+
+#### Acceptance
+
+```bash
+npm --prefix desktop test -- links revisionWords Revisions Serves IssueHead pickers
+# expect: Test Files 6 passed (6); Tests 40 passed (40)   (21 here, 19 from task 46)
+npm --prefix desktop run typecheck
+# expect: exit 0
+grep -rn "EP-[0-9]" desktop/src/work/links.ts | wc -l
+# expect: 0 (no alias form in the link code)
+```
+
+This part's count: 6 in `links.test.ts`, 4 in `revisionWords.test.ts`, 7 in `Revisions.test.tsx`,
+4 in `Serves.test.tsx` = 21. Visual acceptance is the owner's eyes.
+
+#### What this task does NOT claim
+
+- The https Hub link and the read-only page (`L-98`'s W2 part, task 80).
+- That `panacea://` is registered with Windows, so a pasted link opens the app: **UNVERIFIED**
+  whether the desktop has the scheme; nothing here registers it.
+- That the clipboard write works in the Tauri webview (**UNVERIFIED**, see the `IssueView` note).
+- That the Hub writes a restore as a new revision: task 09's store and task 04's fake hold it;
+  this part sends the op and renders what comes back.
+- What the criterion's hash `href` opens (Discover, phase 4).
+- Moving an issue between projects (`L-35`, W2); editing the description (task 49).
+
+**Parity** (`05-design.md` rows). Closes **L-34** (`05:143`: history, restore as a new revision,
+the exact revision an agent read) with task 09, and **L-98**'s W1 part (`05:232`: the
+revision-pinned `panacea://` link). Serves **L-191** (`05:358`): task 19 writes the revision into
+the managed block; this view shows which one each of the reader's agents was given.
+
+#### Gaps found while writing this part
+
+1. **`WorkOp` needs `restore {issueId, fromRevision}`** (decision 2); task 56's union lists none.
+2. **The replica read `criterion(briefKey, criterionId)`** is a fifth read for tasks 55-57, shared
+   with task 40's groups.
+3. **Task 37's `WorkClient` names** `issueRevisions` and `issueRevisionAt` are assumed from task
+   16's Go rows.
+4. **Task 42's `CriterionPicker` props** (`exclude`, `onChoose(serve)`, `onClose`) are assumed.
+5. **No time zone pin for tests** was found in `test/setup.ts`; any test printing a clock time
+   needs one (task 46's tests print none).
+6. `ThreadTrace`'s `play` is set by the caller (`task-36.md:224-227`); this part passes
+   `drillIn`, which task 40's row must set when it opens the view. That prop is new to the mount.
+7. The File map's `src/components/issue/` row lists none of `ReadingLine.tsx`, `useRevision.ts`,
+   `revisionWords.ts`, and there is no row for `src/work/links.ts`.
 
