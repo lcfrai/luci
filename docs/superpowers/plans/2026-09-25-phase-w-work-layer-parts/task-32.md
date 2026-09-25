@@ -67,3 +67,91 @@ variable `woff2` is **UNVERIFIED** until step 1 fetches it.
   `fonts.lock.json` — fetched at step 1 (new; names are ours, upstream names in the lock)
 - `desktop/src/App.tsx` ⚑ (241 lines; `return <AppShell />;` at `:240`, imports `:11-20`) — mounts
   the toolbar (modified; not in the skeleton's file map)
+
+`defects.test.tsx:193-201` pins that `App` adds no chrome: `container.firstElementChild` is the
+shell. The toolbar therefore renders through a **portal into `document.body`**, outside App's
+root, and that test holds unchanged in a dev and test build alike.
+
+#### Interfaces — complete: `desktop/src/lib/flags.ts`
+
+```ts
+// desktop/src/lib/flags.ts
+//
+// flag.compare (Phase W task 32; 02 C12). Dev-session preferences that flip the look on the SAME
+// screen: each flag is one attribute on <html> that a stylesheet already reads, so a flip is a
+// style recalculation, never a remount or a reload.
+//
+// In memory only. Nothing here touches localStorage, indexedDB or a cookie; a reload is the
+// defaults. A flag at its default is NO attribute, so a DOM nobody flipped is the production DOM.
+//
+// This module names no sans candidate at run time. The candidate list is FlagCompare.tsx's, which
+// production never loads, and production code may import this file (task 38 reads `look`).
+
+import { useSyncExternalStore } from "react";
+
+export type Look = "old" | "new";
+export type SansCandidate = "segoe" | "atkinson" | "geist";
+export type ThemeName = "graphite" | "paper";
+
+export interface Flags {
+  look: Look;
+  sans: SansCandidate;
+  theme: ThemeName;
+}
+
+/** The two places a flag is named: its default here, its attribute below. Task 35 adds `grain`
+ *  to both and to `Flags`, and nothing else in this file changes. */
+export const FLAG_DEFAULTS: Readonly<Flags> = Object.freeze({
+  look: "new",
+  sans: "segoe",
+  theme: "graphite",
+});
+
+const ATTRIBUTE: { readonly [K in keyof Flags]: string } = {
+  look: "data-look",
+  sans: "data-sans",
+  theme: "data-theme",
+};
+
+let current: Readonly<Flags> = FLAG_DEFAULTS;
+const listeners = new Set<() => void>();
+
+function notify(): void {
+  for (const listener of listeners) listener();
+}
+
+/** The same frozen object until a flag changes. useSyncExternalStore compares snapshots with
+ *  Object.is, so a fresh object per call would re-render forever. */
+export function getFlags(): Flags {
+  return current;
+}
+
+export function setFlag<K extends keyof Flags>(key: K, value: Flags[K]): void {
+  if (current[key] === value) return;
+  current = Object.freeze({ ...current, [key]: value });
+  const root = document.documentElement;
+  if (value === FLAG_DEFAULTS[key]) root.removeAttribute(ATTRIBUTE[key]);
+  else root.setAttribute(ATTRIBUTE[key], value);
+  notify();
+}
+
+/** Defaults, and every flag attribute removed even if memory already said default: a test that
+ *  set an attribute by hand leaves nothing behind. The toolbar's *Reset* calls it too. */
+export function resetFlags(): void {
+  const changed = current !== FLAG_DEFAULTS;
+  current = FLAG_DEFAULTS;
+  for (const name of Object.values(ATTRIBUTE)) document.documentElement.removeAttribute(name);
+  if (changed) notify();
+}
+
+function subscribe(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+export function useFlags(): Flags {
+  return useSyncExternalStore(subscribe, getFlags, getFlags);
+}
+```
