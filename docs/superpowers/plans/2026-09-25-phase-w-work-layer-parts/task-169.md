@@ -254,19 +254,26 @@ the golden test decides once task 143's part lands. `IssueState` is task 37's.
 #### Interfaces — complete: `work.ts`, part 15: the admin records (never in the replica)
 
 ```ts
-export type AppScope = "read" | "write";
-export interface AppManifest { scopes: AppScope[]; redirectUris: string[]; webhookUrl: string | null }
+/** Task 159's manifest (tasks-141-160.md:760-762): work.read allows GET only; work.write adds writes. */
+export type AppScope = "work.read" | "work.write";
+export interface AppManifest {
+  name: string; entraClientId: string; publisher: string; contact: string;
+  scopes: AppScope[];          // ["work.read"] or ["work.read", "work.write"]
+  redirectUris: string[];      // https only
+  webhookUrl: string | null;
+}
 export type AppState = "pending" | "approved" | "revoked";
-/** An Entra OAuth app that acts as a person (task 159). actsAs is the consenting person. */
+/** An Entra OAuth app that acts as a person, never alone (task 159): each call is its user's. */
 export interface App {
   id: string;                  // oa-…
-  name: string; entraClientId: string; manifest: AppManifest;
-  actsAs: User | null;
-  state: AppState; decidedBy: User | null; decidedAt: string | null;
+  manifest: AppManifest;
+  registeredBy: User;
+  state: AppState; decidedBy: User | null; decidedAt: string | null; reason: string | null;
 }
 
 export type KeyScope = "personal" | "team";
-/** No field holds the secret (task 143's reflection test; decision 5). shown = first 8 chars. */
+/** No field holds the secret (task 143's reflection test; decision 5). shown = first 8 chars of
+ *  task 160's `pak_…` format, never more. */
 export interface APIKey {
   id: string;                  // ak-…
   scope: KeyScope; ownerId: string; teamId: string | null;
@@ -276,7 +283,8 @@ export interface APIKey {
 }
 /** Returned once by createAPIKey. Held by task 173's dialog in component state, nowhere else. */
 export interface CreatedAPIKey { key: APIKey; secret: string }
-/** Task 160's per-token headers, read as facts: used this hour, and the limit. */
+/** Task 160's RateLimit-* headers on the caller's own response, read as facts. used is
+ *  limit − remaining, arithmetic on two numbers the Hub sent, never an estimate. */
 export interface RateReading { used: number; limit: number; resetsAt: string }
 
 export type WebhookState = "active" | "disabled";
@@ -296,23 +304,28 @@ export interface WebhookDelivery {
   at: string; nextAttemptAt: string | null;   // a scheduled retry time, not a forecast
 }
 
-export interface MCPConnector {
-  id: string;                  // mc-…
-  name: string; url: string; allowed: boolean; decidedBy: User; at: string;
-}
+/** Task 161's allow-list row, keyed by its normalised https URL: no id prefix. Present = allowed. */
+export interface MCPConnector { url: string; name: string; allowedBy: User; allowedAt: string }
 
-export interface HarnessPin { name: string; versionPin: string | null }
-/** Order is the team's preference; "claude-code" first by default (task 166). */
-export interface HarnessAllow { teamId: string; harnesses: HarnessPin[] }
-/** source "library" pins ref to a 40-hex commit; "image" names the sandbox image digest. */
-export interface TeamSkill { teamId: string; name: string; source: "image" | "library"; ref: string }
+/** harness.Catalogue()'s ids (control-plane/internal/harness/harness.go:17-25). */
+export type HarnessId = "claude-code" | "codex" | "opencode" | "gemini-cli" | "shell";
+export interface SkillsLibrary { repoKey: string; path: string; commit: string }   // 40-hex, never a branch
+/** Task 166's policy. harnesses is ordered and non-empty; unset on the Hub means ["claude-code"]. */
+export interface TeamAgentPolicy {
+  teamId: string; harnesses: HarnessId[];
+  skills: { source: "image" | "library"; library: SkillsLibrary | null };
+  updatedBy: User | null; updatedAt: string | null;   // null while unset
+}
 /** TM-14's policy route answer when task 173 publishes (UNVERIFIED until Phase T merges). */
 export interface PublishedPolicy { version: number; digest: string }
 ```
 
-`App.actsAs` is not in task 143's scope; task 173 needs *"the person it acts as"* on each manifest
-(scope 173), so it is proposed to task 143 with G1. `RateReading` is not a wire record: task 160
-sends it as response headers, and `rateOf(res)` below reads them.
+The admin types follow the tasks that own their routes (decision 1): tasks 159 (`App`), 160
+(`APIKey`), 156 (`Webhook`, `WebhookDelivery`), 161 (`MCPConnector`, keyed by URL where task 143
+proposed `mc-`) and 166 (`TeamAgentPolicy`, which is this task's scope's name and replaces task
+143's `HarnessAllow` plus `TeamSkill`). `RateReading` is not a wire record: task 160 sends
+`RateLimit-Limit`, `RateLimit-Remaining` and `RateLimit-Reset` on every `/v1` response, and
+`rateOf(headers)` below reads them.
 
 #### Interfaces — complete: `work.ts`, part 16: request bodies
 
@@ -330,10 +343,11 @@ export interface ConnectTrackerBody { target: TrackerTarget; mode: TrackerMode }
 /** One version's content (task 162's POST …/versions); the Hub stamps loopId, version, savedAt/By. */
 export type LoopVersionBody = Omit<LoopVersion, "loopId" | "version" | "savedAt" | "savedBy">;
 export interface CreateLoopBody { name: string; first: LoopVersionBody }   // the caller becomes owner
-export interface CreateAPIKeyBody { name: string; scope: KeyScope; teamId: string | null; expiresAt: string }
+export interface CreateAPIKeyBody { name: string; expiresAt: string }   // team or personal by route (task 160)
 export interface CreateWebhookBody { projectId: string | null; url: string; kinds: string[] }
-export interface DecideBody { decision: "approve" | "revoke" }
-export interface PutTeamSkillBody { name: string; source: TeamSkill["source"]; ref: string }
+export interface DecideAppBody { approve: boolean; reason: string }    // task 159's decision body
+export interface PutConnectorBody { url: string; name: string }         // task 161
+export type PutAgentPolicyBody = Pick<TeamAgentPolicy, "harnesses" | "skills">;   // task 166
 ```
 
 Every create and every *run now* goes through task 56's `keyed(op.id)` client, which sends
@@ -374,22 +388,29 @@ export const WORK_RELAY_W5 = [
   ["ListLoopVersions", "GET", "/v1/work/loops/{loopId}/versions"],
   ["ListLoopRuns", "GET", "/v1/work/loops/{loopId}/runs"],
   ["RunLoopNow", "POST", "/v1/work/loops/{loopId}/runs"],
+  // apps: task 159 (tasks-141-160.md:757-759)
   ["ListApps", "GET", "/v1/apps"],
-  ["DecideApp", "PUT", "/v1/apps/{appId}/decision"],
-  ["CreateAPIKey", "POST", "/v1/keys"],
-  ["ListAPIKeys", "GET", "/v1/keys"],
-  ["RevokeAPIKey", "DELETE", "/v1/keys/{keyId}"],
+  ["DecideApp", "POST", "/v1/apps/{appId}/decision"],
+  // keys: task 160 (:782-785)
+  ["CreatePersonalKey", "POST", "/v1/me/keys"],
+  ["CreateTeamKey", "POST", "/v1/teams/{teamId}/keys"],
+  ["MyKeys", "GET", "/v1/me/keys"],
+  ["TeamKeys", "GET", "/v1/teams/{teamId}/keys"],
+  ["RevokeAPIKey", "POST", "/v1/keys/{keyId}/revoke"],
+  // webhooks: task 156 (:661-665)
   ["CreateWebhook", "POST", "/v1/teams/{teamId}/webhooks"],
   ["ListWebhooks", "GET", "/v1/teams/{teamId}/webhooks"],
-  ["DisableWebhook", "DELETE", "/v1/webhooks/{webhookId}"],
+  ["DisableWebhook", "POST", "/v1/webhooks/{webhookId}/disable"],
+  ["RotateWebhookSecret", "POST", "/v1/webhooks/{webhookId}/rotate"],
   ["ListDeliveries", "GET", "/v1/webhooks/{webhookId}/deliveries"],
-  ["Redeliver", "POST", "/v1/deliveries/{deliveryId}/redeliver"],
-  ["ListMCPConnectors", "GET", "/v1/mcp-connectors"],
-  ["DecideMCPConnector", "PUT", "/v1/mcp-connectors/{connectorId}"],
-  ["GetHarnessAllow", "GET", "/v1/teams/{teamId}/harness-allow"],
-  ["SetHarnessAllow", "PUT", "/v1/teams/{teamId}/harness-allow"],
-  ["ListTeamSkills", "GET", "/v1/teams/{teamId}/skills"],
-  ["PutTeamSkill", "PUT", "/v1/teams/{teamId}/skills/{name}"],
+  ["Redeliver", "POST", "/v1/webhook-deliveries/{deliveryId}/redeliver"],
+  // connectors: task 161 (tasks-161-180.md:63-64); DELETE takes ?url=
+  ["ListMCPConnectors", "GET", "/v1/work/mcp-connectors"],
+  ["AllowMCPConnector", "PUT", "/v1/work/mcp-connectors"],
+  ["RemoveMCPConnector", "DELETE", "/v1/work/mcp-connectors"],
+  // the team agent policy: task 166 (tasks-161-180.md:273)
+  ["GetAgentPolicy", "GET", "/v1/teams/{teamId}/work/agent-policy"],
+  ["PutAgentPolicy", "PUT", "/v1/teams/{teamId}/work/agent-policy"],
 ] as const satisfies ReadonlyArray<readonly [string, Verb, `/v1/${string}`]>;
 export type RelayMethodW5 = (typeof WORK_RELAY_W5)[number][0];
 
@@ -400,8 +421,11 @@ export const W5_NOT_RELAYED = ["/v1/hooks/", "/v1/teams-bot/", "/v1/forms/{formI
 Rows naming a method task 143's list lacks: `RequestMessages` (task 157's thread),
 `SetTrackerMode` (task 153's per-connection switch), `ListTrackerLinks` (task 171's imported
 rows and upstream changes; task 150 names the `ExternalLink` record and no list), `CreateLoop`,
-`ProjectLoops`, `GetLoop` and `SetLoopState` (task 162's routes), `ListApps` and
-`ListTeamSkills`. They are proposed to task 143 with G1. `SetLoopState` is a separate row from
+`ProjectLoops`, `GetLoop` and `SetLoopState` (task 162's routes), `ListApps` (task 159),
+`CreatePersonalKey`/`CreateTeamKey`/`MyKeys`/`TeamKeys` (task 160 splits 143's two by route),
+`RotateWebhookSecret` (task 156), `AllowMCPConnector`/`RemoveMCPConnector` (task 161) and
+`GetAgentPolicy`/`PutAgentPolicy` (task 166, replacing 143's harness and skill methods). They
+are proposed to task 143 with G1. `SetLoopState` is a separate row from
 `PutLoopVersion` because a team admin may pause a teammate's loop but never write a version of it
 (OD-16, task 162). `ListLoopVersions` is task 143's method with no route in task 162's scope, so
 its path is this part's. Task 162's paths start `/v1/work/…`, so `relayPath` makes them
@@ -441,21 +465,22 @@ export interface WorkIntakeClient {
   /** Task 163's body is {requestId}; the desktop sends the op id as it and as Idempotency-Key. */
   runLoopNow(loopId: string, requestId: string): Promise<LoopRun>;   // outcome "queued"
   apps(): Promise<App[]>;
-  decideApp(appId: string, body: DecideBody): Promise<App>;
-  createAPIKey(body: CreateAPIKeyBody): Promise<CreatedAPIKey>;
-  apiKeys(q?: { teamId?: string }): Promise<{ keys: APIKey[]; rate: RateReading | null }>;
+  decideApp(appId: string, body: DecideAppBody): Promise<App>;
+  /** teamId null: a personal key (POST /v1/me/keys); else a team key (team admin). */
+  createAPIKey(teamId: string | null, body: CreateAPIKeyBody): Promise<CreatedAPIKey>;
+  apiKeys(teamId: string | null): Promise<{ keys: APIKey[]; rate: RateReading | null }>;
   revokeAPIKey(keyId: string): Promise<APIKey>;
   createWebhook(teamId: string, body: CreateWebhookBody): Promise<CreatedWebhook>;
   webhooks(teamId: string): Promise<Webhook[]>;
   disableWebhook(webhookId: string): Promise<Webhook>;
+  rotateWebhookSecret(webhookId: string): Promise<CreatedWebhook>;   // the new secret, once
   deliveries(webhookId: string, page?: PageRequest): Promise<Page<WebhookDelivery>>;
   redeliver(deliveryId: string): Promise<WebhookDelivery>;
   mcpConnectors(): Promise<MCPConnector[]>;
-  decideMCPConnector(connectorId: string, allowed: boolean): Promise<MCPConnector>;
-  harnessAllow(teamId: string): Promise<HarnessAllow>;
-  setHarnessAllow(teamId: string, a: HarnessAllow): Promise<HarnessAllow>;
-  teamSkills(teamId: string): Promise<TeamSkill[]>;
-  putTeamSkill(teamId: string, body: PutTeamSkillBody): Promise<TeamSkill>;
+  allowMCPConnector(body: PutConnectorBody): Promise<MCPConnector>;   // org admin
+  removeMCPConnector(url: string): Promise<void>;                      // org admin; ?url=
+  agentPolicy(teamId: string): Promise<TeamAgentPolicy>;
+  putAgentPolicy(teamId: string, body: PutAgentPolicyBody): Promise<TeamAgentPolicy>;   // team admin
 }
 // task 37's declaration becomes: export interface WorkClient extends WorkRoadmapClient, WorkIntakeClient { … }
 ```
@@ -463,9 +488,10 @@ export interface WorkIntakeClient {
 `makeWorkClient` gains a `w5` helper exactly like task 125's `w4` (a row looked up by name, so a
 renamed row fails the route test), and one line per member over it. `apiKeys` is the one member
 that reads headers: task 37's `send` resolves to the body, so `w5` takes a `{ headers: true }`
-flag for that row only and `rateOf(h)` parses `X-RateLimit-Used`, `X-RateLimit-Limit` and
-`X-RateLimit-Reset` (task 160's names, **UNVERIFIED**), answering `null` when any is absent,
-never a guessed limit. `acceptRequest` answers task 37's `IssueWithRevision` (`task-37.md:320`),
+flag for that row only and `rateOf(h)` parses task 160's `RateLimit-Limit`, `RateLimit-Remaining`
+and `RateLimit-Reset` (`tasks-141-160.md:794`), answering `null` when any is absent, never a
+guessed limit. Those headers describe the **caller's own** tightest bucket on that response, not
+any listed key's usage (gap G8). `acceptRequest` answers task 37's `IssueWithRevision` (`task-37.md:320`),
 so task 168's digest re-check on the new revision runs in the relay before the desktop sees it.
 
 #### Interfaces — complete: `work.ts`, part 19: `WIRE_KEYS` for W5, the goldens, the codes
@@ -490,7 +516,7 @@ so task 168's digest re-check on the new revision runs in the relay before the d
     action: true, labelId: true, bound: true, savedAt: true, savedBy: true }),
   loopRun: keys<LoopRun>({ loopId: true, run: true, version: true, firedAt: true, trigger: true,
     outcome: true, turnId: true, started: true, endedAt: true }),
-  app: keys<App>({ id: true, name: true, entraClientId: true, manifest: true, actsAs: true, state: true, decidedBy: true, decidedAt: true }),
+  app: keys<App>({ id: true, manifest: true, registeredBy: true, state: true, decidedBy: true, decidedAt: true, reason: true }),
   apiKey: keys<APIKey>({ id: true, scope: true, ownerId: true, teamId: true, name: true, shown: true,
     createdAt: true, expiresAt: true, lastUsedAt: true, revokedAt: true, revokedBy: true }),
   createdApiKey: keys<CreatedAPIKey>({ key: true, secret: true }),
@@ -498,9 +524,8 @@ so task 168's digest re-check on the new revision runs in the relay before the d
   createdWebhook: keys<CreatedWebhook>({ webhook: true, secret: true }),
   webhookDelivery: keys<WebhookDelivery>({ id: true, webhookId: true, eventSeq: true, attempt: true,
     status: true, responseCode: true, at: true, nextAttemptAt: true }),
-  mcpConnector: keys<MCPConnector>({ id: true, name: true, url: true, allowed: true, decidedBy: true, at: true }),
-  harnessAllow: keys<HarnessAllow>({ teamId: true, harnesses: true }),
-  teamSkill: keys<TeamSkill>({ teamId: true, name: true, source: true, ref: true }),
+  mcpConnector: keys<MCPConnector>({ url: true, name: true, allowedBy: true, allowedAt: true }),
+  teamAgentPolicy: keys<TeamAgentPolicy>({ teamId: true, harnesses: true, skills: true, updatedBy: true, updatedAt: true }),
 
 /** Task 143's goldens, file → the WIRE_KEYS entry it is held to. The file names are this part's
  *  (task 143 has no part); the test fails on a missing file, so a rename there shows here. */
@@ -511,7 +536,7 @@ export const W5_GOLDENS = {
   "loop": "loop", "loop-version": "loopVersion", "loop-run": "loopRun", "app": "app", "api-key": "apiKey",
   "created-api-key": "createdApiKey", "webhook": "webhook", "created-webhook": "createdWebhook",
   "webhook-delivery": "webhookDelivery", "mcp-connector": "mcpConnector",
-  "harness-allow": "harnessAllow", "team-skill": "teamSkill",
+  "team-agent-policy": "teamAgentPolicy", "team-agent-policy-unset": "teamAgentPolicy",
 } as const satisfies Record<string, keyof typeof WIRE_KEYS>;
 ```
 
@@ -552,8 +577,9 @@ export type W5FeedKind = (typeof W5_FEED_KINDS)[number];
 /** Admin kinds: the replica reads these only to skip them (decision 4). */
 export const W5_ADMIN_KINDS = [
   "app.registered", "app.decided", "api_key.created", "api_key.revoked",
-  "webhook.created", "webhook.disabled", "webhook.delivered", "mcp_connector.decided",
-  "harness_allow.set", "team_skill.put",
+  "webhook.created", "webhook.disabled", "webhook.rotated", "webhook.delivered",
+  "work.mcp_connector_allowed", "work.mcp_connector_removed",   // task 161's names (:65)
+  "work.agent_policy_set",                                      // task 166's name (:274)
 ] as const;
 
 /** Signals the replica passes on and does not store: the Desk row of task 170. */
@@ -691,7 +717,7 @@ describe("SW.21 the W5 wire", () => {
   });
 
   // Kills: the secret listed again on an ordinary record.
-  it("only the three Created* types carry a secret key", () => {
+  it("only the Created* types carry a secret key", () => {
     for (const [name, list] of Object.entries(WIRE_KEYS))
       if (!name.startsWith("created")) expect(list, name).not.toContain("secret");
   });
@@ -723,9 +749,9 @@ describe("SW.21 the W5 wire", () => {
 
   // Kills: a rate reading guessed when a header is missing.
   it("rateOf answers null without all three headers", () => {
-    expect(rateOf(new Headers({ "X-RateLimit-Used": "412" }))).toBeNull();
-    expect(rateOf(new Headers({ "X-RateLimit-Used": "412", "X-RateLimit-Limit": "1000",
-      "X-RateLimit-Reset": "2026-09-26T15:00:00Z" }))).toEqual({ used: 412, limit: 1000, resetsAt: "2026-09-26T15:00:00Z" });
+    expect(rateOf(new Headers({ "RateLimit-Remaining": "588" }))).toBeNull();
+    expect(rateOf(new Headers({ "RateLimit-Limit": "1000", "RateLimit-Remaining": "588",
+      "RateLimit-Reset": "2026-09-26T15:00:00Z" }))).toEqual({ used: 412, limit: 1000, resetsAt: "2026-09-26T15:00:00Z" });
   });
 });
 ```
@@ -828,4 +854,10 @@ npm --prefix desktop run typecheck
 7. **G7 — task 162's paths carry `/work/` after `/v1`.** Every other Work route is `/v1/<noun>`,
    so task 37's `relayPath` gives `/v1/hub/work/<noun>`; task 162's `/v1/work/loops/…` becomes
    `/v1/hub/work/work/loops/…`. It works, but task 162 should drop the `/work` segment (to
-   `/v1/loops/…` and `/v1/projects/{projectId}/loops`) so the relay stays uniform.
+   `/v1/loops/…` and `/v1/projects/{projectId}/loops`) so the relay stays uniform. Tasks 161
+   (`/v1/work/mcp-connectors`) and 166 (`/v1/teams/{teamId}/work/agent-policy`) do the same.
+8. **G8 — no per-key usage.** Task 160's `RateLimit-*` headers describe the bucket of the token
+   that made the call, so the desktop's own calls show the desktop's own bucket, never a listed
+   key's. Task 173's *used 412 · limit 1000* per key needs task 160 to add a usage reading to
+   `APIKey` (for example `usage {used, limit, resetAt}` from its bucket store). Until then task 173
+   shows each key's `lastUsedAt` and its limit, and no used count.
