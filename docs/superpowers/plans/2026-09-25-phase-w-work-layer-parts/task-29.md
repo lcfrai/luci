@@ -446,7 +446,7 @@ describe("AgentGlyph", () => {
   // Kills: a per-row timer, and a breath with its own period.
   it("breathes on the one heartbeat", () => {
     // setInterval only: React's scheduler may use timers of its own, and useHeartbeat's one
-    // interval (heartbeat.ts:37) is the mechanism a per-row clock would have to reach for.
+    // interval (heartbeat.ts:34) is the mechanism a per-row clock would have to reach for.
     const interval = vi.spyOn(globalThis, "setInterval");
     const live = Array.from({ length: 20 }, () => draw("running").querySelector(".gl-agent-live"));
     expect(interval).not.toHaveBeenCalled();
@@ -477,3 +477,95 @@ describe("AgentGlyph", () => {
 
 `STATE_PATHS` entries carry `dash` as well as `d`; `allD` reads `d` only, so a dashed ring and a
 solid ring with one `d` would still count as shared, which is the stricter reading.
+
+#### Tests to write first — `desktop/src/components/glyphs/MarkGlyph.test.tsx`
+
+```tsx
+import { describe, expect, it } from "vitest";
+import { render } from "@testing-library/react";
+import glyphsCss from "./glyphs.css?raw";
+import { MarkGlyph } from "./MarkGlyph";
+import type { MarkKind } from "./MarkGlyph";
+import { MARK_PATHS } from "./paths";
+import { stripCssComments } from "../../test/fakes";
+
+const draw = (kind: MarkKind, lit = false): SVGSVGElement =>
+  render(<MarkGlyph kind={kind} lit={lit} />).container.querySelector("svg")!;
+const css = stripCssComments(glyphsCss);
+const rule = (selector: string): string =>
+  new RegExp(`${selector.replace(/[.]/g, "\\.")}\\s*\\{([^}]*)\\}`).exec(css)?.[1] ?? "";
+
+describe("MarkGlyph", () => {
+  // Kills: selection drawn as a ring alone (lit is not selected, 05 §4.1).
+  it("draws selection as a check", () => {
+    const d = draw("selected").querySelector("path")?.getAttribute("d") ?? "";
+    expect(d).toBe(MARK_PATHS[16].selected[0].d);
+    expect(d).not.toMatch(/[aAzZ]/);                 // an open polyline: no arc, never closed
+    expect(draw("selected").classList.contains("gl-mark-node")).toBe(false);
+  });
+
+  // Kills: an escalation shown by amber alone (05 §4.4 rule 4).
+  it("gives needs-you a shape", () => {
+    const paths = [...draw("needs_you").querySelectorAll("path")];
+    expect(paths.length).toBeGreaterThan(0);
+    expect(paths.map((p) => p.getAttribute("d"))).toEqual([MARK_PATHS[16].needs_you[0].d]);
+    expect(MARK_PATHS[16].needs_you[0].d).not.toBe(MARK_PATHS[16].selected[0].d);
+    expect(rule(".gl-mark-need")).toContain("color: var(--need)");
+  });
+
+  // Kills: a thread node drawn as a filled disc, and lighting that is not the accent ring.
+  it("draws thread_node as a ring, not a disc", () => {
+    expect(rule(".gl-mark path")).toContain("fill: none");
+    expect(rule(".gl-mark.gl-mark-node path")).toContain("stroke-width: 1px");
+    expect(draw("thread_node").querySelector("path")?.getAttribute("d")).toMatch(/a2 2 0 1 0/);
+    expect(draw("thread_node", true).classList.contains("gl-mark-lit")).toBe(true);
+    expect(rule(".gl-mark-node.gl-mark-lit")).toContain("color: var(--accent-ring)");
+    expect(draw("selected", true).classList.contains("gl-mark-lit")).toBe(false);
+  });
+
+  // Kills: an unlabelled mark.
+  it("names every mark for assistive technology", () => {
+    const labels = (["selected", "needs_you", "thread_node"] as const).map((k) => draw(k).getAttribute("aria-label"));
+    expect(labels).toEqual(["Selected", "Needs you", "Provenance thread"]);
+  });
+});
+```
+
+#### Tests to write first — `StatusDot.test.tsx` (two rewritten, one added)
+
+In the case table at `:15-24`, `["running", "dot-disc"]` becomes `["running", "dot-run"]`. The
+test at `:67-90` is replaced whole:
+
+```tsx
+  // Kills: the rail keeping the old shape, and the reduced-motion halo filling the new ring.
+  it("separates running from idle by shape in every motion mode", () => {
+    const shapeOf = (el: HTMLElement): string | undefined =>
+      /dot-(disc|ring|run|square)/.exec(el.className)?.[0];
+    const { unmount } = render(<StatusDot status="running" live label="running" />);
+    const runningShape = shapeOf(dot());
+    unmount();
+    render(<StatusDot status="idle" live={false} label="idle" />);
+    expect(runningShape).toBe("dot-run");
+    expect(shapeOf(dot())).toBe("dot-disc");
+
+    const block = /@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{([\s\S]*?)\n\}/.exec(commonCss);
+    expect(block).not.toBeNull();
+    expect(block![1]).toMatch(/box-shadow:\s*0 0 0 1\.5px currentColor/);   // the halo stays
+    expect(block![1]).toMatch(/\.dot-run\.dot-live\s*\{\s*box-shadow:\s*none;/);
+  });
+```
+
+And one test is added after it:
+
+```tsx
+  // Kills: dot-run drawn as anything but a disc inside a ring off it.
+  it("draws running as dot-run", () => {
+    render(<StatusDot status="running" live={false} label="running" />);
+    expect(dot().className).toContain("dot-run");
+    expect(dot().className).not.toContain("dot-disc");
+    const run = /\.dot-run\s*\{([^}]*)\}/.exec(commonCss)?.[1] ?? "";
+    expect(run).toContain("outline: 1px solid currentColor");
+    expect(run).toContain("outline-offset: 1px");
+    expect(run).toContain("border-radius: 50%");
+  });
+```
