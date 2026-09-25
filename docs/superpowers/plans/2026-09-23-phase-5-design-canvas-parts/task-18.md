@@ -71,6 +71,10 @@ const (
 	MaxStreams    = 64        // a 65th OPEN is answered with RESET "too many streams"
 	ChannelPath   = "/mcp-channel"
 	ListenAddr    = "127.0.0.1:8731" // inside the sandbox; the URL the harness is given (task 19)
+	// Built (393515c), beyond the first draft: the numbers the rules below already used, named.
+	WindowAck     = 64 << 10 // a receiver sends WINDOW once it has handed this many bytes to its reader
+	MaxReason     = 200      // bytes of a RESET's UTF-8 reason
+	MaxPing       = 8        // bytes of a PING's payload, echoed in its PONG
 )
 
 type Frame struct {
@@ -81,8 +85,15 @@ type Frame struct {
 
 var ErrFrame = errors.New("mcprelay: malformed frame")
 
-func Encode(f Frame) ([]byte, error) // errs on an oversized payload or a kind/stream mismatch
-func Decode(b []byte) (Frame, error) // ErrFrame on short input, unknown kind, oversized payload
+// Encode and Decode refuse the same frames, all wrapping ErrFrame: short input (Decode), an
+// unknown kind, a payload past MaxPayload, a kind on the wrong stream (OPEN DATA CLOSE RESET
+// WINDOW on 0; PING PONG off 0), and a payload the kind does not allow (OPEN/CLOSE non-empty,
+// empty DATA, RESET not UTF-8 or past MaxReason, WINDOW not 4 bytes, PING/PONG past MaxPing).
+// A sender cannot put on the wire what its peer rejects.
+func Encode(f Frame) ([]byte, error)
+func Decode(b []byte) (Frame, error)       // a decoded Payload aliases b
+func WindowPayload(n uint32) []byte        // a WINDOW frame's payload
+func WindowIncrement(f Frame) uint32       // a decoded WINDOW frame's increment
 ```
 
 ```
@@ -95,7 +106,13 @@ func Decode(b []byte) (Frame, error) // ErrFrame on short input, unknown kind, o
 050000000100040000 {Kind:5 Stream:1 Payload:[0 4 0 0]}
 060000000001 {Kind:6 Stream:0 Payload:[1]}
 070000000001 {Kind:7 Stream:0 Payload:[1]}
+02010203056869 {Kind:2 Stream:16909061 Payload:"hi"}
 ```
+
+The last line is beyond the first draft: every other line uses stream 0 or 1, which a codec
+reading only the low id byte would pass. The file as built also carries two more comment lines
+(the Go syntax is `%+v` with a printable-ASCII payload quoted, so a codec that round-trips its
+own mistake still fails the text).
 
 ```go
 // sandboxd/internal/mcprelay/listener.go
@@ -109,17 +126,32 @@ type Listener struct{ /* unexported */ }
 
 const HoldTimeout = 30 * time.Second
 
-// Listen binds addr, which must be a loopback address; any other is an error
-// (G4). "off" disables the relay.
+const Off = "off"                                    // Listen(Off, …) returns nil, nil
+const StatusSuperseded websocket.StatusCode = 4001
+
+// Listen binds addr, which must be a loopback IP and port; any other address,
+// a host name included, is an error (G4), checked before the bind and again on
+// the bound address. "off" disables the relay.
 func Listen(addr string, log *slog.Logger) (*Listener, error)
+func (l *Listener) Addr() net.Addr
 func (l *Listener) Close() error
 
 // Serve runs one channel: every held and every new connection becomes a
 // stream over conn until conn fails. A second channel replaces the first,
 // which is closed with status 4001 "superseded"; streams of the old channel
-// are reset. Serve returns when conn closes.
+// are reset. Serve returns when conn closes. Serve sets conn's read limit to
+// MaxFrameBytes itself, so no caller can forget it.
 func (l *Listener) Serve(ctx context.Context, conn *websocket.Conn) error
 ```
+
+**As built** (`channel.go`, `listener.go`): a stream's local connection is aborted with a TCP
+reset (`SO_LINGER` 0), never a clean EOF a client could take for a finished response. A 65th
+live stream, or a 65th connection held before any channel, never becomes a stream: sandboxd
+resets the local connection and logs `too many streams`; no RESET frame exists for it, because
+no stream id was ever sent. (The control plane's side still answers a 65th OPEN with RESET
+"too many streams", task 19.) A superseded or failed channel resets its streams' local
+connections and sends nothing on the socket. The read loop only queues: DATA past the window,
+WINDOW for bytes never sent, and DATA after CLOSE each reset the stream with a fixed reason.
 
 ```go
 // sandboxd/internal/server/server.go — Config gains one field, New one route
@@ -127,18 +159,27 @@ func (l *Listener) Serve(ctx context.Context, conn *websocket.Conn) error
 	// MCP is the relay's listener; nil disables /mcp-channel (answers 404).
 	MCP *mcprelay.Listener
 
-// in New, beside /attach:
+// in New, beside /attach, and only when cfg.MCP != nil (nil: the route does not exist, 404):
 //	s.mux.HandleFunc(mcprelay.ChannelPath, s.mcpChannel)
 // mcpChannel: authorised(r) exactly as attach (401 without the bearer), then
-// websocket.Accept, SetReadLimit(mcprelay.MaxFrameBytes), then l.Serve.
+// websocket.Accept with nil options — the origin check ON, unlike /attach: the control
+// plane dials from Go and sends no Origin, which Accept allows, and a browser's is refused
+// (403) — then SetReadLimit(mcprelay.MaxFrameBytes), then l.Serve.
+// New neither opens nor closes cfg.MCP: its caller owns it.
 ```
 
 ```go
-// sandboxd/cmd/sandboxd/main.go — one flag
-mcpListen := flag.String("mcp-listen", mcprelay.ListenAddr, `loopback address for the canvas MCP relay, or "off"`)
-srv, err := newServer(*command, argv, *token, *allowUnauthenticated, *mcpListen) // main.go:56 today has four
+// sandboxd/cmd/sandboxd/main.go — one flag, defined through a helper so a test can pin its default
+func mcpListenFlag(fs *flag.FlagSet) *string {
+	return fs.String("mcp-listen", mcprelay.ListenAddr, `loopback address for the canvas MCP relay, or "off"`)
+}
+mcpListen := mcpListenFlag(flag.CommandLine)
+srv, err := newServer(*command, argv, *token, *allowUnauthenticated, *mcpListen) // main.go:56 had four
 
-// serve_posix.go: "off" → Config.MCP nil; else mcprelay.Listen(mcpListen), its error returned.
+// serve_posix.go: mcprelay.Listen(mcpListen) FIRST ("off" → nil → Config.MCP nil), its error
+// returned; then server.New, which starts the PTY. The order matters: the harness dials MCP as
+// the PTY starts it, and a bound port holds that dial where an unbound one refuses it. When
+// server.New fails the listener is closed, so a restarted sandboxd can bind the port again.
 func newServer(command string, argv []string, token string, allowUnauthenticated bool, mcpListen string) (http.Handler, error)
 
 // serve_other.go (review M5): a string, not a *mcprelay.Listener, so the stub imports nothing new
@@ -150,7 +191,7 @@ The listener is opened in `serve_posix.go`, not `main.go`, so the stub never ope
 serve.
 
 The image's entrypoint (`images/sandbox/entrypoint.sh`) is **unchanged**: the default is right, and
-`backend.EnvEntries`' fixed three variables (`backend.go:177-207`) stay three.
+`backend.EnvEntries`' fixed three variables (`backend.go:181-211`; the draft said 177-207) stay three.
 
 **Flow control.** Each side tracks, per stream, bytes sent minus bytes acknowledged by `WINDOW`, and
 never exceeds `InitialWindow`; a receiver sends `WINDOW` after it has handed at least 64 KiB to its
@@ -178,6 +219,26 @@ reason; never a payload byte.
 | `TestMCPChannel_disabled` | `Config.MCP == nil` → 404 | a half-configured relay |
 | `TestLogs_payloadBlind` | a captured log after a stream carrying `"secret"` has no `secret` | payload in sandbox logs |
 
+**Added in the build**, each for a mutant the table above let through or did not name:
+
+| Test | Asserts | Kills the mutant |
+|---|---|---|
+| `TestFrameSourceIdentical` (control-plane side) | `frame.go` and `frame_test.go` equal the sandboxd twin byte for byte | a check one copy alone makes |
+| `TestEncode_rejects`, `TestCodec_limitsAccepted`, `TestDecode_hostileNeverPanics` | Encode refuses what Decode refuses; the limits themselves are accepted; 20,000 random inputs never panic | a sender putting on the wire what its peer rejects |
+| `TestPing_echoedAsPong` | PING's 8 bytes come back as PONG | a dead keepalive |
+| `TestWindow_protocolErrors` | DATA past the window, WINDOW for bytes never sent, DATA after CLOSE → RESET with the fixed reason | a peer past the window left unchecked |
+| `TestListener_survivesAnAcceptError` | a listener whose first Accept fails still serves the next connection | one transient accept error ending the relay (mutation S2 survived without it) |
+| `TestMCPChannel_refusesABrowserOrigin` | the right token with `Origin: https://evil.example` → 403 | the origin check turned off (mutation S1 survived without it) |
+| `TestMCPListenFlag` | `-mcp-listen` defaults to `127.0.0.1:8731` and parses `off` | the image's sandboxes silently without the relay |
+| `TestNewServer_mcpListen` | `0.0.0.0:0` refused; `off` → 404; loopback → 401 | the flag never reaching the server |
+| `TestNewServer_releasesTheRelayOnFailure` | a failed `server.New` leaves the port free | a restarted sandboxd unable to bind |
+
+`TestMaxStreams` runs twice: on a channel (and a new connection opens once one stream ends, so
+the bound is on live streams) and for connections held before any channel. The 65th is refused
+with a TCP reset, which may land before `Dial` returns ("connect: connection reset by peer" on
+Linux); the test accepts either. `TestSecondChannelSupersedes` also checks the superseded
+`Serve` returns and a stream on the new channel moves.
+
 ## Steps
 
 1. Write `frame.go` and `frames.golden` in `sandboxd`, then copy both to the control plane (change
@@ -196,9 +257,22 @@ and `control-plane/internal/mcprelay`. (`sandboxd/internal/server` is `//go:buil
 `server.go:1`: on Windows its tests do not build; CI's Ubuntu agent runs them.)
 
 ```bash
-cd sandboxd && GOFLAGS=-mod=vendor go build ./cmd/sandboxd && echo vendored-ok
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/phase-5/sandboxd && GOWORK=off GOFLAGS=-mod=vendor go build ./cmd/sandboxd && echo vendored-ok
 ```
-Expected: `vendored-ok` — the image's build (`Dockerfile:8`) still works.
+Expected: `vendored-ok` — the image's build (`Dockerfile:8`) still works. **Corrected in the
+build:** the draft had no `GOWORK=off`, and from `sandboxd/` the root `go.work` is found, so
+`-mod=vendor` means workspace vendoring and the build fails ("inconsistent vendoring … run: go
+work vendor", rc 1, measured). The image copies `sandboxd` alone (`Dockerfile:7`), with no
+`go.work`; `GOWORK=off` is that build. (`sandboxd.exe` is git-ignored, `*.exe`.)
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/phase-5 && MSYS_NO_PATHCONV=1 docker run --rm --name pa-p5-t18-gotest --network none -v "$(cygpath -w "$PWD"):/src" -w /src/sandboxd -e GOFLAGS=-mod=vendor -e GOWORK=off -e GOTOOLCHAIN=local golang:1.23-bookworm go test ./... -race -count=1
+```
+Expected: `ok` for every sandboxd package, `internal/server` and `cmd/sandboxd`'s posix tests
+included. **Added in the build:** the first command cannot run the server tests on this Windows
+machine, and waiting for CI would leave `/mcp-channel` untested before commit. The image is
+local (`golang:1.23-bookworm`), `--network none` works because sandboxd is vendored, and it pins
+go 1.23, which this machine's go1.26.2 does not.
 
 ```bash
 cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/phase-5 && go build ./sandboxd/... && GOOS=linux go build ./sandboxd/... && echo both-builds-ok
