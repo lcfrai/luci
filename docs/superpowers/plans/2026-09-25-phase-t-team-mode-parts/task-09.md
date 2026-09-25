@@ -29,7 +29,9 @@ one test in each module fails if a fixture exists that its module's types cannot
 - `control-plane/internal/fleet/model/event.go`: `EventKind`, `Event`, `Turn`, `TurnOrigin` (new)
 - `control-plane/internal/fleet/model/verbs.go`: the verb table and `ClassMay` (new)
 - `control-plane/internal/fleet/model/model_test.go` (new)
-- `control-plane/internal/fleet/wire/control.go`: the Fleet copy of the wire (new)
+- `control-plane/internal/fleet/wire/{control.go,codes.go,decode.go}`: the Fleet copy of the wire
+  (new; the skeleton's file map names `control.go`, and the other two are its split, so each file
+  stays under 120 lines)
 - `control-plane/internal/fleet/wire/control_test.go`: round trip of every fixture (new)
 - `sandboxd/internal/control/wire.go`: the sandbox copy (new)
 - `sandboxd/internal/control/wire_test.go`: the same round trip (new)
@@ -482,9 +484,9 @@ func RefuseWith(code, message string, details map[string]string) error {
 }
 ```
 
-The sandbox copy carries the same list plus task 16's `CodeForbidden` (`task-16.md:173-176`),
-which only `sandboxd` sends. `Codes` in the sandbox copy therefore has one more entry, and the
-test below allows exactly that one difference.
+The sandbox copy carries the same list, exactly. Task 16's `CodeForbidden` (`task-16.md:173-176`),
+which only `sandboxd` sends, lives in task 16's `server.go`, not in `wire.go`, so the cross-module
+comparison below sees two equal lists.
 
 ```go
 // control-plane/internal/fleet/wire/decode.go
@@ -583,3 +585,206 @@ and `Unavailable` except as task 16 needs them (`sandboxd` answers `unavailable`
 stream is down, `task-16.md:281`, so it carries `Unavailable`). The copy is written out by
 copying the Fleet file and changing the package line; the round-trip test is what proves the two
 still agree afterwards.
+
+#### Every verb's `args` and `result`
+
+The `args` column is task 18's argv table (`task-18.md:131-152`), adopted as written; its rows
+marked "(09?)" are hereby fixed. The Go type of each `args` and `result` lives with the verb's
+handler, in `cp/internal/fleet/verbs` or `…/protocol`, because only Fleet decodes them: the CLI
+prints `result` verbatim between task 18's header and footer and never decodes it. The **result**
+column names the owning task and its fixture; the shape there is authoritative.
+
+| Verb | `args` | `result` (owner, fixture) |
+|---|---|---|
+| `team` | `{}` | worker or orchestrator view (task 22, `result-team-worker.json`, `result-team-orchestrator.json`) |
+| `check` | `{"path"}` | directives, holders, leases, conflicts on one path (task 22, `result-check-*.json`) |
+| `files` | `{}` | the tree at the integration head (task 22) |
+| `show` | `{"path"}` | one file at the integration head (task 22) |
+| `lease` | `{"op":"request","globs":[…],"mode"?:"intent","task"?}` · `{"op":"release","lease"}` | the lease and any overlaps (task 23, `result-lease-granted.json`, `result-lease-contested.json`) |
+| `report` | `{"kind":"done"\|"blocked"\|"assumed","text","on"?:"human"}` | `{"reported":"ev-…"}` (task 24) |
+| `task` | `{"op":"create"\|"update"\|"abandon", …}` | the task and its overlaps (task 24, `result-task-create-overlap.json`) |
+| `worker` | `{"op":"spawn","task"}` · `{"op":"stop","agent"}` | the worker's `ag-…` and status (task 24) |
+| `direct` | `{"to","kind", "globs"? \| "lease"? \| "text"?}` | the `dv-…` issued, or the `es-…` a decide became (task 31) |
+| `inbox` | `{}` | quoted items since the last read (task 28, `inbox-*.json`) |
+| `peer` | `{"kind", "thread"?, "fields", "text"?}` | the `ms-…` appended, or a templated answer (task 28, `peer-*.json`) |
+| `human` | `{"kind":"inform"\|"ask", "question", "options"?}` | the `es-…` (task 30) |
+| `lane` | `{"agent"}` | changed paths and line counts, never contents (task 34's sample; TM1-α answers `unavailable` until task 34) |
+| `turn.end` | task 26's `TurnEnd` | `{}` or `turn_mismatch` (task 26, `turn-end*.json`) |
+
+**No `args` carries an owner, an org, a class or a caller id.** The caller is `sandboxd`'s stamp
+(task 16's `Stamped.Agent`, `.Class`), and Fleet looks the owner up from the agent (task 19). A
+handler's strict decode refuses `"owner"` like any unknown key, which task 24's
+`TestCreateForOtherOwnerRefused` already relies on.
+
+#### The fixtures this task ships
+
+All in `testdata/panacea-control/v1/`, one JSON value per file, no trailing newline, compact
+(`json.Compact` of the file equals the file). Later tasks add their own files beside these.
+
+| File | Holds |
+|---|---|
+| `request-team.json` | `{"v":1,"id":"rq-00000001","verb":"team","args":{}}` |
+| `request-check.json` | `{"v":1,"id":"rq-00000002","verb":"check","args":{"path":"src/export/route.ts"}}` |
+| `request-lease-request.json` | `{"v":1,"id":"rq-00000003","verb":"lease","args":{"op":"request","globs":["src/export/**"]}}` |
+| `request-report-blocked-human.json` | `{"v":1,"id":"rq-00000004","verb":"report","args":{"kind":"blocked","on":"human","text":"Which region codes are in scope?"}}` |
+| `request-direct-pause.json` | `{"v":1,"id":"rq-00000005","verb":"direct","args":{"to":"ag-00000000000000b1","kind":"pause"}}` |
+| `request-inbox.json` | `{"v":1,"id":"rq-00000006","verb":"inbox","args":{}}` |
+| `response-ok-null.json` | `{"id":"rq-00000001","ok":true,"result":null}` |
+| `response-unavailable.json` | `{"id":"rq-00000002","ok":false,"error":{"code":"unavailable","message":"team view unavailable since 2026-09-25T10:00:00Z","since":"2026-09-25T10:00:00Z"}}` |
+| `response-conflict.json` | `{"id":"rq-00000003","ok":false,"error":{"code":"conflict","message":"That task cannot move from done.","details":{"from":"done","to":"active"}}}` |
+| `response-rate-limited.json` | `{"id":"rq-00000004","ok":false,"error":{"code":"rate_limited","message":"Twenty messages an hour between two orchestrators.","retryAfter":"2026-09-25T11:02:00Z"}}` |
+| `event-nudge.json` | `{"event":"nudge"}` |
+| `event-stop.json` | `{"event":"stop","reason":"access_removed"}` |
+| `bad-unknown-field.json` | `{"v":1,"id":"rq-1","verb":"team","args":{},"owner":"u-x"}`: must be **refused** by both |
+| `bad-version.json` | `{"v":2,"id":"rq-1","verb":"team","args":{}}`: refused |
+| `bad-args-array.json` | `{"v":1,"id":"rq-1","verb":"team","args":[]}`: refused |
+
+Files beginning `bad-` are the negative set: both modules' tests assert each is refused. Task 18's
+`request-<verb>-<case>.json` convention is this table's.
+
+**How the round-trip test classifies a file it did not write.** By its top-level keys, not its
+name: `v` is a request, `ok` a response, `event` a pushed event; a file with none of the three is
+an `args-`, `result-` or snapshot body that its own task tests, and this test skips it. Two
+exceptions, by prefix: `stamped-*` (task 16's sandbox-to-Fleet frame, a request plus two stamped
+keys, decoded by task 16's and task 19's own types) and `bad-*` (must be refused). **An event
+fixture must decode into a registered type in both modules**, so a task that adds a pushed event
+(task 26's `turn.begin`, task 16's snapshot) registers it in each copy, or both modules' tests
+fail. Registration is one line in the adding task's own file:
+
+```go
+// control-plane/internal/fleet/wire/control.go (the registry)
+
+// eventTypes maps a pushed event's name to a fresh value of its strict type.
+// Tasks that add an event register it from their own file with an init, e.g.
+// task 26's turn.go: func init() { eventTypes[EventTurnBegin] = func() any { return new(TurnBegin) } }.
+var eventTypes = map[string]func() any{
+	EventNudge: func() any { return new(Nudge) },
+	EventStop:  func() any { return new(Stop) },
+}
+
+// DecodePushed decodes any registered pushed frame strictly.
+func DecodePushed(b []byte) (any, error) {
+	name, err := EventName(b)
+	if err != nil {
+		return nil, err
+	}
+	mk, ok := eventTypes[name]
+	if !ok {
+		return nil, errors.New("wire: unregistered event " + name)
+	}
+	v := mk()
+	return v, DecodeEvent(b, v)
+}
+```
+
+- [ ] **Step 1: Write the failing tests**
+
+Both modules get the same four tests over the same directory; the Fleet file is shown, and the
+sandbox file differs in its package, its import path, and `fixtures = "../../../testdata/…"`.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestEveryFixtureRoundTrips` | for each non-`bad-`, non-`stamped-` file classified as request, response or event: decode strictly, re-encode with `json.Marshal`, and the bytes equal the file | a field renamed in one copy; an `omitempty` dropped, so `"details":null` appears |
+| `TestBadFixturesAreRefused` | each `bad-*.json` fails `DecodeRequest` | `DisallowUnknownFields` omitted (G2), so `"owner"` rides in |
+| `TestUnavailableCarriesSince` | `response-unavailable.json`'s `Error.Since` is 10:00Z; `Unavailable("x", t)` marshals with `since` and no `retryAfter` | a constructor that forgets `since`, so the CLI prints "since" with no time |
+| `TestResponseShape` | `{"id":"a","ok":true,"error":{…}}` and `{"id":"a","ok":false}` both fail `DecodeResponse` with `ErrShape` | an ok that disagrees with its body accepted |
+| `TestRequestIDGrammar` | ids of 0 and 65 characters, and `"a b"`, fail with `ErrID`; 64 passes | the length check off by one; spaces allowed, which breaks task 16's log lines |
+| `TestFailHidesGoErrors` | `Fail("a", errors.New("open /home/x/secret: denied"))` is `internal` with the fixed message | the Go error string sent to a sandbox |
+| `TestCodesMatchAcrossModules` (Fleet side only) | parses `sandboxd/internal/control/wire.go` with `go/parser`, collects every `Code*` string constant, and compares the set with `wire.Codes`: equal | a code added to one copy only |
+| `TestVerbTable` (`model_test.go`) | `ClassMay(ClassWorker, "peer")` false; `ClassMay(ClassOrchestrator, "peer")` true; `ClassMay(ClassMirror, v)` false for every verb; `ClassMay(any, "token")` false; every `Verbs` name unique | a local verb dispatched; the mirror given a verb; a duplicate row that shadows the first |
+| `TestTerminalLeaseStates` | exactly `yielded`, `released`, `expired`, `admin-released` are `Terminal()` | a terminal state missed, so task 06's Hub refuses Fleet's next event |
+| `TestEventKindsAreSections42` | `EventKinds` has nine distinct values, each `Valid()`; `"turn.begin"` is not an `EventKind` | a pushed wire event confused with a queued model event |
+
+`TestCodesMatchAcrossModules` reads the sibling module's source as text, which is allowed: it is
+a file read, not an import, so the two modules still do not depend on each other.
+
+The central test in full:
+
+```go
+// control-plane/internal/fleet/wire/control_test.go (excerpt)
+package wire
+
+import (
+	"bytes"
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+const fixtures = "../../../../testdata/panacea-control/v1"
+
+func classify(t *testing.T, b []byte) string {
+	t.Helper()
+	var top map[string]json.RawMessage
+	if err := json.Unmarshal(b, &top); err != nil {
+		t.Fatalf("not a JSON object: %v", err)
+	}
+	for _, k := range []string{"v", "ok", "event"} {
+		if _, ok := top[k]; ok {
+			return k
+		}
+	}
+	return ""
+}
+
+// Mutant killed: a JSON tag renamed or an omitempty dropped in this copy only. The
+// sandbox copy runs the same loop, so a drift fails one module or the other.
+func TestEveryFixtureRoundTrips(t *testing.T) {
+	files, _ := filepath.Glob(filepath.Join(fixtures, "*.json"))
+	if len(files) < 12 {
+		t.Fatalf("found %d fixtures; the directory moved?", len(files))
+	}
+	for _, f := range files {
+		base := filepath.Base(f)
+		if strings.HasPrefix(base, "bad-") || strings.HasPrefix(base, "stamped-") {
+			continue
+		}
+		b, _ := os.ReadFile(f)
+		var v any
+		var err error
+		switch classify(t, b) {
+		case "v":
+			var r Request
+			r, err = DecodeRequest(b)
+			v = r
+		case "ok":
+			var r Response
+			r, err = DecodeResponse(b)
+			v = r
+		case "event":
+			v, err = DecodePushed(b)
+		default:
+			continue // an args-, result- or snapshot body: its own task tests it
+		}
+		if err != nil {
+			t.Errorf("%s: %v", base, err)
+			continue
+		}
+		got, _ := json.Marshal(v)
+		if !bytes.Equal(got, b) {
+			t.Errorf("%s: round trip\n got %s\nwant %s", base, got, b)
+		}
+	}
+}
+```
+
+- [ ] **Step 2: Run the tests to verify they fail**
+
+```bash
+cd control-plane && go test ./internal/fleet/model/ ./internal/fleet/wire/ -count=1
+cd sandboxd && go test ./internal/control/ -count=1
+```
+
+Expected: both fail to build, naming the first missing symbol per test file (`undefined:
+DecodeRequest`, `undefined: ClassMay`, and in `sandboxd` `undefined: DecodeRequest`). If task 16
+has already landed in `sandboxd/internal/control`, the package builds and only these tests fail.
+
+- [ ] **Step 3: Write `model`, then the Fleet wire, then the fixtures, then the sandbox copy**
+
+In that order. Write each fixture with an editor and then run `python -c "import json,sys;b=open(sys.argv[1],'rb').read();assert b==json.dumps(json.loads(b),separators=(',',':'),ensure_ascii=False).encode()" <file>`
+**only to check** it is compact (there is no `jq` on this machine); do not generate fixtures from the Go types, or the round trip proves
+nothing. The sandbox copy is the Fleet file with `package control`; delete `Refusal`, `Refuse`,
+`RefuseWith`, `OK`, `Fail`; keep `Unavailable`; add nothing. Task 16's `CodeForbidden` is task
+16's own file.
