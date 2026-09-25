@@ -348,3 +348,104 @@ function forcedDecl(t: Tree, selector: string, property: string): string[] {
 `SYSTEM_COLOUR` is case-sensitive on purpose: CSS keywords are case-insensitive, but the tree
 writes them in this case, and a lowercase `canvas` is far likelier to be a word in a comment than a
 colour. `rulesOf` strips comments first (`designsystem.test.ts:116`), so comments never reach it.
+
+#### Tests to write first — `designsystem.test.ts`, the tests and their canaries
+
+Appended to `describe("the design-system audit")`:
+
+```ts
+  it("gives every ring a forced-colors border or outline", () => {
+    // Kills: a ring, elevation or edge that vanishes under a Windows contrast theme.
+    expect(ringsWithoutForcedColours(REAL)).toEqual([]);
+    // Not vacuous: the pane's elevation is one of the rings, and it is redrawn.
+    expect(forcedDecl(REAL, ".pane", "border")).toEqual(["1px solid CanvasText"]);
+  });
+
+  it("turns grain off under forced colours", () => {
+    // Kills: grain painted over someone's chosen contrast; a second copy of the rule.
+    expect(forcedDecl(REAL, ".grain::after", "display")).toEqual(["none"]);
+  });
+
+  it("outlines the selected row in Highlight", () => {
+    // Kills: an invisible selection, and a selection outline that replaces the focus ring.
+    for (const row of ['.rail-row[aria-selected="true"]', '.sub-row[aria-current="page"]']) {
+      expect(forcedDecl(REAL, `${row}:not(:focus-visible)`, "outline")).toEqual(["2px solid Highlight"]);
+      expect(forcedDecl(REAL, `${row}::before`, "background")).toEqual(["Highlight"]);
+    }
+    expect(forcedDecl(REAL, ".pal-row-on", "outline")).toEqual(["1px solid Highlight"]);
+  });
+
+  it("keeps each reduced-motion twin identical to its media rule", () => {
+    // Kills: a twin that drifts, and a reduced-motion rule the stress set cannot reach.
+    expect(twinFaults(REAL)).toEqual([]);
+  });
+
+  it("uses system colours only inside a forced-colors block", () => {
+    // Kills: Highlight or CanvasText leaking into the normal look, bypassing the palette.
+    expect(systemColoursOutside(REAL)).toEqual([]);
+  });
+```
+
+Appended to `CANARIES`:
+
+```ts
+  // Task 34: forced colours and the reduced-motion twins.
+  { fault: "a ring with no forced-colors line", rule: ringsWithoutForcedColours, file: PLANT_CSS, text: sheet(".p { box-shadow: var(--e-card); }") },
+  { fault: "an edge with no forced-colors line", rule: ringsWithoutForcedColours, file: PLANT_CSS, text: sheet(".p { box-shadow: inset 0 -1px 0 var(--line); }") },
+  { fault: "a forced-colors line that only recolours", rule: ringsWithoutForcedColours, file: PLANT_CSS, text: sheet(".p { box-shadow: var(--e-hair); }\n@media (forced-colors: active) {\n  .p { color: CanvasText; }\n}") },
+  { fault: "a reduced-motion rule with no twin", rule: twinFaults, file: PLANT_CSS, text: sheet("@media (prefers-reduced-motion: reduce) {\n  .p { animation: none; }\n}") },
+  { fault: "a twin that drifts", rule: twinFaults, file: PLANT_CSS, text: sheet('@media (prefers-reduced-motion: reduce) {\n  .p { opacity: 1; }\n}\n:root[data-motion="reduce"] .p { opacity: 0.9; }') },
+  { fault: "a system colour in the normal look", rule: systemColoursOutside, file: PLANT_CSS, text: sheet(".p { outline: 1px solid Highlight; }") },
+```
+
+The *only recolours* canary is the one that separates this rule from a weaker one: a
+forced-colours block exists for `.p`, so a rule that only asked "is `.p` mentioned under forced
+colours?" would pass it, and a ring would still vanish.
+
+#### Tests to write first — `tokens.test.ts` and `AgentGlyph.test.tsx`
+
+`tokens.test.ts`, appended inside its `describe`, with its existing `tokensCss` raw import and
+`stripCssComments`:
+
+```ts
+  it("shows the tick only on an unseen row, in ink", () => {
+    // Kills: a tick keyed on a class nobody clears or on the attribute's presence; a tick drawn
+    // in accent; a tick that also shows with motion on, where the flash already says it.
+    const css = stripCssComments(tokensCss);
+    const media = /@media \(prefers-reduced-motion: reduce\) \{\s*\[data-changed="unseen"\]::before \{([^}]*)\}/.exec(css);
+    expect(media).not.toBeNull();
+    const body = media![1];
+    expect(body).toMatch(/background: var\(--ink\);/);
+    expect(body).toMatch(/inline-size: 2px;/);
+    expect(body).toMatch(/inset-inline-start: 0;/);
+    expect(body).not.toMatch(/--accent/);
+    const bare = css.replace(/@media \(prefers-reduced-motion: reduce\) \{[\s\S]*?\n\}/g, "");
+    const drawn = [...bare.matchAll(/([^{}]*)\{[^}]*content:/g)].map((m) => m[1].trim());
+    expect(drawn.filter((s) => s.includes("data-changed"))).toEqual([
+      ':root[data-motion="reduce"] [data-changed="unseen"]::before',
+    ]);
+  });
+```
+
+`AgentGlyph.test.tsx`, appended inside task 29's `describe`, with `glyphsCss` read `?raw`:
+
+```tsx
+  it("keeps running and idle apart with motion reduced", () => {
+    // Kills: a colour-only difference once the breath stops, and a reduced rule that hides the
+    // running glyph's ring.
+    document.documentElement.setAttribute("data-motion", "reduce");
+    const shapes = (status: "running" | "idle") => {
+      const { container, unmount } = render(<AgentGlyph status={status} label={status} />);
+      const d = [...container.querySelectorAll("path")].map((p) => p.getAttribute("d"));
+      unmount();
+      return d;
+    };
+    expect(shapes("running")).not.toEqual(shapes("idle"));
+    expect(shapes("running")).toHaveLength(2);
+    const reduced = stripCssComments(glyphsCss)
+      .split("}")
+      .filter((b) => /prefers-reduced-motion|data-motion="reduce"/.test(b) || b.includes(".gl-agent-live"));
+    for (const block of reduced) expect(block).not.toMatch(/opacity:\s*0[;\s]|display:\s*none|visibility:\s*hidden/);
+    document.documentElement.removeAttribute("data-motion");
+  });
+```
