@@ -266,3 +266,137 @@ terminal (OD-8).
 
 If a frame cannot run in the environment, write **not run** and why; never a predicted result.
 ```
+
+#### Tests to write first — `desktop/src/test/w4Sweep.test.ts`
+
+The sweep checks that **every** W4 surface's own test file exists and calls `expectNoPrediction`
+(task 20, `desktop/src/test/expectNoPrediction.ts`). It renders nothing itself: each W4 part
+already renders its surface through the helper, and this plan does not fix the props of the six
+surfaces whose parts are missing (128, 134-138). Paths come from the parts where they exist and from
+the scopes otherwise (marked *scope*); step 1 corrects any that moved.
+
+```ts
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { describe, expect, it } from "vitest";
+
+const SRC = resolve(__dirname, "..");
+/** Every W4 surface's test and its owning task. A new W4 surface is added here by its task. */
+const W4_SURFACES: [string, number][] = [
+  ["components/plan/FeatureSharing.test.tsx", 126],
+  ["components/roadmap/roadmap.test.tsx", 127],
+  ["components/roadmap/Timeline.test.tsx", 128], // scope
+  ["components/roadmap/TimelineDrag.test.tsx", 129],
+  ["components/roadmap/DependencyLines.test.tsx", 129],
+  ["components/roadmap/MilestoneList.test.tsx", 130],
+  ["components/roadmap/MilestonePicker.test.tsx", 130],
+  ["deploy/ReleaseNotes.test.tsx", 131],
+  ["deploy/FreezeToggle.test.tsx", 131],
+  ["components/roadmap/Insights.test.tsx", 132],
+  ["components/desk/SinceIssues.test.tsx", 133],
+  ["components/plan/RepeatField.test.tsx", 134], // scope
+  ["components/plan/TriageRotationSettings.test.tsx", 134], // scope
+  ["components/work/MethodPage.test.tsx", 134], // scope
+  ["components/issue/IssueHead.test.tsx", 135], // scope: the spend line
+  ["components/work/AssistSuggestion.test.tsx", 136], // scope
+  ["components/work/AssistDial.test.tsx", 136], // scope
+  ["components/work/DuplicateHint.test.tsx", 137], // scope
+  ["components/work/ComposerHints.test.tsx", 137], // scope
+  ["components/plan/NlFilterBar.test.tsx", 138],
+  ["components/issue/ThreadSummary.test.tsx", 139],
+  ["components/roadmap/drafts.test.tsx", 139],
+  ["components/plan/proposals.test.tsx", 140],
+  ["components/proposal/proposal.test.tsx", 141],
+];
+
+describe("W4 sweep: no prediction on any W4 surface (OD-27)", () => {
+  it.each(W4_SURFACES)("%s (task %i) exists and calls expectNoPrediction", (file) => {
+    const path = resolve(SRC, file);
+    expect(existsSync(path)).toBe(true);
+    expect(readFileSync(path, "utf8")).toMatch(/expectNoPrediction\(/);
+  });
+
+  it("lists each W4 surface task at least once", () => {
+    const tasks = new Set(W4_SURFACES.map(([, t]) => t));
+    for (const t of [126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141]) {
+      expect(tasks.has(t)).toBe(true);
+    }
+  });
+});
+```
+
+| Test | Mutant it kills |
+|---|---|
+| each W4 surface's test calls the helper | a surface task skipped the `OD-27` guard |
+| each W4 surface task is listed | a task dropped from the sweep so its surface escapes it |
+| `check-w4.sh` on `w4-missing-output.md` exits 1 | a row marked closed from a self-report |
+| `check-w4.sh` on `w4-partial-unnamed.md` exits 1 | a PARTIAL recorded as if closed |
+| `check-w4.sh` on `w4-complete.md` exits 0 and counts the *not run* rows | a check that fails everything, or one that counts *not run* as passed |
+| `check-w4.sh` rows from 05 §1 plus L-255 | a row that moved in 05, or the carried half forgotten |
+
+#### Steps
+
+- [ ] **Step 1: read on the sync base** the parts and code of tasks 114-141; replace every
+  *(scope)* cell of the closing table and every `// scope` path in the sweep with the real name. If
+  task 70 ships a shared coverage check, `check-w4.sh` passes it the W4 row list, the carried list
+  and the PARTIAL list instead of repeating it.
+- [ ] **Step 2: the tests first**: `w4Sweep.test.ts`, then `check-w4.sh` with its three fixtures.
+  The sweep fails until every W4 surface exists; the check on each failing fixture exits 1.
+- [ ] **Step 3: name the environment** (decision 1): bring up the local stack, say whether phase 6
+  and P7 task 19 are on the sync base, record the commits.
+- [ ] **Step 4: run the fifteen frames** of `w4-run.md`, quoting each observation. Shorten with
+  `[cut]`, never `…`. Frames 10-15 without phase 6 are *not run (phase 6 not on the sync base)*.
+- [ ] **Step 5: run the suites** and each of tasks 114-141's acceptance commands; paste each result
+  line beside its row, with the commit.
+- [ ] **Step 6: list what is still unproven** (decision 10), show the W4 surfaces to the owner and
+  record the owner's words, or *not yet shown*.
+- [ ] **Step 7: run the acceptance commands.** Commit the results file, the run script, the check
+  and its fixtures and the sweep by path, each message ending with the `Co-Authored-By` line.
+
+#### Acceptance
+
+```bash
+bash docs/verification/phase-w/check-w4.sh
+# expect: "W4 coverage: 42 rows (N with a command, an observation and a commit; M not run)", exit 0
+W4_RESULTS=docs/verification/phase-w/testdata/w4-missing-output.md bash docs/verification/phase-w/check-w4.sh; echo "exit $?"
+# expect: "L-145: 1 empty cell(s)" then "exit 1"
+W4_RESULTS=docs/verification/phase-w/testdata/w4-partial-unnamed.md bash docs/verification/phase-w/check-w4.sh; echo "exit $?"
+# expect: "L-72: PARTIAL with no open part named" then "exit 1"
+npm --prefix desktop test -- test/w4Sweep
+# expect: 25 tests pass (24 surfaces and the task list)
+go test ./control-plane/... -race -count=1
+# expect: ok for every package; no FAIL line
+go test -tags integration ./control-plane/internal/hub/... -run 'TestWorkRoadmap' -count=1
+# expect: ok; TestWorkRoadmapE2E and TestWorkRoadmapConformance PASS
+npm --prefix desktop test && npm --prefix desktop run typecheck
+# expect: every suite passes; exit 0
+grep -cE "^## W4: " docs/verification/2026-09-25-phase-w-results.md
+# expect: 1
+```
+
+Forty-two is the forty-one W4 rows of 05 §1 on 2026-09-26 plus L-255's carried half. If 05 §1
+moves a row, the expected line moves with it and the section says why.
+
+#### What this task does NOT claim
+
+- That W4 is adopted or wanted, or any measured speed (none is measured here).
+- That any AI assist is accurate beyond its recorded acceptance counts; a *not run* assist row is
+  not a pass.
+- Anything about a cluster: the run is on the local stack in local mode (`OD-20`).
+- That phase 7's manifest or freeze behave as recorded unless P7 task 19 was on the sync base.
+- The owner's acceptance of any W4 surface until it is recorded in the owner's words.
+
+**Parity.** This task closes no row itself; it records the forty-one W4 rows and L-255's W4 half
+as closed **only** where the rows table carries a command, an observation and a commit.
+
+#### Gaps found while writing this part
+
+1. **Tasks 128 and 135-137 have no part on this tree** (2026-09-26), and 134's is unfinished; the
+   closing table and the sweep use their scopes' behaviour and file names. Step 1 must correct them.
+2. **L-147's drafted release-note prose has no task** (`task-139.md`, gap 1); the row stays PARTIAL
+   unless one is added, so decision 4's PARTIAL list may need L-147 on the day.
+3. **The calibration record's home** (task 114's gap) decides whether L-53 can close at all.
+4. **`docs/verification/phase-w/`** is not in the skeleton's *Proof and documents* table (the same
+   gap task 113 names).
+5. **No shared coverage check**: task 70's part is not on this tree on 2026-09-26, so W3's and W4's checks repeat
+   the logic; one check with a row list per slice would remove the drift.
