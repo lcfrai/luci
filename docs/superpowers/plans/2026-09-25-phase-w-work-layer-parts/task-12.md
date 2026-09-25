@@ -50,5 +50,70 @@ be erased, because the audit chain is hashed (hub-contract §7.12, `:1111-1113`)
   differs from what 05 wrote; the conformance rows are the arbiter
 
 No migration: task 06's `issue_comments`, `comment_mentions` and `comment_reactions` carry every
-column this task writes (`task-06.md`, the comments block, read at this writing).
+column this task writes (`task-06.md:291-337`, read at this writing): the body's 16 KiB `CHECK`,
+the `(org_id, issue_id, parent_id)` foreign key that keeps a reply on its parent's issue, the
+`author_class IN ('H','A')` check, and the reaction key.
+
+**Interfaces:**
+
+- Produces:
+  - the routes, in 07's list and 07's matrix rows: `GET` and `POST /v1/issues/{issueId}/comments`,
+    `POST /v1/comments/{commentId}/reactions`, `POST /v1/comments/{commentId}/resolve`. **No
+    `PATCH` and no `DELETE` on `/v1/comments/…`**, and a test reads `server.Patterns()` to hold it
+  - `hubapi.ValidReactionEmoji(s) bool`, `hubapi.UTF16Len(s) int`, `hubapi.MaxMentions` (20),
+    `hubapi.MaxAnchorRefBytes` (512), `hubapi.AnchorText`, `AnchorCriterion`, `AnchorSpan`,
+    `AnchorHunk`
+  - the events `comment.created`, `comment.mentioned`, `comment.reacted`, `comment.resolved`, as
+    drafts that task 13 makes constants (SW.5)
+  - `store.MentionedUsers(commentID)`, which task 13's subscription trigger reads in the same
+    transaction
+- Consumes:
+  - task 03: `Comment`, `CommentAnchor`, `Reaction`, `AuthoredText`, `CreateCommentRequest`,
+    `ReactRequest`, `ResolveRequest`, `Page[T]`
+  - task 06: `issue_comments`, `comment_mentions`, `comment_reactions`
+  - task 07: the matrix rows (comment writes 403 for `V`, ✓ for `M A`, 404 for `O N X`; reads ✓ for
+    `V M A`)
+  - task 08: the readable-issue lookup; the team-membership read used for `mentions`
+  - task 09: the read of one stored revision's content and its `serves`
+  - Hub task 14: `server.Write`, `server.Read`, `(*Tx).Emit`, `server.Refuse`, `server.Decode`
+- Consumed by: task 13 (subscribe the commenter and each mentioned user in the same
+  transaction), task 14 (erase blanks `body` and `anchor`), task 51 (the comment UI), task 60 (a
+  hunk or span anchor from the Merge lens), task 99 (the W3 kinds)
+
+#### Wire shapes
+
+```jsonc
+// POST /v1/issues/is-0a1b…/comments                 member; 201
+{ "body": { "text": "The resume test still fails on Windows.", "author": "H" },
+  "parentId": null,
+  "anchor": { "kind": "criterion", "revision": 3, "criterionId": "c-resume" },
+  "mentions": ["u-7c1d…"] }
+// → 201 Comment
+{ "id": "ic-4e2f…", "issueId": "is-0a1b…", "parentId": null, "kind": "comment",
+  "body": { "text": "The resume test still fails on Windows.", "author": "H" },
+  "anchor": { "kind": "criterion", "revision": 3, "start": 0, "end": 0, "criterionId": "c-resume", "ref": "" },
+  "mentions": ["u-7c1d…"], "reactions": [], "resolvedAt": null, "resolvedBy": null,
+  "createdAt": "2026-09-25T04:02:11.412Z", "createdBy": { "id": "u-…", "displayName": "Grace", "email": "…" } }
+
+// The four anchor kinds, as sent (a field of another kind is 400 naming it)
+{ "kind": "text",      "revision": 3, "start": 120, "end": 164 }
+{ "kind": "criterion", "revision": 3, "criterionId": "c-resume" }
+{ "kind": "span",      "ref": "sp-9a8b…" }                       // a transcript span id, verbatim
+{ "kind": "hunk",      "ref": "3f2a91c src/session/resume.ts:40-58" } // commit path:lines, verbatim
+
+// GET /v1/issues/is-0a1b…/comments?after=&limit=    viewer; Page[Comment], oldest first,
+// top-level and replies in one list (the desktop threads them by parentId)
+
+// POST /v1/comments/ic-4e2f…/reactions              member; 200 Comment
+{ "emoji": "👍", "on": true }
+// POST /v1/comments/ic-4e2f…/resolve                member; 200 Comment
+{ "resolved": true }
+```
+
+`anchor` is `null` when the comment has none. `start`, `end`, `criterionId` and `ref` encode as
+`0` and `""` when they do not apply (task 03's struct has no `omitempty` on them; the response
+never omits a field, the rule `hubapi/types_test.go:257` `TestResponsesNeverOmitAField` holds for
+the Hub's own types, verified at `9f2fa31`). `Reaction.users` is in
+reaction order, and a `Comment.reactions` list is ordered by the first reaction's time, so two
+reads of one comment answer the same bytes.
 
