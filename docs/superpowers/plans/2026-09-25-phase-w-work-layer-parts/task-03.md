@@ -645,3 +645,80 @@ func TestWorkFieldNamesMatchTheExamples(t *testing.T) {
 	}
 }
 ```
+
+```go
+var workResponseTypes = []any{IssueHead{}, IssueRevision{}, IssueWithRevision{}, ThreadState{},
+	Relation{}, ExternalRef{}, ProjectKey{}, Label{}, TeamPolicy{}, Comment{}, CommentAnchor{},
+	Reaction{}, Subscription{}, IssueRef{}, ImportResult{}}
+
+var workRequestTypes = []any{CreateIssueRequest{}, PatchIssueRequest{}, WriteIssueRevisionRequest{},
+	RestoreRevisionRequest{}, StateMove{}, RelationRequest{}, CreateLabelRequest{},
+	PutTeamPolicyRequest{}, SetProjectKeyRequest{}, CreateCommentRequest{}, ReactRequest{},
+	ResolveRequest{}, SubscribeRequest{}, ImportBatch{}}
+
+// Mutant: omitempty on any response field; the desktop indexes serves,
+// labels, relations, mentions and reactions, and a missing key reads as
+// undefined there, never as [].
+func TestWorkResponsesNeverOmitAField(t *testing.T) {
+	for _, v := range workResponseTypes {
+		typ := reflect.TypeOf(v)
+		for _, f := range jsonFields(typ) {
+			if f.omitempty {
+				t.Errorf("%s.%s has omitempty; a response never omits a field", typ.Name(), f.name)
+			}
+		}
+		b, _ := json.Marshal(v)
+		var got map[string]json.RawMessage
+		if err := json.Unmarshal(b, &got); err != nil || len(got) != len(jsonFields(typ)) {
+			t.Errorf("%s{} encodes %d keys, want %d (%v)", typ.Name(), len(got), len(jsonFields(typ)), err)
+		}
+	}
+}
+
+// Mutant: a list field whose empty value does not survive the wire as [].
+// A decoded [] must re-encode as [], never null and never absent.
+func TestWorkEmptyListsStayArrays(t *testing.T) {
+	var h IssueHead
+	if err := json.Unmarshal([]byte(`{"labels":[],"relations":[]}`), &h); err != nil {
+		t.Fatal(err)
+	}
+	var c Comment
+	if err := json.Unmarshal([]byte(`{"mentions":[],"reactions":[]}`), &c); err != nil {
+		t.Fatal(err)
+	}
+	var r IssueRevisionContent
+	if err := json.Unmarshal([]byte(`{"serves":[],"implements":[]}`), &r); err != nil {
+		t.Fatal(err)
+	}
+	for name, v := range map[string]any{"IssueHead": h, "Comment": c, "IssueRevisionContent": r} {
+		b, _ := json.Marshal(v)
+		var m map[string]json.RawMessage
+		_ = json.Unmarshal(b, &m)
+		for _, k := range []string{"labels", "relations", "mentions", "reactions", "serves", "implements"} {
+			if raw, ok := m[k]; ok && string(raw) != "[]" {
+				t.Errorf("%s.%s re-encodes as %s, want []", name, k, raw)
+			}
+		}
+	}
+}
+
+// Mutants: a lenient decoder; a "state":"done" smuggled into a patch (a state
+// moves only through StateMove, where the done rule runs); an alias, number or
+// createdBy accepted from a client.
+func TestWorkRequestsRejectUnknownFields(t *testing.T) {
+	for _, v := range workRequestTypes {
+		typ := reflect.TypeOf(v)
+		for _, body := range []string{`{"bogus":1}`, `{"createdBy":"u-0123456789abcdef"}`, `{"alias":"EP-1"}`} {
+			rec, ok := decodeInto(reflect.New(typ).Interface(), body)
+			if ok || rec.Code != http.StatusBadRequest || problemOf(t, rec).Error != CodeBadRequest {
+				t.Errorf("%s with %s: ok=%v %d, want 400 bad_request", typ.Name(), body, ok, rec.Code)
+			}
+		}
+	}
+	for _, body := range []string{`{"state":"done"}`, `{"state":"landed","priority":"high"}`, `{"number":7}`} {
+		if rec, ok := decodeInto(new(PatchIssueRequest), body); ok || rec.Code != http.StatusBadRequest {
+			t.Errorf("PatchIssueRequest %s: ok=%v %d, want 400", body, ok, rec.Code)
+		}
+	}
+}
+```
