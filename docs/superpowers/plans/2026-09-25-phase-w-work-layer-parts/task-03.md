@@ -44,10 +44,13 @@ declared here for the same reason.
 at read time, `""` while the project has no key. No request type has an `alias` field, so a
 strict decoder refuses one.
 
-**(c) `PatchIssueRequest.AssigneeID` is a tri-state `Nullable[string]`.** Absent keeps, `null`
-clears, a `u-` id sets. Task 08 otherwise decodes the body twice to tell absent from `null`; one
-small generic type, with its own `UnmarshalJSON`, removes that, and task 08 drops its second
-decode (its part says so).
+**(c) `PatchIssueRequest.AssigneeID` is a tri-state `json.RawMessage`.** Absent keeps, `null`
+clears, a `u-` id sets. A `*string` cannot tell absent from `null` (encoding/json sets a pointer
+to nil for both), and Go 1.23 has no `omitzero` for a struct wrapper, but a `RawMessage` field
+is `nil` when absent, the bytes `null` when null, and omitted on marshal when `nil`.
+`AssigneeChange()` reads it; `AssignTo(id)` and `Unassign()` write it. Task 08 otherwise decodes
+the body twice to tell absent from `null`; with this it drops the second decode (its part says
+so).
 
 **(d) `ValidReactionEmoji` is task 12's, not this task's.** The scope's `:custom:` test moves with
 it: task 12's part declares the validator and its test, and one validator is better than two.
@@ -75,7 +78,7 @@ each saying so; task 13 writes `workevents.go` beside it.
 
 #### `work.go`, complete
 
-The file is the concatenation of the five blocks below, in order.
+The file is the concatenation of the six blocks below, in order.
 
 ```go
 package hubapi
@@ -486,3 +489,84 @@ type StateMove struct {
 	Evidence   []string   `json:"evidence"`
 }
 ```
+
+```go
+type RelationRequest struct {
+	Kind    RelationKind `json:"kind"`
+	IssueID string       `json:"issueId"` // the other issue
+}
+
+type CreateLabelRequest struct {
+	Name  string `json:"name"`
+	Color string `json:"color"` // a token name
+}
+
+type PutTeamPolicyRequest struct {
+	DefaultState              IssueState `json:"defaultState"`
+	PriorityToLeaveTriage     bool       `json:"priorityToLeaveTriage"`
+	StopAtLandedWithoutServes bool       `json:"stopAtLandedWithoutServes"`
+}
+
+type SetProjectKeyRequest struct {
+	Key string `json:"key"` // ValidProjectKey; team admin only
+}
+
+type CreateCommentRequest struct {
+	Body     AuthoredText   `json:"body"`
+	ParentID *string        `json:"parentId"`
+	Anchor   *CommentAnchor `json:"anchor"`
+	Mentions []string       `json:"mentions"`
+}
+
+type ReactRequest struct {
+	Emoji string `json:"emoji"`
+	On    bool   `json:"on"`
+}
+
+type ResolveRequest struct {
+	Resolved bool `json:"resolved"`
+}
+
+type SubscribeRequest struct {
+	Subscribed bool `json:"subscribed"`
+}
+
+// ImportBatch is SW.6's shape; task 15 fixes its rules (1-500 items,
+// idempotent per project by (source, externalId), all or nothing).
+type ImportBatch struct {
+	Source string       `json:"source"` // ImportSourceLinear | ImportSourceCSV
+	Items  []ImportItem `json:"items"`
+}
+
+// ImportItem is one normalised external issue. Priority is already mapped by
+// the adapter (task 25); Labels are names, matched to the team's labels.
+type ImportItem struct {
+	ExternalID  string   `json:"externalId"`
+	URL         string   `json:"url"`
+	Title       string   `json:"title"`
+	Description string   `json:"description"`
+	Priority    Priority `json:"priority"`
+	Labels      []string `json:"labels"`
+	AuthorName  string   `json:"authorName"`
+	CreatedAt   string   `json:"createdAt"`
+}
+
+// ── query parameters (not bodies: no json tags) ─────────────────────────────
+
+// IssueQuery is GET …/issues' filter. A zero field does not filter.
+type IssueQuery struct {
+	States   []IssueState // ?state=, repeatable; each must be a known state
+	Assignee string       // ?assignee=u-… or "none"
+	Label    string       // ?label=lb-…
+}
+
+// IssueSearchQuery is GET /v1/issues/search: title substring, readable
+// projects only, newest first (task 14).
+type IssueSearchQuery struct {
+	ProjectID string // "" searches every readable project
+	Q         string // 1-200 characters
+	Limit     int    // 0 is 50; at most 50
+}
+```
+
+That is the whole file. It declares no route, store, code or event: those are tasks 06-15's.
