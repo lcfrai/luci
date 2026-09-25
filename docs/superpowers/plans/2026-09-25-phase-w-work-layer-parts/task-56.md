@@ -485,3 +485,138 @@ Priority is required to leave Triage`, in `--fail` mono. The flash reuses task 4
 `--fail-tint` (`tokens.css:80`) as its ground. Two more files join the list:
 - `desktop/src/components/work/IssueRow.tsx` ⚑ (task 40) — `data-fail` and the refusal line (modified)
 - `desktop/src/components/work/work.css` ⚑ — `[data-fail]` flashes `--fail-tint` (modified)
+
+#### Tests to write first, part 1 — the harness, in `desktop/src/work/replica/mutate.test.ts`
+
+Task 55's `ReplicaDeps` (`listAll`, `changes`, `fetchSubjects`) comes from its scope; its part
+file did not exist when this was written, so the harness's read half is **UNVERIFIED** against it.
+The write half is this task's own. Every write is a gate the test opens or refuses, so "before the
+Hub answers" is a state the test can stand in, not a race.
+
+```ts
+import { describe, expect, it, vi } from "vitest";
+import { ApiError, type ProblemCode } from "../../api/client";
+import type { IssueHead, WorkClient } from "../../api/work";
+import { ALICE, DYLAN, WORK_IDS, makeIssueHead, makeIssueRevision } from "../../test/workFixtures";
+import { createReplica, type Replica } from "./replica";
+import { createUndoLedger } from "./undo";
+
+interface Call { method: string; issueId: string; body: unknown; key: string }
+interface Gate { resolve(v: unknown): void; reject(e: unknown): void }
+
+/** A WorkClient whose every write waits for the test. `keyed(k)` stamps k on each call. */
+function fakeWork() {
+  const calls: Call[] = [];
+  const gates: Gate[] = [];
+  const hold = (key: string, method: string) => (issueId: string, ...rest: unknown[]) =>
+    new Promise((resolve, reject) => {
+      calls.push({ method, issueId, body: rest.length === 1 ? rest[0] : rest, key });
+      gates.push({ resolve, reject });
+    });
+  const METHODS = ["patchIssue", "moveIssueState", "writeIssueRevision", "addRelation",
+    "removeRelation", "createComment", "react", "resolveComment", "subscribe"] as const;
+  const keyed = (key: string) =>
+    Object.fromEntries(METHODS.map((m) => [m, hold(key, m)])) as unknown as WorkClient;
+  return { work: { keyed }, calls, gates };
+}
+
+const refusal = (code: string, message: string) => new ApiError(code as ProblemCode, message, 422);
+const EP142 = WORK_IDS.ep142;
+
+async function harness(heads: IssueHead[] = [makeIssueHead({ id: EP142, priority: "none" })]) {
+  let now = 0;
+  const clock = () => now;
+  const undo = createUndoLedger(clock, 6000);
+  const hub = fakeWork();
+  const fetched = vi.fn(async (ids: readonly string[]) => heads.filter((h) => ids.includes(h.id))
+    .map((head) => ({ head, revision: makeIssueRevision({ issueId: head.id }), comments: [] })));
+  const r: Replica = createReplica({
+    listAll: async () => ({ heads, revisions: heads.map((h) => makeIssueRevision({ issueId: h.id })),
+      comments: [], cursor: "c-0" }),
+    changes: async () => ({ events: [], next: "c-0", more: false }),
+    fetchSubjects: fetched,
+    work: hub.work,
+    undo,
+  });
+  await vi.waitFor(() => expect(r.status).toBe("ready"));
+  return { r, hub, undo, fetched, tick: (ms: number) => { now += ms; } };
+}
+```
+
+`WorkSnapshot`'s field names (`heads`, `revisions`, `comments`, `cursor`) and the `WorkRecord`
+shape `fetchSubjects` returns are task 55's; the names above are a guess to be aligned when its
+part lands (**UNVERIFIED**). `makeIssueRevision({issueId})` uses task 20's factory
+(`task-20.md:242`) over its `IssueRevision.issueId` (`task-20.md:187-188`).
+
+#### Tests to write first, part 2 — paint, rollback, refusal, key (`mutate.test.ts`)
+
+```ts
+describe("mutate paints first and takes back only its own fields", () => {
+  it("repaints the row before the request resolves", async () => {
+    const { r, hub } = await harness();
+    r.mutate({ kind: "setPriority", issueId: EP142, priority: "high" });
+    expect(r.get(EP142)?.head.priority).toBe("high");        // same turn, no await
+    expect(hub.calls).toHaveLength(1);
+    expect(hub.gates).toHaveLength(1);                        // still unanswered
+  }); // kills: paint-after-server (the row changes only when the Hub answers)
+
+  it("a refusal after a teammate's change reverts only the op's field", async () => {
+    const { r, hub } = await harness();
+    const h = r.mutate({ kind: "setPriority", issueId: EP142, priority: "high" });
+    r.__applyForTest({ ...r.get(EP142)!.head, priority: "high", assignee: ALICE }); // teammate
+    hub.gates[0].reject(refusal("policy_refused", "Priority is required to leave Triage"));
+    expect(await h.settled).toMatchObject({ code: "policy_refused" });
+    expect(r.get(EP142)?.head.priority).toBe("none");         // our field went back
+    expect(r.get(EP142)?.head.assignee).toEqual(ALICE);       // hers stayed
+  }); // kills: whole-record snapshot restore
+
+  it("a refused labels op removes only its own label", async () => {
+    const { r, hub } = await harness([makeIssueHead({ id: EP142, labels: [] })]);
+    r.mutate({ kind: "labels", issueId: EP142, add: ["ui"], remove: [] });
+    r.__applyForTest({ ...r.get(EP142)!.head, labels: ["ui", "api"] });
+    hub.gates[0].reject(refusal("policy_refused", "no"));
+    await vi.waitFor(() => expect(r.get(EP142)?.head.labels).toEqual(["api"]));
+  }); // kills: restoring the whole label list
+
+  it("shows the Hub's code and message and fires onRefused exactly once", async () => {
+    const { r, hub } = await harness();
+    const heard = vi.fn();
+    r.onRefused(heard);
+    r.mutate({ kind: "setPriority", issueId: EP142, priority: "high" });
+    hub.gates[0].reject(refusal("policy_refused", "Priority is required to leave Triage"));
+    await vi.waitFor(() => expect(heard).toHaveBeenCalledTimes(1));
+    expect(heard.mock.calls[0][0]).toMatchObject({ code: "policy_refused",
+      message: "Priority is required to leave Triage", issueId: EP142 });
+    expect(r.failedOf(EP142)).toMatchObject({ code: "policy_refused" });
+    await new Promise((t) => setTimeout(t, 0));
+    expect(heard).toHaveBeenCalledTimes(1);
+  }); // kills: a silent rollback; kills: a listener fired per re-render
+
+  it("a retry after unavailable reuses the op's key", async () => {
+    const { r, hub } = await harness();
+    r.mutate({ kind: "setPriority", issueId: EP142, priority: "high" });
+    hub.gates[0].reject(new ApiError("backend_unavailable", "down", 503));
+    await vi.waitFor(() => expect(r.pendingOf(EP142)).toBe("not_sent"));
+    expect(r.get(EP142)?.head.priority).toBe("high");         // not rolled back
+    expect(r.queued()).toBe(1);
+    r.resume();
+    await vi.waitFor(() => expect(hub.calls).toHaveLength(2));
+    expect(hub.calls[1].key).toBe(hub.calls[0].key);
+  }); // kills: a fresh key per attempt (duplicate writes); kills: rolling back on an outage
+
+  it("two quick ops on one issue send one after the other", async () => {
+    const { r, hub } = await harness([makeIssueHead({ id: EP142, labels: [] })]);
+    r.mutate({ kind: "labels", issueId: EP142, add: ["ui"], remove: [] });
+    r.mutate({ kind: "labels", issueId: EP142, add: ["api"], remove: [] });
+    expect(hub.calls).toHaveLength(1);                        // the second waits its turn
+    hub.gates[0].resolve(makeIssueHead({ id: EP142, labels: ["ui"] }));
+    await vi.waitFor(() => expect(hub.calls).toHaveLength(2));
+    expect(hub.calls[1].body).toEqual({ labels: ["ui", "api"] });
+    expect(r.get(EP142)?.head.labels).toEqual(["ui", "api"]); // the answer kept the 2nd paint
+  }); // kills: parallel sends that race; kills: the first answer erasing the second paint
+});
+```
+
+`__applyForTest(head)` stands in for a feed event plus its subject fetch: task 55's apply path,
+exposed only under `import.meta.vitest`. If task 55 prints its own seam for this, use that instead;
+the name is this part's (**UNVERIFIED** against task 55).
