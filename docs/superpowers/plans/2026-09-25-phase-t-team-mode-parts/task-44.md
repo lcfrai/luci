@@ -86,7 +86,9 @@ poll + one fan-out call (`task-11.md:565-567`), asserted as ≤ 60 s.
 // of teamID, reason member_removed. It runs inside the caller's Tx (the
 // removal's own), and returns the revoked rows so the caller emits one
 // delegation.revoked each. A second call finds nothing and returns nil.
-func RevokeForLeaver(ctx context.Context, tx *Tx, teamID, userID string) ([]hubapi.Delegation, error) {
+// Store functions take pgx.Tx, as Hub task 14's LockHead and Append do
+// (Hub task-14.md:157, :174); server.Tx and Emit live in the server package.
+func RevokeForLeaver(ctx context.Context, tx pgx.Tx, now time.Time, teamID, userID string) ([]hubapi.Delegation, error) {
 	rows, err := tx.Query(ctx, `
 		UPDATE delegations d
 		   SET revoked_at = $3, revoked_reason = 'member_removed'
@@ -96,7 +98,7 @@ func RevokeForLeaver(ctx context.Context, tx *Tx, teamID, userID string) ([]huba
 		   AND d.revoked_at IS NULL
 		RETURNING d.id, d.project_id, d.owner_user_id, d.class, d.routes,
 		          d.created_at, d.expires_at, d.renewed_at, d.revoked_at, d.revoked_reason`,
-		teamID, userID, tx.Now)
+		teamID, userID, now)
 	if err != nil {
 		return nil, err
 	}
@@ -105,30 +107,117 @@ func RevokeForLeaver(ctx context.Context, tx *Tx, teamID, userID string) ([]huba
 
 // RevokeForAccount is the same act for an account the directory reports
 // disabled: every live delegation the user owns in the org, any team.
-func RevokeForAccount(ctx context.Context, tx *Tx, userID string) ([]hubapi.Delegation, error)
+func RevokeForAccount(ctx context.Context, tx pgx.Tx, now time.Time, userID string) ([]hubapi.Delegation, error)
+
+// Owner is one live owner the sweep asks about.
+type Owner struct{ UserID, TenantID, ObjectID string }
 
 // LiveOwners lists the distinct owners of live (unrevoked, unexpired)
-// delegations in the org, for the daily sweep. At most 5,000 per call.
-func LiveOwners(ctx context.Context, tx *Tx, after string) (userIDs []string, err error)
+// delegations in the org, user id after `after`, at most 500 per call.
+func LiveOwners(ctx context.Context, tx pgx.Tx, now time.Time, after string) ([]Owner, error)
 ```
 
-`store/teams.go` (Hub task 15), in `RemoveMember` after the membership `DELETE`, and in the
-member-role write when the new role is `viewer` (a viewer launches nothing, §3.4):
+`server/teams.go` (Hub task 15), in route 9's handler after `store.RemoveMember`, and in route 8's
+handler when the new role is `viewer` (a viewer launches nothing, §3.4), inside the same `Write`:
 
 ```go
-	revoked, err := RevokeForLeaver(ctx, tx, teamID, userID)
+	revoked, err := store.RevokeForLeaver(ctx, tx, tx.Now, teamID, userID)
 	if err != nil {
 		return err
 	}
-	for _, d := range revoked {
+	for _, d := range revoked { // task 01 §8: subject = the delegation id, data {"reason"}
 		tx.Emit(Event{Kind: "delegation.revoked", TeamID: teamID, ProjectID: d.ProjectID,
-			Data: map[string]any{"delegationId": d.ID, "reason": hubapi.RevokeReasonMemberRemoved}})
+			Subject: d.ID, Data: map[string]any{"reason": string(hubapi.RevokeReasonMemberRemoved)}})
 	}
-	tx.Emit(Event{Kind: "team.member_removed", TeamID: teamID,
-		Data: map[string]any{"userId": userID, "role": newRole}}) // newRole "" on removal
+	// RemoveMember then emits Hub task 15's own team.member_removed {} (subject =
+	// userID) as it already does; the role write emits its team.member_set.
 ```
 
-`team.member_removed` fires for a downgrade to `viewer` too, with `role: "viewer"`, because for
-team mode the person has left the set of people whose agents may act. Rows stay: the leaver's
+A downgrade to `viewer` emits Hub task 15's `team.member_set {"role":"viewer"}` and not
+`team.member_removed`: the person is still a member, and Fleet acts on the `delegation.revoked`
+events, not on the membership event (`Event` shape: Hub `task-14.md:67-73`; route 9's emit:
+Hub `task-15.md:28`, both checked at `9f2fa31`). Rows stay: the leaver's
 tasks, agents, messages and escalations are accountability facts and are never deleted or
 reassigned (Global constraint 3: nobody writes another person's records).
+
+#### The account check — complete source
+
+```go
+// control-plane/internal/hub/server/accountstate.go
+
+// AccountState answers one question: may this directory account still act?
+// The Hub asks it at every renewal (route 48) and in the daily sweep. Which
+// Graph read KPMG's tenant permits is UNVERIFIED (§14.1); the candidate is
+// GET /v1.0/users/{oid}?$select=accountEnabled under the app permission
+// User.Read.All. The Hub never asks it on a read or a Fleet write: the
+// 24-hour lapse bounds those.
+type AccountState interface {
+	Enabled(ctx context.Context, tenantID, objectID string) (bool, error)
+}
+
+// ErrAccountUnknown means the directory has no such account: treated as
+// disabled. Any other error is "cannot tell", and never revokes.
+var ErrAccountUnknown = errors.New("account unknown to the directory")
+
+// AccountCheck is PANACEA_APP_HUB_ACCOUNT_CHECK: "off" (the default until
+// §14.1 is answered), "fake" (tests and dev), "graph".
+type AccountCheck string
+
+const (
+	AccountCheckOff   AccountCheck = "off"
+	AccountCheckFake  AccountCheck = "fake"
+	AccountCheckGraph AccountCheck = "graph"
+)
+
+// FakeAccounts is the test double: every account is enabled until Disable.
+type FakeAccounts struct {
+	mu       sync.Mutex
+	disabled map[string]bool // objectID -> true
+	unknown  map[string]bool
+	Fail     error // when set, every call returns it ("cannot tell")
+	Calls    int
+}
+
+func NewFakeAccounts() *FakeAccounts
+func (f *FakeAccounts) Disable(objectID string)
+func (f *FakeAccounts) Forget(objectID string) // the directory no longer knows it
+func (f *FakeAccounts) Enabled(ctx context.Context, tenantID, objectID string) (bool, error)
+
+// GraphAccounts is the one real implementation. Its token comes from the
+// Hub's workload identity (phase 8 task 17's federated credential); it holds
+// no secret. Built into cmd/hub, used only when the check is "graph".
+type GraphAccounts struct {
+	HTTP    *http.Client
+	Token   func(ctx context.Context) (string, error) // scope https://graph.microsoft.com/.default
+	BaseURL string                                    // https://graph.microsoft.com/v1.0
+}
+
+func (g GraphAccounts) Enabled(ctx context.Context, tenantID, objectID string) (bool, error)
+// 200 {"accountEnabled": b} → b, nil; 404 → false, ErrAccountUnknown;
+// anything else (403, 429, 5xx, timeout 5 s) → false, a wrapped error.
+```
+
+Route 48, before the renewal `UPDATE`, when the check is not `off`:
+
+```go
+	ok, err := s.accounts.Enabled(ctx, tx.P.TenantID, tx.P.ObjectID)
+	switch {
+	case err == nil && ok:
+		// renew as task 06 does
+	case err == nil || errors.Is(err, ErrAccountUnknown):
+		revoked, rerr := store.RevokeForAccount(ctx, tx, tx.Now, tx.P.UserID)
+		if rerr != nil {
+			return 0, nil, rerr
+		}
+		for _, d := range revoked {
+			tx.Emit(Event{Kind: "delegation.revoked", ProjectID: d.ProjectID, Subject: d.ID,
+				Data: map[string]any{"reason": string(hubapi.RevokeReasonAccountDisabled)}})
+		}
+		// NOT server.Refuse: an APIError rolls back (Hub task-14.md:25-26), and the
+		// revocations must commit. A plain 403 result commits, then is sent.
+		return http.StatusForbidden, httpx.Problem{Error: hubapi.CodeAccountDisabled,
+			Message: "Your directory account is disabled, so your agents have stopped."}, nil
+	default:
+		s.log.Warn("account check failed; renewing", "err", err) // cannot tell: never revoke
+	}
+```
