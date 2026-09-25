@@ -105,3 +105,59 @@ serves Keycloak's path layout (`/realms/<realm>/.well-known/openid-configuration
 `/realms/<realm>/protocol/openid-connect/auth|token|certs`), honours `kc_idp_hint` as a no-op, and
 emits the `keycloak` profile (section 5), so the control plane's code path is the same byte for byte.
 
+## 3. Zero clicks, exactly
+
+Each screen that could appear, and what removes it:
+
+| Screen | Removed by |
+|---|---|
+| Keycloak's login page (username/password + "Microsoft (KPMG)" button) | **`kc_idp_hint=entra`** on every authorize request. Needs no realm change: the hint overrides the Identity Provider Redirector and Panacea sets no redirector (facts §4, §8). |
+| Entra home-realm discovery | Nothing to remove: the IdP already calls the **tenant-specific** endpoint `login.microsoftonline.com/<KPMG tenant>/...` (`setup-keycloak.sh:482`, `:489`). **`domain_hint` is not sent**: Keycloak 25.0.0 cannot forward it (forwarded query parameters exist on `main` only, facts §8) and it would add nothing. |
+| Entra account picker / password | The user's **Windows sign-in session** (the device's Primary Refresh Token, used by Edge natively and by Chrome through the Windows Accounts extension) plus **`login_hint=<UPN>`**, forwarded by the IdP's "Pass login_hint" switch (config `loginHint: "true"`, a Panacea ask, section 10; today it is off, facts §3). |
+| Entra consent | None expected: the registration is already consented for `openid profile email` by Panacea's use (`defaultScope`, `setup-keycloak.sh:508`). |
+| Keycloak "review profile" / "link account" | Panacea's own flow `panacea first broker login` = `idp-create-user-if-unique` or `idp-auto-link` (`setup-keycloak.sh:412`, `:434-464`); it has no review-profile step and auto-links an existing user by email (`trustEmail:true`, `:485`). |
+| Re-authentication at every launch | The **offline refresh token** in Credential Manager, redeemed silently at launch (below). |
+
+**No `prompt` parameter.** The desktop never sends `prompt`, and the IdP's `prompt` setting stays unset
+(facts §3), so neither Keycloak nor Entra is told to re-ask.
+
+**Reading the Windows UPN.** The control plane calls `GetUserNameExW(NameUserPrincipal)`
+(`windows.GetUserNameEx(windows.NameUserPrincipal, ...)` in `golang.org/x/sys/windows`, the same call
+`whoami /upn` makes), once per process. If it fails (for example `ERROR_NONE_MAPPED` on a device where the
+local account has no UPN), `login_hint` is **omitted**, never guessed; Entra then relies on the browser
+session alone. `PANACEA_APP_OIDC_LOGIN_HINT` overrides it (tests, and a user whose Entra UPN differs from
+the Windows one). On non-Windows builds the hint is omitted.
+
+**Silent refresh at every launch.** On start the control plane reads the refresh token from Credential
+Manager and redeems it for a `panacea-app-hub` access token before the renderer's first status poll.
+Success: signed in, no browser. `invalid_grant` (revoked, expired, realm reset): delete the stored token
+and **run the interactive flow at once, without a click**; with the rows above it completes on its own and
+the browser tab is the only thing the user sees. Network failure: stay signed-out-offline and retry on the
+heartbeat; never open a browser for a network error.
+
+**The loopback page.** The listener answers `200`, `Content-Type: text/html; charset=utf-8`,
+`Cache-Control: no-store`, a static page with no script and no external resource, whose whole visible
+text is: **"Signed in. You can return to PanaceaApp."** On a `state` mismatch or an `error` parameter it
+answers `400` with "Sign-in did not complete. Return to PanaceaApp to try again." and never echoes the
+error text into HTML.
+
+**Bringing the app to the front.** When `/v1/auth/status` turns `signedIn`, the renderer calls Tauri's
+`getCurrentWindow().unminimize()` then `.setFocus()`. Windows may refuse a background process the
+foreground (foreground lock); the renderer then calls `.requestUserAttention(UserAttentionType.Informational)`,
+which flashes the taskbar button. It never steals focus a second time.
+
+**What can still prompt, and is correct to:**
+- **Conditional-access MFA**: sign-in frequency, a risky sign-in, or a new location. KPMG policy wins.
+- **A non-compliant or unregistered device, or a browser without the Windows session** (a default browser
+  other than Edge with no Windows Accounts extension): Entra shows its sign-in page. Not worked around.
+- **A Keycloak required action** set on the user by the realm admin (terms, profile update). None is
+  configured by Panacea's script; the live realm is UNVERIFIED (section 12).
+
+**Why WAM plus token exchange is NOT used now.** Windows' Web Account Manager would get an Entra token
+from the PRT with no browser tab at all, but (1) it needs a broker redirect URI
+(`ms-appx-web://Microsoft.AAD.BrokerPlugin/<client id>`) on the Entra registration, which is an IT change
+to an IT-owned registration, the very ticket OD-30 removes; (2) turning that Entra token into a realm token
+needs Keycloak **token exchange** (external to internal), a preview feature Panacea's Keycloak does not
+enable; (3) it adds a native WAM binding to the control plane. The system-browser flow already has zero
+clicks. Revisit only in phase 8, on our own Keycloak, if the owner judges the brief browser tab a problem.
+
