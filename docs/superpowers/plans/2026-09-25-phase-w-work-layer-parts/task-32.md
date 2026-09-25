@@ -233,3 +233,79 @@ import { DevToolbar } from "./components/devtools/mount";
 The comment at `:229-230` ("this component renders AppShell and nothing else") gains one
 sentence: *In a dev build it also renders the dev toolbar, which portals out of this root and owns
 no store and no poller.*
+
+#### Interfaces — complete: `FlagCompare.tsx`
+
+```tsx
+// desktop/src/components/devtools/FlagCompare.tsx
+//
+// flag.compare's three groups (02 C12; 05 §4.4 C3). Radio groups in a <fieldset>, so each group
+// is one tab stop and the arrow keys move within it, native behaviour with no handler of ours.
+// No heading element: task 31's audit fails any second header pattern.
+
+import type { JSX } from "react";
+import { setFlag, useFlags } from "../../lib/flags";
+import type { Flags, Look, SansCandidate, ThemeName } from "../../lib/flags";
+
+export interface FlagOption<V extends string> {
+  value: V;
+  label: string;
+}
+
+export const LOOKS: readonly FlagOption<Look>[] = [
+  { value: "new", label: "New" },
+  { value: "old", label: "Old (Phase 2)" },
+];
+
+/** Q14. `family` must equal the first family candidates.css gives the value's rule; the test
+ *  reads both. Segoe UI Variable is OD-28's choice and has no rule: it is the default. */
+export const SANS_CANDIDATES: readonly (FlagOption<SansCandidate> & { family: string })[] = [
+  { value: "segoe", label: "Segoe UI Variable (OD-28)", family: "Segoe UI Variable Text" },
+  { value: "atkinson", label: "Atkinson Hyperlegible Next", family: "Atkinson Hyperlegible Next" },
+  { value: "geist", label: "Geist", family: "Geist" },
+];
+
+export const THEMES: readonly FlagOption<ThemeName>[] = [
+  { value: "graphite", label: "Graphite" },
+  { value: "paper", label: "Paper (provisional)" },
+];
+
+function Group<K extends keyof Flags>(props: {
+  flag: K;
+  legend: string;
+  options: readonly FlagOption<Flags[K]>[];
+}): JSX.Element {
+  const flags = useFlags();
+  return (
+    <fieldset className="dt-group">
+      <legend className="dt-legend">{props.legend}</legend>
+      {props.options.map((option) => (
+        <label key={option.value} className="dt-option">
+          <input
+            type="radio"
+            name={`dt-${props.flag}`}
+            value={option.value}
+            checked={flags[props.flag] === option.value}
+            onChange={() => setFlag(props.flag, option.value)}
+          />
+          {option.label}
+        </label>
+      ))}
+    </fieldset>
+  );
+}
+
+export function FlagCompare(): JSX.Element {
+  return (
+    <>
+      <Group flag="look" legend="Look" options={LOOKS} />
+      <Group flag="sans" legend="Sans" options={SANS_CANDIDATES} />
+      <Group flag="theme" legend="Theme" options={THEMES} />
+    </>
+  );
+}
+```
+
+`paper` is task 26's **provisional** block: task 26 says nothing sets `data-theme` until a sheet
+renders it by hand. This toolbar is that hand. The label says *provisional* so nobody reads the
+paper look as reviewed.
