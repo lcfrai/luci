@@ -308,3 +308,102 @@ returns `ErrLoosen` naming the first key that is not in `Floorable`, including e
 every decide row (flooring a decide row is meaningless, and accepting it would hide a typo). A bad
 cached floor list is treated as "every floorable row floored" until the next policy read, which
 only adds asking.
+
+**`escalate.go`, the surface, complete.**
+
+```go
+package escalate
+
+import (
+	"context"
+	"time"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/fleet/model"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/fleet/protocol"
+)
+
+const (
+	MinDecideDeadline = 30 * time.Minute // §6.5; the Hub refuses less (task-07.md:140-142)
+	MaxDecideDeadline = 24 * time.Hour
+	MaxAskOptions     = 3                // + Fleet's option 0 = route 64's maximum of 4
+)
+
+// Effect is what choosing an option does, typed. Fleet applies it; the
+// option's label only describes it.
+type Effect struct {
+	Kind  string   // "hold" | "apply-proposal" | "decline-proposal" | "yield-mine" |
+	               // "go-second" | "proceed-both" | "none"
+	Globs []string // yield-mine
+	Both  bool     // true: applies only when every decider chose it
+}
+
+// DecideRequest is the one way to write a decide. Owner is the human asked;
+// From is the Orchestrator asking, or "" when Fleet writes for itself.
+type DecideRequest struct {
+	Org, Project string
+	Owner        model.Owner
+	From         model.AgentID
+	Thread       string
+	Conflict     string
+	Question     string   // ≤ 300; Fleet's template, or an Orchestrator's text·A
+	Options      []Option // option 0 is always the hold/default Fleet writes
+	Group        string   // decides that must agree share a group id (Both effects)
+	Row          string   // the §6.5 row key, for the audit and the cockpit
+}
+
+type Option struct {
+	Label, Consequence string
+	Effect             Effect
+}
+
+type Service struct {
+	Store    Store
+	Rules    Rules
+	Resolver *protocol.Resolver
+	Queue    Enqueuer // task 26's Queue
+	Pauser   Pauser   // task 31
+	Outbox   func(org string, owner model.Owner, body []byte) outboxItem
+	Policy   func(ctx context.Context, org, project string) (deadline time.Duration)
+	Now      func() time.Time
+}
+
+type Pauser interface {
+	PauseForDefault(ctx context.Context, worker model.AgentID, es string) error
+}
+
+// Inform writes an inform to the caller's own human. No options, no default.
+func (s *Service) Inform(ctx context.Context, c Caller, a InformArgs) (string, error)
+
+// Ask writes a decide from the caller to its own human: option 0 Fleet's
+// hold, then the caller's options; default 0; deadline Fleet's.
+func (s *Service) Ask(ctx context.Context, c Caller, a AskArgs) (AskResult, error)
+
+// Decide is the shared writer: bounds, G3, default 0, deadline, the
+// open-escalation row and the outbox item, in one transaction.
+func (s *Service) Decide(ctx context.Context, r DecideRequest) (string, error)
+
+// The four methods tasks 28 and 29 call through their interfaces.
+func (s *Service) FreeTextAnswers(ctx context.Context, owner model.Owner) bool
+func (s *Service) InformOwnHuman(ctx context.Context, orch model.AgentID, msg string) error
+func (s *Service) ThreadExhausted(ctx context.Context, org, thread string, why protocol.Exhaustion) error
+func (s *Service) AcceptNeedsDecision(ctx context.Context, t protocol.Thread, accept protocol.Stored,
+	a protocol.Action, r protocol.Ruling) error
+
+// OnAnswered is task 11's feed consumer's callback for escalation.answered.
+func (s *Service) OnAnswered(ctx context.Context, org, es string, choice *int, at time.Time) error
+
+// SweepDeadlines applies the safe default to every open decide past its
+// deadline. Task 12's deadline-sweeper singleton runs it every 5 s.
+func (s *Service) SweepDeadlines(ctx context.Context) error
+```
+
+`Caller` is task 19's `control.Caller`; `Store`, `Enqueuer` and `outboxItem` are narrow local
+interfaces over task 10's store, task 26's `Queue` and task 11's `outbox.Item`, each a few lines.
+`FreeTextAnswers` is `contains(UserRows(owner), "free-text-answers")` minus a team floor of the
+same name if present, so it is false for everyone in TM1-α (decision d).
+
+**The deadline, one function.** `deadline = now + clamp(policy.threadDeadlineMinutes, 30 min,
+24 h)`, where an absent policy is 30 minutes. An Orchestrator's requested deadline is never read.
+A decide written for a thread uses the thread's **effective** deadline plus 30 minutes, so the
+humans always have at least 30 minutes after negotiation stops.
+
