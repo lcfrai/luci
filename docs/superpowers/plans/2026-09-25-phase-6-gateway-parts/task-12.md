@@ -21,8 +21,8 @@ Five decisions where the skeleton is silent:
 
 **Interfaces:**
 - Produces (package `main`, for its tests): `deps{catalogue proxy.Resolver; models []byte; authz proxy.Decider; upstream *url.URL; log *slog.Logger; now func() time.Time}`; `newHandler(deps) (http.Handler, error)`; `newServer(addr string, h http.Handler) *http.Server`; `loadConfig(getenv func(string) string) (config, error)`; `newBindingClient(base, tokenFile string, ttl time.Duration, now func() time.Time) *bindingClient`, which satisfies `wire.BindingReader`.
-- The process: listens on `:4000` (skeleton shared names); reads `PANACEA_APP_GATEWAY_LITELLM_URL` (default `http://litellm:4001`), `_KEYSMITH_URL` (default `http://keysmith:4100`), `_CALLER_TOKEN_FILE` (required), `_ROUTE_SOURCE` (required, `hub` or `file:<path>`), `_HUB_URL` and `_HUB_SCOPE` (required with `hub`; `_HUB_SCOPE` is task 13's gap 1), `_BINDING_CACHE_TTL` (`10s`), `_ROUTE_CACHE_TTL` (`30s`), `_ROUTE_STALE_MAX` (`10m`); with `hub`, the four `AZURE_*` variables through `routesource.WorkloadTokenFromEnv`.
-- Consumes: `proxy.New`, `proxy.Config`, `proxy.Outcome`, `proxy.RequestFrom`, `proxy.Resolver`, `proxy.Decider` (task 11); `authz.Authorizer{Bindings, Routes}` (task 10, the skeleton's field names); `routesource.NewCache`, `NewFile`, `NewHub`, `WorkloadTokenFromEnv` (task 13); `catalogue.Load`, `(*Catalogue).ModelsResponse` (task 02); `wire.Binding`, `wire.ErrNotFound`, `wire.HashToken` (task 03); `httpx.WriteProblem`, `httpx.CodeInternal` (`control-plane/internal/httpx/problem.go:58`, `:93`).
+- The process: listens on `:4000` (skeleton shared names); reads `PANACEA_APP_GATEWAY_LITELLM_URL` (default `http://litellm:4001`), `_KEYSMITH_URL` (default `http://keysmith:4100`), `_CALLER_TOKEN_FILE` (required), `_ROUTE_SOURCE` (required, `hub` or `file:<path>`), `_HUB_URL` (required with `hub`) and `_HUB_SCOPE` (with `hub`; default `panacea-app-hub`, the realm's Hub audience scope since `OD-30`; task 13's gap 1), `_BINDING_CACHE_TTL` (`10s`), `_ROUTE_CACHE_TTL` (`30s`), `_ROUTE_STALE_MAX` (`10m`); with `hub`, the four `AZURE_*` variables through `routesource.WorkloadTokenFromEnv`.
+- Consumes: `proxy.New`, `proxy.Config`, `proxy.Outcome`, `proxy.RequestFrom`, `proxy.Resolver`, `proxy.Decider` (task 11); `authz.Authorizer{Bindings, Routes}` (task 10, the skeleton's field names); `routesource.NewCache`, `NewFile`, `NewHub`, `ClientCredentialsFromEnv` (task 13; `OD-30` replaced `WorkloadTokenFromEnv`); `catalogue.Load`, `(*Catalogue).ModelsResponse` (task 02); `wire.Binding`, `wire.ErrNotFound`, `wire.HashToken` (task 03); `httpx.WriteProblem`, `httpx.CodeInternal` (`control-plane/internal/httpx/problem.go:58`, `:93`).
 - Required by: task 17 (the compose service and `images/gateway/Dockerfile`), task 19 (the chart's probes and variables), task 23 (the log line it reads for `route=`).
 
 - [ ] **Step 1: Write the failing handler tests**
@@ -326,8 +326,8 @@ func TestConfigRefusesNamingTheVariable(t *testing.T) {
 		"no route source":     {map[string]string{"ROUTE_SOURCE": ""}, "ROUTE_SOURCE"},
 		"bare file:":          {map[string]string{"ROUTE_SOURCE": "file:"}, "ROUTE_SOURCE"},
 		"unknown source":      {map[string]string{"ROUTE_SOURCE": "static-global"}, "ROUTE_SOURCE"},
-		"hub without a URL":   {map[string]string{"ROUTE_SOURCE": "hub", "HUB_SCOPE": "api://hub/.default"}, "HUB_URL"},
-		"hub without a scope": {map[string]string{"ROUTE_SOURCE": "hub", "HUB_URL": "https://hub.example"}, "HUB_SCOPE"},
+		"hub without a URL":   {map[string]string{"ROUTE_SOURCE": "hub", "HUB_SCOPE": "panacea-app-hub"}, "HUB_URL"},
+		"hub, Entra scope":    {map[string]string{"ROUTE_SOURCE": "hub", "HUB_URL": "https://hub.example", "HUB_SCOPE": "api://hub/.default"}, "HUB_SCOPE"},
 		"no caller token":     {map[string]string{"CALLER_TOKEN_FILE": ""}, "CALLER_TOKEN_FILE"},
 		"LiteLLM with a path": {map[string]string{"LITELLM_URL": "http://litellm:4001/v1"}, "LITELLM_URL"},
 		"keysmith not a URL":  {map[string]string{"KEYSMITH_URL": "keysmith"}, "KEYSMITH_URL"},
@@ -562,12 +562,12 @@ func loadConfig(getenv func(string) string) (config, error) {
 	}
 	switch src := get("ROUTE_SOURCE", ""); {
 	case src == "hub":
-		c.RouteSource, c.HubURL, c.HubScope = "hub", get("HUB_URL", ""), get("HUB_SCOPE", "")
+		c.RouteSource, c.HubURL, c.HubScope = "hub", get("HUB_URL", ""), get("HUB_SCOPE", "panacea-app-hub")
 		if c.HubURL == "" {
 			return c, bad("HUB_URL", "is required with ROUTE_SOURCE=hub")
 		}
-		if c.HubScope == "" {
-			return c, bad("HUB_SCOPE", "is required with ROUTE_SOURCE=hub (api://<hub client id>/.default)")
+		if strings.ContainsAny(c.HubScope, ":/ ") { // an Entra api://…/.default is refused (OD-30)
+			return c, bad("HUB_SCOPE", "must be the realm's Hub audience scope (panacea-app-hub) with ROUTE_SOURCE=hub")
 		}
 	case strings.HasPrefix(src, "file:") && len(src) > len("file:"):
 		c.RouteSource, c.RouteFile = "file", strings.TrimPrefix(src, "file:")
@@ -840,7 +840,7 @@ func buildRoutes(cfg config) (wire.RouteSource, error) {
 		}
 		inner = f
 	case "hub":
-		tok, err := routesource.WorkloadTokenFromEnv(cfg.HubScope)
+		tok, err := routesource.ClientCredentialsFromEnv(cfg.HubScope) // the realm, as panacea-app-gateway (OD-30)
 		if err != nil {
 			return nil, err
 		}
