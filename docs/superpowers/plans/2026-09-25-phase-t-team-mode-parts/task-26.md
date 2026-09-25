@@ -40,9 +40,10 @@ wording, listed at the end.
 
 **(c) `turn.end` carries a nonce the child never sees.** If the Orchestrator's own Claude session
 could send `turn.end`, it could end its turn early, dropping the turn key and leaving work
-unrecorded. Task 27 closes the channel (the runner talks to `sandboxd` over a private inherited
-descriptor, and the in-pod socket refuses every `turn.*` verb); the nonce is the second lock, in
-Fleet, where it does not depend on the pod. `turn.begin` carries a 43-character `nonce`
+unrecorded. The pod closes the channel: task 16's decision 10 answers `events.wait` (which
+carries `turn.begin`) only to the PTY's own pid, checked with `SO_PEERCRED`, and task 27 requires
+the same check on `turn.end`, so the harness (the runner's child) can neither read a nonce nor
+send an end. The nonce is the second lock, in Fleet, where it does not depend on the pod. `turn.begin` carries a 43-character `nonce`
 (`ids.Token()`, `ids.go:30`); the runner keeps it in memory, never in the child's argv or
 environment (task 27 tests that), and Fleet accepts a `turn.end` only for the claimed turn **with**
 its nonce, once, compared in constant time. A wrong nonce is `turn_mismatch` and changes nothing.
@@ -841,7 +842,9 @@ cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team && git ad
 2. `human.message` coalesces like any non-thread event, so a message typed in the panel may wait
    up to 60 s for its turn. §4.2 and the scope say so; the product may want it immediate. That is
    an owner call, not a planner's.
-3. Task 16's part says the runner receives `turn.begin` "through `Server.Events`", but the runner
-   is a separate process and task 16's socket is one-request-per-connection. Task 27 adds the
-   private descriptor that carries it; task 16's part should point there.
+3. Task 09's scope lists `turn.end` among the **server-pushed** events. In ST.5 it is a request
+   the runner sends **up** (verb `turn.end`), and Fleet's answer is the ordinary ST.1 response.
+   Fleet never pushes a `turn.end`; a turn Fleet ends itself is recorded `lost`, and the runner
+   learns of it only through `stop` (task 27). Task 09's event list should drop `turn.end`, and
+   task 16's `events.wait` queue then never sees one.
 
