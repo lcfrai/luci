@@ -320,3 +320,93 @@ func EventData(v any) map[string]any {
 tests (`lists.go` and `required.go` import it, verified at `9f2fa31`), so this adds no new kind of
 dependency to the wire package.
 
+#### `server/work_emit.go` (complete)
+
+```go
+package server
+
+// emitWork is the only way a Work handler appends an event. It checks the kind
+// is in SW.5's registry, that data is exactly the kind's data type, and that the
+// ids the kind's scope needs are present, then hands Tx.Emit the map. A mismatch
+// is a bug in the handler, so it is a 500 internal, never a stored event.
+func emitWork(tx *Tx, kind, teamID, projectID, subject string, data any) error {
+	k, ok := hubapi.LookupWorkEvent(kind)
+	if !ok || reflect.TypeOf(data) != reflect.TypeOf(k.Data) {
+		return fmt.Errorf("work event %q: undeclared kind or wrong data type %T", kind, data)
+	}
+	if teamID == "" || subject == "" || (k.Scope == hubapi.ScopeProject && projectID == "") {
+		return fmt.Errorf("work event %q: missing team, project or subject", kind)
+	}
+	if k.Scope == hubapi.ScopeTeam {
+		projectID = ""
+	}
+	tx.Emit(Event{Kind: kind, TeamID: teamID, ProjectID: projectID, Subject: subject,
+		Data: hubapi.EventData(data)})
+	return nil
+}
+```
+
+A plain `error` returned from `Write`'s `fn` rolls the transaction back, so a mis-declared event
+never reaches the audit chain. That it answers 500 `internal` (hub-contract §4.2: *"a bug; the
+detail is in the log"*) is what Hub task 14's `Write` must do with a non-`*APIError`; its part
+states the `*APIError` path (`H14:109`) and the commit-failure path (`H14:115`) but not this one,
+so it is **UNVERIFIED** and listed as a gap for the Hub owner.
+
+#### The store (`store/work_subscriptions.go`, signatures complete)
+
+```go
+package store
+
+// SubscribeOnTrigger is the trigger: INSERT … ON CONFLICT (issue_id, user_id) DO
+// NOTHING. inserted is false when a row existed, subscribed or not, which is
+// what keeps an explicit "subscribed: false" and the first cause.
+//   INSERT INTO issue_subscriptions (org_id, issue_id, user_id, subscribed, cause, updated_at)
+//   VALUES ($1, $2, $3, true, $4, $5) ON CONFLICT (issue_id, user_id) DO NOTHING
+func SubscribeOnTrigger(ctx context.Context, tx pgx.Tx, org, issueID, userID string, cause hubapi.SubscriptionCause, at time.Time) (inserted bool, err error)
+
+// SetSubscription is the manual choice: an upsert with cause 'manual'.
+// changed is false when the row already held that value (the cause is not
+// rewritten then, so a no-op PUT leaves the first cause in place).
+func SetSubscription(ctx context.Context, tx pgx.Tx, org, issueID, userID string, subscribed bool, at time.Time) (s hubapi.Subscription, changed bool, err error)
+
+// MySubscriptions lists the caller's rows on issues the caller can read now
+// (the join to issues runs under row-level security, and a membership join
+// drops a team the caller has left), newest change first, keyset on
+// (updated_at, issue_id). An erased issue's row is listed: the key still resolves.
+func MySubscriptions(ctx context.Context, q Querier, userID string, pr hubapi.PageRequest) (hubapi.Page[hubapi.Subscription], error)
+```
+
+**The trigger points** (each in the triggering write's transaction, after the write and before its
+own event, so the events read in cause order):
+
+| Write | Who is subscribed | Cause | Where |
+|---|---|---|---|
+| `POST /v1/projects/{projectId}/issues` | the creator | `create` | task 08's create |
+| `PATCH /v1/issues/{issueId}` setting `assigneeId` to a user | that user | `assign` | task 08's patch |
+| `POST /v1/issues/{issueId}/comments` | the commenter | `comment` | task 12's create |
+| the same, per `mentions` entry | each mentioned user | `mention` | task 12's create |
+| `POST /v1/projects/{projectId}/imports` | the person who ran the import, per new issue | `create` | task 15 |
+
+Each `inserted == true` appends one `subscription.set` `{issueId, subscribed: true, cause}` with
+`Subject` the subscribed user. An assign to nobody (clearing `assigneeId`) subscribes nobody and
+unsubscribes nobody.
+
+#### The feed predicate (`store/changes.go` ⚑, Hub task 26's query, one added clause)
+
+```sql
+-- Hub task 26's visible-events query, H26:25-28, with one clause appended by Phase W task 13.
+-- $4 is the caller's user id; $5 is hubapi.SubjectOnlyKinds() as a text[].
+SELECT …
+  FROM audit_events e
+ WHERE e.org_id = $1 AND e.seq > $2 AND e.seq <= $3 AND e.feed
+   AND ( <task 26's visibility: e.team_id in the caller's teams, or e.project_id in their projects> )
+   AND ( e.kind <> ALL ($5::text[]) OR e.subject = $4 )          -- Phase W: SubjectOnly kinds
+ ORDER BY e.seq
+ LIMIT $6
+```
+
+The clause only removes rows, so every Hub test of task 26 still passes; `next` still advances to
+`H` when a caller sees nothing (`H26:32-34`), so a filtered subscription event never stalls a
+cursor. The column names follow Hub task 07's `audit_events` table and are **UNVERIFIED** until
+that table lands; the clause is re-written against it, not the other way round.
+
