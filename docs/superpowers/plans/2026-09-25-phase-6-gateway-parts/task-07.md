@@ -28,7 +28,7 @@ A sandbox's only credential is a one-hour LiteLLM virtual key that keysmith mint
 
 **(b) A per-session lock inside one process, and a re-check across processes.** Mints of one session are serialised by one of 64 striped mutexes (bounded memory, no map that grows). Two keysmith replicas (task 19 runs two) are covered by the store: `Put` refuses a second **live** binding of a `(session, generation)` (gap 1), which this task reports as `ErrBusy`, and after `GenerateKey` returns, the mint re-reads its own binding; if a retry on the other replica revoked it meanwhile, the mint deletes its own key and returns `ErrSuperseded`. Either way the caller retries and converges on one live key.
 
-**(c) Refresh schedules revocation as data, not as a timer.** `Refresh(g)` mints `g` from the live binding of `g-1`, then calls `Store.Revoke(g-1, now+Grace)`: a revocation dated in the future. The gatekeeper (task 10) treats a binding as revoked from `RevokedAt` onward, so the old key keeps working for `Grace` and stops at `Grace`, across a keysmith restart, with no timer to lose. The LiteLLM-side delete of the old key is a best-effort `After(Grace, …)`; if it is lost, the key is still refused by the gatekeeper and expires at its `TTL`. `RefreshRequest.Generation` is the **new** generation, so a retried refresh is exactly a retried mint (decision (a)).
+**(c) Refresh schedules revocation as data, not as a timer.** `Refresh(g)` mints `g` from the live binding of `g-1`, then calls `Store.Revoke(g-1, now+Grace)`: a revocation dated in the future. The gatekeeper (task 10) treats a binding as revoked from `RevokedAt` onward, so the old key keeps working for `Grace` and stops at `Grace`, across a keysmith restart, with no timer to lose. The LiteLLM-side delete of the old key is a best-effort `After(Grace, …)`; if it is lost, the key is still refused by the gatekeeper and expires at its `TTL`. Only the call that dates the revocation schedules that delete, so a retried refresh, or a refresh after decision (h) has retired the key, schedules no second `/key/delete` of a key already gone (re-review R-3; what LiteLLM answers to that is **UNVERIFIED**, and nothing now asks). `RefreshRequest.Generation` is the **new** generation, so a retried refresh is exactly a retried mint (decision (a)).
 
 **(d) A key minted on AU can name only `au/*` groups.** The skeleton gives every key both groups. A key minted on Global must keep both, because a raise to AU takes effect mid-key (P6-D4). A key minted on AU never needs a `global/*` group, since the gatekeeper keeps it on AU until the next mint (`Tighter(live, RouteAtMint)`). Denying it at LiteLLM too means a gatekeeper bug cannot send an AU project's request to Global. Defence in depth for OD-24's "never loosen", at no cost.
 
@@ -171,7 +171,14 @@ type rig struct {
 	admin *fakeAdmin
 	store binding.Store
 	now   time.Time
-	later []func() // After callbacks, run by the test
+	later []scheduled // After calls, run by the test
+}
+
+// scheduled is one After call. The delay is kept so a test can prove a delete
+// waits out Grace (re-review R-4): a rig that drops it lets After(0, …) pass.
+type scheduled struct {
+	d time.Duration
+	f func()
 }
 
 func newRig(t *testing.T, mut ...func(*Deps)) *rig {
@@ -191,7 +198,7 @@ func newRig(t *testing.T, mut ...func(*Deps)) *rig {
 		},
 		Groups:  groups,
 		Clock:   func() time.Time { return r.now },
-		After:   func(_ time.Duration, f func()) { r.later = append(r.later, f) },
+		After:   func(d time.Duration, f func()) { r.later = append(r.later, scheduled{d, f}) },
 		BaseURL: "http://gatekeeper:4000",
 	}
 	for _, m := range mut {
@@ -394,7 +401,8 @@ func TestErrorsNeverCarryTheToken(t *testing.T) {
 
 ```go
 // Mutants killed: revoking the old generation at once (cuts a stream in
-// flight) and never revoking it (two live keys for one session for an hour).
+// flight), never revoking it (two live keys for one session for an hour), and
+// deleting its LiteLLM key before Grace (cuts the stream at LiteLLM instead).
 func TestRefreshKeepsTheOldKeyForGraceOnly(t *testing.T) {
 	r := newRig(t)
 	ctx := context.Background()
@@ -421,7 +429,10 @@ func TestRefreshKeepsTheOldKeyForGraceOnly(t *testing.T) {
 	if len(r.admin.deleted) != 0 || len(r.later) != 1 {
 		t.Fatalf("deleted %v and %d scheduled, want nothing deleted yet and one scheduled", r.admin.deleted, len(r.later))
 	}
-	r.later[0]()
+	if r.later[0].d != 5*time.Minute {
+		t.Errorf("the old key's delete waits %v, want Grace (5m)", r.later[0].d)
+	}
+	r.later[0].f()
 	if want := [][]string{{wire.HashToken(old.Token)}}; !reflect.DeepEqual(r.admin.deleted, want) {
 		t.Errorf("after the grace, deleted = %v, want the old key", r.admin.deleted)
 	}
@@ -550,8 +561,10 @@ The two tests of decision (h). `routes` is a map, so a test that captures it thr
 
 ```go
 // Review C-1, decision (h). Mutants killed: a lookup that never retires (the
-// raise branch gone), a retirement dated now instead of Grace on, and a
-// second lookup that schedules a second delete.
+// raise branch gone), a retirement dated now instead of Grace on, a second
+// lookup that schedules a second delete, a delete that does not wait Grace
+// (re-review R-4), and a refresh after the retire that schedules another
+// (re-review R-3).
 func TestARaiseRetiresAGlobalMintedKeyAfterGrace(t *testing.T) {
 	var rs routes
 	r := newRig(t, func(d *Deps) { rs = d.Routes.(routes) })
@@ -577,7 +590,19 @@ func TestARaiseRetiresAGlobalMintedKeyAfterGrace(t *testing.T) {
 	if again, err := r.svc.ByKeyHash(ctx, h); err != nil || !again.RevokedAt.Equal(want) || len(r.later) != 1 {
 		t.Fatalf("second lookup: RevokedAt %v, err %v, %d deletes scheduled; want %v and 1", again.RevokedAt, err, len(r.later), want)
 	}
-	r.later[0]()
+	if r.later[0].d != 5*time.Minute {
+		t.Errorf("the retired key's delete waits %v, want Grace (5m): sooner cuts a stream in flight", r.later[0].d)
+	}
+	// The refresher follows a raise within RaiseCheck (task 15). The retire has
+	// already dated this revocation and scheduled its delete, so the refresh
+	// must not schedule a second (re-review R-3).
+	if _, err := r.svc.Refresh(ctx, wire.RefreshRequest{SessionID: "s-1", Generation: 2}); err != nil {
+		t.Fatal(err)
+	}
+	if len(r.later) != 1 {
+		t.Fatalf("%d deletes scheduled after the refresh, want 1: the retire already scheduled it", len(r.later))
+	}
+	r.later[0].f()
 	if w := [][]string{{h}}; !reflect.DeepEqual(r.admin.deleted, w) {
 		t.Errorf("after the grace, deleted = %v, want the Global-minted key", r.admin.deleted)
 	}
@@ -842,15 +867,18 @@ func (s *Service) Refresh(ctx context.Context, req wire.RefreshRequest) (wire.Mi
 		return wire.MintResponse{}, err
 	}
 	// Never move a revocation later: a retried refresh keeps the first date.
+	// Whoever dates the revocation schedules the delete, and only they: a
+	// retried refresh, or a refresh after a raise's retire (decision (h)),
+	// finds the date set and schedules nothing (re-review R-3).
 	retire := s.d.Clock().Add(s.d.Grace)
 	if prev.RevokedAt == nil || prev.RevokedAt.After(retire) {
 		if err := s.d.Store.Revoke(context.WithoutCancel(ctx), prev.KeyHash, retire); err != nil {
 			s.d.Report(fmt.Errorf("keysmith: dating the revocation of session %s generation %d (it still expires at %s): %w",
 				prev.SessionID, prev.Generation, prev.ExpiresAt.Format(time.RFC3339), err))
 		}
+		keyID := prev.KeyID
+		s.d.After(s.d.Grace, func() { s.deleteKeys(context.Background(), []string{keyID}) })
 	}
-	keyID := prev.KeyID
-	s.d.After(s.d.Grace, func() { s.deleteKeys(context.Background(), []string{keyID}) })
 	return resp, nil
 }
 
@@ -1203,6 +1231,9 @@ Apply each edit alone, run `go test ./internal/keysmith/ -count=1`, confirm the 
 | in `ByKeyHash`, `retire := s.d.Clock().Add(s.d.Grace)` → `retire := s.d.Clock()` | `TestARaiseRetiresAGlobalMintedKeyAfterGrace` |
 | in `ByKeyHash`, delete the `if b.RevokedAt != nil && … { return b, nil }` block | `TestARaiseRetiresAGlobalMintedKeyAfterGrace` (the second lookup schedules a second delete) |
 | in `ByKeyHash`, after the route read, `return b, nil` → `return b, err` | `TestALookupRetiresOnlyARaisedGlobalKey` (route unreadable) |
+| in `ByKeyHash`, `s.d.After(s.d.Grace, …)` → `s.d.After(0, …)` | `TestARaiseRetiresAGlobalMintedKeyAfterGrace` (the delete waits `0s`, want 5m; re-review R-4) |
+| in `Refresh`, `s.d.After(s.d.Grace, …)` → `s.d.After(0, …)` | `TestRefreshKeepsTheOldKeyForGraceOnly` (the delete waits `0s`, want 5m; re-review R-4) |
+| in `Refresh`, move `keyID := prev.KeyID` and the `s.d.After` call back below the `if` | `TestARaiseRetiresAGlobalMintedKeyAfterGrace` (2 deletes scheduled after the refresh, want 1; re-review R-3) |
 
 - [ ] **Step 7: Vet and format**
 
@@ -1223,7 +1254,7 @@ git commit -F <message file> -- control-plane/internal/keysmith/keysmith.go cont
 
 Message: `feat(keysmith): mint, refresh and revoke, one live key per generation (phase 6 task 07)`, a body naming decisions (a) to (h), and the attribution line.
 
-**Acceptance:** step 5 prints `16` under `-race`; step 6's thirteen edits each fail the named test; step 7 prints nothing.
+**Acceptance:** step 5 prints `16` under `-race`; step 6's sixteen edits each fail the named test; step 7 prints nothing.
 
 **What this task does not claim:**
 
