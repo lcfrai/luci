@@ -625,3 +625,75 @@ export function classifyRequest(e: FeedEventLike & { data?: Record<string, unkno
 `classifyRequest` answering `null` hands the event on to the normal fetch path; `{ kind: "none" }`
 drops it before any fetch, so another team's quote never crosses the loopback. `data.teamId` on a
 `request.*` event is task 144's metadata (SW.5 carries ids, never text), **UNVERIFIED**.
+
+#### Tests to write first — appended to ⚑ `desktop/src/api/work.test.ts`
+
+```ts
+// Task 143's W5 goldens, read where the Hub keeps them; the count stops an empty glob passing.
+const W5 = import.meta.glob<string>(
+  "../../../control-plane/internal/hub/hubapi/testdata/work-intake/*.json",
+  { query: "?raw", import: "default", eager: true },
+);
+const HUB_TABLE_W5 = import.meta.glob<string>(
+  "../../../control-plane/internal/api/work.go",
+  { query: "?raw", import: "default", eager: true },
+);
+
+describe("SW.21 the W5 wire", () => {
+  // Kills: a renamed field (quoteText for quote) that tsc alone misses, on either side.
+  it("each W5 golden's keys are its desktop type's keys", () => {
+    expect(Object.keys(W5)).toHaveLength(Object.keys(W5_GOLDENS).length);
+    for (const [file, type] of Object.entries(W5_GOLDENS)) {
+      const path = Object.keys(W5).find((p) => p.endsWith(`/${file}.json`));
+      expect(path, file).toBeDefined();
+      const v = JSON.parse(W5[path!]) as Record<string, unknown>;
+      expect(Object.keys(v).sort(), file).toEqual(WIRE_KEYS[type]);
+      if (file === "intake-form")
+        for (const f of v.fields as Record<string, unknown>[])
+          expect(Object.keys(f).sort(), "fields[i]").toEqual(WIRE_KEYS.formField);
+    }
+  });
+
+  // Kills: the secret listed again on an ordinary record.
+  it("only the three Created* types carry a secret key", () => {
+    for (const [name, list] of Object.entries(WIRE_KEYS))
+      if (!name.startsWith("created")) expect(list, name).not.toContain("secret");
+  });
+
+  // Kills: a W5 relay row that drifts from task 168's Go rows.
+  it("WORK_RELAY_W5 is task 168's W5 rows, row for row", () => {
+    const go = Object.values(HUB_TABLE_W5)[0] ?? "";
+    const w5 = go.slice(go.indexOf("// W5"));
+    const rows = [...w5.matchAll(/\{"(\w+)", http\.Method(\w+), "([^"]+)", (?:true|false)\}/g)]
+      .map(([, m, verb, path]) => [m, verb.toUpperCase(), path]);
+    expect(rows).toEqual(WORK_RELAY_W5.map((r) => [...r]));
+  });
+
+  // Kills: Hub-facing ingress exposed on loopback (task 168's 404 rows).
+  it("no W5 relay row reaches host hooks, the Teams bot, the public submit or /mcp", () => {
+    for (const [, , path] of WORK_RELAY_W5)
+      for (const bad of W5_NOT_RELAYED) expect(path.startsWith(bad.replace("{formId}", "")), path).toBe(false);
+  });
+
+  // Kills: a double press on run now as two runs.
+  it("runLoopNow through keyed() sends one Idempotency-Key on every attempt", async () => {
+    const send = vi.fn(async () => ({ id: "lr-1", outcome: "queued" }));
+    const c = makeWorkClient(send).keyed("op-7");
+    await c.runLoopNow("lp-1"); await c.runLoopNow("lp-1");
+    expect(send.mock.calls.map((a) => a[3])).toEqual([{ idempotencyKey: "op-7" }, { idempotencyKey: "op-7" }]);
+    expect(send).toHaveBeenCalledWith("POST", "/v1/hub/work/loops/lp-1/runs", undefined, { idempotencyKey: "op-7" });
+  });
+
+  // Kills: a rate reading guessed when a header is missing.
+  it("rateOf answers null without all three headers", () => {
+    expect(rateOf(new Headers({ "X-RateLimit-Used": "412" }))).toBeNull();
+    expect(rateOf(new Headers({ "X-RateLimit-Used": "412", "X-RateLimit-Limit": "1000",
+      "X-RateLimit-Reset": "2026-09-26T15:00:00Z" }))).toEqual({ used: 412, limit: 1000, resetsAt: "2026-09-26T15:00:00Z" });
+  });
+});
+```
+
+The golden test reads the files by path, never a retyped copy: the fixture **is** task 143's
+file (mutant: `quoteText` for `quote`, which `tsc` alone never sees). The `// W5` marker in task
+168's `work.go` is this part's convention (task 124 used a separate Go table); task 168 writes the
+marker or the test's slice is empty and the row test fails, which is the signal.
