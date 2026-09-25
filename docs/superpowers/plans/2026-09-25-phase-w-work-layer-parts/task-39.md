@@ -138,3 +138,103 @@ Revision 2 has no content object here: the list shows it as a line, and nothing 
 reads its body; restore and revision-pinned reading are task 47's. `makeLabel()`'s default name is
 `resume` (`task-20.md:267-269`).
 
+#### Interfaces — complete: `desktop/src/prototype/work/IssuePrototype.tsx`
+
+```tsx
+// desktop/src/prototype/work/IssuePrototype.tsx — task 39. 05 §2.1's issue drawing on fixtures,
+// without W3 (decision 4): no proposed evidence, no Record, no Orchestrator note.
+import { useMemo, useState } from "react";
+import type { JSX } from "react";
+import { ViewHeader } from "../../components/common/ViewHeader";
+import { AgentGlyph } from "../../components/glyphs/AgentGlyph";
+import { StateGlyph } from "../../components/glyphs/StateGlyph";
+import { ThreadNode, useThreadLit } from "../../components/thread";
+import { issueWorld } from "./issueWorld";
+import type { ProtoIssue } from "./issueWorld";
+import "./prototype.css";
+
+export function IssuePrototype(): JSX.Element {
+  const iw = useMemo(issueWorld, []);
+  const [which, setWhich] = useState<"live" | "notProven">("live");
+  const pick = (k: "live" | "notProven") => (
+    <button type="button" className="pw-ghost" aria-pressed={which === k} onClick={() => setWhich(k)}>
+      {iw[k].head.alias}
+    </button>
+  );
+  return (
+    <div className="pw-screen" data-screen="issue">
+      <ViewHeader title={`${iw.world.projectKey} · ${iw.world.featureName}`} route="global"
+        badge={<span className="pw-branch">{iw.world.branch}</span>} actions={<>{pick("live")}{pick("notProven")}</>} />
+      <IssueBody issue={iw[which]} />
+    </div>
+  );
+}
+
+export function IssueBody(props: { issue: ProtoIssue }): JSX.Element {
+  const { head, revision, labels, agent, files, observed, revisions, startedWords } = props.issue;
+  const serve = revision.content.serves[0] ?? null;
+  const notProven = head.state === "done" && head.proof === "not_proven";
+  return (
+    <article className="pw-iv" aria-label={`${head.alias} ${revision.content.title.text}`}>
+      <div className="pw-iv-head">
+        <StateGlyph state={head.state} priority={head.priority} notProven={notProven} size={16} />
+        <span className="pw-alias">{head.alias}</span>
+        <h2 className="pw-iv-title">{revision.content.title.text}</h2>
+        <span className="pw-who">
+          {head.assignee?.displayName.split(" ")[0] ?? "Unassigned"}{startedWords === null ? "" : ` · ${startedWords}`}
+        </span>
+        {labels.map((l) => <span key={l.id} className="pw-iv-label">{l.name}</span>)}
+      </div>
+      {notProven ? (
+        <p className="pw-iv-np"><span className="pw-iv-np-mark">done, not proven</span>
+          <span className="pw-iv-np-reason">{head.stateReason}</span></p>
+      ) : null}
+      {serve === null ? null
+        : <ServesLine briefKey={serve.briefKey} criterionId={serve.criterionId} text={props.issue.criterionText} />}
+      {agent === null ? null : (
+        <div className="pw-agent">
+          <AgentGlyph status={agent.status} size={14} label={`${agent.who}, ${agent.status}`} />
+          <span className="pw-agent-who">{agent.who}</span>
+          <span className="pw-agent-meaning">{agent.meaning}</span>
+          <span className="pw-live">{agent.liveness}</span>
+        </div>
+      )}
+      {files.length === 0 ? null : (
+        <div className="pw-iv-line"><span className="pw-iv-k">files</span>
+          {files.map((f) => <span key={f} className="pw-iv-mono">{f}</span>)}</div>
+      )}
+      {observed === null ? null : (
+        <div className="pw-iv-line"><span className="pw-iv-k">observed evidence</span>
+          <span className="pw-iv-mono">{`${observed.criterionId} at ${observed.commit}`}</span>
+          <span className="pw-iv-words">{`${observed.what}, ${observed.by} ${observed.time}`}</span></div>
+      )}
+      <section className="pw-iv-revs" aria-label="Revisions">
+        <h3 className="pw-iv-k">Revisions</h3>
+        <ol>{revisions.map((r) => (
+          <li key={r.revision}><span className="pw-iv-mono">r{r.revision}</span>
+            <span className="pw-iv-words">{`${r.who} ${r.words}`}</span><span className="pw-iv-mono">{r.time}</span></li>
+        ))}</ol>
+      </section>
+    </article>
+  );
+}
+
+/** The key in mono, the criterion's words in sans, then the node; binds lit fully (task 36, 2). */
+function ServesLine(props: { briefKey: string; criterionId: string; text: string | null }): JSX.Element {
+  const { bind } = useThreadLit(props.criterionId);
+  return (
+    <div className="pw-iv-line pw-iv-serves" {...bind}>
+      <span className="pw-iv-k">serves</span>
+      <span className="pw-iv-key">{`${props.briefKey} › ${props.criterionId}`}</span>
+      {props.text === null ? null : <span className="pw-iv-words">{props.text}</span>}
+      <ThreadNode criterionId={props.criterionId} href={`#peek/${props.briefKey}/${props.criterionId}`}
+        label={`Brief criterion: ${props.text ?? props.criterionId}`} />
+    </div>
+  );
+}
+```
+
+*done, not proven* is sans, because it is the product's word for a state, and its reason sits on
+the same line: the mark never appears without why (05 §2.1 rule 4, `task-20.md:309`'s
+`stateReason`). The criterion id inside *observed evidence* is mono, as every machine id is.
+
