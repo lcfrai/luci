@@ -54,7 +54,13 @@ meets the issue. This task builds the four pieces every later surface places (ta
 6. **Every reduced-motion rule is written twice**, as `@media (prefers-reduced-motion: reduce)`
    and as `:root[data-motion="reduce"]`, with identical declarations (task 33's hook, task 34's
    rule). jsdom evaluates neither, so the test reads `thread.css` as text, the way
-   `StatusDot.test.tsx:82` already does.
+   `components/common/StatusDot.test.tsx:7` (the `?raw` import) and `:82` already do.
+7. **Graphite's `--thread-lit` is `oklch(94.8% 0.0097 73 / 0.58)`.** The prototype writes
+   `rgba(255,241,224,.58)` (`prototype/work-layer.html:28`). Its `--thread` on the same line is the
+   same `rgba(255,241,224,…)`, and `tokens.css:57` already renders that as the warm ink
+   `oklch(94.8% 0.0097 73)` at the prototype's alpha. This task keeps that mapping, so the lit and
+   unlit lines are one colour at two strengths. The literal conversion of `#fff1e0`,
+   `oklch(96.5% 0.0271 72.8)`, is not used.
 
 **Files** (the skeleton's file map lists the four source files; it omits `thread.css`'s tests,
 `tokens.css`, `tokens.test.ts` and `forced-colors.css` for this task, a gap named in the return):
@@ -152,5 +158,79 @@ export { ThreadLine } from "./ThreadLine";
 export { ThreadTrace } from "./ThreadTrace";
 export { useThreadLit } from "./useThreadLit";
 export type { ThreadLitBind } from "./useThreadLit";
+```
+
+#### Interfaces — complete: `desktop/src/components/thread/ThreadNode.tsx`
+
+```tsx
+import type { JSX } from "react";
+import { MarkGlyph } from "../glyphs/MarkGlyph";
+import { useThreadLit } from "./useThreadLit";
+import "./thread.css";
+
+/** SW.14. The criterion's mark where the thread meets an artifact: task 29's 5px ring, inside a
+ *  link to the source span. No source, no node (02 C2; AX Principle 7): an empty `href` or an
+ *  empty `label` renders nothing, so a sourceless thread is deleted, not drawn decoratively. */
+export function ThreadNode(props: { criterionId: string; href: string; label: string }): JSX.Element | null {
+  const { criterionId, href, label } = props;
+  // The hook runs before the early return, so the hook order never depends on the props.
+  const { lit, bind } = useThreadLit(criterionId);
+  if (href.trim() === "" || label.trim() === "") return null;
+  return (
+    <a
+      className="thr-node"
+      href={href}
+      aria-label={label}
+      data-criterion={criterionId}
+      data-lit={lit ? "true" : undefined}
+      {...bind}
+    >
+      <MarkGlyph kind="thread_node" size={16} lit={lit} />
+    </a>
+  );
+}
+```
+
+The link's `aria-label` is its accessible name, so the glyph's own "Provenance thread" label is not
+read after it. The caller writes `label` as the source it opens ("Brief, criterion c-91e2: resume
+after a dropped upload"); this task fixes no wording.
+
+#### Interfaces — complete: `desktop/src/components/thread/ThreadLine.tsx`
+
+```tsx
+import type { JSX, ReactNode } from "react";
+import { useThreadLit } from "./useThreadLit";
+import "./thread.css";
+
+/** SW.14. The 1px hairline in the leading gutter from which a group's rows hang (05 §4.1). It
+ *  READS lit and binds nothing (decision 2); it never clones or re-classes its children, so a
+ *  lit line cannot ring a row or set aria-selected on one (lit is not selected). */
+export function ThreadLine(props: { criterionId: string; children: ReactNode }): JSX.Element {
+  const { lit } = useThreadLit(props.criterionId);
+  return (
+    <div className="thr-line" data-criterion={props.criterionId} data-lit={lit ? "true" : undefined}>
+      {props.children}
+    </div>
+  );
+}
+```
+
+#### Interfaces — complete: `desktop/src/components/thread/ThreadTrace.tsx`
+
+```tsx
+import type { JSX, ReactNode } from "react";
+import "./thread.css";
+
+/** SW.14. On drill-in the line grows from source to target: scaleY(0 → 1) from the top, over
+ *  --dur-slow on --ease. It says "this came from that", so it plays once per drill-in; under
+ *  reduced motion (either switch, decision 6) the line is simply there. The caller owns `play`:
+ *  true on the render that follows a drill-in, false after (task 47 sets it). */
+export function ThreadTrace(props: { play: boolean; children: ReactNode }): JSX.Element {
+  return (
+    <div className="thr-trace" data-play={props.play ? "true" : undefined}>
+      {props.children}
+    </div>
+  );
+}
 ```
 
