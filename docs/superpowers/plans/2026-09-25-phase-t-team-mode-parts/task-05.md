@@ -210,3 +210,74 @@ func (v *JWKSValidator) appCaller(azp string, roles []string) bool {
 
 `TestAppOnlyTokensFailTheScopeCheck` (`entra_test.go:327-333`) keeps passing unchanged: its token's
 `azp` is the desktop, which is no app caller, so it still falls to `ErrScope`.
+
+**`server`, the header rules and the route name (decisions b, d and g).**
+
+```go
+// control-plane/internal/hub/server/auth.go — additions to Hub task 13's text
+
+// Claims gains, after BindEmail:
+
+	// AppOnly: entra.Claims.AppOnly, Fleet's workload identity (§5.10 rule 1).
+	// For an app-only token Name, Email and BindEmail are "" and OrgAdmin is
+	// false, whatever roles it holds: an app never administers an org.
+	AppOnly bool
+	// DelegationID is the X-Panacea-Delegation value, set only when AppOnly and
+	// FleetFeed is false. resolveCaller reads it; Read has no request.
+	DelegationID string
+	// FleetFeed: AppOnly on the one exempt route (isFeedPath).
+	FleetFeed bool
+
+// Authenticate, step 3 gains a last sub-step, straight after Validate succeeds
+// and before step 4's limits (so step 4 can key on its result):
+//  3b. delegationHeader(c, r) → a refusal is written as the problem and the
+//      request ends; nothing is logged but tid, the code and the reason.
+// Step 4's per-user key becomes userKey(c); the org key (tid) is unchanged.
+
+// delegationHeader is §5.10 rule 2's refusals that need no database.
+func delegationHeader(c *Claims, r *http.Request) *APIError {
+	vals := r.Header.Values(hubapi.HeaderDelegation)
+	switch {
+	case !c.AppOnly && len(vals) > 0:
+		return Refuse(403, hubapi.CodeForbidden, "Only Fleet may name a delegation.",
+			map[string]string{"required": "fleet"})
+	case !c.AppOnly:
+		return nil
+	case isFeedPath(r) && len(vals) > 0:
+		return Refuse(400, hubapi.CodeBadRequest, "The org feed takes no delegation.",
+			map[string]string{"field": hubapi.HeaderDelegation})
+	case isFeedPath(r):
+		c.FleetFeed = true
+		return nil
+	case len(vals) == 0:
+		return Refuse(401, hubapi.CodeDelegationRequired, "Fleet must name a delegation.", nil)
+	case len(vals) > 1:
+		return Refuse(400, hubapi.CodeBadRequest, "Name one delegation.",
+			map[string]string{"field": hubapi.HeaderDelegation})
+	case !hubapi.ValidID(hubapi.PrefixDelegation, vals[0]):
+		// The answer an unknown id gets (task 01 §4.2), without echoing the value.
+		return Refuse(401, hubapi.CodeDelegationRevoked, "That delegation is not in force.",
+			map[string]string{"delegationId": "", "reason": "unknown"})
+	}
+	c.DelegationID = vals[0]
+	return nil
+}
+
+// userKey is decision (g): one bucket per delegation, so one member's
+// Orchestrator cannot drain another's.
+func userKey(c Claims) string {
+	switch {
+	case !c.AppOnly:
+		return c.TenantID + "/" + c.ObjectID // Hub task 13, unchanged
+	case c.FleetFeed:
+		return "fleet/feed"
+	default:
+		return "fleet/" + c.DelegationID
+	}
+}
+```
+
+The 403 and 400 answers here record no `auth.forbidden` event: `Authenticate` has no principal
+and no org yet (Hub task 14's `Forbidden` needs both), so the log line is the record, as for every
+other refusal of step 3. The 403 of a route check (below) runs inside the transaction and does
+record one.
