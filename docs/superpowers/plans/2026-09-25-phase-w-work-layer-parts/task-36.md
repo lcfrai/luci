@@ -234,3 +234,88 @@ export function ThreadTrace(props: { play: boolean; children: ReactNode }): JSX.
 }
 ```
 
+#### Interfaces — complete: `desktop/src/components/thread/thread.css`
+
+```css
+@import "../../styles/tokens.css";
+
+/* SW.14, task 36. Owns .thr-*; no other file writes the prefix.
+ * The gutter axis is x = 7px: the left pixel of task 29's 16px node box, whose ring is centred at
+ * 8. A surface (tasks 40, 47, 67, 85) puts its ThreadNode at the gutter's left edge and its rows
+ * at --thr-indent, so the node sits on the line and the rows hang from it (05 §4.1). */
+
+.thr-node {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: inherit;
+  text-decoration: none;
+}
+
+/* The line: the unlit hairline is ::before, the lit one ::after at opacity 0. Lit fades the
+ * overlay in; nothing else moves, so lit changes the thread's strength and no row's box. */
+.thr-line {
+  position: relative;
+  padding-left: 22px;
+}
+
+.thr-line::before,
+.thr-line::after,
+.thr-trace::before {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 0;
+  bottom: 6px;
+  width: 1px;
+  pointer-events: none;
+}
+
+.thr-line::before {
+  background: var(--thread);
+}
+
+.thr-line::after {
+  background: var(--thread-lit);
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease);
+}
+
+.thr-line[data-lit="true"]::after {
+  opacity: 1;
+}
+
+/* The trace: drawn lit, because on drill-in the thread is the subject of the view. */
+.thr-trace {
+  position: relative;
+  padding-left: 22px;
+}
+
+.thr-trace::before {
+  background: var(--thread-lit);
+  transform-origin: top;
+}
+
+.thr-trace[data-play="true"]::before {
+  animation: thr-grow var(--dur-slow) var(--ease) both;
+}
+
+@keyframes thr-grow {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+
+/* Decision 6: each reduced-motion rule twice, identical declarations. The line is simply there. */
+@media (prefers-reduced-motion: reduce) {
+  .thr-trace[data-play="true"]::before { animation: none; }
+  .thr-line::after { transition: none; }
+}
+
+:root[data-motion="reduce"] .thr-trace[data-play="true"]::before { animation: none; }
+:root[data-motion="reduce"] .thr-line::after { transition: none; }
+```
+
+`transition: opacity var(--dur-fast)` is the one entry `TRANSITIONABLE` allows for opacity
+(`styles/designsystem.test.ts:181`); the prototype's `--dur` (`work-layer.html:143`) would fail that
+audit, so the fade is 120 ms, not 180 ms. `thr-grow` is not a loop, so the looping-animation audit
+(`designsystem.test.ts:693`) does not require its stand-in; the reduced-motion block is decision 6's.
+
