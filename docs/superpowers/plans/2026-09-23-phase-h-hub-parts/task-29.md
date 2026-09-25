@@ -4,10 +4,11 @@
 
 The typed layer of seam **S-CRED**. Phase 3 asks for one interface — `credstore.Store`,
 `Credential(ctx, Host) (Credential, error)` (phase 3 task 13) — and this task satisfies it for
-GitHub with `Local`, over task 28's `Secrets`. Azure DevOps is satisfied first by `LocalDevOps`,
-the user's pasted PAT per organisation (review I10: OD-4 and OD-6 need an ADO credential in this
-store from v1, and the Entra path waits on ADR-H1 Q5), then by task 31's `entraauth.DevOps` (the
-Entra sign-in, if Q5 is yes). Phase 7's `pnc_` token gets its own accessor, `PanaceaTokens`.
+GitHub with `Local`, over task 28's `Secrets`. Azure DevOps is satisfied by `LocalDevOps`, the
+user's pasted PAT per organisation (review I10), and **nothing else**: OD-30 (main
+`docs/superpowers/planning/2026-09-25-identity-keycloak-broker.md` §7; Hub contract §17 §9.1) flips
+ADR-H1 Q5, so the PAT is the only Azure DevOps path. `entraauth.DevOps`, `AzureDevOpsScope` and the
+credential Source `"entra"` are deleted (task 31). Phase 7's `pnc_` token gets its own accessor, `PanaceaTokens`.
 Task 39 is the write path for all three pasted tokens; nothing else writes them.
 
 **The package is shared with phase 3.** Phase 3 task 13 creates `credstore/credstore.go` (`Host`,
@@ -15,8 +16,8 @@ Task 39 is the write path for all three pasted tokens; nothing else writes them.
 uses phase 3's file as it is. If not, this task writes **phase 3's declarations** from the contract
 below. **That copy is not verbatim, and the later merge is not a no-op** (review M5). It differs from
 phase 3's part three ways. Phase 3's package comment is dropped, because task 28's `secrets.go`
-holds the package's one. `Credential.Source`'s comment reads `"credential-manager" | "entra" |
-"git-credential-helper"`, as contract §9.1 names, where phase 3's reads `"hub" |
+holds the package's one. `Credential.Source`'s comment reads `"credential-manager" |
+"git-credential-helper"`, as contract §17 §9.1 names (OD-30 deletes `"entra"`), where phase 3's reads `"hub" |
 "git-credential-helper"` (phase 3 `task-13.md:68`, `feat/phase-3-git` at `a99d20b`): the Hub server
 holds no git credential. And neither part holds the method bodies, so this task and phase 3 write
 two bodies at one path, an add/add conflict. **Phase 3 wins it:** the orchestrator keeps phase 3's
@@ -64,7 +65,7 @@ type Host struct {
 type Scheme string
 
 const (
-	Bearer   Scheme = "bearer"    // an OAuth access token: Entra for Azure DevOps; a GitHub OAuth, app or fine-grained token
+	Bearer   Scheme = "bearer"    // a GitHub OAuth, app or fine-grained token (Azure DevOps is BasicPAT only, OD-30)
 	BasicPAT Scheme = "basic-pat" // an Azure DevOps personal access token, presented as HTTP basic
 )
 
@@ -75,7 +76,7 @@ type Credential struct {
 	Scheme    Scheme
 	Subject   string    // who it authenticates as, for display: "dmackie1@kpmg.com.au", "octocat"
 	ExpiresAt time.Time // zero when the source does not say
-	Source    string    // "credential-manager" | "entra" | "git-credential-helper"   (Hub contract §9.1)
+	Source    string    // "credential-manager" | "git-credential-helper"   (Hub contract §17 §9.1, OD-30)
 }
 
 func (c Credential) String() string   // "credstore.Credential{<Subject>, <Scheme>, <Source>, token redacted}"
@@ -142,9 +143,8 @@ func (p PanaceaTokens) Put(apiHost string, t StoredToken) error
 func (p PanaceaTokens) Delete(apiHost string) error
 
 // DevOpsTokens are Azure DevOps personal access tokens by organisation (review
-// I10), under AzureDevOpsTarget(org). The local path OD-4 and OD-6 need while
-// ADR-H1 Q5 is unanswered: the store holds the user's ADO credential from v1,
-// with no Entra consent for Azure DevOps.
+// I10), under AzureDevOpsTarget(org): the only Azure DevOps credential (OD-30
+// ruling §7, ADR-H1 Q5 flipped). No Entra consent for Azure DevOps is asked.
 type DevOpsTokens struct{ Secrets Secrets }
 
 func (d DevOpsTokens) Get(org string) (StoredToken, error) // ErrNotFound
@@ -153,19 +153,20 @@ func (d DevOpsTokens) Delete(org string) error
 
 // Entry describes one stored credential WITHOUT its secret, for GET /v1/credentials (task 39).
 type Entry struct {
-	Kind    string    // "github" | "azure-devops" | "panacea" | "entra"
-	Scope   string    // the owner ("*" for all), the ADO organisation, the API host, or the tenant id
+	Kind    string    // "github" | "azure-devops" | "panacea" | "oidc" (the sign-in, OD-30)
+	Scope   string    // the owner ("*" for all), the ADO organisation, the API host, or "<issuer host>/<realm>"
 	Subject string
 	SavedAt time.Time
 }
 
-// Inventory lists every entry under TargetPrefix. Entra appears once per
-// account record — never once per refresh chunk or per refresh generation
-// (task 28's …/refresh/<gen>/<i>) — and its Subject is the
+// Inventory lists every entry under TargetPrefix. The sign-in appears once per
+// account record (task 28's OIDCAccountTarget) — never once per refresh chunk or
+// per refresh generation (…/refresh/<gen>/<i>) — and its Subject is the
 // account's username. It reads blobs to find subjects; it returns no secret.
 // Kind comes from the target's namespace: PanaceaApp/git/github/ → "github",
 // PanaceaApp/git/azure-devops/ → "azure-devops" (review I10), PanaceaApp/panacea/
-// → "panacea", an Entra account record → "entra"; Scope is the last part.
+// → "panacea", PanaceaApp/oidc/<host>/<realm>/account → "oidc", Scope
+// "<host>/<realm>"; otherwise Scope is the last part.
 func Inventory(s Secrets) ([]Entry, error)
 ```
 
@@ -176,7 +177,7 @@ package credstore
 // Local implements Store for GitHub over this machine's store (H-1). For a host
 // that is not GitHub on github.com it answers ErrNoCredential, so a Chain moves
 // on — for Azure DevOps to LocalDevOps (a pasted PAT, below), then to
-// entraauth.DevOps (task 31), then to GitHelper (phase 3).
+// GitHelper (phase 3).
 // It looks up the owner's token first, then the every-owner token.
 type Local struct{ Secrets Secrets }
 
@@ -189,7 +190,7 @@ func (l Local) Credential(ctx context.Context, h Host) (Credential, error)
 // I10): the user's pasted PAT for the host's organisation. For a host that is not
 // Azure DevOps, or whose Org is "" (a PAT is per organisation; there is no
 // wildcard), or whose organisation has no PAT, it answers ErrNoCredential, so a
-// Chain moves on to entraauth.DevOps. It looks up strings.ToLower(h.Org): ADO
+// Chain moves on (to GitHelper for PR creation; for push, nothing). It looks up strings.ToLower(h.Org): ADO
 // organisation names are case-insensitive, and task 39 stores them lowercased.
 type LocalDevOps struct{ Secrets Secrets }
 
@@ -200,22 +201,22 @@ func (l LocalDevOps) Credential(ctx context.Context, h Host) (Credential, error)
 
 **The chain phase 3 wires** (phase 3 task 13 `:177-185` and `:222`, with the Hub's pieces named):
 `Credentials = credstore.Chain{credstore.Local{Secrets: s}, credstore.LocalDevOps{Secrets: s},
-entraauth.DevOps{Tokens: auth}, credstore.GitHelper{…}}` for PR creation, and `HubCredentials =
-credstore.Chain{credstore.Local{…}, credstore.LocalDevOps{…}, entraauth.DevOps{…}}` for push
-(review I10: `Local → LocalDevOps → entraauth.DevOps → GitHelper`). `Local` answers
-`ErrNoCredential` for Azure DevOps, `LocalDevOps` for GitHub and for an organisation with no PAT,
-and `entraauth.DevOps` for GitHub and when Q5 is no, so the order is safe either way. A pasted PAT
-wins over the Entra token for its organisation: the user put it there on purpose. When Q5 flips
-to yes, a user with no PAT gets the Entra path with no change to the write path; one who pasted a
-PAT keeps it until they delete it (`DELETE /v1/credentials/azure-devops?scope=<org>`, task 39).
+credstore.GitHelper{…}}` for PR creation, and `HubCredentials =
+credstore.Chain{credstore.Local{…}, credstore.LocalDevOps{…}}` for push (review I10, as OD-30
+amends it: `Local → LocalDevOps → GitHelper`; the `entraauth.DevOps` link is deleted, ruling §7).
+`Local` answers `ErrNoCredential` for Azure DevOps and `LocalDevOps` for GitHub and for an
+organisation with no PAT, so the order is safe. A user with no PAT for an organisation gets
+`ErrNoCredential` on push and adds one through task 39 (`POST /v1/credentials/azure-devops`); one
+who pasted a PAT keeps it until they delete it (`DELETE /v1/credentials/azure-devops?scope=<org>`).
 **Checked 2026-09-24** in the phase-3 worktree's task 13: its deps block (`:177-185`) has
 `Credentials` and `HubCredentials` as single `credstore.Store` values, `credstore.None{}` until the
 Hub, and Step 3 (`:222`) builds `Credentials = credstore.Chain{hub, credstore.GitHelper{…}}`. So
 phase 3 takes whatever `hub` store this plan hands it; **this plan names the chain, phase 3 wires
 it** (a sibling ask, recorded in the review's "Fix batch b04" section). Also asked there: phase 3's
-`PushAuth` (`:187-190`) names what `ErrNoCredential` does and nothing else, so an
-`ErrScopeNeedsConsent` or `ErrEntraUnavailable` must fail the push with that error, not fall back
-to the zero `Auth` and the machine's helper.
+`PushAuth` (`:187-190`) names what `ErrNoCredential` does and nothing else, so any other store
+error must fail the push with that error, not fall back to the zero `Auth` and the machine's
+helper. (Before OD-30 this named `ErrScopeNeedsConsent` and `ErrEntraUnavailable`; with no sign-in
+link in the chain, neither can reach it.)
 
 #### Tests to write first
 
@@ -235,7 +236,7 @@ wins): `TestCredentialNeverPrintsItsToken`, `TestNoneHasNothing`,
 | `TestLocalSaysWhereItCameFrom` | `Source == "credential-manager"`, `Scheme == Bearer` | contract §9.1's named difference lost |
 | `TestDevOpsTokensArePerOrganisation` | PATs for `kpmg-au` and `lcfr` are independent; an absent organisation → `ErrNotFound`; `DevOpsTokens.Put("")` panics through the builder (review I10) | an ADO PAT sent to another organisation |
 | `TestLocalDevOpsServesAPAT` | a PAT stored for `kpmgcomau`: `Host{AzureDevOps, "dev.azure.com", "KPMGcomau"}` and `Host{AzureDevOps, "kpmgcomau.visualstudio.com", "kpmgcomau"}` → it, `Scheme == BasicPAT`, `Source == "credential-manager"`; another organisation, `Org ""`, and `Host{GitHub, "github.com", "kpmgcomau"}` → `ErrNoCredential`; a `Chain{LocalDevOps, <a store that fails>}` with the PAT stored → the PAT, and the failing store is never asked (review I10) | a PAT presented as a bearer token (ADO answers 401); an ADO PAT sent to GitHub; a case-sensitive lookup that misses the user's own PAT |
-| `TestInventoryHoldsNoSecret` | one GitHub, one Azure DevOps PAT (kind `azure-devops`, scope the organisation), one Panacea, one Entra account with 3 chunks in its named generation plus a stray second generation (a rotation mid-way, task 28) → 4 entries; the formatted list contains no token or chunk bytes | a listing route that leaks the secret it lists |
+| `TestInventoryHoldsNoSecret` | one GitHub, one Azure DevOps PAT (kind `azure-devops`, scope the organisation), one Panacea, one sign-in account (`OIDCAccountTarget("https://auth.dev.panacea.kpmg/realms/panacea")`, kind `oidc`, scope `auth.dev.panacea.kpmg/panacea`) with 3 chunks in its named generation plus a stray second generation (a sign-in write mid-way, task 28) → 4 entries; the formatted list contains no token or chunk bytes | a listing route that leaks the secret it lists |
 | `TestAnOversizeTokenIsRefused` | a 3,000-byte token → `ErrTooLarge` | a truncated token that fails at the host with a confusing 401 |
 
 #### Steps
