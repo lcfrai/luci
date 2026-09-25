@@ -449,3 +449,78 @@ colours?" would pass it, and a ring would still vanish.
     document.documentElement.removeAttribute("data-motion");
   });
 ```
+
+#### Steps
+
+1. Write the four predicates, the five audit tests, the six canaries, the tick test and the glyph
+   test. Run `npm --prefix desktop test -- designsystem tokens glyphs`: the ring test fails,
+   naming every selector in the `forced-colors.css` block above (that failure **is** the list;
+   if it names one this part does not, that selector gets a line in the same group); grain,
+   selection and twin tests fail; the system-colour test passes (nothing uses one yet); the six
+   canaries pass their planted half and fail their real-tree half only if the tree already has
+   the fault; the tick test fails; the glyph test passes (task 29's shapes already differ) and is
+   a guard for step 4.
+2. Write `forced-colors.css` and its `main.tsx` import; append the dev sheets' lines. The ring,
+   grain and selection tests pass.
+3. Append the floor twin, the tick and its twin to `tokens.css`. The tick test passes.
+4. Append the three twins to `glyphs.css`, `common.css` and `palette.css`. The twin test passes.
+5. Mutate by hand, one at a time, and watch the named test go red, then revert: delete `.top`
+   from the edge group; change `.grain::after`'s `display: none` to `opacity: 0`; drop
+   `:not(:focus-visible)` from the rail row; set the palette twin to `animation: pal-in 0s`;
+   change the tick's `var(--ink)` to `var(--accent)`; key the tick on `[data-changed]`.
+6. Run the typecheck and the full desktop suite (`never transitions all` covers the new file
+   with no edit: the audit globs `/src/**/*.css`). Commit the eight files with
+   `git commit -F <msg> -- <paths>`.
+7. By hand, in `npm --prefix desktop run tauri dev`, open task 33's *Windows contrast theme* set
+   and turn a contrast theme on: the rail's edge, the dots, the focused pane and the selected row
+   should each be visible. That is a look, recorded for the owner, not an acceptance.
+
+#### Acceptance
+
+```bash
+npm --prefix desktop test -- designsystem tokens glyphs
+# expect: every test passes: the audit's five new tests and six canaries, the tick test, the
+# glyph test, and every existing test in the three files
+
+npm --prefix desktop run typecheck
+# expect: exit 0, no output from tsc
+
+grep -c "forced-colors: active" desktop/src/styles/forced-colors.css
+# expect: 1 until task 36 appends its own block, then 2
+
+grep -rn "CanvasText\|Highlight" desktop/src --include=*.css | grep -v "forced-colors.css\|devtools.css\|stress.css"
+# expect: nothing; system colours live only in forced-colours blocks
+```
+
+#### What this task does not claim
+
+- **How a real Windows contrast theme looks.** The layer is pinned; the look is the owner's
+  eyes through task 33's screen, recorded at task 39.
+- **That WebView2 honours `forced-colors` exactly as Chromium does.** WebView2 is Chromium, but
+  whether it follows the OS contrast theme without an app-level setting is **UNVERIFIED**.
+- **That every edge was the right one to draw.** `--line-soft` separators inside a pane are drawn
+  too; whether the contrast look is then too busy is a review question.
+- **`lease.ring` or the escalated lease chip.** Neither exists; the ring audit fails either the
+  day it lands without a line here, and the chip's needs-you shape is its own task's to keep.
+- **The live region** (task 66), grid roles, or screen-reader wording.
+- **That the tick and a Work row's own `::before` do not collide** (task 40, **UNVERIFIED**).
+- Design: 05 §4.4 C7 (reduced motion, revision 2), work rule 4, §5.3 row 17; 07 D C4, D I8.
+  Parity: no 01 row; with task 66 it is W1's accessibility floor.
+
+**Interfaces:**
+- Produces: `desktop/src/styles/forced-colors.css`, imported last from `main.tsx`; the contract
+  that every `box-shadow` selector has a forced-colours `border`, `outline` or opt-out, and that
+  system colours appear only inside `@media (forced-colors: active)`
+- Produces the tick: `[data-changed="unseen"]::before`, 2px, `--ink`, leading edge, under
+  reduced motion and its twin only; the lens sets and clears the attribute (task 41)
+- Produces the twin rule: every rule in a `prefers-reduced-motion: reduce` block has a top-level
+  `:root[data-motion="reduce"]` twin with identical declarations, in the same file (tasks 36, 41
+  already write theirs)
+- Produces for task 35: `.grain::after { display: none }` under forced colours, the one copy
+- Produces for task 36: the block task 36 appends to; the predicates `ringsWithoutForcedColours`,
+  `twinFaults`, `systemColoursOutside`, `forcedDecl`
+- Consumes: task 29's `AgentGlyph`, `.gl-agent-live`, `.dot-run`; task 31's two tick selectors and
+  `OLD_LOOK`; task 33's `data-motion` flag; tasks 32 and 33's `.dt`, `.dt-reset`, `.ss-bar`; the
+  built `rulesOf`, `splitTop`, `REDUCED_MOTION` (`designsystem.test.ts:115`, `:156`, `:233`),
+  `.dot` (`common.css:37-47`), the 36 `box-shadow` selectors (verified by listing the tree)
+- Amends: nothing in the Hub. No wire shape changes.
