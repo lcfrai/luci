@@ -493,7 +493,40 @@ The canonical text of v2, with the two escapes as they appear in the bytes:
 {"content":{"description":{"author":"A","text":"Step one\tthen\u0001end"},"implements":["design:cv-7c01d2e3f4a5b6c7@11"],"serves":[{"briefKey":"brief:bf-00000000000000a1@5","criterionId":"c-91e2a0b3c4d5e6f7"},{"briefKey":"brief:bf-00000000000000a1@5","criterionId":"c-0a1b2c3d4e5f6071"}],"title":{"author":"H","text":"Café upload resumes"}},"issueId":"is-00000000000000c3","kind":"issue-revision","projectId":"pj-00000000000000b2","revision":2,"v":1}
 ```
 
-To regenerate either file, the implementer runs the same method and **must** get these digests;
+**v3**: a chore with **empty** `serves` and `implements` and an empty description: the
+not-tied issue the thread must still digest. 252 bytes,
+`sha256:0ef4698eec15b67a4c25b580545bf4a548586cf0dfe88e6ae70dc177fbe53f9f` (Python and
+`printf | sha256sum` agree). It exists to kill `omitempty` on `serves`, which v1 and v2 cannot
+see because both carry a pair. `testdata/issue-revision/v3.json`:
+
+```json
+{
+  "envelope": {
+    "v": 1,
+    "kind": "issue-revision",
+    "issueId": "is-00000000000000c4",
+    "revision": 1,
+    "projectId": "pj-00000000000000b2",
+    "content": {
+      "title": {
+        "text": "Rotate the staging certificate",
+        "author": "H"
+      },
+      "description": {
+        "text": "",
+        "author": "H"
+      },
+      "serves": [],
+      "implements": []
+    }
+  },
+  "canonical": "{\"content\":{\"description\":{\"author\":\"H\",\"text\":\"\"},\"implements\":[],\"serves\":[],\"title\":{\"author\":\"H\",\"text\":\"Rotate the staging certificate\"}},\"issueId\":\"is-00000000000000c4\",\"kind\":\"issue-revision\",\"projectId\":\"pj-00000000000000b2\",\"revision\":1,\"v\":1}",
+  "bytes": 252,
+  "digest": "sha256:0ef4698eec15b67a4c25b580545bf4a548586cf0dfe88e6ae70dc177fbe53f9f"
+}
+```
+
+To regenerate any file, the implementer runs the same method and **must** get these digests;
 a different digest is a bug in the regeneration, never a reason to change the file.
 
 ---
@@ -747,14 +780,8 @@ func validContent() IssueRevisionContent {
 	}
 }
 
-// fieldOf is the failing field's path, or "" when err is not a *FieldError.
-func fieldOf(err error) string {
-	var fe *FieldError
-	if errors.As(err, &fe) {
-		return fe.Field
-	}
-	return ""
-}
+// fieldOf is canonical_test.go:166's helper (the Field of err's *FieldError,
+// else "<no FieldError>"); this file declares no second one.
 
 // Mutants: off-by-one limits (> vs >=), bytes for the title, code points for
 // the description, a blank title accepted, an author other than H or A, a
@@ -826,3 +853,68 @@ func TestIssueRevisionEnvelopeRefuses(t *testing.T) {
 
 Every test above is written before the code it tests, and fails first: `keys_test.go`'s three
 and every test in the two new files fail to compile until Step 3.
+
+---
+
+#### Steps
+
+- [ ] **Step 1: Check the sync base.** The orchestrator has sync-merged `feat/hub` (rule H1).
+  Confirm H01-H03 are there: `grep -n "^func Wide" control-plane/internal/ids/ids.go` prints one
+  line; `grep -n "^func Canonical" control-plane/internal/hub/hubapi/canonical.go` prints one;
+  `grep -n "func (e BriefEnvelope) Digest" control-plane/internal/hub/hubapi/envelope.go` prints
+  one. Re-read every anchor in *Anchors*; if one moved, follow it and note the new line here.
+- [ ] **Step 2: Write the tests and the vectors.** Append the three tests to `keys_test.go`;
+  create `workids_test.go`, `workcanonical_test.go` and the two `testdata/issue-revision/*.json`
+  files exactly as above. Run
+  `go test ./control-plane/internal/hub/hubapi/ -count=1` and watch it fail to compile
+  (`undefined: KeyIssue`, `undefined: WorkPrefixes`, `undefined: IssueRevisionEnvelope`).
+- [ ] **Step 3: Write the code.** The `keys.go` appends, then `workids.go`, then
+  `workcanonical.go`, exactly as above.
+- [ ] **Step 4: Run to green**, then `go vet ./control-plane/internal/hub/hubapi/` and
+  `gofmt -l control-plane/internal/hub/hubapi/` (prints nothing).
+- [ ] **Step 5: Prove the tests bite.** Apply each mutant below by hand, run, see the named test
+  fail, and revert. None is committed.
+
+| Mutant, applied by hand | Test that must fail |
+|---|---|
+| delete the `issueKeyRe` case from `ParseKey` | `TestIssueKeyRoundTrips` |
+| `issueKeyRe` with `@([0-9]+)` | `TestIssueKeyRejectsEverythingOutsideTheGrammar` (`@0`, `@01`) |
+| `PrefixMilestone = "ms"` | `TestWorkPrefixesAreDisjoint` (`ms-` is Phase T's message) |
+| `projectKeyRe` as `^[A-Za-z]{1,6}$` | `TestValidProjectKey` |
+| `Serves []Serve \`json:"serves,omitempty"\`` | `TestIssueRevisionGoldenVectors` (neither vector changes: both have a pair) **and** `TestValidateIssueRevisionContent` does not catch it either, so the mutant is killed by the next row's test |
+| `Implements []string \`json:"implements,omitempty"\`` | `TestIssueRevisionGoldenVectors` (v1's `"implements":[]` vanishes) |
+| `kindIssueRevision = "issue"` | `TestIssueRevisionGoldenVectors` |
+| `> MaxIssueTitleChars` as `>= MaxIssueTitleChars` | `TestValidateIssueRevisionContent` (`title 200 é`) |
+| `len(c.Title.Text)` for the title count | `TestValidateIssueRevisionContent` (`title 200 é` is 400 bytes) |
+| drop the `bytes.Equal` check in the parser | `TestIssueRevisionEnvelopeRefuses` (`whitespace`) |
+
+The `serves,omitempty` row is named honestly: with an empty `serves` list the canonical bytes
+lose `"serves":[]`, and no vector has an empty `serves`. It is killed by **adding a third golden
+row** in Step 5: the implementer computes, by the method above, the digest of v1 with
+`"serves":[]`, adds it as `testdata/issue-revision/v3.json` and `"v3"` to both vector loops, and
+records its digest here. That digest is **not yet computed**; this part does not predict it.
+
+- [ ] **Step 6: Commit**, one commit for the code and its tests:
+  `git add` the six new files, then `git commit -F <msgfile> --` the nine paths of *Files* plus
+  `v3.json`. Message file under `.superpowers/sdd/work/msg/`; last line
+  `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>`.
+
+#### Acceptance
+
+```bash
+go test ./control-plane/internal/hub/hubapi/ -race -count=1 -run 'IssueKey|DisplayAlias|WorkPrefixes|ValidProjectKey|IssueRevision|ValidateIssueRevision' -v 2>&1 | grep -c '^--- PASS'
+# 11
+go test ./control-plane/... -race -count=1
+# ok for every package; TestPrefixesAndReasonsAreTheContracts still passes (ten, not twenty-two)
+git diff --numstat HEAD~1 -- control-plane/internal/hub/hubapi/keys.go control-plane/internal/hub/hubapi/keys_test.go | awk '{print $2}'
+# 0
+# 0
+grep -c 'omitempty' control-plane/internal/hub/hubapi/workcanonical.go
+# 0
+```
+
+The 11 are `TestIssueKeyRoundTrips`, `TestIssueKeyRejectsEverythingOutsideTheGrammar`,
+`TestDisplayAliasIsNeverAKey`, `TestWorkPrefixesAreDisjoint`, `TestWorkPrefixesMintValidIDs`,
+`TestValidProjectKey`, `TestDisplayAliasFormat`, `TestIssueRevisionGoldenVectors`,
+`TestIssueRevisionParseRoundTrips`, `TestValidateIssueRevisionContent` and
+`TestIssueRevisionEnvelopeRefuses`.
