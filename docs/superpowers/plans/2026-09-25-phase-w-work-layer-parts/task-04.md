@@ -294,7 +294,7 @@ type fakeIssue struct {
 	handSet   bool   // the done was set by hand
 	landedAt  string // the landed move's time; "" before
 	startedBy string // who made the started move; "" before
-	citations []string
+	citations []fakeCitation // at the current landing; cleared by a reopen
 	revisions []*hubapi.IssueRevision // revisions[i] is revision i+1, immutable
 	seq       int64
 }
@@ -840,5 +840,79 @@ func (f *Fake) RestoreIssueRevision(_ context.Context, issueID string, req hubap
 		return hubapi.IssueRevision{}, err
 	}
 	return *rev, nil
+}
+```
+
+Block 6: the move table and the evidence clauses (decision (g)).
+
+```go
+// fakeMoveAllowed is task 10's hubapi.MoveAllowed table (task-10.md:267-287),
+// line for line. Task 10's step replaces the body with a call to it.
+func fakeMoveAllowed(from, to hubapi.IssueState, cause hubapi.MoveCause) bool {
+	in := func(s hubapi.IssueState, set ...hubapi.IssueState) bool { return slices.Contains(set, s) }
+	switch cause {
+	case hubapi.CauseHand:
+		return in(to, hubapi.StateTriage, hubapi.StateBacklog, hubapi.StateTodo, hubapi.StateCancelled,
+			hubapi.StateDuplicate, hubapi.StateDone)
+	case hubapi.CauseLaneBound:
+		return to == hubapi.StateStarted && in(from, hubapi.StateTriage, hubapi.StateBacklog, hubapi.StateTodo,
+			hubapi.StateStarted)
+	case hubapi.CauseLaneQueued:
+		return to == hubapi.StateInReview && in(from, hubapi.StateTriage, hubapi.StateBacklog, hubapi.StateTodo,
+			hubapi.StateStarted, hubapi.StateInReview)
+	case hubapi.CauseLandTrailer:
+		return to == hubapi.StateLanded && in(from, hubapi.StateTriage, hubapi.StateBacklog, hubapi.StateTodo,
+			hubapi.StateStarted, hubapi.StateInReview, hubapi.StateLanded, hubapi.StateDone)
+	case hubapi.CauseEvidenceObserved, hubapi.CauseEvidenceRecorded:
+		return to == hubapi.StateDone && from == hubapi.StateLanded
+	}
+	return false
+}
+
+// fakeCitation is one cited evidence record at the current landing.
+type fakeCitation struct {
+	rec   hubapi.EvidenceRecord
+	cause hubapi.MoveCause // CauseEvidenceObserved or CauseEvidenceRecorded
+}
+
+// evidenceRecord reads H05's evidence store (UNVERIFIED field name; Step 1
+// takes the merged one). It is the fake's only read of that store.
+func (w *fakeWorld) evidenceRecord(id string) (hubapi.EvidenceRecord, bool) {
+	e, ok := w.evidence[id]
+	return e, ok
+}
+
+// whyNotApplicable is task 10's decision 3 and 4 for one record, as a
+// details.why word, or "" when the record may be cited by this issue.
+func (w *fakeWorld) whyNotApplicable(is *fakeIssue, id string) (hubapi.EvidenceRecord, string) {
+	rec, ok := w.evidenceRecord(id)
+	switch {
+	case !ok || rec.ProjectID != is.head.ProjectID:
+		return rec, "project"
+	case !slices.Contains(is.headRev().Content.Serves, hubapi.Serve{BriefKey: rec.BriefKey, CriterionID: rec.CriterionID}):
+		return rec, "criterion"
+	case rec.Verdict != hubapi.VerdictSettled:
+		return rec, "verdict"
+	case rec.RecordedAt < is.landedAt: // one fixed-width UTC format (contract §1)
+		return rec, "before_landed"
+	case rec.Commit != is.head.LandCommit:
+		return rec, "commit"
+	}
+	if other := w.wk().issues[w.wk().cited[id]]; other != nil && other != is && other.head.LandCommit != is.head.LandCommit {
+		return rec, "cited_elsewhere"
+	}
+	return rec, ""
+}
+
+// clearProof is a reopen's, a cancel's and a duplicate's: the word, the land
+// commit and every citation go (task 10's decision 6).
+func (w *fakeWorld) clearProof(is *fakeIssue) {
+	for _, c := range is.citations {
+		if w.wk().cited[c.rec.ID] == is.head.ID {
+			delete(w.wk().cited, c.rec.ID)
+		}
+	}
+	is.citations, is.landedAt, is.handSet = nil, "", false
+	is.head.Proof, is.head.LandCommit, is.head.StateReason = hubapi.ProofNone, "", ""
 }
 ```
