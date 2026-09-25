@@ -1,5 +1,7 @@
 ### Task 26: The cockpit shows cloud machines — states, switching, implicit wake, the badge, signed-out
 
+HELD until task 24b lands, which waits for phase 3's tasks 03 to 05 on feat/env (plan P3A-6; `.superpowers/sdd/env/held.md`): the build stream skips this task until then.
+
 `docs/FUNCTIONAL-SPEC.md:42-48`: one cloud machine exists at first sign-in "with no create form";
 six states; **wake is implicit**, "with inline 'waking… 6s'"; the local machine "appears in the
 same list with an honest list of what it cannot do … badged `unsandboxed`"; the rail has "machine
