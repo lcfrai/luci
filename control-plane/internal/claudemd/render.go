@@ -14,9 +14,9 @@ package claudemd
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
-	"unicode"
 
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/discover"
 )
@@ -259,9 +259,10 @@ type Block struct {
 // kind; a stray or early end marker is ErrUnterminatedBlock, by the same
 // count as Merge, never an `edited` block. Markers match as in Merge, with
 // \r?\n (review M7). The begin marker's line is exactly
-// BeginPrefix + " brief=" + id + " rev=" + n + " -->": id non-empty with no
-// space and no "<" or ">", n a decimal of 1 or more with no sign and no
-// leading zero; anything else is ErrBadMarker. On every error Block is
+// BeginPrefix + " brief=" + id + " rev=" + n + " -->": id passing
+// discover.MarkerSafe (non-empty, no white space, no "<" or ">"), n a
+// decimal of 1 or more with no sign and no leading zero, fitting an int;
+// anything else is ErrBadMarker. On every error Block is
 // zero. Its only use is the drift check (contract §3.3 condition 3):
 // NOTHING reads brief text back out of a file as a source.
 func Inspect(existing string) (b Block, ok bool, err error) {
@@ -292,7 +293,10 @@ func parseMarker(text string) (Marker, error) {
 		return Marker{}, fmt.Errorf("%w: %q", ErrBadMarker, line)
 	}
 	id, rev, ok := strings.Cut(rest, " rev=")
-	if !ok || !markerID(id) || !decimal(rev) {
+	// The id rule is discover.MarkerSafe, its only copy: Resolve refuses a
+	// revision whose id fails it, so every block it renders reads back here,
+	// and no copy of the rule can drift from another (review I1).
+	if !ok || !discover.MarkerSafe(id) || !decimal(rev) {
 		return Marker{}, fmt.Errorf("%w: %q", ErrBadMarker, line)
 	}
 	n, err := strconv.Atoi(rev)
@@ -300,20 +304,6 @@ func parseMarker(text string) (Marker, error) {
 		return Marker{}, fmt.Errorf("%w: %q", ErrBadMarker, line)
 	}
 	return Marker{BriefID: id, Revision: n}, nil
-}
-
-// markerID is the id a begin marker may hold; discover.Resolve refuses a
-// revision whose id is not one, so every block it renders reads back.
-func markerID(id string) bool {
-	if id == "" {
-		return false
-	}
-	for _, r := range id {
-		if unicode.IsSpace(r) || r == '<' || r == '>' {
-			return false
-		}
-	}
-	return true
 }
 
 // decimal is [1-9][0-9]*.
@@ -329,13 +319,17 @@ func decimal(s string) bool {
 	return true
 }
 
-// SameText reports whether got and want are equal once every "\r\n" in each
-// is read as "\n". It is the drift check's only comparison of a found block
-// with a fresh render (task 09's current/edited split), so a block an editor
-// re-saved with CRLF is current, not edited over every line (review M7). Any
-// other byte difference, a lone "\r" included, is a difference.
+// SameText reports whether got and want are the same lines, split as
+// DiffLines splits them: on \r?\n, a final line ending ending the last line
+// rather than starting another. It is the drift check's only comparison of a
+// found block with a fresh render (task 09's current/edited split), so a
+// block an editor re-saved with CRLF is current, not edited over every line
+// (review M7), and so is one whose end marker lost the file's final line
+// ending (review M1): SameText is false exactly when DiffLines, but for its
+// 400-line cap, shows a change. Any other byte difference, a lone "\r"
+// included, is a difference.
 func SameText(got, want string) bool {
-	return strings.ReplaceAll(got, "\r\n", "\n") == strings.ReplaceAll(want, "\r\n", "\n")
+	return slices.Equal(splitLines(got), splitLines(want))
 }
 
 type DiffOp string

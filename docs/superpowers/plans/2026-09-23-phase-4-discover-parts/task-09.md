@@ -196,15 +196,17 @@ type WorktreeState string
 const (
 	StateAbsent     WorktreeState = "absent"     // no block, and nothing to inherit
 	StatePending    WorktreeState = "pending"    // no block yet; the next session start writes one
-	StateCurrent    WorktreeState = "current"    // claudemd.SameText(block, render) for the key a start would write now: byte-exact but for CRLF vs LF (review M7)
+	StateCurrent    WorktreeState = "current"    // claudemd.SameText(block, render) for the key a start would write now: byte-exact but for CRLF vs LF (review M7) and the block's final line ending (task 05 As built 11)
 	StateSuperseded WorktreeState = "superseded" // the block names an older key; sessions already running read it
 	// StateEdited: the marker names the right key, and the text is not that
 	// key's render (state 11). A key's render depends on nothing but the key -
 	// the title comes from the revision's own branchRef, never from a project
 	// or branch name (task 05's Document.Title, review I5) - so a rename is
 	// never "edited"; only a change to the file's bytes is, other than an
-	// editor turning LF into CRLF (claudemd.SameText, review M7). Diff comes
-	// from claudemd.DiffLines, which splits on \r?\n.
+	// editor turning LF into CRLF (claudemd.SameText, review M7) or dropping
+	// the line ending after the end marker (task 05 As built 11: SameText is
+	// false exactly when DiffLines shows a change). Diff comes from
+	// claudemd.DiffLines, which splits on \r?\n.
 	StateEdited     WorktreeState = "edited"
 	StateStale      WorktreeState = "stale"      // a block, but nothing should be inherited now
 	StateBroken     WorktreeState = "broken"     // unterminated or duplicated

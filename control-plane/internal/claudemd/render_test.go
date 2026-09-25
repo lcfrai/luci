@@ -146,11 +146,21 @@ func TestAllSkippedRendersTheKeyAndNoSection(t *testing.T) {
 }
 
 func TestOverrideNoteIsOneLine(t *testing.T) {
-	project := b7()
-	project.Content.Answers[0] = person(discover.KeyPurpose, "Portal for audits.\n\nAlso for tax.")
-	got := Render(resolve(t, project, b42()))
-	if !strings.Contains(got, "\n_Set on this branch, replacing the project brief: Portal for audits. Also for tax._\n") {
-		t.Errorf("a multi-line project text broke the override note:\n%s", got)
+	// A head the Hub stored unchecked may hold "\r" (Render's M-5 premise):
+	// the note is cleaned first, then joined, so no "\r" splits it (review I2,
+	// RV15).
+	for _, text := range []string{
+		"Portal for audits.\n\nAlso for tax.",
+		"Portal for audits.\r\nAlso for tax.",
+		"Portal for audits.\rAlso for tax.",
+		"Portal for audits.\r\n\r\nAlso for tax.\r\n",
+	} {
+		project := b7()
+		project.Content.Answers[0] = person(discover.KeyPurpose, text)
+		got := Render(resolve(t, project, b42()))
+		if !strings.Contains(got, "\n_Set on this branch, replacing the project brief: Portal for audits. Also for tax._\n") {
+			t.Errorf("the project text %q broke the override note:\n%s", text, got)
+		}
 	}
 }
 
@@ -189,6 +199,11 @@ func TestMergeAppendsAfterABlankLine(t *testing.T) {
 		// Mixed endings: the first line ending decides.
 		{"# Notes\nMore\r\n", "# Notes\nMore\r\n\n" + block},
 		{"# Notes\r\nMore\n", "# Notes\r\nMore\n\r\n" + crlf(block)},
+		// A file that starts with a line ending (review I2, RV3): nothing
+		// precedes the first "\n", so it is LF; a first "\r\n" is CRLF.
+		{"\nA\n", "\nA\n\n" + block},
+		{"\n", "\n\n" + block},
+		{"\r\nA\r\n", "\r\nA\r\n\r\n" + crlf(block)},
 	}
 	for _, tc := range cases {
 		got, err := Merge(tc.existing, block)
@@ -377,6 +392,10 @@ func TestStripRemovesTheBlockAndNothingElse(t *testing.T) {
 		{"the blank line deleted by hand", "A\n" + block, "A\n"},
 		{"a file that begins with the block", block + "B\n", "B\n"},
 		{"a blank line between the block and B", "A\n\n" + block + "\nB\n", "A\n\n\nB\n"},
+		// A line ending after the block's own is something following it, so
+		// the blank line above stays: B = "" in the row above (review I2, RV11).
+		{"a blank line after an appended block", "A\n\n" + block + "\n", "A\n\n\n"},
+		{"CRLF, a blank line after an appended block", "A\r\n\r\n" + crlf(block) + "\r\n", "A\r\n\r\n\r\n"},
 		{"a block with no final line ending", "A\n\n" + strings.TrimSuffix(block, "\n"), "A\n"},
 		{"two blank lines above an appended block", "A\n\n\n" + block, "A\n\n"},
 		{"text on the end marker's line", "A\n\n" + strings.TrimSuffix(block, "\n") + "B\n", "A\n\nB\n"},
@@ -506,10 +525,97 @@ func TestInspectReadsTheMarker(t *testing.T) {
 		BeginPrefix + " brief=" + branchID + " rev=5 extra=1 -->",
 		BeginPrefix + "x brief=" + branchID + " rev=5 -->",
 		BeginPrefix + " brief=bf-<a2 rev=5 -->",
+		BeginPrefix + " brief=bf->a2 rev=5 -->",
+		BeginPrefix + " brief=bf-\ta2 rev=5 -->",
+		BeginPrefix + " brief=bf- a2 rev=5 -->",
 	} {
 		if got, ok, err := Inspect(line + body); !errors.Is(err, ErrBadMarker) || ok || !reflect.DeepEqual(got, Block{}) {
 			t.Errorf("Inspect(%q) = %+v, %v, %v; want ErrBadMarker", line, got.Marker, ok, err)
 		}
+	}
+}
+
+// Every id Resolve accepts reads back through Inspect, and every id it
+// refuses, Inspect refuses in a begin marker: one rule, discover.MarkerSafe,
+// on both sides, so a block Render(Resolve(…)) writes is never broken on the
+// next start (review I1; part As built 4). The ids are the review's.
+func TestEveryResolvedIDReadsBack(t *testing.T) {
+	body := strings.TrimPrefix(branchBlock(t), beginLine)
+	for _, tc := range []struct {
+		id       string
+		resolves bool
+	}{
+		{branchID, true},
+		{"bf-!a2", true},
+		{"bf->a2", false},
+		{"bf-<a2", false},
+		{"bf-<!--a2", false},
+		{"bf a2", false},
+		{"bf\ta2", false},
+		{"bf\na2", false},
+		{"bf a2", false},
+		{"", false},
+	} {
+		r := b7()
+		r.BriefID = tc.id
+		doc, rerr := discover.Resolve(r, nil)
+		if (rerr == nil) != tc.resolves {
+			t.Errorf("Resolve(brief %q): err %v, want resolves %v", tc.id, rerr, tc.resolves)
+		}
+		_, ok, ierr := Inspect(BeginPrefix + " brief=" + tc.id + " rev=5 -->" + body)
+		if ok != (rerr == nil) || (ierr == nil) != (rerr == nil) {
+			t.Errorf("brief %q: Resolve err %v, but Inspect of its marker: ok %v, err %v", tc.id, rerr, ok, ierr)
+		}
+		if rerr != nil {
+			continue
+		}
+		b, ok, err := Inspect("A\n\n" + Render(doc))
+		if err != nil || !ok || b.Marker != (Marker{BriefID: tc.id, Revision: 5}) {
+			t.Errorf("brief %q: Inspect(Render(Resolve)) = %+v, %v, %v", tc.id, b.Marker, ok, err)
+		}
+	}
+}
+
+// SameText is true exactly when DiffLines shows no change (review M1), so
+// the drift check never calls a block "edited by hand" over a diff with
+// nothing in it. Both split on \r?\n, and a final line ending ends the last
+// line rather than starting another.
+func TestSameTextAgreesWithDiffLines(t *testing.T) {
+	block := branchBlock(t)
+	noFinal := strings.TrimSuffix(block, "\n")
+	edited := strings.Replace(block, "KPMG staff broadly", "KPMG staff, broadly", 1)
+	for _, tc := range []struct {
+		name, got, want string
+		same            bool
+	}{
+		{"the render itself", block, block, true},
+		{"re-saved as CRLF", crlf(block), block, true},
+		{"the end marker ends the file with no line ending", noFinal, block, true},
+		{"CRLF, with no final line ending", strings.TrimSuffix(crlf(block), "\r\n"), block, true},
+		{"one line changed", edited, block, false},
+		{"one line changed, with no final line ending", strings.TrimSuffix(edited, "\n"), block, false},
+		{"a blank line added at the end", block + "\n", block, false},
+		{"a lone \\r", "a\rb\n", "ab\n", false},
+		{"a\\r\\n against a\\r", "a\r\n", "a\r", false},
+		{"one line with and without its ending", "a", "a\n", true},
+		{"nothing against one empty line", "", "\n", false},
+	} {
+		if got := SameText(tc.got, tc.want); got != tc.same {
+			t.Errorf("%s: SameText = %v, want %v", tc.name, got, tc.same)
+		}
+		changed := false
+		for _, d := range DiffLines(tc.want, tc.got) {
+			changed = changed || d.Op != DiffSame
+		}
+		if changed == tc.same {
+			t.Errorf("%s: DiffLines shows a change: %v; want %v", tc.name, changed, !tc.same)
+		}
+	}
+
+	// The file the review probed: the end marker is its last byte.
+	b, ok, err := Inspect("A\n\n" + noFinal)
+	if err != nil || !ok || b.Text != noFinal || !SameText(b.Text, block) {
+		t.Errorf("a block with no final line ending: %q, ok %v, err %v; want current", b.Text, ok, err)
 	}
 }
 

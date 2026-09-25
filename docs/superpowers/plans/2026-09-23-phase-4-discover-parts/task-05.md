@@ -117,6 +117,14 @@ func Resolve(project, branch *Revision) (Document, error)
 // it for an open history row, which Resolve refuses with ErrIncomplete
 // (task 06). No package writes "Branch brief" or "Project brief" itself.
 func Title(branch *Revision) string
+
+// MarkerSafe reports whether id can stand in claudemd's begin marker:
+// non-empty, with no white space (unicode.IsSpace), no "<" and no ">". It
+// is the rule's only copy (task 05 fix round 1, review I1): Resolve refuses
+// a revision whose BriefID fails it, and claudemd's begin-marker parser
+// accepts exactly the ids that pass it, so every block Render(Resolve(…))
+// writes reads back, and the two sides cannot drift.
+func MarkerSafe(id string) bool
 ```
 
 ```go
@@ -220,11 +228,15 @@ type Block struct {
 // out of a file as a source.
 func Inspect(existing string) (b Block, ok bool, err error)
 
-// SameText reports whether got and want are equal once every "\r\n" in each
-// is read as "\n". It is the drift check's only comparison of a found block
-// with a fresh render (task 09's current/edited split), so a block an editor
-// re-saved with CRLF is current, not edited over every line (review M7). Any
-// other byte difference, a lone "\r" included, is a difference.
+// SameText reports whether got and want are the same lines, split as
+// DiffLines splits them: on \r?\n, a final line ending ending the last line
+// rather than starting another. It is the drift check's only comparison of a
+// found block with a fresh render (task 09's current/edited split), so a
+// block an editor re-saved with CRLF is current, not edited over every line
+// (review M7), and so is one whose end marker lost the file's final line
+// ending (task 05 fix round 1, review M1): SameText is false exactly when
+// DiffLines, but for its 400-line cap, shows a change. Any other byte
+// difference, a lone "\r" included, is a difference.
 func SameText(got, want string) bool
 
 type DiffOp string
@@ -367,11 +379,23 @@ Where this differs from the text above, this wins:
 3. **Items come from the answer's `Criteria`**, ids kept, never re-split from the text; every other
    section's `Items` is `[]`, and `Document.Sections` is `[]`, never null.
 4. **A malformed revision is a server fault.** `Resolve(nil, nil)`, a revision in the other scope's
-   place, a `BriefID` that is empty or holds a space, `<` or `>`, and a `Number` below 1 are the
-   unexported `errBadRevision` (a 500, like task 03's `errNoNewID`), checked before completeness
-   and the pin. So every block `Render(Resolve(…))` writes reads back through `Inspect`
-   (`TestResolveRefusesAMalformedRevision`). The id rule has two copies, `discover.markerSafe` and
-   `claudemd.markerID`, each pinned by its own row.
+   place, a `BriefID` that fails `MarkerSafe` (empty, or holding white space by `unicode.IsSpace`,
+   `<` or `>`), a `Number` below 1, and (fix round 1, review M2) a `BranchRef` no Hub envelope
+   holds are the unexported `errBadRevision` (a 500, like task 03's `errNoNewID`), with a zero
+   `Document`, checked before completeness and the pin. The `BranchRef` rule: a project
+   revision's is `""`; a branch revision's is `refs/heads/` and a non-empty name holding no ASCII
+   control character or DEL (Hub contract §3.3 `:133-137`, §7.5 `:759`, and its `briefs` table's
+   `CHECK ((scope = 'project' AND branch_ref = '') OR (scope = 'branch' AND branch_ref LIKE
+   'refs/heads/_%' …))` at `:1573-1574`), so the title is one line and names a branch.
+   So every block `Render(Resolve(…))` writes reads back through `Inspect`
+   (`TestResolveRefusesAMalformedRevision`). **The id rule has one copy** (fix round 1, review
+   I1): the exported `discover.MarkerSafe`, which `Resolve` applies to both ids and `claudemd`'s
+   begin-marker parser calls, so the two sides cannot drift (`TestMarkerSafe`; `claudemd`'s
+   `TestEveryResolvedIDReadsBack`: for each of the review's candidate ids, `Resolve` succeeds
+   exactly when `Inspect` accepts a begin marker holding it, and then `Inspect(Render(doc))` names
+   it). Round 1 had two copies, `discover.markerSafe` and `claudemd.markerID`, each pinned only
+   for `<`, a space and `""`: the review's RV1, RV1c and RV2 dropped `>` or narrowed white space to
+   `' '` in either copy, and both packages stayed green.
 5. **Every question skipped** still renders the key: the intro, then `No question in this brief has
    an answer.`, then the footer (`TestAllSkippedRendersTheKeyAndNoSection`). The old plan's `No
    brief has been recorded for this branch yet.` would be false for a complete brief; the wording is
@@ -380,8 +404,9 @@ Where this differs from the text above, this wins:
    error (not `""`, which a caller writing the result would turn into an empty file); `Inspect`
    returns a zero `Block` on every error.
 7. **The begin marker's line is exactly** `BeginPrefix + " brief=" + id + " rev=" + n + " -->"`,
-   then `\r?\n`: `id` non-empty with no space, `<` or `>`; `n` matches `[1-9][0-9]*` and fits an
-   `int`. Anything else is `ErrBadMarker` (16 rows in `TestInspectReadsTheMarker`).
+   then `\r?\n`: `id` passes `discover.MarkerSafe` (As built 4); `n` matches `[1-9][0-9]*` and fits
+   an `int`. Anything else is `ErrBadMarker` (20 rows in `TestInspectReadsTheMarker`: 16 at
+   `eb6075d`, V4's at `c2005fd`, and `>`, a tab and a no-break space in the id at fix round 1).
 8. **`DiffLines`** trims the common prefix and suffix, runs the LCS on the middle, bounded at 2^20
    cells (past it: every render line removed, then every file line added, still a true diff), puts
    the render's line (removed) before the file's (added) at a change, and is never nil. The 400-line
@@ -391,11 +416,28 @@ Where this differs from the text above, this wins:
    whose answer the section shows is asked first: an `OriginProject` section is headed in the
    project's words, an override or branch section in the branch's (mutation round 1's X7 found the
    old plan's branch-first rule heading an inherited project answer with the branch's wording;
-   fixed in `c2005fd`).
+   fixed in `c2005fd`). Pinned by `TestFollowUpHeadingIsTrimmedOrTheKey` (fix round 1, review I2):
+   `"  Is there a deadline?  "` is headed `Is there a deadline`; `"?"`, `"  ?  "` and `""` are
+   headed by the key.
 10. **Tests beyond the table:** `TestResolveOverrideCarriesTheReplacedText`,
     `TestResolveOrdersSectionsAndHeadsFollowUps`, `TestResolveNamesTheKeyAndThePin`,
     `TestResolveRefusesAMalformedRevision`, `TestAllSkippedRendersTheKeyAndNoSection`,
     `TestOverrideNoteIsOneLine`, `TestDiffLinesIsCapped`, `TestDiffLineWireShape` (the `op` strings
-    are wire values task 12 carries). The Strip row's third shape is spelled in Go (b10 re-review
+    are wire values task 12 carries); and at fix round 1 `TestMarkerSafe`,
+    `TestFollowUpHeadingIsTrimmedOrTheKey`, `TestEveryResolvedIDReadsBack` and
+    `TestSameTextAgreesWithDiffLines`. The Strip row's third shape is spelled in Go (b10 re-review
     R-I1, above). `TestMergeAppendsAfterABlankLine` has two mixed-ending rows: the first line
-    ending decides.
+    ending decides. Fix round 1 rows (review I2), each the rule a surviving mutant broke: `Merge`
+    of a file that starts with a line ending (`"\nA\n"`, `"\n"`, `"\r\nA\r\n"`; RV3's `i >= 0`
+    panicked on them); `Strip("A\n\n" + block + "\n")` is `"A\n\n\n"`, and its CRLF twin, because
+    a line ending after the block's own is something that follows it (RV11); and the override
+    note stays one line over a project text holding `"\r\n"`, a lone `"\r"`, or both with a blank
+    line, because the note is cleaned before it is joined (RV15).
+11. **`SameText` is `DiffLines`' notion of the same** (fix round 1, review M1). Both split on
+    `\r?\n`, and a final line ending ends the last line rather than starting another, so
+    `SameText(got, want)` is `slices.Equal(splitLines(got), splitLines(want))`: false exactly when
+    `DiffLines`, but for its cap, shows a change. A block whose end marker is the file's last byte
+    (an editor that drops the final newline, or text typed on the end marker's line) is therefore
+    `current`, where round 1's `SameText` called it edited over a diff with no change in it. A lone
+    `\r` is still a difference, and a blank line added after the block is outside `Block.Text`
+    (`TestSameTextAgreesWithDiffLines`; task 09's `StateCurrent` comment amended to match).

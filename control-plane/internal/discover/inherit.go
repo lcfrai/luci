@@ -183,9 +183,12 @@ func Title(branch *Revision) string {
 }
 
 // checkRevisions refuses what no Hub revision is: nothing at all, a revision
-// in the other scope's place, a missing or unmarkable id, a number below 1.
-// An id is marker-safe when it is non-empty and holds no space and no "<" or
-// ">", so the begin marker claudemd writes for it always reads back.
+// in the other scope's place, an id MarkerSafe refuses, a number below 1, or
+// a BranchRef its scope's envelope never holds (review M2). A project
+// revision's BranchRef is "" (Hub contract §7.5, :759); a branch revision's
+// is "refs/heads/" and a non-empty name with no ASCII control character or
+// DEL (§3.3, :133-137; the briefs CHECK 'refs/heads/_%', :1573-1574), so
+// Title names a branch, on one line.
 func checkRevisions(project, branch *Revision) error {
 	if project == nil && branch == nil {
 		return fmt.Errorf("%w: no revision passed", errBadRevision)
@@ -200,14 +203,41 @@ func checkRevisions(project, branch *Revision) error {
 		if c.r.Scope != c.scope {
 			return fmt.Errorf("%w: %s has scope %q where a %s revision belongs", errBadRevision, c.r.Key, c.r.Scope, c.scope)
 		}
-		if c.r.Number < 1 || !markerSafe(c.r.BriefID) {
+		if c.r.Number < 1 || !MarkerSafe(c.r.BriefID) {
 			return fmt.Errorf("%w: brief %q revision %d", errBadRevision, c.r.BriefID, c.r.Number)
+		}
+		if !envelopeRef(c.scope, c.r.BranchRef) {
+			return fmt.Errorf("%w: %s revision %s has branchRef %q", errBadRevision, c.scope, c.r.Key, c.r.BranchRef)
 		}
 	}
 	return nil
 }
 
-func markerSafe(id string) bool {
+// envelopeRef reports whether ref is a branchRef a revision envelope of
+// scope s can hold (checkRevisions).
+func envelopeRef(s Scope, ref string) bool {
+	if s == ScopeProject {
+		return ref == ""
+	}
+	name, ok := strings.CutPrefix(ref, "refs/heads/")
+	if !ok || name == "" {
+		return false
+	}
+	for i := 0; i < len(name); i++ {
+		if name[i] < 0x20 || name[i] == 0x7f {
+			return false
+		}
+	}
+	return true
+}
+
+// MarkerSafe reports whether id can stand in claudemd's begin marker:
+// non-empty, with no white space (unicode.IsSpace), no "<" and no ">". It
+// is the rule's only copy (review I1): Resolve refuses a revision whose
+// BriefID fails it, and claudemd's begin-marker parser accepts exactly the
+// ids that pass it, so every block Render(Resolve(…)) writes reads back,
+// and the two sides cannot drift.
+func MarkerSafe(id string) bool {
 	if id == "" {
 		return false
 	}

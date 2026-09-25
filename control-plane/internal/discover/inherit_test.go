@@ -405,6 +405,22 @@ func TestResolveRefusesAMalformedRevision(t *testing.T) {
 	angled.BriefID = "bf-<!--b7"
 	zero := rvProject()
 	zero.Number = 0
+	withID := func(id string) *Revision {
+		r := rvProject()
+		r.BriefID = id
+		return r
+	}
+	// A project revision's envelope has branchRef "" (Hub contract §3.3,
+	// §7.5 :759); a branch revision's is "refs/heads/<name>", name non-empty
+	// with no ASCII control character (§3.3; the Hub's own CHECK is
+	// 'refs/heads/_%'). The title is that ref minus "refs/heads/" on one line.
+	projectOnABranch := rvProject()
+	projectOnABranch.BranchRef = "refs/heads/main"
+	withRef := func(ref string) *Revision {
+		r := rvBranch()
+		r.BranchRef = ref
+		return r
+	}
 
 	cases := []struct {
 		name            string
@@ -416,16 +432,92 @@ func TestResolveRefusesAMalformedRevision(t *testing.T) {
 		{"no brief id", noID, nil},
 		{"a brief id with a space", spaced, nil},
 		{"a brief id with a comment opener", angled, nil},
+		{`a brief id with ">"`, withID("bf->b7"), nil},
+		{"a brief id with a tab", withID("bf-\tb7"), nil},
+		{"a brief id with a line break", withID("bf-\nb7"), nil},
+		{"a brief id with a no-break space", withID("bf- b7"), nil},
 		{"revision 0", zero, nil},
+		{"a project revision with a branch ref", projectOnABranch, nil},
+		{"a branch revision with no branch ref", rvProject(), withRef("")},
+		{`a branch ref of "refs/heads/" alone`, rvProject(), withRef("refs/heads/")},
+		{"a branch ref that is a bare name", rvProject(), withRef("evidence-upload")},
+		{"a tag ref", rvProject(), withRef("refs/tags/v1")},
+		{"a branch ref with a line break", rvProject(), withRef("refs/heads/evidence\nupload")},
+		{"a branch ref with DEL", rvProject(), withRef("refs/heads/evidence\x7fupload")},
 	}
 	for _, tc := range cases {
 		doc, err := Resolve(tc.project, tc.branch)
-		if err == nil {
-			t.Errorf("%s: resolved to %+v", tc.name, doc)
-			continue
+		if !errors.Is(err, errBadRevision) || !reflect.DeepEqual(doc, Document{}) {
+			t.Errorf("%s: Resolve = %+v, %v; want a zero Document and errBadRevision", tc.name, doc, err)
 		}
 		if errors.Is(err, ErrInheritMismatch) || errors.Is(err, ErrIncomplete) {
 			t.Errorf("%s: err = %v, want a malformed-revision fault", tc.name, err)
+		}
+	}
+
+	// The same revisions with a well-formed ref and id resolve: the refusals
+	// above are the ref's and the id's, not the pairing's.
+	if _, err := Resolve(rvProject(), withRef("refs/heads/a")); err != nil {
+		t.Errorf(`branch ref "refs/heads/a": %v`, err)
+	}
+	if _, err := Resolve(withID("bf-!b7"), nil); err != nil {
+		t.Errorf(`brief id "bf-!b7": %v`, err)
+	}
+}
+
+// MarkerSafe is the id rule's only copy: Resolve refuses a revision whose
+// BriefID fails it, and claudemd's begin-marker parser accepts exactly the
+// ids that pass it (review I1; claudemd's TestEveryResolvedIDReadsBack).
+func TestMarkerSafe(t *testing.T) {
+	for _, tc := range []struct {
+		id   string
+		want bool
+	}{
+		{"bf-00000000000000a2", true},
+		{"bf-!a2", true}, // the rule is the marker's, not the Hub's id grammar
+		{"", false},
+		{"bf a2", false},
+		{"bf\ta2", false},
+		{"bf\na2", false},
+		{"bf\ra2", false},
+		{"bf a2", false},
+		{"bf a2", false},
+		{"bf-<a2", false},
+		{"bf->a2", false},
+		{"bf-->a2", false},
+	} {
+		if got := MarkerSafe(tc.id); got != tc.want {
+			t.Errorf("MarkerSafe(%q) = %v, want %v", tc.id, got, tc.want)
+		}
+	}
+}
+
+// A follow-up's heading is its prompt trimmed, minus one final "?"; the key
+// itself when that leaves nothing (part As built 9; review I2, RV7 and RV8).
+func TestFollowUpHeadingIsTrimmedOrTheKey(t *testing.T) {
+	project := rvProject()
+	project.Content.Questions = append(project.Content.Questions,
+		Question{Key: "f-0000000p", ProjectPrompt: "  Which regulator reads it?  ", BranchPrompt: "Not this", Options: []string{}, FollowUp: true})
+	project = rvSet(project, rvPerson("f-0000000p", "APRA"))
+	branch := rvBranch()
+	branch.Content.Questions = append(branch.Content.Questions,
+		Question{Key: "f-0000000d", BranchPrompt: "  Is there a deadline?  ", Options: []string{}, FollowUp: true},
+		Question{Key: "f-0000000q", BranchPrompt: "?", Options: []string{}, FollowUp: true},
+		Question{Key: "f-0000000w", BranchPrompt: "  ?  ", Options: []string{}, FollowUp: true},
+		Question{Key: "f-0000000e", BranchPrompt: "", Options: []string{}, FollowUp: true})
+	for _, k := range []Key{"f-0000000d", "f-0000000q", "f-0000000w", "f-0000000e"} {
+		branch = rvSet(branch, rvPerson(k, "yes"))
+	}
+	doc := mustResolve(t, project, branch)
+	for k, want := range map[Key]string{
+		"f-0000000p": "Which regulator reads it",
+		"f-0000000d": "Is there a deadline",
+		"f-0000000q": "f-0000000q",
+		"f-0000000w": "f-0000000w",
+		"f-0000000e": "f-0000000e",
+	} {
+		if s, ok := rvSection(t, doc, k); !ok || s.Heading != want {
+			t.Errorf("%s: heading %q (found %v), want %q", k, s.Heading, ok, want)
 		}
 	}
 }
