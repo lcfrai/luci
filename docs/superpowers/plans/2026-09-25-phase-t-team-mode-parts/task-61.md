@@ -15,8 +15,10 @@ Four properties, each pinned by a test.
    `sequence` hint waits behind the *first* side; otherwise entries land in the order their
    owners asked.
 2. **Nothing lands that its review has not passed.** At the head of the queue, and again just
-   before the handoff, task 49's `Review.Ready` must say yes: the owner's approval, and a second
-   member's approval where the lane changes an agent-config path.
+   before the handoff, task 49's step 9a rule must pass (`parts/task-49.md:119-127`): an
+   approved `la-…` by another current member, for this lane tip, covering every agent-config
+   path the merge changes. The land is in the mirror, not in `converge.Land`, so `landq.Gate`
+   applies that rule itself, over the mirror's typed path list and task 49's route 86.
 3. **Fleet never holds a push credential.** The handoff to `machined` carries a bundle and a
    ref, and no credential field exists in its type. The push is the owner's own act, on the
    owner's own path to her machine, with her own token in memory.
@@ -64,3 +66,47 @@ member and never fails the land.
 or `pushing`. A push rejected because the remote moved (someone pushed outside the queue) sends
 the entry back to `waiting` at the head; the mirror fetches the remote and rebuilds. Two rejects
 in a row stop the queue with `remote_contended`, one inform to every member, and no retry loop.
+
+**(f) Fleet runs no git over lane objects.** §8.2 keeps git's parsers out of the process that
+holds every member's delegations. So the agent-config list is the mirror's, typed: its build
+returns `git diff --name-status -z --no-renames` between `old` and the merge, and for every
+changed `package.json` the names of the members that differ, from a member list **the request
+carries** (`converge.PackageScriptMembers`, task 49's four, exported). Fleet classifies the paths
+with task 49's `converge.IsAgentConfigPath`, so the table exists once, in `converge`.
+
+**Files:**
+- `control-plane/internal/fleet/landq/landq.go` — `Queue`, `Entry`, `State`, the transitions,
+  `Enqueue`, `Withdraw`, `Advance`, `Pushed`, `Expire` (new; the file map's row)
+- `control-plane/internal/fleet/landq/order.go` — `Order`: hints, then arrival (new; not in the
+  file map, split out so its table test stands alone)
+- `control-plane/internal/fleet/landq/gate.go` — `Gate`: task 49's rule over the mirror's paths
+  (new; not in the file map)
+- `control-plane/internal/fleet/landq/refresh.go` — the per-member bundle fan-out (new)
+- `control-plane/internal/fleet/landq/{landq,order,gate,refresh}_test.go` (new)
+- `control-plane/internal/fleet/server/landq.go` + test — routes F-L1 to F-L5 (new)
+- `control-plane/internal/fleet/server/authz.go` (task 12) — `VerbLandQueue`, one table row (modify)
+- `control-plane/internal/fleet/store/migrations/00NN_landq.sql`, `store.go`, `memstore.go`,
+  `pgstore.go`, `storetest/suite.go` (task 10) — `fleet.land_queue` and its methods (modify;
+  numbered after the last Fleet migration at build time)
+- `control-plane/internal/fleet/mirror/client.go` (task 59) — `BuildLand`, `ExportRange`,
+  `FetchRemote` (modify; **task 59's file, not yet on disk**)
+- `sandboxd/cmd/panacea-mirror/main.go` (task 59) — the `land`, `export` and `fetch-remote` ops
+  (modify; task 59's file)
+- `control-plane/internal/fleet/protocol/resolve.go` (task 29) — `Resolver.FirstLanded` (modify;
+  one method, below)
+- `control-plane/internal/converge/agentconfig.go` (task 49) — export `PackageScriptMembers`
+  (modify; one `var`)
+- `control-plane/internal/api/teamland.go` + test — the local control plane's push act: the
+  owner's token from phase 3 task 13's store, through her own machine (new)
+- `desktop/src/api/team.ts`, `teamSlice.ts` (task 52) — `landQueue`, `landNow` (modify)
+
+**Sibling files this task extends, each UNVERIFIED until merge:** phase 3 task 09's
+`control-plane/internal/converge/land.go` (the steps copied into the mirror; phase 3
+`parts/task-09.md:98-132`), task 13's credential `Store` (`parts/task-13.md:63-78`, the push
+token), task 12's push (`parts/task-12.md`, the route the push act reuses on the machine), and
+phase 8's `remotebe` and broker (tasks 17–22, planned), the path the push act travels.
+
+**Depends on:** task 49 (the rule, `IsAgentConfigPath`, route 86 and `hubclient.ListLandApprovals`),
+task 60 (lane bundles in the mirror with the owner's identity), task 59 (the mirror client), task
+29 (`fleet.land_hints`), task 48 (the fetch credential the mirror's `fetch-remote` uses), task 10
+(the store), task 12 (routes and verbs).
