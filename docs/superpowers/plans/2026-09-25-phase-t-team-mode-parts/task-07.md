@@ -44,10 +44,10 @@ on record.
 - Consumes:
   - from task 01: rows 60 to 71, §7.18 to §7.22, the §8 rows `thread.opened` to
     `human_message.appended` (`task-01.md:488-495`), and §5.2's org *auditor* (`:508-512`).
-  - from task 03: `Thread`, `OpenThreadRequest`, `PatchThreadRequest`, `Message`,
+  - from task 03: `Thread`, `CreateThreadRequest`, `PatchThreadRequest`, `Message`,
     `AppendMessageRequest`, `MessageKind`, `Resolution`, `Escalation`, `CreateEscalationRequest`,
     `AnswerEscalationRequest`, `Directive`, `AppendDirectiveRequest`, `DirectiveKind`, `Rung`,
-    `TurnOrigin`, `RecordTurnRequest`, `HumanMessage`, `WriteHumanMessageRequest`, and
+    `TurnOrigin`, `RecordTurnRequest`, `HumanMessage`, `CreateHumanMessageRequest`, and
     `teamtext.Text` on every text field. **Task 03's part is not yet written; where it names a
     type differently, task 03 wins and this part is renamed mechanically.**
   - from task 04: tables `threads`, `messages` (append-only), `escalations`, `directives`

@@ -52,7 +52,7 @@ fields, so a body that sends one gets 400 `bad_request`.
     field, bound, code and kind; this part implements it.**
   - from task 03 (`hubapi/team.go`, `codes.go`): the Go types of those records and requests
     (`Delegation`, `CreateDelegationRequest`, `Task`, `CreateTaskRequest`, `PatchTaskRequest`,
-    `Agent`, `StartAgentRequest`, `EndAgentRequest`, `LeaseEventRequest`, `LeaseEventResult`,
+    `AgentStart`, `AgentStartRequest`, `AgentEndRequest`, `LeaseEventRequest`, `LeaseEvent`,
     `Conflict`, `CreateConflictRequest`, `PatchConflictRequest`), the enums with `Valid()`, the
     codes of `task-01.md:193-205` including `delegation_not_found`, and `CodeConflict` (409
     `conflict`). **Task 03's part is not yet written; where it names a type differently, task 03

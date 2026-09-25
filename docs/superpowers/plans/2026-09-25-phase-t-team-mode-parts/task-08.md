@@ -84,19 +84,19 @@ type Team interface {
 	// Fleet writes: routes 50, 51, 53, 54, 56, 57, 58.
 	CreateTask(ctx context.Context, projectID, _ string, req hubapi.CreateTaskRequest) (hubapi.Task, error)
 	PatchTask(ctx context.Context, projectID, taskID string, req hubapi.PatchTaskRequest) (hubapi.Task, error)
-	StartAgent(ctx context.Context, projectID, _ string, req hubapi.StartAgentRequest) (hubapi.Agent, error)
-	EndAgent(ctx context.Context, projectID, agentID string, req hubapi.EndAgentRequest) (hubapi.Agent, error)
-	AppendLeaseEvent(ctx context.Context, projectID, leaseID string, req hubapi.LeaseEventRequest) (hubapi.LeaseEventResult, error)
+	StartAgent(ctx context.Context, projectID, _ string, req hubapi.AgentStartRequest) (hubapi.AgentStart, error)
+	EndAgent(ctx context.Context, projectID, agentID string, req hubapi.AgentEndRequest) (hubapi.AgentStart, error)
+	AppendLeaseEvent(ctx context.Context, projectID, leaseID string, req hubapi.LeaseEventRequest) (hubapi.LeaseEvent, error)
 	CreateConflict(ctx context.Context, projectID, _ string, req hubapi.CreateConflictRequest) (hubapi.Conflict, error)
 	PatchConflict(ctx context.Context, projectID, conflictID string, req hubapi.PatchConflictRequest) (hubapi.Conflict, error)
 
 	// Reads: routes 52, 55, 59.
 	Tasks(ctx context.Context, projectID string, q hubapi.TaskQuery) (hubapi.Page[hubapi.Task], error)
-	Agents(ctx context.Context, projectID string, q hubapi.AgentQuery) (hubapi.Page[hubapi.Agent], error)
+	Agents(ctx context.Context, projectID string, q hubapi.AgentQuery) (hubapi.Page[hubapi.AgentStart], error)
 	Conflicts(ctx context.Context, projectID string, q hubapi.ConflictQuery) (hubapi.Page[hubapi.Conflict], error)
 
 	// Fleet writes: routes 60–62, 64, 67, 69.
-	CreateThread(ctx context.Context, projectID, _ string, req hubapi.OpenThreadRequest) (hubapi.Thread, error)
+	CreateThread(ctx context.Context, projectID, _ string, req hubapi.CreateThreadRequest) (hubapi.Thread, error)
 	PatchThread(ctx context.Context, projectID, threadID string, req hubapi.PatchThreadRequest) (hubapi.Thread, error)
 	AppendMessage(ctx context.Context, projectID, threadID string, req hubapi.AppendMessageRequest) (hubapi.Message, error)
 	CreateEscalation(ctx context.Context, projectID, _ string, req hubapi.CreateEscalationRequest) (hubapi.Escalation, error)
@@ -112,7 +112,7 @@ type Team interface {
 
 	// Desktop: routes 65, 70.
 	AnswerEscalation(ctx context.Context, escalationID string, req hubapi.AnswerEscalationRequest) (hubapi.Escalation, error)
-	WriteHumanMessage(ctx context.Context, projectID string, req hubapi.WriteHumanMessageRequest) (hubapi.HumanMessage, error)
+	WriteHumanMessage(ctx context.Context, projectID string, req hubapi.CreateHumanMessageRequest) (hubapi.HumanMessage, error)
 }
 
 // OrgFeed is route 78: Fleet's per-org twin of Feed.Changes, over team projects
