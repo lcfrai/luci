@@ -267,3 +267,44 @@ the result. `ErrNoCredential` or `ErrNoAccess` → `ok: false`; any other error 
 and the previous proof ages out on its own TTL. The cockpit shows a false proof on the project's
 row as one sentence: *"Fetches into your cloud clones are paused: your access to <repo> could not
 be confirmed. Sign in again, or ask the repository's admin."*
+
+#### Tests to write first
+
+The first two are the scope paragraph's (`2026-09-25-phase-t-team-mode.md:939-940`).
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestPushWithTheFetchCredentialIsRefusedBeforeAnyCall` (`remote`) | `Push(…, FetchOnly(env))` → `ErrReadOnlyAuth`; phase 3's fake `gitx.Runner` recorded **0** calls and the project lock was never taken | the check placed after `Locks.Lock` or after a `rev-parse`, so a read credential reaches git |
+| `TestAFailedReproofStopsTheTimer` (`cmd/broker`) | a fresh proof → one tick fetches the project (fake machine saw one `fetch`); `PUT … ok:false` → the next tick sees no `fetch` for it, and the audit line says `proof_failed`; a proof 24 h 1 s old → no `fetch` either (`no_proof`) | the timer listing projects by binding alone; the TTL never checked |
+| `TestOpenPullRequestRefusesTheFetchCredential` (`githost`) | GitHub and Azure DevOps `OpenPullRequest` with a `SourceProjectFetch` credential → `ErrFetchCredentialNotForWrite`; the `httptest` server saw **0** requests | the host's own 403 relied on as the only wall |
+| `TestGitHubAppAsksForOneRepoContentsRead` | the stand-in received the exact body `{"repositories":["r"],"permissions":{"contents":"read"}}` and a JWT whose `iss` is the app id, `exp − iat ≤ 10m` | a token for the whole installation |
+| `TestAWiderTokenIsRevokedAndRefused` | the stand-in answers `contents: write`, or two repositories → `ErrCredentialTooWide`, and it then received `DELETE /installation/token` with that token | trusting the answer; leaving a wide token alive |
+| `TestFetchEnvIsHostScopedAndReadOnly` | `FetchEnv` → `GIT_CONFIG_KEY_0 = http.https://github.com/.extraHeader`, `ReadOnly() == true`; with a person's credential → error | a fetch header valid for every host; a person's token laundered as read-only |
+| `TestProveAccessUsesHerCredentialAndTreatsOutagesAsUnknown` | 200 + `pull: true` → nil; 404 → `ErrNoAccess`; 503 → the error, not `ErrNoAccess`; a `SourceProjectFetch` credential → `ErrNotAPersonsCredential`, 0 requests | a GitHub outage pausing every member's fetches; the project credential proving itself |
+| `TestSigninSendsFalseOnNoCredentialAndNothingOnOutage` (`api`) | no credential → `PUT ok:false`; `ErrNoAccess` → `ok:false`; a 503 → no `PUT` | an outage recorded as a failed proof |
+| `TestProofRouteIsTheOwnersDesktopOnly` | Fleet under her delegation → 403; Grace's desktop on Linus's machine → 404; a `repoKey` other than the binding's → 422 | Fleet vouching for a person's access |
+| `TestTheFetchRouteNeedsAFreshProof` | no proof → 409 `fetch_proof_required`, no machine call; a fresh one → 200 `FetchResult` | the route bypassing the proof that the timer honours |
+| `TestTheAuditLineNeverHoldsTheToken` | after an issue, the captured audit output does not contain the token, the header or `x-access-token` | a debug field left in |
+| `TestNoSessionSandboxEverReceivesTheCredential` | for every create path of task 17's fake cluster, no pod spec, Secret or env of a `component: sandbox` pod holds the token or the PEM path | the credential handed to a worker "for convenience" |
+| `TestBindingsValidateAtStart` | a GitHub binding on an Azure DevOps `repoKey`, both providers, neither → start-up fails naming the project | a silently unused binding |
+
+#### Steps
+
+- [ ] **Step 1: Read after the merges.** Phase 3 tasks 12–14 as built (`remote`, `credstore`,
+  `githost`), phase 8 tasks 17–21 and 29 as built (the broker, `machined`'s `/v1/git`, the broker
+  chart), phase 8 tasks 05 and 10's modules. Rename anything this part named provisionally.
+- [ ] **Step 2: `remote` and `credstore`.** The push test first; it fails; `readOnly`,
+  `FetchOnly`, `Authorize`, the refusal; `go test ./internal/remote/` passes.
+- [ ] **Step 3: `githost`.** The six `githost` tests against `httptest` stand-ins; they fail;
+  `fetchcred.go`, `prove.go`, the `OpenPullRequest` refusal; they pass.
+- [ ] **Step 4: The broker.** The five broker tests on phase 8's fake cluster; they fail; the proof
+  store, the two routes, `FetchCredential`, `fetchLoop`, the audit line; they pass.
+- [ ] **Step 5: Sign-in.** The `api` test; the hook; it passes.
+- [ ] **Step 6: Infrastructure.** The Key Vault secret and its one reader, the `ado_fetch_projects`
+  map and federated credentials, the broker chart's CSI mount and `fetchBindings`;
+  `bash infra/scripts/validate.sh` and `helm unittest deploy/charts/broker` pass.
+- [ ] **Step 7: Runbook.** `docs/runbooks/fetch-credential.md`: install the App on one repository
+  with *Contents: read* only; add the project's identity to the Azure DevOps organisation with no
+  licence beyond Stakeholder or Basic as the org requires, and grant it *Read* on the one
+  repository only (both portal steps from knowledge, **UNVERIFIED**).
+- [ ] **Step 8: Commit** each group with `git commit -F <msg> -- <paths>`.
