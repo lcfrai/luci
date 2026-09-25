@@ -265,7 +265,7 @@ for l in "${LOCS[@]}"; do
 done
 VALS="$(find deploy/values deploy/charts -name '*.yaml' \( -path 'deploy/values/*' -o -path 'deploy/charts/*/values.yaml' \) 2> /dev/null | sort)"
 if [ -n "$VALS" ]; then
-  HITS="$(grep -nE '^[[:space:]]*(location|azureRegion|topology\.kubernetes\.io/region|bedrockRegion):' $VALS)"
+  HITS="$(grep -HnE '^[[:space:]]*(location|azureRegion|topology\.kubernetes\.io/region|bedrockRegion):' $VALS)"
   rc=$?; [ "$rc" -le 1 ] || read_failed "values scan" grep "$rc"
   while IFS= read -r h; do
     [ -n "$h" ] || continue
@@ -286,3 +286,25 @@ the Terraform output, which G11 has already pinned. `bedrockRegion` is phase 6's
 names it; **phase 6's gateway chart is not written**, so the key is renamed mechanically to
 phase 6's at merge (gap 5). The `$VALS` word-split is deliberate: chart paths hold no spaces
 (phase 8's naming rule), and `find … | sort` feeds it once.
+
+#### The six checklist rows
+
+Appended to `docs/verification/phase-8-kata-proving.md` in phase 8 task 32's columns: row, the
+fact, the decision it guards, the script, what changes if it is false. Every result cell is
+`NOT RUN`. Each script splits into a **collector** (talks to the cluster, owner-gated like the rest
+of task 32, `task-32.md:3-9`) and a **verdict** function that reads only the collector's saved
+output, so `proving_test.sh` runs every verdict on canned text with no cluster.
+
+| Row | Fact | Guards | Script and method | If false |
+|---|---|---|---|---|
+| P23 | An Orchestrator pod's real peak under TM1-α load stays inside the `orchestrator` class's limits with 25% headroom | task 15's class shape | `p23-orchestrator-size.sh`: during task 33's scripted conflict, `kubectl top pod -n panacea-sandboxes -l panacea-app/class=orchestrator --no-headers` every 10 s; verdict: per pod, max CPU `m` and memory `Mi` against the limits read from the pod spec | task 15's `orchestrator` request and limit are raised to the measured peak ÷ 0.75, and phase 8's quota row follows |
+| P24 | A file a worker writes inside the guest shows in Fleet's activity within one sweep (≤ 10 s, task 34) | §3.3 rule 4; task 34's sweep outside the VM | `p24-guest-write-sweep.sh`: in a worker session, write `p24-<nonce>.txt`; poll `panacea files --json` from the owner's Orchestrator every 1 s for 30 s; verdict: seconds to first sight, over 5 runs, all ≤ 10 | the shared-disk view from the machine pod lags the guest (virtiofs caching, P03's disk); task 34's sweep reads through `sandboxd`'s own `stat` instead, and §3.3's "observed outside the VM" is re-argued |
+| P25 | The source address the gateway sees for a session pod equals the pod IP the broker recorded | §2.5 token binding; task 17's `source-addr` | `p25-source-addr.sh`: from a session pod, one gateway call with its token; read the gateway's access-log line for that request id and the pod's `panacea-app/source-addr` annotation; verdict: equal, or the two addresses printed | the gateway binds tokens to a client certificate the broker issues per pod (mTLS), the design's stated fallback (`05-design.md:1357`); task 20 and phase 6's keysmith change |
+| P26 | A team launch from the warm pool reaches the worker's first output byte in under 10 s | §10.2 | `p26-team-launch.sh`: 10 launches through task 21's team route, each timed from the request to the first attach frame with output; verdict: median and max, pass if max < 10 s | the number is reported as measured on the launch surface (no "instant" claim anywhere); balloons and the warm floor are resized by P06's rule |
+| P27 | The PTY round trip desktop → local control plane → Fleet → broker → `sandboxd` is under 150 ms at p95 from Australia | §10.3 | `p27-pty-round-trip.sh`: from a laptop on the KPMG network in Australia, through `fleetbe`, 200 single-byte writes to `cat` with a 250 ms gap, each timed to its echo; verdict: p50, p95, max | the relay hop that costs most (read from Fleet's and the broker's per-frame timing logs) is removed or co-located; if none can be, §10.3's budget is restated with the measured number |
+| P28 | An AU session pod reaches every allowlisted name on 443 and nothing else | this task's `egress-au-allowlist`; the ACNS flag | `p28-au-egress.sh`: in an AU-labelled throwaway session pod, 3 s probes to `registry.npmjs.org`, `github.com`, `dev.azure.com` (must connect) and `example.com`, `api.anthropic.com`, `1.1.1.1:443`, `169.254.169.254` (must not); verdict: fails on the first wrong answer and names it | FQDN policy is not active on the cluster: AU projects keep failing closed (no registries); the owner chooses between ACNS, the firewall mode of phase 8's Q1, or an in-cluster allowlisting proxy |
+
+P23 to P27 are the five of `05-design.md:1154`; **P28 is this task's own**, because an allowlist
+nobody has watched deny anything is the exact kind of assumed fact task 32 exists to test
+(`task-32.md:11-15`). P23 and P25 run inside task 33's runbook, P24 after task 34 lands, P26 and
+P27 after task 21, and P28 before any AU project is created.
