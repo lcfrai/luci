@@ -1,5 +1,7 @@
 ### Task 33: Close the phase — the seams, the compliance gap, the cost model, what stays unverified
 
+HELD until every other held task (21, 21b, 24b, 25, 25b, 26 and 32) lands, since it depends on all (`.superpowers/sdd/env/held.md`): the build stream skips this task until then.
+
 Phase 2's task 26 learned that a seam written only in a plan is rediscovered by the next phase
 (`phase-2-parts/task-26.md:1-9`), and that a document nothing checks drifts. This task writes phase
 8's end state where the next phase will look, and pins it where it can be pinned.
