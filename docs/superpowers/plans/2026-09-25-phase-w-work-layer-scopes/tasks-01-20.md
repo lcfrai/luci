@@ -319,4 +319,62 @@ the runner re-runs). It **does not claim** the guards (task 07), any route or st
 that the number it took is final before merge. Parity rows served: none closed alone; it is the
 storage behind L-3, L-8 to L-10, L-13, L-17, L-24, L-34, L-41, L-42, L-45, L-48, L-117, L-220.
 
+**07 — migration, part 2: the guards, and the authorisation-matrix rows for every W1 Work
+route.** W1, stream WH, seam **SW.3** (who may write what); depends on 06 and Hub task H16b (the
+matrix harness, `server/matrix_integration_test.go`, H-plan:298). Files: the same
+`NNNN_work_w1.sql` (appended, before it is ever applied anywhere shared) or a second file
+`NNNN+1_work_w1_guards.sql` if 06 has been merged; `migrate/work_guards_integration_test.go`; and
+`server/matrix_integration_test.go` ⚑ plus a new `server/work_matrix_rows.go`. **Guards**, in the
+shape of hub-contract §10.2's `forbid_change`/`guard_revision` triggers (:1800-1836) and §10.4's
+owner functions (:1934-1996): `issue_revisions`, `issue_serves`, `comment_mentions` and
+`issue_attachments` are append-only (`hub.forbid_change()` on `UPDATE OR DELETE` and `TRUNCATE`);
+`issue_revisions` changes once, by erasure, only inside `hub.erase_issue(p_issue text)`, a
+`SECURITY DEFINER` function with a pinned `search_path` that checks the issue is in
+`current_setting('hub.org_id')`, sets `canonical = NULL, erased_at = now()` on every revision and
+blanks `issues.external_url`, keeping ids, digests and revision numbers (as `erase_brief`,
+:1978-1995); `hub.erase_comment(p_comment text)` blanks `body` and `anchor` the same way; both
+granted `EXECUTE` to `hub_app` only. **The fact-state guard** `guard_issue_state()`, `BEFORE UPDATE
+OF state ON issues`: a move **into** `started`, `in_review`, `landed` or `done` is refused unless
+the transaction set `hub.work_cause` (transaction-local, `set_config(…, true)`, set only by the
+Work store in task 10) to a fact cause (`lane_bound`, `lane_queued`, `land_trailer`,
+`evidence_observed`) **or** the move is `done` with cause `hand` and a non-empty `state_reason`;
+and it is refused whatever the cause when `hub.work_actor_kind` is anything but `person`, so the
+sync principal W5 adds (tasks 145, 150) can never write a fact state or `done` (05 §3.3, §3.6).
+`number`, `project_id` and `created_by` are also frozen by the trigger (belt to 06's grants). The
+two settings are **new names**, not edits to the Hub's pipeline; the Work store sets them after
+the Hub's `hub.org_id` (hub-contract:1925) inside the same write transaction (Hub task 14).
+**Matrix rows.** `work_matrix_rows.go` holds one row per W1 Work route, in the §5.3 columns
+(`V M A O N X`, hub-contract:336-345): reads (`GET` issues, one issue, by number, revisions, a
+revision, attachments, comments, labels, the work policy, search) ✓ for `V M A`, 404 for `O N
+X`; issue and comment writes (create, patch, revise, restore, state, relations, attach, comment,
+react, resolve, import) 403 for `V`, ✓ for `M A`, 404 for `O N X`; team settings (project key,
+labels create and archive, the work policy) 403 for `V M`, ✓ for `A`; the subscription `PUT` ✓
+for `V M A`; erase ✓ for `O` only (the brief erase's row). Each row names the task that registers
+its route (08-15); the harness runs a row once `server.Patterns()` (H-plan:212) lists its pattern,
+and a second test fails when a registered `/v1/…issues…`, `/v1/comments/…`, `/v1/labels/…` or
+`…/work-policy` pattern has **no** row (kills a route shipped without its authorisation). The W1
+route list, appended to hub-contract §7's table as rows **46 onward, at the next free number at
+sync time**: `PUT /v1/projects/{projectId}/key` · `POST`, `GET /v1/projects/{projectId}/issues` ·
+`GET /v1/projects/{projectId}/issues/by-number/{n}` · `GET`, `PATCH /v1/issues/{issueId}` ·
+`POST`, `GET /v1/issues/{issueId}/revisions` · `GET /v1/issues/{issueId}/revisions/{rev}` · `POST
+/v1/issues/{issueId}/revisions/{rev}/restore` · `POST /v1/issues/{issueId}/state` · `POST`, `GET
+/v1/issues/{issueId}/attachments` · `POST /v1/issues/{issueId}/relations`, `DELETE
+/v1/issues/{issueId}/relations/{kind}/{otherId}` · `GET`, `POST /v1/teams/{teamId}/labels` · `POST
+/v1/labels/{labelId}/archive` · `GET`, `PUT /v1/teams/{teamId}/work-policy` · `GET`, `POST
+/v1/issues/{issueId}/comments` · `POST /v1/comments/{commentId}/reactions` · `POST
+/v1/comments/{commentId}/resolve` · `PUT /v1/issues/{issueId}/subscription` · `GET
+/v1/me/subscriptions` · `GET /v1/issues/search?q=` · `POST /v1/projects/{projectId}/imports` ·
+`POST /v1/issues/{issueId}/erase` · `POST /v1/comments/{commentId}/erase`; `/v1/refs` (row 27) and
+`/v1/changes` (row 43) are extended, not added. **Tests**, each with its mutant: as `hub_app`,
+`UPDATE issues SET state = 'done'` with no `hub.work_cause` raises (kills a guard on the Go side
+only); with `hub.work_cause = 'hand'` and an empty `state_reason` it raises, with a reason it
+passes (kills a reasonless hand-set done); with `hub.work_actor_kind = 'integration'` and cause
+`evidence_observed` it raises (kills a sync token writing `done`, SW.3's pin); an `UPDATE` of
+`issue_revisions.canonical` outside `erase_issue` raises (kills a mutable revision);
+`erase_issue` on another org's issue raises `no_data_found` (kills an owner function that trusts
+its argument); the no-row meta-test fails on a fixture route with no row. It **does not claim** that
+the routes exist (08-15) or that Entra issues an integration principal (W5). Parity rows served:
+none closed alone; it pins 05 §3.6's authorisation rows behind L-8 and L-239 (every write attributed
+to a person).
+
 
