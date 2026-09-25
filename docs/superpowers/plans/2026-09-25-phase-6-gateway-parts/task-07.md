@@ -6,14 +6,14 @@ A sandbox's only credential is a one-hour LiteLLM virtual key that keysmith mint
 
 **Files:**
 - `control-plane/internal/keysmith/keysmith.go`: `AdminAPI`, `SpentReader`, `Deps`, `Service`, `New`, `Mint`, `Refresh`, `RevokeSession`, `ByKeyHash`, the error sentinels, `BudgetDuration`, `EnsureMemo` (new)
-- `control-plane/internal/keysmith/keysmith_test.go`: sixteen tests, at least one mutant each (new)
+- `control-plane/internal/keysmith/keysmith_test.go`: seventeen tests, at least one mutant each (new)
 
 **Interfaces:**
 - Produces:
   - `keysmith.New(Deps) (*Service, error)`; `(*Service).Mint(ctx, wire.MintRequest) (wire.MintResponse, error)`; `(*Service).Refresh(ctx, wire.RefreshRequest) (wire.MintResponse, error)`; `(*Service).RevokeSession(ctx, wire.RevokeRequest) (int, error)`
   - `(*Service).ByKeyHash(ctx, keyHash string) (wire.Binding, error)`: `*Service` satisfies `wire.BindingReader` (a compile-time assertion pins it), and retires a raised Global-minted key as it reads it (decision (h)); task 08's `Deps.Bindings` is this, not the store
   - `keysmith.AdminAPI` (the four `*litellmadmin.Client` methods keysmith calls) and `keysmith.SpentReader` (task 09's `*usage.Reader` satisfies it)
-  - Errors task 08 maps to problem codes: `ErrInvalid` (400 `bad_request`), `wire.ErrRouteUnknown` wrapped (503 `route_unknown`), `*BudgetExhaustedError{Dimension}` (402 `budget_exhausted`, the status is task 03's), `ErrBudgetUnknown` (503 `budget_unknown`, see gap 2), `ErrNoSession` (404 `session_not_found`), `ErrBusy` and `ErrSuperseded` (409 `conflict`), `ErrAdmin` and `ErrStore` (503 `backend_unavailable`)
+  - Errors task 08 maps to problem codes: `ErrInvalid` (400 `bad_request`; `ErrTeamMismatch` wraps it, decision (i)), `wire.ErrRouteUnknown` wrapped (503 `route_unknown`), `*BudgetExhaustedError{Dimension}` (402 `budget_exhausted`, the status is task 03's), `ErrBudgetUnknown` (503 `budget_unknown`, see gap 2), `ErrNoSession` (404 `session_not_found`), `ErrBusy` and `ErrSuperseded` (409 `conflict`), `ErrAdmin` and `ErrStore` (503 `backend_unavailable`)
 - Consumes:
   - task 03: `wire.MintRequest` (with `Validate`), `wire.MintResponse`, `wire.RefreshRequest`, `wire.RevokeRequest`, `wire.Binding`, `wire.BindingReader`, `wire.Owner`, `wire.ProjectInference`, `wire.RouteSource`, `wire.ErrRouteUnknown`, `wire.HashToken`
   - task 04: `litellmadmin.GenerateKeyRequest`, `litellmadmin.GenerateKeyResponse{Key string}`, and the method signatures in `AdminAPI` below (the identifiers are this part's assumption; gap 4)
@@ -44,6 +44,8 @@ So `*Service` is itself a `wire.BindingReader`. Task 08 serves `GET /v1/bindings
 
 The bound, after the first request following a raise: at most the route cache (≤ 30 s) plus the binding cache (≤ 10 s) plus `Grace` (5 min). A Global-minted key that is not used after the raise carries nothing, because only the gatekeeper and keysmith can reach LiteLLM (P6-D1). If the route cannot be read, `ByKeyHash` changes nothing and reports it. The gatekeeper reads the route itself and fails closed (task 10), so a Hub blip must not turn into a refusal of every binding lookup.
 
+**(i) The team is the project's, not the caller's** (review I-7). `MintRequest.TeamID` is what the caller says, and the team budget (`Budgets.Limits`, `Spent`), the binding's `TeamID` and the key's `team` metadata, which task 09's ledger attributes by, all key on it. `mint` reads the project once, through `s.project`, which returns the live route and `ProjectInference.TeamID` (task 03 decision (h)). A non-empty source team that differs from the caller's refuses the mint with `ErrTeamMismatch`, an `ErrInvalid` (400 `bad_request`), before the budget read and before any LiteLLM call. A source with no teams gives `""`, and then the caller's team stands: that is task 13's `File` source only, local mode's `projects.json`. The Hub source refuses a record without a valid `teamId` (task 13 decision (f)), so in the cloud `""` never arrives. `Refresh` re-mints through `mint` with the binding's team, so a project whose team no longer matches stops refreshing: fail closed. Whether the owner is a member of that team is the caller's check (ask P8-1), because keysmith holds no user token.
+
 **Why keysmith retires rather than re-mints**, as the review words it: keysmith never holds a token after the mint reply (decision (f)) and cannot hand one to a sandbox. A key it minted on its own would be a key nobody holds, the one thing this task must not get wrong. **The re-mint belongs to the session's refresher.** Task 15's `Launcher` already holds `Routes`, and the cloud broker is ask P8-1. The refresher refreshes as soon as its project's route rises, and `Refresh` then mints on AU with `au/*` only (decision (d)). A refresher that does not do this leaves its session refused (`401 token_revoked`) from the end of `Grace` until its next refresh. That fails closed, never open. Gap 7 hands this to task 15 and to P8-1.
 
 - [ ] **Step 1: Preflight**
@@ -61,7 +63,7 @@ Every `MISSING` line is a dependency not merged yet (tasks 01, 03, 04, 05, 06); 
 
 - [ ] **Step 2: Write the failing tests**
 
-Sixteen tests. The store is task 05's real memory store, not a fake, so the idempotency tests exercise the uniqueness rule the Postgres store also passes (`bindingtest`). LiteLLM, the route source, the spend reader and the clock are fakes. `After` is captured, so the grace-period delete runs when the test says, not on a timer.
+Seventeen tests. The store is task 05's real memory store, not a fake, so the idempotency tests exercise the uniqueness rule the Postgres store also passes (`bindingtest`). LiteLLM, the route source, the spend reader and the clock are fakes. `After` is captured, so the grace-period delete runs when the test says, not on a timer.
 
 Create `control-plane/internal/keysmith/keysmith_test.go`:
 
@@ -192,10 +194,13 @@ func newRig(t *testing.T, mut ...func(*Deps)) *rig {
 	d := Deps{
 		Admin: r.admin, Store: r.store, Budgets: pol, Spent: spentFake{},
 		Routes: routes{
-			"p-global": {ProjectID: "p-global", DataClass: anyRes, Route: dataclass.RouteGlobal, Effective: dataclass.RouteGlobal},
+			"p-global": {ProjectID: "p-global", TeamID: "team-1", DataClass: anyRes, Route: dataclass.RouteGlobal, Effective: dataclass.RouteGlobal},
 			// The record says global; the class forces AU. keysmith must not trust the record.
-			"p-au":     {ProjectID: "p-au", DataClass: auOnly, Route: dataclass.RouteGlobal, Effective: dataclass.RouteAU},
+			"p-au":     {ProjectID: "p-au", TeamID: "team-1", DataClass: auOnly, Route: dataclass.RouteGlobal, Effective: dataclass.RouteAU},
 			"p-noclass": {ProjectID: "p-noclass", Route: dataclass.RouteGlobal, Effective: dataclass.RouteGlobal},
+			// Decision (i): another team's project, and a source with no teams (local mode).
+			"p-team2":  {ProjectID: "p-team2", TeamID: "team-2", DataClass: anyRes, Route: dataclass.RouteGlobal, Effective: dataclass.RouteGlobal},
+			"p-noteam": {ProjectID: "p-noteam", DataClass: anyRes, Route: dataclass.RouteGlobal, Effective: dataclass.RouteGlobal},
 		},
 		Groups:  groups,
 		Clock:   func() time.Time { return r.now },
@@ -248,6 +253,32 @@ func TestMintChecksTheRouteBeforeAnyLiteLLMCall(t *testing.T) {
 		}
 		if b := liveBindings(t, r.store, t0); len(b) != 0 {
 			t.Errorf("%s: %d live bindings, want 0", project, len(b))
+		}
+	}
+}
+
+// Review I-7, decision (i). Mutants killed: no team check (the caller's claimed
+// team is budgeted and attributed); the check moved below the spend read or the
+// LiteLLM calls; a source team of "" refused (local mode has no teams).
+func TestMintRefusesATeamThatIsNotTheProjects(t *testing.T) {
+	// The spend read fails, so a check placed after it reports budget_unknown.
+	r := newRig(t, func(d *Deps) { d.Spent = spentFake{err: errors.New("ledger down")} })
+	_, err := r.svc.Mint(context.Background(), mintReq("p-team2", 1))
+	if !errors.Is(err, ErrTeamMismatch) || !errors.Is(err, ErrInvalid) {
+		t.Fatalf("err = %v, want ErrTeamMismatch, an ErrInvalid", err)
+	}
+	if n := len(r.admin.generated) + len(r.admin.deleted) + r.admin.users + r.admin.teams; n != 0 {
+		t.Errorf("%d LiteLLM calls, want 0", n)
+	}
+	if b := liveBindings(t, r.store, t0); len(b) != 0 {
+		t.Errorf("%d live bindings, want 0", len(b))
+	}
+	// A source with no teams (task 13's File) leaves the caller's team standing,
+	// and a matching team mints.
+	for _, project := range []string{"p-noteam", "p-global"} {
+		ok := newRig(t)
+		if _, err := ok.svc.Mint(context.Background(), mintReq(project, 1)); err != nil {
+			t.Errorf("%s: %v, want a mint", project, err)
 		}
 	}
 }
@@ -733,6 +764,9 @@ var (
 	ErrSuperseded    = errors.New("keysmith: superseded by a retry of the same generation")
 	ErrAdmin         = errors.New("keysmith: a LiteLLM admin call failed")
 	ErrStore         = errors.New("keysmith: the binding store failed")
+	// ErrTeamMismatch is an ErrInvalid, so task 08 maps it to 400 bad_request
+	// with no new code (decision (i), review I-7).
+	ErrTeamMismatch = fmt.Errorf("%w: the caller's team is not the project's", ErrInvalid)
 )
 
 // BudgetExhaustedError names the dimension with nothing left.
@@ -968,9 +1002,15 @@ func (s *Service) supersede(ctx context.Context, all []wire.Binding, gen int) er
 // LiteLLM user and team, then the binding, then the key. Nothing reaches
 // LiteLLM until the route and the budget both allow it.
 func (s *Service) mint(ctx context.Context, sub subject, gen int) (wire.MintResponse, error) {
-	route, err := s.route(ctx, sub.project)
+	route, team, err := s.project(ctx, sub.project)
 	if err != nil {
 		return wire.MintResponse{}, err
+	}
+	// Decision (i), review I-7: attribution and the team budget key on the
+	// project's team, never on the caller's claim. "" is a source with no teams.
+	if team != "" && team != sub.team {
+		return wire.MintResponse{}, fmt.Errorf("%w: project %s is team %s's, not %s",
+			ErrTeamMismatch, sub.project, team, sub.team)
 	}
 	limits, err := s.d.Budgets.Limits(ctx, sub.team, sub.project)
 	if err != nil {
@@ -1020,15 +1060,23 @@ func (s *Service) mint(ctx context.Context, sub subject, gen int) (wire.MintResp
 // which the session refresher also uses to see a raise (re-review R-6).
 // Anything unparsed is route_unknown, never Global (P6-D5).
 func (s *Service) route(ctx context.Context, project string) (dataclass.Route, error) {
+	r, _, err := s.project(ctx, project)
+	return r, err
+}
+
+// project is route plus the project's team as the source read it (task 03
+// decision (h)): one read, so the route and the team cannot come from two
+// different versions of the record.
+func (s *Service) project(ctx context.Context, project string) (dataclass.Route, string, error) {
 	pi, err := s.d.Routes.Project(ctx, project)
 	if err != nil {
-		return "", fmt.Errorf("%w: project %s: %v", wire.ErrRouteUnknown, project, err)
+		return "", "", fmt.Errorf("%w: project %s: %v", wire.ErrRouteUnknown, project, err)
 	}
 	r, err := pi.LiveRoute()
 	if err != nil {
-		return "", fmt.Errorf("%w: project %s: %v", wire.ErrRouteUnknown, project, err)
+		return "", "", fmt.Errorf("%w: project %s: %v", wire.ErrRouteUnknown, project, err)
 	}
-	return r, nil
+	return r, pi.TeamID, nil
 }
 ```
 
@@ -1208,7 +1256,7 @@ func scrub(kind error, what string, cause error, secrets ...string) error {
 cd control-plane && go test ./internal/keysmith/ -count=1 -race -v 2>&1 | grep -c '^--- PASS'
 ```
 
-Expected: `16`, and no `--- FAIL` line.
+Expected: `17`, and no `--- FAIL` line.
 
 - [ ] **Step 6: Prove the mutants die**
 
@@ -1232,6 +1280,9 @@ Apply each edit alone, run `go test ./internal/keysmith/ -count=1`, confirm the 
 | in `ByKeyHash`, `s.d.After(s.d.Grace, …)` → `s.d.After(0, …)` | `TestARaiseRetiresAGlobalMintedKeyAfterGrace` (the delete waits `0s`, want 5m; re-review R-4) |
 | in `Refresh`, `s.d.After(s.d.Grace, …)` → `s.d.After(0, …)` | `TestRefreshKeepsTheOldKeyForGraceOnly` (the delete waits `0s`, want 5m; re-review R-4) |
 | in `Refresh`, move `keyID := prev.KeyID` and the `s.d.After` call back below the `if` | `TestARaiseRetiresAGlobalMintedKeyAfterGrace` (2 deletes scheduled after the refresh, want 1; re-review R-3) |
+| in `mint`, delete the `if team != "" && team != sub.team { … }` block | `TestMintRefusesATeamThatIsNotTheProjects` (`budget_unknown`, want `ErrTeamMismatch`; review I-7) |
+| in `mint`, move that block below the `s.d.Spent.Spent` read | `TestMintRefusesATeamThatIsNotTheProjects` (`budget_unknown`, want `ErrTeamMismatch`) |
+| in `mint`, `team != "" && team != sub.team` → `team != sub.team` | `TestMintRefusesATeamThatIsNotTheProjects` (`p-noteam` refused, want a mint) |
 
 - [ ] **Step 7: Vet and format**
 
@@ -1250,13 +1301,13 @@ git add control-plane/internal/keysmith/keysmith.go control-plane/internal/keysm
 git commit -F <message file> -- control-plane/internal/keysmith/keysmith.go control-plane/internal/keysmith/keysmith_test.go
 ```
 
-Message: `feat(keysmith): mint, refresh and revoke, one live key per generation (phase 6 task 07)`, a body naming decisions (a) to (h), and the attribution line.
+Message: `feat(keysmith): mint, refresh and revoke, one live key per generation (phase 6 task 07)`, a body naming decisions (a) to (i), and the attribution line.
 
-**Acceptance:** step 5 prints `16` under `-race`; step 6's sixteen edits each fail the named test; step 7 prints nothing.
+**Acceptance:** step 5 prints `17` under `-race`; step 6's nineteen edits each fail the named test; step 7 prints nothing.
 
 **What this task does not claim:**
 
-- **Transport or caller identity.** Who may call `Mint` is task 08's `callerauth`; this package trusts its caller.
+- **Transport or caller identity.** Who may call `Mint` is task 08's `callerauth`. This package trusts its caller for the owner and the session, but not for the team: decision (i) checks `TeamID` against the project's (review I-7). Whether the owner belongs to that team is the caller's check (ask P8-1; task 15's launcher runs as the person, in local mode).
 - **That LiteLLM accepts a caller-chosen `key`, honours `duration`, `max_budget`, `models` and `metadata` on `/key/generate`, or names a key by the SHA-256 of its value.** All from LiteLLM's documented admin API and training knowledge, **UNVERIFIED** against the pinned image until task 18 (P01, P02, P05, P11, P12). P01 failing switches `LiteLLMChoosesKey` on; the code for that path is written and tested here.
 - **That LiteLLM enforces unique `key_alias` values.** Nothing here relies on it. If it does, a retry whose delete of the superseded key failed gets `ErrAdmin` from `GenerateKey`, and the caller's next retry converges.
 - **Exactly one LiteLLM key per generation at every instant.** Between a timed-out `GenerateKey` and the `kill` that follows it, a key may exist whose binding is already revoked. The gatekeeper refuses it (task 10), and nothing but the gatekeeper and keysmith can reach LiteLLM (P6-D1). In the fallback path, a key whose reply was lost has no binding at all until it expires at `TTL`.
@@ -1273,3 +1324,4 @@ Message: `feat(keysmith): mint, refresh and revoke, one live key per generation 
 5. **The skeleton gives every key both groups;** decision (d) narrows an AU-minted key to `au/*`. No other part is affected: the gatekeeper already keeps such a key on AU.
 6. **The skeleton's file map names a `Revoke`** besides `RevokeSession`. With `wire.RevokeRequest{SessionID}` the only revoke on the wire, a single-key revoke is internal (`kill`, `supersede`) and not exported.
 7. **The re-mint on a raise is the refresher's (decision (h), review C-1).** keysmith retires a raised Global-minted key `Grace` after its first lookup, but only a caller can deliver the new key. Three hand-offs follow; fix batch b01 made the first two in their parts. **Task 15:** the `Launcher`'s refresh loop re-reads its project's route every `RaiseCheck` (one minute) while the key was minted on Global, and refreshes at once when the route is AU (done: `sleepUnlessRaised`, `TestARaiseRefreshesAtOnce`, its gap 7). **Task 08:** its `apiDeps.Bindings` is wired to the `*keysmith.Service`, not to the store (done in its `run`, its gap 7; the one line has no test of its own). **Ask P8-1:** the cloud broker refreshes on a raise the same way. Without these, a raise leaves the session refused from the end of `Grace` to its next scheduled refresh. That fails closed, but it is a usability failure the owner would see.
+8. **The team comes from the project (decision (i), review I-7).** Task 03 adds `ProjectInference.TeamID` (its decision (h)), task 13's `Hub` source fills it from the record's `teamId` and refuses a record without one (its decision (f)), and `mint` refuses a caller whose `TeamID` differs. **Ask P8-1** adds that the broker checks the owner's membership of the project's team in the Hub before it mints, since keysmith holds no user token. The skeleton's P6-D6 mint had no such check.
