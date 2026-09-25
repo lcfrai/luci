@@ -79,6 +79,7 @@ for that owner and **not** applied by this task.
 - `desktop/src/work/diff/wordDiff.test.ts` — the diff tests (new)
 - `desktop/src/components/proposal/ProposalDiff.tsx` — the diff and its head line (new)
 - `desktop/src/components/proposal/ProposalStrip.tsx` — the strip, the three acts, stale (new)
+- `desktop/src/components/proposal/agentLabel.ts` — decision 2's label (new; not in the scope's list)
 - `desktop/src/components/proposal/proposal.css` — their styles (new)
 - `desktop/src/components/proposal/proposal.test.tsx` — the surface tests (new)
 - `desktop/src/api/work.ts` ⚑ — `EditProposal`, `ProposerRef`, `IssueComment.kind` widened (modified)
@@ -405,3 +406,65 @@ patch with the head's own class. `agentLabel` (in `agentLabel.ts`, this task) is
 (the first six characters of the session id). Both writes go through task 56's `mutate`, so each
 has its Undo chip; *Accept* is two ops in two `mutate` calls because a resolve that the Hub refuses
 must not roll back an accepted revision.
+
+#### Interfaces — complete: the ⚑ deltas
+
+```tsx
+// desktop/src/components/issue/IssueView.tsx (task 46) — above the head fields, one line added:
+<ProposalStrip issueId={head.id} head={headRevision} me={me} timeZone={me.timeZone} alias={alias} />
+
+// desktop/src/components/issue/Comments.tsx (task 51) — at the top of the comment renderer, before
+// the erased branch (task-51.md:466): an edit proposal is a link line, never a rendered body.
+if (c.kind === "edit_proposal") {
+  return (
+    <article className="iv-cm iv-cm-proposal" data-comment={c.id}>
+      <span className="iv-fact">{c.createdBy.displayName} · proposed an edit ·{" "}
+        {c.resolvedAt === null ? <a href="#proposal" onClick={(e) => { e.preventDefault(); focusProposalStrip(); }}>Review</a>
+                               : <>resolved by {c.resolvedBy?.displayName}</>}</span>
+    </article>
+  );
+}
+```
+
+`focusProposalStrip` moves focus to the strip's region (`[aria-label="Proposed edit"]`) and opens
+its review; no navigation. The branch comes first so an erased proposal also renders as the link
+line's *erased* fact (task 51's erased line, same markup) and never as a body.
+
+**BriefPanel (P4 task 18, UNVERIFIED until merge).** Where the panel renders an answer whose
+`Author` is `model_drafted` **and** the brief's previous revision held a different answer to the
+same question, it renders `<ProposalDiff fields={[{label: question, base: previous, proposed:
+drafted}]} why={[]} author={…onRevision: null} />` in place of the plain drafted text, with
+*Accept* sending `model_accepted` and *Edit* opening the answer editor whose save sends `person`,
+both through phase 4's existing brief-revision write (P4 task 18's own call; this task adds no
+route). A first-time drafted answer (nothing replaced) is unchanged: phase 4 already shows it as
+drafted and refuses to settle it (`4-D2`).
+
+#### Tests to write first — `wordDiff.test.ts`, `proposal.test.tsx`, and one Go row
+
+Over task 126's `roadmapHarness` (the fake-Hub replica, `hub.writes()`) with EP-142 at head @3,
+title *"Resume uploads after a drop"*, and an `edit_proposal` comment by `u-a` (dylan) whose
+proposer is `{agentId: "ag-1", sessionId: "s-7f2c91", model: "claude-sonnet-4"}`, proposing the
+title *"Resume uploads after a network drop"* on base @3. Every surface test ends with
+`expectNoPrediction(container)`.
+
+```ts
+// wordDiff.test.ts
+import { describe, expect, it } from "vitest";
+import { textDiff, wordDiff } from "./wordDiff";
+import { lineDiff } from "../../components/issue/revisionWords";
+
+describe("wordDiff", () => {
+  it("joins back to both texts, byte for byte", () => {
+    const a = "Resume uploads after a drop", b = "Resume uploads after a network drop";
+    const parts = wordDiff(a, b);
+    expect(parts.filter((p) => p.op !== "add").map((p) => p.text).join("")).toBe(a);
+    expect(parts.filter((p) => p.op !== "del").map((p) => p.text).join("")).toBe(b);
+    expect(parts).toContainEqual({ op: "add", text: "network " });
+  });
+  it("keeps lineDiff's lines unchanged outside a changed pair", () => {           // kills "a lifted diff that drifts"
+    const a = "one\ntwo\nthree", b = "one\n2\nthree";
+    expect(textDiff(a, b).filter((r) => r.kind === "same").map((r) => (r as { text: string }).text))
+      .toEqual(lineDiff(a, b).filter((l) => l.op === "same").map((l) => l.text));
+  });
+});
+```
