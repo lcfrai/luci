@@ -64,7 +64,8 @@ from an outage or a restored Hub without a blank screen, and keeps no text an er
    the line says what is happening and since when, never how much is left (`OD-27`).
 6. **Erase keeps the identity and loses the words.** `issue.erased` (`task-13.md:129`) takes the
    issue's comments with it, and `comment.erased` is a comment's own (`task-14.md:32-36`). On
-   either, before task 55's subject re-fetch, `eraseInMemory` rewrites **every** copy the replica
+   either, before task 55's subject re-fetch, the replica's `eraseInMemory` step (in `replica.ts`,
+   over visibility's three erase functions) rewrites **every** copy the replica
    holds: each revision in memory (the head and any task 47 loaded) keeps `key`, `digest`,
    `revision`, `issueId` and `projectId`, sets `erasedAt`, and has its title and description text
    emptied; the head's `stateReason` is emptied (task 14 blanks it too, `task-14.md:37-38`); each
@@ -74,8 +75,8 @@ from an outage or a restored Hub without a blank screen, and keeps no text an er
 
 **Files** (the skeleton's File map lists `src/work/replica/{…,visibility,…}.ts` for 55-58, `:304`;
 it omits the two surface edits and `ResyncLine.tsx`, gaps named at the end):
-- `desktop/src/work/replica/visibility.ts` — `ProjectScope`, `classify`, `resyncFor`,
-  `eraseInMemory`, `resyncLine` (new)
+- `desktop/src/work/replica/visibility.ts` — `ProjectScope`, `classify`, `planForPage`,
+  `healthAfterFailure`, `eraseHead`, `eraseRevision`, `eraseComment`, `resyncLine` (new)
 - `desktop/src/work/replica/visibility.test.tsx` — the pure rules and the line (new)
 - `desktop/src/work/replica/replica.ts` (task 55) — `scope`, `admit`, `accessLost`, `resyncSince`,
   the membership and resync paths (modified)
@@ -317,3 +318,181 @@ describe("the resync line", () => {
   }); // kills: a progress count on the resync line (OD-27)
 });
 ```
+
+#### Tests to write first, part 2 — `desktop/src/work/replica/access.test.ts` (a fake Hub)
+
+The fake Hub holds three org projects, of which the caller reads two (EP and a second EP-team
+project, `P2`) and not the third (`PX`). `changes` answers queued pages; `r.__feedForTest()` reads
+the feed once now and `r.subscribe(fn)` is task 55's store subscription behind `useWork`. Both are
+task 55's to print; the names here are **UNVERIFIED** against its part.
+
+```ts
+import { describe, expect, it, vi } from "vitest";
+import { ApiError } from "../../api/client";
+import { DYLAN, WORK_IDS, makeIssueHead, makeIssueRevision } from "../../test/workFixtures";
+import { createReplica } from "./replica";
+
+const P1 = WORK_IDS.project, P2 = "pj-00000000000000b2", PX = "pj-00000000000000ff";
+const EP = { projectId: P1, teamId: WORK_IDS.team, key: "EP" };
+const EP2 = { projectId: P2, teamId: WORK_IDS.team, key: "EQ" };
+const snap = (p: string, ids: string[]) => ({ heads: ids.map((id) => makeIssueHead({ id, projectId: p })),
+  revisions: ids.map((id) => makeIssueRevision({ issueId: id, projectId: p })), comments: [], cursor: "1043" });
+const page = (events: object[], next: string) => ({ events, next, more: false });
+const ev = (seq: number, kind: string, subject: string, over: object = {}) =>
+  ({ seq, at: "2026-09-25T01:02:00Z", kind, teamId: WORK_IDS.team, projectId: null, subject, actor: null, data: {}, ...over });
+
+function fakeHub(readable = [EP, EP2]) {
+  const pages: unknown[] = [];
+  const hub = {
+    readable, pages,
+    listAll: vi.fn(async (p: string) => snap(p, p === P1 ? [WORK_IDS.ep142, WORK_IDS.ep150] : [WORK_IDS.ep160])),
+    changes: vi.fn(async (_after: string) => (pages.shift() as never) ?? page([], "1043")),
+    fetchSubjects: vi.fn(async (_ids: readonly string[]) => [] as never[]),
+    readableProjects: vi.fn(async () => hub.readable),
+  };
+  return hub;
+}
+async function start(hub = fakeHub()) {
+  const r = createReplica({ ...hub, callerId: DYLAN.id, timeZone: "UTC", clock: () => 0,
+    work: { keyed: () => ({}) as never }, undo: undefined as never });
+  await vi.waitFor(() => expect(r.status).toBe("ready"));
+  return { r, hub };
+}
+
+describe("the replica holds only what the caller may read", () => {
+  it("never lists a project outside the caller's list", async () => {
+    const { hub } = await start();
+    expect(hub.listAll.mock.calls.map((c) => c[0]).sort()).toEqual([P1, P2].sort());
+    expect(hub.listAll).not.toHaveBeenCalledWith(PX);
+  }); // kills: listing every org project
+  it("removal from the team drops both of its projects in one notification", async () => {
+    const { r, hub } = await start();
+    const heard = vi.fn(); r.subscribe(heard);
+    hub.pages.push(page([ev(1044, "team.member_removed", DYLAN.id)], "1044"));
+    await r.__feedForTest();
+    expect([r.byProject(P1).length, r.byProject(P2).length]).toEqual([0, 0]);
+    expect(heard).toHaveBeenCalledTimes(1);
+    expect(r.accessLost(P1)).toMatchObject({ projectKey: "EP" });
+  }); // kills: a drop at the next load; kills: one notification per record (a list that empties row by row)
+  it("being added loads the new project in full", async () => {
+    const { r, hub } = await start(fakeHub([EP]));
+    hub.readable = [EP, EP2];
+    hub.pages.push(page([ev(1044, "team.member_set", DYLAN.id)], "1044"));
+    await r.__feedForTest();
+    expect(hub.listAll).toHaveBeenLastCalledWith(P2);
+    expect(r.byProject(P2)).toHaveLength(1);
+  }); // kills: waiting for feed events that were filtered out and never come
+  it("a subject the Hub will not return is dropped, and the list is asked again", async () => {
+    const { r, hub } = await start();
+    hub.pages.push(page([ev(1044, "issue.revised", WORK_IDS.ep142, { projectId: P1 })], "1044"));
+    await r.__feedForTest();                                     // fetchSubjects answers []
+    expect(r.get(WORK_IDS.ep142)).toBeUndefined();
+    expect(hub.readableProjects).toHaveBeenCalledTimes(2);
+  }); // kills: keeping a record after a 403 or 404
+  it("a record from a project outside scope is refused", async () => {
+    const { r, hub } = await start();
+    hub.fetchSubjects.mockResolvedValueOnce([{ head: makeIssueHead({ id: "is-00000000000000ff", projectId: PX }) }] as never);
+    hub.pages.push(page([ev(1044, "issue.created", "is-00000000000000ff", { projectId: PX })], "1044"));
+    await r.__feedForTest();
+    expect(r.get("is-00000000000000ff")).toBeUndefined();
+  }); // kills: trusting the relay's filter for Work kinds (UNVERIFIED Hub-side, task 13)
+});
+
+describe("resync on a restore or an outage, never on a hole", () => {
+  it("a next below the last seq resyncs while the old rows stay readable", async () => {
+    const { r, hub } = await start();
+    let open!: () => void;
+    hub.listAll.mockImplementationOnce((p) => new Promise((ok) => { open = () => ok(snap(p, [WORK_IDS.ep142])); }));
+    hub.pages.push(page([], "12"));
+    const done = r.__feedForTest();
+    await vi.waitFor(() => expect(r.status).toBe("resyncing"));
+    expect(r.byProject(P1)).toHaveLength(2);                    // still on screen, no blank flash
+    expect(hub.changes).toHaveBeenCalledWith("latest");
+    open(); await done;
+    expect(r.status).toBe("ready");
+    expect(r.byProject(P1)).toHaveLength(1);                    // swapped in once
+  }); // kills: ignoring a restore; kills: clearing the maps before the new load arrives
+  it("an outage then recovery resumes from the cursor with no full load", async () => {
+    const { r, hub } = await start();
+    const loads = hub.listAll.mock.calls.length;
+    hub.changes.mockRejectedValueOnce(new ApiError("backend_unavailable", "relay down", 503));
+    await r.__feedForTest();
+    expect(r.status).toBe("resyncing");
+    hub.pages.push(page([], "1043"));
+    await r.__feedForTest();
+    expect(r.status).toBe("ready");
+    expect(hub.changes.mock.calls.at(-1)?.[0]).toBe("1043");   // the last applied cursor
+    expect(hub.listAll.mock.calls.length).toBe(loads);          // no reload
+  }); // kills: a full reload per network blip
+  it("after an erase, a dump holds the key and digest and none of the words", async () => {
+    const { r, hub } = await start();
+    const { key, digest } = r.get(WORK_IDS.ep142)!.revision;
+    hub.fetchSubjects.mockImplementationOnce(() => new Promise(() => {}));   // never answers
+    hub.pages.push(page([ev(1044, "issue.erased", WORK_IDS.ep142, { projectId: P1 })], "1044"));
+    void r.__feedForTest();
+    await vi.waitFor(() => expect(hub.fetchSubjects).toHaveBeenCalled());
+    const dump = JSON.stringify(r.__dumpForTest());
+    expect(dump).toContain(key);
+    expect(dump).toContain(digest);
+    expect(dump).not.toContain(makeIssueRevision().content.title.text);
+  }); // kills: an erase that waits for the Hub's re-fetch (text kept in memory, and in any cached revision)
+});
+```
+
+`__dumpForTest()` returns every map the replica holds (heads, revisions, comments, and any task
+47 revision cache). Task 55's no-persistence test needs the same view; one seam serves both. The
+last assertion uses the fixture's default title, whatever task 20 set it to (`task-20.md:242`).
+
+#### Steps
+
+- [ ] Write `visibility.test.tsx`; it fails to import `./visibility`. Write `visibility.ts` and
+      `ResyncLine.tsx` until it passes. Mutants, one at a time, then revert: drop the
+      `e.subject === callerId` test (membership test 1); return `"full"` when `n !== lastSeq + 1`
+      (the hole test); mark down on every failure (the refusal half); set `erasedAt` only (erase).
+- [ ] Write `access.test.ts`; it fails on the missing deps. Add the five paths to `replica.ts`.
+      Mutants: `listAll` over every org project (test 1); delete records one `transact` each (test
+      2); skip `listAll` on `relist` (test 3); keep the record when the answer omits it (test 4);
+      skip `admit` (test 5); clear the maps before `listAll` (restore); full load on recovery
+      (outage); drop `eraseInMemory` and rely on the re-fetch (erase).
+- [ ] Mount `ResyncLine` in `WorkLens.tsx`; add the access fact to `IssueView.tsx`; append the CSS.
+- [ ] Commit each file as it goes green.
+
+#### Acceptance
+
+```bash
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop test -- src/work/replica/visibility.test.tsx src/work/replica/access.test.ts'
+# expected: 2 files, 16 tests, all passing (8 pure, 8 against the fake Hub)
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop test'
+# expected: every suite passing, tasks 40, 46, 55 and 56 included
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop run typecheck'
+# expected: exit 0
+~/.claude/tools/claudezsh/claudezsh 'grep -rn "seq + 1\|seq+1" desktop/src/work'
+# expected: no output (no contiguity check anywhere in the replica)
+```
+
+#### What this task does NOT claim
+
+- **The Hub-side filter for Work kinds**: task 13; 05 §5.3 still marks it **UNVERIFIED** for Work.
+  `admit` is a second line, not the first.
+- **Erase's admin surface**: task 14's route has no desktop UI in W1.
+- **That the feed delivers the caller's own removal**: the contract is silent (gap 2); the
+  re-list fallback is what makes the drop happen either way.
+- **Search excluding erased text**: task 58 builds its index from these records and tests it.
+- **The spoken announcement** of a lost project or a resync: task 66.
+- **Parity**: this closes L-229's W1 part together with task 55; L-230 (an offline cache that
+  survives a restart) stays a SKIP.
+
+#### Gaps found while writing this part
+
+1. The skeleton's file map omits `ResyncLine.tsx`, `access.test.ts` and the two surface edits
+   (`WorkLens.tsx`, `IssueView.tsx`).
+2. `hub-contract.md:1103-1104` does not say whether the feed filter reads membership when the event
+   is written or when it is read. If at read time, the caller never receives its own
+   `team.member_removed`; decision 3's re-list fallback covers it, but the Hub contract should say.
+3. Task 55's `fetchSubjects` must **omit** a 403 or 404 id rather than throw (decision 2); its scope
+   does not say either way.
+4. Task 55's part was not on the tree: `WorkSnapshot`'s field names and the `__feedForTest`,
+   `__dumpForTest` and `subscribe` seams are proposals; task 55 wins.
+5. `ReplicaVisibilityDeps.readableProjects` needs a relayed `GET /v1/hub/projects`; task 37's
+   `WorkClient` has no project list, and task 16's relay allow-list is not checked here
+   (**UNVERIFIED**).
