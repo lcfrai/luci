@@ -74,7 +74,7 @@ stand; one v2 vector is added.
   `AppRoleFleet`, `RouteName`, `ClassRoutes`), 06 and 07 (every request and record), 08
   (`hubclient.Team` signatures), 11 (the outbox's payloads), 43, 46, 52.
 
-`team.go` is the concatenation of blocks 1 to 5, in order. **Block 1, enums:**
+`team.go` is the concatenation of blocks 1 to 6, in order. **Block 1, enums:**
 
 ```go
 package hubapi
@@ -1251,3 +1251,301 @@ func TestTextTimeIsFormatTime(t *testing.T) {
 `EnsureLists` is the Hub's own writer step, so the goldens are what the Hub actually sends. Five
 types are pinned by value (the five whose `null`-versus-`[]` choices a handler most easily gets
 wrong); all thirteen response types are pinned by key count and by the contract's key names.
+
+- [ ] **Step 3: The audit event v2 — test, then code**
+
+Append to `envelope_test.go` (it already imports `errors` and `testing`; it names its golden
+vectors `vectorNBytes`, `envelope_test.go:35-41`):
+
+```go
+// vector5Bytes is a delegated write (ADR-H1 §5.10 rule 4): v 2, via, delegationId.
+const vector5Bytes = `{"actorUserId":"u-00000000000000d4","at":"2026-09-25T01:00:00.000Z",` +
+	`"data":{"orchestratorAgentId":"ag-00000000000000a3","state":"planned"},` +
+	`"delegationId":"dl-00000000000000a1","event":"task.created","kind":"audit-event",` +
+	`"orgId":"org-00000000000000c3","projectId":"pj-00000000000000b2","seq":7,` +
+	`"subject":"tk-00000000000000a2","teamId":"tm-00000000000000e5","v":2,"via":"fleet"}`
+
+func vector5() AuditEnvelope {
+	return AuditEnvelope{OrgID: "org-00000000000000c3", Seq: 7, At: "2026-09-25T01:00:00.000Z",
+		ActorUserID: "u-00000000000000d4", Event: "task.created", TeamID: "tm-00000000000000e5",
+		ProjectID: "pj-00000000000000b2", Subject: "tk-00000000000000a2",
+		Data: map[string]any{"state": "planned", "orchestratorAgentId": "ag-00000000000000a3"},
+		Via:  ViaFleet, DelegationID: "dl-00000000000000a1"}
+}
+
+func TestAuditV2IsVectorFive(t *testing.T) {
+	// mutants: v stays 1 when via is set; via or delegationId not written; Parse drops them.
+	b, err := vector5().Canonical()
+	if err != nil || string(b) != vector5Bytes {
+		t.Fatalf("Canonical = %s, %v", b, err)
+	}
+	a, err := ParseAuditEnvelope([]byte(vector5Bytes))
+	if err != nil || a.Via != ViaFleet || a.DelegationID != "dl-00000000000000a1" {
+		t.Fatalf("Parse = %+v, %v", a, err)
+	}
+	v1 := vector5()
+	v1.Via, v1.DelegationID = "", ""
+	// mutant: v2 keys written for every event, moving every v1 digest.
+	if b, _ := v1.Canonical(); strings.Contains(string(b), "via") || !strings.HasSuffix(string(b), `"v":1}`) {
+		t.Fatalf("a v1 event changed: %s", b)
+	}
+}
+
+func TestAuditV2Refusals(t *testing.T) {
+	for name, c := range map[string]struct {
+		mut   func(*AuditEnvelope)
+		field string
+	}{
+		"via without delegation": {func(a *AuditEnvelope) { a.DelegationID = "" }, "via"},
+		"delegation without via": {func(a *AuditEnvelope) { a.Via = "" }, "via"},
+		"a via that is not fleet": {func(a *AuditEnvelope) { a.Via = "desktop" }, "via"},
+		"a session id as the delegation": {func(a *AuditEnvelope) { a.DelegationID = "s-3f2a91c0" }, "delegationId"},
+		"a delegated write with no actor": {func(a *AuditEnvelope) { a.ActorUserID = "" }, "actorUserId"},
+	} {
+		a := vector5()
+		c.mut(&a)
+		_, err := a.Canonical()
+		var fe *FieldError
+		if !errors.As(err, &fe) || fe.Field != c.field || !errors.Is(err, ErrBadEnvelope) {
+			t.Errorf("%s: got %v, want a bad %s", name, err, c.field)
+		}
+	}
+	// mutant: Parse accepts a v2 key set under v 1, or v1 keys under v 2.
+	for name, s := range map[string]string{
+		"v2 keys, v 1": strings.Replace(vector5Bytes, `"v":2`, `"v":1`, 1),
+		"v1 keys, v 2": strings.Replace(vector3Bytes, `"v":1`, `"v":2`, 1),
+	} {
+		if _, err := ParseAuditEnvelope([]byte(s)); !errors.Is(err, ErrBadEnvelope) {
+			t.Errorf("%s: parsed", name)
+		}
+	}
+}
+```
+
+Add `"strings"` to `envelope_test.go`'s imports if it is not there. Then change `envelope.go`. In
+`AuditEnvelope`, after `Data`:
+
+```go
+	Via          string // "" for v1; ViaFleet for a delegated write (v2, ADR-H1 §5.10)
+	DelegationID string // dl-…, set exactly when Via is
+```
+
+In `check()`, before the `for` over `Data`, add these cases to the `switch`:
+
+```go
+	case (a.Via == "") != (a.DelegationID == ""), a.Via != "" && a.Via != ViaFleet:
+		return bad("via")
+	case a.DelegationID != "" && !ValidID(PrefixDelegation, a.DelegationID):
+		return bad("delegationId")
+	case a.Via != "" && a.ActorUserID == "":
+		return bad("actorUserId") // a delegated write's actor is its owner, always
+```
+
+`Canonical()` builds its map into a variable and adds the v2 keys:
+
+```go
+	m := map[string]any{
+		"v": 1, "kind": kindAudit, "orgId": a.OrgID, "seq": a.Seq, "at": a.At,
+		"actorUserId": a.ActorUserID, "event": a.Event, "teamId": a.TeamID,
+		"projectId": a.ProjectID, "subject": a.Subject, "data": data,
+	}
+	if a.Via != "" {
+		m["v"], m["via"], m["delegationId"] = 2, a.Via, a.DelegationID
+	}
+	return Canonical(m)
+```
+
+`readEnvelope` becomes a one-line wrapper over a versioned reader, and `ParseAuditEnvelope` tries
+v2 only when v1 refuses:
+
+```go
+var auditKeysV2 = append(slices.Clone(auditKeys), "via", "delegationId")
+
+func readEnvelope(canonical []byte, kind string, keys []string) (map[string]any, error) {
+	return readEnvelopeV(canonical, kind, keys, 1)
+}
+
+// readEnvelopeV is readEnvelope's body, verbatim, with `v != 1` as `v != version`.
+func readEnvelopeV(canonical []byte, kind string, keys []string, version int64) (map[string]any, error)
+```
+
+In `ParseAuditEnvelope`, replace its first three lines with the block below, and after the `strs`
+loop read `via` and `delegationId` into `a.Via` and `a.DelegationID` when `m` has them. The final
+re-encoding check (`bytes.Equal(again, canonical)`) stays, and it is what refuses a hand-built
+event whose keys and version disagree:
+
+```go
+	m, err := readEnvelope(canonical, kindAudit, auditKeys)
+	if err != nil {
+		m2, err2 := readEnvelopeV(canonical, kindAudit, auditKeysV2, 2)
+		if err2 != nil {
+			return AuditEnvelope{}, err // v1's reason: v2 is the exception
+		}
+		m = m2
+	}
+```
+
+Run them: `go test -count=1 -run 'TestVector|TestAudit|TestParseAudit' ./internal/hub/hubapi/`
+(from `control-plane/`; the pattern takes `TestVector1`–`4`, `TestAuditV2…`,
+`TestAuditDataTakesScalarsOnly`, `TestAuditEventKindIsTheContractsCheck` and
+`TestParseAuditEnvelopeRoundTrips`, `envelope_test.go:62-517`). Expected: `ok`. The existing
+vector tests are in that run on purpose: a v1 byte that moved fails them, not the new ones.
+
+- [ ] **Step 4: The twelve prefixes and the fifteen codes**
+
+Append to `keys.go`, **after** the existing `const (…)` block of ten, a second block. A separate
+block leaves the ten existing lines byte-for-byte as they are: `gofmt` aligns each block on its
+own, and `PrefixHumanMessage` is longer than `PrefixApproval`. `constValues` reads every `const`
+declaration in the file (`keys_test.go:683-708`), so a second block is counted like the first:
+
+```go
+// Team-record prefixes (contract §3.1, Phase T task 01). The Hub mints dl, hm
+// and nt; Fleet mints the other nine with ids.Wide and sends each as the
+// body's id. ValidID takes them unchanged: prefix, "-", 16 lowercase hex.
+const (
+	PrefixDelegation   = "dl"
+	PrefixHumanMessage = "hm"
+	PrefixNote         = "nt"
+	PrefixTask         = "tk"
+	PrefixAgent        = "ag"
+	PrefixLease        = "ls"
+	PrefixThread       = "th"
+	PrefixMessage      = "ms"
+	PrefixEscalation   = "es"
+	PrefixDirective    = "dv"
+	PrefixTurn         = "ot"
+	PrefixConflict     = "cf"
+)
+```
+
+Append to `codes.go`, after the own-codes block and before the reasons block, a third `const`
+block in §4.2's order. `TestHubCodesAreContractSection42s` walks every `const` declaration in file
+order (`keys_test.go:566-625`), so a separate block keeps the order the table has. Each trailing
+comment starts with the row's status and names only keys in the row's `details` cell, which that
+test checks:
+
+```go
+// Team-record codes (contract §4.2, Phase T task 01), after unavailable in the
+// table. A named delegation that is absent or in another org is
+// delegation_revoked with details.reason "unknown", never a 404: Fleet cannot
+// probe for another org's delegation ids (ADR-H1 §5.10 rule 2).
+const (
+	CodeDelegationRequired = "delegation_required"  // 401
+	CodeDelegationExpired  = "delegation_expired"   // 401, details.delegationId
+	CodeDelegationRevoked  = "delegation_revoked"   // 401, details.delegationId, details.reason
+	CodeAgentNotOwner      = "agent_not_owner"      // 403, details.agentId
+	CodeDelegationNotFound = "delegation_not_found" // 404
+	CodeTaskNotFound       = "task_not_found"       // 404
+	CodeAgentNotFound      = "agent_not_found"      // 404
+	CodeLeaseNotFound      = "lease_not_found"      // 404
+	CodeConflictNotFound   = "conflict_not_found"   // 404
+	CodeThreadNotFound     = "thread_not_found"     // 404
+	CodeEscalationNotFound = "escalation_not_found" // 404
+	CodeTeamState          = "team_state"           // 409, details.from, details.to
+	CodeTextRefused        = "text_refused"         // 422, details.field, details.rule
+	CodeGlobRefused        = "glob_refused"         // 422, details.field, details.index, details.rule
+	CodeBreadthExceeded    = "breadth_exceeded"     // 422, details.field, details.index
+)
+
+// details.reason on a 401 delegation_revoked: the delegation's own
+// revokedReason (RevokeReason), or this when the Hub has no such delegation.
+const DelegationReasonUnknown = "unknown"
+```
+
+`DelegationReasonUnknown` is not a `Code…` name, so neither code test counts it. No new code
+equals an `httpx` code (`internal/httpx/problem.go:45-60`, read 2026-09-25), so
+`TestHubCodesNeverShadowAControlPlaneCode` stands with its list of sixteen unchanged.
+
+- [ ] **Step 5: Move the three contract counts in `keys_test.go`**
+
+Decision (c)'s edits, and nothing else in the file. `33` is asserted in **two** tests, not one:
+
+| Where (`keys_test.go`, read 2026-09-25) | From | To |
+|---|---|---|
+| `:495-498`, `TestHubCodesNeverShadowAControlPlaneCode`: the comment and `len(own) != 33` | `38 codes, the five shared plus the Hub's 33`; `33` twice in the check | `53 codes, the five shared plus the Hub's 48`; `48` |
+| `:562-563`, `TestHubCodesAreContractSection42s`: `len(wantOwn) != 33` and its message | `33` | `48` |
+| `:757-758`, `TestPrefixesAndReasonsAreTheContracts`: `!= 10` twice, "ten of each" | `10`, `ten` | `22`, `twenty-two` |
+
+The `:495-496` comment also says *"The desktop's HubProblemCode (task 38) is the 33 without
+project_not_found."* Change it to *"… is the 48 without project_not_found; the fifteen team codes
+are not in it yet."* (No Phase T part adds them; see "does not claim".)
+
+Then append twelve rows to `prefixEntity` (`:719-730`), after `"PrefixEvidence"`, each value
+exactly the entity cell of task 01's §3.1 rows:
+
+```go
+	"PrefixDelegation":   "delegation",
+	"PrefixHumanMessage": "human message",
+	"PrefixNote":         "note",
+	"PrefixTask":         "task",
+	"PrefixAgent":        "agent",
+	"PrefixLease":        "lease",
+	"PrefixThread":       "thread",
+	"PrefixMessage":      "message",
+	"PrefixEscalation":   "escalation",
+	"PrefixDirective":    "directive",
+	"PrefixTurn":         "orchestrator turn",
+	"PrefixConflict":     "conflict",
+```
+
+`gofmt -w keys_test.go` realigns the ten existing rows to the longer keys; that whitespace-only
+diff is expected and is the only change to those ten lines.
+
+- [ ] **Step 6: Write `team.go`, then run the package to green**
+
+Write `team.go` as blocks 1 to 6 above, in order, one file. Then, from `control-plane/`:
+
+```bash
+~/.claude/tools/claudezsh/claudezsh 'cd control-plane && GOPROXY=off go test -count=1 ./internal/hub/hubapi/ && GOPROXY=off go vet ./internal/hub/hubapi/ && gofmt -l internal/hub/hubapi/ && echo gofmt-clean'
+```
+
+Expected, exactly:
+
+```text
+ok  	github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubapi	0.XXXs
+gofmt-clean
+```
+
+Before `team.go` exists the same command fails to build, with `undefined: DelegationClass` (or
+the first team name `team_test.go` reaches); that is the red run. If the contract counts fail
+instead, task 01 has not merged its §3.1 or §4.2 rows: stop, this task is ahead of its dependency.
+
+Then kill four mutants by hand, one at a time, each reverted before the next:
+
+1. In `team.go`, drop `RouteMessagesAppend` from `ClassRoutes[DelegationClassOrchestrator]`.
+   Expected: `TestClassRouteSets` fails.
+2. In `team.go`, add `,omitempty` to `Conflict.ThreadID`'s tag. Expected:
+   `TestTeamResponsesNeverOmitAField` fails on `threadId`.
+3. In `codes.go`, swap the `CodeTaskNotFound` and `CodeAgentNotFound` lines. Expected:
+   `TestHubCodesAreContractSection42s` fails on the order.
+4. In `envelope.go`, write `m["v"] = 2` without the `if a.Via != ""` guard. Expected:
+   `TestVector1`–`4` and `TestAuditV2IsVectorFive` fail.
+
+- [ ] **Step 7: Commit**
+
+```bash
+~/.claude/tools/claudezsh/claudezsh 'git add control-plane/internal/hub/hubapi/team.go control-plane/internal/hub/hubapi/team_test.go && git commit -F .superpowers/sdd/team/msg/t03.txt -- control-plane/internal/hub/hubapi'
+```
+
+Subject: `feat(hubapi): team-record wire types, twelve id prefixes, fifteen codes, audit v2
+(Phase T task 03)`; body: the four mutants killed by hand and the three moved counts; last line
+the `Co-Authored-By` line.
+
+**What this task does not claim.**
+- **That any route serves these types.** No handler, store or table exists after this task; a
+  `Task` that decodes is not a task the Hub accepts. Tasks 04 (tables), 05 (authentication), 06
+  and 07 (routes) make them real.
+- **That the Hub enforces the class route sets.** `ClassRoutes` and `Allows` are data here. The
+  refusal of a delegation whose routes exceed its class is task 06's; the refusal of a Fleet call
+  on an unlisted route is task 05's.
+- **That `DataClass`'s values are right.** Only the grammar is checked; the values are
+  **UNVERIFIED** until the merged project record fixes them (task 43).
+- **That the brief-section grammar is phase 4's.** `ValidBriefRef`'s section id is
+  **UNVERIFIED** against phase 4's section ids until that merge.
+- **That a v2 audit event is written by anything.** The envelope can carry `via` and
+  `delegationId`; the Hub's write path setting them is task 05's. The chain walk of `hub verify`
+  (Hub task 27, `task-27.md:55`) calls `ParseAuditEnvelope`, so it reads v2 with no change of its
+  own; its check that `orgId`, `seq`, `at` and `event` match the row is unchanged.
+- **That the desktop knows the new codes.** The desktop's Hub problem union (Hub task 38's
+  `HubProblemCode`) is not touched here, and no Phase T part adds the fifteen to it: task 52's part
+  does not name it (grep, 2026-09-25). A gap, raised in this task's return.
