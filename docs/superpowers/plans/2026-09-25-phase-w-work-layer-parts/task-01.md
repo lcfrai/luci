@@ -220,3 +220,86 @@ names what each one proves.
 
 T14's `3` for `02` is the three inline strikes (each rewrites one line by adding `~~`); nothing
 else in `02` moves.
+
+---
+
+#### Steps
+
+- [ ] **Step 1: Record the start commit and re-read the anchors.** `git rev-parse HEAD` into the
+  task notes as `START`. Re-read each anchor in *Anchors* at the current `feat/hub` head and on
+  `feat/work-layer`; if a line moved, correct the number in the proposal and the insert positions
+  here, never the text.
+- [ ] **Step 2: Save the acceptance script and run it; watch it fail.** Save the block under
+  *Acceptance* as `.superpowers/sdd/work/accept-01.sh` (git-ignored by
+  `.superpowers/sdd/.gitignore`). Expected: `FAIL T1` first, exit 1.
+- [ ] **Step 3: Write the proposal file** exactly as *The proposal file, complete*, without the
+  outer five-backtick fence. Commit it alone.
+- [ ] **Step 4: Edit `PROGRAM.md` and `FUNCTIONAL-SPEC.md`** (edits 1 and 2). Commit.
+- [ ] **Step 5: Edit `AGENTIC-UX.md`** (edit 3), bottom first. Commit.
+- [ ] **Step 6: Edit `02-linear-design-language.md`** (edit 4), bottom first. Commit.
+- [ ] **Step 7: Run the acceptance script to green.** Every line prints `ok`, the last `PASS`.
+- [ ] **Step 8: Hand the proposal to the orchestrator** to deliver to the `feat/hub` owner. The
+  implementer does not open, edit or commit anything in `.claude/worktrees/hub`.
+
+Commit each step with `git commit -F <msgfile> -- <paths>`, the message file under
+`.superpowers/sdd/work/msg/`, its last line
+`Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>`.
+
+#### Acceptance
+
+Run from the repository root with
+`~/.claude/tools/claudezsh/claudezsh 'START=<start commit> bash .superpowers/sdd/work/accept-01.sh'`.
+
+```bash
+#!/usr/bin/env bash
+# Phase W task 01 acceptance. Run from the repository root; START is the task's start commit.
+set -u
+P=docs/superpowers/planning/2026-09-25-linear-parity
+W0=$P/w0-hub-contract-proposal.md
+L02=$P/02-linear-design-language.md
+AX=docs/AGENTIC-UX.md
+fail=0
+is() { if [ "$2" = "$3" ]; then echo "ok   $1"; else echo "FAIL $1: got '$2', want '$3'"; fail=1; fi; }
+atleast() { if [ "$2" -ge "$3" ]; then echo "ok   $1"; else echo "FAIL $1: got $2, want >= $3"; fail=1; fi; }
+[ -f "$W0" ] || { echo "FAIL T1: $W0 missing"; exit 1; }
+is T1 "$(grep -c '^issue key' "$W0")" 1
+is T2 "$(grep -cF '^issue:(is-[0-9a-f]{16})@([1-9][0-9]{0,8})$' "$W0")" 1
+is T3 "$(grep -c 'done:2' "$W0")" 2
+atleast T4a "$(grep -c ':1065' "$W0")" 1
+atleast T4b "$(grep -c ':1079' "$W0")" 1
+is T5 "$(grep -c 'OD-27' "$AX")" 4
+for n in 1 2 3 4; do is "T6.$n" "$(grep -c "Q13 $n)" "$AX")" 1; done
+is T7 "$(grep 'Tauri stores' "$L02" | grep -vc '~~Tauri stores')" 0
+is T8 "$(grep 'R to show' "$L02" | grep -vc '~~\*"2 new · R to show"\*~~')" 0
+is T9 "$(grep -c 'moves.hold' "$L02")" 1
+is T10 "$(grep -c 'OD-28' "$L02")" 1
+is T11 "$(grep -c '^| \*\*W\*\* |' docs/PROGRAM.md)" 1
+is T12 "$(grep -c '^### Phase W' docs/PROGRAM.md)" 1
+is T13 "$(grep -cE '^\| \*\*(Feature|Issue)\*\* \|' docs/FUNCTIONAL-SPEC.md)" 2
+del() { git diff --numstat "$START" -- "$1" | awk '{print $2}'; }
+is T14a "$(del "$AX")" 0
+is T14b "$(del docs/PROGRAM.md)" 0
+is T14c "$(del docs/FUNCTIONAL-SPEC.md)" 0
+is T14d "$(del "$L02")" 3
+[ "$fail" = 0 ] && echo PASS || { echo FAIL; exit 1; }
+```
+
+Expected output: 21 `ok` lines, then `PASS`. Before Step 3 it prints `FAIL T1: … missing` and
+exits 1. Baselines checked on `feat/work-layer` at `c5841bf`: `OD-28` in `02`, `Q13` in
+`AGENTIC-UX.md` and the Feature/Issue rows in `FUNCTIONAL-SPEC.md` each count `0`.
+
+**What this task does not claim.**
+
+- That the `feat/hub` owner has accepted either item. The proposal is delivered, not merged; task
+  02 builds the grammar case on `feat/work-layer` and it reaches `feat/hub` only through the
+  orchestrator's merge (rule H1).
+- That any code parses `issue:`. Task 02 (`hubapi`) and task 18 (phase 4's `provenance`) build it.
+- That the three `02` corrections change a token, a key binding or a font file. Tasks 26, 27 and 41
+  build `--t-fact`, the faces and `N`/`moves.hold`.
+- That `AGENTIC-UX.md`'s amendments are enforced anywhere. Task 20's `expectNoPrediction` is the
+  first check that reads them.
+- That `PROGRAM.md` now describes team mode. It has no Phase T row on `feat/work-layer` at
+  `c5841bf`; this task adds W only and names team mode by its decisions.
+
+**Parity rows.** It closes none alone. It is the precondition for **L-3** (the display alias) and
+**L-34** (immutable, digested revisions), which tasks 02, 08 and 09 close with the desktop rows.
