@@ -227,3 +227,86 @@ type Fake struct {
 
 func NewFake() *Fake
 ```
+
+```go
+// control-plane/internal/hub/auditsink/logs.go
+package auditsink
+
+// Logs is the real Sink and Anchors. It holds no secret: Token is the Hub's
+// workload-identity exchange (phase 8 task 10's id-hub, the same exchange the
+// database password uses, phase 8 plan :268), asked for two scopes.
+//
+// Send (the Logs Ingestion API, from Microsoft's documentation as known at
+// the knowledge cutoff, UNVERIFIED against the tenant until task 57's run):
+//   POST {DCE}/dataCollectionRules/{DCR}/streams/{stream}?api-version=2023-01-01
+//   Authorization: Bearer <token for https://monitor.azure.com/.default>
+//   Content-Type: application/json; body = a JSON array of records
+// A batch is at most 500 records and 1 MB of JSON (the API's per-call limit,
+// UNVERIFIED); a larger slice is split. 204 is success; 429 and 5xx are
+// errors the loop retries next round; 401/403 are logged at ERROR.
+//
+// Read (the Log Analytics query API, same status):
+//   POST https://api.loganalytics.io/v1/workspaces/{Workspace}/query
+//   Authorization: Bearer <token for https://api.loganalytics.io/.default>
+//   body {"query": <KQL>, "timespan": "<since>/<now>"}
+// with KQL whose only spliced value is the org id, refused unless
+// hubapi.ValidID(hubapi.PrefixOrg, orgID) holds (org- and hex, no quote):
+//   PanaceaHubAuditAnchor_CL | where OrgId == '<org>' | order by TimeGenerated asc
+//   PanaceaHubAudit_CL       | where OrgId == '<org>' | summarize arg_max(TimeGenerated, *) by Seq
+type Logs struct {
+	HTTP      *http.Client // timeout 10 s
+	Token     func(ctx context.Context, scope string) (string, error)
+	DCE       string // https://<dce>.australiaeast-1.ingest.monitor.azure.com
+	DCR       string // the rule's immutable id, dcr-<32 hex>
+	Workspace string // the workspace's customer id (a GUID)
+}
+
+const (
+	StreamEvents  = "Custom-PanaceaHubAudit_CL"
+	StreamAnchors = "Custom-PanaceaHubAuditAnchor_CL"
+)
+
+func (l Logs) SendEvents(ctx context.Context, recs []EventRecord) error
+func (l Logs) SendAnchors(ctx context.Context, recs []AnchorRecord) error
+func (l Logs) AnchorsOf(ctx context.Context, orgID string, since time.Time) ([]AnchorRecord, error)
+func (l Logs) EventsOf(ctx context.Context, orgID string, since time.Time) ([]EventRecord, error)
+```
+
+#### The cursor — complete source
+
+```sql
+-- control-plane/internal/hub/migrate/sql/00NN_audit_stream.sql
+-- How far each org's audit has been sent. Not audited itself: it records
+-- delivery, not a change anyone made, and advancing it must not move the head.
+CREATE TABLE audit_stream_cursors (
+  org_id       text        PRIMARY KEY REFERENCES orgs (id),
+  streamed_seq bigint      NOT NULL DEFAULT 0 CHECK (streamed_seq >= 0),
+  anchored_at  timestamptz,
+  updated_at   timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE audit_stream_cursors ENABLE ROW LEVEL SECURITY;
+ALTER TABLE audit_stream_cursors FORCE ROW LEVEL SECURITY;
+CREATE POLICY audit_stream_cursors_org ON audit_stream_cursors
+  USING (org_id = current_setting('hub.org_id', true))
+  WITH CHECK (org_id = current_setting('hub.org_id', true));
+GRANT SELECT, INSERT, UPDATE ON audit_stream_cursors TO hub_app;
+-- Forward only: a cursor moved back would re-send, harmless; one moved past
+-- the head would skip events, which this refuses.
+CREATE FUNCTION hub.audit_stream_forward() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.streamed_seq < OLD.streamed_seq THEN
+    RAISE EXCEPTION 'audit stream cursor moves forward only' USING ERRCODE = '23514';
+  END IF;
+  IF NEW.streamed_seq > (SELECT seq FROM audit_heads WHERE org_id = NEW.org_id) THEN
+    RAISE EXCEPTION 'audit stream cursor past the head' USING ERRCODE = '23514';
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER audit_stream_forward BEFORE UPDATE ON audit_stream_cursors
+  FOR EACH ROW EXECUTE FUNCTION hub.audit_stream_forward();
+```
+
+The trigger's `SELECT` on `audit_heads` runs as `hub_app`, which holds `SELECT` on it (Hub task
+14's `LockHead` reads it through `hub.lock_audit_head()`; that `hub_app` may `SELECT` it directly
+is **UNVERIFIED until merge**; if not, the function is `SECURITY DEFINER` owned by the migrate role,
+as task 07b's functions are).
