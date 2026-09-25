@@ -2,7 +2,7 @@
 
 **Measure what the pinned LiteLLM actually does, before anything in the cloud depends on it.** Tasks 02, 04, 07, 09 and 11 each rest on a LiteLLM behaviour that this plan knows only from LiteLLM's documentation as remembered, or from Panacea's incident record: that a caller may choose a virtual key's value, that `duration` expires a key, that user, team and key budgets bite, that no prompt text is stored, which path a given `api_base` produces, whether a body or header can re-attribute spend, whether SSE is relayed unbuffered. Open risk 3 names this. This task writes one script, `probe.sh`, that asks the running local stack (task 17) each question and prints `PASS`, `FAIL` or `UNKNOWN` with its evidence, and one results document that records the answers **against the pinned image digest**. A new digest means a new run.
 
-**A FAIL is a finding, not a broken build.** Each probe names the decision it tests and that decision's fallback, so a FAIL routes straight to the part that changes. Only one FAIL stops the phase: **P06** (prompt or response text stored by LiteLLM), which breaks OD-19's zero data retention on our side and goes to the owner.
+**A FAIL is a finding, not a broken build.** Each probe names the decision it tests and that decision's fallback, so a FAIL routes straight to the part that changes. Three FAILs stop the phase and go to the owner, and the script exits 3 on each: **P06** (prompt or response text stored by LiteLLM), which breaks OD-19's zero data retention on our side; **P13** (the Global path loses what the CLI sends), which breaks OD-20; and **P14** (a body fallback on an `au/` group reaches the Global upstream), which breaks OD-19's AU route (review C-1).
 
 **Where the probes run.** LiteLLM publishes no port (task 17, P6-D1), and that stays true for the probe. The client half runs **inside the LiteLLM container**, with `docker compose exec -T litellm python3 -`: the image already carries Python (task 17's step 5 checks), so no probe image is pulled, and the master key is read from `/run/secrets/master_key` in that container, never passed on a command line. The database half runs `pg_dump` and `psql` inside the Postgres container. P07, P10 and P13 need LiteLLM configs the stack does not run, so the script starts a **throwaway LiteLLM** from the same digest, `gw-probe-litellm` on `:4011`, with no database and a throwaway master key, loaded by `docker cp` (a bind mount of a Git Bash temp path is unreliable on Docker Desktop for Windows), and removes it on exit.
 
@@ -10,15 +10,17 @@
 
 **Pricing is a precondition, not a probe.** P03 to P05 and P12 need LiteLLM to put a non-zero cost on a call to the fake. LiteLLM prices from its own model-cost table by model name (training knowledge, **UNVERIFIED**), and task 16's fake echoes the requested id. If the pinned table does not know the public id, spend stays `0`, budgets can never bite, and those probes report **UNKNOWN (unpriced)** rather than a false PASS. The fix then belongs to task 02: explicit per-token costs on the local groups. The script checks spend before it judges any budget.
 
-**Probes, and what each FAIL changes.** P01 to P12 are the skeleton's; **P13 is added here**, because OD-20's "the cloud tracks the latest CLI" depends on it and no other probe covers it.
+**Probes, and what each FAIL changes.** P01 to P12 are the skeleton's; **P13 is added here**, because OD-20's "the cloud tracks the latest CLI" depends on it and no other probe covers it. **P14 is added by review C-1**: task 11 drops LiteLLM's body control fields (`proxy.ControlFields`), and P14 asks whether LiteLLM itself would keep an AU request in Australia if one got through.
+
+**Every budget probe mints the production key shape** (review I-8). keysmith always mints a key with `user_id` **and** `team_id` and a `max_budget` slice (task 07, `mint`). A probe key missing either would ask a question production never asks: LiteLLM may apply a user's budget only to that user's personal keys (training knowledge, **UNVERIFIED**). So P03 to P05 each mint `user_id` + `team_id` + `max_budget` + `models`, and exhaust **one dimension at a time**. The dimension under test is at 1e-9 and the other two are at US$1,000, which one probe call cannot reach. So a budget refusal can only come from the dimension under test.
 
 | Id | Question | PASS when | FAIL routes to |
 |---|---|---|---|
 | **P01** | Does `/key/generate` accept a caller-chosen `key`? | the reply's `key` equals the chosen `sk-pa-…` value | task 07's written fallback: read the generated key from the reply and bind after the call |
 | **P02** | Does `duration` expire a key? | a `60s` key answers `200` at once and is refused (`401`/`403`/`400`) at 70 s | task 07 revokes at expiry itself; the gatekeeper's `token_expired` (task 10) is already the enforcement |
-| **P03** | Does a user `max_budget` bite? | a user at a 1e-9 budget is refused once spend is recorded | P6-D8's person dimension moves to keysmith's slice, as the team's already is |
-| **P04** | Does a team `max_budget` bite? | as P03, for a team | P6-D8's project dimension moves to keysmith |
-| **P05** | Does a key `max_budget` bite? | as P03, for a key | P6-D8's per-key slice becomes advisory; tasks 06 and 09 state a larger overrun bound |
+| **P03** | Does a user `max_budget` bite on a key that also belongs to a team? | a production-shaped key (`user_id` + `team_id` + a US$1,000 key `max_budget`) whose user is at 1e-9, and whose team is at US$1,000, is refused once spend is recorded | P6-D8's person dimension moves to keysmith's slice, as the team's already is |
+| **P04** | Does a team `max_budget` bite on a key that also belongs to a user? | as P03, with the team at 1e-9 and the user at US$1,000 | P6-D8's project dimension moves to keysmith |
+| **P05** | Does a key `max_budget` bite on a key with a user and a team? | as P03, with the key at 1e-9 and the user and team at US$1,000 | P6-D8's per-key slice becomes advisory; tasks 06 and 09 state a larger overrun bound |
 | **P06** | Is prompt or response text stored? | after a canary call, the canary and the fake's reply text appear **nowhere** in a full `pg_dump` of the gateway database and in no line of LiteLLM's stdout, **and** the call's spend row exists | **blocker for OD-19**, raised to the owner; task 02's ZDR keys are wrong for this image |
 | **P07** | Which path reaches the upstream for each `api_base` form? | exactly the form whose recorded path is `/v1/messages` is named; both is also a PASS | task 02's `apiBaseForm`; `host` needs this result as its `apiBaseEvidence` (`…-litellm-probe.md#p07`) |
 | **P08** | Can a body `metadata.tags` or an `x-litellm-tags` header change attribution? | neither spoofed tag appears on the spend row, and its user and team are the key's | task 11 also drops `metadata.tags` from the body (the header is already dropped) |
@@ -27,6 +29,7 @@
 | **P11** | Is `/key/delete` effective at once? | the first call after the delete is refused | none needed: the gatekeeper's binding revocation (≤ 10 s) enforces; the delay measured is recorded for task 07 |
 | **P12** | Does `/key/info` report per-key spend? | `info.spend > 0` within 60 s of a call | task 09's sweep needs another source (spend logs by key hash) |
 | **P13** | Does the Global path forward what the CLI sends, unchanged? | a top-level `zz_future_field`, `thinking`, and the `anthropic-beta` header all reach the fake from a model **without** `drop_params` | task 02's Global group, and the gatekeeper's docs-mandated pass-through (task 11) is undone downstream; a blocker for OD-20 raised to the owner |
+| **P14** | Can a body `fallbacks` on an `au/` group reach the Global upstream? | a call to `au/claude-opus-4-8` carrying `"fallbacks": ["global/claude-opus-4-8"]` and `"mock_testing_fallbacks": true`, made directly to LiteLLM with two production-shaped keys (an AU-minted key naming only `au/*`, and a Global-minted key naming both groups, which is what a raise leaves live), adds **no** request to `fakeanthropic-global` for either key, and adds none to `fakeanthropic-au` (so the mocked failure did fire) | **blocker for OD-19's AU route**, raised to the owner like P06. A FAIL on the both-groups key alone means LiteLLM honours a body fallback within a key's models: task 11's `ControlFields` is then the only guard on the request, and task 07's decision (h) bounds how long such a key lives after a raise. A FAIL on the AU-only key means LiteLLM ignores the key's model list on a fallback, so decision (d) protects nothing |
 
 **Files:**
 - `deploy/local/gateway/probe.sh` — the driver (bash) and one embedded Python program, run in three modes: `self-test` on the host, `client` inside the LiteLLM container, `verdict` on the host for the database probes (new)
@@ -35,10 +38,10 @@
 **Interfaces:**
 - Produces:
   - `bash deploy/local/gateway/probe.sh --self-test` → `PASS: probe self-test (<n> cases)`, no Docker needed
-  - `bash deploy/local/gateway/probe.sh` → one line per probe, `P<nn> PASS|FAIL|UNKNOWN <evidence>`, in id order, plus a header line `digest <repo@sha256:…>`; exit 0 unless P06 or P13 is `FAIL` (exit 3) or the stack is not up (exit 2)
+  - `bash deploy/local/gateway/probe.sh` → one line per probe, `P<nn> PASS|FAIL|UNKNOWN <evidence>`, in id order, plus a header line `digest <repo@sha256:…>`; exit 0 unless P06, P13 or P14 is `FAIL` (exit 3) or the stack is not up (exit 2)
   - the results document, whose `#p07` anchor task 02's loader accepts as `apiBaseEvidence` (task 02, `models.yaml`'s `litellm.apiBaseForm`)
-- Consumes: task 17's running stack (`docker compose` in `deploy/local/gateway`, the secrets, the network `panacea-app-gateway`, services `litellm`, `postgres`, `fakeanthropic-global`); task 16's `GET /_captured` record fields `seq`, `path`, `headerNames`, `bodyKeys`; task 02's rendered group name `global/claude-opus-4-8` (the public id the docs use as their example).
-- Consumed by: task 02 (`apiBaseForm`, pricing), task 07 (P01, P02, P11), task 09 (P12), task 11 (P08), task 06 (P03 to P05), task 23 (the digest it runs against), task 25 (what stays **UNVERIFIED**).
+- Consumes: task 17's running stack (`docker compose` in `deploy/local/gateway`, the secrets, the network `panacea-app-gateway`, services `litellm`, `postgres`, `fakeanthropic-global`, and `fakeanthropic-au` for P14, `task-17.md:47`); task 16's `GET /_captured` record fields `seq`, `path`, `headerNames`, `bodyKeys`; task 02's rendered group names `global/claude-opus-4-8` (the public id the docs use as their example) and `au/claude-opus-4-8` (`task-02.md:103`); task 11's `proxy.ControlFields`, of which P14 sends two.
+- Consumed by: task 02 (`apiBaseForm`, pricing), task 07 (P01, P02, P11, P14), task 09 (P12), task 11 (P08, P14), task 06 (P03 to P05), task 23 (the digest it runs against), task 25 (what stays **UNVERIFIED**).
 
 **LiteLLM's admin API as this script calls it.** Paths and fields are LiteLLM's documented proxy API **as remembered**, not read for this plan; a wrong one shows as a `FAIL` or `UNKNOWN` with the status, which is itself the finding task 04 needs.
 
@@ -100,6 +103,13 @@ def self_test():
         ("p12 unpriced", v_p12(0.0)[0], "UNKNOWN"),
         ("p13 intact", v_p13(["thinking", "zz_future_field"], ["Anthropic-Beta"])[0], "PASS"),
         ("p13 beta lost", v_p13(["thinking", "zz_future_field"], ["Content-Type"])[0], "FAIL"),
+        # P14: any request at the global fake is a FAIL, from either key (kills
+        # judging one key only); a primary that reached the au fake means the
+        # mocked failure never fired, so nothing was asked (kills a vacuous PASS).
+        ("p14 held", v_p14([("au-only", 0, 0, 200), ("both", 0, 0, 200)])[0], "PASS"),
+        ("p14 both leaks", v_p14([("au-only", 0, 0, 200), ("both", 1, 0, 200)])[0], "FAIL"),
+        ("p14 au-only leaks", v_p14([("au-only", 1, 0, 200), ("both", 0, 0, 400)])[0], "FAIL"),
+        ("p14 never fired", v_p14([("au-only", 0, 1, 200), ("both", 0, 0, 200)])[0], "UNKNOWN"),
         # Evidence never carries a key (kills printing a reply that echoes one).
         ("redact", "sk-pa-abc123" in redact('{"key":"sk-pa-abc123"}'), False),
     ]
@@ -222,6 +232,17 @@ def v_p13(body_keys, header_names):
     if missing:
         return "FAIL", f"lost on the way upstream: {missing}: BLOCKER for OD-20"
     return "PASS", "unknown body field, thinking and anthropic-beta all forwarded"
+
+def v_p14(results):
+    """results: (key shape, new global-fake records, new au-fake records, status)."""
+    leaked = [shape for shape, g, _, _ in results if g]
+    if leaked:
+        return "FAIL", (f"a body fallback on au/ reached the global upstream for {leaked}: "
+                        "BLOCKER for OD-19's AU route")
+    unfired = [shape for shape, _, a, _ in results if a]
+    if unfired:
+        return "UNKNOWN", f"mock_testing_fallbacks ignored, the au primary answered for {unfired}"
+    return "PASS", "; ".join(f"{shape}: status {st}, nothing at either fake" for shape, _, _, st in results)
 ```
 
 - [ ] **Step 4: Write the client, the half that runs inside the LiteLLM container**
@@ -232,7 +253,10 @@ Below the verdicts. `client(run, canary)` prints one `P<nn>` line per probe it o
 LL = "http://127.0.0.1:4001"                 # the stack's LiteLLM, from inside its container
 TMP = "http://gw-probe-litellm:4011"         # the throwaway LiteLLM (P07, P10, P13)
 FAKE = "http://fakeanthropic-global:4900"
+FAKE_AU = "http://fakeanthropic-au:4901"      # P14 only
 MODEL = "global/claude-opus-4-8"
+AU_MODEL = "au/claude-opus-4-8"
+ROOMY = 1000.0                               # US$: a budget one probe call cannot reach
 
 def call(method, url, key=None, body=None, headers=None, timeout=30):
     req = urllib.request.Request(url, method=method,
@@ -266,18 +290,26 @@ def spend_of(master, k):
         return None
     return float((json.loads(b).get("info") or {}).get("spend") or 0)
 
-def fake_seq():
-    _, b = call("GET", FAKE + "/_captured")
+def fake_seq(fake=FAKE):
+    _, b = call("GET", fake + "/_captured")
     reqs = json.loads(b).get("requests") or []
     return reqs[-1]["seq"] if reqs else 0
 
-def fake_after(seq):
-    _, b = call("GET", FAKE + "/_captured")
+def fake_after(seq, fake=FAKE):
+    _, b = call("GET", fake + "/_captured")
     return [r for r in json.loads(b).get("requests") or [] if r["seq"] > seq]
 
-def budget_probe(pid, master, run, make):
-    """make() returns key fields; spend is recorded asynchronously, so poll 60 s."""
-    k = key(master, **make())[1]
+def prod_key(master, user, team, models, key_usd=ROOMY):
+    """keysmith's shape (task 07, mint): user_id AND team_id AND a key max_budget."""
+    return key(master, user_id=user, team_id=team, max_budget=key_usd, models=models)[1]
+
+def budget_probe(pid, master, run, user_usd, team_usd, key_usd):
+    """One production-shaped key; exactly one of the three budgets is 1e-9 (review
+    I-8). Spend is recorded asynchronously, so poll 60 s."""
+    u, t = f"probe-{run}-{pid.lower()}", f"probe-{run}-{pid.lower()}-team"
+    call("POST", LL + "/user/new", master, {"user_id": u, "max_budget": user_usd})
+    call("POST", LL + "/team/new", master, {"team_id": t, "max_budget": team_usd})
+    k = prod_key(master, u, t, [MODEL], key_usd)
     if not k:
         return say(pid, "FAIL", "could not mint the probe key")
     deadline, refused, spend = time.time() + 60, False, 0.0
@@ -318,11 +350,22 @@ def client(run, canary, tmp_master):
     chosen = "sk-pa-" + secrets.token_urlsafe(32)
     st, got = key(master, key=chosen, key_alias=u("p01"), models=[MODEL])
     say("P01", *v_p01(st, chosen, got))
-    call("POST", LL + "/user/new", master, {"user_id": u("p03"), "max_budget": 1e-9})
-    budget_probe("P03", master, run, lambda: {"user_id": u("p03"), "models": [MODEL]})
-    call("POST", LL + "/team/new", master, {"team_id": u("p04"), "max_budget": 1e-9})
-    budget_probe("P04", master, run, lambda: {"team_id": u("p04"), "models": [MODEL]})
-    budget_probe("P05", master, run, lambda: {"max_budget": 1e-9, "models": [MODEL]})
+    # P03 to P05: one dimension exhausted at a time, on keysmith's key shape.
+    budget_probe("P03", master, run, user_usd=1e-9, team_usd=ROOMY, key_usd=ROOMY)
+    budget_probe("P04", master, run, user_usd=ROOMY, team_usd=1e-9, key_usd=ROOMY)
+    budget_probe("P05", master, run, user_usd=ROOMY, team_usd=ROOMY, key_usd=1e-9)
+    # P14: a body fallback from au/ to global/, on an AU-minted and a Global-minted key.
+    call("POST", LL + "/user/new", master, {"user_id": u("p14"), "max_budget": ROOMY})
+    call("POST", LL + "/team/new", master, {"team_id": u("t14"), "max_budget": ROOMY})
+    p14 = []
+    for shape, models in (("au-only", [AU_MODEL]), ("both", [AU_MODEL, MODEL])):
+        k14 = prod_key(master, u("p14"), u("t14"), models)
+        g0, a0 = fake_seq(FAKE), fake_seq(FAKE_AU)
+        st = call("POST", LL + "/v1/messages", k14, msg(AU_MODEL, "p14",
+                  fallbacks=[MODEL], mock_testing_fallbacks=True))[0]
+        time.sleep(1)                         # the fakes record on arrival; one second is slack
+        p14.append((shape, len(fake_after(g0, FAKE)), len(fake_after(a0, FAKE_AU)), st))
+    say("P14", *v_p14(p14))
     # P06 and P08: the calls here, the verdicts on the host after the spend rows land.
     _, k06 = key(master, user_id=u("p06"), models=[MODEL])
     call("POST", LL + "/v1/messages", k06, msg(MODEL, f"say {canary}"))
@@ -432,7 +475,7 @@ general_settings:
 #!/usr/bin/env bash
 # probe.sh [--self-test]: what the pinned LiteLLM actually does (phase 6, task 18).
 # Runs against task 17's stack; prints "P<nn> PASS|FAIL|UNKNOWN <evidence>".
-# Never prints a key or a body. Exit 0; 2 if the stack is not up; 3 if P06 or P13 FAILs.
+# Never prints a key or a body. Exit 0; 2 if the stack is not up; 3 if P06, P13 or P14 FAILs.
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 cd "$here"
@@ -505,7 +548,7 @@ emit_py | python3 - verdict-p08 "$row" "$u08" "$t08" | tee -a "$out"
 
 echo "---- summary"
 grep -E '^P[0-9]{2} ' "$out" | sort
-if grep -qE '^P(06|13) FAIL' "$out"; then exit 3; fi
+if grep -qE '^P(06|13|14) FAIL' "$out"; then exit 3; fi
 ```
 
 A row count of `0` because the table name is wrong would make P06 `UNKNOWN`, never `PASS` (the self-test's `p06 no row` case), and `spendlog-columns <none>` in the output says why.
@@ -516,7 +559,7 @@ A row count of `0` because the table name is wrong would make P06 `UNKNOWN`, nev
 ~/.claude/tools/claudezsh/claudezsh 'bash deploy/local/gateway/probe.sh --self-test'
 ```
 
-Expected: `PASS: probe self-test (31 cases)`. Then change `v_p06`'s first test to `if rows < 0:` and re-run: it must fail with `FAIL: p06 no row: got 'PASS', want 'UNKNOWN'`. Restore it. A P06 that passes with no spend row would declare zero retention on a LiteLLM that logged nothing at all.
+Expected: `PASS: probe self-test (35 cases)`. Then change `v_p06`'s first test to `if rows < 0:` and re-run: it must fail with `FAIL: p06 no row: got 'PASS', want 'UNKNOWN'`. Restore it. A P06 that passes with no spend row would declare zero retention on a LiteLLM that logged nothing at all. Do the same for P14: change `v_p14`'s `if unfired:` to `if False:` and re-run. It must fail with `FAIL: p14 never fired: got 'PASS', want 'UNKNOWN'`. Restore it. A P14 that passes when LiteLLM ignored `mock_testing_fallbacks` would clear the AU route on a fallback that never ran.
 
 - [ ] **Step 7: Run the probe against the stack**
 
@@ -534,10 +577,10 @@ P01 <verdict> <evidence>
 ---- summary
 P01 <verdict> <evidence>
 ...
-P13 <verdict> <evidence>
+P14 <verdict> <evidence>
 ```
 
-Thirteen summary lines, one per probe. A probe line that is missing means the client died; its traceback is on stderr and is fixed before the results are recorded.
+Fourteen summary lines, one per probe. A probe line that is missing means the client died; its traceback is on stderr and is fixed before the results are recorded.
 
 - [ ] **Step 8: Record the results**
 
@@ -558,7 +601,7 @@ upstream (zero spend). Results hold for this digest only; a new digest is a new 
 | Id | Verdict | Evidence | Consequence |
 |---|---|---|---|
 | P01 | <v> | <evidence> | <"none" or the fallback adopted, with the part it changes> |
-| … one row per probe, P01 to P13 … |
+| … one row per probe, P01 to P14 … |
 
 ## P06
 
@@ -576,6 +619,10 @@ upstream (zero spend). Results hold for this digest only; a new digest is a new 
 
 <What reached the fake. A FAIL is raised to the owner: OD-20's "tracks the latest CLI" depends on it.>
 
+## P14
+
+<For each key shape, the status and the new records at each fake. A FAIL is raised to the owner as a blocker for OD-19's AU route, naming the shape that leaked. An UNKNOWN (mock ignored) means the AU route rests on task 11's `ControlFields` with no measurement behind it; say so in the owner's summary.>
+
 ## Not measured here
 
 Bedrock, Kata, AKS, a real Anthropic upstream, and LiteLLM's behaviour under load.
@@ -583,7 +630,7 @@ Bedrock, Kata, AKS, a real Anthropic upstream, and LiteLLM's behaviour under loa
 
 - [ ] **Step 9: Route each FAIL and UNKNOWN**
 
-For each non-PASS row, the "Consequence" cell names the part and the change, from the probe table at the top of this task. Two of them edit a file this task does not own and are therefore **recorded here and made by that part's owner**: an `apiBaseForm: host` result (task 02's `models.yaml`, with `apiBaseEvidence` pointing at `#p07`), and an `UNKNOWN (unpriced)` on P03 to P05 or P12 (task 02 adds explicit local costs, then this probe is re-run). A P06 or P13 FAIL is written to the owner as a blocker in the words of the row, and task 23 does not start until the owner answers.
+For each non-PASS row, the "Consequence" cell names the part and the change, from the probe table at the top of this task. Two of them edit a file this task does not own and are therefore **recorded here and made by that part's owner**: an `apiBaseForm: host` result (task 02's `models.yaml`, with `apiBaseEvidence` pointing at `#p07`), and an `UNKNOWN (unpriced)` on P03 to P05 or P12 (task 02 adds explicit local costs, then this probe is re-run). A P06, P13 or P14 FAIL is written to the owner as a blocker in the words of the row, and task 23 does not start until the owner answers.
 
 - [ ] **Step 10: Commit**
 
@@ -597,12 +644,14 @@ with `/tmp/msg-task18.txt` holding (the last paragraph written from the actual r
 ```text
 test(gateway): probe what the pinned LiteLLM actually does
 
-Thirteen probes against task 17's local stack, each PASS, FAIL or UNKNOWN
+Fourteen probes against task 17's local stack, each PASS, FAIL or UNKNOWN
 with evidence, recorded against the image digest: a caller-chosen key,
-duration expiry, user, team and key budgets, no stored prompt or reply
-text, the api_base path form (the Panacea 405, measured), spoofed tags,
-unbuffered pings, drop_params, immediate key delete, per-key spend, and
-pass-through of unknown fields and anthropic-beta on the Global path.
+duration expiry, user, team and key budgets (each on keysmith's key shape,
+one dimension exhausted at a time), no stored prompt or reply text, the
+api_base path form (the Panacea 405, measured), spoofed tags, unbuffered
+pings, drop_params, immediate key delete, per-key spend, pass-through of
+unknown fields and anthropic-beta on the Global path, and whether a body
+fallback on an au/ group can reach the Global upstream.
 
 The client runs inside the LiteLLM container, so LiteLLM stays unpublished
 and the master key never reaches a command line. Evidence is redacted of
@@ -622,4 +671,6 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
 - **That a PASS holds for any other digest.** LiteLLM changes quickly; task 17's pin and this document move together.
 - **That P06's PASS is the whole of ZDR.** It covers LiteLLM's database and stdout. The upstreams' retention terms are the org's contracts (owner question Q3), and the gatekeeper's and keysmith's logs are tasks 12 and 08's canary tests.
 - **That the admin paths and spend-log names are right.** They are LiteLLM's API as remembered; a wrong one shows as `FAIL` or `UNKNOWN` with its status, which tells task 04 what to change, but this task does not correct task 04 itself.
+- **That P14 covers every way out of Australia.** It sends two of task 11's fifteen `ControlFields` (`fallbacks`, `mock_testing_fallbacks`) straight to LiteLLM, and forces the primary to fail with LiteLLM's own mock. It measures neither a real upstream failure, nor `context_window_fallbacks`, nor the other thirteen names. The gatekeeper's drop of all fifteen is task 11's unit tests, not a probe.
+- **That P03 to P05 name the dimension that refused.** Each exhausts one budget and sets the other two out of reach, so the dimension is known by construction. LiteLLM's refusal text is only matched for the word `budget`.
 - **That P09's timing is precise.** It measures on one host, inside Docker, with a 1 s ping gap; it tells buffering from relaying and nothing finer.

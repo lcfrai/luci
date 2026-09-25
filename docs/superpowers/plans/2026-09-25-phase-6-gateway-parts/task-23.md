@@ -34,7 +34,7 @@ grep -E '^\| *P0[1-9]|^\| *P1[0-2]' docs/verification/2026-09-25-phase-6-litellm
 curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8730/v1/healthz   # expect 000: nothing on the control plane's port
 ```
 
-Read task 18's verdicts before starting. A FAIL on P02 (key expiry), P05 (key `max_budget`), P06 (no prompt text stored) or P11 (delete effective at once) changes what items 5, 6 and 7 can show; the record says which, up front.
+Read task 18's verdicts before starting. A FAIL on P02 (key expiry), P05 (key `max_budget`), P06 (no prompt text stored) or P11 (delete effective at once) changes what items 5, 6 and 7 can show; the record says which, up front. A FAIL on P06, P13 or P14 is an owner blocker, and this task does not start until the owner answers (task 18, step 9).
 
 - [ ] **Step 2: Bring up the local stack on the fake upstream**
 

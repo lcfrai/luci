@@ -122,6 +122,7 @@ Append to the plan, after "Open risks", a section `## At close: what stays unver
 | U17 | What the CLI's direct calls to `api.anthropic.com` carry | open risk 5 | a capture on an AU sandbox, which blocks them (P8-3) |
 | U18 | The Panacea 405 incident's cause, read from source | the skeleton's pitfalls table | task 18's P07 measures the behaviour instead |
 | U19 | Anthropic's and AWS's zero-retention terms for the org's accounts | P6-D9 | owner question Q3 |
+| U20 | The names of LiteLLM's request-body control fields (`proxy.ControlFields`), and whether LiteLLM honours a body fallback outside a key's model list | task 11 decision (f), task 07 decision (d) | task 18's P14 (two of the fifteen names); the rest by reading the pinned image's request parameters |
 
 - [ ] **Step 8: Verify and commit**
 
