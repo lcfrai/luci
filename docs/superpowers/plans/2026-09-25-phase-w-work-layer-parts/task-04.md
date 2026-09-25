@@ -264,6 +264,9 @@ const (
 	fkStateNotAllowed       = "state_not_allowed"       // 422, details.from, .to, .cause
 	fkStateConflict         = "state_conflict"          // 409, details.landCommit
 	fkEvidenceNotApplicable = "evidence_not_applicable" // 422, details.field, .why
+	// Task 08 gives this refusal a status (422) and a field, and no code: a gap
+	// it closes by declaring the constant; until then, this spelling.
+	fkNotTiedReasonRequired = "not_tied_reason_required" // 422, details.field
 
 	fkEventIssueCreated  = "issue.created"
 	fkEventIssueUpdated  = "issue.updated"
@@ -409,4 +412,99 @@ func (w *fakeWorld) assignable(teamID, userID string) bool {
 	m := w.teams[teamID].members[userID]
 	return hubapi.ValidID(hubapi.PrefixUser, userID) && m != nil && rank(m.role) >= rank(hubapi.RoleMember)
 }
+```
+
+Block 3: the project key and the create.
+
+```go
+// SetProjectKey is task 08's decision 4: team admin, ValidProjectKey, unique in
+// the team; the same key again is no write and no event.
+func (f *Fake) SetProjectKey(_ context.Context, projectID, key string) (hubapi.ProjectKey, error) {
+	w := f.w
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	me, err := f.enter("SetProjectKey", projectID, key)
+	if err != nil {
+		return hubapi.ProjectKey{}, err
+	}
+	p, role, err := w.projectOf(projectID, me)
+	if err != nil {
+		return hubapi.ProjectKey{}, err
+	}
+	if err := need(role, hubapi.RoleAdmin); err != nil {
+		return hubapi.ProjectKey{}, err
+	}
+	if !hubapi.ValidProjectKey(key) {
+		return hubapi.ProjectKey{}, badRequest("key", "A project key is 2 to 5 capital letters.")
+	}
+	wk := w.wk()
+	for id, k := range wk.keys {
+		if id != projectID && k.Key == key && w.projects[id].teamID == p.teamID {
+			return hubapi.ProjectKey{}, problem(409, fkProjectKeyTaken,
+				"Another project in this team has that key.", "key", key, "projectId", id)
+		}
+	}
+	prev := ""
+	if old := wk.keys[projectID]; old != nil {
+		if old.Key == key {
+			return *old, nil
+		}
+		prev = old.Key
+	}
+	k := &hubapi.ProjectKey{ProjectID: projectID, Key: key, SetAt: w.stamp(), SetBy: *w.userRef(me)}
+	wk.keys[projectID] = k
+	w.workEvent(me, fkEventProjectKeySet, p.teamID, projectID, projectID,
+		map[string]any{"key": key, "previousKey": prev})
+	return *k, nil
+}
+
+// CreateIssue writes the head and revision 1 as one record and one event, and
+// takes the next number after the last check (decision (h)).
+func (f *Fake) CreateIssue(_ context.Context, projectID string, req hubapi.CreateIssueRequest) (hubapi.IssueWithRevision, error) {
+	w := f.w
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	var zero hubapi.IssueWithRevision
+	me, err := f.enter("CreateIssue", projectID, req)
+	if err != nil {
+		return zero, err
+	}
+	p, role, err := w.projectOf(projectID, me)
+	if err != nil {
+		return zero, err
+	}
+	if err := need(role, hubapi.RoleMember); err != nil {
+		return zero, err
+	}
+	content := hubapi.IssueRevisionContent{Title: req.Title, Description: req.Description,
+		Serves: req.Serves, Implements: req.Implements}
+	if err := hubapi.ValidateIssueRevisionContent(content); err != nil {
+		return zero, contentError("", err)
+	}
+	if err := w.checkServes(projectID, "serves", req.Serves); err != nil {
+		return zero, err
+	}
+	state, priority := req.State, req.Priority
+	if state == "" {
+		state = w.defaultState(p.teamID)
+	}
+	if priority == "" {
+		priority = hubapi.PriorityNone
+	}
+	switch {
+	case !hubapi.ValidInitialState(state):
+		return zero, badRequest("state", "A new issue starts in triage, backlog or todo.")
+	case !hubapi.ValidPriority(priority):
+		return zero, badRequest("priority", "That is not a priority.")
+	case req.NotTiedReason != "" && !hubapi.ValidNotTiedReason(req.NotTiedReason):
+		return zero, badRequest("notTiedReason", "That is not a reason.")
+	case len(req.Serves) == 0 && req.NotTiedReason == "":
+		return zero, problem(422, fkNotTiedReasonRequired,
+			"An issue that serves no criterion says why: chore, spike, imported or support.", "field", "notTiedReason")
+	case req.AssigneeID != nil && !w.assignable(p.teamID, *req.AssigneeID):
+		return zero, badRequest("assigneeId", "An assignee is a member of this team.")
+	}
+	if err := w.checkIssueLabels(p.teamID, "labels", req.Labels); err != nil {
+		return zero, err
+	}
 ```
