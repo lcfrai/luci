@@ -40,6 +40,7 @@ namespaces:
   broker: panacea-broker
   sandboxes: panacea-sandboxes
   edge: panacea-edge
+  identity: panacea-identity  # our Keycloak (OD-30, ruling §9; task 29's keycloak chart)
 
 network:
   # From foundation outputs, passed by the deploy pipeline. Empty fails the render.
@@ -89,9 +90,10 @@ warm: {}                      # task 12 fills this block
 
 #### What the templates render (described; each object is named here exactly)
 
-`namespaces.yaml` — four `Namespace`s. Labels on each: `app.kubernetes.io/part-of: panacea-app`,
+`namespaces.yaml` — five `Namespace`s. Labels on each: `app.kubernetes.io/part-of: panacea-app`,
 **`pod-security.kubernetes.io/enforce: restricted`**, `pod-security.kubernetes.io/enforce-version:
-latest`, and the same for `audit` and `warn`. `panacea-hub` and `panacea-broker` also carry
+latest`, and the same for `audit` and `warn`. `panacea-hub`, `panacea-broker` and
+`panacea-identity` (Keycloak, whose `auth.<zone>` the system browser reaches, OD-30) also carry
 `panacea-app/edge-routes: "true"`, the label task 13's Gateway admits routes from; no other
 namespace carries it, so a route created in `panacea-sandboxes` is never attached to the edge. `restricted` on `panacea-sandboxes` is the point:
 task 14's pod (non-root, no escalation, all capabilities dropped, `RuntimeDefault` seccomp,
@@ -134,7 +136,7 @@ The default is a backstop, not a sizing policy: every pod this repo renders or t
 sizes every container itself, and task 13's `netpolcover` case `every_sandbox_container_is_sized`
 fails the build if one in this namespace does not.
 
-`networkpolicy-defaults.yaml` — in each of the four namespaces, `NetworkPolicy/default-deny`:
+`networkpolicy-defaults.yaml` — in each of the five namespaces, `NetworkPolicy/default-deny`:
 `podSelector: {}`, `policyTypes: [Ingress, Egress]`, no rules. This chart lays allows only in
 `panacea-sandboxes` (below). Every other chart that puts a pod in a denied namespace brings its own
 allows: `cert-manager` and `edge` in `panacea-edge` (task 13), `broker` and `hub` in theirs
@@ -192,8 +194,9 @@ needs no grant, and leaving it on means the seam lands with no cluster update.
 | Suite / test | Asserts | Mutant it kills |
 |---|---|---|
 | `namespaces_test` / `sandboxes_enforce_restricted` | the `panacea-sandboxes` Namespace has `pod-security.kubernetes.io/enforce: restricted` | `baseline`, which admits a pod that keeps capabilities |
-| `namespaces_test` / `four_namespaces` | exactly four Namespace documents with the four names from values | a namespace dropped (its default-deny with it) |
-| `netpol_test` / `every_namespace_denies_by_default` | four `default-deny` policies, each `podSelector: {}` and both policy types | a default-deny covering Ingress only, leaving egress open |
+| `namespaces_test` / `five_namespaces` | exactly five Namespace documents with the five names from values (`panacea-identity` among them, OD-30) | a namespace dropped (its default-deny with it) |
+| `namespaces_test` / `identity_is_restricted_and_takes_edge_routes` | `panacea-identity` has `enforce: restricted` and `panacea-app/edge-routes: "true"` | Keycloak in a namespace that admits a privileged pod, or one the Gateway cannot route to, so no browser reaches the realm |
+| `netpol_test` / `every_namespace_denies_by_default` | five `default-deny` policies, each `podSelector: {}` and both policy types | a default-deny covering Ingress only, leaving egress open |
 | `netpol_test` / `imds_and_private_ranges_are_excluded` | `egress-internet`'s `except` contains `169.254.169.254/32`, `168.63.129.16/32` and the three RFC 1918 blocks | IMDS reachable — an agent reads the node's identity token |
 | `netpol_test` / `sessions_accept_only_the_broker_on_8080` | `session-ingress-from-broker` has one `from` (the broker's labels in `panacea-broker`) and one port, 8080/TCP | a `from: []` that admits every pod |
 | `netpol_test` / `machines_accept_only_the_broker_on_8081` | the same for 8081 and `component: machine` | a machine agent reachable from a session pod |
@@ -224,7 +227,7 @@ helm lint deploy/charts/platform -f deploy/charts/platform/tests/values-test.yam
 helm unittest deploy/charts/platform
 # Charts:      1 passed, 1 total
 # Test Suites: 6 passed, 6 total
-# Tests:       12 passed, 12 total
+# Tests:       13 passed, 13 total
 ```
 
 #### What this task does not claim
@@ -235,3 +238,5 @@ helm unittest deploy/charts/platform
   any that do (a CSI helper, say) show up at install and are a task 31 finding.
 - That `Premium_ZRS` managed disks are offered in the chosen region — **UNVERIFIED**; the value is
   one line to change.
+- That Keycloak's image runs under `restricted` Pod Security (non-root, no capabilities) — from
+  training knowledge, **UNVERIFIED** until task 29's release installs it (task 31).
