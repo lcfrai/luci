@@ -66,7 +66,7 @@ the sync base, else as task 09 names. This task makes no claim about them.
 |---|---|
 | `keys.go` ⚑ | **append only**: `KeyIssue`, `issueKeyRe`, `IssueKey`, `ParseIssueKey`, one `ParseKey` case |
 | `keys_test.go` ⚑ | **append only**: `TestIssueKey*` (three functions) |
-| `workids.go` | new: the twelve Work prefixes, `ValidWorkID`, `ValidProjectKey`, `DisplayAlias` |
+| `workids.go` | new: the twelve Work prefixes, `WorkPrefixes`, `ValidProjectKey`, `DisplayAlias` |
 | `workids_test.go` | new |
 | `workcanonical.go` | new: `AuthoredText`, `Serve`, `IssueRevisionContent`, `IssueRevisionEnvelope`, `IssueRevisionDigest`, `ParseIssueRevisionEnvelope`, `ValidateIssueRevisionContent` |
 | `workcanonical_test.go` | new |
@@ -124,3 +124,62 @@ func ParseIssueKey(s string) (IssueKey, error) {
 
 `KeyIssue` and `issueKeyRe` are as long as `KeyBrief` and `briefKeyRe`, so `gofmt` realigns
 nothing: `git diff keys.go` shows only added lines (`git diff --numstat` deletions `0`).
+
+**`workids.go`, complete.**
+
+```go
+package hubapi
+
+import (
+	"regexp"
+	"strconv"
+)
+
+// Work id prefixes (Phase W, 05-design §3.6). Each id is minted with
+// ids.Wide(prefix) and checked with ValidID(prefix, id). They are declared here,
+// not in keys.go, because TestPrefixesAndReasonsAreTheContracts holds keys.go
+// and contract §3.1 to exactly ten prefixes each. Disjoint from §3.1's ten, the
+// control plane's s- p- b- w- m-, and Phase T's twelve (TestWorkPrefixesAreDisjoint).
+// Status updates reuse Phase T's nt- (note); "dc" (free documents, L-120) is
+// reserved for a later row and is not declared until that row is built.
+const (
+	PrefixIssue        = "is"
+	PrefixIssueComment = "ic"
+	PrefixFeature      = "ft"
+	PrefixMilestone    = "ml"
+	PrefixCycle        = "cy"
+	PrefixInitiative   = "in"
+	PrefixRequest      = "rq"
+	PrefixLabel        = "lb"
+	PrefixTemplate     = "tp"
+	PrefixView         = "vw"
+	PrefixLoop         = "lp"
+	PrefixDraft        = "df"
+)
+
+// WorkPrefixes is every prefix above, in declaration order.
+var WorkPrefixes = []string{PrefixIssue, PrefixIssueComment, PrefixFeature, PrefixMilestone,
+	PrefixCycle, PrefixInitiative, PrefixRequest, PrefixLabel, PrefixTemplate, PrefixView,
+	PrefixLoop, PrefixDraft}
+
+var projectKeyRe = regexp.MustCompile(`^[A-Z]{2,5}$`)
+
+// ValidProjectKey reports whether k is a project key: 2 to 5 capital letters
+// A-Z, set by a team admin (04-internal-fit §2.4). Unique per team (the store's).
+func ValidProjectKey(k string) bool { return projectKeyRe.MatchString(k) }
+
+// DisplayAlias is how a person names an issue: "EP-142". It is formatted at
+// read time from the project's current key and the issue's number, never
+// stored and never accepted where a key is expected: an admin can change the
+// project key, and every alias changes with it while every key stays.
+//
+// No parser for an alias exists or may be written (05-design §3.6). A person's
+// "EP-142" becomes an issue through IssueByNumber, with the project already
+// known from where they typed it.
+func DisplayAlias(projectKey string, number int) string {
+	return projectKey + "-" + strconv.Itoa(number)
+}
+```
+
+`ValidID` (`keys.go:32`) already takes any prefix, so Work ids need no checker of their own:
+`ValidID(PrefixIssue, id)`.
