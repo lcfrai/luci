@@ -17,12 +17,14 @@ package gitx
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -134,7 +136,15 @@ func run(t *testing.T, dir string, env gitEnv, args ...string) (stdout, stderr s
 
 func runStdin(t *testing.T, dir string, env gitEnv, stdin string, args ...string) (string, string, int) {
 	t.Helper()
-	cmd := exec.Command("git", args...)
+	return runProgram(t, "git", dir, env, stdin, args...)
+}
+
+// runProgram runs prog in dir under env (nil: this process's own; dir "": its own directory)
+// and returns what it printed and its exit code. It is run's body, and the sandbox half's
+// `docker run` goes through it too.
+func runProgram(tb testing.TB, prog, dir string, env gitEnv, stdin string, args ...string) (string, string, int) {
+	tb.Helper()
+	cmd := exec.Command(prog, args...)
 	cmd.Dir = dir
 	cmd.Env = env
 	cmd.Stdin = strings.NewReader(stdin)
@@ -143,10 +153,97 @@ func runStdin(t *testing.T, dir string, env gitEnv, stdin string, args ...string
 	if err := cmd.Run(); err != nil {
 		var exit *exec.ExitError
 		if !errors.As(err, &exit) {
-			t.Fatalf("git %s: could not run: %v", strings.Join(args, " "), err)
+			tb.Fatalf("%s %s: could not run: %v", prog, strings.Join(args, " "), err)
+			return out.String(), errb.String(), -1
 		}
 	}
-	return out.String(), errb.String(), cmd.ProcessState.ExitCode()
+	code := cmd.ProcessState.ExitCode()
+	requireStarted(tb, code, prog)
+	return out.String(), errb.String(), code
+}
+
+// requireStarted stops the test, with a sentence naming the cause, when code is Windows'
+// STATUS_DLL_INIT_FAILED (0xC0000142, read back as 3221225794): the loader gave up before the
+// program's main ran, so no git (or docker) code ran and the number is not its answer. Neither
+// program exits with it. Without this a pin under machine load printed "exit 3221225794, want
+// 128", which reads as a finding (results doc, divergence 14; task-01 review M-3). It does not
+// retry: a rerun with fewer processes live is the operator's call, and nothing is hidden.
+func requireStarted(tb testing.TB, code int, prog string) {
+	tb.Helper()
+	if uint32(code) == 0xC0000142 {
+		tb.Fatalf("%s could not start (exit %d = 0xC0000142, STATUS_DLL_INIT_FAILED): the machine's "+
+			"load, not a finding about git; rerun with fewer processes live (results doc, divergence 14)",
+			prog, code)
+	}
+}
+
+// fatalRecorder is a testing.TB whose Fatalf records the sentence instead of stopping, so a
+// test can ask what a pin helper would have said. Every other method is the real test's.
+type fatalRecorder struct {
+	testing.TB
+	fatal string
+}
+
+func (r *fatalRecorder) Helper() {}
+
+func (r *fatalRecorder) Fatalf(format string, args ...any) {
+	r.fatal = fmt.Sprintf(format, args...)
+}
+
+// A process that Windows' loader could not start comes back as an ordinary exit code,
+// 3221225794 (0xC0000142, STATUS_DLL_INIT_FAILED). Twelve pins once read it as git's answer
+// ("exit 3221225794, want 128") under machine load (results doc, divergence 14). The helper
+// must stop the pin with a sentence naming the machine, and leave every real code alone
+// (task-01 review M-3). `cmd /c exit N` stands in for git: it exits with N and nothing else.
+func TestPinHelperNamesAProgramThatNeverStarted(t *testing.T) {
+	t.Parallel()
+	if !runtimeWindows {
+		t.Skip("0xC0000142 is a Windows loader status; no other OS returns it as an exit code")
+	}
+	dir := t.TempDir()
+	rec := &fatalRecorder{TB: t}
+	_, _, code := runProgram(rec, "cmd", dir, nil, "", "/c", "exit", "-1073741502")
+	if uint32(code) != 0xC0000142 {
+		t.Fatalf("fixture: cmd /c exit -1073741502 exited %d, want 3221225794 (0xC0000142)", code)
+	}
+	for _, want := range []string{"could not start", "0xC0000142", "STATUS_DLL_INIT_FAILED", "not a finding"} {
+		if !strings.Contains(rec.fatal, want) {
+			t.Errorf("a program that never started: the helper said %q, want a fatal sentence holding %q", rec.fatal, want)
+		}
+	}
+	for _, real := range []string{"0", "1", "128", "255"} {
+		rec := &fatalRecorder{TB: t}
+		_, _, code := runProgram(rec, "cmd", dir, nil, "", "/c", "exit", real)
+		if strconv.Itoa(code) != real || rec.fatal != "" {
+			t.Errorf("cmd /c exit %s: code %d, helper said %q; want the code back and no fatal", real, code, rec.fatal)
+		}
+	}
+}
+
+// The check above guards only programs started through runProgram. The sandbox half's docker
+// calls need a daemon, and a test cannot make docker.exe fail to start, so this pins the
+// wiring by reading source instead. Every program this package's tests start, in either build
+// tag, is started in runProgram. A needSandbox that ran `docker image inspect` on its own, for
+// example, would read a docker.exe that never started as "the image is absent" and skip the
+// whole sandbox half.
+func TestPinHelpersStartEveryProgramThroughRunProgram(t *testing.T) {
+	t.Parallel()
+	files, err := filepath.Glob("*_test.go")
+	if err != nil || len(files) == 0 {
+		t.Fatalf("no test files found beside the package (glob err %v)", err)
+	}
+	starts := "exec." + "Command" // split, so this line is not a match
+	var sites []string
+	for _, f := range files {
+		for i, l := range strings.Split(readFile(t, f), "\n") {
+			if strings.Contains(l, starts) {
+				sites = append(sites, fmt.Sprintf("%s:%d: %s", f, i+1, strings.TrimSpace(l)))
+			}
+		}
+	}
+	if len(sites) != 1 || !strings.Contains(sites[0], "cmd := "+starts+"(prog, args...)") {
+		t.Errorf("programs are started at %d sites, want exactly runProgram's one:\n%s", len(sites), strings.Join(sites, "\n"))
+	}
 }
 
 // must runs git and fails the test unless it exits 0.
@@ -1036,11 +1133,15 @@ func TestBehaviourFetchStartsAutoMaintenance(t *testing.T) {
 
 // os.RemoveAll on a clone whose pack is read-only. The plan expected it to fail on Windows and
 // named a fix (clear the read-only bit during a walk). Recorded on go1.26.2: it succeeds first
-// time, because os.Remove on Windows clears FILE_ATTRIBUTE_READONLY and retries
-// (GOROOT/src/os/file_windows.go:247-249). The pin asserts that first call, so a toolchain on
-// which it fails goes red here rather than passing through the walk; tasks 03 and 11 remove
-// trees with a plain os.RemoveAll only while this stays green. On a red, the walk still runs and
-// says whether the plan's fix would repair it.
+// time. Windows builds GOROOT/src/os/removeall_at.go there. os.Remove runs on the top-level
+// path only (:29), and each child goes through removeAllFrom (:56) to windows.Deleteat
+// (os/root_windows.go:346-351), which deletes with FILE_DISPOSITION_IGNORE_READONLY_ATTRIBUTE
+// (internal/syscall/windows/at_windows.go:290-303) and falls back to clearing the attribute
+// (:327-344). go1.23's removeall_noat.go removes each child with os.Remove, whose
+// clear-and-retry gives the same outcome (results doc, divergence 6). The pin asserts that
+// first call, so a toolchain on which it fails goes red here rather than passing through the
+// walk; tasks 03 and 11 remove trees with a plain os.RemoveAll only while this stays green. On
+// a red, the walk still runs and says whether the plan's fix would repair it.
 func TestBehaviourRemoveAllOnAClone(t *testing.T) {
 	t.Parallel()
 	env := hermetic(t)

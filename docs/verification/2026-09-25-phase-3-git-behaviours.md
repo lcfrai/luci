@@ -12,8 +12,12 @@ git's own output, copied from the `-v` log.
 `sha256:5d9a580e035b…`, an OCI image index (`docker image inspect --format "{{json .Descriptor}}"`),
 with the same `Created` to the nanosecond (`2026-09-23T06:52:05.425529555Z`). The mutation runs
 after that time used it. That it is the same build is inferred from `Created`, not proven. The host's system file,
-`C:/Program Files/Git/etc/gitconfig`, holds `core.autocrlf=true`, `core.symlinks=true`,
-`credential.helper=manager`, `diff.astextplain.textconv` and `init.defaultbranch=master`.
+`C:/Program Files/Git/etc/gitconfig`, holds nine keys (`git config --system --list
+--show-origin`, 2026-09-26): `diff.astextplain.textconv=astextplain`, `http.sslbackend=schannel`,
+`core.autocrlf=true`, `core.fscache=true`, `core.symlinks=true`, `pull.rebase=false`,
+`credential.helper=manager`, `credential.https://dev.azure.com.usehttppath=true` and
+`init.defaultbranch=master`. No pin reads this file: the production-shaped pins write a system
+file of their own.
 
 **How.** `control-plane/internal/gitx/behaviour_test.go` (26 pins) and
 `sandbox_docker_test.go` (`//go:build docker`, 3 pins). Every host call runs under
@@ -40,7 +44,7 @@ outside git), so every pin calls `t.Parallel()`. The full behaviour run takes ab
 | 1 | `TestBehaviourLocalCloneHardLinksObjects` | `clone --local`: the loose object and the pack are the source's own files (`os.SameFile`). | 03 |
 | 2 | `TestBehaviourNoHardlinksCloneSharesNoObjectFile` | `clone --no-hardlinks`: 7 object files compared with the source, none shared. | 03 |
 | 3 | `TestBehaviourLocalCloneHasNoAlternates` | Neither clone writes `.git/objects/info/alternates`. | 03 |
-| 4 | `TestBehaviourSystemAutocrlfReachesAClone` | Production-shaped. A plain `clone --no-hardlinks` writes `a.txt` as `x\r\ny\r\n`, and `config --local --get core.autocrlf` exits 1. Task 03's four keys write `a.txt` as `x\ny\n` and `b.bat` (`eol=crlf`) as CRLF, all four keys land in `config --local`, and `status --porcelain` is empty. | 03 |
+| 4 | `TestBehaviourSystemAutocrlfReachesAClone` | Production-shaped. A plain `clone --no-hardlinks` writes `a.txt` as `x\r\ny\r\n`, and `config --local --get core.autocrlf` exits 1. Task 03's four keys write `a.txt` as `x\ny\n` and `b.bat` (`eol=crlf`) as CRLF, all four keys land in `config --local`, and `status --porcelain` is empty. **Not pinned:** what `core.checkStat=minimal` and `core.trustctime=false` do. Dropping both leaves every pin green (divergence 15). | 03 |
 | 5 | `TestBehaviourCloneSymlinksFollowTheSystemConfig` | This user **can** create symlinks (Developer Mode or the privilege). System `core.symlinks=true`: no local `core.symlinks`, and `link` is a real symlink. System file without it: the clone writes `core.symlinks=false` locally and `link` is a file holding `t.txt`. `--config core.symlinks=false`: a file holding `t.txt` under both. | 03 |
 | 6 | `TestBehaviourEmptyFilterEnvChecksOutTheBlob` | Production-shaped with a system `filter.lfs` (smudge writes a marker, `clean = cat`, `required = true`). A plain clone writes `SMUDGED` and the marker. With task 03's NoFilterEnv, `a.bin` equals its blob, there is no marker, and a later production-shaped `status` exits 0. **Added after the mutation check** (M6 survived, see below): the same with git-lfs's real shape, a system `filter.lfs.process` as well. A plain clone runs the process driver and exits 128 ("fatal: the remote end hung up unexpectedly", then "warning: Clone succeeded, but checkout failed."). NoFilterEnv: exit 0, the blob, no driver run. `process=` and `required=false` alone: the same. `smudge=` and `process=` without `required=false`: exit 128, "fatal: a.bin: smudge filter lfs failed". | 03 |
 | 7 | `TestBehaviourLongPathNeedsCoreLongpaths` | A 354-character path (clone root 93). Without `core.longpaths`: exit 128, "fatal: cannot create directory at 'aaaa…/aaaa…/aaaa…': Filename too long", then "warning: Clone succeeded, but checkout failed." With `--config core.longpaths=true`: exit 0, empty status. | 03, 04 |
@@ -56,7 +60,7 @@ outside git), so every pin calls `t.Parallel()`. The full behaviour run takes ab
 | 17 | `TestBehaviourLocalConfigHooksPathIgnoresEnvironment` | With `core.hooksPath=.husky/_` in `.git/config` and the env pair `core.hooksPath=/x`: `config --local --get` prints `.husky/_`. Control added: `config --get` prints `/x`, so the env wins for git's own use. | 05 |
 | 18 | `TestBehaviourPrepareCommitMsgRunsUnderNoVerify` | `commit --no-verify`: `prepare-commit-msg` ran and its line is in the message, while `pre-commit` and `commit-msg` (both `exit 1`) were skipped. | 05 |
 | 19 | `TestBehaviourRevListLeftRightCountFormat` | `rev-list --left-right --count A...B`, A one ahead and B two: `"1\t2\n"`. | 08 |
-| 20 | `TestBehaviourGitVarInACloneMissesTheSourcesLocalIdentity` | In the source, `git var GIT_AUTHOR_IDENT` prints its local identity; in the clone it does not. **Finding:** with no identity anywhere, the clone's `git var` exited **0** and printed `Dylan <au-dev-dmackie1@kpmg.com.au> …`, which is Git for Windows' fallback: the Windows display name and the account's UPN. No config supplied it. | 03 (see Divergences) |
+| 20 | `TestBehaviourGitVarInACloneMissesTheSourcesLocalIdentity` | In the source, `git var GIT_AUTHOR_IDENT` prints its local identity; in the clone it does not. **Finding:** with no identity anywhere, the clone's `git var` exited **0** and printed `<display name> <account UPN> …`, which is Git for Windows' fallback: the Windows display name and the account's UPN (the real values are in the `-v` log, not repeated here). No config supplied it. | 03 (see Divergences) |
 | 21 | `TestBehaviourNoWriteFetchHeadLeavesFetchHeadAlone` | `fetch --no-auto-maintenance --no-write-fetch-head <bundle> +refs/heads/b:refs/panacea/lanes/w` (the bundle from `bundle create` in a scratch clone): no `FETCH_HEAD` in a fresh clone, and `FETCH_HEAD`'s bytes and mtime unchanged after a `fetch origin` wrote one. The lane ref lands. | 07, 08, 12 |
 | 22 | `TestBehaviourCheckRefFormatBranchExpandsShorthand` | `--branch @{-1}`: exit 0, `feature\n`. `refs/heads/@{-1}`: exit 1, no stderr. `update-ref refs/heads/@{-1} HEAD 0000…`: exit 128, "fatal: update_ref failed for ref 'refs/heads/@{-1}': refusing to update ref with bad name 'refs/heads/@{-1}'". `--branch -x` and `--branch HEAD`: exit 128, "fatal: '-x' is not a valid branch name" and "fatal: 'HEAD' is not a valid branch name". `refs/heads/-x`, `refs/heads/HEAD`: exit 0. `refs/heads/a..b`: exit 1, empty stderr. | 11 |
 | 23 | `TestBehaviourRemoveSectionExitCodes` | `--remove-section branch.nope`: exit 128, "fatal: no such section: branch.nope". A present section: exit 0. With `.git/config.lock` held: exit **255**, "error: could not lock config file .git/config". `branch -D x` then exits 0, stdout "Deleted branch x (was 9cf81c2).", stderr **two** lines: "error: could not lock config file .git/config" and "warning: update of config-file failed"; `[branch "x"]` stays in `.git/config` and `refs/heads/x` is gone. | 11 |
@@ -128,13 +132,16 @@ The raw logs are `scratchpad/p3/r12/r12-round2.log` and `r12.log`.
 
 No pin was inverted: all 29 held as the part states them. These are the facts the pins found
 beyond that, each with the task it touches. Divergence 14 is about running the pins, not
-about git's answers.
+about git's answers. Divergence 15 comes from a probe, not a pin. Only task 02's part reads
+this section in its preflight. So each divergence that changes another task is also carried
+to that task in the stream's `carried/` files (local and git-ignored, `.superpowers/sdd/p3/carried/`;
+fix round 1). D5, D7 and D10 are not carried, and `carried/INDEX.md` gives the reasons.
 
 1. **Host git invents an identity on Windows (tasks 02, 03; 08, 09, 10).** With no
    `user.name`/`user.email` in any config and no `GIT_AUTHOR_*`/`EMAIL`, Git for Windows
    2.53 does not fail: `git var GIT_AUTHOR_IDENT` exits 0 with
-   `Dylan <au-dev-dmackie1@kpmg.com.au> <time> +1000` (the Windows display name and the
-   account's UPN), and `commit` exits 0 as that identity. With `-c user.useConfigOnly=true`,
+   `<display name> <account UPN> <time> +1000` (the Windows display name and the account's
+   UPN), and `commit` exits 0 as that identity. With `-c user.useConfigOnly=true`,
    `var` exits 128: "fatal: no email was given and auto-detection is disabled". (Row 20, and a
    probe on 2026-09-25, `scratchpad/p3/t01-identprobe.out`.) So task 03 step 5
    (`var GIT_AUTHOR_IDENT` in the project, copied into the clone when ParseIdent accepts it)
@@ -143,7 +150,18 @@ about git's answers.
    `user.useConfigOnly`. **Change:** task 03 step 5 runs `var` with
    `-c user.useConfigOnly=true`, or task 02's hardening sets `user.useConfigOnly=true` for
    every host call, so a host `commit-tree` (tasks 08, 09, 10) cannot author as an invented
-   identity either. Phase 2's host identity resolver may have the same gap (not checked here).
+   identity either.
+   **Phase 2's resolver, checked 2026-09-26 (task 01 fix round 1).** At `31576b7` and at the
+   phase-2 tip `87551a9`, `control-plane/cmd/api/gitidentity.go:18-27` and `:38` read
+   `git var GIT_AUTHOR_IDENT` in hostGit's own directory, never a worktree (X-1). They do not
+   set `user.useConfigOnly`, and on purpose: the comment says the derived identity is the one
+   the owner's own commits carry. `api.Deps.GitIdentity` takes no path
+   (`internal/api/api.go:149`). So the resolver has this shape by design, and every session is
+   sent that identity as `GIT_AUTHOR_*`. The change above would make a lane's local identity
+   disagree with it. Which rule decides who "the user" is, the same across phases, is the
+   orchestrator's call. The recommended rule is phase 2's. Then task 03's step 5 keeps the
+   project's `git var` answer, or is dropped as redundant: the resolver no longer reads the
+   clone, so task-03:14-16 is stale. Carried to task 03 with the correction.
 2. **`branch -D` with the config locked prints two stderr lines (task 11).** "error: could not
    lock config file .git/config", then "warning: update of config-file failed", with exit 0.
    DeleteBranch's warn-and-answer rule must look for the warning line, not treat stderr as
@@ -160,18 +178,34 @@ about git's answers.
    2.39 (`GIT_CONFIG_COUNT` needs 2.31, which it has).
 6. **`os.RemoveAll` needs no read-only fix on `go1.26.2` (tasks 03, 11).** Git for Windows wrote
    the pack `-rw-rw-rw-`, and even a pack forced read-only was removed first time. The reason is
-   Go's, not git's: `os.Remove` on Windows clears `FILE_ATTRIBUTE_READONLY` and retries
-   (`GOROOT/src/os/file_windows.go:247-249`, go1.26.2). The chmod walk the part names is a
-   fallback, not a requirement, on this toolchain. Task 03's `RemoveTree` comment ("os.RemoveAll
-   fails on them") is wrong here, and its `TestRemoveTreeDeletesReadOnlyObjects` cannot go red
-   against a plain `os.RemoveAll`: task 03 either drops the walk and leans on this pin, or keeps
-   it and states the red it shows (a Go change, not git). An older Go is not covered.
+   Go's, not git's. On go1.26.2 Windows builds `GOROOT/src/os/removeall_at.go`
+   (`//go:build unix || wasip1 || windows`). `os.Remove` runs only on the top-level path (`:29`).
+   Each child is deleted by `removeAllFrom` (`:56`), through `removefileat` (`:68`) or
+   `removedirat` (`:152`), which call `windows.Deleteat` (`os/root_windows.go:346-351`). That
+   passes `FILE_DISPOSITION_IGNORE_READONLY_ATTRIBUTE`
+   (`internal/syscall/windows/at_windows.go:290-303`), and its fallback, `deleteatFallback`,
+   clears the attribute (`:327-344`). *Corrected in fix round 1:* this entry first cited
+   `os/file_windows.go:247-249`, which is `os.Remove`'s own clear-and-retry, the top-level path
+   only. On go1.23.12 (the module cache's toolchain) Windows builds `removeall_noat.go`
+   (`//go:build !unix`). It deletes each child with `os.Remove` (`:30`, `:108`, `:127`, `:134`),
+   whose clear-and-retry is at `os/file_windows.go:205-206` there. So go1.23 has the same
+   outcome by another path (read in source; see the run note below). The chmod walk the part
+   names is a fallback, not a requirement, on these toolchains. Task 03's `RemoveTree` comment
+   ("os.RemoveAll fails on them") is wrong here, and its `TestRemoveTreeDeletesReadOnlyObjects`
+   cannot go red against a plain `os.RemoveAll`. Task 03 either drops the walk and leans on
+   this pin, or keeps it and states the red it shows (a Go change, not git). Go older than 1.23
+   is not covered; the module's floor is `go 1.23`.
 7. **merge-tree `-z` messages end in a newline before their NUL (tasks 07, 08).** Each
    informational record is `<count>\0<path>…\0<type>\0<text>\n\0`. A parser that takes the
    paths up to the empty field (row 10) never reads them; one that shows messages trims the
    `\n`.
-8. **The trailer read-back has two trailing newlines (tasks 09, 10).** Row 13: trim, do not
-   compare the raw stdout.
+8. **The trailer read-back has two trailing newlines (tasks 09, 10; 05, 08).** Row 13: trim, do not
+   compare the raw stdout. Task 02's `TrailerFormat` (`separator=%x1f`) prints the value with
+   no newline of its own. Two parts read `valueonly` without it (fix round 1 probe,
+   `scratchpad/p3/t01f1-trailer-probe.out`):
+   - task-08:62's `for-each-ref` format printed `<sha> w-c\n\n<sha> w-a\n\n`, a blank line after
+     every record. That is b06-2 issue 2, already carried to task 08.
+   - task-05:222's `log -1` printed `w-a\n\n`.
 9. **Docker Desktop bind mounts show every file as `-rwxrwxrwx root` (task 05).** The env
    hooks directory's `prepare-commit-msg` ran without the test setting a mode, because this
    mount makes every file executable. A Linux host or a Kata sandboxd will not, so task 05's
@@ -220,7 +254,42 @@ about git's answers.
     ("git could not start"). Retrying that one code is safe, because no git code ran; a git
     that started and then failed, like the `fetch` above, cannot be told from a real failure
     and is not retried. For these pins: an `exit 3221225794` in this package's log is the
-    machine, not a finding. Rerun with fewer processes live.
+    machine, not a finding. Rerun with fewer processes live. *Since fix round 1 (2026-09-26)*
+    the pin helper says so itself. Every git call, and the sandbox half's `docker run`, goes
+    through `runProgram`. On that code, `runProgram` stops the pin with "git could not start
+    (exit 3221225794 = 0xC0000142, STATUS_DLL_INIT_FAILED): the machine's load, not a finding
+    about git". `TestPinHelperNamesAProgramThatNeverStarted` pins this with a
+    `cmd /c exit -1073741502` fixture. That test went red before the check existed, and it also
+    checks that the codes 0, 1, 128 and 255 pass through untouched. The helper does not retry.
+    A test binary that itself fails to start ("exit status 0xc0000142" from `go test`, with no
+    test run) is outside any helper's reach.
+15. **No pin shows what `core.checkStat=minimal` and `core.trustctime=false` do. A probe shows
+    they spare one full re-hash, not one per `status` (task 03; task 07 knows).** Added in fix
+    round 1 (review M-2, 2026-09-26).
+    - The reviewer's mutant S1 dropped both keys from `task03Argv`, and all 3 sandbox pins stayed
+      green (`scratchpad/p3/t01rv-S1.out`). A pin sees only what `status` prints, and a re-hash
+      prints nothing.
+    - So a probe measured it instead: `scratchpad/p3/t01f1-stat-probe.sh`, output `.out`, host
+      git 2.53.0.windows.2, image `5d9a580e…`. The host is production-shaped. Two lanes were
+      cloned from one 41-file source: "with", by task 03's step-4 argv, and "without", the same
+      minus the two keys. Each lane got three sandbox `git status --porcelain` runs, each in a
+      new container with sessionEnv's eight pairs. The host hashed `.git/index` after each run
+      and ran no git in either lane.
+    - Every status printed nothing and exited 0.
+    - What the index held: host git wrote `dev: 0 ino: 0` and a Windows ctime for every entry.
+      The sandbox's `stat` of `f1.txt` saw `dev 67`, a 64-bit inode, and ctime in whole
+      seconds. Both were the same in all three containers.
+    - "with": the index was never rewritten (one hash from clone to run 3).
+    - "without": run 1 rewrote the index (`636b74d1…` → `38658cd5…`). Its entries took the
+      sandbox's `dev: 67`, a 32-bit inode and the new ctime. So git re-read every file to confirm
+      it was unchanged, which is a full re-hash. Runs 2 and 3 left the index alone.
+    - So task-03:309 ("the stat data Windows wrote never matches through the bind mount") holds
+      for the index as host git writes it. But task-03:313-314 ("a full re-hash on every
+      `status`") is wrong on Docker Desktop. Without the keys the cost is one re-hash, at the
+      first sandbox status after create, and the sandbox's own stat data is stable across
+      container restarts. Keep the keys: they cost nothing and spare that re-hash.
+    - Unmeasured: a Kata or virtiofs mount, whose inode or uid numbering may not be stable, and
+      a large repository's time. Carried to task 03 as t01-D15.
 
 ## Mutation check
 

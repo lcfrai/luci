@@ -9,8 +9,6 @@ package gitx
 // entrypoint replaced by /bin/sh: sandboxd plays no part in what git does.
 
 import (
-	"bytes"
-	"errors"
 	"fmt"
 	"os/exec"
 	"path/filepath"
@@ -79,18 +77,19 @@ func sandboxEnv(pairs [][2]string) []string {
 }
 
 // needSandbox skips, with a sentence, unless docker answers and the image exists. The test
-// builds no image.
+// builds no image. The inspect goes through runProgram, so a docker.exe that Windows could
+// not start fails the pin with that sentence instead of skipping as "the image is absent".
 func needSandbox(t *testing.T) {
 	t.Helper()
 	if _, err := exec.LookPath("docker"); err != nil {
 		t.Skip("docker is not on PATH, so the sandbox half of the git pins cannot run")
 	}
-	out, err := exec.Command("docker", "image", "inspect", "--format", "{{.Id}} {{.Created}}", sandboxImage).CombinedOutput()
-	if err != nil {
-		t.Skipf("the image %s is absent (docker image inspect: %v: %s); build the phase 2 sandbox image and rerun",
-			sandboxImage, err, strings.TrimSpace(string(out)))
+	out, errs, code := runProgram(t, "docker", "", nil, "", "image", "inspect", "--format", "{{.Id}} {{.Created}}", sandboxImage)
+	if code != 0 {
+		t.Skipf("the image %s is absent (docker image inspect: exit %d: %s); build the phase 2 sandbox image and rerun",
+			sandboxImage, code, strings.TrimSpace(out+errs))
 	}
-	t.Logf("image %s: %s", sandboxImage, strings.TrimSpace(string(out)))
+	t.Logf("image %s: %s", sandboxImage, strings.TrimSpace(out))
 }
 
 // hostPath is p with Windows 8.3 short names (AU-DEV~1) expanded, the form a bind mount's
@@ -113,7 +112,9 @@ var containerSeq atomic.Int64
 
 // inSandbox runs script under /bin/sh in a fresh sandbox, with work bind-mounted at
 // /home/dev/work, the working directory there, env set and binds added. The exit code is
-// the docker client's, which `docker run` passes through from the container's process.
+// the docker client's, which `docker run` passes through from the container's process. The
+// client runs through runProgram, so a docker.exe that Windows could not start (0xC0000142)
+// stops the pin with that sentence, not as a container's exit code (task-01 review M-3).
 func inSandbox(t *testing.T, work string, env []string, binds []bind, script string) (stdout, stderr string, code int) {
 	t.Helper()
 	name := fmt.Sprintf("pa-p3-t01-%d-%d", time.Now().UnixNano()%1e9, containerSeq.Add(1))
@@ -130,20 +131,12 @@ func inSandbox(t *testing.T, work string, env []string, binds []bind, script str
 		args = append(args, "-e", kv)
 	}
 	args = append(args, sandboxImage, "-c", script)
-	cmd := exec.Command("docker", args...)
-	var out, errb bytes.Buffer
-	cmd.Stdout, cmd.Stderr = &out, &errb
-	if err := cmd.Run(); err != nil {
-		var exit *exec.ExitError
-		if !errors.As(err, &exit) {
-			t.Fatalf("docker run: could not start: %v", err)
-		}
-	}
-	code = cmd.ProcessState.ExitCode()
+	// The docker client's own environment (nil env): the container's is the -e list above.
+	stdout, stderr, code = runProgram(t, "docker", "", nil, "", args...)
 	if code == 125 {
-		t.Fatalf("docker run itself failed (exit 125): %s", errb.String())
+		t.Fatalf("docker run itself failed (exit 125): %s", stderr)
 	}
-	return out.String(), errb.String(), code
+	return stdout, stderr, code
 }
 
 // sandboxFixture is a source repository of LF blobs, a symlink entry link -> t.txt, and an
