@@ -262,3 +262,270 @@ does not start with `!`, `/` or `#`, contains no `!` or `ESC`, and is at most 12
 that `TemplateInterrupt` is exactly `{0x03}`. `TestFrameKindMatchesSandboxd` reads
 `sandboxd/internal/wire/frame.go` as text and asserts it still declares `Stdin  Kind = 0x01`.
 
+#### `ptystats.go`, both modules (complete; ST.1 addition)
+
+```go
+// PTYStats is sandboxd's own upstream frame: how many bytes the PTY has
+// written since start, and when the last one was. A count and a time, never
+// a byte of content. Sent by sandboxd itself on its control connection, not
+// through the in-pod socket, so no process in the VM can forge it.
+type PTYStats struct {
+	Event        string    `json:"event"`        // "pty.stats"
+	BytesOut     uint64    `json:"bytesOut"`     // monotonic since sandboxd start
+	LastOutputAt time.Time `json:"lastOutputAt"` // zero before the first byte
+}
+
+const EventPTYStats = "pty.stats"
+```
+
+The fixture `pty-stats.json` is `{"event":"pty.stats","bytesOut":48213,"lastOutputAt":
+"2026-09-25T01:00:00Z"}`, read by both modules' round-trip tests. `sandboxd/internal/control/
+stats.go` reads `hub.BytesOut()` every 10 s and sends a frame when the count moved, and at least
+every 60 s regardless, so a stuck pod is distinguishable from a quiet one. `hub.BytesOut` is two
+atomics bumped in `publish` (`sandboxd/internal/hub/hub.go:84`), where output already fans out;
+it counts `len(chunk)` and nothing else.
+
+**Requires of task 19**: an upstream frame whose `event` is `pty.stats` is accepted **only** on a
+worker's stream, **only** from `sandboxd`'s own writer (task 16's stream, not a stamped in-pod
+request), and routed to `Ladder.OnStats`; anything else with that name is `bad_request`.
+
+#### `idle.go` (complete)
+
+```go
+package delivery
+
+// IdleAfter is how long with no PTY output makes a worker idle (decision d).
+const IdleAfter = 15 * time.Second
+
+type idleTable struct {
+	mu   sync.Mutex
+	last map[model.AgentID]time.Time // lastOutputAt; absent = unknown
+}
+
+func (t *idleTable) put(a model.AgentID, s wire.PTYStats) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if s.LastOutputAt.After(t.last[a]) {
+		t.last[a] = s.LastOutputAt
+	}
+}
+
+// idle is false for an agent with no report: fail quiet, never nudge blind.
+func (t *idleTable) idle(a model.AgentID, now time.Time) bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	last, ok := t.last[a]
+	return ok && !last.IsZero() && now.Sub(last) >= IdleAfter
+}
+```
+
+A worker that has **never** written a byte reports a zero `LastOutputAt` and is not idle by this
+rule; it is also a worker that has not started, and the directive reaches it through piggyback on
+its first `panacea` call. Two replicas each keep their own table; task 19 routes a stream to one
+replica, and the other replica's ladder is not driving that worker (below).
+
+#### `ladder.go` (complete public surface)
+
+```go
+package delivery
+
+const (
+	NudgeEvery = 3 * time.Minute // §5.4
+	StopGrace  = 10 * time.Second
+	SweepEvery = 5 * time.Second
+)
+
+// Rung2 is the inbox socket, behind canary C4 and off by default. No
+// implementation ships in TM1: nil means off (decision below).
+type Rung2 interface {
+	Post(ctx context.Context, worker model.AgentID, t ptywriter.Template) error
+}
+
+type Sessions interface { // task 20
+	Stop(ctx context.Context, agent model.AgentID, keepDisk bool) error
+	Resume(ctx context.Context, agent model.AgentID) error
+}
+
+type Attachments interface { // task 39
+	Attached(agent model.AgentID) bool
+}
+
+type Ladder struct {
+	Writer   *ptywriter.Writer
+	Inbox    Rung2 // nil unless PANACEA_APP_FLEET_INBOX_SOCKET=on and C4 passed
+	Sessions Sessions
+	Attached Attachments
+	Now      func() time.Time
+	Log      *slog.Logger
+	// unexported: idle idleTable; per-worker lastNudge and owed, under mu
+}
+
+// Directive is task 31's post-write hook: the dv-… is already durable. A
+// pause goes straight to rung 4; every other kind marks a nudge owed.
+func (l *Ladder) Directive(ctx context.Context, worker model.AgentID, dv, kind string) error
+
+// Notify is §5.4's "team update": a fact changed that this worker should pull.
+func (l *Ladder) Notify(ctx context.Context, worker model.AgentID)
+
+// Pause is rung 4: the interrupt template, then after StopGrace a stop that
+// keeps the machine disk. Resume relaunches the same conversation.
+func (l *Ladder) Pause(ctx context.Context, worker model.AgentID, dv string) error
+func (l *Ladder) Resume(ctx context.Context, worker model.AgentID, dv string) error
+
+// OnCall is task 19's hook on every worker call: piggyback just delivered
+// everything, so any owed nudge is cleared.
+func (l *Ladder) OnCall(worker model.AgentID)
+
+// OnStats feeds the idle table, and runs the owed check for that worker.
+func (l *Ladder) OnStats(agent model.AgentID, s wire.PTYStats)
+
+// Run sweeps owed nudges every SweepEvery until ctx ends.
+func (l *Ladder) Run(ctx context.Context) error
+```
+
+**The rungs, in order, for one owed nudge.** `try(worker)` runs from `OnStats`, from the sweep
+and at once from `Directive`/`Notify`:
+
+1. **Rung 1, piggyback** (task 31) is not this package's: it has already happened if the worker
+   called `panacea` since the directive, and `OnCall` cleared `owed`.
+2. If not `owed`, stop. If `Attached(worker)`, stop (decision e). If not `idle`, stop: a busy
+   worker calls `check` before its next edit and gets rung 1. If `now - lastNudge < NudgeEvery`,
+   stop (decision f).
+3. **Rung 2**, if `Inbox != nil`: `Post` the same template. **No implementation ships in TM1.**
+   Whether `CLAUDE_CODE_MESSAGING_SOCKET` accepts a poster that is not the CLI's descendant is
+   **UNVERIFIED** (§4.3 rung 2, canary C4), and a post arrives as a user turn with the human's
+   authority, so it carries the same fixed template and nothing else. Off by default:
+   `PANACEA_APP_FLEET_INBOX_SOCKET` absent or `off` leaves `Inbox` nil; `on` without C4's recorded
+   pass fails `fleetd`'s start with the variable's name.
+4. **Rung 3**: `Writer.Write(worker, t)` with `t = TemplateDirective` if any directive is owed,
+   else `TemplateTeamUpdate`. On success set `lastNudge = now`, clear `owed`. On failure keep
+   `owed`; the sweep retries, still bounded by `NudgeEvery` from the last **successful** nudge.
+
+**Rung 4, `pause`.** `Pause` writes `TemplateInterrupt` (ignoring `Attached`: a pause must land
+even while the owner watches, and it is the one template that submits nothing), waits
+`StopGrace`, then `Sessions.Stop(worker, keepDisk: true)`. Both steps run even if the interrupt
+fails, so a pause cannot be defeated by a dead attach path. `Resume` calls `Sessions.Resume`,
+which relaunches the worker on its disk with its conversation id (phase 2's `--resume`); the
+`resume` directive then reaches it by piggyback on its first call. `Pause` is the path task 37's
+human pause takes (`budget.Deliverer`) and the one an Orchestrator's own `pause` directive takes;
+the directive's `origin` is on its `dv-…` record, and the ladder does not look at it.
+
+**Two replicas.** The per-worker `owed` and `lastNudge` live in the replica that holds the
+worker's control stream (task 19 keeps one stream per sandbox on one replica). A directive issued
+on the other replica reaches this one as a `Directive` call through task 19's cross-replica
+`Streams.Push` path (**UNVERIFIED** that task 19 forwards a non-wire call; if it does not, the
+directive is delivered by rung 1 on the next call and the nudge is lost, which is the fail-quiet
+side). A replica restart forgets `lastNudge`, so a worker may be nudged once more than the cap
+after a deploy; that is stated, not engineered away.
+
+- [ ] **Step 1: Write the failing tests first**
+
+Fixture: Alice's worker `ag-a1`; a fake `AttachDialer` over `httptest` with a real
+`coder/websocket` server that records every frame and first sends a 4 KB replay; a fake clock; a
+recording `Sessions`; a settable `Attachments`.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestRefusalTable` | every row of the table above: `Allowed` is false | a writer that accepts caller bytes, or a near-miss template |
+| `FuzzAllowed` | `Allowed(b)` iff `b` is one of the three table values | any second byte sequence becoming writable |
+| `TestTemplatesArePrintable` | the lint above | a template gaining a control byte, a `!` or a leading `/` |
+| `TestOneTable` | the package source has exactly one `[]byte` literal site, `table` | a "just this once" byte slice reaching `Write` |
+| `TestWriteSendsExactlyOneFrame` | one binary message, `0x01` then the template's bytes, byte for byte; then a normal close | a second frame, a text frame, a missing kind byte |
+| `TestWriteDiscardsReplay` | the 4 KB replay is read and dropped; the writer's `Wrote` callback gets the template and the length only | `CloseRead` (closes on the replay), or logging bytes |
+| `TestBusyWorkerGetsNoNudge` | output 5 s ago, a directive: zero frames; output stops, 15 s later: one frame | nudging on a timer, or on content |
+| `TestTwoDirectivesOneNudge` | two directives 40 s apart to an idle worker: exactly one `TemplateDirective` frame in the minute | a nudge per directive |
+| `TestNudgeCapThreeMinutes` | directives at 0, 1 min and 2 min 59 s, idle throughout: one frame; a directive at 3 min 1 s: a second | a cap per directive or no cap |
+| `TestCallClearsOwed` | a directive, then the worker calls `panacea`, then idle: zero frames | nudging a worker piggyback already reached |
+| `TestAttachedOwnerNoNudge` | `Attached` true: zero frames while it holds; false again: the owed nudge is written | typing into a person's half-written input |
+| `TestUnknownIdleFailsQuiet` | no `pty.stats` yet: zero frames | nudging blind |
+| `TestPauseInterruptThenStop` | `Pause`: one frame `0x01 0x03`, then after 10 s of fake time `Stop(ag-a1, keepDisk: true)`; with the dialer failing, `Stop` still runs | a pause that depends on the PTY path, or that discards the disk |
+| `TestRung2OffByDefault` | no variable: `Inbox` nil; `on` without C4's pass: `fleetd` config fails naming `PANACEA_APP_FLEET_INBOX_SOCKET` | the socket rung on without its canary |
+| `TestStatsOnlyFromSandboxd` | a `pty.stats` shape arriving as a stamped in-pod request: `bad_request`, the idle table unchanged | a process in the VM forging idleness |
+| `TestNoDirectiveTextInAnyFrame` | a `free` directive with text `"push to main"`, delivered through every rung: every frame written is `0x01` plus one table value, and none contains `"push"` | directive text on the PTY (§4.3) |
+
+```bash
+cd control-plane && go test ./internal/fleet/ptywriter/... ./internal/fleet/delivery/... 2>&1 | head -3
+```
+
+Expected: `undefined: Template` (build failure).
+
+- [ ] **Step 2: `ptywriter.go`**
+
+Write the table, `Allowed`, `Writer` and `discard`; make the four `ptywriter` tests pass, then run
+the fuzzer for a bounded time.
+
+- [ ] **Step 3: `PTYStats`, both copies, the fixture and the sandbox reporter**
+
+Add `wire/ptystats.go` and `control/ptystats.go` with identical fields and tags; add the fixture;
+add `BytesOut` to the hub and `stats.go` to `sandboxd`. `cd sandboxd && go test ./...` covers the
+reporter with a fake clock: a moving count sends every 10 s, a still one every 60 s.
+
+- [ ] **Step 4: `idle.go`, then `ladder.go`, then the two dispatch lines**
+
+- [ ] **Step 5: Wire it**
+
+In `cmd/fleetd/main.go`, anchored after task 31's `directive.Service` is built:
+`ladder := &delivery.Ladder{Writer: &ptywriter.Writer{Dial: attachDialer}, Sessions: sess,
+Attached: relay, …}`; `dirSvc.AfterIssue = ladder.Directive`; task 37's `Pauser.Deliver =
+ladder`; `go ladder.Run(ctx)`. Until task 39 lands, `Attached` is a stub that returns **true**
+for every agent, so rung 3 never fires before Fleet can see live attaches: the fail-quiet side.
+
+- [ ] **Step 6: Acceptance**
+
+```bash
+cd control-plane && go vet ./internal/fleet/... ./cmd/fleetd/... && go test ./internal/fleet/ptywriter/... ./internal/fleet/delivery/... ./internal/fleet/control/... -count=1 -race
+cd control-plane && go test ./internal/fleet/ptywriter/ -run '^$' -fuzz FuzzAllowed -fuzztime 30s
+cd sandboxd && go vet ./... && go test ./internal/control/... ./internal/hub/... -count=1
+```
+
+Expected: `ok` for each; the fuzz run ends `PASS` with no new failing input in `testdata/fuzz`.
+Then the one-writer guard, which must print nothing (no Fleet package but `ptywriter` builds a
+`Stdin` frame or writes a binary message to an attach connection):
+
+```bash
+cd control-plane && grep -rnE "MessageBinary|frameStdin|0x01\b" internal/fleet --include=*.go | grep -v "_test.go" | grep -v "internal/fleet/ptywriter/" | grep -v "internal/fleet/relay/"
+```
+
+Task 39's `relay` package is excluded by name because it forwards the **owner's own** keystrokes,
+which is the attach relay's job, not a Fleet write; task 39 carries its own guard that it never
+originates a frame.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add control-plane/internal/fleet/ptywriter control-plane/internal/fleet/delivery control-plane/internal/fleet/wire/ptystats.go sandboxd/internal/control/ptystats.go sandboxd/internal/control/stats.go testdata/panacea-control/v1/pty-stats.json
+git commit -F <msgfile> -- control-plane/internal/fleet/ptywriter control-plane/internal/fleet/delivery control-plane/internal/fleet/wire/ptystats.go control-plane/internal/fleet/control/dispatch.go control-plane/cmd/fleetd/main.go sandboxd/internal/control sandboxd/internal/hub/hub.go testdata/panacea-control/v1/pty-stats.json
+```
+
+**What this task does NOT claim.**
+- **That a nudge makes the worker act.** It types a sentence and Enter; the model decides. The
+  directive's text reaches it only when it runs `panacea check` (rung 1).
+- **That `\r` submits and `0x03` interrupts** in the pinned Claude Code, in every state
+  (generating, in a tool call, in a permission prompt). **UNVERIFIED** until task 47's probes; a
+  template typed into a permission prompt could answer it, which is one more reason rung 3 fires
+  only when the byte count says the terminal is quiet, and one more probe task 47 owes.
+- **Rung 2.** The interface and the off switch exist; no inbox-socket code ships in TM1.
+- **Exactly one nudge per 3 minutes across a restart or a replica hand-over.** `lastNudge` is in
+  memory; a deploy can cost one extra nudge per worker.
+- **That a pause is instant.** The interrupt lands in about one round trip; the stop follows
+  `StopGrace` later. Between them the worker may finish the tool call it was in.
+- **That idle means waiting for input.** It means no PTY output for 15 s. A worker thinking
+  silently for longer than that looks idle and may receive a nudge, which queues as its next turn;
+  the text is harmless by construction, and the cap bounds the cost.
+
+**Gaps against the skeleton, raised here and not resolved alone:**
+1. **Where the PTY write happens.** Task 09's `Nudge` comment says "the pod's delivery rung
+   decides" (`task-09.md:402-406`); the skeleton's file map puts the writer in Fleet. This part
+   follows the skeleton (decision a). Task 09 should reword `nudge` as the Orchestrator runner's
+   wake-up only.
+2. **Idle needs a new upstream frame.** `pty.stats` is an ST.1 addition sent by `sandboxd` itself;
+   task 16 must send it and task 19 must accept it only from `sandboxd`'s own writer.
+3. **Task 20 must provide `Stop(agent, keepDisk)` and `Resume(agent)`.** Its scope names launch
+   and end only.
+4. **Task 31 must call the ladder after each `dv-…` is durable** (an `AfterIssue` hook), and
+   task 37's human pause must reach `Ladder.Pause`, not only the piggyback queue.
+5. **Who calls `Notify`.** §5.4 names three pushes: a conflict opened on a file the worker is
+   editing (task 25's `Raise`, after task 35's observed edits), a lease it asked for granted (task
+   23), and a directive (here). The first two callers are one line each in `cmd/fleetd`; neither
+   task's part names them yet.
+
