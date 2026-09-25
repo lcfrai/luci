@@ -15,13 +15,14 @@ never enter the replica. It draws nothing: tasks 170 to 173 do.
 
 **Decisions made here, so nobody re-derives them:**
 
-1. **Task 143's list wins over this task's scope paragraph.** The scope names `SyncLogEntry`,
+1. **Names come from the task that owns the route.** This task's scope names `SyncLogEntry`,
    `LoopVersion`, `LoopTrigger`, `LoopBound`, `TeamAgentPolicy` and `DigestSettings.teams`; task
-   143's paragraph (`…-scopes/tasks-141-160.md:139-174`) names `SyncRun`, `Loop.version`,
-   `Loop.trigger`, `Loop.grid`, `HarnessAllow` plus `TeamSkill`, and `TeamsBinding`. The desktop
-   mirrors Go, so the types below carry task 143's names. `LoopVersion` survives as a desktop-only
-   name for "a `Loop` as it was at one `version`" (decision 6), and `SyncLogEntry` as a desktop
-   **view** derived from a `SyncRun`, never a wire type (decision 7). The mismatch is a gap, below.
+   143's paragraph (`…-scopes/tasks-141-160.md:139-174`) names `SyncRun`, a flat `Loop`,
+   `HarnessAllow` plus `TeamSkill`, and `TeamsBinding`; tasks 162-163 (the loop routes) name
+   `Loop`, `LoopVersion`, `LoopTrigger`, `LoopBound` and `LoopRun` field by field. The desktop
+   mirrors Go, so: the loop types are 162-163's, the rest task 143's. `SyncLogEntry` is a desktop
+   **view** derived from a `SyncRun` (decision 7), and `TeamAgentPolicy` is task 143's
+   `HarnessAllow` plus `TeamSkill[]`. The mismatches are G1, below.
 2. **Field for field with Go, by value, not by eye.** Each W5 type has a `WIRE_KEYS` entry held to
    its type both ways by task 37's `keys<T>()`, and a golden test reads task 143's
    `control-plane/internal/hub/hubapi/testdata/work-intake/*.json` **by path** and requires every
@@ -41,10 +42,10 @@ never enter the replica. It draws nothing: tasks 170 to 173 do.
    and nothing else stores them: `ops.ts` has no op for them, `workSlice` has no field typed with
    them, and a test walks the slice and the replica after the create resolves and finds no string
    equal to the secret.
-6. **A loop edit is a new version.** `ops.ts` gains `putLoop`, which sends the whole loop with the
-   `version` it was read at; the Hub answers the next `version` (task 162). There is no op that
-   patches a loop in place, and `ListLoopVersions` answers `Loop[]`, newest first; the desktop
-   aliases one element as `LoopVersion`.
+6. **A loop edit is a new version.** `ops.ts` gains `loop.version`, which posts a whole
+   `LoopVersion` body to task 162's `POST …/versions` (owner only); the Hub answers version n+1 and
+   the old one stays listed. There is no op that patches a version in place; the only patch is
+   the head's `state` (task 162's `PATCH`), which a team admin may use to pause.
 7. **The sync log is a view over `SyncRun`, not a wire type.** Task 143's `SyncRun` carries counts
    (`created`, `existing`, `commentsIn`, `commentsOut`) and `errors [{externalId, code}]`. Task
    171's log needs one row per external item. `syncLogRows(run)` derives one `SyncLogEntry` per
@@ -197,52 +198,58 @@ export const ACTION_CLASSES = ["read", "edit_own_worktree", "edit_outside_worktr
 export type ActionClass = (typeof ACTION_CLASSES)[number];
 export const AUTONOMY_LEVELS = ["ask_first", "propose_and_wait", "act_and_tell", "full"] as const;
 export type AutonomyLevel = (typeof AUTONOMY_LEVELS)[number];
-/** A class absent from the map inherits the owner's own grid (shown greyed by task 172). */
-export type LoopGrid = Partial<Record<ActionClass, AutonomyLevel>>;
+/** Task 162's LoopBound: turnsPerDay 1-24; a class absent from levels inherits the owner's own
+ *  grid (shown greyed by task 172). */
+export interface LoopBound { turnsPerDay: number; levels: Partial<Record<ActionClass, AutonomyLevel>> }
 
 export type ScheduleEvery = "day" | "weekday" | "week";
 export interface LoopTrigger {
   kind: "event" | "schedule";
-  eventKinds: string[];        // SW.5 and SW.21 kinds; [] for a schedule
-  filter: { labels: string[]; states: string[] };   // event triggers only
-  every: ScheduleEvery | null; at: string | null;   // HH:MM
-  tz: string | null;           // IANA, the owner's
+  eventKinds: string[];        // SW.5 and SW.21 feed kinds only; [] for a schedule
+  filter: { labelId: string | null; fromState: IssueState | null; toState: IssueState | null };
+  schedule: { every: ScheduleEvery; at: string; tz: string } | null;   // HH:MM, IANA; null for an event
 }
-export type LoopAction = { kind: "turn" } | { kind: "start_on_accept"; label: string };
-export type LoopState = "active" | "paused";
+export type LoopState = "on" | "paused";
+/** The loop's head (task 162). Its text lives in its versions. */
 export interface Loop {
   id: string;                  // lp-…
-  ownerId: string; teamId: string;
+  teamId: string; projectId: string;
+  owner: User;
   name: string;                // 1-80 characters
-  trigger: LoopTrigger;
-  instruction: AuthoredText;   // text·H, at most 2000 characters
-  action: LoopAction;
-  grid: LoopGrid;
-  version: number;             // the Hub's; a write sends the version it read
   state: LoopState;
-  author: User; at: string;    // who wrote this version, and when
+  pausedCause: string | null;  // "owner_left" is task 162's; others the part names
+  currentVersion: number;
 }
-/** One element of ListLoopVersions: the loop as it was at `version`. A desktop name only. */
-export type LoopVersion = Loop;
+export type LoopAction = "turn" | "start";   // "start": Start on the accepted issue (task 163)
+/** Append-only: an edit is version n+1 (task 162). instruction is text·H of the owner, ≤ 2000. */
+export interface LoopVersion {
+  loopId: string; version: number;
+  trigger: LoopTrigger; instruction: AuthoredText;
+  action: LoopAction; labelId: string | null;
+  bound: LoopBound;
+  savedAt: string; savedBy: User;
+}
 
-export type LoopCause = "event" | "schedule" | "run_now";
 export type LoopOutcome = "queued" | "ran" | "skipped_budget" | "skipped_paused" | "refused_bound" | "failed";
+/** SW.10's Start result (task 24), as task 163's `started` carries it. */
+export interface StartedLane { issueKey: string; sessionId: string; branch: string; route: string }
+/** Keyed by (loopId, run): no id prefix (task 163). */
 export interface LoopRun {
-  id: string;                  // lr-…
-  loopId: string; version: number; cause: LoopCause;
-  startedAt: string; endedAt: string | null;
+  loopId: string; run: number; version: number; firedAt: string;
+  trigger: { kind: "event" | "schedule" | "manual"; eventSeq: string | null; scheduledFor: string | null };
   outcome: LoopOutcome;
-  turnRef: string | null;      // ot-… (Phase T's Orchestrator turn)
-  sessionId: string | null; worktree: string | null;   // set when the action was a Start
+  turnId: string | null;       // ot-… (Phase T's Orchestrator turn)
+  started: StartedLane[];      // [] unless the action was a Start
+  endedAt: string | null;
 }
 ```
 
-Task 143's scope types `Loop` without `name`, `action`, `trigger.filter`, `author` or `at`,
-`Loop.grid` as one level name, `LoopRun.outcome` as an unnamed string, and `LoopRun` without the
-Start's session and worktree. Task 172 needs every one of them. They are written here as the
-desktop needs them and **proposed to task 143** (gap G1); the golden test fails until task 143
-carries them, which is the signal the two parts disagree, exactly as task 125 did for
-`featurePins`.
+The loop types follow **tasks 162 and 163's scopes** (`tasks-161-180.md:96-103`, `:139-143`),
+which own the routes and name every field task 172 draws. Task 143's scope names a flatter `Loop`
+(trigger, instruction and `grid` on the head, one level name) and an `lr-` prefix for `LoopRun`;
+task 163 says *no new id prefix*. Task 162 says *"143 wins on names"*, but 143's part does not
+exist and its scope carries less, so this part follows 162-163 and records the conflict as G1;
+the golden test decides once task 143's part lands. `IssueState` is task 37's.
 
 #### Interfaces — complete: `work.ts`, part 15: the admin records (never in the replica)
 
@@ -319,19 +326,20 @@ export interface AcceptRequestBody {
 export interface LinkRequestBody { issueId: string }
 export interface PutIntakeRulesBody { rules: Omit<IntakeRule, "id" | "author" | "version">[]; version: number }
 export interface PutFormBody { name: string; fields: FormField[]; defaults: IntakeForm["defaults"] }
-export interface ConnectTrackerBody { projectId: string; target: TrackerTarget; mode: TrackerMode }
-export interface PutLoopBody extends Omit<Loop, "id" | "ownerId" | "author" | "at" | "version" | "state"> {
-  version: number | null;      // null creates; otherwise the version this edit was read at
-}
+export interface ConnectTrackerBody { target: TrackerTarget; mode: TrackerMode }   // projectId is the path's
+/** One version's content (task 162's POST …/versions); the Hub stamps loopId, version, savedAt/By. */
+export type LoopVersionBody = Omit<LoopVersion, "loopId" | "version" | "savedAt" | "savedBy">;
+export interface CreateLoopBody { name: string; first: LoopVersionBody }   // the caller becomes owner
 export interface CreateAPIKeyBody { name: string; scope: KeyScope; teamId: string | null; expiresAt: string }
 export interface CreateWebhookBody { projectId: string | null; url: string; kinds: string[] }
 export interface DecideBody { decision: "approve" | "revoke" }
 export interface PutTeamSkillBody { name: string; source: TeamSkill["source"]; ref: string }
 ```
 
-No body carries an idempotency field: every create and every *run now* goes through task 56's
-`keyed(op.id)` client, which sends `Idempotency-Key` on each attempt (`task-56.md:89-98`), so a
-double press is one op and one run. `AcceptRequestBody.description` is what the **person** typed,
+Every create and every *run now* goes through task 56's `keyed(op.id)` client, which sends
+`Idempotency-Key` on each attempt (`task-56.md:89-98`), so a double press is one op and one run.
+The one body that also names the key is *run now*, because task 163's route takes `{requestId}`
+and answers a repeat with the first run: the desktop sends the same op id in both places. `AcceptRequestBody.description` is what the **person** typed,
 and an empty one is legal (task 170). The quote is never a field of it.
 
 #### Interfaces — complete: `work.ts`, part 17: the relay table
@@ -357,14 +365,15 @@ export const WORK_RELAY_W5 = [
   ["DisconnectTracker", "DELETE", "/v1/trackers/{connectionId}"],
   ["ListSyncRuns", "GET", "/v1/trackers/{connectionId}/runs"],
   ["ListTrackerLinks", "GET", "/v1/trackers/{connectionId}/links"],
-  ["ListLoops", "GET", "/v1/me/loops"],
-  ["TeamLoops", "GET", "/v1/teams/{teamId}/loops"],
-  ["PutLoop", "PUT", "/v1/loops/{loopId}"],
-  ["CreateLoop", "POST", "/v1/me/loops"],
-  ["PauseLoop", "PUT", "/v1/loops/{loopId}/state"],
-  ["ListLoopVersions", "GET", "/v1/loops/{loopId}/versions"],
-  ["ListLoopRuns", "GET", "/v1/loops/{loopId}/runs"],
-  ["RunLoopNow", "POST", "/v1/loops/{loopId}/runs"],
+  // loops: task 162's and 163's paths (tasks-161-180.md:104-108, :144-148)
+  ["CreateLoop", "POST", "/v1/projects/{projectId}/work/loops"],
+  ["ProjectLoops", "GET", "/v1/projects/{projectId}/work/loops"],
+  ["GetLoop", "GET", "/v1/work/loops/{loopId}"],
+  ["SetLoopState", "PATCH", "/v1/work/loops/{loopId}"],
+  ["PutLoopVersion", "POST", "/v1/work/loops/{loopId}/versions"],
+  ["ListLoopVersions", "GET", "/v1/work/loops/{loopId}/versions"],
+  ["ListLoopRuns", "GET", "/v1/work/loops/{loopId}/runs"],
+  ["RunLoopNow", "POST", "/v1/work/loops/{loopId}/runs"],
   ["ListApps", "GET", "/v1/apps"],
   ["DecideApp", "PUT", "/v1/apps/{appId}/decision"],
   ["CreateAPIKey", "POST", "/v1/keys"],
@@ -388,14 +397,17 @@ export type RelayMethodW5 = (typeof WORK_RELAY_W5)[number][0];
 export const W5_NOT_RELAYED = ["/v1/hooks/", "/v1/teams-bot/", "/v1/forms/{formId}/submit", "/mcp"] as const;
 ```
 
-Nine rows name a method task 143's list lacks: `RequestMessages` (task 157's thread),
+Rows naming a method task 143's list lacks: `RequestMessages` (task 157's thread),
 `SetTrackerMode` (task 153's per-connection switch), `ListTrackerLinks` (task 171's imported
-rows and upstream changes; task 150 names the `ExternalLink` record and no list), `ListLoops`, `TeamLoops`, `CreateLoop` and
-`PauseLoop` (tasks 162-163's own list and pause), `ListApps` and `ListTeamSkills`. They are proposed
-to task 143 with G1. `PauseLoop` is a separate row from `PutLoop` because a team admin may pause a
-teammate's loop but not write a version of it (OD-16, task 172). *Publish to sandboxes* is **not**
-a row here: it posts TM-14's policy route, which is Phase T's relay, not the Work relay, and task
-173 reaches it only once Phase T merges.
+rows and upstream changes; task 150 names the `ExternalLink` record and no list), `CreateLoop`,
+`ProjectLoops`, `GetLoop` and `SetLoopState` (task 162's routes), `ListApps` and
+`ListTeamSkills`. They are proposed to task 143 with G1. `SetLoopState` is a separate row from
+`PutLoopVersion` because a team admin may pause a teammate's loop but never write a version of it
+(OD-16, task 162). `ListLoopVersions` is task 143's method with no route in task 162's scope, so
+its path is this part's. Task 162's paths start `/v1/work/…`, so `relayPath` makes them
+`/v1/hub/work/work/loops/…`: mechanical and correct by task 37's rule, if unlovely (gap G7).
+*Publish to sandboxes* is **not** a row here: it posts TM-14's policy route, which is Phase T's
+relay, not the Work relay, and task 173 reaches it only once Phase T merges.
 
 #### Interfaces — complete: `work.ts`, part 18: the `WorkIntakeClient` members
 
@@ -419,14 +431,15 @@ export interface WorkIntakeClient {
   setTrackerMode(connectionId: string, mode: TrackerMode): Promise<TrackerConnection>;
   disconnectTracker(connectionId: string): Promise<TrackerConnection>;
   syncRuns(connectionId: string, page?: PageRequest): Promise<Page<SyncRun>>;
-  myLoops(): Promise<Loop[]>;
-  teamLoops(teamId: string): Promise<Loop[]>;
-  createLoop(body: PutLoopBody): Promise<Loop>;
-  putLoop(loopId: string, body: PutLoopBody): Promise<Loop>;
-  pauseLoop(loopId: string, state: LoopState): Promise<Loop>;
+  createLoop(projectId: string, body: CreateLoopBody): Promise<{ loop: Loop; current: LoopVersion }>;
+  projectLoops(projectId: string): Promise<Loop[]>;          // every loop the caller may read
+  loop(loopId: string): Promise<{ loop: Loop; current: LoopVersion }>;
+  setLoopState(loopId: string, state: LoopState): Promise<Loop>;   // owner; an admin may pause
+  putLoopVersion(loopId: string, body: LoopVersionBody): Promise<LoopVersion>;   // owner only, n+1
   loopVersions(loopId: string): Promise<LoopVersion[]>;      // newest first
   loopRuns(loopId: string, page?: PageRequest): Promise<Page<LoopRun>>;
-  runLoopNow(loopId: string): Promise<LoopRun>;              // outcome "queued"
+  /** Task 163's body is {requestId}; the desktop sends the op id as it and as Idempotency-Key. */
+  runLoopNow(loopId: string, requestId: string): Promise<LoopRun>;   // outcome "queued"
   apps(): Promise<App[]>;
   decideApp(appId: string, body: DecideBody): Promise<App>;
   createAPIKey(body: CreateAPIKeyBody): Promise<CreatedAPIKey>;
@@ -471,10 +484,12 @@ so task 168's digest re-check on the new revision runs in the relay before the d
   externalLink: keys<ExternalLink>({ id: true, source: true, externalId: true, issueId: true, url: true,
     lastSeenAt: true, upstream: true }),
   syncRun: keys<SyncRun>({ connectionId: true, at: true, created: true, existing: true, commentsIn: true, commentsOut: true, errors: true }),
-  loop: keys<Loop>({ id: true, ownerId: true, teamId: true, name: true, trigger: true, instruction: true,
-    action: true, grid: true, version: true, state: true, author: true, at: true }),
-  loopRun: keys<LoopRun>({ id: true, loopId: true, version: true, cause: true, startedAt: true, endedAt: true,
-    outcome: true, turnRef: true, sessionId: true, worktree: true }),
+  loop: keys<Loop>({ id: true, teamId: true, projectId: true, owner: true, name: true, state: true,
+    pausedCause: true, currentVersion: true }),
+  loopVersion: keys<LoopVersion>({ loopId: true, version: true, trigger: true, instruction: true,
+    action: true, labelId: true, bound: true, savedAt: true, savedBy: true }),
+  loopRun: keys<LoopRun>({ loopId: true, run: true, version: true, firedAt: true, trigger: true,
+    outcome: true, turnId: true, started: true, endedAt: true }),
   app: keys<App>({ id: true, name: true, entraClientId: true, manifest: true, actsAs: true, state: true, decidedBy: true, decidedAt: true }),
   apiKey: keys<APIKey>({ id: true, scope: true, ownerId: true, teamId: true, name: true, shown: true,
     createdAt: true, expiresAt: true, lastUsedAt: true, revokedAt: true, revokedBy: true }),
@@ -493,7 +508,7 @@ export const W5_GOLDENS = {
   "request": "request", "request-erased": "request", "request-message": "requestMessage",
   "intake-rule": "intakeRule", "intake-form": "intakeForm",
   "tracker-connection": "trackerConnection", "external-link": "externalLink", "sync-run": "syncRun",
-  "loop": "loop", "loop-run": "loopRun", "app": "app", "api-key": "apiKey",
+  "loop": "loop", "loop-version": "loopVersion", "loop-run": "loopRun", "app": "app", "api-key": "apiKey",
   "created-api-key": "createdApiKey", "webhook": "webhook", "created-webhook": "createdWebhook",
   "webhook-delivery": "webhookDelivery", "mcp-connector": "mcpConnector",
   "harness-allow": "harnessAllow", "team-skill": "teamSkill",
@@ -502,14 +517,16 @@ export const W5_GOLDENS = {
 
 ```ts
 // desktop/src/api/client.ts ⚑ — ProblemCode gains task 143's ten appended codes (its scope's list)
-  /* the W5 Work wire (tasks 143, 168) */
+// and the two tasks 162-163 name (tasks-161-180.md:109, :150)
+  /* the W5 Work wire (tasks 143, 162, 163, 168) */
   | "request_closed" | "form_field_required" | "tracker_exists" | "principal_cannot_move_state"
   | "webhook_url_invalid" | "app_not_approved" | "key_revoked" | "connector_not_allowed"
-  | "harness_not_allowed" | "loop_outside_grid"
+  | "harness_not_allowed" | "loop_outside_grid" | "loop_bound_exceeds_owner" | "loop_paused"
 ```
 
-`workProblem` files all ten as `refused` with `details` intact, so task 170 can name the missing
-field (`form_field_required`), task 172 the level (`loop_outside_grid`) and task 171 the refused
+`workProblem` files all twelve as `refused` with `details` intact, so task 170 can name the
+missing field (`form_field_required`), task 172 the level (`loop_bound_exceeds_owner`, or task
+143's `loop_outside_grid` for a run: two names for near kin, gap G1) and task 171 the refused
 move (`principal_cannot_move_state`). `FormField` is checked inside `intake-form.json`
 (`fields[i]`), as task 125 checks `InitiativeFeature`.
 
@@ -526,7 +543,9 @@ export const W5_FEED_KINDS = [
   "intake_rules.set", "intake_form.set",
   "tracker.connected", "tracker.mode_set", "tracker.disconnected", "sync.run",
   "external_link.created",
-  "loop.version_put", "loop.state_set", "loop.run_queued", "loop.run_ended",
+  "loop.created", "loop.version_saved", "loop.state_set",
+  "work.loop_fired",   // task 162's name (tasks-161-180.md:112): it opens a run, queued (task 163)
+  "loop.run_ended",
 ] as const;
 export type W5FeedKind = (typeof W5_FEED_KINDS)[number];
 
@@ -541,7 +560,8 @@ export const W5_ADMIN_KINDS = [
 export const W5_SIGNAL_KINDS: ReadonlySet<string> = new Set(["request.unrouted"]);
 
 export const W5_SUBJECT_PREFIX = { "rq-": "request", "ir-": "intakeRule", "fm-": "intakeForm",
-  "tc-": "tracker", "xl-": "externalLink", "lp-": "loop", "lr-": "loopRun" } as const;
+  "tc-": "tracker", "xl-": "externalLink", "lp-": "loop" } as const;
+// A run has no prefix (task 163): work.loop_fired and loop.run_ended name {loopId, run} in data.
 
 export const isW5Kind = (k: string): k is W5FeedKind => (W5_FEED_KINDS as readonly string[]).includes(k);
 export const isW5Admin = (k: string): boolean => (W5_ADMIN_KINDS as readonly string[]).includes(k);
@@ -569,8 +589,9 @@ export interface IntakeRecords {
   trackers: ReadonlyMap<string, TrackerConnection>;        // tc-…
   links: ReadonlyMap<string, ExternalLink>;                // by issueId: at most one per issue
   syncRuns: ReadonlyMap<string, SyncRun[]>;                // by connectionId, newest first, last 50
-  loops: ReadonlyMap<string, Loop>;                        // lp-…, the caller's own, latest version
+  loops: ReadonlyMap<string, Loop>;                        // lp-…, heads of the caller's projects
   loopRuns: ReadonlyMap<string, LoopRun[]>;                // by loopId, newest first, last 50
+  // A loop's versions are NOT held: task 172 fetches them on open (loopVersions, loop).
 }
 // Replica (task 55) gains:
 //   intake(): IntakeRecords
@@ -588,7 +609,8 @@ export type IntakeOp =
   | { kind: "rules.put"; teamId: string; body: PutIntakeRulesBody; prev: PutIntakeRulesBody }
   | { kind: "form.put"; teamId: string; formId: string; body: PutFormBody; prev: PutFormBody }
   | { kind: "tracker.mode"; connectionId: string; mode: TrackerMode; prev: TrackerMode }
-  | { kind: "loop.put"; loopId: string | null; body: PutLoopBody }          // a new version
+  | { kind: "loop.create"; projectId: string; body: CreateLoopBody }
+  | { kind: "loop.version"; loopId: string; body: LoopVersionBody; prev: LoopVersionBody }   // n+1
   | { kind: "loop.state"; loopId: string; state: LoopState; prev: LoopState }
   | { kind: "loop.runNow"; loopId: string };                                // no inverse
 // Deliberately absent: any op for keys, apps, webhooks, connectors, harness or skills (decision
@@ -597,8 +619,8 @@ export type IntakeOp =
 ```
 
 **Inverses** (task 56's `inverseOf(op, before)`): `request.important` inverts to the `prev` value;
-`rules.put`, `form.put`, `tracker.mode` and `loop.state` to a put of `prev`; `loop.put` to a
-`loop.put` of the version read before (a **new** version equal to the old one, so the history
+`rules.put`, `form.put`, `tracker.mode` and `loop.state` to a put of `prev`; `loop.version` to a
+`loop.version` of `prev`, the version read before (a **new** version equal to the old one, so the history
 keeps both, decision 6). `request.accept` and `request.link` invert to a Hub *unlink* only if task
 146 has one; its scope names none, so `U` is refused with the fact line *"Accepting cannot be
 undone here; decline the issue from its page"* (gap G3). `request.decline` has no reopen in task
@@ -608,7 +630,7 @@ undone here; decline the issue from its page"* (gap G3). `request.decline` has n
 
 1. **Load.** For each team the caller is a member of: `requests(teamId)` (all pages; open and the
    last 90 days of closed), `intakeRules`, `trackers`; for each tracker, the first page of
-   `syncRuns`; then `myLoops()` and, for each, the first page of `loopRuns`. A request's thread
+   `syncRuns`; then, per project, `projectLoops` and, for each, the first page of `loopRuns`. A request's thread
    (`requestMessages`) loads on first open by task 170, not at start. `ExternalLink`s arrive with
    the issues task 55 loads, where task 150 embeds them (**UNVERIFIED**: task 150 names the link
    record, not how it rides; gap G4).
@@ -690,12 +712,13 @@ describe("SW.21 the W5 wire", () => {
   });
 
   // Kills: a double press on run now as two runs.
-  it("runLoopNow through keyed() sends one Idempotency-Key on every attempt", async () => {
-    const send = vi.fn(async () => ({ id: "lr-1", outcome: "queued" }));
+  it("runLoopNow through keyed() sends one key, as header and requestId, on every attempt", async () => {
+    const send = vi.fn(async () => ({ loopId: "lp-1", run: 4, outcome: "queued" }));
     const c = makeWorkClient(send).keyed("op-7");
-    await c.runLoopNow("lp-1"); await c.runLoopNow("lp-1");
+    await c.runLoopNow("lp-1", "op-7"); await c.runLoopNow("lp-1", "op-7");
     expect(send.mock.calls.map((a) => a[3])).toEqual([{ idempotencyKey: "op-7" }, { idempotencyKey: "op-7" }]);
-    expect(send).toHaveBeenCalledWith("POST", "/v1/hub/work/loops/lp-1/runs", undefined, { idempotencyKey: "op-7" });
+    expect(send).toHaveBeenCalledWith("POST", "/v1/hub/work/work/loops/lp-1/runs", { requestId: "op-7" },
+      { idempotencyKey: "op-7" });
   });
 
   // Kills: a rate reading guessed when a header is missing.
@@ -742,7 +765,7 @@ marker or the test's slice is empty and the row test fails, which is the signal.
    quote visible by grant".
 7. **No persistence** — task 55's no-persistence grep runs over `kinds.ts`, `replica.ts`, `ops.ts`,
    `visibility.ts` and `work.ts` and passes; then a spy on `Storage.prototype.setItem` during a
-   full load plus one `putLoop` records zero calls. A test double whose `createLoop` writes the draft
+   full load plus one `putLoopVersion` records zero calls. A test double whose `createLoop` writes the draft
    to `localStorage` makes the same check fail. **Kills** "a loop draft in `localStorage`".
 8. **No loop patch, no admin op** — `INTAKE_OP_KINDS` (the runtime list of `IntakeOp["kind"]`)
    holds no kind starting `loop.patch`, `key.`, `app.`, `webhook.`, `connector.`, `harness.` or
@@ -779,15 +802,15 @@ npm --prefix desktop run typecheck
 
 #### Gaps found while writing this part
 
-1. **G1 — task 143's list and the desktop's needs differ.** This task's scope names types task 143
-   does not (`SyncLogEntry`, `LoopVersion`, `LoopTrigger`, `LoopBound`, `TeamAgentPolicy`,
-   `DigestSettings.teams`); resolved above by task 143's names. The other way, tasks 172 and 173
-   need fields and methods task 143's scope lacks: `Loop.name`, `.action`, `.trigger.filter`,
-   `.author`, `.at`; `Loop.grid` as per-class levels (AX §7's grid, not one level name);
-   `LoopRun.outcome`'s words, `.sessionId`, `.worktree`; `App.actsAs`; `ExternalLink.upstream`
-   (task 150's `UpstreamChange`); `AcceptRequestBody.serves`; and the methods `RequestMessages`,
-   `SetTrackerMode`, `ListTrackerLinks`, `ListLoops`, `TeamLoops`, `CreateLoop`, `PauseLoop`,
-   `ListApps`, `ListTeamSkills`. Task 143 takes them or the goldens fail here.
+1. **G1 — task 143's scope, tasks 162-163's scopes and this task's scope name the W5 wire three
+   ways.** Loops: task 143 has a flat `Loop` with `grid` as one level name, `LoopRun` with an `lr-`
+   id and `loop_outside_grid`; tasks 162-163 have `Loop` + `LoopVersion` + `LoopBound{turnsPerDay,
+   levels}` + `LoopRun` keyed `(loopId, run)` and `loop_bound_exceeds_owner`, `loop_paused`. This
+   part follows 162-163 (they own the routes; decision 1). Beyond both, tasks 170-173 need:
+   `App.actsAs`, `ExternalLink.upstream` (task 150's `UpstreamChange`),
+   `AcceptRequestBody.serves`, and the methods `RequestMessages`, `SetTrackerMode`,
+   `ListTrackerLinks`, `CreateLoop`, `ProjectLoops`, `GetLoop`, `SetLoopState`, `ListApps`,
+   `ListTeamSkills`. Task 143's part must take one set, and the goldens fail here until it does.
 2. **G2 — task 144 and task 170 disagree on the accepted issue's description.** Task 144's scope
    says `AcceptRequest` writes revision 1 with **the quote** as the description; task 170's scope
    and 05 §3.5 say the quote is customer content and **never** copied into the issue. This part
@@ -802,3 +825,7 @@ npm --prefix desktop run typecheck
 6. **Parts missing.** Tasks 55, 143, 144, 146-168 have no part on this tree; every name from them
    is their scope's and **UNVERIFIED**. The File map's `desktop/src/components/…` row has no home
    for `loops/` (scope 172 names it).
+7. **G7 — task 162's paths carry `/work/` after `/v1`.** Every other Work route is `/v1/<noun>`,
+   so task 37's `relayPath` gives `/v1/hub/work/<noun>`; task 162's `/v1/work/loops/…` becomes
+   `/v1/hub/work/work/loops/…`. It works, but task 162 should drop the `/work` segment (to
+   `/v1/loops/…` and `/v1/projects/{projectId}/loops`) so the relay stays uniform.
