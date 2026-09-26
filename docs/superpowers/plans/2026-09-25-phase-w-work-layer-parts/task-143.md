@@ -70,3 +70,202 @@ and task 114's embed pattern and stubs (`task-114.md:35-75`, `:798-956`).
 10. **Stubs keep `var _ Hub = (*Fake)(nil)` compiling**, as task 114's decision 2:
     `fake_work_intake_stub.go` (task 144 deletes it) and `client_work_intake_stub.go` (task 168
     deletes it), every method answering `workNotInFakeYet` or `ErrNotConfigured`.
+
+#### Files
+
+| Path (under `control-plane/internal/hub/`) | Change |
+|---|---|
+| `hubapi/work_intake.go` | new: the adopted blocks (decision 1) and every type below, the codes' status map, `Validate` |
+| `hubapi/work_intake_test.go` | new: goldens, validation, the no-prediction and no-secret reflection tests, codes |
+| `hubapi/testdata/work-intake/*.json` | new: one golden per record (twenty-four files, listed in *Tests first*) |
+| `hubapi/workids.go` ⚑ (task 02) | appended: nine prefixes and `WorkIntakePrefixes` |
+| `hubapi/work.go` ⚑ (task 03) | appended: three import sources |
+| `hubapi/codes.go` ⚑ | appended: eleven W5 codes, in the file's style |
+| `hubclient/work.go` ⚑ (tasks 04, 72, 99, 114) | `Work` embeds `WorkIntake`; the interface, complete |
+| `hubclient/fake_work_intake_stub.go` | new: `*Fake` satisfies `WorkIntake` with 501s (task 144 deletes it) |
+| `hubclient/client_work_intake_stub.go` | new: the HTTP client's 501s (task 168 deletes it) |
+| `hubclient/work_intake_test.go` | new: the compile-time embed assertions |
+
+#### `hubapi/workids.go` ⚑, appended (complete)
+
+```go
+// W5 prefixes (task 143, decision 6). Proposed here as additions to 05 §3.6's
+// list, as task 99 did for gd-. Checked free on 2026-09-26 against the Hub's
+// ten (hub-contract :103-112), the control plane's s p b w m, Phase T's twelve,
+// WorkPrefixes above and task 99's gd; TestWorkPrefixesAreDisjoint re-checks.
+const (
+	PrefixIntakeRule    = "ir"
+	PrefixForm          = "fm"
+	PrefixTracker       = "tc"
+	PrefixExternalLink  = "xl"
+	PrefixHostLink      = "hl" // an outside PR link or an outside commit link (task 154)
+	PrefixWebhook       = "wh"
+	PrefixDelivery      = "wd"
+	PrefixApp           = "oa"
+	PrefixAPIKey        = "ak"
+)
+
+// WorkIntakePrefixes is every W5 prefix above, in declaration order.
+var WorkIntakePrefixes = []string{PrefixIntakeRule, PrefixForm, PrefixTracker,
+	PrefixExternalLink, PrefixHostLink, PrefixWebhook, PrefixDelivery, PrefixApp, PrefixAPIKey}
+```
+
+`rq` and `lp` are task 02's already. Task 02's `TestWorkPrefixesAreDisjoint` gains
+`WorkIntakePrefixes` in its union (one line), so a W5 prefix that collides with any list is caught.
+
+#### `hubapi/work.go` ⚑, appended (complete)
+
+```go
+// W5's import sources (task 143; task 150's engine writes through SW.6 with
+// these). Task 15 fixed linear and csv and named these three as W5's.
+const (
+	ImportSourceJira        = "jira"
+	ImportSourceAzureBoards = "azure_boards"
+	ImportSourceGitHub      = "github"
+)
+
+func init() {
+	ImportSources = append(ImportSources, ImportSourceJira, ImportSourceAzureBoards, ImportSourceGitHub)
+}
+```
+
+`ImportSources` is task 15's `var` (`task-15.md:177`), so appending in `init` keeps task 15's
+declaration untouched and its validator unchanged: `ValidateImportBatch` reads the slice.
+`TestImportBatchAcceptsW5Sources` below holds that `ImportBatch{Source: "jira"}` passes.
+
+#### `hubapi/work_intake.go`, complete: the header, actors and trackers
+
+```go
+package hubapi
+
+import (
+	"encoding/json"
+	"fmt"
+	"net/mail"
+	"net/url"
+	"strings"
+	"time"
+	"unicode/utf8"
+)
+
+// ActorKind names who wrote a Work record (task 167). The Hub's Postgres
+// setting hub.work_actor_kind takes these seven words and no other (task 145).
+type ActorKind string
+
+const (
+	ActorPerson      ActorKind = "person"
+	ActorAgent       ActorKind = "agent"       // a person's agent: OwnerID and AgentID set
+	ActorJanitor     ActorKind = "janitor"     // the Hub's own sweep; no user
+	ActorIntegration ActorKind = "integration" // a tracker connection's principal (task 150)
+	ActorApp         ActorKind = "app"         // an approved app acting for UserID (task 159)
+	ActorKey         ActorKind = "key"         // an API key acting for UserID (task 160)
+	ActorHost        ActorKind = "host"        // an outside host's webhook, mapped to UserID (task 154)
+)
+
+var ActorKinds = []ActorKind{ActorPerson, ActorAgent, ActorJanitor, ActorIntegration, ActorApp, ActorKey, ActorHost}
+
+// Actor is ids only: no name, no email (task 156 sends it to third parties).
+type Actor struct {
+	Kind    ActorKind `json:"kind"`
+	UserID  string    `json:"userId,omitempty"`  // the person the write is attributed to
+	OwnerID string    `json:"ownerId,omitempty"` // the agent's owner
+	AgentID string    `json:"agentId,omitempty"`
+	AppID   string    `json:"appId,omitempty"`   // oa-…
+	KeyID   string    `json:"keyId,omitempty"`   // ak-…
+}
+
+// ── Tracker sync (tasks 150-153) ───────────────────────────────────────────
+
+// TrackerMode never names a state: sync never writes a state, a fact or done
+// (05 §5.4 W5). "in" is one way into triage; "in_and_comments" adds comments.
+type TrackerMode string
+
+const (
+	TrackerIn            TrackerMode = "in"
+	TrackerInAndComments TrackerMode = "in_and_comments"
+)
+
+type TrackerState string
+
+const (
+	TrackerActive       TrackerState = "active"
+	TrackerDisconnected TrackerState = "disconnected"
+)
+
+// TrackerConnection binds one outside project to one Hub project (task 150).
+type TrackerConnection struct {
+	ID          string          `json:"id"` // tc-…
+	TeamID      string          `json:"teamId"`
+	ProjectID   string          `json:"projectId"`
+	Source      string          `json:"source"` // ImportSourceJira | ImportSourceAzureBoards | ImportSourceGitHub
+	Target      json.RawMessage `json:"target"` // one of the three below, by Source (decision 8)
+	Mode        TrackerMode     `json:"mode"`
+	PrincipalID string          `json:"principalId"` // the integration principal; never a token
+	State       TrackerState    `json:"state"`
+	LastRunAt   *string         `json:"lastRunAt"`
+	CreatedBy   User            `json:"createdBy"`
+}
+
+type AzureBoardsTarget struct {
+	Source       string  `json:"source"` // "azure_boards"
+	Organisation string  `json:"organisation"`
+	Project      string  `json:"project"`
+	AreaPath     *string `json:"areaPath"`
+}
+
+type GitHubTarget struct {
+	Source     string `json:"source"` // "github"
+	Owner      string `json:"owner"`
+	Repository string `json:"repository"`
+}
+
+type JiraTarget struct {
+	Source     string `json:"source"` // "jira"
+	Site       string `json:"site"`   // https://<name>.atlassian.net
+	ProjectKey string `json:"projectKey"`
+}
+
+// UpstreamChange is an outside edit, shown in the sync log and never applied.
+// To is the tracker's own word ("Closed"), display text only (decision 7).
+type UpstreamChange struct {
+	ExternalID string `json:"externalId"`
+	Field      string `json:"field"`
+	At         string `json:"at"`
+	To         string `json:"to"`
+}
+
+// ExternalLink is unique on (projectId, source, externalId): SW.6's idempotency key.
+type ExternalLink struct {
+	ID         string          `json:"id"` // xl-…
+	Source     string          `json:"source"`
+	ExternalID string          `json:"externalId"`
+	IssueID    string          `json:"issueId"`
+	URL        string          `json:"url"`
+	LastSeenAt string          `json:"lastSeenAt"`
+	Upstream   *UpstreamChange `json:"upstream"`
+}
+
+// SyncError names why one outside item was refused; RetryAt is the tracker's
+// own reset time when it gave one (decision 7), never an estimate.
+type SyncError struct {
+	ExternalID string  `json:"externalId"`
+	Code       string  `json:"code"`
+	RetryAt    *string `json:"retryAt"`
+}
+
+// SyncRun is one engine pass. Counts are facts of that pass, not a total to reach.
+type SyncRun struct {
+	ConnectionID string      `json:"connectionId"`
+	At           string      `json:"at"`
+	Created      int         `json:"created"`
+	Existing     int         `json:"existing"`
+	CommentsIn   int         `json:"commentsIn"`
+	CommentsOut  int         `json:"commentsOut"`
+	Errors       []SyncError `json:"errors"` // never null
+}
+
+type ConnectTrackerRequest struct {
+	Target json.RawMessage `json:"target"`
+	Mode   TrackerMode     `json:"mode"`
+}
+```
