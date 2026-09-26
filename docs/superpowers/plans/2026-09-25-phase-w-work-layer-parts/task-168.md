@@ -698,5 +698,73 @@ func intakeCalls() map[string]workCall {
 panics (task 16) catch a 43 or a 45. `DeleteMCPConnector` refuses `?url=a&url=b` and any second
 parameter before the Hub is called, so one relay call removes at most one connector. The strict
 `inb` on the four no-body `POST`s (`RevokeAPIKey`, `DisableWebhook`, `RotateWebhookSecret`,
-`Redeliver`) means `{}` or no body is accepted and `{"x":1}` is 400 (task 16's `body`,
-`task-16.md:567`; that an empty body decodes as `empty` is **UNVERIFIED** there, gap 8).
+`Redeliver`) means `{}` is accepted and `{"x":1}` is 400. **No body at all is also 400**: task
+16's `body` (`task-16.md:567`) is `httpx.DecodeJSON`, whose first `Decode` returns `io.EOF` on an
+empty body and answers it (`httpx/problem.go:130-133`, read 2026-09-26). The desktop's `postJSON`
+for these four must send `{}` (task 169's, gap 8).
+
+#### Contract — the route audit (complete)
+
+Twenty W5 relay routes are `GET`s. Each gets one line in `catalogReadOnlyRoutes`
+(`routes_audit_test.go:32`) under task 16's `workRelayRead` reason (`task-16.md:789`), and task
+124's `TestW4RelayPathsAreExactlyTheTable` (`task-124.md:702-721`) covers the W5 rows unchanged,
+because it walks `AllWorkRoutes()`. One W5 test adds the counts and the not-relayed paths.
+
+```go
+// control-plane/internal/api/routes_audit_test.go ⚑ — appended to catalogReadOnlyRoutes
+	"GET /v1/hub/work/teams/{teamId}/requests":             workRelayRead,
+	"GET /v1/hub/work/requests/{requestId}":                workRelayRead,
+	"GET /v1/hub/work/issues/{issueId}/requests":           workRelayRead,
+	"GET /v1/hub/work/teams/{teamId}/intake-rules":         workRelayRead,
+	"GET /v1/hub/work/teams/{teamId}/forms":                workRelayRead,
+	"GET /v1/hub/work/forms/{formId}":                      workRelayRead,
+	"GET /v1/hub/work/teams/{teamId}/trackers":             workRelayRead,
+	"GET /v1/hub/work/trackers/{connectionId}/runs":        workRelayRead,
+	"GET /v1/hub/work/trackers/{connectionId}/links":       workRelayRead,
+	"GET /v1/hub/work/projects/{projectId}/work/loops":     workRelayRead,
+	"GET /v1/hub/work/work/loops/{loopId}":                 workRelayRead,
+	"GET /v1/hub/work/work/loops/{loopId}/versions":        workRelayRead,
+	"GET /v1/hub/work/work/loops/{loopId}/runs":            workRelayRead,
+	"GET /v1/hub/work/apps":                                workRelayRead,
+	"GET /v1/hub/work/me/api-keys":                         workRelayRead,
+	"GET /v1/hub/work/teams/{teamId}/api-keys":             workRelayRead,
+	"GET /v1/hub/work/teams/{teamId}/webhooks":             workRelayRead,
+	"GET /v1/hub/work/webhooks/{webhookId}/deliveries":     workRelayRead,
+	"GET /v1/hub/work/work/mcp-connectors":                 workRelayRead,
+	"GET /v1/hub/work/teams/{teamId}/work/agent-policy":    workRelayRead,
+
+// TestW5RelayCountsAndExclusions: 44 relayed rows (20 GETs), 11 hub-only rows
+// never mounted, and no pattern for a Hub-facing ingress (decision 3).
+func TestW5RelayCountsAndExclusions(t *testing.T) {
+	gets := 0
+	for _, rt := range hubclient.WorkIntakeRoutes {
+		if rt.Method == http.MethodGet {
+			gets++
+		}
+	}
+	if n := len(hubclient.WorkIntakeRoutes); n != 44 || gets != 20 {
+		t.Errorf("WorkIntakeRoutes: %d rows, %d GETs; 146-166 fix 44 and 20", n, gets)
+	}
+	got := registeredPatterns(t) // task 124's helper
+	for _, rt := range hubclient.WorkIntakeHubOnlyForTest() {
+		if got[rt.Relay()] {
+			t.Errorf("hub-only %s is mounted as %q", rt.Name, rt.Relay())
+		}
+	}
+	for p := range got {
+		for _, bad := range []string{"/v1/hub/work/hooks/", "/v1/hub/work/teams/messages", "/mcp",
+			"/v1/hub/work/forms/{formId}/submit", "/sentinel"} {
+			if strings.Contains(p, bad) {
+				t.Errorf("%q relays a Hub-facing ingress (%s)", p, bad)
+			}
+		}
+	}
+}
+```
+
+`WorkIntakeHubOnlyForTest` is `hubclient`'s `export_test`-style accessor for the unexported
+list; since `api`'s test is another package, it is an exported function in a non-test file,
+named so no product caller mistakes it for a relay list (gap 9 offers the alternative). The
+Sentinel exporter is outbound only (167) and has no Hub route at all, so the `/sentinel` guard
+is belt and braces. **Mutants killed:** a hub-only row appended to `WorkIntakeRoutes` (a
+`CreateRequest` relay); a hand-mounted `/v1/hub/work/hooks/{host}`; a 45th row with no surface.
