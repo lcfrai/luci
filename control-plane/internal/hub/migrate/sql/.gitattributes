@@ -1,0 +1,5 @@
+# A migration's sha256 is of its bytes exactly as embedded (migrate.Load), and
+# the runner refuses an applied migration whose digest has changed (ErrEdited).
+# core.autocrlf=true would check these out with CRLF on Windows and LF on Linux,
+# so one commit would carry two digests: pin LF everywhere.
+*.sql text eol=lf
