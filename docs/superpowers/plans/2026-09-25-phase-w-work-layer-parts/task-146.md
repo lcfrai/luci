@@ -106,7 +106,7 @@ CREATE TABLE work_requests (
   requester_user_id  text,
   requester_email    text NOT NULL DEFAULT '' CHECK (octet_length(requester_email) <= 320),
   requester_name     text NOT NULL DEFAULT '' CHECK (octet_length(requester_name) <= 1024),
-  quote              text NOT NULL CHECK (octet_length(quote) <= 65536),
+  quote              text NOT NULL CHECK (octet_length(quote) <= 16384),
   quote_trimmed      integer NOT NULL DEFAULT 0 CHECK (quote_trimmed >= 0),   -- task 149
   answers            jsonb NOT NULL DEFAULT '{}'::jsonb,                       -- task 148
   form_id            text,                                                     -- task 148
@@ -178,8 +178,10 @@ the person's link cut too is part of Q-146. `answers` holds a form's typed value
 of them a person's words, so all of it goes. `decline_reason` is a team member's words and goes
 too, as `state_reason` does on an issue (`task-14.md` decision 3). No text column is added to the
 `UPDATE` grant: `quote`, `answers`, the requester's email and name are written once, by `INSERT`,
-and changed only by `erase_request`, which is what task 145's grant test must hold. The 64 KiB cap
-on `quote` is the second layer behind `hubapi.MaxRequestQuoteBytes`.
+and changed only by `erase_request`, which is what task 145's grant test must hold. The 16 KiB cap
+on `quote` is the second layer behind `hubapi.MaxRequestQuoteBytes`, which **equals** task 02's
+`MaxIssueDescriptionBytes` (`task-02.md:211`): accept copies the quote into a description byte for
+byte, so a quote the description would refuse must never be stored.
 
 #### `hubapi/work_intake.go`, the part this task needs (requirement on task 143; complete)
 
@@ -324,7 +326,7 @@ type IssueRequester struct {
 }
 
 const (
-	MaxRequestQuoteBytes   = 64 << 10 // the table's CHECK is the second layer
+	MaxRequestQuoteBytes   = MaxIssueDescriptionBytes // 16 KiB: accept copies it byte for byte
 	MaxRequesterNameChars  = 200
 	MaxRequesterEmailBytes = 320 // RFC 5321's path limit
 	MaxDeclineReasonChars  = 500
@@ -349,7 +351,7 @@ func ValidateRequester(r Requester) *FieldError {
 	return nil
 }
 
-// ValidateQuote: the requester's words, author "H", 1 byte to 64 KiB, valid
+// ValidateQuote: the requester's words, author "H", 1 byte to 16 KiB, valid
 // UTF-8, kept byte for byte (never trimmed, never normalised).
 func ValidateQuote(q AuthoredText) *FieldError {
 	if q.Author != AuthorHuman || q.Text == "" || len(q.Text) > MaxRequestQuoteBytes || !utf8.ValidString(q.Text) {
@@ -370,8 +372,10 @@ The user-id check is only a shape check (the Hub's `u-`, hub-contract `:105-112`
 §3.6); the store resolves the id against `users` in the caller's org and answers 400
 `field: requester` when it is not there, so the prefix test is never the authority. The file
 imports `net/mail`, `strings` and `unicode/utf8`, all standard library. `ValidateQuote` is the only
-check on the quote's text: an ask may be 40 KiB of pasted email, may start with whitespace and may
-hold a word a title check would refuse, and the requester's words are kept as they gave them.
+check on the quote's text: an ask may be a page of pasted email, may start with whitespace and may
+hold a word a title check would refuse, and the requester's words are kept as they gave them. A
+mail body longer than 16 KiB after the reply-marker cut is task 149's to handle (it cuts at a line
+boundary and counts the lines in `quoteTrimmed`); this task refuses, never cuts.
 
 #### `hubapi/workevents.go`, the additions (task 13's registry; complete)
 
@@ -630,3 +634,101 @@ the accept dialog shows them and the accepter adds them after, through task 11's
 every label on the issue is a person's act. Task 08's create also subscribes the creator (task 13's
 rule); accept calls the same subscribe step, so the accepter follows the issue they made. The
 requester is not subscribed: they are told of *shipped* by task 149, not of every change.
+
+**Each handler, in order.** Every write is inside `s.Write` (the org's write lock); every read
+inside `s.Read`.
+
+- `postRequest`: `Require(team, member)` → 404 `team_not_found` / 403; `Decode[CreateRequestRequest]`;
+  `ValidateRequester`, `ValidateQuote` → 400 with the field; `createRequest` with `channel:
+  member`, `created_by` the caller; 201 `Request`.
+- `listRequests`: `Require(team, viewer)`; `state` is `""` or one of `RequestStates`, else 400
+  `field: state`; `ListRequests`; 200 `Page[Request]` (the Hub's page shape).
+- `getRequest`: `requestFor(viewer)`; 200 `Request`.
+- `acceptRequest`: `requestFor(member, lock)`; erased → 409 `request_erased`; not open → 409
+  `request_closed` `{state}`; `Decode[AcceptRequestRequest]`; the project is not the request's
+  team's → 400 `field: projectId` (decision 5); `acceptOne`; `CloseRequest(accepted, issueId)`;
+  emit `request.accepted {issueId}`; 200 `AcceptRequestResponse`.
+- `linkRequest`: `requestFor(member, lock)`; the same two 409s; `Decode[LinkRequestRequest]`;
+  task 08's `readableIssue(member, lock=false)` on `issueId` → its 404; the issue's team is not the
+  request's → 400 `field: issueId`; `CloseRequest(linked, issueId)`; emit `request.linked`; 200
+  `Request`. **Nothing is written to the issue** (decision 3).
+- `declineRequest`: `requestFor(member, lock)`; the two 409s; `reason` trimmed, 1-500 characters,
+  else 400 `field: reason`; `CloseRequest(declined, "", reason)`; emit `request.declined {}`; 200.
+- `putImportant`: `requestFor(member, lock)`; `SetRequestImportant`; emit `request.important` only
+  when it changed; 200 `Request`. Allowed on a closed or erased request: the flag is the team's
+  note on the ask, and an accepted issue's requester list shows it.
+- `issueRequests`: `readableIssue(viewer)`; `RequestsOfIssue`; 200 `{items: [IssueRequester]}`.
+- `eraseRequest`: not an org admin → `Forbidden("org_admin")` (before anything is read, as task 14
+  does, `task-14.md:245-251`); `Decode[EraseRequest]`; `reason` 1-500 → else 400; `RequestByID`
+  under row-level security alone, no team check → 404 `request_not_found`; `EraseRequest`;
+  `emitWorkErase(tx, request.erased, team, "", id, RequestErasedData{}, reason)`, on a second erase
+  too; 200 `RequestEraseResponse` with `derivedIssueIds` = `[issue_id]` when the state is
+  `accepted`, else `[]`.
+
+**No cascade, a choice recorded for the owner.** An issue accepted from a request holds the quote
+in its revision 1. Erasing the request does not erase the issue: the issue is the team's record,
+has its own revisions, comments, trailers and perhaps a release, and task 14's erase is a
+separate, separately audited act by the same admin. The response names the issue so the admin's
+next click is obvious (task 173's admin surface shows *also erase EP-142?*). If the owner wants the
+erase to take the derived issue with it, it is task 14's `EraseIssue` called in the same
+transaction, one more count in the response, and this decision flips; it is **Q-146b** in *Gaps*.
+A **linked** issue holds none of the requester's words (decision 3), so it is not named.
+
+#### Wire shapes
+
+```jsonc
+// POST /v1/teams/tm-…/requests                        member; 201
+{ "requester": { "kind": "email", "email": "owner@client.example", "displayName": "R. Owner" },
+  "quote": { "text": "Can the upload resume after a dropped connection?", "author": "H" },
+  "important": false }
+// → 201
+{ "id": "rq-5c1e…", "teamId": "tm-…", "channel": "member",
+  "requester": { "kind": "email", "email": "owner@client.example", "displayName": "R. Owner" },
+  "quote": { "text": "Can the upload resume after a dropped connection?", "author": "H" },
+  "quoteTrimmed": 0, "answers": {}, "rule": null, "route": {}, "important": false,
+  "state": "open", "createdAt": "2026-09-26T09:14:00Z", "createdBy": { "id": "u-…", … }, "erased": false }
+
+// POST /v1/requests/rq-5c1e…/accept                   member; 200
+{ "projectId": "pj-…", "title": "Resume uploads after a dropped connection", "serves": [] }
+// → 200
+{ "request": { "id": "rq-5c1e…", "state": "accepted", "issueId": "is-9a0b…", "closedAt": "…", … },
+  "issue": { "issueId": "is-9a0b…", "number": 143, "externalId": "" } }
+
+// the change feed for the accept: ids only, never the quote, the email or the name
+{ "kind": "issue.created",    "teamId": "tm-…", "projectId": "pj-…", "subject": "is-9a0b…", "data": { … } }
+{ "kind": "request.accepted", "teamId": "tm-…", "projectId": null,   "subject": "rq-5c1e…",
+  "data": { "issueId": "is-9a0b…" } }
+
+// GET /v1/issues/is-9a0b…/requests                     viewer; 200
+{ "items": [ { "requestId": "rq-5c1e…", "channel": "member", "important": false, "state": "accepted",
+               "requester": { "kind": "email", "email": "owner@client.example", "displayName": "R. Owner" },
+               "createdAt": "…", "erased": false } ] }
+
+// POST /v1/requests/rq-5c1e…/erase                     org admin; 200
+{ "reason": "Client asked for removal, matter 4471" }
+// → 200
+{ "requestId": "rq-5c1e…", "erased": 1, "erasedAt": "…", "derivedIssueIds": ["is-9a0b…"] }
+
+// refusals: nothing is written by any of them
+409 request_closed    { "state": "accepted" }    // a second accept, link or decline
+409 request_erased                               // accept, link or decline of an erased open request
+400 bad_request       { "field": "projectId" }   // a project outside the request's team
+400 bad_request       { "field": "quote" }       // empty, author "A", over 16 KiB, not UTF-8
+400 bad_request       { "field": "requester" }   // a person id not in the org; an address with a name part
+403 forbidden         { "required": "member" }   // a viewer's accept, link, decline or flag
+403 forbidden         { "required": "org_admin" } // any team role's erase
+404 request_not_found                            // another team's request, or another org's
+```
+
+The feed lines show the event envelope's fields as task 13 names them; the envelope's exact key
+names are the Hub's (`hub-contract` §8), **UNVERIFIED** here beyond `kind` and `data`.
+
+#### Tests to write first, part 1 — `hubapi/work_intake_test.go` (pure)
+
+| Test | Holds | Mutant it kills |
+|---|---|---|
+| `TestValidateQuoteKeepsTheBytes` | `"  Resume?\n"` passes as given; `""`, author `A`, 16 KiB + 1 and `"\xff"` each fail on `quote` | a trimming validator (the quote paraphrased by whitespace); a cap above the description's |
+| `TestTheQuoteFitsADescription` | `MaxRequestQuoteBytes == MaxIssueDescriptionBytes` | the two caps drifting, so an accept of a stored quote fails |
+| `TestValidateRequesterPerKind` | a person with an email or a name fails; an email with `"R <r@x>"` fails; `teams` from a client fails on `requester.kind` | a client naming a person (the Hub's name is the truth); a Teams sender forged over the API |
+| `TestRequestEventsCarryNoText` | every field of the six `Request*Data` types is named in the list `channel, requesterKind, ruleId, ruleVersion, ruleAuthor, important, issueId` | a later edit adding `quote`, `email` or `displayName` to an event |
+| `TestRequestKindsAreTeamScoped` | the six kinds are in `WorkEventKinds` with `ScopeTeam` | a kind missing from the registry (`emitWork` would 500) or scoped to a project nobody names |
