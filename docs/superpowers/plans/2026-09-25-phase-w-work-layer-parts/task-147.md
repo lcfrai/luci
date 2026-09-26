@@ -58,3 +58,229 @@ Seven decisions the scope left open, made here.
    `rules[n].route.labelIds[k]`). A project archived after the PUT is still in the stored version;
    the accept dialog shows it as archived and suggests nothing, and task 146's accept refuses it as
    it refuses any project not live in the team.
+
+#### Files
+
+- `control-plane/internal/hub/intake/route.go` and `route_test.go` (new): a **pure** package, no
+  database, no clock. **Not yet in the File map** (gap 2): the row to add is `intake/route.go` |
+  *the intake router: form defaults, then the first matching rule* | new | 147.
+- `control-plane/internal/hub/store/work_intake_rules.go` (new).
+- `control-plane/internal/hub/server/work_intake_rules.go` (new): the two routes, and the body of
+  task 146's `routeRequest`.
+- `control-plane/internal/hub/server/work_intake_rules_integration_test.go` (new, `-tags integration`).
+- ⚑ `control-plane/internal/hub/server/work_requests.go` (task 146): `routeRequest`'s one-line body
+  is replaced by a call into this task's file; nothing else in it changes.
+- ⚑ `control-plane/internal/hub/hubapi/work_intake.go` (task 143) and ⚑ `hubapi/workevents.go`
+  (task 13): the types and one event kind below.
+- ⚑ `control-plane/internal/hub/server/work_matrix_rows_integration_test.go`: key `"147"`.
+
+#### The table this task needs from task 145's migration (requirement; complete)
+
+```sql
+-- ── task 147 (in task 145's NNNN_work_w5.sql): intake rules, one row per version ─────
+CREATE TABLE work_intake_rule_sets (
+  org_id      text        NOT NULL REFERENCES orgs (id),
+  team_id     text        NOT NULL,
+  version     integer     NOT NULL CHECK (version >= 1),
+  rules       jsonb       NOT NULL CHECK (jsonb_typeof(rules) = 'array' AND jsonb_array_length(rules) <= 50),
+  written_at  timestamptz NOT NULL,
+  written_by  text        NOT NULL,
+  PRIMARY KEY (team_id, version),
+  FOREIGN KEY (org_id, team_id)    REFERENCES teams (org_id, id),
+  FOREIGN KEY (org_id, written_by) REFERENCES users (org_id, id)
+);
+ALTER TABLE work_intake_rule_sets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE work_intake_rule_sets FORCE ROW LEVEL SECURITY;
+CREATE POLICY org_isolation ON work_intake_rule_sets TO hub_app
+  USING (org_id = current_setting('hub.org_id', true))
+  WITH CHECK (org_id = current_setting('hub.org_id', true));
+GRANT SELECT, INSERT ON work_intake_rule_sets TO hub_app;   -- no UPDATE, no DELETE: decision 1
+
+-- task 146's work_requests.rule_version names a row here; a foreign key makes
+-- "a request routed by a version that does not exist" impossible.
+ALTER TABLE work_requests ADD CONSTRAINT work_requests_rule_version_exists
+  FOREIGN KEY (team_id, rule_version) REFERENCES work_intake_rule_sets (team_id, version);
+```
+
+The whole list is one `jsonb` value because it is written and read whole, and because *first
+match wins* is a property of the list's order, which one array keeps without a `position` column
+to renumber. `rules` holds a team admin's configuration words (`textContains`, a domain): not a
+requester's words, so erase does not reach it, and it is never in an event. The foreign key from
+`work_requests` is the second layer behind `routeRequest`, which only ever records the version it
+read in the same transaction.
+
+#### `hubapi/work_intake.go`, the additions (requirement on task 143; complete)
+
+```go
+// ── Task 147: intake rules (SW.21) ──────────────────────────────────────────
+
+// IntakeMatch: a rule matches when every field it sets holds (decision 4).
+type IntakeMatch struct {
+	Channel      RequestChannel `json:"channel,omitempty"`
+	FormID       string         `json:"formId,omitempty"`
+	SenderDomain string         `json:"senderDomain,omitempty"` // lower-case; subdomains match
+	TextContains string         `json:"textContains,omitempty"` // case-insensitive substring
+}
+
+func (m IntakeMatch) Empty() bool {
+	return m.Channel == "" && m.FormID == "" && m.SenderDomain == "" && m.TextContains == ""
+}
+
+// IntakeRule is one rule. Its place in the list is its position (decision 1).
+type IntakeRule struct {
+	ID    string      `json:"id"` // the editor's slug, unique in one version (decision 3)
+	Match IntakeMatch `json:"match"`
+	Route IntakeRoute `json:"route"` // task 146's type; only the fields set override
+}
+
+// IntakeRuleSet is GET /v1/teams/{teamId}/intake-rules's 200. Version 0 is the
+// team that has never set a rule: rules [], writtenAt "", writtenBy null.
+type IntakeRuleSet struct {
+	TeamID    string       `json:"teamId"`
+	Version   int          `json:"version"`
+	Rules     []IntakeRule `json:"rules"`
+	WrittenAt string       `json:"writtenAt"`
+	WrittenBy *User        `json:"writtenBy"`
+}
+
+// PutIntakeRulesRequest replaces the whole list (decision 2).
+type PutIntakeRulesRequest struct {
+	BaseVersion int          `json:"baseVersion"`
+	Rules       []IntakeRule `json:"rules"`
+}
+
+// IntakeDefaults are a form's two starting routes (L-28). Task 148's
+// IntakeForm carries one; intake.Route reads only this, not the whole form.
+type IntakeDefaults struct {
+	Member    IntakeRoute `json:"member"`
+	NonMember IntakeRoute `json:"nonMember"`
+}
+
+const (
+	MaxIntakeRules       = 50
+	MaxTextContainsChars = 200
+	MaxSenderDomainBytes = 253 // RFC 1035's name limit
+	EventIntakeRulesSet  = "intake.rules_set"
+)
+
+// IntakeRulesSetData: ids and counts only; the rules' words stay in the table.
+type IntakeRulesSetData struct {
+	Version int64 `json:"version"`
+	Count   int64 `json:"count"`
+}
+// Appended to WorkEventKinds: {EventIntakeRulesSet, IntakeRulesSetData{}, ScopeTeam, VisibleToReaders}
+```
+
+`intake.` joins task 13's Work prefix list (`task-13.md:524`) in this commit.
+
+#### `intake/route.go` (complete)
+
+```go
+// Package intake decides where a request is suggested to go. It is pure: the
+// server reads the rules, the form's defaults and team membership, and hands
+// them here inside the request-create transaction (05 §3.5 point 3).
+package intake
+
+import (
+	"strings"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubapi"
+)
+
+// Incoming is what a rule may look at. SenderDomain is "" for a person
+// requester with no address; Text is the quote.
+type Incoming struct {
+	Channel      hubapi.RequestChannel
+	FormID       string
+	SenderDomain string
+	Text         string
+}
+
+// Decision is the route and, when a rule matched, which one and whose.
+type Decision struct {
+	Route       hubapi.IntakeRoute
+	RuleID      string // "" when no rule matched
+	RuleVersion int
+	RuleAuthor  string
+}
+
+// Route: the form's defaults for a member or a non-member first, then the
+// first rule, in list order, whose every set match field holds, overriding
+// the fields its route sets. No match keeps the defaults (and the team's
+// Triage, which every request lands in whatever the route says).
+func Route(set hubapi.IntakeRuleSet, in Incoming, defaults *hubapi.IntakeDefaults, isMember bool) Decision {
+	var d Decision
+	if defaults != nil {
+		if isMember {
+			d.Route = clone(defaults.Member)
+		} else {
+			d.Route = clone(defaults.NonMember)
+		}
+	}
+	for _, r := range set.Rules {
+		if !matches(r.Match, in) {
+			continue
+		}
+		d.Route = override(d.Route, r.Route)
+		d.RuleID, d.RuleVersion = r.ID, set.Version
+		if set.WrittenBy != nil {
+			d.RuleAuthor = set.WrittenBy.ID
+		}
+		return d // first match wins
+	}
+	return d
+}
+
+func matches(m hubapi.IntakeMatch, in Incoming) bool {
+	if m.Empty() {
+		return false // PUT refuses it; a stored one (never) would match nothing
+	}
+	if m.Channel != "" && m.Channel != in.Channel {
+		return false
+	}
+	if m.FormID != "" && m.FormID != in.FormID {
+		return false
+	}
+	if m.SenderDomain != "" && !domainWithin(strings.ToLower(in.SenderDomain), m.SenderDomain) {
+		return false
+	}
+	if m.TextContains != "" && !strings.Contains(strings.ToLower(in.Text), strings.ToLower(m.TextContains)) {
+		return false
+	}
+	return true
+}
+
+// domainWithin: d is want, or a subdomain of it. "evilclient.example" is not
+// within "client.example"; "" is within nothing.
+func domainWithin(d, want string) bool {
+	return d != "" && (d == want || strings.HasSuffix(d, "."+want))
+}
+
+func override(base, r hubapi.IntakeRoute) hubapi.IntakeRoute {
+	if r.ProjectID != "" {
+		base.ProjectID = r.ProjectID
+	}
+	if r.Priority != "" {
+		base.Priority = r.Priority
+	}
+	if len(r.LabelIDs) > 0 {
+		base.LabelIDs = append([]string(nil), r.LabelIDs...) // replaces, never unions
+	}
+	if r.Important {
+		base.Important = true // a rule cannot unset it (decision 5)
+	}
+	return base
+}
+
+func clone(r hubapi.IntakeRoute) hubapi.IntakeRoute {
+	r.LabelIDs = append([]string(nil), r.LabelIDs...)
+	return r
+}
+```
+
+**The author is whoever wrote the version**, not a per-rule author: a version is one admin's act,
+and every rule in it, kept or moved, is theirs from that version on (the editor shows *set by Ada,
+version 4*). A per-rule author would need the Hub to diff versions to know which rules were
+changed, and a diff is a guess about intent; the version's writer is a fact. Scope's
+*"`request.created` carries `ruleId`, `ruleVersion` and `ruleAuthor`"* holds.
+`TestAKeptRuleTakesTheNewAuthor` pins the choice so it is never changed by accident.
