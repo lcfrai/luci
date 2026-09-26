@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -106,6 +107,49 @@ func TestShippedImports(t *testing.T) {
 		case "src/a.test.tsx", "src/a.spec.ts", "src/test/x.ts", "src/test/setup.ts", "src/deep/test/y.tsx", "src/notes.md":
 			t.Errorf("%s was walked: it is a test file, or not a script", a)
 		}
+	}
+}
+
+// TestShippedImports_batches: every real run takes a second batch (desktop/src
+// held 55 shipped script files on 2026-09-26), so a loop that stops after the
+// first helperBatch files stops enforcing the rest, and the gate still exits
+// 0 (fix round 1, review I4: mutant V2 survived every other test).
+func TestShippedImports_batches(t *testing.T) {
+	dir := t.TempDir()
+	n := 2*helperBatch + 1 // three calls: two full, one holding the last file
+	files := map[string][]importRec{}
+	want := map[string]string{}
+	for i := 0; i < n; i++ {
+		rel := fmt.Sprintf("src/f%03d.ts", i)
+		pkg := fmt.Sprintf("pkg-%03d", i)
+		files[rel] = spec(pkg)
+		want[pkg] = rel
+		writeFile(t, filepath.Join(dir, filepath.FromSlash(rel)), []byte("// fixture\n"))
+	}
+	var asked []string
+	var perCall []int
+	inner := helperRunner(t, files, &asked)
+	run := func(d, name string, args ...string) ([]byte, error) {
+		perCall = append(perCall, len(args)-2)
+		return inner(d, name, args...)
+	}
+	got, err := ShippedImports(dir, filepath.Join(dir, "src"), run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("ShippedImports found %d of %d packages; the last, pkg-%03d: %q", len(got), n, n-1, got[fmt.Sprintf("pkg-%03d", n-1)])
+	}
+	if len(asked) != n {
+		t.Errorf("imports.cjs was asked about %d files, want %d", len(asked), n)
+	}
+	for i, c := range perCall {
+		if c > helperBatch {
+			t.Errorf("call %d passed %d files, over helperBatch %d (the Windows command-line cap)", i, c, helperBatch)
+		}
+	}
+	if len(perCall) != 3 {
+		t.Errorf("imports.cjs ran %d times (%v), want 3", len(perCall), perCall)
 	}
 }
 

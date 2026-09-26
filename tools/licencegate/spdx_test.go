@@ -21,6 +21,11 @@ func TestParseSPDX(t *testing.T) {
 		// row the GPL one cannot be, since GPL fails without the exception
 		// (task 04 mutation P2 survived without it).
 		{"MIT WITH Classpath-exception-2.0", false, false},
+		// The mirror: an allowed exception cannot launder a licence that is not
+		// allowed (fix round 1, review I3: mutant V1, with.allowed() reading
+		// the exception alone, survived every row above).
+		{"GPL-2.0-only WITH LLVM-exception", false, false},
+		{"MPL-2.0 WITH LLVM-exception", false, false},
 		{"MIT*", false, false},
 		{"UNKNOWN", false, false},
 		{"", false, false},
