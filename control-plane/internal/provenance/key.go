@@ -49,7 +49,6 @@ var (
 	briefKeyRe  = regexp.MustCompile(`^brief:(bf-[0-9a-f]{16})@([1-9][0-9]{0,8})$`)
 	designKeyRe = regexp.MustCompile(`^design:([a-z]{2,4}-[0-9a-f]{4,32})@([1-9][0-9]{0,8})$`)
 	noneKeyRe   = regexp.MustCompile(`^none:(declined)$`)
-	briefIDRe   = regexp.MustCompile(`^bf-[0-9a-f]{16}$`)
 )
 
 // Parse reads a key. Anything outside the grammar, "" included, is
@@ -98,10 +97,13 @@ func (k Key) String() string {
 }
 
 // BriefKey writes a brief key. It panics on a bad id or a revision outside
-// 1..999999999: a programming error, not input (the Hub mints both).
+// 1..999999999: a programming error, not input (the Hub mints both). The
+// check is the brief form itself, so the writer can never be laxer than the
+// parser (review nit: a second copy of the id's pattern lived here).
 func BriefKey(briefID string, revision int) string {
-	if !briefIDRe.MatchString(briefID) || revision < 1 || revision > 999999999 {
+	s := "brief:" + briefID + "@" + strconv.Itoa(revision)
+	if !briefKeyRe.MatchString(s) {
 		panic("provenance: BriefKey(" + strconv.Quote(briefID) + ", " + strconv.Itoa(revision) + ") is not a brief key")
 	}
-	return "brief:" + briefID + "@" + strconv.Itoa(revision)
+	return s
 }

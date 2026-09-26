@@ -50,6 +50,7 @@ func TestParseRejects(t *testing.T) {
 		"brief:" + id + "@0",
 		"brief:" + id + "@01",
 		"brief:bf-3F2A91C07B1E4D2A@5",  // uppercase hex
+		"brief:bf-3f2a91c07b1e4d2g@5",  // a lower-case letter past f (mutant RVC)
 		"brief:bf-3f2a91c07b1e4d2@5",   // 15 hex
 		"brief:bf-3f2a91c07b1e4d2a0@5", // 17 hex
 		"brief:" + id + "@5 ",          // trailing space
@@ -68,6 +69,8 @@ func TestParseRejects(t *testing.T) {
 		"design:abcde-0123@1",
 		"design:cv-" + strings.Repeat("a", 33) + "@1",
 		"design:CV-0123@1",
+		"design:c1-0123@1",             // a digit among the letters
+		"design:cv-7c01d2e3f4a5b6cg@1", // a lower-case letter past f (mutant RVD)
 		"design:cv-7c01d2e3f4a5b6c7@0",
 		"design:cv-7c01d2e3f4a5b6c7@01",
 		"design:cv-7c01d2e3f4a5b6c7@1000000000", // ten digits (mutant R8-P2)
@@ -102,6 +105,11 @@ func TestKeyStringNeverWritesANonKey(t *testing.T) {
 		{Kind: KindNone},
 		{Kind: KindNone, NoneReason: "other"},
 		{Kind: "session", ID: "bf-3f2a91c07b1e4d2a", Revision: 1},
+		// Strings that parse, but back to a different Key: a stray reason on
+		// a brief key, a stray id on a none key (mutant RVA).
+		{Kind: KindBrief, ID: "bf-3f2a91c07b1e4d2a", Revision: 5, NoneReason: "declined"},
+		{Kind: KindDesign, ID: "cv-7c01d2e3f4a5b6c7", Revision: 11, NoneReason: "declined"},
+		{Kind: KindNone, ID: "bf-3f2a91c07b1e4d2a", NoneReason: "declined"},
 	} {
 		if s := k.String(); s != "" {
 			t.Errorf("%+v.String() = %q, want \"\"", k, s)
@@ -124,6 +132,7 @@ func TestBriefKey(t *testing.T) {
 	}{
 		{"b-42", 5},
 		{"bf-3F2A91C07B1E4D2A", 5},
+		{"bf-3f2a91c07b1e4d2g", 5}, // a lower-case letter past f (mutant RVC)
 		{"cv-7c01d2e3f4a5b6c7", 5},
 		{"", 5},
 		// The id is the whole id: 17 hex, a trailing line feed, or a prefix

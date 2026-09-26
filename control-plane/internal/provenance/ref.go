@@ -159,8 +159,9 @@ type Source struct {
 }
 
 // ErrBadSource: Build was handed a source that is not the revision its key
-// names, or a pin that cannot be the one the revision holds. No Hub answer
-// produces one; it is a caller fault (a 500), never the person's.
+// names, or a pin that cannot be the one the revision holds. Every error
+// Build returns is one. No Hub answer produces one; it is a caller fault (a
+// 500), never the person's.
 var ErrBadSource = errors.New("provenance: the source is not the revision the key names")
 
 // Build resolves the revision the key names through discover.Resolve and
@@ -181,13 +182,17 @@ var ErrBadSource = errors.New("provenance: the source is not the revision the ke
 // OriginProject section, and an audience, constraint or out-of-scope the
 // branch skipped stays "".
 //
-// The error (task 06 as built): a source the key does not name - another
-// revision or brief, a key that is not a brief key, a pin passed to or held
-// by a project revision, an erased pin beside a pin in hand or on a revision
-// that pins nothing, a pin that is not a brief key - is ErrBadSource, and a
-// pin that is not the one the revision holds is discover.ErrInheritMismatch.
-// Either way the Ref is UnavailableRef(key): never one key on another
-// revision's text.
+// The error (task 06 as built; fix round 1, review m5): every error is
+// ErrBadSource, so a caller picks its status with one errors.Is. Build
+// refuses a source the key does not name - another revision or brief, a key
+// that is not a brief key, a pin passed to or held by a project revision, an
+// erased pin beside a pin in hand or on a revision that pins nothing, a pin
+// that is not a brief key - itself. What discover.Resolve refuses keeps
+// discover's error in the chain beside ErrBadSource: a pin that is not the
+// one the revision holds (discover.ErrInheritMismatch), a pin whose stored
+// status is not complete (discover.ErrIncomplete), and an envelope its scope
+// never holds. Whatever the error, the Ref is UnavailableRef(key): never one
+// key on another revision's text.
 func Build(key string, src Source, head Head) (Ref, error) {
 	doc, pin, err := document(key, src)
 	if err != nil {
@@ -261,7 +266,10 @@ func document(key string, src Source) (discover.Document, *InheritedRef, error) 
 		doc, err = discover.Resolve(&r, nil)
 	}
 	if err != nil {
-		return discover.Document{}, nil, fmt.Errorf("provenance: %s: %w", key, err)
+		// discover refuses only what no Hub answer is (an open pin, a pin that
+		// is not the revision's, an envelope its scope never holds), so its
+		// refusal is a bad source too, with discover's error kept in the chain.
+		return discover.Document{}, nil, fmt.Errorf("%w: %s: %w", ErrBadSource, key, err)
 	}
 	return doc, pin, nil
 }
@@ -317,7 +325,9 @@ func CriterionDigest(text string) string {
 //     branch the key's brief is bound to now, not the revision's envelope
 //     BranchRef: a rebind writes no revision, so after a rename the envelope
 //     names a ref that is gone, or an unrelated branch that took the name
-//     (R2-M1).
+//     (R2-M1). That ref is the brief's live BriefHead.BranchRef, which
+//     /v1/refs does not carry, so task 07 reads it with List (its rule 8,
+//     ask HA4-13), and passes "" for an archived brief or a failed read.
 //
 // Its rules (S4-P3.4):
 //  1. ONE eval call per key, with every criterion of the done section in

@@ -269,6 +269,18 @@ func TestBuildTitlesAnOpenRevisionByTheOneRule(t *testing.T) {
 	if pref.BranchRef != "" || pref.Scope != "project" || pref.Headline != "Client-facing portal." || pref.Inherits != nil {
 		t.Errorf("open project Ref = %+v", pref)
 	}
+	// Neither revision has a definition of done, and a built Ref's empty
+	// slices are [] on the wire like a slot's, never null: task 15 mirrors
+	// the shape and the desktop maps over it (mutant RVB).
+	for name, r := range map[string]Ref{"branch": ref, "project": pref} {
+		raw, err := json.Marshal(r)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(raw), `"criteria":[]`) || !strings.Contains(string(raw), `"sections":[`) {
+			t.Errorf("%s: the built Ref's JSON has no \"criteria\":[] or no sections array: %s", name, raw)
+		}
+	}
 }
 
 func TestBuildCarriesCriterionDigests(t *testing.T) {
@@ -307,13 +319,15 @@ func TestCriterionDigestVector(t *testing.T) {
 // TestBuildRefusesASourceTheKeyDoesNotName: a Ref names one immutable text,
 // so a source that is not the revision the key names, or a pin that is not
 // the one the revision holds, is refused with an error and an unavailable
-// Ref - never a Ref that puts one key on another revision's text.
+// Ref - never a Ref that puts one key on another revision's text. Every
+// refusal is ErrBadSource, so a caller picks its status with one errors.Is;
+// discover's own refusal stays in the chain beside it (review m5).
 func TestBuildRefusesASourceTheKeyDoesNotName(t *testing.T) {
 	type row struct {
-		name     string
-		key      string
-		src      func() Source
-		mismatch bool // discover.ErrInheritMismatch rather than ErrBadSource
+		name  string
+		key   string
+		src   func() Source
+		cause error // discover's refusal, also in the chain; nil: refused before discover
 	}
 	withPin := func(k string) func() Source {
 		return func() Source {
@@ -326,52 +340,65 @@ func TestBuildRefusesASourceTheKeyDoesNotName(t *testing.T) {
 		}
 	}
 	for _, tc := range []row{
-		{"a later revision's key", BriefKey(branchBrief, 6), src42, false},
-		{"another brief's key", BriefKey("bf-00000000000000a3", 5), src42, false},
-		{"a design key", "design:cv-7c01d2e3f4a5b6c7@5", src42, false},
+		{"a later revision's key", BriefKey(branchBrief, 6), src42, nil},
+		{"another brief's key", BriefKey("bf-00000000000000a3", 5), src42, nil},
+		{"a design key", "design:cv-7c01d2e3f4a5b6c7@5", src42, nil},
 		// Mutant R9-P2: the key's kind is checked before anything reaches
 		// discover, even on a revision relabelled to agree with the key.
 		{"a design key on a revision relabelled to match it", "design:cv-7c01d2e3f4a5b6c7@5", func() Source {
 			s := src42()
 			s.Revision.Key, s.Revision.BriefID = "design:cv-7c01d2e3f4a5b6c7@5", "cv-7c01d2e3f4a5b6c7"
 			return s
-		}, false},
-		{"not a key", "brief:b-42@5", src42, false},
-		{"the empty string", "", src42, false},
-		{"none:declined", Declined, src42, false},
-		{"an envelope key that differs", key42, func() Source { s := src42(); s.Revision.Key = BriefKey(branchBrief, 6); return s }, false},
-		{"a project revision with a project passed", key7, func() Source { s := src7(); p := b7(); s.Project = &p; return s }, false},
-		{"an erased pin with the pin passed", key42, func() Source { s := src42(); s.PinErased = true; return s }, false},
-		{"an erased pin on a revision that pins nothing", key7, func() Source { s := src7(); s.PinErased = true; return s }, false},
-		{"a pin that is not a brief key", key42, withPin("brief:b-7@5"), false},
+		}, nil},
+		{"not a key", "brief:b-42@5", src42, nil},
+		{"the empty string", "", src42, nil},
+		{"none:declined", Declined, src42, nil},
+		{"an envelope key that differs", key42, func() Source { s := src42(); s.Revision.Key = BriefKey(branchBrief, 6); return s }, nil},
+		{"a project revision with a project passed", key7, func() Source { s := src7(); p := b7(); s.Project = &p; return s }, nil},
+		{"an erased pin with the pin passed", key42, func() Source { s := src42(); s.PinErased = true; return s }, nil},
+		{"an erased pin on a revision that pins nothing", key7, func() Source { s := src7(); s.PinErased = true; return s }, nil},
+		{"a pin that is not a brief key", key42, withPin("brief:b-7@5"), nil},
 		// Mutant R9-P1: a pin that parses, as another kind, with the project
 		// passed under that key.
-		{"a pin that is a design key", key42, withPin("design:cv-7c01d2e3f4a5b6c7@5"), false},
+		{"a pin that is a design key", key42, withPin("design:cv-7c01d2e3f4a5b6c7@5"), nil},
 		{"the project head, not the pin", key42, func() Source {
 			s := src42()
 			p := b7()
 			p.Number, p.Key = 6, BriefKey(projectBrief, 6)
 			s.Project = &p
 			return s
-		}, true},
-		{"no pin passed, none erased", key42, func() Source { s := src42(); s.Project = nil; return s }, true},
+		}, discover.ErrInheritMismatch},
+		{"no pin passed, none erased", key42, func() Source { s := src42(); s.Project = nil; return s }, discover.ErrInheritMismatch},
 		// Mutant P1: a project revision whose content holds a pin.
 		{"a project revision that holds a pin", key7, func() Source {
 			s := src7()
 			s.Revision.Content.Inherits = &discover.Inherit{Key: BriefKey(projectBrief, 4), Digest: dig7}
 			return s
-		}, false},
+		}, nil},
 		// Mutant X1: the envelope's Key agrees with the key, its id or number does not.
-		{"an envelope whose id is another brief's", key42, func() Source { s := src42(); s.Revision.BriefID = "bf-00000000000000a3"; return s }, false},
-		{"an envelope whose number is another revision's", key42, func() Source { s := src42(); s.Revision.Number = 6; return s }, false},
+		{"an envelope whose id is another brief's", key42, func() Source { s := src42(); s.Revision.BriefID = "bf-00000000000000a3"; return s }, nil},
+		{"an envelope whose number is another revision's", key42, func() Source { s := src42(); s.Revision.Number = 6; return s }, nil},
+		// Review m5: what discover refuses is a bad source too. A pin whose
+		// stored status is open (ErrIncomplete), and envelopes discover's
+		// checkRevisions refuses: a branch revision with no branchRef, and a
+		// scope that is neither.
+		{"a pin that is open", key42, func() Source {
+			s := src42()
+			s.Project.Content.Status = discover.StatusOpen
+			return s
+		}, discover.ErrIncomplete},
+		{"a branch revision with no branchRef", key42, func() Source { s := src42(); s.Revision.BranchRef = ""; return s }, nil},
+		{"a revision in a scope that is neither", key7, func() Source { s := src7(); s.Revision.Scope = "team"; return s }, nil},
 	} {
 		ref, err := Build(tc.key, tc.src(), head42)
-		want := ErrBadSource
-		if tc.mismatch {
-			want = discover.ErrInheritMismatch
+		if !errors.Is(err, ErrBadSource) {
+			t.Errorf("%s: Build error = %v, want ErrBadSource", tc.name, err)
 		}
-		if !errors.Is(err, want) {
-			t.Errorf("%s: Build error = %v, want %v", tc.name, err, want)
+		if tc.cause != nil && !errors.Is(err, tc.cause) {
+			t.Errorf("%s: Build error = %v, want %v in its chain too", tc.name, err, tc.cause)
+		}
+		if tc.cause == nil && errors.Is(err, discover.ErrInheritMismatch) {
+			t.Errorf("%s: Build error = %v, which is not a pin mismatch", tc.name, err)
 		}
 		if ref.Resolution != Unavailable || ref.Present || ref.Key != tc.key || ref.Title != "" || len(ref.Sections) != 0 || ref.Inherits != nil {
 			t.Errorf("%s: Build Ref = %+v, want an unavailable Ref for the key and nothing else", tc.name, ref)
