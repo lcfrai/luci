@@ -1133,7 +1133,11 @@ failure a test-first file has before its package exists.
 - [ ] **Step 3: Write the failing delegation tests**
 
 `control-plane/internal/fleet/delegation/delegation_test.go`, package `delegation`, on task 08's
-fake (`hubclient.NewFake()` with its team half) and the same `fakeClock`. A `recRevoker` records
+fake with its team half, built by `hubclient.FakeTeamProject(t)`, never a bare `NewFake()`: since
+fix batch b01 the fake refuses a delegation on a solo project (409 `not_team_project`), and the
+helper turns the project team through `SetProjectMode` as its team's admin (b01 round 2, re-review
+I-6). Every delegation the tests create (`dl-1`, `dl-2`, …) is on that project. The same
+`fakeClock`. A `recRevoker` records
 every `Revoke(d, why)` and `Resume(d)` with the fake time it was called at. `leader` is a
 `*atomic.Bool` the test flips.
 
