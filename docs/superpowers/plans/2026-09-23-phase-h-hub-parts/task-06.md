@@ -181,6 +181,12 @@ Integration tests (`migrate_integration_test.go`, `//go:build integration`), eac
 | `TestDatabaseAheadIsRefused` | record version 9 by hand; `Apply` of `[1 2]` → `ErrAhead` | an old image migrating a newer schema backwards |
 | `TestCurrentIsZeroBeforeAnyMigration` | on an empty database, `Current` = 0 and no error | `/readyz` 500-ing instead of reporting `schema` |
 | `TestObjectsAreOwnedByHubOwner` | a table created by a migration has owner `hub_owner` (`pg_tables.tableowner`) | migrations run as the connecting admin, so `hub_app`'s grants and RLS stop meaning anything |
+| `TestTheCallersRoleIsRestored` (fix round 1, m3) | run as the administrator, `current_user` is `session_user` again after a successful Apply, a refused one (ErrEdited) and a failed migration | `SET ROLE hub_owner` left on the caller's connection, on any path |
+
+Fix round 1 also widened two rows: `TestAnEditedMigrationIsRefused` refuses a recorded 31-byte
+digest (m1) and a renamed 0001 with the same bytes (m5), each with 0003 not applied, then applies
+0003 once names and bytes are as recorded; `TestDatabaseAheadIsRefused` records 3 against `[1 2]`
+(n+1, m2), then 9, then 0 and -1 (PS-4).
 
 #### Steps
 
@@ -223,8 +229,9 @@ Integration tests (`migrate_integration_test.go`, `//go:build integration`), eac
 
 ```bash
 go test ./control-plane/internal/hub/migrate/ -race -count=1 -v 2>&1 | grep -c "^--- PASS"                      # 2  (unit only)
-go test -tags integration ./control-plane/internal/hub/migrate/ -race -count=1 -v 2>&1 | grep -c "^--- PASS"     # 10
-PANACEA_APP_HUB_TEST_DATABASE_URL= go test -tags integration ./control-plane/internal/hub/migrate/ -v -count=1 2>&1 | grep -c "^--- SKIP"   # 8
+go test -tags integration ./control-plane/internal/hub/migrate/ -race -count=1 -v 2>&1 | grep -c "^--- PASS"     # 11 (fix round 1: was 10)
+PANACEA_APP_HUB_TEST_DATABASE_URL= go test -tags integration ./control-plane/internal/hub/migrate/ -v -count=1 2>&1 | grep -c "^--- SKIP"   # 9 (fix round 1: was 8)
+(cd control-plane && GOWORK=off go list -deps ./... >/dev/null); echo $?   # 0: the module's go.sum stands without go.work.sum (fix round 1, I1)
 git diff control-plane/go.mod | grep "^[-+]go "        # at most: -go 1.23 / +go 1.23.0
 grep -n "^toolchain" control-plane/go.mod              # no output
 git diff HEAD~1 -- go.work | grep "^[-+][^-+]"         # at most: -go 1.23 / +go 1.23.0 (no use, no toolchain)
@@ -254,7 +261,14 @@ container); 8 SKIP with the variable empty; the `go` lines and `go.work` exactly
   by hand from the indirect block to the direct one. The result is exactly Step 1's: pgx direct;
   pgpassfile, pgservicefile and puddle/v2 v2.2.2 indirect; x/sys v0.32.0, x/term v0.31.0,
   x/text v0.24.0 bumped; x/crypto v0.37.0, x/sync v0.13.0 added; `go 1.23.0`, no `toolchain`.
-  `go get` rewrote `go.work` to `go 1.23.0` itself; `go.work.sum` did not change.
+  `go get` rewrote `go.work` to `go 1.23.0` itself; `go get` did not change `go.work.sum`.
+  **Corrected in fix round 1 (review I1, m6):** the first full workspace run did (b8ecb1dc): it
+  wrote the module-zip `h1:` lines for x/sys v0.32.0 and x/term v0.31.0 to `go.work.sum`, and
+  `control-plane/go.sum` held only their `/go.mod` lines (`go get` wrote those; a workspace-mode
+  run writes a missing sum to `go.work.sum`, not to the member's `go.sum`). The packages that need
+  them are x/sys/windows (go-winio) and x/term (client-go's exec plugin), so
+  `GOWORK=off go build ./...` failed in `control-plane`; the workspace build hid it. Fixed by recording the two `h1:` lines in `control-plane/go.sum` (see
+  "As built, fix round 1").
 - **D2 — the test Postgres** is `pa-hub-pg06` on `127.0.0.1:55460` (the stream's container prefix
   and port range), not `hub-pg-dev` on 5433, and is removed at the end. `roles_local.sql` ran as
   its init script: both roles exist and log in (read back with `pg_roles`).
@@ -298,3 +312,28 @@ Round 2 (766621ec + those rows; baseline ok): PS-1 KILLED on assertions (`TestAp
 lock); PS-2 KILLED (`TestApplyToAnEmptyDatabase` :111, `Apply([2]) = [2]`). No live survivor.
 Not run (outside OD-31's scope): Load's own mutants (lexical order, trimmed hash), which the unit
 tests' red run covers only as a whole.
+
+#### As built, fix round 1 (2026-09-27, review `task-06-review.md`)
+
+- **I1 (6c753a0a).** `control-plane/go.sum` gains the module-zip `h1:` lines for x/sys v0.32.0 and
+  x/term v0.31.0, written by an offline `GOWORK=off go get` of their two importers (go-winio,
+  client-go's exec plugin); `go.mod` unchanged. `GOWORK=off go list -deps ./...` in `control-plane`:
+  exit 1 at b8ecb1dc, 0 after. The root cause is that nothing checked a module on its own, so
+  `azure-pipelines.yml` gains a step that builds `control-plane` and `sandboxd` with `GOWORK=off`,
+  and the acceptance gains the line above. The two `go.work.sum` lines stay (redundant, harmless).
+- **m3.** Once `SET ROLE hub_owner` has succeeded, `Apply` defers `RESET ROLE` first, so it runs
+  last, after the unlock, on a fresh context, on every path. Row `TestTheCallersRoleIsRestored`.
+- **m5.** A recorded version whose `name` differs from this build's is `ErrEdited`, like a changed
+  digest: the record must name what ran. `Apply`'s doc comment says so.
+- **m1, m2.** The widened rows above. **m4** is corrected in the report; **m6** in D1.
+- **Mutants** (git archive 6c753a0a plus the round's files; baseline 11 PASS). The review's MS-1
+  KILLED (`TestAnEditedMigrationIsRefused` :211, the 31-byte digest) and MS-2 KILLED
+  (`TestDatabaseAheadIsRefused` :321, 3 recorded, index out of range). MR-1 (no RESET ROLE), MR-2
+  (RESET on success only) KILLED by `TestTheCallersRoleIsRestored`; MN-1 (a rename accepted) by
+  `TestAnEditedMigrationIsRefused`. Predicted survivors, named before the run: **PS-3** RESET
+  ROLE's error dropped, and **PS-4** a recorded version below 1 not refused. Both SURVIVED as
+  named. PS-4 gained the 0 and -1 row and was then KILLED (`TestDatabaseAheadIsRefused` :322, 0
+  recorded, index out of range [-1]). PS-3 is equivalent in
+  practice: the unlock runs first on the same connection, so a broken connection sets `err` there,
+  and RESET ROLE alone can fail only if the connection dies between two statements. No test is
+  written for it.

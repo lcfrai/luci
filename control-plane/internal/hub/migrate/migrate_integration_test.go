@@ -313,8 +313,9 @@ func TestDatabaseAheadIsRefused(t *testing.T) {
 	if _, err := conn.Exec(ctxT(t), "INSERT INTO hub.schema_migrations (version, name, sha256) VALUES (3, 'newer', $1)", sum[:]); err != nil {
 		t.Fatalf("record version 3 by hand: %v", err)
 	}
-	// 3 against [1 2] is the realistic case: one release rolled back. Then 9.
-	for _, v := range []int{3, 9} {
+	// 3 against [1 2] is the realistic case: one release rolled back. Then 9;
+	// then 0 and -1, which no build holds either (the table has no CHECK).
+	for _, v := range []int{3, 9, 0, -1} {
 		if _, err := conn.Exec(ctxT(t), "UPDATE hub.schema_migrations SET version = $1", v); err != nil {
 			t.Fatalf("record version %d: %v", v, err)
 		}
