@@ -1,0 +1,82 @@
+### Task 161: the Work MCP server on the Hub behind the realm's OAuth, with read-only mode; the MCP connector allow-list
+
+W5, stream WH, about 3 hours (an estimate, not a measurement). Depends on task 159 (apps: the
+`App` record, its `entraClientId`, its `work.read`/`work.write` scopes and the admin decision) and
+task 160 (keys and per-token limits, the `RateLimit-*` headers). **Neither part exists at this
+writing** (`…-parts/` holds no `task-159.md` or `task-160.md`, checked 2026-09-26), so every name
+taken from them is their scopes' (`…-scopes/tasks-141-160.md:746-775`, `:776-812`) and
+**UNVERIFIED**. Task 143's part (the W5 wire) does not exist either; the one wire record this task
+adds follows task 169's desktop mirror (`task-169.md:308`, `MCPConnector`), and task 143 wins on
+names when it lands (SW.21). Every `server/` and `store/` path is **UNVERIFIED until merge** (rule
+H1). Parity: closes **L-196** (the Work MCP server); **L-197** and **L-256** (the connector
+allow-list) jointly with tasks 166 and 173; the MCP half of **L-244** with task 159. Design: 05 §1
+M, P, R; §3.6.
+
+**OD-30 changes this task, and the skeleton row and scope predate it.** The scope
+(`tasks-161-180.md:29-83`) says the token is checked by `entra.Validator` and names
+`https://login.microsoftonline.com/<tid>/v2.0` and `api://<hub-client-id>/Hub.Access`. OD-30
+(main `docs/superpowers/planning/2026-09-23-owner-decisions.md:166`) moved sign-in to a Keycloak
+realm brokering Entra, and the Hub contract's §17 (`hub-contract.md:2301-2385`, on `feat/hub` at
+`3df9fab8`) says it **wins over §5.1 and §6**: validation is `oidcauth.Validator` under the
+`keycloak` profile, the audience and required scope are both `panacea-app-hub`, and `Hub.Access`
+*"no longer exist[s]"* (`:2352-2353`). The ruling names this task directly: *"the MCP server's
+`authorization_servers` = the realm; … third-party apps are realm clients under K6's rule"*
+(main `docs/superpowers/planning/2026-09-25-identity-keycloak-broker.md:601`, K6 at `:543-549`).
+This part follows OD-30. The work tree's copy of the owner decisions stops at OD-28 and has no
+OD-30 line (gap 1).
+
+**What the reader does.** Priya, an engineer, adds *PanaceaApp Work* to an MCP client her org's
+admin approved (task 159). The client calls `https://work-mcp.<domain>/mcp`, is told 401 with a
+pointer to the protected-resource document, signs her in through the realm, and lists nine tools.
+She asks it *"what is in Triage for Checkout?"*; the client calls `work_list`, which the Hub
+answers as Priya, showing only what she may read. Her colleague Sam points his client at
+`/mcp/read`: he sees five tools, and a hand-written `tools/call work_comment` is refused.
+
+**Decisions made here, so nobody re-derives them:**
+
+1. **`workmcp` holds no credential of its own, and says so in code.** It has no key, no secret and
+   no client credentials in its config. Every Hub call goes through `hubclient.New(baseURL, scope,
+   tokens, http)` (`hubclient/client.go:21`, on `feat/hub`) with a `TokenSource` that returns the
+   caller's own bearer from the request context (`callerToken` below). A call with no caller in
+   context fails before any byte leaves. The boundary rule holds: `workmcp` imports `hubapi`,
+   `hubclient` and `oidcauth` only (`hub-contract.md:78-82`).
+2. **`workmcp` validates too, but the Hub decides.** `auth.go` runs `oidcauth.Validator` on every
+   request so a bad token is a 401 with the discovery header *here*, where the MCP client reads it.
+   It then forwards the same bearer; the Hub validates again and applies task 159's `AppClients`
+   lookup, task 160's limits and the role matrix. Two checks, one authority: `workmcp`'s check
+   only ever refuses more, never admits what the Hub would refuse.
+3. **The approved-app check is the Hub's, reached through one read.** An `azp` that is the
+   desktop's client (`panacea-app-desktop`) is refused here with 401 `client`: the desktop never
+   talks MCP, and a stolen desktop token must not be replayed through it. Any other `azp` is
+   forwarded, and task 159's hook answers 403 `app_not_approved` for an unapproved one; `workmcp`
+   maps that one code to 401 `client` with the discovery header, so the MCP client re-runs sign-in
+   instead of showing a dead error. The scope's *"401 `client`"* and task 159's *"403
+   `app_not_approved`"* are both kept, each at its own layer (gap 3).
+4. **The transport is the smallest streamable-HTTP subset that is correct.** One endpoint per mode,
+   `POST` only; each request is one JSON-RPC 2.0 object and each answer one `application/json`
+   object. No SSE stream is opened (the server never sends a request or notification to the
+   client), `GET` is 405 with `Allow: POST`, batches (a JSON array) are refused with `-32600`,
+   and `Mcp-Session-Id` is not issued, since no tool keeps state between calls. Protocol revision
+   `2025-06-18`; `initialize` answers with that revision whatever the client asks, and a client
+   that cannot speak it disconnects (the revision negotiation rule; which clients accept it is
+   **UNVERIFIED**, see *Not claimed*).
+5. **Read-only is a route, not a flag in the token.** `/mcp/read` builds its tool table from the
+   read tools only, so `tools/list` cannot show a write and `tools/call` cannot find one:
+   *unknown tool* (`-32602`), never a 403 after dispatch. A `work.read` app on `/mcp` sees the
+   write tools listed (the list is the endpoint's) and the Hub refuses the call (task 159).
+6. **No tool writes a fact state, twice over.** `work_move.to` is an enum of the human bands only,
+   checked by `workmcp`'s schema validator before any Hub call; and the Hub refuses a fact state or
+   `done` from an app token anyway (task 145's guard, SW.3). The enum is `triage`, `backlog`,
+   `todo`, `cancelled`: 05 §3.3's person-set states (`05-design.md:722-734`) as task 37's
+   `IssueState` spells them (`task-37.md:87-89`). `duplicate` is person-set too but needs the
+   original's key, which `work_move` does not carry, so it stays out; W2's custom states inside
+   the bands are left out until their Go names are on the sync base (gap 4).
+7. **An alias is a lookup, and the key is the answer** (skeleton rule 1). `work_issue {issue:
+   "EP-142"}` resolves through the Hub's alias lookup and returns `issue:is-…@r` first; the alias
+   appears only as a display field.
+8. **Text keeps its author class.** Every text field in a tool result is rendered as a fenced block
+   headed `text·H` or `text·A` with the author's display name, never merged into the tool's own
+   prose, so an MCP client's model reads it as quoted data (05 §3.4).
+9. **The connector allow-list stores no connector credential.** The Hub keeps `{url, name,
+   allowedBy, allowedAt}` and nothing else; each person connects their own account in their own
+   client. `ConnectorFragment` renders what task 166 applies in the sandbox.
