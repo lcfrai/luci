@@ -249,3 +249,160 @@ if f.actor().Kind == hubapi.ActorIntegration {
 ```
 
 `forbidden` is H's 403 code, not a W5 code, so it goes through `problem` and not `inProblem`.
+
+**Files, added to the table:** `hubapi/work.go` ⚑ (the causes, above); `fake_work.go` ⚑ gains one
+more touch: `CreateIssue` (`task-04.md:463`) splits into the locked method and
+`w.createIssue(me, projectID, req)`, its body from `:472` unchanged, so an accept creates the issue
+inside the same lock that closes the request (a second accept cannot slip between).
+
+#### `fake_work_w5.go`, continued: requests (complete for create, accept and link)
+
+```go
+// closeOpen is decision 1 of task 146: one close, under w.mu, or a 409
+// naming the state; an erased open request refuses every close.
+func closeOpen(r *hubapi.Request) error {
+	switch {
+	case r.State != hubapi.RequestOpen:
+		return inProblem(hubapi.CodeRequestClosed, "This request is already closed.", "state", string(r.State))
+	case r.Erased:
+		return inProblem(hubapi.CodeRequestErased, "This request was erased.")
+	}
+	return nil
+}
+
+func (f *Fake) CreateRequest(_ context.Context, teamID string, req hubapi.CreateRequestRequest) (hubapi.Request, error) {
+	w := f.w
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	me, err := f.enter("CreateRequest", teamID, req)
+	if err != nil {
+		return hubapi.Request{}, err
+	}
+	if err := w.needTeam(teamID, me, hubapi.RoleMember); err != nil { // H's team check (UNVERIFIED name)
+		return hubapi.Request{}, err
+	}
+	if fe := hubapi.ValidateQuote(req.Quote); fe != nil { // task 146: author "H", 1-20000
+		return hubapi.Request{}, fieldProblem(fe)
+	}
+	if fe := hubapi.ValidateRequester(req.Requester); fe != nil {
+		return hubapi.Request{}, fieldProblem(fe)
+	}
+	d := intake.Route(w.in().rules[teamID], intake.Incoming{Channel: hubapi.ChannelMember,
+		Text: req.Quote.Text}, nil, true)
+	return w.insertRequest(me, teamID, hubapi.ChannelMember, req.Requester, req.Quote, nil, "", d, req.Important), nil
+}
+
+// insertRequest is every channel's one writer (member, form, email, teams):
+// the rule that routed it, and the rule's author, are on the event.
+func (w *fakeWorld) insertRequest(me, teamID string, ch hubapi.RequestChannel, who hubapi.Requester,
+	quote hubapi.AuthoredText, answers map[string]string, formID string, d intake.Decision, important bool) hubapi.Request {
+	r := &hubapi.Request{ID: ids.Wide(hubapi.PrefixRequest), TeamID: teamID, Channel: ch, Requester: who,
+		Quote: quote, Answers: answers, FormID: formID, Route: d.Route, Important: important || d.Route.Important,
+		State: hubapi.RequestOpen, CreatedAt: w.stamp(), CreatedBy: w.userRef(me)} // userRef: H's (UNVERIFIED)
+	if r.Answers == nil {
+		r.Answers = map[string]string{}
+	}
+	data := map[string]any{"channel": string(ch), "requesterKind": string(who.Kind)}
+	if d.RuleID != "" {
+		r.Rule = &hubapi.RuleHit{RuleID: d.RuleID, RuleVersion: d.RuleVersion, RuleAuthor: d.RuleAuthor}
+		data["ruleId"], data["ruleAuthor"] = d.RuleID, d.RuleAuthor
+	}
+	w.in().requests[r.ID] = r
+	w.in().order[teamID] = append(w.in().order[teamID], r.ID)
+	w.inEvent(me, "request.created", teamID, "", r.ID, data) // no quote, no email (decision 8)
+	return *r
+}
+```
+
+`fieldProblem` turns a `*hubapi.FieldError` into H's 400 (`badRequest(fe.Field, …)`), and
+`w.userRef` is the `*hubapi.User` for an id; both **UNVERIFIED** names bound in Step 1.
+
+```go
+func (f *Fake) AcceptRequest(_ context.Context, requestID string, req hubapi.AcceptRequestRequest) (hubapi.AcceptRequestResponse, error) {
+	w := f.w
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	var zero hubapi.AcceptRequestResponse
+	me, r, err := f.enterRequest("AcceptRequest", requestID, req) // enter, then read-and-member check
+	if err != nil {
+		return zero, err
+	}
+	if err := closeOpen(r); err != nil {
+		return zero, err
+	}
+	if p := w.projects[req.ProjectID]; p == nil || p.teamID != r.TeamID { // 146 decision 5: no oracle
+		return zero, badRequest("projectId", "Accept into a project of this request's team.")
+	}
+	reason := hubapi.NotTiedSupport // 146 decision 4
+	if len(req.Serves) > 0 {
+		reason = ""
+	}
+	iw, err := w.createIssue(me, req.ProjectID, hubapi.CreateIssueRequest{ // the accepter writes revision 1
+		Title: hubapi.AuthoredText{Text: req.Title, Author: hubapi.AuthorHuman},
+		Description: r.Quote, // byte for byte; r.Quote.Author is "H"
+		Serves: req.Serves, Implements: []string{}, NotTiedReason: reason,
+		Priority: r.Route.Priority, Labels: r.Route.LabelIDs}) // State "": the team's defaultState
+	if err != nil {
+		return zero, err // nothing closed, no event
+	}
+	now := w.stamp()
+	r.State, r.IssueID, r.ClosedAt, r.ClosedBy = hubapi.RequestAccepted, iw.Head.ID, now, w.userRef(me)
+	w.inEvent(me, "request.accepted", r.TeamID, "", r.ID, map[string]any{"issueId": iw.Head.ID})
+	return hubapi.AcceptRequestResponse{Request: *r,
+		Issue: hubapi.IssueRef{IssueID: iw.Head.ID, Number: iw.Head.Number}}, nil
+}
+
+// LinkRequest adds the requester to an issue of the team and writes nothing
+// else: no revision, no state, no issue.updated (146 decision 3).
+func (f *Fake) LinkRequest(_ context.Context, requestID string, req hubapi.LinkRequestRequest) (hubapi.Request, error) {
+	w := f.w
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	me, r, err := f.enterRequest("LinkRequest", requestID, req)
+	if err != nil {
+		return hubapi.Request{}, err
+	}
+	if err := closeOpen(r); err != nil {
+		return hubapi.Request{}, err
+	}
+	if is, _, err := w.issueOf(req.IssueID, me); err != nil || is.teamID != r.TeamID {
+		return hubapi.Request{}, badRequest("issueId", "Link to an issue of this request's team.")
+	}
+	r.State, r.IssueID, r.ClosedAt, r.ClosedBy = hubapi.RequestLinked, req.IssueID, w.stamp(), w.userRef(me)
+	w.inEvent(me, "request.linked", r.TeamID, "", r.ID, map[string]any{"issueId": req.IssueID})
+	return *r, nil
+}
+
+// SubmitForm is fake-only (decision 9): task 148's page in memory. The
+// caller's membership of the form's team picks member or nonMember defaults.
+func (f *Fake) SubmitForm(_ context.Context, formID string, answers map[string]string) (hubapi.Request, error) {
+	w := f.w
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	me, err := f.enter("SubmitForm", formID, answers)
+	if err != nil {
+		return hubapi.Request{}, err
+	}
+	form := w.in().forms[formID]
+	if form == nil || !w.inOrg(me) || !form.Open { // H's org check (UNVERIFIED name)
+		return hubapi.Request{}, problem(404, "not_found", "There is no such form.")
+	}
+	quote, rest, fe := hubapi.CheckAnswers(*form, answers)
+	if fe != nil {
+		code := "bad_request"
+		if errors.Is(fe.Err, hubapi.ErrFieldRequired) { // task 148's sentinel
+			code = hubapi.CodeFormFieldRequired
+		}
+		return hubapi.Request{}, problem(400, code, "That answer cannot be taken.", "field", fe.Field)
+	}
+	member := w.teams[form.TeamID].members[me] != nil
+	d := intake.Route(w.in().rules[form.TeamID], intake.Incoming{Channel: hubapi.ChannelForm,
+		FormID: formID, Text: quote}, &form.Defaults, member)
+	who := hubapi.Requester{Kind: hubapi.RequesterPerson, UserID: me}
+	return w.insertRequest(me, form.TeamID, hubapi.ChannelForm, who,
+		hubapi.AuthoredText{Text: quote, Author: hubapi.AuthorHuman}, rest, formID, d, false), nil
+}
+```
+
+`enterRequest` is `f.enter` then `w.in().requests[id]` and `w.needTeam(r.TeamID, me, RoleMember)`,
+a 404 `request_not_found` (task 146's code) when either fails; `errors` joins the import block.
