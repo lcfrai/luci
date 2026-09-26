@@ -28,6 +28,10 @@ variable "state_writer_object_ids" {
     condition     = length(var.state_writer_object_ids) > 0
     error_message = "At least one principal must be able to write state, or the next stack cannot init."
   }
+  validation {
+    condition     = alltrue([for id in var.state_writer_object_ids : can(regex(local.object_id_pattern, id))])
+    error_message = "Every state writer must be a bare GUID (no braces, no spaces): any other spelling of a reader's id would pass the reader check."
+  }
 }
 
 variable "state_reader_object_ids" {
@@ -39,6 +43,19 @@ variable "state_reader_object_ids" {
     condition     = length(setintersection([for id in var.state_reader_object_ids : lower(id)], [for id in var.state_writer_object_ids : lower(id)])) == 0
     error_message = "A state reader must not also be a writer (object ids compared without case): the plan identity is read-only by construction."
   }
+  validation {
+    condition     = alltrue([for id in var.state_reader_object_ids : can(regex(local.object_id_pattern, id))])
+    error_message = "Every state reader must be a bare GUID (no braces, no spaces): any other spelling of a writer's id would pass the reader check."
+  }
+}
+
+locals {
+  # An Entra object id is a bare GUID. The reader check above folds case only, and azurerm does
+  # not check principal_id at plan, so {GUID} or a GUID with a stray space was a second spelling
+  # of one principal that passed it (task 02 fix round 2, third agent, probes BR1 and WS1).
+  # Either case is allowed: the check folds it. One pattern for both lists, so its anchors hold
+  # for both.
+  object_id_pattern = "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
 }
 
 variable "state_public_network_access" {
