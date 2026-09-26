@@ -173,3 +173,69 @@ export function needRank(item: DeskItem<NeedPayload>, snap: DeskSnapshot): DeskR
 
 `User.displayName` is task 37's (`task-61.md:162` reads it the same way). The owner in the blocking
 line is Y's assignee's `displayName`, *"you"* when it is me, and *"unassigned"* when there is none.
+
+#### Interfaces — complete: `needs.ts`, part 2: the four selectors
+
+```ts
+type Item = DeskItem<NeedPayload>;
+function item(s: DeskSnapshot, id: string, base: Omit<NeedPayload, "title" | "state">, h: IssueHead,
+  scopes: DeskItem["keyScopes"] = undefined): Item {
+  const payload: NeedPayload = { ...base, title: titleOf(s, h), state: h.state };
+  return { kind: base.need, id, payload, arrivedAt: base.since, issueId: h.id, ...rankWords(payload),
+    ...(scopes ? { keyScopes: scopes } : {}) };
+}
+
+export function triageMine(s: DeskSnapshot): Item[] {
+  return [...s.heads.values()].filter((h) => h.state === "triage" && mine(h, s.me)).map((h) =>
+    item(s, h.id, { need: "issue.triage_mine", issueId: h.id, alias: h.alias,
+      ...sinceOf(s, h.id, MATCH.triage, h.updatedAt) }, h, ["triage"]));
+}
+
+export function urgentMine(s: DeskSnapshot): Item[] {
+  return [...s.heads.values()].filter((h) => h.priority === "urgent" && mine(h, s.me) && !CLOSED.has(h.state)
+    && h.state !== "triage")                                        // a triage row already says it
+    .map((h) => item(s, h.id, { need: "issue.urgent_mine", issueId: h.id, alias: h.alias,
+      ...sinceOf(s, h.id, MATCH.urgent, h.updatedAt) }, h));
+}
+
+export function mentionsOfMe(s: DeskSnapshot): Item[] {
+  const out: Item[] = [];
+  if (s.me === null) return out;
+  for (const h of s.heads.values()) {
+    for (const c of s.comments(h.id)) {
+      if (c.resolvedAt !== null || c.author.id === s.me || !c.mentions.includes(s.me)) continue;
+      const at = sinceOf(s, s.me, (k, d) => k === "comment.mentioned" && d.commentId === c.id, c.createdAt);
+      out.push(item(s, `${h.id}/${c.id}`, { need: "issue.mention", issueId: h.id, alias: h.alias, ...at,
+        mention: { commentId: c.id, author: c.author, firstLine: c.body.text.split("\n")[0].slice(0, 120) } }, h));
+    }
+  }
+  return out;
+}
+
+export function blockingMine(s: DeskSnapshot): Item[] {
+  const out: Item[] = [];
+  for (const x of s.heads.values()) {
+    if (!mine(x, s.me) || CLOSED.has(x.state)) continue;
+    for (const r of x.relations) {
+      const y = r.kind === "blocks" ? s.headOf(r.issueId) : undefined;
+      if (!y || (y.state !== "started" && y.state !== "in_review")) continue;
+      const started = sinceOf(s, y.id, MATCH.started, y.updatedAt);
+      const owner = y.assignee === null ? "unassigned" : y.assignee.id === s.me ? "you" : y.assignee.displayName;
+      out.push(item(s, `${x.id}>${y.id}`, { need: "issue.blocking", issueId: x.id, alias: x.alias, ...started,
+        blocked: { issueId: y.id, alias: y.alias, owner, state: y.state, startedAt: started.since } }, x));
+    }
+  }
+  return out;
+}
+
+export const NEED_SOURCES: Readonly<Record<NeedKind, (s: DeskSnapshot) => Item[]>> = Object.freeze({
+  "issue.triage_mine": triageMine, "issue.urgent_mine": urgentMine,
+  "issue.mention": mentionsOfMe, "issue.blocking": blockingMine,
+});
+```
+
+An urgent triage issue of mine is one row, the triage row: the triage row asks for the act that
+unblocks it, and two rows for one issue would count one need twice. The mention's subject in SW.5
+is the mentioned user (`task-20.md:337`, `subject: WORK_IDS.dylan`), so `sinceOf` looks it up
+under `s.me`. `IssueComment.body` is `AuthoredText` (`task-37.md:154-157`); its first line is shown
+as the author wrote it, never summarised.
