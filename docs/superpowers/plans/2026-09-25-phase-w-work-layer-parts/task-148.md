@@ -488,3 +488,93 @@ not govern either: without the first, another site can frame the form and trick 
 into submitting it (the `SameSite=Strict` cookie already stops the submit; this stops the framing);
 without the second, an injected `<base>` could redirect the form's relative action. Both cost
 nothing for a page with no frames and no base.
+
+#### `server/templates/form.html` (complete)
+
+```html
+{{define "form"}}<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Form.Title}}</title><link rel="stylesheet" href="/p/static/page.css"></head>
+<body class="page"><main class="page-main">
+  <p class="page-team">{{.Team}}</p>
+  <h1>{{.Form.Title}}</h1>
+  {{if .Closed}}<p>This form is closed.</p>{{else}}
+  {{with .Form.Intro}}<p class="page-intro">{{.}}</p>{{end}}
+  {{with .Error}}<p class="page-error" role="alert" id="err">{{.Label}}: {{if eq .Code "form_field_required"}}this is required.{{else}}this is not a valid answer.{{end}}
+    <span class="page-code">{{.Code}}</span></p>{{end}}
+  <form method="post" action="" accept-charset="utf-8">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    {{$v := .Values}}{{$e := .Error}}
+    {{range .Form.Fields}}<div class="page-field">
+      <label for="f-{{.ID}}">{{.Label}}{{if .Required}} <span class="page-req">required</span>{{end}}</label>
+      {{with .Help}}<p class="page-help">{{.}}</p>{{end}}
+      {{if eq .Kind "longtext"}}<textarea id="f-{{.ID}}" name="f.{{.ID}}" rows="6"{{if .Required}} required{{end}}>{{index $v .ID}}</textarea>
+      {{else if eq .Kind "select"}}<select id="f-{{.ID}}" name="f.{{.ID}}"{{if .Required}} required{{end}}>
+        <option value=""></option>{{$cur := index $v .ID}}{{range .Options}}<option{{if eq . $cur}} selected{{end}}>{{.}}</option>{{end}}</select>
+      {{else if eq .Kind "date"}}<input id="f-{{.ID}}" name="f.{{.ID}}" type="date" value="{{index $v .ID}}"{{if .Required}} required{{end}}>
+      {{else if eq .Kind "person"}}<input id="f-{{.ID}}" name="f.{{.ID}}" type="email" autocomplete="off" value="{{index $v .ID}}" placeholder="name@kpmg.com.au"{{if .Required}} required{{end}}>
+      {{else}}<input id="f-{{.ID}}" name="f.{{.ID}}" type="text"{{if eq .Kind "number"}} inputmode="decimal"{{end}} value="{{index $v .ID}}"{{if .Required}} required{{end}}>{{end}}
+    </div>{{end}}
+    <button type="submit" class="page-submit">Send</button>
+  </form>{{end}}
+</main></body></html>{{end}}
+
+{{define "done"}}<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>{{.Title}}</title><link rel="stylesheet" href="/p/static/page.css"></head>
+<body class="page"><main class="page-main">
+  <h1>We have it.</h1>
+  <p>You will hear by email when it ships.</p>
+  <p class="page-fact">Request <code>{{.RequestID}}</code></p>
+</main></body></html>{{end}}
+```
+
+`/p/static/page.css` is task 80's stylesheet for its read-only page (Commit Mono for the request
+id in `code`, Segoe UI Variable for the text, `OD-28`; **UNVERIFIED** path until task 80 lands).
+`action=""` posts to the page's own URL, which `form-action 'self'` allows. The browser's
+`required` attribute is a courtesy that a person can bypass; `CheckAnswers` is the check. A
+`number` field is `type="text"` with `inputmode="decimal"`, not `type="number"`: a browser's number
+input rewrites `1,5` by locale and drops what it cannot parse, and the requester's value should
+reach the server as typed. The error names its code in a `page-code` span so the requester can
+quote it to the team.
+
+#### Wire shapes
+
+```jsonc
+// POST /v1/teams/tm-…/forms                              team admin; 201
+{ "title": "Ask the payments team", "intro": "Tell us what you need and why.",
+  "fields": [
+    { "id": "quote", "label": "What do you need?", "kind": "longtext", "required": true },
+    { "id": "needed_by", "label": "Is there a date it matters by?", "kind": "date", "required": false },
+    { "id": "area", "label": "Area", "kind": "select", "required": true, "options": ["Uploads", "Billing"] } ],
+  "defaults": { "member": { "priority": "medium" }, "nonMember": { "priority": "low", "important": false } } }
+// → 201 { "id": "fm-2b7c…", "version": 1, "open": true, "pageUrl": "https://hub…/p/forms/fm-2b7c…", … }
+
+// POST /p/forms/fm-2b7c…      (application/x-www-form-urlencoded, the session cookie)
+//   csrf=…&f.quote=Can+uploads+resume%3F&f.area=Uploads
+// → 200 text/html: "We have it." … "Request rq-5c1e…"
+// the request it made (GET /v1/requests/rq-5c1e…):
+{ "channel": "form", "formId": "fm-2b7c…", "requester": { "kind": "person", "userId": "u-…", "displayName": "…" },
+  "quote": { "text": "Can uploads resume?", "author": "H" }, "answers": { "area": "Uploads" },
+  "route": { "priority": "low" }, "rule": null, … }
+
+// refusals
+400 bad_request   { "field": "fields" }            // no quote field, or two
+400 bad_request   { "field": "fields[0].kind" }    // quote as text, or not required
+400 bad_request   { "field": "defaults.member.projectId" } // another team's project
+409 form_moved    { "version": "3" }               // PATCH on a stale baseVersion
+// the page: 400 re-rendered with "Area: this is required. form_field_required"; 403 no csrf;
+//           410 closed; 404 another org's form or none
+```
+
+#### Tests to write first, part 1 — `hubapi/work_forms_test.go` (pure)
+
+| Test | Holds | Mutant it kills |
+|---|---|---|
+| `TestAFormNeedsOneQuoteField` | no `quote` → `fields`; two → `fields`; `quote` as `text` or optional → `fields[i].kind` | a request with no verbatim quote |
+| `TestFieldShapes` | an id `Area`, a duplicate id, a padded label, a select with no options, a text with options → each its `fields[i].…` | a field shape unchecked |
+| `TestCheckAnswersNamesTheFirstMissing` | two required fields empty → `FieldError{first id, ErrFieldRequired}` in form order | partial request; the wrong field named |
+| `TestDatesAreRealDates` | `2026-09-26` passes; `tomorrow`, `26/09/2026`, `2026-02-30`, `2026-09-26T00:00:00Z` fail | types unchecked on the server |
+| `TestNumbersAreKeptAsTyped` | `-12.5` passes and is stored `-12.5`; `1e3`, `1,5`, `NaN`, 16 digits fail | a float round trip; exponent accepted |
+| `TestSelectIsOneOfItsOptions` | `Uploads` passes; `uploads` and `Other` fail | a select taking free text |
+| `TestTheQuoteIsKeptByteForByte` | a longtext of `"  line\r\n"` comes back as given; a text field is trimmed | the quote trimmed |
+| `TestAStrayFieldIsRefused` | `in` with `member: "true"` → `FieldError{"member", …}` | a stray answer stored (and membership read from the client, task 147) |
