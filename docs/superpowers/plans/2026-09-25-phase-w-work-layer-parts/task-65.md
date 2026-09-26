@@ -1241,3 +1241,83 @@ func wReassignMovesNothing(t *testing.T, e WorkEnv) {
 	wRefused(t, err, 409, "no_reassign_pending") // answered once
 }
 ```
+
+```go
+func wReassignDecline(t *testing.T, e WorkEnv) {
+	h := e.bound(t)
+	if _, err := e.Admin.RequestReassign(wctx, h.ID, hubapi.RequestReassignRequest{ToUserID: uid(t, e.Admin)}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := e.Member.AnswerReassign(wctx, h.ID, hubapi.AnswerReassignRequest{Accept: false})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.ReassignRequest != nil || got.Assignee.ID != uid(t, e.Member) || got.State != hubapi.StateStarted {
+		t.Fatalf("decline changed more than the request: %+v", got) // mutant: decline unassigns or pauses
+	}
+}
+
+func wReassignAccept(t *testing.T, e WorkEnv) {
+	h := e.bound(t)
+	if _, err := e.Admin.RequestReassign(wctx, h.ID, hubapi.RequestReassignRequest{ToUserID: uid(t, e.Admin)}); err != nil {
+		t.Fatal(err)
+	}
+	_, err := e.Admin.AnswerReassign(wctx, h.ID, hubapi.AnswerReassignRequest{Accept: true})
+	wRefused(t, err, 403, "not_assignee") // mutant: the asker answers her own request
+	got, err := e.Member.AnswerReassign(wctx, h.ID, hubapi.AnswerReassignRequest{Accept: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Assignee == nil || got.Assignee.ID != uid(t, e.Admin) || got.ReassignRequest != nil {
+		t.Fatalf("accept: assignee %v request %v", got.Assignee, got.ReassignRequest)
+	}
+	kinds := wKinds(t, e.Member, "", "issue.reassign_")
+	if len(kinds) != 2 || kinds[0] != hubapi.EventIssueReassignRequested || kinds[1] != hubapi.EventIssueReassignAnswered {
+		t.Fatalf("events = %v", kinds) // mutant: no answered event, so a replica keeps the request
+	}
+}
+
+func wReassignSettledByPatch(t *testing.T, e WorkEnv) {
+	h := e.bound(t)
+	if _, err := e.Admin.RequestReassign(wctx, h.ID, hubapi.RequestReassignRequest{ToUserID: uid(t, e.Admin)}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := e.Admin.PatchIssue(wctx, h.ID, hubapi.PatchIssueRequest{AssigneeID: hubapi.AssignTo(uid(t, e.Admin))})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.ReassignRequest != nil {
+		t.Fatal("a direct assign left the request pending") // mutant: PatchIssue ignores the request
+	}
+}
+```
+
+```go
+// hubclient/fake_work_test.go ⚑ — one line after task 05's TestWorkRowsOnTheFake
+func TestReassignRowsOnTheFake(t *testing.T) { conformance.RunWork(t, workFakeEnv, conformance.WorkRowsReassign...) }
+```
+
+`wKinds` from `""` reads the whole feed of a fresh world (task 05's helper, `task-05.md:186-200`);
+a fresh `WorkEnv` per row makes that exact. Whether `PatchIssue` by the team's admin may reassign a
+started issue directly, without a request, is SW.1's existing rule (an admin assign is not a
+reassign *request*); this row pins only that the pending request does not outlive it.
+
+#### Steps
+
+- [ ] Add the Hub delta (type, field, two kinds, two methods, two route rows, two `workCalls`) in
+      one commit; `go build ./control-plane/...` passes and task 16's `registerWork` does not panic.
+- [ ] Write `work_reassign.go`; the five rows fail with "not implemented" on the fake. Write the
+      fake's two methods and its three clearing lines until they pass. Mutants, one at a time,
+      then revert: drop the state check (W-65.1); set `is.assignee` in `RequestReassign` (W-65.2);
+      clear the assignee on decline (W-65.3); skip the `is.assignee != me` case (W-65.4); leave
+      `PatchIssue` untouched (W-65.5).
+- [ ] Add the wire (`work.ts`, `client.ts`, the two op kinds); task 37's wire test and task 56's
+      op tests still pass with the added keys.
+- [ ] Write `informs.test.ts`; it fails to import. Write `informs.ts` until the ten pass. Mutants:
+      drop the `writtenBy` check; split `issueRef` in `mySessionsByIssue`; return `op` for every
+      `reassignWrite`; append *"Next decision expected ~14:22"* to `zeroSentence`.
+- [ ] Write the row tests; write `answer.tsx`, `InformRow`, `ReassignDecide`, `ReassignMark`,
+      `DeskZero`, then the `deskRows.tsx` block and the CSS. Mutants: call `stopSessions` before
+      `answer`; `navigate` inside `onVerb`; count `needs.length` in `DeskZero`; add `role="status"`.
+- [ ] Mount `ReassignMark` in `IssueRow` and `IssueHead`; tasks 40 and 46's suites still pass.
+- [ ] Commit each file as it goes green.
