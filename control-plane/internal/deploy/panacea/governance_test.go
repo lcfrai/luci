@@ -398,8 +398,9 @@ func TestRevokeLegacyByGroup(t *testing.T) {
 }
 
 // TestURLPrefix: the PUT's data {branch, prefix, host} (handlers/projects.go:4365-4371), and its
-// 409 "url prefix already taken: …" (:4321) verbatim. Clearing reads only the status: its data
-// {branch, routeReverted} (:4448-4450) is not used, and no prefix to clear is success (:4407).
+// 409 "url prefix already taken: …" (:4321) verbatim. Clearing reads its data {branch,
+// routeReverted} (:4448-4451); no prefix to clear is success (:4407). The not-reverted answer is
+// TestClearURLPrefixRouteNotReverted's.
 func TestURLPrefix(t *testing.T) {
 	rs := serveRecorded(t, map[string]fixture{
 		"PUT " + branchP + "/url-prefix":                    {file: "urlprefix.json"},
@@ -426,13 +427,59 @@ func TestURLPrefix(t *testing.T) {
 	}
 	_, err = rs.c.SetURLPrefix(ctx, project, "feat/y", "uat-test")
 	wantKind(t, err, deploy.KindConflict, 409, fixtureSentence(t, "urlprefix-409.json"))
-	if err := rs.c.ClearURLPrefix(ctx, project, "feat/x"); err != nil {
-		t.Errorf("ClearURLPrefix: %v", err)
+	// A reverted route: Panacea's own sentence, which holds no internal error (:4443).
+	cleared, err := rs.c.ClearURLPrefix(ctx, project, "feat/x")
+	if want := (deploy.URLPrefixCleared{Branch: "feat/x", RouteReverted: true, Message: "url prefix cleared"}); err != nil || cleared != want {
+		t.Errorf("ClearURLPrefix = (%+v, %v), want %+v", cleared, err, want)
 	}
 	// The handler answers 200 on success; another 2xx is an answer this code does not know.
-	wantKind(t, rs.c.ClearURLPrefix(ctx, project, "feat/y"), deploy.KindUnavailable, 202, "")
+	_, err = rs.c.ClearURLPrefix(ctx, project, "feat/y")
+	wantKind(t, err, deploy.KindUnavailable, 202, "")
 	if n := len(rs.requests()); n != 5 {
 		t.Errorf("%d requests, want 5", n)
+	}
+}
+
+// routeNotRevertedExample is routeNotRevertedSentence("feat/x"), spelled out.
+const routeNotRevertedExample = "URL prefix released for feat/x, but the live route is not confirmed reverted: " +
+	"the branch may keep serving on its old host until the next deploy or reconcile."
+
+// TestClearURLPrefixRouteNotReverted kills reading a released-but-not-reverted clear as done
+// (found t04): ClearBranchURLPrefix releases the claim, then answers 200 with routeReverted false
+// when removing the host annotation or the reconcile fails (handlers/projects.go:4427-4451), so
+// the branch keeps serving at its old host. Panacea's sentence embeds err.Error() (:4431, :4438,
+// :4445), so it goes to warn and Message is the connector's own. An answer without routeReverted
+// has not confirmed the revert and reads the same way (fail closed).
+func TestClearURLPrefixRouteNotReverted(t *testing.T) {
+	rs := serveRecorded(t, map[string]fixture{
+		"DELETE " + branchP + "/url-prefix":                 {file: "urlprefix-clear-stale.json"},
+		"DELETE " + actsP + "/branches/feat%2Fy/url-prefix": {body: `{"message":"url prefix cleared","data":{"branch":"feat/y"}}`},
+	})
+	ctx := context.Background()
+	got, err := rs.c.ClearURLPrefix(ctx, project, "feat/x")
+	if want := (deploy.URLPrefixCleared{Branch: "feat/x", Message: routeNotRevertedExample}); err != nil || got != want {
+		t.Errorf("ClearURLPrefix(stale) = (%+v, %v)\nwant %+v", got, err, want)
+	}
+	for _, leak := range []string{"10.0.0.9", "NOT", "reconciling"} {
+		if strings.Contains(got.Message, leak) {
+			t.Errorf("Message carries %q: %q", leak, got.Message)
+		}
+	}
+	var envelope struct{ Message string }
+	if err := json.Unmarshal(loadFixture(t, "urlprefix-clear-stale.json"), &envelope); err != nil || envelope.Message == "" {
+		t.Fatalf("fixture message: %v", err)
+	}
+	if log := rs.log.String(); !strings.Contains(log, "level=WARN") || !strings.Contains(log, strconv.Quote(envelope.Message)) {
+		t.Errorf("no warn line carries Panacea's sentence %q:\n%s", envelope.Message, log)
+	}
+	got, err = rs.c.ClearURLPrefix(ctx, project, "feat/y")
+	want := deploy.URLPrefixCleared{Branch: "feat/y",
+		Message: strings.Replace(routeNotRevertedExample, "feat/x", "feat/y", 1)}
+	if err != nil || got != want {
+		t.Errorf("ClearURLPrefix(no routeReverted) = (%+v, %v)\nwant %+v", got, err, want)
+	}
+	if n := len(rs.requests()); n != 2 {
+		t.Errorf("%d requests, want 2", n)
 	}
 }
 
@@ -493,7 +540,7 @@ func TestNoWriteIsRetried(t *testing.T) {
 	writes["POST "+actsP+"/access"] = c.Grant(ctx, project, deploy.GrantRequest{Grantee: "a", Role: deploy.RoleViewer})
 	writes["DELETE "+actsP+"/access/a"] = c.Revoke(ctx, project, "a")
 	_, writes["PUT "+branchP+"/url-prefix"] = c.SetURLPrefix(ctx, project, "feat/x", "uat-test")
-	writes["DELETE "+branchP+"/url-prefix"] = c.ClearURLPrefix(ctx, project, "feat/x")
+	_, writes["DELETE "+branchP+"/url-prefix"] = c.ClearURLPrefix(ctx, project, "feat/x")
 	count := func(key string) int {
 		mu.Lock()
 		defer mu.Unlock()

@@ -254,7 +254,7 @@ func TestActsRefuseBadSegmentsBeforeRequest(t *testing.T) {
 	errs["Revoke empty"] = c.Revoke(ctx, project, "")
 	errs["Revoke dotdot"] = c.Revoke(ctx, project, "..")
 	_, errs["SetURLPrefix"] = c.SetURLPrefix(ctx, project, "", "uat-test")
-	errs["ClearURLPrefix"] = c.ClearURLPrefix(ctx, project, ".")
+	_, errs["ClearURLPrefix"] = c.ClearURLPrefix(ctx, project, ".")
 	for name, err := range errs {
 		if k := deploy.KindOf(err); k != deploy.KindRejected {
 			t.Errorf("%s: Kind %q (%v), want rejected", name, k, err)

@@ -1,0 +1,8 @@
+{
+  "_source": "DELETE /api/v1/projects/engagement-portal/branches/feat%2Fx/url-prefix when EnsureTenant fails after the claim is released (handlers/projects.go:4408-4412): stale gets \"reconciling the branch's route (\"+err.Error()+\")\" (:4435-4439), so msg is the not-reverted sentence (:4443-4447) and data is {branch, routeReverted: len(stale) == 0} (:4448-4451), answered 200. The reconcile error is a STAND-IN",
+  "message": "URL prefix released, but the live route has NOT reverted yet — reconciling the branch's route (dial tcp 10.0.0.9:6443: i/o timeout) failed. The branch may keep serving on its old host until the next deploy or reconcile.",
+  "data": {
+    "branch": "feat/x",
+    "routeReverted": false
+  }
+}

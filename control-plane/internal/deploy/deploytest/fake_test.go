@@ -729,6 +729,35 @@ func TestFakeGovernor(t *testing.T) {
 	}
 }
 
+// TestFakeURLPrefix: a set prefix carries no host (the target's to compute). A clear answers
+// RouteReverted true with a sentence by default; SetURLRouteReverts(false) seeds the target that
+// releases the prefix but could not revert the live route (Panacea's routeReverted false,
+// handlers/projects.go:4427-4450), which a lens drawing the clear as done would hide.
+func TestFakeURLPrefix(t *testing.T) {
+	f := newShipFake(&testClock{t: base})
+	ctx := context.Background()
+	u, err := f.SetURLPrefix(ctx, proj, "feat/x", "uat-test")
+	if want := (deploy.URLPrefix{Branch: "feat/x", Prefix: "uat-test"}); err != nil || u != want {
+		t.Fatalf("SetURLPrefix = (%+v, %v), want %+v", u, err, want)
+	}
+	done, err := f.ClearURLPrefix(ctx, proj, "feat/x")
+	if err != nil || done.Branch != "feat/x" || !done.RouteReverted || done.Message == "" {
+		t.Fatalf("ClearURLPrefix unarmed = (%+v, %v), want reverted with a sentence", done, err)
+	}
+	f.SetURLRouteReverts(proj, "feat/y", false)
+	stale, err := f.ClearURLPrefix(ctx, proj, "feat/y")
+	if err != nil || stale.Branch != "feat/y" || stale.RouteReverted || stale.Message == "" || stale.Message == done.Message {
+		t.Fatalf("ClearURLPrefix not reverted = (%+v, %v), want RouteReverted false with its own sentence", stale, err)
+	}
+	if again, _ := f.ClearURLPrefix(ctx, proj, "feat/x"); !again.RouteReverted {
+		t.Errorf("SetURLRouteReverts(feat/y) reached feat/x: %+v", again)
+	}
+	f.SetURLRouteReverts(proj, "feat/y", true)
+	if again, _ := f.ClearURLPrefix(ctx, proj, "feat/y"); !again.RouteReverted {
+		t.Errorf("SetURLRouteReverts(true) did not re-arm the default: %+v", again)
+	}
+}
+
 // TestFakeStream yields the seeded events in order, then io.EOF; an unseeded stream is
 // KindNotFound; a done context ends Next.
 func TestFakeStream(t *testing.T) {
