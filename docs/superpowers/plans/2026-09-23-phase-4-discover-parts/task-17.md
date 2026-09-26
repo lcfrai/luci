@@ -73,10 +73,13 @@ export function SessionContextChip(props: { sessionId: SessionId }): JSX.Element
 export interface DefinitionOfDoneProps {
   refValue: ProvenanceRef;             // the HEAD reading (contract §4.4), read by the mount through task 16's useHeadRef (review I10)
   state: ProvenanceState;
-  /** selectCriterionStates(refValue.key): each criterion's state and because, by id. The ref's
-   *  criteria carry text only; a state is never read from them (review I14). useHeadRef's
-   *  answer fills that entry itself (task 16 putHeadRef, HeadReading.criterionStates), so no
-   *  session need have stamped the key (re-review b06-1 R-I3). */
+  /** selectHeadCriterionStates(target), the mount's target: each criterion's state and because,
+   *  by id. The ref's criteria carry text only; a state is never read from them (review I14).
+   *  useHeadRef's answer fills that entry itself (task 16 putHeadRef, HeadReading.criterionStates),
+   *  so no session need have stamped the key (re-review b06-1 R-I3). Never
+   *  selectCriterionStates(refValue.key): a project key inherited by two branches has a set of
+   *  verdicts per branch, and the by-key map holds one (re-review b08-2 R2-I1; task 06 fix
+   *  round 2). */
   criterionStates: Readonly<Record<string, CriterionReading>>;
   onOpenDiscover(key: string): void;
   onRecordEvidence?(criterionId: string): void; // phase 3 ask P4-5

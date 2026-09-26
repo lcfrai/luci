@@ -104,8 +104,11 @@ rule 5), and then the desktop's rule 4 decides nothing until it arrives (re-revi
    `contextwrite.Materialiser.Inspect` for each. It **reads files and writes nothing**.
 4. Criterion states come from `Config.Evaluate` (phase 3's seam, S4-P3.4); nil → all `open`.
    They are **not** in any `Ref`: `Resolve`'s `states` becomes `criterionStates`, keyed by key,
-   one entry per `resolved` slot, recomputed on every call (review I14). `criterionStates` is
-   `{}`, never `null`, when no slot is resolved. The head readings serve `HeadRef`'s `states`
+   one entry per `resolved` slot whose readings were taken, recomputed on every call (review
+   I14), and none for a branch slot whose binding task 07 rule 8 could not read (task 06 fix
+   round 2, re-review 1 R1-I1): "binding unknown" is not sent as `open`, so the desktop keeps
+   its last reading. The route copies `states` as it is and adds no entry. `criterionStates`
+   is `{}`, never `null`, when no slot has one. The head readings serve `HeadRef`'s `states`
    as `HeadReading.criterionStates`, `[]` when the `Ref` is not resolved (re-review b06-1 R-I3).
 5. **Every route here runs under task 11's `Budgets.Default` (8 s; review I4)**, below the
    desktop's 10 s. For the head readings, the deadline's expiry is task 11's route-deadline row
@@ -138,7 +141,7 @@ rule 5), and then the desktop's rule 4 decides nothing until it arrives (re-revi
 | `TestRefsServesCachedSlotsWhenTheHubIsDown` | resolve once; fake goes unavailable; resolve the same key plus a new one → 200, first `resolved`, second `unavailable` | a whole Develop column of chips blanked by one unreachable Hub (ADR-H1 §5.4) |
 | `TestRefsWithTheHubOffOrSignedOutIsUnavailable` (review I6) | a `discoverhub.Service` built with a nil `discoverhub.Config.Hub`, and one whose fake returns `signin.ErrSignedOut` → 200 (not 401, not 503), every uncached brief slot `unavailable`, **none** `missing` | the route relaying a `Resolve` error, or `hub_off` shown as data loss on every chip (task 07's `TestHubOffIsUnavailableNotMissing` is the unit half) |
 | `TestRefsJSONHasEveryFieldInEverySlot` | each slot's JSON object has the same key set as the golden `Ref` of task 06 | optional fields the desktop has to guard |
-| `TestRefsServesCriterionStatesBesideTheRefs` (review I14) | a resolved key, a `missing` one and `""` → `criterionStates` has exactly the resolved key, with one `{id, state, because}` per `criteria` item of its slot, same ids and order; no slot's `criteria` item has `state` or `because`; zero resolved slots → `"criterionStates": {}` | a verdict inside the cached `Ref`, or a `null` the desktop has to guard |
+| `TestRefsServesCriterionStatesBesideTheRefs` (review I14) | a resolved key, a `missing` one and `""` → `criterionStates` has exactly the resolved key, with one `{id, state, because}` per `criteria` item of its slot, same ids and order; no slot's `criteria` item has `state` or `because`; zero resolved slots → `"criterionStates": {}`; with `Config.Evaluate` set, a branch key resolved once on a healthy fake and again under `SetUnavailable(true)`, so it is served from the cache while `List` fails → its slot `resolved` and **no** `criterionStates` entry for it, never one of `open` readings (task 07 rule 8; task 06 fix round 2, re-review 1 R1-I1) | a verdict inside the cached `Ref`, or a `null` the desktop has to guard; a route that fills a missing entry with `open`, which overwrites the desktop's `settled` for the whole outage |
 | `TestHeadReadingIsNeverCached` | two reads with the head moved between them return different revisions | a stale `DefinitionOfDone` |
 | `TestHeadReadingOfAnUnreachableHubIs503` | `upstream_unavailable`, `upstream: "hub"` | a head served from memory |
 | `TestHeadReadingServesCriterionStates` (re-review b06-1 R-I3) | a branch whose head key no session stamped; `Config.Evaluate` answers every criterion `settled` with `Because` `{"CI run 88 passed"}` → 200, `ref` has no `state` or `because` under `criteria`, and `criterionStates` has one `settled` reading per `ref.criteria` item, same ids and order | a head reading with no states, which leaves `DefinitionOfDone` showing `open` until phase 3 happens to mark that exact key |
