@@ -340,6 +340,27 @@ and 10, D8 for task 09, D15 for task 07).
     - Unmeasured: a Kata or virtiofs mount, whose inode or uid numbering may not be stable; a
       large repository's time; and whether Claude Code runs a lock-taking git soon after a
       session starts. Carried to task 03 as t01-D15.
+16. **On Windows, a git that a timeout kills comes back as exit status 1, with no output
+    (task 02).** Added in fix round 2 (2026-09-26), found by the `-race` suite, not by a pin.
+    - What failed: `control-plane/internal/project`, phase 2's read-only runner, whose
+      `GitTimeout` is 10 s. Two of its tests failed at `b9bee2a` with `git rev-parse
+      --abbrev-ref HEAD … exit status 1: ` and empty stdout and stderr
+      (`scratchpad/p3/t01f2-race.out`). One of them took 10.80 s. The package passed alone on a
+      rerun, where the same test took 0.65 s (`t01f2-race-project.out`). This task changed no
+      file in that package.
+    - Why exit 1: Go kills a process on Windows with `TerminateProcess(h, 1)`
+      (`os/exec_windows.go:73`, go1.26.2). `exec.Cmd.Wait` then returns the process's
+      `ExitError` ("exit status 1") in preference to the context's error
+      (`os/exec/exec.go:930-945`). On Linux the same kill gives `ExitCode() == -1`.
+    - That these two failures were timeout kills is inferred, from the 10.80 s and the empty
+      output. It was not traced.
+    - Why it matters: exit 1 is an answer in several `OKExit` lists. Examples are `merge-tree`'s
+      conflict (task-08:73), `merge-base --is-ancestor`'s "no" (task-11:123, task-15:107) and
+      `rev-parse --verify -q`'s "absent" (task-09:141). A runner that reads the exit code before
+      the context would return a timeout-killed `merge-base --is-ancestor` as "not an
+      ancestor". task-02:202 already wants `ExitCode == -1` when the timeout killed git, but
+      `TestExecTimeoutIsPerClass` (task-02:485) tries only a call with no `OKExit`. Carried to
+      task 02 as t01-D16.
 
 ## Mutation check
 
