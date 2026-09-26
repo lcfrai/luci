@@ -8,7 +8,7 @@ Every earlier task proves its piece against fakes of its neighbours. This task i
 - `docs/verification/2026-09-25-phase-6-local-e2e.md`: the record (new)
 
 **Interfaces:**
-- Consumes: task 15 (the local control plane mints beside start and revokes on delete), task 17 (the compose stack, `init.sh`, the published ports `127.0.0.1:4000` and `127.0.0.1:4100`), task 18 (the probe results, which say which LiteLLM behaviours this run may rely on), task 21 (the `PATCH` route), task 22 (the chip), task 14 (`panacea token` and the settings fragment in the sandbox image), task 16 (the fakes' `x-fake-route` label and `/_captured`)
+- Consumes: task 15b (the local control plane mints beside start and revokes on delete, through 15a's client; this is the first run of that client against the real keysmith, review I-10), task 17 (the compose stack, `init.sh`, the published ports `127.0.0.1:4000` and `127.0.0.1:4100`), task 18 (the probe results, which say which LiteLLM behaviours this run may rely on), task 21 (the `PATCH` route), task 22 (the chip), task 14 (`panacea token` and the settings fragment in the sandbox image), task 16 (the fakes' `x-fake-route` label and `/_captured`)
 - Produces: the record; a list of findings for task 25
 - Required by: task 25 (the phase's "what stays unverified" list reads this record)
 

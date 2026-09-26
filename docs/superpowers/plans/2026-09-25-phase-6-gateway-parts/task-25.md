@@ -77,8 +77,8 @@ Read every part's "Gaps against the skeleton" section (`grep -n '^\*\*Gaps again
 
 | Gap | Source | Register | Entry |
 |---|---|---|---|
-| The gateway client has no `Usage` method; it must expose the owner and team it mints for | task 21 gaps 1, 2 | follow-up inside phase 6 | closed if task 15's executor added them; else a task |
-| keysmith's caller table has no `usage` route | task 21 gap 5, task 23 gap 4 | follow-up inside phase 6 | tasks 08 and 17 |
+| The gateway client has no `Usage` method; it must expose the owner and team it mints for | task 21 gaps 1, 2 | follow-up inside phase 6 | closed if task 15a's executor added `Usage` and 15b's the owner and team; else a task |
+| keysmith's caller table has no `usage` route | task 21 gap 5, task 23 gap 4 | follow-up inside phase 6 | tasks 08a (the built-in `kube` table) and 17 |
 | `projects.json` must be mounted as a directory; compose must pass budget variables through; name the control plane's token file | task 21 gap 3, task 23 gaps 3, 4 | follow-up inside phase 6 | task 17 |
 | Local mode puts sandboxes and LiteLLM on one network | task 23 gap 2, item 9's result | follow-up inside phase 6 | *closed in the plan by review I-6 (fix batch b03)*: task 17's sandbox network holds the gatekeeper alone and the internal `panacea-app-gateway-backend` the rest; task 15 refuses another sandbox network. Item 9 is the check |
 | A repository's `.claude/settings.json` can move `ANTHROPIC_BASE_URL` | review I-4 | follow-up inside phase 6 | *closed in the plan by review I-4 (fix batch b03)*: task 14's fragment pins the endpoint, proxy and provider-switch keys, turns telemetry export off (`CLAUDE_CODE_ENABLE_TELEMETRY` `"0"`) and project hooks off (`allowManagedHooksOnly`, re-review R-1); task 23's item 10 is the check. Still open, and named in task 14 "does not claim": any `env` key the fragment does not pin, and a project MCP server or plugin, which are seam S6.6's to close |
@@ -106,7 +106,7 @@ Append to the plan, after "Open risks", a section `## At close: what stays unver
 |---|---|---|---|
 | U1 | The pinned LiteLLM version, and that it honours every rendered config key (`store_prompts_in_spend_logs`, `turn_off_message_logging`, `drop_params`) | tasks 02, 17 | task 18's record, P06 and P10 |
 | U2 | A caller-chosen `key` on `/key/generate`; `duration` expiry; user, team and key budgets; `/key/delete` at once; `/key/info` spend | tasks 04, 07, 09 | task 18's P01 to P05, P11, P12 |
-| U3 | Which of LiteLLM's features are enterprise-only in the pinned image | tasks 06, 08, 09 | task 18's record |
+| U3 | Which of LiteLLM's features are enterprise-only in the pinned image | tasks 06, 08b, 09 | task 18's record |
 | U4 | Every concrete Bedrock `au.` inference-profile id, and that the profiles span only Sydney and Melbourne | tasks 02, 20 | listing the account's profiles at the first cloud run (task 24 gap 6) |
 | U5 | LiteLLM's Anthropic-to-Bedrock translation carrying what Claude Code sends (P6-D3) | task 11, P6-D3 | task 24's P04 |
 | U6 | The gatekeeper seeing a sandbox pod's own source address on AKS | task 10 | task 24's P03 |

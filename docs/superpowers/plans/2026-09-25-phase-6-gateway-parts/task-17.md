@@ -38,8 +38,8 @@ A sandbox, a developer's `curl` and a stray browser tab all reach LiteLLM only t
   - `secrets/callers`: keysmith's `bearer-file`, in task 08's `name token routes` line format
   - `state/projects.json`: the live route file, which keysmith and the gatekeeper read as `file:/etc/panacea/state/projects.json` and task 21's file store writes on the host
   - the image `panacea-app/gateway:local` carrying `/usr/local/bin/{keysmith,gatekeeper,fakeanthropic}`
-- Consumes: task 02's `litellm.config.yaml` (and the anthropic variant, gap above); task 08's `keysmith` binary and its variables; task 12's `gatekeeper`; task 16's `fakeanthropic` and its flags; task 13's `projects.json` format; task 03's mint JSON (acceptance only).
-- Consumed by: task 05 (`PANACEA_APP_GATEWAY_TEST_DATABASE_URL` against this Postgres, step 7), task 15 (network, bearer, keysmith URL), task 18 (probes from a container on `panacea-app-gateway-backend`), task 21 (writes `state/projects.json`), task 23 (the whole stack).
+- Consumes: task 02's `litellm.config.yaml` (and the anthropic variant, gap above); task 08b's `keysmith` binary and its variables (review I-10 split task 08; 08a's placeholder binary refuses to start); task 12's `gatekeeper`; task 16's `fakeanthropic` and its flags; task 13's `projects.json` format; task 03's mint JSON (acceptance only).
+- Consumed by: task 05 (`PANACEA_APP_GATEWAY_TEST_DATABASE_URL` against this Postgres, step 7), task 15b (network, bearer, keysmith URL), task 18 (probes from a container on `panacea-app-gateway-backend`), task 21 (writes `state/projects.json`), task 23 (the whole stack).
 
 **What each service is given, complete.** Every variable name is from the skeleton's shared names; a variable a binary does not know fails its start-up with the name (global constraint 5), which is how a drift between this table and tasks 08 and 12 shows itself.
 

@@ -32,7 +32,7 @@
   - Services `gatekeeper:4000`, `keysmith:4100`, `litellm:4001` (ClusterIP; the skeleton's shared names), so a sandbox's `ANTHROPIC_BASE_URL` is `http://gatekeeper.panacea-gateway.svc.cluster.local:4000`
   - service accounts `litellm`, `keysmith`, `gatekeeper`, each annotated with its identity's client id
   - pod labels `app.kubernetes.io/name: {litellm|keysmith|gatekeeper}` and `app.kubernetes.io/part-of: panacea-gateway`, which phase 8's `netpolcover` and the Hub's ingress policy select on
-- Consumes: task 02's `files/litellm.config.yaml`; task 08's and task 12's variables; task 17's image layout (`/usr/local/bin/{keysmith,gatekeeper}`); task 20's `role_arn`; phase 8's namespaces and labels above.
+- Consumes: task 02's `files/litellm.config.yaml`; task 08b's and task 12's variables (08b's `config.go`; review I-10); task 17's image layout (`/usr/local/bin/{keysmith,gatekeeper}`); task 20's `role_arn`; phase 8's namespaces and labels above.
 - Consumed by: task 24's proving scripts (the Services and labels), phase 8's pipeline (the release, asks P8-1 to P8-5), seam S6.9 (`netpolcover`).
 
 - [ ] **Step 1: Write the failing render test**

@@ -25,7 +25,7 @@ The second thing is **effective, never stored**. The panel shows the route the g
   - task 01: `dataclass.Class`, `Route`, `RouteGlobal`, `RouteAU`, `ParseRoute`, `Floor`, `Tighter`, `Decide`, `Actor`, `CanChange`, `CanReclassify`, `ErrNeedsCompliance`, `ErrBelowFloor`, `ErrUnknownClass`, `ErrUnknownRoute`, `User`, `ProjectInferenceFields`, `DecodeFields`
   - task 03: `wire.UsageRow`, `wire.Owner`, `wire.CodeNeedsCompliance` (the constant for `"needs_compliance"`, 403)
   - task 06: `budget.PeriodStart` (the UTC calendar month the rows are filtered to)
-  - task 15: the `gatewayclient.Client`, which must satisfy `api.UsageReader` (gap 1), and the owner and team it mints for (gap 2)
+  - task 15a: the `gatewayclient.Client`, which must satisfy `api.UsageReader` (gap 1); task 15b: the owner and team `cmd/api` mints for (gap 2) and the `cmd/api` wiring this part extends (review I-10 split task 15; `task-15.md` holds both halves)
   - phase 2: `httpx.WriteJSON`, `httpx.WriteProblem`, `httpx.CodeBadRequest`, `httpx.CodeConflict`, `httpx.CodeProjectNotFound` (`control-plane/internal/httpx/problem.go:45-60`, `:83`, `:93`); `Deps.Projects` (`api.go:52-55`, `:98`); `projectNotFound` (`catalog.go:225`); `a.internal` (`api.go:430`); the `routes` recorder (`api.go:247-266`)
 - Required by: task 22 (the desktop mirrors `inferenceJSON` field for field); task 23 (step 3 raises a project through this route)
 
