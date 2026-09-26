@@ -76,7 +76,7 @@ the verdict BLOCKED:
 | E2 | Gap S20-1 closed: the owner's `orchestrator`-class delegation is created on a first team launch (`task-20.md:529-533`, "**This blocks task 33**") | with no delegation there is no Orchestrator |
 | E3 | Gap G33-1 closed: the desktop can post a human message, list its escalations and answer one (below) | the humans' half of the run |
 | E4 | Gaps G31-1 (the Hub's taint set), G32-3 (`fleetd migrate`) and G32-4 (Entra Postgres auth) closed | without them `resume` is refused, or Fleet does not start |
-| E5 | The owner's runbook done: the `fleet-control-key` secret in Key Vault; `fleet-principals.sql` run by a human admin; keysmith's Fleet caller on (task 32); Alice and Bob members of one team project with data class set (OD-24) | each is a human act by design |
+| E5 | The owner's runbook done: the `fleet-control-key` secret in Key Vault; `fleet-principals.sql` run by a human admin; keysmith's Fleet caller on (task 32); Alice (`admin`) and Bob (`member`) in one Hub team, whose project is shared (Hub task 35, `linked`) with its data class set (OD-24) and is still `solo` (on a re-run: `team` with exactly one `project.mode_set`, by Alice, which `05-team-mode.sh` then checks from the audit alone); the Hub in `PANACEA_APP_HUB_ENV=dev` with `PANACEA_APP_HUB_TEAM_MODE_UNSTREAMED=true` (task 06, fix batch b01) until task 45's sink is `logs`. **E5 does not assume a team project: `05-team-mode.sh` makes it one through the route** | each is a human act by design; the mode is the admin's, gated on the audit |
 | E6 | A test repository with `web/auth/login.go`, `web/auth/session.go` and `web/api/routes.go`, and each worker's clone prepared by the operator (gap S20-3, `task-20.md:538-540`) | the worker needs a worktree; phase 8's machine mount is not wired in TM1-α |
 | E7 | The pinned Claude Code CLI version recorded from the sandbox image's label, and the same in both classes' pods | every UNVERIFIED CLI behaviour below is at this version only |
 
@@ -84,6 +84,8 @@ the verdict BLOCKED:
 - `infra/smoke/team/lib.sh` — shared: the contexts, `need`, `jget` (python3; `jq` is not assumed),
   `pexec`, `desk`, `hubids`, `record` (new)
 - `infra/smoke/team/00-preflight.sh` — the entry conditions (new)
+- `infra/smoke/team/05-team-mode.sh` — Alice turns the project team through the route; M0 (new;
+  fix batch b01, X-C1)
 - `infra/smoke/team/10-launch.sh` — each person's first team launch; the four agents' ids (new)
 - `infra/smoke/team/20-plan.sh` — Run A's overlapping plan and the conflict-before-spawn check (new)
 - `infra/smoke/team/30-settle.sh` — Run A's `sequence`, the inform and the decide (new)
@@ -104,6 +106,7 @@ files; nothing in it is typed from memory.
 
 | Id | Check | How it is observed | Script |
 |---|---|---|---|
+| M0 | The project becomes `team` only through its writer: Bob (member) is refused, Alice (admin) moves it once, one `project.mode_set` by Alice on Fleet's feed (fix batch b01, X-C1) | task 21's team-mode route per person, the Hub audit through `hubids`, Fleet's route 78 as the operator | 05 |
 | M1 | Each person's first team launch yields one Orchestrator and one worker, `ag-…` ids, the owner's labels on both pods | Fleet's `GET /v1/agents` per person (task 21's route, `task-21.md:84`) and the broker's list as the operator | 10 |
 | M2 | The overlapping plan raises a tier-P conflict **before** either task's worker exists | the `cf-…` record's `createdAt` is earlier than any `agents.start` whose `task` is Alice's or Bob's new task, both read from the Hub's audit feed | 20 |
 | M3 | `sequence` settles it with typed state only: Bob's overlapping lease demoted to `intent`, one land hint, the thread `resolved`, nothing else moved | Fleet's leases before and after (a diff of the whole project's leases), the Hub thread record | 30 |
@@ -245,6 +248,15 @@ checked by pid, `task-18.md:59-61`), **UNVERIFIED on a Kata pod** until this scr
   (operator); each laptop's `desk GET /api/team/escalations` answers 200 (E3); the image label
   `org.opencontainers.image.version` of the sandbox image, read from both classes' pods, is equal
   (E7).
+- **`05-team-mode.sh`** (both laptops; fix batch b01, X-C1): **M0, the project becomes a team
+  project only through its one writer.** Bob first: `desk POST /v1/projects/<local id>/team-mode`
+  (task 21's route over Hub route 87) → 403 `forbidden`, `required: "admin"`, and the Hub project
+  still `mode: "solo"`. Then Alice: → 200, `project.mode == "team"`; again → 200 with no second
+  event. `hubids` then reads the Hub audit for the project: exactly one `project.mode_set`,
+  `actorUserId` Alice, `data {"from":"solo","to":"team"}`, and Fleet's feed (route 78, operator)
+  holds it. `held` only if all four hold. The record states the Hub's env and that the audit was
+  **not streamed** for this run (the dev-only flag), so no reader takes TM1-α's audit as T5-proof.
+  A 503 `audit_not_streaming` here means E5's flag is off: BLOCKED, not `broke`.
 - **`10-launch.sh`** (laptop, then operator): each person launches one worker in the team project
   from the cockpit's route (`desk POST /api/sessions` with the team project, task 21), which makes
   Fleet create their Orchestrator first (task 20). The operator maps each `ag-…` to its pod by the
@@ -338,7 +350,7 @@ they exist, E3 is unmet and the verdict is BLOCKED.
 
 ## Must-hold checks
 | Id | Run | Verdict | What was observed | What was not observed | Ids |
-(M1–M10; `held`, `broke` or `not-observed`, copied from out/*.jsonl; a person's observation says so)
+(M0–M10; `held`, `broke` or `not-observed`, copied from out/*.jsonl; a person's observation says so)
 
 ## Observed-only
 | Id | What was observed | What it re-plans |
