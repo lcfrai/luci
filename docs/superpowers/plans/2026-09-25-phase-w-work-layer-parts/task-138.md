@@ -619,9 +619,11 @@ export function resolveClause(c: NlClause, now: Date, tz: string, me: string): R
 }
 
 /** "21 Sep – 27 Sep": the first and last local day a period covers, for the chip. */
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 export function shownRange(b: Bounds, tz: string): string {
-  const f = new Intl.DateTimeFormat("en-AU", { timeZone: tz, day: "numeric", month: "short" });
-  return `${f.format(new Date(b.from))} – ${f.format(new Date(Date.parse(b.to) - 1))}`;
+  // Built from the date's parts, not Intl's month names: CLDR's en-AU and en-GB say "Sept".
+  const day = (ms: number) => { const x = localDate(ms, tz); return `${x.d} ${MONTHS[x.m - 1]}`; };
+  return `${day(Date.parse(b.from))} – ${day(Date.parse(b.to) - 1)}`;
 }
 ```
 
@@ -873,3 +875,42 @@ test in `internal/api/workassist_test.go` adds: 301 characters answers `400 bad_
 gateway call; the switch answers `503 assists_off`; an unreadable team answers the Hub's `404`; a
 gateway stop answers `502 gateway_unavailable`. The house uses the standard library's `testing`;
 `must*` are the rig's helpers (`task-139.md:922-923`).
+
+#### Tests to write first — desktop, `resolve.test.ts`
+
+```ts
+import { describe, expect, it } from "vitest";
+import { periodBounds, resolveClause, shownRange, withinBounds } from "./resolve";
+
+const SYD = "Australia/Sydney";
+
+describe("relative dates resolve on the client, in the person's zone", () => {
+  it("last week is Monday to Sunday in Sydney, not in UTC", () => { // kills "UTC weeks"
+    const b = periodBounds("last_week", new Date("2026-09-30T02:00:00Z"), SYD); // Wed 30 Sep, 12:00 AEST
+    expect(b).toEqual({ from: "2026-09-20T14:00:00.000Z", to: "2026-09-27T14:00:00.000Z" });
+    expect(shownRange(b, SYD)).toBe("21 Sep – 27 Sep");
+  });
+
+  it("a week across the October DST change keeps local midnights", () => { // kills "one fixed offset"
+    const b = periodBounds("last_week", new Date("2026-10-07T02:00:00Z"), SYD);
+    expect(b).toEqual({ from: "2026-09-27T14:00:00.000Z", to: "2026-10-04T13:00:00.000Z" });
+  });
+
+  it("this month in December ends at 1 January", () => { // kills "month overflow"
+    const b = periodBounds("this_month", new Date("2026-12-15T00:00:00Z"), SYD);
+    expect(b.to).toBe("2026-12-31T13:00:00.000Z");
+  });
+
+  it("within is a rolling span back from now", () => {
+    expect(withinBounds("P1W", new Date("2026-09-30T02:00:00Z")).from).toBe("2026-09-23T02:00:00.000Z");
+    expect(() => withinBounds("2026-09-21", new Date())).toThrow(); // kills "an absolute date accepted"
+  });
+
+  it("@me is whoever evaluates the view", () => { // kills "me frozen at parse time"
+    const c = resolveClause({ field: "assignee", values: ["@me", "u-sam"] }, new Date(), SYD, "u-priya");
+    expect(c).toEqual({ field: "assignee", values: ["u-priya", "u-sam"] });
+  });
+});
+```
+
+1 January 2027 00:00 AEDT (+11) is 31 December 13:00 UTC, which is the December test's value.
