@@ -352,3 +352,84 @@ control plane's, never a guess, and the person can press again or use Develop's 
 `"The control plane did not answer."` is shown only for a rejection that is not an `ApiError`,
 which task 37's client never raises (`task-37.md:317`); it is a floor, not a path.
 
+#### Interfaces — complete: `desktop/src/components/work/StartChip.tsx`
+
+```tsx
+// desktop/src/components/work/StartChip.tsx — the row's one chip for a Start (task 61).
+//
+// Words, never a spinner or a countdown. The first-sign line is the only thing that ticks, and
+// it ticks on the window's one heartbeat (DESIGN-SYSTEM; heartbeat.ts:64).
+import { useEffect } from "react";
+import { useHeartbeat } from "../../hooks/heartbeat";
+import { useCockpit } from "../../store/store";
+import type { StartResult } from "../../api/work";
+import { firstSign, useStart, useStartEntry } from "../../work/start/useStart";
+
+/** How long a note (said, undone, discarded) stays before the chip clears. A design value. */
+export const NOTE_MS = 4000;
+
+const routeWords = (r: StartResult): string =>
+  (r.route === "au" ? "AU route" : "Global route") + (r.routeForced ? " · set by the project's data class" : "");
+
+/** Its own component so only a live chip subscribes to the heartbeat (heartbeat.ts:59-63). */
+function FirstSign({ sessionId }: { sessionId: string }): JSX.Element | null {
+  const now = useHeartbeat();
+  const session = useCockpit((s) => s.sessions[sessionId]);
+  const line = session === undefined ? null : firstSign(session, now);
+  return line === null ? null : <span className="sc-sign">{line}</span>;
+}
+
+export function StartChip({ issueId }: { issueId: string }): JSX.Element | null {
+  const entry = useStartEntry(issueId);
+  const s = useStart();
+  const phase = entry?.phase;
+  useEffect(() => {
+    if (phase === undefined || !["said", "undone", "discarded"].includes(phase.kind)) return;
+    const t = setTimeout(() => s.clear(issueId), NOTE_MS);
+    return () => clearTimeout(t);
+  }, [phase, issueId, s]);
+  if (phase === undefined) return null;
+
+  const body = (() => {
+    switch (phase.kind) {
+      case "sending": return <span className="sc-word">Starting…</span>;
+      case "asking": return <span className="sc-word">Asking the control plane…</span>;
+      case "said": return <span className="sc-note" role="status">{phase.words}</span>;
+      case "undone": case "discarded": return (
+        <span className="sc-note" role="status">
+          {phase.kind === "undone" ? "Start undone" : "Discarded"}
+          {phase.stateRestored !== null ? ` · back to ${phase.stateRestored.replace("_", " ")}` : ""}
+          {" · cost not metered in local mode"}
+        </span>);
+      case "undoable": return (<>
+        <span className="sc-word">Started · {routeWords(phase.result)}</span>
+        <button type="button" className="sc-act" onClick={() => void s.undo(issueId)}>Undo Start</button>
+        {phase.note ? <span className="sc-note" role="status">{phase.note}</span> : null}
+        <FirstSign sessionId={phase.result.sessionId} />
+      </>);
+      case "discard_only": return (<>
+        <span className="sc-note" role="status">{phase.note}</span>
+        <button type="button" className="sc-act" onClick={() => void s.discard(issueId)}>Stop and discard</button>
+        <FirstSign sessionId={phase.result.sessionId} />
+      </>);
+      case "confirming": return (<>
+        <span className="sc-consequence" role="alert">
+          {phase.paths.length === 0
+            ? "Discards the lane's commits that have not landed."
+            : `Discards ${phase.paths.length} ${phase.paths.length === 1 ? "file" : "files"}: ${phase.paths.join(", ")}`}
+        </span>
+        <button type="button" className="sc-act sc-danger" onClick={() => void s.discard(issueId)}>Discard</button>
+      </>);
+    }
+  })();
+  return <span className="sc" data-start-phase={phase.kind}>{body}</span>;
+}
+```
+
+The `undone` and `discarded` notes say *cost not metered in local mode* because task 24's `cost` is
+`null` in local mode (`task-24.md:108`, `:126-127`); when phase 6's gateway returns a figure, the
+note shows it verbatim and this line changes, which is phase 6's delta, not this task's. The
+empty-paths wording is task 24's `ConfirmNeeded.Paths` comment (`task-24.md:216`: *"[] when the
+loss is unlanded commits only"*). The consequence line is a count of observed paths, which is a
+fact the control plane returned, not a prediction.
+
