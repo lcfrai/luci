@@ -696,3 +696,128 @@ it("a full load and 100 events write no Work data anywhere", async () => {
 the pattern `store.test.ts:335` relies on. The `setLens` line makes the store persist once, so
 the key-set assertion is not vacuous. The glob's `query: "?raw"` form is Vite 5's (**UNVERIFIED**
 against the repo's Vite version; the older `as: "raw"` form is the fallback).
+
+#### Interfaces — complete: the delta on `WorkMount` (task 40's `WorkLens.tsx:585-592`)
+
+```tsx
+// WorkLens.tsx — task 55's edit. The not-connected line now names why; the replica starts on sign-in.
+import { api } from "../../api";
+import { createHubFeedClient } from "../../api/hubFeed";          // phase 4 task 16 (UNVERIFIED path)
+import { hubReplicaDeps, type HubReads } from "../../work/replica/hubDeps";
+import { startReplica, stopReplica } from "../../work/replica/replicaMount";
+
+function replicaDeps(): ReplicaDeps {
+  const feed = createHubFeedClient();
+  // HubReads is one GET; phase 4's client already owns the feed route, so the adapter reads `after`.
+  const hub: HubReads = { get: (route) => feed.changes(new URL(route, "http://x").searchParams.get("after") ?? "latest") };
+  return hubReplicaDeps(api.work, hub, {
+    cursorHint: hubCursorHint(),                                   // phase 4's hubCursor, below
+    thread: phase4ThreadSource(),                                  // phase 4's brief readings (UNVERIFIED names)
+    me: () => api.me(),
+    readableProjects: () => api.readableProjects(),
+    members: (teamId) => api.teamMembers(teamId),
+  });
+}
+
+export function WorkMount(): JSX.Element {
+  const signedIn = useCockpit((s) => s.auth.status === "signed_in");  // UNVERIFIED slice name
+  useEffect(() => {
+    if (!signedIn) return;
+    startReplica(replicaDeps);
+    return stopReplica;
+  }, [signedIn]);
+  const live = useSyncExternalStore(onWorkSourceChange, () => workSource() as Replica | null);
+  const problem = useSyncExternalStore(live?.subscribe ?? noSubscribe, () => live?.loadProblem ?? null);
+  const projectId = useCockpit((s) => s.work.projectId);
+  const branch = useCockpit((s) => s.work.branch);
+  if (live === null || problem !== null)
+    return <p className="wk-empty">{problem?.message ?? "Work reads your team's issues from the Hub. This app is not connected to it yet."}</p>;
+  if (projectId === null || branch === null) return <p className="wk-empty">Open a feature to see its work.</p>;
+  return <WorkLens projectId={projectId} branch={branch} />;
+}
+```
+
+`hubCursorHint()` is four lines over the store: `current` reads phase 4's `hubCursor`
+(`phase-4-discover-parts/task-16.md:79`), and `subscribe` is `useCockpit.subscribe` filtered to a
+change of that one value. Phase 4 writes `hubCursor` from every response's `Panacea-Hub-Cursor`
+header, so the replica needs no timer. `api.me`, `api.readableProjects` and `api.teamMembers` are
+the phase H relay reads this part names but no merged `client.ts` has (`desktop/src/api/client.ts`
+exports none of the three today, a grep at this commit); their spelling is the merged client's.
+`problem.message` is task 37's `WorkProblem` field (`task-37.md:467-472`, every kind has one).
+`noSubscribe` is `() => () => {}`. **`Replica` gains one member here** that part 1's interface
+(`:127-139`) omits though decision text at `:345-349` uses it:
+`readonly loadProblem: WorkProblem | null;`, null except after a failed load, cleared inside the
+`transact` of the next good one. Task 40's fixture source is not a `Replica`, so `loadProblem` reads
+`undefined ?? null` there and task 40's suite passes unchanged.
+
+#### Steps
+
+- [ ] **Step 1: read on the sync base** task 37's merged `api/work.ts` and `client.ts`, task 40's
+      `source.ts` and `WorkLens.tsx`, phase 4 task 16's merged slice (`hubCursor`) and its
+      `createHubFeedClient`; correct any name above that the merged files spell differently (theirs win).
+- [ ] **Step 2: write `replica.test.ts` and `noPersistence.test.ts`**; run them and see each fail
+      for its stated reason (the static scan passes vacuously only if the glob matches nothing,
+      which its first assertion forbids).
+- [ ] **Step 3: write `replica.ts` part 1 and part 2** (the types, `route`, `emptyRefetch`); the
+      file typechecks with `createReplica` a stub that throws.
+- [ ] **Step 4: write part 3 and the load and feed** (`Maps`, `transact`, `start`, the coalesced
+      read); the load-order, repeat, `more` and hint cases pass.
+- [ ] **Step 5: write part 4, the reader**; the re-fetch and render cases pass.
+- [ ] **Step 6: write `hubDeps.ts` and `replicaMount.ts`**, then the `WorkMount` delta; task 40's
+      suite passes unchanged; `Replica` gains `loadProblem`.
+- [ ] **Step 7: move `PERSISTED_KEYS`** from `store.test.ts:410-417` to `test/persistedKeys.ts`,
+      import it in both tests; the store suite passes unchanged.
+- [ ] **Step 8: commit** with `git add` on the new files and `git commit -F <msg> -- <paths>`.
+
+#### Acceptance
+
+```bash
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop test -- src/work/replica'
+# expected: 2 files, 8 tests, all passing
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop test -- src/components/work src/store'
+# expected: every suite passing (task 40's lens and the store's persistence cases unchanged)
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop run typecheck'
+# expected: exit 0
+~/.claude/tools/claudezsh/claudezsh 'git grep -nE "setInterval|setTimeout" -- desktop/src/work/replica'
+# expected: no output (the replica reads on the header's change, never on a timer of its own)
+~/.claude/tools/claudezsh/claudezsh 'git grep -nE "localStorage|sessionStorage|indexedDB" -- desktop/src/work desktop/src/components/work ":!*.test.*"'
+# expected: no output (the static half of the no-persistence test, by hand)
+```
+
+The count: 6 in `replica.test.ts` (the load order, the repeat, `more`, the hint, the re-fetch, the
+renders) and 2 in `noPersistence.test.ts` (the static scan, the runtime spy): 8.
+
+#### What this task does NOT claim
+
+- Writes (task 56), scope and revocation (task 57), open by number and the head's own reads
+  (task 58). This task reads; it never writes the Hub.
+- That the full load is fast. 500 issues cost 500 revision reads, 6 in flight (the constant is a
+  proposal); 05 §4.4's budget is **UNVERIFIED** and task 70 measures it.
+- That a teammate's change arrives in 5 s. It arrives one control-plane poll after the Hub commits
+  it, and the poll interval is the control plane's setting, not this task's.
+- That the replica survives a restart (L-230 stays a SKIP, ADR-H1:467-474). A restart is a full
+  load.
+- That the wiring names in the `WorkMount` delta are right: `api.me`, `api.readableProjects`,
+  `api.teamMembers`, the auth slice and phase 4's thread source are named for phase H and phase 4
+  code that has not merged (rule H2).
+
+#### Gaps found while writing this part
+
+1. **File map omissions** (`:304`): `hubDeps.ts`, `replicaMount.ts`, `noPersistence.test.ts`,
+   `test/persistedKeys.ts`, and the ⚑ edits to `WorkLens.tsx` and `store.test.ts`.
+2. **Task 56's harness passes `cursor: "c-0"`** inside `listAll`'s answer (`task-56.md:534-535`),
+   which `WorkSnapshot` does not carry (decision 1); task 56 drops it or its typecheck fails.
+3. **The `comment.*` data disagree.** Task 13 puts `issueId` in `comment.created`'s data; task
+   20's fixture puts the issue in `subject`. The route reads both; task 13 or task 20 should settle it.
+4. **No list route answers heads with their revisions**, so the full load is N+1. A Hub delta
+   (`GET /v1/work/projects/{id}/issues?include=revision`) removes it; no Hub task in the skeleton
+   adds it.
+5. **Two feed reads per header change** (decision 4): phase 4's loader and this replica each read
+   `/v1/hub/changes` with their own cursor. One shared reader would halve it; not in any task.
+6. **`HubReads` is a generic GET** while phase 4 ships `HubFeedClient.changes(after)`
+   (`phase-4-discover-parts/task-16.md:272-273`); the `WorkMount` delta adapts one to the other.
+   `hubDeps` taking `HubFeedClient` directly would remove the adapter.
+7. **No auth state exists in `desktop/src` today** (a grep for `signed_in` finds none); phase H's
+   sign-in (OD-6) owns it, and `WorkMount`'s start and stop follow whatever it names.
+8. **The skeleton's row 55 names only task 37** as a dependency; this part also needs task 40
+   (`setWorkSource`) and phase 4 task 16 (`hubCursor`, `createHubFeedClient`).
