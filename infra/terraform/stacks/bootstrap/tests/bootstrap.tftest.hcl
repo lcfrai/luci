@@ -8,8 +8,9 @@
 # passes. A bare `terraform test` without -var-file stops at "No value for required
 # variable": intended, validate.sh is the only caller.
 #
-# The GUIDs are placeholders that name nobody (all zeros, all ones through all sixes, and one
-# mixed-case abcdef00-... id for the case run). This is a .tftest.hcl, not a .tfvars, so guard
+# The GUIDs are placeholders that name nobody (all zeros, all ones through all sixes, one
+# mixed-case abcdef00-... id for the case run, and four misspellings of the all-threes id for
+# the bare-GUID runs). This is a .tftest.hcl, not a .tfvars, so guard
 # G2 does not apply. The private endpoint's subnet
 # and zone ids below are well-formed placeholders in the all-zeros subscription.
 #
@@ -211,6 +212,17 @@ run "a_reader_with_a_leading_space_is_rejected" {
   variables {
     state_writer_object_ids = ["33333333-3333-3333-3333-333333333333"]
     state_reader_object_ids = [" 33333333-3333-3333-3333-333333333333"]
+  }
+  expect_failures = [var.state_reader_object_ids]
+}
+
+# The 32-digit form without hyphens is a GUID's other common spelling (predicted survivor GF-N:
+# the hyphens made optional, which none of the three runs above can see).
+run "a_reader_without_hyphens_is_rejected" {
+  command = plan
+  variables {
+    state_writer_object_ids = ["33333333-3333-3333-3333-333333333333"]
+    state_reader_object_ids = ["33333333333333333333333333333333"]
   }
   expect_failures = [var.state_reader_object_ids]
 }
