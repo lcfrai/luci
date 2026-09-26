@@ -80,6 +80,23 @@ zeroed: *"coordination not known yet"* (task 37's `null`, `task-37.md:456-459`).
 plain text in both the `unlinked` and `linked` states of Hub task 42's popover, above the
 **Share** button, so consent is informed before the act and is still visible after it.
 
+**(h) Share is the product caller of the one mode writer (fix batch b01, X-C1).** `05-design.md`
+§2.3 and §10.1 say Share turns a solo project into a team one, and the consent line of (g) sits
+at Share, so Share, not a launch, makes the project team (task 21's declared ruling). When
+`shareProject` resolves `linked`, the popover calls `makeTeamProject(projectId)`, which is task
+21's `POST /v1/projects/{projectId}/team-mode` over Hub route 87. It returns `Promise<void>` and
+the popover re-reads the link, so `desktop/src/store/types.ts` does not change. Two refusals are
+said, not hidden, and neither undoes the share: the Hub link stands and the project stays `solo`:
+- 403 `required: "admin"` (the sharer is a member of an existing team): *"Ask a team admin to
+  turn on team agents."*
+- 503 `audit_not_streaming` (task 45's gate): *"Team agents are not available here yet: this
+  organisation's audit is not set up."*
+
+A `linked` project that is still `solo` shows **Turn on team agents** to an `admin` only, which
+calls the same function, so a shut gate that opens later needs no second share. Whether Share
+should turn team mode on at all, or leave it to that button, is recorded as an owner question
+(b01); this part builds the recommended option, Share turns it on, and the button is the seam.
+
 **Files:**
 - `desktop/src/components/team/RouteBadge.tsx` — the three forms and `routeBadgeLabel` (new)
 - `desktop/src/components/team/ShareLine.tsx` — the fixed sentence (new)
@@ -91,8 +108,11 @@ plain text in both the `unlinked` and `linked` states of Hub task 42's popover, 
   the team wording and path; the class field in the *Not classified* state; `SpendLine` under
   `Spend` on a team project (modify, **phase 6 task 22's file, UNVERIFIED until merge**)
 - `desktop/src/components/share/SharePopover.tsx` — `ShareLine` in two states; `DataClassField`
-  in `unlinked`; the class passed to the share (modify, **Hub task 42's file, UNVERIFIED until
-  merge**)
+  in `unlinked`; the class passed to the share; `makeTeamProject` after a `linked` share and the
+  admin's **Turn on team agents** (modify, **Hub task 42's file, UNVERIFIED until merge**; (h) is
+  fix batch b01's)
+- the desktop client module that holds Hub task 42's `shareProject` (Hub task 40's; its path is
+  **UNVERIFIED until merge**): `makeTeamProject(projectId): Promise<void>` (modify, b01)
 
 **Interfaces:**
 - Produces: `RouteBadge`, `routeBadgeLabel`, `ShareLine`, `SHARE_LINE`, `SpendLine`,
@@ -198,8 +218,12 @@ Vitest and React Testing Library, in phase 6 task 22's shape (`vi.hoisted` fakes
 | `the share waits for a class` | `SharePopover`, `unlinked`, teams → **Share** is disabled until a class is picked; then `shareProject(p, tm, {dataClass})` | a share that creates the Hub project unclassified |
 | `the share line is shown before the act` | `unlinked` and `linked` each contain `SHARE_LINE` verbatim | consent shown only after sharing |
 | `an unclassified local project can choose` | phase 6 panel, `dataClass: null` → **Choose a data class**, pick, save → `patchInference(p, {dataClass})`; the label follows the answer | phase 6's dead end (its gap 2) |
+| `share makes the project team` (b01) | `unlinked`, class picked, **Share** → `shareProject` then `makeTeamProject(p)` exactly once, in that order | Share links the project and never turns team mode on, so no real project is a team one (review X-C1) |
+| `a shut gate keeps the share` (b01) | `makeTeamProject` rejects 503 `audit_not_streaming` → the popover is `linked`, shows the gate sentence verbatim, and no error state | the 503 read as a failed share, or swallowed so the person thinks team agents are on |
+| `a member is sent to an admin` (b01) | `makeTeamProject` rejects 403 `required: "admin"` → the admin sentence; a `linked` solo project shows **Turn on team agents** to an `admin` role only | the button offered to a member, who then meets a 403 |
 
-Run them; all seventeen fail (the modules do not exist).
+Run them; all twenty fail (the modules do not exist). b01's three rows sit in
+`DataClassField.test.tsx` beside the other `SharePopover` rows, with `makeTeamProject` mocked.
 
 - [ ] **Step 3: Write `RouteBadge.tsx` and `ShareLine.tsx`**
 
@@ -399,7 +423,7 @@ planned, not built).
 ```bash
 cd desktop
 npx vitest run src/components/team/RouteBadge.test.tsx src/components/team/SpendLine.test.tsx \
-  src/components/team/DataClassField.test.tsx 2>&1 | tail -2      # 17 passed
+  src/components/team/DataClassField.test.tsx 2>&1 | tail -2      # 20 passed (17 + b01's 3)
 npx vitest run src/components/inference src/components/share 2>&1 | tail -2   # phase 6's 11 and Hub 42's 12 still pass
 npm test 2>&1 | tail -3                                                       # all passed
 npm run typecheck                                                             # exit 0
