@@ -306,3 +306,54 @@ Task 10's order (`task-10.md:407-435`) is kept; these three lines slot in:
 
 Task 23 reads an evidence move's answer by the head's `state`, not by the status, so a 200 that
 stays `landed` is not mistaken for a close (task 10 decision 5 already answers 200 for `waiting`).
+
+#### The matrix rows (`server/work_matrix_rows_integration_test.go` ⚑), complete
+
+Columns are H16b's six (`task-16b.md:30-35` in the Hub worktree): viewer, member, team admin, org
+admin in no team, a same-org outsider, another org. Task 07's helpers fix the cells.
+
+```go
+	"75": {
+		wread("GET /v1/teams/{teamId}/states", "/v1/teams/{TeamID}/states", "team_not_found"),
+		wadmin("PUT /v1/teams/{teamId}/states", "PUT", "/v1/teams/{TeamID}/states", 200, "team_not_found",
+			func(*fixture) any {
+				return map[string]any{"states": []any{
+					map[string]any{"key": "in_qa", "name": "In QA", "band": "after_landed", "order": 0}}}
+			}),
+		wwrite("PUT /v1/issues/{issueId}/sub-state", "PUT", "/v1/issues/{IssueID}/sub-state", 200, "issue_not_found",
+			func(*fixture) any { return map[string]any{"key": nil} }), // a clear: valid in every state
+	},
+```
+
+The member's sub-state cell sends a clear, because the fixture's issue is in `triage` and holds no
+key: a clear is valid there and still exercises the role check. `"75"` joins `workMatrixLive` in
+the commit that registers the routes (`task-07.md:96`).
+
+**The sync principal** does not exist until W5 (tasks 145, 150; `task-100.md:826-829` makes the
+same note). Its half here is the database's: `TestTheSyncActorSetsNoSubState` sets
+`hub.work_actor_kind = 'integration'` and updates `issue_heads.sub_state` directly, and task 74's
+extended W1 guard refuses it. Task 150 adds the HTTP column.
+
+#### Tests to write first, each with the mutant it kills
+
+`server/work_custom_states_integration_test.go` (`//go:build integration`). Each seeds team T
+with Grace (admin), Linus (member) and Vera (viewer), project P, a brief with two criteria, and an
+issue EP-142 serving both, moved through task 10's route so no row is forged. Each is seen failing
+before the code it covers.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestAFactStateCannotBeACustomState` | a list with key `landed` → 422 naming `states[0].key`; key `done` → the same; band `started` → 422 naming `states[0].band`; nothing stored | fact states editable; a custom state inside the fact band |
+| `TestABeforeStartedSubStateNeedsItsBand` | `ready_for_design` on a `started` EP-142 → 422 `substate_out_of_band`, `details.band: before_started`, `details.state: started` | band unchecked |
+| `TestInQAHoldsTheEvidenceClose` | EP-142 `landed` with *In QA* set; evidence for both criteria → 200, `state: landed`, `proof: proven`, `subState: in_qa`, two live citations | done ignores the sub-state |
+| `TestClearingInQAClosesAsTheClearer` | from the last test, Grace clears *In QA* → 200, `state: done`; the `issue.state` event's `actor` is Grace, `cause: evidence_observed`; `issue.sub_state_changed.released` is true | stays `landed` until the next evidence; `actor: null`; the actor taken from the evidence recorder |
+| `TestClearingWithoutEvidenceReleasesNothing` | *In QA* on a `landed` EP-142 with no evidence; clear → `landed`, `proof: waiting`, `released: false` | the clear closing on landing alone |
+| `TestAHandDoneIsRefusedWhileHeld` | Grace hand-sets `done` with a reason while *In QA* is set → 409 `held_by_substate`, `details.subState: in_qa`; no event; state `landed` | a held issue closed by hand around the hold |
+| `TestTheBandKeepsOrClearsTheSubState` | `ready_for_design` on `backlog`; `todo` keeps it; `started` (task 10's `lane_bound`) clears it in the same transaction, with the second event | a stale sub-state after the band is left |
+| `TestAHeldStateCannotBeRemoved` | three issues hold `in_qa`; a list without it → 409 `state_in_use`, `details.count: 3`; re-banding it → the same; nothing stored; with the holders cleared, removal → 200 | orphaned keys; a re-band that strands holders |
+| `TestTheListIsGaplessAndDiffedByKey` | orders `0, 2` → 400 naming `states[1].order`; renaming *In QA* to *QA* keeps every holder's key; the same list twice → one event | client-trusted order; rename by delete-and-add; a silent re-save writing an event |
+| `TestEveryWriteHasItsEvent` | each accepted `PUT` above writes exactly one `team.states_changed` or `issue.sub_state_changed` (two with the release), whose `data` holds only the declared keys | a silent write; two events per write; a name in `data` |
+| `TestTheSyncActorSetsNoSubState` | as `hub_app`, `hub.work_actor_kind = 'integration'`, `UPDATE issue_heads SET sub_state` → `42501` | the database half of the sync rule |
+
+The matrix meta-tests of task 07 (`TestLiveWorkRowsMatchTheRouteTable`) run the `"75"` rows, which
+fail on a missing role check (a member `PUT`ting the team's states answers 200 instead of 403).
