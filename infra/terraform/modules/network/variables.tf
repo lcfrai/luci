@@ -57,6 +57,12 @@ variable "allowed_ingress_cidrs" {
     condition     = alltrue([for c in var.allowed_ingress_cidrs : can(cidrnetmask(c))])
     error_message = "Every allowed_ingress_cidrs entry must be an IPv4 CIDR such as 203.0.113.0/24; not a service tag, not *."
   }
+  # A rule's name is built from its CIDR, so a repeated entry would make two rules of one name,
+  # which Azure refuses only at apply.
+  validation {
+    condition     = length(distinct(var.allowed_ingress_cidrs)) == length(var.allowed_ingress_cidrs)
+    error_message = "allowed_ingress_cidrs lists a CIDR twice; list each once."
+  }
 }
 
 variable "tags" {

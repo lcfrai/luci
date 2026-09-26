@@ -102,15 +102,15 @@ run "subnets_follow_the_address_plan" {
     error_message = "The VNet's address space is not exactly var.vnet_cidr."
   }
   assert {
-    condition     = azurerm_subnet.system.address_prefixes == ["10.40.0.0/24"] && azurerm_subnet.apps.address_prefixes == ["10.40.1.0/24"]
+    condition     = azurerm_subnet.system.address_prefixes == tolist(["10.40.0.0/24"]) && azurerm_subnet.apps.address_prefixes == tolist(["10.40.1.0/24"])
     error_message = "The node subnets for the system and apps pools are not 10.40.0.0/24 and 10.40.1.0/24."
   }
   assert {
-    condition     = azurerm_subnet.sandbox.address_prefixes == ["10.40.4.0/22"]
+    condition     = azurerm_subnet.sandbox.address_prefixes == tolist(["10.40.4.0/22"])
     error_message = "The sandbox node subnet is not 10.40.4.0/22."
   }
   assert {
-    condition     = azurerm_subnet.private_endpoints.address_prefixes == ["10.40.8.0/26"] && azurerm_subnet.agents.address_prefixes == ["10.40.8.64/26"]
+    condition     = azurerm_subnet.private_endpoints.address_prefixes == tolist(["10.40.8.0/26"]) && azurerm_subnet.agents.address_prefixes == tolist(["10.40.8.64/26"])
     error_message = "The private endpoint and agents subnets are not 10.40.8.0/26 and 10.40.8.64/26."
   }
   assert {
@@ -229,7 +229,7 @@ run "firewall_mode_has_no_nat_and_has_the_firewall_subnet" {
     error_message = "firewall mode still makes NAT: NAT and the firewall's routes together route asymmetrically."
   }
   assert {
-    condition     = azurerm_subnet.firewall[0].name == "AzureFirewallSubnet" && azurerm_subnet.firewall[0].address_prefixes == ["10.40.8.128/26"] && azurerm_subnet.firewall[0].default_outbound_access_enabled == false
+    condition     = azurerm_subnet.firewall[0].name == "AzureFirewallSubnet" && azurerm_subnet.firewall[0].address_prefixes == tolist(["10.40.8.128/26"]) && azurerm_subnet.firewall[0].default_outbound_access_enabled == false
     error_message = "The firewall subnet is not AzureFirewallSubnet at 10.40.8.128/26 with no default outbound access."
   }
   assert {
@@ -297,6 +297,14 @@ run "ingress_cidrs_must_be_ipv4_cidrs" {
   command = plan
   variables {
     allowed_ingress_cidrs = ["203.0.113.0/24", "Internet"]
+  }
+  expect_failures = [var.allowed_ingress_cidrs]
+}
+
+run "ingress_cidrs_are_listed_once" {
+  command = plan
+  variables {
+    allowed_ingress_cidrs = ["203.0.113.0/24", "198.51.100.0/24", "203.0.113.0/24"]
   }
   expect_failures = [var.allowed_ingress_cidrs]
 }
@@ -398,11 +406,11 @@ run "names_region_group_and_tags_come_from_the_inputs" {
     error_message = "The NAT gateway, its IP or an NSG does not carry the environment in its name."
   }
   assert {
-    condition     = alltrue([for r in concat([azurerm_virtual_network.this, azurerm_nat_gateway.this[0], azurerm_public_ip.nat[0]], values(azurerm_network_security_group.this)) : r.location == "australiasoutheast" && r.resource_group_name == "rg-panacea-app-prod" && r.tags == { owner = "platform", stack = "foundation" }])
+    condition     = alltrue([for r in concat([azurerm_virtual_network.this, azurerm_nat_gateway.this[0], azurerm_public_ip.nat[0]], values(azurerm_network_security_group.this)) : r.location == "australiasoutheast" && r.resource_group_name == "rg-panacea-app-prod" && r.tags == tomap({ owner = "platform", stack = "foundation" })])
     error_message = "The VNet, NAT gateway, its IP or an NSG does not take var.location, var.resource_group_name and var.tags."
   }
   assert {
-    condition     = alltrue([for r in concat(values(azurerm_private_dns_zone.this), values(azurerm_private_dns_zone_virtual_network_link.this)) : r.resource_group_name == "rg-panacea-app-prod" && r.tags == { owner = "platform", stack = "foundation" }])
+    condition     = alltrue([for r in concat(values(azurerm_private_dns_zone.this), values(azurerm_private_dns_zone_virtual_network_link.this)) : r.resource_group_name == "rg-panacea-app-prod" && r.tags == tomap({ owner = "platform", stack = "foundation" })])
     error_message = "A privatelink zone or link does not take var.resource_group_name and var.tags."
   }
   assert {
