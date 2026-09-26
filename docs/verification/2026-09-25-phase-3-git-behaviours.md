@@ -267,6 +267,9 @@ and 10, D8 for task 09, D15 for task 07).
     (fix round 2). Those are `0xC0000005` and `0xC0000409`, a program that started and crashed,
     one either side of `0xC0000142`, and `0xC0000135`, the loader's "DLL not found". And it
     checks that the helper fails the pin rather than skipping it. The helper does not retry.
+    `TestPinHelperNamesDockerThatNeverStarted` (fix round 2) calls the check directly with
+    docker's name, since no test can make docker.exe fail to start. It also checks that the
+    check marks itself a test helper, so a real failure is reported at the pin's own line.
     `TestPinHelpersStartEveryProgramThroughRunProgram` reads this package's test sources and
     fails on any other `exec.Command` site, in either build tag: before the fix, `needSandbox`'s
     own inspect would have read a docker.exe that never started as "the image is absent" and
@@ -406,3 +409,24 @@ running as the two most likely survivors: MH6 (the check asked for no program na
 
 No survivor remains against the helper pins as committed. The review's S1 (the stat keys
 dropped) is answered by divergence 15's probe, not by a pin.
+
+**Round 5, fix round 2** (2026-09-26, re-review 1 M-A and M-B). Copies
+`scratchpad/p3/t01f2-mut-*` are `git archive` of `1f42b1c` (with `core.autocrlf=false`) plus the
+fixed test file, CRs stripped. Copies `t01f2-mut2-*` are the same, from `ffdaa3f`, plus the H1/H2
+pin. `scratchpad/p3/t01f2-mut.py` applies each mutant once or refuses. Each copy ran
+`go test -run TestPinHelper`, one `go` process at a time. Named before running as the two most
+likely survivors: H1 (no pin starts a program named docker) and H2 (the recorder's `Helper` was a
+no-op).
+
+| Mutant | Result |
+|---|---|
+| R1 (re-review): every NTSTATUS error is "could not start" | killed: `0xC0000005`, `0xC0000135` and `0xC0000409` each got the fatal. It survived the old list of 0, 1, 128 and 255 (`t01rr1-mut-R1.out`) |
+| R2 (re-review): the helper calls `Skipf` | killed: "the helper skipped the pin". It survived the old recorder (`t01rr1-mut-R2.out`) |
+| R2b: the helper calls `Logf`, then `SkipNow` | killed: no fatal sentence, and "skipped the pin ("SkipNow, with no sentence")" |
+| R3: `>= 0xC0000142` | killed by `0xC0000409` alone |
+| R4: `0xC0000142`'s block, `0xC0000100` to `0xC00001FF` | killed by `0xC0000135` alone |
+| H1: docker is exempt from the check | **survived**, as predicted. Fixed by `TestPinHelperNamesDockerThatNeverStarted`; killed on `t01f2-mut2-H1` |
+| H2: `requireStarted` drops `tb.Helper()` | **survived**, as predicted. The same new pin asks that `Helper` was called; killed on `t01f2-mut2-H2` |
+| none (control), in both sets | every pin PASS |
+
+No survivor remains against the helper pins as committed.
