@@ -149,3 +149,40 @@ was built">
 ```
 
 Every `…` is filled from the run. A cell left `…` fails `check-wl.sh`.
+
+#### Interfaces — complete: the phase ledger's shape
+
+```markdown
+## The phase ledger — <date>
+
+**Sources:** 05 §1 (revision 2) at `<sha>`; the coverage map at `<sha>`.
+**Counts, as filed:** closed <n> · partial <n> · exists <n> · other <n> · skip <n> · gap <n> · total 257.
+
+| L | Verdict | 05 stop | Status | Closed by | Test | Command | Observed (excerpt) | Commit | Note |
+|---:|---|---|---|---|---|---|---|---|---|
+| 1 | MATCH | exists | exists | — | — | — | — | — | not re-checked |
+| 4 | SKIP | — | skip | — | — | — | — | — | Hub v1 has no per-project grants [cut] |
+| 7 | MATCH | later | closed | 175 | `TestACopiedTemplate…` | `go test ./control-plane/hub/…` | `ok … 0.41s` | `3f9c2a1` | |
+| 50 | PARTIAL | W4 | closed | 121, 134, 184 | … | … | … | … | later part by 184; Rootly, incident.io not read |
+
+### Gaps
+
+- L-<n>: <05 stop>; <why no closing task, and which stop was not proved>
+```
+
+The example rows show the shape only; the filed ledger holds the run's values. The column rules,
+which `check-ledger.sh` enforces:
+
+| Status | Needs | Never |
+|---|---|---|
+| `closed` | *Closed by* names a task 01-186 (never 70, 97, 113, 142, 174 or 187); *Test*, *Command*, *Observed* filled; *Commit* a sha | a `—` in any of those five cells |
+| `partial` | as `closed`, and *Note* names the deferred part | an empty *Note* |
+| `skip` | 05's verdict is SKIP; *Note* holds 05's reason, shortened with `[cut]` | on a row 05 does not mark SKIP |
+| `other` | *Note* names the owner: `TM`, `phase 3`, `phase 5`, `phase 6` or `phase 8` | on a row whose 05 stop is `W1`-`W5` or `later` |
+| `exists` | *Note* reads `not re-checked`, or *Commit* is the sha it was re-checked at | on a row whose 05 stop is not `exists` (or `exists / later`) |
+| `gap` | the row's id also appears in *Gaps* with a reason | a gap missing from *Gaps* |
+
+The *Verdict* and *05 stop* cells are copied from 05 §1 by the check's own read, so a ledger row
+whose verdict disagrees with 05 fails (mutant: a SKIP quietly re-filed as MATCH). The *Counts*
+line is recomputed by the check from the status column; a line that disagrees fails (mutant: a
+count typed from 05's forecast of 188 instead of counted).
