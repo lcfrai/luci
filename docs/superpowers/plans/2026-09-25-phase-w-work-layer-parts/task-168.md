@@ -738,7 +738,7 @@ because it walks `AllWorkRoutes()`. One W5 test adds the counts and the not-rela
 func TestW5RelayCountsAndExclusions(t *testing.T) {
 	gets := 0
 	for _, rt := range hubclient.WorkIntakeRoutes {
-		if rt.Method == http.MethodGet {
+		if rt.Verb == http.MethodGet { // WorkRoute: Method is the name, Verb the verb (task-16.md:111-116)
 			gets++
 		}
 	}
@@ -748,7 +748,7 @@ func TestW5RelayCountsAndExclusions(t *testing.T) {
 	got := registeredPatterns(t) // task 124's helper
 	for _, rt := range hubclient.WorkIntakeHubOnlyForTest() {
 		if got[rt.Relay()] {
-			t.Errorf("hub-only %s is mounted as %q", rt.Name, rt.Relay())
+			t.Errorf("hub-only %s is mounted as %q", rt.Method, rt.Relay())
 		}
 	}
 	for p := range got {
@@ -768,3 +768,76 @@ named so no product caller mistakes it for a relay list (gap 9 offers the altern
 Sentinel exporter is outbound only (167) and has no Hub route at all, so the `/sentinel` guard
 is belt and braces. **Mutants killed:** a hub-only row appended to `WorkIntakeRoutes` (a
 `CreateRequest` relay); a hand-mounted `/v1/hub/work/hooks/{host}`; a 45th row with no surface.
+
+#### Interfaces — complete: `control-plane/internal/api/agentpolicy.go` (decision 9)
+
+```go
+// control-plane/internal/api/agentpolicy.go
+package api
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubapi"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hublink"
+)
+
+// projectLinker is the one hublink.Resolver method the source uses
+// (hub tree task-35.md:73-77); a test double is four lines.
+type projectLinker interface {
+	Project(ctx context.Context, localProjectID string) (hublink.Link, error)
+}
+
+// policyReader is the one hubclient method it uses (this task's, above).
+type policyReader interface {
+	GetTeamAgentPolicy(ctx context.Context, teamID string) (hubapi.TeamAgentPolicy, error)
+}
+
+// HubPolicySource is task 166's AgentPolicySource over the Hub: the local
+// project's Hub project, that project's team, the team's policy.
+type HubPolicySource struct {
+	Links  projectLinker
+	Policy policyReader
+}
+
+var _ AgentPolicySource = HubPolicySource{}
+
+// PolicyFor fails closed: a link or policy error is returned, and task 166's
+// gate answers 503 agent_policy_unavailable and starts no session. Only a
+// project that is not Linked (Unlinked, NoRemote) is ungated.
+func (s HubPolicySource) PolicyFor(ctx context.Context, projectID string) (*hubapi.TeamAgentPolicy, bool, error) {
+	link, err := s.Links.Project(ctx, projectID)
+	if err != nil {
+		return nil, false, fmt.Errorf("agent policy: link %s: %w", projectID, err)
+	}
+	if link.State != hublink.Linked || link.Project == nil {
+		return nil, false, nil // bound to no Hub team (task 166, decision 5)
+	}
+	team := link.Project.TeamID // hubapi.Project.TeamID, hub tree task-03.md:156
+	p, err := s.Policy.GetTeamAgentPolicy(ctx, team)
+	if err != nil {
+		return nil, true, fmt.Errorf("agent policy: team %s: %w", team, err)
+	}
+	return &p, true, nil
+}
+```
+
+```go
+// control-plane/cmd/api/main.go ⚑ — after the Hub client and H35's resolver are built
+	var agentPolicy api.AgentPolicySource // nil: no gate (OD-20, a machine with no Hub)
+	if hubClient != nil && hubLinks != nil {
+		agentPolicy = api.HubPolicySource{Links: hubLinks, Policy: hubClient}
+	}
+// … and in the api.Deps literal (main.go:132 on 2026-09-26; task 16 cites :147):
+		AgentPolicy: agentPolicy,
+```
+
+`hubClient` and `hubLinks` are the names this part gives H32's client and H35's resolver in
+`main.go`; both are **UNVERIFIED** until the H-plan merges (gap 10). The interface variable is
+assigned only when both exist, for task 16's reason (a nil pointer in a non-nil interface).
+The resolver's five-minute cache (H35) means a policy is read at most once per session start
+per team, and the policy itself is never cached here: an admin's `PUT` takes effect at the next
+start. **Fail closed is a choice** this part makes for 166: a person signed out of the Hub, on a
+machine with `PANACEA_APP_HUB_URL` set, cannot start a session on a project with a GitHub or
+Azure DevOps remote until they sign in (gap 11 asks the owner).
