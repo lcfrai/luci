@@ -235,3 +235,74 @@ member, filled by the success arm and never cleared within a session:
   /** Task 68. The Hub's is- id for a ghost this replica created; null while unanswered or refused. */
   createdIdOf(localId: string): string | null;
 ```
+
+#### Interfaces — complete: `desktop/src/components/work/NewIssue.tsx`, part 1: the origin and the request
+
+```tsx
+// desktop/src/components/work/NewIssue.tsx — task 68. The composer beside the row; never a modal.
+import { useEffect, useRef, useState } from "react";
+import type { JSX } from "react";
+import { Popover } from "../common/Popover";                       // Popover.tsx:10
+import { Said } from "../common/LiveRegion";                       // task 66, `task-66.md:173`
+import { AuthorClass } from "../issue/AuthorClass";                // task 46, `task-46.md:456`
+import { CriterionPicker } from "./CriterionPicker";               // task 42, `task-42.md:69`, `:137`
+import { useVerb } from "../../work/keys/keymap";                  // task 53, `task-53.md:312-316`
+import type { RowContext } from "../../work/keys/keymap";
+import { mutate, useWork, createdIdOf } from "../../work/replica/replica";   // SW.16, as task 65 imports it
+import { useCockpit } from "../../store/store";                    // `task-40.md:511`, `:660`
+import { api } from "../../api";                                   // `desktop/src/api/index.ts:17`; `.work` is task 37's
+import type {
+  CreateIssueRequest, IssueOrigin, IssueState, NotTiedReason, Serve,
+} from "../../api/work";
+import type { WorkOp } from "../../work/replica/ops";
+
+/** Where the composer was opened from. Only `desk` and `span`/`hunk` link anything (decision 6). */
+export type NewIssueFrom =
+  | { kind: "list"; projectId: string }
+  | { kind: "desk"; projectId: string; relatesTo: string }
+  | { kind: "span" | "hunk"; projectId: string; ref: string };
+
+export interface NewIssueDraft {
+  title: string; description: string; serves: readonly Serve[]; reason: NotTiedReason;
+}
+
+/** `N` cycles these in this order; `chore` is the first shown (decision 5). */
+export const REASONS: readonly NotTiedReason[] = ["chore", "spike", "support", "imported"];
+
+/** Pure. The create, and the one follow-up op a Desk origin adds. The draft's words are the
+ *  person's (author "H"); an origin is a reference and is never written into the description. */
+export function buildCreate(d: NewIssueDraft, from: NewIssueFrom): {
+  req: CreateIssueRequest; follow: (createdId: string) => WorkOp | null;
+} {
+  const origin: IssueOrigin | undefined =
+    from.kind === "span" || from.kind === "hunk" ? { kind: from.kind, ref: from.ref } : undefined;
+  const req: CreateIssueRequest = {
+    title: { text: d.title.trim(), author: "H" },
+    description: { text: d.description, author: "H" },
+    serves: [...d.serves], implements: [],
+    state: "",                                      // the team's defaultState (decision 3)
+    priority: "", assigneeId: null, labels: [],
+    notTiedReason: d.serves.length > 0 ? "" : d.reason,
+    ...(origin ? { origin } : {}),
+  };
+  const follow = (createdId: string): WorkOp | null => from.kind !== "desk" ? null : {
+    kind: "relation", issueId: createdId, change: "add",
+    relation: { kind: "relates", issueId: from.relatesTo },
+  };
+  return { req, follow };
+}
+
+/** Pure. Where a key's row puts the composer. A Desk row about an issue is marked by task 62's
+ *  wrapper (`data-desk-key` beside `data-issue-id`, `task-62.md:386-388`); any other list row
+ *  creates a plain issue in the row's project, never related to the row under the cursor. */
+export function fromRow(row: RowContext): NewIssueFrom | null {
+  if (!row.projectId) return null;
+  const onDesk = row.element?.closest("[data-desk-key]") ?? null;
+  if (onDesk && row.issueId) return { kind: "desk", projectId: row.projectId, relatesTo: row.issueId };
+  return { kind: "list", projectId: row.projectId };
+}
+```
+
+`"relates"` is task 37's `RelationKind` member (`task-37.md:95`). `createdIdOf` is imported as a
+module function the way task 65 imports `mutate` (`task-65.md:774`); if task 55 exposes the replica
+only as an object, both reads go through it and nothing else changes.
