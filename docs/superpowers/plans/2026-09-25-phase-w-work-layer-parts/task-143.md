@@ -763,3 +763,165 @@ func hex40(s string) bool {
 `time.LoadLocation` needs the zone database; the Hub image carries it (**UNVERIFIED**: Phase H's
 Dockerfile; if not, the file imports `time/tzdata`). The route passes `catalogue` from
 `harness.Catalogue()`'s ids, so `hubapi` does not import the control plane's harness package.
+
+#### `hubapi/codes.go` ⚑, appended (complete)
+
+```go
+// W5 (task 143). Appended after W4's; each status in the file's comment style.
+const (
+	CodeRequestClosed            = "request_closed"              // 409, details.state
+	CodeRequestErased            = "request_erased"              // 409 (task 146 decision 7)
+	CodeFormFieldRequired        = "form_field_required"         // 400, details.field
+	CodeTrackerExists            = "tracker_exists"              // 409
+	CodePrincipalCannotMoveState = "principal_cannot_move_state" // 403, details.actorKind
+	CodeWebhookURLInvalid        = "webhook_url_invalid"         // 422
+	CodeWebhookNotFound          = "webhook_not_found"           // 404 (task 156 gap 2)
+	CodeAppNotApproved           = "app_not_approved"            // 403
+	CodeKeyRevoked               = "key_revoked"                 // 401
+	CodeConnectorNotAllowed      = "connector_not_allowed"       // 403
+	CodeHarnessNotAllowed        = "harness_not_allowed"         // 403, details.harness
+	CodeLoopOutsideGrid          = "loop_outside_grid"           // 403, details.class
+)
+```
+
+`connector_url_invalid` is task 161's, appended by its own block (`task-161.md:415`); task 153's
+three codes are sync-run codes on `SyncError`, never an HTTP status (decision 7).
+
+#### `work_intake.go`, continued: the status map (complete)
+
+```go
+// WorkIntakeCodeStatus is read by the fake (144) and the server (146-167) when
+// they write a problem, so a code's status is written once (decision 9).
+var WorkIntakeCodeStatus = map[string]int{
+	CodeRequestClosed: 409, CodeRequestErased: 409, CodeFormFieldRequired: 400,
+	CodeTrackerExists: 409, CodePrincipalCannotMoveState: 403, CodeWebhookURLInvalid: 422,
+	CodeWebhookNotFound: 404, CodeAppNotApproved: 403, CodeKeyRevoked: 401,
+	CodeConnectorNotAllowed: 403, CodeHarnessNotAllowed: 403, CodeLoopOutsideGrid: 403,
+}
+```
+
+#### `hubclient/work.go` ⚑: `Work` embeds `WorkIntake` (complete)
+
+```go
+// Work is W1's WorkIssues, W2's WorkPlan, W3's WorkAgents, W4's WorkRoadmap
+// and W5's WorkIntake (task 143; the first four as tasks 04, 73, 99 and 114
+// leave it, task-114.md:800). Embedding keeps each slice's methods in one place.
+type Work interface {
+	WorkIssues
+	WorkPlan
+	WorkAgents
+	WorkRoadmap
+	WorkIntake
+}
+
+// WorkIntake is SW.21's method set: one method per route. Host webhook ingress
+// is not here: the host calls the Hub (task 154). Route tasks may add methods.
+type WorkIntake interface {
+	// requests (146)
+	CreateRequest(ctx context.Context, teamID string, req hubapi.CreateRequestRequest) (hubapi.Request, error)
+	ListRequests(ctx context.Context, teamID string, page hubapi.PageRequest) (hubapi.Page[hubapi.Request], error)
+	Request(ctx context.Context, requestID string) (hubapi.Request, error)
+	AcceptRequest(ctx context.Context, requestID string, req hubapi.AcceptRequestRequest) (hubapi.AcceptRequestResponse, error)
+	LinkRequest(ctx context.Context, requestID string, req hubapi.LinkRequestRequest) (hubapi.Request, error)
+	DeclineRequest(ctx context.Context, requestID string, req hubapi.DeclineRequestRequest) (hubapi.Request, error)
+	MarkImportant(ctx context.Context, requestID string, req hubapi.SetImportantRequest) (hubapi.Request, error)
+	EraseRequest(ctx context.Context, requestID string, req hubapi.EraseRequest) (hubapi.RequestEraseResponse, error)
+	IssueRequesters(ctx context.Context, issueID string) ([]hubapi.IssueRequester, error)
+	RequestMessages(ctx context.Context, requestID string) ([]hubapi.RequestMessage, error)
+	// rules, forms and the address (147-149)
+	ListIntakeRules(ctx context.Context, teamID string) (hubapi.IntakeRuleSet, error)
+	PutIntakeRules(ctx context.Context, teamID string, req hubapi.PutIntakeRulesRequest) (hubapi.IntakeRuleSet, error)
+	CreateForm(ctx context.Context, teamID string, req hubapi.CreateFormRequest) (hubapi.IntakeForm, error)
+	ListForms(ctx context.Context, teamID string) ([]hubapi.IntakeForm, error)
+	GetForm(ctx context.Context, formID string) (hubapi.IntakeForm, error)
+	PatchForm(ctx context.Context, formID string, req hubapi.PatchFormRequest) (hubapi.IntakeForm, error)
+	SetIntakeAddress(ctx context.Context, teamID string, addr hubapi.IntakeAddress) (hubapi.IntakeAddress, error)
+	// tracker sync (150-153); ApplySyncBatch only as the connection's principal
+	ConnectTracker(ctx context.Context, projectID string, req hubapi.ConnectTrackerRequest) (hubapi.TrackerConnection, error)
+	ListTrackers(ctx context.Context, teamID string) ([]hubapi.TrackerConnection, error)
+	DisconnectTracker(ctx context.Context, connectionID string) (hubapi.TrackerConnection, error)
+	ApplySyncBatch(ctx context.Context, connectionID string, batch hubapi.SyncBatch) (hubapi.SyncRun, error)
+	ListSyncRuns(ctx context.Context, connectionID string, page hubapi.PageRequest) (hubapi.Page[hubapi.SyncRun], error)
+	// outside PRs (154-155)
+	ListOutsidePRLinks(ctx context.Context, issueID string) ([]hubapi.OutsidePRLink, error)
+	CreateHostHook(ctx context.Context, projectID string, host hubapi.HostKind) (hubapi.CreatedHostHook, error)
+	// webhooks (156)
+	CreateWebhook(ctx context.Context, teamID string, req hubapi.CreateWebhookRequest) (hubapi.CreatedWebhook, error)
+	ListWebhooks(ctx context.Context, teamID string) ([]hubapi.Webhook, error)
+	DisableWebhook(ctx context.Context, webhookID string) (hubapi.Webhook, error)
+	RotateWebhookSecret(ctx context.Context, webhookID string) (hubapi.CreatedWebhook, error)
+	ListDeliveries(ctx context.Context, webhookID string, page hubapi.PageRequest) (hubapi.Page[hubapi.WebhookDelivery], error)
+	Redeliver(ctx context.Context, deliveryID string) (hubapi.WebhookDelivery, error)
+	// Teams (157)
+	BindTeams(ctx context.Context, teamID string, b hubapi.TeamsBinding) (hubapi.TeamsBinding, error)
+	ListTeamsBindings(ctx context.Context, teamID string) ([]hubapi.TeamsBinding, error)
+	UnbindTeams(ctx context.Context, teamID string, subject hubapi.TeamsSubject) error
+	// apps and keys (159-160)
+	RegisterApp(ctx context.Context, m hubapi.AppManifest) (hubapi.App, error)
+	ListApps(ctx context.Context) ([]hubapi.App, error)
+	DecideApp(ctx context.Context, appID string, req hubapi.DecideAppRequest) (hubapi.App, error)
+	CreateAPIKey(ctx context.Context, teamID *string, req hubapi.CreateAPIKeyRequest) (hubapi.CreatedAPIKey, error)
+	ListAPIKeys(ctx context.Context, teamID *string) ([]hubapi.APIKey, error)
+	RevokeAPIKey(ctx context.Context, keyID string) (hubapi.APIKey, error)
+	// MCP connectors (161; the types are task 161's block)
+	ListMCPConnectors(ctx context.Context) ([]hubapi.MCPConnector, error)
+	PutMCPConnector(ctx context.Context, req hubapi.PutConnectorRequest) (hubapi.MCPConnector, error)
+	DeleteMCPConnector(ctx context.Context, url string) error
+	// loops (162-163)
+	CreateLoop(ctx context.Context, teamID string, req hubapi.CreateLoopRequest) (hubapi.Loop, error)
+	PutLoopVersion(ctx context.Context, loopID string, body hubapi.LoopVersionBody) (hubapi.LoopVersion, error)
+	ListLoopVersions(ctx context.Context, loopID string) ([]hubapi.LoopVersion, error)
+	ListLoopRuns(ctx context.Context, loopID string, page hubapi.PageRequest) (hubapi.Page[hubapi.LoopRun], error)
+	RunLoopNow(ctx context.Context, loopID string) (hubapi.LoopRun, error)
+	// harness and skills (166)
+	GetTeamAgentPolicy(ctx context.Context, teamID string) (hubapi.TeamAgentPolicy, error)
+	PutTeamAgentPolicy(ctx context.Context, teamID string, p hubapi.TeamAgentPolicy) (hubapi.TeamAgentPolicy, error)
+}
+```
+
+`CreateAPIKey` and `ListAPIKeys` take `teamID` as `nil` for a personal key and a `tm-` id for a
+team key, so one method serves task 160's two routes. `PutConnectorRequest` is the Go name for task
+169's `PutConnectorBody` (`task-169.md:349`); if task 161's block names it otherwise, 161 wins.
+`PageRequest`, `Page[T]` and `EraseRequest` are Phase H's and task 04's (`types.go` at `3df9fab8`;
+`task-04.md:229-232`). **Forty-nine methods**, counted in the block.
+
+#### `hubclient/fake_work_intake_stub.go` and `client_work_intake_stub.go` (complete)
+
+```go
+package hubclient
+
+// fake_work_intake_stub.go: *Fake satisfies WorkIntake until task 144 adds the
+// real rules; task 144 deletes this file in the commit that adds them. Every
+// method is one line of the same shape; two are shown and the other
+// forty-seven follow the same pattern, in WorkIntake's order.
+func (f *Fake) CreateRequest(context.Context, string, hubapi.CreateRequestRequest) (hubapi.Request, error) {
+	return hubapi.Request{}, workNotInFakeYet
+}
+func (f *Fake) UnbindTeams(context.Context, string, hubapi.TeamsSubject) error { return workNotInFakeYet }
+```
+
+```go
+package hubclient
+
+// client_work_intake_stub.go: the HTTP client answers ErrNotConfigured for
+// every WorkIntake method until task 168 builds them over HTTP and deletes
+// this file (task 04's client idiom, task-04.md:138-147).
+func (c *Client) CreateRequest(context.Context, string, hubapi.CreateRequestRequest) (hubapi.Request, error) {
+	return hubapi.Request{}, ErrNotConfigured
+}
+func (c *Client) UnbindTeams(context.Context, string, hubapi.TeamsSubject) error { return ErrNotConfigured }
+```
+
+Both files import `context` and `…/internal/hub/hubapi` and hold one method per `WorkIntake`
+method, written by hand from the interface as task 114's are (`task-114.md:902-956`); the
+compile-time assertions in `hubclient/work_intake_test.go` are the check that none is missing:
+
+```go
+package hubclient
+
+var (
+	_ WorkIntake = (*Fake)(nil)
+	_ WorkIntake = (*Client)(nil)
+	_ Hub        = (*Fake)(nil)
+)
+```
