@@ -100,3 +100,81 @@ registered, ranked once when the reader arrives, and still while the reader is o
 - `desktop/src/components/desk/Desk.test.tsx` — the surface and key tests (new)
 - `desktop/src/store/types.ts` ⚑ — `Lens` gains `"desk"` (modified)
 - `desktop/src/components/AppShell.tsx` ⚑ — one `LensRouter` arm (modified)
+
+#### Interfaces — complete: `desktop/src/components/desk/deskModel.ts`, part 1: SW.17's types
+
+```ts
+// desktop/src/components/desk/deskModel.ts — SW.17, task 62. The one Desk frame's model.
+//
+// Pure: no JSX, no React, no clock of its own. Row kinds register here (deskRows.tsx, TM-54's
+// teamRows.tsx); Desk.tsx takes one snapshot on entry and builds the model from it once.
+import type { IssueHead, IssueRevision, WorkEvent } from "../../api/work";
+import type { ProvenanceRef } from "../../api/discover";
+import type { CockpitState } from "../../store/store";
+import type { Session } from "../../store/types";
+import type { WorkReader } from "../../work/source";
+
+/** AX §5's fixed order. The array is the order; nothing sorts sections. */
+export type DeskSection = "needs_you" | "decided_without_you" | "failed" | "landed" | "running";
+export const DESK_SECTIONS: readonly DeskSection[] =
+  Object.freeze(["needs_you", "decided_without_you", "failed", "landed", "running"]);
+
+/** Bands sit outside the ranked sections: horizon above them (nothing in W1), since below. */
+export type DeskBand = "horizon" | "since";
+
+export interface DeskItem<T = unknown> {
+  kind: string;            // the registered kind, "issue.urgent_mine", "team.decide"
+  id: string;              // unique within the kind
+  payload: T;
+  arrivedAt: string;       // RFC 3339: when the fact that made the row true was observed
+  rankReason: string;      // "ranked first: blocks Alice's agent" (AX §5, L-114)
+  ifNothing: string;       // the consequence of doing nothing, as a rule, never a time
+  /** Set by issue rows: the wrapper carries data-issue-id so task 53's issue verbs reach it. */
+  issueId?: string;
+}
+
+/** 0 irreversible, 1 blocks someone, 2 the rest. waitingSinceMs: how long it has waited. */
+export interface DeskRank { tier: 0 | 1 | 2; waitingSinceMs: number }
+
+/** A signal a later task feeds in (task 127's reminders, task 170's unrouted requests). */
+export interface DeskSignal { kind: string; id: string; at: string; data: Readonly<Record<string, unknown>> }
+
+/** What the Desk read on entry. Every member is a value, fixed at takenAt (decision 3). */
+export interface DeskSnapshot {
+  takenAt: number;                                   // epoch ms, the entry
+  lastVisitAt: number | null;                        // markDeskVisit's last write; null: first visit
+  me: string | null;                                 // my u- id; null before the first load
+  cockpit: Readonly<CockpitState>;                   // the store at entry (TM-54 reads teamDesk)
+  sessions: readonly Session[];                      // live and ended, the store's
+  heads: ReadonlyMap<string, IssueHead>;             // every readable head, by is- id
+  headOf(issueId: string): IssueHead | undefined;
+  events: readonly WorkEvent[];                      // SW.5's feed; [] until task 63 passes it
+  revisionAt(issueId: string, rev: number): IssueRevision | null;
+  refOf(key: string): ProvenanceRef | "resolving" | null;           // P4-16's loader, else null
+  briefCriteria(briefKey: string): readonly string[] | "resolving" | null;
+  signals(kind: string): readonly DeskSignal[];      // [] for a kind nobody feeds
+}
+
+/** What takeDeskSnapshot reads. Desk.tsx passes the live ones; a later task ADDS an input. */
+export interface DeskInputs {
+  now(): number;
+  cockpit(): Readonly<CockpitState>;
+  work(): WorkReader | null;                         // task 40's workSource()
+  events?(): readonly WorkEvent[];
+  refOf?(key: string): ProvenanceRef | "resolving" | null;
+  briefCriteria?(briefKey: string): readonly string[] | "resolving" | null;
+  signals?(kind: string): readonly DeskSignal[];
+}
+
+/** One section or band as the frame draws it. */
+export interface DeskGroup {
+  place: DeskSection | "since";
+  items: readonly DeskItem[];
+}
+export interface DeskModel { groups: readonly DeskGroup[]; keys: ReadonlySet<string> }
+```
+
+`WorkEvent`, `IssueHead` and `IssueRevision` are task 37's re-exports of the Hub wire
+(`task-37.md` decision 9); `ProvenanceRef` is phase 4's `api/discover` type as task 65 imports it
+(`task-65.md:348`; **UNVERIFIED until P4 merges**, and if absent the member's type is `unknown`
+until then). `IssueRevision` carries the revision's `content` (`task-20.md:321-326`).
