@@ -152,10 +152,11 @@ GRANT UPDATE (linkback_state, linkback_at) ON work_outside_pr_links TO hub_app;
 -- GitHub, the Hub app's installation on the repository's owner (decision 11).
 ALTER TABLE work_host_hooks
   ADD COLUMN autolink_key    text CHECK (autolink_key IS NULL OR autolink_key ~ '^[A-Z][A-Z0-9]{1,9}$'),
+  ADD COLUMN autolink_tried_at timestamptz,
   ADD COLUMN installation_id bigint CHECK (installation_id IS NULL OR installation_id > 0),
   ADD CONSTRAINT work_host_hooks_github_installation
     CHECK (host <> 'github' OR installation_id IS NOT NULL);
-GRANT UPDATE (autolink_key, installation_id) ON work_host_hooks TO hub_app;
+GRANT UPDATE (autolink_key, autolink_tried_at, installation_id) ON work_host_hooks TO hub_app;
 
 -- Decision 4: one filing per PR, ever; issue_id NULL means the author did not match.
 CREATE TABLE work_outside_pr_filings (
@@ -786,3 +787,325 @@ func (s *Server) firstPush(ctx context.Context, tx *Tx, hook hubapi.HostHook, ev
 `hostFact` calls `IssueStateForUpdate` again; the row is already locked by this transaction, so
 the second read is the same value and costs one index lookup. Task 154's `in_review` arm keeps
 reading `link.PRState == "open"`, and nothing here changes it.
+
+#### Interfaces — complete: `server/work_hooks.go` ⚑, the post after commit
+
+```go
+// In hookIngress (task-154.md:427-441), after the reply is written:
+		writeJSON(w, http.StatusOK, map[string]any{"duplicate": res.Duplicate, "links": res.Links, "facts": res.Facts})
+		if res.Linkback != nil {
+			s.postLinkbackAsync(hook, *res.Linkback)
+		}
+
+// postLinkbackAsync is decision 1's second half. The host's delivery has its
+// answer already; our comment must not hold it (a host times a hook out, and
+// GitHub's limit is about 10 s, UNVERIFIED). At most 8 posts run at once;
+// a ninth is marked failed at once rather than queued without bound.
+func (s *Server) postLinkbackAsync(hook hubapi.HostHook, p pendingLinkback) {
+	select {
+	case s.linkSem <- struct{}{}:
+	default:
+		s.settleLinkback(context.Background(), hook, p, "failed")
+		return
+	}
+	go func() {
+		defer func() { <-s.linkSem }()
+		ctx := context.Background()
+		state := "failed"
+		if lb := s.links.For(hook); lb != nil {
+			if text, err := LinkbackText(s.publicURL, p.Lines); err == nil && lb.Comment(ctx, p.PR, text) == nil {
+				state = "posted"
+			}
+		}
+		s.settleLinkback(ctx, hook, p, state)
+	}()
+}
+
+// settleLinkback records posted or failed on every claimed link, in one
+// statement. An unmatched-only comment has no claim, and settles nothing.
+func (s *Server) settleLinkback(ctx context.Context, hook hubapi.HostHook, p pendingLinkback, state string) {
+	if len(p.Claimed) == 0 {
+		return
+	}
+	err := s.hostTx(ctx, hook.OrgID, func(tx *Tx) error {
+		return store.MarkLinkback(ctx, tx, p.Claimed, state) // WHERE linkback_state = 'pending'
+	})
+	if err != nil {
+		s.log.Warn("linkback: settle", "project", hook.ProjectID, "host", hook.Host, "err", err)
+	}
+}
+```
+
+`s.linkSem` is `make(chan struct{}, 8)`, made where the `Server` is built. The log line carries
+ids and the host only: no repository, no alias, no text. A process that stops between the claim
+and the settle leaves a `pending` row; the janitor's statement below turns every `pending` older
+than 10 minutes into `failed`, so no claim is ever stuck and none is ever re-posted.
+
+#### Interfaces — complete: the janitor's two statements and the autolink step
+
+```go
+// server/janitor.go ⚑, beside task 154's delivery expiry, under the same advisory lock:
+//   UPDATE work_outside_pr_links SET linkback_state = 'failed'
+//    WHERE linkback_state = 'pending' AND linkback_at < now() - interval '10 minutes';
+// and one call per tick:
+//   if err := s.autolinkStep(ctx); err != nil { log it; the next tick tries again }
+
+// autolinks is the kick channel; Kick never blocks.
+type autolinks struct{ kick chan struct{} }
+
+func (a *autolinks) Kick() {
+	select {
+	case a.kick <- struct{}{}:
+	default:
+	}
+}
+
+// autolinkStep is decision 5. Due: a GitHub hook whose autolink_key is not its
+// project's current key, not tried in the last hour. Success records the key;
+// a failure records only the try, so a hook with no permission is asked once
+// an hour, not once a tick, and the admin surface shows it as not linked.
+func (s *Server) autolinkStep(ctx context.Context) error {
+	due, err := store.HooksNeedingAutolink(ctx, s.sys, 50) // the janitor's system read (UNVERIFIED)
+	if err != nil {
+		return err
+	}
+	for _, d := range due {
+		lb, ok := s.links.For(d.Hook).(GitHubLinkback)
+		if !ok {
+			continue // no app wired: nothing to try, and nothing recorded
+		}
+		err := lb.Autolink(ctx, d.Hook.RepoPath(), d.CurrentKey, d.Hook.ProjectID)
+		key := ""
+		if err == nil {
+			key = d.CurrentKey
+		}
+		if err := s.hostTx(ctx, d.Hook.OrgID, func(tx *Tx) error {
+			return store.SetAutolinkTry(ctx, tx, d.Hook.ProjectID, key) // key "" keeps autolink_key
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+```
+
+The janitor loop selects on its ticker **and** `s.autolinks.kick`, running only the autolink step
+on a kick. `HooksNeedingAutolink` returns `[]store.DueAutolink{Hook hubapi.HostHook; CurrentKey
+string}`, joining the hook to its project's current key and skipping projects with none. The due
+query reads a column this part adds to the SQL above: `autolink_tried_at timestamptz`.
+
+#### Interfaces — complete: `store/work_hooks.go` ⚑, appended signatures
+
+```go
+// ClaimLinkback moves one link's linkback NULL → pending; true when it did.
+func ClaimLinkback(ctx context.Context, tx *Tx, linkID string) (bool, error)
+
+// MarkLinkback settles claimed links: UPDATE … SET linkback_state = $2
+// WHERE id = ANY($1) AND linkback_state = 'pending'. state is posted | failed.
+func MarkLinkback(ctx context.Context, tx *Tx, linkIDs []string, state string) error
+
+// InsertFiling is INSERT … ON CONFLICT (org_id, project_id, host, repo, number)
+// DO NOTHING; true when a row went in. issueID nil records an unmatched author.
+func InsertFiling(ctx context.Context, tx *Tx, projectID, host, repo string, number int, issueID *string) (bool, error)
+
+// CurrentAlias is DisplayAlias(the project's current key, the issue's number),
+// or "" while the project has no key.
+func CurrentAlias(ctx context.Context, tx *Tx, issueID string) (string, error)
+
+type DueAutolink struct {
+	Hook       hubapi.HostHook
+	CurrentKey string
+}
+
+// HooksNeedingAutolink: host = 'github' AND the project has a key AND
+// autolink_key IS DISTINCT FROM it AND (autolink_tried_at IS NULL OR
+// autolink_tried_at < now() - interval '1 hour'), oldest try first, at most limit.
+func HooksNeedingAutolink(ctx context.Context, q Querier, limit int) ([]DueAutolink, error)
+
+// SetAutolinkTry sets autolink_tried_at = now(), and autolink_key = key when key != "".
+func SetAutolinkTry(ctx context.Context, tx *Tx, projectID, key string) error
+```
+
+The by-alias page below adds no store function: it calls task 154's `ProjectKeysEver` and
+`ResolveRef` inside the reader's own row-level security.
+
+`PutHostHook` gains the `installationID *int64` parameter (above); `Querier` is the Hub store's
+read interface as the janitor uses it (**UNVERIFIED** name). Each function is one statement, and
+none reads or writes a title, a body or a login.
+
+#### Interfaces — complete: `server/work_pages.go` ⚑ (task 80), the by-alias redirect
+
+```go
+// In task 80's page registration, beside GET /p/issues/{issueId}:
+	mux.HandleFunc("GET /p/issues/by-alias/{alias}", s.pageSession(s.pageByAlias))
+
+// pageByAlias is decision 6: resolve at request time, then redirect to the
+// id page. Every miss is the page's one 404, so an alias in a project the
+// reader cannot read is indistinguishable from one that names nothing.
+func (s *Server) pageByAlias(w http.ResponseWriter, r *http.Request, tx *Tx) {
+	projectID, alias := r.URL.Query().Get("p"), strings.ToUpper(r.PathValue("alias"))
+	if !projectIDRe.MatchString(projectID) || !aliasRe.MatchString(alias) {
+		s.pageNotFound(w, r)
+		return
+	}
+	keys, err := store.ProjectKeysEver(r.Context(), tx, projectID) // RLS: [] when not readable
+	if err != nil {
+		s.pageError(w, r, err)
+		return
+	}
+	issueID, ok, err := store.ResolveRef(r.Context(), tx, projectID, keys, Ref{Alias: alias})
+	if err != nil {
+		s.pageError(w, r, err)
+		return
+	}
+	if !ok {
+		s.pageNotFound(w, r)
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store") // a key change moves where an alias points
+	http.Redirect(w, r, "/p/issues/"+issueID, http.StatusFound)
+}
+```
+
+`pageSession`, `pageNotFound` and `pageError` are task 80's page helpers as its scope describes
+them (Entra session, one not-found page, a strict CSP), **UNVERIFIED** names until its part.
+`projectIDRe` is the Hub's `pj-` grammar (task 02's). The redirect's target is built from an
+`is-` id the store returned, never from the request, so the page cannot be made an open redirect.
+A reader who is not signed in reaches task 80's sign-in first and comes back to this URL, which
+is then resolved again: a key that changed in between is followed.
+
+#### Interfaces — complete: `control-plane/internal/api/work.go` ⚑ (task 16), the branch name
+
+```go
+// in New, beside a.registerWork(guarded) (task-16.md:506-507):
+	guarded.Handle("GET /v1/work/issues/{issueId}/branch-name", http.HandlerFunc(a.handleBranchName))
+
+// BranchName is the route's one reply.
+type BranchName struct {
+	Name string `json:"name"`
+}
+
+// handleBranchName is decision 9: one implementation (task 21's), read at the
+// press. It is a local route, not a relay row, so hubclient.WorkRoutes and
+// registerWork's pairing check are unchanged.
+func (a *API) handleBranchName(w http.ResponseWriter, r *http.Request) {
+	log := a.deps.Log
+	if log == nil {
+		log = slog.Default()
+	}
+	if a.deps.Work == nil {
+		hubclient.WriteError(w, log, hubclient.ErrNotConfigured)
+		return
+	}
+	issueID := r.PathValue("issueId")
+	if !issueIDPattern.MatchString(issueID) {
+		httpx.WriteProblem(w, http.StatusBadRequest, httpx.CodeBadRequest,
+			"issueId is is- and 16 lowercase hex", map[string]string{"field": "issueId"})
+		return
+	}
+	iw, err := a.deps.Work.Issue(r.Context(), issueID) // task 16: re-hashed, or an error
+	if err != nil {
+		hubclient.WriteError(w, log, err) // the relay rule: a Hub 404 stays issue_not_found
+		return
+	}
+	if iw.Head.Alias == "" {
+		httpx.WriteProblem(w, http.StatusConflict, "no_project_key", "the project has no key yet", nil)
+		return
+	}
+	auOnly := true // decision 9: no class, or an error, loses the slug and never leaks it
+	if s := a.deps.WorkStart; s != nil && s.Class != nil {
+		if au, err := s.Class.AUOnly(r.Context(), iw.Head.ProjectID); err == nil {
+			auOnly = au
+		}
+	}
+	title := iw.Revision.Content.Title.Text // "" once erased: the alias alone
+	httpx.WriteJSON(w, http.StatusOK, BranchName{Name: lanes.IssueBranchName(iw.Head.Alias, title, auOnly)})
+}
+
+// issueIDPattern is task 21's ValidIssueTrailer grammar (task-21.md:91).
+var issueIDPattern = regexp.MustCompile(`^is-[0-9a-f]{16}$`)
+```
+
+`work.go` gains `regexp` and the `lanes` import. If task 21 exports its grammar as a function
+(`lanes.ValidIssueID` or similar), the implementer calls it instead of repeating the pattern; the
+part could not see an exported form (`task-21.md:88-96` names `ValidIssueTrailer` for a trailer
+value, which is the same grammar). `no_project_key` is a new control-plane problem code; it is
+not in task 143's appended list, because this route never reaches the Hub with it (a gap for task
+04's code table, below).
+
+#### Interfaces — complete: the desktop, `api/work.ts` ⚑ (task 37)
+
+```ts
+// WORK_LOCAL (task-37.md:301-310) gains one row, last:
+  ["issueBranchName", "GET", "/v1/work/issues/{issueId}/branch-name"],
+
+// WorkClient gains:
+  /** Task 21's name for the issue, computed by the control plane at the call (decision 9). */
+  issueBranchName(issueId: string): Promise<{ name: string }>;
+
+// makeWorkClient gains:
+    issueBranchName: (issueId) => local("issueBranchName", [issueId]),
+```
+
+Task 37's route test counts `WORK_RELAY.length + WORK_LOCAL.length` as `30 + 5`
+(`task-37.md:777`); it becomes `30 + 6`, and its comment says so. The row is local, so
+`relayPath` never sees it and no Hub URL enters `desktop/src`.
+
+#### Interfaces — complete: `IssueHead.tsx` ⚑ (task 46), *Copy branch name*
+
+```tsx
+// imports gain:
+import { api } from "../../api";
+
+// inside IssueHead, beside `open`:
+  const [copied, setCopied] = useState<{ name: string } | { failed: true } | null>(null);
+  const copyBranch = async () => {
+    try {
+      const { name } = await api.work.issueBranchName(head.id); // at the press, never before
+      await navigator.clipboard.writeText(name);
+      setCopied({ name });
+    } catch {
+      setCopied({ failed: true });
+    }
+  };
+
+// in the facts line, after the "updated" fact:
+        <button type="button" className="iv-copy" onClick={() => void copyBranch()}>
+          Copy branch name
+        </button>
+        {copied && "name" in copied ? (
+          <span className="iv-fact" data-fact="branch" role="status">copied {copied.name}</span>
+        ) : null}
+        {copied && "failed" in copied ? (
+          <span className="iv-fact" data-fact="branch" role="status">could not copy the branch name</span>
+        ) : null}
+```
+
+The status line is a fact after the event, in the facts line's mono `--ink-2`: it says what is on
+the clipboard, not what will happen (`AGENTIC-UX.md`'s rule, held by `expectNoPrediction`). It is
+not cleared by a timer; it goes when the issue view unmounts, as every fact line does. `iv-copy`
+takes task 46's quiet button rule in `issue.css` (no new rule; **UNVERIFIED** that 46 has a
+text-button class to reuse, else one five-line rule is added there: `transform`/`opacity` only
+and no `transition: all`, `DESIGN-SYSTEM.md`).
+
+#### Interfaces — complete: `palette/commands.ts` ⚑ (task 59)
+
+```ts
+// One row in task 59's issue verbs, with no chord (the scope: "no new chord"):
+  {
+    id: "issue.copyBranchName",
+    title: "Copy branch name",
+    chord: null,
+    when: (ctx) => ctx.issueId !== null,
+    run: async (ctx) => {
+      const { name } = await api.work.issueBranchName(ctx.issueId!);
+      await navigator.clipboard.writeText(name);
+      ctx.announce(`copied ${name}`);
+    },
+  },
+```
+
+The row's shape (`id`, `title`, `chord`, `when`, `run`, `ctx.announce`) is task 59's as its scope
+describes a palette verb; task 59 has **no part on this tree**, so every field name here is
+**UNVERIFIED** and the implementer takes task 59's type as it lands. The behaviour is fixed: the
+same route, at the press, and the palette's announcement is the fact of what was copied.
