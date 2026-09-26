@@ -323,7 +323,29 @@ owner added usage, all 11 were relaunched. The new task ids:
   a gated part stops the env stream. This run decides the five open items, re-plans the four parts
   and removes the gates. It must land before the env build reaches task 20, about 12 tasks away.
 
-## 3c-0. OD-31 (19:30, 2026-09-26): ONLY THE PHASE 2 CLOSE-OUT RUNS
+## 3c-00. OD-31 AMENDED (19:50, 2026-09-26): STREAMLINED, AT MOST 4 STREAMS, NO OWNER TEST PAUSE
+
+- **Running (4):** close-out (`wf30babpy`); hub (`we20zj19k`, args
+  `{"stream":"hub","clearedTasks":["04"],"liteFrom":"05"}`); p3 (`wdcqplawr`, its insert args plus
+  `"liteFrom":"02"`); p4 (`w1gu0q50d`, `{"stream":"p4","liteFrom":"t10"}`).
+- **Queue, in order,** each started when a slot frees:
+  1. p7 `{"stream":"p7","liteFrom":"t05"}`
+  2. p5 `{"stream":"p5","liteFrom":"t05"}`
+  3. env: its hold and insert args plus `"liteFrom":"03"`
+  4. p6 `{"stream":"p6","liteFrom":"01"}`
+  5. team plan fix, then its build
+  6. the work plan (resume its writing only after the others; lighter parts)
+  7. After close-out: X-3, then merge phase 2 to `main`.
+- **Lite mode** (`args.liteFrom`, in all five build scripts) adds instructions only to the
+  implement, review and fix prompts from that task on:
+  - mutation tests only for security-sensitive code;
+  - only the changed packages' tests;
+  - one fix round, a second only for a Critical;
+  - residual Importants carried, not re-looped.
+  Tasks already run keep their prompts, so the cache holds.
+- **Every resume must pass `liteFrom`** as well as the stream's other args.
+
+## 3c-0. OD-31 (19:30, 2026-09-26): ONLY THE PHASE 2 CLOSE-OUT RUNS (superseded by 3c-00)
 
 Every other stream is **PAUSED** by the owner's decision (OD-31) until phase 2 is merged to `main`
 and in the owner's hands. The close-out's remaining work is task 26, task 25, the final review, then
