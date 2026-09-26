@@ -1679,7 +1679,7 @@ go test -race -count=1 ./internal/backend/... ./internal/registry/... ./internal
 
 The last line is the regression gate: every phase 2 session test runs with `Deps.Gateway` nil and must be unchanged.
 
-- [ ] **Step 11: Kill eleven mutants by hand**
+- [ ] **Step 11: Kill twelve mutants by hand**
 
 | Edit | Test that must fail |
 |---|---|
@@ -1694,6 +1694,7 @@ The last line is the regression gate: every phase 2 session test runs with `Deps
 | `bearer`: `c.tokens.Token(ctx, gatewayAudience)` → `c.tokens.Token(ctx, "panacea-app-hub")` | `TestTheOIDCCredentialIsThePersonsGatewayToken` (`OD-30`) |
 | `NewLauncher`: `case l.BaseURL != SandboxBaseURL:` → `case l.BaseURL == "":` | `TestNewLauncherRefusesAnyOtherBaseURL` (the two non-empty rows; review I-4) |
 | `loadGatewayConfig`: the `c.BaseURL != gatewayclient.SandboxBaseURL` block deleted | `config_test.go`'s `BASE_URL=http://gatekeeper:4000` row (decision (h)) |
+| `loadGatewayConfig`: the `c.Network != "panacea-app-gateway"` block deleted | `config_test.go`'s `NETWORK=panacea-app-gateway-backend` row (decision (h), review I-6; re-review M-5(a)) |
 
 - [ ] **Step 12: Vet and format**
 
@@ -1714,7 +1715,7 @@ git commit -F <message file> -- control-plane/internal/gatewayclient/ control-pl
 
 Message: `feat(gateway): the keysmith client and the local control plane's launch (phase 6 task 15)`, a body naming decisions (a) to (h), and the attribution line.
 
-**Acceptance:** step 10 prints `ok`, `13`, and `ok` for every listed package; step 11's eleven edits each fail the named test; step 12 prints nothing. The end-to-end run, a real sandbox on the gateway network getting a token, is task 17's acceptance and task 23's proof, not this task's.
+**Acceptance:** step 10 prints `ok`, `13`, and `ok` for every listed package; step 11's twelve edits each fail the named test; step 12 prints nothing. The end-to-end run, a real sandbox on the gateway network getting a token, is task 17's acceptance and task 23's proof, not this task's.
 
 **What this task does not claim:**
 
