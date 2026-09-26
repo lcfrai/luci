@@ -497,3 +497,42 @@ of the assertion is behind `runtime.GOOS != "windows"`; CI runs on Linux, where 
 "I10"` (no deny may match a `panacea` command), never the message. `InvariantError.Invariant` and
 I10 are TM-13's (team tree `task-13.md:83`, `:305-306`, and its own test of the same deny at
 `:668`, read 2026-09-26); on `feat/work-layer` they are **UNVERIFIED** until Phase T merges.
+
+#### Tests to write first — the Hub half
+
+`store/work_harness_integration_test.go` and `server/work_harness_integration_test.go`, both
+`//go:build integration`, over the Hub's existing test database and `devissuer` principals (task
+04's harness; its helper names are bound in step 1, **UNVERIFIED** here). Team *Payments* has
+Dylan as team admin and Priya as member.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestAnUnsetTeamReadsTheDefault` | `GET` → 200 `{harnesses:["claude-code"], skills:{source:"image", library:null}, updatedBy:null, updatedAt:null}`; no row written | a 404 for an unset team, or unset read as all |
+| `TestOnlyATeamAdminSetsThePolicy` | Priya's `PUT` → 403 `forbidden`, no row, no event; Dylan's → 200 and one `work.agent_policy_set {harnesses, skillsSource:"image"}` | any member edits |
+| `TestAnUnknownHarnessIs400` | `PUT {harnesses:["claude-code","nope"]}` → 400 `bad_request`, `details.field: harnesses`; `[]` → the same; `["codex","codex"]` → the same | free text, an empty list, a duplicate accepted |
+| `TestABranchRefIs400` | `library.commit: "main"`, then 39 hex, then 40 upper-case hex → each 400, `details.field: skills.library` (task 143's `hex40`, `task-143.md:742`, `:751-760`); 40 lower-case hex → 200, the event's `commit` is it | a floating ref stored |
+| `TestTheEventHoldsNoRepoCredential` | a `repoKey` of `github.com/kpmg/payments-skills`: the event's data has exactly `harnesses`, `skillsSource`, `commit`; no `repoKey`, no `path`, no URL | a repository address in the feed |
+| `TestANoOpPutWritesNothing` | the same `PUT` twice → one row version, one event, the second answers `changed=false` | an event per call |
+| `TestPoliciesAreTheTeamsOwn` | org B's admin `GET`s Payments → 404; `UPDATE work_team_agent_policies` across orgs as `hub_app` → 0 rows | RLS missing on task 145's table |
+| `TestTheOrderIsStored` | `PUT [codex, claude-code]` then `GET` → the same order | a set, so the team's first is lost (decision 2) |
+
+**The fake.** Task 144 stubbed `GetTeamAgentPolicy` and `PutTeamAgentPolicy` with 501
+`not_in_fake_yet` (`task-144.md:126`, `:140` hold the `policies` map). This task fills them with
+the same rules: the default for a missing key, team admin writes, `ValidateTeamAgentPolicy`, one
+event per change. **Its refusal is the 400 above, not W5-17's 403** (gap 7). The field names
+are task 143's validator's, `harnesses`, `skills.library` and `skills.source`, not decision 4's
+`skills.library.commit` (gap 8); `details.field` is the key `fieldProblem` writes, bound in step 1.
+
+#### The matrix rows (`workMatrixRows["166"]`, appended)
+
+Columns V M A O N X, as task 161 (`task-161.md:579-581`). The policy is the team's, so an org
+admin who is not a member (`O`) gets task 04's 404, as task 165's team rows do
+(`task-165.md:330-331`): OD-16's admin governs through the team, never around it.
+
+| Route | V | M | A | O | N | X |
+|---|---|---|---|---|---|---|
+| `GET /v1/teams/{teamId}/work/agent-policy` | 200 | 200 | 200 | 404 | 404 | 404 |
+| `PUT /v1/teams/{teamId}/work/agent-policy` | 403 | 403 | 200 | 404 | 404 | 404 |
+
+The `PUT` row sends a valid body, so `A`'s 200 is the write and not the 400. The body is not read
+before the membership check, so `O N X` see 404 whatever they send.
