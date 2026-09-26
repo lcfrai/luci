@@ -362,9 +362,8 @@ P3-04's lane creation cuts a missing base branch is **UNVERIFIED** and reported.
 #### The matrix rows (`server/work_matrix_rows_integration_test.go` ⚑), complete
 
 H16b's fixture gains `FeatureID` (built once per cell: a feature `resumable-uploads` in P, made by
-Grace through the route, so the rows read and patch a real record). The two creating rows need a
-fresh slug per cell, so their bodies take the fixture's unique suffix (H16b builds a fresh world
-per cell, `task-16b.md:38-41`, so a fixed slug is also safe; the suffix is belt and braces).
+Grace through the route, so the rows read and patch a real record). The two creating rows use
+fixed slugs, which is safe because H16b builds a fresh world per cell (`task-16b.md:38-41`).
 
 ```go
 	"76": {
@@ -409,3 +408,66 @@ is seen failing before the code it covers.
 | Test | Asserts | Mutant it kills |
 |---|---|---|
 | `TestStartRefusesAReservedName` | `Features.Reserved` true for `ep-142` and the issue not in that feature → `ErrNameReserved`, no lane made, no session; the issue **in** that feature → Start proceeds; `Reserved` errors → refused | a reserved branch cut for another lane; the check failing open |
+
+#### Steps
+
+- [ ] **Step 1: Check the base.** Task 74's `features` table and `issue_heads.feature_id` as
+  merged; Hub task 18's brief insert and whether it takes the caller's transaction (see the store
+  section); task 72's request bodies as merged. Where the project's data class lives (if Phase T
+  has landed it, `ProjectAUOnly` reads it; if not, it answers `known: false`).
+- [ ] **Step 2: The tests.** The nine integration tests, the `"76"` rows with the fixture's
+  `FeatureID`, and task 24's `TestStartRefusesAReservedName`. Run them: they fail.
+- [ ] **Step 3: The store, then the routes** in the order above, then the four event kinds, then
+  the one-line Start delta and its `Features` interface (task 73's fake and task 82's client
+  satisfy it; until task 82 lands, `cmd/api` wires the fake's method or leaves `Features` nil,
+  which **refuses** every Start of a project with features, the fail-safe).
+- [ ] **Step 4: Green.** This task's suites, the Hub's brief tests (Hub `TestOneLiveBriefPerScope`
+  must still pass: the insert is shared), task 24's suite and the matrix.
+- [ ] **Step 5: Commit by pathspec**, the eight files of *Files*.
+
+#### Acceptance
+
+```bash
+export PANACEA_APP_HUB_TEST_DATABASE_URL='postgres://postgres@127.0.0.1:5433/postgres?sslmode=disable'
+go test ./control-plane/internal/hub/server/ -tags integration -race -count=1 -v \
+  -run '^Test(ASlugIsReservedOnce|ADerivedFactCannotBeSent|PromoteLinksAndCopiesNothing|AUProjectsKeepTitlesOutOfSlugs|TheLeadIsATeamMember|AFeatureIsItsProjectsOnly|TheRebindMovesTheFeatureRef|EventsPerRecordWritten|TheSyncActorPromotesNothing)$' \
+  2>&1 | grep -c '^--- PASS'                                                    # 9
+go test ./control-plane/internal/workstart/ -race -count=1 -run '^TestStartRefusesAReservedName$' -v 2>&1 | grep -c '^--- PASS'   # 1
+go test ./control-plane/internal/hub/... -tags integration -race -count=1       # every package ok
+grep -rn "branch_ref" control-plane/internal/hub/store/work_features.go | grep -c "briefs"   # >= 1: the ref is read from the brief
+```
+
+Expected: `9`, `1`, every package `ok`, and at least one line joining `briefs` for the ref. None
+has been run; the code does not exist yet (OD-27).
+
+#### What this task does not claim
+
+- **Not multi-team features** (W4, L-67's second half), **milestones** (W4, L-72), or
+  **initiatives** (W4; `initiativeId` is always `null` here).
+- **Not the brief's text.** The brief is created empty; phase 4 drafts it (`model_drafted`, 05
+  §5.5) after P4-18, from the desktop's promote flow (task 86).
+- **Not the derived facts.** Lanes live, landed and released where are the desktop's reading of
+  the child issues (task 85); nothing here stores or computes them.
+- **Not that the feature's branch exists in git.** It is cut on the first Start of a child issue
+  (task 24, task 61); P3-04 cutting a missing base branch is **UNVERIFIED**.
+- **Not a correct AU rule per project in W2.** Every project takes the AU slug rule until the data
+  class has a home on the project record (the fail-safe of task 24).
+
+#### Corrections to the scope
+
+1. **The brief carries no title** (decision (a)): the Hub's `BriefHead` has no such field and a
+   new brief has no revision (`hub-contract.md:641-644`, `:759`). The pointer to the issue is the
+   `issue.promoted` event's `issueKey` and the issue's `featureId` (decision (b)).
+2. **"One event per write" is one per record written** (the events table), because the brief is a
+   Hub record with its own `brief.created`.
+3. **A derived fact in a `PATCH` is 400, not 422**: the strict decoder refuses an unnamed key
+   (task 72 block 6), which kills the same mutant.
+4. **Task 74's `features` unique `(project_id, branch_ref)`** is a copy this task does not read
+   (decision (c)). Task 74 may keep `brief_id` unique instead; reported as a gap.
+5. **Hub task 18's brief insert may need a `tx`-taking variant** (a Hub file edit, stream WH's
+   rule H1 applies); reported.
+
+**Parity rows served:** the Hub halves of **L-23** (promote to feature, nothing copied), **L-67**'s
+W2 half (one team's feature, its lead and target date), **L-69** (the overview is the branch
+brief, reserved here), **L-70** (status set by a person, facts beside it) and **L-71** (priority
+and labels). Tasks 85 and 86 close them with the desktop.
