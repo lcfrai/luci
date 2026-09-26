@@ -520,3 +520,69 @@ confirmed release in the fixture's project); `V` and `A` are other people and ge
 `not_reserver`, as the Hub's own confirm row reads (`hub-contract.md:354`). `TeamSlug`,
 `MailDomain` and a confirmed `ReleaseID` are new fixture values (H16b's `fixture`; **UNVERIFIED**
 until it lands).
+
+#### Steps
+
+- [ ] **Step 1:** Confirm the sync base: tasks 81, 131 and 146-148 committed; task 145's migration
+  holds the four tables and `intake_address_owner` (`\d hub.work_request_notices`).
+- [ ] **Step 2:** Write `mailer/inbound_test.go`; it fails; write `inbound.go`; green. Apply the
+  mutants by hand (drop the `>` rule, drop the empty-result rule, cut by bytes not lines); each
+  fails a named test; revert.
+- [ ] **Step 3:** `graph.go`'s `Delta` and `Reply` and `graph_test.go` against `httptest`; the
+  fake's read side. Green.
+- [ ] **Step 4:** Append the `hubapi` block and the three kinds; add `request.told`,
+  `intake.address_set` and `release.issues_recorded` by name to task 13's check.
+- [ ] **Step 5:** Write the integration tests; they fail. Write `store/work_mail.go`, the routes,
+  `passInbound`, `fromMail`, `passShipped`, `sendNotices`, `noticeText`; wire `passInbound` before
+  the per-org loop and `passShipped` after task 121's passes in `janitor.go`; the two variables in
+  `config.go`. Run until green.
+- [ ] **Step 6:** `hubclient`'s `RecordReleaseIssues` (the fake's rule: reserver only, once) and
+  the one call in `ship/ship.go` after confirm, beside task 131's delta. Task 131's Ship tests
+  stay green.
+- [ ] **Step 7:** The matrix rows under `"149"`; `"149"` in `workMatrixLive`. Rerun tasks 121 and
+  146-148's integration tests; all green. `git diff -- go.work control-plane/go.mod` shows
+  nothing; commit by pathspec.
+
+#### Acceptance
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/work
+go test ./control-plane/internal/hub/mailer/ -race -count=1 -v \
+  -run '^Test(AReplyChainKeepsOnlyTheNewText|TheSignatureIsCut|AQuoteNeverCutsToNothing|AFirstLineFromIsKept|ALongBodyFitsTheCap|GraphRequestsAreTheOnesWeMean)$' \
+  2>&1 | grep -c "^--- PASS"                                                                    # 6
+go test ./control-plane/internal/hub/server/ -race -count=1 -run '^TestNoticeTextIsFactsOnly$'  # ok
+go test -tags integration ./control-plane/internal/hub/server/ -race -count=1 -v \
+  -run '^Test(TheSameMessageTwiceIsOneRequest|AnAddressRoutesToItsTeamOnly|AMailIsNeverAPerson|TheCursorMovesOnlyAfterCommit|AConfirmedReleaseTellsEachRequesterOnce|OnlyConfirmedRunsTell|OnlyAnnouncedEnvironmentsTell|TheEmailReplyIsInTheThread|AFormRequesterIsMailed|NoCustomerTextInMail|ReleaseIssuesAreTheReserversOnce|TwoReplicasTellOnce|AnErasedRequestIsNotTold)$' \
+  2>&1 | grep -c "^--- PASS"                                                                    # 13
+go test -tags integration ./control-plane/internal/hub/... -race -count=1                      # ok
+go test ./control-plane/... -race -count=1                                                      # ok
+```
+
+A mail through a real tenant is **not** part of this acceptance: every Graph call is proved against
+`httptest` and the fake only.
+
+#### What this task does not claim
+
+- That Graph `Mail.ReadWrite` (and `Mail.Send`) on the intake mailbox is granted to the Hub's
+  identity in any tenant, or that a team alias exists in Exchange: tenant-admin acts,
+  **UNVERIFIED**.
+- That the reply-marker cut is right for every mail client; it is right for the shapes the tests
+  pin, and a client that quotes differently leaves more text in the quote, never less.
+- Attachments: W5 takes none (L-138 stays PARTIAL). HTML-only mail is read as Graph's text
+  rendering of it.
+- The Teams path: task 157 posts in the thread through `sendNotices`' `teams` case.
+- That a requester outside the tenant receives the reply: delivery is Exchange's.
+
+#### Gaps
+
+1. **The Hub has no record of which issues a release carried.** This part adds
+   `PUT /v1/releases/{releaseId}/issues`, `work_release_issues` and one call in the Ship flow; none
+   is in the skeleton's File map or task 131's part, and task 131 (or 71) should carry the call.
+2. **Task 145 is not written**; the four tables and the definer function above are this task's
+   requirement on it. `hub_janitor` and `releases` are Hub names **UNVERIFIED** until H20 and H24.
+3. **The Hub's release has no name.** The notice names the `pipelineRun`, else the `rl-` id; the
+   scope's *release 2026.09.25-2* needs a field the contract lacks.
+4. **Q-149 (owner):** a mail is never a `person` requester (decision 3), against the scope's
+   *"a `person` when the address matches an org user"*.
+5. **Task 81's part is not written**; `Mailer`, `Message`, its token source and fake are taken
+   from its scope, and `Reply` and `Delta` are additions it should expect.
