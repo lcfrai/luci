@@ -257,6 +257,18 @@ func confirmByReserverOnly(t *testing.T, e Env) {
 		t.Errorf("after the refusals the release is %s, want reserved", got.State)
 	}
 	confirmRun(t, e.Admin, r)
+	// Task 05 review m1: the role is checked before the reservation, so a
+	// reserver since demoted to viewer is 403 forbidden (§5.3:354), not let
+	// through as the reserver.
+	mine := reserve(t, e, e.Member, p.ID, runOn(newPanacea(), featRef))
+	must(e.Admin.SetMember(bg, e.TeamID, meOf(t, e.Member).User.ID, hubapi.RoleViewer))(t)
+	_, err = e.Member.Confirm(bg, mine.ID, hubapi.ConfirmRequest{PipelineRun: sp(newRun())})
+	wantErr(t, err, 403, hubapi.CodeForbidden, "required", "member")
+	_, err = e.Member.Abandon(bg, mine.ID, aband)
+	wantErr(t, err, 403, hubapi.CodeForbidden, "required", "member")
+	if got := must(e.Member.Release(bg, mine.ID))(t); got.State != hubapi.StateReserved || got.PipelineRun != nil {
+		t.Errorf("after a demoted reserver's refusals the release is %s, run %v; want reserved, no run", got.State, got.PipelineRun)
+	}
 }
 
 // second is a call's error alone.
@@ -479,7 +491,8 @@ func sourceUnpinned(t *testing.T, e Env) {
 	}
 }
 
-// Releases(deploymentId) finds the joined release; an unjoined id finds none.
+// Releases(deploymentId) finds the joined release; an unjoined id finds none;
+// no query, and no cursor, reaches another team's project's release.
 func byDeploymentID(t *testing.T, e Env) {
 	p := newProject(t, e)
 	src, d := shipped(t, e, p.ID, newPanacea(), featRef)
@@ -491,6 +504,31 @@ func byDeploymentID(t *testing.T, e Env) {
 	if page := must(e.Viewer.Releases(bg, p.ID, hubapi.ReleaseQuery{DeploymentID: newDeployment()}))(t); len(page.Items) != 0 || page.Items == nil {
 		t.Errorf("an unjoined deployment id lists %d releases, want [] (no brief is recorded)", len(page.Items))
 	}
+	// Task 05 review I1: route 36 lists this project's releases only. Team
+	// isolation on the Hub is Go alone (contract §11.1 T4; RLS is per org), and
+	// deploymentId is unique per org, not per project: a lookup that forgets
+	// project_id would hand P's viewer another team's release and its pin.
+	q := newProjectIn(t, e.Member, newTeam(t, e.Member).ID) // a team the viewer is not in
+	qpp := newPanacea()
+	theirs, qd := shipped(t, e, q.ID, qpp, featRef)
+	for name, lq := range map[string]hubapi.ReleaseQuery{
+		"all":            {},
+		"deploymentId":   {DeploymentID: qd},
+		"pipelineRun":    {PipelineRun: *theirs.PipelineRun},
+		"panaceaProject": {PanaceaProject: qpp},
+	} {
+		for _, r := range must(e.Viewer.Releases(bg, p.ID, lq))(t).Items {
+			if r.ProjectID != p.ID || r.ID == theirs.ID {
+				t.Errorf("P's Releases %s holds release %s of project %s, want only P's", name, r.ID, r.ProjectID)
+			}
+		}
+	}
+	_, err := e.Viewer.Releases(bg, p.ID, hubapi.ReleaseQuery{Page: hubapi.PageRequest{After: theirs.ID}})
+	wantErr(t, err, 400, hubapi.CodeBadRequest, "field", "after")
+	for _, r := range must(e.Member.Releases(bg, q.ID, hubapi.ReleaseQuery{DeploymentID: d}))(t).Items {
+		t.Errorf("Q's Releases(deploymentId %s of P) holds %s of project %s, want none", d, r.ID, r.ProjectID)
+	}
+	wantErr(t, second(e.Viewer.Releases(bg, q.ID, hubapi.ReleaseQuery{})), 404, hubapi.CodeProjectNotFound, "projectId", q.ID)
 }
 
 // HA7-1: a first Ship reserves with a null environment, confirms still null,

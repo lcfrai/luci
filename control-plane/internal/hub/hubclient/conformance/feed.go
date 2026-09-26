@@ -92,27 +92,35 @@ func latestThenNewEvents(t *testing.T, e Env) {
 	}
 }
 
-// the outsider's feed after T's writes holds none of them, and its cursor
-// still moves past them (task 26: next is the head, not the last visible).
+// a stranger's feed after T's writes holds none of them, and its cursor still
+// moves past them (task 26: next is the head, not the last visible). The org
+// admin in no team is a stranger here too (task 05 review m2; contract §5.3
+// gives it the outsider's answer on every route but audit and erasure).
 func outsiderSeesNothing(t *testing.T, e Env) {
-	cur := head(t, e.Outsider)
+	ss := strangers(t, e)
+	curs := make([]string, len(ss))
+	for i, s := range ss {
+		curs[i] = head(t, s.hub)
+	}
 	p := newProject(t, e)
 	b := newBrief(t, e.Member, p.ID, featRef)
 	write(t, e.Member, p.ID, b.ID, 0, hubapi.StatusOpen)
 	revoke(t, e, invite(t, e, freshEmail(), hubapi.RoleViewer).ID)
-	for _, ev := range since(t, e.Outsider, cur) {
-		if str(ev.TeamID) == e.TeamID || str(ev.ProjectID) == p.ID {
-			t.Errorf("the outsider's feed holds T's %s about %s", ev.Kind, ev.Subject)
+	for i, s := range ss {
+		for _, ev := range since(t, s.hub, curs[i]) {
+			if str(ev.TeamID) == e.TeamID || str(ev.ProjectID) == p.ID {
+				t.Errorf("the %s's feed holds T's %s about %s", s.name, ev.Kind, ev.Subject)
+			}
 		}
-	}
-	mine := since(t, e.Admin, cur)
-	if len(mine) == 0 {
-		t.Fatalf("T's admin sees none of T's writes")
-	}
-	page := must(e.Outsider.Changes(bg, cur, 500))(t)
-	next, _ := strconv.ParseInt(page.Next, 10, 64)
-	if last := mine[len(mine)-1].Seq; !page.More && next < last {
-		t.Errorf("the outsider's next is %d, behind T's last event %d: it would rescan them for ever", next, last)
+		mine := since(t, e.Admin, curs[i])
+		if len(mine) == 0 {
+			t.Fatalf("T's admin sees none of T's writes")
+		}
+		page := must(s.hub.Changes(bg, curs[i], 500))(t)
+		next, _ := strconv.ParseInt(page.Next, 10, 64)
+		if last := mine[len(mine)-1].Seq; !page.More && next < last {
+			t.Errorf("the %s's next is %d, behind T's last event %d: it would rescan them for ever", s.name, next, last)
+		}
 	}
 }
 
