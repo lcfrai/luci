@@ -649,3 +649,196 @@ the clock's `close` drops any answer in flight. `TriageView.tsx` ⚑ (task 42) c
 and renders one `DuplicateHint` per candidate with `onMark` wired to `addRelation`; a rejection
 shows *"Duplicate check unavailable: the gateway did not answer"* or the org words, and the rest
 of Triage is untouched. Task 42's `2` (decline as duplicate) stays the person's separate key.
+
+#### Tests to write first — Go, over task 136's rig
+
+The rig seeds project `EP` in team `tm-ep` with EP-120, EP-128, EP-131 and EP-150, and a second
+team `tm-ops` whose project `OPS` holds OPS-7 titled *"Upload resume broken in Safari"*, readable
+by another person only.
+
+```go
+func TestCandidatesAreReadableOnly(t *testing.T) { // kills "cross-team text in the prompt"
+	r := newRig(t)
+	r.reply(`{"candidates":[]}`)
+	_, _ = r.svc.Duplicates(ctx, HubTriageSource{Hub: r.hub}, DuplicatesRequest{IssueID: ep150})
+	if p := strings.Join(r.prompts(), "\n"); strings.Contains(p, "OPS-7") || strings.Count(p, `"Key":"k`) > 20 {
+		t.Errorf("the prompt holds another team's issue or more than 20 candidates:\n%s", p)
+	}
+}
+
+func TestAnErasedIssueIsNeverACandidate(t *testing.T) { // kills "erased text resurfaces"
+	r := newRig(t)
+	eraseIssue(r.hub, "is-0000000000000128") // EP-128
+	r.reply(`{"candidates":[{"key":"k1","relation":"duplicates"}]}`)
+	d, _ := r.svc.Duplicates(ctx, HubTriageSource{Hub: r.hub}, DuplicatesRequest{IssueID: ep150})
+	for _, c := range d.Candidates {
+		if c.Alias == "EP-128" {
+			t.Error("an erased issue came back as a candidate")
+		}
+	}
+	if strings.Contains(strings.Join(r.prompts(), ""), "EP-128") {
+		t.Error("an erased issue's key reached the prompt")
+	}
+}
+
+func TestTitlesComeFromTheHub(t *testing.T) { // kills "the model's words quoted as the issue's"
+	r := newRig(t)
+	r.reply(`{"candidates":[{"key":"k1","relation":"duplicates","thatTitle":"INVENTED"}]}`)
+	d, _ := r.svc.Duplicates(ctx, HubTriageSource{Hub: r.hub}, DuplicatesRequest{IssueID: ep150})
+	if len(d.Candidates) != 1 || d.Candidates[0].ThatTitle == "INVENTED" || d.Candidates[0].ThatTitle == "" {
+		t.Errorf("candidates %+v: want one, titled from the Hub", d.Candidates)
+	}
+}
+
+func TestProjectGuidanceWins(t *testing.T) { // kills "org wins"
+	r := newRig(t)
+	putGuidance(r.hub, "org", "or-1", "Label every crash 'crash'.")
+	putGuidance(r.hub, "team", "tm-ep", "Label crashes 'bug'.")
+	g, err := r.svc.GuidanceFor(ctx, GuidanceScope{TeamID: "tm-ep", FeatureID: "ft-ep"})
+	if err != nil || len(g) != 3 {
+		t.Fatalf("layers %+v, err %v: want org, team, the brief", g, err)
+	}
+	if g[0].Level != LevelOrg || g[1].Level != LevelTeam || g[2].Level != LevelBrief ||
+		!g[2].Winning || g[0].Winning || g[1].Winning {
+		t.Errorf("order or winner wrong: %+v", g)
+	}
+	g2, _ := r.svc.GuidanceFor(ctx, GuidanceScope{TeamID: "tm-ep"})
+	if !g2[len(g2)-1].Winning || g2[len(g2)-1].Level != LevelTeam {
+		t.Errorf("without a feature the team layer must win: %+v", g2)
+	}
+}
+
+func TestHintsRefuseUnderTheKillSwitch(t *testing.T) { // kills "switch ignored" on the new routes
+	r := newRig(t)
+	r.switchOn()
+	_, e1 := r.svc.Duplicates(ctx, HubTriageSource{Hub: r.hub}, DuplicatesRequest{IssueID: ep150})
+	_, e2 := r.svc.Hints(ctx, HubTriageSource{Hub: r.hub}, "tm-ep", HintsRequest{ProjectID: "pj-au", Title: "Upload resume broken"})
+	if !errors.Is(e1, ErrAssistsOff) || !errors.Is(e2, ErrAssistsOff) || len(r.prompts()) != 0 {
+		t.Errorf("errs %v, %v, %d calls: want assists_off twice and no call", e1, e2, len(r.prompts()))
+	}
+}
+```
+
+The scope names the guidance mutant *"project guidance follows team and org"*; SW.19 has no
+project layer (decision 7), so the test proves the same ordering on the layers that exist: the
+most local present layer (the brief at feature scope, else the team) is last and the only
+`winning`. Also: `TestAWhyNamingUnlistedGuidanceIsDropped` (a why `g9` with two layers given);
+`TestNoCandidatesMakesNoCall` (an empty search result: `judge` sends nothing); in
+`api/workassist_test.go`, both new patterns are `POST` in the audit list, and a hints body with an
+empty title is `400` with no Hub call.
+
+#### Tests to write first — the desktop
+
+```ts
+// desktop/src/work/hintClock.test.ts — kills "a call per keystroke" and "stale hints"
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { hintClock, PAUSE_MS } from "./hintClock";
+
+beforeEach(() => vi.useFakeTimers());
+afterEach(() => vi.useRealTimers());
+const type = (c: ReturnType<typeof hintClock>, text: string) => {
+  for (let i = 1; i <= text.length; i++) { c.typed({ title: text.slice(0, i), description: "" }); vi.advanceTimersByTime(60); }
+};
+
+it("typing 30 characters with one pause in the middle makes at most two calls", async () => {
+  const ask = vi.fn(async () => "h");
+  const c = hintClock({ ask, deliver: () => {}, fail: () => {} });
+  type(c, "Upload resume ");                        // 14 characters, no pause yet
+  await vi.advanceTimersByTimeAsync(PAUSE_MS);      // call 1
+  type(c, "Upload resume broken in Safari".slice(0, 30));
+  await vi.advanceTimersByTimeAsync(PAUSE_MS);      // call 2
+  expect(ask.mock.calls.length).toBeLessThanOrEqual(2);
+  expect(ask).toHaveBeenCalledTimes(2);
+});
+
+it("under 12 characters makes no call", async () => {
+  const ask = vi.fn(async () => "h");
+  const c = hintClock({ ask, deliver: () => {}, fail: () => {} });
+  type(c, "Upload fail");                            // 11
+  await vi.advanceTimersByTimeAsync(PAUSE_MS * 3);
+  expect(ask).not.toHaveBeenCalled();
+});
+
+it("an answer for superseded text is discarded", async () => {
+  let resolve!: (v: string) => void;
+  const ask = vi.fn(() => new Promise<string>((r) => { resolve = r; }));
+  const deliver = vi.fn();
+  const c = hintClock({ ask, deliver, fail: () => {} });
+  c.typed({ title: "Upload resume broken", description: "" });
+  await vi.advanceTimersByTimeAsync(PAUSE_MS);      // in flight
+  c.typed({ title: "Upload resume broken in Safari", description: "" });
+  resolve("old");
+  await vi.runAllTimersAsync();
+  expect(deliver).not.toHaveBeenCalledWith("old", expect.anything());
+});
+```
+
+- `DuplicateHint.test.tsx`: *"Possible duplicate: EP-128"* with both titles in `q` elements; the
+  rendered text matches no `/\d+\s*%|score|confidence|likely|top match/i` (kills AX
+  anti-pattern 12); *Mark duplicate* calls `onMark` once, and the host's handler makes exactly one
+  `addRelation` call and **no** `moveIssueState` or `patchIssue` call (kills "auto-close": both
+  issues' states unchanged on the fake client); a candidate with `thatTitle: ""` renders nothing.
+- `ComposerHints.test.tsx`: with fake timers, typing a 20-character title shows chips after the
+  pause and not before; a label chip calls `onAddLabel` and makes no client write;
+  `assists_off` shows the org words, `gateway_unavailable` shows nothing;
+  `expectNoPrediction(container)` (task 20's) on the composer with chips shown.
+- `TriageView.test.tsx` ⚑: a rejected `assistDuplicates` leaves task 42's rows and number keys
+  working and shows *"Duplicate check unavailable: the gateway did not answer"*.
+
+#### Steps
+
+- [ ] **Step 1: Sync.** Task 136 is merged (its part and code); tasks 68, 100 and 109 are on the
+  sync base. Re-read `NewIssue.tsx`'s props and task 100's `GuidanceView` fields; rename here.
+- [ ] **Step 2: The Go tests,** over task 136's rig with the second team seeded. They fail.
+- [ ] **Step 3: `guidance.go`,** then the one-line change to `triage.go`; task 136's triage tests
+  still pass.
+- [ ] **Step 4: `duplicates.go`, `hints.go`,** the `labelsFor` split in `triage.go`. Go tests pass.
+- [ ] **Step 5: The two routes** and their audit lines. The api tests pass.
+- [ ] **Step 6: The desktop wire, `hintClock.ts`, `DuplicateHint`, `ComposerHints`,** the two
+  hosts. The Vitest rows pass.
+- [ ] **Step 7: The acceptance block,** then commit with `git add` for the new files and
+  `git commit -F <msgfile> -- <paths>`.
+
+#### Acceptance
+
+```bash
+cd control-plane && go test ./internal/workassist/ ./internal/api/
+# expect: ok for both; task 136's tests unchanged and passing
+cd control-plane && go vet ./internal/workassist/ && gofmt -l internal/workassist/
+# expect: no output
+cd control-plane && grep -n -i -E 'score|similarity|embedding|cosine' internal/workassist/duplicates.go internal/workassist/hints.go
+# expect: only the system prompt's "Never give a score." (decision 1: no embedding search)
+cd desktop && npx vitest run src/work/hintClock.test.ts src/components/work
+# expect: hintClock 3 passed; DuplicateHint 4 passed; ComposerHints 4 passed; TriageView's rows plus 1 new passed
+cd desktop && npx tsc --noEmit
+# expect: exit 0
+```
+
+#### What this task does NOT claim
+
+- Embedding or similarity search: none is designed. Retrieval is the Hub's title search, so a
+  duplicate whose title shares no term with this one is not found.
+- Detection quality: nothing measures how often a *possible duplicate* is one.
+- Duplicates across projects, even in one team (decision 1), or across teams (never).
+- A project guidance layer (gap 1), or that guidance enters a session agent's context (gap 4).
+- That a hint call is cancelled on the wire: its answer is dropped (gap 3).
+- Anything about the gateway beyond task 136: in every deployment but local mode on the fakes,
+  these routes answer `gateway_unavailable` until phase 6 decides task 136's gap 1.
+
+#### Gaps found while writing this part
+
+1. **No project guidance layer.** The scope and 05 §1 C L-55 say org → team → project; SW.19's
+   `GuidanceScope` is org, team, person (`task-109.md:176`, task 99's scope). Adding `project` is a
+   Hub delta on task 99's records and task 109's editor; the skeleton should carry it as a task.
+   Until then the brief is the only layer below the team.
+2. **The scope's file list omits `triage.go`.** Guidance in the triage prompt (so a triage why may
+   cite guidance, as the scope asks) edits task 136's file; this part lists it ⚑.
+3. **`WorkSend` takes no abort signal** (`task-37.md:399`). Cancelling a hint call on the wire needs
+   an optional `signal` on task 37's client; this part drops stale answers instead.
+4. **Guidance in prompts vs task 99's not-claim.** Task 99's scope does not claim that guidance may
+   enter an *agent's* context (Phase T's policy layers). An assist prompt is not a session agent's
+   context, and L-55 is exactly guidance for assists; the Phase T owner should confirm that reading.
+5. **No part for task 68.** `NewIssue.tsx`'s props, and where its editor's plain text is read, are
+   its scope's (`…-scopes/tasks-61-80.md:269-285`) and **UNVERIFIED**.
+6. **`IssueHead.TeamID` and `FeatureID`** on the control plane's `hubapi.IssueHead` are task 83's
+   additions (**UNVERIFIED**, no part); `GuidanceFor` needs both.
