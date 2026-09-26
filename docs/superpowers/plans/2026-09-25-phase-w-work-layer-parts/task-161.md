@@ -569,18 +569,20 @@ its `why`; `HTTPS://H:443/mcp/` → `https://h/mcp`; kills a credential or plain
 
 #### The matrix rows (`workMatrixRows["161"]`, appended)
 
-Columns V M A O N X (`hub-contract:341`). The allow-list is the org's, so the org admin column
-(`O`) is the writer and a team admin (`A`) is only a member here.
+Columns V M A O N X (`hub-contract.md:337-341`: viewer, member, team admin, org admin who is not
+a member, an authenticated non-member in the same org, a principal from another org). The
+allow-list is the org's, so `O` is the only writer and a team admin (`A`) is a reader here.
 
 | Route | V | M | A | O | N | X |
 |---|---|---|---|---|---|---|
-| `GET /v1/work/mcp-connectors` | 200 | 200 | 200 | 200 | 403 | 403 |
+| `GET /v1/work/mcp-connectors` | 200 | 200 | 200 | 200 | 200 | 200, its own org's list (empty) |
 | `PUT /v1/work/mcp-connectors` | 403 | 403 | 403 | 200 | 403 | 403 |
 | `DELETE /v1/work/mcp-connectors?url=` | 403 | 403 | 403 | 204 | 403 | 403 |
 
-`N` (no membership in the org) and `X` (another org) are 403, not 404: the route names no object
-whose existence could leak. `workmcp` has no matrix row: it is not a Hub route, and every call
-it makes is one of the rows above or a W1 row, checked there as the caller.
+`N` reads because the scope says *any member of the org*; `X` reads its own org's rows, never
+org A's (RLS; `TestConnectorsAreTheOrgsOwn`). The writes are 403, not 404: the route names no
+object whose existence could leak. `workmcp` has no matrix row: it is not a Hub route, and every
+call it makes is one of the rows above or a W1 row, checked there as the caller.
 
 #### Steps
 
