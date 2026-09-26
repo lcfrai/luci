@@ -3357,8 +3357,9 @@ Section verdict: Needs fixes
 
 ## Fix batch b01 (2026-09-26): S01-C1, X-C1
 
-Fixer: plan fix agent, batch b01. Line numbers are those on `feat/team-mode` after the batch's
-last commit. "parts/" is `docs/superpowers/plans/2026-09-25-phase-t-team-mode-parts/`.
+Fixer: plan fix agent, batch b01. Line numbers are those on `feat/team-mode` after round 2's
+last commit (re-anchored from round 1's by `recite2.py`, see round 2's I-3 row). "parts/" is
+`docs/superpowers/plans/2026-09-25-phase-t-team-mode-parts/`.
 
 ### S01-C1: moot, confirmed
 
@@ -3377,16 +3378,16 @@ tasks 14, 46, 49, 52, 61 and 66 to 69. Task 01's §7.0 ended at 79; 87 is the fi
 
 | Fix item (the review's "how to fix") | Where |
 |---|---|
-| The route `POST /v1/projects/{p}/mode` `{"mode":"team"}`: admin only (the Hub has no project owner role, contract §5.2 `:326-333`), one way, one `project.mode_set` | `parts/task-06.md:203` (wire and handler order), `:36` (caller table), `:696` (registered bare) |
-| Calls the gate first; 503 `audit_not_streaming` | `parts/task-06.md:203` step 3, the `teamModeGate` seam; test `TestProjectModeWaitsForTheAuditGate` `:593` |
-| Under TM1-α, a dev-only flag, stated as one | `PANACEA_APP_HUB_TEAM_MODE_UNSTREAMED`, refused unless `ENV` is `local` or `dev`: `parts/task-06.md:53`, test `:607`; contract §12.2 row `parts/task-01.md:245` |
-| Task 45's sink fills the gate | `parts/task-45.md:61`, `TeamModeAllowed` `:390` (open for `logs`, or the flag beside `fake` only), tests `:626-627`, Gap 1 resolved `:707` |
+| The route `POST /v1/projects/{p}/mode` `{"mode":"team"}`: admin only (the Hub has no project owner role, contract §5.2 `:326-333`), one way, one `project.mode_set` | `parts/task-06.md:210` (wire and handler order), `:36` (caller table), `:712` (registered bare) |
+| Calls the gate first; 503 `audit_not_streaming` | `parts/task-06.md:210` step 3, the `teamModeGate` seam; test `TestProjectModeWaitsForTheAuditGate` `:602` |
+| Under TM1-α, a dev-only flag, stated as one | `PANACEA_APP_HUB_TEAM_MODE_UNSTREAMED`, refused unless `ENV` is `local` or `dev`: `parts/task-06.md:60`, test `:617`; contract §12.2 row `parts/task-01.md:245` |
+| Task 45's sink fills the gate | `parts/task-45.md:61`, `TeamModeAllowed` `:396-400` (open for `logs`, or the flag beside `fake` only), tests `:631-632`, Gap 1 resolved `:719` |
 | `Mode` on `hubapi.Project` (task 03) | Block 7 in `types.go`, `parts/task-03.md:958`; `TestProjectModeWire` `:1182`; mutants 5 and 6 `:1582-1584` |
-| `hubclient.SetProjectMode` beside the fake's | `Team.SetProjectMode` `parts/task-08.md:92`; the fake keeps the route's rules instead of a direct setter `:321`; four conformance rows `:427-436`; Gap 1 resolved `:571` |
-| Name its caller | Task 21's local route `POST /v1/projects/{projectId}/team-mode` and `TeamProjects.MakeTeam`, `parts/task-21.md:297`, `:380`, tests `:427-438`; task 56's Share, decision (h) `parts/task-56.md:83`, tests `:221-223` |
+| `hubclient.SetProjectMode` beside the fake's | `Team.SetProjectMode` `parts/task-08.md:92`; the fake keeps the route's rules instead of a direct setter `:321`; four conformance rows `:450-459`; Gap 1 resolved `:597` |
+| Name its caller | Task 21's local route `POST /v1/projects/{projectId}/team-mode` and `TeamProjects.MakeTeam`, `parts/task-21.md:297`, `:380`, tests `:437-452`; task 56's Share, decision (h) `parts/task-56.md:83`, tests `:223-225` |
 | Task 33's E5 runs the route | E5 `parts/task-33.md:79`; must-hold M0 `:109`; script `05-team-mode.sh` `:87`, `:250` |
 | The contract carries it | task 01: §7.0 row 87 `:293`, §5.3 row `:619`, §7.4 amendment and §7.1 `Project` example `:515-527`, §8 `project.mode_set` `:569`, acceptance-script checks `:740`, `:754` |
-| Restatements fixed | task 04 decision (f) `:67`, kinds row `:255` (22 → 23 kinds, `:57`, `:868`), "does not claim" `:962`; task 43 Z5 row 87 `:401`; skeleton scopes 06 `:486`, 21 `:650`, 33 `:790`, 45 `:921`, 56 `:1027`; task list rows 06 `:317`, 21 `:332`, 45 `:363` |
+| Restatements fixed | task 04 decision (f) `:67`, kinds row `:255` (22 → 23 kinds, `:57`, `:868`), "does not claim" `:962`; task 43 Z5 row 87 `:401`; skeleton scopes 06 `:486`, 21 `:653`, 33 `:795`, 45 `:926`, 56 `:1032`; task list rows 06 `:317`, 21 `:332`, 45 `:363` |
 
 Found while fixing, and fixed because the finding needs them:
 
@@ -3396,13 +3397,13 @@ Found while fixing, and fixed because the finding needs them:
 2. **An existing Hub test.** `hubapi`'s `TestFieldNamesMatchTheContractExamples`
    (`hubapi/types_test.go:179`) compares `Project` with contract §7.1's example, so `Mode` needs
    the §7.1 line too (`parts/task-01.md:527`) and a one-key edit to that test (task 03).
-3. **Route 46 reads the mode** (409 `not_team_project`, `parts/task-06.md:127`), so every
+3. **Route 46 reads the mode** (409 `not_team_project`, `parts/task-06.md:134`), so every
    delegation, and so every Fleet write, sits behind route 87 and its gate. Without it the gate
    would guard a column nothing depends on.
 
 Declared ruling (not the owner's words): the product caller is Share, not the first team launch.
 A launch that turned a project team would skip the consent line `05-design.md` §9.5 puts at
-Share. `TestLaunchNeverMakesTeam` (`parts/task-21.md:427`) pins it.
+Share. `TestLaunchNeverMakesTeam` (`parts/task-21.md:437`) pins it.
 
 Owner question recorded: whether Share turns team mode on, or leaves it to an explicit
 **Turn on team agents** step. The plan builds "Share turns it on"; the admin-only button in the
@@ -3418,3 +3419,37 @@ Deferred, out of this batch (not X-C1's defect):
 **Unverified:** no code exists for any of this yet; every file and test above is planned. The Hub
 package paths (`server/`, `store/`, `cmd/hub/config.go`) are Hub tasks 13 to 17's, read as
 planned, and Hub task 35's `hublink.Resolver` is planned.
+
+### Fix batch b01, round 2 (2026-09-26): the re-review's open issues
+
+Input: `.superpowers/sdd/team/plan-rereview-b01-1.md` (I-1 to I-8). Line numbers are those after
+round 2's last commit. Round 2's inserts had moved 19 of round 1's numbers above (tasks 06, 08,
+21, 45, 56 and the skeleton); they are re-anchored in place (I-3, pass 2).
+
+| Issue | Fix | Where |
+|---|---|---|
+| I-1 (Critical): the Hub's project reads never return `mode` | Task 06 modifies Hub task 17's `store/projects.go`: `mode` in the one project-row reader that routes 13 to 16 share, and in route 14's `RETURNING`. New real-Hub test `TestProjectReadsCarryMode`: after route 87, routes 13 (`?repo=` and `?teamId=`), 15 and 16 answer `"mode":"team"`; route 14 answers `"solo"`, never `""`. The conformance row reads the mode back through routes 15 and 13, so the fake and the Hub are held to it together | `parts/task-06.md:53-59` (Files), `:604` (test), `:695-699` (Step 4), `:680` (run line), `:814-817` (acceptance 6); `parts/task-08.md:450` (row), `:397` (`SoloRepoKey`); skeleton scope 06 `:492-495` |
+| I-2 (Important): `MakeTeam` leaves the S-LINK cache stale | `MakeTeam` calls `Resolver.Invalidate(localProjectID)` on the Hub's 200 only. `teammode_test.go` runs over the real `hublink.Resolver`, with the cache warmed before `MakeTeam`; the new `TestTeamModeFailureKeepsTheCache` pins "no invalidation on a refusal" | `parts/task-21.md:387-395`, `:74-75` (Consumes), `:440-448` (tests); `parts/task-56.md:88-90`; skeleton scope 21 `:656-658` |
+| I-3 (Important): about 240 inbound citations drifted | Two passes, by script, in commits of their own. **Pass 1** (`scratchpad/team/recite.py`, difflib from `8d661b39^` to the tree after both rounds): 252 citations on lines b01 did not write, in 42 parts; a bare `:N` after a `task-NN.md:` citation on the same line moves with it. Left alone, each listed and read: 11 by a hand list, citations of another plan's same-numbered file (Hub `task-04.md:99`, `:928`, `task-05.md:592`, `task-45.md:104`; env `task-34.md:29`; phase 3 `task-59.md:32`, `:85`, `:122`, `:142`; phase 6 `task-66.md:23`, `:30`), and 22 by a marker (a path or "phase N" / "P6-06" within 120 characters). Four fuzzy ranges read by hand: `task-06.md:66` and `:107` now cite `task-01.md:234-248`; `task-46.md:45` is unchanged; `task-52.md:1195` cited task 21's old mode gap, which b01 closed, so its parenthetical now says task 21 resolves the id through S-LINK (`task-21.md:381-391`). **Pass 2** (`recite2.py`, `git blame` bounded to b01, then `git diff -U0` from each writing commit to the tree): citations on lines b01 itself wrote whose target a later b01 commit moved. Three in parts (`task-06.md:81` twice, into task 04; `task-06.md:137`, into task 01) and 19 in round 1's table above; one of those, `TeamModeAllowed`, set by hand to `task-45.md:396-400`, because round 1 had cited it one line early. Every part keeps its line count (edits in place only) | the re-review's examples: `task-39.md:33`, `:150`, `:481` and `task-48.md:63` now cite `task-21.md:92`; `task-20.md:289` cites `:85-92`; `task-06.md:66` cites `task-01.md:234-248` |
+| I-4 (Important): the harnesses go red when task 45 lands | Every harness that turns a project team sets both `PANACEA_APP_HUB_TEAM_MODE_UNSTREAMED=true` and `PANACEA_APP_HUB_AUDIT_SINK=fake`. Task 45's Step 5 and acceptance run `go test -tags integration ./internal/hub/...` after the gate swap. Task 45's contract edits carry the rule into task 01's §12.2 row and §7.4 gate sentence | `parts/task-06.md:552-557`; `parts/task-08.md:414-418`; `parts/task-43.md:406-409`; `parts/task-33.md:79`; `parts/task-45.md:65-69`, `:654-657`, `:669-671`, acceptance `:687-688` |
+| I-5 (Important): `team-feed/team-projects-only` could not be set up | The fake gains `AppendEventForTest` and `Env` gains `AppendEvent` (on the real Hub: Hub task 14's `store.Append` under the head lock). The row writes the solo project's `task.created` that way, and the mode filter is still the thing tested. The clause stays as defence in depth | `parts/task-08.md:455` (row), `:332-336` (fake), `:402-408` (`Env`) |
+| I-6 (Minor): other fake suites need a team project | `hubclient.FakeTeamProject(t)`: Ada creates the team (so she is its admin, `fake_projects.go:223-224`) and turns the project team through `SetProjectMode`. Task 11's delegation tests start there | `parts/task-08.md:338-343`; `parts/task-11.md:1135-1140` |
+| I-7 (Minor): acceptance checks numbered 1, 2, 3, 5, 4 | Renumbered 1 to 6 (6 is I-1's new check) | `parts/task-06.md:801-817` |
+| I-8 (Minor): `project_mode` taken as a literal pair | Built from `hubapi.ProjectModeSolo` and `ProjectModeTeam`, as the others are (now 20 from `hubapi`) | `parts/task-04.md:854` |
+| The re-review's passing note: route 78's filter | The query now reads `((fleet_feed = true AND mode = 'team') OR kind = 'team.member_removed')`, bracketed, because task 04's trigger leaves `fleet_feed` false on `team.member_removed`. Fixed here because this batch edits the same query's row | `parts/task-08.md:527-532` |
+
+Commits, in order: `ecd3cda4` (task 06: I-1, I-4, I-7), `4c60e3c8` (task 04: I-8), `2eceac04`
+(task 45: I-4), `109f8aa3` (task 08: I-1, I-4, I-5, I-6 and route 78), `d905e241` (task 11: I-6),
+`697ed215` (task 21: I-2), `f9117270` (tasks 43, 33, 45: I-4), `a03a0bc9` (skeleton scopes 06 and
+21), `76ea0754` (I-3 pass 1, 42 parts), `1a09c75e` (I-3 pass 2, task 06), then this section.
+
+Deferred, out of this batch: task 52's gap G52-4 (`parts/task-52.md:1194`, the cockpit's `p-…` id
+to the Hub's `pj-…`) may now close by reusing S-LINK's `Resolver` as task 21 does. Only its stale
+parenthetical is fixed here; closing the gap is task 52's batch.
+
+**Unverified:** every file and test in this table is planned; no Hub `server/` or `store/` code
+exists yet, so I-1's missing `SELECT mode` is the re-review's inference, and the fix is a plan
+instruction, not a diff. I-3's re-anchor trusts each citation to have been right when written; it
+moved 274 numbers (252, 3 and 19) and 39 were read by hand: the 4 fuzzy ranges, the re-review's
+6 examples, pass 2's 22, and 7 more whose target text was compared old against new.
+
