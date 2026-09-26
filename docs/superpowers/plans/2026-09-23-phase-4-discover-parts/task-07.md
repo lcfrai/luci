@@ -54,7 +54,9 @@ reply to start, but it cannot claim the real Hub until HA4-2 is in the Hub contr
   - `failResolve(n int, err error)` — the n-th `Resolve` call made through the wrapper (1-based,
     counted from the hook) returns `err` without reaching the embedded fake; every other call
     passes through. It gives a chosen `*hubclient.Error` status and a failure on the second call
-    only; `SetUnavailable` fails every call.
+    only; `SetUnavailable` fails every call. The wrapper logs every `Resolve`'s keys in its own
+    `resolves()`, the intercepted calls included, because the fake's `Calls()` never sees those
+    (re-review b05-2 R2-I1, item 2); `lists()` does the same for `List`.
   - `failList(n int, err error)` (task 06 fix round 2, re-review 1 R1-I1) — the same for the
     n-th `List` call, so a walk can fail on a later page while its first page answered. It
     wraps whichever `List` is in use, the wrapper's or the embedded fake's.
@@ -288,6 +290,11 @@ var (
 	ErrNotBound    = errors.New("discoverhub: this project is not shared through the Hub")
 	ErrNoRemote    = errors.New("discoverhub: this repository has no GitHub or Azure DevOps remote")
 	ErrNoBrief     = errors.New("discoverhub: no brief at this scope")
+	// ErrPinUnreadable (task 07 as built): a branch revision's pin the Hub
+	// answers missing. Inheritable and HeadRef return it rather than resolve
+	// the branch against anything but its pin (rule 3); Resolve, which has no
+	// error, answers that slot unavailable (rule 5).
+	ErrPinUnreadable = errors.New("discoverhub: the project revision this branch revision pins cannot be read")
 )
 ```
 
@@ -481,7 +488,10 @@ func (s *Service) Resolve(ctx context.Context, keys []string) (refs []provenance
 
 // HeadRef is the Ref of what a session on t would inherit now - the head
 // reading for DefinitionOfDone and Discover (contract §3.1). resolution
-// "none" when nothing would be inherited. states is
+// "none" when nothing would be inherited: with a nil Hub (rule 6), and, as
+// built, for a project that is not shared (unbound or no_remote), where a
+// session started now inherits nothing too (task 09 maps Inheritable's
+// ErrNotBound and ErrNoRemote to nothing); none of the three is an error. states is
 // provenance.Readings(ctx, ref.Key, src, <t's branch ref>, Config.Evaluate),
 // a project key inherited by t included (task 06 as built; re-review b08-2
 // R2-I1), when the Ref is
@@ -496,6 +506,11 @@ func (s *Service) HeadRef(ctx context.Context, t Target) (ref provenance.Ref, st
 type Inheritable struct {
 	Key      string            // "" when none
 	Document discover.Document // what claudemd.Render writes; zero when none
+	// PinErased: Key is a branch revision whose pinned project revision is
+	// erased, so Document holds the branch's own text alone (rule 7). Task 09's
+	// Inspect reads it, so a block written before the erasure is not called
+	// edited (re-review b06-2 R2-I1; task 07 as built; task 09 carries its half).
+	PinErased bool
 }
 
 func (s *Service) Inheritable(ctx context.Context, t Target) (Inheritable, error)
@@ -511,9 +526,11 @@ func (s *Service) Inheritable(ctx context.Context, t Target) (Inheritable, error
    project key `Project brief`. Neither the Hub project's current name (`PATCH /v1/projects/{id}`)
    nor the branch's current ref (`Rebind`) is read for a render, so a key renders the same bytes on
    every teammate's machine, before and after a rename (P4-G).
-3. `Inheritable` reads `ForBranch` once; the latest complete revision's content comes from the head
-   revision when `headRevision == latestCompleteRevision`, else from one `/v1/refs` call (HA4-4
-   would remove it). A branch revision's pinned project revision is fetched by its `inherits.key`,
+3. `Inheritable` reads `ForBranch` once; the latest complete revision's content comes from
+   `ForBranch`'s own `latestComplete` (HA4-4 is in H0: `hubapi.BriefWithRevision.LatestComplete`,
+   hub `3df9fab8`), so no `/v1/refs` call is made for it (task 07 as built; the part's "else from
+   one `/v1/refs` call" is what HA4-4 removed). A branch revision's pinned project revision is
+   fetched by its `inherits.key`, in one `/v1/refs` call whose answer wins over the cache (rule 5),
    **never** by the project's current head.
 4. The cache holds `resolved` revisions only, keyed by key, for `CacheTTL`. `missing` and `erased`
    are never cached: a missing key may appear (a teammate's write not yet visible), and an erased
@@ -523,7 +540,8 @@ func (s *Service) Inheritable(ctx context.Context, t Target) (Inheritable, error
    - a slot is `resolved` only when **everything it needs is in hand**, each piece from the cache
      or from a call that succeeded. A project key needs its revision. A branch key needs its
      revision **and** its pinned project revision (rule 3; `provenance.Build` reads both, task 06).
-     A key whose pieces are all cached stays `resolved`, whatever the Hub is doing;
+     A key whose pieces are all cached stays `resolved`, whatever the Hub's **failure** (its
+     `erased` or `missing` answer for a cached key wins, below; re-review b06-2 N1);
    - every other brief key is `unavailable` when the Hub call that would answer it fails for any
      reason (`*hubclient.Error` of any status, `hubclient.ErrUnavailable`, a transport error or
      the route's deadline), when it returns `signin.ErrSignedOut`, and when `Config.Hub` is nil
@@ -561,7 +579,10 @@ func (s *Service) Inheritable(ctx context.Context, t Target) (Inheritable, error
    is a 200 view and not an error (re-review b05-1 N2). So a Hub that is not configured is not task 12 rule 2's
    "cannot be reached": the head reading is 200 `none`, never 503, because a session started now
    inherits nothing (task 09 step 4) and Develop is not to be blocked or toasted for a Hub it was
-   never given (Hub contract §9.5; task 18's `hub_off leaves Develop alone`). A stamped key is
+   never given (Hub contract §9.5, cited for its no-block clause only: its lens-state clause is
+   task 17's words, where `DefinitionOfDone` on a `hub_off` machine reads *no brief*, accepted
+   because the head reading is what a session would inherit; re-review b05-2 R2-M1; task 18's
+   `hub_off leaves Develop alone`). A stamped key is
    different: it names a revision that may exist, so `Resolve` says `unavailable`, not `none`.
 7. **A branch key whose pinned project revision is erased** (re-review b06-1 R-I2; OQ-9). The
    Hub erases every revision of a brief at once and keeps each key resolvable as `erased` (Hub
@@ -614,7 +635,9 @@ func (s *Service) Inheritable(ctx context.Context, t Target) (Inheritable, error
 
 **Tests first** (`fakeHub` from `fakehub_test.go` — `hubclient.NewFake()` embedded, plus `List`
 until HA4-2 lands, plus the `renameProject`, `failResolve`, `failList` and `failCreateProject` hooks — seeded by `fixtures_test.go` with the fact sheet's world —
-project `Engagement Portal`, `b-7` revs 1–6, `b-42` revs 1–6 with the pins of fact sheet §2–§3):
+project `Engagement Portal`, `b-7` revs 1–6, `b-42` revs 1–6 with the pins of fact sheet §2–§3,
+chosen once (re-review b06-2 R2-M1; the fact sheet names none for `b-42@6`): `b-42` revs 1–5 pin
+`b-7@5` and `b-42@6` pins `b-7@6`, saved in that order):
 
 | Test | Asserts | Mutant it kills |
 |---|---|---|
@@ -622,10 +645,10 @@ project `Engagement Portal`, `b-7` revs 1–6, `b-42` revs 1–6 with the pins o
 | `TestAnotherRemotesProjectIsAChoiceNotABinding` (review M8) | the fork shape: `origin` = `github.com/me/portal` unlinked, `upstream` = `github.com/team/portal` linked to `pj-2` → `unbound`, `HubProjectID` `""`, `Matches == [{upstream, github.com/team/portal, pj-2, "Engagement Portal"}]`, `Teams` filled; a write (task 08) is `ErrNotBound` | the old rule, which bound a fork to the team's project and wrote the fork's briefs there |
 | `TestBindRegistersThePrimaryRemoteOnly` (review M8) | the fork shape with `upstream` unlinked → `CreateProject`'s `remotes` is exactly `[{github.com/me/portal, github}]`; a repository with no `origin` and two recognised remotes `a` and `b` → `[a's key]`, and `Binding` then reads `bound` | a Bind that claims the team's repository under the fork's new project, so the team's own later Share meets `repo_already_linked` |
 | `TestThePrimaryRemoteIsOriginInAnyOrder` (b10 re-review I-1) | the fake `RepoIdentity` answers in git's alphabetical order, `company` (`github.com/team/portal`, linked to `pj-2`) then `origin` (`github.com/me/portal`, unlinked) → `Binding` is `unbound`, `RepoKeys[0]` is `github.com/me/portal`, `Matches` names `company` and `pj-2`; `Bind` registers `origin`'s key alone; the same with `azure`, `github` and `team` as the team remote's name; with no `origin`, `zeta` then `alpha` → `alpha` is primary; `orderRemotes` leaves its input slice as it was | a primary taken as `RepoKeys[0]` of whatever `RepoIdentity` returned, so a team remote that sorts before `origin` binds the fork to the team's project (M8 again); an order fixed only in task 14, which this package's fake cannot see |
-| `TestAForkSharesUnderItsOwnName` (b10 re-review I-2) | local project `portal`, the fork shape with `upstream` linked to `pj-2` (named `portal`, team `tm-1`): `DefaultName` and `Binding`'s `defaultName` are `portal (me/portal)`, and a bound binding's is `""`; `Bind(tm-1, "")` creates that name with `origin`'s key only and reads `bound`; `Bind(tm-1, "Portal fork")` uses `Portal fork`; with no Matches, `DefaultName` is `portal`; a 125-character local name gives a 120-character default ending in `(me/portal)` | a fork's Share that reuses the directory name and is refused in the very team that holds the upstream's project |
-| `TestANameTheTeamHoldsIsNameTaken` (b10 re-review I-2) | `failCreateProject` with a `*hubclient.Error` 409 `conflict` whose `details.field` is `name` → `*NameTakenError{Name: "portal (me/portal)"}`, `Binding` still `unbound` with the same `Matches`, no memo change; a later `Bind` with another name succeeds; a 409 `conflict` with no `field` is returned as it came, not as `NameTakenError` | a name refusal relayed as a generic `conflict` the desktop cannot place, or cached so the retry never reaches the Hub |
+| `TestAForkSharesUnderItsOwnName` (b10 re-review I-2) | local project `portal`, the fork shape with `upstream` linked to `pj-2` (named `portal`, team `tm-1`): `DefaultName` and `Binding`'s `defaultName` are `portal (me/portal)`, and a bound binding's is `""`; `Bind(tm-1, "")` creates that name with `origin`'s key only and reads `bound`; `Bind(tm-1, "Portal fork")` uses `Portal fork`; with no Matches, `DefaultName` is `portal`; a 125-character local name gives a 120-character default ending in `(me/portal)`; characters are **code points** (re-review b10-2 R-M2): 125 `é` give 108 `é` and the key, valid UTF-8, and 120 `é` with no Matches; a key too long to leave the local name one code point (GitHub's 39 + 1 + 100 after its host) drops the qualifier, so the default is the local name alone and `NameTakenError` covers a clash | a fork's Share that reuses the directory name and is refused in the very team that holds the upstream's project |
+| `TestANameTheTeamHoldsIsNameTaken` (b10 re-review I-2) | `failCreateProject` with a `*hubclient.Error` 409 `conflict` whose `details.field` is `name` → `*NameTakenError{Name: "portal (me/portal)"}`, `Binding` still `unbound` with the same `Matches`, no memo change; a later `Bind` with another name succeeds; the Hub fake's **own** rule gives the same (it enforces the per-team name, case-insensitive, 409 `conflict` `field: "name"`, `fake_projects.go:487-491` at hub `3df9fab8`); a 409 `conflict` with no `field`, and a 400 `bad_request` whose `field` is `name` (a length refusal; re-review b10-2 mutant 2), are returned as they came, not as `NameTakenError` | a name refusal relayed as a generic `conflict` the desktop cannot place, or cached so the retry never reaches the Hub |
 | `TestBindingWithNoRemoteSaysSo` | `no_remote`, no Hub call | a Hub project created for a repository nobody else can reach (OQ-1) |
-| `TestBindingOffWhenTheHubIsNotConfigured` | nil Hub → `hub_off`; `HeadRef` on `b-42` → a `none` Ref and a nil error (rule 6) | a nil dereference at the first lens open; a `HeadRef` error that task 12 would turn into a 503 on Develop's head reading for a Hub it was never given |
+| `TestBindingOffWhenTheHubIsNotConfigured` | nil Hub → `hub_off`; `HeadRef` on `b-42` → a `none` Ref, nil states and a nil error (rule 6); `Inheritable` → `(Inheritable{}, nil)`, none and no error, the answer `HeadRef` reports (re-review b05-2 N-c); `View` → that binding, no brief; `Bind` and `History` → `ErrHubOff`; no Hub call | a nil dereference at the first lens open; a `HeadRef` error that task 12 would turn into a 503 on Develop's head reading for a Hub it was never given |
 | `TestBindRaceReturnsTheTeammatesProject` | fake answers `repo_already_linked`; `Bind` returns that project `bound` | a second project for one repository |
 | `TestInheritableIsTheBranchsLatestComplete` | `b-42` head 7 open, latest complete 6 → key `@6` | materialising an unfinished edit (C9) |
 | `TestInheritableFallsBackToTheProject` | branch brief open with no complete revision → the project's latest complete key | a branch session that inherits nothing while the project has a brief |
@@ -634,16 +657,18 @@ project `Engagement Portal`, `b-7` revs 1–6, `b-42` revs 1–6 with the pins o
 | `TestResolveBatchesInTwoCallsAtMost` | twelve keys, six branch revisions pinning three project revisions, all in one Hub project: the fake records ≤ 2 `Resolve` calls; with `Config.Evaluate` nil, no `List` call; with it set, exactly one `List` call (rule 8) | a call per key, or per inherited key (P8's cost, one layer down); a `List` per branch key, or one where nothing is evaluated |
 | `TestResolveNeverSendsLocalForms` | `""`, `none:declined`, `b-42` → `none`, `none`, `invalid`, and the fake saw none of them | a local form leaking to the Hub, which answers `invalid` for `none:declined` |
 | `TestResolveCachesOnlyResolved` | a `missing` key and a `resolved` one, each asked once while the Hub is healthy and again with `SetUnavailable(true)` → the `missing` one is `unavailable`, the `resolved` one `resolved` from the cache | a cached `missing` hiding a teammate's write |
-| `TestResolveCarriesCachedKeysForTheirHeads` (re-review b06-1 R-I1) | resolve `b-42@6` (pins `b-7@5`); the fake writes `b-7@6` `complete`; resolve `b-42@6` again inside `CacheTTL` → the wrapper saw the first call carry `b-42@6` and `b-7@5`, `heads["bf-…b7"]` is `{6, 6}` and `heads["bf-…b42"]` is present, and the `refs` slot is equal to the first answer's | a cache hit that costs the desktop its head, so a project edit never reaches a branch chip (rule 4 of task 16's selector reads `current` for ever) |
+| `TestResolveCarriesCachedKeysForTheirHeads` (re-review b06-1 R-I1; b06-2 R2-M1: the asserted head differs from the first answer's) | resolve `b-42@6` (pins `b-7@6`) → `heads["bf-…b7"]` `{6, 6}`; the fake writes `b-7@7` `complete`; resolve `b-42@6` again inside `CacheTTL` → the wrapper saw that call's one `/v1/refs` carry `b-42@6` and `b-7@6`, `heads["bf-…b7"]` is `{7, 7}` and `heads["bf-…b42"]` is present, and the `refs` slot is equal to the first answer's | a cache hit that costs the desktop its head, so a project edit never reaches a branch chip (rule 4 of task 16's selector reads `current` for ever) |
 | `TestCriterionStatesAreRecomputedOnACachedKey` (review I14) | `Config.Evaluate` answers `open` on the first call and every criterion `settled` with `Because` `{"CI run 88 passed"}` on the second; `Resolve` the same resolved **branch** key twice (`Resolve` evaluates no project key, task 06), the second on a healthy Hub, so the key rides the first `/v1/refs` call for its head and rule 5 leaves the cached entry as it is → its `refs` slot is equal to the first, and `states[key]` changes from `open` to `settled`; a third with `SetUnavailable(true)` → the slot is still `resolved` from the cache, `states` has **no** entry for the key, and `Evaluate` is not called (rule 8: the binding cannot be read, the envelope ref is never the fallback, and "unknown" is not sent as `open`; task 06 fix rounds 1 and 2); a fourth on a healthy Hub, with 200 more branch briefs seeded after `b-42`'s (so `b-42` is on the walk's first page of two) and `failList(2, hubclient.ErrUnavailable)` failing the second page → no entry either, and `Evaluate` not called, never a verdict from the first page's partial map; a `missing`, `none` or `unavailable` slot has no `states` entry | a verdict cached with the revision, so evidence never moves it; a cached branch key evaluated at its envelope ref while the Hub is down; an unknown binding sent as all-`open`, which overwrites the desktop's `settled` for the whole outage (re-review 1 R1-I1); a walk that keeps its first page's map when a later page fails |
 | `TestResolveEvaluatesABranchKeyWhereItsBriefIsBoundNow` (task 06 fix round 1, review I1; re-review b08-2 R2-M1; rule 8) | `Config.Evaluate` a recording fake. Rebind `b-42`'s brief from `refs/heads/evidence-upload` to `refs/heads/evidence-upload-v2` with the fake's `Rebind` (no revision written), then `Resolve([b-42@5])` → `resolved`, and `Evaluate` was called once, its query's `BranchRef` `refs/heads/evidence-upload-v2`. Create a new branch brief on `refs/heads/evidence-upload`, the old name reused, and resolve again → still `-v2`, never the new brief's ref. `Archive` `b-42`'s brief and resolve again → still `resolved`, `Evaluate` not called, and `states` **has** the key's entry, every reading `open` (the binding is known to be gone, unlike a failed `List`). `b-7@5` in the same batch → no `Evaluate` call for it. The fake's `Calls()` show one `List` per `Resolve`, for `b-42`'s Hub project, with `Scope` `branch` | `at = src.Revision.BranchRef` (R2-M1: after a rename the envelope names a ref that is gone, or someone else's branch); `at` from `ForBranch` of the envelope ref, which finds the new brief; an archived brief evaluated at a ref it no longer holds |
 | `TestHeadRefServesCriterionStatesBesideTheRef` (re-review b06-1 R-I3) | `Config.Evaluate` answers every criterion `settled` with `Because` `{"CI run 88 passed"}` for `b-42@6`'s criteria; `HeadRef` on `b-42` → `states` has one `settled` reading per `Criterion` of the `Ref`, same ids and order, and the `Ref`'s JSON has no `state` key; `Evaluate` then answers `contested, "run 91 failed"` → a second `HeadRef` gives `contested` and a byte-equal `Ref`; a `none` reading has nil `states` | a `DefinitionOfDone` whose states depend on some session having stamped the same key, so a settled criterion reads `open` on every mount |
 | `TestErasedIsNeverServedFromCache` | resolve, erase in the fake, resolve again inside `CacheTTL` → `erased`, no sections, and the entry is evicted (the Hub's answer wins); resolve, erase, `SetUnavailable(true)`, advance the injected clock past `CacheTTL`, resolve → `unavailable`, never `resolved` | erased text outliving its erasure on a laptop (ADR-H1 §6.8), or a cache that outranks the Hub's own `erased` |
-| `TestABranchKeyWhosePinIsErasedKeepsOnlyItsOwnText` (re-review b06-1 R-I2; rule 7) | resolve `b-42@6` (pins `b-7@5`, audience skipped on the branch) so both are cached; erase `b-7` in the fake; resolve `b-42@6` again → `resolved`, `inherits` `{key: brief:…b7@5, erased: true}`, `audience` `""`, no section whose origin is `project`, and no byte of `b-7@5`'s answers anywhere in the JSON; `HeadRef` on `b-42` and `Inheritable` agree | erased project text served inside every branch key that pinned it, from the cache or from a rebuild |
+| `TestABranchKeyWhosePinIsErasedKeepsOnlyItsOwnText` (re-review b06-1 R-I2; rule 7) | resolve `b-42@6` (pins `b-7@6`, audience skipped on the branch) so both are cached; erase `b-7` in the fake; resolve `b-42@6` again → `resolved`, `inherits` `{key: brief:…b7@6, erased: true}`, `audience` `""`, no section whose origin is `project` or with a `replaced`, and no byte of `b-7`'s own answers (those no `b-42` revision also holds) anywhere in the JSON; `HeadRef` on `b-42` gives the byte-equal `Ref`, and `Inheritable` gives `b-42@6` with `PinErased` true and a block with none of that text | erased project text served inside every branch key that pinned it, from the cache or from a rebuild |
 | `TestViewOfABranchShowsWhatItInherits` | `Inherited` is `b-7`'s latest complete; `Preview.Block` equals `claudemd.Render` of `Inheritable`'s document | a preview the materialiser would not write |
 | `TestHistoryIsOldestFirstWithChanges` | six rows, `Change.Kind` from each content, erased rows marked | a history that has to diff revisions |
 | `TestHubErrorsPassThroughUnchanged` | from `View`, `History` and `HeadRef`, a fake 409 and a fake `ErrUnavailable` reach the caller as `errors.As`/`errors.Is` match | a wrapped error the relay cannot see |
 | `TestHubOffIsUnavailableNotMissing` (review I6; re-review b05-1 R-I1, R-M1) | a table of rows, each on a fresh `fakeHub`, hooks installed after the seeding calls. **Whole-call failures** — a nil `Config.Hub`; `SetUnavailable(true)`; `failResolve(1, &hubclient.Error{Status: 500})`; `SetSignedOut(true)` — over keys `[b-42@6 (it and its pin cached by an earlier, healthy call), b-42@5 (not cached), "", none:declined, "b-42"]` → `resolved`, `unavailable`, `none`, `none`, `invalid` (in the nil-Hub row nothing can have been cached, so the first is `unavailable` too). **Second call fails** — two branch revisions seeded for the row, each pinning a different project revision; one pin cached by an earlier healthy call, the other not; `failResolve(2, &hubclient.Error{Status: 500})`: the first call answers both branch revisions, the pin call fails → the branch key whose pin was cached is `resolved`, the other `unavailable`. **Branch cached, pin not** — resolve `b-7@6` at t0 and `b-42@6` at t0 + `CacheTTL`/2 (its second call carries the cached pin for its head, and leaves the pin's expiry at t0 + `CacheTTL`); advance the injected clock to t0 + `CacheTTL` + 1 s; `failResolve(1, hubclient.ErrUnavailable)` → `b-42@6` is `unavailable`, and the wrapper saw one `Resolve` call, carrying `b-42@6` and `b-7@6` (the cached branch revision's pin key, rule 5's first call). In every row: `Resolve` has no error to return, **no** slot is `missing`, and no `resolved` branch slot lacks its pinned project revision's sections. And a healthy fake that does not hold `bf-…40@5` answers it `missing` | rule 6's old `missing` for every key, which showed a Hub switched off as data loss (task 17's words); a Hub error returned from `Resolve`, which task 12 would turn into a non-200; a failed call that drops a cached slot; a branch slot called `resolved` with no pin in hand, the chip with no audience that rule 3 forbids (critique-2 §1.1); a status-specific branch that answers `missing` for a 500 |
+| `TestAnExpiredPinIsFetchedAgain` (re-review b05-2 R2-I1, item 3) | the "branch cached, pin not" timeline with **no** hook → `b-42@6` `resolved` against `b-7@6`, and the fake's own `Calls()` show one `Resolve`, carrying `b-42@6` and `b-7@6` | a cached branch revision whose expired pin is never asked for again, so a healthy Hub answers it `unavailable` for up to one `CacheTTL`; a kill that rests on the wrapper's log alone |
+| `TestRevisionCacheExpiresAndCaps` (task 07 as built) | a cache of 2: a third entry evicts the soonest to expire; a second `put` of a live key leaves its bytes and its expiry; an expired entry is gone; `evict` removes one | a cap that evicts at random or not at all, or a `put` that extends an expiry (rule 5: a pin's expiry is never stretched) |
 | `TestRenameDoesNotLookLikeAHandEdit` (review I5) | render `Inheritable`'s document for `b-42` with `claudemd.Render` → block A. Rename the Hub project with the wrapper's `renameProject` (route 16, `PATCH /v1/projects/{id}`, which `hubclient.Projects` has no method for; `Engagement Portal` → `Evidence Portal`) and rebind `b-42`'s brief to `refs/heads/evidence-intake` with the fake's own `Rebind` (`PATCH /v1/briefs/{id}`, which writes no revision). The fixture `Locator` then answers `BranchName(b-42) = "evidence-intake"`, as the scanner would after the local branch is renamed; without that, `Inheritable` asks `ForBranch` for the old ref and the test proves nothing about the rebind. `Inheritable` on the rebound branch → the same key, `@6`, and a block **byte-equal** to A (title `# Branch brief — evidence-upload`, from rev 6's envelope); `claudemd.Inspect` on a file holding A, compared as task 09 compares, is not `edited`. The project key `b-7@6` renders byte-equal before and after too. Two guards that the test changed what it claims to: after the steps, and with the injected clock advanced 61 s past `Binding`'s 60 s memo, `Binding.HubProjectName` is `Evidence Portal`; and `ForBranch` was asked for `refs/heads/evidence-intake` (the fake's `Calls`), so a hook that did nothing fails the test instead of passing it | a title read from the Hub project's current name or the branch's current ref, which makes every worktree's block report `edited`, with a diff, after a rename |
 
 **Steps:**
@@ -680,3 +705,37 @@ $ grep -rn "os.WriteFile\|os.Create\|statepath" control-plane/internal/discoverh
 
 **Does NOT claim:** anything against a real Hub (task 23 runs `compose.yaml` if H3 has landed);
 `githost` (phase 3's; task 14 wires it).
+
+**As built (2026-09-27, `a8220c5a`, on `2cada669` = phase 2 + hub `3df9fab8`).**
+
+1. Step 1: H0 is merged; `hubclient.Briefs` already declares HA4-2's `List`, and
+   `hubapi.BriefQuery` exists. So `fakehub_test.go` has no `List` of its own: the fake's shows
+   through. `Hub` still declares `List`, identically, so a signature change in the Hub is a
+   compile error here.
+2. Step 2, the assumed `hubapi` shapes against the real ones: `RefHead` is `HeadInfo`;
+   `Remote.Host` and `RemoteRequest.Host` are `GitHost`; `Team.Role` is `Role`; digests are
+   `hubapi.Digest` (`String()` gives the wire form); `RefResult.Kind` is `*KeyKind` and
+   `Approval` is `*DesignApproval`; `Me` carries `Org`; `BriefQuery` carries `Page`;
+   `BriefWithRevision` carries `LatestComplete` (HA4-4), which rule 3 now reads. `signin.ErrSignedOut`
+   is `hubclient.ErrSignedOut` (no `signin` package exists).
+3. The fixture's one pin choice (re-review b06-2 R2-M1): `b-42` revisions 1-5 pin `b-7@5`,
+   `b-42@6` pins `b-7@6`. Every row above that named `b-7@5` as `b-42@6`'s pin now says `b-7@6`.
+   The fake mints its own ids, so `b-7` and `b-42` are whatever `ids.Wide` gave.
+4. Departures, each the root-cause option:
+   - `HeadRef` answers `none` with no error for an **unbound** or **no_remote** project, as it
+     does for a nil Hub: a session started now inherits nothing, and a head reading that errors
+     would block `DefinitionOfDone` for a project nobody shared. `Inheritable` still returns
+     `ErrNotBound` and `ErrNoRemote`, which task 09 maps to nothing.
+   - `ErrPinUnreadable` (new): a pin the Hub answers `missing`, from `Inheritable` and `HeadRef`.
+   - `Inheritable.PinErased` (new; re-review b06-2 R2-I1, this task's half). Task 09's `Inspect`
+     half, and OQ-9's note that a materialised file keeps the erased text until the next start
+     rewrites it, are task 09's.
+   - A branch `Target` whose `BranchID` the `Locator` does not know is an error
+     (`errUnknownBranch`), never read as the project scope.
+   - A design key rides the first `/v1/refs` call and gets the Hub's resolution with phase 4's
+     fields empty (task 12's "Does NOT claim"); it is never cached.
+   - `Config`: `Repos` and `Locate` are required; `Now`, `NewID`, `Log` and `CacheTTL` default.
+   - The project scope's brief is read with `List` (scope project, limit 1) and then `Brief`;
+     `ForBranch` needs a ref.
+   - A write through the fork's binding (`TestAnotherRemotesProjectIsAChoiceNotABinding`) is task
+     08's; the row checks a read, `Inheritable`, which is `ErrNotBound` by the same `Binding`.
