@@ -566,3 +566,86 @@ its `why`; `HTTPS://H:443/mcp/` → `https://h/mcp`; kills a credential or plain
 | `TestANoOpPutWritesNothing` | the same `PUT` twice → one event | an event per call |
 | `TestConnectorsAreTheOrgsOwn` | org B's admin lists nothing of org A's; `DELETE` of A's URL from B → 404 | RLS missing on the new table |
 | `TestAnAppTokenMovingToDoneIs403` | a raw `POST …/state {to:"done"}` with an approved `work.write` app token → 403 (task 145's guard) | the second layer removed (decision 6) |
+
+#### The matrix rows (`workMatrixRows["161"]`, appended)
+
+Columns V M A O N X (`hub-contract:341`). The allow-list is the org's, so the org admin column
+(`O`) is the writer and a team admin (`A`) is only a member here.
+
+| Route | V | M | A | O | N | X |
+|---|---|---|---|---|---|---|
+| `GET /v1/work/mcp-connectors` | 200 | 200 | 200 | 200 | 403 | 403 |
+| `PUT /v1/work/mcp-connectors` | 403 | 403 | 403 | 200 | 403 | 403 |
+| `DELETE /v1/work/mcp-connectors?url=` | 403 | 403 | 403 | 204 | 403 | 403 |
+
+`N` (no membership in the org) and `X` (another org) are 403, not 404: the route names no object
+whose existence could leak. `workmcp` has no matrix row: it is not a Hub route, and every call
+it makes is one of the rows above or a W1 row, checked there as the caller.
+
+#### Steps
+
+- [ ] **Step 1:** Confirm the sync base (rule H1): `oidcauth` (env task 17, hub task 10), task 04's
+  `WorkIssues`, task 143's `WorkIntake`, task 145's guard, tasks 159-160. If `oidcauth.Config`
+  has no `ExtraClient` hook (gap 2), take decision 2's fallback and note it in the commit.
+- [ ] **Step 2:** Write `config_test.go`, `auth_test.go`, `mcp_test.go` and `tools_test.go`; they
+  fail to compile. Write `config.go`, `auth.go`, `mcp.go`, `schema.go`, `tools.go` and `main.go`
+  until the fifteen unit rows pass.
+- [ ] **Step 3:** Write the fragment test, then `NormaliseConnectorURL` and `ConnectorFragment`.
+- [ ] **Step 4:** Write the migration, the integration test and the matrix rows; they fail. Write
+  `store/work_mcp.go` and `server/work_mcp.go` until green.
+- [ ] **Step 5:** Rerun the Hub's boundary test: `go list -deps ./control-plane/cmd/workmcp` reaches
+  neither `internal/hub/server` nor `internal/hub/store`.
+- [ ] **Step 6:** `git diff -- go.work control-plane/go.mod` shows nothing (no dependency, `go 1.23`);
+  commit by pathspec.
+
+#### Acceptance
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/work
+go test ./control-plane/cmd/workmcp/... -race -count=1 -v 2>&1 | grep -c "^--- PASS"      # 15
+go test ./control-plane/internal/hub/server/ -race -count=1 -v \
+  -run '^Test(FragmentIsSortedAndDeterministic|TheFragmentHoldsOnlyURLs|AnEmptyListAllowsNone|NormaliseRefuses)$' \
+  2>&1 | grep -c "^--- PASS"                                                              # 4
+go test -tags integration ./control-plane/internal/hub/server/ -race -count=1 -v \
+  -run '^Test(OnlyAnOrgAdminAllowsAConnector|ANonHTTPSConnectorIs422|RemoveStampsAndReallowIsANewRow|ANoOpPutWritesNothing|ConnectorsAreTheOrgsOwn|AnAppTokenMovingToDoneIs403)$' \
+  2>&1 | grep -c "^--- PASS"                                                              # 6
+go list -deps ./control-plane/cmd/workmcp | grep -c "internal/hub/\(server\|store\)"      # 0
+git diff --stat -- go.work control-plane/go.mod                                           # no output
+go test ./control-plane/... -race -count=1                                                # ok
+```
+
+#### What this task does NOT claim
+
+- **That any named MCP client signs in.** Claude Desktop, VS Code and Cursor each need a realm
+  client (K6) an admin approves (task 159); whether each reads RFC 9728, falls back from RFC 8414
+  metadata to the realm's `openid-configuration`, and sends RFC 8707's `resource` parameter that
+  Keycloak then honours, is **UNVERIFIED**. Keycloak's dynamic client registration is not used:
+  it would let a client exist without an admin's approval.
+- **That agents in our sandboxes use this server.** They use the `panacea` verbs (05 L-196; TM-05).
+- **That `allowedMcpServers` and `serverUrl` are the pinned CLI's keys** (gap 8), or that a
+  connector the admin allowed works: the Hub stores a URL, not a test of it.
+- **Any latency, throughput or rate** for `workmcp`; task 160's limits apply at the Hub, per replica.
+- **A published MCP registry entry**, a desktop surface (task 173), or sandbox enforcement (166).
+
+**Parity rows served:** **L-196** closed; **L-197** and **L-256** with tasks 166 and 173; **L-244**'s
+MCP half with task 159.
+
+#### Gaps found while writing this part
+
+1. **OD-30 is not in this tree's owner decisions**, and the skeleton row (`:581`), File map (`:257`)
+   and scope 161 still say *Entra OAuth* and `Hub.Access`. The ruling's findings row (main
+   `2026-09-25-identity-keycloak-broker.md:601`) lists the skeleton lines to change; this part
+   already follows it.
+2. **Task 159's `AppClients` hook must sit on `oidcauth.Config`** (proposed `ExtraClient`), or no
+   process but the Hub can validate an app token; an ask to task 159 and the env owner.
+3. **Task 159 answers 403 `app_not_approved`; the scope wanted 401 `client`.** Both are kept, one per
+   layer (decision 3); task 159's part should confirm the code.
+4. **W2's custom states** have no Go name on the sync base, so `work_move` cannot offer them.
+5. **Task 160's `pak_` keys are refused on MCP.** The scope was silent; a script that wants MCP with
+   a key is an owner question, not assumed.
+6. **Task 143 has no single-request read** (`Request`); `work_request` needs one, and `Features`
+   (task 72) and `ViewIssues` (task 45) have no written part to check.
+7. **Names:** task 143's scope has `MCPConnector {id mc-, …, decidedBy}` and `DecideMCPConnector`;
+   161's scope, task 169 and this part key by URL with `Allow`/`Remove`; codes
+   `connector_url_invalid` and `connector_not_found` are new. Task 143 decides once.
+8. **The managed-settings key** for the fragment is unpinned; task 166 must read the image's CLI.
