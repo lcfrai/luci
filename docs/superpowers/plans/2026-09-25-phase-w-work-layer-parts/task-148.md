@@ -331,3 +331,160 @@ time appended. The file imports `errors`, `fmt`, `maps`, `net/mail`, `regexp`, `
 `CheckAnswers` returns the **first** failure in the form's field order, so the page names one
 field at a time from the top, which is where a person reads from. The page re-renders every value
 given (escaped) so nothing typed is lost.
+
+#### The store (`store/work_forms.go`, signatures complete)
+
+```go
+package store
+
+func InsertForm(ctx context.Context, tx pgx.Tx, f hubapi.IntakeForm, org, by string, at time.Time) error
+
+// FormByID reads a form under row-level security alone: the page handler
+// needs a form of the org whatever the caller's teams (decision 5).
+func FormByID(ctx context.Context, q Querier, id string) (hubapi.IntakeForm, bool, error)
+
+func ListForms(ctx context.Context, q Querier, teamID string, pr hubapi.PageRequest) ([]hubapi.IntakeForm, *string, error)
+
+// UpdateForm writes the patched form as version base+1:
+//   UPDATE work_intake_forms SET …, version = version + 1 WHERE id = $1 AND version = $2
+// Zero rows is ErrFormMoved.
+func UpdateForm(ctx context.Context, tx pgx.Tx, f hubapi.IntakeForm, base int, by string, at time.Time) error
+
+var ErrFormMoved = errors.New("store: the form moved on")
+
+// UserByEmail resolves a person field: a user of the caller's org whose
+// address is email, compared case-insensitively. found is false otherwise.
+func UserByEmail(ctx context.Context, q Querier, email string) (userID string, found bool, err error)
+```
+
+`UserByEmail` reads the Hub's `users` table; that it carries a mail column is **UNVERIFIED** until
+Hub task 05 lands (task 149 needs the same read to turn a sender into a `person`).
+
+#### The routes (`server/work_forms.go`)
+
+```go
+package server
+
+//go:embed templates/form.html
+var formHTML string
+
+var formPages = template.Must(template.New("form").Parse(formHTML)) // html/template: escaped by context
+
+func (s *Server) registerWorkForms() {
+	s.mux.HandleFunc("POST /v1/teams/{teamId}/forms", s.postForm) // team admin; 201
+	s.mux.HandleFunc("GET /v1/teams/{teamId}/forms", s.listForms) // viewer
+	s.mux.HandleFunc("GET /v1/forms/{formId}", s.getForm)         // viewer of the form's team
+	s.mux.HandleFunc("PATCH /v1/forms/{formId}", s.patchForm)     // team admin; baseVersion
+}
+
+// In task 80's work_pages.go, on its browser session (two lines; UNVERIFIED names):
+//	pages.HandleFunc("GET /p/forms/{formId}", s.formPage)
+//	pages.HandleFunc("POST /p/forms/{formId}", s.submitForm)
+
+// formDefaults replaces task 147's stub. A form of another team never reaches
+// here: createRequest's caller passes the form's own team.
+func (s *Server) formDefaults(ctx context.Context, tx *Tx, formID string) (*hubapi.IntakeDefaults, error) {
+	f, ok, err := store.FormByID(ctx, tx, formID)
+	if err != nil || !ok {
+		return nil, err
+	}
+	return &f.Defaults, nil
+}
+```
+
+`postForm` and `patchForm` run, in `s.Write`: `Decode`; the team role (`admin`, else 403; not in
+the team 404 `team_not_found` or `form_not_found`); `ValidateFormFields`; the title trimmed 1-120
+characters and the intro at most 4 KiB; **the defaults checked as a rule's route is**, by task
+147's `checkRulesInTeam` logic for one route (`defaults.member.projectId`,
+`defaults.nonMember.labelIds[k]`); insert or `UpdateForm` (409 `form_moved {version}`); emit
+`form.created` or `form.updated {version, open}`; 201 or 200 with the form. `getForm` and
+`listForms` are reads for any role in the form's team.
+
+#### The page handlers (`server/work_forms.go`, complete)
+
+```go
+const pageCSP = "default-src 'none'; form-action 'self'; style-src 'self'; frame-ancestors 'none'; base-uri 'none'"
+
+func pageHeaders(w http.ResponseWriter) {
+	h := w.Header()
+	h.Set("Content-Security-Policy", pageCSP)
+	h.Set("Content-Type", "text/html; charset=utf-8")
+	h.Set("X-Content-Type-Options", "nosniff")
+	h.Set("Referrer-Policy", "no-referrer")
+	h.Set("Cache-Control", "no-store")
+}
+
+type formView struct {
+	Form   hubapi.IntakeForm
+	Team   string            // the team's display name
+	CSRF   string            // the session's token (task 80)
+	Values map[string]string // what was typed, re-rendered escaped on a refusal
+	Error  *pageError        // nil on first render
+	Closed bool
+}
+type pageError struct{ Code, FieldID, Label string }
+
+// submitForm takes one submission. The session is task 80's: sess.P is the
+// signed-in principal, sess.CSRF its token. Every refusal writes nothing.
+func (s *Server) submitForm(w http.ResponseWriter, r *http.Request, sess *PageSession) {
+	pageHeaders(w)
+	r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "The form could not be read.", http.StatusBadRequest)
+		return
+	}
+	if subtle.ConstantTimeCompare([]byte(r.PostForm.Get("csrf")), []byte(sess.CSRF)) != 1 {
+		http.Error(w, "This form has expired. Open the link again.", http.StatusForbidden)
+		return
+	}
+	in := map[string]string{}
+	for k, vs := range r.PostForm {
+		if id, ok := strings.CutPrefix(k, "f."); ok && len(vs) == 1 {
+			in[id] = vs[0]
+		} else if k != "csrf" {
+			http.Error(w, "The form could not be read.", http.StatusBadRequest) // a repeated or stray name
+			return
+		}
+	}
+	s.PageWrite(w, r, sess, func(tx *Tx) (int, string, any, error) { // task 80's page twin of s.Write
+		ctx := r.Context()
+		f, ok, err := store.FormByID(ctx, tx, r.PathValue("formId"))
+		if err != nil || !ok {
+			return http.StatusNotFound, "", nil, err // another org's form reads as none (decision 5)
+		}
+		if !f.Open {
+			return http.StatusGone, "form", formView{Form: f, Closed: true}, nil
+		}
+		quote, answers, fe := hubapi.CheckAnswers(f, in)
+		if fe == nil {
+			fe, err = s.resolvePeople(ctx, tx, f, answers) // person fields: email → u- id
+		}
+		if err != nil || fe != nil {
+			return http.StatusBadRequest, "form", formView{Form: f, CSRF: sess.CSRF, Values: in,
+				Error: errorFor(f, fe)}, err
+		}
+		rq, err := s.createRequest(ctx, tx, store.RequestRow{TeamID: f.TeamID, Channel: string(hubapi.ChannelForm),
+			RequesterKind: string(hubapi.RequesterPerson), RequesterUserID: tx.P.UserID, Quote: quote,
+			Answers: answers, FormID: f.ID, CreatedBy: tx.P.UserID})
+		if err != nil {
+			return 0, "", nil, err
+		}
+		return http.StatusOK, "done", map[string]string{"RequestID": rq.ID, "Title": f.Title}, nil
+	})
+}
+```
+
+`PageSession` and `PageWrite` stand for task 80's session and its write wrapper (the org's write
+lock, `hub.org_id` set, the principal on `tx.P`, the named template rendered with the status, and a
+500 page with no detail on an error); both names are **UNVERIFIED** until task 80's part lands. A
+`/v1` route never sees `PageSession`: the page mux is a separate `http.ServeMux` mounted at `/p/`
+(task 80's rule), which is what `TestThePageCookieIsNotAnAPIToken` proves from the outside.
+`errorFor` maps `ErrFieldRequired` to `form_field_required` and `ErrFieldType` or a stray id to
+`form_field_invalid`, with the field's label. `formPage` (`GET`) renders `form` with a fresh view,
+or `form` with `Closed` and status 410, or 404 for a form that is not in the org.
+
+**`frame-ancestors 'none'` and `base-uri 'none'` are added to the scope's CSP.** `default-src` does
+not govern either: without the first, another site can frame the form and trick a signed-in person
+into submitting it (the `SameSite=Strict` cookie already stops the submit; this stops the framing);
+without the second, an injected `<base>` could redirect the form's relative action. Both cost
+nothing for a page with no frames and no base.
