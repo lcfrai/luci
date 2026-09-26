@@ -63,7 +63,8 @@ Seven decisions the scope left open, made here.
 - `control-plane/internal/hub/store/work_forms.go` (new).
 - `control-plane/internal/hub/server/templates/form.html` (new): `html/template`, no script, two
   named templates, `form` and `done`, embedded with `//go:embed`.
-- `control-plane/internal/hub/server/work_forms_integration_test.go` (new, `-tags integration`).
+- `control-plane/internal/hub/server/work_forms_integration_test.go` (new, `-tags integration`),
+  and `server/nopredict_test.go` (new, untagged): the `noPrediction` helper.
 - ⚑ `control-plane/internal/hub/server/work_pages.go` (task 80): two lines mounting the page routes
   on its browser session; nothing else changes.
 - ⚑ `control-plane/internal/hub/server/work_intake_rules.go` (task 147): `formDefaults`'s stub body
@@ -598,6 +599,10 @@ Through task 80's test helper that signs a principal into a page session (`pageC
 | `TestThePageSendsItsHeaders` | both pages carry `pageCSP` exactly, `nosniff`, `no-referrer`, `no-store`; neither has a `<script` | a script allowed; the page cached |
 | `TestAClosedFormTakesNothing` | `PATCH {open: false}` → `GET` 410 *closed*, `POST` 410, no request | a closed form still taking asks |
 | `TestAPersonFieldIsAnOrgUser` | `f.owner=<an org user's email>` stores their `u-` id; an address outside the org → 400 page on `owner` | an arbitrary address stored as a person |
+
+The helper lives in `server/nopredict_test.go`, package `server`, with **no build tag**, so task
+149's pure tests use it too; `export_test.go` gives `server_test` files `var NoPrediction =
+noPrediction`, as task 121's `RunJanitorOnce` is exported to them.
 
 ```go
 // noPrediction is the Go twin of the desktop's expectNoPrediction (task 20):
