@@ -1,9 +1,11 @@
 package discoverhub
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"reflect"
 	"slices"
 	"strings"
@@ -363,6 +365,46 @@ func TestPinnedDigestEqualsTheHubsDigest(t *testing.T) {
 	_, c := w.at(b42, 7)
 	if c.Inherits == nil || c.Inherits.Digest != project.Digest.String() || c.Inherits.Key != project.Key {
 		t.Fatalf("b-42@7 pins %+v; the Hub holds %s at %s", c.Inherits, project.Digest, project.Key)
+	}
+}
+
+// TestADigestDisagreementIsAnInternalError: when the Hub answers the project
+// revision with a digest that is not the one the fan-out pinned, every
+// branch revision in the batch names a digest nothing answers. Apply logs an
+// internal error naming both and returns ErrDigestDisagreement, with the
+// keys written, and runs no post-commit re-pin on the bad pin. With no
+// fan-out item, nothing pinned it: the error is logged and Apply succeeds.
+func TestADigestDisagreementIsAnInternalError(t *testing.T) {
+	var log bytes.Buffer
+	withLog := func(c *Config) { c.Log = slog.New(slog.NewTextHandler(&log, nil)) }
+
+	w := newFanWorld(t)
+	b42 := w.branchAt(evidenceRef, 6, w.pinTo(w.b7, 5))
+	w.hub.skewNextDigest()
+	res, err := w.service(withLog).Apply(w.ctx, editAudience(5))
+	if !errors.Is(err, ErrDigestDisagreement) {
+		t.Fatalf("Apply = %v, want ErrDigestDisagreement", err)
+	}
+	if want := []string{w.key(w.b7, 6), w.key(b42, 7)}; !slices.Equal(res.Written, want) {
+		t.Fatalf("Written = %v, want %v: the batch committed", res.Written, want)
+	}
+	stored := w.hubPin(w.b7, 6).Digest
+	if !strings.Contains(log.String(), "level=ERROR") || !strings.Contains(log.String(), "internal") ||
+		!strings.Contains(log.String(), stored) {
+		t.Fatalf("log = %q, want an internal error naming the pinned digest %s", log.String(), stored)
+	}
+	if n := len(w.hub.batches()); n != 1 || w.branchLists() != 1 {
+		t.Fatalf("%d batches, %d branch Lists; want 1 and 1: no re-pin on a bad pin", n, w.branchLists())
+	}
+
+	log.Reset()
+	alone := newFanWorld(t)
+	alone.hub.skewNextDigest()
+	if _, err := alone.service(withLog).Apply(alone.ctx, editAudience(5)); err != nil {
+		t.Fatalf("Apply with no fan-out = %v, want nil: nothing pinned the digest", err)
+	}
+	if !strings.Contains(log.String(), "level=ERROR") {
+		t.Fatalf("log = %q, want the disagreement logged", log.String())
 	}
 }
 

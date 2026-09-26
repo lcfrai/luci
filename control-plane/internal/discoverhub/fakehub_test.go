@@ -44,6 +44,8 @@ import (
 //     erases whole briefs and archives them (contract §7.12), so it holds no
 //     erased revision on a live brief; this stands in for one, for
 //     ErrErasedRestore.
+//   - skewNextDigest(): the next batch's first revision answers with a
+//     digest one byte off, for ErrDigestDisagreement.
 //
 // fn writes through the embedded fake (w.save, w.hub.Fake), never through
 // the wrapper, so it does not count towards any n, and it runs with the
@@ -67,6 +69,7 @@ type fakeHub struct {
 	writeHooks  []callHook
 	writeLog    [][]hubapi.RevisionWrite
 	erasedKeys  map[string]bool // set by eraseInResolve
+	skewDigest  bool            // set by skewNextDigest
 }
 
 // callHook is one race hook: fn runs at call number at (the wrapper's own
@@ -119,11 +122,26 @@ func (f *fakeHub) WriteRevisions(ctx context.Context, projectID string, writes [
 	f.writeCount++
 	f.writeLog = append(f.writeLog, slices.Clone(writes))
 	fns := due(&f.writeHooks, f.writeCount)
+	skew := f.skewDigest
+	f.skewDigest = false
 	f.mu.Unlock()
 	for _, fn := range fns {
 		fn()
 	}
-	return f.Fake.WriteRevisions(ctx, projectID, writes)
+	revs, err := f.Fake.WriteRevisions(ctx, projectID, writes)
+	if skew && err == nil && len(revs) > 0 {
+		revs[0].Digest[0] ^= 0xff
+	}
+	return revs, err
+}
+
+// skewNextDigest makes the next WriteRevisions answer its first revision
+// with a digest one byte off what the fake stored, standing in for a Hub
+// whose §3.4 envelope is not the one digest.go builds (ErrDigestDisagreement).
+func (f *fakeHub) skewNextDigest() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.skewDigest = true
 }
 
 func newFakeHub() *fakeHub {

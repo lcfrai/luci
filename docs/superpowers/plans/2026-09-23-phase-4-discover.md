@@ -271,15 +271,18 @@ without a cycle. Phase 4 imports only the Hub's
 - **S4. Answer-length caps (review M6).** The Hub refuses a canonical envelope over 64 KiB
   (`hub-contract.md:742`) and a body over 1 MiB (`hub-contract.md:40-41`) with a 400 that names
   no answer; a project edit's fan-out batch of many full branch briefs can pass the 1 MiB until
-  HA4-3 raises this route's cap to 4 MiB. Three checks, all before any Hub write:
+  HA4-3 raises this route's cap to 4 MiB. (As built, task 08: HA4-3 has landed in H0, so the
+  limits are `hubapi.MaxRevisionBatch` 64, `hubapi.MaxRevisionBatchBytes` 4 MiB and
+  `hubapi.MaxEnvelopeBytes` 64 KiB, and the batch-count check comes first.) Three checks, all
+  before any Hub write:
   **(1)** each answer at most 4,000 code points and each question prompt, help and option at
   most 300, over what the op added or changed (task 03 rule 13, `*TooLongError` → 400
   `field: "text"` with `key` and `limit`; the model paths' schemas sit inside the caps);
   **(2)** each revision's canonical envelope at most 64 KiB, the real bound, because code points
   are not bytes (task 08, `*RevisionTooLargeError` → 400 `field: "text"` with the op's `key`,
-  `""` for a restore or a proposed follow-up; a fan-out item over 64 KiB is the branch's text, not the
+  `""` for a restore, a draft or a proposed follow-up; a fan-out item over 64 KiB is the branch's text, not the
   editor's, so it is check (3)'s error naming `branchRef`);
-  **(3)** the batch body, measured with `json.Marshal`, at most 1 MiB (task 08,
+  **(3)** the batch body, measured with `json.Marshal`, at most 1 MiB, 4 MiB now that HA4-3 has landed (task 08,
   `*FanoutTooLargeError` → 409 `fanout_too_large` with `bytes` and `limitBytes`, and a message
   per cause, task 11). The desktop shows (1) and (2) at the answer, or at the brief's head when
   `key` is `""`, and (3) at the brief's head; the typed text is kept and none offers Retry
@@ -530,7 +533,7 @@ is **unverified** here.
 |---|---|---|---|
 | **HA4-1** | Publish the `hubapi` Go structs. §9.2 lists their names and says the JSON tags follow §7; the fields are not written anywhere | the struct set in part 07, §"Assumed `hubapi` shapes", derived field-for-field from §7.1 and §7.5 | phase 4 codes against part 07's assumed shapes; a rename is a mechanical fix |
 | **HA4-2** | `hubclient.Briefs` has no list method, though route 19 exists | `List(ctx context.Context, projectID string, q hubapi.BriefQuery) (hubapi.Page[hubapi.BriefHead], error)` with `type BriefQuery struct { Scope string; BranchRef string; IncludeArchived bool; After string; Limit int }` | **tasks 07 and 08 are both blocked on it** for the real Hub (review I11): task 07's `Hub` interface needs `List`, and the `4-D3` fan-out cannot find the inheriting branch briefs without it. Until it lands, `List` is declared on phase 4's **own** `discoverhub.Hub` interface, and tests run through a phase-4-owned wrapper fake (`discoverhub/fakehub_test.go`) that embeds `hubclient.NewFake()` and adds `List`. Phase 4 writes nothing under `control-plane/internal/hub/` (§5, "Never touched") |
-| **HA4-3** | The revision batch holds 1–16 items (§7.5). A project with more than 15 live branch briefs, complete or open (review I8), cannot re-revision them all in one transaction, and `4-D3` needs one | raise the limit to **64** for `POST …/brief-revisions`, with that route's body cap at **4 MiB**, and export it as `hubapi.MaxRevisionBatch`; export the envelope and body caps too, so task 08's `MaxEnvelopeBytes` and `MaxBatchBytes` stop being local copies (review M6) | the control plane refuses such an edit with `409 fanout_too_large` and a sentence naming the count, or the size when the body passes 1 MiB, or the branch whose own revision passes 64 KiB (task 08, task 11's messages, task 18's row, S4) |
+| **HA4-3** (landed in H0: `hubapi.MaxRevisionBatch` 64, `MaxRevisionBatchBytes` 4 MiB, `MaxEnvelopeBytes` 64 KiB; task 08 uses them) | The revision batch holds 1–16 items (§7.5). A project with more than 15 live branch briefs, complete or open (review I8), cannot re-revision them all in one transaction, and `4-D3` needs one | raise the limit to **64** for `POST …/brief-revisions`, with that route's body cap at **4 MiB**, and export it as `hubapi.MaxRevisionBatch`; export the envelope and body caps too, so task 08's `MaxEnvelopeBytes` and `MaxBatchBytes` stop being local copies (review M6) | the control plane refuses such an edit with `409 fanout_too_large` and a sentence naming the count, or the size when the body passes 1 MiB, or the branch whose own revision passes 64 KiB (task 08, task 11's messages, task 18's row, S4) |
 | **HA4-4** | Materialise at session start needs the **latest complete** revision's content; `for-branch` returns only the head revision | add `"latestComplete": BriefRevision \| null` beside `"revision"` in each of `branchBrief` and `projectBrief` | one extra `/v1/refs` call per session start (task 07) |
 | **HA4-5** | The relay rule (§4.3) is "implemented once in `hubclient`", but no function maps an error to a response | `func Relay(err error) (status int, p httpx.Problem, ok bool)` in `hubclient`, `ok` false for a non-Hub error | `discoverapi.relay` implements §4.3's table locally, one function, marked for deletion when `Relay` lands (task 11) |
 | **HA4-6** | One Azure DevOps repo-key form (§8.2 above) | either the Hub accepts `azure-devops/<org>/<project>/<repo>` or phase 3 emits `<org>.visualstudio.com/<project>/<repo>` | Azure DevOps repositories show *"this repository cannot be shared yet"* |
