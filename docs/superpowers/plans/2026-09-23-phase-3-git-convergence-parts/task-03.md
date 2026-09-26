@@ -11,9 +11,15 @@ the seams they already use (`api.Enumerator`, `worktree.Provider`, seam S3.2). N
 **One fact from task 01 shapes clone creation.** A clone does not inherit its source's
 `.git/config`, nor an `includeIf "gitdir:…"` section that matched the project's path, so
 `git var GIT_AUTHOR_IDENT` in a clone can answer differently from the project
-(`TestBehaviourGitVarInACloneMissesTheSourcesLocalIdentity`). The sandbox fix resolves identity
-per worktree path. So creation asks `git var` **in the project** and writes the answer into the
-clone's local config; the fix's resolver then gives the clone the answer the project would.
+(`TestBehaviourGitVarInACloneMissesTheSourcesLocalIdentity`). So creation asks `git var` **in the
+project** and writes the answer into the clone's local config. *Amended at build (carried
+t01-D1):* phase 2's resolver no longer reads the worktree: `cmd/api/gitidentity.go` runs
+`git var GIT_AUTHOR_IDENT` in hostGit's own directory and sends every session that identity as
+`GIT_AUTHOR_*`, deliberately without `user.useConfigOnly`, because the derived identity is the one
+the owner's own commits carry. One rule for who "the user" is, across phases (the orchestrator's
+recommended call): step 5 copies what the project's `git var` derives, and its copy reaches a
+sandbox git run that lacks sessionEnv's `GIT_AUTHOR_*`. `TestCreateWithoutAnIdentityStillCreates`
+keeps its `user.useConfigOnly` fixture to model a machine with no identity to derive.
 
 **Files:**
 - `control-plane/internal/statepath/atomic.go` + `atomic_test.go` — **only if** `statepath` has no
@@ -176,7 +182,16 @@ type Creator struct {
 //     Windows path, which the sandbox's Linux git would read as SSH to a host named `C`
 //     (review Minor 14). No host call reads either value (task-02 §HGH H2: the refresh and
 //     the lane sync name the project by its literal path from the lane index);
-//  5. `var GIT_AUTHOR_IDENT` in the PROJECT (Read); when ParseIdent accepts it,
+//  4b. (carried b05-2 issue 1, added at build) up = Upstream(ctx, git, Project.Path, Branch):
+//     `rev-parse --verify -q --symbolic-full-name <Branch>@{upstream}` in the PROJECT (Read,
+//     Scope Project, OKExit 1; exit 1 or a ref not under refs/remotes/ is up = ""), the one
+//     reading task 09's RefreshClones shares. When up != "": `fetch --no-tags -- <Project.Path>
+//     +<up>:refs/remotes/upstream/<Branch>` in the clone (LocalWrite, Scope None, `NewLane:
+//     Path`). `git clone` copies the project's refs/heads/* as origin/* and nothing of its
+//     refs/remotes/, so without this a lane created after the last refresh has no
+//     upstream/<Branch> and `git merge upstream/<Branch>` exits 1. It names the project by its
+//     literal path, carries objects and one ref, and no URL or credential (A4);
+//  5. `var GIT_AUTHOR_IDENT` in the PROJECT (Read, OKExit 128); when ParseIdent accepts it,
 //     `config user.name` and `config user.email` in the clone (Local, Scope None,
 //     `NewLane: Path`). No identity is not an error: the sandbox fix's resolver logs it at
 //     session create;
@@ -196,8 +211,9 @@ type Creator struct {
 //  7. Store.Add.
 // A failure in 4-7 (6a included) removes Path with fs.RemoveTree(ctx, CloneRoot, Path) before
 // returning, so a failed create leaves no directory behind; a failure in 0-3 has touched nothing.
-// Scopes, per task-02 §HGH H3: steps 2, 4, 5's `var` and 6's `--get` run in the project with
-// Scope Project. Steps 4a, 5 and 6's writes and CopyGeneratedHooks' `ls-files` run with Dir
+// Scopes, per task-02 §HGH H3: steps 2, 4, 4b's `rev-parse`, 5's `var` and 6's `--get` run in the
+// project with Scope Project. Steps 4a, 4b's `fetch`, 5 and 6's writes and CopyGeneratedHooks'
+// `ls-files` run with Dir
 // Path, Scope None and `NewLane: Path` (task-02 §HGH): this is R4.5's creation window. Until
 // step 7's Store.Add no session can resolve the lane, so no sandbox has mounted Path. After
 // Create returns, the host never runs git in Path again (R4.2). Step 4's `clone` names Path
@@ -223,13 +239,21 @@ const (
 // `git lfs install` writes it to the global one; command scope beats both) neither runs nor smudges
 // during the checkout (review Minor 13). It is env, not `--config`, because env is command
 // scope for this call only, so no `filter.*` key lands in the config the sandbox's git reads.
+// The load-bearing keys are `process=` and `required=false` (carried t01-D11): git skips smudge
+// and clean whenever filter.<d>.process is set, an empty process runs nothing, and without
+// required=false a required driver that runs nothing fails the checkout. The empty smudge is
+// redundant wherever process is set (task 01's M6r2 survived as equivalent); it stays for a
+// driver defined with smudge alone. No comment or row says the smudge is what disables LFS.
 var NoFilterEnv map[string]string
 
 // CopyableHooksPath reports whether a project's local core.hooksPath is copied into a lane
-// clone: it is non-empty, relative (no leading `/` or `\`, no `X:` drive, no leading `~`),
-// has no `..` segment, and holds no `\`. The first three keep the value inside the lane's
-// working tree, where the sandbox's git resolves it; the `\` refusal is because the sandbox's Linux git reads `\` as part of a file name, so a
-// Windows-style value would name no directory there. Husky writes `.husky/_`.
+// clone: it is non-empty, relative (no leading `/` or `\`, no leading `~`), has no `..`
+// segment, and holds no `\`, no `:` and no CR or LF. The first three keep the value inside the
+// lane's working tree, where the sandbox's git resolves it; the `\` refusal is because the
+// sandbox's Linux git reads `\` as part of a file name, so a Windows-style value would name no
+// directory there. The `:` refusal covers every drive form (`C:/hooks`, `C:hooks`) and an NTFS
+// stream name, `.git::$INDEX_ALLOCATION`, which Windows opens as `.git` (carried b03-2 Minor 2).
+// Husky writes `.husky/_`.
 func CopyableHooksPath(v string) bool
 
 // CopyGeneratedHooks copies <projectTop>/<rel> into <cloneTop>/<rel> when the project holds a
@@ -248,9 +272,14 @@ func CopyableHooksPath(v string) bool
 //     mounted it yet. A hooks directory tracked on the lane's `<Branch>` is already in the
 //     checkout and is never overwritten; the project's own index is the wrong one to ask,
 //     since it is the project's current branch, not the lane's (re-review b03 I-1);
-//   - every path component from projectTop to <rel>, and <rel> itself, is a real directory by
-//     os.Lstat (no symlink, no junction or other reparse point), so the copy reads nothing
-//     outside the project's working tree;
+//   - every existing parent of <cloneTop>/<rel>, cloneTop included, is a real directory by
+//     os.Lstat, so neither the copy nor its take-back goes through a link out of the clone
+//     (carried b03-2 Minor 3);
+//   - every path component below projectTop to <rel>, and <rel> itself, is a real directory by
+//     os.Lstat (Mode().Type() == fs.ModeDir: no symlink, no junction or other reparse point), so
+//     the copy reads nothing outside the project's working tree, and none of them is
+//     os.SameFile with <projectTop>/.git, which refuses its 8.3 name `GIT~1` that no segment
+//     compare sees (carried b03-2 Minor 2);
 //   - it holds only regular files, at most 64 and 1 MiB in total, one level deep.
 // Each file is opened, then os.SameFile(its Lstat info, f.Stat()) must hold, and it is read
 // through io.LimitReader of the budget that remains, so neither a file swapped between check
@@ -273,17 +302,22 @@ func CopyableHooksPath(v string) bool
 // run here after it. Locally that is LocalFS, the same os calls as before the split.
 func CopyGeneratedHooks(ctx context.Context, m gitx.Machine, projectTop, cloneTop, rel string) (int, error)
 
-// RemoveTree deletes a directory tree that git wrote. On Windows git leaves object and pack
-// files read-only, and os.RemoveAll fails on them (task 01's TestBehaviourRemoveAllOnAClone
-// records whether it does on this machine); RemoveTree clears the read-only attribute during
-// the walk and then removes. It refuses a path that is not under root.
+// RemoveTree deletes a directory tree that git wrote: the root refusal, then os.RemoveAll, with
+// no walk (carried t01-D6). git leaves object and pack files read-only on Windows, and
+// os.RemoveAll deletes them on both toolchains: go1.26's removeall_at.go through
+// windows.Deleteat (FILE_DISPOSITION_IGNORE_READONLY_ATTRIBUTE), go1.23's removeall_noat.go
+// through os.Remove, which clears the attribute and retries. It refuses a path that is not
+// strictly under root, and (added at build) a path reached through a component between root
+// and it that is not a real directory by Lstat, since a link there carries the delete outside
+// root. Built in remove.go, not clone.go.
 func RemoveTree(root, path string) error
 
 // LocalFS is gitx.MachineFS on this process's own disk (seam S8-P3.6): the os calls this task
 // makes, moved behind the interface unchanged.
 //   - Exists is os.Lstat: fs.ErrNotExist → (false, false, nil); success → (true,
-//     fi.Mode().IsDir(), nil), so a symlink or a junction is exists and not dir; any other
-//     error is returned;
+//     fi.Mode().Type() == fs.ModeDir, nil), so a symlink or a junction is exists and not dir
+//     (built as Type() == ModeDir, not IsDir(): Go 1.23+ reports a junction as
+//     ModeDir|ModeIrregular, which IsDir() calls a directory); any other error is returned;
 //   - RemoveTree is RemoveTree(root, path) above;
 //   - CopyGeneratedHooks is the copy half above: the `.git`-segment refusal again (env task
 //     21's copy-hooks route serves through LocalFS, so it inherits it), the not-exist Lstat of
@@ -365,8 +399,12 @@ into, so the sandbox's git, which has none of that config, agrees with the host'
   price, and it buys two things: the host's git never checks out a link into a **lane clone**
   whose target a commit chose (an agent's link to `C:\Users\…` would otherwise be a real link in
   a directory the cockpit reads, task 16's Minor 9 class), and the answer no longer depends on
-  whether a Windows link shows as a link through Docker Desktop's bind mount (unverified, so not
-  relied on). Both hold for lane clones only. The user's own checkout of the product branch
+  the machine (task 01 row 5). *Restated at build (carried t01-D12):* a broken mount is not the
+  reason. Task 01's mutant D6 verified that with `core.symlinks=true` and a user who may make
+  links, the host wrote a real symlink, the sandbox saw a Linux symlink through Docker Desktop's
+  mount, and `status --porcelain` stayed empty; a test that wants the symlink shape must ask it
+  (`test -L`, `cat`), since an empty status cannot tell a link from a file. Both hold for lane
+  clones only. The user's own checkout of the product branch
   follows the user's `core.symlinks` (`true` on this machine), so a land that carries a link
   becomes a real link there; and the agent can still make a link in the clone itself, through
   the bind mount, without git (re-review b08-1 issue 6). The hazard the price carries: an agent
@@ -534,11 +572,11 @@ Real git through `gitxtest` wherever the claim is about git; a fake `Source` for
 | `TestFileStoreRoundTripsAcrossReopen` | Add two lanes, SetQueue, AddRename; reopen → identical | an index that does not survive a restart |
 | `TestFileStoreRefusesDuplicateIDOrName` | same ID → ErrExists; same ProjectID+Name, other ID → ErrExists; same Name, other project → ok | two clones in one directory |
 | `TestFileStoreRemoveDropsTheIDFromQueues` | Remove(w) → `Queue(p,b)` no longer holds w | a queue naming a worktree that is gone |
-| `TestFileStoreFailedWriteLeavesMemoryUnchanged` | a read-only dir makes Add fail → List unchanged | memory and disk disagreeing after a full disk |
+| `TestFileStoreFailedWriteLeavesMemoryUnchanged` | a directory standing at `lanes.json` makes Add, SetQueue and Remove fail → List, Queue and ByID unchanged (built so: a read-only directory cannot fail a write on Windows, which ignores the attribute on a directory) | memory and disk disagreeing after a full disk |
 | `TestOpenFileStoreRefusesACorruptFile` | `{not json` → error containing the path | an empty index orphaning every clone |
 | `TestCreateClonesOnTheBranch` | clone's `rev-parse HEAD` equals the project's `refs/heads/feat` and `symbolic-ref HEAD` is `refs/heads/feat`; `Lane.ID == project.WorktreeID(Path)`; the lane is in the store | a clone on the default branch |
 | `TestCreateWritesLineEndingConfig` | production-shaped (`UseSystemConfig(WindowsInstallerSystem)`), project with LF blobs `a.txt` and `b.bat` and `.gitattributes` `*.bat eol=crlf`: the clone's `config --local` holds `core.autocrlf=false`, `core.eol=lf`, `core.checkStat=minimal` and `core.trustctime=false`; `a.txt`'s bytes on disk equal its blob (no `\r`); `b.bat`'s are CRLF; `status --porcelain` is empty. Red first against a `--local` argv without the four `--config` | a clone that checks out CRLF under the system `autocrlf` (review C2) |
-| `TestCreateWritesBlobBytes` (review Minors 13, 15) | production-shaped, the system file holding `core.symlinks=true` and an LFS-shaped `filter.lfs` (smudge = a marker script, `clean = cat`, `required=true`, and no `process`: with `required=true` and no clean, the host `status` this test asserts dies with `fatal: a.bin: clean filter 'lfs' failed`, exit 128, and a fixture copied from real git-lfs, `process = git-lfs filter-process` with git-lfs absent, fails the same way; re-review b08-1 issue 1); project with a symlink entry `link` → `t.txt` (mode `120000`, via `update-index --cacheinfo`) and `a.bin` under `*.bin filter=lfs`: the clone's `config --local` holds `core.symlinks=false` and `core.longpaths=true`; `link` is a regular file by `os.Lstat` holding `t.txt`; `a.bin`'s bytes equal its blob; no marker exists; `status --porcelain` is empty. Red first twice: without `core.symlinks=false` (`link` is a symlink where the machine allows one, which this one does), and without NoFilterEnv (the marker exists) | a lane whose disk holds what the host's config made of the blobs, which the sandbox's git then sees as modified |
+| `TestCreateWritesBlobBytes` (review Minors 13, 15) | production-shaped, the system file holding `core.symlinks=true` and an LFS-shaped `filter.lfs` (smudge = a marker script, `clean = cat`, `required=true`, and no `process`: with `required=true` and no clean, the host `status` this test asserts dies with `fatal: a.bin: clean filter 'lfs' failed`, exit 128, and a fixture copied from real git-lfs, `process = git-lfs filter-process` with git-lfs absent, fails the same way; re-review b08-1 issue 1); project with a symlink entry `link` → `t.txt` (mode `120000`, via `update-index --cacheinfo`) and `a.bin` under `*.bin filter=lfs`: the clone's `config --local` holds `core.symlinks=false` and `core.longpaths=true`; `link` is a regular file by `os.Lstat` holding `t.txt`; `a.bin`'s bytes equal its blob; no marker exists; `status --porcelain` is empty. Red first twice: without `core.symlinks=false` (`link` is a symlink where the machine allows one, which this one does), and without NoFilterEnv (the marker exists). A second subtest, `git-lfs` (carried t01-D11), is git-lfs's real shape in the system file, `process = git-lfs filter-process` and `required = true`, git-lfs absent; its `status` runs with no system config, as the sandbox's git has none. Its red first drops `process=` or `required=false`, never the smudge | a lane whose disk holds what the host's config made of the blobs, which the sandbox's git then sees as modified |
 | `TestCreateSetsASelfDescribingOrigin` (review Minor 14) | the clone's `config --get remote.origin.url` is NoFetchURL and `remote.origin.pushurl` is NoPushURL; `branch.<b>.remote` is `origin`; `git fetch` in the clone exits non-zero and its stderr contains NoFetchURL | an agent told about SSH to a host named `C` |
 | `TestCreateSharesNoObjectFileWithTheProject` | walk the clone's `.git/objects`; for every file, the same relative path in the project is absent or not `os.SameFile`. Red first against `--local` (task 01 pins that it shares them) | an agent rewriting the user's history through a hard-linked pack (review I8) |
 | `TestCreateCopiesTheProjectsIdentity` | project has local `user.name=Ada`; the clone's `git var GIT_AUTHOR_IDENT` starts `Ada <` | agents committing as the machine-wide identity in a repo that sets its own |
@@ -546,7 +584,7 @@ Real git through `gitxtest` wherever the claim is about git; a fake `Source` for
 | `TestCreateCopiesARelativeHooksPath` (review I11) | project local `core.hooksPath=.husky/_` and a `.git/hooks/pre-commit` file: the clone's `config --local --get core.hooksPath` prints `.husky/_`, and the clone's `.git/hooks` holds only what `git clone` put there (no `pre-commit`). Then a table of project values, each a fresh create: `/abs/hooks`, `C:/hooks`, `C:hooks`, `\hooks`, `~/hooks`, `../x`, `a/../../x`, `.githooks\x` → lane created, clone has no `core.hooksPath`; `.githooks` → copied. Red first against step 6 removed | a husky lane running none of the project's hooks; a host path or an escape copied into a clone |
 | `TestCopyableHooksPath` | the same table as a pure function, plus `""` → false | a predicate that disagrees with Create's copy |
 | `TestCreateCopiesAGeneratedHooksDir` (review I11) | project local `core.hooksPath=.husky/_`, tracked `.husky/pre-commit`, and an ignored `.husky/_/` holding `.gitignore` (`*`), `h` and `pre-commit`: the clone's `.husky/_` holds the same three files byte-identical, `status --porcelain` in the clone prints nothing. Red first against CopyGeneratedHooks not called | a husky lane with the setting but no hooks, which runs nothing |
-| `TestCopyGeneratedHooksRefuses` | table, each → 0 files and nothing written: a tracked `.githooks/` (the clone's checked-out copy is byte-unchanged); a `.githooks/` tracked on the lane's `<Branch>` only and untracked in the project's checkout (the clone's copy is byte-unchanged); `rel` = `.git/hooks`, `.GIT/hooks` and `.git./hooks` (the clone's sample hooks are byte-unchanged); `.husky` a junction (Windows) or symlink to a temp directory; a symlink file inside `.husky/_`; a subdirectory inside it; 65 files; 1 MiB + 1 byte; an untracked `.githooks/` that no `.gitignore` covers (the clone has no `.githooks/` afterwards) | a copy that reads outside the project's tree, reads `.git`, overwrites a hook the lane's branch tracks, or leaves a folder the agent's `git add -A` commits |
+| `TestCopyGeneratedHooksRefuses` | table, each → 0 files and nothing written: a tracked `.githooks/` (the clone's checked-out copy is byte-unchanged); a `.githooks/` tracked on the lane's `<Branch>` only and untracked in the project's checkout (the clone's copy is byte-unchanged); `rel` = `.git/hooks`, `.GIT/hooks` and `.git./hooks` (the clone's sample hooks are byte-unchanged); `.husky` a junction (Windows) or symlink to a temp directory; a symlink file inside `.husky/_`; a subdirectory inside it; 65 files; 1 MiB + 1 byte; an untracked `.githooks/` that no `.gitignore` covers (the clone has no `.githooks/` afterwards); the clone's `.husky` replaced by a junction to a temp directory (carried b03-2 Minor 3: the temp directory is empty afterwards) | a copy that reads outside the project's tree, reads `.git`, overwrites a hook the lane's branch tracks, or leaves a folder the agent's `git add -A` commits |
 | `TestCopyGeneratedHooksChecksTheOpenedFile` | through the unexported package variable `openForCopy` (a test-only seam, default `os.Open`): an opener that returns a different file than the path's Lstat named → 0 files, error names the path; one that returns a file larger than its Lstat size → at most 1 MiB read in total, and the copy is refused | a swap between check and open, or an uncapped read of a file an agent wrote |
 | `TestCreateIsTheOnlyHostGitInTheLane` (ruling R4.5) | a real `gitx.Exec` with `Hardening.LaneRoot` = CloneRoot, `gitxtest.Spy` on it, a Runner wrapper that records each Call's `Dir` and `NewLane` beside the Spy's length, and a Store whose Add records the Spy's length; project with an identity, `core.hooksPath=.husky/_` and an ignored `.husky/_/`. Every Spawn whose `Dir` is Path or whose argv names Path, except step 4's `clone` (`Dir` the project, Path its last argv element, the destination git creates), comes from a Call with `NewLane == Path` and precedes the Add mark; no Spawn after the mark names Path. Red first against step 4a moved after Store.Add | a host git call in the lane after it is resolvable, so after a sandbox can have mounted it |
 | `TestCreateUnknownBranchTouchesNothing` | `Branch: "nope"` → ErrUnknownBranch, `<root>/<p>` has no entry | a half-made clone |
@@ -555,8 +593,11 @@ Real git through `gitxtest` wherever the claim is about git; a fake `Source` for
 | `TestCreateCleansUpAfterAFailedClone` | a Runner that fails the clone after creating Path → Path absent | leaving a broken clone for the catalog to list |
 | `TestCreateRefusesBadNames` | `""`→derived; `"../x"`, `"A"`, `"-x"`, 41 chars → ErrBadName | a name that escapes CloneRoot |
 | `TestCreateDerivesTheLowestFreeName` | branch `feat/upload`, lanes `upload-1` and `upload-3` exist → `upload-2` | a derived name colliding |
-| `TestRemoveTreeDeletesReadOnlyObjects` | a real clone → RemoveTree succeeds and the path is gone | `os.RemoveAll` failing on Windows' read-only packs |
-| `TestRemoveTreeRefusesOutsideRoot` | `RemoveTree(root, filepath.Dir(root))` → error, nothing deleted | a lane path that escaped the root deleting the user's disk |
+| `TestRemoveTreeDeletesReadOnlyObjects` | a real clone with every object file forced to 0o444 → RemoveTree succeeds and the path is gone. A regression pin: it passes with no walk (carried t01-D6) | none; RemoveTree's red first is the row below |
+| `TestRemoveTreeRefusesOutsideRoot` | `RemoveTree(root, filepath.Dir(root))`, root itself, a sibling, `root/../sibling` and `""` → error; a path under a junction in root → error; nothing deleted | a lane path that escaped the root, or a link inside it, deleting the user's disk |
+| `TestCreateGivesTheLaneTheProjectsUpstream` (carried b05-2 issue 1) | a bare remote, the project pushed with `-u`, a teammate's push, the project fetched, then Create → the clone's `refs/remotes/upstream/main` equals the project's `refs/remotes/origin/main`, `git merge --ff-only upstream/main` exits 0, and the clone's `remote.*` config names no remote of the project's | a lane created after the last refresh that cannot see a teammate's commits |
+| `TestCreateWithoutAnUpstreamHasNone` | no upstream configured → no `refs/remotes/upstream/*`, no error | a fetch of a missing ref failing every create of an unpushed branch |
+| `TestCopyGeneratedHooksRefusesTheShortNameOfDotGit` (Windows; carried b03-2 Minor 2) | `<GIT~1>/hooks`, the 8.3 name of `.git` → 0, nothing written; skips, saying so, where the volume has no 8.3 names | a copy of `.git/hooks` by another name |
 | `TestCatalogListsClonesAfterTheScannersWorktrees` | Source gives primary+linked; store has 2 lanes of p and 1 of q → p's list is primary, linked, then 2 clones with `Kind:"clone"`, `IsPrimary:false`, the right BranchID, and `Name` the lane's Name, not the nonce-suffixed directory name | clones missing from the rail |
 | `TestCatalogPathResolvesALaneFirst` | a lane id resolves to its path without calling Source.Path | a clone unreachable by session create |
 | `TestCatalogPathOfAVanishedClone` | lane dir deleted → `errors.Is(err, worktree.ErrNotADir)` | a mount of a missing directory |
