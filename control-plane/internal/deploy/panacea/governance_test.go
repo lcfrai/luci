@@ -449,11 +449,12 @@ const routeNotRevertedExample = "URL prefix released for feat/x, but the live ro
 // when removing the host annotation or the reconcile fails (handlers/projects.go:4427-4451), so
 // the branch keeps serving at its old host. Panacea's sentence embeds err.Error() (:4431, :4438,
 // :4445), so it goes to warn and Message is the connector's own. An answer without routeReverted
-// has not confirmed the revert and reads the same way (fail closed).
+// has not confirmed the revert and reads the same way (fail closed): here one with no data at
+// all, so Branch is the branch this call named, never the echo (named survivor CS1).
 func TestClearURLPrefixRouteNotReverted(t *testing.T) {
 	rs := serveRecorded(t, map[string]fixture{
 		"DELETE " + branchP + "/url-prefix":                 {file: "urlprefix-clear-stale.json"},
-		"DELETE " + actsP + "/branches/feat%2Fy/url-prefix": {body: `{"message":"url prefix cleared","data":{"branch":"feat/y"}}`},
+		"DELETE " + actsP + "/branches/feat%2Fy/url-prefix": {body: `{"message":"url prefix cleared"}`},
 	})
 	ctx := context.Background()
 	got, err := rs.c.ClearURLPrefix(ctx, project, "feat/x")
