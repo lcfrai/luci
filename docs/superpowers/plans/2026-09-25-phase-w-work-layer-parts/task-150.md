@@ -159,12 +159,13 @@ BEGIN
     RETURN NEW;
   END IF;
   IF TG_TABLE_NAME = 'issues' AND TG_OP = 'UPDATE'
-     AND (NEW.state IS DISTINCT FROM OLD.state OR NEW.assignee_id IS DISTINCT FROM OLD.assignee_id) THEN
+     AND (NEW.state IS DISTINCT FROM OLD.state OR NEW.assignee_user_id IS DISTINCT FROM OLD.assignee_user_id) THEN
     RAISE EXCEPTION 'hub: work: principal_cannot_move_state: % may not change issue %', v_conn, NEW.id
       USING ERRCODE = 'insufficient_privilege';
   END IF;
-  IF TG_TABLE_NAME = 'issues' AND TG_OP = 'INSERT' AND NEW.state <> 'triage' THEN
-    RAISE EXCEPTION 'hub: work: principal_cannot_move_state: % creates only in triage', v_conn
+  IF TG_TABLE_NAME = 'issues' AND TG_OP = 'INSERT'
+     AND (NEW.state <> 'triage' OR NEW.assignee_user_id IS NOT NULL) THEN
+    RAISE EXCEPTION 'hub: work: principal_cannot_move_state: % creates only in triage, unassigned', v_conn
       USING ERRCODE = 'insufficient_privilege';
   END IF;
   IF TG_TABLE_NAME = 'issue_revisions' AND NEW.revision > 1 THEN
@@ -185,9 +186,8 @@ CREATE TRIGGER issue_labels_sync_guard BEFORE INSERT ON issue_labels
   FOR EACH ROW EXECUTE FUNCTION guard_sync_principal();
 ```
 
-`assignee_id` is task 06's column name for the assignee as task 08's `PatchIssue` writes it
-(**UNVERIFIED** until task 06's table is read at merge; the guard follows the real name). The
-guard is keyed on `hub.work_sync_connection`, not on `hub.work_actor_kind`, so it binds exactly the
+`assignee_user_id` is task 06's column (`task-06.md:164`). An `INSERT` with an assignee is refused
+too, by the same rule as a state: task 15's `importOne` never sets one. The guard is keyed on `hub.work_sync_connection`, not on `hub.work_actor_kind`, so it binds exactly the
 sync engine and leaves task 07's rows for other integrations as they are. **Labels are not
 attached on import** as a result: task 15's `importOne` attaches matched labels, and a sync item's
 labels are reported as `unmatchedLabels`-style names on the run log instead (task 151-153's adapters
@@ -256,4 +256,171 @@ type CreateTrackerRequest struct {
 	Mode       TrackerMode       `json:"mode"`
 	Credential TrackerCredential `json:"credential"`
 }
+
+// UpstreamChange names which thing changed on an item already imported, never
+// its new value (decision 5).
+type UpstreamChange struct {
+	ExternalID string `json:"externalId"`
+	Field      string `json:"field"` // closed, reopened, assignee, title, description, deleted
+	At         string `json:"at"`    // the tracker's own time, RFC 3339
+}
+
+var UpstreamFields = []string{"closed", "reopened", "assignee", "title", "description", "deleted"}
+
+// SyncRun is one run of one connection; N counts from 1 per connection.
+type SyncRun struct {
+	ConnectionID string           `json:"connectionId"`
+	N            int              `json:"n"`
+	State        string           `json:"state"` // running, ok, failed
+	StartedAt    string           `json:"startedAt"`
+	FinishedAt   string           `json:"finishedAt,omitempty"`
+	Pages        int              `json:"pages"`
+	Created      int              `json:"created"`
+	Existing     int              `json:"existing"`
+	Upstream     []UpstreamChange `json:"upstream"`
+	Failure      string           `json:"failure,omitempty"` // e.g. "page 3: items[7].title"
+}
+
+// ExternalLink is how an issue reads where it came from, on the issue view.
+type ExternalLink struct {
+	ConnectionID      string `json:"connectionId"`
+	Source            string `json:"source"`
+	ExternalID        string `json:"externalId"`
+	IssueID           string `json:"issueId"`
+	LinkedAt          string `json:"linkedAt"`
+	UpstreamField     string `json:"upstreamField,omitempty"`
+	UpstreamChangedAt string `json:"upstreamChangedAt,omitempty"`
+	Disconnected      bool   `json:"disconnected"`
+}
+
+const (
+	EventTrackerConnected    = "tracker.connected"
+	EventTrackerDisconnected = "tracker.disconnected"
+	EventTrackerPage         = "tracker.page"
+)
+
+type TrackerConnectedData struct {
+	Source string `json:"source"`
+	Mode   string `json:"mode"`
+}
+type TrackerDisconnectedData struct{}
+
+// TrackerPageData is decision 3's event: one per committed page, the
+// connection and its creator named, counts only.
+type TrackerPageData struct {
+	ConnectionID string `json:"connectionId"`
+	Run          int64  `json:"run"`
+	Created      int64  `json:"created"`
+	Existing     int64  `json:"existing"`
+	Upstream     int64  `json:"upstream"`
+	By           string `json:"by"` // the connection's creator, a u- id
+}
+// Appended to WorkEventKinds, all ScopeProject, VisibleToReaders:
+//	{EventTrackerConnected, TrackerConnectedData{}, …}, {EventTrackerDisconnected, …}, {EventTrackerPage, …}
 ```
+
+`tracker.` joins task 13's prefix list. The feed never carries a target (it may name a client's
+Azure DevOps organisation), a credential reference, or any upstream text.
+
+#### `worksync/engine.go` (complete)
+
+```go
+// Package worksync brings items from outside trackers into a team's Triage,
+// one way. It never writes back (task 153 adds comments only) and it never
+// moves an issue: the Sink's transaction is the sync principal (decision 2).
+package worksync
+
+// Cursor is an adapter's own position, opaque to the engine; "" is the start.
+type Cursor string
+
+// Pulled is one page from a tracker. Items are new or known; the planner
+// (links.go) decides which by the connection's links.
+type Pulled struct {
+	Items    []hubapi.ImportItem     // SW.6's shape, mapped by the adapter
+	Upstream []hubapi.UpstreamChange // changes the adapter saw on items it reported before
+	Comments []ExternalComment       // task 153's; ignored in mode "in"
+	Next     Cursor
+	More     bool // another page follows in this run
+}
+
+// ExternalComment is task 153's; declared here so the page type is whole.
+type ExternalComment struct {
+	ExternalID string // the item's
+	CommentID  string
+	AuthorName string
+	Text       string
+	At         string
+}
+
+// Adapter talks to one tracker. Pull must be safe to repeat with the same
+// cursor: the engine re-pulls a page whose commit failed.
+type Adapter interface {
+	Source() string
+	CheckTarget(t hubapi.TrackerTarget) *hubapi.FieldError
+	Pull(ctx context.Context, conn hubapi.TrackerConnection, cur Cursor) (Pulled, error)
+}
+
+// Sink is the server side (decision 1). ApplyPage runs the page, the links,
+// the run's counts and the cursor in one transaction as the sync principal.
+type Sink interface {
+	StartRun(ctx context.Context, connID string) (hubapi.TrackerConnection, Cursor, hubapi.SyncRun, error)
+	ApplyPage(ctx context.Context, conn hubapi.TrackerConnection, run *hubapi.SyncRun, p Pulled) error
+	FinishRun(ctx context.Context, run hubapi.SyncRun, failure string) (hubapi.SyncRun, error)
+}
+
+// ErrPageRefused is ApplyPage's answer for a page that fails SW.6's check.
+type ErrPageRefused struct{ Field string }
+
+func (e *ErrPageRefused) Error() string { return "worksync: page refused at " + e.Field }
+
+type Engine struct {
+	Adapters map[string]Adapter
+	Sink     Sink
+	MaxPages int // per run; 0 means 20
+}
+
+// Run pulls and applies pages until the adapter says there are no more, the
+// page cap is reached, or a page fails. It never holds a transaction while a
+// tracker is being called.
+func (e *Engine) Run(ctx context.Context, connID string) (hubapi.SyncRun, error) {
+	conn, cur, run, err := e.Sink.StartRun(ctx, connID)
+	if err != nil {
+		return hubapi.SyncRun{}, err
+	}
+	a, ok := e.Adapters[conn.Source]
+	if !ok {
+		return e.Sink.FinishRun(ctx, run, "no adapter for "+conn.Source)
+	}
+	limit := e.MaxPages
+	if limit == 0 {
+		limit = 20
+	}
+	for page := 1; page <= limit; page++ {
+		p, err := a.Pull(ctx, conn, cur)
+		if err != nil {
+			return e.Sink.FinishRun(ctx, run, fmt.Sprintf("page %d: pull failed", page)) // no upstream text
+		}
+		if conn.Mode != hubapi.TrackerInAndComments {
+			p.Comments = nil
+		}
+		if err := e.Sink.ApplyPage(ctx, conn, &run, p); err != nil {
+			var refused *ErrPageRefused
+			if errors.As(err, &refused) {
+				return e.Sink.FinishRun(ctx, run, fmt.Sprintf("page %d: %s", page, refused.Field))
+			}
+			return e.Sink.FinishRun(ctx, run, fmt.Sprintf("page %d: not committed", page))
+		}
+		cur = p.Next // only after the commit, which moved the stored cursor too
+		if !p.More {
+			break
+		}
+	}
+	return e.Sink.FinishRun(ctx, run, "")
+}
+```
+
+A pull error's text is **not** stored: a tracker's error body can echo a query or an item, and
+`work_sync_runs.failure` is capped at 300 bytes of our own words. The adapter logs the error with
+the connection id (Hub task 24's logger, no body), so an operator can find it. The 20-page cap
+keeps one connection from holding the janitor for a whole sweep; a run that hits it leaves the
+cursor where the last page put it and the next run continues.
