@@ -125,3 +125,77 @@ export function mayRevoke(me: Me, key: { ownerId: string; teamId: string | null 
 `orgAdmin` alone never shows a team's webhooks or policy: an org admin who is not that team's
 admin governs apps and connectors, not the team's agents (OD-16). The org admin's view of every
 team is task 185's and the Hub's, not this surface's.
+
+#### Interfaces — complete: `usePressOnce.ts`, `SecretOnce.tsx`, `policyForm.ts`
+
+```ts
+// desktop/src/components/admin/usePressOnce.ts — task 173, decision 7. While a call is out the
+// button is disabled and a second press is a no-op; the answer (or error) re-enables it.
+import { useCallback, useRef, useState } from "react";
+
+export function usePressOnce<A extends unknown[], R>(call: (...a: A) => Promise<R>) {
+  const out = useRef(false);
+  const [busy, setBusy] = useState(false);
+  const press = useCallback(async (...a: A): Promise<R | undefined> => {
+    if (out.current) return undefined;   // a ref, not state: two presses in one tick see it
+    out.current = true; setBusy(true);
+    try { return await call(...a); } finally { out.current = false; setBusy(false); }
+  }, [call]);
+  return { press, busy };
+}
+```
+
+```tsx
+// desktop/src/components/admin/SecretOnce.tsx — task 173, decision 3. The only holder of a
+// secret. It never logs, never stores, never forwards; Done drops the parent's state.
+import type { JSX } from "react";
+import "./admin.css";
+
+export function SecretOnce(props: { label: string; secret: string; onDone(): void }): JSX.Element {
+  return (
+    <div className="adm-secret" role="group" aria-label={props.label}>
+      <p>Shown once. Copy it now: it is not shown again.</p>
+      <code className="adm-mono" data-secret>{props.secret}</code>
+      <button type="button" onClick={() => void navigator.clipboard.writeText(props.secret)}>Copy</button>
+      <button type="button" onClick={props.onDone}>Done</button>
+    </div>
+  );
+}
+```
+
+```ts
+// desktop/src/components/admin/policyForm.ts — task 173, decision 5. Pure; the form calls
+// checkPolicy before PUT and shows the first refusal under its field. Task 166 refuses the same.
+import type { HarnessId, PutAgentPolicyBody } from "../../api/work";
+
+export const HARNESS_IDS: readonly HarnessId[] = ["claude-code", "codex", "opencode", "gemini-cli", "shell"];
+export const DEFAULT_HARNESSES: HarnessId[] = ["claude-code"];   // task 166: unset means this
+const COMMIT = /^[0-9a-f]{40}$/;
+
+export type PolicyRefusal =
+  | { field: "harnesses"; text: "Allow at least one harness" | "A harness is listed twice" }
+  | { field: "commit"; text: "A full 40-character commit, never a branch" }
+  | { field: "repo"; text: "Name the library's repository" };
+
+export function checkPolicy(b: PutAgentPolicyBody): PolicyRefusal | null {
+  if (b.harnesses.length === 0) return { field: "harnesses", text: "Allow at least one harness" };
+  if (new Set(b.harnesses).size !== b.harnesses.length) return { field: "harnesses", text: "A harness is listed twice" };
+  if (b.skills.source === "library") {
+    if (!b.skills.library || b.skills.library.repoKey.trim() === "") return { field: "repo", text: "Name the library's repository" };
+    if (!COMMIT.test(b.skills.library.commit)) return { field: "commit", text: "A full 40-character commit, never a branch" };
+  }
+  return null;
+}
+
+/** Move one harness up or down; the order is the fallback order task 166 stores. */
+export function move(list: HarnessId[], id: HarnessId, by: -1 | 1): HarnessId[] {
+  const i = list.indexOf(id), j = i + by;
+  if (i < 0 || j < 0 || j >= list.length) return list;
+  const next = list.slice(); [next[i], next[j]] = [next[j], next[i]]; return next;
+}
+```
+
+`SecretOnce` has no `useEffect`, no `console`, no store import and no prop but the secret; the
+test greps the file for `workSlice`, `localStorage`, `console.` and `sessionStorage` and expects
+none. `HARNESS_IDS` is `harness.Catalogue()`'s set as task 169 quotes it
+(`control-plane/internal/harness/harness.go:17-25`, **UNVERIFIED** on this tree by this part).
