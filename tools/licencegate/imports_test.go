@@ -186,6 +186,33 @@ func TestShippedImports_cssAndURLForms(t *testing.T) {
 	}
 }
 
+// TestIsURLSpec pins what counts as a URL: a scheme of two or more
+// characters. One letter and a colon is a Windows drive, a file path, never a
+// URL, so the why a person reads must not call it one (fix round 1's
+// predicted survivor S2: no other test holds a drive-letter specifier).
+func TestIsURLSpec(t *testing.T) {
+	for _, c := range []struct {
+		spec string
+		want bool
+	}{
+		{"https://esm.sh/tldraw@3.0.0", true},
+		{"http://x.example/a.js", true},
+		{"data:text/javascript,export default 1", true},
+		{"blob:https://x.example/0f1e", true},
+		{"git+ssh://x.example/r.git", true},
+		{"C:/Users/x/a.js", false},
+		{`c:\x\a.js`, false},
+		{"react", false},
+		{"@s/n/sub", false},
+		{"#internal", false},
+		{"x?raw", false},
+	} {
+		if got := isURLSpec(c.spec); got != c.want {
+			t.Errorf("isURLSpec(%q) = %v, want %v", c.spec, got, c.want)
+		}
+	}
+}
+
 func TestShippedImports_helperErrorIsAnError(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, filepath.Join(dir, "src", "a.ts"), []byte("import x from 'x'\n"))

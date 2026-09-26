@@ -291,6 +291,36 @@ func TestNpmDeps_redactedPath(t *testing.T) {
 			t.Fatalf("NpmDeps = %v: want an error naming both places, never a guess", err)
 		}
 	})
+
+	// Windows only. The gate keeps -root as typed, npm prints the directory in
+	// the case it resolved, and the filesystem does not care, so one place can
+	// arrive in two cases. Every row above prints dir exactly as the gate was
+	// handed it, so a case-sensitive element match passed them all (fix round
+	// 1's predicted survivor S1). The sibling that redacts alike makes the
+	// filesystem fallback an error, so only a case-folded match reads x.
+	t.Run("a printed path in another case is still read at its real path", func(t *testing.T) {
+		if !caseInsensitivePaths {
+			t.Skip("paths are case-sensitive on " + runtime.GOOS + ": there is no case to fold")
+		}
+		tmp, base, p := layout(t, uuidB)
+		x := p.node("node_modules/x", "x", "1.0.0", "GPL-3.0", nil)
+		tree := string(p.write(kids("x", x)))
+		esc := func(s string) string {
+			b, _ := json.Marshal(s)
+			return strings.Trim(string(b), `"`)
+		}
+		// Upper-case the part above the UUID: redacted() matches the UUID as
+		// written, and npm's redaction ignores the letters around it anyway.
+		printed := strings.ReplaceAll(tree, esc(tmp), esc(strings.ToUpper(tmp)))
+		if printed == tree || strings.ToUpper(tmp) == tmp {
+			t.Fatalf("the fixture's paths did not change case (tmp %s)", tmp)
+		}
+		deps, err := gate(base, p, redacted(t, []byte(printed)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		wantAt(t, deps, "x@1.0.0", "GPL-3.0", uuidA)
+	})
 }
 
 // TestNpmDeps_urlImportFails is fix round 1, review M4: a URL import loads at
