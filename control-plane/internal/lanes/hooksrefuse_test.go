@@ -76,6 +76,13 @@ func refuseRows() []refuseRow {
 			},
 			check: unchanged(".githooks/x", "feat\n")},
 		gitHooks(".git/hooks"), gitHooks(".GIT/hooks"), gitHooks(".git./hooks"),
+		// The clone has .git/hooks, so its not-exist guard also holds the rows above. Here the
+		// clone lacks .git/custom. Task 03's M22x (no trailing-dot trim, no SameFile walk) still
+		// passes this row: Win32 appears to strip trailing dots from a path's last component only,
+		// so an inner `.git.` names no directory (the likely mechanism, not probed directly).
+		{name: ".git./custom, which the clone lacks", rel: ".git./custom",
+			before: func(t *testing.T, p *gitxtest.Repo) { huskyFiles(t, filepath.Join(p.Dir, ".git", "custom"), 1, 4) },
+			check:  absent(".git/custom")},
 		{name: "husky a directory link", rel: ".husky/_",
 			before: func(t *testing.T, p *gitxtest.Repo) {
 				outside := t.TempDir()

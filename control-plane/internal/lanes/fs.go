@@ -17,8 +17,11 @@ import (
 // makes, moved behind the interface unchanged.
 //   - Exists is os.Lstat: fs.ErrNotExist → (false, false, nil); success → (true, dir, nil),
 //     dir true only for a real directory (Mode().Type() == fs.ModeDir), so a symlink or a
-//     junction is exists and not dir (Go 1.23+ reports a junction as ModeDir|ModeIrregular, so
-//     IsDir() alone would call it a directory); any other error is returned;
+//     junction is exists and not dir. For those two IsDir() already answers false: Go sets no
+//     ModeDir on a name-surrogate reparse point (os/types_windows.go, mode()). Type() == ModeDir
+//     also refuses a directory Go marks irregular, a reparse point that is not a name
+//     surrogate; the mutant IsDir() survives every row here, equivalent on this machine's
+//     fixtures (task 03 M20); any other error is returned;
 //   - RemoveTree is RemoveTree(root, path);
 //   - CopyGeneratedHooks is the copy half of lanes.CopyGeneratedHooks: the `.git`-segment
 //     refusal again (env task 21's copy-hooks route serves through LocalFS, so it inherits it),
