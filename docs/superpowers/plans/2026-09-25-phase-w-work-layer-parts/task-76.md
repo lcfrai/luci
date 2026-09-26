@@ -49,8 +49,9 @@ reservation's uniqueness is the brief's own index (one live branch brief per `(p
 branchRef)`, `hub-contract.md:760`). Task 74's `features` unique `(project_id, branch_ref)` is
 then a second copy this task never reads; see *Corrections to the scope*.
 
-**(d) The slug rule on an AU-only project.** 04 §5.2 keeps titles out of trailers and branch
-names where the data must stay in Australia. A **word** is a run of 3 or more `[a-z0-9]` in the
+**(d) The slug rule on an AU-only project.** Q8 (`05-design.md:1374`, from 04 §5.2
+`04-internal-fit.md:432-433`) keeps title words out of an AU-only project's branch names, because
+an erase cannot reach a branch name on a customer's remote. A **word** is a run of 3 or more `[a-z0-9]` in the
 lower-cased feature name (and, for *promote*, the issue's title). On an AU-only project a slug any
 of whose `-`-separated parts equals a word is 422 `slug_invalid`, `details.slug`, message *"AU
 projects keep names out of branches. Try feature-12."* The project's class is read through
@@ -67,3 +68,89 @@ creator.
 derives them. What the lanes did (live, landed, released where) is **derived at read time** by the
 desktop from the feature's child issues (task 85), and no such field exists on the wire (task 72's
 `Feature` has none), so none can be stored.
+
+**Files:**
+
+| Path | Change |
+|---|---|
+| `control-plane/internal/hub/store/work_features.go` | new: insert, read, list, patch, the child link, the class read |
+| `control-plane/internal/hub/server/work_features.go` | new: the six routes, the reservation and *promote* |
+| `control-plane/internal/hub/server/work_features_integration_test.go` | new: the tests below |
+| `control-plane/internal/hub/hubapi/work_events.go` ⚑ (task 13's) | four kinds and their data structs |
+| `control-plane/internal/hub/server/work_matrix_rows_integration_test.go` ⚑ (task 07's) | `workMatrixRows["76"]`; `"76"` in `workMatrixLive` |
+| `control-plane/internal/hub/server/matrix_integration_test.go` ⚑ (H16b's) | the fixture gains `FeatureID`, one feature made in the fixture build |
+| `control-plane/internal/hub/server/server.go` ⚑ | one line: `s.registerWorkFeatures(mux)` |
+| `control-plane/internal/workstart/start.go` ⚑ (task 24's) | the one-line delta: a lane name equal to a reserved feature slug is refused |
+
+#### The wire (routes and bodies; the records are task 72's)
+
+```text
+POST  /v1/projects/{projectId}/features   member  201 Feature           CreateFeatureRequest
+GET   /v1/projects/{projectId}/features   viewer  200 Page[Feature]     ?state=&includeCancelled=false&cursor=
+GET   /v1/features/{featureId}            viewer  200 Feature
+PATCH /v1/features/{featureId}            member  200 Feature           PatchFeatureRequest
+PUT   /v1/issues/{issueId}/feature        member  200 IssueHead         SetFeatureRequest
+POST  /v1/issues/{issueId}/promote        member  201 PromoteResult     PromoteToFeatureRequest
+```
+
+```go
+// Task 72's block 6 declares these ("one create/patch body per record", its scope). They are
+// shown so this part stands alone; where task 72 spells a field differently, task 72 wins.
+type CreateFeatureRequest struct {
+	Name       string   `json:"name"`                 // 1-80 characters, no control characters
+	Slug       string   `json:"slug"`                 // FeatureBranchRef(slug) must be ok
+	LeadID     string   `json:"leadId,omitempty"`     // u-…; "" is the creator
+	TargetDate *string  `json:"targetDate,omitempty"` // ValidDate
+	Priority   Priority `json:"priority,omitempty"`   // "" is none
+	Labels     []string `json:"labels,omitempty"`     // live labels of the team
+}
+
+// PatchFeatureRequest: tri-state fields (task 72 decision (d)). Absent keeps; null clears
+// where a field may be empty (targetDate only); a value sets. Name, lead and state cannot clear.
+type PatchFeatureRequest struct {
+	Name       json.RawMessage `json:"name,omitempty"`
+	LeadID     json.RawMessage `json:"leadId,omitempty"`
+	TargetDate json.RawMessage `json:"targetDate,omitempty"`
+	State      json.RawMessage `json:"state,omitempty"`
+	Priority   json.RawMessage `json:"priority,omitempty"`
+	Labels     json.RawMessage `json:"labels,omitempty"` // the whole list
+}
+
+type SetFeatureRequest struct {
+	FeatureID *string `json:"featureId"` // ft-… of the issue's project; null clears
+}
+
+type PromoteToFeatureRequest struct {
+	Name string `json:"name"` // "" takes the issue's title, cut to 80 characters
+	Slug string `json:"slug"`
+}
+```
+
+A worked example, EP-142 promoted in a Global project:
+
+```json
+{"name": "Resumable uploads", "slug": "resumable-uploads"}
+```
+
+answers 201 with `feature.branchRef: "refs/heads/resumable-uploads"`, `feature.briefId` a new
+`bf-…` at `headRevision: 0`, `feature.lead` the promoter, `feature.state: "planned"`, and
+`issue.featureId` the new `ft-…`, with `issue.revision` unchanged.
+
+Refusals, in the order checked:
+
+| Condition | Answer |
+|---|---|
+| a slug `FeatureBranchRef` refuses (upper case, a `/`, over 63 characters) | 422 `slug_invalid`, `details.slug` |
+| an AU-only project (or a class unreadable) and a slug sharing a word with the name or title | 422 `slug_invalid`, `details.slug` (decision (d)) |
+| a live brief already on `refs/heads/<slug>` | 409 `brief_exists`, `details.briefId` the live one (the Hub's code) |
+| a lead not a member or admin of the team | 422 `bad_request`, `details.field: "leadId"` |
+| a `targetDate` with a time, or not a day | 422 `date_invalid`, `details.field: "targetDate"` |
+| a label not live in the team | 422 `label_unavailable`, `details.field: "labels[n]"` (task 11's code) |
+| a `PATCH` naming `lanesLive`, `landed`, `released` or any other key | 400 `bad_request`, `details.field` that key (strict decode) |
+| `SetFeatureRequest` naming another project's feature, or one `cancelled` | 404 `feature_not_found` / 422 `bad_request` `field: "featureId"` |
+| *promote* on an issue that already has a `featureId` | 422 `bad_request`, `details.field: "featureId"`, *"EP-142 is already in Resumable uploads."* |
+| *promote* on an issue that is `done`, `cancelled` or `duplicate` | 422 `bad_request`, `details.field: "state"` (a closed issue starts nothing) |
+
+The two *promote* refusals are decisions: a second promote would make an issue the first child of
+two features, and a closed issue has no work left to plan. Neither has its own code in task 72,
+so both use `bad_request` with the field, the Hub's idiom for a body a person can correct.
