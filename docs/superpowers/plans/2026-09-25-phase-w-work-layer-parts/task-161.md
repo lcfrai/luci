@@ -385,3 +385,76 @@ high`, then each text field as a fenced block whose info string is `text·H Priy
 No field of the result holds the alias as an identifier (skeleton rule 1), and no line holds a
 count of total, a percentage or an estimate (OD-27). A Hub `*hubapi.Error` becomes `isError: true`
 with `"<code>: <message>"`, never a JSON-RPC error, so the client's model sees why.
+
+#### The wire — proposed for task 143's `hubapi/work_intake.go` (complete; task 143 wins on names)
+
+```go
+// MCPConnector is one allowed connector, keyed by its normalised https URL
+// (no id prefix: task 161's scope; task 143's scope proposed mc-, gap 7).
+// Present means allowed. It holds no credential of any kind (decision 9).
+type MCPConnector struct {
+	URL       string    `json:"url"`
+	Name      string    `json:"name"`      // 1-80 characters, display only
+	AllowedBy User      `json:"allowedBy"` // hub-contract §3's User
+	AllowedAt time.Time `json:"allowedAt"`
+}
+
+type PutMCPConnectorRequest struct {
+	URL  string `json:"url"`
+	Name string `json:"name"`
+}
+
+// NormaliseConnectorURL returns the key, or CodeConnectorURLInvalid (422,
+// details.why) for: a scheme other than https ("scheme"); userinfo
+// ("credentials": a credential never enters the Hub); a query or fragment
+// ("query", which can carry a token); an empty host or a bare IP
+// literal ("host"); more than 2048 bytes ("length"). It lowercases the scheme and
+// host, drops ":443", and drops one trailing "/" on a non-root path.
+func NormaliseConnectorURL(raw string) (string, error)
+
+const CodeConnectorURLInvalid = "connector_url_invalid" // 422; appended to task 143's codes
+
+// Event kinds (task 13's W1 list is untouched; these are W5's, task 169's W5_FEED_KINDS):
+const (
+	EventMCPConnectorAllowed = "work.mcp_connector_allowed" // data {url}
+	EventMCPConnectorRemoved = "work.mcp_connector_removed" // data {url}
+)
+```
+
+`hubclient.WorkIntake` gains `MCPConnectors(ctx) ([]hubapi.MCPConnector, error)`,
+`AllowMCPConnector(ctx, req) (hubapi.MCPConnector, error)` and `RemoveMCPConnector(ctx, url)
+error`, the names task 169's desktop mirror uses (`task-169.md:408-410`, `:479-481`). Task 143's
+scope names `DecideMCPConnector` and `ListMCPConnectors` instead (`tasks-141-160.md:181-182`);
+gap 7.
+
+#### The migration — `migrate/sql/NNNN_work_mcp_connectors.sql` (complete)
+
+```sql
+-- Task 161. NNNN is the next free number at sync time (rule H1).
+CREATE TABLE work_mcp_connectors (
+  org_id      text        NOT NULL REFERENCES orgs(id),
+  url         text        NOT NULL CHECK (url LIKE 'https://%' AND length(url) <= 2048),
+  name        text        NOT NULL CHECK (length(name) BETWEEN 1 AND 80),
+  allowed_by  text        NOT NULL REFERENCES users(id),
+  allowed_at  timestamptz NOT NULL DEFAULT now(),
+  removed_by  text        REFERENCES users(id),
+  removed_at  timestamptz,
+  CHECK ((removed_by IS NULL) = (removed_at IS NULL))
+);
+-- One live row per URL; a removed URL may be allowed again as a new row.
+CREATE UNIQUE INDEX work_mcp_connectors_live ON work_mcp_connectors (org_id, url)
+  WHERE removed_at IS NULL;
+
+ALTER TABLE work_mcp_connectors ENABLE ROW LEVEL SECURITY;
+CREATE POLICY org_isolation ON work_mcp_connectors TO hub_app
+  USING (org_id = current_setting('hub.org_id', true))
+  WITH CHECK (org_id = current_setting('hub.org_id', true));
+
+-- Removal is a stamp, never a DELETE; only the two removal columns may change.
+GRANT SELECT, INSERT ON work_mcp_connectors TO hub_app;
+GRANT UPDATE (name, removed_by, removed_at) ON work_mcp_connectors TO hub_app;
+```
+
+`orgs(id)` and `users(id)` are 0001's tables (`hub-contract.md` §10.2, `:1459`); their exact
+column names are **UNVERIFIED** at the sync base and follow the Hub's file. The RLS policy is task
+116's form (`task-116.md:324-327`).
