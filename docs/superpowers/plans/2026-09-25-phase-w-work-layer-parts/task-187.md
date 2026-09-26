@@ -356,7 +356,8 @@ describe("WL sweep: no prediction on any WL surface (OD-27)", () => {
     const src = ["Dashboards", "DashboardView", "DashboardBlock"]
       .map((n) => readFileSync(resolve(SRC, `components/roadmap/${n}.tsx`), "utf8"))
       .join("\n");
-    expect(src).not.toMatch(/forecast|projected|burn-?up|on track|ETA|<meter/i);
+    // Word-bounded, so "details" or "metadata" never trips the "eta" guard.
+    expect(src).not.toMatch(/\b(forecast|projected|burn-?up|on track|eta)\b|<meter/i);
   });
 });
 ```
@@ -377,3 +378,60 @@ and the recommended answer is *measured counts only* (decision 4), so a forecast
 | `check-ledger.sh` on `ledger-hidden-row.md` exits 1 | a row with no closer quietly left out (decision 5) |
 | `check-ledger.sh` on `ledger-wrong-verdict.md` exits 1 | a SKIP re-filed as a close |
 | the ledger's counts line recomputed | 05's forecast of 188 typed in instead of counted |
+
+#### Steps
+
+- [ ] **Step 1: read on the sync base** parts 175-186 and their code. Re-derive the twelve rows
+  (decision 2) and the four clauses; fill each *test* cell above with the name the built test
+  carries, and correct any line number that moved. Read tasks 70's and 174's sections and keep
+  WL's in the same shape.
+- [ ] **Step 2: the tests first.** `wlSweep.test.tsx`, then `check-wl.sh` and `check-ledger.sh`
+  with their five fixtures. `npm --prefix desktop test -- test/wlSweep` fails until every WL
+  surface exists; each check exits 1 on its failing fixture.
+- [ ] **Step 3: name the environment** (decision 1): bring up the local Hub stack through
+  `devissuer` and the fakes 178 and 182-185 define, and record the Hub, control plane and desktop
+  commits in the lead line.
+- [ ] **Step 4: run each row's and each clause's test** with the command its part gives, and fill
+  *The rows* and *The clauses*, quoting the result line. Shorten with `[cut]`, never with `…`.
+- [ ] **Step 5: record Q1** (decision 4) from `docs/superpowers/planning/2026-09-23-owner-decisions.md`
+  or the owner's words; if Q1 is unanswered, write the not-answered line.
+- [ ] **Step 6: run the suites**, with and without `-tags integration`, and each of tasks
+  175-186's *Acceptance* blocks; paste each result line beside its row.
+- [ ] **Step 7: file the ledger.** Start from `coverage.md`'s table (decision 6): one ledger row
+  per map row, *Verdict* and *05 stop* copied from 05 §1. For each row pick the status by the
+  column rules, pulling the test, command, excerpt and commit from sections 70, 97, 113, 142, 174
+  and this one. A row whose closing section is missing its evidence is `gap`, never `closed`.
+  Write *Gaps*, then the counts line, then run `check-ledger.sh` until it exits 0.
+- [ ] **Step 8: list what is still unproven** (decision 8, plus any a part 175-186 names), and
+  show decision 7's surfaces to the owner; record the owner's words, or *not yet shown*.
+- [ ] **Step 9: run the acceptance commands.** Commit the results file, both checks and their
+  fixtures, and the sweep by path, each message ending with the `Co-Authored-By` line.
+
+#### Acceptance
+
+```bash
+bash docs/verification/phase-w/check-wl.sh
+# expect: "WL coverage: 12 rows and 4 clauses, each with a command, an observation and a commit", exit 0
+WL_RESULTS=docs/verification/phase-w/testdata/wl-missing-output.md bash docs/verification/phase-w/check-wl.sh; echo "exit $?"
+# expect: "L-218: 1 empty cell(s)" then "exit 1"
+WL_RESULTS=<(grep -v '^| L-97 |' docs/verification/phase-w/testdata/wl-complete.md) bash docs/verification/phase-w/check-wl.sh; echo "exit $?"
+# expect: "L-97: no row in The clauses" then "exit 1"
+bash docs/verification/phase-w/check-ledger.sh
+# expect: "Ledger: 257 rows, closed <n> · partial <n> · exists <n> · other <n> · skip 27 · gap <n>", exit 0
+W_RESULTS=docs/verification/phase-w/testdata/ledger-hidden-row.md bash docs/verification/phase-w/check-ledger.sh; echo "exit $?"
+# expect: a line "L-209: not in the ledger", then "exit 1"
+W_RESULTS=docs/verification/phase-w/testdata/ledger-wrong-verdict.md bash docs/verification/phase-w/check-ledger.sh; echo "exit $?"
+# expect: "L-62: verdict MATCH, 05 says SKIP" and "L-62: a SKIP row filed as closed", then "exit 1"
+npm --prefix desktop test -- test/wlSweep
+# expect: 14 tests pass (12 surfaces, the once-each check, the dashboard words)
+go test ./control-plane/... -race -count=1 && go test ./control-plane/... -race -count=1 -tags integration
+# expect: ok for every package; no FAIL line
+npm --prefix desktop test && npm --prefix desktop run typecheck
+# expect: every suite passes; exit 0
+grep -cE "^## (WL: |The phase ledger)" docs/verification/2026-09-25-phase-w-results.md
+# expect: 2
+```
+
+The ledger's `<n>` counts are the run's, never typed in advance (decision 5); only `skip 27` and
+the total are known now (`coverage.md:10`). If 05 §1 moves a row, the expected lines move with it
+and the section says why.
