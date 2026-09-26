@@ -813,3 +813,38 @@ go test ./internal/hub/hubclient/ -run 'Test(W5StateIsPerWorld|ActingAsSharesThe
 grep -c 'not_in_fake_yet' internal/hub/hubclient/fake_work_w5.go                                                  # 0
 test ! -e internal/hub/hubclient/fake_work_intake_stub.go && echo deleted                                          # deleted
 ```
+
+The row count is read from `--- PASS` lines under the group, so a skipped row is not a pass.
+**Expected, not observed**: none of these commands has run; the tree holds no W5 code on
+2026-09-26 (OD-27: proof per criterion, no predictions).
+
+#### What this task does NOT claim
+
+- That the real Hub passes these rows: task 168 runs them there, through the HTTP client.
+- That the SQL guard matches the fake's: task 145 writes it, and task 168's run is the check.
+- That any W5 route exists: each route task (146-167) registers its own handler on this seam.
+- That `SubmitForm`'s page, CSRF or session work: that is task 148's and task 80's, and the fake
+  models only what a submission creates.
+- That a loop's grid is Phase T's real record: `w.agentGrid` is **UNVERIFIED**.
+- Any parity row: this task closes none.
+
+#### Gaps found while writing this part
+
+1. **The file name.** Task 05 owns `fake_work_intake.go` (`task-05.md:76`, `:961`), so this
+   task's file is `fake_work_w5.go`. Task 169 reads *"task 144's `fake_work_intake.go`"* by path to
+   extract the kinds (`task-169.md:32`, `:562`, `:766`) and must be re-pointed, or it reads task
+   05's import kinds and passes wrongly.
+2. **The outside causes had no Go declaration.** Task 154 uses `hubapi.CauseOutsidePR`,
+   `CauseOutsideMerge` and `ActorKindHost` (`task-154.md:711-728`); task 143 declares none of the
+   causes and names the kind `ActorHost`. This part appends the three causes to `hubapi/work.go`;
+   task 154 should read `hubapi.ActorHost`. The skeleton's row for 144 does not list the touch.
+3. **A Phase H file is touched.** The key gate is one line in H's `fake.go` `enter`, the only way
+   a revoked key is refused on a W1-W4 read. By rule H1 that line belongs in a Hub delta task with
+   the sync-merge rule; the skeleton has none for W5's fake.
+4. **Rules carry no `position` and no author.** The scope says *"`position` order"* and *"the
+   rule's author"*; task 147 orders by list index and records the writer on the set
+   (`task-147.md:130-144`), so the row asserts list order and `set.writtenBy`.
+5. **No `WorkIntake` method submits a form** (it is a page route), so `WorkEnv.SubmitForm` is the
+   seam; task 168 must post the page with a session for W5-06 and W5-07.
+6. **`harness.Catalogue()` returns `[]Descriptor`**, not ids (`harness.go:216`, checked), so
+   `ValidateTeamAgentPolicy`'s `catalogue []string` needs the map shown above.
