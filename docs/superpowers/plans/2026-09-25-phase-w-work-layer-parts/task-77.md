@@ -1,0 +1,85 @@
+### Task 77: cycles `cy-`: cadence, the janitor's creation and rollover, scope log, iCal; closure proposals and archive
+
+**Slice:** W2. **Size:** 3 focused hours (an estimate, not a measurement; the largest of the W2
+route tasks, and the first to split if it runs over: the iCal feed can go to its own task).
+**Stream:** WH. **dependsOn:** 74, after a sync-merge of `feat/hub` (rule H1). **Seams:** consumes
+**SW.18** (task 72's `Cycle`, `Cadence`, `ScopeEntry`, `ClosureProposal`, `CalendarToken`,
+`TeamPlanPolicy`, `CodeCycleNotFound`, `CodeCycleOverlap`, `CodeProposalNotFound`) and **SW.4**
+(task 10's state move); adds one cause to SW.4's `MoveAllowed`, one field to SW.18's `IssuePlan`,
+and eight event kinds to SW.5, all additive.
+
+A cycle is a team's time box: two weeks, numbered, with a cooldown between. Linear makes them
+automatically, rolls unfinished work into the next, and draws a burn-up graph. We make and roll
+them the same way, with the **janitor** as the only thing that acts on a clock, every act an event
+with `actor: null` that names the policy's author (05 §3.6, `05-design.md:811-812`). We do not draw
+a burn-up: a prediction is banned (AX anti-pattern 2), so the cycle shows a **scope log** of plain
+facts (*3 added on day 4, by Linus*) and the desktop shows convergence per criterion (task 87).
+The same janitor pass **proposes** closing stale issues as one batch on each assignee's Desk rather
+than closing them silently (L-11, AX §7), archives closed work after a while (L-12), and expires
+drafts (L-33).
+
+**Anchors, re-read on 2026-09-26.** In the Hub worktree at `6463e568` (read, not merged here): the
+janitor's contract (`hub-contract.md:2229` onward, §12.5) and Hub task 24's `RunJanitor`, `Sweep`,
+its per-org transaction and its numbered passes 1-4 (`task-24.md:70-111`, Hub plan parts); the Hub
+plan's file row (`2026-09-23-phase-h-hub.md:306`); *no browsers* and bearer-only `/v1`
+(`hub-contract.md:36-39`); roles (`:324-333`). In this branch's parts (**UNVERIFIED until
+merge**): task 72's records (`task-72.md:526-579`), `TeamPlanPolicy` (`:412-418`), `StaleMode`
+(`:168-175`), `ValidDate` (`:285-289`), codes (`:353`, `:357`, `:366`); task 10's route
+(`task-10.md:402-435`); task 13's registry (`task-13.md:250-270`). **Task 74's part is not written
+at this writing**: its `cycles`, `cadences`, `cycle_scope` and `closure_proposals` columns are the
+scope's (`tasks-61-80.md:474-480`), **UNVERIFIED**.
+
+#### Decisions the scope left open, made here
+
+**(a) Dates are UTC calendar days, both ends inclusive**, and "today" is the janitor's
+`cfg.Now()` in UTC. A cycle of `lengthDays: 14` starting Monday 2026-10-05 ends Sunday 2026-10-18;
+with `cooldownDays: 0` the next starts 2026-10-19. A team in Sydney sees its cycle turn at 11:00 or
+10:00 local; per-team time zones are a later refinement, stated in *does not claim*.
+
+**(b) One function makes cycles, called by two callers.** `store.EnsureCyclesAhead(team, today)`
+tops the team up to `ahead` cycles that are `upcoming` or `current`, each numbered `max(number)+1`
+under the org's audit head lock (so numbers are gapless per team, and task 74's unique
+`(team_id, number)` is the second guard). `PUT /cadence` calls it in its own transaction, so the
+admin sees the cycles at once, as the person; the janitor calls it every sweep, as `null`. The
+first cycle made is the first whose `endsOn ≥ today` in the cadence's phase from `firstStartsOn`,
+so a past `firstStartsOn` aligns the phase and makes no cycles in the past.
+
+**(c) A cadence change keeps every cycle an issue references.** `PUT /cadence` deletes, highest
+number first, the `upcoming` cycles that no issue head references and that have not started, and
+stops at the first one that is referenced (a suffix only, so numbers stay gapless); then
+`EnsureCyclesAhead` re-makes them from the new cadence. Referenced cycles keep their dates; an admin
+moves them by `PATCH`. `lengthDays: 0` turns cycles off: no new ones are made, existing ones run
+out.
+
+**(d) The janitor's state walk.** Each sweep, per team, in order: `upcoming` → `current` when
+`startsOn ≤ today`; `current` → `closed` when `endsOn < today`, then the rollover; then
+`EnsureCyclesAhead`. During a cooldown no cycle is `current`. A cycle is `current` for exactly its
+own dates; there is at most one, because a `PATCH` may not overlap (`422 cycle_overlap`).
+
+**(e) Rollover** (L-60). At closing, every issue head in the cycle whose state is not `done`,
+`cancelled` or `duplicate` moves to the next cycle by number (the lowest `upcoming`), or to none
+when there is none (cycles turned off). One `issue.cycle_set {from, to, rollover: true}` event
+**per issue**, `actor: null`, and one `ScopeEntry` `removed` on the closing cycle with `by: null`
+(task 72's `ScopeEntry.By` comment). No entry is written on the next cycle, which has not started.
+
+**(f) Stale issues** (L-11). An issue is **stale** when its state is `triage`, `backlog` or `todo`
+(never a fact state: live work is not stale), the team's `staleAfterDays > 0`, and the later of
+its `updated_at` and the `answered_at` of the last proposal naming it is older than that many
+days. So a person who answers *keep* is not asked again for another full period, with no extra
+column. `staleMode: propose`: at most **one open proposal per (team, assignee)**; an assignee who
+has one open gets nothing new until they answer it. Unassigned stale issues go to the policy's
+author. `staleMode: auto`: the janitor moves each to `cancelled` with cause `stale_policy` (the new
+cause), reason *"untouched for 90 days; policy set by Grace"*, `actor: null`.
+
+**(g) Answering closes the named ids only, as the assignee.** `AnswerClosureRequest{close}` must
+be a subset of the proposal's `issueIds` (else 422 `bad_request`, `field: "close[n]"`). Each named
+issue still stale-eligible (open, not moved since) is moved to `cancelled` by task 10's route
+logic with cause `hand` and reason *"closed from a stale proposal"*, **written as the assignee**;
+an issue that moved in the meantime is skipped and absent from `closed`. `close: []` is a valid
+*keep all*. A proposal is answered once; a second answer is 409 `state_conflict` (task 10's code).
+
+**(h) Archive** (L-12). The janitor sets `archived_at` on an issue head that has been `done`,
+`cancelled` or `duplicate` for `archiveAfterDays` (0: never). Archived issues leave the default
+lists (task 08's list gains `includeArchived`, default false) and **stay searchable** (task 12's
+search ignores `archived_at`). A reopen clears it. This needs `issue_heads.archived_at` and
+`IssuePlan.ArchivedAt`, neither in task 72 or task 74's scope: both are added here, additively.
