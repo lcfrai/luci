@@ -527,7 +527,8 @@ func (s *Server) registerWorkWebhooks(mux *http.ServeMux) {
 // → 201 CreatedWebhook; "secret" is 32 bytes, base64url, shown once and never again
 { "webhook": { "id": "wh-…", "teamId": "tm-…", "projectId": "pj-…",
     "url": "https://hooks.example.com/panacea", "kinds": ["issue.state", "issue.updated"],
-    "state": "active", "createdBy": "u-…", "secretVersion": 1 },
+    "state": "active", "createdBy": { "id": "u-…", "displayName": "Ada", "email": "…" },
+    "secretVersion": 1 },
   "secret": "Q2h…" }
 // url not https, with user info, or resolving to a refused address → 400 webhook_url_invalid
 // kinds empty, over 64, or naming a kind outside hubapi.WebhookKinds() → 400 bad_request, field kinds
@@ -539,7 +540,7 @@ func (s *Server) registerWorkWebhooks(mux *http.ServeMux) {
 // POST /v1/webhooks/wh-…/rotate {}  → 200 CreatedWebhook, secretVersion n+1, the new secret once
 // GET /v1/webhooks/wh-…/deliveries?after=&limit=
 //   → 200 Page[WebhookDelivery], newest first, one item per attempt row:
-{ "items": [ { "id": "wd-…", "webhookId": "wh-…", "eventSeq": 4812, "attempt": 2,
+{ "items": [ { "id": "wd-…", "webhookId": "wh-…", "eventSeq": "4812", "attempt": 2,
     "status": "pending", "responseCode": 500, "at": "2026-09-26T03:10:00Z",
     "nextAttemptAt": "2026-09-26T03:15:00Z" } ], "next": "…" }
 // POST /v1/webhook-deliveries/wd-…/redeliver {} → 202 WebhookDelivery (the new queued row);
@@ -641,7 +642,7 @@ fake clock.
 | `TestPriorityChangeCarriesThePreviousValue` | patch priority `low` → `high` → the delivered `data` has `fields` naming priority, `priority: "high"`, `priorityPrev: "low"`; a title change delivers `fields` naming title and no value of it | no previous values; a title valued |
 | `TestRetriesThenFails` | the receiver answers 500; sweeps at +0, +1 m, +6 m, +36 m, +2 h 36 m, +8 h 36 m → six attempt rows, statuses five `pending` then `failed`; a sweep at +1 day sends nothing | no retry; retry forever |
 | `TestTwentyFailuresDisableAndInform` | 20 events, receiver 500 → after the 20th failed attempt the webhook is `disabled`, one `webhook.disabled {reason: "failures"}` in Ada's `/v1/changes`; the next sweep sends nothing | a dead endpoint drained forever |
-| `TestSSRFRefusedAtCreateAndDelivery` | create with `https://10.0.0.5/` → 400 `webhook_url_invalid`; a row whose `url` is set, as the table owner, to `https://169.254.169.254/` (standing for a name that has since rebound inward; the create check passed earlier) → the attempt records `responseCode 0`, `pending`, and the test's listener on that path saw no connection | SSRF |
+| `TestSSRFRefusedAtCreateAndDelivery` | create with `https://10.0.0.5/` → 400 `webhook_url_invalid`; a row whose `url` is set, as the table owner, to `https://169.254.169.254/` (standing for a name that has since rebound inward; the create check passed earlier) → the attempt records `responseCode: null` (the store's 0, task 143's `*int`), `pending`, and the test's listener on that path saw no connection | SSRF |
 | `TestUnreadableProjectNeverDelivered` | a team webhook with no `projectId`; an event in a project of another team Ada is not in → never queued | readability skipped |
 | `TestCreatorDemotedDisables` | Ada demoted to member → the next sweep disables with `creator_not_admin`, sends nothing | a webhook outliving its admin |
 | `TestTwoReplicasDeliverOnce` | two `Sweep` calls on two pools at once → each event's delivery has exactly one attempt-1 row, and the receiver saw it once | double delivery |
