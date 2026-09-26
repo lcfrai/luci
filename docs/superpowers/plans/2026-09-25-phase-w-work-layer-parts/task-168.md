@@ -585,3 +585,118 @@ func intakeCalls() map[string]workCall {
 			return w.ListTrackerLinks(c, p("connectionId"), pg)
 		}),
 ```
+
+```go
+// control-plane/internal/api/work.go ⚑ (continued) — part 2, inside intakeCalls' map
+		// 162-163: loops
+		"CreateLoop": inb(func(c cx, w hubclient.Work, p pv, b hubapi.CreateLoopRequest) (any, error) {
+			return w.CreateLoop(c, p("projectId"), b)
+		}),
+		"ProjectLoops": in0(func(c cx, w hubclient.Work, p pv, _ url.Values) (any, error) {
+			return items(w.ProjectLoops(c, p("projectId")))
+		}),
+		"GetLoop": in0(func(c cx, w hubclient.Work, p pv, _ url.Values) (any, error) {
+			return w.GetLoop(c, p("loopId"))
+		}),
+		"SetLoopState": inb(func(c cx, w hubclient.Work, p pv, b hubapi.SetLoopStateRequest) (any, error) {
+			return w.SetLoopState(c, p("loopId"), b)
+		}),
+		"PutLoopVersion": inb(func(c cx, w hubclient.Work, p pv, b hubapi.LoopVersionBody) (any, error) {
+			return w.PutLoopVersion(c, p("loopId"), b)
+		}),
+		"ListLoopVersions": in0(func(c cx, w hubclient.Work, p pv, _ url.Values) (any, error) {
+			return items(w.ListLoopVersions(c, p("loopId")))
+		}),
+		"ListLoopRuns": paged(func(c cx, w hubclient.Work, p pv, pg hubapi.PageRequest) (any, error) {
+			return w.ListLoopRuns(c, p("loopId"), pg)
+		}),
+		// The body's requestId is the key; the desktop sends the header with the same value (169).
+		"RunLoopNow": inb(func(c cx, w hubclient.Work, p pv, b hubapi.RunLoopNowRequest) (any, error) {
+			return w.RunLoopNow(hubclient.WithIdempotencyKey(c, b.RequestID), p("loopId"))
+		}),
+		// 159-160: apps and keys
+		"ListApps": in0(func(c cx, w hubclient.Work, _ pv, _ url.Values) (any, error) {
+			return items(w.ListApps(c))
+		}),
+		"DecideApp": inb(func(c cx, w hubclient.Work, p pv, b hubapi.DecideAppRequest) (any, error) {
+			return w.DecideApp(c, p("appId"), b)
+		}),
+		"CreatePersonalKey": inb(func(c cx, w hubclient.Work, _ pv, b hubapi.CreateAPIKeyRequest) (any, error) {
+			return w.CreateAPIKey(c, nil, b) // 201 CreatedAPIKey: the secret, once (decision 6)
+		}),
+		"CreateTeamKey": inb(func(c cx, w hubclient.Work, p pv, b hubapi.CreateAPIKeyRequest) (any, error) {
+			return w.CreateAPIKey(c, ptr(p("teamId")), b)
+		}),
+		"MyKeys": in0(func(c cx, w hubclient.Work, _ pv, _ url.Values) (any, error) {
+			return items(w.ListAPIKeys(c, nil))
+		}),
+		"TeamKeys": in0(func(c cx, w hubclient.Work, p pv, _ url.Values) (any, error) {
+			return items(w.ListAPIKeys(c, ptr(p("teamId"))))
+		}),
+		"RevokeAPIKey": inb(func(c cx, w hubclient.Work, p pv, _ empty) (any, error) {
+			return w.RevokeAPIKey(c, p("keyId"))
+		}),
+```
+
+```go
+// control-plane/internal/api/work.go ⚑ (continued) — part 3, the rest of the map
+		// 156: webhooks
+		"CreateWebhook": inb(func(c cx, w hubclient.Work, p pv, b hubapi.CreateWebhookRequest) (any, error) {
+			return w.CreateWebhook(c, p("teamId"), b) // 201 CreatedWebhook: the secret, once
+		}),
+		"ListWebhooks": in0(func(c cx, w hubclient.Work, p pv, _ url.Values) (any, error) {
+			return items(w.ListWebhooks(c, p("teamId")))
+		}),
+		"DisableWebhook": inb(func(c cx, w hubclient.Work, p pv, _ empty) (any, error) {
+			return w.DisableWebhook(c, p("webhookId"))
+		}),
+		"RotateWebhookSecret": inb(func(c cx, w hubclient.Work, p pv, _ empty) (any, error) {
+			return w.RotateWebhookSecret(c, p("webhookId"))
+		}),
+		"ListDeliveries": paged(func(c cx, w hubclient.Work, p pv, pg hubapi.PageRequest) (any, error) {
+			return w.ListDeliveries(c, p("webhookId"), pg)
+		}),
+		"Redeliver": inb(func(c cx, w hubclient.Work, p pv, _ empty) (any, error) {
+			return w.Redeliver(c, p("deliveryId"))
+		}),
+		// 161: MCP connectors; the DELETE names its connector by ?url=
+		"ListMCPConnectors": in0(func(c cx, w hubclient.Work, _ pv, _ url.Values) (any, error) {
+			return items(w.ListMCPConnectors(c))
+		}),
+		"PutMCPConnector": inb(func(c cx, w hubclient.Work, _ pv, b hubapi.PutConnectorRequest) (any, error) {
+			return w.PutMCPConnector(c, b)
+		}),
+		"DeleteMCPConnector": in0(func(c cx, w hubclient.Work, _ pv, q url.Values) (any, error) {
+			u := q.Get("url")
+			if u == "" || len(q) != 1 {
+				return nil, &hubclient.FieldError{Field: "url", Reason: "exactly one url is required"}
+			}
+			return emptyAnswer, w.DeleteMCPConnector(c, u) // task 124's emptyAnswer
+		}),
+		// 166: the team's agent policy
+		"GetTeamAgentPolicy": in0(func(c cx, w hubclient.Work, p pv, _ url.Values) (any, error) {
+			return w.GetTeamAgentPolicy(c, p("teamId"))
+		}),
+		"PutTeamAgentPolicy": inb(func(c cx, w hubclient.Work, p pv, b hubapi.PutTeamAgentPolicyRequest) (any, error) {
+			return w.PutTeamAgentPolicy(c, p("teamId"), hubapi.TeamAgentPolicy{Harnesses: b.Harnesses, Skills: b.Skills})
+		}),
+	}
+}
+```
+
+```go
+// control-plane/internal/api/work.go ⚑ — in registerWork, after task 124's merge loop
+	for name, call := range intakeCalls() {
+		if _, dup := calls[name]; dup {
+			panic("api: relay handler " + name + " defined twice")
+		}
+		calls[name] = call
+	}
+```
+
+**Counted:** the map holds 44 entries, one per `WorkIntakeRoutes` row; `registerWork`'s existing
+panics (task 16) catch a 43 or a 45. `DeleteMCPConnector` refuses `?url=a&url=b` and any second
+parameter before the Hub is called, so one relay call removes at most one connector. The strict
+`inb` on the four no-body `POST`s (`RevokeAPIKey`, `DisableWebhook`, `RotateWebhookSecret`,
+`Redeliver`) means `{}` or no body is accepted and `{"x":1}` is 400 (task 16's `body`,
+`task-16.md:567`; that an empty body decodes as `empty` is **UNVERIFIED** there, gap 8).
