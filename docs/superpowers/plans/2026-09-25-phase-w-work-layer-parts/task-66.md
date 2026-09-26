@@ -474,3 +474,88 @@ describe("the accessibility floor", () => {
 `w.withIssues` and `h.issueIdAt` are the one builder this file needs from task 40's world
 (`task-40.md:896` builds 500 issues through `h.update`); their names are **UNVERIFIED** and the
 test takes whatever task 40 exports.
+
+#### Tests to write first, part 3 — the guard and `StatusDot`
+
+```tsx
+// a11y.floor.test.tsx, continued — decision 1's guard.
+const sources = import.meta.glob("/src/**/*.tsx", { query: "?raw", import: "default", eager: true }) as Record<string, string>;
+const REGION = /aria-live|role=["{]\s*["']?(status|alert|log)\b/;
+
+it("no source but LiveRegion.tsx makes a live region", () => {
+  const offenders = Object.entries(sources)
+    .filter(([path, text]) => !path.endsWith("/LiveRegion.tsx") && !path.includes(".test.") && REGION.test(text))
+    .map(([path]) => path);
+  expect(offenders).toEqual([]);
+  // mutant: Toasts.tsx keeps aria-live="polite" (or any later part adds role="status")
+});
+```
+
+```tsx
+// StatusDot.test.tsx ⚑ — one case beside phase 2's.
+it("decorative: hidden, no role, no label, no title", () => {
+  const { container } = render(<StatusDot status="running" live label="running" decorative />);
+  const dot = container.firstElementChild!;
+  expect(dot.getAttribute("aria-hidden")).toBe("true");
+  expect(dot.hasAttribute("role") || dot.hasAttribute("aria-label") || dot.hasAttribute("title")).toBe(false);
+  // mutant: decorative adds aria-hidden but keeps role="img"
+});
+```
+
+That makes 12 cases: 5 in `LiveRegion.test.tsx` (the four pure ones above, and one render case:
+the element says the same text twice when it is announced twice, cleared and then set on the next
+frame; mutant: the second is swallowed), 6 in `a11y.floor.test.tsx`, and 1 in `StatusDot.test.tsx`.
+
+#### Steps
+
+- [ ] Write `LiveRegion.test.tsx`; it fails to import. Write part 1 (`createAnnouncer`) until the
+      four pure cases pass. Mutants, one at a time, then revert: speak every digest; route answers
+      through the window; drop the key check for answers; flush each held text.
+- [ ] Write part 2 (`LiveRegion`, the hooks, `<Said>`) and the fifth case; add `.sr-only`.
+- [ ] Write the guard test. It fails, naming `Toasts.tsx` and `RailFooter.tsx` and every W1 file
+      listed in the conversion table that has landed. Convert each, one commit per file.
+- [ ] Add `decorative` and its test; pass it where a STATE word sits beside the dot.
+- [ ] Add the grid roles to the Work list, Triage, the board and the Desk; write the shell and
+      fixture cases. Mutants: count mounted rows in `aria-rowcount`; leave `role="img"` on a
+      decorative dot; drop the `line` skip from `rowIndex`.
+- [ ] Tasks 40-43, 46, 52, 54, 56 and 61-65's suites still pass (none asserts `role="status"`:
+      check each with the grep below before starting; a test that does moves to `<Said>`'s spy).
+
+#### Acceptance
+
+```bash
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop test -- src/components/common/LiveRegion.test.tsx src/a11y.floor.test.tsx src/components/common/StatusDot.test.tsx'
+# expected: 3 files, 12 new cases passing, and phase 2's StatusDot cases still passing
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop test'
+# expected: every suite passing
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop run typecheck'
+# expected: exit 0
+~/.claude/tools/claudezsh/claudezsh 'grep -rlE "aria-live|role=.(status|alert|log)" desktop/src --include=*.tsx'
+# expected: exactly desktop/src/components/common/LiveRegion.tsx (and test files that assert absence)
+```
+
+#### What this task does NOT claim
+
+- **A screen-reader test with a real reader.** NVDA or Narrator, run by the owner, is
+  **UNVERIFIED**; jsdom proves the tree and the timing, not what a reader says.
+- **WCAG conformance**, and `forced-colors` (05 §4.4 rule 4, task 34's).
+- **Roving focus**: tasks 53 and 62 own the cursor; this task sets roles only.
+- **The undo pause**: task 56 built and tests it; this task adds its voice and checks its digits
+  are hidden.
+- **Parity**: no row closes here alone; it is the floor under L-101, L-113, L-225 and L-36's pause.
+
+#### Gaps found while writing this part
+
+1. The skeleton's file map (`:312`) lists only `LiveRegion.tsx` for task 66; it omits
+   `Toasts.tsx`, `RailFooter.tsx`, `StatusDot.tsx`, `common.css`, `a11y.floor.test.tsx` and the
+   grid and region edits in tasks 40-43, 46, 52, 61, 62 and 65's files.
+2. `RailFooter.tsx:19`'s `role="status"` is a third region on the tree today that the scope does
+   not name; it is converted here.
+3. W1 parts print `role="status"` or `role="alert"` for inline facts (tasks 43, 46, 52, 61, 62),
+   and W2+ parts do too (109, 110, 130-140, 155). The guard makes each take `<Said>` when it lands;
+   those parts are not edited by this task.
+4. Task 106 imports `useAnnounce` from `../common/LiveRegion` with `(text, key)`
+   (`task-106.md:145`, `:164`); decision 3 exports it in that shape, and the scope's
+   `useLiveRegion().announce(text, kind)` beside it.
+5. Task 40's world builder for "N issues in G groups" has no printed name (`task-40.md:896`
+   describes it); test 4 takes whatever task 40 exports.
