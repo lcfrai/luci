@@ -212,3 +212,94 @@ are never read for it (decision 6), and a source test holds that (test 5).
 `--ink-2`, `--ink-3` and `--mono` are on the tree (`desktop/src/styles/tokens.css:46-47`, `:152`;
 `--mono` becomes Commit Mono under `OD-28` through task 26, and this rule names no family). Task
 26's `--t-fact`, if it lands first, replaces the `font-family` lines with `font: var(--t-fact)`.
+
+#### Tests to write first, part 1 — `desktop/src/provenance/SessionIssueChip.test.tsx`
+
+P4-16's two selectors and task 55's `useWork` are mocked at their module seams, so the test pins
+this task's reading of them and not their internals. `SessionContextChip` is replaced by a marker
+so test 1 can see *beside*. `SessionPaneHeader` takes phase 2's props (`SessionPaneHeader.tsx:16-24`).
+
+```tsx
+import { fireEvent, render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { expectNoPrediction } from "../test/expectNoPrediction";
+import { useCockpit } from "../store/store";
+import { SessionPaneHeader } from "../components/develop/SessionPaneHeader";
+
+const KEY = "issue:is-3f2a91c07b1e4d2a@3";
+let refs: Record<string, unknown> = {};
+let states: Record<string, string> = {};
+let heads: Record<string, { alias: string; headRevision: number }> = {};
+vi.mock("../store/selectors", async (orig) => ({
+  ...(await orig<object>()),
+  selectRef: (k: string) => () => refs[k],
+  selectProvenanceState: (k: string) => () => states[k] ?? "resolving",
+}));
+vi.mock("../work/replica/useWork", () => ({
+  useWork: (sel: (w: unknown) => unknown) => sel({ get: (id: string) => (heads[id] ? { head: heads[id] } : undefined) }),
+}));
+vi.mock("./SessionContextChip", () => ({ SessionContextChip: () => <span data-testid="brief-chip" /> }));
+
+const ref = (over = {}) => ({ key: KEY, kind: "issue", revision: 3, issueId: "is-3f2a91c07b1e4d2a",
+  issueNumber: 142, issueAlias: "EP-142", title: "Resume a session after a restart",
+  serves: [{ briefKey: "brief:bf-1@5", criterionId: "c-40aa" }], ...over });
+const session = (issueRef: string | null) => ({ id: "s-1", status: "running", harness: "claude",
+  title: "t", exitReason: "", issueRef }) as never;
+function mount(issueRef: string | null) {
+  useCockpit.setState({ sessions: { "s-1": session(issueRef) } } as never);
+  return render(<SessionPaneHeader session={session(issueRef)} worktree={undefined} variant="column" />);
+}
+beforeEach(() => { refs = { [KEY]: ref() }; states = { [KEY]: "current" };
+  heads = { "is-3f2a91c07b1e4d2a": { alias: "EP-142", headRevision: 4 } }; });
+
+describe("the issue chip", () => {
+  it("renders EP-142@3 beside the brief chip, after it", () => {
+    const { container } = mount(KEY);
+    const brief = screen.getByTestId("brief-chip");
+    const chip = container.querySelector(".pv-chip-issue")!;
+    expect(chip.querySelector(".pv-chip-key")!.textContent).toBe("EP-142@3");
+    expect(brief.compareDocumentPosition(chip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // mutant: the issue chip replaces the brief chip
+  });
+  it("opens the issue view at @3 while the head is @4, and says so", () => {
+    const openIssue = vi.fn();
+    useCockpit.setState({ openIssue } as never);
+    const { container } = mount(KEY);
+    expect(container.querySelector(".pv-chip-behind")!.textContent).toBe(" · head is @4");
+    fireEvent.click(container.querySelector(".pv-chip-issue")!);
+    expect(openIssue).toHaveBeenCalledWith("is-3f2a91c07b1e4d2a", 3);
+    // mutant: opens the head (revision null or 4)
+  });
+  it("an erased ref says erased and shows no title, and still opens", () => {
+    refs = { [KEY]: ref({ title: "" }) }; states = { [KEY]: "erased" };
+    const { container } = mount(KEY);
+    const chip = container.querySelector(".pv-chip-issue")!;
+    expect(chip.textContent).toContain("erased");
+    expect(chip.textContent).not.toContain("Resume a session");
+    expect(chip.getAttribute("title")).toBe("EP-142@3 was erased");
+    // mutant: a stale cached title in the face or the tooltip
+  });
+  it("a session with no issueRef renders no issue chip and no empty slot", () => {
+    const { container } = mount(null);
+    expect(container.querySelector(".pv-chip-issue")).toBeNull();
+    const alone = render(<SessionIssueChip sessionId={"s-1" as never} />);
+    expect(alone.container.firstChild).toBeNull();                 // nothing, not an empty span
+    // mutant: a placeholder chip or a reserved-width slot
+  });
+  it("the alias follows a project-key change; the key does not move", () => {
+    const { container, rerender } = mount(KEY);
+    heads = { "is-3f2a91c07b1e4d2a": { alias: "PAY-142", headRevision: 4 } };
+    rerender(<SessionPaneHeader session={session(KEY)} worktree={undefined} variant="column" />);
+    expect(container.querySelector(".pv-chip-key")!.textContent).toBe("PAY-142@3");
+    expect(useCockpit.getState().sessions["s-1"].issueRef).toBe(KEY);
+    // mutant: the alias cached (a map keyed by alias, or the ref's resolve-time alias preferred)
+  });
+  it("the pane header predicts nothing", () => {
+    const { container } = mount(KEY);
+    expectNoPrediction(container);
+  });
+});
+```
+
+The file also imports `SessionIssueChip` from `./SessionIssueChip` for test 4. `useWork`'s
+`get(id)` returning `{ head }` is task 60's reading of task 55's replica (`task-60.md:291-295`).
