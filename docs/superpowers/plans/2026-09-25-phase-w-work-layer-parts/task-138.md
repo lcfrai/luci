@@ -85,6 +85,7 @@ decisions 2-5 do not.
 - `desktop/src/work/filters/resolve.test.ts` — its tests (new)
 - `desktop/src/components/plan/NlFilterBar.tsx` — the bar, the pending chips, *Apply* (new)
 - `desktop/src/components/plan/NlFilterBar.test.tsx` — its tests (new)
+- `desktop/src/components/plan/nlFilter.css` — the bar and the pending ring (new; not in the scope's list)
 - `desktop/src/components/plan/ViewEditor.tsx` ⚑ (task 91) — mounts the bar above the groups (modified)
 
 #### Interfaces — complete: `control-plane/internal/workassist/nlfilter.go`
@@ -789,3 +790,86 @@ own group (DESIGN-SYSTEM: elevation is a ring plus shadow, never a flat border).
 `transition: all`. The tokens are the ones in `desktop/src/styles/tokens.css` (checked
 2026-09-26: `--r-chip`, `--r-ctl`, `--e-hair`, `--ink-2`, `--ink-3`, `--line-strong`, `--hover`,
 `--dur-fast`, `--ease`, `--surface`, `--sans`).
+
+#### Interfaces — complete: the mount in `desktop/src/components/plan/ViewEditor.tsx` ⚑ (task 91)
+
+```tsx
+// Task 138: the bar sits above the filter groups; Apply appends one group (task 83's shape).
+<NlFilterBar teamId={teamId} client={client} vocabulary={chipVocabulary(replica, teamId)}
+  onApply={(nl) => onChange({ ...filter, groups: [...(filter.groups ?? []), nl] })} />
+```
+
+`chipVocabulary(replica, teamId)` is a four-line selector beside the editor: the replica's states,
+labels, members, cycles and features for the team as `{id, name}`. Applying appends the words'
+group to the editor's filter, so an existing filter narrows and is never replaced; *Save as view*
+(task 91) then saves it like any other.
+
+#### Tests to write first — Go, `control-plane/internal/workassist/nlfilter_test.go`
+
+Over task 136's rig (**UNVERIFIED** `newRig(t)`, as `task-139.md:832-837`) and a fixed vocabulary
+`vocab` (states *Todo*, *In review*; labels *Bug* `lb-bug`, *Docs* `lb-docs`; members *Priya*
+`u-priya`, *Sam* `u-sam`; cycle *Cycle 14*; feature *Resume upload*; one project `pj-ep`, `global`). The hub fake is seeded with EP-142 titled
+*"Resume upload fails on 20 MB PDFs"*, so the prompt test has an issue title to not find.
+
+```go
+func TestAnInventedLabelIsDroppedNotChipped(t *testing.T) { // kills "a chip for a label that does not exist"
+	r := newRig(t)
+	r.reply(`{"op":"and","clauses":[{"field":"label","values":["Bug","perf"],"phrase":"perf bugs"}]}`)
+	res, err := r.svc.ParseFilter(ctx, fixedVocab(vocab), FilterRequest{TeamID: "tm-a", Text: "perf bugs"})
+	must(t, err)
+	mustEqual(t, []Clause{{Field: "label", Values: []string{"lb-bug"}}}, res.Filter.Clauses)
+	mustEqual(t, []Dropped{{Phrase: "perf bugs", Reason: "no label called 'perf'"}}, res.Dropped)
+}
+
+func TestModelDatesAreDropped(t *testing.T) { // kills "model-supplied dates"
+	r := newRig(t)
+	r.reply(`{"op":"and","clauses":[{"field":"updated","after":"2026-09-21","phrase":"since Monday"},
+		{"field":"created","values":["2026-09-01"],"phrase":"on the 1st"},{"field":"updated","within":"P7D","phrase":"this week"}]}`)
+	res, _ := r.svc.ParseFilter(ctx, fixedVocab(vocab), FilterRequest{TeamID: "tm-a", Text: "x"})
+	mustEqual(t, []Clause{{Field: "updated", Within: "P7D"}}, res.Filter.Clauses)
+	mustEqual(t, 2, len(res.Dropped))
+	mustEqual(t, "dates must be relative", res.Dropped[0].Reason)
+}
+
+func TestNestedGroupsAreRefused(t *testing.T) { // kills "invented grouping"
+	r := newRig(t)
+	r.reply(`{"op":"and","clauses":[],"groups":[{"op":"or","clauses":[]}]}`)
+	_, err := r.svc.ParseFilter(ctx, fixedVocab(vocab), FilterRequest{TeamID: "tm-a", Text: "x"})
+	mustErrorIs(t, err, ErrNotAFilter)
+}
+
+func TestPromptHoldsNoIssueText(t *testing.T) { // kills "issue text sent to parse a filter"
+	r := newRig(t)
+	r.reply(`{"op":"and","clauses":[]}`)
+	_, _ = r.svc.ParseFilter(ctx, HubVocabulary{Hub: r.hub}, FilterRequest{TeamID: "tm-a", Text: "bugs for me"})
+	mustNotContain(t, strings.Join(r.prompts(), "\n"), "20 MB PDFs")
+	golden.Assert(t, "testdata/nlfilter/prompt.json", r.prompts()[0])
+}
+
+func TestAURouteAndKillSwitch(t *testing.T) { // kills "Global for AU data", "switch ignored"
+	r := newRig(t)
+	v := vocab
+	v.Projects = []ProjectRoute{{ID: "pj-ep", DataClass: "global"}, {ID: "pj-hr", DataClass: "au-only"}}
+	r.reply(`{"op":"and","clauses":[]}`)
+	res, _ := r.svc.ParseFilter(ctx, fixedVocab(v), FilterRequest{TeamID: "tm-a", Text: "x"})
+	mustEqual(t, "au", res.Route)
+	mustEqual(t, 1, r.gateway.CallsOn("au"))
+	r.switchOn()
+	_, err := r.svc.ParseFilter(ctx, fixedVocab(v), FilterRequest{TeamID: "tm-a", Text: "x"})
+	mustErrorIs(t, err, ErrAssistsOff)
+	mustEqual(t, 1, r.gateway.Calls())
+}
+
+func TestMeStaysRelative(t *testing.T) { // kills "me frozen to the parser's caller"
+	r := newRig(t)
+	r.reply(`{"op":"and","clauses":[{"field":"assignee","values":["me"],"phrase":"mine"}]}`)
+	res, _ := r.svc.ParseFilter(ctx, fixedVocab(vocab), FilterRequest{TeamID: "tm-a", Text: "mine"})
+	mustEqual(t, []string{"@me"}, res.Filter.Clauses[0].Values)
+}
+```
+
+`fixedVocab` is a three-line test type implementing `VocabularySource` with a fixed value. A route
+test in `internal/api/workassist_test.go` adds: 301 characters answers `400 bad_request` with no
+gateway call; the switch answers `503 assists_off`; an unreadable team answers the Hub's `404`; a
+gateway stop answers `502 gateway_unavailable`. The house uses the standard library's `testing`;
+`must*` are the rig's helpers (`task-139.md:922-923`).
