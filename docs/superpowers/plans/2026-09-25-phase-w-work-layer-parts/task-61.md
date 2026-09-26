@@ -433,3 +433,58 @@ empty-paths wording is task 24's `ConfirmNeeded.Paths` comment (`task-24.md:216`
 loss is unlanded commits only"*). The consequence line is a count of observed paths, which is a
 fact the control plane returned, not a prediction.
 
+#### Interfaces — complete: `desktop/src/work/start/register.ts` and the edits to task 40's files
+
+```ts
+// desktop/src/work/start/register.ts — Shift+R through task 53's one verb registry.
+import { registerVerb, type RowContext } from "../keys/keymap";          // task 53 (scope words, UNVERIFIED)
+import type { IssueHead } from "../../api/work";
+import type { StartStore } from "./useStart";
+
+/** Called once by WorkLens on mount; returns the unregister. task 53's matchListKey has already
+ *  held the key to event.code "KeyR" with shiftKey, list focus and no terminal host. */
+export function registerStartVerb(store: Pick<StartStore, "start">, headOf: (id: string) => IssueHead | undefined): () => void {
+  return registerVerb("issue.start", (row: RowContext) => {
+    const head = headOf(row.issueId);
+    if (head !== undefined) void store.start(head);
+  });
+}
+```
+
+- **`WorkLens.tsx`** (task 40's). On mount: `const store = createStartStore({work, replica, me,
+  headBranchOf})`, `setStartStore(store)`, `const off = registerStartVerb(store, (id) =>
+  replica.head(id))`; on unmount `off()` and `setStartStore(null)`. `work` is the lens's
+  `work` client (the line task 37 adds to `createClient`, `task-37.md:521`); `replica` is task 55's; `headBranchOf(p)` is
+  `useCockpit.getState().branchesByProject[p]?.find((b) => b.isHead)?.name ?? null`
+  (`store/slices/dataSlice.ts:32`, `store/types.ts:57-63`). Task 44's bulk bar gets
+  `onStart={(ids) => { for (const id of ids) { const h = replica.head(id); if (h) void store.start(h); } }}`
+  (`task-44.md:186`): one Start per id, each its own chip, no batch route.
+- **`IssueRow.tsx`** (task 40's). After the row's trailing cells: `<StartChip issueId={head.id} />`.
+  The chip renders nothing without an entry, so a row with no Start is unchanged.
+
+`RowContext` and `registerVerb`'s run signature are task 53's scope words (`tasks-41-60.md:402`;
+task 102 uses the same shape, `task-102.md:253`). If task 53's part names the verb `start` rather
+than `issue.start`, this file follows it.
+
+#### Interfaces — complete: appended to `desktop/src/components/work/work.css`
+
+```css
+/* Start chip (task 61). A chip is the chip radius step; its button is text, not a fill. Nothing
+   here animates: the chip changes words, and words need no motion to explain them. */
+.sc { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: var(--s-2);
+  padding: 0 var(--s-2); border-radius: var(--r-chip); box-shadow: 0 0 0 1px var(--line); }
+.sc-word, .sc-note, .sc-consequence { font: var(--t-ui) / var(--t-ui-lh) var(--sans); color: var(--ink); }
+.sc-note { color: var(--ink-2); }
+.sc-sign { font-family: var(--mono); font-size: var(--t-fact); line-height: var(--t-fact-lh);
+  font-variant-numeric: tabular-nums; color: var(--ink-2); }
+.sc-act { background: none; border: 0; padding: 0; color: var(--ink); text-decoration: underline;
+  cursor: pointer; }
+.sc-danger { color: var(--fail); }
+.sc-consequence { color: var(--fail); }
+```
+
+`--r-chip` (`tokens.css:110`), `--ink-2` (`:46`) and `--fail` (`:76`) are the tree's; `--s-*`,
+`--t-ui-lh`, `--t-fact` and `--t-fact-lh` are task 26's (`task-26.md:109`, `:420`), and task 26
+wins a differing name. `--line` is the tree's hairline (`tokens.css:54`). The ring is the chip's
+1px elevation; the chip sits in a row, so it takes no layered shadow.
+
