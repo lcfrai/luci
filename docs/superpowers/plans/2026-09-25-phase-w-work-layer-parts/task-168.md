@@ -402,3 +402,50 @@ func (c *Client) PutMCPConnector(ctx context.Context, req hubapi.PutConnectorReq
 func (c *Client) DeleteMCPConnector(ctx context.Context, u string) error {
 	return c.work(ctx, "DeleteMCPConnector", url.Values{"url": {u}}, nil, nil) // 161's ?url=
 }
+func (c *Client) CreateLoop(ctx context.Context, projectID string, req hubapi.CreateLoopRequest) (hubapi.Loop, error) {
+	var out hubapi.Loop
+	return out, c.work(ctx, "CreateLoop", nil, req, &out, projectID)
+}
+func (c *Client) ProjectLoops(ctx context.Context, projectID string) ([]hubapi.Loop, error) {
+	var out struct{ Items []hubapi.Loop `json:"items"` }
+	return out.Items, c.work(ctx, "ProjectLoops", nil, nil, &out, projectID)
+}
+func (c *Client) GetLoop(ctx context.Context, loopID string) (hubapi.Loop, error) {
+	var out hubapi.Loop
+	return out, c.work(ctx, "GetLoop", nil, nil, &out, loopID)
+}
+func (c *Client) SetLoopState(ctx context.Context, loopID string, req hubapi.SetLoopStateRequest) (hubapi.Loop, error) {
+	var out hubapi.Loop
+	return out, c.work(ctx, "SetLoopState", nil, req, &out, loopID)
+}
+func (c *Client) PutLoopVersion(ctx context.Context, loopID string, body hubapi.LoopVersionBody) (hubapi.LoopVersion, error) {
+	var out hubapi.LoopVersion
+	return out, c.work(ctx, "PutLoopVersion", nil, body, &out, loopID)
+}
+func (c *Client) ListLoopVersions(ctx context.Context, loopID string) ([]hubapi.LoopVersion, error) {
+	var out struct{ Items []hubapi.LoopVersion `json:"items"` }
+	return out.Items, c.work(ctx, "ListLoopVersions", nil, nil, &out, loopID)
+}
+func (c *Client) ListLoopRuns(ctx context.Context, loopID string, page hubapi.PageRequest) (hubapi.Page[hubapi.LoopRun], error) {
+	var out hubapi.Page[hubapi.LoopRun]
+	return out, c.work(ctx, "ListLoopRuns", EncodeQuery(page), nil, &out, loopID)
+}
+func (c *Client) RunLoopNow(ctx context.Context, loopID string) (hubapi.LoopRun, error) {
+	var out hubapi.LoopRun // the request id is the Idempotency-Key (task-169.md:355-356)
+	return out, c.work(ctx, "RunLoopNow", nil, struct{}{}, &out, loopID)
+}
+func (c *Client) GetTeamAgentPolicy(ctx context.Context, teamID string) (hubapi.TeamAgentPolicy, error) {
+	var out hubapi.TeamAgentPolicy
+	return out, c.work(ctx, "GetTeamAgentPolicy", nil, nil, &out, teamID)
+}
+func (c *Client) PutTeamAgentPolicy(ctx context.Context, teamID string, p hubapi.TeamAgentPolicy) (hubapi.TeamAgentPolicy, error) {
+	var out hubapi.TeamAgentPolicy // the Hub stamps the rest; strict decoding refuses them (task 166)
+	body := hubapi.PutTeamAgentPolicyRequest{Harnesses: p.Harnesses, Skills: p.Skills}
+	return out, c.work(ctx, "PutTeamAgentPolicy", nil, body, &out, teamID)
+}
+```
+
+`ListAPIKeys` returns the first page only: task 143's signature takes no page and task 160's
+default limit is the whole list for a person (at most 10 live keys, `task-160.md:381`); a team's
+25 fit too (`:385`). `RunLoopNow`'s body is `{}` here; task 163's `{requestId}` body is the
+desktop's (169), which the relay forwards as sent.
