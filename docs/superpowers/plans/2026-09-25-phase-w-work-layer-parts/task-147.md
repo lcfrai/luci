@@ -470,3 +470,237 @@ and `notFoundTeam` are the team twins of Hub task 14's `ProjectRole` and task 08
 146's, and `RuleVersion` and `RuleAuthor` in its data (task 146's `RequestCreatedData`) are now
 filled; no type changes here. The subject of `intake.rules_set` is the team id, as task 13's
 `team.work_policy_set` names its team (`task-13.md:263`).
+
+#### Wire shapes
+
+```jsonc
+// PUT /v1/teams/tm-…/intake-rules                    team admin; 200
+{ "baseVersion": 3,
+  "rules": [
+    { "id": "rule-1", "match": { "senderDomain": "client.example" },
+      "route": { "projectId": "pj-…", "important": true } },
+    { "id": "rule-2", "match": { "channel": "email", "textContains": "outage" },
+      "route": { "priority": "urgent" } } ] }
+// → 200
+{ "teamId": "tm-…", "version": 4, "rules": [ … as sent … ],
+  "writtenAt": "2026-09-26T10:02:00Z", "writtenBy": { "id": "u-ada…", … } }
+
+// a request from ops@mail.client.example saying "outage in uploads" → rule-1 wins (first match)
+// the feed:
+{ "kind": "request.created", "teamId": "tm-…", "projectId": null, "subject": "rq-…",
+  "data": { "channel": "email", "requesterKind": "email", "ruleId": "rule-1", "ruleVersion": 4,
+            "ruleAuthor": "u-ada…", "important": true } }
+
+// GET /v1/teams/tm-…/intake-rules?version=3            viewer; 200, the old list, unchanged
+
+// refusals: nothing is written by any of them
+409 intake_rules_moved             { "version": "4" }                     // baseVersion 3 after another admin wrote 4
+400 bad_request                    { "field": "rules[1].match" }          // a rule that matches everything
+400 bad_request                    { "field": "rules[0].route" }          // a rule that sets nothing
+400 bad_request                    { "field": "rules[0].route.projectId" } // another team's project, or none
+400 bad_request                    { "field": "rules[2].id" }             // "rule-1" twice, or "Rule 1"
+400 bad_request                    { "field": "rules[0].match.senderDomain" } // "Client.Example", "*.client.example"
+403 forbidden                      { "required": "admin" }                // a member's PUT
+404 intake_rules_version_not_found                                        // ?version=9 on a team at 4
+```
+
+`details` values are strings, as task 15's `Refuse` takes `map[string]string`; the desktop reads
+`version` with `Number()`.
+
+#### Tests to write first, part 1 — `intake/route_test.go` (pure, complete)
+
+```go
+package intake
+
+func set(v int, author string, rules ...hubapi.IntakeRule) hubapi.IntakeRuleSet {
+	return hubapi.IntakeRuleSet{Version: v, Rules: rules, WrittenBy: &hubapi.User{ID: author}}
+}
+func rule(id string, m hubapi.IntakeMatch, r hubapi.IntakeRoute) hubapi.IntakeRule {
+	return hubapi.IntakeRule{ID: id, Match: m, Route: r}
+}
+
+func TestFirstMatchWins(t *testing.T) {
+	s := set(4, "u-ada", rule("a", hubapi.IntakeMatch{TextContains: "upload"}, hubapi.IntakeRoute{Priority: "high"}),
+		rule("b", hubapi.IntakeMatch{TextContains: "upload"}, hubapi.IntakeRoute{Priority: "low"}))
+	d := Route(s, Incoming{Text: "Uploads fail"}, nil, false)
+	if d.RuleID != "a" || d.Route.Priority != "high" {
+		t.Fatalf("want rule a, high; got %q, %q", d.RuleID, d.Route.Priority)
+	}
+}
+
+func TestTheDecisionNamesTheAuthorAndVersion(t *testing.T) {
+	d := Route(set(4, "u-ada", rule("a", hubapi.IntakeMatch{Channel: "email"}, hubapi.IntakeRoute{Important: true})),
+		Incoming{Channel: "email"}, nil, false)
+	if d.RuleAuthor != "u-ada" || d.RuleVersion != 4 {
+		t.Fatalf("author %q version %d", d.RuleAuthor, d.RuleVersion)
+	}
+}
+
+func TestMembersAndNonMembersGetTheirOwnDefaults(t *testing.T) {
+	def := &hubapi.IntakeDefaults{Member: hubapi.IntakeRoute{ProjectID: "pj-m"},
+		NonMember: hubapi.IntakeRoute{ProjectID: "pj-n", Important: true}}
+	if got := Route(set(0, ""), Incoming{}, def, true).Route.ProjectID; got != "pj-m" {
+		t.Fatalf("member: %q", got)
+	}
+	if got := Route(set(0, ""), Incoming{}, def, false).Route; got.ProjectID != "pj-n" || !got.Important {
+		t.Fatalf("non-member: %+v", got)
+	}
+}
+
+func TestARuleOverridesOnlyWhatItSets(t *testing.T) {
+	def := &hubapi.IntakeDefaults{NonMember: hubapi.IntakeRoute{ProjectID: "pj-n", Priority: "low",
+		LabelIDs: []string{"lb-1", "lb-2"}}}
+	s := set(2, "u-ada", rule("a", hubapi.IntakeMatch{Channel: "form"}, hubapi.IntakeRoute{LabelIDs: []string{"lb-9"}}))
+	got := Route(s, Incoming{Channel: "form"}, def, false).Route
+	if got.ProjectID != "pj-n" || got.Priority != "low" || !slices.Equal(got.LabelIDs, []string{"lb-9"}) {
+		t.Fatalf("got %+v", got)
+	}
+	if !slices.Equal(def.NonMember.LabelIDs, []string{"lb-1", "lb-2"}) {
+		t.Fatal("the defaults were changed in place")
+	}
+}
+
+func TestNoMatchKeepsTheDefaults(t *testing.T) {
+	def := &hubapi.IntakeDefaults{NonMember: hubapi.IntakeRoute{Priority: "medium"}}
+	d := Route(set(1, "u-ada", rule("a", hubapi.IntakeMatch{Channel: "teams"}, hubapi.IntakeRoute{Priority: "urgent"})),
+		Incoming{Channel: "email"}, def, false)
+	if d.RuleID != "" || d.RuleVersion != 0 || d.Route.Priority != "medium" {
+		t.Fatalf("got %+v", d)
+	}
+}
+
+func TestEverySetFieldMustHold(t *testing.T) {
+	m := hubapi.IntakeMatch{Channel: "email", TextContains: "outage"}
+	for _, c := range []struct {
+		in   Incoming
+		want bool
+	}{
+		{Incoming{Channel: "email", Text: "An OUTAGE now"}, true},
+		{Incoming{Channel: "form", Text: "An outage now"}, false},
+		{Incoming{Channel: "email", Text: "All fine"}, false},
+	} {
+		if got := matches(m, c.in); got != c.want {
+			t.Errorf("%+v: got %v", c.in, got)
+		}
+	}
+}
+
+func TestSenderDomainIsTheDomainOrBelowIt(t *testing.T) {
+	for d, want := range map[string]bool{"client.example": true, "mail.client.example": true,
+		"evilclient.example": false, "client.example.evil": false, "": false} {
+		if got := domainWithin(d, "client.example"); got != want {
+			t.Errorf("%q: got %v", d, got)
+		}
+	}
+}
+
+func TestTextContainsIsLiteral(t *testing.T) {
+	m := hubapi.IntakeMatch{TextContains: "a.*b"}
+	if matches(m, Incoming{Text: "a then b"}) || !matches(m, Incoming{Text: "see A.*B here"}) {
+		t.Fatal("textContains must be a literal substring, never a pattern")
+	}
+}
+
+func TestAKeptRuleTakesTheNewAuthor(t *testing.T) {
+	r := rule("a", hubapi.IntakeMatch{Channel: "email"}, hubapi.IntakeRoute{Important: true})
+	if Route(set(5, "u-bo", r), Incoming{Channel: "email"}, nil, false).RuleAuthor != "u-bo" {
+		t.Fatal("the version's writer is the author of every rule in it")
+	}
+}
+```
+
+| Test | Mutant it kills |
+|---|---|
+| `TestFirstMatchWins` | last match wins (the loop without `return`); rules sorted by id |
+| `TestTheDecisionNamesTheAuthorAndVersion` | the author or version dropped from the decision |
+| `TestMembersAndNonMembersGetTheirOwnDefaults` | one default for all (L-28); `isMember` ignored |
+| `TestARuleOverridesOnlyWhatItSets` | a rule replacing the whole route; labels unioned; the defaults' slice aliased and mutated |
+| `TestNoMatchKeepsTheDefaults` | a stale `RuleID` on no match; a catch-all fallback to the last rule |
+| `TestEverySetFieldMustHold` | *any* field matching instead of *every*; a case-sensitive `textContains` |
+| `TestSenderDomainIsTheDomainOrBelowIt` | `HasSuffix(d, want)` without the dot (`evilclient.example`) |
+| `TestTextContainsIsLiteral` | `regexp.MatchString` in place of `strings.Contains` (a rule made slow or clever) |
+| `TestAKeptRuleTakesTheNewAuthor` | a per-rule author guessed from a diff |
+
+The test file imports `slices` and `testing` beside `hubapi`. `hubapi/work_intake_test.go` gains
+`TestValidateIntakeRulesNamesTheField`, one row per refusal in *Wire shapes* above (an empty
+`match`, an empty `route`, a duplicate or upper-case id, `Client.Example`, `*.client.example`, a
+padded `textContains`, 51 rules, priority `critical`), each asserting the exact `field`; it kills
+a validator that stops checking a field and one that names the wrong index.
+
+#### Tests to write first, part 2 — `server/work_intake_rules_integration_test.go` (`//go:build integration`)
+
+| Test | Holds | Mutant it kills |
+|---|---|---|
+| `TestTwoMatchingRulesRouteByTheFirst` | PUT two rules both matching `outage`; a request saying *outage* records `ruleId` of the first and its route | last match wins, end to end |
+| `TestTheEventCarriesTheRuleAuthor` | admin Ada PUTs; member Bo records a request; `request.created`'s `data.ruleAuthor` is Ada's id, `ruleVersion` the PUT's version, and the event's `actor` is Bo | author dropped; the recorder named as the rule's author |
+| `TestFormDefaultsDependOnMembership` | a member and a non-member of the team go through `createRequest` with the same `formId` (task 148's stub answering fixed defaults) and get the two defaults | one default for all (L-28) |
+| `TestMembershipIsNeverTheClients` | `POST /v1/teams/{teamId}/requests` with `"member": true` in the body → 400 (unknown key); a `person` requester who is in the org and not the team routes as a non-member | membership read from the client |
+| `TestARuleCannotNameAnotherTeamsProject` | PUT a rule whose `projectId` is team B's → 400 `rules[0].route.projectId`; the version is unchanged; the same for a label of team B | cross-team routing |
+| `TestAMembersPutIs403` | a member's PUT → 403 `{required: admin}`; a viewer's GET → 200 | a missing role row |
+| `TestEditingRulesLeavesRoutedRequests` | route a request by version 1; PUT version 2 that deletes the rule; the request still reads `rule {ruleId, ruleVersion: 1}`, and `?version=1` still returns the deleted rule | rules rewritten in place; a request re-routed on read |
+| `TestAStaleBaseVersionIs409` | two admins load version 1; both PUT with `baseVersion: 1`; one 200 (version 2), one 409 `intake_rules_moved {version: "2"}` | the second PUT silently overwriting the first |
+| `TestRulesAreNotInTheFeed` | a rule with `textContains: "CANARY-ir-41"`; no `/v1/changes` page holds the canary; `intake.rules_set` carries only `version` and `count` | a rule's words in an event |
+
+#### The matrix rows (`server/work_matrix_rows_integration_test.go` ⚑, key `"147"`)
+
+```go
+"147": {
+	wread("GET /v1/teams/{teamId}/intake-rules", "/v1/teams/{TeamID}/intake-rules", "team_not_found"),
+	wadmin("PUT /v1/teams/{teamId}/intake-rules", "PUT", "/v1/teams/{TeamID}/intake-rules", 200, "team_not_found",
+		func(*fixture) any {
+			return map[string]any{"baseVersion": 0, "rules": []any{map[string]any{"id": "rule-1",
+				"match": map[string]any{"channel": "email"}, "route": map[string]any{"important": true}}}}
+		}),
+},
+```
+
+The `A` column's PUT runs once per matrix pass on a fresh team, so `baseVersion: 0` holds; if H16b's
+fixture reuses one team across columns, the body reads the current version first (the fixture's
+`GetJSON`, **UNVERIFIED** until H16b lands).
+
+#### Steps
+
+- [ ] **Step 1:** Confirm the sync base: task 146 committed; task 145's migration holds
+  `work_intake_rule_sets` and the foreign key above (`\d hub.work_intake_rule_sets`).
+- [ ] **Step 2:** Write `intake/route_test.go`; it fails to compile; write `intake/route.go`; the
+  nine tests pass. Apply each mutant in the table by hand; each fails a named test; revert.
+- [ ] **Step 3:** Append the `hubapi` block and `TestValidateIntakeRulesNamesTheField`; green.
+- [ ] **Step 4:** Write the integration tests; they fail. Write `store/work_intake_rules.go`, the
+  two handlers, `checkRulesInTeam`, and `routeRequest`'s body with the `formDefaults` stub.
+- [ ] **Step 5:** Add `intake.rules_set` to the registry and `intake.` to task 13's prefix list;
+  the matrix rows under `"147"`; append `"147"` to `workMatrixLive`. Run until green.
+- [ ] **Step 6:** Rerun task 146's integration tests (routing now runs on every create); all green.
+  `git diff -- go.work control-plane/go.mod` shows nothing; commit by pathspec.
+
+#### Acceptance
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/work
+go test ./control-plane/internal/hub/intake/ -race -count=1 -v 2>&1 | grep -c "^--- PASS"      # 9
+go test ./control-plane/internal/hub/hubapi/ -race -count=1 -run '^TestValidateIntakeRulesNamesTheField$' # ok
+go test -tags integration ./control-plane/internal/hub/server/ -race -count=1 -v \
+  -run '^Test(TwoMatchingRulesRouteByTheFirst|TheEventCarriesTheRuleAuthor|FormDefaultsDependOnMembership|MembershipIsNeverTheClients|ARuleCannotNameAnotherTeamsProject|AMembersPutIs403|EditingRulesLeavesRoutedRequests|AStaleBaseVersionIs409|RulesAreNotInTheFeed)$' \
+  2>&1 | grep -c "^--- PASS"                                                                    # 9
+go test -tags integration ./control-plane/internal/hub/... -race -count=1                      # ok
+go test ./control-plane/... -race -count=1                                                      # ok
+```
+
+#### What this task does not claim
+
+- That a rule can route **across teams**: Q12 keeps cross-team work to W4's shared features, and
+  decision 7 refuses it at PUT.
+- That `textContains` is correct for every script: `strings.ToLower` is not Unicode case folding
+  (the German *ß* and the Turkish dotless *ı* do not fold as a person expects). Whether full
+  folding is wanted is **UNVERIFIED** against a real team's rules.
+- That a rule creates or accepts anything: the route is a suggestion the accept dialog fills in
+  (task 170), and no rule writes an issue.
+- The rules editor and the form-defaults editor: task 170.
+
+#### Gaps
+
+1. **Task 145 is not written**; `work_intake_rule_sets` and the foreign key above are this task's
+   requirement on it.
+2. **The File map lacks `control-plane/internal/hub/intake/route.go`** (the row is in *Files*).
+3. **The scope's signature** was `Route(rules []IntakeRule, in, form *IntakeForm, isMember)`; this
+   part takes the **set** (the version and author ride on it) and the form's **defaults** (so the
+   pure package does not depend on task 148's form type). Tasks 148 and 170 follow this signature.
