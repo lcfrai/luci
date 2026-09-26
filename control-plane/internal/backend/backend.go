@@ -6,7 +6,7 @@
 // Attach returns *websocket.Conn and not io.ReadWriteCloser, deliberately. The
 // wire protocol is message-framed: a 32 KiB stdout frame split across two reads
 // of a byte stream decodes as two frames, the second with a garbage kind byte.
-// proxy.Relay already takes *websocket.Conn.
+// proxy.RelayHooked already takes *websocket.Conn.
 package backend
 
 import (

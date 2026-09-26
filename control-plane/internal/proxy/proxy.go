@@ -23,13 +23,9 @@ type Hooks struct {
 	OnClient   func(n int) // desktop → sandbox, i.e. the user typed
 }
 
-// Relay copies messages between client and upstream until either closes or
-// ctx is cancelled. It returns the first error observed.
-func Relay(ctx context.Context, client, upstream *websocket.Conn) error {
-	return RelayHooked(ctx, client, upstream, Hooks{})
-}
-
-// RelayHooked is Relay with observation.
+// RelayHooked copies messages between client and upstream until either closes
+// or ctx is cancelled, reporting each message's size to h. It returns the first
+// error observed. It is the only relay: seam S8.7 in docs/SEAMS.md.
 //
 // A hook fires after a successful read and before the write, so a message the
 // agent produced is counted even when the desktop has already gone away. That

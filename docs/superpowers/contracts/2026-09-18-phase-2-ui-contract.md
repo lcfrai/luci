@@ -150,6 +150,8 @@ import react from "@vitejs/plugin-react";
 // strictPort for Tauri, and a test run must never fail because the dev server is up.
 export default defineConfig({
   plugins: [react()],
+  // Task 26: src/seams.test.ts reads files outside desktop/ through `?raw`.
+  server: { fs: { allow: [".."] } },
   test: {
     environment: "jsdom",
     include: ["src/**/*.test.{ts,tsx}"],
@@ -159,9 +161,18 @@ export default defineConfig({
     globals: false,
     restoreMocks: true,
     clearMocks: true,
+    // Task 14: without it, vitest blanks every `.css?raw`.
+    css: { include: [/\.css\?raw$/] },
   },
 });
 ```
+
+Two lines were added after this block was first written, each required, and each explained at
+length in the file itself: `css`, by task 14 (vitest's `vitest:css-disable` plugin rewrites any
+`.css` id followed by a query, so `tokens.css?raw` read as `""`); and `server.fs.allow`, by task
+26 (under jsdom Vite refuses a `?raw` id outside `fs.allow`, whose default is `desktop/` alone,
+and the seam manifest reads the control plane, `docs/` and `images/`). The comments in the file
+are the record; this block is the shape.
 
 `vitest.config.ts` must be added to `tsconfig.node.json`'s `include`, or `npm run typecheck`
 ignores it:

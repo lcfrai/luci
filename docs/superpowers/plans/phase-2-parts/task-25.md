@@ -1702,11 +1702,11 @@ check that passed on an echo. Phase 1 recorded two; record every one here, or "n
 | OC 5 — `max` effort (corrected at source: a product decision, not an omission) | `:60` | **Not changed.** Recorded as open question 1 for the owner; step 5a's `--help` reading is its evidence | |
 | OC 6 — harness comments cite 2.1.267 | `:73` | Step 5a, 5b | |
 | OC 7 — rebuild the sandbox image | `:73` | Step 2, proven by step 3 | |
-| OC 8 — `Files` and `Merge` have no owning phase | `:77` | **Deferred to task 26**, which names the seam and the gap; the ownership decision is the product owner's | |
+| OC 8 — `Files` and `Merge` have no owning phase | `:77` | **Named by task 26** (which ran before this task) as seam S3.5 in `docs/SEAMS.md`, with the gap pinned; the ownership decision is the product owner's | |
 | OC 9 — `pinned` unbounded across branches | `:85` | **Deferred** to whichever task next opens `prefsSlice`; the cheapest prune is where the poller replaces sessions | |
 | OC 10 — an unpin does not survive a flip or restart | `:91` | **Deferred** to the next persisted-schema bump (`PERSIST_VERSION`), which can tell *never pinned* from *unpinned* | |
 | OC 11 — `observe` drops `dirty` before the write | `:99` | **Deferred to Phase 3**, as recorded | |
-| OC 12 — `proxy.Relay` has no production caller | `:102` | **Deferred to task 26**, the end of the phase, which rules on it | |
+| OC 12 — `proxy.Relay` has no production caller | `:102` | **Ruled by task 26** (which ran before this task): deleted, after an anchored grep re-proved no production caller; `proxy.RelayHooked` is the one relay (`docs/SEAMS.md` S8.7) | |
 | Contract §12 open question 1 — `@xterm/xterm@6` under jsdom never observed | `2026-09-18-phase-2-ui-contract.md:2355-2358` | Answered as it prescribes: real xterm is observed in steps 8–15 by Playwright, not by `canvas` in jsdom | |
 | Phase 1 unproven item 5 — the native window | `2026-09-17-phase-1-results.md:68` | Step 15 (agent half), step 16 (owner half) | |
 | Task 5's Q3 and Q4 | `task-05.md:1457` | Step 4 | |

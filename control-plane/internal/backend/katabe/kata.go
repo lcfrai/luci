@@ -1,7 +1,14 @@
 // Package katabe runs sandboxes as Kata Containers pods on AKS. It is DORMANT:
 // docs/PROGRAM.md phase 8 is the first real Azure spend, and nothing in Phase 2
 // selects this backend by default. It compiles and is unit-tested now so that
-// turning it on in Phase 8 is a configuration change and not a rewrite.
+// the Backend seam cannot drift away from what Kubernetes can serve.
+//
+// Turning it on is NOT only a configuration change. Every session create sends
+// host-path Mounts, the worktree first, and a WorkDir (api/sessions.go), and
+// Create refuses both below — correctly, because a host path on an AKS node is
+// meaningless. So under PANACEA_APP_BACKEND=kata every create fails today. The
+// first thing Phase 8 must build is a way to get the worktree into the pod:
+// seam S8.3 in docs/SEAMS.md.
 package katabe
 
 import (

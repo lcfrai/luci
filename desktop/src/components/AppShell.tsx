@@ -5,7 +5,11 @@ import { useCockpit } from "../store/store";
 import { Rail } from "./rail/Rail";
 import { SubRail } from "./subrail/SubRail";
 import { TopBar } from "./topbar/TopBar";
-import { LensPlaceholder } from "./lens/LensPlaceholder";
+import { DiscoverLens } from "./lens/DiscoverLens";
+import { DesignLens } from "./lens/DesignLens";
+import { FilesLens } from "./lens/FilesLens";
+import { MergeLens } from "./lens/MergeLens";
+import { DeployLens } from "./lens/DeployLens";
 import { DevelopLens } from "./develop/DevelopLens";
 import { ContextMenu } from "./menu/ContextMenu";
 import { Toasts } from "./common/Toasts";
@@ -14,6 +18,9 @@ import { useKeyboardMap } from "../hooks/useKeyboardMap";
 import type { Lens } from "../store/types";
 import "./shell.css";
 
+// CLOSED FOR THE PROGRAMME — task 26, seam SX.1 in docs/SEAMS.md. Every lens is one file
+// under ./lens/, and a later phase fills its own file rather than this switch: five phases
+// editing one import block is five merge conflicts (dependency-graph-and-order.md:143-145).
 function LensRouter(props: { lens: Lens }): JSX.Element {
   switch (props.lens) {
     case "develop":
@@ -26,45 +33,15 @@ function LensRouter(props: { lens: Lens }): JSX.Element {
       // ───────────────────────────────────────────────────────────────────────────────
       return <DevelopLens />;
     case "discover":
-      return (
-        <LensPlaceholder
-          lens="discover"
-          phase={4}
-          what="Turn a conversation into a spec this branch can be measured against."
-        />
-      );
+      return <DiscoverLens />;
     case "design":
-      return (
-        <LensPlaceholder
-          lens="design"
-          phase={5}
-          what="A canvas of real HTML frames an agent can edit directly."
-        />
-      );
+      return <DesignLens />;
     case "files":
-      return (
-        <LensPlaceholder
-          lens="files"
-          phase={3}
-          what="The worktree's files, with what each session changed."
-        />
-      );
+      return <FilesLens />;
     case "merge":
-      return (
-        <LensPlaceholder
-          lens="merge"
-          phase={3}
-          what="Review a worktree's diff and land it on the branch."
-        />
-      );
+      return <MergeLens />;
     case "deploy":
-      return (
-        <LensPlaceholder
-          lens="deploy"
-          phase={7}
-          what="Ship the branch, with the spec attached to the release."
-        />
-      );
+      return <DeployLens />;
     default:
       return <></>;
   }
