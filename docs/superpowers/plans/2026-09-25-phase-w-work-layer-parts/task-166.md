@@ -597,3 +597,35 @@ git diff --stat -- go.work control-plane/go.mod
 
 **Parity rows served:** **L-159** and **L-180** closed; **L-197** and **L-256** with tasks 161
 and 173.
+
+#### Gaps found while writing this part
+
+1. **Task 143's route table proposes `/v1/teams/{teamId}/agent-policy`** (`task-143.md:952`);
+   this part, the scope and task 169 (`task-169.md:412-413`) say `…/work/agent-policy`. 143's
+   row is the one to correct.
+2. **The scope's 422 for a bad body** (`tasks-161-180.md:289-291`) is the house 400 here
+   (decision 4). 05 and the scope should say 400.
+3. **The File map has no row for `control-plane/internal/workpolicy/`.** It needs one, owned by
+   this task.
+4. **The Hub reads the control plane's harness catalogue at build time.** Released apart, the Hub
+   would refuse a new harness for one release: fail closed, but nobody owns keeping them in step.
+5. **`SkillsDir = ".claude/skills"` is UNVERIFIED at the pinned CLI.** The canary that proves
+   the pinned Claude Code reads user skills there is phase 8's image work; no task names it.
+6. **`Stage` has no call site on this branch.** It rides TM-15's policy mount, and the commit rides
+   TM-14's agent-start record (decision 7); both are Phase T's and neither names a `skillsCommit`
+   field. Step 5 waits for them.
+7. **Task 144's W5-17 expects 403 `harness_not_allowed`** for an unknown id in a `PUT`
+   (`task-144.md:537`, `:762`); this part answers 400 `bad_request`, `details.field: harnesses`
+   (decision 4), and keeps 403 `harness_not_allowed` for the session gate only. Step 4 changes the
+   row in `conformance/work.go` ⚑, a file the Files list above does not name. Task 168 runs W5-17
+   over HTTP, so the two must agree before 168 starts.
+8. **Decision 4 and the route comment say `skills.library.commit`;** task 143's validator names
+   `skills.library` for a bad commit and `skills.source` for a bad source (`task-143.md:735-746`).
+   143's names win; the tests above assert them.
+9. **`AgentPolicySource` has no implementation here.** It needs the local project's Hub project
+   (Hub task 35's `hublink.Resolver.Project`, hub tree `task-35.md:73-77`), that project's team,
+   and `GetTeamAgentPolicy` over HTTP. Task 168 owns the HTTP method, so it owns the adapter and
+   its wiring in `main.go`; until then `Deps.AgentPolicy` is nil and nothing is gated.
+10. **The scope's `workpolicy.Allowed(team, id)`** (`tasks-161-180.md:279`) takes a team; this
+    part's `Allowed(p, id)` takes the team's policy, so a Fleet caller reads the policy first.
+    TM-24's part should say which.
