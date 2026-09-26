@@ -606,3 +606,84 @@ describe("createStartStore", () => {
 task 24's codes; the tests cast, and gap 5 asks task 37 (the owner of `work.ts`'s problem kinds)
 whether `ProblemCode` widens.
 
+#### Tests to write first, part 2 — `desktop/src/components/work/StartChip.test.tsx` (keys)
+
+The lens is rendered on task 20's `workScenario()` through task 40's test seam, as task 60 does
+(`task-60.md:567-592`); the seam's `work` option, which hands the lens a fake client, is this
+part's assumption of that seam (**UNVERIFIED**, gap 6). `DYLAN` is signed in; EP-167 is his and in
+`todo`, EP-163 is Alice's (`task-20.md:299-330`). The cockpit store gets the project's head branch.
+
+```tsx
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ApiError } from "../../api/client";
+import { __resetHeartbeat } from "../../hooks/heartbeat";
+import { resetCockpit, useCockpit } from "../../store/store";
+import { expectNoPrediction } from "../../test/expectNoPrediction";
+import { DYLAN, WORK_IDS, workScenario } from "../../test/workFixtures";
+import { NOTE_MS } from "./StartChip";
+import { WorkLens, setWorkSourceForTest } from "./WorkLens";
+
+const T0 = Date.parse("2026-09-25T09:14:02Z");
+const result = (issueId: string) => ({ issueKey: `issue:${issueId}@3`, worktreeId: "w-4a77b1c9",
+  sessionId: `s-${issueId.slice(3, 11)}`, branch: "ep-167", route: "au" as const, routeForced: true, undo: "undo_start" as const });
+let work: { start: ReturnType<typeof vi.fn>; undoStart: ReturnType<typeof vi.fn>; discardStart: ReturnType<typeof vi.fn> };
+
+function lens() {
+  setWorkSourceForTest(workScenario(), { me: DYLAN, work });
+  render(<WorkLens />);
+  const list = screen.getByRole("grid");
+  list.focus();
+  return list;
+}
+const row = (alias: string) => screen.getByText(alias).closest<HTMLElement>("[data-row-id]")!;
+const shiftR = (el: Element, key = "R") => fireEvent.keyDown(el, { code: "KeyR", key, shiftKey: true });
+function session(issueId: string, over = {}) {
+  const id = result(issueId).sessionId;
+  useCockpit.setState((s) => ({ sessions: { ...s.sessions, [id]: { id, status: "running", exitReason: "",
+    createdAt: new Date(T0).toISOString(), lastOutputAt: "0001-01-01T00:00:00Z", ...over } as never } }));
+}
+
+beforeEach(() => {
+  vi.useFakeTimers({ now: T0 });
+  resetCockpit(); __resetHeartbeat();
+  useCockpit.setState({ branchesByProject: { [WORK_IDS.project]: [
+    { id: "b-1", projectId: WORK_IDS.project, name: "main", isHead: true }] } } as never);
+  work = { start: vi.fn(async (req: { issueId: string }) => result(req.issueId)), undoStart: vi.fn(), discardStart: vi.fn() };
+});
+
+describe("Start keys", () => {
+  it("Shift+R starts once by the physical key, whatever the layout types", async () => {
+    const list = lens();
+    fireEvent.focus(row("EP-167"));                                   // task 40's row cursor
+    shiftR(list, "К");                                                // a Cyrillic layout's key
+    await act(async () => { await Promise.resolve(); });
+    expect(work.start).toHaveBeenCalledTimes(1);
+    expect(work.start.mock.calls[0][0]).toMatchObject({ issueId: WORK_IDS.ep167, accept: false, branch: "main" });
+    // mutant: matching event.key === "R"
+  });
+  it("Caps Lock R without Shift starts nothing", () => {
+    const list = lens();
+    fireEvent.focus(row("EP-167"));
+    fireEvent.keyDown(list, { code: "KeyR", key: "R", shiftKey: false });
+    expect(work.start).not.toHaveBeenCalled();
+    // mutant: case-folding the key instead of reading shiftKey
+  });
+  it("Shift+R inside a terminal host does nothing", () => {
+    lens();
+    const { container } = render(<div data-terminal-host=""><textarea aria-label="term" /></div>);
+    shiftR(within(container).getByLabelText("term"));
+    expect(work.start).not.toHaveBeenCalled();
+    // mutant: no isInsideTerminal check (a key bound on document)
+  });
+  it("another person's issue calls no route and says whose it is, in the row", () => {
+    const list = lens();
+    fireEvent.focus(row("EP-163"));
+    shiftR(list);
+    expect(work.start).not.toHaveBeenCalled();
+    expect(within(row("EP-163")).getByRole("status").textContent)
+      .toBe("EP-163 is assigned to Alice Example. Only their agents work on it.");
+    // mutant: Start for any row (OD-16)
+  });
+});
+```
