@@ -3354,3 +3354,67 @@ workload identity, which ruling §6 leaves unchanged; task 32's Postgres workloa
 
 Section verdict: Needs fixes
 **Plan quality: Needs fixes**
+
+## Fix batch b01 (2026-09-26): S01-C1, X-C1
+
+Fixer: plan fix agent, batch b01. Line numbers are those on `feat/team-mode` after the batch's
+last commit. "parts/" is `docs/superpowers/plans/2026-09-25-phase-t-team-mode-parts/`.
+
+### S01-C1: moot, confirmed
+
+Both part files exist: `parts/task-04.md` (the Hub migration: complete SQL from `:113`, the tests
+and the mutant each kills, e.g. `TestFeedFlagsComeFromTheKind` at `:868`) and `parts/task-05.md`
+(the delegated-caller authentication, `:1`, with its deny-by-default tests). The finding was
+written before they were; nothing to change.
+
+### X-C1: fixed by widening task 06 (no new task)
+
+The review's two options were a new Hub delta task or a wider task 06. Task 06 was widened: the
+writer belongs beside route 46, which now reads the mode, and a new task would have changed the
+69-task list for one handler. **The route is 87, not 80:** the first b01 commit (`8d661b39`) said
+80, but task 14 already holds route 80 (`parts/task-14.md:600`), and 80 to 86 are claimed by
+tasks 14, 46, 49, 52, 61 and 66 to 69. Task 01's §7.0 ended at 79; 87 is the first free number.
+
+| Fix item (the review's "how to fix") | Where |
+|---|---|
+| The route `POST /v1/projects/{p}/mode` `{"mode":"team"}`: admin only (the Hub has no project owner role, contract §5.2 `:326-333`), one way, one `project.mode_set` | `parts/task-06.md:203` (wire and handler order), `:36` (caller table), `:696` (registered bare) |
+| Calls the gate first; 503 `audit_not_streaming` | `parts/task-06.md:203` step 3, the `teamModeGate` seam; test `TestProjectModeWaitsForTheAuditGate` `:593` |
+| Under TM1-α, a dev-only flag, stated as one | `PANACEA_APP_HUB_TEAM_MODE_UNSTREAMED`, refused unless `ENV` is `local` or `dev`: `parts/task-06.md:53`, test `:607`; contract §12.2 row `parts/task-01.md:245` |
+| Task 45's sink fills the gate | `parts/task-45.md:61`, `TeamModeAllowed` `:390` (open for `logs`, or the flag beside `fake` only), tests `:626-627`, Gap 1 resolved `:707` |
+| `Mode` on `hubapi.Project` (task 03) | Block 7 in `types.go`, `parts/task-03.md:958`; `TestProjectModeWire` `:1182`; mutants 5 and 6 `:1582-1584` |
+| `hubclient.SetProjectMode` beside the fake's | `Team.SetProjectMode` `parts/task-08.md:92`; the fake keeps the route's rules instead of a direct setter `:321`; four conformance rows `:427-436`; Gap 1 resolved `:571` |
+| Name its caller | Task 21's local route `POST /v1/projects/{projectId}/team-mode` and `TeamProjects.MakeTeam`, `parts/task-21.md:297`, `:380`, tests `:427-438`; task 56's Share, decision (h) `parts/task-56.md:83`, tests `:221-223` |
+| Task 33's E5 runs the route | E5 `parts/task-33.md:79`; must-hold M0 `:109`; script `05-team-mode.sh` `:87`, `:250` |
+| The contract carries it | task 01: §7.0 row 87 `:293`, §5.3 row `:619`, §7.4 amendment and §7.1 `Project` example `:515-527`, §8 `project.mode_set` `:569`, acceptance-script checks `:740`, `:754` |
+| Restatements fixed | task 04 decision (f) `:67`, kinds row `:255` (22 → 23 kinds, `:57`, `:868`), "does not claim" `:962`; task 43 Z5 row 87 `:401`; skeleton scopes 06 `:486`, 21 `:650`, 33 `:790`, 45 `:921`, 56 `:1027`; task list rows 06 `:317`, 21 `:332`, 45 `:363` |
+
+Found while fixing, and fixed because the finding needs them:
+
+1. **The feed flag.** `project.mode_set` was in no `team_event_kinds` row, so task 04's trigger
+   would have set `fleet_feed = false` and Fleet would never learn a project became team
+   (`05-design.md` §10.1 step 2). Row added, `parts/task-04.md:255`.
+2. **An existing Hub test.** `hubapi`'s `TestFieldNamesMatchTheContractExamples`
+   (`hubapi/types_test.go:179`) compares `Project` with contract §7.1's example, so `Mode` needs
+   the §7.1 line too (`parts/task-01.md:527`) and a one-key edit to that test (task 03).
+3. **Route 46 reads the mode** (409 `not_team_project`, `parts/task-06.md:127`), so every
+   delegation, and so every Fleet write, sits behind route 87 and its gate. Without it the gate
+   would guard a column nothing depends on.
+
+Declared ruling (not the owner's words): the product caller is Share, not the first team launch.
+A launch that turned a project team would skip the consent line `05-design.md` §9.5 puts at
+Share. `TestLaunchNeverMakesTeam` (`parts/task-21.md:427`) pins it.
+
+Owner question recorded: whether Share turns team mode on, or leaves it to an explicit
+**Turn on team agents** step. The plan builds "Share turns it on"; the admin-only button in the
+popover (`parts/task-56.md:83`) is the seam for the other answer.
+
+Deferred, out of this batch (not X-C1's defect):
+- Route numbers 80 to 86 and contract §7.27 are each claimed by more than one task (80: tasks 14,
+  52, 66; §7.27: tasks 14 and 66). Task 01's §7.0 should become the one registry; b01 only avoids
+  adding a collision.
+- `parts/task-33.md` calls the local control plane at `/api/...`, but its routes are `/v1/...`
+  (`control-plane/internal/api/*.go`). `05-team-mode.sh` uses `/v1/`; the others are unchanged.
+
+**Unverified:** no code exists for any of this yet; every file and test above is planned. The Hub
+package paths (`server/`, `store/`, `cmd/hub/config.go`) are Hub tasks 13 to 17's, read as
+planned, and Hub task 35's `hublink.Resolver` is planned.
