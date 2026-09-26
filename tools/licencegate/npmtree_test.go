@@ -281,6 +281,60 @@ func TestNpmDeps_redactedPath(t *testing.T) {
 		}
 	})
 
+	// The review's fallback: a path under no known place is read from the
+	// filesystem, and one entry that redacts alike is that entry, not a guess.
+	// The row above holds only the look-alike error, so a restore that refused
+	// every path outside a known place (fix round 1's predicted survivor F1,
+	// third mutation run) passed every row.
+	t.Run("a node under no place the gate knows, alone in its parent, is read from the filesystem", func(t *testing.T) {
+		tmp, base, p := layout(t)
+		stray := filepath.Join(tmp, "other", uuidC, "node_modules", "s")
+		pkgJSON(t, stray, "s", "1.0.0", "GPL-3.0")
+		x := p.node("node_modules/x", "x", "1.0.0", "MIT", kids("s", &lsNode{Name: "s", Version: "1.0.0", Path: stray}))
+		deps, err := gate(base, p, redacted(t, p.write(kids("x", x))))
+		if err != nil {
+			t.Fatal(err)
+		}
+		wantAt(t, deps, "s@1.0.0", "GPL-3.0", uuidC)
+	})
+
+	// Windows only: a place is matched as a whole path, its volume included. A
+	// printed path on a drive this machine does not have, whose elements equal
+	// a known place's, is not that place: it falls back to the filesystem and
+	// fails there. Every other row is on one drive, so a restore that skipped
+	// the volume passed them all (predicted survivor U3, third mutation run)
+	// and read the node from the wrong drive.
+	t.Run("a printed path on another volume is never read from a known place", func(t *testing.T) {
+		if len(filepath.VolumeName(os.TempDir())) != 2 {
+			t.Skip("no drive letters on " + runtime.GOOS + ": there is no other volume to print")
+		}
+		drive := ""
+		for c := 'Z'; c >= 'D' && drive == ""; c-- {
+			if _, err := os.Stat(string(c) + `:\`); err != nil {
+				drive = string(c) + ":"
+			}
+		}
+		if drive == "" {
+			t.Skip("every drive letter D: to Z: exists here")
+		}
+		_, base, p := layout(t)
+		x := p.node("node_modules/x", "x", "1.0.0", "MIT", nil)
+		tree := string(p.write(kids("x", x)))
+		esc := func(s string) string {
+			b, _ := json.Marshal(s)
+			return strings.Trim(string(b), `"`)
+		}
+		other := drive + x.Path[len(filepath.VolumeName(x.Path)):]
+		printed := strings.ReplaceAll(tree, esc(x.Path), esc(other))
+		if printed == tree {
+			t.Fatalf("the fixture's path %s did not move to %s", x.Path, drive)
+		}
+		_, err := gate(base, p, redacted(t, []byte(printed)))
+		if err == nil || !strings.Contains(err.Error(), drive) {
+			t.Fatalf("NpmDeps = %v: want an error on %s, never the node read from %s", err, drive, filepath.VolumeName(x.Path))
+		}
+	})
+
 	t.Run("two places the gate knows that redact alike are an error", func(t *testing.T) {
 		tmp, base, p := layout(t)
 		twin := filepath.Join(tmp, uuidB, "desktop")
