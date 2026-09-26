@@ -489,7 +489,10 @@ desktop only, no route name, one way, one `project.mode_set` event on Fleet's fe
 before any write on `teamModeGate` (503 `audit_not_streaming`), open under TM1-α only by the
 dev-only `PANACEA_APP_HUB_TEAM_MODE_UNSTREAMED` and filled by task 45 with `TeamModeAllowed`.
 Route 46 refuses a solo project (409 `not_team_project`), so every team record sits behind it.
-Task 21 wraps it as a local route, task 56's Share calls it, task 33's E5 runs it.
+Task 21 wraps it as a local route, task 56's Share calls it, task 33's E5 runs it. **b01 round 2:**
+Hub task 17's `store/projects.go` project-row reader selects `mode`, so routes 13 to 16 answer
+`"mode":"solo"` or `"team"`, never `""` (`TestProjectReadsCarryMode`); every team harness sets
+`PANACEA_APP_HUB_AUDIT_SINK=fake` beside the dev flag, so task 45's gate still opens for it.
 
 **07 — Hub routes, part 2.** Threads (`POST`, `PATCH` state and round count), messages
 (append-only, kind and typed fields per §6.2, text ≤ 600), escalations (`POST` by Fleet under the
@@ -651,6 +654,8 @@ no token (phase 2's `sessionJSON` rule). **Fix batch b01 (X-C1):** `TeamProjects
 `hubapi.Project.Mode` (task 03) and gains `MakeTeam`, behind the local
 `POST /v1/projects/{projectId}/team-mode` over Hub route 87 (task 08's `SetProjectMode`, Hub task
 35's S-LINK); a launch never calls it, so no launch turns a project team behind Share's consent.
+On the Hub's 200, `MakeTeam` calls S-LINK's `Resolver.Invalidate(localProjectID)`, so the next
+`IsTeam` does not read the 5-minute cache's `solo` (b01 round 2).
 
 **22 — Read verbs.** `cp/internal/fleet/verbs/{team.go,check.go,files.go}`: `team` returns §5.1's
 table for every agent on the project, **filtered by the caller's class**: a worker gets owner,
