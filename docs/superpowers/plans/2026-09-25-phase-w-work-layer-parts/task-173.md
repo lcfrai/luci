@@ -61,3 +61,67 @@ page and sees *Keys* only: her own.
    this branch, so the button is not rendered at all. Once set, the section posts the fragment as
    the admin and shows the `version` and `digest` the route answered, verbatim, in mono; nothing
    in `admin/` hashes anything (no `crypto.subtle`), so the shown digest cannot be the desktop's.
+9. **The MCP addresses are the Hub's, copied, never typed.** *Connectors* shows the Work MCP
+   server's two addresses, `<hubBase>/mcp` and `<hubBase>/mcp/read` (task 161), built from the
+   signed-in Hub base the desktop already holds, each with *Copy*. They are shown to everyone who
+   sees *Connectors*; the allow-list under them is the org admin's.
+
+**Files:**
+- `desktop/src/components/admin/access.ts` (+ `access.test.ts`) — who sees which section (new)
+- `desktop/src/components/admin/usePressOnce.ts` — one press, one call (decision 7) (new)
+- `desktop/src/components/admin/SecretOnce.tsx` — the once-shown secret (decision 3) (new)
+- `desktop/src/components/admin/policyForm.ts` (+ `policyForm.test.ts`) — the agent policy
+  form's pure checks (decision 5) (new)
+- `desktop/src/components/admin/{AdminHome,Apps,Keys,Webhooks,Deliveries,Connectors,AgentPolicy}.tsx`
+  (+ one `.test.tsx` each, the seven task 174's sweep names, `task-174.md:281-287`) (new)
+- `desktop/src/components/admin/testAdmin.ts` — the fake `WorkIntakeClient` and `Me` fixtures (new)
+- `desktop/src/components/admin/admin.css` — tokens only, `DESIGN-SYSTEM.md` (new)
+- ⚑ the Settings host: one *Admin* entry mounting `AdminHome` (task 96's settings surface, which
+  task 176 extends with `Preferences.tsx`, `task-176.md:62-63`; the host file is **UNVERIFIED**
+  until task 96 is built)
+
+Tasks 181 (`SignedLand.tsx`) and 185 (`GroupLinks.tsx`) add their sections to this surface later
+(`task-181.md:70-72`, `task-185.md:83-84`); `AdminHome` gives them a slot (below), and neither is
+built here.
+
+#### Interfaces — complete: `desktop/src/components/admin/access.ts`
+
+```ts
+// desktop/src/components/admin/access.ts — task 173. Who sees which admin section, read from
+// GET /v1/me (hub-contract §7.2) and never from a token claim (decision 2).
+import type { Org, Team, User } from "../../api/hub";   // H's wire types (UNVERIFIED module path)
+
+/** The /v1/me answer, as hub-contract.md:660-664 gives it. Team.role is the CALLER's role. */
+export interface Me { user: User; org: Org; orgAdmin: boolean; teams: Team[]; invitesBound: number }
+
+export type AdminSection = "apps" | "keys" | "webhooks" | "connectors" | "agent-policy";
+
+export interface AdminAccess {
+  orgAdmin: boolean;
+  /** Teams the caller is an admin of; the only teams whose webhooks, team keys and policy show. */
+  adminTeams: Team[];
+  sections: AdminSection[];   // in display order; absent means not rendered (decision 2)
+}
+
+export function accessOf(me: Me): AdminAccess {
+  const adminTeams = me.teams.filter((t) => t.role === "admin");
+  const sections: AdminSection[] = [];
+  if (me.orgAdmin) sections.push("apps");
+  sections.push("keys");                                   // everyone: their own keys
+  if (adminTeams.length > 0) sections.push("webhooks");
+  if (me.orgAdmin) sections.push("connectors");
+  if (adminTeams.length > 0) sections.push("agent-policy");
+  return { orgAdmin: me.orgAdmin, adminTeams, sections };
+}
+
+/** Task 160's rule (`task-160.md:16-17`, `:394`): the owner of a personal key, an admin of a team
+ *  key's team, or an org admin, any key. The Hub decides; this only hides a Revoke it would refuse. */
+export function mayRevoke(me: Me, key: { ownerId: string; teamId: string | null }): boolean {
+  if (me.orgAdmin || key.ownerId === me.user.id) return true;
+  return key.teamId !== null && me.teams.some((t) => t.id === key.teamId && t.role === "admin");
+}
+```
+
+`orgAdmin` alone never shows a team's webhooks or policy: an org admin who is not that team's
+admin governs apps and connectors, not the team's agents (OD-16). The org admin's view of every
+team is task 185's and the Hub's, not this surface's.
