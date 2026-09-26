@@ -537,7 +537,8 @@ func (s *Server) createRequest(ctx context.Context, tx *Tx, r store.RequestRow) 
 			return r, err
 		}
 		if !ok {
-			return r, Refuse(http.StatusBadRequest, "bad_request", map[string]any{"field": "requester"})
+			return r, Refuse(http.StatusBadRequest, "bad_request", "no such user in this org",
+				map[string]string{"field": "requester"})
 		}
 	}
 	r.ID, r.OrgID, r.State, r.CreatedAt = ids.Wide(hubapi.PrefixRequest), tx.P.OrgID, string(hubapi.RequestOpen), tx.Now
@@ -563,8 +564,9 @@ func requestFor(ctx context.Context, tx *Tx, id string, want hubapi.Role, lock b
 
 `emitWork` with `projectID ""` is task 13's rule for a `ScopeTeam` kind (`task-13.md:337-338`), so
 a request event reaches every reader of the team through `/v1/changes` and names only ids.
-`Refuse`, `Require`, `Decode`, `Forbidden`, `s.Read` and `s.Write` are Hub task 14's and 15's, as
-task 15 cites them (`task-15.md:414-418`). `store.UserInOrg` stands for whichever read Hub task 05
+`Refuse(status, code, message, details)`, `Require(role, ok, want, notFound)`, `Decode(body, &v)`,
+`Forbidden`, `s.Read` and `s.Write(w, r, func(tx *Tx, body []byte) (WriteResult, error))` are Hub
+task 14's and 15's, used as task 15 uses them (`task-15.md:355-375`, `:414-418`). `store.UserInOrg` stands for whichever read Hub task 05
 gives for *this user id is a member of this org*; its name is **UNVERIFIED** until that lands.
 
 ```go
@@ -581,7 +583,8 @@ func (s *Server) acceptOne(ctx context.Context, tx *Tx, rq store.RequestRow, pro
 		Description: hubapi.AuthoredText{Text: rq.Quote, Author: hubapi.AuthorHuman}, // byte for byte
 		Serves:      orEmpty(in.Serves), Implements: []string{}}
 	if err := hubapi.ValidateIssueRevisionContent(content); err != nil {
-		return hubapi.IssueRef{}, Refuse(http.StatusBadRequest, "bad_request", fieldOf(err, "title"))
+		return hubapi.IssueRef{}, Refuse(http.StatusBadRequest, "bad_request", err.Error(),
+			map[string]string{"field": fieldOf(err, "title")})
 	}
 	if err := checkServes(ctx, tx, projectID, content.Serves, "serves"); err != nil { // task 08
 		return hubapi.IssueRef{}, err
