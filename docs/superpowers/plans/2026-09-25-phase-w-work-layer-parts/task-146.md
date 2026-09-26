@@ -791,3 +791,68 @@ gains `RequestID` and `FreshRequestID` (task 07's `fixture`; how it mints a per-
 not 200: a defect in task 07's helper shared by task 14's two rows and this one (gap 3). The fix
 is one line in task 07, `body: func(*fixture) any { return map[string]any{"reason": "matrix"} }`,
 and this row needs no change when it lands.
+
+#### Steps
+
+- [ ] **Step 1:** Confirm the sync base (rule H1): Hub task 27 merged and sync-merged; tasks 14,
+  143 and 145 committed. If 143 or 145 landed with other names than *The table…* and
+  *`hubapi/work_intake.go`…* above, follow theirs and note the rename in this part's commit.
+- [ ] **Step 2:** Write `hubapi/work_intake_test.go`'s five rows; they fail to compile; add the
+  `hubapi` block and the six event kinds; they pass. Add `request.` to task 13's prefix list.
+- [ ] **Step 3:** Confirm task 145's migration holds `work_requests` and `erase_request` exactly as
+  above (`\d hub.work_requests` against the compose stack); a difference is task 145's to fix.
+- [ ] **Step 4:** Write `server/work_requests_integration_test.go`; every row fails.
+- [ ] **Step 5:** `store/work_requests.go`; `createRequest`, `routeRequest`'s empty body,
+  `requestFor`; the member create, list and get. Their rows go green.
+- [ ] **Step 6:** `acceptOne` and the accept, link, decline and important handlers; then
+  `issueRequests`. Run until green.
+- [ ] **Step 7:** `eraseRequest` beside task 14's routes; `request.erased` in `emitWorkErase` and in
+  Hub task 26's reason-stripping projection. The erase rows go green.
+- [ ] **Step 8:** The matrix rows under `"146"`; append `"146"` to `workMatrixLive`. Run task 07's
+  meta-test, which compares the rows with `(*Server).Patterns()`.
+- [ ] **Step 9:** Rerun tasks 08-15's integration tests and task 19's goldens; all green. `git diff
+  -- go.work control-plane/go.mod` shows nothing; commit by pathspec.
+
+#### Acceptance
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/work
+go test ./control-plane/internal/hub/hubapi/ -race -count=1 -v \
+  -run '^Test(ValidateQuoteKeepsTheBytes|TheQuoteFitsADescription|ValidateRequesterPerKind|RequestEventsCarryNoText|RequestKindsAreTeamScoped)$' \
+  2>&1 | grep -c "^--- PASS"                                                                    # 5
+go test -tags integration ./control-plane/internal/hub/server/ -race -count=1 -v \
+  -run '^Test(TheQuoteNeverReachesTheFeed|AcceptWritesTheQuoteVerbatim|ASecondAcceptIsRequestClosed|LinkLeavesTheIssueAlone|AServeTiesTheAcceptedIssue|AProjectOfAnotherTeamIsRefused|ErasedRequestsLeaveNoText|EraseNamesTheDerivedIssue|AnErasedRequestCannotBeAccepted|TheReplayStaysErased|AnIssueListsItsRequestersByName)$' \
+  2>&1 | grep -c "^--- PASS"                                                                    # 11
+go test -tags integration ./control-plane/... -race -count=1 -run 'TheManagedBlockHasNoRequestField' -v \
+  2>&1 | grep -c "^--- PASS"                                                                    # 1
+go test -tags integration ./control-plane/internal/hub/... -race -count=1                      # ok
+go test ./control-plane/... -race -count=1                                                      # ok
+```
+
+The matrix rows run inside the package's matrix test, which the fourth command covers; a missing
+role row fails it by name (`POST /v1/requests/{requestId}/accept: column V: want 403, got 200`).
+
+#### What this task does not claim
+
+- That a client outside the KPMG tenant can be a requester **by person**: an Entra B2B guest's
+  sign-in is **UNVERIFIED**; the email channel (task 149) is their path.
+- The Triage surface that shows open requests, the accept dialog's wording, or the *also erase
+  EP-142?* prompt: those are tasks 170 and 173.
+- Rules, forms, mail or Teams: tasks 147, 148, 149 and 157, which call `createRequest`.
+- That the owner accepts decision 2 (the quote as the issue's description, rendered to agents as
+  the accepter's adopted words) or the no-cascade erase: Q-146 and Q-146b below.
+- That any number here is measured; the estimate is an estimate.
+
+#### Gaps
+
+1. **Tasks 143 and 145 are not written at this writing.** This part states the wire types and the
+   table they must carry; both parts should take them as written or record the rename.
+2. **Q-146 (owner):** 05 §3.5's *"its text never enters an agent's managed block"* against the
+   scope's *description is the quote*. Decision 2 reads it as *the request record never enters*,
+   and the accepter adopts the words. The stricter reading is one line in `acceptOne`.
+   **Q-146b (owner):** erase of a request does not cascade to the issue accepted from it.
+3. **Task 07's `werase` sends an empty body** while every Work erase requires `reason`, so the `O`
+   column of task 14's two erase rows and this task's reads 400. One line in task 07 fixes all three.
+4. **`store.UserInOrg` and `store.TeamWorkPolicy`** stand for Hub task 05's and task 11's reads,
+   whose names are not yet fixed; the fixture's `FreshRequestID` needs H16b's fixture to mint a
+   value per column.
