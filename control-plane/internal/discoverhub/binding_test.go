@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 	"unicode/utf8"
 
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/discover"
@@ -237,6 +238,7 @@ func TestANameTheTeamHoldsIsNameTaken(t *testing.T) {
 			Message: "A project in this team already has that name.", Details: map[string]string{"field": "name"}}}
 	}
 	w.hub.failCreateProject(nameTaken())
+	w.clock.Advance(50 * time.Second) // the memo, taken at t0, lives to t0 + 60 s
 	_, err := s.Bind(bg, localFork, w.team, "")
 	var nt *NameTakenError
 	if !errors.As(err, &nt) || nt.Name != "portal (me/portal)" {
@@ -250,6 +252,15 @@ func TestANameTheTeamHoldsIsNameTaken(t *testing.T) {
 	}
 	if got := w.since(m); len(got) != 0 {
 		t.Errorf("Hub calls after the refusal = %v, want none: the memo stands", got)
+	}
+	// Unchanged includes its expiry: the unbound re-read is not memoised in
+	// its place (t07 fix round 1, mutant SB), so the memo still ends at t0 +
+	// 60 s and the next Binding after that reads the Hub.
+	w.clock.Advance(11 * time.Second)
+	m = w.mark()
+	mustBinding(t, s, localFork)
+	if got := w.since(m); len(got) == 0 {
+		t.Errorf("Hub calls from a Binding 61 s after the memo was taken = none, want a lookup: the refusal re-memoised its re-read")
 	}
 	if b, err := s.Bind(bg, localFork, w.team, "Portal fork"); err != nil || b.State != BindingBound {
 		t.Errorf("Bind under another name = %+v, %v; want bound", b, err)
@@ -392,6 +403,23 @@ func TestBindRaceReturnsTheTeammatesProject(t *testing.T) {
 	b2, err := w2.service().Bind(bg, localFork, w2.team, "")
 	if hubclient.Code(err) != hubapi.CodeRepoAlreadyLinked || b2.State != "" {
 		t.Errorf("Bind into a repository another team holds = %+v, %v; want repo_already_linked as it came", b2, err)
+	}
+
+	// repo_already_linked whose re-read fails: the re-read's error comes back
+	// as it came, the same as a name refusal's, never the 409, which would
+	// claim the repository is held where the caller cannot read it when
+	// nobody could look (t07 fix round 1, mutant SA). The memo stands.
+	w4 := forkWorld(t, gh("origin", newKey))
+	s4 := w4.service()
+	before4 := mustBinding(t, s4, localFork)
+	w4.hub.failCreateProject(&hubclient.Error{Status: 409, Problem: httpx.Problem{Error: hubapi.CodeRepoAlreadyLinked,
+		Message: "That repository is already linked to a project."}})
+	w4.hub.SetUnavailable(true)
+	if _, err := s4.Bind(bg, localFork, w4.team, ""); !errors.Is(err, hubclient.ErrUnavailable) || hubclient.Code(err) != "" {
+		t.Errorf("Bind whose re-read fails after repo_already_linked = %v, want hubclient.ErrUnavailable as it came", err)
+	}
+	if after := mustBinding(t, s4, localFork); !reflect.DeepEqual(after, before4) {
+		t.Errorf("Binding after the failed re-read = %+v, want the memo unchanged: %+v", after, before4)
 	}
 
 	// The commonest race (review t07 I1): the teammate's clone has the same
