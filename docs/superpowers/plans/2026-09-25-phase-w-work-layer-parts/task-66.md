@@ -306,3 +306,85 @@ SVG holds no live region).
 
 A grid's roving focus is task 53's and task 62's cursor (`data-cursor`, `aria-current`); this task
 adds no focus handling. `aria-selected` on a Work row mirrors task 40's `data-selected`.
+
+#### Interfaces — complete: W1's inline regions become plain text plus `<Said>`
+
+Each line keeps its element, its class and its words; it loses the role and gains a `<Said>` beside
+it. The kind follows decision 2.
+
+| Where | Today's role | Becomes | Kind |
+|---|---|---|---|
+| task 43's drop offer in a column header (`task-43.md:41`) | `status` | plain line + `<Said text={offer} />` | answer (my drag) |
+| task 46's `iv-request` line (`task-46.md:619`) | `status` | plain line + `<Said>` | answer |
+| task 52's refused lines (`task-52.md:315`, `:372`) | `status` | plain line + `<Said>` | answer (a refusal of my act) |
+| task 61's Start chip notes (`task-61.md:397-411`) | `status` | plain `sc-note` + `<Said>` | answer |
+| task 61's consequence (`task-61.md:416`) | `alert` | plain `sc-consequence` + `<Said>` | answer |
+| task 62's hold line (`task-62.md:340`) | `status` | plain `dk-hold` + `<Said kind="digest" text={HOLD_LINE} />` | digest |
+| task 65's row answers (`desk-answer`, `desk-answer-fail`) | none | + `<Said text={line} />` | answer |
+| task 41's held line (`task-41.md:298`) | `note` | unchanged `note` + `<Said kind="digest">` of its words | digest |
+
+`role="note"` is not a live region (WAI-ARIA 1.2), so task 41's line keeps it; its words reach the
+region as a digest, which is task 41's *held arrivals* rule in the scope. Task 56's `UndoChip`
+(`task-56.md:447`, `role="group"`) speaks its answer through `<Said text={`${label}. Undo, U`} />`
+once when the chip appears, and its countdown `<span>` gains `aria-hidden="true"` (decision 8).
+
+#### Tests to write first, part 1 — `LiveRegion.test.tsx` (the announcer, pure)
+
+```ts
+import { describe, expect, it } from "vitest";
+import { createAnnouncer, DIGEST_WINDOW_MS } from "./LiveRegion";
+import { expectNoPrediction } from "../../test/expectNoPrediction";
+
+function rig() {
+  let t = 0;
+  const queue: { at: number; fn: () => void }[] = [];
+  const said: string[] = [];
+  const a = createAnnouncer({ now: () => t, later: (ms, fn) => queue.push({ at: t + ms, fn }) });
+  a.subscribe(() => said.push(a.current().text));
+  const advance = (ms: number) => {
+    t += ms;
+    for (const q of queue.splice(0).sort((x, y) => x.at - y.at)) {
+      if (q.at <= t) q.fn(); else queue.push(q);
+    }
+  };
+  return { a, said, advance };
+}
+const MIN = 60 * 1000;
+
+describe("the announcer", () => {
+  it("two digests 5 minutes apart speak once; an answer between them speaks at once", () => {
+    const { a, said, advance } = rig();
+    a.announce("EP-150 arrived in Triage", "digest");
+    advance(2 * MIN);
+    a.announce("EP-142 deferred. Undo, U", "answer");
+    advance(3 * MIN);
+    a.announce("EP-151 arrived in Triage", "digest");
+    expect(said).toEqual(["EP-150 arrived in Triage", "EP-142 deferred. Undo, U"]);
+    advance(DIGEST_WINDOW_MS);
+    expect(said).toEqual(["EP-150 arrived in Triage", "EP-142 deferred. Undo, U", "EP-151 arrived in Triage"]);
+    // mutants: every arrival spoken; answers throttled with the digests
+  });
+  it("held digests speak once at the window's end as the newest plus a count", () => {
+    const { a, said, advance } = rig();
+    a.announce("one", "digest");
+    for (const w of ["two", "three", "four"]) { advance(MIN); a.announce(w, "digest"); }
+    advance(DIGEST_WINDOW_MS);
+    expect(said).toEqual(["one", "four (and 2 more)"]);
+    // mutant: each held digest spoken at the flush
+  });
+  it("a key speaks once for the window's life", () => {
+    const { a, said } = rig();
+    a.announce("Alice proposed a lease", "digest", "negotiation:th-1:open");
+    a.announce("Alice proposed a lease", "answer", "negotiation:th-1:open");
+    expect(said).toHaveLength(1);
+    // mutant: the key ignored for answers
+  });
+  it("says nothing that predicts", () => {
+    const { a, said } = rig();
+    a.announce("four (and 2 more)", "answer");
+    const el = document.createElement("div");
+    el.textContent = said.join(" ");
+    expectNoPrediction(el);
+  });
+});
+```
