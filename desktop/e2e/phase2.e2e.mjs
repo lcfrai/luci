@@ -193,6 +193,16 @@ check("setup", "task 24 step 11, re-run: the catalogue loads and a session can b
   ctx.created.push(made.id);
   await until("a pane for the UI-created session", () => h.page.$(paneOf(ctx.claude)));
   await until("an attach socket for it", () => socketsFor(h, ctx.claude).length > 0, 30_000);
+  // A record is not a started session. Task 25's first run passed every line above for a UI
+  // create whose sandbox never started: the record appeared, then "the sandbox could not be
+  // created" (docker start: context canceled — the cockpit's 10 s request timeout fired mid-create).
+  // p1.claude and o2.resume then failed for a reason this check had already seen. So the session
+  // must leave "starting" alive before anything is built on it.
+  const started = await until("the UI-created session to leave starting", async () => {
+    const s = await api("GET", `/v1/sessions/${ctx.claude}`);
+    return s.status === "starting" ? null : s;
+  }, 60_000, 500);
+  if (started.status === "exited") throw new Error(`the UI-created session exited: ${started.exitReason}`);
 
   // The shell every later check types into, made over REST: the poller must find it.
   ctx.sh = (await createShell("e2e-shell")).id;
@@ -319,7 +329,36 @@ check("c7.popover", "real-browser carry 7: Popover's viewport clamp, including t
     results.push({ height, ...r });
   }
   await h.page.setViewportSize({ width: 1600, height: 1000 });
-  if (!results.some((r) => r.above)) throw new Error("the popover never opened above the chip; the flip branch did not run");
+
+  // The flip-above branch, which is what carry 7 is about. Task 25's first run found the plan's
+  // premise wrong: `.rail-machine` is the rail's FIRST row (top 0, bottom 40.8 at both heights),
+  // not its footer, so the chip can never flip — there is no room above it. The context menu is
+  // the Popover that anchors to a POINT (ContextMenu.tsx: a zero-size DOMRect at the pointer), so
+  // a right-click low on the rail's lowest row, in a window too short for the menu to fit below
+  // that point, is a gesture that must take the flip. The height is computed from the menu's
+  // measured size, not guessed; if no row sits low enough for the flip to be possible at all,
+  // that is said, and the check fails rather than passing on the no-op path.
+  const row = await h.page.$$eval("[data-kind]", (els) => {
+    const b = els.at(-1).getBoundingClientRect();
+    return { kind: els.at(-1).getAttribute("data-kind"), id: els.at(-1).getAttribute("data-id"), x: b.x + b.width / 2, y: b.bottom - 2 };
+  });
+  const openMenu = async () => {
+    await h.page.mouse.click(row.x, row.y, { button: "right" });
+    const pop = await until("the context menu", () => h.page.$(".pop"));
+    const r = await pop.evaluate((el) => { const b = el.getBoundingClientRect(); return { top: b.top, bottom: b.bottom, height: b.height, vh: innerHeight }; });
+    await h.page.keyboard.press("Escape");
+    await until("the context menu to close", async () => (await h.page.$(".pop")) === null);
+    return r;
+  };
+  const tall = await openMenu();
+  if (row.y - tall.height - 6 <= 8) throw new Error(`no rail row sits low enough to flip: lowest anchor y ${row.y}, menu ${tall.height}px`);
+  const short = Math.floor(row.y + 6 + tall.height);   // the menu cannot fit below the point
+  await h.page.setViewportSize({ width: 1600, height: short });
+  const flipped = await openMenu();
+  await h.page.setViewportSize({ width: 1600, height: 1000 });
+  if (flipped.bottom > row.y + 0.5) throw new Error(`at ${short}px the menu did not open above the point: ${JSON.stringify({ row, flipped })}`);
+  if (flipped.top < 0 || flipped.bottom > flipped.vh) throw new Error(`at ${short}px the flipped menu spills the viewport: ${JSON.stringify(flipped)}`);
+  results.push({ contextMenu: row.kind, anchorY: row.y, height: short, ...flipped, above: true });
   return results;
 });
 
@@ -327,23 +366,34 @@ check("c9.exit-row", "real-browser carry 9: the exit row is zero-height until ex
   const s = await createShell("e2e-exit");
   await until("the exit session's pane", () => h.page.$(paneOf(s.id)), 10_000);
   await until("its prompt", () => /\$ $/m.test(stdoutOf(h, s.id)), 30_000);
+  // The exit bar is measured as its own element, not as "the third track". Task 25's first run
+  // found the plan's premise wrong twice over: `.pane-exit` is rendered only once the session
+  // has exited (SessionPane.tsx), so a running pane's third track holds whatever child is third,
+  // and on a linked worktree that is the git note (p.pane-gitnote, 48px) — the resolved tracks
+  // read "38px 809.76px 48px 25.3958px" with header, body, note and footer as the children.
+  // What carry 9 asks is unchanged: no space is kept for the bar while running, and its
+  // arrival moves nothing. So: no track is sized that no rendered child fills, then a bar with
+  // a real height, then the pane's own box where it was.
   const measure = () => h.page.$eval(paneOf(s.id), (el) => {
     const b = el.getBoundingClientRect();
-    return { rows: getComputedStyle(el).gridTemplateRows, top: b.top, height: b.height,
-             exitBar: el.querySelector(".pane-exit") !== null };
+    const bar = el.querySelector(".pane-exit");
+    const rows = getComputedStyle(el).gridTemplateRows;
+    return { rows, top: b.top, height: b.height, children: el.children.length,
+             sizedTracks: rows.split(" ").filter((t) => t !== "0px").length,
+             exitBar: bar !== null, exitBarPx: bar === null ? 0 : bar.getBoundingClientRect().height };
   });
   const before = await measure();
   if (before.exitBar) throw new Error("a running session already shows the exit bar");
-  if (before.rows.split(" ")[2] !== "0px") throw new Error(`third track is ${before.rows} while running`);
+  if (before.sizedTracks > before.children) throw new Error(`a running pane sizes a track no child fills: ${before.rows}, ${before.children} children`);
 
   await type(h.page, s.id, "exit");
   await until("the exit bar", async () => (await measure()).exitBar, 10_000);
   const after = await measure();
-  if (after.rows.split(" ")[2] === "0px") throw new Error(`exit bar present but its track is ${after.rows}`);
+  if (after.exitBarPx <= 0) throw new Error(`exit bar present but ${after.exitBarPx}px tall (${after.rows})`);
   if (Math.abs(after.top - before.top) > 0.5 || Math.abs(after.height - before.height) > 0.5) {
     throw new Error(`the pane moved: ${JSON.stringify({ before, after })}`);
   }
-  return { before: before.rows, after: after.rows };
+  return { before: before.rows, after: after.rows, exitBarPx: after.exitBarPx };
 });
 
 const GRACE_MS = 5_000;   // src/api/attachRegistry.ts:20, guarded in step 1 (b)
@@ -361,24 +411,39 @@ const liveIds = async () =>
     .filter((s) => ctx.created.includes(s.id) && s.status !== "exited").map((s) => s.id);
 
 /** Every row the terminal can show, from the top of its scrollback to the bottom, read by
- *  scrolling the way a user does. Leaves the terminal scrolled to the bottom. */
+ *  scrolling the way a user does. Leaves the terminal scrolled to the bottom.
+ *
+ *  One wheel event moves xterm a few rows WHATEVER its delta: measured by task 25 in both
+ *  layouts, a single -1,000,000 px event and a -300 px one each moved exactly five rows
+ *  (Columns W349 -> W344 -> W339, Canvas W391 -> W386 -> W381). So the top is reached by
+ *  repeating the gesture until the first row stops changing, and the way down reads the
+ *  viewport after rows/ROWS_PER_WHEEL_MAX events: half a viewport at the measured five rows
+ *  an event, a whole one even at twice that, so no row can be scrolled past unread. */
+const ROWS_PER_WHEEL_MAX = 10;   // twice the five measured, as margin
 async function readBuffer(h, id) {
   const box = await h.page.$eval(`${paneOf(id)} .xterm`, (el) => {
     const r = el.getBoundingClientRect();
     return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
   });
   await h.page.mouse.move(box.x, box.y);
-  await h.page.mouse.wheel(0, -1_000_000);
-  await sleep(250);
+  let top = null;
+  for (let i = 0; i < 1_000; i += 1) {
+    for (let k = 0; k < 20; k += 1) await h.page.mouse.wheel(0, -300);
+    await sleep(50);
+    const first = (await screen(h.page, id))[0] ?? "";
+    if (first === top) break;   // twenty more events moved nothing: this is the top
+    top = first;
+  }
   const seen = new Set();
   let previous = "";
-  for (let i = 0; i < 3_000; i += 1) {
+  for (let i = 0; i < 5_000; i += 1) {
     const rows = await screen(h.page, id);
     for (const r of rows) seen.add(r);
     const key = rows.join("\n");
     if (key === previous) break;   // the viewport stopped moving: this is the bottom
     previous = key;
-    await h.page.mouse.wheel(0, 300);
+    const steps = Math.max(1, Math.floor(rows.length / ROWS_PER_WHEEL_MAX));
+    for (let k = 0; k < steps; k += 1) await h.page.mouse.wheel(0, 300);
     await sleep(25);
   }
   return seen;
