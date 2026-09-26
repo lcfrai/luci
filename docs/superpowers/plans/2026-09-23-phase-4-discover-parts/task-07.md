@@ -5,7 +5,8 @@ Hub, and it talks only through `hubclient.Briefs` and `hubclient.Projects` (Hub 
 turns local ids (`p-…`, `b-…`, path-hashed, never shared — ADR-H1 §1.5) into Hub ids (`pj-…`,
 `refs/heads/…`), reads briefs, resolves keys, and answers the Materialiser's one question: *what
 does a session on this branch inherit now?* Every test runs against `hubclient.NewFake()`, through
-the phase-4-owned wrapper in `fakehub_test.go` that adds `List` (HA4-2, below).
+the phase-4-owned wrapper in `fakehub_test.go` (its test hooks, below; a `List` of its own only
+if H0 had lacked HA4-2's, which as built, note 1, it did not).
 
 **Depends on the Hub's task H0** (interfaces, fake, conformance skeleton — ADR-H1 §5.9 ships them
 first). **Blocked by Hub contract ask HA4-2** (`Briefs.List`) for the real Hub — the same ask that
@@ -39,8 +40,9 @@ reply to start, but it cannot claim the real Hub until HA4-2 is in the Hub contr
 - `control-plane/internal/discoverhub/binding.go` + `binding_test.go` (new)
 - `control-plane/internal/discoverhub/read.go` + `read_test.go` (new)
 - `control-plane/internal/discoverhub/fixtures_test.go` — the fact sheet's world in the fake (new)
-- `control-plane/internal/discoverhub/fakehub_test.go` — `fakeHub{*hubclient.Fake}` plus `List`
-  over the seeded revisions, until HA4-2 lands, and four test hooks H0's fake does not plan
+- `control-plane/internal/discoverhub/fakehub_test.go` — `fakeHub{*hubclient.Fake}`, whose own
+  `List` shows through (HA4-2 is in H0: as built, note 1; had it not been, the wrapper would add a
+  `List` over the seeded revisions), and four test hooks H0's fake does not plan
   (`phase-h-hub-parts/task-04.md:188-226` lists its whole surface, and none is in it) (new;
   phase 4's, not the Hub's). Rule 8's rows need `List` to answer each brief's **current**
   head: a `Rebind` or an `Archive` made through the fake shows through, and `SetUnavailable`
@@ -219,11 +221,11 @@ rename, as for HA4-1 — and the wrapper fake's `List` follows it.
 package discoverhub
 
 // Hub is the part of hubclient this package uses. It is phase 4's own
-// interface: List is declared here, not borrowed, because HA4-2 has not
-// reached the Hub contract. Until it does, only the test wrapper
-// (fakehub_test.go: hubclient.NewFake() embedded, plus List) satisfies Hub;
-// *hubclient.Client and *hubclient.Fake satisfy it unchanged once HA4-2
-// lands. Nothing in this package writes under internal/hub.
+// interface. HA4-2 reached the Hub in H0 (hubclient.Briefs declares List,
+// hub 3df9fab8), so *hubclient.Client and *hubclient.Fake satisfy Hub
+// unchanged; List is still declared here, identically, so a change to its
+// signature in the Hub is a compile error in this package, the right place to
+// learn it. Nothing in this package writes under internal/hub.
 type Hub interface {
 	hubclient.Briefs
 	hubclient.Projects
@@ -245,17 +247,6 @@ type RepoKey struct {
 type RepoIdentity interface {
 	RepoKeys(ctx context.Context, projectPath string) ([]RepoKey, error)
 }
-
-// orderRemotes is the one place the PRIMARY remote is chosen (review M8;
-// b10 re-review I-1): the entry whose Remote is "origin" when there is one,
-// otherwise the first by Remote name; the rest follow by Remote name. The
-// primary is the one Binding binds by and the only one Bind registers. It
-// lives here, beside its only callers, and not in RepoIdentity, so no
-// implementation's order can move it: git lists "company" before "origin",
-// and a fork whose team remote sorts first would otherwise bind to the
-// team's project, the defect M8 exists to stop. Pure; it does not mutate
-// keys.
-func orderRemotes(keys []RepoKey) []RepoKey
 
 // Locator maps local ids to what this package needs. Task 14 adapts
 // *project.Scanner to it.
@@ -338,24 +329,45 @@ type Binding struct {
 	DefaultName    string        `json:"defaultName"`    // unbound only: DefaultName(local name, this binding), what Share pre-fills (b10 re-review I-2); "" otherwise
 }
 
+// orderRemotes is the one place the PRIMARY remote is chosen (review M8;
+// b10 re-review I-1): the entry whose Remote is "origin" when there is one,
+// otherwise the first by Remote name; the rest follow by Remote name. The
+// primary is the one Binding binds by and the only one Bind registers. It
+// lives here, beside its only callers, and not in RepoIdentity, so no
+// implementation's order can move it: git lists "company" before "origin",
+// and a fork whose team remote sorts first would otherwise bind to the
+// team's project, the defect M8 exists to stop. Pure; it does not mutate
+// keys.
+func orderRemotes(keys []RepoKey) []RepoKey
+
 // Binding orders RepoIdentity's answer with orderRemotes, then looks the
 // project up by its PRIMARY remote's key (RepoKeys[0]) and
 // is bound only to the project that key names (review M8). When there is
 // none, it looks up each other remote's key in order and lists every hit in
 // Matches, state unbound: the person chooses (task 18), nothing binds on its
 // own. It is memoised in memory per local project for 60 s, and forgotten on
-// Bind.
+// Bind. A lookup that was in flight when Bind forgot the memo does not
+// store its answer (review t07 m2): it read the Hub before the Bind, and
+// would hold a stale unbound for 60 s.
 func (s *Service) Binding(ctx context.Context, projectID string) (Binding, error)
 
 // Bind creates the Hub project in teamID with the PRIMARY remote's key as
 // its only remote (review M8: a fork's clone must not claim the team's
 // repository through its upstream remote), named name, or DefaultName when
-// name is "" (after trimming). repo_already_linked (a race with a teammate)
-// re-reads and returns that binding instead of failing. A Hub 409 that
-// refuses the name (b10 re-review I-2: `name` is "unique per team",
-// hub-contract.md:710) is *NameTakenError, nothing bound and the memo
-// unchanged, so the person can Share again under another name. Joining a
-// project that a non-primary remote matched is not built (OQ-12).
+// name is "" (after trimming). It reads the binding through Binding's memo,
+// which may predate a teammate's Share. So each 409 that a teammate's race
+// can cause re-reads the binding past the memo, and a re-read that is bound
+// forgets the memo and is returned instead of the error (review t07 I1):
+// repo_already_linked, and a Hub 409 that refuses the name (b10 re-review
+// I-2: `name` is "unique per team", hub-contract.md:710), because a teammate
+// whose clone has the same directory name Shared under the same default name,
+// and the contract does not fix which of the two checks the Hub runs first
+// (the fake runs the name's). When the re-read is not bound,
+// repo_already_linked is returned as it came (the project is one the caller
+// cannot read), and the name refusal is *NameTakenError, nothing bound and
+// the memo unchanged, so the person can Share again under another name. A
+// re-read that fails returns its own error, unchanged. Joining a project that
+// a non-primary remote matched is not built (OQ-12).
 func (s *Service) Bind(ctx context.Context, projectID, teamID, name string) (Binding, error)
 
 // DefaultName is the name Bind uses when the person gives none, and the one
@@ -499,7 +511,7 @@ func (s *Service) Resolve(ctx context.Context, keys []string) (refs []provenance
 // inside it, computed on every call like Resolve's (review I14). It is the
 // one surface that shows criterion states, so it must not depend on some
 // session having stamped the same key (re-review b06-1 R-I3).
-func (s *Service) HeadRef(ctx context.Context, t Target) (ref provenance.Ref, states []provenance.CriterionReading, err error)
+func (s *Service) HeadRef(ctx context.Context, t Target) (provenance.Ref, []provenance.CriterionReading, error)
 
 // Inheritable is P4-A, the Materialiser's one question: the latest complete
 // branch revision, else the latest complete project revision, else none.
@@ -646,10 +658,11 @@ chosen once (re-review b06-2 R2-M1; the fact sheet names none for `b-42@6`): `b-
 | `TestBindRegistersThePrimaryRemoteOnly` (review M8) | the fork shape with `upstream` unlinked → `CreateProject`'s `remotes` is exactly `[{github.com/me/portal, github}]`; a repository with no `origin` and two recognised remotes `a` and `b` → `[a's key]`, and `Binding` then reads `bound` | a Bind that claims the team's repository under the fork's new project, so the team's own later Share meets `repo_already_linked` |
 | `TestThePrimaryRemoteIsOriginInAnyOrder` (b10 re-review I-1) | the fake `RepoIdentity` answers in git's alphabetical order, `company` (`github.com/team/portal`, linked to `pj-2`) then `origin` (`github.com/me/portal`, unlinked) → `Binding` is `unbound`, `RepoKeys[0]` is `github.com/me/portal`, `Matches` names `company` and `pj-2`; `Bind` registers `origin`'s key alone; the same with `azure`, `github` and `team` as the team remote's name; with no `origin`, `zeta` then `alpha` → `alpha` is primary; `orderRemotes` leaves its input slice as it was | a primary taken as `RepoKeys[0]` of whatever `RepoIdentity` returned, so a team remote that sorts before `origin` binds the fork to the team's project (M8 again); an order fixed only in task 14, which this package's fake cannot see |
 | `TestAForkSharesUnderItsOwnName` (b10 re-review I-2) | local project `portal`, the fork shape with `upstream` linked to `pj-2` (named `portal`, team `tm-1`): `DefaultName` and `Binding`'s `defaultName` are `portal (me/portal)`, and a bound binding's is `""`; `Bind(tm-1, "")` creates that name with `origin`'s key only and reads `bound`; `Bind(tm-1, "Portal fork")` uses `Portal fork`, and a name of white space alone takes the default (t07 mutant P2); with no Matches, `DefaultName` is `portal`; a 125-character local name gives a 120-character default ending in `(me/portal)`; characters are **code points** (re-review b10-2 R-M2): 125 `é` give 108 `é` and the key, valid UTF-8, and 120 `é` with no Matches; a key too long to leave the local name one code point (GitHub's 39 + 1 + 100 after its host) drops the qualifier, so the default is the local name alone and `NameTakenError` covers a clash | a fork's Share that reuses the directory name and is refused in the very team that holds the upstream's project |
-| `TestANameTheTeamHoldsIsNameTaken` (b10 re-review I-2) | `failCreateProject` with a `*hubclient.Error` 409 `conflict` whose `details.field` is `name` → `*NameTakenError{Name: "portal (me/portal)"}`, `Binding` still `unbound` with the same `Matches`, no memo change; a later `Bind` with another name succeeds; the Hub fake's **own** rule gives the same (it enforces the per-team name, case-insensitive, 409 `conflict` `field: "name"`, `fake_projects.go:487-491` at hub `3df9fab8`); a 409 `conflict` with no `field`, and a 400 `bad_request` whose `field` is `name` (a length refusal; re-review b10-2 mutant 2), are returned as they came, not as `NameTakenError` | a name refusal relayed as a generic `conflict` the desktop cannot place, or cached so the retry never reaches the Hub |
+| `TestANameTheTeamHoldsIsNameTaken` (b10 re-review I-2) | `failCreateProject` with a `*hubclient.Error` 409 `conflict` whose `details.field` is `name` → `*NameTakenError{Name: "portal (me/portal)"}` (Bind's re-read past the memo is still unbound), `Binding` still `unbound` with the same `Matches`, no memo change (no Hub call from the `Binding` after the `Bind`: review t07 I1 moved the mark there, because `Bind` itself now re-reads); the same refusal with the re-read failing (`SetUnavailable(true)`) → `hubclient.ErrUnavailable` as it came, never `NameTakenError`, and the memo unchanged; a later `Bind` with another name succeeds; the Hub fake's **own** rule gives the same (it enforces the per-team name, case-insensitive, 409 `conflict` `field: "name"`, `fake_projects.go:487-491` at hub `3df9fab8`); a 409 `conflict` with no `field`, and a 400 `bad_request` whose `field` is `name` (a length refusal; re-review b10-2 mutant 2), are returned as they came, not as `NameTakenError` | a name refusal relayed as a generic `conflict` the desktop cannot place, or cached so the retry never reaches the Hub |
 | `TestBindingWithNoRemoteSaysSo` | `no_remote`, no Hub call | a Hub project created for a repository nobody else can reach (OQ-1) |
 | `TestBindingOffWhenTheHubIsNotConfigured` | nil Hub → `hub_off`; `HeadRef` on `b-42` → a `none` Ref, nil states and a nil error (rule 6); `Inheritable` → `(Inheritable{}, nil)`, none and no error, the answer `HeadRef` reports (re-review b05-2 N-c); `View` → that binding, no brief; `Bind` and `History` → `ErrHubOff`; no Hub call | a nil dereference at the first lens open; a `HeadRef` error that task 12 would turn into a 503 on Develop's head reading for a Hub it was never given |
-| `TestBindRaceReturnsTheTeammatesProject` | fake answers `repo_already_linked`; `Bind` returns that project `bound`; when the project holding the repository is in a team the caller is not in, the re-read stays `unbound` and `Bind` returns the Hub's `repo_already_linked` as it came, never an unbound `Binding` with a nil error (t07 mutant P1) | a second project for one repository |
+| `TestBindRaceReturnsTheTeammatesProject` | fake answers `repo_already_linked`; `Bind` returns that project `bound`; when the project holding the repository is in a team the caller is not in, the re-read stays `unbound` and `Bind` returns the Hub's `repo_already_linked` as it came, never an unbound `Binding` with a nil error (t07 mutant P1); the commonest race (review t07 I1): local project `portal`, `origin` `github.com/team/portal2`, `Binding` memoised `unbound` with `defaultName` `portal`, then the teammate Shares that key under the same name `portal` in the same team → `Bind(team, "")` is `bound` to theirs, not `NameTakenError` (the fake checks the name before the repository, `fake_projects.go:487-495`), and `Binding` then reads theirs | a second project for one repository; a person told to choose another name for a repository their team already shares |
+| `TestABindingReadInFlightDoesNotOutliveABind` (review t07 m2) | a `Binding` lookup reads `unbound`; before it returns (the fixture `Locator`'s `duringName` hook, run inside the lookup's last step), a `Bind` creates the project and forgets the memo → the in-flight call returns its `unbound`, and the next `Binding` is `bound`, never the stale `unbound` memoised for 60 s | a lookup that memoises what it read before a `Bind` it outlived |
 | `TestInheritableIsTheBranchsLatestComplete` | `b-42` head 7 open, latest complete 6 → key `@6` | materialising an unfinished edit (C9) |
 | `TestInheritableFallsBackToTheProject` | branch brief open with no complete revision → the project's latest complete key | a branch session that inherits nothing while the project has a brief |
 | `TestInheritableIsNoneWithNoCompleteBrief` | key `""`, zero document | an empty block written as if it were a brief |
@@ -662,9 +675,9 @@ chosen once (re-review b06-2 R2-M1; the fact sheet names none for `b-42@6`): `b-
 | `TestResolveEvaluatesABranchKeyWhereItsBriefIsBoundNow` (task 06 fix round 1, review I1; re-review b08-2 R2-M1; rule 8) | `Config.Evaluate` a recording fake. Rebind `b-42`'s brief from `refs/heads/evidence-upload` to `refs/heads/evidence-upload-v2` with the fake's `Rebind` (no revision written), then `Resolve([b-42@5])` → `resolved`, and `Evaluate` was called once, its query's `BranchRef` `refs/heads/evidence-upload-v2`. Create a new branch brief on `refs/heads/evidence-upload`, the old name reused, and resolve again → still `-v2`, never the new brief's ref. `Archive` `b-42`'s brief and resolve again → still `resolved`, `Evaluate` not called, and `states` **has** the key's entry, every reading `open` (the binding is known to be gone, unlike a failed `List`). `b-7@5` in the same batch → no `Evaluate` call for it. The fake's `Calls()` show one `List` per `Resolve`, for `b-42`'s Hub project, with `Scope` `branch` | `at = src.Revision.BranchRef` (R2-M1: after a rename the envelope names a ref that is gone, or someone else's branch); `at` from `ForBranch` of the envelope ref, which finds the new brief; an archived brief evaluated at a ref it no longer holds |
 | `TestHeadRefServesCriterionStatesBesideTheRef` (re-review b06-1 R-I3) | `Config.Evaluate` answers every criterion `settled` with `Because` `{"CI run 88 passed"}` for `b-42@6`'s criteria; `HeadRef` on `b-42` → `states` has one `settled` reading per `Criterion` of the `Ref`, same ids and order, and the `Ref`'s JSON has no `state` key; `Evaluate` then answers `contested, "run 91 failed"` → a second `HeadRef` gives `contested` and a byte-equal `Ref`; a `none` reading has nil `states` | a `DefinitionOfDone` whose states depend on some session having stamped the same key, so a settled criterion reads `open` on every mount |
 | `TestErasedIsNeverServedFromCache` | resolve, erase in the fake, resolve again inside `CacheTTL` → `erased`, no sections, and the entry is evicted (the Hub's answer wins); resolve, erase, `SetUnavailable(true)`, advance the injected clock past `CacheTTL`, resolve → `unavailable`, never `resolved` | erased text outliving its erasure on a laptop (ADR-H1 §6.8), or a cache that outranks the Hub's own `erased` |
-| `TestABranchKeyWhosePinIsErasedKeepsOnlyItsOwnText` (re-review b06-1 R-I2; rule 7) | resolve `b-42@6` (pins `b-7@6`, audience skipped on the branch) so both are cached; erase `b-7` in the fake; resolve `b-42@6` again → `resolved`, `inherits` `{key: brief:…b7@6, erased: true}`, `audience` `""`, no section whose origin is `project` or with a `replaced`, and no byte of `b-7`'s own answers (those no `b-42` revision also holds) anywhere in the JSON; `HeadRef` on `b-42` gives the byte-equal `Ref`, and `Inheritable` gives `b-42@6` with `PinErased` true and a block with none of that text | erased project text served inside every branch key that pinned it, from the cache or from a rebuild |
+| `TestABranchKeyWhosePinIsErasedKeepsOnlyItsOwnText` (re-review b06-1 R-I2; rule 7) | resolve `b-42@6` (pins `b-7@6`, audience skipped on the branch) so both are cached; erase `b-7` in the fake; resolve `b-42@6` again → `resolved`, `inherits` `{key: brief:…b7@6, erased: true}`, `audience` `""`, no section whose origin is `project` or with a `replaced`, and no byte of `b-7`'s own answers (those no `b-42` revision also holds) anywhere in the JSON; `HeadRef` on `b-42` gives the byte-equal `Ref`, and `Inheritable` gives `b-42@6` with `PinErased` true and a block with none of that text; a second `Service` that cached both before the erasure and meets it first through `Inheritable` (no `Resolve` after the erasure) gets `PinErased` true and no longer caches `b-7@6` (review t07 m1: the pin read evicts it, mutant S1) | erased project text served inside every branch key that pinned it, from the cache or from a rebuild |
 | `TestViewOfABranchShowsWhatItInherits` | `Inherited` is `b-7`'s latest complete; `Preview.Block` equals `claudemd.Render` of `Inheritable`'s document | a preview the materialiser would not write |
-| `TestHistoryIsOldestFirstWithChanges` | six rows, `Change.Kind` from each content, erased rows marked | a history that has to diff revisions |
+| `TestHistoryIsOldestFirstWithChanges` | six rows, `Change.Kind` from each content, erased rows marked, and each erased row's key, cached by the earlier reads, gone from the cache (review t07 m1, mutant S2) | a history that has to diff revisions |
 | `TestHubErrorsPassThroughUnchanged` | from `View`, `History` and `HeadRef`, a fake 409 and a fake `ErrUnavailable` reach the caller as `errors.As`/`errors.Is` match | a wrapped error the relay cannot see |
 | `TestHubOffIsUnavailableNotMissing` (review I6; re-review b05-1 R-I1, R-M1) | a table of rows, each on a fresh `fakeHub`, hooks installed after the seeding calls. **Whole-call failures** — a nil `Config.Hub`; `SetUnavailable(true)`; `failResolve(1, &hubclient.Error{Status: 500})`; `SetSignedOut(true)` — over keys `[b-42@6 (it and its pin cached by an earlier, healthy call), b-42@5 (not cached), "", none:declined, "b-42"]` → `resolved`, `unavailable`, `none`, `none`, `invalid` (in the nil-Hub row nothing can have been cached, so the first is `unavailable` too). **Second call fails** — two branch revisions seeded for the row, each pinning a different project revision; one pin cached by an earlier healthy call, the other not; `failResolve(2, &hubclient.Error{Status: 500})`: the first call answers both branch revisions, the pin call fails → the branch key whose pin was cached is `resolved`, the other `unavailable`. **Branch cached, pin not** — resolve `b-7@6` at t0 and `b-42@6` at t0 + `CacheTTL`/2 (its second call carries the cached pin for its head, and leaves the pin's expiry at t0 + `CacheTTL`); advance the injected clock to t0 + `CacheTTL` + 1 s; `failResolve(1, hubclient.ErrUnavailable)` → `b-42@6` is `unavailable`, and the wrapper saw one `Resolve` call, carrying `b-42@6` and `b-7@6` (the cached branch revision's pin key, rule 5's first call). In every row: `Resolve` has no error to return, **no** slot is `missing`, and no `resolved` branch slot lacks its pinned project revision's sections. And a healthy fake that does not hold `bf-…40@5` answers it `missing` | rule 6's old `missing` for every key, which showed a Hub switched off as data loss (task 17's words); a Hub error returned from `Resolve`, which task 12 would turn into a non-200; a failed call that drops a cached slot; a branch slot called `resolved` with no pin in hand, the chip with no audience that rule 3 forbids (critique-2 §1.1); a status-specific branch that answers `missing` for a 500 |
 | `TestAnExpiredPinIsFetchedAgain` (re-review b05-2 R2-I1, item 3) | the "branch cached, pin not" timeline with **no** hook → `b-42@6` `resolved` against `b-7@6`, and the fake's own `Calls()` show one `Resolve`, carrying `b-42@6` and `b-7@6` | a cached branch revision whose expired pin is never asked for again, so a healthy Hub answers it `unavailable` for up to one `CacheTTL`; a kill that rests on the wrapper's log alone |
@@ -726,7 +739,10 @@ $ grep -rn "os.WriteFile\|os.Create\|statepath" control-plane/internal/discoverh
      does for a nil Hub: a session started now inherits nothing, and a head reading that errors
      would block `DefinitionOfDone` for a project nobody shared. `Inheritable` still returns
      `ErrNotBound` and `ErrNoRemote`, which task 09 maps to nothing.
-   - `ErrPinUnreadable` (new): a pin the Hub answers `missing`, from `Inheritable` and `HeadRef`.
+   - `ErrPinUnreadable` (new): a pin the Hub answers `missing`, from `Inheritable`, `HeadRef` and
+     `View` (whose `Preview` needs the pin). Carried to task 09 (the Materialiser), task 11 (the
+     routes' error table) and task 12 (the head reading), none of which has a row for it yet, so
+     it would reach the desktop as a 500 (review t07 m3).
    - `Inheritable.PinErased` (new; re-review b06-2 R2-I1, this task's half). Task 09's `Inspect`
      half, and OQ-9's note that a materialised file keeps the erased text until the next start
      rewrites it, are task 09's.
@@ -739,3 +755,14 @@ $ grep -rn "os.WriteFile\|os.Create\|statepath" control-plane/internal/discoverh
      `ForBranch` needs a ref.
    - A write through the fork's binding (`TestAnotherRemotesProjectIsAChoiceNotABinding`) is task
      08's; the row checks a read, `Inheritable`, which is `ErrNotBound` by the same `Binding`.
+5. Fix round 1 (review t07, 2026-09-27):
+   - I1: `Bind` re-reads the binding past the memo on a name refusal too, not only on
+     `repo_already_linked`, because a teammate whose clone has the same directory name Shares
+     under the same default name, and the Hub may check the name first. A bound re-read wins; an
+     unbound one leaves the memo and answers `NameTakenError`; a re-read that fails returns its
+     own error. The `Bind` doc comment and two rows above say so.
+   - m2: `forget` bumps a per-project generation, and `Binding` memoises a lookup only while the
+     generation is what it was when the lookup began (`TestABindingReadInFlightDoesNotOutliveABind`).
+   - m1: the erased-pin and History rows now assert the cache, killing mutants S1 and S2.
+   - m5, m6: the contract blocks follow the code (the `Hub` comment, **Files**, `orderRemotes` in
+     `binding.go`, `HeadRef`'s unnamed results).
