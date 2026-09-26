@@ -914,3 +914,150 @@ describe("relative dates resolve on the client, in the person's zone", () => {
 ```
 
 1 January 2027 00:00 AEDT (+11) is 31 December 13:00 UTC, which is the December test's value.
+The four expected values were checked on 2026-09-26 by running this file's functions under Node
+against these inputs; they printed exactly the values above.
+
+#### Tests to write first — desktop, `NlFilterBar.test.tsx`
+
+```tsx
+import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { NlFilterBar, type ChipVocabulary } from "./NlFilterBar";
+import { ApiError } from "../../api/client";
+import { expectNoPrediction } from "../../test/expectNoPrediction";
+import type { NlFilterResult } from "../../api/work";
+
+const vocab: ChipVocabulary = {
+  state: [{ id: "todo", name: "Todo" }], label: [{ id: "lb-bug", name: "Bug" }, { id: "lb-docs", name: "Docs" }],
+  assignee: [{ id: "u-priya", name: "Priya" }], cycle: [], feature: [],
+};
+const ok: NlFilterResult = { route: "global",
+  filter: { op: "and", clauses: [{ field: "label", values: ["lb-bug"] }, { field: "updated", period: "last_week" }] },
+  dropped: [{ phrase: "perf bugs", reason: "no label called 'perf'" }] };
+const now = () => new Date("2026-09-30T02:00:00Z");
+function bar(parseFilter: () => Promise<NlFilterResult>, onApply = vi.fn()) {
+  const view = render(<NlFilterBar teamId="tm-a" client={{ parseFilter }} vocabulary={vocab}
+    onApply={onApply} now={now} timeZone="Australia/Sydney" />);
+  const input = screen.getByRole("textbox", { name: "Filter in words" });
+  fireEvent.change(input, { target: { value: "perf bugs updated last week" } });
+  fireEvent.submit(input);
+  return { ...view, input, onApply };
+}
+
+describe("NlFilterBar", () => {
+  it("shows pending chips and a dropped line; nothing applies before Apply", async () => { // kills "auto-applied filter"
+    const { onApply, container } = bar(async () => ok);
+    await screen.findByText("label is Bug");
+    expect(screen.getByText("updated last week (21 Sep – 27 Sep)")).toBeTruthy();
+    expect(screen.getByText("Not used: no label called 'perf'.")).toBeTruthy();
+    expect(screen.queryByText(/label is perf/)).toBeNull(); // kills "a chip for a label that does not exist"
+    expect(onApply).not.toHaveBeenCalled();
+    expectNoPrediction(container);
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    expect(onApply).toHaveBeenCalledOnce();
+    expect(onApply.mock.calls[0][0]).toEqual(ok.filter);
+  });
+
+  it("each chip edits and removes", async () => { // kills "read-only chips"
+    const { onApply } = bar(async () => ok);
+    fireEvent.click(await screen.findByText("label is Bug"));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Docs" }));
+    expect(screen.getByText("label is Bug or Docs")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /^Remove updated last week/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    expect(onApply.mock.calls[0][0]).toEqual({ op: "and", clauses: [{ field: "label", values: ["lb-bug", "lb-docs"] }] });
+  });
+
+  it("a gateway failure keeps the typed text", async () => { // kills "text lost"
+    const { input } = bar(async () => { throw new ApiError("gateway_unavailable" as never, "x", 502); });
+    await screen.findByText("Could not read that as a filter.");
+    expect((input as HTMLInputElement).value).toBe("perf bugs updated last week");
+  });
+
+  it("the kill switch reads as off, not as a failure", async () => {
+    bar(async () => { throw new ApiError("assists_off" as never, "x", 503); });
+    await waitFor(() => expect(screen.getByText("Filters in words are off for this org.")).toBeTruthy());
+  });
+});
+```
+
+`as never` stands in for task 136's addition of `assists_off` and `gateway_unavailable` to
+`ProblemCode` (`desktop/src/api/client.ts:59`); once 136 lands, the casts go.
+
+| Test | Mutant it kills |
+|---|---|
+| `TestAnInventedLabelIsDroppedNotChipped`; the bar shows no *perf* chip | a chip for a label that does not exist |
+| the bar calls `onApply` only on *Apply* | auto-applied filter |
+| a chip edits (tick *Docs*) and removes (`×`) | read-only chips |
+| `last week` is `[20 Sep 14:00Z, 27 Sep 14:00Z)`; the DST week ends 13:00Z | UTC weeks; one fixed offset |
+| `TestModelDatesAreDropped`; `withinBounds` refuses a date | model-supplied dates |
+| `TestPromptHoldsNoIssueText` and its golden | issue text sent to parse a filter |
+| `TestAURouteAndKillSwitch` | Global for AU data; switch ignored |
+| a gateway failure keeps the typed text | text lost |
+| `TestNestedGroupsAreRefused` | invented grouping |
+| `TestMeStaysRelative`; `@me` resolves at evaluation | *me* frozen to whoever parsed it |
+| `expectNoPrediction` on the pending bar | a count, percentage or confidence on a chip |
+
+#### Steps
+
+- [ ] **Step 1: read on the sync base** tasks 83, 91 and 136's parts and code. Rename every name
+  in *What this part takes from other parts* to the real one; if task 83's clause shape differs,
+  change `Clause`, `NlClause` and `resolve.ts` to it, keeping decisions 2-5.
+- [ ] **Step 2: the Go tests first.** Write `nlfilter_test.go` and the route test; run
+  `go test ./control-plane/internal/workassist/ -run 'Invented|ModelDates|Nested|PromptHolds|AURoute|MeStays' -count=1`
+  and see them fail to compile.
+- [ ] **Step 3: write `nlfilter.go`** in the order above (types, prompt, route choice, validation,
+  `HubVocabulary`). Generate the prompt golden once with `-update`, read it, and confirm by eye it
+  holds names only; commit it.
+- [ ] **Step 4: the route.** Append `registerWorkFilter`, call it from task 136's
+  `registerWorkAssist`, and add the pattern to `routes_audit_test.go`.
+- [ ] **Step 5: the desktop tests first**: `resolve.test.ts`, then `NlFilterBar.test.tsx`; run
+  them and see them fail.
+- [ ] **Step 6: write `resolve.ts`, the `work.ts` types, `NlFilterBar.tsx` and `nlFilter.css`**;
+  then task 91's evaluator calls `resolveClause`, and `ViewEditor.tsx` mounts the bar.
+- [ ] **Step 7: run the acceptance commands** and commit each file by path, each message ending
+  with the `Co-Authored-By` line.
+
+#### Acceptance
+
+```bash
+go test ./control-plane/internal/workassist/ -run 'Invented|ModelDates|Nested|PromptHolds|AURoute|MeStays' -count=1 -v
+# expect: --- PASS for the six tests above; ok
+go test ./control-plane/internal/api/ -run 'WorkAssist|RoutesAudit' -count=1
+# expect: ok
+go test ./control-plane/... -race -count=1
+# expect: ok for every package; no FAIL line
+cd desktop && npx vitest run src/work/filters/resolve.test.ts src/components/plan/NlFilterBar.test.tsx
+# expect: 9 tests pass (5 and 4)
+npm --prefix desktop run typecheck
+# expect: exit 0
+grep -c "20 MB PDFs" control-plane/internal/workassist/testdata/nlfilter/prompt.json
+# expect: 0 (the seeded issue title is not in the prompt)
+```
+
+#### What this task does NOT claim
+
+- That parsing is accurate: unmeasured. The chips are the check, and nothing applies until the
+  person presses *Apply*.
+- That the model routes AU beyond task 136's route choice; this part picks the project, 136 the
+  route.
+- An assist class on the gateway (task 136's noted gap), or any spend attribution for this call.
+- That task 91's evaluator ignores an empty clause (**UNVERIFIED**, noted under the bar).
+- That the Hub method names in `HubVocabulary`, beyond `Labels`, exist (**UNVERIFIED**).
+- The owner's visual acceptance of the bar and the pending ring.
+
+**Parity.** Closes **L-100** (05 §1 G, `05-design.md:234`), once phase 6's gateway is on the sync
+base; without it the row is *not run* in task 142's section, never *passed*.
+
+#### Gaps found while writing this part
+
+1. **Tasks 72, 83, 91 and 136 have no part on this tree** (2026-09-26): `ViewFilter`'s shape, the
+   evaluator, the editor's props and the assist service are all assumed here and listed.
+2. **No `hubclient` method returns a team's vocabulary in one call.** `HubVocabulary` makes six
+   reads per parse; a `TeamVocabulary(ctx, teamID)` on `hubclient.Work` would make it one. Not
+   added here (rule H1 would put it in a W4 Hub delta task, and the skeleton has none for it).
+3. **The file map has no row for `desktop/src/work/filters/`** or for `nlFilter.css`.
+4. **`ProblemCode` lacks the assist codes** until task 136 adds them (`client.ts:59`); the tests
+   cast until then.
+5. **A team with no project** gets `409 conflict`; whether such a team can exist is Phase H's
+   model (**UNVERIFIED**).
