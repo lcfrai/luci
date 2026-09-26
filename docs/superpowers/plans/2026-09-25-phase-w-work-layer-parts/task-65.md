@@ -1164,3 +1164,80 @@ hides a sibling nor replaces its section; task 62's test 6 proves the frame keep
 "?raw", eager: true })`, and the only files whose text contains `rebriefSession(` are
 `src/api/client.ts` and `src/components/desk/deskRows.tsx` (mutant: a replica listener that
 re-briefs on a new head, which is scope test 2's failure).
+
+#### Tests to write first, part 3 — the fake's rules: `hubclient/conformance/work_reassign.go` (new)
+
+Rows in task 05's `WorkRow` shape, in their own slice so `WorkRowsW1`'s count does not move. Their
+ids carry the owning task (`W-65.n`): a grep of the parts on 2026-09-26 finds `W-01`…`W-25` only,
+and tasks 73, 99, 115 and 144 append their own numbers, so a task-scoped id cannot collide.
+`hubclient/fake_work_test.go` ⚑ gains one line; the HTTP run (task 16) does **not** take this
+slice until the WH task builds the route (a gap), so the rows prove the fake, not the Hub.
+
+```go
+package conformance
+
+import (
+	"testing"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubapi"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubclient"
+)
+
+// WorkRowsReassign is task 65's slice (05 §3.7 rule 2).
+var WorkRowsReassign = []WorkRow{
+	{"W-65.1", "reassign_request_needs_a_bound_lane", wReassignNeedsBound},
+	{"W-65.2", "reassign_request_moves_nothing", wReassignMovesNothing},
+	{"W-65.3", "reassign_decline_clears_only_the_request", wReassignDecline},
+	{"W-65.4", "reassign_accept_moves_the_assignee_once", wReassignAccept},
+	{"W-65.5", "a_direct_assign_settles_a_pending_request", wReassignSettledByPatch},
+}
+
+func uid(t *testing.T, h hubclient.Hub) string {
+	t.Helper()
+	me, err := h.Me(wctx) // hubclient.go:32
+	if err != nil {
+		t.Fatal(err)
+	}
+	return me.User.ID
+}
+
+// bound is a chore assigned to the member and moved to started by hand.
+func (e WorkEnv) bound(t *testing.T) hubapi.IssueHead {
+	t.Helper()
+	iw := e.issue(t, e.project(t, "reassign", "EP"), "resume")
+	if _, err := e.Member.PatchIssue(wctx, iw.Head.ID, hubapi.PatchIssueRequest{AssigneeID: hubapi.AssignTo(uid(t, e.Member))}); err != nil {
+		t.Fatal(err)
+	}
+	h, err := e.Member.MoveIssueState(wctx, iw.Head.ID, hubapi.StateMove{To: hubapi.StateStarted, Cause: hubapi.CauseHand, Evidence: []string{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return h
+}
+
+func wReassignNeedsBound(t *testing.T, e WorkEnv) {
+	iw := e.issue(t, e.project(t, "reassign", "EP"), "todo one")
+	_, err := e.Admin.RequestReassign(wctx, iw.Head.ID, hubapi.RequestReassignRequest{ToUserID: uid(t, e.Admin)})
+	wRefused(t, err, 422, "reassign_not_bound") // mutant: a request on any state
+}
+
+func wReassignMovesNothing(t *testing.T, e WorkEnv) {
+	h := e.bound(t)
+	got, err := e.Admin.RequestReassign(wctx, h.ID, hubapi.RequestReassignRequest{ToUserID: uid(t, e.Admin)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Assignee == nil || got.Assignee.ID != uid(t, e.Member) || got.State != hubapi.StateStarted {
+		t.Fatalf("assignee %v state %s: a request moved something", got.Assignee, got.State) // mutant: moved at once
+	}
+	if got.ReassignRequest == nil || got.ReassignRequest.To.ID != uid(t, e.Admin) {
+		t.Fatalf("reassignRequest = %v", got.ReassignRequest)
+	}
+	_, err = e.Member.AnswerReassign(wctx, h.ID, hubapi.AnswerReassignRequest{Accept: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = e.Admin.AnswerReassign(wctx, h.ID, hubapi.AnswerReassignRequest{Accept: true})
+	wRefused(t, err, 409, "no_reassign_pending") // answered once
+}
+```
