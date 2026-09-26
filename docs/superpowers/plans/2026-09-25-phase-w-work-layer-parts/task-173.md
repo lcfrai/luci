@@ -496,3 +496,40 @@ it("renders no Publish button while publishRoute is null", async () => {
   expectNoPrediction(container);
 });
 ```
+
+The region names are fixed here so the tests can find them: *Apps*, *Your keys*, *<team>: team
+keys*, *<team>: webhooks*, *Deliveries: <url>*, *Connectors*, *<team>: agents*.
+
+The other five files, each row a test (every file's last test calls `expectNoPrediction` on its
+container, so task 174's sweep finds it):
+
+| File | Test | Mutant it kills |
+|---|---|---|
+| `access.test.ts` | Priya → `["keys"]`; Sam → `["keys","webhooks","agent-policy"]`; Dylan → all five, in order | a section shown on a claim name, or the Hub's 403 the only guard |
+| `access.test.ts` | `mayRevoke`: Priya on Dylan's personal key false; Sam on a `tm-pay` key true; Dylan on any key true | a Revoke shown that task 160 refuses, or hidden from an org admin |
+| `Apps.test.tsx` | a pending app shows each redirect URI verbatim and *read*; *Approve* sends `{approve: true, reason: "Used by the release team"}` once | an approval with no reason, or a double decision |
+| `Apps.test.tsx` | *Revoke* on an approved app sends nothing until the confirm | one click revokes |
+| `Webhooks.test.tsx` | a new webhook's secret shows once and is gone after *Done*; *Rotate secret* confirms first | a secret kept in state, or a rotate on one click |
+| `Deliveries.test.tsx` | a failed row reads *failed · attempt 3 · 500* and *retry at 14:07:00*; *Redeliver* pressed twice sends `redeliver("wd-1")` once | a double send; a retry time phrased as a forecast |
+| `Connectors.test.tsx` | shows `https://hub.example.test/mcp` and `…/mcp/read` with *Copy*; *Remove* sends the URL after the confirm | a typed address, or a remove on one click |
+| `AgentPolicy.test.tsx` | unset reads *Claude Code only (the default)*; moving *codex* above sends `harnesses: ["codex","claude-code"]` | a policy saved in the wrong order |
+| `AgentPolicy.test.tsx` | commit `main`, a tag and a 7-hex hash each show *A full 40-character commit, never a branch* and send nothing | a floating ref reaches the Hub |
+| `AgentPolicy.test.tsx` | with `publish` injected answering `{version: 4, digest: "sha256:ab…"}`, the page shows `4` and that digest verbatim; `admin/` contains no `crypto.subtle` | a digest computed client-side |
+| `policyForm.test.ts` | `checkPolicy` refuses `[]`, a duplicate, an empty repo, `main`, 39 and 41 hex; accepts 40 lowercase hex | an off-by-one on the commit length |
+
+#### Steps
+
+- [ ] **Step 1: read on the sync base** task 169's `work.ts` parts 15-18 and task 44's
+  `ConfirmInPlace`; correct any member name above that moved. Find task 96's settings host and
+  the H-plan's `Org`, `Team`, `User` module; fix the two **UNVERIFIED** imports.
+- [ ] **Step 2: the pure parts, tests first.** `access.test.ts` and `policyForm.test.ts` fail;
+  write `access.ts` and `policyForm.ts`; `npx vitest run src/components/admin/access src/components/admin/policyForm` passes.
+- [ ] **Step 3: `testAdmin.ts`, `usePressOnce.ts`, `SecretOnce.tsx`.** Then `Keys.test.tsx`
+  fails; write `Keys.tsx` as given; it passes.
+- [ ] **Step 4: the other sections, one at a time**, each test before its component: Apps,
+  Webhooks with Deliveries, Connectors, AgentPolicy. Then `AdminHome.test.tsx` and `AdminHome.tsx`.
+- [ ] **Step 5: `admin.css`** from `DESIGN-SYSTEM.md` tokens: the secret and the addresses in
+  Commit Mono (OD-28), times in `tabular-nums`, elevation a 1px ring plus layered shadow, no
+  `transition: all`. Mount *Admin* in the settings host.
+- [ ] **Step 6: run the acceptance commands**; commit by path, the message ending with the
+  `Co-Authored-By` line.
