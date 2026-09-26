@@ -173,8 +173,8 @@ export function route(e: HubEvent, into: Refetch, threadOfComment: (id: string) 
   }
   switch (e.kind) {
     case "comment.created": case "comment.mentioned": {
-      const issue = issueIdIn("issueId");
-      if (issue !== null && threadLoaded(issue)) { into.issues.add(issue); into.threads.add(issue); }
+      const issue = issueIdIn("issueId") ?? e.subject;      // task 20's fixture puts it in subject
+      if (threadLoaded(issue)) { into.issues.add(issue); into.threads.add(issue); }
       return;
     }
     case "comment.reacted": case "comment.resolved": case "comment.erased": {
@@ -199,7 +199,10 @@ export function route(e: HubEvent, into: Refetch, threadOfComment: (id: string) 
 
 `issue.*` routes by `subject`, which task 13's `emitWork` sets to the issue id for every issue
 kind (`task-13.md:332-343`). `comment.created` and `comment.mentioned` carry `issueId` in their
-data (`task-13.md:189-198`); the other three comment kinds do not, so they route through the held
+data (`task-13.md:189-198`), while task 20's fixture writes `comment.created` with the issue as its
+`subject` and no `issueId` (`task-20.md:332`); the route reads `issueId` first and the subject
+second, and acts only when that id is a loaded thread, so a user id in `subject` (the
+`comment.mentioned` fixture, `:333`) matches nothing. The sources disagree, a gap. The other three comment kinds do not, so they route through the held
 comment's own `issueId`, and a comment the replica never held changes nothing (decision 7).
 `issue.related` and `issue.unrelated` are emitted **once**, on the subject, with the other issue
 in `otherIssueId` (`task-11.md:329-332`). Both heads list the relation (each end reads its own
@@ -394,8 +397,9 @@ same reference, which is what makes `sameData`'s `Object.is` first test cheap.
 ```ts
 // hubDeps.ts — task 55. ReplicaDeps over task 37's WorkClient and the relay. The one file that
 // knows the wire; replica.ts knows only ReplicaDeps.
+import { ApiError } from "../../api/client";
 import type { WorkClient } from "../../api/work";
-import type { ReplicaDeps } from "./replica";
+import type { ChangesPage, ReplicaDeps } from "./replica";
 
 export interface HubReads {
   get(route: string): Promise<unknown>;               // the client's GET, ApiError on failure
@@ -495,3 +499,127 @@ export function stopReplica(): void {
 `stopReplica` runs on the auth state leaving `signed_in` (the control plane's `/v1/auth/status`,
 `hub-contract.md:1371`). The records are dropped in memory; closing the window drops the process,
 and there is nothing on disk to delete (decision 5).
+
+#### Tests to write first, part 1 — `desktop/src/work/replica/replica.test.ts`
+
+The harness is a fake Hub the test drives: `hub.feed` is an array of events with `seq`, and
+`changes(after)` answers the events above `after` (or none and the head for `"latest"`), at most
+`hub.pageSize` per page with `more` set when some remain; `hub.heads` is the current records;
+`hub.hint` is a tiny store with `set(v)`. Every dep is a `vi.fn`, so the test counts calls.
+
+```ts
+function fakeHub() {
+  const feed: HubEvent[] = [];
+  let heads = [makeIssueHead({ id: EP142, headRevision: 1 })];
+  const head = () => String(feed.at(-1)?.seq ?? 0);
+  let hintValue: string | null = null;
+  const hintListeners = new Set<() => void>();
+  const hub = {
+    feed, pageSize: 200, heads: () => heads, setHeads: (h: IssueHead[]) => { heads = h; },
+    hint: { set(v: string) { hintValue = v; for (const l of hintListeners) l(); } },
+    beforeListAll: async () => {},
+  };
+  const deps: ReplicaDeps = {
+    me: vi.fn(async () => DYLAN),
+    readableProjects: vi.fn(async () => [{ projectId: WORK_IDS.project, teamId: WORK_IDS.team, key: "EP" }]),
+    listAll: vi.fn(async () => { await hub.beforeListAll();
+      return { heads: heads.slice(), revisions: heads.map(revOf), comments: [] }; }),
+    changes: vi.fn(async (after: string) => {
+      if (after === "latest") return { events: [], next: head(), more: false };
+      const rest = feed.filter((e) => e.seq > Number(after));
+      const events = rest.slice(0, hub.pageSize);
+      return { events, next: String(events.at(-1)?.seq ?? after), more: rest.length > events.length };
+    }),
+    fetchSubjects: vi.fn(async (ids: readonly string[]) => heads.filter((h) => ids.includes(h.id))
+      .map((h) => ({ head: h, revision: revOf(h) }))),
+    labels: vi.fn(async () => []), members: vi.fn(async () => []), subscriptions: vi.fn(async () => []),
+    cursorHint: { current: () => hintValue,
+      subscribe: (l) => { hintListeners.add(l); return () => { hintListeners.delete(l); }; } },
+    thread: { briefKeyOf: () => null, criteria: () => [], subscribe: () => () => {} },
+  };
+  return { hub, deps };
+}
+/** The Hub's head revision for a head: its number is what a test reads to see which copy it holds. */
+const revOf = (h: IssueHead) => makeIssueRevision({ issueId: h.id, revision: h.headRevision });
+const ev = (seq: number, kind: string, subject: string, data = {}) => makeWorkEvent({ seq, kind, subject, data });
+```
+
+`makeIssueHead`, `makeIssueRevision`, `makeWorkEvent`, `DYLAN` and `WORK_IDS` are task 20's
+(`task-20.md:217-285`, in `test/workFixtures`); task 20's `WorkEvent` is assignable to `HubEvent`
+(its `data` is the narrower scalar record, `task-20.md:203-206`). A head's `headRevision` is the
+number a test bumps on the Hub side, so the revision the replica holds says which copy it has.
+
+```ts
+const bump = (hub: ReturnType<typeof fakeHub>["hub"], n: number) =>
+  hub.setHeads(hub.heads().map((h) => ({ ...h, headRevision: n })));
+
+it("an event committed during the load is applied", async () => {
+  const { hub, deps } = fakeHub();
+  hub.beforeListAll = async () => { bump(hub, 2); hub.feed.push(ev(1, "issue.revised", EP142)); };
+  const r = createReplica(deps);
+  await vi.waitFor(() => expect(r.status).toBe("ready"));
+  expect(r.get(EP142)?.revision.revision).toBe(2);
+  expect(vi.mocked(deps.changes).mock.calls[0]).toEqual(["latest"]);
+});
+// kills: loading first and then asking after=latest, which skips seq 1.
+
+it("a repeated event changes nothing and notifies nobody", async () => {
+  const { hub, deps } = fakeHub();
+  const r = createReplica(deps);
+  await vi.waitFor(() => expect(r.status).toBe("ready"));
+  hub.feed.push(ev(1, "issue.revised", EP142));
+  hub.hint.set("1");
+  await vi.waitFor(() => expect(r.cursor).toBe("1"));
+  const seen = vi.fn(); r.subscribe(seen);
+  const v = r.version;
+  (deps.changes as Mock).mockResolvedValueOnce({ events: [ev(1, "issue.revised", EP142)], next: "1", more: false });
+  hub.hint.set("1b");
+  await vi.waitFor(() => expect(deps.changes).toHaveBeenCalledTimes(4));
+  expect([r.version, seen.mock.calls.length, vi.mocked(deps.fetchSubjects).mock.calls.length]).toEqual([v, 0, 1]);
+});
+// kills: double-apply (a second fetch, a second notify for the same seq).
+
+it("more: true reads again in the same turn", async () => {
+  const { hub, deps } = fakeHub();
+  const r = createReplica(deps);
+  await vi.waitFor(() => expect(r.status).toBe("ready"));
+  hub.pageSize = 1;
+  hub.feed.push(ev(1, "issue.state", EP142), ev(2, "issue.state", EP142), ev(3, "issue.state", EP142));
+  const before = vi.mocked(deps.changes).mock.calls.length;
+  hub.hint.set("3");
+  await vi.waitFor(() => expect(r.cursor).toBe("3"));
+  expect(vi.mocked(deps.changes).mock.calls.length - before).toBe(3);
+});
+// kills: waiting for the next hint (a poll tick) when more is true.
+
+it("an unchanged hint reads nothing; a changed one reads exactly once", async () => {
+  const { hub, deps } = fakeHub();
+  const r = createReplica(deps);
+  await vi.waitFor(() => expect(r.status).toBe("ready"));
+  const n = () => vi.mocked(deps.changes).mock.calls.length;
+  const base = n();
+  hub.hint.set("0"); hub.hint.set("0");
+  await Promise.resolve();
+  expect(n() - base).toBe(1);
+  hub.hint.set("0");                                 // the same value again: nothing
+  await Promise.resolve();
+  expect(n() - base).toBe(1);
+});
+// kills: a feed read per tick, and a second read for one change.
+
+it("applying issue.revised re-fetches the subject and never uses the event's data", async () => {
+  const { hub, deps } = fakeHub();
+  const r = createReplica(deps);
+  await vi.waitFor(() => expect(r.status).toBe("ready"));
+  bump(hub, 4);
+  hub.feed.push(ev(1, "issue.revised", EP142, { revision: 9, key: `issue:${EP142}@9` }));
+  hub.hint.set("1");
+  await vi.waitFor(() => expect(r.get(EP142)?.revision.revision).toBe(4));
+  expect(deps.fetchSubjects).toHaveBeenCalledWith([EP142], { threads: [] });
+});
+// kills: using event metadata as content (revision 9 would be held).
+```
+
+The first `hub.hint.set("0")` counts as a change because the hint starts at `null`; the second
+identical `set` is not one. `Mock` is vitest's type. In the repeat case the fourth `changes` call
+is the one the test stubs; its page repeats seq 1, which the replica drops.
