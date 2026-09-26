@@ -67,3 +67,88 @@ gateway token. The Hub was down over the weekend: Monday fires once, not three t
 11. **No loop text enters a turn.** The event's `data` holds ids and numbers only. The turn input
     stays `turns.Input(n)` (`T26:265-275`); the Orchestrator reads the instruction through task
     163's `panacea loop show`, as data.
+
+**Files:**
+- `control-plane/internal/hub/hubapi/work_loops.go` (+ `work_loops_test.go`) — the wire below, proposed to task 143 (new, or merged into 143's `work_intake.go` if it has landed)
+- `control-plane/internal/hub/store/work_loops.go` (+ `work_loops_integration_test.go`) — heads, versions, firings (new)
+- `control-plane/internal/hub/server/work_loops.go` — five routes, the bound check (new)
+- `control-plane/internal/hub/server/janitor_loops.go` — `passLoops`, called after task 121's `sweepWorkW4` (new)
+- `control-plane/internal/hub/server/janitor.go` ⚑ (Hub task 24's; one call and two `SweepReport` counters)
+- `control-plane/internal/hub/server/loopsched.go` (+ `loopsched_test.go`) — the pure occurrence rule (new)
+- `control-plane/internal/hub/server/work_loops_integration_test.go` (new, `-tags integration`)
+- `control-plane/internal/hub/server/matrix_integration_test.go` ⚑ — `workMatrixRows["162"]`
+- `control-plane/internal/fleet/model/events.go` ⚑ (TM-09) — one kind, `EventLoopFired` (Phase T delta, rule H2)
+- `control-plane/internal/fleet/turns/deliver.go` ⚑ (TM-26's deliverable-event table; its file name is TM-26's) — one row
+
+No migration: task 145 creates the three loop tables (`tasks-141-160.md:249`). The columns this
+task needs are under *The tables*, a requirement of task 145, plus one table 145's list does not
+name, `work_loop_cursors` (gap 1).
+
+**What is on the tree today (verified 2026-09-26).** On `feat/work-layer` no `control-plane/internal/hub`
+or `internal/fleet` directory exists; parts exist for tasks 13, 121, 169 and 172. On `feat/team-mode`
+(`43b6801c`) TM-09's `model.EventKind` constants are at `task-09.md:213-221` and TM-26's `turns`
+package at `task-26.md:146-275`; TM-26's deliverable kinds table is `T26:117-126`, and its
+files list names `queue.go`, `origin.go`, `template.go`, `session.go`, `scheduler.go`
+(`T26:63-70`), no separate delivery file, so the row lands where TM-26 keeps its kind table
+(gap 3). On `feat/hub` (`3df9fab8`) `team.member_removed` is `hub-contract.md:1141`; Hub task
+24's janitor is **UNVERIFIED until merge**.
+
+#### The wire — `hubapi/work_loops.go` (complete; task 143 wins on names)
+
+```go
+package hubapi
+
+// ActionClass and AutonomyLevel are AX §7's rows and columns (docs/AGENTIC-UX.md:179),
+// as task 169 mirrors them (task-169.md:196-200). Order matters: it is the rank.
+var ActionClasses = []string{"read", "edit_own_worktree", "edit_outside_worktree", "run_tests",
+	"install_dependency", "run_migration", "touch_infra", "commit", "push", "deploy"}
+var AutonomyLevels = []string{"ask_first", "propose_and_wait", "act_and_tell", "full"}
+
+type LoopBound struct {
+	TurnsPerDay int               `json:"turnsPerDay"` // 1-24
+	Levels      map[string]string `json:"levels"`      // class → level; absent = the owner's own
+}
+
+type LoopFilter struct {
+	LabelID   *string `json:"labelId"`   // lb-…
+	FromState *string `json:"fromState"` // an IssueState (task 03)
+	ToState   *string `json:"toState"`
+}
+
+type LoopSchedule struct {
+	Every string `json:"every"` // "day" | "weekday" | "week"
+	At    string `json:"at"`    // "HH:MM", 24 h, local to TZ
+	TZ    string `json:"tz"`    // IANA, loaded with time.LoadLocation (time/tzdata embedded)
+	// "week" fires on the local weekday of the version's savedAt (decision 12).
+}
+
+type LoopTrigger struct {
+	Kind       string        `json:"kind"`       // "event" | "schedule"
+	EventKinds []string      `json:"eventKinds"` // event: 1-10 of LoopEventKinds; schedule: []
+	Filter     LoopFilter    `json:"filter"`
+	Schedule   *LoopSchedule `json:"schedule"`   // schedule only
+}
+
+type Loop struct {
+	ID             string  `json:"id"` // lp-…
+	TeamID         string  `json:"teamId"`
+	ProjectID      string  `json:"projectId"`
+	Owner          User    `json:"owner"`
+	Name           string  `json:"name"`  // 1-80
+	State          string  `json:"state"` // "on" | "paused"
+	PausedCause    *string `json:"pausedCause"` // "owner_left" | "owner" | "admin"
+	CurrentVersion int     `json:"currentVersion"`
+}
+
+type LoopVersion struct {
+	LoopID      string       `json:"loopId"`
+	Version     int          `json:"version"`
+	Trigger     LoopTrigger  `json:"trigger"`
+	Instruction AuthoredText `json:"instruction"` // task 03's; author "H" (the owner), ≤ 2000 runes
+	Action      string       `json:"action"`      // "turn" | "start"
+	LabelID     *string      `json:"labelId"`     // required for "start" (task 163)
+	Bound       LoopBound    `json:"bound"`
+	SavedAt     time.Time    `json:"savedAt"`
+	SavedBy     User         `json:"savedBy"`
+}
+```
