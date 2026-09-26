@@ -281,6 +281,18 @@ func approvalChecksInOrder(t *testing.T, e Env) {
 		_, err := e.Member.Approve(bg, a.p.ID, r)
 		wantErr(t, err, 422, hubapi.CodeKeyUnresolvable, "key", gr.Key)
 	}
+	// check 5: a file another project of the org holds is still missing here.
+	theirs := upload(t, e.Member, newProject(t, e).ID, htmlType, fresh("elsewhere"))
+	r := base
+	r.Snapshot.Blobs = append(r.Snapshot.Blobs[:len(r.Snapshot.Blobs):len(r.Snapshot.Blobs)], theirs.Digest)
+	_, err := e.Member.Approve(bg, a.p.ID, r)
+	wantErr(t, err, 422, hubapi.CodeBlobMissing, "digest", theirs.Digest.String())
+	// check 6 is this project's: the same key approved in another project is 201.
+	o := newApprovable(t, e)
+	o.req.DesignKey = first.DesignKey
+	if ap := must(e.Member.Approve(bg, o.p.ID, o.req))(t); ap.ProjectID != o.p.ID || ap.ID == first.ID {
+		t.Errorf("the key approved in a second project = %+v, want a new approval there", ap)
+	}
 	if page := must(e.Viewer.Approvals(bg, a.p.ID, hubapi.ApprovalQuery{}))(t); len(page.Items) != 1 || page.Items[0].ID != first.ID {
 		t.Errorf("after the refusals the project's approvals are %d, want only %s", len(page.Items), first.ID)
 	}
@@ -452,7 +464,9 @@ func sessionLinkChecks(t *testing.T, e Env) {
 		_, err := e.Member.LinkSession(bg, a.p.ID, r)
 		wantErr(t, err, c.status, c.code, c.kv...)
 	}
-	_, err := e.Viewer.LinkSession(bg, a.p.ID, linkOf(ap))
+	_, err := e.Member.LinkSession(bg, other.ID, linkOf(ap)) // approved, but in another project
+	wantErr(t, err, 422, hubapi.CodeDesignNotApproved, "designKey", ap.DesignKey)
+	_, err = e.Viewer.LinkSession(bg, a.p.ID, linkOf(ap))
 	wantErr(t, err, 403, hubapi.CodeForbidden, "required", "member")
 	for _, s := range strangers(t, e) {
 		_, err := s.hub.LinkSession(bg, a.p.ID, linkOf(ap))

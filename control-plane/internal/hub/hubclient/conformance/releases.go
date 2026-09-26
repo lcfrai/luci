@@ -220,6 +220,8 @@ func reserveRefusals(t *testing.T, e Env) {
 	}
 	withDesign := runOn(pp, featRef)
 	withDesign.DesignKey = sp(ap.DesignKey)
+	_, err = e.Member.Reserve(bg, newProject(t, e).ID, withDesign) // approved, but in another project
+	wantErr(t, err, 422, hubapi.CodeDesignNotApproved, "designKey", ap.DesignKey)
 	if r := reserve(t, e, e.Member, a.p.ID, withDesign); r.DesignKey == nil || *r.DesignKey != ap.DesignKey {
 		t.Errorf("an approved design key is stored as %v, want %s", r.DesignKey, ap.DesignKey)
 	}
