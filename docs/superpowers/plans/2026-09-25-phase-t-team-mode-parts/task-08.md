@@ -329,6 +329,19 @@ func (f *Fake) ShutTeamModeGate()
 // flags, for tests that assert what reached which feed.
 func (f *Fake) TeamEvents() []FakeEvent
 
+// AppendEventForTest appends one event of kind on projectID with task 01's flags
+// for that kind, through no route (b01 round 2, re-review I-5). Since route 46
+// refuses a solo project, no route writes a fleet_feed event there; this is how
+// team-feed/team-projects-only still reaches the mode filter. It never sets a mode.
+func (f *Fake) AppendEventForTest(projectID, kind string) hubapi.Event
+
+// FakeTeamProject builds a fake whose default view (FakeAda) creates a team, so
+// is its admin (fake_projects.go:223-224), and a project on it, then turns the
+// project team by SetProjectMode as Ada (route 87's real rule, not a setter;
+// b01 round 2, re-review I-6). Any suite outside tasks 06 to 08 that creates a
+// delegation on the fake starts here, or its CreateDelegation is 409 not_team_project.
+func FakeTeamProject(t testing.TB) (f *Fake, projectID string)
+
 type FakeEvent struct {
 	hubapi.Event
 	MemberFeed, FleetFeed bool
@@ -381,10 +394,18 @@ const (
 // Env gains, for the two team groups (zero for every other group):
 //	ProjectID       string            // a project of T made team by Admin.SetProjectMode (route 87)
 //	SoloProjectID   string            // a project of T whose mode is solo
+//	SoloRepoKey     string            // SoloProjectID's one remote, for route 13's read-back (b01 r2)
 //	OrgID           string
 //	Fleet           hubclient.Hub     // Fleet's workload identity; its delegation comes from ctx
 //	Auditor         hubclient.Hub     // an org auditor in no team
 //	RemoveMember    func(userID string) // Admin removing a member of T, as Teams.RemoveMember
+//	AppendEvent     func(projectID, kind string) // test-only: one audit event of kind on
+//	                                  // projectID, flags from the kind, no route (b01 r2, I-5).
+//	                                  // Real Hub: Hub task 14's store.Append(ctx, tx, head, row)
+//	                                  // (hub task-14.md:174) in one transaction that locks the
+//	                                  // org's audit head as Tx does, so the chain and task 04's
+//	                                  // flag trigger hold; UNVERIFIED until merge. Fake:
+//	                                  // Fake.AppendEventForTest. It never changes a project's mode.
 ```
 
 `AllGroups` appends `GroupTeam, GroupTeamFeed`, last, because both need a project. The real-Hub
@@ -392,7 +413,9 @@ const (
 token from `devissuer`; the fake's is `NewFake().AsFleet()`. Both `newEnv`s make `ProjectID` a
 team project by `Admin.SetProjectMode(ctx, id, hubapi.ProjectModeTeam)`, never by SQL or a fake
 setter (fix batch b01, X-C1); the real one runs its Hub with
-`PANACEA_APP_HUB_TEAM_MODE_UNSTREAMED=true` in `local` (task 06).
+`PANACEA_APP_HUB_TEAM_MODE_UNSTREAMED=true` **and** `PANACEA_APP_HUB_AUDIT_SINK=fake` in `local`
+(task 06's `teamWorld` rule; task 45's gate opens on the flag only beside sink `fake`, b01
+round 2, re-review I-4).
 
 - [ ] **Step 1: Write the failing conformance rows**
 
@@ -424,12 +447,12 @@ drift silently (the real Hub has tasks 06 and 07's own tests).
 | `team/taint` | Fleet, `origin: fleet`, `kind: free`, no `approvedBy` → 403 `decide`; with Member's answered decide → 201; with Admin's → 403 | the fake skips `TaintAllows` |
 | `team/human-message-to-own-orchestrator` | `Member.WriteHumanMessage` to Admin's Orchestrator → `agent_not_owner`; `Fleet.WriteHumanMessage` → 403 `desktop` | Fleet can write a human message |
 | `team/turn-has-no-row` | `RecordTurn` twice with one id and key → equal; the event is in neither feed | turn events on the feed |
-| `team/mode-is-the-admins-one-way` (b01) | on `SoloProjectID`: `Member.SetProjectMode` → 403 `required: "admin"`; `Fleet.SetProjectMode` → 403 `required: "route"`; `Admin`, `solo` → 400 `details.field = "mode"`; `Admin`, `team` → 200 `Mode == team`; again → 200, and one `project.mode_set` in `Admin.Changes` | the fake's route 87 skips the role or the one-way check |
+| `team/mode-is-the-admins-one-way` (b01) | on `SoloProjectID`: `Member.SetProjectMode` → 403 `required: "admin"`; `Fleet.SetProjectMode` → 403 `required: "route"`; `Admin`, `solo` → 400 `details.field = "mode"`; `Admin`, `team` → 200 `Mode == team`; again → 200, and one `project.mode_set` in `Admin.Changes`; then read back (b01 round 2, re-review I-1): `Member.Project(SoloProjectID).Mode == team` (route 15) and `Member.ProjectForRepo(SoloRepoKey)` → `ok`, `Mode == team` (route 13), and before the call both were `solo`, never `""` | the fake's route 87 skips the role or the one-way check; on the real Hub, the project-row reader of routes 13 and 15 not selecting `mode` (task 06) |
 | `team/mode-waits-for-the-audit-gate` (b01) | `ShutTeamModeGate()`; `Admin.SetProjectMode(SoloProjectID, team)` → 503, `details.reason = "audit_not_streaming"`; `CreateDelegation` on it → 409 `not_team_project` (skipped on the real Hub: its gate is start-up configuration; task 06's `TestProjectModeWaitsForTheAuditGate` covers it) | the fake writes the mode with the gate shut |
 | `team/delegation-needs-a-team-project` (b01) | `Member.CreateDelegation` on `SoloProjectID` → 409 `conflict`, `details.reason = "not_team_project"` | the fake delegates on any project, so no fake test needs route 87 |
 | `team-feed/fleet-only-no-delegation` | `Fleet.OrgChanges` → 200; under `WithDelegation` → 400; `Member.OrgChanges` → 403 `fleet` | the delegation exemption applied to every route |
 | `team-feed/other-org-is-404` | `Fleet.OrgChanges` on a made-up `org-…` → 404 `route_not_found` | org taken from the path |
-| `team-feed/team-projects-only` | a task in `ProjectID` appears; the same writes in `SoloProjectID` do not | the mode filter missing |
+| `team-feed/team-projects-only` (restated, b01 round 2, re-review I-5) | poll to `next`; a task in `ProjectID` through `Fleet.CreateTask`; then `AppendEvent(SoloProjectID, "task.created")`, because route 46 now refuses a delegation there so no route can write it; the next `Fleet.OrgChanges` holds the first `task.created` and not the second | the mode filter missing (the clause stays as defence in depth: a future `fleet_feed` kind on a solo project must not reach Fleet) |
 | `team-feed/fleet-kinds-not-in-member-feed` | after an escalation, `Fleet.OrgChanges` has `escalation.created`; `Member.Changes` does not; `task.created` is in both | the flags swapped |
 | `team-feed/revocation-within-one-poll` | poll to `next`; `RevokeDelegation`; the next `OrgChanges(after=next)` holds `delegation.revoked` with `subject` = the id | the revocation written to the member feed only (the scope's test) |
 | `team-feed/member-removed-revokes` | `RemoveMember(Member)`; the next poll holds `team.member_removed` and `delegation.revoked`, `data.reason = "member_removed"`; Fleet's next write under that delegation → `delegation_revoked` (fake only until task 44) | removal leaves the delegation live |
@@ -501,9 +524,12 @@ the second answers 404 `route_not_found` for every route 78 call.
 In that order, so each compiles before the next: `hubclient.go` and `context.go` (above,
 complete); `client_team.go` (one line per method over Hub task 34's helpers); the fake, record by
 record, running the `team/` rows after each record lands; then `store.OrgChanges` and
-`server/orgchanges.go`. The store query is Hub task 26's with three changes: `fleet_feed = true`
-in place of `feed = true`; the visibility clause replaced by `(project mode = 'team' OR kind =
-'team.member_removed')`; and `kind = ANY($kinds)` when `kinds` is set.
+`server/orgchanges.go`. The store query is Hub task 26's with two changes: its `feed = true` and
+visibility clause together replaced by `((fleet_feed = true AND project mode = 'team') OR kind =
+'team.member_removed')`, bracketed so, because task 04's trigger leaves `fleet_feed = false` on
+`team.member_removed` (`task-04.md:259-260`: "by kind, not by this flag"), so ANDing the flag
+with the kind clause would hide every removal from Fleet (b01 round 2, re-review's passing note);
+and `kind = ANY($kinds)` when `kinds` is set.
 
 - [ ] **Step 5: Run everything to verify it passes**
 
