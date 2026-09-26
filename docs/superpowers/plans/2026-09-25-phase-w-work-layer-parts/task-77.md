@@ -547,3 +547,68 @@ half is `TestTheSyncActorSetsNoCycle`.
 | `TestTheFeedHoldsNoIssueAndRevokes` | the `.ics` body has one `VEVENT` per cycle and none of EP-142's title, no user name; `Origin` set → 403; after `DELETE` the token → 404; a new mint revokes the old | titles in the feed; a token not revocable; a browser allowed |
 | `TestTheJanitorWritesOnlyItsColumns` | as `hub_app` with `hub.work_actor_kind = 'janitor'`: `UPDATE issue_heads SET estimate` → `42501`; `state` to `done` → `42501`; `cycle_id`, `archived_at` → ok | the janitor writing a person's field or a fact |
 | `TestTheSyncActorSetsNoCycle` | `hub.work_actor_kind = 'integration'`, `UPDATE issue_heads SET cycle_id` → `42501` | the database half of the sync rule |
+
+#### Steps
+
+- [ ] **Step 1: Check the base.** Task 74's tables and head guard as merged; Hub task 24's
+  `Sweep` and its per-org transaction; task 80's draft table (if task 80 has not merged, pass 8 is
+  written but its test waits). Ask the Hub owner about `/cal/` outside `/v1` (decision (i)); build
+  both paths either way.
+- [ ] **Step 2: The tests.** The unit test, the fifteen integration tests and the `"77"` rows with
+  the fixture's `CycleID` and `ProposalID`. Run them: they fail.
+- [ ] **Step 3: The migration append**, then `hubapi` (the cause, its three `MoveAllowed` rows,
+  `IssuePlan.ArchivedAt`, the eight kinds, `IssueStateData.PolicyAuthorID`), then the store, then
+  the routes, then the janitor passes, then task 10's two insertions and task 08's list flag.
+- [ ] **Step 4: Green.** This task's suites, task 10's (`TestMoveAllowedIsTheTable` with its three
+  new rows), Hub task 24's janitor tests (passes 1-4 unchanged), task 13's registry tests and the
+  matrix.
+- [ ] **Step 5: Commit by pathspec**, the fourteen files of *Files*, naming task 10's, task 08's
+  and Hub task 24's files as touched.
+
+#### Acceptance
+
+```bash
+go test ./control-plane/internal/hub/store/ -race -count=1 -run '^TestNextCycleDatesKeepThePhase$' -v 2>&1 | grep -c '^--- PASS'   # 1
+export PANACEA_APP_HUB_TEST_DATABASE_URL='postgres://postgres@127.0.0.1:5433/postgres?sslmode=disable'
+go test ./control-plane/internal/hub/server/ -tags integration -race -count=1 -v \
+  -run '^Test(ACadenceMakesGaplessCycles|ASecondSweepIsANoOp|RolloverSkipsClosedIssues|TheScopeLogIsWhoAndWhen|StartedJoinsTheCurrentCycle|AnOverlapIsRefused|ACadenceChangeKeepsReferencedCycles|StaleIssuesAreOneProposal|AnAnswerClosesOnlyTheNamed|AutoCloseNamesThePolicyAuthor|ArchiveKeepsItSearchable|TheFeedHoldsNoIssueAndRevokes|TheJanitorWritesOnlyItsColumns|TheSyncActorSetsNoCycle)$' \
+  2>&1 | grep -c '^--- PASS'                                                    # 14
+go test ./control-plane/internal/hub/... -tags integration -race -count=1       # every package ok
+grep -rn "time.Sleep" control-plane/internal/hub/server/janitor_work_integration_test.go | wc -l   # 0
+```
+
+Expected: `1`, `14`, every package `ok`, `0` (the janitor tests fix the clock and never sleep).
+None has been run; the code does not exist yet (OD-27).
+
+#### What this task does not claim
+
+- **Not convergence per criterion** on a cycle: the desktop derives it from phase 4's words (task
+  87). The Hub stores only the scope log.
+- **Not *propose the next cycle*** (W4, L-66), and **not a capacity figure** (L-62 is a SKIP: a
+  capacity number is a prediction).
+- **Not per-team time zones.** Cycles turn at 00:00 UTC (decision (a)).
+- **Not that calendar clients accept the feed.** RFC 5545 is followed as written; Outlook's and
+  Google's import has not been tried (the corporate network may also block the fetch).
+- **Not that the Hub owner accepts `/cal/`.** It is **UNVERIFIED pending review**; the bearer
+  download is the fallback.
+- **No measured cost.** The stale read is one query per team per sweep; nobody has timed it at
+  9,000 issues.
+
+#### Corrections to the scope
+
+1. **The janitor writes more than `cycle_id`.** Task 74's scope limits it to `cycle_id`
+   (`tasks-61-80.md:484-485`), but this task's own scope has it archive (L-12) and, under
+   `staleMode: auto`, close (L-11). The guard is widened here, in task 74's file, to exactly
+   `cycle_id`, `archived_at` and a `stale_policy` cancel of an open issue.
+2. **Archive needs a column and a wire field** neither task 72 nor task 74 lists:
+   `issue_heads.archived_at` and `IssuePlan.ArchivedAt`, both added here, additively.
+3. **The calendar token needs a table** (`calendar_tokens`) task 74 does not list; appended here.
+4. **`GET /v1/teams/{teamId}/cadence`** is added (a settings screen must read what it writes).
+5. **Answering a proposal is 404 to everyone but the assignee** (not 403), the no-leak rule the
+   scope applies to drafts (L-33), applied to a private Desk item.
+
+**Parity rows served:** the Hub halves of **L-11** (stale closure proposed as one batch, or auto
+with the author named), **L-12** (archive, still searchable), **L-57** to **L-61** (automatic
+cycles, cooldown, up to 15 ahead, rollover with one event per issue, started issues join the
+current cycle), **L-63**'s scope log, **L-64** (the calendar feed) and **L-65** (edit names and
+dates; a pause is a gap). Task 87 closes them with the desktop.
