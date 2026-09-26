@@ -192,14 +192,27 @@ run "nat_mode_puts_nat_on_every_egress_subnet" {
   }
 }
 
+# Both ends of the range are accepted (4 and 120 are Azure's own limits, training knowledge,
+# UNVERIFIED), and each reaches the gateway.
 run "nat_idle_timeout_reaches_the_gateway" {
   command = plan
   variables {
-    nat_idle_timeout_minutes = 30
+    nat_idle_timeout_minutes = 120
   }
   assert {
-    condition     = azurerm_nat_gateway.this[0].idle_timeout_in_minutes == 30
-    error_message = "nat_idle_timeout_minutes does not reach the NAT gateway."
+    condition     = azurerm_nat_gateway.this[0].idle_timeout_in_minutes == 120
+    error_message = "nat_idle_timeout_minutes = 120 is refused or does not reach the NAT gateway."
+  }
+}
+
+run "nat_idle_timeout_of_4_is_accepted" {
+  command = plan
+  variables {
+    nat_idle_timeout_minutes = 4
+  }
+  assert {
+    condition     = azurerm_nat_gateway.this[0].idle_timeout_in_minutes == 4
+    error_message = "nat_idle_timeout_minutes = 4 is refused or does not reach the NAT gateway."
   }
 }
 
@@ -257,7 +270,7 @@ run "nat_mode_has_no_firewall_subnet" {
 run "sandbox_nsg_denies_internet_inbound" {
   command = plan
   assert {
-    condition     = length([for r in azurerm_network_security_group.this["sandbox"].security_rule : r if r.access == "Deny" && r.direction == "Inbound" && r.source_address_prefix == "Internet" && r.priority == 100 && r.protocol == "*" && r.destination_port_range == "*" && r.destination_address_prefix == "*"]) == 1
+    condition     = length([for r in azurerm_network_security_group.this["sandbox"].security_rule : r if r.access == "Deny" && r.direction == "Inbound" && r.source_address_prefix == "Internet" && r.source_port_range == "*" && r.priority == 100 && r.protocol == "*" && r.destination_port_range == "*" && r.destination_address_prefix == "*"]) == 1
     error_message = "The sandbox NSG has no deny of all inbound Internet traffic at priority 100, ahead of every allow."
   }
   assert {
@@ -273,12 +286,24 @@ run "edge_allow_is_one_rule_per_cidr" {
     error_message = "The apps NSG does not hold exactly one allow per allowed_ingress_cidrs entry, and nothing else."
   }
   assert {
-    condition     = alltrue([for r in azurerm_network_security_group.this["apps"].security_rule : r.direction == "Inbound" && r.protocol == "Tcp" && r.destination_port_range == "443" && r.priority >= 200 && r.priority < 4000])
-    error_message = "An edge rule is not inbound TCP 443 at a priority from 200 up."
+    condition     = alltrue([for r in azurerm_network_security_group.this["apps"].security_rule : r.direction == "Inbound" && r.protocol == "Tcp" && r.source_port_range == "*" && r.destination_port_range == "443" && r.priority >= 200 && r.priority < 4000])
+    error_message = "An edge rule is not inbound TCP from any source port to 443, at a priority from 200 up."
+  }
+  # Destination "*", not the apps subnet: AKS load-balancer rules use floating IP, so an edge
+  # packet still carries the frontend's public address at the node (training knowledge,
+  # UNVERIFIED; task 32 checks the edge from outside). Pinned so a "tighter" destination that
+  # would silently drop the edge is a decision, not an accident (task 03 predicted survivor PS2).
+  assert {
+    condition     = alltrue([for r in azurerm_network_security_group.this["apps"].security_rule : r.destination_address_prefix == "*"])
+    error_message = "An edge rule's destination is narrower than *; under floating IP the packet is addressed to the frontend, not the node."
   }
   assert {
     condition     = length(distinct([for r in azurerm_network_security_group.this["apps"].security_rule : r.priority])) == 2 && length(distinct([for r in azurerm_network_security_group.this["apps"].security_rule : r.name])) == 2
     error_message = "Two edge rules share a priority or a name, which Azure refuses."
+  }
+  assert {
+    condition     = sort([for r in azurerm_network_security_group.this["apps"].security_rule : format("%04d", r.priority)]) == tolist(["0200", "0201"])
+    error_message = "The edge rules do not take priorities 200 onward, one per CIDR."
   }
 }
 
@@ -312,11 +337,11 @@ run "ingress_cidrs_are_listed_once" {
 run "private_endpoint_nsg_admits_only_the_vnet_on_443_and_5432" {
   command = plan
   assert {
-    condition     = length([for r in azurerm_network_security_group.this["private_endpoints"].security_rule : r if r.access == "Allow" && r.direction == "Inbound" && r.protocol == "Tcp" && r.source_address_prefix == "10.40.0.0/16" && r.destination_address_prefix == "10.40.8.0/26" && toset(r.destination_port_ranges) == toset(["443", "5432"]) && r.priority < 4000]) == 1
+    condition     = length([for r in azurerm_network_security_group.this["private_endpoints"].security_rule : r if r.access == "Allow" && r.direction == "Inbound" && r.protocol == "Tcp" && r.source_address_prefix == "10.40.0.0/16" && r.source_port_range == "*" && r.destination_address_prefix == "10.40.8.0/26" && toset(r.destination_port_ranges) == toset(["443", "5432"]) && r.priority < 4000]) == 1
     error_message = "The private endpoint NSG does not allow exactly TCP 443 and 5432 from the VNet to the endpoint subnet, ahead of its deny."
   }
   assert {
-    condition     = length([for r in azurerm_network_security_group.this["private_endpoints"].security_rule : r if r.access == "Deny" && r.direction == "Inbound" && r.priority == 4000 && r.protocol == "*" && r.source_address_prefix == "*" && r.destination_address_prefix == "*" && r.destination_port_range == "*"]) == 1
+    condition     = length([for r in azurerm_network_security_group.this["private_endpoints"].security_rule : r if r.access == "Deny" && r.direction == "Inbound" && r.priority == 4000 && r.protocol == "*" && r.source_address_prefix == "*" && r.source_port_range == "*" && r.destination_address_prefix == "*" && r.destination_port_range == "*"]) == 1
     error_message = "The private endpoint NSG does not deny all other inbound traffic at priority 4000."
   }
   assert {
@@ -360,7 +385,7 @@ run "four_privatelink_zones_all_linked_without_registration" {
 run "agents_subnet_is_delegated_to_devops_pools" {
   command = plan
   assert {
-    condition     = length(azurerm_subnet.agents.delegation) == 1 && azurerm_subnet.agents.delegation[0].service_delegation[0].name == "Microsoft.DevOpsInfrastructure/pools"
+    condition     = length(azurerm_subnet.agents.delegation) == 1 && azurerm_subnet.agents.delegation[0].name == "devops-pools" && azurerm_subnet.agents.delegation[0].service_delegation[0].name == "Microsoft.DevOpsInfrastructure/pools"
     error_message = "The agents subnet is not delegated to Microsoft.DevOpsInfrastructure/pools, so task 30's pool cannot use it."
   }
   assert {
@@ -412,6 +437,10 @@ run "names_region_group_and_tags_come_from_the_inputs" {
   assert {
     condition     = alltrue([for r in concat(values(azurerm_private_dns_zone.this), values(azurerm_private_dns_zone_virtual_network_link.this)) : r.resource_group_name == "rg-panacea-app-prod" && r.tags == tomap({ owner = "platform", stack = "foundation" })])
     error_message = "A privatelink zone or link does not take var.resource_group_name and var.tags."
+  }
+  assert {
+    condition     = alltrue([for l in values(azurerm_private_dns_zone_virtual_network_link.this) : l.name == "link-vnet-panacea-app-prod"])
+    error_message = "A privatelink link is not named link-vnet-panacea-app-<env>."
   }
   assert {
     condition     = alltrue([for s in [azurerm_subnet.system, azurerm_subnet.apps, azurerm_subnet.sandbox, azurerm_subnet.private_endpoints, azurerm_subnet.agents] : s.resource_group_name == "rg-panacea-app-prod" && s.virtual_network_name == "vnet-panacea-app-prod"])
