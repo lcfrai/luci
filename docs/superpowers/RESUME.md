@@ -297,7 +297,11 @@ owner added usage, all 11 were relaunched. The new task ids:
 - **close-out** `wevstu56b`: task 26, then 25, then the final review.
 - **hub t04 round 3** `wu645aloo`: fix-3 is done and review-3 is running. When it is Approved,
   resume hub with `clearedTasks:["04"]`.
-- **env-p3-seams** `w6d55h2ch`: review-2 is running. **team v2** `wndrouo9x`: 8 Critical batches.
+- **env-p3-seams: APPROVED** (seams-review-2: 0 C, 0 I, 4 M). Phase 3's plan now carries S8-P3.6
+  MachineFS (task 02), S8-P3.4 Bundles and the S8-P3.5 pool (task 24). The held set is confirmed.
+  The Minors, and a seam gap (`GIT_CONFIG_KEY_<n>` for `transfer.fsckObjects`, which task 21's
+  Env allowlist refuses), are carried to env tasks 21, 21b, 24b, 25 and 25b.
+- **team v2** `wndrouo9x`: 8 Critical batches.
 - **work finisher** `wf_591bc2c2-c47` (fresh): 132 parts, 18 section reviews, then the
   cross-cutting review and assembly.
 
