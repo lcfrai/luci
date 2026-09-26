@@ -93,8 +93,13 @@ func newHarness(t *testing.T, h http.HandlerFunc, mods ...func(*Config)) *harnes
 		Origin:     hs.srv.URL,
 		Tokens:     staticTokens{tok: testToken},
 		HTTPClient: hs.srv.Client(),
-		Log:        slog.New(slog.NewTextHandler(hs.log, &slog.HandlerOptions{Level: slog.LevelDebug})),
-		UserAgent:  "PanaceaApp/test",
+		// Not DefaultTimeout: a loopback attempt that outlives 15 s on a loaded machine is a
+		// transport failure, which do retries on a GET, so a test counting a read's requests saw
+		// 3, not 2 (TestNoWriteIsRetried, found t04: 16.14 s, then 4 of 4 green alone). The tests
+		// of the timeout itself set their own.
+		Timeout:   2 * time.Minute,
+		Log:       slog.New(slog.NewTextHandler(hs.log, &slog.HandlerOptions{Level: slog.LevelDebug})),
+		UserAgent: "PanaceaApp/test",
 	}
 	for _, m := range mods {
 		m(&cfg)
