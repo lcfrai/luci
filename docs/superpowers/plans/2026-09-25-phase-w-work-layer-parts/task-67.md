@@ -63,3 +63,87 @@ opens the one issue view at the revision it names, and says so when that is not 
   `desktop/src/api/converge.ts` ⚑ (P3-18's mirror, `task-18.md:42`) — `issueId` (modified; the file
   names are P3's, **UNVERIFIED**; the field goes where the type is declared)
 - `desktop/src/components/lens/merge/LaneCard.test.tsx` ⚑ — tests 5 and 6 (modified)
+
+**Interfaces:**
+- Produces: the issue arm of `ContextChip`; `SessionIssueChip`; `LaneIssueChip`;
+  `LaneObservation.issueId`. Consumed by task 71 (Deploy's chip reuses the arm) and task 70's run.
+- Consumes: P4-16's `selectProvenanceState` and `selectRef` (P4 `task-16.md:161-179`); task 19's
+  `selectSessionIssueRefs` (`task-19.md:314`), which puts every `issueRef` on the loader's list;
+  task 37's `openIssue(id, revision)`; task 55's `useWork`; SW.14's `ThreadNode` and
+  `useThreadLit`; task 47's `criterionHref`; task 20's `expectNoPrediction`.
+
+#### Interfaces — complete: the issue arm of `ContextChip.tsx` ⚑ (P4-17)
+
+```tsx
+// desktop/src/provenance/ContextChip.tsx ⚑ — task 67 adds the branch and IssueChipBody.
+// ContextChipProps (P4 task-17.md:49-60) gains two optional members, used by the issue arm only:
+//   /** The replica's head of the ref's issue, when the replica holds it (decisions 2 and 3). */
+//   issueHead?: { alias: string; headRevision: number };
+//   /** Opens the one issue view at this revision (task 37's openIssue). */
+//   onOpenIssue?(issueId: string, revision: number | null): void;
+import { ThreadNode, useThreadLit } from "../components/thread";   // SW.14; path UNVERIFIED
+import { criterionHref } from "../components/issue/criterionHref";  // task 47; path UNVERIFIED
+
+// First line of ContextChip's body:
+//   if (props.refValue?.kind === "issue") return <IssueChipBody {...props} />;
+// A caller that knows its key is an issue key before it resolves (SessionIssueChip, LaneIssueChip)
+// renders IssueChipBody directly, so a resolving issue ref never takes the brief arm.
+
+export function IssueChipBody(props: ContextChipProps): JSX.Element {
+  const { keyText, state, refValue: r, issueHead: h, onOpenIssue } = props;
+  const alias = h?.alias || r?.issueAlias || "";
+  const first = r?.serves[0];
+  const lit = useThreadLit(first?.criterionId ?? "");
+  if (!r || state === "resolving" || state === "unavailable" || state === "missing" || alias === "") {
+    return <span className="pv-chip pv-chip-issue" data-state={state}><code>{keyText}</code></span>;
+  }
+  const erased = state === "erased";
+  const behind = !erased && h !== undefined && h.headRevision > r.revision;
+  return (
+    <button type="button" className="pv-chip pv-chip-issue" data-state={erased ? "erased" : "current"}
+      title={erased ? `${alias}@${r.revision} was erased` : r.title}
+      onClick={() => onOpenIssue?.(r.issueId, r.revision)} {...(first ? lit.bind : {})}>
+      {first ? <ThreadNode criterionId={first.criterionId} href={criterionHref(first.briefKey, first.criterionId)}
+        label={`${alias} serves ${first.criterionId}`} /> : null}
+      <span className="pv-chip-key">{alias}@{r.revision}</span>
+      {behind ? <span className="pv-chip-behind"> · head is @{h!.headRevision}</span> : null}
+      {erased ? <span className="pv-chip-behind"> · erased</span> : null}
+    </button>
+  );
+}
+```
+
+`useThreadLit("")` binds nothing (SW.14's rule for an empty id, **UNVERIFIED**; if SW.14 throws on
+`""`, the node and the hook move into a child component rendered only when `first` exists). The
+chip never prints the title in its face: the face is `EP-142@3`, and the title is the `title`
+attribute and the issue view's (05 §4.5 rule 1). An erased ref's `title` is `""` by task 18's
+`ErasedIssueRef`, and the chip never reaches for a cached one.
+
+#### Interfaces — complete: `desktop/src/provenance/SessionIssueChip.tsx`
+
+```tsx
+// The one store-reading issue chip. P4-17's SessionContextChip is its model (task-17.md:64-69).
+import { useShallow } from "zustand/react/shallow";
+import { useCockpit } from "../store/store";
+import { selectProvenanceState, selectRef } from "../store/selectors";   // P4-16
+import { useWork } from "../work/replica/useWork";                        // task 55; path UNVERIFIED
+import { IssueChipBody } from "./ContextChip";
+import type { SessionId } from "../store/types";
+
+export function SessionIssueChip({ sessionId }: { sessionId: SessionId }): JSX.Element | null {
+  const key = useCockpit((s) => s.sessions[sessionId]?.issueRef ?? "");
+  const state = useCockpit((s) => (key === "" ? "none" : selectProvenanceState(key)(s)));
+  const ref = useCockpit(useShallow((s) => (key === "" ? undefined : selectRef(key)(s))));
+  const head = useWork((w) => (ref?.issueId ? w.get(ref.issueId)?.head : undefined));
+  const openIssue = useCockpit((s) => s.openIssue);
+  if (key === "") return null;                                          // decision 5: no slot
+  return (
+    <IssueChipBody keyText={key} state={state} refValue={ref} head={undefined}
+      issueHead={head ? { alias: head.alias, headRevision: head.headRevision } : undefined}
+      onOpenDiscover={() => {}} onOpenIssue={(id, rev) => openIssue(id, rev)} />
+  );
+}
+```
+
+`onOpenDiscover` is required by P4-17's props and never called by the issue arm; a brief key
+never reaches this mount because `issueRef` holds issue keys only (`task-19.md:300`).
