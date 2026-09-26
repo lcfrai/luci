@@ -788,3 +788,81 @@ Step 1 reads task 146's requester columns and names each one the test updates. T
 (`task-146.md:153`) moves only `important`, `state`, `issue_id`, `decline_reason`, `closed_at` and
 `closed_by`, so the freeze is the grant plus the owner-only `erase_request`, not the scope's
 `forbid_change()` on the columns; the test pins that form.
+
+#### Steps
+
+1. **Sync base (rules H1, H2).** Confirm tasks 07, 10 and 143 are merged and read the numbering
+   in `migrate/sql/`; take the next free `NNNN`. Re-read each owner block in decision 1's table at
+   its cited lines (a part may have moved since 2026-09-26) and bind the **UNVERIFIED** names:
+   task 146's requester columns, task 07's `wantRaise`, H16b's `fixture` and sender. 20 minutes.
+2. **Write the tests first** (the table above, `work_w5_integration_test.go`), and flip task 07's
+   one clause. Run them: every one fails on a missing table, function or trigger. 45 minutes.
+3. **Write `NNNN_work_w5.sql`**: the owner blocks in order, then this part's blocks in the order
+   they appear here, the guards last. `hub migrate` against the compose stack. 50 minutes.
+4. **Run the tests to green**, then task 06's and 07's migrate tests unchanged but for the one
+   flipped clause, and task 10's. 20 minutes.
+5. **The matrix**: append `principalRow`, `w5GuardRows` and the runner loop; add `"145"` to
+   `workMatrixLive`. With 150, 159 and 160 not yet live, no principal row runs except
+   `person_host_cause`. 25 minutes. Then commit each file.
+
+#### Acceptance
+
+```bash
+cd control-plane
+go run ./cmd/hub migrate --dsn "$HUB_TEST_DSN" && echo migrated                                 # migrated
+go test -tags integration ./internal/hub/migrate/ -count=1 -v \
+  -run 'Test(W5AppliesOnEmptyAndOnW4|AnIntegrationWritesNoState|AnAppNeverWritesAFact|AHostMovesForwardOnly|AHostNeedsAPerson|APersonCannotForgeAHostCause|TheSyncSettingsAgree|IntegrationRevisesNothing|TheQuoteIsFrozen|NoSecretAtRest|W5LogsAreAppendOnly|AClosedLoopRunIsFrozen|W5GrantsAreExactlyTheList|AppLookupIgnoresPending)$' \
+  2>&1 | grep -c '^--- PASS'                                                                    # 14
+go test -tags integration ./internal/hub/migrate/ -count=1 -run 'Test(EveryOrgTableHasOrgIsolation|AnIntegrationNeverWritesAFact|AnUnsetActorIsNotAPerson)$' 2>&1 | tail -1   # ok
+go test -tags integration ./internal/hub/server/ -count=1 -run 'TestMatrix' -v 2>&1 | grep -c 'principal/person_host_cause.*PASS'   # 1
+grep -c 'FORCE ROW LEVEL' internal/hub/migrate/sql/*_work_w5.sql                                # 3: tasks 146-148's own (checked 2026-09-26); none from this part's loop
+```
+
+**Expected, not observed**: no W5 migration exists on this branch on 2026-09-26, and none of these
+commands has run (OD-27). `$HUB_TEST_DSN` and `cmd/hub migrate` are Phase H's names
+(**UNVERIFIED**; H's plan fixes them).
+
+#### What this task does NOT claim
+
+- The migration number: it is the next free one at sync time (rule H1).
+- That any principal authenticates: tasks 150, 159, 160 and 154 own the credentials, and each
+  switches its rows on. Until then only the person row runs.
+- That the owner blocks are right: each owner's tests prove its table; this task proves only that
+  they apply together and that the guards hold across them.
+- That `host` causes are in 05 §3.3's cause table: they extend it (the gap task 154 noted).
+- That any host identity maps to an Entra user: that is task 154's mapping.
+- That Key Vault is available to the Hub: it is a **proposed** contract addition (decision 10).
+- Any parity row alone. It pins the authorisation behind **L-202, L-215, L-244, L-245 and L-250**
+  (05 §1), which their route tasks close.
+
+#### Gaps found while writing this part
+
+1. **Keys and state: task 160 disagrees.** Task 160 decision 7 and `TestKeysNeverMoveState`
+   (`task-160.md:57`, `:475`) refuse a key every state write, on the scope's sentence; this part
+   (decision 5) and task 144 (decision 3, row W5-12) let an app or a key make a person's `hand`
+   moves and refuse only facts and `done`. One side must change before 160 builds; this part
+   recommends 160's, for L-245 and L-250.
+2. **Labels on a synced issue: task 150 and task 144 disagree.** Task 150's guard refuses any
+   `issue_labels` row by the sync principal (`task-150.md:175-178`); task 144's fake
+   `ApplySyncBatch` matches labels through task 05's `insertImported` (144 decision 10). The fake
+   should pass no labels, or 150's guard should allow matched ones.
+3. **The file name.** The scope names `NNNN_work_intake.sql`; nine owners wrote
+   `NNNN_work_w5.sql` and two (`task-161.md:440`, `task-162.md:213`) `_work_intake`. This part
+   takes `_work_w5` (decision 2); 161 and 162 should re-point.
+4. **A request's thread survives erase.** `erase_request` (`task-146.md`, its block) blanks the
+   request, not `work_request_messages.body`, so an erased requester's replies stay. Task 146
+   (or 157, which writes the thread) should extend the erase; this part adds no erase path.
+5. **Custom states have no host order.** W2's custom states (task 75) are not in `v_order`, so a
+   host move from one is refused. That is safe (default deny), and may be what the owner wants;
+   it is not decided anywhere.
+6. **Key Vault is a Hub-contract proposal with no task.** The process has no Key Vault access
+   (`hub-contract.md:2085`); tasks 151, 152, 154 and 156 need it to read a `secret_ref`. By rule
+   H1 it is a Hub delta for the `feat/hub` owner, and the skeleton has no W5 Hub-delta task for it.
+7. **Task 06's closed-set test flips.** `TestClosedSetsRefuseStrangers` asserts
+   `external_source = 'jira'` is refused (`task-06.md:468`); task 150's `ALTER` widens that set,
+   so that clause must flip in 150's commit, not this one.
+8. **`work_teams_pairings` under row-level security.** A pairing code is redeemed from a Teams
+   message, perhaps before the Hub knows the org; if so, task 157 needs a `SECURITY DEFINER`
+   lookup like `app_for_client`. **UNVERIFIED**: 157's flow decides.
+9. **The skeleton's row for 145** names seam SW.3 only; this part also adds `hub.work_actor_user`
+   and the matrix's `principalRow`, which 150, 154, 159 and 160 consume.
