@@ -2616,8 +2616,9 @@ func RelayHooked(ctx context.Context, client, upstream *websocket.Conn, h Hooks)
 AMENDED by task 26 (2026-09-26): `Relay` no longer exists, so the block above is how
 `RelayHooked` came to be, not what `proxy.go` holds. Task 26 re-proved `Relay` had no production
 caller (open carry 12) and deleted it; `RelayHooked` is the one relay, its doc comment says so,
-and `desktop/src/seams.test.ts` fails if another relay appears in the control plane (seam S8.7 in
-`docs/SEAMS.md`). The same holds for `// proxy.Relay already takes *websocket.Conn.` in §2.2's
+and `desktop/src/seams.test.ts` fails on each form of a second relay in the control plane that
+seam S8.7's row in `docs/SEAMS.md` lists, and that row names the one form it cannot see (AMENDED
+by task 26's fix round 2, 2026-09-27: this said "if another relay appears", wider than the rules). The same holds for `// proxy.Relay already takes *websocket.Conn.` in §2.2's
 block: `backend.go:9` now names `proxy.RelayHooked`.
 
 The attach handler passes `OnUpstream` that records `time.Now()` into a local variable

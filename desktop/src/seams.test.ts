@@ -97,7 +97,7 @@ interface SeamTest {
   /** The task that creates `file`, when it has not run yet. While the file is absent the entry
    *  waits; the day it appears the entry FAILS until `pending` is deleted here and docs/SEAMS.md
    *  cites what that task proved. Task 26 ran before task 25 (docs/superpowers/RESUME.md's
-   *  close-out order), so the one pending entry is task 25's harness. The waiting task's plan
+   *  close-out order), so the first pending entry was task 25's harness. The waiting task's plan
    *  must say to clear it; the "hands every pending entry" test below fails until it does. */
   pending?: string;
 }
@@ -330,36 +330,22 @@ const SEAMS: Seam[] = [
     ],
     // The tripwire. Phase 5's canvas brings its own room (survey-phase-5-design.md:444-448);
     // the day a second transport opens, this goes red and the row says where it lives.
-    // Through a global object too: `new window.WebSocket(url)` is the same second transport.
-    // The second rule is the constructor taken as a value, which the first cannot see
-    // (mutation A1 of task 26's report): read through a global object, bound to a name, or
-    // passed as an argument. Type positions (`ws: WebSocket`, `Map<string, WebSocket>`) and a
-    // constant read (`WebSocket.OPEN`) do not match, so attachRegistry.ts's `ws: WebSocket`
-    // declarations stay clear.
+    // One rule, by where the name may appear rather than where it may not. Three rounds of rules
+    // that each listed a way to reach the constructor (`new`, a global's member, bound, passed,
+    // destructured, a string) each had a survivor they did not list: a value (mutation A1), a
+    // destructuring (TS-M1, TS-M5), an alias of the global (review 2 m1, TS-R1). So either name,
+    // anywhere in code (a string included), trips it unless it follows a type position's
+    // token (`:`, a single `|` or `&`, `<`, `as`, `typeof`) or reads a constant (`WebSocket.OPEN`).
+    // attachRegistry.ts's `ws: WebSocket | null` stays clear. A value after a colon (an object
+    // literal's `{ open: WebSocket }`, a ternary's else branch) reads like an annotation, and a
+    // name built at run time (`globalThis["Web" + "Socket"]`, fix round 2's predicted survivor
+    // TS-X1, which survived) is not the word, so neither is seen. Other type positions
+    // (`Map<string, WebSocket>`) and a string that names either word trip it, loudly: reword the
+    // string, or add the position here and to the row.
     trees: [
       {
         dir: "desktop/src",
-        absent: /\bnew\s+(?:(?:window|globalThis|self)\s*\.\s*)?(?:EventSource|WebSocket)\b/,
-        except: ["desktop/src/api/client.ts"],
-      },
-      {
-        dir: "desktop/src",
-        absent:
-          /\b(?:window|globalThis|self)\s*\.\s*(?:EventSource|WebSocket)\b|\b(?:const|let|var)\s+\w+\s*=\s*(?:EventSource|WebSocket)\b(?![\w.])|[(,]\s*(?:EventSource|WebSocket)\s*[,)]/,
-        except: ["desktop/src/api/client.ts"],
-      },
-      {
-        // The third: destructured (`const { WebSocket: Socket } = globalThis`), read off any
-        // parenthesised expression (`(window as typeof globalThis).WebSocket`), or named as a string
-        // (`globalThis["WebSocket"]`, `Reflect.get(globalThis, "WebSocket")`). Task 26 review m2,
-        // mutants TS-M1 and TS-M3. In a destructuring the name must be a key, not a value, so a type
-        // literal's `{ ws: WebSocket }` stays clear; no source names either one as a whole string.
-        // A typed destructuring (`const { WebSocket: S }: typeof globalThis = …`, mutant TS-M5) and
-        // a shorthand key (`{ WebSocket }`, in an object, a pattern or an import from a socket
-        // library) are the same read.
-        dir: "desktop/src",
-        absent:
-          /\{(?:[^{}]*,)?\s*(?:EventSource|WebSocket)\s*(?::[^{},]*)?(?:,[^{}]*)?\}\s*(?::[^=;]*)?=(?![=>])|[{,]\s*(?:EventSource|WebSocket)\s*[,}]|\)\s*\??\.\s*(?:EventSource|WebSocket)\b|["'`](?:EventSource|WebSocket)["'`]/,
+        absent: /(?<!(?::|(?<![|&])[|&]|<|\bas|\btypeof)\s*)\b(?:EventSource|WebSocket)\b(?!\s*\.\s*[A-Z][A-Z_]*\b)/,
         except: ["desktop/src/api/client.ts"],
       },
     ],
@@ -459,6 +445,26 @@ const SEAMS: Seam[] = [
       // RelayHooked(…) }` passed every name rule (mutant G-M4). RelayHooked is named in code only by
       // its declaration and attach.go's one call (the anchor above holds attach.go to one).
       { dir: "control-plane", absent: /(?<!^func )\bRelayHooked\b/m, except: ["control-plane/internal/api/attach.go"] },
+      // And by what a relay holds: two connections. `func Pipe(ctx, client, upstream
+      // *websocket.Conn) error` with its own copy loop passed every rule above (task 26 review 2
+      // m2, mutant G-R1). So a connection type (`*websocket.Conn`, or any package's `Conn`, such as
+      // the `net.Conn` that websocket.NetConn returns) in code, as a parameter, a func literal's, a
+      // field, a var or an element type, trips it everywhere but RelayHooked's parameters, its
+      // copyMessages loop and relayAttached, the handler that calls it. A result, `(*websocket.Conn,
+      // error)` from Dial and both Attach, does not. A relay whose connections are never named by
+      // type (two `:=` locals, inferred) is invisible to it, which the S8.7 row says.
+      {
+        dir: "control-plane",
+        absent:
+          /(?<!\bfunc RelayHooked\([^)]*|\bcopyMessages := func\([^)]*|\bfunc \(a \*API\) relayAttached\([^)]*|\(\*?)\b\w+\.Conn\b/,
+        except: [],
+      },
+      // And by what a relay moves: messages. One whose connections are typed by a local interface
+      // (fix round 2's predicted survivor G-X1, which survived the rule above) names the message
+      // type in that interface; one that wraps them as streams names websocket.NetConn and a
+      // message kind. No control-plane code names any of the four today: RelayHooked's loop infers
+      // its `typ`. Phase 8 writing its own frame with a named kind trips it, loudly.
+      { dir: "control-plane", absent: /\b\w+\.(?:MessageType|MessageBinary|MessageText|NetConn)\b/, except: [] },
     ],
   },
   /* The six mounts after the worktree, in four seams, each refused by katabe's `len(spec.Mounts) > 0`
@@ -612,6 +618,24 @@ describe("the named seams — docs/SEAMS.md", () => {
           .some((p) => p.includes("desktop/src/seams.test.ts") && p.includes(seam.id) && deletes.test(p));
         if (!told) {
           unhanded.push(`${seam.id}: ${plan} never tells ${t.pending} to delete this entry's \`pending\``);
+        }
+        // The handoff makes that task edit this file and DOC, so its commits name both, and so
+        // does its pre-flight dirty-path check: `git commit -- <path>` takes the path's whole
+        // working tree, so another agent's uncommitted edit in either would ride in that task's
+        // commit, and nothing after the commit can tell (task 26 review 2, I1).
+        const commands = text(plan).replace(/\\\n/g, " ").split("\n");
+        const paths = (c: string): string[] =>
+          (c.replace(/#.*$/, "").split(/\s--\s/)[1] ?? "").split(/\s+/).filter(Boolean);
+        const committed = commands.filter((c) => /^git commit\s/.test(c)).flatMap(paths);
+        const dirtyAt = commands.findIndex((c) => /^#.*\bis dirty\b/.test(c));
+        const dirty = paths(commands.find((c, i) => i > dirtyAt && /^git status --porcelain\s/.test(c)) ?? "");
+        for (const handed of ["desktop/src/seams.test.ts", DOC]) {
+          if (!committed.includes(handed)) {
+            unhanded.push(`${seam.id}: no \`git commit … --\` in ${plan} names ${handed}`);
+          }
+          if (dirtyAt < 0 || !dirty.some((d) => handed === d || handed.startsWith(`${d}/`))) {
+            unhanded.push(`${seam.id}: ${plan}'s "… is dirty" check does not cover ${handed}`);
+          }
         }
       }
     }

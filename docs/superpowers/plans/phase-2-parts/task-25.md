@@ -146,8 +146,12 @@ grep -nE '^- \*\*Effort\*\* — low / medium / high / xhigh \(Claude Code only\)
                                                                             # expect exactly: 27:- **Effort** — …
 
 # (f) Nothing this task edits is dirty, so the commits in step 20 hold only this task's work.
+#     desktop/src/seams.test.ts and docs/SEAMS.md are step 20's handoff from task 26 (AMENDED by
+#     task 26's fix round 2, 2026-09-26): `git commit -- <path>` takes a path's whole working-tree
+#     state, so another agent's uncommitted edit in either would ride in this task's commit.
 git status --porcelain -- control-plane/internal/harness/harness.go control-plane/internal/harness/argv.go \
-  desktop/package.json desktop/package-lock.json desktop/e2e                # expect no output
+  desktop/package.json desktop/package-lock.json desktop/e2e \
+  desktop/src/seams.test.ts docs/SEAMS.md                                   # expect no output
 
 # (g) Docker is up, and nothing is listening yet on the three ports this task uses.
 docker version --format '{{.Server.Version}}'                               # a version, not an error
