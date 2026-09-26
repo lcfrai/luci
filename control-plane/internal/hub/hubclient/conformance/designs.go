@@ -167,6 +167,17 @@ func blobQuota(t *testing.T, e Env) {
 	noBlob(t, e.Member, p.ID, digestOf(b))
 	upload(t, e.Member, p.ID, "application/octet-stream", a)
 	upload(t, e.Member, p2.ID, "application/octet-stream", b)
+	// Landing exactly on the quota is allowed (task-21.md:67 refuses only
+	// total + size > quota); one byte more is not.
+	if rest := e.BlobQuota - int64(len(a)); rest > hubapi.MaxBlobBytes {
+		t.Logf("conformance: BlobQuota %d needs a %d-byte blob to fill; the exact-quota case is not run", e.BlobQuota, rest)
+	} else {
+		c := make([]byte, rest)
+		copy(c, uniq())
+		upload(t, e.Member, p.ID, "application/octet-stream", c)
+		_, err = put(e.Member, p.ID, "application/octet-stream", []byte(uniq()))
+		wantErr(t, err, 409, hubapi.CodeQuotaExceeded)
+	}
 }
 
 // a reader already read to its end is rewound: the whole blob is stored (HA5-1).
@@ -434,6 +445,18 @@ func sessionLinkRepeatReturnsExisting(t *testing.T, e Env) {
 	page := must(e.Viewer.SessionLinks(bg, a.p.ID, hubapi.SessionLinkQuery{DesignKey: ap.DesignKey, SessionID: req.SessionID}))(t)
 	if len(page.Items) != 2 || page.Items[0].ID != l2.ID || page.Items[1].ID != l1.ID {
 		t.Errorf("SessionLinks = %+v, want %s then %s, newest first", page.Items, l2.ID, l1.ID)
+	}
+	// The repeat is this project's: the same user and pair in a second project
+	// where the key is approved too is a new link there, never the first
+	// project's link answered on another project's route (§7.8: a link is a
+	// record of its project; the Hub's UNIQUE needs project_id, carried).
+	o := newApprovable(t, e)
+	o.req.DesignKey = ap.DesignKey
+	must(e.Member.Approve(bg, o.p.ID, o.req))(t)
+	oreq := req
+	oreq.BriefKey = o.rev.Key
+	if l3 := must(e.Member.LinkSession(bg, o.p.ID, oreq))(t); l3.ID == l1.ID || l3.ProjectID != o.p.ID {
+		t.Errorf("the pair linked in a second project = %+v, want a new link of %s", l3, o.p.ID)
 	}
 }
 
