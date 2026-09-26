@@ -539,3 +539,142 @@ the rule below; the code is the same one the Hub writes (`WorkIntakeCodeStatus`)
 `ValidateIntakeRules` is task 147's validator (**UNVERIFIED** name; `task-147.md:288-…`).
 `harness.Catalogue()` is read from the control plane's `harness` package, which `hubclient` may
 import (a leaf package, checked 2026-09-26 on this branch: **UNVERIFIED** until task 166 lands).
+
+**Checked 2026-09-26 on this branch:** `control-plane/internal/harness/harness.go:13` imports only
+`errors`, and `Catalogue()` (`:216`) returns `[]Descriptor` whose `ID` is the named type `ID`
+(`:58-59`), so the fake passes `ids := []string{}; for _, d := range harness.Catalogue() { ids =
+append(ids, string(d.ID)) }` to `ValidateTeamAgentPolicy`, not the catalogue itself.
+
+#### `conformance/work.go` ⚑: `WorkEnv`'s W5 fields (complete)
+
+```go
+type WorkEnv struct {
+	Env
+	OrgAdmin hubclient.Hub
+	// W5 (task 144, decisions 2 and 9). Each returns a client whose calls are
+	// the named principal's; the fake binds them with ActingAs, task 168 with
+	// the principal's own token.
+	Integration func(t *testing.T, conn hubapi.TrackerConnection) hubclient.Hub
+	AppFor      func(t *testing.T, app hubapi.App, userID string) hubclient.Hub
+	KeyFor      func(t *testing.T, key hubapi.CreatedAPIKey) hubclient.Hub
+	SubmitForm  func(t *testing.T, as hubclient.Hub, formID string, answers map[string]string) (hubapi.Request, error)
+	NonMember   hubclient.Hub // in the org, in no team (task 148's N principal)
+}
+```
+
+`WorkRowsW1`-`W4` never read the new fields, so their envs may leave them nil.
+
+#### `conformance/work_intake.go`, the head and the table (complete)
+
+```go
+package conformance
+
+import (
+	"errors"
+	"reflect"
+	"strings"
+	"testing"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubapi"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubclient"
+)
+
+// WorkRowsW5 run against NewFake() here and the real Hub in task 168.
+var WorkRowsW5 = []WorkRow{
+	{"W5-01", "quote_and_requester_frozen", w5QuoteFrozen},
+	{"W5-02", "accept_writes_quote_as_revision_one", w5AcceptWritesQuote},
+	{"W5-03", "link_writes_no_revision", w5LinkWritesNoRevision},
+	{"W5-04", "second_close_is_request_closed", w5SecondClose},
+	{"W5-05", "first_matching_rule_wins", w5FirstRuleWins},
+	{"W5-06", "form_required_field", w5FormRequired},
+	{"W5-07", "form_member_and_nonmember_defaults", w5FormDefaults},
+	{"W5-08", "sync_only_by_its_principal", w5SyncOnlyByPrincipal},
+	{"W5-09", "sync_idempotent_by_external_id", w5SyncIdempotent},
+	{"W5-10", "sync_principal_moves_nothing", w5SyncMovesNothing},
+	{"W5-11", "sync_comments_by_mode", w5SyncCommentsByMode},
+	{"W5-12", "app_and_key_refused_fact_states", w5AppKeyFacts},
+	{"W5-13", "revoked_key_refused_next_call", w5RevokedKey},
+	{"W5-14", "unapproved_app_refused", w5UnapprovedApp},
+	{"W5-15", "webhook_kinds_are_sw5_kinds", w5WebhookKinds},
+	{"W5-16", "loop_run_owner_and_grid", w5LoopOwnerGrid},
+	{"W5-17", "harness_outside_catalogue", w5HarnessCatalogue},
+	{"W5-18", "one_event_per_write", w5OneEventPerWrite},
+}
+
+// isCode reports whether err is H's problem with this code (task 05's helper
+// shape, UNVERIFIED name: hubclient.ProblemCode).
+func isCode(err error, code string) bool {
+	var p *hubclient.Problem
+	return errors.As(err, &p) && p.Code == code
+}
+```
+
+**`isCode` above is deleted before build.** Task 05's `wRefused` (`task-05.md:174-185`) is the one
+refusal check, and every unexported name in the conformance package starts with `w` (`:203-204`);
+the rows below use `wRefused`, and the head's `errors` import goes with `isCode`.
+
+#### The rows, four complete (the other fourteen follow the table's rule in the same shape)
+
+```go
+// w5Request is a member-recorded request with a quote that normalising would
+// change: leading spaces, a CRLF and a trailing space.
+func (e WorkEnv) w5Request(t *testing.T) hubapi.Request {
+	t.Helper()
+	r, err := e.Member.CreateRequest(wctx, e.TeamID, hubapi.CreateRequestRequest{
+		Requester: hubapi.Requester{Kind: hubapi.RequesterEmail, Email: "ana@example.com", DisplayName: "Ana"},
+		Quote:     wText("  The export drops the last row.\r\nEvery time. ")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return r
+}
+
+// W5-02: accept makes one issue at the team's defaultState whose revision 1
+// description is the quote, author H, written by the accepter.
+func w5AcceptWritesQuote(t *testing.T, e WorkEnv) {
+	p := e.project(t, "Payments", "PAY")
+	r := e.w5Request(t)
+	got, err := e.Member.AcceptRequest(wctx, r.ID, hubapi.AcceptRequestRequest{ProjectID: p.ID,
+		Title: "Export drops the last row", Serves: []hubapi.Serve{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rv, err := e.Viewer.IssueRevisionAt(wctx, got.Issue.IssueID, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	iw, _ := e.Viewer.Issue(wctx, got.Issue.IssueID)
+	switch {
+	case rv.Content.Description != r.Quote: // byte for byte, author included
+		t.Errorf("description %+v, want the quote %+v", rv.Content.Description, r.Quote)
+	case rv.WrittenBy.ID != e.MemberID: // IssueRevision.WrittenBy, MemberID: UNVERIFIED names
+		t.Errorf("written by %s, want the accepter", rv.WrittenBy.ID)
+	case iw.Head.State != hubapi.StateBacklog: // the default TeamPolicy (task-05.md:360)
+		t.Errorf("state %s, want the team's defaultState", iw.Head.State)
+	case got.Request.State != hubapi.RequestAccepted || got.Request.IssueID != got.Issue.IssueID:
+		t.Errorf("request %+v", got.Request)
+	}
+}
+
+// W5-03: link adds a requester and writes no revision (kills "link
+// rewrites the issue").
+func w5LinkWritesNoRevision(t *testing.T, e WorkEnv) {
+	p := e.project(t, "Payments", "PAY")
+	iw := e.issue(t, p, "Export bug")
+	before, _ := e.Viewer.IssueRevisions(wctx, iw.Head.ID, hubapi.PageRequest{Limit: 50})
+	r := e.w5Request(t)
+	if _, err := e.Member.LinkRequest(wctx, r.ID, hubapi.LinkRequestRequest{IssueID: iw.Head.ID}); err != nil {
+		t.Fatal(err)
+	}
+	after, _ := e.Viewer.IssueRevisions(wctx, iw.Head.ID, hubapi.PageRequest{Limit: 50})
+	now, _ := e.Viewer.Issue(wctx, iw.Head.ID)
+	if len(after.Items) != len(before.Items) || now.Head.HeadRevision != iw.Head.HeadRevision ||
+		now.Head.State != iw.Head.State {
+		t.Fatalf("link changed the issue: %d → %d revisions", len(before.Items), len(after.Items))
+	}
+	reqs, err := e.Viewer.IssueRequesters(wctx, iw.Head.ID)
+	if err != nil || len(reqs) != 1 || reqs[0].RequestID != r.ID {
+		t.Fatalf("requesters %v %+v", err, reqs)
+	}
+}
+```
