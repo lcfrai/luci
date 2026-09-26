@@ -453,3 +453,55 @@ has at most 10 live keys and a team 25 (`task-160.md:381`, `:385`), but revoked 
 are listed too (`:391`), and task 160's default `limit` is not stated: whether one page holds them
 all is **UNVERIFIED** (gap 5). `RunLoopNow`'s body is `{}` here; task 163's `{requestId}` body is the
 desktop's (169), which the relay forwards as sent.
+
+#### Contract — the relay: `api/work.go` ⚑, `intakeCalls()` (complete)
+
+`registerWork` already iterates `AllWorkRoutes()` (task 124), so the 44 rows mount once
+`workCalls()` merges `intakeCalls()`; a row with no handler, or a handler with no row, panics at
+`New` (`task-16.md:520-535`). The hub-only rows have no handler and are never mounted.
+
+```go
+// control-plane/internal/api/work.go ⚑ (continued)
+
+type (
+	cx = context.Context
+	pv = func(string) string
+)
+
+// in0: path values and the query, no body. in1: a strict body of T first.
+// paged: the query decoded as a page (hubclient.DecodeQuery, task 16).
+func in0(f func(c cx, w hubclient.Work, p pv, q url.Values) (any, error)) workCall {
+	return func(r *http.Request, _ http.ResponseWriter, w hubclient.Work) (any, error) {
+		return f(r.Context(), w, r.PathValue, r.URL.Query())
+	}
+}
+
+func in1[T any](f func(c cx, w hubclient.Work, p pv, b T) (any, error)) workCall {
+	return func(r *http.Request, rw http.ResponseWriter, w hubclient.Work) (any, error) {
+		b, err := body[T](rw, r)
+		if err != nil {
+			return nil, err
+		}
+		return f(hubclient.WithIdempotencyKey(r.Context(), r.Header.Get("Idempotency-Key")), w, r.PathValue, b)
+	}
+}
+
+func paged(f func(c cx, w hubclient.Work, p pv, pg hubapi.PageRequest) (any, error)) workCall {
+	return in0(func(c cx, w hubclient.Work, p pv, q url.Values) (any, error) {
+		pg, err := hubclient.DecodeQuery[hubapi.PageRequest](q)
+		if err != nil {
+			return nil, err // a *FieldError: relayWork answers 400
+		}
+		return f(c, w, p, pg)
+	})
+}
+
+// empty is the body of a write that takes none: the relay still reads it
+// strictly, so `{"x":1}` is 400 here and never reaches the Hub.
+type empty struct{}
+
+func ptr(s string) *string { return &s }
+```
+
+`hubclient.WithIdempotencyKey(ctx, "")` returns `ctx` unchanged, so a write with no header gets
+H33's own key, as every W1 write does today (decision 7).
