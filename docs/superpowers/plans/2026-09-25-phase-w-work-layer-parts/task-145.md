@@ -707,3 +707,84 @@ wantRaise(t, asIntegration(tx), "UPDATE issues SET state = 'backlog' WHERE id = 
 
 `asIntegration` sets `hub.work_actor_kind = 'integration'` **and** `hub.work_sync_connection`
 (decision 8); `wantRaise` is task 07's helper shape (**UNVERIFIED** name).
+
+#### Tests first — `migrate/work_w5_integration_test.go`
+
+On task 06's `seedWork`, `asApp` and `insertIssue` (`task-06.md:440-452`), and its `pgcode`
+(`:455`): a test matches the SQLSTATE and the `principal_cannot_move_state` prefix, never the
+rest of the text. Two are complete; the rest follow the table in the same shape.
+
+```go
+//go:build integration
+
+package migrate_test
+
+// asActor is asApp with the W5 settings set first (decision 3): kind, the
+// attributed user, the cause, and the sync connection when kind is integration.
+func asActor(t *testing.T, db *hubtest.DB, o workOrg, kind, user, cause string, fn func(tx pgx.Tx) error) error {
+	t.Helper()
+	return asApp(t, db, o.ID, func(tx pgx.Tx) error {
+		conn := ""
+		if kind == "integration" {
+			conn = seedTracker(t, tx, o) // a tc- row in o.Project, mode in
+		}
+		for k, v := range map[string]string{"hub.work_actor_kind": kind, "hub.work_actor_user": user,
+			"hub.work_cause": cause, "hub.work_sync_connection": conn} {
+			if _, err := tx.Exec(ctx, "SELECT set_config($1, $2, true)", k, v); err != nil {
+				return err
+			}
+		}
+		return fn(tx)
+	})
+}
+
+// kills "an app closes an issue" and "the guard trusts a forged cause".
+func TestAnAppNeverWritesAFact(t *testing.T) {
+	db := hubtest.New(t)
+	s := seedWork(t, db)
+	for _, c := range []struct{ state, cause string }{{"started", "lane_bound"}, {"in_review", "lane_queued"},
+		{"landed", "land_trailer"}, {"done", "evidence_observed"}, {"done", "hand"}} {
+		for _, kind := range []string{"app", "key"} {
+			err := asActor(t, db, s.A, kind, s.A.Member, c.cause, func(tx pgx.Tx) error {
+				id := insertIssue(t, tx, s.A, s.A.Project, 1)
+				_, err := tx.Exec(ctx, "UPDATE issues SET state = $1, state_reason = 'r' WHERE id = $2", c.state, id)
+				return err
+			})
+			if pgcode(err) != "42501" || !strings.Contains(err.Error(), "principal_cannot_move_state") {
+				t.Errorf("%s into %s by %s: %v", kind, c.state, c.cause, err)
+			}
+		}
+	}
+	err := asActor(t, db, s.A, "key", s.A.Member, "hand", func(tx pgx.Tx) error { // decision 5
+		_, err := tx.Exec(ctx, "UPDATE issues SET state = 'backlog' WHERE id = $1", insertIssue(t, tx, s.A, s.A.Project, 2))
+		return err
+	})
+	if err != nil {
+		t.Fatalf("a key's hand move to backlog refused: %v", err)
+	}
+}
+```
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestW5AppliesOnEmptyAndOnW4` | `hub migrate` from zero, and from W4's last migration with seeded rows, both reach the same `pg_dump --schema-only` | "depends on unapplied state" |
+| `TestEveryOrgTableHasOrgIsolation` (task 06's, re-run) | every W5 table with `org_id` has the policy; as `X` (org B set) every W5 table reads 0 rows | "RLS missing on a table" |
+| `TestAnIntegrationWritesNoState` | kind `integration`: `backlog` by `hand` and `done` by `evidence_observed` → `42501` | "sync may write a human state" |
+| `TestAnAppNeverWritesAFact` | above | "an app closes an issue" |
+| `TestAHostMovesForwardOnly` | `host`, a member user: `outside_merge` → `landed` from `in_review` ok; `done` → `42501`; `outside_pr` from `landed` → `42501`; from `cancelled` → `42501` | "host writes done"; "a host move backwards" |
+| `TestAHostNeedsAPerson` | `host`, `hub.work_actor_user` unset, then a user of org B: `started` by `outside_push` → `42501` both | "a fact with no person" |
+| `TestAPersonCannotForgeAHostCause` | `person`, `outside_pr` → `in_review` → `42501` | "outside cause open to all" |
+| `TestTheSyncSettingsAgree` | connection set with kind `person` → `42501`; kind `integration` with no connection → `42501`; kind `robot` → `42501` | decision 8; "an unknown kind reads as a person" |
+| `TestIntegrationRevisesNothing` | kind `integration`: revision 1 of a new `triage` issue from `jira` ok; revision 2 → `42501`; revision 1 of a `backlog` issue → `42501`; `host`, any revision → `42501` | "sync revises an issue" |
+| `TestTheQuoteIsFrozen` | as `hub_app`, `UPDATE work_requests SET quote = 'x'` and `SET requester_email = 'x'` → `42501` each (no column grant); `erase_request` blanks both | "mutable quote" |
+| `TestNoSecretAtRest` | issue a key through task 160's insert path; no column of `work_api_keys`, `work_webhooks` or `work_host_hooks` equals the issued secret (every `text` and `bytea` column compared) | "plaintext key at rest" |
+| `TestW5LogsAreAppendOnly` | `UPDATE` and `DELETE` on `work_outside_commit_links`, `work_webhook_deliveries`, `work_request_messages` → `42501` each | "a log rewritten" |
+| `TestAClosedLoopRunIsFrozen` | a run `ran` with `ended_at` set; `UPDATE … SET outcome = 'failed'` → `42501`; a `queued` run → `ran` ok | "a closed run rewritten" |
+| `TestW5GrantsAreExactlyTheList` | `role_table_grants` and `column_privileges` for `hub_app` on this task's ten tables equal the grants block | "a grant nobody reviewed" |
+| `TestAppLookupIgnoresPending` | `app_for_client` returns the approved app and nothing for a pending or revoked one; as `hub_app` it is callable, as `PUBLIC` not | "an unapproved app resolves" |
+
+The quote's column is `quote` (`task-146.md:109`, checked); `requester_email` is **UNVERIFIED**:
+Step 1 reads task 146's requester columns and names each one the test updates. Task 146's grant
+(`task-146.md:153`) moves only `important`, `state`, `issue_id`, `decline_reason`, `closed_at` and
+`closed_by`, so the freeze is the grant plus the owner-only `erase_request`, not the scope's
+`forbid_change()` on the columns; the test pins that form.
