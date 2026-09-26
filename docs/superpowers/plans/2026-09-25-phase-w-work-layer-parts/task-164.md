@@ -70,7 +70,7 @@ train"* and exit 3, before any reservation.
 - `control-plane/cmd/panacea-release/runid.go` (new) — `pipelineRun` and the idempotency keys
 - `control-plane/cmd/panacea-release/{release,runid,wrappers}_test.go` (new) — against an `httptest` Hub; the wrapper checks
 - `integrations/azure-pipelines-task/{task.json,index.js,package.json,README.md}` (new; `package.json` pins `azure-pipelines-task-lib`, MIT, not in the scope's list)
-- `integrations/github-action/{action.yml,README.md}` (new)
+- `integrations/github-action/{action.yml,run.sh,README.md}` (new; `run.sh` not in the scope's list, gap 6)
 
 **What is on the tree today (verified 2026-09-26).** On `feat/work-layer`, `control-plane/cmd/`
 holds only `api/`, and there is no `integrations/` directory. Task 131's part exists (the proposed
@@ -382,3 +382,65 @@ inputs table is a key under `inputs:`, both ways; kills a drifted README), `Test
 (`task.json` has no input named like `key` other than `apiKeyVariable`; `action.yml`'s `run:` text
 holds no `${{ inputs.`; kills a key in a pipeline log and an injectable step) and
 `TestBothWrappersPinOneVersion` (kills one wrapper left on an old binary).
+
+#### Steps
+
+- [ ] **Step 1:** Confirm the sync base (rule H1): the Hub's routes 35 and 38 as in
+  `hub-contract.md:994-1041`; task 160's key principal merged, and its matrix lets a personal key
+  reserve and confirm (else stop and file the ask, gap 3); whether task 131's `GET …/freezes` is
+  merged (if it is, delete the 404 arm and its test's first half).
+- [ ] **Step 2:** `runid_test.go` holds `AnUnderscoreRunIsRefused` and `TwoEnvironmentsAreTwoRuns`;
+  it fails to compile. Write `runid.go` until both pass.
+- [ ] **Step 3:** `release_test.go`, the other twelve rows; they fail. Write `release.go`, then
+  `main.go`, until all fourteen pass.
+- [ ] **Step 4:** Cross-build the four assets: `GOOS=linux GOARCH=amd64`, `linux/arm64`,
+  `windows/amd64`; record their SHA-256. `go vet` clean.
+- [ ] **Step 5:** The two wrappers, their READMEs and the pins from Step 4; mint the task GUID
+  once. Check `tl.getVariable` and `execAsync(…, {env})` against the installed
+  `azure-pipelines-task-lib`'s typings; a difference changes `index.js`, not the CLI.
+- [ ] **Step 6:** `wrappers_test.go` until its four rows pass; `git diff -- go.work
+  control-plane/go.mod` shows nothing (the CLI uses the standard library only); commit by pathspec.
+
+#### Acceptance
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/work
+go test ./control-plane/cmd/panacea-release/ -race -count=1 -v 2>&1 | grep -c "^--- PASS"      # 18 (14 + 4)
+go test ./control-plane/cmd/panacea-release/ -race -count=1 -v \
+  -run '^Test(TheKeyNeverAppears|AnUnderscoreRunIsRefused|TheBodyHasNoIssues|PlainHTTPIsRefused)$' 2>&1 | grep -c "^--- PASS"   # 4
+for t in linux/amd64 linux/arm64 windows/amd64; do \
+  GOOS=${t%/*} GOARCH=${t#*/} go build -o /dev/null ./control-plane/cmd/panacea-release/ && echo ok; done   # ok ×3
+node -e "const t=require('./integrations/azure-pipelines-task/task.json'); if(t.execution.Node20_1.target!=='index.js') process.exit(1); console.log(t.name)"   # PanaceaRelease
+grep -c '\${{ inputs\.' integrations/github-action/run.sh                                      # 0
+go test ./control-plane/... -race -count=1                                                    # ok
+```
+
+#### What this task does NOT claim
+
+- **A published listing.** Neither wrapper is on the Visual Studio Marketplace or the GitHub
+  Marketplace; where the pinned binaries are hosted is gap 5.
+- **A run on a real runner.** No Azure DevOps agent or GitHub runner executes either wrapper here.
+- **That a frozen environment is enforced.** The CLI refuses; route 35 does not (decision 3, gap 1).
+- **That phase 7's deploy view shows the release well.** A confirmed run release no Panacea
+  deployment joins is a `pending` row under an age cap (`task-08.md:281-284`); what it shows past
+  the cap, and whether its manifest lists issues for it, is **UNVERIFIED**.
+- **That a personal key may reserve a release** (task 160's matrix, gap 3).
+
+**Parity rows served:** closes **L-149**.
+
+#### Gaps found while writing this part
+
+1. **Route 35 does not check a freeze.** Task 131 checks it in phase 7's Ship handler only; a Hub
+   precondition on route 35 (`409 deploy_frozen`) is the enforcement, asked of the `feat/hub`
+   owner with task 131's gap 1.
+2. **The scope's run ids** (`ado-<id>`, `gh-<id>-<attempt>`) collide for two environments in one
+   run, because `(panaceaProject, pipelineRun)` is unique (`hub-contract.md:1040`); this part
+   appends `.<environment>` and splits the flag into `--source`, `--pipeline-run` and `--run-attempt`.
+3. **Task 160 has no part.** Whether a `pak_` key passes route 35's `M` check and route 38's
+   reserver check is its matrix's; the ask is that it does, for a personal key.
+4. **`--panacea-project` is required** by route 35's body. A team whose deploy is on no Panacea
+   project at all has no name to give; if the Hub owner wants that case, route 35 needs a
+   `panaceaProject`-less run, which is a contract change, not this task's.
+5. **No artefact host is named** for the pinned `panacea-release` binaries anywhere in the plan.
+6. **`run.sh` and `package.json`** are two files the scope's list omits; both are needed (the
+   action's injection-safe script, the task library's pin).
