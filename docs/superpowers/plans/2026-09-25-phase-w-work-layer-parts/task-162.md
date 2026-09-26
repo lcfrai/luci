@@ -254,3 +254,65 @@ guarantee (decision 7) and task 163 adds the rest of the run log to the same tab
 second one. `run` is `coalesce(max(run), 0) + 1` under the loop head's row lock (`SELECT … FOR
 UPDATE` on `work_loops`), so runs number 1, 2, … per loop with no gap. `work_loop_cursors` is not
 in task 145's list (gap 1). `hub.forbid_change()` is 0001's (`hub-contract.md:1799-1812`).
+
+12. **A weekly loop keeps the weekday it was saved on.** `every: "week"` fires on the local
+    weekday of the version's `savedAt` in `tz`; a new version saved on another weekday moves it.
+    There is no weekday picker in task 172, so none is invented here.
+
+#### The routes — `server/work_loops.go` (contract complete)
+
+```go
+// POST  /v1/projects/{projectId}/work/loops   {name, first}  member or admin of the project's team
+//        → 201 LoopWithVersion; the caller is owner; state "on"; events loop_created (+ nothing else)
+// GET   /v1/projects/{projectId}/work/loops                   any team member → 200 []Loop
+// GET   /v1/work/loops/{loopId}                               any team member → 200 LoopWithVersion
+// GET   /v1/work/loops/{loopId}/versions                      any team member → 200 []LoopVersion, oldest first
+// POST  /v1/work/loops/{loopId}/versions  LoopVersionBody     OWNER only → 201 LoopVersion (n+1)
+// PATCH /v1/work/loops/{loopId}  {state}                      owner: on|paused; team admin: paused only
+//        → 200 Loop; a no-op (same state) writes nothing
+// A viewer (V) reads, never writes. A team admin's POST …/versions is 403 even on their own
+// team's loop (OD-16): the loop is its owner's agent turn, not the team's.
+func (s *Server) routesWorkLoops(mux *http.ServeMux)
+
+// validateVersion runs before any write, in this order, each a 422:
+//  1. action ∉ {"turn","start"}              → loop_action_invalid
+//  2. action "start" with labelId null        → loop_trigger_invalid, field "labelId"
+//  3. trigger.kind "event": 1-10 eventKinds, each in LoopEventKinds; schedule nil
+//     trigger.kind "schedule": eventKinds empty; every/at/tz valid; LoadLocation(tz) ok
+//                                             → loop_trigger_invalid, field named
+//  4. instruction.author != "H", or > 2000 runes, or empty
+//                                             → loop_trigger_invalid, field "instruction"
+//  5. bound.turnsPerDay ∉ 1..24               → loop_bound_exceeds_owner, class "turnsPerDay", max 24
+//  6. any bound.levels[c] ranked above OwnerGrid(owner)[c], or c not an ActionClass, or a
+//     level not an AutonomyLevel             → loop_bound_exceeds_owner, class c, max the owner's
+func validateVersion(b hubapi.LoopVersionBody, owner hubapi.User, grid OwnerGrid) error
+
+// OwnerGrid is the owner's own AX §7 grid. Decision 4: until Phase T stores one,
+// FailClosedGrid is the only implementation (read = full, every other = ask_first).
+type OwnerGrid func(ctx context.Context, userID string) (map[string]string, error)
+
+func FailClosedGrid(context.Context, string) (map[string]string, error)
+```
+
+A person's own message to their Orchestrator is the only thing TM-37 lets past the turn budget
+(`T37:13-14`); a loop's turn is `fleet` origin and counted like any other (decision 13, below),
+so `turnsPerDay` is a second, per-loop cap under the owner's hourly one, never a way round it.
+
+#### The occurrence rule — `server/loopsched.go` (complete)
+
+```go
+package server
+
+// LatestDue is the latest occurrence of s at or before now, in s.TZ, or
+// ok=false if none has come yet since from. "day": every local day at At;
+// "weekday": Monday-Friday at At; "week": the weekday of anchor (the version's
+// savedAt, in TZ) at At. A local time in a DST gap runs at the first real
+// minute after it; one repeated by a DST fold runs once, at its first instant
+// (task 121's rule, `task-121.md:121-162`). from is the version's savedAt, so a
+// new version never fires for a window before it existed.
+func LatestDue(s hubapi.LoopSchedule, anchor, from, now time.Time) (at time.Time, ok bool)
+```
+
+The janitor fires `at` only when `at` is after `work_loops.last_scheduled_for` (decision 8), then
+sets `last_scheduled_for = at` in the same transaction. Three missed weekday windows give one
+`LatestDue` answer, so one firing.
