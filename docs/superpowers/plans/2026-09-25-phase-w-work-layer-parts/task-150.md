@@ -510,7 +510,69 @@ func (s *Server) FinishRun(ctx context.Context, run hubapi.SyncRun, failure stri
 transaction from `s.inOrg` must carry the org there with an empty user and a nil actor, which is
 how task 121's passes already need it (`task-121.md:241-246`); that Hub task 24's janitor `Tx` has
 this shape is **UNVERIFIED** until it lands, and if it does not, `importOne` takes the org as an
-argument too. With `matched` nil, `importOne` attaches no
+argument too.
+
+#### The routes (`server/work_trackers.go`)
+
+- `POST /v1/projects/{projectId}/trackers` (team admin of the project's team): `Decode`;
+  `ProjectRole` + `Require(admin)`; `source` in `TrackerSources` (`field: source`); the adapter's
+  `CheckTarget` (`field: target.<name>`); `mode` in the two (`field: mode`); the credential is
+  `workload`, or `secret_ref` with a `ref` of task 145's Key Vault reference form (`field:
+  credential`) and **never** anything that looks like a secret value (a `ref` that does not parse
+  as a reference is 400, so a pasted token is refused, not stored); insert with `ids.Wide("tc-")`;
+  emit `tracker.connected`; 201 `TrackerConnection`.
+- `GET /v1/teams/{teamId}/trackers` (viewer) → `Page[TrackerConnection]`, disconnected ones
+  included, newest first.
+- `DELETE /v1/trackers/{connectionId}` (admin): sets `disconnected_at`, blanks `credential_ref`,
+  clears `run_requested_at`; links stay (decision 4); emit `tracker.disconnected`; 200. A second
+  DELETE is 200 with nothing written.
+- `GET /v1/trackers/{connectionId}/runs` (viewer) → `Page[SyncRun]`, newest first.
+- `POST /v1/trackers/{connectionId}/run` (admin): disconnected → 409 `tracker_disconnected`;
+  sets `run_requested_at`; 202 `{requestedAt}` (decision 6). No event: a request to run is not a
+  change to the record anyone reads.
+
+`GET /v1/issues/{issueId}` (task 08) gains `links: [ExternalLink]` on the head, read by the issue
+id, so an imported issue says where it came from and what changed upstream; an issue with none
+reads `[]`. This is an additive field on task 03's `IssueHead` (shown as a diff in the part's
+commit).
+
+**The janitor step** (⚑ `janitor.go`, after task 149's): after the per-org loop, list the
+connections that are not disconnected and are due (`run_requested_at` set, or `last_finished_at`
+older than the interval, or never run), oldest first, at most 10 per sweep; `Engine.Run` each.
+The advisory lock is held for the step, so a second replica skips it.
+
+#### Wire shapes
+
+```jsonc
+// POST /v1/projects/pj-…/trackers                     team admin; 201
+{ "source": "azure_boards", "mode": "in",
+  "target": { "organization": "acme-eng", "project": "Payments", "filter": "Payments\\Uploads" },
+  "credential": { "kind": "workload" } }
+// → 201
+{ "id": "tc-8d41…", "teamId": "tm-…", "projectId": "pj-…", "source": "azure_boards", "mode": "in",
+  "target": { … }, "credential": { "kind": "workload" }, "createdAt": "…", "createdBy": { "id": "u-ada…", … },
+  "lastRun": null }
+
+// GET /v1/trackers/tc-8d41…/runs                       viewer; 200
+{ "items": [ { "connectionId": "tc-8d41…", "n": 3, "state": "ok", "pages": 2, "created": 0, "existing": 57,
+               "upstream": [ { "externalId": "1432", "field": "closed", "at": "2026-09-26T01:02:00Z" } ],
+               "startedAt": "…", "finishedAt": "…" } ], "next": null }
+
+// GET /v1/issues/is-…  (an issue it imported)
+{ "state": "triage", "threadState": { "kind": "not_tied", "reason": "imported" }, "source": "intake",
+  "external": { "source": "azure_boards", "externalId": "1432", "url": "https://dev.azure.com/…", … },
+  "links": [ { "connectionId": "tc-8d41…", "source": "azure_boards", "externalId": "1432", "issueId": "is-…",
+               "upstreamField": "closed", "upstreamChangedAt": "2026-09-26T01:02:00Z", "disconnected": false } ], … }
+
+// the feed for one page: task 13's issue.created per new item (actor null), and
+{ "kind": "tracker.page", "actor": null, "subject": "tc-8d41…",
+  "data": { "connectionId": "tc-8d41…", "run": 3, "created": 0, "existing": 57, "upstream": 1, "by": "u-ada…" } }
+
+400 bad_request          { "field": "credential" }  // a pasted token in ref
+400 bad_request          { "field": "source" }      // "trello"; or POST …/imports with "azure_boards"
+409 tracker_disconnected                            // run now after DELETE
+```
+ With `matched` nil, `importOne` attaches no
 label and returns every name as missing; the page records them nowhere else (the names are
 upstream words). `run.Upstream` is capped at 500 entries per run on the row; later ones still
 update their links and are counted in the page event.
