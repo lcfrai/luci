@@ -261,3 +261,123 @@ gains that one exception. Task 11's `label.created` follows the same rule for an
 The settled check (decision (b)) stays in Go: it reads evidence, which a row trigger on
 `issue_heads` should not. So the database guards *children closed*, and Go guards *criteria
 settled*; the test `TestTheRollupNeedsSettledCriteria` pins the Go half.
+
+#### The store (signatures complete)
+
+```go
+package store
+
+// Inside the caller's transaction, after hub.org_id and the org's audit head lock (task 11).
+
+// work_parents.go
+// ParentChain answers the ids from id's parent upward, at most max+1 entries; the caller reads
+// a chain longer than max as a loop (decision (a)).
+func ParentChain(ctx context.Context, q Querier, id string, max int) ([]string, error)
+// SetParent: UPDATE issue_heads SET parent_id = $2, updated_at = $3 WHERE issue_id = $1; ""
+// writes NULL. Task 74's loop trigger answers a 23514 starting "hub: work: parent", ErrParentLoop.
+func SetParent(ctx context.Context, tx pgx.Tx, issueID, parentID string, at time.Time) error
+// ChildStates answers each child's id, state and proof word.
+func ChildStates(ctx context.Context, q Querier, parentID string) ([]ChildState, error)
+type ChildState struct {
+	ID    string
+	State hubapi.IssueState
+	Proof hubapi.ProofWord
+}
+func Children(ctx context.Context, q Querier, parentID string, pr hubapi.PageRequest) (hubapi.Page[string], error) // ids, by rank then number
+// LatestVerdicts answers, per (briefKey, criterionId), the verdict of the latest evidence record
+// in the project (decision (b)); a pair with no record is absent.
+func LatestVerdicts(ctx context.Context, q Querier, projectID string, pairs []hubapi.Serve) (map[hubapi.Serve]hubapi.Verdict, error)
+var ErrParentLoop = errors.New("store: the parent trigger refused a loop")
+
+// work_templates.go
+func InsertTemplate(ctx context.Context, tx pgx.Tx, org string, t hubapi.Template) error
+func TemplateByID(ctx context.Context, q Querier, id string) (t hubapi.Template, ok bool, err error)
+func ListTemplates(ctx context.Context, q Querier, teamID string, withArchived bool, pr hubapi.PageRequest) (hubapi.Page[hubapi.Template], error) // team's, then org's
+func PatchTemplate(ctx context.Context, tx pgx.Tx, next hubapi.Template, at time.Time) (changed []string, err error)
+func ArchiveTemplate(ctx context.Context, tx pgx.Tx, id string, at time.Time) (changed bool, err error)
+
+// work_labels_plan.go
+func InsertLabelGroup(ctx context.Context, tx pgx.Tx, org string, g hubapi.LabelGroup) error // 23505 → ErrGroupExists
+func LabelGroupByID(ctx context.Context, q Querier, id string) (g hubapi.LabelGroup, ok bool, err error)
+func ListLabelGroups(ctx context.Context, q Querier, teamID string, pr hubapi.PageRequest) (hubapi.Page[hubapi.LabelGroup], error)
+// ExclusiveClash answers the first exclusive group holding two or more of labelIDs, and those
+// labels in list order; ok false when none clashes. Pure over GroupsOf's answer.
+func ExclusiveClash(labelIDs []string, groupOf map[string]GroupRef) (groupID string, labels []string, ok bool)
+type GroupRef struct {
+	GroupID   string
+	Exclusive bool
+}
+func GroupsOf(ctx context.Context, q Querier, labelIDs []string) (map[string]GroupRef, error)
+var ErrGroupExists = errors.New("store: a label group of that name exists")
+```
+
+Task 11's `InsertLabel` takes the label's `GroupID` (the embedded `LabelPlan`), and its
+`ListLabels` gains the org's labels (`team_id IS NULL`), org first; both are edits to task 11's
+store file, listed under task 11's route file in *Files* because they ship together.
+
+#### The routes, in order
+
+Each refusal rolls the transaction back and appends nothing.
+
+**`putParent`** (`PUT /v1/issues/{issueId}/parent`, member): `readableIssue(…, RoleMember,
+lock=true)`; `parentId` `null` clears; else the parent through the same readable lookup → 404
+`issue_not_found` naming `details.issueId`; another project → 422 `parent_other_project`; the
+parent is the issue itself, or `ParentChain(parent, 32)` contains the issue or is longer than 32 →
+422 `parent_loop`, `details.parentId`. Equal → 200, no event. `SetParent`; `ErrParentLoop` → the
+same 422 (the second guard, reached only by a race the audit lock prevents). Event
+`issue.parent_set {from, to}`. Then, when the **old** parent is now childless or its remaining
+children are all closed, the roll-up of the old parent runs (a child moved away may be the last
+open one). 200 `IssueHead`.
+
+**The roll-up**, one function, `s.rollUp(ctx, tx, parentID, closerID, childID)`, called after any
+write that closes a child or moves it away:
+
+1. Lock the parent's head (task 08's `LockIssue`). Its state `done`, `cancelled` or `duplicate`
+   → stop. Its state `landed` → the **held** path: its proof word (`ProofOf`) is `proven` or
+   `proven_self_attested` and no child is open → move to `done` with cause `evidence_recorded`
+   if any live citation was recorded by hand, else `evidence_observed`, as the closer (task 75's
+   release, the same code path). Stop.
+2. `ChildStates`; any open → stop. `RollupProof` over the `done` children → `""` → stop (all
+   cancelled, decision (c)).
+3. The parent's served pairs; `LatestVerdicts`; any pair absent or `contested` → stop (the parent
+   waits; the desktop shows which criterion, task 88).
+4. `SetWorkCause(tx, children_closed)`; `MoveIssueState(parent, done, "", now)`; `PutProof` with the
+   roll-up word. Events: task 10's `issue.state {from, to: done, cause: children_closed, proof}`,
+   then `issue.rolled_up {childId, children}`. The actor of both is the **closer**.
+5. The parent may itself be a child: `rollUp(grandparent, closerID, parentID)`, up the chain
+   (bounded by decision (a)'s 32).
+
+**The four insertions in task 10's route** (`server/work_states.go` ⚑):
+
+- **Step 2:** a body's `cause: children_closed` → 400 `field: "cause"`.
+- **Step 4, `hand` into `done`:** an open child → 409 `children_open`, `details.open`, before the
+  reason check.
+- **Step 4, the evidence causes:** a `proven` word on a parent with an open child → stays
+  `landed`, citations and word stored, 200 (the hold of decision (c)).
+- **After step 6, when the move closed the issue** (`done`, `cancelled`, `duplicate`) and it has a
+  parent: `s.rollUp(parent, caller, issue)`, in the same transaction, so the parent's close is
+  written as the person whose act closed the child (skeleton rule 2).
+
+**Templates.** `postTeamTemplate` (admin) and `postOrgTemplate` (org admin, the Hub's org-admin
+check used by erase, `task-07.md:388-390`): `name` 1-80; `title` ≤ 240; `description` task 02's
+`AuthoredText` check with author `H`; `serves` (team only) through task 09's serves check against
+the team's projects → else 422 naming `serves[n]`; `labels` live and exclusive-checked → 422
+`exclusive_label_group`; `priority`; `estimate` (team only) `ValidEstimate(TeamPolicy(team))` →
+else 422 `estimate_off_scale`. An org body with `serves` or `estimate` → 422 naming it (decision
+(g)). New `tp-` from `ids.Wide(hubapi.PrefixTemplate)`; `template.created`. `listTemplates`
+(viewer): team then org. `patchTemplate` and `archiveTemplate`: a team template needs the team's
+admin, an org template the org admin; anyone else who can read it → 403, anyone who cannot → 404
+`template_not_found`. A second archive → 200, no event. **No route reads a template to build an
+issue** (decision (f)).
+
+**Label groups and org labels.** `postTeamLabelGroup` (admin), `postOrgLabelGroup` (org admin):
+`name` 1-40 → `ErrGroupExists` → 409 `label_exists` (task 11's code, `details.groupId`), new `lb-`
+(`task-72.md:602`: groups share the label prefix); `label_group.created`. `postOrgLabel` (org
+admin): task 11's label checks, `team_id` NULL, `groupId` an **org** group → else 422
+`bad_request` `field: "groupId"`; task 11's `label.created`, org-scoped. Task 11's `postLabel`
+gains the same `groupId` check with a team or org group.
+
+**The exclusive check**, one call, `ExclusiveClash(GroupsOf(labels))`, in task 08's create and
+`PATCH` label paths (`task-11.md:372-374`) and in the template routes → 422
+`exclusive_label_group`, `details.groupId`, `details.labels` comma-joined. Task 74's trigger is the
+second guard; its refusal maps to the same answer.
