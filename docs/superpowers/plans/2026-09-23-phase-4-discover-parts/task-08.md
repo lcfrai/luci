@@ -37,9 +37,17 @@ func BriefRevisionDigest(briefID string, revision int, projectID, scope, branchR
 **Until it lands**, `discoverhub/digest.go` holds the local pair: `revisionEnvelope` builds the
 §3.4 envelope with `hubapi.Canonical`, and `revisionDigest` hashes it. Both the pin and step 7's
 size check call `revisionEnvelope`, so neither builds its own. `TestLocalDigestMatchesTheHubsVector`
-pins the pair to the contract's §3.5 vector 1 byte for byte. When HA4-9 lands, both callers move
-to the two `hubapi` functions and `digest.go` goes (b10 re-review M-4: the size check must not
-depend on a file the plan deletes).
+pins the pair to the contract's §3.5 vector 1 byte for byte. `digest.go` goes only when the Hub
+exports an envelope builder that returns the bytes at any size; then both callers move to it
+(b10 re-review M-4, re-review b10-2 R-M3: the size check must not depend on a file the plan
+deletes). If only the digest lands, the pin may move and `revisionEnvelope` stays.
+
+**As built (task 08):** H0 already exports the digest-only shape as a method,
+`hubapi.BriefEnvelope{…}.Canonical()` and `.Digest()` (hub `envelope.go:129-189`). `Canonical`
+refuses an envelope over `hubapi.MaxEnvelopeBytes` and returns no bytes, so it cannot give the
+size that `RevisionTooLargeError` and `FanoutTooLargeError` report. `digest.go` therefore stays,
+and `TestLocalEnvelopeIsTheHubsEnvelope` holds `revisionEnvelope` to H0's builder byte for byte,
+at the limit and for the escapes that differ between encoders, until the widened HA4-9 lands.
 After the write, the Hub's returned digest for the project revision **must equal** the pinned one;
 if it does not, `Apply` logs an `internal` error naming both and returns
 `ErrDigestDisagreement` — every branch revision in that batch would name a digest nothing answers.
@@ -87,15 +95,16 @@ var (
 	ErrDigestDisagreement = errors.New("discoverhub: the Hub's digest is not the one the branch revisions pinned")
 )
 
-// The Hub's two size limits (review M6, plan §4 Security, S4). Local
-// constants until the Hub exports them (HA4-3):
-//   - MaxEnvelopeBytes: a revision's canonical §3.4 envelope
-//     (hub-contract.md:742);
-//   - MaxBatchBytes: a JSON request body (hub-contract.md:40-41,
-//     httpx.MaxBodyBytes). It becomes 4 MiB for this route if HA4-3 lands.
+// The Hub's size limits (review M6, plan §4 Security, S4). HA4-3 has landed
+// in H0 (hubapi/types.go:299-307, envelope.go:31), so they are the Hub's own
+// constants, not local copies (as built, task 08):
+//   - MaxEnvelopeBytes: a revision's canonical §3.4 envelope (64 KiB);
+//   - MaxBatchBytes: the body of POST …/brief-revisions (4 MiB);
+//   - MaxBatchItems: the items one batch carries (64).
 const (
-	MaxEnvelopeBytes = 64 << 10
-	MaxBatchBytes    = 1 << 20
+	MaxEnvelopeBytes = hubapi.MaxEnvelopeBytes
+	MaxBatchBytes    = hubapi.MaxRevisionBatchBytes
+	MaxBatchItems    = hubapi.MaxRevisionBatch
 )
 
 // FanoutTooLargeError is a project edit whose batch one Hub call cannot
@@ -126,7 +135,7 @@ func (e *FanoutTooLargeError) Error() string
 // fan-out item over the limit is a *FanoutTooLargeError with BranchRef.
 // Nothing is written.
 type RevisionTooLargeError struct {
-	Key   string // Request.Op.Key; "" for an op with none (restore, propose_follow_up): the brief, not one answer
+	Key   string // Request.Op.Key; "" for an op with none (restore, draft, propose_follow_up): the brief, not one answer
 	Bytes int
 	Limit int // MaxEnvelopeBytes
 }
@@ -241,17 +250,18 @@ func (s *Service) Rebind(ctx context.Context, projectID, oldBranchName, newBranc
 | `TestABranchWriteThatLosesTheRaceRepinsItself` (re-review b06-1 R-M2, R-M3) | a first answer on a new branch creates `b-80` and reads `b-7@5` at step 3; the fake's hook then commits `b-7@6` before `b-80@1` commits. The case step 9 really covers is a brief that the project's step-6 `List` and step-8 re-list both missed, whose first revision commits after them; the hook's bare `b-7@6` stands in for that project batch (a real batch that carried an existing brief would make that brief's own write meet `revision_conflict` instead) → after `Apply`, `b-80`'s head is 2, change `reinherit`, pinning `b-7@6`; `Written` names only `b-80@1`; `Result.View`'s head revision is 2 | the step-9 check missing, so a teammate's branch op commits a pin the project batch already superseded; or a `Result.View` read before step 9, whose stale head makes the person's next op meet a conflict our own re-pin caused |
 | `TestANullPinIsRepinned` (re-review b06-1 R-M1) | `b-90`'s rev 1 is complete with `inherits` nil (written before `b-7` ever completed); `b-7`'s first complete revision → the batch carries `b-90@2` `reinherit` pinning it (step 6). And a first answer on a new branch that reads no complete project revision at step 3, while the hook commits `b-7@1` complete before it → its head is 2, `reinherit`, pinning `b-7@1` (step 9) | a null pin that steps 8-9 never see as "below", so a branch inherits no project text after the project first completes, and no chip can flag it (OQ-8) |
 | `TestProjectPostCommitCheckRunsOnce` (re-review b06-1 R-M2) | project scope: the fake creates a brief pinning `b-7@5` after step 6's `List`, and another during step 8's write → `List` is called exactly twice, the first is re-pinned, and the second is left as it is | a re-list loop |
-| `TestBranchPostCommitCheckRunsOnce` (re-review b06-1 R-M2) | branch scope: the fake commits `b-7@6` before the branch write and `b-7@7` during step 9's write → step 9 reads the project once and writes exactly one extra revision, pinning `b-7@6` | a re-pin loop between two writers |
+| `TestBranchPostCommitCheckRunsOnce` (re-review b06-1 R-M2) | branch scope: the fake commits `b-7@6` before the branch write and `b-7@7` during step 9's write, each bare project revision standing in for a project batch, as in the row above (re-review b06-2 N2) → step 9 reads the project once and writes exactly one extra revision, pinning `b-7@6` | a re-pin loop between two writers |
 | `TestAnIncompleteProjectEditDoesNotFanOut` | adding a follow-up to the project (status open) → a one-item batch | branch revisions pinning a project revision no session may inherit |
 | `TestBranchOpsPinTheCurrentProjectRevision` | an answer on `b-42` after `b-7` moved to 6 writes `inherits.key == brief:…b7@6` | a branch revision pinning whatever the last one pinned |
 | `TestPinnedDigestEqualsTheHubsDigest` | after the fan-out, `inherits.digest` equals the digest the fake returned for `b-7@6` | a pin to a digest nothing answers |
 | `TestLocalDigestMatchesTheHubsVector` (`digest_test.go`) | the local envelope for §3.5 vector 1's inputs digests to `sha256:a72a06a1…e9fa` | a hand-rolled envelope with a field order or escape the Hub does not use |
+| `TestLocalEnvelopeIsTheHubsEnvelope` (`digest_test.go`, as built) | `revisionEnvelope` equals H0's `hubapi.BriefEnvelope.Canonical()` byte for byte for `<`, `&`, U+2028, a control character, CJK and both scopes, and at exactly 64 KiB; one byte over, H0's builder refuses and the local one returns all 65,537 bytes | a local builder that drifts from the Hub's, or one that cannot measure an oversized envelope |
 | `TestConflictOnThePersonsBriefIsReturned` | the fake reports this brief's head moved → `*hubclient.Error` 409 `revision_conflict`, nothing written | a silent merge the person never saw |
 | `TestConflictOnAFanOutItemIsRetried` | the fake moves `b-51` once during the first attempt → second attempt succeeds; `b-51`'s new revision is based on its new head | a project edit refused because a teammate touched another branch |
-| `TestFanOutTooLargeWritesNothing` | 16 live branch briefs (12 complete, 4 open) with the 16-item limit → `*FanoutTooLargeError{Needed: 16, Limit: 15}`, no write | a batch split into two transactions |
-| `TestAnOversizedBatchWritesNothing` (review M6) | 15 live branch briefs, each head's answers holding 40,000 `<` characters in all, written straight to the fake (heads the Hub stored unchecked; a `reinherit` leaves their strings as they are, so task 03's caps do not see them). Each item's canonical envelope stays under 64 KiB, because `<` is one canonical byte, but `json.Marshal` writes it as six (a backslash, then `u003c`), about 240,000 bytes per item. Edit project audience → `*FanoutTooLargeError` with `Bytes > MaxBatchBytes`, `LimitBytes == MaxBatchBytes`, `Needed == 15`, and no `WriteRevisions` call; the same project with 2 such branches (about 480,000 bytes) writes | a check of the item count only, so the Hub answers the whole batch `invalid_json` 400 (`hub-contract.md:234`) and the person reads a sentence about JSON; a size measured from the canonical bytes, which is shorter than the body sent |
+| `TestFanOutTooLargeWritesNothing` | 64 live branch briefs (48 complete, 16 open) with the 64-item limit (HA4-3, landed) → `*FanoutTooLargeError{Needed: 64, Limit: 63}`, no write | a batch split into two transactions |
+| `TestAnOversizedBatchWritesNothing` (review M6) | 18 live branch briefs, each head's answers holding 40,000 `<` characters in all, written straight to the fake (heads the Hub stored unchecked; a `reinherit` leaves their strings as they are, so task 03's caps do not see them). Each item's canonical envelope stays under 64 KiB, because `<` is one canonical byte, but `json.Marshal` writes it as six (a backslash, then `u003c`), about 240,000 bytes per item, 4.3 MB in all. Edit project audience → `*FanoutTooLargeError` with `Bytes > MaxBatchBytes` (4 MiB), `LimitBytes == MaxBatchBytes`, `Needed == 18`, and no `WriteRevisions` call; the same project with 2 such branches (about 480,000 bytes) writes | a check of the item count only, so the Hub answers the whole batch `invalid_json` 400 (`hub-contract.md:234`) and the person reads a sentence about JSON; a size measured from the canonical bytes, which is shorter than the body sent |
 | `TestAnOversizedRevisionNamesTheAnswer` (review M6) | a `record` of `purpose` whose content, with the other answers already at the head, gives a canonical envelope of 64 KiB + 1 (CJK text, at most 4,000 code points per answer so task 03's cap passes, padded with ASCII to the exact size) → `*RevisionTooLargeError{Key: "purpose", Bytes: 65537, Limit: 65536}`, no write; at exactly 65,536 it writes | the Hub's own 400, which names no answer (`hub-contract.md:742`); an off-by-one at the limit |
-| `TestAnOversizedFanOutItemNamesTheBranch` (b10 re-review M-2) | branch brief `b-51`, its head written straight to the fake (stored unchecked) with `inherits: null` and a canonical envelope 150 bytes under 64 KiB; the project's first complete revision (a `record` that completes `b-7`) makes `b-51`'s reinherit pin `b-7@1` and its digest, which adds more than 150 bytes → `*FanoutTooLargeError{Needed: 1, BranchRef: b-51's branchRef, Bytes > 65536, LimitBytes: 65536}`; `errors.As` into `*RevisionTooLargeError` is false; no `WriteRevisions` call | the branch's overflow reported as a `RevisionTooLargeError` with `Key ""`, which tells the project editor to shorten their own answers, which are not the cause |
+| `TestAnOversizedFanOutItemNamesTheBranch` (b10 re-review M-2) | branch brief `b-51`, its head written straight to the fake (stored unchecked) with `inherits: null` and a canonical envelope 50 bytes under 64 KiB (as built: the pin adds about 112 bytes, not more than 150, so "150 under" would not overflow); the project's first complete revision (a `record` that completes `b-7`, at `b-7@5`) makes `b-51`'s reinherit pin it and its digest, which adds more than 50 bytes → `*FanoutTooLargeError{Needed: 1, BranchRef: b-51's branchRef, Bytes > 65536, LimitBytes: 65536}`; `errors.As` into `*RevisionTooLargeError` is false; no `WriteRevisions` call | the branch's overflow reported as a `RevisionTooLargeError` with `Key ""`, which tells the project editor to shorten their own answers, which are not the cause |
 | `TestProposeFollowUpWithNoModelWritesNothing` | nil model → `Assist == model_off`, `Written == []` | a revision written for a follow-up that never came |
 | `TestRestoreWritesANewRevision` | restore rev 5 at head 6 → head 7 whose answers equal rev 5's and whose change is `restore` with `restores: 5` | an undo that deletes a revision (P3) |
 | `TestRestoreOfAnErasedRevisionIsRefused` | `ErrErasedRestore` | erased text brought back by undo |
@@ -280,6 +290,32 @@ ok   github.com/kpmg-au-emu/panacea-app/control-plane/internal/discoverhub
 $ grep -n "WriteRevisions(" control-plane/internal/discoverhub/*.go | grep -v _test
 (exactly one call site, in write.go's writeBatch — the one writer of brief text)
 ```
+
+**As built (task 08), where the code departs from the text above:**
+1. HA4-3 had landed in H0: the limits are `hubapi.MaxEnvelopeBytes` (64 KiB),
+   `hubapi.MaxRevisionBatchBytes` (4 MiB) and `hubapi.MaxRevisionBatch` (64), exported here as
+   `MaxEnvelopeBytes`, `MaxBatchBytes` and `MaxBatchItems`. `Limit` is 63, and the count and body
+   rows are scaled to them.
+2. `fanOut(pin discover.Inherit, heads []branchHead, now time.Time, newID func(string) string) ([]item, error)`:
+   it takes the pin (key and digest), not a `Revision`, because that is all a reinherit needs, and
+   `discover.Apply` needs `Now` and `NewID`. It returns `item`s (a `RevisionWrite` plus the scope
+   and ref the Hub stamps), because the size check builds each item's envelope from them. It is
+   still pure. It drops archived heads, heads with no revision yet (nothing to pin: their first op
+   pins the project revision current then), and heads already pinning `pin` (`ErrNoChange`).
+3. Step 2 runs after step 3: `CreateBrief` is called only when a revision will be written, so a
+   no-change op or a `propose_follow_up` that proposes nothing creates no empty brief.
+4. A rebuild after a fan-out conflict re-runs the same build, which re-lists. In step 8 that is the
+   retry's own re-read, bounded at 3; the check itself runs once.
+5. Steps 8 and 9 count a pin to another project brief as below, like a null pin.
+6. A `View` read that fails after a successful write returns its error with `Result.Written` set:
+   the change is written, and the same op again is `ErrNoChange`.
+7. `ArchiveHead` of a branch id the Locator does not know is `errUnknownBranch`, not nil, so a
+   brief is never left live unseen; the caller archives before the branch leaves the Locator.
+   `Rebind` with an empty name is `errUnknownBranch`; the same name twice is nil.
+8. `fakehub_test.go` also gains `batches()` (every batch through the wrapper) and
+   `eraseInResolve(keys…)`: the fake erases whole briefs and archives them (§7.12), so it never
+   holds an erased revision on a live brief, and `TestRestoreOfAnErasedRevisionIsRefused` needs one.
+   `beforeWrite` may be set more than once; each hook counts from its own call.
 
 **Does NOT claim:** behaviour under a real Hub's concurrency (the fake's promise, Hub §9.2, and
 H3's integration test); a batch over 16 items (HA4-3); that the post-commit checks close every
