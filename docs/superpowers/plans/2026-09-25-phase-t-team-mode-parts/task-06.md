@@ -20,7 +20,7 @@ adds no transaction machinery of its own.
 
 **The one thing this task must not get wrong is who the owner is.** A team write names no owner in
 its body. The owner is `tx.P.UserID`, and for a Fleet call task 05 has already made that the
-delegation's owner and set `tx.P.Via = hubapi.ViaFleet` (`"fleet"`, `task-03.md:354-355`) and
+delegation's owner and set `tx.P.Via = hubapi.ViaFleet` (`"fleet"`, `task-03.md:361-362`) and
 `tx.P.DelegationID` (`task-05.md:386-391`). So every handler compares
 record owners with `tx.P.UserID` and never reads a user id out of JSON. A request type that grew an
 `ownerUserId` or `actor` field would make task 01's acceptance grep fail, and `Decode` refuses unknown
@@ -31,7 +31,7 @@ fields, so a body that sends one gets 400 `bad_request`.
 | Route group | Who may call | Why |
 |---|---|---|
 | routes 46, 48, 49 (create, renew, revoke a delegation) | the user's **desktop** token only; Fleet cannot reach them, because they have no route name to delegate | the user's own call creates the delegation (§2.4 item 2); Fleet cannot extend its own authority |
-| routes 50, 51, 53, 54, 56, 57, 58 (task, agent, lease event, conflict writes) | **Fleet under a delegation** only; a desktop token is 403 `forbidden`, `required: "fleet"` (`task-01.md:543-545`) | these records are written by an Orchestrator through `panacea` or by Fleet's forecaster (§3.3 "Written by") |
+| routes 50, 51, 53, 54, 56, 57, 58 (task, agent, lease event, conflict writes) | **Fleet under a delegation** only; a desktop token is 403 `forbidden`, `required: "fleet"` (`task-01.md:581-583`) | these records are written by an Orchestrator through `panacea` or by Fleet's forecaster (§3.3 "Written by") |
 | routes 47, 52, 55, 59 (reads) | the desktop, or Fleet under a delegation listing the read | the team strip is visible to every project role (§3.4 row 1) |
 | route 87 (a project's mode, fix batch b01) | the **desktop** of the project's team `admin` only; no route name | turning a project to team is a human act, one way, behind the audit gate |
 
@@ -63,16 +63,16 @@ fields, so a body that sends one gets 400 `bad_request`.
 **Interfaces:**
 - Consumes:
   - from task 01: the contract §7.13 to §7.17, rows 46 to 59, the class route sets and the §8
-    rows (`task-01.md:229-242`, `:268-361`, `:478-487`). **Task 01 is authoritative for every
+    rows (`task-01.md:234-248`, `:274-370`, `:487-496`). **Task 01 is authoritative for every
     field, bound, code and kind; this part implements it.**
   - from task 03 (`hubapi/team.go`, `codes.go`): the Go types of those records and requests
     (`Delegation`, `CreateDelegationRequest`, `Task`, `CreateTaskRequest`, `PatchTaskRequest`,
     `AgentStart`, `AgentStartRequest`, `AgentEndRequest`, `LeaseEventRequest`, `LeaseEvent`,
     `Conflict`, `CreateConflictRequest`, `PatchConflictRequest`), the enums with `Valid()`, the
-    codes of `task-01.md:193-205` including `delegation_not_found`, and `CodeConflict` (409
+    codes of `task-01.md:198-210` including `delegation_not_found`, and `CodeConflict` (409
     `conflict`). Task 03 keeps these names (`task-03.md:27-32`) and wins wherever the two differ.
-    Also its `RouteName` constants (`task-03.md:362-388`), `ClassRoutes`, `DelegationClass`
-    (`DelegationClassOrchestrator`, `DelegationClassWorker`, `task-03.md:100-101`) and `ViaFleet`.
+    Also its `RouteName` constants (`task-03.md:369-395`), `ClassRoutes`, `DelegationClass`
+    (`DelegationClassOrchestrator`, `DelegationClassWorker`, `task-03.md:107-108`) and `ViaFleet`.
     For route 87 (fix batch b01): `ProjectMode` (`ProjectModeSolo`, `ProjectModeTeam`),
     `hubapi.Project.Mode` and `SetProjectModeRequest` (task 03, Block 7); the kind `project.mode_set` is a string.
   - from task 04: the tables `delegations`, `team_tasks`, `agents`, `lease_events`, `conflicts`,
@@ -104,16 +104,16 @@ Conventions are the Hub contract's §1 (timestamps RFC 3339 UTC to the milliseco
 `hubapi.ValidID`, unknown fields refused, problem bodies per §4). `{p}` is a `pj-…` id.
 
 **This section implements task 01's contract §7.13 to §7.17 and rows 46 to 59 of its §7.0 team
-table (`task-01.md:229-242`, `:292-361`); where anything below disagrees with task 01, task 01
+table (`task-01.md:234-248`, `:301-370`); where anything below disagrees with task 01, task 01
 wins.** Request free text is a plain string: the Hub bounds and cleans it (task 02), stamps the
 author class from the route (a Fleet route writes `agent`, a desk route `human`) and answers it as
-a `Text` object (`task-01.md:281-284`). Fleet mints every id here but `dl-…` and sends it as the
-body's `id` (`task-01.md:167-182`); a reuse with a different body is 409 `conflict`, a retry with
+a `Text` object (`task-01.md:287-290`). Fleet mints every id here but `dl-…` and sends it as the
+body's `id` (`task-01.md:172-187`); a reuse with a different body is 409 `conflict`, a retry with
 the same `Idempotency-Key` replays.
 
 **Route 46, `POST /v1/delegations`**: desktop only; project role `member` or `admin` (`viewer`
 403, §3.4 row 2). `routes` is 1 to 25 distinct names from the **class's set**
-(`task-01.md:268-277`), else 422 `bad_request`, `details.route`.
+(`task-01.md:274-283`), else 422 `bad_request`, `details.route`.
 
 ```jsonc
 // request
@@ -170,7 +170,7 @@ task 44's.)
 `title` is `author: "human"` only when `titleSource` names the owner's own human message whose
 trimmed body equals it; otherwise `agent`. `briefRef` is a brief key (contract §3.2) plus `#` and a
 section id `^[a-z0-9][a-z0-9-]{0,63}$`. More than 20 globs is 422 `breadth_exceeded`; a bad glob
-422 `glob_refused`; a bad text 422 `text_refused` (`task-01.md:193-200`).
+422 `glob_refused`; a bad text 422 `text_refused` (`task-01.md:198-205`).
 
 **Route 51, `PATCH /v1/projects/{p}/tasks/{tk}`**: Fleet·O, `tasks.update`, the task's owner only.
 Body `{ "revision": 3, "state"?, "scope"?, "trackedFiles"?, "why"? }`; a stale revision is 409
@@ -181,7 +181,7 @@ abandoned`; `blocked → active | abandoned`. `done` and `abandoned` are termina
 **Route 52, `GET /v1/projects/{p}/tasks`**: any project role from the desktop, or Fleet under
 either class (`tasks.read`). **`title` and `reason.why` are answered only to Fleet·O**; every
 other reader, the owner's own desktop included, gets the record without them
-(`task-01.md:321-322`, `05-design.md` §5.1).
+(`task-01.md:330-331`, `05-design.md` §5.1).
 
 **Route 53, `POST /v1/projects/{p}/agents`**: Fleet (either class), `agents.start`.
 
@@ -204,7 +204,7 @@ reaches the Hub.
 agents.
 
 **Route 33 on a team project.** Contract §7.8's `session_link` stays for solo projects. On a
-project whose mode is `team` (`task-01.md:465-466`), route 33 answers 409 `conflict` with
+project whose mode is `team` (`task-01.md:474-475`), route 33 answers 409 `conflict` with
 `details.use = "agents"`, so a team session cannot be linked by a machine-local id.
 
 **Route 87, `POST /v1/projects/{p}/mode`** (fix batch b01, X-C1): the only writer of
@@ -279,12 +279,12 @@ Fleet's transitions would make two authorities. The first event for an `ls-…` 
 ```
 
 **The one exception to "the holder's owner"**: an `admin-released` event is written under the
-delegation of an `admin` of the project, and records that admin (`task-01.md:346-347`, §3.4 last
+delegation of an `admin` of the project, and records that admin (`task-01.md:355-356`, §3.4 last
 row). A member's delegation writing `admin-released` on another's lease is 403 `forbidden`,
 `required: "admin"`.
 
 **Route 57, `POST /v1/projects/{p}/conflicts`**: Fleet, `conflicts.create`. A conflict has two
-owners; task 01's rule 5 (`task-01.md:130-135`) requires the **first-named** agent, `agentA`, to be
+owners; task 01's rule 5 (`task-01.md:135-140`) requires the **first-named** agent, `agentA`, to be
 the delegation owner's. The forecaster therefore writes under `agentA`'s owner's delegation.
 
 ```jsonc
@@ -305,7 +305,7 @@ required with `resolved` and `accepted` and refused otherwise (400 `bad_request`
 
 **The session-id rule.** No request type above has a `sessionId`, `ownerUserId`, `actor`, `via` or
 `delegationId` field, so strict decoding answers a body carrying one with 400 `bad_request`,
-`details.field` naming it (`task-01.md:125-129`). Beyond that, every id field is checked with
+`details.field` naming it (`task-01.md:130-134`). Beyond that, every id field is checked with
 `hubapi.ValidID` for its own prefix, so a phase 2 session id pasted into `laneRef`, `taskId` or
 `parentAgentId` is 400 too.
 
@@ -314,7 +314,7 @@ required with `resolved` and `accepted` and refused otherwise (400 `bad_request`
 One metadata-only event per changed record, in the write's transaction (contract §8). `data` holds
 **no** text: no title, no why-line, no glob list; only ids, enums and counts.
 
-The kinds and `data` are task 01's contract §8 rows (`task-01.md:478-487`), copied, not chosen
+The kinds and `data` are task 01's contract §8 rows (`task-01.md:487-496`), copied, not chosen
 here. **In the feed** is task 01's three-valued column: `yes` (the member feed and Fleet's),
 `fleet` (Fleet's feed only, the audit row's `fleet_feed` flag of task 04), `no`.
 
@@ -336,7 +336,7 @@ here. **In the feed** is task 01's three-valued column: `yes` (the member feed a
 team project on Fleet's per-org feed (route 78 serves team projects only), which is how Fleet
 learns the project exists (`05-design.md` §10.1 step 2).
 
-Every event of a delegated write is the audit-event `v: 2` of task 01's §3.6 (`task-01.md:184-188`):
+Every event of a delegated write is the audit-event `v: 2` of task 01's §3.6 (`task-01.md:189-193`):
 `actorUserId = owner`, `via = "fleet"`, `delegationId`, set by task 05's write path, not by these
 handlers. An `admin-released` lease event is `lease.state_changed` like any other; its `actorUserId`
 is the admin, which is how an audit query finds every one. Task 08 makes these kinds readable on
@@ -364,7 +364,7 @@ func RequireDesktop(p Principal) error {
 	return nil
 }
 
-// RequireFleet refuses a desktop call to a Fleet-only route (task-01.md:543-545), and a
+// RequireFleet refuses a desktop call to a Fleet-only route (task-01.md:581-583), and a
 // Fleet call whose delegation is for another project than the path names.
 func RequireFleet(p Principal, projectID string) error {
 	if p.Via != hubapi.ViaFleet {
@@ -378,7 +378,7 @@ func RequireFleet(p Principal, projectID string) error {
 	return nil
 }
 
-// OwnedAgent is task 01's rule 5 (task-01.md:130-135): the agent the record names
+// OwnedAgent is task 01's rule 5 (task-01.md:135-140): the agent the record names
 // first, and every agent it says acts, belongs to the principal. Whatever the
 // principal's role: an admin is refused on another member's agent like anyone.
 func OwnedAgent(ctx context.Context, tx *Tx, agentID string) error {
@@ -413,7 +413,7 @@ func isAgentNotOwner(err error) bool {
 The imports are `context`, `errors`, `hubapi` and `store`. **What the guards do not re-check, on
 purpose:** a delegation's expiry, revocation and route list, and its class. Task 05's pipeline
 checked the first three before the handler ran, and task 01's class route sets
-(`task-01.md:268-277`) mean a `worker` delegation can never list `tasks.create` in the first place.
+(`task-01.md:274-283`) mean a `worker` delegation can never list `tasks.create` in the first place.
 Checking any of them twice gives two answers to one question the day the two copies drift.
 `Forbidden` is Hub task 14's; it records `auth.forbidden` in its own short transaction, so a refused
 Fleet write leaves an audit trace although its transaction rolls back.
@@ -741,14 +741,14 @@ delegation lists.
 restart. They are the Hub's usual page shape (`hubapi.Page[T]`, `?limit=` 1–200 and `?after=`,
 the built `hubapi.PageRequest`, `hub` worktree `hubapi/types.go:201-205`), run
 under `s.Read`, and open to every project role including `viewer` (§3.4 row 1: the team strip);
-an org *auditor* who is not a member gets 404 (`task-01.md:540`). Filters: tasks `?state=`
+an org *auditor* who is not a member gets 404 (`task-01.md:578`). Filters: tasks `?state=`
 (repeatable), agents `?live=true`, conflicts `?open=true`. The title redaction of route 52 lives in
 one function, `renderTask(p Principal, t hubapi.Task) hubapi.Task`, which every task answer passes
 through, route 50's and 51's included. Mutant killed by `TestTaskTitleIsServedToFleetOrchestratorOnly`:
 the redaction applied to the list but not to a create or patch answer, which Fleet·W never sees but
 a future caller would.
 
-**Codes.** This task adds none. It uses task 01's (`task-01.md:193-205`) through task 03, plus
+**Codes.** This task adds none. It uses task 01's (`task-01.md:198-210`) through task 03, plus
 404s for the new records. Task 03 must therefore carry `CodeConflict = "conflict"` (409), which
 task 01 uses throughout and the Hub's `codes.go:20-52` as built does not have, and
 `CodeTaskNotFound`, `CodeAgentNotFound`, `CodeConflictNotFound` (404), which task 01 does not name

@@ -12,14 +12,14 @@ builds them, then proves the whole chain against the **real Hub**:
 
 1. **The Hub revokes a leaver's delegations.** Removing a member from a team (Hub task 15's
    `DELETE /v1/teams/{t}/members/{u}`), or lowering them to `viewer`, revokes every live delegation
-   they own for that team's projects, reason `member_removed` (`task-01.md:330-331`), in the same
+   they own for that team's projects, reason `member_removed` (`task-01.md:339-340`), in the same
    transaction as the removal. Task 08's fake already does this and its conformance row skips the
-   real Hub "until task 44" (`task-08.md:280-283`); this task removes the skip.
+   real Hub "until task 44" (`task-08.md:287-290`); this task removes the skip.
 2. **Leases are withdrawn.** No part implements the lease effect of a revocation or a lapse: task
    23's `Engine` has `EndAgent` (`task-23.md:143`) and no `Revoker`. This task adds a four-method
    adapter and joins it to task 12's fan-out (`task-12.md:976-999`).
 3. **A leaver still in the team but disabled in Entra is caught.** The 24-hour lapse catches them
-   by itself, since only their own desktop renews (`task-06.md:111-114`). This task adds a check
+   by itself, since only their own desktop renews (`task-06.md:132-141`). This task adds a check
    at every renewal and a daily sweep, both behind an `AccountState` interface with a fake, and
    names the Graph read to confirm (**UNVERIFIED**, §14.1).
 
@@ -59,13 +59,13 @@ poll + one fan-out call (`task-11.md:565-567`), asserted as ≤ 60 s.
 
 **Interfaces:**
 - Consumes:
-  - task 01: §7.13's delegation record and `revokedReason` (`task-01.md:320-331`); the §8 row
+  - task 01: §7.13's delegation record and `revokedReason` (`task-01.md:329-340`); the §8 row
     `delegation.revoked`; `team.member_removed` on route 78's feed (`:500`).
-  - task 03: `hubapi.RevokeReason` and its four values (`task-03.md:108-120`), `Delegation`.
-  - task 04: the `delegations` table and the `revoke_reason` enum (`task-04.md:116`).
-  - task 06: routes 48 and 49 (`task-06.md:111-119`), the delegation store.
+  - task 03: `hubapi.RevokeReason` and its four values (`task-03.md:115-127`), `Delegation`.
+  - task 04: the `delegations` table and the `revoke_reason` enum (`task-04.md:118`).
+  - task 06: routes 48 and 49 (`task-06.md:132-146`), the delegation store.
   - task 08: `hubclient.OrgFeed`, the fake's `RemoveMember`, the conformance row
-    `team-feed/member-removed-revokes` (`task-08.md:343`).
+    `team-feed/member-removed-revokes` (`task-08.md:372`).
   - task 11: `delegation.Revoker`, `Reason` (`Revoked`, `Lapsed`), `Feed`, `Cache`, `Sweep`,
     `PollEvery` (`task-11.md:565-600`).
   - task 12: the `fanout` (`task-12.md:976-999`); task 20: `Sessions.Revoke`/`Resume`; task 23:
@@ -345,7 +345,7 @@ broker fake; one `fakeClock` driving the feed ticker and Fleet's clocks):
 | `TestLapsePausesAndWithdrawsThenResumes` | no renewal for 24 h + 1 s → sessions paused (not destroyed), leases released, sockets closed; Linus renews (route 48) → the next poll resumes the session and the hold is not re-granted until asked | a lapse treated as a removal; a lapse that never resumes |
 | `TestDisabledAccountChain` | check `fake`, Linus disabled, his desktop renews → 403; within 60 s the same effects as a removal | the renewal check not reaching Fleet |
 
-The conformance row `team-feed/member-removed-revokes` (`task-08.md:343`) now runs against the real
+The conformance row `team-feed/member-removed-revokes` (`task-08.md:372`) now runs against the real
 Hub: its `t.Skip("task 44")` is deleted, and the run has zero `--- SKIP` lines in the team groups.
 
 #### The contract lines
@@ -358,7 +358,7 @@ Hub contract (`2026-09-23-hub-contract.md`, as task 01 extends it):
   403 `account_disabled`; a directory that cannot answer renews."*
 - §4.2: `account_disabled` | 403 | the caller's directory account is disabled | — .
 - §8, `delegation.revoked`: `data.reason` is one of the four `RevokeReason` values
-  (`task-03.md:110-115`); actor NULL for the sweep.
+  (`task-03.md:117-122`); actor NULL for the sweep.
 
 #### Steps
 
@@ -413,7 +413,7 @@ cd control-plane && go test -tags integration ./internal/hub/... -run Conformanc
    desktop is off is caught only by the lapse, which is the same bound, so the sweep is cheap
    insurance, not a new guarantee.
 2. **The fake's `RemoveMember` records `team.member_removed` for a downgrade?** Task 08 does not say
-   (`task-08.md:280-283`). This part emits `team.member_set` for a downgrade on the real Hub; if the
+   (`task-08.md:287-290`). This part emits `team.member_set` for a downgrade on the real Hub; if the
    fake records `team.member_removed` for it, task 08's fake should change to match.
 3. **`LiveOwners` needs each owner's `tenantId` and `objectId`**, which this part assumes Hub task
    15's `users` table keeps (Hub task 14's `Principal` carries both, Hub `task-14.md:50-55`).

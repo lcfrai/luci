@@ -3,7 +3,7 @@
 **Slice TM1-α. Depends on: 06. About 3 hours. Seam: ST.2.**
 
 This task gives the Hub the cross-user channel's records: rows 60 to 71 of task 01's §7.0 team
-table and its contract §7.18 to §7.22 (`task-01.md:243-254`, `:365-423`). **Task 01 is
+table and its contract §7.18 to §7.22 (`task-01.md:249-260`, `:374-432`). **Task 01 is
 authoritative for every field, bound, code and kind; where this part disagrees, task 01 wins.** It
 is a delta on the Hub branch, built after the sync-merge of `feat/hub`, on the same sibling files
 task 06 names (Hub task 14's `tx.go`, Hub task 17's `ProjectRole`, both **UNVERIFIED until
@@ -19,7 +19,7 @@ missed branch returns an empty list rather than someone else's decision. A secon
 records exist.
 
 **The second thing is that the Hub re-checks the taint rule.** Fleet's verb handler is the first
-layer (§7.2, task 31); the Hub is the second (`task-01.md:408-412`). A directive whose `origin` is
+layer (§7.2, task 31); the Hub is the second (`task-01.md:417-421`). A directive whose `origin` is
 `fleet` and whose `kind` is not `pause`, `narrow` or `wait-for` must cite, in `approvedBy`, a
 `decide` escalation **of the same owner, answered by that owner**. Otherwise it is 403 `forbidden`,
 `required: "decide"`, and nothing is written. A compromised Fleet can still write in the owner's
@@ -45,12 +45,12 @@ on record.
 **Interfaces:**
 - Consumes:
   - from task 01: rows 60 to 71, §7.18 to §7.22, the §8 rows `thread.opened` to
-    `human_message.appended` (`task-01.md:488-495`), and §5.2's org *auditor* (`:508-512`).
+    `human_message.appended` (`task-01.md:497-504`), and §5.2's org *auditor* (`:541-545`).
   - from task 03: `Thread`, `CreateThreadRequest`, `PatchThreadRequest`, `Message`,
     `AppendMessageRequest`, `MessageKind`, `Resolution`, `Escalation`, `CreateEscalationRequest`,
     `AnswerEscalationRequest`, `Directive`, `AppendDirectiveRequest`, `DirectiveKind`, `Rung`,
     `TurnOrigin`, `RecordTurnRequest`, `HumanMessage`, `CreateHumanMessageRequest`, and
-    `teamtext.Text` on every text field; the `RouteName` constants (`task-03.md:377-386`). Task 03
+    `teamtext.Text` on every text field; the `RouteName` constants (`task-03.md:384-393`). Task 03
     wins wherever a name here differs (`task-03.md:27-32`).
   - from task 05: `Principal.Via`, `Principal.Delegation`, and `Delegable(name, h)`, through which
     every Fleet-reachable route here is registered (`task-05.md:49-53`, `:315-327`, `:837-839`).
@@ -120,7 +120,7 @@ owner's standing permission, which Fleet holds (§6.5, task 30). Text is always 
 
 **Route 63, `GET …/threads/{th}/messages`**: Fleet·O under the delegation of **a participant's
 owner** (`messages.read`), or an org *auditor*'s desktop. Oldest first, `hubapi.Page[Message]`.
-The refusals follow task 01's §5.3 row for route 63 (`task-01.md:532`) exactly: a member's or
+The refusals follow task 01's §5.3 row for route 63 (`task-01.md:565`) exactly: a member's or
 admin's desktop 403 `forbidden`, `required: "fleet"`; Fleet under a non-party's delegation 403
 `forbidden`, `required: "party"`; a viewer, a non-member and another org 404 `thread_not_found`.
 
@@ -248,7 +248,7 @@ its `consumed` ids, so an auditor can cross-check a `human` directive against a 
 
 #### Events
 
-Task 01's §8 rows (`task-01.md:488-495`), copied. `data` never holds text; every delegated write's
+Task 01's §8 rows (`task-01.md:497-504`), copied. `data` never holds text; every delegated write's
 event is `v: 2`.
 
 | Kind | `subject` | `data` | In the feed |

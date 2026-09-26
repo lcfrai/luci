@@ -6,12 +6,12 @@ Seams: ST.2 (consumes).**
 This task gives the Hub its team authorisation as **one table and one test**. `05-design.md` §3.4
 (`:345-358`) says who may do what across five principals: `viewer`, `member`, `admin`, and two
 **org-level** capabilities that belong to no team, *auditor* and *compliance*. Task 01 routed the
-team records and wrote their rows of the contract's §5.3 (`task-01.md:545-597`); tasks 06 and 07
+team records and wrote their rows of the contract's §5.3 (`task-01.md:583-636`); tasks 06 and 07
 built the routes with per-rule tests; task 46 added notes and erasure. None of them built the Z5
 matrix, which is the one test that checks **every route × every principal on a fresh fixture**
 (`04` Z5; Hub task 16b's harness, `hub …/task-16b.md:18-64`). This task builds it for every team
 route, and adds the three routes that are its own: 74, 75 and 79, the project's **team policy**
-(task 01 §7.24, `task-01.md:466-488`).
+(task 01 §7.24, `task-01.md:475-497`).
 
 It is a delta on the Hub branch, built after the sync-merge of `feat/hub`. The files it extends are
 Hub task 16b's `server/matrix_integration_test.go` and Hub task 13's `server/auth.go`, both
@@ -70,14 +70,14 @@ rewritten: one ratchet for solo and team projects.
 
 **Interfaces:**
 - Consumes:
-  - task 01: routes 74, 75, 79 and §7.24 (`task-01.md:279-284`, `:466-488`); the §8 rows
+  - task 01: routes 74, 75, 79 and §7.24 (`task-01.md:285-290`, `:475-497`); the §8 rows
     `team_policy.updated` and `team_policy.route_changed` (`:531-532`); the team §5.3 table and its
     column legend (`:547-597`).
   - task 03: `TeamPolicy`, `PutTeamPolicyRequest`, `RouteChangeRequest`, `Quotas`,
     `MessageBudgets`, `EscalationFloor` and its four values, `InferenceRoute`, `DataClass`,
-    `RoutePolicyRead`, `AppRoleAuditor`, `AppRoleCompliance` (`task-03.md:272-278`, `:358-359`,
+    `RoutePolicyRead`, `AppRoleAuditor`, `AppRoleCompliance` (`task-03.md:279-285`, `:365-366`,
     `:388`, `:890-924`).
-  - task 06: `RequireDesktop`, `RequireFleet` (`task-06.md:267-288`), `teamWorld`, `everyTeamWrite`
+  - task 06: `RequireDesktop`, `RequireFleet` (`task-06.md:355-376`), `teamWorld`, `everyTeamWrite`
     (`:461-473`, `:555-556`); task 07: `newTeam2World`, Audrey (`task-07.md:311-316`).
   - Hub task 16b: `row`, `column`, `fixture`, `allRows`, `TestEveryRouteHasAMatrixRow`,
     `disableGoAuthz`, `server.Patterns()`; Hub task 14: `Principal`, `Tx`, `Refuse`, `Forbidden`,
@@ -159,7 +159,7 @@ func Can(p Principal, teamRole hubapi.Role, cap TeamCap) bool {
 ```
 
 **§3.4 says the auditor sees the team strip** ("yes", `05-design.md:349`); task 01's matrix says
-`Au` is 404 on route 74's read row (`task-01.md:579`). The later text wins (task 01 was written
+`Au` is 404 on route 74's read row (`task-01.md:617`). The later text wins (task 01 was written
 against §3.4 and chose "reads escalations, directives, human messages and threads … and nothing
 else of project content", `:547-548`), so `CapSeeTeam` holds `auditor: false`, and Gap 3 names
 the disagreement for the owner. `hubapi.Role` and its three values are built
@@ -298,7 +298,7 @@ own row type beside it, in the same file, run by the same fresh-fixture loop.
 ```go
 // control-plane/internal/hub/server/matrix_integration_test.go (added)
 
-// teamColumn is task-01.md:554-560's legend. "Own" and "another's" are about
+// teamColumn is task-01.md:592-598's legend. "Own" and "another's" are about
 // the record the row's path names: Linus's record unless the row says so.
 type teamColumn int
 
@@ -384,7 +384,7 @@ row, with `disableGoAuthz` on.
 
 #### The rows
 
-Task 01's team table (`task-01.md:562-579`) is the source for routes 46–73, cell for cell; this
+Task 01's team table (`task-01.md:600-617`) is the source for routes 46–73, cell for cell; this
 part only translates its marks: `✓` is `ok`/`created`, `401d` is `d401`, `403a` is `a403`, a `—`
 in a desk column is `f403`, a `—` in a Fleet column is `k403`, `∅` is `empty`, and a bare `403`
 is `r403(<the route's required role>)`. `rowsT06` and `rowsT07` are generated from task 06's
@@ -411,7 +411,7 @@ not task 45's gate.
 Route 74 to 79 are project-level, so `M` and `M′` are the same person on the same record and hold
 the same cell; the column stays so the table has one shape. `D` (a desktop token that sends a
 delegation header) is 403 on every team route: a desktop acts as its user, never as a delegate
-(`task-01.md:560`).
+(`task-01.md:598`).
 
 `orgRows`, complete:
 
@@ -429,7 +429,7 @@ delegation header) is 403 on every team route: a desktop acts as its user, never
 walks `allTeamRows`: for every row whose method is not `GET`, the cells `tcMp`, `tcA`, `tcAu` and
 `tcFx` must each be a status ≥ 400, with three listed exceptions, each by route number: the
 project-level rows 74–79; route 72, because a note is its **author's** record whatever it is about
-(`task-01.md:577`); and the `✓ own` cells of routes 46 and 70 (`:564`, `:576`), which a row marks
+(`task-01.md:615`); and the `✓ own` cells of routes 46 and 70 (`:602`, `:614`), which a row marks
 `ownA: true` so its `tcA` cell runs Grace on **her own** record. A later task adding a write row
 with a `✓` in one of those cells fails the build before any handler runs.
 
@@ -532,16 +532,16 @@ go test ./internal/hub/hubapi/ ./internal/hub/hubclient/... -count=1 && go vet .
 #### Gaps found in the skeleton
 
 1. **Who creates `team_policies`.** The file map gives migrations to task 04, whose part is not
-   written, and routes 74, 75, 79 to this task (`task-01.md:279-284`). This part owns the table in
+   written, and routes 74, 75, 79 to this task (`task-01.md:285-290`). This part owns the table in
    its own migration; if task 04's lands with one, Step 1 drops this migration and keeps the
    `CHECK`s.
 2. **Two data-class shapes.** Task 03's `hubapi.DataClass` is a string with a grammar
-   (`task-03.md:433-467`); phase 6's is `dataclass.Class{Level, Residency}` with a ratchet
+   (`task-03.md:440-474`); phase 6's is `dataclass.Class{Level, Residency}` with a ratchet
    (`phase-6-gateway.md:216`). This part reads the project record's value through phase 6's type
    and leaves `TeamPolicy.DataClass` as the string form; task 03's writer and phase 6's should
    settle one wire shape before merge.
 3. **§3.4 lets the auditor see the team strip; task 01's matrix does not** (`05-design.md:349` vs
-   `task-01.md:579`). This part follows task 01. The owner should confirm.
+   `task-01.md:617`). This part follows task 01. The owner should confirm.
 4. **Route 79 and ask H-1 may both write the route.** If the Hub gains a project route-change
    route for solo projects, route 79 becomes its team-project door, sharing one store function.
 5. **Checked, not a gap:** `hubapi.CodeBadRequest` and `CodeProjectNotFound` exist on the Hub

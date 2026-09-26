@@ -19,7 +19,7 @@ the mirror).
 Three properties, each pinned by a test.
 
 1. **A lane's owner is the principal whose agent record names it.** Fleet maps each lane ref to
-   the Hub agent whose `laneRef` it is (`hubapi.Agent.LaneRef`, `task-03.md:560`), and that
+   the Hub agent whose `laneRef` it is (`hubapi.Agent.LaneRef`, `task-03.md:567`), and that
    agent's `ownerUserId` to a display name. Nothing reads the git author, the committer, or the
    `<owner-hash>` segment of `refs/panacea/lanes/<owner-hash>/<wt-id>` as identity.
 2. **No file content from a teammate's lane is fetched for display.** Fleet's route carries paths,
@@ -182,7 +182,7 @@ down is `Unread: "mirror_unavailable"` on each teammate lane, not a failed read:
 queue state still render.
 
 `model.Agent` has no lane ref today (`task-09.md:131-145`); the Hub's agent record does
-(`task-03.md:560`). `LaneRef` reads it through task 11's rebuilt cache of Hub agents. If task 11
+(`task-03.md:567`). `LaneRef` reads it through task 11's rebuilt cache of Hub agents. If task 11
 does not keep `laneRef`, this task adds the field to Fleet's cache, not to `model.Agent` (gap 1).
 
 **The local route** (`api/team.go`, task 52's pattern): `GET

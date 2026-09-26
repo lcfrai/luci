@@ -30,7 +30,7 @@ included (`05-design.md:1059-1062`).
 **Where it runs.** The broker holds the credential's source material and mints a token per fetch;
 the fetch itself runs in `machined` through phase 8 task 21's `POST /v1/git` with the header in
 `Env`, host-scoped exactly as phase 3's `PushEnv` scopes a push's (`task-13.md:168-175`; phase 8
-`task-21.md:168-197`). So in the cloud the phase 3 `remote.Fetcher` runs **in the broker**, over
+`task-21.md:173-202`). So in the cloud the phase 3 `remote.Fetcher` runs **in the broker**, over
 the remote `gitx.Machine` of each machine, and `machined` never stores a token. The lane mirror
 (task 59) is the only other caller. **No credential enters a session sandbox** (global rule 8).
 
@@ -60,7 +60,7 @@ the remote `gitx.Machine` of each machine, and `machined` never stores a token. 
 - Consumes: phase 3's `remote.Auth`, `Fetcher`, `Push` (`task-12.md:28-126`), `credstore.Credential`,
   `Store`, `Chain` and `githost.Remote`, `ParseRemote`, `GitAuthHeader` (`task-13.md:28-175`),
   `githost.Host` (`task-14.md:57-66`); phase 8 task 21's `POST /v1/git` and its credential-`Env`
-  rule (`task-21.md:87`, `:193-197`); task 17's delegation check for Fleet on broker routes.
+  rule (`task-21.md:92`, `:198-202`); task 17's delegation check for Fleet on broker routes.
 - Produces: `credstore.SourceProjectFetch`; `githost.Binding`, `FetchSource`, `GitHubApp`,
   `AzureDevOpsIdentity`, `FetchEnv`, `ProveAccess`; `remote.FetchOnly`, `ErrReadOnlyAuth`,
   `Fetcher.Authorize`; the broker's `FetchCredential`, two routes and audit line.
@@ -216,7 +216,7 @@ The broker keeps proofs on the machine's `PersistentVolumeClaim` as the annotati
 machine (no pod) and a restarted broker keep them (phase 8's machine disk is that claim, P8-D6,
 **UNVERIFIED** until merge). A proof is **fresh** while `ok` is true and `at` is within
 `PANACEA_APP_BROKER_FETCH_PROOF_TTL` (default `24h`, the Hub's delegation ceiling,
-`task-01.md:237`). The repoKey must equal the project's binding; a mismatch is 422.
+`task-01.md:242`). The repoKey must equal the project's binding; a mismatch is 422.
 
 **`POST /v1/machines/{machineId}/projects/{projectId}/fetch`**: Fleet under the machine owner's
 live delegation (task 17's check, the class `orchestrator` or `worker`), or the owner's desktop.

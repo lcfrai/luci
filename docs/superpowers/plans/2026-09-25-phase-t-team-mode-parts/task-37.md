@@ -34,7 +34,7 @@ current turn's end (task 26's `TurnTimeout`, 10 minutes at worst). That residual
 hidden, and `TestPeerFloodCannotDelayHuman` bounds it to one turn.
 
 **(b) The turn budget counts begun turns in a sliding hour, per Orchestrator.** Default 30, the
-team policy's `orchestratorTurnsPerHour` (`task-01.md:474`, range 1 to 30). The owner may set a
+team policy's `orchestratorTurnsPerHour` (`task-01.md:483`, range 1 to 30). The owner may set a
 lower number for their own Orchestrator, never a higher one; human-origin turns are **counted**
 (so the owner sees them) but **never refused**. The owner's setting is Fleet state in Postgres, not
 memory: losing it would silently loosen a budget the owner tightened. It is not a Hub record,
@@ -108,7 +108,7 @@ turn: the digest. The turn input is still `Input(n)`; the Orchestrator reads wha
     `:456-486`, `:535-578`);
   - task 10: `CounterpartTurns(ctx, org, owner, counterpart, since)` and
     `AddCounterpartTurn(ctx, org, owner, counterpart, at)` (`task-10.md:115-117`, `:147`);
-  - task 03: `hubapi.TeamPolicy.OrchestratorTurnsPerHour` (`task-03.md:908`), read through task
+  - task 03: `hubapi.TeamPolicy.OrchestratorTurnsPerHour` (`task-03.md:915`), read through task
     11's `HubState` (its `TeamPolicy(project)` read is **required of task 11**, see the gaps);
   - task 30: `(*escalate.Service).InformOwnHuman(ctx, orch, msg)` (`task-30.md:387`);
   - task 31: `directive.IssueHuman(ctx, owner, worker, kind)` (**required of task 31**, not yet
@@ -573,7 +573,7 @@ CREATE TABLE fleet.budget_notices (
 
 `turn_log` rows older than 32 days are deleted by a `fleet-turnlog-prune` singleton, hourly (the
 spend route reads at most 31 days back). The table holds ids, counts and times, no text. The
-`CHECK` on `turns_per_hour` repeats the team policy's range (`task-01.md:482`) so the table
+`CHECK` on `turns_per_hour` repeats the team policy's range (`task-01.md:491`) so the table
 enforces it too; the tighter per-team ceiling is the route's.
 
 - [ ] **Step 1: Write the failing tests first**
@@ -679,7 +679,7 @@ git commit -F <msgfile> -- control-plane/internal/fleet/budget control-plane/int
    (`task-07.md:840-862` there). Ask of P6-03/07: an optional `capUSD` that can only lower the
    slice, and a `counterpart` metadata key. Task 20's scope already assumes the tag.
 3. **Task 11's `HubState` has no team-policy read.** The gate needs
-   `orchestratorTurnsPerHour` (task 03's `TeamPolicy`, `task-03.md:908`); required of task 11 as
+   `orchestratorTurnsPerHour` (task 03's `TeamPolicy`, `task-03.md:915`); required of task 11 as
    `TeamPolicy(project) (hubapi.TeamPolicy, bool)`, fed by the team-policy feed kind (task 08).
    Until then the gate uses `DefaultTurnsPerHour`, which is the ceiling's maximum, so the owner's
    own lower setting still binds.

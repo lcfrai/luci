@@ -4,7 +4,7 @@
 
 This task gives the Hub the one piece of team text a person types *about other people*: the note
 (`05-design.md` §3.3 row "note", `:312`), routes 72 and 73 of task 01's §7.0 team table and its
-contract §7.23 (`task-01.md:277-278`, `:462-467`). It also closes `07` M5 (`07-critique-security.md:490`):
+contract §7.23 (`task-01.md:283-284`, `:471-476`). It also closes `07` M5 (`07-critique-security.md:490`):
 notes are immutable, messages and human messages append-only, and yet an erasure request must be
 able to remove their words. **Task 01 is authoritative for every field, bound and code of routes 72
 and 73; where this part disagrees, task 01 wins.** It is a delta on the Hub branch, built after the
@@ -18,7 +18,7 @@ characters of `text·H` by a colleague, and a persuasive one is the strongest in
 (`07` M2, `07-critique-security.md:487`). So a note reaches **an Orchestrator only, only through
 `panacea inbox`, quoted with its author's name** — never a worker, never `team.json`, never a
 directive's text, never the PTY. The worker half is not a filter added here: `notes.read` is
-outside the `worker` class route set (`task-01.md:294-296`), so a worker-class delegation cannot
+outside the `worker` class route set (`task-01.md:303-305`), so a worker-class delegation cannot
 even fetch one, and task 22's `WorkerSnapshot` has no field that could hold one. This task pins
 both with tests, so a later "helpful" change cannot route a note to a worker silently.
 
@@ -55,10 +55,10 @@ typed the words. Nobody may tombstone another person's record but an org admin.
 
 **Interfaces:**
 - Consumes:
-  - from task 01: rows 72 and 73, §7.23, the `note.created` §8 row (`task-01.md:530`), the team
+  - from task 01: rows 72 and 73, §7.23, the `note.created` §8 row (`task-01.md:563`), the team
     matrix row "write a note (72)" (`:577`) and "read … notes (73)" (`:579`).
   - from task 03: `Note`, `NoteTarget`, `NoteTargetKind`, `CreateNoteRequest`, `RouteNotesRead`,
-    `PrefixNote` (`task-03.md:869-888`, `:387`, `:1086`); `HumanMessage` and `Message`, whose
+    `PrefixNote` (`task-03.md:876-895`, `:394`, `:1124`); `HumanMessage` and `Message`, whose
     `Text` is a `*teamtext.Text` and `TombstonedAt` a `*string` (`:858-867`, `:737`).
   - from task 04: tables `notes` (immutable), `messages` and `human_messages` (append-only), each
     with a nullable `text` and `tombstoned_at timestamptz NULL`, under RLS, with task 04's guard
@@ -95,7 +95,7 @@ themselves. No route name, so Fleet cannot write one under any delegation (403 `
 The target must be in `{p}`: `project` names `{p}` itself; `task` a task of `{p}` (task 06's
 `tasks` row, any owner); `user` a **current** member of `{p}`'s team, the author included. Any
 other target is 422 `bad_request`, `details.field = "target"`. A note on another member's task is
-allowed (matrix column `M′`, `task-01.md:577`): writing about someone's work is not writing their
+allowed (matrix column `M′`, `task-01.md:615`): writing about someone's work is not writing their
 record. The Hub mints `nt-…` from `ids.New` (phase 2's `internal/ids`). `Idempotency-Key` is
 optional, as on route 70.
 
@@ -221,7 +221,7 @@ can name a client's matter.
 | `human_message.erased` | human message id | `{"by","reason"}`; `by` is `owner` or `org_admin` | fleet, without `reason` |
 | `message.erased` | message id | `{"threadId","reason"}` | fleet, without `reason` |
 
-`note.created` is task 01's row (`task-01.md:530`), feed `yes`: every member's desktop and Fleet
+`note.created` is task 01's row (`task-01.md:563`), feed `yes`: every member's desktop and Fleet
 learn that a note exists, and read its words through route 73. A second erasure emits a second
 event with the same `subject`, so an attempt always leaves a trace.
 
@@ -277,7 +277,7 @@ row is task 30's, and this task only feeds it the note id.
 | Test | Asserts | Mutant it kills |
 |---|---|---|
 | `TestAnErasedNoteIsATombstoneAndItsAuditRemains` | Linus writes `nt-A` on the project (marker `ZQX-NOTE-7731` in the text); Ada (org admin) erases it → `{erased: true}`; route 73 lists `nt-A` with `text: null`, `tombstonedAt` set, target and author unchanged; the audit (route 44) still holds `note.created` for `nt-A` **and** one `note.erased` with `by: org_admin`; `markerHits` (Hub task 27) over schema `hub` is empty, `idempotency_keys` included | a tombstone that deletes the row, or the audit event with it; the stored reply keeping the words |
-| `TestAWorkersTeamNeverContainsANote` | with three notes in the project (on the project, on the worker's task, on its owner), `panacea team` from a worker-class session and task 16's `team.json` snapshot contain none of the marker strings and no `nt-…`; a `worker`-class delegation calling route 73 → 403 `forbidden` (`task-01.md:121-122`); creating a `worker` delegation that lists `notes.read` → 422 `details.route` (`:290-296`) | `notes.read` added to the worker class set, or `WorkerSnapshot` given a notes field |
+| `TestAWorkersTeamNeverContainsANote` | with three notes in the project (on the project, on the worker's task, on its owner), `panacea team` from a worker-class session and task 16's `team.json` snapshot contain none of the marker strings and no `nt-…`; a `worker`-class delegation calling route 73 → 403 `forbidden` (`task-01.md:126-127`); creating a `worker` delegation that lists `notes.read` → 422 `details.route` (`:299-305`) | `notes.read` added to the worker class set, or `WorkerSnapshot` given a notes field |
 | `TestANoteReachesAnOrchestratorOnlyByInboxQuoted` | Grace's Orchestrator's `panacea inbox` holds `nt-A` in `notes` with `by: "Linus Torvalds"`, `text.author: "human"`; her `team`, the turn template (task 26) and the PTY writer's output (task 38) hold neither the text nor the id | a note spliced into the turn template or a nudge |
 | `TestTheAuthorMayEraseTheirOwnNoteOnly` | Linus erases his `nt-A` → 200 `by: author`; Grace (team admin) erasing `nt-A` → 403 `required: "org_admin"`; Linus erasing Grace's note → 403 | the team admin treated as an eraser; the author check by team, not by user |
 | `TestAThreadMessageIsErasedByTheOrgAdminOnly` | Linus (the sender's owner) → 403; Ada → 200; route 63 then lists the message with `text: null`, `kind` and typed `fields` unchanged | the sender's owner allowed to rewrite a negotiation the other side relied on |
@@ -313,7 +313,7 @@ owner and an auditor, so the erase route does not reveal it.
 
 #### Steps
 
-- [ ] **Step 1: Read.** Contract §7.23, §8 and task 01's team matrix (`task-01.md:462-467`,
+- [ ] **Step 1: Read.** Contract §7.23, §8 and task 01's team matrix (`task-01.md:471-476`,
   `:530`, `:577-579`); Hub task 27's routes 44–45 and `markerHits` (`task-27.md:22-46`, `:72`);
   Hub task 07b's `erase_brief` and `guard_revision` (`task-07b.md:63-80`, `:212-232`); task 04's
   migration as merged, to take its guard and column names.
@@ -364,7 +364,7 @@ go test ./internal/hub/hubapi/ -count=1 && go vet ./...
 
 #### Gaps found in the skeleton
 
-1. **No erasure routes in task 01's §7.0.** Its team table stops at 79 (`task-01.md:248-285`);
+1. **No erasure routes in task 01's §7.0.** Its team table stops at 79 (`task-01.md:254-291`);
    task 14 took 80 (`task-14.md:52-62`). This part claims **81 to 83**. If another part claims
    them first, the lower task id keeps the numbers and this part renumbers mechanically.
 2. **Who erases.** The skeleton says "Hub task 27's erasure gains tombstones"; task 27 lets only an

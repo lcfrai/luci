@@ -51,7 +51,7 @@ REPLACE` to admit exactly one erasure move (`task-46.md:150-175`). The tombstone
 from this task; nothing may set it until task 46.
 
 **(e) The two feed flags come from the kind, in the database.** Task 01's §8 has three feed
-values; task 08 reads two booleans (`task-08.md:207-213`): `yes` is `feed, fleet_feed`; `fleet`
+values; task 08 reads two booleans (`task-08.md:214-220`): `yes` is `feed, fleet_feed`; `fleet`
 is `fleet_feed` only; `no` is neither. `audit_events` gains `fleet_feed`, and a reference table
 `team_event_kinds` holds task 01's 23 rows (§8's team events, `task-01.md:547-569`,
 `project.mode_set` added by fix batch b01). A `BEFORE INSERT` trigger **sets** both flags for a
@@ -138,7 +138,7 @@ CREATE TYPE note_target      AS ENUM ('project', 'task', 'user');
 CREATE TYPE inference_route  AS ENUM ('global', 'au');
 ```
 
-Every enum's labels are task 03's constants, in its order (`task-03.md:97-279`); step 4's
+Every enum's labels are task 03's constants, in its order (`task-03.md:104-286`); step 4's
 `TestTeamEnumsAreTask03s` compares them, label by label, against `pg_enum`.
 
 **Piece 2, the helpers the `CHECK`s call.** Each is `IMMUTABLE`, so a `CHECK` may call it, and
@@ -281,7 +281,7 @@ until `TestFeedFlagsComeFromTheKind` runs); nothing here depends on it except th
 
 **Piece 4, delegations and agents.** Every foreign key is named, because the cross-org test's case
 table is keyed by constraint name (step 2). A delegation's times are written by Go from **one**
-clock reading (task 06 asserts `expiresAt − createdAt` equals the TTL exactly, `task-06.md:481`),
+clock reading (task 06 asserts `expiresAt − createdAt` equals the TTL exactly, `task-06.md:574`),
 so the `CHECK` compares values of one clock; the column default serves a hand-written row only.
 
 ```sql
@@ -553,7 +553,7 @@ kind `CHECK`s hold for an erased row. The per-kind `fields` keys, and `accept`·
 
 **Piece 7, escalations and directives.** An escalation's options are two parallel arrays, so the
 database can bound each label (80) and consequence (200) without parsing JSON; both texts are the
-question's author's, so they carry no author columns of their own (`task-03.md:758-762`). A
+question's author's, so they carry no author columns of their own (`task-03.md:765-769`). A
 question Fleet raises for itself is `agent` text naming **no** agent, the one place an agent text's
 `x_agent` is `NULL` (`task-07.md:125`: `fromAgentId` is `""` then), so its triple is checked by
 hand rather than through `text_ok`. `directives.read_ids` is task 03's `read`, renamed because a
@@ -688,7 +688,7 @@ CREATE TABLE team_policies (
 );
 ```
 
-The ranges are task 01 §7.24's (`task-01.md:480-484`): quotas above zero, turns 1 to 30, pair
+The ranges are task 01 §7.24's (`task-01.md:489-493`): quotas above zero, turns 1 to 30, pair
 budget 1 to 20, rounds 1 to 3, deadline 30 to 1,440 minutes, floors a subset of the four. "Tighten
 only" and "lengthen only" compare to the defaults, which are task 43's, so they stay Go's.
 

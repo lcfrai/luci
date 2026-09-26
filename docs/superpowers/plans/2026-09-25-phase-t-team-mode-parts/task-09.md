@@ -68,11 +68,11 @@ package model
 import "time"
 
 // AgentID is an ag-… id. Fleet mints it (task 20, ids.Wide) and the Hub checks it
-// belongs to the delegation's owner (task-01.md:130-135). Never a session id.
+// belongs to the delegation's owner (task-01.md:135-140). Never a session id.
 type AgentID string
 
 // Owner is the Hub user id of the human an agent works for (u-…, as every Hub team
-// record names it, task-01.md:295). Fleet derives it from tid+oid once, at the
+// record names it, task-01.md:304). Fleet derives it from tid+oid once, at the
 // desktop's request (task 12), and stores only this.
 type Owner string
 
@@ -114,7 +114,7 @@ const (
 	WaitingHuman WaitingOn = "human"
 )
 
-// ExitClass is how an agent ended; the values are task 01's §7.15 (task-01.md:336-337).
+// ExitClass is how an agent ended; the values are task 01's §7.15 (task-01.md:345-346).
 type ExitClass string
 
 const (
@@ -440,7 +440,7 @@ const (
 	CodeNotFound      = "not_found"
 	CodeConflict      = "conflict"
 	CodeTaskHasWorkers = "task_has_workers"
-	// Text and globs (task 02, as the Hub's task-01.md:197-199).
+	// Text and globs (task 02, as the Hub's task-01.md:202-204).
 	CodeTextRefused     = "text_refused"
 	CodeGlobRefused     = "glob_refused"
 	CodeBreadthExceeded = "breadth_exceeded"
@@ -864,6 +864,6 @@ git commit -F .superpowers/sdd/team/msg/t09.txt -- control-plane/internal/fleet 
    the model agree on one type (`task-26.md:151-156` defines its own).
 3. **Task 16's `Event` comment** lists `turn.end` as pushed; it is a request (row 1 above).
 4. **Task 11's assumed owner prefix** is `us-…` (`task-11.md:87`); the Hub's is `u-…`
-   (`task-01.md:295`, `fake.go:43-45`). `model.Owner` holds `u-…`.
+   (`task-01.md:304`, `fake.go:43-45`). `model.Owner` holds `u-…`.
 5. **The skeleton's scope for 09** lists `turn.end` among server-pushed events; it should read
    `turn.begin`, `nudge`, `stop`, with `turn.end` a verb.

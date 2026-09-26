@@ -88,7 +88,7 @@ saying the time is the honest answer, and a spinner per row is forbidden anyway.
   - task 52: `createTeamClient`, its `send` through `createTransport` (`task-52.md:945-980`),
     `ProjectId` (`store/types.ts`);
   - task 56: `SpendLine(props: { settings })` and its `usd(cents)` helper over phase 6's
-    `formatUsd` (`task-56.md:279-293`; `formatUsd` is phase 6 task 22's, **UNVERIFIED until
+    `formatUsd` (`task-56.md:305-319`; `formatUsd` is phase 6 task 22's, **UNVERIFIED until
     merge**);
   - phase 2: `Popover` (`desktop/src/components/common/Popover.tsx:10-15`), `ApiError` with
     `status` and `details` (`desktop/src/api/client.ts:57-69`), `--numeric`
@@ -382,7 +382,7 @@ spinner control and accepts `1e3`, both of which this view does not want.
 // QUOTAS_TITLE (./quotaWords); type TeamClient (../../api/team)
 export function SpendLine(props: { settings: TeamSettings | null; client?: TeamClient }): JSX.Element | null {
   const [anchor, setAnchor] = useState<DOMRect | null>(null); // before the guard: hooks run every render
-  if (props.settings === null) return null; // task 56's guard, unchanged (task-56.md:292)
+  if (props.settings === null) return null; // task 56's guard, unchanged (task-56.md:318)
   return (
     <>
       <p className="team-spend tabular-nums">{spendLineSentence(props.settings.spend)}</p>
@@ -404,7 +404,7 @@ export function SpendLine(props: { settings: TeamSettings | null; client?: TeamC
 where quotas exist. The `client` prop is optional so task 56's own tests pass unchanged; the
 popover that mounts `SpendLine` passes `createTeamClient()`.
 
-Figures follow phase 6's `formatUsd` whole-number rule (`task-56.md:297-298`): US$25 a day, not
+Figures follow phase 6's `formatUsd` whole-number rule (`task-56.md:323-324`): US$25 a day, not
 US$25.00; this part's sentences with `.00` are illustrative, and the tests expect `formatUsd`'s
 output. The input fields are the one place `.00` is written, since they hold what the admin types.
 
@@ -474,7 +474,7 @@ member's read-only view beside the admin's.
 
 The computed-style assertion depends on jsdom applying the imported stylesheet; if the desktop's
 vitest setup does not load CSS (**UNVERIFIED**; task 56's `figures are tabular` test checks the
-class, `task-56.md:189`), the test checks the class instead, as task 56 does.
+class, `task-56.md:211`), the test checks the class instead, as task 56 does.
 
 #### Steps
 
@@ -523,7 +523,7 @@ against a real Hub and gateway is deferred to task 69 item 6.
    project back to Global"*, shown only to a `Hub.Compliance` holder, through route 79) or another
    task owns it; the skeleton should say which.
 3. **Task 56's `spendLineSentence` says *"no daily quota set"*** for a `null` quota
-   (`task-56.md:287`). After task 66 every team project has a non-zero quota (OD-24), so that
+   (`task-56.md:313`). After task 66 every team project has a non-zero quota (OD-24), so that
    branch now means "not known yet", and its words should say so.
 4. **Task 52's `Spend` comment says the Australia/Sydney day** (`task-52.md:576`); this view and
    task 66 use the UTC day.

@@ -13,7 +13,7 @@ This task is the engine and the one verb that calls it. It owns four things:
 
 1. **The state machine** of §3.3's lease row, with every transition written to the Hub through the
    outbox **in the same transaction** as the Fleet row (task 11's rule; `task-11.md:184-203`).
-   Fleet is authoritative; the Hub only checks shape, owner and `seq` (`task-01.md:341-347`).
+   Fleet is authoritative; the Hub only checks shape, owner and `seq` (`task-01.md:350-356`).
 2. **The breadth cap** (§6.3 item 1, `07` I2): every glob passes `teamtext.ValidGlob`, which already
    refuses `**`, `*` and `**/*` as `whole_repo` (`task-02.md:36-38`), and then
    `teamtext.CheckSet(globs, tracked)` against the integration head's tracked files, which refuses
@@ -29,7 +29,7 @@ task 34's (TM1). Without a file list the 10% check cannot run. The engine then *
 the shape it cannot measure**: a glob whose first segment contains a wildcard (`*.go`, `**/x`,
 `{a,b}/…`) is refused with `breadth_unknown`; a glob with a literal first directory (`auth/**`,
 `src/export/*.ts`) is accepted, recorded with `trackedFiles: 0` (the Hub's "count not supplied",
-`task-01.md:285-288`) and flagged `breadthChecked: false` on the lease view. Task 33 records that
+`task-01.md:291-297`) and flagged `breadthChecked: false` on the lease view. Task 33 records that
 TM1-α ran without the 10% cap; from task 34 on the flag is always true. This is a deliberate
 weakening for two weeks, stated, not a silent one.
 
@@ -164,10 +164,10 @@ seven states and asserts that exactly these are accepted):
 | `granted` · `contested` | `admin-released` | an admin, audited | 44 |
 
 `yielded`, `released`, `expired` and `admin-released` are terminal, which is the Hub's rule too
-(`task-01.md:344-346`). The moves tasks 29, 35 and 44 own are in the table so the table test covers
+(`task-01.md:353-355`). The moves tasks 29, 35 and 44 own are in the table so the table test covers
 them now; their functions arrive with those tasks.
 
-**The Hub payload** is task 01's §7.16 body exactly (`task-01.md:341-343`), built by one function
+**The Hub payload** is task 01's §7.16 body exactly (`task-01.md:350-352`), built by one function
 so the `seq` rule cannot drift:
 
 ```go

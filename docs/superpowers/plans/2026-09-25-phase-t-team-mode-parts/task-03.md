@@ -24,7 +24,7 @@ not `""`. The keys are the contract's; this task fixes their empty value. And a 
 but Fleet·O carries `"title": null` and `"reason": {"briefRef": …, "why": null}`, not a record with
 the keys missing.
 
-**(b) Type names are the ones task 06 already consumes** (`task-06.md:50-54`): `Delegation`,
+**(b) Type names are the ones task 06 already consumes** (`task-06.md:64-68`): `Delegation`,
 `CreateDelegationRequest`, `Task`, `CreateTaskRequest`, `PatchTaskRequest`, `AgentStart`,
 `AgentStartRequest`, `AgentEndRequest`, `LeaseEvent`, `LeaseEventRequest`, `Conflict`,
 `CreateConflictRequest`, `PatchConflictRequest`, `AgentRole`, `AgentRoleOrchestrator`. The rest

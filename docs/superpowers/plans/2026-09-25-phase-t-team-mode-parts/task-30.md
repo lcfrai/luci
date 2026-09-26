@@ -15,7 +15,7 @@ Five properties, each pinned by a test.
    30 minutes (team policy may lengthen it). An Orchestrator that asks for *"default: continue,
    deadline: 60 s"* gets Fleet's hold option as the default and a 30-minute deadline.
 2. **The rows are data, and they only tighten.** A team admin's floors (task 01 §7.24,
-   `escalationFloors`, `task-01.md:471-480`) may turn an *act* row into a *decide*; nothing may
+   `escalationFloors`, `task-01.md:480-489`) may turn an *act* row into a *decide*; nothing may
    turn a *decide* into an *act*. The always-decide rows (`build-on`, `proceed-both` on H or M,
    free text in a Fleet-started turn, rounds or deadline exhausted) are marked locked in the
    table, and a floor or user row naming them is refused (OD-24).
@@ -206,7 +206,7 @@ var Table = []Row{
 	{"free-directive-fleet-turn", protocol.VerdictDecide, Own, true, "the injection fence"},
 }
 
-// Floorable are the four act rows a team admin may floor (task-01.md:471-480).
+// Floorable are the four act rows a team admin may floor (task-01.md:480-489).
 var Floorable = map[string]bool{
 	"yield-unedited": true, "accept-split": true, "proceed-both-ps": true, "sequence-short": true,
 }

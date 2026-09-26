@@ -47,7 +47,7 @@ always `1`, and `waitingSinceMs = now − at`. `team.decided` is tier `2`, `team
 
 **(c) Answering is optimistic, with an Undo window in the row, not a toast.** `docs/AGENTIC-UX.md`
 §5 and `docs/DESIGN-SYSTEM.md`'s interaction standards ask for optimistic mutation with an Undo
-window rather than a confirm dialog. The Hub accepts **one** answer (`task-01.md:427`: a second is
+window rather than a confirm dialog. The Hub accepts **one** answer (`task-01.md:436`: a second is
 refused), so the window is local: choosing an option turns the row into *"You chose: Let Alice go
 first · Undo"* for 6 s (the `Toast.ttl` phase 2 uses for an undoable action, `store/types.ts:217`),
 then sends it, **once**, through `beginAnswer`/`endAnswer`'s guard (task 52). Undo within the
@@ -65,7 +65,7 @@ band's own *"mark all seen"* (W-62's control) calls `markTeamSeen(generatedAt)` 
 for and OD-27 allows (it is a measured duration, not a prediction).
 
 **(f) A decide past its deadline is shown as defaulted, not hidden.** The Hub reads an unanswered
-escalation past its deadline as defaulted (`task-01.md:428`). The row then reads *"The default
+escalation past its deadline as defaulted (`task-01.md:437`). The row then reads *"The default
 applied at 04:40: Let Alice go first"* with no buttons, and an answer the Hub refuses with `409
 conflict` inside the Undo window lands the row in the same state, never in an error.
 

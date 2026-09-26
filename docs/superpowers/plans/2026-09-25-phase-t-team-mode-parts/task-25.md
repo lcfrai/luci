@@ -18,7 +18,7 @@ must not be decided twice:
    `HubState`) **or** an open thread on one (task 28's thread store, which is durable and survives a
    restart before the conflict's outbox row is delivered) raises nothing new. The new paths are
    merged into Fleet's working copy of the open conflict, so `panacea check` and `team` show them,
-   and are **not** re-sent: route 58 cannot patch a conflict's paths (`task-06.md:210-215`). The
+   and are **not** re-sent: route 58 cannot patch a conflict's paths (`task-06.md:293-298`). The
    thread already exists; the Orchestrators see the wider overlap on their next `check`.
 3. **Both queues, one call, no coalescing.** `Raise` enqueues one `conflict.opened` event for each
    Orchestrator in the same call. Task 26 makes that kind immediate (`task-26.md:121`, `:174-176`),
@@ -52,7 +52,7 @@ when they arrive.
     read of open conflicts; `outbox.Enqueue`, `outbox.OpConflictCreate`, `outbox.OpConflictUpdate`
     (`task-11.md:124-125`);
   - task 06: route 57's body and route 58's `negotiating` + `threadId` patch
-    (`task-06.md:198-216`);
+    (`task-06.md:281-299`);
   - task 28: `OpenForConflict(ctx, org, project, conflict string, orchA, orchB model.AgentID)
     (string, error)` and `ThreadFor` (`task-28.md:365`);
   - task 26: `Enqueue(ctx, model.Event) error`, `model.EventConflictOpened`;
@@ -138,7 +138,7 @@ team launch, so the gap is seconds). (4) The pair check: `HubState` has an open 
 `{agentA, agentB}` is `{a, b}` in either order, **or** `HasOpenConflictThread(a, b)` → merge the
 paths into the working copy and return. (5) One `Store.Tx`: `outbox.Enqueue` route 57's body with
 `agentA = a.Agent` (the side whose signal triggered it, so the write goes under `a`'s owner's
-delegation, `task-06.md:198-200`), `tier`, `paths` (≤ 50, sorted, each `{"path", "lines": []}`),
+delegation, `task-06.md:281-283`), `tier`, `paths` (≤ 50, sorted, each `{"path", "lines": []}`),
 `basis`. (6) `HubState.PutConflict` with state `raised`. (7) `OpenForConflict(…, orchA, orchB)`,
 then one `outbox.Enqueue` of route 58: `state: negotiating`, `threadId`. (8) `Enqueue` one
 `conflict.opened` event for `orchA` and one for `orchB`, `Ref` the `cf-…`.
@@ -154,7 +154,7 @@ narrower glob's literal directory prefix (`auth/**` against `auth/session/*.go` 
 import `protocol` (task 28 imports nothing of `forecast`, and neither should need the other).
 
 **Basis shas, and a gap.** Route 57 takes `basis.a` and `basis.b` as 40 or 64 hex
-(`task-06.md:205`) and does not say either may be absent. A tier-P conflict raised at **plan time**
+(`task-06.md:288`) and does not say either may be absent. A tier-P conflict raised at **plan time**
 has no commit on either side, and in TM1-α Fleet has no integration head either (task 22's
 `unavailableTree`). Until tasks 01 and 06 make `basis` optional for tier P, the forecaster sends
 **git's null object id**, forty `0`s, for a side with no `Head`: valid hex, and the value git itself
@@ -216,7 +216,7 @@ a recording `Queue`, a fake `Threads` that mints `th-…` ids and records calls.
 | `TestOpenPairRaisesNoSecond` | a second overlap between the same pair on `auth/token.go`: no new `cf-…`; the working copy's `Paths` now holds both files | a second conflict and a second thread for one pair |
 | `TestOpenThreadGuardsAfterRestart` | with an empty `HubState` (a restart before the feed caught up) but `HasOpenConflictThread` true: no new conflict | trusting memory alone |
 | `TestQuietOnlyRaisesNothing` | a shared `package-lock.json` alone raises nothing; with `src/a.ts` too, the conflict's paths are `["src/a.ts"]` only | lockfile noise at tier P (§8.2) |
-| `TestAgentAIsTheTrigger` | when Alice's request triggers, `agentA` is Alice's agent and the outbox item's `Owner` is Alice | writing under the other owner's delegation, which route 57 refuses (`task-06.md:198-200`) |
+| `TestAgentAIsTheTrigger` | when Alice's request triggers, `agentA` is Alice's agent and the outbox item's `Owner` is Alice | writing under the other owner's delegation, which route 57 refuses (`task-06.md:281-283`) |
 | `TestNullBasisWhenUnknown` | with no `Head` on either side, `basis` is forty `0`s for both and `BasisKnown` is false | sending `""`, which route 57 refuses |
 | `TestGlobPrefixApprox` | `auth/**` vs `auth/session/*.go` with no tree: path `auth/session`, `Approx: true` | sending a glob as a path |
 | `TestNoOrchestratorYet` | Bob has no Orchestrator: the conflict is raised, no thread opened, one event for `ag-a0` only | refusing to raise, or opening a one-sided thread |

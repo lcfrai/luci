@@ -37,19 +37,19 @@ it is Fleet, not the broker, that mints (S6.5, `:290`; task 20).
    `PANACEA_APP_BROKER_FLEET_CLIENT_ID` and whose `roles` holds `Sandboxes.Fleet`. The built validator
    refuses any token without the required scope (`verify.go:119-121`), so `entra.Config` gains
    `AppCallers []AppCaller` and `Claims` gains `AppOnly bool`. An app-only token matching no entry is
-   refused as before. This mirrors task 01's Hub rule 1 (`task-01.md:116-119`), spelled for the broker.
+   refused as before. This mirrors task 01's Hub rule 1 (`task-01.md:121-124`), spelled for the broker.
    If task 05 lands the same `AppCallers` field first, this task consumes it and adds nothing to
    `entra`.
 2. **Fleet must name a delegation, and nobody else may.** A Fleet request without
    `X-Panacea-Delegation: dl-…` is `401 delegation_required`; a desktop token carrying the header is
-   `403 forbidden` with `details.required = "fleet"`. The same two rules as the Hub's (`task-01.md:120-128`),
+   `403 forbidden` with `details.required = "fleet"`. The same two rules as the Hub's (`task-01.md:125-133`),
    so no client can borrow a delegation from either service.
 3. **The broker verifies the delegation against the Hub, as itself.** It calls `GET
    /v1/delegations/{id}` with its own workload-identity token and caches the answer by id for at most
    `PANACEA_APP_BROKER_DELEGATION_TTL` (default and maximum 60 s). A revoked answer is cached as
    revoked. A Hub error with no cached answer is `503 delegation_unverifiable`: **fail closed**. This
    needs two things task 01 does not give (*Gap S17-1*): the broker as a caller of route 47
-   (`task-01.md:254` lists the owner and Fleet only), and the owner's `tid`/`oid` in the answer,
+   (`task-01.md:260` lists the owner and Fleet only), and the owner's `tid`/`oid` in the answer,
    because the broker's owner label is `sandbox.OwnerLabelValue(tid, oid)` and task 01's delegation
    carries `ownerUserId` (`u-…`, `:323`).
 4. **`ownerOf` becomes `principalOf`, still the only place a request becomes an owner.** It returns
@@ -60,7 +60,7 @@ it is Fleet, not the broker, that mints (S6.5, `:290`; task 20).
    only the classes the delegation's class covers (task 15's `Spec.Class`): a `worker` delegation
    creates `worker` sandboxes only; an `orchestrator` delegation creates the Orchestrator and the
    workers it spawns (`panacea worker spawn`, task 24), because both act for the same owner and task
-   01 gives the Orchestrator class every route (`task-01.md:295`). Anything else is `403
+   01 gives the Orchestrator class every route (`task-01.md:304`). Anything else is `403
    delegation_class_mismatch`. Fleet may also use `control` and `source`, which a desktop token may not.
    Of P8-19's machine routes (`task-19.md:82-88`) Fleet may call exactly three, owner-scoped as the
    owner's own: `POST /v1/machines/default`, `GET /v1/machines/{id}` and `POST /v1/machines/{id}/wake`,
@@ -392,7 +392,7 @@ lower number means a row was not written, not that it was skipped: none of them 
   P03 (`2026-09-25-phase-6-gateway.md:276`); if it fails, seam S6.10's client certificate replaces the
   annotation.
 - **Gap S17-1 — the broker as a Hub caller.** Task 01's route 47, `GET /v1/delegations/{id}`, admits
-  "its owner (desk), or Fleet under it" (`task-01.md:254`) and its record names the owner as
+  "its owner (desk), or Fleet under it" (`task-01.md:260`) and its record names the owner as
   `ownerUserId` (`:323`). The broker needs to be a third caller of that one route (app-only, role
   `Hub.DelegationReader`) and needs `ownerTid` and `ownerOid` in the answer to it. Without that the
   broker would have to trust Fleet's statement of whom it acts for, which is the thing P8-D4 exists to

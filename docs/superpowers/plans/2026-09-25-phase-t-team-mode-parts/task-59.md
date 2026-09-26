@@ -164,7 +164,7 @@ type PairResult struct {
 	Code      string      // "" or one of the Code* constants when State is "unknown"
 }
 
-const MaxRanges = 20 // route 57's cap (task-06.md:203-205)
+const MaxRanges = 20 // route 57's cap (task-06.md:286-288)
 
 // PairForecast, all Class Read or Local in repo, Scope Project:
 //   1. merge-base <A> <B>                          → MergeBase; none → unknown, CodeNoMergeBase

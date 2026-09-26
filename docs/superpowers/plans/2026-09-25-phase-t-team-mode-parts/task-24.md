@@ -27,7 +27,7 @@ its worker starts. The leases end when the task ends (`done` or `abandoned`), th
 desktop (task 06 route 46 is desktop only), so Fleet cannot mint a worker-class one for a worker
 its Orchestrator spawns. The spawned worker therefore runs under **its Orchestrator's**
 `orchestrator`-class delegation: task 06's route 53 accepts an agent start from Fleet under either
-class, and the Orchestrator's route set is every route (`task-01.md:271`). Its outbox items carry
+class, and the Orchestrator's route set is every route (`task-01.md:277`). Its outbox items carry
 `Class: orchestrator`. The worker still cannot reach the cross-user channel, because that is
 refused by **task 19's verb table** (a worker calling `peer` is refused), not by its delegation.
 This is recorded in the return: a reviewer should know the Hub-side route set does not fence a
@@ -54,7 +54,7 @@ spawned worker.
     `worker.blocked`, `worker.assumed` (`task-26.md:113-120`);
   - task 11: `outbox.Enqueue`, `outbox.OpTaskCreate`, `outbox.OpTaskUpdate`
     (`task-11.md:120-122`);
-  - task 06: route 50 and 51's bodies (`task-06.md:121-147`), including `titleSource` and
+  - task 06: route 50 and 51's bodies (`task-06.md:148-174`), including `titleSource` and
     `trackedFiles`;
   - task 02: `teamtext.Bound`, `teamtext.Clean`, `teamtext.KindTitle`, `teamtext.KindWhy`,
     `teamtext.KindMessage`, `teamtext.MaxGlobs`;
@@ -138,7 +138,7 @@ may spawn at all, and this task does not pre-empt it.
 `breadth_unknown` (tasks 02, 23); `agent_not_owner` (a task or worker of another owner, whatever
 the caller's role); `not_found`; `conflict` with `details {from,to}` (a task transition task 06
 refuses: `planned → active | abandoned`, `active → blocked | done | abandoned`,
-`blocked → active | abandoned`, `task-06.md:144-146`); `task_has_workers` (abandon or done while a
+`blocked → active | abandoned`, `task-06.md:171-173`); `task_has_workers` (abandon or done while a
 live worker is on the task: stop it first, so no worker keeps editing under a released lease).
 
 - [ ] **Step 1: Write the failing tests first**

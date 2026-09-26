@@ -30,7 +30,7 @@ And, per global constraints, the route joins the Z5 role matrix (§3.4, §7.4 it
 Five decisions the scope left open, made here so nobody re-derives them.
 
 **(a) The route has no `{p}`, so the handler resolves the agent before it authorises.** Task 21
-fixed the path as `GET /v1/agents/{ag}/attach` (`task-21.md:87`). Task 12's `authorize` looks up
+fixed the path as `GET /v1/agents/{ag}/attach` (`task-21.md:92`). Task 12's `authorize` looks up
 membership by `r.PathValue("p")` (`task-12.md:419-420`), which is empty here. This task adds
 `Server.RouteAgent`: it reads `{ag}` from task 10's agent rows, and runs task 12's `authorize` with
 that agent's project in place of `{p}`, then requires `agent.Owner == principal.UserID`. The verb
@@ -147,7 +147,7 @@ const (
 	AttachedWithin = 30 * time.Second
 )
 
-// CodeAgentNotFound is task 21's 404 code (task-21.md:86-87), one answer for
+// CodeAgentNotFound is task 21's 404 code (task-21.md:91-92), one answer for
 // "not yours" and "not there" (decision b).
 const CodeAgentNotFound = "agent_not_found"
 
@@ -478,7 +478,7 @@ git commit -F <msgfile> -- control-plane/internal/fleet/relay control-plane/inte
   `fleetbe` (Go, no `Origin`). A browser client would need an explicit origin list; none exists.
 
 **Gaps against the skeleton, raised here and not resolved alone:**
-1. **Task 21's route has no `{p}`** (`task-21.md:87`) while task 12's `authorize` needs one
+1. **Task 21's route has no `{p}`** (`task-21.md:92`) while task 12's `authorize` needs one
    (`task-12.md:419-420`). Resolved here by `RouteAgent`, a new method on task 12's server; task
    12's part should list it.
 2. **Task 11's `Revoker` runs on the leader only** (`task-11.md:591-593`); sockets are

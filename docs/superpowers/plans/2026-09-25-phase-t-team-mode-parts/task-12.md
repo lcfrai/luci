@@ -45,7 +45,7 @@ replica that cannot reach the Hub is not ready, but it is alive, so the kubelet 
 it in a Hub outage (the outbox's pause, task 11, is the designed behaviour there).
 
 **The Hub has no route yet that tells Fleet a principal's role.** Task 01's team table
-(`task-01.md:226-261`) gives Fleet the per-org feed and delegated reads, but no way to resolve an
+(`task-01.md:231-267`) gives Fleet the per-org feed and delegated reads, but no way to resolve an
 Entra `(tid, oid)` to a Hub user and their team role, and `hubapi.User` carries no `tid`/`oid`
 (`hubapi/types.go:95-99`). This part therefore consumes a `Membership` interface and states the
 Hub read it needs, `GET /v1/principals?tid=&oid=&projectId=` (Fleet, **no

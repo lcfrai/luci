@@ -15,20 +15,20 @@ is the org pool by another name. Q3 is the design's recommendation; `OD-24` acce
 by default" and nothing narrower, so the ceiling-then-budget order is **the design's, not an owner
 decision**, and this part says so where it matters.
 
-Task 01 left three things to this task: routes 76 and 77 (`task-01.md:281-282`), the caller rule
-for route 76 as a §5.10 rule 9 (`task-01.md:490-495`), and the usage day's time zone
-(`task-03.md:947-949`). Six decisions close them and the scope, so nobody re-derives them.
+Task 01 left three things to this task: routes 76 and 77 (`task-01.md:287-288`), the caller rule
+for route 76 as a §5.10 rule 9 (`task-01.md:499-504`), and the usage day's time zone
+(`task-03.md:954-956`). Six decisions close them and the scope, so nobody re-derives them.
 
 **(a) The unit is the US cent, everywhere.** LiteLLM records spend in US dollars
 (`task-06.md:319-320` on `feat/phase-6-gateway`), the Hub's quotas and `costCents` are integer
-cents (`task-03.md:892-895`, `:938`), and no exchange-rate source exists in any plan. So every
+cents (`task-03.md:899-902`, `:945`), and no exchange-rate source exists in any plan. So every
 cent in team mode is a **US** cent, and every surface says `US$`. Converting to A$ would print a
 number the gateway does not enforce. Task 37's owner line *"up to A$0.50"* (`task-37.md:51-52`)
 disagrees; it is listed in the gaps and task 67 renders `US$`.
 
 **(b) Two periods, one enforcement point.** Phase 6 enforces **monthly** person, project and team
 limits (`task-06.md:313-317`); the team policy carries **daily** member and project quotas
-(`task-03.md:892-895`). Neither replaces the other. keysmith's mint takes the least of phase 6's
+(`task-03.md:899-902`). Neither replaces the other. keysmith's mint takes the least of phase 6's
 monthly `Slice` and this task's `DaySlice`, so the tighter of the two always binds. The daily
 quotas are enforced **by keysmith at mint** (the key's `max_budget`), not by Fleet: a laptop
 session on a team project (local mode stays, OD-20) mints through the same keysmith, so a
@@ -44,7 +44,7 @@ files it under the month it was minted in: a key minted at 23:30 counts wholly a
 and at most one key TTL (one hour) of each session lands on the previous day.
 
 **(d) The org ceiling is a Hub record of its own.** Nothing in task 01's contract holds an
-org-wide number; the team policy is per project (`task-01.md:469-478`). This task adds one record
+org-wide number; the team policy is per project (`task-01.md:478-487`). This task adds one record
 per org, `OrgQuotas`, with two ceilings (per member per day, per project per day), two new routes
 80 and 81, and a contract §7.27. Its `PUT` needs `Hub.OrgAdmin` (contract `:320`); a team admin's
 `PUT` of the team policy (route 75, task 43) is refused when either quota is above the
@@ -54,7 +54,7 @@ does for turns, `task-37.md:488-491`). A per-person ceiling that differs person 
 built (see *does not claim*).
 
 **(e) Route 76's caller is the gateway's own workload identity, rule 9.** It is the third caller
-task 01 foresaw (`task-01.md:493-494`). It is admitted on exactly three routes (74 to read a team
+task 01 foresaw (`task-01.md:502-503`). It is admitted on exactly three routes (74 to read a team
 policy, 80 to read the org ceiling, 76 to post roll-ups), carries no delegation, and is never a
 principal. Routing the roll-up through Fleet instead was considered and refused: it would make
 Fleet read keysmith's spend store, and a Fleet outage would then stop the gateway from reading
@@ -63,10 +63,10 @@ the quotas it must enforce.
 **(f) "Per member and per counterpart" is served from the Hub's roll-ups, by the local control
 plane.** Task 37's `Split` serves the owner's **own** figures from Fleet, exactly. The team admin's
 view (task 67) needs **every** member's, which only the Hub holds (route 77: an A sees every row,
-an M their own, `task-01.md:496`). So `cp/internal/api/teamquotas.go` composes routes 74, 77 and
+an M their own, `task-01.md:505`). So `cp/internal/api/teamquotas.go` composes routes 74, 77 and
 80 with the Hub's agent records (task 06, for each `ag-…`'s class) into one `QuotaView`, which
 ST.8's team read model carries to the desktop. A roll-up is posted every 10 minutes for the
-current day, replacing the day's earlier post (`task-01.md:492-493`), so the view is at most 10
+current day, replacing the day's earlier post (`task-01.md:501-502`), so the view is at most 10
 minutes behind the gateway; the owner's own line from task 37 stays exact.
 
 **Files:**
@@ -124,12 +124,12 @@ minutes behind the gateway; the owner's own line from task 37 stays exact.
 - Consumes, **written against these names; where the owning task spells one differently, it
   wins and this part is renamed mechanically**:
   - task 03: `hubapi.TeamPolicy`, `Quotas`, `PutTeamPolicyRequest`, `UsageRow`,
-    `UsageRollupRequest`, `AgentStart.Role`, `AgentRoleOrchestrator` (`task-03.md:892-944`,
+    `UsageRollupRequest`, `AgentStart.Role`, `AgentRoleOrchestrator` (`task-03.md:899-951`,
     `:149-150`, `:566-579`);
   - task 43: the route-75 handler in `server/teampolicy.go` (**task 43's part is not on disk**;
     its handler name is assumed `putTeamPolicy` and is renamed mechanically);
   - task 05: the app-only branch of `auth.go` that task 01's rule 1 describes
-    (`task-01.md:114-117`; **task 05's part is not on disk**);
+    (`task-01.md:119-122`; **task 05's part is not on disk**);
   - P6-06: `budget.Limits`, `budget.Slice`, `budget.Dimension` (`task-06.md:302-341`, `:435`);
   - P6-07: `Service.mint`, `Deps.Budgets`, `Deps.Spent`, `BudgetExhaustedError`
     (`task-07.md:827-846` there);
@@ -206,7 +206,7 @@ type PutOrgQuotasRequest struct {
 var DefaultOrgQuotas = OrgQuotas{MemberDailyCeilingCents: 5000, ProjectDailyCeilingCents: 50000}
 
 // DefaultQuotas is a new team project's own quotas, inside the default
-// ceilings: task 01's example figures (task-01.md:473), PROPOSED.
+// ceilings: task 01's example figures (task-01.md:482), PROPOSED.
 var DefaultQuotas = Quotas{MemberDailyCents: 2500, ProjectDailyCents: 20000}
 
 const (
@@ -302,7 +302,7 @@ task 05's `PANACEA_APP_HUB_FLEET_CLIENT_ID`; empty means rule 9 is off and every
 refused as before. `Principal.Caller`, `CallerGateway`, `hasRole`, `s.orgOf` and `r.Pattern`
 (Go 1.23's `http.Request.Pattern`) are this hunk's names; task 05's spelling wins. `r.Pattern` is
 set only once the mux has matched, so the check holds when authentication runs inside the handler
-(task 06's `s.Write`, `task-06.md:337`); if Hub task 13 authenticates in middleware ahead of the
+(task 06's `s.Write`, `task-06.md:425`); if Hub task 13 authenticates in middleware ahead of the
 mux, the check moves into a per-route wrapper and `TestGatewayRefusedOffItsThreeRoutes` still pins
 it.
 
@@ -493,12 +493,12 @@ func (s *Server) getUsage(w http.ResponseWriter, r *http.Request) {
 
 A Fleet caller under a delegation reads as the owner, so it gets the owner's own rows even when the
 owner is an admin: an admin's breadth is a desk act, not something a delegation carries.
-`ProjectRole`'s first result, `RoleViewer` and `RoleAdmin` are task 06's call (`task-06.md:341`)
+`ProjectRole`'s first result, `RoleViewer` and `RoleAdmin` are task 06's call (`task-06.md:429`)
 with this part's names for its role values, **UNVERIFIED until merge**.
 
 #### `server/teampolicy.go`, the ceiling hunk (task 43's route-75 handler)
 
-After task 43's own range checks (every quota > 0, `task-01.md:480-481`) and before its store call:
+After task 43's own range checks (every quota > 0, `task-01.md:489-490`) and before its store call:
 
 ```go
 		ceil, err := store.OrgQuotas(r.Context(), tx, tx.P.OrgID)
@@ -1068,7 +1068,7 @@ tests prove only the number keysmith sends.
    `wire.Binding` has no such field (`task-07.md:855-857` there). Task 20's gap S20-2 adds it to the
    mint request; the binding must carry it too, or the roll-up has no counterpart.
 5. **Task 05 is not on disk.** Rule 9's hunk is written against task 01's description of the
-   app-only branch (`task-01.md:114-117`); the Hub's Entra app must also define the `Hub.Gateway`
+   app-only branch (`task-01.md:119-122`); the Hub's Entra app must also define the `Hub.Gateway`
    role, an infrastructure step for wherever phase 8 registers the Hub's Entra app
    (**UNVERIFIED** which task) that no task yet lists.
 6. **The skeleton's file map** lists only `QuotaAdmin.tsx` and task 66's phase 6 row; it has no
@@ -1098,7 +1098,7 @@ rule 9 hunk above, and one closes gap 2.
 **What replaces the rule 9 hunk.** Every name below is task 05's where task 05 has one.
 
 `hubapi` (task 03's file, two anchored hunks: the first two after `AppRoleCompliance`, the route
-names after `RoutePolicyRead`, `task-03.md:357-359`, `:388`):
+names after `RoutePolicyRead`, `task-03.md:364-366`, `:395`):
 
 ```go
 	// AppRoleGateway is the gateway's workload identity (§5.10 rule 9).
@@ -1197,7 +1197,7 @@ func (s *Server) resolveGateway(ctx context.Context, tx pgx.Tx, c Claims) (Princ
 ```
 
 `fleet_org` is `SELECT o.id FROM hub.orgs o WHERE o.entra_tenant_id = p_tenant`
-(`task-04.md:803-805`), so it serves the gateway unchanged. Route 80 registers as
+(`task-04.md:806-808`), so it serves the gateway unchanged. Route 80 registers as
 `Delegable(hubapi.RouteOrgQuotasRead, …)` and route 76 as `Delegable(hubapi.RouteUsageRollupsPost,
 …)`; route 74 is task 43's under `policy.read` (`task-43.md:254`). `Delegable` only names a route:
 Fleet still needs the name in its delegation and its class (`task-05.md:397-401`), and neither new

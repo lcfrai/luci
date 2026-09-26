@@ -316,7 +316,7 @@ type TeamLauncher struct {
 	RenewBefore time.Duration
 }
 
-// routesFor is the class's route set of task 01 (task-01.md:268-277), which
+// routesFor is the class's route set of task 01 (task-01.md:274-283), which
 // task 06's route 46 enforces. The worker set is written out; the
 // Orchestrator's is "every route name" of task 01's team table, taken from
 // task 03's hubapi constant rather than copied, so a new route cannot be

@@ -313,7 +313,7 @@ func StaleAfter(t Thread, m Stored) bool {
 func PairAllowed(sent, perHour int) bool { return sent < perHour }
 
 // Budgets is the team policy's messageBudgets (task 01 §7.24,
-// task-01.md:465-480): perPairPerHour 1..20 and roundsPerSide 1..3 tighten
+// task-01.md:474-489): perPairPerHour 1..20 and roundsPerSide 1..3 tighten
 // only; threadDeadlineMinutes 30..1440 lengthens only. The Hub already
 // refuses out-of-range values; Effective clamps again so a stale or absent
 // policy can never loosen a limit.

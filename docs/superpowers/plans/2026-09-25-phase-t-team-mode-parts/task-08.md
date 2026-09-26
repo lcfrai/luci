@@ -7,7 +7,7 @@ in-memory Hub that keeps every rule of routes 46 to 71, and the same rows prove 
 them too.
 
 1. **Route 78, `GET /v1/orgs/{orgId}/changes?after=&kinds=&limit=`**: Fleet's per-org feed (task
-   01 §7.26, `task-01.md:464-468`), beside the member feed Hub task 26 builds.
+   01 §7.26, `task-01.md:473-477`), beside the member feed Hub task 26 builds.
 2. **`hubclient`**: a `Team` interface with one method per route of tasks 06 and 07, an `OrgFeed`
    interface, and two context helpers, `WithDelegation` and `WithIdempotencyKey`. The HTTP half is
    written on Hub tasks 33 and 34's transport.
@@ -53,7 +53,7 @@ approximated.
 - `control-plane/internal/hub/server/server.go`: `s.registerOrgChanges()` (modify: one line)
 
 **Interfaces:**
-- Consumes: task 01's route 78 and §8 feed column (`task-01.md:464-504`); task 03's types (the
+- Consumes: task 01's route 78 and §8 feed column (`task-01.md:473-513`); task 03's types (the
   same list tasks 06 and 07 consume, plus `TaskQuery`, `AgentQuery`, `ConflictQuery`); tasks 06 and
   07's handlers; task 04's `fleet_feed` flag and a project's `mode`; task 05's exempt route and
   Fleet principal; Hub task 26's `store.Changes`; Hub task 33's transport (`c.do`).
@@ -209,7 +209,7 @@ func flag(v url.Values, name string, on bool) url.Values {
 `PageRequest{After, Limit}` is the built type (`hub` worktree `hubapi/types.go:201-205`). If
 Hub task 33's transport already has a page-to-query helper, `values` is replaced by it. Its test,
 in `hubapi/teamquery_test.go`: `TaskQuery{State: []TaskState{TaskActive, TaskBlocked}}.Values().Encode()`
-is `state=active&state=blocked` (`task-03.md:127-133`), and `ConflictQuery{}.Values().Encode()` is `""` (mutants: `Set`
+is `state=active&state=blocked` (`task-03.md:134-140`), and `ConflictQuery{}.Values().Encode()` is `""` (mutants: `Set`
 for `Add`, dropping the second state; `open=false` sent for a zero query, which the Hub's strict
 parse would refuse). **This is the one change task 11's map needs**, plus
 `ConflictQuery{State: "open"}` at `task-11.md:888` becoming `ConflictQuery{Open: true}`. `Teams`
@@ -256,7 +256,7 @@ func IdempotencyKeyFrom(ctx context.Context) string {
 
 The HTTP client (Hub task 33's `do`, **UNVERIFIED until merge**) gains two lines where it builds a
 request: `if dl := DelegationFrom(ctx); dl != "" { req.Header.Set(hubapi.HeaderDelegation, dl) }`
-(`"X-Panacea-Delegation"`, `task-03.md:352-353`, the constant task 05's `Authenticate` reads),
+(`"X-Panacea-Delegation"`, `task-03.md:359-360`, the constant task 05's `Authenticate` reads),
 and, for a `POST`, `IdempotencyKeyFrom(ctx)` in place of `ids.UUID()` when it is non-empty. A key
 that fails the Hub's grammar (`^[A-Za-z0-9_-]{1,64}$`, `task-14.md:103`) is refused **locally**
 with a `bad_request` `*Error` before any network call, so a malformed outbox id never costs a
@@ -287,7 +287,7 @@ helpers (`get[T]`, `post[Req, Res]`, `patch[Req, Res]`, `del`), with the path bu
 both false. Hub task 26's member query (`feed = true`) therefore already excludes every `fleet`
 kind, and route 78 reads `fleet_feed = true`. Task 04 sets both flags from the kind at append time
 (**UNVERIFIED**: task 04's part is written in parallel; if it leaves the setting to Go, this task
-adds the kind table of `task-01.md:478-499` to `store.Append`, and `TestMemberFeedHasNoFleetKinds`
+adds the kind table of `task-01.md:487-508` to `store.Append`, and `TestMemberFeedHasNoFleetKinds`
 below is what proves it either way). A `fleet` kind in the member feed would show every member
 who escalated what, which §3.4 forbids.
 
@@ -297,7 +297,7 @@ who escalated what, which §3.4 forbids.
 // control-plane/internal/hub/hubclient/fake_team.go (the exported surface)
 
 // FakeFleet is Fleet's workload identity. It is never a user and is never
-// provisioned (task-01.md:122-124); a view built by AsFleet acts as the owner of the
+// provisioned (task-01.md:127-129); a view built by AsFleet acts as the owner of the
 // delegation its context names, or, with none, may call OrgChanges only.
 var FakeFleet = FakeUser{ID: "fleet", DisplayName: "Fleet"}
 
@@ -358,18 +358,18 @@ guarded by the existing `mu`.
 | Rule | Fake behaviour | Source |
 |---|---|---|
 | Fleet names a delegation | a Fleet view with no `WithDelegation` gets 401 `delegation_required` on every method but `OrgChanges`; with one on `OrgChanges`, 400 | task 01 §5.10 rule 2 |
-| a live delegation | revoked → 401 `delegation_revoked`; past `expiresAt` → 401 `delegation_expired`; unknown → 401 `delegation_revoked`, `reason: unknown` | `task-01.md:113-119`, `:202-205` |
+| a live delegation | revoked → 401 `delegation_revoked`; past `expiresAt` → 401 `delegation_expired`; unknown → 401 `delegation_revoked`, `reason: unknown` | `task-01.md:118-124`, `:207-210` |
 | the route is listed | a method whose route name the delegation lacks → 403 `forbidden` | rule 2 |
 | a desktop never names one | a desktop view with `WithDelegation` → 403 `required: "fleet"` | rule 2 |
 | the owner is the delegation's | every record's `ownerUserId` is the delegation owner; any body field naming one does not exist in the Go types | rule 3 |
 | `ag-…` owner check | as task 06's `OwnedAgent` / `EitherAgent`, per route | rule 5 |
-| class route sets | `CreateDelegation` refuses a route outside the class set, 422 | `task-01.md:268-277` |
+| class route sets | `CreateDelegation` refuses a route outside the class set, 422 | `task-01.md:274-283` |
 | state machines | task, agent end, thread, conflict, lease `seq` and terminal states: the same 409s | tasks 06, 07 |
 | the taint rule | `AppendDirective` applies `TaintAllows`' table, over the fake's escalations | task 07 |
 | private reads | escalations, directives, human messages filtered to the caller's own; everyone's for `FakeAudrey`; thread messages to a party's owner through Fleet·O and to the auditor | task 07 |
 | title redaction | `Tasks` returns `title` and `reason.why` only to a Fleet·O view | task 06 |
 | bounds and hygiene | `teamtext.Bound` and `Clean` on every text field, `ValidGlob` on every glob, the same 422 codes | task 02 |
-| idempotency | a repeated id with an equal body replays; with a different body, 409 `conflict` | `task-01.md:180-182` |
+| idempotency | a repeated id with an equal body replays; with a different body, 409 `conflict` | `task-01.md:185-187` |
 | the org feed | every team write appends an event with task 01's flags; `OrgChanges` serves `fleet_feed` events of `team` projects and `team.member_removed`; the cursor and `latest` rules as route 78 | route 78 |
 
 The fake does **not** keep what needs Postgres: RLS across orgs (the fake has one org), the
@@ -470,7 +470,7 @@ func rowRevocationWithinOnePoll(t *testing.T, e Env) {
 	ctx := context.Background()
 	dl, err := e.Member.CreateDelegation(ctx, hubapi.CreateDelegationRequest{
 		ProjectID: e.ProjectID, Class: hubapi.DelegationClassOrchestrator,
-		Routes: []hubapi.RouteName{hubapi.RouteTasksCreate}}) // task-03.md:488-492
+		Routes: []hubapi.RouteName{hubapi.RouteTasksCreate}}) // task-03.md:495-499
 	if err != nil {
 		t.Fatal(err)
 	}

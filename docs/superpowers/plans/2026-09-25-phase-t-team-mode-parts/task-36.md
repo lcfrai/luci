@@ -86,7 +86,7 @@ tier, paths, line ranges and the two agents, and no time estimate. The decision 
     hunks, and the call `OnHunks` after each sample (**not yet written; required of task 35**);
   - task 34: ST.6's `lastCommit` with its sha and changed paths, the co-edit input
     (**not yet written; required of task 34**, see the gaps);
-  - task 06: route 57's `paths[].lines`, `≤ 20` ranges, `1 ≤ start ≤ end` (`task-06.md:203-205`);
+  - task 06: route 57's `paths[].lines`, `≤ 20` ranges, `1 ≤ start ≤ end` (`task-06.md:286-288`);
   - task 12: `server.NewSingleton(pool, name, log)` and `(*Singleton).Run`
     (`task-12.md:70`, `:588-597`);
   - task 10: `store.Store.Tx` (`task-10.md:90-91`).
@@ -216,7 +216,7 @@ func (f *Forecaster) Raise(ctx context.Context, org, project, tier string,
 //
 // Step (4), an open conflict for the pair: merge paths AND lines into the
 // working copy, and raise Strongest to tier if tier is stronger. No second
-// cf-… and no re-send: route 58 cannot patch paths or tier (task-06.md:210-215).
+// cf-… and no re-send: route 58 cannot patch paths or tier (task-06.md:293-298).
 func (f *Forecaster) raise(ctx context.Context, org, project, tier string,
 	a, b Signal, paths []string, lines map[string][]Range) (string, error)
 ```
@@ -501,7 +501,7 @@ git commit -F <msgfile> -- control-plane/internal/fleet/forecast control-plane/i
    (`task-30.md:240`); it must be `forecast.Open`'s `Strongest`, or a P conflict whose hunks later
    overlap would let `proceed-both` act without a human.
 4. **The Hub record's tier is frozen at raise time.** Route 58 cannot patch tier or paths
-   (`task-06.md:210-215`), so the Hub's `cf-…` can say `P` while Fleet knows `H`. If the audit
+   (`task-06.md:293-298`), so the Hub's `cf-…` can say `P` while Fleet knows `H`. If the audit
    trail must show the upgrade, tasks 01 and 06 need a `tier` on route 58; not added here.
 5. The design's HORIZON example carries *"~20 min"* (`05-design.md:992`); OD-27 removes it. Task
    54's part should render no estimate.

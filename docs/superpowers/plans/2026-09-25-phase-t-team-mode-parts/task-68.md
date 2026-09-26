@@ -31,8 +31,8 @@ reader outside the Hub can check, and Fleet refuses to write a land whose merge 
 names anyone but the delegation's owner.
 
 **(b) The land names its agent; the Hub derives the task and the section.** The body carries the
-worker's `ag-…`. The Hub reads that agent's record (`AgentStart.TaskID`, `task-03.md:566-579`) and
-that task's `Reason.BriefRef` (`task-03.md:497-500`), inside the write's transaction. A land
+worker's `ag-…`. The Hub reads that agent's record (`AgentStart.TaskID`, `task-03.md:573-586`) and
+that task's `Reason.BriefRef` (`task-03.md:504-507`), inside the write's transaction. A land
 therefore cannot claim a task or a brief section its agent did not serve. A lane whose agent had no
 task lands with `taskId: null` and `briefRef: null`, and the release says so rather than guess.
 
@@ -87,9 +87,9 @@ absence.
   - Hub task 23: `store.Reserve(ctx, tx, projectID, req) (hubapi.Release, error)` and its pin step
     (`phase-h-hub-parts/task-23.md:12-15`; the function name is **UNVERIFIED**);
   - task 03: `AgentStart.TaskID`, `Task.Reason.BriefRef`, `ValidSha`, `ValidBranchRef`,
-    `ValidID`, the prefix block (`task-03.md:497-515`, `:566-579`, `:459-460`, `:1400-1417`);
+    `ValidID`, the prefix block (`task-03.md:504-522`, `:573-586`, `:466-467`, `:1458-1475`);
   - task 06: `s.Write`, `RequireFleet`, `ProjectRole`, `OwnedAgent`, `Refuse`, `tx.Emit`
-    (`task-06.md:335-368`);
+    (`task-06.md:423-456`);
   - task 11: the outbox's `Enqueue` (the durable Hub write path; name **UNVERIFIED** against
     task 11's part);
   - task 61: the entry's `pushed` → verified transition (`task-61.md:58-63`), the lane's worker
@@ -593,9 +593,9 @@ with a direct Hub call and says so.
 **One hunk this part missed.** Naming a route is not enough. Task 05's `resolveDelegated` admits
 a Fleet call only when the name is in the delegation's routes **and** its class allows it
 (`task-05.md:397-401`), and task 06 refuses to create a delegation whose routes exceed its
-class's set, `hubapi.ClassRoutes` (`task-03.md:399-412`). Without the hunk below, task 21 cannot
+class's set, `hubapi.ClassRoutes` (`task-03.md:406-419`). Without the hunk below, task 21 cannot
 create a delegation that lists `lands.record`, and every Fleet call to routes 82 and 83 is 403.
-`Fleet·O` in rows 82–83 is Fleet under an `orchestrator`-class delegation (`task-01.md:246-247`),
+`Fleet·O` in rows 82–83 is Fleet under an `orchestrator`-class delegation (`task-01.md:252-253`),
 so both names join that class's set, and **not** `workerRoutes`: a worker never records a land,
 the queue does, in its owner's name.
 

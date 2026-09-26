@@ -201,7 +201,7 @@ type Outcome struct {
 4. Apply, per kind (below), writing every lease event through task 23's `leaseEvent`.
 5. Close: thread → `resolved` (route 61, `OpThreadPatch`); conflict → `resolved` with the
    resolution for `yield` and `sequence`, `accepted` with `proceed-both` for `proceed-both`
-   (route 58, `OpConflictPatch`, `task-06.md:210-215`).
+   (route 58, `OpConflictPatch`, `task-06.md:293-298`).
 6. Write `DecidedWithoutYou`'s two items (`OpEscalation`), and a `thread.resolved` event (task
    26's kind, immediate) for the proposer's Orchestrator, which must now direct its workers; the
    acceptor is mid-turn and sees the `Outcome` in its `peer` result.

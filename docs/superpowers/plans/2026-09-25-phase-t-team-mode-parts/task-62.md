@@ -226,7 +226,7 @@ in `rules.go` over it.
 |---|---|---|---|
 | `counter` | `thread`, `proposal` (a live `propose`·`counter` of this thread by the **other** side), `resolution` | `to`, `subject`, `inReplyTo` | optional rationale, ≤ 600 |
 | `split` | `sides`: exactly the two participants as keys, each 1 to `MaxGlobs` globs, each `ValidGlob`; a conflict thread | `globs`, `first`, `paths`, `base` | — |
-| `build-on` | `base`: a participant; a conflict thread whose base-side party has a lane (a non-empty `Agent.LaneRef`, `task-03.md:560`) | `globs`, `first`, `paths`, `sides` | — |
+| `build-on` | `base`: a participant; a conflict thread whose base-side party has a lane (a non-empty `Agent.LaneRef`, `task-03.md:567`) | `globs`, `first`, `paths`, `sides` | — |
 
 New codes, joining task 09's ST.1 list: `split_not_a_partition` (details: `paths`, the uncovered
 or doubly-covered ones), `build_on_no_lane`, `counter_own_proposal`. `resolution_not_held` and

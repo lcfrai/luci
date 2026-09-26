@@ -162,7 +162,7 @@ var StreamEnums = map[string][]string{
 	"evidence.recorded":     {"verdict"},                            // §8
 	"auth.user_provisioned": {"tenantId"},                           // §8: a GUID
 	"auth.forbidden":        {"required"},                           // §8: a role name
-	"delegation.revoked":    {"reason"},                             // task 01: RevokeReason, task-03.md:110-115
+	"delegation.revoked":    {"reason"},                             // task 01: RevokeReason, task-03.md:117-122
 }
 
 // enumValue is the grammar an allowed string must also match: a lowercase

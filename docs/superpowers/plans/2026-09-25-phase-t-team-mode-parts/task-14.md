@@ -16,8 +16,8 @@ So there are two append-only records, and they answer two questions:
 | rendered version | `(org, project, class, version)` | *which exact file governed this agent* | task 10's `fleet.policy_versions` (`task-10.md:345-355`), `store.PolicyVersion` |
 
 The agent start (task 06) carries `policy: {version, digest}` (`hubapi.PolicyRef`,
-`task-03.md:548-551`; `task-06.md:162`), and the `agent.started` event records `policyVersion`
-(`task-06.md:240`). Here `version` is the **rendered** version for the agent's `(org, project,
+`task-03.md:555-558`; `task-06.md:189`), and the `agent.started` event records `policyVersion`
+(`task-06.md:323`). Here `version` is the **rendered** version for the agent's `(org, project,
 class)` and `digest` is `sha256:` of its exact bytes, so *"which policy governed this agent"* is
 answered from the Hub by the digest, and Fleet's rendered row (whose body *is* those bytes, and
 which records the two layer ids it was rendered from) turns it back into *which admin wrote which
@@ -45,7 +45,7 @@ The skeleton has the event go through Fleet's outbox, but an outbox write needs 
 none: delegations are made at launch, per project and class. Fleet writing in its own name would
 need a second exemption from the delegation rule, which task 01 reserves for a second amendment
 (`task-01.md:26-29`), and would put the author in a request body, which task 01 rule 4 forbids
-(`task-01.md:125-129`). So the order is:
+(`task-01.md:130-134`). So the order is:
 
 1. the admin's client `POST`s the layer to Fleet; Fleet validates, stores it **pending**, and
    answers `{id: "pv-…", scope, projectId, seq, digest}`;
@@ -60,7 +60,7 @@ need a second exemption from the delegation rule, which task 01 reserves for a s
 Only active layers render. **No policy governs any agent unless the Hub holds its audit event and
 its author**, which is a stronger statement than an outbox could make, and needs no exemption.
 This is a deviation from the skeleton, recorded as a gap: route 80 is not in task 01's §7.0 team
-table, whose last row is 79 (`task-01.md:284`). The admin's client in TM1-α is task 33's script;
+table, whose last row is 79 (`task-01.md:290`). The admin's client in TM1-α is task 33's script;
 **no admin view for policy is in this plan** (task 67 is quotas only), which is a second gap.
 
 **Files:**
@@ -83,7 +83,7 @@ table, whose last row is 79 (`task-01.md:284`). The admin's client in TM1-α is 
   - task 10 — `store.Store`, `store.Tx`, `Store.Tx(ctx, fn)`, `Store.CurrentPolicy`, `Tx.PutPolicy`, `store.PolicyVersion` (`task-10.md:204-214`), `store.ErrConflict`, `store.ErrNotFound`, `memstore.New`
   - task 12 — `server.Server.Route`, `server.Handler`, `server.Principal`, `server.VerbOrgPolicy`, `server.VerbProjectPolicy`, `httpx.WriteProblem`
   - task 11 — `(*delegation.Feed).Also`, and the kind added to `main.go`'s `kinds`
-  - task 06 — the Hub write shape: `server.RequireDesktop(p)` (`task-06.md:267`), the §10.6 transaction, one audit event per write
+  - task 06 — the Hub write shape: `server.RequireDesktop(p)` (`task-06.md:355`), the §10.6 transaction, one audit event per write
   - Hub, built — `ids.Wide` (`internal/ids/ids.go:61`), `hubapi.Me.OrgAdmin` (`hubapi/types.go:209-213`)
 - Consumed by: task 20 (`Effective` at every agent start; its `Version` and `Digest` go into the agent start's `policy`, its `Body` into task 15's Secret), task 33 (the scripted policy change), task 41.
 
@@ -599,7 +599,7 @@ second case.
 
 #### The Hub delta: route 80, complete wire
 
-Built on the Hub branch after its sync-merge, in task 06's handler shape (`task-06.md:318-360`:
+Built on the Hub branch after its sync-merge, in task 06's handler shape (`task-06.md:406-448`:
 `s.Write`, caller class first, then the scope, then the body). It is a **write of an audit event
 and nothing else**, like task 07's orchestrator turns: the Hub keeps no policy record, because
 the bytes are Fleet's and the Hub's job is *who, when, which digest*.
@@ -669,7 +669,7 @@ func (s *Server) recordPolicyVersion(w http.ResponseWriter, r *http.Request) {
 ```
 
 `tx.P.OrgID`, `tx.P.OrgAdmin`, `tx.Now` and `ProjectRole`'s three results are the Hub's names as
-task 06 uses them (`task-06.md:338-345`); the Principal fields are Hub task 13's, **UNVERIFIED
+task 06 uses them (`task-06.md:426-433`); the Principal fields are Hub task 13's, **UNVERIFIED
 until merge**. The request and record types go in task 03's `hubapi/team.go`:
 
 ```go

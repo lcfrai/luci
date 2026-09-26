@@ -96,8 +96,8 @@ program are added here, under task 33's `infra/smoke/team/` and Fleet's tree, an
 - Consumes, **written against these names; where the owning task spells one differently, it
   wins and this part is renamed mechanically**:
   - task 03: `hubapi.AgentStart`, `Conflict`, `Thread`, `Message`, `Escalation`, `Directive`,
-    `TurnOrigin`, `EscalationKind` (`task-03.md:566-829`);
-  - task 01: routes 55, 59, 63, 66, 68, 71 and their auditor rows (`task-01.md:260-276`);
+    `TurnOrigin`, `EscalationKind` (`task-03.md:573-836`);
+  - task 01: routes 55, 59, 63, 66, 68, 71 and their auditor rows (`task-01.md:266-282`);
   - task 29: the DECIDED WITHOUT YOU template prefix (`task-29.md:296`);
   - phase 6 tasks 09 and 12: the usage row's person, project, agent and counterpart tags, and the
     gatekeeper's `slog` line (`session`, `project`, `route`, `path`, `status`, `ms`,
@@ -314,7 +314,7 @@ func fail(v Verdict, why string) Verdict { v.Result, v.Why = Fail, why; return v
 ```
 
 `c1`'s `!Before` makes a conflict raised in the same instant as a spawn a failure: "before" is
-strict. The constants are task 03's (`task-03.md:150`, `:210`, `:218-229`, `:259`).
+strict. The constants are task 03's (`task-03.md:157`, `:217`, `:225-236`, `:266`).
 
 ```go
 // c2: settled by yield or sequence; an agent inform to one person, a decide to
@@ -737,7 +737,7 @@ holds two people's agents' words.
 **Gaps found in the skeleton and in sibling parts:**
 1. The file map lists only the record for task 57; the collector, run script and `proof` package
    are added here.
-2. Task 01's route table has no thread list route (`task-01.md:265-268`); the collector finds
+2. Task 01's route table has no thread list route (`task-01.md:271-274`); the collector finds
    thread ids from conflicts, escalations and the audit route.
 3. Phase 6 task 09 must export raw usage rows **with** their `agent`, `class` and `counterpart`
    tags, not only rollups by person, project and team.

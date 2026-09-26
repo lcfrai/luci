@@ -62,7 +62,7 @@ not the directory).
 **The digest is of the exact bytes Claude Code reads.** `Render` produces canonical JSON (keys
 sorted at every depth, no insignificant whitespace, numbers kept verbatim, one trailing newline),
 and the digest is `sha256:` + the lower-case hex SHA-256 of those bytes, the form task 06's agent
-start already carries (`task-06.md:139`). Task 15 mounts those bytes unchanged and passes the
+start already carries (`task-06.md:166`). Task 15 mounts those bytes unchanged and passes the
 digest as `PANACEA_APP_POLICY_SHA256`; `sandboxd` recomputes it over the mounted file. Rendering is
 deterministic: the same layers give the same bytes on every replica and every run.
 

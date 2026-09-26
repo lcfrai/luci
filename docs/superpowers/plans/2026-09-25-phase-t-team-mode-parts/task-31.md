@@ -23,9 +23,9 @@ may be issued, and rung 1 of delivery. Three properties carry the injection fenc
 **Decisions made here.**
 
 **(a) The five typed kinds pass in a Fleet-started turn, not three.** Design §7.2 item 2
-(`05-design.md:807-809`), the skeleton's scope, task 01's contract §7.20 (`task-01.md:440`: "The
+(`05-design.md:807-809`), the skeleton's scope, task 01's contract §7.20 (`task-01.md:449`: "The
 typed five (`pause`, `resume`, `narrow`, `wait-for`, `rebase`) pass") and task 03's
-`DirectiveKind.Typed()` (`task-03.md:341-343`) all say five. Task 07's Hub copy of the rule,
+`DirectiveKind.Typed()` (`task-03.md:348-350`) all say five. Task 07's Hub copy of the rule,
 `fleetTurnVerbs` (`task-07.md:205-209`), lists three and its table test expects `resume` and
 `rebase` from a Fleet turn to be 403 (`task-07.md:292-293`). Fleet follows the design. **Raised as
 gap G31-1**: until task 07 widens its set to `Typed()`, a Fleet-turn `resume` or `rebase` goes
@@ -144,7 +144,7 @@ G31-3**: task 22's method is renamed `InForce`, its comment changed; its key and
     (`task-02.md:843`)
 - Requires of **task 07**: `fleetTurnVerbs` = the five typed kinds (G31-1); a decide's optional
   `evidence` object on route 64 (G31-2); route 67's body carrying task 01's `params`
-  (`task-01.md:431-432`), which task 07's shape (`task-07.md:160-166`) omits (G31-5).
+  (`task-01.md:440-441`), which task 07's shape (`task-07.md:160-166`) omits (G31-5).
 - Requires of **task 10**: the tables below in both stores and the suite, and `OutboxMarkSent`
   setting `directive_queue.hub_at = at WHERE outbox_id = id` in the same transaction.
 - Requires of **task 30**: `Effect{Kind: "send-held"}` and, in `OnAnswered`, `Held.Release(ctx,
@@ -570,7 +570,7 @@ is task 07's.
 - **G31-4.** Task 30's `Effect.Kind` list (`task-30.md:334-335`) has no `send-held`, and
   `OnAnswered` has no hook to release a held act.
 - **G31-5.** Task 07's route 67 body (`task-07.md:160-166`) omits task 01's `params`
-  (`task-01.md:431-432`), so a `narrow`'s globs and a `wait-for`'s lease have no Hub field. This
+  (`task-01.md:440-441`), so a `narrow`'s globs and a `wait-for`'s lease have no Hub field. This
   task sends `params` per task 01.
 - **Skeleton.** The scope paragraph lists "a new task … or abandoning the task" but not a new
   worker; this task treats `worker spawn` in a Fleet turn as held too, because its opening prompt

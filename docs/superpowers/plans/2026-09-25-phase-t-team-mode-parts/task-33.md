@@ -107,7 +107,7 @@ files; nothing in it is typed from memory.
 | Id | Check | How it is observed | Script |
 |---|---|---|---|
 | M0 | The project becomes `team` only through its writer: Bob (member) is refused, Alice (admin) moves it once, one `project.mode_set` by Alice on Fleet's feed (fix batch b01, X-C1) | task 21's team-mode route per person, the Hub audit through `hubids`, Fleet's route 78 as the operator | 05 |
-| M1 | Each person's first team launch yields one Orchestrator and one worker, `ag-…` ids, the owner's labels on both pods | Fleet's `GET /v1/agents` per person (task 21's route, `task-21.md:84`) and the broker's list as the operator | 10 |
+| M1 | Each person's first team launch yields one Orchestrator and one worker, `ag-…` ids, the owner's labels on both pods | Fleet's `GET /v1/agents` per person (task 21's route, `task-21.md:89`) and the broker's list as the operator | 10 |
 | M2 | The overlapping plan raises a tier-P conflict **before** either task's worker exists | the `cf-…` record's `createdAt` is earlier than any `agents.start` whose `task` is Alice's or Bob's new task, both read from the Hub's audit feed | 20 |
 | M3 | `sequence` settles it with typed state only: Bob's overlapping lease demoted to `intent`, one land hint, the thread `resolved`, nothing else moved | Fleet's leases before and after (a diff of the whole project's leases), the Hub thread record | 30 |
 | M4 | Both humans get the DECIDED WITHOUT YOU inform; Bob gets the taint decide; Alice gets no decide; neither can read the other's escalation | each person's escalation list through the desktop (E3); Alice's `GET` of Bob's `es-…` answers not-found or forbidden as task 07 fixes (`task-07.md:153-155`) | 30 |
@@ -331,7 +331,7 @@ already holds the team client there) or an early slice of task 52:
 ```
 
 Each is a pass-through: the local control plane adds nothing, and a Hub error is relayed with its
-own code (task 21's `a.relayHub`, `task-21.md:449-451`). `evidence` is task 31's G31-2 field. Until
+own code (task 21's `a.relayHub`, `task-21.md:498-500`). `evidence` is task 31's G31-2 field. Until
 they exist, E3 is unmet and the verdict is BLOCKED.
 
 #### The record's template (complete) — `docs/verification/2026-09-25-phase-t-alpha-results.md`

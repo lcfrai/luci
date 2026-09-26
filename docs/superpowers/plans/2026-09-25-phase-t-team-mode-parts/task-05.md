@@ -36,7 +36,7 @@ straight after `Validate`: a desktop token carrying `X-Panacea-Delegation` is 40
 not a `dl-` id is 401 `delegation_revoked`, `reason: "unknown"`, the answer an unknown id gets, so
 the format is no oracle. **One route is exempt by exact match**: `GET` on a path whose segments are
 exactly `v1`, `orgs`, one id, `changes`. There Fleet must send **no** header (400 `bad_request`,
-`field: "X-Panacea-Delegation"`, `task-08.md:195-196`), because the feed is not an owner's act.
+`field: "X-Panacea-Delegation"`, `task-08.md:202-203`), because the feed is not an owner's act.
 
 **(c) The delegation is resolved where the principal is: the first statement of the
 transaction.** Hub task 14's `Write` and `Read` begin with `store.ResolvePrincipal`
@@ -50,7 +50,7 @@ exactly as it follows `ResolvePrincipal` today, so row-level security is unchang
 registers through `Delegable(name, handler)`, which puts its `hubapi.RouteName` in the request
 context; `resolveCaller` reads it back with `RouteFrom`. A route registered without `Delegable` has
 no name, and Fleet calling it is 403 `forbidden`, `required: "route"`: this is how routes 46 to 49
-stay the owner's own (`task-06.md:102-104`). A delegation that does not list the named route is 403
+stay the owner's own (`task-06.md:123-125`). A delegation that does not list the named route is 403
 `forbidden`, `required: <the route name>`.
 
 **(e) The principal is the owner, with less than the owner's token would carry.** `UserID`, `OrgID`,
@@ -117,14 +117,14 @@ reads `expires_at` back.
   `server.DelegationView`; `Principal.Via`, `Principal.DelegationID`, `Principal.Delegation`
   (a value, zero for a desktop caller); `store.FleetDelegation`, `store.FleetDelegationRow`,
   `store.ErrDelegationUnknown`, `store.FleetOrg`, `store.AgentOwnedBy(ctx, tx, agentID, userID)
-  (bool, error)` (the signature task 06 consumes, `task-06.md:65`); `store.AuditRow.Via`,
+  (bool, error)` (the signature task 06 consumes, `task-06.md:82`); `store.AuditRow.Via`,
   `store.AuditRow.DelegationID`; `devissuer.Client.{Confidential,AppRoles,ServicePrincipalOID}`,
   `(*Issuer).MintAppToken`; the variable `PANACEA_APP_HUB_FLEET_CLIENT_ID`.
 - Consumes: task 03's `HeaderDelegation`, `AppRoleFleet`, `ViaFleet`, `RouteName`,
-  `DelegationClass`, `RevokeReason`, `ValidID`, the five codes of `task-03.md:1433-1437`,
-  `AuditEnvelope.Via` and `.DelegationID` (`task-03.md:1329-1336`); task 04's
-  `fleet_delegation(uuid, text)` and `fleet_org(uuid)` (`task-04.md:803-829`) and `agents`
-  (`task-04.md:325-341`); Hub task 13's `Authenticate`, `Claims`, `ClaimsFrom`, the limiter;
+  `DelegationClass`, `RevokeReason`, `ValidID`, the five codes of `task-03.md:1491-1495`,
+  `AuditEnvelope.Via` and `.DelegationID` (`task-03.md:1387-1394`); task 04's
+  `fleet_delegation(uuid, text)` and `fleet_org(uuid)` (`task-04.md:806-832`) and `agents`
+  (`task-04.md:328-344`); Hub task 13's `Authenticate`, `Claims`, `ClaimsFrom`, the limiter;
   Hub task 14's `Principal`, `Tx`, `Read`, `Write`, `Forbidden`, `Refuse`, `AuditRow`, `Append`;
   Hub tasks 11–12's `Config`, `Client`, `/token`; Hub task 08's `cmd/hub/config.go`. All Hub
   parts are **planned** (**UNVERIFIED until merge**).
@@ -432,7 +432,7 @@ func auditRow(p Principal, at time.Time, e Event) store.AuditRow {
 
 On the feed `p.Via` is `fleet` and `p.DelegationID` is `""`. The feed is a read and writes no
 event; if it ever did, `AuditEnvelope.check()` refuses `via` without `delegationId`
-(`task-03.md:1336`), so the write fails closed with 500, never a v2 event with no delegation.
+(`task-03.md:1394`), so the write fails closed with 500, never a v2 event with no delegation.
 
 **`store`, the three lookups and the audit row.**
 
@@ -454,7 +454,7 @@ import (
 // another tenant's. The server answers both 401 delegation_revoked, "unknown".
 var ErrDelegationUnknown = errors.New("store: delegation unknown to this tenant")
 
-// FleetDelegationRow is task 04's fleet_delegation row (task-04.md:815-818).
+// FleetDelegationRow is task 04's fleet_delegation row (task-04.md:818-821).
 type FleetDelegationRow struct {
 	OrgID, OwnerUserID, ProjectID string
 	Class                         hubapi.DelegationClass
@@ -517,7 +517,7 @@ func AgentOwnedBy(ctx context.Context, tx pgx.Tx, agentID, userID string) (bool,
 
 `store.AuditRow` (Hub task 14, `task-14.md:159-168`) gains, after `Data`, `Via string` and
 `DelegationID string`, and `Append` copies both onto the `hubapi.AuditEnvelope` it builds. It adds
-no check of its own: the envelope's `check()` is the one rule (`task-03.md:1336-1341`).
+no check of its own: the envelope's `check()` is the one rule (`task-03.md:1394-1399`).
 
 **`devissuer`, the client-credentials grant (decision i; ADR-H1 §5.10 rule 8).** Hub task 11's
 `Client` (`task-11.md:92-95`) gains three fields; the grant is a third row of Hub task 12's
@@ -673,7 +673,7 @@ func registerFleetTestRoutes(s *Server, mux *http.ServeMux) {
 
 `writeError`, `WriteJSON` and `Decode` stand for Hub task 14's helpers (`task-14.md:130-138`); the
 implementer uses whatever names the merged `tx.go` has (**UNVERIFIED until merge**).
-`task.created` is a real team kind (`task-04.md:243`), so the row passes task 04's kind check.
+`task.created` is a real team kind (`task-04.md:245`), so the row passes task 04's kind check.
 
 #### Tests to write first
 
@@ -687,7 +687,7 @@ implementer uses whatever names the merged `tx.go` has (**UNVERIFIED until merge
 | `TestDelegatedTokenUnchanged` | with `AppCallers` set, the rejections of `entra_test.go:291-333` (unlisted client, scope match, app-only desktop) are unchanged and a desktop token has `AppOnly` false | a branch that skips the `scp` check for every token once `AppCallers` is set |
 | `TestAppCallerConfigIsChecked` | `New` refuses a non-GUID client id, an empty role, and a client id that is also an allowed client **in another case** (`AB…` against `ab…`) | decision (h) dropped, or compared before `normGUID` |
 | `TestDelegationHeaderRules` (`delegation_test.go`) | the table below, through `delegationHeader` | each row's mutant is named in the table |
-| `TestIsFeedPathIsExact` | `GET /v1/orgs/org-x/changes` true; `POST` it false; `/v1/orgs/org-x/changes/`, `/v1/orgs//changes`, `/v1/orgs/org-x/changes/extra`, `/v1/orgs/org-x/projects`, `/v1/projects/p/changes` false | a prefix match, which exempts every `/v1/orgs/…` route (`task-08.md:387`) |
+| `TestIsFeedPathIsExact` | `GET /v1/orgs/org-x/changes` true; `POST` it false; `/v1/orgs/org-x/changes/`, `/v1/orgs//changes`, `/v1/orgs/org-x/changes/extra`, `/v1/orgs/org-x/projects`, `/v1/projects/p/changes` false | a prefix match, which exempts every `/v1/orgs/…` route (`task-08.md:429`) |
 | `TestUserKeyIsPerDelegation` | desktop → `tid/oid`; Fleet under `dl-a` and `dl-b` → two keys; the feed → `fleet/feed` | Fleet keyed on `tid/oid`, one bucket for every member |
 | `TestRouteFromIsDelegablesName` | inside `Delegable(RouteTasksRead, h)` → `(tasks.read, true)`; a bare handler → `("", false)` | `RouteFrom` defaulting to a name |
 | `TestAppOnlyClaimsCarryNoAdmin` (`auth_test.go`) | a fake validator's `AppOnly` claims with `roles` ∋ `Hub.OrgAdmin` → `server.Claims.OrgAdmin` false, `Name`, `Email`, `BindEmail` "" | `OrgAdmin` read from an app token's roles |
@@ -797,7 +797,7 @@ returns the status and the decoded problem (Hub task 03's `Problem`).
   `resolveDelegated`, `!now.Before(d.ExpiresAt)` → `now.After(d.ExpiresAt)`: expect
   `TestExpiredDelegationIs401` to fail; (2) delete `resolveCaller`'s `c.FleetFeed` case, so the
   feed falls into `resolveDelegated` with an empty id: expect `TestFeedRouteTakesNoHeader` to
-  fail (the tenant join itself is task 04's mutant, `task-04.md:867`); (3) `userKey` returns `tid/oid` for Fleet:
+  fail (the tenant join itself is task 04's mutant, `task-04.md:870`); (3) `userKey` returns `tid/oid` for Fleet:
   expect `TestFleetBucketsArePerDelegation` to fail; (4) `auditRow` omits `Via`: expect
   `TestDelegatedWriteIsV2` and `TestUnlistedRouteIs403` to fail.
 - [ ] **Step 9: Whole suite, vet, format, commit.** The acceptance commands below, then
@@ -858,7 +858,7 @@ built test that sends one to prove it is ignored.
 
 #### Gaps (raised in this task's return)
 
-1. `task-06.md:392-394`'s `fleetP` builds `DelegationView{Class: hubapi.AgentRole, Routes:
+1. `task-06.md:480-482`'s `fleetP` builds `DelegationView{Class: hubapi.AgentRole, Routes:
    []string}`; this part's fields are task 03's `hubapi.DelegationClass` and
    `[]hubapi.RouteName`. Task 06 renames mechanically, as its `:440` allows.
 2. `task-17.md:107` and `:236` put its three `entra` tests in `verify_test.go`, which the built package
@@ -869,7 +869,7 @@ built test that sends one to prove it is ignored.
    row: Fleet's token from Entra has `azp`, `oid`, `roles ∋ Hub.Fleet` and no `scp`.
 4. **Multi-tenant Fleet is unplanned.** `fleetd`'s token cache is keyed on scope alone (Not
    claimed, last item); a Fleet that serves two customer tenants needs a token per tenant.
-5. *Resolved in task 01:* §5.10 rule 1 now reads "a token with no `scp`" (`task-01.md:116`).
+5. *Resolved in task 01:* §5.10 rule 1 now reads "a token with no `scp`" (`task-01.md:121`).
    Still open: `task-66.md:143`'s rule 9 ("the gateway caller") says "a token whose `idtyp` is
    `app`"; it should read "a token with no `scp`", or the Hub and its contract disagree.
 6. Task 07's `Principal.Auditor` must be false under a delegation, as `OrgAdmin` is (decision e);

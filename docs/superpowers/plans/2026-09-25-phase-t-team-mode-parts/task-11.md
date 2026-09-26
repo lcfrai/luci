@@ -38,7 +38,7 @@ Hub makes the delegation's owner the actor (task 05). So `delegation.Client` hol
 delegations keyed by *(org, owner, project)*, and every call it makes goes out under one: the
 context carries the `dl-…` (task 08's `hubclient.WithDelegation`), and the call fails locally with
 `ErrNoDelegation` before any network if the cache has none, or `ErrRouteNotDelegated` if the
-delegation does not list the route name (task 01's §7.0 team table, `task-01.md:226-273`). Exactly
+delegation does not list the route name (task 01's §7.0 team table, `task-01.md:231-279`). Exactly
 one call names no delegation: the per-org feed read, exempt by name (`task-01.md:26-29`). Records
 Fleet itself authors — a conflict, a thread, a Fleet escalation — still go out under the delegation
 of the owner the record is **first about** (`task-01.md:31-36`), so the outbox has no
@@ -84,10 +84,10 @@ own (task 10), and task 01's table has no thread list route either.
   - `delegation.HubState`, `delegation.Rebuild`
 - Consumes:
   - task 10 — `store.Store` and its `Tx(ctx, func(store.Tx) error) error`; the outbox methods `OutboxHeads`, `OutboxMarkSent`, `OutboxMarkRetry`, `OutboxMarkDead`, `OutboxFailingSince`, `OutboxDeleteSentBefore`, `Tx.AppendOutbox(ctx, store.OutboxRow)`, `store.OutboxRow`, `Store.DelegationsInUse(ctx) ([]store.DelegationUse, error)` (`task-10.md:95-110,146-170,196-202`). Task 10 is built first and does not import `outbox` (`task-10.md:562-567`), so **this task's `store.go` files convert**: `outbox.StoreQueue`, `outbox.TxAppender` and `delegation.StoreInUse`, below
-  - task 08 — `hubclient.Team` (one method per task 06–07 route), `hubclient.OrgFeed` with `OrgChanges(ctx, org, after string, kinds []string, limit int) (hubapi.ChangesPage, error)` (the per-org twin of the built `Feed.Changes`, `hubclient.go:96-99`; `hubapi.Event` and `hubapi.ChangesPage` are built, `hubapi/types.go:536-551`), `Team.Delegation(ctx, id) (hubapi.Delegation, error)` (route 47, `delegations.read`), `Team.Tasks(ctx, projectID, hubapi.TaskQuery) (hubapi.Page[hubapi.Task], error)` (route 52; `TaskQuery{State []TaskState; hubapi.PageRequest}`, `task-08.md:94,137-139`, where task 08 names this change), `Team.Conflicts(ctx, projectID, hubapi.ConflictQuery) (hubapi.Page[hubapi.Conflict], error)` (route 59; `ConflictQuery{State string; hubapi.PageRequest}` from task 03), `hubclient.WithDelegation(ctx, dl string) context.Context`, `hubclient.WithIdempotencyKey(ctx, key string) context.Context`, and the fake's team half
-  - task 09 — `model.Owner`, `model.Class`. **Assumed:** `model.Owner` is a string type holding the Hub user id (`us-…`), because every Hub team record names its owner that way (`task-06.md:84,111`); if task 09 makes it `(tid, oid)`, `FromHub` and the feed's decode are the two places that change
-  - task 03 — `hubapi.Delegation` (`ID`, `OrgID`, `OwnerID`, `ProjectID`, `Class`, `Routes`, `ExpiresAt`, `RevokedAt`, as `task-06.md:84-86` shows the wire), the list types for tasks, threads and escalations, and the feed kinds `delegation.created`, `delegation.renewed`, `delegation.revoked`
-  - task 01 — the delegable route names (`task-01.md:226-261`), the class route sets (`:267-273`), the one exempt route (`:26-29`), "first about" for Fleet-authored records (`:31-36`), and the codes `delegation_required`, `delegation_revoked`, `delegation_expired`
+  - task 08 — `hubclient.Team` (one method per task 06–07 route), `hubclient.OrgFeed` with `OrgChanges(ctx, org, after string, kinds []string, limit int) (hubapi.ChangesPage, error)` (the per-org twin of the built `Feed.Changes`, `hubclient.go:96-99`; `hubapi.Event` and `hubapi.ChangesPage` are built, `hubapi/types.go:536-551`), `Team.Delegation(ctx, id) (hubapi.Delegation, error)` (route 47, `delegations.read`), `Team.Tasks(ctx, projectID, hubapi.TaskQuery) (hubapi.Page[hubapi.Task], error)` (route 52; `TaskQuery{State []TaskState; hubapi.PageRequest}`, `task-08.md:101,137-139`, where task 08 names this change), `Team.Conflicts(ctx, projectID, hubapi.ConflictQuery) (hubapi.Page[hubapi.Conflict], error)` (route 59; `ConflictQuery{State string; hubapi.PageRequest}` from task 03), `hubclient.WithDelegation(ctx, dl string) context.Context`, `hubclient.WithIdempotencyKey(ctx, key string) context.Context`, and the fake's team half
+  - task 09 — `model.Owner`, `model.Class`. **Assumed:** `model.Owner` is a string type holding the Hub user id (`us-…`), because every Hub team record names its owner that way (`task-06.md:105,111`); if task 09 makes it `(tid, oid)`, `FromHub` and the feed's decode are the two places that change
+  - task 03 — `hubapi.Delegation` (`ID`, `OrgID`, `OwnerID`, `ProjectID`, `Class`, `Routes`, `ExpiresAt`, `RevokedAt`, as `task-06.md:105-107` shows the wire), the list types for tasks, threads and escalations, and the feed kinds `delegation.created`, `delegation.renewed`, `delegation.revoked`
+  - task 01 — the delegable route names (`task-01.md:231-267`), the class route sets (`:273-279`), the one exempt route (`:26-29`), "first about" for Fleet-authored records (`:31-36`), and the codes `delegation_required`, `delegation_revoked`, `delegation_expired`
   - Hub (built) — `hubclient.Error{Status, Problem, RetryAfter}`, `hubclient.ErrUnavailable` and `hubclient.Code` (`hub/hubclient/hubclient.go:111-135` on `feat/hub`); `hubclient.TokenSource` (`:19-20`); `ids.Wide` (`internal/ids/ids.go:61`)
 - Amends: **the hubclient's own fresh key per call** (`hub-contract.md:1345`: "a fresh `Idempotency-Key` (UUID, `ids.UUID()`) on every `POST`, reused across its own retries") is right for a desktop and wrong for an outbox, whose retries span process restarts. `WithIdempotencyKey` overrides it for one call. If task 08's part does not add it, this task adds it to `hubclient/client.go`, eight lines, and says so in its commit.
 
@@ -115,7 +115,7 @@ import (
 )
 
 // Op is the Hub route an Item is delivered to, spelled as task 01's
-// delegable route name (task-01.md:226-261), so the Sender's route check and
+// delegable route name (task-01.md:231-267), so the Sender's route check and
 // the Hub's are the same string. Only write routes appear; reads never queue.
 type Op string
 
@@ -535,17 +535,17 @@ var deliverers = map[outbox.Op]deliverer{
 **The shape this consumes from task 08, stated so task 08 can match it.** `call` takes a method
 expression of the form `func(hubclient.Team, context.Context, projectID, subjectID string, req Req)
 (Res, error)`. Every task 06–07 write route has a project in its path and at most one record id
-after it (`task-01.md:233-252`: `/v1/projects/{p}/tasks/{tk}`, `…/agents/{ag}/end`,
+after it (`task-01.md:238-258`: `/v1/projects/{p}/tasks/{tk}`, `…/agents/{ag}/end`,
 `…/leases/{ls}/events`, …), so one uniform signature covers all thirteen. A create method ignores
 `subjectID`, except `AppendLeaseEvent` and `AppendMessage`, whose subject is the lease and the
 thread. The method names above are this part's proposal; **if task 08's part names them otherwise,
 task 08 wins** and only this map changes. The request types are task 03's (`CreateTaskRequest`,
 `PatchTaskRequest`, `AgentStartRequest`, `AgentEndRequest`, `LeaseEventRequest`,
-`CreateConflictRequest`, `PatchConflictRequest`, as `task-06.md:49-51` lists them, and task 07's
+`CreateConflictRequest`, `PatchConflictRequest`, as `task-06.md:63-65` lists them, and task 07's
 thread, message, escalation, directive and turn requests).
 
-**The route names are task 01's, not task 06's.** `task-01.md:226-261` names thirteen write routes,
-one per verb (`tasks.create`, `tasks.update`, `agents.start`, …); `task-06.md:80-82` lists a coarser
+**The route names are task 01's, not task 06's.** `task-01.md:231-267` names thirteen write routes,
+one per verb (`tasks.create`, `tasks.update`, `agents.start`, …); `task-06.md:101-103` lists a coarser
 set (`tasks.write`, `agents.write`, …). ST.3 is defined in task 01 (skeleton seam table), so this
 part follows task 01, and the disagreement is reported as a gap. Whichever set wins, it lives in one
 place here: the `Op` constants.
@@ -648,7 +648,7 @@ func (f *Feed) Poll(ctx context.Context, org string, kinds []string) (more bool,
 func (f *Feed) apply(ctx context.Context, org string, ev hubapi.Event) error {
 	switch ev.Kind {
 	case "delegation.created", "delegation.renewed":
-		// The feed carries metadata only (task-06.md:207-208), so read the record
+		// The feed carries metadata only (task-06.md:290-291), so read the record
 		// itself, under itself: route 47 is delegations.read.
 		hd, err := f.team.Delegation(hubclient.WithDelegation(ctx, ev.Subject), ev.Subject)
 		switch hubclient.Code(err) {
@@ -1237,7 +1237,7 @@ the two adapters are the only files that know task 10's types.
   lapse.
 - Its tests run on task 08's fake. That the real Hub answers route 47 with 401
   `delegation_revoked` / `delegation_expired` for a Fleet caller under a dead delegation is task
-  05's rule (`task-01.md:113-117`) and is proven against the real Hub by task 08's conformance rows,
+  05's rule (`task-01.md:118-122`) and is proven against the real Hub by task 08's conformance rows,
   not here.
 - `Classify` treats every 4xx but 408 and 429 as permanent. A Hub that answers a transient
   condition with another 4xx would dead-letter a good write; the dead-letter row keeps the problem

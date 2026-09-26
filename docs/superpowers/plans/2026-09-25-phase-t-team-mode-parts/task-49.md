@@ -8,7 +8,7 @@ project** only, in two ways (`07` I1 and I7):
 
 1. **The land review lists every conflict the lane was party to, with its resolution.** A lane's
    agent is party to a conflict when it is `agentA` or `agentB` of a Hub `cf-…` record (task 01
-   §7.17, `task-01.md:377-389`). The review shows each one: tier, the other side's owner, the paths,
+   §7.17, `task-01.md:386-398`). The review shows each one: tier, the other side's owner, the paths,
    the state and the resolution, or *"unresolved"*.
 2. **A lane that changes an agent-config path needs a second member's approval to land.** Alice
    reviewing Alice is not enough when the change alters how every teammate's agent behaves
