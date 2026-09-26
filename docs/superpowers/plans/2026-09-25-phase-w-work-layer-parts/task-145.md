@@ -371,3 +371,68 @@ CREATE TABLE work_team_agent_policies (
 so a `CHECK` would need a migration per harness. The route checks it (task 143's
 `ValidateTeamAgentPolicy`), and a team with no row reads `["claude-code"]` (`task-143.md:562`).
 The scope's `work_harness_allow` and `work_team_skills` are this one table (143 decision 5).
+
+#### `NNNN_work_w5.sql`, continued: row-level security, append-only and grants (complete)
+
+Checked in each owner's block on 2026-09-26: 146, 147, 148, 149 (its own loop), 154, 155, 160 and
+161 enable row-level security on their tables themselves; **150 and 162 do not** (*"RLS
+org_isolation on all three, as task 149's loop does"*, `task-150.md:146`; *"the four tables get
+task 116's RLS form"*, `task-162.md:213`). This loop covers theirs and this task's, and no table
+twice, so no `CREATE POLICY` meets an existing one.
+
+```sql
+-- ── task 145: org isolation on every W5 table no owner block covers ──────────
+DO $$
+DECLARE t text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY[
+      'work_tracker_connections', 'work_external_links', 'work_sync_runs',          -- 150
+      'work_host_hooks', 'work_outside_pr_links', 'work_outside_commit_links',      -- 145
+      'work_webhooks', 'work_webhook_deliveries',                                   -- 145 (156)
+      'work_teams_bindings', 'work_teams_pairings', 'work_request_messages',        -- 145 (157)
+      'work_apps', 'work_team_agent_policies',                                      -- 145
+      'work_loops', 'work_loop_versions', 'work_loop_runs', 'work_loop_cursors'     -- 162
+  ] LOOP
+    EXECUTE format('ALTER TABLE hub.%I ENABLE ROW LEVEL SECURITY', t);
+    EXECUTE format('CREATE POLICY org_isolation ON hub.%I TO hub_app
+                    USING (org_id = current_setting(''hub.org_id'', true))
+                    WITH CHECK (org_id = current_setting(''hub.org_id'', true))', t);
+  END LOOP;
+END $$;
+
+-- ── append-only: task 07's loop, for this task's three logs ──────────────────
+DO $$
+DECLARE t text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY['work_outside_commit_links', 'work_webhook_deliveries', 'work_request_messages'] LOOP
+    EXECUTE format('CREATE TRIGGER %I BEFORE UPDATE OR DELETE ON hub.%I
+                    FOR EACH ROW EXECUTE FUNCTION hub.forbid_change()', t || '_append_only', t);
+    EXECUTE format('CREATE TRIGGER %I BEFORE TRUNCATE ON hub.%I
+                    FOR EACH STATEMENT EXECUTE FUNCTION hub.forbid_change()', t || '_no_truncate', t);
+  END LOOP;
+END $$;
+
+-- ── grants: §10.5's shape; SELECT and INSERT, then only the columns that move ──
+GRANT SELECT, INSERT ON work_host_hooks, work_outside_pr_links, work_outside_commit_links,
+                        work_webhooks, work_webhook_deliveries, work_teams_bindings,
+                        work_teams_pairings, work_request_messages, work_apps,
+                        work_team_agent_policies TO hub_app;
+GRANT UPDATE (remote_url, secret_ref, secret_version)                ON work_host_hooks          TO hub_app;
+GRANT UPDATE (pr_state, merge_commit, word, updated_at)              ON work_outside_pr_links    TO hub_app;
+GRANT UPDATE (state, secret_ref, secret_version, prev_secret_version, rotated_at,
+              cursor_seq, consecutive_failures)                      ON work_webhooks            TO hub_app;
+GRANT UPDATE (cursor_seq, last_posted_at, members), DELETE           ON work_teams_bindings      TO hub_app;
+GRANT UPDATE (used_at, failures)                                     ON work_teams_pairings      TO hub_app;
+GRANT UPDATE (state, decided_by, decided_at, reason)                 ON work_apps                TO hub_app;
+GRANT UPDATE (harnesses, skills_source, skills_repo, skills_path, skills_commit,
+              updated_at, updated_by)                                ON work_team_agent_policies TO hub_app;
+-- No UPDATE or DELETE on: work_outside_commit_links, work_webhook_deliveries,
+-- work_request_messages (append-only), and no UPDATE of a webhook's url or kinds:
+-- a changed webhook is a new one (task 156 has no patch route).
+```
+
+**No `FORCE`**, the Hub contract's form (`hub-contract.md:1914-1918`), though task 146 forces its
+own table (`task-146.md:147-148`). The policy is `TO hub_app`, so under `FORCE` the owner matches
+no policy and reads nothing: `app_for_client`, which runs as the owner before `hub.org_id` is
+known, would never find an app. Unforced, the owner still runs only `hub migrate` and the
+`SECURITY DEFINER` functions (`hub-contract.md:1929-1930`), and `hub_app` is bound by the policy.
