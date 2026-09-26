@@ -198,4 +198,89 @@ export function move(list: HarnessId[], id: HarnessId, by: -1 | 1): HarnessId[] 
 `SecretOnce` has no `useEffect`, no `console`, no store import and no prop but the secret; the
 test greps the file for `workSlice`, `localStorage`, `console.` and `sessionStorage` and expects
 none. `HARNESS_IDS` is `harness.Catalogue()`'s set as task 169 quotes it
-(`control-plane/internal/harness/harness.go:17-25`, **UNVERIFIED** on this tree by this part).
+(`control-plane/internal/harness/harness.go:19-25`, the five `ID` constants, read on
+`feat/work-layer` on 2026-09-26).
+
+#### Interfaces — complete: `AdminHome.tsx` and every section's props
+
+```tsx
+// desktop/src/components/admin/AdminHome.tsx — task 173. Settings → Admin. Renders only the
+// sections accessOf(me) names (decision 2); each section fetches on mount (decision 1).
+import type { JSX, ReactNode } from "react";
+import type { WorkIntakeClient } from "../../api/work";
+import { accessOf, type Me } from "./access";
+import { Apps } from "./Apps";
+import { Keys } from "./Keys";
+import { Webhooks } from "./Webhooks";
+import { Connectors } from "./Connectors";
+import { AgentPolicy } from "./AgentPolicy";
+import "./admin.css";
+
+/** Phase T's policy route, once merged (decision 8). null on this branch: no Publish button. */
+export type PublishRoute = ((teamId: string, fragment: unknown) => Promise<{ version: number; digest: string }>) | null;
+export const publishRoute: PublishRoute = null;
+
+export interface AdminProps {
+  me: Me;
+  client: Pick<WorkIntakeClient,
+    "apps" | "decideApp" | "createAPIKey" | "apiKeys" | "revokeAPIKey" | "createWebhook" |
+    "webhooks" | "disableWebhook" | "rotateWebhookSecret" | "deliveries" | "redeliver" |
+    "mcpConnectors" | "allowMCPConnector" | "removeMCPConnector" | "agentPolicy" | "putAgentPolicy">;
+  hubBase: string;               // the signed-in Hub's https base, for the two MCP addresses
+  timeZone: string;              // the person's; times read through desktop/src/lib/time.ts
+  publish?: PublishRoute;        // tests inject; production reads publishRoute
+  /** Slots for later sections on the same surface: task 181's SignedLand, task 185's GroupLinks. */
+  teamExtras?: (teamId: string) => ReactNode;
+}
+
+export function AdminHome(p: AdminProps): JSX.Element {
+  const a = accessOf(p.me);
+  const has = (s: (typeof a.sections)[number]) => a.sections.includes(s);
+  return (
+    <div className="adm-home">
+      <h1>Admin</h1>
+      {has("apps") && <Apps client={p.client} timeZone={p.timeZone} />}
+      <Keys me={p.me} client={p.client} adminTeams={a.adminTeams} timeZone={p.timeZone} />
+      {has("webhooks") && a.adminTeams.map((t) => (
+        <Webhooks key={t.id} team={t} client={p.client} timeZone={p.timeZone} />
+      ))}
+      {has("connectors") && <Connectors client={p.client} hubBase={p.hubBase} timeZone={p.timeZone} />}
+      {has("agent-policy") && a.adminTeams.map((t) => (
+        <section key={t.id} aria-label={`${t.name}: agents`}>
+          <AgentPolicy team={t} client={p.client} publish={p.publish ?? publishRoute} timeZone={p.timeZone} />
+          {p.teamExtras?.(t.id)}
+        </section>
+      ))}
+    </div>
+  );
+}
+```
+
+The sections' props, each complete (the bodies follow the decisions; `Keys` is given in full
+below because the secret's path is the one thing here that must not be got wrong):
+
+```ts
+type C = AdminProps["client"];
+export interface AppsProps { client: C; timeZone: string }
+export interface KeysProps { me: Me; client: C; adminTeams: Team[]; timeZone: string }
+export interface WebhooksProps { team: Team; client: C; timeZone: string }
+export interface DeliveriesProps { webhookId: string; client: C; timeZone: string }   // inside Webhooks
+export interface ConnectorsProps { client: C; hubBase: string; timeZone: string }
+export interface AgentPolicyProps { team: Team; client: C; publish: PublishRoute; timeZone: string }
+```
+
+- **Apps** lists `apps()`; a `pending` row shows the manifest's `name`, `publisher`, `contact`,
+  each `redirectUris` entry verbatim in mono, and its scopes in words (`work.read` → *read*,
+  `work.write` → *read and write*); *Approve* and *Decline* send `decideApp(id, {approve, reason})`
+  with the typed reason. An `approved` row's *Revoke* goes through `ConfirmInPlace` (*Release notes
+  bot stops at once; its users' next call gets 401*) and sends `{approve: false, reason}`.
+- **Webhooks** lists `webhooks(team.id)` with URL, kinds and state; *New webhook* posts
+  `createWebhook` and hands the answer's `secret` to `SecretOnce`; *Rotate secret* and *Disable*
+  confirm in place first. Each row opens **Deliveries**: `deliveries(id)` with *status · attempt n
+  · code* and the time, `nextAttemptAt` read *retry at 14:07:00*, and *Redeliver* per failed row.
+- **Connectors** shows the two addresses (decision 9) and the allow-list; *Allow* sends
+  `allowMCPConnector({url, name})`, *Remove* confirms in place and sends `removeMCPConnector(url)`.
+- **AgentPolicy** reads `agentPolicy(team.id)`; an unset policy (`updatedAt` null) reads
+  *Claude Code only (the default)*. Up and down move a harness (`move`); the skills source is
+  *In the sandbox image* or *A library*, with repository, path and commit; *Save* runs
+  `checkPolicy`, then `putAgentPolicy`. *Publish to sandboxes* renders only when `publish` is set.
