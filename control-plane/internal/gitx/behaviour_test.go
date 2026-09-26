@@ -177,18 +177,34 @@ func requireStarted(tb testing.TB, code int, prog string) {
 	}
 }
 
-// fatalRecorder is a testing.TB whose Fatalf records the sentence instead of stopping, so a
-// test can ask what a pin helper would have said. Every other method is the real test's.
+// fatalRecorder is a testing.TB whose stopping methods record instead of stopping, so a test
+// can ask what a pin helper would have done. Fatal, Fatalf and FailNow record into fatal; Skip,
+// Skipf and SkipNow record into skipped. Before skips were recorded, a helper that skipped a
+// pin skipped the helper's own pin through the real test, which passed (task-01 review 1, M-B:
+// mutant R2). Every other method (Errorf, Logf, TempDir and the rest) is the real test's.
 type fatalRecorder struct {
 	testing.TB
-	fatal string
+	fatal   string
+	skipped string
 }
 
 func (r *fatalRecorder) Helper() {}
 
+func (r *fatalRecorder) Fatal(args ...any) { r.fatal = fmt.Sprint(args...) }
+
 func (r *fatalRecorder) Fatalf(format string, args ...any) {
 	r.fatal = fmt.Sprintf(format, args...)
 }
+
+func (r *fatalRecorder) FailNow() { r.fatal = "FailNow, with no sentence" }
+
+func (r *fatalRecorder) Skip(args ...any) { r.skipped = fmt.Sprint(args...) }
+
+func (r *fatalRecorder) Skipf(format string, args ...any) {
+	r.skipped = fmt.Sprintf(format, args...)
+}
+
+func (r *fatalRecorder) SkipNow() { r.skipped = "SkipNow, with no sentence" }
 
 // A process that Windows' loader could not start comes back as an ordinary exit code,
 // 3221225794 (0xC0000142, STATUS_DLL_INIT_FAILED). Twelve pins once read it as git's answer
@@ -196,7 +212,13 @@ func (r *fatalRecorder) Fatalf(format string, args ...any) {
 // must stop the pin with a sentence naming the machine, and leave every real code alone
 // (task-01 review M-3). `cmd /c exit N` stands in for git: it exits with N and nothing else.
 // The sentence starts with the program's own name, so a docker.exe that never started is not
-// reported as git (fix-round mutant MH6 survived a check that asked for no name).
+// reported as git (fix-round mutant MH6 survived a check that asked for no name). The helper
+// must fail the pin, not skip it: a skip would turn every pin it guards into a quiet SKIP
+// (review 1 M-B). The codes that must pass through include a program that started and then
+// crashed, 0xC0000005 and 0xC0000409 (one each side of 0xC0000142), and 0xC0000135, the
+// loader's "DLL not found": none of them is the machine's load, and a check widened to every
+// NTSTATUS error, or to 0xC0000142's block, would call each one that (review 1 M-A: mutant R1
+// survived a list of 0, 1, 128 and 255).
 func TestPinHelperNamesAProgramThatNeverStarted(t *testing.T) {
 	t.Parallel()
 	if !runtimeWindows {
@@ -216,11 +238,16 @@ func TestPinHelperNamesAProgramThatNeverStarted(t *testing.T) {
 			t.Errorf("a program that never started: the helper said %q, want a fatal sentence holding %q", rec.fatal, want)
 		}
 	}
-	for _, real := range []string{"0", "1", "128", "255"} {
+	if rec.skipped != "" {
+		t.Errorf("a program that never started: the helper skipped the pin (%q); want it failed, since a skip hides the pin", rec.skipped)
+	}
+	for _, status := range []uint32{0, 1, 128, 255, 0xC0000005, 0xC0000135, 0xC0000409} {
+		arg := strconv.Itoa(int(int32(status))) // cmd's exit takes a signed 32-bit number
 		rec := &fatalRecorder{TB: t}
-		_, _, code := runProgram(rec, "cmd", dir, nil, "", "/c", "exit", real)
-		if strconv.Itoa(code) != real || rec.fatal != "" {
-			t.Errorf("cmd /c exit %s: code %d, helper said %q; want the code back and no fatal", real, code, rec.fatal)
+		_, _, code := runProgram(rec, "cmd", dir, nil, "", "/c", "exit", arg)
+		if uint32(code) != status || rec.fatal != "" || rec.skipped != "" {
+			t.Errorf("cmd /c exit %s: code %d (%#x), helper fatal %q, skipped %q; want %#x back, no fatal and no skip",
+				arg, code, uint32(code), rec.fatal, rec.skipped, status)
 		}
 	}
 }
