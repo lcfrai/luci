@@ -1321,3 +1321,59 @@ reassign *request*); this row pins only that the pending request does not outliv
       `answer`; `navigate` inside `onVerb`; count `needs.length` in `DeskZero`; add `role="status"`.
 - [ ] Mount `ReassignMark` in `IssueRow` and `IssueHead`; tasks 40 and 46's suites still pass.
 - [ ] Commit each file as it goes green.
+
+#### Acceptance
+
+```bash
+~/.claude/tools/claudezsh/claudezsh 'go test ./control-plane/internal/hub/hubclient/ -count=1 -run TestReassignRowsOnTheFake -v'
+# expected: 5 subtests "work/W-65.1_…" to "work/W-65.5_…", all PASS
+~/.claude/tools/claudezsh/claudezsh 'go test ./control-plane/... -count=1'
+# expected: ok for every package; task 05's TestWorkRowsOnTheFake still runs 25 rows
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop test -- src/work/desk/informs.test.ts src/components/desk'
+# expected: informs.test.ts 10 passing; ReassignDecide 3, InformRow 2, DeskZero 1 passing,
+# alongside tasks 62-64's desk suites
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop test'
+# expected: every suite passing, tasks 37, 40, 46 and 56 included
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop run typecheck'
+# expected: exit 0
+~/.claude/tools/claudezsh/claudezsh 'grep -nE "navigate|setLens|location\.|role=\"status\"|aria-live" desktop/src/components/desk/rows desktop/src/components/desk/DeskZero.tsx -r'
+# expected: no output (decision 8; task 66's one region)
+~/.claude/tools/claudezsh/claudezsh 'grep -nE "split\(|\.slice\(|indexOf\(\"@\"" desktop/src/work/desk/informs.ts'
+# expected: no output (decision 2: the key is never split)
+```
+
+#### What this task does NOT claim
+
+- **That the reassign's Hub route exists.** It is the fake's two methods and the wire only. The
+  store column, the migration, the real route and the HTTP run of `WorkRowsReassign` are a WH
+  task that the skeleton does not list (gap 1).
+- **That re-brief works end to end.** `POST /v1/sessions/{id}/rebrief` is not built (decision 5,
+  gap 2); until it is, the verb shows the server's 404 as a refusal. Whether a running CLI re-reads
+  the managed block before its next turn is **UNVERIFIED** (`OD-8`: we never type into it).
+- **The branch and worktree moving to the new owner** (05 §3.7 rule 2): W1 moves the assignee
+  and stops my agents; the clone stays on my machine (decision 10), and no checkpoint commit is
+  made for me (decision 7: no such route).
+- **Rule 3's Orchestrator proposal** (W3), the horizon bar and quiet mode (Q4), defer with a
+  reason (`H`, task 94), and a one-line reply to a mention (task 63's row; this task gives it the
+  answer shape only).
+- **Visual acceptance**: the owner's eyes (CLAUDE.md, working agreements); this part proves the
+  structure, the keys, the order of calls and the CSS properties, not the look.
+- **Parity**: closes L-112 and L-113 with tasks 62-64; serves L-114.
+
+#### Gaps found while writing this part
+
+1. **The reassign's Hub half** has no owner task in the skeleton's table: the `issues` column (or
+   table) for a pending request, its migration, the real route and the matrix rows under WS0's
+   sync-merge rule. It needs a WH task in W1.
+2. **The re-brief route** `POST /v1/sessions/{id}/rebrief` is in no part; task 19's Materialiser
+   rewrites the block on create and restart only. Its wire is fixed above for task 19's owner.
+3. **Tasks 62, 63 and 64 had no part on the tree** at this writing (checked 2026-09-26). The names
+   `DeskSnapshot`, `deskModel`, `headOf`, `deskTime`, `deskMarkSeen` and `useProjectCriteria` are
+   **UNVERIFIED**; those parts win, and `inputsOf` is the one place a rename lands.
+4. The skeleton's file map omits `ReassignMark.tsx`, `rows/answer.tsx`, `work_reassign.go`, and
+   the edits to `ops.ts`, `Desk.tsx`, `IssueRow.tsx`, `IssueHead.tsx`, `client.ts`,
+   `methods_work.go` and `api/work.go`.
+5. Task 63 and 64's NEEDS YOU rows must take `useRowAnswer` for the zero state to count them; if
+   their parts land first without it, this task adds the one-line change to each.
+6. Phase 2's `Session` has no owner field; team mode's managed sessions need one before their
+   rows join these selectors.
