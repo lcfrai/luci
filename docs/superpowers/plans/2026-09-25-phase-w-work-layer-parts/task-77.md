@@ -379,3 +379,111 @@ func TokenOwner(ctx context.Context, q Querier, hash []byte) (userID string, ok 
 reads by `assignee_id`, so a proposal is never listed to anyone else. The draft table is task 80's
 (`tasks-61-80.md:478`, task 74's migration); if task 80 names its expiry column differently, the
 query follows it.
+
+#### The routes (`server/work_cycles.go`), in order
+
+```go
+func (s *Server) registerWorkCycles(mux *http.ServeMux) {
+	mux.HandleFunc("PUT /v1/teams/{teamId}/cadence", s.putCadence)
+	mux.HandleFunc("GET /v1/teams/{teamId}/cadence", s.getCadence)
+	mux.HandleFunc("GET /v1/teams/{teamId}/cycles", s.listCycles)
+	mux.HandleFunc("GET /v1/teams/{teamId}/cycles.ics", s.teamCyclesICS)
+	mux.HandleFunc("PATCH /v1/cycles/{cycleId}", s.patchCycle)
+	mux.HandleFunc("PUT /v1/issues/{issueId}/cycle", s.putIssueCycle)
+	mux.HandleFunc("GET /v1/cycles/{cycleId}/scope-log", s.scopeLog)
+	mux.HandleFunc("GET /v1/closure-proposals", s.myProposals)
+	mux.HandleFunc("POST /v1/closure-proposals/{proposalId}/answer", s.answerProposal)
+	mux.HandleFunc("POST /v1/me/calendar-token", s.mintCalendarToken)
+	mux.HandleFunc("DELETE /v1/me/calendar-token", s.revokeCalendarToken)
+}
+
+// Registered beside /healthz, outside the /v1 authentication chain (decision (i)).
+func (s *Server) registerCalendarFeed(mux *http.ServeMux) {
+	mux.HandleFunc("GET /cal/{feedToken}", s.calendarFeed)
+}
+```
+
+Each refusal rolls the transaction back and appends nothing. `answerProposal` and
+`mintCalendarToken` are `POST`s whose replies hold no issue text, so `server.Write`; the token is
+**not** replayable (a stored reply would keep the secret), so `mintCalendarToken` refuses an
+`Idempotency-Key` header with 400 `field: "Idempotency-Key"`.
+
+**`putCadence`** (admin): decode; `lengthDays` 0 or 7-56, `cooldownDays` 0-14, `ahead` 1-15,
+`firstStartsOn` `ValidDate`, each else 400 naming it. `PutCadence`; unchanged → 200, no event.
+Else `DropUnreferencedSuffix`, then `EnsureCyclesAhead` with today; events `team.cadence_set`, then
+one `cycle.created` per cycle made (`policyAuthorId: ""`, the admin is the actor). 200 `Cadence`.
+
+**`listCycles`**, **`getCadence`**, **`scopeLog`** (viewer of the team; a cycle outside the
+caller's teams → 404 `cycle_not_found`).
+
+**`patchCycle`** (admin of the cycle's team): tri-state decode; a `closed` cycle → 422
+`bad_request`, `field: "cycleId"`; dates `ValidDate`, `startsOn ≤ endsOn`; `Neighbours` →
+`startsOn ≤ prev.endsOn` or `endsOn ≥ next.startsOn` → 422 `cycle_overlap`, `details.cycleId` the
+neighbour; a `current` cycle may not move its `startsOn` past today (it would stop being current
+by edit). A pause is a wider gap, not a state (L-65). `cycle.updated {cycleId, fields}`.
+
+**`putIssueCycle`** (member): `readableIssue(…, RoleMember, lock=true)`; the cycle of the issue's
+team, not `closed` → else 404 `cycle_not_found` / 422 `bad_request` `field: "cycleId"`; equal → 200,
+no event. `SetIssueCycle(…, bumpUpdated: true)`; for each of the old and the new cycle whose
+`startsOn ≤ today`, `AppendScope` (`removed` / `added`) **by the caller** (L-63). Event
+`issue.cycle_set {from, to, rollover: false, policyAuthorId: ""}`. 200 `IssueHead`.
+
+**`myProposals`**: `mine` absent or not `true` → 400 `field: "mine"`; `MyProposals(caller)`.
+
+**`answerProposal`**: `ProposalByID`; not the caller's (any other person, including admins) → 404
+`proposal_not_found` (no existence leak); answered → 409 `state_conflict`; `close` ⊄ `issueIds` →
+422 naming `close[n]`. For each id in `close`, in order: `readableIssue(…, lock=true)` as the
+caller; still `triage`, `backlog` or `todo` → task 10's move to `cancelled`, cause `hand`, reason
+*"closed from a stale proposal"*, written as the caller, with task 10's `issue.state` event; else
+skipped. `AnswerProposal` with the ids closed; `closure.answered {proposalId, closed, kept}`.
+
+**`mintCalendarToken`**: `<orgId>.` + 32 random bytes in base32; `InsertToken(sha256(token))`.
+201 `CalendarToken{token, feedPath: "/cal/<token>.ics", createdAt}`. No event: a token is a
+credential, not a record anyone reads (Hub task 24's rule for idempotency keys, `task-24.md:97-98`).
+**`revokeCalendarToken`**: `RevokeToken`; 204 whether or not one was live.
+
+**`calendarFeed`**: an `Origin` header → 403 `forbidden_origin` (`hub-contract.md:38`); the path
+must end `.ics` → else 404; split the token at its first `.`; the org part not `ValidID("org", …)`
+→ 404. In one read transaction: `set_config('hub.org_id', org, true)`; `TokenOwner(sha256(token))`
+→ none → **404** (a revoked or unknown token is indistinguishable from none); the owner's teams;
+their cycles not older than 90 days past `endsOn`. The body is RFC 5545 `VCALENDAR` with one
+all-day `VEVENT` per cycle: `UID:<cycleId>@panacea-app`, `DTSTART;VALUE=DATE`, `DTEND;VALUE=DATE`
+(the day after `endsOn`, RFC 5545's exclusive end), `SUMMARY:<team name> cycle <number>` plus
+`: <name>` when named. No issue, no person, no description. `Cache-Control: private, max-age=900`.
+**`teamCyclesICS`** is the same body for one team, bearer-authenticated, viewer.
+
+#### The janitor's W2 passes (`server/janitor.go` ⚑, after Hub task 24's four)
+
+Inside each org's transaction, with `hub.work_actor_kind = 'janitor'` set after `hub.org_id` (task
+07's setting), for each team of the org, in this order:
+
+```go
+//   5. cycles: StartDueCycles; CloseDueCycles, and for each closed cycle the rollover of decision
+//      (e): per open issue, SetIssueCycle(next or "", bumpUpdated false), AppendScope(closing,
+//      removed, by ""), Emit issue.cycle_set {rollover: true, policyAuthorId}; then Emit
+//      cycle.closed {rolledOver}; then EnsureCyclesAhead, Emit cycle.created per cycle made.
+//      policyAuthorId is the cadence's updatedBy.
+//   6. stale: StaleIssues. staleMode propose → per assignee one InsertProposal and one Emit
+//      closure.proposed {count, policyAuthorId}, Subject the assignee. staleMode auto → per issue
+//      SetWorkCause(stale_policy), MoveIssueState(cancelled, reason), Emit issue.state with
+//      policyAuthorId. policyAuthorId is the team policy's updatedBy.
+//   7. archive: ArchiveDue; Emit issue.archived {policyAuthorId} per issue.
+//   8. drafts (once per org, not per team): ExpireDrafts. No event (a draft is private; task 80).
+//   9. calendar tokens: nothing to sweep (a revoked token is kept, for the audit trail).
+// SweepReport gains: CyclesMade, CyclesClosed, RolledOver, Proposed, AutoClosed, Archived,
+// DraftsExpired.
+```
+
+Every janitor `Emit` has `Actor: nil`. A team whose `staleAfterDays` or `archiveAfterDays` is 0
+skips that pass. A pass that fails rolls back **that org's** transaction and is logged; the next
+org still runs (Hub task 24's per-org transaction).
+
+#### The two insertions in task 10's route (`server/work_states.go` ⚑)
+
+- **In task 10's step 2:** a caller's `cause: stale_policy` → 400 `bad_request`, `field: "cause"`
+  (only the janitor sends it, and it does not use the route).
+- **In task 10's step 5, a `lane_bound` move into `started`:** when `head.CycleID` is null and
+  `CurrentCycle(team)` exists, `SetIssueCycle(…, bumpUpdated: true)`, `AppendScope(added, by the
+  caller)`, and `issue.cycle_set {from: "", to, rollover: false}` after the `issue.state` event,
+  **written as the person** whose lane started it (L-61, skeleton rule 2). An issue already in a
+  cycle keeps it.
