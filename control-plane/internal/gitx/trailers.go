@@ -113,7 +113,7 @@ func lastParagraphForges(body string) bool {
 		}
 		rest := line[len("panacea-"):]
 		j := 0
-		for j < len(rest) && (validKey(rest[j:j+1])) {
+		for j < len(rest) && (validKey(rest[j : j+1])) {
 			j++
 		}
 		if strings.HasPrefix(strings.TrimLeft(rest[j:], " \t"), ":") {
