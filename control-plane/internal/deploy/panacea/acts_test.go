@@ -229,3 +229,38 @@ func TestCancelOutcomes(t *testing.T) {
 		t.Errorf("an unknown cancel word read as %+v", got)
 	}
 }
+
+// TestActsRefuseBadSegmentsBeforeRequest is TestEmptySegmentRefusedBeforeRequest for the writes:
+// an empty, "." or ".." project, run, deployment, branch or group names a different route (a mux
+// cleans a dot segment with a redirect, which do never follows), so each call is KindRejected
+// with no request. Kills an act that skips segment for its own id (named survivor Z1: Cancel's
+// run; Z1b: Rollback's deployment).
+func TestActsRefuseBadSegmentsBeforeRequest(t *testing.T) {
+	rs := serveRecorded(t, map[string]fixture{})
+	ctx := context.Background()
+	c := rs.c
+	errs := map[string]error{}
+	_, errs["Ship project"] = c.Ship(ctx, "", deploy.ShipRequest{Branch: "feat/x", Commit: commit40})
+	_, errs["Cancel empty"] = c.Cancel(ctx, project, "")
+	_, errs["Cancel dot"] = c.Cancel(ctx, project, ".")
+	_, errs["Rollback dotdot"] = c.Rollback(ctx, project, "..")
+	_, errs["Rollback empty"] = c.Rollback(ctx, project, "")
+	_, errs["AutoDeploy"] = c.AutoDeploy(ctx, project, "")
+	_, errs["SetAutoDeploy"] = c.SetAutoDeploy(ctx, project, ".", true)
+	_, errs["Posture"] = c.Posture(ctx, project, "..")
+	_, errs["SetPosture"] = c.SetPosture(ctx, project, "", deploy.PostureChange{Mode: deploy.PosturePublic})
+	_, errs["Access"] = c.Access(ctx, "")
+	errs["Grant"] = c.Grant(ctx, ".", deploy.GrantRequest{Grantee: "a.b@kpmg.com.au", Role: deploy.RoleViewer})
+	errs["Revoke empty"] = c.Revoke(ctx, project, "")
+	errs["Revoke dotdot"] = c.Revoke(ctx, project, "..")
+	_, errs["SetURLPrefix"] = c.SetURLPrefix(ctx, project, "", "uat-test")
+	errs["ClearURLPrefix"] = c.ClearURLPrefix(ctx, project, ".")
+	for name, err := range errs {
+		if k := deploy.KindOf(err); k != deploy.KindRejected {
+			t.Errorf("%s: Kind %q (%v), want rejected", name, k, err)
+		}
+	}
+	if got := rs.requests(); len(got) != 0 {
+		t.Errorf("requests = %q, want none", got)
+	}
+}

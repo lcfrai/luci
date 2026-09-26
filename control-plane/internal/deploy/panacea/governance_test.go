@@ -406,6 +406,11 @@ func TestURLPrefix(t *testing.T) {
 		"PUT " + actsP + "/branches/feat%2Fy/url-prefix":    {file: "urlprefix-409.json", status: 409},
 		"DELETE " + branchP + "/url-prefix":                 {body: `{"message":"url prefix cleared","data":{"branch":"feat/x","routeReverted":true}}`},
 		"DELETE " + actsP + "/branches/feat%2Fy/url-prefix": {body: `{"message":"url prefix cleared"}`, status: 202},
+		// A project in a team namespace: Panacea's host is <prefix>.<team>.<domain>
+		// (handlers/branch_url_prefix.go:73-81, projects.go:4309, :4318, :4370), so Host is the
+		// answer's, never built here from the prefix (named survivor Z2).
+		"PUT " + actsP + "/branches/feat%2Fz/url-prefix": {body: `{"message":"url prefix set","data":` +
+			`{"branch":"feat/z","prefix":"uat-test","host":"uat-test.audit.panacea.kpmg"}}`},
 	})
 	ctx := context.Background()
 	got, err := rs.c.SetURLPrefix(ctx, project, "feat/x", "uat-test")
@@ -415,6 +420,10 @@ func TestURLPrefix(t *testing.T) {
 	if b := rs.sent(); len(b) != 1 || b[0] != `{"prefix":"uat-test"}` {
 		t.Errorf("body = %q, want exactly {\"prefix\":\"uat-test\"}", b)
 	}
+	got, err = rs.c.SetURLPrefix(ctx, project, "feat/z", "uat-test")
+	if want := (deploy.URLPrefix{Branch: "feat/z", Prefix: "uat-test", Host: "uat-test.audit.panacea.kpmg"}); err != nil || got != want {
+		t.Errorf("SetURLPrefix(team) = (%+v, %v), want %+v", got, err, want)
+	}
 	_, err = rs.c.SetURLPrefix(ctx, project, "feat/y", "uat-test")
 	wantKind(t, err, deploy.KindConflict, 409, fixtureSentence(t, "urlprefix-409.json"))
 	if err := rs.c.ClearURLPrefix(ctx, project, "feat/x"); err != nil {
@@ -422,8 +431,8 @@ func TestURLPrefix(t *testing.T) {
 	}
 	// The handler answers 200 on success; another 2xx is an answer this code does not know.
 	wantKind(t, rs.c.ClearURLPrefix(ctx, project, "feat/y"), deploy.KindUnavailable, 202, "")
-	if n := len(rs.requests()); n != 4 {
-		t.Errorf("%d requests, want 4", n)
+	if n := len(rs.requests()); n != 5 {
+		t.Errorf("%d requests, want 5", n)
 	}
 }
 
