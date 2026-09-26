@@ -170,6 +170,7 @@ func (f *Fake) CreateBrief(_ context.Context, projectID string, req hubapi.Creat
 	b := &fakeBrief{id: ids.Wide(hubapi.PrefixBrief), projectID: p.id, scope: req.Scope, branchRef: req.BranchRef,
 		createdAt: now, createdBy: me, updatedAt: now, seq: w.next()}
 	w.briefs[b.id] = b
+	w.emitIn(me, "brief.created", p, b.id, "scope", b.scope, "branchRef", b.branchRef)
 	return w.renderHead(b), nil
 }
 
@@ -289,7 +290,9 @@ func (f *Fake) Rebind(_ context.Context, briefID, branchRef string) (hubapi.Brie
 		return hubapi.BriefHead{}, problem(409, hubapi.CodeBriefExists, "A live brief already has that branch.", "briefId", live.id)
 	}
 	if b.branchRef != branchRef {
+		previous := b.branchRef
 		b.branchRef, b.updatedAt = branchRef, w.stamp()
+		w.emitIn(me, "brief.rebound", w.projects[b.projectID], b.id, "branchRef", branchRef, "previousBranchRef", previous)
 	}
 	return w.renderHead(b), nil
 }
@@ -315,6 +318,7 @@ func (f *Fake) Archive(_ context.Context, briefID string) (hubapi.BriefHead, err
 	}
 	now := w.stamp()
 	b.archivedAt, b.updatedAt = now, now
+	w.emitIn(me, "brief.archived", w.projects[b.projectID], b.id)
 	return w.renderHead(b), nil
 }
 
@@ -452,6 +456,8 @@ func (f *Fake) WriteRevisions(_ context.Context, projectID string, writes []huba
 		}
 		b.updatedAt = now
 		out[i] = w.renderRevision(b, revs[i])
+		w.emitIn(me, "brief.revised", p, b.id, "key", out[i].Key, "revision", revs[i].revision,
+			"digest", revs[i].digest.String(), "status", revs[i].status)
 	}
 	return out, nil
 }
@@ -460,8 +466,9 @@ func (f *Fake) WriteRevisions(_ context.Context, projectID string, writes []huba
 
 // Resolve answers one result per key, in order, repeats in each slot. A key
 // naming nothing, or anything the caller cannot read, is missing — the two are
-// indistinguishable on purpose. Design keys are missing until task 05. heads
-// holds every brief named by a resolved or erased key. The fake re-checks no
+// indistinguishable on purpose. A design key resolves to its approval (task
+// 05). heads holds every brief named by a resolved or erased brief key, and
+// the brief of every resolved approval. The fake re-checks no
 // digest on read: nothing but the fake writes its bytes, so none can drift.
 func (f *Fake) Resolve(_ context.Context, keys []string) (hubapi.RefsResponse, error) {
 	w := f.w
@@ -479,6 +486,24 @@ func (f *Fake) Resolve(_ context.Context, keys []string) (hubapi.RefsResponse, e
 			continue
 		}
 		res := hubapi.RefResult{Key: key, Kind: &kind, Resolution: hubapi.Missing}
+		if kind == hubapi.KeyDesign {
+			// Task 22: an approval in a project the caller can read; the earliest
+			// if two readable projects hold the key. heads gains its brief.
+			var found *fakeApproval
+			for _, a := range inOrder(w.approvals) {
+				if a.designKey == key && w.canRead(w.projects[a.projectID], me) {
+					found = a
+					break
+				}
+			}
+			if found != nil {
+				ap := w.renderApproval(found)
+				res.Approval, res.Resolution = &ap, hubapi.Resolved
+				if b, _ := w.revisionIn(found.projectID, found.briefKey); b != nil {
+					out.Heads[b.id] = headInfo(b)
+				}
+			}
+		}
 		if kind == hubapi.KeyBrief {
 			k, _ := hubapi.ParseBriefKey(key)
 			if b, _, err := w.briefOf(k.BriefID, me); err == nil && k.Revision <= len(b.revisions) {
@@ -509,7 +534,8 @@ func (f *Fake) EraseBrief(briefID, reason string) (hubapi.EraseResponse, error) 
 	w := f.w
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	if _, err := f.enter("EraseBrief", briefID, reason); err != nil {
+	me, err := f.enter("EraseBrief", briefID, reason)
+	if err != nil {
 		return hubapi.EraseResponse{}, err
 	}
 	if !f.as.OrgAdmin {
@@ -532,5 +558,8 @@ func (f *Fake) EraseBrief(briefID, reason string) (hubapi.EraseResponse, error) 
 	if b.archivedAt == "" {
 		b.archivedAt, b.updatedAt = now, now
 	}
+	// Task 27: every erase is one brief.erased, a second one too (erasing 0).
+	// The feed's data has no reason; the fake keeps no audit, so none at all.
+	w.emitIn(me, "brief.erased", w.projects[b.projectID], b.id, "erasedRevisions", erased)
 	return hubapi.EraseResponse{BriefID: b.id, ErasedRevisions: erased, ErasedAt: now}, nil
 }

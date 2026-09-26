@@ -2,10 +2,8 @@ package hubclient
 
 import (
 	"cmp"
-	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"reflect"
 	"slices"
 	"strconv"
@@ -57,6 +55,7 @@ type fakeWorld struct {
 	mu          sync.Mutex
 	now         func() time.Time
 	ttl         time.Duration
+	quota       int64 // the per-project blob quota in bytes
 	signedOut   bool
 	unavailable bool
 	calls       []string
@@ -68,6 +67,14 @@ type fakeWorld struct {
 	invites  map[string]*fakeInvite
 	projects map[string]*fakeProject
 	briefs   map[string]*fakeBrief
+	events   []*fakeEvent // the org's audit log; events[i].seq is i+1
+	releases map[string]*fakeRelease
+
+	blobs     map[hubapi.Digest][]byte                  // the org's bytes, stored once
+	uses      map[string]map[hubapi.Digest]*fakeBlobUse // by project id: its associations
+	approvals map[string]*fakeApproval
+	links     map[string]*fakeLink
+	evidence  map[string]*fakeEvidence
 }
 
 // NewFake is the in-memory Hub (this task and task 05).
@@ -75,12 +82,20 @@ func NewFake() *Fake {
 	w := &fakeWorld{
 		now:      time.Now,
 		ttl:      defaultReservationTTL,
+		quota:    hubapi.DefaultProjectQuota,
 		org:      hubapi.Org{ID: ids.Wide(hubapi.PrefixOrg), DisplayName: fakeOrgName, TenantID: fakeTenantID},
 		users:    map[string]hubapi.User{},
 		teams:    map[string]*fakeTeam{},
 		invites:  map[string]*fakeInvite{},
 		projects: map[string]*fakeProject{},
 		briefs:   map[string]*fakeBrief{},
+		releases: map[string]*fakeRelease{},
+
+		blobs:     map[hubapi.Digest][]byte{},
+		uses:      map[string]map[hubapi.Digest]*fakeBlobUse{},
+		approvals: map[string]*fakeApproval{},
+		links:     map[string]*fakeLink{},
+		evidence:  map[string]*fakeEvidence{},
 	}
 	return &Fake{w: w, as: FakeAda}
 }
@@ -124,6 +139,14 @@ func (f *Fake) SetReservationTTL(d time.Duration) {
 	f.w.ttl = d
 }
 
+// SetProjectQuota overrides the 1 GiB per-project blob quota (contract §7.6,
+// PANACEA_APP_HUB_PROJECT_QUOTA_BYTES), so a test reaches it with small blobs.
+func (f *Fake) SetProjectQuota(bytes int64) {
+	f.w.mu.Lock()
+	defer f.w.mu.Unlock()
+	f.w.quota = bytes
+}
+
 // Calls lists "Method(arg0, …)" for every call made through any view, oldest
 // first: refused and switched calls too. The context is not listed; a string
 // argument is written as it is, an integer in decimal, anything else as JSON.
@@ -145,7 +168,12 @@ func (f *Fake) enter(method string, args ...any) (me string, err error) {
 	case w.unavailable:
 		return "", fmt.Errorf("%w: the fake Hub is switched unavailable", ErrUnavailable)
 	}
+	_, seen := w.users[f.as.ID]
 	w.users[f.as.ID] = hubapi.User{ID: f.as.ID, DisplayName: f.as.DisplayName, Email: strings.ToLower(f.as.Email)}
+	if !seen {
+		w.emit(f.as.ID, "auth.user_provisioned", "", "", f.as.ID, "tenantId", fakeTenantID)
+	}
+	w.sweep()
 	return f.as.ID, nil
 }
 
@@ -259,67 +287,4 @@ func pageOf[T, R any](rows []T, limit int, cursor func(T) string, render func(T)
 		out.Items = append(out.Items, render(r))
 	}
 	return out
-}
-
-// ── part 2's methods: placeholders until task 05 ────────────────────────────
-//
-// Task 05 deletes this section and gives each method its rules. Until then each
-// is logged and switched like any call, then answers 501 not_in_fake_yet.
-
-func (f *Fake) notInFakeYet(method string, args ...any) error {
-	f.w.mu.Lock()
-	defer f.w.mu.Unlock()
-	if _, err := f.enter(method, args...); err != nil {
-		return err
-	}
-	return problem(501, "not_in_fake_yet", "The fake Hub does not answer "+method+" until task 05.")
-}
-
-func (f *Fake) PutBlob(_ context.Context, projectID, digest, contentType string, size int64, _ io.ReadSeeker) (hubapi.Blob, error) {
-	return hubapi.Blob{}, f.notInFakeYet("PutBlob", projectID, digest, contentType, size, "…")
-}
-func (f *Fake) GetBlob(_ context.Context, projectID, digest string) (io.ReadCloser, hubapi.Blob, error) {
-	return nil, hubapi.Blob{}, f.notInFakeYet("GetBlob", projectID, digest)
-}
-func (f *Fake) Approve(_ context.Context, projectID string, req hubapi.ApprovalRequest) (hubapi.DesignApproval, error) {
-	return hubapi.DesignApproval{}, f.notInFakeYet("Approve", projectID, req)
-}
-func (f *Fake) Approval(_ context.Context, approvalID string) (hubapi.DesignApproval, error) {
-	return hubapi.DesignApproval{}, f.notInFakeYet("Approval", approvalID)
-}
-func (f *Fake) Approvals(_ context.Context, projectID string, q hubapi.ApprovalQuery) (hubapi.Page[hubapi.DesignApproval], error) {
-	return hubapi.Page[hubapi.DesignApproval]{}, f.notInFakeYet("Approvals", projectID, q)
-}
-func (f *Fake) LinkSession(_ context.Context, projectID string, req hubapi.SessionLinkRequest) (hubapi.SessionLink, error) {
-	return hubapi.SessionLink{}, f.notInFakeYet("LinkSession", projectID, req)
-}
-func (f *Fake) SessionLinks(_ context.Context, projectID string, q hubapi.SessionLinkQuery) (hubapi.Page[hubapi.SessionLink], error) {
-	return hubapi.Page[hubapi.SessionLink]{}, f.notInFakeYet("SessionLinks", projectID, q)
-}
-func (f *Fake) Reserve(_ context.Context, projectID string, req hubapi.ReserveRequest) (hubapi.Release, error) {
-	return hubapi.Release{}, f.notInFakeYet("Reserve", projectID, req)
-}
-func (f *Fake) Confirm(_ context.Context, releaseID string, req hubapi.ConfirmRequest) (hubapi.Release, error) {
-	return hubapi.Release{}, f.notInFakeYet("Confirm", releaseID, req)
-}
-func (f *Fake) Abandon(_ context.Context, releaseID string, req hubapi.AbandonRequest) (hubapi.Release, error) {
-	return hubapi.Release{}, f.notInFakeYet("Abandon", releaseID, req)
-}
-func (f *Fake) JoinDeployment(_ context.Context, releaseID string, req hubapi.DeploymentJoinRequest) (hubapi.DeploymentJoin, error) {
-	return hubapi.DeploymentJoin{}, f.notInFakeYet("JoinDeployment", releaseID, req)
-}
-func (f *Fake) Release(_ context.Context, releaseID string) (hubapi.Release, error) {
-	return hubapi.Release{}, f.notInFakeYet("Release", releaseID)
-}
-func (f *Fake) Releases(_ context.Context, projectID string, q hubapi.ReleaseQuery) (hubapi.Page[hubapi.Release], error) {
-	return hubapi.Page[hubapi.Release]{}, f.notInFakeYet("Releases", projectID, q)
-}
-func (f *Fake) RecordEvidence(_ context.Context, req hubapi.EvidenceRequest) (hubapi.EvidenceRecord, error) {
-	return hubapi.EvidenceRecord{}, f.notInFakeYet("RecordEvidence", req)
-}
-func (f *Fake) EvidenceByDigest(_ context.Context, repo string, digests []string) ([]hubapi.EvidenceRecord, error) {
-	return nil, f.notInFakeYet("EvidenceByDigest", repo, digests)
-}
-func (f *Fake) Changes(_ context.Context, after string, limit int) (hubapi.ChangesPage, error) {
-	return hubapi.ChangesPage{}, f.notInFakeYet("Changes", after, limit)
 }

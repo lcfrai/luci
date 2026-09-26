@@ -320,7 +320,7 @@ Every error is an `*Error` whose `Status` and `Problem.Error` are exactly the Hu
 #### Acceptance
 
 ```bash
-go test ./control-plane/internal/hub/hubclient/ -race -count=1 -v 2>&1 | grep -c "^--- PASS"   # 16 (the table's 14 + D2's 2)
+go test ./control-plane/internal/hub/hubclient/ -race -count=1 -v 2>&1 | grep -c "^--- PASS"   # 17 (the table's 14 + D2's 2 + fix round 3's TestFakeOrgAdminIsANonMember; corrected by task 05, re-review 3 m2)
 go vet ./control-plane/internal/hub/hubclient/                                                 # no output
 go list -deps ./control-plane/internal/hub/hubclient | grep panacea-app
 #   …/internal/httpx   …/internal/hub/hubapi   …/internal/hub/hubclient   …/internal/ids   — and nothing else

@@ -178,11 +178,16 @@ func (f *Fake) Me(context.Context) (hubapi.Me, error) {
 		inv.state, inv.boundUser = hubapi.InviteBound, me
 		bound++
 		t := w.teams[inv.teamID]
+		// Task 16a: team.invite_bound per invite, then team.member_set when the
+		// membership changed.
+		w.emit(me, "team.invite_bound", t.id, "", inv.id, "userId", me, "role", string(inv.role))
 		switch m := t.members[me]; {
 		case m == nil:
 			t.members[me] = &fakeMember{role: inv.role, addedAt: w.stamp(), addedBy: inv.createdBy}
+			w.emit(me, "team.member_set", t.id, "", me, "role", string(inv.role))
 		case rank(inv.role) > rank(m.role):
 			m.role = inv.role
+			w.emit(me, "team.member_set", t.id, "", me, "role", string(inv.role))
 		}
 	}
 	return hubapi.Me{User: w.users[me], Org: w.org, OrgAdmin: f.as.OrgAdmin, Teams: w.teamsOf(me), InvitesBound: bound}, nil
@@ -223,6 +228,8 @@ func (f *Fake) CreateTeam(_ context.Context, req hubapi.CreateTeamRequest) (huba
 	t := &fakeTeam{id: ids.Wide(hubapi.PrefixTeam), name: name, createdAt: now, createdBy: me,
 		members: map[string]*fakeMember{me: {role: hubapi.RoleAdmin, addedAt: now}}, seq: w.next()}
 	w.teams[t.id] = t
+	w.emit(me, "team.created", t.id, "", t.id, "name", name)
+	w.emit(me, "team.member_set", t.id, "", me, "role", string(hubapi.RoleAdmin))
 	return w.renderTeam(t, me), nil
 }
 
@@ -290,9 +297,12 @@ func (f *Fake) SetMember(_ context.Context, teamID, userID string, role hubapi.R
 		t.members[userID] = &fakeMember{role: role, addedAt: w.stamp(), addedBy: me}
 	case m.role == hubapi.RoleAdmin && role != hubapi.RoleAdmin && t.admins() == 1:
 		return hubapi.Member{}, lastAdmin(teamID)
+	case m.role == role:
+		return w.renderMember(t, userID), nil // no record changed, so no event (§8)
 	default:
 		m.role = role
 	}
+	w.emit(me, "team.member_set", t.id, "", userID, "role", string(role))
 	return w.renderMember(t, userID), nil
 }
 
@@ -322,6 +332,7 @@ func (f *Fake) RemoveMember(_ context.Context, teamID, userID string) error {
 		return lastAdmin(teamID)
 	}
 	delete(t.members, userID)
+	w.emit(me, "team.member_removed", t.id, "", userID)
 	return nil
 }
 
@@ -385,6 +396,7 @@ func (f *Fake) CreateInvite(_ context.Context, teamID string, req hubapi.CreateI
 	inv := &fakeInvite{id: ids.Wide(hubapi.PrefixInvite), teamID: t.id, email: email, role: req.Role,
 		state: hubapi.InvitePending, createdAt: w.stamp(), createdBy: me, seq: w.next()}
 	w.invites[inv.id] = inv
+	w.emit(me, "team.invite_created", t.id, "", inv.id, "email", email, "role", string(req.Role))
 	return w.renderInvite(inv), nil
 }
 
@@ -411,7 +423,10 @@ func (f *Fake) RevokeInvite(_ context.Context, teamID, inviteID string) error {
 	if inv.state == hubapi.InviteBound {
 		return problem(409, hubapi.CodeConflict, "That invite has been accepted and cannot be revoked.")
 	}
-	inv.state = hubapi.InviteRevoked
+	if inv.state == hubapi.InvitePending { // a second revoke changes nothing and emits nothing
+		inv.state = hubapi.InviteRevoked
+		w.emit(me, "team.invite_revoked", t.id, "", inv.id)
+	}
 	return nil
 }
 
@@ -500,6 +515,10 @@ func (f *Fake) CreateProject(_ context.Context, req hubapi.CreateProjectRequest)
 		p.remotes = append(p.remotes, hubapi.Remote{RepoKey: r.RepoKey, Host: r.Host, AddedAt: now})
 	}
 	w.projects[p.id] = p
+	w.emitIn(me, "project.created", p, p.id, "name", name)
+	for _, r := range p.remotes {
+		w.emitIn(me, "project.remote_added", p, p.id, "repoKey", r.RepoKey, "host", string(r.Host))
+	}
 	return w.renderProject(p), nil
 }
 
@@ -530,5 +549,6 @@ func (f *Fake) AddRemote(_ context.Context, projectID string, req hubapi.RemoteR
 	}
 	r := hubapi.Remote{RepoKey: req.RepoKey, Host: req.Host, AddedAt: w.stamp()}
 	p.remotes = append(p.remotes, r)
+	w.emitIn(me, "project.remote_added", p, p.id, "repoKey", r.RepoKey, "host", string(r.Host))
 	return r, nil
 }
