@@ -78,9 +78,10 @@ registered, ranked once when the reader arrives, and still while the reader is o
    its wrapper, so task 53's issue verbs (`Enter`, `I`) reach it; what they do on the Desk is task 63's.
 9. **The Desk is a lens, reached by `setLens("desk")`.** `Lens` gains `"desk"` beside task 37's
    `"work"` (`task-37.md:609`); `LensRouter` gains one arm. The sub-rail stays six rows, as task 37's
-   decision 8 holds for `"work"`. How a person opens the Desk (`G D`, the palette, the landing
-   surface) is not this task's: making it the landing surface waits on the owner's review (task 39;
-   gap 4).
+   decision 8 holds for `"work"`. A person opens it with `G` then `I`: task 54 prints that sequence
+   as `go.desk` (`task-54.md:25`, `:123`) and leaves its runner to this task (`:10`, `:251`), so
+   `useDeskGoVerb()` registers it from `AppShell`, beside task 54's `useGoVerbs`. Making the Desk
+   the landing surface waits on the owner's review (task 39; gap 4).
 10. **Words only, and no motion that re-sorts.** The frame animates nothing: a held arrival is a
     line of text, not a slide. DESIGN-SYSTEM's elevation for a row is the 1px ring plus the layered
     shadow; the section header is type and a hairline, as the prototype draws it (`:236-237`).
@@ -459,11 +460,23 @@ export type Lens = "discover" | "design" | "develop" | "files" | "merge" | "depl
 ```
 
 ```tsx
-// desktop/src/components/AppShell.tsx — LensRouter (:17), one arm beside task 40's "work".
-import { Desk } from "./desk/Desk";
+// desktop/src/components/desk/Desk.tsx, appended: go.desk's runner (task 54 prints G then I).
+export function useDeskGoVerb(): void {
+  useVerb("go.desk", () => useCockpit.getState().setLens("desk"));
+}
+```
+
+```tsx
+// desktop/src/components/AppShell.tsx — LensRouter (:17), one arm beside task 40's "work";
+// and in AppShell's body, beside task 54's useGoVerbs(...), one line.
+import { Desk, useDeskGoVerb } from "./desk/Desk";
     case "desk":
       return <Desk />;
+  useDeskGoVerb();
 ```
+
+`go.desk` is in task 54's `VerbId` union (`task-54.md:232`); if task 54 lands after this task, the
+line waits for it, as `issue.start` waited for task 53.
 
 The persisted `lens` may hold `"desk"`; it is a preference, not Hub data, and `migrate` needs no
 step because an older build never wrote it (task 37's reasoning for `"work"`, `task-37.md:624`).
@@ -474,7 +487,7 @@ The sub-rail's six rows do not change (decision 9).
 ```ts
 import { beforeEach, describe, expect, it } from "vitest";
 import { createElement } from "react";
-import { DYLAN, WORK_IDS } from "../../test/workFixtures";
+import { WORK_IDS } from "../../test/workFixtures";
 import { __resetDeskRegistry, buildDesk, markDeskVisit, registerDeskRow, registerDeskSource,
   takeDeskSnapshot, type DeskItem, type DeskRank, type DeskSnapshot } from "./deskModel";
 
@@ -538,7 +551,6 @@ describe("deskModel", () => {
     markDeskVisit(T0 - 60_000);
     expect(snap().lastVisitAt).toBe(T0 - 60_000);
     expect(s.me).toBeNull();                                   // no work source: no signed-in caller
-    void DYLAN;
     // mutants: a snapshot that re-reads the store on each member access; a visit written to disk
   });
 });
@@ -552,7 +564,7 @@ task 53's `dispatchListKey` with that event, which is the one line `useKeyboardM
 kinds; the kinds `deskRows.tsx` registers at load are the business of tasks 63-65's tests.
 
 ```tsx
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { dispatchListKey, resetVerbsForTest } from "../../work/keys/keymap";
 import { resetCockpit, useCockpit } from "../../store/store";
@@ -647,4 +659,66 @@ describe("Desk frame", () => {
 
 The heading's text is the title and the count with no separator in the DOM (`FAILED0`) because the
 count is its own `span`; a screen reader reads *"FAILED 0"* from the two nodes. The `now` input is
-`T0`, so the unmount writes `T0`. `fireEvent` is imported for task 63's additions to this file.
+`T0`, so the unmount writes `T0`.
+
+#### Steps
+
+- [ ] Write `deskModel.test.ts`; it fails to import `./deskModel`. Write `deskModel.ts` until the
+      six pass. Mutants, one at a time, then revert: iterate `rows` instead of `DESK_SECTIONS`
+      (test 1); `rows.set` without the `has` check (test 2); drop the pairing checks (test 3); sort
+      `waitingSinceMs` ascending, or compare it before `tier` (test 4); rank the `since` band, or
+      draw `horizon` (test 5); read `inp.cockpit()` inside `headOf` (test 6).
+- [ ] Write `DeskZero.tsx`, `DeskSection.tsx`, the head of `deskRows.tsx`, `desk.css` and `Desk.tsx`.
+- [ ] Write `Desk.test.tsx`; mutants: `setModel(fresh)` in `check` (tests 1 and 2); a module-level
+      model (test 3); `items.length === 0 ? null` in `DeskSection` (test 4); clamp `move` to the
+      group (test 5); `transition: opacity` on `.dk-row` (test 6).
+- [ ] Make the `types.ts` and `AppShell.tsx` edits. Tasks 37, 40 and 53's suites still pass.
+- [ ] Commit each file as it goes green.
+
+#### Acceptance
+
+```bash
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop test -- src/components/desk'
+# expected: 2 files, 12 tests, all passing (6 model, 6 frame)
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop test'
+# expected: every suite passing, tasks 37, 40 and 53 included
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop run typecheck'
+# expected: exit 0
+~/.claude/tools/claudezsh/claudezsh 'grep -nE "<[A-Za-z]|jsx" desktop/src/components/desk/deskModel.ts'
+# expected: no output (decision 1: the model holds no JSX)
+~/.claude/tools/claudezsh/claudezsh 'grep -cE "case \"desk\"" desktop/src/components/AppShell.tsx'
+# expected: 1
+```
+
+#### What this task does NOT claim
+
+- **Any row content.** Issue rows are task 63's, FAILED, LANDED and RUNNING task 64's, informs,
+  the reassign *decide* and the filled zero task 65's, *shipped* task 71's, team mode's rows TM-54's.
+- **The horizon bar and quiet mode** (Q4): the `horizon` band registers and draws nothing.
+- **The Desk as the landing surface**: task 39's review decides (gap 4). `G I` and
+  `setLens("desk")` open it; a palette row is task 59's.
+- **Live feed events, the provenance loader or signals in the snapshot**: each is `[]` or `null`
+  until the task that owns its source passes it (decision 5).
+- **That 30 agents fit one screen at 125 %**: task 70 measures it.
+- **Visual acceptance**: the owner's eyes (CLAUDE.md, working agreements).
+- **Parity**: closes L-114 with tasks 63-65 (`05-design.md:253`); serves L-112 and L-113 (closed by
+  task 65), as the scope says (`tasks-61-80.md:97-98`).
+
+#### Gaps found while writing this part
+
+1. The skeleton's file map (`:311`) names `deskModel.tsx`; this part writes `deskModel.ts`
+   (decision 1, as the scope allowed) and adds `Desk.test.tsx` and `deskModel.test.ts`.
+2. Three later parts import SW.17 from three paths: task 127 `./deskFrame` (`task-127.md:400`),
+   task 170 `../desk/registry` (`task-170.md:295`), tasks 65 and 133 `./deskModel`. The path is
+   `desktop/src/components/desk/deskModel`; tasks 127 and 170 follow it.
+3. TM-54 reads `snap.teamDesk` (`team…/task-54.md:37-40`, its G54-2); this snapshot carries the
+   store as `snap.cockpit`, so TM-54's one `select` reads `snap.cockpit.teamDesk`.
+4. The skeleton names no entry to the Desk. Task 54 prints `G I` → `go.desk` and hands its runner
+   here (`task-54.md:10`); the landing surface waits on task 39's review. Neither the skeleton's
+   task 62 row (`:462`) nor its file map (`:313`) says so.
+5. `WorkEvent` is task 20's fixture type, not `api/work`'s (`task-37.md:59-60`); tasks 62 and 65
+   import it from `api/work`. Task 55's feed must export the production type, or task 37 must.
+6. Task 65 names `deskTime`, the Desk's `HH:MM` formatter, as task 62's (`task-65.md:813`). It is
+   not built here: `lib/time.ts` owns time words, and task 65 adds it there or beside its rows.
+7. Tasks 63-65's tests render `Desk` with the kinds `deskRows.tsx` registers at load; they must not
+   call `__resetDeskRegistry`, or they register their own kinds as this part's tests do.
