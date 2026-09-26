@@ -25,8 +25,9 @@ it back.
 - **On an unassigned issue**: the row's assignee becomes me first (one `optimistic.undo` write),
   then it starts. **On a triage issue of mine**: Start accepts it on the way (*accept and Start*,
   L-47), in the same one request (`accept: true`, `task-24.md:97`).
-- **On Alice's issue**: nothing is sent, and the row says in place *"EP-163 is Alice's. Only her
-  agents work on it."* (OD-16), for 4 s.
+- **On Alice's issue**: nothing is sent, and the row says in place *"EP-163 is assigned to Alice
+  Example. Only their agents work on it."* (OD-16), for 4 s. The scope's *"Only her agents"*
+  would guess a pronoun from a name; the words here do not.
 - **The first sign.** Ten seconds after the session's `createdAt` with no output, the chip's second
   line reads *no output yet · 10s* in mono, and the number climbs with the one heartbeat. Once the
   session record has output, it reads *last output 3s ago*. Before ten seconds it reads nothing.
@@ -54,9 +55,9 @@ it back.
    sends `issueId`, and the test holds that it sends no revision of its own, so a stale replica can
    never pin an older text than the Hub's head.
 3. **One pure rule decides what `Shift+R` does to a row**, `startRule(head, me)`, in the order:
-   assigned to someone else → `not_mine`; unassigned → `assign_then_start`; mine in `triage` →
-   `start` with `accept: true`; mine in `backlog` or `todo` → `start`; mine in any other state →
-   `not_startable`. It mirrors task 24's refusal table (`task-24.md:121`) so no call is made that
+   assigned to someone else → `not_mine`; in a state other than `triage`, `backlog` or `todo` →
+   `not_startable`; unassigned → `assign_then_start`; mine → `start`. Both starting kinds carry
+   `accept: state === "triage"`. It mirrors task 24's refusal table (`task-24.md:121`) so no call is made that
    the route would refuse; the route still decides, and its refusal is shown if they disagree.
 4. **Assign first, and only then start.** On an unassigned row, `start` calls `mutate({kind:
    "setAssignee", issueId, assignee: me})` and awaits its `settled`. A `Refusal` means the replica
@@ -121,4 +122,91 @@ it back.
   slice: "W1", label: "Start", linear: "none"}` (modified, conditional)
 
 `desktop/src/api/work.ts` ⚑ is **not** touched: task 37 already has the three calls.
+
+#### Interfaces — complete: `desktop/src/work/start/useStart.ts`, part 1: the rule, the sign, the entry
+
+```ts
+// desktop/src/work/start/useStart.ts — SW.10's desktop half, task 61.
+//
+// Start is the person's own act on their own issue (OD-16). This file decides what Shift+R does
+// to a row, holds each Start in memory while its chip is on screen, and reads the first sign
+// from the session record. It sends through task 37's client and writes through task 56's mutate.
+import { useSyncExternalStore } from "react";
+import { makeId } from "../../lib/ids";
+import { formatElapsed } from "../../lib/time";
+import { ApiError } from "../../api/client";
+import { workProblem } from "../../api/work";
+import type { IssueHead, IssueState, StartResult, User, WorkClient } from "../../api/work";
+import type { Session } from "../../store/types";
+import type { ReplicaWrites } from "../replica/replica";
+
+export type StartRule =
+  | { kind: "start"; accept: boolean }
+  | { kind: "assign_then_start"; accept: boolean }
+  | { kind: "not_mine"; owner: User }
+  | { kind: "not_startable"; state: IssueState };
+
+/** Task 24's startable states (task-24.md:121). The route still decides; this saves a call. */
+const STARTABLE: ReadonlySet<IssueState> = new Set<IssueState>(["triage", "backlog", "todo"]);
+
+export function startRule(head: IssueHead, me: User): StartRule {
+  if (head.assignee !== null && head.assignee.id !== me.id) return { kind: "not_mine", owner: head.assignee };
+  if (!STARTABLE.has(head.state)) return { kind: "not_startable", state: head.state };
+  const accept = head.state === "triage";
+  return head.assignee === null ? { kind: "assign_then_start", accept } : { kind: "start", accept };
+}
+
+/** The in-place words for a rule that sends nothing. No pronoun is guessed from a name. */
+export function ruleWords(rule: StartRule, head: IssueHead): string | null {
+  if (rule.kind === "not_mine")
+    return `${head.alias} is assigned to ${rule.owner.displayName}. Only their agents work on it.`;
+  if (rule.kind === "not_startable")
+    return `${head.alias} is ${rule.state.replace("_", " ")}. Start takes triage, backlog or todo.`;
+  return null;
+}
+
+/** 05 §4.6's budget.ack: a design value, not a measurement. */
+export const FIRST_SIGN_MS = 10_000;
+
+/** Go's zero time is how the record says "never" (registry/session.go:99). */
+function observedMs(iso: string): number | null {
+  if (iso === "" || iso.startsWith("0001-01-01")) return null;
+  const t = Date.parse(iso);
+  return Number.isFinite(t) ? t : null;
+}
+
+/** "7s", "59s", then time.ts's own "1m", "1h 06m" (floors, never early). */
+function since(iso: string, fromMs: number, nowMs: number): string {
+  const ms = Math.max(0, nowMs - fromMs);
+  return ms < 60_000 ? `${Math.floor(ms / 1000)}s` : formatElapsed(iso, nowMs);
+}
+
+/** The chip's second line. Pure: nowMs is useHeartbeat()'s tick. null draws nothing. */
+export function firstSign(
+  s: Pick<Session, "status" | "exitReason" | "createdAt" | "lastOutputAt">, nowMs: number,
+): string | null {
+  if (s.status === "exited") return s.exitReason === "" ? "exited" : `exited · ${s.exitReason}`;
+  const out = observedMs(s.lastOutputAt);
+  if (out !== null) return `last output ${since(s.lastOutputAt, out, nowMs)} ago`;
+  const born = observedMs(s.createdAt);
+  if (born === null || nowMs - born < FIRST_SIGN_MS) return null;
+  return `no output yet · ${since(s.createdAt, born, nowMs)}`;
+}
+
+/** The desktop's state of one Start (decision 1). `startState` of the scope is `undoable` and
+ *  `discard_only` here; the rest are the steps between presses. */
+export type StartPhase =
+  | { kind: "sending" }
+  | { kind: "undoable"; result: StartResult }
+  | { kind: "asking"; result: StartResult }            // an undo or a discard is in flight
+  | { kind: "discard_only"; result: StartResult; note: string }
+  | { kind: "confirming"; result: StartResult; paths: readonly string[]; token: string }
+  | { kind: "undone"; stateRestored: IssueState | null }
+  | { kind: "discarded"; stateRestored: IssueState | null }
+  | { kind: "said"; words: string };                   // a local rule or the server's refusal
+export interface StartEntry { issueId: string; phase: StartPhase }
+```
+
+`exited` is the record's own word and its `exitReason` verbatim (`store/types.ts:149-151`); an
+exit is not interpreted here (FAILED is the Desk's, task 64).
 
