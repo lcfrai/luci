@@ -678,3 +678,138 @@ func w5LinkWritesNoRevision(t *testing.T, e WorkEnv) {
 	}
 }
 ```
+
+```go
+// W5-05: two rules match; the one earlier in the list routes, and the
+// request names that rule and the set's writer (kills "last match wins").
+func w5FirstRuleWins(t *testing.T, e WorkEnv) {
+	p := e.project(t, "Payments", "PAY")
+	_, err := e.Admin.PutIntakeRules(wctx, e.TeamID, hubapi.PutIntakeRulesRequest{BaseVersion: 0,
+		Rules: []hubapi.IntakeRule{
+			{ID: "export", Match: hubapi.IntakeMatch{TextContains: "export"},
+				Route: hubapi.IntakeRoute{ProjectID: p.ID, Priority: hubapi.PriorityHigh}},
+			{ID: "anything", Match: hubapi.IntakeMatch{Channel: hubapi.ChannelMember},
+				Route: hubapi.IntakeRoute{Priority: hubapi.PriorityLow}},
+		}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := e.w5Request(t) // its quote holds "export" and its channel is member: both match
+	if r.Rule == nil || r.Rule.RuleID != "export" || r.Route.Priority != hubapi.PriorityHigh {
+		t.Fatalf("rule %+v route %+v, want the first rule", r.Rule, r.Route)
+	}
+	if r.Rule.RuleAuthor != e.AdminID { // AdminID: task 05's Env (UNVERIFIED name)
+		t.Errorf("rule author %s, want the set's writer", r.Rule.RuleAuthor)
+	}
+}
+
+// W5-10: the principal tries every state with every cause, and a revision;
+// each is principal_cannot_move_state and nothing changes (kills "the guard
+// checks only done" and "the guard checks only fact states").
+func w5SyncMovesNothing(t *testing.T, e WorkEnv) {
+	p := e.project(t, "Payments", "PAY")
+	conn := e.w5Tracker(t, p, hubapi.TrackerIn) // Admin.ConnectTracker with a Jira target
+	bot := e.Integration(t, conn)
+	run, err := bot.ApplySyncBatch(wctx, conn.ID, hubapi.SyncBatch{Items: []hubapi.ImportItem{
+		{ExternalID: "PAY-7", Title: "From Jira", URL: "https://acme.atlassian.net/browse/PAY-7"}},
+		Comments: []hubapi.ExternalComment{}, Changes: []hubapi.UpstreamChange{}})
+	if err != nil || run.Created != 1 {
+		t.Fatalf("sync %v %+v", err, run)
+	}
+	id := e.w5Synced(t, p, "PAY-7") // the issue by its external link
+	head := wHead(t, e.Admin)
+	for _, to := range hubapi.IssueStates {
+		for _, c := range hubapi.MoveCauses { // W1-W4's six and task 144's three
+			_, err := bot.MoveIssueState(wctx, id, hubapi.StateMove{To: to, Cause: c})
+			wRefused(t, err, 403, hubapi.CodePrincipalCannotMoveState, "actorKind", "integration")
+		}
+	}
+	_, err = bot.WriteIssueRevision(wctx, id, hubapi.WriteIssueRevisionRequest{BaseRevision: 1,
+		Content: hubapi.IssueRevisionContent{Title: wText("Edited upstream"), Description: wText("")}})
+	wRefused(t, err, 403, hubapi.CodePrincipalCannotMoveState, "actorKind", "integration")
+	iw, _ := e.Viewer.Issue(wctx, id)
+	if iw.Head.State != hubapi.StateTriage || iw.Head.HeadRevision != 1 {
+		t.Errorf("head %+v, want triage at revision 1", iw.Head)
+	}
+	if k := wKinds(t, e.Admin, head, "issue."); len(k) != 0 {
+		t.Errorf("refusals appended %v", k)
+	}
+}
+```
+
+`w5Tracker` and `w5Synced` are two small helpers in the same file: the first calls
+`e.Admin.ConnectTracker(wctx, p.ID, …)` with `Target` the raw JSON
+`{"source":"jira","site":"https://acme.atlassian.net","projectKey":"PAY"}`; the second reads the
+issue id from `e.Viewer.SearchIssues` by external id (task 05's search, **UNVERIFIED** name) or
+fails the row.
+
+#### The other fourteen rows, one line each
+
+| Row | Setup and assertion |
+|---|---|
+| W5-01 | reflection: `WorkIntake`'s only method whose name holds `Erase` and takes a request id writes the quote; then `MarkImportant`, `AcceptRequest` and a `PutIntakeRules` leave the request `reflect.DeepEqual` but for `important`, `state`, `issueId`, `closedAt`, `closedBy` |
+| W5-04 | accept, then accept, link and decline again: each 409 `request_closed`, `details.state: accepted` |
+| W5-06 | a form with a required `area`; submit without it → 400 `form_field_required`, `details.field: area`; `ListRequests` unchanged |
+| W5-07 | a form with `member.priority: high` and `nonMember.priority: low`; `e.Member` and `e.NonMember` submit; the routes differ exactly so |
+| W5-08 | `ApplySyncBatch` by `e.Admin`, by another connection's principal, and after `DisconnectTracker`: each 403 `forbidden` |
+| W5-09 | the same batch twice: `created 1` then `existing 1`, one issue |
+| W5-11 | mode `in` with one comment → 403 `forbidden`, no item created; mode `in_and_comments` → the comment's author is the external name; a direct `CreateComment` by the principal → 403 in both modes |
+| W5-12 | `e.AppFor` and `e.KeyFor` move `todo` → `backlog` by hand (200) and try `started`, `in_review`, `landed`, `done` with every cause → 403 `principal_cannot_move_state` |
+| W5-13 | `RevokeAPIKey`, then the key's `Issue` read → 401 `key_revoked` |
+| W5-14 | an app `pending`, then `revoked`: its user's `ListRequests` through it → 403 `app_not_approved` both times |
+| W5-15 | `CreateWebhook` with `kinds: ["issue.created","request.created"]` → 201; with `["issue.state_moved.secret"]` → 400 `kinds` |
+| W5-16 | `RunLoopNow` by a member not the owner → 403 `forbidden`; a version whose `bound.levels` sets a class above the owner's grid → 403 `loop_outside_grid`, `details.class` |
+| W5-17 | `PutTeamAgentPolicy` with `harnesses: ["claude-code","nope"]` → 403 `harness_not_allowed`, `details.harness: nope` |
+| W5-18 | one of each write above; `wKinds` after the head has exactly one event per write and none per read; no event's data holds the quote, `ana@example.com` or a secret |
+
+#### Tests first, each with the mutant it kills
+
+The eighteen rows run first, against the stub, and fail with 501 `not_in_fake_yet`; each then
+kills the removal of its own rule. The named mutants:
+
+| Test | Kills |
+|---|---|
+| W5-10 `sync_principal_moves_nothing` | "the guard checks only `done`"; "only fact states"; "revisions not guarded" |
+| W5-05 `first_matching_rule_wins` | "last match wins"; "the rule author not recorded" |
+| W5-03 `link_writes_no_revision` | "link rewrites the issue"; "link moves the state" |
+| W5-02 `accept_writes_quote_as_revision_one` | "the quote trimmed or normalised"; "written as the requester"; "state hard-coded to triage" |
+| W5-12 `app_and_key_refused_fact_states` | "an app is a person"; "`done` by hand allowed to a key" |
+| W5-13 `revoked_key_refused_next_call` | "the gate only on writes" (the next call is a read) |
+| W5-18 `one_event_per_write` | "a refusal appends"; "a read appends"; "the quote in event data" |
+
+Fake-only tests, `fake_work_w5_test.go`:
+
+| Test | Asserts | Kills |
+|---|---|---|
+| `TestW5StateIsPerWorld` | two `NewFake()` worlds; a request in one is 404 in the other | "a package-global map" |
+| `TestActingAsSharesTheWorld` | `f.ActingAs(key)` reads an issue `f` created | "the view copies the world" |
+| `TestGuardTable` | `guardActor` over 7 kinds × every state × every cause × revision, against a table written by hand from task 145's scope | "a kind falls through to person" |
+| `TestHostOnlyForward` | `host` with `outside_pr` to `in_review` passes; to `landed` refused; with no `UserID` refused | "any target with an outside cause" |
+| `TestPersonCannotUseOutsideCause` | a person's `MoveIssueState` with `outside_merge` → 403 | "a person forges a host move" |
+| `TestStubDeleted` | `var _ WorkIntake = (*Fake)(nil)` compiles and no method answers `not_in_fake_yet` (reflection over the 51) | "a stub left behind" |
+
+#### Steps
+
+1. **Bind the names.** Open task 04's and 05's merged fake and H's `fake.go`; replace each
+   **UNVERIFIED** helper here (`asUser`, `needTeam`, `userRef`, `inOrg`, `fieldProblem`,
+   `insertExternalComment`, `w.agentGrid`, `enterRequest`) with the real one, or add it to
+   `fake_work_w5.go`. About 20 minutes.
+2. **Write the rows and fake-only tests**, run them: all fail with 501 or compile errors on the
+   missing `WorkEnv` fields. About 40 minutes.
+3. **Append the causes** to `hubapi/work.go`; delete `fake_work_intake_stub.go`; write
+   `fake_work_w5.go` in the order above. About 70 minutes.
+4. **The three call sites and the `enter` line** (⚑), and split `CreateIssue`. Run W1-W4's rows:
+   they must still pass unchanged. About 20 minutes.
+5. **Run everything** (Acceptance), then commit each file.
+
+#### Acceptance
+
+```bash
+cd control-plane
+go build ./internal/hub/... && go vet ./internal/hub/hubclient/... ./internal/hub/hubapi/...
+go test ./internal/hub/hubclient/conformance/ -run 'Work/W5-' -race -count=1 -v 2>&1 | grep -c '^    --- PASS'   # 18
+go test ./internal/hub/hubclient/conformance/ -run 'Work/W[1-4]-' -race -count=1 2>&1 | tail -1                 # ok
+go test ./internal/hub/hubclient/ -run 'Test(W5StateIsPerWorld|ActingAsSharesTheWorld|GuardTable|HostOnlyForward|PersonCannotUseOutsideCause|StubDeleted)$' -race -count=1 -v 2>&1 | grep -c '^--- PASS'   # 6
+grep -c 'not_in_fake_yet' internal/hub/hubclient/fake_work_w5.go                                                  # 0
+test ! -e internal/hub/hubclient/fake_work_intake_stub.go && echo deleted                                          # deleted
+```
