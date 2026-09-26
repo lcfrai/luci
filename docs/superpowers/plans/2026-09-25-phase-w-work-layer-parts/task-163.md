@@ -355,3 +355,68 @@ Columns as `hub-contract.md:337-339`. The loop's team is the row's team; `M` spl
 The outcome route's delegated caller is not a column: its three rows are
 `TestAnOutcomeNeedsTheOwnersDelegation` above. An app or key principal gets 403 on all three
 writes (task 162's gap 4).
+
+#### Steps
+
+- [ ] **Step 1:** Confirm the sync base (rules H1, H2): task 162's files merged; task 145's
+  `work_loop_runs` carries the columns above (a difference is raised against 145); TM-05's
+  delegation middleware, TM-24's `worker spawn`, TM-26's `turn.end`, TM-37's `Admit` and TM-18's
+  table are merged. `grep -n "func (g \*Gate) Admit" control-plane/internal/fleet/budget/budget.go`
+  finds one line, or this task waits.
+- [ ] **Step 2:** Part 1's Hub rows; they fail. The wire, then `store/work_loops.go`'s three
+  run operations, then the three routes and `validateVersion`'s step 2, until the route rows pass.
+- [ ] **Step 3:** `passLoops`' person-only match, the pinned `issue_key` and step 4 (stale runs),
+  until `TestAStaleRunClosesFailed`, `TestAnAgentsMoveFiresNoStart` and `TestAStartRunPinsTheRevision`
+  pass. Rerun task 162's fourteen rows unchanged.
+- [ ] **Step 4:** The matrix rows; run the whole matrix.
+- [ ] **Step 5:** `result-loop-show.json`, then `verbs/loop.go` and its rows; the TM-09 row; the
+  TM-24 refusal; the `turn.end` call; the gate branch, until part 2 passes.
+- [ ] **Step 6:** `panaceacli/loop.go`, the table row and part 3; the TM-41 bullet (gap 4).
+- [ ] **Step 7:** `git diff -- go.work control-plane/go.mod sandboxd/go.mod` shows nothing; commit
+  by pathspec.
+
+#### Acceptance
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/work
+go test -tags integration ./control-plane/internal/hub/server/ -race -count=1 -v \
+  -run '^Test(EachFiringOpensOneQueuedRun|RunNowIsTheOwnersAndIdempotent|RunNowOnAPausedLoopIs409|AnOutcomeNeedsTheOwnersDelegation|AClosedRunCannotBeReclosed|TheHubsWordsAreNotFleets|AStaleRunClosesFailed|AStartVersionIsTheTriageShapeOnly|AnAcceptWithoutTheLabelStartsNothing|AnAgentsMoveFiresNoStart|AStartRunPinsTheRevision|TheRunLogPagesNewestFirst|ALoopNeverClosesWork)$' \
+  2>&1 | grep -c "^--- PASS"                                                                  # 13
+go test ./control-plane/internal/fleet/verbs/ ./control-plane/internal/fleet/budget/ -race -count=1 -v \
+  -run '^Test(LoopShowReturnsTheInstructionAsData|LoopShowIsForOrchestratorsOnly|StartableIsFalseWhileALaneLives|CloseListsOnlyTheRunsIssue|APausedRunClosesSkippedPaused|ALostTurnClosesFailedTheSecondTime|ASpentBudgetRecordsSkippedBudget|RunNowStillPaysTheBudget|LoopShowFixtureRoundTrips)$' \
+  2>&1 | grep -c "^--- PASS"                                                                  # 9
+go test ./control-plane/internal/fleet/... -race -count=1 -run '^TestASecondSpawnOnALiveIssueIsConflict$' -v \
+  2>&1 | grep -c "^--- PASS"                                                                  # 1
+go test ./sandboxd/internal/panaceacli/ -race -count=1 -v \
+  -run '^Test(LoopShowSendsTheDottedVerb|LoopAloneIsUsage|LoopFleetDownIsExitThree|LoopShowFixtureRoundTrips)$' \
+  2>&1 | grep -c "^--- PASS"                                                                  # 4
+go test -tags integration ./control-plane/internal/hub/... -race -count=1                    # ok
+go test ./control-plane/... ./sandboxd/... -race -count=1                                     # ok
+```
+
+#### What this task does NOT claim
+
+- **That a Start from a loop offers *Undo Start* in the cloud.** SW.10's undo is the loopback
+  route (`task-24.md:96-109`); whether TM-24's `worker stop` keeps the *until the first write*
+  rule is **UNVERIFIED until merge**.
+- **That the Orchestrator obeys the instruction.** Fleet records what it spawned (decision 2);
+  whether the model spawns at all is its own act, and a run that started nothing still closes `ran`.
+- **That the owner sees `skipped_budget` on the Desk.** TM-37's notice is the telling; the run log
+  view is task 172's.
+- **Any latency** from an accept to a worker: janitor interval plus the coalesce window, unmeasured.
+- **That a loop runs in local mode** (OD-20; task 162's first claim).
+
+**Parity rows served:** closes **L-168**; **L-160** and **L-161** jointly with tasks 162 and 172.
+
+#### Gaps found while writing this part
+
+1. **TM-37's rule** *nothing is dropped* needs the owner's word for loop events (decision 4):
+   *recorded as `skipped_budget`*, not held. Until TM-37 takes the row, Step 5 waits.
+2. **TM-24 has no one-live-lane rule**; the `conflict` refusal is a TM-24 delta, and `task.issueId`
+   is task 98's, whose part does not exist.
+3. **The Files list names `budget/gate.go`**; TM-37's file is `budget/budget.go` (`T37:72`). The
+   list above is left as written (restart safety); the delta section is the one to follow.
+4. **The Files list omits TM-41's `instructions/orchestrator.md`**, which needs the bullet above,
+   or the Orchestrator never learns `panacea loop show` exists.
+5. **The scope's `{body, author:"human", owner}`** is mapped to TM-22's `Quoted` (`text`, `class
+   text·H`, `by`, `owner`); task 143 records the mapping once, or both shapes drift.
