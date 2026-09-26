@@ -138,3 +138,115 @@ are TM-07's `hm-…` row, erasable there (TM-46's erase covers route 70, `T46:29
 when `hub.work_actor_kind = 'integration'` and `hub.work_actor_user` is the Orchestrator's owner;
 the row gains `via text NULL CHECK (via IN ('teams'))`. Over HTTP nothing changes: route 70 still
 takes only the owner's desktop token (`T07:186`). No other Phase T write is reachable from the bot.
+
+#### `teams/digest.go` (complete in shape)
+
+```go
+package teams
+
+// MinDigestGap is AX anti-pattern 8's bound (docs/AGENTIC-UX.md:243), per person,
+// across every channel (decision 3).
+const MinDigestGap = 15 * time.Minute
+
+// Cadence is "hourly" or "daily"; "off" never reaches DueChannels.
+var cadence = map[string]time.Duration{"hourly": time.Hour, "daily": 24 * time.Hour}
+
+// PersonClock is what the digest step reads for one person.
+type PersonClock struct {
+	Settings     hubapi.DigestSettings
+	LastAny      *time.Time // task 81's last_digest_at, any channel
+	LastEmail    *time.Time
+	LastTeams    *time.Time
+	TeamsLinked  bool
+}
+
+// DueChannel picks at most ONE channel to send now, or "" (decision 3): nothing
+// inside MinDigestGap of LastAny; of the channels whose cadence has passed since
+// their own last send, "teams" before "email". Pure; the only clock is now.
+func DueChannel(c PersonClock, now time.Time) string
+
+// CardItem is task 81's DigestItem as the card may show it. Title is "" when the
+// item's project is AU data only; the caller fills it, the card never looks one up.
+type CardItem struct {
+	Alias string // "EP-150"
+	Cause string // task 81's cause word: "landed", "due tomorrow", "deferral due", …
+	Title string
+	Link  string // task 80's https link
+}
+
+// DigestCard renders one Adaptive Card (version "1.4", UNVERIFIED as the version
+// every Teams client renders): a TextBlock heading "Your PanaceaApp digest · <n>
+// changes", at most 20 TextBlocks "Alias · Cause · Title" (" · Title" dropped when
+// ""), "and N more" past 20, and one Action.OpenUrl per shown item, titled by its
+// alias. Every string is set as a TextBlock's text with no markdown added; a title
+// holding markdown is escaped by EscapeCardText. Deterministic: same input, same bytes.
+func DigestCard(items []CardItem, more int) json.RawMessage
+
+// EscapeCardText backslash-escapes the characters TextBlock markdown reads
+// (\ * _ [ ] ( ) # - + ` > !), so a person's title cannot become a link.
+func EscapeCardText(s string) string
+```
+
+#### `teams/ask.go` (complete in shape)
+
+```go
+package teams
+
+const MaxAskChars = 2000 // TM-07's bound (T07:187); counted in Unicode code points (gap 4)
+
+// AskTarget is the sender's own Orchestrator in one project. Nothing in the
+// message text ever reaches this type (decision 5).
+type AskTarget struct {
+	ProjectID   string // pj-…
+	ProjectName string // for the project card only
+	AgentID     string // ag-…, the sender's Orchestrator there
+}
+
+// Orchestrators lists the sender's own live Orchestrators, one per project, from
+// TM-10's agent rows as the sender (row-level security as that user). Its store
+// name is TM-10's and UNVERIFIED.
+type Orchestrators interface {
+	OwnOrchestrators(ctx context.Context, userID string) ([]AskTarget, error)
+}
+
+type AskOutcome int
+
+const (
+	AskWritten       AskOutcome = iota // the hm-… row written; "Sent to your Orchestrator in <project>."
+	AskChooseProject                   // the project card sent; nothing written
+	AskNoOrchestrator                  // "You have no Orchestrator yet. Start one in PanaceaApp."
+	AskTooLong                         // "At most 2,000 characters; this one is <n>." Nothing written
+	AskNotYours                        // an AskValue naming a project that is not the sender's: the card again
+)
+
+// Ask resolves and writes one ask for the verified, mapped sender. text is
+// PlainText of the message, or AskValue.Text re-checked. project is "" for a plain
+// message, AskValue.AskProject for a card submit.
+func Ask(ctx context.Context, orch Orchestrators, w HumanMessages,
+	senderID, text, project string) (AskOutcome, *AskTarget, string /* hm-… */, error)
+
+// HumanMessages is the only write ask.go can reach: TM-07's route 70 store call.
+// It has no comment, state, thread or peer method, so an ask cannot become one.
+type HumanMessages interface {
+	InsertHumanMessage(ctx context.Context, projectID, toAgentID, text, via string) (hmID string, err error)
+}
+
+// The server binds Orchestrators and HumanMessages to the endpoint's transaction, so
+// package teams stays standard library plus hubapi (157:82): no pgx, no store import.
+
+// ProjectCard is decision 5's card: "Which project is this for?" and one
+// Action.Submit per target, data AskValue{AskProject, Text}. At most 10 targets;
+// past 10, "Open PanaceaApp to ask in another project" and a link.
+func ProjectCard(targets []AskTarget, text string) json.RawMessage
+
+// ReplyText is decision 7's message: "Your Orchestrator (agent):\n" + reply, or
+// with truncated the suffix "\n(cut at 8,000 bytes)"; auOnly gives the link line only.
+func ReplyText(reply string, truncated, auOnly bool, link string) string
+```
+
+```go
+// teams/post.go ⚑ (task 157): Poster gains one method.
+//	PostCard(ctx context.Context, serviceURL string, ref ChannelRef, card json.RawMessage) (messageID string, err error)
+// Post keeps textFormat "plain" for ReplyText; PostCard sends one attachment of
+// contentType "application/vnd.microsoft.card.adaptive".
+```
