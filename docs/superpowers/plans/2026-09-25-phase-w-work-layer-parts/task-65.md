@@ -563,3 +563,253 @@ export function liveOnMyIssues(i: InformInputs): { agents: number; issues: numbe
 (*"EP-142 landed and proven at 14:02"*, `tasks-61-80.md:144-146`); `DeskZero` adapts task 64's
 payload in one line if its part names them otherwise. `word` is SW.4's result word verbatim
 (`landed and proven`, `proven, self-attested`, `done, not proven`), never recomposed here.
+
+#### Interfaces — complete: the row answer, shared by every row this task adds
+
+```ts
+// desktop/src/components/desk/rows/answer.ts — the one shape "answer in place" takes (decision 8).
+import { ApiError } from "../../../api/client";
+
+export type RowAnswer =
+  | { kind: "pending" }
+  | { kind: "ok"; line: string }                                  // "re-briefed at @4"
+  | { kind: "fail"; seq: number; code: string; message: string }; // the server's own words
+
+let seq = 0;
+export function failOf(e: unknown): RowAnswer {
+  seq += 1;
+  if (e instanceof ApiError) return { kind: "fail", seq, code: e.code, message: e.message };
+  return { kind: "fail", seq, code: "unknown", message: "The request did not complete." };
+}
+```
+
+#### Interfaces — complete: `desktop/src/components/desk/rows/InformRow.tsx`
+
+```tsx
+import { useState } from "react";
+import type { DeskItem } from "../deskModel";                       // task 62
+import type { ChangedPayload, DriftPayload, RelatedPayload } from "../../../work/desk/informs";
+import { failOf, type RowAnswer } from "./answer";
+
+export interface InformVerbs {
+  /** Re-brief: one rebriefSession per session behind the head. Resolves when all stood. */
+  rebrief(p: ChangedPayload): Promise<void>;
+  /** Re-point: opens task 42's CriterionPicker for the brief's current criteria, in place;
+   *  resolves with the chosen id once the revise op stood, or null when the picker closed. */
+  repoint(p: DriftPayload): Promise<string | null>;
+  markSeen(itemId: string): void;                                   // task 64's verb (UNVERIFIED)
+  time(iso: string): string;
+}
+
+type Any = ChangedPayload | RelatedPayload | DriftPayload;
+
+export function InformRow({ item, verbs }: { item: DeskItem<Any>; verbs: InformVerbs }): JSX.Element {
+  const [answer, setAnswer] = useState<RowAnswer | null>(null);
+  const run = (p: Promise<string | null>) => {
+    setAnswer({ kind: "pending" });
+    p.then((line) => setAnswer(line === null ? null : { kind: "ok", line }), (e) => setAnswer(failOf(e)));
+  };
+  const onVerb = () => {
+    if (answer?.kind === "pending" || answer?.kind === "ok") return;  // one answer per entry
+    if (item.kind === "issue.inform_changed") {
+      const p = item.payload as ChangedPayload;
+      run(verbs.rebrief(p).then(() => `re-briefed at @${p.headRev}`));
+    } else if (item.kind === "issue.inform_drift") {
+      run(verbs.repoint(item.payload as DriftPayload).then((c) => (c === null ? null : `re-pointed to ${c}`)));
+    } else {
+      verbs.markSeen(item.id);
+      setAnswer({ kind: "ok", line: "seen" });
+    }
+  };
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "1" && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); onVerb(); }
+  };
+  return (
+    <div className="desk-row desk-inform" data-kind={item.kind} tabIndex={-1} onKeyDown={onKeyDown}
+      data-answered={answer?.kind === "ok" ? "" : undefined}
+      data-fail={answer?.kind === "fail" ? answer.seq : undefined}>
+      <p className="desk-inform-line">{informText(item, verbs.time)}</p>
+      <button type="button" className="desk-verb" onClick={onVerb} disabled={answer?.kind === "pending"}>
+        <kbd>1</kbd> {verbWord(item.kind, item.payload)}
+      </button>
+      {answer?.kind === "ok" && <p className="desk-answer">{answer.line}</p>}
+      {answer?.kind === "fail" && <p className="desk-answer desk-answer-fail">refused · {answer.code} · {answer.message}</p>}
+    </div>
+  );
+}
+
+export function verbWord(kind: string, p: Any): string {
+  if (kind === "issue.inform_changed") return `re-brief my agents at @${(p as ChangedPayload).headRev}`;
+  if (kind === "issue.inform_drift") return "re-point";
+  return "seen";
+}
+
+/** The inform's sentence. Ids and revisions sit in <span class="mono"> through the CSS below. */
+export function informText(item: DeskItem<Any>, time: (iso: string) => string): string {
+  if (item.kind === "issue.inform_changed") {
+    const p = item.payload as ChangedPayload;
+    return `${p.alias} changed since your agent read @${p.adoptedRev} (${p.by.displayName}, ${time(p.at)}): ${p.line}.`;
+  }
+  if (item.kind === "issue.inform_drift") {
+    const p = item.payload as DriftPayload;
+    return `${p.alias} serves ${p.criterionId}, which the brief no longer has.`;
+  }
+  const p = item.payload as RelatedPayload;
+  return `${p.by.displayName} added ${p.otherAlias || p.otherId} ${p.relation} ${p.alias} (${time(p.at)}). Recorded.`;
+}
+```
+
+`answer.ts` joins the file list (new, no test of its own: `InformRow.test.tsx` and
+`ReassignDecide.test.tsx` cover it through the rows).
+
+#### Interfaces — complete: `desktop/src/components/desk/rows/ReassignDecide.tsx`
+
+```tsx
+import { useState } from "react";
+import type { DeskItem } from "../deskModel";
+import type { ReassignPayload } from "../../../work/desk/informs";
+import { failOf, type RowAnswer } from "./answer";
+
+export interface ReassignVerbs {
+  answer(issueId: string, accept: boolean): Promise<unknown>;       // WorkClient.answerReassign
+  stopSessions(ids: readonly string[]): Promise<unknown>;           // phase 2's killSession, each
+  time(iso: string): string;
+}
+
+/** 05 §3.7 rule 2 at tier 0. Nothing is the default: without a key, nothing moves (decision 7). */
+export function ReassignDecide({ item, verbs }: { item: DeskItem<ReassignPayload>; verbs: ReassignVerbs }): JSX.Element {
+  const p = item.payload;
+  const [answer, setAnswer] = useState<RowAnswer | null>(null);
+  const settle = (accept: boolean) => {
+    if (answer && answer.kind !== "fail") return;
+    setAnswer({ kind: "pending" });
+    verbs.answer(p.issueId, accept)
+      .then(() => (accept ? verbs.stopSessions(p.sessionIds) : undefined))
+      .then(
+        () => setAnswer({ kind: "ok", line: accept
+          ? `answered · handed over to ${p.to.displayName}; uncommitted changes stay in the worktree`
+          : "answered · kept" }),
+        (e) => setAnswer(failOf(e)),
+      );
+  };
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === "1") { e.preventDefault(); settle(true); }
+    if (e.key === "2") { e.preventDefault(); settle(false); }
+  };
+  return (
+    <div className="desk-row desk-decide" data-kind={item.kind} tabIndex={-1} onKeyDown={onKeyDown}
+      data-answered={answer?.kind === "ok" ? "" : undefined}
+      data-fail={answer?.kind === "fail" ? answer.seq : undefined}>
+      <p className="desk-decide-line">
+        {p.by.displayName} wants to reassign {p.alias} to {p.to.displayName} ({verbs.time(p.at)}).
+        {" "}{p.sessionIds.length > 0 ? `${p.sessionIds.length} of your agents work on it.` : "No agent of yours is on it."}
+      </p>
+      <p className="desk-ifnothing">If you do nothing: {item.ifNothing}.</p>
+      <div className="desk-verbs" role="group" aria-label={`Answer the reassign of ${p.alias}`}>
+        <button type="button" className="desk-verb" onClick={() => settle(true)} disabled={answer?.kind === "pending"}>
+          <kbd>1</kbd> hand over to {p.to.displayName}
+        </button>
+        <button type="button" className="desk-verb" onClick={() => settle(false)} disabled={answer?.kind === "pending"}>
+          <kbd>2</kbd> keep working, decline
+        </button>
+      </div>
+      {answer?.kind === "ok" && <p className="desk-answer">{answer.line}</p>}
+      {answer?.kind === "fail" && <p className="desk-answer desk-answer-fail">refused · {answer.code} · {answer.message}</p>}
+    </div>
+  );
+}
+```
+
+The order is fixed: the Hub answer first, the stops after. A Hub refusal stops nothing, so a
+refused hand-over never leaves me with no agent and the issue still mine. A stop that fails after
+an accepted answer shows the stop's refusal on the row: the issue is Alice's and my agent still
+runs, which the row says in the server's words; *Enter* opens the session to stop it by hand.
+
+#### Interfaces — complete: `desktop/src/components/work/ReassignMark.tsx`
+
+```tsx
+import type { IssueHead } from "../../api/work";
+
+/** Every issue surface's line while a reassign waits (decision 7). Renders nothing otherwise. */
+export function ReassignMark({ head }: { head: Pick<IssueHead, "reassignRequest"> }): JSX.Element | null {
+  const rq = head.reassignRequest;
+  if (!rq) return null;
+  return <span className="reassign-mark">reassign requested by {rq.by.displayName} · to {rq.to.displayName}</span>;
+}
+```
+
+`IssueRow.tsx` (task 40) mounts `<ReassignMark head={head}/>` in its fact line, after the assignee;
+`IssueHead.tsx` (task 46) mounts it under the assignee picker. Neither mount changes a layout
+dimension: the mark is one inline span in task 26's `--t-fact` (`task-26.md:19-22`; not in
+`tokens.css` on the tree today).
+
+#### Interfaces — complete: two op kinds on `desktop/src/work/replica/ops.ts` ⚑ (task 56)
+
+The scope routes every Desk verb through `mutate` (SW.16), so the reassign's two writes are op
+kinds, not side calls: they get the pending mark, the refusal, the queue and the Idempotency-Key
+for free. One more file joins the list: `ops.ts` ⚑ and its test ⚑ (two cases each).
+
+```ts
+// WorkOp gains two arms (task-56.md:156-168):
+  | { kind: "requestReassign"; issueId: string; to: User }
+  | { kind: "answerReassign"; issueId: string; accept: boolean; to: User }   // `to` paints the accept
+// FieldPath (task-56.md:173) gains "reassignRequest".
+
+// fieldsOf: requestReassign → [] (the Hub decides; the row shows "sending" until the head returns)
+//           answerReassign  → accept ? ["assignee", "reassignRequest"] : ["reassignRequest"]
+// applyLocal paints answerReassign: reassignRequest ← null; on accept, assignee ← op.to.
+// undoable(op): false for both (a hand-over is answered once; decision 8's "one answer per entry").
+// sendOp gains:
+    case "requestReassign": return { head: await client.requestReassign(id, op.to.id) };
+    case "answerReassign": return { head: await client.answerReassign(id, op.accept) };
+```
+
+#### Interfaces — complete: `desktop/src/components/desk/deskRows.tsx` ⚑ — task 65's block
+
+```tsx
+// Appended after tasks 63 and 64's blocks (task 62 owns the file's head and imports).
+import { api } from "../../api";                                      // phase 2, api/index.ts:17
+import { mutate } from "../../work/replica/replica";                  // SW.16, task 55/56
+import * as inf from "../../work/desk/informs";
+import { InformRow, type InformVerbs } from "./rows/InformRow";
+import { ReassignDecide, type ReassignVerbs } from "./rows/ReassignDecide";
+
+const since = () => ({ tier: 2 as const, waitingSinceMs: 0 });     // the band keeps arrival order
+const waited = (at: string) => Math.max(0, Date.now() - Date.parse(at));
+const stood = (h: { settled: Promise<"applied" | { code: string; message: string }> }) =>
+  h.settled.then((r) => { if (r !== "applied") throw Object.assign(new Error(r.message), r); });
+
+registerDeskSource("issue.inform_changed", (s) => inf.changedInforms(inputsOf(s)));
+registerDeskSource("issue.inform_related", (s) => inf.relatedInforms(inputsOf(s)));
+registerDeskSource("issue.inform_drift", (s) => inf.driftInforms(inputsOf(s)));
+registerDeskSource("issue.reassign_decide", (s) => inf.reassignDecides(inputsOf(s)));
+
+for (const kind of ["issue.inform_changed", "issue.inform_related", "issue.inform_drift"] as const) {
+  registerDeskRow(kind, "since", (item) => <InformRowBound item={item} />, since);
+}
+registerDeskRow<inf.ReassignPayload>("issue.reassign_decide", "needs_you",
+  (item) => <ReassignDecide item={item} verbs={reassignVerbs} />,
+  (item) => ({ tier: 0, waitingSinceMs: waited(item.arrivedAt) }));
+
+const reassignVerbs: ReassignVerbs = {
+  answer: (issueId, accept) => {
+    const to = /* the pending request's To, read at press time */ headOf(issueId)!.reassignRequest!.to;
+    return stood(mutate({ kind: "answerReassign", issueId, accept, to }));
+  },
+  stopSessions: (ids) => Promise.all(ids.map((id) => api.killSession(id))),
+  time: deskTime,
+};
+
+/** Adapts task 62's snapshot to InformInputs. The member names on the right are task 62/63's
+ *  and UNVERIFIED until their parts land; this one function is where a rename lands. */
+function inputsOf(s: DeskSnapshot): inf.InformInputs {
+  return { me: s.me, sessions: s.sessions, heads: s.heads, revisionAt: s.revisionAt,
+    refOf: s.refOf, events: s.events, briefCriteria: s.briefCriteria };
+}
+```
+
+`headOf` and `deskTime` are task 62's (the snapshot's head read and the Desk's `HH:MM`
+formatter, both **UNVERIFIED** names). `stood` turns a `Refusal` into a rejection carrying the
+server's `code` and `message`, which `failOf` reads (it is not an `ApiError`, so `failOf` gains one
+branch: an object with string `code` and `message` is read as they are).
