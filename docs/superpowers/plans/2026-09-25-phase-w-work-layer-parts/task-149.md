@@ -52,7 +52,7 @@ Eight decisions the scope left open, made here.
    `work_requests_channel_once` is per team). A mail whose recipients name no alias (a Bcc, a
    retired alias) makes none, and the sweep counts it as `unrouted` so an operator can see it.
 6. **The Hub learns which issues a release carries from the release's reserver.** The Hub's
-   release (`hub-contract.md:974-991`) holds a commit, not issues; *shipped* is derived in the
+   release (`hub-contract.md:976-991`) holds a commit, not issues; *shipped* is derived in the
    control plane from the trailer walk (task 71, `tasks-61-80.md:359-368`; task 131 decision 8).
    So the Ship flow, after confirm, sends the ids it already derived:
    `PUT /v1/releases/{releaseId}/issues {issueIds}`, reserver only, confirmed releases only, once
@@ -454,7 +454,7 @@ knob if a measurement says so.
   `intake_address_taken` (the same answer whichever org holds it); emit `intake.address_set`; 200.
 - `PUT /v1/releases/{releaseId}/issues` (the release's reserver), in `s.Write`: `Decode`; the
   release under row-level security, else 404 `release_not_found`; not the reserver → 403
-  `not_reserver` (the Hub's own code for confirm, `hub-contract.md:1030`); not `confirmed` → 409
+  `not_reserver` (the Hub's own code for confirm, `hub-contract.md:240`, `:1028`); not `confirmed` → 409
   `release_state`; every id is an issue of the release's project, else 400 `field: issueIds[k]`;
   a recorded set equal to this one → 200 with nothing written; a different one → 409
   `release_issues_recorded`; else insert, emit `release.issues_recorded {count}`; 200.
