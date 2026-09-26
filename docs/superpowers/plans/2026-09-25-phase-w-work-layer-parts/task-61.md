@@ -58,3 +58,67 @@ it back.
    `start` with `accept: true`; mine in `backlog` or `todo` → `start`; mine in any other state →
    `not_startable`. It mirrors task 24's refusal table (`task-24.md:121`) so no call is made that
    the route would refuse; the route still decides, and its refusal is shown if they disagree.
+4. **Assign first, and only then start.** On an unassigned row, `start` calls `mutate({kind:
+   "setAssignee", issueId, assignee: me})` and awaits its `settled`. A `Refusal` means the replica
+   has already taken the paint back (`task-56.md:378-380`); the row shows the Hub's own message and
+   **no Start is sent**. `"applied"` sends the Start. If the Start is then refused, `handle.undo()`
+   sends the inverse assign as the person's own write, so the row is not left assigned by a Start
+   that never happened. The undo chip task 56 would show for the assign is not shown: the Start chip
+   is the one chip on the row (`mutate`'s handle is held, not surfaced).
+5. **The chip learns `discard_only` by asking, never by guessing.** SW.10 has no read of "has the
+   agent written a file yet" (`task-24.md:92-115`; gap 2). So the chip offers *Undo Start* until a
+   press is answered `409 first_write`; then it says why in place and turns to *Stop and discard*.
+   Nothing polls and nothing is retried. The chip never claims undo is still possible: it offers
+   the act, and the control plane's answer is the fact.
+6. ***Stop and discard* is task 24's two-step discard, surfaced as `confirm.inplace`.** The first
+   press sends `discardStart(id, "")`, which only asks: the `409 confirm_required` answer carries
+   `details.paths` and `details.confirm` (`task-24.md:113`). The chip shows the consequence line
+   from those paths and a *Discard* button; the second press sends the token. A stale token is
+   answered with a fresh `confirm_required`, which the chip shows again, so the person always
+   confirms what is lost **now**. `details` is `map[string]string` on the wire
+   (`control-plane/internal/httpx/problem.go:33`), so the desktop reads `paths` as newline-joined
+   (gap 4).
+7. **The first sign reads the session record and ticks on the one clock.** `firstSign(session,
+   nowMs)` is pure: Go's zero time (`0001-01-01T00:00:00Z`) or an empty `lastOutputAt` is *no
+   output*; with no output and `nowMs - createdAt ≥ 10 000` it returns `no output yet · <n>s`;
+   with output it returns `last output <n>s ago`; otherwise `null`. `nowMs` is `useHeartbeat()`
+   (`heartbeat.ts:64`), the window's one 1 Hz tick. The chip starts no timer of its own, and the
+   4 s notes (*Start undone*, the refusal words) are one `setTimeout` each, cleared on unmount.
+8. **Start state is in memory and per issue.** `createStartStore()` keeps a `StartEntry` per issue
+   id in a module store read with `useSyncExternalStore`, like task 24's in-memory record
+   (`task-24.md:49-55`). Nothing is written to disk (Global constraints: no Hub data on disk).
+   After a desktop restart the chip is gone and the session and worktree verbs in Develop remain;
+   task 24 would answer `404 start_not_found` in any case. An entry in `sending` swallows a second
+   `Shift+R` on that issue, so a double press is one Start even before the control plane's
+   `requestId` rule (`task-24.md:51-52`) is reached. The `requestId` is `makeId("rq")`
+   (`desktop/src/lib/ids.ts:12-15`, `rq-<n>-<8 hex>`), inside the wire's 8-64 rule.
+9. **The base branch is the project's checked-out branch.** Task 24 needs `branch` (the base).
+   The desktop sends the cockpit store's `isHead` branch of the issue's project
+   (`store/types.ts:57-63`). Task 24 compares the request's `projectId` with the issue's
+   (`task-24.md:256`), so the desktop sends `head.projectId`; that the control plane's project id
+   and the Hub's are one value is task 24's assumption (gap 3). No head branch known: nothing is
+   sent, and the row says *"No branch is checked out for this project yet."*
+10. **Words for the route and the cost, and no number that was not observed.** `route` reads
+    *Global route* or *AU route*; `routeForced` adds *· set by the project's data class* (task 24:
+    every project is forced AU in W1, `task-24.md:512-515`). `cost: null` reads *cost not metered in
+    local mode* (`OD-27`). The chip has no bar, no `%` and no countdown.
+
+**Files** (the skeleton's File map lists `StartChip.tsx` for task 61, `:306`):
+
+- `desktop/src/work/start/useStart.ts` — `startRule`, `firstSign`, `StartEntry`, the store,
+  `useStart`, `useStartEntry` (new)
+- `desktop/src/work/start/useStart.test.ts` — the rule, the sign and the store (new)
+- `desktop/src/work/start/register.ts` — registers `issue.start` with task 53's `registerVerb` (new)
+- `desktop/src/components/work/StartChip.tsx` — the chip, its first-sign line, the discard step (new)
+- `desktop/src/components/work/StartChip.test.tsx` — keys and surfaces (new)
+- `desktop/src/components/work/IssueRow.tsx` (task 40's) — renders the chip and the in-place note
+  (modified)
+- `desktop/src/components/work/WorkLens.tsx` (task 40's) — registers the verb on mount; passes
+  `onStart` to task 44's bulk bar (modified)
+- `desktop/src/components/work/work.css` (task 40's) — the `.sc-*` rules, appended (modified)
+- `desktop/src/work/keys/keymap.ts` ⚑ (task 53's) — only if task 53 did not print the `Shift+R`
+  row: `{verb: "issue.start", keys: ["Shift+R"], code: "KeyR", shift: true, scope: "issueRow",
+  slice: "W1", label: "Start", linear: "none"}` (modified, conditional)
+
+`desktop/src/api/work.ts` ⚑ is **not** touched: task 37 already has the three calls.
+
