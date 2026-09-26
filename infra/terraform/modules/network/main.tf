@@ -70,7 +70,8 @@ resource "azurerm_subnet" "sandbox" {
 # prevent_destroy (task 02 re-review I1, carried): the state account's private endpoint, made by
 # stacks/bootstrap and so absent from this module's state, sits on this subnet. Once prod's
 # public access is off it is the only path to every stack's state, and a replace of this subnet
-# (or of the VNet, which replaces it) would cut that path. The cost: prevent_destroy is a
+# would cut that path. A VNet replace plans one only when it changes this subnet's own arguments
+# (a new VNet name or group), hence the VNet's own prevent_destroy above. The cost: it is a
 # literal, so it holds in dev too, and a deliberate teardown first edits it out, the same shape
 # as bootstrap's CanNotDelete lock.
 resource "azurerm_subnet" "private_endpoints" {
