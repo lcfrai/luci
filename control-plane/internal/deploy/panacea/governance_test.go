@@ -407,6 +407,9 @@ func TestURLPrefix(t *testing.T) {
 		"PUT " + actsP + "/branches/feat%2Fy/url-prefix":    {file: "urlprefix-409.json", status: 409},
 		"DELETE " + branchP + "/url-prefix":                 {body: `{"message":"url prefix cleared","data":{"branch":"feat/x","routeReverted":true}}`},
 		"DELETE " + actsP + "/branches/feat%2Fy/url-prefix": {body: `{"message":"url prefix cleared"}`, status: 202},
+		// Reverted with no branch echoed: Branch is the argument, never the echo (named survivor
+		// CS1a, the reverted half of CS1).
+		"DELETE " + actsP + "/branches/feat%2Fw/url-prefix": {body: `{"message":"url prefix cleared","data":{"routeReverted":true}}`},
 		// A project in a team namespace: Panacea's host is <prefix>.<team>.<domain>
 		// (handlers/branch_url_prefix.go:73-81, projects.go:4309, :4318, :4370), so Host is the
 		// answer's, never built here from the prefix (named survivor Z2).
@@ -432,11 +435,15 @@ func TestURLPrefix(t *testing.T) {
 	if want := (deploy.URLPrefixCleared{Branch: "feat/x", RouteReverted: true, Message: "url prefix cleared"}); err != nil || cleared != want {
 		t.Errorf("ClearURLPrefix = (%+v, %v), want %+v", cleared, err, want)
 	}
+	cleared, err = rs.c.ClearURLPrefix(ctx, project, "feat/w")
+	if want := (deploy.URLPrefixCleared{Branch: "feat/w", RouteReverted: true, Message: "url prefix cleared"}); err != nil || cleared != want {
+		t.Errorf("ClearURLPrefix(no echo) = (%+v, %v), want %+v", cleared, err, want)
+	}
 	// The handler answers 200 on success; another 2xx is an answer this code does not know.
 	_, err = rs.c.ClearURLPrefix(ctx, project, "feat/y")
 	wantKind(t, err, deploy.KindUnavailable, 202, "")
-	if n := len(rs.requests()); n != 5 {
-		t.Errorf("%d requests, want 5", n)
+	if n := len(rs.requests()); n != 6 {
+		t.Errorf("%d requests, want 6", n)
 	}
 }
 
@@ -478,6 +485,14 @@ func TestClearURLPrefixRouteNotReverted(t *testing.T) {
 		Message: strings.Replace(routeNotRevertedExample, "feat/x", "feat/y", 1)}
 	if err != nil || got != want {
 		t.Errorf("ClearURLPrefix(no routeReverted) = (%+v, %v)\nwant %+v", got, err, want)
+	}
+	// The unconfirmed answer is logged too, not only the explicit false (named survivor W1).
+	warned := false
+	for _, line := range strings.Split(rs.log.String(), "\n") {
+		warned = warned || strings.Contains(line, "level=WARN") && strings.Contains(line, " branch=feat/y ")
+	}
+	if !warned {
+		t.Errorf("no warn line for feat/y, whose answer has no routeReverted:\n%s", rs.log.String())
 	}
 	if n := len(rs.requests()); n != 2 {
 		t.Errorf("%d requests, want 2", n)
