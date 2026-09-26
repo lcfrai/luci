@@ -174,3 +174,158 @@ lands; it must carry a unique `(org_id, id)` for the composite keys, as `issues`
 `work_request_notices` row is an **outbox**: `passShipped` inserts it `pending` in the same
 transaction that reads the release, and sends it after commit; the primary key is what makes
 *told twice* impossible even when two sweeps race.
+
+#### `mailer/inbound.go` (complete)
+
+```go
+package mailer
+
+// Inbox reads the shared intake mailbox. Delta returns the messages new since
+// cursor ("" is the start) and the cursor to store once they are all handled.
+type Inbox interface {
+	Delta(ctx context.Context, cursor string) (msgs []InboundMessage, next string, err error)
+}
+
+// InboundMessage is what the Hub keeps of a mail: the ids, the sender, the
+// recipients it routes by, and the plain-text body. Attachments are not read.
+type InboundMessage struct {
+	InternetMessageID string   // the Message-ID header, "<…@…>"; the request's channel_ref
+	FromAddress       string   // lower-cased
+	FromName          string
+	Recipients        []string // To and Cc, lower-cased; Bcc is not visible and never routes
+	TextBody          string
+	ReceivedAt        time.Time
+}
+
+// Replier answers a mail in its own thread. Graph's reply action on the
+// original message sets In-Reply-To and References itself, which a sendMail
+// cannot: Graph accepts only X- custom headers on a new message.
+type Replier interface {
+	Reply(ctx context.Context, r Reply) error
+}
+
+type Reply struct {
+	InternetMessageID string // the message to answer, found by $filter=internetMessageId eq '…'
+	Text              string
+	IdempotencyKey    string // "rq-…/rl-…"; a second Reply with the same key sends nothing
+}
+
+var markers = []*regexp.Regexp{
+	regexp.MustCompile(`^On .+ wrote:\s*$`),
+	regexp.MustCompile(`^-{2,}\s*Original Message\s*-{2,}\s*$`),
+	regexp.MustCompile(`^_{20,}\s*$`),
+	regexp.MustCompile(`^From: .+`), // Outlook's quoted header block starts here
+	regexp.MustCompile(`^-- $`),     // RFC 3676's signature delimiter
+}
+
+// CutReply keeps the new text of a reply and counts the lines it drops
+// (decision 4). It never returns "" for a non-empty body.
+func CutReply(body string, maxBytes int) (kept string, trimmed int) {
+	lines := strings.Split(strings.ReplaceAll(body, "\r\n", "\n"), "\n")
+	cut := len(lines)
+	for i, l := range lines {
+		if slices.ContainsFunc(markers, func(re *regexp.Regexp) bool { return re.MatchString(l) }) ||
+			(i > 0 && strings.HasPrefix(l, ">") && strings.TrimSpace(lines[i-1]) == "") {
+			cut = i
+			break
+		}
+	}
+	keep := lines[:cut]
+	for len(keep) > 0 && strings.TrimSpace(keep[len(keep)-1]) == "" {
+		keep = keep[:len(keep)-1]
+	}
+	if len(keep) == 0 { // the whole body was a quote: keep it rather than nothing
+		keep = lines
+	}
+	for len(keep) > 1 && len(strings.Join(keep, "\n")) > maxBytes {
+		keep = keep[:len(keep)-1]
+	}
+	kept = strings.Join(keep, "\n")
+	if len(kept) > maxBytes { // one line over the cap: cut at a rune boundary
+		kept = strings.ToValidUTF8(kept[:maxBytes], "")
+	}
+	return kept, len(lines) - len(keep)
+}
+```
+
+The body is normalised to `\n` **before** it is kept, so a mail's quote holds `\n` line ends. That
+is the one change the Hub makes to a mailed quote, and it is made because mail transport rewrites
+line ends anyway (RFC 5322 requires CRLF on the wire): the requester did not choose them. Task
+146's *byte for byte* holds from the stored quote on. A body whose **first** line begins *From:*
+matches the Outlook marker at once and would cut to nothing; the empty-result rule then keeps the
+whole body, and `TestAFirstLineFromIsKept` pins that. The loop that drops lines to fit the cap
+joins the lines on every pass, quadratic in the line count; the 16 KiB cap bounds it at a few
+hundred lines, **unmeasured**.
+
+**`graph.go`'s read side** (task 81's file, appended): `Delta` calls
+`GET /v1.0/users/{mailbox}/mailFolders/inbox/messages/delta?$select=internetMessageId,from,toRecipients,ccRecipients,body,receivedDateTime`
+with `Prefer: outlook.body-content-type="text"`, follows `@odata.nextLink` to the end of the round,
+and returns `@odata.deltaLink` as `next`; a `cursor` that is a stored delta link is called as
+given. `Reply` finds the message by `$filter=internetMessageId eq '<…>'` and calls `POST
+…/messages/{id}/reply` with `{"comment": text}`. Both use the Hub's workload identity through task
+81's token source (no secret in any variable). A `410 Gone` on a delta link (Graph's *sync state
+not found*) restarts from `""` and relies on `work_requests_channel_once` to create nothing twice.
+Every Graph path and header here is from Microsoft's public Graph v1.0 reference as the author
+knows it, **UNVERIFIED** against a tenant; `graph_test.go` pins the requests the code makes to an
+`httptest` server and nothing more. The fake records `Delta` pages it is given and every `Reply`.
+
+#### `hubapi/work_intake.go`, the additions (requirement on task 143; complete)
+
+```go
+// ── Task 149: mail intake and shipped notices (SW.21) ──────────────────────
+
+// IntakeSettings is GET and PUT /v1/teams/{teamId}/intake-address.
+type IntakeSettings struct {
+	TeamID               string   `json:"teamId"`
+	Address              string   `json:"address"`              // "" when the team has none
+	AnnounceEnvironments []string `json:"announceEnvironments"` // default ["production"]
+	UpdatedAt            string   `json:"updatedAt"`
+	UpdatedBy            *User    `json:"updatedBy"`
+}
+
+type PutIntakeSettingsRequest struct {
+	Address              string   `json:"address"`              // lower-case mailbox, or "" to clear
+	AnnounceEnvironments []string `json:"announceEnvironments"` // 0-20 Panacea environment names
+}
+
+// RecordReleaseIssuesRequest is PUT /v1/releases/{releaseId}/issues (decision 6).
+type RecordReleaseIssuesRequest struct {
+	IssueIDs []string `json:"issueIds"` // 0-2000 is- ids, distinct; ids only, never titles
+}
+
+const MaxReleaseIssues = 2000
+
+const (
+	EventIntakeAddressSet      = "intake.address_set"
+	EventReleaseIssuesRecorded = "release.issues_recorded"
+	EventRequestTold           = "request.told"
+)
+
+type IntakeAddressSetData struct {
+	HasAddress bool  `json:"hasAddress"` // the address itself is not in the feed
+	Announce   int64 `json:"announce"`   // how many environments
+}
+type ReleaseIssuesRecordedData struct {
+	Count int64 `json:"count"`
+}
+// RequestToldData: which release told the requester, and on which environment.
+type RequestToldData struct {
+	ReleaseID   string `json:"releaseId"`
+	Environment string `json:"environment"`
+	Channel     string `json:"channel"`
+}
+// Appended to WorkEventKinds:
+//	{EventIntakeAddressSet, IntakeAddressSetData{}, ScopeTeam, VisibleToReaders},
+//	{EventReleaseIssuesRecorded, ReleaseIssuesRecordedData{}, ScopeProject, VisibleToReaders},
+//	{EventRequestTold, RequestToldData{}, ScopeTeam, VisibleToReaders},
+
+// On hubclient.WorkIntake (task 143), for the Ship flow (decision 6):
+//	RecordReleaseIssues(ctx context.Context, releaseID string, issueIDs []string) error
+```
+
+`release.` is the Hub's own prefix (`release.reserved`, `.confirmed`, `.abandoned`,
+`hub-contract.md:1155-1157`), so `release.issues_recorded` is a **Work kind under a Hub prefix**:
+task 13's prefix check (`task-13.md:524`) does not see `release.` today, and this task adds the one
+kind to its list by name rather than the whole prefix, so a Hub kind is never mistaken for a Work
+one. The address is not in `intake.address_set`: it may name a client (*payments-acme@…*), and the
+feed carries ids and counts.
