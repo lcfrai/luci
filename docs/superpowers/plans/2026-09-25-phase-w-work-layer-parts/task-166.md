@@ -1,0 +1,53 @@
+### Task 166: the per-team harness allow-list, Claude Code first; team skills in the sandbox image or a team library, the harness unmodified
+
+W5, stream WH plus one control-plane delta, about 2.5 hours (an estimate, not a measurement).
+Depends on task **145** (the `work_team_agent_policies` table, `task-145.md:351-373`) and Phase T's
+**TM-13** (policy layers and `policy.Render`, team worktree `task-13.md:276-302`, `:388-390`) and
+**TM-15** (sandbox classes and the policy mount). It uses task 143's `TeamAgentPolicy` wire and
+`ValidateTeamAgentPolicy` (`task-143.md:557-569`, `:729-731`), task 161's `ConnectorFragment`
+(`task-161.md:492-497`), and task 144's fake, which this task extends.
+
+Parity: closes **L-159** (Claude Code's own skills, in the image or a team library, the harness
+unmodified) and **L-180** (a per-team harness allow-list); **L-197** and **L-256** jointly with 161
+and 173. Design: 05 §1 L (L-159), M (L-180), R (L-256); §5.4 W5. OD-8 (never modify or parse an
+agent CLI), OD-16 (an admin governs, never acts as the person), OD-23 (policy is layered and
+rendered once, TM-13).
+
+**What the reader does.** Dylan, admin of team *Payments*, sets the team's harnesses to
+`claude-code`, then `codex`, and points skills at `github.com/kpmg/payments-skills`, path
+`skills/`, commit `4b1d…` (40 hex). Priya, a member, starts a session on a Payments worktree with
+`codex`: it starts. She tries `gemini-cli`: the cockpit reads *Payments allows claude-code and
+codex*. Her Claude Code session has the team's skills in its skills folder; the harness's command
+line is the one it would have had without them. A month later Dylan asks *which skills did that
+agent have?* and the agent-start record answers with the commit.
+
+**Decisions made here, so nobody re-derives them:**
+
+1. **Unset means `["claude-code"]`, never "all".** A team with no row reads `harnesses:
+   ["claude-code"]`, `skills: {source: "image", library: null}`, `updatedBy: null`, `updatedAt:
+   null` (`task-143.md:562`, `task-169.md:313-318`). The GET never 404s for a team the caller can
+   read; the absence is the default, stated.
+2. **The order is the fallback order, and the first is the default.** A session that names no
+   harness gets the team's first, not `claude-code` by fiat; `sessions.go:785-788` defaults to
+   `claude-code` today, and the gate replaces that default only for a team-bound project.
+3. **The route is the scope's**, `GET`/`PUT /v1/teams/{teamId}/work/agent-policy`
+   (`tasks-161-180.md:273`), which task 169 mirrors (`task-169.md:412-413`). Task 143's proposal
+   `/v1/teams/{teamId}/agent-policy` (`task-143.md:952`) is corrected there (gap 1).
+4. **A refusal is task 144's 400, naming the field.** `ValidateTeamAgentPolicy` returns a
+   `*FieldError` (`task-143.md:581`), which the server answers 400 `bad_request` naming
+   `harnesses` or `skills.library.commit` (task 144's `fieldProblem`, `task-144.md:317`). The
+   scope wrote 422; the house mapping wins (gap 2).
+5. **The gate is on the control plane, fail closed.** Creating a session on a worktree whose
+   project is bound to a Hub team asks the Hub for that team's policy; a harness not on it answers
+   403 `harness_not_allowed` with `{allowed}`. If the Hub cannot answer, the session is refused
+   503 `agent_policy_unavailable`: a gate that opens when the Hub is down is not a gate. A project
+   bound to no team (local-only, OD-20) has no team policy, and the gate does not apply.
+6. **Skills are files, never flags.** `library` is fetched at its commit, read-only, into the
+   harness's own user-level skills folder in the sandbox's home before the harness starts, never
+   into the worktree (a staged file there would be committed with the work). `harness.Build`'s
+   argv and env are byte-identical with and without skills (OD-8). `image` stages nothing.
+7. **The commit is recorded.** The agent-start record (TM-14) carries `skillsCommit` beside the
+   policy digest, `""` for `image`, so *which skills did this agent have* has one answer.
+8. **The fragment passes through `Render` or is not posted.** `OrgFragment` joins task 161's
+   `ConnectorFragment` into one org-layer envelope, then renders it for every class with
+   `policy.Render`; any `InvariantError` is returned and nothing is posted (TM-13).
