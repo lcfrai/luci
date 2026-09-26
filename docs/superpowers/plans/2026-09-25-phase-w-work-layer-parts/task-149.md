@@ -329,3 +329,140 @@ task 13's prefix check (`task-13.md:524`) does not see `release.` today, and thi
 kind to its list by name rather than the whole prefix, so a Hub kind is never mistaken for a Work
 one. The address is not in `intake.address_set`: it may name a client (*payments-acme@…*), and the
 feed carries ids and counts.
+
+#### The passes (`server/work_mail.go`, contract complete)
+
+```go
+package server
+
+// passInbound runs once per sweep, before the per-org loop, under the
+// janitor's advisory lock (decision 2). It reads one delta round, makes the
+// requests, and stores the cursor only after every message is committed; an
+// error leaves the cursor where it was and the next sweep reads the round
+// again, which work_requests_channel_once makes harmless.
+func (s *Server) passInbound(ctx context.Context, jc *JanitorConn, r *SweepReport) error {
+	cur, err := store.MailCursor(ctx, jc, s.cfg.MailIntakeMailbox)
+	if err != nil {
+		return err
+	}
+	msgs, next, err := s.inbox.Delta(ctx, cur)
+	if err != nil {
+		return err
+	}
+	for _, m := range msgs {
+		owners, err := store.IntakeAddressOwners(ctx, jc, m.Recipients) // intake_address_owner, per recipient
+		if err != nil {
+			return err
+		}
+		if len(owners) == 0 {
+			r.MailUnrouted++ // decision 5: counted, never guessed
+			continue
+		}
+		for _, o := range owners { // one request per team named (decision 5)
+			if err := s.inOrg(ctx, o.OrgID, func(tx *Tx) error { return s.fromMail(ctx, tx, o.TeamID, m, r) }); err != nil {
+				return err
+			}
+		}
+	}
+	return store.SetMailCursor(ctx, jc, s.cfg.MailIntakeMailbox, next, s.cfg.Now())
+}
+
+// fromMail makes one request of a mail for one team: channel email, requester
+// kind email (decision 3), the cut quote, channel_ref the Message-ID. A
+// re-delivery is ErrRequestSeen, counted and not an error.
+func (s *Server) fromMail(ctx context.Context, tx *Tx, teamID string, m mailer.InboundMessage, r *SweepReport) error {
+	quote, trimmed := mailer.CutReply(m.TextBody, hubapi.MaxRequestQuoteBytes)
+	_, err := s.createRequest(ctx, tx, store.RequestRow{TeamID: teamID, Channel: string(hubapi.ChannelEmail),
+		ChannelRef: m.InternetMessageID, RequesterKind: string(hubapi.RequesterEmail),
+		RequesterEmail: m.FromAddress, RequesterName: truncRunes(m.FromName, hubapi.MaxRequesterNameChars),
+		Quote: quote, QuoteTrimmed: trimmed})
+	if errors.Is(err, store.ErrRequestSeen) {
+		r.MailSeen++
+		return nil
+	}
+	if err == nil {
+		r.MailRequests++
+	}
+	return err
+}
+
+// passShipped runs in each org's janitor transaction after task 121's passes.
+// For each confirmed run release to an announced environment, each issue it
+// carries (work_release_issues), and each request accepted into or linked to
+// that issue: INSERT a pending notice ON CONFLICT (request_id, environment)
+// DO NOTHING; for each row inserted, emit request.told. After the transaction
+// commits, sendNotices delivers the pending ones (a crash between the two
+// leaves them pending for the next sweep).
+func (s *Server) passShipped(ctx context.Context, tx *Tx, now time.Time, r *SweepReport) error
+
+// sendNotices, after commit, for each pending notice with attempts < 5: build
+// the text (noticeText), then email → s.replier.Reply on the stored Message-ID;
+// form → s.mailer.Send to the requester user's address; teams → task 157's
+// sender (a no-op until it lands, the notice stays pending). Mark sent, or
+// attempts+1 and failed at 5. The idempotency key is "rq-…/rl-…".
+func (s *Server) sendNotices(ctx context.Context, org string, r *SweepReport) error
+
+// noticeText is pure (decision 8):
+//	"EP-142 shipped to production at 14:02 AEST in release engagement-portal-build-x7k2p."
+func noticeText(alias, environment string, confirmedAt time.Time, loc *time.Location, releaseName string) string {
+	return fmt.Sprintf("%s shipped to %s at %s in release %s.", alias, environment,
+		confirmedAt.In(loc).Format("15:04 MST"), releaseName)
+}
+```
+
+`JanitorConn`, `s.inOrg` (a transaction with `hub.org_id` set, the org's write lock, as Hub task
+24's per-org loop opens it) and `SweepReport` are Hub task 24's (`H24:80-101`, as task 121 cites
+them); the three counters `MailRequests`, `MailSeen`, `MailUnrouted`, and `Told`, are added to
+`SweepReport` beside task 121's. `truncRunes` cuts a display name to 200 code points. The date is
+not in the message: a requester reads the mail the day it is sent, and a time with its zone is the
+fact the release proves. Whether a mail on the day after should say the date is a copy question
+for the owner, not a rule.
+
+**What `passShipped` selects**, one statement, under the org's row-level security:
+
+```sql
+INSERT INTO work_request_notices (org_id, request_id, environment, release_id, channel, created_at)
+SELECT DISTINCT ON (q.id, rl.environment) q.org_id, q.id, rl.environment, rl.id, q.channel, $1
+  FROM work_requests q
+  JOIN work_release_issues ri ON ri.issue_id = q.issue_id
+  JOIN releases rl           ON rl.id = ri.release_id AND rl.state = 'confirmed' AND rl.kind = 'run'
+  JOIN work_intake_settings s ON s.team_id = q.team_id AND rl.environment = ANY (s.announce_environments)
+ WHERE q.state IN ('accepted', 'linked') AND q.erased_at IS NULL AND q.channel <> 'member'
+ ORDER BY q.id, rl.environment, rl.confirmed_at, rl.id
+ON CONFLICT (request_id, environment) DO NOTHING
+RETURNING request_id, environment, release_id, channel;
+```
+
+`DISTINCT ON … ORDER BY confirmed_at` picks the **first** release that reached the environment, so
+the notice names the release that proved it first. A request linked **after** its issue shipped is
+told on the next sweep: *it shipped* is still true, and the requester asked. A `member` request is
+never told (a team member recorded it, and there is no address to answer); an erased one is never
+told (its address is gone). A team with no settings row announces nothing, which is the default
+until an admin sets an address. The statement scans linked requests and their issues' releases on
+every sweep; its cost at a real team's volume is **unmeasured**, and a `closed_at` watermark is the
+knob if a measurement says so.
+
+#### The routes (`server/work_mail.go`)
+
+- `GET /v1/teams/{teamId}/intake-address` (viewer) → 200 `IntakeSettings`; a team with no row
+  reads `address: ""`, `announceEnvironments: ["production"]`.
+- `PUT /v1/teams/{teamId}/intake-address` (team admin), in `s.Write`: `Decode`; the role; the
+  address is `""` or a lower-case mailbox that `net/mail` parses with no name, whose domain is the
+  intake mailbox's (`@` + the part after `@` of `PANACEA_APP_HUB_MAIL_INTAKE_MAILBOX`), else 400
+  `field: address`; each environment is Panacea's `[a-z0-9-]{1,63}` (`hub-contract.md:1008`), at
+  most 20, distinct, else 400 `field: announceEnvironments`; upsert; a `23505` on `address` is 409
+  `intake_address_taken` (the same answer whichever org holds it); emit `intake.address_set`; 200.
+- `PUT /v1/releases/{releaseId}/issues` (the release's reserver), in `s.Write`: `Decode`; the
+  release under row-level security, else 404 `release_not_found`; not the reserver → 403
+  `not_reserver` (the Hub's own code for confirm, `hub-contract.md:1030`); not `confirmed` → 409
+  `release_state`; every id is an issue of the release's project, else 400 `field: issueIds[k]`;
+  a recorded set equal to this one → 200 with nothing written; a different one → 409
+  `release_issues_recorded`; else insert, emit `release.issues_recorded {count}`; 200.
+
+The Ship flow's call (⚑ `ship/ship.go`, after the Hub's confirm succeeds): `hub.Work().
+RecordReleaseIssues(ctx, releaseID, ids)` with the ids task 71's walk already returned for the
+release's range. A failure is logged and retried by the same flow's retry (the Hub's
+`Idempotency-Key` rule, `hub-contract.md:970-972`), and never fails the Ship: the deployment
+happened, and a missing notice is a lesser fault than a Ship that reports failure for a deployment
+that succeeded. That the Ship flow has the ids at that moment is task 131's decision 8 and task
+71's walk, **UNVERIFIED until `feat/phase-7-deploy` merges** (rule H2).
