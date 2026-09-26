@@ -274,3 +274,81 @@ serves only the head revision each `byProject` row carries (`task-40.md:147-148`
 an older revision passes its own read in `DeskInputs` (task 65's *adopted revision*). `Project.id`
 is the store's `Project` (`dataSlice.ts:31`); that it is the Hub's project id too is task 24's
 assumption (`task-61.md` gap 3).
+
+#### Interfaces — complete: `desktop/src/components/desk/Desk.tsx`
+
+```tsx
+// desktop/src/components/desk/Desk.tsx — the one Desk frame (task 62; 05 §5.6).
+//
+// One snapshot on entry; while open it only compares (decision 3). Keys go through task 53.
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useCockpit } from "../../store/store";
+import { onWorkSourceChange, workSource } from "../../work/source";
+import { registerVerb } from "../../work/keys/keymap";
+import { buildDesk, itemKey, markDeskVisit, takeDeskSnapshot, type DeskInputs, type DeskModel } from "./deskModel";
+import { DeskSection } from "./DeskSection";
+import "./deskRows";                                        // every row kind registers at load
+import "./desk.css";
+
+export const HOLD_LINE = "A new item arrived. The Desk does not re-rank while you read it.";
+
+/** The live inputs. Tests pass their own through `inputs`. */
+export const liveDeskInputs: DeskInputs = {
+  now: () => Date.now(), cockpit: () => useCockpit.getState(), work: () => workSource(),
+};
+
+export interface DeskProps { inputs?: DeskInputs }
+
+export function Desk({ inputs = liveDeskInputs }: DeskProps): JSX.Element {
+  const build = (): DeskModel => buildDesk(takeDeskSnapshot(inputs));
+  const [model, setModel] = useState<DeskModel>(build);          // the one ranking, on entry
+  const [held, setHeld] = useState(false);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const root = useRef<HTMLDivElement>(null);
+  const shown = useRef(model); shown.current = model;
+
+  // Compare, never re-render the rows (decision 3). Any change in either source is a check.
+  useEffect(() => {
+    const check = () => {
+      const fresh = buildDesk(takeDeskSnapshot(inputs));
+      for (const k of fresh.keys) if (!shown.current.keys.has(k)) { setHeld(true); return; }
+    };
+    const offStore = useCockpit.subscribe(check);
+    const offSwap = onWorkSourceChange(check);
+    const offWork = workSource()?.subscribe(check) ?? (() => {});
+    return () => { offStore(); offSwap(); offWork(); markDeskVisit(inputs.now()); };
+  }, [inputs]);
+
+  const order = useMemo(() => model.groups.flatMap((g) => g.items.map(itemKey)), [model]);
+  const move = (by: 1 | -1) => {
+    if (order.length === 0) return;
+    const at = cursor === null ? -1 : order.indexOf(cursor);
+    const next = order[Math.min(order.length - 1, Math.max(0, at === -1 && by === -1 ? 0 : at + by))];
+    setCursor(next);
+    root.current?.querySelector<HTMLElement>(`[data-desk-key="${CSS.escape(next)}"]`)?.focus();
+  };
+  const apply = () => { setModel(build()); setHeld(false); };
+
+  useEffect(() => {
+    const offs = [registerVerb("focus.next", () => move(1)), registerVerb("focus.prev", () => move(-1)),
+      registerVerb("held.apply", apply)];
+    return () => offs.forEach((off) => off());
+  });                                                          // re-registered each render: fresh closures
+
+  return (
+    <div className="dk" ref={root} data-work-list="" data-key-scope="list" tabIndex={0} aria-label="Desk">
+      {held ? (
+        <div className="dk-hold" role="status">
+          <span>{HOLD_LINE}</span>
+          <button type="button" className="dk-show" onClick={apply}>Show <kbd>N</kbd></button>
+        </div>) : null}
+      {model.groups.map((g) => <DeskSection key={g.place} group={g} cursor={cursor} />)}
+    </div>
+  );
+}
+```
+
+`registerVerb` returns its own unregister and the newest registration runs (`task-53.md:224-234`),
+so re-registering on each render keeps the runner's closure current without a stale `cursor`, and
+the unmount removes exactly the Desk's three. `CSS.escape` is in jsdom and WebView2. The `focus()`
+on the cursor row is a keyboard move the reader asked for, not a re-sort.
