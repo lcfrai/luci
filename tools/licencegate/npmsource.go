@@ -75,11 +75,11 @@ type npmNode struct {
 // under two parents being one node with its children unioned.
 type npmGraph map[string]*npmNode
 
-func (g npmGraph) add(name string, e *lsEntry) (string, error) {
+func (g npmGraph) add(name string, e *lsEntry, r npmRestorer) (string, error) {
 	if e.Path == "" || e.Missing {
 		return "", fmt.Errorf("npm ls lists %s with no installed path: run npm ci", name)
 	}
-	path, err := unredact(e.Path)
+	path, err := r.restore(e.Path)
 	if err != nil {
 		return "", fmt.Errorf("npm ls node %s: %w", name, err)
 	}
@@ -107,7 +107,7 @@ func (g npmGraph) add(name string, e *lsEntry) (string, error) {
 		if c == nil || (c.Path == "" && c.Version == "" && !c.Missing && len(c.Dependencies) == 0) {
 			continue
 		}
-		ck, err := g.add(k, c)
+		ck, err := g.add(k, c, r)
 		if err != nil {
 			return "", err
 		}
@@ -116,8 +116,9 @@ func (g npmGraph) add(name string, e *lsEntry) (string, error) {
 	return key, nil
 }
 
-// lsGraph runs one npm ls and returns its graph and the root's key.
-func lsGraph(dir string, run Runner, args ...string) (npmGraph, string, error) {
+// lsGraph runs one npm ls and returns its graph and the root's key; r
+// restores the paths npm redacted.
+func lsGraph(dir string, run Runner, r npmRestorer, args ...string) (npmGraph, string, error) {
 	out, err := run(dir, "npm", args...)
 	if err != nil {
 		return nil, "", fmt.Errorf("npm %s in %s: %w", strings.Join(args, " "), dir, err)
@@ -130,7 +131,7 @@ func lsGraph(dir string, run Runner, args ...string) (npmGraph, string, error) {
 		root.Path = dir
 	}
 	g := npmGraph{}
-	key, err := g.add(filepath.Base(dir), &root)
+	key, err := g.add(filepath.Base(dir), &root, r)
 	return g, key, err
 }
 
@@ -314,11 +315,12 @@ func NpmDeps(root, dir, from string, scanned []string, run Runner) ([]Dep, error
 	if s.locks, err = readLock(dir); err != nil {
 		return nil, err
 	}
-	prod, prodRoot, err := lsGraph(dir, run, npmLsProd...)
+	restorer := newRestorer(dir, s.cdir, s.locks)
+	prod, prodRoot, err := lsGraph(dir, run, restorer, npmLsProd...)
 	if err != nil {
 		return nil, err
 	}
-	all, allRoot, err := lsGraph(dir, run, npmLsAll...)
+	all, allRoot, err := lsGraph(dir, run, restorer, npmLsAll...)
 	if err != nil {
 		return nil, err
 	}

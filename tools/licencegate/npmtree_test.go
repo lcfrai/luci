@@ -184,29 +184,111 @@ func TestNpmDeps_importedDevDepIsEnforced(t *testing.T) {
 // that do not exist. Measured 2026-09-26: the gate exited 2 on its own
 // mutation copy ("CreateFile …\***\scratchpad\…: The filename, directory
 // name, or volume label syntax is incorrect"). The gate restores each "***"
-// element from the one directory entry that redacts to it.
+// element from what it knows unredacted, never by picking among look-alikes
+// (fix round 1, review I1: the scratchpad's parent holds one directory per
+// session UUID, four on 2026-09-26, and the gate exited 2 in every mutation
+// copy there, although the element npm redacted lies inside the dir the gate
+// was handed). The places it knows are the project directory and each link
+// target package-lock.json names; a path under neither is restored from the
+// filesystem, and two entries that redact alike stay an error.
 func TestNpmDeps_redactedPath(t *testing.T) {
-	const uuid = "2ce0c1a9-63c3-42f2-bf4e-e6ba45d14fab"
-	base := filepath.Join(t.TempDir(), uuid)
-	p := newProject(t, filepath.Join(base, "desktop"))
-	x := p.node("node_modules/x", "x", "1.0.0", "GPL-3.0", nil)
-	tree := []byte(strings.ReplaceAll(string(p.write(kids("x", x))), uuid, "***"))
-	if !strings.Contains(string(tree), "***") {
-		t.Fatal("the fixture holds no redacted path")
+	const (
+		uuidA = "2ce0c1a9-63c3-42f2-bf4e-e6ba45d14fab" // holds -root
+		uuidB = "0e2cc1a9-63c3-42f2-bf4e-e6ba45d14fab" // another session's directory
+		uuidC = "ab1f5ac7-63c3-42f2-bf4e-e6ba45d14fab" // holds a link target outside -root
+	)
+	redacted := func(t *testing.T, b []byte) []byte {
+		t.Helper()
+		s := string(b)
+		for _, u := range []string{uuidA, uuidB, uuidC} {
+			s = strings.ReplaceAll(s, u, "***")
+		}
+		if !strings.Contains(s, "***") {
+			t.Fatal("the fixture holds no redacted path")
+		}
+		return []byte(s)
 	}
-	var calls [][]string
-	deps, err := NpmDeps(base, p.dir, "desktop", []string{p.dir}, npmRunner(base, tree, tree, nil, &calls))
-	if err != nil {
-		t.Fatal(err)
+	// layout makes <tmp>/<uuidA>/desktop, -root <tmp>/<uuidA>, and one more
+	// directory beside uuidA for each extra UUID.
+	layout := func(t *testing.T, extra ...string) (tmp, base string, p *npmProject) {
+		tmp = t.TempDir()
+		base = filepath.Join(tmp, uuidA)
+		for _, u := range extra {
+			mkdirs(t, filepath.Join(tmp, u))
+		}
+		return tmp, base, newProject(t, filepath.Join(base, "desktop"))
 	}
-	d, ok := npmDeps(t, deps)["x@1.0.0"]
-	if !ok || d.Declared != "GPL-3.0" || !strings.Contains(d.Path, uuid) {
-		t.Fatalf("x = %+v, %v: want it read at its real path", d, ok)
+	gate := func(base string, p *npmProject, tree []byte) ([]Dep, error) {
+		var calls [][]string
+		return NpmDeps(base, p.dir, "desktop", []string{p.dir}, npmRunner(base, tree, tree, nil, &calls))
 	}
-	t.Run("two entries that redact alike are an error", func(t *testing.T) {
-		mkdirs(t, filepath.Join(filepath.Dir(base), "0e2cc1a9-63c3-42f2-bf4e-e6ba45d14fab"))
-		if _, err := NpmDeps(base, p.dir, "desktop", []string{p.dir}, npmRunner(base, tree, tree, nil, &calls)); err == nil {
-			t.Fatal("an ambiguous redacted path was guessed")
+	wantAt := func(t *testing.T, deps []Dep, key, declared, uuid string) {
+		t.Helper()
+		d, ok := npmDeps(t, deps)[key]
+		if !ok || d.Declared != declared || !strings.Contains(d.Path, uuid) {
+			t.Errorf("%s = %+v, %v: want %s read at its real path, under %s", key, d, ok, declared, uuid)
+		}
+	}
+
+	for _, c := range []struct {
+		name  string
+		extra []string
+	}{
+		{"alone in its parent", nil},
+		// Red before fix round 1: "2 entries of … match".
+		{"beside a directory that redacts alike, the node inside dir is still read at its real path", []string{uuidB}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			_, base, p := layout(t, c.extra...)
+			x := p.node("node_modules/x", "x", "1.0.0", "GPL-3.0", nil)
+			deps, err := gate(base, p, redacted(t, p.write(kids("x", x))))
+			if err != nil {
+				t.Fatal(err)
+			}
+			wantAt(t, deps, "x@1.0.0", "GPL-3.0", uuidA)
+		})
+	}
+
+	// Red before fix round 1: "3 entries of … match". The target's own
+	// dependencies print under the target (testdata/npm/firstparty: bchild at
+	// "@ROOT@/fx/b/node_modules/bchild"), and package-lock.json names the
+	// target unredacted, so the review's "assert an error" here would repeat
+	// I1 for every link out of -root.
+	t.Run("a node under a link target outside -root is read where package-lock.json puts it", func(t *testing.T) {
+		tmp, base, p := layout(t, uuidB)
+		fork := filepath.Join(tmp, uuidC, "fork")
+		pkgJSON(t, fork, "forkx", "1.0.0", "MIT")
+		child := filepath.Join(fork, "node_modules", "fchild")
+		pkgJSON(t, child, "fchild", "2.0.0", "GPL-3.0")
+		lnk := p.link("node_modules/forkx", "../../"+uuidC+"/fork")
+		lnk.Dependencies = kids("fchild", &lsNode{Name: "fchild", Version: "2.0.0", Path: child})
+		deps, err := gate(base, p, redacted(t, p.write(kids("forkx", lnk))))
+		if err != nil {
+			t.Fatal(err)
+		}
+		wantAt(t, deps, "forkx@1.0.0", "MIT", uuidC)
+		wantAt(t, deps, "fchild@2.0.0", "GPL-3.0", uuidC)
+	})
+
+	t.Run("a node under no place the gate knows, with two look-alikes, is an error", func(t *testing.T) {
+		tmp, base, p := layout(t, uuidB)
+		stray := filepath.Join(tmp, uuidC, "stray", "node_modules", "s")
+		pkgJSON(t, stray, "s", "1.0.0", "MIT")
+		x := p.node("node_modules/x", "x", "1.0.0", "MIT", kids("s", &lsNode{Name: "s", Version: "1.0.0", Path: stray}))
+		_, err := gate(base, p, redacted(t, p.write(kids("x", x))))
+		if err == nil || !strings.Contains(err.Error(), "3 entries of") {
+			t.Fatalf("NpmDeps = %v: want an error naming the 3 look-alikes, never a guess", err)
+		}
+	})
+
+	t.Run("two places the gate knows that redact alike are an error", func(t *testing.T) {
+		tmp, base, p := layout(t)
+		twin := filepath.Join(tmp, uuidB, "desktop")
+		pkgJSON(t, twin, "twin", "1.0.0", "MIT")
+		lnk := p.link("node_modules/twin", "../../"+uuidB+"/desktop")
+		_, err := gate(base, p, redacted(t, p.write(kids("twin", lnk))))
+		if err == nil || !strings.Contains(err.Error(), "names both") {
+			t.Fatalf("NpmDeps = %v: want an error naming both places, never a guess", err)
 		}
 	})
 }
