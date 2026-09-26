@@ -270,3 +270,49 @@ func (c *Client) PatchForm(ctx context.Context, formID string, req hubapi.PatchF
 	return out, c.work(ctx, "PatchForm", nil, req, &out, formID)
 }
 ```
+
+#### Contract — the client methods, part 2: address, trackers, hosts, webhooks, Teams
+
+```go
+func (c *Client) IntakeSettings(ctx context.Context, teamID string) (hubapi.IntakeSettings, error) {
+	var out hubapi.IntakeSettings
+	return out, c.work(ctx, "IntakeSettings", nil, nil, &out, teamID)
+}
+func (c *Client) PutIntakeSettings(ctx context.Context, teamID string, req hubapi.PutIntakeSettingsRequest) (hubapi.IntakeSettings, error) {
+	var out hubapi.IntakeSettings
+	return out, c.work(ctx, "PutIntakeSettings", nil, req, &out, teamID)
+}
+func (c *Client) RecordReleaseIssues(ctx context.Context, releaseID string, req hubapi.RecordReleaseIssuesRequest) error {
+	return c.work(ctx, "RecordReleaseIssues", nil, req, nil, releaseID)
+}
+func (c *Client) ConnectTracker(ctx context.Context, projectID string, req hubapi.ConnectTrackerRequest) (hubapi.TrackerConnection, error) {
+	var out hubapi.TrackerConnection
+	return out, c.work(ctx, "ConnectTracker", nil, req, &out, projectID)
+}
+func (c *Client) ListTrackers(ctx context.Context, teamID string) ([]hubapi.TrackerConnection, error) {
+	var out struct{ Items []hubapi.TrackerConnection `json:"items"` }
+	return out.Items, c.work(ctx, "ListTrackers", nil, nil, &out, teamID)
+}
+func (c *Client) DisconnectTracker(ctx context.Context, connectionID string) (hubapi.TrackerConnection, error) {
+	var out hubapi.TrackerConnection
+	return out, c.work(ctx, "DisconnectTracker", nil, nil, &out, connectionID)
+}
+func (c *Client) ApplySyncBatch(context.Context, string, hubapi.SyncBatch) (hubapi.SyncRun, error) {
+	return hubapi.SyncRun{}, ErrNoRoute // the Hub's own process applies batches (decision 4)
+}
+func (c *Client) ListSyncRuns(ctx context.Context, connectionID string, page hubapi.PageRequest) (hubapi.Page[hubapi.SyncRun], error) {
+	var out hubapi.Page[hubapi.SyncRun]
+	return out, c.work(ctx, "ListSyncRuns", EncodeQuery(page), nil, &out, connectionID)
+}
+func (c *Client) ListTrackerLinks(ctx context.Context, connectionID string, page hubapi.PageRequest) (hubapi.Page[hubapi.ExternalLink], error) {
+	var out hubapi.Page[hubapi.ExternalLink]
+	return out, c.work(ctx, "ListTrackerLinks", EncodeQuery(page), nil, &out, connectionID)
+}
+func (c *Client) ListOutsidePRLinks(ctx context.Context, projectID string) ([]hubapi.OutsidePRLink, error) {
+	var out struct{ Items []hubapi.OutsidePRLink `json:"items"` }
+	return out.Items, c.work(ctx, "ListOutsidePRLinks", nil, nil, &out, projectID)
+}
+func (c *Client) CreateHostHook(ctx context.Context, projectID string, host hubapi.HostKind) (hubapi.CreatedHostHook, error) {
+	var out hubapi.CreatedHostHook
+	return out, c.work(ctx, "CreateHostHook", nil, struct{}{}, &out, projectID, string(host))
+}
