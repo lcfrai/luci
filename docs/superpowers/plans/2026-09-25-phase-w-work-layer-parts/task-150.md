@@ -865,3 +865,78 @@ GRANT UPDATE (finished_at, state, pages, created, existing, comments_in, comment
 tracker's ids; no title, description or tracker message is ever in it. The 501st error of a run
 is counted in the log line and not stored. `work_sync_one_running` makes a second `StartRun` of a
 connection with a run in flight fail on the database, not only under the advisory lock.
+
+#### The Sink, reconciled (`server/work_trackers.go`, contract complete; replaces `:478-506`)
+
+```go
+package server
+
+// StartRun, in one transaction: the connection (disconnected → ErrDisconnected);
+// any run of it still "running" is closed failed with {code: run_interrupted}
+// (a stopped process left it); the next n; INSERT work_sync_runs (running);
+// clear run_requested_at. The cursor returned is the stored one.
+func (s *Server) StartRun(ctx context.Context, connID string) (hubapi.TrackerConnection, worksync.Cursor, worksync.RunRef, error)
+
+// ApplyPage, in one s.inOrg transaction for the connection's org, in order:
+//  1. set_config('hub.work_actor_kind', 'integration', true) and
+//     set_config('hub.work_sync_connection', conn.ID, true) (decision 2);
+//  2. LockConnection(conn.ID): disconnected since StartRun → worksync.ErrDisconnected;
+//  3. known := LinksByExternal(conn.ProjectID, conn.Source, ids of p.Items and p.Upstream);
+//     plan := worksync.Plan(p, known);
+//  4. each plan.New item alone through ValidateImportBatch({source, [item]}): refused →
+//     SyncError{externalId, item_refused}, the field name logged, the item skipped (point 7);
+//  5. each accepted item: importOne(ctx, tx, conn.TeamID, conn.ProjectID, conn.Source, item,
+//     nil /* no labels: the guard */, conn.CreatedBy.ID); InsertLink(ids.Wide("xl-"), …,
+//     url = item.URL, linked_at = last_seen_at = now); emitWork(external_link.created);
+//  6. TouchLinks(plan.Known, now): last_seen_at only;
+//  7. each plan.Upstream: SetLinkUpstream(field, cut(To, 60), At) where At is after the stored
+//     upstream_changed_at, so a re-pulled page never moves it back;
+//  8. AddRunCounts(run, pages+1, created, len(plan.Known), len(plan.Upstream), errors);
+//     SetConnectionCursor(conn.ID, p.Next).
+// Any error rolls the whole page back: no issue, link, count or cursor from it.
+func (s *Server) ApplyPage(ctx context.Context, conn hubapi.TrackerConnection, run worksync.RunRef, p worksync.Pulled) error
+
+// FinishRun: state ok when failure is nil, else failed with failure appended to
+// errors; finished_at; the connection's last_finished_at; emitWork(sync.run) with
+// SyncRunData, actor null. Pages that committed before a failure stay.
+func (s *Server) FinishRun(ctx context.Context, run worksync.RunRef, failure *hubapi.SyncError) (hubapi.SyncRun, error)
+```
+
+#### The events (`hubapi/workevents.go` ⚑, complete; replaces `:296-319`)
+
+```go
+const (
+	EventTrackerConnected    = "tracker.connected"
+	EventTrackerDisconnected = "tracker.disconnected"
+	EventSyncRun             = "sync.run"
+	EventExternalLinkCreated = "external_link.created"
+)
+
+type TrackerConnectedData struct {
+	Source string `json:"source"`
+	Mode   string `json:"mode"`
+}
+type TrackerDisconnectedData struct{}
+
+// SyncRunData is decision 3's event, one per run: counts only, the
+// connection and its creator named. Subject: the tc- id.
+type SyncRunData struct {
+	ConnectionID string `json:"connectionId"`
+	Run          int64  `json:"run"`
+	Created      int64  `json:"created"`
+	Existing     int64  `json:"existing"`
+	Upstream     int64  `json:"upstream"`
+	Errors       int64  `json:"errors"`
+	By           string `json:"by"` // the connection's creator, a u- id
+}
+
+// ExternalLinkCreatedData names no external id: it can name a client's
+// organisation or repository (the feed carries no target). Subject: the xl- id.
+type ExternalLinkCreatedData struct {
+	ConnectionID string `json:"connectionId"`
+	Source       string `json:"source"`
+	IssueID      string `json:"issueId"`
+}
+// Appended to WorkEventKinds, all ScopeProject, VisibleToReaders; task 13's
+// prefix list gains "tracker.", "sync." and "external_link.".
+```
