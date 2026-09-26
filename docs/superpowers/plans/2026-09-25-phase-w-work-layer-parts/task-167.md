@@ -288,3 +288,44 @@ func (r *RetryAfter) Error() string { return fmt.Sprintf("sentinel: %d, retry in
 // ErrRefused is a status no retry can fix (400, 403, 413, a second 401).
 var ErrRefused = errors.New("sentinel: the ingestion endpoint refused the batch")
 
+func (c *Client) Post(ctx context.Context, body []byte) error {
+	tok, err := c.Token(ctx, c.fresh)
+	if err != nil {
+		return &RetryAfter{Wait: time.Second, Status: 0} // the token endpoint is down: back off
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.URL, bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+tok)
+	req.Header.Set("Content-Type", "application/json")
+	res, err := c.HTTP.Do(req)
+	if err != nil {
+		return &RetryAfter{Wait: time.Second}
+	}
+	defer res.Body.Close()
+	switch s := res.StatusCode; {
+	case s >= 200 && s < 300:
+		c.fresh = false
+		return nil
+	case s == http.StatusTooManyRequests:
+		return &RetryAfter{Wait: retryAfter(res.Header.Get("Retry-After")), Status: s}
+	case s == http.StatusUnauthorized && !c.fresh:
+		c.fresh = true // the next call asks the token source to skip its cache
+		return &RetryAfter{Wait: 0, Status: s}
+	case s >= 500:
+		return &RetryAfter{Wait: time.Second, Status: s} // the loop doubles it (decision 6)
+	default:
+		return fmt.Errorf("%w: %d", ErrRefused, s)
+	}
+}
+
+// retryAfter reads delta-seconds (1..300); anything else is 30 s. An
+// HTTP-date is not honoured: the service documents seconds (UNVERIFIED).
+func retryAfter(h string) time.Duration {
+	if n, err := strconv.Atoi(h); err == nil && n >= 1 && n <= 300 {
+		return time.Duration(n) * time.Second
+	}
+	return 30 * time.Second
+}
+```
