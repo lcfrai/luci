@@ -269,3 +269,239 @@ export function shippedSentence(alias: string, on: ShippedOn, time: (iso: string
 head.landCommit)` once when the view opens on a head with a `landCommit`, and once more when
 `landCommit` changes; the answer lives in the component, never in the replica or the store. The
 row renders `shippedWords(shippedFact(head.landCommit, answer), head.alias, deskTime)`.
+
+#### Interfaces — complete: `deskRows.tsx` ⚑ — task 71's block
+
+SW.17's names are the scope's (`tasks-61-80.md:73-82`: `DeskItem<T>` with `rankReason` and
+`ifNothing`, `DeskRank`, `registerDeskRow`, `registerDeskSource`). The row joins LANDED; it never
+replaces task 64's landed row, which is the *proven* fact, while this one is the *shipped* fact.
+
+```tsx
+// Appended after task 65's block (task 62 owns the file's head and imports).
+import { shippedSentence } from "../../work/shipped";
+import type { ShippedOn } from "../../deploy/types";
+
+export interface ShippedPayload { issueId: string; alias: string; on: ShippedOn }
+
+registerDeskSource("issue.shipped", (s) => shippedItems(s));
+registerDeskRow<ShippedPayload>("issue.shipped", "landed",
+  (item) => (
+    <p className="desk-fact">
+      {shippedSentence(item.payload.alias, item.payload.on, deskTime)}{" "}
+      <span className="mono">{item.payload.on.briefKey ? `pinned ${item.payload.on.briefKey}` : "no brief pinned"}</span>
+    </p>
+  ),
+  () => ({ tier: 2, waitingSinceMs: 0 }));                  // a fact, never urgent
+
+/** One row per issue of mine that a confirmed release shipped and still serves. s.shipped is
+ *  read once at Desk entry, for my landed and done issues with a landCommit (task 62's load
+ *  hook, gap 2); a teammate's issue never makes a row on my Desk. */
+function shippedItems(s: DeskSnapshot): DeskItem<ShippedPayload>[] {
+  const out: DeskItem<ShippedPayload>[] = [];
+  for (const [issueId, answer] of s.shipped) {
+    const head = headOf(issueId);
+    if (!head || head.assignee?.id !== s.me.id || answer.landCommit !== head.landCommit) continue;
+    const on = answer.environments.find((e) => e.serving);
+    if (!on) continue;
+    out.push({ kind: "issue.shipped", id: `issue.shipped:${issueId}:${on.releaseId}`,
+      payload: { issueId, alias: head.alias, on }, arrivedAt: on.confirmedAt,
+      rankReason: "shipped", ifNothing: "" });
+  }
+  return out;
+}
+```
+
+The id includes the release, so a second release to another environment is a second row on the
+next entry, and the same release never makes two. `headOf`, `deskTime` and `DeskSnapshot` are
+task 62's (**UNVERIFIED** names, as task 65 records at `task-65.md:813-815`); `s.shipped` is this
+task's addition to the snapshot (`Map<string, IssueShipped>`), loaded by the hook of gap 2.
+
+#### Tests to write first
+
+Go rows run on P3-03's `gitxtest.Repo` (real git) unless they say `gitxtest.Script`; route rows use
+P7-19's snapshot defaults (`ReleasesState "ok"`, `ReleasesAt` after the latest cut). Desktop rows
+run in vitest with jsdom. Each row fails on the mutant beside it.
+
+| Test | Assertion | Mutant it kills |
+|---|---|---|
+| `TestTwoCommitsOneIssue` | c2 and c3 both carry `Panacea-Issue: is-3f2a91c07b1e4d2a`; From c1, Commit c3 → one `ReleaseIssue` with `commits [c3, c2]` | one row per commit (the scope's test 1) |
+| `TestMentionIsNotATrailer` | c2's body reads *"follow-up to is-3f2a91c07b1e4d2a"* on a line mid-body, with no trailer block → `issues []`, `outside 1` | a substring scan in place of SW.9's trailer grammar (scope test 2) |
+| `TestInvalidTrailerDropped` | `Panacea-Issue: EP-142` and `Panacea-Issue: is-XYZ` → neither listed; both commits outside | a value repaired or trusted without `gitx.ValidIssueTrailer` |
+| `TestTwoIssuesOneCommit` | one commit with two issue trailers → two entries, the commit under each | the second value of a multi-valued trailer dropped |
+| `TestSessionWithoutIssueIsOutside` | c2 carries only `Panacea-Session` → `ReadIssues` counts it in `outside`; `Read` lists its session | the two trailers' outside counts shared |
+| `TestReadWireUnchanged` | P7-19's `sessions_test.go` rows, run unedited after `walk` → all pass; `Read`'s JSON for the `TestRangeIsExclusiveInclusive` repo equals a golden captured before the change | `Read` rebuilt on `walk` with its wire drifted |
+| `TestOneWalkBothTrailers` (`gitxtest.Script`) | `ReadIssues` and `Read` each issue exactly one `git log` whose `--format` holds both `TrailerFormat` terms; every call `Class Read`, `Scope Project` | a second log per trailer, or a lock-taking call racing an agent's git |
+| `TestIssuesRefusalsAreSessions` | commit absent → `commit_not_local`, From absent → `previous_not_local`, the unknown-previous history → `previous_unknown`; `git log` never run in all three | a refusal copied and drifted from `{P}/sessions` |
+| `TestContainsAncestry` | c1 ← c2 ← c3 and a side commit s1 off c1: `Contains(c2, c3)` true, `Contains(c3, c3)` true, `Contains(s1, c3)` false; exit 128 → an error, never false | a missing commit read as *"not shipped"* |
+| `TestIssuesJSONHasNoTitle` (route) | the `{P}/issues` answer decoded with `DisallowUnknownFields` into `IssuesResult`; no key in it matches `(?i)title|name|description` | titles copied into the manifest (scope test 3) |
+| `TestShippedOnlyWhenConfirmed` (route) | production d1 (c1), d2 (c2 holds landCommit, `release.state "reserved"`) → `environments []`; the same d2 `confirmed` → one entry, `releaseId` and `confirmedAt` the pin's | shipped on `landed`, or on a reserved pin (scope test 4) |
+| `TestStagingNeverReadsProduction` (route) | staging d1 confirmed with landCommit 09:10, production d4 confirmed 14:02 → `environments` is production (primary, 14:02) then staging (09:10); with no production row → staging only, and `primary false` | the first environment in time wins, or the primary assumed |
+| `TestEarliestConfirmedRelease` (route) | production d2 (c2 ∋ land) 11:00 and d3 (c3 ∋ land) 14:02 → the entry is d2 at 11:00 | the newest release credited, moving the ship time |
+| `TestRollbackIsSaid` (route) | d2 ships land at 11:00, a rollback to d1 confirmed 12:00 → the entry is d2 with `serving false` | a rolled-back release dropped to *"not shipped"* |
+| `TestUnreadIsNamed` (route) | staging's row with `releaseLoaded false` → staging in `unread`, never in `environments` | an unread release drawn as *"not shipped"* |
+| `TestShippedAgreesWithTheManifest` (route + real git) | for every entry the route returns over a four-release history with a rollback, `ReadIssues` on that entry's `deploymentId` lists the issue | the per-issue rule and the manifest drifting apart |
+| `TestIssueShippedBadInput` (route) | `issueId=EP-142` → 400; `landCommit=abc` → 400; landCommit absent from the clone → 409 `commit_not_local` | a bad id reaching git, or a missing commit answered as `[]` |
+| `TestDrillRoutesReadOnly` | both routes are in `catalogReadOnlyRoutes`; the §10a audit passes | a GET registered outside the recorder |
+| `TestShippedWritesNothingToTheHub` (route) | both routes run with a `hubclient.NewFake()` wrapped in a write recorder → zero write calls; the issue's head re-read after, marshalled, has exactly task 03's key set, no `shipped`, `shippedAt` or `release` | the fact stored on the head (scope test 5) |
+
+Desktop rows (`shipped.test.ts`, `ReleaseIssues.test.tsx`, `IssueHead.test.tsx` ⚑, `deskRows.test.tsx` ⚑):
+
+| Test | Assertion | Mutant it kills |
+|---|---|---|
+| `shippedFact: landed is not shipped` | `landCommit` 40 hex, answer with `environments []` → `landed_not_shipped`; words *"Landed, not shipped yet"* (`prototype/work-layer.html:687`) | shipped read from `landed` (scope test 4) |
+| `shippedFact: a stale answer is not read` | answer for another `landCommit` → `not_read`, *"Landed"* | an answer for a previous land shown after a re-land |
+| `shippedWords: staging says staging` | `on.environment "staging"` → value *"Shipped to staging, 09:10"*; the string `production` appears nowhere in value or foot | the environment assumed |
+| `shippedWords: the pin is named` | `briefKey "brief:bf-7c1e@6"` → foot starts *"pinned brief:bf-7c1e@6"*; null → *"no brief pinned"* | the brief key dropped or parsed |
+| `shippedWords: rollback` | `serving false` → *"Was on production from 14:02; not serving now"* | a rollback dropped to *"not shipped"* |
+| `ReleaseIssues: ids resolve, titles never sent` | the mocked `api.issues` answer has two ids, one in the replica → alias `EP-142` in mono and the chip; the other → the id in mono and *"an issue you cannot open here"*; no text the answer or replica did not carry | a title fetched from the Hub per id, or an unreadable id dropped |
+| `ReleaseIssues: outside is said once` | `outside 3`, `issues []` → *"3 commits carry no issue"*; no element reads *"no issues"* | an empty list presented as a finding |
+| `ReleaseIssues: reads once` | drawer open → one `api.issues`; three cursor changes → one; the row re-rendered with `build "succeeded"` → two | a read per cursor tick, or never read after go-live |
+| `IssueHead: one read per land` | head with `landCommit` → one `api.deploy.issueShipped`; re-rendered → still one; `landCommit` changed → two; no `landCommit` → none | a read per render, or a stale answer kept |
+| `IssueHead: nothing written` | after the fact row renders, the Hub client mock saw no write method, and the replica's op log is empty | the derived fact written back as a Hub field or op |
+| `Desk: shipped appears on the next entry` | Desk open, snapshot taken; `s.shipped` gains an answer → no new row while open; leave and re-enter → one `issue.shipped` row in LANDED reading *"EP-142 shipped to production at 14:02."* | a live row that moves under the cursor (scope test 6, task 62's rule) |
+| `Desk: one row per release, mine only` | the same release twice → one row; a second environment's release → two; a teammate's issue → none; `answer.landCommit` ≠ the head's → none | duplicate rows, a teammate's work on my Desk, or a stale land credited |
+| `no prediction` | `expectNoPrediction(container)` (task 20, `desktop/src/test/expectNoPrediction.ts`) on the drawer block, the RELEASE fact row and the Desk row | *"ships Thursday"* or *"likely in the next release"* (scope test 7, OD-27) |
+
+`TestReadWireUnchanged`'s golden is captured on the sync base **before** `walk` lands (step 2), so
+it records P7-19's wire, not this task's.
+
+#### Steps
+
+1. **Sync and check.** Sync-merge the base that holds P7-17 and P7-19 (rule H2). Confirm
+   `sessions.Reader`, `Range`, `Result`, the `{P}/sessions` handler, `ReleaseDrawer`'s `sessions`
+   slot, `ReleaseRow` and `ReleasePin` match the anchors above, and that task 21's
+   `gitx.TrailerIssue` and task 03's `IssueHead.LandCommit` are merged. P7-19 absent → this task
+   does not start (rule H2). Correct any name here that differs before typing it.
+2. **Golden first.** On the unchanged base, capture `Read`'s JSON for
+   `TestRangeIsExclusiveInclusive`'s repository into `sessions/testdata/read_golden.json`; commit
+   it alone.
+3. **Red, Go.** Write `issues_test.go` and the route rows in `deploy_drill_test.go`. Run the Go
+   test command below; expect a build failure naming `ReadIssues`, `ReleaseIssue` and `Contains`.
+4. **Green, Go.** `walk`, `Read` on `walk`, `ReadIssues`, `Contains`; the two handlers beside
+   `{P}/sessions`, sharing its range function; the two `catalogReadOnlyRoutes` lines.
+5. **Red, desktop.** The four test files; run vitest; expect failures on the missing modules.
+6. **Green, desktop.** `types.ts`, `api.ts`, `shipped.ts`, `ReleaseIssues.tsx`, the drawer slot and
+   the lens line, the RELEASE row in `IssueHead.tsx`, task 71's block in `deskRows.tsx`, and the
+   `s.shipped` load in task 62's entry hook (gap 2).
+7. **Run** every acceptance command; commit by pathspec, Go and desktop in two commits.
+
+#### Acceptance
+
+```bash
+go build ./control-plane/... && go vet ./control-plane/internal/deploy/sessions/ ./control-plane/internal/api/
+# (no output)
+go test ./control-plane/internal/deploy/sessions/ ./control-plane/internal/api/ -race -count=1
+# ok  .../deploy/sessions   ok  .../api
+go test ./control-plane/internal/deploy/sessions/ -count=1 -v -run 'TestTwoCommitsOneIssue|TestMentionIsNotATrailer|TestReadWireUnchanged|TestOneWalkBothTrailers|TestContainsAncestry' 2>&1 | grep -c '^--- PASS'
+# 5
+go test ./control-plane/internal/api/ -count=1 -v -run 'TestShipped|TestStagingNeverReadsProduction|TestEarliestConfirmedRelease|TestRollbackIsSaid|TestUnreadIsNamed|TestIssuesJSONHasNoTitle|TestIssueShippedBadInput|TestDrillRoutesReadOnly' 2>&1 | grep -c '^--- PASS'
+# 10   (TestShipped matches three: OnlyWhenConfirmed, AgreesWithTheManifest, WritesNothingToTheHub)
+npm --prefix desktop run typecheck
+# (no errors)
+npm --prefix desktop test -- src/work/shipped src/deploy/ReleaseIssues src/components/issue/IssueHead src/components/desk/deskRows
+# all pass
+git grep -nE "shipped(At)?\"?\s*:" -- control-plane/internal/hub desktop/src/work/replica
+# (no output: no shipped field on a Hub record or a replica op)
+```
+
+**Owner's eyes (batched with task 70's run):** land EP-142, ship the branch to production through
+phase 7, open the release drawer and the issue; read *"ISSUES IT SHIPPED"*, *"Shipped to
+production, 14:02"*, and the Desk's LANDED row on the next entry. **Unverified until then.**
+
+#### Reconciliation with task 62's part (on the tree since this part began; task 62 wins)
+
+Task 62 (`task-62.md:143-168`) fixed `DeskSnapshot`: `me` is the `u-` id string, `headOf` is the
+snapshot's method, and a later task **adds** a `DeskInputs` member rather than a snapshot field
+(`:62-63`). So `s.shipped` above is replaced by a signal, and the block's source reads:
+
+```tsx
+// deskRows.tsx ⚑ — task 71's source, as built (supersedes shippedItems above).
+function shippedItems(s: DeskSnapshot): DeskItem<ShippedPayload>[] {
+  const out: DeskItem<ShippedPayload>[] = [];
+  if (s.me === null) return out;
+  for (const sig of s.signals("issue.shipped")) {
+    const answer = sig.data.answer as IssueShipped;          // shippedCache's value, below
+    const head = s.headOf(answer.issueId);
+    if (!head || head.assignee?.id !== s.me || answer.landCommit !== head.landCommit) continue;
+    const on = answer.environments.find((e) => e.serving);
+    if (!on) continue;
+    out.push({ kind: "issue.shipped", id: `${answer.issueId}:${on.releaseId}`, issueId: answer.issueId,
+      payload: { issueId: answer.issueId, alias: head.alias, on }, arrivedAt: on.confirmedAt,
+      rankReason: "shipped", ifNothing: "" });
+  }
+  return out;
+}
+```
+
+```ts
+// desktop/src/work/shipped.ts — appended: the Desk's cache. Module memory only: never the
+// replica, never the store, never storage (task 55's rule); lost on reload, re-read on entry.
+import type { IssueHead } from "../api/work";                              // task 37
+import type { DeskSignal } from "../components/desk/deskModel";           // task 62, type only
+const shippedCache = new Map<string, IssueShipped>();   // by issue id
+
+/** DeskInputs.signals feeds "issue.shipped" from this, read synchronously at entry. */
+export function shippedSignals(): DeskSignal[] {
+  return [...shippedCache.values()].map((answer) => ({ kind: "issue.shipped", id: answer.issueId,
+    at: answer.environments[0]?.confirmedAt ?? "", data: { answer } }));
+}
+
+/** Called by Desk.tsx after the entry snapshot is taken. One read per my landed or done head
+ *  with a landCommit; answers land in the cache and draw on the NEXT entry (task 62's rule). */
+export async function refreshShipped(heads: readonly IssueHead[], me: string,
+  read: (projectId: string, issueId: string, landCommit: string) => Promise<IssueShipped>): Promise<void> {
+  for (const h of heads) {
+    if (h.assignee?.id !== me || !/^[0-9a-f]{40}$/.test(h.landCommit)) continue;
+    try { shippedCache.set(h.id, await read(h.projectId, h.id, h.landCommit)); }
+    catch { /* a failed read keeps the last answer; the Desk never says "not shipped" for it */ }
+  }
+}
+```
+
+`Desk.tsx` ⚑ (task 62) passes `signals: (k) => (k === "issue.shipped" ? shippedSignals() : [])`
+beside whatever other sources a later task has already added (composed, never replaced), and
+calls `refreshShipped` once after `takeDeskSnapshot`. That is *gap 2*'s hook. The reads are
+sequential, one per head, so a Desk with 30 landed heads makes 30 small reads per entry; this is
+recorded, not measured.
+
+#### What this task does NOT claim
+
+- **That an issue with no trailer in the range was not shipped.** The trailer is task 21's, stamped
+  at land. Work landed outside the product (an outside PR, a hand merge) carries none; the drawer
+  counts it as *"N commits carry no issue"*, never as *"no issue"*. Outside PRs are W5.
+- **Release notes by criterion, or freeze** (W4, task 131, L-148); **requester updates** (W5,
+  L-140). This task serves both and closes neither.
+- **That "shipped" is the time users saw it.** `confirmedAt` is the Hub's confirm of the release
+  pin (P7-13's `ReleasePin`), which can differ from go-live by the lag P7-08 records.
+- **Anything about a clone that has not fetched the release commit.** Both routes refuse with
+  `commit_not_local` rather than guess.
+- **Phase 7's names.** Every P7 identifier here is from its plan, not code on this branch
+  (**UNVERIFIED until merge**); step 1 corrects them.
+- **A number.** The 30-reads-per-entry figure is arithmetic, not a measurement (OD-27).
+
+**Parity.** Closes **L-146's release half** (the manifest lists issues, and the issue and the Desk
+read *shipped* from it); task 70 records L-146's W1 half (the trailers at land). Serves L-148 (W4,
+task 131) and L-140 (W5).
+
+#### Corrections to the scope paragraph (recorded; the skeleton row wins where they differ)
+
+1. **Two routes, not one** (decision 2): `{P}/issues` is the scope's manifest route;
+   `{P}/issue-shipped` is added so the issue view does not read every release's manifest.
+2. **`s.shipped` is a signal** (reconciliation above), because task 62 fixed the snapshot.
+3. **The scope's `"shipped to production, 14:02"`** is drawn as *"Shipped to production, 14:02"*
+   on the fact row (a sentence start) and *"EP-142 shipped to production at 14:02."* on the Desk
+   (05 §5.3's W1b frame).
+
+#### Gaps found while writing this part
+
+1. **L-146 is claimed by two tasks.** The skeleton's task 71 row says it closes L-146, and task
+   70's part records a W1 half (`task-70.md`, gap 3). The coverage map should split L-146 into
+   its trailer half (21-22, proven in 70) and its release half (71).
+2. **Task 62's `Desk.tsx` has no documented way to compose `signals`** from several tasks (127,
+   170, this one). Each part adds its own; whichever merges second must compose, not replace.
+   Task 62's part should own a `signals` registry the way it owns `registerDeskSource`.
+3. **`{P}/issue-shipped` is in no scope and no skeleton row.** Added here (decision 2).
+4. **Phase 7 has no part for tests over `deploywatch` release rows with `releaseLoaded`** on this
+   branch; `TestUnreadIsNamed` assumes P7-13's field name (**UNVERIFIED**).
+5. **Task 64 has no part on the tree**, so the LANDED section's render contract is taken from task
+   62's registry and task 65's idiom only.
