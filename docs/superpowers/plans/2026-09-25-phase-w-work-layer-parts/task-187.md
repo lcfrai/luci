@@ -435,3 +435,40 @@ grep -cE "^## (WL: |The phase ledger)" docs/verification/2026-09-25-phase-w-resu
 The ledger's `<n>` counts are the run's, never typed in advance (decision 5); only `skip 27` and
 the total are known now (`coverage.md:10`). If 05 §1 moves a row, the expected lines move with it
 and the section says why.
+
+#### What this task does NOT claim
+
+- That any vendor accepts what WL sends: Slack, Azure Monitor, Sentry, PagerDuty, Opsgenie,
+  Microsoft Graph and the warehouse sink are fakes with golden payloads; each proves our side of
+  its wire only (decision 1).
+- That a signed land commit shows as verified on Azure DevOps or GitHub, or that signing works in
+  the cloud sandbox (181); or that the differ behaves on real repositories (179).
+- That the phase is complete. The ledger records what was proved; its `gap` and `partial` rows
+  are open work, and its count is the number filed, not 05's forecast.
+- That an `exists` row is built, unless its row carries the commit it was re-checked at.
+- That L-50 should now read MATCH in 05: that is the owner's call (the clause section).
+- The owner's acceptance of any WL surface until the owner's words are recorded (decision 7).
+
+**Parity.** This task closes no row itself (`coverage.md:22-23`). It records the twelve *later*
+rows and four clauses as closed **only** where the tables carry a command, an observation and a
+commit, and files every one of the 257 rows in the ledger.
+
+#### Gaps found while writing this part
+
+1. **Four mixed-stop rows have a *later* half no task builds.** L-120 (free `dc-` documents,
+   `exists / later`, no closer at all, `coverage.md:163`), L-127 (Mermaid, `W1 / later`, `:170`),
+   L-166 (browser testing in the sandbox, `W3 / later`, `:209`) and L-231 (tabs, `exists /
+   later`, `:274`). `check-wl.sh` does not select them, by design; the ledger files each as
+   `partial` with the later half named in *Note*. The skeleton has no WL row for any of the four.
+2. **The coverage map is pinned to `c5841bf`** (`coverage.md:11`), before parts 143-186 were
+   written. Step 7 builds the ledger from it, so a part that closes a row its scope did not cite
+   (L-116's W5 half is the known case, task 174's gap 1) shows as a gap until the map is re-run.
+   No task owns re-running it.
+3. **Seven results sections, seven copies of one check.** `check-wl.sh` is `check-w5.sh` with a
+   fence, an exact match and a clause loop; task 174's gap 3 asks task 70 for one
+   `check-slice.sh <slice>`. `check-ledger.sh` could then share its `cells` reader.
+4. **The three dashboard test file names are inferred** from task 177's *"(+ tests)"*; the sweep
+   is corrected in step 1 if 177 names them otherwise.
+5. **05 §1's cell parser assumes no `|` inside a cell.** Both checks split on `|`; an escaped
+   `\|` in a *how* cell would shift the stop cell. None was found on 2026-09-26 (the twelve-row
+   count matched the scope), but nothing enforces it.
