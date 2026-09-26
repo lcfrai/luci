@@ -456,3 +456,53 @@ func (e *Exporter) Run(ctx context.Context) error {
 	return ctx.Err()
 }
 
+// once posts at most one batch and returns how many events it acknowledged.
+func (e *Exporter) once(ctx context.Context) (int, error) {
+	seq, prev, err := e.Src.Cursor(ctx)
+	if err != nil {
+		return 0, &RetryAfter{Wait: time.Second}
+	}
+	rows, err := e.Src.After(ctx, seq, readLimit)
+	if err != nil || len(rows) == 0 {
+		return 0, err
+	}
+	if err := verify(e.OrgID, seq, prev, rows); err != nil {
+		return 0, err // decision 5: nothing after a break is posted
+	}
+	body, n, err := batch(rows)
+	if err != nil {
+		return 0, err
+	}
+	if err := e.Post.Post(ctx, body); err != nil {
+		return 0, err // the cursor has not moved (decision 5)
+	}
+	last := rows[n-1]
+	return n, e.Src.Advance(ctx, last.Env.Seq, last.Hash)
+}
+
+// batch is a JSON array of the leading rows that fit in MaxPostBytes, and how many.
+func batch(rows []store.SentinelRow) ([]byte, int, error) {
+	buf := []byte{'['}
+	for i, r := range rows {
+		rec, err := recordOf(r)
+		if err != nil {
+			return nil, 0, err
+		}
+		b, err := json.Marshal(rec)
+		if err != nil {
+			return nil, 0, err
+		}
+		if len(buf)+len(b)+2 > MaxPostBytes { // a comma and the closing bracket
+			if i == 0 {
+				return nil, 0, fmt.Errorf("%w: org %s seq %d", ErrRecordTooLarge, r.Env.OrgID, r.Env.Seq)
+			}
+			return append(buf, ']'), i, nil
+		}
+		if i > 0 {
+			buf = append(buf, ',')
+		}
+		buf = append(buf, b...)
+	}
+	return append(buf, ']'), len(rows), nil
+}
+```
