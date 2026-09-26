@@ -16,6 +16,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/gitx"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/gitx/internal/spawnseam"
@@ -128,15 +129,22 @@ func (r *Repo) Commit(msg string, files map[string]string) string {
 	return r.Git("rev-parse", "HEAD")
 }
 
-// NewExec is a gitx.Exec whose Hardening.HooksDir is an empty t.TempDir().
+// NewExec is a gitx.Exec whose Hardening.HooksDir is an empty t.TempDir(). Its Read timeout is
+// TestReadTimeout, not ReadTimeout's 10 s: on a loaded machine starting a process has taken
+// longer than that (task 02: a helper-process H3 check timed out on an unmutated copy). A test
+// that times a call sets Timeouts itself.
 func NewExec(t testing.TB) *gitx.Exec {
 	t.Helper()
 	x, err := gitx.NewExec(gitx.Hardening{HooksDir: t.TempDir()})
 	if err != nil {
 		t.Fatalf("gitxtest: %v", err)
 	}
+	x.Timeouts = map[gitx.Class]time.Duration{gitx.Read: TestReadTimeout}
 	return x
 }
+
+// TestReadTimeout is NewExec's Read timeout.
+const TestReadTimeout = 2 * time.Minute
 
 // envRunner adds a repository's isolated environment under every call's own Env.
 type envRunner struct {
