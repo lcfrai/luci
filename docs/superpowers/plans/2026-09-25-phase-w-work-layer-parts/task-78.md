@@ -163,3 +163,101 @@ type CreateLabelGroupRequest struct {
 	Exclusive bool   `json:"exclusive"`
 }
 ```
+
+#### The `hubapi` additions (complete)
+
+```go
+// hubapi/work.go ⚑, beside task 10's causes (SW.4, additive).
+// CauseChildrenClosed is the roll-up of a container parent (decision (c)). No caller sends it:
+// the state route refuses it from a body (400 naming cause); the server writes it itself.
+const CauseChildrenClosed StateCause = "children_closed"
+
+// RollupProof is decision (d): the weakest word of the done children, no_criteria neutral.
+// It answers "" for no done child, which the caller reads as "do not roll up".
+func RollupProof(doneChildren []ProofWord) ProofWord {
+	rank := map[ProofWord]int{ProofNotProven: 0, ProofSelfAttested: 1, ProofProven: 2}
+	out, seen := ProofNoCriteria, false
+	for _, w := range doneChildren {
+		seen = true
+		r, counts := rank[w]
+		if !counts {
+			continue // no_criteria, or a word a done issue never holds
+		}
+		if cur, ok := rank[out]; !ok || r < cur {
+			out = w
+		}
+	}
+	if !seen {
+		return ""
+	}
+	return out
+}
+```
+
+The proof-word constant names (`ProofNotProven`, `ProofSelfAttested`, `ProofProven`,
+`ProofNoCriteria`) are task 10's six (`task-10.md:47-55`); their Go spellings are **UNVERIFIED**
+until task 10's `work.go` block lands, and a different spelling is a rename here only.
+`MoveAllowed` gains the rows `(triage|backlog|todo|started|in_review, done, children_closed)`:
+five rows, and task 10's table test gains them. `landed` is absent: a landed parent closes by its
+own evidence (decision (c)'s first bullet).
+
+```go
+// hubapi/work_events.go ⚑, task 13's Scope gains one value (SW.5, additive).
+const ScopeOrg Scope = 2 // after ScopeProject (0) and ScopeTeam (1); both ids null; every org member reads it
+
+const (
+	EventIssueParentSet       = "issue.parent_set"
+	EventTemplateCreated      = "template.created"
+	EventTemplateUpdated      = "template.updated"
+	EventTemplateArchived     = "template.archived"
+	EventLabelGroupCreated    = "label_group.created"
+	EventIssueRolledUp        = "issue.rolled_up"
+)
+
+type IssueParentSetData struct {
+	From string `json:"from"` // is-… or ""
+	To   string `json:"to"`
+}
+type TemplateData struct {
+	TemplateID string `json:"templateId"`
+	Org        bool   `json:"org"`    // an org template
+	Fields     string `json:"fields"` // updated only: comma-joined names
+}
+type LabelGroupCreatedData struct {
+	GroupID   string `json:"groupId"`
+	Org       bool   `json:"org"`
+	Exclusive bool   `json:"exclusive"`
+}
+// IssueRolledUpData follows the parent's issue.state event: which child's close did it.
+type IssueRolledUpData struct {
+	ChildID  string `json:"childId"`
+	Children int64  `json:"children"` // the parent's children, all closed
+}
+```
+
+Registry rows: `issue.parent_set` and `issue.rolled_up` are `ScopeProject, VisibleToReaders`;
+the three `template.*` and `label_group.created` are `ScopeTeam` for a team record and `ScopeOrg`
+for an org record. A kind is registered once, so each registers `ScopeTeam`, and the emitter sets
+`ScopeOrg` when the record's team is null; task 13's registry test (by the name task 13 gives it)
+gains that one exception. Task 11's `label.created` follows the same rule for an org label. A template's **name is not in `data`**.
+
+#### The migration clause, appended to task 74's file (complete)
+
+```sql
+-- Task 78: a children_closed move to done needs every child closed (decision (e)).
+-- Added inside task 74's issue_heads guard function (its name is task 74's, UNVERIFIED).
+  IF NEW.state = 'done' AND OLD.state IS DISTINCT FROM 'done'
+     AND current_setting('hub.work_cause', true) = 'children_closed' THEN
+    IF NOT EXISTS (SELECT 1 FROM hub.issue_heads c WHERE c.parent_id = NEW.issue_id) THEN
+      RAISE EXCEPTION 'hub: work: children_closed on an issue with no children' USING ERRCODE = '42501';
+    END IF;
+    IF EXISTS (SELECT 1 FROM hub.issue_heads c WHERE c.parent_id = NEW.issue_id
+               AND c.state NOT IN ('done', 'cancelled', 'duplicate')) THEN
+      RAISE EXCEPTION 'hub: work: children_closed with an open child' USING ERRCODE = '42501';
+    END IF;
+  END IF;
+```
+
+The settled check (decision (b)) stays in Go: it reads evidence, which a row trigger on
+`issue_heads` should not. So the database guards *children closed*, and Go guards *criteria
+settled*; the test `TestTheRollupNeedsSettledCriteria` pins the Go half.
