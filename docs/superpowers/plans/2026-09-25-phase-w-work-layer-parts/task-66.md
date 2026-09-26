@@ -388,3 +388,89 @@ describe("the announcer", () => {
   });
 });
 ```
+
+#### Tests to write first, part 2 — `desktop/src/a11y.floor.test.tsx` (the shell, the fixtures, the guard)
+
+The shell renders on task 40's test world (`setWorkSourceForTest`, `task-40.md:304`) with the
+store set directly. `LIVE` is every selector that makes a live region.
+
+```tsx
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { AppShell } from "./components/AppShell";
+import { useCockpit } from "./store/store";
+import { setWorkSourceForTest } from "./components/work/WorkLens";
+import { AnnouncerProvider, createAnnouncer } from "./components/common/LiveRegion";
+import { UndoChip } from "./components/common/UndoChip";
+import { workScenario } from "./test/workFixtures";
+
+const LIVE = '[aria-live], [role="status"], [role="alert"], [role="log"]';
+const toast = { id: "t1", message: "Moved to Todo", createdAt: Date.now(), ttl: 60_000, undo: () => {} };
+
+beforeEach(() => { vi.useFakeTimers({ toFake: ["setTimeout", "requestAnimationFrame"] }); });
+
+describe("the accessibility floor", () => {
+  it("the shell holds exactly one live region with Work, then the Desk, and a toast open", () => {
+    setWorkSourceForTest(workScenario());
+    act(() => useCockpit.setState({ lens: "work", toasts: [toast] } as never));
+    const { container } = render(<AppShell />);
+    expect(container.querySelectorAll(LIVE)).toHaveLength(1);
+    act(() => useCockpit.setState({ lens: "desk" } as never));
+    expect(container.querySelectorAll(LIVE)).toHaveLength(1);
+    expect(container.querySelector(LIVE)!.getAttribute("data-live-region")).toBe("");
+    // mutants: the toast stack's region kept; a region per Desk section
+  });
+  it("every heartbeat, dot and agent line in a Work row is hidden from the tree", () => {
+    setWorkSourceForTest(workScenario());                        // has a live session on EP-142
+    act(() => useCockpit.setState({ lens: "work" } as never));
+    const { container } = render(<AppShell />);
+    const rows = [...container.querySelectorAll('[role="row"]')];
+    expect(rows.length).toBeGreaterThan(0);
+    for (const el of rows.flatMap((r) => [...r.querySelectorAll(".dot, .wk-agent, svg")])) {
+      expect(el.closest('[aria-hidden="true"]'), el.outerHTML.slice(0, 80)).not.toBeNull();
+    }
+    const withAgent = rows.find((r) => r.hasAttribute("aria-describedby"));
+    expect(withAgent && container.querySelector(`#${withAgent.getAttribute("aria-describedby")}`)).toBeTruthy();
+    // mutant: StatusDot keeps role="img" and its label inside a row
+  });
+  it("120 issues in 4 groups say the full count and each mounted row its place", () => {
+    const h = setWorkSourceForTest(workScenario());
+    h.update((w) => w.withIssues({ count: 120, groups: 4 }));    // task 40's builder, task-40.md:896
+    act(() => useCockpit.setState({ lens: "work" } as never));
+    render(<AppShell />);
+    const grid = screen.getByRole("grid", { name: "Issues" });
+    expect(grid.getAttribute("aria-rowcount")).toBe("124");
+    expect(grid.querySelectorAll('[role="row"]').length).toBeLessThan(60);   // it windows
+    grid.scrollTop = 62 * 28;
+    fireEvent.scroll(grid);
+    const r61 = grid.querySelector('[data-issue-id="' + h.issueIdAt(61) + '"]');
+    expect(r61?.getAttribute("aria-rowindex")).toBe("64");       // 3 heads before it (decision 6)
+    // mutant: aria-rowcount is the rendered count
+  });
+  it("the Undo chip's seconds are hidden and its answer is spoken once", () => {
+    const a = createAnnouncer({ now: () => 0, later: () => {} });
+    const spy = vi.spyOn(a, "announce");
+    const ledger = { /* task 56's createUndoLedger with one live entry, task-56.md:403-410 */ } as never;
+    const { container, rerender } = render(
+      <AnnouncerProvider value={a}><UndoChip ledger={ledger} entryId="u1" label="EP-142 deferred" onUndo={() => {}} /></AnnouncerProvider>);
+    rerender(<AnnouncerProvider value={a}><UndoChip ledger={ledger} entryId="u1" label="EP-142 deferred" onUndo={() => {}} /></AnnouncerProvider>);
+    expect(container.querySelector(".undo-chip-left")!.getAttribute("aria-hidden")).toBe("true");
+    expect(spy.mock.calls.filter((c) => c[0] === "EP-142 deferred. Undo, U")).toHaveLength(1);
+    // mutants: the countdown ticks into the tree; the chip re-announces on every beat
+  });
+  it("the ? sheet lists Space as peek", () => {
+    setWorkSourceForTest(workScenario());
+    act(() => useCockpit.setState({ lens: "work" } as never));
+    render(<AppShell />);
+    const grid = screen.getByRole("grid", { name: "Issues" });
+    grid.focus();
+    fireEvent.keyDown(grid, { key: "?", code: "Slash", shiftKey: true });
+    expect(screen.getByText(/peeks: tap to open, hold to look/)).toBeTruthy();
+    // mutant: the sheet's Space line missing (task-54.md:423)
+  });
+});
+```
+
+`w.withIssues` and `h.issueIdAt` are the one builder this file needs from task 40's world
+(`task-40.md:896` builds 500 issues through `h.update`); their names are **UNVERIFIED** and the
+test takes whatever task 40 exports.
