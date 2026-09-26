@@ -940,3 +940,71 @@ type ExternalLinkCreatedData struct {
 // Appended to WorkEventKinds, all ScopeProject, VisibleToReaders; task 13's
 // prefix list gains "tracker.", "sync." and "external_link.".
 ```
+
+#### The routes, reconciled (`server/work_trackers.go`; replaces `:517-537`)
+
+- `POST /v1/projects/{projectId}/trackers` (team admin of the project's team): `Decode` into
+  `ConnectTrackerRequest`; `ProjectRole` + `Require(admin)`; the target's `source` in
+  `TrackerSources` with an adapter registered (`field: target`); `ParseTrackerTarget` (`field:
+  target`); `ValidTrackerMode` (`field: mode`); insert with `ids.Wide("tc-")`, `principalId` its own
+  id; a live connection of the project with the same target → 409 `tracker_exists` (the index,
+  not a read first); emit `tracker.connected`; 201 `TrackerConnection` with `state: active`,
+  `lastRunAt: null`.
+- `GET /v1/teams/{teamId}/trackers` (viewer) → `Page[TrackerConnection]`, disconnected ones
+  included, newest first. `lastRunAt` is the last finished run's `started_at`.
+- `DELETE /v1/trackers/{connectionId}` (admin): sets `disconnected_at`, clears `run_requested_at`;
+  links stay (decision 4); emit `tracker.disconnected`; 200 `TrackerConnection` with `state:
+  disconnected`. A second DELETE is 200, the same body, nothing written, no event.
+- `GET /v1/trackers/{connectionId}/runs` (viewer) → `Page[SyncRun]`, newest first; task 143's
+  shape, `at` the run's start, `errors` never null.
+- `GET /v1/trackers/{connectionId}/links` (viewer) → `Page[ExternalLink]`, newest `linked_at`
+  first: the links this connection made, `upstream` the latest change or `null` (task 169's
+  `ListTrackerLinks`, `task-169.md:381`).
+- `POST /v1/trackers/{connectionId}/run` (admin): disconnected → 409 `tracker_disconnected`; sets
+  `run_requested_at`; 202 `{requestedAt}` (decision 6). No event.
+
+Every `{connectionId}` route reads the connection under the org's row-level security and then the
+caller's role on its team: another team's or another org's id is 404 `tracker_not_found`, with
+identical bodies. There is **no** batch route: task 143's `ApplySyncBatch` and `POST …/batches`
+(`task-143.md:846`, `:944`) have no caller, because the engine runs in the Hub and no integration
+token exists (decision 1, point 4; gap 1).
+
+#### Wire shapes, reconciled (replaces `:546-573`)
+
+```jsonc
+// POST /v1/projects/pj-…/trackers                     team admin; 201
+{ "mode": "in",
+  "target": { "source": "azure_boards", "organisation": "acme-eng", "project": "Payments",
+              "areaPath": "Payments\\Uploads" } }
+// → 201
+{ "id": "tc-8d41…", "teamId": "tm-…", "projectId": "pj-…", "source": "azure_boards",
+  "target": { … as sent … }, "mode": "in", "principalId": "tc-8d41…", "state": "active",
+  "lastRunAt": null, "createdBy": { "id": "u-ada…", … } }
+
+// GET /v1/trackers/tc-8d41…/runs                       viewer; 200
+{ "items": [ { "connectionId": "tc-8d41…", "at": "2026-09-26T01:05:00Z", "created": 2,
+               "existing": 57, "commentsIn": 0, "commentsOut": 0,
+               "errors": [ { "externalId": "acme-eng#1433", "code": "item_refused", "retryAt": null } ] } ],
+  "next": null }
+
+// GET /v1/trackers/tc-8d41…/links                      viewer; 200
+{ "items": [ { "id": "xl-3c…", "source": "azure_boards", "externalId": "acme-eng#1432",
+               "issueId": "is-…", "url": "https://dev.azure.com/…", "lastSeenAt": "…",
+               "upstream": { "externalId": "acme-eng#1432", "field": "state",
+                             "at": "2026-09-26T01:02:00Z", "to": "Closed" } } ], "next": null }
+
+// the feed for one run: task 13's issue.created and one external_link.created per new item
+// (actor null), then
+{ "kind": "sync.run", "actor": null, "subject": "tc-8d41…",
+  "data": { "connectionId": "tc-8d41…", "run": 3, "created": 2, "existing": 57, "upstream": 1,
+            "errors": 1, "by": "u-ada…" } }
+
+400 bad_request          { "field": "target" }   // "trello"; an unknown key such as "token"
+400 bad_request          { "field": "source" }   // POST …/imports with "azure_boards"
+409 tracker_exists                               // the same target twice on one project
+409 tracker_disconnected                         // run now after DELETE
+404 tracker_not_found                            // another team's or org's connection
+```
+
+The fragment at `:575-578` is superseded too: labels are never passed (`nil`), the names are not
+recorded, and the 500 cap is on a run's `errors`, not on upstream changes, which live on the link.
