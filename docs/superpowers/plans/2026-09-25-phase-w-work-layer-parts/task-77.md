@@ -166,3 +166,133 @@ also write `archived_at`, and, under `staleMode: auto`, `state` to `cancelled` f
 ```
 
 `stale_policy` sets no fact state and no `done`, so task 07's W1 rule (SW.3) is unchanged.
+
+#### The wire
+
+```text
+PUT    /v1/teams/{teamId}/cadence          admin      200 Cadence              PutCadenceRequest
+GET    /v1/teams/{teamId}/cadence          viewer     200 Cadence              (lengthDays 0 when never set)
+GET    /v1/teams/{teamId}/cycles           viewer     200 Page[Cycle]          ?state=upcoming|current|closed, by number
+PATCH  /v1/cycles/{cycleId}                admin      200 Cycle                PatchCycleRequest
+PUT    /v1/issues/{issueId}/cycle          member     200 IssueHead            SetCycleRequest
+GET    /v1/cycles/{cycleId}/scope-log      viewer     200 Page[ScopeEntry]     oldest first
+GET    /v1/closure-proposals?mine=true     signed in  200 Page[ClosureProposal] open first; mine=true is required in W2
+POST   /v1/closure-proposals/{id}/answer   assignee   200 ClosureProposal      AnswerClosureRequest
+POST   /v1/me/calendar-token               signed in  201 CalendarToken        {}; revokes the previous token
+DELETE /v1/me/calendar-token               signed in  204
+GET    /cal/{feedToken}                    the token  200 text/calendar        outside /v1; UNVERIFIED (decision (i))
+GET    /v1/teams/{teamId}/cycles.ics       viewer     200 text/calendar        the fallback
+```
+
+`GET /v1/teams/{teamId}/cadence` is not in the scope's list; a settings screen (task 87) cannot
+show a cadence it cannot read, so it is added. The request bodies are task 72's block 6; shown so
+the part stands alone, task 72 winning on any spelling:
+
+```go
+type PutCadenceRequest struct {
+	LengthDays    int    `json:"lengthDays"`    // 0 (off) or 7-56
+	CooldownDays  int    `json:"cooldownDays"`  // 0-14
+	Ahead         int    `json:"ahead"`         // 1-15
+	FirstStartsOn string `json:"firstStartsOn"` // ValidDate
+}
+
+// PatchCycleRequest: tri-state (task 72 decision (d)); name may clear, dates may not.
+type PatchCycleRequest struct {
+	Name     json.RawMessage `json:"name,omitempty"`
+	StartsOn json.RawMessage `json:"startsOn,omitempty"`
+	EndsOn   json.RawMessage `json:"endsOn,omitempty"`
+}
+
+type SetCycleRequest struct {
+	CycleID *string `json:"cycleId"` // a cycle of the issue's team, not closed; null clears
+}
+
+type AnswerClosureRequest struct {
+	Close []string `json:"close"` // a subset of the proposal's issueIds; [] keeps them all
+}
+```
+
+#### The `hubapi` additions (complete)
+
+```go
+// hubapi/work.go ⚑, beside task 10's six causes (SW.4, additive).
+// CauseStalePolicy is the janitor's close of a stale open issue under staleMode auto. No
+// person sends it: the route refuses it from a caller (400 naming cause).
+const CauseStalePolicy StateCause = "stale_policy"
+```
+
+`MoveAllowed` gains exactly three rows, `(triage|backlog|todo, cancelled, stale_policy)`, and
+task 10's `TestMoveAllowedIsTheTable` literal gains them (a test edit in task 10's file, stated).
+
+```go
+// hubapi/work_plan.go ⚑, IssuePlan's last field (SW.18, additive after its freeze).
+	ArchivedAt *string `json:"archivedAt"` // set by the janitor (L-12); a reopen clears it
+```
+
+Task 72's `workExamples` `IssueHead` row gains `,"archivedAt":null` at its end, so
+`TestWorkFieldNamesMatchTheExamples` still names every key.
+
+#### The eight event kinds, and one field on task 10's (complete)
+
+Every janitor event has `actor: null` and names the policy's author by id in `data` (05 §3.6).
+
+```go
+const (
+	EventTeamCadenceSet   = "team.cadence_set"
+	EventCycleCreated     = "cycle.created"
+	EventCycleUpdated     = "cycle.updated"
+	EventCycleClosed      = "cycle.closed"
+	EventIssueCycleSet    = "issue.cycle_set"
+	EventClosureProposed  = "closure.proposed"
+	EventClosureAnswered  = "closure.answered"
+	EventIssueArchived    = "issue.archived"
+)
+
+type TeamCadenceSetData struct {
+	LengthDays   int64 `json:"lengthDays"`
+	CooldownDays int64 `json:"cooldownDays"`
+	Ahead        int64 `json:"ahead"`
+}
+type CycleCreatedData struct {
+	CycleID        string `json:"cycleId"`
+	Number         int64  `json:"number"`
+	StartsOn       string `json:"startsOn"`
+	EndsOn         string `json:"endsOn"`
+	PolicyAuthorID string `json:"policyAuthorId"` // "" when a person made it
+}
+type CycleUpdatedData struct {
+	CycleID string `json:"cycleId"`
+	Fields  string `json:"fields"` // comma-joined: name,startsOn,endsOn
+}
+type CycleClosedData struct {
+	CycleID        string `json:"cycleId"`
+	Number         int64  `json:"number"`
+	RolledOver     int64  `json:"rolledOver"`
+	PolicyAuthorID string `json:"policyAuthorId"`
+}
+type IssueCycleSetData struct {
+	From           string `json:"from"` // cy-… or ""
+	To             string `json:"to"`
+	Rollover       bool   `json:"rollover"`
+	PolicyAuthorID string `json:"policyAuthorId"` // "" when a person moved it
+}
+type ClosureProposedData struct {
+	ProposalID     string `json:"proposalId"`
+	Count          int64  `json:"count"`
+	PolicyAuthorID string `json:"policyAuthorId"`
+}
+type ClosureAnsweredData struct {
+	ProposalID string `json:"proposalId"`
+	Closed     int64  `json:"closed"`
+	Kept       int64  `json:"kept"`
+}
+type IssueArchivedData struct {
+	PolicyAuthorID string `json:"policyAuthorId"`
+}
+```
+
+Task 10's `IssueStateData` gains `PolicyAuthorID string \`json:"policyAuthorId"\``, `""` for every
+cause but `stale_policy`. Registry rows: the three `cycle.*` and `team.cadence_set` are
+`ScopeTeam, VisibleToReaders`; `issue.cycle_set` and `issue.archived` are `ScopeProject,
+VisibleToReaders`; `closure.proposed` and `closure.answered` are `ScopeTeam, SubjectOnly` with
+`Subject` the assignee, because a proposal is one person's Desk item.
