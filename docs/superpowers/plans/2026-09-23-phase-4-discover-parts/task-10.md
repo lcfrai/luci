@@ -17,7 +17,8 @@ order within the handler is: validate, then materialise, then prepare and record
   `Materialise` come next, **before `sessionConversationStore`'s `MkdirAll`**, the session id and
   token, the record and the sandbox. The one thing minted before `Materialise` is the conversation
   UUID that `harness.Build` takes as input; it is in memory and is dropped on a refusal. So a
-  refusal on create leaves no record, no sandbox and nothing on disk.
+  refusal on create leaves no record, no sandbox and nothing on disk of the handler's own;
+  `Materialise`'s partial effects are task 09's (re-review b09 N-2).
 - **Not straight after `Worktrees.Path`**, review M2's first option: there, a request that the
   harness check then refuses with 400 would already have asked the Hub and written the brief.
 - **On restart**, materialise comes after the argv rebuild and the `sessionEnv` rebuild, and
@@ -27,8 +28,8 @@ order within the handler is: validate, then materialise, then prepare and record
   store, which any earlier create made; the `MkdirAll` is idempotent either way. On the base
   this task takes (phase 2 task 26 merged), restart's step-2b calls run first too, because
   `sessionEnv` follows them: `sessionGitLineEndings`, `sessionGitGlobalFiles` and
-  `sessionWorktreeAdmin`, whose `MkdirAll` of the linked worktree's `.git/worktrees/<name>`
-  directory (main tree `sessions.go:419`, called at `:1363`, before the destroy at `:1373`, at
+  `sessionWorktreeAdmin`, whose `MkdirAll` of `<worktree>/.git/worktrees`, made when `.git` is a
+  directory (re-review b09 N-1; main tree `sessions.go:419`, called at `:1363`, before the destroy at `:1373`, at
   `0522783`) is idempotent too. So a refusal on restart can leave those two directories made,
   and nothing else (re-review b09 M-3).
 - Either way, the stamped key and the minted conversation id both describe the process that
@@ -77,7 +78,8 @@ package api
 // THE ORDERING RULE: handleSessionCreate and handleSessionRestart call it
 // after the request validates (worktree, harness, argv) and before anything
 // is recorded or created. On create it also comes before the conversation
-// store's MkdirAll, so a refusal touches no disk; on restart it comes before
+// store's MkdirAll, so a refusal touches none of the handler's own disk (a
+// Materialiser's partial effects are its own, task 09's); on restart it comes before
 // the old sandbox's destroy (a refusal must leave the running agent
 // running). Called after the process starts, the session inherits nothing,
 // silently.
@@ -96,8 +98,9 @@ type MaterialiseRequest struct {
 	ProjectID    string
 	BranchID     string // local; "" for a detached worktree
 	// WithoutBrief is the person's "Start without the brief" (4-D1). The
-	// Materialiser removes any managed block it can and returns
-	// ContextRef "none:declined"; it does not ask the Hub.
+	// Materialiser removes every managed block, or refuses when it cannot
+	// (task 09 step 3), and returns ContextRef "none:declined"; it does not
+	// ask the Hub.
 	WithoutBrief bool
 }
 
@@ -122,7 +125,7 @@ func (e *MaterialiseError) Error() string { return "api: brief not written: " + 
 const (
 	BriefReasonHubUnavailable = "hub_unavailable"   // the Hub did not answer; a brief may exist
 	BriefReasonSignedOut      = "signed_out"        // no Hub token; a brief may exist
-	BriefReasonWriteFailed    = "write_failed"      // the file could not be written
+	BriefReasonWriteFailed    = "write_failed"      // the file could not be read or written
 	BriefReasonBlockBroken    = "block_broken"      // a marker with no partner (a begin with no end, a stray or early end) or two blocks
 	BriefReasonTracked        = "tracked_elsewhere" // CLAUDE.md and .claude/CLAUDE.md both tracked (P4-D)
 	// BriefReasonProjectUnknown is raised by the HANDLER, never by a
@@ -258,7 +261,8 @@ acceptance below therefore greps for the line and builds the binary.
   carries empty ids, which is what phase 2 records today for every enumeration failure. A clean
   `""` (outside every project) is passed through unchanged.
 - `handleSessionRestart`: decode the optional body (an empty body is `{}`; an unknown field is
-  `invalid_json`, as everywhere). Call `Materialise` with all four request fields:
+  `DecodeJSON`'s 400 `bad_request`, as everywhere: httpx §1B, `problem.go` `decodeCode`. This
+  part said `invalid_json` until the build, which was wrong on the facts). Call `Materialise` with all four request fields:
   `WorktreeID: sess.WorktreeID`, `WorktreePath: path` (the restart's own `Worktrees.Path` result,
   `sessions.go:972` at `2d6d95b`; an empty path is task 09's 500 on every restart),
   `ProjectID: sess.ProjectID`, `BranchID: sess.BranchID` (or the re-located ids, next bullet,
@@ -292,7 +296,9 @@ acceptance below therefore greps for the line and builds the binary.
 **Tests first** (`materialise_test.go`, package `api_test`, with a recording fake that logs each
 call's position relative to the fake backend's `Create` **and `Destroy`** and the fake store's
 `Create`/`Update`; the log entries are `materialise`, `backend.destroy`, `backend.create`,
-`store.create`, `store.update`):
+`store.create`, `store.update`. The recording backend's `Create` returns an **empty
+`Endpoint`**, so the readiness watch writes nothing to the store and cannot add an entry at a
+time the test does not control (re-review b01 R2-M3)):
 
 | Test | Asserts | Mutant it kills |
 |---|---|---|
@@ -327,6 +333,7 @@ map[string]error`, a failure for one project's `Worktrees` only.
 | `TestCreateWithoutBriefStartsDespiteAnUnknownProject` | `sessionsLocator.err` set, `withoutBrief: true` → 201; the fake gets `ProjectID: ""` and `WithoutBrief: true`; `none:declined` stamped | *Start without the brief* made a dead end, as N1 is on `tracked_elsewhere` |
 | `TestCreateOutsideEveryProjectMaterialisesWithNoProject` | a clean miss → 201; the fake gets `ProjectID: ""`; its `""` is stamped | the clean `""` refused, or never passed through |
 | `TestRestartRelocatesARecordWithNoProject` | a seeded record with `ProjectID: ""`. The locator finds the worktree → the fake gets the found ids, and the record write carries them. With `sessionsLocator.err` set → 409 `project_unknown`, no `backend.destroy`, the old sandbox still in the fake backend. A clean miss → 200; the fake gets `ProjectID: ""`, the record's ids stay `""`, nothing refuses | a restart that reads an ambiguous `""` as "outside every project"; a clean miss on restart refused |
+| `TestRestartDoesNotRelocateARecordThatNamesAProject` (re-review b02 M-1) | a seeded record naming `p-8c1d0e42` and its branch, `sessionsLocator.err` set, `POST …/restart` → 200; the fake gets the recorded ids | a restart that re-locates every record, turning a broken enumeration into `project_unknown` for a session whose project is known |
 | `TestRestartWithoutBriefStartsDespiteAnUnknownProject` (re-review b02 I-1) | a seeded record with `ProjectID: ""`, `sessionsLocator.err` set, `POST …/restart` with `{"withoutBrief": true}` → 200; the fake gets `ProjectID: ""` and `WithoutBrief: true`; `none:declined` is stamped on the record | restart's re-locate refusing `project_unknown` regardless of the override, so *Start without the brief* gets a second 409 and task 20 shows only **Retry** |
 
 | Test (`cmd/api/materialiser_interim_test.go`) | Asserts | Mutant it kills |
@@ -384,3 +391,24 @@ stamped `""` or `none:declined`, and that is honest, because nothing is written.
 **Does NOT claim:** anything about what is written (task 09); the desktop's handling of the 409
 (task 20); the Go and UI contract amendments (task 22); a real Materialiser in the binary
 (task 14, which replaces `materialiserUntilTask14`).
+
+**As built (2026-09-26), where the build departs from the text above:**
+
+1. **The base does not carry phase 2 task 26.** `sessions.go` on `feat/phase-4-discover` was last
+   changed at `2d6d95b`; `0522783` is not an ancestor. There is no step-2b git block
+   (`sessionGitLineEndings`, `sessionGitGlobalFiles`, `sessionWorktreeAdmin`) and no "must leave
+   nothing behind" comment to amend. The build follows the rule, not the lines: `Materialise`
+   sits straight after `harness.Build`'s error check and before `sessionConversationStore`, so
+   when task 26 merges, its step-2b calls land below `Materialise`. The merge must keep that
+   order and make the comment amendment above.
+2. **An unknown field in the restart body is 400 `bad_request`**, not `invalid_json`: the body
+   goes through `DecodeJSON`, whose §1B rule is that. Pinned by
+   `TestRestartRefusesABodyWithAnUnknownField` (new).
+3. **The empty-body rule is `sessionDecodeOptionalJSON`** in `sessions.go`: no bytes at all is the
+   zero value, anything else is `DecodeJSON`.
+4. **`TestCreateValidatesBeforeMaterialising` has a fourth row, first**: an unknown worktree, 404.
+5. **`httpx/problem_test.go` pins the new code** in `TestAllSixteenErrorCodesHaveTheirContractString`
+   (a twelfth file; the name is left alone to spare phase 2 and 3 a conflict).
+6. **The two handlers share `sessionBriefWritten` and `writeBriefNotWritten`**, one 409 writer
+   for the Materialiser's refusals and the handler's own `project_unknown`. Each handler calls
+   `Materialise(ctx` itself, so the acceptance count of 2 holds.
