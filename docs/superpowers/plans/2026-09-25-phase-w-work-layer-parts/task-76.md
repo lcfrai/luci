@@ -297,7 +297,8 @@ the transaction back and appends nothing.
    team (or an org label, task 78) → else 422 `label_unavailable`, `field: "labels[n]"`.
 7. The Hub's brief insert with `scope: branch`, `branchRef: ref`; its unique violation → 409
    `brief_exists`, `details.briefId` the live brief (the Hub's existing mapping). Then
-   `InsertFeature` with a new `ft-` (task 02's `NewWorkID(PrefixFeature)`), state `planned`.
+   `InsertFeature` with a new `ft-` (`ids.Wide(hubapi.PrefixFeature)`, `task-02.md:138-139`),
+   state `planned`.
 8. Events `brief.created {scope: "branch", branchRef}` then `feature.created`. 201 `Feature`.
 
 **`listFeatures`** and **`getFeature`** (viewer): `getFeature` reads by id and answers 404
@@ -357,3 +358,54 @@ An error reading it refuses the Start (a reservation the control plane cannot ch
 taken, the same fail-safe as the data class). Cutting the feature's branch on the first Start of a
 child issue is task 61's choice of `Branch` (the feature's `branchRef` as the lane's base); whether
 P3-04's lane creation cuts a missing base branch is **UNVERIFIED** and reported.
+
+#### The matrix rows (`server/work_matrix_rows_integration_test.go` ⚑), complete
+
+H16b's fixture gains `FeatureID` (built once per cell: a feature `resumable-uploads` in P, made by
+Grace through the route, so the rows read and patch a real record). The two creating rows need a
+fresh slug per cell, so their bodies take the fixture's unique suffix (H16b builds a fresh world
+per cell, `task-16b.md:38-41`, so a fixed slug is also safe; the suffix is belt and braces).
+
+```go
+	"76": {
+		wwrite("POST /v1/projects/{projectId}/features", "POST", "/v1/projects/{ProjectID}/features", 201, "project_not_found",
+			func(*fixture) any { return map[string]any{"name": "Evidence export", "slug": "feature-2"} }),
+		wread("GET /v1/projects/{projectId}/features", "/v1/projects/{ProjectID}/features", "project_not_found"),
+		wread("GET /v1/features/{featureId}", "/v1/features/{FeatureID}", "feature_not_found"),
+		wwrite("PATCH /v1/features/{featureId}", "PATCH", "/v1/features/{FeatureID}", 200, "feature_not_found",
+			func(*fixture) any { return map[string]any{"state": "active"} }),
+		wwrite("PUT /v1/issues/{issueId}/feature", "PUT", "/v1/issues/{IssueID}/feature", 200, "issue_not_found",
+			func(f *fixture) any { return map[string]any{"featureId": f.FeatureID} }),
+		wwrite("POST /v1/issues/{issueId}/promote", "POST", "/v1/issues/{IssueID}/promote", 201, "issue_not_found",
+			func(*fixture) any { return map[string]any{"name": "Resume uploads", "slug": "feature-3"} }),
+	},
+```
+
+The slugs `feature-2` and `feature-3` hold no word of their names, so the rows pass under the AU
+fail-safe (decision (d)), which is every project until the class has a home. **The sync
+principal's** column is task 150's, as in task 75; its database half is task 74's guard on
+`issue_heads.feature_id` (`TestTheSyncActorPromotesNothing` below).
+
+#### Tests to write first, each with the mutant it kills
+
+`server/work_features_integration_test.go` (`//go:build integration`). Team T with Grace (admin),
+Linus (member), Vera (viewer); project P; EP-142 serving two criteria of P's project brief. Each
+is seen failing before the code it covers.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestASlugIsReservedOnce` | a feature on `feature-9` → 201; a second feature on `feature-9` → 409 `brief_exists` naming the first brief, and **no** second `features` row, **no** second brief, **no** event; a plain `POST /v1/projects/{p}/briefs` on `refs/heads/feature-9` → 409 too | the reservation outside the transaction (a feature row left behind the refused brief) |
+| `TestADerivedFactCannotBeSent` | `PATCH {"released": true}` → 400 naming `released`; `{"lanesLive": 2}` → the same; the row unchanged | stored facts |
+| `TestPromoteLinksAndCopiesNothing` | promote EP-142 → one `ft-`, one brief at `headRevision: 0`, `issue.featureId` set; EP-142's `revision`, digest and `serves` byte-equal before and after; `issue.promoted.issueKey` is `issue:<id>@<rev>` | a new issue revision; `serves` moved to the brief; a copied title |
+| `TestAUProjectsKeepTitlesOutOfSlugs` | with the class unreadable (W2's state): promote *Resume uploads* with slug `resume-uploads` → 422 `slug_invalid`; slug `feature-4` → 201; with a store fake answering `known, !auOnly`: `resume-uploads` → 201 | a title slug on an AU branch; the fail-safe inverted (unknown treated as Global) |
+| `TestTheLeadIsATeamMember` | `leadId` Vera (viewer) → 422 `field: leadId`; Out Sider → the same; Linus → 201 with `lead` Linus; absent → the creator | any user as lead |
+| `TestAFeatureIsItsProjectsOnly` | `PUT /v1/issues/{EP-142}/feature` naming another project's feature → 404 `feature_not_found`; a cancelled feature → 422 | cross-project children |
+| `TestTheRebindMovesTheFeatureRef` | rebind the feature's brief to `refs/heads/feature-10` (Hub route) → `GET` the feature answers the new `branchRef` | a stored copy of the ref drifting from the brief |
+| `TestEventsPerRecordWritten` | create → exactly `brief.created`, `feature.created`; promote → exactly those two and `issue.promoted`; a no-op patch or set → none; `data` holds only the declared keys and never the name | a missing `brief.created`; two feature events; a silent write; the name in `data` |
+| `TestTheSyncActorPromotesNothing` | as `hub_app` with `hub.work_actor_kind = 'integration'`, `UPDATE issue_heads SET feature_id` → `42501` | the database half of the sync rule |
+
+`workstart/start_test.go` (task 24's file, unit, on fakes):
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestStartRefusesAReservedName` | `Features.Reserved` true for `ep-142` and the issue not in that feature → `ErrNameReserved`, no lane made, no session; the issue **in** that feature → Start proceeds; `Reserved` errors → refused | a reserved branch cut for another lane; the check failing open |
