@@ -321,7 +321,7 @@ function KeyList(p: KeysProps & { team: Team | null }): JSX.Element {
   }, [p.client, teamId]);
   useEffect(() => { void load(); }, [load]);   // decision 1: fetched on open
   const create = usePressOnce(async () => {
-    const made = await p.client.createAPIKey(teamId, { name, expiresAt: expires });
+    const made = await p.client.createAPIKey(teamId, { name, expiresAt: `${expires}T00:00:00Z` });
     setSecret(made.secret);                    // split at once: the secret to SecretOnce ...
     setKeys((k) => [made.key, ...(k ?? [])]);  // ... the record to the list
     setName(""); setExpires("");
@@ -361,4 +361,51 @@ export function Keys(p: KeysProps): JSX.Element {
 
 The rate line sits under **Your keys** only: the reading is the caller's own bucket on whichever
 list call answered (decision 4), so repeating it under a team list would read as the team's.
-`expiresAt` is sent as the date the person picked; task 160 refuses more than 365 days on.
+`expiresAt` is the picked date at `T00:00:00Z`, task 160's example shape (`task-160.md:377`);
+task 160 refuses more than 365 days on and names the field in its 400 (`:380`), which the form
+shows under *Expires*.
+
+#### Tests to write first — the fixtures, `testAdmin.ts`
+
+```ts
+// desktop/src/components/admin/testAdmin.ts — task 173. A fake client whose every member is a
+// vi.fn over fixed answers, and three people: Dylan (org admin, admin of Payments), Priya (a
+// member of Payments), Sam (admin of Payments, not an org admin).
+import { vi } from "vitest";
+import type { APIKey, CreatedAPIKey } from "../../api/work";
+import type { AdminProps } from "./AdminHome";
+import type { Me } from "./access";
+
+const u = (id: string, displayName: string) => ({ id, displayName, email: `${id}@kpmg.com.au` });
+const org = { id: "org-1", displayName: "KPMG Australia", tenantId: "t-1" };
+const pay = (role: "admin" | "member") =>
+  ({ id: "tm-pay", name: "Payments", role, createdAt: "2026-09-01T00:00:00Z", createdBy: u("u-d", "Dylan") });
+export const dylan: Me = { user: u("u-d", "Dylan"), org, orgAdmin: true, teams: [pay("admin")], invitesBound: 0 };
+export const priya: Me = { user: u("u-p", "Priya"), org, orgAdmin: false, teams: [pay("member")], invitesBound: 0 };
+export const sam: Me = { user: u("u-s", "Sam"), org, orgAdmin: false, teams: [pay("admin")], invitesBound: 0 };
+
+export const key = (over: Partial<APIKey> = {}): APIKey => ({
+  id: "ak-1", scope: "personal", ownerId: "u-d", teamId: null, name: "CI release", shown: "pak_3f9c",
+  createdAt: "2026-09-26T03:00:00Z", expiresAt: "2027-03-25T00:00:00Z",
+  lastUsedAt: "2026-09-26T04:02:00Z", revokedAt: null, revokedBy: null, ...over });
+export const SECRET = "pak_3f9c2a1b7e4d4c0a9b8e7f6a5d4c3b2a";
+export const created: CreatedAPIKey = { key: key({ id: "ak-2" }), secret: SECRET };
+
+export function fakeClient(over: Partial<AdminProps["client"]> = {}): AdminProps["client"] {
+  return {
+    apps: vi.fn(async () => []), decideApp: vi.fn(),
+    apiKeys: vi.fn(async () => ({ keys: [key()], rate: { used: 3, limit: 20, resetsAt: "2026-09-26T04:05:03Z" } })),
+    createAPIKey: vi.fn(async () => created), revokeAPIKey: vi.fn(async () => key({ revokedAt: "2026-09-26T04:10:00Z" })),
+    createWebhook: vi.fn(), webhooks: vi.fn(async () => []), disableWebhook: vi.fn(),
+    rotateWebhookSecret: vi.fn(), deliveries: vi.fn(async () => ({ items: [], next: null })), redeliver: vi.fn(),
+    mcpConnectors: vi.fn(async () => []), allowMCPConnector: vi.fn(), removeMCPConnector: vi.fn(),
+    agentPolicy: vi.fn(async () => ({ teamId: "tm-pay", harnesses: ["claude-code"], skills: { source: "image", library: null }, updatedBy: null, updatedAt: null })),
+    putAgentPolicy: vi.fn(async (_t, b) => ({ teamId: "tm-pay", ...b, updatedBy: null, updatedAt: "2026-09-26T04:00:00Z" })),
+    ...over,
+  } as AdminProps["client"];
+}
+export const base = { hubBase: "https://hub.example.test", timeZone: "Australia/Sydney" };
+```
+
+`Page` is `{ items, next }` as task 156's list answers (`task-156.md:538`); the fixtures' times are
+UTC and read in Sydney (UTC+10 on 2026-09-26), so `04:05:03Z` renders *14:05:03*.
