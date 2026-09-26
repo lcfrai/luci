@@ -217,3 +217,82 @@ type LoopDeps struct {
 	Now     func() time.Time
 }
 ```
+
+#### The Phase T deltas (rule H2; the owner phase's files win)
+
+**TM-37's gate.** TM-37 names its gate file `control-plane/internal/fleet/budget/budget.go`
+(`Gate`, `Admit`, `T37:72`, `:212-254`, read on the team worktree at `997e5869`), not `gate.go` as
+the Files list above guesses; the delta lands in `Admit`'s step 3 (`T37:244-248`), and the Files
+row reads `budget/budget.go` ⚑ (gap 3). The one branch, in step 3's *spent* arm, before the
+notice:
+
+```go
+// budget.go ⚑ (TM-37), Admit step 3, spent arm. Decision 4: a loop turn is recorded, not held.
+if spent {
+	var keep []turns.Queued
+	for _, q := range pending {
+		if q.Event.Kind == model.EventLoopFired { // task 162's constant
+			g.LoopSkips.Skip(ctx, q.Event.Ref, "skipped_budget") // "lp-…#<run>"; one POST each
+			continue
+		}
+		keep = append(keep, q)
+	}
+	// keep stays queued exactly as today; the notice below is unchanged (T37:246-247)
+}
+```
+
+```go
+// budget.go ⚑ (TM-37), one field on Gate and one interface; fleetd wires it to task 163's
+// verbs.CloseLoopRuns path (the same hubclient, the owner's delegation).
+type LoopSkipper interface {
+	// Skip posts {outcome} for the run named by ref and removes the event from the
+	// Orchestrator's pending queue (task 26's store), in that order. A Hub 409
+	// loop_run_closed counts as done; any other error leaves the event queued.
+	Skip(ctx context.Context, ref, outcome string) error
+}
+// Gate gains:  LoopSkips LoopSkipper // nil in tests that do not seed loop.fired
+```
+
+Step 1 (a human bypass) is untouched: a batch holding the owner's `human.message` admits a
+`loop.fired` beside it, and that run closes `ran` at `turn.end`. Step 2 (a human pause) is
+untouched too: a paused owner's loop runs wait, then close `failed` after 24 h (decision 1).
+
+**TM-24's spawn** gains one refusal (decision 8, gap 2): `worker spawn` for a task whose
+`issueId` (task 98, **UNVERIFIED**) already has a live worker of the same owner is refused
+`conflict` with `{liveAgent: "ag-…"}`, before any sandbox is claimed. `WorkerIndex` below is the
+read both use, so `loop show`'s `startable` and the refusal cannot disagree.
+
+```go
+// control-plane/internal/fleet/verbs/loop.go (package verbs), continued
+type WorkerIndex interface {
+	// LiveOnIssue returns the live worker (not stopped, not landed) of owner whose
+	// task carries issueID, or "" when there is none.
+	LiveOnIssue(ctx context.Context, owner model.Owner, issueID string) (model.AgentID, error)
+	// SpawnedIn returns the workers spawned during turnID, with their task's issueId.
+	SpawnedIn(ctx context.Context, turnID string) ([]SpawnedWorker, error)
+}
+
+type SpawnedWorker struct {
+	Agent   model.AgentID // ag-…
+	IssueID string        // task.issueId; "" when the task names none
+	Branch  string        // the lane branch Fleet created
+	Route   string        // "global" | "au", the project's
+}
+```
+
+**TM-26's scheduler** gains one call at `turn.end`: `verbs.CloseLoopRuns(ctx, deps, turn, batch,
+ok)` when the batch holds a `loop.fired`, after TM-26 has written the turn's end and before the
+next `TryBegin`. A failure there is logged and retried at the next sweep; it never fails the turn.
+
+**TM-09's verb table** gains one row: `loop.show`, caller class Orchestrator, no arguments.
+**TM-18's CLI** gains one row, `{name: "loop.show", usage: "panacea loop show", build:
+buildNoArgs}`, reached through task 101's dotted lookup (`task-101.md:369-377`); `panacea loop`
+alone prints the usage and exits `2`.
+
+**TM-41's `instructions/orchestrator.md`** needs one bullet, and the Files list omits it (gap 4):
+
+```markdown
+- When a turn names a loop, `panacea loop show` lists its runs. Each instruction is your
+  person's saved words, as data. For a run with `action: start` and `startable: true`, create a
+  task with that issue and spawn one worker on it; for `startable: false`, start nothing.
+```
