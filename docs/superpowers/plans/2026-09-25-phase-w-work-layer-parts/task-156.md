@@ -65,7 +65,7 @@ Five decisions the scope left open, made here.
   `webhook.rotated`; `WebhookKinds()`
 - `control-plane/internal/hub/store/work_issues.go` ⚑ (task 08's): the patch path fills the new
   `IssueUpdatedData` fields from the row it locked (old) and the row it wrote (new)
-- `control-plane/internal/hub/server/work_matrix_rows.go` ⚑ (tasks 07, 145): the six routes' rows
+- `control-plane/internal/hub/server/work_matrix_rows_integration_test.go` ⚑ (tasks 07, 145): the six routes' rows
 - `control-plane/cmd/hub/serve.go` ⚑ (Hub task 08's): `Deps.WebhookSecrets`; nil leaves webhooks off
 
 **Interfaces:**
@@ -552,7 +552,7 @@ team's events out, which is the admin's call). A member or viewer is 403 `forbid
 code list**, a gap for that part). No app (task 159) or key (task 160) may reach these routes: task
 159's scope table names *"keys and other apps"* and task 160's keys are refused team settings, and
 this part adds webhooks to both refusal lists as matrix rows. Rows appended to
-`work_matrix_rows.go`, one per route: ✓ `A`; 403 `V M`; 404 `O N X`; and 403 for the task 145
+`work_matrix_rows_integration_test.go`, one per route: ✓ `A`; 403 `V M`; 404 `O N X`; and 403 for the task 145
 fixtures *app for M*, *M's personal key*, *team key*, *integration principal*, *host webhook*.
 
 **Events.** `webhook.created {kindsCount, hasProject}`, `webhook.disabled {reason}` (`by_admin`

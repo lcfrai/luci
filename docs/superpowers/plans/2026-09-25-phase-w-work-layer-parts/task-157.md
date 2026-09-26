@@ -58,7 +58,7 @@ Six decisions the scope left open, made here.
   /teams/messages`; `server/work_teams_integration_test.go` (new, `-tags integration`)
 - `control-plane/internal/hub/store/work_teams.go` (new): bindings, pairings, post cursors
 - `control-plane/internal/hub/server/janitor.go` ⚑: step 6, `sweepTeamsPosts`, after task 156's step 5
-- `control-plane/internal/hub/server/work_matrix_rows.go` ⚑: the binding routes' rows
+- `control-plane/internal/hub/server/work_matrix_rows_integration_test.go` ⚑: the binding routes' rows
 - `integrations/teams-app/manifest.json`, `color.png` (192 × 192), `outline.png` (32 × 32) (new;
   the icons drawn by us, `OD-11`)
 - **Not in the File map:** `teams/{bot,activity,post}.go` and `integrations/teams-app/` (gaps to add)
