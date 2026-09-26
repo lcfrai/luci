@@ -89,6 +89,11 @@ type Service struct {
 
 	mu   sync.Mutex
 	memo map[string]memoEntry // by LOCAL project id
+	// gen is bumped by forget, per LOCAL project id. Binding stores what its
+	// lookup read only while gen is what it was when the lookup began, so a
+	// read in flight across a Bind cannot memoise its stale answer (review
+	// t07 m2).
+	gen map[string]uint64
 }
 
 type memoEntry struct {
@@ -120,7 +125,7 @@ func New(cfg Config) (*Service, error) {
 	if cfg.CacheTTL == 0 {
 		cfg.CacheTTL = DefaultCacheTTL
 	}
-	return &Service{cfg: cfg, cache: newRevisionCache(MaxCacheEntries), memo: map[string]memoEntry{}}, nil
+	return &Service{cfg: cfg, cache: newRevisionCache(MaxCacheEntries), memo: map[string]memoEntry{}, gen: map[string]uint64{}}, nil
 }
 
 var (
@@ -129,10 +134,10 @@ var (
 	ErrNoRemote = errors.New("discoverhub: this repository has no GitHub or Azure DevOps remote")
 	ErrNoBrief  = errors.New("discoverhub: no brief at this scope")
 	// ErrPinUnreadable: a branch revision's pinned project revision is one the
-	// Hub answers missing (task 07 as built, not in the part). Inheritable and
-	// HeadRef return it rather than resolve the branch against anything but
-	// its pin (rule 3); Resolve, which has no error, answers the slot
-	// unavailable instead (rule 5).
+	// Hub answers missing (task 07 as built; the part declares it).
+	// Inheritable, HeadRef and View return it rather than resolve the branch
+	// against anything but its pin (rule 3); Resolve, which has no error,
+	// answers the slot unavailable instead (rule 5).
 	ErrPinUnreadable = errors.New("discoverhub: the project revision this branch revision pins cannot be read")
 )
 

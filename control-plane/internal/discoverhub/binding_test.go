@@ -232,14 +232,19 @@ func TestANameTheTeamHoldsIsNameTaken(t *testing.T) {
 	w.createProject("portal", teamKey)
 	s := w.service()
 	before := mustBinding(t, s, localFork)
-	w.hub.failCreateProject(&hubclient.Error{Status: 409, Problem: httpx.Problem{Error: hubapi.CodeConflict,
-		Message: "A project in this team already has that name.", Details: map[string]string{"field": "name"}}})
-	m := w.mark()
+	nameTaken := func() *hubclient.Error {
+		return &hubclient.Error{Status: 409, Problem: httpx.Problem{Error: hubapi.CodeConflict,
+			Message: "A project in this team already has that name.", Details: map[string]string{"field": "name"}}}
+	}
+	w.hub.failCreateProject(nameTaken())
 	_, err := s.Bind(bg, localFork, w.team, "")
 	var nt *NameTakenError
 	if !errors.As(err, &nt) || nt.Name != "portal (me/portal)" {
 		t.Fatalf("Bind = %v, want *NameTakenError{portal (me/portal)}", err)
 	}
+	// Bind re-read the binding past the memo, to tell a teammate's race from
+	// a name clash (review t07 I1); the memo it did not change answers now.
+	m := w.mark()
 	if after := mustBinding(t, s, localFork); !reflect.DeepEqual(after, before) {
 		t.Errorf("Binding after the refusal = %+v, want it unchanged: %+v", after, before)
 	}
@@ -271,6 +276,22 @@ func TestANameTheTeamHoldsIsNameTaken(t *testing.T) {
 		if !errors.As(err, &he) || he != e || errors.As(err, &nt) {
 			t.Errorf("Bind with %d %s = %v, want the Hub's error as it came", e.Status, e.Problem.Error, err)
 		}
+	}
+
+	// The re-read that tells a teammate's race from a name clash fails: its
+	// error comes back as it came, never a NameTakenError nobody confirmed,
+	// and the memo stands.
+	w4 := forkWorld(t, gh("origin", forkKey), gh("upstream", teamKey))
+	w4.createProject("portal", teamKey)
+	s4 := w4.service()
+	before4 := mustBinding(t, s4, localFork)
+	w4.hub.failCreateProject(nameTaken())
+	w4.hub.SetUnavailable(true)
+	if _, err := s4.Bind(bg, localFork, w4.team, ""); !errors.Is(err, hubclient.ErrUnavailable) || errors.As(err, &nt) {
+		t.Errorf("Bind whose re-read fails = %v, want hubclient.ErrUnavailable as it came", err)
+	}
+	if after := mustBinding(t, s4, localFork); !reflect.DeepEqual(after, before4) {
+		t.Errorf("Binding after the failed re-read = %+v, want the memo unchanged: %+v", after, before4)
 	}
 }
 
@@ -371,5 +392,50 @@ func TestBindRaceReturnsTheTeammatesProject(t *testing.T) {
 	b2, err := w2.service().Bind(bg, localFork, w2.team, "")
 	if hubclient.Code(err) != hubapi.CodeRepoAlreadyLinked || b2.State != "" {
 		t.Errorf("Bind into a repository another team holds = %+v, %v; want repo_already_linked as it came", b2, err)
+	}
+
+	// The commonest race (review t07 I1): the teammate's clone has the same
+	// directory name, so they Shared under the same default name. The Hub
+	// may check the per-team name before the repository (the fake does,
+	// fake_projects.go:487-495; the contract fixes no order), so the refusal
+	// reads as a name clash. Bind re-reads past the memo and binds to theirs,
+	// never telling the person to choose another name for a repository their
+	// team already shares.
+	const portal2 = "github.com/team/portal2"
+	w3 := forkWorld(t, gh("origin", portal2))
+	s3 := w3.service()
+	if b := mustBinding(t, s3, localFork); b.State != BindingUnbound || b.DefaultName != "portal" {
+		t.Fatalf("Binding = %+v, want unbound with the default name portal", b)
+	}
+	theirs3 := w3.createProject("portal", portal2)
+	b3, err := s3.Bind(bg, localFork, w3.team, "")
+	if err != nil || b3.State != BindingBound || b3.HubProjectID != theirs3 || b3.HubProjectName != "portal" {
+		t.Fatalf("Bind after a teammate Shared under the same name = %+v, %v; want bound to their %s", b3, err, theirs3)
+	}
+	if again := mustBinding(t, s3, localFork); again.State != BindingBound || again.HubProjectID != theirs3 {
+		t.Errorf("Binding after the race = %+v, want %s: the stale memo is forgotten", again, theirs3)
+	}
+}
+
+// TestABindingReadInFlightDoesNotOutliveABind (review t07 m2): a Binding
+// lookup that read unbound before a Bind created the project, and returns
+// after the Bind forgot the memo, must not store its stale unbound, or the
+// lens reads unbound for the memo's 60 s after a Share that worked.
+func TestABindingReadInFlightDoesNotOutliveABind(t *testing.T) {
+	const newKey = "github.com/team/newrepo"
+	w := forkWorld(t, gh("origin", newKey))
+	s := w.service()
+	var bound Binding
+	var bindErr error
+	w.locate.duringName(func() { bound, bindErr = s.Bind(bg, localFork, w.team, "New repo") })
+	inFlight := mustBinding(t, s, localFork)
+	if bindErr != nil || bound.State != BindingBound {
+		t.Fatalf("Bind during the lookup = %+v, %v; want bound", bound, bindErr)
+	}
+	if inFlight.State != BindingUnbound {
+		t.Fatalf("the lookup in flight = %+v, want the unbound it read before the Bind", inFlight)
+	}
+	if b := mustBinding(t, s, localFork); b.State != BindingBound || b.HubProjectID != bound.HubProjectID {
+		t.Errorf("Binding after the Bind = %+v, want bound to %s, not the in-flight read's unbound", b, bound.HubProjectID)
 	}
 }

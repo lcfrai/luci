@@ -398,7 +398,21 @@ func TestABranchKeyWhosePinIsErasedKeepsOnlyItsOwnText(t *testing.T) {
 	if first, _, _ := s.Resolve(bg, []string{k42}); first[0].Audience != b7Audience6 {
 		t.Fatalf("first = %+v, want b-7@6's audience inherited", first[0])
 	}
+	// s2 holds both pieces too, and meets the erasure first through
+	// Inheritable, so its pin read, not Resolve, is what must evict the pin
+	// (review t07 m1, mutant S1).
+	s2 := w.service()
+	s2.Resolve(bg, []string{k42})
+	if _, ok := s2.cache.get(k7, w.clock.Now()); !ok {
+		t.Fatalf("s2 does not cache %s before the erasure", k7)
+	}
 	w.erase(w.b7)
+	if inh2 := mustInherit(t, s2, w.branch()); inh2.Key != k42 || !inh2.PinErased {
+		t.Errorf("s2 Inheritable = %s pinErased %v, want %s, true", inh2.Key, inh2.PinErased, k42)
+	}
+	if _, ok := s2.cache.get(k7, w.clock.Now()); ok {
+		t.Errorf("after Inheritable met the erased pin, s2 still caches %s", k7)
+	}
 	refs, _, _ := s.Resolve(bg, []string{k42})
 	r := refs[0]
 	wantPin := &provenance.InheritedRef{Key: k7, BriefID: w.b7, Revision: 6, Digest: w.written[k7].Digest.String(), Erased: true}
@@ -496,6 +510,11 @@ func TestHistoryIsOldestFirstWithChanges(t *testing.T) {
 	if p2, err := s.History(bg, w.b42, p1.Next, 2); err != nil || len(p2.Rows) != 2 || p2.Rows[0].Revision != 3 {
 		t.Errorf("second page = %+v, %v; want revisions 3-4", p2, err)
 	}
+	for i := range 6 {
+		if _, ok := s.cache.get(w.key(w.b42, i+1), w.clock.Now()); !ok {
+			t.Fatalf("revision %d is not cached before the erasure", i+1)
+		}
+	}
 	w.erase(w.b42)
 	h, err = s.History(bg, w.b42, "", 0)
 	if err != nil || len(h.Rows) != 6 {
@@ -504,6 +523,10 @@ func TestHistoryIsOldestFirstWithChanges(t *testing.T) {
 	for i, r := range h.Rows {
 		if !r.Erased || r.Change != (discover.Change{}) || r.Status != w.written[w.key(w.b42, i+1)].Status {
 			t.Errorf("erased row %d = %+v, want erased with no change", i, r)
+		}
+		// An erased row's content leaves the cache (review t07 m1, mutant S2).
+		if _, ok := s.cache.get(r.Key, w.clock.Now()); ok {
+			t.Errorf("erased row %d: %s is still cached", i, r.Key)
 		}
 	}
 }

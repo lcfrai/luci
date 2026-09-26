@@ -95,6 +95,7 @@ type fakeLocator struct {
 	names    map[string]string // local project -> directory name
 	branches map[string]string // local branch -> name
 	asked    []string
+	onName   func() // set by duringName; run once, by the next ProjectName, before it returns
 }
 
 func newLocator() *fakeLocator {
@@ -114,9 +115,24 @@ func (l *fakeLocator) ProjectPath(_ context.Context, projectID string) (string, 
 
 func (l *fakeLocator) ProjectName(projectID string) string {
 	l.mu.Lock()
-	defer l.mu.Unlock()
+	hook := l.onName
+	l.onName = nil
 	l.asked = append(l.asked, projectID)
-	return l.names[projectID]
+	name := l.names[projectID]
+	l.mu.Unlock()
+	if hook != nil {
+		hook()
+	}
+	return name
+}
+
+// duringName runs f once, inside the next ProjectName call. Binding's lookup
+// asks for the name last, after the Hub answered, so f runs while that
+// lookup's answer is in flight and not yet memoised (review t07 m2).
+func (l *fakeLocator) duringName(f func()) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.onName = f
 }
 
 func (l *fakeLocator) BranchName(branchID string) string {

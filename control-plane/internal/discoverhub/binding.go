@@ -93,8 +93,11 @@ func orderRemotes(keys []RepoKey) []RepoKey {
 // each other remote's key in order and lists every hit in Matches, state
 // unbound: the person chooses (task 18), nothing binds on its own. It is
 // memoised in memory per local project for 60 s, and forgotten on Bind. A
-// nil Hub is hub_off, with no lookup at all (rule 6); an error, Hub or local,
-// is returned unchanged and memoises nothing.
+// lookup that was in flight when Bind forgot the memo returns its answer but
+// does not store it (review t07 m2): it read the Hub before the Bind, and
+// would hold a stale unbound for 60 s. A nil Hub is hub_off, with no lookup
+// at all (rule 6); an error, Hub or local, is returned unchanged and
+// memoises nothing.
 func (s *Service) Binding(ctx context.Context, projectID string) (Binding, error) {
 	if s.cfg.Hub == nil {
 		return emptyBinding(BindingHubOff), nil
@@ -102,6 +105,7 @@ func (s *Service) Binding(ctx context.Context, projectID string) (Binding, error
 	now := s.cfg.Now()
 	s.mu.Lock()
 	m, ok := s.memo[projectID]
+	gen := s.gen[projectID]
 	s.mu.Unlock()
 	if ok && now.Before(m.expires) {
 		return m.b.clone(), nil
@@ -111,7 +115,9 @@ func (s *Service) Binding(ctx context.Context, projectID string) (Binding, error
 		return Binding{}, err
 	}
 	s.mu.Lock()
-	s.memo[projectID] = memoEntry{b: b, expires: now.Add(bindingMemo)}
+	if s.gen[projectID] == gen {
+		s.memo[projectID] = memoEntry{b: b, expires: now.Add(bindingMemo)}
+	}
 	s.mu.Unlock()
 	return b.clone(), nil
 }
@@ -164,11 +170,27 @@ func (s *Service) lookup(ctx context.Context, projectID string) (Binding, error)
 	return b, nil
 }
 
-// forget drops projectID's memo.
+// forget drops projectID's memo, and bumps its generation so that no lookup
+// begun before it stores what it read.
 func (s *Service) forget(projectID string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.memo, projectID)
+	s.gen[projectID]++
+}
+
+// reread is Bind's check for a teammate's race: the binding read past the
+// memo, which may predate their Share. When it is bound the memo is
+// forgotten, because it is stale; otherwise the memo is left as it is.
+func (s *Service) reread(ctx context.Context, projectID string) (Binding, error) {
+	b, err := s.lookup(ctx, projectID)
+	if err != nil {
+		return Binding{}, err
+	}
+	if b.State == BindingBound {
+		s.forget(projectID)
+	}
+	return b, nil
 }
 
 // Bind creates the Hub project in teamID with the PRIMARY remote's key as
@@ -176,13 +198,18 @@ func (s *Service) forget(projectID string) {
 // repository through its upstream remote), named name, or DefaultName when
 // name is "" (after trimming). It reads the binding through Binding's memo:
 // bound already is that binding, no_remote is ErrNoRemote, a nil Hub is
-// ErrHubOff. repo_already_linked (a race with a teammate) forgets the memo,
-// re-reads and returns that binding instead of failing; when the re-read is
-// still not bound (the other project is one the caller cannot read), the
-// Hub's error is returned as it came. A Hub 409 that refuses the name (b10
-// re-review I-2: `name` is "unique per team", hub-contract.md:710) is
-// *NameTakenError, nothing bound and the memo unchanged, so the person can
-// Share again under another name. Every other error is returned unchanged.
+// ErrHubOff. The memo may predate a teammate's Share, so each 409 that their
+// race can cause re-reads the binding past the memo, and a re-read that is
+// bound forgets the memo and is returned instead of the error (review t07
+// I1): repo_already_linked, and a 409 that refuses the name (b10 re-review
+// I-2: `name` is "unique per team", hub-contract.md:710), because a teammate
+// whose clone has the same directory name Shared under the same default
+// name, and the contract does not fix which check the Hub runs first (the
+// fake runs the name's, fake_projects.go:487-495). When the re-read is not
+// bound, repo_already_linked is returned as it came (the project is one the
+// caller cannot read), and the name refusal is *NameTakenError, nothing bound
+// and the memo unchanged, so the person can Share again under another name.
+// A re-read that fails, and every other error, is returned unchanged.
 // Joining a project that a non-primary remote matched is not built (OQ-12).
 func (s *Service) Bind(ctx context.Context, projectID, teamID, name string) (Binding, error) {
 	if s.cfg.Hub == nil {
@@ -211,18 +238,16 @@ func (s *Service) Bind(ctx context.Context, projectID, teamID, name string) (Bin
 		out.HubProjectID, out.HubProjectName = p.ID, p.Name
 		out.RepoKeys, out.primaryHost = slices.Clone(b.RepoKeys), b.primaryHost
 		return out, nil
-	case hubclient.Code(err) == hubapi.CodeRepoAlreadyLinked:
-		s.forget(projectID)
-		again, rerr := s.Binding(ctx, projectID)
-		if rerr != nil {
+	case hubclient.Code(err) == hubapi.CodeRepoAlreadyLinked, isNameTaken(err):
+		again, rerr := s.reread(ctx, projectID)
+		switch {
+		case rerr != nil:
 			return Binding{}, rerr
-		}
-		if again.State == BindingBound {
+		case again.State == BindingBound:
 			return again, nil
+		case isNameTaken(err):
+			return Binding{}, &NameTakenError{Name: name}
 		}
-		return Binding{}, err
-	case isNameTaken(err):
-		return Binding{}, &NameTakenError{Name: name}
 	}
 	return Binding{}, err
 }
