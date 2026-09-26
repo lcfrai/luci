@@ -53,7 +53,8 @@ from this task; nothing may set it until task 46.
 **(e) The two feed flags come from the kind, in the database.** Task 01's §8 has three feed
 values; task 08 reads two booleans (`task-08.md:207-213`): `yes` is `feed, fleet_feed`; `fleet`
 is `fleet_feed` only; `no` is neither. `audit_events` gains `fleet_feed`, and a reference table
-`team_event_kinds` holds task 01's 22 rows (`task-01.md:512-533`). A `BEFORE INSERT` trigger **sets** both flags for a
+`team_event_kinds` holds task 01's 23 rows (§8's team events, `task-01.md:547-569`,
+`project.mode_set` added by fix batch b01). A `BEFORE INSERT` trigger **sets** both flags for a
 kind in that table, whatever the Go side wrote, and sets `fleet_feed = false` for every other
 kind. So a Go bug that writes `feed = true` for `escalation.created` cannot put an escalation in
 every member's feed (§3.4). The trigger's comment says it overrides, and a test pins it: this is
@@ -63,7 +64,8 @@ the database deciding, stated, not a silent default.
 default `solo`), which task 01 §7.26 and task 08 filter on. `team` to `solo` is refused by a
 trigger: a team project's delegations, tasks and messages would outlive the mode that admits them.
 This is this part's choice; `05-design.md` §2.3 names Share and no un-share (**UNVERIFIED** that
-the owner wants none). Which route moves it is not this task's (task 43 or the Share task).
+the owner wants none). The one route that moves it is task 06's route 87 (fix batch b01, X-C1),
+through `GRANT UPDATE (mode)`; this task owns the column, the guard and the grant only.
 
 **(g) Fleet's two lookups are owner functions.** Before a delegated request has an org, row-level
 security hides every delegation. §5.10 rule 6 fixes the shape: a `SECURITY DEFINER` function, the
@@ -249,7 +251,8 @@ INSERT INTO team_event_kinds (kind, feed, fleet_feed) VALUES
   ('escalation.answered', false, true),      ('directive.appended', false, true),
   ('orchestrator_turn.recorded', false, false), ('human_message.appended', false, true),
   ('note.created', true, true),              ('team_policy.updated', true, true),
-  ('team_policy.route_changed', true, true), ('usage.rolled_up', false, false);
+  ('team_policy.route_changed', true, true), ('usage.rolled_up', false, false),
+  ('project.mode_set', true, true);          -- fix batch b01: Fleet learns the project here
 
 -- OVERRIDES the Hub's Go: for a team kind both flags are the table's, whatever the INSERT
 -- said, so no Go bug can put an escalation, directive or human message in every member's
@@ -862,7 +865,7 @@ at the limit and one past it, in `é` (two bytes in UTF-8), so a byte count woul
 | `TestAFleetFreeDirectiveNeedsAnApproval` | `origin` `fleet`, `kind` `free`, no `approved_by` → `23514`; with an escalation of Linus's → ok; `origin` `fleet`, `kind` `pause`, none → ok; `free` without text → `23514`; `pause` with text → `23514`; `read_ids` of 101, or one `s-…` → `23514` | the taint rule's database layer dropped (§7.20), leaving Fleet's verb handler the only check |
 | `TestDelegationShapes` | a `worker` listing `messages.append` → `23514`; 26 routes, or one repeated → `23514`; `expires_at` 24 h + 1 s after `created_at` → `23514`, exactly 24 h → ok; `revoked_at` without a reason → `23514` | a worker delegation that can speak across owners (OD-16); a delegation that outlives the TTL cap |
 | `TestConflictAndThreadShapes` | a conflict with `agent_a = agent_b` → `23514`; 51 paths → `23514`; a range `[5, 3]` or `[0, 2]` → `23514`; an absolute path → `23514`; `resolved` with no resolution → `23514`; a thread whose opener is not a participant, or with two equal participants, or `free` with a subject id, or `conflict` with an `ls-…` → `23514` | the shape checks dropped, so a malformed record reaches every reader |
-| `TestFeedFlagsComeFromTheKind` | as `hub_app`, chained audit events: `escalation.created` inserted with `feed = true` → stored `feed = false, fleet_feed = true`; `task.created` with `feed = false` → `true, true`; `orchestrator_turn.recorded` → `false, false`; a Hub kind (`brief.revised`, Hub `task-26.md:49`) with `feed = true` → `true, false`. Then `team_event_kinds` equals a Go table of task 01's 22 rows | the trigger dropped: a Go bug puts escalations in every member's feed (§3.4); a kind's flags respelled |
+| `TestFeedFlagsComeFromTheKind` | as `hub_app`, chained audit events: `escalation.created` inserted with `feed = true` → stored `feed = false, fleet_feed = true`; `task.created` with `feed = false` → `true, true`; `orchestrator_turn.recorded` → `false, false`; a Hub kind (`brief.revised`, Hub `task-26.md:49`) with `feed = true` → `true, false`. Then `team_event_kinds` equals a Go table of task 01's 23 rows, `project.mode_set` `(true, true)` among them (b01) | the trigger dropped: a Go bug puts escalations in every member's feed (§3.4); a kind's flags respelled |
 | `TestATeamProjectStaysTeam` | `solo` → `team` ok; `team` → `solo` → `42501`; renaming a team project → ok | a project un-shared under its live delegations |
 | `TestFleetLookupsStayInTheTenant` | `fleet_org(A's tenant)` → A; an unknown tenant → NULL; `fleet_delegation(A's tenant, A's dl)` → one row, org A; `(B's tenant, A's dl)` → no row; `(A's tenant, an unknown dl)` → no row; a revoked one → one row with `revoked_at` and `revoked_reason` | the tenant join dropped: a token for tenant B reads A's delegation, and task 05 would make B's Fleet act as A's member |
 
@@ -955,5 +958,6 @@ is why the pattern says `AppendOnlyHolds`).
 - **That `char_length` is `utf8.RuneCountInString` for every input.** Both count code points in a
   UTF-8 database; the Hub database's encoding is not stated in Hub task 06's part (**UNVERIFIED**:
   step 4's `é` cases fail loudly if it is not UTF-8).
-- **That `projects.mode` has a writer.** The column, its grant and its one-way guard exist; which
-  route moves a project to `team` is task 43's or the Share task's.
+- **The writer of `projects.mode`.** The column, its grant and its one-way guard exist here; the
+  one route that moves a project to `team` is task 06's route 87 (fix batch b01, X-C1), gated on
+  the audit leaving the Hub. Task 43 only reads the mode (`task-43.md:256`).
