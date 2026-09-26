@@ -329,3 +329,76 @@ func retryAfter(h string) time.Duration {
 	return 30 * time.Second
 }
 ```
+
+#### Interfaces — complete: `control-plane/internal/hub/sentinel/export.go`, the record
+
+```go
+package sentinel
+
+// Record is one row of the custom table: these fifteen keys and no other
+// (decision 8). The DCR's stream declaration must list the same columns.
+type Record struct {
+	TimeGenerated string          `json:"TimeGenerated"` // the event's at, RFC 3339 UTC
+	OrgId         string          `json:"OrgId"`
+	Seq           int64           `json:"Seq"`
+	Kind          string          `json:"Kind"`
+	TeamId        string          `json:"TeamId"`
+	ProjectId     string          `json:"ProjectId"`
+	Subject       string          `json:"Subject"`
+	ActorId       string          `json:"ActorId"`
+	ActorKind     string          `json:"ActorKind"`
+	Via           string          `json:"Via"`
+	Agent         string          `json:"Agent"`
+	Delegation    string          `json:"Delegation"`
+	Data          json.RawMessage `json:"Data"` // the event's data minus "reason", as JSON
+	Hash          string          `json:"Hash"`     // 64 lowercase hex
+	PrevHash      string          `json:"PrevHash"` // 64 lowercase hex
+}
+
+func recordOf(r store.SentinelRow) (Record, error) {
+	data := make(map[string]any, len(r.Env.Data))
+	for k, v := range r.Env.Data {
+		if k != "reason" { // decision 8
+			data[k] = v
+		}
+	}
+	raw, err := json.Marshal(data)
+	if err != nil {
+		return Record{}, err
+	}
+	a := hubapi.ActorOf(r.Env)
+	return Record{TimeGenerated: r.Env.At, OrgId: r.Env.OrgID, Seq: r.Env.Seq, Kind: r.Env.Event,
+		TeamId: r.Env.TeamID, ProjectId: r.Env.ProjectID, Subject: r.Env.Subject,
+		ActorId: a.ActorID, ActorKind: string(a.Kind), Via: a.Via, Agent: a.Agent,
+		Delegation: a.Delegation, Data: raw,
+		Hash: hex.EncodeToString(r.Hash[:]), PrevHash: hex.EncodeToString(r.PrevHash[:])}, nil
+}
+
+// ErrChainBroken stops an org's export (decision 5). Its message names the
+// org and seq and which rule, as hub verify's FAULT line does.
+var ErrChainBroken = errors.New("sentinel: the audit chain is broken")
+
+// ErrRecordTooLarge is one event over MaxPostBytes: never truncated, never skipped.
+var ErrRecordTooLarge = errors.New("sentinel: one audit event is larger than a post")
+
+// verify checks rows against the cursor (seq, hash), in order.
+func verify(org string, seq int64, prev [32]byte, rows []store.SentinelRow) error {
+	for _, r := range rows {
+		switch {
+		case r.Env.Seq != seq+1:
+			return fmt.Errorf("%w: org %s seq %d: a gap after %d", ErrChainBroken, org, r.Env.Seq, seq)
+		case r.PrevHash != prev:
+			return fmt.Errorf("%w: org %s seq %d: prevHash", ErrChainBroken, org, r.Env.Seq)
+		case hubapi.ChainHash(r.PrevHash, r.Canonical) != r.Hash:
+			return fmt.Errorf("%w: org %s seq %d: hash", ErrChainBroken, org, r.Env.Seq)
+		}
+		seq, prev = r.Env.Seq, r.Hash
+	}
+	return nil
+}
+```
+
+`verify` is `hub verify`'s rules 1-3 (hub tree `task-27.md:52-54`) over a window, so a row edited
+after `hub verify` last ran is caught by the next export, not by the next manual walk. It does not
+recheck rule 4 (the columns against the canonical): `SentinelRow.Env` **is** the parsed canonical,
+so the record cannot say what the columns say and the hash does not.
