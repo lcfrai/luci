@@ -3,7 +3,6 @@ package gitx_test
 import (
 	"context"
 	"errors"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -60,13 +59,14 @@ func TestMessageIsReadBackByGit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.Command("git", "interpret-trailers", "--parse")
-	cmd.Dir = r.Dir
-	cmd.Stdin = strings.NewReader(m)
-	out, err := cmd.Output()
+	// Through Exec, not os/exec: task 01's TestPinHelpersStartEveryProgramThroughRunProgram
+	// allows one process-start site in this package's tests.
+	c := gitx.Call{Dir: r.Dir, Args: []string{"interpret-trailers", "--parse"}, Class: gitx.Read, Scope: gitx.Project, Stdin: []byte(m)}
+	res, err := r.Runner().Run(context.Background(), c)
 	if err != nil {
 		t.Fatalf("interpret-trailers: %v", err)
 	}
+	out := res.Stdout
 	var want strings.Builder
 	for _, tr := range given {
 		want.WriteString(tr.Key + ": " + tr.Value + "\n")
