@@ -385,3 +385,80 @@ team's order: `"claude-code,codex"`. `harness_not_allowed` is task 143's code st
 (`task-143.md:783`), so the cockpit and the Hub switch on one value. `sessionLocate` is called a
 second time later in the handler (`:896`); the double enumeration is a local read, and caching it
 is not this task's.
+
+#### Tests to write first — the gate (`control-plane/internal/api/sessions_policy_test.go`, new)
+
+Over the existing one construction site, `sessionsNewEnvOverWith(t, dir, st, flags, tweak)`
+(`sessions_test.go:593`), whose worktree is `w-4a77b1c9` in project `p-8c1d0e42` (`:602-608`),
+and its `do` helper (`:664`). `fixedPolicy` is a four-line `AgentPolicySource` double.
+
+```go
+type fixedPolicy struct {
+	p     *hubapi.TeamAgentPolicy
+	bound bool
+	err   error
+}
+
+func (f fixedPolicy) PolicyFor(context.Context, string) (*hubapi.TeamAgentPolicy, bool, error) {
+	return f.p, f.bound, f.err
+}
+
+func policyEnv(t *testing.T, src AgentPolicySource) *sessionsEnv {
+	t.Helper()
+	st := sessionsMustStore(t)
+	return sessionsNewEnvOverWith(t, t.TempDir(), st, st, func(d *Deps) { d.AgentPolicy = src })
+}
+
+func create(harness string) string {
+	return `{"worktreeId":"w-4a77b1c9","harness":"` + harness + `"}`
+}
+
+func TestAHarnessOffTheListIs403WithTheList(t *testing.T) {
+	env := policyEnv(t, fixedPolicy{p: &hubapi.TeamAgentPolicy{Harnesses: []string{"claude-code"}}, bound: true})
+	rec := env.do(t, "POST", "/v1/sessions", create("codex"))
+	if rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), `"harness_not_allowed"`) ||
+		!strings.Contains(rec.Body.String(), `"allowed":"claude-code"`) {
+		t.Fatalf("codex on a claude-code team: %d %s", rec.Code, rec.Body)
+	}
+	if len(env.be.created()) != 0 {
+		t.Fatal("a refused session reached the backend")
+	}
+}
+
+func TestAnUnsetPolicyAllowsClaudeCodeOnly(t *testing.T) {
+	env := policyEnv(t, fixedPolicy{p: &hubapi.TeamAgentPolicy{}, bound: true}) // no row: the default
+	if rec := env.do(t, "POST", "/v1/sessions", create("claude-code")); rec.Code != http.StatusCreated {
+		t.Fatalf("claude-code on an unset team: %d %s", rec.Code, rec.Body)
+	}
+	if rec := env.do(t, "POST", "/v1/sessions", create("codex")); rec.Code != http.StatusForbidden {
+		t.Fatalf("codex on an unset team: %d, want 403 (unset is not all)", rec.Code)
+	}
+}
+
+func TestNoHarnessNamedGetsTheTeamsFirst(t *testing.T) {
+	env := policyEnv(t, fixedPolicy{p: &hubapi.TeamAgentPolicy{Harnesses: []string{"codex", "claude-code"}}, bound: true})
+	rec := env.do(t, "POST", "/v1/sessions", `{"worktreeId":"w-4a77b1c9"}`)
+	if rec.Code != http.StatusCreated || !strings.Contains(rec.Body.String(), `"harness":"codex"`) {
+		t.Fatalf("no harness named: %d %s, want the team's first, codex", rec.Code, rec.Body)
+	}
+}
+
+func TestTheHubDownRefusesTheSession(t *testing.T) {
+	env := policyEnv(t, fixedPolicy{err: errors.New("dial tcp: refused")})
+	if rec := env.do(t, "POST", "/v1/sessions", create("claude-code")); rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("Hub down: %d, want 503 agent_policy_unavailable (fail closed)", rec.Code)
+	}
+}
+
+func TestAnUnboundProjectIsNotGated(t *testing.T) {
+	env := policyEnv(t, fixedPolicy{bound: false})
+	if rec := env.do(t, "POST", "/v1/sessions", create("codex")); rec.Code != http.StatusCreated {
+		t.Fatalf("a local-only project: %d, want 201", rec.Code)
+	}
+}
+```
+
+`env.be.created()` names the backend double's record of started specs (`sessionsNewBackend`,
+`sessions_test.go:430`); its method name is **UNVERIFIED** and step 1 binds it. `harness:"codex"`
+creates only because the test image's catalogue marks it available; if the double's catalogue
+does not, the test uses the first harness the double does mark, and says so.
