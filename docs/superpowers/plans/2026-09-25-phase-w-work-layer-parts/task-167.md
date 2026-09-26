@@ -506,3 +506,49 @@ func batch(rows []store.SentinelRow) ([]byte, int, error) {
 	return append(buf, ']'), len(rows), nil
 }
 ```
+
+#### Tests to write first — `ActorOf` and the stamp
+
+`hubapi/work_actor_test.go` (unit, table over `AuditEnvelope` literals):
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestAFleetCommentIsTheOwnersAgent` | `Via: fleet, DelegationID: dl-…, ActorUserID: u-priya, Data{agentId: ag-…}` → `{agent, u-priya, fleet, ag-…, dl-…}` | an agent's act shown as the person's own |
+| `TestAnAppAndAKeyAreNamed` | `data.via "app:oa-1"` → `app`; `"key:ak-1"` → `key`; `ActorID` the person both times | an app or key acting invisibly |
+| `TestAHostWriteIsTheMappedPerson` | `data.via "host:github"`, actor `u-alice` → `{host, u-alice}` | a host merge shown as Alice by hand |
+| `TestASyncWriteIsIntegrationNotJanitor` | actor `""`, `data.via "tc-…"` → `integration` | the null-actor case tested first, so a sync reads as the janitor |
+| `TestTheJanitorNamesThePolicysAuthor` | `template.schedule_ran`, actor `""`, `data.by u-dylan` → `{janitor, u-dylan}`; the same without `by` → `{janitor, ""}` | an unattributed act, or an author invented |
+| `TestATeamsAskIsThePersons` | `data.via "teams"`, actor `u-priya` → `{person, u-priya, teams}` | a closed set of seven widened to eight (decision 3) |
+
+`store/tx_via_integration_test.go` (`//go:build integration`): an app's comment (task 159's
+fixture) and a key's (task 160's) each append one event whose `data.via` is `app:oa-…` and
+`key:ak-…`; a person's comment's data has no `via` key and its canonical bytes equal a fixture
+recorded before this task (kills a stamp that moves every existing digest); task 154's host
+merge keeps `host:github` (kills the stamp overwriting a handler's own `via`).
+
+#### Tests to write first — the client and the loop
+
+`sentinel/ingest_test.go`, against an `httptest.Server`:
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestThePostIsTheDocumentedCall` | path `/dataCollectionRules/dcr-…/streams/Custom-PanaceaAudit_CL`, query `api-version=2023-01-01`, `Authorization: Bearer t1`, `Content-Type: application/json` | a URL built from the wrong fields |
+| `TestA429ReadsRetryAfter` | `429` with `Retry-After: 7` → `*RetryAfter{7s, 429}`; `Retry-After: soon` → 30 s | a tight retry loop |
+| `TestA401RefreshesOnce` | two 401s: the first is a `RetryAfter` and the next call asks `Token(ctx, true)`; the second is `ErrRefused` | a token refresh storm, or a stale token forever |
+| `TestRefusalsStop` | 400, 403 and 413 → `errors.Is(err, ErrRefused)` | a bad rule retried forever |
+| `TestTheTokenIsNeverLogged` | a `slog` buffer across every case holds no `t1` | a bearer in the Hub's log |
+
+`sentinel/export_test.go`, over `memSource` (a slice of chained rows built with `ChainHash`, a
+cursor, and a record of `Advance` calls), `recPoster` (scripted answers, the bodies kept) and
+`recSleep` (the durations asked, returns at once):
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestTheCursorMovesOnlyAfterA2xx` | answers `503`, then `200`: after the first `once`, no `Advance`; after the second, one `Advance` to the last seq and its hash | advanced before the ack, losing a batch |
+| `TestA429WaitsItsRetryAfter` | answers `429 Retry-After: 7`, then `200`: `recSleep` holds exactly `[7s]` | a tight retry loop |
+| `TestA5xxBacksOffDoubling` | four `503`s then `200`: `[1s 2s 4s 8s]` | a fixed or no backoff |
+| `TestThreeMegabytesIsThreePosts` | 30 rows, each record about 97 KB (a `Data` string): three posts of ten, each ≤ `MaxPostBytes`, cursor at 30 | one oversized post |
+| `TestAnOversizeEventStops` | one record over 1 MB: `ErrRecordTooLarge`, no post, cursor unchanged | an event truncated or skipped |
+| `TestABrokenPrevHashStops` | row 12's `PrevHash` flipped: rows 1-11 posted, then `Run` returns `ErrChainBroken` naming `seq 12: prevHash`, the log has one error line, no post holds seq 12 or later | a forged chain exported, or a skip |
+| `TestAnEditedRowStops` | row 5's canonical altered after hashing: `ErrChainBroken`, `seq 5: hash` | an edit that keeps the links but changes a byte |
+| `TestTheRecordHasFifteenKeys` | for every Work event fixture of tasks 143-166 (`hubapi` test data, one per kind), the posted object's keys are exactly the fifteen and `Data` has no `reason`, `title`, `body`, `quote`, `email` or `text` key | a text field leaks |
