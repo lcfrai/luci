@@ -186,3 +186,58 @@ The *Verdict* and *05 stop* cells are copied from 05 §1 by the check's own read
 whose verdict disagrees with 05 fails (mutant: a SKIP quietly re-filed as MATCH). The *Counts*
 line is recomputed by the check from the status column; a line that disagrees fails (mutant: a
 count typed from 05's forecast of 188 instead of counted).
+
+#### Interfaces — complete: `docs/verification/phase-w/check-wl.sh`
+
+```bash
+#!/usr/bin/env bash
+# check-wl.sh: every row of 05 §1 whose stop is exactly "later", and the four clause rows WL
+# carries, has in the WL section a task, a test, a command, an excerpt and a commit (OD-27).
+set -euo pipefail
+ROOT=$(git rev-parse --show-toplevel)
+MATRIX="${W_MATRIX:-$ROOT/docs/superpowers/planning/2026-09-25-linear-parity/05-design.md}"
+RESULTS="${WL_RESULTS:-$ROOT/docs/verification/2026-09-25-phase-w-results.md}"
+CLAUSES="L-50 L-80 L-97 L-137"
+
+# §1 only: from "## 1." to the next "## ", so §5's delta tables ("| 1 | …") are never read.
+rows=$(awk -F'|' '/^## 1\. /{on=1; next} on && /^## /{exit}
+  on && /^\| [0-9]+ \|/ { s=$(NF-1); gsub(/^ +| +$/, "", s); if (s=="later") { gsub(/ /, "", $2); print "L-" $2 } }' "$MATRIX")
+[ -n "$rows" ] || { echo "no later rows in 05 §1: the matrix moved"; exit 2; }
+
+section=$(awk '/^## WL: /{on=1; print; next} on && /^## /{exit} on{print}' "$RESULTS")
+[ -n "$section" ] || { echo "no WL section in $RESULTS"; exit 2; }
+sub() { printf '%s\n' "$section" | awk -v h="### $1" '$0==h{on=1; next} on && /^### /{exit} on'; }
+
+check_line() { # $1 id, $2 table name, $3 table text
+  local line empty commit
+  line=$(printf '%s\n' "$3" | grep -E "^\| $1( |,|\))" | head -1 || true)
+  if [ -z "$line" ]; then echo "$1: no row in $2"; fail=1; return; fi
+  empty=$(printf '%s\n' "$line" | awk -F'|' '{c=0; for (i=2; i<NF; i++) { v=$i; gsub(/^ +| +$/, "", v); if (v=="" || v=="…") c++ }; print c}')
+  commit=$(printf '%s\n' "$line" | awk -F'|' '{v=$(NF-1); gsub(/^ +| +$/, "", v); gsub(/`/, "", v); print v}')
+  [ "$empty" = 0 ] || { echo "$1: $empty empty cell(s)"; fail=1; }
+  printf '%s' "$commit" | grep -Eq '^[0-9a-f]{7,40}$' || { echo "$1: commit cell is not a sha"; fail=1; }
+}
+
+fail=0
+table=$(sub "The rows"); clauses=$(sub "The clauses")
+for r in $rows; do check_line "$r" "The rows" "$table"; done
+for c in $CLAUSES; do check_line "$c" "The clauses" "$clauses"; done
+for e in $(printf '%s\n' "$table" | grep -oE '^\| L-[0-9]+' | tr -d '| ' | sort -u); do
+  printf '%s\n' "$rows" | grep -qx "$e" || { echo "$e: in The rows but its 05 stop is not later"; fail=1; }
+done
+q1=$(sub "Q1" | grep -v '^ *$' || true)
+printf '%s\n' "$q1" | grep -Eq '^<|^$' && { echo "Q1: the owner's answer or the not-answered line is missing"; fail=1; }
+if printf '%s\n' "$section" | grep -q '…'; then echo "an unfilled … is left in the WL section"; fail=1; fi
+[ "$fail" = 0 ] && echo "WL coverage: $(printf '%s\n' "$rows" | wc -l | tr -d ' ') rows and 4 clauses, each with a command, an observation and a commit"
+exit "$fail"
+```
+
+It is task 174's `check-w5.sh` with three changes: the stop cell is matched **exactly**
+(`later`; never the four mixed stops, `exists / later` on L-120 and L-231, `W1 / later` on L-127
+and `W3 / later` on L-166, `05-design.md:264`, `:408`, `:271`, `:328`, whose later halves no WL
+task builds: gap 1), the read
+is fenced to §1, and the clause rows are required by the fixed list of decision 3. If task 70 has
+by then grown the shared `check-slice.sh` (task 174's gap 3), this file becomes a call to it plus
+the clause loop. `WL_RESULTS` points it at `testdata/wl-complete.md` (twelve rows and four
+clauses, each with a sample sha, and a Q1 line) and `testdata/wl-missing-output.md` (the same with
+L-218's *Observed* cell empty).
