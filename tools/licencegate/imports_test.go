@@ -164,7 +164,12 @@ func TestShippedImports_batches(t *testing.T) {
 func TestShippedImports_cssAndURLForms(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, filepath.Join(dir, "src", "a.css"), []byte(
-		"@import url(https://fonts.example.com/css2?family=Inter);\n@import \"theme.css\";\n@import \"tokens\";\n@import \"pkgcss/x.css\";\n@import \"test/helper.css\";\n"))
+		"@import url(https://fonts.example.com/css2?family=Inter);\n@import \"theme.css\";\n@import \"tokens\";\n@import \"pkgcss/x.css\";\n@import \"test/helper.css\";\n@import \"open-props\";\n"))
+	// A directory beside the stylesheet named like a bare @import is not the
+	// file Vite takes (tryIndex false), so "open-props" stays a package. A
+	// resolver that took any existing path (fix round 1's predicted survivor
+	// T1) dropped it unchecked.
+	writeFile(t, filepath.Join(dir, "src", "open-props", "notes.txt"), []byte("not a stylesheet\n"))
 	writeFile(t, filepath.Join(dir, "src", "theme.css"), []byte("@import \"deeppkg\";\n"))
 	// Under src/test/, so walked only because a.css imports it.
 	writeFile(t, filepath.Join(dir, "src", "test", "helper.css"), []byte("@import \"helperpkg\";\n"))
@@ -179,6 +184,7 @@ func TestShippedImports_cssAndURLForms(t *testing.T) {
 	want := map[string]string{
 		"https://fonts.example.com/css2?family=Inter": "src/a.css",
 		"pkgcss": "src/a.css", "deeppkg": "src/theme.css", "tokpkg": "src/tokens.css", "helperpkg": "src/test/helper.css",
+		"open-props": "src/a.css",
 		"https://esm.sh/tldraw@3.0.0": "src/remote.ts", "react": "src/remote.ts",
 	}
 	if !reflect.DeepEqual(got, want) {

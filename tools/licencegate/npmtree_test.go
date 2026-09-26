@@ -292,6 +292,37 @@ func TestNpmDeps_redactedPath(t *testing.T) {
 		}
 	})
 
+	// A link target nested inside dir (testdata/npm/firstparty's
+	// "node_modules/c": {"resolved": "sub/c", "link": true}) is a place inside
+	// a place: a node under it matches both, and the longer one, which the
+	// other holds, is where it lives. Keeping the first match instead (fix
+	// round 1's predicted survivor T2) failed no other row: it reads the two as
+	// unrelated and exits 2.
+	t.Run("a node under a link target nested inside dir is read under that target", func(t *testing.T) {
+		_, base, p := layout(t, uuidB)
+		sub := filepath.Join(p.dir, "sub", "c")
+		pkgJSON(t, sub, "c", "1.0.0", "MIT")
+		child := filepath.Join(sub, "node_modules", "cchild")
+		pkgJSON(t, child, "cchild", "2.0.0", "GPL-3.0")
+		lnk := p.link("node_modules/c", "sub/c")
+		lnk.Dependencies = kids("cchild", &lsNode{Name: "cchild", Version: "2.0.0", Path: child})
+		deps, err := gate(base, p, redacted(t, p.write(kids("c", lnk))))
+		if err != nil {
+			t.Fatal(err)
+		}
+		// sub/c is inside -root and not a scanned project: the gate's own
+		// structural failure, reached only once every path was restored.
+		found := false
+		for _, d := range deps {
+			if d.Broken && strings.Contains(d.Why, "is not a scanned project") {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("deps = %+v: want the link to sub/c failing as not a scanned project", deps)
+		}
+	})
+
 	// Windows only. The gate keeps -root as typed, npm prints the directory in
 	// the case it resolved, and the filesystem does not care, so one place can
 	// arrive in two cases. Every row above prints dir exactly as the gate was
