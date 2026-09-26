@@ -113,3 +113,40 @@ var WorkIntakeRoutes = []WorkRoute{
 	{"ListLoopVersions", http.MethodGet, "/v1/work/loops/{loopId}/versions", false},
 	{"ListLoopRuns", http.MethodGet, "/v1/work/loops/{loopId}/runs", false},
 	{"RunLoopNow", http.MethodPost, "/v1/work/loops/{loopId}/runs", true},
+	// 159-161, 166: admin (173)
+	{"ListApps", http.MethodGet, "/v1/apps", false},
+	{"DecideApp", http.MethodPost, "/v1/apps/{appId}/decision", false},
+	{"CreatePersonalKey", http.MethodPost, "/v1/me/api-keys", true},
+	{"CreateTeamKey", http.MethodPost, "/v1/teams/{teamId}/api-keys", true},
+	{"MyKeys", http.MethodGet, "/v1/me/api-keys", false},
+	{"TeamKeys", http.MethodGet, "/v1/teams/{teamId}/api-keys", false},
+	{"RevokeAPIKey", http.MethodPost, "/v1/api-keys/{keyId}/revoke", false},
+	{"CreateWebhook", http.MethodPost, "/v1/teams/{teamId}/webhooks", true},
+	{"ListWebhooks", http.MethodGet, "/v1/teams/{teamId}/webhooks", false},
+	{"DisableWebhook", http.MethodPost, "/v1/webhooks/{webhookId}/disable", false},
+	{"RotateWebhookSecret", http.MethodPost, "/v1/webhooks/{webhookId}/rotate", false},
+	{"ListDeliveries", http.MethodGet, "/v1/webhooks/{webhookId}/deliveries", false},
+	{"Redeliver", http.MethodPost, "/v1/webhook-deliveries/{deliveryId}/redeliver", false},
+	{"ListMCPConnectors", http.MethodGet, "/v1/work/mcp-connectors", false},
+	{"PutMCPConnector", http.MethodPut, "/v1/work/mcp-connectors", false},
+	{"DeleteMCPConnector", http.MethodDelete, "/v1/work/mcp-connectors", false},
+	{"GetTeamAgentPolicy", http.MethodGet, "/v1/teams/{teamId}/work/agent-policy", false},
+	{"PutTeamAgentPolicy", http.MethodPut, "/v1/teams/{teamId}/work/agent-policy", false},
+}
+
+// workIntakeHubOnly: methods the control plane or a test calls; the relay
+// never mounts these (decision 2).
+var workIntakeHubOnly = []WorkRoute{
+	{"CreateRequest", http.MethodPost, "/v1/teams/{teamId}/requests", true},
+	{"EraseRequest", http.MethodPost, "/v1/requests/{requestId}/erase", false},
+	{"IntakeSettings", http.MethodGet, "/v1/teams/{teamId}/intake-address", false},
+	{"PutIntakeSettings", http.MethodPut, "/v1/teams/{teamId}/intake-address", false},
+	{"RecordReleaseIssues", http.MethodPut, "/v1/releases/{releaseId}/issues", false},
+	{"ListOutsidePRLinks", http.MethodGet, "/v1/projects/{projectId}/outside-links", false},
+	{"CreateHostHook", http.MethodPut, "/v1/projects/{projectId}/hooks/{host}", false},
+	{"BindTeams", http.MethodPut, "/v1/teams/{teamId}/teams-bindings", false},
+	{"ListTeamsBindings", http.MethodGet, "/v1/teams/{teamId}/teams-bindings", false},
+	{"UnbindTeams", http.MethodPost, "/v1/teams/{teamId}/teams-bindings/remove", false},
+	{"RegisterApp", http.MethodPost, "/v1/apps", true},
+}
+```
