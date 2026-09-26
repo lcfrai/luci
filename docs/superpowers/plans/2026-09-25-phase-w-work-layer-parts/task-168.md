@@ -357,3 +357,48 @@ A body-less `POST` sends `{}` (`struct{}{}`), because the Hub decodes every writ
 (contract §1) and an empty body is a 400 there. A list answers `{"items": [...]}`, the Hub's list
 shape (hub tree `task-35.md:101`); a route part that answers a bare array is read at step 1 and
 this method follows it.
+
+#### Contract — the client methods, part 3: apps, keys, connectors, loops, the agent policy
+
+```go
+func (c *Client) RegisterApp(ctx context.Context, m hubapi.AppManifest) (hubapi.App, error) {
+	var out hubapi.App
+	return out, c.work(ctx, "RegisterApp", nil, m, &out)
+}
+func (c *Client) ListApps(ctx context.Context) ([]hubapi.App, error) {
+	var out struct{ Items []hubapi.App `json:"items"` }
+	return out.Items, c.work(ctx, "ListApps", nil, nil, &out)
+}
+func (c *Client) DecideApp(ctx context.Context, appID string, req hubapi.DecideAppRequest) (hubapi.App, error) {
+	var out hubapi.App
+	return out, c.work(ctx, "DecideApp", nil, req, &out, appID)
+}
+func (c *Client) CreateAPIKey(ctx context.Context, teamID *string, req hubapi.CreateAPIKeyRequest) (hubapi.CreatedAPIKey, error) {
+	var out hubapi.CreatedAPIKey
+	if teamID == nil {
+		return out, c.work(ctx, "CreatePersonalKey", nil, req, &out)
+	}
+	return out, c.work(ctx, "CreateTeamKey", nil, req, &out, *teamID)
+}
+func (c *Client) ListAPIKeys(ctx context.Context, teamID *string) ([]hubapi.APIKey, error) {
+	var out hubapi.Page[hubapi.APIKey] // task 160 pages its lists (task-160.md:387-388)
+	if teamID == nil {
+		return out.Items, c.work(ctx, "MyKeys", nil, nil, &out)
+	}
+	return out.Items, c.work(ctx, "TeamKeys", nil, nil, &out, *teamID)
+}
+func (c *Client) RevokeAPIKey(ctx context.Context, keyID string) (hubapi.APIKey, error) {
+	var out hubapi.APIKey
+	return out, c.work(ctx, "RevokeAPIKey", nil, struct{}{}, &out, keyID)
+}
+func (c *Client) ListMCPConnectors(ctx context.Context) ([]hubapi.MCPConnector, error) {
+	var out struct{ Items []hubapi.MCPConnector `json:"items"` }
+	return out.Items, c.work(ctx, "ListMCPConnectors", nil, nil, &out)
+}
+func (c *Client) PutMCPConnector(ctx context.Context, req hubapi.PutConnectorRequest) (hubapi.MCPConnector, error) {
+	var out hubapi.MCPConnector
+	return out, c.work(ctx, "PutMCPConnector", nil, req, &out)
+}
+func (c *Client) DeleteMCPConnector(ctx context.Context, u string) error {
+	return c.work(ctx, "DeleteMCPConnector", url.Values{"url": {u}}, nil, nil) // 161's ?url=
+}
