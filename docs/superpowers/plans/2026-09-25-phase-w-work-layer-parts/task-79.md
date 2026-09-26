@@ -280,3 +280,84 @@ insert 141**, with 142 keys, and end with the longest key at 14 characters and t
 `rankSpread(5)` is `c f i l o`; `rankSpread(13121)` is four digits wide and `rankSpread(13122)`
 five; and 839,807 bottom steps before the fallback. The Go test below re-proves the rebalance
 count and the order; the model is not evidence for the Go.
+
+**(i) Neighbours need order, not adjacency.** A board or a filtered view shows a subset of the
+team's order, so the two issues a person drops between are often not adjacent in the whole order.
+Refusing them would refuse most drags. So: with `after` named, the key goes between `after` and
+its true successor in the team (the moving issue excluded); with only `before`, between `before`'s
+true predecessor and `before`; with both, `after` must sort above `before` (else 422
+`rank_neighbours`, `details.field: "before"`), and the key goes below `after`. Either way it sorts
+between the two on a fresh read, which is all L-14 promises. This loosens task 72's comment
+("non-adjacent … are 422", `task-72.md:724-727`); see *Corrections to the scope*.
+
+#### The four event kinds (complete, appended to task 13's registry)
+
+Every field is a string, `int64` or `bool`, so task 13's scalar test covers them unchanged. An
+estimate, a date and a rank key are planning metadata, not content (hub-contract §8).
+
+```go
+const (
+	EventIssuePlanned        = "issue.planned"
+	EventIssueRanked         = "issue.ranked"
+	EventIssueMoved          = "issue.moved"
+	EventIssueBlocksResolved = "issue.blocks_resolved"
+)
+
+// IssuePlannedData names the fields the patch changed ("estimate", "dueOn",
+// comma-joined) and their values after it; HasEstimate false is none.
+type IssuePlannedData struct {
+	Fields      string `json:"fields"`
+	Estimate    int64  `json:"estimate"`
+	HasEstimate bool   `json:"hasEstimate"`
+	DueOn       string `json:"dueOn"` // "" is none
+}
+
+// IssueRankedData is one key write. Rebalance marks a key moved by a rebalance,
+// not by a person's drag; RebalanceOf is the dragged issue that caused it.
+type IssueRankedData struct {
+	Rank        string `json:"rank"`
+	Rebalance   bool   `json:"rebalance"`
+	RebalanceOf string `json:"rebalanceOf"` // "" unless Rebalance
+}
+
+// IssueMovedData is the move; Cleared names the fields the move cleared
+// (decision (f)), comma-joined, in IssuePlan's JSON names plus "labels" and "assigneeId".
+type IssueMovedData struct {
+	FromProjectID string `json:"fromProjectId"`
+	FromNumber    int64  `json:"fromNumber"`
+	ToProjectID   string `json:"toProjectId"`
+	ToNumber      int64  `json:"toNumber"`
+	Cleared       string `json:"cleared"`
+}
+
+// IssueBlocksResolvedData is the resolved-blocker rule's one event (decision (h)).
+type IssueBlocksResolvedData struct {
+	OtherIssueIDs string `json:"otherIssueIds"` // the issues it had blocked, comma-joined
+	Converted     int64  `json:"converted"`     // rows now relates
+	Merged        int64  `json:"merged"`        // rows deleted: a relates row already existed
+}
+```
+
+```go
+// appended to WorkEventKinds
+{EventIssuePlanned, IssuePlannedData{}, ScopeProject, VisibleToReaders},
+{EventIssueRanked, IssueRankedData{}, ScopeProject, VisibleToReaders},
+{EventIssueMoved, IssueMovedData{}, ScopeProject, VisibleToReadersAndSource},
+{EventIssueBlocksResolved, IssueBlocksResolvedData{}, ScopeProject, VisibleToReaders},
+```
+
+**A move is seen from both sides.** `issue.moved` carries the target's `teamId` and `projectId`,
+so under task 13's `VisibleToReaders` a reader of the source project in another team would never
+learn the issue left, and that reader's replica would keep it. One more `Visibility`, appended
+after `SubjectOnly` (additive; existing values keep their numbers):
+
+```go
+// VisibleToReadersAndSource adds readers of the project named in data.fromProjectId.
+// Only issue.moved uses it.
+VisibleToReadersAndSource
+```
+
+Task 13's `/v1/changes` filter gains the matching clause, `OR (e.kind = 'issue.moved' AND
+e.data->>'fromProjectId' = ANY($readable))`; task 13 owns the query, so this is asked of it and
+reported as a gap. The source reader sees the event and a head it may no longer read: the desktop
+drops the row and shows *"EP-142 moved to PAY-8"* only when the target is readable (task 89).
