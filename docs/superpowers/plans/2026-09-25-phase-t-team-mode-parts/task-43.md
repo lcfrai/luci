@@ -403,8 +403,10 @@ is `r403(<the route's required role>)`. `rowsT06` and `rowsT07` are generated fr
 Row 87 is task 06's route 87 (fix batch b01, X-C1; `task-01.md`'s §5.3 row). It is hand-written
 here because route 87 is not in `everyTeamWrite`, so `TestEveryTeamWriteHasAZ5Row` cannot catch
 its absence. The harness runs its `A` cell on a fresh solo project per case, and its matrix Hub
-starts with the dev-only `PANACEA_APP_HUB_TEAM_MODE_UNSTREAMED=true` in `local`, so the cell tests
-the role and not task 45's gate.
+starts with the dev-only `PANACEA_APP_HUB_TEAM_MODE_UNSTREAMED=true` **and**
+`PANACEA_APP_HUB_AUDIT_SINK=fake` in `local` (task 06's `teamWorld` rule: after task 45 the flag
+opens the gate only beside sink `fake`; b01 round 2, re-review I-4), so the cell tests the role and
+not task 45's gate.
 
 Route 74 to 79 are project-level, so `M` and `M′` are the same person on the same record and hold
 the same cell; the column stays so the table has one shape. `D` (a desktop token that sends a

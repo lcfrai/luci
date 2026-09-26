@@ -651,7 +651,10 @@ Hub contract (`2026-09-23-hub-contract.md`):
   rule raises within two hours."*
 - §12: `PANACEA_APP_HUB_AUDIT_SINK` (`off` · `fake` · `logs`), `PANACEA_APP_HUB_AUDIT_DCE`,
   `PANACEA_APP_HUB_AUDIT_DCR`, `PANACEA_APP_HUB_AUDIT_WORKSPACE`, `PANACEA_APP_HUB_VERIFY_SINCE`;
-  `logs` needs all three of DCE, DCR and workspace, or `hub serve` exits at start-up.
+  `logs` needs all three of DCE, DCR and workspace, or `hub serve` exits at start-up. And
+  §12.2's `PANACEA_APP_HUB_TEAM_MODE_UNSTREAMED` row (task 01's, `task-01.md:245`) and §7.4's
+  gate sentence (`task-01.md:522`) gain *"and only beside `PANACEA_APP_HUB_AUDIT_SINK=fake`"*
+  (b01 round 2, re-review I-4), so the contract states the rule `TeamModeAllowed` enforces.
 - §15: *"That Azure Monitor accepts the stream as declared is verified only by task 57's run."*
 
 #### Steps
