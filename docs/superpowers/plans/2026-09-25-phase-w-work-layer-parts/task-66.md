@@ -56,3 +56,92 @@ are listboxes.
    *"EP-142 deferred. Undo, U"* is spoken once through the region.
 9. **The `?` sheet already prints Space** (`task-54.md:423`, *"Space peeks: tap to open, hold to
    look"*) and no task 54 test checks it; this task adds the test, not the line.
+
+**Files:**
+- `desktop/src/components/common/LiveRegion.tsx` (+ `LiveRegion.test.tsx`) — the announcer, the
+  one region, `useLiveRegion`, `useAnnounce`, `<Said>` (new)
+- `desktop/src/components/AppShell.tsx` ⚑ — mounts `<LiveRegion />` once, beside `<Toasts />`
+  (`AppShell.tsx:98`) (modified)
+- `desktop/src/components/common/Toasts.tsx` ⚑ — drops both regions (`:19`, `:42`); each new toast's
+  message is spoken as an answer (modified; **not in the skeleton's file map**)
+- `desktop/src/components/rail/RailFooter.tsx` ⚑ — drops `role="status"` (`:19`), speaks its
+  error as an answer (modified; **not in the skeleton's file map**)
+- `desktop/src/components/common/StatusDot.tsx` ⚑ (+ `StatusDot.test.tsx` ⚑) — the `decorative`
+  prop (modified; **not in the skeleton's file map**)
+- `desktop/src/components/common/common.css` ⚑ — `.sr-only` (modified)
+- Grid roles: `components/work/WorkLens.tsx`, `CriterionGroup.tsx`, `IssueRow.tsx`, `AgentLine.tsx`
+  (task 40), `TriageView.tsx` (task 42), `BoardView.tsx` (task 43), `components/desk/DeskSection.tsx`
+  (task 62) ⚑ (modified)
+- Regions to `<Said>`: `BoardView.tsx` (task 43's drop offer), task 46's request line, task 52's two
+  refused lines, `components/work/StartChip.tsx` (task 61), `components/desk/Desk.tsx` (task 62's
+  hold line), task 65's two rows' answer lines ⚑ (modified)
+- `desktop/src/a11y.floor.test.tsx` — the guard, the shell count and the fixture checks (new)
+
+**Interfaces:**
+- Produces: `announce(text, kind, key?)` through `useLiveRegion()`; `useAnnounce()`; `<Said
+  text kind />`; `StatusDot`'s `decorative`; the grid roles above. Consumed by every later part that
+  speaks (task 106 is the first on the tree) and by task 70's run (a reader check by the owner).
+- Consumes: task 40's `items` order and `WINDOW_OVER` (`task-40.md:531-541`), task 41's held
+  arrivals, task 62's `DeskSection`, task 56's `UndoChip`, task 54's `ShortcutSheet`, task 20's
+  `expectNoPrediction`, phase 2's heartbeat (`hooks/heartbeat`).
+
+#### Interfaces — complete: `desktop/src/components/common/LiveRegion.tsx`, part 1: the announcer
+
+```ts
+// desktop/src/components/common/LiveRegion.tsx — task 66. The window's one live region.
+//
+// Pure core: no React, no DOM, an injected clock and scheduler, so a test proves the 15-minute
+// window with plain numbers (05 §4.4 rule 5; AX §6.8).
+export type AnnounceKind = "answer" | "digest";
+
+export const DIGEST_WINDOW_MS = 15 * 60 * 1000;
+
+export interface Announcer {
+  announce(text: string, kind: AnnounceKind, key?: string): void;
+  /** The newest spoken text and a sequence number that moves on every utterance. */
+  current(): { text: string; seq: number };
+  subscribe(fn: () => void): () => void;
+}
+
+export interface AnnouncerClock {
+  now(): number;
+  later(ms: number, fn: () => void): void;      // setTimeout in the app, a queue in tests
+}
+
+export function createAnnouncer(clock: AnnouncerClock): Announcer {
+  let spoken = { text: "", seq: 0 };
+  let lastDigestAt = Number.NEGATIVE_INFINITY;
+  let held: string[] = [];
+  let flushArmed = false;
+  const keys = new Set<string>();
+  const subs = new Set<() => void>();
+  const say = (text: string) => { spoken = { text, seq: spoken.seq + 1 }; subs.forEach((f) => f()); };
+  const flush = () => {
+    flushArmed = false;
+    if (held.length === 0) return;
+    const newest = held[held.length - 1];
+    const more = held.length - 1;
+    held = [];
+    lastDigestAt = clock.now();
+    say(more > 0 ? `${newest} (and ${more} more)` : newest);
+  };
+  return {
+    announce(text, kind, key) {
+      const t = text.trim();
+      if (t === "") return;
+      if (key !== undefined) { if (keys.has(key)) return; keys.add(key); }
+      if (kind === "answer") { say(t); return; }             // decision 2: never waits, never resets
+      const since = clock.now() - lastDigestAt;
+      if (since >= DIGEST_WINDOW_MS && held.length === 0) { lastDigestAt = clock.now(); say(t); return; }
+      held.push(t);
+      if (!flushArmed) { flushArmed = true; clock.later(Math.max(0, DIGEST_WINDOW_MS - since), flush); }
+    },
+    current: () => spoken,
+    subscribe: (fn) => { subs.add(fn); return () => subs.delete(fn); },
+  };
+}
+```
+
+The count in `(and N more)` is a count of things that already arrived, never a forecast
+(`OD-27`); the words carry no time. The key set lives as long as the window: a negotiation fact
+(task 106) or an import's end (task 69) is never spoken twice after a re-render.
