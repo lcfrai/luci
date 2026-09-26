@@ -445,6 +445,7 @@ import type { StartStore } from "./useStart";
  *  held the key to event.code "KeyR" with shiftKey, list focus and no terminal host. */
 export function registerStartVerb(store: Pick<StartStore, "start">, headOf: (id: string) => IssueHead | undefined): () => void {
   return registerVerb("issue.start", (row: RowContext) => {
+    if (row.issueId === null) return;                                    // task-53.md:141: string | null
     const head = headOf(row.issueId);
     if (head !== undefined) void store.start(head);
   });
@@ -876,5 +877,9 @@ write that EP-160 needs is **UNVERIFIED** (task 55's replica over task 40's worl
    `{me, work}` argument: at implementation they follow task 40's file and pass the fake client
    through whatever seam task 40 or 55 names for the lens's `work` client (**UNVERIFIED**), and
    whether the fixture world applies `setAssignee` is task 55's.
-7. Task 53's `KEYMAP`, `registerVerb` and `RowContext` had no part on the tree at this writing; the
-   verb name `issue.start` yields to task 53's.
+7. Task 53's part has since landed on the tree (uncommitted at this writing): it prints
+   `issue.start` as `Shift+R` with `code: "KeyR"` and `shift: true` (`task-53.md:194`), so the
+   conditional `keymap.ts` edit is not needed; `RowContext.issueId` is `string | null` (`:141`),
+   which `register.ts` now checks. Task 53 replaces element `onKeyDown` handlers with
+   registrations (`:93`), so the lens's keys in parts 2 and 3 reach `dispatchListKey` through
+   `useKeyboardMap`; the tests call it as task 62's `press` does if the lens mounts no keyboard map.
