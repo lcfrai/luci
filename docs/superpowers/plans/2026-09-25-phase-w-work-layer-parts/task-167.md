@@ -657,3 +657,30 @@ git diff --stat -- go.work control-plane/go.mod
   and the envelope in the tasks that render the feed.
 
 **Parity rows served:** **L-239**'s Sentinel half closed; its audit half exists.
+
+#### Gaps found while writing this part
+
+1. **The File map has no row for `control-plane/internal/hub/sentinel/`**, nor for
+   `hubapi/work_actor.go` or `store/sentinel.go`. It needs them, owned by this task.
+2. **Task 145 has no `work_sentinel_cursors`.** The table above is what this task requires; 145
+   places it in `NNNN_work_w5.sql` as it did 161's.
+3. **Hub task 08's `EntraPassword` is fixed to one scope and the Hub's own tenant** (hub tree
+   `task-08.md:162-172`). The exporter needs `EntraToken(w, tenant, scope, …)` with a `fresh`
+   flag. The change is H08's to make, or this task's under rule H1 with H08's owner told. Whether
+   a federated workload identity can take a token in a customer's tenant is **UNVERIFIED**.
+4. **Task 159's `TestAppWritesCarryTheAppID` expects the feed event's actor to carry `kind` and
+   `appId`** (`task-159.md:273`). This part leaves the feed's `actor` a `User` (rule H1) and puts
+   `app:oa-…` in `data.via`; 159's assertion should read `data.via`.
+5. **The scope's eighth kind, `teams`** (`tasks-161-180.md:309`), is not in task 143's closed
+   set. Decision 3 reads it as a person's channel; if the owner wants it as a kind, 143, 145's
+   CHECK and this function change together.
+6. **One write, two conventions.** Task 150 puts a sync's connection on `tracker.page`, not on the
+   `issue.created` beside it (`task-150.md:38-42`), while task 153 puts the `tc-` id in
+   `comment.created`'s `data.via` (`task-153.md:935`). So an imported issue's own row reads
+   `janitor`, and only the companion row says which connection. One rule for every W5 principal
+   (always `data.via` on the row itself) would make `ActorOf` answer every row alone.
+7. **"Whose agent" is answered; "which agent" often is not.** TM-03's `Delegation` has no agent
+   id (team tree `task-03.md:482-493`), so `Agent` is set only when the event's own data names an
+   `agentId`. Naming the `ag-` id on every delegated write is Phase T's to decide.
+8. **The custom table's column declaration** (the DCR's `streamDeclarations`, fifteen columns
+   matching `Record`) is phase 8's infrastructure, and nothing checks the two stay in step.
