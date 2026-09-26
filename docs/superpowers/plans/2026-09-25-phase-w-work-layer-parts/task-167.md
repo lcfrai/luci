@@ -219,3 +219,72 @@ type SentinelTarget struct {
 // field; an error names the entry's index and field, never the value.
 func parseSentinel(raw string, enrolled []Tenant) ([]SentinelTarget, error)
 ```
+
+#### Interfaces — complete: `control-plane/internal/hub/sentinel/ingest.go`
+
+```go
+// Package sentinel streams each enrolled org's audit chain to that org's own
+// Azure Monitor data collection rule, for Microsoft Sentinel (05 L-239).
+// Standard library only.
+package sentinel
+
+import (
+	"bytes"
+	"context"
+	"errors"
+	"fmt"
+	"net/http"
+	"strconv"
+	"time"
+)
+
+// APIVersion is the Logs Ingestion API version the part pins. UNVERIFIED
+// against the live service (no workspace exists, phase 8); step 1 checks it.
+const APIVersion = "2023-01-01"
+
+// MonitorScope is the resource the token is for. The double slash is Azure
+// Monitor's documented form; UNVERIFIED like APIVersion.
+const MonitorScope = "https://monitor.azure.com//.default"
+
+// MaxPostBytes is the Logs Ingestion API's per-call limit (decision 6).
+const MaxPostBytes = 1 << 20
+
+// Token returns a bearer for MonitorScope in one tenant (decision 9); fresh
+// skips its cache, which the client asks for once after a 401.
+type Token func(ctx context.Context, fresh bool) (string, error)
+
+// Target is one PANACEA_APP_HUB_SENTINEL entry. cmd/hub/config.go declares
+// `type SentinelTarget = sentinel.Target`, so the two are one type.
+type Target struct {
+	TenantID string `json:"tenantId"`
+	Endpoint string `json:"endpoint"`
+	DCR      string `json:"dcr"`
+	Stream   string `json:"stream"`
+}
+
+// Poster posts one batch. Client is the real one; tests use a recorder.
+type Poster interface {
+	Post(ctx context.Context, body []byte) error
+}
+
+// Client posts to {endpoint}/dataCollectionRules/{dcr}/streams/{stream}.
+type Client struct {
+	URL   string // built by NewClient; never logged with a token
+	Token Token
+	HTTP  *http.Client
+	fresh bool // set after one refresh on a 401, cleared on a 2xx
+}
+
+func NewClient(t Target, tok Token, hc *http.Client) *Client {
+	return &Client{Token: tok, HTTP: hc, URL: fmt.Sprintf(
+		"%s/dataCollectionRules/%s/streams/%s?api-version=%s", t.Endpoint, t.DCR, t.Stream, APIVersion)}
+}
+
+// RetryAfter is a 429 or 5xx: wait Wait, then post the same bytes again.
+type RetryAfter struct{ Wait time.Duration; Status int }
+
+func (r *RetryAfter) Error() string { return fmt.Sprintf("sentinel: %d, retry in %s", r.Status, r.Wait) }
+
+// ErrRefused is a status no retry can fix (400, 403, 413, a second 401).
+var ErrRefused = errors.New("sentinel: the ingestion endpoint refused the batch")
+
