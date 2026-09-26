@@ -1129,3 +1129,44 @@ The matrix server is built with `SyncAdapters: {&worksync.Fake{Src: "github"}}`,
 has an adapter. The fixture gains `ConnectionID` (a live connection on `ProjectID`, target owner
 `fixture`) and `FreshConnectionID` (a live one per column, since DELETE disconnects the one it
 touches), as task 146 adds `FreshRequestID`; both are **UNVERIFIED** until H16b's fixture lands.
+
+#### Steps
+
+- [ ] **Step 1:** Confirm the sync base (rule H1): tasks 15 and 143 committed; task 145's migration
+  holds the three reconciled tables, `work_tracker_live_once`, `work_sync_one_running` and the
+  guard (`\d hub.work_external_links`; `\df hub.guard_sync_principal`).
+- [ ] **Step 2:** Confirm task 143's types are present (`TrackerConnection`, `ParseTrackerTarget`,
+  `SyncRun`, `SyncError`, `ExternalLink`) and task 153's `hubapi.ExternalComment`, or add that one
+  type as task 153's part gives it (`task-153.md:115`). Append the events block; add the three
+  prefixes to task 13's list; write the two `hubapi` rows; green.
+- [ ] **Step 3:** Write `links_test.go` and `engine_test.go`; they fail to compile. Write
+  `engine.go` (reconciled), `links.go` and `fake.go`; green. Apply the mutants by hand (advance the
+  cursor before `ApplyPage`; store `err.Error()`; drop the cursor-stop rule; restore decision 5's
+  field list); each fails a named test; revert.
+- [ ] **Step 4:** Write the integration tests; every row fails. Write `store/work_trackers.go`
+  (`LockConnection`, `LinksByExternal`, `InsertLink`, `TouchLinks`, `SetLinkUpstream`,
+  `AddRunCounts`, `SetConnectionCursor`, the run and list reads), then `StartRun`, `ApplyPage`,
+  `FinishRun`, the six routes, `importOne`'s `createdBy` argument (task 15's route passes
+  `tx.P.UserID`), `config.go`'s two fields and the janitor step. Run until green.
+- [ ] **Step 5:** The matrix rows under `"150"`; append `"150"` to `workMatrixLive`. Rerun task 15's
+  import tests and tasks 146-149's integration tests; all green. `git diff -- go.work
+  control-plane/go.mod` shows nothing; commit by pathspec.
+
+#### Acceptance
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/work
+go test ./control-plane/internal/hub/worksync/ -race -count=1 -v \
+  -run '^Test(TheCursorMovesOnlyAfterACommit|APullErrorKeepsItsCodeAndDropsItsText|PullingStopsWhenTheCursorStops|TheRunStopsAtThePageCap|CommentsOnlyInModeInAndComments|NoAdapterFailsTheRunWithoutAPull|PlanSplitsNewFromKnown|PlanDropsARepeatInOnePage|PlanKeepsOnlyLinkedKnownFields|PlanKeepsTwoChangesInOrder)$' \
+  2>&1 | grep -c "^--- PASS"                                                                    # 10
+go test ./control-plane/internal/hub/hubapi/ -race -count=1 \
+  -run '^Test(TrackerEventsCarryNoTargetOrText|TrackerKindsAreProjectScoped)$'                  # ok
+go test -tags integration ./control-plane/internal/hub/server/ -race -count=1 -v \
+  -run '^Test(TheSamePageTwiceIsOneIssueEach|AnUpstreamChangeIsShownNotApplied|ARefusedItemIsNamedAndTheRestLand|AFailedCommitLeavesTheCursor|TheGuardRefusesASyncStateMove|SyncAttachesNoLabels|TwoReplicasRunAConnectionOnce|AnInterruptedRunIsClosed|TwoConnectionsShareOneLink|DisconnectKeepsLinks|SyncEventsAreNobodysAndNameTheConnection|AnUnknownTargetKeyIsRefused|TrackerSourcesComeOnlyThroughAConnection|RunNowAsksAndTheJanitorRuns)$' \
+  2>&1 | grep -c "^--- PASS"                                                                    # 14
+go test -tags integration ./control-plane/internal/hub/... -race -count=1                      # ok
+go test ./control-plane/... -race -count=1                                                      # ok
+```
+
+No run against a real tracker is part of this acceptance: every pull is the `Fake`'s, and the three
+trackers are tasks 151-153's, proved there against `httptest`.
