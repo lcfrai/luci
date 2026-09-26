@@ -51,3 +51,74 @@ agent have?* and the agent-start record answers with the commit.
 8. **The fragment passes through `Render` or is not posted.** `OrgFragment` joins task 161's
    `ConnectorFragment` into one org-layer envelope, then renders it for every class with
    `policy.Render`; any `InvariantError` is returned and nothing is posted (TM-13).
+
+**Files:**
+- `control-plane/internal/hub/hubapi/work_intake.go` ⚑ (task 143) — the request type and event
+  kind below (appended)
+- `control-plane/internal/hub/store/work_harness.go` (+ `_integration_test.go`) — read and upsert (new)
+- `control-plane/internal/hub/server/work_harness.go` (+ `_integration_test.go`) — two routes (new)
+- `control-plane/internal/hub/server/matrix_integration_test.go` ⚑ — `workMatrixRows["166"]`
+- `control-plane/internal/hub/hubclient/fake_work_intake.go` ⚑ (task 144) — the two methods
+- `control-plane/internal/workpolicy/{harness,skills,fragment}.go` (+ `_test.go` each) — the pure
+  rules, the staging and the fragment (new; the skeleton's File map has **no row** for this
+  package, gap 3)
+- `control-plane/internal/api/sessions.go` ⚑ — the gate, after the harness is resolved
+  (`:784-794`, read 2026-09-26); `api.go` ⚑ — one optional dependency
+- `control-plane/internal/httpx/problem.go` ⚑ and `problem_test.go` ⚑ — two codes
+
+#### The wire — appended to task 143's `hubapi/work_intake.go` (complete)
+
+`TeamAgentPolicy`, `TeamSkills` and `SkillsLibrary` are task 143's (`task-143.md:557-569`) and are
+not restated. This task adds:
+
+```go
+// PutTeamAgentPolicyRequest is the PUT body: the two fields a team admin sets.
+// The Hub stamps teamId, updatedBy and updatedAt.
+type PutTeamAgentPolicyRequest struct {
+	Harnesses []string   `json:"harnesses"`
+	Skills    TeamSkills `json:"skills"`
+}
+
+// DefaultHarnesses is what a team with no policy row allows (decision 1).
+var DefaultHarnesses = []string{"claude-code"}
+
+// EventAgentPolicySet is audit-and-feed: data {harnesses, skillsSource, commit?}.
+// commit is present only for a library. No repo credential is ever in it.
+const EventAgentPolicySet = "work.agent_policy_set"
+```
+
+#### The store and the routes (signatures complete)
+
+```go
+package store
+
+// TeamAgentPolicy reads the team's row, or the default (decision 1) with
+// UpdatedBy and UpdatedAt nil when there is none. It never returns ErrNotFound
+// for a team the caller's transaction can see.
+func (tx *Tx) TeamAgentPolicy(ctx context.Context, teamID string) (hubapi.TeamAgentPolicy, error)
+
+// PutTeamAgentPolicy upserts the row (task 145's table, `task-145.md:352-366`)
+// and appends one work.agent_policy_set event in the same transaction. A PUT
+// equal to the stored row writes nothing and returns changed=false.
+func (tx *Tx) PutTeamAgentPolicy(ctx context.Context, by, teamID string,
+	req hubapi.PutTeamAgentPolicyRequest) (p hubapi.TeamAgentPolicy, changed bool, err error)
+```
+
+```go
+package server
+
+// GET /v1/teams/{teamId}/work/agent-policy   viewer and up → 200 TeamAgentPolicy
+// PUT /v1/teams/{teamId}/work/agent-policy   team admin    → 200 TeamAgentPolicy
+//   ValidateTeamAgentPolicy(p, harness ids of harness.Catalogue()) first:
+//   400 bad_request naming "harnesses" or "skills.library.commit" (decision 4)
+// Anyone else: task 04's 404 for a team they cannot see, 403 for a member's PUT.
+func (s *Server) routesWorkAgentPolicy(mux *http.ServeMux)
+
+// catalogueIDs is the control plane's own list (harness.go:216, Catalogue()),
+// read once at start; the Hub and control plane ship from one module.
+func catalogueIDs() []string
+```
+
+The Hub imports `control-plane/internal/harness` for the ids only; it builds no argv and starts
+no process. If Hub and control plane are ever released apart, the Hub's list would lag a new
+harness by one release and refuse it until then: fail closed, and named in gap 4.
