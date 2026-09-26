@@ -70,7 +70,7 @@ func CarriedUndone(ctx context.Context, m gitx.Machine, projectPath, laneTip, ow
 //
 //	base := branch tip
 //	for each lane: unsynced → unknown; lane tip an ancestor of base → nothing;
-//	  MergeTreeArgs + base laneTip   (merge-tree --write-tree --name-only -z; OKExit 1; gitx.Local)
+//	  MergeTreeArgs + base laneTip   (merge-tree --write-tree --name-only -z; OKExit 1; gitx.LocalWrite)
 //	  → ParseMergeTree (task 07; review I2) — a parse error is unknown with Why = its sentence
 //	  clean     → clean, After = assumed; base = forecastCommit(tree, base, laneTip); assumed += lane
 //	  conflicts → conflicts, Paths; ConflictsWith = assumed lanes whose observation's Changed

@@ -52,9 +52,11 @@ const (
 	// Read never takes an optional lock (GIT_OPTIONAL_LOCKS=0), so a status or a diff run
 	// beside an agent's own git never races it for index.lock. ReadTimeout bounds it.
 	Read Class = iota
-	// Local writes a repository on this machine: clone, fetch between two local
+	// LocalWrite writes a repository on this machine: clone, fetch between two local
 	// repositories, merge-tree, commit-tree, update-ref, config. It takes its locks.
-	Local
+	// (Built as LocalWrite: `Local` is also the Machine type below, and one package cannot
+	// hold both. A later part's "gitx.Local" class means gitx.LocalWrite. Task 02 report.)
+	LocalWrite
 	// Remote talks to a git host over the network: fetch origin, push.
 	Remote
 )
@@ -102,7 +104,7 @@ type Scope int
 
 const (
 	Unset   Scope = iota // the zero value: Exec refuses it with ErrCallShape and runs nothing
-	Project              // the user's repository, Class Read, Local or Remote: refusal list
+	Project              // the user's repository, Class Read, LocalWrite or Remote: refusal list
 	None                 // `git version`, a Dir under OwnedRoot, or the clone lanes.Create is making (Call.NewLane): no check
 )
 
@@ -436,6 +438,7 @@ type Script struct {
 	// unexported table
 }
 
+func NewScript(t testing.TB) *Script // the test an unscripted call fails (built in task 02)
 func (s *Script) On(argv string, res gitx.Result, err error) *Script
 func (s *Script) Run(ctx context.Context, c gitx.Call) (gitx.Result, error) // unknown argv fails the test
 
@@ -483,6 +486,9 @@ child's environment without trusting the code under test.
 | `TestExecCallEnvWins` | `Env{"GIT_PAGER":"less"}` reaches the child as `less` | defaults appended after the caller's |
 | `TestExecOKExitIsAnAnswer` | exit 1 with `OKExit: []int{1}` → `err == nil`, `ExitCode == 1`; exit 2 → `*Error` | treating merge-tree's conflict as a failure |
 | `TestExecTimeoutIsPerClass` | `Timeouts{Read: 50ms}`, helper sleeps 1 s → `TimedOut`, `ExitCode == -1`; the same call as `Local` succeeds | one timeout for every class |
+| `TestExecTimeoutIsPerClass`, second row (carried t01-D16) | a call with `OKExit: []int{1}` whose helper outlives its timeout → `*Error{TimedOut: true, ExitCode: -1}`, not a `Result` | a runner that reads the exit code before the per-call context: on Windows the kill is `TerminateProcess(h, 1)`, exit 1 |
+| `TestExecNamesAGitThatNeverStarted` (carried t01-D14; Windows only) | helper exits `0xC0000142` → `*Error{NotStarted, ExitCode: -1}`, "could not start", two starts (one retry); `0xC0000142` then a start → the retry's answer; 0, 1, 128, 255, `0xC0000005`, `0xC0000135`, `0xC0000409` (signed to `os.Exit`, compared as `uint32`) → one start each, `NotStarted` false, the code kept | reading the loader status as git's answer; no retry; a check widened to every NTSTATUS error, which would re-run a git that did run |
+| `TestExecNamesAMissingGit` | `Exec.Git` a path that does not exist → `*Error{NotStarted, ExitCode: -1}`, not `ErrCallShape` | a start failure read as an exit code |
 | `TestExecPassesStdin` | helper echoes stdin → stdout equals `Call.Stdin` | `commit-tree -F -` with no message |
 | `TestErrorNeverContainsEnv` | `Env{"X":"s3cr3t"}` on a failing call → `"s3cr3t"` in neither `Error()` nor `Sentence()` | formatting the call into the error |
 | `TestSentencePrefersTheLastFatalLine` | stderr `hint: a\nfatal: b\nhint: c` → `"fatal: b"` | showing git's hints as the cause |
@@ -498,7 +504,7 @@ child's environment without trusting the code under test.
 | `TestLocksSerialiseOneProject` | under `-race`: goroutine A holds `Lock(ctx, "p-1")`; B's `Lock(ctx, "p-1")` has not returned 50 ms later; A unlocks → B returns within 1 s; calling A's unlock twice does not release B's hold | a lock keyed per call, or an unlock that frees the next holder |
 | `TestLocksLetOtherProjectsRun` | A holds `"p-1"`; `Lock(ctx, "p-2")` returns at once | one global mutex that stalls every project behind a slow push |
 | `TestLocksLockHonoursTheContext` | A holds `"p-1"`; B's `Lock` with a context cancelled after 20 ms → `context.Canceled`, and A's later unlock leaves the lock free for C | a waiter that outlives its request, or a cancelled waiter that swallows the next release |
-| `TestLocksTryLockNeverWaits` (re-review b06-1 issue 6) | 1000 times: a free `"p-1"` → `TryLock` ok, then unlock; A holds `"p-1"` → `TryLock("p-1")` returns `ok == false` within 1 ms and `TryLock("p-2")` is ok; A unlocks → `TryLock("p-1")` ok | a TryLock built on Lock with a done ctx, which fails at random on a free lock |
+| `TestLocksTryLockNeverWaits` (re-review b06-1 issue 6) | 1000 times: a free `"p-1"` → `TryLock` ok, then unlock; A holds `"p-1"` → `TryLock("p-1")` returns `ok == false` within 100 ms (built: the part said 1 ms, which a loaded machine exceeds; a TryLock that waits never returns) and `TryLock("p-2")` is ok; A unlocks → `TryLock("p-1")` ok | a TryLock built on Lock with a done ctx, which fails at random on a free lock |
 
 #### Host git hardening (HGH)
 
@@ -524,6 +530,7 @@ Exec's environment and task 13's `PushEnv` sets `GIT_CONFIG_COUNT` itself.
 | `-c protocol.allow=never -c protocol.file.allow=always`, plus `-c protocol.https.allow=always` on a `Remote` call only | every transport the phase does not use, by default rather than by name: `ext::<command>`, `ssh`, `git://`, and a lazy fetch that a `Read` or `Local` call would make from a partial-clone promisor remote. A local path counts as `file` |
 | `-c core.askPass=` | a repository-named askpass program. An empty value falls through to `GIT_TERMINAL_PROMPT=0`, which fails |
 | `-c commit.gpgSign=false -c tag.gpgSign=false` | a repository `gpg.program` run by task 09's and task 10's `commit-tree` |
+| `-c log.showSignature=false` (carried b01-2 N1, built in task 02) | a user's `log.showSignature=true` running their `gpg.program` over an agent-authored signed lane commit on task 16's `log -1`. No phase 3 `--format` string uses `%G`, so nothing else verifies a signature. The Project row does not refuse `gpg.*`: under R4.1 the user's config is trusted |
 | `-c submodule.recurse=false -c fetch.recurseSubmodules=false` | a host fetch that recurses into `.git/modules/*`, whose config H3 does not read |
 | `-c credential.helper=`; then, on a `Remote` call or a `Scope None` call only, each `Hardening.Credential` entry as `-c <key>=<value>` (H2) | every helper a repository names, including URL-scoped `credential.<url>.helper`. The empty value clears the list read so far, and command scope is read last (checked on git 2.53.0.windows.2, 2026-09-24: a repository `credential.https://example.invalid.helper` answered without the reset and did not answer with it). A `Read` or `Local` call needs no credential, so no helper runs in it at all |
 | `--upload-pack=git-upload-pack` after `fetch` and `ls-remote`; `--receive-pack=git-receive-pack` after `push` | `remote.<name>.uploadpack` and `.receivepack`, which run as a local command when the remote is a path |
@@ -634,7 +641,7 @@ and an H1 mutant would survive.
 
 | Test | Asserts | Mutant it kills |
 |---|---|---|
-| `TestHGHPrefixOnEveryClass` | helper process: for `Read`, `Local` and `Remote`, argv holds every H1 `-c` pair, between `git` and `Args[0]`; `protocol.https.allow=always` and the `Hardening.Credential` entries appear on `Remote` (and `Scope None`) only | a prefix added for one class only; https or a machine helper on a `Read` call |
+| `TestHGHPrefixOnEveryClass` | helper process: for `Read`, `LocalWrite` and `Remote`, argv holds every H1 `-c` pair, between `git` and `Args[0]`; `protocol.https.allow=always` appears on a `Remote` call only, and the `Hardening.Credential` entries on a `Remote` call or a `Scope None` call only (carried b01-2 Minor 2) | a prefix added for one class only; https or a machine helper on a `Read` call |
 | `TestHGHPathspecsAreLiteral` (re-review b05 issue 9) | a repository with `app/[slug]/page.tsx` and `app/s/page.tsx`, both changed in one commit; `diff --name-only HEAD~1 HEAD -- app/[slug]/page.tsx` through Exec → exactly `app/[slug]/page.tsx` | `--literal-pathspecs` dropped from the prefix: a bracketed Next.js path read as a glob |
 | `TestHGHFsmonitorNeverRuns` | a project repository whose `.git/config` sets `core.fsmonitor=<marker script>`; `status --porcelain` through Exec with `Scope Project` → no marker | `core.fsmonitor=false` dropped |
 | `TestHGHReferenceTransactionHookNeverRuns` | `.git/hooks/reference-transaction` writes a marker; `update-ref` through Exec → no marker, and the ref moved | `core.hooksPath` pointed at the repository's own directory |
@@ -642,14 +649,15 @@ and an H1 mutant would survive.
 | `TestHGHReceivePackIsNeverTheRepositorys` | the same with `remote.origin.receivepack` and `push` | `--receive-pack` missing |
 | `TestHGHFilterDriverIsRefused` | project config `filter.x.clean=<marker script>`, `.gitattributes` `* filter=x`, and a modified file; `status` with `Scope: Project` → `*UntrustedConfig{Key: "filter.x.clean", Scope: Project}`, which the API maps to `project_config_untrusted`, and no marker | the H3 check skipped for `Read` |
 | `TestHGHProjectRefusalList` | table over `Class`: every "every call" key in H3's `Project` row (including `remote.origin.proxy`, `.proxyAuthMethod` and `.vcs`) → refused on `Read`, `Local` and `Remote`; `http.sslCAInfo`, `http.<url>.proxy` and `credential.trace` → refused on `Remote`, admitted on `Read` and `Local`; `core.autocrlf`, `lfs.url`, `remote.origin.url` → admitted everywhere | a `Project` scope that refuses the user's ordinary config, or admits a per-remote proxy |
-| `TestHGHProjectAdmitsRealConfig` | b01 re-review R1 and R2, red first against round 1's rule (`credential.*` refused on every Project call): a project holding this repository's shape (`credential.usehttppath=true`, `credential.https://github.com/lcfrai/panaceaapp.helper=<marker script>`) plus `branch.main.vscode-merge-base`, `remote.origin.gh-resolved`, `core.longpaths` and `pull.rebase` → a `Read`, a `Local` and a `Remote` call with `Scope Project` all pass H3, and the helper's marker never appears | a project call refused for ordinary config; a repo-local helper that runs |
+| `TestHGHProjectAdmitsRealConfig` | b01 re-review R1 and R2, red first against round 1's rule (`credential.*` refused on every Project call): a project holding this repository's shape (`credential.usehttppath=true`, `credential.https://github.com/lcfrai/panaceaapp.helper=<marker script>`, and the same helper keyed at the test's `HTTPSRemote` URL, whose handler answers 401 so git does ask for a credential: carried b01-2 Minor 1) plus `branch.main.vscode-merge-base`, `remote.origin.gh-resolved`, `core.longpaths` and `pull.rebase` → a `Read`, a `Local` and a `Remote` call with `Scope Project` all pass H3, and the helper's marker never appears | a project call refused for ordinary config; a repo-local helper that runs |
 | `TestHGHConfigParseIsNULSafe` | `user.name` set to `"a\nfilter.x.clean=y"` → admitted, with no key `filter.x.clean` seen; a real `filter.x.clean` beside it → refused; a valueless `filter.x.required` (listed as `key\0`) under `Project` → refused, naming it | line-splitting the listing; a parser that drops a key with no value |
-| `TestHGHUntrustedConfigHidesTheValue` | a refused `credential.helper=s3cr3t` → `"s3cr3t"` in neither `Error()` nor any problem field | echoing the value |
+| `TestHGHUntrustedConfigHidesTheValue` | a refused key holding `s3cr3t` (`http.<url>.extraHeader` on a `Remote` call, `filter.x.clean` on a `Read` call; `credential.helper` is admitted by the Project row, so it cannot carry this row) → `"s3cr3t"` in neither `Error()` nor any problem field | echoing the value |
 | `TestHGHRemoteNeedsAURL` | `Class: Remote` with `RemoteURL: ""` → `ErrCallShape`, git never starts | a remote call on the repository's `origin` |
 | `TestHGHRemoteOverridesBeatAURLScopedKey` | transport level, loopback only. `O` is a bare `httptest.NewTLSServer`, not `HTTPSRemote`, so no config trusts its certificate, and `U` is exactly its URL plus `/r.git`; `P` is a plain `httptest` listener that counts connections. A `Scope None` repository under `OwnedRoot` holds `remote.origin.url=U`, `http.<U>.sslVerify=false` and `http.<U>.proxy=<P's URL>`, keyed at exactly `U` (scheme, host, port and path). **Precondition**, raw git with no Exec: `config --get-urlmatch http.sslVerify U` → `false` and `http.proxy` → P, so the keys match. Then `ls-remote origin` through Exec with `RemoteURL: U` and `Hardening.Proxy: ""` → a certificate error, `P` saw no connection, and `O` served no request | the generic-only override (b01 re-review R4: a key keyed short of `U` never matched, and the old test could not fail) |
 | `TestHGHRepoCredentialHelperNeverRuns` | table: repo config `credential.helper=<script that writes its stdin to a marker>`, then the URL-scoped `credential.https://example.invalid.helper=<same>`; `credential fill` for `host=example.invalid` through Exec → no marker, and the machine helper from `Hardening.Credential` answered | the empty `credential.helper=` reset dropped, or a reset that clears only the generic key |
 | `TestHGHCallShape` | `Args[0] == "-c"` → `ErrCallShape`; `Scope` left `Unset` → `ErrCallShape`; `Scope: None` with a `Dir` outside `OwnedRoot` that is not its `NewLane` → `ErrCallShape`; `Call.Env` naming `GIT_DIR`, `GIT_COMMON_DIR` or `GIT_WORK_TREE` → `ErrCallShape`; `Exec{}` (no HooksDir) → `ErrCallShape`. Git never starts | a caller's own `-c` ahead of the prefix; an unmarked call that silently gets a rule (b01 re-review R1) |
 | `TestHGHCommondirCannotRedirect` | b01 re-review R5, red first without the pin: a project repository, on `Scope Project` calls, whose `.git/commondir` names a copy of its `.git` whose `config` sets `user.name=EVIL` and `filter.x.clean=<marker script>`, with `.gitattributes` `* filter=x` → `rev-parse --git-common-dir` through Exec prints `<Dir>/.git`, `config user.name` prints the real name, H3 admits the call, and `status` leaves no marker | a layout pin dropped, or set before `Call.Env` |
+| `TestHGHLogNeverVerifiesSignatures` (carried b01-2 N1) | project config `log.showSignature=true` and `gpg.program=<marker script>`, and a commit object carrying a `gpgsig` header; `log -1 --format=%H %s <sha>` through Exec with `Scope Project` → no marker; then raw git's `log -1` on the same commit → the marker appears (the test can fail) | `-c log.showSignature=false` dropped from the prefix |
 | `TestExecRefusesALaneDir` | R4.2, red first against an `Exec` without the lane-dir guard: `LaneRoot` = a `t.TempDir()` holding a `CloneOf` clone `L`; table, each on a `Scope Project` call: `Dir: L`; `Dir: L/sub`; `Dir` = `L` in other letter case (Windows only); `-C L`; `--git-dir=L/.git`; `--git-dir L/.git`; `--work-tree L`; `Env` `GIT_DIR`, `GIT_WORK_TREE`, `GIT_COMMON_DIR`, `GIT_OBJECT_DIRECTORY` = a path in `L`; `GIT_ALTERNATE_OBJECT_DIRECTORIES` = `x` + list separator + `L/.git/objects`; `Dir` = `L` spelled `<LaneRoot>/x/../<L's name>` → each `errors.Is(err, ErrLaneDir)`, and the helper process records no start (`Spy` empty), so not even H3's config read ran in `L` | a guard that compares uncleaned strings, reads only `Dir`, or checks after start |
 | `TestExecAdmitsTheNewLaneOnly` | R4.5, red first against the same `Exec`: `Dir == NewLane == L` with `Scope None` → runs; `NewLane: L`, `Dir: L2` (another lane) → `ErrLaneDir`; `NewLane: L` with `Scope Project` and `Dir` the project → `ErrCallShape`; the same with `Dir: L` → `ErrLaneDir`, since the guard runs before the shape check | a NewLane that opens every lane, or any scope |
 | `TestExecRunsTheCreateCloneInTheProject` | task 03 step 4's call as written: `Args` `clone --no-hardlinks … -- <project> L`, `Dir` the project, `Scope Project`, `NewLane` "" → runs, and `L` is a clone; the same with `NewLane: L` → `ErrCallShape`. Task 24's `TestHostNeverRunsGitInALane` excepts exactly this call (review r4-1 I-2) | an Exec that parses the positional and refuses the one clone R4.5 allows |
@@ -684,7 +692,7 @@ section. The observer and the origin refresh are lane git, so they run in the sa
 #### Acceptance
 
 ```
-go test ./control-plane/internal/gitx/... -race -count=1        → PASS (41 new tests, 18 of them §HGH, plus task 01's)
+go test ./control-plane/internal/gitx/... -race -count=1        → PASS (45 new tests, 20 of them §HGH or lane-dir, plus task 01's; the part said 41 and 18, but its own tables list 42 and 19 before task 02 added TestExecNamesAGitThatNeverStarted, TestExecNamesAMissingGit and TestHGHLogNeverVerifiesSignatures)
 go test ./control-plane/internal/project/ -run TestEveryGitCommandIsReadOnly -count=1 → PASS, unchanged
 git diff --stat control-plane/go.mod go.work                     → empty
 ```

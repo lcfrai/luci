@@ -69,7 +69,7 @@ type Changes struct {
 // Read builds Changes from task 07's observations (read by the handler exactly as task 08's
 // GET reads them). For every pair of worktrees whose committed paths overlap it runs
 //   converge.MergeTreeArgs + <laneA> <laneB>   (merge-tree --write-tree --name-only -z;
-//                                               gitx.Local, OKExit 1) → converge.ParseMergeTree
+//                                               gitx.LocalWrite, OKExit 1) → converge.ParseMergeTree
 // and marks the overlapping paths merge-tree lists, compared byte for byte with the -z
 // PathChange paths (review I2: never the C-quoted form). Cached by the pair's tips. It runs in the
 // project with Scope Project (task-02 §HGH).

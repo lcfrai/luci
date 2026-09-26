@@ -97,7 +97,7 @@ package credstore
 // GitHelper asks the machine's configured git credential helper — Git Credential Manager on
 // the owner's laptop — for the user's own credential (open question Q1). It runs exactly
 //   git credential fill
-// with stdin "protocol=https\nhost=<Authority>\npath=<the remote's path>\n\n", as gitx.Local
+// with stdin "protocol=https\nhost=<Authority>\npath=<the remote's path>\n\n", as gitx.LocalWrite
 // (so GCM_INTERACTIVE=never and GIT_TERMINAL_PROMPT=0 apply: it never opens a window or asks).
 // It never runs `credential approve` or `credential reject`: the user's store is read, not changed.
 // A non-zero exit, or output without "password=", is ErrNoCredential.

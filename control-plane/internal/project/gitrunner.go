@@ -16,8 +16,8 @@ import (
 // than hold a request open.
 const GitTimeout = 10 * time.Second
 
-// ExecRunner is the production Runner: the only place in the product that
-// starts a git process.
+// ExecRunner is the production Runner: the launcher for phase 2's read-only
+// enumeration; internal/gitx is the other one.
 type ExecRunner struct {
 	// Timeout overrides GitTimeout when non-zero. Tests use it; nothing else
 	// needs to.

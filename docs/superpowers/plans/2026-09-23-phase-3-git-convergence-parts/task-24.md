@@ -854,7 +854,7 @@ tip's parents), ArchiveLane's refs by at most three.
 4. **`bundle list-heads <file>`** (Class `Read`), parsed as `<sha> SP <refname>` lines. The set of
    refnames must equal `refs` exactly: no extra, none missing, no duplicate, no `HEAD`, each under
    `refs/heads/`, each sha 40 or 64 hex. Otherwise `*BundleRefused`.
-5. **The fetch** (Class `Local`): `fetch --atomic --no-auto-maintenance --no-recurse-submodules
+5. **The fetch** (Class `LocalWrite`): `fetch --atomic --no-auto-maintenance --no-recurse-submodules
    --no-tags --no-write-fetch-head --quiet <file> <refspecs…>`. `--no-recurse-submodules`: a lane
    bundle that moves a gitlink must not start a `fetch` in the project's populated submodule, from
    its remote, under the project lock (review r4-2 M-2). `transfer.fsckObjects=true` is given as
@@ -892,7 +892,7 @@ what the project lacks:
    with a missing ancestor object archivable, at the old whole-history cost.
 6. **The fetch** keeps `--atomic`, so a failed fetch writes no ref.
 7. **The reached refs** (review r4-4 C-1): one `update-ref --stdin` transaction in the project
-   (Class `Local`), `start`, an `update <dst> <sha>` per reached ref, `commit`. This is step
+   (Class `LocalWrite`), `start`, an `update <dst> <sha>` per reached ref, `commit`. This is step
    3b's move of a host ref to a commit the project holds and reaches from its own basis, so
    R4.4 is not weakened. If it fails, the refs step 6 wrote are deleted in one more
    (`delete <dst> <sha>` each), so a failed archive still writes no ref, and the answer is
@@ -906,7 +906,7 @@ The spy row is task 11's (remove), and it sees only project calls here.
 <carried…> --not <kept…>` (a Path of "" is an error before any git; any failure removes id),
 and `Sent{ID, Carried, Reached}`; a ref the kept basis reaches is never asked of `bundle create`, which would
 leave it out and so fail the runner's fetch of its refspec (`fatal: couldn't find remote ref`,
-exit 128; r4-4 Probe 1 A). `bundle create` is Class `Local` (2 min, `task-02.md:64`, which equals
+exit 128; r4-4 Probe 1 A). `bundle create` is Class `LocalWrite` (2 min, `task-02.md:64`, which equals
 `BundleTimeout`). It writes only the file, but it packs every object it carries, and
 `MaxBundleBytes` is sized for 120 s, not for `Read`'s 10 s (review r4-2 I-2). A file past
 `MaxBundleBytes` is deleted and refused, because the runner's `fetch` would 413 it. That check
