@@ -56,8 +56,11 @@ variable "vnet_cidr" {
   type        = string
   description = "The VNet range. Must be a /16 that does not overlap the corporate network (an owner input)."
   validation {
-    condition     = can(cidrhost(var.vnet_cidr, 0)) && endswith(var.vnet_cidr, "/16")
-    error_message = "vnet_cidr must be a valid IPv4 /16."
+    # As built: cidrnetmask, not cidrhost, which takes IPv6 too ("fd00::/16" passed); the
+    # cidrsubnet(…, 0, 0) round trip refuses host bits ("10.40.1.0/16"), which Azure would
+    # refuse only at apply.
+    condition     = can(cidrnetmask(var.vnet_cidr)) && endswith(var.vnet_cidr, "/16") && try(cidrsubnet(var.vnet_cidr, 0, 0) == var.vnet_cidr, false)
+    error_message = "vnet_cidr must be a valid IPv4 /16 written as its network address, e.g. 10.40.0.0/16."
   }
 }
 variable "egress_mode" {
@@ -80,6 +83,16 @@ variable "nat_idle_timeout_minutes" {
 variable "allowed_ingress_cidrs" {
   type        = list(string)
   description = "Source CIDRs allowed to reach the edge on 443 (owner question Q3). Empty means no inbound rule is added, so nothing outside the VNet reaches the apps pool."
+  # As built: each entry becomes one rule's source, so a service tag or "*" would open the
+  # edge to everyone; and a rule's name is built from its CIDR, so a repeat is refused too.
+  validation {
+    condition     = alltrue([for c in var.allowed_ingress_cidrs : can(cidrnetmask(c))])
+    error_message = "Every allowed_ingress_cidrs entry must be an IPv4 CIDR such as 203.0.113.0/24; not a service tag, not *."
+  }
+  validation {
+    condition     = length(distinct(var.allowed_ingress_cidrs)) == length(var.allowed_ingress_cidrs)
+    error_message = "allowed_ingress_cidrs lists a CIDR twice; list each once."
+  }
 }
 variable "tags" {
   type        = map(string)
@@ -171,14 +184,16 @@ locals {
 
 #### Resources (described; names verified against azurerm 4.81.0)
 
-- `azurerm_virtual_network.this` — `vnet-panacea-app-${env}`, `address_space = [var.vnet_cidr]`.
+- `azurerm_virtual_network.this` — `vnet-panacea-app-${env}`, `address_space = [var.vnet_cidr]`,
+  and (as built) `lifecycle { prevent_destroy = true }` (below, "The state path").
 - Six `azurerm_subnet`s from `local.cidr`, each with **`default_outbound_access_enabled = false`**
   (egress is explicit: NAT or firewall). `private_endpoints` sets
   `private_endpoint_network_policies = "Enabled"` so its NSG applies. `agents` carries
   `delegation { name = "devops-pools", service_delegation { name = "Microsoft.DevOpsInfrastructure/pools" } }`
   (the delegation name Managed DevOps Pools require — **from training knowledge, UNVERIFIED**;
   task 30 is where it is used). `firewall` is `count = var.egress_mode == "firewall" ? 1 : 0` and
-  is named exactly `AzureFirewallSubnet`.
+  is named exactly `AzureFirewallSubnet`. `private_endpoints` also carries
+  `lifecycle { prevent_destroy = true }` (below, "The state path").
 - Four `azurerm_network_security_group`s — `nodes-system`, `nodes-apps`, `nodes-sandbox`,
   `private-endpoints` — each associated with its subnet by one
   `azurerm_subnet_network_security_group_association.this` (`for_each`, keyed by subnet). Rules
@@ -190,6 +205,17 @@ locals {
   - `nodes-apps`: allow TCP 443 from each of `var.allowed_ingress_cidrs`, priority 200 onward,
     `for_each` so one rule per CIDR; no rule when the list is empty.
   - `private-endpoints`: allow TCP 443 and 5432 from the VNet, deny everything else inbound, 4000.
+
+  As built: the NSGs are `azurerm_network_security_group.this` (`for_each`, keys `system`,
+  `apps`, `sandbox`, `private_endpoints`), named `nsg-panacea-app-${env}-<role>`, with the rules
+  **inline** (`dynamic "security_rule"`), so the module owns each NSG's whole rule set and a
+  rule added by hand is removed on the next apply. Every rule is inbound with source port `*`.
+  The sandbox deny is protocol, destination and port `*`. An edge rule is
+  `allow-edge-443-<cidr with . and / as ->`, TCP, destination `*`, port 443, priority `200 + i`.
+  Its destination is `*`, not the apps subnet, because AKS load-balancer rules use floating IP,
+  so an edge packet still carries the frontend's public address when it reaches the node
+  (training knowledge, **UNVERIFIED**; task 32 checks the edge from outside). The endpoint allow
+  is source `var.vnet_cidr`, destination the endpoint subnet, ports 443 and 5432, priority 100.
 - `azurerm_public_ip.nat` (Standard, static, `count` on nat mode), `azurerm_nat_gateway.this`
   (`sku_name = "Standard"`, `idle_timeout_in_minutes`), its IP association
   (`azurerm_nat_gateway_public_ip_association.this`, same `count`), and one
@@ -200,6 +226,29 @@ locals {
   training knowledge, UNVERIFIED**; the first foundation apply (task 31 step 4) proves it.
 - `azurerm_private_dns_zone.this` for each of `local.private_dns_zones`, and one
   `azurerm_private_dns_zone_virtual_network_link` per zone with `registration_enabled = false`.
+  As built: the gateway is `ng-panacea-app-${env}`, its IP `pip-natgw-panacea-app-${env}` (no
+  zones, so the egress is not zone-redundant), and each link `link-vnet-panacea-app-${env}`.
+  The zones carry `lifecycle { prevent_destroy = true }` (below); the links do not.
+
+**The state path (carried from task 02 re-review I1).** `stacks/bootstrap` makes the state
+account's private endpoint on this module's `subnet_ids.private_endpoints` and
+`private_dns_zone_ids.blob`, passed by hand (`infra/terraform/README.md`, Stack order: the one
+declared exception). That endpoint is not in foundation's state, so a foundation plan does not
+see it, and once prod's public access is off it is the only path to every stack's state.
+Replacing the subnet, the VNet or a zone would cut that path; a replaced zone drops every
+endpoint record in it. So `azurerm_subnet.private_endpoints`, `azurerm_private_dns_zone.this`
+(all four zones: each holds its own endpoints' records) and, as built, `azurerm_virtual_network.this`
+carry `lifecycle { prevent_destroy = true }`. The VNet needs its own: a VNet replace plans a
+subnet replace only when it changes the subnet's own arguments (a new VNet name or group), not
+on a location change (As built, departure 7). **The cost:** `prevent_destroy` is a literal, so it
+holds in dev too, and a deliberate teardown must first edit it out: the same shape as
+bootstrap's `CanNotDelete` lock. The links are not protected: they are this module's own, and a
+destroy removes a link before its zone. Whether Azure itself refuses to delete a subnet that
+still holds another stack's endpoint (`InUseSubnetCannotBeDeleted`, training knowledge) is
+**UNVERIFIED**; even if it does, that does not cover the zones. A plan cannot show a
+`lifecycle` argument, so the test pins it the way bootstrap pins its provider lines: it reads
+`main.tf` with `file()`, strips comments, and finds `prevent_destroy = true` inside the
+`lifecycle` block of each of the three resource blocks.
 
 **Why the NSG rules are this small.** AKS manages its own rules for LoadBalancer services, and an
 over-tight subnet NSG is the classic way to break node bootstrap. The rules above only add denies
@@ -208,8 +257,21 @@ interact under Overlay is UNVERIFIED**; task 32 checks reachability from outside
 
 #### Tests to write first (`tests/network.tftest.hcl`)
 
+As built, every run is `command = plan`, and the mocks and overrides apply at plan
+(`override_during = plan`). azurerm checks the form of a Resource Manager id it is handed
+(`subnet_id`, `nat_gateway_id`, `virtual_network_id`, …) even against a mock, so a random mock id
+fails the plan (task 02's lesson). `mock_resource` defaults give the VNet, NAT gateway, public IP
+(`ip_address = "192.0.2.10"`) and zones well-formed ids, and file-level `override_resource`
+blocks give each of the six subnets and each of the four NSGs (an instance target,
+`azurerm_network_security_group.this["sandbox"]`) an id of its own, so a run can tell which
+subnet an association joins, not only that one exists.
+
 ```hcl
-mock_provider "azurerm" {}
+mock_provider "azurerm" {
+  override_during = plan
+  # mock_resource defaults: azurerm_virtual_network, azurerm_nat_gateway, azurerm_public_ip,
+  # azurerm_private_dns_zone; then one override_resource per subnet and per NSG instance
+}
 variables {
   environment           = "dev"
   location              = "australiaeast"
@@ -221,18 +283,35 @@ variables {
 }
 ```
 
+As built: 26 runs. A list attribute compares with `tolist([...])` and tags with `tomap({...})`:
+a tuple or object literal never equals a list or map. The ids in the last column are
+`scratchpad/env/t03/mutants.py`'s (section "As built" below).
+
 | Run | Asserts | Mutant it kills |
 |---|---|---|
-| `subnets_follow_the_address_plan` | `azurerm_subnet.system.address_prefixes == ["10.40.0.0/24"]`, `sandbox == ["10.40.4.0/22"]`, `private_endpoints == ["10.40.8.0/26"]`, `agents == ["10.40.8.64/26"]` | a changed `newbits`/`netnum` that silently overlaps two subnets |
-| `no_subnet_has_default_outbound_access` | every subnet's `default_outbound_access_enabled == false` | one subnet left on the implicit Azure egress |
-| `vnet_must_be_a_slash_16` | `vnet_cidr = "10.40.0.0/20"` → `expect_failures = [var.vnet_cidr]` | the validation dropped, letting `cidrsubnet` fail obscurely |
-| `nat_mode_puts_nat_on_every_egress_subnet` | four associations: `keys(azurerm_subnet_nat_gateway_association.this) == ["agents", "apps", "sandbox", "system"]`, and `output.egress_subnet_ids` has the same four keys; none on private endpoints | NAT on the PE subnet, on only one pool, or **missing on `agents`, so the CI pool never registers an agent (C2)** |
-| `firewall_mode_has_no_nat_and_has_the_firewall_subnet` | `egress_mode = "firewall"` → `length(azurerm_nat_gateway.this) == 0`, `azurerm_subnet.firewall[0].name == "AzureFirewallSubnet"` | NAT and firewall both present (asymmetric routing) |
-| `sandbox_nsg_denies_internet_inbound` | the `nodes-sandbox` NSG has a rule with `access == "Deny"`, `direction == "Inbound"`, `source_address_prefix == "Internet"` and priority 100 | the deny rule dropped or given priority 4096, below Azure's allow |
-| `edge_allow_is_one_rule_per_cidr` | the `nodes-apps` NSG has exactly two 443 allow rules, sources equal to the two CIDRs | a single rule with only the first CIDR |
-| `no_ingress_cidrs_means_no_allow_rule` | `allowed_ingress_cidrs = []` → no 443 allow rule on `nodes-apps` | an allow-from-`*` fallback |
-| `four_privatelink_zones_all_linked_without_registration` | four zones with the names in `local.private_dns_zones`; four links, each `registration_enabled == false` | a missing Postgres zone (the Hub's database would not resolve) |
-| `agents_subnet_is_delegated_to_devops_pools` | `azurerm_subnet.agents.delegation[0].service_delegation[0].name == "Microsoft.DevOpsInfrastructure/pools"` | the delegation removed |
+| `subnets_follow_the_address_plan` | the VNet's `address_space` is `[vnet_cidr]`; `system`, `apps`, `sandbox`, `private_endpoints`, `agents` are `10.40.0.0/24`, `10.40.1.0/24`, `10.40.4.0/22`, `10.40.8.0/26`, `10.40.8.64/26`; `output.subnet_cidrs` is the whole plan, `firewall` included; the subnet names; each subnet in this VNet and group | a changed `newbits`/`netnum` that silently overlaps two subnets (A1-A4) |
+| `no_subnet_has_default_outbound_access` | every subnet's `default_outbound_access_enabled == false` (the firewall subnet's in the firewall run) | one subnet left on the implicit Azure egress (D1, D2, D4; D3 in the firewall run) |
+| `vnet_must_be_a_slash_16` | `vnet_cidr = "10.40.0.0/20"` → `expect_failures = [var.vnet_cidr]` | the validation dropped, letting `cidrsubnet` fail obscurely (V1) |
+| `vnet_must_be_ipv4` | `"fd00::/16"` → `expect_failures` | a `cidrhost`-based check, which takes IPv6 (V2) |
+| `vnet_must_be_written_as_its_network_address` | `"10.40.1.0/16"` → `expect_failures` | host bits let through to an apply-time refusal (V3) |
+| `nat_mode_puts_nat_on_every_egress_subnet` | `keys(azurerm_subnet_nat_gateway_association.this) == ["agents", "apps", "sandbox", "system"]`, each joining its own subnet's id and the one gateway; `output.egress_subnet_ids` is exactly those four ids; one Standard gateway, idle 10; a Standard, Static IP joined to it; `output.nat_public_ip` is its address | NAT on the PE subnet (N1), on only one pool (N2), **missing on `agents`, so the CI pool never registers an agent (C2)** (N3, N3b), every link on one subnet (N4), the endpoint subnet listed as egress (O1), a dynamic IP (P1), no address output (F5) |
+| `nat_idle_timeout_reaches_the_gateway` / `…_of_4_is_accepted` | 120, then 4, each reaches the gateway | the timeout hard-coded (T1); a bound moved inward (TB) |
+| `nat_idle_timeout_below_4_is_rejected` / `…_above_120_…` | 3, then 121 → `expect_failures` | a bound dropped (T2, T3) |
+| `firewall_mode_has_no_nat_and_has_the_firewall_subnet` | `egress_mode = "firewall"` → no gateway, IP or association of any kind; `azurerm_subnet.firewall[0]` is `AzureFirewallSubnet` at `10.40.8.128/26`, no default outbound; `output.subnet_ids` adds it (six keys); `output.egress_subnet_ids` still the four; `nat_public_ip` null | NAT and firewall both present, asymmetric routing (F1); misnamed (F3); no id output (F4) |
+| `nat_mode_has_no_firewall_subnet` | no firewall subnet; `output.subnet_ids` is exactly the five, each key its own subnet | the firewall subnet made in nat mode (F2) |
+| `sandbox_nsg_denies_internet_inbound` | the `nodes-sandbox` NSG holds exactly one rule: inbound Deny from `Internet`, source port, protocol, destination and port `*`, priority 100; the `nodes-system` NSG holds none | the deny dropped (S1) or given priority 4096, below Azure's allow (S2); from `*` (S3); an Allow (S4); every rule outbound (E7); source port 443 (PS1) |
+| `edge_allow_is_one_rule_per_cidr` | the `nodes-apps` NSG holds exactly two rules, both Allow, sources equal to the two CIDRs; each inbound TCP from source port `*` to 443, destination `*`; priorities 200 and 201, names distinct | a single rule with only the first CIDR (E1); any protocol (E3) or port (E4); priorities colliding (E5), from 100 (E6) or from 300 (E8); the destination narrowed to the apps subnet (PS2) |
+| `no_ingress_cidrs_means_no_allow_rule` | `allowed_ingress_cidrs = []` → `nodes-apps` holds no rule | an allow-from-`*` fallback (E2) |
+| `ingress_cidrs_must_be_ipv4_cidrs` | `["203.0.113.0/24", "Internet"]` → `expect_failures` | the CIDR check dropped, so a service tag opens the edge (C1) |
+| `ingress_cidrs_are_listed_once` | a repeated CIDR → `expect_failures` | the repeat check dropped: two rules of one name, refused at apply (C2) |
+| `private_endpoint_nsg_admits_only_the_vnet_on_443_and_5432` | exactly two rules: Allow TCP from `var.vnet_cidr`, source port `*`, to the endpoint subnet on 443 and 5432, below 4000; Deny all inbound at 4000; the subnet's `private_endpoint_network_policies == "Enabled"` | any source (PE1); port 22 too (PE2); the deny dropped (PE3) or at 4096 (PE4); endpoint policies off, so the NSG does not apply (PE5); allow to anywhere (PE6) |
+| `each_nsg_is_on_its_own_subnet` | `keys(azurerm_subnet_network_security_group_association.this) == ["apps", "private_endpoints", "sandbox", "system"]`, each joining its own NSG and subnet; the NSG names | the sandbox and apps NSGs swapped (AS1); the endpoint NSG left off (AS2); the env hard-coded in a name (L5) |
+| `four_privatelink_zones_all_linked_without_registration` | the zone map is exactly `acr`, `vault`, `postgres`, `blob` with their `privatelink.` names; four links, each `registration_enabled == false`, on this VNet and its own zone; `output.private_dns_zone_ids` has the four keys | a missing Postgres zone, so the Hub's database would not resolve (Z1); VM registration (Z2); every link on one zone (Z3); a misnamed zone (Z4); a zone id missing from the output (O2) |
+| `agents_subnet_is_delegated_to_devops_pools` | `azurerm_subnet.agents.delegation[0]` is `devops-pools` → `Microsoft.DevOpsInfrastructure/pools`; no other subnet is delegated | the delegation removed (G1) or pointed elsewhere (G2); its name changed (DN) |
+| `the_state_path_refuses_destroy` | reads `main.tf` with `file()`, strips `/* */`, `#` and `//` comments, and finds `prevent_destroy = true` inside the `lifecycle` block of `azurerm_subnet.private_endpoints`, of `azurerm_private_dns_zone.this` (carried from task 02 re-review I1) and of `azurerm_virtual_network.this` (round 2) | either set false (PD1, PD2); the line commented out (PD3) or in a block comment (PD4); the protection moved from the zone to its link (PD5); the VNet's set false (PD6), removed (PD7), in a block comment (PD8) or commented out with `//` (PD9) |
+| `names_region_group_and_tags_come_from_the_inputs` | `environment = "prod"`, `location = "australiasoutheast"`, another group and two tags: every name carries `prod`; every located resource takes the region; every resource the group; every taggable one the tags; the VNet outputs | the region (L1), group (L3) or env (L4) hard-coded; a resource left untagged (L2, L6); `vnet_id` giving the name (O5); the link name (LN) |
+| `firewall_subnet_takes_the_group_and_vnet_from_the_inputs` | `egress_mode = "firewall"`, `environment = "prod"`, another group: `azurerm_subnet.firewall[0]` is in that group and in `vnet-panacea-app-prod` (the run above is nat mode, where the firewall subnet does not exist) | the firewall subnet's group (FG1) or VNet (FV1) hard-coded to dev's (round 2's predicted survivors) |
+| `environment_must_be_dev_or_prod` / `egress_mode_must_be_nat_or_firewall` | `"test"`, `"none"` → `expect_failures` | a validation dropped (EV1, EG1) |
 
 **The outputs' `depends_on` (review m8) is not a `terraform test` assertion.** Under mocks a plan
 has no ordering to observe, so no run above can see it. Task 07 proves it on the foundation stack
@@ -244,18 +323,19 @@ knowledge, UNVERIFIED). This way only the subnet ids carry the wait.
 
 #### Steps
 
-- [ ] **Step 1:** Write `versions.tf`, `variables.tf` and the test file. `validate.sh
-  infra/terraform/modules/network` fails at `validate`.
-- [ ] **Step 2:** Write `main.tf` resource by resource, running the tests after each, until all
-  ten pass.
-- [ ] **Step 3:** Write `outputs.tf`; `terraform fmt`; guards; commit.
+- [x] **Step 1:** Write `versions.tf`, `variables.tf` and the test file. `validate.sh
+  infra/terraform/modules/network` fails at `test` (as built: not at `validate`, which passes a
+  test file that names undeclared resources; task 02 found the same).
+- [x] **Step 2:** Write `main.tf` resource by resource, running the tests after each, until all
+  pass (as built: 26 runs, not ten).
+- [x] **Step 3:** Write `outputs.tf`; `terraform fmt`; guards; commit.
 
 #### Acceptance
 
 ```bash
 bash infra/scripts/validate.sh infra/terraform/modules/network
 # validate: OK   infra/terraform/modules/network
-# validate: 1 ok, 0 failed          (terraform test: Success! 10 passed, 0 failed.)
+# validate: 1 ok, 0 failed          (terraform test: Success! 26 passed, 0 failed.)
 bash infra/scripts/guards.sh        # guards: 10 of 10 passed
 ```
 
@@ -265,3 +345,39 @@ bash infra/scripts/guards.sh        # guards: 10 of 10 passed
   input.
 - That the NSG rules are sufficient or harmless in a running cluster (see above).
 - That the `Microsoft.DevOpsInfrastructure/pools` delegation name is right.
+- That `prevent_destroy` blocks every path to losing the state endpoint: it refuses a planned
+  destroy or replace of the three protected resources, and nothing else (a portal delete, or
+  a destroy of the resource group, is outside Terraform's plan).
+
+#### As built (2026-09-26)
+
+**Commits.** `7667862b` red; `9386dbc0` green; `804fbb88` round-1 killers; `cce77676` round-2
+killer (FG1, FV1); then the VNet `prevent_destroy` red and fix, and this part (listed in
+`.superpowers/sdd/env/task-03-report.md`).
+
+**Departures from the part as first written. Each fixes a root cause:**
+1. Step 1's red is at `test`, not at `validate`. `terraform validate` passes a test file that
+   names undeclared resources (task 02 found the same).
+2. `vnet_cidr`'s check is `cidrnetmask` plus a network-address round trip. The part's
+   `cidrhost` check took `fd00::/16` and `10.40.1.0/16`.
+3. `allowed_ingress_cidrs` gained two validations: each entry must be an IPv4 CIDR, and each is
+   listed once. Without the first, a service tag or `*` opens the edge to everyone. Without the
+   second, two rules share a name and Azure refuses them at apply.
+4. The NSGs are one `for_each` resource with inline rules. The part said four NSGs but not
+   how.
+5. 26 runs, not ten.
+6. Carried I1: `prevent_destroy` on the endpoint subnet and on all four zones, pinned by a
+   `file()` run.
+7. **`prevent_destroy` on the VNet too (found in round 2; a ruling, declared).** The carried
+   remedy said the subnet "also stops a VNet replace". That holds only when the replace changes
+   the subnet's own arguments: a new VNet name or group. Terraform replaces a dependent only
+   when its own planned arguments force it (the reason `replace_triggered_by` exists; training
+   knowledge). So a location change replaces the VNet, plans no subnet replace, and the
+   subnet's `prevent_destroy` never fires. Whether Azure would then refuse to delete a VNet
+   whose subnet holds another stack's endpoint is **UNVERIFIED**. The cost is the same as the
+   subnet's: a literal, holding in dev too.
+   - A mock plan cannot decide this either way: the mock provider models no forced replace. A
+     probe (`scratchpad/env/t03r2/probe`) applied, then planned a group change. That change
+     forces both protected resources, yet the plan came out clean.
+   - The probe also showed that `terraform test`'s teardown destroys mock state past
+     `prevent_destroy`, so the protection does not break the plan-only runs.
