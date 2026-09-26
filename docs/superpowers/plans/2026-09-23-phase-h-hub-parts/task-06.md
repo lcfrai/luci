@@ -240,3 +240,61 @@ go test ./sandboxd/... ./control-plane/... -race -count=1                       
 - Any Hub table: task 07a; the guards and owner functions: task 07b.
 - That `go get` succeeds behind the corporate proxy on a machine without the module cached; the
   owner's laptop has it cached (read 2026-09-23).
+
+#### As built (2026-09-27, commit f181e2b7)
+
+Acceptance at f181e2b7: 2 unit PASS; 10 PASS with `-tags integration -race` (against D2's
+container); 8 SKIP with the variable empty; the `go` lines and `go.work` exactly as expected; no
+`toolchain`; `go list -m all` exit 0 from the root.
+
+- **D1 — no `go mod tidy`.** `control-plane` is not tidy-clean offline: tidy chases docker/docker's
+  test imports (gotest.tools, otel sdk v1.46.0, moby/term) and starts downloading x/crypto v0.55.0,
+  which would move every x/ line. It was stopped before it wrote. Instead
+  `go get github.com/jackc/pgx/v5@v5.7.5 github.com/jackc/pgx/v5/pgxpool@v5.7.5`, then pgx moved
+  by hand from the indirect block to the direct one. The result is exactly Step 1's: pgx direct;
+  pgpassfile, pgservicefile and puddle/v2 v2.2.2 indirect; x/sys v0.32.0, x/term v0.31.0,
+  x/text v0.24.0 bumped; x/crypto v0.37.0, x/sync v0.13.0 added; `go 1.23.0`, no `toolchain`.
+  `go get` rewrote `go.work` to `go 1.23.0` itself; `go.work.sum` did not change.
+- **D2 — the test Postgres** is `pa-hub-pg06` on `127.0.0.1:55460` (the stream's container prefix
+  and port range), not `hub-pg-dev` on 5433, and is removed at the end. `roles_local.sql` ran as
+  its init script: both roles exist and log in (read back with `pg_roles`).
+- **D3 — `TestEachMigrationIsItsOwnTransaction` fails 0002 at run time** (an INSERT into a missing
+  table after a CREATE TABLE), not with a syntax error: Postgres parses a whole simple-protocol
+  string before running any of it, so a syntax error never runs the first statement and cannot
+  show whether a half-applied migration is left behind. The test also pins that 0003 never runs
+  and that the lock is free after the failure (a second connection takes it).
+- **D4 — the integration tests are package `migrate_test`.** `hubtest.Migrated` (task 07a) imports
+  `migrate`; an in-package test importing `hubtest` would then be an import cycle.
+- **D5 — `Apply` is stricter than the contract's sentence.** A recorded version this build does not
+  hold at all (below 1 as well as above the highest) is `ErrAhead`; a recorded sha256 that is not
+  32 bytes is `ErrEdited`; an `ms` that is not versions 1..n is `ErrBadName` before the database is
+  touched. Recorded rows are checked in version order, so the same database gives the same error.
+- **D6 — `hubtest` has tests of its own** (`hubtest_integration_test.go`, `-tags integration`): each
+  URL is its role and not a superuser, `AppPool`'s search_path is `hub`, hub_owner (not hub_app)
+  holds CREATE on the scratch database, the database is gone after its test even with a
+  connection left open, and `New` skips when the variable is empty. Every later RLS test is only
+  as good as `AppURL` being hub_app. They are outside the acceptance counts, which name `migrate/`.
+- **D7 — `Current` reads the catalog** (`pg_class` joined to `pg_namespace`) to see whether
+  `hub.schema_migrations` exists, then `coalesce(max(version), 0)`.
+
+#### As built, the mutation rounds (OD-31 scope: ownership, the roles, migration integrity)
+
+Round 1 (git archive 766621ec's tree: f181e2b7 + the hubtest tests; baseline ok). Predicted
+survivors, named before the run: **PS-1** the advisory lock released only on a failing path (no
+row looked at the lock after a successful Apply); **PS-2** Apply takes a slice that is not versions
+1..n (no row handed Apply one). Results: M1 (no SET ROLE) KILLED by
+`TestObjectsAreOwnedByHubOwner`; M2 (edit accepted) by `TestAnEditedMigrationIsRefused`; M3 (ahead
+accepted) by `TestDatabaseAheadIsRefused`; M4 (recorded in its own transaction first) and M8 (a
+failure erases earlier records) by `TestEachMigrationIsItsOwnTransaction`; M5 (no lock) by
+`TestConcurrentMigratorsSerialise`; M6 (AppURL as the admin) and M7 (OwnerURL as the admin) by
+`TestEachURLIsItsRole`; M9 (never dropped) by `TestTheScratchDatabaseIsDroppedAfterTheTest`.
+PS-1 was killed only by a 10-minute hang (the second runner waited on the kept lock with no
+deadline); PS-2 SURVIVED as named. Rows gained: `TestApplyToAnEmptyDatabase` hands Apply `[2]`
+(ErrBadName, the schema untouched) and takes the lock from a second connection after success;
+`TestConcurrentMigratorsSerialise`'s runners get a 30 s deadline.
+
+Round 2 (766621ec + those rows; baseline ok): PS-1 KILLED on assertions (`TestApplyToAnEmptyDatabase`
+:123 "the lock was kept"; `TestConcurrentMigratorsSerialise` :263, deadline exceeded taking the
+lock); PS-2 KILLED (`TestApplyToAnEmptyDatabase` :111, `Apply([2]) = [2]`). No live survivor.
+Not run (outside OD-31's scope): Load's own mutants (lexical order, trimmed hash), which the unit
+tests' red run covers only as a whole.

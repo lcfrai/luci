@@ -106,9 +106,21 @@ func TestApplyToAnEmptyDatabase(t *testing.T) {
 	d := hubtest.New(t)
 	conn := d.OwnerConn(t)
 	ms := load(t, two)
+	// A slice that is not versions 1..n is refused before the database is touched.
+	if got, err := migrate.Apply(ctxT(t), conn, ms[1:], nil); !errors.Is(err, migrate.ErrBadName) || len(got) != 0 {
+		t.Fatalf("Apply([2]) = %v, %v; want nothing applied, ErrBadName", got, err)
+	}
+	if tableExists(t, conn, "hub.schema_migrations") || tableExists(t, conn, "hub.b") {
+		t.Fatalf("Apply of a gapped slice touched the database")
+	}
 	got, err := migrate.Apply(ctxT(t), conn, ms, nil)
 	if err != nil || !sameInts(got, []int{1, 2}) {
 		t.Fatalf("Apply = %v, %v; want [1 2], nil", got, err)
+	}
+	// The lock is free after a successful Apply, with its connection still open.
+	var free bool
+	if err := d.OwnerConn(t).QueryRow(ctxT(t), "SELECT pg_try_advisory_lock(hashtext($1))", migrate.LockName).Scan(&free); err != nil || !free {
+		t.Fatalf("pg_try_advisory_lock after Apply = %v, %v; the lock was kept", free, err)
 	}
 	rs := recorded(t, conn)
 	if len(rs) != 2 {
@@ -231,6 +243,9 @@ func TestConcurrentMigratorsSerialise(t *testing.T) {
 	conns := []*pgx.Conn{d.OwnerConn(t), d.OwnerConn(t)}
 	got := make([][]int, 2)
 	errs := make([]error, 2)
+	// Bounded: a runner that kept the lock makes the other fail here, not hang.
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 	var start, wg sync.WaitGroup
 	start.Add(1)
 	for i := range conns {
@@ -238,7 +253,7 @@ func TestConcurrentMigratorsSerialise(t *testing.T) {
 		go func(i int) {
 			defer wg.Done()
 			start.Wait()
-			got[i], errs[i] = migrate.Apply(context.Background(), conns[i], ms, nil)
+			got[i], errs[i] = migrate.Apply(ctx, conns[i], ms, nil)
 		}(i)
 	}
 	start.Done()
