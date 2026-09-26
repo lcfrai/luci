@@ -93,3 +93,83 @@ nothing, and how long it has waited.
 - `desktop/src/components/desk/DeskSection.tsx` ⚑ — the wrapper joins `keyScopes` (modified)
 - `desktop/src/components/desk/Desk.tsx` ⚑ — `events` in `liveDeskInputs`; `useDeskIssueVerbs()` (modified)
 - `desktop/src/components/desk/desk.css` ⚑ — `.dn-*`, appended (modified)
+
+#### Interfaces — complete: `desktop/src/work/desk/needs.ts`, part 1: the payload, `since`, the words
+
+```ts
+// desktop/src/work/desk/needs.ts — task 63. NEEDS YOU's issue rows, pure over one DeskSnapshot.
+import type { IssueHead, IssueState, User } from "../../api/work";
+import type { DeskItem, DeskRank, DeskSnapshot } from "../../components/desk/deskModel";
+
+export type NeedKind = "issue.triage_mine" | "issue.urgent_mine" | "issue.mention" | "issue.blocking";
+export const NEED_KINDS: readonly NeedKind[] =
+  Object.freeze(["issue.triage_mine", "issue.urgent_mine", "issue.mention", "issue.blocking"]);
+
+export interface NeedPayload {
+  need: NeedKind;
+  issueId: string; alias: string; title: string;       // the issue the row acts on (X for blocking)
+  state: IssueState;
+  since: string;                                       // RFC 3339, fixed at entry (decision 5)
+  sinceFrom: "event" | "record";
+  blocked?: { issueId: string; alias: string; owner: string; state: IssueState; startedAt: string };
+  mention?: { commentId: string; author: User; firstLine: string };
+}
+
+export const CLOSED: ReadonlySet<IssueState> = new Set<IssueState>(["landed", "done", "cancelled", "duplicate"]);
+const mine = (h: IssueHead, me: string | null): boolean => me !== null && h.assignee?.id === me;
+const titleOf = (s: DeskSnapshot, h: IssueHead): string =>
+  s.revisionAt(h.id, h.headRevision)?.content.title.text ?? h.alias;
+const fieldsOf = (d: Record<string, unknown>): string[] => String(d.fields ?? "").split(",");
+
+/** Decision 5: the newest matching feed event on the subject, else the record's own time. */
+export function sinceOf(s: DeskSnapshot, subject: string, match: (kind: string, data: Record<string, unknown>) => boolean,
+  fallback: string): { since: string; sinceFrom: "event" | "record" } {
+  let best: string | null = null;
+  for (const e of s.events) {
+    if (e.subject !== subject || !match(e.kind, e.data)) continue;
+    if (best === null || Date.parse(e.at) > Date.parse(best)) best = e.at;
+  }
+  return best === null ? { since: fallback, sinceFrom: "record" } : { since: best, sinceFrom: "event" };
+}
+
+export const MATCH = {
+  triage: (k: string, d: Record<string, unknown>) => k === "issue.created" || (k === "issue.state" && d.to === "triage")
+    || (k === "issue.updated" && fieldsOf(d).includes("assignee")),
+  urgent: (k: string, d: Record<string, unknown>) => k === "issue.updated"
+    && (fieldsOf(d).includes("priority") || fieldsOf(d).includes("assignee")),
+  started: (k: string, d: Record<string, unknown>) => k === "issue.state" && (d.to === "started" || d.to === "in_review"),
+};
+
+/** The row's first line: what is true, in words. */
+export function needWords(p: NeedPayload): string {
+  switch (p.need) {
+    case "issue.triage_mine": return "in triage, assigned to you";
+    case "issue.urgent_mine": return "urgent, assigned to you";
+    case "issue.mention": return `${p.mention!.author.displayName} named you on ${p.alias}`;
+    case "issue.blocking": return `${p.alias} blocks ${p.blocked!.alias} (${p.blocked!.owner}) · started`;
+  }
+}
+
+/** AX §5's two lines, as rules (decision 6). */
+export function rankWords(p: NeedPayload): { rankReason: string; ifNothing: string } {
+  switch (p.need) {
+    case "issue.blocking": return { rankReason: `ranked first: blocks ${p.blocked!.alias}, which is ${p.blocked!.state.replace("_", " ")}`,
+      ifNothing: `if you do nothing: ${p.blocked!.alias} stays blocked by ${p.alias}` };
+    case "issue.triage_mine": return { rankReason: "in triage and assigned to you",
+      ifNothing: `if you do nothing: ${p.alias} stays in triage and nothing starts on it` };
+    case "issue.urgent_mine": return { rankReason: "urgent and assigned to you",
+      ifNothing: `if you do nothing: ${p.alias} stays ${p.state.replace("_", " ")} until you or your agent act` };
+    case "issue.mention": return { rankReason: `${p.mention!.author.displayName} named you`,
+      ifNothing: `if you do nothing: the comment on ${p.alias} stays open` };
+  }
+}
+
+/** Decision 4: blocking is tier 1, the rest tier 2; the wait is from `since`. */
+export function needRank(item: DeskItem<NeedPayload>, snap: DeskSnapshot): DeskRank {
+  return { tier: item.payload.need === "issue.blocking" ? 1 : 2,
+    waitingSinceMs: Math.max(0, snap.takenAt - Date.parse(item.payload.since)) };
+}
+```
+
+`User.displayName` is task 37's (`task-61.md:162` reads it the same way). The owner in the blocking
+line is Y's assignee's `displayName`, *"you"* when it is me, and *"unassigned"* when there is none.
