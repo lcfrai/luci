@@ -11,6 +11,12 @@ steps:
       version: '1.23'
   - script: go build ./sandboxd/... ./control-plane/...
     displayName: Build
+  # Each module on its own, without go.work: a module's go.sum must stand alone,
+  # go.work.sum only supplements it (task 06 fix round 1, I1).
+  - script: |
+      set -e
+      for m in control-plane sandboxd; do (cd "$m" && GOWORK=off go build ./...); done
+    displayName: Build each module without the workspace
   - script: go test ./sandboxd/... ./control-plane/... -race -count=1
     displayName: Test
   - script: go vet ./sandboxd/... ./control-plane/...
