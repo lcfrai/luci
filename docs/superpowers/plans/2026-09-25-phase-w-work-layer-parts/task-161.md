@@ -458,3 +458,67 @@ GRANT UPDATE (name, removed_by, removed_at) ON work_mcp_connectors TO hub_app;
 `orgs(id)` and `users(id)` are 0001's tables (`hub-contract.md` §10.2, `:1459`); their exact
 column names are **UNVERIFIED** at the sync base and follow the Hub's file. The RLS policy is task
 116's form (`task-116.md:324-327`).
+
+#### The store and the routes — `store/work_mcp.go`, `server/work_mcp.go` (signatures complete)
+
+```go
+package store
+
+// Each runs in the caller's write transaction (hub-contract §10.6) and appends
+// its one event there; a no-op PUT (same URL, same name) writes nothing.
+func (tx *Tx) MCPConnectors(ctx context.Context) ([]hubapi.MCPConnector, error) // live rows, url order
+func (tx *Tx) AllowMCPConnector(ctx context.Context, by string, url, name string) (hubapi.MCPConnector, bool, error) // bool: changed
+func (tx *Tx) RemoveMCPConnector(ctx context.Context, by string, url string) error // ErrNotFound if not live
+```
+
+```go
+package server
+
+// GET    /v1/work/mcp-connectors            any member of the org → 200 []MCPConnector
+// PUT    /v1/work/mcp-connectors  {url,name} org admin → 200 MCPConnector; 422 connector_url_invalid
+// DELETE /v1/work/mcp-connectors?url=       org admin → 204; 404 connector_not_found when no
+//                                            live row has that normalised URL (appended code)
+// A PUT that changes the name of a live row emits work.mcp_connector_allowed again,
+// data {url}; it is the same allow, re-stated by an admin, and the feed says who.
+func (s *Server) routesWorkMCP(mux *http.ServeMux)
+
+// ConnectorFragment renders the managed-settings fragment task 166 applies as a
+// policy layer. Pure: the same list gives the same bytes. URLs sorted, compact
+// JSON, one trailing newline. The key is allowedMcpServers; each entry is
+// {"serverUrl": url}. Both spellings are UNVERIFIED at the sandbox image's
+// pinned Claude Code (gap 8); task 166 pins them against that version.
+func ConnectorFragment(list []hubapi.MCPConnector) []byte
+```
+
+An empty list renders `{"allowedMcpServers":[]}`, which, if the key means what its name says,
+allows none: the default is closed. A list never renders a name, `allowedBy` or a time, so the
+fragment's digest (task 173 shows the one Phase T answers) changes only when the set of URLs does.
+`connector_not_found` (404) and `connector_url_invalid` (422) are appended to task 143's codes,
+which name neither (gap 7); the Hub's §4.2 table has no generic not-found code to reuse
+(`hubapi/codes.go:24-32` are all per-object).
+
+#### Interfaces — complete: `control-plane/cmd/workmcp/main.go`, the wiring
+
+```go
+func main() {
+	cfg, err := LoadConfig(os.Environ())
+	if err != nil { fmt.Fprintln(os.Stderr, err); os.Exit(2) }
+	v := mustValidator(cfg) // oidcauth.New(keycloak profile, Audience = RequiredScope = cfg.HubAudience)
+	hub := hubclient.New(cfg.HubURL, cfg.HubAudience, callerToken{}, &http.Client{Timeout: 15 * time.Second})
+	mux := http.NewServeMux()
+	mux.Handle("/mcp", Authenticate(cfg, v, NewServer(cfg, hub, false)))
+	mux.Handle("/mcp/read", Authenticate(cfg, v, NewServer(cfg, hub, true)))
+	mux.HandleFunc("/.well-known/oauth-protected-resource", protectedResource(cfg)) // unauthenticated, GET
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(204) })
+	srv := &http.Server{Addr: cfg.Listen, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
+	serveUntilSignal(srv) // SIGTERM → Shutdown with a 20 s deadline
+}
+```
+
+`/mcp/read`'s protected-resource document is the same one with `resource` =
+`<PublicBase>/mcp/read`; `protectedResource` serves both from the one path by the `resource`
+query the MCP client sends, or the `/mcp` one when absent (RFC 9728 §3.1 allows a path suffix
+form too; which form the named clients fetch is **UNVERIFIED**).
+
+In `mcp.go` the import list is `encoding/json` and `net/http` (the handler takes an
+`http.ResponseWriter`).
