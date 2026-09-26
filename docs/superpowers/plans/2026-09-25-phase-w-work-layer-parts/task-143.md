@@ -268,4 +268,305 @@ type ConnectTrackerRequest struct {
 	Target json.RawMessage `json:"target"`
 	Mode   TrackerMode     `json:"mode"`
 }
+
+// SyncBatch is what the integration principal sends in one pass (task 150).
+// Items go through SW.6 (ImportItem, task 03) into triage; Comments only in
+// mode in_and_comments (task 153); Changes are logged, never applied.
+type SyncBatch struct {
+	Items    []ImportItem      `json:"items"`
+	Comments []ExternalComment `json:"comments"`
+	Changes  []UpstreamChange  `json:"changes"`
+}
+
+// ── Outside PRs and commits (tasks 154-155) ────────────────────────────────
+
+type HostKind string
+
+const (
+	HostAzureDevOps HostKind = "azure_devops"
+	HostGitHub      HostKind = "github"
+)
+
+// LinkWord is how the link was made: a closing word, a non-closing mention,
+// or the branch name (ep-142-slug).
+type LinkWord string
+
+const (
+	WordClosing    LinkWord = "closing"
+	WordNonClosing LinkWord = "non_closing"
+	WordBranch     LinkWord = "branch"
+)
+
+type OutsidePRLink struct {
+	ID          string   `json:"id"` // hl-…
+	Host        HostKind `json:"host"`
+	Repo        string   `json:"repo"`
+	Number      int      `json:"number"`
+	URL         string   `json:"url"`
+	PRState     string   `json:"prState"` // "open" | "merged" | "closed"
+	IssueID     string   `json:"issueId"`
+	Word        LinkWord `json:"word"`
+	MergeCommit *string  `json:"mergeCommit"`
+}
+
+// OutsideCommitLink is unique on (repo, sha, issueId); it shares the hl- prefix.
+type OutsideCommitLink struct {
+	ID       string   `json:"id"` // hl-…
+	IssueID  string   `json:"issueId"`
+	Host     HostKind `json:"host"`
+	Repo     string   `json:"repo"`
+	SHA      string   `json:"sha"` // 40 hex
+	URL      string   `json:"url"`
+	Word     LinkWord `json:"word"`
+	PushedBy *string  `json:"pushedBy"` // the mapped u- id, or null when none maps
+}
+
+// HostHook registers one inbound host webhook for a project (task 154). The
+// secret is returned once, in CreatedHostHook, and stored only by reference.
+type HostHook struct {
+	ProjectID     string   `json:"projectId"`
+	Host          HostKind `json:"host"`
+	RemoteURL     string   `json:"remoteUrl"`
+	SecretVersion int      `json:"secretVersion"`
+	CreatedBy     User     `json:"createdBy"`
+}
+
+type CreatedHostHook struct {
+	Hook   HostHook `json:"hook"`
+	Secret string   `json:"secret"`
+}
+
+// ── Outbound webhooks (task 156) ───────────────────────────────────────────
+
+type Webhook struct {
+	ID            string  `json:"id"` // wh-…
+	TeamID        string  `json:"teamId"`
+	ProjectID     *string `json:"projectId"`
+	URL           string  `json:"url"`   // https only
+	Kinds         []string `json:"kinds"` // SW.5 kinds only (task 156's WebhookKinds)
+	State         string  `json:"state"` // "active" | "disabled"
+	CreatedBy     User    `json:"createdBy"`
+	SecretVersion int     `json:"secretVersion"`
+}
+
+type CreatedWebhook struct {
+	Webhook Webhook `json:"webhook"`
+	Secret  string  `json:"secret"`
+}
+
+type WebhookDelivery struct {
+	ID            string  `json:"id"` // wd-…
+	WebhookID     string  `json:"webhookId"`
+	EventSeq      string  `json:"eventSeq"`
+	Attempt       int     `json:"attempt"`
+	Status        string  `json:"status"` // "ok" | "failed" | "pending"
+	ResponseCode  *int    `json:"responseCode"`
+	At            string  `json:"at"`
+	NextAttemptAt *string `json:"nextAttemptAt"` // a scheduled retry time, not a forecast
+}
+
+type CreateWebhookRequest struct {
+	ProjectID *string  `json:"projectId"`
+	URL       string   `json:"url"`
+	Kinds     []string `json:"kinds"`
+}
+
+// ── Teams (tasks 157, 165) and the request thread ──────────────────────────
+
+// RequestMessage is one reply in a request's outside thread, append-only.
+// Body is the external author's words, text·H.
+type RequestMessage struct {
+	RequestID  string  `json:"requestId"`
+	ChannelRef string  `json:"channelRef"`
+	AuthorName string  `json:"authorName"`
+	UserID     *string `json:"userId"`
+	Body       string  `json:"body"`
+	At         string  `json:"at"`
+}
+
+type TeamsSubject struct {
+	Kind string  `json:"kind"` // "intake" | "feature" | "view" | "digest"
+	ID   *string `json:"id"`   // ft-… or vw-…; null for intake and digest
+}
+
+type TeamsBinding struct {
+	TeamID     string       `json:"teamId"`
+	Subject    TeamsSubject `json:"subject"`
+	ChannelRef string       `json:"channelRef"`
+}
+
+// ── Apps and keys (tasks 159-160) ──────────────────────────────────────────
+
+type AppManifest struct {
+	Name          string   `json:"name"`
+	EntraClientID string   `json:"entraClientId"`
+	Publisher     string   `json:"publisher"`
+	Contact       string   `json:"contact"`
+	Scopes        []string `json:"scopes"`       // "work.read" | "work.write"
+	RedirectURIs  []string `json:"redirectUris"` // https only
+	WebhookURL    *string  `json:"webhookUrl"`
+}
+
+// App acts as a person, never alone: every call is its user's (task 159).
+type App struct {
+	ID           string      `json:"id"` // oa-…
+	Manifest     AppManifest `json:"manifest"`
+	RegisteredBy User        `json:"registeredBy"`
+	State        string      `json:"state"` // "pending" | "approved" | "revoked"
+	DecidedBy    *User       `json:"decidedBy"`
+	DecidedAt    *string     `json:"decidedAt"`
+	Reason       *string     `json:"reason"`
+}
+
+type DecideAppRequest struct {
+	Approve bool   `json:"approve"`
+	Reason  string `json:"reason"`
+}
+
+// APIKey holds no secret. Shown is the first 8 characters only.
+type APIKey struct {
+	ID         string  `json:"id"`    // ak-…
+	Scope      string  `json:"scope"` // "personal" | "team"
+	OwnerID    string  `json:"ownerId"`
+	TeamID     *string `json:"teamId"`
+	Name       string  `json:"name"`
+	Shown      string  `json:"shown"`
+	CreatedAt  string  `json:"createdAt"`
+	ExpiresAt  string  `json:"expiresAt"` // required, at most 365 days on
+	LastUsedAt *string `json:"lastUsedAt"`
+	RevokedAt  *string `json:"revokedAt"`
+	RevokedBy  *User   `json:"revokedBy"`
+}
+
+// CreatedAPIKey, CreatedWebhook and CreatedHostHook are the only W5 types that
+// carry a secret, each returned once (TestOnlyCreatedTypesCarryASecret).
+type CreatedAPIKey struct {
+	Key    APIKey `json:"key"`
+	Secret string `json:"secret"`
+}
+
+type CreateAPIKeyRequest struct {
+	Name      string `json:"name"`
+	ExpiresAt string `json:"expiresAt"`
+}
+
+const MaxKeyLifetime = 365 * 24 * time.Hour
+
+// ── Loops (tasks 162-163, decision 4) ──────────────────────────────────────
+
+// LoopBound: TurnsPerDay 1-24; a class absent from Levels inherits the owner's
+// own grid. Levels are AX §7's words (ask_first … full) by action class.
+type LoopBound struct {
+	TurnsPerDay int               `json:"turnsPerDay"`
+	Levels      map[string]string `json:"levels"`
+}
+
+type LoopFilter struct {
+	LabelID   *string `json:"labelId"`
+	FromState *string `json:"fromState"`
+	ToState   *string `json:"toState"`
+}
+
+type LoopSchedule struct {
+	Every string `json:"every"` // "day" | "weekday" | "week"
+	At    string `json:"at"`    // HH:MM
+	TZ    string `json:"tz"`    // IANA
+}
+
+type LoopTrigger struct {
+	Kind       string        `json:"kind"`       // "event" | "schedule"
+	EventKinds []string      `json:"eventKinds"` // [] for a schedule
+	Filter     LoopFilter    `json:"filter"`
+	Schedule   *LoopSchedule `json:"schedule"` // null for an event
+}
+
+// Loop is the head; its text lives in its versions.
+type Loop struct {
+	ID             string  `json:"id"` // lp-…
+	TeamID         string  `json:"teamId"`
+	ProjectID      string  `json:"projectId"`
+	Owner          User    `json:"owner"`
+	Name           string  `json:"name"`  // 1-80 characters
+	State          string  `json:"state"` // "on" | "paused"
+	PausedCause    *string `json:"pausedCause"`
+	CurrentVersion int     `json:"currentVersion"`
+}
+
+// LoopVersion is append-only: an edit is version n+1.
+type LoopVersion struct {
+	LoopID      string       `json:"loopId"`
+	Version     int          `json:"version"`
+	Trigger     LoopTrigger  `json:"trigger"`
+	Instruction AuthoredText `json:"instruction"` // the owner's, author "H", at most 2000 characters
+	Action      string       `json:"action"`      // "turn" | "start"
+	LabelID     *string      `json:"labelId"`
+	Bound       LoopBound    `json:"bound"`
+	SavedAt     string       `json:"savedAt"`
+	SavedBy     User         `json:"savedBy"`
+}
+
+type LoopRunTrigger struct {
+	Kind         string  `json:"kind"` // "event" | "schedule" | "manual"
+	EventSeq     *string `json:"eventSeq"`
+	ScheduledFor *string `json:"scheduledFor"`
+}
+
+type StartedLane struct {
+	IssueKey  string `json:"issueKey"`
+	SessionID string `json:"sessionId"`
+	Branch    string `json:"branch"`
+	Route     string `json:"route"`
+}
+
+// LoopRun is keyed by (loopId, run): no id prefix (task 163).
+type LoopRun struct {
+	LoopID   string         `json:"loopId"`
+	Run      int            `json:"run"`
+	Version  int            `json:"version"`
+	FiredAt  string         `json:"firedAt"`
+	Trigger  LoopRunTrigger `json:"trigger"`
+	Outcome  string         `json:"outcome"` // queued | ran | skipped_budget | skipped_paused | refused_bound | failed
+	TurnID   *string        `json:"turnId"`  // ot-… (Phase T)
+	Started  []StartedLane  `json:"started"` // never null
+	EndedAt  *string        `json:"endedAt"`
+}
+
+// LoopVersionBody is one version's content; the Hub stamps the rest.
+type LoopVersionBody struct {
+	Trigger     LoopTrigger  `json:"trigger"`
+	Instruction AuthoredText `json:"instruction"`
+	Action      string       `json:"action"`
+	LabelID     *string      `json:"labelId"`
+	Bound       LoopBound    `json:"bound"`
+}
+
+type CreateLoopRequest struct {
+	Name  string          `json:"name"`
+	First LoopVersionBody `json:"first"`
+}
+
+// ── Harness and skills (task 166, decision 5) ──────────────────────────────
+
+type SkillsLibrary struct {
+	RepoKey string `json:"repoKey"`
+	Path    string `json:"path"`
+	Commit  string `json:"commit"` // 40 hex, never a branch
+}
+
+type TeamSkills struct {
+	Source  string         `json:"source"` // "image" | "library"
+	Library *SkillsLibrary `json:"library"`
+}
+
+// TeamAgentPolicy: Harnesses is ordered and non-empty; unset means ["claude-code"].
+type TeamAgentPolicy struct {
+	TeamID    string     `json:"teamId"`
+	Harnesses []string   `json:"harnesses"` // harness.Catalogue() ids
+	Skills    TeamSkills `json:"skills"`
+	UpdatedBy *User      `json:"updatedBy"`
+	UpdatedAt *string    `json:"updatedAt"`
+}
 ```
+
+The harness ids are `control-plane/internal/harness/harness.go`'s catalogue (the control plane's
+own code, **built**); `TeamAgentPolicy` names them and never parses or changes a harness (`OD-8`).
