@@ -310,3 +310,70 @@ The status column is the ledger's fourth cell (`$4` after the leading `|` is dro
 shape above. Its three fixtures: `ledger-complete.md` (257 rows, every status used at least once,
 the counts line right), `ledger-hidden-row.md` (the same with L-209's row deleted) and
 `ledger-wrong-verdict.md` (the same with L-62, a SKIP, filed `closed` under verdict MATCH).
+
+#### Tests to write first — `desktop/src/test/wlSweep.test.tsx`
+
+Task 174's sweep, for WL's surfaces. Each path below was read from the owning part's *Files* or
+test heading on 2026-09-26; the three `Dashboard*` names follow task 177's *"(+ tests)"*
+(`task-177.md:71-72`, `:302`) and are **UNVERIFIED** as file names until 177 is built. Tasks
+178, 182 and 183 add no desktop surface; 179's `syntax.test.tsx` is the Files lens surface.
+
+```tsx
+import { readFileSync, existsSync } from "node:fs";
+import { resolve } from "node:path";
+import { describe, expect, it } from "vitest";
+
+const SRC = resolve(__dirname, "..");
+/** Every WL surface and its owning task. ⚑ marks a file an earlier task owns and WL extends. */
+const WL_SURFACES: [string, number][] = [
+  ["components/plan/CopyFromTeam.test.tsx", 175],
+  ["components/settings/AssignMe.test.tsx", 176],
+  ["components/roadmap/Dashboards.test.tsx", 177],
+  ["components/roadmap/DashboardView.test.tsx", 177],
+  ["components/roadmap/DashboardBlock.test.tsx", 177],
+  ["components/lens/files/syntax.test.tsx", 179],
+  ["components/merge/GuidedReview.test.tsx", 180],
+  ["components/work/PlanSurface.test.tsx", 180], // ⚑ task 45's
+  ["components/admin/SignedLand.test.tsx", 181],
+  ["components/plan/TriageRotationSettings.test.tsx", 184], // ⚑ task 134's
+  ["components/admin/GroupLinks.test.tsx", 185],
+  ["components/changelog/WhatsNew.test.tsx", 186],
+];
+
+describe("WL sweep: no prediction on any WL surface (OD-27)", () => {
+  it.each(WL_SURFACES)("%s (task %i) exists and calls expectNoPrediction", (file) => {
+    const path = resolve(SRC, file);
+    expect(existsSync(path)).toBe(true);
+    expect(readFileSync(path, "utf8")).toMatch(/expectNoPrediction\(/);
+  });
+
+  it("names every WL surface once", () => {
+    const files = WL_SURFACES.map(([f]) => f);
+    expect(new Set(files).size).toBe(files.length);
+  });
+
+  it("dashboards say counts, never a forecast (L-152, Q1)", () => {
+    const src = ["Dashboards", "DashboardView", "DashboardBlock"]
+      .map((n) => readFileSync(resolve(SRC, `components/roadmap/${n}.tsx`), "utf8"))
+      .join("\n");
+    expect(src).not.toMatch(/forecast|projected|burn-?up|on track|ETA|<meter/i);
+  });
+});
+```
+
+The dashboard test is the one surface-specific row: L-152 is the only WL row with a **(Q1)** mark,
+and the recommended answer is *measured counts only* (decision 4), so a forecast word in any of
+177's three sources fails the sweep even if 177's own test was loosened.
+
+| Test | Mutant it kills |
+|---|---|
+| each WL surface's test calls the helper | a WL surface that skipped `expectNoPrediction` |
+| every surface named once | a pasted duplicate hiding a missing surface |
+| dashboards say counts | a burn-up or *on track* line added to a dashboard block (Q1 broken) |
+| `check-wl.sh` on `wl-complete.md` exits 0 | a check that fails everything, so nobody runs it |
+| `check-wl.sh` on `wl-missing-output.md` exits 1 | a later row marked closed from a self-report |
+| `check-wl.sh` with a clause row deleted | a clause (L-50, L-80, L-97, L-137) dropped because no slice cell selects it |
+| `check-ledger.sh` on `ledger-complete.md` exits 0 | a ledger check nobody can pass |
+| `check-ledger.sh` on `ledger-hidden-row.md` exits 1 | a row with no closer quietly left out (decision 5) |
+| `check-ledger.sh` on `ledger-wrong-verdict.md` exits 1 | a SKIP re-filed as a close |
+| the ledger's counts line recomputed | 05's forecast of 188 typed in instead of counted |
