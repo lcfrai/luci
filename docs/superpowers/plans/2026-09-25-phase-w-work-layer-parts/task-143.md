@@ -37,6 +37,7 @@ and task 114's embed pattern and stubs (`task-114.md:35-75`, `:798-956`).
    | requests: `Request`, `Requester`, `RequestChannel`, `RequestState`, `RuleHit`, `IntakeRoute`, the four bodies, `RequestEraseResponse`, `IssueRequester`, `ValidateRequester`, `ValidateQuote` | 146 | `task-146.md:188-367` |
    | intake rules: `IntakeMatch`, `IntakeRule`, `IntakeRuleSet`, `PutIntakeRulesRequest`, `IntakeDefaults` | 147 | `task-147.md:114-172`, validation `:288-…` |
    | forms: `FormFieldKind`, `FormField`, `IntakeForm`, `CreateFormRequest`, `PatchFormRequest`, `ValidateFormFields`, `CheckAnswers` | 148 | `task-148.md:117-198`, `:207-…` |
+   | mail intake: `IntakeSettings`, `PutIntakeSettingsRequest`, `RecordReleaseIssuesRequest` (the scope's `IntakeAddress`) | 149 | `task-149.md:274-317` |
    | external comments: `ExternalComment`, `CommentExternal` | 153 | `task-153.md:100-…` |
    | MCP connectors: `MCPConnector`, keyed by URL | 161 | `task-161.md:389-426` |
    | the event kinds and data of each | 146-148, 153 | each block's `workevents.go` additions |
@@ -835,7 +836,9 @@ type WorkIntake interface {
 	ListForms(ctx context.Context, teamID string) ([]hubapi.IntakeForm, error)
 	GetForm(ctx context.Context, formID string) (hubapi.IntakeForm, error)
 	PatchForm(ctx context.Context, formID string, req hubapi.PatchFormRequest) (hubapi.IntakeForm, error)
-	SetIntakeAddress(ctx context.Context, teamID string, addr hubapi.IntakeAddress) (hubapi.IntakeAddress, error)
+	IntakeSettings(ctx context.Context, teamID string) (hubapi.IntakeSettings, error)
+	PutIntakeSettings(ctx context.Context, teamID string, req hubapi.PutIntakeSettingsRequest) (hubapi.IntakeSettings, error)
+	RecordReleaseIssues(ctx context.Context, releaseID string, req hubapi.RecordReleaseIssuesRequest) error
 	// tracker sync (150-153); ApplySyncBatch only as the connection's principal
 	ConnectTracker(ctx context.Context, projectID string, req hubapi.ConnectTrackerRequest) (hubapi.TrackerConnection, error)
 	ListTrackers(ctx context.Context, teamID string) ([]hubapi.TrackerConnection, error)
@@ -883,7 +886,7 @@ type WorkIntake interface {
 team key, so one method serves task 160's two routes. `PutConnectorRequest` is the Go name for task
 169's `PutConnectorBody` (`task-169.md:349`); if task 161's block names it otherwise, 161 wins.
 `PageRequest`, `Page[T]` and `EraseRequest` are Phase H's and task 04's (`types.go` at `3df9fab8`;
-`task-04.md:229-232`). **Forty-nine methods**, counted in the block.
+`task-04.md:229-232`). **Fifty-one methods**, counted in the block.
 
 #### `hubclient/fake_work_intake_stub.go` and `client_work_intake_stub.go` (complete)
 
@@ -893,7 +896,7 @@ package hubclient
 // fake_work_intake_stub.go: *Fake satisfies WorkIntake until task 144 adds the
 // real rules; task 144 deletes this file in the commit that adds them. Every
 // method is one line of the same shape; two are shown and the other
-// forty-seven follow the same pattern, in WorkIntake's order.
+// forty-nine follow the same pattern, in WorkIntake's order.
 func (f *Fake) CreateRequest(context.Context, string, hubapi.CreateRequestRequest) (hubapi.Request, error) {
 	return hubapi.Request{}, workNotInFakeYet
 }
@@ -937,7 +940,7 @@ their route task, which may rename them (the method set does not change).
 | `RequestMessages` | `GET /v1/requests/{requestId}/messages` | proposed (157) |
 | `ListIntakeRules`, `PutIntakeRules` | `GET`/`PUT /v1/teams/{teamId}/intake-rules` | `task-147.md` |
 | `CreateForm`, `ListForms`, `GetForm`, `PatchForm` | `POST`/`GET /v1/teams/{teamId}/forms`, `GET`/`PATCH /v1/forms/{formId}` | `task-148.md` |
-| `SetIntakeAddress` | `PUT /v1/teams/{teamId}/intake-address` | `task-149.md` |
+| `IntakeSettings`, `PutIntakeSettings`, `RecordReleaseIssues` | `GET`/`PUT /v1/teams/{teamId}/intake-address`, `PUT /v1/releases/{releaseId}/issues` | `task-149.md:447-449`, `:291` |
 | `ConnectTracker`, `ListTrackers`, `DisconnectTracker`, `ApplySyncBatch`, `ListSyncRuns` | `POST /v1/projects/{projectId}/trackers`, `GET /v1/teams/{teamId}/trackers`, `POST /v1/trackers/{connectionId}/disconnect`, `POST …/batches`, `GET …/runs` | proposed (150) |
 | `ListOutsidePRLinks`, `CreateHostHook` | `GET /v1/issues/{issueId}/outside-links`, `POST /v1/projects/{projectId}/host-hooks` | proposed (154) |
 | `CreateWebhook` … `Redeliver` | `POST`/`GET /v1/teams/{teamId}/webhooks`, `POST /v1/webhooks/{webhookId}/disable`, `…/rotate`, `GET …/deliveries`, `POST /v1/webhook-deliveries/{deliveryId}/redeliver` | `task-156.md` |
@@ -955,7 +958,7 @@ calls it, never `hubclient`.
 #### Tests first — `hubapi/work_intake_test.go` and `hubclient/work_intake_test.go`
 
 The goldens, one per record, under `hubapi/testdata/work-intake/`: `request`, `issue-requester`,
-`request-message`, `intake-rule-set`, `intake-form`, `intake-address`, `tracker-connection`
+`request-message`, `intake-rule-set`, `intake-form`, `intake-settings`, `tracker-connection`
 (one per source, three files), `external-link`, `sync-run`, `outside-pr-link`,
 `outside-commit-link`, `host-hook`, `webhook`, `webhook-delivery`, `teams-binding`, `app`,
 `api-key`, `mcp-connector`, `loop`, `loop-version`, `loop-run`, `team-agent-policy`: twenty-four.
@@ -967,7 +970,7 @@ package hubapi
 func TestW5RecordsRoundTripTheirGoldens(t *testing.T) { // kills "field renamed or retagged"
 	for name, v := range map[string]any{
 		"request": &Request{}, "issue-requester": &IssueRequester{}, "request-message": &RequestMessage{},
-		"intake-rule-set": &IntakeRuleSet{}, "intake-form": &IntakeForm{}, "intake-address": &IntakeAddress{},
+		"intake-rule-set": &IntakeRuleSet{}, "intake-form": &IntakeForm{}, "intake-settings": &IntakeSettings{},
 		"tracker-connection-azure_boards": &TrackerConnection{}, "tracker-connection-github": &TrackerConnection{},
 		"tracker-connection-jira": &TrackerConnection{}, "external-link": &ExternalLink{}, "sync-run": &SyncRun{},
 		"outside-pr-link": &OutsidePRLink{}, "outside-commit-link": &OutsideCommitLink{}, "host-hook": &HostHook{},
@@ -984,5 +987,169 @@ func TestW5RecordsRoundTripTheirGoldens(t *testing.T) { // kills "field renamed 
 }
 ```
 
-`IntakeAddress` is task 149's; if its part names it otherwise the golden follows it.
+`IntakeSettings` is task 149's name for the scope's `IntakeAddress` (`task-149.md:277-284`); the
+scope's `formId` on the address is not in it, so a mail request takes no form's defaults (gap 4).
+
+```go
+func TestAnAgentQuoteFailsValidation(t *testing.T) { // kills "an agent-authored quote"
+	if ValidateQuote(AuthoredText{Text: "please add SSO", Author: AuthorAgent}) == nil {
+		t.Fatal("a quote with author A passed")
+	}
+}
+
+func TestTrackerModeHasNoStateMode(t *testing.T) { // kills "a mode that syncs states", 05 §5.4 W5
+	for _, m := range []TrackerMode{"in", "in_and_comments"} {
+		if !ValidTrackerMode(m) {
+			t.Fatalf("%s refused", m)
+		}
+	}
+	for _, m := range []TrackerMode{"two_way", "states", "in_and_states", ""} {
+		if ValidTrackerMode(m) {
+			t.Fatalf("%s accepted", m)
+		}
+	}
+}
+
+func TestAWebhookURLMustBeHTTPS(t *testing.T) { // kills "plain-http delivery"
+	for _, u := range []string{"http://example.com/h", "https://user:pw@example.com/h", "ftp://x", "https:///nohost"} {
+		if ValidateCreateWebhook(CreateWebhookRequest{URL: u, Kinds: []string{"issue.created"}}, []string{"issue.created"}) == nil {
+			t.Fatalf("%s accepted", u)
+		}
+	}
+}
+
+func TestOnlyCreatedTypesCarryASecret(t *testing.T) { // kills "the secret listed again"
+	carriers := map[string]bool{"CreatedAPIKey": true, "CreatedWebhook": true, "CreatedHostHook": true}
+	for _, v := range w5Types() {
+		rt := reflect.TypeOf(v)
+		for i := 0; i < rt.NumField(); i++ {
+			if n := strings.ToLower(rt.Field(i).Name); strings.Contains(n, "secret") && n != "secretversion" && !carriers[rt.Name()] {
+				t.Fatalf("%s.%s holds a secret", rt.Name(), rt.Field(i).Name)
+			}
+		}
+	}
+}
+
+func TestNoW5TypePredicts(t *testing.T) { // kills "a prediction field", OD-27
+	banned := []string{"percent", "progress", "eta", "forecast", "remaining"}
+	for _, v := range w5Types() {
+		rt := reflect.TypeOf(v)
+		for i := 0; i < rt.NumField(); i++ {
+			tag := strings.ToLower(strings.Split(rt.Field(i).Tag.Get("json"), ",")[0])
+			for _, b := range banned {
+				if strings.Contains(tag, b) {
+					t.Fatalf("%s.%s (%q) reads as a prediction", rt.Name(), rt.Field(i).Name, tag)
+				}
+			}
+		}
+	}
+}
+
+func TestW5PrefixesAreDisjoint(t *testing.T) { // kills "prefix collision"
+	seen := map[string]bool{}
+	for _, p := range append(append(append([]string{}, hubPrefixes...), controlPlanePrefixes...),
+		append(append(phaseTPrefixes, WorkPrefixes...), append(WorkIntakePrefixes, "gd")...)...) {
+		if seen[p] {
+			t.Fatalf("prefix %q declared twice", p)
+		}
+		seen[p] = true
+	}
+}
+
+func TestImportBatchAcceptsW5Sources(t *testing.T) { // kills "SW.6 not extended"
+	for _, s := range []string{ImportSourceJira, ImportSourceAzureBoards, ImportSourceGitHub} {
+		if err := ValidateImportBatch(ImportBatch{Source: s, Items: []ImportItem{sampleImportItem()}}); err != nil {
+			t.Fatalf("%s: %v", s, err)
+		}
+	}
+}
+
+func TestEachW5CodeMapsToItsStatus(t *testing.T) { // kills "wrong status"
+	want := map[string]int{"request_closed": 409, "request_erased": 409, "form_field_required": 400,
+		"tracker_exists": 409, "principal_cannot_move_state": 403, "webhook_url_invalid": 422,
+		"webhook_not_found": 404, "app_not_approved": 403, "key_revoked": 401,
+		"connector_not_allowed": 403, "harness_not_allowed": 403, "loop_outside_grid": 403}
+	if !reflect.DeepEqual(want, WorkIntakeCodeStatus) {
+		t.Fatalf("got %v", WorkIntakeCodeStatus)
+	}
+}
+```
+
+`w5Types()` lists a zero value of every struct declared in `work_intake.go` (the adopted blocks
+included), and a companion test parses the file with `go/parser` and fails if a declared struct is
+missing from the list, so a new type cannot skip the two reflection tests. `hubPrefixes`,
+`controlPlanePrefixes` and `phaseTPrefixes` are task 02's test lists (`TestWorkPrefixesAreDisjoint`,
+**UNVERIFIED** names); `ErrBadEnvelope` wrapping means `ValidateCreateWebhook`'s URL failure
+still `errors.Is` the envelope error. Loop, key and manifest validation each get a table test of
+their refusals (a schedule with `eventKinds`, a key for 366 days, a manifest without `work.read`,
+a policy with a branch name for a commit).
+
+| Test | Mutant it kills |
+|---|---|
+| `TestW5RecordsRoundTripTheirGoldens` | a field renamed or retagged |
+| `TestAnAgentQuoteFailsValidation` | an agent-authored quote |
+| `TestTrackerModeHasNoStateMode` | a mode that syncs states |
+| `TestAWebhookURLMustBeHTTPS` | plain-http delivery; credentials in a URL |
+| `TestOnlyCreatedTypesCarryASecret` | the secret listed again |
+| `TestNoW5TypePredicts` | a prediction field (`OD-27`) |
+| `TestW5PrefixesAreDisjoint` | prefix collision |
+| `TestImportBatchAcceptsW5Sources` | SW.6 not extended |
+| `TestEachW5CodeMapsToItsStatus` | wrong status |
+| `var _ WorkIntake = (*Fake)(nil)` and the `Work` embed | `Work` without `WorkIntake`; a missing stub |
+
+#### Steps
+
+- [ ] **Step 1: sync-merge `feat/hub`** (the orchestrator's merge, rule H1) and read tasks 02-04,
+  15, 114 and 146-161 on the sync base. Take their merged names; a rename is a find-and-replace in
+  this part, never a new type. Re-check the prefixes against every list.
+- [ ] **Step 2: the tests first.** Write both test files and the twenty-four goldens (from the
+  blocks' own example JSON where a part gives one, `task-146.md:698` for a request); run
+  `go test ./control-plane/internal/hub/hubapi/ -run 'W5|Agent|Tracker|Webhook|Secret|Predicts' -count=1`
+  and see it fail to compile.
+- [ ] **Step 3: `work_intake.go`**: the adopted blocks in task order (146, 147, 148, 149, 153,
+  161), with decision 2's two lines removed, then the types above, validation and the status map.
+- [ ] **Step 4: `workids.go`, `work.go` and `codes.go` appends**; then `hubclient/work.go`, the
+  two stubs and the assertions.
+- [ ] **Step 5: run the acceptance commands**; commit each file by path, each message ending with
+  the `Co-Authored-By` line; announce SW.21 frozen to 144-173 in the skeleton's *Start lines*.
+
+#### Acceptance
+
+```bash
+go test ./control-plane/internal/hub/hubapi/ -count=1 -v -run 'W5|AgentQuote|TrackerMode|WebhookURL|Secret|Predicts|ImportBatch'
+# expect: --- PASS for the nine tests above; ok
+go test ./control-plane/internal/hub/hubclient/ -count=1
+# expect: ok (the assertions compile)
+go vet ./control-plane/internal/hub/...
+# expect: no output
+ls control-plane/internal/hub/hubapi/testdata/work-intake/*.json | wc -l
+# expect: 24
+grep -c "rq-\"\|fm-\"" control-plane/internal/hub/hubapi/work_intake.go
+# expect: 0 (decision 2's two lines are gone)
+```
+
+#### What this task does NOT claim
+
+- That the route table accepts these rows: task 168's end to end does.
+- That Entra issues the integration or app principals this names (**UNVERIFIED**, tasks 150, 159).
+- That Key Vault holds W5's secrets: the contract gives the Hub no Key Vault access in v1
+  (`hub-contract.md:2083-2085`); task 145 carries that as a proposed contract addition.
+- That the proposed routes are final: their route tasks may rename them.
+- Any parity row: this task carries the W5 rows 144-173 close.
+
+#### Gaps found while writing this part
+
+1. **Task 169's desktop mirror follows 143's scope, not the route owners** for `Request` (channel
+   `tracker`, `answers` as a list, `projectId`, `channelRef`), `IntakeRule` and `IntakeForm`;
+   tasks 146-148's Go differs, and decision 1 makes theirs win. Task 169's golden test will fail
+   until it re-mirrors; it should also add `UpstreamChange.to` and `SyncError.retryAt`.
+2. **Tasks 146 and 148 redeclare prefixes** (`task-146.md:191`, `task-148.md:120`); decision 2
+   deletes both lines, and those parts' *Files* lists should drop the `workids.go` touch.
+3. **Tasks 150, 154, 159, 160, 162, 163 and 166 have no part on this tree** (2026-09-26): their
+   types here mirror task 169's TS and their routes are proposed.
+4. **`IntakeSettings` has no `formId`** (`task-149.md:277-284`) though the scope's `IntakeAddress`
+   had one: a mail request cannot take a form's member or non-member defaults.
+5. **The skeleton's task-table row for 143** says *"the W5 wire types"* but the scope names
+   `HarnessAllow`, `TeamSkill`, `mc-` and `lr-`, all superseded here (decisions 4-6).
+
 
