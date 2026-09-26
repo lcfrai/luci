@@ -536,3 +536,64 @@ admin who is not a member (`O`) gets task 04's 404, as task 165's team rows do
 
 The `PUT` row sends a valid body, so `A`'s 200 is the write and not the 400. The body is not read
 before the membership check, so `O N X` see 404 whatever they send.
+
+#### Steps
+
+- [ ] **Step 1:** Confirm the sync base (rule H1): task 143's `TeamAgentPolicy`,
+  `ValidateTeamAgentPolicy` and `CodeHarnessNotAllowed`; task 144's fake map and `fieldProblem`;
+  task 145's `work_team_agent_policies`; task 161's `ConnectorFragment`. Bind the names marked
+  **UNVERIFIED** above (the backend double's `created()`, task 04's test principals). A table that
+  differs from what the store needs is raised against 145, not patched here.
+- [ ] **Step 2:** `harness_test.go` and `skills_test.go`; they fail to compile. Write `harness.go`
+  and `skills.go` until their nine rows pass. `fragment.go` and its three rows wait for TM-13
+  (`internal/policy` and `internal/fleet/model` do not exist on this branch): until Phase T
+  merges, the package holds the first two files only, and the task is not closed.
+- [ ] **Step 3:** The two codes in `httpx/problem.go` and its table. `sessions_policy_test.go`; it
+  fails. The `Deps` field, `AgentPolicySource`, `harnessPolicy` and the replaced step 2 of the
+  create handler, until the five rows pass and the existing `sessions_test.go` rows pass unchanged
+  (a nil `AgentPolicy` is the old behaviour, decision 5).
+- [ ] **Step 4:** The wire appends to `work_intake.go`. The Hub integration tests and the matrix
+  rows; they fail. `store/work_harness.go`, `server/work_harness.go` and the route registration
+  until green. Then the fake's two methods, and the W5-17 row changed to the 400 (gap 7).
+- [ ] **Step 5:** Once Phase T merges: `fragment.go` and its rows; the call to `Stage` in TM-15's
+  mount step with the returned commit on TM-14's agent-start record (decision 7, gap 6); the
+  `workpolicy.Allowed` check in Fleet's `worker spawn` (TM-24). Each is its own commit.
+- [ ] **Step 6:** `git diff -- go.work control-plane/go.mod` shows nothing (standard library
+  only); commit by pathspec.
+
+#### Acceptance
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/work
+go test ./control-plane/internal/workpolicy/ -race -count=1 -v 2>&1 | grep -c "^--- PASS"
+# expect: 9 before Phase T merges; 12 after (the three fragment rows)
+go test ./control-plane/internal/api/ -race -count=1 -v \
+  -run '^Test(AHarnessOffTheListIs403WithTheList|AnUnsetPolicyAllowsClaudeCodeOnly|NoHarnessNamedGetsTheTeamsFirst|TheHubDownRefusesTheSession|AnUnboundProjectIsNotGated)$' \
+  2>&1 | grep -c "^--- PASS"
+# expect: 5
+go test ./control-plane/internal/api/ ./control-plane/internal/httpx/ ./control-plane/internal/harness/ -race -count=1
+# expect: ok for each; the existing session and argv tests unchanged
+go test -tags integration ./control-plane/internal/hub/store/ ./control-plane/internal/hub/server/ -race -count=1 \
+  -run 'AgentPolicy|UnsetTeam|UnknownHarness|BranchRef|RepoCredential|NoOpPut|PoliciesAreTheTeams|OrderIsStored|Matrix'
+# expect: ok for both packages, no FAIL line
+go list -deps ./control-plane/internal/workpolicy | grep -c "internal/hub/\(server\|store\)"
+# expect: 0 (the control plane's gate never links the Hub's server)
+git diff --stat -- go.work control-plane/go.mod
+# expect: no output
+```
+
+#### What this task does NOT claim
+
+- **That any harness but Claude Code runs.** The allow-list names catalogue ids; `codex`,
+  `opencode` and `gemini-cli` are `Available() == false` on this tree until their flags are
+  verified (`harness.go:96`, the unverified note at `:130`). Allowing one does not install it.
+- **That `.claude/skills` is where the pinned CLI reads user skills** (gap 5), or that a staged
+  skill is loaded: the canary test that proves it is phase 8's image work.
+- **That the gate reaches Fleet or team agents.** `worker spawn` and managed sessions go through
+  TM-24 and TM-15, wired in step 5 only once Phase T merges (**UNVERIFIED** until then).
+- **That a managed-settings key pins MCP servers** at the pinned CLI (task 161's gap 8), or that
+  Orchestrators use connectors: TM-13's I8 allows them `Bash(panacea *)` and `Read` only.
+- **The desktop surface** (task 173) or the relay row (task 168).
+
+**Parity rows served:** **L-159** and **L-180** closed; **L-197** and **L-256** with tasks 161
+and 173.
