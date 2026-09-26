@@ -40,13 +40,16 @@ ingress; a secret crosses the relay once and is never in its log.
    (`task-146.md:289-292`; `IssueRef` is id, number and external id, `task-03.md:399-403`), so
    there is nothing to re-hash here. The accepted issue's revision 1 is checked when it is read,
    by W1's `Issue` (task 16's `checked`, `task-16.md:226-240`).
-6. **The relay copies bytes and logs no body.** A `201 CreatedAPIKey` or `CreatedWebhook` holds
-   its secret once (`task-143.md:353-356`, `:444-447`). The relay writes the Hub's bytes through
-   and logs method, pattern, status and duration only. `hubclient.Error` passes through with the
-   Hub's status, code and details unchanged (hub-contract §4.3).
+6. **The relay logs no body.** A `201 CreatedAPIKey` or `CreatedWebhook` holds its secret once
+   (`task-143.md:353-356`, `:444-447`). Task 16's `relayWork` re-encodes the typed answer with
+   `httpx.WriteJSON` and logs only through `hubclient.WriteError` on a failure
+   (`task-16.md:537-562`); nothing here adds a log line with a value in it. `hubclient.Error`
+   passes through with the Hub's status, code and details unchanged (hub-contract §4.3).
 7. **The local caller key never leaves the machine** (hub-contract §9.4). The relay's Hub call is
    `hubclient`'s, with the person's Entra token (H33); no header of the incoming request is
-   copied except `Idempotency-Key` on a `Created` row.
+   copied. The one exception is the desktop's `Idempotency-Key`, carried into H33's transport
+   through the context (`hubclient.WithIdempotencyKey`, a name **UNVERIFIED** in H33, gap 6), so a
+   desktop retry of one op is the Hub's replay and not a second write.
 8. **The end to end uses the fakes, never a real host.** `devissuer` for every token, and a mail
    fake, a host fake, a Teams fake and an ingestion fake (167's `httptest` endpoint). The sync
    principal has no token (decision 4), so `WorkEnv.Integration` binds an in-process client over
@@ -445,7 +448,8 @@ func (c *Client) PutTeamAgentPolicy(ctx context.Context, teamID string, p hubapi
 }
 ```
 
-`ListAPIKeys` returns the first page only: task 143's signature takes no page and task 160's
-default limit is the whole list for a person (at most 10 live keys, `task-160.md:381`); a team's
-25 fit too (`:385`). `RunLoopNow`'s body is `{}` here; task 163's `{requestId}` body is the
+`ListAPIKeys` returns the first page only, because task 143's signature takes no page. A person
+has at most 10 live keys and a team 25 (`task-160.md:381`, `:385`), but revoked and expired keys
+are listed too (`:391`), and task 160's default `limit` is not stated: whether one page holds them
+all is **UNVERIFIED** (gap 5). `RunLoopNow`'s body is `{}` here; task 163's `{requestId}` body is the
 desktop's (169), which the relay forwards as sent.
