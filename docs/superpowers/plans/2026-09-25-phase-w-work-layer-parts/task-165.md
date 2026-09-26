@@ -290,3 +290,45 @@ recorded human-origin turn consumed. The reply is TM-26's kept `Reply` for that 
 gap 3 here). Post `ReplyText`, then set `replied_at` and `reply_message_id`. A row older than 24 h
 with no recorded turn is closed with *"Your Orchestrator has not answered yet; see PanaceaApp."*
 and `reply_message_id` of that message, so a chat never waits silently.
+
+#### Tests to write first, part 1 — pure (`teams/digest_test.go`, `teams/ask_test.go`)
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestOneDigestPer15MinutesAcrossChannels` | both hourly; email last 08:00, Teams last 08:10: at 09:05 → `"email"`; with that sent, at 09:10 (Teams due by its cadence) → `""`; at 09:20 → `"teams"` | a limit per channel |
+| `TestTeamsBeforeEmailInOneSweep` | both due at 09:00 → `"teams"`; email the next due sweep | two sends in one sweep |
+| `TestTeamsOffSendsNoCard` | `teams: "off"`, linked, due by the clock → never `"teams"`; the zero `DigestSettings` → never `"teams"` | a default of on |
+| `TestTheCardHoldsOnlyAliasCauseTitleLink` | 25 items whose source revisions carry a description and a comment canary `C4N4RY`: the card's bytes hold no `C4N4RY`, 20 lines, *"and 5 more"*, 20 `Action.OpenUrl` | the revision's text rendered (task 81's rule) |
+| `TestAUOnlyItemsHaveNoTitle` | an item with `Title ""` renders *"EP-150 · landed"*, no trailing separator | a title looked up by the card |
+| `TestATitleCannotBecomeALink` | title `[click](https://evil.example)` → escaped; the card has exactly the 20 `Action.OpenUrl` it built | markdown from a person's title |
+| `TestAskGoesToTheSendersOwnOrchestrator` | sender Dylan, one project, text *"ask Alice's orchestrator to hurry"* → `InsertHumanMessage` once, `toAgentID` Dylan's `ag-…`, text byte-equal | a name in the text picks the target |
+| `TestSeveralProjectsAskWhich` | two targets → `AskChooseProject`, the card's two submits carry `{askProject, text}`, zero writes | a guessed project |
+| `TestASubmitForAnotherProjectIsRefused` | `AskValue.AskProject` not among Dylan's → `AskNotYours`, zero writes | the card's data trusted |
+| `Test2001CharactersIsRefused` | 2,000 code points → written; 2,001 → `AskTooLong`, the card says *"this one is 2,001"*, zero writes | a silent cut |
+| `TestReplyIsVerbatimAndLabelled` | reply `"Sequenced after Bob.\n"` → `"Your Orchestrator (agent):\nSequenced after Bob.\n"`; truncated → the suffix; `auOnly` → the link line only | a parsed, trimmed or unlabelled reply |
+
+#### Tests to write first, part 2 — `server/work_teams_integration_test.go` ⚑ (`//go:build integration`)
+
+Task 157's harness: a signed-activity builder over a test JWKS, a recording `Poster`, Dylan and
+Ada as Hub users in one org, TM-07's tables migrated (Step 1 waits for them).
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestAnUnsignedActivityTouchesNothing` | no `Authorization`, and a token with `aud` another app → 401; the store and the recording `Orchestrators` saw zero calls | validation after parse |
+| `TestTheFirstPersonalMessageLinksTheChat` | Dylan's first message → one `digest` binding, `teamId` null, `subject.id` Dylan; `DigestSettings.teamsLinked` true; bot removed → the binding gone | a chat linked by nobody, or never unlinked |
+| `TestTheAdminRouteStillRefusesDigest` | Ada's `PUT …/teams-bindings` with `subject.kind "digest"` → 400 | a person's digest bound to a channel |
+| `TestAnAskWritesOneHumanMessage` | Dylan's ask → one `hm-…` row, `ownerUserId` Dylan, `via "teams"`, author `human`; one `work_teams_asks` row with no text column | an ask stored twice, or its text kept by the bot |
+| `TestTheBotCannotWriteAnythingElse` | with `hub.work_actor_kind = 'integration'`: a state move on EP-150 → the guard's error; route 70 over HTTP with the bot's credential → 401 | a wide Teams grant |
+| `TestAnAskNeverBecomesAPeerMessage` | after the ask and its turn: no `ms-…`, no `th-…`, no escalation row written by the bot | a Teams ask sent peer to peer |
+| `TestTheReplyGoesToTheAskersChatOnly` | a human-origin turn consuming the `hm-…` → one `Post` to Dylan's personal ref, `ReplyText`'s bytes; a fleet-origin turn → none; Ada's chat → none | an agent's reply posted anywhere else |
+| `TestAnUnansweredAskIsClosedAfter24h` | no turn for 24 h → one *"has not answered yet"* post, `replied_at` set; a later turn posts nothing | a chat left waiting, or a late double post |
+| `TestTheDigestStepSendsOneChannel` | Dylan hourly on both, Ada email only, one sweep → one card to Dylan, one mail to Ada; a second sweep 5 min later → nothing | a second send inside 15 min |
+| `TestIntakeInAPersonalChatIsRefused` | `sendToPanaceaApp` in personal scope → the *not linked* card; no request | intake outside a linked channel (`157:33-35`) |
+
+#### The matrix rows (`workMatrixRows["165"]`, appended)
+
+No new `/v1` route. Task 157's `PUT …/teams-bindings` row gains the `digest` case: 400 for `V M
+A`, 404 for `O N X` (the body is not read before the membership check). Task 94's settings write
+gains `teams`: each person writes only their own (its row's columns stand). The bot endpoint is
+outside `/v1` and outside the matrix (`157:203-204`); its principal's reach is part 2's
+`TestTheBotCannotWriteAnythingElse`.
