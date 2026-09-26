@@ -262,3 +262,25 @@ Line numbers are as of commit `b448221`. Commits: `dc8f57e` (task 08), `42e00bb`
 - **Restatements elsewhere.** Only the interface lines were changed: `task-17.md:41-42`, `task-19.md:35`, `task-21.md:28`, `task-23.md:11`, `task-25.md:80-81` and `:109`. Descriptive "task 08's X" and "task 15's X" references are unchanged, because they still resolve to the part files, which hold both halves.
 
 **I-1 (Important): wave 6 ran task 19 beside its dependency 12.** Fixed. Rather than moving one number, the waves were recomputed from the task table (`:191`, "recomputed from the table above"). Task 19 is in wave 7 (`:199`), after 12 in wave 6 (`:198`) and before 24 in wave 8 (`:200`). The summary `:265` says so. The recomputation also moved 21 to wave 6 and 22 to wave 7, and put 08a in wave 3, 15a in wave 4, and 08b and 15b in wave 5.
+
+## Fix batch b04, round 2 (re-review `plan-rereview-b04-1.md`), 2026-09-26
+
+Line numbers are as of commit `e254c44`. Commits: `780663c` (B04-1), `e254c44` (B04-2, B04-3 and two of the re-review's notes).
+
+**B04-1 (Important): task 21's by-hand acceptance needed task 17's stack, a wave later.** Fixed by the re-review's root-cause option. 21's acceptance 3 moved into task 23, which already waits on 21 (through 22) and on 17 (through 18). The alternative, adding 17 to 21's dependencies, would have made the path 26 h, so it was not taken. The table, the waves, the 23 h critical path, the 4.5 h slack on 21 → 22 and the claim that the real client and keysmith "first meet in task 23" all stand unchanged.
+- `task-21.md:1010`: the acceptance now says no by-hand run is in this task, and why. Its steps 9 and 10 are its whole proof.
+- `task-23.md:72-76` (step 4): the unclassified `GET` expects `"effectiveRoute":null`, `"gateway":"on"` and `"usageState":"ok"`. That is 15a's client reading keysmith's `/v1/usage` for the first time.
+- `task-23.md:108-111` (step 6): the `PATCH` back to `global` is expected to be `needs_compliance`, and P1 is still `au` afterwards. Item 3's criterion (`:114`) and its record row (`:273`) name the refusal. The new unnumbered row `:281` records step 4.
+- `task-23.md:11`: "Consumes" names 21's routes and its moved acceptance.
+- Skeleton `:271` (21's summary) and `:277` (23's item 3) say the same.
+- Restatement, found by grep: `task-21.md:1016` and `:1017` cited "task 23 step 3" for the raise. The raise is step 6, so both now say step 6.
+
+**B04-2 (Minor): stale citation.** Fixed. `task-15.md:1781` now cites `task-08.md:35`, the usage row.
+
+**B04-3 (Minor): preflight read a test through a pipe.** Fixed. `task-08.md:101` now redirects to `/tmp/ks-08a.txt` and prints `08a exit $?` (expect 0). The stop rule at `:104` names a non-zero exit.
+
+**Re-review notes (pre-existing), two fixed and one left:**
+- Duplicate gap 7 in task 08. The second one is now gap 8 (`task-08.md:2134`), and task 07's two citations of it follow (`task-07.md:43`, `:1326`). The first gap 7 (`:2133`) keeps its number, so round 1's map above still resolves.
+- Skeleton said a missing master key "exits 1". It now says `2`, phase 2's status for a configuration refusal (`:235`). Task 08's decision (a) (`:56`) and gap 2 (`:2128`) say the conflict is resolved.
+- `task-19.md:35` uses task 17's image paths without depending on 17. Left as is: it uses names only, no digests, and 19 and 17 now share wave 7, so it does not block scheduling.
+- Still unverified: no phase 6 code exists, so every test and mutant count is a plan figure.
