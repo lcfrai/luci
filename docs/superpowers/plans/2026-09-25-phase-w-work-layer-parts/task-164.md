@@ -311,3 +311,74 @@ downloads to the agent's temp directory, and compares SHA-256 before `chmod 755`
 the step and runs nothing. That `tl.getVariable` returns a secret variable to a task, and that
 `execAsync` takes `env`, are the library's documented behaviour as remembered, **UNVERIFIED**
 against its current release (Step 5 checks).
+
+#### The GitHub Action — `integrations/github-action/action.yml` (complete)
+
+```yaml
+name: Panacea release
+description: Record the release this workflow made on the Panacea thread.
+inputs:
+  project:         { description: "Panacea project id (pj-…)", required: true }
+  environment:     { description: "Environment name", required: true }
+  panacea-project: { description: "Deploy project name", required: true }
+  hub-url:         { description: "Hub URL", required: true }
+  api-key:         { description: "The pak_ key; pass a secret, never a literal", required: true }
+  brief:           { description: "Brief id (bf-…)", required: false, default: "" }
+outputs:
+  release-id: { description: "The confirmed release", value: "${{ steps.rel.outputs.release_id }}" }
+runs:
+  using: composite
+  steps:
+    - id: rel
+      shell: bash
+      env:
+        PANACEA_HUB_URL: ${{ inputs.hub-url }}
+        PANACEA_API_KEY: ${{ inputs.api-key }}
+        PIN_VERSION: "<set at Step 5>"
+        PIN_BASE: "<the artefact host, gap 5>"
+        PIN_SHA256_LINUX_X64: "<hex>"
+        PIN_SHA256_LINUX_ARM64: "<hex>"
+        PIN_SHA256_WIN32_X64: "<hex>"
+        IN_PROJECT: ${{ inputs.project }}
+        IN_ENV: ${{ inputs.environment }}
+        IN_PPROJ: ${{ inputs.panacea-project }}
+        IN_BRIEF: ${{ inputs.brief }}
+      run: bash "$GITHUB_ACTION_PATH/run.sh"
+```
+
+Inputs reach the script only as environment variables, never interpolated into the `run:` text,
+so a crafted input cannot become shell. `run.sh` (in the same directory; one more file than the
+scope lists, gap 6) picks the asset for `$RUNNER_OS`-`$RUNNER_ARCH`, downloads it, compares
+`sha256sum` to the pin and exits 1 on a mismatch, then runs `create --source gh --pipeline-run
+"$GITHUB_RUN_ID" --run-attempt "$GITHUB_RUN_ATTEMPT" --commit "$GITHUB_SHA"`, `--branch "$GITHUB_REF"`
+only when it begins `refs/heads/`, `--format env >> "$GITHUB_OUTPUT"`, and exits with the CLI's code.
+
+#### Tests to write first (`control-plane/cmd/panacea-release/`, against an `httptest` Hub)
+
+The fake Hub records every request and **fails the test on any method and path outside the three**
+(`GET …/freezes`, route 35, route 38). `Sleep` is a recorder, so retry tests take no wall time. The fake is `httptest.NewTLSServer`, its
+`Client()` passed as `Config.Client`, so no test needs the loopback escape.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestReserveThenConfirmInOrder` | freezes, reserve, confirm, in that order; exit 0; stdout's `releaseId` is the reserved id | confirm skipped, so the reservation expires |
+| `TestAForbiddenIsExitThreeWithNoRetry` | reserve → 403 `forbidden`: exit 3, one reserve request, `Sleep` never called | a refusal retried |
+| `TestADroppedConnectionRetriesWithTheSameKey` | the first reserve's connection is hijacked and closed; the second answers 201 → two requests, one `Idempotency-Key`, `Sleep(1s)` once | a second reservation under a new key |
+| `TestAStageRerunReplaysTheRelease` | two `Create` calls, fresh clients, same args → both send `rs-<h>` then `cf-<h>`; the fake replays with `Idempotent-Replay: true`; one release | a random key per process |
+| `TestAFrozenEnvironmentExitsThreeAndNamesWho` | freezes lists `production` by Ada at 09:12 → exit 3, stderr *"production is frozen by Ada Admin since 09:12 · release train"*, no reserve | the freeze swallowed as exit 1, or read after the reserve |
+| `TestNoFreezeRouteIsNotAFreeze` | freezes → 404 `not_found` → one stderr line, then reserve; 404 `project_not_found` → exit 3 | a missing project read as *not frozen* |
+| `TestTheKeyNeverAppears` | with `--verbose`, over a 201, a 403 and an unreachable run: stdout, stderr and every error string hold no substring of the key | the key echoed under `--verbose` |
+| `TestAnUnderscoreRunIsRefused` | `--pipeline-run Build_42` → exit 2, zero requests | a silent rewrite |
+| `TestTwoEnvironmentsAreTwoRuns` | build 4242 to `staging` then `production` → `ado-4242.staging`, `ado-4242.production` | one run id, so the second is 409 `conflict` |
+| `TestTheBodyHasNoIssues` | the reserve body's keys are exactly route 35's eight | an issue list, or a state move, from CI |
+| `TestUnreachableIsExitFour` | every attempt refused → five requests, `Sleep` 1, 2, 4, 8 s; exit 4 | endless retries, or exit 3 on an outage |
+| `TestRetryAfterIsHonoured` | 429 with `Retry-After: 12` → `Sleep(12s)`; `Retry-After: 90` → `Sleep(30s)` | the header ignored, or unbounded |
+| `TestAnExpiredConfirmIsExitThree` | confirm → 409 `release_expired` → exit 3, the code on stderr | an expired reservation reported confirmed |
+| `TestPlainHTTPIsRefused` | `PANACEA_HUB_URL=http://hub.example.test` → exit 2, zero requests | the key sent in clear |
+
+`wrappers_test.go` (pure file reads, no network): `TestTaskJSONParsesAndTargetsIndexJS` (kills a
+`task.json` typo), `TestActionNamesEveryDocumentedInput` (each backticked input in `README.md`'s
+inputs table is a key under `inputs:`, both ways; kills a drifted README), `TestKeyIsNeverAPlainInput`
+(`task.json` has no input named like `key` other than `apiKeyVariable`; `action.yml`'s `run:` text
+holds no `${{ inputs.`; kills a key in a pipeline log and an injectable step) and
+`TestBothWrappersPinOneVersion` (kills one wrapper left on an old binary).
