@@ -61,13 +61,21 @@ func isTestFile(srcDir, p string) bool {
 // skipped: package.json "imports" can map it to any package, so it stays a
 // name, finds nothing installed, and fails "not installed" (fail closed; no
 // shipped file uses one today).
+//
+// A URL ("https://…", "data:…") names no package, but it loads at run time,
+// where no gate checks it ("https://esm.sh/tldraw" would ship tldraw), so it
+// is kept whole, and NpmDeps fails it with a why that says so (fix round 1,
+// review M4: it failed as the package "https:", "not installed").
 func packageName(spec string) (string, bool) {
-	s, _, _ := strings.Cut(spec, "?")
 	for _, p := range []string{".", "/", "node:", "virtual:", "\x00"} {
-		if strings.HasPrefix(s, p) {
+		if strings.HasPrefix(spec, p) {
 			return "", false
 		}
 	}
+	if isURLSpec(spec) {
+		return spec, true
+	}
+	s, _, _ := strings.Cut(spec, "?")
 	if s == "" {
 		return "", false
 	}
@@ -79,6 +87,27 @@ func packageName(spec string) (string, bool) {
 		return parts[0] + "/" + parts[1], true
 	}
 	return parts[0], true
+}
+
+// urlScheme is an RFC 3986 scheme of two or more characters and its colon
+// (one letter is a Windows drive). No npm package name holds a colon.
+var urlScheme = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9+.-]+:`)
+
+func isURLSpec(spec string) bool { return urlScheme.MatchString(spec) }
+
+// cssRelative is Vite's css resolver on a bare @import specifier (vite
+// 8.3.0: extensions [".css"], tryIndex false, preferRelative true;
+// desktop/node_modules/vite/dist/node/chunks/node.js:29701-29707): the file
+// beside the stylesheet, as written or with ".css", before any package.
+func cssRelative(file, spec string) (string, bool) {
+	s, _, _ := strings.Cut(spec, "?")
+	base := filepath.Join(filepath.Dir(file), filepath.FromSlash(s))
+	for _, t := range []string{base, base + ".css"} {
+		if fi, err := os.Stat(t); err == nil && !fi.IsDir() {
+			return filepath.Clean(t), true
+		}
+	}
+	return "", false
 }
 
 // resolveRelative finds the file a relative specifier from file names, the
@@ -211,7 +240,7 @@ func ShippedImports(dir, srcDir string, run Runner) (map[string]string, error) {
 		}
 		for i := 0; i < len(scripts); i += helperBatch {
 			batch := scripts[i:min(i+helperBatch, len(scripts))]
-			out, err := run(dir, "node", append([]string{helper.Name(), dir}, batch...)...)
+			out, err := run(dir, nil, "node", append([]string{helper.Name(), dir}, batch...)...)
 			if err != nil {
 				return nil, fmt.Errorf("imports.cjs in %s: %w", dir, err)
 			}
@@ -235,8 +264,14 @@ func ShippedImports(dir, srcDir string, run Runner) (map[string]string, error) {
 		}
 		sort.SliceStable(specs, func(i, j int) bool { return specs[i].File < specs[j].File })
 		for _, s := range specs {
-			if strings.HasPrefix(s.Specifier, ".") {
-				t, ok := resolveRelative(s.File, s.Specifier)
+			t, ok := "", false
+			switch {
+			case strings.HasPrefix(s.Specifier, "."):
+				t, ok = resolveRelative(s.File, s.Specifier)
+			case isCSS(s.File) && !isURLSpec(s.Specifier):
+				t, ok = cssRelative(s.File, s.Specifier)
+			}
+			if ok || strings.HasPrefix(s.Specifier, ".") {
 				if ok && !walked[t] && within(dir, t) && (isScript(t) || isCSS(t)) {
 					walked[t] = true
 					queue = append(queue, t)

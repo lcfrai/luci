@@ -60,7 +60,7 @@ func CargoDeps(root, dir string, run Runner) (deps []Dep, notScanned string, err
 		}
 		return nil, e.Error(), nil
 	}
-	out, err := run(dir, "cargo", "metadata", "--offline", "--locked", "--format-version", "1",
+	out, err := run(dir, nil, "cargo", "metadata", "--offline", "--locked", "--format-version", "1",
 		"--filter-platform", "x86_64-pc-windows-msvc")
 	if err != nil {
 		return fail(fmt.Errorf("cargo metadata in %s: %w", dir, err))

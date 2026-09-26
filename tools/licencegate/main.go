@@ -32,10 +32,14 @@ func exitCode(fs []Finding) int {
 	return 0
 }
 
-// execRunner runs name in dir and returns stdout; stderr goes in the error.
-func execRunner(dir, name string, args ...string) ([]byte, error) {
+// execRunner runs name in dir, with env set over the process's own
+// environment, and returns stdout; stderr goes in the error.
+func execRunner(dir string, env []string, name string, args ...string) ([]byte, error) {
 	cmd := exec.Command(name, args...)
 	cmd.Dir = dir
+	if len(env) > 0 {
+		cmd.Env = append(os.Environ(), env...) // a later NAME= wins (os/exec dedupes, keeping the last)
+	}
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()

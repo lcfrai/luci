@@ -173,7 +173,7 @@ func mustEvaluate(t *testing.T, deps []Dep) []Finding {
 }
 
 func cargoRunner(out []byte, err error, calls *[]string) Runner {
-	return func(dir, name string, args ...string) ([]byte, error) {
+	return func(dir string, _ []string, name string, args ...string) ([]byte, error) {
 		*calls = append(*calls, dir+" "+name+" "+strings.Join(args, " "))
 		if name != "cargo" || !reflect.DeepEqual(args, cargoArgs) {
 			return nil, errors.New("unexpected command " + name + " " + strings.Join(args, " "))

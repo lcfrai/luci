@@ -20,7 +20,7 @@ type fakeRepo struct {
 	npm             map[string][]byte
 }
 
-func (f *fakeRepo) run(dir, name string, args ...string) ([]byte, error) {
+func (f *fakeRepo) run(dir string, _ []string, name string, args ...string) ([]byte, error) {
 	switch name {
 	case "go":
 		return f.goOut, f.goErr
@@ -158,6 +158,21 @@ func TestMain_repoWithMPL(t *testing.T) {
 	code := run([]string{"-root", filepath.Join("testdata", "repo-with-mpl")}, &out, &errOut, execRunner)
 	if code != 1 || !strings.Contains(out.String(), "FAIL npm mpl-fixture 1.0.0 MPL-2.0 — ") {
 		t.Fatalf("exit %d, want 1 with the MPL fixture named\nstdout:\n%s\nstderr:\n%s", code, out.String(), errOut.String())
+	}
+}
+
+// TestExecRunner_env: the real runner sets env over the process's own, the
+// later value winning, or GoDeps's targets would all list the host's
+// platform (fix round 1, review I2). go is on PATH wherever go test runs.
+func TestExecRunner_env(t *testing.T) {
+	t.Setenv("GOOS", "linux") // the host's own value, which env must override
+	t.Setenv("GOARCH", "amd64")
+	out, err := execRunner(t.TempDir(), []string{"GOOS=plan9", "GOARCH=arm"}, "go", "env", "GOOS", "GOARCH")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Fields(string(out)); len(got) != 2 || got[0] != "plan9" || got[1] != "arm" {
+		t.Errorf("go env GOOS GOARCH under GOOS=plan9 GOARCH=arm printed %q", out)
 	}
 }
 

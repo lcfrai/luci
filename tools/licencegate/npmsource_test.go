@@ -22,7 +22,7 @@ func npmRunner(base string, prod, all []byte, node Runner, calls *[][]string) Ru
 	sub := func(b []byte) []byte {
 		return []byte(strings.ReplaceAll(string(b), "@ROOT@", filepath.ToSlash(base)))
 	}
-	return func(dir, name string, args ...string) ([]byte, error) {
+	return func(dir string, env []string, name string, args ...string) ([]byte, error) {
 		switch {
 		case name == "npm" && reflect.DeepEqual(args, lsProd):
 			*calls = append(*calls, args)
@@ -31,7 +31,7 @@ func npmRunner(base string, prod, all []byte, node Runner, calls *[][]string) Ru
 			*calls = append(*calls, args)
 			return sub(all), nil
 		case name == "node" && node != nil:
-			return node(dir, name, args...)
+			return node(dir, env, name, args...)
 		}
 		return nil, errors.New("unexpected command " + name + " " + strings.Join(args, " "))
 	}

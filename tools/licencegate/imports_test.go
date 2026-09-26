@@ -22,7 +22,7 @@ type importRec struct {
 // each file from byFile (keyed by the path under dir, slash form) and records
 // every file it was asked about.
 func helperRunner(t *testing.T, byFile map[string][]importRec, asked *[]string) Runner {
-	return func(dir, name string, args ...string) ([]byte, error) {
+	return func(dir string, _ []string, name string, args ...string) ([]byte, error) {
 		if name != "node" || len(args) < 3 || !strings.HasSuffix(args[0], ".cjs") {
 			return nil, errors.New("unexpected command " + name)
 		}
@@ -129,9 +129,9 @@ func TestShippedImports_batches(t *testing.T) {
 	var asked []string
 	var perCall []int
 	inner := helperRunner(t, files, &asked)
-	run := func(d, name string, args ...string) ([]byte, error) {
+	run := func(d string, env []string, name string, args ...string) ([]byte, error) {
 		perCall = append(perCall, len(args)-2)
-		return inner(d, name, args...)
+		return inner(d, env, name, args...)
 	}
 	got, err := ShippedImports(dir, filepath.Join(dir, "src"), run)
 	if err != nil {
@@ -153,10 +153,43 @@ func TestShippedImports_batches(t *testing.T) {
 	}
 }
 
+// TestShippedImports_cssAndURLForms is fix round 1, review M4. Vite resolves
+// a CSS @import relative first (its css resolver: extensions [".css"],
+// tryIndex false, preferRelative true; vite 8.3.0,
+// desktop/node_modules/vite/dist/node/chunks/node.js:29701-29707, read
+// 2026-09-26), so a bare "theme.css" beside theme.css is that file, walked,
+// and never a package. A URL names no package but loads at run time, where
+// no gate checks it ("https://esm.sh/tldraw" would ship tldraw), so it stays
+// a name, whole, and NpmDeps fails it with a why that says so.
+func TestShippedImports_cssAndURLForms(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "src", "a.css"), []byte(
+		"@import url(https://fonts.example.com/css2?family=Inter);\n@import \"theme.css\";\n@import \"tokens\";\n@import \"pkgcss/x.css\";\n@import \"test/helper.css\";\n"))
+	writeFile(t, filepath.Join(dir, "src", "theme.css"), []byte("@import \"deeppkg\";\n"))
+	// Under src/test/, so walked only because a.css imports it.
+	writeFile(t, filepath.Join(dir, "src", "test", "helper.css"), []byte("@import \"helperpkg\";\n"))
+	writeFile(t, filepath.Join(dir, "src", "tokens.css"), []byte("@import \"tokpkg/t.css\";\n"))
+	writeFile(t, filepath.Join(dir, "src", "remote.ts"), []byte("// fixture\n"))
+	files := map[string][]importRec{"src/remote.ts": spec("https://esm.sh/tldraw@3.0.0", "react")}
+	var asked []string
+	got, err := ShippedImports(dir, filepath.Join(dir, "src"), helperRunner(t, files, &asked))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]string{
+		"https://fonts.example.com/css2?family=Inter": "src/a.css",
+		"pkgcss": "src/a.css", "deeppkg": "src/theme.css", "tokpkg": "src/tokens.css", "helperpkg": "src/test/helper.css",
+		"https://esm.sh/tldraw@3.0.0": "src/remote.ts", "react": "src/remote.ts",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("ShippedImports =\n  %v\nwant\n  %v", got, want)
+	}
+}
+
 func TestShippedImports_helperErrorIsAnError(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, filepath.Join(dir, "src", "a.ts"), []byte("import x from 'x'\n"))
-	fail := func(string, string, ...string) ([]byte, error) { return nil, errors.New("node: not found") }
+	fail := func(string, []string, string, ...string) ([]byte, error) { return nil, errors.New("node: not found") }
 	if _, err := ShippedImports(dir, filepath.Join(dir, "src"), fail); err == nil {
 		t.Fatal("ShippedImports swallowed a failed helper")
 	}

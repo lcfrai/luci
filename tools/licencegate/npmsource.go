@@ -119,7 +119,7 @@ func (g npmGraph) add(name string, e *lsEntry, r npmRestorer) (string, error) {
 // lsGraph runs one npm ls and returns its graph and the root's key; r
 // restores the paths npm redacted.
 func lsGraph(dir string, run Runner, r npmRestorer, args ...string) (npmGraph, string, error) {
-	out, err := run(dir, "npm", args...)
+	out, err := run(dir, nil, "npm", args...)
 	if err != nil {
 		return nil, "", fmt.Errorf("npm %s in %s: %w", strings.Join(args, " "), dir, err)
 	}
@@ -350,6 +350,11 @@ func NpmDeps(root, dir, from string, scanned []string, run Runner) ([]Dep, error
 	sort.Strings(names)
 	for _, name := range names {
 		via := "imported by " + from + "/" + imports[name]
+		if isURLSpec(name) {
+			missing = append(missing, Dep{Ecosystem: Npm, Name: name, Source: "none", Enforced: true,
+				Via: via, From: from, Broken: true, Why: via + " from a URL, which loads at run time where no licence gate checks it: install it as a package"})
+			continue
+		}
 		p := filepath.Join(dir, "node_modules", filepath.FromSlash(name))
 		key, cerr := canon(p)
 		if cerr != nil || all[key] == nil {

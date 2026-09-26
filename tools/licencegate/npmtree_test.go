@@ -293,6 +293,27 @@ func TestNpmDeps_redactedPath(t *testing.T) {
 	})
 }
 
+// TestNpmDeps_urlImportFails is fix round 1, review M4: a URL import loads at
+// run time, so it fails, and its why says a URL, not a missing package.
+func TestNpmDeps_urlImportFails(t *testing.T) {
+	base := t.TempDir()
+	p := newProject(t, filepath.Join(base, "desktop"))
+	tree := p.write(nil)
+	writeFile(t, filepath.Join(p.dir, "src", "remote.ts"), []byte("// fixture\n"))
+	files := map[string][]importRec{"src/remote.ts": spec("https://esm.sh/tldraw@3.0.0")}
+	var asked []string
+	var calls [][]string
+	deps, err := NpmDeps(base, p.dir, "desktop", []string{p.dir}, npmRunner(base, tree, tree, helperRunner(t, files, &asked), &calls))
+	if err != nil {
+		t.Fatal(err)
+	}
+	f, ok := verdicts(t, deps)["https://esm.sh/tldraw@3.0.0@"]
+	const why = "imported by desktop/src/remote.ts from a URL, which loads at run time where no licence gate checks it: install it as a package"
+	if !ok || f.Verdict != Fail || f.Why != why {
+		t.Errorf("the URL import = %+v, %v: want fail, %q", f, ok, why)
+	}
+}
+
 // TestNpmDeps_readsEachCopyAtItsPath is hole 4: nodes are keyed by path.
 func TestNpmDeps_readsEachCopyAtItsPath(t *testing.T) {
 	base := t.TempDir()

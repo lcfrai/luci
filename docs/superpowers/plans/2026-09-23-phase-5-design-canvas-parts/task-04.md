@@ -172,7 +172,18 @@ type Dep struct {
 	Enforced  bool
 	Via       string // why enforced: "production", or "imported by desktop/src/x.tsx"; "" when reported
 	From      string // "canvas", "control-plane", "sandboxd", "desktop", "canvas/editor", "desktop/src-tauri"
+	// Why, when set by a source, is the sentence a failing verdict carries
+	// instead of the licence's (a Go module with no licence file, an npm link
+	// that is not a scanned project, an imported name that is not installed,
+	// a crate's chain to the root). It never turns a fail into a pass.
+	Why string
+	// Broken, when set by a source, fails the dep whatever it declares: a
+	// structural fault, not a licence (a link into -root that is not a
+	// scanned project; an import with nothing installed).
+	Broken bool
 }
+// As built (task 04; declared by fix round 1, review M1): Why and Broken
+// were added by the build and are shown here as gate.go has them.
 
 type Verdict string
 
@@ -254,11 +265,22 @@ func Classify(dir string) (expr string, source string, err error)
 // tools/licencegate/sources.go
 
 // Runner runs a command in a directory and returns stdout; tests inject one.
-type Runner func(dir string, name string, args ...string) ([]byte, error)
+// As built (fix round 1, review I2): env is NAME=value pairs set over the
+// process's own environment (nil: none), because GOOS and GOARCH have no
+// go list flag.
+type Runner func(dir string, env []string, name string, args ...string) ([]byte, error)
 
 // GoDeps lists every module linked into the shipped packages:
 //   go list -deps -json ./canvas/... ./control-plane/cmd/... ./sandboxd/cmd/...
-// from the repository root, keeping each package's .Module (not the standard
+// As built (fix round 1, review I2): one go list per root per goTargets
+// environment, GOOS/GOARCH windows/amd64 and linux/amd64 (the control plane
+// on the owner's machines, which links github.com/Microsoft/go-winio;
+// sandboxd in the sandbox image, which links github.com/creack/pty), each
+// with CGO_ENABLED=0 and =1, the modules unioned by path@version. Listed
+// under the host's environment alone, ubuntu CI never saw go-winio and a
+// Windows run never saw creack/pty. A module replaced by a denied module
+// path (Replace.Version set) fails as denied (fix round 1, review M3).
+// It runs from the repository root, keeping each package's .Module (not the standard
 // library, .Standard true; not first party by the structural rule in gate.go),
 // de-duplicated by path@version, and classifies .Module.Replace.Dir when
 // .Module.Replace is set (a directory replace included, wherever it points:
@@ -291,6 +313,16 @@ func GoDeps(root string, run Runner) ([]Dep, error)
 // that project is scanned as its own From; an imported name that resolves to
 // one is skipped the same way. Every other link follows gate.go's rule: in
 // -root, it fails "not a scanned project"; outside, it is classified.
+// As built (task 04, fix round 1 review I1): npm prints paths through
+// @npmcli/redact, a UUID as "***". A printed path is restored from the
+// places the gate knows unredacted, dir (as given and canon) and each link
+// target package-lock.json names: the longest matching place wins when every
+// other match holds it; two known places that redact alike and do not nest
+// are exit 2. A path under no known place is restored from the filesystem,
+// where two look-alike entries are exit 2. -root is not a place: nothing is
+// installed there, and its redacted prefix also matches a link target
+// beside it. An imported URL fails "from a URL, which loads at run time
+// where no licence gate checks it" (review M4).
 func NpmDeps(root, dir, from string, scanned []string, run Runner) ([]Dep, error)
 
 // CargoDeps reports one Cargo workspace (review I10):
@@ -344,6 +376,15 @@ func CargoDeps(root, dir string, run Runner) (deps []Dep, notScanned string, err
 // package.json "imports" can map it to any package; neither project uses one).
 // imports.cjs is embedded (go:embed) and written to a temporary file, and
 // files go 40 per node call (the Windows command-line cap).
+// As built (fix round 1, review M4): a specifier with a URL scheme
+// ("https:", "data:"; two or more letters, so never a drive) is kept whole
+// as a name, and NpmDeps fails it with a URL why, never "not installed": it
+// loads at run time, where nothing checks it ("https://esm.sh/tldraw" would
+// ship tldraw), so skipping it, the review's remedy, would open a hole. A
+// bare CSS @import is tried beside the stylesheet first, as written and with
+// ".css", as Vite's css resolver does (vite 8.3.0: extensions [".css"],
+// tryIndex false, preferRelative true, desktop/node_modules/vite/dist/node/
+// chunks/node.js:29701-29707), and walked when found.
 func ShippedImports(dir, srcDir string, run Runner) (map[string]string, error)
 ```
 
@@ -449,6 +490,12 @@ enforced ecosystems alone, so a missing report is visible, never silent.
 | `TestCargoDeps` row (added by task 04) | `yoke-derive 0.8.3` as it is, `[proc-macro]` plus an `[example]` target, is marked "(proc-macro)"; `cssparser` with `[lib]` plus `[custom-build]` is not | a mark that needs the proc-macro to be the only target, which missed `yoke-derive`, `zerofrom-derive` and `zerovec-derive` on the real tree |
 | `TestParseSPDX` row (added by task 04) | `MIT WITH Classpath-exception-2.0` ✗ | `WITH` ignoring `AllowedExceptions` (predicted mutant P2 survived the GPL row alone) |
 | `TestMain_exitCodes` rows (added by task 04) | a partial Go tree (`sandboxd/` gone) is exit 2 naming the missing root; an exception with a misspelt field (`reviewdBy`) is exit 2, "unknown field" | a broken checkout passing with one root skipped; a misspelt field read as a review |
+| `TestNpmDeps_redactedPath` rows (fix round 1, review I1) | with a sibling directory that redacts alike, the node inside `dir` is still read at its real path; a node under a link target outside `-root`, in a UUID directory beside two others, is read where `package-lock.json` puts it; a node under no known place, with three look-alikes, is an error naming them; two known places that redact alike (`dir` and a link target in a sibling UUID directory) are an error naming both | the gate exiting 2 in every mutation copy under the scratchpad; a restore that picks the longest match without checking the others hold it |
+| `TestParseSPDX` rows (fix round 1, review I3) | `GPL-2.0-only WITH LLVM-exception` ✗; `MPL-2.0 WITH LLVM-exception` ✗ | `with.allowed()` reading the exception alone (V1): copyleft laundered through an allowed exception |
+| `TestShippedImports_batches` (fix round 1, review I4) | `2*helperBatch+1` script files, each importing its own package: every package found, the last included; no call passes more than `helperBatch` files; three calls | a loop that parses only the first batch (V2), which every real run exceeds |
+| `TestGoDeps_everyTarget` (fix round 1, review I2) | a GPL module listed only under `GOOS=windows` fails; a module only under `GOOS=linux` and one only under `CGO_ENABLED=1` are Deps; a module under both roots is one Dep; each root runs once under each of the four environments, each naming `GOOS`, `GOARCH` and `CGO_ENABLED` | a listing under the host's environment alone, so CI never checks the Windows binary's modules |
+| `TestGoDeps_replaceOntoDenied` (fix round 1, review M3) | `example.com/x` replaced by `github.com/TLDraw/tldraw-go v1.0.0` (an MIT text) fails, the why naming the replacement and OD-11; a replace onto `github.com/tldrawx/y` passes | a deny list that sees only the replaced path |
+| `TestShippedImports_cssAndURLForms` + `TestNpmDeps_urlImportFails` (fix round 1, review M4) | CSS `@import "theme.css"`, `"tokens"` (tokens.css) and `"test/helper.css"` resolve beside the stylesheet (the last is walked only so, and its import found); `"pkgcss/x.css"` names `pkgcss`; `url(https://…)` and a script's `"https://esm.sh/tldraw@3.0.0"` stay whole, and NpmDeps fails the URL "from a URL, which loads at run time …" | a URL failing as the package `https:`, or skipped; a bare CSS file read as a package |
 | `TestMain_repoWithMPL` (added by task 04) | the real runner on `testdata/repo-with-mpl`: exit 1 and `FAIL npm mpl-fixture 1.0.0 MPL-2.0 — …`; skipped where `npm` is not on PATH | the spec's done-when, as a test and not only an acceptance command |
 
 ## Steps
