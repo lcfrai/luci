@@ -427,3 +427,79 @@ drives the janitor with task 121's `RunJanitorOnce` at a fixed `now`.
 project P enqueues one `loop.fired` on Dylan's Orchestrator in P, none on Ada's (kills a
 broadcast); `TestALoopTurnIsFleetOrigin`: a batch of one `loop.fired` has `OriginOf == fleet` and
 `Input(1)` as its only input (kills a loop turn with human authority; loop text in the input).
+
+#### The matrix rows (`workMatrixRows["162"]`, appended)
+
+Columns as `hub-contract.md:337-341`. `M` is split by whether `M` owns the loop; the loop's team
+is the row's team.
+
+| Route | V | M | A | O | N | X |
+|---|---|---|---|---|---|---|
+| `POST /v1/projects/{projectId}/work/loops` | 403 | 201 | 201 | 404 | 404 | 404 |
+| `GET /v1/projects/{projectId}/work/loops` | 200 | 200 | 200 | 404 | 404 | 404 |
+| `GET /v1/work/loops/{loopId}` · `GET …/versions` | 200 | 200 | 200 | 404 | 404 | 404 |
+| `POST /v1/work/loops/{loopId}/versions` (M owns it) | 403 | 201 | 403 | 404 | 404 | 404 |
+| `POST /v1/work/loops/{loopId}/versions` (M does not) | 403 | 403 | 403 | 404 | 404 | 404 |
+| `PATCH /v1/work/loops/{loopId}` `{state:"paused"}` (M does not own it) | 403 | 403 | 200 | 404 | 404 | 404 |
+| `PATCH /v1/work/loops/{loopId}` `{state:"on"}` (M owns it) | 403 | 200 | 403 | 404 | 404 | 404 |
+
+`A` is a team admin who does not own the loop: 403 on a version, 200 on a pause (OD-16). An app
+or key principal (task 145's row fixtures) gets 403 on every write here: a loop is a person's
+own agent turn, and no app or key may create one (gap 4).
+
+#### Steps
+
+- [ ] **Step 1:** Confirm the sync base (rules H1, H2): task 145's three loop tables, task 121's
+  `sweepWorkW4` and `RunJanitorOnce`, task 13's `workevents.go`, TM-09's kinds and TM-26's table.
+  Check the required columns above against task 145's; a difference is raised against 145.
+- [ ] **Step 2:** `loopsched_test.go` and `work_loops_test.go`; they fail to compile. Write
+  `loopsched.go` and `hubapi/work_loops.go` until the seven pure rows pass.
+- [ ] **Step 3:** The integration test and the matrix rows; every row fails. `store/work_loops.go`
+  and `server/work_loops.go` until the route rows pass.
+- [ ] **Step 4:** `janitor_loops.go`, the call after `sweepWorkW4` in `Sweep`, the three counters;
+  run until the janitor rows pass. Rerun Hub task 24's and task 121's janitor rows unchanged.
+- [ ] **Step 5:** The Phase T delta and its two rows, in TM-26's test file, only once TM-26 has
+  merged (rule H2); until then this step waits and the task is not closed.
+- [ ] **Step 6:** `git diff -- go.work control-plane/go.mod` shows nothing (`time/tzdata` is the
+  standard library); commit by pathspec.
+
+#### Acceptance
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/work
+go test ./control-plane/internal/hub/server/ ./control-plane/internal/hub/hubapi/ -race -count=1 -v \
+  -run '^Test(WeekdayScheduleSkipsTheWeekend|ThreeMissedWindowsAreOneAnswer|AWeeklyLoopKeepsItsSavedWeekday|TheDSTGapRunsAtTheFirstRealMinute|NoWindowBeforeTheVersionExisted|LoopEventKindsHasNoLoopKind|FailClosedGrid)$' \
+  2>&1 | grep -c "^--- PASS"                                                                  # 7
+go test -tags integration ./control-plane/internal/hub/server/ -race -count=1 -v \
+  -run '^Test(OneFiringPerMatchingEvent|ARestartReplaysNoFiring|MissedDailyWindowsFireOnce|APausedLoopNeverFires|OnlyTheOwnerWritesAVersion|AnAdminPausesButNeverResumes|VersionsCannotBeUpdated|AMoveActionIs422|ABoundAboveTheGridIs422|AJanitorFiringNamesItsAuthor|AnOwnerWhoLeftPausesTheLoop|TheCapRefusesAndSaysSo|EachWriteAppendsOneEvent|NoLoopTextInTheFeed)$' \
+  2>&1 | grep -c "^--- PASS"                                                                  # 14
+go test ./control-plane/internal/fleet/turns/ -race -count=1 -v \
+  -run '^Test(ALoopFiredEventReachesTheOwnersOrchestrator|ALoopTurnIsFleetOrigin)$' 2>&1 | grep -c "^--- PASS"   # 2, after TM-26 merges
+go test -tags integration ./control-plane/internal/hub/... -race -count=1                    # ok
+go test ./control-plane/... -race -count=1                                                    # ok
+```
+
+#### What this task does NOT claim
+
+- **That a loop runs in local mode.** There is no Orchestrator there (OD-20); task 172 says so.
+- **That phase 6 attributes spend per loop.** The loop id on the usage tag is task 135's, **UNVERIFIED**.
+- **That the owner's real grid is checked.** Phase T stores none; the bound is fail-closed (decision 4).
+- **Any firing latency.** A firing is written at the next sweep (Hub task 24's interval) and
+  delivered at the next coalesced turn; neither is measured.
+- **The run log's outcomes, *run now*, or the triage Start** (task 163); the editor (task 172).
+
+**Parity rows served:** **L-160** and **L-161**, jointly with tasks 163 and 172.
+
+#### Gaps found while writing this part
+
+1. **Task 145's table list** needs `work_loop_cursors` (not listed) and the unique firing keys on
+   `work_loop_runs`; the required shapes are above.
+2. **Phase T stores no per-person autonomy grid.** Until it does, `FailClosedGrid` is the bound;
+   the owner may want the grid owned by Phase T (a TM row) or by the Hub (a W row).
+3. **TM-26 names no delivery file** and does not say whether an event waits for an Orchestrator
+   that has not started; the `loop.fired` row lands in whichever file holds the kind table.
+4. **Task 145's app and key fixtures** need a row saying neither may create or edit a loop.
+5. **Task 143's scope** names a flat `Loop` with `grid` and an `lr-` `LoopRun`; this part, task 169
+   (G1) and task 172 use the 162/163 shape. Task 143 decides once.
+6. **The skeleton row** says *"within their grid"*; with no stored grid that phrase is a promise
+   this task keeps only as fail-closed.
