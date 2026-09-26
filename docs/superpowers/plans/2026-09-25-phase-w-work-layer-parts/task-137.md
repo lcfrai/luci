@@ -392,3 +392,260 @@ tests keep passing unchanged. `firstRunes` cuts at a rune boundary. `teamID` is 
 team, which the handler reads with `(*Service).ProjectTeam(ctx, projectID) (string, error)`,
 added in `hints.go` over the relay's project read (Phase H's `Project`, **UNVERIFIED** name); an
 unreadable project is `404 project_not_found`. The caller never supplies the team.
+
+#### Interfaces — complete: the routes, appended to `control-plane/internal/api/workassist.go` ⚑
+
+```go
+// Task 137. Called from task 136's registerWorkAssist, after its triage route.
+func (a *API) registerWorkDuplicates(rs *routes) {
+	rs.HandleFunc("POST /v1/work/assist/duplicates", a.postWorkDuplicates)
+	rs.HandleFunc("POST /v1/work/assist/hints", a.postWorkHints)
+}
+
+func (a *API) postWorkDuplicates(w http.ResponseWriter, r *http.Request) {
+	var req workassist.DuplicatesRequest
+	if !httpx.DecodeJSON(w, r, &req) {
+		return
+	}
+	if req.IssueID == "" || (wire.WorkRef{IssueID: req.IssueID}).Validate() != nil {
+		httpx.WriteProblem(w, http.StatusBadRequest, httpx.CodeBadRequest, "issueId is not an issue id", nil)
+		return
+	}
+	res, err := a.deps.WorkAssist.Duplicates(r.Context(), workassist.HubTriageSource{Hub: a.deps.WorkAssist.Hub}, req)
+	if err != nil {
+		a.assistProblem(w, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, res)
+}
+
+func (a *API) postWorkHints(w http.ResponseWriter, r *http.Request) {
+	var req workassist.HintsRequest
+	if !httpx.DecodeJSON(w, r, &req) {
+		return
+	}
+	team, err := a.deps.WorkAssist.ProjectTeam(r.Context(), req.ProjectID)
+	if err != nil {
+		httpx.WriteProblem(w, http.StatusNotFound, httpx.CodeProjectNotFound, "No such project.", nil)
+		return
+	}
+	res, err := a.deps.WorkAssist.Hints(r.Context(), workassist.HubTriageSource{Hub: a.deps.WorkAssist.Hub}, team, req)
+	if errors.Is(err, workassist.ErrDraftLength) {
+		httpx.WriteProblem(w, http.StatusBadRequest, httpx.CodeBadRequest, "The title must be 1 to 200 characters.", nil)
+		return
+	}
+	if err != nil {
+		a.assistProblem(w, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, res)
+}
+```
+
+Both are `POST` (they send text, they are not reads a proxy may cache or a link may fire), listed
+so in `routes_audit_test.go`. Neither handler logs the draft, the titles or the reply.
+
+```jsonc
+// POST /v1/work/assist/duplicates   { "issueId": "is-0000000000000150" }
+// POST /v1/work/assist/hints        { "projectId": "pj-…", "title": "Upload resume broken", "description": "" }
+// 200 (duplicates)
+{ "issueId": "is-0000000000000150", "revision": 2, "route": "au",
+  "candidates": [ { "issueId": "is-0000000000000128", "alias": "EP-128", "relation": "duplicates",
+      "thisTitle": "Resume upload fails on Safari", "thatTitle": "Upload resume broken in Safari",
+      "why": [ { "kind": "issue", "key": "EP-128" }, { "kind": "guidance", "key": "gd-…@v3" } ] } ] }
+// 200 (hints): { "labels": [Item], "candidates": [Candidate], "route": "au" }
+// 400 bad_request · 404 issue_not_found | project_not_found · 503 assists_off · 502 gateway_unavailable
+```
+
+#### Interfaces — complete: the desktop wire (`desktop/src/api/work.ts` ⚑)
+
+```ts
+// appended to WORK_LOCAL
+  ["assistDuplicates", "POST", "/v1/work/assist/duplicates"],
+  ["assistHints", "POST", "/v1/work/assist/hints"],
+
+export interface DuplicateCandidate {
+  issueId: string; alias: string; relation: "duplicates" | "relates";
+  thisTitle: string; thatTitle: string; why: Why[];
+}
+export interface Duplicates {
+  issueId: string; revision: number; route: "global" | "au"; candidates: DuplicateCandidate[];
+}
+export interface HintsRequest { projectId: string; title: string; description: string }
+export interface Hints { labels: AssistItem[]; candidates: DuplicateCandidate[]; route: "global" | "au" }
+
+// in WorkClient
+  assistDuplicates(issueId: string): Promise<Duplicates>;
+  assistHints(req: HintsRequest): Promise<Hints>;
+// in makeWorkClient
+    assistDuplicates: (issueId) => local("assistDuplicates", [], { issueId }),
+    assistHints: (req) => local("assistHints", [], req),
+```
+
+`Why`, `AssistItem` and the two problem codes are task 136's. `Why.kind` already admits
+`"guidance"`; the desktop links a guidance key `gd-…@v3` to task 109's history row for that
+version (`AgentGuidance.tsx`, `task-109.md:66`) and a brief key to the brief view.
+
+#### Interfaces — complete: `desktop/src/work/hintClock.ts`
+
+```ts
+/** The composer's timing (decision 5): at least MIN_CHARS, PAUSE_MS still, one call in flight,
+ *  stale answers dropped. Timers are injected so the tests drive them (vi.useFakeTimers). */
+export const MIN_CHARS = 12;
+export const PAUSE_MS = 800;
+
+export interface HintClock {
+  /** Every keystroke: the whole draft as it now reads. */
+  typed(draft: { title: string; description: string }): void;
+  /** The composer closed: nothing further is called or delivered. */
+  close(): void;
+}
+
+export function hintClock<T>(opts: {
+  ask(draft: { title: string; description: string }): Promise<T>;
+  deliver(answer: T, forDraft: { title: string; description: string }): void;
+  fail(e: unknown): void;
+  setTimer?: (f: () => void, ms: number) => unknown;
+  clearTimer?: (t: unknown) => void;
+}): HintClock {
+  const setT = opts.setTimer ?? ((f, ms) => setTimeout(f, ms));
+  const clearT = opts.clearTimer ?? ((t) => clearTimeout(t as ReturnType<typeof setTimeout>));
+  let timer: unknown = null;
+  let latest = { title: "", description: "" };
+  let version = 0;            // bumped on every keystroke
+  let inFlight = false;
+  let closed = false;
+  let pending = false;        // the pause ended while a call was in flight
+
+  const fire = () => {
+    timer = null;
+    if (closed) return;
+    if (inFlight) { pending = true; return; }                       // one call in flight, at most
+    if ((latest.title + latest.description).length < MIN_CHARS) return;
+    const asked = version, draft = latest;
+    inFlight = true;
+    opts.ask(draft).then(
+      (a) => { if (!closed && asked === version) opts.deliver(a, draft); },   // stale: dropped
+      (e) => { if (!closed && asked === version) opts.fail(e); },
+    ).finally(() => {
+      inFlight = false;
+      if (pending && !closed) { pending = false; timer = setT(fire, PAUSE_MS); }
+    });
+  };
+
+  return {
+    typed(draft) {
+      if (closed) return;
+      latest = draft; version += 1; pending = false;
+      if (timer !== null) clearT(timer);
+      timer = setT(fire, PAUSE_MS);
+    },
+    close() { closed = true; if (timer !== null) clearT(timer); timer = null; },
+  };
+}
+```
+
+A keystroke while a call is in flight bumps `version`, so that call's answer is dropped when it
+lands; the pause timer still runs, and if it ends before the call settles, `pending` makes one
+more call after it, after a fresh pause. The call itself is not aborted: task 37's `WorkSend`
+takes no signal (`task-37.md:399`), so dropping is the honest cancel (gap 3).
+
+#### Interfaces — complete: `desktop/src/components/work/DuplicateHint.tsx`
+
+```tsx
+import type { JSX } from "react";
+import type { DuplicateCandidate } from "../../api/work";
+
+const WORD: Record<DuplicateCandidate["relation"], string> = { duplicates: "Possible duplicate", relates: "Related" };
+
+/** One candidate, its why as links, both titles quoted from the Hub. No score, ever. */
+export function DuplicateHint(props: {
+  c: DuplicateCandidate; href(key: string, kind: string): string;
+  onMark?(c: DuplicateCandidate): void;   // absent in the composer: nothing to relate yet
+}): JSX.Element | null {
+  const { c } = props;
+  if (c.why.length === 0 || c.thatTitle === "") return null;   // unlinked or erased: not drawn
+  return (
+    <div className="dh-row author-agent" data-relation={c.relation}>
+      <span>{WORD[c.relation]}: <a href={props.href(c.alias, "issue")}>{c.alias}</a></span>
+      <q className="dh-quote">{c.thisTitle}</q><span aria-hidden="true"> · </span>
+      <q className="dh-quote">{c.thatTitle}</q>
+      {c.why.slice(1).map((w) => (
+        <span key={w.key} className="dh-why"> · because <a href={props.href(w.key, w.kind)}>{w.key}</a></span>
+      ))}
+      {props.onMark && (
+        <button type="button" onClick={() => props.onMark!(c)}>
+          {c.relation === "duplicates" ? "Mark duplicate" : "Mark related"}
+        </button>
+      )}
+    </div>
+  );
+}
+```
+
+`onMark` is `(c) => client.addRelation(issueId, { kind: c.relation, issueId: c.issueId })` in the
+host, and nothing else (decision 4). A guidance why shows as its key today (*"gd-…@v3"*); task 109's
+`LAYER_WORD` (`task-109.md:299`) names it *"team guidance v3"* once the host resolves the layer.
+
+#### Interfaces — complete: `desktop/src/components/work/ComposerHints.tsx`
+
+```tsx
+import { useEffect, useMemo, useRef, useState, type JSX } from "react";
+import { ApiError } from "../../api/client";
+import type { Hints, WorkClient } from "../../api/work";
+import { hintClock } from "../../work/hintClock";
+import { DuplicateHint } from "./DuplicateHint";
+
+/** Chips under the composer's editor. Nothing here writes to the Hub. */
+export function ComposerHints(props: {
+  client: WorkClient; projectId: string; title: string; description: string;
+  labelName(id: string): string | undefined;
+  href(key: string, kind: string): string;
+  onAddLabel(labelId: string): void;           // adds to the draft only (decision 6)
+}): JSX.Element | null {
+  const [hints, setHints] = useState<Hints | null>(null);
+  const [words, setWords] = useState<string | null>(null);
+  const { client, projectId } = props;
+  const clock = useMemo(() => hintClock<Hints>({
+    ask: (d) => client.assistHints({ projectId, title: d.title, description: d.description }),
+    deliver: (h) => { setHints(h); setWords(null); },
+    fail: (e) => {
+      setHints(null);
+      const code = e instanceof ApiError ? e.code : "";
+      // The composer is quiet about a missing hint; it speaks only when assists are off.
+      setWords(code === "assists_off" ? "Hints unavailable: assists are off for this org" : null);
+    },
+  }), [client, projectId]);
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) { first.current = false; return; }   // opening the composer is not typing
+    clock.typed({ title: props.title, description: props.description });
+  }, [clock, props.title, props.description]);
+  useEffect(() => () => clock.close(), [clock]);
+
+  if (words !== null) return <p className="ch-note" role="status">{words}</p>;
+  if (hints === null) return null;
+  const labels = hints.labels.filter((i) => i.why.length > 0 && props.labelName(i.value) !== undefined);
+  if (labels.length === 0 && hints.candidates.length === 0) return null;
+  return (
+    <div className="ch-chips" aria-label="Hints">
+      {labels.map((i) => (
+        <button key={i.value} type="button" className="ch-chip author-agent"
+          onClick={() => props.onAddLabel(i.value)}>
+          Label: {props.labelName(i.value)} · because {i.why.map((w) => w.key).join(", ")}
+        </button>
+      ))}
+      {hints.candidates.map((c) => <DuplicateHint key={c.issueId} c={c} href={props.href} />)}
+    </div>
+  );
+}
+```
+
+**The hosts.** `NewIssue.tsx` ⚑ (task 68's composer, no part: its props are its scope's,
+**UNVERIFIED**) renders `ComposerHints` under the editor with the draft's title and description
+as plain text and `onAddLabel` adding to the draft's labels; closing the composer unmounts it, and
+the clock's `close` drops any answer in flight. `TriageView.tsx` ⚑ (task 42) calls
+`client.assistDuplicates(id)` once per `(issueId, headRevision)`, beside task 136's triage call,
+and renders one `DuplicateHint` per candidate with `onMark` wired to `addRelation`; a rejection
+shows *"Duplicate check unavailable: the gateway did not answer"* or the org words, and the rest
+of Triage is untouched. Task 42's `2` (decline as duplicate) stays the person's separate key.
