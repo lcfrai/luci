@@ -1170,3 +1170,45 @@ go test ./control-plane/... -race -count=1                                      
 
 No run against a real tracker is part of this acceptance: every pull is the `Fake`'s, and the three
 trackers are tasks 151-153's, proved there against `httptest`.
+
+#### What this task does not claim
+
+- That any tracker is reachable from the Hub's network, or that any Azure DevOps organisation,
+  GitHub installation or Jira site has granted the Hub's identity access: tenant acts,
+  **UNVERIFIED** (tasks 151-153 wire the tokens).
+- That an upstream edit should never update our text. Shown, never applied, is this task's rule;
+  whether an owner-approved edit may flow in is a choice recorded for the owner (Q-150).
+- The history of every upstream change: the link keeps the latest, the run keeps a count, and no
+  wire field holds more (task 143's `SyncRun` has none).
+- That a refused item comes back soon: it returns when it next changes upstream; until then it
+  is visible only in its run's `errors`.
+- Per-item *imported* rows in the sync log (task 169's decision 7 asks for them): the log reads
+  the links and the runs' errors, nothing more.
+- Any tracker's comments: mode `in_and_comments` is accepted and stored, and its comments are
+  task 153's.
+
+#### Gaps
+
+1. **Task 143's route table and `WorkIntake`** (`task-143.md:842-847`, `:944`): disconnect is
+   `DELETE /v1/trackers/{connectionId}` here, as task 169 has it (`task-169.md:379`), not `POST
+   …/disconnect`; `ApplySyncBatch` and `POST …/batches` have no route and no caller (decision 1)
+   and should be withdrawn, with task 144's fake rule for them; `RequestTrackerRun` (`POST …/run`)
+   and `ListTrackerLinks` (`GET …/links`) are missing; `ListTrackers` returns a slice where this
+   route answers `Page[TrackerConnection]`.
+2. **Task 143's codes lack `tracker_not_found` (404) and `tracker_disconnected` (409)**, and its
+   status map with them.
+3. **Task 151's `fetch.go` declares `PullError` and the four tracker codes** (`task-151.md:110-132`);
+   this part declares them in `engine.go` (point 11), so task 151's block must drop those lines.
+4. **Task 145 is not written**; the three reconciled tables, their two indexes and the guard are
+   this task's requirement on it.
+5. **The skeleton's File map** (`:252`) lacks `worksync/fake.go`, ⚑ `server/config.go` and
+   ⚑ `server/work_imports.go`; the scope's `server/work_matrix_rows.go` is
+   `work_matrix_rows_integration_test.go` in every part.
+6. **The first half of this part is superseded in places** (the *Reconciliation* section names each
+   block it replaces), because task 143 fixed the wire after that half was written. An
+   implementer reads the reconciled blocks; the originals are the record.
+7. **Q-150 (owner):** upstream edits are shown and never applied, and a refused item waits for its
+   next upstream change rather than stopping the connection (point 7, against decision 7 and the
+   scope's *"a page that fails validation leaves the cursor where it was"*).
+8. **`ConnectionID`, `FreshConnectionID` and the matrix server's `SyncAdapters`** stand for H16b's
+   fixture; the janitor `Tx` with an org and no principal is Hub task 24's (**UNVERIFIED**, `:508-513`).
