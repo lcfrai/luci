@@ -335,3 +335,53 @@ func Tools(read bool) []Tool
 // HumanBands is work_move's "to" enum (decision 6). A test pins it to this literal.
 var HumanBands = []string{"triage", "backlog", "todo", "cancelled"}
 ```
+
+#### Interfaces — complete: `tools.go`, the Hub slice and the nine tools
+
+```go
+// WorkHub is the slice of hubclient.Hub the tools call. *hubclient.Client
+// satisfies it once tasks 04, 72 and 143 land; a test fake satisfies it now.
+type WorkHub interface {
+	SearchIssues(ctx context.Context, q hubapi.IssueSearchQuery) ([]hubapi.IssueHead, error)          // task-04.md:222
+	Issue(ctx context.Context, issueID string) (hubapi.IssueWithRevision, error)                       // task-04.md:181
+	IssueByNumber(ctx context.Context, projectID string, n int) (hubapi.IssueWithRevision, error)      // task-04.md:184
+	Issues(ctx context.Context, projectID string, q hubapi.IssueQuery, p hubapi.PageRequest) (hubapi.Page[hubapi.IssueHead], error) // :186
+	CreateIssue(ctx context.Context, projectID string, r hubapi.CreateIssueRequest) (hubapi.IssueWithRevision, error)               // :179
+	CreateComment(ctx context.Context, issueID string, r hubapi.CreateCommentRequest) (hubapi.Comment, error)                     // :214
+	PatchIssue(ctx context.Context, issueID string, r hubapi.PatchIssueRequest) (hubapi.IssueHead, error)                         // :188
+	MoveIssueState(ctx context.Context, issueID string, m hubapi.StateMove) (hubapi.IssueHead, error)                             // :201
+	Features(ctx context.Context, projectID string, p hubapi.PageRequest) (hubapi.Page[hubapi.Feature], error)  // task 72, UNVERIFIED
+	ViewIssues(ctx context.Context, viewID string, p hubapi.PageRequest) (hubapi.Page[hubapi.IssueHead], error) // task 45, UNVERIFIED
+	Request(ctx context.Context, requestID string) (hubapi.Request, error)                                      // task 143, gap 6
+}
+```
+
+| Tool | Write | Input schema (`required` in bold) | Hub call |
+|---|---|---|---|
+| `work_search` | no | **`query`** string 1-200; `projectId` `^pj-`; `limit` int 1-50, default 20 | `SearchIssues` |
+| `work_issue` | no | **`issue`** `^is-` or `^[A-Z][A-Z0-9]{1,9}-[1-9][0-9]*$`; `projectId` (required for an alias) | `Issue`, or `IssueByNumber` |
+| `work_list` | no | **`projectId`**; `viewId` `^vw-`; `state` enum of the nine `IssueState`s | `ViewIssues`, else `Issues` |
+| `work_features` | no | **`projectId`** | `Features` |
+| `work_request` | no | **`request`** `^rq-` | `Request` |
+| `work_create_issue` | yes | **`projectId`**, **`title`** 1-200, `description` ≤ 20000 | `CreateIssue`, `state: triage`, `source: app` |
+| `work_comment` | yes | **`issue`** (as `work_issue`), **`body`** 1-20000 | `CreateComment` |
+| `work_set` | yes | **`issue`**; one or more of `priority` (task 37's five), `labels` array of `^lb-`, `assignee` `^u-` or null | `PatchIssue` |
+| `work_move` | yes | **`issue`**, **`to`** enum `HumanBands`; `reason` ≤ 500 | `MoveIssueState` with cause `hand` |
+
+Every schema is a literal in `tools.go` with `"additionalProperties": false`. `schema.go`
+validates the subset these use (`type`, `required`, `enum`, `pattern`, `minLength`, `maxLength`,
+`minimum`, `maximum`, `additionalProperties:false`, `minProperties`) and nothing else; a schema
+that uses any other keyword fails `TestSchemasUseOnlyTheSubset`, so the validator never silently
+passes what it cannot check. `work_set` has `minProperties: 2`. **Alias rule (decision 7):**
+`work_issue` splits an alias at its last `-`, calls `IssueByNumber(projectId, n)`, and returns
+`isError` *"EP-142 is not in that project"* when the answer's display alias differs from the typed
+one; it never stores or caches the pair. `work_create_issue` sends `source: "app"` whatever the
+token (task 146's source list names it; **UNVERIFIED**), and the Hub records the actor kind from
+the token (task 159).
+
+**Result text.** A result is plain lines, the key first: `issue:is-01J…@r4 · EP-142 · todo ·
+high`, then each text field as a fenced block whose info string is `text·H Priya Raman` or
+`text·A Priya's Orchestrator (agent)`, from the revision's `author` (task 03's `AuthoredText`).
+No field of the result holds the alias as an identifier (skeleton rule 1), and no line holds a
+count of total, a percentage or an estimate (OD-27). A Hub `*hubapi.Error` becomes `isError: true`
+with `"<code>: <message>"`, never a JSON-RPC error, so the client's model sees why.
