@@ -314,7 +314,7 @@ fragment and **S6.3** the mint API (phase 6); **S6.2** budgets; **P8-D4** and **
 | 03 | Hub wire types for team records; id prefixes and codes | TM1-α | 0.3 (2.5 h) | 01, 02, H01–H03 | ST.2 |
 | 04 | Hub migration: team tables, RLS, append-only guards, tombstone columns | TM1-α | 0.375 (3 h) | 03, H06, H07a, H07b | ST.2 |
 | 05 | Hub delegated-caller authentication; `devissuer` client-credentials grant | TM1-α | 0.375 (3 h) | 04, H11–H13 | ST.3 |
-| 06 | Hub routes, part 1: delegations, tasks, agents, lease events, conflicts | TM1-α | 0.375 (3 h) | 05, H14, H17 | ST.2, ST.3 |
+| 06 | Hub routes, part 1: delegations, tasks, agents, lease events, conflicts; route 87, a project's mode (b01) | TM1-α | 0.4375 (3.5 h) | 05, H14, H17 | ST.2, ST.3 |
 | 07 | Hub routes, part 2: threads, messages, escalations, directives, turns, human messages | TM1-α | 0.375 (3 h) | 06 | ST.2 |
 | 08 | Hub feed kinds, Fleet's per-org subscription; `hubclient` team methods, fake, conformance | TM1-α | 0.375 (3 h) | 07, H26, H33, H34 | ST.2 |
 | 09 | Fleet model and the `panacea` control wire v1 | TM1-α | 0.3 (2.5 h) | 02 | ST.1 |
@@ -329,7 +329,7 @@ fragment and **S6.3** the mint API (phase 6); **S6.2** budgets; **P8-D4** and **
 | 18 | The `panacea` verbs in the sandbox binary | TM1-α | 0.3 (2.5 h) | 16, P6-14 | ST.1 |
 | 19 | Fleet's control streams and verb dispatch | TM1-α | 0.375 (3 h) | 12, 17 | ST.1 |
 | 20 | Fleet sessions over the broker; `ag-…` ids; gateway tokens with team tags | TM1-α | 0.375 (3 h) | 11, 14, 15, 19, P6-15, P8-22 | S6.3, S8.1 |
-| 21 | `fleetbe` and the team launch on the local control plane | TM1-α | 0.375 (3 h) | 06, 20 | S8.1, ST.3 |
+| 21 | `fleetbe` and the team launch on the local control plane | TM1-α | 0.4375 (3.5 h) | 06, 08, 20, H35 (b01) | S8.1, ST.3 |
 | 22 | Read verbs: `team`, `check`, `files`, `show`, filtered by class | TM1-α | 0.375 (3 h) | 19, 20 | ST.1 |
 | 23 | Lease engine: intent, right of way, breadth cap, request and release | TM1-α | 0.375 (3 h) | 10, 22 | ST.1 |
 | 24 | Task, worker and report verbs; intent leases at plan time | TM1-α | 0.3 (2.5 h) | 23 | ST.1 |
@@ -360,7 +360,7 @@ fragment and **S6.3** the mint API (phase 6); **S6.2** budgets; **P8-D4** and **
 | 42 | G9: the injection corpus and the scripted two-Orchestrator run | TM1 | 0.375 (3 h) | 31, 38, 41 | — |
 | 43 | Hub delta: role-to-verb, *auditor* and *compliance*, team policy, Z5 rows | TM1 | 0.375 (3 h) | 07, H16b | — |
 | 44 | Hub delta: leavers, member removal, delegation revocation end to end | TM1 | 0.3 (2.5 h) | 06, 11, 39 | ST.3 |
-| 45 | Hub delta: audit to Sentinel; the anchored chain head | TM1 | 0.3 (2.5 h) | H27 | — |
+| 45 | Hub delta: audit to Sentinel; the anchored chain head | TM1 | 0.3 (2.5 h) | H27, 06 (b01) | — |
 | 46 | Hub delta: notes and erasure tombstones | TM1 | 0.25 (2 h) | 07, H27 | ST.2 |
 | 47 | Phase 8 delta: AU egress allowlist, the Australia East guard, task 32's five probes | TM1 | 0.375 (3 h) | 32, P8-32 | P8-D12 |
 | 48 | Phase 3 delta: the read-only per-project fetch credential (OD-22) | TM1 | 0.375 (3 h) | 17, P3-12, P3-13, P3-14 | — |
@@ -483,7 +483,13 @@ harness and pinned version, task, lane ref, policy version and digest) and `POST
 authoritative); `POST …/conflicts`, `PATCH …/conflicts/{cf}`. Solo projects keep `session_link`;
 a team record carrying a session id is refused. Each write is one metadata-only audit event and a
 feed row. Tests per route: owner, other member, viewer, Fleet with and without delegation. Does
-not add the Z5 matrix rows (task 43).
+not add the Z5 matrix rows (task 43). **Fix batch b01 (X-C1):** also route 87, `POST
+/v1/projects/{p}/mode` `{"mode":"team"}`, the one writer of `projects.mode`: the team admin's
+desktop only, no route name, one way, one `project.mode_set` event on Fleet's feed, and gated
+before any write on `teamModeGate` (503 `audit_not_streaming`), open under TM1-α only by the
+dev-only `PANACEA_APP_HUB_TEAM_MODE_UNSTREAMED` and filled by task 45 with `TeamModeAllowed`.
+Route 46 refuses a solo project (409 `not_team_project`), so every team record sits behind it.
+Task 21 wraps it as a local route, task 56's Share calls it, task 33's E5 runs it.
 
 **07 — Hub routes, part 2.** Threads (`POST`, `PATCH` state and round count), messages
 (append-only, kind and typed fields per §6.2, text ≤ 600), escalations (`POST` by Fleet under the
@@ -641,7 +647,10 @@ create the delegation (task 06), then Fleet with it; the desktop renews delegati
 signed in. A session still running locally on a team project is labelled *outside the team*: no
 leases, visible to others only once pushed (§2.3). Tests: create/list/destroy/attach through a fake
 Fleet; a launch with the Hub down fails with the Hub's code, not a Fleet one; the session JSON leaks
-no token (phase 2's `sessionJSON` rule).
+no token (phase 2's `sessionJSON` rule). **Fix batch b01 (X-C1):** `TeamProjects` reads
+`hubapi.Project.Mode` (task 03) and gains `MakeTeam`, behind the local
+`POST /v1/projects/{projectId}/team-mode` over Hub route 87 (task 08's `SetProjectMode`, Hub task
+35's S-LINK); a launch never calls it, so no launch turns a project team behind Share's consent.
 
 **22 — Read verbs.** `cp/internal/fleet/verbs/{team.go,check.go,files.go}`: `team` returns §5.1's
 table for every agent on the project, **filtered by the caller's class**: a worker gets owner,
@@ -776,8 +785,9 @@ public ingress to the gateway (P8-D12, P6-D1). Chart tests: `helm template` outp
 Panacea (OD-13). Does not apply anything to a cluster (task 33 does, by the owner's runbook).
 
 **33 — TM1-α on the real cluster.** `infra/smoke/team/*.sh` and
-`docs/verification/2026-09-25-phase-t-alpha-results.md`: on the real environment, one Orchestrator
-and one worker for each of two identities; a scripted overlapping plan (two tasks whose scopes
+`docs/verification/2026-09-25-phase-t-alpha-results.md`: on the real environment, the project made
+a team project by its admin through route 87, never assumed (M0, `05-team-mode.sh`, fix batch
+b01); one Orchestrator and one worker for each of two identities; a scripted overlapping plan (two tasks whose scopes
 overlap) raises a tier-P conflict **before** either worker is spawned; the Orchestrators settle it
 with `yield` or `sequence`; one human gets an `inform`, the other a `decide`; the pod-kill test
 (task 27) on a real pod; `/status` in a worker and in the Orchestrator shows the rendered managed
@@ -908,6 +918,8 @@ event streams to Sentinel (Log Analytics, phase 8 task 04's workspace) and the c
 anchored there on a schedule, so a hash chain inside the Hub's own Postgres is not its only proof
 (§11.1, `ADR-H1:163`). Part of the gate before the first real teammate. Tests: a tampered row is
 detected by comparing against the anchored head; the stream carries metadata only, no text body.
+**Fix batch b01 (X-C1):** fills task 06's `teamModeGate` with `TeamModeAllowed`, so route 87 is
+503 `audit_not_streaming` until the sink is `logs` (the dev-only flag opens it beside `fake` only).
 
 **46 — Hub delta: notes and erasure tombstones.** `notes.go`: any `member` writes a note (≤ 1000,
 `text·H`, author from token) on a project, task or person; a note reaches an Orchestrator **only**
@@ -1010,7 +1022,9 @@ line; DIVE is absent for a non-owner.
 for this project"*, on a team project *"Use AU for everyone on this project"*, a one-way ratchet the
 strip announces, lowered only by *compliance*; reuses phase 6's inference panel state (task 22). The
 Hub's Share popover (Hub task 42) gains one line: *"Team agents run in Panacea's cloud. Your
-teammates' agents will see your agents' tasks and files."* The data class is **chosen when the
+teammates' agents will see your agents' tasks and files."* After a linked share it turns the
+project team through task 21's local route over Hub route 87, and says a 403 or a 503
+`audit_not_streaming` in words without undoing the share (fix batch b01). The data class is **chosen when the
 project is created** and can be changed later (OD-24), in the project-create flow. The spend line,
 in project settings, splits *workers* and *coordination* against the user's quota, in words and
 figures, never a bar. Tests: an AU-only project renders no switch; the ratchet button is absent once
