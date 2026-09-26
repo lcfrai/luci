@@ -381,41 +381,49 @@ func (s *Server) registerWorkIntakeRules() {
 }
 
 func (s *Server) putIntakeRules(w http.ResponseWriter, r *http.Request) {
-	s.Write(w, r, func(ctx context.Context, tx *Tx) (int, any, error) {
-		teamID := r.PathValue("teamId")
-		if err := Require(ctx, tx, teamID, hubapi.RoleAdmin); err != nil {
-			return 0, nil, err // 404 team_not_found, or 403 {required: admin}
+	teamID := r.PathValue("teamId")
+	s.Write(w, r, func(tx *Tx, body []byte) (WriteResult, error) {
+		ctx := r.Context()
+		var in hubapi.PutIntakeRulesRequest
+		if err := Decode(body, &in); err != nil {
+			return WriteResult{}, err
 		}
-		in, err := Decode[hubapi.PutIntakeRulesRequest](r)
+		role, ok, err := TeamRole(ctx, tx, teamID) // H14's team twin of ProjectRole; UNVERIFIED name
 		if err != nil {
-			return 0, nil, err
+			return WriteResult{}, err
+		}
+		if err := Require(role, ok, hubapi.RoleAdmin, notFoundTeam(teamID)); err != nil {
+			return WriteResult{}, err // 404 team_not_found, or 403 {required: admin}
 		}
 		if fe := hubapi.ValidateIntakeRules(in.Rules); fe != nil {
-			return 0, nil, Refuse(http.StatusBadRequest, "bad_request", map[string]any{"field": fe.Field})
+			return WriteResult{}, Refuse(http.StatusBadRequest, "bad_request", fe.Error(),
+				map[string]string{"field": fe.Field})
 		}
-		if fe, err := s.checkRulesInTeam(ctx, tx, teamID, in.Rules); err != nil || fe != nil {
-			return 0, nil, orField(err, fe) // decision 7: rules[n].route.projectId, …labelIds[k], …match.formId
+		if err := s.checkRulesInTeam(ctx, tx, teamID, in.Rules); err != nil {
+			return WriteResult{}, err // decision 7: 400 rules[n].route.projectId, …labelIds[k], …match.formId
 		}
 		cur, err := store.LatestIntakeRules(ctx, tx, teamID)
 		if err != nil {
-			return 0, nil, err
+			return WriteResult{}, err
 		}
 		if in.BaseVersion != cur.Version {
-			return 0, nil, Refuse(http.StatusConflict, "intake_rules_moved", map[string]any{"version": cur.Version})
+			return WriteResult{}, Refuse(http.StatusConflict, "intake_rules_moved", "reload the rules",
+				map[string]string{"version": strconv.Itoa(cur.Version)})
 		}
 		v, err := store.InsertIntakeRules(ctx, tx, tx.P.OrgID, teamID, cur.Version, in.Rules, tx.P.UserID, tx.Now)
 		if errors.Is(err, store.ErrIntakeRulesMoved) {
-			return 0, nil, Refuse(http.StatusConflict, "intake_rules_moved", map[string]any{"version": cur.Version + 1})
+			return WriteResult{}, Refuse(http.StatusConflict, "intake_rules_moved", "reload the rules",
+				map[string]string{"version": strconv.Itoa(cur.Version + 1)})
 		}
 		if err != nil {
-			return 0, nil, err
+			return WriteResult{}, err
 		}
 		if err := emitWork(tx, hubapi.EventIntakeRulesSet, teamID, "", teamID, hubapi.IntakeRulesSetData{
 			Version: int64(v), Count: int64(len(in.Rules))}); err != nil {
-			return 0, nil, err
+			return WriteResult{}, err
 		}
 		set, _, err := store.IntakeRulesAt(ctx, tx, teamID, v)
-		return http.StatusOK, set, err
+		return WriteResult{Status: http.StatusOK, Body: set}, err
 	})
 }
 
@@ -454,8 +462,11 @@ func (s *Server) routeRequest(ctx context.Context, tx *Tx, rq *store.RequestRow)
 `domainOf` is the part after the last `@`, lower-cased, or `""`. `s.formDefaults` is task 148's; in
 this task's commit it is a stub that returns `nil, nil`, and task 148 replaces its body.
 `checkRulesInTeam` runs `LiveTeamProjects`, `LiveTeamLabels` and, once task 148 lands, the team's
-form ids, and answers the first failing field by the rules' order. `Require`, `Decode` and
-`Refuse` are Hub task 14's and 15's, as task 146 cites them. The `request.created` event is task
+form ids, and answers the first failing field by the rules' order as a 400 `Refuse`. `s.Write`,
+`WriteResult`, `Decode(body, &v)`, `Require(role, ok, want, notFound)` and `Refuse(status, code,
+message, details)` are used exactly as task 15 uses them (`task-15.md:355-375`, `:409`); `TeamRole`
+and `notFoundTeam` are the team twins of Hub task 14's `ProjectRole` and task 08's
+`notFoundProject`, **UNVERIFIED** names until H14 lands. The `request.created` event is task
 146's, and `RuleVersion` and `RuleAuthor` in its data (task 146's `RequestCreatedData`) are now
 filled; no type changes here. The subject of `intake.rules_set` is the team id, as task 13's
 `team.work_policy_set` names its team (`task-13.md:263`).
