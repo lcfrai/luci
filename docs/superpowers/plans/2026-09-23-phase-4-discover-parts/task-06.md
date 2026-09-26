@@ -203,17 +203,21 @@ type Source struct {
 }
 
 // ErrBadSource: Build was handed a source that is not the revision its key
-// names, or a pin that cannot be the one the revision holds. No Hub answer
-// produces one; it is a caller fault (a 500), never the person's.
+// names, or a pin that cannot be the one the revision holds. Every error
+// Build returns is one. No Hub answer produces one; it is a caller fault (a
+// 500), never the person's.
 var ErrBadSource = errors.New("provenance: the source is not the revision the key names")
 
-// Build resolves a complete revision through discover.Resolve and fills
-// every field; Ref.Title is the Document's Title and Ref.BranchRef is
+// Build resolves the revision the key names through discover.Resolve and
+// fills every field; Ref.Title is the Document's Title and Ref.BranchRef is
 // src.Revision.BranchRef. An open revision (only a history row can name one)
 // gets Sections from its own settled answers, no inheritance, Status "open",
 // and Ref.Title = discover.Title(&src.Revision) for a branch revision or
 // discover.Title(nil) for a project one - task 05's one copy of the rule,
-// never a string written here (re-review b05-1 R-M2).
+// never a string written here (re-review b05-1 R-M2). Resolve refuses an
+// incomplete revision, so Build hands it a copy marked complete with no pin;
+// the stored status is what Ref.Status says, and a held draft still renders
+// nothing (task 05). Ref.Inherits is the pin the content holds, open or not.
 // Build takes no Evaluate: nothing in a Ref may depend on evidence
 // (review I14).
 // With src.PinErased, Build calls discover.Resolve on a copy of src.Revision
@@ -221,16 +225,18 @@ var ErrBadSource = errors.New("provenance: the source is not the revision the ke
 // sets Ref.Inherits from the original Content.Inherits with Erased true: no
 // OriginProject section, and an audience, constraint or out-of-scope the
 // branch skipped stays "".
-// Resolve refuses an incomplete revision, so for an open one Build hands it a
-// copy marked complete with no pin: Ref.Status stays the stored status, and a
-// held draft still renders nothing (task 05). Ref.Inherits is the pin the
-// content holds, open or not.
-// The error (as built, departure 1): a source the key does not name - another
-// revision, a key that is not a brief key, a pin passed to a project
-// revision, an erased pin beside a pin in hand, a pin that is not a brief
-// key - is ErrBadSource; a pin that is not the one the revision holds is
-// discover.ErrInheritMismatch. Either way the Ref is UnavailableRef(key):
-// never one key on another revision's text.
+//
+// The error (task 06 as built; fix round 1, review m5): every error is
+// ErrBadSource, so a caller picks its status with one errors.Is. Build
+// refuses a source the key does not name - another revision or brief, a key
+// that is not a brief key, a pin passed to or held by a project revision, an
+// erased pin beside a pin in hand or on a revision that pins nothing, a pin
+// that is not a brief key - itself. What discover.Resolve refuses keeps
+// discover's error in the chain beside ErrBadSource: a pin that is not the
+// one the revision holds (discover.ErrInheritMismatch), a pin whose stored
+// status is not complete (discover.ErrIncomplete), and an envelope its scope
+// never holds. Whatever the error, the Ref is UnavailableRef(key): never one
+// key on another revision's text.
 func Build(key string, src Source, head Head) (Ref, error)
 
 // Readings is the moving part of one resolved key: one CriterionReading per
@@ -248,7 +254,10 @@ func Build(key string, src Source, head Head) (Ref, error)
 //     branch the key's brief is bound to now, not the revision's envelope
 //     BranchRef: a rebind writes no revision, so after a rename the envelope
 //     names a ref that is gone, or an unrelated branch that took the name
-//     (R2-M1).
+//     (R2-M1). That ref is the brief's live BriefHead.BranchRef, which
+//     /v1/refs does not carry, so task 07 reads it with List (its rule 8,
+//     ask HA4-13), and passes "" for an archived brief or a failed read.
+//
 // Its rules (S4-P3.4):
 //  1. ONE eval call per key, with every criterion of the done section in
 //     order, never one call per criterion; none at all when there are no
@@ -263,6 +272,7 @@ func Build(key string, src Source, head Head) (Ref, error)
 //  4. A non-open verdict whose because is then "" is shown open: an
 //     unexplained verdict is not shown (P12). So is a state that is not
 //     open, settled or contested, on that criterion alone.
+//
 // Called on EVERY answer, cached revision or not, so a verdict is never older
 // than the refs call that carried it.
 func Readings(ctx context.Context, key string, src Source, at string, eval Evaluate) []CriterionReading
@@ -319,8 +329,9 @@ adapter holds only the one rule `Readings` cannot: **key to subject**.
   dropped, because a `CriterionReading` shows none of them.
 - **Cross-phase ask (phase 3's stream; this plan cannot edit it):** phase 3's P4-4 row and task
   15 name this adapter, its file and its second-lander rule, so both plans carry one shape.
-  Recorded in the ledger (`progress.md`, b08 round 2). Task 06 as built adds two items to the
-  ask: phase 3 exports its repo rule (rule 3 above, R2-M2), and its evaluator is called at the
+  Recorded in the ledger (`progress.md`, b08 round 2; the amended ask is its own entry,
+  `CROSS-PHASE ASK (P4-4, amended by t06)`, written in fix round 1, review m4). Task 06 as built
+  adds two items to the ask: phase 3 exports its repo rule (rule 3 above, R2-M2), and its evaluator is called at the
   branch the caller names, a project key's criteria included (R2-I1), which `States` already
   allows: it takes a commit and never a branch id.
 
@@ -329,12 +340,12 @@ adapter holds only the one rule `Readings` cannot: **key to subject**.
 | Test | Asserts | Mutant it kills |
 |---|---|---|
 | `TestParseAcceptsTheHubsForms` | Hub contract §3.2's examples parse; `String()` round-trips; as built also each form's edges, the design form's nine-digit revision included (mutant R8-P1) | a grammar narrower than the Hub's |
-| `TestParseRejects` — table | `brief:b-42@3` (a pre-Hub id), `brief:bf-…@0`, `@01`, uppercase hex, 15 hex, trailing space, `design:cv-7@11` (too short: 4–32 hex), `none:`, `none:other`, `""`; as built also a design key `@01` and `@1000000000` (mutant R8-P2) | a lenient parser the desktop could lean on |
+| `TestParseRejects` — table | `brief:b-42@3` (a pre-Hub id), `brief:bf-…@0`, `@01`, uppercase hex, 15 hex, trailing space, `design:cv-7@11` (too short: 4–32 hex), `none:`, `none:other`, `""`; as built also a design key `@01` and `@1000000000` (mutant R8-P2), and (fix round 1) a lower-case letter past `f` in the brief id and in the design hex (mutants RVC, RVD) and a digit among the design letters | a lenient parser the desktop could lean on |
 | `TestEmptyIsNotAKeyButIsNone` | `Parse("")` is `ErrInvalidKey`; `NoneRef("")` is `resolution: none`, `noneReason: ""` | an empty `contextRef` read as data loss |
 | `TestDeclinedIsNoneWithAReason` | `NoneRef(Declined)` → `none`, `declined`, `present: false` | the override indistinguishable from "no brief" |
 | `TestBuildBranchKeyShowsInheritedText` | a branch revision that skips audience, with its pinned project revision: `Audience` is the project's text and its section is `OriginProject` | critique-2 §1.1's second consequence — a chip with no audience |
 | `TestBuildWithAnErasedPinHoldsNoInheritedText` (re-review b06-1 R-I2) | the same branch revision with `PinErased: true` and `Project` nil → `Inherits.Erased` true with the pin's key and digest, `Audience` `""`, no `OriginProject` section, and no `ErrInheritMismatch`; as built also the title is the key's (mutant R4-P2), and an open revision with an erased pin builds too, `open`, with its own answers (mutant X2) | a branch `Ref` carrying erased project text, or one that fails to build and blanks every chip on the branch |
-| `TestBuildTitlesAnOpenRevisionByTheOneRule` (re-review b05-1 R-M2) | `Build` over an open branch revision on `refs/heads/evidence-upload` → `Title` equals `discover.Title` of it (`Branch brief — evidence-upload`) and `BranchRef` equals `Revision.BranchRef`; an open project revision → `Project brief`; as built also `status` `open`, `resolved` and `present` (mutant R4-P1), the one settled answer as its only section, no draft and no inherited text, and `inherits` the whole pin, its revision the pin key's 5 and not the branch revision's own 3 (mutant R6-P2) | an open history row titled `""`, or by a second hand-written copy of task 05's rule that drifts from it |
+| `TestBuildTitlesAnOpenRevisionByTheOneRule` (re-review b05-1 R-M2) | `Build` over an open branch revision on `refs/heads/evidence-upload` → `Title` equals `discover.Title` of it (`Branch brief — evidence-upload`) and `BranchRef` equals `Revision.BranchRef`; an open project revision → `Project brief`; as built also `status` `open`, `resolved` and `present` (mutant R4-P1), the one settled answer as its only section, no draft and no inherited text, and `inherits` the whole pin, its revision the pin key's 5 and not the branch revision's own 3 (mutant R6-P2); (fix round 1) both Refs, which have no definition of done, marshal `"criteria":[]` (mutant RVB) | an open history row titled `""`, or by a second hand-written copy of task 05's rule that drifts from it |
 | `TestBuildCarriesCriterionDigests` | each criterion's digest is `CriterionDigest(text)`; ids are the content's | phase 3 matching evidence by a digest phase 4 never computed |
 | `TestCriterionDigestVector` | `CriterionDigest("Tests pass")` is `sha256:` + the SHA-256 of those 10 bytes, checked against a literal computed by `printf 'Tests pass' \| sha256sum` when the test is written | a digest over a trimmed, lower-cased or JSON-quoted text |
 | `TestNilEvaluateMeansOpen` | `Readings(ctx, key, src, at, nil)`: one reading per criterion of `Build`, same ids and order, every state `open`, every `because` `""` | a default of `settled` |
@@ -354,10 +365,10 @@ Added as built (each pins a rule the table's rows leave open):
 
 | Test | Asserts | Mutant it kills |
 |---|---|---|
-| `TestKeyStringNeverWritesANonKey` | a hand-built `Key` with a bad id, revision 0 or -1, an unknown kind or reason: `String()` is `""` | `String` minting a string that looks like a key and is not one |
-| `TestBriefKey` | the one writer: `brief:<id>@<n>`, 999999999 accepted; `b-42`, uppercase, a canvas id, `""`, a 17-hex id, a trailing line feed, a prefix before `bf-` (mutants R6-P1, R6-P1b: the id check unanchored), 0, -1 and 1000000000 panic | a writer laxer than the parser |
+| `TestKeyStringNeverWritesANonKey` | a hand-built `Key` with a bad id, revision 0 or -1, an unknown kind or reason: `String()` is `""`; (fix round 1) so is a `Key` whose string parses back to a different `Key`: a stray reason on a brief or design key, a stray id on a none key (mutant RVA) | `String` minting a string that looks like a key and is not one |
+| `TestBriefKey` | the one writer: `brief:<id>@<n>`, 999999999 accepted; `b-42`, uppercase, a lower-case letter past `f` (fix round 1), a canvas id, `""`, a 17-hex id, a trailing line feed, a prefix before `bf-` (mutants R6-P1, R6-P1b: the id check unanchored), 0, -1 and 1000000000 panic | a writer laxer than the parser |
 | `TestNoneRefRefusesAKey` | `NoneRef` of a brief key, `none:other`, `none:`, `" "`, `declined` panics | a real key shown as "no brief" by a caller that skipped `Parse` |
-| `TestBuildRefusesASourceTheKeyDoesNotName` | 18 rows: another revision's or brief's key, a design key (also on a revision relabelled to agree with it, mutant R9-P2), `b-42`, `""`, `none:declined`, an envelope key that differs, an envelope whose id or number is another's (mutant X1), a pin passed to a project revision or held by one (mutant P1), an erased pin beside a pin in hand or on a revision that pins nothing, a pin that is not a brief key, `brief:b-7@5` or a design key with the project passed under it (mutant R9-P1) (`ErrBadSource`); the project head instead of the pin, no pin passed (`discover.ErrInheritMismatch`). Each Ref is `unavailable` with no text | one key on another revision's text |
+| `TestBuildRefusesASourceTheKeyDoesNotName` | 21 rows, every one `ErrBadSource` (fix round 1, review m5), discover's own error beside it where discover refused: another revision's or brief's key, a design key (also on a revision relabelled to agree with it, mutant R9-P2), `b-42`, `""`, `none:declined`, an envelope key that differs, an envelope whose id or number is another's (mutant X1), a pin passed to a project revision or held by one (mutant P1), an erased pin beside a pin in hand or on a revision that pins nothing, a pin that is not a brief key, `brief:b-7@5` or a design key with the project passed under it (mutant R9-P1) (refused before discover, never `discover.ErrInheritMismatch`); the project head instead of the pin, no pin passed (`discover.ErrInheritMismatch` too); and (fix round 1) an open pin (`discover.ErrIncomplete` too), a branch revision with no branchRef and a scope that is neither (discover's unexported refusal). Each Ref is `unavailable` with no text | one key on another revision's text |
 | `TestAnOpenRevisionIsEvaluated` | an open branch revision with two criteria: one call, both readings shown | an open history row never evaluated (mutant R3-P2), though `Readings` runs on every answer |
 | `TestHeadsAreCarriedAsGiven` | head `{7, 6}` (an open head above the latest complete): `Build` and `ErasedRef` carry 7 and 6 | the two swapped (mutants R2-P2, R2-P3): every other row's head is `{6, 6}` |
 | `TestAnUnknownStateIsShownOpen` | a verdict `SETTLED` on one criterion: that one `open`, the others shown | a state outside the three reaching the chip |
@@ -399,7 +410,12 @@ above and in a test):
    differs, a pin passed to a project revision or held by one, an erased pin beside a pin in hand
    or on a revision that pins nothing, a pin that is not a brief key) is `ErrBadSource`, and a
    pin that is not the revision's is `discover.ErrInheritMismatch`. The `Ref` beside either is
-   `UnavailableRef(key)`. Task 07 never builds such a source (its rule 3 fetches the pin by
+   `UnavailableRef(key)`. **Fix round 1 (review m5):** every error `Build` returns is now
+   `ErrBadSource`. What `discover.Resolve` refuses (a pin that is not the revision's, an open
+   pin, an envelope its scope never holds) keeps discover's error in the chain beside it, so
+   `errors.Is(err, discover.ErrInheritMismatch)` still holds where it did. Before, an open pin
+   (`discover.ErrIncomplete`) and discover's unexported `errBadRevision` came back as neither
+   class the contract named. Task 07 never builds such a source (its rule 3 fetches the pin by
    `inherits.key`), so the error is a caller fault: task 07 logs it and serves the slot
    `unavailable`.
 2. **`Readings` takes `at`, the branch it evaluates at** (re-review b08-2 R2-I1 and R2-M1, both
@@ -413,7 +429,12 @@ above and in a test):
    `TestNoBranchIsNotEvaluated`, and two tests were added. **Carried, not built here:**
    - task 07 must pass `at` as above, reading the brief's current `branchRef` for `Resolve`
      (`BriefHead.branchRef`, Hub contract §7.1 `:641-642` at hub `da8c7da`; `/v1/refs`' `heads`
-     do not carry it, §7.5 `:829`);
+     do not carry it, §7.5 `:829`). **Fix round 1 (review I1)** wrote where it comes from, which
+     this bullet left open while task 07 still said "at most two Hub calls", both `/v1/refs`:
+     task 07's rule 8 reads it with `List`, once per Hub project, only when `Config.Evaluate`
+     is set, and gives `""` to an archived brief or a failed read. Ask HA4-13 (plan §9) puts
+     `branchRef` on `heads`. Task 07 has the row that kills `at = src.Revision.BranchRef`
+     (`TestResolveEvaluatesABranchKeyWhereItsBriefIsBoundNow`);
    - task 16 must store a head reading's states by target, not by key, since one project key
      inherited by two branches has two sets (plan S4-P3.4, amended);
    - phase 3's cross-phase ask gains two items (the adapter section above).

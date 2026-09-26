@@ -29,7 +29,8 @@ blocks task 08 (plan §6, §9). Phase 4 writes **nothing** under `control-plane/
   through; `Hub` stays as it is, and so do the three hooks. That is a one-file change, and the
   unchanged tests prove it.
 
-The orchestrator carries HA4-1..12 to the Hub planner (plan §9; HA4-12, the per-team name rule's
+The orchestrator carries HA4-1..13 to the Hub planner (plan §9; HA4-13, `branchRef` on `/v1/refs`'
+heads, is this task's rule 8; HA4-12, the per-team name rule's
 error code, is this task's: `NameTakenError` below); this task does not wait on the
 reply to start, but it cannot claim the real Hub until HA4-2 is in the Hub contract.
 
@@ -41,7 +42,12 @@ reply to start, but it cannot claim the real Hub until HA4-2 is in the Hub contr
 - `control-plane/internal/discoverhub/fakehub_test.go` — `fakeHub{*hubclient.Fake}` plus `List`
   over the seeded revisions, until HA4-2 lands, and three test hooks H0's fake does not plan
   (`phase-h-hub-parts/task-04.md:188-226` lists its whole surface, and none is in it) (new;
-  phase 4's, not the Hub's):
+  phase 4's, not the Hub's). Rule 8's rows need `List` to answer each brief's **current**
+  head: a `Rebind` or an `Archive` made through the fake shows through, and `SetUnavailable`
+  fails it. The Hub branch's built fake already does all three and logs `List` in `Calls()`
+  (hub `3df9fab`, `hubclient/fake_briefs.go:176-216`, read for task 06 fix round 1). A wrapper
+  `List`, if Step 1 still needs one, must do the same, and counts its own calls for those rows.
+  The hooks:
   - `renameProject(id, name string)` — from then on the wrapper's `Project` and `ProjectForRepo`
     return the embedded fake's answer with `Name` replaced. It stands in for route 16,
     `PATCH /v1/projects/{id}`, which `hubclient.Projects` has no method for.
@@ -438,7 +444,9 @@ type History struct {
 
 func (s *Service) History(ctx context.Context, briefID string, after string, limit int) (History, error)
 
-// Resolve answers every key, in order, in at most two Hub calls. The first
+// Resolve answers every key, in order, in at most two /v1/refs calls, plus,
+// only when Config.Evaluate is set, one List walk per Hub project that a
+// resolved branch slot names (rule 8). The first /v1/refs call
 // carries EVERY requested brief key, cached or not, and the pin key
 // (Inherits.Key) of every cached branch revision among them, whether or not
 // the pin is still cached. The second carries the pins of the other branch
@@ -453,7 +461,12 @@ func (s *Service) History(ctx context.Context, briefID string, after string, lim
 // every resolved slot, cached revision or not, and nothing for any other slot.
 // at is "" for a project key, which Resolve never evaluates, and for a branch
 // key the branch its brief is bound to now, never the revision's envelope
-// BranchRef (task 06 as built; re-review b08-2 R2-I1, R2-M1):
+// BranchRef (task 06 as built; re-review b08-2 R2-I1, R2-M1): the
+// BranchRef of the brief's live BriefHead, read by rule 8's List because
+// /v1/refs carries no current ref (its revisions hold the envelope's, and its
+// heads hold none: Hub contract §7.1 :641-648, §7.5 :829 at hub da8c7da;
+// ask HA4-13). An archived brief, or one rule 8 could not read, gets at ""
+// and is not evaluated (task 06 fix round 1, review I1).
 // criterion state moves, so it is computed on every call and is never part
 // of the cached Ref (review I14).
 // There is no error result: a Hub failure, a signed-out user or a nil Hub
@@ -555,6 +568,35 @@ func (s *Service) Inheritable(ctx context.Context, t Target) (Inheritable, error
    own-text document for such a revision, with `Key` the branch key (the recommended answer to
    OQ-9). Only a Hub that is failing, with both pieces cached, still yields the old text until
    `CacheTTL`; that is HA4-8's gap, and the desktop refuses that answer (task 16 `putRefs`).
+8. **The branch a by-key reading is evaluated at** (task 06 fix round 1, review I1; re-review
+   b08-2 R2-M1). A rebind (`PATCH /v1/briefs/{id}`, `Rebind`) writes no revision (Hub contract
+   §7.5 :780-782 at hub `da8c7da`), so a branch key's envelope `branchRef` is the ref its brief had
+   when that revision was saved: after a rename it names a ref that is gone, or an unrelated branch
+   that took the name. The ref the brief is bound to now is on its `BriefHead` only (§7.1
+   :641-642). `/v1/refs` carries none: its `BriefRevision` holds the envelope's (:647-648), and
+   its `heads` hold `headRevision`, `latestCompleteRevision` and `archived` only (:829). So:
+   - With `Config.Evaluate` nil, `Resolve` reads nothing more. `Readings` calls no `Evaluate`,
+     so `at` changes nothing, and phase 4's default configuration costs no extra call.
+   - Otherwise, after its `/v1/refs` calls, `Resolve` calls `Hub.List(ctx, projectID,
+     hubapi.BriefQuery{Scope: "branch", Page: hubapi.PageRequest{Limit: 200}})` once for each
+     distinct `Source.ProjectID` among the `resolved` branch slots, follows `next` until it is
+     null (§1 :48-49: 200 is a page's maximum), and maps each `BriefHead.ID` to its `BranchRef`.
+     `IncludeArchived` stays false.
+   - A branch slot's `at` is that map's entry for its `BriefID`: **never** the revision's
+     envelope `BranchRef`, and never `ForBranch` of it (which answers the brief bound to that
+     ref now: after a rename, another brief or none).
+   - An archived brief is not in the list, so its `at` is `""`. Archiving frees its ref for a new
+     brief (§7.5 :785-788), so a verdict read there would be a stranger's.
+   - A `List` that fails, for any reason in rule 5's list, `signin.ErrSignedOut` included, gives
+     `at` `""` to every branch slot of that project. Every reading is then `open`. Each slot is
+     still `resolved` or not by rule 5 alone, and there is no error (`Resolve` has none). `open`
+     is `Readings`' answer where no branch is named (task 06), not a verdict. A reading at a
+     guessed ref would be one.
+   - The `List` answer is not cached: a head moves, and a rebind is a head change.
+   - Ask **HA4-13** (plan §9) puts `branchRef` on `/v1/refs`' `heads`. When it lands, this rule
+     reads the first call's heads, the `List` walk is deleted, and the rows below pass
+     unchanged but for their `List` counts.
+   - `HeadRef(t)` is unaffected: it passes `t`'s own branch (task 06).
 
 **Tests first** (`fakeHub` from `fakehub_test.go` — `hubclient.NewFake()` embedded, plus `List`
 until HA4-2 lands, plus the `renameProject` and `failResolve` hooks — seeded by `fixtures_test.go` with the fact sheet's world —
@@ -575,11 +617,12 @@ project `Engagement Portal`, `b-7` revs 1–6, `b-42` revs 1–6 with the pins o
 | `TestInheritableFallsBackToTheProject` | branch brief open with no complete revision → the project's latest complete key | a branch session that inherits nothing while the project has a brief |
 | `TestInheritableIsNoneWithNoCompleteBrief` | key `""`, zero document | an empty block written as if it were a brief |
 | `TestInheritableUsesThePinnedProjectRevision` | project head moved to 7 after `b-42@6` pinned `b-7@6`: the document's audience is rev 6's text | resolving against the project head — critique-2 §1.1 |
-| `TestResolveBatchesInTwoCallsAtMost` | twelve keys, six branch revisions pinning three project revisions: the fake records ≤ 2 `Resolve` calls | a call per key, or per inherited key (P8's cost, one layer down) |
+| `TestResolveBatchesInTwoCallsAtMost` | twelve keys, six branch revisions pinning three project revisions, all in one Hub project: the fake records ≤ 2 `Resolve` calls; with `Config.Evaluate` nil, no `List` call; with it set, exactly one `List` call (rule 8) | a call per key, or per inherited key (P8's cost, one layer down); a `List` per branch key, or one where nothing is evaluated |
 | `TestResolveNeverSendsLocalForms` | `""`, `none:declined`, `b-42` → `none`, `none`, `invalid`, and the fake saw none of them | a local form leaking to the Hub, which answers `invalid` for `none:declined` |
 | `TestResolveCachesOnlyResolved` | a `missing` key and a `resolved` one, each asked once while the Hub is healthy and again with `SetUnavailable(true)` → the `missing` one is `unavailable`, the `resolved` one `resolved` from the cache | a cached `missing` hiding a teammate's write |
 | `TestResolveCarriesCachedKeysForTheirHeads` (re-review b06-1 R-I1) | resolve `b-42@6` (pins `b-7@5`); the fake writes `b-7@6` `complete`; resolve `b-42@6` again inside `CacheTTL` → the wrapper saw the first call carry `b-42@6` and `b-7@5`, `heads["bf-…b7"]` is `{6, 6}` and `heads["bf-…b42"]` is present, and the `refs` slot is equal to the first answer's | a cache hit that costs the desktop its head, so a project edit never reaches a branch chip (rule 4 of task 16's selector reads `current` for ever) |
-| `TestCriterionStatesAreRecomputedOnACachedKey` (review I14) | `Config.Evaluate` answers `open` on the first call and every criterion `settled` with `Because` `{"CI run 88 passed"}` on the second; `Resolve` the same resolved **branch** key twice (`Resolve` evaluates no project key, task 06), the second with `SetUnavailable(true)` → its `refs` slot is `resolved` from the cache and equal to the first, and `states[key]` changes from `open` to `settled`; a `missing`, `none` or `unavailable` slot has no `states` entry | a verdict cached with the revision, so evidence never moves it |
+| `TestCriterionStatesAreRecomputedOnACachedKey` (review I14) | `Config.Evaluate` answers `open` on the first call and every criterion `settled` with `Because` `{"CI run 88 passed"}` on the second; `Resolve` the same resolved **branch** key twice (`Resolve` evaluates no project key, task 06), the second on a healthy Hub, so the key rides the first `/v1/refs` call for its head and rule 5 leaves the cached entry as it is → its `refs` slot is equal to the first, and `states[key]` changes from `open` to `settled`; a third with `SetUnavailable(true)` → the slot is still `resolved` from the cache, and every reading is `open` with `Evaluate` not called (rule 8: the binding cannot be read, and the envelope ref is never the fallback; task 06 fix round 1); a `missing`, `none` or `unavailable` slot has no `states` entry | a verdict cached with the revision, so evidence never moves it; a cached branch key evaluated at its envelope ref while the Hub is down |
+| `TestResolveEvaluatesABranchKeyWhereItsBriefIsBoundNow` (task 06 fix round 1, review I1; re-review b08-2 R2-M1; rule 8) | `Config.Evaluate` a recording fake. Rebind `b-42`'s brief from `refs/heads/evidence-upload` to `refs/heads/evidence-upload-v2` with the fake's `Rebind` (no revision written), then `Resolve([b-42@5])` → `resolved`, and `Evaluate` was called once, its query's `BranchRef` `refs/heads/evidence-upload-v2`. Create a new branch brief on `refs/heads/evidence-upload`, the old name reused, and resolve again → still `-v2`, never the new brief's ref. `Archive` `b-42`'s brief and resolve again → still `resolved`, `Evaluate` not called, every reading `open`. `b-7@5` in the same batch → no `Evaluate` call for it. The fake's `Calls()` show one `List` per `Resolve`, for `b-42`'s Hub project, with `Scope` `branch` | `at = src.Revision.BranchRef` (R2-M1: after a rename the envelope names a ref that is gone, or someone else's branch); `at` from `ForBranch` of the envelope ref, which finds the new brief; an archived brief evaluated at a ref it no longer holds |
 | `TestHeadRefServesCriterionStatesBesideTheRef` (re-review b06-1 R-I3) | `Config.Evaluate` answers every criterion `settled` with `Because` `{"CI run 88 passed"}` for `b-42@6`'s criteria; `HeadRef` on `b-42` → `states` has one `settled` reading per `Criterion` of the `Ref`, same ids and order, and the `Ref`'s JSON has no `state` key; `Evaluate` then answers `contested, "run 91 failed"` → a second `HeadRef` gives `contested` and a byte-equal `Ref`; a `none` reading has nil `states` | a `DefinitionOfDone` whose states depend on some session having stamped the same key, so a settled criterion reads `open` on every mount |
 | `TestErasedIsNeverServedFromCache` | resolve, erase in the fake, resolve again inside `CacheTTL` → `erased`, no sections, and the entry is evicted (the Hub's answer wins); resolve, erase, `SetUnavailable(true)`, advance the injected clock past `CacheTTL`, resolve → `unavailable`, never `resolved` | erased text outliving its erasure on a laptop (ADR-H1 §6.8), or a cache that outranks the Hub's own `erased` |
 | `TestABranchKeyWhosePinIsErasedKeepsOnlyItsOwnText` (re-review b06-1 R-I2; rule 7) | resolve `b-42@6` (pins `b-7@5`, audience skipped on the branch) so both are cached; erase `b-7` in the fake; resolve `b-42@6` again → `resolved`, `inherits` `{key: brief:…b7@5, erased: true}`, `audience` `""`, no section whose origin is `project`, and no byte of `b-7@5`'s answers anywhere in the JSON; `HeadRef` on `b-42` and `Inheritable` agree | erased project text served inside every branch key that pinned it, from the cache or from a rebuild |
