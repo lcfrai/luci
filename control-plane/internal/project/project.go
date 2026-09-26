@@ -42,9 +42,17 @@ type Worktree struct {
 	ID        string `json:"id"` // "w-" + first 8 hex of sha256(absolute path)
 	ProjectID string `json:"projectId"`
 	BranchID  string `json:"branchId"` // empty for a detached or bare worktree
-	Name      string `json:"name"`     // base name of the worktree directory
-	Path      string `json:"path"`     // absolute
+	// Name is the display name: the directory's base name for "primary" and "linked", the
+	// lane's Name for "clone" (whose directory adds a creation nonce). It is the only field
+	// anything shows or titles a session with.
+	Name      string `json:"name"`
+	Path      string `json:"path"` // absolute
 	IsPrimary bool   `json:"isPrimary"`
+	// Kind is "primary" for the repository's main worktree, "linked" for one made with
+	// `git worktree add`, and "clone" for a cockpit worktree (set by lanes.Catalog, never
+	// here). Git works inside a sandbox for "primary" and "clone"; not for "linked", whose
+	// .git is a file naming a host path (the sandbox git fix's finding).
+	Kind string `json:"kind"`
 }
 
 // Runner runs git. It is an interface so tests need neither git nor a repo.
@@ -306,8 +314,13 @@ func (s *Scanner) parseWorktrees(p Project, out string) []Worktree {
 		case strings.HasPrefix(line, "worktree "):
 			flush()
 			path := filepath.Clean(strings.TrimPrefix(line, "worktree "))
+			kind := "linked"
+			if len(res) == 0 {
+				kind = "primary"
+			}
 			cur = &Worktree{
-				ID:        WorktreeID(path),
+				Kind:      kind,
+				ID:      WorktreeID(path),
 				ProjectID: p.ID,
 				Name:      filepath.Base(path),
 				Path:      path,

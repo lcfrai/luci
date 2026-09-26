@@ -344,6 +344,31 @@ func TestWorktreesParsesPorcelainOutput(t *testing.T) {
 	}
 }
 
+// TestParseWorktreesSetsKind (phase 3 task 03): git lists the main worktree first, so the first
+// record is "primary" and every other one "linked". "clone" is lanes.Catalog's, never the scanner's.
+func TestParseWorktreesSetsKind(t *testing.T) {
+	root := t.TempDir()
+	dir := makeRepo(t, root, "panacea")
+	linked := filepath.Join(t.TempDir(), "evidence-upload")
+	detached := filepath.Join(t.TempDir(), "spike")
+	g := newFakeGit()
+	g.reply(dir, worktreePorcelain(dir, linked, detached), "worktree", "list", "--porcelain")
+
+	got, err := project.NewScanner(root, g).Worktrees(context.Background(), project.ProjectID(dir))
+	if err != nil {
+		t.Fatalf("Worktrees: %v", err)
+	}
+	want := []string{"primary", "linked", "linked"}
+	if len(got) != len(want) {
+		t.Fatalf("Worktrees() = %#v, want %d records", got, len(want))
+	}
+	for i, w := range want {
+		if got[i].Kind != w {
+			t.Errorf("Worktrees()[%d].Kind = %q, want %q", i, got[i].Kind, w)
+		}
+	}
+}
+
 func TestPathResolvesAWorktreeIdThroughTheProvider(t *testing.T) {
 	root := t.TempDir()
 	dir := makeRepo(t, root, "panacea")
