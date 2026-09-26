@@ -103,8 +103,11 @@ CREATE TABLE IF NOT EXISTS hub.schema_migrations (
 // on every path. It returns the versions it applied, in order.
 //
 // A recorded version that ms does not hold at all (above its highest, or below
-// 1) is ErrAhead: this build cannot vouch for it. ms must be what Load returns,
-// versions 1..n; anything else is ErrBadName before the database is touched.
+// 1) is ErrAhead: this build cannot vouch for it. A recorded version whose name
+// differs from ms's is ErrEdited too: the record must name what ran. ms must be
+// what Load returns, versions 1..n; anything else is ErrBadName before the
+// database is touched. Once SET ROLE has succeeded, Apply ends with RESET ROLE
+// on every path, so conn goes back to its session's own role.
 func Apply(ctx context.Context, conn *pgx.Conn, ms []Migration, log *slog.Logger) (applied []int, err error) {
 	if log == nil {
 		log = slog.New(slog.NewTextHandler(io.Discard, nil))
@@ -115,17 +118,12 @@ func Apply(ctx context.Context, conn *pgx.Conn, ms []Migration, log *slog.Logger
 	if _, err := conn.Exec(ctx, "SET ROLE hub_owner"); err != nil {
 		return nil, fmt.Errorf("migrate: set role hub_owner: %w", err)
 	}
+	// Deferred first, so it runs last: after the unlock.
+	defer onFreshContext(&err, conn, "reset the role", "RESET ROLE")
 	if _, err := conn.Exec(ctx, "SELECT pg_advisory_lock(hashtext($1))", LockName); err != nil {
 		return nil, fmt.Errorf("migrate: take the advisory lock: %w", err)
 	}
-	defer func() {
-		// ctx may be what ended the run; the unlock must still be sent.
-		uctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		if _, uerr := conn.Exec(uctx, "SELECT pg_advisory_unlock(hashtext($1))", LockName); uerr != nil && err == nil {
-			err = fmt.Errorf("migrate: release the advisory lock: %w", uerr)
-		}
-	}()
+	defer onFreshContext(&err, conn, "release the advisory lock", "SELECT pg_advisory_unlock(hashtext($1))", LockName)
 	if _, err := conn.Exec(ctx, ddl); err != nil {
 		return nil, fmt.Errorf("migrate: create hub.schema_migrations: %w", err)
 	}
@@ -142,8 +140,12 @@ func Apply(ctx context.Context, conn *pgx.Conn, ms []Migration, log *slog.Logger
 		if v < 1 || v > len(ms) {
 			return nil, fmt.Errorf("%w: version %d is recorded; this build's highest is %d", ErrAhead, v, len(ms))
 		}
-		if m := ms[v-1]; recorded[v] != m.SHA256 {
+		m, r := ms[v-1], recorded[v]
+		if r.sum != m.SHA256 {
 			return nil, fmt.Errorf("%w: version %04d (%s)", ErrEdited, m.Version, m.Name)
+		}
+		if r.name != m.Name {
+			return nil, fmt.Errorf("%w: version %04d is recorded as %q; this build names it %q", ErrEdited, m.Version, r.name, m.Name)
 		}
 	}
 	applied = []int{}
@@ -160,27 +162,44 @@ func Apply(ctx context.Context, conn *pgx.Conn, ms []Migration, log *slog.Logger
 	return applied, nil
 }
 
-// readRecorded is every row of hub.schema_migrations, version to sha256.
-func readRecorded(ctx context.Context, conn *pgx.Conn) (map[int][32]byte, error) {
-	rows, err := conn.Query(ctx, "SELECT version, sha256 FROM hub.schema_migrations")
+// onFreshContext runs sql on conn for a deferred clean-up. ctx may be what
+// ended the run, so it gets a context of its own; its error becomes *err only
+// when nothing failed before it.
+func onFreshContext(err *error, conn *pgx.Conn, what, sql string, args ...any) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if _, cerr := conn.Exec(ctx, sql, args...); cerr != nil && *err == nil {
+		*err = fmt.Errorf("migrate: %s: %w", what, cerr)
+	}
+}
+
+// record is one row of hub.schema_migrations.
+type record struct {
+	name string
+	sum  [32]byte
+}
+
+// readRecorded is every row of hub.schema_migrations, by version.
+func readRecorded(ctx context.Context, conn *pgx.Conn) (map[int]record, error) {
+	rows, err := conn.Query(ctx, "SELECT version, name, sha256 FROM hub.schema_migrations")
 	if err != nil {
 		return nil, fmt.Errorf("migrate: read hub.schema_migrations: %w", err)
 	}
 	defer rows.Close()
-	out := map[int][32]byte{}
+	out := map[int]record{}
 	for rows.Next() {
 		var v int
+		var r record
 		var b []byte
-		if err := rows.Scan(&v, &b); err != nil {
+		if err := rows.Scan(&v, &r.name, &b); err != nil {
 			return nil, fmt.Errorf("migrate: read hub.schema_migrations: %w", err)
 		}
-		var sum [32]byte
-		if len(b) != len(sum) {
+		if len(b) != len(r.sum) {
 			// A digest that is not 32 bytes matches nothing this build holds.
 			return nil, fmt.Errorf("%w: version %d records a %d-byte sha256", ErrEdited, v, len(b))
 		}
-		copy(sum[:], b)
-		out[v] = sum
+		copy(r.sum[:], b)
+		out[v] = r
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("migrate: read hub.schema_migrations: %w", err)

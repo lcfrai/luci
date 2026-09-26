@@ -192,6 +192,32 @@ func TestAnEditedMigrationIsRefused(t *testing.T) {
 	if v, err := migrate.Current(ctxT(t), conn); err != nil || v != 2 {
 		t.Fatalf("Current = %d, %v; want 2", v, err)
 	}
+	withC := map[string]string{"0001_a.sql": two["0001_a.sql"], "0002_b.sql": two["0002_b.sql"], "0003_c.sql": edited["0003_c.sql"]}
+	refused := func(what string, files map[string]string) {
+		t.Helper()
+		got, err := migrate.Apply(ctxT(t), conn, load(t, files), nil)
+		if !errors.Is(err, migrate.ErrEdited) || len(got) != 0 {
+			t.Fatalf("Apply %s = %v, %v; want nothing applied, ErrEdited", what, got, err)
+		}
+		if tableExists(t, conn, "hub.c") || len(recorded(t, conn)) != 2 {
+			t.Fatalf("0003 was applied past the refusal (%s)", what)
+		}
+	}
+	// A recorded digest that is not 32 bytes matches nothing: refused, not skipped.
+	sum := sha256.Sum256([]byte(two["0001_a.sql"]))
+	if _, err := conn.Exec(ctxT(t), "UPDATE hub.schema_migrations SET sha256 = $1 WHERE version = 1", sum[:31]); err != nil {
+		t.Fatalf("shorten 0001's digest: %v", err)
+	}
+	refused("over a 31-byte digest", withC)
+	// The same bytes under another name: the record no longer names what ran.
+	if _, err := conn.Exec(ctxT(t), "UPDATE hub.schema_migrations SET sha256 = $1 WHERE version = 1", sum[:]); err != nil {
+		t.Fatalf("restore 0001's digest: %v", err)
+	}
+	refused("of 0001 renamed", map[string]string{"0001_renamed.sql": two["0001_a.sql"], "0002_b.sql": two["0002_b.sql"], "0003_c.sql": edited["0003_c.sql"]})
+	// With the names and the bytes as recorded, 0003 applies.
+	if got, err := migrate.Apply(ctxT(t), conn, load(t, withC), nil); err != nil || !sameInts(got, []int{3}) {
+		t.Fatalf("Apply as recorded plus 0003 = %v, %v; want [3], nil", got, err)
+	}
 }
 
 // TestEachMigrationIsItsOwnTransaction: 0002's second statement fails at run
@@ -284,15 +310,21 @@ func TestDatabaseAheadIsRefused(t *testing.T) {
 		t.Fatalf("Apply(nil) = %v, %v; want [], nil", got, err)
 	}
 	sum := sha256.Sum256([]byte("from a newer build"))
-	if _, err := conn.Exec(ctxT(t), "INSERT INTO hub.schema_migrations (version, name, sha256) VALUES (9, 'newer', $1)", sum[:]); err != nil {
-		t.Fatalf("record version 9 by hand: %v", err)
+	if _, err := conn.Exec(ctxT(t), "INSERT INTO hub.schema_migrations (version, name, sha256) VALUES (3, 'newer', $1)", sum[:]); err != nil {
+		t.Fatalf("record version 3 by hand: %v", err)
 	}
-	got, err := migrate.Apply(ctxT(t), conn, load(t, two), nil)
-	if !errors.Is(err, migrate.ErrAhead) || len(got) != 0 {
-		t.Fatalf("Apply = %v, %v; want nothing applied, ErrAhead", got, err)
-	}
-	if tableExists(t, conn, "hub.a") || len(recorded(t, conn)) != 1 {
-		t.Fatalf("an old build migrated a newer schema")
+	// 3 against [1 2] is the realistic case: one release rolled back. Then 9.
+	for _, v := range []int{3, 9} {
+		if _, err := conn.Exec(ctxT(t), "UPDATE hub.schema_migrations SET version = $1", v); err != nil {
+			t.Fatalf("record version %d: %v", v, err)
+		}
+		got, err := migrate.Apply(ctxT(t), conn, load(t, two), nil)
+		if !errors.Is(err, migrate.ErrAhead) || len(got) != 0 {
+			t.Fatalf("Apply with %d recorded = %v, %v; want nothing applied, ErrAhead", v, got, err)
+		}
+		if tableExists(t, conn, "hub.a") || len(recorded(t, conn)) != 1 {
+			t.Fatalf("an old build migrated a newer schema (%d recorded)", v)
+		}
 	}
 }
 
@@ -333,4 +365,36 @@ func TestObjectsAreOwnedByHubOwner(t *testing.T) {
 	if err := check.QueryRow(ctxT(t), "SELECT pg_get_userbyid(nspowner) FROM pg_namespace WHERE nspname = 'hub'").Scan(&schemaOwner); err != nil || schemaOwner != "hub_owner" {
 		t.Fatalf("schema hub is owned by %q (%v); want hub_owner", schemaOwner, err)
 	}
+}
+
+// TestTheCallersRoleIsRestored: Apply's SET ROLE hub_owner does not outlive
+// it. Run as the administrator, the connection is its session role again after
+// a success, a refusal and a failed migration alike.
+func TestTheCallersRoleIsRestored(t *testing.T) {
+	d := hubtest.New(t)
+	conn := adminConn(t, d)
+	role := func(after string) {
+		t.Helper()
+		var cur, sess string
+		if err := conn.QueryRow(ctxT(t), "SELECT current_user::text, session_user::text").Scan(&cur, &sess); err != nil {
+			t.Fatalf("after %s: read the role: %v", after, err)
+		}
+		if cur != sess || cur == "hub_owner" {
+			t.Fatalf("after %s the connection is %q; want its session role %q", after, cur, sess)
+		}
+	}
+	if got, err := migrate.Apply(ctxT(t), conn, load(t, two), nil); err != nil || !sameInts(got, []int{1, 2}) {
+		t.Fatalf("Apply = %v, %v; want [1 2], nil", got, err)
+	}
+	role("a successful Apply")
+	edited := map[string]string{"0001_a.sql": "CREATE TABLE hub.a (x int);\n", "0002_b.sql": two["0002_b.sql"]}
+	if _, err := migrate.Apply(ctxT(t), conn, load(t, edited), nil); !errors.Is(err, migrate.ErrEdited) {
+		t.Fatalf("Apply of an edited 0001 = %v; want ErrEdited", err)
+	}
+	role("a refused Apply")
+	failing := map[string]string{"0001_a.sql": two["0001_a.sql"], "0002_b.sql": two["0002_b.sql"], "0003_c.sql": "INSERT INTO hub.no_such_table VALUES (1);\n"}
+	if _, err := migrate.Apply(ctxT(t), conn, load(t, failing), nil); err == nil {
+		t.Fatalf("Apply of a failing 0003 = nil; want its error")
+	}
+	role("a failed migration")
 }
