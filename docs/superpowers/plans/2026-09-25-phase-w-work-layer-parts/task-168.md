@@ -316,3 +316,44 @@ func (c *Client) CreateHostHook(ctx context.Context, projectID string, host huba
 	var out hubapi.CreatedHostHook
 	return out, c.work(ctx, "CreateHostHook", nil, struct{}{}, &out, projectID, string(host))
 }
+func (c *Client) CreateWebhook(ctx context.Context, teamID string, req hubapi.CreateWebhookRequest) (hubapi.CreatedWebhook, error) {
+	var out hubapi.CreatedWebhook
+	return out, c.work(ctx, "CreateWebhook", nil, req, &out, teamID)
+}
+func (c *Client) ListWebhooks(ctx context.Context, teamID string) ([]hubapi.Webhook, error) {
+	var out struct{ Items []hubapi.Webhook `json:"items"` }
+	return out.Items, c.work(ctx, "ListWebhooks", nil, nil, &out, teamID)
+}
+func (c *Client) DisableWebhook(ctx context.Context, webhookID string) (hubapi.Webhook, error) {
+	var out hubapi.Webhook
+	return out, c.work(ctx, "DisableWebhook", nil, struct{}{}, &out, webhookID)
+}
+func (c *Client) RotateWebhookSecret(ctx context.Context, webhookID string) (hubapi.CreatedWebhook, error) {
+	var out hubapi.CreatedWebhook
+	return out, c.work(ctx, "RotateWebhookSecret", nil, struct{}{}, &out, webhookID)
+}
+func (c *Client) ListDeliveries(ctx context.Context, webhookID string, page hubapi.PageRequest) (hubapi.Page[hubapi.WebhookDelivery], error) {
+	var out hubapi.Page[hubapi.WebhookDelivery]
+	return out, c.work(ctx, "ListDeliveries", EncodeQuery(page), nil, &out, webhookID)
+}
+func (c *Client) Redeliver(ctx context.Context, deliveryID string) (hubapi.WebhookDelivery, error) {
+	var out hubapi.WebhookDelivery
+	return out, c.work(ctx, "Redeliver", nil, struct{}{}, &out, deliveryID)
+}
+func (c *Client) BindTeams(ctx context.Context, teamID string, b hubapi.TeamsBinding) (hubapi.TeamsBinding, error) {
+	var out hubapi.TeamsBinding
+	return out, c.work(ctx, "BindTeams", nil, b, &out, teamID)
+}
+func (c *Client) ListTeamsBindings(ctx context.Context, teamID string) ([]hubapi.TeamsBinding, error) {
+	var out struct{ Items []hubapi.TeamsBinding `json:"items"` }
+	return out.Items, c.work(ctx, "ListTeamsBindings", nil, nil, &out, teamID)
+}
+func (c *Client) UnbindTeams(ctx context.Context, teamID string, subject hubapi.TeamsSubject) error {
+	return c.work(ctx, "UnbindTeams", nil, subject, nil, teamID)
+}
+```
+
+A body-less `POST` sends `{}` (`struct{}{}`), because the Hub decodes every write strictly
+(contract §1) and an empty body is a 400 there. A list answers `{"items": [...]}`, the Hub's list
+shape (hub tree `task-35.md:101`); a route part that answers a bare array is read at step 1 and
+this method follows it.
