@@ -39,7 +39,8 @@ approximated.
 - `control-plane/internal/hub/hubclient/hubclient.go`: `Team`, `OrgFeed`, `Hub` (modify)
 - `control-plane/internal/hub/hubclient/context.go`: `WithDelegation`, `WithIdempotencyKey`,
   `DelegationFrom`, `IdempotencyKeyFrom` (new)
-- `control-plane/internal/hub/hubclient/client_team.go`: the HTTP methods (new)
+- `control-plane/internal/hub/hubclient/client_team.go`: the HTTP methods, route 87's
+  `SetProjectMode` among them (new)
 - `control-plane/internal/hub/hubclient/fake_team.go`: delegations, tasks, agents, leases,
   conflicts (new)
 - `control-plane/internal/hub/hubclient/fake_team_protocol.go`: threads, messages, escalations,
@@ -83,6 +84,12 @@ type Team interface {
 	Delegation(ctx context.Context, delegationID string) (hubapi.Delegation, error)
 	RenewDelegation(ctx context.Context, delegationID string) (hubapi.Delegation, error)
 	RevokeDelegation(ctx context.Context, delegationID string) error
+
+	// Desktop, a team admin: route 87 (fix batch b01, X-C1), the one writer of a
+	// project's mode. One way; 503 unavailable, details.reason audit_not_streaming,
+	// while the Hub's audit gate is shut. The real Hub's and the fake's only path to
+	// a team project: no test sets the mode any other way.
+	SetProjectMode(ctx context.Context, projectID string, mode hubapi.ProjectMode) (hubapi.Project, error)
 
 	// Fleet writes: routes 50, 51, 53, 54, 56, 57, 58.
 	CreateTask(ctx context.Context, projectID, _ string, req hubapi.CreateTaskRequest) (hubapi.Task, error)
@@ -304,10 +311,19 @@ var (
 // AsFleet returns a view acting as Fleet.
 func (f *Fake) AsFleet() *Fake { return &Fake{w: f.w, as: FakeFleet} }
 
-// SetProjectMode sets a fake project's mode ("solo" or "team"). The real Hub's
-// Share route is not in Phase T's task list yet (task-06.md, "Gaps" 3); tests set
-// the mode directly.
-func (f *Fake) SetProjectMode(projectID, mode string) error
+// SetProjectMode is Team's route 87 on the fake, with the real route's rules
+// (fix batch b01, X-C1): Fleet's view → 403 forbidden, required "route"; not an
+// admin → 403, required "admin"; a mode but "team" → 400, field "mode"; the gate
+// shut → 503 audit_not_streaming, nothing written; already team → the project, no
+// event; else one project.mode_set event with both feed flags set. It replaces the
+// test-only setter the fake had, so no fake test reaches a team project by a path
+// the real Hub does not have.
+func (f *Fake) SetProjectMode(ctx context.Context, projectID string, mode hubapi.ProjectMode) (hubapi.Project, error)
+
+// ShutTeamModeGate makes route 87 answer 503 on this fake, as a real Hub whose audit
+// sink is not "logs" and whose dev flag is off (task 06, task 45). Open by default,
+// as the dev Hub every other test runs against.
+func (f *Fake) ShutTeamModeGate()
 
 // TeamEvents is every team event the fake has recorded, in order, with its two feed
 // flags, for tests that assert what reached which feed.
@@ -363,7 +379,7 @@ const (
 )
 
 // Env gains, for the two team groups (zero for every other group):
-//	ProjectID       string            // a project of T whose mode is team
+//	ProjectID       string            // a project of T made team by Admin.SetProjectMode (route 87)
 //	SoloProjectID   string            // a project of T whose mode is solo
 //	OrgID           string
 //	Fleet           hubclient.Hub     // Fleet's workload identity; its delegation comes from ctx
@@ -373,7 +389,10 @@ const (
 
 `AllGroups` appends `GroupTeam, GroupTeamFeed`, last, because both need a project. The real-Hub
 `newEnv` (Hub task 34's integration harness) builds Fleet's view with task 05's client-credentials
-token from `devissuer`; the fake's is `NewFake().AsFleet()`.
+token from `devissuer`; the fake's is `NewFake().AsFleet()`. Both `newEnv`s make `ProjectID` a
+team project by `Admin.SetProjectMode(ctx, id, hubapi.ProjectModeTeam)`, never by SQL or a fake
+setter (fix batch b01, X-C1); the real one runs its Hub with
+`PANACEA_APP_HUB_TEAM_MODE_UNSTREAMED=true` in `local` (task 06).
 
 - [ ] **Step 1: Write the failing conformance rows**
 
@@ -405,12 +424,16 @@ drift silently (the real Hub has tasks 06 and 07's own tests).
 | `team/taint` | Fleet, `origin: fleet`, `kind: free`, no `approvedBy` → 403 `decide`; with Member's answered decide → 201; with Admin's → 403 | the fake skips `TaintAllows` |
 | `team/human-message-to-own-orchestrator` | `Member.WriteHumanMessage` to Admin's Orchestrator → `agent_not_owner`; `Fleet.WriteHumanMessage` → 403 `desktop` | Fleet can write a human message |
 | `team/turn-has-no-row` | `RecordTurn` twice with one id and key → equal; the event is in neither feed | turn events on the feed |
+| `team/mode-is-the-admins-one-way` (b01) | on `SoloProjectID`: `Member.SetProjectMode` → 403 `required: "admin"`; `Fleet.SetProjectMode` → 403 `required: "route"`; `Admin`, `solo` → 400 `details.field = "mode"`; `Admin`, `team` → 200 `Mode == team`; again → 200, and one `project.mode_set` in `Admin.Changes` | the fake's route 87 skips the role or the one-way check |
+| `team/mode-waits-for-the-audit-gate` (b01) | `ShutTeamModeGate()`; `Admin.SetProjectMode(SoloProjectID, team)` → 503, `details.reason = "audit_not_streaming"`; `CreateDelegation` on it → 409 `not_team_project` (skipped on the real Hub: its gate is start-up configuration; task 06's `TestProjectModeWaitsForTheAuditGate` covers it) | the fake writes the mode with the gate shut |
+| `team/delegation-needs-a-team-project` (b01) | `Member.CreateDelegation` on `SoloProjectID` → 409 `conflict`, `details.reason = "not_team_project"` | the fake delegates on any project, so no fake test needs route 87 |
 | `team-feed/fleet-only-no-delegation` | `Fleet.OrgChanges` → 200; under `WithDelegation` → 400; `Member.OrgChanges` → 403 `fleet` | the delegation exemption applied to every route |
 | `team-feed/other-org-is-404` | `Fleet.OrgChanges` on a made-up `org-…` → 404 `route_not_found` | org taken from the path |
 | `team-feed/team-projects-only` | a task in `ProjectID` appears; the same writes in `SoloProjectID` do not | the mode filter missing |
 | `team-feed/fleet-kinds-not-in-member-feed` | after an escalation, `Fleet.OrgChanges` has `escalation.created`; `Member.Changes` does not; `task.created` is in both | the flags swapped |
 | `team-feed/revocation-within-one-poll` | poll to `next`; `RevokeDelegation`; the next `OrgChanges(after=next)` holds `delegation.revoked` with `subject` = the id | the revocation written to the member feed only (the scope's test) |
 | `team-feed/member-removed-revokes` | `RemoveMember(Member)`; the next poll holds `team.member_removed` and `delegation.revoked`, `data.reason = "member_removed"`; Fleet's next write under that delegation → `delegation_revoked` (fake only until task 44) | removal leaves the delegation live |
+| `team-feed/mode-set-tells-fleet` (b01) | poll to `next`; `Admin.SetProjectMode(SoloProjectID, team)`; the next `Fleet.OrgChanges` holds `project.mode_set` with `subject` = that id, `data = {"from":"solo","to":"team"}` | the event written with `FleetFeed` false, so Fleet never creates the team project (`05-design.md` §10.1 step 2) |
 | `team-feed/latest-and-cursor` | `after=latest` → no events, `next` = head; a poll with nothing visible still advances `next` | Hub task 26's cursor rule not carried to route 78 |
 
 One row in full, the one the scope paragraph names:
@@ -491,9 +514,12 @@ cd control-plane && go test -tags integration ./internal/hub/... -count=1
 ```
 
 Expected: every `team/` and `team-feed/` sub-test `--- PASS` against the fake, then against the
-real Hub under Hub task 34's integration conformance test, with exactly one `--- SKIP`
-(`team-feed/member-removed-revokes`: `task 44`) and, on the real Hub only,
+real Hub under Hub task 34's integration conformance test, with exactly two `--- SKIP` on the
+real Hub (`team-feed/member-removed-revokes`: `task 44`; `team/mode-waits-for-the-audit-gate`:
+`start-up gate`, b01) and one on the fake (the first), and, on the real Hub only,
 `team/revoked-and-expired` skipped for its expiry half (no clock). No line says `FAIL`.
+`client_team.go`'s `SetProjectMode` is `POST /v1/projects/{p}/mode` with
+`hubapi.SetProjectModeRequest`, decoding `hubapi.Project` (b01).
 
 - [ ] **Step 6: Vet and format**
 
@@ -519,7 +545,7 @@ git commit -F .superpowers/sdd/team/msg/t08.txt -- control-plane/internal/hub
 
 #### Acceptance
 
-1. Step 5's three commands pass as described; the conformance run lists 29 team rows.
+1. Step 5's three commands pass as described; the conformance run lists 33 team rows (29, plus fix batch b01's four).
 2. `grep -c '^	[A-Z][A-Za-z]*(ctx' control-plane/internal/hub/hubclient/hubclient.go` rises by exactly
    27 (26 `Team` methods and `OrgChanges`) over the merged Hub's count.
 3. `var _ hubclient.Hub = (*hubclient.Fake)(nil)` and `var _ hubclient.Hub = (*hubclient.Client)(nil)`
@@ -542,8 +568,10 @@ git commit -F .superpowers/sdd/team/msg/t08.txt -- control-plane/internal/hub
 
 #### Gaps found in the skeleton
 
-1. **Who sets a project's `mode`.** Route 78 filters on it; no scope paragraph writes it (as
-   task 06's gap 3). The fake has `SetProjectMode` so tests can proceed.
+1. **Who sets a project's `mode`. Resolved by fix batch b01 (review X-C1):** task 06's route 87
+   is the one writer; `Team.SetProjectMode` calls it, and the fake's `SetProjectMode` keeps its
+   rules instead of setting the mode directly, so the fake no longer lets every test skip the
+   step the real Hub needs (`task-08.md` had a direct setter before b01).
 2. **Thread listing.** As task 07's gap 2: `Team` has `Messages(threadID)` but no `Threads`, so
    task 11's rebuild cannot list open threads from the Hub.
 3. **`Tasks` takes a query, not a page.** Task 11's part proposes `Tasks(ctx, projectID,
