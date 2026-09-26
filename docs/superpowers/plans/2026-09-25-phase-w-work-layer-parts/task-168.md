@@ -195,3 +195,78 @@ func AllWorkRoutes() []WorkRoute {
 `hubapi.ExternalLink` is task 150's record (`task-150.md:960`); `hubapi.SetLoopStateRequest`
 (`{state: "on"|"paused"}`) is task 162's body (`task-162.md:443-444`), its Go name **UNVERIFIED**
 until 162's block is read at sync.
+
+#### Contract — the client methods, part 1: requests, intake, trackers
+
+Every method is task 16's shape over `c.work` (`task-16.md:216-223`); a paged list passes
+`EncodeQuery(page)` (`task-16.md:776-778`). The types are task 143's and the route parts'.
+
+```go
+// control-plane/internal/hub/hubclient/methods_work_intake.go (continued)
+
+var _ WorkIntake = (*Client)(nil)
+
+func (c *Client) CreateRequest(ctx context.Context, teamID string, req hubapi.CreateRequestRequest) (hubapi.Request, error) {
+	var out hubapi.Request
+	return out, c.work(ctx, "CreateRequest", nil, req, &out, teamID)
+}
+func (c *Client) ListRequests(ctx context.Context, teamID string, page hubapi.PageRequest) (hubapi.Page[hubapi.Request], error) {
+	var out hubapi.Page[hubapi.Request]
+	return out, c.work(ctx, "ListRequests", EncodeQuery(page), nil, &out, teamID)
+}
+func (c *Client) Request(ctx context.Context, requestID string) (hubapi.Request, error) {
+	var out hubapi.Request
+	return out, c.work(ctx, "Request", nil, nil, &out, requestID)
+}
+func (c *Client) AcceptRequest(ctx context.Context, requestID string, req hubapi.AcceptRequestRequest) (hubapi.AcceptRequestResponse, error) {
+	var out hubapi.AcceptRequestResponse // an IssueRef, no revision to re-hash (decision 5)
+	return out, c.work(ctx, "AcceptRequest", nil, req, &out, requestID)
+}
+func (c *Client) LinkRequest(ctx context.Context, requestID string, req hubapi.LinkRequestRequest) (hubapi.Request, error) {
+	var out hubapi.Request
+	return out, c.work(ctx, "LinkRequest", nil, req, &out, requestID)
+}
+func (c *Client) DeclineRequest(ctx context.Context, requestID string, req hubapi.DeclineRequestRequest) (hubapi.Request, error) {
+	var out hubapi.Request
+	return out, c.work(ctx, "DeclineRequest", nil, req, &out, requestID)
+}
+func (c *Client) MarkImportant(ctx context.Context, requestID string, req hubapi.SetImportantRequest) (hubapi.Request, error) {
+	var out hubapi.Request
+	return out, c.work(ctx, "MarkImportant", nil, req, &out, requestID)
+}
+func (c *Client) EraseRequest(ctx context.Context, requestID string, req hubapi.EraseRequest) (hubapi.RequestEraseResponse, error) {
+	var out hubapi.RequestEraseResponse
+	return out, c.work(ctx, "EraseRequest", nil, req, &out, requestID)
+}
+func (c *Client) IssueRequesters(ctx context.Context, issueID string) ([]hubapi.IssueRequester, error) {
+	var out struct{ Items []hubapi.IssueRequester `json:"items"` }
+	return out.Items, c.work(ctx, "IssueRequesters", nil, nil, &out, issueID)
+}
+func (c *Client) RequestMessages(context.Context, string) ([]hubapi.RequestMessage, error) {
+	return nil, ErrNoRoute // task 157 registers no route for the thread (decision 4)
+}
+func (c *Client) ListIntakeRules(ctx context.Context, teamID string) (hubapi.IntakeRuleSet, error) {
+	var out hubapi.IntakeRuleSet
+	return out, c.work(ctx, "ListIntakeRules", nil, nil, &out, teamID)
+}
+func (c *Client) PutIntakeRules(ctx context.Context, teamID string, req hubapi.PutIntakeRulesRequest) (hubapi.IntakeRuleSet, error) {
+	var out hubapi.IntakeRuleSet
+	return out, c.work(ctx, "PutIntakeRules", nil, req, &out, teamID)
+}
+func (c *Client) CreateForm(ctx context.Context, teamID string, req hubapi.CreateFormRequest) (hubapi.IntakeForm, error) {
+	var out hubapi.IntakeForm
+	return out, c.work(ctx, "CreateForm", nil, req, &out, teamID)
+}
+func (c *Client) ListForms(ctx context.Context, teamID string) ([]hubapi.IntakeForm, error) {
+	var out struct{ Items []hubapi.IntakeForm `json:"items"` }
+	return out.Items, c.work(ctx, "ListForms", nil, nil, &out, teamID)
+}
+func (c *Client) GetForm(ctx context.Context, formID string) (hubapi.IntakeForm, error) {
+	var out hubapi.IntakeForm
+	return out, c.work(ctx, "GetForm", nil, nil, &out, formID)
+}
+func (c *Client) PatchForm(ctx context.Context, formID string, req hubapi.PatchFormRequest) (hubapi.IntakeForm, error) {
+	var out hubapi.IntakeForm
+	return out, c.work(ctx, "PatchForm", nil, req, &out, formID)
+}
+```
