@@ -60,6 +60,9 @@ func runOK(t *testing.T, run gitx.Runner, c gitx.Call) string {
 
 var h1Pairs = []string{
 	"core.fsmonitor=false", "core.sshCommand=", "protocol.allow=never", "protocol.file.allow=always",
+	// Fix round 1 (review M-8): git reads protocol.<name>.allow before protocol.allow, so the
+	// transports a config names are pinned by name too.
+	"protocol.ext.allow=never", "protocol.ssh.allow=never", "protocol.git.allow=never", "protocol.http.allow=never",
 	"core.askPass=", "commit.gpgSign=false", "tag.gpgSign=false", "log.showSignature=false",
 	"submodule.recurse=false", "fetch.recurseSubmodules=false", "credential.helper=",
 }
@@ -86,6 +89,7 @@ func prefixOf(t *testing.T, x *gitx.Exec, c gitx.Call) (pairs []string, literal 
 func TestHGHPrefixOnEveryClass(t *testing.T) {
 	x, owned := fake(t)
 	x.Hardening.Credential = []string{"credential.helper=machine"}
+	x.Hardening.Proxy = "http://proxy.invalid:1"
 	dir := t.TempDir() // no .git: a Project call here is not pinned, and the fake lists no config
 	for _, tc := range []struct {
 		c              gitx.Call
@@ -110,8 +114,33 @@ func TestHGHPrefixOnEveryClass(t *testing.T) {
 		if got := contains(pairs, "protocol.https.allow=always"); got != tc.https {
 			t.Errorf("class %d scope %d: https allowed = %v, want %v", tc.c.Class, tc.c.Scope, got, tc.https)
 		}
+		if got := contains(pairs, "protocol.https.allow=never"); got == tc.https {
+			t.Errorf("class %d scope %d: https pinned never = %v, want %v", tc.c.Class, tc.c.Scope, got, !tc.https)
+		}
 		if got := contains(pairs, "credential.helper=machine"); got != tc.helpers {
 			t.Errorf("class %d scope %d: machine helper = %v, want %v", tc.c.Class, tc.c.Scope, got, tc.helpers)
+		}
+		// H2, both halves (review M-10 B): the generic pair and the pair keyed at RemoteURL.
+		u := tc.c.RemoteURL
+		for _, p := range []string{"http.sslVerify=true", "http.proxy=" + x.Hardening.Proxy,
+			"http." + u + ".sslVerify=true", "http." + u + ".proxy=" + x.Hardening.Proxy} {
+			if got := contains(pairs, p); got != (tc.c.Class == gitx.Remote) {
+				t.Errorf("class %d scope %d: -c %s present = %v", tc.c.Class, tc.c.Scope, p, got)
+			}
+		}
+	}
+	// Fix round 1 (review M-8): an inherited key that outranks a -c pair never reaches git.
+	// VS Code's terminals set GIT_ASKPASS, which git reads ahead of core.askPass.
+	drop := []string{"GIT_ASKPASS", "SSH_ASKPASS", "GIT_ALLOW_PROTOCOL", "GIT_EXTERNAL_DIFF"}
+	for _, k := range drop {
+		t.Setenv(k, "inherited")
+	}
+	for _, c := range classes {
+		got := childEnv(t, x, owned, c, nil)
+		for _, k := range drop {
+			if v, ok := got[k]; ok {
+				t.Errorf("class %d: the child inherits %s=%q", c, k, v)
+			}
 		}
 	}
 }
@@ -298,7 +327,18 @@ func TestHGHUntrustedConfigHidesTheValue(t *testing.T) {
 	for _, tc := range []struct {
 		key   string
 		class gitx.Class
-	}{{"http.https://example.invalid/.extraHeader", gitx.Remote}, {"filter.x.clean", gitx.Read}} {
+		want  string // the Key the refusal carries; "" skips the compare
+	}{
+		{"http.https://example.invalid/.extraHeader", gitx.Remote, ""},
+		{"filter.x.clean", gitx.Read, ""},
+		// Fix round 1 (review I-1): git writes a URL subsection into the KEY, so a PAT in
+		// url."https://oauth2:<pat>@host/".insteadOf is listed in the key, not the value.
+		{"url.https://u:s3cr3t@x.invalid/.insteadOf", gitx.Read, "url.https://***@x.invalid/.insteadof"},
+		{"http.https://u:s3cr3t@example.invalid/.extraHeader", gitx.Remote, "http.https://***@example.invalid/.extraheader"},
+		{"url.https://u:p@s3cr3t@x.invalid/r.git.insteadOf", gitx.Read, "url.https://***@x.invalid/r.git.insteadof"},
+		{"url.https://x.invalid/r.git?private_token=s3cr3t.insteadOf", gitx.Read, "url.https://x.invalid/r.git?***.insteadof"},
+		{"url.u:s3cr3t@x.invalid:r.git.pushInsteadOf", gitx.Read, "url.***@x.invalid:r.git.pushinsteadof"},
+	} {
 		r.Git("config", tc.key, "Authorization: Bearer s3cr3t")
 		_, err := run.Run(context.Background(), project(r.Dir, tc.class, "rev-parse", "HEAD"))
 		var u *gitx.UntrustedConfig
@@ -306,7 +346,10 @@ func TestHGHUntrustedConfigHidesTheValue(t *testing.T) {
 			t.Fatalf("%s: err = %v, want *UntrustedConfig", tc.key, err)
 		}
 		if strings.Contains(err.Error(), "s3cr3t") || strings.Contains(u.Key+u.Dir, "s3cr3t") {
-			t.Fatalf("%s: the value reached the refusal: %q", tc.key, err.Error())
+			t.Errorf("%s: a secret reached the refusal: %q", tc.key, err.Error())
+		}
+		if tc.want != "" && u.Key != tc.want {
+			t.Errorf("%s: Key = %q, want %q (the key stays findable)", tc.key, u.Key, tc.want)
 		}
 		r.Git("config", "--unset-all", tc.key)
 	}
@@ -407,6 +450,47 @@ func TestHGHRepoCredentialHelperNeverRuns(t *testing.T) {
 	}
 }
 
+// TestHGHPerProtocolKeysCannotReopenATransport is fix round 1 (review M-8): git reads
+// protocol.<name>.allow before protocol.allow, and an inherited GIT_ALLOW_PROTOCOL before either,
+// so H1's default alone loses to both. Each row's precondition runs raw git with the prefix the
+// row defeats and sees the ext:: command run, so the row can fail.
+func TestHGHPerProtocolKeysCannotReopenATransport(t *testing.T) {
+	for _, tc := range []struct {
+		name, env string
+		rawPrefix []string
+	}{
+		{"repository protocol.ext.allow=always", "", []string{"-c", "protocol.allow=never"}},
+		{"inherited GIT_ALLOW_PROTOCOL", "ext:file", []string{"-c", "protocol.allow=never", "-c", "protocol.ext.allow=never"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			ran := filepath.ToSlash(filepath.Join(dir, "ext.ran"))
+			script := filepath.ToSlash(filepath.Join(dir, "ext.sh"))
+			// No cat: git waits for a ref advertisement, so a script reading stdin never ends.
+			if err := os.WriteFile(script, []byte("#!/bin/sh\necho ran >> '"+ran+"'\nexit 0\n"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			r := gitxtest.NewRepo(t)
+			r.Git("config", "remote.evil.url", "ext::sh "+script)
+			if tc.env == "" {
+				r.Git("config", "protocol.ext.allow", "always")
+			} else {
+				t.Setenv("GIT_ALLOW_PROTOCOL", tc.env)
+			}
+			for _, class := range []gitx.Class{gitx.Read, gitx.Remote} {
+				if _, err := r.Runner().Run(context.Background(), project(r.Dir, class, "ls-remote", "evil")); err == nil {
+					t.Errorf("class %d: ls-remote over ext:: succeeded", class)
+				}
+				requireNoMarker(t, ran)
+			}
+			_, _ = r.GitErr(append(tc.rawPrefix, "ls-remote", "evil")...) // fails either way: the script speaks no protocol
+			if _, err := os.Stat(ran); err != nil {
+				t.Fatalf("precondition: raw git with %q never ran the ext:: command (%v), so this row cannot fail", tc.rawPrefix, err)
+			}
+		})
+	}
+}
+
 func TestHGHCallShape(t *testing.T) {
 	x, owned := fake(t)
 	spawns := gitxtest.Spy(t, x)
@@ -421,6 +505,9 @@ func TestHGHCallShape(t *testing.T) {
 	c = ok
 	c.Dir = t.TempDir()
 	rows["Scope None outside OwnedRoot"] = c
+	c = ok
+	c.Dir = "" // review M-10 A: only `git version` runs Scope None with no Dir
+	rows["Scope None, Dir empty, not version"] = c
 	for _, k := range []string{"GIT_DIR", "GIT_COMMON_DIR", "GIT_WORK_TREE"} {
 		c = ok
 		c.Env = map[string]string{k: owned}

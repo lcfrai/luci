@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -96,15 +97,26 @@ func (r *Repo) environ() []string {
 // returns stdout, trimmed.
 func (r *Repo) Git(args ...string) string {
 	r.T.Helper()
+	out, err := r.GitErr(args...)
+	if err != nil {
+		r.T.Fatalf("gitxtest: %v", err)
+	}
+	return out
+}
+
+// GitErr is Git for a raw call that is expected to fail, such as a test's precondition that git
+// with a weaker prefix does run a repository's program (task 02 fix round 1). It answers the
+// trimmed stdout and, on a non-zero exit, an error naming the args, the Dir and git's stderr.
+func (r *Repo) GitErr(args ...string) (string, error) {
 	cmd := exec.Command("git", args...)
 	cmd.Dir = r.Dir
 	cmd.Env = r.environ()
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	if err := cmd.Run(); err != nil {
-		r.T.Fatalf("gitxtest: git %s in %s: %v: %s", strings.Join(args, " "), r.Dir, err, stderr.String())
+		return strings.TrimSpace(stdout.String()), fmt.Errorf("git %s in %s: %w: %s", strings.Join(args, " "), r.Dir, err, stderr.String())
 	}
-	return strings.TrimSpace(stdout.String())
+	return strings.TrimSpace(stdout.String()), nil
 }
 
 // Commit writes files (slash paths under r.Dir), adds them, commits, and returns the sha.
