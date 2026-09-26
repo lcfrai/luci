@@ -78,7 +78,7 @@ fields, so a body that sends one gets 400 `bad_request`.
   - from task 04: the tables `delegations`, `team_tasks`, `agents`, `lease_events`, `conflicts`,
     `human_messages` under the Hub's RLS pattern, the audit row's `fleet_feed` flag, and a
     project's `mode` (`solo`·`team`) with its one-way trigger and `GRANT UPDATE (mode)`
-    (`task-04.md:216-228`, `:797`), which route 87 writes and route 46 reads.
+    (`task-04.md:218-230`, `:800`), which route 87 writes and route 46 reads.
   - from task 05: `Principal.Via` (`""` or `"fleet"`), `Principal.DelegationID`,
     `Principal.Delegation` (a `DelegationView`: project, class, routes, expiry), the route-name
     check, the v2 audit write, and `store.AgentOwnedBy(ctx, tx, agentID, userID) (bool, error)`
@@ -134,7 +134,7 @@ appears in responses only.
 **Route 46 on a solo project is 409 `conflict`, `details.reason = "not_team_project"`** (fix
 batch b01, X-C1). The handler reads `projects.mode` in the write's transaction and refuses unless it
 is `team`. Every Fleet call but route 78 (the feed, which serves team projects only) needs a
-delegation (`task-01.md:120-124`), and route 46 is the only way to make one, so this one check puts
+delegation (`task-01.md:125-129`), and route 46 is the only way to make one, so this one check puts
 every team record behind route 87, and route 87 behind the audit gate. Without it, the gate before the first real teammate guards a column nothing reads.
 
 **Route 47, `GET /v1/delegations/{dl}`**: its owner's desktop, or Fleet under that same
