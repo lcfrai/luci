@@ -111,6 +111,7 @@ one `OR scope = 'org'` clause. That is a delta to task 13's file, stated in *Fil
 | `control-plane/internal/hub/server/work_matrix_rows_integration_test.go` ⚑ | `workMatrixRows["78"]`, the `worg` helper; `"78"` in `workMatrixLive` |
 | `control-plane/internal/hub/server/matrix_integration_test.go` ⚑ (H16b's) | the fixture gains `ChildIssueID`, `TemplateID`, `GroupID` |
 | `control-plane/internal/hub/server/server.go` ⚑ | `s.registerWorkParents(mux)`, `s.registerWorkTemplates(mux)`, `s.registerWorkLabelsPlan(mux)` |
+| `control-plane/internal/hub/server/evidence.go` ⚑ (Hub task 25's) | one call: a `settled` record runs the roll-up of the container parents that serve it |
 
 #### The wire
 
@@ -347,6 +348,14 @@ write that closes a child or moves it away:
 5. The parent may itself be a child: `rollUp(grandparent, closerID, parentID)`, up the chain
    (bounded by decision (a)'s 32).
 
+**A criterion that settles after the last child closed.** Step 3 can stop a parent whose children
+are all closed; nothing else would wake it. So the Hub's `POST /v1/evidence` (Hub task 25's
+`server/evidence.go`) gains one call after its insert: for a `settled` record, each container
+parent in the project that serves `(briefKey, criterionId)` and has every child closed runs
+`s.rollUp(parent, recorder, "")`, in the same transaction, **written as the recorder** (the person
+whose act settled it). `childId` in `issue.rolled_up` is then `""`. This is a Hub file edit (rule
+H1) and is reported.
+
 **The four insertions in task 10's route** (`server/work_states.go` ⚑):
 
 - **Step 2:** a body's `cause: children_closed` → 400 `field: "cause"`.
@@ -442,3 +451,64 @@ route. Each test is seen failing before its code.
 | `TestAnExclusivePairIsRefused` | group *Type* exclusive with `bug`, `feature`; `PATCH labels: [bug, feature]` → 422 `exclusive_label_group`, `details.labels: "bug,feature"`; as `hub_app`, the same two `issue_labels` rows → the trigger's refusal; a non-exclusive group allows both | the last label winning silently |
 | `TestEachWriteHasItsEvents` | each accepted write above writes exactly its listed kinds, the org ones with `teamId` and `projectId` null and readable by Vera (a member of the org) through `/v1/changes` | a silent write; an org event invisible to the org; a template name in `data` |
 | `TestTheSyncActorSetsNoParent` | `hub.work_actor_kind = 'integration'`, `UPDATE issue_heads SET parent_id` → `42501` | the database half of the sync rule |
+
+#### Steps
+
+- [ ] **Step 1: Check the base.** Task 74's `parent_id` loop trigger, exclusive trigger,
+  `templates`, `label_groups`, nullable `labels.team_id`, and its head guard function's name as
+  merged; task 10's proof-word constants; task 13's `Scope` values and feed query; Hub task 25's
+  evidence route.
+- [ ] **Step 2: The tests.** The unit test, the thirteen integration tests and the `"78"` rows
+  with the fixture's three ids. Run them: they fail.
+- [ ] **Step 3: `hubapi`** (the cause and its five rows, `RollupProof`, `ScopeOrg`, six kinds),
+  then the SQL clause, then the store, then the parent route and `rollUp`, then task 10's four
+  insertions and the evidence call, then templates, then groups and org labels, then the exclusive
+  check in task 08's paths.
+- [ ] **Step 4: Green.** This task's suites; task 10's (its table test with five new rows; every
+  W1 test unchanged, since an issue with no parent and no children takes none of the new paths);
+  task 11's label tests (org labels added to the list: a test that counted exactly a team's labels
+  is updated in the same commit, stated); Hub task 25's evidence tests; the matrix.
+- [ ] **Step 5: Commit by pathspec**, every file of *Files*, naming the Hub's `evidence.go` and
+  task 10's, 11's and 13's files as touched.
+
+#### Acceptance
+
+```bash
+go test ./control-plane/internal/hub/hubapi/ -race -count=1 -run '^TestRollupProofIsTheWeakest$' -v 2>&1 | grep -c '^--- PASS'   # 1
+export PANACEA_APP_HUB_TEST_DATABASE_URL='postgres://postgres@127.0.0.1:5433/postgres?sslmode=disable'
+go test ./control-plane/internal/hub/server/ -tags integration -race -count=1 -v \
+  -run '^Test(ALoopIsRefusedTwice|AParentWaitsForItsChildren|TheLastChildClosesTheParentAsTheCloser|TheRollupNeedsSettledCriteria|AbandonedChildrenDoNotClose|AHandDoneIsRefusedWithOpenChildren|ACrossProjectParentIsRefused|ATemplateEditLeavesIssuesAlone|AnOrgTemplateNamesNoCriterion|OrgLabelsAreOrgAdminsOnly|AnExclusivePairIsRefused|EachWriteHasItsEvents|TheSyncActorSetsNoParent)$' \
+  2>&1 | grep -c '^--- PASS'                                                    # 13
+go test ./control-plane/internal/hub/... -tags integration -race -count=1       # every package ok
+grep -rn "children_closed" control-plane/internal/hub --include=*.go | grep -v _test.go | grep -vc "hubapi/work.go\|server/work_parents.go\|server/work_states.go"   # 0
+```
+
+Expected: `1`, `13`, every package `ok`, and `0`: the cause is written only by the roll-up and
+refused only by the route. None has been run; the code does not exist yet (OD-27).
+
+#### What this task does not claim
+
+- **Not 04 §5.3's full *settled*.** The Hub reads the latest evidence record's verdict (decision
+  (b)); whether that commit is still at the head is phase 4's convergence word, on the desktop.
+- **Not agent tasks under an issue** (team mode, TM-05 §3.3; nothing here).
+- **Not recurring issues** (W4, L-32), **form templates** (W5, L-27), **brief templates** (W4,
+  L-122), or **copying templates between teams** (later, L-7).
+- **Not the shorthand `Group/Label`** (L-19) or **split into issues** (L-22): desktop only (tasks
+  89-90).
+- **No measured cost.** The roll-up walks at most 32 parents per close; nobody has timed it.
+
+#### Corrections to the scope
+
+1. **A new fact cause, `children_closed`**, is needed for L-21's roll-up of a parent that never
+   lands; it bends skeleton rule 2 (decision (e)) and is reported for the owner.
+2. **The Hub's evidence route gains one call**, so a criterion that settles after the last child
+   closed still closes the parent.
+3. **`ScopeOrg`** is added to task 13's `Scope`, with one clause in its feed query.
+4. **Two reads are added**: `GET /v1/issues/{issueId}/children` and `GET
+   /v1/teams/{teamId}/label-groups`.
+5. **Org templates carry no `serves` and no estimate** (decision (g)); the scope's "a template
+   may pre-fill `serves`" holds for team templates.
+
+**Parity rows served:** the Hub halves of **L-17**'s org half (org labels), **L-18** (exclusive
+groups), **L-20** (sub-issues, with the proof word inherited), **L-21** (the parent rule) and
+**L-26** (issue templates, org and team). Tasks 88-90 close them with the desktop.
