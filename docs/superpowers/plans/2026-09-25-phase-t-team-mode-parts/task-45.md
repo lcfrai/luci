@@ -58,7 +58,10 @@ exactly, so a later role added to `id-hub` fails the plan.
   default), `fake` (tests, dev) or `logs`. While it is not `logs`, `Server.TeamModeAllowed` answers
   503 `unavailable`, `details.reason = "audit_not_streaming"`, and the write that sets a project's
   `mode` to `team` calls it first. That is how "part of the gate before the first real teammate" is
-  enforced in code. No part owns that write yet (`task-06.md:699-701`); Gap 1 below.
+  enforced in code. The write is task 06's route 87 (fix batch b01, X-C1), and this task fills
+  its seam: `teamModeGate`'s body becomes `return s.TeamModeAllowed()`. Task 06's dev-only
+  `PANACEA_APP_HUB_TEAM_MODE_UNSTREAMED` survives only beside the `fake` sink: with `off` it no
+  longer opens the gate, and `loadConfig` still refuses it outside `local` and `dev`.
 
 **Files:**
 - `control-plane/internal/hub/auditsink/record.go` + `record_test.go` — `EventRecord`,
@@ -73,6 +76,8 @@ exactly, so a later role added to `id-hub` fails the plan.
 - `control-plane/internal/hub/server/auditstream.go` — `RunAuditStream`, `RunAuditAnchor`,
   `StreamOnce`, `AnchorOnce`, `TeamModeAllowed` (new)
 - `control-plane/internal/hub/server/auditstream_integration_test.go` (new)
+- `control-plane/internal/hub/server/projectmode.go` — `teamModeGate`'s body becomes
+  `return s.TeamModeAllowed()` (modify: one line; task 06's route 87, fix batch b01)
 - `control-plane/cmd/hub/{config.go,serve.go}` — the sink settings; start both loops (modify)
 - `control-plane/cmd/hub/verify.go` + `verify_integration_test.go` — the `anchor` check, after
   Hub task 27's `audit` (modify)
@@ -383,15 +388,20 @@ func (s *Server) StreamOnce(ctx context.Context, sink auditsink.Sink, c StreamCo
 // on nil, MarkAnchored. Orgs are batched into one send per round.
 func (s *Server) AnchorOnce(ctx context.Context, sink auditsink.Sink, c StreamConfig) (anchored int, err error)
 
-// TeamModeAllowed is nil only when the sink is "logs". The write that sets a
-// project's mode to team calls it first (Gap 1).
+// TeamModeAllowed is nil when the sink is "logs", or, in local and dev only,
+// when task 06's TeamModeUnstreamed flag stands beside the "fake" sink (the
+// flag is a start-up error anywhere else). Route 87, the one write that sets a
+// project's mode to team, calls it first, through teamModeGate (task 06, b01).
 func (s *Server) TeamModeAllowed() error {
-	if s.cfg.AuditSink != AuditSinkLogs {
-		return Refuse(http.StatusServiceUnavailable, hubapi.CodeUnavailable,
-			"Team projects need the audit to leave the Hub first; it is not configured.",
-			map[string]string{"reason": "audit_not_streaming"})
+	if s.cfg.AuditSink == AuditSinkLogs {
+		return nil
 	}
-	return nil
+	if s.cfg.TeamModeUnstreamed && s.cfg.AuditSink == AuditSinkFake {
+		return nil
+	}
+	return Refuse(http.StatusServiceUnavailable, hubapi.CodeUnavailable,
+		"Team projects need the audit to leave the Hub first; it is not configured.",
+		map[string]string{"reason": "audit_not_streaming"})
 }
 ```
 
@@ -613,7 +623,8 @@ uses (Hub `task-27.md:72`).
 | `TestTheCursorMovesForwardOnly` | as `hub_app`: `UPDATE … SET streamed_seq = streamed_seq - 1` → `23514`; past the head → `23514` | a cursor wound back or forward by hand |
 | `TestStreamingTakesNoHeadLock` | a write holding the org's head lock does not block `StreamOnce` for that org (it completes within 1 s) | the streamer serialising every write in the org |
 | `TestAnchorsEveryHourEvenWhenIdle` | two `AnchorOnce` with no writes between → two anchors, same `Seq` and `Hash` | anchors only on change, so silence is not a signal |
-| `TestTeamModeNeedsTheSink` | sink `off` → `TeamModeAllowed` is 503 `unavailable`, `reason: audit_not_streaming`; `logs` → nil | team mode reachable with the audit inside the building |
+| `TestTeamModeNeedsTheSink` | sink `off` → `TeamModeAllowed` is 503 `unavailable`, `reason: audit_not_streaming`; `logs` → nil; `fake` alone → 503; `fake` with `TeamModeUnstreamed` → nil; `off` with `TeamModeUnstreamed` → 503 (b01) | team mode reachable with the audit inside the building; the dev flag opening the gate with no sink at all |
+| `TestRouteSetsModeThroughTheSinkGate` (b01, integration) | a Hub with sink `off` and the flag `false`: route 87 → 503, the project still `solo`; the same pool, sink `logs`: → 200 `mode: "team"` | `teamModeGate` left as task 06's flag-only body, so task 45's sink never gates route 87 |
 
 **`cmd/hub/verify_integration_test.go`** (added to Hub task 27's):
 
@@ -693,9 +704,10 @@ bash infra/scripts/role-allowlist.sh
 
 #### Gaps found in the skeleton
 
-1. **No part owns the write that sets a project's `mode` to `team`** (also task 06's gap 3,
-   `task-06.md:699-701`). This part ships `TeamModeAllowed`; whichever task owns Share must call it
-   first, or the "gate before the first real teammate" is a document, not code.
+1. **The write that sets a project's `mode` to `team`. Resolved by fix batch b01 (review X-C1):**
+   task 06's route 87 is the one writer and calls `teamModeGate` before any write; this part
+   fills that seam with `TeamModeAllowed`, and `TestRouteSetsModeThroughTheSinkGate` fails if the
+   seam is left unfilled. Share (task 56) reaches it through task 21's local route only.
 2. **The skeleton lists task 45 as a Hub delta only**, but the stream needs a collection endpoint,
    two custom tables, a collection rule, Sentinel onboarding and two roles, none of which phase 8
    plans. This part carries them as a phase 8 delta on task 04's module and task 10's stack; the
