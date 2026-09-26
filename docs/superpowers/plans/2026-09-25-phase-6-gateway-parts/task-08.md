@@ -53,7 +53,7 @@ keysmith is the only process besides LiteLLM that holds the master key, so it is
 
 **Decisions where the skeleton is silent:**
 
-**(a) A configuration refusal exits `2`, not `1`.** The skeleton says "exits 1"; phase 2's control plane already fixes `2` as "a configuration refusal the operator must fix" and `1` as a runtime failure (`control-plane/cmd/api/main.go:45-47`, verified 2026-09-25). keysmith follows the house convention; the test asserts `2` and the variable's name.
+**(a) A configuration refusal exits `2`, not `1`.** The skeleton said "exits 1" until fix batch b04 round 2; phase 2's control plane already fixes `2` as "a configuration refusal the operator must fix" and `1` as a runtime failure (`control-plane/cmd/api/main.go:45-47`, verified 2026-09-25). keysmith follows the house convention; the test asserts `2` and the variable's name.
 
 **(b) One caller-table format for both modes.** Each non-blank, non-`#` line is `name credential routes`: a lowercase name, a credential, and a comma-separated subset of `mint,refresh,revoke,bindings,usage`. Under `bearer-file:<path>` the credential is a bearer token of at least 32 characters; under `kube:<path>` it is a Kubernetes username (`system:serviceaccount:<ns>:<sa>`). `kube` alone uses the built-in table below. This is exactly the file task 17's `init.sh` writes (`task-17.md`, "The bearer file, complete"): `controlplane <64 hex> mint,refresh,revoke,usage` and `gatekeeper <64 hex> bindings`. A parse error names the file and the line number, never the credential.
 
@@ -98,10 +98,10 @@ grep -n 'jackc/pgx/v5' go.mod                                                   
 grep -n 'func NewPGStore\|func Migrate' internal/binding/*.go                                  # expect both (task 05)
 grep -n 'ErrNoMasterKey\|func (c \*Client) Health' internal/litellmadmin/client.go             # expect both (task 04)
 grep -n 'func (s \*PGStore) BySession' internal/binding/*.go                                   # expect one (task 05)
-go test ./cmd/keysmith/ -count=1 2>&1 | tail -1                                               # expect ok: 08a's six pass
+go test ./cmd/keysmith/ -count=1 > /tmp/ks-08a.txt 2>&1; echo "08a exit $?"                 # expect 0: 08a's six pass
 ```
 
-A `MISSING` line, a `0` or a failing test is an unmerged dependency; stop and report. If a grep shows a different identifier from gap 5's list, rename in this part's code to match the merged one.
+A `MISSING` line, a `0` from a `grep -c`, or a non-zero `08a exit` is an unmerged dependency; stop and report. If a grep shows a different identifier from gap 5's list, rename in this part's code to match the merged one.
 
 - [ ] **Step 2: Write the failing tests**
 
@@ -2125,10 +2125,10 @@ Message: `feat(keysmith): the HTTP API, config and a fail-closed start (phase 6 
 **Gaps against the skeleton, for the orchestrator:**
 
 1. **`binding_not_found` (404)** is not in task 03's code list. The gatekeeper needs a miss told apart from an outage; this part writes it as a local constant until task 03 adds it.
-2. **Exit status `2`, not `1`,** for a configuration refusal (decision (a)): the skeleton's "exits 1" conflicts with phase 2's convention.
+2. **Exit status `2`, not `1`,** for a configuration refusal (decision (a)). Resolved in fix batch b04 round 2: the skeleton's 08 summary now says `2`.
 3. **No cloud caller holds `usage`.** Whoever shows a cloud project's spend (the Hub, or the broker on the cockpit's behalf) needs a line in the `kube` table; task 21's gap 5 raises the same.
 4. **Task 19 must grant keysmith `create` on `tokenreviews`** (a ClusterRoleBinding to `system:auth-delegator`, **UNVERIFIED** name) and set the broker's and gatekeeper's projected tokens to audience `keysmith`. The service-account names `panacea-broker:broker` and `panacea-gateway:gatekeeper` are proposals for ask P8-2.
 5. **Identifiers assumed from parts not yet merged:** task 04's `litellmadmin.New`, `Options`, `ErrNoMasterKey`, `(*Client).Health`; task 05's `binding.Migrate`, `binding.NewPGStore` (now in `task-05.md`). Task 09's `*usage.PGStore` is the sweep's `KeySource` (task 09, decision (c)), so task 05's `Store` needs no new method. Step 1 checks them.
 6. **`PANACEA_APP_GATEWAY_HUB_SCOPE`** is read here as task 13's gap 1 proposes; it is not in the skeleton's shared names. Since `OD-30` it is the realm audience scope, default `panacea-app-hub`, and an Entra `api://…/.default` is refused.
 7. **`OD-30` adds `PANACEA_APP_GATEWAY_TENANTS`, `_AUDIENCE` and `_ALLOWED_CLIENTS`**, and reads the shared `PANACEA_APP_OIDC_ISSUER` and `_PROFILE` (ruling §2), none in the skeleton's shared names. Task 19's chart sets `CALLER_AUTH=kube,oidc` and the three; hub task 10 waits on env 17 step 0 for `oidcauth`, and so does task 08a (step 1's **[08a]** block); 08b inherits the wait through 08a.
-7. **`apiDeps.Bindings` is the `*keysmith.Service`, not the store** (fix batch b01, review C-1). `ByKeyHash` retires a raised project's Global-minted key as the gatekeeper looks it up (task 07 decision (h)), and task 07's tests prove that behaviour. The wiring is one line in `run`, and no test here catches a revert to `Bindings: store`. Such a revert would leave a Global-minted key its `global/*` groups until its scheduled refresh, and nothing would fail. Check the line in review; an end-to-end raise is task 23's to observe, if the owner wants it proven.
+8. **`apiDeps.Bindings` is the `*keysmith.Service`, not the store** (fix batch b01, review C-1). `ByKeyHash` retires a raised project's Global-minted key as the gatekeeper looks it up (task 07 decision (h)), and task 07's tests prove that behaviour. The wiring is one line in `run`, and no test here catches a revert to `Bindings: store`. Such a revert would leave a Global-minted key its `global/*` groups until its scheduled refresh, and nothing would fail. Check the line in review; an end-to-end raise is task 23's to observe, if the owner wants it proven.
