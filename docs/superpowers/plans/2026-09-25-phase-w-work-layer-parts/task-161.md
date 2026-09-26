@@ -80,3 +80,62 @@ answers as Priya, showing only what she may read. Her colleague Sam points his c
 9. **The connector allow-list stores no connector credential.** The Hub keeps `{url, name,
    allowedBy, allowedAt}` and nothing else; each person connects their own account in their own
    client. `ConnectorFragment` renders what task 166 applies in the sandbox.
+
+**Files:**
+- `control-plane/cmd/workmcp/main.go` — flags, config, the two routes, graceful stop (new)
+- `control-plane/cmd/workmcp/config.go` (+ `config_test.go`) — `PANACEA_APP_WORKMCP_*`, no secret field (new)
+- `control-plane/cmd/workmcp/auth.go` (+ `auth_test.go`) — bearer check, RFC 9728 document, `callerToken` (new)
+- `control-plane/cmd/workmcp/mcp.go` (+ `mcp_test.go`) — JSON-RPC 2.0 over one POST, the five methods (new)
+- `control-plane/cmd/workmcp/tools.go` (+ `tools_test.go`) — the nine tools, their schemas, dispatch to `hubclient` (new)
+- `control-plane/cmd/workmcp/schema.go` — the small JSON Schema subset the tools use, validated before dispatch (new)
+- `control-plane/internal/hub/store/work_mcp.go` (+ `work_mcp_integration_test.go`) — the allow-list table (new)
+- `control-plane/internal/hub/server/work_mcp.go` — three routes and `ConnectorFragment` (new)
+- `control-plane/internal/hub/server/work_mcp_fragment_test.go` — the pure fragment rows (new)
+- `control-plane/internal/hub/migrate/sql/NNNN_work_mcp_connectors.sql` — next free number at sync time (new, rule H1)
+- `control-plane/internal/hub/server/matrix_integration_test.go` ⚑ — `workMatrixRows["161"]` (modified)
+
+The File map row `control-plane/cmd/workmcp/` (skeleton `:257`) says *"behind Entra OAuth"*; under
+OD-30 it is the realm's OAuth (gap 1). The Hub half has no File map row of its own; it sits under
+the `store/work_*.go` and `server/work_*.go` rows as every WH task does.
+
+**What is on the tree today (verified 2026-09-26).** On `feat/work-layer`: `control-plane/cmd/`
+holds only `api/`; `control-plane/go.mod` is `go 1.23`. On `feat/hub` (`3df9fab8`):
+`hubclient.New(baseURL, scope string, tokens TokenSource, httpClient *http.Client) *Client`
+(`hubclient/client.go:21`) and `TokenSource.Token(ctx, scope) (string, error)` (`hubclient/hubclient.go:19-20`);
+`oidcauth.Config` and `Claims` are hub task 10's part (`phase-h-hub-parts/task-10.md:20-58`), the
+package itself env task 17's, **UNVERIFIED until merge**. No `Work` or `WorkIntake` interface is on
+`feat/hub`; the methods `tools.go` calls are task 143's scope (`tasks-141-160.md:124-200`) and
+**UNVERIFIED**.
+
+#### Interfaces — complete: `control-plane/cmd/workmcp/config.go`
+
+```go
+package main
+
+// Config is every variable workmcp reads. It has no secret field on purpose:
+// workmcp acts only as the caller (decision 1), so there is nothing to hold.
+type Config struct {
+	Listen        string // PANACEA_APP_WORKMCP_LISTEN, default ":8090"
+	PublicBase    string // PANACEA_APP_WORKMCP_PUBLIC_BASE, https origin clients see; required
+	HubURL        string // PANACEA_APP_WORKMCP_HUB_URL, the Hub's base; required
+	OIDCIssuer    string // PANACEA_APP_OIDC_ISSUER, the realm (hub-contract §17); required
+	OIDCProfile   string // PANACEA_APP_OIDC_PROFILE, "keycloak"; anything else fails start
+	HubAudience   string // PANACEA_APP_HUB_AUDIENCE, default "panacea-app-hub"
+	TenantIDs     []string // from PANACEA_APP_HUB_TENANTS, "<guid>=<name>,…"; GUIDs kept; required
+	DesktopClient string // PANACEA_APP_OIDC_CLIENT_ID, default "panacea-app-desktop"; refused here
+	ServiceClients []string // PANACEA_APP_HUB_FLEET_CLIENT_ID, _GATEWAY_CLIENT_ID; refused here
+	MaxBody       int64  // PANACEA_APP_WORKMCP_MAX_BODY, default 65536 bytes
+}
+
+// LoadConfig reads environ (os.Environ() in main; a slice in tests). A missing
+// required variable, a PublicBase that is not https (loopback http allowed only
+// with PANACEA_APP_WORKMCP_INSECURE=1, for tests), or any variable whose name
+// starts PANACEA_APP_WORKMCP_ and contains KEY, SECRET or TOKEN fails start
+// with that variable's name.
+func LoadConfig(environ []string) (Config, error)
+```
+
+The last rule is the test's hook for decision 1: an operator who adds
+`PANACEA_APP_WORKMCP_HUB_TOKEN` gets a failed start, not a service token. `PANACEA_APP_HUB_TENANTS`
+is the Hub's own variable (`hub-contract.md:2165`, `<tenant guid>=<display name>`, comma-separated),
+read the same way so both processes enrol the same orgs.
