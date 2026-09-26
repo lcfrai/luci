@@ -120,6 +120,7 @@ project is the alias alone for the same reason. A test kills each.
 - `control-plane/internal/api/work_branch_test.go` — its rows (new)
 - `desktop/src/api/work.ts` ⚑ (task 37) — one `WORK_LOCAL` row and `issueBranchName` (modified;
   **not in the scope's list**: a gap)
+- `desktop/src/api/work.test.ts` ⚑ (task 37) — the route count `30 + 6` (modified; a gap too)
 - `desktop/src/components/issue/IssueHead.tsx` ⚑ (task 46), `IssueHead.test.tsx` ⚑ — *Copy branch
   name* (modified)
 - `desktop/src/components/palette/commands.ts` ⚑ (task 59) — the same verb, no chord (modified)
@@ -1319,3 +1320,171 @@ func TestAutolinkTemplateAndExisting(t *testing.T) {
 | the ADO thread sent without `status` | `TestADOLinkbackIsOneClosedThread` |
 | 422 treated as a failure | `TestAutolinkTemplateAndExisting` |
 | `?p=` dropped from the template | `TestAutolinkTemplateAndExisting` |
+
+#### Tests to write first — `server/work_hooks_integration_test.go` ⚑ (`//go:build integration`)
+
+Against `control-plane/cmd/hub/compose.yaml`, with task 154's fixtures: a test `PersonMapper`
+matching `alice` (and `alice@kpmg.example`) to `u-alice` and nothing else, and a project whose key
+changed `EP` → `RS`. `s.links` is a fake: `For` returns a `Linkback` that records `(pr, text)`
+and an `Autolink` counter, and the tests wait on the post with a channel, never a sleep. Issue
+EP-142 is titled `CANARY-7f3a Resume upload fails on Safari` in every row.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestSecondLinkEventPostsNoSecondLinkback` | PR #17 opened with `Fixes EP-142`, then edited with the same body, then a different delivery of the same edit: one recorded comment; the link's `linkback_state` is `posted` | "comment spam" |
+| `TestLinkbackCarriesNoTitle` | the recorded text for EP-142 is `Linked to RS-142 in PanaceaApp: https://<hub>/p/issues/is-…` and contains neither `CANARY-7f3a` nor any word of the title | "title leaves the product" |
+| `TestUnmatchedAuthorFilesNothing` | PR opened by `mallory` with `issue: new`: no new issue, one filing row with `issue_id` null, the comment is `could not file: we cannot match your account`; an `edited` event afterwards posts nothing more | "an issue with no person" |
+| `TestFilingWordFilesOnceAsTheAuthor` | PR opened by `alice` with `issue: new`: one issue in `triage`, `source: intake`, `created_by` `u-alice`, title the PR title, description `Filed from <PR URL>` and not the body; its `issue.created` event's actor is kind `host`, user `u-alice`; an `edited` event files none | "files per edit"; "the body copied" |
+| `TestCreatedBranchStartsOnceAsThePusher` | `alice` pushes a created `ep-142-resume-upload` with EP-142 in `todo`: `started`, cause `outside_push`, the event's actor `u-alice`, `data.via` `host:github`, one `branch` commit link; a second push to the same branch (not created) writes nothing | "started as the system"; "every push restarts" |
+| `TestUnknownBranchAliasWritesNothing` | a created `ep-999` and a created `rs-0-x`: 200 `{"links": 0, "facts": 0}`, and no row in any Work table changes | "unknown alias fails the hook" |
+| `TestFirstPushLeavesAStartedIssue` | EP-142 in `in_review`, a created `ep-142-x` by `alice`: the state is unchanged, one `branch` link | "first push moves backwards" |
+| `TestByAliasSurvivesAKeyChange` | as a reader of the project, `GET /p/issues/by-alias/EP-142?p=pj-…` is 302 to `/p/issues/is-…`; the same without `p` is 404; as a reader of another project it is 404 | "old links break"; "alias leaks existence" |
+| `TestAutolinkOncePerRepository` | register the GitHub hook, run the janitor twice, push twice, rotate the secret: one `Autolink(…, "RS", …)`; then set the key to `PAY` and run the janitor: one more, for `PAY` | "autolink recreated per push" |
+| `TestADOHookHasNoAutolink` | an Azure DevOps hook registered and the janitor run: no `Autolink` call; its linkback is still posted | "autolink on a host without one" |
+
+`TestLinkbackCarriesNoTitle` also reads the Go source of `work_linkback.go` and fails if
+`LinkLine` has a field whose name contains `Title` (a structural guard beside the behavioural
+one, in the manner of `task-37.md:780`'s source glob).
+
+#### Tests to write first — `control-plane/internal/api/work_branch_test.go` (complete rows)
+
+A fake `hubclient.Work` whose `Issue` returns EP-142, title *Resume upload fails on Safari*, and a
+fake `DataClass`; each row calls the route through `New(Deps{…})`'s handler.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestBranchNameGlobalHasTheSlug` | class Global → `200 {"name": "ep-142-resume-upload-fails-on-safari"}` | "one implementation" drift (the route slugs by itself) |
+| `TestBranchNameAUOnlyHasNoSlug` | class AU → `{"name": "ep-142"}` | "slug on AU branches" |
+| `TestBranchNameUnknownClassHasNoSlug` | the class answers an error, and separately `WorkStart` nil → `{"name": "ep-142"}` both times | "fails open to Global" |
+| `TestBranchNameNoKeyIs409` | `Head.Alias` `""` → 409 `no_project_key` | "empty branch name returned" |
+| `TestBranchNameRelaysTheHubRefusal` | `Issue` returns the Hub's 404 `issue_not_found` → the same status and code | "refusal rewrapped" |
+| `TestBranchNameRefusesAMalformedID` | `is-XYZ` → 400 `bad_request`, `details.field` `issueId`, and the fake saw no call | "path passed to the Hub unchecked" |
+
+#### Tests to write first — `IssueHead.test.tsx` ⚑ (task 46), appended
+
+```tsx
+// beside task 46's mocks (task-46.md:855-857):
+vi.mock("../../api", () => ({ api: { work: { issueBranchName: vi.fn() } } }));
+import { api } from "../../api";
+import { fireEvent, waitFor } from "@testing-library/react";
+
+describe("Copy branch name", () => {
+  it("asks at the press, copies the route's value, and shows the fact", async () => {
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    vi.mocked(api.work.issueBranchName).mockResolvedValue({ name: "ep-142-from-the-route" });
+    const { container } = show();
+    expect(api.work.issueBranchName).not.toHaveBeenCalled();          // no prefetch
+    fireEvent.click(screen.getByRole("button", { name: "Copy branch name" }));
+    await waitFor(() => expect(writeText.mock.calls).toEqual([["ep-142-from-the-route"]]));
+    expect(vi.mocked(api.work.issueBranchName).mock.calls).toEqual([[WORK_IDS.ep142]]);
+    expect(screen.getByRole("status").textContent).toBe("copied ep-142-from-the-route");
+    expectNoPrediction(container);
+  });
+
+  it("says it could not copy, and puts nothing on the clipboard, when the route refuses", async () => {
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    vi.mocked(api.work.issueBranchName).mockRejectedValue(new Error("no_project_key"));
+    const { container } = show();
+    fireEvent.click(screen.getByRole("button", { name: "Copy branch name" }));
+    await waitFor(() => expect(screen.getByRole("status").textContent).toBe("could not copy the branch name"));
+    expect(writeText).not.toHaveBeenCalled();
+    expectNoPrediction(container);
+  });
+});
+```
+
+| Mutant | Test that fails |
+|---|---|
+| the name fetched on mount and cached | the first (`not.toHaveBeenCalled` before the click) |
+| the slug built in the desktop from the title | the first (the clipboard holds the route's value, which the fixture title does not slug to) |
+| the status says *"will be copied"* or a countdown | `expectNoPrediction` in both |
+| a failure writes the alias alone to the clipboard | the second |
+
+The palette row (task 59) gets one test in task 59's palette test file when its part lands: the
+verb is listed with no chord and calls the same route; it is named here and not written, because
+task 59's test harness has no part on this tree (a gap below).
+
+#### Steps
+
+1. Confirm tasks 154, 145, 80 and 59 are on the sync base, and whether task 145 carries the columns
+   and the table above. If not, **stop** and raise the gap: this task writes no migration. Confirm
+   the Hub's GitHub App private key and the ADO workload identity are configurable; until they are,
+   `links.For` answers nil, every claim ends `failed`, and the integration rows run on the fake.
+2. Write the appended `work_hooks_words_test.go` rows; run them red. Append `ParseBranch`,
+   `WantsFiling` and `WordBranch`; run green; apply the parser mutants by hand and revert them.
+3. Write `work_linkback_test.go`; run red. Write `work_linkback.go`; run green; apply its mutants.
+4. Write the integration rows. Apply the `work_hooks.go` deltas (the author, the registration, the
+   three `apply` additions, the post after commit), the store functions, the janitor's statement
+   and step, and the by-alias page. Run with `-tags integration` green.
+5. Write `work_branch_test.go`; run red. Add the route to `api/work.go`; run green.
+6. Add the `WORK_LOCAL` row and client method, and move task 37's count to `30 + 6`. Write the
+   `IssueHead.test.tsx` rows; run red. Add the button and the status line; run green. Add the
+   palette row.
+7. Commit the files listed above and nothing else.
+
+#### Acceptance
+
+```bash
+~/.claude/tools/claudezsh/claudezsh 'go test ./control-plane/internal/hub/server/ -race -count=1 -run "ParseBranch|WantsFiling|ParseRefs|Linkback|Autolink" -v'
+# expect: TestParseBranch (9 subtests), TestWantsFiling, task 154's TestParseRefs and
+#         TestParseRefsIsBounded, TestLinkbackTextShape, TestLinkbackTextRefusesTextInTheAliasField,
+#         TestLinkbackTextRefusesANonHTTPSOrigin, TestGitHubLinkbackIsOneIssueComment,
+#         TestADOLinkbackIsOneClosedThread, TestLinkbackRefusesAHostError,
+#         TestAutolinkTemplateAndExisting: PASS; ok
+~/.claude/tools/claudezsh/claudezsh 'go test -tags integration ./control-plane/internal/hub/server/... -race -count=1 -run "SecondLink|LinkbackCarries|UnmatchedAuthor|FilingWord|CreatedBranch|UnknownBranch|FirstPush|ByAlias|AutolinkOnce|ADOHookHasNo"'
+# expect: the ten rows PASS against control-plane/cmd/hub/compose.yaml; ok
+~/.claude/tools/claudezsh/claudezsh 'go test -tags integration ./control-plane/internal/hub/server/... -race -count=1 -run "Hook|Redelivery|OldAlias|NonClosing|MergedClosing|Unmatched|OutsideLand|ADOWithout|TrailerOnOutside|OpenedPR"'
+# expect: task 154's eleven rows still PASS; ok
+~/.claude/tools/claudezsh/claudezsh 'go test ./control-plane/internal/api/ -race -count=1 -run BranchName -v'
+# expect: the six TestBranchName* rows PASS; ok
+~/.claude/tools/claudezsh/claudezsh 'cd desktop && npx vitest run src/components/issue/IssueHead.test.tsx src/api/work.test.ts'
+# expect: every test passes, including "Copy branch name" (2) and task 37's route count (30 + 6)
+~/.claude/tools/claudezsh/claudezsh 'grep -rn "Title" control-plane/internal/hub/server/work_linkback.go'
+# expect: no output (the linkback file never names a title)
+```
+
+#### What this task does NOT claim
+
+- That the Hub's GitHub App may write PR comments or autolinks in KPMG's organisation, or that an
+  installation exists on any customer's owner (**UNVERIFIED**, an org-owner act), nor which
+  permissions the app's manifest records (task 152's gap 4).
+- That the ADO workload identity may comment on a customer's PRs (**UNVERIFIED**, an org-admin act),
+  or that `status: "closed"` is accepted in string form.
+- That Azure DevOps has no free-prefix repository autolink: this part found none, and the
+  implementer checks on the day. **L-203 is PARTIAL on Azure DevOps** (the linkback alone).
+- That a push's commit list is oldest first on both hosts, so the `branch` link names the head
+  commit (**UNVERIFIED**); the fact does not depend on it.
+- That a linkback is ever retried: a failed one stays `failed` (decision 2).
+- That the by-alias page works before task 80's browser session is accepted by the `feat/hub`
+  owner, or that a reader outside the product can open it (the page needs an Entra session).
+- That the palette row's field names are task 59's (no part on this tree).
+- That the outside causes and the *never `done`* rule are accepted into 05 §3.3 (task 154's
+  first *does not claim*, unchanged).
+
+#### Gaps found while writing this part
+
+1. **The File map lacks `server/work_linkback.go`**, and the scope's list lacks
+   `desktop/src/api/work.ts` ⚑ and `desktop/src/api/work.test.ts` ⚑ (task 37's route count moves
+   from `30 + 5` to `30 + 6`) and `server/janitor.go` ⚑.
+2. **Task 145: the columns and the table above** — `linkback_state`, `linkback_at`,
+   `autolink_key`, `autolink_tried_at`, `installation_id` and `work_outside_pr_filings`.
+3. **Task 143: `HostHook.InstallationID`** (`*int64`, null for Azure DevOps), and the
+   `issue.outside_unmatched` event's data gains `kind` (`pr` | `push`).
+4. **Task 154: three deltas this part makes to its file.** `PUT …/hooks/github` requires
+   `installationId`; `HostPR.Author`; and its `emitWork(ctx, tx, kind, map)` calls
+   (`task-154.md:364`, `:681`) do not match task 13's `emitWork(tx, kind, teamID, projectID,
+   subject, data)` (`task-13.md:332`): they are rewritten to the six-argument form at merge.
+   Task 154 also names the actor kind `hubapi.ActorKindHost`; task 143 names it `hubapi.ActorHost`
+   (`task-143.md:163`), which this part uses.
+5. **The scope's by-alias path had no project** (decision 6 adds `?p=`), and its
+   *"Linked to EP-142"* link is the id form here (decision 3), so an old comment survives a key
+   change.
+6. **The Hub's `Tx` needs an org accessor with no Entra caller** (`tx.OrgID()`, decision in
+   `createFiledIssue`), and the janitor's system read (`s.sys`, `Querier`) is **UNVERIFIED** by name.
+7. **Task 04's problem codes lack `no_project_key`** (the control plane's own, 409).
+8. **Owner decision needed:** the filing names the PR's author, not an editor who added the word
+   (GitHub `pull_request.user`, not `sender`); and a filed issue's link is `non_closing`, so its
+   PR's merge does not land it. Both are recorded, and either can flip in one line.
+9. **Task 59's palette test** is named, not written: its harness has no part on this tree.
