@@ -67,7 +67,7 @@ fields, so a body that sends one gets 400 `bad_request`.
     Also its `RouteName` constants (`task-03.md:362-388`), `ClassRoutes`, `DelegationClass`
     (`DelegationClassOrchestrator`, `DelegationClassWorker`, `task-03.md:100-101`) and `ViaFleet`.
     For route 87 (fix batch b01): `ProjectMode` (`ProjectModeSolo`, `ProjectModeTeam`),
-    `hubapi.Project.Mode`, `SetProjectModeRequest` and `EventProjectModeSet` (task 03).
+    `hubapi.Project.Mode` and `SetProjectModeRequest` (task 03, Block 7); the kind `project.mode_set` is a string.
   - from task 04: the tables `delegations`, `team_tasks`, `agents`, `lease_events`, `conflicts`,
     `human_messages` under the Hub's RLS pattern, the audit row's `fleet_feed` flag, and a
     project's `mode` (`solo`·`team`) with its one-way trigger and `GRANT UPDATE (mode)`

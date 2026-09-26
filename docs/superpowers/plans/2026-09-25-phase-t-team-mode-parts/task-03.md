@@ -37,7 +37,8 @@ and maps each constant through `prefixEntity` (`keys_test.go:737-775`);
 `TestHubCodesAreContractSection42s` wants 5 shared and 33 own codes, in the table's order, with each
 comment's `details.x` in the row's `details` cell (`keys_test.go:530-625`). After task 01 the
 contract has 22 prefixes and 48 own codes, so Step 5 changes `10` to `22` and `33` to `48` and adds
-twelve `prefixEntity` entries. These are the only edits to an existing test.
+twelve `prefixEntity` entries. These, and Block 7's one key in `types_test.go`'s §7.1 `Project`
+example (fix batch b01), are the only edits to an existing test.
 
 **(d) The team types are pinned to the contract by key name, not by parsing its bodies.** The
 existing `TestEveryBodyHasTheContractsKeys` parses fenced JSON with values; several of task 01's
@@ -64,10 +65,16 @@ stand; one v2 vector is added.
   (modified)
 - `envelope_test.go` — the v2 golden vector and its three refusals (modified)
 - `keys_test.go` — `10` → `22`, `33` → `48`, twelve `prefixEntity` rows (modified)
+- `types.go` — `Project.Mode`, `ProjectMode` with `Valid()`, `SetProjectModeRequest` (Block 7;
+  modified, fix batch b01)
+- `types_test.go` — `"mode":"solo"` in the §7.1 `Project` example (modified, fix batch b01)
 
 **Interfaces:**
 - Produces: everything in the `team.go` blocks below, verbatim; the twelve prefixes; the fifteen
-  codes; `AuditEnvelope.Via`, `AuditEnvelope.DelegationID`, `ViaFleet`.
+  codes; `AuditEnvelope.Via`, `AuditEnvelope.DelegationID`, `ViaFleet`; and Block 7 in
+  `types.go`: `Project.Mode`, `ProjectMode` (`ProjectModeSolo`, `ProjectModeTeam`),
+  `SetProjectModeRequest` (fix batch b01, X-C1; task 06's route 87, task 08's
+  `hubclient.SetProjectMode`, task 21's `TeamProjects`).
 - Consumes: `teamtext.Text` (task 02); `hubapi.Digest`, `ValidID`, `ValidBranchRef`,
   `ParseBriefKey`, `FormatTime` (Hub tasks 01–03, built).
 - Required by: tasks 04 (column names mirror the JSON names), 05 (`HeaderDelegation`,
@@ -948,6 +955,37 @@ The usage day is **UNVERIFIED** in its time zone: `Australia/Sydney` is this par
 the gateway's usage store is in Australia East (§2.5), and task 66 confirms or changes it with the
 gateway's own roll-up boundary.
 
+**Block 7, a project's mode (fix batch b01, X-C1; task 01's §7.4 amendment).** This one goes in
+`types.go`, not `team.go`: it amends the Hub's own `Project` (`types.go:140-147`), and route 87 is a
+§7.4 route, not a team section. `Mode` sits after `Name`, as in §7.1's example:
+
+```go
+// types.go — the Project struct gains one field, after Name.
+	Mode      ProjectMode `json:"mode"` // "solo" until route 87; never back
+
+// types.go — appended after Project.
+// ProjectMode is a project's mode (contract §7.4). It moves one way, solo to
+// team, and only through route 87 (Phase T task 06).
+type ProjectMode string
+
+const (
+	ProjectModeSolo ProjectMode = "solo"
+	ProjectModeTeam ProjectMode = "team"
+)
+
+func (v ProjectMode) Valid() bool { return v == ProjectModeSolo || v == ProjectModeTeam }
+
+// SetProjectModeRequest is route 87's body. Any mode but "team" is the
+// handler's 400; the type admits "solo" so the refusal names the field.
+type SetProjectModeRequest struct {
+	Mode ProjectMode `json:"mode"`
+}
+```
+
+`types_test.go`'s §7.1 `Project` example (`:167`) gains `"mode":"solo"` after `"name"`, the one
+more edit to an existing test (decision (c)). The event `project.mode_set` is a string, as every
+kind here: `hubapi` has no event-kind constants.
+
 - [ ] **Step 1: Write the failing tests, `team_test.go` part 1: enums, route sets, grammars**
 
 It lives in package `hubapi`, so it reuses `types_test.go`'s helpers as they stand: `jsonFields`,
@@ -1137,6 +1175,26 @@ func TestTeamRequestsRefuseActorFields(t *testing.T) {
 			if ok || rec.Code != 400 || problemOf(t, rec).Error != CodeBadRequest {
 				t.Errorf("%T accepted %q", v, k)
 			}
+		}
+	}
+}
+
+func TestProjectModeWire(t *testing.T) {
+	// fix batch b01 (X-C1). mutants: Valid admits a third mode; Project.Mode tagged
+	// omitempty, so a solo project's reads drop the key; SetProjectModeRequest takes
+	// a project or team id, so the body could name a project the path does not.
+	for v, want := range map[ProjectMode]bool{"solo": true, "team": true, "": false, "Team": false, "shared": false} {
+		if v.Valid() != want {
+			t.Errorf("ProjectMode(%q).Valid() = %v", v, !want)
+		}
+	}
+	out, _ := json.Marshal(Project{})
+	if !strings.Contains(string(out), `"mode":""`) {
+		t.Errorf("Project omits mode: %s", out)
+	}
+	for _, k := range []string{"projectId", "teamId", "from"} {
+		if rec, ok := decodeInto(new(SetProjectModeRequest), `{"mode":"team","`+k+`":"x"}`); ok || rec.Code != 400 {
+			t.Errorf("SetProjectModeRequest accepted %q", k)
 		}
 	}
 }
@@ -1493,7 +1551,8 @@ diff is expected and is the only change to those ten lines.
 
 - [ ] **Step 6: Write `team.go`, then run the package to green**
 
-Write `team.go` as blocks 1 to 6 above, in order, one file. Then, from `control-plane/`:
+Write `team.go` as blocks 1 to 6 above, in order, one file, and Block 7 into `types.go` with its
+one-key edit to `types_test.go`. Then, from `control-plane/`:
 
 ```bash
 ~/.claude/tools/claudezsh/claudezsh 'cd control-plane && GOPROXY=off go test -count=1 ./internal/hub/hubapi/ && GOPROXY=off go vet ./internal/hub/hubapi/ && gofmt -l internal/hub/hubapi/ && echo gofmt-clean'
@@ -1510,7 +1569,7 @@ Before `team.go` exists the same command fails to build, with `undefined: Delega
 the first team name `team_test.go` reaches); that is the red run. If the contract counts fail
 instead, task 01 has not merged its §3.1 or §4.2 rows: stop, this task is ahead of its dependency.
 
-Then kill four mutants by hand, one at a time, each reverted before the next:
+Then kill six mutants by hand, one at a time, each reverted before the next:
 
 1. In `team.go`, drop `RouteMessagesAppend` from `ClassRoutes[DelegationClassOrchestrator]`.
    Expected: `TestClassRouteSets` fails.
@@ -1520,6 +1579,11 @@ Then kill four mutants by hand, one at a time, each reverted before the next:
    `TestHubCodesAreContractSection42s` fails on the order.
 4. In `envelope.go`, write `m["v"] = 2` without the `if a.Via != ""` guard. Expected:
    `TestVector1`–`4` and `TestAuditV2IsVectorFive` fail.
+5. (b01) In `types.go`, tag `Project.Mode` `json:"mode,omitempty"`. Expected:
+   `TestProjectModeWire` fails on `Project omits mode`.
+6. (b01) In `types_test.go`, drop `"mode":"solo"` from the §7.1 `Project` example. Expected:
+   `TestFieldNamesMatchTheContractExamples` fails on `Project`'s keys, which is the check that
+   task 01's §7.1 line and this field land together.
 
 - [ ] **Step 7: Commit**
 
@@ -1528,7 +1592,7 @@ Then kill four mutants by hand, one at a time, each reverted before the next:
 ```
 
 Subject: `feat(hubapi): team-record wire types, twelve id prefixes, fifteen codes, audit v2
-(Phase T task 03)`; body: the four mutants killed by hand and the three moved counts; last line
+(Phase T task 03)`; body: the six mutants killed by hand and the three moved counts; last line
 the `Co-Authored-By` line.
 
 **What this task does not claim.**
