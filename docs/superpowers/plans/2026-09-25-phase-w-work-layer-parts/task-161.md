@@ -140,76 +140,86 @@ The last rule is the test's hook for decision 1: an operator who adds
 is the Hub's own variable (`hub-contract.md:2165`, `<tenant guid>=<display name>`, comma-separated),
 read the same way so both processes enrol the same orgs.
 
-#### Tests to write first
+#### Interfaces — complete: `control-plane/cmd/workmcp/auth.go`
 
-`hubapi/workstates_test.go` (unit, no database):
+```go
+package main
 
-| Test | Asserts | Mutant it kills |
-|---|---|---|
-| `TestMoveAllowedIsTheTable` | every `(from, to, cause)` of the 9 × 9 × 6 cube against a literal expected set written out in the test | a loosened row (`hand` → `started`); a fact cause accepted for the wrong target |
-| `TestEveryCriterionNotAny` | two served criteria, one cited → `waiting`; both → `proven` | *any* criterion instead of *every* |
-| `TestObservedIsNeverSelfAttested` | creator = starter = recorder, cause observed → `proven`; cause recorded → `proven_self_attested`; recorded by a reviewer → `proven` | observed evidence marked self-attested; self-attestation keyed on the recorder alone |
-| `TestTheStrongestCitationCounts` | one criterion with a self-recorded and an observed citation → `proven` | the first citation found deciding the word |
-| `TestHandSetAndNoCriteria` | `HandSet` with serves → `not_proven`; with none → `no_criteria`; no serves, not hand-set → `no_criteria` | a hand-set done that reads proven |
+import (
+	"context"
+	"errors"
+	"net/http"
 
-`server/work_states_integration_test.go` (`//go:build integration`). Each seeds a brief with two
-criteria, an issue serving them, a lane's `lane_bound` and `land_trailer` moves as Linus, and
-evidence through the Hub's own `POST /v1/evidence` (H25), so no row is forged:
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/oidcauth" // env task 17; UNVERIFIED until merge
+)
 
-| Test | Asserts | Mutant it kills |
-|---|---|---|
-| `TestEvidenceBeforeTheLandingDoesNotClose` | evidence recorded, then the issue lands; citing it → 422, `why: before_landed`; the issue stays `landed` | a rule without the time bound |
-| `TestASiblingsEvidenceAtAnotherCommit` | EP-150 landed at C2 with evidence at C2; EP-142 landed at C1 cites it → 422, `why: commit` | matching evidence by criterion alone |
-| `TestSharedEvidenceNeedsTheSameLanding` | EP-142 cites a record with `evidenceCommit` C2; EP-150, landed at C1 ≠ C2's issue landing, cites it too → 422 `cited_elsewhere`; two issues both landed at C1 share one record → both `done` | reuse of another issue's proof |
-| `TestEveryServedCriterionIsNeeded` | evidence for one of two criteria → 200, `landed`, `proof: waiting`; the second → `done`, `proven` | *any* instead of *every*, end to end |
-| `TestAFactIsNotSetByHand` | `to: started` with cause `hand` → 422 `state_not_allowed`; `to: landed` with `hand` → 422 | a hand-faked fact |
-| `TestAHandSetDoneNeedsAReason` | on the serving issue: no `reason` → 400 naming `reason`; with one → 200, `done`, `proof: not_proven`, `stateReason` the reason | a reasonless hand-set done; a hand-set done that reads proven |
-| `TestSelfAttestedAndObserved` | Linus creates, starts and records → `proven_self_attested`; the same Linus with `evidence_observed` → `proven` | observed evidence marked self-attested |
-| `TestNoCriteriaLandsAtDone` | an issue with `serves: []` (reason `chore`): `land_trailer` → `done`, `no_criteria`; with the team's `stopAtLandedWithoutServes` on → `landed`, `no_criteria` | the switch ignored |
-| `TestProjectLevelIsItsOwnThreadState` | an issue serving only the project brief's criterion reads `threadState.kind` `project_level` | scope ignored (task 08's `threadStateOf`, pinned end to end) |
-| `TestFactsAreIdempotentAndContradictionsRefused` | `lane_bound` twice → one event; `land_trailer` C1 twice → one event; `land_trailer` C2 after C1 → 409 `state_conflict` | a hook firing twice writing two facts; a second landing replacing the first proof |
-| `TestAReopenClearsTheProof` | a `done` issue reopened to `todo` by hand → `proof: ""`, `landCommit: ""`, its citations `cleared_at` set, its evidence citable by another issue | a stale proof surviving a reopen |
-| `TestEvidenceNeverSkipsTheLanding` | as `hub_app` directly, with the settings for `evidence_observed`, `UPDATE` a `started` issue to `done` → `42501` (the replaced guard's clause) | done by evidence on an issue that never landed, at the database layer |
-| `TestOneStateEventPerMove` | every move above writes exactly one `issue.state`, whose `data` holds only the five keys, none of them text | two events per move; content in the feed |
+// ProtectedResource is the RFC 9728 document at
+// <PublicBase>/.well-known/oauth-protected-resource. Under OD-30 the one
+// authorization server is the realm (ruling :601), never Entra's v2.0 URL.
+type ProtectedResource struct {
+	Resource               string   `json:"resource"`                 // <PublicBase>/mcp
+	AuthorizationServers   []string `json:"authorization_servers"`    // [Config.OIDCIssuer]
+	ScopesSupported        []string `json:"scopes_supported"`         // ["panacea-app-hub"]
+	BearerMethodsSupported []string `json:"bearer_methods_supported"` // ["header"]
+	ResourceName           string   `json:"resource_name"`            // "PanaceaApp Work"
+}
 
-#### Steps
+// Challenge is the WWW-Authenticate value on every 401 workmcp sends:
+//   Bearer resource_metadata="<PublicBase>/.well-known/oauth-protected-resource", error="<code>"
+// code is "invalid_token" (bad, expired, wrong audience) or "client" (decision 3).
+func Challenge(publicBase, code string) string
 
-- [ ] **Step 1: Check the base.** H25's evidence route and table on the sync base; task 07's
-  guard as merged; task 08's `issueHead`. If `evidence` changed shape, the Hub's file wins and
-  decision 3's columns follow it.
-- [ ] **Step 2: The unit tests**, then `MoveAllowed` and `DecideProof`, until green. Then the
-  integration tests; add `"10"` to `workMatrixLive`; they fail.
-- [ ] **Step 3: The migration additions**, the store, the route and the two lines in `issueHead`;
-  extend task 06's grant-list test with the two tables. Run this task's, task 06's, task 07's and
-  task 08's suites, and the matrix, until all are green.
-- [ ] **Step 4: Commit by pathspec**, the ten files, naming the migration file in the message.
+// ErrNoCaller is returned by callerToken when the context carries no bearer:
+// a programming error, and the request fails before any Hub call.
+var ErrNoCaller = errors.New("workmcp: no caller bearer in context")
 
-#### Acceptance
+type ctxKey struct{}
 
-```bash
-go test ./control-plane/internal/hub/hubapi/ -race -count=1 -run '^Test(MoveAllowedIsTheTable|EveryCriterionNotAny|ObservedIsNeverSelfAttested|TheStrongestCitationCounts|HandSetAndNoCriteria)$' -v 2>&1 | grep -c '^--- PASS'   # 5
-export PANACEA_APP_HUB_TEST_DATABASE_URL='postgres://postgres@127.0.0.1:5433/postgres?sslmode=disable'
-go test ./control-plane/internal/hub/server/ -tags integration -race -count=1 -v \
-  -run '^Test(EvidenceBeforeTheLandingDoesNotClose|ASiblingsEvidenceAtAnotherCommit|SharedEvidenceNeedsTheSameLanding|EveryServedCriterionIsNeeded|AFactIsNotSetByHand|AHandSetDoneNeedsAReason|SelfAttestedAndObserved|NoCriteriaLandsAtDone|ProjectLevelIsItsOwnThreadState|FactsAreIdempotentAndContradictionsRefused|AReopenClearsTheProof|EvidenceNeverSkipsTheLanding|OneStateEventPerMove)$' \
-  2>&1 | grep -c '^--- PASS'                                                    # 13
-go test ./control-plane/internal/hub/... -tags integration -race -count=1       # every package ok
-grep -rn "hub.work_cause" control-plane/internal --include=*.go | grep -v _test.go   # store/work_states.go only
+// Validator is the slice of oidcauth workmcp needs, so tests pass a fake.
+type Validator interface {
+	Validate(ctx context.Context, bearer string) (oidcauth.Claims, error)
+}
+
+// Authenticate is the middleware for /mcp and /mcp/read, in this order:
+//  1. no "Authorization: Bearer <t>" → 401 invalid_token + Challenge;
+//  2. a bearer starting "pak_" → 401 invalid_token: API keys (task 160) are
+//     for scripts and CI; an MCP client signs a person in (gap 5);
+//  3. v.Validate(ctx, t) under the keycloak profile, with task 159's hook
+//     (below) deferring the approved-app decision to the Hub; any oidcauth
+//     error → 401 invalid_token + Challenge;
+//  4. claims.Service, or claims.ClientID == cfg.DesktopClient → 401 client;
+//  5. put t and claims into the context and call next.
+// It logs claims.Key() and claims.ClientID, never the token.
+func Authenticate(cfg Config, v Validator, next http.Handler) http.Handler
+
+// callerToken is the hubclient.TokenSource workmcp hands to hubclient.New.
+// It returns the caller's own bearer whatever scope is asked (the realm
+// token already carries panacea-app-hub), and ErrNoCaller if there is none.
+type callerToken struct{}
+
+func (callerToken) Token(ctx context.Context, _ string) (string, error)
+
+// FromContext is what tools.go reads for logs and for the author label.
+func FromContext(ctx context.Context) (oidcauth.Claims, bool)
 ```
 
-Expected: `5`, then `13`, then every package `ok`, then one line, in `store/work_states.go`.
+**Task 159's hook, as `workmcp` needs it.** `oidcauth.Validator` refuses an `azp` outside the
+static `AllowedClients` (`ErrClient`; hub task 10's order, `phase-h-hub-parts/task-10.md:63-66`).
+Task 159's scope adds an `AppClients` lookup *in the Hub's principal step*
+(`tasks-141-160.md:750-755`); for `workmcp` to validate a third-party app's token at all, the hook
+must sit on `oidcauth.Config` itself. This part proposes that to task 159 and the env owner
+(gap 2), and codes against it:
 
-#### What this task does not claim
+```go
+// Proposed on oidcauth.Config (task 159's hook, generalised; NOT added by this task):
+//	// ExtraClient, when set, is asked about a person token whose azp is not in
+//	// AllowedClients; true admits it as a person client. The Hub's answer is
+//	// task 159's approved-app lookup; workmcp's is "defer to the Hub".
+//	ExtraClient func(ctx context.Context, azp, tid string) bool
+```
 
-- **Not that a test run was watched.** The Hub records the cause the person's control plane sends;
-  `evidence_observed` meaning "the platform saw the exit code at the land commit" is task 23's
-  claim, and so is the ancestry of an `evidenceCommit`.
-- **Not that the lane facts arrive.** Task 22 sends `lane_bound`, `lane_queued` and `land_trailer`;
-  this task only accepts them.
-- **Not custom states (W2, task 75) or a parent's roll-up (L-21, W2).**
-- **Not the third proof word.** Evidence recorded by a reviewer reads `proven` by this task's
-  reading; the owner may want it named apart.
-- **No measured cost.** One evidence read and one citation query per move; nobody has timed it.
-
-**Parity rows served:** **L-8** (fixed fact states; closed with task 22 and the glyphs, task 28),
-**L-10** (the `duplicate` state), and the Hub half of 05 §2.3's *done means proven*, which no L row
-names alone; it underlies **L-146** and **L-201** (closed with tasks 21-22).
+`workmcp`'s `ExtraClient` returns `true` for any `azp` that is neither the desktop's nor a service
+client, because the Hub decides (decision 2); every other check in the order still runs here, so a
+token for another audience, an expired one, or one from another issuer never reaches the Hub. If
+the env owner declines the hook, `workmcp` runs `oidcauth.JWKSValidator` plus its own `iss`, `aud`,
+`scope` and `tid` checks, and says so in its README; it never skips the signature.
