@@ -70,3 +70,56 @@ Always cleared: `featureId` (features are per project). A parent is cleared; an 
 children is refused 409 `children_open` with `details.open` counting every child, any state,
 because task 78's parent rule keeps a child in its parent's project. The event names what was
 cleared.
+
+**(g) A move rewrites no history, so two W1 keys must loosen.** Task 06 pins an issue's project
+into `issue_revisions` and `issue_attachments` with `FOREIGN KEY (org_id, issue_id, project_id)
+REFERENCES issues (org_id, id, project_id)` (`task-06.md:214`, `:362`, its decision 3). Changing
+`issues.project_id` would be `23503`, and cascading would rewrite revisions whose canonical form
+covers `ProjectID` (`task-08.md:356-357`). So task 74 replaces both keys with `(org_id, issue_id)
+REFERENCES issues (org_id, id)` and a `BEFORE INSERT` trigger refusing a row whose `project_id` is
+not the issue's current one: new rows keep decision 3's guarantee, old rows keep the project they
+were written in. Task 74 also grants `UPDATE (project_id, team_id, number)` on `issues`, guarded
+by a trigger that admits the change only under `hub.work_cause = 'move'`. Asked of task 74 here,
+reported as a gap.
+
+**(h) The resolved-blocker rule reads one direction.** Only rows where the closing issue is the
+blocker (`issue_id` = it, `kind = 'blocks'`) turn into `relates`. A blocked issue closing leaves
+its blocker's row alone: that blocker still blocks nothing open, and task 11's reads already say
+so. Where a `relates` row between the two already exists (either direction, task 11 checks both,
+`task-05.md:469`), the `blocks` row is deleted instead of updated, so the primary key never
+collides. One event, `issue.blocks_resolved`, only when at least one row changed; its actor is
+the `issue.state` event's actor in the same transaction (task 10's rule, task 75 decision (e)'s
+clearer), which is the person who closed the blocker (05 row 25).
+
+#### Files
+
+| Path | Change |
+|---|---|
+| `control-plane/internal/hub/store/work_plan_fields.go` | new: the plan write, the rank keys (`rankBetween`, `rankAfter`, `rankBefore`, `rankSpread`), neighbours, rebalance |
+| `control-plane/internal/hub/store/work_plan_fields_test.go` | new: the rank keys as pure functions (no build tag) |
+| `control-plane/internal/hub/server/work_plan_fields.go` | new: `PATCH /plan`, `POST /rank` |
+| `control-plane/internal/hub/store/work_move.go` | new: the move, the alias write, the alias read |
+| `control-plane/internal/hub/server/work_move.go` | new: `POST /move` |
+| `control-plane/internal/hub/server/work_plan_fields_integration_test.go`, `work_move_integration_test.go` | new: the tests below |
+| `control-plane/internal/hub/server/work_policies.go` ⚑ (task 11's) | the W2 half of `PUT /work-policy` |
+| `control-plane/internal/hub/server/work_states.go` ⚑ (task 10's) | the resolved-blocker clause |
+| `control-plane/internal/hub/server/work_issues.go` ⚑ (task 08's) | `by-number` reads `issue_aliases`; create takes `store.BottomRank` |
+| `control-plane/internal/hub/hubapi/work_events.go` ⚑ (task 13's) | four kinds and their data structs |
+| `control-plane/internal/hub/server/work_matrix_rows_integration_test.go` ⚑ (task 07's) | `workMatrixRows["79"]`; `"79"` in `workMatrixLive` |
+| `control-plane/internal/hub/server/server.go` ⚑ | one line: `s.registerWorkPlanFields()` |
+
+The scope named `server/matrix_integration_test.go`; W1's Work rows live in task 07's
+`work_matrix_rows_integration_test.go` (task 75's correction, `task-75.md:86-88`). The file name
+`hubapi/work_events.go` is task 13's as task 75 reads it (`task-75.md:89-90`); if the registry sits
+in `work.go`, the kinds go there. Registration uses task 08's recorder, `s.route` (`task-08.md:312-323`),
+so `(*Server).Patterns()` lists the routes and task 07's meta-tests see them.
+
+#### The wire (the bodies are task 72's)
+
+```text
+PATCH /v1/issues/{issueId}/plan   member  200 IssueHead   body PatchIssuePlanRequest{estimate, dueOn}
+POST  /v1/issues/{issueId}/rank   member  200 IssueHead   body RankRequest{after, before}
+POST  /v1/issues/{issueId}/move   member of both teams  200 IssueHead  body MoveIssueRequest{toProjectId}
+GET   /v1/projects/{projectId}/issues/by-number/{n}  viewer  200 IssueWithRevision (task 08's), head.movedFrom set
+PUT   /v1/teams/{teamId}/work-policy  admin  200 TeamWorkPolicy; W2 fields absent keep (task 72's patch)
+```
