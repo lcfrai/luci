@@ -145,3 +145,83 @@ export function createAnnouncer(clock: AnnouncerClock): Announcer {
 The count in `(and N more)` is a count of things that already arrived, never a forecast
 (`OD-27`); the words carry no time. The key set lives as long as the window: a negotiation fact
 (task 106) or an import's end (task 69) is never spoken twice after a re-render.
+
+#### Interfaces — complete: `LiveRegion.tsx`, part 2: the one element, the hooks, `<Said>`
+
+```tsx
+import { createContext, useContext, useEffect, useRef, useSyncExternalStore, type JSX } from "react";
+
+const appAnnouncer = createAnnouncer({ now: () => Date.now(), later: (ms, fn) => { setTimeout(fn, ms); } });
+const Ctx = createContext<Announcer>(appAnnouncer);
+
+/** Tests (and a second window, if one is ever added) pass their own announcer. */
+export const AnnouncerProvider = Ctx.Provider;
+
+export function useLiveRegion(): Pick<Announcer, "announce"> {
+  const a = useContext(Ctx);
+  return { announce: a.announce };
+}
+
+/** Decision 3: the short form, a digest with an optional once-key (task 106's call shape). */
+export function useAnnounce(): (text: string, key?: string) => void {
+  const a = useContext(Ctx);
+  return (text, key) => a.announce(text, "digest", key);
+}
+
+/** Speaks `text` once each time it changes to a non-empty value. Renders nothing. The visible
+ *  fact stays where it is, as plain text; this is its voice. */
+export function Said({ text, kind = "answer", onceKey }: { text: string | null; kind?: AnnounceKind; onceKey?: string }): null {
+  const a = useContext(Ctx);
+  const last = useRef<string | null>(null);
+  useEffect(() => {
+    if (text === null || text === "" || text === last.current) return;
+    last.current = text;
+    a.announce(text, kind, onceKey);
+  }, [a, text, kind, onceKey]);
+  return null;
+}
+
+/** Mounted once by AppShell (decision 4). */
+export function LiveRegion(): JSX.Element {
+  const a = useContext(Ctx);
+  const cur = useSyncExternalStore(a.subscribe, a.current);
+  const node = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = node.current;
+    if (!el || cur.seq === 0) return undefined;
+    el.textContent = "";                                   // the same text twice is spoken twice
+    const id = requestAnimationFrame(() => { el.textContent = cur.text; });
+    return () => cancelAnimationFrame(id);
+  }, [cur]);
+  return <div ref={node} className="sr-only" aria-live="polite" aria-atomic="true" data-live-region="" />;
+}
+```
+
+```css
+/* common.css ⚑ — task 66. Hidden from sight, never from the accessibility tree. */
+.sr-only { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap; margin: -1px; padding: 0; border: 0; }
+```
+
+`current` returns the same object until the next utterance, so `useSyncExternalStore` sees a
+stable snapshot. The node is written by the effect only; React renders it empty and never
+reconciles its text, so a re-render does not re-speak.
+
+#### Interfaces — complete: the phase 2 edits (`AppShell.tsx`, `Toasts.tsx`, `RailFooter.tsx`)
+
+```tsx
+// AppShell.tsx ⚑ — beside <Toasts /> at :98, once:
+      <LiveRegion />
+
+// Toasts.tsx ⚑ — ToastRow's root loses role="status" (:19); the stack loses aria-live (:42).
+// ToastRow gains, first in its body:
+      <Said text={toast.undo === undefined ? toast.message : `${toast.message}. Undo button on the toast`} />
+// (phase 2's toast has a button and no key; "Undo, U" is task 56's chip, spoken by that chip)
+
+// RailFooter.tsx ⚑ — the <p> at :19 loses role="status"; beside it:
+      <Said text={lastError.message} />
+```
+
+A toast is always the answer to my own act in phase 2 (the optimistic-mutation Undo window,
+`Toasts.tsx:1`), so it is an `answer`. The rail's error is the server's own sentence for a call I
+made (`RailFooter.tsx:16-18`), also an `answer`, spoken verbatim, never paraphrased.
