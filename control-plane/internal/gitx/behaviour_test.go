@@ -181,14 +181,16 @@ func requireStarted(tb testing.TB, code int, prog string) {
 // can ask what a pin helper would have done. Fatal, Fatalf and FailNow record into fatal; Skip,
 // Skipf and SkipNow record into skipped. Before skips were recorded, a helper that skipped a
 // pin skipped the helper's own pin through the real test, which passed (task-01 review 1, M-B:
-// mutant R2). Every other method (Errorf, Logf, TempDir and the rest) is the real test's.
+// mutant R2). Helper counts its calls instead of marking a frame. Every other method (Errorf,
+// Logf, TempDir and the rest) is the real test's.
 type fatalRecorder struct {
 	testing.TB
 	fatal   string
 	skipped string
+	helpers int
 }
 
-func (r *fatalRecorder) Helper() {}
+func (r *fatalRecorder) Helper() { r.helpers++ }
 
 func (r *fatalRecorder) Fatal(args ...any) { r.fatal = fmt.Sprint(args...) }
 
@@ -249,6 +251,27 @@ func TestPinHelperNamesAProgramThatNeverStarted(t *testing.T) {
 			t.Errorf("cmd /c exit %s: code %d (%#x), helper fatal %q, skipped %q; want %#x back, no fatal and no skip",
 				arg, code, uint32(code), rec.fatal, rec.skipped, status)
 		}
+	}
+}
+
+// The pin above starts only cmd, and a test cannot make docker.exe fail to start, so this one
+// calls requireStarted directly with docker's name. A check that let docker through would read
+// a docker.exe that never started as an ordinary docker exit, which is how needSandbox once
+// skipped the whole sandbox half (fix round 2 mutant H1 passed every other pin). The helper must
+// also mark itself a helper, so a never-started failure is reported at the pin's own call, not
+// at requireStarted's Fatalf (mutant H2 dropped tb.Helper and passed). The status goes through
+// a uint32 variable, as ExitCode returns it on Windows. Nothing here needs Windows.
+func TestPinHelperNamesDockerThatNeverStarted(t *testing.T) {
+	t.Parallel()
+	var status uint32 = 0xC0000142
+	rec := &fatalRecorder{TB: t}
+	requireStarted(rec, int(status), "docker")
+	if !strings.HasPrefix(rec.fatal, "docker could not start") || rec.skipped != "" {
+		t.Errorf("docker that never started: the helper said fatal %q, skipped %q; want a fatal sentence starting %q",
+			rec.fatal, rec.skipped, "docker could not start")
+	}
+	if rec.helpers == 0 {
+		t.Errorf("requireStarted never called tb.Helper: a never-started failure would be reported at its own line, not the pin's")
 	}
 }
 
