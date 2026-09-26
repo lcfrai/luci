@@ -69,3 +69,47 @@ ingress; a secret crosses the relay once and is never in its log.
   `WorkRowsW5` over HTTP, `-tags integration` (new)
 - `control-plane/internal/hub/work_intake_e2e_integration_test.go` — `TestWorkIntakeE2E` (new;
   the File map names no W5 end-to-end file, so the name follows tasks 17, 82 and 124)
+
+#### Contract — the route table, complete: `hubclient/methods_work_intake.go`, the head
+
+```go
+// control-plane/internal/hub/hubclient/methods_work_intake.go
+package hubclient
+
+// ErrNoRoute: the Hub has no HTTP route for this method (decision 4).
+var ErrNoRoute = errors.New("hubclient: the Hub has no HTTP route for this method")
+
+// WorkIntakeRoutes is every W5 route the relay mounts: the routes a 170-173
+// surface calls, in task order (decision 2). A row's name is its method's; a
+// method over two routes has the two names task 169 uses.
+var WorkIntakeRoutes = []WorkRoute{
+	// 146: requests (Triage, task 170)
+	{"ListRequests", http.MethodGet, "/v1/teams/{teamId}/requests", false},
+	{"Request", http.MethodGet, "/v1/requests/{requestId}", false},
+	{"AcceptRequest", http.MethodPost, "/v1/requests/{requestId}/accept", false},
+	{"LinkRequest", http.MethodPost, "/v1/requests/{requestId}/link", false},
+	{"DeclineRequest", http.MethodPost, "/v1/requests/{requestId}/decline", false},
+	{"MarkImportant", http.MethodPut, "/v1/requests/{requestId}/important", false},
+	{"IssueRequesters", http.MethodGet, "/v1/issues/{issueId}/requests", false},
+	// 147-148: rules and forms (170)
+	{"ListIntakeRules", http.MethodGet, "/v1/teams/{teamId}/intake-rules", false},
+	{"PutIntakeRules", http.MethodPut, "/v1/teams/{teamId}/intake-rules", false},
+	{"CreateForm", http.MethodPost, "/v1/teams/{teamId}/forms", true},
+	{"ListForms", http.MethodGet, "/v1/teams/{teamId}/forms", false},
+	{"GetForm", http.MethodGet, "/v1/forms/{formId}", false},
+	{"PatchForm", http.MethodPatch, "/v1/forms/{formId}", false},
+	// 150-153: trackers (171)
+	{"ConnectTracker", http.MethodPost, "/v1/projects/{projectId}/trackers", true},
+	{"ListTrackers", http.MethodGet, "/v1/teams/{teamId}/trackers", false},
+	{"DisconnectTracker", http.MethodDelete, "/v1/trackers/{connectionId}", false},
+	{"ListSyncRuns", http.MethodGet, "/v1/trackers/{connectionId}/runs", false},
+	{"ListTrackerLinks", http.MethodGet, "/v1/trackers/{connectionId}/links", false},
+	// 162-163: loops (172)
+	{"CreateLoop", http.MethodPost, "/v1/projects/{projectId}/work/loops", true},
+	{"ProjectLoops", http.MethodGet, "/v1/projects/{projectId}/work/loops", false},
+	{"GetLoop", http.MethodGet, "/v1/work/loops/{loopId}", false},
+	{"SetLoopState", http.MethodPatch, "/v1/work/loops/{loopId}", false},
+	{"PutLoopVersion", http.MethodPost, "/v1/work/loops/{loopId}/versions", true},
+	{"ListLoopVersions", http.MethodGet, "/v1/work/loops/{loopId}/versions", false},
+	{"ListLoopRuns", http.MethodGet, "/v1/work/loops/{loopId}/runs", false},
+	{"RunLoopNow", http.MethodPost, "/v1/work/loops/{loopId}/runs", true},
