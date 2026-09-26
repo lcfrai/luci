@@ -263,3 +263,97 @@ transaction, and its unique-violation mapping to `brief_exists` is reused unchan
 has no store function callable with a caller's transaction (it could open its own), this task adds
 a `tx`-taking variant beside it and the old one calls it; that is a Hub file edit, so it is flagged
 in *Corrections*.
+
+#### The routes (`server/work_features.go`), in order
+
+```go
+func (s *Server) registerWorkFeatures(mux *http.ServeMux) {
+	mux.HandleFunc("POST /v1/projects/{projectId}/features", s.postFeature)
+	mux.HandleFunc("GET /v1/projects/{projectId}/features", s.listFeatures)
+	mux.HandleFunc("GET /v1/features/{featureId}", s.getFeature)
+	mux.HandleFunc("PATCH /v1/features/{featureId}", s.patchFeature)
+	mux.HandleFunc("PUT /v1/issues/{issueId}/feature", s.putIssueFeature)
+	mux.HandleFunc("POST /v1/issues/{issueId}/promote", s.promoteIssue)
+}
+```
+
+The two `POST`s answer records with no issue text except `PromoteResult.issue`, which is an
+`IssueHead` (its `external.url` is an imported issue's link). So `postFeature` runs under
+`server.Write` and `promoteIssue` under `server.WriteReplayable` with task 08's
+`rebuildIssueHead` for its `issue` half (`task-11.md:334-339`, the same rule). Each refusal rolls
+the transaction back and appends nothing.
+
+**`postFeature`** (member of the project's team):
+
+1. `Decode[hubapi.CreateFeatureRequest]`; the project outside the caller's readable set → 404
+   `project_not_found`; role below member → `server.Forbidden("member")`.
+2. `name` trimmed, 1-80 characters, no control character → else 400 `field: "name"`.
+3. `ref, ok := hubapi.FeatureBranchRef(slug)`; `!ok` → 422 `slug_invalid`.
+4. `ProjectAUOnly`; `!known || auOnly` → the word check of decision (d) against `name`.
+5. `leadId` `""` → the caller; else `TeamRoleOf(team, leadId)` must be `member` or `admin` → else
+   422 `bad_request`, `field: "leadId"`.
+6. `targetDate` → `hubapi.ValidDate` → else 422 `date_invalid`, `field: "targetDate"`. `priority`
+   `""` → `none`, else task 03's `ValidPriority`. Each label → task 11's `LabelByID`, live, of this
+   team (or an org label, task 78) → else 422 `label_unavailable`, `field: "labels[n]"`.
+7. The Hub's brief insert with `scope: branch`, `branchRef: ref`; its unique violation → 409
+   `brief_exists`, `details.briefId` the live brief (the Hub's existing mapping). Then
+   `InsertFeature` with a new `ft-` (task 02's `NewWorkID(PrefixFeature)`), state `planned`.
+8. Events `brief.created {scope: "branch", branchRef}` then `feature.created`. 201 `Feature`.
+
+**`listFeatures`** and **`getFeature`** (viewer): `getFeature` reads by id and answers 404
+`feature_not_found` when the feature is absent **or** its project is outside the caller's
+readable set (no existence leak, the Hub's rule for every `*_not_found`). `Lead` and `CreatedBy`
+are rendered as `User` by the Hub's user lookup. `InitiativeID` is always `null` in W2.
+
+**`patchFeature`** (member): decode strictly (unknown keys 400, so no derived fact can be sent);
+read each tri-state field through `hubapi.ChangeOf`; `name`, `leadId`, `state` and `priority`
+refuse `null` (400 naming it); `state` must satisfy `ValidFeatureState`; `leadId`, `targetDate`
+and `labels` take the create checks. `PatchFeature`; nothing changed → 200, no event; else
+`feature.updated {fields, state}`. A `done` or `cancelled` feature may be patched (a person
+reopening it sets `state` back).
+
+**`putIssueFeature`** (member of the issue's team): `readableIssue(…, RoleMember, lock=true)`;
+`featureId` `null` clears; else `FeatureByID` in the **issue's project** → else 404
+`feature_not_found`; a `cancelled` feature → 422 `bad_request`, `field: "featureId"`. Equal to the
+head's → 200, no event. `SetIssueFeature`; `issue.feature_set {from, to}`. 200 `IssueHead`.
+
+**`promoteIssue`** (member):
+
+1. `Decode[hubapi.PromoteToFeatureRequest]`; `readableIssue(…, RoleMember, lock=true)`; the
+   head's `featureId` set, or its state closed → 422 (the refusals table).
+2. `name` `""` → the head revision's title text, cut to 80 characters at a rune boundary. The
+   title is `text·H` of its author; the feature's name is then the **promoter's** field, and the
+   feature records `CreatedBy` the promoter (a name is a label, not an authored answer).
+3. Steps 3-7 of `postFeature`, with the AU word check run against the name **and** the head
+   revision's title (decision (d)); the lead is the promoter.
+4. `SetIssueFeature(issue, ft)`. **No issue revision is written**, and `issue_serves` is not
+   touched (L-23): the issue keeps serving what it served, on its own revision.
+5. Events `brief.created`, `feature.created`, `issue.promoted {featureId, briefId, issueKey}`,
+   where `issueKey` is `hubapi.IssueKey{IssueID, head.Revision}.String()` (task 02). 201
+   `PromoteResult`.
+
+#### The delta to task 24's Start (`workstart/start.go` ⚑)
+
+The Hub cannot see git (`hub-contract.md:131-137` validates a ref's format only), so the control
+plane keeps a reserved name from being cut for anything else. One line in Start's step 4, before
+`Lanes.Create` (`task-24.md:264`):
+
+```go
+//  4a. reserved, err = Features.Reserved(ctx, ProjectID, name); reserved && issue's featureId is not
+//      that feature → ErrNameReserved (409 brief_exists, the Hub's code, details.branchRef).
+```
+
+`Features` is a one-method interface beside task 24's `DataClass` (`task-24.md:161-165`),
+satisfied by task 82's HTTP client through `ListFeatures` (and by task 73's fake):
+
+```go
+// Features answers whether a branch name is a reserved feature slug of the project.
+type Features interface {
+	Reserved(ctx context.Context, projectID, branchName string) (bool, error)
+}
+```
+
+An error reading it refuses the Start (a reservation the control plane cannot check is treated as
+taken, the same fail-safe as the data class). Cutting the feature's branch on the first Start of a
+child issue is task 61's choice of `Branch` (the feature's `branchRef` as the lane's base); whether
+P3-04's lane creation cuts a missing base branch is **UNVERIFIED** and reported.
