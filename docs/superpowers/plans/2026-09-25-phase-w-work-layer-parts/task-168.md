@@ -435,7 +435,8 @@ func (c *Client) ListLoopRuns(ctx context.Context, loopID string, page hubapi.Pa
 }
 func (c *Client) RunLoopNow(ctx context.Context, loopID string) (hubapi.LoopRun, error) {
 	var out hubapi.LoopRun // the request id is the Idempotency-Key (task-169.md:355-356)
-	return out, c.work(ctx, "RunLoopNow", nil, struct{}{}, &out, loopID)
+	body := hubapi.RunLoopNowRequest{RequestID: IdempotencyKeyOf(ctx)} // task 163 requires it (task-163.md:124-126)
+	return out, c.work(ctx, "RunLoopNow", nil, body, &out, loopID)
 }
 func (c *Client) GetTeamAgentPolicy(ctx context.Context, teamID string) (hubapi.TeamAgentPolicy, error) {
 	var out hubapi.TeamAgentPolicy
@@ -451,8 +452,10 @@ func (c *Client) PutTeamAgentPolicy(ctx context.Context, teamID string, p hubapi
 `ListAPIKeys` returns the first page only, because task 143's signature takes no page. A person
 has at most 10 live keys and a team 25 (`task-160.md:381`, `:385`), but revoked and expired keys
 are listed too (`:391`), and task 160's default `limit` is not stated: whether one page holds them
-all is **UNVERIFIED** (gap 5). `RunLoopNow`'s body is `{}` here; task 163's `{requestId}` body is the
-desktop's (169), which the relay forwards as sent.
+all is **UNVERIFIED** (gap 5). `RunLoopNow`'s body is task 163's `{requestId}`: the value is the
+context's idempotency key (`IdempotencyKeyOf`, beside `WithIdempotencyKey`; H33's own fresh key
+when none is set, whose fit to 163's 8-64 `[A-Za-z0-9._-]` is **UNVERIFIED**, gap 6), so the desktop's one op id is both the header and the body (169), and a
+relay retry is 163's `200` with the first run.
 
 #### Contract — the relay: `api/work.go` ⚑, `intakeCalls()` (complete)
 
@@ -468,7 +471,8 @@ type (
 	pv = func(string) string
 )
 
-// in0: path values and the query, no body. in1: a strict body of T first.
+// in0: path values and the query, no body. inb: a strict body of T first
+// (not in1: task 124's in1, task-124.md:518-527, is in this package already).
 // paged: the query decoded as a page (hubclient.DecodeQuery, task 16).
 func in0(f func(c cx, w hubclient.Work, p pv, q url.Values) (any, error)) workCall {
 	return func(r *http.Request, _ http.ResponseWriter, w hubclient.Work) (any, error) {
@@ -476,7 +480,7 @@ func in0(f func(c cx, w hubclient.Work, p pv, q url.Values) (any, error)) workCa
 	}
 }
 
-func in1[T any](f func(c cx, w hubclient.Work, p pv, b T) (any, error)) workCall {
+func inb[T any](f func(c cx, w hubclient.Work, p pv, b T) (any, error)) workCall {
 	return func(r *http.Request, rw http.ResponseWriter, w hubclient.Work) (any, error) {
 		b, err := body[T](rw, r)
 		if err != nil {
@@ -505,3 +509,79 @@ func ptr(s string) *string { return &s }
 
 `hubclient.WithIdempotencyKey(ctx, "")` returns `ctx` unchanged, so a write with no header gets
 H33's own key, as every W1 write does today (decision 7).
+
+**A slice answer is `{"items": […]}`**, as task 124's `ProjectGrants` (`task-124.md:542-545`);
+a page is `hubapi.Page[T]` as the Hub sent it. `items` wraps a `nil` slice as `[]`, so the desktop
+never branches on `null`.
+
+```go
+// control-plane/internal/api/work.go ⚑ (continued) — the W5 handlers, part 1
+
+func items[T any](xs []T, err error) (any, error) {
+	if xs == nil {
+		xs = []T{}
+	}
+	return map[string]any{"items": xs}, err
+}
+
+// intakeCalls is the handler of every WorkIntakeRoutes row, by the row's name.
+func intakeCalls() map[string]workCall {
+	return map[string]workCall{
+		// 146: requests
+		"ListRequests": paged(func(c cx, w hubclient.Work, p pv, pg hubapi.PageRequest) (any, error) {
+			return w.ListRequests(c, p("teamId"), pg)
+		}),
+		"Request": in0(func(c cx, w hubclient.Work, p pv, _ url.Values) (any, error) {
+			return w.Request(c, p("requestId"))
+		}),
+		"AcceptRequest": inb(func(c cx, w hubclient.Work, p pv, b hubapi.AcceptRequestRequest) (any, error) {
+			return w.AcceptRequest(c, p("requestId"), b)
+		}),
+		"LinkRequest": inb(func(c cx, w hubclient.Work, p pv, b hubapi.LinkRequestRequest) (any, error) {
+			return w.LinkRequest(c, p("requestId"), b)
+		}),
+		"DeclineRequest": inb(func(c cx, w hubclient.Work, p pv, b hubapi.DeclineRequestRequest) (any, error) {
+			return w.DeclineRequest(c, p("requestId"), b)
+		}),
+		"MarkImportant": inb(func(c cx, w hubclient.Work, p pv, b hubapi.SetImportantRequest) (any, error) {
+			return w.MarkImportant(c, p("requestId"), b)
+		}),
+		"IssueRequesters": in0(func(c cx, w hubclient.Work, p pv, _ url.Values) (any, error) {
+			return items(w.IssueRequesters(c, p("issueId")))
+		}),
+		// 147-148: rules and forms
+		"ListIntakeRules": in0(func(c cx, w hubclient.Work, p pv, _ url.Values) (any, error) {
+			return w.ListIntakeRules(c, p("teamId"))
+		}),
+		"PutIntakeRules": inb(func(c cx, w hubclient.Work, p pv, b hubapi.PutIntakeRulesRequest) (any, error) {
+			return w.PutIntakeRules(c, p("teamId"), b)
+		}),
+		"CreateForm": inb(func(c cx, w hubclient.Work, p pv, b hubapi.CreateFormRequest) (any, error) {
+			return w.CreateForm(c, p("teamId"), b)
+		}),
+		"ListForms": in0(func(c cx, w hubclient.Work, p pv, _ url.Values) (any, error) {
+			return items(w.ListForms(c, p("teamId")))
+		}),
+		"GetForm": in0(func(c cx, w hubclient.Work, p pv, _ url.Values) (any, error) {
+			return w.GetForm(c, p("formId"))
+		}),
+		"PatchForm": inb(func(c cx, w hubclient.Work, p pv, b hubapi.PatchFormRequest) (any, error) {
+			return w.PatchForm(c, p("formId"), b)
+		}),
+		// 150-153: trackers
+		"ConnectTracker": inb(func(c cx, w hubclient.Work, p pv, b hubapi.ConnectTrackerRequest) (any, error) {
+			return w.ConnectTracker(c, p("projectId"), b)
+		}),
+		"ListTrackers": in0(func(c cx, w hubclient.Work, p pv, _ url.Values) (any, error) {
+			return items(w.ListTrackers(c, p("teamId")))
+		}),
+		"DisconnectTracker": in0(func(c cx, w hubclient.Work, p pv, _ url.Values) (any, error) {
+			return w.DisconnectTracker(c, p("connectionId")) // a DELETE: no body is read
+		}),
+		"ListSyncRuns": paged(func(c cx, w hubclient.Work, p pv, pg hubapi.PageRequest) (any, error) {
+			return w.ListSyncRuns(c, p("connectionId"), pg)
+		}),
+		"ListTrackerLinks": paged(func(c cx, w hubclient.Work, p pv, pg hubapi.PageRequest) (any, error) {
+			return w.ListTrackerLinks(c, p("connectionId"), pg)
+		}),
+```
