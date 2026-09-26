@@ -487,3 +487,63 @@ org still runs (Hub task 24's per-org transaction).
   caller)`, and `issue.cycle_set {from: "", to, rollover: false}` after the `issue.state` event,
   **written as the person** whose lane started it (L-61, skeleton rule 2). An issue already in a
   cycle keeps it.
+
+#### The matrix rows (`server/work_matrix_rows_integration_test.go` ⚑), complete
+
+H16b's fixture gains `CycleID` (Grace sets a cadence 14/0/1 from today, so one `current` cycle
+exists) and `ProposalID` (a proposal to Linus, inserted by the store as the janitor would, since
+no route makes one). The answer row's cells differ from every helper: only the assignee may
+answer, so its `want` is written out.
+
+```go
+	"77": {
+		wadmin("PUT /v1/teams/{teamId}/cadence", "PUT", "/v1/teams/{TeamID}/cadence", 200, "team_not_found",
+			func(*fixture) any {
+				return map[string]any{"lengthDays": 14, "cooldownDays": 0, "ahead": 2, "firstStartsOn": "2026-10-05"}
+			}),
+		wread("GET /v1/teams/{teamId}/cadence", "/v1/teams/{TeamID}/cadence", "team_not_found"),
+		wread("GET /v1/teams/{teamId}/cycles", "/v1/teams/{TeamID}/cycles", "team_not_found"),
+		wread("GET /v1/teams/{teamId}/cycles.ics", "/v1/teams/{TeamID}/cycles.ics", "team_not_found"),
+		wadmin("PATCH /v1/cycles/{cycleId}", "PATCH", "/v1/cycles/{CycleID}", 200, "cycle_not_found",
+			func(*fixture) any { return map[string]any{"name": "Uploads"} }),
+		wwrite("PUT /v1/issues/{issueId}/cycle", "PUT", "/v1/issues/{IssueID}/cycle", 200, "issue_not_found",
+			func(f *fixture) any { return map[string]any{"cycleId": f.CycleID} }),
+		wread("GET /v1/cycles/{cycleId}/scope-log", "/v1/cycles/{CycleID}/scope-log", "cycle_not_found"),
+		{"POST /v1/closure-proposals/{proposalId}/answer", row{name: "answer", method: "POST",
+			path: "/v1/closure-proposals/{ProposalID}/answer", body: func(*fixture) any { return map[string]any{"close": []any{}} },
+			want:     [6]int{404, 200, 404, 404, 404, 404}, // Linus is the assignee; nobody else learns it exists
+			wantCode: map[column]string{colV: "proposal_not_found", colA: "proposal_not_found", colO: "proposal_not_found",
+				colN: "proposal_not_found", colX: "proposal_not_found"}}},
+	},
+```
+
+`GET /v1/closure-proposals`, `POST` and `DELETE /v1/me/calendar-token` are per-person routes with
+no team to test against; they answer 200/201/204 in every signed-in column and are covered by the
+integration tests, as H16b treats `/v1/me` (**UNVERIFIED**: H16b's handling of `/v1/me` rows is
+not re-read here). `/cal/{feedToken}` is outside `/v1` and outside the matrix; its test is
+`TestTheFeedHoldsNoIssueAndRevokes`. **The sync principal's** column is task 150's; its database
+half is `TestTheSyncActorSetsNoCycle`.
+
+#### Tests to write first, each with the mutant it kills
+
+`store/work_cycles_test.go` (unit, no database) and `server/work_cycles_integration_test.go` plus
+`server/janitor_work_integration_test.go` (`//go:build integration`). The janitor tests drive
+`Sweep` with `cfg.Now` fixed, never a sleep. Each is seen failing before the code it covers.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestNextCycleDatesKeepThePhase` (unit) | 14/0 from Mon 2026-10-05, after 2026-10-21 → 2026-10-19..2026-11-01; 14/7 → 2026-10-26..2026-11-08 | an off-by-one inclusive end; cooldown ignored |
+| `TestACadenceMakesGaplessCycles` | `PUT` 14/0/3 from Monday → cycles 1, 2, 3, contiguous dates, `cycle.created` ×3 as Grace; a second team's cadence → its own 1, 2, 3 | numbers from a global sequence |
+| `TestASecondSweepIsANoOp` | two `Sweep`s at one `Now` → the same cycles, events and report counts zero on the second; two concurrent `Sweep`s → one reports `Locked: false` | duplicate cycles (no lock, or no idempotence) |
+| `TestRolloverSkipsClosedIssues` | cycle 1 holds a `todo`, a `started`, a `done` and a `cancelled` issue; `Sweep` the day after `endsOn` → the two open move to cycle 2, one `issue.cycle_set` each with `actor: null`, `rollover: true` and `policyAuthorId` Grace; the closed two stay; `cycle.closed.rolledOver: 2` | closed issues rolled; one bulk event; an actor set |
+| `TestTheScopeLogIsWhoAndWhen` | on day 4 of cycle 1, Linus adds EP-150 → a scope entry `added` by Linus at day 4; removing it → `removed` by Linus; an issue added to an upcoming cycle writes none | scope log derived from current membership |
+| `TestStartedJoinsTheCurrentCycle` | `lane_bound` on EP-142 with no cycle, during cycle 1 → `cycleId` cycle 1, the event's actor Linus; during a cooldown → no cycle | a started issue left out; the move written as `null` |
+| `TestAnOverlapIsRefused` | cycle 2's `startsOn` set to cycle 1's `endsOn` → 422 `cycle_overlap` naming cycle 1; a later `startsOn` leaving a gap → 200 | overlaps accepted |
+| `TestACadenceChangeKeepsReferencedCycles` | cycles 1-3, cycle 3 unreferenced and cycle 2 referenced; `PUT` 7/0/3 → cycle 3 dropped and re-made with 7-day dates, cycle 2 unchanged, numbers 1, 2, 3 | referenced cycles re-dated; a gap left by dropping the middle |
+| `TestStaleIssuesAreOneProposal` | six `backlog` issues of Linus untouched for 31 days, `staleAfterDays: 30` → one proposal of six, one `closure.proposed` visible to Linus only; a second sweep → no new proposal | six proposals; a proposal on the shared feed |
+| `TestAnAnswerClosesOnlyTheNamed` | Linus answers with three ids → exactly those three `cancelled`, each `issue.state` with actor Linus; the other three kept and not re-proposed on the next sweep; Grace answering → 404 | closes all six; `actor: null`; an admin closing on another's behalf |
+| `TestAutoCloseNamesThePolicyAuthor` | `staleMode: auto` → the six `cancelled`, cause `stale_policy`, `actor: null`, `policyAuthorId` Grace; a `started` stale issue untouched | a silent close; live work closed as stale |
+| `TestArchiveKeepsItSearchable` | a `done` issue past `archiveAfterDays: 90` → `archivedAt` set, absent from the default list, present with `includeArchived=true` and in search; a reopen clears it | archive as delete; search filtered |
+| `TestTheFeedHoldsNoIssueAndRevokes` | the `.ics` body has one `VEVENT` per cycle and none of EP-142's title, no user name; `Origin` set → 403; after `DELETE` the token → 404; a new mint revokes the old | titles in the feed; a token not revocable; a browser allowed |
+| `TestTheJanitorWritesOnlyItsColumns` | as `hub_app` with `hub.work_actor_kind = 'janitor'`: `UPDATE issue_heads SET estimate` → `42501`; `state` to `done` → `42501`; `cycle_id`, `archived_at` → ok | the janitor writing a person's field or a fact |
+| `TestTheSyncActorSetsNoCycle` | `hub.work_actor_kind = 'integration'`, `UPDATE issue_heads SET cycle_id` → `42501` | the database half of the sync rule |
