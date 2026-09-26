@@ -318,8 +318,8 @@ colour alone.
 
 ```tsx
 // deskRows.tsx — task 63's block, first after task 62's head.
-import { acceptTarget, nextMorning } from "../work/TriageView";       // task 42 (its file, UNVERIFIED path)
-import { handMove } from "../work/StatePicker";                       // task 46 (task-42.md:290)
+import { acceptTarget, nextMorning } from "../work/TriageView";       // task 42 (task-42.md:70, :179-196)
+import { handMove } from "../issue/pickers/StatePicker";              // task 46 (task-46.md:236, :248)
 import { mutate } from "../../work/replica/replica";                  // SW.16, task 55/56
 import { workSource } from "../../work/source";
 import { useVerb } from "../../work/keys/keymap";
@@ -404,3 +404,91 @@ export const liveDeskInputs: DeskInputs = {
 `work?.comments?.(id)`: `comments` is task 51's sixth read on the reader (`task-51.md:957`); the
 optional call keeps task 62's tests, whose reader is `null`, unchanged. Every head's comments are
 copied at entry, so the snapshot stays a value (task 62's decision 3).
+
+#### Interfaces — complete: appended to `desktop/src/components/desk/desk.css`
+
+```css
+/* NEEDS YOU issue rows (task 63). --need colours the urgent row only (05 §4.4 rule 2). */
+.dn { display: grid; gap: var(--s-1); padding: var(--s-2) var(--s-3); }
+.dn-line { display: flex; align-items: baseline; gap: var(--s-2); font: var(--t-ui) / var(--t-ui-lh) var(--sans); }
+.dn-alias, .dn-age { font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--ink-2); }
+.dn-title { color: var(--ink); }
+.dn-what { color: var(--ink-2); }
+.dn-urgent { color: var(--need); }
+.dn-sp { flex: 1; }
+.dn-quote, .dn-why, .dn-said { margin: 0; font: var(--t-ui) / var(--t-ui-lh) var(--sans); color: var(--ink-2); }
+.dn-quote { color: var(--ink); }
+.dn-acts { display: flex; gap: var(--s-2); }
+.dn-acts button { border-radius: var(--r-ctl); box-shadow: var(--e-btn); background: var(--surface);
+  color: var(--ink); border: 0; padding: 0 var(--s-2); cursor: pointer; }
+.dn-acts kbd { font-family: var(--mono); color: var(--ink-2); }
+```
+
+`--need` is the tree's (`tokens.css:75`), `--e-btn` too (`:119`). Nothing here animates.
+
+#### Tests to write first, part 1 — `desktop/src/work/desk/needs.test.ts` (the pure selectors)
+
+```ts
+import { describe, expect, it } from "vitest";
+import type { DeskSnapshot } from "../../components/desk/deskModel";
+import { ALICE, DYLAN, WORK_IDS, makeComment, makeIssueHead, makeWorkEvent } from "../../test/workFixtures";
+import { blockingMine, mentionsOfMe, needRank, triageMine, urgentMine } from "./needs";
+import type { IssueHead } from "../../api/work";
+
+const T = (hhmm: string) => `2026-09-25T${hhmm}:00Z`;
+function snap(heads: IssueHead[], over: Partial<DeskSnapshot> = {}): DeskSnapshot {
+  const m = new Map(heads.map((h) => [h.id, h]));
+  return { takenAt: Date.parse(T("11:10")), lastVisitAt: null, me: DYLAN.id, cockpit: {} as never, sessions: [],
+    heads: m, headOf: (id) => m.get(id), events: [], revisionAt: () => null, refOf: () => null,
+    briefCriteria: () => null, signals: () => [], comments: () => [], ...over } as DeskSnapshot;
+}
+const X = (over: Partial<IssueHead>) => makeIssueHead({ id: WORK_IDS.ep150, alias: "EP-150", state: "todo", ...over });
+const Y = (over: Partial<IssueHead>) => makeIssueHead({ id: WORK_IDS.ep142, alias: "EP-142", assignee: ALICE, ...over });
+
+describe("needs", () => {
+  it("a triage issue assigned to Alice makes no row of mine", () => {
+    expect(triageMine(snap([X({ state: "triage", assignee: ALICE })]))).toEqual([]);
+    expect(triageMine(snap([X({ state: "triage" })])).map((i) => i.id)).toEqual([WORK_IDS.ep150]);
+    // mutant: every triage issue
+  });
+  it("urgent and mine makes a row; high and mine does not", () => {
+    expect(urgentMine(snap([X({ priority: "urgent" })])).length).toBe(1);
+    expect(urgentMine(snap([X({ priority: "high" })]))).toEqual([]);
+    // mutant: priority as the need
+  });
+  it("age is the feed event that made the row true, else the record", () => {
+    const h = X({ state: "triage", updatedAt: T("10:30") });
+    expect(triageMine(snap([h]))[0].payload).toMatchObject({ since: T("10:30"), sinceFrom: "record" });
+    const e = makeWorkEvent({ seq: 9, at: T("09:00"), kind: "issue.state", subject: h.id, data: { to: "triage", cause: "hand" } });
+    expect(triageMine(snap([h], { events: [e] }))[0].payload).toMatchObject({ since: T("09:00"), sinceFrom: "event" });
+    // mutant: age from first render (Date.now at build)
+  });
+  it("X blocks Y: Y in todo makes no row, Y started makes a tier-1 row", () => {
+    const x = X({ relations: [{ kind: "blocks", issueId: WORK_IDS.ep142 }] });
+    expect(blockingMine(snap([x, Y({ state: "todo" })]))).toEqual([]);
+    const [row] = blockingMine(snap([x, Y({ state: "started", updatedAt: T("09:58") })]));
+    expect(row.payload.blocked).toMatchObject({ alias: "EP-142", owner: "Alice Example", state: "started" });
+    expect(needRank(row, snap([])).tier).toBe(1);
+    expect(row.ifNothing).toBe("if you do nothing: EP-142 stays blocked by EP-150");
+    // mutant: any blocks relation, whatever Y's state
+  });
+  it("a resolved mention makes no row; an open one names its author", () => {
+    const c = makeComment({ issueId: WORK_IDS.ep163, mentions: [DYLAN.id], createdBy: ALICE });
+    const h = makeIssueHead({ id: WORK_IDS.ep163, alias: "EP-163", assignee: ALICE });
+    expect(mentionsOfMe(snap([h], { comments: () => [{ ...c, resolvedAt: T("10:00"), resolvedBy: ALICE }] }))).toEqual([]);
+    expect(mentionsOfMe(snap([h], { comments: () => [c] }))[0].payload.mention!.author).toEqual(ALICE);
+    // mutant: resolvedAt ignored
+  });
+  it("the blocking row ranks above an older urgent row", () => {
+    const s = snap([]);
+    const urgent = { ...urgentMine(snap([X({ priority: "urgent", updatedAt: T("06:00") })]))[0] };
+    const block = { ...urgent, payload: { ...urgent.payload, need: "issue.blocking" as const, since: T("11:00") } };
+    expect(needRank(block, s).tier).toBeLessThan(needRank(urgent, s).tier);
+    // mutant: waitingSinceMs before tier
+  });
+});
+```
+
+`makeComment` takes `issueId`, `mentions` and `createdBy` overrides (task 20's builder,
+`task-20.md:217-241`); if its override names differ, the test follows the builder. `ALICE`'s
+`displayName` is *Alice Example* (`task-61.md:685`).
