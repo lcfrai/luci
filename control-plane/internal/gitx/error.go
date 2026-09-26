@@ -1,6 +1,7 @@
 package gitx
 
 import (
+	"context"
 	"errors"
 	"strconv"
 	"strings"
@@ -32,6 +33,8 @@ func (e *Error) how() string {
 	switch {
 	case e.TimedOut:
 		return "timed out"
+	case errors.Is(e.Err, context.Canceled):
+		return "cancelled"
 	case e.NotStarted:
 		return "could not start"
 	default:
@@ -68,6 +71,8 @@ func (e *Error) Sentence() string {
 		switch {
 		case e.TimedOut:
 			s = "git timed out"
+		case errors.Is(e.Err, context.Canceled):
+			s = "git was cancelled"
 		case e.NotStarted:
 			s = "git could not start"
 		default:

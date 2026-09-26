@@ -305,6 +305,21 @@ func TestExecNamesAGitThatNeverStarted(t *testing.T) {
 	}
 }
 
+// TestExecCancelIsNotAnExitCode: a request the human abandoned kills git; on Windows that kill
+// is exit 1, so the call reads as cancelled, never as OKExit's answer (task 02 addition).
+func TestExecCancelIsNotAnExitCode(t *testing.T) {
+	x, dir := fake(t)
+	c := fakeCall(dir, gitx.Read, map[string]string{"GITX_FAKE_MODE": "sleep", "GITX_FAKE_SLEEP": "5s"})
+	c.OKExit = []int{1}
+	ctx, cancel := context.WithCancel(context.Background())
+	time.AfterFunc(300*time.Millisecond, cancel)
+	_, err := x.Run(ctx, c)
+	ge, ok := gitx.AsError(err)
+	if !ok || ge.TimedOut || ge.ExitCode != -1 || !errors.Is(err, context.Canceled) || !strings.Contains(ge.Error(), "cancelled") {
+		t.Fatalf("cancelled call = %v, want *Error{ExitCode -1, TimedOut false} wrapping context.Canceled, saying cancelled", err)
+	}
+}
+
 // TestExecNamesAMissingGit: an executable that does not exist is NotStarted, never an exit code.
 func TestExecNamesAMissingGit(t *testing.T) {
 	x, dir := fake(t)
