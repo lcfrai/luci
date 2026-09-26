@@ -122,6 +122,16 @@ func outsiderSeesNothing(t *testing.T, e Env) {
 			t.Errorf("the %s's next is %d, behind T's last event %d: it would rescan them for ever", s.name, next, last)
 		}
 	}
+	// Fix round 1 PS6-1: being in some team is not being in T. The outsider
+	// makes a team of its own, and still sees none of T's writes.
+	newTeam(t, e.Outsider)
+	cur := head(t, e.Outsider)
+	write(t, e.Member, p.ID, b.ID, 1, hubapi.StatusOpen)
+	for _, ev := range since(t, e.Outsider, cur) {
+		if str(ev.TeamID) == e.TeamID || str(ev.ProjectID) == p.ID {
+			t.Errorf("a member of another team sees T's %s about %s", ev.Kind, ev.Subject)
+		}
+	}
 }
 
 // limit cuts a page and says more; following next collects each event once,

@@ -571,6 +571,11 @@ func byDeploymentID(t *testing.T, e Env) {
 		t.Errorf("Q's Releases(deploymentId %s of P) holds %s of project %s, want none", d, r.ID, r.ProjectID)
 	}
 	wantErr(t, second(e.Viewer.Releases(bg, q.ID, hubapi.ReleaseQuery{})), 404, hubapi.CodeProjectNotFound, "projectId", q.ID)
+	// Fix round 1 PS6-2: being in some team is not being in Q's. T's viewer and
+	// T's admin, members of another team, get route 37's and route 40's 404.
+	wantErr(t, second(e.Viewer.Release(bg, theirs.ID)), 404, hubapi.CodeReleaseNotFound, "releaseId", theirs.ID)
+	wantErr(t, second(e.Admin.JoinDeployment(bg, theirs.ID, hubapi.DeploymentJoinRequest{DeploymentID: newDeployment()})),
+		404, hubapi.CodeReleaseNotFound, "releaseId", theirs.ID)
 }
 
 // HA7-1: a first Ship reserves with a null environment, confirms still null,
