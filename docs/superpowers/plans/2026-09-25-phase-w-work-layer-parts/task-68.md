@@ -306,3 +306,98 @@ export function fromRow(row: RowContext): NewIssueFrom | null {
 `"relates"` is task 37's `RelationKind` member (`task-37.md:95`). `createdIdOf` is imported as a
 module function the way task 65 imports `mutate` (`task-65.md:774`); if task 55 exposes the replica
 only as an object, both reads go through it and nothing else changes.
+
+#### Interfaces — complete: `NewIssue.tsx`, part 2: the composer
+
+`T` and `N` are the composer's own keys, and they fire only while focus is on one of its buttons,
+never in the title or the description (05 §4.3 rule 1 read inside the composer: a field types its
+letter). Tab from the description reaches the buttons.
+
+```tsx
+const STATE_WORD: Partial<Record<IssueState, string>> = { triage: "Triage", backlog: "Backlog", todo: "Todo" };
+
+export function NewIssue(props: {
+  from: NewIssueFrom; anchor: DOMRect | null; criteria: readonly BriefCriterion[]; onClose(): void;
+}): JSX.Element {
+  const { from, anchor, criteria, onClose } = props;
+  const teamId = useWork((r) => r.teamOfProject(from.projectId));          // `task-40.md:149`
+  const relAlias = useWork((r) => from.kind === "desk" ? r.issue(from.relatesTo)?.head.alias ?? "" : "");
+  const openIssue = useCockpit((s) => s.openIssue);
+  const [d, setD] = useState<NewIssueDraft>({ title: "", description: "", serves: [], reason: "chore" });
+  const [lands, setLands] = useState<IssueState | null>(null);             // null: not read
+  const [said, setSaid] = useState<string | null>(null);
+  const [picking, setPicking] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const titleRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { titleRef.current?.focus(); }, []);
+  useEffect(() => {
+    if (!teamId) return;
+    let live = true;
+    api.work.teamPolicy(teamId).then((p) => { if (live) setLands(p.defaultState); }, () => {});
+    return () => { live = false; };
+  }, [teamId]);
+
+  async function submit(): Promise<void> {
+    if (busy) return;
+    if (d.title.trim() === "") { setSaid("A title is needed."); return; }
+    const { req, follow } = buildCreate(d, from);
+    const localId = `lc-${crypto.randomUUID()}`;
+    setBusy(true);
+    const out = await mutate({ kind: "createIssue", issueId: localId, localId,
+      projectId: from.projectId, paintState: lands ?? "triage", req }).settled;
+    setBusy(false);
+    if (out !== "applied") { setSaid(out.message); return; }   // the Hub's words; the ghost is gone
+    const id = createdIdOf(localId);
+    if (!id) { setSaid("Created, but its number has not arrived yet."); return; }
+    const link = follow(id);
+    if (link) mutate(link);            // a refused relation marks its own row; the issue stands
+    onClose();
+    openIssue(id);
+  }
+
+  const cycle = () => setD({ ...d, reason: REASONS[(REASONS.indexOf(d.reason) + 1) % REASONS.length] });
+  function onButtonKey(e: React.KeyboardEvent<HTMLElement>): void {
+    if (e.key === "t" || e.key === "T") { e.preventDefault(); setPicking(true); }
+    if ((e.key === "n" || e.key === "N") && d.serves.length === 0) { e.preventDefault(); cycle(); }
+  }
+
+  return (
+    <Popover anchor={anchor} onClose={onClose}>
+      <form className="ni" aria-label="New issue" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
+        <input ref={titleRef} className="ni-title" aria-label="Title" placeholder="Title"
+          value={d.title} onChange={(e) => { setD({ ...d, title: e.target.value }); setSaid(null); }} />
+        <textarea className="ni-desc" aria-label="Description" rows={3} value={d.description}
+          onChange={(e) => setD({ ...d, description: e.target.value })}
+          onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); void submit(); } }} />
+        <p className="ni-facts">
+          <AuthorClass author="H" word />
+          <span>{lands ? `lands in ${STATE_WORD[lands] ?? lands}` : "lands where the team's policy says"}</span>
+          {from.kind === "desk" ? <span>relates to {relAlias || from.relatesTo}</span> : null}
+          {from.kind === "span" || from.kind === "hunk" ? <span>from this {from.kind}</span> : null}
+        </p>
+        <div className="ni-serve" onKeyDown={onButtonKey}>
+          {d.serves.length === 0
+            ? <button type="button" className="ni-chip" onClick={cycle}>not tied · {d.reason} <kbd>N</kbd></button>
+            : d.serves.map((s) => <span key={`${s.briefKey} ${s.criterionId}`} className="ni-chip">{s.criterionId}</span>)}
+          <button type="button" className="ni-chip" onClick={() => setPicking(true)}>Serves… <kbd>T</kbd></button>
+          <button type="submit" className="ni-go" disabled={busy}>Create <kbd>Enter</kbd></button>
+        </div>
+        {said ? <p className="ni-said">{said}</p> : null}
+        <Said text={said} />
+      </form>
+      {picking ? (
+        <CriterionPicker issue={{ title: d.title, description: d.description }} criteria={criteria}
+          serving={d.serves} onClose={() => setPicking(false)}
+          onChoose={(c) => { setD({ ...d, serves: [...d.serves, { briefKey: c.briefKey, criterionId: c.criterionId }] }); setPicking(false); }} />
+      ) : null}
+    </Popover>
+  );
+}
+```
+
+Part 1's imports gain `import type { BriefCriterion } from "../../work/suggestCriterion";`
+(`task-42.md:81`, `:130`). `r.issue(id)` is task 40's read (`task-40.md:39`). `CriterionPicker`
+takes task 42's printed props (`task-42.md:137-142`); task 47 mounts it with `exclude` and a
+`Serve` callback instead (`task-47.md:436-440`), a clash between two earlier parts that this part
+does not settle (see the gap list).
