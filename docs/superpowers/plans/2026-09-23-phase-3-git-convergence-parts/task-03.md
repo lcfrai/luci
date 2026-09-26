@@ -166,7 +166,7 @@ type Creator struct {
 //  4. `clone --no-hardlinks --config core.autocrlf=false --config core.eol=lf
 //     --config core.checkStat=minimal --config core.trustctime=false
 //     --config core.longpaths=true --config core.symlinks=false
-//     --branch <Branch> --origin origin -- <Project.Path> <Path>` (Local), with Call.Env
+//     --branch <Branch> --origin origin -- <Project.Path> <Path>` (LocalWrite), with Call.Env
 //     holding NoFilterEnv. `--no-hardlinks` copies every object file, so none is the
 //     project's file (review I8, plan Q9). Clone's own `--config` (git's `clone -c`) writes
 //     all six keys into the clone's local config before the checkout, so the checkout itself

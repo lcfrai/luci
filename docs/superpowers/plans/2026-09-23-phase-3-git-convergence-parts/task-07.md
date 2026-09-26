@@ -182,7 +182,7 @@ func (s *Syncer) Run(ctx context.Context)
 //     or `reset --hard origin/<branch>`, so the claimed tip C is reachable from the basis and
 //     the runner answers 409): C is a commit the project already holds. In the PROJECT (Scope
 //     Project, Read): `cat-file -e C^{commit}`, then `merge-base --is-ancestor C <b>` for each
-//     basis sha b until one exits 0; then (Local) `update-ref refs/panacea/lanes/<id> C <old>`,
+//     basis sha b until one exits 0; then (LocalWrite) `update-ref refs/panacea/lanes/<id> C <old>`,
 //     <old> the lane ref's sha from step 2, so a concurrent move fails rather than lands. If
 //     neither check passes, it is `Err` ("the lane's tip is not in the project"), and the ref
 //     does not move. This moves a host ref only to an object the host already reached from its

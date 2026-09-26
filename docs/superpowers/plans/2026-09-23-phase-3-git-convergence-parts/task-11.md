@@ -237,7 +237,7 @@ func ValidBranchName(ctx context.Context, m gitx.Machine, projectPath, name stri
 
 // CreateBranch: ValidBranchName(name) (below; refused → bad_request); from = rev-parse
 // refs/heads/<fromBranch>^{commit}; create-only
-// `update-ref refs/heads/<name> <from> 0000000000000000000000000000000000000000` (Local) —
+// `update-ref refs/heads/<name> <from> 0000000000000000000000000000000000000000` (LocalWrite) —
 // refused → branch_exists. No commit is made, so no identity is needed.
 // All three branch verbs hold locks.Lock(ctx, projectID) for the whole verb: they move
 // refs/heads/* and branch.<name>.* config, which a land or a push on the project reads (task-02
@@ -256,7 +256,7 @@ type RenameResult struct {
 // RenameBranch refuses, in this order: ValidBranchName(new) (bad_request); branch_has_worktrees
 // (details.worktrees = the lanes' names; open question Q4); branch_checked_out when
 // CheckedOutAt(old) != "" (task 08; details.path), as DeleteBranch does (review Minor 16); and
-// branch_exists. Otherwise `branch -m <old> <new>` (Local), which moves the reflog and
+// branch_exists. Otherwise `branch -m <old> <new>` (LocalWrite), which moves the reflog and
 // branch.<old>.* config; then Store.AddRename and Store.Retarget(projectID, old, new). Scope
 // Project (task-02 §HGH), and no hook runs (H4). The checked-out refusal is needed because
 // `branch -m` also rewrites the HEAD of every worktree on <old>, exit 0 and no message (probed,

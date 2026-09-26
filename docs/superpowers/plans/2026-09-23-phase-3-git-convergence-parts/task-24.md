@@ -390,7 +390,7 @@ const (
 **Errors.** A git exit the op does not expect is 422 `git_failed` with `gitSays`: the last stderr
 line that starts `fatal:`; else the last `error:` or `remote:` line, else the last non-empty
 line, else `git exited <code>`; capped at 2048 bytes on a UTF-8 boundary (`gitx.MaxSentence`,
-`task-02.md:194-195`). This is a **variant** of task 02's `Sentence` (`task-02.md:210-213`),
+`task-02.md:203-204`). This is a **variant** of task 02's `Sentence` (`task-02.md:220-223`),
 not a copy: `Sentence` takes the last line with any of the three prefixes, so on `fatal: a`
 then `error: b` it answers `error: b` where the runner answers `fatal: a`. The runner prefers
 `fatal:` because git's `fatal:` is the cause and a later `error:` is usually cleanup. It is
@@ -906,7 +906,7 @@ The spy row is task 11's (remove), and it sees only project calls here.
 <carried…> --not <kept…>` (a Path of "" is an error before any git; any failure removes id),
 and `Sent{ID, Carried, Reached}`; a ref the kept basis reaches is never asked of `bundle create`, which would
 leave it out and so fail the runner's fetch of its refspec (`fatal: couldn't find remote ref`,
-exit 128; r4-4 Probe 1 A). `bundle create` is Class `LocalWrite` (2 min, `task-02.md:64`, which equals
+exit 128; r4-4 Probe 1 A). `bundle create` is Class `LocalWrite` (2 min, `task-02.md:66`, which equals
 `BundleTimeout`). It writes only the file, but it packs every object it carries, and
 `MaxBundleBytes` is sized for 120 s, not for `Read`'s 10 s (review r4-2 I-2). A file past
 `MaxBundleBytes` is deleted and refused, because the runner's `fetch` would 413 it. That check
@@ -1059,7 +1059,7 @@ Real host git, no `gitx`. Each records git's exact words in a comment, as task 0
 4. The same fetch with `transfer.fsckObjects=true` from `Call.Env`'s `GIT_CONFIG_*` refuses the
    `missingEmail` bundle, and without it takes it. Not run here. Bundle fsck arrived in git
    2.48.0 (`RelNotes/2.48.0.adoc`, read, not run), so task 02's `MinVersion` is 2.48.0
-   (`task-02.md:222-227`) and `TestCheckVersion` refuses anything older; CI's git must meet it.
+   (`task-02.md:232-237`) and `TestCheckVersion` refuses anything older; CI's git must meet it.
    If the pin fails at 2.48.0, `MinVersion` rises to the first release it passes on;
    `FetchLane` does not work around it.
 5. `bundle create <file> A B --not <t>`, B an ancestor of t and A not, exits 0 with no warning

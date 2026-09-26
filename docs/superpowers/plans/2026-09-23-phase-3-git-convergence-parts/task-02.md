@@ -558,7 +558,11 @@ This closes review C3, where the user's token reached whatever the agent wrote.
   follow `[include]` by default and H1's reset would then clear an included helper; and a file's
   empty `http.proxy =` is git's "no proxy at all" (http.c), so it wins over the system file and
   the environment rather than counting as unset. *Not handled:* a global URL-scoped
-  `http.<url>.proxy` is overridden by H2's machine proxy on every Remote call (plan Q8's row).
+  `http.<url>.proxy` is overridden by H2's machine proxy on every Remote call. It fails visibly
+  (the push goes through the machine's generic proxy, or errors) and leaks nothing, since both
+  are the machine's own settings. Plan Q8 is the repository-helper trade-off, not this, so it is
+  recorded in the task 02 report (fix round 1) for task 12, which owns the Remote calls: resolving
+  it means reading the machine's `--get-urlmatch http.proxy <RemoteURL>` per call.
 - A `Remote`-class call must carry `Call.RemoteURL`, the literal URL it talks to. Exec refuses
   one without it. Exec then adds `-c http.sslVerify=true -c http.proxy=<Hardening.Proxy>` twice:
   once generic, and once scoped to the exact URL (`-c http.<RemoteURL>.sslVerify=true`,
