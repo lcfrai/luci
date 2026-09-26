@@ -524,6 +524,18 @@ audit leaving the Hub: until the audit sink streams (Phase T task 45) it is 503 
 `200 Project`. A delegation (route 46) is 409 `conflict`, `details.reason = "not_team_project"`, on a
 `solo` project, so every team record sits behind this route."*
 
+And §7.1's `// Project` example (`hub-contract.md:637-638`) gains the key, after `"name"`:
+
+```jsonc
+// Project
+{ "id": "pj-…", "teamId": "tm-…", "name": "Engagement Portal", "mode": "solo" | "team",
+  "remotes": [Remote], "createdAt": "…", "createdBy": User }
+```
+
+`hubapi`'s `TestFieldNamesMatchTheContractExamples` compares `hubapi.Project`'s keys with that
+example (`hubapi/types_test.go:167`, `:179`, `:196`), so Phase T task 03's `Mode` field and this
+line land together.
+
 - [ ] **Step 9: Contract §8 — the team events**
 
 Append to §8's table. Every kind matches the audit table's `CHECK (kind ~
