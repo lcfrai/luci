@@ -187,3 +187,187 @@ CREATE TABLE work_outside_commit_links (
 `work_host_hooks` has no id: a project has at most one hook per host, and `HostHook` carries none
 (`task-143.md:327-333`). `pr_state` and `merge_commit` move together, so a merged link always
 names its commit and task 154's `landed` has a `LandCommit` to give.
+
+#### `NNNN_work_w5.sql`, continued: webhooks, Teams and the request thread (complete)
+
+Task 156's column list (`task-156.md:441-457`) and task 157's (`task-157.md:242-247`), in this
+file's names; each part said *"its file wins on names"*, and none is renamed.
+
+```sql
+-- ── task 145 (156's columns): outbound webhooks ───────────────────────────────
+CREATE TABLE work_webhooks (
+  id                   text        PRIMARY KEY CHECK (id ~ '^wh-[0-9a-f]{16}$'),
+  org_id               text        NOT NULL REFERENCES orgs (id),
+  team_id              text        NOT NULL,
+  project_id           text,                              -- NULL: every project of the team
+  url                  text        NOT NULL CHECK (url ~ '^https://' AND octet_length(url) <= 2048),
+  kinds                text[]      NOT NULL CHECK (cardinality(kinds) BETWEEN 1 AND 64),
+  state                text        NOT NULL DEFAULT 'active' CHECK (state IN ('active', 'disabled')),
+  secret_ref           text        NOT NULL CHECK (octet_length(secret_ref) BETWEEN 1 AND 512),
+  secret_version       bigint      NOT NULL DEFAULT 1 CHECK (secret_version >= 1),
+  prev_secret_version  bigint      CHECK (prev_secret_version IS NULL OR prev_secret_version < secret_version),
+  rotated_at           timestamptz,
+  cursor_seq           bigint      NOT NULL DEFAULT 0,
+  consecutive_failures integer     NOT NULL DEFAULT 0 CHECK (consecutive_failures >= 0),
+  created_at           timestamptz NOT NULL DEFAULT now(),
+  created_by           text        NOT NULL,
+  FOREIGN KEY (org_id, team_id)    REFERENCES teams (org_id, id),
+  FOREIGN KEY (org_id, project_id) REFERENCES projects (org_id, id),
+  FOREIGN KEY (org_id, created_by) REFERENCES users (org_id, id)
+);
+
+-- Append-only: an attempt is a new row (the append trigger is below).
+CREATE TABLE work_webhook_deliveries (
+  id              text        NOT NULL CHECK (id ~ '^wd-[0-9a-f]{16}$'),
+  org_id          text        NOT NULL REFERENCES orgs (id),
+  webhook_id      text        NOT NULL REFERENCES work_webhooks (id),
+  event_seq       bigint      NOT NULL,
+  attempt         integer     NOT NULL CHECK (attempt >= 0),      -- 0 is queued (task 156)
+  status          text        NOT NULL CHECK (status IN ('ok', 'failed', 'pending')),
+  response_code   integer     CHECK (response_code IS NULL OR response_code BETWEEN 100 AND 599),
+  at              timestamptz NOT NULL DEFAULT now(),
+  next_attempt_at timestamptz,                                    -- a scheduled retry, not a forecast
+  PRIMARY KEY (id, attempt),
+  UNIQUE (webhook_id, event_seq, attempt)
+);
+
+-- ── task 145 (157's columns): Teams bindings, pairing codes, the request thread ──
+CREATE TABLE work_teams_bindings (
+  org_id         text        NOT NULL REFERENCES orgs (id),
+  team_id        text        NOT NULL,
+  subject_kind   text        NOT NULL CHECK (subject_kind IN ('intake', 'feature', 'view', 'digest')),
+  subject_id     text,
+  channel_ref    text        NOT NULL CHECK (octet_length(channel_ref) BETWEEN 1 AND 512),
+  cursor_seq     bigint      NOT NULL DEFAULT 0,
+  last_posted_at timestamptz,
+  members        text[]      CHECK (members IS NULL OR cardinality(members) <= 2000),
+  created_at     timestamptz NOT NULL DEFAULT now(),
+  created_by     text        NOT NULL,
+  FOREIGN KEY (org_id, team_id)    REFERENCES teams (org_id, id),
+  FOREIGN KEY (org_id, created_by) REFERENCES users (org_id, id),
+  CONSTRAINT work_teams_subject_id_iff CHECK ((subject_kind IN ('feature', 'view')) = (subject_id IS NOT NULL))
+);
+CREATE UNIQUE INDEX work_teams_bindings_once
+  ON work_teams_bindings (team_id, subject_kind, coalesce(subject_id, ''), channel_ref);
+
+CREATE TABLE work_teams_pairings (
+  org_id      text        NOT NULL REFERENCES orgs (id),
+  team_ref    text        NOT NULL CHECK (octet_length(team_ref) BETWEEN 1 AND 512),
+  code_hash   bytea       NOT NULL CHECK (octet_length(code_hash) = 32),   -- SHA-256; never the code
+  channel_ref text        NOT NULL CHECK (octet_length(channel_ref) BETWEEN 1 AND 512),
+  expires_at  timestamptz NOT NULL,
+  used_at     timestamptz,
+  failures    integer     NOT NULL DEFAULT 0 CHECK (failures BETWEEN 0 AND 10),
+  PRIMARY KEY (org_id, code_hash)
+);
+
+-- Append-only: an outside reply on a request's thread, text·H (the append trigger is below).
+CREATE TABLE work_request_messages (
+  org_id      text        NOT NULL REFERENCES orgs (id),
+  request_id  text        NOT NULL REFERENCES work_requests (id),
+  channel_ref text        NOT NULL CHECK (octet_length(channel_ref) BETWEEN 1 AND 998),
+  author_name text        NOT NULL CHECK (char_length(author_name) BETWEEN 1 AND 200),
+  user_id     text,                                          -- the org user, when one maps
+  body        text        NOT NULL CHECK (octet_length(body) <= 16384),
+  at          timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (request_id, channel_ref),                     -- a retry of one message is one row
+  FOREIGN KEY (org_id, user_id) REFERENCES users (org_id, id)
+);
+```
+
+`work_requests` has no `UNIQUE (org_id, id)` (`task-146.md:100`, its key is `id` alone), so the
+thread's key to it is `id`; row-level security keeps the org line. The 998-byte cap on
+`channel_ref` is task 146 decision 8's (the RFC 5322 line limit), as a mail reply is one channel.
+`work_request_messages.body` has no erase path yet: task 146's `erase_request` blanks the request
+only, so an erased request's thread still holds the requester's words (gap 4).
+
+#### `NNNN_work_w5.sql`, continued: apps, loop outcomes and team agent policy (complete)
+
+```sql
+-- ── task 145 (159's columns): apps that act as a person ──────────────────────
+CREATE TABLE work_apps (
+  id            text        PRIMARY KEY CHECK (id ~ '^oa-[0-9a-f]{16}$'),
+  org_id        text        NOT NULL REFERENCES orgs (id),
+  client_id     uuid        NOT NULL,                        -- the Entra application id
+  manifest      jsonb       NOT NULL CHECK (jsonb_typeof(manifest) = 'object'),
+  scopes        text[]      NOT NULL CHECK (scopes <@ ARRAY['work.read', 'work.write'] AND cardinality(scopes) >= 1),
+  state         text        NOT NULL DEFAULT 'pending' CHECK (state IN ('pending', 'approved', 'revoked')),
+  registered_by text        NOT NULL,
+  registered_at timestamptz NOT NULL DEFAULT now(),
+  decided_by    text,
+  decided_at    timestamptz,
+  reason        text        CHECK (reason IS NULL OR char_length(reason) <= 500),
+  FOREIGN KEY (org_id, registered_by) REFERENCES users (org_id, id),
+  FOREIGN KEY (org_id, decided_by)    REFERENCES users (org_id, id),
+  CONSTRAINT work_apps_decided_whole CHECK ((decided_by IS NULL) = (decided_at IS NULL)),
+  CONSTRAINT work_apps_pending_undecided CHECK ((state = 'pending') = (decided_at IS NULL))
+);
+CREATE UNIQUE INDEX work_apps_one_live ON work_apps (org_id, client_id) WHERE state IN ('pending', 'approved');
+
+-- Both run as the owner, before hub.org_id is known (the caller holds only a
+-- token's tid, oid and azp), as §10.4's resolve_principal does. Neither inserts.
+CREATE FUNCTION app_for_client(p_tenant uuid, p_client uuid)
+RETURNS TABLE (org_id text, app_id text, scopes text[])
+LANGUAGE sql SECURITY DEFINER SET search_path = hub, pg_temp AS $$
+  SELECT a.org_id, a.id, a.scopes FROM work_apps a JOIN orgs o ON o.id = a.org_id
+   WHERE o.entra_tenant_id = p_tenant AND a.client_id = p_client AND a.state = 'approved'
+$$;
+CREATE FUNCTION find_principal(p_tenant uuid, p_oid uuid)
+RETURNS TABLE (org_id text, user_id text)
+LANGUAGE sql SECURITY DEFINER SET search_path = hub, pg_temp AS $$
+  SELECT u.org_id, u.id FROM users u JOIN orgs o ON o.id = u.org_id
+   WHERE o.entra_tenant_id = p_tenant AND u.entra_oid = p_oid
+$$;
+REVOKE ALL ON FUNCTION app_for_client(uuid, uuid), find_principal(uuid, uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION app_for_client(uuid, uuid), find_principal(uuid, uuid) TO hub_app;
+
+-- ── 160, 161, 162: placed here as written ────────────────────────────────────
+
+-- ── task 145 (163's columns): a run's outcome, closed once ───────────────────
+ALTER TABLE work_loop_runs
+  ADD COLUMN issue_key text CHECK (issue_key IS NULL OR issue_key ~ '^[A-Z][A-Z0-9]{1,9}-[1-9][0-9]*$'),
+  ADD COLUMN turn_id   text CHECK (turn_id IS NULL OR turn_id LIKE 'ot-%'),
+  ADD COLUMN started   jsonb NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(started) = 'array'),
+  ADD COLUMN ended_at  timestamptz,
+  ADD CONSTRAINT work_loop_runs_outcome_known CHECK (outcome IN
+    ('queued', 'ran', 'skipped_budget', 'skipped_paused', 'refused_bound', 'failed')),
+  ADD CONSTRAINT work_loop_runs_open_iff_queued CHECK ((outcome = 'queued') = (ended_at IS NULL));
+CREATE UNIQUE INDEX work_loop_runs_request ON work_loop_runs (loop_id, request_id) WHERE request_id IS NOT NULL;
+GRANT UPDATE (outcome, turn_id, started, ended_at) ON work_loop_runs TO hub_app;
+
+CREATE FUNCTION guard_loop_run() RETURNS trigger
+LANGUAGE plpgsql SET search_path = hub, pg_temp AS $$
+BEGIN
+  IF TG_OP = 'DELETE' OR OLD.outcome <> 'queued'
+     OR (NEW.org_id, NEW.loop_id, NEW.run, NEW.version, NEW.trigger_kind, NEW.fired_at)
+        IS DISTINCT FROM (OLD.org_id, OLD.loop_id, OLD.run, OLD.version, OLD.trigger_kind, OLD.fired_at) THEN
+    RAISE EXCEPTION 'hub: work: a closed loop run is never rewritten' USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER work_loop_runs_guard BEFORE UPDATE OR DELETE ON work_loop_runs
+  FOR EACH ROW EXECUTE FUNCTION guard_loop_run();
+
+-- ── task 145 (143 decision 5): one agent policy per team ─────────────────────
+CREATE TABLE work_team_agent_policies (
+  org_id         text        NOT NULL REFERENCES orgs (id),
+  team_id        text        PRIMARY KEY,
+  harnesses      text[]      NOT NULL CHECK (cardinality(harnesses) BETWEEN 1 AND 16),
+  skills_source  text        NOT NULL DEFAULT 'image' CHECK (skills_source IN ('image', 'library')),
+  skills_repo    text,
+  skills_path    text        CHECK (skills_path IS NULL OR octet_length(skills_path) <= 400),
+  skills_commit  text        CHECK (skills_commit IS NULL OR skills_commit ~ '^[0-9a-f]{40}$'),
+  updated_at     timestamptz NOT NULL DEFAULT now(),
+  updated_by     text        NOT NULL,
+  FOREIGN KEY (org_id, team_id)    REFERENCES teams (org_id, id),
+  FOREIGN KEY (org_id, updated_by) REFERENCES users (org_id, id),
+  CONSTRAINT work_team_skills_library_whole CHECK ((skills_source = 'library') =
+    (skills_repo IS NOT NULL AND skills_path IS NOT NULL AND skills_commit IS NOT NULL))
+);
+```
+
+`harnesses` is not checked against the catalogue here: the catalogue is the control plane's
+(`control-plane/internal/harness/harness.go:216`, checked 2026-09-26) and changes with a release,
+so a `CHECK` would need a migration per harness. The route checks it (task 143's
+`ValidateTeamAgentPolicy`), and a team with no row reads `["claude-code"]` (`task-143.md:562`).
+The scope's `work_harness_allow` and `work_team_skills` are this one table (143 decision 5).
