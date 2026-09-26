@@ -147,3 +147,68 @@ export function SessionIssueChip({ sessionId }: { sessionId: SessionId }): JSX.E
 
 `onOpenDiscover` is required by P4-17's props and never called by the issue arm; a brief key
 never reaches this mount because `issueRef` holds issue keys only (`task-19.md:300`).
+
+#### Interfaces — complete: the pane header mount (`SessionPaneHeader.tsx` ⚑)
+
+```tsx
+// desktop/src/components/develop/SessionPaneHeader.tsx ⚑ — after P4-17's mount (P4 plan :364):
+        <SessionContextChip sessionId={session.id} />
+        <SessionIssueChip sessionId={session.id} />
+```
+
+The two sit in the header's existing flex run; the issue chip adds no wrapper and no gap token
+of its own, so a session with no issue ref renders the header exactly as P4-17 left it.
+
+#### Interfaces — complete: the lane's issue (`LaneObservation` ⚑, `LaneCard.tsx` ⚑)
+
+```go
+// control-plane/internal/converge — LaneObservation (P3 task-07.md:228-236) gains, last:
+	IssueID string `json:"issueId"` // the lane index's Lane.IssueID (task 21); "" when none
+// The observer copies it from the lane it observes, next to WorktreeID and Name; it reads no Hub.
+```
+
+```ts
+// desktop/src/api/converge.ts ⚑ — LaneObservation (P3 task-18.md:42-47) gains, last:
+//   issueId: string;   // "" when the lane was not made from an issue
+```
+
+```tsx
+// desktop/src/components/lens/merge/LaneCard.tsx ⚑ — LaneIssueChip, mounted in the card's title
+// line after the lane's name (P3-19's layout; its slot is P3's to place).
+import { useCockpit } from "../../../store/store";
+import { useWork } from "../../../work/replica/useWork";
+import { SessionIssueChip } from "../../../provenance/SessionIssueChip";
+
+export function LaneIssueChip({ lane }: { lane: LaneView }): JSX.Element | null {
+  const withRef = useCockpit((s) =>
+    [...lane.sessions].reverse().map((ls) => s.sessions[ls.sessionId]).find((x) => x?.issueRef)?.id ?? null);
+  const head = useWork((w) => (lane.issueId ? w.get(lane.issueId)?.head : undefined));
+  const openIssue = useCockpit((s) => s.openIssue);
+  if (!lane.issueId) return null;
+  if (withRef) return <SessionIssueChip sessionId={withRef} />;     // decision 7: the pane's chip
+  return (
+    <button type="button" className="pv-chip pv-chip-issue" title="opens the issue at its head"
+      onClick={() => openIssue(lane.issueId, null)}>
+      <span className="pv-chip-key">{head ? head.alias : lane.issueId}</span>
+    </button>
+  );
+}
+```
+
+`LaneSession.sessionId` is P3-18's member name as this part reads it (**UNVERIFIED**; P3
+`task-18.md:63` names the array, not its fields). `lane.sessions` is oldest first in P3's order,
+so the reverse finds the newest. The chip reads `lane.issueId` only; `lane.name` and the branch
+are never read for it (decision 6), and a source test holds that (test 5).
+
+#### Interfaces — complete: appended to `desktop/src/provenance/provenance.css` ⚑ (P4-17)
+
+```css
+/* Task 67. The issue chip is P4's chip; only its face differs. */
+.pv-chip-issue .pv-chip-key { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.pv-chip-behind { font-family: var(--mono); color: var(--ink-2); }
+.pv-chip-issue[data-state="erased"] .pv-chip-key { color: var(--ink-3); }
+```
+
+`--ink-2`, `--ink-3` and `--mono` are on the tree (`desktop/src/styles/tokens.css:46-47`, `:152`;
+`--mono` becomes Commit Mono under `OD-28` through task 26, and this rule names no family). Task
+26's `--t-fact`, if it lands first, replaces the `font-family` lines with `font: var(--t-fact)`.
