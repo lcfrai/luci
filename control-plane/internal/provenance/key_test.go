@@ -64,7 +64,8 @@ func TestParseRejects(t *testing.T) {
 		"brief:" + id + "@5@6",
 		"Brief:" + id + "@5",
 		"brief:" + id + "@",
-		"design:cv-7@11", // too short: 4-32 hex
+		"design:cv-7@11",  // too short: 4-32 hex
+		"design:cv-012@1", // three hex, one short of the edge (fix round 1 mutant F1-P2)
 		"design:c-0123@1",
 		"design:abcde-0123@1",
 		"design:cv-" + strings.Repeat("a", 33) + "@1",
@@ -110,6 +111,9 @@ func TestKeyStringNeverWritesANonKey(t *testing.T) {
 		{Kind: KindBrief, ID: "bf-3f2a91c07b1e4d2a", Revision: 5, NoneReason: "declined"},
 		{Kind: KindDesign, ID: "cv-7c01d2e3f4a5b6c7", Revision: 11, NoneReason: "declined"},
 		{Kind: KindNone, ID: "bf-3f2a91c07b1e4d2a", NoneReason: "declined"},
+		// A stray revision on a none key (fix round 1 mutant F1-P1: the
+		// round trip compared without Revision).
+		{Kind: KindNone, Revision: 5, NoneReason: "declined"},
 	} {
 		if s := k.String(); s != "" {
 			t.Errorf("%+v.String() = %q, want \"\"", k, s)
