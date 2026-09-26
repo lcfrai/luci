@@ -14,6 +14,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/migrate"
 )
 
 // EnvAdminURL names the variable holding an administrator's URL for the local
@@ -66,6 +68,24 @@ func New(t *testing.T) *DB {
 	t.Cleanup(func() { drop(t, admin, ident) })
 	if _, err := conn.Exec(ctx, "GRANT CREATE ON DATABASE "+ident+" TO hub_owner"); err != nil {
 		t.Fatalf("hubtest: grant CREATE on %s to hub_owner (was migrate/roles_local.sql run?): %v", d.Name, err)
+	}
+	return d
+}
+
+// Migrated is New followed by migrate.Apply of the embedded migrations
+// (migrate.Embedded()), as hub_owner.
+func Migrated(t *testing.T) *DB {
+	t.Helper()
+	d := New(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	conn, err := pgx.Connect(ctx, d.OwnerURL)
+	if err != nil {
+		t.Fatalf("hubtest: connect as hub_owner to migrate: %v", err)
+	}
+	defer conn.Close(context.Background())
+	if _, err := migrate.Apply(ctx, conn, migrate.Embedded(), nil); err != nil {
+		t.Fatalf("hubtest: migrate %s: %v", d.Name, err)
 	}
 	return d
 }
