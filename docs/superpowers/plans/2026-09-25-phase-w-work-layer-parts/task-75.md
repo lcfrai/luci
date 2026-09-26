@@ -56,10 +56,15 @@ The clear calls task 10's `DecideProof` over the issue's live citations at its l
 follow, in one transaction: `issue.sub_state_changed`, then task 10's `issue.state`. The clearer
 is a member; a viewer cannot release a hold.
 
-**(f) A hand-set `done` is not held.** Task 10's `hand` cause into `done` needs a reason and reads
-`not_proven`; an admin who hand-closes an issue sitting *In QA* has decided in words, so the hold
-applies to the **evidence** causes only, and the hand move clears the sub-state (it leaves the
-band). This keeps one rule: a sub-state never blocks a person, only the automatic close.
+**(f) The hold answers two ways, and neither writes half a move.** The Hub's write shape rolls a
+refused step back and appends nothing (`task-11.md:314-315`), so a `409` cannot also keep the
+evidence. Therefore: an **evidence** move on a held issue is **accepted and recorded, not
+applied**: 200, the citations stored, the proof word decided and stored, the state left `landed`
+(the head reads `state: landed`, `proof: proven`, `subState: in_qa`, which task 84 words as *held
+by In QA*). A **hand** move to `done` on a held issue is **refused**: 409 `held_by_substate`,
+nothing written, because a person closing past a person's hold should clear it first (one click,
+and the clear itself closes the issue when the evidence holds). This corrects the scope, which
+put the `409` on the evidence move; see *Corrections to the scope*.
 
 **(g) Removal counts are plain numbers.** `409 state_in_use` carries `details.key` and
 `details.count` (task 72's code comment), and the message reads *"3 issues are In QA. Move them
@@ -130,7 +135,8 @@ Refusals, each with task 72's code and the field it names:
 | 25 entries | 400 `bad_request`, `field: "states"` |
 | removing, or re-banding, a key that heads hold | 409 `state_in_use`, `details.key`, `details.count` |
 | a sub-state key on an issue whose state its band does not hold | 422 `substate_out_of_band`, `details.key`, `.band`, `.state` |
-| an evidence move to `done` while an `after_landed` sub-state is set | 409 `held_by_substate`, `details.subState` |
+| a **hand** move to `done` while an `after_landed` sub-state is set | 409 `held_by_substate`, `details.subState` |
+| an **evidence** move while one is set | 200, `state: landed`, citations and proof word stored (decision (f)) |
 
 The cap of 24 is a decision: two bands of twelve is more than any team this design names, and a
 cap keeps the list one screen in task 84's settings (a number to revisit, not a measurement).
@@ -280,22 +286,23 @@ is cleared (step 5 reads `waiting` and stops): the next evidence move closes it,
 
 #### The two insertions in task 10's route (`server/work_states.go` ⚑)
 
-Task 10's order (`task-10.md:407-435`) is kept; these two lines slot in:
+Task 10's order (`task-10.md:407-435`) is kept; these three lines slot in:
 
-- **After task 10's step 2, before its step 3 (no-ops):** when `move.Cause` is
-  `evidence_observed` or `evidence_recorded`, `head.SubState` is set, and that key's band is
-  `after_landed`, the move is **recorded but held**: task 10's step 4 runs its evidence checks and
-  `InsertCitation`s as written, and its `DecideProof` word is stored on the proof row, but the
-  target stays `landed`. The answer is **409 `held_by_substate`**, `details.subState` the key, and
-  the reply body's `details.proof` the word. The citations are kept (they were valid), so the clear
-  in `putSubState` step 5 finds them. One `issue.state` event is still written, `from` and `to`
-  both `landed`, because the proof row changed (task 10's step 6 rule for a move that stays
-  `landed`).
+- **In task 10's step 4, `hand` into `done`:** before the reason check, when `head.SubState` is
+  set and that key's band is `after_landed` → 409 `held_by_substate`, `details.subState` the key,
+  message *"In QA holds this issue. Clear it first."* Nothing is written (decision (f)).
+- **In task 10's step 4, the evidence causes, after `DecideProof`:** when the word is `proven` or
+  `proven_self_attested` and `head.SubState` is an `after_landed` key, the target stays `landed`
+  instead of becoming `done`. The citations and the proof word are stored as task 10 writes them,
+  the answer is 200 with the head, and task 10's one `issue.state` event is written with `from` and
+  `to` both `landed` (its step 6 rule for an evidence move that stays `landed`). The clear in
+  `putSubState` step 5 then finds the citations and closes the issue.
 - **In task 10's step 5, beside `MoveIssueState`:** when the move's target is outside the band of
   `head.SubState` (`!BandHolds(band, to)`), `SetSubState(tx, issue, "", now)` runs in the same
   transaction, and a second event `issue.sub_state_changed {from: key, to: "", released: false}`
-  follows the `issue.state` event. A move that stays in the band (`backlog` → `todo`) keeps it.
+  follows the `issue.state` event. A move that stays in the band (`backlog` → `todo`) keeps it. A
+  reopen from `landed` to `todo` clears an `after_landed` key this way, and task 10's reopen
+  clears the citations, so a re-landing starts with no hold and no proof.
 
-A 409 that still writes is unusual, so the reason is stated: a `2xx` would tell task 23's caller
-the issue closed, and a refusal that dropped the citations would make the person record the
-evidence again after QA. `held_by_substate` says *recorded, not closed, because a person holds it*.
+Task 23 reads an evidence move's answer by the head's `state`, not by the status, so a 200 that
+stays `landed` is not mistaken for a close (task 10 decision 5 already answers 200 for `waiting`).
