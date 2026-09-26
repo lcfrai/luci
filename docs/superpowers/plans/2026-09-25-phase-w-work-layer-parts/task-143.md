@@ -925,3 +925,64 @@ var (
 	_ Hub        = (*Fake)(nil)
 )
 ```
+
+#### The routes (SW.21), one per method; each route task registers its own
+
+Where a route part exists, its path is taken from it (cited); the rest are **proposed** here for
+their route task, which may rename them (the method set does not change).
+
+| Methods | Routes | From |
+|---|---|---|
+| `CreateRequest`, `ListRequests`, `Request`, `AcceptRequest`, `LinkRequest`, `DeclineRequest`, `MarkImportant`, `EraseRequest`, `IssueRequesters` | `POST`/`GET /v1/teams/{teamId}/requests`, `GET /v1/requests/{requestId}`, `POST …/accept`, `…/link`, `…/decline`, `PUT …/important`, `POST …/erase`, `GET /v1/issues/{issueId}/requests` | `task-146.md` (routes table) |
+| `RequestMessages` | `GET /v1/requests/{requestId}/messages` | proposed (157) |
+| `ListIntakeRules`, `PutIntakeRules` | `GET`/`PUT /v1/teams/{teamId}/intake-rules` | `task-147.md` |
+| `CreateForm`, `ListForms`, `GetForm`, `PatchForm` | `POST`/`GET /v1/teams/{teamId}/forms`, `GET`/`PATCH /v1/forms/{formId}` | `task-148.md` |
+| `SetIntakeAddress` | `PUT /v1/teams/{teamId}/intake-address` | `task-149.md` |
+| `ConnectTracker`, `ListTrackers`, `DisconnectTracker`, `ApplySyncBatch`, `ListSyncRuns` | `POST /v1/projects/{projectId}/trackers`, `GET /v1/teams/{teamId}/trackers`, `POST /v1/trackers/{connectionId}/disconnect`, `POST …/batches`, `GET …/runs` | proposed (150) |
+| `ListOutsidePRLinks`, `CreateHostHook` | `GET /v1/issues/{issueId}/outside-links`, `POST /v1/projects/{projectId}/host-hooks` | proposed (154) |
+| `CreateWebhook` … `Redeliver` | `POST`/`GET /v1/teams/{teamId}/webhooks`, `POST /v1/webhooks/{webhookId}/disable`, `…/rotate`, `GET …/deliveries`, `POST /v1/webhook-deliveries/{deliveryId}/redeliver` | `task-156.md` |
+| `BindTeams`, `ListTeamsBindings`, `UnbindTeams` | `PUT`/`GET /v1/teams/{teamId}/teams-bindings`, `POST …/teams-bindings/remove` | `task-157.md` |
+| `RegisterApp`, `ListApps`, `DecideApp` | `POST`/`GET /v1/apps`, `POST /v1/apps/{appId}/decide` | proposed (159) |
+| `CreateAPIKey`, `ListAPIKeys`, `RevokeAPIKey` | `POST`/`GET /v1/me/api-keys` and `/v1/teams/{teamId}/api-keys`, `POST /v1/api-keys/{keyId}/revoke` | proposed (160) |
+| `ListMCPConnectors`, `PutMCPConnector`, `DeleteMCPConnector` | `GET`/`PUT /v1/work/mcp-connectors`, `DELETE …?url=` | `task-161.md:585-587` |
+| `CreateLoop` … `RunLoopNow` | `POST /v1/teams/{teamId}/loops`, `POST /v1/loops/{loopId}/versions`, `GET …/versions`, `GET …/runs`, `POST …/run-now` | proposed (162-163) |
+| `GetTeamAgentPolicy`, `PutTeamAgentPolicy` | `GET`/`PUT /v1/teams/{teamId}/agent-policy` | proposed (166) |
+
+Every write is `POST`, `PUT`, `PATCH` or `DELETE`; no `GET` has a side effect (contract §10a). The
+host's inbound webhook (`POST /v1/hooks/{host}/{projectId}`, task 154) has no method: the host
+calls it, never `hubclient`.
+
+#### Tests first — `hubapi/work_intake_test.go` and `hubclient/work_intake_test.go`
+
+The goldens, one per record, under `hubapi/testdata/work-intake/`: `request`, `issue-requester`,
+`request-message`, `intake-rule-set`, `intake-form`, `intake-address`, `tracker-connection`
+(one per source, three files), `external-link`, `sync-run`, `outside-pr-link`,
+`outside-commit-link`, `host-hook`, `webhook`, `webhook-delivery`, `teams-binding`, `app`,
+`api-key`, `mcp-connector`, `loop`, `loop-version`, `loop-run`, `team-agent-policy`: twenty-four.
+Task 169's desktop golden test reads these files by path (`task-169.md:28-30`).
+
+```go
+package hubapi
+
+func TestW5RecordsRoundTripTheirGoldens(t *testing.T) { // kills "field renamed or retagged"
+	for name, v := range map[string]any{
+		"request": &Request{}, "issue-requester": &IssueRequester{}, "request-message": &RequestMessage{},
+		"intake-rule-set": &IntakeRuleSet{}, "intake-form": &IntakeForm{}, "intake-address": &IntakeAddress{},
+		"tracker-connection-azure_boards": &TrackerConnection{}, "tracker-connection-github": &TrackerConnection{},
+		"tracker-connection-jira": &TrackerConnection{}, "external-link": &ExternalLink{}, "sync-run": &SyncRun{},
+		"outside-pr-link": &OutsidePRLink{}, "outside-commit-link": &OutsideCommitLink{}, "host-hook": &HostHook{},
+		"webhook": &Webhook{}, "webhook-delivery": &WebhookDelivery{}, "teams-binding": &TeamsBinding{},
+		"app": &App{}, "api-key": &APIKey{}, "mcp-connector": &MCPConnector{}, "loop": &Loop{},
+		"loop-version": &LoopVersion{}, "loop-run": &LoopRun{}, "team-agent-policy": &TeamAgentPolicy{},
+	} {
+		raw := mustRead(t, "testdata/work-intake/"+name+".json")
+		mustUnmarshalStrict(t, raw, v) // DisallowUnknownFields
+		if got := mustMarshal(t, v); !bytes.Equal(got, bytes.TrimSpace(raw)) {
+			t.Fatalf("%s: round trip differs:\n%s\n%s", name, got, raw)
+		}
+	}
+}
+```
+
+`IntakeAddress` is task 149's; if its part names it otherwise the golden follows it.
+
