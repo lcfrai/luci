@@ -15,6 +15,9 @@ are reads, `AutoDeploy`, `Posture` and `Access` (GETs), and `do` retries them li
 - `control-plane/internal/deploy/panacea/testdata/*.json` (new files listed below)
 - `control-plane/internal/deploy/panacea/acts_test.go`, `governance_test.go` (new)
 - `control-plane/internal/deploy/deploytest/conformance.go` (modified) — the rows below
+- Built t04: `control-plane/internal/deploy/deploy.go` and `deploytest/fake.go` (+ `fake_test.go`)
+  (modified) — `ClearURLPrefix` returns `URLPrefixCleared` (see its route row), and the Fake's
+  `SetURLRouteReverts` seam
 
 #### Wire DTOs — complete (`wire.go`, write half)
 
@@ -133,6 +136,13 @@ type urlPrefixResponseDTO struct {
 	Prefix string `json:"prefix"`
 	Host   string `json:"host"`
 }
+
+// clearURLPrefixDTO mirrors ClearBranchURLPrefix's data {branch, routeReverted}
+// (handlers/projects.go:4448-4451). Built t04: see the ClearURLPrefix row below.
+type clearURLPrefixDTO struct {
+	Branch        string `json:"branch"`
+	RouteReverted *bool  `json:"routeReverted"`
+}
 ```
 
 #### The routes (`acts.go`, `governance.go`)
@@ -152,7 +162,7 @@ type urlPrefixResponseDTO struct {
 | `Grant` | `POST P/access` (1408) | **201** (`handlers/access.go:61`) | domain → wire: `RoleDeveloper` → **`"editor"`**; `RoleUnknown` refused before sending. Single-role on Panacea: `AddProjectAccess` first drops the grantee from the project's other role groups (`clients/keycloak.go:198-214`), so a grant to a current member **is** the role change, one request. That drop is best-effort (a failure is logged at debug, `:207-210`), and it runs before the add (`:216-218`), so a failed add can leave the grantee with no role. The caller re-reads after success and after failure (tasks 11, 18; re-review I-1). A 500 is `KindUnavailable`, except the two typo phrases anchored after its prefix, which are `KindRejected` (plan 7P-12's single exception; `TestGrantUnknownUserIsRejected`) |
 | `Revoke` | `DELETE P/access/{group}` (1409) | 200 | takes the row's **`Group`**, path-escaped (an email contains `@`). For a person's row that is their identity, and Panacea removes them from **every** role group (`keycloak.go:245-260`); for a legacy row it is the group's name, and Panacea deletes that group (`:262-267`). A legacy row's `Grantee` (an attribute value such as `team-old`) is no group's name, so unless a user happens to have that name Panacea answers 200 having removed nothing (`:268`); and if one does, it removes that user instead. It is never sent (review M30) |
 | `SetURLPrefix` | `PUT B/url-prefix` (1313) | 200 | a 409 carries *"url prefix already taken: …"* (`projects.go:4321`) verbatim |
-| `ClearURLPrefix` | `DELETE B/url-prefix` (1314) | 200 | clearing a branch with no prefix is success (`projects.go:4378-4379`, `:4407`; re-read t04, was `:4380-4382`); the body is `data {branch, routeReverted}` plus a `message` (`:4448-4450`), read from source (b07), and only the status is used |
+| `ClearURLPrefix` | `DELETE B/url-prefix` (1314) | 200 | clearing a branch with no prefix is success (`projects.go:4379-4380`, `:4407`; re-read t04, was `:4380-4382`). Built t04, wrong on the facts: this row said only the status is used. The claim is released before the route is touched (`:4408-4412`), so a 200 can carry `routeReverted: false` when removing the url-host annotation or the reconcile fails (`:4427-4439`), and the branch keeps serving at its old host. `deploy.Governor.ClearURLPrefix` now returns `deploy.URLPrefixCleared{Branch, RouteReverted, Message}`, decoded from `data {branch, routeReverted}` plus `message` (`:4448-4451`). Reverted: `Message` is Panacea's *"url prefix cleared"* (`:4443`). Not reverted, or `routeReverted` absent (fail closed): `RouteReverted false`, `Message` is **our** `routeNotRevertedSentence(branch)`, and Panacea's sentence goes to warn, because it embeds `err.Error()` (`:4431`, `:4438`, `:4445`) |
 
 **Never logged, anywhere in this file:** `PostureChange.Password`, any `bypassTokens` value, the
 token. `do` already omits request and 2xx bodies; these two methods, `Posture` and `SetPosture`,
@@ -190,8 +200,9 @@ one legacy group binding shaped as Panacea's own test pins it, `{"group":"projec
 `urlprefix.json`, `urlprefix-409.json`. Built t04 with four more, one per
 `TestGrantUnknownUserIsRejected` phrase: `grant-500-no-user.json` (`keycloak.go:189`),
 `grant-500-blank.json` (`:182`), `grant-500-resolve.json` (`:186` wrapping `:989`) and
-`grant-500-admin-token.json` (`:177`), each as `access.go:57` writes it. That makes 25 new
-files, 49 in all. `posture-set-not-enforced.json` also carries a minted `bypassTokens`. The
+`grant-500-admin-token.json` (`:177`), each as `access.go:57` writes it, and one for the
+ClearURLPrefix row: `urlprefix-clear-stale.json` (`routeReverted: false`, the message of
+`projects.go:4445-4446` with a stand-in reconcile error). That makes 26 new files, 50 in all. `posture-set-not-enforced.json` also carries a minted `bypassTokens`. The
 reason is that bypass-token with no supplied token always mints one (`project_security.go:786-797`),
 enforced or not, so `SetPosture` carries it in both cases.
 
@@ -237,8 +248,10 @@ test those routes. Rollback refuses a row with no image, as Panacea does (`:1575
 | `TestRevokeLegacyByGroup` | `Revoke` with the legacy row's `Group` requests `/access/project-legacy-viewer`, and the recorded requests hold no `/access/team-old` | revoking a legacy row by its grantee: Panacea answers 200 and removes nothing (`keycloak.go:268`) (review M30) |
 | `TestNoWriteIsRetried` | every write of this task against a server answering 503 once, then its success: each saw one request. The three reads each saw two, and read the answer | — the whole file's rule |
 | `TestCallsAcceptOnlyTheirStatus` (built t04, mutation run) | each of the eleven calls ClearURLPrefix's own test does not cover, answered with its success body under another 2xx → `KindUnavailable`, `Status` the one received, one request | a call that takes any 2xx, e.g. a Ship answered 200 read as a started run (named survivor N2) |
-| `TestURLPrefix` (built t04; the team row added in the mutation run) | `urlprefix.json` → `Host "uat-test.panacea.kpmg"`, the body exactly `{"prefix":"uat-test"}`; a team-namespace answer, `host "uat-test.audit.panacea.kpmg"` (`handlers/branch_url_prefix.go:73-81`, `projects.go:4309`, `:4318`, `:4370`) → that `Host`; `urlprefix-409.json` verbatim; `ClearURLPrefix` 200 is success and a 202 is `KindUnavailable`, `Status 202` | a `Host` built from the prefix and the default domain, which names the wrong host for every team project (named survivor Z2) |
+| `TestURLPrefix` (built t04; the team row added in the mutation run) | `urlprefix.json` → `Host "uat-test.panacea.kpmg"`, the body exactly `{"prefix":"uat-test"}`; a team-namespace answer, `host "uat-test.audit.panacea.kpmg"` (`handlers/branch_url_prefix.go:73-81`, `projects.go:4309`, `:4318`, `:4370`) → that `Host`; `urlprefix-409.json` verbatim; a `ClearURLPrefix` 200 with `routeReverted: true` → `{feat/x, RouteReverted true, "url prefix cleared"}`, and a 202 is `KindUnavailable`, `Status 202` | a `Host` built from the prefix and the default domain, which names the wrong host for every team project (named survivor Z2) |
 | `TestActsRefuseBadSegmentsBeforeRequest` (built t04, mutation run) | each of the 12 calls, given `""`, `"."` or `".."` as its project, run, deployment, branch or group → `KindRejected`, and no request | an act that skips `segment` for its own id and posts to another route (named survivor Z1: Cancel's run; Z1b: Rollback's deployment) |
+| `TestClearURLPrefixRouteNotReverted` (built t04, found t04) | `urlprefix-clear-stale.json` → `{feat/x, RouteReverted false, Message == routeNotRevertedSentence("feat/x")}`, the `Message` holding neither `10.0.0.9` nor `NOT` nor `reconciling`, and a warn line carrying Panacea's sentence; an answer with no `routeReverted` → the same for `feat/y`; two requests | a released-but-not-reverted clear read as done, so the lens says "cleared" while the old host still serves; Panacea's `err.Error()` shown to the user; a missing `routeReverted` read as reverted |
+| `TestFakeURLPrefix` (`deploytest/fake_test.go`, built t04) | the Fake's clear answers `RouteReverted true` with a sentence; after `SetURLRouteReverts(p, "feat/y", false)` a clear of `feat/y` answers `false` with a different sentence, `feat/x` stays `true`, and `SetURLRouteReverts(true)` re-arms the default | a Fake that can never show the not-reverted case, so task 11 cannot test its lens |
 
 #### Steps
 
@@ -282,13 +295,13 @@ grep -niE '(secretscan|dast|sast|checks|iacscan|scascan|licensescan|modelscan|nu
   `already_completed`, *"Pipeline run is already Unknown"*, and `Cancel` reads that as
   `AlreadyFinished`. The Fake cancels such a run. `panaceatest` copies Panacea's rule
   (`TestCancelRoute`).
-- That a cleared URL prefix has stopped serving (found t04, for the task that consumes
-  `ClearURLPrefix`). `ClearBranchURLPrefix` answers 200 with `routeReverted: false` and the
-  message *"URL prefix released, but the live route has NOT reverted yet — …"* when removing the
-  host annotation or the reconcile fails (`projects.go:4427-4450`, at Panacea `eb85f0d9f`). `ClearURLPrefix` returns
-  only `error`, as `deploy.Governor` declares it, so that case reads as plain success. It is the
-  same saved-but-not-applied class `SetPosture` reports through `Enforced`; closing it needs a
-  result type on the interface, which is outside this task.
+- That a cleared URL prefix has stopped serving. Found t04 and closed at the root: a 200 with
+  `routeReverted: false` (`projects.go:4427-4451`, at Panacea `1d9199772`) is now
+  `URLPrefixCleared.RouteReverted false` with the connector's sentence, the same
+  saved-but-not-applied class `SetPosture` reports through `Enforced`. `deploy.Governor`'s
+  `ClearURLPrefix` returns that result (task 01's interface amended), and the Fake gains
+  `SetURLRouteReverts`. What this task does not do is show it: task 11's `DELETE {P}/url-prefix`
+  is planned as a bare 204, and must carry `routeReverted` and the sentence to the lens.
 - `panaceatest`'s `PUT B/access` starts every write from no password and no tokens, as
   `writeAccessMode` deletes the other mode's material (`handlers/access_mode.go:202-216`; found
   t04, `TestBranchAccessPut`).

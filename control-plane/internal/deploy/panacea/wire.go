@@ -299,3 +299,11 @@ type urlPrefixResponseDTO struct {
 	Prefix string `json:"prefix"`
 	Host   string `json:"host"`
 }
+
+// clearURLPrefixDTO mirrors ClearBranchURLPrefix's data {branch, routeReverted}
+// (handlers/projects.go:4448-4451). RouteReverted is a pointer: an answer without it has not
+// confirmed the revert, and reads as not reverted.
+type clearURLPrefixDTO struct {
+	Branch        string `json:"branch"`
+	RouteReverted *bool  `json:"routeReverted"`
+}

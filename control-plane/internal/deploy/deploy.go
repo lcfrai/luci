@@ -107,7 +107,11 @@ type Governor interface {
 	// (keycloak.go:245-268). A legacy row revoked by its Grantee is a silent 200 no-op (review M30).
 	Revoke(ctx context.Context, p ProjectRef, group string) error
 	SetURLPrefix(ctx context.Context, p ProjectRef, branch, prefix string) (URLPrefix, error)
-	ClearURLPrefix(ctx context.Context, p ProjectRef, branch string) error
+	// ClearURLPrefix releases the branch's prefix. The target can release it and still fail to
+	// revert the live route (Panacea answers 200 with routeReverted false,
+	// handlers/projects.go:4427-4451), so the branch keeps serving at its old host:
+	// URLPrefixCleared.RouteReverted says which (found t04).
+	ClearURLPrefix(ctx context.Context, p ProjectRef, branch string) (URLPrefixCleared, error)
 }
 
 // Account is the credential's principal.
@@ -476,4 +480,18 @@ type URLPrefix struct {
 	Branch string
 	Prefix string
 	Host   string
+}
+
+// URLPrefixCleared is ClearURLPrefix's outcome.
+type URLPrefixCleared struct {
+	Branch string
+	// RouteReverted is false when the target RELEASED the prefix but has not confirmed the live
+	// route reverted, so the branch may still serve at its old host. The lens must say so, as it
+	// does for a posture saved but not enforced: a clear drawn as done while the old host still
+	// answers is the same silent-override class.
+	RouteReverted bool
+	// Message is a sentence about the outcome. It is the target's own only when that sentence
+	// holds no internal error text; Panacea's not-reverted sentence embeds one, so the connector
+	// writes that one itself (task 04).
+	Message string
 }

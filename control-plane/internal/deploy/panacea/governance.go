@@ -279,14 +279,38 @@ func (c *Client) SetURLPrefix(ctx context.Context, p deploy.ProjectRef, branch, 
 	return deploy.URLPrefix{Branch: branch, Prefix: dto.Data.Prefix, Host: dto.Data.Host}, nil
 }
 
-// ClearURLPrefix deletes B/url-prefix (routes.go:1314). Clearing a branch with no prefix is
-// success (handlers/projects.go:4378-4379, :4407); the body, data {branch, routeReverted} plus a
-// message (:4448-4450), is not read: only the 200 is used.
-func (c *Client) ClearURLPrefix(ctx context.Context, p deploy.ProjectRef, branch string) error {
+// routeNotRevertedSentence is the connector's own sentence for a clear whose live route is not
+// confirmed reverted; branch is the name the caller passed, verbatim. Plain text. For "feat/x":
+//
+//	URL prefix released for feat/x, but the live route is not confirmed reverted: the branch may
+//	keep serving on its old host until the next deploy or reconcile.
+func routeNotRevertedSentence(branch string) string {
+	return "URL prefix released for " + branch + ", but the live route is not confirmed reverted: " +
+		"the branch may keep serving on its old host until the next deploy or reconcile."
+}
+
+// ClearURLPrefix deletes B/url-prefix (routes.go:1314) and reads ClearBranchURLPrefix's
+// dataDTO[clearURLPrefixDTO] (handlers/projects.go:4448-4451). Clearing a branch with no prefix is
+// success (:4379-4380, :4407). The claim is released before the route is touched (:4408-4412), so
+// a 200 can still say routeReverted false: removing the url-host annotation or the reconcile
+// failed (:4427-4439), and the branch keeps serving at its old host. Then Panacea's sentence
+// embeds err.Error() (:4431, :4438, :4445), so it is logged at warn and Message is
+// routeNotRevertedSentence. An answer without routeReverted has not confirmed the revert and
+// reads the same way. Reverted, Message is Panacea's "url prefix cleared" (:4443).
+func (c *Client) ClearURLPrefix(ctx context.Context, p deploy.ProjectRef, branch string) (deploy.URLPrefixCleared, error) {
 	const op = "clearURLPrefix"
 	path, err := branchPath(op, p, branch, "url-prefix")
 	if err != nil {
-		return err
+		return deploy.URLPrefixCleared{}, err
 	}
-	return c.do(ctx, op, http.MethodDelete, path, nil, nil, http.StatusOK)
+	var dto dataDTO[clearURLPrefixDTO]
+	if err := c.do(ctx, op, http.MethodDelete, path, nil, &dto, http.StatusOK); err != nil {
+		return deploy.URLPrefixCleared{}, err
+	}
+	if r := dto.Data.RouteReverted; r != nil && *r {
+		return deploy.URLPrefixCleared{Branch: branch, RouteReverted: true, Message: dto.Message}, nil
+	}
+	c.log.Warn("panacea released the url prefix but did not confirm the route reverted", "op", op,
+		"project", string(p), "branch", branch, "panacea_message", dto.Message)
+	return deploy.URLPrefixCleared{Branch: branch, Message: routeNotRevertedSentence(branch)}, nil
 }

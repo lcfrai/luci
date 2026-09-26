@@ -67,6 +67,7 @@ type project struct {
 	autoDeploy  map[string]deploy.AutoDeploy
 	access      []deploy.AccessGrant
 	prefixes    map[string]deploy.URLPrefix
+	routeStale  map[string]bool
 	pods        map[string][]deploy.Pod
 	events      map[string][]deploy.Event
 	diagnoses   map[string]deploy.Diagnosis
@@ -112,6 +113,7 @@ func (f *Fake) seed(p deploy.ProjectRef) *project {
 			notEnforced: map[string]bool{},
 			autoDeploy:  map[string]deploy.AutoDeploy{},
 			prefixes:    map[string]deploy.URLPrefix{},
+			routeStale:  map[string]bool{},
 			pods:        map[string][]deploy.Pod{},
 			events:      map[string][]deploy.Event{},
 			diagnoses:   map[string]deploy.Diagnosis{},
@@ -386,6 +388,15 @@ func (f *Fake) SetPostureEnforced(p deploy.ProjectRef, branch string, enforced b
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.seed(p).notEnforced[branch] = !enforced
+}
+
+// SetURLRouteReverts decides whether the next ClearURLPrefix calls on branch revert the live
+// route (default true). false seeds the target that RELEASES the prefix but leaves the branch
+// serving at its old host (Panacea's routeReverted false, handlers/projects.go:4427-4451).
+func (f *Fake) SetURLRouteReverts(p deploy.ProjectRef, branch string, reverts bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.seed(p).routeStale[branch] = !reverts
 }
 
 // SetAutoDeployState seeds AutoDeploy's answer for a.Branch. Unseeded, a branch reads the zero
@@ -1013,16 +1024,22 @@ func (f *Fake) SetURLPrefix(ctx context.Context, p deploy.ProjectRef, branch, pr
 	return u, nil
 }
 
-func (f *Fake) ClearURLPrefix(ctx context.Context, p deploy.ProjectRef, branch string) error {
+// ClearURLPrefix forgets the prefix, and answers RouteReverted true unless
+// SetURLRouteReverts(false) seeded the branch: the prefix is released either way.
+func (f *Fake) ClearURLPrefix(ctx context.Context, p deploy.ProjectRef, branch string) (deploy.URLPrefixCleared, error) {
 	if err := f.enter(ctx, "ClearURLPrefix", string(p), branch); err != nil {
-		return err
+		return deploy.URLPrefixCleared{}, err
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	pr, err := f.lookup("ClearURLPrefix", p)
 	if err != nil {
-		return err
+		return deploy.URLPrefixCleared{}, err
 	}
 	delete(pr.prefixes, branch)
-	return nil
+	if pr.routeStale[branch] {
+		return deploy.URLPrefixCleared{Branch: branch,
+			Message: "The URL prefix was released, but the old host may still serve the branch."}, nil
+	}
+	return deploy.URLPrefixCleared{Branch: branch, RouteReverted: true, Message: "The URL prefix is cleared."}, nil
 }

@@ -824,8 +824,8 @@ func TestRecordedBodiesNameTheirSource(t *testing.T) {
 	for _, e := range entries {
 		loadFixture(t, e.Name())
 	}
-	if len(entries) < 49 {
-		t.Errorf("testdata holds %d files, want task 03's 24 plus task 04's 25 (its 21 plus the four grant 500s)", len(entries))
+	if len(entries) < 50 {
+		t.Errorf("testdata holds %d files, want task 03's 24 plus task 04's 26 (its 21, the four grant 500s, the stale clear)", len(entries))
 	}
 }
 
