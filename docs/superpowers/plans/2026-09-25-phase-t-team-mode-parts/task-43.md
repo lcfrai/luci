@@ -398,6 +398,13 @@ is `r403(<the route's required role>)`. `rowsT06` and `rowsT07` are generated fr
 | set team policy (75) | 403 admin | 403 admin | 403 admin | ✓ | 404 | 404 | 404 | k403 | 401d | k403 | 403 |
 | raise the route to `au` (79) | 403 member | ✓ | ✓ | ✓ | 404 | 404 | 404 | k403 | 401d | k403 | 403 |
 | lower the route to `global` (79) | 403 member | 403 needs_compliance | 403 needs_compliance | 403 needs_compliance | 404 | 404 | 404 | k403 | 401d | k403 | 403 |
+| make the project a team project (87, b01) | 403 admin | 403 admin | 403 admin | ✓ | 404 | 404 | 404 | k403 | 401d | k403 | 403 |
+
+Row 87 is task 06's route 87 (fix batch b01, X-C1; `task-01.md`'s §5.3 row). It is hand-written
+here because route 87 is not in `everyTeamWrite`, so `TestEveryTeamWriteHasAZ5Row` cannot catch
+its absence. The harness runs its `A` cell on a fresh solo project per case, and its matrix Hub
+starts with the dev-only `PANACEA_APP_HUB_TEAM_MODE_UNSTREAMED=true` in `local`, so the cell tests
+the role and not task 45's gate.
 
 Route 74 to 79 are project-level, so `M` and `M′` are the same person on the same record and hold
 the same cell; the column stays so the table has one shape. `D` (a desktop token that sends a
