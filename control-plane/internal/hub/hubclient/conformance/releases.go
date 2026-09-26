@@ -389,6 +389,15 @@ func panaceaKeysArePerProject(t *testing.T, e Env) {
 	other := confirmRun(t, e.Member, reserve(t, e, e.Member, p.ID, runOn(pp, featRef)))
 	_, err = e.Member.JoinDeployment(bg, other.ID, hubapi.DeploymentJoinRequest{DeploymentID: d})
 	wantErr(t, err, 409, hubapi.CodeConflict, "field", "deploymentId")
+	// Confirm's deployment half (fix round 1 PS7-2): a rollback confirmed with a
+	// deployment P holds is 409 in P, and joins it in Q.
+	d3 := newDeployment()
+	must(e.Member.JoinDeployment(bg, other.ID, hubapi.DeploymentJoinRequest{DeploymentID: d3}))(t)
+	_, err = e.Member.Confirm(bg, rb.ID, hubapi.ConfirmRequest{DeploymentID: sp(d3)})
+	wantErr(t, err, 409, hubapi.CodeConflict, "field", "deploymentId")
+	if got := must(e.Member.Confirm(bg, qrb.ID, hubapi.ConfirmRequest{DeploymentID: sp(d3)}))(t); len(got.Deployments) != 1 || got.Deployments[0].DeploymentID != d3 {
+		t.Errorf("Q's rollback confirmed with P's deployment %s = %+v, want it joined in Q", d3, got.Deployments)
+	}
 }
 
 // abandon from reserved only, with its reason and message; never revived.
