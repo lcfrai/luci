@@ -62,7 +62,7 @@ flags. None of those binaries exists on this machine, and
 | `control-plane/internal/api/catalog.go` | `/healthz`, `/machines`, `/projects`, `/branches`, `/worktrees`, `/harnesses` | 10 |
 | `control-plane/internal/api/sessions.go` | Session create / list / get / patch / delete / restart | 11 |
 | `control-plane/internal/api/attach.go` | The WebSocket upgrade, origin check, read limit, relay, last-output accounting | 12 |
-| `control-plane/internal/proxy/proxy.go` | **modified** — `RelayHooked` adds per-message byte counters; `Relay` keeps its signature | 12 |
+| `control-plane/internal/proxy/proxy.go` | **modified** — `RelayHooked` adds per-message byte counters; `Relay` keeps its signature. AMENDED by task 26 (2026-09-26): `Relay` is deleted, having no production caller (open carry 12), and `RelayHooked` is the one relay: seam S8.7 in `docs/SEAMS.md` | 12 |
 | `control-plane/internal/reaper/reaper.go` | The periodic sweep: orphans, disappeared sandboxes, idle derivation, idle TTL. AMENDED by the reaper-scope fix (2026-09-24): destroys only this instance's sandboxes (§5.3); fix round: "this instance's" includes a legacy sandbox this registry holds | 13 |
 | `control-plane/internal/instance/instance.go` | **added by the reaper-scope fix (2026-09-24)** — this state directory's instance id: minted once, persisted, read back (§2.7) | — |
 | `control-plane/cmd/api/config.go` | Every `PANACEA_APP_*` variable, parsed once, with defaults | 13 |
@@ -848,7 +848,14 @@ matched requests and limits — is untouched.
 // Package katabe runs sandboxes as Kata Containers pods on AKS. It is DORMANT:
 // docs/PROGRAM.md phase 8 is the first real Azure spend, and nothing in Phase 2
 // selects this backend by default. It compiles and is unit-tested now so that
-// turning it on in Phase 8 is a configuration change and not a rewrite.
+// the Backend seam cannot drift away from what Kubernetes can serve.
+//
+// Turning it on is NOT only a configuration change. Every session create sends
+// host-path Mounts, the worktree first, and a WorkDir (api/sessions.go), and
+// Create refuses both below — correctly, because a host path on an AKS node is
+// meaningless. So under PANACEA_APP_BACKEND=kata every create fails today. The
+// first thing Phase 8 must build is a way to get the worktree into the pod:
+// seam S8.3 in docs/SEAMS.md.
 package katabe
 
 import (
@@ -872,6 +879,12 @@ type Backend struct{ ... }
 func New(cfg Config) (*Backend, error)
 func (b *Backend) Kind() backend.Kind { return backend.KindKata }
 ```
+
+AMENDED by task 26 (2026-09-26): the package comment above is `kata.go`'s as shipped, and
+`desktop/src/seams.test.ts` holds the two byte-identical. It used to end *"turning it on in
+Phase 8 is a configuration change and not a rewrite"*, which was false: the refusal below fails
+every create the control plane sends. The gap is seam S8.3 in `docs/SEAMS.md`, which names
+every seam Phase 8 plugs into.
 
 - `Create` rejects a `Spec` with non-empty `Mounts` with `backend.ErrUnsupported`: a
   host path on an AKS node is meaningless, and silently ignoring the field would give
@@ -2599,6 +2612,13 @@ type Hooks struct {
 // RelayHooked(ctx, c, u, Hooks{}) and keeps its existing signature and tests.
 func RelayHooked(ctx context.Context, client, upstream *websocket.Conn, h Hooks) error
 ```
+
+AMENDED by task 26 (2026-09-26): `Relay` no longer exists, so the block above is how
+`RelayHooked` came to be, not what `proxy.go` holds. Task 26 re-proved `Relay` had no production
+caller (open carry 12) and deleted it; `RelayHooked` is the one relay, its doc comment says so,
+and `desktop/src/seams.test.ts` fails if another relay appears in the control plane (seam S8.7 in
+`docs/SEAMS.md`). The same holds for `// proxy.Relay already takes *websocket.Conn.` in §2.2's
+block: `backend.go:9` now names `proxy.RelayHooked`.
 
 The attach handler passes `OnUpstream` that records `time.Now()` into a local variable
 and, **at most once every two seconds**, flushes it to the registry via

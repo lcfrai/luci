@@ -1,9 +1,11 @@
 package backend_test
 
 import (
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"go/types"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -99,25 +101,31 @@ func TestSeamBackendKindsAreTheTwoPersistedStrings(t *testing.T) {
 		t.Fatalf("Kind strings are %q and %q, want \"docker\" and \"kata\" (seam S8.1, docs/SEAMS.md)", backend.KindDocker, backend.KindKata)
 	}
 
-	// And there are exactly two. Reflection cannot list constants, so read them from
-	// the package's own non-test source: every const declared with type Kind, or
-	// as Kind(...). A third is a third backend, which is changing S8.1 (mutant G2).
+	// And there are exactly two. Reflection cannot list constants, so type-check
+	// the package's own non-test source and take every constant whose type is Kind,
+	// however it is spelled. A third is a third backend, which is changing S8.1
+	// (mutant G2).
 	want := map[string]string{"KindDocker": `"docker"`, "KindKata": `"kata"`}
 	if got := kindConstants(t); !reflect.DeepEqual(got, want) {
 		t.Fatalf("package backend's Kind constants moved: seam S8.1 (docs/SEAMS.md) names two.\n got: %v\nwant: %v", got, want)
 	}
 }
 
-// kindConstants maps each Kind constant declared in package backend to its source text.
+// kindConstants maps each constant of type Kind declared in package backend to
+// its value. The type checker decides what has type Kind, not a reading of the
+// syntax: a bare name repeating the previous spec in a const group, `const X =
+// KindKata`, and a constant of an alias of Kind are each a Kind by the
+// language's rules, and a walk of the syntax has to re-implement every one
+// (task 26 review m1, mutants G-M2 and G-M3).
 func kindConstants(t *testing.T) map[string]string {
 	t.Helper()
-	files, err := filepath.Glob("*.go")
-	if err != nil || len(files) == 0 {
-		t.Fatalf("listing package backend's source: %v (%d files)", err, len(files))
+	names, err := filepath.Glob("*.go")
+	if err != nil || len(names) == 0 {
+		t.Fatalf("listing package backend's source: %v (%d files)", err, len(names))
 	}
 	fset := token.NewFileSet()
-	got := map[string]string{}
-	for _, name := range files {
+	var files []*ast.File
+	for _, name := range names {
 		if strings.HasSuffix(name, "_test.go") {
 			continue
 		}
@@ -125,38 +133,30 @@ func kindConstants(t *testing.T) map[string]string {
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, decl := range f.Decls {
-			gd, ok := decl.(*ast.GenDecl)
-			if !ok || gd.Tok != token.CONST {
-				continue
-			}
-			for _, spec := range gd.Specs {
-				vs := spec.(*ast.ValueSpec)
-				for i, n := range vs.Names {
-					var v ast.Expr
-					if i < len(vs.Values) {
-						v = vs.Values[i]
-					}
-					typed := isIdent(vs.Type, "Kind")
-					if call, ok := v.(*ast.CallExpr); ok && isIdent(call.Fun, "Kind") && len(call.Args) == 1 {
-						typed, v = true, call.Args[0]
-					}
-					if !typed {
-						continue
-					}
-					if lit, ok := v.(*ast.BasicLit); ok {
-						got[n.Name] = lit.Value
-					} else {
-						got[n.Name] = "(not a literal)"
-					}
-				}
-			}
+		files = append(files, f)
+	}
+	// Imports are not resolved: no Kind constant needs one, and resolving
+	// coder/websocket would tie this test to the module cache. The package
+	// compiles (this test imports it), so every error the checker reports is an
+	// unresolved import or its consequence, and each is ignored.
+	conf := types.Config{Importer: unresolved{}, Error: func(error) {}}
+	pkg, _ := conf.Check(backendPkg, fset, files, nil)
+	kind, ok := pkg.Scope().Lookup("Kind").(*types.TypeName)
+	if !ok {
+		t.Fatal("package backend declares no type Kind")
+	}
+	got := map[string]string{}
+	for _, name := range pkg.Scope().Names() {
+		if c, ok := pkg.Scope().Lookup(name).(*types.Const); ok && types.Identical(c.Type(), kind.Type()) {
+			got[name] = c.Val().ExactString()
 		}
 	}
 	return got
 }
 
-func isIdent(e ast.Expr, name string) bool {
-	id, ok := e.(*ast.Ident)
-	return ok && id.Name == name
+// unresolved is an importer that resolves nothing; see kindConstants.
+type unresolved struct{}
+
+func (unresolved) Import(path string) (*types.Package, error) {
+	return nil, fmt.Errorf("%s: not resolved by kindConstants", path)
 }

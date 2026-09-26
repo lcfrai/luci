@@ -58,16 +58,18 @@ The check count this changes is **nineteen** (it was eighteen); every restatemen
 - `desktop/e2e/phase2.e2e.mjs` — the headed harness, nineteen checks (step 20 lists them). `.mjs` and outside `src/`, so vitest's `src/**/*.test.{ts,tsx}` never collects it and `tsc --noEmit` never type-checks it (new)
 - `desktop/e2e/fixture.sh` — builds the throwaway git project the control plane enumerates. Bash rather than PowerShell so it runs through the audited wrapper (new)
 - `docs/verification/<run-date>-phase-2-results.md` — the sibling of `2026-09-17-phase-1-results.md`, in the same form, dated by the day the run happens (new)
+- `desktop/src/seams.test.ts` — SX.10's `o2.resume` entry loses its `pending: "task 25"`, the handoff task 26 left because it ran first (step 20). Test only (modify). AMENDED by task 26's fix round (2026-09-26)
+- `docs/SEAMS.md` — the preamble, the SX.10 row and the SX.10 note cite `o2.resume` and the results document (step 20). Citations only (modify). AMENDED by task 26's fix round (2026-09-26)
 
 **Interfaces:**
 - Produces:
   - `npm run e2e` — runs `desktop/e2e/phase2.e2e.mjs` against a running stack. Reads `PANACEA_E2E_APP` (default `http://localhost:1420`), `PANACEA_E2E_API` (default `http://127.0.0.1:8730`), `PANACEA_E2E_CDP` (unset: skip the WebView2 smoke), `PANACEA_E2E_ONLY` (a comma-separated list of check ids, for re-running one), and — for the checks that read the daemon's log or stop and start it — `PANACEA_E2E_CP_LOG`, `PANACEA_E2E_CP_BIN` and `PANACEA_E2E_CP_PID`. It also reads the control plane's own `PANACEA_APP_GIT_NAME` and `PANACEA_APP_GIT_EMAIL`, which step 6 exports, as the identity `g.primary` expects on a commit. Prints one JSON line per check and exits non-zero if any agent-provable check fails
   - The phase 2 results document, which phases 4, 5 and 7 are gated on: `docs/superpowers/planning/2026-09-23-phases-4-5-7/dependency-graph-and-order.md:319` lists *"the whole substrate, as a claim"* as safe to build against *"after task 25's real-window E2E"*
 - Consumes: task 24's `App.tsx` (catalogue load and poller); task 13's `cmd/api` and its `PANACEA_APP_*` configuration (`control-plane/cmd/api/config.go:22-50`); task 5's `dockerbe`; task 12's attach relay; task 19's attach registry (`GRACE_MS = 5_000`, `attachRegistry.ts:20`); task 21's Canvas (`CANVAS_MAX_TILES = 10`, `prefsSlice.ts:17`) and its `cv-resize` handle (`CanvasLayout.tsx:362-368`); task 22's *Retry attach* row (`sessionVerbs.ts:409`); the wire protocol's four kinds (`sandboxd/internal/wire/frame.go:15-18`) and its big-endian `ResizePayload` (`:41-60`)
-- Required by: task 26 cites the results document as the evidence that each seam it names was running when it was named
+- Required by: `docs/SEAMS.md`, task 26's record of where phases 3, 4, 5 and 8 plug in. AMENDED by task 26's fix round (2026-09-26): this line used to say task 26 cites the results document, but task 26 ran **before** this task, so it could not. Its preamble, its SX.10 row and its SX.10 note wait for `o2.resume` and the results document instead, and `desktop/src/seams.test.ts` holds that open as a `pending` entry that fails the day `desktop/e2e/phase2.e2e.mjs` exists. Step 20 clears it
 - **Depends on the resume fix landing first**, for step 14's `o2.resume` and step 18. It has landed (`b4be570`, round 1 after it): it mints a UUID per Claude Code session, starts the CLI with `--session-id <uuid>`, resumes by that UUID **as a fork** (`--resume <U> --fork-session --session-id <V>`, `argv.go:115-118`), and persists `/home/dev/.claude/projects` — only that directory — so the transcript survives into the new sandbox. The control plane resolves the cockpit id to the Claude UUID (`sessionResolveResume`), so the desktop still sends the cockpit id on purpose. Step 1 (h) checks for it
 - **Depends on the sandbox git + CA fix** (`2d6d95b`…`4f6d698`), for step 14's `g.primary` and for any Claude Code session on this network. It passes git's `safe.directory`, `user.useConfigOnly` and an identity in the environment (`GIT_CONFIG_*`, `GIT_AUTHOR_*`, `GIT_COMMITTER_*`), and mounts `PANACEA_APP_CA_BUNDLE` read-only at `/etc/panacea-app/ca-bundle.pem`, named by `NODE_EXTRA_CA_CERTS` (`sessionEnv`, `sessionMounts`, `api/sessions.go`). Step 1 (h) and (i) check for it
-- **Changes no behaviour.** Every `desktop/` change is the harness and its dependency; every Go change is a comment; nothing amends a product document. If the harness finds a defect, **it is reported, not fixed here** — it belongs to the task that owns the file, and this task's commit records it as a failing check
+- **Changes no behaviour.** Every `desktop/` change is the harness and its dependency, or task 26's SX.10 handoff (a test's `pending` flag deleted, AMENDED by task 26's fix round); every Go change is a comment; nothing amends a product document, and `docs/SEAMS.md` gains citations only. If the harness finds a defect, **it is reported, not fixed here** — it belongs to the task that owns the file, and this task's commit records it as a failing check
 
 #### The steps at a glance
 
@@ -92,7 +94,7 @@ The check count this changes is **nineteen** (it was eighteen); every restatemen
 | 17 | OWNER-OBSERVED | The Develop lens around the terminal |
 | 18 | OWNER-OBSERVED | Resume restores the agent's context |
 | 19 | AGENT-PROVABLE | The results document, and a disposition for every carry |
-| 20 | AGENT-PROVABLE | Guards, then commit |
+| 20 | AGENT-PROVABLE | Task 26's SX.10 handoff cleared, then guards, then commit |
 
 **Seventeen agent-provable, three owner-observed.** The owner steps are few because each carries a checklist rather than a claim; together they hold nineteen numbered items. **Per OD-12, all nineteen are batched to the owner's one hands-on session at the very end**, after phases 3 to 7: this task writes them and leaves each `PENDING OWNER`, unverified. The harness's agent-provable checks number **nineteen** too (step 20 lists them); the two nineteens are different things.
 
@@ -1724,9 +1726,15 @@ netstat -ano | grep -E ':(8730|1420|9222)\s' | grep LISTENING
 
 **What you must see:** the `docker ps` line prints nothing — the harness `DELETE`d every session it made, and `DELETE` destroys the sandbox. A leftover `panacea-app-*` container means a check threw before `main()` reached its cleanup loop; remove it by name with `docker rm -f`, after `docker inspect` confirms its `panacea-app.session-id` label is one this run created. The `netstat` line prints nothing. `$E2E_ROOT` is left in the temp directory for the owner to inspect and is not deleted by this task. **Only then release the Docker lock** that step 2 took: `rm <lock>/owner.txt && rmdir <lock>` (`docker-daemon-lock.md` step 4).
 
+**Then clear task 26's SX.10 handoff, or `npm test` below fails.** AMENDED by task 26's fix round (2026-09-26). Task 26 ran before this task, so `desktop/src/seams.test.ts` marks SX.10's entry for this harness's `o2.resume` check `pending: "task 25"`, and the manifest goes red, by name, as soon as `desktop/e2e/phase2.e2e.mjs` exists. Delete that `pending` field, and only that; the entry's `decl` then pins `^check\("o2\.resume",`. Then make `docs/SEAMS.md` cite what this task proved, in three places: the preamble's last paragraph (it says the results document "did not exist yet"), the SX.10 row's last cell (`task 25 o2.resume (pending: task 25 had not run)`), and the SX.10 note (*"neither is cited here yet"*). Each names `o2.resume` and the results document by path, and says what `o2.resume` showed; if it failed, say so, and do not cite it as proof. Step 18's owner observation is cited as PENDING OWNER until the owner answers. Change no anchor and no other row.
+
 **Then the guards.** Anchored, per shared shape §3A.
 
 ```bash
+# Task 26's handoff is cleared (the paragraph above).
+grep -c 'pending: "task 25"' desktop/src/seams.test.ts                                        # 0
+grep -c 'task 25 had not run' docs/SEAMS.md                                                   # 0
+
 cd desktop && npm test && npm run typecheck && cd ..
 go test ./sandboxd/... ./control-plane/... -race -count=1
 
@@ -1761,7 +1769,7 @@ git status --porcelain | sort
 
 **Nineteen checks** (eighteen before the git + CA fix added `g.primary`), in file order: `setup`, `p1.fidelity`, `p1.claude`, `c2.cols`, `c3.theme`, `c7.popover`, `c9.exit-row`, `c1.flip`, `c1.cap`, `c5.resize`, `c4.pinned`, `c6.load`, `d.detach`, `d.reload`, `d.cp-restart`, `c10.retry`, `o2.resume`, `g.primary`, `w.webview2`. `w.webview2` is written even when step 15's port is refused — it returns `skipped` when `PANACEA_E2E_CDP` is unset — so the count does not depend on the policy.
 
-`git status --porcelain | sort` must list exactly the seven paths of the Files block, the results document among them, and nothing else. A stray path is either an un-reverted edit or a file from the parallel work in this tree — the second is **not** staged.
+`git status --porcelain | sort` must list exactly the nine paths of the Files block (seven before task 26's fix round added its two), the results document among them, and nothing else. A stray path is either an un-reverted edit or a file from the parallel work in this tree — the second is **not** staged.
 
 **Two commits, not one**, because they are two different kinds of change: the first corrects what two comments claim about the code, and is reviewable in thirty seconds; the second is the harness and the evidence. Stage by name — never `git add -A`, `-u` or `.`, which in a tree shared with parallel agents would sweep up their work. **Each message body is written to a file with the file-writing tool and committed with `git commit -F`** — not `-m`, and not a heredoc: a multi-line heredoc through the audited wrapper can terminate early at its extra `bash -c` boundary and run the rest of the message as commands. The two blocks below are the file contents, then the commands.
 
@@ -1827,16 +1835,22 @@ agent-provable check failed.">
 
 <Say whether w.webview2 ran or the DevTools port was refused.>
 
+Task 26's SX.10 handoff is cleared: seams.test.ts's pending entry for this
+harness is deleted, and docs/SEAMS.md's preamble, SX.10 row and SX.10 note
+cite o2.resume and this results document.
+
 Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
 ```
 
 ```bash
 git add desktop/package.json desktop/package-lock.json \
         desktop/e2e/phase2.e2e.mjs desktop/e2e/fixture.sh \
-        docs/verification/<run-date>-phase-2-results.md
+        docs/verification/<run-date>-phase-2-results.md \
+        desktop/src/seams.test.ts docs/SEAMS.md
 git commit -F "$SCRATCH/c2.txt" -- desktop/package.json desktop/package-lock.json \
         desktop/e2e/phase2.e2e.mjs desktop/e2e/fixture.sh \
-        docs/verification/<run-date>-phase-2-results.md
+        docs/verification/<run-date>-phase-2-results.md \
+        desktop/src/seams.test.ts docs/SEAMS.md
 ```
 
 Both commits name their paths after `--`, so nothing another agent staged in this shared tree rides along. Fill every `<…>` paragraph from the run before committing; a commit body that still contains `<` is not finished. **Do not write that anything "looks right" in either message**: `task-24.md:1278` gives the reason, and this task has more occasions to break it than any other.

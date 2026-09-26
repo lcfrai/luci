@@ -22,6 +22,8 @@ const LOADERS = import.meta.glob<string>(
     "../../desktop/e2e/**/*.mjs",
     "../../docs/SEAMS.md",
     "../../docs/superpowers/contracts/2026-09-18-phase-2-ui-contract.md",
+    "../../docs/superpowers/contracts/2026-09-18-phase-2-go-contract.md",
+    "../../docs/superpowers/plans/phase-2-parts/task-*.md",
     "../../images/sandbox/Dockerfile",
   ],
   { query: "?raw", import: "default" },
@@ -95,7 +97,8 @@ interface SeamTest {
   /** The task that creates `file`, when it has not run yet. While the file is absent the entry
    *  waits; the day it appears the entry FAILS until `pending` is deleted here and docs/SEAMS.md
    *  cites what that task proved. Task 26 ran before task 25 (docs/superpowers/RESUME.md's
-   *  close-out order), so the one pending entry is task 25's harness. */
+   *  close-out order), so the one pending entry is task 25's harness. The waiting task's plan
+   *  must say to clear it; the "hands every pending entry" test below fails until it does. */
   pending?: string;
 }
 
@@ -345,6 +348,20 @@ const SEAMS: Seam[] = [
           /\b(?:window|globalThis|self)\s*\.\s*(?:EventSource|WebSocket)\b|\b(?:const|let|var)\s+\w+\s*=\s*(?:EventSource|WebSocket)\b(?![\w.])|[(,]\s*(?:EventSource|WebSocket)\s*[,)]/,
         except: ["desktop/src/api/client.ts"],
       },
+      {
+        // The third: destructured (`const { WebSocket: Socket } = globalThis`), read off any
+        // parenthesised expression (`(window as typeof globalThis).WebSocket`), or named as a string
+        // (`globalThis["WebSocket"]`, `Reflect.get(globalThis, "WebSocket")`). Task 26 review m2,
+        // mutants TS-M1 and TS-M3. In a destructuring the name must be a key, not a value, so a type
+        // literal's `{ ws: WebSocket }` stays clear; no source names either one as a whole string.
+        // A typed destructuring (`const { WebSocket: S }: typeof globalThis = …`, mutant TS-M5) and
+        // a shorthand key (`{ WebSocket }`, in an object, a pattern or an import from a socket
+        // library) are the same read.
+        dir: "desktop/src",
+        absent:
+          /\{(?:[^{}]*,)?\s*(?:EventSource|WebSocket)\s*(?::[^{},]*)?(?:,[^{}]*)?\}\s*(?::[^=;]*)?=(?![=>])|[{,]\s*(?:EventSource|WebSocket)\s*[,}]|\)\s*\??\.\s*(?:EventSource|WebSocket)\b|["'`](?:EventSource|WebSocket)["'`]/,
+        except: ["desktop/src/api/client.ts"],
+      },
     ],
   },
   {
@@ -421,13 +438,27 @@ const SEAMS: Seam[] = [
       // Nor a wrapper under another name: a three-line relay beside RelayHooked is what Relay was.
       { file: "control-plane/internal/proxy/proxy.go", absent: /^func (?!RelayHooked\()\w*Relay\w*\(/m },
       { file: "control-plane/internal/api/attach.go", present: /\bproxy\.RelayHooked\(r\.Context\(\), client, upstream, / },
+      // And that call is the only one: a wrapper under any name has to call RelayHooked.
+      { file: "control-plane/internal/api/attach.go", absent: /\bRelayHooked\b[\s\S]*\bRelayHooked\b/ },
     ],
     // And not in another file: `func Relay(` re-added as proxy/relay.go, or a method, passed the
     // proxy.go anchors (mutation A2 of task 26's report). Any exported-style *Relay* function or
     // method in the control plane's Go, other than RelayHooked; attach.go's relayAttached is
     // the handler that calls it, and its lower-case `relay` does not match.
+    // Nor as a function value: `var Relay = func(…) error { return RelayHooked(…) }` is the deleted
+    // wrapper in another spelling (task 26 review m3, mutant G-M1). So a package-level var or const
+    // named *Relay*, alone or inside a `var (` / `const (` group, trips it too.
     trees: [
       { dir: "control-plane", absent: /^func\s+(?:\([^)]*\)\s*)?(?!RelayHooked\()\w*Relay\w*\s*\(/m, except: [] },
+      {
+        dir: "control-plane",
+        absent: /^(?:var|const)\s+(?!RelayHooked\b)\w*Relay\w*\b|^(?:var|const)\s*\((?:\n(?!\)).*)*?\n\s+(?!RelayHooked\b)\w*Relay\w*\b/m,
+        except: [],
+      },
+      // And by what a wrapper does rather than what it is called: `func Pipe(…) { return
+      // RelayHooked(…) }` passed every name rule (mutant G-M4). RelayHooked is named in code only by
+      // its declaration and attach.go's one call (the anchor above holds attach.go to one).
+      { dir: "control-plane", absent: /(?<!^func )\bRelayHooked\b/m, except: ["control-plane/internal/api/attach.go"] },
     ],
   },
   /* The six mounts after the worktree, in four seams, each refused by katabe's `len(spec.Mounts) > 0`
@@ -477,6 +508,13 @@ const SEAMS: Seam[] = [
 ];
 
 const UI_CONTRACT = "docs/superpowers/contracts/2026-09-18-phase-2-ui-contract.md";
+const GO_CONTRACT = "docs/superpowers/contracts/2026-09-18-phase-2-go-contract.md";
+const KATA = "control-plane/internal/backend/katabe/kata.go";
+/** The plan of the task a pending entry waits for: "task 25" is phase-2-parts/task-25.md. */
+function planOf(task: string): string {
+  const n = /^task (\d+)$/.exec(task);
+  return n === null ? `(no plan for "${task}")` : `docs/superpowers/plans/phase-2-parts/task-${n[1].padStart(2, "0")}.md`;
+}
 /** Any phase's seam id: SX.n, or S<phase>.n for EVERY phase number, not only the four this task
  *  names. A narrower pattern let a document row for phase 6, 7 or 9 go uncounted, so a seam
  *  added to docs/SEAMS.md without an anchor passed (mutation M6 of task 26's report). */
@@ -487,10 +525,13 @@ describe("the named seams — docs/SEAMS.md", () => {
   // the test that names it reports it; the generous timeout is for a saturated machine, where
   // Vite's first transform of a hundred raw modules can outlast the default hook timeout.
   beforeAll(async () => {
-    const named = new Set<string>([DOC, UI_CONTRACT, "desktop/src/store/types.ts"]);
+    const named = new Set<string>([DOC, UI_CONTRACT, "desktop/src/store/types.ts", GO_CONTRACT, KATA]);
     for (const seam of SEAMS) {
       for (const a of seam.anchors) named.add(a.file);
-      for (const t of seam.tests ?? []) named.add(t.file);
+      for (const t of seam.tests ?? []) {
+        named.add(t.file);
+        if (t.pending !== undefined) named.add(planOf(t.pending));
+      }
       for (const rule of seam.trees ?? []) for (const f of sourcesUnder(rule.dir)) named.add(f);
     }
     await Promise.all(
@@ -547,6 +588,51 @@ describe("the named seams — docs/SEAMS.md", () => {
       }
     }
     expect(missing).toEqual([]);
+  });
+
+  it("hands every pending entry to the plan of the task that clears it", () => {
+    // A pending entry goes red the day its task lands, so that task's plan must say to clear it,
+    // or its own final gate fails for a reason it was never given (task 26 review I2; shared
+    // shape §1 rules 1-2: the task that makes the insertion point names its consumer). One
+    // paragraph of the plan names this file and the seam, and says to delete the `pending` field.
+    // A paragraph that only mentions the entry does not count: task 25's Interfaces block does
+    // that, and it passed with the instruction deleted (mutant I2-M).
+    const deletes = /\bdelete\b[^.]*`pending`/i;
+    const unhanded: string[] = [];
+    for (const seam of SEAMS) {
+      for (const t of seam.tests ?? []) {
+        if (t.pending === undefined) continue;
+        const plan = planOf(t.pending);
+        if (!exists(plan)) {
+          unhanded.push(`${seam.id}: ${t.pending}'s plan ${plan} does not exist`);
+          continue;
+        }
+        const told = text(plan)
+          .split(/\n[ \t]*\n/)
+          .some((p) => p.includes("desktop/src/seams.test.ts") && p.includes(seam.id) && deletes.test(p));
+        if (!told) {
+          unhanded.push(`${seam.id}: ${plan} never tells ${t.pending} to delete this entry's \`pending\``);
+        }
+      }
+    }
+    expect(unhanded).toEqual([]);
+  });
+
+  it("S8.3: katabe's package comment is byte-identical to Go contract §2.6's copy", () => {
+    // The contract's copy kept "a configuration change and not a rewrite" after kata.go dropped
+    // it as false (task 26 review I1). A restatement that is a verbatim copy is gated like
+    // types.ts (SX.2), so the next edit to either one has to move both.
+    const header = (source: string): string => {
+      const end = source.indexOf("\npackage katabe\n");
+      expect(end).toBeGreaterThan(0);
+      return source.slice(0, end);
+    };
+    const lines = text(GO_CONTRACT).split("\n");
+    const heading = lines.findIndex((l) => l.startsWith("### 2.6 `internal/backend/katabe`"));
+    const open = lines.findIndex((l, i) => i > heading && l === `${FENCE}go`);
+    const close = lines.findIndex((l, i) => i > open && l === FENCE);
+    expect([heading, open, close].every((i) => i >= 0)).toBe(true);
+    expect(header(lines.slice(open + 1, close).join("\n") + "\n")).toBe(header(text(KATA)));
   });
 
   it("keeps every tree-wide tripwire", () => {
