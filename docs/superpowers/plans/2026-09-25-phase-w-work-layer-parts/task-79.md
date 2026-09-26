@@ -123,3 +123,83 @@ POST  /v1/issues/{issueId}/move   member of both teams  200 IssueHead  body Move
 GET   /v1/projects/{projectId}/issues/by-number/{n}  viewer  200 IssueWithRevision (task 08's), head.movedFrom set
 PUT   /v1/teams/{teamId}/work-policy  admin  200 TeamWorkPolicy; W2 fields absent keep (task 72's patch)
 ```
+
+Worked examples, on a Fibonacci team, EP-142 in `todo`:
+
+```json
+PATCH /v1/issues/is-3f2a91c07b1e4d2a/plan   {"estimate": 5, "dueOn": "2026-10-02"}
+→ 200 {… "estimate": 5, "dueOn": "2026-10-02", "rank": "i001", …}
+PATCH /v1/issues/is-3f2a91c07b1e4d2a/plan   {"estimate": null}
+→ 200 {… "estimate": null, "dueOn": "2026-10-02", …}
+POST  /v1/issues/is-3f2a91c07b1e4d2a/rank   {"after": null, "before": "is-00000000000000a1"}
+→ 200 {… "rank": "hzzz", …}     (a1 was the team's first issue, key "i"; EP-142 now sits above it)
+POST  /v1/issues/is-3f2a91c07b1e4d2a/move   {"toProjectId": "pj-00000000000000b2"}
+→ 200 {… "number": 8, "alias": "PAY-8", "movedFrom": {"projectId": "pj-00000000000000b1", "projectKey": "EP", "number": 142}, …}
+GET   /v1/projects/pj-00000000000000b1/issues/by-number/142
+→ 200 {"head": {… "id": "is-3f2a91c07b1e4d2a", "alias": "PAY-8", "movedFrom": {… "number": 142}}, "revision": {…}}
+```
+
+Refusals, each with its code and the field it names:
+
+| Body or state | Answer |
+|---|---|
+| `estimate: 4` on Fibonacci; `0` without `estimateZero`; any value on scale `none` | 422 `estimate_off_scale`, `details.scale`, `details.value` |
+| `estimate: 2.5`, `"3"`, or over 2^31 | 400 `bad_request`, `field: "estimate"` (strict decode) |
+| `dueOn: "2026-10-02T09:00:00Z"`, `"2026-02-30"`, `"02/10/2026"` | 422 `date_invalid`, `details.field: "dueOn"` |
+| a `rank` key in a rank body | ignored: task 72's strict decode refuses unknown keys, so 400 `bad_request`, `field: "rank"` |
+| `after` or `before` in another team, erased, the issue itself, or `after` not above `before` | 422 `rank_neighbours`, `details.field` the one at fault |
+| a move from `started` or `in_review` | 422 `state_not_allowed`, `details.from` the state, `details.cause: "move"` |
+| a move of an issue with children | 409 `children_open`, `details.open` every child |
+| a move to its own project | 400 `bad_request`, `field: "toProjectId"` |
+| a target the caller cannot read | 404 `project_not_found` (no leak); readable but not a member: 403 |
+
+A client that sends `rank` is refused, not ignored silently: task 72's `TestEveryRequestRefusesUnknownKeys`
+row `{"RankRequest": {"rank":"i"}}` (`task-72.md:1130`) already fixes this, so the scope's "ignored"
+reads as "never used"; see *Corrections to the scope*.
+
+#### Rank (`store/work_plan_fields.go`, complete)
+
+The alphabet is in byte order, so Postgres with `COLLATE "C"` on `issues.rank` (asked of task 74)
+sorts exactly as Go's `<` does. No key ends in `'0'`, so a gap exists below every key.
+
+```go
+const rankDigits = "0123456789abcdefghijklmnopqrstuvwxyz"
+
+const (
+	rankBase     = int64(len(rankDigits)) // 36
+	rankGrid     = 4                      // the two ends step on a four-digit grid
+	rankGridSize = rankBase * rankBase * rankBase * rankBase // 1,679,616 slots
+	rankMinGap   = 64                     // rankSpread's narrowest gap, in steps
+)
+
+func rankDigit(c byte) int64 { return int64(strings.IndexByte(rankDigits, c)) }
+
+// rankBetween returns k with lo < k < hi; lo "" is the top end, hi "" the bottom.
+// ok is false past hubapi.RankMaxLen (the caller rebalances) or when lo >= hi.
+func rankBetween(lo, hi string) (string, bool) {
+	out := make([]byte, 0, hubapi.RankMaxLen)
+	bound := hi != "" // out is still a prefix of hi
+	for i := 0; len(out) < hubapi.RankMaxLen; i++ {
+		l, h := int64(0), rankBase
+		if i < len(lo) {
+			l = rankDigit(lo[i])
+		}
+		if bound {
+			if i >= len(hi) {
+				return "", false // lo >= hi
+			}
+			h = rankDigit(hi[i])
+		}
+		switch {
+		case h-l > 1:
+			return string(append(out, rankDigits[(l+h)/2])), true
+		case h-l == 1:
+			bound = false // out < hi from here on
+		case h < l:
+			return "", false
+		}
+		out = append(out, rankDigits[l])
+	}
+	return "", false
+}
+```
