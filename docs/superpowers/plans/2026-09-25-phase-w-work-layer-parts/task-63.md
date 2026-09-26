@@ -203,10 +203,10 @@ export function mentionsOfMe(s: DeskSnapshot): Item[] {
   if (s.me === null) return out;
   for (const h of s.heads.values()) {
     for (const c of s.comments(h.id)) {
-      if (c.resolvedAt !== null || c.author.id === s.me || !c.mentions.includes(s.me)) continue;
+      if (c.resolvedAt !== null || c.erasedAt !== null || c.createdBy.id === s.me || !c.mentions.includes(s.me)) continue;
       const at = sinceOf(s, s.me, (k, d) => k === "comment.mentioned" && d.commentId === c.id, c.createdAt);
       out.push(item(s, `${h.id}/${c.id}`, { need: "issue.mention", issueId: h.id, alias: h.alias, ...at,
-        mention: { commentId: c.id, author: c.author, firstLine: c.body.text.split("\n")[0].slice(0, 120) } }, h));
+        mention: { commentId: c.id, author: c.createdBy, firstLine: c.body.text.split("\n")[0].slice(0, 120) } }, h));
     }
   }
   return out;
@@ -237,5 +237,79 @@ export const NEED_SOURCES: Readonly<Record<NeedKind, (s: DeskSnapshot) => Item[]
 An urgent triage issue of mine is one row, the triage row: the triage row asks for the act that
 unblocks it, and two rows for one issue would count one need twice. The mention's subject in SW.5
 is the mentioned user (`task-20.md:337`, `subject: WORK_IDS.dylan`), so `sinceOf` looks it up
-under `s.me`. `IssueComment.body` is `AuthoredText` (`task-37.md:154-157`); its first line is shown
-as the author wrote it, never summarised.
+under `s.me`. `IssueComment.body` is `AuthoredText` and its writer is `createdBy`
+(`task-37.md:154-158`); the first line is shown as the author wrote it, never summarised, and an
+erased comment makes no row.
+
+#### Interfaces — complete: `desktop/src/components/desk/rows/IssueNeedRow.tsx`
+
+```tsx
+// desktop/src/components/desk/rows/IssueNeedRow.tsx — one NEEDS YOU issue row (task 63).
+// Answers in place (AX §5). The age is the only thing that ticks, on the one heartbeat.
+import { useState } from "react";
+import { useHeartbeat } from "../../../hooks/heartbeat";
+import { formatElapsed, formatWaiting } from "../../../lib/time";
+import { MarkGlyph } from "../../glyphs/MarkGlyph";
+import type { DeskItem } from "../deskModel";
+import { needWords, type NeedPayload } from "../../../work/desk/needs";
+
+export interface NeedVerbs {
+  /** Resolves "applied" or rejects with the Hub's message (task 56's settled, as task 65's `stood`). */
+  accept(issueId: string): Promise<string>;              // the state it went to, "backlog"
+  snooze(issueId: string): Promise<string>;              // the morning it wakes, "09:00"
+}
+
+type Answer = { kind: "idle" } | { kind: "sending" } | { kind: "done"; words: string } | { kind: "refused"; words: string };
+
+function Age({ since }: { since: string }): JSX.Element {
+  const now = useHeartbeat();
+  return <span className="dn-age">{formatWaiting(since, now)}</span>;
+}
+function Started({ at }: { at: string }): JSX.Element {
+  const now = useHeartbeat();
+  return <span className="dn-age">{` ${formatElapsed(at, now)} ago`}</span>;
+}
+
+export function IssueNeedRow({ item, verbs }: { item: DeskItem<NeedPayload>; verbs: NeedVerbs }): JSX.Element {
+  const p = item.payload;
+  const [answer, setAnswer] = useState<Answer>({ kind: "idle" });
+  const act = (run: () => Promise<string>, done: (w: string) => string) => {
+    setAnswer({ kind: "sending" });
+    run().then((w) => setAnswer({ kind: "done", words: done(w) }),
+      (e: unknown) => setAnswer({ kind: "refused", words: e instanceof Error ? e.message : String(e) }));
+  };
+  return (
+    <div className="dn" data-need={p.need}>
+      <div className="dn-line">
+        {p.need === "issue.urgent_mine" ? <MarkGlyph kind="needs_you" /> : null}
+        <span className="dn-alias">{p.alias}</span>
+        <span className="dn-title">{p.title}</span>
+        <span className={p.need === "issue.urgent_mine" ? "dn-what dn-urgent" : "dn-what"}>
+          {needWords(p)}{p.blocked ? <Started at={p.blocked.startedAt} /> : null}
+        </span>
+        <span className="dn-sp" />
+        <Age since={p.since} />
+      </div>
+      {p.mention ? <p className="dn-quote">{p.mention.firstLine}</p> : null}
+      <p className="dn-why">{item.rankReason}</p>
+      <p className="dn-why">{item.ifNothing}</p>
+      {p.need === "issue.triage_mine" ? (
+        <div className="dn-acts">
+          {answer.kind === "done" || answer.kind === "refused"
+            ? <span className="dn-said" role="status">{answer.words}</span>
+            : (<>
+              <button type="button" disabled={answer.kind === "sending"}
+                onClick={() => act(() => verbs.accept(p.issueId), (s) => `Accepted · ${s.replace("_", " ")}`)}>Accept <kbd>1</kbd></button>
+              <button type="button" disabled={answer.kind === "sending"}
+                onClick={() => act(() => verbs.snooze(p.issueId), (t) => `Snoozed until ${t}`)}>Snooze <kbd>4</kbd></button>
+            </>)}
+        </div>) : null}
+    </div>
+  );
+}
+```
+
+The row shows no count, bar or `%`. *"Accepted · backlog"* names the state the Hub took, read from
+`acceptTarget`, and the row keeps its place (decision 8). `--need` colours only the urgent row's
+glyph and its words (05 §4.4 rule 2); task 29's `MarkGlyph` draws the shape, so urgency is never
+colour alone.
