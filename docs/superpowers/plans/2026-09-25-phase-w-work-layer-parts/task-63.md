@@ -57,3 +57,39 @@ nothing, and how long it has waited.
    in the snapshot, so a re-render never restarts it; `formatWaiting(since, useHeartbeat())` prints
    it. `issue.updated`'s `fields` are wire names (`task-13.md:150`), matched as `assignee` and
    `priority` (**UNVERIFIED** against task 11's field list, gap 3).
+6. **Words carry the rank and the consequence, as rules.** `rankReason` and `ifNothing` are
+   sentences built from the snapshot's facts (L-114), never a time: *"if you do nothing: EP-160
+   stays in triage and nothing starts on it"*. No `~`, no *"will"* with a time, no cost of waiting
+   in money (no gateway in W1; the wait is shown as time, `OD-27`).
+7. **Answer in place, through the verbs that exist.** A triage row's *Accept* sends task 42's
+   `{kind: "setState", move: handMove(acceptTarget(policy))}` and *Snooze* task 42's `{kind:
+   "snooze", until: nextMorning(now, zone)}`, both through `mutate`; a refusal comes back through
+   `settled` and the row says the Hub's words in place (task 56). `I` assigns to me (task 53's
+   `issue.assignMe`) and `Enter` opens the issue view beside the Desk (`open.issue`). The Desk does
+   not navigate away (AX §5). The team policy is read as task 42's mount reads it (**UNVERIFIED**,
+   gap 4); with none, `acceptTarget(null)` is `backlog` (`task-42.md:179-182`).
+8. **An answered row stays, answered.** After *Accept* the row reads *"Accepted · backlog"* and
+   keeps its place; the next visit drops it (task 62's decision 3). Nothing slides out.
+9. **Two additive deltas on task 62's files, no rename.** `DeskItem` gains `keyScopes?: readonly
+   KeyScope[]`, which `DeskSection` joins after `issueRow` on the wrapper, so `1` and `4` reach a
+   triage row through task 53's `triage` scope; `DeskSnapshot` gains `comments(issueId)`, read once
+   per issue at entry from the reader's `comments` (task 51's sixth read). `DeskInputs` gains
+   nothing: `events` is task 62's optional input, which `liveDeskInputs` now fills from task 55's
+   feed.
+10. **The snapshot moves onto the replica by installing it, not by a new read.** Task 62's snapshot
+    already reads `workSource()` (task 40's seam). Task 55 installs its Replica there
+    (`task-40.md:162`), so once it boots, the Desk reads the replica with no change here. This task
+    adds only the feed: `liveDeskInputs.events = () => replicaEvents()` (gap 2).
+
+**Files** (the skeleton's file map covers `desk/*` for tasks 62-65, `:311`; the scope names
+`rows/IssueNeedRow.tsx` and `work/desk/needs.ts`, `tasks-61-80.md:103-105`):
+
+- `desktop/src/work/desk/needs.ts` — the four selectors, `since`, the words (new)
+- `desktop/src/work/desk/needs.test.ts` — the pure tests (new)
+- `desktop/src/components/desk/rows/IssueNeedRow.tsx` — the row and its answers (new)
+- `desktop/src/components/desk/rows/IssueNeedRow.test.tsx` — the surface tests (new)
+- `desktop/src/components/desk/deskRows.tsx` ⚑ — task 63's block, first after the head (modified)
+- `desktop/src/components/desk/deskModel.ts` ⚑ — `keyScopes?` and `comments` (modified, additive)
+- `desktop/src/components/desk/DeskSection.tsx` ⚑ — the wrapper joins `keyScopes` (modified)
+- `desktop/src/components/desk/Desk.tsx` ⚑ — `events` in `liveDeskInputs`; `useDeskIssueVerbs()` (modified)
+- `desktop/src/components/desk/desk.css` ⚑ — `.dn-*`, appended (modified)
