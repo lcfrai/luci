@@ -85,7 +85,9 @@ plain text in both the `unlinked` and `linked` states of Hub task 42's popover, 
 at Share, so Share, not a launch, makes the project team (task 21's declared ruling). When
 `shareProject` resolves `linked`, the popover calls `makeTeamProject(projectId)`, which is task
 21's `POST /v1/projects/{projectId}/team-mode` over Hub route 87. It returns `Promise<void>` and
-the popover re-reads the link, so `desktop/src/store/types.ts` does not change. Two refusals are
+the popover re-reads the link, so `desktop/src/store/types.ts` does not change. The re-read sees
+`team` at once because task 21's `MakeTeam` invalidates the S-LINK cache on success (b01 round 2,
+re-review I-2); without that it would read the cached `solo` for 5 minutes. Two refusals are
 said, not hidden, and neither undoes the share: the Hub link stands and the project stays `solo`:
 - 403 `required: "admin"` (the sharer is a member of an existing team): *"Ask a team admin to
   turn on team agents."*

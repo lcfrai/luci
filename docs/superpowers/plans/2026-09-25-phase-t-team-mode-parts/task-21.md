@@ -71,8 +71,8 @@ session on a team project). The desktop's `types.ts` gains the field in task 52,
   built); `backend.ReadyWaiter` (phase 8 task 22, planned); `hubclient.TokenSource` (built) and
   task 08's `hubclient.Team` methods `CreateDelegation`, `RenewDelegation`, `RevokeDelegation`,
   `SetProjectMode` (task 08, this plan); `hubapi.Delegation`, `hubapi.CreateDelegationRequest`,
-  `hubapi.Project.Mode` (task 03); Hub task 35's `hublink.Resolver` (S-LINK, planned, **UNVERIFIED
-  until merge**);
+  `hubapi.Project.Mode` (task 03); Hub task 35's `hublink.Resolver`, its `Project` and
+  `Invalidate` (S-LINK, planned, **UNVERIFIED until merge**);
   `model.Class` (task 09); Fleet's session routes below (served by task 20 over task 12's mux).
 - Required by: task 33 (the scripted run launches through it), task 52 (team read models reuse its
   client and token), task 55 (the Orchestrator panel attaches through it), task 64 (moving lanes).
@@ -384,6 +384,16 @@ The Hub's own answers are relayed with their code (`a.relayHub`, as the launch h
 The route needs the Hub, not Fleet, so it is served whenever `Deps.Hub` is set, and
 `hubTeamProjects` is built from `Deps.Hub` and task 35's `Resolver` alone.
 
+**The S-LINK cache (b01 round 2, re-review I-2).** `Resolver.Project` caches a local project's
+`Link` for 5 minutes (hub `task-35.md:73-77`), and resolving the local id for this route, or
+Share's `shareProject` just before it, warms that cache with `mode: "solo"`. So
+`hubTeamProjects.MakeTeam`, on the Hub's 200 and before it returns, calls
+`Resolver.Invalidate(localProjectID)` (`task-35.md:87-89`); the next `IsTeam` asks route 13
+again and reads `team` (task 06's `store/projects.go` change makes route 13 carry it). On an
+error it invalidates nothing. A teammate's change on another laptop still arrives the Hub's
+way: `project.mode_set` is a `project.*` kind in the member feed (task 01 §8, `yes`), and Hub
+task 36's subscriber calls `Invalidate("")` on it.
+
 **Ruling (declared; not the owner's words): the product caller is Share, not the first launch.**
 The review offered both. A launch that made a project team would do it without the consent
 line that §9.5 puts at Share, so `Launch` never calls `MakeTeam`, and a test pins it. Task 56's
@@ -427,11 +437,15 @@ every owner, the Orchestrator task 20 would create.
 | `TestLaunchNeverMakesTeam` (b01) | a launch on a solo project goes to `a.backend.Create`, and the `TeamProjects` fake records no `MakeTeam` call | the first launch turns the project team, skipping Share's consent line |
 
 `teammode_test.go` (b01) runs the route over `hubclient.NewFake()` (task 08's `SetProjectMode` with
-the route's rules) and a scripted S-LINK resolver:
+the route's rules) and the **real** `hublink.Resolver` (`hublink.New(fake, remotes, log)`, Hub
+task 35) over a scripted `Remotes` that gives the local project the fake project's repo key, so the
+5-minute cache is the production one (b01 round 2, re-review I-2). `TestTeamModeNeedsALink` alone
+scripts `Remotes` to return no key, which is how S-LINK answers `unlinked`:
 
 | Test | Asserts | Mutant it kills |
 |---|---|---|
-| `TestTeamModeRouteMakesTeam` | linked project, the fake's admin → 200, `project.mode == "team"`; then `IsTeam` → true, and the next launch goes through `TeamLauncher` | `MakeTeam` a no-op that answers 200; `IsTeam` reading anything but `Mode` |
+| `TestTeamModeRouteMakesTeam` | linked project; `IsTeam` → false first, which warms the `Resolver`'s cache with `solo`; the fake's admin → 200, `project.mode == "team"`; then, at once and with no clock advance, `IsTeam` → true, and the next launch goes through `TeamLauncher` | `MakeTeam` a no-op that answers 200; `IsTeam` reading anything but `Mode`; `MakeTeam` not calling `Resolver.Invalidate`, so a launch right after Share goes solo for 5 minutes (re-review I-2) |
+| `TestTeamModeFailureKeepsTheCache` (b01 round 2) | the gate shut, route → 503; the count of `"ProjectForRepo"` in `fake.Calls()` (`fake.go:130`) does not rise on the next `IsTeam` | `Invalidate` called before the Hub answers, so a refused write still costs a Hub round trip per launch |
 | `TestTeamModeRelaysTheGate` | after `fake.ShutTeamModeGate()` → 503 with the Hub's `details.reason = "audit_not_streaming"`; `IsTeam` still false | the Hub's 503 rewritten as `backend_unavailable`, so the cockpit says "Fleet is down" |
 | `TestTeamModeRelaysAdminOnly` | the fake's member view → 403 `required: "admin"` | the control plane pre-checking a role it cannot know |
 | `TestTeamModeNeedsALink` | S-LINK `unlinked` → 409 `details.reason = "not_shared"`; the fake saw no call | a Hub call with the local id, which is a path hash no Hub record names |
