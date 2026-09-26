@@ -381,3 +381,64 @@ gains the same `groupId` check with a team or org group.
 `PATCH` label paths (`task-11.md:372-374`) and in the template routes → 422
 `exclusive_label_group`, `details.groupId`, `details.labels` comma-joined. Task 74's trigger is the
 second guard; its refusal maps to the same answer.
+
+#### The matrix rows (`server/work_matrix_rows_integration_test.go` ⚑), complete
+
+H16b's fixture gains `ChildIssueID` (EP-143 in P, made by Linus), `TemplateID` (a team template
+made by Grace) and `GroupID` (a team group made by Grace). `worg` is the org-admin shape, task 07's
+`werase` cells with a chosen success status:
+
+```go
+func worg(p, method, path string, ok int, body func(*fixture) any) workRow {
+	return workRow{p, row{name: p, method: method, path: path, body: body, want: [6]int{403, 403, 403, ok, 403, 403}}}
+}
+
+	"78": {
+		wwrite("PUT /v1/issues/{issueId}/parent", "PUT", "/v1/issues/{ChildIssueID}/parent", 200, "issue_not_found",
+			func(f *fixture) any { return map[string]any{"parentId": f.IssueID} }),
+		wread("GET /v1/issues/{issueId}/children", "/v1/issues/{IssueID}/children", "issue_not_found"),
+		wadmin("POST /v1/teams/{teamId}/templates", "POST", "/v1/teams/{TeamID}/templates", 201, "team_not_found",
+			func(*fixture) any { return map[string]any{"name": "Bug", "title": "", "description": h("")} }),
+		worg("POST /v1/org/templates", "POST", "/v1/org/templates", 201,
+			func(*fixture) any { return map[string]any{"name": "Incident", "title": "", "description": h("")} }),
+		wread("GET /v1/teams/{teamId}/templates", "/v1/teams/{TeamID}/templates", "team_not_found"),
+		wadmin("PATCH /v1/templates/{templateId}", "PATCH", "/v1/templates/{TemplateID}", 200, "template_not_found",
+			func(*fixture) any { return map[string]any{"name": "Bug report"} }),
+		wadmin("POST /v1/templates/{templateId}/archive", "POST", "/v1/templates/{TemplateID}/archive", 200, "template_not_found", empty),
+		wadmin("POST /v1/teams/{teamId}/label-groups", "POST", "/v1/teams/{TeamID}/label-groups", 201, "team_not_found",
+			func(*fixture) any { return map[string]any{"name": "Type", "exclusive": true} }),
+		wread("GET /v1/teams/{teamId}/label-groups", "/v1/teams/{TeamID}/label-groups", "team_not_found"),
+		worg("POST /v1/org/label-groups", "POST", "/v1/org/label-groups", 201,
+			func(*fixture) any { return map[string]any{"name": "Area", "exclusive": false} }),
+		worg("POST /v1/org/labels", "POST", "/v1/org/labels", 201,
+			func(*fixture) any { return map[string]any{"name": "security", "color": "fail"} }),
+	},
+```
+
+In `worg`, `colX` (another org's person) is 403 because their token names another org, the
+`werase` precedent. **The sync principal's** column is task 150's; its database half is
+`TestTheSyncActorSetsNoParent`.
+
+#### Tests to write first, each with the mutant it kills
+
+`hubapi/work_plan_rollup_test.go` (unit) and the three integration files (`//go:build
+integration`). EP-142 is a container parent serving criterion `done:1` of P's project brief;
+EP-143 and EP-144 are its children, each serving `done:1`, landed and proven through task 10's
+route. Each test is seen failing before its code.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestRollupProofIsTheWeakest` (unit) | `[proven, proven]` → `proven`; `[proven, proven_self_attested]` → self-attested; `[proven, not_proven]` → `not_proven`; `[no_criteria]` → `no_criteria`; `[]` → `""` | the strongest word winning; an empty roll-up reading proven |
+| `TestALoopIsRefusedTwice` | A → B, then B → A → 422 `parent_loop` at the route; as `hub_app` directly, the same `UPDATE` → the trigger's refusal | the route check alone |
+| `TestAParentWaitsForItsChildren` | EP-142 has its own lane, lands and records evidence for `done:1` while EP-144 is `todo` → 200, `state: landed`, `proof: proven`; EP-144 closes → EP-142 `done`, actor the closer | children ignored |
+| `TestTheLastChildClosesTheParentAsTheCloser` | container EP-142; EP-143 `done`; Linus's evidence closes EP-144 → EP-142 `done`, cause `children_closed`, `actor` Linus, `proof` the weakest child's; `issue.rolled_up.childId` EP-144 | auto-close on children alone; `actor: null`; the parent's own proof invented |
+| `TestTheRollupNeedsSettledCriteria` | as the last test, but a later `contested` record for `done:1` → EP-142 stays `todo` after EP-144 closes; then Linus records a new `settled` record through `POST /v1/evidence` → EP-142 `done`, cause `children_closed`, actor Linus (the recorder) | auto-close with a criterion open; a parent stranded when its criterion settles after the last child |
+| `TestAbandonedChildrenDoNotClose` | both children `cancelled` → EP-142 unchanged | a parent of cancelled work reading done |
+| `TestAHandDoneIsRefusedWithOpenChildren` | Grace hand-sets EP-142 `done` with EP-144 open → 409 `children_open`, `details.open: 1`, nothing written | a hand close around the rule |
+| `TestACrossProjectParentIsRefused` | a parent in project Q → 422 `parent_other_project` | any issue as parent |
+| `TestATemplateEditLeavesIssuesAlone` | create an issue from template T's fields (the client prefill); `PATCH` T's title and labels → the issue's revision and labels byte-equal | live-linked templates |
+| `TestAnOrgTemplateNamesNoCriterion` | `POST /v1/org/templates` with `serves` → 422 naming `serves`; with `estimate` → 422; a team template with `serves` of another team's brief → 422 naming `serves[0]` | org templates reaching project content |
+| `TestOrgLabelsAreOrgAdminsOnly` | Grace (team admin) `POST /v1/org/labels` → 403; Ada (org admin, in no team) → 201, then `GET /v1/projects/{P}/issues` as Ada → 404 | org admin gets project reads; any admin writes org labels |
+| `TestAnExclusivePairIsRefused` | group *Type* exclusive with `bug`, `feature`; `PATCH labels: [bug, feature]` → 422 `exclusive_label_group`, `details.labels: "bug,feature"`; as `hub_app`, the same two `issue_labels` rows → the trigger's refusal; a non-exclusive group allows both | the last label winning silently |
+| `TestEachWriteHasItsEvents` | each accepted write above writes exactly its listed kinds, the org ones with `teamId` and `projectId` null and readable by Vera (a member of the org) through `/v1/changes` | a silent write; an org event invisible to the org; a template name in `data` |
+| `TestTheSyncActorSetsNoParent` | `hub.work_actor_kind = 'integration'`, `UPDATE issue_heads SET parent_id` → `42501` | the database half of the sync rule |
