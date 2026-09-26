@@ -145,3 +145,77 @@ func (tx *Tx) principalVia() string
 
 This changes the bytes of no existing event: a person's, a Fleet and a janitor transaction have no
 app or key, so `principalVia` is `""` and `Data` is untouched. `Data` values stay strings.
+
+#### The table — `work_sentinel_cursors`, as this task requires it of task 145 (complete)
+
+```sql
+-- task 167: one row per org per stream; the exporter's only write (decision 4).
+CREATE TABLE work_sentinel_cursors (
+  org_id      text        NOT NULL REFERENCES orgs (id),
+  stream      text        NOT NULL CHECK (stream ~ '^Custom-[A-Za-z0-9_]{1,60}$'),
+  seq         bigint      NOT NULL CHECK (seq >= 0),               -- the last seq acknowledged
+  hash        bytea       NOT NULL CHECK (octet_length(hash) = 32), -- that row's hash; 32 zero bytes at 0
+  updated_at  timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (org_id, stream)
+);
+ALTER TABLE work_sentinel_cursors ENABLE ROW LEVEL SECURITY;
+ALTER TABLE work_sentinel_cursors FORCE ROW LEVEL SECURITY;
+CREATE POLICY work_sentinel_cursors_org ON work_sentinel_cursors
+  USING (org_id = current_setting('hub.org_id', true))
+  WITH CHECK (org_id = current_setting('hub.org_id', true));
+GRANT SELECT, INSERT, UPDATE ON work_sentinel_cursors TO hub_app; -- no DELETE: a reset is an owner act
+```
+
+`Custom-` is the prefix Azure Monitor gives a data collection rule's custom input stream
+(**UNVERIFIED** against the live service). The cursor names a stream as well as an org, so a
+second stream for the same org starts at 0 and replays the whole chain once, by design.
+
+#### The store — `store/sentinel.go` (signatures complete)
+
+```go
+package store
+
+// SentinelRow is one audit_events row as the exporter needs it.
+type SentinelRow struct {
+	Env       hubapi.AuditEnvelope // parsed from canonical (hubapi.ParseAuditEnvelope, H02 D3)
+	Canonical []byte
+	Hash      [32]byte
+	PrevHash  [32]byte
+}
+
+// SentinelCursor reads the org's cursor for stream, or {0, 32 zero bytes}.
+func (tx *Tx) SentinelCursor(ctx context.Context, stream string) (seq int64, hash [32]byte, err error)
+
+// AuditAfter reads up to limit rows with seq > after, in seq order, from
+// audit_events under the transaction's hub.org_id: every kind, feed or not.
+func (tx *Tx) AuditAfter(ctx context.Context, after int64, limit int) ([]SentinelRow, error)
+
+// AdvanceSentinel upserts the cursor to (seq, hash) only if seq is greater
+// than the stored one; a lower or equal seq is a no-op, never a rewind.
+func (tx *Tx) AdvanceSentinel(ctx context.Context, stream string, seq int64, hash [32]byte) error
+```
+
+Each call runs in its own short janitor transaction for one org (Hub task 24's pattern: the
+Hub's process, `hub.org_id` set, no principal), so no transaction is held open across a post.
+
+#### Configuration — `cmd/hub/config.go` ⚑ (appended to Hub task 08's table)
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `PANACEA_APP_HUB_SENTINEL` | unset | A JSON list `[{"tenantId","endpoint","dcr","stream"}]`. Unset or `[]`: no exporter runs. `tenantId` is an enrolled tenant's GUID (lowercase), `endpoint` an `https://` data collection endpoint with no path, query or user info, `dcr` the rule's immutable id (`dcr-` then 32 hex), `stream` a `Custom-…` name. One entry per tenant; a second for the same tenant, an unknown tenant, or any other key refuses to start. No secret: decision 9 |
+
+```go
+// In Config (H08:82):
+	Sentinel []SentinelTarget
+
+type SentinelTarget struct {
+	TenantID string `json:"tenantId"`
+	Endpoint string `json:"endpoint"`
+	DCR      string `json:"dcr"`
+	Stream   string `json:"stream"`
+}
+
+// parseSentinel decodes strictly (DisallowUnknownFields) and checks every
+// field; an error names the entry's index and field, never the value.
+func parseSentinel(raw string, enrolled []Tenant) ([]SentinelTarget, error)
+```
