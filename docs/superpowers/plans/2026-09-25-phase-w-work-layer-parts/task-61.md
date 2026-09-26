@@ -197,7 +197,7 @@ export function firstSign(
  *  `discard_only` here; the rest are the steps between presses. */
 export type StartPhase =
   | { kind: "sending" }
-  | { kind: "undoable"; result: StartResult }
+  | { kind: "undoable"; result: StartResult; note?: string }   // note: why the last undo did not
   | { kind: "asking"; result: StartResult }            // an undo or a discard is in flight
   | { kind: "discard_only"; result: StartResult; note: string }
   | { kind: "confirming"; result: StartResult; paths: readonly string[]; token: string }
@@ -209,4 +209,146 @@ export interface StartEntry { issueId: string; phase: StartPhase }
 
 `exited` is the record's own word and its `exitReason` verbatim (`store/types.ts:149-151`); an
 exit is not interpreted here (FAILED is the Desk's, task 64).
+
+#### Interfaces — complete: `useStart.ts`, part 2: the store and the two hooks
+
+```ts
+export interface StartDeps {
+  work: Pick<WorkClient, "start" | "undoStart" | "discardStart">;
+  replica: Pick<ReplicaWrites, "mutate">;
+  me: User;
+  /** The cockpit store's isHead branch name for a project, or null (decision 9). */
+  headBranchOf(projectId: string): string | null;
+  /** Test seam; makeId("rq") by default. */
+  newRequestId?: () => string;
+}
+
+export interface StartStore {
+  get(issueId: string): StartEntry | undefined;
+  subscribe(listener: () => void): () => void;
+  /** Shift+R and the bulk bar. Resolves when the chip has its next phase. */
+  start(head: IssueHead): Promise<void>;
+  /** Undo Start. A 409 first_write turns the entry to discard_only (decision 5). */
+  undo(issueId: string): Promise<void>;
+  /** Stop and discard: in discard_only it asks; in confirming it sends the token (decision 6). */
+  discard(issueId: string): Promise<void>;
+  /** The chip calls this 4 s after an undone, discarded or said phase. */
+  clear(issueId: string): void;
+}
+
+export function createStartStore(deps: StartDeps): StartStore;
+
+/** The one store per window, built by WorkLens on mount (the replica and the client are its). */
+export function setStartStore(store: StartStore | null): void;
+/** The row's entry, or undefined; re-renders only that row (useSyncExternalStore). */
+export function useStartEntry(issueId: string): StartEntry | undefined;
+/** The store's verbs, for the key, the chip and the bulk bar. Throws if no store is set. */
+export function useStart(): Pick<StartStore, "start" | "undo" | "discard" | "clear">;
+```
+
+#### Reference implementation: `createStartStore` (the tests are the contract; this is one way to pass them)
+
+```ts
+export function createStartStore(deps: StartDeps): StartStore {
+  const entries = new Map<string, StartEntry>();
+  const listeners = new Set<() => void>();
+  const put = (issueId: string, phase: StartPhase): void => {
+    entries.set(issueId, { issueId, phase });
+    for (const l of listeners) l();
+  };
+  const words = (e: unknown): string =>
+    e instanceof ApiError ? workProblem(e).message : "The control plane did not answer.";
+
+  async function start(head: IssueHead): Promise<void> {
+    if (entries.get(head.id)?.phase.kind === "sending") return;          // a double press is one Start
+    const rule = startRule(head, deps.me);
+    const said = ruleWords(rule, head);
+    if (said !== null) return put(head.id, { kind: "said", words: said });
+    const branch = deps.headBranchOf(head.projectId);
+    if (branch === null) return put(head.id, { kind: "said", words: "No branch is checked out for this project yet." });
+    if (rule.kind !== "start" && rule.kind !== "assign_then_start") return;
+    put(head.id, { kind: "sending" });
+    let assign: ReturnType<ReplicaWrites["mutate"]> | null = null;
+    if (rule.kind === "assign_then_start") {
+      assign = deps.replica.mutate({ kind: "setAssignee", issueId: head.id, assignee: deps.me });
+      const settled = await assign.settled;
+      if (settled !== "applied") return put(head.id, { kind: "said", words: settled.message });
+    }
+    try {
+      const result = await deps.work.start({
+        projectId: head.projectId, issueId: head.id, branch, accept: rule.accept,
+        requestId: (deps.newRequestId ?? (() => makeId("rq")))(),
+      });
+      put(head.id, { kind: "undoable", result });
+    } catch (e) {
+      assign?.undo();                                                    // decision 4
+      put(head.id, { kind: "said", words: words(e) });
+    }
+  }
+```
+
+```ts
+  async function undo(issueId: string): Promise<void> {
+    const cur = entries.get(issueId)?.phase;
+    if (cur?.kind !== "undoable") return;
+    put(issueId, { kind: "asking", result: cur.result });
+    try {
+      const r = await deps.work.undoStart(cur.result.sessionId);
+      put(issueId, { kind: "undone", stateRestored: r.stateRestored });
+    } catch (e) {
+      const p = e instanceof ApiError ? workProblem(e) : null;
+      if (p?.kind === "first_write")                                      // decision 5: no retry
+        return put(issueId, { kind: "discard_only", result: cur.result, note: "Too late to undo: the agent changed a file." });
+      put(issueId, { kind: "undoable", result: cur.result, note: words(e) });   // still offered
+    }
+  }
+
+  async function discard(issueId: string): Promise<void> {
+    const cur = entries.get(issueId)?.phase;
+    if (cur?.kind !== "discard_only" && cur?.kind !== "confirming") return;
+    const token = cur.kind === "confirming" ? cur.token : "";            // the first press only asks
+    put(issueId, { kind: "asking", result: cur.result });
+    try {
+      const r = await deps.work.discardStart(cur.result.sessionId, token);
+      put(issueId, { kind: "discarded", stateRestored: r.stateRestored });
+    } catch (e) {
+      const p = e instanceof ApiError ? workProblem(e) : null;
+      if (p?.kind === "confirm") {                                        // a first ask, or a stale token
+        const paths = (p.details.paths ?? "").split("\n").filter((s) => s !== "");
+        return put(issueId, { kind: "confirming", result: cur.result, paths, token: p.details.confirm ?? "" });
+      }
+      put(issueId, { kind: "discard_only", result: cur.result, note: words(e) });
+    }
+  }
+
+  return {
+    get: (id) => entries.get(id),
+    subscribe: (l) => { listeners.add(l); return () => { listeners.delete(l); }; },
+    start, undo, discard,
+    clear: (id) => { if (entries.delete(id)) for (const l of listeners) l(); },
+  };
+}
+
+let current: StartStore | null = null;
+export function setStartStore(store: StartStore | null): void { current = store; }
+
+const none = (): (() => void) => () => {};
+export function useStartEntry(issueId: string): StartEntry | undefined {
+  const s = current;
+  return useSyncExternalStore(s ? s.subscribe : none, () => s?.get(issueId), () => s?.get(issueId));
+}
+
+export function useStart(): Pick<StartStore, "start" | "undo" | "discard" | "clear"> {
+  if (current === null) throw new Error("useStart: no StartStore; WorkLens sets it on mount");
+  return current;
+}
+```
+
+`get` returns the same `StartEntry` object until `put` replaces it, so `useSyncExternalStore`'s
+snapshot is stable between changes and a row re-renders only when its own entry changes. An undo
+that fails for any reason but `first_write` (the control plane down, `404 start_not_found` after a
+restart) keeps *Undo Start* offered with the server's words beneath it: the words are the
+control plane's, never a guess, and the person can press again or use Develop's session verbs.
+`"The control plane did not answer."` is shown only for a rejection that is not an `ApiError`,
+which task 37's client never raises (`task-37.md:317`); it is a floor, not a path.
 
