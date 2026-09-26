@@ -147,6 +147,14 @@ func moreWhenLimitCuts(t *testing.T, e Env) {
 			t.Errorf("seqs %v are not strictly increasing", seqs)
 		}
 	}
+	// A cursor past the head selects nothing (task-26.md:26, after < seq <= H)
+	// and next is the head: no events, no more, next below the cursor.
+	h, _ := strconv.ParseInt(head(t, e.Member), 10, 64)
+	past := strconv.FormatInt(h+1000, 10)
+	page := must(e.Member.Changes(bg, past, 10))(t)
+	if n, err := strconv.ParseInt(page.Next, 10, 64); len(page.Events) != 0 || page.More || err != nil || n < h || n >= h+1000 {
+		t.Errorf("Changes(%s) past the head %d = %d events, more %v, next %q; want none, false, the head", past, h, len(page.Events), page.More, page.Next)
+	}
 	for _, after := range []string{"-1", "abc", ""} {
 		wantErr(t, second(e.Member.Changes(bg, after, 10)), 400, hubapi.CodeBadRequest, "field", "after")
 	}

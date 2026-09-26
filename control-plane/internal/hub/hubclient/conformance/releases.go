@@ -277,6 +277,25 @@ func confirmIdempotent(t *testing.T, e Env) {
 			t.Errorf("a rollback's {} confirm = %+v, want confirmed with no run", got)
 		}
 	}
+	// A confirmed rollback re-confirmed with the deployment it holds is 200,
+	// unchanged; with one it does not hold, 409 release_state, nothing joined
+	// (task-24.md:35-36: only {} or the same deploymentId is a repeat).
+	d := newDeployment()
+	rd := reserve(t, e, e.Member, p.ID, rollbackOf(newPanacea(), newDeployment()))
+	must(e.Member.Confirm(bg, rd.ID, hubapi.ConfirmRequest{DeploymentID: sp(d)}))(t)
+	if got := must(e.Member.Confirm(bg, rd.ID, hubapi.ConfirmRequest{DeploymentID: sp(d)}))(t); len(got.Deployments) != 1 || got.Deployments[0].DeploymentID != d {
+		t.Errorf("a rollback re-confirmed with its own deployment = %+v, want the one join", got.Deployments)
+	}
+	for _, id := range []string{rb.ID, rd.ID} {
+		_, err := e.Member.Confirm(bg, id, hubapi.ConfirmRequest{DeploymentID: sp(newDeployment())})
+		wantErr(t, err, 409, hubapi.CodeReleaseState, "releaseId", id, "state", "confirmed")
+	}
+	if got := must(e.Member.Release(bg, rb.ID))(t); len(got.Deployments) != 0 {
+		t.Errorf("a refused re-confirm joined %+v", got.Deployments)
+	}
+	if n := count(since(t, e.Member, before), "release.deployment_joined", rd.ID); n != 1 {
+		t.Errorf("%d release.deployment_joined events for one deployment confirmed twice, want 1", n)
+	}
 }
 
 // a confirmed run named with another run → 409 release_state; a run's
