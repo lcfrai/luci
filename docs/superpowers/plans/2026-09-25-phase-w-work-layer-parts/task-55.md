@@ -623,3 +623,76 @@ it("applying issue.revised re-fetches the subject and never uses the event's dat
 The first `hub.hint.set("0")` counts as a change because the hint starts at `null`; the second
 identical `set` is not one. `Mock` is vitest's type. In the repeat case the fourth `changes` call
 is the one the test stubs; its page repeats seq 1, which the replica drops.
+
+```tsx
+it("useWork re-renders a component only when its selection changes", async () => {
+  const { hub, deps } = fakeHub();
+  hub.setHeads([makeIssueHead({ id: EP142, headRevision: 1 }), makeIssueHead({ id: WORK_IDS.ep150, headRevision: 1 })]);
+  const r = createReplica(deps);
+  setWorkSource(r);
+  await vi.waitFor(() => expect(r.status).toBe("ready"));
+  let renders = 0;
+  function Probe() { renders += 1; const n = useWork((x) => x.issue(EP142)?.revision.revision); return <i>{n}</i>; }
+  render(<Probe />);
+  const base = renders;
+  hub.setHeads(hub.heads().map((h) => (h.id === WORK_IDS.ep150 ? { ...h, headRevision: 2 } : h)));
+  hub.feed.push(ev(1, "issue.revised", WORK_IDS.ep150));
+  hub.hint.set("1");
+  await vi.waitFor(() => expect(r.get(WORK_IDS.ep150)?.revision.revision).toBe(2));
+  expect(renders).toBe(base);                                   // EP-150 moved; the probe reads EP-142
+  bump(hub, 3);
+  hub.feed.push(ev(2, "issue.revised", EP142));
+  hub.hint.set("2");
+  await screen.findByText("3");
+  expect(renders).toBe(base + 1);
+  setWorkSource(null);
+});
+// kills: whole-tree renders (a subscriber notified per transact re-rendering on every change).
+```
+
+`bump` sets every head's number, so the second step moves EP-150 too; only EP-142's change is
+in the probe's selection, and it re-renders once. `setWorkSource` is task 40's (`source.ts:163`).
+
+#### Tests to write first, part 2 — `desktop/src/work/replica/noPersistence.test.ts`
+
+```ts
+// The static half: the source of every Work module, read as text through Vite's glob.
+const SOURCES = {
+  ...import.meta.glob("/src/work/**/*.{ts,tsx}", { query: "?raw", import: "default", eager: true }),
+  ...import.meta.glob("/src/components/{work,issue,editor,desk}/**/*.{ts,tsx}", { query: "?raw", import: "default", eager: true }),
+} as Record<string, string>;
+const FORBIDDEN = /localStorage|sessionStorage|indexedDB|caches\.open|@tauri-apps\/plugin-fs|@tauri-apps\/plugin-store|\bwriteFile\b|\bwriteTextFile\b/;
+
+it("no Work module names a storage API", () => {
+  const files = Object.entries(SOURCES).filter(([p]) => !/\.test\.tsx?$/.test(p));
+  expect(files.length).toBeGreaterThan(5);                       // the glob matched real files
+  expect(files.filter(([, src]) => FORBIDDEN.test(src)).map(([p]) => p)).toEqual([]);
+});
+// kills: a disk cache added for a fast return (ADR-H1:467-474).
+
+// The runtime half: a full load and 100 events, with every write to storage watched.
+it("a full load and 100 events write no Work data anywhere", async () => {
+  const setItem = vi.spyOn(Storage.prototype, "setItem");
+  const idbOpen = vi.fn();
+  vi.stubGlobal("indexedDB", { open: idbOpen });
+  const { hub, deps } = fakeHub();
+  const r = createReplica(deps);
+  await vi.waitFor(() => expect(r.status).toBe("ready"));
+  for (let i = 1; i <= 100; i += 1) hub.feed.push(ev(i, i % 2 ? "issue.state" : "issue.revised", EP142));
+  hub.hint.set("100");
+  await vi.waitFor(() => expect(r.cursor).toBe("100"));
+  useCockpit.getState().setLens("work");                         // a persisted write, on purpose
+  expect(idbOpen).not.toHaveBeenCalled();
+  expect(new Set(setItem.mock.calls.map(([k]) => k))).toEqual(new Set([PERSIST_KEY]));
+  for (const [, value] of setItem.mock.calls) expect(value).not.toContain(EP142);
+  expect(Object.keys(partialize(useCockpit.getState())).sort()).toEqual([...PERSISTED_KEYS].sort());
+  vi.unstubAllGlobals();
+});
+// kills: a replica that writes through the store, a Work key added to partialize, and IndexedDB.
+```
+
+`PERSIST_KEY` is `store.ts`'s export (`:76`); `PERSISTED_KEYS` is `store.test.ts`'s list
+(`:410-417`), moved to a shared `test/persistedKeys.ts` so both tests read one list, which is
+the pattern `store.test.ts:335` relies on. The `setLens` line makes the store persist once, so
+the key-set assertion is not vacuous. The glob's `query: "?raw"` form is Vite 5's (**UNVERIFIED**
+against the repo's Vite version; the older `as: "raw"` form is the fallback).
