@@ -332,3 +332,65 @@ A`, 404 for `O N X` (the body is not read before the membership check). Task 94'
 gains `teams`: each person writes only their own (its row's columns stand). The bot endpoint is
 outside `/v1` and outside the matrix (`157:203-204`); its principal's reach is part 2's
 `TestTheBotCannotWriteAnythingElse`.
+
+#### Steps
+
+- [ ] **Step 1:** Confirm the sync base (rules H1, H2): task 157's `teams` package, endpoint and
+  step 6; task 81's `BuildDigest`, digest step and `last_digest_at`; task 94's settings write;
+  task 145's columns above (a difference is raised against 145); TM-07's route 70 store call and
+  TM-26's reply home (gap 3). Anything missing: this task waits.
+- [ ] **Step 2:** `digest_test.go` and `ask_test.go`; they fail to compile. Write `digest.go`,
+  `ask.go` and the `activity.go`/`post.go` deltas until part 1's eleven rows pass. Rerun task
+  157's pure rows unchanged.
+- [ ] **Step 3:** Part 2's rows; they fail. The endpoint branch and the store calls until the
+  endpoint rows pass; then the digest step and step 6 until the janitor rows pass.
+- [ ] **Step 4:** The TM-07 delta (`via`, the in-process caller) only once TM-07 has merged; until
+  then Step 3's ask rows wait and the task is not closed.
+- [ ] **Step 5:** The manifest's `personal` scope; the matrix rows; run the whole matrix.
+- [ ] **Step 6:** `git diff -- go.work control-plane/go.mod` shows nothing (standard library);
+  commit by pathspec.
+
+#### Acceptance
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/work
+go test ./control-plane/internal/hub/teams/ -race -count=1 -v \
+  -run '^Test(OneDigestPer15MinutesAcrossChannels|TeamsBeforeEmailInOneSweep|TeamsOffSendsNoCard|TheCardHoldsOnlyAliasCauseTitleLink|AUOnlyItemsHaveNoTitle|ATitleCannotBecomeALink|AskGoesToTheSendersOwnOrchestrator|SeveralProjectsAskWhich|ASubmitForAnotherProjectIsRefused|2001CharactersIsRefused|ReplyIsVerbatimAndLabelled)$' \
+  2>&1 | grep -c "^--- PASS"                                                                  # 11
+go test -tags integration ./control-plane/internal/hub/server/ -race -count=1 -v \
+  -run '^Test(AnUnsignedActivityTouchesNothing|TheFirstPersonalMessageLinksTheChat|TheAdminRouteStillRefusesDigest|AnAskWritesOneHumanMessage|TheBotCannotWriteAnythingElse|AnAskNeverBecomesAPeerMessage|TheReplyGoesToTheAskersChatOnly|AnUnansweredAskIsClosedAfter24h|TheDigestStepSendsOneChannel|IntakeInAPersonalChatIsRefused)$' \
+  2>&1 | grep -c "^--- PASS"                                                                  # 10, after TM-07 merges
+grep -n '"scopes"' integrations/teams-app/manifest.json                                         # ["team", "personal"]
+go list -deps ./control-plane/internal/hub/teams/ | grep -c 'jackc/pgx'                         # 0
+go test -tags integration ./control-plane/internal/hub/... -race -count=1                      # ok
+```
+
+#### What this task does NOT claim
+
+- **A Teams app in KPMG's tenant catalogue.** Publishing is a tenant admin's act; nothing here
+  uploads the package.
+- **A mobile check.** L-232 stays SKIP; the card is not tested in any Teams client.
+- **That the Orchestrator answers within any time**, or at all: decision 7's 24 h close says so.
+- **That the reply has a Hub home today.** TM-26's gap 5 (`T26:880-882`) is open; step 6's reply
+  read is written against whatever TM-07 decides (gap 3).
+- **That Teams stores data in Australia** for an *AU data only* project: decision 7 sends such a
+  project's reply as a link only, and titles are omitted from its digest items.
+
+**Parity rows served:** closes **L-207** jointly with task 157.
+
+#### Gaps found while writing this part
+
+1. **Task 143's `TeamsBinding`** has a required `teamId`; a person's digest chat belongs to no
+   team. This part makes `team_id` null only for `digest` (a task 145 requirement); task 143 decides
+   whether `digest` belongs in `TeamsBinding` at all or in a per-person record.
+2. **TM-07's route 70** takes the owner's desktop only (`T07:186`). The in-process Teams caller and
+   the `via` column are a TM-07 delta for Phase T's owner.
+3. **The human-origin reply has no Hub home** (TM-26's gap 5); step 6 cannot read it until TM-07
+   gives it one (a column on a turn row, or a record of its own).
+4. **TM-07's 2,000 is not said to be characters, bytes or code points** (`T07:187`); this part counts
+   code points and the ask asks TM-07 to state it.
+5. **Task 157's scope** (`157:64`) and this task's both need a File map row for `hub/teams/` and
+   `integrations/teams-app/`; the skeleton has none.
+6. **Task 157's bot is allowed three writes** (request, `RequestMessage`, a comment in a request's
+   thread, `157:43-46`); the scope's *"exactly two writes"* for the bot principal is wrong once
+   task 157's comment write counts. This part adds one, the human message, and no other.
