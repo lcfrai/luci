@@ -552,3 +552,45 @@ cursor, and a record of `Advance` calls), `recPoster` (scripted answers, the bod
 | `TestABrokenPrevHashStops` | row 12's `PrevHash` flipped: rows 1-11 posted, then `Run` returns `ErrChainBroken` naming `seq 12: prevHash`, the log has one error line, no post holds seq 12 or later | a forged chain exported, or a skip |
 | `TestAnEditedRowStops` | row 5's canonical altered after hashing: `ErrChainBroken`, `seq 5: hash` | an edit that keeps the links but changes a byte |
 | `TestTheRecordHasFifteenKeys` | for every Work event fixture of tasks 143-166 (`hubapi` test data, one per kind), the posted object's keys are exactly the fifteen and `Data` has no `reason`, `title`, `body`, `quote`, `email` or `text` key | a text field leaks |
+
+`recSleep` records each duration it is asked for, except `PollEvery`: the first poll sleep means
+the backlog is drained, so it cancels the run's context and records nothing. The lists above are
+therefore exact, and `Run` returns `context.Canceled` in every test that does not stop on an error.
+
+#### Tests to write first — the Hub half and the configuration
+
+`store/sentinel_integration_test.go` and `sentinel/export_integration_test.go`
+(`//go:build integration`, the Hub's test database, `storeSource` over it, `recPoster` per org):
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestOrgAsEventsNeverReachOrgBsStream` | orgs A and B, 20 events each, two exporters: A's poster holds only `OrgId` A and seqs 1-20, B's only B's | one global stream, or a reader missing `hub.org_id` |
+| `TestAuditOnlyKindsAreExported` | an `auth.forbidden` (a refused write) and a `blob.uploaded`: both posted | the feed read instead of the audit (decision 4) |
+| `TestExportingAppendsNoEvent` | a full run over 20 events: `audit_events` still holds 20 | an `audit.read` per batch, exported forever |
+| `TestTheCursorNeverRewinds` | `AdvanceSentinel` to 12, then to 9: the row reads 12 | a late ack rewinding the cursor, re-exporting a range |
+| `TestCursorsAreTheOrgsOwn` | as org B, `SentinelCursor` for A's stream reads `0`; `UPDATE work_sentinel_cursors` across orgs as `hub_app` → 0 rows | RLS missing on the new table |
+| `TestAnOwnerEditStopsTheExport` | as the owner, with the triggers disabled as H27's verify test does (hub tree `task-27.md:84`), alter one row's `canonical`: the next run stops with `ErrChainBroken` at that seq | a forged chain exported |
+
+`cmd/hub/config_test.go` ⚑, `parseSentinel` rows: unset and `[]` → no targets; one valid entry
+→ one target; an unknown key, a second entry for one tenant, a tenant not enrolled, `http://`, an
+endpoint with a path, `dcr` without `dcr-`, a `stream` without `Custom-` → each an error naming
+index and field and **not** the value (kills a config echoing an endpoint into a log).
+
+#### Wiring — `cmd/hub/serve.go` ⚑ (the added lines)
+
+```go
+// After the store opens and before the listener: one goroutine per target.
+// A stopped exporter is logged and stays stopped until restart (decision 5).
+for _, t := range cfg.Sentinel {
+	org, _ := st.OrgForTenant(ctx, t.TenantID) // enrolled: checked by parseSentinel
+	tok := store.EntraToken(cfg.Workload, t.TenantID, sentinel.MonitorScope, httpClient, time.Now)
+	ex := &sentinel.Exporter{OrgID: org, Src: sentinel.NewStoreSource(st, org, t.Stream),
+		Post: sentinel.NewClient(t, tok, httpClient), Sleep: sleepCtx, Log: log, PollEvery: 30 * time.Second}
+	go func() { _ = ex.Run(ctx) }()
+}
+```
+
+`store.EntraToken` is Hub task 08's `EntraPassword` with the tenant and scope as parameters
+(`EntraPassword(w, …)` becomes `EntraToken(w, w.TenantID, DatabaseScope, …)`, byte-identical in
+behaviour, gap 3); its `fresh` argument skips the cache. `OrgForTenant` and `sleepCtx` are the
+two small helpers this wiring needs (**UNVERIFIED** whether H08 or H24 already has either).
