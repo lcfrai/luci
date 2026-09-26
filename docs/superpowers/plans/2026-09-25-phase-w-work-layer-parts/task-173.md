@@ -284,3 +284,81 @@ export interface AgentPolicyProps { team: Team; client: C; publish: PublishRoute
   *Claude Code only (the default)*. Up and down move a harness (`move`); the skills source is
   *In the sandbox image* or *A library*, with repository, path and commit; *Save* runs
   `checkPolicy`, then `putAgentPolicy`. *Publish to sandboxes* renders only when `publish` is set.
+
+#### Interfaces — complete: `desktop/src/components/admin/Keys.tsx`
+
+```tsx
+// desktop/src/components/admin/Keys.tsx — task 173. Your own keys, and each admin team's keys.
+import { useCallback, useEffect, useState, type JSX } from "react";
+import type { APIKey, RateReading } from "../../api/work";
+import type { Team } from "../../api/hub";
+import { ConfirmInPlace } from "../common/ConfirmInPlace";
+import { mayRevoke } from "./access";
+import type { KeysProps } from "./AdminHome";
+import { SecretOnce } from "./SecretOnce";
+import { usePressOnce } from "./usePressOnce";
+
+/** A clock time in the person's zone, 24-hour with seconds: "14:05:03". time.ts has no such
+ *  formatter (it holds formatElapsed and formatWaiting only), so it lives here. */
+export const clock = (iso: string, timeZone: string) =>
+  new Intl.DateTimeFormat("en-AU", { timeZone, hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" }).format(new Date(iso));
+const day = (iso: string, timeZone: string) =>
+  new Intl.DateTimeFormat("en-AU", { timeZone, day: "numeric", month: "short", year: "numeric" }).format(new Date(iso));
+
+/** Decision 4: two numbers and a time, the caller's own bucket, never "N of M". */
+export const rateLine = (r: RateReading, tz: string) =>
+  `Your own requests: used ${r.used} · limit ${r.limit} · resets ${clock(r.resetsAt, tz)}`;
+
+function KeyList(p: KeysProps & { team: Team | null }): JSX.Element {
+  const teamId = p.team?.id ?? null;
+  const [keys, setKeys] = useState<APIKey[] | null>(null);
+  const [rate, setRate] = useState<RateReading | null>(null);
+  const [secret, setSecret] = useState<string | null>(null);   // decision 3: here and nowhere else
+  const [confirm, setConfirm] = useState<string | null>(null);
+  const [name, setName] = useState(""); const [expires, setExpires] = useState("");
+  const load = useCallback(async () => {
+    const r = await p.client.apiKeys(teamId); setKeys(r.keys); setRate(r.rate);
+  }, [p.client, teamId]);
+  useEffect(() => { void load(); }, [load]);   // decision 1: fetched on open
+  const create = usePressOnce(async () => {
+    const made = await p.client.createAPIKey(teamId, { name, expiresAt: expires });
+    setSecret(made.secret);                    // split at once: the secret to SecretOnce ...
+    setKeys((k) => [made.key, ...(k ?? [])]);  // ... the record to the list
+    setName(""); setExpires("");
+  });
+  const revoke = usePressOnce(async (id: string) => { await p.client.revokeAPIKey(id); setConfirm(null); await load(); });
+  const title = p.team ? `${p.team.name}: team keys` : "Your keys";
+  return (
+    <section aria-label={title}>
+      <h2>{title}</h2>
+      {secret !== null && <SecretOnce label="New key" secret={secret} onDone={() => setSecret(null)} />}
+      <ul>{(keys ?? []).map((k) => (
+        <li key={k.id} data-key={k.id}>
+          <span>{k.name}</span> <code className="adm-mono">{k.shown}</code>
+          <span>{k.lastUsedAt ? `last used ${clock(k.lastUsedAt, p.timeZone)}` : "never used"}</span>
+          <span>{k.revokedAt ? `revoked ${day(k.revokedAt, p.timeZone)}` : `expires ${day(k.expiresAt, p.timeZone)}`}</span>
+          {!k.revokedAt && mayRevoke(p.me, k) && (confirm === k.id
+            ? <ConfirmInPlace consequence={`${k.name} stops working at once; anything using it gets 401.`}
+                confirmLabel={`Revoke ${k.name}`} onConfirm={() => void revoke.press(k.id)} onCancel={() => setConfirm(null)} />
+            : <button type="button" disabled={revoke.busy} onClick={() => setConfirm(k.id)}>Revoke</button>)}
+        </li>))}
+      </ul>
+      <form onSubmit={(e) => { e.preventDefault(); void create.press(); }}>
+        <label>Name <input value={name} onChange={(e) => setName(e.target.value)} required /></label>
+        <label>Expires <input type="date" value={expires} onChange={(e) => setExpires(e.target.value)} required /></label>
+        <button type="submit" disabled={create.busy}>Create key</button>
+      </form>
+      {p.team === null && rate && <p className="adm-rate">{rateLine(rate, p.timeZone)}</p>}
+      <button type="button" onClick={() => void load()}>Refresh</button>
+    </section>
+  );
+}
+
+export function Keys(p: KeysProps): JSX.Element {
+  return <>{[null, ...p.adminTeams].map((t) => <KeyList key={t?.id ?? "me"} {...p} team={t} />)}</>;
+}
+```
+
+The rate line sits under **Your keys** only: the reading is the caller's own bucket on whichever
+list call answered (decision 4), so repeating it under a team list would read as the team's.
+`expiresAt` is sent as the date the person picked; task 160 refuses more than 365 days on.
