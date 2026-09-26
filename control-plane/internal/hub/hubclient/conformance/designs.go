@@ -442,9 +442,34 @@ func sessionLinkRepeatReturnsExisting(t *testing.T, e Env) {
 	if l2.ID == l1.ID {
 		t.Errorf("another user's link reused %s", l1.ID)
 	}
-	page := must(e.Viewer.SessionLinks(bg, a.p.ID, hubapi.SessionLinkQuery{DesignKey: ap.DesignKey, SessionID: req.SessionID}))(t)
-	if len(page.Items) != 2 || page.Items[0].ID != l2.ID || page.Items[1].ID != l1.ID {
-		t.Errorf("SessionLinks = %+v, want %s then %s, newest first", page.Items, l2.ID, l1.ID)
+	// Two links each filter must drop (route 34, ?designKey=&sessionId=): the
+	// same key under another session, and another key of this project under
+	// the same session.
+	tick(e)
+	l4 := must(e.Member.LinkSession(bg, a.p.ID, linkOf(ap)))(t)
+	b := approvableOn(t, e, a.p, a.rev)
+	bp := must(e.Member.Approve(bg, a.p.ID, b.req))(t)
+	tick(e)
+	breq := linkOf(bp)
+	breq.SessionID = req.SessionID
+	l5 := must(e.Member.LinkSession(bg, a.p.ID, breq))(t)
+	for _, c := range []struct {
+		q    hubapi.SessionLinkQuery
+		want []string
+	}{
+		{hubapi.SessionLinkQuery{DesignKey: ap.DesignKey, SessionID: req.SessionID}, []string{l2.ID, l1.ID}},
+		{hubapi.SessionLinkQuery{DesignKey: ap.DesignKey}, []string{l4.ID, l2.ID, l1.ID}},
+		{hubapi.SessionLinkQuery{SessionID: req.SessionID}, []string{l5.ID, l2.ID, l1.ID}},
+		{hubapi.SessionLinkQuery{}, []string{l5.ID, l4.ID, l2.ID, l1.ID}},
+	} {
+		page := must(e.Viewer.SessionLinks(bg, a.p.ID, c.q))(t)
+		var got []string
+		for _, l := range page.Items {
+			got = append(got, l.ID)
+		}
+		if sprint(got) != sprint(c.want) {
+			t.Errorf("SessionLinks(%+v) = %v, want %v, newest first", c.q, got, c.want)
+		}
 	}
 	// The repeat is this project's: the same user and pair in a second project
 	// where the key is approved too is a new link there, never the first

@@ -136,7 +136,7 @@ func pinFallsBackToProjectBrief(t *testing.T, e Env) {
 	pb := newBrief(t, e.Member, p.ID, "")
 	pr := write(t, e.Member, p.ID, pb.ID, 0, hubapi.StatusComplete)
 	gone := newBrief(t, e.Member, p.ID, featRef)
-	write(t, e.Member, p.ID, gone.ID, 0, hubapi.StatusComplete)
+	gr := write(t, e.Member, p.ID, gone.ID, 0, hubapi.StatusComplete)
 	must(e.Member.Archive(bg, gone.ID))(t)
 	other := newBrief(t, e.Member, p.ID, "refs/heads/other")
 	or := write(t, e.Member, p.ID, other.ID, 0, hubapi.StatusComplete)
@@ -145,6 +145,12 @@ func pinFallsBackToProjectBrief(t *testing.T, e Env) {
 	req := runOn(newPanacea(), featRef)
 	req.BriefID = sp(other.ID)
 	wantPin(t, reserve(t, e, e.Member, p.ID, req).Pin, hubapi.PinPinned, hubapi.PinShipHead, &or, 1)
+	// "briefId if given" names no liveness (hub-contract.md:1015, task-23.md:38):
+	// only the fallbacks are "live". An archived brief of this project, named,
+	// is pinned at its latest complete revision.
+	req = runOn(newPanacea(), featRef)
+	req.BriefID = sp(gone.ID)
+	wantPin(t, reserve(t, e, e.Member, p.ID, req).Pin, hubapi.PinPinned, hubapi.PinShipHead, &gr, 1)
 }
 
 // no brief at all → none/no_brief, and the reservation still succeeds.
