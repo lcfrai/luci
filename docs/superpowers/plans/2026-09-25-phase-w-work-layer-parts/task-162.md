@@ -316,3 +316,73 @@ func LatestDue(s hubapi.LoopSchedule, anchor, from, now time.Time) (at time.Time
 The janitor fires `at` only when `at` is after `work_loops.last_scheduled_for` (decision 8), then
 sets `last_scheduled_for = at` in the same transaction. Three missed weekday windows give one
 `LatestDue` answer, so one firing.
+
+#### The janitor pass — `server/janitor_loops.go` (contract complete)
+
+```go
+package server
+
+// passLoops runs in the org's janitor transaction after task 121's sweepWorkW4
+// (task-121.md:197-207), under the same advisory lock and hub.org_id setting.
+//
+//  1. Owners who left: for each "on" loop whose owner is no longer a member of
+//     its team, UPDATE state='paused', paused_cause='owner_left'; emit
+//     work.loop_paused {loopId, cause:"owner_left"}, actor nil (decision 10).
+//  2. Events: read the org's feed rows with seq > work_loop_cursors.after_seq,
+//     at most 1000, in seq order, through the Hub's own feed read (§7.11). For
+//     each row and each "on" loop in the row's project whose current version
+//     is an event trigger naming the row's kind and whose filter matches
+//     (below): fire(loop, version, eventSeq=row.seq). Then set after_seq to the
+//     last row read, in the same transaction.
+//  3. Schedules: for each "on" loop whose current version is a schedule,
+//     at, ok := LatestDue(...); if ok && at > last_scheduled_for:
+//     fire(loop, version, scheduledFor=at); UPDATE last_scheduled_for = at.
+//
+// fire: lock the head (SELECT … FOR UPDATE); n := runs in the last 24 h for the
+// loop; INSERT a run row (next run number) ON CONFLICT DO NOTHING on the two
+// unique keys; if no row was inserted, stop (decision 7). If n >= turnsPerDay,
+// set its outcome 'refused_bound' and emit work.loop_capped; else emit
+// work.loop_fired. Both: actor nil, data.author = owner (decision 9).
+func passLoops(ctx context.Context, tx *Tx, org string, now time.Time, r *SweepReport) error
+
+// SweepReport (Hub task 24's struct, already widened by task 121) gains:
+//	LoopsFired, LoopsCapped, LoopsPausedOwnerLeft int
+```
+
+**The filter.** `fromState`/`toState` compare to the SW.4 state-move event's `data` (task 10's
+`issue.state`, `{from, to, cause, proof, landCommit}`, `task-10.md:247`);
+`labelId` is checked against the issue head's labels **at match time**, read in the same
+transaction, because no event's `data` carries labels. A null filter field matches anything. A
+loop sees only rows of its own project (`row.projectId == loop.projectId`), so a loop cannot
+learn of another project's events.
+
+`work.loop_fired`'s `data` also carries `run` (the run row's number), so Fleet's ref is
+`lp-…#<run>` and task 163's outcome names the same row. `work.loop_capped {loopId, version, run,
+author}` is not delivered to any Orchestrator; the owner sees it in task 172's run log as
+*refused: bound*.
+
+#### The Phase T delta (rule H2; the owner phase's files win)
+
+```go
+// control-plane/internal/fleet/model/events.go (TM-09, task-09.md:213-221), one constant appended:
+EventLoopFired EventKind = "loop.fired"
+```
+
+TM-26's deliverable-kinds table (`T26:117-126`) gains one row, and its code the same mapping:
+
+| Kind | Raised by | Immediate? | Origin it can produce |
+|---|---|---|---|
+| `loop.fired` | task 162's janitor, reached through Fleet's per-org feed subscription (TM-01 (d)): a Hub `work.loop_fired` becomes one event on the Orchestrator of `data.author` in `projectId`, `Ref = "lp-…#<run>"` | no, coalesces | `fleet` |
+
+13. **Billed to the owner, by construction.** The event lands on the owner's own Orchestrator
+    queue, so the turn runs with that Orchestrator's per-turn gateway key (TM-20, `T37:3-4`) and
+    is admitted by TM-37's gate like any fleet event: counted in the owner's sliding hour and
+    refused when it is spent, queued and the owner told (`T37:13-20`). The origin is `fleet`,
+    never `human`: `OriginOf` makes `human` only from the owner's own `human.message`
+    (`T26:12-13`), and a loop the owner wrote yesterday is not the owner speaking now. That the
+    usage row carries the loop id through task 135's tag is **UNVERIFIED** (phase 6).
+
+If the owner has no Orchestrator in that project, whether Fleet holds the event until one starts
+is TM-26's to say and is **UNVERIFIED** here (gap 3). Either way nothing is lost silently: the
+run row stays `queued`, and task 163's janitor rule closes it `failed` after 24 h, which the
+owner sees in the run log.
