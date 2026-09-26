@@ -262,41 +262,81 @@ and 10, D8 for task 09, D15 for task 07).
     with a sentence that starts with the program's own name, for git "git could not start
     (exit 3221225794 = 0xC0000142, STATUS_DLL_INIT_FAILED): the machine's load, not a finding
     about git". `TestPinHelperNamesAProgramThatNeverStarted` pins this with a
-    `cmd /c exit -1073741502` fixture. That test went red before the check existed, and it also
-    checks that the codes 0, 1, 128 and 255 pass through untouched. The helper does not retry.
+    `cmd /c exit -1073741502` fixture. That test went red before the check existed. It also
+    checks that other codes pass through untouched: 0, 1, 128 and 255, and three NTSTATUS codes
+    (fix round 2). Those are `0xC0000005` and `0xC0000409`, a program that started and crashed,
+    one either side of `0xC0000142`, and `0xC0000135`, the loader's "DLL not found". And it
+    checks that the helper fails the pin rather than skipping it. The helper does not retry.
     `TestPinHelpersStartEveryProgramThroughRunProgram` reads this package's test sources and
     fails on any other `exec.Command` site, in either build tag: before the fix, `needSandbox`'s
     own inspect would have read a docker.exe that never started as "the image is absent" and
     skipped the whole sandbox half.
     A test binary that itself fails to start ("exit status 0xc0000142" from `go test`, with no
     test run) is outside any helper's reach.
-15. **No pin shows what `core.checkStat=minimal` and `core.trustctime=false` do. A probe shows
-    they spare one full re-hash, not one per `status` (task 03; task 07 knows).** Added in fix
-    round 1 (review M-2, 2026-09-26).
+15. **No pin shows what `core.checkStat=minimal` and `core.trustctime=false` do. Probes show
+    that without them every poll re-reads the whole tree until the sandbox runs a lock-taking
+    git, so task-03:313-314 holds (task 03; task 07 knows).** Added in fix round 1 (review M-2,
+    2026-09-26). The conclusion was corrected in fix round 2 (re-review 1 I-A): round 1's probe
+    ran a plain `status`, not task 07's poll.
     - The reviewer's mutant S1 dropped both keys from `task03Argv`, and all 3 sandbox pins stayed
       green (`scratchpad/p3/t01rv-S1.out`). A pin sees only what `status` prints, and a re-hash
       prints nothing.
-    - So a probe measured it instead: `scratchpad/p3/t01f1-stat-probe.sh`, output `.out`, host
-      git 2.53.0.windows.2, image `5d9a580e…`. The host is production-shaped. Two lanes were
-      cloned from one 41-file source: "with", by task 03's step-4 argv, and "without", the same
-      minus the two keys. Each lane got three sandbox `git status --porcelain` runs, each in a
-      new container with sessionEnv's eight pairs. The host hashed `.git/index` after each run
-      and ran no git in either lane.
-    - Every status printed nothing and exited 0.
-    - What the index held: host git wrote `dev: 0 ino: 0` and a Windows ctime for every entry.
-      The sandbox's `stat` of `f1.txt` saw `dev 67`, a 64-bit inode, and ctime in whole
-      seconds. Both were the same in all three containers.
-    - "with": the index was never rewritten (one hash from clone to run 3).
-    - "without": run 1 rewrote the index (`636b74d1…` → `38658cd5…`). Its entries took the
-      sandbox's `dev: 67`, a 32-bit inode and the new ctime. So git re-read every file to confirm
-      it was unchanged, which is a full re-hash. Runs 2 and 3 left the index alone.
-    - So task-03:309 ("the stat data Windows wrote never matches through the bind mount") holds
-      for the index as host git writes it. But task-03:313-314 ("a full re-hash on every
-      `status`") is wrong on Docker Desktop. Without the keys the cost is one re-hash, at the
-      first sandbox status after create, and the sandbox's own stat data is stable across
-      container restarts. Keep the keys: they cost nothing and spare that re-hash.
-    - Unmeasured: a Kata or virtiofs mount, whose inode or uid numbering may not be stable, and
-      a large repository's time. Carried to task 03 as t01-D15.
+    - **Probe A, fix round 1** (`scratchpad/p3/t01f1-stat-probe.sh`, output `.out`, host git
+      2.53.0.windows.2, image `5d9a580e…`). The host is production-shaped. Two lanes were cloned
+      from one 41-file source: "with", by task 03's step-4 argv, and "without", the same minus
+      the two keys. Each lane got three sandbox `git status --porcelain` runs, each in a new
+      container with sessionEnv's eight pairs. The host hashed `.git/index` after each run and ran
+      no git in either lane.
+      - Every status printed nothing and exited 0.
+      - Host git wrote `dev: 0 ino: 0` and a Windows ctime for every entry. The sandbox's `stat`
+        of `f1.txt` saw `dev 67` and a 64-bit inode, the same in all three containers.
+      - "with": the index was never rewritten (one hash from clone to run 3).
+      - "without": run 1 rewrote the index (`636b74d1…` → `38658cd5…`), and its entries took
+        the sandbox's `dev: 67`, a 32-bit inode and the new ctime. Runs 2 and 3 left it alone.
+    - **What probe A did not run: task 07's poll.** A plain `status` takes the optional index
+      lock and writes the refreshed stat data back. That write is the only reason its runs 2 and
+      3 were cheap. Task 07's poll is task 24's runner op
+      `G status --porcelain=v2 -z --untracked-files=all` under `GIT_OPTIONAL_LOCKS=0`
+      (task-24:95, :212; plan `:103`, "which writes nothing"). Row 16 pins that no-write rule on
+      the host. The re-reviewer's probe (`scratchpad/p3/t01rr1-optlock-probe.out`) ran the poll
+      three times without the keys: host git's `dev: 0 ino: 0` stayed in the index each time,
+      and a plain `status` afterwards still found them stale and rewrote it.
+    - **Probe B, fix round 2, counts the re-reads** (`scratchpad/p3/t01f2-count-probe.sh`, output
+      `.out`, rc=0, same host git and image). Every tracked path has `filter=count`. Only the
+      sandbox defines that driver (a ninth session pair, `filter.count.clean`), and its command
+      logs the path and passes the bytes through. Git runs a clean filter exactly when it hashes a
+      working-tree file, so the log's length is the number of files one git call re-read. The
+      source holds 42 tracked files: an 8 MiB `big.bin`, 40 small files and `.gitattributes`.
+      The lanes use the same two argvs as probe A, and each run is a new `--rm` container.
+      - "without": polls 1 to 3 each re-read **all 42** files. The index stayed `2a380d1d…`,
+        still holding `dev: 0 ino: 0`. The plain `status` of run 4 re-read 42 and rewrote the
+        index (`a29ee1b2…`, `dev: 67`, a ctime equal to the mtime). The two polls after it
+        re-read 0.
+      - "with": polls 7 to 9 each re-read **16** files, never `big.bin`. The plain `status` of
+        run 10 re-read 16 and rewrote the index with the same entries (hash `23820900…`
+        unchanged, new file mtime). The poll after it re-read 0.
+      - The 16 are exactly the entries whose mtime falls in the same whole second as the index
+        file's (11:24:05; `scratchpad/p3/t01f2-with-mtimes.out`). That is git's racy-clean
+        rule: an entry the index cannot prove older than itself is re-checked by content. This
+        sandbox git applies it to whole seconds. That is inferred from which 16 were re-read:
+        `f31.txt`, at `:05.027`, is older than the index's `:05.285` and was still re-read.
+      - This round's first probe (`scratchpad/p3/t01f2-reread-probe.out`) timed the same shape
+        with a 32 MiB file. A cold mount cache made the "with" lane's first poll slow too
+        (22.0 s), so timing could not tell re-reads from cache misses. Probe B counts instead.
+    - So:
+      - task-03:309 ("the stat data Windows wrote never matches through the bind mount") holds.
+      - task-03:313-314 ("a full re-hash on every `status` (task 07's poll)") **holds**. Without
+        the keys, every poll re-reads the whole tree. That lasts until a lock-taking git (the
+        agent's own `status`, `add` or `commit`) stores the sandbox's stat data. Fix round 1's
+        "one re-hash" was true only of a lock-taking status. Keep the keys, for the reason the
+        plan gives.
+      - New, and true with the keys too: each poll re-reads the clone's racily clean entries
+        until a lock-taking git runs. Those are the files checkout wrote in the index's own last
+        second, so the cost is bounded by one second of checkout, not by the tree. Carried to task
+        03 as a "know" in t01-D15.
+    - Unmeasured: a Kata or virtiofs mount, whose inode or uid numbering may not be stable; a
+      large repository's time; and whether Claude Code runs a lock-taking git soon after a
+      session starts. Carried to task 03 as t01-D15.
 
 ## Mutation check
 
