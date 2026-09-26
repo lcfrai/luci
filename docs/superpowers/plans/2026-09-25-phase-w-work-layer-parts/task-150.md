@@ -576,3 +576,62 @@ The advisory lock is held for the step, so a second replica skips it.
 label and returns every name as missing; the page records them nowhere else (the names are
 upstream words). `run.Upstream` is capped at 500 entries per run on the row; later ones still
 update their links and are counted in the page event.
+
+#### Reconciliation with the committed wire (task 143) and the adapters (tasks 151-153)
+
+Task 143's part fixed the W5 wire after this part's first half was written, and tasks 151-153 were
+written against the scope and name what they need from this engine. **Where this section and the
+blocks above disagree, this section wins**; the blocks above stay as the record of what was
+proposed. Each point cites what it follows.
+
+1. **The wire types are task 143's** (`task-143.md:178-280`): `TrackerConnection` (raw `target`,
+   `principalId`, `state`, `lastRunAt`), the three target variants, `UpstreamChange` with `to`,
+   `ExternalLink` with an `xl-` id, `SyncError`, `SyncRun` (one pass: `at`, four counts,
+   `errors`) and `ConnectTrackerRequest {target, mode}`. The `hubapi` block above (`:197-320`) is
+   withdrawn except `TrackerSources` and the event data below. The prefixes are task 143's `tc`
+   and `xl` (its decision 6), which closes decision 8's missing prefix.
+2. **The source rides in the target.** The create route reads the target's own `source` key, then
+   calls `hubapi.ParseTrackerTarget(source, raw)` (`task-143.md:585-600`), which refuses an unknown
+   key. A source with no adapter registered in the engine is 400 `field: target` as well, so no
+   Boards connection can be made before task 151 lands. `Adapter.CheckTarget` is withdrawn: an
+   adapter is `Source()` and `Pull()`, as the scope and tasks 151-153 have it (`task-151.md:419-442`).
+3. **No credential is stored or sent.** Task 143 has no credential on the wire, and task 151 reaches
+   a tracker as the Hub's own identity through a `TokenFunc` (`task-151.md:51-56`, `:105-108`),
+   wired where the engine is built. The `credential_*` columns, the route's credential check and
+   the `credential` wire key are withdrawn. A pasted token has nowhere to go: any key outside the
+   variant is refused by `ParseTrackerTarget`.
+4. **`principalId` is the connection's own id.** Decision 3 stands (no Entra token; the Hub's
+   process acts; `actor: null`), so `principalId == id` on every connection this task makes. Task
+   143's *"That Entra issues the integration … principals"* (`task-143.md:1134`) is not needed here.
+5. **`UpstreamChange` inside `worksync` is the adapters' type**, with `At time.Time`
+   (`task-151.md:494`, `task-152.md:331`, `task-153.md:406`). The fields they emit are `state` and
+   `assignees` (`task-152.md:309-310`), not decision 5's six, so `UpstreamFields` changes (below).
+   `To` carries the tracker's own word for display only (task 143's decision 7). The Sink converts
+   it to `hubapi.UpstreamChange` with `at` in RFC 3339 UTC.
+6. **Pull until the cursor stops** (`task-151.md`, its gap 3). The adapters set no `More`; the
+   engine pulls again while the cursor it gets back differs from the one it sent, up to
+   `MaxPages`. `More` is withdrawn.
+7. **One refused item does not stop the page** (`task-151.md`, its gap 2; task 143's `SyncError`).
+   Decision 7 is replaced: the Sink checks each new item alone with `ValidateImportBatch`; a
+   refused item becomes `SyncError{externalId, code: "item_refused"}` on the run, its field name
+   goes to the Hub's log (no value), and the rest of the page lands. The item is not silent (the
+   run shows it) and it comes back the next time it changes upstream, because every adapter pulls
+   by change time. A page that fails to **commit** still moves nothing and keeps the cursor.
+8. **Links are keyed by task 143's `(projectId, source, externalId)`**, not by connection
+   (decision 4 is narrowed): two connections of one project and source that both see an item share
+   one link and one issue. A link also records the connection that made it, and `UNIQUE (issue_id)`
+   holds task 169's *"at most one per issue"* (`task-169.md:616`).
+9. **The events are the ones the desktop already names** (`task-169.md:569`, `task-172.md:174-182`):
+   `tracker.connected`, `tracker.disconnected`, `sync.run` (one per run, in `FinishRun`'s
+   transaction) and `external_link.created` (one per new link). `tracker.page` is withdrawn, and
+   `tracker.mode_set` is task 153's.
+10. **The issue head gains nothing.** The `links` addition to task 08's `GET /v1/issues/{issueId}`
+    is withdrawn; the desktop reads links through `GET /v1/trackers/{connectionId}/links` (task 169's
+    `ListTrackerLinks`, added below), so no W1 type changes.
+11. **`PullError` and its four codes move here.** Task 151's `fetch.go` declares them
+    (`task-151.md:110-132`), but this task lands first and the engine must read a pull error's
+    code and retry time. They are declared in `engine.go` exactly as task 151 wrote them, and task
+    151's block drops those lines (gap 3).
+12. **Files this section adds**: `worksync/fake.go` (new; the fake adapter, outside a `_test.go` file
+    so the server's integration tests can drive it), ⚑ `server/config.go` (the engine's adapters
+    and `PANACEA_APP_HUB_SYNC_INTERVAL`) and ⚑ `hubapi/work_intake_test.go` (two rows).
