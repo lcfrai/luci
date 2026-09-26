@@ -492,3 +492,93 @@ describe("needs", () => {
 `makeComment` takes `issueId`, `mentions` and `createdBy` overrides (task 20's builder,
 `task-20.md:217-241`); if its override names differ, the test follows the builder. `ALICE`'s
 `displayName` is *Alice Example* (`task-61.md:685`).
+
+#### Tests to write first, part 2 — `desktop/src/components/desk/rows/IssueNeedRow.test.tsx` (on the Desk)
+
+The Desk is rendered with the kinds `deskRows.tsx` registers at load (task 62's gap 7: no registry
+reset here), over task 40's fixture world, with the store's one project so the snapshot reads its
+heads. The replica's `mutate` and feed are faked: task 55's module has no part on the tree.
+
+```tsx
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { __resetHeartbeat } from "../../../hooks/heartbeat";
+import { resetCockpit, useCockpit } from "../../../store/store";
+import { expectNoPrediction } from "../../../test/expectNoPrediction";
+import { ALICE, WORK_IDS } from "../../../test/workFixtures";
+import { setWorkSourceForTest, type WorldHandle } from "../../../work/fixtureSource";
+import { workSource } from "../../../work/source";
+import { Desk } from "../Desk";
+import type { DeskInputs } from "../deskModel";
+
+const mutate = vi.fn(() => ({ id: "op-1", undoable: true, undo: vi.fn(), settled: Promise.resolve("applied" as const) }));
+vi.mock("../../../work/replica/replica", () => ({ mutate: (op: unknown) => mutate(op), replicaEvents: () => [] }));
+
+const T0 = Date.parse("2026-09-25T11:10:00Z");
+let world: WorldHandle;
+const inputs: DeskInputs = { now: () => Date.now(), cockpit: () => useCockpit.getState(), work: () => workSource() };
+const head = (id: string, over: object) => world.update((w) => ({ ...w,
+  items: w.items.map((i) => (i.head.id === id ? { ...i, head: { ...i.head, ...over } } : i)) }));
+const needs = () => document.querySelector<HTMLElement>('[data-desk-section="needs_you"]')!;
+
+beforeEach(() => {
+  vi.useFakeTimers({ now: T0 });
+  resetCockpit(); __resetHeartbeat(); mutate.mockClear();
+  useCockpit.setState({ projects: [{ id: WORK_IDS.project, name: "Evidence", path: "C:/p" }] } as never);
+  world = setWorkSourceForTest();
+  head(WORK_IDS.ep142, { state: "started", assignee: ALICE, updatedAt: "2026-09-25T09:00:00Z" });  // EP-150 blocks it
+});
+afterEach(() => { world.dispose(); vi.useRealTimers(); });
+
+describe("NEEDS YOU issue rows", () => {
+  it("the blocking row says whom it blocks, and its age survives a re-render", () => {
+    const { rerender } = render(<Desk inputs={inputs} />);
+    const row = within(needs()).getByText(/EP-150 blocks EP-142 \(Alice Example\)/).closest<HTMLElement>(".dn")!;
+    expect(within(row).getByText("waiting 2h 10m")).toBeTruthy();
+    act(() => { vi.advanceTimersByTime(60_000); });
+    rerender(<Desk inputs={inputs} />);
+    expect(within(row).getByText("waiting 2h 11m")).toBeTruthy();
+    expect(row.textContent).toContain("ranked first: blocks EP-142, which is started");
+    // mutants: age from first render; age restarting on re-render
+  });
+  it("after X lands the row stays while open and is gone on the next visit", () => {
+    const first = render(<Desk inputs={inputs} />);
+    act(() => { head(WORK_IDS.ep150, { state: "landed" }); });
+    expect(within(needs()).queryByText(/EP-150 blocks/)).not.toBeNull();
+    first.unmount();
+    render(<Desk inputs={inputs} />);
+    expect(within(needs()).queryByText(/EP-150 blocks/)).toBeNull();
+    // mutants: live removal under the reader; a stale row after the visit
+  });
+  it("a triage row answers Accept in place and keeps its place", async () => {
+    head(WORK_IDS.ep167, { state: "triage" });
+    render(<Desk inputs={inputs} />);
+    const row = within(needs()).getByText("EP-167").closest<HTMLElement>(".dn")!;
+    fireEvent.click(within(row).getByRole("button", { name: /Accept/ }));
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+    expect(mutate).toHaveBeenCalledWith(expect.objectContaining({ kind: "setState", issueId: WORK_IDS.ep167 }));
+    expect(within(row).getByRole("status").textContent).toMatch(/^Accepted · /);
+    expect(row.isConnected).toBe(true);
+    // mutants: navigating to the issue; the row removed on answer
+  });
+  it("urgent is colour and a shape on the urgent row only", () => {
+    head(WORK_IDS.ep167, { priority: "urgent" });
+    head(WORK_IDS.ep166, { priority: "high" });
+    render(<Desk inputs={inputs} />);
+    const urgent = within(needs()).getByText("urgent, assigned to you");
+    expect(urgent.className).toContain("dn-urgent");
+    expect(within(needs()).queryByText("EP-166")).toBeNull();
+    expect(needs().querySelectorAll(".dn-urgent").length).toBe(1);
+    // mutant: priority as colour on every row
+  });
+  it("no prediction in NEEDS YOU", () => {
+    head(WORK_IDS.ep167, { state: "triage", priority: "urgent" });
+    render(<Desk inputs={inputs} />);
+    expectNoPrediction(needs());
+  });
+});
+```
+
+`MarkGlyph`'s accessible name is *Needs you* (`task-29.md:152-154`); the urgent test checks the
+class, and task 29's own tests hold the shape. `head(ep167, {state: "triage", priority: "urgent"})`
+makes one row, the triage row (part 2's note on `urgentMine`).
