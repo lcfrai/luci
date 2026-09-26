@@ -1377,3 +1377,47 @@ reassign *request*); this row pins only that the pending request does not outliv
    their parts land first without it, this task adds the one-line change to each.
 6. Phase 2's `Session` has no owner field; team mode's managed sessions need one before their
    rows join these selectors.
+
+#### Reconciliation with task 62's part (on the tree since this part began; task 62 wins)
+
+Task 62's part (`task-62.md`, in progress at this writing) fixes four things this part assumed.
+The implementer applies these over the blocks above; nothing else changes.
+
+1. **Names.** `DeskSnapshot` carries every `InformInputs` member under the same names
+   (`task-62.md:143-156`), so `inputsOf(s)` is `{ ...s, me: s.me ?? "" }`: task 62's `me` is
+   `string | null` before the first load, and an empty `me` matches no writer and no assignee, so
+   every selector returns `[]` until it loads. `headOf` is the snapshot's (`:150`).
+2. **Classes.** The frame wraps every row in `div.dk-row[data-desk-key]` with `tabIndex={-1}`
+   (`task-62.md:387-391`) and owns `.dk-*`. This part's inner roots drop `desk-row` and
+   `tabIndex`; they keep `desk-inform` and `desk-decide`, and the CSS selectors
+   `.desk-row[data-answered]` and `.desk-row[data-fail]` read `.desk-inform[data-answered]`,
+   `.desk-decide[data-answered]` and the same for `data-fail`. `.desk-zero` is replaced by task
+   62's `.dk-zero .dk-zero-need` (`:403`, `:443-445`), so `DeskZero` renders
+   `<p className="dk-zero dk-zero-need"><b>Nothing needs you.</b> {rest}</p>`, where `rest` is
+   `zeroSentence(...)` with its first sentence removed by building it without that part (a
+   `zeroTail(f)` beside `zeroSentence`, same rules, same tests on the joined text).
+3. **Keys.** The frame focuses the wrapper, and a keydown bubbles up, never down, so the rows'
+   `onKeyDown` would never fire under the frame. The rows take this hook instead, in `answer.tsx`:
+
+   ```ts
+   /** `1`/`2` on the frame's focused wrapper reach the row; alone (in a test) the row's own root. */
+   export function useWrapperKeys(ref: React.RefObject<HTMLElement>, onKey: (e: KeyboardEvent) => void): void {
+     useEffect(() => {
+       const host = ref.current?.closest<HTMLElement>("[data-desk-key]") ?? ref.current;
+       if (!host) return undefined;
+       host.addEventListener("keydown", onKey);
+       return () => host.removeEventListener("keydown", onKey);
+     });
+   }
+   ```
+
+   The handlers keep their modifier checks. Task 53's keymap owns no `Digit1`/`Digit2` verb in the
+   `list` scope (`task-53.md:190` binds `1` in `triage` only), so the two never both fire; a row
+   test fires `keyDown` on the row, which is the host when no wrapper is present.
+4. **The zero's place.** Task 62 draws `<DeskZero />` only when NEEDS YOU has no items
+   (`task-62.md:382-383`). Decision 9 needs it above answered rows too, so `DeskSection.tsx` ⚑ draws
+   `{place === "needs_you" ? <DeskZero needs={items} /> : null}` before the rows and keeps the
+   other sections' zero branch. `DeskZero` reads `landed` and `live` from one context,
+   `DeskZeroFacts`, that `Desk.tsx` ⚑ provides beside the `AnswerBookProvider`, computed once from
+   the entry snapshot (`buildDesk`'s landed group and `liveOnMyIssues(inputsOf(snap))`), so the
+   sentence never changes while the Desk is open. `DeskSection.tsx` joins the file list.
