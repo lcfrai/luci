@@ -303,3 +303,84 @@ describe("the issue chip", () => {
 
 The file also imports `SessionIssueChip` from `./SessionIssueChip` for test 4. `useWork`'s
 `get(id)` returning `{ head }` is task 60's reading of task 55's replica (`task-60.md:291-295`).
+
+#### Tests to write first, part 2 — `LaneCard.test.tsx` ⚑ (P3-19's file) and the observer
+
+```tsx
+// Appended to P3-19's LaneCard.test.tsx; `lane(over)` is P3-19's LaneView fixture (UNVERIFIED name).
+// The file takes part 1's `useWork` mock and its `heads` map, copied at its top.
+it("a lane names EP-142 from the lane index, never from its branch", () => {
+  const view = lane({ name: "feature/resume-after-restart", issueId: "is-3f2a91c07b1e4d2a", sessions: [] });
+  heads = { "is-3f2a91c07b1e4d2a": { alias: "EP-142", headRevision: 4 } };
+  const { container } = render(<LaneIssueChip lane={view} />);
+  expect(container.querySelector(".pv-chip-key")!.textContent).toBe("EP-142");
+  const bare = render(<LaneIssueChip lane={lane({ name: "ep-142", issueId: "", sessions: [] })} />);
+  expect(bare.container.firstChild).toBeNull();                 // an "ep-142" branch names nothing
+  // mutant: parses the branch name (AU-only branches are title-free, Q8, and keys change)
+});
+it("the lane chip's source never reads the lane's name or branch", async () => {
+  const src = (await import("./LaneCard.tsx?raw")).default as string;
+  const body = src.slice(src.indexOf("export function LaneIssueChip"));
+  expect(body.slice(0, body.indexOf("\n}\n"))).not.toMatch(/lane\.(name|branch|tip)\b/);
+});
+```
+
+```go
+// converge's observer test (P3-07's file) gains one row:
+// a lane created with CreateRequest{IssueID: "is-3f2a91c07b1e4d2a"} observes with
+// IssueID "is-3f2a91c07b1e4d2a"; a lane created without one observes with "".
+// mutant: the observer leaves IssueID empty, so every lane chip renders nothing.
+```
+
+That makes 9 cases: 6 in `SessionIssueChip.test.tsx`, 2 in `LaneCard.test.tsx`, 1 Go row.
+
+#### Steps
+
+- [ ] Wait for P4-17 and P3-19 on the sync base (rule H2). If either is absent, stop and report
+      it; do not write `ContextChip.tsx` or `LaneCard.tsx`.
+- [ ] Add `LaneObservation.IssueID` (Go and TS) and the observer row; `go test
+      ./control-plane/internal/converge/...` passes.
+- [ ] Write `SessionIssueChip.test.tsx`; it fails to import. Add `IssueChipBody` to
+      `ContextChip.tsx`, then `SessionIssueChip.tsx`, then the header mount, until the six pass.
+      Mutants, one at a time, then revert: mount the issue chip in place of the brief chip (test 1);
+      call `openIssue(id, null)` (test 2); fall back to a cached `title` when erased (test 3); render
+      an empty `<span>` for no ref (test 4); prefer `r.issueAlias` over the head's alias (test 5).
+- [ ] Add `LaneIssueChip` and its two tests. Mutant: `lane.name.match(/^[a-z]+-\d+/)` as a
+      fallback alias (test 7).
+- [ ] P4-17's and P3-19's own suites still pass unchanged: the brief arm is untouched.
+- [ ] Commit each file as it goes green.
+
+#### Acceptance
+
+```bash
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop test -- src/provenance src/components/lens/merge'
+# expected: SessionIssueChip 6 passing, LaneCard's new 2 passing, and every P4-17 and P3-19 case passing
+~/.claude/tools/claudezsh/claudezsh 'go test ./control-plane/internal/converge/... -count=1'
+# expected: ok
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop run typecheck'
+# expected: exit 0
+~/.claude/tools/claudezsh/claudezsh 'grep -nE "split\(.@.\)|issueRef\.(split|slice|indexOf)" desktop/src/provenance desktop/src/components/lens/merge -r'
+# expected: no output (the key is never split, task 19)
+```
+
+#### What this task does NOT claim
+
+- **Deploy's chip** (task 71), Design's `implements` (later, 05 §5.5), or proposed evidence under
+  each criterion (W3, task 104).
+- **That P4-17 and P3-19 exist**: both are **UNVERIFIED until merge**; this task waits for them.
+- **External links** (`https://…/EP-142@3`): task 93. This task links inside the app only.
+- **Visual acceptance**: the owner's eyes; this part proves the order, the text and the call.
+- **Parity**: closes L-191's visible half (what the agent was told, with task 19) and L-98's
+  revision-pinned in-app link (with task 47); serves L-201.
+
+#### Gaps found while writing this part
+
+1. P3's `LaneObservation` does not carry the lane index's `IssueID` (P3 `task-07.md:228-236`,
+   `task-18.md:42-47`); task 21 added `Lane.IssueID` to the store only. This task adds the field;
+   the skeleton's file map lists neither `observe.go` nor `api/converge.ts` for it.
+2. `SessionIssueChip.tsx` is not in the skeleton's file map (P4-17 has `SessionContextChip.tsx`
+   as the model, so the issue mount is its own file).
+3. The scope cites P3's plan at `:556-558` for `LaneCard`; on the phase-3 worktree the file map
+   row is at `:575` and the component at P3 `task-19.md:140`.
+4. `LaneSession`'s member names (P3-18) are not printed; `sessionId` is this part's reading.
+5. SW.14's behaviour for `useThreadLit("")` is not printed; decision 8's fallback covers it.
