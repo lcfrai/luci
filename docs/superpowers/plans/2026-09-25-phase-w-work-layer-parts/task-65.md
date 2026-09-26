@@ -1068,3 +1068,99 @@ The drift and related selectors take two more cases each in the same file, in th
 a served id missing from `briefCriteria` informs once and a `"resolving"` brief says nothing
 (mutant: drift on a resolving brief); a relation Alice added on either end informs and one I added
 does not (mutant: the actor check dropped). That makes 10 cases in this file.
+
+#### Tests to write first, part 2 — the rows: `ReassignDecide.test.tsx`, `InformRow.test.tsx`, `DeskZero.test.tsx`
+
+The rows render alone with spy verbs (their own answer book), except the zero test, which wraps
+the decide and the zero in one `AnswerBookProvider` as the frame does.
+
+```tsx
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { expectNoPrediction } from "../../../test/expectNoPrediction";
+import { ALICE, DYLAN } from "../../../test/workFixtures";
+import { ReassignDecide } from "./ReassignDecide";
+import { InformRow } from "./InformRow";
+import { DeskZero } from "../DeskZero";
+import { AnswerBookProvider } from "./answer";
+
+const item = { kind: "issue.reassign_decide", id: "reassign:is-1:t", arrivedAt: "2026-09-26T01:00:00Z",
+  rankReason: "", ifNothing: "nothing moves: your agents keep working and the issue stays yours",
+  payload: { issueId: "is-1", alias: "EP-142", to: ALICE, by: ALICE, at: "2026-09-26T01:00:00Z", sessionIds: ["s-1"] } };
+const verbs = () => ({ answer: vi.fn(async () => ({})), stopSessions: vi.fn(async () => []), time: () => "11:00" });
+
+describe("the reassign decide", () => {
+  it("2, keep working: answers decline once and stops nothing", async () => {
+    const v = verbs();
+    render(<ReassignDecide item={item} verbs={v} />);
+    fireEvent.keyDown(screen.getByText(/wants to reassign/).parentElement!, { key: "2" });
+    await screen.findByText("answered · kept");
+    expect(v.answer).toHaveBeenCalledWith("is-1", false);
+    expect(v.stopSessions).not.toHaveBeenCalled();
+    // mutant: the default (or decline) pauses or stops the session
+  });
+  it("without a key nothing is sent at all", () => {
+    const v = verbs();
+    render(<ReassignDecide item={item} verbs={v} />);
+    expect(v.answer).not.toHaveBeenCalled();
+    expect(screen.getByText(/If you do nothing: nothing moves/)).toBeTruthy();
+    // mutant: a timeout that answers for me
+  });
+  it("1, hand over: the Hub answer first, the stops after; a refusal stops nothing", async () => {
+    const v = verbs();
+    v.answer.mockRejectedValueOnce({ code: "not_assignee", message: "Only the assignee answers a reassign." });
+    render(<ReassignDecide item={item} verbs={v} />);
+    fireEvent.click(screen.getByText(/hand over to/));
+    await screen.findByText(/refused · not_assignee · Only the assignee/);
+    expect(v.stopSessions).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByText(/hand over to/));
+    await screen.findByText(/handed over to Alice Example/);
+    expect(v.stopSessions).toHaveBeenCalledWith(["s-1"]);
+    // mutants: stops before the answer; a refusal swallowed as success
+  });
+});
+
+describe("answer in place", () => {
+  it("no verb changes the route or the lens", async () => {
+    const before = window.location.href;
+    const v = { rebrief: vi.fn(async () => {}), repoint: vi.fn(async () => null), markSeen: vi.fn(), time: () => "11:02" };
+    const inform = { ...item, kind: "issue.inform_changed", id: "inform_changed:is-1@4",
+      payload: { issueId: "is-1", alias: "EP-142", adoptedRev: 3, headRev: 4, headKey: "issue:is-1@4",
+        by: ALICE, at: "2026-09-26T01:02:00Z", line: "serves c-40aa added", sessionIds: ["s-1"] } };
+    const { container } = render(<InformRow item={inform as never} verbs={v} />);
+    expect(v.rebrief).not.toHaveBeenCalled();                       // nothing reaches the agent unasked
+    fireEvent.keyDown(container.firstElementChild!, { key: "1" });
+    await screen.findByText("re-briefed at @4");
+    expect(window.location.href).toBe(before);
+    expect(v.rebrief).toHaveBeenCalledTimes(1);
+    expectNoPrediction(container);
+    // mutants: the head change auto-re-briefs; a verb that dives into the issue view
+  });
+  it("answering the last NEEDS YOU row shows the zero; FAILED stays below it", async () => {
+    const failed = <section aria-label="FAILED"><h2>FAILED 1</h2><p>EP-150 exit at 02:14</p></section>;
+    const { container } = render(
+      <AnswerBookProvider>
+        <DeskZero needs={[item as never]} landed={[{ ...item, payload: { alias: "EP-142", word: "landed and proven", at: "t" } } as never]}
+          live={{ agents: 3, issues: 2 }} time={() => "14:02"} />
+        <ReassignDecide item={item} verbs={verbs()} />
+        {failed}
+      </AnswerBookProvider>);
+    expect(container.querySelector(".desk-zero")).toBeNull();
+    fireEvent.keyDown(screen.getByText(/wants to reassign/).parentElement!, { key: "2" });
+    await waitFor(() => expect(container.querySelector(".desk-zero")?.textContent)
+      .toBe("Nothing needs you. EP-142 landed and proven at 14:02. 3 agents live on 2 issues."));
+    expect(screen.getByLabelText("FAILED").textContent).toContain("EP-150");
+    expect(container.querySelector("[aria-live],[role=status]")).toBeNull();   // task 66 owns the one region
+    expectNoPrediction(container);
+    // mutants: the zero never reachable (counts rows, not answers); FAILED hidden under a calm state
+  });
+});
+```
+
+The FAILED section here is a stand-in for task 64's rows: this test proves that `DeskZero` neither
+hides a sibling nor replaces its section; task 62's test 6 proves the frame keeps FAILED's header.
+
+**The source guard** (in `InformRow.test.tsx`): `import.meta.glob("/src/**/*.{ts,tsx}", { query:
+"?raw", eager: true })`, and the only files whose text contains `rebriefSession(` are
+`src/api/client.ts` and `src/components/desk/deskRows.tsx` (mutant: a replica listener that
+re-briefs on a new head, which is scope test 2's failure).
