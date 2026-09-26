@@ -570,3 +570,196 @@ type TeamAgentPolicy struct {
 
 The harness ids are `control-plane/internal/harness/harness.go`'s catalogue (the control plane's
 own code, **built**); `TeamAgentPolicy` names them and never parses or changes a harness (`OD-8`).
+
+#### `work_intake.go`, continued: validation (complete)
+
+```go
+// ── Validation. Each returns the first bad field; nothing is read from a store.
+
+// badIntake: FieldError is {Field string; Err error} (canonical.go:282-286 at 3df9fab8).
+func badIntake(field string) *FieldError { return &FieldError{field, ErrBadEnvelope} }
+
+func ValidTrackerMode(m TrackerMode) bool { return m == TrackerIn || m == TrackerInAndComments }
+
+// ParseTrackerTarget decodes raw by source; an unknown key or a source that
+// disagrees with the target's own is refused (decision 8).
+func ParseTrackerTarget(source string, raw json.RawMessage) (any, *FieldError) {
+	dec := func(v any) *FieldError {
+		d := json.NewDecoder(strings.NewReader(string(raw)))
+		d.DisallowUnknownFields()
+		if d.Decode(v) != nil {
+			return badIntake("target")
+		}
+		return nil
+	}
+	switch source {
+	case ImportSourceAzureBoards:
+		var t AzureBoardsTarget
+		if fe := dec(&t); fe != nil || t.Source != source || t.Organisation == "" || t.Project == "" {
+			return nil, badIntake("target")
+		}
+		return t, nil
+	case ImportSourceGitHub:
+		var t GitHubTarget
+		if fe := dec(&t); fe != nil || t.Source != source || t.Owner == "" || t.Repository == "" {
+			return nil, badIntake("target")
+		}
+		return t, nil
+	case ImportSourceJira:
+		var t JiraTarget
+		if fe := dec(&t); fe != nil || t.Source != source || !httpsURL(t.Site) || t.ProjectKey == "" {
+			return nil, badIntake("target")
+		}
+		return t, nil
+	}
+	return nil, badIntake("source")
+}
+
+// httpsURL: https, a host, no user info, no fragment.
+func httpsURL(s string) bool {
+	u, err := url.Parse(s)
+	return err == nil && u.Scheme == "https" && u.Host != "" && u.User == nil && u.Fragment == ""
+}
+
+// ValidateCreateWebhook: https only; kinds non-empty, distinct and each in
+// allowed (task 156's hubapi.WebhookKinds()).
+func ValidateCreateWebhook(r CreateWebhookRequest, allowed []string) *FieldError {
+	if !httpsURL(r.URL) || len(r.URL) > 2048 {
+		return &FieldError{"url", fmt.Errorf("%w: %s", ErrBadEnvelope, CodeWebhookURLInvalid)}
+	}
+	if len(r.Kinds) == 0 || !subsetDistinct(r.Kinds, allowed) {
+		return badIntake("kinds")
+	}
+	return nil
+}
+
+func subsetDistinct(xs, allowed []string) bool {
+	ok, seen := map[string]bool{}, map[string]bool{}
+	for _, a := range allowed {
+		ok[a] = true
+	}
+	for _, x := range xs {
+		if !ok[x] || seen[x] {
+			return false
+		}
+		seen[x] = true
+	}
+	return true
+}
+
+// ValidateCreateAPIKey: a name, and an expiry after now and at most 365 days on.
+func ValidateCreateAPIKey(r CreateAPIKeyRequest, now time.Time) *FieldError {
+	if n := utf8.RuneCountInString(strings.TrimSpace(r.Name)); n == 0 || n > 80 {
+		return badIntake("name")
+	}
+	t, err := time.Parse(time.RFC3339, r.ExpiresAt)
+	if err != nil || !t.After(now) || t.Sub(now) > MaxKeyLifetime {
+		return badIntake("expiresAt")
+	}
+	return nil
+}
+
+// ValidateAppManifest: work.read always, work.write optionally; https redirects.
+func ValidateAppManifest(m AppManifest) *FieldError {
+	if strings.TrimSpace(m.Name) == "" || m.EntraClientID == "" {
+		return badIntake("manifest")
+	}
+	if !subsetDistinct(m.Scopes, []string{"work.read", "work.write"}) || len(m.Scopes) == 0 || m.Scopes[0] != "work.read" {
+		return badIntake("manifest.scopes")
+	}
+	for i, u := range m.RedirectURIs {
+		if !httpsURL(u) {
+			return badIntake(fmt.Sprintf("manifest.redirectUris[%d]", i))
+		}
+	}
+	if m.WebhookURL != nil && !httpsURL(*m.WebhookURL) {
+		return badIntake("manifest.webhookUrl")
+	}
+	if _, err := mail.ParseAddress(m.Contact); err != nil {
+		return badIntake("manifest.contact")
+	}
+	return nil
+}
+
+var (
+	autonomyLevels = map[string]bool{"ask_first": true, "propose_and_wait": true, "act_and_tell": true, "full": true}
+	actionClasses  = map[string]bool{"read": true, "edit_own_worktree": true, "edit_outside_worktree": true,
+		"run_tests": true, "install_dependency": true, "run_migration": true, "touch_infra": true,
+		"commit": true, "push": true, "deploy": true}
+)
+
+// ValidateLoopVersionBody checks shape only; whether the bound fits inside the
+// owner's own grid is the route's (loop_outside_grid, task 162).
+func ValidateLoopVersionBody(b LoopVersionBody) *FieldError {
+	t := b.Trigger
+	switch {
+	case t.Kind == "event" && (len(t.EventKinds) == 0 || t.Schedule != nil):
+		return badIntake("trigger")
+	case t.Kind == "schedule" && (len(t.EventKinds) != 0 || t.Schedule == nil):
+		return badIntake("trigger")
+	case t.Kind != "event" && t.Kind != "schedule":
+		return badIntake("trigger.kind")
+	}
+	if s := t.Schedule; s != nil {
+		if _, err := time.LoadLocation(s.TZ); err != nil || s.TZ == "" {
+			return badIntake("trigger.schedule.tz")
+		}
+		if _, err := time.Parse("15:04", s.At); err != nil || (s.Every != "day" && s.Every != "weekday" && s.Every != "week") {
+			return badIntake("trigger.schedule")
+		}
+	}
+	if b.Instruction.Author != AuthorHuman || b.Instruction.Text == "" || utf8.RuneCountInString(b.Instruction.Text) > 2000 {
+		return badIntake("instruction")
+	}
+	if b.Action != "turn" && b.Action != "start" {
+		return badIntake("action")
+	}
+	if b.Bound.TurnsPerDay < 1 || b.Bound.TurnsPerDay > 24 {
+		return badIntake("bound.turnsPerDay")
+	}
+	for class, level := range b.Bound.Levels {
+		if !actionClasses[class] || !autonomyLevels[level] {
+			return badIntake("bound.levels")
+		}
+	}
+	return nil
+}
+
+// ValidateTeamAgentPolicy: harness ids from the catalogue, ordered, distinct;
+// a library pinned to a 40-hex commit, never a branch.
+func ValidateTeamAgentPolicy(p TeamAgentPolicy, catalogue []string) *FieldError {
+	if len(p.Harnesses) == 0 || !subsetDistinct(p.Harnesses, catalogue) {
+		return badIntake("harnesses")
+	}
+	switch p.Skills.Source {
+	case "image":
+		if p.Skills.Library != nil {
+			return badIntake("skills.library")
+		}
+	case "library":
+		l := p.Skills.Library
+		if l == nil || l.RepoKey == "" || !hex40(l.Commit) {
+			return badIntake("skills.library")
+		}
+	default:
+		return badIntake("skills.source")
+	}
+	return nil
+}
+
+func hex40(s string) bool {
+	if len(s) != 40 {
+		return false
+	}
+	for _, c := range s {
+		if !strings.ContainsRune("0123456789abcdef", c) {
+			return false
+		}
+	}
+	return true
+}
+```
+
+`time.LoadLocation` needs the zone database; the Hub image carries it (**UNVERIFIED**: Phase H's
+Dockerfile; if not, the file imports `time/tzdata`). The route passes `catalogue` from
+`harness.Catalogue()`'s ids, so `hubapi` does not import the control plane's harness package.
