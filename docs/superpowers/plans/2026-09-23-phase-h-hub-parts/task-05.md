@@ -72,8 +72,12 @@ var AllGroups = []Group{GroupTeams, GroupProjects, GroupBriefs, GroupRefs, Group
 func Run(t *testing.T, newEnv func(t *testing.T) Env, groups ...Group)
 ```
 
+**Superseded by "As built" D1-D2 (task 05 review m3): do not copy this block.** The committed
+`fake_test.go` builds the Env in `newFakeEnv(t, clock)` with the clock behind a mutex; this
+draft's `Advance` writes `now` with no lock, a data race under `-race` while the fake reads it.
+
 ```go
-// control-plane/internal/hub/hubclient/conformance/fake_test.go — complete.
+// control-plane/internal/hub/hubclient/conformance/fake_test.go — the part's first draft; see above.
 package conformance_test
 
 import (
@@ -306,11 +310,31 @@ the fake changed after 277e6c9a.
   filter (PS4-2). `pin_falls_back_to_project_brief` names an archived brief (PS4-1).
   `source_unknown` names another Panacea project's deployment (PS5-1). `oldest_first` asks a
   second remote (PS5-2).
-- **D7 — a confirmed rollback re-confirmed:** `{}` or a deployment it holds is 200 unchanged; a
-  deployment it does not hold is 409 `release_state`, nothing joined (task-24.md:35-36 by analogy).
+- **D7 — a confirmed rollback re-confirmed:** `{}` or a deployment it holds is 200 unchanged
+  (task-24.md:35 names both); a deployment it does not hold is 409 `release_state`, nothing
+  joined (by analogy with :36's "a different run"; only this half is by analogy).
 - **D8 — a feed cursor past the head:** no events, `more: false`, `next` the head
   (task-26.md:26, :33). The row allows `next` in `[head, cursor)` for a live Hub's writes.
 - **D9 — a session link's repeat is per project** (PS3-2's ruling). The schema's
   UNIQUE (created_by, session_id, design_key) (hub-contract.md:1672) has no `project_id`, so the
   Hub as planned would answer another project's link. Carried to tasks 07a (UNIQUE gains
   `project_id`), 22 (route 33) and 44 (contract :943, :1672).
+
+#### As built, fix round 1 (2026-09-26, the review's I1, I2, m1-m5)
+
+84 rows (the part's 48 + 20 carried + 15 rules + 1 below).
+
+- **Rows gained.** `by_deployment_id`: a release of another team's project is in none of P's
+  lists or cursors (I1). `confirm_by_reserver_only`: a reserver demoted to viewer is 403
+  `forbidden` (m1). `outsider_sees_nothing` runs over `strangers()`, the org admin too (m2). New
+  row `panacea_keys_are_per_project` (I2, D10).
+- **D10 — the Panacea keys are per Hub project, not per org** (ruling, root cause; the owner
+  may reverse it). `(panaceaProject, pipelineRun)` and `(panaceaProject, deploymentId)` are
+  the caller's assertions: unique per org, they let any org member, in a team of their own
+  making, block another team's confirm and join, strip its rollback's pin, and probe which
+  names exist. The fake's run conflict, join conflict and source lookup now filter by project
+  (`joined` takes the project). This departs from hub-contract.md:1040-1041, :1049-1051, :1720
+  and :1733; carried to 07a, 23, 24 and 44. The review's recommended alternative (bind a
+  Panacea project to the first Hub project that reserves it) was not built: it leaves a
+  first-come squat with no unbind route, and its 409 stays an oracle.
+- **m3.** The `fake_test.go` block above is marked superseded by D1-D2.

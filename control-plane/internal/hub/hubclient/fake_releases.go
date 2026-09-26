@@ -81,10 +81,14 @@ func (w *fakeWorld) renderRelease(r *fakeRelease) hubapi.Release {
 		AbandonMessage: clone(r.abandonMessage)}
 }
 
-// joined is the release of the org holding (panaceaProject, deploymentID), or nil.
-func (w *fakeWorld) joined(panaceaProject, deploymentID string) *fakeRelease {
+// joined is the release of projectID holding (panaceaProject, deploymentID),
+// or nil. The key is per project, not per org (task 05 fix round 1, the part's
+// As built D10; review I2): a Panacea name is the caller's assertion, so
+// another team's release naming it must neither block this project's join or
+// confirm nor answer for its rollback.
+func (w *fakeWorld) joined(projectID, panaceaProject, deploymentID string) *fakeRelease {
 	for _, r := range w.releases {
-		if r.panaceaProject == panaceaProject && slices.ContainsFunc(r.deployments, func(d hubapi.DeploymentJoin) bool {
+		if r.projectID == projectID && r.panaceaProject == panaceaProject && slices.ContainsFunc(r.deployments, func(d hubapi.DeploymentJoin) bool {
 			return d.DeploymentID == deploymentID
 		}) {
 			return r
@@ -199,8 +203,8 @@ func (f *Fake) Reserve(_ context.Context, projectID string, req hubapi.ReserveRe
 	}
 	if req.SourceDeploymentID != nil {
 		// The confirmed release in this project joined to (panaceaProject, source).
-		src := w.joined(req.PanaceaProject, *req.SourceDeploymentID)
-		if src != nil && (src.projectID != p.id || src.state != hubapi.StateConfirmed) {
+		src := w.joined(p.id, req.PanaceaProject, *req.SourceDeploymentID)
+		if src != nil && src.state != hubapi.StateConfirmed {
 			src = nil
 		}
 		r.pin = inheritedPin(src)
@@ -339,13 +343,13 @@ func (f *Fake) Confirm(_ context.Context, releaseID string, req hubapi.ConfirmRe
 		if *d == deref(r.sourceDeploymentID) {
 			return hubapi.Release{}, problem(409, hubapi.CodeConflict, "That deployment is the rollback's source, not its result.", "field", "deploymentId")
 		}
-		if w.joined(r.panaceaProject, *d) != nil {
+		if w.joined(r.projectID, r.panaceaProject, *d) != nil {
 			return hubapi.Release{}, problem(409, hubapi.CodeConflict, "Another release already holds that deployment.", "field", "deploymentId")
 		}
 	}
 	if run := req.PipelineRun; run != nil {
-		for _, o := range w.releases {
-			if o.panaceaProject == r.panaceaProject && o.pipelineRun != nil && *o.pipelineRun == *run {
+		for _, o := range w.releases { // one release per (panaceaProject, pipelineRun) in the project (D10)
+			if o.projectID == r.projectID && o.panaceaProject == r.panaceaProject && o.pipelineRun != nil && *o.pipelineRun == *run {
 				return hubapi.Release{}, problem(409, hubapi.CodeConflict, "Another release already confirmed that run.", "field", "pipelineRun")
 			}
 		}
@@ -391,7 +395,7 @@ func (f *Fake) Abandon(_ context.Context, releaseID string, req hubapi.AbandonRe
 }
 
 // JoinDeployment is route 40: member; confirmed only; one release per
-// (panaceaProject, deploymentId) in the org; the join's environment sets a
+// (panaceaProject, deploymentId) in the project (D10); the join's environment sets a
 // null one, is a no-op on an equal one, and is 409 on a different one,
 // nothing joined (HA7-1).
 func (f *Fake) JoinDeployment(_ context.Context, releaseID string, req hubapi.DeploymentJoinRequest) (hubapi.DeploymentJoin, error) {
@@ -418,7 +422,7 @@ func (f *Fake) JoinDeployment(_ context.Context, releaseID string, req hubapi.De
 	if r.state != hubapi.StateConfirmed {
 		return hubapi.DeploymentJoin{}, releaseState(r)
 	}
-	if holder := w.joined(r.panaceaProject, req.DeploymentID); holder != nil && holder != r {
+	if holder := w.joined(r.projectID, r.panaceaProject, req.DeploymentID); holder != nil && holder != r {
 		return hubapi.DeploymentJoin{}, problem(409, hubapi.CodeConflict, "Another release already holds that deployment.", "field", "deploymentId")
 	}
 	if r.environment != nil && req.Environment != nil && *req.Environment != *r.environment {

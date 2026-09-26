@@ -22,6 +22,7 @@ var releaseRows = []row{
 	{name: "confirm_idempotent", fn: confirmIdempotent},
 	{name: "confirm_other_run_409", fn: confirmOtherRun409},
 	{name: "one_release_per_run", fn: oneReleasePerRun},
+	{name: "panacea_keys_are_per_project", fn: panaceaKeysArePerProject},
 	{name: "abandon_from_reserved_only", fn: abandonFromReservedOnly},
 	{name: "expiry", clock: true, fn: expiry},
 	{name: "join_rules", fn: joinRules},
@@ -347,6 +348,47 @@ func oneReleasePerRun(t *testing.T, e Env) {
 	}
 	r3 := reserve(t, e, e.Member, p.ID, runOn(newPanacea(), featRef))
 	must(e.Member.Confirm(bg, r3.ID, hubapi.ConfirmRequest{PipelineRun: sp(run)}))(t) // another Panacea project's run
+}
+
+// Task 05 review I2 (ruling: the part's As built D10). (panaceaProject,
+// pipelineRun) and (panaceaProject, deploymentId) are unique per Hub project,
+// not per org: a Panacea name is the caller's assertion, so a release another
+// team makes first with P's Panacea project, run and deployment neither blocks
+// P's confirm, join or rollback, nor answers for them. Inside P both keys
+// still hold one release.
+func panaceaKeysArePerProject(t *testing.T, e Env) {
+	p := newProject(t, e)
+	q := newProjectIn(t, e.Member, newTeam(t, e.Member).ID) // a team P's viewer is not in
+	pp, run, d := newPanacea(), newRun(), newDeployment()
+	theirs := reserve(t, e, e.Member, q.ID, runOn(pp, featRef))
+	must(e.Member.Confirm(bg, theirs.ID, hubapi.ConfirmRequest{PipelineRun: sp(run)}))(t)
+	must(e.Member.JoinDeployment(bg, theirs.ID, hubapi.DeploymentJoinRequest{DeploymentID: d}))(t)
+
+	b := newBrief(t, e.Member, p.ID, featRef)
+	rev := write(t, e.Member, p.ID, b.ID, 0, hubapi.StatusComplete)
+	mine := reserve(t, e, e.Member, p.ID, runOn(pp, featRef))
+	must(e.Member.Confirm(bg, mine.ID, hubapi.ConfirmRequest{PipelineRun: sp(run)}))(t)
+	must(e.Member.JoinDeployment(bg, mine.ID, hubapi.DeploymentJoinRequest{DeploymentID: d}))(t)
+	rb := reserve(t, e, e.Member, p.ID, rollbackOf(pp, d))
+	wantPin(t, rb.Pin, hubapi.PinPinned, hubapi.PinInherited, &rev, 1)
+	if rb.SourceReleaseID == nil || *rb.SourceReleaseID != mine.ID {
+		t.Errorf("P's rollback of %s has source %v, want P's release %s", d, rb.SourceReleaseID, mine.ID)
+	}
+	qrb := reserve(t, e, e.Member, q.ID, rollbackOf(pp, d))
+	wantPin(t, qrb.Pin, hubapi.PinNone, hubapi.PinSourceUnpinned, nil, 0) // Q's own source has no brief
+	if qrb.SourceReleaseID == nil || *qrb.SourceReleaseID != theirs.ID {
+		t.Errorf("Q's rollback of %s has source %v, want Q's release %s", d, qrb.SourceReleaseID, theirs.ID)
+	}
+	if page := must(e.Viewer.Releases(bg, p.ID, hubapi.ReleaseQuery{DeploymentID: d}))(t); len(page.Items) != 1 || page.Items[0].ID != mine.ID {
+		t.Errorf("P's Releases(deploymentId %s) = %d items, want only %s", d, len(page.Items), mine.ID)
+	}
+
+	again := reserve(t, e, e.Member, p.ID, runOn(pp, featRef))
+	_, err := e.Member.Confirm(bg, again.ID, hubapi.ConfirmRequest{PipelineRun: sp(run)})
+	wantErr(t, err, 409, hubapi.CodeConflict, "field", "pipelineRun")
+	other := confirmRun(t, e.Member, reserve(t, e, e.Member, p.ID, runOn(pp, featRef)))
+	_, err = e.Member.JoinDeployment(bg, other.ID, hubapi.DeploymentJoinRequest{DeploymentID: d})
+	wantErr(t, err, 409, hubapi.CodeConflict, "field", "deploymentId")
 }
 
 // abandon from reserved only, with its reason and message; never revived.
