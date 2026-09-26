@@ -294,3 +294,94 @@ func lockDirs(root string) error {
 no staged path can point outside `root`; its names are relative to `Path`. `filepath.IsLocal` is
 Go 1.20's, and `control-plane/go.mod` says `go 1.23` (read 2026-09-26). The home is the session's
 own and new each start, so the 0555 folders never meet a second `Stage`.
+
+**Where `Stage` runs.** The sandbox has no general mount list on this tree (`sandbox/manager.go`
+mounts fixed volumes at `:192`), so the staged folder rides TM-15's policy mount, the volume that
+already carries the rendered managed-settings file into the sandbox. Until Phase T merges, `Stage`
+is built and tested as a function and called by nothing; its call site is TM-15's mount step, and
+that wiring is **UNVERIFIED** (gap 6).
+
+#### Interfaces — complete: the gate in `api.go` and `sessions.go`
+
+```go
+// api.go, in Deps (appended after Worktrees):
+
+	// AgentPolicy is task 166's harness gate. Nil means no gate: a control
+	// plane with no Hub. Unlike Projects, New accepts nil.
+	AgentPolicy AgentPolicySource
+
+// AgentPolicySource answers the Hub team policy for a local project. bound is
+// false when the project is bound to no Hub team: the gate does not apply
+// (decision 5). When bound, p is never nil (the Hub answers the default).
+type AgentPolicySource interface {
+	PolicyFor(ctx context.Context, projectID string) (p *hubapi.TeamAgentPolicy, bound bool, err error)
+}
+```
+
+```go
+// sessions.go, step 2 becomes (replacing :784-794):
+
+	// 2. The harness, and the team's allow-list (task 166).
+	allowed, gated, perr := a.harnessPolicy(ctx, req.WorktreeID)
+	if perr != nil {
+		a.sessionLog().Warn("agent policy unavailable", "worktreeId", req.WorktreeID, "err", perr)
+		httpx.WriteProblem(w, http.StatusServiceUnavailable, httpx.CodeAgentPolicyUnavailable,
+			"The team's agent policy could not be read, so no session was started.", nil)
+		return
+	}
+	harnessID := harness.ID(strings.TrimSpace(req.Harness))
+	if harnessID == "" {
+		harnessID = harness.ClaudeCode
+		if gated {
+			harnessID = allowed[0] // the team's first (decision 2)
+		}
+	}
+	desc, known := harness.Lookup(harnessID)
+	if !known {
+		httpx.WriteProblem(w, http.StatusBadRequest, httpx.CodeUnknownHarness,
+			"No harness with that id.", map[string]string{"harness": string(harnessID)})
+		return
+	}
+	if gated && !slices.Contains(allowed, harnessID) {
+		httpx.WriteProblem(w, http.StatusForbidden, httpx.CodeHarnessNotAllowed,
+			"This team does not allow that harness.",
+			map[string]string{"harness": string(harnessID), "allowed": joinIDs(allowed)})
+		return
+	}
+
+// harnessPolicy is nil-safe: no source, or a project bound to no team, is not gated.
+func (a *API) harnessPolicy(ctx context.Context, worktreeID string) ([]harness.ID, bool, error) {
+	if a.deps.AgentPolicy == nil {
+		return nil, false, nil
+	}
+	projectID, _ := a.sessionLocate(ctx, worktreeID)
+	if projectID == "" {
+		return nil, false, nil
+	}
+	p, bound, err := a.deps.AgentPolicy.PolicyFor(ctx, projectID)
+	if err != nil || !bound {
+		return nil, false, err
+	}
+	return workpolicy.Effective(p), true, nil
+}
+
+func joinIDs(ids []harness.ID) string {
+	s := make([]string, len(ids))
+	for i, id := range ids {
+		s[i] = string(id)
+	}
+	return strings.Join(s, ",")
+}
+```
+
+```go
+// httpx/problem.go, appended to the const block (and to problem_test.go's table):
+	CodeHarnessNotAllowed       = "harness_not_allowed"        // 403 the team does not allow it (task 166)
+	CodeAgentPolicyUnavailable  = "agent_policy_unavailable"   // 503 the Hub could not answer (task 166)
+```
+
+`details` is `map[string]string` (`problem.go:93`), so `allowed` is the ids comma-joined, in the
+team's order: `"claude-code,codex"`. `harness_not_allowed` is task 143's code string
+(`task-143.md:783`), so the cockpit and the Hub switch on one value. `sessionLocate` is called a
+second time later in the handler (`:896`); the double enumeration is a local read, and caching it
+is not this task's.
