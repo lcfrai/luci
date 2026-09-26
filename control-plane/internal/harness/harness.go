@@ -136,8 +136,9 @@ var catalogue = []Descriptor{
 		ID:      ClaudeCode,
 		Name:    "Claude Code",
 		Command: "claude",
-		// Verified against `claude --help` on this machine, version 2.1.267.
-		// images/sandbox/Dockerfile pins @anthropic-ai/claude-code@2.1.274.
+		// Verified against `claude --help` in panacea-app/sandbox:dev, which
+		// images/sandbox/Dockerfile pins to @anthropic-ai/claude-code@2.1.274 —
+		// the binary that actually runs. Re-read by Phase 2 task 25 step 5a.
 		// --session-id and --fork-session were verified inside that image, at
 		// 2.1.274, against the CLI's behaviour as well as its help; see
 		// claudeArgv.

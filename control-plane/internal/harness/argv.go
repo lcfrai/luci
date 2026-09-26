@@ -6,8 +6,9 @@ import (
 )
 
 // claudePermissionFlag maps the product's three-word vocabulary onto the CLI's
-// --permission-mode choices. Evidence: `claude --help` 2.1.267 lists
-// acceptEdits, auto, bypassPermissions, manual, dontAsk and plan.
+// --permission-mode choices. Evidence: `claude --help` 2.1.274, in the pinned
+// sandbox image, lists acceptEdits, auto, bypassPermissions, manual, dontAsk
+// and plan.
 //
 // "ask" is deliberately absent. The choice list has no `default`, and --help
 // does not say which of manual/auto/dontAsk is the out-of-the-box behaviour.
