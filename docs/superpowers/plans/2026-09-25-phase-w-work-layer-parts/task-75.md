@@ -357,3 +357,63 @@ before the code it covers.
 
 The matrix meta-tests of task 07 (`TestLiveWorkRowsMatchTheRouteTable`) run the `"75"` rows, which
 fail on a missing role check (a member `PUT`ting the team's states answers 200 instead of 403).
+
+#### Steps
+
+- [ ] **Step 1: Check the base.** Task 74's migration merged here: `custom_states` and its band
+  `CHECK`, `issue_heads.sub_state` and its band trigger, and the second guard on removal (the
+  foreign key or the delete trigger; see the store section). Task 72's names as merged. A
+  different column name is a find-and-replace in `store/work_custom_states.go` only.
+- [ ] **Step 2: The tests.** Write the eleven tests and the `"75"` rows; add `"75"` to
+  `workMatrixLive`. Run them: they fail (404 on every route; the held test closes the issue).
+- [ ] **Step 3: The store and the routes.** `DiffCustomStates` first (pure), then the queries,
+  then the three handlers, then the three insertions in task 10's route and the two event kinds.
+- [ ] **Step 4: Green.** This task's suite, task 10's (`TestEveryServedCriterionIsNeeded` and
+  `TestAReopenClearsTheProof` must still pass: the insertions change no path without a sub-state),
+  task 13's registry tests and the matrix.
+- [ ] **Step 5: Commit by pathspec**, the seven files of *Files*, the message naming task 10's
+  file as touched.
+
+#### Acceptance
+
+```bash
+export PANACEA_APP_HUB_TEST_DATABASE_URL='postgres://postgres@127.0.0.1:5433/postgres?sslmode=disable'
+go test ./control-plane/internal/hub/server/ -tags integration -race -count=1 -v \
+  -run '^Test(AFactStateCannotBeACustomState|ABeforeStartedSubStateNeedsItsBand|InQAHoldsTheEvidenceClose|ClearingInQAClosesAsTheClearer|ClearingWithoutEvidenceReleasesNothing|AHandDoneIsRefusedWhileHeld|TheBandKeepsOrClearsTheSubState|AHeldStateCannotBeRemoved|TheListIsGaplessAndDiffedByKey|EveryWriteHasItsEvent|TheSyncActorSetsNoSubState)$' \
+  2>&1 | grep -c '^--- PASS'                                                    # 11
+go test ./control-plane/internal/hub/hubapi/ -race -count=1 -run 'WorkEvent|EventData' # ok
+go test ./control-plane/internal/hub/... -tags integration -race -count=1       # every package ok
+grep -n '"75"' control-plane/internal/hub/server/work_matrix_rows_integration_test.go | wc -l   # 2
+```
+
+Expected: `11`, then `ok`, then every package `ok`, then `2` (the rows' key and the live list).
+None of these has been run: the Hub code they test does not exist yet (OD-27: this is the proof to
+collect, not a result).
+
+#### What this task does not claim
+
+- **Not custom states between `started` and `landed`.** They are forbidden by design (05 §3.3);
+  the band `CHECK` and `ValidStateBand` refuse them.
+- **Not per-project states.** A custom state belongs to a team; a project has its team's list.
+- **Not the desktop.** Task 84 draws the settings list, the sub-state chip and *held by In QA*.
+- **Not that a person reviews QA.** The hold stops the automatic close; who clears it, and after
+  what, is the team's practice.
+- **No measured cost.** One extra head read per evidence move; nobody has timed it.
+
+#### Corrections to the scope
+
+1. **The `409 held_by_substate` moves from the evidence move to the hand move** (decision (f)).
+   The scope refused the evidence move with a 409 and expected the clear to find the evidence held;
+   the Hub's write shape rolls a refusal back, so the citations would be lost and the clear would
+   close nothing. Accepted-not-applied keeps the scope's behaviour (the issue stays `landed`, and
+   the clear closes it as the clearer) with no half-written refusal. Task 73's fake must follow the
+   same split; this is reported to the orchestrator.
+2. **The matrix file** is task 07's `work_matrix_rows_integration_test.go`, not
+   `matrix_integration_test.go` (task 100's correction, `task-100.md:102`).
+3. **The removal guard in the database** (a foreign key or a delete trigger on `custom_states`) is
+   not in task 74's scope list (`tasks-61-80.md:481-485` names the band `CHECK` and the band
+   trigger only). It is asked of task 74 here and reported as a skeleton gap.
+
+**Parity rows served:** the Hub halves of **L-8** (W2's row: custom states inside the human bands,
+05 §5.4) and **L-2**'s state names (a team names its sub-states). Task 84 closes both with the
+desktop.
