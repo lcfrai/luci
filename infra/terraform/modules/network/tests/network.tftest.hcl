@@ -399,7 +399,7 @@ run "agents_subnet_is_delegated_to_devops_pools" {
 # plan cannot see it. Replacing the subnet or a zone would cut every stack off from its state
 # (carried from task 02 re-review I1). A plan cannot show a lifecycle argument, so this run
 # reads main.tf, with comments stripped, and finds prevent_destroy = true inside the lifecycle
-# block of each of the two resource blocks. fmt closes a top-level block with a "}" at column 0.
+# block of the subnet, the zones and the VNet. fmt closes a top-level block with a "}" at column 0.
 run "the_state_path_refuses_destroy" {
   command = plan
   assert {
@@ -409,6 +409,15 @@ run "the_state_path_refuses_destroy" {
   assert {
     condition     = can(regex("lifecycle\\s*\\{[^}]*prevent_destroy\\s*=\\s*true\\b", try(regex("(?s)(?:^|\\n)resource\\s+\"azurerm_private_dns_zone\"\\s+\"this\"\\s*\\{(.*?)\\n\\}", replace(replace(replace(file("${path.module}/main.tf"), "\r", ""), "/(?s)/\\*.*?\\*\\//", ""), "/(?m)(#|\\/\\/).*$/", ""))[0], "")))
     error_message = "azurerm_private_dns_zone.this has no lifecycle { prevent_destroy = true }: a replaced zone drops every endpoint record in it, the state account's included."
+  }
+  # The VNet too (task 03 round 2). Terraform replaces a dependent only when its own planned
+  # arguments force it, so a VNet replace that leaves the subnet's arguments alone (a location
+  # change: the subnet takes no location) plans no subnet replace, and the subnet's
+  # prevent_destroy never fires. A mock plan cannot show this: it models no forced replace
+  # (probe t03r2/probe3: a group change planned clean past both prevent_destroys).
+  assert {
+    condition     = can(regex("lifecycle\\s*\\{[^}]*prevent_destroy\\s*=\\s*true\\b", try(regex("(?s)(?:^|\\n)resource\\s+\"azurerm_virtual_network\"\\s+\"this\"\\s*\\{(.*?)\\n\\}", replace(replace(replace(file("${path.module}/main.tf"), "\r", ""), "/(?s)/\\*.*?\\*\\//", ""), "/(?m)(#|\\/\\/).*$/", ""))[0], "")))
+    error_message = "azurerm_virtual_network.this has no lifecycle { prevent_destroy = true }: a VNet replace that leaves the endpoint subnet's own arguments alone would take the state path with it."
   }
 }
 
