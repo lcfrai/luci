@@ -225,3 +225,84 @@ reconciles its text, so a re-render does not re-speak.
 A toast is always the answer to my own act in phase 2 (the optimistic-mutation Undo window,
 `Toasts.tsx:1`), so it is an `answer`. The rail's error is the server's own sentence for a call I
 made (`RailFooter.tsx:16-18`), also an `answer`, spoken verbatim, never paraphrased.
+
+#### Interfaces — complete: `StatusDot`'s `decorative` and the hidden agent line
+
+```tsx
+// StatusDot.tsx ⚑ — the props gain one optional flag; the return becomes:
+export function StatusDot(props: { status: DotStatus; live: boolean; label: string; decorative?: boolean }): JSX.Element {
+  // ... unchanged down to className ...
+  const a11y = props.decorative
+    ? { "aria-hidden": true as const }
+    : { role: "img" as const, "aria-label": label, title: label };
+  return <span {...a11y} className={className} style={live ? beatDelayStyle() : undefined} />;
+}
+
+// AgentLine.tsx ⚑ (task 40, task-40.md:696-709) — one prop, two attributes on the root:
+export function AgentLine(props: { sessionId: string; whoLabel: string; id?: string }): JSX.Element | null
+    <div className="wk-agent" id={props.id} aria-hidden="true">
+```
+
+`decorative` keeps `label` required: the caller still says what the dot means, so a later
+non-row use cannot drop the words by accident. Phase 2's rail rows (`SessionRow.tsx`,
+`BranchRow.tsx`, `MachineChip.tsx`, `SessionPaneHeader.tsx`, `SessionPicker.tsx`; grep on
+2026-09-26) keep the labelled dot: they have no STATE word beside it.
+
+#### Interfaces — complete: the Work list as a grid (`WorkLens.tsx`, `CriterionGroup.tsx`, `IssueRow.tsx` ⚑)
+
+```tsx
+// WorkLens.tsx ⚑ — beside `items` (task-40.md:531-536): the row order the grid announces.
+export const RowIndexContext = createContext<ReadonlyMap<string, number>>(new Map());
+const rowIndex = useMemo(() => {
+  const m = new Map<string, number>();
+  for (const it of items) {
+    if (it.kind === "line") continue;                           // decision 6: a line is not a row
+    m.set(it.kind === "head" ? `head:${it.g.key}` : `row:${it.id}`, m.size + 1);
+  }
+  return m;
+}, [items]);
+// The list element (task-40.md:555) gains, only while a group exists:
+//   role="grid" aria-label="Issues" aria-multiselectable="true" aria-rowcount={rowIndex.size}
+// and its children render inside <RowIndexContext.Provider value={rowIndex}>.
+// With no groups the list carries no role: the sentence "No issues in this feature yet." is the fact.
+
+// CriterionGroup.tsx ⚑ (task-40.md:625-633):
+//   .wk-group        role="rowgroup"
+//   .wk-group-head   role="row" aria-rowindex={useContext(RowIndexContext).get(`head:${key}`)}
+//   .wk-group-words  role="rowheader"        .wk-group-size  role="gridcell"
+//   .wk-rows         role="none"             ThreadLine's root  role="none"
+
+// IssueRow.tsx ⚑ (task-40.md:668-681):
+const idx = useContext(RowIndexContext).get(`row:${issueId}`);
+const agentId = lead === null ? undefined : `wk-agent-${issueId}`;
+//   .wk-item  role="row" aria-rowindex={idx} aria-selected={selected} aria-describedby={agentId}
+//   .wk-row   role="gridcell"
+//   <AgentLine ... id={agentId} />
+```
+
+`ThreadLine` (SW.14) takes `role` through its root's rest props if it spreads them; if it does not,
+its root gains `role="none"` as one ⚑ attribute (**UNVERIFIED**: SW.14's part prints its props, not
+its root). Test 3 below requires the thread's SVG gutter to be `aria-hidden` inside a Work row;
+if SW.14 does not set it, the gutter's root takes it here (`task-29.md:466` asserts only that an
+SVG holds no live region).
+
+#### Interfaces — complete: Triage, the board and the Desk
+
+```tsx
+// TriageView.tsx ⚑ (task 42) — its list element (the one with data-work-list) takes the Work
+// list's three attributes; each triage item's root is role="row" with aria-rowindex (1-based in
+// the list's order) and its content one role="gridcell". aria-rowcount is the triage count.
+
+// BoardView.tsx ⚑ (task 43) — each column's card container:
+//   role="listbox" aria-label={`${columnTitle}, ${cards.length}`} aria-orientation="vertical"
+// and each card: role="option" aria-selected={selected} aria-setsize={cards.length}
+//   aria-posinset={i + 1}. The column header stays outside the listbox, as a heading.
+
+// DeskSection.tsx ⚑ (task 62, task-62.md:384-392) — the rows go inside one element:
+//   <div role="grid" aria-labelledby={id}> {items.map(...)} </div>
+// each .dk-row gains role="row", and deskRenderOf(item.kind)(item) sits in <div role="gridcell">.
+// The zero lines stay outside the grid, as plain paragraphs.
+```
+
+A grid's roving focus is task 53's and task 62's cursor (`data-cursor`, `aria-current`); this task
+adds no focus handling. `aria-selected` on a Work row mirrors task 40's `data-selected`.
