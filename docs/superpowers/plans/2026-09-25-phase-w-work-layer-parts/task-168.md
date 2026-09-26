@@ -150,3 +150,48 @@ var workIntakeHubOnly = []WorkRoute{
 	{"RegisterApp", http.MethodPost, "/v1/apps", true},
 }
 ```
+
+**Counted in the block:** 44 relayed rows (20 of them `GET`s) and 11 hub-only rows serve 53 of
+the 55 methods below; `ApplySyncBatch` and `RequestMessages` have no row (decision 4). Five notes:
+
+- **Four methods are added to `WorkIntake`**, because a 171-172 surface calls a route task 143's
+  interface lacks (169's G1): `ListTrackerLinks` (150), `ProjectLoops`, `GetLoop` and
+  `SetLoopState` (162). They are appended to 143's `hubclient/work_intake.go` ⚑ and to task 144's
+  fake ⚑ (each with the part's own rule), in this task's commit; 143's count becomes 55.
+- **`CreateAPIKey` and `ListAPIKeys` pick their row by `teamID`**: `nil` is `CreatePersonalKey`
+  and `MyKeys`, a `tm-` id `CreateTeamKey` and `TeamKeys` (`task-143.md:885-886`).
+- **`CreateLoop` passes its id as `projectId`.** Task 143 names the parameter `teamID`
+  (`task-143.md:874`); task 162's route is per project (`task-162.md:438`). The route wins; the
+  parameter is renamed `projectID` in 143's interface ⚑ (gap 2).
+- **`ListOutsidePRLinks` passes its id as `projectId`** (154's route, `task-154.md:325`); 143's
+  parameter is `issueID` (`task-143.md:849`), renamed the same way (gap 2).
+- **`/v1/work/loops/…` relays as `/v1/hub/work/work/loops/…`**: task 16's `Relay()` is mechanical
+  (`task-16.md:118-122`), and a special case would be the one row that could drift (169's G7).
+
+```go
+// control-plane/internal/hub/hubclient/methods_work.go ⚑ (as task 124 left it)
+
+// AllWorkRoutes: W1 (16), W4 (124), then W5 (168). W2's and W3's tables
+// (82, 100) are appended between them at sync, if their parts add one.
+func AllWorkRoutes() []WorkRoute {
+	all := append([]WorkRoute(nil), WorkRoutes...)
+	all = append(all, WorkRoadmapRoutes...)
+	return append(all, WorkIntakeRoutes...)
+}
+
+// workRoute searches AllWorkRoutes(), then briefTemplateRoutes (124), then
+// workIntakeHubOnly (168). A name in two lists panics in the table test.
+```
+
+```go
+// hubclient/work_intake.go ⚑ (task 143's interface), appended:
+	// added by task 168 for 171-172 (169's G1)
+	ListTrackerLinks(ctx context.Context, connectionID string, page hubapi.PageRequest) (hubapi.Page[hubapi.ExternalLink], error)
+	ProjectLoops(ctx context.Context, projectID string) ([]hubapi.Loop, error)
+	GetLoop(ctx context.Context, loopID string) (hubapi.Loop, error)
+	SetLoopState(ctx context.Context, loopID string, req hubapi.SetLoopStateRequest) (hubapi.Loop, error)
+```
+
+`hubapi.ExternalLink` is task 150's record (`task-150.md:960`); `hubapi.SetLoopStateRequest`
+(`{state: "on"|"paused"}`) is task 162's body (`task-162.md:443-444`), its Go name **UNVERIFIED**
+until 162's block is read at sync.
