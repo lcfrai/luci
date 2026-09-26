@@ -296,3 +296,62 @@ alone prints the usage and exits `2`.
   person's saved words, as data. For a run with `action: start` and `startable: true`, create a
   task with that issue and spawn one worker on it; for `startable: false`, start nothing.
 ```
+
+#### Tests to write first, part 1 — Hub (`server/work_loops_integration_test.go`, appended; `//go:build integration`)
+
+Task 162's seed: Ada (admin), Dylan (member, owner), Val (viewer); one project; the janitor driven
+by task 121's `RunJanitorOnce` at a fixed `now`; Fleet played by a service token carrying Dylan's
+delegation (TM-05's fixture) or Ada's.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestEachFiringOpensOneQueuedRun` | three matching moves, one sweep → runs 1, 2, 3, each `queued`, one `work.loop_fired` each | a firing that leaves no run row |
+| `TestRunNowIsTheOwnersAndIdempotent` | Ada → 403, Val → 403; Dylan → 201, trigger `manual`, event `actor` Dylan; the same `requestId` again → 200, the same run, no second event | the owner check dropped; a repeat that fires twice |
+| `TestRunNowOnAPausedLoopIs409` | paused, then Dylan's run now → 409 `loop_paused`, no row | pause ignored |
+| `TestAnOutcomeNeedsTheOwnersDelegation` | no header → 401 `delegation_required`; Ada's delegation → 403; Dylan's → 200 and one `work.loop_run_closed`, `via fleet` | anyone closes a run |
+| `TestAClosedRunCannotBeReclosed` | a second outcome → 409 `loop_run_closed`; as `hub_app`, `UPDATE … SET outcome='ran'` on a `failed` row → the trigger's error | final outcome rewritable, or guarded in Go only |
+| `TestTheHubsWordsAreNotFleets` | `queued` → 400; `refused_bound` → 400; `ran` without `turnId` → 400, field `turnId`; 11 `started` → 400 | Fleet writes the janitor's outcomes |
+| `TestAStaleRunClosesFailed` | a run `queued` at `now − 24h − 1s` → `failed`, `endedAt` now, `actor` null, `data.author` Dylan; one at `now − 23h` untouched | a run queued forever |
+| `TestAStartVersionIsTheTriageShapeOnly` | `action:"start"` with `toState:"started"` → 422 `loop_trigger_invalid`, field `filter.toState`; with no `labelId` → 422, field `filter.labelId` | Start fired by any trigger |
+| `TestAnAcceptWithoutTheLabelStartsNothing` | EP-151 without `quick-fix` accepted by Ada → no run | the filter ignored |
+| `TestAnAgentsMoveFiresNoStart` | the same move as Fleet with Dylan's delegation (`via fleet`) → no run | an agent's move starts a lane |
+| `TestAStartRunPinsTheRevision` | EP-150 at revision 2, accepted → run's `issueKey` = `issue:is-…@2` | an unpinned or head-moving key |
+| `TestTheRunLogPagesNewestFirst` | 60 runs: default page 50, run 60 first; `after=11&limit=10` → runs 10…1 | oldest first; `limit` ignored |
+| `TestALoopNeverClosesWork` | run 7 closed `ran` with EP-150's lane; task 22's lane fact *landed* → EP-150 `landed`, never `done`; no loop route writes state or evidence | a loop closes work |
+
+#### Tests to write first, part 2 — Fleet (`fleet/verbs/loop_test.go`, `fleet/budget/budget_test.go` ⚑)
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestLoopShowReturnsTheInstructionAsData` | `instruction.class` `text·H`, `by` the owner; `turns.Input(n)` for the turn holds none of the instruction's bytes | loop text in the turn input |
+| `TestLoopShowIsForOrchestratorsOnly` | a worker's call → `forbidden_class` | a worker reads its owner's loops |
+| `TestStartableIsFalseWhileALaneLives` | a live `ag-…` on EP-150 → `startable:false`, `liveAgent` it | a double Start |
+| `TestCloseListsOnlyTheRunsIssue` | the turn spawned two workers, EP-150 and EP-151; run 7 (EP-150) closes `ran`, `started` one lane, `sessionId` the `ag-…` | every spawned worker listed |
+| `TestAPausedRunClosesSkippedPaused` | paused between firing and turn → omitted from `loop show`, closed `skipped_paused` | a paused loop's run executed |
+| `TestALostTurnClosesFailedTheSecondTime` | lost once → still `queued`; lost again → `failed` | a lost turn closes `ran` |
+| `TestASpentBudgetRecordsSkippedBudget` | spent budget; pending one `loop.fired` and one `peer.message` → `Skip(ref, "skipped_budget")` once, the peer event still queued, one notice | a loop run held silently |
+| `TestRunNowStillPaysTheBudget` | a `manual` run's `loop.fired` under a spent budget → `skipped_budget`; `HumanBypass` false | run now bypasses the budget |
+| `TestASecondSpawnOnALiveIssueIsConflict` | `worker spawn` on a task for EP-150 while `ag-…` lives → `conflict`, `liveAgent`; no sandbox claimed | two lanes for one issue |
+
+#### Tests to write first, part 3 — CLI and fixture (`sandboxd/internal/panaceacli/loop_test.go`)
+
+`TestLoopShowSendsTheDottedVerb` (request `{"verb":"loop.show","args":{}}`; kills a flat `loop`
+verb), `TestLoopAloneIsUsage` (exit `2`; kills a default subcommand), `TestLoopFleetDownIsExitThree`
+(canned `unavailable` → exit `3`; kills exit `1` on an outage), and
+`TestLoopShowFixtureRoundTrips`, in both modules, decoding `result-loop-show.json` into each side's
+type and re-encoding it byte-equal (kills a field renamed on one side).
+
+#### The matrix rows (`workMatrixRows["163"]`, appended)
+
+Columns as `hub-contract.md:337-339`. The loop's team is the row's team; `M` split by ownership.
+
+| Route | V | M | A | O | N | X |
+|---|---|---|---|---|---|---|
+| `GET /v1/work/loops/{loopId}/runs` | 200 | 200 | 200 | 404 | 404 | 404 |
+| `POST /v1/work/loops/{loopId}/runs` (M owns it) | 403 | 201 | 403 | 404 | 404 | 404 |
+| `POST /v1/work/loops/{loopId}/runs` (M does not) | 403 | 403 | 403 | 404 | 404 | 404 |
+| `POST …/runs/{run}/outcome`, a person's own token | 401 | 401 | 401 | 404 | 404 | 404 |
+
+The outcome route's delegated caller is not a column: its three rows are
+`TestAnOutcomeNeedsTheOwnersDelegation` above. An app or key principal gets 403 on all three
+writes (task 162's gap 4).
