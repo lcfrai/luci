@@ -409,3 +409,90 @@ export const base = { hubBase: "https://hub.example.test", timeZone: "Australia/
 
 `Page` is `{ items, next }` as task 156's list answers (`task-156.md:538`); the fixtures' times are
 UTC and read in Sydney (UTC+10 on 2026-09-26), so `04:05:03Z` renders *14:05:03*.
+
+#### Tests to write first — `Keys.test.tsx` and `AdminHome.test.tsx`
+
+```tsx
+// desktop/src/components/admin/Keys.test.tsx
+import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { describe, expect, it } from "vitest";
+import { expectNoPrediction } from "../../test/expectNoPrediction";
+import { useWorkStore } from "../../state/workSlice";   // task 37's store (UNVERIFIED export name)
+import { AdminHome } from "./AdminHome";
+import { base, dylan, fakeClient, priya, SECRET } from "./testAdmin";
+
+async function createKey(client = fakeClient()) {
+  const user = userEvent.setup();
+  const view = render(<AdminHome me={dylan} client={client} {...base} />);
+  const mine = await screen.findByRole("region", { name: "Your keys" });
+  await user.type(within(mine).getByLabelText("Name"), "CI release");
+  await user.type(within(mine).getByLabelText("Expires"), "2027-03-25");
+  return { user, view, mine, client };
+}
+
+describe("Keys", () => {
+  it("shows the secret once, then it is gone from the DOM, the store and storage", async () => {
+    const { user, view, mine } = await createKey();
+    await user.click(within(mine).getByRole("button", { name: "Create key" }));
+    expect(await screen.findByText(SECRET)).toBeVisible();
+    expect(screen.getByText("Shown once. Copy it now: it is not shown again.")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Done" }));
+    expect(view.container.innerHTML).not.toContain(SECRET);
+    expect(JSON.stringify(useWorkStore.getState())).not.toContain(SECRET);
+    expect(JSON.stringify({ ...localStorage })).not.toContain(SECRET);
+  });
+
+  it("sends one create for a double press", async () => {
+    const { user, mine, client } = await createKey();
+    const btn = within(mine).getByRole("button", { name: "Create key" });
+    await Promise.all([user.click(btn), user.click(btn)]);
+    await waitFor(() => expect(client.createAPIKey).toHaveBeenCalledTimes(1));
+  });
+
+  it("reads the rate as facts: two numbers and a time, never N of M", async () => {
+    const { view } = await createKey();
+    expect(await screen.findByText("Your own requests: used 3 · limit 20 · resets 14:05:03")).toBeVisible();
+    expect(view.container.textContent).not.toMatch(/\d+\s+of\s+\d+|%/);
+    expect(view.container.querySelector("meter, progress, [role=progressbar]")).toBeNull();
+    expectNoPrediction(view.container);
+  });
+
+  it("revokes only after the in-place confirm", async () => {
+    const { user, mine, client } = await createKey();
+    await user.click(await within(mine).findByRole("button", { name: "Revoke" }));
+    expect(client.revokeAPIKey).not.toHaveBeenCalled();
+    expect(screen.getByText("CI release stops working at once; anything using it gets 401.")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Revoke CI release" }));
+    await waitFor(() => expect(client.revokeAPIKey).toHaveBeenCalledWith("ak-1"));
+  });
+
+  it("holds the secret in SecretOnce's props only", () => {
+    const src = readFileSync(resolve(__dirname, "SecretOnce.tsx"), "utf8");
+    expect(src).not.toMatch(/workSlice|localStorage|sessionStorage|console\.|useEffect/);
+  });
+});
+```
+
+```tsx
+// desktop/src/components/admin/AdminHome.test.tsx (the access rows)
+it("a member sees her own keys and no other section", async () => {
+  render(<AdminHome me={priya} client={fakeClient()} {...base} />);
+  expect(await screen.findByRole("region", { name: "Your keys" })).toBeVisible();
+  for (const name of ["Apps", "Connectors", "Payments: webhooks", "Payments: agents", "Payments: team keys"])
+    expect(screen.queryByRole("region", { name })).toBeNull();
+});
+it("an org admin who is no team's admin sees Apps and Connectors, never a team's policy", async () => {
+  render(<AdminHome me={{ ...dylan, teams: [{ ...dylan.teams[0], role: "member" }] }} client={fakeClient()} {...base} />);
+  expect(await screen.findByRole("region", { name: "Apps" })).toBeVisible();
+  expect(screen.queryByRole("region", { name: "Payments: agents" })).toBeNull();
+});
+it("renders no Publish button while publishRoute is null", async () => {
+  const { container } = render(<AdminHome me={dylan} client={fakeClient()} {...base} />);
+  await screen.findByRole("region", { name: "Payments: agents" });
+  expect(screen.queryByRole("button", { name: /publish/i })).toBeNull();
+  expectNoPrediction(container);
+});
+```
