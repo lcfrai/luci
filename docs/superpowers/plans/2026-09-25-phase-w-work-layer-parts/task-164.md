@@ -151,3 +151,97 @@ func Keys(projectID, environment, run, commit string) (reserve, confirm string) 
 `--pipeline-run` takes the CI's raw number, and `--source` says which CI; `--run-attempt` is
 GitHub's only. The scope's single `--pipeline-run <id>` flag becomes these three (gap 2), because
 the CLI, not each wrapper, owns the grammar.
+
+#### The command line — `main.go` (contract complete)
+
+```text
+panacea-release create --project pj-… --environment <name> --panacea-project <name>
+                       --commit <40 hex> --source ado|gh --pipeline-run <digits>
+                       [--run-attempt <digits>] [--branch refs/heads/…] [--brief bf-…]
+                       [--format json|env] [--verbose]
+environment:  PANACEA_HUB_URL (https only; http only when PANACEA_RELEASE_INSECURE_LOOPBACK=1
+              and the host is 127.0.0.1), PANACEA_API_KEY (required; begins pak_)
+stdout:       --format json → one object, below; --format env → "release_id=rl-…\nstate=confirmed\n"
+stderr:       one plain line: "rl-… confirmed · pinned · brief:bf-…@6", or the refusal sentence
+exit:         0 confirmed · 2 usage · 3 refused · 4 the Hub unreachable after retries
+```
+
+`--panacea-project` is **required**, not the scope's optional flag: route 35's body requires
+`panaceaProject` (`hub-contract.md:998`, `:1008`) and the CLI invents no default (gap 4).
+
+#### The wire and the calls — `release.go` (complete in shape)
+
+```go
+package main
+
+// reserveBody is route 35's run body, exactly its fields (hub-contract.md:998-1000); there is
+// no issues field and no other key (decision 8). designKey and sourceDeploymentId are null:
+// a CI outside us knows no approved design and re-runs no Panacea deployment.
+type reserveBody struct {
+	Kind               string  `json:"kind"` // "run"
+	PanaceaProject     string  `json:"panaceaProject"`
+	Environment        string  `json:"environment"`
+	BranchRef          string  `json:"branchRef"` // "" when --branch is absent
+	Commit             string  `json:"commit"`
+	BriefID            *string `json:"briefId"`
+	DesignKey          *string `json:"designKey"`
+	SourceDeploymentID *string `json:"sourceDeploymentId"`
+}
+
+type confirmBody struct {
+	PipelineRun string `json:"pipelineRun"`
+}
+
+// release is the part of the Hub's Release the CLI reads (hub-contract.md:976-991).
+type release struct {
+	ID    string `json:"id"`
+	State string `json:"state"`
+	Pin   struct {
+		Status   string  `json:"status"`
+		Reason   string  `json:"reason"`
+		BriefKey *string `json:"briefKey"`
+	} `json:"pin"`
+}
+
+// Output is stdout's one object.
+type Output struct {
+	ReleaseID string    `json:"releaseId"`
+	State     string    `json:"state"` // "confirmed" on exit 0
+	Pin       OutputPin `json:"pin"`
+}
+type OutputPin struct {
+	Status   string  `json:"status"`
+	Reason   string  `json:"reason"`
+	BriefKey *string `json:"briefKey,omitempty"`
+}
+
+// Refusal is exit 3: the Hub's problem code and its sentence, never the request.
+type Refusal struct {
+	Status int
+	Code   string // forbidden, not_reserver, key_revoked, deploy_frozen, release_expired, conflict, …
+	Line   string
+}
+
+// Unreachable is exit 4: the last cause, after decision 6's four retries.
+type Unreachable struct{ Last error }
+
+type Config struct {
+	HubURL  string
+	Key     string // never formatted into any error, line or log
+	Client  *http.Client
+	Sleep   func(time.Duration) // tests pass a recorder
+	Verbose io.Writer           // nil unless --verbose
+}
+
+// Create runs decision 2's three calls in order and returns Output, *Refusal,
+// *Unreachable or *RunIDError. A freeze answers *Refusal{409, "deploy_frozen",
+// "<env> is frozen by <name> since <HH:MM> · <reason>"} with no reserve sent, the
+// sentence being task 131's FrozenError text (task-131.md:126-129).
+func Create(ctx context.Context, cfg Config, a Args) (Output, error)
+
+// Args are the parsed flags, validated by runid.go before any call.
+type Args struct {
+	ProjectID, Environment, PanaceaProject, Commit, PipelineRun, BranchRef string
+	BriefID                                                            *string
+}
+```
