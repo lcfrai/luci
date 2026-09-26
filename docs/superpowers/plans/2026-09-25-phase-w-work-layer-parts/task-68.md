@@ -142,3 +142,96 @@ export interface IssueOrigin { kind: "span" | "hunk"; ref: string }
 Task 37's client has no head normaliser (its `relay` hands back the JSON as sent), so a head from
 a Hub without the column has no `origin` key at all. Every reader in this task writes
 `head.origin ?? null`, and test 8 feeds such a head.
+
+#### Interfaces — complete: the `createIssue` op on `desktop/src/work/replica/ops.ts` ⚑ (task 56)
+
+Task 56's queue keys every op by `op.issueId` (`task-56.md:290-291`, `:368-372`), so the op carries
+the ghost's id there as well as in `localId`: they are the same `lc-` string, and the queue for a
+ghost holds only its own create.
+
+```ts
+// added to the WorkOp union (task-56.md:156-168):
+  /** Task 68. `issueId` === `localId`: the ghost row's id until the Hub returns its is- id.
+   *  `paintState` is the team policy's defaultState as the composer read it; paint only, never sent. */
+  | { kind: "createIssue"; issueId: string; localId: string; projectId: string;
+      paintState: IssueState; req: CreateIssueRequest }
+
+// added to Settled (task-56.md:284-286):
+  | { created: IssueWithRevision; replacesLocal: string }
+
+// fieldsOf: a create touches no field of an existing issue.
+    case "createIssue": return [];
+
+// undoable (task-56.md:226-230), a second early line beside the comment's:
+  if (op.kind === "createIssue") return false;
+
+// inverseOf:
+    case "createIssue": return null;
+
+// sendOp (task-56.md:290-309):
+    case "createIssue":
+      return { created: await client.createIssue(op.projectId, op.req), replacesLocal: op.localId };
+```
+
+```ts
+// applyLocal: the create's own arm, before the field loop. It paints a ghost head and revision
+// in the one transact the batch already opens (task-56.md:368), and returns empty snapshots.
+if (op.kind === "createIssue") {
+  view.transact((w) => { w.putHead(ghostHead(view, op)); w.putRevision(ghostRevision(view, op)); });
+  return { before: new Map(), after: new Map() };
+}
+
+// revertLocal: a refused create drops its ghost and nothing else. `dropIssue` is task 55's
+// (`task-55.md:235`). It returns [] because no field of any real issue was written back.
+if (op.kind === "createIssue") {
+  view.transact((w) => w.dropIssue(op.localId));
+  return [];
+}
+
+/** The painted head: the team's default state (decision 3), number 0 and alias "" (the row shows
+ *  no alias until the Hub numbers it), and the person as creator. */
+export function ghostHead(view: ReplicaReadView, op: Extract<WorkOp, { kind: "createIssue" }>): IssueHead {
+  const now = new Date().toISOString();
+  return {
+    id: op.localId, projectId: op.projectId, number: 0, alias: "",
+    state: op.req.state || op.paintState,
+    stateReason: "", proof: "", landCommit: "", assignee: null,
+    priority: op.req.priority || "none", labels: [...op.req.labels], relations: [],
+    headRevision: 1, headKey: "", source: "person", external: null, origin: op.req.origin ?? null,
+    threadState: op.req.serves.length > 0
+      ? { kind: "on_thread", reason: "" } : { kind: "not_tied", reason: op.req.notTiedReason },
+    createdAt: now, createdBy: view.me, updatedAt: now,
+  };
+}
+
+export function ghostRevision(view: ReplicaReadView, op: Extract<WorkOp, { kind: "createIssue" }>): IssueRevision {
+  return {
+    issueId: op.localId, revision: 1, key: "", digest: "" as IssueRevision["digest"], projectId: op.projectId,
+    content: { title: op.req.title, description: op.req.description,
+               serves: [...op.req.serves], implements: [...op.req.implements] },
+    writtenAt: new Date().toISOString(), writtenBy: view.me, restoredFrom: null, erasedAt: null,
+  };
+}
+```
+
+**Where `paintState` comes from.** Task 55's replica holds no team policy (its `ReplicaWriter`,
+`task-55.md:227-236`, has no policy record), so decision 3's "from the replica" is corrected here:
+the composer calls task 37's `teamPolicy(teamId)` (`task-37.md:339`) when it opens and shows the
+answer as a fact, *lands in Backlog*. If that read fails the composer says *lands where the team's
+policy says* and paints `triage`; the Hub's answer replaces the ghost within one round trip, so
+the paint can be wrong for that long and never persists. `proof: ""` and `source: "person"` are
+task 37's own literals (`task-37.md:102`, `:97`).
+
+**On success** (`task-56.md:375-377`, step 4), the replica's success arm gains one case: for
+`{created, replacesLocal}` it runs, in one `transact`, `dropIssue(replacesLocal)`,
+`putHead(created.head)` and `putRevision(created.revision)`. Task 55 prints no rename notice, so a
+ghost that the person selected (task 44's `selectIssues`) is dropped from the selection with it;
+test 9 pins that. The `MutateHandle`'s `settled` then resolves `"applied"`, and the composer opens
+the new issue with the cockpit's `openIssue(id)` (the store action task 40 reads,
+`task-40.md:660`). `settled` carries no record, so `ReplicaWrites` (`task-56.md:345-352`) gains one
+member, filled by the success arm and never cleared within a session:
+
+```ts
+  /** Task 68. The Hub's is- id for a ghost this replica created; null while unanswered or refused. */
+  createdIdOf(localId: string): string | null;
+```
