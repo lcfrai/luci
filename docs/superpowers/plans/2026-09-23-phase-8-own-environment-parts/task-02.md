@@ -73,6 +73,11 @@ variable "state_writer_object_ids" {
     condition     = length(var.state_writer_object_ids) > 0
     error_message = "At least one principal must be able to write state, or the next stack cannot init."
   }
+  validation {
+    # Fix round 2 (third agent): every id a bare GUID, so no second spelling passes the reader check.
+    condition     = alltrue([for id in var.state_writer_object_ids : can(regex(local.object_id_pattern, id))])
+    error_message = "Every state writer must be a bare GUID (no braces, no spaces): any other spelling of a reader's id would pass the reader check."
+  }
 }
 
 variable "state_reader_object_ids" {
@@ -83,6 +88,15 @@ variable "state_reader_object_ids" {
     condition     = length(setintersection([for id in var.state_reader_object_ids : lower(id)], [for id in var.state_writer_object_ids : lower(id)])) == 0
     error_message = "A state reader must not also be a writer (object ids compared without case): the plan identity is read-only by construction."
   }
+  validation {
+    condition     = alltrue([for id in var.state_reader_object_ids : can(regex(local.object_id_pattern, id))])
+    error_message = "Every state reader must be a bare GUID (no braces, no spaces): any other spelling of a writer's id would pass the reader check."
+  }
+}
+
+locals {
+  # One pattern for both lists, so its anchors hold for both. Either case: the reader check folds it.
+  object_id_pattern = "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
 }
 
 # Fix round 1 (task 02 review I4): the validation and state_private_endpoint are new.
@@ -216,6 +230,10 @@ holds under both passes. A bare `terraform test` in the stack, without `-var-fil
 | `a_reader_that_is_the_first_writer_is_rejected` *(fix round 2, re-review m2)* | writers `[3333…, 1111…]`, readers `[2222…, 3333…]`: the shared id is the first writer and the last reader → `expect_failures = [var.state_reader_object_ids]` | the check skipping the first writer (RS1) or the last reader (RS1b), which the mid-list run lets live |
 | `a_reader_that_is_the_last_writer_is_rejected` *(fix round 2)* | writers `[1111…, 3333…]`, readers `[3333…, 2222…]`: the last writer and the first reader → the same failure | the check skipping the last writer (RS1c) or the first reader (RS1d), which neither run above can see |
 | `a_reader_that_is_a_writer_in_another_case_is_rejected` *(fix round 2)* | writer `aBcDeF00-…-00000000000a`, reader `AbCdEf00-…-00000000000A`: one GUID in two cases → the same failure | no case folding (CS1, the check as fix round 1 left it: red on it); folding only the readers (CS2) or only the writers (CS3): the case differs within each list, so a one-sided fold finds no overlap |
+| `a_reader_in_braces_is_rejected` *(fix round 2, third agent)* | writer `3333…`, reader `{3333…}`: one GUID in two spellings → `expect_failures = [var.state_reader_object_ids]` | no bare-GUID check (BR1, the check as the case fold left it: red on it); the readers' check removed (GF-R); the pattern unanchored (GF-A); braces allowed (GF-B) |
+| `a_writer_with_a_trailing_space_is_rejected` *(fix round 2, third agent)* | writers `[1111…, "3333… "]`, reader `3333…` → `expect_failures = [var.state_writer_object_ids]` | a stray space (WS1, red on the old check); the writers' check removed (GF-W); the pattern's `$` dropped (GF-E); spaces trimmed before the check but not before the reader check (GF-T) |
+| `a_reader_with_a_leading_space_is_rejected` *(fix round 2, third agent)* | writer `3333…`, reader `" 3333…"` → `expect_failures = [var.state_reader_object_ids]` | the pattern's `^` dropped (GF-S), which the braces run cannot see: braces break both ends |
+| `a_reader_without_hyphens_is_rejected` *(fix round 2, third agent)* | writer `3333…`, reader the same 32 digits without hyphens → `expect_failures = [var.state_reader_object_ids]` | the hyphens made optional (predicted survivor GF-N), which none of the three runs above can see |
 | `the_product_group_exists_before_foundation` | `azurerm_resource_group.product.name == "rg-panacea-app-${var.environment}"` | the group left to `foundation`, so the infra identity's Contributor would need the subscription (review I8) |
 | `no_writers_is_rejected` | `state_writer_object_ids = []` → `expect_failures = [var.state_writer_object_ids]` | the validation removed |
 | `bad_suffix_is_rejected` | `unique_suffix = "K7Q2"` → `expect_failures = [var.unique_suffix]` | a case-insensitive regex |
@@ -235,12 +253,14 @@ holds under both passes. A bare `terraform test` in the stack, without `-var-fil
 | `a_private_endpoint_puts_state_on_the_vnet` *(fix round 1, I4; applies)* | an endpoint given with public access still **on** (endpoint first, flip second) and `location = "australiasoutheast"` (no tfvars uses it) → one instance, on the given subnet, in the state group and `var.location`; connected to the account's `blob`, auto-approved; a zone group on the given zone; the stack's tags; *fix round 2 (re-review m5):* the endpoint and its connection named `pe-`/`psc-panacea-app-${var.environment}-tfstate` | the endpoint made only once public access is off (predicted survivor PC1); its location hard-coded (predicted survivor PL1); `file` for `blob` (PS1); manual approval (PS2); the wrong target (PS3); no zone group, so the pool resolves the public address (PZ1); the product group (PG1); no tags (PT1); another subnet (PN1); *fix round 2:* either name hard-coded to one environment (PNM, PSN; the other pass) |
 | `the_provider_is_entra_only_and_registers_nothing` *(fix round 1, I3)* | `providers.tf` read with `file()`: `storage_use_azuread = true` and `resource_provider_registrations = "none"` each exactly once, whole; *fix round 2:* counted after `/* */` blocks are stripped (re-review m3), and exactly one `provider "azurerm"` block | Entra off (V2) or commented out (V3); providers registered (Q2); *fix round 2:* either line inside `/* */` (RS2, RS2b); both lines in a second, aliased block while the default provider has neither (PA1) |
 | `the_container_is_made_through_resource_manager` *(fix round 1, I3; applies)* | `azurerm_storage_container.tfstate.storage_account_id == azurerm_storage_account.state.id` | the container by the deprecated `storage_account_name`, a data-plane call (P1) |
-| `the_one_input_from_a_later_stack_is_declared` *(fix round 2, re-review I1)* | `infra/terraform/README.md` read with `file()`: its Stack order section, HTML comments stripped, names `` `state_private_endpoint` ``; and no bootstrap `*.tf` declares a `data "terraform_remote_state"` block | the exception left undeclared (red on fix round 1's README), removed (DR1), hidden in an HTML comment (DR2) or moved under another heading (DR3); bootstrap reading foundation's state (RSD) |
+| `the_one_input_from_a_later_stack_is_declared` *(fix round 2, re-review I1)* | `infra/terraform/README.md` read with `file()`: its Stack order section, HTML comments stripped, names `` `state_private_endpoint` ``; and no bootstrap `*.tf` declares a `data "terraform_remote_state"` block | the exception left undeclared (red on fix round 1's README), removed (DR1), hidden in an HTML comment (DR2) or moved under another heading (DR3); bootstrap reading foundation's state (RSDb; ~~RSD~~ died on an error, not the assertion: As built, fix round 2) |
 
 The GUIDs in the test's `variables` blocks are in a `.tftest.hcl`, not a `.tfvars`, so guard G2
 does not apply. They are placeholders that name nobody: all zeros, all ones through all sixes,
-and (fix round 2) one mixed-case `abcdef00-…` id for the case run. *Fix round 2 (re-review m5):
-this sentence said "the all-ones placeholder" after fix round 1 had added the others.*
+and (fix round 2) one mixed-case `abcdef00-…` id for the case run, plus four misspellings of the
+all-threes id for the bare-GUID runs: in braces, with a trailing space, with a leading space, and
+without hyphens. *Fix round 2 (re-review m5): this sentence said "the all-ones placeholder"
+after fix round 1 had added the others.*
 
 #### Steps
 
@@ -274,10 +294,11 @@ bash infra/scripts/guards.sh
 # guards: 10 of 10 passed
 ```
 
-`terraform test` prints `Success! 30 passed, 0 failed.` twice inside the validate step, once per
+`terraform test` prints `Success! 34 passed, 0 failed.` twice inside the validate step, once per
 tfvars file (`dev.tfvars`, `prod.tfvars`). *As built: 21, not 12: the nine runs marked "added
 as built" kill the mutants the first twelve let live (As built, below). Fix round 1: 26, the
-five runs marked "fix round 1". Fix round 2: 30, the four new runs marked "fix round 2".*
+five runs marked "fix round 1". Fix round 2: 30, the four new runs marked "fix round 2"; then
+34, the four bare-GUID runs marked "fix round 2, third agent".*
 
 #### What this task does not claim
 
@@ -401,6 +422,20 @@ five runs marked "fix round 1". Fix round 2: 30, the four new runs marked "fix r
     `override_data`, dies at the declaration run's remote-state assertion.
   - DR1-DR3 were MALFORMED, because `git archive` writes the README with CRLF on this machine.
     Re-run CRLF-safe, all three die at the README assertion.
+- **Found by the third agent, fixed: a second spelling other than case.** Probes BR1 (the plan
+  identity as `{GUID}` among the readers, bare among the writers) and WS1 (a trailing space)
+  both planned on the case-folded check: azurerm does not check `principal_id` at plan. Every
+  id in both lists must now match `local.object_id_pattern`, an anchored bare GUID in either
+  case (the contract above). One pattern for both lists, so one run per anchor covers both.
+  Four runs pin it (the table's "third agent" rows); the first three were each red on the old
+  check alone. Whether Azure would have treated `{GUID}` as the same principal is UNVERIFIED;
+  the check now fails closed at plan either way.
+  - **Mutation** (`scratchpad/env/t02f2v3/m1/`, base HEAD `b8c84b77`): 11 entries. C0 green.
+    GF-R, GF-W, GF-A, GF-S, GF-E, GF-B, GF-T and CS1 KILLED, each at its row's run, dev pass.
+    The two predicted survivors lived: GF-X (the hex class widened to alphanumerics) and GF-N
+    (the hyphens made optional). GF-N now dies at `a_reader_without_hyphens_is_rejected`
+    (`t02f2v3/k1/`). GF-X is accepted: a non-hex letter makes no second spelling of any GUID,
+    so it cannot carry one principal past the reader check; such an id is nobody's.
 
 #### Open concerns (task 02, for task 31)
 
