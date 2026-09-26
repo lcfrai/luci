@@ -732,3 +732,62 @@ names are the Hub's (`hub-contract` §8), **UNVERIFIED** here beyond `kind` and 
 | `TestValidateRequesterPerKind` | a person with an email or a name fails; an email with `"R <r@x>"` fails; `teams` from a client fails on `requester.kind` | a client naming a person (the Hub's name is the truth); a Teams sender forged over the API |
 | `TestRequestEventsCarryNoText` | every field of the six `Request*Data` types is named in the list `channel, requesterKind, ruleId, ruleVersion, ruleAuthor, important, issueId` | a later edit adding `quote`, `email` or `displayName` to an event |
 | `TestRequestKindsAreTeamScoped` | the six kinds are in `WorkEventKinds` with `ScopeTeam` | a kind missing from the registry (`emitWork` would 500) or scoped to a project nobody names |
+
+#### Tests to write first, part 2 — `server/work_requests_integration_test.go` (`//go:build integration`)
+
+Against the compose stack, through task 17's `devissuer` fixture. The canary is
+`CANARY-rq-7f3e0d`, placed in the quote, the requester's name and a decline reason.
+
+| Test | Holds | Mutant it kills |
+|---|---|---|
+| `TestTheQuoteNeverReachesTheFeed` | create, accept, link, decline and erase requests carrying the canary; every `/v1/changes` page for a team member, from 0 to the end, holds no canary byte, and no event `data` key is `quote`, `email` or `displayName` | the quote, the address or the name in the feed |
+| `TestAcceptWritesTheQuoteVerbatim` | accept → one new issue; `GET …/revisions/1`'s description equals the stored quote byte for byte (a quote with leading spaces and a CRLF), `author: "H"`, `writtenBy` the accepter; the head reads `source: intake` and the team's `defaultState` | the quote paraphrased, trimmed or normalised; authored as `A`; written as the requester |
+| `TestASecondAcceptIsRequestClosed` | accept, then accept again → 409 `request_closed {state: accepted}`; the project has one new issue; two goroutines accepting at once → one 200, one 409 | two issues from one request |
+| `TestLinkLeavesTheIssueAlone` | link to an issue at revision 3 → the issue's revision count, head, state and `updatedAt` are unchanged, and no `issue.*` event is appended | link rewrites the issue |
+| `TestAServeTiesTheAcceptedIssue` | accept with a valid serve → `threadState: tied`; with none → `not_tied · support`; with a serve naming another project's criterion → task 08's 400 on `serves` and no issue, and the request still `open` | a serve unchecked; a failed accept that closes the request anyway |
+| `TestAProjectOfAnotherTeamIsRefused` | accept into another team's project, and into a project id that does not exist → both 400 `field: projectId`, identical bodies | cross-team accept; an oracle for another team's project ids |
+| `TestErasedRequestsLeaveNoText` | erase; then every `text`, `varchar` and `jsonb` column of `hub.work_requests`, read from `information_schema.columns`, holds no canary, and `answers` is `{}` | a denormalised copy left, or a column added later and forgotten |
+| `TestEraseNamesTheDerivedIssue` | erase an accepted request → `derivedIssueIds` is its issue; the issue's revision 1 still holds the quote and is not erased; a second erase → `erased: 0`, a second `request.erased` event | a silent cascade; a second erase unaudited |
+| `TestAnErasedRequestCannotBeAccepted` | erase an open request; accept → 409 `request_erased`; `important` → 200 | an issue made from an erased (empty) quote |
+| `TestTheReplayStaysErased` | create through `createRequest` with channel `email`, ref `<m1@x>`; erase; `createRequest` with the same ref → `ErrRequestSeen`, and the row stays erased | a re-delivery restoring erased words |
+| `TestAnIssueListsItsRequestersByName` | two requests linked to one issue → `GET …/requests` lists both, oldest first, with names and no `quote` key | the list missing, or carrying the words |
+| `TestTheManagedBlockHasNoRequestField` | accept a request with requester `R. Owner`, email `owner@client.example`; render task 19's issue section for the issue; the bytes hold none of `rq-`, the email, the name or the channel | request text reaching the agent (decision 2's line) |
+
+`TestTheManagedBlockHasNoRequestField` runs task 19's renderer from `control-plane/internal/claudemd`
+on the issue head it reads back over `hubclient`, so it lives in task 19's package's integration
+tests if the Hub's boundary rule (skeleton `:179-180`) forbids the import here; either way it runs
+in this task's commit.
+
+#### The matrix rows (`server/work_matrix_rows_integration_test.go` ⚑, key `"146"`)
+
+```go
+"146": {
+	wwrite("POST /v1/teams/{teamId}/requests", "POST", "/v1/teams/{TeamID}/requests", 201, "team_not_found",
+		func(*fixture) any {
+			return map[string]any{"requester": map[string]any{"kind": "email", "email": "r@client.example",
+				"displayName": "R"}, "quote": h("Resume uploads?"), "important": false}
+		}),
+	wread("GET /v1/teams/{teamId}/requests", "/v1/teams/{TeamID}/requests", "team_not_found"),
+	wread("GET /v1/requests/{requestId}", "/v1/requests/{RequestID}", "request_not_found"),
+	wwrite("POST /v1/requests/{requestId}/accept", "POST", "/v1/requests/{FreshRequestID}/accept", 200, "request_not_found",
+		func(f *fixture) any { return map[string]any{"projectId": f.ProjectID, "title": "Resume uploads", "serves": []any{}} }),
+	wwrite("POST /v1/requests/{requestId}/link", "POST", "/v1/requests/{FreshRequestID}/link", 200, "request_not_found",
+		func(f *fixture) any { return map[string]any{"issueId": f.IssueID} }),
+	wwrite("POST /v1/requests/{requestId}/decline", "POST", "/v1/requests/{FreshRequestID}/decline", 200, "request_not_found",
+		func(*fixture) any { return map[string]any{"reason": "Out of scope"} }),
+	wwrite("PUT /v1/requests/{requestId}/important", "PUT", "/v1/requests/{RequestID}/important", 200, "request_not_found",
+		func(*fixture) any { return map[string]any{"important": true} }),
+	wread("GET /v1/issues/{issueId}/requests", "/v1/issues/{IssueID}/requests", "issue_not_found"),
+	werase("POST /v1/requests/{requestId}/erase", "/v1/requests/{RequestID}/erase"),
+},
+```
+
+`{FreshRequestID}` is a new fixture placeholder: an **open** request made per column, since accept,
+link and decline close the one they touch and the matrix runs each column in turn. The fixture
+gains `RequestID` and `FreshRequestID` (task 07's `fixture`; how it mints a per-column value is
+**UNVERIFIED** until H16b lands, and if it cannot, the three rows each create their own request in
+`body`). The erase row is written as task 14's are (`task-07.md:460-461`). `werase` sends `empty`
+(`task-07.md:388-391`), and every Work erase requires a `reason`, so the `O` column would read 400,
+not 200: a defect in task 07's helper shared by task 14's two rows and this one (gap 3). The fix
+is one line in task 07, `body: func(*fixture) any { return map[string]any{"reason": "matrix"} }`,
+and this row needs no change when it lands.
