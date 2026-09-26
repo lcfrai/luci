@@ -91,7 +91,7 @@ answers as Priya, showing only what she may read. Her colleague Sam points his c
 - `control-plane/internal/hub/store/work_mcp.go` (+ `work_mcp_integration_test.go`) — the allow-list table (new)
 - `control-plane/internal/hub/server/work_mcp.go` — three routes and `ConnectorFragment` (new)
 - `control-plane/internal/hub/server/work_mcp_fragment_test.go` — the pure fragment rows (new)
-- `control-plane/internal/hub/migrate/sql/NNNN_work_mcp_connectors.sql` — next free number at sync time (new, rule H1)
+- no migration: `work_mcp_connectors` is task 145's table; the columns this task needs are below
 - `control-plane/internal/hub/server/matrix_integration_test.go` ⚑ — `workMatrixRows["161"]` (modified)
 
 The File map row `control-plane/cmd/workmcp/` (skeleton `:257`) says *"behind Entra OAuth"*; under
@@ -427,10 +427,17 @@ error`, the names task 169's desktop mirror uses (`task-169.md:408-410`, `:479-4
 scope names `DecideMCPConnector` and `ListMCPConnectors` instead (`tasks-141-160.md:181-182`);
 gap 7.
 
-#### The migration — `migrate/sql/NNNN_work_mcp_connectors.sql` (complete)
+#### The table — `work_mcp_connectors`, as this task requires it of task 145 (complete)
+
+Task 145's migration creates `work_mcp_connectors` with the other W5 tables
+(`tasks-141-160.md:249`), so this task **writes no migration of its own**. The block below is
+the shape this task's store needs; it is handed to task 145 as a requirement. If task 145's part
+lands with other columns, task 145 wins and the store follows; the one property this task will
+not give up is removal as a stamp (no `DELETE` grant), which `TestRemoveStampsAndReallowIsANewRow`
+pins.
 
 ```sql
--- Task 161. NNNN is the next free number at sync time (rule H1).
+-- Required of task 145's NNNN_work_intake.sql (rule H1 numbering is 145's).
 CREATE TABLE work_mcp_connectors (
   org_id      text        NOT NULL REFERENCES orgs(id),
   url         text        NOT NULL CHECK (url LIKE 'https://%' AND length(url) <= 2048),
@@ -593,7 +600,8 @@ call it makes is one of the rows above or a W1 row, checked there as the caller.
   fail to compile. Write `config.go`, `auth.go`, `mcp.go`, `schema.go`, `tools.go` and `main.go`
   until the fifteen unit rows pass.
 - [ ] **Step 3:** Write the fragment test, then `NormaliseConnectorURL` and `ConnectorFragment`.
-- [ ] **Step 4:** Write the migration, the integration test and the matrix rows; they fail. Write
+- [ ] **Step 4:** Check task 145's `work_mcp_connectors` against the required shape (a mismatch is
+  raised against 145, not patched here). Write the integration test and the matrix rows; they fail. Write
   `store/work_mcp.go` and `server/work_mcp.go` until green.
 - [ ] **Step 5:** Rerun the Hub's boundary test: `go list -deps ./control-plane/cmd/workmcp` reaches
   neither `internal/hub/server` nor `internal/hub/store`.
