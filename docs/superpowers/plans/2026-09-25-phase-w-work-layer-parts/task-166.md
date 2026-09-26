@@ -462,3 +462,38 @@ func TestAnUnboundProjectIsNotGated(t *testing.T) {
 `sessions_test.go:430`); its method name is **UNVERIFIED** and step 1 binds it. `harness:"codex"`
 creates only because the test image's catalogue marks it available; if the double's catalogue
 does not, the test uses the first harness the double does mark, and says so.
+
+#### Tests to write first — `workpolicy` (unit, no Hub, no sandbox)
+
+`harness_test.go`, `skills_test.go` and `fragment_test.go`, in package `workpolicy`. `mapFetcher`
+is the `Fetcher` double: a `map[string]map[string][]byte` keyed by `repoKey+"@"+commit`, which
+answers `errors.New("no such commit")` for any other key, so a branch name can never resolve.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestNilAndEmptyReadAsClaudeCode` | `Effective(nil)` and `Effective(&{Harnesses: []})` are both `[claude-code]`; `Allowed(nil, "codex")` is false | unset means all |
+| `TestTheOrderIsKept` | `Effective(&{Harnesses: [codex, claude-code]})` is `[codex, claude-code]` and `First` is `codex` | a sorted list, so `First` is always `claude-code` |
+| `TestStageCopiesAtTheCommitReadOnly` | a library at `4b1d…` (40 hex) with `pay/SKILL.md` lands at `home/.claude/skills/pay/SKILL.md`, mode `0444`, its folder `0555`; returns `4b1d…` | a writable copy the agent can change after the record is made |
+| `TestStageImageStagesNothing` | `source: image` returns `""` and `home/.claude` does not exist | a stale library staged under `image` |
+| `TestStageOnlyForClaudeCode` | a library policy with `id = codex` returns `""` and stages nothing | skills written into another harness's config |
+| `TestStageRefusesAnEscapingName` | a file named `../../.bashrc`, then `/etc/x`, then `C:\x`: each `errors.Is(err, ErrSkills)`, nothing written outside `home/.claude/skills` | a path traversal out of the skills folder |
+| `TestStageRefusesAnOversizeLibrary` | two files of `MaxSkillsBytes/2 + 1` each: `ErrSkills`, not a truncated copy | a partial library recorded as the whole |
+| `TestStageNeverResolvesABranch` | a library whose `Commit` is `main`: `mapFetcher` has no `main` key, so `ErrSkills` | a floating ref fetched, so what the agent loaded is unrecoverable |
+| `TestBuildIsTheSameWithAndWithoutSkills` | `harness.Build(r)` before and after a library `Stage` into a temp home: `command` and `argv` are `reflect.DeepEqual`; and no field of `harness.Request` (by reflection) has `Skill` in its name | a skills flag or field injected into the harness (OD-8) |
+| `TestTheFragmentPassesRender` | `OrgFragment(ConnectorFragment([a, b]))` succeeds; its bytes decode to `{"v":1,"worker":{…}}` with no `orchestrator` key | the list put on Orchestrators, which TM-13's I8 refuses |
+| `TestAFragmentThatBreaksAnInvariantIsRefused` | a connector fragment carrying `"permissions":{"deny":["Bash(panacea *)"]}`: `OrgFragment` returns an `*policy.InvariantError` and no bytes | a fragment that drops `Bash(panacea *)` posted anyway |
+| `TestTheFragmentIsDeterministic` | two orders of one connector list give equal bytes | a digest that moves with no change |
+
+`TestBuildIsTheSameWithAndWithoutSkills` is the OD-8 guard. It runs `Build` on the real
+descriptor, so it fails the day anyone adds a skills option to `claudeArgv` (`argv.go:80`), and
+the reflection half fails the day anyone adds one to `Request` (`harness.go:105-113`, read
+2026-09-26: `Harness`, `Model`, `Effort`, `Permission`, `OpeningPrompt`, `Conversation`, `Resume`).
+
+`TestStageCopiesAtTheCommitReadOnly` reads modes with `os.Stat(...).Mode().Perm()`. On Windows,
+Go reports `0444` for a read-only file and `0555` is not enforced for folders, so the folder half
+of the assertion is behind `runtime.GOOS != "windows"`; CI runs on Linux, where the sandbox runs.
+
+`TestAFragmentThatBreaksAnInvariantIsRefused` asserts `errors.As(err, &ie)` and `ie.Invariant ==
+"I10"` (no deny may match a `panacea` command), never the message. `InvariantError.Invariant` and
+I10 are TM-13's (team tree `task-13.md:83`, `:305-306`, and its own test of the same deny at
+`:668`, read 2026-09-26); on `feat/work-layer` they are **UNVERIFIED** until Phase T merges.
