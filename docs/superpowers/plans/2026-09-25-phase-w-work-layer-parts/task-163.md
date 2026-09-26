@@ -64,3 +64,82 @@ It stays at `landed`: Ada clears it to `done`.
 9. **The loop never proves or closes.** `started` and `landed` are task 22's lane facts, written
    as the owner whose loop caused them; `done` stays a person's act (§3.3). No loop verb touches
    state or evidence.
+
+**Files:**
+- `control-plane/internal/hub/hubapi/work_loops.go` ⚑ (task 162) — `LoopRun`, `StartedLane`, the two bodies, codes, one kind
+- `control-plane/internal/hub/store/work_loops.go` ⚑ (task 162) — runs: list, run now, close
+- `control-plane/internal/hub/server/work_loops.go` ⚑ (task 162) — three routes; `validateVersion` gains decision 7
+- `control-plane/internal/hub/server/janitor_loops.go` ⚑ (task 162) — the 24 h close; the person-only match for `start`
+- `control-plane/internal/hub/server/work_loops_integration_test.go` ⚑ (task 162) — this task's rows, appended
+- `control-plane/internal/hub/server/matrix_integration_test.go` ⚑ — `workMatrixRows["163"]`
+- `control-plane/internal/fleet/verbs/loop.go` (+ `loop_test.go`) — `loop.show`, `CloseLoopRuns` (new)
+- `control-plane/internal/fleet/model/verbs.go` ⚑ (TM-09) — one row, `loop.show`, Orchestrators only
+- `control-plane/internal/fleet/control/dispatch.go` ⚑ (TM-19) — none if registration is `Handle` in `fleetd` (as task 101 found, `task-101.md:92-95`); else one call
+- `control-plane/internal/fleet/turns/scheduler.go` ⚑ (TM-26) — one call to `CloseLoopRuns` at `turn.end`
+- `control-plane/internal/fleet/budget/gate.go` ⚑ (TM-37's gate; its file name is TM-37's) — decision 4's one branch
+- `sandboxd/internal/panaceacli/loop.go` (new), `verbs.go` ⚑ (TM-18) — `panacea loop show`, one table row
+- `testdata/panacea-control/v1/result-loop-show.json` (new) — the fixture both modules read
+
+**What is on the tree today (verified 2026-09-26).** Parts exist for tasks 24, 101, 162, 169 and
+172; there is none for 22, 98 or 143. On `feat/team-mode` (`43b6801c`): `WorkerArgs` and
+`WorkerResult` at `T24:94-106`; `delegation_required` at `T05:35` and `:253`, the v2 event's
+`via: fleet` at `T05:736`; TM-37's rule 3 at `T37:17`. None of it is merged anywhere.
+
+#### The wire — appended to task 162's `hubapi/work_loops.go` (complete; task 143 wins on names)
+
+```go
+// Outcomes. "queued" is the only non-final word (decision 1).
+var LoopOutcomes = []string{"queued", "ran", "skipped_budget", "skipped_paused", "refused_bound", "failed"}
+
+// StartedLane is SW.10's Start result as a run carries it (task-24.md:103-105;
+// task-169.md:235). In the cloud SessionID holds the worker's ag-… (decision 3).
+type StartedLane struct {
+	IssueKey  string `json:"issueKey"` // issue:is-…@r
+	SessionID string `json:"sessionId"`
+	Branch    string `json:"branch"`
+	Route     string `json:"route"` // "global" | "au"
+}
+
+type LoopRunTrigger struct {
+	Kind         string     `json:"kind"`         // "event" | "schedule" | "manual"
+	EventSeq     *int64     `json:"eventSeq"`     // event only
+	ScheduledFor *time.Time `json:"scheduledFor"` // schedule only
+}
+
+// LoopRun is keyed by (loopId, run); no id prefix (task 163's scope; task
+// 143's scope proposed lr-, task-169.md:247-253 records the conflict as G1).
+type LoopRun struct {
+	LoopID   string         `json:"loopId"`
+	Run      int            `json:"run"` // 1, 2, … per loop, gapless (task 162)
+	Version  int            `json:"version"`
+	FiredAt  time.Time      `json:"firedAt"`
+	Trigger  LoopRunTrigger `json:"trigger"`
+	Outcome  string         `json:"outcome"`
+	IssueKey *string        `json:"issueKey"` // start runs: the accepted issue at firing, @r
+	TurnID   *string        `json:"turnId"`   // ot-…, Fleet's
+	Started  []StartedLane  `json:"started"`  // [] unless a Start happened
+	EndedAt  *time.Time     `json:"endedAt"`
+}
+
+type RunLoopNowRequest struct {
+	RequestID string `json:"requestId"` // 8-64 of [A-Za-z0-9._-], as SW.10's (task-24.md:100)
+}
+type LoopRunOutcomeRequest struct {
+	Outcome string        `json:"outcome"` // ran | skipped_budget | skipped_paused | failed
+	TurnID  *string       `json:"turnId"`  // required for ran
+	Started []StartedLane `json:"started"` // ran only; ≤ 10
+}
+
+const (
+	CodeLoopRunClosed   = "loop_run_closed"    // 409: the run already has a final outcome
+	CodeLoopRunNotFound = "loop_run_not_found" // 404
+	EventLoopRunClosed  = "work.loop_run_closed" // data {loopId, run, outcome}; in the feed
+)
+```
+
+**Columns required of task 145** on `work_loop_runs`, beyond task 162's: `issue_key text`,
+`turn_id text CHECK (turn_id LIKE 'ot-%')`, `started jsonb NOT NULL DEFAULT '[]'`, `ended_at
+timestamptz`, `CHECK (outcome IN (…the six…))`, `CHECK ((outcome = 'queued') = (ended_at IS
+NULL))`, a unique index on `(loop_id, request_id) WHERE request_id IS NOT NULL`, and `GRANT UPDATE
+(outcome, turn_id, started, ended_at)`. A trigger refuses any `UPDATE` whose `OLD.outcome <>
+'queued'`, so a closed run cannot be rewritten even as `hub_app` (decision 1, two layers).
