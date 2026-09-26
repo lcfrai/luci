@@ -1109,3 +1109,213 @@ The row's shape (`id`, `title`, `chord`, `when`, `run`, `ctx.announce`) is task 
 describes a palette verb; task 59 has **no part on this tree**, so every field name here is
 **UNVERIFIED** and the implementer takes task 59's type as it lands. The behaviour is fixed: the
 same route, at the press, and the palette's announcement is the fact of what was copied.
+
+#### Tests to write first — `server/work_hooks_words_test.go` ⚑, appended (pure, complete)
+
+```go
+func TestParseBranch(t *testing.T) {
+	keys := []string{"RS", "EP"} // current RS, previously EP
+	for _, tc := range []struct {
+		name, branch string
+		want         string // the alias, or "" for no match
+	}{
+		{"alias and slug", "ep-142-resume-upload", "EP-142"},
+		{"alias alone (AU)", "ep-142", "EP-142"},
+		{"the current key", "rs-7-fix", "RS-7"},
+		{"leading zero", "ep-0142-x", ""},
+		{"digits run on", "ep-142x", ""},
+		{"another project's key", "xy-1-thing", ""},
+		{"upper case is not ours", "EP-142-thing", ""},
+		{"a folder prefix", "feature/ep-142-thing", ""},
+		{"number zero", "ep-0", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, ok := ParseBranch(tc.branch, keys)
+			if tc.want == "" {
+				if ok {
+					t.Fatalf("ParseBranch(%q) = %+v, want no match", tc.branch, got)
+				}
+				return
+			}
+			if !ok || got != (Ref{Alias: tc.want, Word: WordBranch}) {
+				t.Fatalf("ParseBranch(%q) = %+v, %v; want %s", tc.branch, got, ok, tc.want)
+			}
+		})
+	}
+}
+
+func TestWantsFiling(t *testing.T) {
+	for _, tc := range []struct {
+		body string
+		want bool
+	}{
+		{"issue: new", true},
+		{"Fixes the upload.\n\nIssue : NEW\n", true},
+		{"windows line\r\nissue: new\r\n", true},
+		{"issue: new please", false},  // not alone on its line
+		{"> issue: new", false},        // a quote of someone else's word
+		{"the issue: new uploads", false},
+		{"", false},
+	} {
+		if got := WantsFiling(tc.body); got != tc.want {
+			t.Errorf("WantsFiling(%q) = %v, want %v", tc.body, got, tc.want)
+		}
+	}
+}
+```
+
+| Mutant | Row that fails |
+|---|---|
+| `(?:-\|$)` dropped from `branchRe` | *digits run on* |
+| `[1-9]` becomes `[0-9]` in `branchRe` | *leading zero*, *number zero* |
+| the key loop accepts any key | *another project's key* |
+| `(?i)` added to `branchRe` | *upper case is not ours* |
+| `^` dropped from `branchRe` | *a folder prefix* |
+| `(?m)` dropped from `filingRe` | the second and third `WantsFiling` rows |
+| `$` dropped from `filingRe` | *not alone on its line* |
+
+#### Tests to write first — `server/work_linkback_test.go` (complete)
+
+```go
+package server
+
+import (
+	"context"
+	"encoding/json"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubapi"
+)
+
+const hub = "https://hub.example"
+
+func TestLinkbackTextShape(t *testing.T) {
+	got, err := LinkbackText(hub, []LinkLine{
+		{Kind: LineLinked, Alias: "EP-142", IssueID: "is-0123456789abcdef"},
+		{Kind: LineFiled, Alias: "EP-143", IssueID: "is-89abcdef01234567"},
+		{Kind: LineUnmatched},
+	})
+	want := "Linked to EP-142 in PanaceaApp: https://hub.example/p/issues/is-0123456789abcdef\n" +
+		"Filed EP-143 in PanaceaApp from this pull request: https://hub.example/p/issues/is-89abcdef01234567\n" +
+		"could not file: we cannot match your account"
+	if err != nil || got != want {
+		t.Fatalf("LinkbackText = %q, %v\nwant %q", got, err, want)
+	}
+}
+
+func TestLinkbackTextRefusesTextInTheAliasField(t *testing.T) {
+	for _, l := range []LinkLine{
+		{Kind: LineLinked, Alias: "Resume upload fails on Safari", IssueID: "is-0123456789abcdef"},
+		{Kind: LineLinked, Alias: "EP-142 Resume upload", IssueID: "is-0123456789abcdef"},
+		{Kind: LineFiled, Alias: "EP-142", IssueID: "Resume upload"},
+		{Kind: "title", Alias: "EP-142", IssueID: "is-0123456789abcdef"},
+	} {
+		if got, err := LinkbackText(hub, []LinkLine{l}); err == nil {
+			t.Errorf("LinkbackText(%+v) = %q, want an error", l, got)
+		}
+	}
+}
+
+func TestLinkbackTextRefusesANonHTTPSOrigin(t *testing.T) {
+	line := []LinkLine{{Kind: LineLinked, Alias: "EP-1", IssueID: "is-0123456789abcdef"}}
+	for _, u := range []string{"http://hub.example", "https://hub.example/p", "https://u@hub.example", ""} {
+		if _, err := LinkbackText(u, line); err == nil {
+			t.Errorf("LinkbackText(%q) accepted", u)
+		}
+	}
+}
+
+// recorder is one fake host: it keeps every request and answers status.
+type recorder struct {
+	status int
+	got    []*http.Request
+	bodies []string
+}
+
+func (r *recorder) serve(t *testing.T) *httptest.Server {
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, q *http.Request) {
+		b, _ := io.ReadAll(q.Body)
+		r.got, r.bodies = append(r.got, q), append(r.bodies, string(b))
+		w.WriteHeader(r.status)
+	}))
+	t.Cleanup(s.Close)
+	return s
+}
+
+func token(context.Context) (string, error) { return "tok", nil }
+
+func TestGitHubLinkbackIsOneIssueComment(t *testing.T) {
+	rec := &recorder{status: http.StatusCreated}
+	s := rec.serve(t)
+	g := GitHubLinkback{Client: hostClient{HTTP: s.Client(), Token: token}, BaseURL: s.URL}
+	pr := hubapi.OutsidePRLink{Host: hubapi.HostGitHub, Repo: "acme/web", Number: 17}
+	if err := g.Comment(context.Background(), pr, "Linked to EP-1 in PanaceaApp: x"); err != nil {
+		t.Fatal(err)
+	}
+	q := rec.got[0]
+	if len(rec.got) != 1 || q.Method != http.MethodPost || q.URL.Path != "/repos/acme/web/issues/17/comments" ||
+		q.Header.Get("Authorization") != "Bearer tok" {
+		t.Fatalf("request %s %s auth %q (%d requests)", q.Method, q.URL.Path, q.Header.Get("Authorization"), len(rec.got))
+	}
+	var body map[string]string
+	if json.Unmarshal([]byte(rec.bodies[0]), &body) != nil || body["body"] != "Linked to EP-1 in PanaceaApp: x" || len(body) != 1 {
+		t.Fatalf("body %s", rec.bodies[0])
+	}
+}
+
+func TestADOLinkbackIsOneClosedThread(t *testing.T) {
+	rec := &recorder{status: http.StatusOK}
+	s := rec.serve(t)
+	a := ADOLinkback{Client: hostClient{HTTP: s.Client(), Token: token}, BaseURL: s.URL}
+	pr := hubapi.OutsidePRLink{Host: hubapi.HostAzureDevOps, Repo: "kpmg/panacea/web", Number: 9}
+	if err := a.Comment(context.Background(), pr, "Linked to EP-1 in PanaceaApp: x"); err != nil {
+		t.Fatal(err)
+	}
+	q := rec.got[0]
+	if q.URL.Path != "/kpmg/panacea/_apis/git/repositories/web/pullRequests/9/threads" ||
+		q.URL.Query().Get("api-version") != "7.1" {
+		t.Fatalf("request %s?%s", q.URL.Path, q.URL.RawQuery)
+	}
+	if !strings.Contains(rec.bodies[0], `"status":"closed"`) || !strings.Contains(rec.bodies[0], `"parentCommentId":0`) {
+		t.Fatalf("body %s", rec.bodies[0])
+	}
+}
+
+func TestLinkbackRefusesAHostError(t *testing.T) {
+	rec := &recorder{status: http.StatusForbidden}
+	s := rec.serve(t)
+	g := GitHubLinkback{Client: hostClient{HTTP: s.Client(), Token: token}, BaseURL: s.URL}
+	if err := g.Comment(context.Background(), hubapi.OutsidePRLink{Repo: "acme/web", Number: 1}, "x"); err == nil {
+		t.Fatal("a 403 was reported as posted")
+	}
+}
+
+func TestAutolinkTemplateAndExisting(t *testing.T) {
+	rec := &recorder{status: http.StatusUnprocessableEntity}
+	s := rec.serve(t)
+	g := GitHubLinkback{Client: hostClient{HTTP: s.Client(), Token: token}, BaseURL: s.URL, HubURL: hub}
+	if err := g.Autolink(context.Background(), "acme/web", "EP", "pj-0123456789abcdef"); err != nil {
+		t.Fatalf("a 422 (prefix exists) is done, got %v", err)
+	}
+	var body map[string]any
+	_ = json.Unmarshal([]byte(rec.bodies[0]), &body)
+	if rec.got[0].URL.Path != "/repos/acme/web/autolinks" || body["key_prefix"] != "EP-" || body["is_alphanumeric"] != false ||
+		body["url_template"] != "https://hub.example/p/issues/by-alias/EP-<num>?p=pj-0123456789abcdef" {
+		t.Fatalf("autolink %s %v", rec.got[0].URL.Path, body)
+	}
+}
+```
+
+| Mutant | Test that fails |
+|---|---|
+| a `Title` field added to `LinkLine` and printed | `TestLinkbackTextShape` (exact text) |
+| the `aliasRe` check removed | `TestLinkbackTextRefusesTextInTheAliasField` |
+| `u.Scheme != "https"` removed | `TestLinkbackTextRefusesANonHTTPSOrigin` |
+| `want2xx` returns `err` only | `TestLinkbackRefusesAHostError` |
+| the ADO thread sent without `status` | `TestADOLinkbackIsOneClosedThread` |
+| 422 treated as a failure | `TestAutolinkTemplateAndExisting` |
+| `?p=` dropped from the template | `TestAutolinkTemplateAndExisting` |
