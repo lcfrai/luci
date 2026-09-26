@@ -466,3 +466,57 @@ release's range. A failure is logged and retried by the same flow's retry (the H
 happened, and a missing notice is a lesser fault than a Ship that reports failure for a deployment
 that succeeded. That the Ship flow has the ids at that moment is task 131's decision 8 and task
 71's walk, **UNVERIFIED until `feat/phase-7-deploy` merges** (rule H2).
+
+#### Tests to write first, part 1 — `mailer/inbound_test.go` and `server/work_mail_test.go` (pure)
+
+| Test | Holds | Mutant it kills |
+|---|---|---|
+| `TestAReplyChainKeepsOnlyTheNewText` | `"Please add X.\n\nOn Tue, A wrote:\n> old\n> older"` → `"Please add X."`, trimmed 4; the same for `-----Original Message-----`, an Outlook `From:` block and a `____` rule | the whole thread as the quote |
+| `TestTheSignatureIsCut` | `"Ask\n-- \nR. Owner\nAcme"` → `"Ask"`, trimmed 3 | the signature kept as words |
+| `TestAQuoteNeverCutsToNothing` | a body that is all `>` lines, and one whose first line is `From: x` (`TestAFirstLineFromIsKept`), keep the whole body, trimmed 0 | an ask recorded as `""` (and task 146's `ValidateQuote` failing the whole sweep) |
+| `TestALongBodyFitsTheCap` | 40 KiB of short lines → at most 16 KiB, ends on a line boundary, `trimmed` counts every dropped line; one 20 KiB line → 16 KiB, valid UTF-8 | a mail failing to become a request by length; a cut through a rune |
+| `TestNoticeTextIsFactsOnly` | `noticeText("EP-142", "production", 04:02Z, Sydney, "engagement-portal-build-x7k2p")` is exactly *"EP-142 shipped to production at 14:02 AEST in release engagement-portal-build-x7k2p."*; `noPrediction` (task 148's helper) passes | a title or description in the mail; a local time with no zone |
+| `TestGraphRequestsAreTheOnesWeMean` | against `httptest`: `Delta` sends `Prefer: outlook.body-content-type="text"` and follows `nextLink` to `deltaLink`; `Reply` filters by `internetMessageId` and posts to `/reply` with `comment` only | an HTML body read; a new mail sent instead of a reply in the thread |
+
+#### Tests to write first, part 2 — `server/work_mail_integration_test.go` (`//go:build integration`)
+
+Against the compose stack, with the fake `Inbox`, `Replier` and `Mailer` (task 81's fake, gaining
+the read side), and `RunJanitorOnce` (task 121's hook).
+
+| Test | Holds | Mutant it kills |
+|---|---|---|
+| `TestTheSameMessageTwiceIsOneRequest` | the fake delivers `<m1@client.example>` in two rounds → one request, `SweepReport.MailSeen == 1`, one `request.created` | duplicate requests from a retry |
+| `TestAnAddressRoutesToItsTeamOnly` | team A's alias in `To`, team B's absent → one request in A, none in B; both aliases → one in each; an unknown alias → none, `MailUnrouted == 1` | one address for the org |
+| `TestAMailIsNeverAPerson` | `From` a member's exact address → requester `kind: email`, `nonMember` routing | a spoofed `From` read as a member (decision 3) |
+| `TestTheCursorMovesOnlyAfterCommit` | the fake's second message makes `createRequest` fail once → the cursor is unchanged, the next sweep creates both, and the first once | the cursor advanced before commit |
+| `TestAConfirmedReleaseTellsEachRequesterOnce` | two requests linked to EP-142; record EP-142 on a confirmed production release; sweep → two notices sent, two `request.told`; sweep again → none | told twice |
+| `TestOnlyConfirmedRunsTell` | a `reserved`, an `abandoned`, an `expired` release and a `rollback`, each carrying EP-142 → nothing | shipped before confirm; a rollback announced |
+| `TestOnlyAnnouncedEnvironmentsTell` | a release to `evidence-upload` (not announced) → nothing; then to `production` → one; a redeploy to `production` → none | every preview and redeploy announced |
+| `TestTheEmailReplyIsInTheThread` | the notice for an email request is a `Reply` on its stored `Message-ID`, not a `Send` | a new thread instead of where they asked |
+| `TestAFormRequesterIsMailed` | a form request's notice is a `Send` to the requester user's address with the same text | the form requester never told |
+| `TestNoCustomerTextInMail` | the issue's description, a comment and another request's quote all hold `CANARY-ml-5e`; no sent message holds it | customer text in mail |
+| `TestReleaseIssuesAreTheReserversOnce` | another member's PUT → 403 `not_reserver`; on a `reserved` release → 409; the same set twice → 200 and one event; a different set → 409 | anyone rewriting what a release carried |
+| `TestTwoReplicasTellOnce` | two janitors sweep at once (task 121's `-tags integration` pattern) → each notice sent once | double sync of the mailbox or double notices |
+| `TestAnErasedRequestIsNotTold` | erase a linked request, then confirm the release → no notice | mail to an erased address |
+
+#### The matrix rows (key `"149"`)
+
+```go
+"149": {
+	wread("GET /v1/teams/{teamId}/intake-address", "/v1/teams/{TeamID}/intake-address", "team_not_found"),
+	wadmin("PUT /v1/teams/{teamId}/intake-address", "PUT", "/v1/teams/{TeamID}/intake-address", 200, "team_not_found",
+		func(f *fixture) any {
+			return map[string]any{"address": "intake-" + f.TeamSlug + "@" + f.MailDomain,
+				"announceEnvironments": []any{"production"}}
+		}),
+	{"PUT /v1/releases/{releaseId}/issues", row{name: "PUT /v1/releases/{releaseId}/issues", method: "PUT",
+		path: "/v1/releases/{ReleaseID}/issues", body: func(f *fixture) any { return map[string]any{"issueIds": []any{f.IssueID}} },
+		want: [6]int{403, 200, 403, 404, 404, 404}, wantCode: nf("release_not_found")}},
+},
+```
+
+The release row's `M` column is the fixture's reserver (a member who reserved `ReleaseID`, a
+confirmed release in the fixture's project); `V` and `A` are other people and get 403
+`not_reserver`, as the Hub's own confirm row reads (`hub-contract.md:354`). `TeamSlug`,
+`MailDomain` and a confirmed `ReleaseID` are new fixture values (H16b's `fixture`; **UNVERIFIED**
+until it lands).
