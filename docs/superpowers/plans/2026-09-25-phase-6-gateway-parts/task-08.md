@@ -1,16 +1,27 @@
-### Task 08: `cmd/keysmith`: API, caller authentication, config, fail-closed start
+### Tasks 08a and 08b: `cmd/keysmith`: caller authentication (08a); API, config, fail-closed start (08b)
 
 keysmith is the only process besides LiteLLM that holds the master key, so it is the one that must refuse to run half-configured and refuse to serve an unknown caller. This task puts task 07's `Service` behind an HTTP API on `:4100`, decides who may call each route, parses every `PANACEA_APP_GATEWAY_*` variable keysmith reads, and wires the pieces (tasks 04, 05, 06, 09, 13) into one binary.
 
 **The one thing this task must not get wrong is starting when it should not.** Panacea's LiteLLM took its master key from a `secretKeyRef` marked `optional: true` (`~/Projects/Panacea/deploy/portal/deploy-portal.yaml:779-784`, verified 2026-09-25: `name: LITELLM_MASTER_KEY` … `optional: true`), so a missing Secret gave an empty key and a pod that still reported ready. Here the master key is a file, and a missing, empty or malformed file stops start-up with the variable's name on stderr, before any listener opens. The same holds for the database URL file, the caller table, the route source and every budget figure.
 
+**Two tasks, one package (review I-10).** The work was 3 hours in one piece; it is two, run by two agents in turn, both in `package main` of `cmd/keysmith`:
+
+| Task | Hours | Depends on | Writes | Tests | Steps |
+|---|---|---|---|---|---|
+| **08a** caller authentication | 1.5 h | 03; env 17 step 0 (`oidcauth`) | `callerauth.go`, `calleroidc.go`, `callerauth_test.go`, `calleroidc_test.go`, the placeholder `main.go` | 6 | every block marked **[08a]** |
+| **08b** API, config, fail-closed start | 2 h | 02, 07, 08a, 09, 13 | `api.go`, `config.go`, `owner.go`, `main.go` (replaces 08a's), `api_test.go`, `config_test.go`, `main_test.go`, `owner_test.go` | 11 (17 in the package) | every block marked **[08b]** |
+
+08a needs nothing of task 07: its code reads only `wire` (task 03) and `oidcauth`, so it runs in wave 3 beside task 05 (once env 17 step 0 is merged) and leaves the critical path. A block marked neither is read by both. **The placeholder `main.go` (08a) is there only so the tree links:** a `package main` with no `func main` passes `go test` and `go vet` but fails `go build` with `function main is undeclared in the main package` (measured 2026-09-26, the Go toolchain on this machine, `go test` exit 0, `go vet` exit 0, `go build ./...` exit 1). So 08a ships a `main` that prints one line and exits `2`, the configuration-refusal status; a binary built between 08a and 08b refuses to start, as keysmith must when it is not fully configured. 08b replaces the file whole.
+
 **Files:**
-- `control-plane/cmd/keysmith/main.go`: `main`, `run`, `serve`, the wiring (new)
-- `control-plane/cmd/keysmith/config.go`: `Config`, `loadConfig`, the parsers (new)
-- `control-plane/cmd/keysmith/api.go`: `apiDeps`, `newAPI`, the seven routes, `problemFor` (new)
-- `control-plane/cmd/keysmith/callerauth.go`: `Route`, `Caller`, `Authenticator`, the caller table, `bearerAuth`, `kubeAuth` (new)
-- `control-plane/cmd/keysmith/calleroidc.go`: `oidcAuth`, `chainAuth`, `issuerOf`, `loadOIDC`, `ownerMayAct` (new; decision (g), `OD-30`)
-- `control-plane/cmd/keysmith/{main_test.go,config_test.go,api_test.go,callerauth_test.go,calleroidc_test.go}`: seventeen tests (new)
+- `control-plane/cmd/keysmith/callerauth.go` **[08a]**: `Route`, `Caller`, `Authenticator`, the caller table, `bearerAuth`, `kubeAuth` (new)
+- `control-plane/cmd/keysmith/calleroidc.go` **[08a]**: `oidcAuth`, `chainAuth`, `issuerOf` (new; decision (g), `OD-30`)
+- `control-plane/cmd/keysmith/{callerauth_test.go,calleroidc_test.go}` **[08a]**: six tests, and the `tokenAuth` fake 08b's tests share (new)
+- `control-plane/cmd/keysmith/main.go` **[08a]** the placeholder (new); **[08b]** `main`, `run`, `serve`, the wiring (replaced)
+- `control-plane/cmd/keysmith/config.go` **[08b]**: `Config`, `loadConfig`, the parsers (new)
+- `control-plane/cmd/keysmith/api.go` **[08b]**: `apiDeps`, `newAPI`, the seven routes, `problemFor` (new)
+- `control-plane/cmd/keysmith/owner.go` **[08b]**: `loadOIDC`, `commaList`, `callerOf`, `ownerMayAct` (new; decision (g); they read `envPrefix` and `apiDeps`, so they cannot land in 08a)
+- `control-plane/cmd/keysmith/{main_test.go,config_test.go,api_test.go,owner_test.go}` **[08b]**: eleven tests (new)
 
 **Interfaces:**
 - Produces, on the wire (every body JSON, every error the problem shape of `control-plane/internal/httpx/problem.go:93`):
@@ -38,7 +49,7 @@ keysmith is the only process besides LiteLLM that holds the master key, so it is
   - env task 17 step 0 (ruling `2026-09-25-identity-keycloak-broker.md` §5, NOT BUILT; the rename of the built `control-plane/internal/entra`): `oidcauth.New(Config) (*JWKSValidator, error)`, `oidcauth.Validator`, `Config{Profile, Issuer, TenantIDs, Audience, RequiredScope, AllowedClients, ServiceClients}`, `Claims{TenantID, ObjectID, ClientID, Service}`, `(Claims).Key()`, `ProfileKeycloak`, `ErrKeySetUnavailable`, `ErrSignature`
   - task 02: `catalogue.Load`, `(*Catalogue).Groups` (`task-02.md`)
   - `k8s.io/client-go v0.31.1`, `k8s.io/api`, `k8s.io/apimachinery` (already in `control-plane/go.mod:8-10`); `github.com/jackc/pgx/v5` (task 05 adds it)
-- Required by: task 15 (the local control plane's client), task 12 (the gatekeeper's binding reader), task 17 (compose and `secrets/callers`), task 19 (the chart), task 21 (usage), ask P8-1 (the broker)
+- Required by: task 08b (08a's authenticators); tasks 15a and 12 code against the route table above, not a merged binary (15a's client, 12's binding reader; both test against a fake keysmith); task 17 (compose and `secrets/callers`, 08b), task 19 (the chart, 08b), task 21 (usage, through 15a's client), ask P8-1 (the broker)
 
 **Decisions where the skeleton is silent:**
 
@@ -66,25 +77,37 @@ The namespace `panacea-broker` is phase 8's (`.claude/worktrees/env/docs/superpo
 
 - [ ] **Step 1: Preflight**
 
+**[08a]**
+
 ```bash
 cd control-plane
 test -d cmd/keysmith && echo "STOP: cmd/keysmith exists" || echo "ok: no keysmith binary yet"   # expect ok
-for p in keysmith litellmadmin binding budget usage routesource inference/wire inference/catalogue; do
-  test -d internal/$p && echo "ok $p" || echo "MISSING $p"; done
-grep -n 'k8s.io/client-go v0.31.1\|jackc/pgx/v5' go.mod                                       # expect both
-grep -n 'func NewPGStore\|func Migrate' internal/binding/*.go                                  # expect both (task 05)
-grep -n 'ErrNoMasterKey\|func (c \*Client) Health' internal/litellmadmin/client.go             # expect both (task 04)
+test -d internal/inference/wire && echo "ok inference/wire" || echo "MISSING inference/wire"  # task 03
+grep -n 'k8s.io/client-go v0.31.1' go.mod                                                     # expect one
 grep -n 'ProfileKeycloak\|ServiceClients\|Service  *bool' internal/oidcauth/*.go               # expect all three (env 17 step 0, OD-30)
-grep -n 'func (s \*PGStore) BySession' internal/binding/*.go                                   # expect one (task 05)
 ```
 
-A `MISSING` line is an unmerged dependency; stop and report. If a grep shows a different identifier from gap 5's list, rename in this part's code to match the merged one.
+**[08b]**
+
+```bash
+cd control-plane
+grep -c 'the API is not wired (task 08b)' cmd/keysmith/main.go                                # expect 1: 08a's placeholder
+for p in keysmith litellmadmin binding budget usage routesource inference/wire inference/catalogue; do
+  test -d internal/$p && echo "ok $p" || echo "MISSING $p"; done
+grep -n 'jackc/pgx/v5' go.mod                                                                 # expect one
+grep -n 'func NewPGStore\|func Migrate' internal/binding/*.go                                  # expect both (task 05)
+grep -n 'ErrNoMasterKey\|func (c \*Client) Health' internal/litellmadmin/client.go             # expect both (task 04)
+grep -n 'func (s \*PGStore) BySession' internal/binding/*.go                                   # expect one (task 05)
+go test ./cmd/keysmith/ -count=1 2>&1 | tail -1                                               # expect ok: 08a's six pass
+```
+
+A `MISSING` line, a `0` or a failing test is an unmerged dependency; stop and report. If a grep shows a different identifier from gap 5's list, rename in this part's code to match the merged one.
 
 - [ ] **Step 2: Write the failing tests**
 
-Seventeen tests over five files, all `package main`. None needs a database, LiteLLM, a realm or a cluster: the service, the binding reader, the usage reader, the realm validator and the TokenReview API are fakes (the last is client-go's own `fake.Clientset`, which phase 2 already uses in `internal/backend/katabe/kata_test.go`).
+Seventeen tests over six files, all `package main`: **[08a]** writes six in `callerauth_test.go` and `calleroidc_test.go`; **[08b]** writes eleven in `api_test.go`, `config_test.go`, `main_test.go` and `owner_test.go`, and reuses 08a's `tokenAuth` fake and `realm` constant. None needs a database, LiteLLM, a realm or a cluster: the service, the binding reader, the usage reader, the realm validator and the TokenReview API are fakes (the last is client-go's own `fake.Clientset`, which phase 2 already uses in `internal/backend/katabe/kata_test.go`).
 
-Create `control-plane/cmd/keysmith/callerauth_test.go`:
+**[08a]** Create `control-plane/cmd/keysmith/callerauth_test.go`:
 
 ```go
 package main
@@ -261,7 +284,7 @@ func TestBuiltinKubeTableIsBrokerAndGatekeeperOnly(t *testing.T) {
 }
 ```
 
-Create `control-plane/cmd/keysmith/api_test.go`:
+**[08b]** Create `control-plane/cmd/keysmith/api_test.go` (the `tokenAuth` fake it uses is 08a's, in `calleroidc_test.go`):
 
 ```go
 package main
@@ -340,18 +363,6 @@ func (f fakeBindings) ByKeyHash(_ context.Context, h string) (wire.Binding, erro
 type fakeUsage struct{}
 
 func (fakeUsage) Rows(context.Context, string, string) ([]wire.UsageRow, error) { return nil, nil }
-
-// tokenAuth: the bearer token is the caller's name.
-type tokenAuth map[string]Caller
-
-func (a tokenAuth) Identify(r *http.Request) (Caller, error) {
-	if tok, ok := bearerToken(r); ok {
-		if c, found := a[tok]; found {
-			return c, nil
-		}
-	}
-	return Caller{}, ErrUnauthenticated
-}
 
 var hash64 = strings.Repeat("0f", 32)
 
@@ -553,7 +564,7 @@ func TestUsageAndHealthRoutes(t *testing.T) {
 }
 ```
 
-Create `control-plane/cmd/keysmith/config_test.go`:
+**[08b]** Create `control-plane/cmd/keysmith/config_test.go`:
 
 ```go
 package main
@@ -670,7 +681,7 @@ func TestConfigRefusesNamingTheVariable(t *testing.T) {
 }
 ```
 
-Create `control-plane/cmd/keysmith/main_test.go`:
+**[08b]** Create `control-plane/cmd/keysmith/main_test.go`:
 
 ```go
 package main
@@ -721,7 +732,7 @@ func TestRunNeverPrintsASecretFile(t *testing.T) {
 }
 ```
 
-Create `control-plane/cmd/keysmith/calleroidc_test.go` (decision (g)):
+**[08a]** Create `control-plane/cmd/keysmith/calleroidc_test.go` (decision (g)). It also holds `tokenAuth`, the fake authenticator 08b's API tests share:
 
 ```go
 package main
@@ -730,14 +741,24 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
-	"maps"
 	"net/http"
-	"strings"
 	"testing"
 
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/inference/wire"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/oidcauth"
 )
+
+// tokenAuth: the bearer token is the caller's name.
+type tokenAuth map[string]Caller
+
+func (a tokenAuth) Identify(r *http.Request) (Caller, error) {
+	if tok, ok := bearerToken(r); ok {
+		if c, found := a[tok]; found {
+			return c, nil
+		}
+	}
+	return Caller{}, ErrUnauthenticated
+}
 
 const realm = "https://auth.example/realms/panacea"
 
@@ -765,10 +786,6 @@ func (f *fakeValidator) Validate(_ context.Context, bearer string) (oidcauth.Cla
 	}
 	return oidcauth.Claims{}, oidcauth.ErrSignature
 }
-
-type fakeSessions map[string][]wire.Binding
-
-func (f fakeSessions) BySession(_ context.Context, id string) ([]wire.Binding, error) { return f[id], nil }
 
 // Mutants killed: a service token accepted as a person; a person given
 // bindings or usage; a realm key-set outage answered 401 instead of 503.
@@ -816,7 +833,26 @@ func TestChainAuthChoosesByIssuerAndNeverFallsThrough(t *testing.T) {
 }
 ```
 
+**[08b]** Create `control-plane/cmd/keysmith/owner_test.go` (decision (g); `realm` and `tokenAuth` are 08a's):
+
 ```go
+package main
+
+import (
+	"context"
+	"maps"
+	"net/http"
+	"strings"
+	"testing"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/inference/wire"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/oidcauth"
+)
+
+type fakeSessions map[string][]wire.Binding
+
+func (f fakeSessions) BySession(_ context.Context, id string) ([]wire.Binding, error) { return f[id], nil }
+
 // Mutants killed: the body-owner compare deleted; the BySession check deleted
 // (another's session minted, refreshed or revoked); a table caller refused.
 func TestAPIRefusesAPersonActingForAnotherOwner(t *testing.T) {
@@ -884,16 +920,19 @@ func TestConfigCallerAuthIsACommaList(t *testing.T) {
 }
 ```
 
+- [ ] **Step 3: Run the tests to verify they fail**
 
 ```bash
-cd control-plane && go test ./cmd/keysmith/ -count=1 2>&1 | head -5
+cd control-plane && go test ./cmd/keysmith/ -count=1 > /tmp/ks-red.txt 2>&1; echo "exit $?"; head -5 /tmp/ks-red.txt
 ```
 
-Expected: a build failure naming `undefined: parseCallers`, `undefined: apiDeps` or `undefined: loadConfig`.
+Expected, **[08a]**: a non-zero exit and a build failure naming `undefined: parseCallers`, `undefined: bearerToken` or `undefined: oidcAuth`. **[08b]**: a non-zero exit and one naming `undefined: apiDeps`, `undefined: loadConfig` or `undefined: ownerMayAct` (08a's six still compile; the new files do not).
 
 - [ ] **Step 4: Write the implementation**
 
-Create `control-plane/cmd/keysmith/callerauth.go`:
+**[08a]** writes `callerauth.go`, `calleroidc.go` and the placeholder `main.go` below. **[08b]** writes `owner.go`, `api.go`, `config.go` and replaces `main.go`.
+
+**[08a]** Create `control-plane/cmd/keysmith/callerauth.go`:
 
 ```go
 package main
@@ -1145,13 +1184,12 @@ func (k *kubeAuth) Identify(r *http.Request) (Caller, error) {
 }
 ```
 
-Create `control-plane/cmd/keysmith/calleroidc.go` (decision (g), `OD-30`):
+**[08a]** Create `control-plane/cmd/keysmith/calleroidc.go` (decision (g), `OD-30`):
 
 ```go
 package main
 
 import (
-	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -1159,7 +1197,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/httpx"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/inference/wire"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/oidcauth"
 )
@@ -1239,7 +1276,39 @@ func (a chainAuth) Identify(r *http.Request) (Caller, error) {
 }
 ```
 
+**[08a]** Create `control-plane/cmd/keysmith/main.go`, the placeholder. It exists only so `go build ./...` links between 08a and 08b, and it refuses to start, as keysmith must when it is not fully configured:
+
 ```go
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+// main is 08a's placeholder; task 08b replaces this file whole.
+func main() {
+	fmt.Fprintln(os.Stderr, "keysmith: refusing to start: the API is not wired (task 08b)")
+	os.Exit(2)
+}
+```
+
+**[08b]** Create `control-plane/cmd/keysmith/owner.go` (decision (g)). It reads `envPrefix` (`config.go`) and `apiDeps` (`api.go`), which is why it is 08b's and not 08a's:
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"net/http"
+	"strings"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/httpx"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/inference/wire"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/oidcauth"
+)
+
 // loadOIDC reads decision (g)'s variables; each refusal names its variable.
 func loadOIDC(getenv func(string) string) (*oidcConfig, error) {
 	env := func(k string) string { return strings.TrimSpace(getenv(k)) }
@@ -1325,7 +1394,7 @@ func (d apiDeps) ownerMayAct(w http.ResponseWriter, r *http.Request, route strin
 }
 ```
 
-Create `control-plane/cmd/keysmith/api.go`:
+**[08b]** Create `control-plane/cmd/keysmith/api.go`:
 
 ```go
 package main
@@ -1572,7 +1641,7 @@ func (d apiDeps) fail(w http.ResponseWriter, route, caller string, err error) {
 }
 ```
 
-Create `control-plane/cmd/keysmith/config.go`:
+**[08b]** Create `control-plane/cmd/keysmith/config.go`:
 
 ```go
 package main
@@ -1789,7 +1858,7 @@ func readSecretFile(path string) (string, string) {
 }
 ```
 
-Create `control-plane/cmd/keysmith/main.go`:
+**[08b]** Replace `control-plane/cmd/keysmith/main.go` (08a's placeholder) whole:
 
 ```go
 // Command keysmith mints, refreshes and revokes the per-session LiteLLM keys
@@ -1982,54 +2051,67 @@ func authenticator(cfg Config) (Authenticator, error) {
 - [ ] **Step 5: Run the tests to verify they pass**
 
 ```bash
-cd control-plane && go test ./cmd/keysmith/ -count=1 -race -v 2>&1 | grep -c '^--- PASS'
+cd control-plane && go test ./cmd/keysmith/ -count=1 -race -v > /tmp/ks-green.txt 2>&1; echo "exit $?"
+grep -c '^--- PASS' /tmp/ks-green.txt; grep -c '^--- FAIL' /tmp/ks-green.txt
 ```
 
-Expected: `17`, and no `--- FAIL` line.
+Expected: `exit 0`, then **[08a]** `6` and `0`; **[08b]** `17` and `0` (08a's six still pass beside 08b's eleven).
 
 - [ ] **Step 6: Prove the mutants die**
 
-Apply each edit alone, run `go test ./cmd/keysmith/ -count=1`, confirm the named test fails, and revert.
+Apply each edit alone, run `go test ./cmd/keysmith/ -count=1 > /tmp/ks-mut.txt 2>&1; echo "exit $?"`, confirm a non-zero exit and that the named test is the one failing in the file, and revert. Each task runs only the rows marked with its id: **[08a]** four, **[08b]** nine.
 
-| Edit | Test that must fail |
-|---|---|
-| `api.go`, in `guard`: delete the `case !c.Routes[route]:` branch | `TestEveryRouteRefusesACallerNotListedForIt` |
-| `api.go`, in `await`: `ctx := context.WithoutCancel(r.Context())` → `ctx := r.Context()` | `TestMintTimeoutAnswers504AndTheMintCompletes` |
-| `api.go`, in `fail`: the `ErrAdmin`/`ErrStore` sentence → `err.Error()` | `TestServiceErrorsBecomeProblems` |
-| `api.go`, in `binding`: the `wire.ErrNotFound` case → `http.StatusUnauthorized` | `TestBindingsRoute` |
-| `callerauth.go`, in `kubeAuth.Identify`: delete `\|\| !slices.Contains(tr.Status.Audiences, kubeAudience)` | `TestKubeAuthChecksAudienceTableAndCache` |
-| `callerauth.go`, in `parseCallers`: the short-token message gains `+ ": " + cred` | `TestCallerTableRefusesBadLinesWithoutQuotingThem` |
-| `config.go`: `if !strings.HasPrefix(key, "sk-")` → `if false` | `TestConfigRefusesNamingTheVariable` |
-| `main.go`, in `run`: `return 2` → `return 1` | `TestRunRefusesAMissingOrEmptyMasterKey` |
-| `calleroidc.go`, in `oidcAuth.Identify`: delete `cl.Service,` from the refusal case | `TestOIDCAuthNamesThePersonOnly` |
-| `calleroidc.go`, in `chainAuth.Identify`: the oidc case → `if c, err := a.oidc.Identify(r); err == nil { return c, nil }` falling on to the table | `TestChainAuthChoosesByIssuerAndNeverFallsThrough` |
-| `calleroidc.go`, in `ownerMayAct`: delete the `body != nil && *body != *c.Owner` check | `TestAPIRefusesAPersonActingForAnotherOwner` |
-| `calleroidc.go`, in `ownerMayAct`: delete the `for _, b := range bs` loop | `TestAPIRefusesAPersonActingForAnotherOwner` |
-| `config.go`: `if c.CallerMode != "" \|\| mode == "oidc"` → `if mode == "oidc"` | `TestConfigCallerAuthIsACommaList` |
+| Task | Edit | Test that must fail |
+|---|---|---|
+| 08b | `api.go`, in `guard`: delete the `case !c.Routes[route]:` branch | `TestEveryRouteRefusesACallerNotListedForIt` |
+| 08b | `api.go`, in `await`: `ctx := context.WithoutCancel(r.Context())` → `ctx := r.Context()` | `TestMintTimeoutAnswers504AndTheMintCompletes` |
+| 08b | `api.go`, in `fail`: the `ErrAdmin`/`ErrStore` sentence → `err.Error()` | `TestServiceErrorsBecomeProblems` |
+| 08b | `api.go`, in `binding`: the `wire.ErrNotFound` case → `http.StatusUnauthorized` | `TestBindingsRoute` |
+| 08a | `callerauth.go`, in `kubeAuth.Identify`: delete `\|\| !slices.Contains(tr.Status.Audiences, kubeAudience)` | `TestKubeAuthChecksAudienceTableAndCache` |
+| 08a | `callerauth.go`, in `parseCallers`: the short-token message gains `+ ": " + cred` | `TestCallerTableRefusesBadLinesWithoutQuotingThem` |
+| 08b | `config.go`: `if !strings.HasPrefix(key, "sk-")` → `if false` | `TestConfigRefusesNamingTheVariable` |
+| 08b | `main.go`, in `run`: `return 2` → `return 1` | `TestRunRefusesAMissingOrEmptyMasterKey` |
+| 08a | `calleroidc.go`, in `oidcAuth.Identify`: delete `cl.Service,` from the refusal case | `TestOIDCAuthNamesThePersonOnly` |
+| 08a | `calleroidc.go`, in `chainAuth.Identify`: the oidc case → `if c, err := a.oidc.Identify(r); err == nil { return c, nil }` falling on to the table | `TestChainAuthChoosesByIssuerAndNeverFallsThrough` |
+| 08b | `owner.go`, in `ownerMayAct`: delete the `body != nil && *body != *c.Owner` check | `TestAPIRefusesAPersonActingForAnotherOwner` |
+| 08b | `owner.go`, in `ownerMayAct`: delete the `for _, b := range bs` loop | `TestAPIRefusesAPersonActingForAnotherOwner` |
+| 08b | `config.go`: `if c.CallerMode != "" \|\| mode == "oidc"` → `if mode == "oidc"` | `TestConfigCallerAuthIsACommaList` |
 
 - [ ] **Step 7: Vet, format, build, and prove the binary refuses**
 
 ```bash
 cd control-plane
 go vet ./cmd/keysmith/ && gofmt -l cmd/keysmith/            # expect no output
-go build -o /tmp/keysmith ./cmd/keysmith/ && /tmp/keysmith; echo "exit $?"
+go build -o /tmp/keysmith ./cmd/keysmith/ > /tmp/ks-build.txt 2>&1; echo "build exit $?"
+/tmp/keysmith 2> /tmp/ks-run.txt; echo "exit $?"; cat /tmp/ks-run.txt
 ```
 
-Expected: one stderr line, `keysmith: PANACEA_APP_GATEWAY_MASTER_KEY_FILE is not set; keysmith does not start without LiteLLM's master key`, then `exit 2`. No listener opened.
+Expected: `build exit 0`, then one stderr line and `exit 2`. **[08a]**: `keysmith: refusing to start: the API is not wired (task 08b)`. **[08b]**: `keysmith: PANACEA_APP_GATEWAY_MASTER_KEY_FILE is not set; keysmith does not start without LiteLLM's master key`. No listener opened in either.
 
 - [ ] **Step 8: Commit**
 
+**[08a]**
+
 ```bash
-git add control-plane/cmd/keysmith/main.go control-plane/cmd/keysmith/config.go control-plane/cmd/keysmith/api.go \
-  control-plane/cmd/keysmith/callerauth.go control-plane/cmd/keysmith/main_test.go control-plane/cmd/keysmith/config_test.go \
-  control-plane/cmd/keysmith/api_test.go control-plane/cmd/keysmith/callerauth_test.go \
-  control-plane/cmd/keysmith/calleroidc.go control-plane/cmd/keysmith/calleroidc_test.go
+git add control-plane/cmd/keysmith/callerauth.go control-plane/cmd/keysmith/calleroidc.go control-plane/cmd/keysmith/main.go \
+  control-plane/cmd/keysmith/callerauth_test.go control-plane/cmd/keysmith/calleroidc_test.go
 git commit -F <message file> -- control-plane/cmd/keysmith/
 ```
 
-Message: `feat(keysmith): the HTTP API, caller authentication and a fail-closed start (phase 6 task 08)`, a body naming decisions (a) to (g), and the attribution line.
+Message: `feat(keysmith): caller authentication, the table, TokenReview and the realm token (phase 6 task 08a)`, a body naming decisions (b), (e) and (g)'s authenticator half, and the attribution line.
 
-**Acceptance:** step 5 prints `17` under `-race`; step 6's thirteen edits each fail the named test; step 7 prints the refusal and `exit 2`. The live path (a mint through the compose stack answering `201`, then a `POST /v1/messages` through the gatekeeper) is task 17's acceptance, which runs this binary.
+**[08b]**
+
+```bash
+git add control-plane/cmd/keysmith/owner.go control-plane/cmd/keysmith/config.go control-plane/cmd/keysmith/api.go \
+  control-plane/cmd/keysmith/main_test.go control-plane/cmd/keysmith/config_test.go \
+  control-plane/cmd/keysmith/api_test.go control-plane/cmd/keysmith/owner_test.go
+git commit -F <message file> -- control-plane/cmd/keysmith/
+```
+
+Message: `feat(keysmith): the HTTP API, config and a fail-closed start (phase 6 task 08b)`, a body naming decisions (a) to (g), and the attribution line. The pathspec also takes the replaced `main.go`.
+
+**Acceptance:** **[08a]** step 5 prints `6` under `-race`, step 6's four 08a rows each fail the named test, and step 7 prints the placeholder's refusal and `exit 2`. **[08b]** step 5 prints `17`, step 6's nine 08b rows each fail the named test, and step 7 prints the master-key refusal and `exit 2`. The live path (a mint through the compose stack answering `201`, then a `POST /v1/messages` through the gatekeeper) is task 17's acceptance, which runs this binary.
 
 **What this task does not claim:**
 
@@ -2048,5 +2130,5 @@ Message: `feat(keysmith): the HTTP API, caller authentication and a fail-closed 
 4. **Task 19 must grant keysmith `create` on `tokenreviews`** (a ClusterRoleBinding to `system:auth-delegator`, **UNVERIFIED** name) and set the broker's and gatekeeper's projected tokens to audience `keysmith`. The service-account names `panacea-broker:broker` and `panacea-gateway:gatekeeper` are proposals for ask P8-2.
 5. **Identifiers assumed from parts not yet merged:** task 04's `litellmadmin.New`, `Options`, `ErrNoMasterKey`, `(*Client).Health`; task 05's `binding.Migrate`, `binding.NewPGStore` (now in `task-05.md`). Task 09's `*usage.PGStore` is the sweep's `KeySource` (task 09, decision (c)), so task 05's `Store` needs no new method. Step 1 checks them.
 6. **`PANACEA_APP_GATEWAY_HUB_SCOPE`** is read here as task 13's gap 1 proposes; it is not in the skeleton's shared names. Since `OD-30` it is the realm audience scope, default `panacea-app-hub`, and an Entra `api://…/.default` is refused.
-7. **`OD-30` adds `PANACEA_APP_GATEWAY_TENANTS`, `_AUDIENCE` and `_ALLOWED_CLIENTS`**, and reads the shared `PANACEA_APP_OIDC_ISSUER` and `_PROFILE` (ruling §2), none in the skeleton's shared names. Task 19's chart sets `CALLER_AUTH=kube,oidc` and the three; hub task 10 waits on env 17 step 0 for `oidcauth`, and so does this task (step 1).
+7. **`OD-30` adds `PANACEA_APP_GATEWAY_TENANTS`, `_AUDIENCE` and `_ALLOWED_CLIENTS`**, and reads the shared `PANACEA_APP_OIDC_ISSUER` and `_PROFILE` (ruling §2), none in the skeleton's shared names. Task 19's chart sets `CALLER_AUTH=kube,oidc` and the three; hub task 10 waits on env 17 step 0 for `oidcauth`, and so does task 08a (step 1's **[08a]** block); 08b inherits the wait through 08a.
 7. **`apiDeps.Bindings` is the `*keysmith.Service`, not the store** (fix batch b01, review C-1). `ByKeyHash` retires a raised project's Global-minted key as the gatekeeper looks it up (task 07 decision (h)), and task 07's tests prove that behaviour. The wiring is one line in `run`, and no test here catches a revert to `Bindings: store`. Such a revert would leave a Global-minted key its `global/*` groups until its scheduled refresh, and nothing would fail. Check the line in review; an end-to-end raise is task 23's to observe, if the owner wants it proven.
