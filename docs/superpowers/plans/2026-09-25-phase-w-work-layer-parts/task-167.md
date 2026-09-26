@@ -63,3 +63,85 @@ someone edits an audit row by hand, the export stops and says where; it never sk
 - `control-plane/cmd/hub/config.go` ⚑ — `PANACEA_APP_HUB_SENTINEL`; `cmd/hub/serve.go` ⚑ — start
   one exporter per entry (the file name is Hub task 08's, **UNVERIFIED**)
 - the table `work_sentinel_cursors`, required of task 145 below (gap 2)
+
+#### Interfaces — complete: `control-plane/internal/hub/hubapi/work_actor.go`
+
+```go
+package hubapi
+
+import "strings"
+
+// Attribution is who an audit event says acted (05 L-239). ActorID is always
+// the person the act is attributed to: the agent's owner for an agent, the
+// policy's author for the janitor, the mapped person for a host. It is ""
+// only for an integration or a janitor act with no author.
+type Attribution struct {
+	Kind       ActorKind
+	ActorID    string // u-…
+	Via        string // "fleet", "app:oa-…", "key:ak-…", "host:github", "tc-…", "teams", or ""
+	Agent      string // the agent's id when the event's data names one (data.agentId), else ""
+	Delegation string // dl-… for an agent act (TM-03 v2), else ""
+}
+
+// ActorOf reads the audit row only (decision 1). The order matters: an
+// envelope via beats data, and data.via beats a null actor.
+func ActorOf(env AuditEnvelope) Attribution {
+	agent, _ := env.Data["agentId"].(string)
+	if env.Via == ViaFleet { // TM-03: actorUserId is the owner, always
+		return Attribution{Kind: ActorAgent, ActorID: env.ActorUserID, Via: env.Via,
+			Agent: agent, Delegation: env.DelegationID}
+	}
+	via, _ := env.Data["via"].(string)
+	a := Attribution{ActorID: env.ActorUserID, Via: via}
+	switch {
+	case strings.HasPrefix(via, "app:"):
+		a.Kind = ActorApp
+	case strings.HasPrefix(via, "key:"):
+		a.Kind = ActorKey
+	case strings.HasPrefix(via, "host:"):
+		a.Kind = ActorHost
+	case strings.HasPrefix(via, PrefixTrackerConnection+"-"):
+		a.Kind = ActorIntegration
+	case env.ActorUserID == "":
+		a.Kind = ActorJanitor
+		a.ActorID, _ = env.Data["by"].(string) // §3.6: the policy's author (task 121's key)
+		if a.ActorID == "" {
+			a.ActorID, _ = env.Data["author"].(string) // the scope's name, if a kind uses it
+		}
+	default:
+		a.Kind = ActorPerson // "teams" included (decision 3)
+	}
+	return a
+}
+```
+
+`ViaFleet` and `AuditEnvelope.Via`/`DelegationID` are TM-03's; `PrefixTrackerConnection` is task
+143's `tc` prefix constant (**UNVERIFIED** name; the literal is `"tc"`, `task-150.md`). A sync
+write's `actor` is null (`task-150.md:35-37`), so the `tc-` case is tested before the null case,
+and a sync event is `integration`, never `janitor`. Every `ActorKind` but `agent` is reachable
+from a v1 row, so `ActorOf` works on this branch before Phase T merges, with `Via` never `fleet`.
+The janitor's author rides on the companion event, `template.schedule_ran {by}` (`task-121.md:357`)
+and `tracker.page {by}` (`task-150.md:40-42`), not on the `issue.created` beside it, so that row
+reads `janitor` with `ActorID ""`: true, and the companion row, one `Seq` later, names the author.
+
+#### The `data.via` stamp — `store/tx.go` ⚑ (Hub task 14), the added lines
+
+```go
+// In Emit, before the event joins the pending list (decision 2):
+	if v := tx.principalVia(); v != "" {
+		if e.Data == nil {
+			e.Data = map[string]any{}
+		}
+		if _, set := e.Data["via"]; !set { // a handler's own via wins (154's host:…)
+			e.Data["via"] = v
+		}
+	}
+
+// principalVia is "app:"+AppID or "key:"+KeyID for an app or key transaction,
+// read from the Claims Write's prologue already copies into the settings
+// hub.work_actor_app and hub.work_actor_key (tasks 159, 160); "" otherwise.
+func (tx *Tx) principalVia() string
+```
+
+This changes the bytes of no existing event: a person's, a Fleet and a janitor transaction have no
+app or key, so `principalVia` is `""` and `Data` is untouched. `Data` values stay strings.
