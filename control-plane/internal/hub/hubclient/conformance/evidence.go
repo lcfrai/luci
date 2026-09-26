@@ -152,6 +152,23 @@ func oldestFirst(t *testing.T, e Env) {
 	if got, want := ids(d1), made[0].ID+","+made[2].ID; got != want {
 		t.Errorf("ByDigest(d1) = %s, want %s", got, want)
 	}
+	// ByDigest is by repo key, not by project (hub-contract.md:1753: the index
+	// is org, repo_key, criterion_digest): the project's second remote answers
+	// none of the first remote's records, only its own.
+	alt := newRepo()
+	must(e.Admin.AddRemote(bg, j.p.ID, hubapi.RemoteRequest{RepoKey: alt, Host: hubapi.HostGitHub}))(t)
+	if got := must(e.Viewer.EvidenceByDigest(bg, alt, []string{d1.String()}))(t); got == nil || len(got) != 0 {
+		t.Errorf("ByDigest(%s, d1) = %+v, want []: those records are %s's", alt, got, j.repo)
+	}
+	req := j.evidenceOn(d1)
+	req.Repo = alt
+	r := must(e.Member.RecordEvidence(bg, req))(t)
+	if got := must(e.Viewer.EvidenceByDigest(bg, alt, []string{d1.String()}))(t); len(got) != 1 || got[0].ID != r.ID || got[0].Repo != alt {
+		t.Errorf("ByDigest(%s, d1) = %+v, want %s alone", alt, got, r.ID)
+	}
+	if got, want := ids(d1), made[0].ID+","+made[2].ID; got != want {
+		t.Errorf("after a record under %s, ByDigest(%s, d1) = %s, want %s", alt, j.repo, got, want)
+	}
 }
 
 // a repo the caller cannot read, or none has, lists nothing — never a 404.

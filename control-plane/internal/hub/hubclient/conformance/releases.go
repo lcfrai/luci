@@ -456,6 +456,15 @@ func sourceUnknown(t *testing.T, e Env) {
 	}
 	_, d := shipped(t, e, newProject(t, e).ID, pp, featRef) // another project's deployment
 	wantPin(t, reserve(t, e, e.Member, p.ID, rollbackOf(pp, d)).Pin, hubapi.PinNone, hubapi.PinSourceUnknown, nil, 0)
+	// The join is keyed on (panaceaProject, sourceDeploymentId) (§7.9,
+	// task-23.md:39): a deployment id shipped under another Panacea project of
+	// this same Hub project is not this Panacea project's source.
+	_, d2 := shipped(t, e, p.ID, newPanacea(), featRef)
+	rb = reserve(t, e, e.Member, p.ID, rollbackOf(pp, d2))
+	wantPin(t, rb.Pin, hubapi.PinNone, hubapi.PinSourceUnknown, nil, 0)
+	if rb.SourceReleaseID != nil {
+		t.Errorf("a rollback of %s naming another Panacea project's deployment = %+v, want no source release", pp, rb)
+	}
 }
 
 // a source release with no pin → none/source_unpinned, naming the source.
