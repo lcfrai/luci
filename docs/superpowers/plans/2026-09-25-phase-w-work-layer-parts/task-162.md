@@ -386,3 +386,44 @@ If the owner has no Orchestrator in that project, whether Fleet holds the event 
 is TM-26's to say and is **UNVERIFIED** here (gap 3). Either way nothing is lost silently: the
 run row stays `queued`, and task 163's janitor rule closes it `failed` after 24 h, which the
 owner sees in the run log.
+
+#### Tests to write first, part 1 — pure (`server/loopsched_test.go`, `hubapi/work_loops_test.go`)
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestWeekdayScheduleSkipsTheWeekend` | Friday 09:00 → Friday 08:30; Sunday → Friday 08:30; Monday 08:31 → Monday 08:30 | `weekday` read as `day` |
+| `TestThreeMissedWindowsAreOneAnswer` | from Friday 08:30 to Wednesday 09:00, `LatestDue` is Wednesday 08:30, one value | a list of every missed window |
+| `TestAWeeklyLoopKeepsItsSavedWeekday` | saved on a Tuesday in `Australia/Sydney`: due on Tuesdays only | a fixed Monday |
+| `TestTheDSTGapRunsAtTheFirstRealMinute` | `at: "02:30"` on Sydney's spring-forward day → 03:00 local | a skipped day at the gap |
+| `TestNoWindowBeforeTheVersionExisted` | from = savedAt 09:00, now 09:10, `at: "08:30"` → `ok == false` | a new version firing for yesterday |
+| `TestLoopEventKindsHasNoLoopKind` | no entry starts `work.loop` or `team.`; every entry is defined in task 13's `workevents.go` or task 169's W5 list | a loop chain; a kind retyped wrongly |
+| `TestFailClosedGrid` | `read` → `full`; every other class → `ask_first` | a guessed wider cap |
+
+#### Tests to write first, part 2 — `server/work_loops_integration_test.go` (`//go:build integration`)
+
+Each seeds a team with Ada (admin), Dylan (member, owner) and Val (viewer), one project, and
+drives the janitor with task 121's `RunJanitorOnce` at a fixed `now`.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestOneFiringPerMatchingEvent` | two `on` event loops on `issue.state`, one matching filter; three matching moves and one sweep → three `work.loop_fired` for the matching loop, none for the other | fires per loop per tick; filter ignored |
+| `TestARestartReplaysNoFiring` | sweep, reset `after_seq` to 0 by hand, sweep again → no new run row, no new event | no unique key |
+| `TestMissedDailyWindowsFireOnce` | a daily loop, the janitor idle for three days, one sweep → one run, `scheduledFor` today's 08:30 | a catch-up burst |
+| `TestAPausedLoopNeverFires` | paused by Dylan; a matching event and a due window → nothing | pause ignored |
+| `TestOnlyTheOwnerWritesAVersion` | Ada's `POST …/versions` → 403; Val's → 403; Dylan's → 201, version 2, `currentVersion` 2 | an admin edits another's loop (OD-16) |
+| `TestAnAdminPausesButNeverResumes` | Ada `PATCH paused` → 200, `pausedCause "admin"`; Ada `PATCH on` → 403; Dylan `PATCH on` → 200 | an admin restarts a loop its owner stopped |
+| `TestVersionsCannotBeUpdated` | as `hub_app`, `UPDATE work_loop_versions SET body = …` → error from `forbid_change` | the guard only in Go |
+| `TestAMoveActionIs422` | `action: "move"` → 422 `loop_action_invalid`; no row, no event | a loop writes state (SW.3) |
+| `TestABoundAboveTheGridIs422` | `levels.commit: "act_and_tell"` → 422 `loop_bound_exceeds_owner`, `class "commit"`, `max "ask_first"`; `turnsPerDay: 25` → 422 | the owner's grid not checked |
+| `TestAJanitorFiringNamesItsAuthor` | the event's `actor` is null and `data.author` is Dylan's id | an unattributed "system" act |
+| `TestAnOwnerWhoLeftPausesTheLoop` | Dylan removed from the team; one sweep → `paused`, `pausedCause "owner_left"`, one `work.loop_paused`, and a matching event in the same sweep fires nothing | a loop outlives its owner's access |
+| `TestTheCapRefusesAndSaysSo` | `turnsPerDay: 1`, two matching events → one `work.loop_fired`, one `work.loop_capped`, run 2 `refused_bound` | a cap that drops silently, or none |
+| `TestEachWriteAppendsOneEvent` | create, version, pause, resume: one event each; a no-op `PATCH` none | an event missing, or two |
+| `TestNoLoopTextInTheFeed` | every loop event's `data` over the run above has no string equal to or containing the instruction | loop text in the feed, so in a turn |
+
+#### Tests to write first, part 3 — the Phase T delta (`fleet/turns`, TM-26's test file)
+
+`TestALoopFiredEventReachesTheOwnersOrchestrator`: a `work.loop_fired` feed row for Dylan in
+project P enqueues one `loop.fired` on Dylan's Orchestrator in P, none on Ada's (kills a
+broadcast); `TestALoopTurnIsFleetOrigin`: a batch of one `loop.fired` has `OriginOf == fleet` and
+`Input(1)` as its only input (kills a loop turn with human authority; loop text in the input).
