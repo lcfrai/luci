@@ -241,3 +241,72 @@ by then grown the shared `check-slice.sh` (task 174's gap 3), this file becomes 
 the clause loop. `WL_RESULTS` points it at `testdata/wl-complete.md` (twelve rows and four
 clauses, each with a sample sha, and a Q1 line) and `testdata/wl-missing-output.md` (the same with
 L-218's *Observed* cell empty).
+
+#### Interfaces — complete: `docs/verification/phase-w/check-ledger.sh`
+
+```bash
+#!/usr/bin/env bash
+# check-ledger.sh: the phase ledger holds each of 05 §1's 257 rows exactly once, each with one
+# status from the closed set and the evidence that status needs (OD-27; task 187 decision 5).
+set -euo pipefail
+ROOT=$(git rev-parse --show-toplevel)
+MATRIX="${W_MATRIX:-$ROOT/docs/superpowers/planning/2026-09-25-linear-parity/05-design.md}"
+RESULTS="${W_RESULTS:-$ROOT/docs/verification/2026-09-25-phase-w-results.md}"
+TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
+US=$'\037'  # a non-whitespace separator, so an empty cell never collapses into its neighbour
+
+cells() { awk -F'|' -v OFS="$US" '/^\| [0-9]+ \|/ { o=""; for (i=2; i<NF; i++) { v=$i; gsub(/^ +| +$/, "", v); o = o (i>2 ? OFS : "") v }; print o }'; }
+awk '/^## 1\. /{on=1; next} on && /^## /{exit} on' "$MATRIX" | cells | awk -F"$US" -v OFS="$US" '{print $1, $3, $NF}' > "$TMP/m"
+[ "$(wc -l < "$TMP/m" | tr -d ' ')" = 257 ] || { echo "05 §1 holds $(wc -l < "$TMP/m" | tr -d ' ') rows, not 257: the matrix moved"; exit 2; }
+
+ledger=$(awk '/^## The phase ledger/{on=1; print; next} on && /^## /{exit} on{print}' "$RESULTS")
+[ -n "$ledger" ] || { echo "no phase ledger in $RESULTS"; exit 2; }
+printf '%s\n' "$ledger" | cells > "$TMP/l"
+gaps=$(printf '%s\n' "$ledger" | awk '/^### Gaps/{on=1; next} on && /^#/{exit} on' | grep -oE '^- L-[0-9]+' | grep -oE '[0-9]+' || true)
+
+fail=0
+while IFS="$US" read -r n verdict stop; do
+  hits=$(awk -F"$US" -v n="$n" '$1==n' "$TMP/l" | wc -l | tr -d ' ')
+  if [ "$hits" = 0 ]; then echo "L-$n: not in the ledger"; fail=1; continue; fi
+  [ "$hits" = 1 ] || { echo "L-$n: $hits rows in the ledger"; fail=1; }
+  IFS="$US" read -r _ lv ls st by test cmd obs commit note < <(awk -F"$US" -v n="$n" '$1==n' "$TMP/l" | head -1)
+  [ "$lv" = "$verdict" ] || { echo "L-$n: verdict $lv, 05 says $verdict"; fail=1; }
+  [ "$ls" = "$stop" ] || { echo "L-$n: stop $ls, 05 says $stop"; fail=1; }
+  [ "$verdict" = SKIP ] && [ "$st" != skip ] && { echo "L-$n: a SKIP row filed as $st"; fail=1; }
+  case "$st" in
+    closed|partial)
+      for c in "$by" "$test" "$cmd" "$obs"; do case "$c" in ""|"—") echo "L-$n: $st with an empty evidence cell"; fail=1; break;; esac; done
+      printf '%s' "$commit" | tr -d '`' | grep -Eq '^[0-9a-f]{7,40}$' || { echo "L-$n: commit cell is not a sha"; fail=1; }
+      printf '%s' "$by" | grep -Eqw '70|97|113|142|174|187' && { echo "L-$n: a proof task is named as its closer"; fail=1; }
+      if [ "$st" = partial ]; then case "$note" in ""|"—") echo "L-$n: partial names no deferred part"; fail=1;; esac; fi ;;
+    skip) [ "$verdict" = SKIP ] || { echo "L-$n: skip on a $verdict row"; fail=1; } ;;
+    other)
+      case "$stop" in W[1-5]*|later) echo "L-$n: other on a Phase W row ($stop)"; fail=1;; esac
+      printf '%s' "$note" | grep -Eq 'TM|phase [3568]' || { echo "L-$n: other names no owner"; fail=1; } ;;
+    exists)
+      case "$stop" in exists*) ;; *) echo "L-$n: exists on a $stop row"; fail=1;; esac
+      [ "$note" = "not re-checked" ] || printf '%s' "$commit" | tr -d '`' | grep -Eq '^[0-9a-f]{7,40}$' \
+        || { echo "L-$n: exists with neither 'not re-checked' nor a commit"; fail=1; } ;;
+    gap) printf '%s\n' "$gaps" | grep -qx "$n" || { echo "L-$n: a gap missing from Gaps"; fail=1; } ;;
+    *) echo "L-$n: status '$st' is not in the closed set"; fail=1 ;;
+  esac
+done < "$TMP/m"
+
+[ "$(wc -l < "$TMP/l" | tr -d ' ')" = 257 ] || { echo "the ledger holds $(wc -l < "$TMP/l" | tr -d ' ') rows, not 257"; fail=1; }
+line=$(printf '%s\n' "$ledger" | grep -m1 '^\*\*Counts, as filed:\*\*' || true)
+summary=""
+for s in closed partial exists other skip gap; do
+  want=$(awk -F"$US" -v s="$s" '$4==s' "$TMP/l" | wc -l | tr -d ' ')
+  got=$(printf '%s' "$line" | grep -oE "$s [0-9]+" | grep -oE '[0-9]+' || true)
+  [ "$got" = "$want" ] || { echo "Counts: $s reads ${got:-nothing}, the rows hold $want"; fail=1; }
+  summary="$summary $s $want ·"
+done
+if printf '%s\n' "$ledger" | grep -q '…'; then echo "an unfilled … is left in the ledger"; fail=1; fi
+[ "$fail" = 0 ] && echo "Ledger: 257 rows,${summary% ·}"
+exit "$fail"
+```
+
+The status column is the ledger's fourth cell (`$4` after the leading `|` is dropped), matching the
+shape above. Its three fixtures: `ledger-complete.md` (257 rows, every status used at least once,
+the counts line right), `ledger-hidden-row.md` (the same with L-209's row deleted) and
+`ledger-wrong-verdict.md` (the same with L-62, a SKIP, filed `closed` under verdict MATCH).
