@@ -206,3 +206,91 @@ alone; `Render`'s digest (TM-13's) is what task 173 shows, never one computed he
 names (`model.ClassWorker`, `ClassOrchestrator`, `ClassMirror`) and the package paths are the
 team worktree's `task-13.md:260-316`; they are **UNVERIFIED** on `feat/work-layer`, where
 neither `internal/policy` nor `internal/fleet/model` exists yet (Phase T is unmerged).
+
+#### Interfaces — complete: `control-plane/internal/workpolicy/skills.go`
+
+```go
+package workpolicy
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/harness"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubapi"
+)
+
+// Fetcher reads one path of a repository at one commit. The control plane's
+// implementation reads the team's local clone (OD-2) with `git archive <commit>
+// -- <path>`; a commit that is not in the clone is an error, never a fetch of a
+// branch. Tests use a map.
+type Fetcher interface {
+	Files(ctx context.Context, repoKey, commit, path string) (map[string][]byte, error)
+}
+
+// SkillsDir is Claude Code's user-level skills folder, relative to the
+// sandbox's home. UNVERIFIED at the pinned CLI (gap 5); the canary test pins it.
+const SkillsDir = ".claude/skills"
+
+// MaxSkillsBytes caps one library; a larger one is refused, not truncated.
+const MaxSkillsBytes = 8 << 20
+
+var ErrSkills = errors.New("workpolicy: skills refused")
+
+// Stage copies a library's files under home/SkillsDir before the harness
+// starts: files 0444, directories 0555, so the agent reads them and cannot
+// rewrite what the record says it had. It stages nothing for "image", and
+// nothing for any harness but Claude Code (L-159 is Claude Code's own skills).
+// It returns the staged commit, "" when nothing was staged (decision 7).
+// It never touches argv or env: harness.Build is called with the same Request
+// either way (decision 6).
+func Stage(ctx context.Context, f Fetcher, s hubapi.TeamSkills, id harness.ID, home string) (string, error) {
+	if s.Source != "library" || id != harness.ClaudeCode {
+		return "", nil
+	}
+	if s.Library == nil {
+		return "", fmt.Errorf("%w: a library source with no library", ErrSkills)
+	}
+	files, err := f.Files(ctx, s.Library.RepoKey, s.Library.Commit, s.Library.Path)
+	if err != nil {
+		return "", fmt.Errorf("%w: %v", ErrSkills, err)
+	}
+	root := filepath.Join(home, SkillsDir)
+	total := 0
+	for name, body := range files {
+		total += len(body)
+		if total > MaxSkillsBytes {
+			return "", fmt.Errorf("%w: over %d bytes", ErrSkills, MaxSkillsBytes)
+		}
+		if !filepath.IsLocal(name) { // no "..", no absolute path, no drive letter
+			return "", fmt.Errorf("%w: %q leaves the skills folder", ErrSkills, name)
+		}
+		dst := filepath.Join(root, name)
+		if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+			return "", err
+		}
+		if err := os.WriteFile(dst, body, 0o444); err != nil {
+			return "", err
+		}
+	}
+	return s.Library.Commit, lockDirs(root)
+}
+
+// lockDirs sets every directory under root to 0555 after the files are in.
+func lockDirs(root string) error {
+	return filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
+		if err != nil || !d.IsDir() {
+			return err
+		}
+		return os.Chmod(p, 0o555)
+	})
+}
+```
+
+`Files` answers regular files only (the `git archive` reader skips symlinks and submodules), so
+no staged path can point outside `root`; its names are relative to `Path`. `filepath.IsLocal` is
+Go 1.20's, and `control-plane/go.mod` says `go 1.23` (read 2026-09-26). The home is the session's
+own and new each start, so the 0555 folders never meet a second `Stage`.
