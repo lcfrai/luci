@@ -448,6 +448,22 @@ run "names_region_group_and_tags_come_from_the_inputs" {
   }
 }
 
+# The firewall subnet exists only in firewall mode, and the run above is nat mode, so this run
+# gives firewall mode a group and an environment of its own (task 03 round-2 predicted
+# survivors FG1 and FV1: the firewall subnet's group or VNet hard-coded to dev's).
+run "firewall_subnet_takes_the_group_and_vnet_from_the_inputs" {
+  command = plan
+  variables {
+    environment         = "prod"
+    resource_group_name = "rg-panacea-app-prod"
+    egress_mode         = "firewall"
+  }
+  assert {
+    condition     = azurerm_subnet.firewall[0].resource_group_name == "rg-panacea-app-prod" && azurerm_subnet.firewall[0].virtual_network_name == "vnet-panacea-app-prod"
+    error_message = "The firewall subnet is not in var.resource_group_name's VNet."
+  }
+}
+
 run "environment_must_be_dev_or_prod" {
   command = plan
   variables {
