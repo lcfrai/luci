@@ -456,6 +456,175 @@ func (h HubVocabulary) Vocabulary(ctx context.Context, teamID string) (Vocabular
 }
 ```
 
-The file's import list gains `"…/internal/hub/hubapi"` (the module path as task 04's files write it).
+The file's import list gains `"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubapi"`
+(the module path is `control-plane/go.mod:1`; the `internal/hub` tree is Phase H's, **planned**).
 **No method reads an issue**: the vocabulary is names of states, labels, people, cycles, features
 and projects, and the prompt golden is the check (decision 1).
+
+#### Interfaces — complete: the route, appended to `control-plane/internal/api/workassist.go` ⚑
+
+```go
+// Task 138: natural-language filters. Registered in task 136's
+// registerWorkAssist beside its triage route, on *routes, so the audit sees it.
+func (a *API) registerWorkFilter(rs *routes) {
+	rs.HandleFunc("POST /v1/work/assist/filter", a.postWorkFilter)
+}
+
+func (a *API) postWorkFilter(w http.ResponseWriter, r *http.Request) {
+	var req workassist.FilterRequest
+	if !httpx.DecodeJSON(w, r, &req) {
+		return
+	}
+	if !a.readableTeam(w, r, req.TeamID) {
+		return
+	}
+	src := workassist.HubVocabulary{Hub: a.deps.WorkAssist.Hub}
+	res, err := a.deps.WorkAssist.ParseFilter(r.Context(), src, req)
+	switch {
+	case errors.Is(err, workassist.ErrTextLength):
+		httpx.WriteProblem(w, http.StatusBadRequest, httpx.CodeBadRequest,
+			"the words must be 1 to 300 characters", nil)
+	case errors.Is(err, workassist.ErrNoProject):
+		httpx.WriteProblem(w, http.StatusConflict, httpx.CodeConflict,
+			"the team has no project to route the call by", nil)
+	case errors.Is(err, workassist.ErrNotAFilter):
+		httpx.WriteProblem(w, http.StatusBadGateway, "gateway_unavailable",
+			"the reply could not be read as a filter", nil)
+	case err != nil:
+		a.assistProblem(w, err)
+	default:
+		httpx.WriteJSON(w, http.StatusOK, res)
+	}
+}
+```
+
+`ErrNotAFilter` shares `502 gateway_unavailable` with a gateway failure on purpose: to the person
+both read *"Could not read that as a filter"*, and neither leaks the model's text. The handler
+logs neither the words nor the reply. `routes_audit_test.go` gains the pattern as `POST`, so §10a's
+no-side-effecting-GET check holds. `a.deps.WorkAssist.Hub` is the relay task 136's `Service` holds
+(`task-139.md:84`); if it is not a per-caller relay, `HubVocabulary` is given the caller's relay
+instead, so the Hub reads the team as the person.
+
+#### Interfaces — complete: `desktop/src/api/work.ts` ⚑, appended
+
+```ts
+// Task 138: natural-language filters. Mirrors control-plane/internal/workassist/nlfilter.go.
+export type NlField = "state" | "label" | "assignee" | "priority" | "cycle" | "feature" | "updated" | "created";
+export type RelativePeriod = "today" | "yesterday" | "this_week" | "last_week" | "this_month" | "last_month";
+/** One clause; the shape is task 83's ViewClause (UNVERIFIED until 83's part). */
+export interface NlClause { field: NlField; values?: string[]; within?: string; period?: RelativePeriod }
+export interface NlFilter { op: "and" | "or"; clauses: NlClause[] }
+export interface NlDropped { phrase: string; reason: string }
+export interface NlFilterRequest { teamId: string; text: string }
+export interface NlFilterResult { filter: NlFilter; dropped: NlDropped[]; route: "global" | "au" }
+
+// WorkClient gains one call (task 37's interface; appended, not reordered).
+export interface WorkFilterClient {
+  parseFilter(req: NlFilterRequest): Promise<NlFilterResult>;
+}
+```
+
+`WorkClient` extends `WorkFilterClient`; the call is a `POST` to the control plane's
+`/v1/work/assist/filter` through task 37's client, and a problem arrives as `ApiError` with its
+`code`, so the bar tells `assists_off` from every other failure by code, never by message.
+
+#### Interfaces — complete: `desktop/src/work/filters/resolve.ts`
+
+```ts
+/**
+ * Task 138: relative dates to bounds in the person's time zone (decisions 4, 5).
+ * The model never supplies a date; this module computes every one, at each
+ * evaluation, so a saved "last week" stays last week. Bounds are half-open.
+ */
+import type { NlClause, NlField, RelativePeriod } from "../../api/work";
+
+const DAY = 86_400_000;
+const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+interface LocalDate { y: number; m: number; d: number }
+export interface Bounds { from: string; to: string }
+export type ResolvedClause =
+  | { field: "updated" | "created"; from: string; to: string }
+  | { field: Exclude<NlField, "updated" | "created">; values: string[] };
+
+/** The person's zone, from the OS; a prop overrides it in tests. */
+export function personTimeZone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone;
+}
+
+function parts(instant: number, tz: string, opts: Intl.DateTimeFormatOptions): Record<string, string> {
+  const f = new Intl.DateTimeFormat("en-US", { timeZone: tz, ...opts });
+  return Object.fromEntries(f.formatToParts(new Date(instant)).map((p) => [p.type, p.value]));
+}
+
+/** The zone's offset from UTC at an instant, in ms (positive east of Greenwich). */
+function offsetMs(instant: number, tz: string): number {
+  const p = parts(instant, tz, { hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const wall = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second);
+  return wall - Math.floor(instant / 1000) * 1000;
+}
+
+/** The UTC instant of local 00:00 on y-m-d; the offset is re-read at the result, so DST holds. */
+export function zoneMidnight(x: LocalDate, tz: string): number {
+  const guess = Date.UTC(x.y, x.m - 1, x.d);
+  return guess - offsetMs(guess - offsetMs(guess, tz), tz);
+}
+
+function localDate(instant: number, tz: string): LocalDate & { dow: number } {
+  const p = parts(instant, tz, { year: "numeric", month: "2-digit", day: "2-digit", weekday: "short" });
+  return { y: +p.year, m: +p.month, d: +p.day, dow: WEEKDAYS.indexOf(p.weekday) + 1 };
+}
+
+/** Calendar arithmetic on the date alone; month and year overflow roll over. */
+function addDays(x: LocalDate, n: number): LocalDate {
+  const t = new Date(Date.UTC(x.y, x.m - 1, x.d + n));
+  return { y: t.getUTCFullYear(), m: t.getUTCMonth() + 1, d: t.getUTCDate() };
+}
+
+export function periodBounds(period: RelativePeriod, now: Date, tz: string): Bounds {
+  const t = localDate(now.getTime(), tz);
+  const today: LocalDate = { y: t.y, m: t.m, d: t.d };
+  const monday = addDays(today, 1 - t.dow); // ISO week: Monday is day 1
+  const first: LocalDate = { y: t.y, m: t.m, d: 1 };
+  const span = (a: LocalDate, b: LocalDate): Bounds => ({
+    from: new Date(zoneMidnight(a, tz)).toISOString(),
+    to: new Date(zoneMidnight(b, tz)).toISOString(),
+  });
+  switch (period) {
+    case "today": return span(today, addDays(today, 1));
+    case "yesterday": return span(addDays(today, -1), today);
+    case "this_week": return span(monday, addDays(monday, 7));
+    case "last_week": return span(addDays(monday, -7), monday);
+    case "this_month": return span(first, addDays({ y: t.y, m: t.m + 1, d: 1 }, 0));
+    case "last_month": return span(addDays({ y: t.y, m: t.m - 1, d: 1 }, 0), first);
+  }
+}
+
+/** A rolling span of exact instants back from now; P<n>D or P<n>W only, as the server allows. */
+export function withinBounds(within: string, now: Date): Bounds {
+  const m = /^P([1-9][0-9]{0,2})([DW])$/.exec(within);
+  if (!m) throw new Error(`not a relative span: ${within}`);
+  const days = Number(m[1]) * (m[2] === "W" ? 7 : 1);
+  return { from: new Date(now.getTime() - days * DAY).toISOString(), to: now.toISOString() };
+}
+
+/** One clause as the evaluator applies it: dates as bounds, "@me" as whoever evaluates. */
+export function resolveClause(c: NlClause, now: Date, tz: string, me: string): ResolvedClause {
+  if (c.field === "updated" || c.field === "created") {
+    const b = c.period ? periodBounds(c.period, now, tz) : withinBounds(c.within ?? "", now);
+    return { field: c.field, ...b };
+  }
+  return { field: c.field, values: (c.values ?? []).map((v) => (v === "@me" ? me : v)) };
+}
+
+/** "21 Sep – 27 Sep": the first and last local day a period covers, for the chip. */
+export function shownRange(b: Bounds, tz: string): string {
+  const f = new Intl.DateTimeFormat("en-AU", { timeZone: tz, day: "numeric", month: "short" });
+  return `${f.format(new Date(b.from))} – ${f.format(new Date(Date.parse(b.to) - 1))}`;
+}
+```
+
+Task 91's evaluator calls `resolveClause` for each clause of an applied filter with the replica's
+clock and `personTimeZone()`, then compares `issue.updatedAt` (or `createdAt`) as
+`from <= t < to`. The replica holds no dates of its own for a relative clause, and nothing here
+writes to disk.
