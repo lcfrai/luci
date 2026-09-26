@@ -416,3 +416,57 @@ export type { DeskItem, DeskRank, DeskSnapshot } from "./deskModel";
 `deskRows.tsx` has no JSX of its own in this task; it keeps the `.tsx` name because tasks 63-65 put
 row elements in it (the skeleton's name, `:311`). Its re-export lets a block write
 `registerDeskRow(...)` after one import line of its own, as task 65's block does (`task-65.md:772`).
+
+#### Interfaces — complete: `desktop/src/components/desk/desk.css`
+
+```css
+/* Desk frame (task 62). Section headers are type and a hairline; a row is the 1px ring plus the
+   layered shadow at the control radius. Nothing here animates: the Desk never moves under the
+   reader, and a held arrival is a line of words (decision 10). */
+.dk { max-width: 860px; margin: 0 auto; padding: var(--s-4) var(--s-5); outline: none; }
+.dk-hold { display: flex; align-items: center; gap: var(--s-3); margin: 0 0 var(--s-3);
+  padding: var(--s-2) var(--s-3); border-radius: var(--r-ctl); background: var(--surface);
+  box-shadow: var(--e-card); font: var(--t-ui) / var(--t-ui-lh) var(--sans); color: var(--ink-2); }
+.dk-hold span { flex: 1; }
+.dk-show { background: none; border: 0; padding: 0; color: var(--ink); cursor: pointer; }
+.dk-show kbd { font-family: var(--mono); border-radius: var(--r-chip); box-shadow: var(--e-hair);
+  padding: 0 var(--s-1); }
+.dk-sec { margin-bottom: var(--s-5); }
+.dk-h { display: flex; align-items: center; gap: var(--s-2); margin: var(--s-5) 0 var(--s-3);
+  font: 700 11px / 1.2 var(--sans); letter-spacing: 0.09em; color: var(--ink-2); }
+.dk-h::after { content: ""; flex: 1; height: 1px; background: var(--line-soft); }
+.dk-n { font-family: var(--mono); font-weight: 400; letter-spacing: 0;
+  font-variant-numeric: tabular-nums; color: var(--ink-3); }
+.dk-row { margin-bottom: var(--s-1); border-radius: var(--r-ctl); background: var(--surface);
+  box-shadow: var(--e-card); outline: none; }
+.dk-row[data-cursor] { box-shadow: 0 0 0 1px var(--accent-ring), var(--e-card); }
+.dk-zero { margin: 0; padding: var(--s-2) var(--s-3); font: var(--t-ui) / var(--t-ui-lh) var(--sans);
+  color: var(--ink-2); }
+.dk-zero b { color: var(--ink); font-weight: 600; }
+@media (forced-colors: active) { .dk-row, .dk-hold { border: 1px solid CanvasText; box-shadow: none; } }
+```
+
+`--r-ctl`, `--r-chip`, `--e-card`, `--e-hair`, `--surface`, `--line-soft`, `--accent-ring`, `--ink-*`,
+`--sans` and `--mono` are the tree's (`desktop/src/styles/tokens.css:32-152`); `--mono` becomes
+Commit Mono under `OD-28` through task 26, and the rule above does not name a family. `--s-*`,
+`--t-ui` and `--t-ui-lh` are task 26's (`task-26.md:109`, `:420`), and task 26 wins a differing name.
+The header's 11 px, 700 and 0.09em are the prototype's (`prototype/work-layer.html:236`); if task
+26 names a label step, the header takes it.
+
+#### Interfaces — complete: the edits to `store/types.ts` and `AppShell.tsx`
+
+```ts
+// desktop/src/store/types.ts, :173 as task 37 left it (task-37.md:609), one member added.
+export type Lens = "discover" | "design" | "develop" | "files" | "merge" | "deploy" | "work" | "desk";
+```
+
+```tsx
+// desktop/src/components/AppShell.tsx — LensRouter (:17), one arm beside task 40's "work".
+import { Desk } from "./desk/Desk";
+    case "desk":
+      return <Desk />;
+```
+
+The persisted `lens` may hold `"desk"`; it is a preference, not Hub data, and `migrate` needs no
+step because an older build never wrote it (task 37's reasoning for `"work"`, `task-37.md:624`).
+The sub-rail's six rows do not change (decision 9).
