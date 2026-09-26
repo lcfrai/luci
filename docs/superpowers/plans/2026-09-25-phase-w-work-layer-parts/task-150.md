@@ -1008,3 +1008,79 @@ token exists (decision 1, point 4; gap 1).
 
 The fragment at `:575-578` is superseded too: labels are never passed (`nil`), the names are not
 recorded, and the 500 cap is on a run's `errors`, not on upstream changes, which live on the link.
+
+#### `worksync/fake.go` (new, complete)
+
+```go
+package worksync
+
+// Fake is the adapter the engine's tests and the server's integration tests
+// drive: pages scripted by cursor, errors on demand. Src is set per test, so
+// one fake stands for any of the three trackers. It talks to no network.
+type Fake struct {
+	mu     sync.Mutex
+	Src    string
+	Pages  map[Cursor]Pulled // the page answered for a cursor
+	FailAt map[Cursor]error  // a pull error for a cursor, answered instead
+	Pulls  []Cursor          // every cursor asked for, in order
+}
+
+func (f *Fake) Source() string { return f.Src }
+
+func (f *Fake) Pull(_ context.Context, _ hubapi.TrackerConnection, cur Cursor) (Pulled, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.Pulls = append(f.Pulls, cur)
+	if err := f.FailAt[cur]; err != nil {
+		return Pulled{}, err
+	}
+	if p, ok := f.Pages[cur]; ok {
+		return p, nil
+	}
+	return Pulled{Next: cur}, nil // nothing past this cursor
+}
+
+// Set replaces one page, for a test that changes upstream between runs.
+func (f *Fake) Set(cur Cursor, p Pulled) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.Pages == nil {
+		f.Pages = map[Cursor]Pulled{}
+	}
+	f.Pages[cur] = p
+}
+
+// PullCount is len(Pulls), under the lock.
+func (f *Fake) PullCount() int { f.mu.Lock(); defer f.mu.Unlock(); return len(f.Pulls) }
+```
+
+#### The wiring (⚑ `server/config.go`, ⚑ `server/janitor.go`)
+
+`Config` gains `SyncAdapters []worksync.Adapter` and `SyncInterval time.Duration`
+(`PANACEA_APP_HUB_SYNC_INTERVAL`, a Go duration, default `5m`, refused below `1m`). `New` builds
+`s.sync = &worksync.Engine{Adapters: bySource(cfg.SyncAdapters), Sink: s}`; two adapters with one
+`Source()` fail `New`. `cmd/hub` passes none in this task, so production makes no connection
+until tasks 151-153 add theirs (point 2); tests pass `&worksync.Fake{Src: "github"}` and the
+others. The janitor step stands as written (`:539-542`): due connections, oldest first, at most
+10 per sweep, each `s.sync.Run`, under the advisory lock. It is also a pass of task 121's
+`RunJanitorOnce`, so the integration tests drive it without a clock.
+
+#### Tests to write first, part 1 — `worksync/engine_test.go`, `links_test.go`, ⚑ `hubapi/work_intake_test.go` (pure)
+
+The engine tests run a `Fake` against a recording `Sink` in the test file that keeps the cursor
+only when `ApplyPage` returns nil and can be told to fail page *n*. The canary is `CANARY-ts-91`.
+
+| Test | Holds | Mutant it kills |
+|---|---|---|
+| `TestTheCursorMovesOnlyAfterACommit` | pages `""→c1→c2`; the sink fails page 2 → `FinishRun` gets `page_not_committed`, the stored cursor is `c1`; a second `Run` asks the fake for `c1` first | `cur = p.Next` before `ApplyPage`, or the sink storing the cursor outside the page |
+| `TestAPullErrorKeepsItsCodeAndDropsItsText` | `&PullError{Code: tracker_throttled, RetryAt: 11:30Z, Err: "CANARY-ts-91"}` → failure `{"", tracker_throttled, "2026-09-26T11:30:00Z"}`; a plain error → `tracker_unreachable`; no recorded byte holds the canary | a tracker's error text stored; `RetryAt` dropped |
+| `TestPullingStopsWhenTheCursorStops` | pages `""→c1→c2`, `c2` answers `Next: c2` → three pulls, three pages, run ok | one page per run, the rest waiting a whole interval (task 151's gap 3) |
+| `TestTheRunStopsAtThePageCap` | a fake whose cursor always moves, `MaxPages: 3` → three pulls, run ok | an unbounded loop holding the janitor |
+| `TestCommentsOnlyInModeInAndComments` | a page with two comments: mode `in` → the sink sees `Comments == nil`; `in_and_comments` → two | comments written in mode `in` |
+| `TestNoAdapterFailsTheRunWithoutAPull` | source `jira`, no adapter → `FinishRun` with `tracker_no_adapter`, zero pulls | a nil-adapter panic; a run left `running` |
+| `TestPlanSplitsNewFromKnown` | known `{a#1: is-1}`; items `a#1, a#2` → `New [a#2]`, `Known {a#1: is-1}` | a known item imported again (a second issue) |
+| `TestPlanDropsARepeatInOnePage` | `a#2` twice → `New` holds it once | a paging glitch refusing the whole page (`ErrImportDuplicate`) |
+| `TestPlanKeepsOnlyLinkedKnownFields` | `state` and `assignees` on `a#1` kept; `priority` on `a#1` and `state` on unlinked `a#9` dropped | decision 5's list (every change tasks 151-153 emit dropped); a change on no link reaching `SetLinkUpstream` |
+| `TestPlanKeepsTwoChangesInOrder` | `state` at 11:02 then `state` at 11:05 on `a#1` → both, in that order | a collapse that loses the close before a reopen |
+| `TestTrackerEventsCarryNoTargetOrText` | every field of the four `*Data` types is in `connectionId, run, created, existing, upstream, errors, by, source, mode, issueId` | a target, URL, external id or title added to the feed |
+| `TestTrackerKindsAreProjectScoped` | the four kinds are in `WorkEventKinds` with `ScopeProject` | a kind missing from the registry (`emitWork` would 500) |
