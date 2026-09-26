@@ -250,3 +250,43 @@ func ReplyText(reply string, truncated, auOnly bool, link string) string
 // Post keeps textFormat "plain" for ReplyText; PostCard sends one attachment of
 // contentType "application/vnd.microsoft.card.adaptive".
 ```
+
+#### The endpoint — the personal-scope branch of `POST /teams/messages` (`server/work_teams.go` ⚑)
+
+Task 157's order stands: body cap, `Origin` refusal, `teams.Authenticate` **before any byte is
+used** (`157:104-111`, `:203-207`), the tenant-to-org lookup (`157:273-277`), then the activity.
+This task adds one branch, taken only when `Conversation.ConversationType == "personal"`:
+
+1. **Sender.** `(tid, From.AADObjectID)` to a Hub user, as task 157's decision 4, looked up, never
+   provisioned. Unmapped → the sign-in card; nothing stored; 200.
+2. **`conversationUpdate`.** `MembersAdded` holding the bot's own account → upsert the digest
+   binding (decision 1); `MembersRemoved` holding it → delete it. No card.
+3. **`message`**, or an `invoke`/`message` whose `Value` decodes as `AskValue` (the card's
+   submit). Upsert the digest binding if it is missing (the first message links, decision 1); then
+   `teams.Ask` in one transaction with `hub.work_actor_kind = 'integration'`, `hub.work_actor_user`
+   = the sender. `AskWritten` also inserts the `work_teams_asks` row for the `hm-…`, and answers
+   *"Sent to your Orchestrator in {project}."*; the other outcomes answer their card. A Teams
+   message id already recorded is a no-op (Bot Framework redelivers, `157:228`).
+4. **Anything else** in personal scope, including the `sendToPanaceaApp` action, answers 200 with
+   task 157's *not linked* card and changes nothing (`157:33-35`).
+
+Bytes read from the sender go to exactly one place, TM-07's `hm-…` text. The endpoint's log line
+holds the activity type, the outcome word and the ids, never the text.
+
+#### The janitor (`server/janitor.go` ⚑)
+
+**Task 81's digest step** (not a new step) now calls `teams.DueChannel` per person instead of its
+email-only rule. `"email"` → task 81's mailer, as before. `"teams"` → `BuildDigest` since
+`LastTeams`, mapped to `CardItem` (titles cleared for *AU data only* projects), `DigestCard`, one
+`PostCard` to the person's digest binding. An empty digest sends nothing and moves no clock. A sent
+one sets `LastTeams` and `LastAny` in the org's transaction, after the send returns its message id
+(queue in the transaction, send outside it, as task 157's step 6, `157:343-344`); a failed send
+moves nothing and retries at the next due sweep. `teams: "hourly"` with no binding is skipped.
+
+**Step 6** (`sweepTeamsPosts`, task 157) gains the ask replies, sent unthrottled like the
+post-back (`157:350-351`): each `work_teams_asks` row with `replied_at` null whose `hm-…` a
+recorded human-origin turn consumed. The reply is TM-26's kept `Reply` for that turn
+(`T26:620-626`), read through **whatever Hub home TM-07 gives it** (TM-26's gap 5, `T26:880-882`;
+gap 3 here). Post `ReplyText`, then set `replied_at` and `reply_message_id`. A row older than 24 h
+with no recorded turn is closed with *"Your Orchestrator has not answered yet; see PanaceaApp."*
+and `reply_message_id` of that message, so a chat never waits silently.
