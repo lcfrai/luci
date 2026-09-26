@@ -500,3 +500,289 @@ The import block above gains `sync`. `hubapi.HostHook` gains `InstallationID *in
 `links *linkbacks`, built in `cmd/hub`'s wiring from configuration; with no GitHub App key or no
 ADO identity configured, `For` answers nil and every claim for that host ends `failed`, which is
 honest and visible, rather than a silent success.
+
+#### Interfaces — complete: `server/work_hooks.go` ⚑, the author and the registration delta
+
+```go
+// HostPR (task-154.md:315-321), one field added:
+	Author HostActor // who opened the PR: GitHub pull_request.user, Azure DevOps createdBy
+
+// normaliseGitHub: the PullRequest struct gains
+		User struct{ Login string } `json:"user"`
+// and the "pull_request" case, after ev.PR is made:
+		ev.PR.Author = HostActor{Login: pr.User.Login}
+
+// normaliseADO: the pull-request case, after ev.PR is made:
+		ev.PR.Author = HostActor{UniqueName: res.CreatedBy.UniqueName}
+
+// putHostHook (task-154.md:333-375): the request gains installationId,
+// checked before the role so a malformed body is 400 whoever sends it.
+		var req struct {
+			RemoteURL      string `json:"remoteUrl"`
+			InstallationID *int64 `json:"installationId"`
+		}
+		// … after the host check:
+		switch {
+		case host == HostGitHub && (req.InstallationID == nil || *req.InstallationID < 1):
+			return WriteResult{}, Refuse(http.StatusBadRequest, "bad_request",
+				"installationId is the Hub app's installation on this repository's owner",
+				map[string]string{"field": "installationId"})
+		case host == HostAzureDevOps && req.InstallationID != nil:
+			return WriteResult{}, Refuse(http.StatusBadRequest, "bad_request",
+				"installationId is for github only", map[string]string{"field": "installationId"})
+		}
+		// … store.PutHostHook gains the installation (nil for Azure DevOps):
+		hook, created, err := store.PutHostHook(ctx, tx, projectID, host, req.RemoteURL,
+			req.InstallationID, ref, CallerID(ctx))
+
+// … and after s.WriteLimit returns, outside the transaction:
+	if host == HostGitHub {
+		s.autolinks.Kick() // decision 5: the step runs now, not at the next tick
+	}
+```
+
+For a GitHub author, `sender` and `pull_request.user` differ when someone else edits the body: the
+filing names the PR's author, never the editor, so an admin who adds `issue: new` to another
+person's PR files the issue **as that person**. That is the scope's *"created by the mapped
+author"*, and it is recorded for the owner, because the alternative (the editor) is arguable.
+`Kick` sends on a one-slot channel and never blocks; a kick that finds the write refused finds no
+due hook, so it costs one query.
+
+#### Interfaces — complete: `server/work_hooks.go` ⚑, `apply`'s three additions
+
+```go
+// applyResult (task-154.md:465-468) gains the claim to post after commit.
+type applyResult struct {
+	Duplicate    bool
+	Links, Facts int
+	Linkback     *pendingLinkback // nil when this delivery earned no comment
+}
+
+// pendingLinkback is decision 1: claimed inside the transaction, posted after.
+type pendingLinkback struct {
+	PR      hubapi.OutsidePRLink // where the comment goes: host, repo, number
+	Lines   []LinkLine
+	Claimed []string // hl- ids moved NULL → pending; MarkLinkback settles them
+}
+
+func (p *pendingLinkback) add(link hubapi.OutsidePRLink, line LinkLine, claimed bool) {
+	p.PR = link
+	p.Lines = append(p.Lines, line)
+	if claimed {
+		p.Claimed = append(p.Claimed, link.ID)
+	}
+}
+
+// In apply's "pr" case, before task 154's refs loop:
+		var lb pendingLinkback
+		if (ev.PR.Action == "opened" || ev.PR.Action == "edited") && WantsFiling(ev.PR.Body) {
+			if err := s.fileFromPR(ctx, tx, hook, ev, keys, &lb, &res); err != nil {
+				return res, err
+			}
+		}
+
+// … inside the refs loop, right after UpsertOutsidePRLink returns link:
+				if alias, err := store.CurrentAlias(ctx, tx, issueID); err != nil {
+					return res, err
+				} else if alias != "" {
+					claimed, err := store.ClaimLinkback(ctx, tx, link.ID)
+					if err != nil {
+						return res, err
+					}
+					if claimed {
+						lb.add(link, LinkLine{Kind: LineLinked, Alias: alias, IssueID: issueID}, true)
+					}
+				}
+
+// … after the refs loop:
+		if len(lb.Lines) > 0 {
+			res.Linkback = &lb
+		}
+
+// In apply's "push" case, after task 154's two loops:
+		if ref, ok := ParseBranch(ev.CreatedRef, keys); ok && ev.CreatedRef != "" {
+			n, f, err := s.firstPush(ctx, tx, hook, ev, keys, ref, userID, matched)
+			if err != nil {
+				return res, err
+			}
+			res.Links, res.Facts = res.Links+n, res.Facts+f
+		}
+```
+
+`store.CurrentAlias` is `DisplayAlias(current key, number)` read at the claim, so the comment on a
+PR that wrote `Fixes EP-142` after the key became `RS` says `RS-142`: the name a reader will find
+in the product today. It is `""` while the project has no key, and then no claim is made at all,
+so a key set later can still earn that PR its linkback on the next event. `ClaimLinkback` is
+`UPDATE work_outside_pr_links SET linkback_state = 'pending', linkback_at = now() WHERE id = $1
+AND linkback_state IS NULL RETURNING id`, true when a row came back.
+
+#### Interfaces — complete: `server/work_hooks.go` ⚑, the filing word
+
+```go
+// fileFromPR is decision 4. The filing row goes in first: a conflict means
+// this PR has filed (or failed to) before, and nothing else happens.
+func (s *Server) fileFromPR(ctx context.Context, tx *Tx, hook hubapi.HostHook, ev HostEvent,
+	keys []string, lb *pendingLinkback, res *applyResult) error {
+	authorID, matched, err := s.people.Match(ctx, tx, hook, ev.PR.Author)
+	if err != nil {
+		return err
+	}
+	issueID := ""
+	if matched {
+		issueID = ids.Wide(hubapi.PrefixIssue)
+	}
+	fresh, err := store.InsertFiling(ctx, tx, hook.ProjectID, ev.Host, ev.Repo, ev.PR.Number,
+		optional(issueID, matched)) // ON CONFLICT DO NOTHING; fresh when a row went in
+	if err != nil || !fresh {
+		return err
+	}
+	pr := hubapi.OutsidePRLink{Host: hubapi.HostKind(ev.Host), Repo: ev.Repo, Number: ev.PR.Number, URL: ev.PR.URL}
+	if !matched {
+		lb.add(pr, LinkLine{Kind: LineUnmatched}, false) // decision 8: once, and no login
+		return nil
+	}
+	if err := store.SetWorkActor(ctx, tx, hubapi.ActorHost, authorID, ""); err != nil {
+		return err
+	}
+	defer store.ClearWorkActor(ctx, tx)
+	n, err := s.createFiledIssue(ctx, tx, hook.ProjectID, issueID, authorID, ev.PR)
+	if err != nil {
+		return err
+	}
+	link, _, err := store.UpsertOutsidePRLink(ctx, tx, issueID, ev, WordNonClosing)
+	if err != nil {
+		return err
+	}
+	res.Links++
+	if len(keys) == 0 { // no key: filed and linked, but there is no alias to name
+		return nil
+	}
+	claimed, err := store.ClaimLinkback(ctx, tx, link.ID)
+	if err != nil || !claimed {
+		return err
+	}
+	lb.add(link, LinkLine{Kind: LineFiled, Alias: hubapi.DisplayAlias(keys[0], n), IssueID: issueID}, true)
+	return nil
+}
+
+// createFiledIssue is task 146's create sequence (task-146.md:592-627), with
+// three differences: the author is the mapped person, not tx.P.UserID; the
+// state is triage whatever the team's default (intake lands in triage, 05
+// §3.5); and the description is the PR's link, never its body.
+func (s *Server) createFiledIssue(ctx context.Context, tx *Tx, projectID, id, authorID string, pr *HostPR) (int, error) {
+	teamID, err := store.ProjectTeam(ctx, tx, projectID) // UNVERIFIED name
+	if err != nil {
+		return 0, err
+	}
+	content := hubapi.IssueRevisionContent{
+		Title:       hubapi.AuthoredText{Text: filedTitle(pr), Author: hubapi.AuthorHuman},
+		Description: hubapi.AuthoredText{Text: "Filed from " + pr.URL, Author: hubapi.AuthorHuman},
+		Serves:      []hubapi.Serve{}, Implements: []string{}}
+	if hubapi.ValidateIssueRevisionContent(content) != nil { // a title the grammar refuses
+		content.Title.Text = "Pull request #" + strconv.Itoa(pr.Number)
+	}
+	n, err := store.NextIssueNumber(ctx, tx, tx.OrgID(), projectID)
+	if err != nil {
+		return 0, err
+	}
+	head := store.IssueRow{ID: id, OrgID: tx.OrgID(), ProjectID: projectID, TeamID: teamID, Number: n,
+		State: hubapi.StateTriage, Priority: hubapi.PriorityNone, Source: hubapi.SourceIntake,
+		NotTiedReason: hubapi.NotTiedSupport, CreatedAt: tx.Now, UpdatedAt: tx.Now, CreatedBy: authorID}
+	env := hubapi.IssueRevisionEnvelope{V: 1, Kind: "issue-revision", IssueID: id, Revision: 1,
+		ProjectID: projectID, Content: content}
+	digest, canonical, err := hubapi.IssueRevisionDigest(env)
+	if err != nil {
+		return 0, err
+	}
+	if err := store.InsertIssue(ctx, tx, head); err != nil {
+		return 0, err
+	}
+	if err := store.InsertIssueRevision(ctx, tx, store.RevisionRow{OrgID: tx.OrgID(), IssueID: id,
+		ProjectID: projectID, Revision: 1, Canonical: canonical, Digest: digest, WrittenAt: tx.Now,
+		WrittenBy: authorID, Serves: content.Serves}); err != nil {
+		return 0, err
+	}
+	if err := store.MoveIssueHead(ctx, tx, id, 1, tx.Now); err != nil {
+		return 0, err
+	}
+	if err := store.SetHeadTitle(ctx, tx, id, content.Title.Text); err != nil {
+		return 0, err
+	}
+	return n, emitWork(tx, hubapi.EventIssueCreated, teamID, projectID, id, hubapi.IssueCreatedData{
+		Number: int64(n), Key: hubapi.IssueKey{IssueID: id, Revision: 1}.String(), Digest: digest.String(),
+		State: string(hubapi.StateTriage), Source: string(hubapi.SourceIntake)})
+}
+
+// filedTitle is the PR title, trimmed and cut to task 02's 200 code points
+// (ErrIssueTitle, task-02.md:216); an empty one becomes "Pull request #N".
+func filedTitle(pr *HostPR) string {
+	t := []rune(strings.TrimSpace(pr.Title))
+	if len(t) > 200 {
+		t = t[:200]
+	}
+	if len(t) == 0 {
+		return "Pull request #" + strconv.Itoa(pr.Number)
+	}
+	return string(t)
+}
+```
+
+`tx.OrgID()` is the org `s.hostTx` opened the transaction for (`task-154.md:471-474`); task 146
+reads `tx.P.OrgID` because it has an Entra caller and this path has none (the accessor's name is
+**UNVERIFIED**, a small gap for the Hub's `Tx`). `emitWork` is task 13's six-argument form
+(`task-13.md:332`); task 154's calls are written with a four-argument form and are fixed to this
+one at merge (a gap recorded below). `work_hooks.go` gains `strconv` (already added by task 154)
+and `ids`.
+
+#### Interfaces — complete: `server/work_hooks.go` ⚑, the first push and `hostFact`
+
+```go
+// firstPush is decision 7. It returns the links and facts it wrote.
+func (s *Server) firstPush(ctx context.Context, tx *Tx, hook hubapi.HostHook, ev HostEvent,
+	keys []string, ref Ref, userID string, matched bool) (int, int, error) {
+	issueID, ok, err := store.ResolveRef(ctx, tx, hook.ProjectID, keys, ref)
+	if err != nil || !ok {
+		return 0, 0, err // ep-999: nothing, and the hook still answers 200
+	}
+	links := 0
+	if n := len(ev.Commits); n > 0 {
+		head := ev.Commits[n-1] // a push lists its commits oldest first (UNVERIFIED for both hosts)
+		links, err = store.InsertOutsideCommitLink(ctx, tx, hubapi.OutsideCommitLink{IssueID: issueID,
+			Host: hubapi.HostKind(ev.Host), Repo: ev.Repo, SHA: head.SHA, URL: head.URL,
+			Word: hubapi.WordBranch, PushedBy: optional(userID, matched)})
+		if err != nil {
+			return 0, 0, err
+		}
+	}
+	cur, err := store.IssueStateForUpdate(ctx, tx, issueID)
+	if err != nil || !before(cur, "started") {
+		return links, 0, err // already started, or declined: nothing more (decision 7)
+	}
+	if !matched {
+		teamID, projectID, err := store.IssueTeamProject(ctx, tx, issueID) // UNVERIFIED name
+		if err != nil {
+			return links, 0, err
+		}
+		return links, 0, emitWork(tx, "issue.outside_unmatched", teamID, projectID, issueID,
+			map[string]any{"issueId": issueID, "host": ev.Host, "prNumber": 0, "kind": "push"})
+	}
+	moved, err := s.hostFact(ctx, tx, issueID, "started", userID, "")
+	if err != nil || !moved {
+		return links, 0, err
+	}
+	return links, 1, nil
+}
+
+// hostFact (task-154.md:703-721): the cause switch gains a third arm.
+	cause, move := hubapi.CauseOutsidePR, hubapi.StateMove{To: hubapi.StateInReview}
+	switch fact {
+	case "started":
+		cause, move = hubapi.CauseOutsidePush, hubapi.StateMove{To: hubapi.StateStarted}
+	case "landed":
+		cause, move = hubapi.CauseOutsideMerge, hubapi.StateMove{To: hubapi.StateLanded, LandCommit: mergeCommit}
+	}
+```
+
+`hostFact` calls `IssueStateForUpdate` again; the row is already locked by this transaction, so
+the second read is the same value and costs one index lookup. Task 154's `in_review` arm keeps
+reading `link.PRState == "open"`, and nothing here changes it.
