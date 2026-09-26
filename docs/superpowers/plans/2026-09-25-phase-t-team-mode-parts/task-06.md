@@ -50,6 +50,13 @@ fields, so a body that sends one gets 400 `bad_request`.
   and `teamModeGate` (new; fix batch b01)
 - `control-plane/internal/hub/store/projectmode.go`: `ProjectMode(ctx, tx, id)` (read under route
   46 and 87) and `SetProjectMode(ctx, tx, id)`, the only `SET mode` statement (new; fix batch b01)
+- `control-plane/internal/hub/store/projects.go` (Hub task 17's project store, `task-17.md:14`):
+  its one project-row reader, shared by routes 13 to 16 and by route 87's reply, selects and scans
+  `mode` into `hubapi.Project.Mode`, and route 14's `INSERT ... RETURNING` returns it (modify: the
+  column list and the scan; fix batch b01 round 2, re-review I-1). Without it every Hub read answers
+  `"mode":""` and the control plane never sees a team project
+- `control-plane/internal/hub/server/projects_integration_test.go` (Hub task 17's file):
+  `TestProjectReadsCarryMode` (modify: one test; fix batch b01 round 2)
 - `control-plane/cmd/hub/config.go` + `config_test.go`: `PANACEA_APP_HUB_TEAM_MODE_UNSTREAMED`,
   refused unless `PANACEA_APP_HUB_ENV` is `local` or `dev` (modify; fix batch b01)
 
@@ -544,8 +551,10 @@ package server_test
 
 // teamWorld is task 06's piece of the world: project P on team T, one delegation per
 // member and class, and one orchestrator agent each. Built fresh per test. The harness
-// runs with PANACEA_APP_HUB_TEAM_MODE_UNSTREAMED=true, and P becomes a team project by
-// Grace calling route 87, never by SQL, so every test below runs the real writer.
+// runs with PANACEA_APP_HUB_TEAM_MODE_UNSTREAMED=true AND PANACEA_APP_HUB_AUDIT_SINK=fake
+// (re-review I-4: task 45's TeamModeAllowed opens on the flag only beside sink "fake";
+// before task 45 the sink variable is unread, which is harmless), and P becomes a team
+// project by Grace calling route 87, never by SQL, so every test below runs the real writer.
 // SoloID is a second project on T that stays solo (route 33's and route 46's refusals).
 type teamWorld struct {
 	h                    *hubHarness // Hub task 06's harness: server, pool, clock
@@ -592,6 +601,7 @@ is not written.
 | `TestProjectModeIsOneWay` (b01) | Grace, `{"mode":"solo"}` on P → 400 `bad_request`, `details.field = "mode"` (not 500 from the trigger), P still `team`; `{"mode":"team"}` on P again → 200, exactly one `project.mode_set` for P in the audit | the body's value written as sent; the idempotent replay emitting a second event |
 | `TestProjectModeWaitsForTheAuditGate` (b01) | a second server on the same pool with the flag `false`: Grace, route 87 on `SoloID` → 503 `unavailable`, `details.reason = "audit_not_streaming"`; `SoloID` still `solo`; no `project.mode_set` | the gate called after the `UPDATE`, or not at all |
 | `TestProjectModeSetIsOneEventOnTheFeed` (b01) | the Grace call's event is `project.mode_set`, `v: 1`, `actorUserId` Grace, `data` exactly `{"from":"solo","to":"team"}`, a feed row (route 78 itself is task 08's, which asserts Fleet reads it) | the event written with no feed row, so Fleet never learns the project |
+| `TestProjectReadsCarryMode` (b01 round 2, in Hub task 17's `projects_integration_test.go`) | Grace, route 14 with remote `github.com/lcfrai/modeprobe` → 201, `mode: "solo"` (never `""`); route 87 on it → 200; then route 15 → `mode: "team"`, route 13 `?repo=github.com/lcfrai/modeprobe` → one item, `mode: "team"`, route 13 `?teamId=` → that item `mode: "team"`, route 16 rename → 200, `mode: "team"`; each asserted on the raw JSON, not a decoded struct | the project-row reader left without `mode`, so the real Hub answers `"mode":""` and `IsTeam` is never true (re-review I-1) |
 | `TestLeaseEventsAreGaplessAndStopAtTerminal` | seq 1, 2 → 201; seq 2 again → 409; seq 4 → 409; after `released`, seq n+1 → 409 | the gap check is `>` instead of `== last + 1` |
 | `TestLeaseEventHolderMustBeTheOwners` | holder `AGGraceOrch` under `DLLinusOrch` → 403 `agent_not_owner` | the holder check skipped for `expired` |
 | `TestAdminReleaseNeedsAnAdmin` | `admin-released` of Grace's lease under Linus's delegation → 403 `required: "admin"`; of Linus's lease under Grace's → 201, `actorUserId` Grace | admin release allowed to members |
@@ -667,7 +677,7 @@ Expected: a build failure naming the guards, one line per use site, for example
 `undefined: RequireFleet` if it has. Then the integration half:
 
 ```bash
-cd control-plane && go test -tags integration ./internal/hub/server/ -run 'TestDelegation|TestTask|TestAgent|TestLease|TestAdmin|TestConflict|TestNoTeam|TestEveryTeam|TestFleetEvents|TestProjectMode' -count=1
+cd control-plane && go test -tags integration ./internal/hub/server/ -run 'TestDelegation|TestTask|TestAgent|TestLease|TestAdmin|TestConflict|TestNoTeam|TestEveryTeam|TestFleetEvents|TestProjectMode|TestProjectReadsCarryMode' -count=1
 cd control-plane && go test ./cmd/hub/ -run 'TestTeamModeUnstreamedIsDevOnly' -count=1
 ```
 
@@ -681,6 +691,12 @@ functions, one file per record, each a single parameterised statement under `tx`
 `RETURNING` the full row; then the handlers. The store functions set nothing the handler did not
 pass, and every `UPDATE` carries `WHERE id = $1 AND revision = $2`, so an `ifRevision` race is a
 zero-row update the handler turns into 409 `revision_conflict`.
+
+Then Hub task 17's `store/projects.go` (b01 round 2, re-review I-1): add `mode` to the one
+project-row column list and scan that routes 13 to 16 share, so a project read answers
+`"mode":"solo"` or `"mode":"team"`, and point route 87's reply at the same reader. Route 14's
+insert names no `mode` (the column's default, task 04, makes it `solo`) but its `RETURNING` does.
+`TestProjectReadsCarryMode` fails before this edit and passes after it.
 
 The route registration, in full:
 
@@ -789,12 +805,16 @@ delegation; the Hub records lease changes but does not second-guess them) and en
    any `…Request` type; task 01's acceptance grep.
 3. `grep -c 's.mux.HandleFunc(' control-plane/internal/hub/server/delegations.go` prints `4` (routes
    46, 48, 49 and 87) and `grep -c '^	d("' control-plane/internal/hub/server/delegations.go` prints `11`.
-5. (b01) `grep -rn "SET mode" control-plane/internal/hub/` prints exactly one line, in
-   `store/projectmode.go`; in `server/projectmode.go`, `grep -n "teamModeGate()\|SetProjectMode("`
-   shows the gate's line number smaller than the store call's: the gate runs first.
 4. `go test -tags integration ./internal/hub/server/ -run TestEveryTeamWriteIsOneEventWithNoText -v`
    passes, and a manual `SELECT data FROM hub.audit_events WHERE kind LIKE 'task.%'` on the test
    database shows ids, enums and counts only.
+5. (b01) `grep -rn "SET mode" control-plane/internal/hub/` prints exactly one line, in
+   `store/projectmode.go`; in `server/projectmode.go`, `grep -n "teamModeGate()\|SetProjectMode("`
+   shows the gate's line number smaller than the store call's: the gate runs first.
+6. (b01 round 2, re-review I-1) `grep -n "mode" control-plane/internal/hub/store/projects.go`
+   shows `mode` in the project-row reader's column list and in its scan, and
+   `TestProjectReadsCarryMode` passes on the real Hub: routes 13, 15 and 16 answer `"mode":"team"`
+   after route 87, and route 14 answers `"mode":"solo"`, never `""`.
 
 #### What this task does not claim
 
