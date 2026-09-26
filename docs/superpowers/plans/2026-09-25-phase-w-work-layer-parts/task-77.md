@@ -80,6 +80,89 @@ an issue that moved in the meantime is skipped and absent from `closed`. `close:
 
 **(h) Archive** (L-12). The janitor sets `archived_at` on an issue head that has been `done`,
 `cancelled` or `duplicate` for `archiveAfterDays` (0: never). Archived issues leave the default
-lists (task 08's list gains `includeArchived`, default false) and **stay searchable** (task 12's
-search ignores `archived_at`). A reopen clears it. This needs `issue_heads.archived_at` and
+lists (task 08's list gains `includeArchived`, default false) and **stay searchable** (the search
+route, `GET /v1/issues/search`, `task-07.md:351`, reads no `archived_at` and is not changed). A reopen clears it. This needs `issue_heads.archived_at` and
 `IssuePlan.ArchivedAt`, neither in task 72 or task 74's scope: both are added here, additively.
+
+**(i) The iCal feed is outside `/v1`, and UNVERIFIED pending the Hub owner's review.** Every
+`/v1` route needs `Authorization: Bearer` (`hub-contract.md:36-37`), which calendar clients cannot
+send. So the feed is `GET /cal/{feedToken}.ics`, where the token is minted by `POST
+/v1/me/calendar-token`, shown once, stored as its SHA-256 only, and revoked by `DELETE
+/v1/me/calendar-token` (a new mint also revokes the old one: one live token per person). The token
+reads `<orgId>.<secret>`, 32 bytes of `crypto/rand` in base32 without padding, so the route can
+set `hub.org_id` from the token's first half **before** it looks the hash up, and row-level
+security applies (no new owner-run function beside the three of §10.4). The feed carries **only**
+cycle numbers, names and dates of the person's teams: no issue, no title, no person. It still
+refuses a request carrying `Origin` (the *no browsers* rule, `:38-39`). The fallback, if the Hub
+owner refuses a route outside `/v1`, is `GET /v1/teams/{teamId}/cycles.ics`, bearer-only, the same
+body, which the desktop downloads and the person imports by hand; both are in this task so the
+owner's answer removes one, not adds one.
+
+#### Files
+
+| Path | Change |
+|---|---|
+| `control-plane/internal/hub/migrate/sql/NNNN_work_plan.sql` ⚑ (task 74's) | appended: `calendar_tokens`, `issue_heads.archived_at`, the janitor's widened guard |
+| `control-plane/internal/hub/store/work_cycles.go` | new: cadence, cycles, scope log, the ensure-ahead and roll functions |
+| `control-plane/internal/hub/store/work_closure.go` | new: stale reads, proposals, archive, token hashes |
+| `control-plane/internal/hub/server/work_cycles.go` | new: the ten routes |
+| `control-plane/internal/hub/server/janitor.go` ⚑ (Hub task 24's) | passes 5-9 and five `SweepReport` fields |
+| `control-plane/internal/hub/server/work_states.go` ⚑ (task 10's) | the `started` move joins the current cycle; `stale_policy` accepted from the janitor only |
+| `control-plane/internal/hub/server/work_issues.go` ⚑ (task 08's) | `includeArchived` on the list; a reopen clears `archived_at` |
+| `control-plane/internal/hub/hubapi/work.go` ⚑ (task 03's, task 10's additions) | `CauseStalePolicy` and its `MoveAllowed` rows |
+| `control-plane/internal/hub/hubapi/work_plan.go` ⚑ (task 72's) | `IssuePlan.ArchivedAt`, one field |
+| `control-plane/internal/hub/hubapi/work_events.go` ⚑ (task 13's) | eight kinds |
+| `control-plane/internal/hub/server/work_cycles_integration_test.go`, `janitor_work_integration_test.go` | new: the tests below |
+| `control-plane/internal/hub/server/work_matrix_rows_integration_test.go` ⚑ | `workMatrixRows["77"]`; `"77"` in `workMatrixLive` |
+| `control-plane/internal/hub/server/matrix_integration_test.go` ⚑ (H16b's) | the fixture gains `CycleID` and `ProposalID` |
+| `control-plane/internal/hub/server/server.go` ⚑ | `s.registerWorkCycles(mux)`, and the `/cal/` pattern beside `/healthz` |
+
+#### The migration, appended to task 74's file (complete)
+
+```sql
+-- Task 77: calendar tokens (decision (i)), issue archive (decision (h)), the janitor's guard.
+CREATE TABLE hub.calendar_tokens (
+  org_id      text        NOT NULL REFERENCES hub.orgs(id),
+  user_id     text        NOT NULL,
+  token_hash  bytea       NOT NULL,              -- sha256 of the whole token; the token is never stored
+  created_at  timestamptz NOT NULL,
+  revoked_at  timestamptz,
+  PRIMARY KEY (org_id, token_hash)
+);
+CREATE UNIQUE INDEX calendar_tokens_one_live ON hub.calendar_tokens (org_id, user_id) WHERE revoked_at IS NULL;
+ALTER TABLE hub.calendar_tokens ENABLE ROW LEVEL SECURITY;
+CREATE POLICY org_isolation ON hub.calendar_tokens TO hub_app
+  USING (org_id = current_setting('hub.org_id', true))
+  WITH CHECK (org_id = current_setting('hub.org_id', true));
+GRANT SELECT, INSERT, UPDATE (revoked_at) ON hub.calendar_tokens TO hub_app;
+
+ALTER TABLE hub.issue_heads ADD COLUMN archived_at timestamptz;
+CREATE INDEX issue_heads_unarchived ON hub.issue_heads (project_id, state) WHERE archived_at IS NULL;
+GRANT UPDATE (archived_at) ON hub.issue_heads TO hub_app;
+```
+
+The policy's shape is the Hub's own (`hub-contract.md:1906-1921`); task 06's grant-list test gains
+the table (`TestWorkGrantsAreExactlyTheList`, `task-10.md:78`).
+
+The **janitor's widened guard**. Task 74's scope lets the janitor (`hub.work_actor_kind =
+'janitor'`, actor null) write **only** `cycle_id` (`tasks-61-80.md:484-485`). This task's passes
+also write `archived_at`, and, under `staleMode: auto`, `state` to `cancelled` from `triage`,
+`backlog` or `todo` with cause `stale_policy`. The clause, added to task 74's head guard function
+(its name is task 74's, **UNVERIFIED**):
+
+```sql
+  -- inside task 74's issue_heads guard, the janitor branch, replacing "only cycle_id":
+  IF current_setting('hub.work_actor_kind', true) = 'janitor' THEN
+    IF (NEW.state IS DISTINCT FROM OLD.state) AND NOT (
+         NEW.state = 'cancelled' AND OLD.state IN ('triage', 'backlog', 'todo')
+         AND current_setting('hub.work_cause', true) = 'stale_policy') THEN
+      RAISE EXCEPTION 'hub: work: the janitor may only cancel a stale open issue' USING ERRCODE = '42501';
+    END IF;
+    IF (NEW.estimate, NEW.due_on, NEW.rank, NEW.parent_id, NEW.feature_id, NEW.sub_state)
+       IS DISTINCT FROM (OLD.estimate, OLD.due_on, OLD.rank, OLD.parent_id, OLD.feature_id, OLD.sub_state) THEN
+      RAISE EXCEPTION 'hub: work: the janitor writes cycle_id, archived_at and a stale close only' USING ERRCODE = '42501';
+    END IF;
+  END IF;
+```
+
+`stale_policy` sets no fact state and no `done`, so task 07's W1 rule (SW.3) is unchanged.
