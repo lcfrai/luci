@@ -76,3 +76,319 @@ and **L-56** (light composer suggestions), 05 §1 C.
    not-claim and stays so (gap 4).
 9. **Numbers are counts of things, never of confidence.** No hint, chip or row shows a score, a
    percentage, a rank number or an ordinal (*"top match"*) (AX anti-pattern 12).
+
+**Files:**
+
+- `control-plane/internal/workassist/guidance.go` — `GuidanceLevel`, `GuidanceEntry`,
+  `GuidanceScope`, `(*Service).GuidanceFor`, `withGuidance` (new)
+- `control-plane/internal/workassist/duplicates.go` — `DuplicatesRequest`, `Candidate`,
+  `Duplicates`, `(*Service).Duplicates`, `candidates` (new)
+- `control-plane/internal/workassist/hints.go` — `HintsRequest`, `Hints`, `(*Service).Hints` (new)
+- `control-plane/internal/workassist/{guidance,duplicates,hints}_test.go` (new), over task 136's rig
+- `control-plane/internal/workassist/triage.go` ⚑ (task 136) — the prompt gains the guidance
+  layers through `withGuidance` (modified; the scope's file list omits it, gap 5)
+- `control-plane/internal/api/workassist.go` ⚑ (task 136) — `registerWorkDuplicates`, two routes
+  (modified); `routes_audit_test.go` ⚑ — the two patterns as `POST` (modified)
+- `desktop/src/api/work.ts` ⚑ — two `WORK_LOCAL` rows, the wire types, two client methods
+  (modified)
+- `desktop/src/work/hintClock.ts`, `hintClock.test.ts` — the composer's timing, decision 5 (new)
+- `desktop/src/components/work/DuplicateHint.tsx`, `.test.tsx` (new)
+- `desktop/src/components/work/ComposerHints.tsx`, `.test.tsx` (new)
+- `desktop/src/components/work/NewIssue.tsx` ⚑ (task 68, no part) and `TriageView.tsx` ⚑
+  (task 42) — the hosts (modified)
+
+#### Interfaces — complete: `control-plane/internal/workassist/guidance.go`
+
+```go
+package workassist
+
+// GuidanceLevel is where a guidance entry comes from. SW.19 has org, team and
+// person (task-109.md:176); brief is the feature's brief (05 §1 C L-55).
+// There is no project level (gap 1).
+type GuidanceLevel string
+
+const (
+	LevelOrg    GuidanceLevel = "org"
+	LevelTeam   GuidanceLevel = "team"
+	LevelPerson GuidanceLevel = "person"
+	LevelBrief  GuidanceLevel = "brief"
+)
+
+// GuidanceEntry is one layer. Key is the link: "gd-…@v3" for a guidance
+// version, the brief key "brief:bf-…@4" for a brief. Winning is set on the last.
+type GuidanceEntry struct {
+	Level   GuidanceLevel `json:"level"`
+	Key     string        `json:"key"`
+	Text    string        `json:"text"`
+	Winning bool          `json:"winning"`
+}
+
+// GuidanceScope is what the guidance is for: always a team, and a feature
+// when the work is under one.
+type GuidanceScope struct {
+	TeamID    string
+	FeatureID string // "" for none
+}
+
+// GuidanceFor returns the layers most local last, the last marked winning.
+// A layer the Hub does not hold is absent, not empty.
+func (s *Service) GuidanceFor(ctx context.Context, sc GuidanceScope) ([]GuidanceEntry, error) {
+	gv, err := s.Hub.ResolveGuidance(ctx, sc.TeamID) // most local first: person, team, org
+	if err != nil {
+		return nil, err
+	}
+	var out []GuidanceEntry
+	for i := len(gv.Layers) - 1; i >= 0; i-- {
+		g := gv.Layers[i]
+		out = append(out, GuidanceEntry{Level: GuidanceLevel(g.Scope),
+			Key: fmt.Sprintf("%s@v%d", g.ID, g.Version), Text: g.Text})
+	}
+	if sc.FeatureID != "" {
+		if b, ok, err := s.featureBrief(ctx, sc.FeatureID); err != nil {
+			return nil, err
+		} else if ok {
+			out = append(out, b)
+		}
+	}
+	if len(out) > 0 {
+		out[len(out)-1].Winning = true
+	}
+	return out, nil
+}
+
+// withGuidance adds the layers to a prompt as g1…gN and their keys to k, so
+// each assist's why may cite the guidance it used (decision 8).
+func withGuidance(k Keys, layers []GuidanceEntry) []promptGuidance {
+	out := make([]promptGuidance, 0, len(layers))
+	for i, g := range layers {
+		key := fmt.Sprintf("g%d", i+1)
+		k.add(WhyGuidance, key, g.Key)
+		out = append(out, promptGuidance{Key: key, Level: string(g.Level), Text: g.Text, Winning: g.Winning})
+	}
+	return out
+}
+
+type promptGuidance struct {
+	Key, Level, Text string
+	Winning          bool
+}
+```
+
+`featureBrief` reads the feature (task 83's `Feature`, its `briefId`; **UNVERIFIED**) and the
+brief's current revision through `Brief` (`hub/hubclient/hubclient.go:57` on `feat/hub`), and
+renders its criteria as the text with phase 4's decoder (task 136's gap 6). An erased or
+unreadable brief is absent (`ok == false`), never an error that stops the assist.
+`hubapi.GuidanceView{Layers []Guidance}` and `Guidance{ID, Scope, ScopeID, Text, Version}` are
+task 100's (`task-100.md:231-234`, `:310`); the Go field names are **UNVERIFIED** there.
+
+**`triage.go` ⚑ (task 136).** `triagePrompt` gains `Guidance []promptGuidance`; `Triage`, after
+the criteria, calls `s.GuidanceFor(ctx, GuidanceScope{TeamID: iw.Head.TeamID, FeatureID:
+iw.Head.FeatureID})` and sets `p.Guidance = withGuidance(keys, layers)`. A guidance read that
+fails leaves `p.Guidance` empty and does not fail the assist. `triageSystem` gains one line:
+*"Guidance lists rules, most local last; the last one wins where they differ. A why may name a
+Guidance key."* `iw.Head.TeamID` and `FeatureID` are task 83's head fields (**UNVERIFIED**).
+
+#### Interfaces — complete: `control-plane/internal/workassist/duplicates.go`
+
+```go
+package workassist
+
+// DuplicatesRequest is POST /v1/work/assist/duplicates's body: an existing issue.
+type DuplicatesRequest struct {
+	IssueID string `json:"issueId"`
+}
+
+// Candidate is one issue the model judged a duplicate or related. Both titles
+// are the Hub's own text (decision 2); the model supplies only Key and Relation.
+type Candidate struct {
+	IssueID   string `json:"issueId"`
+	Alias     string `json:"alias"`
+	Relation  string `json:"relation"`  // "duplicates" | "relates" (task 37's RelationKind)
+	ThisTitle string `json:"thisTitle"` // the asked-about issue's, or the draft's
+	ThatTitle string `json:"thatTitle"`
+	Why       []Why  `json:"why"`       // at least the candidate itself; guidance may follow
+}
+
+// Duplicates is the 200 body for both routes. Revision is 0 for a draft.
+type Duplicates struct {
+	IssueID    string          `json:"issueId"`
+	Revision   int             `json:"revision"`
+	Candidates []Candidate     `json:"candidates"` // [] when none, never null
+	Route      dataclass.Route `json:"route"`
+}
+
+// candidates is the title search, narrowed: this project, readable, not
+// erased (empty title), not the issue itself; at most 20 (decisions 1 and 3).
+func candidates(ctx context.Context, hub TriageSource, projectID, title, self string) ([]hubapi.IssueHead, error) {
+	hs, err := hub.SearchIssues(ctx, hubapi.IssueSearchQuery{ProjectID: projectID, Q: searchTerms(title), Limit: 20})
+	if err != nil {
+		return nil, err
+	}
+	out := hs[:0:0]
+	for _, h := range hs {
+		if h.ID != self && h.Title != "" && h.ProjectID == projectID {
+			out = append(out, h)
+		}
+	}
+	return out, nil
+}
+
+const duplicatesSystem = `You compare one work item with a list of others. Reply with JSON only:
+{"candidates":[{"key":"k3","relation":"duplicates|relates","why":[{"kind":"guidance","key":"g1"}]}]}
+"duplicates" means the same problem or request; "relates" means connected but different.
+Name only keys from Others. List nothing you are unsure of. Never give a score.`
+
+// judge asks the model once and keeps each well-formed, listed, distinct pick.
+func (s *Service) judge(ctx context.Context, projectID, title, desc string, others []hubapi.IssueHead,
+	guidance []GuidanceEntry) ([]Candidate, dataclass.Route, error) {
+	if len(others) == 0 {
+		return []Candidate{}, "", nil // no candidates: no call, and no cost
+	}
+	keys := Keys{}
+	byKey := map[string]hubapi.IssueHead{}
+	type other struct{ Key, Title string }
+	var list []other
+	for i, h := range others {
+		k := fmt.Sprintf("k%d", i+1)
+		byKey[k] = h
+		list = append(list, other{k, h.Title})
+	}
+	user, err := json.Marshal(struct {
+		Title, Description string
+		Others             []other
+		Guidance           []promptGuidance
+	}{title, desc, list, withGuidance(keys, guidance)})
+	if err != nil {
+		return nil, "", err
+	}
+	reply, err := s.Complete(ctx, projectID, Call{System: duplicatesSystem, User: string(user), MaxTokens: 400})
+	if err != nil {
+		return nil, "", err
+	}
+	return pickCandidates(reply.Text, byKey, keys, title), reply.Route, nil
+}
+
+// pickCandidates maps keys back to the Hub's heads and fills the titles from
+// them. The candidate's own alias is always its first why.
+func pickCandidates(text string, byKey map[string]hubapi.IssueHead, keys Keys, thisTitle string) []Candidate {
+	var raw struct {
+		Candidates []struct {
+			Key, Relation string
+			Why           []Why
+		} `json:"candidates"`
+	}
+	out := []Candidate{}
+	if json.Unmarshal([]byte(text), &raw) != nil {
+		return out
+	}
+	seen := map[string]bool{}
+	for _, c := range raw.Candidates {
+		h, ok := byKey[c.Key]
+		if !ok || seen[h.ID] || (c.Relation != "duplicates" && c.Relation != "relates") {
+			continue
+		}
+		seen[h.ID] = true
+		why := append([]Why{{Kind: WhyIssue, Key: h.Alias}}, keepLinked(keys, c.Why)...)
+		out = append(out, Candidate{IssueID: h.ID, Alias: h.Alias, Relation: c.Relation,
+			ThisTitle: thisTitle, ThatTitle: h.Title, Why: why})
+	}
+	return out
+}
+
+// gate is the kill switch alone, read before any Hub search, so a route under
+// the switch answers assists_off even when it would have made no call.
+func (s *Service) gate(ctx context.Context) error {
+	sw, err := s.Switch.GetAgentSwitch(ctx, s.OrgID)
+	if err != nil || !sw.Orchestrators {
+		return ErrAssistsOff
+	}
+	return nil
+}
+
+// Duplicates is the triage path: an existing, readable, unerased issue.
+func (s *Service) Duplicates(ctx context.Context, src TriageSource, req DuplicatesRequest) (Duplicates, error) {
+	if err := s.gate(ctx); err != nil {
+		return Duplicates{}, err
+	}
+	iw, err := src.Issue(ctx, req.IssueID)
+	if err != nil || iw.Revision.ErasedAt != nil {
+		return Duplicates{}, ErrNotFound
+	}
+	c := iw.Revision.Content
+	pid := iw.Head.ProjectID
+	others, err := candidates(ctx, src, pid, c.Title.Text, req.IssueID)
+	if err != nil {
+		return Duplicates{}, ErrGatewayDown // a failed search reads as "unavailable", in words
+	}
+	g, _ := s.GuidanceFor(ctx, GuidanceScope{TeamID: iw.Head.TeamID, FeatureID: iw.Head.FeatureID})
+	picked, route, err := s.judge(ctx, pid, c.Title.Text, c.Description.Text, others, g)
+	if err != nil {
+		return Duplicates{}, err
+	}
+	s.Log.Info("duplicates assist", "issueId", req.IssueID, "candidates", len(others), "picked", len(picked))
+	return Duplicates{IssueID: req.IssueID, Revision: iw.Revision.Revision, Candidates: picked, Route: route}, nil
+}
+```
+
+`ErrGatewayDown` for a failed search is deliberate: the person reads *"Duplicate check
+unavailable"* either way, and the Hub's error text never reaches them through this route.
+
+#### Interfaces — complete: `control-plane/internal/workassist/hints.go`
+
+```go
+package workassist
+
+// HintsRequest is POST /v1/work/assist/hints's body: the composer's draft.
+// Nothing here is stored; the draft is the person's own text, typed now.
+type HintsRequest struct {
+	ProjectID   string `json:"projectId"`
+	Title       string `json:"title"`       // 1-200 characters
+	Description string `json:"description"` // 0-4000 characters; more is cut, never sent whole
+}
+
+// Hints is the 200 body: label chips and duplicate chips, each linked.
+type Hints struct {
+	Labels     []Item          `json:"labels"`     // property "labels" only
+	Candidates []Candidate     `json:"candidates"` // as Duplicates'
+	Route      dataclass.Route `json:"route"`
+}
+
+var ErrDraftLength = errors.New("workassist: the draft's title must be 1 to 200 characters")
+
+// Hints makes at most two calls: the duplicate judgement and one labels-only
+// triage prompt. It never writes, and it keeps no copy of the draft.
+func (s *Service) Hints(ctx context.Context, src TriageSource, teamID string, req HintsRequest) (Hints, error) {
+	if n := utf8.RuneCountInString(req.Title); n < 1 || n > 200 {
+		return Hints{}, ErrDraftLength
+	}
+	if err := s.gate(ctx); err != nil {
+		return Hints{}, err
+	}
+	desc := firstRunes(req.Description, 4000)
+	others, err := candidates(ctx, src, req.ProjectID, req.Title, "")
+	if err != nil {
+		return Hints{}, ErrGatewayDown
+	}
+	g, _ := s.GuidanceFor(ctx, GuidanceScope{TeamID: teamID})
+	picked, route, err := s.judge(ctx, req.ProjectID, req.Title, desc, others, g)
+	if err != nil {
+		return Hints{}, err
+	}
+	labels, lr, err := s.labelsFor(ctx, src, req.ProjectID, req.Title, desc, g)
+	if err != nil {
+		return Hints{}, err
+	}
+	if route == "" {
+		route = lr
+	}
+	return Hints{Labels: labels, Candidates: picked, Route: route}, nil
+}
+```
+
+`labelsFor` is task 136's `Triage` narrowed to one property: the same vocabulary for `labels`
+only, the same examples, `validateItems` with `allowed` holding labels alone, over a draft in
+place of an issue revision. It is a split of `Triage`'s body into a helper both call, so 136's
+tests keep passing unchanged. `firstRunes` cuts at a rune boundary. `teamID` is the project's
+team, which the handler reads with `(*Service).ProjectTeam(ctx, projectID) (string, error)`,
+added in `hints.go` over the relay's project read (Phase H's `Project`, **UNVERIFIED** name); an
+unreadable project is `404 project_not_found`. The caller never supplies the team.
