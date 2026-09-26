@@ -713,3 +713,76 @@ const (
 	CodeTrackerDisconnect  = "tracker_disconnected" // disconnected while the run was in flight
 )
 ```
+
+```go
+// engine.go, continued
+
+type Engine struct {
+	Adapters map[string]Adapter // by Source(); config.go fills it (point 12)
+	Sink     Sink
+	MaxPages int // per run; 0 means 20
+}
+
+// Run pulls and applies pages until the cursor stops moving, the page cap is
+// reached, or a pull or a commit fails. It never holds a transaction while a
+// tracker is being called, and it stores no upstream text.
+func (e *Engine) Run(ctx context.Context, connID string) (hubapi.SyncRun, error) {
+	conn, cur, run, err := e.Sink.StartRun(ctx, connID)
+	if err != nil {
+		return hubapi.SyncRun{}, err
+	}
+	a, ok := e.Adapters[conn.Source]
+	if !ok {
+		return e.Sink.FinishRun(ctx, run, &hubapi.SyncError{Code: CodeNoAdapter})
+	}
+	limit := e.MaxPages
+	if limit == 0 {
+		limit = 20
+	}
+	for page := 1; page <= limit; page++ {
+		p, err := a.Pull(ctx, conn, cur)
+		if err != nil {
+			return e.Sink.FinishRun(ctx, run, pullFailure(err))
+		}
+		if conn.Mode != hubapi.TrackerInAndComments {
+			p.Comments = nil
+		}
+		if err := e.Sink.ApplyPage(ctx, conn, run, p); err != nil {
+			code := CodePageNotCommitted
+			if errors.Is(err, ErrDisconnected) {
+				code = CodeTrackerDisconnect
+			}
+			return e.Sink.FinishRun(ctx, run, &hubapi.SyncError{Code: code})
+		}
+		if p.Next == cur {
+			break // nothing past this cursor (point 6)
+		}
+		cur = p.Next // only after the commit, which moved the stored cursor too
+	}
+	return e.Sink.FinishRun(ctx, run, nil)
+}
+
+// ErrDisconnected is ApplyPage's answer when the connection was disconnected
+// after StartRun; the page is not written.
+var ErrDisconnected = errors.New("worksync: connection disconnected")
+
+// pullFailure keeps a PullError's code and retry time and drops its text: a
+// tracker's error body can echo a query or an item.
+func pullFailure(err error) *hubapi.SyncError {
+	var pe *PullError
+	if !errors.As(err, &pe) || pe.Code == "" {
+		return &hubapi.SyncError{Code: CodeTrackerUnreachable}
+	}
+	se := &hubapi.SyncError{Code: pe.Code}
+	if !pe.RetryAt.IsZero() {
+		at := pe.RetryAt.UTC().Format(time.RFC3339)
+		se.RetryAt = &at
+	}
+	return se
+}
+```
+
+`links.go`'s `Plan` (`:446-466`) keeps its body; only its types change: `Plan(p Pulled, known
+map[string]string) PagePlan` reads `p.Upstream` as `[]worksync.UpstreamChange`, `PagePlan.Upstream`
+is `[]UpstreamChange`, and the filter is the new `UpstreamFields`. `known` is now keyed by the
+project's links for the connection's source (point 8), not by the connection's own.
