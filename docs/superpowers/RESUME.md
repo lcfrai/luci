@@ -323,6 +323,26 @@ owner added usage, all 11 were relaunched. The new task ids:
   a gated part stops the env stream. This run decides the five open items, re-plans the four parts
   and removes the gates. It must land before the env build reaches task 20, about 12 tasks away.
 
+## 3c. RESUME-ALL SET (current at 19:05, 2026-09-26)
+
+After a spend or usage stop, check the transcripts (`scratchpad/wfstatus6.py`). If they are more
+than about 15 minutes old once usage is back, TaskStop every run, wait about 25 s, then call
+`Workflow` with each row below. `WS` means `.superpowers/workflows/`, and `SS` means the session's
+`workflows/scripts/`.
+
+| Stream | resumeFromRunId | scriptPath | args |
+|---|---|---|---|
+| close-out | `wf_33aecd88-cd3` | SS `phase2-closeout-wf_33aecd88-cd3.js` | none |
+| hub | `wf_b4bd0092-bcc` | WS `build-stream-as-launched.js` | `{"stream":"hub","clearedTasks":["04"]}` |
+| env | `wf_5c36d742-153` | WS `build-stream-as-launched.js` | `{"stream":"env","hold":["21","24","25","26","32","33"],"insertBefore":{"30":[24a],"08":[27a]}}`, with the full objects as in section 3b's weekly-limit entry |
+| p3 | `wf_0feefc44-791` | WS `build-stream-current.js` | `{"stream":"p3","cleared":["b02"],"insertBefore":{"07":[task 24 object]}}` |
+| p4 | `wf_23f7be7c-382` | WS `build-stream-p4.js` | `{"stream":"p4"}` |
+| p5 | `wf_a97b9908-eab` | WS `build-stream-as-launched.js` | `{"stream":"p5"}` |
+| p6 | `wf_3628332d-1ab` | SS `build-stream-wf_56772bc5-8a7.js` | `{"stream":"p6"}` |
+| p7 | `wf_63db912c-42f` | WS `build-stream-as-launched.js` | `{"stream":"p7"}` |
+| team (plan fix) | `wf_0404c9cf-002` | WS `build-stream-v2.js` | `{"stream":"team","fixOnly":"critical","planOnly":true}` |
+| work (plan) | `wf_591bc2c2-c47`, or fresh | WS `wave-c-plan-finish.js` | `{"stream":"work"}` |
+
 ## 4. After phase 2's fix rounds finish
 
 Still to do for phase 2:
