@@ -152,3 +152,105 @@ type LoopVersion struct {
 	SavedBy     User         `json:"savedBy"`
 }
 ```
+
+```go
+// Request bodies. The Hub stamps loopId, version, savedAt and savedBy.
+type LoopVersionBody struct {
+	Trigger     LoopTrigger  `json:"trigger"`
+	Instruction AuthoredText `json:"instruction"`
+	Action      string       `json:"action"`
+	LabelID     *string      `json:"labelId"`
+	Bound       LoopBound    `json:"bound"`
+}
+type CreateLoopRequest struct {
+	Name  string          `json:"name"`
+	First LoopVersionBody `json:"first"` // version 1; the caller becomes owner
+}
+type SetLoopStateRequest struct {
+	State string `json:"state"` // "on" | "paused"
+}
+type LoopWithVersion struct {
+	Loop    Loop        `json:"loop"`
+	Current LoopVersion `json:"current"`
+}
+
+// LoopEventKinds is the closed list a trigger may name (decision 5): task
+// 13's W1 kinds and task 169's W5 feed kinds, by name, never work.loop_*.
+// A test reads task 13's workevents.go and fails on a kind listed here that
+// it does not define.
+var LoopEventKinds []string
+
+// Codes appended to task 143's list.
+const (
+	CodeLoopNotFound          = "loop_not_found"           // 404
+	CodeLoopBoundExceedsOwner = "loop_bound_exceeds_owner" // 422, details.class, details.max
+	CodeLoopTriggerInvalid    = "loop_trigger_invalid"     // 422, details.field
+	CodeLoopActionInvalid     = "loop_action_invalid"      // 422, details.action
+	CodeLoopPaused            = "loop_paused"              // 409 (task 163's run now)
+)
+
+// Event kinds, in the feed (W5_FEED_KINDS, task 169).
+const (
+	EventLoopCreated      = "work.loop_created"       // subject lp-; data {version:1}
+	EventLoopVersionSaved = "work.loop_version_saved" // data {version}
+	EventLoopStateSet     = "work.loop_state_set"     // data {state, cause}
+	EventLoopFired        = "work.loop_fired"         // actor null; data below
+	EventLoopPaused       = "work.loop_paused"        // actor null; data {cause:"owner_left"}
+)
+```
+
+`work.loop_fired`'s `data` is `{loopId, version, trigger: "event"|"schedule", eventSeq?: int,
+scheduledFor?: "RFC 3339 UTC", author: "u-…"}`: ids, integers and one time string, as §8 allows
+(`hub-contract.md:1166`). Task 143's scope names the grid on the head as one level word and
+`LoopRun` with an `lr-` prefix (`tasks-141-160.md:168-171`); this part follows task 162's own
+scope and task 169, as task 169's G1 recorded (`task-169.md:247-253`); task 143 decides once.
+`work.loop_paused` is a separate kind from `work.loop_state_set` because its actor is null and
+its cause is the janitor's, not a person's.
+
+#### The tables — required of task 145 (complete)
+
+```sql
+-- In task 145's NNNN_work_intake.sql; the four tables get task 116's RLS form.
+CREATE TABLE work_loops (
+  id text PRIMARY KEY CHECK (id LIKE 'lp-%'), org_id text NOT NULL, team_id text NOT NULL,
+  project_id text NOT NULL, owner_id text NOT NULL, name text NOT NULL CHECK (length(name) BETWEEN 1 AND 80),
+  state text NOT NULL CHECK (state IN ('on','paused')), paused_cause text
+    CHECK (paused_cause IN ('owner','admin','owner_left')),
+  current_version int NOT NULL CHECK (current_version >= 1),
+  last_scheduled_for timestamptz,          -- decision 8's high-water mark
+  CHECK ((state = 'paused') = (paused_cause IS NOT NULL))
+);
+CREATE TABLE work_loop_versions (
+  org_id text NOT NULL, loop_id text NOT NULL REFERENCES work_loops(id), version int NOT NULL,
+  body jsonb NOT NULL,                     -- LoopVersionBody, canonical (hub-contract §3.6)
+  saved_at timestamptz NOT NULL DEFAULT now(), saved_by text NOT NULL,
+  PRIMARY KEY (loop_id, version)
+);
+CREATE TRIGGER work_loop_versions_append_only BEFORE UPDATE OR DELETE ON work_loop_versions
+  FOR EACH ROW EXECUTE FUNCTION hub.forbid_change();
+CREATE TABLE work_loop_runs (             -- a firing is a run row; task 163 adds its outcome columns
+  org_id text NOT NULL, loop_id text NOT NULL REFERENCES work_loops(id),
+  run int NOT NULL, version int NOT NULL,
+  trigger_kind text NOT NULL CHECK (trigger_kind IN ('event','schedule','manual')),
+  event_seq bigint, scheduled_for timestamptz, request_id text,   -- request_id: task 163's run now
+  fired_at timestamptz NOT NULL DEFAULT now(),
+  outcome text NOT NULL DEFAULT 'queued',  -- task 163's six words; 162 writes only 'queued'
+  PRIMARY KEY (loop_id, run),
+  CHECK ((trigger_kind = 'event') = (event_seq IS NOT NULL)),
+  CHECK ((trigger_kind = 'schedule') = (scheduled_for IS NOT NULL))
+);
+CREATE UNIQUE INDEX work_loop_runs_event ON work_loop_runs (loop_id, version, event_seq)
+  WHERE event_seq IS NOT NULL;
+CREATE UNIQUE INDEX work_loop_runs_sched ON work_loop_runs (loop_id, version, scheduled_for)
+  WHERE scheduled_for IS NOT NULL;
+CREATE TABLE work_loop_cursors (org_id text PRIMARY KEY, after_seq bigint NOT NULL DEFAULT 0);
+GRANT SELECT, INSERT ON work_loops, work_loop_versions, work_loop_runs, work_loop_cursors TO hub_app;
+GRANT UPDATE (state, paused_cause, current_version, last_scheduled_for) ON work_loops TO hub_app;
+GRANT UPDATE (after_seq) ON work_loop_cursors TO hub_app;
+```
+
+A firing **is** a run row, `outcome 'queued'`, so the two unique indexes are the no-double-fire
+guarantee (decision 7) and task 163 adds the rest of the run log to the same table, never a
+second one. `run` is `coalesce(max(run), 0) + 1` under the loop head's row lock (`SELECT … FOR
+UPDATE` on `work_loops`), so runs number 1, 2, … per loop with no gap. `work_loop_cursors` is not
+in task 145's list (gap 1). `hub.forbid_change()` is 0001's (`hub-contract.md:1799-1812`).
