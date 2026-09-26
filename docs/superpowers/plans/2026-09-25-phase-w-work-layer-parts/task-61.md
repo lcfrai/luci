@@ -488,3 +488,121 @@ than `issue.start`, this file follows it.
 wins a differing name. `--line` is the tree's hairline (`tokens.css:54`). The ring is the chip's
 1px elevation; the chip sits in a row, so it takes no layered shadow.
 
+#### Tests to write first, part 1 — `desktop/src/work/start/useStart.test.ts` (the rule, the sign, the store)
+
+```ts
+import { describe, expect, it, vi } from "vitest";
+import { ApiError } from "../../api/client";
+import { ALICE, DYLAN, WORK_IDS, makeIssueHead } from "../../test/workFixtures";
+import { createStartStore, firstSign, startRule, type StartDeps } from "./useStart";
+
+const RESULT = { issueKey: `issue:${WORK_IDS.ep142}@3`, worktreeId: "w-4a77b1c9", sessionId: "s-3f2a91c0",
+  branch: "ep-142-resume-upload", route: "au", routeForced: true, undo: "undo_start" } as const;
+const T0 = Date.parse("2026-09-25T09:14:02Z");
+const rec = (over = {}) => ({ status: "running" as const, exitReason: "", createdAt: "2026-09-25T09:14:02Z",
+  lastOutputAt: "0001-01-01T00:00:00Z", ...over });
+function deps(over: Partial<StartDeps> = {}) {
+  const work = { start: vi.fn(async () => RESULT), undoStart: vi.fn(), discardStart: vi.fn() };
+  const undo = vi.fn();
+  const mutate = vi.fn(() => ({ id: "op-1", undoable: true, undo, settled: Promise.resolve("applied" as const) }));
+  const d = { work, replica: { mutate }, me: DYLAN, headBranchOf: () => "main", newRequestId: () => "rq-test-0001", ...over };
+  return { d: d as unknown as StartDeps, work, mutate, undo };
+}
+
+describe("startRule", () => {
+  it("decides by owner, then state, then assignee", () => {
+    expect(startRule(makeIssueHead({ assignee: ALICE }), DYLAN).kind).toBe("not_mine");
+    expect(startRule(makeIssueHead({ state: "started" }), DYLAN)).toEqual({ kind: "not_startable", state: "started" });
+    expect(startRule(makeIssueHead({ assignee: null, state: "triage" }), DYLAN)).toEqual({ kind: "assign_then_start", accept: true });
+    expect(startRule(makeIssueHead({ state: "todo" }), DYLAN)).toEqual({ kind: "start", accept: false });
+    // mutant: Start for any row (Alice's issue starts an agent of mine)
+  });
+});
+
+describe("firstSign", () => {
+  it("says nothing before 10 s, the fact at 10 s, and output once there is some", () => {
+    expect(firstSign(rec(), T0 + 9_999)).toBeNull();
+    expect(firstSign(rec(), T0 + 10_000)).toBe("no output yet · 10s");
+    expect(firstSign(rec({ lastOutputAt: "2026-09-25T09:14:40Z" }), T0 + 41_000)).toBe("last output 3s ago");
+    expect(firstSign(rec({ status: "exited", exitReason: "process exited" }), T0)).toBe("exited · process exited");
+    // mutants: Go's zero time read as output at year 1; a percentage or an elapsed bar
+  });
+});
+
+describe("createStartStore", () => {
+  it("assigns me first on an unassigned row, then starts once, sending no revision", async () => {
+    const { d, work, mutate } = deps();
+    const s = createStartStore(d);
+    await s.start(makeIssueHead({ assignee: null, state: "triage" }));
+    expect(mutate).toHaveBeenCalledWith({ kind: "setAssignee", issueId: WORK_IDS.ep142, assignee: DYLAN });
+    expect(work.start).toHaveBeenCalledTimes(1);
+    expect(work.start).toHaveBeenCalledWith({ projectId: WORK_IDS.project, issueId: WORK_IDS.ep142,
+      branch: "main", accept: true, requestId: "rq-test-0001" });           // no revision, no headKey
+    expect(s.get(WORK_IDS.ep142)?.phase.kind).toBe("undoable");
+    // mutant: Start sent before the assign stood (mutate's settled not awaited)
+  });
+  it("a refused assign sends no Start and shows the Hub's words", async () => {
+    const refusal = { op: {}, issueId: WORK_IDS.ep142, code: "forbidden", message: "Only a team member can take this issue.", details: {} };
+    const { d, work } = deps({ replica: { mutate: vi.fn(() => ({ id: "op-1", undoable: true, undo: vi.fn(),
+      settled: Promise.resolve(refusal) })) } as unknown as StartDeps["replica"] });
+    const s = createStartStore(d);
+    await s.start(makeIssueHead({ assignee: null }));
+    expect(work.start).not.toHaveBeenCalled();
+    expect(s.get(WORK_IDS.ep142)?.phase).toEqual({ kind: "said", words: "Only a team member can take this issue." });
+    // mutant: Start for a row the Hub would not let me take
+  });
+  it("a refused Start takes the assign back as my own write", async () => {
+    const { d, work, undo } = deps();
+    work.start.mockRejectedValueOnce(new ApiError("conflict" as never, "EP-142 is started.", 409, {}));
+    const s = createStartStore(d);
+    await s.start(makeIssueHead({ assignee: null }));
+    expect(undo).toHaveBeenCalledTimes(1);
+    expect(s.get(WORK_IDS.ep142)?.phase).toEqual({ kind: "said", words: "EP-142 is started." });
+    // mutant: the row stays assigned to me by a Start that never happened
+  });
+```
+  it("a double press is one Start", async () => {
+    const { d, work } = deps();
+    const s = createStartStore(d);
+    const head = makeIssueHead();
+    await Promise.all([s.start(head), s.start(head)]);
+    expect(work.start).toHaveBeenCalledTimes(1);
+    // mutant: two lanes for one double press
+  });
+  it("a first_write answer turns the chip to Stop and discard, and nothing retries", async () => {
+    const { d, work } = deps();
+    work.undoStart.mockRejectedValue(new ApiError("first_write" as never, "The agent has written a file.", 409, { next: "discard" }));
+    const s = createStartStore(d);
+    await s.start(makeIssueHead());
+    await s.undo(WORK_IDS.ep142);
+    expect(work.undoStart).toHaveBeenCalledTimes(1);
+    expect(s.get(WORK_IDS.ep142)?.phase).toMatchObject({ kind: "discard_only",
+      note: "Too late to undo: the agent changed a file." });
+    // mutants: the chip keeps offering Undo Start; the store retries the undo
+  });
+  it("Stop and discard asks first, and only the second press sends the token", async () => {
+    const { d, work } = deps();
+    work.undoStart.mockRejectedValue(new ApiError("first_write" as never, "", 409, { next: "discard" }));
+    work.discardStart
+      .mockRejectedValueOnce(new ApiError("confirm_required" as never, "Confirm the discard.", 409,
+        { paths: "upload/resume.go\nupload/resume_test.go", confirm: "9c1e44a0b2d3f6e7" }))
+      .mockResolvedValueOnce({ discarded: true, stateRestored: "todo" });
+    const s = createStartStore(d);
+    await s.start(makeIssueHead());
+    await s.undo(WORK_IDS.ep142);
+    await s.discard(WORK_IDS.ep142);
+    expect(work.discardStart).toHaveBeenLastCalledWith(RESULT.sessionId, "");
+    expect(s.get(WORK_IDS.ep142)?.phase).toMatchObject({ kind: "confirming",
+      paths: ["upload/resume.go", "upload/resume_test.go"] });
+    await s.discard(WORK_IDS.ep142);
+    expect(work.discardStart).toHaveBeenLastCalledWith(RESULT.sessionId, "9c1e44a0b2d3f6e7");
+    expect(s.get(WORK_IDS.ep142)?.phase).toEqual({ kind: "discarded", stateRestored: "todo" });
+    // mutant: one press discards (the token is fetched and sent in the same press)
+  });
+});
+```
+
+`ApiError`'s `code` is typed `ProblemCode` (`desktop/src/api/client.ts:40-48`), which lists none of
+task 24's codes; the tests cast, and gap 5 asks task 37 (the owner of `work.ts`'s problem kinds)
+whether `ProblemCode` widens.
+
