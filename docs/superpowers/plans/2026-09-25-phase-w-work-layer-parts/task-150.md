@@ -635,3 +635,81 @@ proposed. Each point cites what it follows.
 12. **Files this section adds**: `worksync/fake.go` (new; the fake adapter, outside a `_test.go` file
     so the server's integration tests can drive it), ⚑ `server/config.go` (the engine's adapters
     and `PANACEA_APP_HUB_SYNC_INTERVAL`) and ⚑ `hubapi/work_intake_test.go` (two rows).
+
+#### `worksync/engine.go`, reconciled (complete; replaces the block at `:325-420`)
+
+```go
+package worksync
+
+type Cursor string // unchanged: an adapter's own position, "" is the start
+
+// UpstreamChange is what an adapter saw change on an item it reported before
+// (points 5 and 8). To is the tracker's word, shown and never mapped to ours.
+type UpstreamChange struct {
+	ExternalID string
+	Field      string // one of UpstreamFields
+	At         time.Time
+	To         string // the Sink keeps at most 60 code points
+}
+
+// UpstreamFields replaces decision 5's list: what tasks 151-153 emit, and
+// three kept for the day one does.
+var UpstreamFields = []string{"state", "assignees", "title", "description", "deleted"}
+
+// Pulled is one page from a tracker; the engine sees no More (point 6).
+type Pulled struct {
+	Items    []hubapi.ImportItem
+	Upstream []UpstreamChange
+	Comments []hubapi.ExternalComment // task 153's type (task-153.md:115); nil in mode "in"
+	Next     Cursor
+}
+
+// Adapter talks to one tracker. Pull must be safe to repeat with one cursor:
+// the engine re-pulls a page whose commit failed.
+type Adapter interface {
+	Source() string
+	Pull(ctx context.Context, conn hubapi.TrackerConnection, cur Cursor) (Pulled, error)
+}
+
+// RunRef names a run inside the Hub; the wire's SyncRun has no number.
+type RunRef struct {
+	ConnectionID string
+	N            int
+}
+
+// Sink is the server side (decision 1). ApplyPage writes one page, its links,
+// the run's counts and the cursor in one transaction as the sync principal.
+type Sink interface {
+	StartRun(ctx context.Context, connID string) (hubapi.TrackerConnection, Cursor, RunRef, error)
+	ApplyPage(ctx context.Context, conn hubapi.TrackerConnection, run RunRef, p Pulled) error
+	FinishRun(ctx context.Context, run RunRef, failure *hubapi.SyncError) (hubapi.SyncRun, error)
+}
+
+// PullError is task 151's (task-151.md:110-126), declared here (point 11).
+type PullError struct {
+	Code    string
+	RetryAt time.Time
+	Err     error
+}
+
+func (e *PullError) Error() string {
+	if e.RetryAt.IsZero() {
+		return fmt.Sprintf("worksync: %s: %v", e.Code, e.Err)
+	}
+	return fmt.Sprintf("worksync: %s until %s: %v", e.Code, e.RetryAt.UTC().Format(time.RFC3339), e.Err)
+}
+func (e *PullError) Unwrap() error { return e.Err }
+
+// SyncError codes: worksync constants, never HTTP codes (task 143's decision 7).
+const (
+	CodeTrackerThrottled   = "tracker_throttled"   // 429, or a rate limit at zero (task 152)
+	CodeTrackerUnreachable = "tracker_unreachable" // transport error or 5xx
+	CodeTrackerRefused     = "tracker_refused"     // 401, 403 (not a rate limit), 404
+	CodeTrackerShape       = "tracker_shape"       // a body we could not decode
+	CodeItemRefused        = "item_refused"        // SW.6 refused one item (point 7)
+	CodePageNotCommitted   = "page_not_committed"  // the page's transaction failed
+	CodeNoAdapter          = "tracker_no_adapter"  // a connection whose source has no adapter
+	CodeRunInterrupted     = "run_interrupted"     // a run left running by a stopped process
+	CodeTrackerDisconnect  = "tracker_disconnected" // disconnected while the run was in flight
+)
+```
