@@ -436,3 +436,150 @@ own table (`task-146.md:147-148`). The policy is `TO hub_app`, so under `FORCE` 
 no policy and reads nothing: `app_for_client`, which runs as the owner before `hub.org_id` is
 known, would never find an app. Unforced, the owner still runs only `hub migrate` and the
 `SECURITY DEFINER` functions (`hub-contract.md:1929-1930`), and `hub_app` is bound by the policy.
+
+#### `NNNN_work_w5.sql`, continued: the state guard, replaced (complete)
+
+Task 10's body (`task-10.md:168-199`) is kept line for line below the marked W5 block; the block is
+the only change. If a later part has replaced `guard_issue_state()` again by sync time, the same
+block goes at the top of that body instead, and the tests below decide.
+
+```sql
+-- guard_issue_state, replaced (task 145): task 10's function with the W5 block
+-- first. CREATE OR REPLACE keeps task 07's trigger bound to the new body.
+CREATE OR REPLACE FUNCTION guard_issue_state() RETURNS trigger
+LANGUAGE plpgsql SET search_path = hub, pg_temp AS $$
+DECLARE
+  v_cause  text := coalesce(current_setting('hub.work_cause', true), '');
+  v_kind   text := coalesce(current_setting('hub.work_actor_kind', true), '');
+  v_user   text := coalesce(current_setting('hub.work_actor_user', true), '');
+  v_serves boolean := EXISTS (SELECT 1 FROM issue_serves s
+                               WHERE s.issue_id = NEW.id AND s.revision = NEW.head_revision);
+  v_fact   boolean := NEW.state IN ('started', 'in_review', 'landed', 'done');
+  v_order  text[]  := ARRAY['triage', 'backlog', 'todo', 'started', 'in_review', 'landed', 'done'];
+BEGIN
+  -- ── W5 (task 145): who, before why ─────────────────────────────────────────
+  PERFORM work_actor_consistent();                                    -- decisions 3 and 8
+  IF v_kind = 'integration' THEN                                      -- decision 4
+    RAISE EXCEPTION 'hub: work: principal_cannot_move_state: integration may not move %', NEW.id
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  IF v_kind = 'host' THEN                                             -- decision 6
+    IF (v_cause, NEW.state) NOT IN (('outside_push', 'started'), ('outside_pr', 'in_review'),
+                                    ('outside_merge', 'landed'))
+       OR coalesce(array_position(v_order, OLD.state), 99) >= array_position(v_order, NEW.state)
+       OR NOT EXISTS (SELECT 1 FROM users u WHERE u.org_id = NEW.org_id AND u.id = v_user) THEN
+      RAISE EXCEPTION 'hub: work: principal_cannot_move_state: host may not move % into % with "%"',
+        NEW.id, NEW.state, v_cause USING ERRCODE = 'insufficient_privilege';
+    END IF;
+    RETURN NEW;                  -- a host fact passes neither the person rule nor the cause table
+  END IF;
+  IF v_cause IN ('outside_push', 'outside_pr', 'outside_merge') THEN -- only a host's
+    RAISE EXCEPTION 'hub: work: principal_cannot_move_state: % is a host cause', v_cause
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  IF v_fact AND v_kind IN ('app', 'key') THEN                         -- decision 5
+    RAISE EXCEPTION 'hub: work: principal_cannot_move_state: % may not move % into %', v_kind, NEW.id, NEW.state
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  -- ── task 10's body, unchanged ───────────────────────────────────────────────
+  IF v_fact AND v_kind <> 'person' THEN
+    RAISE EXCEPTION 'hub: work: only a person moves % into %', NEW.id, NEW.state
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  IF v_cause IN ('evidence_observed', 'evidence_recorded') AND OLD.state <> 'landed' THEN
+    RAISE EXCEPTION 'hub: work: evidence closes a landed issue, and % is %', NEW.id, OLD.state
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  IF NOT CASE NEW.state
+       WHEN 'started'   THEN v_cause = 'lane_bound'
+       WHEN 'in_review' THEN v_cause = 'lane_queued'
+       WHEN 'landed'    THEN v_cause = 'land_trailer'
+       WHEN 'done'      THEN v_cause IN ('evidence_observed', 'evidence_recorded')
+                          OR (v_cause = 'land_trailer' AND NOT v_serves)
+                          OR (v_cause = 'hand' AND (NOT v_serves OR btrim(NEW.state_reason) <> ''))
+       ELSE v_cause = 'hand'
+     END
+  THEN
+    RAISE EXCEPTION 'hub: work: % cannot move into % with cause "%"', NEW.id, NEW.state, v_cause
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  RETURN NEW;
+END $$;
+```
+
+`OLD.state` of `cancelled` or `duplicate` has no position in `v_order`, so `coalesce(…, 99)` makes
+every host move from them refused: an outside PR never revives a declined issue, the rule task
+154's `before` states in Go (`task-154.md:722-725`). A custom state from W2 (task 75) is a human
+band state with no position either, and is refused the same way (gap 5).
+
+#### `NNNN_work_w5.sql`, continued: the actor, the created issue and the revision (complete)
+
+PL/pgSQL resolves `work_actor_consistent()` when the trigger runs, not when `guard_issue_state` is
+created, so defining it after the replacement above is legal; the file keeps it here, beside its
+other two callers.
+
+```sql
+-- decisions 3 and 8: a known kind, and the two sync settings agree.
+CREATE FUNCTION work_actor_consistent() RETURNS void
+LANGUAGE plpgsql SET search_path = hub, pg_temp AS $$
+DECLARE
+  v_kind text := coalesce(current_setting('hub.work_actor_kind', true), '');
+  v_conn text := coalesce(current_setting('hub.work_sync_connection', true), '');
+BEGIN
+  IF v_kind NOT IN ('', 'person', 'agent', 'janitor', 'integration', 'app', 'key', 'host') THEN
+    RAISE EXCEPTION 'hub: work: principal_cannot_move_state: unknown actor kind "%"', v_kind
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  IF (v_conn <> '') <> (v_kind = 'integration') THEN
+    RAISE EXCEPTION 'hub: work: principal_cannot_move_state: actor kind "%" with sync connection "%"',
+      v_kind, v_conn USING ERRCODE = 'insufficient_privilege';
+  END IF;
+END $$;
+
+-- An integration creates an issue only in triage, from an outside tracker.
+CREATE FUNCTION guard_issue_actor_insert() RETURNS trigger
+LANGUAGE plpgsql SET search_path = hub, pg_temp AS $$
+BEGIN
+  PERFORM work_actor_consistent();
+  IF current_setting('hub.work_actor_kind', true) = 'integration'
+     AND (NEW.state <> 'triage' OR NEW.external_source IS NULL
+          OR NEW.external_source NOT IN ('azure_boards', 'github', 'jira')) THEN
+    RAISE EXCEPTION 'hub: work: principal_cannot_move_state: integration creates only in triage, from its tracker'
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER issues_actor_insert_guard BEFORE INSERT ON issues
+  FOR EACH ROW EXECUTE FUNCTION guard_issue_actor_insert();
+
+-- decision 7: integration writes revision 1 of an issue it is creating; host writes none.
+CREATE FUNCTION guard_issue_revision_actor() RETURNS trigger
+LANGUAGE plpgsql SET search_path = hub, pg_temp AS $$
+DECLARE v_kind text := coalesce(current_setting('hub.work_actor_kind', true), '');
+BEGIN
+  PERFORM work_actor_consistent();
+  IF v_kind = 'host' THEN
+    RAISE EXCEPTION 'hub: work: principal_cannot_move_state: a host writes no issue text'
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  IF v_kind = 'integration' AND (NEW.revision <> 1 OR NOT EXISTS (
+       SELECT 1 FROM issues i WHERE i.id = NEW.issue_id AND i.state = 'triage'
+          AND i.external_source IN ('azure_boards', 'github', 'jira'))) THEN
+    RAISE EXCEPTION 'hub: work: principal_cannot_move_state: integration never revises %', NEW.issue_id
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER issue_revisions_actor_guard BEFORE INSERT ON issue_revisions
+  FOR EACH ROW EXECUTE FUNCTION guard_issue_revision_actor();
+```
+
+**The two layers, side by side.** Task 150's `guard_sync_principal` refuses on the connection
+setting; these refuse on the actor kind; `work_actor_consistent` makes the two settings move
+together, so each layer catches what the other would miss only if the store set neither, which is
+a person's write. The revision rule relies on `(issue_id, revision)` being unique: revision 1 of
+an existing issue already exists, so the insert fails on the key before it could revise.
+
+**What the guards do not cover:** a comment. Mode `in` versus `in_and_comments` is a property of
+one connection, so the refusal of an integration comment in mode `in` is Go's (task 153), with
+task 153's `issue_comments` columns marking a crossed comment (`task-153.md:140-160`).
