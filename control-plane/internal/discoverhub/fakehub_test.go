@@ -2,6 +2,7 @@ package discoverhub
 
 import (
 	"context"
+	"maps"
 	"slices"
 	"sync"
 
@@ -30,6 +31,23 @@ import (
 //   - resolves(): every Resolve's keys, in order, including the ones
 //     failResolve stopped, which the fake's Calls() never sees (re-review
 //     b05-2 R2-I1, item 2). lists() does the same for List.
+//
+// Task 08 adds the two race hooks of review I8 and a log of the batches:
+//
+//   - afterList(n, fn): fn runs after the n-th List through the wrapper
+//     returns (1-based, counted from the hook), before the caller sees it.
+//   - beforeWrite(n, fn): fn runs before the n-th WriteRevisions through the
+//     wrapper reaches the fake (1-based, counted from the hook). Several may
+//     be set; each counts from its own call.
+//   - batches(): every WriteRevisions batch through the wrapper, in order.
+//   - eraseInResolve(keys...): Resolve answers each key erased. The fake
+//     erases whole briefs and archives them (contract §7.12), so it holds no
+//     erased revision on a live brief; this stands in for one, for
+//     ErrErasedRestore.
+//
+// fn writes through the embedded fake (w.save, w.hub.Fake), never through
+// the wrapper, so it does not count towards any n, and it runs with the
+// wrapper's lock released.
 type fakeHub struct {
 	*hubclient.Fake
 
@@ -44,6 +62,68 @@ type fakeHub struct {
 	createErr   error
 	resolveLog  [][]string
 	listLog     []hubapi.BriefQuery
+	listHooks   []callHook
+	writeCount  int
+	writeHooks  []callHook
+	writeLog    [][]hubapi.RevisionWrite
+	erasedKeys  map[string]bool // set by eraseInResolve
+}
+
+// callHook is one race hook: fn runs at call number at (the wrapper's own
+// count), once.
+type callHook struct {
+	at int
+	fn func()
+}
+
+func (f *fakeHub) afterList(n int, fn func()) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.listHooks = append(f.listHooks, callHook{at: len(f.listLog) + n, fn: fn})
+}
+
+func (f *fakeHub) beforeWrite(n int, fn func()) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.writeHooks = append(f.writeHooks, callHook{at: f.writeCount + n, fn: fn})
+}
+
+// batches is every WriteRevisions batch through the wrapper, oldest first.
+func (f *fakeHub) batches() [][]hubapi.RevisionWrite {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	out := make([][]hubapi.RevisionWrite, len(f.writeLog))
+	for i, b := range f.writeLog {
+		out[i] = slices.Clone(b)
+	}
+	return out
+}
+
+// due removes and returns the hooks whose call number is n; f.mu is held.
+func due(hooks *[]callHook, n int) []func() {
+	var fns []func()
+	kept := (*hooks)[:0]
+	for _, h := range *hooks {
+		if h.at == n {
+			fns = append(fns, h.fn)
+		} else {
+			kept = append(kept, h)
+		}
+	}
+	*hooks = kept
+	return fns
+}
+
+func (f *fakeHub) WriteRevisions(ctx context.Context, projectID string, writes []hubapi.RevisionWrite) ([]hubapi.BriefRevision, error) {
+	f.mu.Lock()
+	f.writeCount++
+	f.writeLog = append(f.writeLog, slices.Clone(writes))
+	fns := due(&f.writeHooks, f.writeCount)
+	f.mu.Unlock()
+	for _, fn := range fns {
+		fn()
+	}
+	return f.Fake.WriteRevisions(ctx, projectID, writes)
 }
 
 func newFakeHub() *fakeHub {
@@ -100,11 +180,33 @@ func (f *fakeHub) Resolve(ctx context.Context, keys []string) (hubapi.RefsRespon
 	f.resolveSeen++
 	fail := f.resolveAt > 0 && f.resolveSeen == f.resolveAt
 	err := f.resolveErr
+	erased := maps.Clone(f.erasedKeys)
 	f.mu.Unlock()
 	if fail {
 		return hubapi.RefsResponse{}, err
 	}
-	return f.Fake.Resolve(ctx, keys)
+	resp, err := f.Fake.Resolve(ctx, keys)
+	for i, res := range resp.Results {
+		if erased[res.Key] && res.Resolution == hubapi.Resolved {
+			rev := *res.Revision
+			at := "2026-09-24T11:00:00.000Z"
+			rev.Content, rev.ErasedAt = nil, &at
+			resp.Results[i].Resolution, resp.Results[i].Revision = hubapi.Erased, &rev
+		}
+	}
+	return resp, err
+}
+
+// eraseInResolve makes Resolve answer each key erased (task 08).
+func (f *fakeHub) eraseInResolve(keys ...string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.erasedKeys == nil {
+		f.erasedKeys = map[string]bool{}
+	}
+	for _, k := range keys {
+		f.erasedKeys[k] = true
+	}
 }
 
 func (f *fakeHub) List(ctx context.Context, projectID string, q hubapi.BriefQuery) (hubapi.Page[hubapi.BriefHead], error) {
@@ -113,11 +215,16 @@ func (f *fakeHub) List(ctx context.Context, projectID string, q hubapi.BriefQuer
 	f.listSeen++
 	fail := f.listAt > 0 && f.listSeen == f.listAt
 	err := f.listErr
+	fns := due(&f.listHooks, len(f.listLog))
 	f.mu.Unlock()
 	if fail {
 		return hubapi.Page[hubapi.BriefHead]{}, err
 	}
-	return f.Fake.List(ctx, projectID, q)
+	page, err := f.Fake.List(ctx, projectID, q)
+	for _, fn := range fns {
+		fn()
+	}
+	return page, err
 }
 
 func (f *fakeHub) CreateProject(ctx context.Context, req hubapi.CreateProjectRequest) (hubapi.Project, error) {
