@@ -223,3 +223,79 @@ check missed fails in the database. If task 74 has no `issue_heads.team_id` (the
 its team through `project_id`), the second guard is instead a `BEFORE DELETE` trigger on
 `custom_states` that counts holders. Either is a guard; which one is task 74's call, and this
 gap is reported to the orchestrator.
+
+#### The routes (`server/work_custom_states.go`), in order
+
+```go
+func (s *Server) registerWorkCustomStates(mux *http.ServeMux) {
+	mux.HandleFunc("GET /v1/teams/{teamId}/states", s.getCustomStates)
+	mux.HandleFunc("PUT /v1/teams/{teamId}/states", s.putCustomStates)
+	mux.HandleFunc("PUT /v1/issues/{issueId}/sub-state", s.putSubState)
+}
+```
+
+`PUT` is never stored for replay (Hub task 14 claims keys for `POST` only, `task-11.md:338-339`),
+so all three run under `server.Write` or the read path. The order is the rule; each refusal rolls
+the transaction back and appends nothing.
+
+**`getCustomStates`** (viewer of the team; outside the caller's teams → 404 `team_not_found`, the
+Hub's code): `CustomStates`, answered as `CustomStateList`.
+
+**`putCustomStates`** (admin of the team):
+
+1. `server.Decode[hubapi.PutCustomStatesRequest]` (strict: an unknown key, `teamId` included, is
+   400, task 72 decision (h)); the team outside the caller's teams → 404; role below admin →
+   `server.Forbidden("admin")`.
+2. Per entry, the table's field checks, in index order, the first failure answered.
+3. `CustomStates` (the stored list), then `DiffCustomStates`.
+4. `HolderCounts` over `Removed ∪ Rebanded`; the first key (sorted) with a count → 409
+   `state_in_use`, `details.key`, `details.count`, message *"N issues are <name>. Move them first."*
+5. Nothing added, removed or edited → 200 with the list and **no** event (a repeated `PUT` is
+   silent, so a settings screen that saves on blur writes nothing twice).
+6. `PutCustomStates`; `ErrStateHeld` → the same 409 with the count re-read (a race the audit lock
+   makes unreachable within one org; answered, not assumed).
+7. One `team.states_changed` event, `TeamID` set, `ProjectID` empty, `Subject` the team id. 200
+   with the new list.
+
+**`putSubState`** (member of the issue's team):
+
+1. `Decode[hubapi.SetSubStateRequest]`; `readableIssue(…, hubapi.RoleMember, lock=true)` (task
+   08's lookup, which takes the head's row lock, so a concurrent evidence move waits on it).
+2. The key: `nil` or `""` means clear. Else `CustomState(team, key)`; not found → 422
+   `substate_out_of_band`, `details.key`, `details.band: ""`, `details.state` the head's state.
+   Found but `!hubapi.BandHolds(band, head.State)` → the same code with the state's band.
+3. The key equals the head's sub-state → 200 with the head, no write, no event.
+4. `SetSubState`; `ErrSubStateBand` → the step 2 answer (never expected with step 2 right).
+5. **The release** (decision (e)). When the old sub-state's band is `after_landed`, the new one is
+   none, and `head.State == landed`: read task 10's `LiveCitations(issue, landCommit)` and the
+   issue's served criteria, and run task 10's `hubapi.DecideProof`. On `proven` or
+   `proven_self_attested`: `SetWorkCause(tx, cause)` with `evidence_recorded` if any live citation
+   was recorded by hand, else `evidence_observed`; `MoveIssueState(…, done, "", now)`;
+   `PutProof` with the word and `decided_at` now. The actor of both writes is the caller.
+6. Events, in this order: `issue.sub_state_changed {from, to, released}`; when step 5 moved it,
+   task 10's `issue.state {from: landed, to: done, cause, proof, landCommit}`. 200 with the head.
+
+An `after_landed` sub-state set on a `landed` issue with `proof: waiting` releases nothing when it
+is cleared (step 5 reads `waiting` and stops): the next evidence move closes it, as task 10 does.
+
+#### The two insertions in task 10's route (`server/work_states.go` ⚑)
+
+Task 10's order (`task-10.md:407-435`) is kept; these two lines slot in:
+
+- **After task 10's step 2, before its step 3 (no-ops):** when `move.Cause` is
+  `evidence_observed` or `evidence_recorded`, `head.SubState` is set, and that key's band is
+  `after_landed`, the move is **recorded but held**: task 10's step 4 runs its evidence checks and
+  `InsertCitation`s as written, and its `DecideProof` word is stored on the proof row, but the
+  target stays `landed`. The answer is **409 `held_by_substate`**, `details.subState` the key, and
+  the reply body's `details.proof` the word. The citations are kept (they were valid), so the clear
+  in `putSubState` step 5 finds them. One `issue.state` event is still written, `from` and `to`
+  both `landed`, because the proof row changed (task 10's step 6 rule for a move that stays
+  `landed`).
+- **In task 10's step 5, beside `MoveIssueState`:** when the move's target is outside the band of
+  `head.SubState` (`!BandHolds(band, to)`), `SetSubState(tx, issue, "", now)` runs in the same
+  transaction, and a second event `issue.sub_state_changed {from: key, to: "", released: false}`
+  follows the `issue.state` event. A move that stays in the band (`backlog` → `todo`) keeps it.
+
+A 409 that still writes is unusual, so the reason is stated: a `2xx` would tell task 23's caller
+the issue closed, and a refusal that dropped the citations would make the person record the
+evidence again after QA. `held_by_substate` says *recorded, not closed, because a person holds it*.
