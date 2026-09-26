@@ -58,16 +58,21 @@ session on a team project). The desktop's `types.ts` gains the field in task 52,
 - `control-plane/internal/api/catalog.go` — `isolationFor` maps `fleetbe.Kind` to `"microvm"` (modify)
 - `control-plane/internal/registry/session.go` — `Delegation` and `DelegationExpiresAt`, persisted,
   never on the wire (modify)
+- `control-plane/internal/api/teammode.go` + `teammode_test.go` — `hubTeamProjects` and the
+  `POST /v1/projects/{projectId}/team-mode` route (new; fix batch b01, X-C1)
 
 **Interfaces:**
 - Produces: `fleetbe.New(Config) (*Backend, error)`; `fleetbe.Kind` (`backend.Kind("fleet")`,
   declared in this package so `backend.go` is not touched); `fleetbe.Launch`, `fleetbe.WithLaunch`;
-  `fleetbe.FleetEndpoint(agID)`; `fleetbe.Error`; `api.TeamLauncher`, `api.TeamProjects`; the
+  `fleetbe.FleetEndpoint(agID)`; `fleetbe.Error`; `api.TeamLauncher`, `api.TeamProjects` (with
+  `MakeTeam`, b01); the local team-mode route (task 33's E5 and task 56's Share call it); the
   `teamScope` field of `sessionJSON`.
 - Consumes: `backend.Backend`, `backend.Spec`, `backend.Sandbox` and the sentinels (phase 2,
   built); `backend.ReadyWaiter` (phase 8 task 22, planned); `hubclient.TokenSource` (built) and
-  task 08's `hubclient.Team` methods `CreateDelegation`, `RenewDelegation`, `RevokeDelegation`
-  (task 08, this plan); `hubapi.Delegation` and `hubapi.CreateDelegationRequest` (task 03);
+  task 08's `hubclient.Team` methods `CreateDelegation`, `RenewDelegation`, `RevokeDelegation`,
+  `SetProjectMode` (task 08, this plan); `hubapi.Delegation`, `hubapi.CreateDelegationRequest`,
+  `hubapi.Project.Mode` (task 03); Hub task 35's `hublink.Resolver` (S-LINK, planned, **UNVERIFIED
+  until merge**);
   `model.Class` (task 09); Fleet's session routes below (served by task 20 over task 12's mux).
 - Required by: task 33 (the scripted run launches through it), task 52 (team read models reuse its
   client and token), task 55 (the Orchestrator panel attaches through it), task 64 (moving lanes).
@@ -280,10 +285,16 @@ The `websocket` import is `github.com/coder/websocket`, as in `backend.go`.
 ```go
 package api
 
-// TeamProjects answers whether a project is a team project. Production reads
-// the Hub project record (see "Gap" below); tests use a map.
+// TeamProjects answers whether a project is a team project, and makes one.
+// Production is hubTeamProjects (teammode.go, fix batch b01): the local id
+// resolved through Hub task 35's S-LINK, then hubapi.Project.Mode (task 03),
+// and MakeTeam through task 08's hubclient.SetProjectMode (Hub route 87), as
+// the signed-in user. Tests use a map. A launch never calls MakeTeam: only
+// the team-mode route below does, so no launch turns a project team behind
+// the Share consent (05-design.md §9.5).
 type TeamProjects interface {
 	IsTeam(ctx context.Context, projectID string) (bool, error)
+	MakeTeam(ctx context.Context, projectID string) (hubapi.Project, error)
 }
 
 // Delegations is the slice of task 08's hubclient.Team this file calls, as
@@ -358,13 +369,25 @@ no use for, and phase 2's rule is that the wire carries only what the cockpit re
 expiry is kept beside it as `DelegationExpiresAt`. Both are restart-safe, so a control plane
 restarted at hour 23 renews on its first tick.
 
-**Gap (listed in the return).** No task of this plan or the Hub's names the Hub field that marks
-a project `team` rather than `solo`. §2.3 says Share turns one into the other and Hub task 42 builds
-Share. This task consumes it through `TeamProjects` and ships a production implementation that
-reads `hubapi.Project.Mode` (`"solo"`·`"team"`), **UNVERIFIED**: that field does not exist on the
-Hub branch as read on 2026-09-25. Task 03 or Hub task 42 must add it before step 6 runs.
-(`hubapi.Project` is at `.claude/worktrees/hub/control-plane/internal/hub/hubapi/types.go:140`;
-it has `TeamID` and no mode, checked.)
+**The mode, read and written (fix batch b01, X-C1; was a gap).** The field is task 03's
+`hubapi.Project.Mode` (Block 7; `hubapi/types.go:140-147` has none today, checked), and its one
+writer is task 06's Hub route 87. Hub task 42 is Share's **UI** and adds no field. This task owns
+the control plane's half, so that one local route is how the desktop, and task 33's E5, make a
+project team:
+
+| Method | Path | Body | Success | Errors (besides the Hub's, relayed) |
+|---|---|---|---|---|
+| POST | `/v1/projects/{projectId}/team-mode` | `{}` (strict) | `200 {"project": Project}`, `mode: "team"` | 404 `project_not_found` (the local id); 409 `conflict`, `details.reason = "not_shared"` when S-LINK says `unlinked` or `no_remote`, and the Hub is not called; 503 `hub_not_configured` when `Deps.Hub` is nil (Hub task 35's rule) |
+
+The Hub's own answers are relayed with their code (`a.relayHub`, as the launch hunk): 403
+`forbidden`, `required: "admin"`; 503 `unavailable`, `details.reason = "audit_not_streaming"`.
+The route needs the Hub, not Fleet, so it is served whenever `Deps.Hub` is set, and
+`hubTeamProjects` is built from `Deps.Hub` and task 35's `Resolver` alone.
+
+**Ruling (declared; not the owner's words): the product caller is Share, not the first launch.**
+The review offered both. A launch that made a project team would do it without the consent
+line that §9.5 puts at Share, so `Launch` never calls `MakeTeam`, and a test pins it. Task 56's
+Share path calls this route after the link (task 56, b01), and task 33's E5 calls it directly.
 
 - [ ] **Step 1: Write the failing tests first**
 
@@ -401,6 +424,18 @@ every owner, the Orchestrator task 20 would create.
 | `TestRenewerStopsWhenSignedOut` | after one `ErrSignedOut`, no further calls for 3 ticks | a renew storm against a refused token |
 | `TestSessionJSONTeamScope` | the three rows of `teamScopeOf`, and a marshalled team session has `"teamScope":"team"` and no `delegation` key | leaking the delegation id, or labelling a local session `team` |
 | `TestSessionJSONLeaksNoToken` | phase 2's existing byte search (`sessions_test.go`) extended: a Fleet session's JSON contains neither the attach token nor the fake bearer | a new field that carries either |
+| `TestLaunchNeverMakesTeam` (b01) | a launch on a solo project goes to `a.backend.Create`, and the `TeamProjects` fake records no `MakeTeam` call | the first launch turns the project team, skipping Share's consent line |
+
+`teammode_test.go` (b01) runs the route over `hubclient.NewFake()` (task 08's `SetProjectMode` with
+the route's rules) and a scripted S-LINK resolver:
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestTeamModeRouteMakesTeam` | linked project, the fake's admin → 200, `project.mode == "team"`; then `IsTeam` → true, and the next launch goes through `TeamLauncher` | `MakeTeam` a no-op that answers 200; `IsTeam` reading anything but `Mode` |
+| `TestTeamModeRelaysTheGate` | after `fake.ShutTeamModeGate()` → 503 with the Hub's `details.reason = "audit_not_streaming"`; `IsTeam` still false | the Hub's 503 rewritten as `backend_unavailable`, so the cockpit says "Fleet is down" |
+| `TestTeamModeRelaysAdminOnly` | the fake's member view → 403 `required: "admin"` | the control plane pre-checking a role it cannot know |
+| `TestTeamModeNeedsALink` | S-LINK `unlinked` → 409 `details.reason = "not_shared"`; the fake saw no call | a Hub call with the local id, which is a path hash no Hub record names |
+| `TestTeamModeBodyIsStrict` | `{"mode":"solo"}` → 400 `bad_request`, `details.field = "mode"` | the local route passing a mode through, so it becomes a two-way switch |
 
 Run them and watch them fail to compile:
 
