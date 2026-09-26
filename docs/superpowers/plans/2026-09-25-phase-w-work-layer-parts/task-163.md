@@ -143,3 +143,77 @@ timestamptz`, `CHECK (outcome IN (…the six…))`, `CHECK ((outcome = 'queued')
 NULL))`, a unique index on `(loop_id, request_id) WHERE request_id IS NOT NULL`, and `GRANT UPDATE
 (outcome, turn_id, started, ended_at)`. A trigger refuses any `UPDATE` whose `OLD.outcome <>
 'queued'`, so a closed run cannot be rewritten even as `hub_app` (decision 1, two layers).
+
+#### The routes — appended to `server/work_loops.go` (contract complete)
+
+```go
+// GET  /v1/work/loops/{loopId}/runs?after=&limit=      any team member → 200 []LoopRun, newest first;
+//      after is a run number (exclusive, older than it), limit 1-100, default 50
+// POST /v1/work/loops/{loopId}/runs  {requestId}       OWNER only → 201 LoopRun (queued, trigger manual);
+//      a repeat requestId → 200 with the first run, no new event; a paused loop → 409 loop_paused;
+//      emits work.loop_fired with actor = the owner (decision 5)
+// POST /v1/work/loops/{loopId}/runs/{run}/outcome  LoopRunOutcomeRequest
+//      a DELEGATED caller only (TM-05: Fleet's service token + X-Panacea-Delegation naming a
+//      delegation whose owner is the loop's owner) → 200 LoopRun; no header → 401
+//      delegation_required (T05:35); another owner's delegation → 403 forbidden; a closed run →
+//      409 loop_run_closed; "ran" without turnId → 400 bad_request, field "turnId"; "queued" or
+//      "refused_bound" → 400 (those are the Hub's words, decision 1)
+//      emits work.loop_run_closed, actor = the owner, via = fleet (T05:736)
+func (s *Server) routesWorkLoopRuns(mux *http.ServeMux)
+```
+
+`validateVersion` (task 162) gains decision 7's rule as its step 2: `action: "start"` must carry
+exactly the triage shape, else 422 `loop_trigger_invalid` with `field` the first that differs.
+`passLoops` (task 162) gains two things: step 2's match for a `start` version also requires the
+row's actor be a person acting directly (decision 7), and the fired run's `issue_key` is set to
+`issue:<subject>@<head revision>` read in the same transaction; and a new step 4, *close stale
+runs*: every run `queued` with `fired_at < now − 24h` becomes `failed`, `ended_at = now`, one
+`work.loop_run_closed`, `actor: null`, `data.author` the owner.
+
+#### The verb — ST.1 request and result (complete; `testdata/panacea-control/v1/result-loop-show.json`)
+
+```jsonc
+// panacea loop show  →  {"verb":"loop.show","args":{}}          Orchestrators only (TM-09 row)
+// result: the runs named by the loop.fired events of THIS turn's batch, oldest first
+{ "runs": [
+    { "loop": "lp-…", "version": 3, "run": 7, "action": "start",
+      "issue": "issue:is-3f2a91c07b1e4d2a@2", "startable": true, "liveAgent": null,
+      "instruction": { "text": "Start small fixes the team accepted; keep the lane to one file.",
+                       "class": "text·H", "by": "Dylan Example", "owner": "Dylan Example" } },
+    { "loop": "lp-…", "version": 1, "run": 12, "action": "turn", "issue": null,
+      "startable": false, "liveAgent": null,
+      "instruction": { "text": "Summarise what arrived in Triage overnight.",
+                       "class": "text·H", "by": "Dylan Example", "owner": "Dylan Example" } } ] }
+// a run whose loop is paused by the time of the turn is omitted, and closed skipped_paused;
+// refusals: forbidden_class (a worker calls it) · unavailable {since} (CLI exit 3)
+```
+
+`instruction` is TM-22's `Quoted` (as task 101's `title`/`description`, `task-101.md:105-116`), so
+TM-18's envelope quotes it like any person's words; `class` is always `text·H` because only the
+owner writes a version (task 162). The scope's `{body, author:"human", owner}` maps to `text`,
+`class: "text·H"`, `owner`: one envelope for all free text, not a second shape (gap 5).
+
+```go
+// control-plane/internal/fleet/verbs/loop.go (package verbs; interfaces complete)
+const VerbLoopShow = "loop.show"
+
+// LoopShow serves loop.show. It reads the caller's current TurnRef (TM-26's
+// Scheduler.CurrentTurn, T26:92), the batch's loop.fired refs ("lp-…#<run>"),
+// and for each: the run and its version from the Hub as the owner's delegation
+// (hubclient.WithDelegation, task-101.md:23-24); startable is false when the
+// owner has a live worker whose task.issueId is the run's issue (decision 8).
+func LoopShow(deps LoopDeps) control.Handler
+
+// CloseLoopRuns is called once at turn.end (TM-26's scheduler) for a turn whose
+// batch held loop.fired events. For each run: "ran" with turnId and started =
+// the workers this turn spawned whose task.issueId is the run's issue
+// (decision 2), or "skipped_paused" if LoopShow omitted it. A lost turn that
+// TM-26 re-queues is not closed; one lost twice is closed "failed".
+func CloseLoopRuns(ctx context.Context, deps LoopDeps, turn turns.TurnRef, batch []turns.Queued, ok bool) error
+
+type LoopDeps struct {
+	Hub     hubclient.WorkIntake // ListLoopRuns, loop version read, PostLoopRunOutcome (task 143)
+	Workers WorkerIndex          // task 98 / TM-24: live workers by owner and issueId
+	Now     func() time.Time
+}
+```
