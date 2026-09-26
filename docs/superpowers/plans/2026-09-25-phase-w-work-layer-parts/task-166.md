@@ -122,3 +122,87 @@ func catalogueIDs() []string
 The Hub imports `control-plane/internal/harness` for the ids only; it builds no argv and starts
 no process. If Hub and control plane are ever released apart, the Hub's list would lag a new
 harness by one release and refuse it until then: fail closed, and named in gap 4.
+
+#### Interfaces — complete: `control-plane/internal/workpolicy/harness.go`
+
+```go
+// Package workpolicy is task 166's pure rules: which harness a team allows,
+// where team skills go, and the org-layer fragment. It never builds an argv,
+// never reads a harness's output and never edits a harness (OD-8).
+package workpolicy
+
+import (
+	"slices"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/harness"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubapi"
+)
+
+// Effective is the ordered list the gate uses. A nil policy (a team with no
+// row) and a stored empty list both read as the default; the table's CHECK
+// forbids the second, and this refuses to trust that.
+func Effective(p *hubapi.TeamAgentPolicy) []harness.ID {
+	src := hubapi.DefaultHarnesses
+	if p != nil && len(p.Harnesses) > 0 {
+		src = p.Harnesses
+	}
+	out := make([]harness.ID, 0, len(src))
+	for _, s := range src {
+		out = append(out, harness.ID(s))
+	}
+	return out
+}
+
+// Allowed reports whether id is on the team's list. Fleet's worker spawn
+// (TM-24) calls this once Phase T merges (UNVERIFIED until then).
+func Allowed(p *hubapi.TeamAgentPolicy, id harness.ID) bool {
+	return slices.Contains(Effective(p), id)
+}
+
+// First is the team's default harness: a session that names none gets it
+// (decision 2).
+func First(p *hubapi.TeamAgentPolicy) harness.ID { return Effective(p)[0] }
+```
+
+#### Interfaces — complete: `control-plane/internal/workpolicy/fragment.go`
+
+```go
+package workpolicy
+
+import (
+	"encoding/json"
+	"fmt"
+
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/fleet/model"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/policy"
+)
+
+// OrgFragment wraps task 161's ConnectorFragment in TM-13's v1 envelope as an
+// org layer, in the worker section only: Orchestrators are allowed
+// Bash(panacea *) and Read and nothing else (TM-13's I8), so a connector list
+// on them would be refused. It renders the layer for every class and returns
+// the first error, so a fragment that breaks an invariant is never posted.
+func OrgFragment(connectors []byte) ([]byte, error) {
+	var worker map[string]any
+	if err := json.Unmarshal(connectors, &worker); err != nil {
+		return nil, fmt.Errorf("workpolicy: the connector fragment: %w", err)
+	}
+	env, err := json.Marshal(map[string]any{"v": 1, string(model.ClassWorker): worker})
+	if err != nil {
+		return nil, err
+	}
+	layer := policy.Layers{Org: policy.Layer{Scope: policy.ScopeOrg, Version: "pv-draft", Doc: env}}
+	for _, c := range []model.Class{model.ClassWorker, model.ClassOrchestrator, model.ClassMirror} {
+		if _, _, err := policy.Render(layer, c); err != nil {
+			return nil, err // an *policy.InvariantError names the invariant (decision 8)
+		}
+	}
+	return append(env, '\n'), nil
+}
+```
+
+`encoding/json` sorts map keys, so the envelope's bytes are a function of the connector list
+alone; `Render`'s digest (TM-13's) is what task 173 shows, never one computed here. The class
+names (`model.ClassWorker`, `ClassOrchestrator`, `ClassMirror`) and the package paths are the
+team worktree's `task-13.md:260-316`; they are **UNVERIFIED** on `feat/work-layer`, where
+neither `internal/policy` nor `internal/fleet/model` exists yet (Phase T is unmerged).
