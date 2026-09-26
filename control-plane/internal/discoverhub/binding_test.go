@@ -194,6 +194,12 @@ func TestAForkSharesUnderItsOwnName(t *testing.T) {
 	if b2, err := w2.service().Bind(bg, localFork, w2.team, "  Portal fork "); err != nil || b2.HubProjectName != "Portal fork" {
 		t.Errorf("Bind(team, \"Portal fork\") = %+v, %v; want that name, trimmed", b2, err)
 	}
+	// A name of white space alone is no name: the default (t07 mutant P2).
+	w3 := forkWorld(t, gh("origin", forkKey), gh("upstream", teamKey))
+	w3.createProject("portal", teamKey)
+	if b3, err := w3.service().Bind(bg, localFork, w3.team, " \t "); err != nil || b3.HubProjectName != "portal (me/portal)" {
+		t.Errorf("Bind(team, white space) = %+v, %v; want the default name", b3, err)
+	}
 
 	noMatch := Binding{State: BindingUnbound, RepoKeys: []string{forkKey}, Matches: []RemoteMatch{}}
 	if got := DefaultName("portal", noMatch); got != "portal" {
@@ -347,5 +353,23 @@ func TestBindRaceReturnsTheTeammatesProject(t *testing.T) {
 	}
 	if again := mustBinding(t, s, localFork); again.HubProjectID != theirs {
 		t.Errorf("Binding after the race = %+v, want %s", again, theirs)
+	}
+
+	// Another team, one the caller is not in, holds the repository: the
+	// re-read is still unbound, so the Hub's refusal comes back as it came,
+	// never an unbound Binding that reads as a Share that worked (t07 P1).
+	w2 := forkWorld(t, gh("origin", newKey))
+	grace := w2.hub.Fake.As(hubclient.FakeGrace)
+	other, err := grace.CreateTeam(bg, hubapi.CreateTeamRequest{Name: "Another team"})
+	if err != nil {
+		t.Fatalf("CreateTeam as Grace: %v", err)
+	}
+	if _, err := grace.CreateProject(bg, hubapi.CreateProjectRequest{TeamID: other.ID, Name: "Theirs",
+		Remotes: []hubapi.RemoteRequest{{RepoKey: newKey, Host: hubapi.HostGitHub}}}); err != nil {
+		t.Fatalf("CreateProject as Grace: %v", err)
+	}
+	b2, err := w2.service().Bind(bg, localFork, w2.team, "")
+	if hubclient.Code(err) != hubapi.CodeRepoAlreadyLinked || b2.State != "" {
+		t.Errorf("Bind into a repository another team holds = %+v, %v; want repo_already_linked as it came", b2, err)
 	}
 }
