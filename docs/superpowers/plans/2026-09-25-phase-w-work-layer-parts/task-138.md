@@ -628,3 +628,164 @@ Task 91's evaluator calls `resolveClause` for each clause of an applied filter w
 clock and `personTimeZone()`, then compares `issue.updatedAt` (or `createdAt`) as
 `from <= t < to`. The replica holds no dates of its own for a relative clause, and nothing here
 writes to disk.
+
+#### Interfaces — complete: `desktop/src/components/plan/NlFilterBar.tsx`
+
+```tsx
+/** Task 138: the words become pending chips; the list changes only on Apply (L-100). */
+import { useState } from "react";
+import type { NlClause, NlDropped, NlField, NlFilter, RelativePeriod, WorkFilterClient } from "../../api/work";
+import { ApiError } from "../../api/client";
+import { periodBounds, personTimeZone, shownRange } from "../../work/filters/resolve";
+import "./nlFilter.css";
+
+export interface Term { id: string; name: string }
+export type ChipVocabulary = Record<Exclude<NlField, "priority" | "updated" | "created">, Term[]>;
+export interface NlFilterBarProps {
+  teamId: string;
+  client: WorkFilterClient;
+  vocabulary: ChipVocabulary; // from the replica, for chip names and the edit menus
+  onApply(filter: NlFilter): void;
+  now?: () => Date;
+  timeZone?: string;
+}
+
+const PERIODS: [RelativePeriod, string][] = [["today", "today"], ["yesterday", "yesterday"],
+  ["this_week", "this week"], ["last_week", "last week"], ["this_month", "this month"], ["last_month", "last month"]];
+const PRIORITIES = ["urgent", "high", "medium", "low", "none"];
+const isDate = (f: NlField) => f === "updated" || f === "created";
+type Status = "idle" | "reading" | "pending" | "failed" | "off";
+
+export function NlFilterBar(p: NlFilterBarProps) {
+  const tz = p.timeZone ?? personTimeZone();
+  const now = p.now ?? (() => new Date());
+  const [text, setText] = useState("");
+  const [status, setStatus] = useState<Status>("idle");
+  const [pending, setPending] = useState<NlFilter | null>(null);
+  const [dropped, setDropped] = useState<NlDropped[]>([]);
+  const [editing, setEditing] = useState<number | null>(null);
+
+  const nameOf = (c: NlClause, id: string) =>
+    id === "@me" ? "me" : (c.field === "priority" ? id
+      : p.vocabulary[c.field as keyof ChipVocabulary]?.find((t) => t.id === id)?.name ?? id);
+  const label = (c: NlClause): string => {
+    if (isDate(c.field)) {
+      if (c.within) return `${c.field} within ${c.within.slice(1, -1)} ${c.within.endsWith("W") ? "weeks" : "days"}`;
+      const words = PERIODS.find(([k]) => k === c.period)?.[1] ?? "";
+      return `${c.field} ${words} (${shownRange(periodBounds(c.period!, now(), tz), tz)})`;
+    }
+    return `${c.field} is ${(c.values ?? []).map((v) => nameOf(c, v)).join(" or ")}`;
+  };
+
+  async function read() {
+    const words = text.trim();
+    if (!words) return;
+    setStatus("reading");
+    try {
+      const res = await p.client.parseFilter({ teamId: p.teamId, text: words });
+      setPending(res.filter); setDropped(res.dropped); setStatus("pending");
+    } catch (e) {
+      setPending(null); setDropped([]);
+      setStatus(e instanceof ApiError && e.code === "assists_off" ? "off" : "failed");
+    } // the text is never cleared on failure
+  }
+  const setClause = (i: number, c: NlClause | null) => {
+    if (!pending) return;
+    const clauses = pending.clauses.slice();
+    if (c) clauses[i] = c; else clauses.splice(i, 1);
+    setPending({ ...pending, clauses }); setEditing(null);
+  };
+
+  return (
+    <section className="nl-bar" aria-label="Filter in words">
+      <form onSubmit={(e) => { e.preventDefault(); void read(); }}>
+        <input aria-label="Filter in words" value={text} maxLength={300}
+          placeholder="Filter in words" onChange={(e) => setText(e.target.value)} />
+      </form>
+      {status === "reading" && <p className="nl-note">Reading</p>}
+      {status === "failed" && <p className="nl-note" role="status">Could not read that as a filter.</p>}
+      {status === "off" && <p className="nl-note" role="status">Filters in words are off for this org.</p>}
+      {status === "pending" && pending && (
+        <>
+          <ul className="nl-chips" aria-label="Pending filter">
+            {pending.clauses.map((c, i) => (
+              <li key={i} className="nl-chip nl-chip--pending">
+                <button type="button" onClick={() => setEditing(editing === i ? null : i)}>{label(c)}</button>
+                <button type="button" aria-label={`Remove ${label(c)}`} onClick={() => setClause(i, null)}>×</button>
+                {editing === i && <ChipEditor clause={c} vocabulary={p.vocabulary} onDone={(n) => setClause(i, n)} />}
+              </li>
+            ))}
+          </ul>
+          {dropped.length > 0 && (
+            <p className="nl-note">Not used: {dropped.map((d) => d.reason).join("; ")}.</p>
+          )}
+          <div className="nl-actions">
+            <button type="button" disabled={pending.clauses.length === 0}
+              onClick={() => { p.onApply(pending); setPending(null); setDropped([]); setStatus("idle"); }}>Apply</button>
+            <button type="button" onClick={() => { setPending(null); setDropped([]); setStatus("idle"); }}>Discard</button>
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+/** Edits one chip in place: the field's own values, or a relative period. Never a free date. */
+function ChipEditor(p: { clause: NlClause; vocabulary: ChipVocabulary; onDone(c: NlClause): void }) {
+  const c = p.clause;
+  if (isDate(c.field)) {
+    return (
+      <select aria-label={`${c.field} period`} value={c.period ?? ""}
+        onChange={(e) => p.onDone({ field: c.field, period: e.target.value as RelativePeriod })}>
+        {c.within && <option value="">within {c.within.slice(1)}</option>}
+        {PERIODS.map(([k, w]) => <option key={k} value={k}>{w}</option>)}
+      </select>
+    );
+  }
+  const options = c.field === "priority" ? PRIORITIES.map((x) => ({ id: x, name: x }))
+    : [...(c.field === "assignee" ? [{ id: "@me", name: "me" }] : []),
+       ...p.vocabulary[c.field as keyof ChipVocabulary]];
+  const chosen = new Set(c.values ?? []);
+  return (
+    <fieldset className="nl-edit" aria-label={`${c.field} values`}>
+      {options.map((o) => (
+        <label key={o.id}>
+          <input type="checkbox" checked={chosen.has(o.id)} onChange={() => {
+            const next = new Set(chosen);
+            if (next.has(o.id)) next.delete(o.id); else next.add(o.id);
+            p.onDone({ field: c.field, values: [...next] });
+          }} />
+          {o.name}
+        </label>
+      ))}
+    </fieldset>
+  );
+}
+```
+
+A chip whose last value is unticked keeps `values: []` and *Apply* treats it as removed (task 91's
+evaluator ignores an empty clause, **UNVERIFIED**; if it does not, `onApply` filters them out
+first). *Reading* is plain text, not a spinner (`CLAUDE.md`: one global heartbeat, never a spinner
+per row).
+
+#### Interfaces — complete: `desktop/src/components/plan/nlFilter.css`
+
+```css
+.nl-bar { display: grid; gap: 6px; }
+.nl-bar input { font: inherit; font-family: var(--sans); color: var(--ink); background: var(--surface);
+  border-radius: var(--r-ctl); box-shadow: var(--e-hair); padding: 6px 8px; }
+.nl-chips { display: flex; flex-wrap: wrap; gap: 4px; list-style: none; margin: 0; padding: 0; }
+.nl-chip { display: inline-flex; align-items: center; border-radius: var(--r-chip);
+  box-shadow: var(--e-hair); color: var(--ink-2); }
+.nl-chip--pending { outline: 1px dashed var(--line-strong); outline-offset: -1px; }
+.nl-chip button { font: inherit; background: none; border: 0; color: inherit; padding: 2px 6px; }
+.nl-chip button:hover { background: var(--hover); transition: opacity var(--dur-fast) var(--ease); }
+.nl-note { color: var(--ink-3); margin: 0; }
+.nl-actions { display: flex; gap: 6px; }
+```
+
+The pending state is a dashed 1px ring; the applied filter has none, because it becomes task 91's
+own group (DESIGN-SYSTEM: elevation is a ring plus shadow, never a flat border). No
+`transition: all`. The tokens are the ones in `desktop/src/styles/tokens.css` (checked
+2026-09-26: `--r-chip`, `--r-ctl`, `--e-hair`, `--ink-2`, `--ink-3`, `--line-strong`, `--hover`,
+`--dur-fast`, `--ease`, `--surface`, `--sans`).
