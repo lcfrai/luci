@@ -533,3 +533,57 @@ container, so task 174's sweep finds it):
   `transition: all`. Mount *Admin* in the settings host.
 - [ ] **Step 6: run the acceptance commands**; commit by path, the message ending with the
   `Co-Authored-By` line.
+
+#### Acceptance
+
+```bash
+cd desktop && npx vitest run src/components/admin
+# expect: 9 test files pass, no FAIL line
+cd desktop && npx vitest run src/test/w5Sweep
+# expect: the seven components/admin rows pass (the other rows pass once 170-172 land)
+cd desktop && npm run typecheck
+# expect: exit 0
+grep -rnE "crypto\.subtle|localStorage|sessionStorage|workSlice|console\." desktop/src/components/admin --include=*.tsx --include=*.ts | grep -v "\.test\." 
+# expect: no output (the secret has one holder; no digest is computed here)
+grep -rnE "transition:\s*all|linear-gradient" desktop/src/components/admin/admin.css
+# expect: no output
+```
+
+The first line counts files, not tests: `access.test.ts`, `policyForm.test.ts`, and the seven
+`.test.tsx` files of the *Files* list make **nine**; step 1 corrects the expected line to what
+vitest prints, and a lower number means a test file is missing.
+
+#### What this task does NOT claim
+
+- That any app, key or webhook has been used from outside the product (the scope's line).
+- That the Hub enforces who may see what: absence here is the first check, task 159, 160, 156,
+  161 and 166's 403s are the second, and their own tests prove them.
+- *Publish to sandboxes*: absent until Phase T merges; the injected-route test proves only that
+  the shown version and digest are the route's.
+- That the clipboard write succeeds on every Windows build (Tauri's WebView2 clipboard permission
+  is **UNVERIFIED**); the test stubs `navigator.clipboard`.
+- The owner's look: `CLAUDE.md`, *"Visual acceptance is the owner's eyes"*.
+
+**Parity.** Closes, jointly with the Hub tasks named: **L-244** (159, 161), **L-245** and
+**L-252** (160), **L-251** (156), **L-256** and **L-197** (161, 166), **L-180** (166).
+
+#### Gaps found while writing this part
+
+1. **The key routes disagree.** Task 169's relay rows say `/v1/me/keys`, `/v1/teams/{teamId}/keys`
+   and `/v1/keys/{keyId}/revoke` (`task-169.md:395-399`); task 160, which owns them, says
+   `/v1/me/api-keys`, `/v1/teams/{teamId}/api-keys` and `/v1/api-keys/{keyId}/revoke`
+   (`task-160.md:376-393`). This part calls the client members, not paths; task 168's Go table
+   settles it and 169's route test follows.
+2. **An org admin can revoke any key but cannot list them here.** Task 160's `GET /v1/api-keys`
+   (`task-160.md:389`, org admin only) has no `WorkIntakeClient` member (`task-169.md:467-483`),
+   so an org admin sees only their own and their admin teams' keys. Needs one member in 169 and
+   one list here.
+3. **`desktop/src/lib/time.ts` has no clock-time formatter** (it exports `formatElapsed` and
+   `formatWaiting` only, read 2026-09-26), so `clock` lives in `Keys.tsx` and Deliveries imports
+   it. It belongs in `time.ts`, which this task does not own.
+4. **Three imports are UNVERIFIED**: the H-plan's `Org`/`Team`/`User` module (`api/hub`), task
+   37's store export (`useWorkStore` in `state/workSlice`), and task 96's settings host.
+5. **The scope reads roles from the token** (`roles ∋ Hub.OrgAdmin`, `tasks-161-180.md:482-483`);
+   this part reads `GET /v1/me` instead (decision 2), because the role's name differs between the
+   contract and ADR-H1. The scope's rate example, *used 412 this hour*, names a window task 160's
+   headers do not send; this part shows the reset time instead.
