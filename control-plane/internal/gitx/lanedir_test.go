@@ -13,6 +13,41 @@ import (
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/gitx/gitxtest"
 )
 
+// TestMachineHardeningReadsSystemThenGlobal: the part has no row for MachineHardening (task 02
+// addition). Helpers come from --system then --global in file order; the global proxy wins;
+// with neither file naming one, HTTPS_PROXY is the fallback.
+func TestMachineHardeningReadsSystemThenGlobal(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, body string) string {
+		p := filepath.Join(dir, name)
+		if err := os.WriteFile(p, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "")
+	t.Setenv("GIT_CONFIG_SYSTEM", write("system", "[credential]\n\thelper = sys\n[http]\n\tproxy = http://sys.invalid:1\n"))
+	t.Setenv("GIT_CONFIG_GLOBAL", write("global", "[credential \"https://x.invalid\"]\n\thelper = glob\n[http]\n\tproxy = http://glob.invalid:2\n"))
+	t.Setenv("HTTPS_PROXY", "http://env.invalid:3")
+	root := filepath.Join(t.TempDir(), "git")
+	h, err := gitx.MachineHardening(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"credential.helper=sys", "credential.https://x.invalid.helper=glob"}
+	if strings.Join(h.Credential, "|") != strings.Join(want, "|") || h.Proxy != "http://glob.invalid:2" {
+		t.Fatalf("Hardening = Credential %q Proxy %q, want %q and the global proxy", h.Credential, h.Proxy, want)
+	}
+	if ents, err := os.ReadDir(h.HooksDir); err != nil || len(ents) != 0 || h.OwnedRoot != root || h.LaneRoot != "" {
+		t.Fatalf("HooksDir %q (%v, %d entries), OwnedRoot %q, LaneRoot %q", h.HooksDir, err, len(ents), h.OwnedRoot, h.LaneRoot)
+	}
+	t.Setenv("GIT_CONFIG_SYSTEM", write("system2", ""))
+	t.Setenv("GIT_CONFIG_GLOBAL", write("global2", ""))
+	if h, err = gitx.MachineHardening(context.Background(), root); err != nil || h.Proxy != "http://env.invalid:3" || len(h.Credential) != 0 {
+		t.Fatalf("no proxy in either file = (%q, %q, %v), want HTTPS_PROXY and no helpers", h.Proxy, h.Credential, err)
+	}
+}
+
 // laneSetup is a project, a lane clone L of it, and an Exec whose LaneRoot holds L, spied on.
 func laneSetup(t *testing.T) (r *gitxtest.Repo, lane string, x *gitx.Exec, run gitx.Runner, spawns *[]gitxtest.Spawn) {
 	t.Helper()
@@ -35,6 +70,10 @@ func TestExecRefusesALaneDir(t *testing.T) {
 		"--work-tree L":    project(r.Dir, gitx.Read, "status", "--work-tree", l),
 		"Dir x/../L":       project(root+string(filepath.Separator)+"x"+string(filepath.Separator)+".."+string(filepath.Separator)+filepath.Base(l), gitx.Read, "status"),
 	}
+	// A spelling that does not start with LaneRoot's own string, so only a cleaned compare
+	// sees it is in L (a raw, case-folded prefix check passes every row above).
+	sep := string(filepath.Separator)
+	rows["Dir <parent>/x/../<root>/L"] = project(filepath.Dir(root)+sep+"x"+sep+".."+sep+filepath.Base(root)+sep+filepath.Base(l), gitx.Read, "status")
 	if runtime.GOOS == "windows" {
 		rows["Dir L in other case"] = project(strings.ToUpper(l), gitx.Read, "status")
 	}
@@ -87,6 +126,7 @@ func TestExecRunsTheCreateCloneInTheProject(t *testing.T) {
 	if fi, err := os.Stat(filepath.Join(l, ".git")); err != nil || !fi.IsDir() {
 		t.Fatalf("%s is not a clone: %v", l, err)
 	}
+	c.Args = append([]string(nil), c.Args...)
 	c.Args[len(c.Args)-1] = filepath.Join(x.Hardening.LaneRoot, "new2")
 	c.NewLane = c.Args[len(c.Args)-1]
 	if _, err := run.Run(context.Background(), c); !errors.Is(err, gitx.ErrCallShape) {
