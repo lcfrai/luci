@@ -174,7 +174,103 @@ export interface DeskGroup {
 export interface DeskModel { groups: readonly DeskGroup[]; keys: ReadonlySet<string> }
 ```
 
-`WorkEvent`, `IssueHead` and `IssueRevision` are task 37's re-exports of the Hub wire
-(`task-37.md` decision 9); `ProvenanceRef` is phase 4's `api/discover` type as task 65 imports it
+`IssueHead` and `IssueRevision` are task 37's types (`task-37.md:129-134`). `WorkEvent` is **not**
+in `api/work`: task 37 leaves it in task 20's fixtures (`task-37.md:59-60`, `task-20.md:203`), and
+a production file must not import a test module, so the import above follows whichever module
+task 55's feed exports it from (gap 5; task 65 makes the same assumption, `task-65.md:347`).
+`ProvenanceRef` is phase 4's `api/discover` type as task 65 imports it
 (`task-65.md:348`; **UNVERIFIED until P4 merges**, and if absent the member's type is `unknown`
 until then). `IssueRevision` carries the revision's `content` (`task-20.md:321-326`).
+
+#### Interfaces — complete: `deskModel.ts`, part 2: the registry, rank, build and snapshot
+
+```ts
+export type DeskRender<T> = (item: DeskItem<T>) => JSX.Element;
+export type DeskRanker<T> = (item: DeskItem<T>, snap: DeskSnapshot) => DeskRank;
+export type DeskSelect = (snap: DeskSnapshot) => readonly DeskItem[];
+
+interface RowKind { kind: string; place: DeskSection | DeskBand; render: DeskRender<unknown>; rank: DeskRanker<unknown> }
+const rows = new Map<string, RowKind>();
+const sources = new Map<string, DeskSelect>();
+
+/** SW.17. A second registration of one kind throws (decision 2). */
+export function registerDeskRow<T>(kind: string, place: DeskSection | DeskBand,
+  render: DeskRender<T>, rank: DeskRanker<T>): void {
+  if (rows.has(kind)) throw new Error(`desk row kind ${kind} is already registered`);
+  rows.set(kind, { kind, place, render: render as DeskRender<unknown>, rank: rank as DeskRanker<unknown> });
+}
+
+/** The items of one kind, read from the snapshot. A second source for one kind throws. */
+export function registerDeskSource(kind: string, select: DeskSelect): void {
+  if (sources.has(kind)) throw new Error(`desk source for ${kind} is already registered`);
+  sources.set(kind, select);
+}
+
+/** The render for a kind; Desk.tsx calls it per row. */
+export function deskRenderOf(kind: string): DeskRender<unknown> {
+  const k = rows.get(kind);
+  if (!k) throw new Error(`desk row kind ${kind} has no row registered`);
+  return k.render;
+}
+
+/** Test seam: vitest does not reset module state between files (heartbeat.ts:68-69). */
+export function __resetDeskRegistry(): void { rows.clear(); sources.clear(); lastVisit = null; }
+
+/** Decision 6: tier, then the longest wait, then kind and id. Pure and total. */
+export function rankItems(items: readonly DeskItem[], snap: DeskSnapshot): DeskItem[] {
+  const keyed = items.map((item) => ({ item, r: rows.get(item.kind)!.rank(item, snap) }));
+  keyed.sort((a, b) => a.r.tier - b.r.tier || b.r.waitingSinceMs - a.r.waitingSinceMs
+    || a.item.kind.localeCompare(b.item.kind) || a.item.id.localeCompare(b.item.id));
+  return keyed.map((k) => k.item);
+}
+
+export const itemKey = (i: Pick<DeskItem, "kind" | "id">): string => `${i.kind}:${i.id}`;
+
+/** One pass over every source. The five sections in DESK_SECTIONS order, then "since". */
+export function buildDesk(snap: DeskSnapshot): DeskModel {
+  for (const kind of sources.keys()) if (!rows.has(kind)) throw new Error(`desk source ${kind} has no row`);
+  for (const kind of rows.keys()) if (!sources.has(kind)) throw new Error(`desk row ${kind} has no source`);
+  const by = new Map<string, DeskItem[]>();
+  for (const [kind, select] of sources) {
+    const place = rows.get(kind)!.place;
+    if (place === "horizon") continue;                            // no horizon slice in W1 (Q4)
+    for (const item of select(snap)) by.set(place, [...(by.get(place) ?? []), { ...item, kind }]);
+  }
+  const groups: DeskGroup[] = DESK_SECTIONS.map((s) => ({ place: s, items: rankItems(by.get(s) ?? [], snap) }));
+  const since = [...(by.get("since") ?? [])].sort((a, b) =>
+    Date.parse(a.arrivedAt) - Date.parse(b.arrivedAt) || itemKey(a).localeCompare(itemKey(b)));
+  groups.push({ place: "since", items: since });
+  return { groups, keys: new Set(groups.flatMap((g) => g.items.map(itemKey))) };
+}
+
+let lastVisit: number | null = null;
+/** Decision 4: in memory only. Desk.tsx writes it on unmount. */
+export function markDeskVisit(ms: number): void { lastVisit = ms; }
+export function lastDeskVisitAt(): number | null { return lastVisit; }
+
+/** Decision 5. Reads every input once; a member with no input yet gives its empty value. */
+export function takeDeskSnapshot(inp: DeskInputs): DeskSnapshot {
+  const cockpit = inp.cockpit();
+  const work = inp.work();
+  const heads = new Map<string, IssueHead>();
+  const revs = new Map<string, IssueRevision>();
+  for (const p of cockpit.projects) {
+    for (const r of work?.byProject(p.id) ?? []) { heads.set(r.head.id, r.head); revs.set(`${r.head.id}@${r.revision.revision}`, r.revision); }
+  }
+  const events = inp.events?.() ?? [];
+  return Object.freeze({
+    takenAt: inp.now(), lastVisitAt: lastVisit, me: work?.me()?.id ?? null, cockpit,
+    sessions: Object.freeze(Object.values(cockpit.sessions)), heads, headOf: (id: string) => heads.get(id),
+    events, revisionAt: (id: string, rev: number) => revs.get(`${id}@${rev}`) ?? null,
+    refOf: inp.refOf ?? (() => null), briefCriteria: inp.briefCriteria ?? (() => null),
+    signals: inp.signals ?? (() => []),
+  });
+}
+```
+
+`buildDesk`'s pairing checks run on every build, not at registration, because `deskRows.tsx`
+registers a row and its source in two calls and TM-54 in another module (decision 2). `revisionAt`
+serves only the head revision each `byProject` row carries (`task-40.md:147-148`); a part that needs
+an older revision passes its own read in `DeskInputs` (task 65's *adopted revision*). `Project.id`
+is the store's `Project` (`dataSlice.ts:31`); that it is the Hub's project id too is task 24's
+assumption (`task-61.md` gap 3).
