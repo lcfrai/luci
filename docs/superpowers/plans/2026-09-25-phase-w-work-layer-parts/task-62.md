@@ -470,3 +470,78 @@ import { Desk } from "./desk/Desk";
 The persisted `lens` may hold `"desk"`; it is a preference, not Hub data, and `migrate` needs no
 step because an older build never wrote it (task 37's reasoning for `"work"`, `task-37.md:624`).
 The sub-rail's six rows do not change (decision 9).
+
+#### Tests to write first, part 1 — `desktop/src/components/desk/deskModel.test.ts` (the pure model)
+
+```ts
+import { beforeEach, describe, expect, it } from "vitest";
+import { createElement } from "react";
+import { DYLAN, WORK_IDS } from "../../test/workFixtures";
+import { __resetDeskRegistry, buildDesk, markDeskVisit, registerDeskRow, registerDeskSource,
+  takeDeskSnapshot, type DeskItem, type DeskRank, type DeskSnapshot } from "./deskModel";
+
+const T0 = Date.parse("2026-09-25T11:10:00Z");
+const item = (kind: string, id: string, at = "2026-09-25T09:00:00Z"): DeskItem =>
+  ({ kind, id, payload: null, arrivedAt: at, rankReason: "", ifNothing: "" });
+const draw = () => createElement("span");
+function kind(k: string, place: Parameters<typeof registerDeskRow>[1], items: DeskItem[], rank: DeskRank = { tier: 2, waitingSinceMs: 0 }) {
+  registerDeskRow(k, place, draw, (i) => (typeof i.payload === "object" && i.payload ? i.payload as DeskRank : rank));
+  registerDeskSource(k, () => items);
+}
+const snap = (over: Partial<Parameters<typeof takeDeskSnapshot>[0]> = {}): DeskSnapshot => takeDeskSnapshot({
+  now: () => T0, cockpit: () => ({ projects: [], sessions: {} }) as never, work: () => null, ...over });
+const places = (s: DeskSnapshot) => buildDesk(s).groups.map((g) => g.place);
+
+beforeEach(() => __resetDeskRegistry());
+
+describe("deskModel", () => {
+  it("renders AX's order whatever order kinds register in", () => {
+    kind("t.run", "running", [item("t.run", "1")]);
+    kind("t.land", "landed", [item("t.land", "1")]);
+    kind("t.need", "needs_you", [item("t.need", "1")]);
+    expect(places(snap())).toEqual(["needs_you", "decided_without_you", "failed", "landed", "running", "since"]);
+    // mutant: sections in registration order
+  });
+  it("a second registration of one kind throws and names it", () => {
+    kind("issue.urgent_mine", "needs_you", []);
+    expect(() => registerDeskRow("issue.urgent_mine", "needs_you", draw, () => ({ tier: 2, waitingSinceMs: 0 })))
+      .toThrow("desk row kind issue.urgent_mine is already registered");
+    // mutant: last registration wins (TM-54 silently replaces an issue row)
+  });
+  it("a row with no source, or a source with no row, fails the build by name", () => {
+    registerDeskRow("t.orphan", "failed", draw, () => ({ tier: 2, waitingSinceMs: 0 }));
+    expect(() => buildDesk(snap())).toThrow("desk row t.orphan has no source");
+    // mutant: an unfed row kind renders nothing and nobody notices
+  });
+  it("within a section: tier first, then the longest wait, and one order every run", () => {
+    const a = { ...item("t.need", "a"), payload: { tier: 2, waitingSinceMs: 9_000_000 } };
+    const b = { ...item("t.need", "b"), payload: { tier: 1, waitingSinceMs: 60_000 } };
+    const c = { ...item("t.need", "c"), payload: { tier: 2, waitingSinceMs: 7_800_000 } };
+    kind("t.need", "needs_you", [c, a, b]);
+    const ids = (s: DeskSnapshot) => buildDesk(s).groups[0].items.map((i) => i.id);
+    expect(ids(snap())).toEqual(["b", "a", "c"]);
+    expect(ids(snap())).toEqual(ids(snap()));
+    // mutants: newest first; age before tier (the blocking row under an older urgent one)
+  });
+  it("the since band keeps arrival order, and the horizon draws nothing in W1", () => {
+    kind("t.since", "since", [item("t.since", "2", "2026-09-25T10:00:00Z"), item("t.since", "1", "2026-09-25T09:00:00Z")]);
+    kind("t.hz", "horizon", [item("t.hz", "1")]);
+    const m = buildDesk(snap());
+    expect(m.groups.at(-1)!.items.map((i) => i.id)).toEqual(["1", "2"]);
+    expect([...m.keys].some((k) => k.startsWith("t.hz:"))).toBe(false);
+    // mutants: the band ranked by tier; a horizon row drawn from no slice
+  });
+  it("the snapshot gives empty values for inputs nobody passes, and reads each input once", () => {
+    let reads = 0;
+    const s = snap({ cockpit: () => { reads++; return { projects: [], sessions: {} } as never; } });
+    expect([s.events, s.signals("request.unrouted"), s.refOf("brief:b@1"), s.revisionAt(WORK_IDS.ep142, 3)])
+      .toEqual([[], [], null, null]);
+    expect(reads).toBe(1);
+    markDeskVisit(T0 - 60_000);
+    expect(snap().lastVisitAt).toBe(T0 - 60_000);
+    expect(s.me).toBeNull();                                   // no work source: no signed-in caller
+    void DYLAN;
+    // mutants: a snapshot that re-reads the store on each member access; a visit written to disk
+  });
+});
+```
