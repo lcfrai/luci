@@ -325,9 +325,11 @@ the fake changed after 277e6c9a.
 84 rows (the part's 48 + 20 carried + 15 rules + 1 below).
 
 - **Rows gained.** `by_deployment_id`: a release of another team's project is in none of P's
-  lists or cursors (I1). `confirm_by_reserver_only`: a reserver demoted to viewer is 403
-  `forbidden` (m1). `outsider_sees_nothing` runs over `strangers()`, the org admin too (m2). New
-  row `panacea_keys_are_per_project` (I2, D10).
+  lists or cursors (I1), and T's viewer and admin, members of another team, get route 37's and
+  route 40's 404 for it (PS6-2). `confirm_by_reserver_only`: a reserver demoted to viewer is 403
+  `forbidden` (m1). `outsider_sees_nothing` runs over `strangers()`, the org admin too (m2), and
+  then as a member of a team of its own (PS6-1). New row `panacea_keys_are_per_project` (I2,
+  D10), with confirm's deployment half (PS7-2, PS7-2b).
 - **D10 — the Panacea keys are per Hub project, not per org** (ruling, root cause; the owner
   may reverse it). `(panaceaProject, pipelineRun)` and `(panaceaProject, deploymentId)` are
   the caller's assertions: unique per org, they let any org member, in a team of their own
