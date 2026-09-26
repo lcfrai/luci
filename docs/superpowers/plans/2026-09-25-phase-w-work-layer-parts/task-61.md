@@ -560,7 +560,6 @@ describe("createStartStore", () => {
     expect(s.get(WORK_IDS.ep142)?.phase).toEqual({ kind: "said", words: "EP-142 is started." });
     // mutant: the row stays assigned to me by a Start that never happened
   });
-```
   it("a double press is one Start", async () => {
     const { d, work } = deps();
     const s = createStartStore(d);
@@ -687,3 +686,195 @@ describe("Start keys", () => {
   });
 });
 ```
+
+#### Tests to write first, part 3 — `StartChip.test.tsx` (surfaces and source guards)
+
+Same file, same `lens()`, `row`, `shiftR` and `session` helpers as part 2. `chip(alias)` is the
+row's `.sc`. Times advance with the fake clock, so the one heartbeat ticks as it does in the app.
+
+```tsx
+import chipSrc from "./StartChip.tsx?raw";
+import storeSrc from "../../work/start/useStart.ts?raw";
+import cssSrc from "./work.css?raw";
+
+const chip = (alias: string) => row(alias).querySelector<HTMLElement>(".sc");
+async function started(alias = "EP-167") {
+  const list = lens();
+  fireEvent.focus(row(alias));
+  shiftR(list);
+  await act(async () => { await Promise.resolve(); });
+  return list;
+}
+
+describe("Start surfaces", () => {
+  it("the chip says what happened in words, with no spinner, bar or countdown", async () => {
+    await started();
+    expect(chip("EP-167")!.textContent).toContain("Started · AU route · set by the project's data class");
+    expect(within(chip("EP-167")!).getByRole("button", { name: "Undo Start" })).toBeTruthy();
+    expect(chip("EP-167")!.querySelector('[role="progressbar"], svg, .spinner')).toBeNull();
+    expectNoPrediction(document.body);
+    // mutants: a spinner per row; an "undo in 6s" countdown
+  });
+  it("the first sign is empty before 10 s, then climbs on the one heartbeat", async () => {
+    await started();
+    session(WORK_IDS.ep167);
+    act(() => { vi.advanceTimersByTime(9_000); });
+    expect(chip("EP-167")!.querySelector(".sc-sign")).toBeNull();
+    act(() => { vi.advanceTimersByTime(1_000); });
+    expect(chip("EP-167")!.querySelector(".sc-sign")!.textContent).toBe("no output yet · 10s");
+    act(() => { vi.advanceTimersByTime(1_000); });
+    expect(chip("EP-167")!.querySelector(".sc-sign")!.textContent).toBe("no output yet · 11s");
+    session(WORK_IDS.ep167, { lastOutputAt: "2026-09-25T09:14:13Z" });  // T0 + 11 s
+    act(() => { vi.advanceTimersByTime(1_000); });
+    expect(chip("EP-167")!.querySelector(".sc-sign")!.textContent).toBe("last output 1s ago");
+    // mutants: a sign before 10 s; the chip's own setInterval (the source guard below holds it too)
+  });
+  it("Undo Start is still offered a minute in, and a press undoes and says so for 4 s", async () => {
+    work.undoStart.mockResolvedValue({ undone: true, stateRestored: "todo" });
+    await started();
+    act(() => { vi.advanceTimersByTime(60_000); });
+    fireEvent.click(within(chip("EP-167")!).getByRole("button", { name: "Undo Start" }));
+    await act(async () => { await Promise.resolve(); });
+    expect(work.undoStart).toHaveBeenCalledWith(result(WORK_IDS.ep167).sessionId);
+    expect(within(row("EP-167")).getByRole("status").textContent)
+      .toBe("Start undone · back to todo · cost not metered in local mode");
+    act(() => { vi.advanceTimersByTime(NOTE_MS); });
+    expect(chip("EP-167")).toBeNull();
+    // mutant: the chip hides Undo Start after the six seconds of --undo-window
+  });
+  it("too late to undo turns the chip to Stop and discard, and only Discard deletes", async () => {
+    work.undoStart.mockRejectedValue(new ApiError("first_write" as never, "", 409, { next: "discard" }));
+    work.discardStart
+      .mockRejectedValueOnce(new ApiError("confirm_required" as never, "", 409,
+        { paths: "upload/resume.go\nupload/resume_test.go", confirm: "9c1e44a0b2d3f6e7" }))
+      .mockResolvedValueOnce({ discarded: true, stateRestored: "todo" });
+    await started();
+    fireEvent.click(within(chip("EP-167")!).getByRole("button", { name: "Undo Start" }));
+    await act(async () => { await Promise.resolve(); });
+    expect(chip("EP-167")!.textContent).toContain("Too late to undo: the agent changed a file.");
+    fireEvent.click(within(chip("EP-167")!).getByRole("button", { name: "Stop and discard" }));
+    await act(async () => { await Promise.resolve(); });
+    expect(within(chip("EP-167")!).getByRole("alert").textContent)
+      .toBe("Discards 2 files: upload/resume.go, upload/resume_test.go");
+    expect(work.discardStart).toHaveBeenCalledTimes(1);
+    fireEvent.click(within(chip("EP-167")!).getByRole("button", { name: "Discard" }));
+    await act(async () => { await Promise.resolve(); });
+    expect(work.discardStart).toHaveBeenLastCalledWith(result(WORK_IDS.ep167).sessionId, "9c1e44a0b2d3f6e7");
+    // mutant: Stop and discard deletes on its first press
+  });
+  it("Start 5 worktrees is five Starts, one chip per row, and no batch route", async () => {
+    const list = lens();
+    for (const a of ["EP-160", "EP-166", "EP-167", "EP-163", "EP-150"]) {
+      fireEvent.focus(row(a));
+      fireEvent.keyDown(list, { code: "KeyX", key: "x" });           // task 44's select key
+    }
+    const bar = screen.getByRole("toolbar");
+    fireEvent.click(within(bar).getByRole("button", { name: "Start 5 worktrees" }));
+    fireEvent.click(within(bar).getByRole("button", { name: "Start 5 worktrees" }));  // task 44's second press
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+    expect(work.start.mock.calls.map((c) => c[0].issueId).sort())
+      .toEqual([WORK_IDS.ep160, WORK_IDS.ep166, WORK_IDS.ep167].sort());
+    expect(work.start.mock.calls.find((c) => c[0].issueId === WORK_IDS.ep160)![0].accept).toBe(true);
+    for (const a of ["EP-160", "EP-166", "EP-167"]) expect(chip(a)!.dataset.startPhase).toBe("undoable");
+    expect(within(row("EP-163")).getByRole("status").textContent).toContain("Only their agents work on it.");
+    expect(within(row("EP-150")).getByRole("status").textContent)
+      .toBe("EP-150 is in review. Start takes triage, backlog or todo.");
+    // mutants: one call for the batch; Start on Alice's row; accept dropped on the triage row
+  });
+  it("no head branch sends nothing and says why in the row", () => {
+    useCockpit.setState({ branchesByProject: {} } as never);
+    const list = lens();
+    fireEvent.focus(row("EP-167"));
+    shiftR(list);
+    expect(work.start).not.toHaveBeenCalled();
+    expect(within(row("EP-167")).getByRole("status").textContent)
+      .toBe("No branch is checked out for this project yet.");
+    // mutant: Start against a guessed "main"
+  });
+  it("the chip starts no timer of its own and the store writes nothing to disk", () => {
+    expect(chipSrc).not.toMatch(/setInterval|requestAnimationFrame/);
+    expect(storeSrc).not.toMatch(/setInterval|localStorage|sessionStorage|indexedDB|persist\(/);
+    expect(storeSrc).not.toMatch(/headRevision|revision:/);             // decision 2: none sent
+    const sc = cssSrc.slice(cssSrc.indexOf("/* Start chip"));
+    expect(sc).not.toMatch(/transition|@keyframes|animation/);
+    // mutants: a per-chip interval (one heartbeat rule); Hub data on disk; a client-pinned revision
+  });
+});
+```
+
+The fixture's five rows give three Starts and two in-place words: EP-160 is triage and unassigned
+(assign, accept and Start), EP-166 and EP-167 are mine (`makeIssueHead`'s assignee is `DYLAN`,
+`task-20.md:299-301`), EP-163 is Alice's and EP-150 is `in_review`. The bulk bar's accessible
+roles (`toolbar`, the button's name) are task 44's (`task-44.md:141`, `:253`); if its part names
+them another way, the queries follow it. That task 40's fixture world applies the `setAssignee`
+write that EP-160 needs is **UNVERIFIED** (task 55's replica over task 40's world, gap 6).
+
+#### Steps
+
+- [ ] Write `useStart.test.ts`; it fails to import `./useStart`. Write `useStart.ts` part 1 until
+      the `startRule` and `firstSign` tests pass. Mutants, one at a time, then revert: drop the
+      `not_mine` branch (test 1); read Go's zero time as output (test 2).
+- [ ] Write the store until the six store tests pass. Mutants: send the Start before `settled`
+      (test 3); send the Start on a `Refusal` (test 4); skip `handle.undo()` on a refused Start
+      (test 5); drop the `sending` guard (test 6); retry the undo on `first_write` (test 7); send
+      the token on the first discard press (test 8).
+- [ ] Write `StartChip.tsx`, `register.ts` and the `.sc-*` CSS; make the `IssueRow.tsx` and
+      `WorkLens.tsx` edits; print the `Shift+R` row in `keymap.ts` only if task 53 did not.
+- [ ] Write `StartChip.test.tsx` parts 2 and 3. Mutants: match `event.key` (part 2, test 1);
+      bind on `document` (part 2, test 3); a `setInterval` in `StartChip.tsx` (part 3, test 7);
+      `transition: all` on `.sc` (part 3, test 7).
+- [ ] Tasks 40, 44, 53 and 56's suites still pass. Commit each file as it goes green.
+
+#### Acceptance
+
+```bash
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop test -- src/work/start/useStart.test.ts src/components/work/StartChip.test.tsx'
+# expected: 2 files, 19 tests, all passing (8 rule/sign/store, 4 keys, 7 surfaces)
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop test'
+# expected: every suite passing, tasks 40, 44, 53, 56 and 60 included
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop run typecheck'
+# expected: exit 0
+~/.claude/tools/claudezsh/claudezsh 'grep -nE "setInterval|requestAnimationFrame|localStorage|headRevision" desktop/src/components/work/StartChip.tsx desktop/src/work/start/useStart.ts'
+# expected: no output (decisions 2, 7 and 8; the source test holds it too, a review still reads the files)
+~/.claude/tools/claudezsh/claudezsh 'git diff --stat -- desktop/src/api/work.ts'
+# expected: no output (task 37's three calls are used as they are)
+```
+
+#### What this task does NOT claim
+
+- **Any cost figure.** Local mode has no gateway meter (task 24's `cost: null`); the chip says so in
+  words. Phase 6's gateway figure is its own delta.
+- **Knowing when the agent first wrote a file.** SW.10 has no such read (gap 2); the chip learns
+  `discard_only` from the control plane's `409 first_write` answer to a press, and says so then.
+- **Delegate** (`Shift+O`) and any Start of a teammate's issue: W3 and OD-16.
+- **`budget.ack` as met**: 10 s is when the first sign appears, a design value; no time to first
+  output is measured or asserted here.
+- **A chip that survives a desktop restart** (decision 8); the session and its worktree stay in
+  Develop's verbs.
+- **The route's own behaviour**: task 24 proves the control plane; these tests fake its client.
+- **Visual acceptance**: the owner's eyes (CLAUDE.md, working agreements).
+- **Parity**: closes L-47's *accept and Start* half (with task 42), L-39's solo half, L-181 and
+  L-198's W1 half; serves L-36 and L-190 (closed in W3), as the scope says
+  (`tasks-61-80.md:62-64`).
+
+#### Gaps found while writing this part
+
+1. The scope's `StartResult {…, startState, createdAt}` is not task 24's wire; nothing is added to
+   `work.ts` (decision 1). The skeleton's file map (`:306`) lists only `StartChip.tsx` for task 61
+   and omits `useStart.ts`, `register.ts` and the `IssueRow.tsx`/`WorkLens.tsx` edits.
+2. SW.10 has no read of *"has the agent written a file yet"* (`task-24.md:92-115`). Asking is the
+   only way the desktop learns it; a read would let the chip say it before the press.
+3. That the control plane's `projectId` and the Hub's are one value is task 24's assumption
+   (`task-24.md:256`); this task sends `head.projectId`.
+4. `details` is `map[string]string` (`control-plane/internal/httpx/problem.go:33`), so `paths`
+   travels newline-joined; task 24's part should print that encoding beside `ConfirmNeeded`.
+5. `ApiError.code` is `ProblemCode` (`desktop/src/api/client.ts:40-48`), which lists none of task
+   24's codes; the tests cast. Task 37, the owner of `work.ts`'s problem kinds, decides whether it
+   widens.
+6. Task 40's test seam is `setWorkSourceForTest(world)` in `desktop/src/work/fixtureSource.ts`,
+   one argument (`task-40.md:112`, `:304`). Parts 2 and 3 import it from `./WorkLens` with a second
+   `{me, work}` argument: at implementation they follow task 40's file and pass the fake client
+   through whatever seam task 40 or 55 names for the lens's `work` client (**UNVERIFIED**), and
+   whether the fixture world applies `setAssignee` is task 55's.
+7. Task 53's `KEYMAP`, `registerVerb` and `RowContext` had no part on the tree at this writing; the
+   verb name `issue.start` yields to task 53's.
