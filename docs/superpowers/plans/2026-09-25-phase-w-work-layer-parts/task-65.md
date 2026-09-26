@@ -901,3 +901,86 @@ export function DeskZero(props: {
   return <p className="desk-zero">{text}</p>;
 }
 ```
+
+#### Interfaces — complete: `InformRowBound`, the last block of `deskRows.tsx` ⚑
+
+The three inform kinds share one bound row. `rebrief` is one `rebriefSession` per session behind
+the head, all or a refusal; `repoint` opens task 42's `CriterionPicker` under the row, in place, and
+writes one `revise` op that swaps the drifted criterion for the chosen one.
+
+```tsx
+import { useState } from "react";
+import { CriterionPicker } from "../work/CriterionPicker";                   // task 42
+import type { BriefCriterion } from "../../work/triage/suggestCriterion";   // task 42's type; path UNVERIFIED
+import { useWork } from "../../work/replica/useWork";                       // task 55; path UNVERIFIED
+import type { DeskItem } from "./deskModel";
+import type { ChangedPayload, DriftPayload } from "../../work/desk/informs";
+
+type Picking = { p: DriftPayload; ok: (c: string | null) => void; no: (e: unknown) => void };
+
+function InformRowBound({ item }: { item: DeskItem<any> }): JSX.Element {
+  const [picking, setPicking] = useState<Picking | null>(null);
+  const issueId: string = item.payload.issueId;
+  const rec = useWork((r) => r.get(issueId));                    // { head, revision } (task 60's read)
+  const criteria: readonly BriefCriterion[] = useProjectCriteria(rec?.head.projectId); // P4-16, UNVERIFIED
+  const verbs: InformVerbs = {
+    rebrief: (p: ChangedPayload) =>
+      Promise.all(p.sessionIds.map((id) => api.rebriefSession(id, p.headKey))).then(() => undefined),
+    repoint: (p) => new Promise<string | null>((ok, no) => setPicking({ p, ok, no })),
+    markSeen: deskMarkSeen,                                       // task 64's verb, UNVERIFIED name
+    time: deskTime,
+  };
+  const choose = (c: BriefCriterion) => {
+    const pk = picking!;
+    setPicking(null);
+    if (!rec) return pk.no({ code: "not_in_replica", message: "The issue is not loaded. Open it and retry." });
+    const serves = rec.revision.content.serves.map((s) =>
+      s.briefKey === pk.p.briefKey && s.criterionId === pk.p.criterionId
+        ? { briefKey: c.briefKey, criterionId: c.criterionId } : s);
+    stood(mutate({ kind: "revise", issueId, baseRev: rec.head.headRevision, patch: { serves } }))
+      .then(() => pk.ok(c.criterionId), pk.no);
+  };
+  return (
+    <>
+      <InformRow item={item} verbs={verbs} />
+      {picking && rec && (
+        <CriterionPicker
+          issue={{ title: rec.revision.content.title.text, description: rec.revision.content.description.text }}
+          criteria={criteria} serving={rec.revision.content.serves}
+          onChoose={choose} onClose={() => { picking.ok(null); setPicking(null); }} />
+      )}
+    </>
+  );
+}
+```
+
+A `revise` against a stale `baseRev` is task 56's refusal path (`409`, the Hub's sentence on the
+row); this task adds no merge of its own. `useProjectCriteria` is the one read here that no part
+names: task 42's `TriageView` passes `criteria` to the picker from P4-16's loader, and its hook
+name is **UNVERIFIED**; this task imports whatever task 42 exports for it and adds no second read.
+
+#### Interfaces — complete: appended to `desktop/src/components/desk/desk.css` ⚑ (task 62)
+
+```css
+/* Task 65. An answered row stays in place, dimmed; nothing moves (decision 8). */
+.desk-row[data-answered] { opacity: 0.56; }
+.desk-row[data-answered] .desk-verb { visibility: hidden; }  /* the space stays: no jump */
+.desk-answer { font: var(--t-fact); color: var(--ink-2); margin: 0; }
+.desk-answer-fail { color: var(--fail); }
+/* The --fail flash: task 26's keyframes on opacity only, keyed by data-fail's seq so a
+   second refusal flashes again. */
+.desk-row[data-fail] { animation: flash-fail var(--dur-flash) var(--ease-out) 1; }
+.desk-inform-line .mono, .desk-decide-line .mono { font-family: var(--font-mono); }
+.desk-inform { border-inline-start: 2px solid transparent; }
+.desk-decide { box-shadow: var(--ring-1), var(--shadow-1); border-radius: var(--r-3); }
+.desk-zero { font: var(--t-body); color: var(--ink); margin: 0; padding-block: var(--s-2); }
+.reassign-mark { font: var(--t-fact); color: var(--ink-2); }
+@media (prefers-reduced-motion: reduce) { .desk-row[data-fail] { animation: none; } }
+```
+
+`--ink`, `--ink-2` and `--fail` exist today (`desktop/src/styles/tokens.css:45-46`, `:76`). The
+rest (`--dur-flash`, `--ease-out`, `--ring-1`, `--shadow-1`, `--r-3`, `--s-2`, `--t-body`,
+`--t-fact`, `--font-mono`, `@keyframes flash-fail`) are W1's design-language names from tasks 26
+and 33 and are **UNVERIFIED**: a grep of `desktop/src` on 2026-09-26 finds none of them. This block
+takes whatever those parts name them. The flash animates `opacity` only; no `transition: all`, no
+layout property.
