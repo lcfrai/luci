@@ -583,3 +583,127 @@ an existing issue already exists, so the insert fails on the key before it could
 **What the guards do not cover:** a comment. Mode `in` versus `in_and_comments` is a property of
 one connection, so the refusal of an integration comment in mode `in` is Go's (task 153), with
 task 153's `issue_comments` columns marking a crossed comment (`task-153.md:140-160`).
+
+#### The matrix: `server/work_matrix_rows_integration_test.go` ⚑, appended (complete)
+
+A principal can authenticate only once its owner's route task has landed (150 the tracker
+principal, 159 the app token, 160 the keys, 154 the host signature). So a `principalRow` is live
+when **both** `"145"` and its principal's owner are in `workMatrixLive` (task 07 decision 6's
+switch, `task-07.md:41-47`), and 145 lands every row dark.
+
+```go
+// principal is a W5 caller that is not one of §5.3's six columns (decision 11).
+type principal string
+
+const (
+	asIntegration principal = "integration" // a tracker connection's principal (task 150)
+	asAppForM     principal = "app_for_M"   // an approved app acting for M (task 159)
+	asPersonalKey principal = "key_M"       // M's personal key (task 160)
+	asTeamKey     principal = "key_team"    // a key scoped to the fixture's team (task 160)
+	asHost        principal = "host"        // an outside host's signed webhook (task 154)
+)
+
+// principalOwner is the task whose commit makes the principal able to call.
+var principalOwner = map[principal]string{asIntegration: "150", asAppForM: "159",
+	asPersonalKey: "160", asTeamKey: "160", asHost: "154"}
+
+// principalRow is one principal, one route, one status. H16b's sender sends it
+// with f.credential(p) (the builder below) and wants exactly want and code.
+type principalRow struct {
+	name      string
+	principal principal
+	method    string
+	path      string // H16b's placeholders, filled from the fixture as row.path is
+	body      func(*fixture) any
+	want      int
+	code      string // "" when want is 2xx
+}
+
+func move(to, cause string) func(*fixture) any {
+	return func(*fixture) any { return map[string]any{"to": to, "cause": cause, "reason": "matrix"} }
+}
+
+const pcms = "principal_cannot_move_state"
+
+// w5GuardRows are SW.3's rows for W5 (the scope's "guard rows"). The route is
+// task 10's; the fixture issue is in todo, and serves nothing.
+var w5GuardRows = []principalRow{
+	{"sync_hand_backlog", asIntegration, "POST", "/v1/issues/{issueId}/state", move("backlog", "hand"), 403, pcms},
+	{"sync_started", asIntegration, "POST", "/v1/issues/{issueId}/state", move("started", "lane_bound"), 403, pcms},
+	{"sync_done_forged", asIntegration, "POST", "/v1/issues/{issueId}/state", move("done", "evidence_observed"), 403, pcms},
+	{"sync_revision", asIntegration, "POST", "/v1/issues/{issueId}/revisions", reviseBody, 403, pcms},
+	{"sync_comment", asIntegration, "POST", "/v1/issues/{issueId}/comments", commentBody, 403, "forbidden"},
+	{"app_hand_backlog", asAppForM, "POST", "/v1/issues/{issueId}/state", move("backlog", "hand"), 200, ""},
+	{"app_started", asAppForM, "POST", "/v1/issues/{issueId}/state", move("started", "lane_bound"), 403, pcms},
+	{"app_done_by_hand", asAppForM, "POST", "/v1/issues/{issueId}/state", move("done", "hand"), 403, pcms},
+	{"key_hand_backlog", asPersonalKey, "POST", "/v1/issues/{issueId}/state", move("backlog", "hand"), 200, ""},
+	{"key_landed", asPersonalKey, "POST", "/v1/issues/{issueId}/state", move("landed", "land_trailer"), 403, pcms},
+	{"team_key_done", asTeamKey, "POST", "/v1/issues/{issueId}/state", move("done", "evidence_recorded"), 403, pcms},
+	{"person_host_cause", "", "POST", "/v1/issues/{issueId}/state", move("in_review", "outside_pr"), 403, pcms}, // M, no principal
+}
+
+func init() {
+	for _, r := range w5GuardRows {
+		if live("145") && (r.principal == "" || live(principalOwner[r.principal])) {
+			allPrincipalRows = append(allPrincipalRows, r)
+		}
+	}
+}
+
+func live(id string) bool { return slices.Contains(workMatrixLive, id) }
+```
+
+`reviseBody` and `commentBody` are task 07's W1 row bodies (the smallest valid revision and
+comment, **UNVERIFIED** names). `allPrincipalRows` is new beside H16b's `allRows`, run by one new
+loop in H16b's file (⚑ below); the host principal has no `/v1` row here because a host never
+calls `/v1`: task 154 appends its `/hooks/…` rows to `w5GuardRows`' sibling slice.
+
+#### `server/matrix_integration_test.go` ⚑ (H16b), additive only (complete)
+
+H16b's `fixture` takes fields *"added by later tasks, never renamed"* (task 07's reading of H16b
+`:45`, **UNVERIFIED** until H16b's file is on this branch). The additions:
+
+```go
+// fixture, W5 fields (task 145). Seeded as hub_owner, not through routes, so
+// they exist before tasks 150, 159 and 160 register theirs.
+W5Connection string // a tc- row in the fixture's project, mode in
+W5AppID      string // an oa- row, approved, acting for M
+W5KeyM       string // M's personal key, the secret as issued (hashed in the row)
+W5KeyTeam    string // a key scoped to the fixture's team
+W5HostSecret string // the fixture project's GitHub hook secret, for task 154's signature
+
+// credential is how a principal row authenticates. Each case names the task
+// whose middleware reads it; until that task is live its rows never run.
+func (f *fixture) credential(p principal) (header, value string) {
+	switch p {
+	case asIntegration:
+		return "Authorization", "Bearer " + f.syncToken(f.W5Connection) // task 150's principal token
+	case asAppForM:
+		return "Authorization", "Bearer " + f.idp.AppToken(f.W5AppID, f.MemberOID) // task 159: azp + oid
+	case asPersonalKey:
+		return "Authorization", "Bearer " + f.W5KeyM // task 160's key form
+	case asTeamKey:
+		return "Authorization", "Bearer " + f.W5KeyTeam
+	}
+	return "Authorization", "Bearer " + f.MemberToken // "" is M, the person
+}
+```
+
+The builder gains one call, `buildW5Fixture(t, f)`, after task 07's `buildWorkFixture`. It inserts
+the four rows as `hub_owner` and gives **each principal row a fresh issue in `todo`**
+(`f.freshIssue(t)`), so a row that moves its issue never moves the next row's. The runner is one
+loop beside H16b's, over `allPrincipalRows`, sending `f.credential(r.principal)` and asserting
+`want` and, when set, the problem `code`. `syncToken`, `idp.AppToken`, `MemberOID` and
+`MemberToken` are the owner tasks' and H16b's names, all **UNVERIFIED**; each owner binds its own
+case when it goes live.
+
+#### `migrate/work_guards_integration_test.go` ⚑ (task 07): the one clause that flips
+
+```go
+// TestAnIntegrationNeverWritesAFact, last clause (task-07.md:510): was "integration and
+// hand → ok for backlog"; W5 refuses every state write by an integration (task 145 decision 4).
+wantRaise(t, asIntegration(tx), "UPDATE issues SET state = 'backlog' WHERE id = $1", "principal_cannot_move_state")
+```
+
+`asIntegration` sets `hub.work_actor_kind = 'integration'` **and** `hub.work_sync_connection`
+(decision 8); `wantRaise` is task 07's helper shape (**UNVERIFIED** name).
