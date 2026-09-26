@@ -118,6 +118,16 @@ func TestExecRefusesALaneDir(t *testing.T) {
 	} else {
 		t.Logf("no symlink here (%v): the ancestor-link row runs where one can be made", err)
 	}
+	// A link to the lane itself, not to the root: no ancestor of the spelled path is LaneRoot's
+	// directory, so only the EvalSymlinks form shows it lies under the root (fix round 1: the
+	// M6-noEvalSymlinks mutant survived every row above).
+	linkL := filepath.Join(t.TempDir(), "k")
+	if err := os.Symlink(l, linkL); err == nil {
+		rows["Dir <link to L>"] = project(linkL, gitx.Read, "status")
+		rows["--git-dir <link to L>/.git"] = project(r.Dir, gitx.Read, "status", "--git-dir="+filepath.Join(linkL, ".git"))
+	} else {
+		t.Logf("no symlink here (%v): the lane-link row runs where one can be made", err)
+	}
 	for _, k := range []string{"GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR", "GIT_OBJECT_DIRECTORY"} {
 		c := project(r.Dir, gitx.Read, "status")
 		c.Env = map[string]string{k: filepath.Join(l, ".git")}
