@@ -327,7 +327,8 @@ func CriterionDigest(text string) string {
 //     names a ref that is gone, or an unrelated branch that took the name
 //     (R2-M1). That ref is the brief's live BriefHead.BranchRef, which
 //     /v1/refs does not carry, so task 07 reads it with List (its rule 8,
-//     ask HA4-13), and passes "" for an archived brief or a failed read.
+//     ask HA4-13). It passes "" for an archived brief, and takes no reading
+//     for a key whose binding that read could not get: unknown is not open.
 //
 // Its rules (S4-P3.4):
 //  1. ONE eval call per key, with every criterion of the done section in

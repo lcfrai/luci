@@ -256,7 +256,8 @@ func Build(key string, src Source, head Head) (Ref, error)
 //     names a ref that is gone, or an unrelated branch that took the name
 //     (R2-M1). That ref is the brief's live BriefHead.BranchRef, which
 //     /v1/refs does not carry, so task 07 reads it with List (its rule 8,
-//     ask HA4-13), and passes "" for an archived brief or a failed read.
+//     ask HA4-13). It passes "" for an archived brief, and takes no reading
+//     for a key whose binding that read could not get: unknown is not open.
 //
 // Its rules (S4-P3.4):
 //  1. ONE eval call per key, with every criterion of the done section in
@@ -432,11 +433,16 @@ above and in a test):
      do not carry it, §7.5 `:829`). **Fix round 1 (review I1)** wrote where it comes from, which
      this bullet left open while task 07 still said "at most two Hub calls", both `/v1/refs`:
      task 07's rule 8 reads it with `List`, once per Hub project, only when `Config.Evaluate`
-     is set, and gives `""` to an archived brief or a failed read. Ask HA4-13 (plan §9) puts
-     `branchRef` on `heads`. Task 07 has the row that kills `at = src.Revision.BranchRef`
-     (`TestResolveEvaluatesABranchKeyWhereItsBriefIsBoundNow`);
+     is set, and gives `""` to an archived brief. **Fix round 2 (re-review 1 R1-I1):** a
+     failed read, on any page, gives no `states` entry at all, since "binding unknown" sent
+     as `open` overwrote the desktop's `settled` for a whole outage (task 07 rule 8, task 12
+     rule 4). Ask HA4-13 (plan §9) puts `branchRef` on `heads`. Task 07 has the row that kills
+     `at = src.Revision.BranchRef` (`TestResolveEvaluatesABranchKeyWhereItsBriefIsBoundNow`);
    - task 16 must store a head reading's states by target, not by key, since one project key
-     inherited by two branches has two sets (plan S4-P3.4, amended);
+     inherited by two branches has two sets (plan S4-P3.4, amended). This carry sat only here
+     and in the plan row until **fix round 2**, which wrote it into task 16
+     (`criterionStatesByTarget`, `selectHeadCriterionStates`, two rows) and task 17
+     (`DefinitionOfDone` reads it);
    - phase 3's cross-phase ask gains two items (the adapter section above).
 3. **`Readings` edges.** With no criteria there is no call and the result is `[]`. Where `Build`
    would refuse the source, the result is `[]` with no call. A verdict state outside `open`,
