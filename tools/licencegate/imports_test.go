@@ -183,8 +183,8 @@ func TestShippedImports_cssAndURLForms(t *testing.T) {
 	}
 	want := map[string]string{
 		"https://fonts.example.com/css2?family=Inter": "src/a.css",
-		"pkgcss": "src/a.css", "deeppkg": "src/theme.css", "tokpkg": "src/tokens.css", "helperpkg": "src/test/helper.css",
-		"open-props": "src/a.css",
+		"pkgcss": "src/a.css", "open-props": "src/a.css", "deeppkg": "src/theme.css", "tokpkg": "src/tokens.css",
+		"helperpkg":                   "src/test/helper.css",
 		"https://esm.sh/tldraw@3.0.0": "src/remote.ts", "react": "src/remote.ts",
 	}
 	if !reflect.DeepEqual(got, want) {
