@@ -728,3 +728,64 @@ The composer's accessible name comes from task 51's `label` prop (`task-51.md:26
 labels the editor another way, the query follows it. The `EP-167` row serves `c-91e2a4b0` only if
 task 20's `head(167, …)` revision serves it; if not, the test builds that revision with
 `makeIssueRevision` (**UNVERIFIED**, `task-20.md:299-320`).
+
+#### Steps
+
+- [ ] Write `peek.test.ts`; it fails to import `./peek`. Write `peek.ts` until the seven pass.
+      Mutants, one at a time, then revert: test the session before the land commit (test 1); match
+      any session in the project instead of `issueRef` (test 2); treat `assignee === null` as
+      someone else's (test 3); drop the zero-time guard in `spanFacts` (test 4); sort
+      `mySessionsOn` by `updatedAt` (test 7).
+- [ ] Write `Peek.test.tsx` part 2; it fails to import `./Peek`. Write `usePeekController` until the
+      six key tests pass. Mutants: close on every `keyup` (test 1); call `scrollIntoView` in the
+      arrow branch (test 3); call `mutate` or `hold.apply` on open (test 5); bind on `document`
+      instead of the list's `onKeyDown` (test 6).
+- [ ] Write `Peek`, its issue, span and hunk bodies, and `PeekPerson.tsx`; append the `.pk-*` CSS.
+- [ ] Write part 3 of the tests. Mutants: render `c-91e2` in `IssueRow` (test 1); import
+      `useCockpit` into `PeekPerson.tsx` (test 2); add `transition: height` to `.pk` (test 6).
+- [ ] Make the three edits (`WorkLens.tsx`, `IssueRow.tsx`, `BoardView.tsx`). Tasks 40, 41, 43 and
+      53's suites still pass.
+- [ ] Commit each file as it goes green. Paste the recorded `budget.peek` line into the commit
+      message of `Peek.tsx`, as a measurement with its machine named, not as a pass.
+
+#### Acceptance
+
+```bash
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop test -- src/work/peek.test.ts src/components/work/Peek.test.tsx'
+# expected: 2 files, 20 tests, all passing (7 pure, 6 keys, 7 surfaces), and one line
+# "budget.peek first paint: <n> ms" in the output: a record, not a verdict
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop test'
+# expected: every suite passing, tasks 40, 41, 43, 48, 51, 53 and 55 included
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop run typecheck'
+# expected: exit 0
+~/.claude/tools/claudezsh/claudezsh 'grep -nE "attachRegistry|@xterm|TerminalPane|setInterval|useCockpit" desktop/src/components/work/PeekPerson.tsx'
+# expected: no output (decision 7; the source test holds it too, a review still reads the file)
+~/.claude/tools/claudezsh/claudezsh 'grep -nE "setInterval|scrollIntoView|scrollTop *=" desktop/src/components/work/Peek.tsx'
+# expected: no output (decisions 2 and 4)
+```
+
+#### What this task does NOT claim
+
+- **02 C9's twelve transcript lines around a span**: they need a harness transcript read through
+  `OD-8`'s pinned adapter (L-185, W3). No W1 source satisfies `OD-8`, so `peek.span` shows only
+  session-record facts.
+- **The lane event and the files observed in `peek.span`**, and any hunk in `peek.hunk`: both wait
+  for phase 3's lane and diff records (**UNVERIFIED until merge**, rule H2). Before then the peek
+  says so in place.
+- **Leases in `peek.person`** (W3), and any fact about a teammate beyond her issues' heads.
+- **Create an issue from a span or hunk**: task 68.
+- **`budget.peek ≤ 100 ms` as met**: the test records the time on the machine that ran it.
+- **Visual acceptance**: the owner's eyes (CLAUDE.md, working agreements); this part proves the
+  structure, the keys and the CSS properties, not the look.
+- **Parity**: closes L-108's W1 part (row 108, `05-design.md:242`).
+
+#### Gaps found while writing this part
+
+1. The skeleton's file map (`:306`) lists `Peek.tsx` for task 60 but omits `src/work/peek.ts`,
+   `PeekPerson.tsx` and the edits to `WorkLens.tsx`, `IssueRow.tsx` and `BoardView.tsx`.
+2. Task 37's `IssueHead` has no `title` (`task-37.md:121-128`; task 58's gap 2); `Peek` takes
+   `titleOf` until task 37 declares it.
+3. `isListKeyTarget` and `setWorkSourceForTest` are task 53's and task 55's scope words; their parts
+   were not on the tree at this writing, and they win any disagreement.
+4. `useWork`'s selection equality (task 55's scope, `tasks-41-60.md:483`) is not yet a named
+   helper; `PeekPerson` memoises on `r.cursor` until task 55's part names one.
