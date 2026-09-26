@@ -480,3 +480,331 @@ export function keepSubmenu(from: Pt, to: Pt, sub: Box, parent: Box): boolean {
   return insideSub || inTriangle(to, ...aimTriangle(from, sub, parent));
 }
 ```
+
+#### Interfaces — complete: `desktop/src/components/common/Submenu.tsx`
+
+```tsx
+// Submenu.tsx — task 54. The one way a menu item opens a nested menu. The parent menu owns
+// `openId`; each item reports pointer moves, and keepSubmenu decides with no timer.
+import { useRef, type ReactNode } from "react";
+import { keepSubmenu, type Box, type Pt } from "./menuAim";
+
+export interface SubmenuHost {
+  openId: string | null;
+  setOpenId(id: string | null): void;
+}
+
+const box = (el: Element | null): Box | null => {
+  if (!el) return null;
+  const r = el.getBoundingClientRect();
+  return { left: r.left, right: r.right, top: r.top, bottom: r.bottom };
+};
+
+/** Returns the onPointerMove each sibling item of the parent menu spreads. */
+export function useMenuAim(host: SubmenuHost, parent: () => Element | null, sub: () => Element | null) {
+  const last = useRef<Pt | null>(null);
+  return (itemId: string, hasSubmenu: boolean) => (e: { clientX: number; clientY: number }) => {
+    const to = { x: e.clientX, y: e.clientY };
+    const from = last.current;
+    last.current = to;
+    if (host.openId === itemId) return;
+    const s = box(sub()), p = box(parent());
+    if (host.openId !== null && from !== null && s !== null && p !== null && keepSubmenu(from, to, s, p)) return;
+    host.setOpenId(hasSubmenu ? itemId : null);
+  };
+}
+
+export function SubmenuItem(props: {
+  id: string; label: string; host: SubmenuHost; aim: ReturnType<typeof useMenuAim>; children: ReactNode;
+}): JSX.Element {
+  const open = props.host.openId === props.id;
+  return (
+    <div role="menuitem" aria-haspopup="menu" aria-expanded={open} className="menu-item"
+      onPointerMove={props.aim(props.id, true)}
+      onKeyDown={(e) => { if (e.key === "ArrowRight") { e.preventDefault(); props.host.setOpenId(props.id); } }}>
+      {props.label} <span aria-hidden="true">▸</span>
+      {open ? <div role="menu" className="menu-sub" data-submenu={props.id}>{props.children}</div> : null}
+    </div>
+  );
+}
+```
+
+`ArrowRight` opens a submenu from the keyboard; `ArrowLeft` and `Esc` inside it close it (the
+parent menu's own handler, on task 18's `useDismissable` for `Esc`). The `▸` is U+25B8, the
+Geometric Shapes glyph the palette already uses (`commands.ts` `GLYPH`), not a new vocabulary.
+
+#### Interfaces — complete: chords in menus (tasks 44 and 46)
+
+```tsx
+// Picker.tsx (task 46): one optional prop; the heading prints the chord that opened it.
+  verb?: VerbId;
+  // in the heading:  <span className="pk-label">{label}</span> <Kbd chord={verb ? chordFor(verb) : null} />
+
+// IssueHead.tsx (task 46): each of the four field buttons, e.g. state:
+const STATE_VERB: Readonly<Record<Field, VerbId>> =
+  { state: "issue.state", priority: "issue.priority", assignee: "issue.assign", labels: "issue.label" };
+  <button {...btn("state")} aria-keyshortcuts={chordFor(STATE_VERB.state) ?? undefined} …>
+    … <Kbd chord={chordFor(STATE_VERB.state)} />
+  </button>
+// and each picker it opens gets verb={STATE_VERB[open.field]}.
+
+// BulkBar.tsx (task 44): each action button with a verb prints it the same way:
+  // State → issue.state, Priority → issue.priority, Assignee → issue.assign, Labels → issue.label,
+  // Criterion → issue.criterion, Start N worktrees → issue.start. Cancel has no key and prints none.
+```
+
+`aria-keyshortcuts` takes the WAI-ARIA form: `chordFor` output with `⇧` read back as `Shift+`
+(`Shift+R`), done by a two-line `ariaKeys(chord)` beside `printKey`. A chord that is `null` sets
+no attribute, so a verb whose key is off in this slice announces nothing false.
+
+#### Interfaces — complete: the `relation` field in `WorkLens.tsx` (tasks 40, 53)
+
+```tsx
+// Task 53's row-picker state widens by one field and one argument:
+type RowField = "state" | "priority" | "assignee" | "labels" | "relation";
+const [open, setOpen] = useState<{ field: RowField; issueId: string; at: DOMRect; kind?: AddKind } | null>(null);
+useVerb("issue.relate", (row, arg) => {
+  if (row.issueId === null || row.element === null || !ADD_ORDER.includes(arg as AddKind)) return;
+  setOpen({ field: "relation", issueId: row.issueId, at: row.element.getBoundingClientRect(), kind: arg as AddKind });
+});
+// inside the one Popover:
+{open?.field === "relation" && open.kind
+  ? <OtherIssuePicker subject={open.issueId} kind={open.kind} onClose={close} /> : null}
+```
+
+`OtherIssuePicker` (task 48, `task-48.md:298-306`) is exported unchanged. Its heading already
+reads *blocked by which issue* from `RELATION_LABEL`, so `M B` opens with the kind chosen and
+visible; choosing an issue sends task 48's `relationOp`, which writes `blocked_by` as the other
+issue's `blocks` (`task-48.md:217-222`).
+
+#### Tests to write first, part 1 — `desktop/src/work/keys/sequences.test.ts`
+
+The fixture is task 53's (`keymap.test.ts`: a `[data-work-list]` with rows `i1` (cursor) and `i2`,
+a field inside it, a terminal host outside). `beforeEach` calls `resetVerbsForTest()`,
+`__resetSequencesForTest()`, sets `singleKeyShortcuts: true` and installs a clock:
+`let t = 0; __setSeqClockForTest(() => t)`. `press(target, key)` is task 53's `key()` fed to
+`dispatchListKey`.
+
+```ts
+it("G then P runs go.plan; the same keys in a field do nothing", () => {
+  const ran: string[] = [];
+  registerVerb("go.plan", () => ran.push("plan"));
+  press(row("i1"), "g"); t += 300; press(row("i1"), "p");
+  press(listInput, "g"); press(listInput, "p");
+  expect(ran).toEqual(["plan"]);
+});
+// kills: sequences judged outside list focus (a document-level G).
+
+it("G, a wait past the window, then P runs nothing and P is the priority key again", () => {
+  const ran: string[] = [];
+  registerVerb("go.plan", () => ran.push("plan"));
+  registerVerb("issue.priority", () => ran.push("priority"));
+  press(row("i1"), "g"); t += SEQ_WINDOW_MS + 1; press(row("i1"), "p");
+  expect(ran).toEqual(["priority"]);
+});
+// kills: an unbounded pending prefix.
+
+it("G V and G O do nothing in W1 and nothing is prevented on the second key", () => {
+  registerVerb("go.cycle", () => { throw new Error("cycle"); });
+  registerVerb("go.orchestrator", () => { throw new Error("orchestrator"); });
+  for (const k of ["v", "o"]) {
+    press(row("i1"), "g");
+    expect(press(row("i1"), k).defaultPrevented).toBe(false);
+  }
+});
+// kills: an inert slice's sequence that runs.
+
+it("M B opens the relation picker on blocked_by for the current row", () => {
+  const got: [string | null, string | undefined][] = [];
+  registerVerb("issue.relate", (r, arg) => got.push([r.issueId, arg]));
+  press(row("i2"), "m"); press(row("i2"), "b");
+  press(list, "m"); press(list, "d");                        // the cursor row, i1
+  expect(got).toEqual([["i2", "blocked_by"], ["i1", "duplicates"]]);
+});
+// kills: the wrong relation kind, and an argument dropped between the table and the runner.
+
+it("O I reaches a stub issue.openByNumber", () => {
+  const stub = vi.fn();
+  registerVerb("issue.openByNumber", stub);
+  press(list, "o"); press(list, "i");
+  expect(stub).toHaveBeenCalledTimes(1);
+});
+// kills: an unrouted verb.
+
+it("an unknown second key, Esc or a Shift key drops the prefix and runs nothing", () => {
+  const ran: string[] = [];
+  registerVerb("issue.state", () => ran.push("state"));
+  registerVerb("issue.start", () => ran.push("start"));
+  registerVerb("go.plan", () => ran.push("plan"));
+  press(row("i1"), "g"); press(row("i1"), "s");             // consumed, not the state key
+  press(row("i1"), "g"); press(row("i1"), "Escape"); press(row("i1"), "p");
+  press(row("i1"), "g"); dispatchListKey(key(row("i1"), { key: "R", code: "KeyR", shiftKey: true }));
+  expect(ran).toEqual([]);
+});
+// kills: an unknown key re-read as a single key, and Shift+R starting an agent mid-sequence.
+
+it("with the switch off, G then P does nothing", () => {
+  useCockpit.setState({ singleKeyShortcuts: false });
+  registerVerb("go.plan", () => { throw new Error("plan"); });
+  press(list, "g"); press(list, "p");
+});
+// kills: a switch that turns single keys off and leaves sequences on (WCAG 2.1.4).
+```
+
+In the unknown-key case, the lone `P` after `Escape` is the priority key, which that case does
+not register, so `ran` stays empty only if `Escape` really dropped the prefix: a kept prefix
+would have run `go.plan`.
+
+#### Tests to write first, part 2 — the sheet, the chords and the triangle
+
+```ts
+// ShortcutSheet.test.tsx
+it("the sheet's rows are exactly KEYMAP's and SEQUENCES' active rows", () => {
+  const shown = sheetModel(true).groups.flatMap((g) => g.rows.map((r) => r.label)).sort();
+  const expected = [
+    ...KEYMAP.filter((b) => ACTIVE_SLICES.has(b.slice)).map((b) => b.label),
+    ...SEQUENCES.filter((b) => ACTIVE_SLICES.has(b.slice)).map((b) => b.label),
+  ].sort();
+  expect(shown).toEqual(expected);
+  expect(shown).not.toContain("Go to the current cycle");     // G V, W2
+  expect(shown).not.toContain("Delegate to my Orchestrator"); // Shift+O, W3
+});
+// kills: a hand-written sheet that drifts, and one that lists inert keys.
+
+it("names the five dead chords with ours, the Space line and the switch's state", () => {
+  render(<ShortcutSheet model={sheetModel(false)} onClose={() => {}} />);
+  expect(screen.getAllByText(/^Linear:/)).toHaveLength(5);
+  expect(document.querySelector('[data-dead="⇧S"]')?.textContent).toMatch(/Subscribe in the palette/);
+  expect(screen.getByText(/peeks/)).toBeTruthy();
+  expect(screen.getByText(/Single-key shortcuts are off/)).toBeTruthy();
+});
+// kills: a sheet that hides the departures (rule 3), and one that lies about the switch.
+
+it("? opens the sheet from a list and Esc closes it", async () => {
+  render(<><ShortcutSheetMount /><div data-work-list="" tabIndex={0} data-key-scope="list" /></>);
+  renderHook(() => useKeyboardMap());
+  pressOn(document.querySelector("[data-work-list]")!, "?", { shiftKey: true });
+  expect(await screen.findByRole("dialog", { name: "Keyboard shortcuts" })).toBeTruthy();
+  pressOn(document.activeElement ?? document.body, "Escape");
+  expect(screen.queryByRole("dialog")).toBeNull();
+});
+// kills: keys.sheet bound and never registered.
+```
+
+```ts
+// sequences.test.ts, continued: chordFor.
+it("chordFor prints one form: S, ⇧R, G P, and null for an inert verb", () => {
+  expect([chordFor("issue.state"), chordFor("issue.start"), chordFor("go.plan"),
+    chordFor("issue.relate", "blocks"), chordFor("row.ask")]).toEqual(["S", "⇧R", "G P", "M X", null]);
+});
+// kills: a second printed form, and a hint for a W3 key.
+
+// ShortcutSheet.test.tsx, continued: a menu that follows chordFor (tsx, for the render).
+it("a menu item shows the new chord after its binding changes in KEYMAP", () => {
+  __setKeymapForTest(KEYMAP.map((b) => (b.verb === "issue.state" ? { ...b, keys: ["W"] } : b)));
+  render(<IssueHead {...headProps} />);
+  const btn = screen.getByRole("button", { name: /^State:/ });
+  expect(btn.getAttribute("aria-keyshortcuts")).toBe("W");
+  expect(btn.querySelector("kbd")?.textContent).toBe("W");
+  __setKeymapForTest(null);
+});
+// kills: a hard-coded hint in a menu.
+```
+
+```ts
+// menuAim.test.ts — pure geometry: parent [0,200]×[0,300], submenu [200,400]×[40,240].
+const parent = { left: 0, right: 200, top: 0, bottom: 300 };
+const sub = { left: 200, right: 400, top: 40, bottom: 240 };
+it("a path toward the submenu across a sibling keeps it; a path away switches at once", () => {
+  const from = { x: 150, y: 60 };
+  expect(keepSubmenu(from, { x: 180, y: 100 }, sub, parent)).toBe(true);   // over a sibling, inside
+  expect(keepSubmenu(from, { x: 150, y: 120 }, sub, parent)).toBe(false);  // straight down, outside
+});
+// kills: a sticky submenu, and a triangle drawn the wrong way round.
+
+// Submenu.test.tsx
+it("Submenu keeps the open submenu across a sibling with no timer advanced", () => {
+  vi.useFakeTimers();
+  const { getByText } = render(<AimHarness />);           // two items, "Group ▸" open, then "Order"
+  fireEvent.pointerMove(getByText("Group"), { clientX: 150, clientY: 60 });
+  fireEvent.pointerMove(getByText("Order"), { clientX: 180, clientY: 100 });
+  expect(document.querySelector('[data-submenu="group"]')).not.toBeNull();
+  fireEvent.pointerMove(getByText("Order"), { clientX: 150, clientY: 130 });
+  expect(document.querySelector('[data-submenu="group"]')).toBeNull();
+  expect(vi.getTimerCount()).toBe(0);
+  vi.useRealTimers();
+});
+// kills: a hover-timeout menu (any timer at all fails the count).
+```
+
+`AimHarness` is test-only: a parent menu of two `SubmenuItem`s whose boxes are stubbed through
+`getBoundingClientRect` to the numbers above (jsdom lays nothing out). `pressOn` is
+`useKeyboardMap.test.ts`'s helper (`:68-72`), copied into the sheet test's scope.
+
+A `tokens.test.ts` case reads `--seq-window` from `tokens.css` as text and expects
+`${SEQ_WINDOW_MS}ms`. **Kills:** a hint that fades on a different clock from the keys.
+
+#### Steps
+
+- [ ] **Step 1: read on the sync base** task 53's merged `keymap.ts`, tasks 44-48's merged
+      `BulkBar.tsx`, `Picker.tsx`, `IssueHead.tsx`, `PlanSurface.tsx`, `workSlice.ts` and
+      `Relations.tsx`, task 31's `ViewHeader.tsx` and `AppShell.tsx`; correct any name above
+      that the merged files spell differently (theirs win).
+- [ ] **Step 2: write the tests** of both parts and the `tokens.test.ts` case; run them and see
+      each fail for its stated reason.
+- [ ] **Step 3: write `sequences.ts`** and the `keymap.ts` deltas (the `VerbId`s, `arg`, the one
+      line); the sequence and `chordFor` cases pass, and task 53's suite stays green.
+- [ ] **Step 4: write `goVerbs.ts`, the `planSection` delta, `Kbd.tsx`, the `ViewHeader` line and
+      the CSS**, then `AppShell`'s two mounts and its project picker.
+- [ ] **Step 5: write `ShortcutSheet.tsx`**; the sheet cases pass.
+- [ ] **Step 6: write `menuAim.ts` and `Submenu.tsx`**; the geometry and harness cases pass.
+- [ ] **Step 7: the chord deltas** on `Picker.tsx`, `IssueHead.tsx`, `BulkBar.tsx`, the `relation`
+      field in `WorkLens.tsx` and the `export` on `OtherIssuePicker`; every suite of tasks 40-48
+      passes unchanged.
+- [ ] **Step 8: commit** with `git add` on the new files and `git commit -F <msg> -- <paths>`.
+
+#### Acceptance
+
+```bash
+npm --prefix desktop test -- sequences ShortcutSheet menuAim Submenu
+# expected: 4 files, 14 tests, all passing
+npm --prefix desktop test -- keymap tokens work issue
+# expected: every suite passing; keymap.cycle.test.ts has 3 cases
+npm --prefix desktop run typecheck
+# expected: exit 0
+git grep -nE "setTimeout|setInterval" -- desktop/src/work/keys desktop/src/components/common/menuAim.ts desktop/src/components/common/Submenu.tsx
+# expected: no output (the window is a timestamp; the triangle is geometry)
+git grep -nE "\"(G|O|M) [A-Z]\"" -- desktop/src/components ':!*.test.*'
+# expected: no output (no component spells a sequence; each reads chordFor)
+```
+
+The count: 8 in `sequences.test.ts` (7 in part 1, `chordFor` in part 2), 4 in
+`ShortcutSheet.test.tsx` (3 on the sheet, the menu drift), 1 geometry case in `menuAim.test.ts`
+and 1 harness case in `Submenu.test.tsx`: 14.
+
+#### What this task does NOT claim
+
+- Open by number itself (task 58), the Desk (task 62) and *my Orchestrator* (W3): `G I` and
+  `O I` reach verbs those tasks register; `G O` is inert until W3.
+- `G V`, `O C` and `O F` (W2's cycles and favourites): rows present, inert, and not on the sheet.
+- The palette's hints and prefixes (task 59), which read `chordFor` from here.
+- That any W1 menu has a submenu. The triangle is built and tested on a harness; no shipped menu
+  uses it yet (gap 2).
+- That 1200 ms is the right window, or that the hint's fade reads well: both are the owner's eyes.
+- That the `linear` column of `SEQUENCES` is right: 01 §15.1 is partly **UNVERIFIED**.
+
+#### Gaps found while writing this part
+
+1. **File map omissions** (row 309): `goVerbs.ts`, `menuAim.ts`, `Submenu.tsx`, `Kbd.tsx`, the
+   `--seq-window` token, and the ⚑ edits to `ViewHeader.tsx`, `AppShell.tsx`, `workSlice.ts`,
+   `PlanSurface.tsx`, `Relations.tsx`, `Picker.tsx`, `IssueHead.tsx` and `BulkBar.tsx`.
+2. **L-227 has no consumer menu.** No part on this tree builds a submenu; a grep of the parts for
+   `submenu` finds none. The owner may want the issue row's context menu (Linear's natural home
+   for a submenu) as its own task; no row in the skeleton builds a row context menu.
+3. **`go.desk` depends on task 62's `Lens` `"desk"`** (`task-62.md:101`), while task 45 wrote
+   `surface` gaining `"desk"` (`task-45.md:31`). The two parts disagree on where the Desk lives;
+   this part follows task 62 and leaves `go.desk` to it.
+4. **`OtherIssuePicker` becomes exported** from task 48's `Relations.tsx`, which that part did not
+   foresee.
+5. **The project picker on `O P`** is small UI with no design in 05 beyond *open a project*; it
+   reuses task 46's `Picker` and the rail's `selectProject`, and the owner reviews its placement.
