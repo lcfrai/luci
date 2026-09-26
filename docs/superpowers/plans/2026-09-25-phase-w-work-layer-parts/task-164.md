@@ -245,3 +245,69 @@ type Args struct {
 	BriefID                                                            *string
 }
 ```
+
+**How each answer maps**, in `Create`:
+
+| Call | Answer | Result |
+|---|---|---|
+| `GET …/freezes` | 200, an item for `environment` | `*Refusal` code `deploy_frozen` (the CLI's, status 0: the Hub said 200), task 131's sentence; nothing reserved |
+| `GET …/freezes` | 404 whose code is not `project_not_found` (the route is not yet on this Hub, task 131's gap 1) | one stderr line *"freeze control not available on this Hub"*, then reserve (task 131 decision 5: no record, nothing frozen) |
+| any | 401, 403, 404, 409, 422 | `*Refusal`, the Hub's `code` and `detail`; no retry |
+| any | a connection error, 429, 5xx | decision 6's retries, the same `Idempotency-Key`; then `*Unreachable` |
+| reserve | 201, or 200 with `Idempotent-Replay: true` | confirm next, with the confirm key |
+| confirm | 200 `confirmed` | `Output`, exit 0 |
+
+That 404 arm is the one place the CLI proceeds past a failed read, and it is **deliberate and
+temporary**: it mirrors task 131's *nothing is frozen until the record exists*, and the step that
+lands task 131's gap 1 deletes it (Step 1 checks). Which problem code the Hub's router gives an
+unknown path is **UNVERIFIED**.
+
+#### The Azure Pipelines task — `integrations/azure-pipelines-task/`
+
+```jsonc
+// task.json (complete; the id is fixed once, at Step 5, and never changes after)
+{ "id": "<a GUID minted at Step 5>", "name": "PanaceaRelease", "friendlyName": "Panacea release",
+  "description": "Record the release this pipeline made on the Panacea thread.",
+  "category": "Deploy", "author": "Panacea", "version": { "Major": 1, "Minor": 0, "Patch": 0 },
+  "instanceNameFormat": "Panacea release: $(environment)",
+  "inputs": [
+    { "name": "project", "type": "string", "label": "Panacea project id (pj-…)", "required": true },
+    { "name": "environment", "type": "string", "label": "Environment", "required": true },
+    { "name": "panaceaProject", "type": "string", "label": "Deploy project name", "required": true },
+    { "name": "hubUrl", "type": "string", "label": "Hub URL", "required": true },
+    { "name": "apiKeyVariable", "type": "string", "label": "Secret variable holding the key",
+      "defaultValue": "PANACEA_API_KEY", "required": true },
+    { "name": "brief", "type": "string", "label": "Brief id (bf-…)", "required": false } ],
+  "execution": { "Node20_1": { "target": "index.js" } } }
+```
+
+```js
+// index.js (complete in shape). azure-pipelines-task-lib is MIT; the only dependency.
+const tl = require("azure-pipelines-task-lib/task");
+const PIN = { version: "<set at Step 5>", base: "<the artefact host, gap 5>",
+  sha256: { "linux-x64": "<hex>", "linux-arm64": "<hex>", "win32-x64": "<hex>" } };
+
+async function run() {
+  const key = tl.getVariable(tl.getInput("apiKeyVariable", true)); // a secret: masked in logs
+  if (!key) return tl.setResult(tl.TaskResult.Failed, "the secret variable is empty or unset");
+  const bin = await fetchPinned(PIN);            // download, SHA-256, refuse on mismatch
+  const code = await tl.execAsync(bin, ["create",
+    "--project", tl.getInput("project", true), "--environment", tl.getInput("environment", true),
+    "--panacea-project", tl.getInput("panaceaProject", true),
+    "--commit", tl.getVariable("Build.SourceVersion"), "--source", "ado",
+    "--pipeline-run", tl.getVariable("Build.BuildId"),
+    ...(/^refs\/heads\//.test(tl.getVariable("Build.SourceBranch") || "")  // a PR merge ref sends none
+      ? ["--branch", tl.getVariable("Build.SourceBranch")] : []),
+    ...(tl.getInput("brief") ? ["--brief", tl.getInput("brief")] : [])],
+    { env: { ...process.env, PANACEA_HUB_URL: tl.getInput("hubUrl", true), PANACEA_API_KEY: key },
+      ignoreReturnCode: true });
+  tl.setResult(code === 0 ? tl.TaskResult.Succeeded : tl.TaskResult.Failed, `exit ${code}`);
+}
+run();
+```
+
+`fetchPinned` picks the asset for `process.platform`-`process.arch`, refuses any other pair,
+downloads to the agent's temp directory, and compares SHA-256 before `chmod 755`; a mismatch fails
+the step and runs nothing. That `tl.getVariable` returns a secret variable to a task, and that
+`execAsync` takes `env`, are the library's documented behaviour as remembered, **UNVERIFIED**
+against its current release (Step 5 checks).
