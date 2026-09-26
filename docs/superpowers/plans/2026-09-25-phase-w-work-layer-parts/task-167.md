@@ -594,3 +594,66 @@ for _, t := range cfg.Sentinel {
 (`EntraPassword(w, …)` becomes `EntraToken(w, w.TenantID, DatabaseScope, …)`, byte-identical in
 behaviour, gap 3); its `fresh` argument skips the cache. `OrgForTenant` and `sleepCtx` are the
 two small helpers this wiring needs (**UNVERIFIED** whether H08 or H24 already has either).
+
+The stamp's integration test is `TestAppAndKeyWritesCarryVia`.
+
+#### Steps
+
+- [ ] **Step 1:** Confirm the sync base (rule H1): H27's `store/auditread.go` and `hub verify`
+  rules; H14's `Tx.Emit`; H08's `EntraPassword` and `Config`; task 143's `ActorKind`; tasks
+  159-160's settings. Check `APIVersion`, `MonitorScope` and the `Custom-` prefix against
+  Microsoft's current Logs Ingestion API page and record the date read in the commit; a
+  difference changes the constants, not the design. If task 145 lacks `work_sentinel_cursors`,
+  raise it against 145 (gap 2); this task waits.
+- [ ] **Step 2:** `work_actor_test.go`; it fails to compile. `work_actor.go` until its six rows
+  pass. TM-03's `Via`/`DelegationID` are absent until Phase T merges: until then the Fleet row is
+  skipped with `t.Skip("TM-03 unmerged")` and the task is not closed.
+- [ ] **Step 3:** `ingest_test.go` and `export_test.go`; they fail. `ingest.go` and `export.go`
+  until the thirteen rows pass.
+- [ ] **Step 4:** The stamp in `tx.go` and `TestAppAndKeyWritesCarryVia`. Record the person's
+  comment fixture's canonical bytes **before** the change, so the test compares against bytes
+  this task did not write.
+- [ ] **Step 5:** `store/sentinel.go`, `storeSource`, the six integration rows; then
+  `parseSentinel`, its rows, `EntraToken` and the wiring. Rerun `hub verify`'s own tests unchanged.
+- [ ] **Step 6:** `git diff -- go.work control-plane/go.mod` shows nothing (standard library
+  only); commit by pathspec.
+
+#### Acceptance
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/work
+go test ./control-plane/internal/hub/hubapi/ -race -count=1 -v \
+  -run '^Test(AFleetCommentIsTheOwnersAgent|AnAppAndAKeyAreNamed|AHostWriteIsTheMappedPerson|ASyncWriteIsIntegrationNotJanitor|TheJanitorNamesThePolicysAuthor|ATeamsAskIsThePersons)$' \
+  2>&1 | grep -c "^--- PASS"
+# expect: 6 (5 and one SKIP before Phase T merges)
+go test ./control-plane/internal/hub/sentinel/ -race -count=1 -v 2>&1 | grep -c "^--- PASS"
+# expect: 13
+go test -tags integration ./control-plane/internal/hub/store/ ./control-plane/internal/hub/sentinel/ -race -count=1 -v \
+  -run 'OrgAsEvents|AuditOnlyKinds|ExportingAppendsNoEvent|CursorNeverRewinds|CursorsAreTheOrgs|OwnerEditStops|AppAndKeyWritesCarryVia' \
+  2>&1 | grep -c "^--- PASS"
+# expect: 7
+go test ./control-plane/cmd/hub/ -race -count=1 -run Sentinel
+# expect: ok
+go test -tags integration ./control-plane/cmd/hub/ -race -count=1 -run Verify
+# expect: ok (H27's chain tests, unchanged)
+git diff --stat -- go.work control-plane/go.mod
+# expect: no output
+```
+
+#### What this task does NOT claim
+
+- **That a Sentinel workspace, data collection endpoint or rule, or analytic rule exists
+  anywhere** (phase 8), or that any stream has run against Azure. Every post above went to an
+  `httptest` server.
+- **That the Hub can get a token in a customer's tenant.** That needs the Hub's app registration
+  to be multi-tenant, consented there, and granted *Monitoring Metrics Publisher* on the rule
+  (**UNVERIFIED**; gap 3).
+- **Exactly-once delivery.** If `Advance` fails after a 2xx, the batch is posted again; each
+  record carries `OrgId` and `Seq`, so a Sentinel query can drop the duplicate. It is
+  at-least-once and in order.
+- **An alert.** A stop is one error-level log line naming org, seq and rule; the rule that pages
+  someone on it is phase 8's.
+- **Any desktop surface** that shows *Priya's agent* on an activity line; that reads `data.via`
+  and the envelope in the tasks that render the feed.
+
+**Parity rows served:** **L-239**'s Sentinel half closed; its audit half exists.
