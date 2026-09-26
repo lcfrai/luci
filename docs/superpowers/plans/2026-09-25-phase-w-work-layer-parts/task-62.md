@@ -352,3 +352,67 @@ export function Desk({ inputs = liveDeskInputs }: DeskProps): JSX.Element {
 so re-registering on each render keeps the runner's closure current without a stale `cursor`, and
 the unmount removes exactly the Desk's three. `CSS.escape` is in jsdom and WebView2. The `focus()`
 on the cursor row is a keyboard move the reader asked for, not a re-sort.
+
+#### Interfaces — complete: `DeskSection.tsx`, `DeskZero.tsx` and the head of `deskRows.tsx`
+
+```tsx
+// desktop/src/components/desk/DeskSection.tsx — one header, its count, its rows or its zero.
+import { deskRenderOf, itemKey, type DeskGroup } from "./deskModel";
+import { DeskZero } from "./DeskZero";
+
+export const SECTION_TITLE: Record<DeskGroup["place"], string> = {
+  needs_you: "NEEDS YOU", decided_without_you: "DECIDED WITHOUT YOU", failed: "FAILED",
+  landed: "LANDED", running: "RUNNING", since: "SINCE YOU LAST LOOKED",
+};
+/** One line each; NEEDS YOU's is DeskZero, and "since" draws nothing when empty. */
+export const SECTION_ZERO: Record<Exclude<DeskGroup["place"], "needs_you" | "since">, string> = {
+  decided_without_you: "Nothing was decided for you.", failed: "Nothing failed.",
+  landed: "Nothing of yours landed since you last looked.", running: "No agents of yours are running.",
+};
+
+export function DeskSection({ group, cursor }: { group: DeskGroup; cursor: string | null }): JSX.Element | null {
+  const { place, items } = group;
+  if (place === "since" && items.length === 0) return null;
+  const id = `dk-h-${place}`;
+  return (
+    <section className="dk-sec" data-desk-section={place} aria-labelledby={id}>
+      <h2 className="dk-h" id={id}>
+        {SECTION_TITLE[place]}<span className="dk-n">{items.length}</span>
+      </h2>
+      {items.length === 0
+        ? (place === "needs_you" ? <DeskZero /> : <p className="dk-zero">{SECTION_ZERO[place as keyof typeof SECTION_ZERO]}</p>)
+        : items.map((item) => {
+            const k = itemKey(item);
+            return (
+              <div key={k} className="dk-row" data-desk-key={k} data-desk-kind={item.kind} tabIndex={-1}
+                {...(cursor === k ? { "data-cursor": "", "aria-current": "true" as const } : {})}
+                {...(item.issueId ? { "data-issue-id": item.issueId, "data-key-scope": "issueRow" } : {})}>
+                {deskRenderOf(item.kind)(item)}
+              </div>);
+          })}
+    </section>
+  );
+}
+```
+
+```tsx
+// desktop/src/components/desk/DeskZero.tsx — NEEDS YOU's zero (task 62). Task 65 fills it with
+// what W1 can back ("EP-142 landed and proven at 14:02", task-65.md:879-893); until then, the line.
+export const ZERO_LINE = "Nothing needs you.";
+export function DeskZero(): JSX.Element {
+  return <p className="dk-zero dk-zero-need"><b>{ZERO_LINE}</b></p>;
+}
+```
+
+```tsx
+// desktop/src/components/desk/deskRows.tsx — the one module where W's row kinds register, at load.
+// Task 62 owns this head. Tasks 63, 64, 65 and 71 append their blocks below, in task order; each
+// block registers its kinds' rows AND their sources (decision 2). TM-54 registers from its own
+// teamRows.tsx, which Desk.tsx imports beside this file when team mode lands.
+export { registerDeskRow, registerDeskSource } from "./deskModel";
+export type { DeskItem, DeskRank, DeskSnapshot } from "./deskModel";
+```
+
+`deskRows.tsx` has no JSX of its own in this task; it keeps the `.tsx` name because tasks 63-65 put
+row elements in it (the skeleton's name, `:311`). Its re-export lets a block write
+`registerDeskRow(...)` after one import line of its own, as task 65's block does (`task-65.md:772`).
