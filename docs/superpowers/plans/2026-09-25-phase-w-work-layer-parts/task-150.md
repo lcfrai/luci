@@ -424,3 +424,93 @@ A pull error's text is **not** stored: a tracker's error body can echo a query o
 the connection id (Hub task 24's logger, no body), so an operator can find it. The 20-page cap
 keeps one connection from holding the janitor for a whole sweep; a run that hits it leaves the
 cursor where the last page put it and the next run continues.
+
+#### `worksync/links.go` (complete)
+
+```go
+package worksync
+
+// PagePlan is what one page will write. Known items are never written again:
+// an item seen before adds no revision, however its text changed upstream.
+type PagePlan struct {
+	New      []hubapi.ImportItem
+	Known    map[string]string // externalId → issueId, for the run's existing count
+	Upstream []hubapi.UpstreamChange
+}
+
+// Plan splits a page by the connection's links. known maps an externalId the
+// connection has linked to its issue. An upstream change on an id with no link
+// is dropped (the adapter saw it before our first import, or on an item we
+// refused); a change whose field is not in UpstreamFields is dropped too.
+// Two changes to one item in one page are kept in order, each shown.
+func Plan(p Pulled, known map[string]string) PagePlan {
+	plan := PagePlan{Known: map[string]string{}}
+	seen := map[string]bool{}
+	for _, it := range p.Items {
+		if id, ok := known[it.ExternalID]; ok {
+			plan.Known[it.ExternalID] = id
+			continue
+		}
+		if seen[it.ExternalID] {
+			continue // a tracker that repeats an item in one page: once
+		}
+		seen[it.ExternalID] = true
+		plan.New = append(plan.New, it)
+	}
+	for _, u := range p.Upstream {
+		if _, ok := known[u.ExternalID]; ok && slices.Contains(hubapi.UpstreamFields, u.Field) {
+			plan.Upstream = append(plan.Upstream, u)
+		}
+	}
+	return plan
+}
+```
+
+`Plan` is pure and gets the links the Sink read **inside** the page's transaction, under the org's
+write lock, so two runs of one connection can never both see an item as new (the advisory lock
+already makes that impossible across replicas; the write lock covers a run and a person's import
+of the same source at once, and `issues_external_once` is the third layer). A duplicate inside
+one page is dropped here, before `ValidateImportBatch`, which would refuse the whole page for it
+(`ErrImportDuplicate`, `task-15.md:193`): a tracker's paging glitch should not stop a connection.
+
+#### The Sink (`server/work_trackers.go`, contract complete)
+
+```go
+package server
+
+// ApplyPage, in one s.inOrg transaction for conn.OrgID, in this order:
+//  1. set_config('hub.work_actor_kind', 'integration', true) and
+//     set_config('hub.work_sync_connection', conn.ID, true) (decision 2);
+//  2. LockConnection(conn.ID): disconnected since StartRun → ErrPageRefused{"connection"};
+//  3. known := LinksOf(conn.ID, ids of p.Items and p.Upstream); plan := worksync.Plan(p, known);
+//  4. ValidateImportBatch({source: conn.Source, items: plan.New}) when plan.New is not
+//     empty → a failure is ErrPageRefused{field} and the transaction rolls back;
+//  5. IssuesByExternal (task 15) on conn.ProjectID for plan.New: a hit made by another path
+//     (a person's CSV of the same ids is refused by source; this is the third layer) is
+//     linked, not created;
+//  6. for each remaining item: importOne(ctx, tx, conn.TeamID, conn.ProjectID, conn.Source,
+//     item, nil /* no labels: decision 2's guard */, conn.CreatedBy.ID); InsertLink;
+//  7. for each plan.Upstream: SetLinkUpstream(conn.ID, externalId, field, at);
+//  8. run.Pages++, run.Created += new, run.Existing += len(plan.Known), run.Upstream += plan.Upstream;
+//     UpdateRunCounts; SetConnectionCursor(conn.ID, p.Next);
+//  9. emitWork(tx, tracker.page, conn.TeamID, conn.ProjectID, conn.ID, TrackerPageData{…}).
+func (s *Server) ApplyPage(ctx context.Context, conn hubapi.TrackerConnection, run *hubapi.SyncRun, p worksync.Pulled) error
+
+// StartRun: in one transaction, the connection (not disconnected), the next n,
+// INSERT work_sync_runs (state running), clear run_requested_at.
+func (s *Server) StartRun(ctx context.Context, connID string) (hubapi.TrackerConnection, worksync.Cursor, hubapi.SyncRun, error)
+
+// FinishRun: state ok when failure is "", else failed; finished_at; the
+// connection's last_finished_at. A failed run's pages that committed stay.
+func (s *Server) FinishRun(ctx context.Context, run hubapi.SyncRun, failure string) (hubapi.SyncRun, error)
+```
+
+`importOne`'s new last argument is the issue's `created_by` and the revision's `written_by`; task
+15's route passes `tx.P.UserID`, exactly as before. `importOne` also reads `tx.P.OrgID`; a janitor
+transaction from `s.inOrg` must carry the org there with an empty user and a nil actor, which is
+how task 121's passes already need it (`task-121.md:241-246`); that Hub task 24's janitor `Tx` has
+this shape is **UNVERIFIED** until it lands, and if it does not, `importOne` takes the org as an
+argument too. With `matched` nil, `importOne` attaches no
+label and returns every name as missing; the page records them nowhere else (the names are
+upstream words). `run.Upstream` is capped at 500 entries per run on the row; later ones still
+update their links and are counted in the page event.
