@@ -402,3 +402,57 @@ func verify(org string, seq int64, prev [32]byte, rows []store.SentinelRow) erro
 after `hub verify` last ran is caught by the next export, not by the next manual walk. It does not
 recheck rule 4 (the columns against the canonical): `SentinelRow.Env` **is** the parsed canonical,
 so the record cannot say what the columns say and the hash does not.
+
+#### Interfaces — complete: `export.go`, the loop
+
+```go
+// Source is one org's slice of the store; storeSource wraps store.Store with
+// a janitor transaction per call under hub.org_id = OrgID (decision 7).
+type Source interface {
+	Cursor(ctx context.Context) (seq int64, hash [32]byte, err error)
+	After(ctx context.Context, seq int64, limit int) ([]store.SentinelRow, error)
+	Advance(ctx context.Context, seq int64, hash [32]byte) error
+}
+
+// Exporter is one org's loop. There is no shared state between two.
+type Exporter struct {
+	OrgID     string
+	Src       Source
+	Post      Poster
+	Sleep     func(ctx context.Context, d time.Duration) error // time.After in main; a recorder in tests
+	Log       *slog.Logger
+	PollEvery time.Duration // 30 s in main
+}
+
+const readLimit = 500
+
+// Run exports until ctx ends or a stop error (chain, refusal, oversize), which
+// it logs at error level and returns: the org's export stops, the Hub serves on.
+func (e *Exporter) Run(ctx context.Context) error {
+	backoff := time.Second
+	for ctx.Err() == nil {
+		n, err := e.once(ctx)
+		var ra *RetryAfter
+		switch {
+		case err == nil && n == 0:
+			err = e.Sleep(ctx, e.PollEvery)
+		case err == nil:
+			backoff = time.Second
+			continue
+		case errors.As(err, &ra):
+			wait := ra.Wait
+			if ra.Status != http.StatusTooManyRequests && ra.Status != http.StatusUnauthorized {
+				wait, backoff = backoff, min(backoff*2, 5*time.Minute)
+			}
+			err = e.Sleep(ctx, wait)
+		default:
+			e.Log.Error("sentinel export stopped", "org", e.OrgID, "err", err)
+			return err
+		}
+		if err != nil {
+			return err // ctx cancelled while sleeping
+		}
+	}
+	return ctx.Err()
+}
+
