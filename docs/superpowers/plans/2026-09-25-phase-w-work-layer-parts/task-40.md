@@ -107,8 +107,9 @@ rule 3), §2.1 point 2; 07 D C1, D C3, D I10.
     and bumps the version, which is how a test makes an issue arrive, move or leave.
 
 **Files** (the skeleton's file map names the four components and `work.css`; it omits
-`source.ts`, `workView.ts`, `windowing.ts` and `WorkMount`, a gap named below):
-- `desktop/src/work/source.ts` — `WorkReader`, `useWork`, `setWorkSource`, `fixtureReader`, `setWorkSourceForTest` (new)
+`source.ts`, `fixtureSource.ts`, `workView.ts`, `windowing.ts` and `WorkMount`, a gap named below):
+- `desktop/src/work/source.ts` — `WorkReader`, `useWork`, `setWorkSource`, `sameData` (new)
+- `desktop/src/work/fixtureSource.ts` — `worldFromScenario`, `fixtureReader`, `setWorkSourceForTest`; tests only (new)
 - `desktop/src/work/workView.ts` — the pure selectors and words (new)
 - `desktop/src/work/windowing.ts` — `windowOf` (new)
 - `desktop/src/work/workView.test.ts` — the pure tests (new)
@@ -711,3 +712,251 @@ export function AgentLine(props: { sessionId: string; whoLabel: string }): JSX.E
 The row puts the person in `.wk-person` and never an agent: `assignee` is a `User` (SW.1) and the
 agent is only ever on the line beneath. `AgentGlyph` gets `SessionStatus`, which is `AgentStatus`
 less `failed`; `failed` is never passed here (task 29's rule: observed failure only).
+
+#### `work.css` — complete (owns `.wk-*`; tasks 41-45 append)
+
+```css
+/* desktop/src/components/work/work.css — task 40. Tokens are task 26's and the built ones.
+   No transition here: nothing on the list animates in this task (task 41 adds the one flash). */
+.wk-lens { display: flex; flex-direction: column; min-block-size: 0; block-size: 100%; }
+.wk-filter { font: inherit; font-size: var(--t-ui); color: var(--ink); background: transparent;
+  border: 0; box-shadow: 0 0 0 1px var(--line); border-radius: var(--r-ctl); padding: 0 var(--s-2);
+  min-block-size: calc(var(--row-h) - 4px); }
+.wk-branch { font-family: var(--mono); font-size: var(--t-fact); color: var(--ink-2); }
+.wk-list { flex: 1; overflow-y: auto; overflow-anchor: none; padding-block-end: var(--s-4); }
+.wk-group-head { position: sticky; inset-block-start: 0; z-index: 1; display: flex;
+  align-items: baseline; justify-content: space-between; gap: var(--s-3);
+  min-block-size: var(--row-h); padding-inline: var(--s-3); background: var(--surface); }
+.wk-group-words { font-size: var(--t-ui); color: var(--ink); }
+.wk-group-size, .wk-count { font-size: var(--t-ui); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.wk-row { display: grid; grid-template-columns: 16px 16px 7ch 1fr auto auto; align-items: center;
+  gap: var(--s-2); min-block-size: var(--row-h); padding-inline: var(--s-3); border-radius: var(--r-ctl); }
+.wk-row[data-cursor] { box-shadow: 0 0 0 1px var(--accent-ring); }
+.wk-row[data-selected] { background: var(--accent-tint); }
+.wk-alias { font-family: var(--mono); font-size: var(--t-fact); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.wk-title { all: unset; cursor: default; font-size: var(--t-ui); color: var(--ink); overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.wk-title:focus-visible { outline: 2px solid var(--accent-ring); outline-offset: 2px; }
+.wk-person, .wk-trailing { font-size: var(--t-ui); color: var(--ink-2); white-space: nowrap; }
+.wk-agent { display: grid; grid-template-columns: 16px auto 1fr auto; align-items: center; gap: var(--s-2);
+  min-block-size: var(--row-h); padding-inline: calc(var(--s-3) + 16px + var(--s-2)) var(--s-3); }
+.wk-who, .wk-live { font-family: var(--mono); font-size: var(--t-fact); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.wk-meaning { font-size: var(--t-ui); color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wk-empty { padding: var(--s-4) var(--s-3); color: var(--ink-2); font-size: var(--t-ui); }
+@media (forced-colors: active) { .wk-row[data-cursor] { outline: 1px solid Highlight; box-shadow: none; } }
+```
+
+Tokens: `--t-ui`, `--t-fact`, `--s-*` and `--row-h` are task 26's (`task-31.md:732` lists them);
+`--ink`, `--ink-2`, `--surface`, `--line`, `--accent-ring`, `--accent-tint`, `--r-ctl` and
+`--mono` are on the built `desktop/src/styles/tokens.css` (checked by grep at this writing). The
+one `all: unset` resets a button's own styles; it is not a transition. The cursor is a ring (elevation rule), not a wash; selected is a wash, so
+the two read as two shapes (05 §4.1 D I1, which task 44 extends). `.wk-agent`'s start padding puts
+the glyph under the alias column, so the line reads as the row's. Class names `.wk-row`,
+`.wk-group-head`, `.wk-count` and `.wk-conv` are the ones tasks 41 and 45 already use
+(`task-41.md:368`, `task-45.md:142`); `.wk-lead`, which task 44 names (`task-44.md:239`), is not
+drawn here: task 44 adds it to `.wk-agent`.
+
+#### Interfaces — complete: the delta on ⚑ `components/AppShell.tsx`
+
+```tsx
+// Replaces task 38's WorkArm (task-38.md:139-151) and its three imports: no flag, no Suspense.
+import { WorkMount } from "./work/WorkLens";
+
+    case "work":
+      return <WorkMount />;
+```
+
+Task 38's `WorkArm` function, its `useFlags`, `Suspense` and `prototype/work/mount` imports leave
+`AppShell.tsx`; `mount.ts`, `register.tsx` and the stress screens stay (decision 12). Task 38's own
+AppShell test that asserted *nothing renders with the flag off* is replaced by this task's
+*the arm mounts WorkMount* test, since the arm is no longer gated.
+
+#### Tests to write first, part 1 — `desktop/src/work/workView.test.ts` (pure)
+
+```ts
+import { describe, expect, it } from "vitest";
+import { DYLAN, WORK_IDS } from "../test/workFixtures";
+import type { Session } from "../store/types";
+import { worldFromScenario, fixtureReader } from "./fixtureSource";
+import { sameData } from "./source";
+import { agentMeaning, leadAgent, livenessWord, NO_CRITERION, plainSize, selectWorkView } from "./workView";
+import { windowOf } from "./windowing";
+
+const at = (ms: number) => new Date(Date.UTC(2026, 8, 25, 9) + ms).toISOString();
+const readerOf = (w = worldFromScenario()) => fixtureReader(() => w, () => 0, () => () => {});
+const view = (w = worldFromScenario(), filter = "") => selectWorkView(readerOf(w), w.projectId, w.branch, filter);
+/** Every Session field longhand in the real file (store/types.ts:136-160); the ones read here: */
+const sess = (over: Partial<Session>): Session => ({
+  ...BASE_SESSION, id: "s-1", issueRef: `issue:${WORK_IDS.ep142}@3`, status: "running",
+  createdAt: at(0), lastOutputAt: at(0), exitReason: "", ...over,
+} as Session);
+
+describe("the Work view model", () => {
+  it("groups by criterion, in the brief's order, by default", () => {
+    const v = view();
+    expect(v.groups.slice(0, 2).map((g) => g.criterion?.id)).toEqual([WORK_IDS.criterionResume, WORK_IDS.criterionUpload]);
+    expect(v.groups.flatMap((g) => g.rows).every((r) => typeof r.state === "string")).toBe(true);
+  }); // kills grouping by workflow state (05 §4.4 C13): a state grouping has no criterion on any group
+  it("puts Serves no criterion last", () => {
+    const keys = view().groups.map((g) => g.key);
+    expect(keys.at(-1)).toBe(NO_CRITERION);
+    expect(keys.indexOf(NO_CRITERION)).toBe(keys.length - 1);
+  }); // kills a none group sorted by name or by size
+  it("orders rows by number and hangs a two-criterion issue once", () => {
+    const w = worldFromScenario();
+    const extra = { briefKey: w.briefKey, criterionId: WORK_IDS.criterionUpload };
+    const two = { ...w, items: w.items.map((i) => i.head.id !== WORK_IDS.ep142 ? i : { ...i, revision: { ...i.revision,
+      content: { ...i.revision.content, serves: [...i.revision.content.serves, extra] } } }) };
+    const groups = view(two).groups;
+    expect(groups.flatMap((g) => g.rows).filter((r) => r.issueId === WORK_IDS.ep142)).toHaveLength(1);
+    for (const g of groups) {
+      const n = g.rows.map((r) => Number(r.alias.slice(3)));
+      expect(n).toEqual([...n].sort((a, b) => a - b));
+    }
+  }); // kills drawing an issue under every criterion it serves (one id, two cursors), and a state order
+  it("sends cancelled and duplicate to left with their word", () => {
+    const v = view();
+    expect(v.left.get(WORK_IDS.ep168)).toBe("cancelled");
+    expect(v.left.get(WORK_IDS.ep169)).toBe("duplicate");
+    expect(v.left.get(WORK_IDS.ep160)).toBe("moved to triage");
+  }); // kills dropping departures silently, which task 41's ghost needs
+  it("writes only a plain size", () => {
+    expect([plainSize(0), plainSize(1), plainSize(3)]).toEqual(["no issues", "1 issue", "3 issues"]);
+  }); // kills "1 of 3" and any fraction
+  it("returns equal data for an unchanged world, by sameData", () => {
+    expect(sameData(view(), view())).toBe(true);
+  }); // kills a selector whose output differs run to run (Map order, a Date), which would loop task 41
+});
+```
+
+`BASE_SESSION` is a `const` in the test file holding every other `Session` field with a fixed
+value (`store/types.ts:136-160`: `title`, `machineId`, `projectId`, `branchId`, `worktreeId`,
+`harness`, `model`, `effort`, `permissionMode`, `openingPrompt`, `backend`, `isolation`,
+`updatedAt`, `attachCount`, `attachPath`, `contextRef`), written out there; it carries no
+meaning, so it is not repeated here. `WORK_IDS.criterionResume` is `makeCriterion()`'s default id
+(`task-20.md:162`, 05 §5.3's *"the resume test passes"*).
+
+#### Tests to write first, part 1 (continued) — the agent line's words and the window
+
+```ts
+describe("the agent line's words", () => {
+  it("numbers agents as task 48 does and leads with the lowest live one", () => {
+    const s = [sess({ id: "s-a", createdAt: at(0), status: "exited" }), sess({ id: "s-b", createdAt: at(1) }),
+      sess({ id: "s-c", createdAt: at(2) })];
+    expect(leadAgent(s, WORK_IDS.ep142, DYLAN)).toEqual({ sessionId: "s-b", whoLabel: "dylan · agent 2" });
+  }); // kills renumbering after an exit, and kills leading with the newest agent
+  it("draws no line when the reader runs no live agent on the issue", () => {
+    expect(leadAgent([sess({ status: "exited" })], WORK_IDS.ep142, DYLAN)).toBeNull();
+    expect(leadAgent([sess({ issueRef: `issue:${WORK_IDS.ep163}@2` })], WORK_IDS.ep142, DYLAN)).toBeNull();
+  }); // kills a line for a dead agent, and kills matching by prefix of the id without "@"
+  it("builds the meaning from observed facts only", () => {
+    expect(agentMeaning("running", "", "control-plane/upload/upload.go")).toBe("editing upload.go");
+    expect(agentMeaning("running", "", null)).toBe("running");
+    expect(agentMeaning("exited", "process exited", null)).toBe("exited · process exited");
+    expect(agentMeaning("idle", "", "a.go")).toBe("idle");
+  }); // kills an invented meaning ("thinking", "almost done") and a path claimed while idle
+  it("coarsens liveness", () => {
+    const t0 = Date.parse(at(0));
+    expect([5_000, 30_000, 130_000, 14 * 60_000 + 59_000, 2 * 3_600_000].map((d) => livenessWord(at(0), t0 + d)))
+      .toEqual(["live", "quiet <1m", "quiet 2m", "quiet 14m", "quiet 2h"]);
+  }); // kills ticking seconds ("quiet 130s") and rounding up (a "quiet 1m" at 30 s)
+});
+
+describe("the window", () => {
+  it("mounts one screen plus overscan past fifty rows", () => {
+    const w = windowOf(0, 0, 28, 500);
+    expect(w.end - w.start).toBeLessThan(60);
+    expect(w.padTop + (w.end - w.start) * 28 + w.padBottom).toBe(500 * 28);
+  }); // kills rendering all 500, and kills spacers that make the scroll height lie
+});
+```
+
+A structural test in the same file reads `src/components/work/AgentLine.tsx` as text and expects
+no import from `terminal`, `attachRegistry`, `xterm` or `transcript` (kills a parsed PTY line,
+`OD-8`), and reads every `.ts`/`.tsx` under `src/` except `*.test.*` and `src/test/` and expects none
+to import `work/fixtureSource` (kills shipping the fixtures).
+
+#### Tests to write first, part 2 — `desktop/src/components/work/WorkLens.test.tsx` (the lens)
+
+Each renders `<WorkLens projectId={w.projectId} branch={w.branch!} />` after
+`const h = setWorkSourceForTest()` and `useCockpit.setState(...)` for `sessions`, with
+`h.dispose()` and `__resetHeartbeat()` in `afterEach`. Times use `vi.useFakeTimers({ now: at(0) })`.
+
+| Test | Setup and assertion | Mutant it kills |
+|---|---|---|
+| `expectNoPrediction(container)` | the default world with one running agent on EP-142; SW.8's check passes on the whole lens | any `%`, bar, ETA or "N of M" |
+| `groups by criterion by default` | the first group header's text is *the resume test passes*; no header is a state word | grouping by state (05 §4.4 C13) |
+| `puts Serves no criterion last` | the last `.wk-group` has `data-group="none"` and reads *Serves no criterion* | a none group sorted among the criteria |
+| `shows only a plain size in a group header` | every `.wk-count` matches `/^(no issues|1 issue|\d+ issues)$/` | `1 of 3`, a fraction |
+| `draws one agent line and one glyph with three agents on the issue` | three running sessions on EP-142: one `.wk-agent`, one `[data-glyph^="agent:"]` in EP-142's item, text `dylan · agent 1` | a dot per agent, a count |
+| `draws a teammate's issue with no glyph` | EP-163 (Alice's, started): its item has `Alice Example` and no `[data-glyph^="agent:"]` and no `+` | `+2`, a teammate's dot |
+| `builds the meaning from observed facts only` | a type test: `// @ts-expect-error` on `<AgentLine sessionId="s-1" whoLabel="x" text="…" />` | a transcript-fed meaning prop |
+| `coarsens liveness on the beat` | session `lastOutputAt = at(-5_000)`: `live`; `vi.advanceTimersByTime(125_000)`: `quiet 2m`; advancing 400 ms more leaves the text the same; `vi.getTimerCount()` after mounting three lines is the heartbeat's one | a per-row timer; ticking seconds |
+| `keys rows by id, not alias` | move the cursor to EP-150, select EP-142; `h.update` renames every alias to `UP-n`; the cursor ring and selection stay on the same `data-issue-id`s and the text reads `UP-150` | the alias as a key or selection |
+| `virtualises past fifty rows` | a world of 500 issues serving one criterion (`h.update`): fewer than 60 `.wk-item` mount; at 50 exactly, all 50 mount | rendering every row, or windowing small lists |
+| `the arm mounts WorkMount` | ⚑ `AppShell.test.tsx`: `lens: "work"` with no flag set renders `.wk-lens` when a source is installed and the not-connected line when none is | a flag-gated arm; a blank arm |
+
+`vi.getTimerCount()` counts the heartbeat's single `setInterval` (`heartbeat.ts:34`) and must equal
+1 with three agent lines mounted; the `expectNoPrediction` check and the plain-size regex both run
+on the 500-row world too.
+
+#### Steps
+
+- [ ] **Step 1: read on the sync base** task 39's review record and the kept/cut list; tasks 28,
+      29, 31, 36 and 37's merged files, so every import above resolves or its name is corrected.
+- [ ] **Step 2: write the tests** in `workView.test.ts` and `WorkLens.test.tsx`; run them and see
+      each fail for its stated reason (no module, or the wrong grouping).
+- [ ] **Step 3: write `source.ts`, `fixtureSource.ts`, `workView.ts`, `windowing.ts`**; the pure
+      suite passes.
+- [ ] **Step 4: write `CriterionGroup`, `IssueRow`, `AgentLine`, `WorkLens`, `work.css`**, then the
+      ⚑ `AppShell.tsx` arm; the lens suite passes, and so do task 38's and 39's prototype suites.
+- [ ] **Step 5: promote what the review kept** (the record's list; decision 12) and nothing it cut.
+- [ ] **Step 6: commit** with `git add` on the new files and `git commit -F <msg> -- <paths>`.
+
+#### Acceptance
+
+```bash
+npm --prefix desktop test -- work
+# expected: 2 files (workView.test.ts, WorkLens.test.tsx), 22 tests, all passing
+npm --prefix desktop test -- AppShell prototype
+# expected: every suite passing, the replaced arm test included
+npm --prefix desktop run typecheck
+# expected: exit 0; the @ts-expect-error in the meaning test is consumed
+git grep -n "fixtureSource" -- desktop/src ':!*.test.*' ':!desktop/src/test/'
+# expected: no output
+git grep -nE "localStorage|indexedDB|setInterval|setTimeout" -- desktop/src/components/work desktop/src/work
+# expected: no output (the one clock is heartbeat.ts's; nothing here persists)
+```
+
+The test count is this part's: 12 pure (6 view, 4 words, 1 window, 1 structural pair counted as
+one) plus 11 lens, less the AppShell test, which runs in the AppShell suite: 22 in the `work` run.
+
+#### What this task does NOT claim
+
+- `arrivals.hold`, `moves.hold` and departures, and `N` (task 41). The lens renders straight from
+  `selectWorkView` here; task 41 puts its `HoldState` between them.
+- Triage (42), the board (43), display options and the bulk bar (44), Plan (45), keys (53-54): the
+  only interactions here are a click that moves the cursor and a title that opens the issue.
+- Real Hub data. Until task 55 installs its `Replica`, the app shows the not-connected line and the
+  tests run on task 20's world. Grid roles and roving focus (66). The Desk (62).
+- The *touching …* line for a teammate (W3, Fleet), and the lane's newest path in the meaning
+  (phase 3's read; decision 9). No measured density or frame budget: none is asserted here.
+
+#### Gaps found while writing this part
+
+1. **File map omissions:** `work/source.ts`, `work/fixtureSource.ts`, `work/workView.ts`,
+   `work/windowing.ts`, and `WorkMount` in `WorkLens.tsx`.
+2. **SW.16's read half is defined here, not in 55-58.** Task 55 must declare
+   `Replica extends WorkReader`, call `setWorkSource`, and re-export `useWork`; task 46 imports
+   `useWork` from `work/replica/replica`, which exists only after task 55 (task 46's own gap 6).
+   `WorkReader` carries every read tasks 45-47 use, and `me()`, which answers tasks 45 and 46's
+   *where does the mount get `me`*.
+3. **Two criteria on one issue** is not drawn by 05 §4.1; decision 4 hangs it from the first. The
+   owner may prefer another rule.
+4. **The inference route** in the `ViewHeader` (`Global ▾` in 05's drawing) has no desktop
+   source for a project in any part read here, so the lens passes `route={null}`.
+5. **Phase 3's newest changed path** has no desktop read on this tree; the meaning is the status
+   alone until it merges (decision 9), at one call site in `AgentLine.tsx`.
+6. **Nobody deletes `prototype/work/`.** Task 38 says task 40 deletes it; tasks 45, 46 and 62 still
+   compare against it, so this part keeps it and no task row removes it.
+7. **The size is provisional** (task 39's review resizes 40-45); the skeleton's row still reads 3 h.
