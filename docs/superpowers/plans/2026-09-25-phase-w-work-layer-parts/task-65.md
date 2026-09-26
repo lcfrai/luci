@@ -984,3 +984,87 @@ rest (`--dur-flash`, `--ease-out`, `--ring-1`, `--shadow-1`, `--r-3`, `--s-2`, `
 and 33 and are **UNVERIFIED**: a grep of `desktop/src` on 2026-09-26 finds none of them. This block
 takes whatever those parts name them. The flash animates `opacity` only; no `transition: all`, no
 layout property.
+
+#### Tests to write first, part 1 — `desktop/src/work/desk/informs.test.ts` (the pure selectors)
+
+The inputs are built by hand, not through the replica: each test names the revisions it has. `S`
+builds a phase 2 `Session` with the three fields the selector reads; `refs` is the loader.
+
+```ts
+import { describe, expect, it } from "vitest";
+import { ALICE, DYLAN, makeIssueHead, makeIssueRevision, makeServe, WORK_IDS } from "../../test/workFixtures";
+import type { IssueRevision } from "../../api/work";
+import type { Session } from "../../store/types";
+import * as inf from "./informs";
+
+const EP = WORK_IDS.ep142;
+const S = (id: string, rev: number, status = "running"): Session =>
+  ({ id, status, issueRef: `issue:${EP}@${rev}` }) as unknown as Session;
+function inputs(o: { head: number; writer: typeof DYLAN; sessions: Session[]; headServes?: string[] }): inf.InformInputs {
+  const revs = new Map<number, IssueRevision>();
+  for (let r = 1; r <= o.head; r++) {
+    const serves = r === o.head && o.headServes ? o.headServes.map((c) => makeServe({ criterionId: c })) : [makeServe()];
+    revs.set(r, makeIssueRevision({ revision: r, writtenBy: r === o.head ? o.writer : DYLAN,
+      writtenAt: `2026-09-26T11:0${r}:00Z`, content: { ...makeIssueRevision().content, serves } }));
+  }
+  return {
+    me: DYLAN.id, sessions: o.sessions,
+    heads: new Map([[EP, makeIssueHead({ headRevision: o.head, state: "started" })]]),
+    revisionAt: (_id, r) => revs.get(r) ?? null,
+    refOf: (key) => { const r = Number(key.split("@")[1]);     // the TEST may split; the code never does
+      return { kind: "issue", issueId: EP, revision: r, serves: revs.get(r)!.content.serves } as never; },
+    events: [], briefCriteria: () => [WORK_IDS.criterionResume, "c-40aa"],
+  };
+}
+
+describe("informs", () => {
+  it("a newer head written by me makes no inform; by Alice it makes one", () => {
+    expect(inf.changedInforms(inputs({ head: 4, writer: DYLAN, sessions: [S("s-1", 3)] }))).toEqual([]);
+    const [row] = inf.changedInforms(inputs({ head: 4, writer: ALICE, sessions: [S("s-1", 3)] }));
+    expect(row.payload).toMatchObject({ adoptedRev: 3, headRev: 4, by: ALICE, sessionIds: ["s-1"] });
+    // mutant: any revision gap informs (drop the writtenBy check)
+  });
+  it("names what changed in one line and never quotes the text", () => {
+    const [row] = inf.changedInforms(inputs({ head: 4, writer: ALICE, sessions: [S("s-1", 3)],
+      headServes: [WORK_IDS.criterionResume, "c-40aa"] }));
+    expect(row.payload.line).toBe("serves c-40aa added");
+    expect(JSON.stringify(row)).not.toContain("A restarted sandbox");
+    // mutant: the head's description in the line
+  });
+  it("one item per issue, from the oldest adopted revision, stable id across re-derives", () => {
+    const i = inputs({ head: 4, writer: ALICE, sessions: [S("s-2", 2), S("s-1", 3), S("s-3", 4)] });
+    const a = inf.changedInforms(i), b = inf.changedInforms(i);
+    expect(a).toHaveLength(1);
+    expect(a[0].payload).toMatchObject({ adoptedRev: 2, sessionIds: ["s-1", "s-2"] });
+    expect(a[0].id).toBe(b[0].id);
+    // mutants: one item per session; the session already at @4 listed
+  });
+  it("an exited session or a resolving ref says nothing", () => {
+    expect(inf.changedInforms(inputs({ head: 4, writer: ALICE, sessions: [S("s-1", 3, "exited")] }))).toEqual([]);
+    const i = { ...inputs({ head: 4, writer: ALICE, sessions: [S("s-1", 3)] }), refOf: () => "resolving" as const };
+    expect(inf.changedInforms(i)).toEqual([]);
+    // mutant: the selector reads the revision out of issueRef by splitting it (decision 2)
+  });
+  it("a reassign on todo is a plain assign; on started it is a request", () => {
+    const todo = makeIssueHead({ state: "todo", assignee: ALICE });
+    expect(inf.reassignWrite(todo, DYLAN, DYLAN.id).via).toBe("op");
+    const started = makeIssueHead({ state: "started", assignee: ALICE });
+    expect(inf.reassignWrite(started, DYLAN, DYLAN.id)).toEqual({ via: "request", issueId: started.id, toUserId: DYLAN.id });
+    expect(inf.reassignWrite(makeIssueHead({ state: "started", assignee: DYLAN }), ALICE, DYLAN.id).via).toBe("op");
+    // mutants: a decide for every reassign; a request when I move my own issue
+  });
+  it("the zero sentence says only what W1 backs, with no ~ and no horizon", () => {
+    const s = inf.zeroSentence({ landed: { alias: "EP-142", word: "landed and proven", at: "2026-09-26T04:02:00Z" },
+      live: { agents: 3, issues: 2 }, time: () => "14:02" });
+    expect(s).toBe("Nothing needs you. EP-142 landed and proven at 14:02. 3 agents live on 2 issues.");
+    expect(inf.zeroSentence({ landed: null, live: { agents: 0, issues: 0 }, time: () => "" })).toBe("Nothing needs you.");
+    expect(s).not.toMatch(/~|expected|next decision/i);
+    // mutant: AX's "Next decision expected ~14:22" appended
+  });
+});
+```
+
+The drift and related selectors take two more cases each in the same file, in the same shape:
+a served id missing from `briefCriteria` informs once and a `"resolving"` brief says nothing
+(mutant: drift on a resolving brief); a relation Alice added on either end informs and one I added
+does not (mutant: the actor check dropped). That makes 10 cases in this file.
