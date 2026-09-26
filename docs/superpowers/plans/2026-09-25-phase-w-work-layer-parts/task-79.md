@@ -461,3 +461,64 @@ func ChildCount(ctx context.Context, q Querier, issueID string) (int, error)
 
 `issue_aliases`' `moved_at` and `moved_by` are this task's columns; task 74's scope names only
 the primary key (`tasks-61-80.md:479`), so they are asked of task 74 (a gap).
+
+#### The routes (`server/work_plan_fields.go`, `server/work_move.go`), in order
+
+```go
+func (s *Server) registerWorkPlanFields() {
+	s.route("PATCH /v1/issues/{issueId}/plan", s.patchIssuePlan)
+	s.route("POST /v1/issues/{issueId}/rank", s.rankIssue)
+	s.route("POST /v1/issues/{issueId}/move", s.moveIssue)
+}
+```
+
+Each runs under task 08's `s.Write` with `readableIssue(…, hubapi.RoleMember, lock=true)` first
+(404 `issue_not_found` for unreadable, absent or another org's; 403 for a viewer), and each event
+goes through task 13's `emitWork(tx, kind, teamID, projectID, subject, data)`
+(`task-13.md:330`), subject the issue id.
+
+**`patchIssuePlan`:**
+
+1. `Decode` the body; `hubapi.ChangeOf[int](req.Estimate)` and `ChangeOf[string](req.DueOn)`; a
+   decode error is 400 naming the field.
+2. Estimate present and not null: `TeamPlanPolicyOf(head.TeamID)`; `!ValidEstimate(p, v)` → 422
+   `estimate_off_scale`, `details.scale` the team's scale, `details.value` v. DueOn present and
+   not null: `!ValidDate(v)` → 422 `date_invalid`, `details.field: "dueOn"`.
+3. The result per field: absent keeps the stored value, null clears, a value sets. Both results
+   equal to the stored ones → 200 with the head, no write, no event (decision (b)).
+4. `SetIssuePlan`; one `issue.planned` with `Fields` the changed names in the order `estimate`,
+   `dueOn`; 200 with `issueHead`.
+
+**`rankIssue`:**
+
+1. `Decode` (unknown keys, `rank` among them, are 400, task 72). `LockTeamRank(head.TeamID)`.
+2. Each named neighbour through `RankOf`: absent, erased, in another team, or the issue itself →
+   422 `rank_neighbours`, `details.field` `"after"` or `"before"`. Both named and `after`'s key not
+   below `before`'s → the same, field `"before"`.
+3. The key (decision (i)): with `after`, `lo = rank(after)`, `hi = NextRankBelow(lo)`; with only
+   `before`, `hi = rank(before)`, `lo = NextRankAbove(hi)`; with neither, `lo = ""` and `hi` the
+   team's first key (a drop at the top). Then `rankBefore(hi)` when `lo == ""`, `rankAfter(lo)`
+   when `hi == ""`, else `rankBetween(lo, hi)`.
+4. `ok` true and the key equal to the stored one → 200, no event. `ok` true → `SetRank`, one
+   `issue.ranked {rank, rebalance: false}`. `ok` false → `RebalanceTeam(…, afterID)` with
+   `afterID` the issue whose key is `lo` ("" for the top); the dragged issue's move gets
+   `issue.ranked {rebalance: false}` and each other moved row `issue.ranked {rebalance: true,
+   rebalanceOf: <dragged id>}`, each under its own project.
+5. 200 with `issueHead`.
+
+**`moveIssue`:**
+
+1. `Decode`; `ToProjectID` equal to the head's project → 400 `bad_request`, `field:
+   "toProjectId"`. `ProjectRole(ToProjectID)` (`task-08.md:333`): not found → 404
+   `project_not_found`; below member → 403.
+2. `head.State` `started` or `in_review` → 422 `state_not_allowed`, `details.from` the state,
+   `details.to` the same, `details.cause: "move"` (decision (e)). `ChildCount > 0` → 409
+   `children_open`, `details.open` the count (decision (f)).
+3. `n = NextIssueNumber(ToProjectID)` (`task-08.md:253`, the gapless counter, so the source's
+   number is never re-issued: its counter never goes back). Same team → keep the key; else
+   `LockTeamRank(toTeam)` and `BottomRank(toTeam)`. `ClearAssignee` when the assignee is not a
+   member of the target team.
+4. `SetWorkCause(tx, "move")` (task 74 adds `move` to the causes its guard reads);
+   `InsertIssueAlias(sourceProject, head.Number)`; `MoveIssueRow`.
+5. One `issue.moved {fromProjectId, fromNumber, toProjectId, toNumber, cleared}` under the target's
+   team and project; 200 with `issueHead`, whose `movedFrom` is `LastAliasOf`.
