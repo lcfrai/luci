@@ -154,3 +154,112 @@ Refusals, in the order checked:
 The two *promote* refusals are decisions: a second promote would make an issue the first child of
 two features, and a closed issue has no work left to plan. Neither has its own code in task 72,
 so both use `bad_request` with the field, the Hub's idiom for a body a person can correct.
+
+#### The four event kinds (complete, appended to task 13's registry)
+
+A branch ref is already event data in the Hub (`brief.created {"scope","branchRef"}`,
+`hub-contract.md:1148`), so `feature.created` may carry it. A feature's **name** is not carried:
+it is text a person typed, and the reader can fetch it.
+
+```go
+const (
+	EventFeatureCreated  = "feature.created"
+	EventFeatureUpdated  = "feature.updated"
+	EventIssueFeatureSet = "issue.feature_set"
+	EventIssuePromoted   = "issue.promoted"
+)
+
+type FeatureCreatedData struct {
+	FeatureID string `json:"featureId"`
+	BriefID   string `json:"briefId"`
+	BranchRef string `json:"branchRef"`
+}
+
+// FeatureUpdatedData names the changed fields, comma-joined (no arrays in data).
+type FeatureUpdatedData struct {
+	Fields string `json:"fields"` // e.g. "state,targetDate"
+	State  string `json:"state"`  // the state after the write, so a feed reader needs no fetch
+}
+
+type IssueFeatureSetData struct {
+	From string `json:"from"` // ft-… or ""
+	To   string `json:"to"`
+}
+
+// IssuePromotedData: the issue's own key at the revision it was promoted from (decision (b)).
+type IssuePromotedData struct {
+	FeatureID string `json:"featureId"`
+	BriefID   string `json:"briefId"`
+	IssueKey  string `json:"issueKey"` // issue:is-…@rev
+}
+```
+
+```go
+{EventFeatureCreated, FeatureCreatedData{}, ScopeProject, VisibleToReaders},
+{EventFeatureUpdated, FeatureUpdatedData{}, ScopeProject, VisibleToReaders},
+{EventIssueFeatureSet, IssueFeatureSetData{}, ScopeProject, VisibleToReaders},
+{EventIssuePromoted, IssuePromotedData{}, ScopeProject, VisibleToReaders},
+```
+
+**Events per write.** The scope's "every write has one event" is read as **one event per record
+written**, because the Hub's brief is its own record and every brief creation writes
+`brief.created` (`hub-contract.md:761`), which replicas and Orchestrators follow. So:
+
+| Write | Events, in order |
+|---|---|
+| create | `brief.created`, `feature.created` |
+| patch (something changed) | `feature.updated` |
+| set feature (changed) | `issue.feature_set` |
+| promote | `brief.created`, `feature.created`, `issue.promoted` |
+
+A patch or set that changes nothing writes nothing and no event.
+
+#### `store/work_features.go` (signatures complete)
+
+```go
+package store
+
+// Inside the caller's transaction, after hub.org_id and the org's audit head lock (task 11).
+
+// FeatureRow is the stored row; BranchRef is read from the brief by join (decision (c)).
+type FeatureRow struct {
+	ID, ProjectID, Name, BriefID, BranchRef, LeadID, CreatedBy string
+	TargetDate                                                 *string
+	State                                                      hubapi.FeatureState
+	Priority                                                   hubapi.Priority
+	Labels                                                     []string
+	CreatedAt, UpdatedAt                                       time.Time
+}
+
+// InsertFeature writes the feature after the caller has inserted its brief in the same tx.
+func InsertFeature(ctx context.Context, tx pgx.Tx, org string, f FeatureRow) error
+
+// FeatureByID reads one feature under row-level security; ok is false for none or another
+// org's. The caller checks the caller's team role on f.ProjectID.
+func FeatureByID(ctx context.Context, q Querier, id string) (f FeatureRow, ok bool, err error)
+
+// ListFeatures: the project's features by created_at, then id; cancelled ones only when asked.
+func ListFeatures(ctx context.Context, q Querier, projectID string, state *hubapi.FeatureState, includeCancelled bool, pr hubapi.PageRequest) (hubapi.Page[FeatureRow], error)
+
+// PatchFeature writes the named columns and updated_at; changed lists the JSON names that
+// differ from the stored row, sorted (none: no write).
+func PatchFeature(ctx context.Context, tx pgx.Tx, id string, next FeatureRow, at time.Time) (changed []string, err error)
+
+// SetIssueFeature: UPDATE issue_heads SET feature_id = $2, updated_at = $3 WHERE issue_id = $1.
+// "" writes NULL. Task 74's foreign key refuses an unknown ft-.
+func SetIssueFeature(ctx context.Context, tx pgx.Tx, issueID, featureID string, at time.Time) error
+
+// TeamRoleOf answers the user's role in the team, "" when not a member (the Hub's team_members).
+func TeamRoleOf(ctx context.Context, q Querier, teamID, userID string) (hubapi.Role, error)
+
+// ProjectAUOnly reads the project's data class. known is false when the project record has no
+// class yet (its home is UNVERIFIED until Phase T's task lands); the caller treats that as AU.
+func ProjectAUOnly(ctx context.Context, q Querier, projectID string) (auOnly, known bool, err error)
+```
+
+The brief insert is the **Hub's own** store function for `POST /v1/projects/{projectId}/briefs`
+(Hub task 18, `store/briefs.go`; its name **UNVERIFIED** until merge), called in this task's
+transaction, and its unique-violation mapping to `brief_exists` is reused unchanged. If Hub task 18
+has no store function callable with a caller's transaction (it could open its own), this task adds
+a `tx`-taking variant beside it and the old one calls it; that is a Hub file edit, so it is flagged
+in *Corrections*.
