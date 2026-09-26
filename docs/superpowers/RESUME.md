@@ -344,6 +344,16 @@ owner added usage, all 11 were relaunched. The new task ids:
   - residual Importants carried, not re-looped.
   Tasks already run keep their prompts, so the cache holds.
 - **Every resume must pass `liteFrom`** as well as the stream's other args.
+- **p4 (21:00): 7 of 23 approved.** It stopped because t07 was BLOCKED: it needs the Hub H0 code
+  (hub tasks 01-04), which lives only on `feat/hub`.
+  - Run `wf_82a8c5f7-370` (`p4-sync-hub`) merges `feat/phase-2-cockpit`, then feat/hub at its last
+    pre-task-05 commit, into p4, and resolves the 5 `internal/api` conflicts.
+  - **Then resume p4 with**
+    `{"stream":"p4","liteFrom":"t10","retryNote":{"t07":"The orchestrator merged phase 2 and the Hub H0 code into this branch; H0 is present now."}}`.
+  - `args.retryNote` (in all five scripts) changes only that task's implement prompt, so its
+    cached BLOCKED result is not replayed.
+- **The same Hub dependency will hit p5, p7, team and work:** before each one reaches a
+  Hub-consuming task, sync-merge an approved `feat/hub` commit into it.
 
 ## 3c-0. OD-31 (19:30, 2026-09-26): ONLY THE PHASE 2 CLOSE-OUT RUNS (superseded by 3c-00)
 
