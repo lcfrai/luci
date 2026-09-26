@@ -284,7 +284,7 @@ assumption (`task-61.md` gap 3).
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useCockpit } from "../../store/store";
 import { onWorkSourceChange, workSource } from "../../work/source";
-import { registerVerb } from "../../work/keys/keymap";
+import { useVerb } from "../../work/keys/keymap";
 import { buildDesk, itemKey, markDeskVisit, takeDeskSnapshot, type DeskInputs, type DeskModel } from "./deskModel";
 import { DeskSection } from "./DeskSection";
 import "./deskRows";                                        // every row kind registers at load
@@ -329,11 +329,9 @@ export function Desk({ inputs = liveDeskInputs }: DeskProps): JSX.Element {
   };
   const apply = () => { setModel(build()); setHeld(false); };
 
-  useEffect(() => {
-    const offs = [registerVerb("focus.next", () => move(1)), registerVerb("focus.prev", () => move(-1)),
-      registerVerb("held.apply", apply)];
-    return () => offs.forEach((off) => off());
-  });                                                          // re-registered each render: fresh closures
+  useVerb("focus.next", () => move(1));                      // task 53: stable registration,
+  useVerb("focus.prev", () => move(-1));                     // the newest runner's closure
+  useVerb("held.apply", apply);
 
   return (
     <div className="dk" ref={root} data-work-list="" data-key-scope="list" tabIndex={0} aria-label="Desk">
@@ -348,9 +346,9 @@ export function Desk({ inputs = liveDeskInputs }: DeskProps): JSX.Element {
 }
 ```
 
-`registerVerb` returns its own unregister and the newest registration runs (`task-53.md:224-234`),
-so re-registering on each render keeps the runner's closure current without a stale `cursor`, and
-the unmount removes exactly the Desk's three. `CSS.escape` is in jsdom and WebView2. The `focus()`
+`useVerb` is task 53's hook (`task-53.md:310-316`): it registers once on mount, the runner reads
+the newest closure through a ref, so `cursor` is never stale, and the unmount removes exactly the
+Desk's three; the newest registration runs (`:224-234`). `CSS.escape` is in jsdom and WebView2. The `focus()`
 on the cursor row is a keyboard move the reader asked for, not a re-sort.
 
 #### Interfaces — complete: `DeskSection.tsx`, `DeskZero.tsx` and the head of `deskRows.tsx`
@@ -545,3 +543,108 @@ describe("deskModel", () => {
   });
 });
 ```
+
+#### Tests to write first, part 2 — `desktop/src/components/desk/Desk.test.tsx` (the frame, keys, guards)
+
+Keys reach the Desk the way they do in the app: a `keydown` on an element inside the frame, then
+task 53's `dispatchListKey` with that event, which is the one line `useKeyboardMap` runs for it
+(`task-53.md:298-308`, `:330`). The registry is reset per case, so each case registers its own
+kinds; the kinds `deskRows.tsx` registers at load are the business of tasks 63-65's tests.
+
+```tsx
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { beforeEach, describe, expect, it } from "vitest";
+import { dispatchListKey, resetVerbsForTest } from "../../work/keys/keymap";
+import { resetCockpit, useCockpit } from "../../store/store";
+import { expectNoPrediction } from "../../test/expectNoPrediction";
+import { Desk, HOLD_LINE } from "./Desk";
+import { __resetDeskRegistry, lastDeskVisitAt, registerDeskRow, registerDeskSource, type DeskInputs, type DeskItem } from "./deskModel";
+import deskSrc from "./Desk.tsx?raw";
+import cssSrc from "./desk.css?raw";
+
+const T0 = Date.parse("2026-09-25T11:10:00Z");
+const it_ = (kind: string, id: string): DeskItem => ({ kind, id, payload: id, arrivedAt: "2026-09-25T09:00:00Z",
+  rankReason: "", ifNothing: "" });
+let feed: Record<string, DeskItem[]>;
+function kinds() {
+  for (const [k, place] of [["t.need", "needs_you"], ["t.land", "landed"], ["t.run", "running"]] as const) {
+    registerDeskRow<string>(k, place, (i) => <span>{`${k} ${i.payload}`}</span>, () => ({ tier: 2, waitingSinceMs: 0 }));
+    registerDeskSource(k, () => feed[k] ?? []);
+  }
+}
+const inputs: DeskInputs = { now: () => T0, cockpit: () => useCockpit.getState(), work: () => null };
+function press(el: Element, key: string, code: string) {
+  const e = new KeyboardEvent("keydown", { key, code, bubbles: true, cancelable: true });
+  el.dispatchEvent(e);
+  dispatchListKey(e);                                              // useKeyboardMap's one line
+}
+const desk = () => screen.getByLabelText("Desk");
+const sec = (place: string) => desk().querySelector<HTMLElement>(`[data-desk-section="${place}"]`)!;
+
+beforeEach(() => {
+  resetCockpit(); resetVerbsForTest(); __resetDeskRegistry();
+  feed = { "t.need": [it_("t.need", "a")] };
+  kinds();
+});
+
+describe("Desk frame", () => {
+  it("an item offered while open is held behind one line until N", () => {
+    render(<Desk inputs={inputs} />);
+    feed["t.need"] = [it_("t.need", "a"), it_("t.need", "b")];
+    act(() => { useCockpit.setState({}); });                      // any store change is a check
+    expect(screen.queryByText("t.need b")).toBeNull();
+    expect(screen.getByRole("status").textContent).toContain(HOLD_LINE);
+    press(desk(), "n", "KeyN");
+    expect(screen.getByText("t.need b")).toBeTruthy();
+    expect(screen.queryByText(HOLD_LINE)).toBeNull();
+    // mutant: a live re-render that slides the new row in under the reader
+  });
+  it("a row that would leave stays while open", () => {
+    render(<Desk inputs={inputs} />);
+    feed["t.need"] = [];
+    act(() => { useCockpit.setState({}); });
+    expect(screen.getByText("t.need a")).toBeTruthy();
+    // mutant: live removal under the reader
+  });
+  it("leaving and returning re-ranks, and the visit is kept in memory", () => {
+    const first = render(<Desk inputs={inputs} />);
+    feed["t.need"] = [it_("t.need", "a"), it_("t.need", "b")];
+    first.unmount();
+    expect(lastDeskVisitAt()).toBe(T0);
+    render(<Desk inputs={inputs} />);
+    expect(screen.getByText("t.need b")).toBeTruthy();
+    expect(screen.queryByText(HOLD_LINE)).toBeNull();
+    // mutant: the snapshot survives the visit (a module-level model)
+  });
+  it("an empty FAILED keeps its header, its count and its zero line", () => {
+    render(<Desk inputs={inputs} />);
+    expect(within(sec("failed")).getByRole("heading").textContent).toBe("FAILED0");
+    expect(within(sec("failed")).getByText("Nothing failed.")).toBeTruthy();
+    expect(desk().querySelectorAll("[data-desk-section]").length).toBe(5); // "since" is empty: not drawn
+    // mutant: empty sections hidden (a failed worktree behind a calm state, 07 D C5)
+  });
+  it("j walks across a section edge and k walks back", () => {
+    feed["t.land"] = [it_("t.land", "x")];
+    render(<Desk inputs={inputs} />);
+    press(desk(), "j", "KeyJ");
+    expect(document.activeElement?.getAttribute("data-desk-key")).toBe("t.need:a");
+    press(document.activeElement!, "j", "KeyJ");
+    expect(document.activeElement?.getAttribute("data-desk-key")).toBe("t.land:x");
+    press(document.activeElement!, "k", "KeyK");
+    expect(document.activeElement?.getAttribute("data-desk-key")).toBe("t.need:a");
+    // mutant: j stops at a section edge
+  });
+  it("no prediction on a full Desk, and nothing in the frame ticks or slides", () => {
+    feed = { "t.need": [it_("t.need", "a")], "t.land": [it_("t.land", "x")], "t.run": [it_("t.run", "r")] };
+    render(<Desk inputs={inputs} />);
+    expectNoPrediction(desk());
+    expect(deskSrc).not.toMatch(/setInterval|requestAnimationFrame|scrollIntoView|localStorage/);
+    expect(cssSrc).not.toMatch(/transition|@keyframes|animation/);
+    // mutants: a per-frame timer; a slide-in for arrivals; the visit on disk
+  });
+});
+```
+
+The heading's text is the title and the count with no separator in the DOM (`FAILED0`) because the
+count is its own `span`; a screen reader reads *"FAILED 0"* from the two nodes. The `now` input is
+`T0`, so the unmount writes `T0`. `fireEvent` is imported for task 63's additions to this file.
