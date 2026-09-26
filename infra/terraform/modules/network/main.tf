@@ -24,12 +24,21 @@ locals {
   egress_subnets = merge(local.node_subnets, { agents = azurerm_subnet.agents.id })
 }
 
+# prevent_destroy (task 03 round 2, extending task 02 re-review I1): the endpoint subnet's own
+# prevent_destroy fires only when a plan replaces the subnet. Terraform replaces a dependent
+# only when its own arguments force it, so a VNet replace that leaves them alone (a location
+# change: a subnet takes no location) would plan no subnet replace and still take the subnet,
+# and the state account's endpoint in it, with the VNet. The same cost as the subnet's.
 resource "azurerm_virtual_network" "this" {
   name                = "vnet-panacea-app-${var.environment}"
   location            = var.location
   resource_group_name = var.resource_group_name
   address_space       = [var.vnet_cidr]
   tags                = var.tags
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # Every subnet: default_outbound_access_enabled = false. Egress is explicit, the NAT gateway
