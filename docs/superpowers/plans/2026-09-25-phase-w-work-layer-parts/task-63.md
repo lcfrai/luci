@@ -582,3 +582,66 @@ describe("NEEDS YOU issue rows", () => {
 `MarkGlyph`'s accessible name is *Needs you* (`task-29.md:152-154`); the urgent test checks the
 class, and task 29's own tests hold the shape. `head(ep167, {state: "triage", priority: "urgent"})`
 makes one row, the triage row (part 2's note on `urgentMine`).
+
+#### Steps
+
+- [ ] Write `needs.test.ts`; it fails to import `./needs`. Write `needs.ts` until the six pass.
+      Mutants, one at a time, then revert: drop `mine` from `triageMine` (test 1); test `priority
+      !== "none"` in `urgentMine` (test 2); return `snap.takenAt` from `sinceOf` (test 3); skip the
+      state check on Y (test 4); drop `resolvedAt` (test 5); put `waitingSinceMs` before `tier` in
+      task 62's `rankItems` (test 6).
+- [ ] Make task 62's additive deltas (`keyScopes`, `comments`, the wrapper's scope, the feed
+      input). Task 62's twelve tests still pass unchanged.
+- [ ] Write `IssueNeedRow.tsx`, the `.dn-*` CSS and task 63's block in `deskRows.tsx`.
+- [ ] Write `IssueNeedRow.test.tsx`. Mutants: `useState(Date.now())` for the age (test 1);
+      `setModel(fresh)` in task 62's `check` (test 2); remove the row on `done` (test 3); `dn-urgent`
+      on every row (test 4).
+- [ ] Tasks 42, 53, 56 and 62's suites still pass. Commit each file as it goes green.
+
+#### Acceptance
+
+```bash
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop test -- src/work/desk/needs.test.ts src/components/desk'
+# expected: 4 files, 23 tests, all passing (6 needs, 5 rows, and task 62's 12)
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop test'
+# expected: every suite passing, tasks 42, 53, 56 and 62 included
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop run typecheck'
+# expected: exit 0
+~/.claude/tools/claudezsh/claudezsh 'grep -nE "Date\.now|useCockpit|from \"react\"" desktop/src/work/desk/needs.ts'
+# expected: no output (decision 1: pure over the snapshot)
+~/.claude/tools/claudezsh/claudezsh 'grep -nE "sessions|attachRegistry" desktop/src/work/desk/needs.ts'
+# expected: no output (decision 4: the Desk never reads another person's sessions)
+```
+
+#### What this task does NOT claim
+
+- **The reviewer row** (*"in review where you are the reviewer"*): `IssueHead` has no reviewer
+  field (gap 1).
+- **A `decide` escalation from an Orchestrator**: W3 and TM-54.
+- **The cost of waiting in money**: no gateway in W1; the wait is shown as time.
+- **Inferring a question from a comment's text**: any unresolved mention is a row.
+- **That a blocked issue has a live agent**: `started` is the Hub's convergence word; the row says
+  *started*, not *agent running* (OD-15: no teammate's sessions are read).
+- **Snooze hiding the row until the morning**: the head carries no `snoozedUntil` (gap 6).
+- **Visual acceptance**: the owner's eyes (CLAUDE.md, working agreements).
+- **Parity**: closes L-15 and L-24's Desk half (the relation itself is tasks 11 and 48); serves
+  L-46, L-112 and L-114, as the scope says (`tasks-61-80.md:127-129`).
+
+#### Gaps found while writing this part
+
+1. SW.1's `IssueHead` has no reviewer (`task-37.md:121-128`); 05 §4.2's reviewer row
+   (`05-design.md:936`) needs one, from task 03's scope.
+2. Task 55 has no part on the tree: `replicaEvents()` (the feed events the replica has applied,
+   in `seq` order) and `mutate`'s module path `work/replica/replica` are this part's assumption,
+   shared with task 65 (`task-65.md:774`). `WorkEvent`'s production home is task 62's gap 5.
+3. `issue.updated`'s `fields` names (`task-13.md:150`) are matched as `assignee` and `priority`;
+   task 11's PATCH wire names should be printed beside `IssueUpdatedData`.
+4. `teamPolicyOf(issueId)`: task 42's `TriageView` takes `policy` as a prop (`task-42.md:204`) and
+   no part names the read behind it; the Desk needs the same read.
+5. A key pressed on a triage row (`1`, `4`) sends the op but leaves the row's buttons, because the
+   row's answer state is the row's own; lifting it into a per-visit book, as task 65's
+   `AnswerBook` does (`task-65.md:818-823`), would show the key's answer too. Task 65 owns the book.
+6. Task 42's `snooze` writes `snoozedUntil` (`task-42.md:221-222`), but `IssueHead` has no such
+   member, so a snoozed triage issue still makes a row on the next visit.
+7. The skeleton's file map (`:311`) has no `work/desk/needs.ts` or `rows/IssueNeedRow.tsx`; the
+   scope names them (`tasks-61-80.md:103-105`).
