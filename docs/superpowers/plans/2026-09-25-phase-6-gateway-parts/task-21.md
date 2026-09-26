@@ -1007,27 +1007,14 @@ Message: `feat(api): project inference route and class, raise-only, with usage (
 
 1. Step 9 prints `16`, then `ok` twice.
 2. Step 10's four edits each fail the named test.
-3. By hand, with task 17's stack up and the control plane started with `PANACEA_APP_GATEWAY_ROUTE_SOURCE=file:<repo>/deploy/local/gateway/projects/projects.json`:
-
-```bash
-curl -s http://127.0.0.1:8730/v1/projects/<id>/inference
-# expect "effectiveRoute":null and "gateway":"on" for a project not yet in projects.json
-curl -s -X PATCH -d '{"dataClass":{"level":"internal","residency":"any"}}' http://127.0.0.1:8730/v1/projects/<id>/inference
-# expect "route":"global","effectiveRoute":"global"
-curl -s -X PATCH -d '{"route":"au"}' http://127.0.0.1:8730/v1/projects/<id>/inference
-# expect "effectiveRoute":"au"
-curl -s -X PATCH -d '{"route":"global"}' http://127.0.0.1:8730/v1/projects/<id>/inference
-# expect {"error":"needs_compliance",...}
-```
-
-The control plane's port `8730` is phase 2's (`api_test.go:26`); the `projects/` subdirectory is gap 3.
+This task has no by-hand acceptance against the real stack. That run needs task 17's stack, and 17 is not a dependency of this task: it sits in wave 7, a wave after this task's wave 6 (skeleton, wave list). It is task 23's: step 4 observes an unclassified project's `GET` (`"effectiveRoute":null`, `"gateway":"on"`, `"usageState":"ok"`, the first read of keysmith's `/v1/usage` through 15a's client) and the classify `PATCH`; step 6 observes the raise and the refused lowering (`needs_compliance`). Moved there by re-review B04-1. Steps 9 and 10 are this task's whole proof, on fakes.
 
 **What this task does not claim:**
 
 - **Team-project semantics.** In a team project any member's raise is announced to everyone (`05-design.md:219-222`); that is Fleet's, in team mode. Here the only caller is the person at this PC.
 - **A Hub store.** `ProjectInferenceStore` has one implementation. The Hub's (ask H-1, seam S6.1) is phase H's, and `ROUTE_SOURCE=hub` fails start-up rather than pretending.
-- **Tightening latency.** A raise is on disk when the PATCH returns. The gatekeeper sees it when task 13's `File` re-reads (modification time) and its `Cache` entry expires, so up to `ROUTE_CACHE_TTL` (30 s) later. Task 23 step 3 observes the whole path.
-- **That Docker Desktop shows a host rename inside a container on a directory bind mount promptly**, on Windows in particular. **UNVERIFIED**; task 23 step 3 is the observation.
+- **Tightening latency.** A raise is on disk when the PATCH returns. The gatekeeper sees it when task 13's `File` re-reads (modification time) and its `Cache` entry expires, so up to `ROUTE_CACHE_TTL` (30 s) later. Task 23 step 6 (its item 3) observes the whole path.
+- **That Docker Desktop shows a host rename inside a container on a directory bind mount promptly**, on Windows in particular. **UNVERIFIED**; task 23 step 6 is the observation.
 - **Usage accuracy.** The figures are keysmith's, at most 60 s old (task 09), and US dollars as LiteLLM prices them.
 - **That anyone but this control plane writes `projects.json` safely.** The lock is in-process.
 

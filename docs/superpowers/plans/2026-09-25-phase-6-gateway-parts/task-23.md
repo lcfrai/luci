@@ -8,7 +8,7 @@ Every earlier task proves its piece against fakes of its neighbours. This task i
 - `docs/verification/2026-09-25-phase-6-local-e2e.md`: the record (new)
 
 **Interfaces:**
-- Consumes: task 15b (the local control plane mints beside start and revokes on delete, through 15a's client; this is the first run of that client against the real keysmith, review I-10), task 17 (the compose stack, `init.sh`, the published ports `127.0.0.1:4000` and `127.0.0.1:4100`), task 18 (the probe results, which say which LiteLLM behaviours this run may rely on), task 21 (the `PATCH` route), task 22 (the chip), task 14 (`panacea token` and the settings fragment in the sandbox image), task 16 (the fakes' `x-fake-route` label and `/_captured`)
+- Consumes: task 15b (the local control plane mints beside start and revokes on delete, through 15a's client; this is the first run of that client against the real keysmith, review I-10), task 17 (the compose stack, `init.sh`, the published ports `127.0.0.1:4000` and `127.0.0.1:4100`), task 18 (the probe results, which say which LiteLLM behaviours this run may rely on), task 21 (the `GET` and `PATCH` routes, and its by-hand acceptance, which runs here in steps 4 and 6 because 21 is a wave ahead of 17, re-review B04-1), task 22 (the chip), task 14 (`panacea token` and the settings fragment in the sandbox image), task 16 (the fakes' `x-fake-route` label and `/_captured`)
 - Produces: the record; a list of findings for task 25
 - Required by: task 25 (the phase's "what stays unverified" list reads this record)
 
@@ -69,9 +69,11 @@ The base URL a **sandbox** uses is `http://gatekeeper.panacea-gateway.svc.cluste
 
 - [ ] **Step 4: Classify both projects**
 
-Local projects start unclassified (task 21's decision (a)); the cockpit cannot classify (task 22's gap 2), so this is `curl`:
+Local projects start unclassified (task 21's decision (a)); the cockpit cannot classify (task 22's gap 2), so this is `curl`. The first `GET` is task 21's by-hand acceptance, moved here (re-review B04-1), and the first time 15a's client reads keysmith's `/v1/usage`:
 
 ```bash
+curl -s http://127.0.0.1:8730/v1/projects/<P1>/inference
+# expect "effectiveRoute":null, "gateway":"on", "usageState":"ok" (P1 is not yet in projects.json)
 for p in <P1> <P2> <P3>; do
   curl -s -X PATCH -d '{"dataClass":{"level":"internal","residency":"any"}}' \
     http://127.0.0.1:8730/v1/projects/$p/inference
@@ -103,9 +105,13 @@ In the cockpit, open the chip on P1, choose *Keep inference in Australia*, confi
 ```bash
 docker compose -f deploy/local/gateway/compose.yaml logs gatekeeper | grep '"session":"<S1>"' | tail -3
 cat deploy/local/gateway/projects/projects.json
+curl -s -X PATCH -d '{"route":"global"}' http://127.0.0.1:8730/v1/projects/<P1>/inference
+# expect {"error":"needs_compliance",...}: a raise is not lowered from here (task 21, re-review B04-1)
+curl -s http://127.0.0.1:8730/v1/projects/<P1>/inference
+# expect "effectiveRoute":"au" still
 ```
 
-**Item 3 observed** when the reply reads `fake au reply`, the newest gatekeeper line for `S1` carries `"route":"au"`, and `projects.json` shows P1 on `au`. Record the seconds between the confirmation and the first AU line: that is the tightening latency task 13 bounds by 30 s, and the only place it is measured. If the reply is still `fake global reply` after 60 s, record it as **not observed** with the file's content, and look first at the mount (a file mounted in place of its directory never sees a rename, task 21's decision (h)).
+**Item 3 observed** when the reply reads `fake au reply`, the newest gatekeeper line for `S1` carries `"route":"au"`, `projects.json` shows P1 on `au`, and the `PATCH` back to `global` is `needs_compliance` with P1 still `au` after it. Record the seconds between the confirmation and the first AU line: that is the tightening latency task 13 bounds by 30 s, and the only place it is measured. If the reply is still `fake global reply` after 60 s, record it as **not observed** with the file's content, and look first at the mount (a file mounted in place of its directory never sees a rename, task 21's decision (h)).
 
 - [ ] **Step 7: Item 4, a stolen token is refused off its pod**
 
@@ -264,7 +270,7 @@ Task 18 verdicts relied on: <P01 … P12, each PASS / FAIL / UNKNOWN>
 |---|---|---|---|
 | 1 | Global reply through the gatekeeper, route=global | observed / not observed | step 5 |
 | 2 | Helper path; no credential in the environment | … | step 5 |
-| 3 | Raise to AU takes effect in the same session; latency <n> s | … | step 6 |
+| 3 | Raise to AU takes effect in the same session; latency <n> s; lowering refused `needs_compliance` | … | step 6 |
 | 4 | Token replayed off-pod is 403 binding_mismatch; on-pod 200 | … | step 7 |
 | 5 | Budget: key-level refusal; mint-level budget_exhausted; panel sentence | … | step 11 |
 | 6 | Deleted session's token is 401 token_revoked within <n> s | … | step 10 |
@@ -272,6 +278,7 @@ Task 18 verdicts relied on: <P01 … P12, each PASS / FAIL / UNKNOWN>
 | 8 | /v1/models and HEAD /api/hello seen and answered | … | step 8 |
 | 9 | From a sandbox, only the gatekeeper is reachable (backend names exit 6) | … | step 8 |
 | 10 | A hostile .claude/settings.json (marker `loaded`) moves no request, export or hook call off the gatekeeper | … | step 10a |
+| — | Task 21's routes on the real stack: unclassified `GET` (`effectiveRoute` null, `usageState` ok), classify `PATCH` | observed / not observed | step 4 |
 | — | One real Global call | run / not run: no key provided | step 12 |
 
 ## Findings
