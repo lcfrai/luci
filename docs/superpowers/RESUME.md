@@ -295,8 +295,10 @@ owner added usage, all 11 were relaunched. The new task ids:
 - **p3** `whgfigd7k` (same insert args). **p4** `w823a4wvg`. **p5** `wq7y2nlcm`. **p6** `w06fg5ozf`.
   **p7** `wo9w3grgt`.
 - **close-out** `wevstu56b`: task 26, then 25, then the final review.
-- **hub t04 round 3** `wu645aloo`: fix-3 is done and review-3 is running. When it is Approved,
-  resume hub with `clearedTasks:["04"]`.
+- **hub t04 round 3: APPROVED** (review-3: 0 C, 0 I, 2 M). Its Minors are carried to
+  `hub/.superpowers/sdd/hub/carried/task-05.md`. The hub stream is resumed as task `wwz370lue`,
+  with `{"stream":"hub","clearedTasks":["04"]}`, and is now on task 05. **Every hub resume must
+  pass `clearedTasks:["04"]`.**
 - **env-p3-seams: APPROVED** (seams-review-2: 0 C, 0 I, 4 M). Phase 3's plan now carries S8-P3.6
   MachineFS (task 02), S8-P3.4 Bundles and the S8-P3.5 pool (task 24). The held set is confirmed.
   The Minors, and a seam gap (`GIT_CONFIG_KEY_<n>` for `transfer.fsckObjects`, which task 21's
