@@ -943,6 +943,11 @@ Replace the reserved comment inside `CockpitClient` with the members it named:
   openAttach(session: Session): WebSocket;
 ```
 
+> **AMENDED by the fork-carries fix (2026-09-24; UI contract §4.4, Go contract §3.9).** Fork as
+> planned here started a fresh session and did not carry the conversation. For a harness with
+> `supportsResume`, `forkSession` now also sends `resume: from.id` and no `openingPrompt`; a shell's
+> fork is as below. `client.ts` is the source of truth.
+
 Add these locals immediately before the `return {` in `createClient`:
 
 ```ts

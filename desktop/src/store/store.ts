@@ -24,8 +24,13 @@ type Persisted = Pick<
   | "layout" | "railCollapsed"
   | "expandedProjects" | "expandedBranches" | "expandedWorktrees"
   | "selection" | "lens"
+  | "sendChordsToTerminal"
 >;
 
+/** OD-9 added `sendChordsToTerminal` at schema version 1, with no bump and no migration. The
+ *  root-level shallow merge above is why that is safe: a snapshot written before the key
+ *  existed rehydrates with the key's initial value, false, which is the behaviour it was
+ *  written under. store.test.ts pins that case. */
 export const partialize = (s: CockpitState): Persisted => ({
   defaults: s.defaults,
   projectDefaults: s.projectDefaults,
@@ -39,6 +44,7 @@ export const partialize = (s: CockpitState): Persisted => ({
   expandedWorktrees: s.expandedWorktrees,
   selection: s.selection,
   lens: s.lens,
+  sendChordsToTerminal: s.sendChordsToTerminal,
 });
 
 /** Version 0 is any snapshot written before this contract existed — a pre-release dev build.

@@ -38,14 +38,14 @@ And one ruling that the phase deferred to its own end: **open carry 12, `proxy.R
 
 **Interfaces:**
 - Produces:
-  - `docs/SEAMS.md` — twenty-eight seams with ids `SX.1`–`SX.10` (every later phase, or no phase yet), `S3.1`–`S3.5`, `S4.1`–`S4.4`, `S5.1`–`S5.2` and `S8.1`–`S8.7`. The id is the key a later plan cites: *"this task consumes S4.1 and changes S4.2"*
+  - `docs/SEAMS.md` — thirty-two seams with ids `SX.1`–`SX.10` (every later phase, or no phase yet), `S3.1`–`S3.5`, `S4.1`–`S4.4`, `S5.1`–`S5.2` and `S8.1`–`S8.11`. It was twenty-eight: the Resume fix and the sandbox git + CA fix added six more mounts that `katabe` refuses, in four seams `S8.8`–`S8.11` (S8.8 and S8.11 each hold two), and each mount is recorded in Go contract §2.6 and in `backend.Mount`'s doc comment. The id is the key a later plan cites: *"this task consumes S4.1 and changes S4.2"*
   - `npm test -- src/seams.test.ts` and `go test ./control-plane/internal/backend/ -run Seam -count=1` — the two commands a later phase runs to check every seam is where `docs/SEAMS.md` says
   - `DiscoverLens`, `DesignLens`, `FilesLens`, `MergeLens`, `DeployLens` — each `(): JSX.Element`, each in `desktop/src/components/lens/`
 - Consumes: task 25's results document, cited in `docs/SEAMS.md`'s preamble as the evidence that the substrate these seams sit in was running when they were named; task 24's `defects.test.tsx` shape (anchors, `codeOnly`), copied rather than imported, because a test file importing another test file's internals is how two suites start failing together; task 15's contract §2 byte gate (`task-15.md:276-279`), re-expressed as a test
 - Required by: every later phase plan. `dependency-graph-and-order.md:315` gates any edit to `AppShell.tsx` on *"after the lens-seam task (0b)"*; after this task that edit is unnecessary
 - **Adds no selector, no fixture, no store key and no route.** A seam test that needed a new selector would be a seam test that changed the thing it pins
-- **Does not decide anything the planning pass left to the orchestrator or the owner.** Three seams are gaps with a pending decision — who calls `Materialise` (decision 0c, `dependency-graph-and-order.md:233`), who owns the `Files` lens (open carry 8), and how Kata receives a worktree (Phase 8's first problem). `docs/SEAMS.md` names each, cites the decision, and pins the **current** state with a tripwire anchor, so the day the decision lands the manifest fails and the document is updated with it. That is the whole of this task's part in each
-- **Runs after the resume fix**, a separate task landing ahead of task 25. Seam SX.10 names the mechanism that fix built — Claude's own session id, and a conversation store that outlives its sandbox — and pins it; step 1 (g) checks it landed
+- **Does not decide anything the planning pass left to the orchestrator or the owner.** Three seams are gaps with a pending decision — who calls `Materialise` (decision 0c, `dependency-graph-and-order.md:233`), who owns the `Files` lens (open carry 8), and how Kata receives a worktree (Phase 8's first problem). `docs/SEAMS.md` names each, cites the decision, and pins the **current** state with a tripwire anchor, so the day the decision lands the manifest fails and the document is updated with it. That is the whole of this task's part in each. The four mount seams `S8.8`–`S8.11` are the same Phase 8 problem as `S8.3`, six mounts between them (two each in `S8.8` and `S8.11`, one each in `S8.9` and `S8.10`), and are pinned the same way
+- **Runs after the resume fix** (`b4be570`, round 1 `2e3db79`) **and the sandbox git + CA fix** (`2d6d95b`…`31576b7`), both landed ahead of task 25. Seam SX.10 names the mechanism the Resume fix built — Claude's own session id, a resume that forks it, and a conversation store that outlives its sandbox — and pins it. Step 1 (g) checks it landed
 
 **Every shell command below runs through `~/.claude/tools/claudezsh/claudezsh '<command>'`**, per the device-wide rule; the blocks show them bare.
 
@@ -75,9 +75,13 @@ cd ..
 test ! -e docs/SEAMS.md && test ! -e desktop/src/seams.test.ts \
   && test ! -e control-plane/internal/backend/seam_test.go && echo "task 26: nothing yet"
 
-# (d) The Kata create-path gap is as the preamble states it. Both halves.
-grep -cE '^\t\tMounts:\s+\[\]backend\.Mount\{\{HostPath: path, ContainerPath: sessionWorkDir\}\},$' \
+# (d) The Kata create-path gap is as the preamble states it. Both halves. Since the resume fix
+#     and the git + CA fix, the create path builds its mounts in ONE function, sessionMounts:
+#     the worktree first, then up to six more, in four Phase 8 seams (S8.8-S8.11).
+grep -cE '^\tmounts := \[\]backend\.Mount\{\{HostPath: worktreePath, ContainerPath: sessionWorkDir\}\}$' \
   control-plane/internal/api/sessions.go                                    # 1
+grep -cE '^\t\tMounts:\s+sandboxMounts,$'      control-plane/internal/api/sessions.go         # 2 — create and restart
+grep -cE '^\t\tmounts = append\(mounts, ' control-plane/internal/api/sessions.go               # 6 — S8.8 (2), S8.9, S8.10, S8.11 (2)
 grep -cE '^\tif len\(spec\.Mounts\) > 0 \{$'   control-plane/internal/backend/katabe/kata.go   # 1
 grep -cE '^\tif spec\.WorkDir != "" \{$'       control-plane/internal/backend/katabe/kata.go   # 1
 grep -c  'is a configuration change and not a rewrite' control-plane/internal/backend/katabe/kata.go   # 1 — step 5 corrects it
@@ -91,14 +95,19 @@ git status --porcelain -- desktop/src/components/AppShell.tsx desktop/src/compon
   control-plane/internal/proxy control-plane/internal/backend/backend.go \
   control-plane/internal/backend/katabe/kata.go docs/SEAMS.md               # expect no output
 
-# (g) The resume fix landed (it precedes task 25). Seam SX.10 pins what it built.
-grep -cE '^\s+resume: from\.id,$' desktop/src/api/client.ts                 # 0
+# (g) The resume fix landed (it precedes task 25). Seam SX.10 pins what it built. The desktop
+#     still sends the COCKPIT id (`resume: from.id`, count 1) on purpose, and the control
+#     plane resolves it (UI contract §4.4's resume note, Go contract §3.9), so resume is
+#     checked server-side and never by that client line.
 grep -cE '^[^/]*"--session-id"'   control-plane/internal/harness/argv.go    # >= 1
+grep -cE '^[^/]*"--fork-session"' control-plane/internal/harness/argv.go    # >= 1
+grep -cE '^func \(a \*API\) sessionResolveResume\(' control-plane/internal/api/sessions.go   # 1
+grep -cE '^RUN mkdir -p /home/dev/\.claude/projects$' images/sandbox/Dockerfile               # 1
 ```
 
-**Then read the resume fix's commit** and find the one declaration that makes the conversation store outlive its sandbox — a mount, a volume, a copy step; the fix decides which. Step 2's `SX.10` entry takes a third anchor on that declaration, and step 6's `SX.10` row names its file and line. This plan cannot write that anchor for you: the fix is being built while this plan is reviewed, and an anchor guessed at its shape would be a guard against code that does not exist.
+**The declaration that makes the conversation store outlive its sandbox is a mount**, and the Resume fix put it in `sessionMounts` (`control-plane/internal/api/sessions.go`): `mounts = append(mounts, backend.Mount{HostPath: conversationStore, ContainerPath: sessionConversationDir})`, with `const sessionConversationDir = "/home/dev/.claude/projects"`. The image makes the mount point with `RUN mkdir -p /home/dev/.claude/projects` (`images/sandbox/Dockerfile`), so `~/.claude` stays owned by `dev`. Step 2's `SX.10` entry anchors both, and step 6's `SX.10` row names both. Re-derived at `a38c268`; the entry carries no line number, because this file has moved under every fix since.
 
-`grep -E` does not understand `\t` on every platform; if (d) prints `0` for a line you can see in the file, re-run it with `grep -cP` before concluding anything. **If (b) finds `phase={5}` twice**, task 23's fix has not landed — do not make it here; the orchestrator was explicit that it is task 23's. **If (d) finds either Kata line genuinely gone**, somebody has started Phase 8's worktree delivery, and seam S8.3 below must be rewritten from the code as it now stands before anything else is written. **If (g) shows the resume fix absent**, stop: `SX.10` would pin the broken mechanism the fix replaces, and the manifest would go red the day the fix lands.
+`grep -E` does not understand `\t` on every platform, and on this machine it does not; if (d) prints `0` for a line you can see in the file, re-run it with `LC_ALL=C.UTF-8 grep -cP` (plain `grep -P` refuses this machine's default locale: *"-P supports only unibyte and UTF-8 locales"*) before concluding anything. Every (d) count above was checked at `a38c268` with the same JavaScript regexes `seams.test.ts` uses. **If (b) finds `phase={5}` twice**, task 23's fix has not landed — do not make it here; the orchestrator was explicit that it is task 23's. **If (d) finds either Kata line genuinely gone**, somebody has started Phase 8's worktree delivery, and seam S8.3 below must be rewritten from the code as it now stands before anything else is written. **If (g) shows the resume fix absent** (it found it present at `a38c268`), stop: `SX.10` would pin the broken mechanism the fix replaces, and the manifest would go red the day the fix lands.
 
 - [ ] **Step 2: Write the failing seam manifest**
 
@@ -286,16 +295,27 @@ const SEAMS: Seam[] = [
   },
   {
     id: "SX.10",
-    name: "resume by Claude's own session id, from a conversation store that outlives its sandbox",
+    name: "resume by Claude's own session id, as a fork, from a conversation store that outlives its sandbox",
     anchors: [
-      // The resume fix (ahead of task 25). Claude Code is started with its own UUID...
+      // The Resume fix (b4be570, 2e3db79). Claude Code is started with its own UUID, and a
+      // resume forks it under a new one: the only pairing the CLI accepts.
       { file: "control-plane/internal/harness/argv.go", present: /^[^/\n]*"--session-id"/m },
-      // ...and the cockpit's id no longer stands in for it — the defect the fix removed.
-      { file: "desktop/src/api/client.ts", absent: /^\s+resume: from\.id,$/m },
-      // THIRD ANCHOR, from the fix's commit (step 1): the declaration that persists the
-      // conversation store. File and pattern are the fix's; this plan cannot know them.
+      { file: "control-plane/internal/harness/argv.go", present: /^[^/\n]*"--fork-session"/m },
+      // The cockpit's id still travels from the desktop ON PURPOSE (client.ts sends
+      // `resume: from.id`); the control plane resolves it to the Claude UUID here.
+      { file: "control-plane/internal/api/sessions.go", present: /^func \(a \*API\) sessionResolveResume\(/m },
+      // The store that outlives the sandbox: one mount of <state>/conversations/local/<worktree>/
+      // at the one persisted directory, which the image makes as the agent user.
+      { file: "control-plane/internal/api/sessions.go", present: /^const sessionConversationDir = "\/home\/dev\/\.claude\/projects"$/m },
+      { file: "control-plane/internal/api/sessions.go", present: /^\t\tmounts = append\(mounts, backend\.Mount\{HostPath: conversationStore, ContainerPath: sessionConversationDir\}\)$/m },
+      { file: "images/sandbox/Dockerfile", present: /^RUN mkdir -p \/home\/dev\/\.claude\/projects$/m },
     ],
-    tests: [{ file: "desktop/e2e/phase2.e2e.mjs", decl: /^check\("o2\.resume",/m }],
+    tests: [
+      { file: "desktop/e2e/phase2.e2e.mjs", decl: /^check\("o2\.resume",/m },
+      { file: "control-plane/internal/api/sessions_resume_test.go", decl: /^func TestResumePassesTheSourcesConversationNotTheCockpitID\(/m },
+      { file: "control-plane/internal/api/sessions_resume_test.go", decl: /^func TestCreateMountsOnlyThisWorktreesConversationStore\(/m },
+      { file: "control-plane/internal/harness/argv_test.go", decl: /^func TestBuildRefusesAForkThatReusesTheSourceID\(/m },
+    ],
   },
 ```
 
@@ -444,7 +464,9 @@ The Phase 5 and Phase 8 seams, closing the array:
     id: "S8.3",
     name: "the gap: the create path always mounts a host worktree, and katabe refuses one",
     anchors: [
-      { file: "control-plane/internal/api/sessions.go", present: /^\t\tMounts:\s+\[\]backend\.Mount\{\{HostPath: path, ContainerPath: sessionWorkDir\}\},$/m },
+      // sessionMounts builds every create's and restart's mounts, the worktree first.
+      { file: "control-plane/internal/api/sessions.go", present: /^\tmounts := \[\]backend\.Mount\{\{HostPath: worktreePath, ContainerPath: sessionWorkDir\}\}$/m },
+      { file: "control-plane/internal/api/sessions.go", present: /^\t\tMounts:\s+sandboxMounts,$/m },
       { file: "control-plane/internal/backend/katabe/kata.go", present: /^\tif len\(spec\.Mounts\) > 0 \{$/m },
       { file: "control-plane/internal/backend/katabe/kata.go", present: /^\tif spec\.WorkDir != "" \{$/m },
     ],
@@ -480,6 +502,50 @@ The Phase 5 and Phase 8 seams, closing the array:
       { file: "control-plane/internal/proxy/proxy.go", absent: /^func Relay\(/m },
       { file: "control-plane/internal/api/attach.go", present: /\bproxy\.RelayHooked\(r\.Context\(\), client, upstream, / },
     ],
+  },
+  /* The six mounts after the worktree, in four seams, each refused by katabe's `len(spec.Mounts) > 0`
+   * (S8.3's anchor); Go contract §2.6 and backend.Mount's doc comment record every one. One seam per
+   * thing Phase 8 must provide another way, so the day it provides one, exactly one row moves: S8.8
+   * holds the store and a fork's carried transcript, S8.11 the two git files. */
+  {
+    id: "S8.8",
+    name: "the conversation store (and a fork's carried transcript): a volume per user and worktree that outlives the pod",
+    anchors: [
+      { file: "control-plane/internal/api/sessions.go", present: /^\t\tmounts = append\(mounts, backend\.Mount\{HostPath: conversationStore, ContainerPath: sessionConversationDir\}\)$/m },
+      { file: "control-plane/internal/api/sessions.go", present: /^\t\tmounts = append\(mounts, carried\)$/m },
+    ],
+    tests: [
+      { file: "control-plane/internal/api/sessions_resume_test.go", decl: /^func TestCreateMountsOnlyThisWorktreesConversationStore\(/m },
+      { file: "control-plane/internal/api/sessions_fork_test.go", decl: /^func TestAForkIsShownAStagedReadOnlyCopyOfTheSourcesTranscript\(/m },
+    ],
+  },
+  {
+    id: "S8.9",
+    name: "the CA bundle: read-only at /etc/panacea-app/ca-bundle.pem, named by NODE_EXTRA_CA_CERTS",
+    anchors: [
+      { file: "control-plane/internal/api/sessions.go", present: /^const sessionCABundlePath = "\/etc\/panacea-app\/ca-bundle\.pem"$/m },
+      { file: "control-plane/internal/api/sessions.go", present: /^\t\tmounts = append\(mounts, backend\.Mount\{HostPath: caBundle, ContainerPath: sessionCABundlePath, ReadOnly: true\}\)$/m },
+      { file: "control-plane/internal/api/sessions.go", present: /^\t\tenv\["NODE_EXTRA_CA_CERTS"\] = sessionCABundlePath$/m },
+    ],
+    tests: [{ file: "control-plane/internal/api/sessions_sandboxenv_test.go", decl: /^func TestACABundleIsMountedReadOnlyAndNamedByNodeExtraCACerts\(/m }],
+  },
+  {
+    id: "S8.10",
+    name: "a primary worktree's .git/worktrees, read-only over itself (may vanish under OD-2's one clone per worktree)",
+    anchors: [
+      { file: "control-plane/internal/api/sessions.go", present: /^const sessionWorktreeAdminDir = sessionWorkDir \+ "\/\.git\/worktrees"$/m },
+      { file: "control-plane/internal/api/sessions.go", present: /^\t\tmounts = append\(mounts, backend\.Mount\{HostPath: worktreeAdmin, ContainerPath: sessionWorktreeAdminDir, ReadOnly: true\}\)$/m },
+    ],
+    tests: [{ file: "control-plane/internal/api/sessions_sandboxenv_test.go", decl: /^func TestAPrimaryWorktreesLinkedWorktreeMetadataIsReadOnlyInTheSandbox\(/m }],
+  },
+  {
+    id: "S8.11",
+    name: "the host git's global excludes and attributes files, read-only, from the user's own config",
+    anchors: [
+      { file: "control-plane/internal/api/sessions.go", present: /^\t\tmounts = append\(mounts, backend\.Mount\{HostPath: git\.excludes\.mount, ContainerPath: sessionGitExcludesPath, ReadOnly: true\}\)$/m },
+      { file: "control-plane/internal/api/sessions.go", present: /^\t\tmounts = append\(mounts, backend\.Mount\{HostPath: git\.attributes\.mount, ContainerPath: sessionGitAttributesPath, ReadOnly: true\}\)$/m },
+    ],
+    tests: [{ file: "control-plane/internal/api/sessions_gitfiles_test.go", decl: /^func TestTheHostsGlobalGitFilesReachTheSandboxReadOnlyAndOnlyWhenTheHostsGitReadsThem\(/m }],
   },
 ];
 ```
@@ -812,7 +878,7 @@ go test ./control-plane/internal/backend/ -run Seam -count=1 -v
 
 - [ ] **Step 5: Two corrections the seams require — katabe's header, and one relay**
 
-**5a — correct `katabe`'s header, which says the opposite of what the code does.** `kata.go:1-4` ends *"It compiles and is unit-tested now so that turning it on in Phase 8 is a configuration change and not a rewrite."* Step 1 (d) confirmed why that is false: every create sends a host `Mounts` entry and a `WorkDir` (`api/sessions.go:330-331`), and `Create` refuses both (`kata.go:84-89`), so under `PANACEA_APP_BACKEND=kata` every session create fails. **The refusal is right and stays** — `kata.go:75-79` gives the reason, *"silently dropping it would hand the agent an empty worktree with no error anywhere"*. The defect is the sentence a Phase 8 planner would read first and believe. Replace the package comment, lines 1-4, with:
+**5a — correct `katabe`'s header, which says the opposite of what the code does.** `kata.go:1-4` ends *"It compiles and is unit-tested now so that turning it on in Phase 8 is a configuration change and not a rewrite."* Step 1 (d) confirmed why that is false: every create and restart sends host `Mounts`, the worktree first, and a `WorkDir` (`api/sessions.go:992-993`, `:1678-1679`), and `Create` refuses both (`kata.go:94-99` before this step, `:101-106` after it), so under `PANACEA_APP_BACKEND=kata` every session create fails. **The refusal is right and stays** — `kata.go:75-79` gives the reason, *"silently dropping it would hand the agent an empty worktree with no error anywhere"*. The defect is the sentence a Phase 8 planner would read first and believe. Replace the package comment, lines 1-4, with:
 
 ```go
 // Package katabe runs sandboxes as Kata Containers pods on AKS. It is DORMANT:
@@ -821,8 +887,8 @@ go test ./control-plane/internal/backend/ -run Seam -count=1 -v
 // the Backend seam cannot drift away from what Kubernetes can serve.
 //
 // Turning it on is NOT only a configuration change. Every session create sends
-// a host-path Mount of the worktree and a WorkDir (api/sessions.go), and Create
-// refuses both below — correctly, because a host path on an AKS node is
+// host-path Mounts, the worktree first, and a WorkDir (api/sessions.go), and
+// Create refuses both below — correctly, because a host path on an AKS node is
 // meaningless. So under PANACEA_APP_BACKEND=kata every create fails today. The
 // first thing Phase 8 must build is a way to get the worktree into the pod:
 // seam S8.3 in docs/SEAMS.md.
@@ -939,32 +1005,36 @@ forgets it, and each is already enforced where cited.
 |---|---|---|---|---|---|
 | SX.1 | 3, 4, 5, 7 | `desktop/src/components/lens/{Discover,Design,Files,Merge,Deploy}Lens.tsx`; `AppShell.tsx` `LensRouter` | Replace the body of its own lens file | Edit `AppShell.tsx`, which is closed; add a `Lens` union member — all six exist (`types.ts`) | seams.test.ts `SX.1` |
 | SX.2 | all | `desktop/src/store/types.ts` ≡ UI contract §2's fenced block | Amend both in one commit when the model grows | Add a field to one side | seams.test.ts `SX.2` gate |
-| SX.3 | all | `desktop/src/store/store.ts:16-17` (`PERSIST_KEY`, `PERSIST_VERSION = 1`), `partialize` at `:29-42` | Add a root key, bump the version, write the migration, update this row | Nest a slice — `persist` shallow-merges at the root (`store.ts:3-6`) | seams.test.ts `SX.3` |
-| SX.4 | 3, 4, 5 | `control-plane/internal/api/api.go:172` — every route registers through the recorder | Add its routes to the table and to both audit maps | Register on the raw mux; add a side-effecting GET | `TestNoRegisteredGetCanChangeState`, `TestNoFileRegistersOnTheRawMuxBehindTheRecorder` |
+| SX.3 | all | `desktop/src/store/store.ts:16-17` (`PERSIST_KEY`, `PERSIST_VERSION = 1`), `partialize` at `:34-48` | Add a root key, bump the version, write the migration, update this row | Nest a slice — `persist` shallow-merges at the root (`store.ts:3-6`) | seams.test.ts `SX.3` |
+| SX.4 | 3, 4, 5 | `control-plane/internal/api/api.go:269` — every route registers through the recorder (`routes.Handle`) | Add its routes to the table and to both audit maps | Register on the raw mux; add a side-effecting GET | `TestNoRegisteredGetCanChangeState`, `TestNoFileRegistersOnTheRawMuxBehindTheRecorder` |
 | SX.5 | 3, 4, 5 | `control-plane/internal/statepath/statepath.go:30` `Dir(sub)` | Take one subdirectory — Phase 4's is `Dir("discover")` | Re-derive the state ladder | seams.test.ts `SX.5` |
 | SX.6 | 3, 4, 5 | `desktop/src/components/palette/commands.ts` — `Command`, `buildCommands(state)` | Append its commands; ranking is fixed here, filtering only removes | Add a destructive verb one keystroke from a filter (open carry 4, defect 10's shape) | seams.test.ts `SX.6` |
 | SX.7 | all | `desktop/src/api/problems.ts:13,37` — `ProblemKind`, `classify` | Switch over `ProblemKind` at its call site with a declared return type and its own sentences | Add a `default:` to that switch, or a shared `sentenceFor` | seams.test.ts `SX.7` |
 | SX.8 | all | `desktop/src/hooks/heartbeat.ts` — `BEAT_MS`, `beatDelayStyle()`, `useHeartbeat()` | Use them for anything that breathes or ticks | Build a third clock; subscribe a row per list item to the 1 Hz tick | seams.test.ts `SX.8` |
 | SX.9 | 3 (`--drift`); unowned (`--need`) | `desktop/src/styles/tokens.css:75,77` | Use the token the day the status can be derived, and update task 24's audit assertion in the same change | Invent a second amber or purple | designsystem.test.ts *defines --drift and references it nowhere* |
-| SX.10 | 8; every phase that resumes | Claude Code started with `--session-id <uuid>` (`control-plane/internal/harness/argv.go`); resume by that UUID; the conversation store persisted by `<the resume fix's declaration, file:line>` | Carry the store's persistence into Kata pods, whose home is an `emptyDir` (see note) | Resume by the cockpit's session id; parse agent output to learn Claude's | seams.test.ts `SX.10`; task 25 `o2.resume` |
+| SX.10 | 8; every phase that resumes | Claude Code started with `--session-id <uuid>`, and a resume forked from that UUID with `--resume <uuid> --fork-session` (`control-plane/internal/harness/argv.go:115,118`); the cockpit's id resolved to Claude's by `sessionResolveResume` (`api/sessions.go:1069`); the conversation store persisted by `sessionMounts`'s mount of `conversationStore` at `sessionConversationDir` (`api/sessions.go:58,346`), whose mount point the image makes as `dev` (`RUN mkdir -p /home/dev/.claude/projects`, `images/sandbox/Dockerfile:32`) | Carry the store's persistence into Kata pods, whose home is an `emptyDir` (see note, and S8.8) | Hand the cockpit's session id to `claude --resume`; resume without `--fork-session`; parse agent output to learn Claude's | seams.test.ts `SX.10`; task 25 `o2.resume` |
 | S3.1 | 3 | `control-plane/internal/project` — read-only by design (`project.go:1-6`) | Put worktree lifecycle and every git write in a new package | Widen `project`'s whitelist of `for-each-ref`, `rev-parse`, `worktree list` | `TestEveryGitCommandIsReadOnly` (`project_test.go:429`) |
-| S3.2 | 3, 4 | `control-plane/internal/worktree/worktree.go:32` `Provider.Path(ctx, worktreeID)` | Make every worktree it creates resolve through it; session create does (`sessions.go:219`) | Resolve paths a second way | seams.test.ts `S3.2` |
-| S3.3 | 3 | `PATCH /v1/projects/{projectId}/worktrees/{worktreeId}` (`catalog.go:33`); `Worktree.ready?` (`types.ts:85`); `setWorktreeReady` (`client.ts:312`) | Gate merge on `ready` | Derive readiness any other way (known defect 9) | seams.test.ts `S3.3` |
+| S3.2 | 3, 4 | `control-plane/internal/worktree/worktree.go:32` `Provider.Path(ctx, worktreeID)` | Make every worktree it creates resolve through it; session create does (`sessions.go:805`), and so does restart (`:1501`) | Resolve paths a second way | seams.test.ts `S3.2` |
+| S3.3 | 3 | `PATCH /v1/projects/{projectId}/worktrees/{worktreeId}` (`catalog.go:33`); `Worktree.ready?` (`types.ts:85`); `setWorktreeReady` (`client.ts:315`) | Gate merge on `ready` | Derive readiness any other way (known defect 9) | seams.test.ts `S3.3` |
 | S3.4 | 3 | `desktop/src/lib/immutable.ts` — `moveWithinVisible`, `idAtVisiblePosition` | Reorder the merge queue through them | Pass an index across a filter boundary (known defect 10) | defects.test.tsx row 10 |
 | S3.5 | 3 | `FilesLens.tsx`, `MergeLens.tsx` — both render phase 3 | Fill both | Treat Files' ownership as settled: `docs/PROGRAM.md` names no owner for it (open carry 8) | seams.test.ts `S3.5` |
-| S4.1 | 4 (write), all (read) | `Session.contextRef`: `registry/session.go:72-74`; `api/sessions.go:65,152,301`; `types.ts:163`; `defaults.ts:110,127`; carried by resume and fork (`client.ts:359,381`) | Write it on create; add a resolve endpoint so surfaces can show a brief's title | Make Phase 2 code interpret it; render it from a component before updating this row — the tree tripwire fires | seams.test.ts `S4.1` |
-| S4.2 | 4 | `handleSessionCreate` (`api/sessions.go:205`): between worktree resolution (`:219`) and `Backend.Create` (`:322`) | Materialise `CLAUDE.md` there, once decision 0c is made | Rely on the client to call it first — silent inheritance failure | seams.test.ts `S4.2` (`api.go` has no materialiser) |
+| S4.1 | 4 (write), all (read) | `Session.contextRef`: `registry/session.go:102-104`; `api/sessions.go:651,682,738,953`; `types.ts:163`; `defaults.ts:110,127`; carried by resume and fork (`client.ts:362,391`) | Write it on create; add a resolve endpoint so surfaces can show a brief's title | Make Phase 2 code interpret it; render it from a component before updating this row — the tree tripwire fires | seams.test.ts `S4.1` |
+| S4.2 | 4 | `handleSessionCreate` (`api/sessions.go:791`): between worktree resolution (`:805`) and `Backend.Create` (`:983`) | Materialise `CLAUDE.md` there, once decision 0c is made | Rely on the client to call it first — silent inheritance failure | seams.test.ts `S4.2` (`api.go` has no materialiser) |
 | S4.3 | 4 | `desktop/src/lib/immutable.ts` — `replaceAt`, `replaceById` | Implement `editAnswer` through them | Splice later answers (known defect 7) | defects.test.tsx row 7 |
-| S4.4 | 4 | `project.Scanner.ProjectName` / `BranchName` (`project.go:172,175`); `/api/v1/` prefix strip (`api.go:274`) | Use them as its `Naming` and its route prefix | Delete the prefix strip — its comment says why | seams.test.ts `S4.4` |
-| S5.1 | 5 | `desktop/src/api/poller.ts:10` and `client.ts:294` — the only transports | Bring its canvas room as a named second transport, and update this row | Open a socket or `EventSource` anywhere without updating this row — the tree tripwire fires | seams.test.ts `S5.1` |
+| S4.4 | 4 | `project.Scanner.ProjectName` / `BranchName` (`project.go:172,175`); `/api/v1/` prefix strip (`api.go:391`) | Use them as its `Naming` and its route prefix | Delete the prefix strip — its comment says why | seams.test.ts `S4.4` |
+| S5.1 | 5 | `desktop/src/api/poller.ts:10` and `client.ts:297` — the only transports | Bring its canvas room as a named second transport, and update this row | Open a socket or `EventSource` anywhere without updating this row — the tree tripwire fires | seams.test.ts `S5.1` |
 | S5.2 | 5 | `.shell-lens` (`shell.css:30-33`); `DesignLens.tsx` | Render into the fixed box and own its scroll | Resize the shell or scroll the page | seams.test.ts `S5.2` |
-| S8.1 | 8 | `backend.Backend` (`backend.go:283-291`), seven methods; `katabe` implements it (`kata.go:25`) | Turn katabe on behind it | Change the interface without this row — reflection fails | `TestSeamBackendIsTheSevenMethodsBothImplementationsServe`, `TestSeamBackendKindsAreTheTwoPersistedStrings` |
-| S8.2 | 8 | `PANACEA_APP_BACKEND=kata` (`config.go:25`) → `newBackend` (`main.go:222`) → `kubeClient` (`:257`), in-cluster only | Add `clientcmd` under contract §8.5's pinning review if a kubeconfig is needed | Honour `PANACEA_APP_KUBECONFIG` silently | seams.test.ts `S8.2` |
-| S8.3 | 8 — **its first problem** | Create always sends `WorkDir` and a host `Mounts` (`api/sessions.go:330-331`); `katabe.Create` refuses both (`kata.go:84-89`), so every create under Kata fails today | Before anything else: design how a worktree gets into a pod, then change both sides and this row | Drop the refusal to make creates pass — that ships an empty worktree with no error; treat Kata as a configuration switch | `TestCreateBuildsASpecThatMountsTheWorktreeAndCarriesTheArgv`, `TestCreateRejectsMountsAndCreatesNoPod`, `TestCreateRejectsAWorkDir` |
+| S8.1 | 8 | `backend.Backend` (`backend.go:337-345`), seven methods; `katabe` implements it (`kata.go:32`) | Turn katabe on behind it | Change the interface without this row — reflection fails | `TestSeamBackendIsTheSevenMethodsBothImplementationsServe`, `TestSeamBackendKindsAreTheTwoPersistedStrings` |
+| S8.2 | 8 | `PANACEA_APP_BACKEND=kata` (`config.go:31`) → `newBackend` (`main.go:258`) → `kubeClient` (`:306`), in-cluster only | Add `clientcmd` under contract §8.5's pinning review if a kubeconfig is needed | Honour `PANACEA_APP_KUBECONFIG` silently | seams.test.ts `S8.2` |
+| S8.3 | 8 — **its first problem** | Create and restart always send `WorkDir` and host `Mounts` (`api/sessions.go:992-993`, `:1678-1679`), built by `sessionMounts` with the worktree first (`:340-341`); `katabe.Create` refuses both (`kata.go:101-106`), so every create under Kata fails today | Before anything else: design how a worktree gets into a pod, then change both sides and this row | Drop the refusal to make creates pass — that ships an empty worktree with no error; treat Kata as a configuration switch | `TestCreateBuildsASpecThatMountsTheWorktreeAndCarriesTheArgv`, `TestCreateRejectsMountsAndCreatesNoPod`, `TestCreateRejectsAWorkDir` |
 | S8.4 | 8 | `const runtimeClass = "kata-mshv-vm-isolation"` (`sandbox/manager.go:20`) | Confirm it against a real cluster (Phase 1 unproven item 2) | Ship it unobserved | seams.test.ts `S8.4` |
 | S8.5 | 8 | `isolationFor` (`api/catalog.go:174`); the rail's badge (`MachineChip.tsx:45`) | Report `microvm` for Kata machines | Hide the badge client-side | seams.test.ts `S8.5` |
 | S8.6 | 8 | `desktop/src/api/client.ts:6-8` — no `Authorization` header | Add auth with its server half, together | Add a header "for safety" in an earlier phase | seams.test.ts `S8.6` (see note) |
 | S8.7 | 8 | `proxy.RelayHooked` (`proxy/proxy.go`), called once at `api/attach.go:216` | Reach pods through it | Add a second relay; `proxy.Relay` was deleted by task 26 (open carry 12) | seams.test.ts `S8.7` |
+| S8.8 | 8 | The conversation store: `<state>/conversations/local/<worktree>/` mounted read-write at `sessionConversationDir` (`api/sessions.go:58,346`), and a fork's staged read-only copy of its source's transcript (`carried`, `:349`); refused by S8.3's `len(spec.Mounts) > 0` | Provide a volume per user and worktree that outlives the pod and holds `projects/` only (Go contract §2.6), so SX.10's resume survives a pod | Put the store in the pod's `emptyDir` home; share one store across users or worktrees | `TestCreateMountsOnlyThisWorktreesConversationStore`, `TestAForkIsShownAStagedReadOnlyCopyOfTheSourcesTranscript`; seams.test.ts `S8.8` |
+| S8.9 | 8 | The CA bundle: `PANACEA_APP_CA_BUNDLE` mounted read-only at `sessionCABundlePath` = `/etc/panacea-app/ca-bundle.pem` and named by `NODE_EXTRA_CA_CERTS` (`api/sessions.go:296,352,452`); refused by S8.3's check | Deliver the operator's CA to the pod another way, at the same path and named by the same variable | Drop `NODE_EXTRA_CA_CERTS`, without which Claude Code cannot start on a TLS-inspecting network; set `SSL_CERT_FILE` or `NODE_TLS_REJECT_UNAUTHORIZED`, which tests assert are absent | `TestACABundleIsMountedReadOnlyAndNamedByNodeExtraCACerts`; seams.test.ts `S8.9` |
+| S8.10 | 8 | A primary worktree's `.git/worktrees`, mounted read-only over itself at `sessionWorktreeAdminDir` (`api/sessions.go:40,343`); refused by S8.3's check | Decide it with S8.3's worktree delivery; under OD-2's one local clone per worktree it may vanish, and this row with it | Make it writable: the sandbox's git calls every linked worktree prunable, and a `git worktree prune` there deletes the host's metadata (`sessionWorktreeAdmin`'s comment, `:562-570`) | `TestAPrimaryWorktreesLinkedWorktreeMetadataIsReadOnlyInTheSandbox`; seams.test.ts `S8.10` |
+| S8.11 | 8 | The host git's global excludes and attributes files, read-only at `sessionGitExcludesPath` and `sessionGitAttributesPath` (`api/sessions.go:304-305,355,358`), mounted only when the host's git reads them; refused by S8.3's check | Carry the user's own git config into the pod, or state that a cloud sandbox has none | Copy a file the host's git does not read; make either writable | `TestTheHostsGlobalGitFilesReachTheSandboxReadOnlyAndOnlyWhenTheHostsGitReadsThem`; seams.test.ts `S8.11` |
 ```
 
 Then, below the table in the same file, the notes — headings only, no table rows:
@@ -976,17 +1046,19 @@ Then, below the table in the same file, the notes — headings only, no table ro
 
 The Go contract §5.1 reserved the space — *"Anything Phase 4 later needs on disk before the
 agent starts — `CLAUDE.md` — is written between steps 1 and 5"* — but `api.Deps`
-(`api.go:66`) has no materialiser field (`survey-phase-4-discover.md:97-104`). Who calls
+(`api.go:68`) has no materialiser field (`survey-phase-4-discover.md:97-104`). Who calls
 `Materialise` is **decision 0c** (`dependency-graph-and-order.md:233`), the orchestrator's.
 The guard pins the current state: the day a materialiser lands in `api.go`, the manifest fails
 and this note is rewritten to say where it went.
 
 ### S8.3 — the first thing Phase 8 must solve: getting the worktree into the pod
 
-Every create sends a host-path mount of the worktree and a working directory
-(`api/sessions.go:330-331`), and `katabe.Create` refuses both, correctly — *"a host path on an
-AKS node is meaningless"*, and silently dropping the mount would hand the agent *"an empty
-worktree with no error anywhere"* (`kata.go:75-89`). So under `PANACEA_APP_BACKEND=kata` every
+Every create and restart sends host-path mounts, the worktree first, and a working directory
+(`api/sessions.go:992-993`, `:1678-1679`), and `katabe.Create` refuses both, correctly — *"a host
+path on an AKS node is meaningless"*, and silently dropping the mount would hand the agent *"an
+empty worktree with no error anywhere"* (`kata.go:92-106`). The six mounts after the worktree
+are seams of their own, four of them, S8.8 to S8.11: each is refused by the same check, and each needs its own
+answer once the worktree has one. So under `PANACEA_APP_BACKEND=kata` every
 session create fails today. `katabe`'s header used to say turning it on was *"a configuration
 change and not a rewrite"*; task 26 corrected it to say this instead. **Before Phase 8 does
 anything else, it designs how a worktree reaches a pod** — and the refusal stays until that
@@ -1005,10 +1077,11 @@ three. Until then, the phase number in `FilesLens.tsx` is a claim the code makes
 ### SX.10 — resume by Claude's own id, from a store that outlives its sandbox
 
 Phase 2 planning found resume could not restore context: the client sent the cockpit's own
-session id to `claude --resume`, where the Go contract types it as *"a prior agent session id"*
-(`go-contract.md:1137`), and a resumed session is a new sandbox, so the old conversation store was
-gone. A separate fix, landed before task 25, starts Claude Code with `--session-id <uuid>`,
-resumes by that UUID, and persists the conversation store. Task 25's `o2.resume` proves identity
+session id to `claude --resume`, where the Go contract then typed `Resume` as a prior agent
+session id (Go contract §2.9, `harness.Request`, since amended), and a resumed session is a new
+sandbox, so the old conversation store was gone. A separate fix, landed before task 25, starts
+Claude Code with `--session-id <uuid>`, resumes from that UUID as a fork (`--resume <uuid>
+--fork-session`, the only pairing the CLI accepts), and persists the conversation store (S8.8). Task 25's `o2.resume` proves identity
 and the store; the owner's step-18 observation in the results document proves the agent
 remembers. **This is a Phase 8 seam as well as a resume one**: a Kata pod's home is an `emptyDir`
 (`docs/verification/2026-09-17-phase-1-results.md:67`), which dies with the pod exactly as a
@@ -1042,9 +1115,9 @@ cd desktop
 npm test -- src/seams.test.ts
 ```
 
-**What you must see: six passed.** The document sync is the one that went green in this step. **If it fails with two sorted arrays that differ by one id**, a row was mistyped or a note was written as a table row — `grep -nE '^\|\s*S[X3458]\.[0-9]+\s*\|' ../docs/SEAMS.md` lists every line the test counted, and it must print exactly twenty-eight.
+**What you must see: six passed.** The document sync is the one that went green in this step. **If it fails with two sorted arrays that differ by one id**, a row was mistyped or a note was written as a table row — `grep -nE '^\|\s*S[X3458]\.[0-9]+\s*\|' ../docs/SEAMS.md` lists every line the test counted, and it must print exactly thirty-two.
 
-Two things to check by reading, because no test can: that every file and line the table cites is the one that opens when a reader follows it — **re-read each against the tree as it stands after steps 3 and 5**, because step 3 moved `AppShell.tsx`'s lines and step 5 moved `proxy.go`'s and `kata.go`'s — the header grew by seven lines, so every `kata.go` citation in the S8.1 and S8.3 rows and notes shifts — and that no row's *must not* column contradicts a rule another row states.
+Two things to check by reading, because no test can: that every file and line the table cites is the one that opens when a reader follows it — **re-read each against the tree as it stands after steps 3 and 5**, because step 3 moved `AppShell.tsx`'s lines and step 5 moved `proxy.go`'s and `kata.go`'s. The header grew by seven lines, and every `kata.go` citation in the S8.1 and S8.3 rows and notes is already the after-5a number (HEAD's plus seven: `:32`, `:101-106`, `:92-106`, derived at `aab769f`); confirm each rather than shifting it again. Every other line in the table was re-derived at `aab769f` too; a file changed since then (task 25 edits `harness.go` and `argv.go`) is re-read. And check that no row's *must not* column contradicts a rule another row states.
 
 - [ ] **Step 7: Prove the manifest can fail**
 
@@ -1083,8 +1156,8 @@ go test ./sandboxd/... ./control-plane/... -race -count=1
 git diff --stat -- go.work sandboxd/go.mod control-plane/go.mod           # expect no output
 
 # The document and the manifest agree on the count, independently of the test that compares them.
-grep -cE '^\|\s*S[X3458]\.[0-9]+\s*\|'       docs/SEAMS.md                 # 28
-grep -cE '^\s+id: "S[X3458]\.[0-9]+",$'      desktop/src/seams.test.ts     # 28
+grep -cE '^\|\s*S[X3458]\.[0-9]+\s*\|'       docs/SEAMS.md                 # 32
+grep -cE '^\s+id: "S[X3458]\.[0-9]+",$'      desktop/src/seams.test.ts     # 32
 
 # The lens split.
 ls desktop/src/components/lens/                                            # six .tsx files
@@ -1100,8 +1173,8 @@ grep -cE '^func RelayHooked\('                control-plane/internal/proxy/proxy
 grep -c  'is a configuration change and not a rewrite' control-plane/internal/backend/katabe/kata.go   # 0
 grep -cE '^\tif len\(spec\.Mounts\) > 0 \{$'   control-plane/internal/backend/katabe/kata.go         # 1
 
-# Nothing this task wrote still carries a placeholder from the plan — including SX.10's row,
-# whose persistence declaration step 1 read from the resume fix.
+# Nothing this task wrote still carries a placeholder from the plan. SX.10's row names the
+# resume fix's declarations itself now; the grep stays, so a row copied from an older plan fails.
 grep -c '<date>\|<run-date>\|<the resume fix' docs/SEAMS.md                  # 0
 grep -c 'THIRD ANCHOR' desktop/src/seams.test.ts                            # 0 — replaced by the real anchor
 
@@ -1117,7 +1190,7 @@ Then commit, staging by name — never `git add -A`, `-u` or `.`. **Write the me
 ```text
 docs(seams): name where phases 3, 4, 5 and 8 plug into phase 2, and pin each one
 
-docs/SEAMS.md names twenty-eight seams: the file, what the later phase does
+docs/SEAMS.md names thirty-two seams: the file, what the later phase does
 there, what it must not do, and the test that fails if the seam moves. It is
 living - a phase that changes a seam changes its row in the same commit - and
 desktop/src/seams.test.ts refuses to pass until the document and the manifest

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -38,19 +39,19 @@ func (l *sandboxEnvLog) String() string {
 	return l.buf.String()
 }
 
-// sandboxEnvIdentity is a Deps.GitIdentity double that records every worktree
-// path it was asked about.
+// sandboxEnvIdentity is a Deps.GitIdentity double that counts how often it
+// was asked. It is given no worktree to be asked about (X-1).
 type sandboxEnvIdentity struct {
 	mu    sync.Mutex
-	asked []string
+	asked int
 	id    GitIdentity
 	err   error
 }
 
-func (f *sandboxEnvIdentity) resolve(_ context.Context, worktreePath string) (GitIdentity, error) {
+func (f *sandboxEnvIdentity) resolve(context.Context) (GitIdentity, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.asked = append(f.asked, worktreePath)
+	f.asked++
 	return f.id, f.err
 }
 
@@ -60,10 +61,10 @@ func (f *sandboxEnvIdentity) set(id GitIdentity, err error) {
 	f.id, f.err = id, err
 }
 
-func (f *sandboxEnvIdentity) calls() []string {
+func (f *sandboxEnvIdentity) calls() int {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	return append([]string(nil), f.asked...)
+	return f.asked
 }
 
 func sandboxEnvNew(t *testing.T, tweak func(*Deps)) *sessionsEnv {
@@ -137,22 +138,35 @@ func TestEverySandboxTrustsTheMountPointAndNothingWider(t *testing.T) {
 			if got := cfg["user.useConfigOnly"]; got != "true" {
 				t.Errorf("user.useConfigOnly = %q, want \"true\" so git never invents an identity", got)
 			}
+			// The primary's .git/worktrees/<id>/gitdir files name host paths,
+			// so every linked worktree looks prunable from in here, and an
+			// automatic gc would delete their metadata on the host.
+			if got := cfg["gc.worktreePruneExpire"]; got != "never" {
+				t.Errorf("gc.worktreePruneExpire = %q, want \"never\" so no gc in the sandbox prunes a host worktree", got)
+			}
+			// With that metadata read-only, gc's reflog expiry cannot lock a
+			// linked worktree's HEAD and gc exits 128. A detached auto gc that
+			// fails writes .git/gc.log, and the HOST's git then skips its own
+			// auto gc for a day (gc.logExpiry). So the sandbox never starts one.
+			if got := cfg["gc.auto"]; got != "0" {
+				t.Errorf("gc.auto = %q, want \"0\" so no auto gc in the sandbox leaves the host a gc.log", got)
+			}
 		})
 	}
 }
 
-// The identity is the resolver's answer for THIS worktree, asked with the
-// host path, and it reaches both halves git reads: author and committer.
-func TestTheSandboxCommitsAsTheIdentityResolvedForItsWorktree(t *testing.T) {
+// The identity is the resolver's answer, asked at the create with no worktree
+// to read (X-1), and it reaches both halves git reads: author and committer.
+func TestTheSandboxCommitsAsTheIdentityTheHostResolved(t *testing.T) {
 	who := &sandboxEnvIdentity{id: GitIdentity{Name: "Ada Lovelace", Email: "ada@example.invalid"}}
 	for _, body := range []string{sessionsCreateBody, sandboxEnvShellBody} {
 		t.Run(body, func(t *testing.T) {
 			env := sandboxEnvNew(t, func(d *Deps) { d.GitIdentity = who.resolve })
+			before := who.calls()
 			spec := sandboxEnvCreate(t, env, body)
 
-			asked := who.calls()
-			if len(asked) == 0 || asked[len(asked)-1] != env.dir {
-				t.Fatalf("the resolver was asked about %#v, want the worktree's host path %q", asked, env.dir)
+			if asked := who.calls() - before; asked != 1 {
+				t.Fatalf("the create asked the resolver %d times, want once", asked)
 			}
 			for k, want := range map[string]string{
 				"GIT_AUTHOR_NAME":     "Ada Lovelace",
@@ -281,11 +295,14 @@ func TestACABundleIsMountedReadOnlyAndNamedByNodeExtraCACerts(t *testing.T) {
 // sandbox that can commit — and the CA mount and safe.directory are still there.
 func TestRestartAsksForTheIdentityAgainAndKeepsTheCAAndSafeDirectory(t *testing.T) {
 	who := &sandboxEnvIdentity{err: errors.New("no identity yet")}
+	host := &sandboxEnvLineEndings{eol: GitLineEndings{AutoCRLF: "true", EOL: "crlf"}}
 	bundle := filepath.Join(t.TempDir(), "corp-root.pem")
 	env := sandboxEnvNew(t, func(d *Deps) {
 		d.GitIdentity = who.resolve
+		d.GitLineEndings = host.resolve
 		d.CABundle = bundle
 	})
+	admin := sandboxEnvPrimary(t, env.dir, true)
 	sessionsStubReady(t, nil)
 	done := sessionsWatchDone(t)
 	sessionsSeed(t, env.st, sessionsStarting("s-0000000b"))
@@ -295,19 +312,267 @@ func TestRestartAsksForTheIdentityAgainAndKeepsTheCAAndSafeDirectory(t *testing.
 	sessionsAwaitWatch(t, done)
 	spec := env.be.spec(t, 0)
 
-	if asked := who.calls(); len(asked) != 1 || asked[0] != env.dir {
-		t.Fatalf("the restart asked the resolver about %#v, want once, about %q", asked, env.dir)
+	if asked := who.calls(); asked != 1 {
+		t.Fatalf("the restart asked the resolver %d times, want once", asked)
 	}
 	if spec.Env["GIT_AUTHOR_NAME"] != "Ada Lovelace" || spec.Env["GIT_COMMITTER_EMAIL"] != "ada@example.invalid" {
 		t.Errorf("the restarted sandbox commits as %q <%q>, want the identity resolved at restart",
 			spec.Env["GIT_AUTHOR_NAME"], spec.Env["GIT_COMMITTER_EMAIL"])
 	}
-	if got := sandboxEnvGitConfig(t, spec.Env)["safe.directory"]; got != sessionWorkDir {
+	cfg := sandboxEnvGitConfig(t, spec.Env)
+	if got := cfg["safe.directory"]; got != sessionWorkDir {
 		t.Errorf("safe.directory = %q after a restart", got)
+	}
+	if asked := host.calls(); asked != 1 {
+		t.Errorf("the restart asked for the line endings %d times, want once", asked)
+	}
+	if cfg["core.autocrlf"] != "true" || cfg["core.eol"] != "crlf" || cfg["gc.worktreePruneExpire"] != "never" || cfg["gc.auto"] != "0" {
+		t.Errorf("after a restart core.autocrlf %q, core.eol %q, gc.worktreePruneExpire %q, gc.auto %q; want true, crlf, never, 0",
+			cfg["core.autocrlf"], cfg["core.eol"], cfg["gc.worktreePruneExpire"], cfg["gc.auto"])
+	}
+	if got := sandboxEnvAdminMounts(spec); len(got) != 1 || got[0].HostPath != admin || !got[0].ReadOnly {
+		t.Errorf("after a restart the linked-worktree metadata mounts are %#v, want %q read-only", got, admin)
 	}
 	ca := spec.Mounts[len(spec.Mounts)-1]
 	if ca.ContainerPath != sessionCABundlePath || !ca.ReadOnly || spec.Env["NODE_EXTRA_CA_CERTS"] != sessionCABundlePath {
 		t.Errorf("the restarted sandbox lost its CA bundle: mounts %#v, NODE_EXTRA_CA_CERTS %q",
 			spec.Mounts, spec.Env["NODE_EXTRA_CA_CERTS"])
+	}
+}
+
+// sandboxEnvLineEndings is a Deps.GitLineEndings double that counts how often
+// it was asked. It is given no worktree to be asked about (X-1).
+type sandboxEnvLineEndings struct {
+	mu    sync.Mutex
+	asked int
+	eol   GitLineEndings
+	err   error
+}
+
+func (f *sandboxEnvLineEndings) resolve(context.Context) (GitLineEndings, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.asked++
+	return f.eol, f.err
+}
+
+func (f *sandboxEnvLineEndings) calls() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.asked
+}
+
+// sandboxEnvCreates is how many sandboxes the fake backend was asked for.
+func sandboxEnvCreates(env *sessionsEnv) int {
+	env.be.mu.Lock()
+	defer env.be.mu.Unlock()
+	return len(env.be.specs)
+}
+
+// sandboxEnvAdminDir is where a primary worktree's linked-worktree metadata
+// sits inside the sandbox: under the one mount point, never a second literal.
+const sandboxEnvAdminDir = sessionWorkDir + "/.git/worktrees"
+
+// sandboxEnvAdminMounts is every mount of the sandbox at sandboxEnvAdminDir.
+func sandboxEnvAdminMounts(spec backend.Spec) []backend.Mount {
+	var out []backend.Mount
+	for _, m := range spec.Mounts {
+		if m.ContainerPath == sandboxEnvAdminDir {
+			out = append(out, m)
+		}
+	}
+	return out
+}
+
+// sandboxEnvPrimary makes the test's worktree a primary one, whose .git is a
+// directory, and returns the host path of its .git/worktrees. With linked it
+// also holds one linked worktree's metadata, whose gitdir file names a host
+// path, the way git on Windows writes it.
+func sandboxEnvPrimary(t *testing.T, dir string, linked bool) string {
+	t.Helper()
+	admin := filepath.Join(dir, ".git", "worktrees")
+	if !linked {
+		if err := os.MkdirAll(filepath.Join(dir, ".git"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		return admin
+	}
+	if err := os.MkdirAll(filepath.Join(admin, "linked"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(admin, "linked", "gitdir"), []byte("C:/work/linked/.git\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return admin
+}
+
+// The host's answer, from its own config and asked about no worktree (X-1), is
+// what the sandbox's git converts line endings with, for every harness. Three
+// answers, so a sandbox that hard-coded any one of them passes at most one.
+func TestTheSandboxConvertsLineEndingsAsTheHostsOwnConfigSays(t *testing.T) {
+	for _, want := range []GitLineEndings{
+		{AutoCRLF: "true", EOL: "crlf"},  // Git for Windows' installer default
+		{AutoCRLF: "false", EOL: "crlf"}, // Windows, autocrlf off, core.eol native
+		{AutoCRLF: "input", EOL: "lf"},
+	} {
+		for _, body := range []string{sessionsCreateBody, sandboxEnvShellBody} {
+			t.Run(want.AutoCRLF+"/"+want.EOL+" "+body, func(t *testing.T) {
+				host := &sandboxEnvLineEndings{eol: want}
+				env := sandboxEnvNew(t, func(d *Deps) { d.GitLineEndings = host.resolve })
+				spec := sandboxEnvCreate(t, env, body)
+
+				if asked := host.calls(); asked != 1 {
+					t.Fatalf("the line endings were asked for %d times, want once", asked)
+				}
+				cfg := sandboxEnvGitConfig(t, spec.Env)
+				if cfg["core.autocrlf"] != want.AutoCRLF || cfg["core.eol"] != want.EOL {
+					t.Errorf("core.autocrlf %q, core.eol %q; want the host's %q, %q",
+						cfg["core.autocrlf"], cfg["core.eol"], want.AutoCRLF, want.EOL)
+				}
+			})
+		}
+	}
+}
+
+// With no answer, or one the sandbox's git would read differently from the
+// host's, there is no safe guess: the create fails before anything exists. No
+// record, and no sandbox whose git would rewrite line endings.
+func TestALineEndingAnswerTheSandboxCannotUseFailsTheCreateAndLeavesNothing(t *testing.T) {
+	for name, host := range map[string]*sandboxEnvLineEndings{
+		"an error": {err: errors.New("git config in C:\\work: exit status 128: fatal: bad config line 3")},
+		// native means CRLF to Git for Windows and LF to the sandbox's git.
+		"native":      {eol: GitLineEndings{AutoCRLF: "false", EOL: "native"}},
+		"no eol":      {eol: GitLineEndings{AutoCRLF: "true"}},
+		"no autocrlf": {eol: GitLineEndings{EOL: "lf"}},
+		"not a word":  {eol: GitLineEndings{AutoCRLF: "yes", EOL: "lf"}},
+		// Half an answer alongside an error is still an error.
+		"half and an error": {eol: GitLineEndings{AutoCRLF: "true", EOL: "crlf"}, err: errors.New("git config: exit status 1")},
+	} {
+		t.Run(name, func(t *testing.T) {
+			env := sandboxEnvNew(t, func(d *Deps) { d.GitLineEndings = host.resolve })
+			rec := env.do(t, http.MethodPost, "/v1/sessions", sessionsCreateBody)
+			if rec.Code != http.StatusInternalServerError {
+				t.Fatalf("status = %d, want 500: %s", rec.Code, rec.Body.String())
+			}
+			if n := sandboxEnvCreates(env); n != 0 {
+				t.Errorf("backend.Create was called %d times", n)
+			}
+			if list, err := env.st.List(); err != nil || len(list) != 0 {
+				t.Errorf("the registry holds %#v (err %v), want nothing", list, err)
+			}
+		})
+	}
+}
+
+// At restart the answer is asked for again, before the destroy, so a failure
+// leaves the old sandbox alive and the record naming it.
+func TestARestartThatCannotReadTheLineEndingsKeepsTheOldSandbox(t *testing.T) {
+	host := &sandboxEnvLineEndings{err: errors.New("exec: \"git\": executable file not found in %PATH%")}
+	env := sandboxEnvNew(t, func(d *Deps) { d.GitLineEndings = host.resolve })
+	seeded := sessionsSeed(t, env.st, sessionsStarting("s-0000000b"))
+
+	rec := env.do(t, http.MethodPost, "/v1/sessions/s-0000000b/restart", "")
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500: %s", rec.Code, rec.Body.String())
+	}
+	if host.calls() != 1 {
+		t.Errorf("the restart asked for the line endings %d times, want once", host.calls())
+	}
+	if n := env.be.destroyCount(); n != 0 {
+		t.Errorf("the failed restart destroyed %d sandboxes", n)
+	}
+	if n := sandboxEnvCreates(env); n != 0 {
+		t.Errorf("the failed restart created %d sandboxes", n)
+	}
+	if after, err := env.st.Get("s-0000000b"); err != nil || after.SandboxID != seeded.SandboxID {
+		t.Errorf("after the failed restart the record names %q (err %v), want the old sandbox %q", after.SandboxID, err, seeded.SandboxID)
+	}
+}
+
+// A wiring that forgot the resolver would reopen the defect silently, so New
+// refuses it with a sentence naming the field.
+func TestNewRefusesDepsWithNoLineEndingResolver(t *testing.T) {
+	var deps Deps
+	sandboxEnvNew(t, func(d *Deps) { deps = *d })
+	deps.GitLineEndings = nil
+	if _, err := New(deps); err == nil || !strings.Contains(err.Error(), "Deps.GitLineEndings") {
+		t.Errorf("New with no GitLineEndings: err %v, want one naming Deps.GitLineEndings", err)
+	}
+}
+
+// A primary worktree's linked-worktree metadata is mounted over itself,
+// read-only. The sandbox's git still sees every linked worktree, so it still
+// refuses to check out a branch one of them holds. But every gitdir there
+// names a host path, so each looks prunable from in here, and no prune, gc,
+// repair or add run in the sandbox can now change it on the host. The
+// directory is made when there is none yet, so a linked worktree added while
+// the session runs is covered too.
+func TestAPrimaryWorktreesLinkedWorktreeMetadataIsReadOnlyInTheSandbox(t *testing.T) {
+	for _, linked := range []bool{true, false} {
+		for _, body := range []string{sessionsCreateBody, sandboxEnvShellBody} {
+			t.Run(strconv.FormatBool(linked)+" "+body, func(t *testing.T) {
+				env := sandboxEnvNew(t, nil)
+				admin := sandboxEnvPrimary(t, env.dir, linked)
+				spec := sandboxEnvCreate(t, env, body)
+
+				got := sandboxEnvAdminMounts(spec)
+				if len(got) != 1 || got[0].HostPath != admin || !got[0].ReadOnly {
+					t.Fatalf("linked-worktree metadata mounts = %#v, want exactly %q at %q, read-only", got, admin, sandboxEnvAdminDir)
+				}
+				if spec.Mounts[0].ContainerPath != sessionWorkDir || spec.Mounts[0].ReadOnly {
+					t.Errorf("Mounts[0] = %#v, want the worktree itself, writable", spec.Mounts[0])
+				}
+				if info, err := os.Stat(admin); err != nil || !info.IsDir() {
+					t.Errorf("the host's %s is not a directory (err %v); Docker would make one, root-owned, or fail", admin, err)
+				}
+				if linked {
+					if b, err := os.ReadFile(filepath.Join(admin, "linked", "gitdir")); err != nil || string(b) != "C:/work/linked/.git\n" {
+						t.Errorf("the linked worktree's gitdir is now %q (err %v)", b, err)
+					}
+				}
+			})
+		}
+	}
+}
+
+// A linked worktree's .git is a file naming the host, and a directory with no
+// .git is not a repository. Neither has linked-worktree metadata to protect,
+// so neither gets a mount, and nothing is made in it. A .git that is a
+// symlink is not followed either: nothing is made or mounted through a link
+// whose target the sandbox resolves against its own filesystem.
+func TestAWorktreeWhoseGitIsNotADirectoryGetsNoMetadataMount(t *testing.T) {
+	for name, setup := range map[string]func(t *testing.T, dir string) string{
+		"a linked worktree": func(t *testing.T, dir string) string {
+			if err := os.WriteFile(filepath.Join(dir, ".git"), []byte("gitdir: C:/work/primary/.git/worktrees/linked\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			return filepath.Join(dir, ".git", "worktrees")
+		},
+		"no .git": func(t *testing.T, dir string) string { return filepath.Join(dir, ".git", "worktrees") },
+		"a .git that is a symlink to a directory": func(t *testing.T, dir string) string {
+			target := filepath.Join(dir, "real-git-dir")
+			if err := os.Mkdir(target, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Symlink(target, filepath.Join(dir, ".git")); err != nil {
+				t.Skipf("this host cannot make a directory symlink: %v", err)
+			}
+			return filepath.Join(target, "worktrees")
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			env := sandboxEnvNew(t, nil)
+			notMade := setup(t, env.dir)
+			spec := sandboxEnvCreate(t, env, sessionsCreateBody)
+
+			for _, m := range spec.Mounts {
+				if strings.HasPrefix(m.ContainerPath, sessionWorkDir+"/") {
+					t.Errorf("mount %#v inside the worktree of %s", m, name)
+				}
+			}
+			if _, err := os.Stat(notMade); err == nil {
+				t.Errorf("%s was made in %s", notMade, name)
+			}
+		})
 	}
 }

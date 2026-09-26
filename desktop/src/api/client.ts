@@ -91,7 +91,8 @@ export interface CreateSessionRequest {
   permissionMode?: PermissionMode;
   openingPrompt?: string;
   title?: string;
-  /** The session whose transcript this one continues. See the decision in the plan. */
+  /** The cockpit id of the session whose conversation this one continues, as a fork of it.
+   *  Resume sends it in the source's own worktree and Fork in another (Go contract §3.9). */
   resume?: string;
   contextRef?: string;
 }
@@ -157,8 +158,10 @@ export interface CockpitClient {
   /** Resume: a NEW session continuing an old one's context. The old session keeps its record
    *  and its transcript. Only offered when harness.supportsResume. */
   resumeSession(source: Session, harness: Harness): Promise<Session>;
-  /** Fork: the same configuration in a DIFFERENT worktree. Phase 2 cannot create a worktree
-   *  (§10.3), so it is offered only when the branch already has another one. */
+  /** Fork: a NEW session in a DIFFERENT worktree, on the same configuration and — when
+   *  harness.supportsResume — branched from the source's conversation, as Resume is. A shell
+   *  forks its configuration alone. Phase 2 cannot create a worktree (§10.3), so it is offered
+   *  only when the branch already has another one. */
   forkSession(source: Session, targetWorktreeId: WorktreeId, harness: Harness): Promise<Session>;
   attachUrl(session: Session): string;
   openAttach(session: Session): WebSocket;
@@ -368,6 +371,12 @@ export function createClient(opts?: ClientOptions): CockpitClient {
           { worktreeId: targetWorktreeId },
         );
       }
+      // A harness that can resume forks the CONVERSATION as well: `resume` names the source, as
+      // Resume's does, and the control plane starts the CLI on a fork of that session's
+      // conversation in the other worktree (Go contract §3.9). The opening prompt then stays
+      // home — the conversation already holds it. A shell has no conversation, so its fork is
+      // the configuration alone, opening prompt included, exactly as before.
+      const carries = harness.supportsResume;
       return createSession({
         worktreeId: targetWorktreeId,
         machineId: from.machineId,
@@ -377,7 +386,8 @@ export function createClient(opts?: ClientOptions): CockpitClient {
         permissionMode: from.permissionMode,
         // No title: the server derives "harness name · worktree name", and the source's title
         // names the worktree the fork is NOT in.
-        openingPrompt: harness.supportsOpeningPrompt ? from.openingPrompt : undefined,
+        openingPrompt: !carries && harness.supportsOpeningPrompt ? from.openingPrompt : undefined,
+        resume: carries ? from.id : undefined,
         contextRef: from.contextRef,
       });
     },

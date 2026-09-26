@@ -15,7 +15,7 @@ Each phase produces working, testable software and gets its own plan in `docs/su
 | Terminals | Real PTYs streaming over WebSocket, rendered with xterm.js |
 | Agents | Unmodified Claude Code / Codex / OpenCode / Gemini CLI, plus plain shells |
 | AI capacity | Per-user rotation across that user's own subscriptions, metered API backstop |
-| Identity | **EntraID, OAuth 2.0 auth-code + PKCE from the desktop**; tokens in Windows Credential Manager (`OD-6`). Was "the existing oauth2-proxy → Keycloak chain"; the Hub ADR decides any server-side broker |
+| Identity | **A Keycloak realm brokering Entra, OAuth 2.0 auth-code + PKCE from the desktop, zero clicks** (`OD-30`), on Panacea's existing Entra registration: no new registration, no IT ticket for sign-in. Panacea's dev realm until phase 8, then phase 8's own Keycloak; the person key is Entra's `(tid, oid)`. Tokens in Windows Credential Manager (`OD-6`). Ruling: `docs/superpowers/planning/2026-09-25-identity-keycloak-broker.md`. Was "directly against Entra, no broker" |
 | Shared state | **Shared from day one** — briefs, approvals, ledger, releases live in the Hub, our own server, in this monorepo (`OD-3`, `OD-5`) |
 | Environment | **Our own**, modelled on Panacea and written from scratch here; Panacea is the deploy target and the model, not the host (`OD-5`, `OD-13`) |
 | Execution | Subagent-driven, orchestrated, with review gates per task |
@@ -56,7 +56,7 @@ Phases are now ordered by **how much can be proven without spending money**, whi
 | 1 | Live session — walking skeleton | ✅ **DONE** (proven on Docker) |
 | 2 | Sandbox backend interface + the cockpit | No |
 | 3 | Git, worktrees, coordination and convergence | No |
-| **H** | **The Hub — identity, shared stores, teams** (added 2026-09-23, `OD-3`/`OD-5`; lettered so no number moves) | No — local-first on Docker Postgres + a real Entra app registration |
+| **H** | **The Hub — identity, shared stores, teams** (added 2026-09-23, `OD-3`/`OD-5`; lettered so no number moves) | No — local-first on Docker Postgres + `devissuer` (the same Keycloak flow locally, `OD-30`) |
 | 4 | Discover | No |
 | 5 | Design canvas — **clean-room, paper.design-class, with MCP** (`OD-11`) | No |
 | 6 | Capacity and credential rotation | Partly — engine is local, real limits need accounts |
@@ -92,7 +92,7 @@ This is the prototype made real. Largest phase; split into its own sub-plans whe
 Worktree lifecycle against real git, file-claim coordination between concurrent agents, diff review with transcript back-links, merge ordering, conflict resolution, landed history with undo, PR creation.
 
 ### Phase H — The Hub
-Added 2026-09-23 (`OD-3`, `OD-5`). The shared server the owner asked for: Entra identity (the desktop signs in with PKCE, `OD-6`), the brief store, approvals, the provenance ledger, releases and teams — every store `provenance-contract-draft.md` §2.1 names, living server-side so a teammate sees the same thread. Built local-first (Docker Postgres, a real Entra app registration); hosted in our own environment once phase 8 stands it up. The desktop's control plane calls it **as the user**. Its decomposition is its plan's ADR.
+Added 2026-09-23 (`OD-3`, `OD-5`). The shared server the owner asked for: Entra identity through a Keycloak broker (the desktop signs in with PKCE, zero clicks, `OD-6`, `OD-30`), the brief store, approvals, the provenance ledger, releases and teams — every store `provenance-contract-draft.md` §2.1 names, living server-side so a teammate sees the same thread. Built local-first (Docker Postgres, `devissuer`); hosted in our own environment once phase 8 stands it up. The desktop's control plane calls it **as the user**. Its decomposition is its plan's ADR.
 
 ### Phase 4 — Discover
 The question flow, generation of per-branch `CLAUDE.md`, inheritance project → branch → session, the provenance thread surfacing in Develop, Merge and Deploy.

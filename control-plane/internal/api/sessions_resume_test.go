@@ -3,10 +3,12 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -51,6 +53,34 @@ func valueAfter(argv []string, flag string) string {
 		return ""
 	}
 	return argv[i+1]
+}
+
+// resumeSpeak is someone saying something in a conversation: the CLI writing
+// its transcript into the env's worktree store. The path is spelled out rather
+// than taken from sessionTranscriptPath, so a change to the layout that
+// function computes fails here instead of moving both sides together. The
+// contents are never read; any byte will do.
+func resumeSpeak(t *testing.T, env *sessionsEnv, conversation string) {
+	t.Helper()
+	dir := filepath.Join(env.conversations, "local", "w-4a77b1c9", "-home-dev-work")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatalf("make the transcript dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, conversation+".jsonl"), []byte("{}\n"), 0o600); err != nil {
+		t.Fatalf("write the transcript: %v", err)
+	}
+}
+
+// resumeProblemMessage is the sentence a refusal carries.
+func resumeProblemMessage(t *testing.T, body []byte) string {
+	t.Helper()
+	var p struct {
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal(body, &p); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	return p.Message
 }
 
 func TestCreateNamesTheConversationItMints(t *testing.T) {
@@ -178,6 +208,7 @@ func TestResumePassesTheSourcesConversationNotTheCockpitID(t *testing.T) {
 	sessionsStubReady(t, nil)
 	done := sessionsWatchDone(t)
 	src := sessionsSeed(t, env.st, resumeSource("s-0000000a"))
+	resumeSpeak(t, env, sessionsConversation)
 
 	got := sessionsDecodeOne(t, env.do(t, http.MethodPost, "/v1/sessions", resumeBody(src.ID)), http.StatusCreated)
 	sessionsAwaitWatch(t, done)
@@ -217,13 +248,15 @@ func TestAResumedSessionCanItselfBeResumed(t *testing.T) {
 	sessionsStubReady(t, nil)
 	done := sessionsWatchDone(t)
 	src := sessionsSeed(t, env.st, resumeSource("s-0000000a"))
+	resumeSpeak(t, env, sessionsConversation)
 
 	first := sessionsDecodeOne(t, env.do(t, http.MethodPost, "/v1/sessions", resumeBody(src.ID)), http.StatusCreated)
 	sessionsAwaitWatch(t, done)
+	firstRec, _ := env.st.Get(first.ID)
+	resumeSpeak(t, env, firstRec.ConversationID)
 	second := sessionsDecodeOne(t, env.do(t, http.MethodPost, "/v1/sessions", resumeBody(first.ID)), http.StatusCreated)
 	sessionsAwaitWatch(t, done)
 
-	firstRec, _ := env.st.Get(first.ID)
 	secondRec, _ := env.st.Get(second.ID)
 	spec := env.be.spec(t, 1)
 	if got := valueAfter(spec.Args, "--resume"); got != firstRec.ConversationID {
@@ -240,10 +273,15 @@ func TestAResumedSessionCanItselfBeResumed(t *testing.T) {
 func TestResumeRefusesWithASentenceTheUserCanActOn(t *testing.T) {
 	legacy := resumeSource("s-0000000c")
 	legacy.ConversationID = ""
-	elsewhere := resumeSource("s-0000000d")
-	elsewhere.WorktreeID = "w-99999999"
+	// A source in another worktree is no longer refused: that is a Fork, and it
+	// carries the conversation (sessions_fork_test.go).
 	shell := resumeSource("s-0000000e")
 	shell.Harness, shell.Command, shell.Args, shell.ConversationID, shell.Model = "shell", "/bin/bash", []string{"-l"}, "", ""
+	// A conversation the CLI never wrote, and a restart's earlier one that it
+	// never wrote either: `claude --resume` answers both with "No conversation
+	// found" and an exit, inside the terminal.
+	unspoken := resumeSource("s-0000000f")
+	unspoken.EarlierConversationIDs = []string{"aaaaaaaa-1111-4111-8111-111111111111"}
 
 	for name, tc := range map[string]struct {
 		seed       *registry.Session
@@ -260,10 +298,6 @@ func TestResumeRefusesWithASentenceTheUserCanActOn(t *testing.T) {
 			seed: &legacy, body: resumeBody(legacy.ID), wantStatus: http.StatusConflict,
 			wantCode: "conflict", wantPhrase: "no saved conversation",
 		},
-		"the source ran in another worktree": {
-			seed: &elsewhere, body: resumeBody(elsewhere.ID), wantStatus: http.StatusBadRequest,
-			wantCode: "bad_request", wantPhrase: "worktree it ran in",
-		},
 		"the source ran on another harness": {
 			seed: &shell, body: resumeBody(shell.ID), wantStatus: http.StatusBadRequest,
 			wantCode: "bad_request", wantPhrase: "ran Shell",
@@ -271,6 +305,10 @@ func TestResumeRefusesWithASentenceTheUserCanActOn(t *testing.T) {
 		"a shell cannot resume": {
 			seed: &shell, body: `{"worktreeId":"w-4a77b1c9","harness":"shell","resume":"` + shell.ID + `"}`,
 			wantStatus: http.StatusBadRequest, wantCode: "unsupported_option", wantPhrase: "cannot resume",
+		},
+		"nothing was ever said in the source": {
+			seed: &unspoken, body: resumeBody(unspoken.ID), wantStatus: http.StatusConflict,
+			wantCode: "conflict", wantPhrase: "Nothing has been said in that session yet",
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -298,6 +336,11 @@ func TestResumeRefusesWithASentenceTheUserCanActOn(t *testing.T) {
 			}
 			if after, _ := env.st.List(); len(after) != len(before) {
 				t.Errorf("a record was written: %d sessions, had %d", len(after), len(before))
+			}
+			// Not even an empty store: looking for a transcript is not a
+			// reason to create the directory it would be in.
+			if _, err := os.Stat(env.conversations); !errors.Is(err, os.ErrNotExist) {
+				t.Errorf("a refused resume created %s (stat err = %v)", env.conversations, err)
 			}
 		})
 	}
@@ -383,6 +426,7 @@ func TestAResumeAfterAControlPlaneRestartStillFindsTheConversation(t *testing.T)
 	if conversation == "" {
 		t.Fatal("the first session was started without a conversation id")
 	}
+	resumeSpeak(t, first, conversation)
 
 	after, err := registry.NewFileStore(path)
 	if err != nil {
@@ -437,5 +481,246 @@ func TestTheConversationStoreRefusesAnIDThatIsNotOneSegment(t *testing.T) {
 	}
 	if dir, err := env.api.sessionConversationStore("w-4a77b1c9"); err != nil || dir != filepath.Join(env.conversations, "local", "w-4a77b1c9") {
 		t.Errorf("sessionConversationStore(w-4a77b1c9) = %q, %v", dir, err)
+	}
+}
+
+// resumeRestart restarts s-0000000b and waits for its readiness watch.
+func resumeRestart(t *testing.T, env *sessionsEnv, done <-chan string) registry.Session {
+	t.Helper()
+	sessionsDecodeOne(t, env.do(t, http.MethodPost, "/v1/sessions/s-0000000b/restart", ""), http.StatusOK)
+	sessionsAwaitWatch(t, done)
+	after, err := env.st.Get("s-0000000b")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	return after
+}
+
+// resumeOf resumes s-0000000b and returns the --resume the new sandbox got.
+func resumeOf(t *testing.T, env *sessionsEnv, done <-chan string) string {
+	t.Helper()
+	sessionsDecodeOne(t, env.do(t, http.MethodPost, "/v1/sessions", resumeBody("s-0000000b")), http.StatusCreated)
+	sessionsAwaitWatch(t, done)
+	return valueAfter(env.be.spec(t, len(env.be.specs)-1).Args, "--resume")
+}
+
+// resumeRestartable is a running Claude Code session whose record says what
+// create would have written for it.
+func resumeRestartable() registry.Session {
+	s := sessionsStarting("s-0000000b")
+	s.Args = []string{"--model", "opus", "--session-id", sessionsConversation}
+	s.ConversationID = sessionsConversation
+	return s
+}
+
+// The rebuild is now the only thing that keeps a plan-mode session in plan
+// mode across a restart: before the resume fix restart replayed argv byte for
+// byte, so it could not lose a flag. Every other restart fixture leaves both
+// fields empty, which is how deleting either line from the rebuild passed the
+// whole suite. Both values differ from the defaults Build falls back to.
+func TestRestartKeepsThePermissionModeAndTheEffort(t *testing.T) {
+	env := sessionsNewEnv(t)
+	sessionsStubReady(t, nil)
+	done := sessionsWatchDone(t)
+	planned := resumeRestartable()
+	planned.Effort, planned.PermissionMode = "high", "plan"
+	planned.Args = []string{"--model", "opus", "--effort", "high", "--permission-mode", "plan", "--session-id", sessionsConversation}
+	sessionsSeed(t, env.st, planned)
+
+	after := resumeRestart(t, env, done)
+
+	want := []string{"--model", "opus", "--effort", "high", "--permission-mode", "plan", "--session-id", after.ConversationID}
+	if spec := env.be.spec(t, 0); resumeJoin(spec.Args) != resumeJoin(want) {
+		t.Fatalf("the restarted sandbox ran %#v\nwant %#v", spec.Args, want)
+	}
+	if after.PermissionMode != "plan" || after.Effort != "high" {
+		t.Errorf("the record came back as permissionMode %q, effort %q", after.PermissionMode, after.Effort)
+	}
+}
+
+// A restart clears the context, not the artifact. It points the record at a
+// conversation nobody has spoken in, and before this a Resume issued then
+// passed `--resume <that id>` and the CLI printed "No conversation found" and
+// exited — while the conversation the restart cleared sat on disk with no
+// record naming it. Now the record names every conversation its restarts left,
+// and a resume continues the newest one the CLI wrote.
+func TestAResumeAfterARestartContinuesTheConversationTheRestartCleared(t *testing.T) {
+	env := sessionsNewEnv(t)
+	sessionsStubReady(t, nil)
+	done := sessionsWatchDone(t)
+	sessionsSeed(t, env.st, resumeRestartable())
+	resumeSpeak(t, env, sessionsConversation)
+
+	first := resumeRestart(t, env, done)
+	if !slices.Equal(first.EarlierConversationIDs, []string{sessionsConversation}) {
+		t.Fatalf("earlierConversationIds = %v after a restart, want the conversation it cleared, %s", first.EarlierConversationIDs, sessionsConversation)
+	}
+
+	// Nobody has spoken since the restart, so the one with a transcript is the
+	// one the restart cleared.
+	if got := resumeOf(t, env, done); got != sessionsConversation {
+		t.Fatalf("a resume before anyone spoke after the restart passed --resume %q, want the cleared conversation %q", got, sessionsConversation)
+	}
+
+	// Once someone speaks in the restarted sandbox, that is the conversation.
+	resumeSpeak(t, env, first.ConversationID)
+	if got := resumeOf(t, env, done); got != first.ConversationID {
+		t.Fatalf("a resume after speaking in the restarted sandbox passed --resume %q, want %q", got, first.ConversationID)
+	}
+
+	// And a second restart keeps both, oldest first, so none is ever orphaned.
+	second := resumeRestart(t, env, done)
+	if want := []string{sessionsConversation, first.ConversationID}; !slices.Equal(second.EarlierConversationIDs, want) {
+		t.Fatalf("earlierConversationIds = %v after two restarts, want %v", second.EarlierConversationIDs, want)
+	}
+	// Newest first on the way back: the second restart's cleared conversation,
+	// not the first one's.
+	if got := resumeOf(t, env, done); got != first.ConversationID {
+		t.Errorf("after two restarts the resume passed --resume %q, want the newest written conversation %q", got, first.ConversationID)
+	}
+}
+
+// A conversation nobody spoke in has no transcript, so a restart does not list
+// it — one dead id per restart otherwise — and a resume of a session that was
+// only ever restarted is refused before anything is created.
+func TestARestartOfAnUnspokenConversationLeavesNothingToResume(t *testing.T) {
+	env := sessionsNewEnv(t)
+	sessionsStubReady(t, nil)
+	done := sessionsWatchDone(t)
+	sessionsSeed(t, env.st, resumeRestartable())
+
+	after := resumeRestart(t, env, done)
+	if len(after.EarlierConversationIDs) != 0 {
+		t.Fatalf("earlierConversationIds = %v; the restart listed a conversation nobody spoke in", after.EarlierConversationIDs)
+	}
+
+	rec := env.do(t, http.MethodPost, "/v1/sessions", resumeBody("s-0000000b"))
+	if code := sessionsProblemCode(t, rec, http.StatusConflict); code != "conflict" {
+		t.Errorf("error = %q, want conflict", code)
+	}
+	if msg := resumeProblemMessage(t, rec.Body.Bytes()); !strings.Contains(msg, "Nothing has been said in that session yet") {
+		t.Errorf("message = %q", msg)
+	}
+	if n := len(env.be.specs); n != 1 {
+		t.Errorf("backend.Create was called %d times, want 1 — the restart's — and none for a resume that cannot work", n)
+	}
+}
+
+// The restart looks for the old transcript AFTER the old sandbox is gone. Until
+// then its CLI can still write the first line — the user typed just before
+// pressing Restart — and a look taken before the destroy would call that
+// conversation unspoken and orphan it. The hook is that last write.
+func TestARestartLooksForTheOldTranscriptOnlyOnceTheOldSandboxIsGone(t *testing.T) {
+	env := sessionsNewEnv(t)
+	sessionsStubReady(t, nil)
+	done := sessionsWatchDone(t)
+	sessionsSeed(t, env.st, resumeRestartable())
+	env.be.onDestroy = func(string) { resumeSpeak(t, env, sessionsConversation) }
+
+	after := resumeRestart(t, env, done)
+	if !slices.Equal(after.EarlierConversationIDs, []string{sessionsConversation}) {
+		t.Fatalf("earlierConversationIds = %v; the transcript the old sandbox wrote as it was destroyed is orphaned", after.EarlierConversationIDs)
+	}
+}
+
+// OD-8: nothing may need the look at a harness's file to work. A look that
+// fails — anything but "certainly absent" — lets the resume through for the
+// CLI to judge, and makes the restart keep the id it could not see.
+func TestALookAtATranscriptThatFailsDegradesInsteadOfRefusing(t *testing.T) {
+	env := sessionsNewEnv(t)
+	sessionsStubReady(t, nil)
+	done := sessionsWatchDone(t)
+	prev := sessionStat
+	sessionStat = func(name string) (os.FileInfo, error) {
+		return nil, &fs.PathError{Op: "stat", Path: name, Err: fs.ErrPermission}
+	}
+	t.Cleanup(func() { sessionStat = prev })
+	sessionsSeed(t, env.st, resumeRestartable())
+
+	if got := resumeOf(t, env, done); got != sessionsConversation {
+		t.Fatalf("a resume whose look failed passed --resume %q, want the recorded %q", got, sessionsConversation)
+	}
+	after := resumeRestart(t, env, done)
+	if !slices.Equal(after.EarlierConversationIDs, []string{sessionsConversation}) {
+		t.Errorf("earlierConversationIds = %v; a restart that could not look dropped a conversation that may exist", after.EarlierConversationIDs)
+	}
+}
+
+// "A restart that cannot build its argv must fail while the old sandbox is
+// still alive", and the same for the store it mounts. The store's parent here
+// is a regular file, so MkdirAll fails on every platform. Moved after the
+// destroy, that failure would kill a live session and answer 500.
+func TestARestartThatCannotPrepareTheStoreLeavesTheOldSandboxAlive(t *testing.T) {
+	dir := t.TempDir()
+	blocker := filepath.Join(dir, "not-a-directory")
+	if err := os.WriteFile(blocker, []byte("x"), 0o600); err != nil {
+		t.Fatalf("write the blocker: %v", err)
+	}
+	st := sessionsMustStore(t)
+	env := sessionsNewEnvOverWith(t, dir, st, st, func(d *Deps) {
+		d.ConversationsDir = filepath.Join(blocker, "conversations")
+	})
+	env.st = st
+	before := sessionsSeed(t, st, resumeRestartable())
+
+	rec := env.do(t, http.MethodPost, "/v1/sessions/s-0000000b/restart", "")
+	if code := sessionsProblemCode(t, rec, http.StatusInternalServerError); code != "internal" {
+		t.Errorf("error = %q, want internal", code)
+	}
+	if n := env.be.destroyCount(); n != 0 {
+		t.Fatalf("Destroy was called %d times; a restart that cannot prepare its store destroyed the live sandbox first", n)
+	}
+	if n := len(env.be.specs); n != 0 {
+		t.Errorf("backend.Create was called %d times", n)
+	}
+	after, _ := st.Get("s-0000000b")
+	if after.SandboxID != before.SandboxID || after.ConversationID != before.ConversationID || after.AttachToken != before.AttachToken {
+		t.Errorf("the failed restart rewrote the record: %+v", after)
+	}
+}
+
+// 0o700 is requested for the store because a transcript holds whatever the
+// agent read. Windows ignores the mode bits (the boundary there is the
+// profile's ACL), so this is skipped here and bites on Linux CI and in phase 8.
+func TestTheConversationStoreIsPrivateToItsUser(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Go's MkdirAll ignores mode bits on Windows; the store's boundary there is the user profile's ACL")
+	}
+	env := sessionsNewEnv(t)
+	dir, err := env.api.sessionConversationStore("w-4a77b1c9")
+	if err != nil {
+		t.Fatalf("sessionConversationStore: %v", err)
+	}
+	for _, d := range []string{filepath.Dir(dir), dir} {
+		info, err := os.Stat(d)
+		if err != nil {
+			t.Fatalf("stat %s: %v", d, err)
+		}
+		if perm := info.Mode().Perm(); perm != 0o700 {
+			t.Errorf("%s has mode %o, want 700: another local user could read the transcripts", d, perm)
+		}
+	}
+}
+
+// OD-8's guard for the one look the control plane takes at a harness's file.
+// The transcript's place was observed on one CLI version; an image that
+// installs another has to be observed again before anything trusts that place.
+func TestTheTranscriptLayoutIsPinnedToTheImagesCLI(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("..", "..", "..", "images", "sandbox", "Dockerfile"))
+	if err != nil {
+		t.Fatalf("read the sandbox Dockerfile: %v", err)
+	}
+	m := regexp.MustCompile(`@anthropic-ai/claude-code@(\S+)`).FindSubmatch(raw)
+	if m == nil {
+		t.Fatal("images/sandbox/Dockerfile no longer installs a pinned @anthropic-ai/claude-code, so the transcript layout is pinned to nothing")
+	}
+	if got := string(m[1]); got != sessionTranscriptCLIVersion {
+		t.Fatalf("the image installs claude-code %s and the transcript layout was observed on %s.\n"+
+			"Observe it again in the new image — where does a conversation started in %s with --session-id <id> write <id>.jsonl? —\n"+
+			"then update sessionTranscriptPath and sessionTranscriptCLIVersion together.",
+			got, sessionTranscriptCLIVersion, sessionWorkDir)
+	}
+	if got, want := sessionTranscriptPath("store", "U"), filepath.Join("store", "-home-dev-work", "U.jsonl"); got != want {
+		t.Errorf("sessionTranscriptPath = %q, want %q, the place observed on %s", got, want, sessionTranscriptCLIVersion)
 	}
 }

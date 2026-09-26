@@ -74,11 +74,11 @@ afterEach(() => {
 /** Mount the real Terminal, focused, and return its helper textarea — which must be the element
  *  holding DOM focus, or nothing below is dispatched where a real keystroke lands — and every
  *  byte xterm hands the agent from here on. */
-function focusedTerminal(): { textarea: HTMLTextAreaElement; sent: string[] } {
-  render(<Terminal sessionId="s-1" readOnly={false} focused />);
-  const handle = acquireAttach(session("s-1"), {
+function focusedTerminal(readOnly = false): { textarea: HTMLTextAreaElement; sent: string[] } {
+  render(<Terminal sessionId="s-1" readOnly={readOnly} focused />);
+  const handle = acquireAttach(useCockpit.getState().sessions["s-1"] ?? session("s-1"), {
     createTerm: () => { throw new Error("the component should already have built a terminal"); },
-    readOnly: false,
+    readOnly,
   });
   releaseAttach("s-1");
   const sent: string[] = [];
@@ -176,4 +176,114 @@ describe("the agent's own keys still reach the agent through a real xterm", () =
     expect({ sent, mapUnchanged: after === before, killed: killMock.mock.calls.length, created: createSessionMock.mock.calls.length })
       .toEqual({ sent: [bytes], mapUnchanged: true, killed: 0, created: 0 });
   });
+});
+
+/* OWNER DECISION OD-9, "Keep, plus a toggle", through the real xterm. Everything above runs with
+ * the setting at its default, off, and is the off half. This is the on half.
+ *
+ * On, a chord pressed on a focused terminal is the agent's, and it takes TWO guards to make it
+ * so, one per kind of chord. A chord xterm maps to data (⌘3 is ESC) is kept by terminalKeepsKey,
+ * sent, and cancelled by xterm, so the map never sees it. A chord xterm maps to nothing (⌘1)
+ * bubbles to the window whatever the handler says, and only the map's "inside a terminal"
+ * return stops it moving focus. So each row asserts the bytes AND that the map did nothing, and
+ * the counts at the bottom prove both kinds are present. */
+const ALL_CHORD_ROWS: ChordRow[] = [...CONSUMED_BEFORE_THE_FIX, ...THE_REST_OF_THE_TABLE, ...THE_TABLE_ON_THE_META_KEY];
+
+/** What xterm 6 sends for a chord it is allowed to keep, off a Mac. Ctrl-letter is its C0 byte,
+ *  Ctrl-3..8 are ESC, FS, GS, RS, US and DEL, Ctrl-\ is FS, and Enter is CR on any modifier.
+ *  Ctrl-1, Ctrl-2, Ctrl-9, Ctrl-Shift-M and every other Meta chord map to nothing. */
+const CTRL_BYTES: Record<string, string> = {
+  k: "\x0b", w: "\x17", b: "\x02", "\\": "\x1c", Enter: "\r",
+  "3": "\x1b", "4": "\x1c", "5": "\x1d", "6": "\x1e", "7": "\x1f", "8": "\x7f",
+};
+function bytesWhenKept(row: ChordRow): string[] {
+  if (row.key === "Enter") return ["\r"];
+  if (row.init.metaKey === true || row.init.shiftKey === true) return [];
+  const bytes = CTRL_BYTES[row.key];
+  return bytes === undefined ? [] : [bytes];
+}
+
+const mapSnapshot = () =>
+  JSON.stringify([state().selection, state().paletteOpen, state().railCollapsed, state().machinesOpen, state().pickerOpen]);
+
+describe("OD-9 on: a chord pressed on a focused real xterm reaches the agent, and not the keyboard map", () => {
+  it.each(ALL_CHORD_ROWS)("$name", (row) => {
+    state().setSendChordsToTerminal(true);
+    if (row.focus !== null) state().focusSession(row.focus);
+    const { textarea, sent } = focusedTerminal();
+    const before = mapSnapshot();
+    const event = keydownOn(textarea, row.key, row.keyCode, row.init);
+    const expected = bytesWhenKept(row);
+    expect({
+      sent,
+      mapUnchanged: mapSnapshot() === before,
+      killed: killMock.mock.calls.length,
+      created: createSessionMock.mock.calls.length,
+      // xterm cancels what it sends, which is what keeps ⌘W from closing the window; what it
+      // does not send, nobody cancels, because the map ignores it rather than claiming it.
+      cancelled: event.defaultPrevented,
+    }).toEqual({ sent: expected, mapUnchanged: true, killed: 0, created: 0, cancelled: expected.length > 0 });
+  });
+
+  it("covers both kinds of chord: the ones xterm sends, and the ones only the map's return stops", () => {
+    const sentKinds = ALL_CHORD_ROWS.map((row) => bytesWhenKept(row).length > 0);
+    expect({ rows: ALL_CHORD_ROWS.length, sent: sentKinds.filter(Boolean).length, unsent: sentKinds.filter((k) => !k).length })
+      .toEqual({ rows: 30, sent: 12, unsent: 18 });
+  });
+
+  it("a terminal built with the setting off obeys it the moment it is turned on, and off again", () => {
+    const { textarea, sent } = focusedTerminal();
+    state().setSendChordsToTerminal(true);
+    keydownOn(textarea, "3", 51, { ctrlKey: true });
+    expect({ sent, focus: state().selection.sessionId }).toEqual({ sent: ["\x1b"], focus: null });
+    state().setSendChordsToTerminal(false);
+    keydownOn(textarea, "3", 51, { ctrlKey: true });
+    expect({ sent, focus: state().selection.sessionId }).toEqual({ sent: ["\x1b"], focus: "s-3" });
+  });
+
+  // ADDED BY OD-9's FIX ROUND 1 (the review's M1). Every row above is a writable terminal, so a
+  // host marker rendered only when `readOnly` is false passed them all. An exited pane can still
+  // hold DOM focus, from a click into its scrollback, and the ruling is that it is still a
+  // terminal: the two chords xterm maps to nothing must not move focus or open the popover.
+  // The session is seeded EXITED, the one pairing the app makes with readOnly (SessionPane).
+  it("a read-only (exited) terminal is still a terminal: ⌘1 and ⌘⇧M pressed in one move nothing", () => {
+    state().setSendChordsToTerminal(true);
+    useCockpit.setState((s) => ({ sessions: { ...s.sessions, "s-1": { ...session("s-1"), status: "exited", exitReason: "killed" } } }));
+    const { textarea, sent } = focusedTerminal(true);
+    const before = mapSnapshot();
+    keydownOn(textarea, "1", 49, { ctrlKey: true });
+    keydownOn(textarea, "M", 77, { ctrlKey: true, shiftKey: true });
+    expect({ sent, mapUnchanged: mapSnapshot() === before }).toEqual({ sent: [], mapUnchanged: true });
+  });
+
+  it("⌘K pressed outside the terminal still opens the palette, with a terminal on the page", () => {
+    const { sent } = focusedTerminal();
+    state().setSendChordsToTerminal(true);
+    const event = keydownOn(document.body, "k", 75, { ctrlKey: true });
+    expect({ open: state().paletteOpen, cancelled: event.defaultPrevented, sent }).toEqual({ open: true, cancelled: true, sent: [] });
+  });
+});
+
+/** The agent's keys, plus "/", which xterm sends on keydown too. The same bytes, and the same
+ *  silence from the map, in both modes: the setting moves no key that is not a chord. */
+const THE_AGENTS_KEYS_AND_SLASH: Array<[string, string, number, KeyboardEventInit, string]> = [
+  ...THE_AGENTS_KEYS,
+  ["/, the agent's slash commands", "/", 191, {}, "/"],
+];
+
+describe("OD-9: the agent's own keys behave the same through a real xterm with the setting off and on", () => {
+  const cases = THE_AGENTS_KEYS_AND_SLASH.flatMap(([name, key, keyCode, init, bytes]) =>
+    [false, true].map((on) => ({ name, key, keyCode, init, bytes, on })));
+  it.each(cases)(
+    "$name, setting on: $on",
+    ({ key, keyCode, init, bytes, on }) => {
+      state().setSendChordsToTerminal(on);
+      state().focusSession("s-2");
+      const { textarea, sent } = focusedTerminal();
+      const before = mapSnapshot();
+      keydownOn(textarea, key, keyCode, init);
+      expect({ sent, mapUnchanged: mapSnapshot() === before, killed: killMock.mock.calls.length, created: createSessionMock.mock.calls.length })
+        .toEqual({ sent: [bytes], mapUnchanged: true, killed: 0, created: 0 });
+    },
+  );
 });

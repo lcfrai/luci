@@ -257,6 +257,37 @@ describe("the assembled cockpit", () => {
     expect(server.calls.worktrees).toBe(1);
   });
 
+  // RV24-A and RV24-B (task 24 review, I2). An empty list is a real answer, and every other
+  // fixture in this file has exactly one branch and one worktree, so nothing else can see a
+  // loader that read "no rows" as "not arrived". That loader refetches after EVERY store write,
+  // its own loading flag included: the self-feeding loop the failure memo exists to stop,
+  // reached through success instead. The stub parks every call past its cap, so the loop reads
+  // as 51 calls here rather than hanging the worker. A real control plane has no cap.
+  it("takes an empty branch list as an answer and does not ask for it again (RV24-A)", async () => {
+    // A project with no local branch lists []. A fresh `git init` plausibly does.
+    seedCatalogue();
+    server.branches.set("p-1", []);
+    render(<App />);
+    await settle();
+    act(() => useCockpit.getState().toggleProject("p-1"));
+    await settle(POLL_INTERVAL_MS * 2);
+    expect(server.calls.branches).toBe(1);
+    expect(useCockpit.getState().branchesByProject["p-1"]).toEqual([]);
+  });
+
+  it("takes an empty worktree list as an answer and does not ask for it again (RV24-B)", async () => {
+    seedCatalogue();
+    server.worktrees.set("b-1", []);
+    render(<App />);
+    await settle();
+    act(() => useCockpit.getState().toggleProject("p-1"));
+    await settle();
+    act(() => useCockpit.getState().selectBranch("p-1", "b-1"));
+    await settle(POLL_INTERVAL_MS * 2);
+    expect(server.calls.worktrees).toBe(1);
+    expect(useCockpit.getState().worktreesByBranch["b-1"]).toEqual([]);
+  });
+
   it("waits for a restored branch's project list before asking for its worktrees", async () => {
     // persist rehydrates `selection` before any fetch has run, so the branch id is known and
     // the branch list that says which project owns it is not. listWorktrees needs both (§4.4),
@@ -386,6 +417,96 @@ describe("the assembled cockpit", () => {
     unsubscribe();
     expect(written).not.toContain(null);
     expect(shownError()).toContain("branches answered 500");
+  });
+
+  it("puts a list's report back when the poller clears the report that had replaced it (RV24-C)", async () => {
+    // The order the test above does not take (task 24 review, M1). The catalogue fails first,
+    // then the poller's failure takes the one slot, then the poller recovers. It clears its own
+    // report, as it must, and the slot empties while the projects list is still missing. The
+    // retry that same good tick starts is HELD here, and that is the case that matters: a hung
+    // list lasts up to the client's 10 s timeout. Before this fix the rail was empty and the
+    // footer clean for all of it. The loader now puts its outstanding report back.
+    seedCatalogue();
+    server.failing.set("projects", new Error("projects answered 500"));
+    render(<App />);
+    await settle();
+    expect(shownError()).toContain("projects answered 500");
+
+    server.failing.set("sessions", new Error("sessions answered 500"));
+    await settle(POLL_INTERVAL_MS);
+    expect(shownError()).toContain("sessions answered 500");
+
+    server.hanging.add("projects");
+    server.failing.delete("sessions");
+    await settle(POLL_INTERVAL_MS);
+    expect(useCockpit.getState().projects).toHaveLength(0);
+    expect(shownError()).toContain("projects answered 500");
+  });
+
+  it("puts back the newest of two outstanding reports", async () => {
+    // §3.2's slot holds "the last API failure", so a put-back picks the list that failed most
+    // recently. Machines and projects both fail at mount. Then only machines is retried to a
+    // fresh failure, because projects' retry is held. When the slot next empties, machines holds
+    // the newer report, though projects was the one on screen first.
+    seedCatalogue();
+    server.failing.set("machines", new Error("machines answered 500"));
+    server.failing.set("projects", new Error("projects answered 500"));
+    render(<App />);
+    await settle();
+    server.hanging.add("projects");
+    await settle(POLL_INTERVAL_MS);   // a good tick: machines fails again, projects is held
+    expect(shownError()).toContain("machines answered 500");
+
+    server.hanging.add("machines");   // from here no retry lands, so only the put-back writes
+    server.failing.set("sessions", new Error("sessions answered 500"));
+    await settle(POLL_INTERVAL_MS);
+    expect(shownError()).toContain("sessions answered 500");
+    server.failing.delete("sessions");
+    await settle(POLL_INTERVAL_MS);
+    expect(shownError()).toContain("machines answered 500");
+  });
+
+  it("does not put back the report of a list the user has since closed", async () => {
+    // The other half of putting a report back. p-1's branch list fails and the user collapses
+    // p-1, so the rail shows no branch rows because it shows none, not because a list is
+    // missing. A closed project's list is not retried, so a report put back for it would sit on
+    // the footer, unrefreshed, for as long as the project stays closed.
+    seedCatalogue();
+    server.failing.set("branches", new Error("branches answered 500"));
+    render(<App />);
+    await settle();
+    act(() => useCockpit.getState().toggleProject("p-1"));
+    await settle();
+    expect(shownError()).toContain("branches answered 500");
+    act(() => useCockpit.getState().toggleProject("p-1"));
+
+    // Empty the slot the only way a test can without touching the catalogue: the poller's own
+    // report replaces it, and the poller's recovery clears that.
+    server.failing.set("sessions", new Error("sessions answered 500"));
+    await settle(POLL_INTERVAL_MS);
+    expect(shownError()).toContain("sessions answered 500");
+    server.failing.delete("sessions");
+    await settle(POLL_INTERVAL_MS);
+    expect(useCockpit.getState().lastError).toBeNull();
+  });
+
+  it("does not put back the report of a worktree list whose branch the user has since closed", async () => {
+    // The same for the level below: the project stays open and only the branch closes, so only
+    // the worktree half of "can the user see it is missing" decides. Survived as mutant M1g.
+    seedCatalogue();
+    server.failing.set("worktrees", new Error("worktrees answered 500"));
+    useCockpit.setState({ expandedProjects: { "p-1": true }, expandedBranches: { "b-1": true } });
+    render(<App />);
+    await settle();
+    expect(shownError()).toContain("worktrees answered 500");
+    act(() => useCockpit.getState().toggleBranch("b-1"));
+
+    server.failing.set("sessions", new Error("sessions answered 500"));
+    await settle(POLL_INTERVAL_MS);
+    expect(shownError()).toContain("sessions answered 500");
+    server.failing.delete("sessions");
+    await settle(POLL_INTERVAL_MS);
+    expect(useCockpit.getState().lastError).toBeNull();
   });
 
   it("fills in the rail once a control plane that was down at launch starts answering", async () => {
@@ -646,6 +767,29 @@ describe("startCatalogue on its own", () => {
     expect(held).toHaveLength(4);
   });
 
+  it("puts no report back once stopped, though a list is still outstanding", async () => {
+    // The put-back is the one store write that does not pass through `run`, so the test above
+    // cannot see it: there, the only failure lands after stop and is discarded. Here the list
+    // fails while the loader runs, the slot is emptied after stop, where no subscription can
+    // answer, and `retry` then reaches `sync` directly.
+    const { client, held } = heldClient();
+    const catalogue = startCatalogue(client, useCockpit);
+    held[1].reject(new Error("projects answered 500"));
+    await settle();
+    expect(shownError()).toContain("projects answered 500");
+
+    catalogue.stop();
+    useCockpit.getState().setError(null);
+    let writes = 0;
+    const unsubscribe = useCockpit.subscribe(() => {
+      writes += 1;
+    });
+    catalogue.retry();
+    await settle();
+    unsubscribe();
+    expect(writes).toBe(0);
+  });
+
   it("asks for a restored selection's branches at once, without waiting for another reply", async () => {
     // A rehydrated selection is navigation that already happened, so its branch list goes out
     // with the three root lists rather than after the first of them lands. Held here, no
@@ -780,8 +924,9 @@ interface Defect {
   /** §8's "Fixed by" column. */
   fixedBy: number[];
   /** §8's "Regression test" column: the files, not the titles. Titles are prose that authors
-   *  legitimately reword, and three already have; a manifest keyed on them would be red for a
-   *  reason that is not a regression, and a gate that cries wolf is a gate somebody deletes. */
+   *  legitimately reword, and seven of §8's eighteen already have (counted by task 24's review,
+   *  M6); a manifest keyed on them would be red for a reason that is not a regression, and a
+   *  gate that cries wolf is a gate somebody deletes. */
   tests: string[];
   anchors: Anchor[];
 }

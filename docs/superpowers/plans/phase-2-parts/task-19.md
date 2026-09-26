@@ -85,6 +85,13 @@ Now grow **task 14's** `desktop/src/test/fakes.ts`. Shared-shape §3.3 is explic
 
 One behaviour of task 14's class to keep in mind while reading the registry: its `send()` **throws** unless `readyState === OPEN`. The registry guards every send on exactly that, so the throw is a tripwire for a regression rather than something to work around.
 
+> **Amended 2026-09-24 by task 23's fix round 2.** The class below is what this step first
+> wrote. `desktop/src/test/fakes.ts` is the reference, and it has two more additions. Task 19
+> itself shipped `opens` and `openedWhileConnected` beyond this block (commit `4d2eb56`), because
+> two of its mutants survived without them. Task 23's fix round 1 added
+> `attachCustomKeyEventHandler` and the `customKeyEventHandler` it records, because `makeTerm`
+> now calls it (UI contract §1.5's `FakeTerm` block and §6.6, "The chord filter").
+
 So only `FakeTerm` grows. Replace task 14's `FakeTerm` with the class below — a superset of its **members**, every original one kept and every addition marked — and leave the rest of the file, `FakeWebSocket` included, untouched. It is deliberately **not** a superset of its signatures: task 14 declares `loadAddon()`, `open()` and `onResize()` with no parameters, and each one here gains the argument it has to record. Nothing in tasks 14 to 24 calls those three bare — the component passes the fit addon, the registry passes the host element and the resize callback — so no call site that compiled before stops compiling.
 
 ```ts
@@ -1581,6 +1588,20 @@ grep -cE '^[[:space:]]*--ink:'  src/styles/tokens.css   # expect 1
 If either reads 0, task 14 renamed a token: read `src/styles/tokens.css`, take the ground and
 the primary ink from there, and **do not** fall back to a hex literal — that is the one thing
 task 24's audit is built to catch.
+
+> **Amended 2026-09-24 by task 23's fix round 2, recording three declared departures into this
+> file, in the form task 24 used at step 9.** The block below is what task 19 shipped.
+> `desktop/src/components/Terminal.tsx` is the reference, and it differs from the block in three
+> places. Each is marked at its site in that file by an "EDITED BY TASK n's FIX ROUND 1" comment.
+> - **Task 23 (UI contract §6.6, "The chord filter").** `makeTerm` also calls
+>   `term.attachCustomKeyEventHandler((event) => !isCockpitChord(event))`, imported from
+>   `../hooks/useKeyboardMap`. Without it a focused xterm cancelled six of §6.9's chords before
+>   the keyboard map saw them: `⌘3` went to the agent as ESC and `⌘⏎` as CR.
+> - **Task 20 (§6.6, the `focused` paragraph).** `Terminal` takes a third prop, `focused`.
+>   `handle.focus()` leaves the mount effect and runs from an effect of its own, only while
+>   `focused` is true, on mount and on a false→true transition.
+> - **Task 21.** The `window` resize listener is replaced by a `ResizeObserver` on the host node,
+>   so a Canvas tile resized by its corner refits xterm.
 
 Replace `desktop/src/components/Terminal.tsx` in full:
 

@@ -16,6 +16,7 @@ import (
 
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/httpx"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/instance"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/registry"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/statepath"
 )
@@ -51,8 +52,9 @@ const (
 
 	// envGitName and envGitEmail are the commit identity every sandbox's git
 	// uses, as a pair. Unset, each session takes the identity the host's own git
-	// would stamp on a commit in that worktree (gitidentity.go). Added by the
-	// sandbox git fix, with envCABundle; contract §4 carries all three rows.
+	// gives outside any repository (gitidentity.go; X-1): a worktree's own
+	// user.name is the agent's to write. Added by the sandbox git fix, with
+	// envCABundle; contract §4 carries all three rows.
 	envGitName  = "PANACEA_APP_GIT_NAME"
 	envGitEmail = "PANACEA_APP_GIT_EMAIL"
 
@@ -107,6 +109,9 @@ type Config struct {
 	SandboxImage    string
 	StateDir        string // "" means the statepath ladder decides
 	SessionsPath    string // the registry document, derived from StateDir
+	// InstancePath is the file this state directory's instance id is kept in
+	// (internal/instance), derived from StateDir beside the registry.
+	InstancePath string
 	// ConversationsDir is the root every worktree's conversation store lives
 	// under, derived from StateDir beside the registry. Absolute always: it
 	// becomes a bind mount's host path.
@@ -278,9 +283,11 @@ func loadConfig(getenv func(string) string) (Config, error) {
 	if cfg.StateDir != "" {
 		cfg.SessionsPath = filepath.Join(cfg.StateDir, "sessions", "sessions.json")
 		cfg.ConversationsDir = filepath.Join(cfg.StateDir, "conversations")
+		cfg.InstancePath = filepath.Join(cfg.StateDir, "instance", instance.FileName)
 	} else {
 		cfg.SessionsPath = registry.DefaultPath()
 		cfg.ConversationsDir = statepath.Dir("conversations")
+		cfg.InstancePath = filepath.Join(statepath.Dir("instance"), instance.FileName)
 	}
 	// The registry is happy with a relative path and a bind mount is not: a
 	// relative PANACEA_APP_STATE_DIR would otherwise fail every session create
@@ -356,18 +363,23 @@ func validateAddr(cfg *Config) error {
 //
 // "At least one certificate" means a CERTIFICATE block x509 can parse, not any
 // PEM block: a private key or a CSR is valid PEM and trusts nothing.
+//
+// Each refusal wraps one of the errCABundle* values below, so a test asks
+// errors.Is which refusal it got. A test that matched text could not tell a
+// refusal from the generic "cannot be read" fallback on Linux, whose errno
+// strings are "no such file or directory" and "is a directory".
 func validateCABundle(path string) error {
 	if !filepath.IsAbs(path) {
-		return fmt.Errorf("%s=%q is not an absolute path; it is mounted into every sandbox, so give the full path to the PEM file", envCABundle, path)
+		return fmt.Errorf("%s=%q %w", envCABundle, path, errCABundleNotAbsolute)
 	}
 	info, err := os.Stat(path)
 	switch {
 	case errors.Is(err, fs.ErrNotExist):
-		return fmt.Errorf("%s=%q: no such file. Export your network's root certificate as PEM to that path (contract §4 names the command), or unset the variable", envCABundle, path)
+		return fmt.Errorf("%s=%q: %w", envCABundle, path, errCABundleMissing)
 	case err != nil:
 		return fmt.Errorf("%s=%q cannot be read: %w", envCABundle, path, err)
 	case info.IsDir():
-		return fmt.Errorf("%s=%q is a directory; it must name one PEM file", envCABundle, path)
+		return fmt.Errorf("%s=%q %w", envCABundle, path, errCABundleIsADirectory)
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -385,8 +397,17 @@ func validateCABundle(path string) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("%s=%q holds no PEM certificate: it needs at least one -----BEGIN CERTIFICATE----- block (a binary .cer export is DER and must be converted), or unset the variable", envCABundle, path)
+	return fmt.Errorf("%s=%q %w", envCABundle, path, errCABundleNoCertificate)
 }
+
+// The four refusals of validateCABundle, each the rest of the sentence after
+// the variable and its value.
+var (
+	errCABundleNotAbsolute   = errors.New("is not an absolute path; it is mounted into every sandbox, so give the full path to the PEM file")
+	errCABundleMissing       = errors.New("no such file. Export your network's root certificate as PEM to that path (contract §4 names the command), or unset the variable")
+	errCABundleIsADirectory  = errors.New("is a directory; it must name one PEM file")
+	errCABundleNoCertificate = errors.New("holds no PEM certificate: it needs at least one -----BEGIN CERTIFICATE----- block (a binary .cer export is DER and must be converted), or unset the variable")
+)
 
 // parseFlag implements contract §4's "any value other than 1 or true is also
 // treated as unset", and it means ANY other value: "TRUE" is not "true".

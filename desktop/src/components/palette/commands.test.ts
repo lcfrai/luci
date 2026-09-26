@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { buildCommands, filterCommands } from "./commands";
+import { SEND_CHORDS_LABEL, buildCommands, filterCommands } from "./commands";
+import type { Command } from "./commands";
 import { resetCockpit, useCockpit } from "../../store/store";
 import { aBranch, aProject, aSession, aWorktree } from "../../test/fixtures";
 
@@ -49,6 +50,53 @@ describe("buildCommands", () => {
     expect(firstOf("session")).toBeLessThan(firstOf("worktree"));
     expect(firstOf("worktree")).toBeLessThan(firstOf("branch"));
     expect(firstOf("branch")).toBeLessThan(firstOf("project"));
+  });
+
+  // OD-9. One row, always present, whose label never changes and whose state is `checked`.
+  it("OD-9: lists 'Send shortcut keys to the terminal' as the last verb, in every state, with its state as checked", () => {
+    const row = (): Command | undefined =>
+      buildCommands(useCockpit.getState()).find((c) => c.label === SEND_CHORDS_LABEL);
+    const lastVerb = (): string | undefined => {
+      const verbs = buildCommands(useCockpit.getState()).filter((c) => c.id.startsWith("verb:"));
+      return verbs[verbs.length - 1]?.id;
+    };
+    expect(SEND_CHORDS_LABEL).toBe("Send shortcut keys to the terminal");
+    expect([row()?.id, row()?.checked, row()?.meta, row()?.hint, lastVerb()])
+      .toEqual(["verb:send-chords-to-terminal", false, undefined, undefined, "verb:send-chords-to-terminal"]);
+    useCockpit.getState().setSendChordsToTerminal(true);
+    expect([row()?.label, row()?.checked]).toEqual([SEND_CHORDS_LABEL, true]);
+    // Still there with nothing selected, where the layout and new-session verbs drop out.
+    useCockpit.setState({ selection: { projectId: null, branchId: null, worktreeId: null, sessionId: null } });
+    expect(row()?.checked).toBe(true);
+    // The only row that sets `checked`.
+    expect(buildCommands(useCockpit.getState()).filter((c) => c.checked !== undefined).map((c) => c.id))
+      .toEqual(["verb:send-chords-to-terminal"]);
+  });
+
+  it("OD-9: running the row sets the setting, says so in a toast, and the toast's Undo restores it", () => {
+    const run = () => buildCommands(useCockpit.getState()).find((c) => c.label === SEND_CHORDS_LABEL)?.run();
+    const lastToast = () => {
+      const { toasts } = useCockpit.getState();
+      return toasts[toasts.length - 1];
+    };
+    run();
+    expect(useCockpit.getState().sendChordsToTerminal).toBe(true);
+    // EDITED BY OD-9's FIX ROUND 1. It used to say "click outside the terminal", and a click on
+    // a pane's own header or footer, or on another session's rail row, puts focus back into a
+    // terminal, where ⌘K is the agent's. The top bar's empty part moves no focus into a pane:
+    // AppShell.test.tsx walks this exact route, and the pane-header route, which fails.
+    expect(lastToast()?.message).toBe(
+      "Shortcut keys now go to the terminal, ⌘K too. To open this palette again, click an empty part of the top bar, then press ⌘K.",
+    );
+    lastToast()?.undo?.();
+    expect(useCockpit.getState().sendChordsToTerminal).toBe(false);
+
+    useCockpit.getState().setSendChordsToTerminal(true);
+    run();
+    expect(useCockpit.getState().sendChordsToTerminal).toBe(false);
+    expect(lastToast()?.message).toBe("Shortcut keys go to the cockpit again, from a terminal too.");
+    lastToast()?.undo?.();
+    expect(useCockpit.getState().sendChordsToTerminal).toBe(true);
   });
 
   it("names the layout it switches TO, not the one it is on", () => {

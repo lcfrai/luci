@@ -6,12 +6,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -33,6 +35,11 @@ const sessionBasePath = "/v1"
 // sessionWorkDir is where the worktree is mounted inside every sandbox and the
 // working directory the harness starts in. Contract §5.1 step 5.
 const sessionWorkDir = "/home/dev/work"
+
+// sessionWorktreeAdminDir is where a primary worktree's linked-worktree
+// metadata sits inside the sandbox, mounted read-only over itself. See
+// sessionWorktreeAdmin.
+const sessionWorktreeAdminDir = sessionWorkDir + "/.git/worktrees"
 
 // sessionConversationDir is the one part of the agent user's ~/.claude that
 // outlives a sandbox. Without it Resume has nothing to resume: every sandbox
@@ -70,19 +77,210 @@ var sessionStoreSegment = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,62}$`)
 //
 //	<Deps.ConversationsDir>/<owner>/<worktree id>
 //
-// Per worktree because resume is same-worktree by design, so nothing ever needs
-// to read another worktree's transcripts. 0o700 because a transcript holds
-// whatever the agent read, and on Windows that mode is advisory: the boundary
-// there is that the directory sits under the user's own state directory.
+// Per worktree because a Resume continues in the worktree it ran in, and its
+// sandbox needs no other worktree's transcripts. The one crossing is a Fork —
+// a resume into another worktree — and it is given one file, a staged copy of
+// its source's transcript, read-only, never another store (sessions_fork.go).
+// 0o700 because a transcript holds
+// whatever the agent read. On Windows that mode is advisory — Go's MkdirAll
+// ignores it, and Docker Desktop shows the bind as root 777 inside the sandbox
+// — so the boundary there is the ACL of the user's own profile, under which the
+// state directory sits.
 func (a *API) sessionConversationStore(worktreeID string) (string, error) {
-	if !sessionStoreSegment.MatchString(worktreeID) {
-		return "", fmt.Errorf("worktree id %q cannot name a directory", worktreeID)
+	dir, err := a.sessionConversationStorePath(worktreeID)
+	if err != nil {
+		return "", err
 	}
-	dir := filepath.Join(a.deps.ConversationsDir, sessionConversationOwner, worktreeID)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return "", err
 	}
 	return dir, nil
+}
+
+// sessionConversationStorePath is where sessionConversationStore puts a
+// worktree's store, without creating it: a resume that is refused must leave
+// nothing behind, not even an empty directory.
+func (a *API) sessionConversationStorePath(worktreeID string) (string, error) {
+	if !sessionStoreSegment.MatchString(worktreeID) {
+		return "", fmt.Errorf("worktree id %q cannot name a directory", worktreeID)
+	}
+	return filepath.Join(a.deps.ConversationsDir, sessionConversationOwner, worktreeID), nil
+}
+
+// sessionTranscriptCLIVersion is the claude-code version the transcript layout
+// below was observed on. OD-8 lets the control plane look at a harness's own
+// file by an id the control plane minted, read-only, on condition that the
+// reading is pinned to the CLI version in the image and a canary fails when
+// that moves: TestTheTranscriptLayoutIsPinnedToTheImagesCLI fails the moment
+// images/sandbox/Dockerfile installs any other version, and says to observe
+// the layout again.
+const sessionTranscriptCLIVersion = "2.1.274"
+
+// sessionTranscriptPath is where the pinned CLI writes conversation id's
+// transcript inside a worktree's store: the store is ~/.claude/projects, and
+// the CLI names the directory under it after the working directory with every
+// "/" made "-". Observed in panacea-app/sandbox:dev, and recorded in the
+// go-contract's verification table: ~/.claude/projects/-home-dev-work/<uuid>.jsonl.
+func sessionTranscriptPath(store, conversation string) string {
+	return filepath.Join(store, sessionTranscriptDirName, conversation+".jsonl")
+}
+
+// sessionTranscriptDirName is that directory's name: sessionWorkDir with every
+// "/" made "-", which is how the pinned CLI names it.
+var sessionTranscriptDirName = strings.ReplaceAll(sessionWorkDir, "/", "-")
+
+// sessionStat is os.Stat, a variable only so a test can make the stat fail in
+// a way this platform's filesystem cannot be made to.
+var sessionStat = os.Stat
+
+// sessionLstat is os.Lstat, a variable for the same reason: Forget's look at
+// the transcript directory can fail in ways other than "absent", and no
+// filesystem fails that way on demand on every platform.
+var sessionLstat = os.Lstat
+
+// sessionTranscriptState is the ONE look the control plane takes at a
+// harness's own files: does the transcript for this conversation exist. It
+// opens nothing and reads no byte of it, so it cannot come to depend on the
+// format — only on where the file is, which the canary above pins.
+//
+// written is false only when the file is certainly absent. Any other failure
+// to stat comes back as err, and every caller degrades on it rather than
+// refusing, as OD-8 requires: nothing may need this look to work.
+//
+// A conversation id not spelled the one way ids.UUID mints is certainly
+// absent, and nothing is looked at for it. Build refuses such an id, so no CLI
+// ever wrote a transcript under it, and joined onto the store it would name
+// some other file — "../x" climbs out — whose existence would then pass for a
+// conversation: a resume would pick it, and a restart would list it.
+func sessionTranscriptState(store, conversation string) (written bool, err error) {
+	if !harness.IsConversationID(conversation) {
+		return false, nil
+	}
+	if _, err := sessionStat(sessionTranscriptPath(store, conversation)); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
+// sessionForgetTranscripts is OD-10, "Forget deletes it": it deletes the
+// transcript of every conversation sess's record names as its own — its
+// current one and the ones its restarts left — and nothing else. OD-8 lets the
+// control plane delete a harness's own file by an id the control plane minted;
+// it opens and rewrites nothing, and it never lists the store, so no other
+// session's file can be reached from here. A transcript that was never written
+// is already forgotten, and so is a store that was never made: neither is an
+// error, and nothing is created to find that out.
+//
+// A fork does not depend on its source's file. `--resume A --fork-session
+// --session-id B` writes B as a whole copy of A's history re-keyed to B
+// (od10-forget-report.md §3), and a resume resolves only the resumed record's
+// own ids (sessionResumableConversation), so forgetting A leaves B resumable.
+// Observed in `-p` mode; the interactive fork before its first turn is
+// unverified until OD-12's hands-on session (go-contract §3.15).
+//
+// Two refusals, both about an id joined onto a path:
+//
+//   - An id not spelled the one way ids.UUID mints is refused and logged at
+//     error, and the rest carry on. Build refuses such an id, so no CLI ever
+//     wrote a transcript under it; joined onto the store it names somewhere
+//     else — "../../x" climbs out, and an uppercase copy of another id is that
+//     other conversation's file on Windows. The same goes for a worktree id
+//     that cannot name a store: sessionConversationStore refuses it, so no
+//     store exists under it.
+//   - The directory the CLI keeps transcripts in is inside the mount, so the
+//     agent can replace it with a link. Deleting through a link deletes on the
+//     host at the agent's choosing, so anything there but a real directory
+//     fails the Forget. The look is not enough on its own: the store is
+//     mounted into every OTHER live session in the worktree too, so an agent
+//     there can swap the directory for a link after the look. So each file is
+//     deleted by sessionRemoveIn, which deletes only the file actually in the
+//     store's directory and fails otherwise. The names deleted are not all
+//     this session's own — carriedConversationId is the fork's SOURCE's id —
+//     so without it a well-timed link would delete the source's transcript.
+//
+// A fork into another worktree left two more things, and both go too: the
+// staged copy of its source's transcript (sessionForgetCarried), and the empty
+// file Docker made in this store as the mount point for that copy — named by
+// the source's conversation id, CarriedConversationID, and deleted by it here
+// like the session's own. The source's transcript, in the source's store, is
+// the source's to forget, and nothing here can reach it.
+//
+// Any failure to delete comes back as the error, and the caller keeps the
+// record that names the file.
+func (a *API) sessionForgetTranscripts(sess registry.Session) error {
+	return errors.Join(a.sessionForgetStoreTranscripts(sess), a.sessionForgetCarried(sess))
+}
+
+// sessionForgetStoreTranscripts is the half of sessionForgetTranscripts inside
+// the session's worktree store.
+func (a *API) sessionForgetStoreTranscripts(sess registry.Session) error {
+	var ids []string
+	named := append([]string{sess.ConversationID}, sess.EarlierConversationIDs...)
+	for _, id := range append(named, sess.CarriedConversationID) {
+		if id == "" {
+			continue
+		}
+		if !harness.IsConversationID(id) {
+			a.sessionLog().Error("forget: the record names a conversation id no mint produces; deleted nothing by it",
+				"sessionId", sess.ID, "conversationId", id)
+			continue
+		}
+		ids = append(ids, id)
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	store, err := a.sessionConversationStorePath(sess.WorktreeID)
+	if err != nil {
+		a.sessionLog().Error("forget: the record's worktree id names no conversation store; deleted no transcript",
+			"sessionId", sess.ID, "err", err)
+		return nil
+	}
+
+	dir := filepath.Dir(sessionTranscriptPath(store, ids[0]))
+	info, err := sessionLstat(dir)
+	switch {
+	case errors.Is(err, os.ErrNotExist):
+		return nil
+	case err != nil:
+		return fmt.Errorf("look at the transcript directory %s: %w", dir, err)
+	case !info.IsDir():
+		return fmt.Errorf("the transcript directory %s is a %v, not a directory; deleted nothing through it", dir, info.Mode().Type())
+	}
+
+	// Every id is tried, a failure or not, and the failures come back
+	// together: the record is kept either way, so the retry finds the rest.
+	var errs []error
+	for _, id := range ids {
+		if err := sessionRemoveIn(store, sessionTranscriptDirName, id+".jsonl"); err != nil && !errors.Is(err, os.ErrNotExist) {
+			errs = append(errs, fmt.Errorf("delete the transcript of conversation %s: %w", id, err))
+		}
+	}
+	return errors.Join(errs...)
+}
+
+// sessionForgetWorktreeStore is OD-10's other half: removing a worktree from
+// the product deletes that worktree's conversation store, every transcript in
+// it included. No product action removes a worktree in phase 2 — the catalog
+// enumerates the worktrees git already has, and the one worktree verb is PATCH
+// ready (catalog.go) — so nothing calls this yet. It is the seam phase 3's
+// worktree-removal verb calls, and that verb owes one thing first: every
+// session in the worktree killed, so no CLI is writing into the store it
+// removes. A store that does not exist is not an error. A worktree id that
+// cannot name one is refused before anything is removed: ".." would name the
+// whole owner directory.
+func (a *API) sessionForgetWorktreeStore(worktreeID string) error {
+	store, err := a.sessionConversationStorePath(worktreeID)
+	if err != nil {
+		return err
+	}
+	if err := os.RemoveAll(store); err != nil {
+		return fmt.Errorf("delete the conversation store of worktree %s: %w", worktreeID, err)
+	}
+	return nil
 }
 
 // sessionHasConversation is whether a session on this harness is given a
@@ -99,16 +297,67 @@ func sessionHasConversation(d harness.Descriptor) bool {
 // rewrite is not one.
 const sessionCABundlePath = "/etc/panacea-app/ca-bundle.pem"
 
-// sessionMounts is everything of the host a sandbox sees: its worktree, its
-// worktree's conversation store when the harness has a conversation, and the
-// operator's CA bundle, read-only, when there is one.
-func sessionMounts(worktreePath, conversationStore, caBundle string) []backend.Mount {
+// sessionGitExcludesPath and sessionGitAttributesPath are where the host's
+// global excludes and attributes files appear inside a sandbox, when the host's
+// git reads one, and what core.excludesFile and core.attributesFile name there.
+// Outside /home/dev like the CA bundle, and read-only: they are the host's
+// files, and the host's git reads them too.
+const (
+	sessionGitExcludesPath   = "/etc/panacea-app/git/ignore"
+	sessionGitAttributesPath = "/etc/panacea-app/git/attributes"
+)
+
+// sessionGitNoFile is what core.excludesFile or core.attributesFile names in a
+// sandbox whose host's git reads no such file: an empty file, so the sandbox's
+// git reads nothing there either. Leaving the key unset would not do that: git
+// would read the sandbox's own ~/.config/git default, which the host never
+// reads and an agent can write.
+const sessionGitNoFile = "/dev/null"
+
+// sessionGitFiles is the host's global excludes and attributes files a sandbox
+// sees.
+type sessionGitFiles struct {
+	excludes   sessionGitFile
+	attributes sessionGitFile
+}
+
+// sessionGitFile is one of them: mount, a host file mounted read-only at its
+// container path; or inRepo, a relative path inside the repository, which the
+// host's git reads against the repository's top and the sandbox's git reads
+// against the same repository in its mount, so nothing is mounted (X-1 review
+// m-4); or neither, when the host's git reads no such file.
+type sessionGitFile struct {
+	mount  string
+	inRepo string
+}
+
+// sessionMounts is everything of the host a sandbox sees: its worktree; a
+// primary worktree's linked-worktree metadata, read-only over itself, when
+// sessionWorktreeAdmin found one; its worktree's conversation store when the
+// harness has a conversation; for a fork's first sandbox, the staged copy of
+// its source's transcript, read-only, inside that store (carried, see
+// sessions_fork.go; the zero Mount otherwise); the operator's CA bundle,
+// read-only, when there is one; and the host's global git excludes and
+// attributes files, read-only, each when the host's git reads one.
+func sessionMounts(worktreePath, worktreeAdmin, conversationStore string, carried backend.Mount, caBundle string, git sessionGitFiles) []backend.Mount {
 	mounts := []backend.Mount{{HostPath: worktreePath, ContainerPath: sessionWorkDir}}
+	if worktreeAdmin != "" {
+		mounts = append(mounts, backend.Mount{HostPath: worktreeAdmin, ContainerPath: sessionWorktreeAdminDir, ReadOnly: true})
+	}
 	if conversationStore != "" {
 		mounts = append(mounts, backend.Mount{HostPath: conversationStore, ContainerPath: sessionConversationDir})
 	}
+	if carried.HostPath != "" {
+		mounts = append(mounts, carried)
+	}
 	if caBundle != "" {
 		mounts = append(mounts, backend.Mount{HostPath: caBundle, ContainerPath: sessionCABundlePath, ReadOnly: true})
+	}
+	if git.excludes.mount != "" {
+		mounts = append(mounts, backend.Mount{HostPath: git.excludes.mount, ContainerPath: sessionGitExcludesPath, ReadOnly: true})
+	}
+	if git.attributes.mount != "" {
+		mounts = append(mounts, backend.Mount{HostPath: git.attributes.mount, ContainerPath: sessionGitAttributesPath, ReadOnly: true})
 	}
 	return mounts
 }
@@ -119,7 +368,9 @@ func sessionMounts(worktreePath, conversationStore, caBundle string) []backend.M
 //
 // Git's configuration travels as GIT_CONFIG_COUNT/KEY/VALUE (git 2.31+; the
 // image has 2.39) rather than a file in the image, so sessionWorkDir stays the
-// ONE place the mount point is written. Two settings:
+// ONE place the mount point is written. Environment config is command scope,
+// which outranks every config file, so neither a repository's config nor an
+// agent's `git config --global` can change these. Eight settings:
 //
 //   - safe.directory = sessionWorkDir. A bind mount's owner is not the image's
 //     dev user (Docker Desktop shows root), so without it every git command in
@@ -130,20 +381,67 @@ func sessionMounts(worktreePath, conversationStore, caBundle string) []backend.M
 //   - user.useConfigOnly = true. With no identity, git would otherwise invent
 //     one from the user and host name — dev@<container> — and on a host with a
 //     domain it would succeed. Commits are made as the user or not at all.
+//   - gc.worktreePruneExpire = never. Every linked worktree looks prunable from
+//     the sandbox (see sessionWorktreeAdmin), so a gc would try to prune
+//     them. The read-only mount already stops the deletion; this stops gc
+//     trying.
+//   - gc.auto = 0. With that metadata read-only, a gc in the sandbox cannot
+//     lock a linked worktree's HEAD to expire its reflog, and exits 128
+//     ("fatal: failed to run reflog", measured). A DETACHED auto gc that
+//     fails writes .git/gc.log, and the host's own `git gc --auto` then
+//     prints it and does nothing until the file is a day old (git-gc(1),
+//     gc.logExpiry; documented, not measured here). So the sandbox never
+//     starts one, and the host's git, which can write all of its metadata,
+//     keeps the repository. A `git gc` an agent runs by hand still fails,
+//     loudly, and harms nothing.
+//   - core.autocrlf and core.eol = the host's own, from Deps.GitLineEndings.
+//     The host's system and global config are invisible here, and Git for
+//     Windows sets core.autocrlf=true at system scope. Without them a CRLF
+//     checkout over LF blobs reads as every text file modified, and commit -a
+//     writes CRLF blobs for files the agent never touched. The answer is from
+//     the host's global and system config only, never the worktree's
+//     .git/config, which the agent writes (X-1); these pairs outrank that
+//     file's own core.autocrlf and core.eol in the sandbox. The repository's
+//     .gitattributes is in the mount and applies as it does on the host.
+//     core.eol matters when core.autocrlf is false and a file
+//     is text by attribute: "native" is CRLF there and LF here, which is why
+//     the resolver sends the host's answer and never "native".
+//   - core.excludesFile and core.attributesFile = the host's own files, as
+//     the host's global and system config name them and never a worktree's
+//     (X-1: a worktree's core.excludesFile named an SSH key, and it was
+//     mounted), from Deps.GitGlobalFiles, mounted read-only at sessionGitExcludesPath and
+//     sessionGitAttributesPath, or the host's own relative value when it
+//     names a path inside the repository, with nothing mounted (X-1 review
+//     m-4), or sessionGitNoFile when the host's git reads
+//     none (gitfix-rereview I-A). Git reads ~/.config/git/ignore even with
+//     core.excludesFile unset, and this HOME has none, so without the first an
+//     agent's `git add -A` commits what the host's git ignores:
+//     .claude/settings.local.json on the owner's host, measured. The second is
+//     the same class as core.autocrlf: a global `* text=auto` changes the
+//     blobs a commit writes.
 //
 // The identity goes in as GIT_AUTHOR_* and GIT_COMMITTER_*, which git prefers
 // over any config, so what Deps.GitIdentity resolved is what every commit says.
 //
 // NODE_EXTRA_CA_CERTS ADDS to Node's trust store. SSL_CERT_FILE would replace
 // the system bundle, and verification is never disabled under any setting.
-func sessionEnv(id GitIdentity, caBundle string) map[string]string {
-	env := map[string]string{
-		"GIT_CONFIG_COUNT":   "2",
-		"GIT_CONFIG_KEY_0":   "safe.directory",
-		"GIT_CONFIG_VALUE_0": sessionWorkDir,
-		"GIT_CONFIG_KEY_1":   "user.useConfigOnly",
-		"GIT_CONFIG_VALUE_1": "true",
+func sessionEnv(id GitIdentity, eol GitLineEndings, git sessionGitFiles, caBundle string) map[string]string {
+	env := map[string]string{}
+	pairs := [][2]string{
+		{"safe.directory", sessionWorkDir},
+		{"user.useConfigOnly", "true"},
+		{"gc.worktreePruneExpire", "never"},
+		{"gc.auto", "0"},
+		{"core.autocrlf", eol.AutoCRLF},
+		{"core.eol", eol.EOL},
+		{"core.excludesFile", sessionGitFileIn(git.excludes, sessionGitExcludesPath)},
+		{"core.attributesFile", sessionGitFileIn(git.attributes, sessionGitAttributesPath)},
 	}
+	for i, kv := range pairs {
+		env["GIT_CONFIG_KEY_"+strconv.Itoa(i)] = kv[0]
+		env["GIT_CONFIG_VALUE_"+strconv.Itoa(i)] = kv[1]
+	}
+	env["GIT_CONFIG_COUNT"] = strconv.Itoa(len(pairs))
 	if id.Name != "" {
 		env["GIT_AUTHOR_NAME"] = id.Name
 		env["GIT_COMMITTER_NAME"] = id.Name
@@ -158,15 +456,159 @@ func sessionEnv(id GitIdentity, caBundle string) map[string]string {
 	return env
 }
 
-// sessionGitIdentity asks Deps.GitIdentity who this worktree's commits are by.
-// It never fails a session: an agent with no identity can still read, edit and
-// run everything, and only a commit is refused. The refusal's cause goes to the
-// log as the resolver wrote it, because that sentence names the fix.
-func (a *API) sessionGitIdentity(ctx context.Context, worktreeID, worktreePath string) GitIdentity {
+// sessionGitLineEndings asks Deps.GitLineEndings how the host's own config
+// says git converts line endings, and refuses an answer the sandbox's git would
+// read differently: anything but the three core.autocrlf words, and any
+// core.eol but lf or crlf. "native" is the one that matters, because it means
+// CRLF to Git for Windows and LF to the sandbox's git. An error, or a refused
+// answer, fails the create or restart: there is no safe default.
+func (a *API) sessionGitLineEndings(ctx context.Context) (GitLineEndings, error) {
+	eol, err := a.deps.GitLineEndings(ctx)
+	if err != nil {
+		return GitLineEndings{}, err
+	}
+	if eol.AutoCRLF != "true" && eol.AutoCRLF != "false" && eol.AutoCRLF != "input" {
+		return GitLineEndings{}, fmt.Errorf("the line-ending resolver answered core.autocrlf %q, which is not true, false or input", eol.AutoCRLF)
+	}
+	if eol.EOL != "lf" && eol.EOL != "crlf" {
+		return GitLineEndings{}, fmt.Errorf("the line-ending resolver answered core.eol %q, which is not lf or crlf", eol.EOL)
+	}
+	return eol, nil
+}
+
+// sessionGitFileIn is the path a sandbox's git reads for one of the host's
+// global files: where it is mounted when the host has it, the relative path
+// itself when it is inside the repository, else sessionGitNoFile.
+func sessionGitFileIn(f sessionGitFile, containerPath string) string {
+	switch {
+	case f.mount != "":
+		return containerPath
+	case f.inRepo != "":
+		return f.inRepo
+	}
+	return sessionGitNoFile
+}
+
+// sessionGitGlobalFiles asks Deps.GitGlobalFiles where the host's own config
+// says git looks for its global excludes and attributes files, and keeps each
+// one git would read patterns from. The worktree is not asked about (X-1): its
+// .git/config is the agent's, and a file it named would be mounted. An error
+// fails the create or restart, like the line endings: a sandbox that guessed
+// "none" commits what the host ignores.
+func (a *API) sessionGitGlobalFiles(ctx context.Context, worktreeID string) (sessionGitFiles, error) {
+	files, err := a.deps.GitGlobalFiles(ctx)
+	if err != nil {
+		return sessionGitFiles{}, err
+	}
+	excludes, err := a.sessionGitGlobalFile(worktreeID, "core.excludesFile", files.Excludes)
+	if err != nil {
+		return sessionGitFiles{}, err
+	}
+	attributes, err := a.sessionGitGlobalFile(worktreeID, "core.attributesFile", files.Attributes)
+	if err != nil {
+		return sessionGitFiles{}, err
+	}
+	return sessionGitFiles{excludes: excludes, attributes: attributes}, nil
+}
+
+// sessionGitGlobalFile is hostPath, with any link resolved, when the host's
+// git reads patterns from it, which is when it is a regular file (Stat,
+// following a link as git does), and "" otherwise, the way git itself treats
+// it. Nothing there: git skips the path silently. Something git cannot read,
+// or a directory: git reads no patterns from it and at most warns, so the
+// sandbox reads none either, and the cause goes to the log.
+//
+// A relative path is never mounted: git reads it against each repository's
+// top, so it names a file in the worktree, which the agent writes, and not
+// one of the host's (X-1). One that stays inside the repository goes to the
+// sandbox as it is, in slash form, and the sandbox's git reads the same file
+// in its mount (X-1 review m-4). One that leaves the repository (`..`, or a
+// Windows drive- or root-relative path) names a file no sandbox can see, so
+// it fails the create, with the fix in the sentence.
+func (a *API) sessionGitGlobalFile(worktreeID, key, hostPath string) (sessionGitFile, error) {
+	if hostPath == "" {
+		return sessionGitFile{}, nil
+	}
+	if !filepath.IsAbs(hostPath) {
+		if filepath.IsLocal(hostPath) {
+			return sessionGitFile{inRepo: filepath.ToSlash(filepath.Clean(hostPath))}, nil
+		}
+		return sessionGitFile{}, fmt.Errorf("the host's git config sets %s to %q, a relative path that leaves the repository, so no sandbox can read the file the host's git reads there: set it to an absolute path, or to a path inside the repository", key, hostPath)
+	}
+	info, err := os.Stat(hostPath)
+	if err != nil {
+		if !errors.Is(err, fs.ErrNotExist) {
+			a.sessionLog().Warn("the host's git cannot read this file either, so the sandbox's git reads none",
+				"worktreeId", worktreeID, "key", key, "path", hostPath, "err", err)
+		}
+		return sessionGitFile{}, nil
+	}
+	if !info.Mode().IsRegular() {
+		return sessionGitFile{}, nil
+	}
+	// The mount's source is the file, not a link to it. Dotfile managers
+	// link ~/.config/git/ignore, and what a Docker host does with a link as
+	// a mount source (Docker Desktop's share would see a Windows target) is
+	// then never the question. Not measured with a link here.
+	if resolved, err := filepath.EvalSymlinks(hostPath); err == nil {
+		hostPath = resolved
+	}
+	return sessionGitFile{mount: hostPath}, nil
+}
+
+// sessionWorktreeAdmin returns the host path of a primary worktree's
+// linked-worktree metadata, <worktree>/.git/worktrees, making the directory
+// when there is none yet, and "" for a worktree whose .git is not a
+// directory. A linked worktree's .git is a file, and has no such metadata.
+//
+// sessionMounts mounts it read-only over itself (I-1 of the sandbox git fix's
+// review). Each .git/worktrees/<id>/gitdir names a host path the sandbox
+// cannot see, so the sandbox's git calls every linked worktree prunable, and a
+// `git worktree prune` there would delete the host's metadata: after that,
+// host git says "not a git repository" in the linked worktree. No setting
+// stops an explicit prune; a read-only mount does, and it stops repair, move,
+// remove and add too, each of which would write a Linux path into the host's
+// metadata. The sandbox's git can still READ it, so it still knows which
+// branches the linked worktrees hold.
+//
+// The directory is made rather than skipped when absent because a bind mount
+// of a directory shows what is added to it later: a linked worktree created
+// while the session runs is covered too. Git makes the same directory itself
+// at the first `git worktree add`.
+//
+// Lstat, so a .git that is a symlink is not followed: the sandbox resolves the
+// link against its own filesystem, where a target outside the mount does not
+// exist, and a directory or a mount made through it would land outside the
+// worktree.
+func sessionWorktreeAdmin(worktreePath string) (string, error) {
+	gitDir := filepath.Join(worktreePath, ".git")
+	info, err := os.Lstat(gitDir)
+	if errors.Is(err, fs.ErrNotExist) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	if !info.IsDir() {
+		return "", nil
+	}
+	admin := filepath.Join(gitDir, "worktrees")
+	if err := os.MkdirAll(admin, 0o777); err != nil {
+		return "", err
+	}
+	return admin, nil
+}
+
+// sessionGitIdentity asks Deps.GitIdentity who the user's commits are by; the
+// worktree is named only in the log. It never fails a session: an agent with
+// no identity can still read, edit and run everything, and only a commit is
+// refused. The refusal's cause goes to the log as the resolver wrote it,
+// because that sentence names the fix.
+func (a *API) sessionGitIdentity(ctx context.Context, worktreeID string) GitIdentity {
 	if a.deps.GitIdentity == nil {
 		return GitIdentity{}
 	}
-	id, err := a.deps.GitIdentity(ctx, worktreePath)
+	id, err := a.deps.GitIdentity(ctx)
 	if err != nil {
 		a.sessionLog().Warn("the sandbox has no git identity, so a commit in it will fail",
 			"worktreeId", worktreeID, "err", err)
@@ -468,15 +910,19 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 	// desktop has; the harness needs that session's own conversation id, and
 	// sessionResolveResume looks it up on the record. For a harness with no
 	// conversation the raw value goes to Build untranslated, and Build refuses
-	// it — unavailable, or cannot resume — in the contract's order.
+	// it — unavailable, or cannot resume — in the contract's order. The source
+	// may be in this worktree (Resume) or another (Fork); step 3a is the
+	// difference.
 	resume := strings.TrimSpace(req.Resume)
 	var conversation, conversationStore string
+	var source sessionResumeSource
 	if sessionHasConversation(desc) {
 		if resume != "" {
 			var ok bool
-			if resume, ok = a.sessionResolveResume(w, r, resume, harnessID, req.WorktreeID); !ok {
+			if source, ok = a.sessionResolveResume(w, r, resume, harnessID); !ok {
 				return
 			}
+			resume = source.conversation
 		}
 		// Minted here and TOLD to the CLI with --session-id. The alternative,
 		// learning the id the CLI picked, means reading its output.
@@ -533,14 +979,45 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	// 2b. The sandbox's environment. Resolved here, before the record, because
-	// the identity lookup runs git on the host and the window between the
-	// record and its sandbox is the one the reaper has to tolerate.
-	sandboxEnv := sessionEnv(a.sessionGitIdentity(ctx, req.WorktreeID, path), a.deps.CABundle)
+	// 2b. The sandbox's environment and mounts. Resolved here, before the
+	// record, because both run git or write on the host, the window between
+	// the record and its sandbox is the one the reaper has to tolerate, and a
+	// failure here must leave nothing behind but the brief block, which is
+	// git-excluded and stamps nothing.
+	lineEndings, err := a.sessionGitLineEndings(ctx)
+	if err != nil {
+		a.internal(w, r, "read how the host's git converts line endings, for worktree "+req.WorktreeID, err)
+		return
+	}
+	gitFiles, err := a.sessionGitGlobalFiles(ctx, req.WorktreeID)
+	if err != nil {
+		a.internal(w, r, "find the host git's global excludes and attributes files for worktree "+req.WorktreeID, err)
+		return
+	}
+	worktreeAdmin, err := sessionWorktreeAdmin(path)
+	if err != nil {
+		a.internal(w, r, "prepare the linked-worktree metadata of worktree "+req.WorktreeID, err)
+		return
+	}
+	sandboxEnv := sessionEnv(a.sessionGitIdentity(ctx, req.WorktreeID), lineEndings, gitFiles, a.deps.CABundle)
 
 	// 3. Ids and the secret.
 	sessionID := ids.New("s")
 	token := ids.Token()
+
+	// 3a. A Fork carries its source's conversation into this worktree. Last
+	// before the record, so the one failure left that must undo it is the
+	// record's own. sessions_fork.go says why it is a staged copy.
+	var carried backend.Mount
+	var carriedConversation, staging string
+	if source.conversation != "" && source.worktreeID != req.WorktreeID {
+		if carried, staging, err = a.sessionCarry(source, sessionID, conversationStore); err != nil {
+			a.internal(w, r, "carry the conversation of session "+source.id+" into worktree "+req.WorktreeID, err)
+			return
+		}
+		carriedConversation = source.conversation
+	}
+	sandboxMounts := sessionMounts(path, worktreeAdmin, conversationStore, carried, a.deps.CABundle, gitFiles)
 
 	title := strings.TrimSpace(req.Title)
 	if title == "" {
@@ -578,7 +1055,16 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		AttachToken:    token,
 		// The Materialiser's answer, verbatim, never the request's (P6).
 		ContextRef: brief.ContextRef,
+
+		CarriedConversationID: carriedConversation,
 	}); err != nil {
+		// No record names the staged copy, so nothing would ever remove it.
+		if staging != "" {
+			if rerr := os.RemoveAll(staging); rerr != nil {
+				a.sessionLog().Error("remove the staged transcript of a fork that was never recorded",
+					"sessionId", sessionID, "err", rerr)
+			}
+		}
 		// Task 7's decision 3 fixes these two: an empty id is ErrInvalidID and
 		// answers 400, not 409 and not 500. Neither is reachable while
 		// sessionID comes from ids.New over crypto/rand, and both are mapped
@@ -608,7 +1094,7 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		AttachToken: token,
 		Resources:   a.sessionResources(),
 		WorkDir:     sessionWorkDir,
-		Mounts:      sessionMounts(path, conversationStore, a.deps.CABundle),
+		Mounts:      sandboxMounts,
 	})
 	if err != nil {
 		// The reason on the record is written for the user; the raw error goes
@@ -695,7 +1181,13 @@ func (a *API) sessionLocate(ctx context.Context, worktreeID string) (projectID, 
 // Every refusal is a sentence the user can act on. The alternative is worse
 // than an error: a resume the CLI cannot honour starts a sandbox whose
 // terminal prints one line and exits.
-func (a *API) sessionResolveResume(w http.ResponseWriter, r *http.Request, sourceID string, harnessID harness.ID, worktreeID string) (string, bool) {
+//
+// Resume and Fork both come through here, and are refused alike: a Fork is a
+// resume whose request names another worktree. That used to be refused, when
+// the per-worktree store left a fork nothing to read; step 3a of the create
+// now carries the source's transcript across (sessions_fork.go), so where the
+// source ran is returned instead of checked.
+func (a *API) sessionResolveResume(w http.ResponseWriter, r *http.Request, sourceID string, harnessID harness.ID) (sessionResumeSource, bool) {
 	details := map[string]string{"resume": sourceID}
 	src, err := a.deps.Store.Get(sourceID)
 	if err != nil {
@@ -703,10 +1195,10 @@ func (a *API) sessionResolveResume(w http.ResponseWriter, r *http.Request, sourc
 			httpx.WriteProblem(w, http.StatusNotFound, httpx.CodeSessionNotFound,
 				"The session to resume is no longer in the list, so there is no conversation to continue. Start a new session instead.",
 				details)
-			return "", false
+			return sessionResumeSource{}, false
 		}
 		a.internal(w, r, "read the session to resume", err)
-		return "", false
+		return sessionResumeSource{}, false
 	}
 	if src.Harness != string(harnessID) {
 		name := src.Harness
@@ -716,23 +1208,61 @@ func (a *API) sessionResolveResume(w http.ResponseWriter, r *http.Request, sourc
 		details["harness"] = src.Harness
 		httpx.WriteProblem(w, http.StatusBadRequest, httpx.CodeBadRequest,
 			"A session resumes on the harness it ran, and that one ran "+name+".", details)
-		return "", false
-	}
-	// Same work, same worktree — and the conversation store is per worktree, so
-	// a resume anywhere else would find no conversation to continue.
-	if src.WorktreeID != worktreeID {
-		details["worktreeId"] = src.WorktreeID
-		httpx.WriteProblem(w, http.StatusBadRequest, httpx.CodeBadRequest,
-			"A session resumes in the worktree it ran in, because that is where its conversation is kept.", details)
-		return "", false
+		return sessionResumeSource{}, false
 	}
 	if src.ConversationID == "" {
 		httpx.WriteProblem(w, http.StatusConflict, httpx.CodeConflict,
 			"That session has no saved conversation to continue: it was started before the app recorded one. Start a new session instead.",
 			details)
-		return "", false
+		return sessionResumeSource{}, false
 	}
-	return src.ConversationID, true
+	conversation, found, err := a.sessionResumableConversation(src)
+	if err != nil {
+		a.internal(w, r, "find the conversation of the session to resume", err)
+		return sessionResumeSource{}, false
+	}
+	if !found {
+		httpx.WriteProblem(w, http.StatusConflict, httpx.CodeConflict,
+			"Nothing has been said in that session yet, so there is no conversation to continue. Start a new session instead.",
+			details)
+		return sessionResumeSource{}, false
+	}
+	return sessionResumeSource{id: src.ID, worktreeID: src.WorktreeID, conversation: conversation}, true
+}
+
+// sessionResumableConversation is the conversation a resume of src continues:
+// the newest of src's own conversations the CLI has written a transcript for.
+// Its current one first; then, newest first, the ones its restarts left, so a
+// resume after a restart and before anyone speaks continues the conversation
+// the restart cleared instead of one that does not exist yet.
+//
+// found is false only when every one of them is certainly absent — the state
+// `claude --resume` answers with "No conversation found with session ID" and an
+// exit, which is why the caller refuses before any sandbox starts. A
+// conversation whose transcript cannot be looked at is taken as it is, and the
+// CLI is left to judge: refusing on a failed look would make resume depend on
+// it, which OD-8 forbids.
+func (a *API) sessionResumableConversation(src registry.Session) (conversation string, found bool, err error) {
+	store, err := a.sessionConversationStorePath(src.WorktreeID)
+	if err != nil {
+		return "", false, err
+	}
+	candidates := []string{src.ConversationID}
+	for i := len(src.EarlierConversationIDs) - 1; i >= 0; i-- {
+		candidates = append(candidates, src.EarlierConversationIDs[i])
+	}
+	for _, id := range candidates {
+		written, err := sessionTranscriptState(store, id)
+		if err != nil {
+			a.sessionLog().Warn("resume: cannot tell whether a transcript was written; letting the CLI decide",
+				"sessionId", src.ID, "err", err)
+			return id, true, nil
+		}
+		if written {
+			return id, true, nil
+		}
+	}
+	return "", false, nil
 }
 
 // markSessionExited is the one place a session becomes terminal without a
@@ -1144,15 +1674,37 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 	}
 	// The environment is rebuilt like the mounts, and before the destroy like
 	// them: the identity is asked for again, so a user who gave their git an
-	// identity after the first create gets a sandbox that can commit.
-	sandboxEnv := sessionEnv(a.sessionGitIdentity(ctx, sess.WorktreeID, path), a.deps.CABundle)
+	// identity after the first create gets a sandbox that can commit, and so
+	// are the line endings, so a failure to read them leaves the old sandbox
+	// alive.
+	lineEndings, err := a.sessionGitLineEndings(ctx)
+	if err != nil {
+		a.internal(w, r, "read how the host's git converts line endings, for worktree "+sess.WorktreeID, err)
+		return
+	}
+	gitFiles, err := a.sessionGitGlobalFiles(ctx, sess.WorktreeID)
+	if err != nil {
+		a.internal(w, r, "find the host git's global excludes and attributes files for worktree "+sess.WorktreeID, err)
+		return
+	}
+	worktreeAdmin, err := sessionWorktreeAdmin(path)
+	if err != nil {
+		a.internal(w, r, "prepare the linked-worktree metadata of worktree "+sess.WorktreeID, err)
+		return
+	}
+	sandboxEnv := sessionEnv(a.sessionGitIdentity(ctx, sess.WorktreeID), lineEndings, gitFiles, a.deps.CABundle)
+	// No carried transcript: a restart starts clean, so even a fork's restart
+	// resumes nothing and needs no source to read.
+	sandboxMounts := sessionMounts(path, worktreeAdmin, conversationStore, backend.Mount{}, a.deps.CABundle, gitFiles)
 
 	// THE BRIEF (phase 4 task 10, ruling R1), after the argv and the
 	// environment and BEFORE THE DESTROY, for the argv rule's reason above: a
 	// Hub outage mid-restart must leave the running agent running, not kill it
 	// and then answer 409 with a record naming a destroyed sandbox. What ran
-	// before this is the new conversation UUID and the worktree's conversation
-	// store, whose MkdirAll is idempotent. A restart is a new process, so it
+	// before this is the new conversation UUID, the worktree's conversation
+	// store and step 2b's git reads and sessionWorktreeAdmin, whose MkdirAlls
+	// are idempotent, so a refusal here leaves at most those two directories
+	// made (re-review b09 M-3). A restart is a new process, so it
 	// RESTAMPS (contract §2.4). Accepted side effect: the new block is written
 	// while the old process still runs; that process read CLAUDE.md when it
 	// started, so its stamp stays true until the destroy below ends it.
@@ -1190,6 +1742,33 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// The conversation the restart leaves stays resumable. A restart clears the
+	// context, not the artifact: the old transcript is still on disk, and with
+	// the record naming only the new conversation nothing would name it again.
+	// So it joins the list a resume falls back to — if the CLI wrote it. A
+	// conversation nobody spoke in has no transcript, and listing it would grow
+	// the record by one dead id per restart.
+	//
+	// After the destroy, not before with the rest: until the old sandbox is gone
+	// its CLI can still write the first line, and a look taken before that would
+	// drop a conversation that exists. A look that fails keeps the id, because
+	// dropping one that exists is the loss this is here to prevent and listing
+	// one that does not costs a resume only a skipped candidate.
+	//
+	// A plain append: sess is Get's clone and Update clones again on the way
+	// in, so nothing this appends into is shared with the store.
+	earlier := sess.EarlierConversationIDs
+	if conversationStore != "" && sess.ConversationID != "" {
+		written, err := sessionTranscriptState(conversationStore, sess.ConversationID)
+		if err != nil {
+			a.sessionLog().Warn("restart: cannot tell whether the old conversation was written; keeping it",
+				"sessionId", id, "err", err)
+		}
+		if written || err != nil {
+			earlier = append(earlier, sess.ConversationID)
+		}
+	}
+
 	// A FRESH sandbox id, not the old one. Reusing it races a Destroy the
 	// daemon has not finished and comes back as ErrAlreadyExists; minting a new
 	// one also means a container that survived the destroy stops matching any
@@ -1221,8 +1800,9 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 	// The endpoint is cleared rather than left pointing at the sandbox that was
 	// just destroyed, and the token is replaced in the same write as the id, so
 	// the record never names one sandbox while holding another's secret. The
-	// argv and the conversation go in the same write for the same reason: a
-	// resume must find the conversation the new sandbox is running.
+	// argv, the conversation and the earlier conversations go in the same write
+	// for the same reason: a resume must find the conversation the new sandbox
+	// is running, and the one it left.
 	if _, err := a.deps.Store.Update(id, func(sess *registry.Session) error {
 		sess.SandboxID = sandboxID
 		sess.SandboxRef = ""
@@ -1231,6 +1811,7 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 		sess.Command = command
 		sess.Args = args
 		sess.ConversationID = conversation
+		sess.EarlierConversationIDs = earlier
 		// The new process's stamp and, for a re-located record, its ids
 		// (phase 4 task 10), in the same write as the sandbox they describe.
 		sess.ContextRef = brief.ContextRef
@@ -1262,7 +1843,7 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 		AttachToken: token,
 		Resources:   a.sessionResources(),
 		WorkDir:     sessionWorkDir,
-		Mounts:      sessionMounts(path, conversationStore, a.deps.CABundle),
+		Mounts:      sandboxMounts,
 	})
 	if err != nil {
 		a.sessionLog().Error("restart: create the sandbox", "sessionId", id, "err", err)
@@ -1361,6 +1942,25 @@ func (a *API) handleSessionDelete(w http.ResponseWriter, r *http.Request) {
 
 	if !purge {
 		httpx.WriteJSON(w, http.StatusOK, toJSON(updated, sessionBasePath))
+		return
+	}
+
+	// OD-10, "Forget deletes it": the session's own transcripts go before its
+	// record does. That order is the reporting. A deletion that fails leaves
+	// the record — the one thing that names the file — so the 500 is true, the
+	// cockpit puts the row back, and asking again finds the file again. The
+	// other order would answer 204 over a transcript nothing names any more,
+	// kept forever: the state OD-10 exists to end. This session's sandbox is
+	// destroyed by now, so its CLI is not writing the file this removes. The
+	// worktree's other sessions still have the store mounted, which is why the
+	// deletes cannot be steered through a link (sessionForgetTranscripts).
+	//
+	// Below the purge check and below the destroy, both on purpose and both
+	// pinned: above the first, every Kill would erase the conversation Resume
+	// needs; above the second, a 503 would come back over a live session whose
+	// conversation was already gone.
+	if err := a.sessionForgetTranscripts(updated); err != nil {
+		a.internal(w, r, "delete the session's transcript", err)
 		return
 	}
 

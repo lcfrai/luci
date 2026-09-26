@@ -1,7 +1,15 @@
 import { StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
-import { isCockpitChord, useKeyboardMap } from "./useKeyboardMap";
+import {
+  CHORD_KEYS,
+  SHIFTED_CHORD_KEYS,
+  TERMINAL_HOST_ATTRIBUTE,
+  isCockpitChord,
+  isInsideTerminal,
+  terminalKeepsKey,
+  useKeyboardMap,
+} from "./useKeyboardMap";
 import { __resetOverlays, hasOpenOverlay, useDismissable } from "./useDismissable";
 import { resetCockpit, useCockpit } from "../store/store";
 import { aBranch, aProject, aSession, aWorktree } from "../test/fixtures";
@@ -31,6 +39,12 @@ vi.mock("../components/develop/sessionVerbs", () => ({
   ],
 }));
 vi.mock("./useCreateSession", () => ({ useCreateSession: () => createSessionMock }));
+
+/** useKeyboardMap.ts as text, for the one test that pins the predicate's source. It is loaded
+ *  with import.meta.glob rather than node:fs, for defects.test.tsx's reason: `@types/node` is
+ *  not a dependency, so a node:fs import fails the typecheck. */
+const KEYBOARD_MAP_SOURCE: string =
+  Object.values(import.meta.glob<string>("./useKeyboardMap.ts", { query: "?raw", import: "default", eager: true }))[0] ?? "";
 
 /** cancelable:true is MANDATORY. Without it preventDefault() is a no-op, defaultPrevented
  *  stays false, and every "is not intercepted" assertion below passes for the wrong reason. */
@@ -171,9 +185,12 @@ describe("useKeyboardMap — the chord table", () => {
     expect(killMock).toHaveBeenCalledTimes(1);
   });
 
-  it("⌘K toggles the palette, including while a terminal has focus", () => {
+  it("⌘K toggles the palette, including while a terminal has focus, with OD-9's setting off (the default)", () => {
     // Through the focused element, not straight at the window: dispatched at the window, this
-    // name was true of a listener that no focused terminal ever let a chord reach.
+    // name was true of a listener that no focused terminal ever let a chord reach. RENAMED BY
+    // OD-9's FIX ROUND 1: with the setting on, ⌘K inside a terminal is the agent's (the OD-9
+    // describe below pins that), so the unqualified name was no longer true. This stand-in
+    // textarea carries no terminal-host marker, so this row does not see the setting either way.
     const term = focusedTerminal();
     expect(pressOn(term, "k", { ctrlKey: true }).defaultPrevented).toBe(true);
     expect(useCockpit.getState().paletteOpen).toBe(true);
@@ -325,10 +342,15 @@ describe("isCockpitChord — the one list the map and the terminal both read", (
     // and no branch handles — one xterm would then skip and nothing would act on, lost to both
     // the agent and the cockpit. This is every key below with every modifier the predicate
     // reads. Added by task 23's fix round 1: mutation "⌘L claimed, no branch" survived the lists.
+    // It is a SAMPLE, and it sees a claim only for a key it presses: fix round 2 found "⌘←
+    // claimed, no branch" outside it, widened it by the fourteen named keys below the first
+    // line, and added the test after this one, which reads the lists themselves.
     const keys = [
       ..."abcdefghijklmnopqrstuvwxyz0123456789\\/,.;'[]-=` ",
       "Enter", "Escape", "Tab", "Backspace", "Delete", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "F1", "F5",
+      "ArrowLeft", "ArrowRight", "PageDown", "Insert", "F2", "F3", "F4", "F6", "F7", "F8", "F9", "F10", "F11", "F12",
     ];
+    expect(keys.length).toBe(74);
     const modifiers: KeyboardEventInit[] = [
       {}, { shiftKey: true }, { ctrlKey: true }, { metaKey: true },
       { ctrlKey: true, shiftKey: true }, { metaKey: true, shiftKey: true }, { ctrlKey: true, altKey: true },
@@ -345,5 +367,211 @@ describe("isCockpitChord — the one list the map and the terminal both read", (
     // §6.9's fourteen unshifted keys and ⌘⇧M, each on Ctrl and on Meta. Without this count a
     // predicate that claimed nothing would make every comparison above agree, vacuously.
     expect(claimed).toBe(30);
+  });
+
+  it("every key the two lists name is claimed on Ctrl and on Meta, and reaches a branch that takes it", () => {
+    // ADDED BY TASK 23's FIX ROUND 2. The keys are written twice, in the lists xterm reads and
+    // in the branch chain that acts, and the test above only samples the keyboard: "⌘← claimed,
+    // no branch" (ArrowLeft appended to CHORD_KEYS) passed it, and through a real xterm Ctrl+←
+    // then reached neither readline's word-left nor the map. This reads the lists, so a listed
+    // key with no branch fails here whatever the key is. No overlay is open, so every branch
+    // reaches its preventDefault, and preventDefault is the one thing every branch does first.
+    const cases: Array<[string, KeyboardEventInit]> = [
+      ...CHORD_KEYS.map((key): [string, KeyboardEventInit] => [key, {}]),
+      ...SHIFTED_CHORD_KEYS.map((key): [string, KeyboardEventInit] => [key.length === 1 ? key.toUpperCase() : key, { shiftKey: true }]),
+    ];
+    let checked = 0;
+    for (const [key, init] of cases) {
+      for (const modifier of [{ ctrlKey: true }, { metaKey: true }]) {
+        const event = press(key, { ...init, ...modifier });
+        checked += 1;
+        expect([key, modifier, isCockpitChord(event), event.defaultPrevented]).toEqual([key, modifier, true, true]);
+      }
+    }
+    // §6.9's fifteen chords, each on Ctrl and on Meta: the same thirty the test above counts.
+    // Without it, emptied lists would pass this test having checked nothing.
+    expect(checked).toBe(30);
+  });
+
+  it("the predicate names no key of its own, so the two lists are its whole claim", () => {
+    // ADDED BY TASK 23's FIX ROUND 2. The test above covers every key the lists name, and the
+    // whole-keyboard test covers the keys it samples. A key the predicate names itself is in
+    // neither: "⌘? claimed, no branch" (`if (key === "?") return true;` in the predicate)
+    // passed all 701 tests, because "?" is outside the lists and outside the sample. So the
+    // predicate and chordKey are pinned as source, comments stripped and whitespace collapsed,
+    // as defects.test.tsx reads source. To add a chord, add its key to CHORD_KEYS or
+    // SHIFTED_CHORD_KEYS and give it a branch. Neither function changes, and if one must, this
+    // test is where that decision is made on purpose.
+    const code = KEYBOARD_MAP_SOURCE
+      .replace(/\r\n/g, "\n")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/\/\/[^\n]*/g, "");
+    const fn = (head: string): string => {
+      const start = code.indexOf(head);
+      const end = code.indexOf("\n}\n", start);
+      expect([head, start >= 0 && end > start]).toEqual([head, true]);
+      return code.slice(start, end + 2).replace(/\s+/g, " ").trim();
+    };
+    expect(fn("function chordKey(")).toBe(
+      "function chordKey(event: KeyboardEvent): string { return event.key.length === 1 ? event.key.toLowerCase() : event.key; }",
+    );
+    expect(fn("export function isCockpitChord(")).toBe(
+      "export function isCockpitChord(event: KeyboardEvent): boolean { " +
+        "if (!(event.metaKey || event.ctrlKey)) return false; " +
+        "if (event.altKey) return false; " +
+        "const key = chordKey(event); " +
+        "return (event.shiftKey ? SHIFTED_CHORD_KEYS : CHORD_KEYS).includes(key); }",
+    );
+  });
+});
+
+/* OWNER DECISION OD-9, "Keep, plus a toggle": the handler level. Both modes, both readers.
+ *
+ * The terminal stand-in here is the one real terminals have since OD-9: a host carrying
+ * TERMINAL_HOST_ATTRIBUTE, around a focused helper textarea. The bare textarea the tests above
+ * use has no host, which is correct for them (they predate the marker, and off mode never reads
+ * it) and would be wrong here: a map that ignored "inside a terminal" would pass on it. What real
+ * xterm does with each key in each mode is useKeyboardMap.xterm.test.tsx's. */
+describe("OD-9 — 'Send shortcut keys to the terminal', at the handler level", () => {
+  afterEach(() => {
+    document.querySelectorAll(`[${TERMINAL_HOST_ATTRIBUTE}]`).forEach((node) => node.remove());
+    document.querySelectorAll("input[data-od9]").forEach((node) => node.remove());
+  });
+
+  function focusedTerminalInHost(): HTMLTextAreaElement {
+    const host = document.createElement("div");
+    host.setAttribute(TERMINAL_HOST_ATTRIBUTE, "");
+    const term = document.createElement("textarea");
+    term.className = "xterm-helper-textarea";
+    host.appendChild(term);
+    document.body.appendChild(host);
+    term.focus();
+    return term;
+  }
+
+  /** Every chord in the two lists, on Ctrl and on Meta: §6.9's thirty. */
+  const EVERY_CHORD: KeyboardEventInit[] = [
+    ...CHORD_KEYS.map((key) => ({ key })),
+    ...SHIFTED_CHORD_KEYS.map((key) => ({ key: key.toUpperCase(), shiftKey: true })),
+  ].flatMap((init) => [{ ...init, ctrlKey: true }, { ...init, metaKey: true }]);
+
+  /** Everything a chord branch can change. Equal before and after means the map did nothing. */
+  const mapState = () => {
+    const s = useCockpit.getState();
+    return JSON.stringify([s.selection, s.paletteOpen, s.railCollapsed, s.machinesOpen, s.pickerOpen]);
+  };
+
+  const setting = (on: boolean) => useCockpit.getState().setSendChordsToTerminal(on);
+
+  it("is off by default, so a chord pressed inside a terminal is still the cockpit's", () => {
+    expect(useCockpit.getState().sendChordsToTerminal).toBe(false);
+    const term = focusedTerminalInHost();
+    let claimed = 0;
+    for (const init of EVERY_CHORD) {
+      const event = pressOn(term, init.key ?? "", init);
+      if (event.defaultPrevented) claimed += 1;
+    }
+    expect(claimed).toBe(30);
+    useCockpit.getState().closePalette();
+    pressOn(term, "k", { ctrlKey: true });
+    expect(useCockpit.getState().paletteOpen).toBe(true);
+  });
+
+  it("on: the map ignores every chord pressed inside a terminal, and does not even cancel it", () => {
+    setting(true);
+    useCockpit.getState().focusSession("s-2");
+    const term = focusedTerminalInHost();
+    const before = mapState();
+    let checked = 0;
+    for (const init of EVERY_CHORD) {
+      const event = pressOn(term, init.key ?? "", init);
+      checked += 1;
+      expect([init, event.defaultPrevented, mapState() === before]).toEqual([init, false, true]);
+    }
+    expect(checked).toBe(30);
+    expect({ killed: killMock.mock.calls.length, created: createSessionMock.mock.calls.length })
+      .toEqual({ killed: 0, created: 0 });
+  });
+
+  it("on: ⌘K inside a terminal goes to the terminal, so the palette stays shut", () => {
+    setting(true);
+    const term = focusedTerminalInHost();
+    const event = pressOn(term, "k", { ctrlKey: true });
+    expect({ open: useCockpit.getState().paletteOpen, prevented: event.defaultPrevented, kept: terminalKeepsKey(event) })
+      .toEqual({ open: false, prevented: false, kept: true });
+  });
+
+  it("on: the same chords pressed outside a terminal are still the cockpit's", () => {
+    setting(true);
+    focusedTerminalInHost(); // present on the page, but not where the key is pressed
+    let claimed = 0;
+    for (const init of EVERY_CHORD) {
+      useCockpit.getState().closePalette();
+      useCockpit.getState().closeMachines();
+      if (press(init.key ?? "", init).defaultPrevented) claimed += 1;
+    }
+    expect(claimed).toBe(30);
+    useCockpit.getState().closePalette();
+    useCockpit.getState().closeMachines();
+    pressOn(document.body, "k", { ctrlKey: true });
+    expect(useCockpit.getState().paletteOpen).toBe(true);
+  });
+
+  it("on: ⌘K on the palette's own input still closes the palette, because the input is outside any terminal", () => {
+    setting(true);
+    focusedTerminalInHost();
+    useCockpit.getState().openPalette();
+    const input = document.createElement("input");
+    input.setAttribute("data-od9", "");
+    document.body.appendChild(input);
+    input.focus();
+    pressOn(input, "k", { ctrlKey: true });
+    expect(useCockpit.getState().paletteOpen).toBe(false);
+  });
+
+  it("terminalKeepsKey: off, it is exactly !isCockpitChord; on, xterm keeps every key", () => {
+    const cases = [...CHORDS, ...NOT_CHORDS].map(([, init]) => new KeyboardEvent("keydown", init));
+    expect(cases.map(terminalKeepsKey)).toEqual(cases.map((event) => !isCockpitChord(event)));
+    expect(cases.filter((event) => !terminalKeepsKey(event)).length).toBe(CHORDS.length);
+    setting(true);
+    expect(cases.map(terminalKeepsKey)).toEqual(cases.map(() => true));
+  });
+
+  it("terminalKeepsKey reads the setting per keystroke, so a terminal built earlier obeys a later toggle", () => {
+    const event = new KeyboardEvent("keydown", { key: "3", ctrlKey: true });
+    expect(terminalKeepsKey(event)).toBe(false);
+    setting(true);
+    expect(terminalKeepsKey(event)).toBe(true);
+    setting(false);
+    expect(terminalKeepsKey(event)).toBe(false);
+  });
+
+  it.each([false, true])("Escape, shift+Tab and / behave exactly as before with the setting %s", (on) => {
+    setting(on);
+    useCockpit.getState().focusSession("s-1");
+    const term = focusedTerminalInHost();
+    const before = mapState();
+    const escape = pressOn(term, "Escape");
+    const shiftTab = pressOn(term, "Tab", { shiftKey: true });
+    const slash = pressOn(term, "/");
+    const slashOutside = press("/");
+    expect({
+      prevented: [escape, shiftTab, slash, slashOutside].map((event) => event.defaultPrevented),
+      kept: [escape, shiftTab, slash].map(terminalKeepsKey),
+      mapUnchanged: mapState() === before,
+      permissionMode: useCockpit.getState().sessions["s-1"].permissionMode,
+    }).toEqual({ prevented: [false, false, false, false], kept: [true, true, true], mapUnchanged: true, permissionMode: "ask" });
+  });
+
+  it("isInsideTerminal is true in a terminal's host and its descendants, and false everywhere else", () => {
+    const term = focusedTerminalInHost();
+    const host = term.parentElement as HTMLElement;
+    expect([
+      isInsideTerminal(term),
+      isInsideTerminal(host),
+      isInsideTerminal(document.body),
+      isInsideTerminal(window),
+      isInsideTerminal(null),
+    ]).toEqual([true, true, false, false, false]);
   });
 });

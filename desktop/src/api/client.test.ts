@@ -509,14 +509,33 @@ describe("createClient — resume and fork are createSession in disguise", () =>
     expect((err as ApiError).code).toBe("unsupported_option");
   });
 
-  it("forks into another worktree and lets the server derive the new title", async () => {
+  it("forks the conversation into another worktree, as Resume does, and lets the server derive the title", async () => {
     const { fn, calls } = fetchStub([jsonReply(201, sessionBody("s-3", "starting"))]);
 
     await createClient({ fetch: fn }).forkSession(source, "w-2", claudeCode);
 
     const sent = JSON.parse(String(calls[0].init?.body)) as Record<string, unknown>;
+    expect(calls[0].url).toBe(`${DEFAULT_BASE_URL}/v1/sessions`);
     expect(sent.worktreeId).toBe("w-2");
+    // The source, named the way Resume names it: the control plane starts the CLI on a fork of
+    // that session's conversation (Go contract §3.9). Without it the fork is a fresh session.
+    expect(sent.resume).toBe("s-1");
     expect(sent.title).toBeUndefined();
+    // Carried inside the conversation already; sent again it would be asked twice.
+    expect(sent.openingPrompt).toBeUndefined();
+    expect(sent.model).toBe(source.model);
+    expect(sent.permissionMode).toBe(source.permissionMode);
+  });
+
+  it("forks a shell exactly as before: the configuration and the opening prompt, no conversation", async () => {
+    const { fn, calls } = fetchStub([jsonReply(201, sessionBody("s-4", "starting"))]);
+    const shellSource: Session = { ...source, harness: "shell" };
+
+    await createClient({ fetch: fn }).forkSession(shellSource, "w-2", shell);
+
+    const sent = JSON.parse(String(calls[0].init?.body)) as Record<string, unknown>;
+    expect(sent.worktreeId).toBe("w-2");
+    expect(sent.harness).toBe("shell");
     expect(sent.resume).toBeUndefined();
     expect(sent.openingPrompt).toBe("add tests, then refactor");
   });

@@ -323,7 +323,9 @@ func attachNewFixture(t *testing.T, replay []byte, shape func(*registry.Session)
 		// Required by New; the relay never creates a sandbox.
 		ConversationsDir: filepath.Join(t.TempDir(), "conversations"),
 		// Required by New (phase 4 task 10); the relay starts no process.
-		Materialiser: attachNoMaterialiser{t: t},
+		Materialiser:   attachNoMaterialiser{t: t},
+		GitLineEndings: sessionsLineEndings(GitLineEndings{AutoCRLF: "false", EOL: "lf"}),
+		GitGlobalFiles: sessionsGlobalFiles(GitGlobalFiles{}),
 	})
 	if err != nil {
 		t.Fatalf("api.New: %v", err)

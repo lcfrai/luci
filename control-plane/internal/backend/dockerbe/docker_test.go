@@ -201,6 +201,7 @@ func portOf(t *testing.T, addr string) string {
 func labelsFor(sandboxID, sessionID string) map[string]string {
 	return map[string]string{
 		backend.LabelManaged:   "true",
+		backend.LabelInstance:  testInstance,
 		backend.LabelSandboxID: sandboxID,
 		backend.LabelSessionID: sessionID,
 		backend.LabelCreatedAt: "2026-09-18T01:02:03Z",
@@ -252,7 +253,7 @@ func validSpec() backend.Spec {
 
 func newBackend(t *testing.T, f *fakeDocker) *dockerbe.Backend {
 	t.Helper()
-	b, err := dockerbe.New(dockerbe.Config{Client: f, ReadyTimeout: 5 * time.Second})
+	b, err := dockerbe.New(dockerbe.Config{Instance: testInstance, Client: f, ReadyTimeout: 5 * time.Second})
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
@@ -267,7 +268,7 @@ func newBackendWithLog(t *testing.T, f *fakeDocker) (*dockerbe.Backend, *bytes.B
 	t.Helper()
 	var buf bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelWarn}))
-	b, err := dockerbe.New(dockerbe.Config{Client: f, ReadyTimeout: 5 * time.Second, Log: logger})
+	b, err := dockerbe.New(dockerbe.Config{Instance: testInstance, Client: f, ReadyTimeout: 5 * time.Second, Log: logger})
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
@@ -279,7 +280,7 @@ func newBackendWithLog(t *testing.T, f *fakeDocker) (*dockerbe.Backend, *bytes.B
 func TestNewIsErrUnavailableWhenNoDaemonAnswers(t *testing.T) {
 	f := &fakeDocker{pingErr: errors.New("cannot connect to the Docker daemon")}
 
-	_, err := dockerbe.New(dockerbe.Config{Client: f})
+	_, err := dockerbe.New(dockerbe.Config{Instance: testInstance, Client: f})
 	if !errors.Is(err, backend.ErrUnavailable) {
 		t.Fatalf("New with a dead daemon = %v, want an error wrapping ErrUnavailable", err)
 	}
@@ -291,14 +292,14 @@ func TestNewIsErrUnavailableWhenNoDaemonAnswers(t *testing.T) {
 // Publishing to anything but loopback puts a shell on the LAN. It has to be a
 // decision someone makes on purpose, not a default anyone can trip over.
 func TestNewRefusesANonLoopbackBindIP(t *testing.T) {
-	_, err := dockerbe.New(dockerbe.Config{Client: &fakeDocker{}, BindIP: "0.0.0.0"})
+	_, err := dockerbe.New(dockerbe.Config{Instance: testInstance, Client: &fakeDocker{}, BindIP: "0.0.0.0"})
 	if !errors.Is(err, backend.ErrNonLoopbackPublish) {
 		t.Fatalf("New(BindIP 0.0.0.0) = %v, want an error wrapping ErrNonLoopbackPublish", err)
 	}
 }
 
 func TestNewAllowsANonLoopbackBindIPOnlyWhenSaidOnPurpose(t *testing.T) {
-	b, err := dockerbe.New(dockerbe.Config{Client: &fakeDocker{}, BindIP: "0.0.0.0", AllowNonLoopback: true})
+	b, err := dockerbe.New(dockerbe.Config{Instance: testInstance, Client: &fakeDocker{}, BindIP: "0.0.0.0", AllowNonLoopback: true})
 	if err != nil {
 		t.Fatalf("New(BindIP 0.0.0.0, AllowNonLoopback) = %v, want nil", err)
 	}
@@ -351,7 +352,10 @@ func TestCreateBuildsTheContractedContainerAndReturnsALoopbackEndpoint(t *testin
 		t.Errorf("Env =\n%q\nwant\n%q", c.config.Env, wantEnv)
 	}
 	if got := c.config.Labels[backend.LabelManaged]; got != "true" {
-		t.Errorf("label %s = %q, want %q — List discovers on this label alone", backend.LabelManaged, got, "true")
+		t.Errorf("label %s = %q, want %q — List asks the daemon for this label", backend.LabelManaged, got, "true")
+	}
+	if got := c.config.Labels[backend.LabelInstance]; got != testInstance {
+		t.Errorf("label %s = %q, want %q — without it this control plane's own List never sees the sandbox again, and it can never be reaped", backend.LabelInstance, got, testInstance)
 	}
 	if got := c.config.Labels[backend.LabelSandboxID]; got != "s-3f2a91c0" {
 		t.Errorf("label %s = %q, want %q", backend.LabelSandboxID, got, "s-3f2a91c0")
@@ -362,8 +366,8 @@ func TestCreateBuildsTheContractedContainerAndReturnsALoopbackEndpoint(t *testin
 	if _, err := time.Parse(time.RFC3339, c.config.Labels[backend.LabelCreatedAt]); err != nil {
 		t.Errorf("label %s = %q, want RFC3339: %v", backend.LabelCreatedAt, c.config.Labels[backend.LabelCreatedAt], err)
 	}
-	if len(c.config.Labels) != 4 {
-		t.Errorf("labels = %v, want exactly the four contract labels", c.config.Labels)
+	if len(c.config.Labels) != 5 {
+		t.Errorf("labels = %v, want exactly the five contract labels (§2.4, with the reaper-scope amendment's instance)", c.config.Labels)
 	}
 	for _, v := range c.config.Labels {
 		if v == "tok-abc" {
@@ -463,7 +467,7 @@ func TestCreateDestroysTheSandboxThatNeverAnswersHealthz(t *testing.T) {
 		{err: notFoundErr{"panacea-app-s-3f2a91c0"}},
 		{resp: inspectOf("c0ffeecafe", "running", "127.0.0.1", portOf(t, dead), labelsFor("s-3f2a91c0", "sess-1"))},
 	}
-	b, err := dockerbe.New(dockerbe.Config{Client: f, ReadyTimeout: 400 * time.Millisecond})
+	b, err := dockerbe.New(dockerbe.Config{Instance: testInstance, Client: f, ReadyTimeout: 400 * time.Millisecond})
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
@@ -492,7 +496,7 @@ func TestCreateDestroysTheSandboxThatNeverPublishesAPort(t *testing.T) {
 		{err: notFoundErr{"panacea-app-s-3f2a91c0"}},
 		{resp: inspectOf("c0ffeecafe", "running", "", "", labelsFor("s-3f2a91c0", "sess-1"))},
 	}
-	b, err := dockerbe.New(dockerbe.Config{Client: f, ReadyTimeout: 300 * time.Millisecond})
+	b, err := dockerbe.New(dockerbe.Config{Instance: testInstance, Client: f, ReadyTimeout: 300 * time.Millisecond})
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
@@ -600,7 +604,7 @@ func TestCreateSpendsOneReadyBudgetAcrossBothWaits(t *testing.T) {
 	f.inspects = append(f.inspects, inspectResult{
 		resp: inspectOf("c0ffeecafe", "running", "127.0.0.1", portOf(t, dead), labelsFor("s-3f2a91c0", "sess-1")),
 	})
-	b, err := dockerbe.New(dockerbe.Config{Client: f, ReadyTimeout: budget})
+	b, err := dockerbe.New(dockerbe.Config{Instance: testInstance, Client: f, ReadyTimeout: budget})
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
@@ -772,7 +776,7 @@ func TestListDiscoversOnTheManagedLabelAndSkipsForeignContainers(t *testing.T) {
 		{
 			ID:     "c2",
 			State:  "running",
-			Labels: map[string]string{backend.LabelManaged: "true"}, // no sandbox id
+			Labels: map[string]string{backend.LabelManaged: "true", backend.LabelInstance: testInstance}, // no sandbox id
 		},
 	}}
 	b := newBackend(t, f)
@@ -949,6 +953,7 @@ func TestListFallsBackToTheCreatedAtLabelWhenTheSummaryHasNoTimestamp(t *testing
 		{ID: "c1", State: "running", Labels: labelsFor("s-aaaaaaaa", "sess-1")},
 		{ID: "c2", State: "running", Labels: map[string]string{
 			backend.LabelManaged:   "true",
+			backend.LabelInstance:  testInstance,
 			backend.LabelSandboxID: "s-bbbbbbbb",
 		}},
 	}}

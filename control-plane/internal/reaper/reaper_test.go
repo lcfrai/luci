@@ -136,15 +136,29 @@ func get(t *testing.T, store registry.Store, id string) registry.Session {
 	return s
 }
 
-// managed is a sandbox this control plane created: both labels set, endpoint on
+// ourInstance is the instance id every reaper under test owns, unless a test
+// builds one for another instance on purpose.
+const ourInstance = "11111111-1111-4111-8111-111111111111"
+
+// theirInstance is a second control plane on the same daemon.
+const theirInstance = "22222222-2222-4222-8222-222222222222"
+
+// managed is a sandbox this control plane created: every label set, endpoint on
 // loopback, and old enough that no create can still be in flight for it. Tests
 // override the fields they care about.
 func managed(id string, state backend.State) backend.Sandbox {
-	return backend.Sandbox{
+	return ownedBy(ourInstance, id, state)
+}
+
+// ownedBy is managed for any instance. An empty instance is a sandbox created
+// before per-instance ownership existed: LabelManaged and no LabelInstance.
+func ownedBy(instance, id string, state backend.State) backend.Sandbox {
+	sb := backend.Sandbox{
 		ID:        id,
 		Kind:      backend.KindDocker,
 		Ref:       "container-" + id,
 		Endpoint:  "127.0.0.1:49711",
+		Instance:  instance,
 		State:     state,
 		CreatedAt: clock.Add(-time.Hour),
 		Labels: map[string]string{
@@ -152,6 +166,26 @@ func managed(id string, state backend.State) backend.Sandbox {
 			backend.LabelSandboxID: id,
 		},
 	}
+	if instance != "" {
+		sb.Labels[backend.LabelInstance] = instance
+	}
+	return sb
+}
+
+// reaperFor is newReaper for a named instance, with its own registry: a second
+// control plane on the same daemon.
+func reaperFor(t *testing.T, instance string, store registry.Store, be backend.Backend) (*reaper.Reaper, *bytes.Buffer) {
+	t.Helper()
+	logs := &bytes.Buffer{}
+	r := reaper.New(reaper.Config{
+		Store:    store,
+		Backend:  be,
+		Instance: instance,
+		Interval: time.Minute,
+		Now:      func() time.Time { return clock },
+		Log:      slog.New(slog.NewTextHandler(logs, &slog.HandlerOptions{Level: slog.LevelDebug})),
+	})
+	return r, logs
 }
 
 func newReaper(t *testing.T, store registry.Store, be backend.Backend, idleAfter, idleTimeout time.Duration) (*reaper.Reaper, *bytes.Buffer) {
@@ -160,6 +194,7 @@ func newReaper(t *testing.T, store registry.Store, be backend.Backend, idleAfter
 	r := reaper.New(reaper.Config{
 		Store:       store,
 		Backend:     be,
+		Instance:    ourInstance,
 		IdleAfter:   idleAfter,
 		IdleTimeout: idleTimeout,
 		Interval:    time.Minute, // no test calls Run
@@ -264,6 +299,7 @@ func TestSweepSparesASessionWhoseCreateIsStillInFlight(t *testing.T) {
 	r := reaper.New(reaper.Config{
 		Store:       store,
 		Backend:     be,
+		Instance:    ourInstance,
 		Interval:    time.Minute,
 		CreateGrace: 90 * time.Second,
 		Now:         func() time.Time { return clock },
@@ -307,6 +343,7 @@ func TestSweepSparesASessionRestartedLongAfterItWasCreated(t *testing.T) {
 	r := reaper.New(reaper.Config{
 		Store:       store,
 		Backend:     be,
+		Instance:    ourInstance,
 		Interval:    time.Minute,
 		CreateGrace: 90 * time.Second,
 		Now:         func() time.Time { return clock },
@@ -378,6 +415,7 @@ func TestSweepDoesNotExtendTheCreateGraceToARunningSession(t *testing.T) {
 	r := reaper.New(reaper.Config{
 		Store:       store,
 		Backend:     be,
+		Instance:    ourInstance,
 		Interval:    time.Minute,
 		CreateGrace: 90 * time.Second,
 		Now:         func() time.Time { return clock },
@@ -462,6 +500,7 @@ func TestSweepSparesAnOrphanYoungEnoughToBeMidCreate(t *testing.T) {
 	r := reaper.New(reaper.Config{
 		Store:       store,
 		Backend:     be,
+		Instance:    ourInstance,
 		Interval:    time.Minute,
 		CreateGrace: 90 * time.Second,
 		Now:         func() time.Time { return clock },

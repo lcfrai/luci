@@ -54,7 +54,7 @@ func TestRelayCopiesBothDirections(t *testing.T) {
 		}
 		defer up.Close(websocket.StatusNormalClosure, "")
 
-		_ = proxy.Relay(r.Context(), client, up)
+		_ = proxy.RelayHooked(r.Context(), client, up, proxy.Hooks{})
 	}))
 	defer proxySrv.Close()
 
@@ -80,12 +80,11 @@ func TestRelayCopiesBothDirections(t *testing.T) {
 	}
 }
 
-// Compile-time signatures. Relay MUST NOT change: task 13's wiring, and any
-// caller outside this phase, is written against the three-argument form.
-var (
-	_ func(context.Context, *websocket.Conn, *websocket.Conn) error              = proxy.Relay
-	_ func(context.Context, *websocket.Conn, *websocket.Conn, proxy.Hooks) error = proxy.RelayHooked
-)
+// Compile-time signature. RelayHooked is the one relay (seam S8.7 in
+// docs/SEAMS.md; task 26 deleted the three-argument Relay, whose only caller
+// was this file): the attach handler, and Phase 8's pods after it, are written
+// against this form.
+var _ func(context.Context, *websocket.Conn, *websocket.Conn, proxy.Hooks) error = proxy.RelayHooked
 
 // growEchoServer replies to every message with the same bytes plus one. The
 // extra byte is what makes the direction test meaningful: a plain echo returns
@@ -180,9 +179,9 @@ func TestRelayHookedCountsEachDirection(t *testing.T) {
 	}
 }
 
-// TestRelayHookedToleratesNilHookFields is the case Relay itself takes: an
-// empty Hooks value. A nil-check per message is cheaper than making callers
-// supply two no-op closures.
+// TestRelayHookedToleratesNilHookFields is the case a caller with nothing to
+// observe takes: an empty Hooks value. A nil-check per message is cheaper than
+// making callers supply two no-op closures.
 func TestRelayHookedToleratesNilHookFields(t *testing.T) {
 	c, ctx := relayWithHooks(t, proxy.Hooks{})
 

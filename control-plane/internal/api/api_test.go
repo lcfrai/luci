@@ -189,6 +189,12 @@ func catalogNewDeps(t *testing.T) (api.Deps, *registry.FileStore) {
 		// Required by New (task 10). The catalog starts no session, so this
 		// one is never called; materialise_test.go replaces it with its own.
 		Materialiser: &catalogMaterialiser{},
+		GitLineEndings: func(context.Context) (api.GitLineEndings, error) {
+			return api.GitLineEndings{AutoCRLF: "false", EOL: "lf"}, nil
+		},
+		GitGlobalFiles: func(context.Context) (api.GitGlobalFiles, error) {
+			return api.GitGlobalFiles{}, nil
+		},
 	}, st
 }
 

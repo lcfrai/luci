@@ -50,6 +50,11 @@ type Spec struct {
 	AttachToken string
 	Env         map[string]string
 	SessionID   string
+
+	// Instance is the owning control plane's instance id, stamped as
+	// backend.KubeLabelInstance. katabe always sets it; it is omitted when
+	// empty, like SessionID, because an empty label value matches nothing.
+	Instance string
 }
 
 // Manager creates and removes sandbox pods in a single namespace.
@@ -79,6 +84,9 @@ func podLabels(spec Spec) map[string]string {
 	}
 	if spec.SessionID != "" {
 		labels[backend.KubeLabelSessionID] = spec.SessionID
+	}
+	if spec.Instance != "" {
+		labels[backend.KubeLabelInstance] = spec.Instance
 	}
 	return labels
 }
@@ -237,7 +245,8 @@ func (m *Manager) Get(ctx context.Context, id string) (*corev1.Pod, error) {
 	return &pod, nil
 }
 
-// List returns every pod this manager created in its namespace.
+// List returns every pod this manager created in its namespace — every
+// control plane's. katabe.List drops another instance's.
 func (m *Manager) List(ctx context.Context) ([]corev1.Pod, error) {
 	list, err := m.client.CoreV1().Pods(m.namespace).List(ctx, metav1.ListOptions{LabelSelector: selector("")})
 	if err != nil {

@@ -150,6 +150,8 @@ import react from "@vitejs/plugin-react";
 // strictPort for Tauri, and a test run must never fail because the dev server is up.
 export default defineConfig({
   plugins: [react()],
+  // Task 26: src/seams.test.ts reads files outside desktop/ through `?raw`.
+  server: { fs: { allow: [".."] } },
   test: {
     environment: "jsdom",
     include: ["src/**/*.test.{ts,tsx}"],
@@ -159,9 +161,18 @@ export default defineConfig({
     globals: false,
     restoreMocks: true,
     clearMocks: true,
+    // Task 14: without it, vitest blanks every `.css?raw`.
+    css: { include: [/\.css\?raw$/] },
   },
 });
 ```
+
+Two lines were added after this block was first written, each required, and each explained at
+length in the file itself: `css`, by task 14 (vitest's `vitest:css-disable` plugin rewrites any
+`.css` id followed by a query, so `tokens.css?raw` read as `""`); and `server.fs.allow`, by task
+26 (under jsdom Vite refuses a `?raw` id outside `fs.allow`, whose default is `desktop/` alone,
+and the seam manifest reads the control plane, `docs/` and `images/`). The comments in the file
+are the record; this block is the shape.
 
 `vitest.config.ts` must be added to `tsconfig.node.json`'s `include`, or `npm run typecheck`
 ignores it:
@@ -283,8 +294,14 @@ jsdom does run. The defect it pins was invisible to every other test because the
 on `window` and none on the focused element: xterm handles keydown on its own helper textarea
 first and cancels what it maps to data, so a chord pressed in a focused terminal went to the agent
 as control bytes (§6.6, "The chord filter"). The file mounts the real `<Terminal/>` and asserts the
-end state — the map acts and the agent receives nothing; Escape, shift+Tab and Ctrl+C still reach
-the agent. It was allowed on one condition, that it is stable (five consecutive identical runs
+end state — the map acts and the agent receives nothing, for every chord pressed with Ctrl and
+again with Meta (the Meta rows added by fix round 2); Escape, shift+Tab and Ctrl+C still reach
+the agent. OD-9 (2026-09-24) added the other mode to the same file: with "Send shortcut keys to
+the terminal" on, every chord reaches the agent as the bytes xterm maps it to, or reaches nobody
+where xterm maps it to nothing, and the map does nothing either way; `⌘K` pressed outside the
+terminal still opens the palette; and Escape, shift+Tab, Ctrl+C and `/` behave identically in both
+modes. OD-9's fix round 1 added one row: a read-only terminal on an exited session is still a
+terminal, so `⌘1` and `⌘⇧M` pressed in one move nothing (§6.9). It was allowed on one condition, that it is stable (five consecutive identical runs
 before commit); **if it ever flakes it is deleted**, and `Terminal.test.tsx`'s handler-level tests
 stay. Nothing in it draws or measures a glyph, so the rule above is unchanged for rendering.
 
@@ -625,7 +642,7 @@ export interface Toast {
 | `desktop/src/store/store.ts` | `createCockpitStore`, the `useCockpit` singleton, `resetCockpit`, the `persist` wiring, `PERSIST_KEY`, `PERSIST_VERSION`, `migrate`. |
 | `desktop/src/store/slices/dataSlice.ts` | Server-derived entities and their setters. |
 | `desktop/src/store/slices/uiSlice.ts` | Selection, lens, layout, rail expansion, overlays, toasts. |
-| `desktop/src/store/slices/prefsSlice.ts` | Defaults, inheritance overrides, tiles, pins. |
+| `desktop/src/store/slices/prefsSlice.ts` | Defaults, inheritance overrides, tiles, pins, and OD-9's `sendChordsToTerminal`. |
 | `desktop/src/store/selectors.ts` | Every derived read. No component computes a derivation inline. |
 | `desktop/src/store/defaults.ts` | `resolveDefaults`, `toCreateRequest` — pure, no store import. |
 
@@ -653,7 +670,11 @@ export interface DataSlice {
   /** The last API failure, for the one status line in the rail footer. Cleared only by
    *  setError(null) (task 17, decision (a)), which the operation that RAISED it calls when it
    *  next succeeds, and only while this is still its report; another operation's success
-   *  leaves it alone. Amended 2026-09-23 by task 24 (ruling B, §4.7). */
+   *  leaves it alone. The operations are: the poller; each catalogue list; the session verbs,
+   *  which are one operation because they share one reporter; and the create path. While a
+   *  catalogue list the user can see is still failing, the loader also puts that list's report
+   *  back whenever this is null. Amended 2026-09-23 by task 24 (ruling B, §4.7), and
+   *  2026-09-24 by its fix round 1. */
   lastError: { code: string; message: string } | null;
 
   setMachines(machines: Machine[]): void;
@@ -758,15 +779,21 @@ export interface PrefsSlice {
   /** The Canvas working set. Capped at CANVAS_MAX_TILES = 10 (docs/AGENTIC-UX.md §10 rule 5).
    *  Order is the order the user pinned in, and is never re-sorted. */
   pinned: SessionId[];
+  /** Owner decision OD-9, "Send shortcut keys to the terminal". Off by default. §6.9 says
+   *  what each value does; it is persisted (§3.5). */
+  sendChordsToTerminal: boolean;
 
   setDefaults(patch: SessionDefaultsOverride): void;
   setProjectDefaults(id: ProjectId, patch: SessionDefaultsOverride): void;
   setBranchDefaults(id: BranchId, patch: SessionDefaultsOverride): void;
   setTile(id: SessionId, tile: TilePosition): void;
   clearTile(id: SessionId): void;
-  /** No-ops past CANVAS_MAX_TILES and pushes a toast naming the cap. */
-  pinSession(id: SessionId): void;
+  /** No-ops past CANVAS_MAX_TILES **within `scopeIds`**, the sessions Canvas is showing, and
+   *  pushes a toast naming the cap. */
+  pinSession(id: SessionId, scopeIds: SessionId[]): void;
   unpinSession(id: SessionId): void;
+  /** A setter, not a flip, so the palette row's Undo restores the value it replaced. */
+  setSendChordsToTerminal(on: boolean): void;
 }
 
 export const CANVAS_MAX_TILES = 10;
@@ -796,6 +823,7 @@ type Persisted = Pick<
   | "layout" | "railCollapsed"
   | "expandedProjects" | "expandedBranches" | "expandedWorktrees"
   | "selection" | "lens"
+  | "sendChordsToTerminal"
 >;
 
 export const partialize = (s: CockpitState): Persisted => ({
@@ -811,6 +839,7 @@ export const partialize = (s: CockpitState): Persisted => ({
   expandedWorktrees: s.expandedWorktrees,
   selection: s.selection,
   lens: s.lens,
+  sendChordsToTerminal: s.sendChordsToTerminal,
 });
 
 /** Version 0 is any snapshot written before this contract existed — a pre-release dev build.
@@ -839,6 +868,13 @@ export const useCockpit = create<CockpitState>()(
   ),
 );
 ```
+
+**`sendChordsToTerminal` joined at version 1, with no bump and no migration** (OD-9, 2026-09-24).
+That is safe because of the flat shape: the shallow merge at the root leaves a key that a snapshot
+predates at its initial value, so a snapshot written before the setting existed rehydrates with it
+**off**, the behaviour it was written under. `store.test.ts` pins that case and the round trip.
+The persisted shape is `Persisted` here, in `store.ts`; `types.ts` (§2) declares no persisted shape,
+so §2 does not change.
 
 **Not persisted, on purpose:** every entity map (the server is truth, and a stale worktree list
 rendered before the first fetch is a lie the user has to un-learn), `loading`, `lastError`,
@@ -908,7 +944,7 @@ export function toCreateRequest(
 | `permissionMode` | `harness.permissionModes.length > 0` |
 | `openingPrompt` | `harness.supportsOpeningPrompt` and the trimmed value is non-empty |
 | `title` | only when the user typed one; otherwise omitted so the server derives `"<harness name> · <worktree name>"` |
-| `resume` | only for the Resume verb, and only when `harness.supportsResume` |
+| `resume` | only for the Resume verb, and only when `harness.supportsResume`. AMENDED by the fork-carries fix (2026-09-24): **and for the Fork verb**, under the same condition (§4.4). Both verbs build their request in `client.ts`, not through `toCreateRequest`, whose own callers never send one |
 | `contextRef` | only when the caller passes one (Phase 4) |
 
 ### 3.7 Selectors
@@ -1157,7 +1193,7 @@ export interface ListSessionsFilter {
 | `listSessions(filter?): Promise<Session[]>` | `GET /v1/sessions[?worktreeId=&status=]` | 200 | server-sorted `createdAt` descending; the client never re-sorts |
 | `getSession(id): Promise<Session>` | `GET /v1/sessions/{id}` | 200 | |
 | `renameSession(id, title): Promise<Session>` | `PATCH /v1/sessions/{id}` | 200 | body `{ "title": string }`; empty/whitespace title is 400 `bad_request`, so the client trims and refuses to send an empty one |
-| `restartSession(id): Promise<Session>` | `POST /v1/sessions/{id}/restart` | 200 | no body sent; 409 `conflict` when a restart is already in flight |
+| `restartSession(id): Promise<Session>` | `POST /v1/sessions/{id}/restart` | 200 | no body sent; 409 `conflict` when a restart is already in flight. *(Resume fix round 1, 2026-09-24, `contract-go.md` §3.14:)* also 409 `conflict` when the worktree no longer resolves, 400 `unknown_harness` / 400 `unsupported_option` / 409 `harness_unavailable` from the argv rebuild, and 500 `internal` when the conversation store cannot be created — every one before the old sandbox is destroyed, so it is still running |
 | `killSession(id): Promise<Session>` | `DELETE /v1/sessions/{id}` | 200 | idempotent; killing an exited session is 200 |
 | `purgeSession(id): Promise<void>` | `DELETE /v1/sessions/{id}?purge=true` | **204** | no body — the method must not attempt `res.json()` |
 | `attachUrl(session): string` | — | — | §4.6 |
@@ -1168,18 +1204,55 @@ Two shapes that catch people: `createSession` is **201, not 200**, and `purgeSes
 
 Resume and Fork are **not endpoints**. Per `contract-go.md` §3.14, resume is
 `createSession({ ..., resume })` — a new session continuing an old transcript — and fork is
-`createSession` against a different worktree. The client exposes them as named wrappers so the
+`createSession` against a different worktree (AMENDED by the fork-carries fix, 2026-09-24: with
+`resume` too, for a harness that can resume — below). The client exposes them as named wrappers so the
 UI reads correctly and the distinction stays visible:
 
 ```ts
 /** Resume: a NEW session that continues an old one's context (claude --resume). The old
  *  session keeps its record and its transcript. Only offered when harness.supportsResume. */
 resumeSession(source: Session, harness: Harness): Promise<Session>;
-/** Fork: the same configuration in a DIFFERENT worktree. Phase 2 cannot create a worktree
- *  (no endpoint — see §10.3), so Fork is offered only when the branch already has another
- *  worktree, and the menu names the target. */
+/** Fork: a NEW session in a DIFFERENT worktree, on the same configuration and — when
+ *  harness.supportsResume — branched from the source's conversation, as Resume is. A shell
+ *  forks its configuration alone. Phase 2 cannot create a worktree (no endpoint — see §10.3),
+ *  so Fork is offered only when the branch already has another worktree, and the menu names
+ *  the target. */
 forkSession(source: Session, targetWorktreeId: WorktreeId, harness: Harness): Promise<Session>;
 ```
+
+*(AMENDED by the fork-carries fix, 2026-09-24, `contract-go.md` §3.9; the Resume fix's concern 5.)*
+Fork used to be "the same configuration in a different worktree" and started a **fresh** session
+there: none of the conversation, against `docs/FUNCTIONAL-SPEC.md`'s "branch the session from this
+point into a new worktree". Now, for a harness with `supportsResume`, `forkSession` sends
+`resume: source.id` exactly as `resumeSession` does, with the target `worktreeId`, **no
+`openingPrompt`** (the conversation already holds it; sent again it would be asked twice) and no
+`title` (the server derives it, as before). The control plane starts the CLI on a fork of the
+source's conversation in the target worktree — Resume's argv, word for word. A **shell** fork is
+unchanged: no `resume`, and the opening prompt when `supportsOpeningPrompt`. Refusals are Resume's,
+from the same resolver and in the same words — a fork of a session nobody spoke in is 409
+`conflict`, "Nothing has been said in that session yet…" — and the verb reports them as it reports
+any `ApiError`. One is Fork's alone: 500 `internal` when the source's transcript cannot be carried
+across, with nothing created. **How the two verbs now differ in the product:**
+
+| | Resume | Fork into *worktree* |
+|---|---|---|
+| Worktree | the source's own | another on the same branch |
+| Conversation | forked from the source's, new id | forked from the source's, new id |
+| Files the agent sees | the source's worktree — **the same files** the source works in | the other worktree's files |
+| Source keeps running | yes — **two agents on one worktree's files** at once | yes — each in its own worktree |
+| Title | the source's | derived: `"<harness> · <target worktree>"` |
+
+`types.ts` is untouched: `resume` keeps its type, and only its meaning widens — "the cockpit session
+whose conversation this one forks", in its own worktree or another.
+
+*(Resume fix round 1, 2026-09-24, `contract-go.md` §3.9.)* A resume the CLI could not honour
+is refused by the control plane before any sandbox starts, and the refusal is a problem body
+whose `message` is a sentence the user can act on — the Resume verb reports it as it reports
+any other `ApiError` (`sessionVerbs.ts`), with no desktop change. One of them is new: 409 `conflict`, "Nothing has been said in that session
+yet, so there is no conversation to continue. Start a new session instead." A session that
+was restarted and not yet spoken to still resumes: the control plane continues the
+conversation the restart cleared. Nothing about the request changes — `resume` is still the
+cockpit id, and `types.ts` is untouched.
 
 ### 4.5 There is no bearer token on this hop
 
@@ -1284,7 +1357,23 @@ has arrived is never fetched again. A good tick is the one proof the control pla
 daemon that is down costs no extra request, and there is still one interval. (B) A good tick
 clears `lastError` **only if the poller raised it** and it is still on screen. It used to clear
 any error, so a catalogue failure was reported and then wiped 2 s later, leaving an empty rail and
-a clean footer. Each operation clears its own report when it next succeeds (§3.2's `lastError`).
+a clean footer. Each operation clears its own report when it next succeeds, and only while that
+report is still on screen. §3.2's `lastError` lists the operations.
+
+**Task 24's fix round 1 (2026-09-24) finished (B).** Two call sites still cleared any report on
+success: the session verbs (task 22's `sessionVerbs.ts`) and the create path (task 18's
+`useCreateSession.ts`). Both now keep the report they last wrote and clear only that. Both are
+declared departures. The verbs have five success paths, because every path that calls the one
+reporter is the same operation: the immediate commit (Rename, Restart), the deferred commit (Kill,
+Forget), Mark ready, Resume and Fork. The last four now clear their own report too; before, none
+of them cleared anything. Round 1 wired the deferred commit and Mark ready, and **fix round 2**
+(re-review I1) wired Resume and Fork, whose "Claude Code is not installed." otherwise stayed on
+the footer after a Resume that worked. The loader also **puts a report back**. The footer has one slot,
+so a catalogue failure that the poller's own failure replaced disappeared when the poller
+recovered, even though the list was still missing. Now, whenever the slot is empty and a list the
+user can see is still failing, the loader puts that list's latest report back. A list in a
+collapsed project or branch is not put back. It is not retried while closed, so its report would
+sit on the footer without being refreshed.
 
 The poll must move zero pixels. Three things make that true, and all three are testable:
 `replaceSessions` preserves index position for known ids (§3.2), the server sorts and the client
@@ -1746,7 +1835,7 @@ reason is the honest third option.
 | `SessionPaneFooter.tsx` | `{ session: Session }` | harness command · model · elapsed · attach state. All numbers `tabular-nums`. Attach state comes from `useAttachState(session.id)` (§6.6), never from the store; the retry elapsed is `useHeartbeat() - state.ladderStartedAt`, computed here because the registry owns no clock. |
 | `SessionMenu.tsx` | `{ sessionId: SessionId; anchor: DOMRect \| null; onClose(): void }` | The `⋯` menu: Resume, Fork into…, **Restart**, Rename…, Open a shell here, Kill, Forget, Copy session id, and **Retry attach** *(only while `useAttachState(id).phase === "failed"` — §6.6)*. Mounted by `ContextMenu.tsx` (§6.7). The rows are built by `develop/sessionVerbs.ts`, which the rail's menu shares. |
 | `EmptyDevelop.tsx` | `{ branch: Branch \| undefined }` | The zero state. Named actions, no spinner, and `<LinkedWorktreeNote/>` before them *(sandbox git fix)*. Also exports `startSessionOnWorktree(worktreeId, defaults)`, the create path its two actions share — an addition to this table, sited here because they are its only callers. Distinct from task 18's `useCreateSession`, which re-resolves against the live store. |
-| `LinkedWorktreeNote.tsx` | `{ worktree: Worktree \| undefined }` | ADDED by the sandbox git fix (2026-09-23). One sentence, `LINKED_WORKTREE_GIT_NOTE`, for `worktree.isPrimary === false`: git is unavailable in a linked worktree's sessions, because its `.git` names a host path the sandbox cannot see, and that arrives in Phase 3 (`3-D1`). Nothing for the primary worktree, and nothing for an unloaded one. No wire field, no §2 change. |
+| `LinkedWorktreeNote.tsx` | `{ worktree: Worktree \| undefined }` | ADDED by the sandbox git fix (2026-09-23). One sentence, `LINKED_WORKTREE_GIT_NOTE`, for `worktree.isPrimary === false`: git is unavailable in a linked worktree's sessions, because its `.git` names a host path the sandbox cannot see, and that arrives in Phase 3 (`3-D1`). Nothing for the primary worktree, and nothing for an unloaded one. No wire field, no §2 change. AMENDED by the sandbox git fix, round 1 (2026-09-24): the premise "the primary worktree's git works" was false on a host with Git for Windows' system `core.autocrlf=true`, where the sandbox's git saw every file modified and `commit -a` rewrote line endings. The sandbox's git now takes the host's `core.autocrlf` and `core.eol` for the worktree, and the primary's `.git/worktrees` is read-only in the sandbox (Go contract §5.1 step 5), so the premise holds and "not primary" is again exactly the set without working git. |
 | `develop.css` | — | `.pane-*`, `.cols-*`, `.cv-*` |
 
 ```tsx
@@ -1770,7 +1859,7 @@ property 7: if you cannot name the fact that justifies the element, the element 
 
 | File | Props | Owns |
 |---|---|---|
-| `Terminal.tsx` | `{ sessionId: SessionId; readOnly: boolean; focused: boolean }` | Constructing the `XTerm`, installing **the chord filter** on it (below), calling `open()`, handing it to `attachRegistry`, and **vertical scrollback inside the pane**. Takes DOM focus **only when `focused`** — on mount and on a false→true transition. Unconditional focus-on-mount meant nine mounting panes each took the caret and the last one flushed kept it. |
+| `Terminal.tsx` | `{ sessionId: SessionId; readOnly: boolean; focused: boolean }` | Constructing the `XTerm`, installing **the chord filter** on it (below), marking its host element with `TERMINAL_HOST_ATTRIBUTE` so the keyboard map can tell a keystroke came from a terminal (OD-9, below), calling `open()`, handing it to `attachRegistry`, and **vertical scrollback inside the pane**. Takes DOM focus **only when `focused`** — on mount and on a false→true transition. Unconditional focus-on-mount meant nine mounting panes each took the caret and the last one flushed kept it. |
 
 ```tsx
 export function Terminal(props: {
@@ -1805,7 +1894,12 @@ chords never reached `useKeyboardMap`: `⌘3` went down the PTY as ESC and inter
 `makeTerm` therefore calls
 
 ```ts
-term.attachCustomKeyEventHandler((event) => !isCockpitChord(event));
+term.attachCustomKeyEventHandler(terminalKeepsKey);
+
+// hooks/useKeyboardMap.ts
+export function terminalKeepsKey(event: KeyboardEvent): boolean {
+  return useCockpit.getState().sendChordsToTerminal || !isCockpitChord(event);
+}
 ```
 
 `isCockpitChord` is exported by `hooks/useKeyboardMap.ts` and is also that hook's own early
@@ -1813,6 +1907,20 @@ return, so the chord list exists **once** and the terminal and the map cannot di
 Returning `false` makes xterm skip the event **without cancelling it**, so it bubbles to the map.
 Everything outside the predicate — Escape, shift+Tab, `/`, AltGr (Ctrl+Alt), Ctrl+C and every
 bare key — is still xterm's to send, which is what §6.9's two spelled-out entries require.
+
+**OD-9 (2026-09-24): the filter reads one setting.** With `sendChordsToTerminal` off, the default,
+`terminalKeepsKey` is exactly `!isCockpitChord` and everything above holds. With it on, it is
+`true` for every key, so xterm keeps the chords too: `⌘3` reaches the agent as ESC and `⌘W` as
+ETB, and xterm cancels what it sends, which is what keeps `⌘W` from closing the window in that
+mode. The store is read **per keystroke**, not in `makeTerm`: the registry builds a session's
+terminal once and keeps it, so a value captured at construction would ignore every later toggle.
+The second half of the setting, for chords xterm maps to nothing, is the map's (§6.9).
+
+`TERMINAL_HOST_ATTRIBUTE` (`"data-terminal-host"`) is exported beside it, with
+`isInsideTerminal(target)`, which is `target.closest("[data-terminal-host]") !== null` for an
+element and `false` for anything else. `Terminal` spreads the attribute onto its host `<div>` from
+the constant. The marker is ours rather than one of xterm's class names, so what counts as "inside a
+terminal" is decided in this repo and not by an xterm upgrade.
 
 **ADDED by task 19 — the `createTerm` seam, because neither §1.5 nor §1.7 describes it.** §1.5
 puts the xterm import in this component; §1.7 puts the *instance* in the registry. A factory
@@ -1907,10 +2015,28 @@ export interface Command {
   glyph: string;
   /** Shown inline so the palette teaches its own shortcuts. */
   hint?: string;
+  /** Set only on a toggle row: its CURRENT state. The palette renders it as the row's visible
+   *  "On" or "Off", in the meta slot, and as aria-checked. A toggle row sets no meta. OD-9. */
+  checked?: boolean;
   run(): void;
 }
 export function buildCommands(state: CockpitState): Command[];
 ```
+
+**One toggle row, added for OD-9 (2026-09-24).** `verb:send-chords-to-terminal`, labelled in the
+owner's words *"Send shortcut keys to the terminal"*, is always present and is the **last verb**.
+Its label never changes, so the query "shortcut" always finds it, and its state is `checked`, shown
+in the row. It has no `hint`, because a chord that toggled it would be one the setting hands away.
+The palette closes before `run`, so `run` also pushes a toast that says which way the keys now go,
+with an Undo that restores the value it replaced. Turning it **on** says how to get back here:
+*"Shortcut keys now go to the terminal, ⌘K too. To open this palette again, click an empty part of
+the top bar, then press ⌘K."* It names the top bar's empty part, and not "outside the terminal"
+(the wording before OD-9's fix round 1), because that is always on screen and moves no focus into
+a pane, while a click on a pane's own header or footer, or on another session's rail row, hands
+focus straight back to a terminal (§6.8's two movers), where `⌘K` is the agent's. The way back
+needs a pointer, and so does the toast's Undo while a terminal has focus; §6.9 says why, and that
+it is an open owner question. There is no settings page yet, and the pane is deliberately not
+given a control for it.
 
 Palette ranking is **stable**: `buildCommands` returns a fixed order (verbs, then sessions, then
 worktrees, then branches, then projects) and filtering only *removes* rows; it never re-ranks.
@@ -1929,7 +2055,7 @@ known defect 10's class and the palette is where Phase 2 actually contains it.
 | Horizontal scroll of Columns | `ColumnsLayout` | `SessionRow` and the palette request it via `focusSession`; they never call `scrollIntoView` themselves |
 | Vertical scrollback inside a pane | xterm, via `attachRegistry`'s pinned rule (§7.2) | Nothing else calls `scrollToBottom()` |
 | Canvas pan/zoom | `CanvasLayout` | — |
-| The keydown listener | `useKeyboardMap`, mounted once in `AppShell` | No component adds a `window` keydown listener. Panes use React's own `onKeyDown` where they need one. xterm's own textarea handler is not a second owner of the table: it defers every chord to `useKeyboardMap`'s `isCockpitChord` (§6.6, "The chord filter") |
+| The keydown listener | `useKeyboardMap`, mounted once in `AppShell` | No component adds a `window` keydown listener. Panes use React's own `onKeyDown` where they need one. xterm's own textarea handler is not a second owner of the table: it defers every chord to `useKeyboardMap`'s `isCockpitChord`, through `terminalKeepsKey`, unless OD-9's setting hands the chords to the terminal, which is a value in the store and not a second table (§6.6, "The chord filter"; §6.9) |
 
 **Why two movers is not a violation, and what the rule actually is.** Earlier wording named
 `Terminal.tsx` as the only thing that calls `.focus()` inside a pane. **That was never true** —
@@ -1960,13 +2086,13 @@ was already focused throughout, so no transition fires and the first mover stays
 
 | Chord | Effect | Guard |
 |---|---|---|
-| `⌘K` | Toggle the palette | Always, including while a terminal has focus |
+| `⌘K` | Toggle the palette | Always, including while a terminal has focus. **Exception, OD-9:** with "Send shortcut keys to the terminal" on, `⌘K` pressed inside a terminal is the agent's; from anywhere else, the palette's own input included, it still toggles the palette |
 | `⌘⏎` | New default session in the focused worktree | Requires a selected branch; falls back to the branch's first worktree |
-| `⌘⇧M` | Machines popover | Always |
+| `⌘⇧M` | Machines popover | Always, except from inside a terminal with OD-9's setting on (below) |
 | `⌘1`–`⌘9` | Focus the *n*th session in `selectPaneSessionIds` | Via `idAtVisiblePosition`; no-op past the end |
 | `⌘\` | Focus the next session, wrapping | Same list |
-| `⌘W` | Kill the focused session (optimistic + Undo toast) | Requires a focused session. **Does not close the window** — `preventDefault` is mandatory or the webview closes |
-| `⌘B` | Toggle the rail | Always |
+| `⌘W` | Kill the focused session (optimistic + Undo toast) | Requires a focused session. **Does not close the window** — `preventDefault` is mandatory or the webview closes (inside a terminal with OD-9's setting on, xterm's own cancel does it; below). On a Mac, `Cmd+W` maps to nothing in xterm, so with the setting on nothing cancels it; the app is Windows-only today, and this is recorded, not built |
+| `⌘B` | Toggle the rail | Always, except from inside a terminal with OD-9's setting on (below) |
 | `Escape` | Close the topmost overlay; if none, **do nothing** | See below |
 | `shift+tab` | **Not intercepted.** Passed to the terminal | See below |
 | `/` | Not intercepted | Slash commands belong to the agent CLI |
@@ -1974,9 +2100,55 @@ was already focused throughout, so no transition fires and the first mover stays
 **"Including while a terminal has focus" needs the terminal's cooperation, and has it.** A
 focused xterm sees a keystroke before any `window` listener and cancels what it maps to data.
 The rows above marked `⌘` reach this map from inside a terminal only because `makeTerm` hands
-xterm the map's own predicate, `isCockpitChord`, and xterm skips what it claims (§6.6, "The chord
-filter"). So the predicate is the table: a key added to it is a key the agent stops receiving,
+xterm the map's own predicate, `isCockpitChord` (through `terminalKeepsKey`, which is exactly that
+predicate's negation while OD-9's setting is off, the default; below), and xterm skips what it
+claims (§6.6, "The chord filter"). So the predicate is the table: a key added to it is a key the agent stops receiving,
 and the table's last three rows — Escape, `shift+tab`, `/` — are kept out of it on purpose.
+
+**Owner decision OD-9, "Keep, plus a toggle" (2026-09-24).** Everything above is the default, and
+it is how VS Code behaves: with a terminal focused, the cockpit's chords go to the cockpit. One
+setting, `prefsSlice.sendChordsToTerminal`, *"Send shortcut keys to the terminal"*, persisted and
+reached from the palette (§6.7), hands every chord pressed **inside a terminal** to the agent. It
+takes two guards, one per kind of chord:
+
+- a chord xterm maps to data (`⌘K`, `⌘W`, `⌘B`, `⌘\`, `⌘⏎`, `⌘3`–`⌘8` on Ctrl, and `⌘⏎` on Meta)
+  is kept by `terminalKeepsKey` (§6.6), sent to the agent and cancelled by xterm, so it never
+  reaches this map;
+- a chord xterm maps to nothing (`⌘1`, `⌘2`, `⌘9`, `⌘⇧M`, and every other Meta chord off a Mac)
+  bubbles here whatever the handler says, so the map has a **second return**, straight after the
+  predicate: with the setting on, it returns when `isInsideTerminal(event.target)`, without
+  `preventDefault`. Without it, `⌘1` pressed in a pane would move focus out of that pane.
+
+The setting moves **no key in or out of the predicate**, so Escape, `shift+tab` and `/` behave
+identically in both modes, and a chord pressed **outside** a terminal is the cockpit's in both
+modes. That is how the palette stays reachable when the setting is on: `⌘K` from the rail, the top
+bar, the page, or the palette's own input (which is how an open palette still closes on `⌘K`),
+once a pointer has put focus there (below).
+**Ruling:** `⌘K` inside a terminal, with the setting on, goes to the terminal. The setting means
+"every chord", `⌘K` included, and the toast that turns the setting on says how to get back.
+A read-only (exited) terminal is still a terminal: with the setting on it receives the chord and,
+having no agent, drops it, as it drops every other key. So `Terminal`'s host carries the marker
+whatever `readOnly` and `focused` are; `Terminal.test.tsx` pins all four pairings, each read-only
+row on an exited session (the only pairing `SessionPane` makes), and the real-xterm file presses
+`⌘1` and `⌘⇧M` in an exited session's terminal (OD-9's fix round 1).
+
+**What that ruling costs, stated plainly (OD-9's fix round 1): with the setting on, a keyboard
+alone cannot leave a terminal.** xterm sends and cancels Tab, Escape, the F-keys and every Ctrl
+chord it maps to data; the chords it maps to nothing are dropped by the second return above; and
+nothing else moves DOM focus out of a pane. So from inside a terminal no key reaches the palette,
+the rail or any other cockpit surface, and the only way back to the one row that turns the
+setting off is a **pointer**. Not a click anywhere "outside the terminal", either: a click on a
+pane's header or footer re-focuses its terminal (§6.8's second mover), and so does a click on
+another session's rail row (the first mover, on its false→true transition). A click on an empty
+part of the top bar, then `⌘K`, is the route the toast names, and `AppShell.test.tsx` walks it and
+the pane-header route side by side. The toast's Undo is pointer-only too while a terminal has
+focus, and a reflex `⌘K` inside one sends `\x0b`, which a readline-style prompt treats as
+kill-to-end-of-line. The app also **starts** in this state: the setting and `selection` are both
+persisted, and a pane that mounts focused takes DOM focus (`Terminal.tsx`'s focus effect). That is
+a keyboard trap under WCAG 2.1.2 (No Keyboard Trap, level A), and it falls short of
+DESIGN-SYSTEM.md's "keyboard is a primary input here". Every way out is a key the cockpit keeps
+while the setting says it keeps none, so choosing one is the owner's decision: it is recorded,
+with the options, in `od9-toggle-report.md`'s fix round 1, and not built.
 
 Two entries need the reason spelled out, because both look like omissions:
 
@@ -2190,7 +2362,11 @@ The middle column says exactly where, so nobody has to take that on faith.
 Eleven tasks. **D1 writes 14–19** (the foundation: nothing on screen until 18, everything on
 screen depends on 14–17). **D2 writes 20–24** (the surfaces, the verbs and the proof). The line is
 drawn so that D1 hands D2 a compiling, tested substrate with no UI decisions left in it, and D2
-never edits a file D1 owns except `App.tsx` in task 24.
+never edits a file D1 owns except by declared departure, recorded at the site and in the section
+it amends. *Amended 2026-09-24 by task 23's fix round 2.* The sentence used to say "except
+`App.tsx` in task 24", which was the one departure planned. D2's tasks and their review rounds
+have since made others, into `Terminal.tsx`, `fakes.ts`, `poller.ts` and `useCreateSession.ts`,
+each recorded where it happened.
 
 Legend: **C** create, **M** modify, **T** test.
 
@@ -2229,7 +2405,7 @@ untouched.
 | **21** | Canvas layout and persisted tiles | The 2400×1600 plane, pointer-driven drag and resize on `transform`, z-order, the 10-tile pin cap, `TilePosition` written through to `prefsSlice` | C `components/develop/CanvasLayout.tsx`; M `components/develop/develop.css`, `components/develop/DevelopLens.tsx`; T `develop/CanvasLayout.test.tsx` | 20 |
 | **22** | Session lifecycle verbs | `SessionMenu` and the rail's context verbs wired to the client: Resume, Fork into…, Restart, Rename…, Kill, Forget, Open a shell here, Copy session id, Mark ready; optimistic mutation with an Undo window, in **two** commit shapes — deferred (Kill, Forget: the request is held for the window and Undo cancels it) and immediate (Rename, Restart: sent at once, snapshot restored on refusal). A deferred verb's ids are held in `lib/pendingSessions` and `replaceSessions` suppresses the poller for them, or the 2 s tick undoes the patch inside the 6 s window | C `components/develop/SessionMenu.tsx`, `components/develop/sessionVerbs.ts`, `lib/pendingSessions.ts`; M `components/menu/ContextMenu.tsx`, `components/menu/menu.css`, `components/rail/*Row.tsx`, `store/slices/dataSlice.ts` *(declared departure — task 17's)*, `api/attachRegistry.ts` *(declared departure — task 19's; the `retryAttach` export of §6.6, which answers the terminal `failed` state)*; T `develop/sessionVerbs.test.ts`, `develop/SessionMenu.test.tsx`, and edits to `menu/ContextMenu.test.tsx` (whose verb-list assertions this task necessarily breaks) and `api/attachRegistry.test.ts` | 20 |
 | **23** | The command palette and the keyboard map | `buildCommands`, `CommandPalette` with stable ranking and id-based selection, `useKeyboardMap` with the full chord table and the two deliberate non-interceptions | C `components/palette/{CommandPalette.tsx,commands.ts,palette.css}`, `hooks/useKeyboardMap.ts`; M `components/AppShell.tsx`; T `palette/CommandPalette.test.tsx`, `palette/commands.test.ts`, `hooks/useKeyboardMap.test.ts` | 20, 22 |
-| **24** | Wire the cockpit to the live control plane, and prove the ten | `App.tsx` rewritten to mount `AppShell` + start the poller + load the catalogue; the defect regression suite as one file; the design-system audit (no literal hex, no `transition: all`, no banned hue) | M `desktop/src/App.tsx`, `desktop/src/main.tsx` (imports `app.css`); D `desktop/src/App.css`; C `desktop/src/defects.test.tsx`, `desktop/src/styles/designsystem.test.ts`; T the two above | 21, 22, 23 |
+| **24** | Wire the cockpit to the live control plane, and prove the ten | `App.tsx` rewritten to mount `AppShell` + start the poller + load the catalogue; the defect regression suite as one file; the design-system audit (no literal hex, no named colour, no `transition: all`, no banned hue, and no transition off shared shape §3B's list in a stylesheet or in any inline style) | M `desktop/src/App.tsx`, `desktop/src/main.tsx` (imports `app.css`), `desktop/src/api/poller.ts` *(declared departure, task 19's file: §4.7's `onGoodTick` and ruling B)*, and, in fix round 1, `desktop/src/hooks/useCreateSession.ts` *(declared departure, task 18's file)* and `desktop/src/components/develop/sessionVerbs.ts` *(declared departure, task 22's file)*, both for §3.2's own-report rule; D `desktop/src/App.css`; C `desktop/src/defects.test.tsx`, `desktop/src/styles/designsystem.test.ts`; T the two above, which also pin `poller.ts`'s departure, plus fix round 1's edits to `develop/sessionVerbs.test.ts` and `topbar/NewSessionButton.test.tsx` | 21, 22, 23 |
 
 Every task runs `npm test` from `desktop/` and `npm run typecheck`, and every task's commit step
 ends with:

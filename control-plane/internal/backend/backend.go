@@ -6,7 +6,7 @@
 // Attach returns *websocket.Conn and not io.ReadWriteCloser, deliberately. The
 // wire protocol is message-framed: a 32 KiB stdout frame split across two reads
 // of a byte stream decodes as two frames, the second with a garbage kind byte.
-// proxy.Relay already takes *websocket.Conn.
+// proxy.RelayHooked already takes *websocket.Conn.
 package backend
 
 import (
@@ -65,16 +65,49 @@ const envReservedPrefix = "PANACEA_APP_"
 // use dots by convention; the Kata pod labels already in internal/sandbox use
 // slashes, because Kubernetes label keys do. Both are listed so neither backend
 // invents a third spelling.
+//
+// LabelInstance is ownership, and it is the label List and the reaper match on.
+// LabelManaged says "a Panacea control plane made this"; it cannot say WHICH
+// one, and two control planes on one Docker daemon — two users of one shared
+// host, or a developer's cockpit beside a test harness — used to read each
+// other's sandboxes as their own orphans and destroy them (reaper rule 4).
+// LabelInstance names the control plane: its value is the id minted once per
+// state directory (internal/instance), so a restart keeps ownership of what it
+// made and a second state directory owns nothing of the first's. A managed
+// sandbox without it predates per-instance ownership. List returns it with
+// Instance "", because a registry can prove it is its own when a label cannot:
+// its sandbox id was minted by one control plane at random (ids.New), and its
+// name, panacea-app-<id>, is unique on the daemon. The reaper treats one whose
+// id its registry holds as its own, and spares every other one: nothing can
+// prove whose that is (reaper-scope fix round, I1).
 const (
 	LabelManaged   = "panacea-app.managed"    // always "true"
+	LabelInstance  = "panacea-app.instance"   // the owning control plane's instance id
 	LabelSandboxID = "panacea-app.sandbox-id" // equals Spec.ID
 	LabelSessionID = "panacea-app.session-id" // equals registry.Session.ID
 	LabelCreatedAt = "panacea-app.created-at" // RFC3339, diagnostics only
 
+	KubeLabelInstance  = "panacea-app/instance"
 	KubeLabelSandboxID = "panacea-app/sandbox-id"
 	KubeLabelSessionID = "panacea-app/session-id"
 	KubeLabelComponent = "panacea-app/component" // always "sandbox"
 )
+
+// instancePattern is a Kubernetes label value (at most 63 characters,
+// alphanumeric at both ends) narrowed to lowercase, so the one id is a valid
+// value under both spellings of the label. A lowercase UUID matches it.
+var instancePattern = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`)
+
+// ValidateInstance rejects an instance id no backend can stamp. Empty is the
+// case that matters: a backend or a reaper with no instance id would own every
+// sandbox that also carries none — which is every sandbox made before this
+// label existed — so both refuse it rather than default it.
+func ValidateInstance(id string) error {
+	if !instancePattern.MatchString(id) {
+		return fmt.Errorf("instance id %q must match ^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$: %w", id, ErrUnsupported)
+	}
+	return nil
+}
 
 // Kind names a backend implementation. It is persisted in the registry and
 // returned over the REST surface, so these strings are stable.
@@ -121,15 +154,22 @@ func (r Resources) KubeCPU() string { return strconv.Itoa(r.CPUMillis) + "m" }
 // KubeMemory renders MemoryMiB as a Kubernetes quantity, e.g. "4096Mi".
 func (r Resources) KubeMemory() string { return strconv.Itoa(r.MemoryMiB) + "Mi" }
 
-// Mount is a host path exposed inside the sandbox. Phase 2 uses it for three
+// Mount is a host path exposed inside the sandbox. Phase 2 uses it for six
 // things: giving a local Docker session the worktree it is supposed to work in;
-// giving a session whose harness has a conversation that worktree's
-// conversation store, so a resume in a later sandbox can find the transcript;
-// and, when the operator set PANACEA_APP_CA_BUNDLE, the extra root certificates
-// a TLS-intercepting network needs, read-only. Kata ignores Mounts and returns
+// a primary worktree's .git/worktrees, read-only over itself, so nothing in the
+// sandbox can prune or rewrite the host's linked-worktree metadata; giving a
+// session whose harness has a conversation that worktree's conversation store,
+// so a resume in a later sandbox can find the transcript; for a fork into
+// another worktree, a staged copy of its source's transcript, read-only, one
+// file inside that store, so the CLI can fork it; when the operator set
+// PANACEA_APP_CA_BUNDLE, the extra root certificates a TLS-intercepting
+// network needs, read-only; and the host git's global excludes and attributes
+// files, read-only, each when the host's git reads one, so a commit in the
+// sandbox holds what it would on the host. Kata ignores Mounts and returns
 // ErrUnsupported if any are set, because a host path on an AKS node is
-// meaningless — which makes the conversation store and the CA bundle two more
-// things Phase 8 must provide another way (contract §2.6).
+// meaningless — which makes the metadata mount, the conversation store, the
+// fork's carried transcript, the CA bundle and the two git files more things
+// Phase 8 must provide another way (contract §2.6).
 type Mount struct {
 	HostPath      string
 	ContainerPath string
@@ -274,6 +314,15 @@ type Sandbox struct {
 	// this set is a security defect the reaper destroys; Endpoint is always empty
 	// when it is true, so nothing can attach to it in the meantime.
 	NonLoopback bool
+
+	// Instance is the owning control plane's instance id, read by each backend
+	// from its own spelling of the label (LabelInstance, KubeLabelInstance), so
+	// the reaper can check ownership without knowing which backend it sweeps.
+	// Empty means the sandbox carries no instance label. List returns the
+	// sandboxes whose Instance is the backend's own and the ones with none (a
+	// registry decides whether those are its own), never another instance's;
+	// Get reports whatever the sandbox carries.
+	Instance string
 
 	State     State
 	CreatedAt time.Time

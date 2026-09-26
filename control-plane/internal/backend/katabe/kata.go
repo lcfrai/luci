@@ -1,7 +1,14 @@
 // Package katabe runs sandboxes as Kata Containers pods on AKS. It is DORMANT:
 // docs/PROGRAM.md phase 8 is the first real Azure spend, and nothing in Phase 2
 // selects this backend by default. It compiles and is unit-tested now so that
-// turning it on in Phase 8 is a configuration change and not a rewrite.
+// the Backend seam cannot drift away from what Kubernetes can serve.
+//
+// Turning it on is NOT only a configuration change. Every session create sends
+// host-path Mounts, the worktree first, and a WorkDir (api/sessions.go), and
+// Create refuses both below — correctly, because a host path on an AKS node is
+// meaningless. So under PANACEA_APP_BACKEND=kata every create fails today. The
+// first thing Phase 8 must build is a way to get the worktree into the pod:
+// seam S8.3 in docs/SEAMS.md.
 package katabe
 
 import (
@@ -41,6 +48,12 @@ type Config struct {
 	// which is the only value a real cluster ever uses; it is settable so a test
 	// can point the endpoint at an httptest server.
 	Port int
+	// Instance is this control plane's instance id (internal/instance), the
+	// same seam dockerbe has. Required. Create stamps it on every pod as
+	// backend.KubeLabelInstance, and List returns the pods that carry it (and
+	// any that carry no instance label) and never another instance's, so two
+	// control planes sharing a namespace cannot reap each other.
+	Instance string
 }
 
 // Backend implements backend.Backend over Kata pods.
@@ -48,6 +61,7 @@ type Backend struct {
 	mgr          *sandbox.Manager
 	readyTimeout time.Duration
 	port         int
+	instance     string
 }
 
 // New returns a Kata backend. A nil Manager is ErrUnavailable rather than a
@@ -57,7 +71,10 @@ func New(cfg Config) (*Backend, error) {
 	if cfg.Manager == nil {
 		return nil, fmt.Errorf("katabe: no sandbox manager: %w", backend.ErrUnavailable)
 	}
-	b := &Backend{mgr: cfg.Manager, readyTimeout: cfg.ReadyTimeout, port: cfg.Port}
+	if err := backend.ValidateInstance(cfg.Instance); err != nil {
+		return nil, fmt.Errorf("katabe: Config.Instance: %w", err)
+	}
+	b := &Backend{mgr: cfg.Manager, readyTimeout: cfg.ReadyTimeout, port: cfg.Port, instance: cfg.Instance}
 	if b.readyTimeout <= 0 {
 		b.readyTimeout = backend.ReadyTimeout
 	}
@@ -98,6 +115,7 @@ func (b *Backend) Create(ctx context.Context, spec backend.Spec) (backend.Sandbo
 		AttachToken: spec.AttachToken,
 		Env:         spec.Env,
 		SessionID:   spec.SessionID,
+		Instance:    b.instance,
 	}); err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			return backend.Sandbox{}, fmt.Errorf("katabe: sandbox %q: %w", spec.ID, backend.ErrAlreadyExists)
@@ -162,7 +180,16 @@ func (b *Backend) Get(ctx context.Context, id string) (backend.Sandbox, error) {
 	return b.sandboxFromPod(pod), nil
 }
 
-// List returns every sandbox this backend's manager created.
+// List returns every sandbox THIS instance created, plus any sandbox pod with
+// no instance label (Instance ""), and skips another instance's. It is
+// dockerbe.List's rule, and for the same reason: an unlabelled pod predates
+// per-instance ownership, and whether it is ours is for the registry to
+// judge (the reaper's owns(): ours if this registry holds its sandbox id),
+// not for this backend to decide by dropping it.
+//
+// No such pod can exist in practice. Kata has never been deployed (it is
+// dormant until Phase 8), so every Kata pod ever made carries the label; the
+// arm is here so the two backends answer the one List contract the same way.
 func (b *Backend) List(ctx context.Context) ([]backend.Sandbox, error) {
 	pods, err := b.mgr.List(ctx)
 	if err != nil {
@@ -170,6 +197,9 @@ func (b *Backend) List(ctx context.Context) ([]backend.Sandbox, error) {
 	}
 	out := make([]backend.Sandbox, 0, len(pods))
 	for i := range pods {
+		if owner := pods[i].Labels[backend.KubeLabelInstance]; owner != "" && owner != b.instance {
+			continue // another control plane's
+		}
 		out = append(out, b.sandboxFromPod(&pods[i]))
 	}
 	return out, nil
@@ -191,6 +221,7 @@ func (b *Backend) sandboxFromPod(pod *corev1.Pod) backend.Sandbox {
 		Kind:      backend.KindKata,
 		Ref:       pod.Name,
 		Endpoint:  endpoint,
+		Instance:  pod.Labels[backend.KubeLabelInstance],
 		State:     podState(pod),
 		CreatedAt: pod.CreationTimestamp.Time,
 		Labels:    labels,

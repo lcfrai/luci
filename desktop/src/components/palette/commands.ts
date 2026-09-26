@@ -16,8 +16,16 @@ export interface Command {
   glyph: string;
   /** Shown inline so the palette teaches its own shortcuts. */
   hint?: string;
+  /** Set only on a toggle row, and it is the toggle's CURRENT state. CommandPalette renders it
+   *  twice from this one field: as the row's visible "On" or "Off", in the meta slot, and as
+   *  aria-checked. A toggle row therefore sets no `meta` of its own. Added for OD-9. */
+  checked?: boolean;
   run(): void;
 }
+
+/** OD-9's setting, named in the owner's words. Exported for the palette's tests, which find
+ *  the row by what the user reads rather than by id. */
+export const SEND_CHORDS_LABEL = "Send shortcut keys to the terminal";
 
 /** Kind markers, not status markers. Status is colour PLUS shape and belongs to StatusDot
  *  (§7.5); a palette row that drew a status glyph would be a second vocabulary for the same
@@ -104,6 +112,36 @@ export function buildCommands(state: CockpitState): Command[] {
       run: () => state.openPicker(),
     });
   }
+  // OD-9. Always listed, last among the verbs because it is the least used. The label never
+  // changes, so typing "shortcut" always finds it, and the state is `checked`, not a second
+  // wording. No hint, because no chord toggles it: a chord would be one the setting hands
+  // away. There is no settings page yet, and the pane is not the place for it.
+  //
+  // The palette closes before `run`, so the toast is the only thing that shows the change took,
+  // and it says the one thing the new mode hides: with the setting on, ⌘K pressed in a
+  // terminal goes to the agent, so the way back to this row is ⌘K from outside one.
+  //
+  // EDITED BY OD-9's FIX ROUND 1. It names ONE surface, the top bar's empty part, because
+  // "outside the terminal" was not enough: a click on a pane's own header or footer, or on
+  // another session's rail row, hands focus straight back to a terminal (contract §6.8's two
+  // movers). And the way back needs a pointer: with the setting on, no key leaves a terminal
+  // (contract §6.9, an open owner question, recorded and not built).
+  const sendChords = state.sendChordsToTerminal;
+  commands.push({
+    id: "verb:send-chords-to-terminal",
+    label: SEND_CHORDS_LABEL,
+    glyph: GLYPH.verb,
+    checked: sendChords,
+    run: () => {
+      state.setSendChordsToTerminal(!sendChords);
+      state.pushToast(
+        sendChords
+          ? "Shortcut keys go to the cockpit again, from a terminal too."
+          : "Shortcut keys now go to the terminal, ⌘K too. To open this palette again, click an empty part of the top bar, then press ⌘K.",
+        () => state.setSendChordsToTerminal(sendChords),
+      );
+    },
+  });
 
   /* ── sessions ───────────────────────────────────────────────────────────────────────── */
   for (const id of allSessionIdsInStableOrder(state)) {

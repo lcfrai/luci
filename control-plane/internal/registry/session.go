@@ -64,6 +64,27 @@ type Session struct {
 	// resume names.
 	ConversationID string `json:"conversationId"`
 
+	// EarlierConversationIDs are this session's own conversations from before
+	// its latest restart, oldest first, each one the CLI wrote a transcript for.
+	// A restart is "same config, clean context", so it starts the sandbox in a
+	// new conversation — and without this list the one it left would still be
+	// on disk with no record naming it. A resume falls back to the newest of
+	// these when ConversationID has no transcript yet, which is exactly the
+	// state a restart leaves until someone speaks. Same rules as ConversationID:
+	// persisted, and never on the REST surface.
+	EarlierConversationIDs []string `json:"earlierConversationIds"`
+
+	// CarriedConversationID is set on a Fork only: a session whose `resume`
+	// named a session in ANOTHER worktree. It is that source's conversation,
+	// which the fork's first sandbox was shown read-only so the CLI could fork
+	// it (`--resume` this id). It is NOT this session's conversation and nothing
+	// resumes it: the fork's own is ConversationID, a whole copy the CLI wrote.
+	// It is kept for Forget alone, which deletes by it what carrying left behind
+	// — the staged copy, and the empty mount point Docker makes for the file in
+	// this worktree's store. Same rules as ConversationID: persisted, and never
+	// on the REST surface.
+	CarriedConversationID string `json:"carriedConversationId"`
+
 	Status     Status `json:"status"`
 	ExitReason string `json:"exitReason"`
 
@@ -85,17 +106,26 @@ type Session struct {
 
 // Clone returns a copy that shares nothing with s.
 //
-// A plain struct copy is not enough, and the reason is one field: Args is a
-// slice, so two struct "copies" write through the same backing array — outside
-// the store's lock, where nothing serialises them. Every Session crossing the
-// store's boundary is cloned: in on Create, out of Get and List, in and out of
-// Update. A nil Args stays nil; whether the REST surface emits null or [] is
-// the projection's decision, not the record's.
+// A plain struct copy is not enough, and the reason is two fields: Args and
+// EarlierConversationIDs are slices, so two struct "copies" write through the
+// same backing array — outside the store's lock, where nothing serialises them.
+// Every Session crossing the store's boundary is cloned: in on Create, out of
+// Get and List, in and out of Update. A nil slice stays nil; whether the REST
+// surface emits null or [] is the projection's decision, not the record's.
 func (s Session) Clone() Session {
 	out := s
-	if s.Args != nil {
-		out.Args = make([]string, len(s.Args))
-		copy(out.Args, s.Args)
+	out.Args = cloneStrings(s.Args)
+	out.EarlierConversationIDs = cloneStrings(s.EarlierConversationIDs)
+	return out
+}
+
+// cloneStrings is a copy of s that shares no backing array with it, and nil
+// for nil.
+func cloneStrings(s []string) []string {
+	if s == nil {
+		return nil
 	}
+	out := make([]string, len(s))
+	copy(out, s)
 	return out
 }

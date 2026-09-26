@@ -32,6 +32,7 @@ import (
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend/dockerbe"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend/katabe"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/httpx"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/instance"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/project"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/reaper"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/registry"
@@ -64,7 +65,21 @@ func run(getenv func(string) string, errOut io.Writer) int {
 }
 
 func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
-	be, err := newBackend(cfg, log)
+	// The instance id comes first: the backend stamps it on every sandbox and
+	// lists only sandboxes that carry it, and the reaper destroys only those,
+	// so neither can be built without it. It is this state directory's, minted
+	// on the first start and read back on every one after — which is what lets
+	// a restart keep the sandboxes it made (internal/instance).
+	instanceID, minted, err := instance.Load(cfg.InstancePath)
+	if err != nil {
+		return fmt.Errorf("load this control plane's instance id: %w", err)
+	}
+	if minted {
+		log.Info("minted this state directory's instance id; every sandbox it creates is labelled with it, and the reaper acts only on those and on unlabelled ones from before the label that this registry holds",
+			"instance", instanceID, "file", cfg.InstancePath)
+	}
+
+	be, err := newBackend(cfg, instanceID, log)
 	if err != nil {
 		return err
 	}
@@ -84,7 +99,7 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 	// endpoint.
 	recoverSessions(ctx, store, be, log)
 
-	rp := reaper.New(reaperConfigFor(cfg, store, be, log))
+	rp := reaper.New(reaperConfigFor(cfg, instanceID, store, be, log))
 	// The reaper gets its own context rather than ctx, so that a SIGINT drains
 	// the HTTP server while the reaper is still sweeping a live backend; ctx is
 	// already cancelled by the time Shutdown is called, and a reaper on ctx
@@ -115,12 +130,19 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		worktrees = scanner
 	}
 
+	// The host's own git config, and nothing a sandbox can write, answers the
+	// identity, line-ending and global-file questions: hostGit runs each git in
+	// a directory made for it alone, outside every repository (X-1).
+	host, err := newHostGit()
+	if err != nil {
+		return err
+	}
+
 	// Asked once here as well as at every create, so the user without an
-	// identity hears it at startup, before any agent tries to commit. Asked
-	// outside any worktree, this is the machine-wide answer; a repository that
-	// sets its own identity is still asked at its own sessions' creates.
-	gitIdentity := gitIdentityResolver(cfg.GitName, cfg.GitEmail, gitRunner)
-	if _, err := gitIdentity(ctx, cfg.ProjectsDir); err != nil {
+	// identity hears it at startup, before any agent tries to commit. The
+	// answer is the same machine-wide one each time.
+	gitIdentity := gitIdentityResolver(cfg.GitName, cfg.GitEmail, host)
+	if _, err := gitIdentity(ctx); err != nil {
 		log.Warn("no git identity", "err", err)
 	}
 
@@ -144,6 +166,8 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		// Created per worktree, at the first session that needs it.
 		ConversationsDir: cfg.ConversationsDir,
 		GitIdentity:      gitIdentity,
+		GitLineEndings:   gitLineEndingsResolver(host),
+		GitGlobalFiles:   gitGlobalFilesResolver(host),
 		CABundle:         cfg.CABundle,
 		// Interim until phase 4 task 14 wires contextwrite and deletes it.
 		Materialiser: newMaterialiserUntilTask14(log),
@@ -171,6 +195,7 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 	log.Info("control plane listening",
 		"addr", ln.Addr().String(),
 		"backend", be.Kind(),
+		"instance", instanceID,
 		"sessions", cfg.SessionsPath,
 		"conversations", cfg.ConversationsDir,
 		"projects", cfg.ProjectsDir,
@@ -203,10 +228,10 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 }
 
 // reaperConfigFor is the Config-to-reaper.Config mapping, extracted from serve
-// so that a test can see it. serve itself cannot be unit-tested — it builds a
-// backend, and dockerbe.New pings a real daemon inside New — which would
-// otherwise leave the one line below that is a decision rather than a copy
-// asserted by nothing at all.
+// so that a test can see its body. serve's CALL of it — that serve hands it the
+// id it loaded — is pinned separately, by running serve against a fake Docker
+// API (TestServeReapsItsOwnOrphanWithTheIDItLoadedAndSparesAnothers): a helper
+// test cannot see which argument its caller passes.
 //
 // CreateGrace is DERIVED from the ready timeout and is deliberately longer than
 // it: reaper.CreateGraceFor owns the reasoning, and going through it means this
@@ -214,10 +239,16 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 // long a create may take. Passing cfg.ReadyTimeout here instead would compile,
 // run, and quietly shorten the window that stops a mid-create session being
 // marked exited.
-func reaperConfigFor(cfg Config, store registry.Store, be backend.Backend, log *slog.Logger) reaper.Config {
+//
+// Instance is the other decision. Without it the reaper owns nothing and
+// collects no orphan; with the wrong one it would own another control plane's
+// sandboxes. It is the same id newBackend stamps and lists by, passed to both
+// from the one Load in serve.
+func reaperConfigFor(cfg Config, instanceID string, store registry.Store, be backend.Backend, log *slog.Logger) reaper.Config {
 	return reaper.Config{
 		Store:       store,
 		Backend:     be,
+		Instance:    instanceID,
 		IdleAfter:   cfg.IdleAfter,
 		IdleTimeout: cfg.IdleTimeout,
 		Interval:    cfg.ReapInterval,
@@ -226,7 +257,7 @@ func reaperConfigFor(cfg Config, store registry.Store, be backend.Backend, log *
 	}
 }
 
-func newBackend(cfg Config, log *slog.Logger) (backend.Backend, error) {
+func newBackend(cfg Config, instanceID string, log *slog.Logger) (backend.Backend, error) {
 	switch cfg.Backend {
 	case string(backend.KindDocker):
 		// BindIP is deliberately not configurable: dockerbe defaults it to
@@ -236,6 +267,7 @@ func newBackend(cfg Config, log *slog.Logger) (backend.Backend, error) {
 			Host:         cfg.DockerHost,
 			ReadyTimeout: cfg.ReadyTimeout,
 			Log:          log,
+			Instance:     instanceID,
 		})
 	case string(backend.KindKata):
 		client, err := kubeClient(cfg.Kubeconfig)
@@ -245,6 +277,7 @@ func newBackend(cfg Config, log *slog.Logger) (backend.Backend, error) {
 		return katabe.New(katabe.Config{
 			Manager:      sandbox.NewManager(client, cfg.Namespace),
 			ReadyTimeout: cfg.ReadyTimeout,
+			Instance:     instanceID,
 		})
 	default:
 		// loadConfig already refused anything else; this arm exists so the

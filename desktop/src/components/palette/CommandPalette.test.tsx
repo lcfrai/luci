@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { CommandPalette } from "./CommandPalette";
+import { SEND_CHORDS_LABEL } from "./commands";
 import { __resetOverlays } from "../../hooks/useDismissable";
 import { resetCockpit, useCockpit } from "../../store/store";
 import { aBranch, aProject, aSession, aWorktree } from "../../test/fixtures";
@@ -151,6 +152,34 @@ describe("CommandPalette", () => {
     await user.type(screen.getByRole("combobox"), "zzzzz");
     expect(screen.queryByRole("listbox")).toBeNull();
     expect(screen.getByText(/Nothing matches/)).toBeDefined();
+  });
+
+  // OD-9. The state is in the row, where the user reads it, and in aria-checked for everyone
+  // who reads the accessibility tree. Both come from `checked`; no other row carries either.
+  it("OD-9: the shortcut-keys row shows its state in the row, and Enter on it flips the setting", async () => {
+    const user = userEvent.setup();
+    render(<CommandPalette />);
+    const toggleRow = (): HTMLElement =>
+      screen.getAllByRole("option").find((row) => row.textContent?.includes(SEND_CHORDS_LABEL)) as HTMLElement;
+    const shown = () => [
+      toggleRow().querySelector(".pal-meta")?.textContent,
+      toggleRow().getAttribute("aria-checked"),
+    ];
+
+    open();
+    expect(shown()).toEqual(["Off", "false"]);
+    const others = screen.getAllByRole("option").filter((row) => row !== toggleRow());
+    expect(others.length).toBeGreaterThan(0);
+    expect(others.filter((row) => row.hasAttribute("aria-checked")).length).toBe(0);
+
+    await user.type(screen.getByRole("combobox"), "shortcut");
+    expect(screen.getAllByRole("option").length).toBe(1);
+    await user.keyboard("{Enter}");
+    expect(useCockpit.getState().sendChordsToTerminal).toBe(true);
+    expect(useCockpit.getState().paletteOpen).toBe(false);
+
+    open();
+    expect(shown()).toEqual(["On", "true"]);
   });
 
   it("returns DOM focus to the element that had it when the palette closes", () => {

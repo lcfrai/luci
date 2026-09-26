@@ -1,6 +1,6 @@
 // desktop/src/store/slices/prefsSlice.ts
 //
-// Contract §3.4. Defaults, inheritance overrides, tiles, pins.
+// Contract §3.4. Defaults, inheritance overrides, tiles, pins, and OD-9's sendChordsToTerminal.
 
 import type { StateCreator } from "zustand";
 import type {
@@ -32,6 +32,12 @@ export interface PrefsSlice {
   tiles: Record<SessionId, TilePosition>;
   /** The Canvas working set, capped at CANVAS_MAX_TILES. Pin order, never re-sorted. */
   pinned: SessionId[];
+  /** Owner decision OD-9, "Send shortcut keys to the terminal". Off by default: with a
+   *  terminal focused, the cockpit's chords go to the cockpit, as they do in VS Code. On, the
+   *  terminal keeps every key it is sent and the keyboard map ignores a keydown that comes from
+   *  inside one (hooks/useKeyboardMap.ts, terminalKeepsKey and the map's second return). Both
+   *  read this at event time, so a terminal built before the toggle obeys it at once. */
+  sendChordsToTerminal: boolean;
 
   setDefaults(patch: SessionDefaultsOverride): void;
   setProjectDefaults(id: ProjectId, patch: SessionDefaultsOverride): void;
@@ -53,11 +59,14 @@ export interface PrefsSlice {
    *  forgot it, which is the defect itself wearing a default value. */
   pinSession(id: SessionId, scopeIds: SessionId[]): void;
   unpinSession(id: SessionId): void;
+  /** The palette's toggle row is its only caller; there is no settings page yet. A setter and
+   *  not a flip, so the row's Undo restores the value it replaced rather than flipping again. */
+  setSendChordsToTerminal(on: boolean): void;
 }
 
 type PrefsState = Pick<
   PrefsSlice,
-  "defaults" | "projectDefaults" | "branchDefaults" | "tiles" | "pinned"
+  "defaults" | "projectDefaults" | "branchDefaults" | "tiles" | "pinned" | "sendChordsToTerminal"
 >;
 
 /** FROZEN, containers and all — see the note on `initialDataState`. */
@@ -67,6 +76,7 @@ export const initialPrefsState: PrefsState = Object.freeze({
   branchDefaults: Object.freeze({}) as Record<BranchId, SessionDefaultsOverride>,
   tiles: Object.freeze({}) as Record<SessionId, TilePosition>,
   pinned: Object.freeze([]) as unknown as SessionId[],
+  sendChordsToTerminal: false,
 });
 
 /** Merges a patch into an override record. A key whose value is `undefined` is DELETED, not
@@ -139,5 +149,11 @@ export const createPrefsSlice: StateCreator<
   unpinSession: (id) => {
     if (!get().pinned.includes(id)) return;
     set((s) => ({ pinned: s.pinned.filter((x) => x !== id) }));
+  },
+
+  // Not `set` when nothing changes, for clearTile's reason above.
+  setSendChordsToTerminal: (on) => {
+    if (get().sendChordsToTerminal === on) return;
+    set({ sendChordsToTerminal: on });
   },
 });

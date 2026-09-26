@@ -13,6 +13,21 @@ Task 24 ends with the cockpit reading from a live control plane and a claim it i
 
 **What step 5 does change is evidence hygiene.** Both comments that cite the CLI's `--help` say it was read *"on this machine, version 2.1.267"*; the binary that runs is 2.1.274. `--permission-mode` was checked against 2.1.274 and is identical (`progress.md:5162-5166`), so the mapping stands and only the citation moves. Two comments, no behaviour.
 
+#### Amended 2026-09-25: three owner decisions, and three fixes this task now runs against
+
+**Owner decisions** (`docs/superpowers/planning/2026-09-23-owner-decisions.md`):
+
+- **OD-12 batches every owner-observed step to the very end.** The owner does steps 16 to 18 in one hands-on session after phases 3 to 7 are built, not when this task runs. So this task **writes** the nineteen owner items and makes each reachable, and the results document carries every one as `PENDING OWNER`, **unverified**, until that session. No step waits for the owner, and no report may call an owner item done.
+- **OD-19 makes org inference the cloud path**: a LiteLLM-style gateway, a scoped per-session token, no personal subscription. It retires "`/login` in every sandbox" **in the cloud**. **OD-20 keeps local mode**, which this phase is, so here `/login` is still the user's own, in every sandbox (step 18's note). Nothing in this task builds or assumes the gateway.
+
+**Fixes on the branch this task proves** (reconcile record: `.superpowers/sdd/2026-09-18-phase-2-backend-and-cockpit/task-25-26-reconcile.md`, items 1 to 12):
+
+- **The Resume fix** (`b4be570`, round 1 `2e3db79`). It persists `/home/dev/.claude/projects` and nothing wider, resumes with `--resume <U> --fork-session --session-id <V>`, and refuses (409) to resume a session whose conversation has no transcript. `o2.resume` (step 14) seeds a real transcript and asserts the fork.
+- **The sandbox git + CA fix** (`2d6d95b`…`4f6d698`, then its rounds through `31576b7`: line endings, no auto gc, the host's global excludes and attributes files, and X-1's host-owned-config-only resolvers). Git works on a primary worktree, as a configured identity (`PANACEA_APP_GIT_NAME` and `PANACEA_APP_GIT_EMAIL`, or the host's own `git var GIT_AUTHOR_IDENT`), and `PANACEA_APP_CA_BUNDLE` lets Claude Code through a TLS-intercepting proxy. Steps 1 and 6 set and check it; the new check `g.primary` (step 14) proves git.
+- **The reaper-scope fix** (`a9c2cec`, `2cce576`). A control plane from HEAD reaps only its own instance's sandboxes. The Docker lock (`docker-daemon-lock.md`) still binds, because an older build on the daemon still reaps everything. **It is taken at step 2 and held through step 20** (amended 2026-09-26, reconcile review M4): step 2 is the first step that changes the daemon — it rebuilds and retags `panacea-app/sandbox:dev`, which changes the image another holder's next sandbox gets — and steps 3–4 run a `panacea-app.managed=true` probe, which trips another holder's guard and which a pre-`a9c2cec` build reaps. It is not released between step 4 and step 6, because the image steps 2–3 proved is the image the run must use, and a retag in that gap would make the run prove a different one. Step 1's two TLS probes run before it: they are unlabelled `docker run --rm` reads of the image and change nothing another agent depends on. If the task stops anywhere after step 2, release the lock as step 20 does.
+
+The check count this changes is **nineteen** (it was eighteen); every restatement below says so.
+
 #### Who can observe what, and why every step carries a label
 
 `CLAUDE.md` binds this task more tightly than any other in the phase: *"A screenshot is not evidence that something works"*, and *"Corporate network blocks cube.computer and headless browser screenshots. Visual acceptance is the owner's eyes, not a self-report."* So every step below is labelled with exactly one of two kinds.
@@ -37,20 +52,21 @@ Task 24 ends with the cockpit reading from a live control plane and a claim it i
 **A note on the expected-output blocks, as in task 24.** No command in this plan has been run. Where a transcript appears it is the shape the tool prints and the named value is what matters; where I am unsure of the chrome I say so. Do not edit an assertion to match a transcript in a document.
 
 **Files:**
-- `control-plane/internal/harness/harness.go` — the Claude Code descriptor's evidence comment (`:123-124`) re-cited to 2.1.274 in the image. Comment only (modify)
-- `control-plane/internal/harness/argv.go` — the `--permission-mode` evidence comment (`:5-7`) re-cited the same way. Comment only (modify)
+- `control-plane/internal/harness/harness.go` — the Claude Code descriptor's evidence comment (`:139-140` at `a38c268`) re-cited to 2.1.274 in the image. Comment only (modify)
+- `control-plane/internal/harness/argv.go` — the `--permission-mode` evidence comment (`:8-10` at `a38c268`) re-cited the same way. Comment only (modify)
 - `desktop/package.json`, `desktop/package-lock.json` — `playwright` as a pinned dev dependency and an `e2e` script (modify)
-- `desktop/e2e/phase2.e2e.mjs` — the headed harness. `.mjs` and outside `src/`, so vitest's `src/**/*.test.{ts,tsx}` never collects it and `tsc --noEmit` never type-checks it (new)
+- `desktop/e2e/phase2.e2e.mjs` — the headed harness, nineteen checks (step 20 lists them). `.mjs` and outside `src/`, so vitest's `src/**/*.test.{ts,tsx}` never collects it and `tsc --noEmit` never type-checks it (new)
 - `desktop/e2e/fixture.sh` — builds the throwaway git project the control plane enumerates. Bash rather than PowerShell so it runs through the audited wrapper (new)
 - `docs/verification/<run-date>-phase-2-results.md` — the sibling of `2026-09-17-phase-1-results.md`, in the same form, dated by the day the run happens (new)
 
 **Interfaces:**
 - Produces:
-  - `npm run e2e` — runs `desktop/e2e/phase2.e2e.mjs` against a running stack. Reads `PANACEA_E2E_APP` (default `http://localhost:1420`), `PANACEA_E2E_API` (default `http://127.0.0.1:8730`), `PANACEA_E2E_CDP` (unset: skip the WebView2 smoke), `PANACEA_E2E_ONLY` (a comma-separated list of check ids, for re-running one), and — for the checks that read the daemon's log or stop and start it — `PANACEA_E2E_CP_LOG`, `PANACEA_E2E_CP_BIN` and `PANACEA_E2E_CP_PID`. Prints one JSON line per check and exits non-zero if any agent-provable check fails
+  - `npm run e2e` — runs `desktop/e2e/phase2.e2e.mjs` against a running stack. Reads `PANACEA_E2E_APP` (default `http://localhost:1420`), `PANACEA_E2E_API` (default `http://127.0.0.1:8730`), `PANACEA_E2E_CDP` (unset: skip the WebView2 smoke), `PANACEA_E2E_ONLY` (a comma-separated list of check ids, for re-running one), and — for the checks that read the daemon's log or stop and start it — `PANACEA_E2E_CP_LOG`, `PANACEA_E2E_CP_BIN` and `PANACEA_E2E_CP_PID`. It also reads the control plane's own `PANACEA_APP_GIT_NAME` and `PANACEA_APP_GIT_EMAIL`, which step 6 exports, as the identity `g.primary` expects on a commit. Prints one JSON line per check and exits non-zero if any agent-provable check fails
   - The phase 2 results document, which phases 4, 5 and 7 are gated on: `docs/superpowers/planning/2026-09-23-phases-4-5-7/dependency-graph-and-order.md:319` lists *"the whole substrate, as a claim"* as safe to build against *"after task 25's real-window E2E"*
 - Consumes: task 24's `App.tsx` (catalogue load and poller); task 13's `cmd/api` and its `PANACEA_APP_*` configuration (`control-plane/cmd/api/config.go:22-50`); task 5's `dockerbe`; task 12's attach relay; task 19's attach registry (`GRACE_MS = 5_000`, `attachRegistry.ts:20`); task 21's Canvas (`CANVAS_MAX_TILES = 10`, `prefsSlice.ts:17`) and its `cv-resize` handle (`CanvasLayout.tsx:362-368`); task 22's *Retry attach* row (`sessionVerbs.ts:409`); the wire protocol's four kinds (`sandboxd/internal/wire/frame.go:15-18`) and its big-endian `ResizePayload` (`:41-60`)
 - Required by: task 26 cites the results document as the evidence that each seam it names was running when it was named
-- **Depends on the resume fix landing first**, for step 14's `o2.resume` and step 18. That fix is a separate task being built ahead of this one: it mints a UUID per Claude Code session, starts the CLI with `--session-id <uuid>`, resumes by that UUID, and persists the conversation store so it survives into the new sandbox. Step 1 (h) checks for it
+- **Depends on the resume fix landing first**, for step 14's `o2.resume` and step 18. It has landed (`b4be570`, round 1 after it): it mints a UUID per Claude Code session, starts the CLI with `--session-id <uuid>`, resumes by that UUID **as a fork** (`--resume <U> --fork-session --session-id <V>`, `argv.go:115-118`), and persists `/home/dev/.claude/projects` — only that directory — so the transcript survives into the new sandbox. The control plane resolves the cockpit id to the Claude UUID (`sessionResolveResume`), so the desktop still sends the cockpit id on purpose. Step 1 (h) checks for it
+- **Depends on the sandbox git + CA fix** (`2d6d95b`…`4f6d698`), for step 14's `g.primary` and for any Claude Code session on this network. It passes git's `safe.directory`, `user.useConfigOnly` and an identity in the environment (`GIT_CONFIG_*`, `GIT_AUTHOR_*`, `GIT_COMMITTER_*`), and mounts `PANACEA_APP_CA_BUNDLE` read-only at `/etc/panacea-app/ca-bundle.pem`, named by `NODE_EXTRA_CA_CERTS` (`sessionEnv`, `sessionMounts`, `api/sessions.go`). Step 1 (h) and (i) check for it
 - **Changes no behaviour.** Every `desktop/` change is the harness and its dependency; every Go change is a comment; nothing amends a product document. If the harness finds a defect, **it is reported, not fixed here** — it belongs to the task that owns the file, and this task's commit records it as a failing check
 
 #### The steps at a glance
@@ -70,7 +86,7 @@ Task 24 ends with the cockpit reading from a live control plane and a claim it i
 | 11 | AGENT-PROVABLE | Carry 5: a tile resize reflows and the PTY is told |
 | 12 | AGENT-PROVABLE | Carries 4 and 6: pinned scroll under real parse; the 10 Hz flush measured |
 | 13 | AGENT-PROVABLE | Durability: detach past the grace, reload, control-plane restart |
-| 14 | AGENT-PROVABLE | Carry 10: Retry attach on a genuinely failed attach; carry 9's overlay hit-test; open carry 2: resume works |
+| 14 | AGENT-PROVABLE | Carry 10: Retry attach on a genuinely failed attach; carry 9's overlay hit-test; open carry 2: resume works; git works on a primary worktree |
 | 15 | AGENT-PROVABLE | The native WebView2 window, over the DevTools protocol, if policy allows |
 | 16 | OWNER-OBSERVED | The native window and the terminal |
 | 17 | OWNER-OBSERVED | The Develop lens around the terminal |
@@ -78,7 +94,7 @@ Task 24 ends with the cockpit reading from a live control plane and a claim it i
 | 19 | AGENT-PROVABLE | The results document, and a disposition for every carry |
 | 20 | AGENT-PROVABLE | Guards, then commit |
 
-**Seventeen agent-provable, three owner-observed.** The owner steps are few because each carries a checklist rather than a claim; together they hold nineteen numbered items.
+**Seventeen agent-provable, three owner-observed.** The owner steps are few because each carries a checklist rather than a claim; together they hold nineteen numbered items. **Per OD-12, all nineteen are batched to the owner's one hands-on session at the very end**, after phases 3 to 7: this task writes them and leaves each `PENDING OWNER`, unverified. The harness's agent-provable checks number **nineteen** too (step 20 lists them); the two nineteens are different things.
 
 **Every shell command below runs through the audited wrapper**, `~/.claude/tools/claudezsh/claudezsh '<command>'`, per the device-wide rule; the blocks show them bare so they can be read. The master plan's constraint that Docker runs under PowerShell because *"Git Bash mangles container paths"* (`2026-09-18-phase-2-backend-and-cockpit.md:52`) is honoured differently here: every `docker` command that names a container path is prefixed `MSYS_NO_PATHCONV=1`, which switches off exactly the conversion that mangles it, and keeps the command in the audit trail that PowerShell would bypass. **The pipe exit-code trap from the same line still applies** — `cmd | head` reports `head`'s status — so no block below decides pass or fail from a piped exit code.
 
@@ -121,7 +137,7 @@ cd ..
 # (e) The two stale citations step 5 corrects are where the carry says, and the product
 #     decision step 5 must NOT touch is intact.
 grep -nF '2.1.267' control-plane/internal/harness/harness.go control-plane/internal/harness/argv.go
-                                                                            # two lines: harness.go:123, argv.go:6
+                                                                            # two lines: harness.go:139, argv.go:9 (at a38c268)
 grep -cE '^\s+Efforts:\s+\[\]Effort\{EffortLow, EffortMedium, EffortHigh, EffortXHigh\},$' \
   control-plane/internal/harness/harness.go                                 # 1 — four, by design
 grep -nE '^- \*\*Effort\*\* — low / medium / high / xhigh \(Claude Code only\)$' docs/FUNCTIONAL-SPEC.md
@@ -135,15 +151,47 @@ git status --porcelain -- control-plane/internal/harness/harness.go control-plan
 docker version --format '{{.Server.Version}}'                               # a version, not an error
 netstat -ano | grep -E ':(8730|1420|9222)\s' | grep LISTENING               # expect no output
 
-# (h) The resume fix — a separate task that lands BEFORE this one (see Interfaces). Two facts
-#     it must have changed; its own commit says the rest. Anchored so a comment cannot answer.
-grep -cE '^\s+resume: from\.id,$' desktop/src/api/client.ts                 # 0 — the cockpit id no longer goes to --resume
+# (h) The resume fix and the sandbox git + CA fix — both landed BEFORE this one (see
+#     Interfaces). The facts each must have changed; their commits say the rest. Anchored so a
+#     comment cannot answer. The desktop still sends the COCKPIT id (`resume: from.id`, count
+#     1) on purpose: the control plane resolves it (UI contract §4.4's resume note, Go
+#     contract §3.9). So resume is checked server-side, never by that client line.
 grep -cE '^[^/]*"--session-id"'   control-plane/internal/harness/argv.go    # >= 1 — Claude starts with its own UUID
+grep -cE '^[^/]*"--fork-session"' control-plane/internal/harness/argv.go    # >= 1 — a resume forks
+grep -cE '^[^/]*sessionResolveResume\(' control-plane/internal/api/sessions.go          # >= 1 — cockpit id -> Claude UUID
+grep -cE '^[^/]*sessionResumableConversation\(' control-plane/internal/api/sessions.go  # >= 1 — round 1: no transcript, 409
+grep -cE '^const sessionConversationDir = "/home/dev/\.claude/projects"$' \
+  control-plane/internal/api/sessions.go                                   # 1 — the ONLY persisted directory
+grep -cE '^\s+env\["(GIT_CONFIG_COUNT|GIT_AUTHOR_NAME|GIT_COMMITTER_EMAIL|NODE_EXTRA_CA_CERTS)"\] = ' \
+  control-plane/internal/api/sessions.go                                   # 4 — the git + CA fix's sessionEnv
+grep -cE '^\s+env(GitName|GitEmail|CABundle)\s+= "PANACEA_APP_(GIT_NAME|GIT_EMAIL|CA_BUNDLE)"$' \
+  control-plane/cmd/api/config.go                                          # 3 — the variables step 6 exports
+
+# (i) Is this machine behind TLS interception? Node in the image decides, the same probe as
+#     the git + CA fix's own proof. Exit 0 with a status line: no interception, and
+#     PANACEA_APP_CA_BUNDLE may stay unset. Exit 1 with SELF_SIGNED_CERT_IN_CHAIN (or
+#     UNABLE_TO_GET_ISSUER_CERT_LOCALLY): interception, and PANACEA_APP_CA_BUNDLE is REQUIRED.
+#     Write $TEMP/tls-probe.js with the Write tool (a heredoc through the wrapper can end
+#     early), holding exactly these two lines:
+#       require("https").get("https://api.anthropic.com/", r => { console.log("HTTP", r.statusCode); process.exit(0); })
+#         .on("error", e => { console.log("ERROR", e.code); process.exit(1); });
+MSYS_NO_PATHCONV=1 docker run --rm --entrypoint node -v "$(cygpath -w "$TEMP/tls-probe.js"):/tmp/p.js:ro" \
+  panacea-app/sandbox:dev /tmp/p.js > "$TEMP/tls-probe.out" 2>&1; echo "exit=$?" >> "$TEMP/tls-probe.out"
+cat "$TEMP/tls-probe.out"
+#     If it failed: the same probe, trusting the bundle the way a sandbox will. Must print
+#     "HTTP <status>" and exit=0, or the bundle is the wrong one.
+MSYS_NO_PATHCONV=1 docker run --rm --entrypoint node -e NODE_EXTRA_CA_CERTS=/etc/panacea-app/ca-bundle.pem \
+  -v "$(cygpath -w "$PANACEA_APP_CA_BUNDLE"):/etc/panacea-app/ca-bundle.pem:ro" \
+  -v "$(cygpath -w "$TEMP/tls-probe.js"):/tmp/p.js:ro" \
+  panacea-app/sandbox:dev /tmp/p.js > "$TEMP/tls-probe-ca.out" 2>&1; echo "exit=$?" >> "$TEMP/tls-probe-ca.out"
+cat "$TEMP/tls-probe-ca.out"
 ```
+
+**(i) decides step 6's environment, and it fails with a sentence.** If the first probe exits 1 and `PANACEA_APP_CA_BUNDLE` is unset, stop: *"This machine intercepts TLS and PANACEA_APP_CA_BUNDLE is not set, so Claude Code cannot start in any sandbox (SELF_SIGNED_CERT_IN_CHAIN). Export the network's root certificate as PEM and set PANACEA_APP_CA_BUNDLE to its absolute path."* That is not a harness nicety: without it interactive `claude` exits 1 with `SELF_SIGNED_CERT_IN_CHAIN`, which kills `p1.claude` and `ctx.claude`, the source session of `o2.resume`. **Exit codes go through a file, never a pipe** (the master plan's `:52` trap). `claude -p hi` is no substitute: it answers `Not logged in · Please run /login` before touching the network, with or without the bundle (`sandbox-git-fix-report.md`), so it proves nothing about TLS.
 
 **(g) is the Phase 1 lesson made mechanical.** A stale listener on 8730 would answer every `curl` in step 6 and every fetch the harness makes, and the run would prove a process that is not the one this task built. If (g) prints a line, its last column is a PID: `tasklist //FI "PID eq <pid>"` names it, and it is stopped before anything else runs.
 
-**If (h) shows the resume fix has not landed**, `o2.resume` (step 14) will fail and step 18's resumed session will not remember — both for the known reason, which proves nothing new. Ask the orchestrator whether to wait for the fix. Every other step is independent of it and can proceed. **If (e) finds `2.1.267` already gone**, someone corrected the comments first; step 5b becomes a check rather than an edit.
+**If (h) shows the resume fix has not landed**, `o2.resume` (step 14) will fail and step 18's resumed session will not remember — both for the known reason, which proves nothing new. **If (h) shows the git + CA fix has not landed**, `g.primary` (step 14) fails for the known reason, and so does every Claude Code session behind interception. Either way, ask the orchestrator whether to wait for the fix. Every other step is independent of both and can proceed. **(h) found both landed at `a38c268`**, so this is a guard against a wrong checkout, not an expected branch. **If (e) finds `2.1.267` already gone**, someone corrected the comments first; step 5b becomes a check rather than an edit.
 
 - [ ] **Step 2: Rebuild the sandbox image, and prove it is newer than the behaviour it must show** · AGENT-PROVABLE
 
@@ -153,6 +201,12 @@ The image must contain `382f056`. **A timestamp is necessary and not sufficient*
 # The tree the image is built from must be committed, or the image holds code no commit names.
 git status --porcelain -- sandboxd images/sandbox                           # expect no output
 git merge-base --is-ancestor 382f056 HEAD && echo "382f056: in HEAD"
+
+# The Docker lock, before the first command that changes the daemon, held through step 20
+# (SDD docker-daemon-lock.md, steps 1-2): mkdir the lock, write owner.txt with this task's
+# label, port 8730 and the time, then the guard. Any managed container you did not create
+# means: do not build, release, report.
+docker ps -a --filter label=panacea-app.managed=true --format "{{.ID}} {{.Names}} {{.Status}}"
 
 docker image inspect panacea-app/sandbox:dev --format '{{.Created}}'        # before
 git log -1 --format='%cI %h %s' 382f056
@@ -165,7 +219,9 @@ docker image inspect panacea-app/sandbox:dev \
   --format '{{.Created}} {{index .Config.Labels "panacea-app.source-commit"}}'
 ```
 
-**What you must see.** Before: `2026-09-21T05:10:18.955144265Z`, the value recorded at `progress.md:5150`. The commit: `2026-09-22T08:43:47+10:00 382f056 fix(sandboxd): fail closed without a token, pin the Exit-frame guard, atomic finish`, which is `2026-09-21T22:43:47Z`. After: a `Created` later than that instant, followed by the full hash of `HEAD`. **Record all three values verbatim for the results document** — the source-commit label is new in this task, and it is what lets a later reader tie the image to a commit without trusting a timestamp.
+**What you must see.** The commit: `2026-09-22T08:43:47+10:00 382f056 fix(sandboxd): fail closed without a token, pin the Exit-frame guard, atomic finish`, which is `2026-09-21T22:43:47Z`. After: a `Created` later than that instant, followed by the full hash of `HEAD`. **Record all three values verbatim for the results document.**
+
+**Amended 2026-09-25: this image now carries both fixes, and `Created` is not a build time.** The orchestrator rebuilt `:dev` from `a38c268` under the Docker lock (`reconcile-25-26-report.md` §1): image `sha256:5d9a580e035b…` (was `469a07f6c43d`, the Resume fix's build), label `panacea-app.source-commit=a38c268db11fec6d9fb80140993bd0f2f25e22dc`, CLI `2.1.274 (Claude Code)`. So *before* is that id and label, not the `2026-09-21T05:10:18.955144265Z` of `progress.md:5150`. Its `Created` is still `2026-09-23T06:52:05.425529555Z`, because every step was a cache hit: the layers are the Resume fix's, byte for byte, and only the config (the label) changed. That is correct, not stale. The last commit touching `sandboxd/` or `images/sandbox/` is `b4be570`; the git + CA fix changed neither tree (it is control-plane only: env and mounts set at create). **So the source-commit label is the proof that ties the image to a commit, and `Created` only bounds it from below.** Add one line to the block above and record its output: `git log -1 --format=%h -- sandboxd images/sandbox`, which must print a commit that is an ancestor of the label's. "An image that carries both fixes" means this image plus a control plane built from `HEAD` (step 6).
 
 If the build fails fetching `golang:1.23-bookworm` or `node:20-bookworm-slim`, the corporate proxy has blocked a base-image pull; both are normally already present from Phase 1's build. Do not substitute a different base — `task-05.md:1457` records the half-hour that goes into the wrong problem. If it fails at `go build`, `sandboxd/vendor/` has fallen behind `sandboxd/go.mod` (the master plan's `:47` constraint): report it, because re-vendoring is not this task's change.
 
@@ -235,7 +291,7 @@ grep -nE -- '--(permission-mode|model|effort|resume|session-id)\b' "$SCRATCH/cla
 
 **The fifth `--effort` level is recorded, not acted on.** The catalogue offers four by a written product decision (`harness.go:37-40`, citing `docs/FUNCTIONAL-SPEC.md:27`), and that comment is still true against 2.1.274 — *"The CLI also accepts "max"; the product does not offer it"*. So it is not edited. Step 19's results document carries `max` as an open question for the owner, with this `--help` line as its evidence.
 
-**5b — correct the two citations.** Comments only; no line of code changes. In `control-plane/internal/harness/harness.go`, the `ClaudeCode` descriptor's two-line evidence comment at `:123-124` becomes:
+**5b — correct the two citations.** Comments only; no line of code changes. In `control-plane/internal/harness/harness.go`, the `ClaudeCode` descriptor's first two evidence lines at `:139-140` (at `a38c268`) become:
 
 ```go
 		// Verified against `claude --help` in panacea-app/sandbox:dev, which
@@ -243,7 +299,7 @@ grep -nE -- '--(permission-mode|model|effort|resume|session-id)\b' "$SCRATCH/cla
 		// the binary that actually runs. Re-read by Phase 2 task 25 step 5a.
 ```
 
-And in `control-plane/internal/harness/argv.go`, the first sentence of the evidence at `:5-7`:
+And in `control-plane/internal/harness/argv.go`, the first sentence of the evidence at `:8-10` (at `a38c268`):
 
 ```go
 // claudePermissionFlag maps the product's three-word vocabulary onto the CLI's
@@ -252,7 +308,7 @@ And in `control-plane/internal/harness/argv.go`, the first sentence of the evide
 // and plan.
 ```
 
-**Read both surrounding comments before replacing them.** The resume fix lands before this task and may have edited `argv.go` near these lines — it adds `--session-id` handling. Replace only the sentences that cite 2.1.267, and keep anything the fix added.
+**Read both surrounding comments before replacing them.** The resume fix did edit near these lines: `harness.go:141` onward now says *"--session-id and --fork-session were verified inside that image"*, and that sentence stays. Replace only the sentences that cite 2.1.267, and keep everything the fix added.
 
 ```bash
 gofmt -l control-plane/internal/harness                                     # expect no output
@@ -305,6 +361,18 @@ git -C "$E2E_ROOT/projects/e2e-demo" worktree list
 mkdir -p "$E2E_ROOT/bin"
 ( cd control-plane && go build -o "$E2E_ROOT/bin/panacea-api.exe" ./cmd/api )
 
+# The Docker lock is already held, since step 2. The guard again before starting (the lock
+# doc's step 2 binds even while you hold it): steps 3-4's probe is gone, so this prints
+# nothing. Any managed container you did not create means: do not start, release, report.
+docker ps -a --filter label=panacea-app.managed=true --format "{{.ID}} {{.Names}} {{.Status}}"
+
+# Exported, not prefixed: the harness reads the identity (g.primary), and step 13 restarts
+# this binary from the same shell. PANACEA_APP_CA_BUNDLE only if step 1 (i) found
+# interception; it is an absolute host path to a PEM file, validated at startup (exit 2).
+export PANACEA_APP_GIT_NAME="Panacea E2E" PANACEA_APP_GIT_EMAIL="e2e@invalid"
+export PANACEA_APP_CA_BUNDLE="<absolute PEM path, or leave unset if (i) passed without it>"
+export PANACEA_APP_REAP_INTERVAL=24h
+
 PANACEA_APP_PROJECTS_DIR="$(cygpath -w "$E2E_ROOT/projects")" \
 PANACEA_APP_STATE_DIR="$(cygpath -w "$E2E_ROOT/state")" \
 PANACEA_APP_SESSION_CPU_MILLIS=250 \
@@ -314,7 +382,9 @@ PANACEA_APP_LOG_LEVEL=debug \
 echo "control plane pid: $!"
 ```
 
-Four choices in that environment, each with a reason. **`PANACEA_APP_STATE_DIR`** points the registry at the throwaway root (`config.go:248-252`), so this run cannot read or corrupt the owner's real `sessions.json`. **The two resource variables** (`config.go:32-33`) shrink each sandbox from the 2-core, 4 GiB default (`backend.go:110`): step 10 runs eleven sessions at once, and at the default that is 44 GiB of limit on a laptop. **`debug`** so the log has everything step 13 reads. **No `PANACEA_APP_ALLOWED_ORIGINS`**: the defaults already include `http://localhost:1420` (`control-plane/internal/httpx/origin.go:46`), and setting the variable *replaces* them (`config.go:225-228`).
+**Three more variables since the fixes, each with a reason** (`control-plane/cmd/api/config.go`, `envGitName`, `envGitEmail`, `envCABundle`). **The git pair is explicit**, so `g.primary` asserts a known author and not whatever the host's `git var GIT_AUTHOR_IDENT` answers; the pair must be complete, or startup exits 2 naming both. **`PANACEA_APP_CA_BUNDLE`** is set exactly when step 1 (i) found interception; startup refuses a relative path, a missing file, a directory, or a file with no `-----BEGIN CERTIFICATE-----` block, each with its own sentence and exit 2. **`PANACEA_APP_REAP_INTERVAL=24h`** is the lock's rule 3. A control plane from `HEAD` reaps only its own instance's sandboxes (`a9c2cec`), so the interval is no longer a safety measure against this build; the lock still binds, because an older build on the daemon still reaps everything (`docker-daemon-lock.md`, amended 2026-09-24). **Release the lock in step 20**, after its `docker ps` guard prints nothing.
+
+Four choices in the rest of that environment, each with a reason. **`PANACEA_APP_STATE_DIR`** points the registry at the throwaway root (`config.go:248-252`), so this run cannot read or corrupt the owner's real `sessions.json`. **The two resource variables** (`config.go:32-33`) shrink each sandbox from the 2-core, 4 GiB default (`backend.go:110`): step 10 runs eleven sessions at once, and at the default that is 44 GiB of limit on a laptop. **`debug`** so the log has everything step 13 reads. **No `PANACEA_APP_ALLOWED_ORIGINS`**: the defaults already include `http://localhost:1420` (`control-plane/internal/httpx/origin.go:46`), and setting the variable *replaces* them (`config.go:225-228`).
 
 **And the cockpit's dev server**, in a second background shell:
 
@@ -1170,6 +1240,10 @@ check("d.cp-restart", "durability: the control plane restarts; sessions and cont
 export PANACEA_APP_PROJECTS_DIR="$(cygpath -w "$E2E_ROOT/projects")"
 export PANACEA_APP_STATE_DIR="$(cygpath -w "$E2E_ROOT/state")"
 export PANACEA_APP_SESSION_CPU_MILLIS=250 PANACEA_APP_SESSION_MEMORY_MIB=512 PANACEA_APP_LOG_LEVEL=debug
+# Step 6's three, unchanged: the respawn inherits process.env, and a respawn without the
+# CA bundle would start sandboxes in which Claude Code cannot reach the API.
+export PANACEA_APP_GIT_NAME="Panacea E2E" PANACEA_APP_GIT_EMAIL="e2e@invalid" PANACEA_APP_REAP_INTERVAL=24h
+export PANACEA_APP_CA_BUNDLE="<the same value as step 6, or unset>"
 export PANACEA_E2E_CP_LOG="$E2E_ROOT/control-plane.log"
 export PANACEA_E2E_CP_BIN="$(cygpath -w "$E2E_ROOT/bin/panacea-api.exe")"
 export PANACEA_E2E_CP_PID=<the pid step 6 printed>
@@ -1180,17 +1254,17 @@ PANACEA_E2E_ONLY=c1.flip,c5.resize,d.detach,d.reload,d.cp-restart npm run e2e
 
 **What each failure means.** `d.detach` throwing *disconnect must not destroy* is the master plan's first refinement broken in a real stack — a regression of the kind the whole phase is organised around, and it goes to the orchestrator first. `d.reload` timing out on one session and not the others usually means that session's pane is off-screen in Columns and was never mounted — check `observed` from `c1.cap` for how many panes the branch holds before calling it a defect. `d.cp-restart` throwing *container changed* means the reaper or restart recovery destroyed a sandbox it should have adopted: task 13's, and serious, because it is the transcript. *Missing after the restart* with an unchanged container means the registry did not survive its own restart — check that `PANACEA_APP_STATE_DIR` is exported in *this* shell, or the respawned control plane opened a different, empty registry and the check is measuring the harness.
 
-- [ ] **Step 14: Retry attach on a genuinely failed attach, and Resume end to end** · AGENT-PROVABLE
+- [ ] **Step 14: Retry attach on a genuinely failed attach, Resume end to end, and git on a primary worktree** · AGENT-PROVABLE
 
 **Carry 10.** Every `retryAttach` test drives `FakeWebSocket`, *"which never performs a handshake"* (`group-d-real-browser-carries.md:119-125`). The gesture became performable in `07119d1`: *"fail an attach, open the `⋯` menu, click Retry attach"* (`:127-129`). The word that matters is **genuinely**. A `failed` pane is one whose retry ladder spent its 60-second budget while the session was *not* exited (`group-d-open-carries.md:30-33`), so the only honest way to produce one is to make the control plane unreachable for longer than that budget. The check stops it for as long as it takes the pane to report `failed` — `data-attach-phase="failed"` on the overlay (`SessionPane.tsx:91`) — then starts it again, and only then presses Retry.
 
 **Carry 9's overlay hit-test rides on the same moment.** A failed pane shows the attach overlay in its *corner* presentation (`SessionPane.tsx:85-90`: only `connecting` is centred), and `develop.css:164-169` gives it `pointer-events: none` *"so it can never eat a selection drag in the terminal beneath it"*. `document.elementFromPoint` at the strip's centre answers that mechanically: it must return an element inside `.xterm`, not the strip. **Whether the strip occludes the transcript it sits over is not asked** — that is step 17's.
 
-**Open carry 2 — `resume` has no end-to-end proof** (`group-d-open-carries.md:43`). Planning this task found why: resume could not have worked. The client sent `resume: from.id` (`desktop/src/api/client.ts:358`) — the **cockpit's** session id, `s-` plus eight hex characters (`control-plane/internal/ids/ids.go:17-25`) — to `argv.go:87-89`'s `--resume`, where the Go contract types it as *"a prior agent session id"* (`2026-09-18-phase-2-go-contract.md:1137`). And a resumed session is a **new sandbox** whose only mount was the worktree at `/home/dev/work` (`api/sessions.go:30,331`), so the old sandbox's `~/.claude` — where `claude --resume` reads its state (`docs/FUNCTIONAL-SPEC.md:36`) — was gone with it.
+**Open carry 2 — `resume` has no end-to-end proof** (`group-d-open-carries.md:43`). Planning this task found why: resume could not have worked. The client sent `resume: from.id` (`desktop/src/api/client.ts`, `:361` at `a38c268`, still sent on purpose) — the **cockpit's** session id, `s-` plus eight hex characters (`control-plane/internal/ids/ids.go:17-25`) — to `argv.go`'s `--resume` (then `:87-89`), where the Go contract typed it as *"a prior agent session id"* (§2.9, `harness.Request`; that text has since been amended away, so no line number is cited). And a resumed session is a **new sandbox** whose only mount was the worktree at `/home/dev/work` (`api/sessions.go:30,331`), so the old sandbox's `~/.claude` — where `claude --resume` reads its state (`docs/FUNCTIONAL-SPEC.md:36`) — was gone with it.
 
-**A separate task fixes both, and lands before this one.** It mints a UUID per Claude Code session, starts the CLI with `--session-id <uuid>` (which `claude --help` 2.1.274 offers, *"must be a valid UUID"*), resumes by that UUID, and persists the conversation store so it survives into the new sandbox. **This check proves that fix works, and it depends on the fix landing first** — step 1 (h). Against a tree without it, it fails on its first assertion, for the reason above.
+**The Resume fix fixed both, and has landed** (`b4be570`, round 1 `2e3db79`). It mints a UUID per Claude Code session and starts the CLI with `--session-id <uuid>` (which `claude --help` 2.1.274 offers, *"must be a valid UUID"*). It resumes that UUID **as a fork**, `--resume <U> --fork-session --session-id <V>`, because the CLI accepts no other pairing. It persists `/home/dev/.claude/projects` and nothing wider, from `<state>/conversations/local/<worktree>/`, mode 0o700. The desktop still sends the cockpit id, on purpose, and the control plane resolves it (`sessionResolveResume`). And it refuses, with a 409 at the create, to resume a session whose conversation has no transcript (`sessionResumableConversation`). **This check proves that fix works** — step 1 (h) found it at `a38c268`.
 
-**What an agent can prove, and what it cannot.** Context continuing rests on two mechanical facts, and the check asserts both. **Identity**: the source sandbox was started with `--session-id <U>`, U a UUID, and the resumed sandbox with `--resume <U>` — the same U, and not the cockpit's id. **The store**: a marker file written into the source sandbox's conversation store before the kill is present in the resumed sandbox. The marker is a real file in the real persisted directory and stands in for nothing but itself: it proves the directory survives, which is exactly the property the fix adds. What no agent can prove is that the *agent remembers* — that needs a signed-in conversation, and signing in is the owner's (`CLAUDE.md`: users authenticate as themselves). That half is step 18, and the two together are the proof that Resume works.
+**What an agent can prove, and what it cannot.** Context continuing rests on two mechanical facts, and the check asserts both. **Identity**: the source sandbox was started with `--session-id <U>`, U a UUID, and the resumed sandbox with `--resume <U> --fork-session --session-id <V>`: the same U, not the cockpit's id, and V a new UUID. **The store**: the source's transcript `<U>.jsonl` is readable in the resumed sandbox, with the same line count. A session nobody spoke in has no transcript and cannot be resumed at all, so the check first seeds one: `claude -p <nonce> --session-id <U>` in the source sandbox, the way the Resume fix's own proof did (`resume-fix-report.md` §6 step 2). **The transcript is the marker.** It is a real file in the real persisted directory, so the synthetic `.e2e-resume-marker` of the first draft is gone; it proves the directory survives, which is exactly the property the fix adds. What no agent can prove is that the *agent remembers* — that needs a signed-in conversation, and signing in is the owner's (`CLAUDE.md`: users authenticate as themselves). That half is step 18, and the two together are the proof that Resume works.
 
 Insert above `await main();`:
 
@@ -1232,10 +1306,14 @@ check("c10.retry", "real-browser carry 10 + carry 9's overlay: Retry attach afte
   return { overlay: hit, sameTerminal: true };
 });
 
-/** Where Claude Code keeps its conversations inside a sandbox: the image's home is /home/dev
- *  (images/sandbox/Dockerfile). The resume fix decides how this directory survives into a new
- *  sandbox — read its commit, and narrow this constant if it persists only part of it. */
-const CLAUDE_STORE = "/home/dev/.claude";
+/** The persisted part of Claude Code's store inside a sandbox, and ONLY that part: the resume
+ *  fix mounts <state>/conversations/local/<worktree>/ here and nothing wider in ~/.claude
+ *  (sessionConversationDir, control-plane/internal/api/sessions.go; the Dockerfile's
+ *  `RUN mkdir -p /home/dev/.claude/projects`). A transcript is <this>/<cwd-slug>/<uuid>.jsonl,
+ *  and the harness runs in /home/dev/work, so the slug is -home-dev-work. */
+const CLAUDE_STORE = "/home/dev/.claude/projects";
+/** Where the harness runs, so a seeded transcript lands in the same slug as the session's. */
+const WORK = "/home/dev/work";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function argvOf(cid) {
@@ -1245,9 +1323,18 @@ function argvOf(cid) {
   return JSON.parse(m[1]);
 }
 const flagValue = (argv, flag) => { const i = argv.indexOf(flag); return i === -1 ? null : argv[i + 1]; };
-const inSandbox = (cid, script) => execFileSync("docker", ["exec", cid, "sh", "-c", script], { encoding: "utf8" }).trim();
+const inSandbox = (cid, script) => execFileSync("docker", ["exec", "-w", WORK, cid, "sh", "-c", script], { encoding: "utf8" }).trim();
+/** Runs `script` in the sandbox and returns its REAL exit code and output. The code goes
+ *  through a file, never a pipe: `cmd | tail` reports tail's status (the master plan's :52). */
+function runInSandbox(cid, script) {
+  const tag = `/tmp/e2e-${Date.now()}`;
+  inSandbox(cid, `( ${script} ) > ${tag}.out 2>&1; echo $? > ${tag}.rc; true`);
+  return { code: Number(inSandbox(cid, `cat ${tag}.rc`)), out: inSandbox(cid, `cat ${tag}.out; rm -f ${tag}.out ${tag}.rc`) };
+}
+/** `file` may be a glob: sh (dash) does not expand one in a redirection, so it is an argument. */
+const lineCount = (cid, file) => Number(inSandbox(cid, `cat ${file} | wc -l`));
 
-check("o2.resume", "open carry 2: Resume continues the same Claude conversation, with its store, in a new sandbox", async (h) => {
+check("o2.resume", "open carry 2: Resume forks the same Claude conversation, from its persisted transcript, in a new sandbox", async (h) => {
   const source = ctx.claude;
   const sourceCid = containerOf(source);
   if (sourceCid === "") throw new Error("the source session has no running sandbox to resume from");
@@ -1256,9 +1343,20 @@ check("o2.resume", "open carry 2: Resume continues the same Claude conversation,
     throw new Error(`the source was not started with --session-id <uuid> (got ${minted}); the resume fix has not landed — step 1 (h)`);
   }
 
-  // A real file in the real store, written before the kill destroys the source sandbox.
+  // Seed a real conversation. A session nobody spoke in has no transcript, and the control plane
+  // refuses to resume it (409 "Nothing has been said…", sessionResumableConversation). `-p`
+  // writes the user turn before the API call, even when not signed in (resume-fix-report §3), so
+  // its exit code is recorded, not asserted: unsigned, it exits 1 "Not logged in". THE MARKER IS
+  // THE TRANSCRIPT <U>.jsonl — a real file in the real persisted store, standing in for nothing.
   const nonce = `e2e-${Date.now()}`;
-  inSandbox(sourceCid, `mkdir -p ${CLAUDE_STORE} && printf %s ${nonce} > ${CLAUDE_STORE}/.e2e-resume-marker`);
+  const seed = runInSandbox(sourceCid, `claude -p ${nonce} --session-id ${minted}`);
+  const transcript = `${CLAUDE_STORE}/*/${minted}.jsonl`;
+  const seeded = Number(inSandbox(sourceCid, `ls ${transcript} 2>/dev/null | wc -l`));
+  if (seeded !== 1) {
+    throw new Error(`claude -p did not write ${transcript} (found ${seeded}; exit ${seed.code}: ${seed.out.slice(0, 200)})`);
+  }
+  if (!inSandbox(sourceCid, `cat ${transcript}`).includes(nonce)) throw new Error(`${minted}.jsonl does not hold ${nonce}`);
+  const sourceLines = lineCount(sourceCid, transcript);
 
   const before = await api("GET", `/v1/sessions/${source}`);
   await api("DELETE", `/v1/sessions/${source}`);
@@ -1274,33 +1372,81 @@ check("o2.resume", "open carry 2: Resume continues the same Claude conversation,
   ctx.created.push(resumed.id);
   const cid = await until("the resumed sandbox", () => containerOf(resumed.id), 30_000);
 
-  const resumedWith = flagValue(argvOf(cid), "--resume");
+  // A resume FORKS: --resume <U> --fork-session --session-id <V> (argv.go, claudeArgv). The CLI
+  // accepts that pairing and no other, and V names the fork so nothing reads the CLI's output.
+  const argv = argvOf(cid);
+  const resumedWith = flagValue(argv, "--resume");
   if (resumedWith !== minted) {
     throw new Error(`the resumed sandbox runs --resume ${resumedWith}; the source's Claude session id is ${minted}`);
   }
+  if (!argv.includes("--fork-session")) throw new Error(`the resume does not fork: ${JSON.stringify(argv)}`);
+  const fork = flagValue(argv, "--session-id");
+  if (fork === null || !UUID.test(fork)) throw new Error(`the fork is not named by a UUID --session-id (got ${fork})`);
+  if (fork === minted) throw new Error(`the fork reuses the source's id ${minted}; the CLI refuses a --session-id already in use`);
   for (const k of ["harness", "model", "effort", "permissionMode", "worktreeId"]) {
     if (resumed[k] !== before[k]) throw new Error(`resumed ${k} is ${JSON.stringify(resumed[k])}; the source's was ${JSON.stringify(before[k])}`);
   }
-  const marker = inSandbox(cid, `cat ${CLAUDE_STORE}/.e2e-resume-marker 2>/dev/null || true`);
-  if (marker !== nonce) {
-    throw new Error(`the conversation store did not survive into the new sandbox: marker ${JSON.stringify(marker)}, want ${nonce}`);
-  }
-  // Recorded, not asserted: the harness's Claude never signed in, so it wrote no transcript.
-  const transcripts = Number(inSandbox(cid, `ls ${CLAUDE_STORE}/projects/*/${minted}.jsonl 2>/dev/null | wc -l`));
-  inSandbox(cid, `rm -f ${CLAUDE_STORE}/.e2e-resume-marker`);
-  return { claudeSessionId: minted, resumedWith, storeSurvived: true, transcriptFiles: transcripts };
+  // The store survived: the new sandbox reads <U>.jsonl, and the source is untouched by the fork.
+  const readable = runInSandbox(cid, `cat ${transcript} > /dev/null`);
+  if (readable.code !== 0) throw new Error(`the resumed sandbox cannot read ${transcript}: exit ${readable.code} ${readable.out}`);
+  const resumedLines = lineCount(cid, transcript);
+  if (resumedLines !== sourceLines) throw new Error(`${minted}.jsonl has ${resumedLines} lines after the resume; it had ${sourceLines}`);
+  // Recorded, not asserted: whether the fork's own transcript exists yet. The interactive CLI
+  // writes <V>.jsonl only once something is said, and nobody signed in to say it.
+  const forkFiles = Number(inSandbox(cid, `ls ${CLAUDE_STORE}/*/${fork}.jsonl 2>/dev/null | wc -l`));
+  return { claudeSessionId: minted, resumedWith, forkedAs: fork, sourceLines, resumedLines,
+           seedExit: seed.code, forkTranscriptFiles: forkFiles };
+});
+
+/** The identity step 6 exported. The explicit pair wins over the host's git (sandbox fix §4). */
+const GIT_NAME = process.env.PANACEA_APP_GIT_NAME ?? "";
+const GIT_EMAIL = process.env.PANACEA_APP_GIT_EMAIL ?? "";
+const CA_SET = (process.env.PANACEA_APP_CA_BUNDLE ?? "") !== "";
+
+check("g.primary", "sandbox git + CA fix: git works in a session on a primary worktree, as the configured identity", async (h) => {
+  if (GIT_NAME === "" || GIT_EMAIL === "") throw new Error("PANACEA_APP_GIT_NAME/EMAIL are not exported in this shell — step 6");
+  // ctx.worktreeId is feat/e2e's LINKED worktree; this check needs main's, the clone itself.
+  const main = (await api("GET", `/v1/projects/${ctx.projectId}/branches`)).branches.find((b) => b.name === "main");
+  const wt = (await api("GET", `/v1/projects/${ctx.projectId}/worktrees?branchId=${main.id}`)).worktrees[0];
+  if (wt?.isPrimary !== true) throw new Error(`main's worktree is not primary: ${JSON.stringify(wt)}`);
+  const s = await api("POST", "/v1/sessions", { machineId: ctx.machineId, worktreeId: wt.id, harness: "shell", title: "e2e-git" });
+  ctx.created.push(s.id);
+  const cid = await until("the git session's sandbox", () => containerOf(s.id), 30_000);
+
+  // Preflight (h)'s mechanical signal, in a created sandbox: the fix's names in docker inspect.
+  const env = execFileSync("docker", ["inspect", "--format", "{{range .Config.Env}}{{println .}}{{end}}", cid], { encoding: "utf8" });
+  const want = [/^GIT_CONFIG_COUNT=\d+$/m, new RegExp(`^GIT_AUTHOR_NAME=${GIT_NAME}$`, "m"), new RegExp(`^GIT_COMMITTER_EMAIL=${GIT_EMAIL.replace(/\./g, "\\.")}$`, "m")];
+  for (const re of want) if (!re.test(env)) throw new Error(`the sandbox's env lacks ${re}`);
+  if (/^NODE_EXTRA_CA_CERTS=\/etc\/panacea-app\/ca-bundle\.pem$/m.test(env) !== CA_SET) throw new Error(`NODE_EXTRA_CA_CERTS does not follow PANACEA_APP_CA_BUNDLE (set: ${CA_SET})`);
+  if (/^(SSL_CERT_FILE|NODE_TLS_REJECT_UNAUTHORIZED)=/m.test(env)) throw new Error("the sandbox replaces or disables TLS verification");
+
+  // Real exit codes, through a file (runInSandbox), never a pipe.
+  const status = runInSandbox(cid, `git -C ${WORK} status`);
+  if (status.code !== 0) throw new Error(`git status on the primary worktree exited ${status.code}: ${status.out}`);
+  const scope = runInSandbox(cid, `git -C ${WORK} config --show-scope --get-all safe.directory`);
+  if (scope.code !== 0 || !/^command\s.*\/home\/dev\/work$/m.test(scope.out)) throw new Error(`safe.directory is not command-scope ${WORK}: ${scope.out}`);
+  const commit = runInSandbox(cid, `git -C ${WORK} commit --allow-empty -q -m "e2e: g.primary"`);
+  if (commit.code !== 0) throw new Error(`a commit on the primary worktree exited ${commit.code}: ${commit.out}`);
+  const who = inSandbox(cid, `git -C ${WORK} log -1 --format='%an <%ae> / %cn <%ce>'`);
+  const expect = `${GIT_NAME} <${GIT_EMAIL}> / ${GIT_NAME} <${GIT_EMAIL}>`;
+  if (who !== expect) throw new Error(`the commit's author/committer is ${who}; want ${expect}`);
+  return { worktree: wt.id, statusExit: status.code, commitExit: commit.code, identity: who, caMounted: CA_SET };
 });
 ```
 
 ```bash
-PANACEA_E2E_ONLY=c10.retry,o2.resume npm run e2e
+PANACEA_E2E_ONLY=c10.retry,o2.resume,g.primary npm run e2e
 ```
 
 (Run in the same shell as step 13, with its exports still set.)
 
-**What you must see.** `c10.retry` `"ok":true`, with `observed.overlay` reading `{"corner":true,"inTerminal":true,"onStrip":false}`; it takes a minute or more, because the ladder must genuinely spend its budget. `o2.resume` `"ok":true`, with `observed.claudeSessionId` a UUID, `resumedWith` the same UUID, `storeSurvived: true`, and `transcriptFiles: 0` — zero because the harness's Claude Code session never signed in and so never wrote a conversation; step 18 is where a real one exists. Record the whole line.
+**What you must see.** `c10.retry` `"ok":true`, with `observed.overlay` reading `{"corner":true,"inTerminal":true,"onStrip":false}`; it takes a minute or more, because the ladder must genuinely spend its budget. `o2.resume` `"ok":true`, with `observed.claudeSessionId` a UUID U, `resumedWith` the same U, `forkedAs` a different UUID V, and `sourceLines` equal to `resumedLines` (the fork left the source untouched). `seedExit` is recorded, not asserted: `1` with *"Not logged in"* is expected, because `-p` writes the user turn before it fails. `forkTranscriptFiles` is recorded, not asserted, and is most likely `0`: the fork's interactive CLI writes `<V>.jsonl` only once something is said, and nobody signed in to say it. Step 18 is where a reply exists. `g.primary` `"ok":true`, with `statusExit: 0`, `commitExit: 0`, and `identity` reading `Panacea E2E <e2e@invalid> / Panacea E2E <e2e@invalid>`. Record every line whole.
 
-**`o2.resume` failures, each naming a different half.** *The source was not started with `--session-id`* means the resume fix is absent — step 1 (h) should already have said so, and this is not a new finding. *The resumed sandbox runs `--resume X`* with X the cockpit's `s-` id means the fix changed the Go side and not `client.ts:358`, or the reverse. *The conversation store did not survive* means identity is fixed and persistence is not: the resumed agent would know which conversation to open and find nothing there, which is the failure that looks like success. Each goes to the orchestrator against the resume fix, not fixed here. **If `CLAUDE_STORE` is not where the fix persists**, the marker check fails on a harness assumption: read the fix's commit, correct the constant, and say so in the commit body.
+**`o2.resume` failures, each naming a different half.** *The source was not started with `--session-id`* means the resume fix is absent — step 1 (h) should already have said so, and this is not a new finding. *`claude -p` did not write `<U>.jsonl`* means the seeding failed: read `seed.out` in the message. If it says the session id is already in use, the source's interactive CLI claimed U first, which is **unverified**: the Resume fix's own proof seeded a sandbox whose interactive CLI had already exited on TLS. That is a harness assumption failing, so report it and do not work around it. *`409 Nothing has been said in that session yet`* from the Resume click means the control plane found no `<U>.jsonl` in the **host** store (`sessionResumableConversation`, `2e3db79`): the seed wrote somewhere other than the persisted mount. *The resumed sandbox runs `--resume X`* with X the cockpit's `s-` id means the control plane did not resolve the cockpit id (`sessionResolveResume`). The desktop sends the cockpit id on purpose, so `client.ts` is not the suspect. *The resume does not fork*, or *the fork reuses the source's id*, means `argv.go`'s `claudeArgv` regressed, and the CLI would refuse that argv outright. *Cannot read `<U>.jsonl`*, or a line count that moved, means identity is fixed and persistence is not. The resumed agent would know which conversation to open and find nothing there, or a damaged one, which is the failure that looks like success. Each goes to the orchestrator against the resume fix, not fixed here.
+
+**`g.primary` failures.** *The sandbox's env lacks …* means the git + CA fix is absent, or step 6's exports did not reach this binary: check `tasklist` against the PID before calling it a defect. *`git status` exited 128* with "dubious ownership" means `safe.directory` did not arrive. With "not a git repository", the worktree is a linked one: the check picked the wrong worktree. *The commit exited 128* with "Author identity unknown" means the identity did not arrive, and `user.useConfigOnly` refused, which is the fix's design working on a missing input. *The author is someone else* means the explicit pair lost to another source, and it goes to the orchestrator against the git fix.
+
+**A further check the Resume fix's round 1 makes possible is recorded, not built** (reconcile item 12, the owner's call on the count): seed `<U>.jsonl`, Restart the source, then Resume it before anything is said in the restarted sandbox. The resumed argv must carry `--resume <U>`, the conversation the restart cleared (`earlierConversationIds`), not the restart's new id. It is not in the nineteen.
 
 **`c10.retry` failures.** *The pane reconnected without Retry* means `failed` is not terminal, which contradicts `group-d-open-carries.md:30-31` and task 22's design; report it with the socket timings. *Retry rebuilt the terminal* is carry 10's failure — the same claim as carry 1, failing on a different path. A `getByRole("menuitem")` that finds nothing means the `⋯` menu's rows are not `role="menuitem"`; read `SessionMenu.tsx` and select by the row's text instead — that is a harness correction, not an app defect.
 
@@ -1362,11 +1508,13 @@ check("w.webview2", "phase-1 unproven item 5, agent half: the native WebView2 wi
 PANACEA_E2E_CDP=http://127.0.0.1:9222 PANACEA_E2E_ONLY=w.webview2 npm run e2e
 ```
 
-**What you must see:** `curl` prints a JSON object whose `Browser` field names an `Edg/` version — that is WebView2. Then `"ok":true` with `observed.engine` a user-agent string containing `Edg/`, and non-zero `rows` and `cols`. **Leave `tauri dev` running**: step 16 is performed in this window. `native.close()` on a `connectOverCDP` browser disconnects Playwright and leaves the application alone; if the window disappears when the check ends, record it, because that would mean the harness closed the owner's window and step 16 must restart it.
+**What you must see:** `curl` prints a JSON object whose `Browser` field names an `Edg/` version — that is WebView2. Then `"ok":true` with `observed.engine` a user-agent string containing `Edg/`, and non-zero `rows` and `cols`. **Leave `tauri dev` running until step 20**: step 16 is performed in this window, in the owner's batched session (OD-12, step 16's note), which brings it up again from the recipe. `native.close()` on a `connectOverCDP` browser disconnects Playwright and leaves the application alone; if the window disappears when the check ends, record it, because that would mean the harness closed the owner's window and step 16 must restart it.
 
 - [ ] **Step 16: The owner checklist — the native window and the terminal** · OWNER-OBSERVED
 
 **The implementer does not perform, pre-fill or summarise any item in steps 16 to 18.** Its job is to leave the app in the state each item needs, hand the owner this list, and copy the owner's answers into the results document word for word. If an item is ambiguous when the owner reads it, the plan is wrong: fix the wording with the owner, and record that it changed.
+
+**OD-12: steps 16 to 18 are batched, UNVERIFIED, to the very end.** The owner does all nineteen items in one hands-on session after phases 3 to 7 are built, so no one waits here for the owner. In this task the implementer writes the nineteen items unchanged in meaning. It proves each one *reachable*, meaning the state each item's "State the implementer leaves" names can be reached from a clean start. It records that state as a recipe in the results document: steps 6 and 7's commands, then the `PANACEA_E2E_ONLY` runs that produce it (`setup,p1.fidelity,c2.cols,c6.load` for step 16). And it shuts the stack down in step 20, like every other run. The results document marks all nineteen `PENDING OWNER`, **unverified**. Whoever runs the batched session later brings the stack up from that recipe, against whatever `HEAD` is then, and says so beside the answers. "Leave `tauri dev` running" (step 15) and "acts during the item" (item 11) describe that later session, not this task.
 
 **State the implementer leaves before handing over.** The stack from step 6 is running; `tauri dev` from step 15 is open (or, if step 15 was refused, started without the environment variable); project `e2e-demo`, branch `feat/e2e` is selected; the layout is **Columns**; the shell `e2e-shell` exists and has run `p1.fidelity`'s commands, so its scrollback holds `REDOK`, `╭─╮` and `L1` to `L500`; and the UI-created Claude Code session is showing its first screen. Paste `c2.cols`' and `c6.load`'s `observed` lines at the top of the owner's copy — items 3 and 5 refer to them.
 
@@ -1400,15 +1548,22 @@ Real-browser carry 9 is listed separately from carry 3 *"because carry 3 is spec
 
 `docs/FUNCTIONAL-SPEC.md:36` defines the promise: **Resume** (`claude --resume`, *restores context*). Step 14's `o2.resume` proved the two mechanical halves the resume fix adds — the same Claude session id, and a conversation store that survives into the new sandbox. This step is the half no agent can do: the owner watching the promise itself, because a resumed agent that remembers — or does not — is the only evidence that settles it, and it needs a real sign-in. `CLAUDE.md` locks it that way: *"Users authenticate as themselves"*. **Like `o2.resume`, it depends on the resume fix having landed** (step 1 (h)); without it, item 19 cannot say PAPAYA and the step proves nothing new.
 
-**What the owner should know before starting.** Signing in stores a credential in Claude Code's store inside the sandbox, and the resume fix persists that store across sandboxes so a resumed session can find its conversation. **Whether the credential persists with it, where it lives on this machine, and how it is removed, are the fix's decisions** — the implementer reads its commit and tells the owner all three before item 15. Nothing in this step pools or shares the subscription.
+**What the owner should know before starting — answered by the Resume fix** (`resume-fix-report.md` §5; reconcile item 4). These are facts, and the implementer reads them to the owner before item 15:
+
+- **The credential does not persist.** `/login` writes `~/.claude/.credentials.json`, which sits *beside* the persisted mount (`/home/dev/.claude/projects`), not in it.
+- **It dies with the sandbox.** Nothing about it is stored on this machine outside Docker.
+- **Every new sandbox needs `/login` again: create, Restart and Resume.** So the resumed session in item 18 asks for sign-in before it can reply. That is this phase's design, not a defect. **OD-20** keeps local mode, and there each user signs in with their own subscription. **OD-19** replaces this **in the cloud** with org inference through a gateway and a scoped per-session token; nothing here builds or assumes that.
+- **The persisted transcripts are sensitive.** They live in `<state>/conversations/local/<worktree>/`, mode 0o700, on this machine. Forget deletes a session's transcripts since `960457d` (OD-10).
+
+Nothing in this step pools or shares the subscription.
 
 15. **Start a Claude Code session.** *Do:* with `feat/e2e` selected, click `＋ New session`. In the new pane, follow Claude Code's own sign-in with your own subscription. *You should see:* Claude Code's prompt, ready for input. *Answer:* signed in?
 16. **Give it something to remember.** *Do:* type `Remember the word PAPAYA. Reply only OK.` and Enter. *You should see:* `OK`. *Answer:* did it reply?
 17. **Kill it.** *Do:* open the pane's `⋯` menu and choose **Kill**. *You should see:* the exited bar in that pane. *Answer:* exited?
-18. **Resume it.** *Do:* open the same pane's `⋯` menu and choose **Resume**. *You should see:* a new pane for a new session. *Answer:* write down the **first thing** the new pane shows — Claude Code's prompt, a sign-in screen, or an error message, word for word if it is an error.
-19. **Ask.** *Do:* if the new pane reached a prompt, type `What word did I ask you to remember?` and Enter. *Answer:* write down its reply exactly.
+18. **Resume it.** *Do:* open the same pane's `⋯` menu and choose **Resume**. *You should see:* a new pane for a new session, which **asks you to sign in** before it can reply, because the credential did not persist. Sign in again with your own subscription. *Answer:* write down the **first thing** the new pane shows — a sign-in screen, Claude Code's prompt, or an error message, word for word if it is an error — and whether it reached the prompt after you signed in.
+19. **Ask.** *Do:* once the new pane reaches a prompt, type `What word did I ask you to remember?` and Enter. *Answer:* write down its reply exactly.
 
-**Resume working looks like this:** item 18 reaches Claude Code's prompt — directly if the fix persists the credential with the conversation, after a sign-in if it deliberately does not; the fix's commit says which — and item 19 answers PAPAYA. Anything else is a finding against the resume fix, not fixed here. **The owner's answer is the evidence either way**, and the results document records it in the owner's words beside `o2.resume`'s agent result, so a reader sees the mechanical proof and the lived one side by side.
+**Resume working looks like this:** item 18 shows a sign-in, then reaches Claude Code's prompt after it, and item 19 answers PAPAYA. A resumed pane that reaches the prompt *without* a sign-in is also a finding: it means a credential persisted, which contradicts the Resume fix's report and must be traced before anything else. Anything else is a finding against the resume fix, not fixed here. **The owner's answer is the evidence either way**, and the results document records it in the owner's words beside `o2.resume`'s agent result, so a reader sees the mechanical proof and the lived one side by side.
 
 - [ ] **Step 19: Write the results document, with a disposition for every carry** · AGENT-PROVABLE
 
@@ -1420,7 +1575,7 @@ npm run e2e > "$E2E_ROOT/e2e-results.jsonl"; echo "exit=$?"
 cat "$E2E_ROOT/e2e-results.jsonl"
 ```
 
-Redirected rather than piped through `tee`, because of the pipe exit-code trap: `npm run e2e | tee …` reports `tee`'s status, and the status is part of the evidence. **What you must see:** one line per check, `setup` first and `w.webview2` last, every one `"ok":true`, and `exit=0`. (`w.webview2` is `ok` with `observed: "skipped: …"` if step 15's port was refused.) If the resume fix had not landed and the orchestrator chose not to wait, `o2.resume` is `"ok":false` on its `--session-id` assertion, `exit=1`, and the document says so plainly. **Any other red is a finding**: it goes into the document as a failure with the check's `error` verbatim, and to the orchestrator. It is not re-run until green, and it is not fixed here.
+Redirected rather than piped through `tee`, because of the pipe exit-code trap: `npm run e2e | tee …` reports `tee`'s status, and the status is part of the evidence. **What you must see:** one line per check, `setup` first and `w.webview2` last, every one `"ok":true`, and `exit=0`. (`w.webview2` is `ok` with `observed: "skipped: …"` if step 15's port was refused.) Both fixes landed before this task (step 1 (h)), so a red `o2.resume` or `g.primary` is not an expected branch. **Every red is a finding**: it goes into the document as a failure with the check's `error` verbatim, and to the orchestrator. It is not re-run until green, and it is not fixed here.
 
 Then create `docs/verification/<run-date>-phase-2-results.md`, where `<run-date>` is the day of the run in `YYYY-MM-DD`. It follows `2026-09-17-phase-1-results.md`'s form — a headline sentence, the environment, what was tested, the checks, blockers, false results, what is still unproven, how to reproduce — with **four additions** that Phase 2 needs and Phase 1 did not: the owner-observed items, the findings with owners, the open questions for the owner, and the carry disposition. Results are written `PASS` / `FAIL` / `SKIPPED` / `PENDING OWNER` in words.
 
@@ -1447,13 +1602,15 @@ Native window: WebView2 <Edg/ version from w.webview2, or "DevTools port refused
 | The sandbox image alone | `docker run`, `curl` (steps 2–4) | <n>/<n> |
 | The cockpit at the dev-window origin | headed Chromium, `desktop/e2e/phase2.e2e.mjs` | <n>/<n> |
 | The native window | WebView2 over the DevTools protocol (step 15) | <PASS / SKIPPED: reason> |
-| The owner's eyes | 19 numbered items (steps 16–18) | <n> answered, <n> PENDING OWNER |
+| The owner's eyes | 19 numbered items (steps 16–18), batched to the owner's end-of-build session (OD-12) | 0 answered, 19 PENDING OWNER, unverified |
 
-## Prerequisites — the two this phase recorded
+## Prerequisites — the two this phase recorded, and the three fixes
 
 | Prerequisite | Evidence | Result |
 |---|---|---|
-| Image newer than `382f056` (2026-09-21T22:43:47Z) | before `2026-09-21T05:10:18Z`, after `<Created>` | PASS |
+| Image newer than `382f056` (2026-09-21T22:43:47Z), and tied to a commit | before `5d9a580e035b` labelled `a38c268`; after `<Created>` `<source-commit label>`; last image-tree commit `<git log -1 -- sandboxd images/sandbox>` | PASS |
+| The Resume fix and the git + CA fix landed | step 1 (h): every count as expected | <PASS/FAIL> |
+| TLS interception, and the CA bundle | step 1 (i): `<HTTP n / ERROR code>`; with the bundle `<HTTP n / not needed>` | <PASS/FAIL> |
 | Fail-closed startup | tokenless container exits 1 with `sandboxd: no attach token configured; …` | <PASS/FAIL> |
 | Token rejection | `/healthz` 200, `/attach` 401 / 401 / 101 | <PASS/FAIL> |
 | Harness flags vs 2.1.274 | `--permission-mode` the same six choices; both evidence comments re-cited to the image | <PASS/FAIL> |
@@ -1477,9 +1634,10 @@ Task 5's Q3 and Q4: `docker port` printed <verbatim>; `State` read `<running>` t
 
 ## Owner-observed
 
-<Items 1–19 from steps 16–18, numbered as there, each with the item's one-line title and the
-owner's answer in the owner's words. Every item reads PENDING OWNER until the owner answers.
-The implementer writes none of these.>
+<Items 1–19 from steps 16–18, numbered as there, one line each, in exactly this form:
+`<n>. **<the item's one-line title>**: PENDING OWNER`. The owner replaces `PENDING OWNER` with
+the answer in the owner's words; until then every item reads PENDING OWNER. The implementer
+writes none of the answers. Step 20's guard counts these lines by that form.>
 
 ## Findings
 
@@ -1511,7 +1669,11 @@ check that passed on an echo. Phase 1 recorded two; record every one here, or "n
    isolation, the RuntimeClass name, cold start, the read-only root in practice. Phase 8.
 2. Contract §4.7's refresh half: declared as not delivered by task-24.md:28.
 3. The CORS grant is task 24 step 11's evidence, relied on here and not re-run.
-4. <anything a SKIPPED check leaves open>
+4. All nineteen owner items: batched to the owner's end-of-build session (OD-12), unverified
+   until then. That includes whether a resumed agent remembers (step 18).
+5. Org inference (OD-19) is the cloud path and is not built in this phase. Local mode (OD-20),
+   which this run exercised, still needs `/login` in every sandbox.
+6. <anything a SKIPPED check leaves open>
 
 ## Reproducing this
 
@@ -1533,17 +1695,18 @@ check that passed on an echo. Phase 1 recorded two; record every one here, or "n
 | RB 9 — Develop lens geometry, contrast, 11px footer, overlay | `:93` | Step 9 `c9.exit-row`, step 14 overlay hit-test; step 17 items 8–12 | |
 | RB 10 — Retry attach on a real socket | `:119` | Step 14, `c10.retry` | |
 | OC 1 — failed attach had no way forward | `group-d-open-carries.md:16` | Closed by `07119d1`; its observation is RB 10 | |
-| OC 2 — `resume` has no end-to-end proof | `:43` | Step 14 `o2.resume` (identity and store); step 18 (the agent remembers). **Depends on the separate resume fix** — `--session-id <uuid>` at create, resume by it, the conversation store persisted — landing first | |
+| OC 2 — `resume` has no end-to-end proof | `:43` | Step 14 `o2.resume` (identity, the fork, and the persisted transcript); step 18 (the agent remembers, after a fresh `/login`; PENDING OWNER per OD-12). Built on the Resume fix, `b4be570` and `2e3db79`: `--session-id <uuid>` at create, `--resume <U> --fork-session --session-id <V>`, `/home/dev/.claude/projects` persisted | |
+| Sandbox git + CA fix — git and Claude Code in a sandbox on this network | `sandbox-git-fix-report.md` | Step 1 (h) and (i); step 14 `g.primary` (status, command-scope `safe.directory`, a commit as the configured identity, the env names in `docker inspect`) | |
 | OC 3 — Canvas `⌘1-9` does not raise the tile | `:47` | **Owner: task 23.** Step 17 item 14 observes the result | |
 | OC 4 — palette exposes no session verbs | `:52` | Correction already made (`80342ee`); nothing to observe | |
 | OC 5 — `max` effort (corrected at source: a product decision, not an omission) | `:60` | **Not changed.** Recorded as open question 1 for the owner; step 5a's `--help` reading is its evidence | |
 | OC 6 — harness comments cite 2.1.267 | `:73` | Step 5a, 5b | |
 | OC 7 — rebuild the sandbox image | `:73` | Step 2, proven by step 3 | |
-| OC 8 — `Files` and `Merge` have no owning phase | `:77` | **Deferred to task 26**, which names the seam and the gap; the ownership decision is the product owner's | |
+| OC 8 — `Files` and `Merge` have no owning phase | `:77` | **Named by task 26** (which ran before this task) as seam S3.5 in `docs/SEAMS.md`, with the gap pinned; the ownership decision is the product owner's | |
 | OC 9 — `pinned` unbounded across branches | `:85` | **Deferred** to whichever task next opens `prefsSlice`; the cheapest prune is where the poller replaces sessions | |
 | OC 10 — an unpin does not survive a flip or restart | `:91` | **Deferred** to the next persisted-schema bump (`PERSIST_VERSION`), which can tell *never pinned* from *unpinned* | |
 | OC 11 — `observe` drops `dirty` before the write | `:99` | **Deferred to Phase 3**, as recorded | |
-| OC 12 — `proxy.Relay` has no production caller | `:102` | **Deferred to task 26**, the end of the phase, which rules on it | |
+| OC 12 — `proxy.Relay` has no production caller | `:102` | **Ruled by task 26** (which ran before this task): deleted, after an anchored grep re-proved no production caller; `proxy.RelayHooked` is the one relay (`docs/SEAMS.md` S8.7) | |
 | Contract §12 open question 1 — `@xterm/xterm@6` under jsdom never observed | `2026-09-18-phase-2-ui-contract.md:2355-2358` | Answered as it prescribes: real xterm is observed in steps 8–15 by Playwright, not by `canvas` in jsdom | |
 | Phase 1 unproven item 5 — the native window | `2026-09-17-phase-1-results.md:68` | Step 15 (agent half), step 16 (owner half) | |
 | Task 5's Q3 and Q4 | `task-05.md:1457` | Step 4 | |
@@ -1559,7 +1722,7 @@ docker ps -a --filter label=panacea-app.managed=true --format '{{.Names}} {{.Sta
 netstat -ano | grep -E ':(8730|1420|9222)\s' | grep LISTENING
 ```
 
-**What you must see:** the `docker ps` line prints nothing — the harness `DELETE`d every session it made, and `DELETE` destroys the sandbox. A leftover `panacea-app-*` container means a check threw before `main()` reached its cleanup loop; remove it by name with `docker rm -f`, after `docker inspect` confirms its `panacea-app.session-id` label is one this run created. The `netstat` line prints nothing. `$E2E_ROOT` is left in the temp directory for the owner to inspect and is not deleted by this task.
+**What you must see:** the `docker ps` line prints nothing — the harness `DELETE`d every session it made, and `DELETE` destroys the sandbox. A leftover `panacea-app-*` container means a check threw before `main()` reached its cleanup loop; remove it by name with `docker rm -f`, after `docker inspect` confirms its `panacea-app.session-id` label is one this run created. The `netstat` line prints nothing. `$E2E_ROOT` is left in the temp directory for the owner to inspect and is not deleted by this task. **Only then release the Docker lock** that step 2 took: `rm <lock>/owner.txt && rmdir <lock>` (`docker-daemon-lock.md` step 4).
 
 **Then the guards.** Anchored, per shared shape §3A.
 
@@ -1582,16 +1745,21 @@ grep -cE '^\s+"playwright": "[0-9]+\.[0-9]+\.[0-9]+",?$'      desktop/package.js
 grep -cE '^\s+"e2e": "node e2e/phase2\.e2e\.mjs"$'            desktop/package.json                       # 1
 grep -cE '^\s+channel:'                                       desktop/e2e/phase2.e2e.mjs                  # 0
 grep -cE '^await main\(\);$'                                  desktop/e2e/phase2.e2e.mjs                  # 1
-grep -cE '^check\("'                                          desktop/e2e/phase2.e2e.mjs                  # 18
+grep -cE '^check\("'                                          desktop/e2e/phase2.e2e.mjs                  # 19
+grep -cE '^const CLAUDE_STORE = "/home/dev/\.claude/projects";$' desktop/e2e/phase2.e2e.mjs               # 1 — the persisted part only
+grep -c  'e2e-resume-marker'                                  desktop/e2e/phase2.e2e.mjs                  # 0 — the transcript is the marker
 
 # The results document exists and the implementer answered no owner item.
 ls docs/verification/*-phase-2-results.md
-grep -c 'PENDING OWNER' docs/verification/*-phase-2-results.md          # 19, unless the owner has answered
+# The item lines only, by the form the skeleton gives them. A bare grep -c 'PENDING OWNER'
+# reads 21 on a correct document: the "What was tested" row and the OC 2 carry row hold the
+# words too (reconcile review M1).
+grep -cE '^([1-9]|1[0-9])\. \*\*.+\*\*: PENDING OWNER$' docs/verification/*-phase-2-results.md  # 19, unless the owner has answered
 
 git status --porcelain | sort
 ```
 
-**Eighteen checks**, in file order: `setup`, `p1.fidelity`, `p1.claude`, `c2.cols`, `c3.theme`, `c7.popover`, `c9.exit-row`, `c1.flip`, `c1.cap`, `c5.resize`, `c4.pinned`, `c6.load`, `d.detach`, `d.reload`, `d.cp-restart`, `c10.retry`, `o2.resume`, `w.webview2`. `w.webview2` is written even when step 15's port is refused — it returns `skipped` when `PANACEA_E2E_CDP` is unset — so the count does not depend on the policy.
+**Nineteen checks** (eighteen before the git + CA fix added `g.primary`), in file order: `setup`, `p1.fidelity`, `p1.claude`, `c2.cols`, `c3.theme`, `c7.popover`, `c9.exit-row`, `c1.flip`, `c1.cap`, `c5.resize`, `c4.pinned`, `c6.load`, `d.detach`, `d.reload`, `d.cp-restart`, `c10.retry`, `o2.resume`, `g.primary`, `w.webview2`. `w.webview2` is written even when step 15's port is refused — it returns `skipped` when `PANACEA_E2E_CDP` is unset — so the count does not depend on the policy.
 
 `git status --porcelain | sort` must list exactly the seven paths of the Files block, the results document among them, and nothing else. A stray path is either an un-reverted edit or a file from the parallel work in this tree — the second is **not** staged.
 
@@ -1620,7 +1788,7 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
 
 ```bash
 git add control-plane/internal/harness/harness.go control-plane/internal/harness/argv.go
-git commit -F "$SCRATCH/c1.txt"
+git commit -F "$SCRATCH/c1.txt" -- control-plane/internal/harness/harness.go control-plane/internal/harness/argv.go
 ```
 
 `$SCRATCH/c2.txt`:
@@ -1639,11 +1807,18 @@ The sandbox image is rebuilt and proven to contain 382f056 by its behaviour: a
 tokenless sandboxd now refuses to start, and /attach answers 401 without the
 bearer token.
 
-<If o2.resume passed: Resume is proven end to end on top of the separate
-resume fix - the source sandbox runs with its own Claude session UUID, the
-resumed one resumes that UUID, and the conversation store survives into the
-new sandbox. Whether the agent remembers is the owner's step-18 observation.
-If it failed, say which assertion, and that it is owned by the resume fix.>
+<If o2.resume passed: Resume is proven end to end on top of the Resume fix
+(b4be570, 2e3db79) - the source sandbox runs with its own Claude session UUID,
+a seeded transcript lands in the persisted store, and the resumed sandbox
+forks that UUID under a new one and reads the transcript unchanged. Whether
+the agent remembers is the owner's step-18 observation, batched to the end
+(OD-12) and unverified. If it failed, say which assertion, and that it is
+owned by the Resume fix.>
+
+<If g.primary passed: git works in a session on a primary worktree - status,
+a command-scope safe.directory, and a commit as the exported identity - on
+top of the sandbox git + CA fix (2d6d95b..31576b7). If it failed, say which
+assertion, and that it is owned by that fix.>
 
 <One paragraph per FAIL in the run, naming the check and the owner, or "No
 agent-provable check failed.">
@@ -1659,9 +1834,11 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
 git add desktop/package.json desktop/package-lock.json \
         desktop/e2e/phase2.e2e.mjs desktop/e2e/fixture.sh \
         docs/verification/<run-date>-phase-2-results.md
-git commit -F "$SCRATCH/c2.txt"
+git commit -F "$SCRATCH/c2.txt" -- desktop/package.json desktop/package-lock.json \
+        desktop/e2e/phase2.e2e.mjs desktop/e2e/fixture.sh \
+        docs/verification/<run-date>-phase-2-results.md
 ```
 
-Fill the two `<…>` paragraphs from the run before committing; a commit body that still contains `<` is not finished. **Do not write that anything "looks right" in either message**: `task-24.md:1278` gives the reason, and this task has more occasions to break it than any other.
+Both commits name their paths after `--`, so nothing another agent staged in this shared tree rides along. Fill every `<…>` paragraph from the run before committing; a commit body that still contains `<` is not finished. **Do not write that anything "looks right" in either message**: `task-24.md:1278` gives the reason, and this task has more occasions to break it than any other.
 
 **What is not claimed.** No screenshot was taken. No visual acceptance was performed by an agent: the nineteen owner items stand as `PENDING OWNER` until the owner answers them, and the orchestrator commits those answers separately. What *is* claimed is exactly the list of `PASS` rows in the results document — each one a behaviour observed in a real engine, against a real control plane and a real sandbox, by a script anyone can re-run.

@@ -17,8 +17,18 @@
 //     CALLS closeTopOverlay(); it never re-derives either.
 //
 // All three are kept out by isCockpitChord below, which is ALSO what the terminal consults
-// before it handles a key (Terminal.tsx, makeTerm). One list, two readers: a chord this map
-// claims is a chord xterm lets past, and anything else is xterm's to send to the agent.
+// before it handles a key (Terminal.tsx, makeTerm, through terminalKeepsKey). One list, two
+// readers: a chord this map claims is a chord xterm lets past, and anything else is xterm's to
+// send to the agent.
+//
+// OWNER DECISION OD-9 ("Keep, plus a toggle") adds ONE setting on top, and it moves no key in
+// or out of the list. prefsSlice.sendChordsToTerminal, "Send shortcut keys to the terminal", is
+// off by default, and off is everything above: the cockpit wins, as in VS Code. On, a keydown
+// that comes from inside a terminal is the agent's, whatever it is: terminalKeepsKey tells xterm
+// to keep it, and the map's second return below ignores it when xterm maps it to nothing and it
+// bubbles here anyway. The same chord pressed OUTSIDE a terminal is the cockpit's in both modes,
+// which is how ⌘K still opens the palette with the setting on. The three keys above are outside
+// the list, so xterm keeps them and this map ignores them in both modes, exactly as before.
 import { useEffect } from "react";
 import { sessionVerbs } from "../components/develop/sessionVerbs";
 import { useCreateSession } from "./useCreateSession";
@@ -32,8 +42,18 @@ import { useCockpit } from "../store/store";
  *  one verb this file runs (Kill) calls deps.close() before it commits anything. */
 const NOOP = (): void => {};
 
-/** §6.9's unshifted chord keys. ⌘⇧M is the one shifted chord and is matched separately. */
-const CHORD_KEYS: readonly string[] = ["w", "k", "b", "Enter", "\\", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
+/** §6.9's unshifted chord keys, and its shifted ones (⌘⇧M alone), in the lower case chordKey
+ *  yields. Between them these two lists ARE the predicate's claim: it reads no key outside them,
+ *  and a test pins isCockpitChord's source so that it cannot start to.
+ *
+ *  Exported, frozen, for one reader besides isCockpitChord. The keys are still written twice,
+ *  here and in the branch chain below, and a key listed here with no branch is one xterm skips
+ *  and nothing acts on, lost to both the agent and the cockpit. useKeyboardMap.test.ts reads
+ *  these lists and checks every entry, on Ctrl and on Meta, reaches a branch. EDITED BY TASK
+ *  23's FIX ROUND 2: before, the only guard sampled the keyboard, and "⌘← claimed, no branch"
+ *  fell outside the sample and passed. */
+export const CHORD_KEYS: readonly string[] = Object.freeze(["w", "k", "b", "Enter", "\\", "1", "2", "3", "4", "5", "6", "7", "8", "9"]);
+export const SHIFTED_CHORD_KEYS: readonly string[] = Object.freeze(["m"]);
 
 /** Shifted letters arrive as "M", not "m", so the table is matched in lower case. */
 function chordKey(event: KeyboardEvent): string {
@@ -47,7 +67,8 @@ function chordKey(event: KeyboardEvent): string {
  *  keydown on its own focused textarea first and CANCELS what it maps to data: Ctrl-3 is ESC,
  *  which interrupts the agent, and Ctrl-Enter is CR, which submits its prompt, and neither ever
  *  bubbled to this map while a terminal had focus. Returning false there makes xterm skip the
- *  event without cancelling it. So a key added here is a key the agent stops receiving. */
+ *  event without cancelling it. So a key added to the two lists above is a key the agent
+ *  stops receiving. */
 export function isCockpitChord(event: KeyboardEvent): boolean {
   // ⌘ is metaKey || ctrlKey — the app runs on Windows, where the physical key is Ctrl.
   if (!(event.metaKey || event.ctrlKey)) return false;
@@ -55,7 +76,30 @@ export function isCockpitChord(event: KeyboardEvent): boolean {
   // composed characters the user is typing into the agent.
   if (event.altKey) return false;
   const key = chordKey(event);
-  return event.shiftKey ? key === "m" : CHORD_KEYS.includes(key);
+  return (event.shiftKey ? SHIFTED_CHORD_KEYS : CHORD_KEYS).includes(key);
+}
+
+/** OD-9. The attribute Terminal.tsx puts on the element that hosts an xterm, and the only
+ *  thing isInsideTerminal reads. Ours rather than one of xterm's own class names, so that what
+ *  counts as "inside a terminal" is decided in this repo and not by an xterm upgrade. */
+export const TERMINAL_HOST_ATTRIBUTE = "data-terminal-host";
+
+/** True when a keydown's target sits inside a Terminal's host: in practice, xterm's focused
+ *  helper textarea. Anything else, including the palette's input and the document body, is
+ *  outside, so a chord pressed there is the cockpit's in both modes. */
+export function isInsideTerminal(target: EventTarget | null): boolean {
+  return target instanceof Element && target.closest(`[${TERMINAL_HOST_ATTRIBUTE}]`) !== null;
+}
+
+/** What makeTerm hands to xterm's attachCustomKeyEventHandler: true means xterm handles the
+ *  key, false means it skips the event WITHOUT cancelling it, so it bubbles to the map.
+ *
+ *  Off (the default), xterm skips exactly the chords, as task 23's fix round 1 made it. On,
+ *  xterm keeps everything, so ⌘3 reaches the agent as ESC and ⌘W as ETB. The store is read
+ *  HERE, at event time, and not when the terminal is built: the registry builds one terminal
+ *  per session and keeps it, so a value captured in makeTerm would ignore every later toggle. */
+export function terminalKeepsKey(event: KeyboardEvent): boolean {
+  return useCockpit.getState().sendChordsToTerminal || !isCockpitChord(event);
 }
 
 export function useKeyboardMap(): void {
@@ -66,15 +110,39 @@ export function useKeyboardMap(): void {
       // Everything that is not a chord leaves here, which is where the three
       // non-interceptions live — and it is the same test the terminal applies. Do not give
       // this line a list of its own again: a copy is equivalent the day it is written and
-      // drifts silently after, because xterm reads only the predicate. The whole-keyboard
-      // agreement test in useKeyboardMap.test.ts is what notices the day the two differ.
+      // drifts silently after, because xterm reads only the predicate.
+      //
+      // What pins what, in useKeyboardMap.test.ts (corrected by task 23's fix round 2; this
+      // comment used to say the whole-keyboard test notices any drift, and it sees only its
+      // own keys). "every key the two lists name ... reaches a branch" reads CHORD_KEYS and
+      // SHIFTED_CHORD_KEYS, so a listed key with no branch fails it whatever the key is. "the
+      // predicate names no key of its own" pins isCockpitChord and chordKey as source, so a
+      // claim written into either, outside the two lists, fails it whatever the key is. The
+      // whole-keyboard test presses a SAMPLE of 74 keys with every modifier the predicate
+      // reads, and checks behaviour rather than source, for the keys in its sample. The other
+      // direction, a branch for a key the predicate does not claim, loses no key: every branch
+      // is below this line, so it is dead code, and the chord table's own test for that chord
+      // is what fails.
       if (!isCockpitChord(event)) return;
 
-      const key = chordKey(event);
       const state = useCockpit.getState();
+      // OD-9, the map's second return. With the setting on, a chord from inside a terminal is
+      // the agent's. xterm has already sent and cancelled every chord it maps to data, so what
+      // arrives here is one it maps to nothing (⌘1, ⌘2, ⌘9, ⌘⇧M, and the Meta chords off a
+      // Mac), and acting on it would move focus out of the pane the user just typed into. No
+      // preventDefault either: ignoring means ignoring, and xterm cancelled ⌘W itself (ETB).
+      // useKeyboardMap.xterm.test.tsx measures both kinds, row by row.
+      if (state.sendChordsToTerminal && isInsideTerminal(event.target)) return;
 
-      // ⌘W FIRST, and preventDefault BEFORE every guard: without it WebView2 closes the
-      // window, and "no session is focused" must still swallow the key (§6.9).
+      const key = chordKey(event);
+
+      // ⌘W FIRST, and preventDefault BEFORE every guard below: without it WebView2 closes the
+      // window, and "no session is focused" must still swallow the key (§6.9). The one return
+      // above it, OD-9's, is for keys from inside a terminal with the setting on, where xterm
+      // has already cancelled Ctrl+W itself (it sends ETB, so that keydown never gets here).
+      // Do not move that return below this branch: a ⌘W that does get here from inside a
+      // terminal, such as Meta+W, which xterm maps to nothing, would then kill the focused
+      // session while the setting says the terminal has the keys.
       if (key === "w") {
         event.preventDefault();
         if (hasOpenOverlay()) return;
@@ -91,8 +159,11 @@ export function useKeyboardMap(): void {
         return;
       }
 
-      // ⌘K works from anywhere, including a focused terminal and an open overlay. The palette
-      // is a peer of the picker and the menus, never a child, so the topmost one closes.
+      // ⌘K works from anywhere, including an open overlay, and from a focused terminal unless
+      // OD-9's setting is on (the return above): then ⌘K inside a terminal is the agent's, and
+      // the palette opens from anywhere outside one, the palette's own input included, so it
+      // always closes itself. The palette is a peer of the picker and the menus, never a
+      // child, so the topmost one closes.
       if (key === "k") {
         event.preventDefault();
         if (state.paletteOpen) {

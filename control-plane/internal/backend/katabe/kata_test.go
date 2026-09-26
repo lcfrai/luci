@@ -87,6 +87,7 @@ func newBackend(t *testing.T, client *fake.Clientset, port int, readyTimeout tim
 		Manager:      sandbox.NewManager(client, namespace),
 		ReadyTimeout: readyTimeout,
 		Port:         port,
+		Instance:     kataInstance,
 	})
 	if err != nil {
 		t.Fatalf("New: %v", err)
@@ -180,7 +181,7 @@ func TestNewWithoutAManagerIsErrUnavailable(t *testing.T) {
 // returns ErrNotRunning almost immediately, and both assertions below fire.
 func TestNewDefaultsReadyTimeoutToTheBackendConstant(t *testing.T) {
 	client := fake.NewSimpleClientset()
-	b, err := katabe.New(katabe.Config{Manager: sandbox.NewManager(client, namespace)})
+	b, err := katabe.New(katabe.Config{Manager: sandbox.NewManager(client, namespace), Instance: kataInstance})
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
@@ -277,6 +278,10 @@ func TestCreateWaitsForHealthzAndReturnsTheEndpoint(t *testing.T) {
 	}
 	if sb.Labels[backend.KubeLabelSessionID] != spec.SessionID {
 		t.Errorf("session label = %q, want %q", sb.Labels[backend.KubeLabelSessionID], spec.SessionID)
+	}
+	if sb.Labels[backend.KubeLabelInstance] != kataInstance || sb.Instance != kataInstance {
+		t.Errorf("instance label = %q, Instance = %q, want %q: without it this backend's own List never sees the pod again",
+			sb.Labels[backend.KubeLabelInstance], sb.Instance, kataInstance)
 	}
 }
 
@@ -494,7 +499,7 @@ func TestListReturnsEverySandboxAsABackendSandbox(t *testing.T) {
 	m := sandbox.NewManager(client, namespace)
 	for _, id := range []string{"s-one", "s-two"} {
 		if _, err := m.Create(context.Background(), sandbox.Spec{
-			ID: id, Image: "x:y", Command: "claude", CPU: "500m", Memory: "1Gi", SessionID: id,
+			ID: id, Image: "x:y", Command: "claude", CPU: "500m", Memory: "1Gi", SessionID: id, Instance: kataInstance,
 		}); err != nil {
 			t.Fatalf("Create(%s): %v", id, err)
 		}
@@ -520,6 +525,54 @@ func TestListReturnsEverySandboxAsABackendSandbox(t *testing.T) {
 	}
 	if !seen["s-one"] || !seen["s-two"] {
 		t.Errorf("List returned ids %v, want s-one and s-two: the sandbox-id label is not being read back", seen)
+	}
+}
+
+// kataInstance is the instance id every katabe under test owns.
+const kataInstance = "11111111-1111-4111-8111-111111111111"
+
+// dockerbe.List's ownership rule, on the other backend: two control planes
+// sharing a namespace see each other's pods through the manager, and another
+// instance's never come back. A pod with no instance label does come back,
+// with Instance "" (reaper-scope fix round, I1): whether it is ours is the
+// reaper's call, by whether this registry holds its sandbox id.
+func TestListReturnsThisInstancesAndUnlabelledPodsButNotAnothers(t *testing.T) {
+	client := fake.NewSimpleClientset()
+	m := sandbox.NewManager(client, namespace)
+	for id, instance := range map[string]string{
+		"s-ours":   kataInstance,
+		"s-theirs": "22222222-2222-4222-8222-222222222222",
+		"s-legacy": "",
+	} {
+		if _, err := m.Create(context.Background(), sandbox.Spec{
+			ID: id, Image: "x:y", Command: "claude", CPU: "500m", Memory: "1Gi", Instance: instance,
+		}); err != nil {
+			t.Fatalf("Create(%s): %v", id, err)
+		}
+	}
+	b := newBackend(t, client, 0, time.Second)
+
+	list, err := b.List(context.Background())
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	got := map[string]string{}
+	for _, sb := range list {
+		got[sb.ID] = sb.Instance
+	}
+	want := map[string]string{"s-ours": kataInstance, "s-legacy": ""}
+	if len(got) != len(want) || got["s-ours"] != kataInstance {
+		t.Fatalf("List = %+v, want s-ours owned by %s and the unlabelled s-legacy, never s-theirs", list, kataInstance)
+	}
+	if inst, ok := got["s-legacy"]; !ok || inst != "" {
+		t.Fatalf("List = %+v, want the unlabelled s-legacy with Instance \"\"", list)
+	}
+}
+
+func TestNewRefusesAMissingInstance(t *testing.T) {
+	_, err := katabe.New(katabe.Config{Manager: sandbox.NewManager(fake.NewSimpleClientset(), namespace)})
+	if !errors.Is(err, backend.ErrUnsupported) {
+		t.Fatalf("New(no instance) = %v, want an error wrapping ErrUnsupported: a backend with no instance owns every unlabelled pod", err)
 	}
 }
 

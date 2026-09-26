@@ -18,7 +18,7 @@ where the owner wrote free text, because the words carry the intent.
 | **OD-7** | Backup | The owner created **`https://github.com/lcfrai/panaceaapp`**. The orchestrator pushes feature branches as needed. | The PAT lives at `~/.secrets/panaceaapp-github.pat`, read only by a repo-scoped git credential helper (`git config --local`), never printed. The history was scanned for secrets and large blobs before the first push. |
 | **OD-8** | `3-D7`: may a feature read a harness's transcript **file**? | Owner: *"If it doesn't make sense, figure it out and amend it to make sense for others after you."* | **Ruled yes, with guards. `PROGRAM.md`'s constraint is amended (below).** |
 | **OD-9** | Windows: the cockpit's Ctrl chords with a terminal focused | **Keep, plus a toggle** | The cockpit wins by default, as in VS Code. A setting, *"Send shortcut keys to the terminal"*, hands them all back. Phase 2 follow-up. |
-| **OD-10** | What Forget does to a persisted transcript | **Forget deletes it** | Forget deletes the session's conversation file, and removing a worktree deletes its store. Phase 2 follow-up, on the Resume fix's store. |
+| **OD-10** | What Forget does to a persisted transcript | **Forget deletes it** | Forget deletes the session's conversation file, and removing a worktree deletes its store. Phase 2 follow-up, on the Resume fix's store. **Built 2026-09-24** (go-contract §3.15): Forget (`DELETE …?purge=true`) deletes `<id>.jsonl` for each conversation the record names as its own — its current one and those its restarts left — by the minted id only, before the record goes. A failed deletion answers 500 and keeps the record, so Forget can be retried. An id no mint produces deletes nothing and is logged. A fork keeps its own file: the CLI writes it as a whole copy, verified to survive its source's deletion — observed in `-p` mode; the interactive fork before its first turn is unverified until OD-12's hands-on session. **Worktree removal: no product action removes a worktree in phase 2**, so the store deletion is a tested seam (`sessionForgetWorktreeStore`) that phase 3's worktree-removal verb calls. |
 | **OD-11** | Paperdesign (AGPL-3.0) for the design canvas | Owner: *"Number 2 [avoid AGPL entirely], but I want it pretty much exactly like paper.design with the MCP, it is super powerful."* | **Phase 5 is re-scoped as a clean-room, paper.design-class canvas with a first-class MCP server,** built only on permissively licensed parts. The locked decision "adopt `Projects/Paperdesign`" is **withdrawn**. The clean-room rules are below. |
 | **OD-12** | When the owner does task 25's hands-on steps (`/login` in a sandbox, watching the window) | **Batch at the very end** | One hands-on session after phases 3–7 are built. Until then every owner-observed item stays **unverified**, and each report says so. |
 | **OD-13** | How much of Panacea's source comes into this repo | Owner: *"Keep Panacea separate for now, as we are working on an update at the moment. So once we finish everything else, we will lift and shift Panacea into this, and build it out within the app to be a beautiful seamless part of the app."* | **No Panacea source is copied in now.** Phase 7 calls Panacea's API as a client, exactly as `PROGRAM.md` says. A later phase lifts Panacea into this repo and makes deploy a native part of the app. Designs today keep the deploy side behind an interface so that lift is a swap, not a rewrite. |
@@ -103,9 +103,79 @@ build. The rules bind every phase 5 agent:
 
 - **OD-9**: the "Send shortcut keys to the terminal" toggle (task 23's area).
 - **OD-10**: Forget deletes the transcript; worktree removal deletes its store (Resume fix's area).
+  **Forget half built 2026-09-24. The worktree half is a seam for phase 3**, because phase 2 has no
+  worktree-removal action (go-contract §3.15).
 - **The Resume fix's concern 5, "Fork does not carry the conversation"**, is a defect against the
   functional spec's "branch the session from this point". It is **fixed, not decided**, because the
-  CLI's `--fork-session` exists for exactly this.
+  CLI's `--fork-session` exists for exactly this. **Built 2026-09-24** (go-contract §3.9): a Fork
+  sends `resume` like a Resume, into the other worktree, and gets Resume's argv; its sandbox is
+  shown a staged, read-only copy of the source's transcript, and Forget deletes what carrying left.
+
+## Team mode — owner decisions of 2026-09-24 (evening), OD-14 to OD-17
+
+The owner's framing, verbatim: *"Aren't we managing all of the agents centrally, rather than them
+being on each machine? I am thinking like a Word Document on Sharepoint being edited by multiple
+people, where each agent can see other agents doing work, understand what the agent is currently
+working on and the task they have and the reason they are updating that document, they are able to
+communicate and understand each other. That is the beauty of us having it sit at this top level as
+a managed agent and as a managed solution."*
+
+| Id | Question | Answer | Consequence |
+|---|---|---|---|
+| **OD-14** | Where team agents run | **Centrally, in our environment** | The control plane for team projects runs server-side, as a managed service. Every team agent is a managed session in a cloud sandbox (Kata) that the platform sees and coordinates. The desktop is a client. Laptop Docker stays as a single-person offline and development mode. Reverses ADR-H1's "sessions, machines, worktrees and PTYs stay local" for team projects, and phase 8's owner-only broker visibility. |
+| **OD-15** | What teammates see | Owner: *"what is important is that the agents see what the other agents are doing. The user can see who else is working on the repo, and a general summary of what they are doing, files they are touching, but it needs to be in a simple and meaningful way to not clutter the dashboard. The main thing is that the agents know."* | **Agent awareness is the primary surface; human awareness is a calm summary.** Humans see who is working, a one-line summary of each person's work, and the files being touched, without clutter (AGENTIC-UX: change, not state). A teammate's terminal is not part of the default experience. |
+| **OD-16** | Who talks to whom, and who decides | Owner: *"the orchestrators need to be the communicators and work with each other to make sure things progress, and if there are conflicts, they raise them to the users … if an agent is doing something that conflicts with another agent, or something a user doesn't like, the user will message their Orchestrator, that orchestrator will work with the other user's orchestrator to understand why, and they will decide whether to raise that to the user informing them, or asking for a decision."* | **Each user has an Orchestrator agent that runs their sub-agents.** Orchestrators are the ONLY cross-user channel. They negotiate peer to peer through the platform, resolve what they can, and escalate the rest to their humans, either to **inform** or to **ask for a decision**. **No user steers another user's agent.** A user talks only to their own Orchestrator. Accountability and billing stay with each agent's owner, and no subscription is pooled. |
+| **OD-17** | When team mode is planned and built | **Design now, build next** | The research workflow produces the full design and plan now. It is built straight after the current wave, as the product's next phase. The Hub and phase 8 are re-scoped where they touch it. The in-flight streams continue as foundations. |
+
+## Cloud, inference and local mode — owner decisions of 2026-09-25, OD-18 to OD-20
+
+The owner's framing, verbatim: *"The goal of making all of this managed in the cloud, is that they
+will not use their own subscriptions, we would use direct API, that allows for ZDR and other
+security stuff for us … The app on device should be the portal to the cloud, for them to build
+solutions."*
+
+| Id | Question | Answer | Consequence |
+|---|---|---|---|
+| **OD-18** | AWS or Azure | Owner: *"Is there any main benefit to either? I want the solution that is fastest for all of the other stuff, the inferencing is easy, as we can just run a LiteLLM kind of solution that routes all the API keys."* **Orchestrator's call, on that criterion: Azure.** | Phase 8 is already written and part-built for AKS, and Kata Pod Sandboxing is managed there; AWS has no managed Kata (Fargate microVMs lack what agents need, and Kata on EKS needs metal instances). Panacea runs on Azure and is lifted in later (OD-13). KPMG's identity and DevOps are Microsoft. The one AWS advantage, Bedrock in Sydney, is reached from Azure through the inference gateway (OD-19). Phase 8 resumes unchanged. |
+| **OD-19** | How agents get inference | **Org-level API through a LiteLLM-style gateway; no personal subscriptions. Two paths, both zero data retention: Global = the direct Anthropic API (the default); AU = Amazon Bedrock in Sydney (ap-southeast-2).** Owner: *"The user should be able to trigger it. The default should be Anthropic, then if triggered it goes to Bedrock"*; and it is selectable by project data classification. | The gateway holds the org keys. Each sandbox gets a **scoped per-session token** (`ANTHROPIC_BASE_URL` plus a token), never an org key. Usage is attributed per user, team and project, with quotas. The switch is per project (a classification of "AU data only" forces AU) and user-triggered. **Supersedes `CLAUDE.md`'s "per-user rotation across that user's OWN Claude subscriptions"**, and the never-pool rule, which existed only because consumer subscriptions forbid sharing: no consumer subscription is used at all. It also retires "`/login` in every sandbox". Phase 6 is re-scoped from "capacity and credential rotation" to **the inference gateway**. |
+| **OD-20** | Do users run agents on their own machine | Owner: *"Right now, yes. After this, the goal will be not to. As we are still getting the benefits from running them 'locally', i.e. we are getting the latest claude code cli updates … if you make it good enough, there would be no reason to do things locally for 90% of people."* | **Local mode stays supported now; the product is cloud-first.** The target is that about 90% of people never run locally. That target puts one requirement on the cloud: **it must track the latest Claude Code CLI quickly**, with an automated sandbox-image bump pipeline gated by OD-8's canary test, so cloud is never behind local. The desktop app is the portal to the cloud. |
+
+## Team-mode build decisions — 2026-09-25, OD-21 to OD-24
+
+From the team-mode design's owner questions (`2026-09-24-team-collaboration/00-summary.md`).
+
+| Id | Question | Answer | Consequence |
+|---|---|---|---|
+| **OD-21** | Which inference gateway (phase 6) | **LiteLLM** | Phase 6 builds on LiteLLM, reusing Panacea's LiteLLM patterns: virtual per-session keys, Global/AU routing, attribution and budgets. No spike of the alternative. |
+| **OD-22** | May the cloud fetch a project's repo while nobody is signed in | **Yes, read-only, per project** | A read-only credential scoped to one repository, used only for fetches such as keeping lanes fresh. Every push still uses a signed-in person's own credential. |
+| **OD-23** | Cloud agents' Claude Code policy | Owner: *"For the time being, don't draft too much policy. Just give the control plane a way to put our policies in."* | **Build the mechanism, not the policy.** The control plane gets a way to supply a policy (Claude Code managed settings and permissions) per org, and per project where that matters, into every cloud sandbox at session start, versioned and audited. Ship a minimal default. No InfoSec policy document is drafted now. |
+| **OD-24** | The four team defaults | **All four accepted**: budgets on by default; the escalation defaults (tighten, never loosen); opening prompts private; a data classification required. Owner, on the last: *"Data class should be set on creation, and can be updated as needed. It will also determine what security scans are needed from a deployment stand point."* | **The data classification is set when a project is CREATED, not at Share, and can be updated.** It drives two things: AU vs Global inference (OD-19), and **which security scans the deploy side requires** (phase 7 and Panacea's scan posture). The project model, phase 4's create flow and phase 7's release gates all carry it. |
+
+## The work layer (Linear parity-plus) — 2026-09-25, OD-25 to OD-28
+
+The owner's ask, verbatim: *"make sure that we are doing everything they are doing and more. Make
+it prettier, better, everything. Mixed with the other benefits we have found, and the ability for
+agents across owners to work together."* The design is in `2026-09-25-linear-parity/`.
+
+| Id | Question | Answer | Consequence |
+|---|---|---|---|
+| **OD-25** | When the work layer is built, relative to team mode | **Alongside team mode** | Phase W runs on its own streams beside Phase T (team mode). W1's demo works in local mode first, then moves to the cloud when the gateway and environment land. Team mode's critical path is untouched. |
+| **OD-26** | How far to commit | **Everything: W1 to W5** | Full parity-plus: about 138 focused days plus team mode, across all 257 Linear items (MATCH 139, EXCEED 67, PARTIAL 24, SKIP 27). The 27 skips stand as the design argues (Q6), until the owner overrules. |
+| **OD-27** | Progress displays | **Proof per criterion, no predictions** | Show which acceptance criteria are proven, and plain counts per group. Still banned: percentages, progress bars, ETAs and "N of M" completion predictions. `AGENTIC-UX.md` gets the design's four one-line amendments (Q13). |
+| **OD-28** | The mono face for machine facts | **Commit Mono** (OFL, free) | Every id, path and time is set in Commit Mono. The sans is **Segoe UI Variable** (Q14's recommendation, accepted under OD-1). |
+| **OD-31** | How to cut the spend (asked 2026-09-26: *"I feel like we are using a shit ton of tokens and usage … how close we are to being able to test the solution"*). The measured cost was 964 agents, 125M output and 16B cache-read tokens, with about 11% of the non-phase-2 build approved. | **Phase 2 first, then trim** | Only the phase 2 close-out runs until the cockpit is merged to `main` and in the owner's hands. That covers task 26, task 25, the final review and X-3. **Paused:** hub, env, phases 3 to 7, team's plan fix, and the work plan's writing (OD-29's "everything now" is paused, not reversed). **Then:** at most 4 streams at once; 1 review round per task (a fix plus one scoped re-review), with a second only for a Critical; mutation testing only for security-sensitive code; reviewers do not re-run the whole suite. Every restart reports tasks done per stream, how close the product is to testable, and the spend. **Amended the same evening:** *"I am not going to test, you just get it done in the more streamlined manner so we aren't just wasting tokens."* So there is no pause for owner testing: the lighter process (`args.liteFrom`) is on in every stream now, with at most 4 streams at once, rotating through the queue. |
+| **OD-30** | How users sign in (asked 2026-09-25: "can we not just use the Panacea Entra ID stuff?") | **A Keycloak broker on Panacea's existing Entra app registration, with no clicks**: *"keycloak broker, but, because it is an app, could it also auto go through Entra, rather than any clicks, while still being managed by Keycloak?"* | The desktop signs in with auth-code + PKCE against a Keycloak realm, not directly against Entra. Keycloak brokers to Entra through the registration that Panacea's environments already share (client id `37f8bd70…`; the repo names it `AU-PROD-Panacea-RITM6316333`, and whether it is the planned "Panacea Platform API" is the ruling's U-1), so **no new Entra registration and no IT ticket for sign-in**. Zero clicks: the desktop client's browser-flow override skips Keycloak's page (`kc_idp_hint` is sent and can only name `entra`, the realm's one IdP; ruling K1), Entra device SSO and `login_hint` skip Entra's prompts, first-broker-login auto-links, and the refresh token in Credential Manager (OD-6) makes later launches silent. Until phase 8 runs its own Keycloak, the realm is Panacea's; the realm change is an ask for Panacea's update (OD-13 keeps Panacea separate). Azure DevOps stays a personal access token (Q5 flips) unless IT later grants ADO consent. **Supersedes** OD-6's "directly against Entra", ADR-H1 §5.2 ("direct Entra, no broker"), phase 8's OQ-4, and Part 1 of the IT request. The ruling is `2026-09-25-identity-keycloak-broker.md`. |
+| **OD-29** | Plan depth for Phase T and Phase W (asked 2026-09-25, about 234 part files, about 66 agent-hours) | **Everything now** | Every part file of both plans (T: 69 tasks; W: W0 to W5, about 165) is written before either build starts, instead of writing later slices when their build begins. Accepted risk: parts for late slices (TM2, W4, W5) may drift from the code by the time they are built, so each task's implementer re-verifies its part's citations first. |
+
+The Linear design's other questions take their recommended answers under OD-1:
+- Q3: issue text goes into the agent's context, with guards.
+- Q4: the Desk frame is in W1.
+- Q5: the replica lives in memory.
+- Q7: Linear's "project" is called a *feature*.
+- Q8: no title slug in AU-only branch names.
+- Q9: build our own, and sync one way in.
+- Q11: option B.
+- Q12: cross-team work comes in W4.
 
 ## Where the older documents now disagree, and what wins
 

@@ -16,6 +16,7 @@ import type { AttachHandle } from "../api/attachRegistry";
 import { resetCockpit, useCockpit } from "../store/store";
 import type { Session } from "../store/types";
 import { Terminal } from "./Terminal";
+import { TERMINAL_HOST_ATTRIBUTE, isInsideTerminal } from "../hooks/useKeyboardMap";
 
 // The factory takes a DYNAMIC import and does not close over the top-level `FakeTerm` binding
 // above. vi.mock is hoisted above this file's imports, so a factory that reads that binding can
@@ -408,4 +409,46 @@ describe("Terminal lets the cockpit's chords past xterm", () => {
   it.each(HANDLED_BY_XTERM)("xterm still handles %s, so it reaches the agent", (_name, init) => {
     expect(installedHandler()(new KeyboardEvent("keydown", init))).toBe(true);
   });
+
+  /* OWNER DECISION OD-9. With "Send shortcut keys to the terminal" on, the same handler keeps
+   * every key, the chords included. The setting is turned on AFTER the terminal is built, which
+   * is the order a user meets it in: the registry builds a session's terminal once, so a handler
+   * that read the setting at construction would ignore every toggle made afterwards. */
+  it.each([...SKIPPED_BY_XTERM, ...SKIPPED_BY_XTERM_ON_META, ...HANDLED_BY_XTERM])(
+    "OD-9 on: xterm keeps %s, so it reaches the agent",
+    (_name, init) => {
+      const handler = installedHandler();
+      useCockpit.getState().setSendChordsToTerminal(true);
+      expect(handler(new KeyboardEvent("keydown", init))).toBe(true);
+      // And back off, to the answer the rows above pin for the default.
+      useCockpit.getState().setSendChordsToTerminal(false);
+      const handledWhenOff = HANDLED_BY_XTERM.some(([, handled]) => handled === init);
+      expect(handler(new KeyboardEvent("keydown", init))).toBe(handledWhenOff);
+    },
+  );
+
+  /* EDITED BY OD-9's FIX ROUND 1. This was one row, `readOnly={false} focused`, so a marker
+   * rendered only on a writable terminal, or only on the focused pane, passed it (the review's
+   * R1 and R2). An exited pane can still hold DOM focus: the user clicks into its scrollback.
+   * The ruling is that a read-only terminal is still a terminal, and whether a pane is the
+   * selected one is app state, not what the element is. So the marker is pinned in all four.
+   * A read-only row seeds an EXITED session, because that is the only pairing the app makes
+   * (SessionPane passes `readOnly={session.status === "exited"}`, and attachRegistry calls
+   * readOnly "a property of the SESSION"). Seeded running, a marker keyed on the session's
+   * status instead of the prop passed all four rows. */
+  it.each([
+    { readOnly: false, focused: true },
+    { readOnly: false, focused: false },
+    { readOnly: true, focused: true },
+    { readOnly: true, focused: false },
+  ])(
+    "OD-9: the terminal's element sits inside a host the keyboard map recognises as a terminal (readOnly $readOnly, focused $focused)",
+    ({ readOnly, focused }) => {
+      seed(readOnly ? session({ status: "exited", exitReason: "killed" }) : session());
+      const { container } = render(<Terminal sessionId="s-1" readOnly={readOnly} focused={focused} />);
+      const host = container.firstElementChild as HTMLElement;
+      expect([host.hasAttribute(TERMINAL_HOST_ATTRIBUTE), host.contains(grab().element), isInsideTerminal(grab().element)])
+        .toEqual([true, true, true]);
+    },
+  );
 });
