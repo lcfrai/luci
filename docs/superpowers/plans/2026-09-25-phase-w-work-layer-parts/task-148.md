@@ -578,3 +578,122 @@ quote it to the team.
 | `TestSelectIsOneOfItsOptions` | `Uploads` passes; `uploads` and `Other` fail | a select taking free text |
 | `TestTheQuoteIsKeptByteForByte` | a longtext of `"  line\r\n"` comes back as given; a text field is trimmed | the quote trimmed |
 | `TestAStrayFieldIsRefused` | `in` with `member: "true"` → `FieldError{"member", …}` | a stray answer stored (and membership read from the client, task 147) |
+
+#### Tests to write first, part 2 — `server/work_forms_integration_test.go` (`//go:build integration`)
+
+Through task 80's test helper that signs a principal into a page session (`pageClient(t, who)`,
+**UNVERIFIED** name), which returns an `http.Client` with the cookie and the page's CSRF token.
+
+| Test | Holds | Mutant it kills |
+|---|---|---|
+| `TestAFormWithoutAQuoteIs400` | `POST /v1/teams/{teamId}/forms` with no `quote` field → 400 `fields`; no row, no event | a request with no verbatim quote |
+| `TestAMissingRequiredFieldCreatesNothing` | submit with `area` empty → 400 page naming *Area* and `form_field_required`; `work_requests` count unchanged; no `request.created` | partial request |
+| `TestTomorrowIsNotADate` | `f.needed_by=tomorrow` → 400 page with `form_field_invalid`; nothing written | types unchecked on the server |
+| `TestNoCSRFIs403` | a POST with the cookie and no `csrf`, and one with another session's token → 403; nothing written | cross-site submit |
+| `TestThePageCookieIsNotAnAPIToken` | the page session's cookie alone on `GET /v1/teams` → 401 | cookie honoured on the API |
+| `TestANonMemberSubmits` | an `N` principal (in the org, in no team) submits → 200; the request exists with `requester.userId` theirs and the form's `nonMember` defaults; a team member gets `member` | members only (L-28); one default for all |
+| `TestAnotherOrgGets404` | an `X` principal's `GET` and `POST` → 404, the same bytes as a form id that does not exist | a missing `X` row; an existence oracle |
+| `TestSubmittedHTMLIsEscaped` | `f.quote=<script>alert(1)</script>` with `area` empty → the 400 page holds `&lt;script&gt;` and no `<script`; the stored quote, after a valid resubmit, is the raw bytes | reflected HTML; the quote HTML-escaped in storage |
+| `TestTheConfirmationPredictsNothing` | the `done` page's text, tags stripped, has no `%`, no `ETA`, no `by <date>` and no `N of M` | a prediction (`OD-27`) |
+| `TestThePageSendsItsHeaders` | both pages carry `pageCSP` exactly, `nosniff`, `no-referrer`, `no-store`; neither has a `<script` | a script allowed; the page cached |
+| `TestAClosedFormTakesNothing` | `PATCH {open: false}` → `GET` 410 *closed*, `POST` 410, no request | a closed form still taking asks |
+| `TestAPersonFieldIsAnOrgUser` | `f.owner=<an org user's email>` stores their `u-` id; an address outside the org → 400 page on `owner` | an arbitrary address stored as a person |
+
+```go
+// noPrediction is the Go twin of the desktop's expectNoPrediction (task 20):
+// the visible text of a page holds no percentage, ETA, dated promise or count
+// of progress. Tags are stripped with a regexp, enough for our own templates.
+func noPrediction(t *testing.T, page string) {
+	t.Helper()
+	text := regexp.MustCompile(`<[^>]*>`).ReplaceAllString(page, " ")
+	for _, re := range []*regexp.Regexp{
+		regexp.MustCompile(`%`), regexp.MustCompile(`(?i)\bETA\b`),
+		regexp.MustCompile(`(?i)\bby\s+(\d|mon|tue|wed|thu|fri|sat|sun|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|tomorrow|next|end)`),
+		regexp.MustCompile(`\b\d+\s+of\s+\d+\b`),
+	} {
+		if re.MatchString(text) {
+			t.Errorf("the page predicts: %q matches %s", text, re)
+		}
+	}
+}
+```
+
+#### The matrix rows (key `"148"`) and the page rows
+
+```go
+"148": {
+	wadmin("POST /v1/teams/{teamId}/forms", "POST", "/v1/teams/{TeamID}/forms", 201, "team_not_found",
+		func(*fixture) any {
+			return map[string]any{"title": "Ask us", "intro": "", "defaults": map[string]any{"member": map[string]any{},
+				"nonMember": map[string]any{}}, "fields": []any{map[string]any{"id": "quote", "label": "What do you need?",
+				"kind": "longtext", "required": true}}}
+		}),
+	wread("GET /v1/teams/{teamId}/forms", "/v1/teams/{TeamID}/forms", "team_not_found"),
+	wread("GET /v1/forms/{formId}", "/v1/forms/{FormID}", "form_not_found"),
+	wadmin("PATCH /v1/forms/{formId}", "PATCH", "/v1/forms/{FormID}", 200, "form_not_found",
+		func(f *fixture) any { return map[string]any{"baseVersion": f.FormVersion, "title": "Ask us, v2"} }),
+},
+```
+
+The two page routes are outside `/v1` and outside task 07's matrix, which drives the API's bearer
+tokens. `TestFormPageColumns` runs the same six principals through `pageClient`: `GET` and `POST`
+are 200 for `V`, `M`, `A`, `O` and `N`, and 404 for `X`. The fixture gains `FormID` and
+`FormVersion` (H16b's `fixture`; **UNVERIFIED** until it lands).
+
+#### Steps
+
+- [ ] **Step 1:** Confirm the sync base: task 147 committed; task 80's browser session merged
+  **after the `feat/hub` owner's review**. If the review has not happened, stop after Step 5 and
+  commit the API half only; the page half waits (gap 2).
+- [ ] **Step 2:** Add `fm-` to task 02's `workids.go` and its disjointness test; green.
+- [ ] **Step 3:** Write `hubapi/work_forms_test.go`; it fails to compile; write
+  `hubapi/work_forms.go` and the `work_intake.go` block; the eight tests pass.
+- [ ] **Step 4:** Confirm task 145's migration holds `work_intake_forms` and the foreign key.
+- [ ] **Step 5:** Write the four API rows of the integration tests; they fail. Write
+  `store/work_forms.go`, the four API handlers and `formDefaults`'s body; add the form-id check to
+  `checkRulesInTeam`; the matrix rows under `"148"`; `"148"` in `workMatrixLive`. Green.
+- [ ] **Step 6:** Write the page rows; they fail. Write `templates/form.html`, `formPage`,
+  `submitForm`, `resolvePeople` and `errorFor`; mount the two routes in `work_pages.go`. Green.
+- [ ] **Step 7:** Rerun tasks 146 and 147's integration tests; all green. `git diff -- go.work
+  control-plane/go.mod` shows nothing (no new module: `html/template` and `embed` are standard
+  library); commit by pathspec.
+
+#### Acceptance
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/work
+go test ./control-plane/internal/hub/hubapi/ -race -count=1 -v \
+  -run '^Test(AFormNeedsOneQuoteField|FieldShapes|CheckAnswersNamesTheFirstMissing|DatesAreRealDates|NumbersAreKeptAsTyped|SelectIsOneOfItsOptions|TheQuoteIsKeptByteForByte|AStrayFieldIsRefused)$' \
+  2>&1 | grep -c "^--- PASS"                                                                    # 8
+go test -tags integration ./control-plane/internal/hub/server/ -race -count=1 -v \
+  -run '^Test(AFormWithoutAQuoteIs400|AMissingRequiredFieldCreatesNothing|TomorrowIsNotADate|NoCSRFIs403|ThePageCookieIsNotAnAPIToken|ANonMemberSubmits|AnotherOrgGets404|SubmittedHTMLIsEscaped|TheConfirmationPredictsNothing|ThePageSendsItsHeaders|AClosedFormTakesNothing|APersonFieldIsAnOrgUser|FormPageColumns)$' \
+  2>&1 | grep -c "^--- PASS"                                                                    # 13
+go test -tags integration ./control-plane/internal/hub/... -race -count=1                      # ok
+go test ./control-plane/... -race -count=1                                                      # ok
+```
+
+A person opening the form in a browser is **not** part of this acceptance: the corporate network
+blocks headless screenshots (`CLAUDE.md`), and how the page looks is the owner's eyes on a running
+Hub, not a report from this task.
+
+#### What this task does not claim
+
+- That task 80's browser-session addition is accepted by the `feat/hub` owner; the page half of
+  this task does not merge before it is.
+- That an **Entra B2B guest** can sign in to the form (**UNVERIFIED**); a client outside the tenant
+  asks by email (task 149).
+- The form editor, the share link's copy button, or how a team finds its forms: task 170.
+- File uploads on a form: no field kind takes a file in W5, as task 149 takes no attachment.
+- That a `person` field finds every user: `UserByEmail` matches the one address the Hub stores,
+  case-insensitively, so a mail alias is not found (**UNVERIFIED** until Hub task 05's users table
+  lands).
+
+#### Gaps
+
+1. **No id prefix for forms** in the skeleton (`:185-187`) or 05 §3.6. This part takes `fm-`;
+   task 02's list and its disjointness test must add it.
+2. **Task 80's part is not written.** `PageSession`, `PageWrite`, `pageClient`, `/p/static/page.css`
+   and `PANACEA_APP_HUB_PUBLIC_URL` stand for its names.
+3. **The confirmation's words differ from the scope's** (*"by email"* for *"here"*, decision 6),
+   because task 149 answers a form requester by mail.
+4. **Task 145 is not written**; `work_intake_forms` and its foreign key are this task's requirement.
