@@ -1084,3 +1084,48 @@ only when `ApplyPage` returns nil and can be told to fail page *n*. The canary i
 | `TestPlanKeepsTwoChangesInOrder` | `state` at 11:02 then `state` at 11:05 on `a#1` → both, in that order | a collapse that loses the close before a reopen |
 | `TestTrackerEventsCarryNoTargetOrText` | every field of the four `*Data` types is in `connectionId, run, created, existing, upstream, errors, by, source, mode, issueId` | a target, URL, external id or title added to the feed |
 | `TestTrackerKindsAreProjectScoped` | the four kinds are in `WorkEventKinds` with `ScopeProject` | a kind missing from the registry (`emitWork` would 500) |
+
+#### Tests to write first, part 2 — `server/work_trackers_integration_test.go` (`//go:build integration`)
+
+Against the compose stack, through task 17's `devissuer` fixture, with `Config.SyncAdapters` set
+to `Fake`s and `RunJanitorOnce` (task 121's hook) running the sync step. The canary is
+`CANARY-tc-44`.
+
+| Test | Holds | Mutant it kills |
+|---|---|---|
+| `TestTheSamePageTwiceIsOneIssueEach` | a page of three items; run; the fake answers the same three for the next cursor; run → three issues, three links, three `issue.created`, the second run `created 0, existing 3` | links not idempotent |
+| `TestAnUpstreamChangeIsShownNotApplied` | after import, a page reports `state` on `a#1` with `To: "Closed"` → the issue stays `triage`, revision 1, `updatedAt` unchanged; its link reads `upstream {state, 11:02, Closed}`; the run's `upstream` count is 1 | sync writes a state |
+| `TestARefusedItemIsNamedAndTheRestLand` | a page of three, the second with an `http:` URL → two issues, run ok, `errors [{a#2, item_refused}]`, cursor moved | one bad item stopping a connection; a refused item dropped without a word |
+| `TestAFailedCommitLeavesTheCursor` | the test adds (and drops in cleanup) a trigger refusing an issue titled `FAIL-COMMIT`; page 2's second item has that title → page 1's issues exist, page 2's first item does not, the stored cursor is page 1's, the run `failed` with `page_not_committed`; drop the trigger, run → page 2 lands whole | the cursor moved before commit; half a page committed |
+| `TestTheGuardRefusesASyncStateMove` | as `hub_app` with `hub.work_sync_connection` set: `UPDATE issues SET state`, an assignee change, an `INSERT` in `backlog`, a revision 2 and an `issue_labels` row each fail with SQLSTATE `42501` and `principal_cannot_move_state`; without the setting a person's state move succeeds | a Go-only guard |
+| `TestSyncAttachesNoLabels` | an item naming the team's label `bug` → the issue has no labels, the run no error | labels passed to `importOne` (the guard would fail every page) |
+| `TestTwoReplicasRunAConnectionOnce` | two janitors sweep at once (task 121's pattern) → one run row, the fake asked for `""` once | double sync |
+| `TestAnInterruptedRunIsClosed` | a `running` row left by a stopped process → the next sweep marks it `failed` `run_interrupted` and runs `n + 1` | a connection stuck behind `work_sync_one_running` forever |
+| `TestTwoConnectionsShareOneLink` | two Boards connections on one project, area paths `A` and `B`, both see `acme#7` → one issue, one link, the second run `existing 1` | per-connection links duplicating the issue, or `issues_external_once` failing the page |
+| `TestDisconnectKeepsLinks` | DELETE → 200 `state: disconnected`; `…/links` still lists every link and each `issueId` resolves; run now → 409 `tracker_disconnected`; a sweep runs nothing; a second DELETE → 200, one `tracker.disconnected` | disconnect deletes history |
+| `TestSyncEventsAreNobodysAndNameTheConnection` | every event from a run has `actor: null`; `sync.run` names the `tc-` id and `by` the creator; each issue's `createdBy` is the creator | sync writes as a person |
+| `TestAnUnknownTargetKeyIsRefused` | a target holding `"token": "CANARY-tc-44"` → 400 `field: target`; no column of the three tables holds the canary | a pasted secret stored |
+| `TestTrackerSourcesComeOnlyThroughAConnection` | `POST …/imports` with `source: azure_boards` → 400 `field: source` | a person forging a sync principal's issue |
+| `TestRunNowAsksAndTheJanitorRuns` | `POST …/run` → 202 and zero pulls; `RunJanitorOnce` → one pull; the feed of the request holds no event | a handler waiting on a tracker's network |
+
+#### The matrix rows (`server/work_matrix_rows_integration_test.go` ⚑, key `"150"`)
+
+```go
+"150": {
+	wadmin("POST /v1/projects/{projectId}/trackers", "POST", "/v1/projects/{ProjectID}/trackers", 201, "project_not_found",
+		func(*fixture) any {
+			return map[string]any{"mode": "in", "target": map[string]any{"source": "github",
+				"owner": "matrix", "repository": "matrix-row"}}
+		}),
+	wread("GET /v1/teams/{teamId}/trackers", "/v1/teams/{TeamID}/trackers", "team_not_found"),
+	wread("GET /v1/trackers/{connectionId}/runs", "/v1/trackers/{ConnectionID}/runs", "tracker_not_found"),
+	wread("GET /v1/trackers/{connectionId}/links", "/v1/trackers/{ConnectionID}/links", "tracker_not_found"),
+	wadmin("POST /v1/trackers/{connectionId}/run", "POST", "/v1/trackers/{ConnectionID}/run", 202, "tracker_not_found", empty),
+	wadmin("DELETE /v1/trackers/{connectionId}", "DELETE", "/v1/trackers/{FreshConnectionID}", 200, "tracker_not_found", empty),
+},
+```
+
+The matrix server is built with `SyncAdapters: {&worksync.Fake{Src: "github"}}`, so the create row
+has an adapter. The fixture gains `ConnectionID` (a live connection on `ProjectID`, target owner
+`fixture`) and `FreshConnectionID` (a live one per column, since DELETE disconnects the one it
+touches), as task 146 adds `FreshRequestID`; both are **UNVERIFIED** until H16b's fixture lands.
