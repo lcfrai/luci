@@ -66,3 +66,75 @@ TM-28 protocol itself.
    answered in PanaceaApp: <https link>"*. This is the one `text·A` that leaves for Teams, and only
    to the person who asked (task 157's channel rule stands, `157:19-21`).
 8. **Nothing is read out of the reply** (OD-8): it is posted, never parsed, never stored twice.
+
+**Files** (task 157's package is `control-plane/internal/hub/teams/`, `157:52-58`; the scope's
+`teamsapp/` is not used):
+- `control-plane/internal/hub/teams/digest.go` (+ `digest_test.go`) (new) — the card, the one clock
+- `control-plane/internal/hub/teams/ask.go` (+ `ask_test.go`) (new) — the ask, the project card, the reply message
+- `control-plane/internal/hub/teams/activity.go` ⚑ (task 157) — `Conversation.ConversationType`, `MembersAdded`/`MembersRemoved`, `ChannelRef.Personal`
+- `control-plane/internal/hub/teams/post.go` ⚑ (task 157) — `Poster` gains `PostCard`
+- `control-plane/internal/hub/server/work_teams.go` ⚑ (task 157) — the personal-scope branch of `POST /teams/messages`
+- `control-plane/internal/hub/store/work_teams.go` ⚑ (task 157) — the personal binding, `work_teams_asks`
+- `control-plane/internal/hub/server/janitor.go` ⚑ — task 81's digest step sends Teams too (not a new step); step 6 gains the ask replies
+- `control-plane/internal/hub/hubapi/work_digest.go` ⚑ (task 81, its scope's name) — `DigestSettings.Teams`
+- `control-plane/internal/hub/server/work_teams_integration_test.go` ⚑, `server/matrix_integration_test.go` ⚑ — this task's rows
+- `integrations/teams-app/manifest.json` ⚑ (task 157) — `bots[0].scopes` from `["team"]` to `["team", "personal"]` (`157:381`); `groupChat` stays out. Task 157's intake refusal outside a linked channel (`157:33-35`) becomes the only defence for a personal chat, where it was the second (`157:404-405`); `TestIntakeInAPersonalChatIsRefused` below keeps it
+- TM-07's route 70 handler and store call ⚑ — decision 6's in-process caller (gap 2)
+
+**What is on the tree today (verified 2026-09-26).** Task 157's part exists; parts for 80, 81, 94
+and 143 do not. On `feat/work-layer` there is no `control-plane/internal/hub` package at all. TM-07
+(route 70) and TM-26 (the kept reply) are parts on `feat/team-mode`, not merged anywhere.
+
+#### The wire (complete; task 143 wins on names)
+
+```go
+// hubapi, task 81's DigestSettings, one field appended (task 143's wire).
+type DigestSettings struct {
+	Email string `json:"email"` // "off" | "hourly" | "daily" (task 81)
+	Teams string `json:"teams"` // "off" | "hourly" | "daily"; default "off"; set through task
+	//                              94's settings write (its route name is UNVERIFIED)
+	TeamsLinked bool `json:"teamsLinked"` // read-only: a digest binding exists (decision 1)
+}
+```
+
+A `teams` value other than the three is 400 `bad_request`, field `teams`. `teams: "hourly"` with
+`teamsLinked: false` is accepted and stored, and sends nothing until the chat links; the desktop's
+settings row says *"Write to the PanaceaApp bot in Teams once to link it."*
+
+```go
+// teams/activity.go ⚑ (task 157): the fields this task reads, appended.
+type Conversation struct {
+	ID               string `json:"id"`               // "a:…" for a personal chat
+	TenantID         string `json:"tenantId"`
+	ConversationType string `json:"conversationType"` // "personal" | "channel" | "groupChat"
+}
+// Activity gains:
+//	MembersAdded   []Account `json:"membersAdded"`   // conversationUpdate only
+//	MembersRemoved []Account `json:"membersRemoved"`
+//	Value          may also be *AskValue (an Action.Submit from decision 5's card)
+
+// AskValue is the Action.Submit data of the project card. Everything in it is
+// re-checked: it comes back through Teams and could have been edited.
+type AskValue struct {
+	AskProject string `json:"askProject"` // pj-…, one of the sender's own
+	Text       string `json:"text"`       // the original message, PlainText'd
+}
+
+// ChannelRef gains one field. A personal ref prints "teams:<tenant>/personal/<conversation id>";
+// Team, Channel and Thread are empty on it, and Channel() returns it unchanged.
+//	Personal string // the conversation id, "a:…"
+```
+
+**What task 145 must hold** (a requirement on its migration; its file wins on names):
+`work_teams_bindings.team_id` nullable, with `CHECK ((team_id IS NULL) = (subject_kind =
+'digest'))`; a unique index on `(subject_id) WHERE subject_kind = 'digest'` (one chat per
+person); `service_url text NOT NULL` if task 157's row does not already keep it; and a new table
+`work_teams_asks (org_id, hm_id text PRIMARY KEY CHECK (hm_id LIKE 'hm-%'), user_id, project_id,
+channel_ref, service_url, asked_at, replied_at NULL, reply_message_id NULL)`, RLS and grants like
+its neighbours, `GRANT UPDATE (replied_at, reply_message_id)` only. It stores no text: the words
+are TM-07's `hm-…` row, erasable there (TM-46's erase covers route 70, `T46:292`).
+
+**TM-07's delta** (gap 2): route 70's store write accepts a second caller, the Teams bot, in-process,
+when `hub.work_actor_kind = 'integration'` and `hub.work_actor_user` is the Orchestrator's owner;
+the row gains `via text NULL CHECK (via IN ('teams'))`. Over HTTP nothing changes: route 70 still
+takes only the owner's desktop token (`T07:186`). No other Phase T write is reachable from the bot.
