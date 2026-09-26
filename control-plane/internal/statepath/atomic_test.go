@@ -1,4 +1,4 @@
-package registry
+package statepath
 
 import (
 	"os"
@@ -11,8 +11,8 @@ import (
 func TestWriteAtomicCreatesTheFileAndItsDirectory(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "nested", "sessions.json")
 
-	if err := writeAtomic(path, []byte("first\n")); err != nil {
-		t.Fatalf("writeAtomic: %v", err)
+	if err := WriteAtomic(path, []byte("first\n")); err != nil {
+		t.Fatalf("WriteAtomic: %v", err)
 	}
 
 	got, err := os.ReadFile(path)
@@ -43,8 +43,8 @@ func TestWriteAtomicReplacesAFileThatAlreadyExists(t *testing.T) {
 		t.Fatalf("seed: %v", err)
 	}
 
-	if err := writeAtomic(path, []byte("new\n")); err != nil {
-		t.Fatalf("writeAtomic over an existing file: %v", err)
+	if err := WriteAtomic(path, []byte("new\n")); err != nil {
+		t.Fatalf("WriteAtomic over an existing file: %v", err)
 	}
 
 	got, err := os.ReadFile(path)
@@ -82,18 +82,18 @@ func TestWriteAtomicWhileAReaderHoldsTheTargetOpen(t *testing.T) {
 	}
 	defer reader.Close()
 
-	err = writeAtomic(path, []byte("new\n"))
+	err = WriteAtomic(path, []byte("new\n"))
 
 	if runtime.GOOS == "windows" {
 		// Fail closed, and say which operation failed.
 		if err == nil {
-			t.Fatal("writeAtomic succeeded with a reader attached; MoveFileEx cannot replace a file another handle holds open, so either the share flags changed or writeAtomic stopped using os.Rename")
+			t.Fatal("WriteAtomic succeeded with a reader attached; MoveFileEx cannot replace a file another handle holds open, so either the share flags changed or WriteAtomic stopped using os.Rename")
 		}
-		if !strings.Contains(err.Error(), "registry: replace") {
-			t.Fatalf("error = %v, want it wrapped as \"registry: replace <path>\"", err)
+		if !strings.Contains(err.Error(), "statepath: replace") {
+			t.Fatalf("error = %v, want it wrapped as \"statepath: replace <path>\"", err)
 		}
-		// This is the guarantee the registry lives or dies by: the save was
-		// lost, the document was not. A writeAtomic that fell back to writing
+		// This is the guarantee every state document lives or dies by: the save was
+		// lost, the document was not. A WriteAtomic that fell back to writing
 		// in place to dodge the error would trade this clean failure for a
 		// truncated file.
 		got, readErr := os.ReadFile(path)
@@ -110,7 +110,7 @@ func TestWriteAtomicWhileAReaderHoldsTheTargetOpen(t *testing.T) {
 	}
 
 	if err != nil {
-		t.Fatalf("writeAtomic with a reader attached: %v", err)
+		t.Fatalf("WriteAtomic with a reader attached: %v", err)
 	}
 	got, err := os.ReadFile(path)
 	if err != nil {
@@ -129,8 +129,8 @@ func TestWriteAtomicLeavesNoTempFileBehind(t *testing.T) {
 	path := filepath.Join(dir, "sessions.json")
 
 	for i := 0; i < 3; i++ {
-		if err := writeAtomic(path, []byte("round\n")); err != nil {
-			t.Fatalf("writeAtomic round %d: %v", i, err)
+		if err := WriteAtomic(path, []byte("round\n")); err != nil {
+			t.Fatalf("WriteAtomic round %d: %v", i, err)
 		}
 	}
 
@@ -142,7 +142,7 @@ func TestWriteAtomicLeavesNoTempFileBehind(t *testing.T) {
 func TestWriteAtomicFailureLeavesThePreviousContentIntact(t *testing.T) {
 	// A replace that can never succeed: the target path is an existing,
 	// non-empty directory. Renaming a file onto it fails on every OS, which is
-	// the only portable way to drive writeAtomic's retry loop to exhaustion.
+	// the only portable way to drive WriteAtomic's retry loop to exhaustion.
 	dir := t.TempDir()
 	path := filepath.Join(dir, "sessions.json")
 	if err := os.Mkdir(path, 0o700); err != nil {
@@ -152,11 +152,11 @@ func TestWriteAtomicFailureLeavesThePreviousContentIntact(t *testing.T) {
 		t.Fatalf("seed occupant: %v", err)
 	}
 
-	err := writeAtomic(path, []byte("new\n"))
+	err := WriteAtomic(path, []byte("new\n"))
 	if err == nil {
-		t.Fatal("writeAtomic onto an unreplaceable target returned nil, want an error")
+		t.Fatal("WriteAtomic onto an unreplaceable target returned nil, want an error")
 	}
-	if !strings.Contains(err.Error(), "registry: replace") {
+	if !strings.Contains(err.Error(), "statepath: replace") {
 		t.Fatalf("error = %v, want it to name the operation and the path", err)
 	}
 
