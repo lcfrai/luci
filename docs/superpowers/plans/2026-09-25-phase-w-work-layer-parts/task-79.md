@@ -361,3 +361,103 @@ Task 13's `/v1/changes` filter gains the matching clause, `OR (e.kind = 'issue.m
 e.data->>'fromProjectId' = ANY($readable))`; task 13 owns the query, so this is asked of it and
 reported as a gap. The source reader sees the event and a head it may no longer read: the desktop
 drops the row and shows *"EP-142 moved to PAY-8"* only when the target is readable (task 89).
+The `e.data->>` form assumes task 13 stores `data` as `jsonb`, **UNVERIFIED**.
+
+#### The store (signatures complete)
+
+`store/work_plan_fields.go`, beside the rank functions above:
+
+```go
+// PlanRow is the issues row's W2 plan columns (task 74), read with the head.
+type PlanRow struct {
+	Estimate *int
+	DueOn    *string // "2006-01-02"; the column is a Postgres date
+	Rank     string
+}
+
+// SetIssuePlan: UPDATE issues SET estimate = $2, due_on = $3, updated_at = $4
+// WHERE id = $1. The caller has decided both values (decision (b)).
+func SetIssuePlan(ctx context.Context, tx pgx.Tx, issueID string, estimate *int, dueOn *string, at time.Time) error
+
+// TeamPlanPolicyOf reads task 11's team_work_policies row's W2 columns; the
+// defaults (scale none, zero off, stale 0/propose, archive 0) when no row exists.
+func TeamPlanPolicyOf(ctx context.Context, q Querier, teamID string) (hubapi.TeamPlanPolicy, error)
+
+// PatchTeamPlanPolicy applies the present fields of p to the row, inserting it
+// with the W1 defaults if absent. changed lists the JSON names that differ.
+func PatchTeamPlanPolicy(ctx context.Context, tx pgx.Tx, org, teamID string, p hubapi.TeamPlanPolicyPatch, by string, at time.Time) (changed []string, err error)
+
+// LockTeamRank serialises every key write in one team for the transaction:
+//   SELECT pg_advisory_xact_lock(hashtextextended('hub.rank:' || $1, 0))
+// An advisory lock needs no grant on teams; hub_app holds none for FOR UPDATE there.
+func LockTeamRank(ctx context.Context, tx pgx.Tx, teamID string) error
+
+// RankOf reads one issue's key and team under row-level security; found=false
+// for an issue in another org or erased.
+func RankOf(ctx context.Context, q Querier, issueID string) (rank, teamID string, found bool, err error)
+
+// NextRankBelow / NextRankAbove are the true neighbours (decision (i)), the moving
+// issue excluded; "" at that end of the order:
+//   SELECT rank FROM issues WHERE team_id = $1 AND id <> $2 AND erased_at IS NULL
+//     AND rank > $3 ORDER BY rank LIMIT 1        -- Above: rank < $3 ORDER BY rank DESC
+func NextRankBelow(ctx context.Context, q Querier, teamID, exclude, rank string) (string, error)
+func NextRankAbove(ctx context.Context, q Querier, teamID, exclude, rank string) (string, error)
+
+// BottomRank is rankAfter(the team's last key), for a create (decision (d)) or a
+// move into the team. The caller holds LockTeamRank.
+func BottomRank(ctx context.Context, tx pgx.Tx, teamID string) (string, error)
+
+// RankMove is one key a write changed.
+type RankMove struct {
+	IssueID, ProjectID, From, To string
+}
+
+// SetRank: UPDATE issues SET rank = $2, updated_at = $3 WHERE id = $1.
+func SetRank(ctx context.Context, tx pgx.Tx, issueID, rank string, at time.Time) error
+
+// RebalanceTeam re-keys the team's whole order with rankSpread, placing issueID
+// immediately below afterID ("" is the top), and returns every row whose key
+// changed, issueID first. The UNIQUE (team_id, rank) constraint task 74 adds is
+// DEFERRABLE INITIALLY DEFERRED, so the mass update cannot collide mid-statement.
+func RebalanceTeam(ctx context.Context, tx pgx.Tx, teamID, issueID, afterID string, at time.Time) ([]RankMove, error)
+```
+
+`store/work_move.go`:
+
+```go
+// MoveIssueRow sets the head's project, team and number under hub.work_cause =
+// 'move' (task 74's guard admits the three columns only then), and clears the
+// fields decision (f) names. cleared lists what it cleared, in IssueMovedData's words.
+//   UPDATE issues SET project_id = $2, team_id = $3, number = $4, rank = $5,
+//     feature_id = NULL, parent_id = NULL, cycle_id = CASE WHEN $6 THEN NULL ELSE cycle_id END,
+//     sub_state = CASE WHEN $6 THEN NULL ELSE sub_state END,
+//     assignee_user_id = CASE WHEN $7 THEN NULL ELSE assignee_user_id END, updated_at = $8
+//   WHERE id = $1
+// plus, when the teams differ, DELETE FROM issue_labels of labels whose team_id is the source's.
+type MoveSpec struct {
+	IssueID, ToProjectID, ToTeamID string
+	ToNumber                       int
+	Rank                           string
+	CrossTeam, ClearAssignee       bool
+}
+
+func MoveIssueRow(ctx context.Context, tx pgx.Tx, m MoveSpec, at time.Time) (cleared []string, err error)
+
+// InsertIssueAlias records the number the issue is leaving. The primary key
+// (project_id, number) and task 74's immutability trigger make it permanent.
+//   INSERT INTO issue_aliases (org_id, project_id, number, issue_id, moved_at, moved_by)
+func InsertIssueAlias(ctx context.Context, tx pgx.Tx, org, projectID string, number int, issueID, by string, at time.Time) error
+
+// IssueByAlias resolves an old number: found=false when no alias has it.
+func IssueByAlias(ctx context.Context, q Querier, projectID string, n int) (issueID string, found bool, err error)
+
+// LastAliasOf is the newest alias of an issue, for IssuePlan.MovedFrom; nil when
+// it never moved.
+func LastAliasOf(ctx context.Context, q Querier, issueID string) (*hubapi.IssueAlias, error)
+
+// ChildCount counts every issue whose parent_id is issueID, any state (task 78's column).
+func ChildCount(ctx context.Context, q Querier, issueID string) (int, error)
+```
+
+`issue_aliases`' `moved_at` and `moved_by` are this task's columns; task 74's scope names only
+the primary key (`tasks-61-80.md:479`), so they are asked of task 74 (a gap).
