@@ -313,3 +313,94 @@ The row shows no count, bar or `%`. *"Accepted · backlog"* names the state the 
 `acceptTarget`, and the row keeps its place (decision 8). `--need` colours only the urgent row's
 glyph and its words (05 §4.4 rule 2); task 29's `MarkGlyph` draws the shape, so urgency is never
 colour alone.
+
+#### Interfaces — complete: task 63's block in `deskRows.tsx`, and the verbs
+
+```tsx
+// deskRows.tsx — task 63's block, first after task 62's head.
+import { acceptTarget, nextMorning } from "../work/TriageView";       // task 42 (its file, UNVERIFIED path)
+import { handMove } from "../work/StatePicker";                       // task 46 (task-42.md:290)
+import { mutate } from "../../work/replica/replica";                  // SW.16, task 55/56
+import { workSource } from "../../work/source";
+import { useVerb } from "../../work/keys/keymap";
+import { NEED_KINDS, NEED_SOURCES, needRank, type NeedPayload } from "../../work/desk/needs";
+import { IssueNeedRow, type NeedVerbs } from "./rows/IssueNeedRow";
+import { registerDeskRow as row, registerDeskSource as source } from "./deskModel";
+
+const stood = async (h: { settled: Promise<"applied" | { message: string }> }): Promise<void> => {
+  const r = await h.settled;
+  if (r !== "applied") throw new Error(r.message);                    // the Hub's words, in place
+};
+const zone = (): string => Intl.DateTimeFormat().resolvedOptions().timeZone;
+const hhmm = (iso: string): string => new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+
+export const needVerbs: NeedVerbs = {
+  accept: async (issueId) => {
+    const to = acceptTarget(teamPolicyOf(issueId));
+    await stood(mutate({ kind: "setState", issueId, move: handMove(to) }));
+    return to;
+  },
+  snooze: async (issueId) => {
+    const until = nextMorning(Date.now(), zone());
+    await stood(mutate({ kind: "snooze", issueId, until }));
+    return hhmm(until);
+  },
+};
+
+for (const kind of NEED_KINDS) {
+  source(kind, NEED_SOURCES[kind]);
+  row<NeedPayload>(kind, "needs_you", (item) => <IssueNeedRow item={item} verbs={needVerbs} />, needRank);
+}
+
+/** The Desk's issue verbs (decision 7). Desk.tsx calls it once; the Work lens is unmounted then. */
+export function useDeskIssueVerbs(): void {
+  useVerb("triage.accept", (r) => { if (r.issueId) void needVerbs.accept(r.issueId).catch(() => {}); });
+  useVerb("triage.snooze", (r) => { if (r.issueId) void needVerbs.snooze(r.issueId).catch(() => {}); });
+  useVerb("issue.assignMe", (r) => {
+    const me = workSource()?.me();
+    if (r.issueId && me) void mutate({ kind: "setAssignee", issueId: r.issueId, assignee: me });
+  });
+}
+```
+
+`teamPolicyOf(issueId)` is the read task 42's mount uses for `TriageView`'s `policy` prop
+(`task-42.md:204`); its name and home are task 42's and task 55's (**UNVERIFIED**, gap 4). A key's
+answer is shown by the row's own buttons only when pressed there; a `1` pressed on the row reaches
+the same `needVerbs.accept`, and the replica's paint changes the head, which the open Desk does not
+re-rank (task 62's decision 3), so the row stays with its buttons until the next visit (gap 5).
+`open.issue` (`Enter`) is task 45's issue view, registered by its owner; the Desk adds no runner.
+
+#### Interfaces — complete: the additive deltas on task 62's files
+
+```ts
+// deskModel.ts ⚑ — DeskItem gains one optional member; DeskSnapshot gains one read.
+import type { KeyScope } from "../../work/keys/keymap";
+import type { IssueComment } from "../../api/work";
+//   in DeskItem:     keyScopes?: readonly KeyScope[];           // joined after "issueRow"
+//   in DeskSnapshot: comments(issueId: string): readonly IssueComment[];
+//   in takeDeskSnapshot, after heads are read:
+  const comments = new Map<string, readonly IssueComment[]>();
+  for (const id of heads.keys()) comments.set(id, work?.comments?.(id) ?? []);
+//   and in the frozen result:  comments: (id: string) => comments.get(id) ?? [],
+```
+
+```tsx
+// DeskSection.tsx ⚑ — the wrapper's scope attribute.
+{...(item.issueId ? { "data-issue-id": item.issueId,
+  "data-key-scope": ["issueRow", ...(item.keyScopes ?? [])].join(" ") } : {})}
+```
+
+```tsx
+// Desk.tsx ⚑ — the feed input (decision 10) and the verbs.
+import { replicaEvents } from "../../work/replica/replica";          // task 55 (UNVERIFIED name, gap 2)
+import { useDeskIssueVerbs } from "./deskRows";
+export const liveDeskInputs: DeskInputs = {
+  now: () => Date.now(), cockpit: () => useCockpit.getState(), work: () => workSource(),
+  events: () => replicaEvents(),
+};
+//   first line of Desk's body:  useDeskIssueVerbs();
+```
+
+`work?.comments?.(id)`: `comments` is task 51's sixth read on the reader (`task-51.md:957`); the
+optional call keeps task 62's tests, whose reader is `null`, unchanged. Every head's comments are
+copied at entry, so the snapshot stays a value (task 62's decision 3).
