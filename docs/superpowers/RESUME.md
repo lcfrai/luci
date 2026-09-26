@@ -323,7 +323,18 @@ owner added usage, all 11 were relaunched. The new task ids:
   a gated part stops the env stream. This run decides the five open items, re-plans the four parts
   and removes the gates. It must land before the env build reaches task 20, about 12 tasks away.
 
-## 3c. RESUME-ALL SET (current at 19:05, 2026-09-26)
+## 3c-0. OD-31 (19:30, 2026-09-26): ONLY THE PHASE 2 CLOSE-OUT RUNS
+
+Every other stream is **PAUSED** by the owner's decision (OD-31) until phase 2 is merged to `main`
+and in the owner's hands. The close-out's remaining work is task 26, task 25, the final review, then
+X-3 (section 3b's queue). After that:
+- restart at most 4 streams from the table below;
+- use a lighter build script: 1 review round, and mutation tests only for security code;
+- keep the work plan's writing paused until the owner says otherwise.
+
+Close-out is task `wf30babpy` (run `wf_33aecd88-cd3`).
+
+## 3c. RESUME-ALL SET (current at 19:05, 2026-09-26), used AFTER phase 2 lands (OD-31)
 
 After a spend or usage stop, check the transcripts (`scratchpad/wfstatus6.py`). If they are more
 than about 15 minutes old once usage is back, TaskStop every run, wait about 25 s, then call
