@@ -22,7 +22,7 @@ Orchestrator in local mode).
 Australia/Sydney, action *run a turn*, commit at ASK FIRST. The Hub stores loop `lp-…` at
 version 1. At 08:30 the janitor writes one `work.loop_fired`; Fleet, subscribed to the org's feed,
 puts one `loop.fired` event on Dylan's Orchestrator queue; the next turn reads *1 team event. Run
-`panacea inbox` to read it.* (`T26:271-276`), counts against Dylan's turn budget, and bills his
+`panacea inbox` to read it.* (`T26:265-275`), counts against Dylan's turn budget, and bills his
 gateway token. The Hub was down over the weekend: Monday fires once, not three times.
 
 **Decisions made here, so nobody re-derives them:**
@@ -65,5 +65,5 @@ gateway token. The Hub was down over the weekend: Monday fires once, not three t
     "owner_left"` and writes `work.loop_paused {loopId, cause}` instead, `actor: null`. A
     `team.member_removed` event (`hub-contract.md:1141`) is therefore acted on within one sweep.
 11. **No loop text enters a turn.** The event's `data` holds ids and numbers only. The turn input
-    stays `turns.Input(n)` (`T26:271-276`); the Orchestrator reads the instruction through task
+    stays `turns.Input(n)` (`T26:265-275`); the Orchestrator reads the instruction through task
     163's `panacea loop show`, as data.
