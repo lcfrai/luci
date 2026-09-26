@@ -225,7 +225,7 @@ const SEAMS: Seam[] = [
     ],
     tests: [
       // Task 25's headed harness. Task 26 ran first, so this waits for it (see SeamTest.pending).
-      { file: "desktop/e2e/phase2.e2e.mjs", decl: /^check\("o2\.resume",/m, pending: "task 25" },
+      { file: "desktop/e2e/phase2.e2e.mjs", decl: /^check\("o2\.resume",/m },
       { file: "control-plane/internal/api/sessions_resume_test.go", decl: /^func TestResumePassesTheSourcesConversationNotTheCockpitID\(/m },
       { file: "control-plane/internal/api/sessions_resume_test.go", decl: /^func TestCreateMountsOnlyThisWorktreesConversationStore\(/m },
       { file: "control-plane/internal/harness/argv_test.go", decl: /^func TestBuildRefusesAForkThatReusesTheSourceID\(/m },
