@@ -290,3 +290,27 @@ grep -rn "not_in_fake_yet" control-plane/internal/hub/hubclient/                
 - **Carried items 2 and 3.** An erased revision's content is asserted as `len == 0 || "null"`
   (`erasedContent`); every row that asserts an order makes its records on distinct ticks (`tick`
   moves `Advance` by 1 ms, or waits 2 ms on a Hub with none).
+
+#### As built, the mutation rounds (2026-09-26, 6463e568 … 363c82bb)
+
+Still 83 rows; each round's survivors gained cases inside existing rows. No production code of
+the fake changed after 277e6c9a.
+
+- **Rows gained.** `TestRunNamesEveryRow` compares against `wantRows` (every row, by group, in
+  order; PS-1). `blob_other_project_404` re-uploads with another type (PS-2).
+  `approval_checks_in_order` check 2 gains an erased revision (D08); check 5 a blob of another
+  project, check 6 per project (D11); a link and a reserve with a key approved elsewhere (X01).
+  `confirm_idempotent` re-confirms a confirmed rollback (PS2-1); `more_when_limit_cuts` asks 1000
+  past the head (PS2-2). `blob_quota` lands exactly on the quota (PS3-1).
+  `session_link_repeat_returns_existing` links one pair in two projects (PS3-2) and runs each
+  filter (PS4-2). `pin_falls_back_to_project_brief` names an archived brief (PS4-1).
+  `source_unknown` names another Panacea project's deployment (PS5-1). `oldest_first` asks a
+  second remote (PS5-2).
+- **D7 — a confirmed rollback re-confirmed:** `{}` or a deployment it holds is 200 unchanged; a
+  deployment it does not hold is 409 `release_state`, nothing joined (task-24.md:35-36 by analogy).
+- **D8 — a feed cursor past the head:** no events, `more: false`, `next` the head
+  (task-26.md:26, :33). The row allows `next` in `[head, cursor)` for a live Hub's writes.
+- **D9 — a session link's repeat is per project** (PS3-2's ruling). The schema's
+  UNIQUE (created_by, session_id, design_key) (hub-contract.md:1672) has no `project_id`, so the
+  Hub as planned would answer another project's link. Carried to tasks 07a (UNIQUE gains
+  `project_id`), 22 (route 33) and 44 (contract :943, :1672).
