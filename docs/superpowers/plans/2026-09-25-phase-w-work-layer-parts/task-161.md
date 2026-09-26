@@ -522,3 +522,47 @@ form too; which form the named clients fetch is **UNVERIFIED**).
 
 In `mcp.go` the import list is `encoding/json` and `net/http` (the handler takes an
 `http.ResponseWriter`).
+
+#### Tests to write first — `cmd/workmcp` (unit; a fake `Validator`, an `httptest` fake Hub)
+
+The fake Hub records every request's path and `Authorization` header and answers from a table;
+`WorkHub` in the tool tests is `hubclient.New(fakeHub.URL, …, callerToken{}, …)`, so the real
+client, not a stub, carries the bearer.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestAWrongAudienceIs401WithTheMetadataHeader` | the fake validator returns `ErrAudience` → 401, `WWW-Authenticate` equals `Challenge(base, "invalid_token")` byte for byte | the header dropped, so a client cannot discover sign-in |
+| `TestTheProtectedResourceDocument` | `GET /.well-known/oauth-protected-resource` → 200 JSON; `authorization_servers == [OIDCIssuer]`; `scopes_supported == ["panacea-app-hub"]`; no `login.microsoftonline.com` byte | Entra's v2.0 URL or `Hub.Access` served after OD-30 |
+| `TestTheDesktopClientIsRefusedHere` | claims with `ClientID == "panacea-app-desktop"` → 401 `client`; a `Service` claim → 401 `client`; the fake Hub saw no call | a replayed desktop token served through MCP |
+| `TestAnUnapprovedAppIsSentBackToSignIn` | the fake Hub answers 403 `app_not_approved` → the HTTP answer is 401 with the `client` challenge | any realm client accepted; or a dead 403 the client cannot recover from |
+| `TestAPakBearerIsRefused` | `Bearer pak_…` → 401, the validator never called | an API key accepted as a person sign-in |
+| `TestReadOnlyListsNoWrite` | `/mcp/read` `tools/list` names exactly the five read tools; `/mcp` names nine | read-only as a flag the token can override |
+| `TestReadOnlyRefusesAWriteCall` | `/mcp/read` `tools/call work_comment` → JSON-RPC `-32602` *unknown tool*; the fake Hub saw no call | read-only filters the list but not the call |
+| `TestMoveToDoneFailsTheSchema` | `work_move {to:"done"}`, `"landed"`, `"started"`, `"in_review"` → `-32602`, no Hub call; `HumanBands` equals the literal `["triage","backlog","todo","cancelled"]` | the enum widened to a fact state |
+| `TestAnAliasIsALookupAndTheKeyIsTheAnswer` | `work_issue {issue:"EP-142", projectId}` → one `IssueByNumber` call; the text's first token is `issue:is-…@r4`; a result naming `EP-7` for `EP-142` is `isError` | alias stored or trusted as a key |
+| `TestTheCallersTokenAndNoOther` | config env with a planted `PANACEA_APP_WORKMCP_HUB_TOKEN=planted` fails `LoadConfig`; with it removed, every fake-Hub request's bearer equals the caller's | a service token, or a configured one |
+| `TestTextKeepsItsAuthorClass` | a revision authored `A` renders a block headed `text·A …(agent)`; an `H` one `text·H` | quoted text merged into tool prose |
+| `TestNoPredictionInAnyResult` | every tool's result text over the fake fixtures: no `%`, `ETA`, `remaining`, or `N of M` | a progress line in a list result (OD-27) |
+| `TestSchemasUseOnlyTheSubset` | every `InputSchema` parses and uses only `schema.go`'s keywords | a schema keyword the validator ignores |
+| `TestBatchesAndGetAreRefused` | a JSON array body → `-32600`; `GET /mcp` → 405 `Allow: POST`; a 70 KB body → 413 | a transport wider than decision 4 |
+| `TestInitializeAnswersTheOneRevision` | `initialize {protocolVersion:"2025-03-26"}` → `protocolVersion "2025-06-18"`, `capabilities.tools` present | an echo of whatever the client asked |
+
+#### Tests to write first — the Hub half
+
+`server/work_mcp_fragment_test.go` (unit): `TestFragmentIsSortedAndDeterministic` (two orders of
+one list give equal bytes; kills map-order output); `TestTheFragmentHoldsOnlyURLs` (no name,
+`allowedBy` or time byte; kills a digest that moves on a rename); `TestAnEmptyListAllowsNone`
+(`{"allowedMcpServers":[]}\n`; kills an omitted key read as *allow all*); `TestNormaliseRefuses`
+(`http://`, `https://u:p@h/`, `https://h/?t=1`, `https://h/#x`, `https://10.0.0.1/` → 422 each with
+its `why`; `HTTPS://H:443/mcp/` → `https://h/mcp`; kills a credential or plain-http URL kept).
+
+`server/work_mcp_integration_test.go` (`//go:build integration`):
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestOnlyAnOrgAdminAllowsAConnector` | a member's `PUT` → 403; an org admin's → 200 and one `work.mcp_connector_allowed {url}` event | the allow-list writable by anyone |
+| `TestANonHTTPSConnectorIs422` | `PUT {url:"http://x/mcp"}` → 422 `connector_url_invalid`, `why: scheme`, no row, no event | plain http stored |
+| `TestRemoveStampsAndReallowIsANewRow` | `DELETE` → 204, `GET` omits it, one `removed` event; a second `PUT` → a new row; `UPDATE … SET url` as `hub_app` → `42501` | a hard delete; a URL rewritten in place |
+| `TestANoOpPutWritesNothing` | the same `PUT` twice → one event | an event per call |
+| `TestConnectorsAreTheOrgsOwn` | org B's admin lists nothing of org A's; `DELETE` of A's URL from B → 404 | RLS missing on the new table |
+| `TestAnAppTokenMovingToDoneIs403` | a raw `POST …/state {to:"done"}` with an approved `work.write` app token → 403 (task 145's guard) | the second layer removed (decision 6) |
