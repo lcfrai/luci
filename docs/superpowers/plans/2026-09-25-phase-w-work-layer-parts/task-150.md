@@ -786,3 +786,82 @@ func pullFailure(err error) *hubapi.SyncError {
 map[string]string) PagePlan` reads `p.Upstream` as `[]worksync.UpstreamChange`, `PagePlan.Upstream`
 is `[]UpstreamChange`, and the filter is the new `UpstreamFields`. `known` is now keyed by the
 project's links for the connection's source (point 8), not by the connection's own.
+
+#### The tables, reconciled (requirement on task 145; complete; replaces `:96-151`)
+
+The `issues_external_source_known` change (`:92-94`) and the guard (`:153-187`) stand as written.
+
+```sql
+CREATE TABLE work_tracker_connections (
+  id               text PRIMARY KEY CHECK (id ~ '^tc-[0-9a-f]{16}$'),
+  org_id           text NOT NULL REFERENCES orgs (id),
+  team_id          text NOT NULL,
+  project_id       text NOT NULL,
+  source           text NOT NULL CHECK (source IN ('azure_boards', 'github', 'jira')),
+  target           jsonb NOT NULL CHECK (target ->> 'source' = source),     -- point 2
+  mode             text NOT NULL CHECK (mode IN ('in', 'in_and_comments')),
+  cursor           text NOT NULL DEFAULT '' CHECK (octet_length(cursor) <= 4096),
+  run_requested_at timestamptz,
+  last_finished_at timestamptz,
+  created_at       timestamptz NOT NULL,
+  created_by       text NOT NULL,
+  disconnected_at  timestamptz,
+  FOREIGN KEY (org_id, team_id)    REFERENCES teams (org_id, id),
+  FOREIGN KEY (org_id, project_id) REFERENCES projects (org_id, id),
+  FOREIGN KEY (org_id, created_by) REFERENCES users (org_id, id)
+);
+-- tracker_exists (task 143's 409): one live connection per project and target.
+CREATE UNIQUE INDEX work_tracker_live_once ON work_tracker_connections (project_id, target)
+  WHERE disconnected_at IS NULL;
+
+CREATE TABLE work_external_links (
+  id                  text PRIMARY KEY CHECK (id ~ '^xl-[0-9a-f]{16}$'),
+  org_id              text NOT NULL REFERENCES orgs (id),
+  project_id          text NOT NULL,
+  source              text NOT NULL CHECK (source IN ('azure_boards', 'github', 'jira')),
+  external_id         text NOT NULL CHECK (char_length(external_id) BETWEEN 1 AND 200),
+  connection_id       text NOT NULL REFERENCES work_tracker_connections (id), -- the one that linked it
+  issue_id            text NOT NULL,
+  url                 text NOT NULL DEFAULT '' CHECK (octet_length(url) <= 2048), -- MaxExternalURLBytes
+  linked_at           timestamptz NOT NULL,
+  last_seen_at        timestamptz NOT NULL,
+  upstream_field      text CHECK (upstream_field IN ('state', 'assignees', 'title', 'description', 'deleted')),
+  upstream_to         text NOT NULL DEFAULT '' CHECK (char_length(upstream_to) <= 60),
+  upstream_changed_at timestamptz,
+  UNIQUE (project_id, source, external_id),   -- task 143's key (point 8)
+  UNIQUE (issue_id),                          -- at most one link per issue
+  FOREIGN KEY (org_id, project_id) REFERENCES projects (org_id, id),
+  FOREIGN KEY (org_id, issue_id)   REFERENCES issues (org_id, id),
+  CONSTRAINT work_links_upstream_whole CHECK ((upstream_field IS NULL) = (upstream_changed_at IS NULL))
+);
+
+CREATE TABLE work_sync_runs (
+  org_id        text NOT NULL REFERENCES orgs (id),
+  connection_id text NOT NULL REFERENCES work_tracker_connections (id),
+  n             integer NOT NULL CHECK (n >= 1),
+  started_at    timestamptz NOT NULL,            -- the wire's "at"
+  finished_at   timestamptz,
+  state         text NOT NULL CHECK (state IN ('running', 'ok', 'failed')),
+  pages         integer NOT NULL DEFAULT 0,
+  created       integer NOT NULL DEFAULT 0,
+  existing      integer NOT NULL DEFAULT 0,
+  comments_in   integer NOT NULL DEFAULT 0,      -- task 153's
+  comments_out  integer NOT NULL DEFAULT 0,      -- task 153's
+  upstream      integer NOT NULL DEFAULT 0,      -- a count; the change itself is on the link
+  errors        jsonb NOT NULL DEFAULT '[]'::jsonb
+                CHECK (jsonb_typeof(errors) = 'array' AND jsonb_array_length(errors) <= 500),
+  PRIMARY KEY (connection_id, n)
+);
+CREATE UNIQUE INDEX work_sync_one_running ON work_sync_runs (connection_id) WHERE state = 'running';
+-- RLS org_isolation on all three, as task 149's tables have it; grants:
+GRANT SELECT, INSERT ON work_tracker_connections, work_external_links, work_sync_runs TO hub_app;
+GRANT UPDATE (cursor, run_requested_at, last_finished_at, disconnected_at) ON work_tracker_connections TO hub_app;
+GRANT UPDATE (last_seen_at, upstream_field, upstream_to, upstream_changed_at) ON work_external_links TO hub_app;
+GRANT UPDATE (finished_at, state, pages, created, existing, comments_in, comments_out, upstream, errors)
+  ON work_sync_runs TO hub_app;
+```
+
+`errors` holds `{externalId, code, retryAt}` objects built by the Sink from our constants and the
+tracker's ids; no title, description or tracker message is ever in it. The 501st error of a run
+is counted in the log line and not stored. `work_sync_one_running` makes a second `StartRun` of a
+connection with a run in flight fail on the database, not only under the advisory lock.
