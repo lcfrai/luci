@@ -63,3 +63,91 @@ train"* and exit 3, before any reservation.
 9. **The wrappers download one pinned binary and check it.** The version, the four asset digests
    and the download base live in `index.js` and `action.yml`, not in `task.json`: Microsoft's
    `task.json` schema is theirs, and whether an unknown key survives upload is **UNVERIFIED**.
+
+**Files** (the skeleton's File map row `:268`):
+- `control-plane/cmd/panacea-release/main.go` (new) — flags, the environment, exit codes
+- `control-plane/cmd/panacea-release/release.go` (new) — the three calls, retries, the output
+- `control-plane/cmd/panacea-release/runid.go` (new) — `pipelineRun` and the idempotency keys
+- `control-plane/cmd/panacea-release/{release,runid,wrappers}_test.go` (new) — against an `httptest` Hub; the wrapper checks
+- `integrations/azure-pipelines-task/{task.json,index.js,package.json,README.md}` (new; `package.json` pins `azure-pipelines-task-lib`, MIT, not in the scope's list)
+- `integrations/github-action/{action.yml,README.md}` (new)
+
+**What is on the tree today (verified 2026-09-26).** On `feat/work-layer`, `control-plane/cmd/`
+holds only `api/`, and there is no `integrations/` directory. Task 131's part exists (the proposed
+`EnvironmentFreeze` and its `GET …/freezes`, `task-131.md:91-107`); task 160's does not. Phase 7's
+task 08 (`phase-7` worktree at `2427f7b5`) draws a confirmed run release that matches no
+deployment as a `pending` row, with an age cap (`task-08.md:281-284`, `:353`). No Hub, phase 7 or
+Phase T file is merged here.
+
+#### `runid.go` (complete)
+
+```go
+package main
+
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"regexp"
+	"strings"
+)
+
+var (
+	panaceaName = regexp.MustCompile(`^[a-z0-9-]{1,63}$`)  // hub-contract.md:1008
+	runGrammar  = regexp.MustCompile(`^[a-z0-9.-]{1,253}$`) // hub-contract.md:1029
+	digits      = regexp.MustCompile(`^[0-9]{1,20}$`)
+	commitHex   = regexp.MustCompile(`^[0-9a-f]{40}$`)          // hub-contract.md:1008-1009
+	// pj-… and bf-… are opaque (hub-contract.md:46): the CLI checks the prefix only,
+	// and the Hub's 404 or 422 is the answer to anything else (exit 3).
+)
+
+// RunIDError is a usage error: exit 2, nothing sent.
+type RunIDError struct{ Field, Value, Want string }
+
+func (e *RunIDError) Error() string {
+	return fmt.Sprintf("%s %q is not %s; nothing was sent", e.Field, e.Value, e.Want)
+}
+
+// PipelineRun builds the Hub's pipelineRun for one environment (decision 4). source is
+// "ado" (id = Build.BuildId) or "gh" (id = run_id, attempt = run_attempt). It never
+// rewrites a value: "Build_42" is refused, not lowercased into something else.
+func PipelineRun(source, id, attempt, environment string) (string, error) {
+	if !panaceaName.MatchString(environment) {
+		return "", &RunIDError{"--environment", environment, "1-63 of [a-z0-9-]"}
+	}
+	if !digits.MatchString(id) {
+		return "", &RunIDError{"--pipeline-run", id, "digits"}
+	}
+	var run string
+	switch source {
+	case "ado":
+		if attempt != "" {
+			return "", &RunIDError{"--run-attempt", attempt, "empty for ado"}
+		}
+		run = "ado-" + id + "." + environment
+	case "gh":
+		if !digits.MatchString(attempt) {
+			return "", &RunIDError{"--run-attempt", attempt, "digits"}
+		}
+		run = "gh-" + id + "-" + attempt + "." + environment
+	default:
+		return "", &RunIDError{"--source", source, `"ado" or "gh"`}
+	}
+	if !runGrammar.MatchString(run) {
+		return "", &RunIDError{"pipelineRun", run, "1-253 of [a-z0-9.-]"}
+	}
+	return run, nil
+}
+
+// Keys derives the reserve and confirm Idempotency-Keys (decision 5). Same inputs,
+// same keys, in any process: a re-run of a stage replays instead of reserving twice.
+func Keys(projectID, environment, run, commit string) (reserve, confirm string) {
+	sum := sha256.Sum256([]byte(strings.Join([]string{projectID, environment, run, commit}, "\x00")))
+	h := hex.EncodeToString(sum[:])[:40]
+	return "rs-" + h, "cf-" + h // 43 characters of [a-z0-9-]
+}
+```
+
+`--pipeline-run` takes the CI's raw number, and `--source` says which CI; `--run-attempt` is
+GitHub's only. The scope's single `--pipeline-run <id>` flag becomes these three (gap 2), because
+the CLI, not each wrapper, owns the grammar.
