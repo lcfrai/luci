@@ -241,3 +241,52 @@ grep -rn "not_in_fake_yet" control-plane/internal/hub/hubclient/                
   the suite against the Hub through the HTTP client.
 - Concurrency semantics (two writers racing): the fake serialises under one mutex. The real
   Hub's race behaviour is task 19's and task 26's database tests.
+
+#### As built (2026-09-26, commit 277e6c9a)
+
+- **D1 — `Env` gains three fields** (carried/task-05.md items 1 and 13; the quota): `OrgAdmin` (an
+  org admin in no team; `nil` skips its column), `Erase(briefID, reason)` (the fake's `EraseBrief`
+  through an org-admin view; on a real Hub task 27's route; `nil` skips the erased cases, and the
+  row logs it), `BlobQuota` (the Hub's `PANACEA_APP_HUB_PROJECT_QUOTA_BYTES`; 0 skips
+  `designs/blob_quota`). The fake gains `SetProjectQuota` for it (additive; task 04's surface is
+  otherwise unchanged).
+- **D2 — one file per group.** `conformance.go` holds `Env`, `Group`, `Run` and the shared helpers;
+  the rows are in `teams.go`, `projects.go`, `briefs.go`, `refs.go`, `designs.go`, `releases.go`,
+  `evidence.go`, `feed.go`. `fake_test.go` builds the part's `Env` in `newFakeEnv(t, clock)`, with
+  the clock behind a mutex (`-race`: `Advance` and the fake's reads share it).
+- **D3 — 83 rows, not "≥ 40".** The part's table is 48 rows. Carried items 4–13 add 20: teams 11
+  (items 4, 5, 8–10, 12), briefs 5 (`self_rebind_is_noop`, `rebind_archived_first`,
+  `resolve_zero_keys`, `list_cursor_is_this_projects`, `revisions_cursor`), and item 13 as one
+  `org_admin_is_a_non_member` row in each of teams, projects, briefs and refs (re-review 3's m1 is
+  in the teams one). The other 15 are rules of "What the fake must do" that no table row held:
+  `blob_too_large`, `blob_roles`, `blob_quota`, `approval_of_an_older_revision`,
+  `approvals_list_and_get`, `session_link_checks`, `reserve_refusals`, `one_release_per_run`,
+  `abandon_from_reserved_only`, `join_rules`, `list_filters_and_order`, `evidence_checks`,
+  `more_when_limit_cuts`, `audit_only_kinds_never_appear`, `every_write_is_its_events` (rule 6:
+  every write of both parts, §8's kind, subject, team, project and exact data keys, in order).
+- **D4 — where the part is silent, the server tasks' text is followed**, so the rows hold the
+  Hub's order too: `PutBlob` in task 21's order (the digest's form 400 `field: sha`, the type, the
+  size 413 with `limitBytes` before a byte is read, the body rewound, read and hashed 422 — all
+  before the project's 404 and 403 and the 409 quota; a re-upload answers the stored type);
+  approvals in task 22's order with the count, duplicate and manifest 400s inside check 5; a
+  session link's brief key erased or not; `Reserve` by task 23's field table (422
+  `key_unresolvable` names `details.briefId`); confirm, abandon and join by task 24 (a run's
+  confirm with no or a bad `pipelineRun` is 400 `field: pipelineRun`; a run's confirm naming a
+  `deploymentId` is 400); `release.deployment_joined` carries `{"deploymentId","environment"}`
+  (task 24; contract §8 lists `deploymentId` alone — task 44a's to reconcile); `release.reserved`
+  spells a null as `""` (task 23); binding emits `team.invite_bound` then `team.member_set`
+  (task 16a), `CreateTeam` `team.created` then `team.member_set` (task 15); a `SetMember` to the
+  same role and a second revoke change nothing and emit nothing; every erase emits `brief.erased`,
+  a second one too (task 27), with no `reason`; the feed's `after` is a canonical decimal or
+  `latest`, `limit` 0 is 200, and `next` is the head unless `more` (task 26).
+- **D5 — expiry is swept at every call**, not rendered lazily: the fake's first call after
+  `expiresAt` marks the reservation `expired` and appends `release.expired` with a null actor, as
+  task 24's janitor does within 60 s. Through the interface the two are the same, and the feed
+  row sees the event.
+- **D6 — audit-only kinds.** The fake's log holds `auth.user_provisioned` and `blob.uploaded`
+  (they take sequence numbers, as on the Hub, and never reach the feed); it has no audit route, no
+  blob collection and no 403 audit, so `audit.read`, `blob.deleted` and `auth.forbidden` never
+  occur in it.
+- **Carried items 2 and 3.** An erased revision's content is asserted as `len == 0 || "null"`
+  (`erasedContent`); every row that asserts an order makes its records on distinct ticks (`tick`
+  moves `Advance` by 1 ms, or waits 2 ms on a Hub with none).

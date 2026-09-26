@@ -3,6 +3,7 @@ package conformance_test
 import (
 	"context"
 	"regexp"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -67,6 +68,36 @@ func TestFakeConforms(t *testing.T) {
 // snake_case, and no "#nn" suffix, which t.Run adds to a duplicate name.
 var rowName = regexp.MustCompile(`^TestRunNamesEveryRow/([a-z]+)/([a-z0-9]+(_[a-z0-9]+)*)$`)
 
+// wantRows is every row, by group, in order: the part's table and the carried
+// items (task-05.md As built D3). A row dropped from a group's table, or one
+// added without its name here, fails TestRunNamesEveryRow: ">= 40" alone let
+// one of 83 go (task 05 mutant PS-1).
+var wantRows = map[conformance.Group][]string{
+	conformance.GroupTeams: {"me_binds_invites", "outsider_sees_404", "member_cannot_invite", "last_admin",
+		"revoked_invite_never_binds", "reinvite_after_revoke", "pending_is_per_team", "me_binds_every_pending",
+		"member_check_is_this_team", "revoke_is_team_scoped", "me_binds_only_own_email", "member_cannot_revoke",
+		"viewer_cannot_revoke", "revoke_twice_is_204", "me_raises_a_lower_role", "org_admin_is_a_non_member"},
+	conformance.GroupProjects: {"repo_linked_once", "repo_key_forms", "for_repo_is_readable_only", "org_admin_is_a_non_member"},
+	conformance.GroupBriefs: {"brief_exists", "archive_frees_ref", "archived_refuses_writes", "numbering_and_conflict",
+		"batch_all_or_nothing", "viewer_cannot_write", "list_filters", "latest_complete", "batch_of_sixty_four",
+		"self_rebind_is_noop", "rebind_archived_first", "resolve_zero_keys", "list_cursor_is_this_projects",
+		"revisions_cursor", "org_admin_is_a_non_member"},
+	conformance.GroupRefs: {"five_states", "design_key_resolves", "org_admin_is_a_non_member"},
+	conformance.GroupDesigns: {"blob_hash_checked", "blob_type_allowlist", "blob_too_large", "blob_other_project_404",
+		"blob_roles", "blob_quota", "put_blob_rewinds", "approval_checks_in_order", "approver_is_the_caller",
+		"approval_of_an_older_revision", "approvals_list_and_get", "session_link_repeat_returns_existing",
+		"session_link_checks"},
+	conformance.GroupReleases: {"pin_ship_head", "pin_falls_back_to_project_brief", "pin_no_brief",
+		"pin_no_complete_revision", "pin_does_not_move", "reserve_refusals", "confirm_by_reserver_only",
+		"confirm_idempotent", "confirm_other_run_409", "one_release_per_run", "abandon_from_reserved_only", "expiry",
+		"join_rules", "rollback_inherits", "source_unknown", "source_unpinned", "by_deployment_id",
+		"environment_null_until_joined", "environment_null_abandons_and_expires", "rollback_confirm_names_no_source",
+		"kind_filter", "list_filters_and_order"},
+	conformance.GroupEvidence: {"repo_not_linked", "viewer_forbidden", "evidence_checks", "oldest_first", "unreadable_repo_is_empty"},
+	conformance.GroupFeed: {"latest_then_new_events", "outsider_sees_nothing", "more_when_limit_cuts",
+		"audit_only_kinds_never_appear", "every_write_is_its_events"},
+}
+
 func TestRunNamesEveryRow(t *testing.T) {
 	var mu sync.Mutex
 	var names []string
@@ -97,6 +128,25 @@ func TestRunNamesEveryRow(t *testing.T) {
 	}
 	if len(groups) != len(conformance.AllGroups) {
 		t.Errorf("rows name groups %v, want exactly %v", groups, conformance.AllGroups)
+	}
+	var want []string
+	for _, g := range conformance.AllGroups {
+		for _, r := range wantRows[g] {
+			want = append(want, "TestRunNamesEveryRow/"+string(g)+"/"+r)
+		}
+	}
+	if !slices.Equal(names, want) {
+		for _, n := range want {
+			if !slices.Contains(names, n) {
+				t.Errorf("row %s is not run", n)
+			}
+		}
+		for _, n := range names {
+			if !slices.Contains(want, n) {
+				t.Errorf("row %s runs but is not in wantRows", n)
+			}
+		}
+		t.Errorf("Run named %d rows, want the %d of wantRows in their order", len(names), len(want))
 	}
 	t.Logf("%d rows in %d groups: %v", len(names), len(groups), groups)
 }

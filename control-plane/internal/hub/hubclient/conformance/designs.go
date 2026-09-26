@@ -116,9 +116,18 @@ func blobOtherProject404(t *testing.T, e Env) {
 	data := fresh("shared")
 	upload(t, e.Member, p1.ID, htmlType, data)
 	noBlob(t, e.Member, p2.ID, digestOf(data))
-	upload(t, e.Member, p2.ID, htmlType, data)
-	if got, _ := read(t, e.Member, p2.ID, digestOf(data)); !bytes.Equal(got, data) {
-		t.Errorf("p2's copy = %q, want the bytes", got)
+	// The first upload's type wins for its project: a re-upload answers the
+	// stored type (task 21 step 6); another project's association has its own.
+	const plain = "text/plain; charset=utf-8"
+	if again := must(put(e.Member, p1.ID, plain, data))(t); again.ContentType != htmlType {
+		t.Errorf("a re-upload as %s answered %s, want the stored %s", plain, again.ContentType, htmlType)
+	}
+	if _, b := read(t, e.Viewer, p1.ID, digestOf(data)); b.ContentType != htmlType {
+		t.Errorf("after a re-upload p1 serves %s, want the first upload's %s", b.ContentType, htmlType)
+	}
+	upload(t, e.Member, p2.ID, plain, data)
+	if got, b := read(t, e.Member, p2.ID, digestOf(data)); !bytes.Equal(got, data) || b.ContentType != plain {
+		t.Errorf("p2's copy = %q as %s, want the bytes as %s", got, b.ContentType, plain)
 	}
 }
 
@@ -261,6 +270,17 @@ func approvalChecksInOrder(t *testing.T, e Env) {
 		t.Run("check_"+string(rune('0'+n))+"_first", func(t *testing.T) { want(t, n, all, err) })
 	}
 	approvalCheck1And5Fields(t, e, a)
+	if e.Erase == nil {
+		t.Log("conformance: this Env has no Erase; check 2's erased revision is not run")
+	} else { // check 2: a revision of this project's brief, but erased, approves nothing
+		gone := newBrief(t, e.Member, a.p.ID, "refs/heads/gone")
+		gr := write(t, e.Member, a.p.ID, gone.ID, 0, hubapi.StatusComplete)
+		ok(t, e.Erase(gone.ID, "Conformance: an erased revision approves nothing"))
+		r := base
+		r.BriefKey, r.BriefDigest = gr.Key, gr.Digest
+		_, err := e.Member.Approve(bg, a.p.ID, r)
+		wantErr(t, err, 422, hubapi.CodeKeyUnresolvable, "key", gr.Key)
+	}
 	if page := must(e.Viewer.Approvals(bg, a.p.ID, hubapi.ApprovalQuery{}))(t); len(page.Items) != 1 || page.Items[0].ID != first.ID {
 		t.Errorf("after the refusals the project's approvals are %d, want only %s", len(page.Items), first.ID)
 	}
