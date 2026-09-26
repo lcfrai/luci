@@ -57,6 +57,8 @@ func TestAllSixteenErrorCodesHaveTheirContractString(t *testing.T) {
 		CodeInternal:           "internal",
 		CodeNonLoopbackPublish: "non_loopback_publish",
 		CodeBackendUnavailable: "backend_unavailable",
+		// Phase 4 task 10's seventeenth; the desktop switches on it (task 20).
+		CodeBriefNotWritten: "brief_not_written",
 	} {
 		if code != want {
 			t.Errorf("code = %q, want %q", code, want)

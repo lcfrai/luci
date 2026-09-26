@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/api"
@@ -90,6 +91,39 @@ func (f *catalogProjects) Worktrees(_ context.Context, projectID string) ([]proj
 	return w, nil
 }
 
+// catalogMaterialiser is the recording api.Materialiser every Deps this
+// package builds starts with (phase 4 task 10): New refuses a nil one, and a
+// no-op default inside api would be the silent non-inheritance the field
+// exists to prevent. It records each request and answers with result and err.
+// onCall, when set, runs first: materialise_test.go logs the call's position
+// against the backend's and the store's.
+type catalogMaterialiser struct {
+	mu     sync.Mutex
+	calls  []api.MaterialiseRequest
+	result api.MaterialiseResult
+	err    error
+	onCall func(api.MaterialiseRequest)
+}
+
+func (f *catalogMaterialiser) Materialise(_ context.Context, req api.MaterialiseRequest) (api.MaterialiseResult, error) {
+	f.mu.Lock()
+	onCall := f.onCall
+	f.calls = append(f.calls, req)
+	result, err := f.result, f.err
+	f.mu.Unlock()
+	if onCall != nil {
+		onCall(req)
+	}
+	return result, err
+}
+
+// requests is a copy of every request so far.
+func (f *catalogMaterialiser) requests() []api.MaterialiseRequest {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]api.MaterialiseRequest(nil), f.calls...)
+}
+
 // catalogQuietLogger keeps a failing test's output readable. A handler that logs on
 // the happy path is a handler that will be found by grepping for noise.
 func catalogQuietLogger() *slog.Logger {
@@ -152,6 +186,9 @@ func catalogNewDeps(t *testing.T) (api.Deps, *registry.FileStore) {
 		// Required by New and unused by the catalog: nothing here starts a
 		// session.
 		ConversationsDir: filepath.Join(t.TempDir(), "conversations"),
+		// Required by New (task 10). The catalog starts no session, so this
+		// one is never called; materialise_test.go replaces it with its own.
+		Materialiser: &catalogMaterialiser{},
 	}, st
 }
 

@@ -1,9 +1,11 @@
 package api
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -293,7 +295,77 @@ type sessionCreateRequest struct {
 	OpeningPrompt  string `json:"openingPrompt"`
 	Title          string `json:"title"`
 	Resume         string `json:"resume"`
-	ContextRef     string `json:"contextRef"`
+
+	// ContextRef is IGNORED (phase 4 task 10, P6). It stays in the struct so an
+	// old client that sends it is not a 400; the record's contextRef is what
+	// the Materialiser answered, never what the client guessed.
+	ContextRef string `json:"contextRef"`
+
+	// WithoutBrief is the person's "Start without the brief" (4-D1), passed to
+	// the Materialiser as MaterialiseRequest.WithoutBrief.
+	WithoutBrief bool `json:"withoutBrief"`
+}
+
+// sessionRestartRequest is the OPTIONAL body of POST /v1/sessions/{id}/restart
+// (phase 4 task 10). An empty body is {}: phase 2's desktop sends none.
+type sessionRestartRequest struct {
+	WithoutBrief bool `json:"withoutBrief"`
+}
+
+// sessionDecodeOptionalJSON is httpx.DecodeJSON for a body that may be absent.
+// No bytes at all decode as the zero value; anything else is decoded exactly
+// as every other body on this API is, so an unknown field is still refused.
+func sessionDecodeOptionalJSON[T any](w http.ResponseWriter, r *http.Request, dst *T) bool {
+	if r.Body == nil || r.Body == http.NoBody {
+		return true
+	}
+	br := bufio.NewReader(r.Body)
+	if _, err := br.Peek(1); errors.Is(err, io.EOF) {
+		return true
+	}
+	r.Body = struct {
+		io.Reader
+		io.Closer
+	}{br, r.Body}
+	return httpx.DecodeJSON(w, r, dst)
+}
+
+// errProjectUnknown is sessionLocate's answer when it could not tell which
+// project a worktree belongs to (phase 4 task 10, review I2).
+var errProjectUnknown = errors.New("api: the projects could not be enumerated")
+
+// sessionProjectUnknown is the handler's own refusal when sessionLocate fails
+// and the person did not decline the brief.
+var sessionProjectUnknown = &MaterialiseError{
+	Reason:  BriefReasonProjectUnknown,
+	Message: "The brief could not be written because the projects could not be read.",
+}
+
+// sessionBriefWritten answers a failed Materialise and reports whether the
+// handler may go on: a *MaterialiseError is 409 brief_not_written, anything
+// else a 500 whose detail goes to the log only, because it can name a path.
+func (a *API) sessionBriefWritten(w http.ResponseWriter, r *http.Request, worktreeID string, err error) bool {
+	if err == nil {
+		return true
+	}
+	var refusal *MaterialiseError
+	if errors.As(err, &refusal) {
+		a.writeBriefNotWritten(w, worktreeID, refusal)
+		return false
+	}
+	a.internal(w, r, "write the brief for worktree "+worktreeID, err)
+	return false
+}
+
+// writeBriefNotWritten is the one 409 brief_not_written writer, for the
+// Materialiser's refusals and the handler's own project_unknown alike.
+func (a *API) writeBriefNotWritten(w http.ResponseWriter, worktreeID string, e *MaterialiseError) {
+	msg := e.Message
+	if msg == "" {
+		msg = "The brief could not be written, so the session was not started."
+	}
+	httpx.WriteProblem(w, http.StatusConflict, httpx.CodeBriefNotWritten, msg,
+		map[string]string{"reason": e.Reason, "worktreeId": worktreeID})
 }
 
 // registerSessions mounts the six verbs. Go 1.22's ServeMux matches on method
@@ -424,6 +496,37 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		a.writeHarnessProblem(w, r, harnessID, desc, err)
 		return
 	}
+
+	// THE BRIEF (phase 4 task 10, ruling R1): validate, then materialise, then
+	// prepare and record (review M2). Every refusal above only checked the
+	// request and cost no Hub call. Everything below touches the disk, records
+	// or creates, so a refusal here leaves none of it: no record, no sandbox,
+	// no conversation store. The one thing minted above is the conversation
+	// UUID, in memory, dropped on a refusal.
+	//
+	// sessionLocate moved up to here with it: the Materialiser needs the
+	// project. An enumeration FAILURE is not "outside every project" and is
+	// refused as project_unknown, unless the person declined the brief, when
+	// no project's brief is needed and refusing would make Start without the
+	// brief a dead end; the record then carries empty ids.
+	projectID, branchID, err := a.sessionLocate(ctx, req.WorktreeID)
+	if err != nil && !req.WithoutBrief {
+		a.writeBriefNotWritten(w, req.WorktreeID, sessionProjectUnknown)
+		return
+	}
+	brief, err := a.deps.Materialiser.Materialise(ctx, MaterialiseRequest{
+		WorktreeID:   req.WorktreeID,
+		WorktreePath: path,
+		ProjectID:    projectID,
+		BranchID:     branchID,
+		WithoutBrief: req.WithoutBrief,
+	})
+	if !a.sessionBriefWritten(w, r, req.WorktreeID, err) {
+		return
+	}
+	// A failure from here on leaves the written block in place. It is
+	// git-excluded and stamps nothing, and the next start rewrites it.
+
 	if conversation != "" {
 		if conversationStore, err = a.sessionConversationStore(req.WorktreeID); err != nil {
 			a.internal(w, r, "prepare the conversation store for worktree "+req.WorktreeID, err)
@@ -449,7 +552,6 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 	if machineID == "" {
 		machineID = LocalMachineID
 	}
-	projectID, branchID := a.sessionLocate(ctx, req.WorktreeID)
 
 	// 4. The record exists before the sandbox does. SandboxID is written here,
 	// before backend.Create, so a crash between the two leaves a record the
@@ -474,7 +576,8 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		Backend:        string(a.deps.Backend.Kind()),
 		SandboxID:      sessionID,
 		AttachToken:    token,
-		ContextRef:     req.ContextRef,
+		// The Materialiser's answer, verbatim, never the request's (P6).
+		ContextRef: brief.ContextRef,
 	}); err != nil {
 		// Task 7's decision 3 fixes these two: an empty id is ErrInvalidID and
 		// answers 400, not 409 and not 500. Neither is reachable while
@@ -538,32 +641,49 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 }
 
 // sessionLocate finds the project and branch a worktree belongs to, through
-// task 10's Enumerator. Both ids are empty when the worktree is not under one
-// of the enumerated projects; an empty id is honest, a guessed one is not.
-// New rejects a nil Projects, so the nil check is for a hand-built API only.
-func (a *API) sessionLocate(ctx context.Context, worktreeID string) (projectID, branchID string) {
+// task 10's Enumerator. Three answers, never confused (phase 4 task 10,
+// review I2):
+//   - found: its ids and nil, even if another project's Worktrees() failed
+//     (a worktree id belongs to one project);
+//   - outside every project, and every enumeration succeeded: "", "", nil.
+//     An empty id is honest, a guessed one is not;
+//   - not found, and Projects() or some Worktrees() failed: "", "",
+//     errProjectUnknown wrapping the first failure. Which project's brief
+//     applies is then unknown, and that is not the same as "none".
+//
+// The two Warn logs stay: the error is for the handler, the log for the
+// operator. New rejects a nil Projects, so the nil check is for a hand-built
+// API only, and it answers "", "", nil.
+func (a *API) sessionLocate(ctx context.Context, worktreeID string) (projectID, branchID string, err error) {
 	loc := a.deps.Projects
 	if loc == nil {
-		return "", ""
+		return "", "", nil
 	}
 	projects, err := loc.Projects(ctx)
 	if err != nil {
-		a.sessionLog().Warn("enumerate projects while creating a session", "err", err)
-		return "", ""
+		a.sessionLog().Warn("enumerate projects while locating a session's worktree", "err", err)
+		return "", "", fmt.Errorf("%w: %w", errProjectUnknown, err)
 	}
+	var first error
 	for _, p := range projects {
 		worktrees, err := loc.Worktrees(ctx, p.ID)
 		if err != nil {
-			a.sessionLog().Warn("enumerate worktrees while creating a session", "projectId", p.ID, "err", err)
+			a.sessionLog().Warn("enumerate worktrees while locating a session's worktree", "projectId", p.ID, "err", err)
+			if first == nil {
+				first = err
+			}
 			continue
 		}
 		for _, wt := range worktrees {
 			if wt.ID == worktreeID {
-				return wt.ProjectID, wt.BranchID
+				return wt.ProjectID, wt.BranchID, nil
 			}
 		}
 	}
-	return "", ""
+	if first != nil {
+		return "", "", fmt.Errorf("%w: %w", errProjectUnknown, first)
+	}
+	return "", "", nil
 }
 
 // sessionResolveResume turns the `resume` field — the id of the cockpit session
@@ -954,6 +1074,12 @@ var sessionRestarts = &sessionIDSet{}
 // set — because resuming continues an old transcript and conflating the two
 // makes restart lossy.
 func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
+	// The optional body (phase 4 task 10): only withoutBrief. Decoded first,
+	// because a bad body is the caller's mistake and costs nothing.
+	var body sessionRestartRequest
+	if !sessionDecodeOptionalJSON(w, r, &body) {
+		return
+	}
 	id := r.PathValue("id")
 	if !sessionRestarts.acquire(id) {
 		httpx.WriteProblem(w, http.StatusConflict, httpx.CodeConflict,
@@ -1021,6 +1147,39 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 	// identity after the first create gets a sandbox that can commit.
 	sandboxEnv := sessionEnv(a.sessionGitIdentity(ctx, sess.WorktreeID, path), a.deps.CABundle)
 
+	// THE BRIEF (phase 4 task 10, ruling R1), after the argv and the
+	// environment and BEFORE THE DESTROY, for the argv rule's reason above: a
+	// Hub outage mid-restart must leave the running agent running, not kill it
+	// and then answer 409 with a record naming a destroyed sandbox. What ran
+	// before this is the new conversation UUID and the worktree's conversation
+	// store, whose MkdirAll is idempotent. A restart is a new process, so it
+	// RESTAMPS (contract §2.4). Accepted side effect: the new block is written
+	// while the old process still runs; that process read CLAUDE.md when it
+	// started, so its stamp stays true until the destroy below ends it.
+	//
+	// A record with ProjectID "" is ambiguous (outside every project, or an
+	// enumeration failure at create), so it is re-located, with create's error
+	// rule. A record that names a project is not.
+	projectID, branchID := sess.ProjectID, sess.BranchID
+	if projectID == "" {
+		var locErr error
+		projectID, branchID, locErr = a.sessionLocate(ctx, sess.WorktreeID)
+		if locErr != nil && !body.WithoutBrief {
+			a.writeBriefNotWritten(w, sess.WorktreeID, sessionProjectUnknown)
+			return
+		}
+	}
+	brief, err := a.deps.Materialiser.Materialise(ctx, MaterialiseRequest{
+		WorktreeID:   sess.WorktreeID,
+		WorktreePath: path,
+		ProjectID:    projectID,
+		BranchID:     branchID,
+		WithoutBrief: body.WithoutBrief,
+	})
+	if !a.sessionBriefWritten(w, r, sess.WorktreeID, err) {
+		return
+	}
+
 	// One of contract §5.2's three permitted destroys.
 	if sess.SandboxID != "" {
 		if err := a.deps.Backend.Destroy(ctx, sess.SandboxID); err != nil && !errors.Is(err, backend.ErrNotFound) {
@@ -1072,6 +1231,11 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 		sess.Command = command
 		sess.Args = args
 		sess.ConversationID = conversation
+		// The new process's stamp and, for a re-located record, its ids
+		// (phase 4 task 10), in the same write as the sandbox they describe.
+		sess.ContextRef = brief.ContextRef
+		sess.ProjectID = projectID
+		sess.BranchID = branchID
 		sess.Status = registry.StatusStarting
 		sess.ExitReason = ""
 		// AttachCount is deliberately untouched. Task 12's relay defer

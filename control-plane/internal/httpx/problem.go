@@ -38,7 +38,9 @@ type Problem struct {
 // task 12's, and it is a sixteenth code rather than a reuse of
 // sandbox_not_running because a sandbox the daemon reports published off
 // loopback IS running - saying otherwise would be a lie the cockpit then shows
-// the user. They are constants and not string literals at the call sites
+// the user. Phase 4 task 10 adds a seventeenth, brief_not_written: a session
+// whose brief could not be written before its process would start. They are
+// constants and not string literals at the call sites
 // because the desktop switches on them: a typo in one handler is a code the
 // cockpit can never match and that no compiler would have flagged.
 const (
@@ -52,6 +54,7 @@ const (
 	CodeWorktreeNotFound   = "worktree_not_found"   // 404
 	CodeSessionNotFound    = "session_not_found"    // 404
 	CodeConflict           = "conflict"             // 409 wrong state for the verb
+	CodeBriefNotWritten    = "brief_not_written"    // 409 the brief could not be written before the session started (4-D1)
 	CodeSandboxNotRunning  = "sandbox_not_running"  // 409 attach or restart, sandbox gone
 	CodeHarnessUnavailable = "harness_unavailable"  // 409 in the catalogue, not in the image
 	CodeUpgradeRequired    = "upgrade_required"     // 426 /attach without WebSocket headers

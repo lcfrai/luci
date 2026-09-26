@@ -147,6 +147,16 @@ type Deps struct {
 	// named by NODE_EXTRA_CA_CERTS. "" mounts nothing and sets nothing. cmd/api
 	// has already refused a path that is missing or holds no certificate.
 	CABundle string
+
+	// Materialiser writes a session's inherited brief before its process
+	// starts (R1). Required: a nil one is a session that silently inherits
+	// nothing, which is the failure this field exists to make impossible.
+	Materialiser Materialiser
+
+	// Discover mounts phase 4's /v1/discover routes on the guarded mux, so
+	// the /api/v1 alias and the §10a audit both reach them. Optional: nil
+	// mounts nothing.
+	Discover RouteMounter
 }
 
 // GitIdentity is one person's commit identity: both fields, or neither.
@@ -245,6 +255,7 @@ func New(d Deps) (*API, error) {
 		{"Projects", d.Projects == nil},
 		{"Worktrees", d.Worktrees == nil},
 		{"Origin", d.Origin == nil},
+		{"Materialiser", d.Materialiser == nil},
 	} {
 		// BackendReady has no safe default and that is why it is here rather
 		// than below: true fabricates health, false sends an operator after a
@@ -310,6 +321,14 @@ func New(d Deps) (*API, error) {
 	// load-bearing is that the call goes through a *routes. Neither task owes a
 	// sessionsRoutes()-style table either — catalogRoutes is a task-10 style
 	// choice, and the recorder is the whole requirement.
+
+	// Phase 4 task 10: another package's routes go through the same recorder,
+	// after registerAttach(guarded) above, so the origin guard, the /api/v1
+	// alias and the §10a audit all reach them. A GET it mounts owes
+	// routes_audit_test.go its line like any other.
+	if d.Discover != nil {
+		d.Discover.Mount(guarded.Handle)
+	}
 
 	// Contract §7.5: /v1 is canonical and /api/v1/… is an alias, so Phase 4's
 	// Discover routes and its entire test suite land unchanged. Nothing in

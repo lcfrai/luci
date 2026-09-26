@@ -493,6 +493,11 @@ type sessionsLocator struct {
 	branches  map[string][]project.Branch   // keyed by project id
 	worktrees map[string][]project.Worktree // keyed by project id
 	err       error
+
+	// worktreesErr fails one project's Worktrees only (phase 4 task 10,
+	// review I2): one broken repository must not hide a worktree that lives in
+	// another project.
+	worktreesErr map[string]error
 }
 
 func (f *sessionsLocator) Projects(ctx context.Context) ([]project.Project, error) {
@@ -504,10 +509,36 @@ func (f *sessionsLocator) Branches(ctx context.Context, projectID string) ([]pro
 }
 
 func (f *sessionsLocator) Worktrees(ctx context.Context, projectID string) ([]project.Worktree, error) {
+	if err := f.worktreesErr[projectID]; err != nil {
+		return nil, err
+	}
 	return f.worktrees[projectID], f.err
 }
 
 var _ Enumerator = (*sessionsLocator)(nil)
+
+// sessionsMaterialiser is this file's own recording Materialiser (phase 4
+// task 10, review I1): package api cannot see api_test.go's. It records each
+// request and answers with result and err.
+type sessionsMaterialiser struct {
+	mu     sync.Mutex
+	calls  []MaterialiseRequest
+	result MaterialiseResult
+	err    error
+}
+
+func (f *sessionsMaterialiser) Materialise(_ context.Context, req MaterialiseRequest) (MaterialiseResult, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.calls = append(f.calls, req)
+	return f.result, f.err
+}
+
+func (f *sessionsMaterialiser) requests() []MaterialiseRequest {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]MaterialiseRequest(nil), f.calls...)
+}
 
 // sessionsEnv is everything a test needs, kept together so a test can reach
 // past the handler when it has to.
@@ -519,6 +550,7 @@ type sessionsEnv struct {
 	wt  worktree.Static
 	dir string
 	loc *sessionsLocator
+	mat *sessionsMaterialiser
 
 	// conversations is Deps.ConversationsDir: the root, not one worktree's
 	// store.
@@ -562,6 +594,7 @@ func sessionsNewEnvOverWith(t *testing.T, dir string, st registry.Store, flags r
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	env := &sessionsEnv{
 		be:  sessionsNewBackend(),
+		mat: &sessionsMaterialiser{},
 		wt:  worktree.Static{"w-4a77b1c9": wtDir},
 		dir: wtDir,
 		// A sibling of the projects directory, never inside the worktree: a
@@ -595,6 +628,7 @@ func sessionsNewEnvOverWith(t *testing.T, dir string, st registry.Store, flags r
 		Resources:        backend.DefaultResources,
 		ReadyTimeout:     50 * time.Millisecond,
 		ConversationsDir: env.conversations,
+		Materialiser:     env.mat,
 	}
 	if tweak != nil {
 		tweak(&deps)
@@ -1763,5 +1797,213 @@ func TestNothingDestroysBecauseAClientWentAway(t *testing.T) {
 	}
 	if n := len(sessionsDecodeList(t, env.do(t, http.MethodGet, "/v1/sessions", ""))); n != 1 {
 		t.Errorf("List returned %d sessions, want 1 — the session must stay listed", n)
+	}
+}
+
+// ---- Phase 4 task 10: sessionLocate's three answers (review I2) ----
+
+var errSessionsEnumerate = errors.New("git: the repository could not be read")
+
+func TestSessionLocateEnumerationFailureIsAnError(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		fail func(*sessionsLocator)
+	}{
+		{"Projects fails", func(l *sessionsLocator) { l.err = errSessionsEnumerate }},
+		{"the only project's Worktrees fails", func(l *sessionsLocator) {
+			l.worktreesErr = map[string]error{"p-8c1d0e42": errSessionsEnumerate}
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			env := sessionsNewEnv(t)
+			tc.fail(env.loc)
+			p, b, err := env.api.sessionLocate(context.Background(), "w-4a77b1c9")
+			if p != "" || b != "" || !errors.Is(err, errProjectUnknown) {
+				t.Errorf("sessionLocate = %q, %q, %v; want \"\", \"\", errProjectUnknown: a failure is not a clean miss", p, b, err)
+			}
+			if !errors.Is(err, errSessionsEnumerate) {
+				t.Errorf("err = %v; want it to wrap the first failure", err)
+			}
+		})
+	}
+}
+
+func TestSessionLocateFindsTheWorktreeDespiteAnotherProjectsFailure(t *testing.T) {
+	env := sessionsNewEnv(t)
+	// Project A comes first and cannot be read; the worktree lives in B.
+	env.loc.projects = append([]project.Project{{ID: "p-aaaaaaaa", Name: "broken"}}, env.loc.projects...)
+	env.loc.worktreesErr = map[string]error{"p-aaaaaaaa": errSessionsEnumerate}
+	p, b, err := env.api.sessionLocate(context.Background(), "w-4a77b1c9")
+	if p != "p-8c1d0e42" || b != "b-8c1d0e42-evidence-upload" || err != nil {
+		t.Errorf("sessionLocate = %q, %q, %v; want B's ids and nil: one broken repository must not refuse sessions in every other project", p, b, err)
+	}
+}
+
+func TestSessionLocateOutsideEveryProjectIsACleanEmpty(t *testing.T) {
+	env := sessionsNewEnv(t)
+	p, b, err := env.api.sessionLocate(context.Background(), "w-99999999")
+	if p != "" || b != "" || err != nil {
+		t.Errorf("sessionLocate = %q, %q, %v; want \"\", \"\", nil: a clean miss is not project_unknown", p, b, err)
+	}
+}
+
+// sessionsProblem decodes a whole problem body, details included.
+func sessionsProblem(t *testing.T, rec *httptest.ResponseRecorder, wantStatus int) httpx.Problem {
+	t.Helper()
+	if rec.Code != wantStatus {
+		t.Fatalf("status = %d, want %d; body = %s", rec.Code, wantStatus, rec.Body.String())
+	}
+	var p httpx.Problem
+	if err := json.Unmarshal(rec.Body.Bytes(), &p); err != nil {
+		t.Fatalf("decode the problem body: %v; body = %s", err, rec.Body.String())
+	}
+	return p
+}
+
+func TestCreateRefusesAnUnknownProject(t *testing.T) {
+	env := sessionsNewEnv(t)
+	env.loc.err = errSessionsEnumerate
+	p := sessionsProblem(t, env.do(t, http.MethodPost, "/v1/sessions", sessionsCreateBody), http.StatusConflict)
+
+	if p.Error != httpx.CodeBriefNotWritten || p.Details["reason"] != BriefReasonProjectUnknown || p.Details["worktreeId"] != "w-4a77b1c9" {
+		t.Errorf("problem = %+v, want brief_not_written, reason project_unknown, the worktree id", p)
+	}
+	if n := len(env.mat.requests()); n != 0 {
+		t.Errorf("Materialise was called %d times; the handler refuses project_unknown itself", n)
+	}
+	if list, _ := env.st.List(); len(list) != 0 {
+		t.Errorf("store holds %d sessions, want none", len(list))
+	}
+	if n := len(env.be.specs); n != 0 {
+		t.Errorf("backend.Create was called %d times, want 0", n)
+	}
+}
+
+func TestCreateWithoutBriefStartsDespiteAnUnknownProject(t *testing.T) {
+	env := sessionsNewEnv(t)
+	sessionsStubReady(t, nil)
+	done := sessionsWatchDone(t)
+	env.loc.err = errSessionsEnumerate
+	env.mat.result = MaterialiseResult{ContextRef: "none:declined"}
+	body := `{"worktreeId":"w-4a77b1c9","withoutBrief":true}`
+	got := sessionsDecodeOne(t, env.do(t, http.MethodPost, "/v1/sessions", body), http.StatusCreated)
+	sessionsAwaitWatch(t, done)
+
+	reqs := env.mat.requests()
+	if len(reqs) != 1 || reqs[0].ProjectID != "" || !reqs[0].WithoutBrief {
+		t.Errorf("Materialise got %+v, want one call with ProjectID \"\" and WithoutBrief", reqs)
+	}
+	if got.ContextRef != "none:declined" {
+		t.Errorf("contextRef = %q, want none:declined: Start without the brief must not be a dead end", got.ContextRef)
+	}
+}
+
+func TestCreateOutsideEveryProjectMaterialisesWithNoProject(t *testing.T) {
+	env := sessionsNewEnv(t)
+	sessionsStubReady(t, nil)
+	done := sessionsWatchDone(t)
+	env.loc.worktrees = map[string][]project.Worktree{}
+	got := sessionsDecodeOne(t, env.do(t, http.MethodPost, "/v1/sessions", sessionsCreateBody), http.StatusCreated)
+	sessionsAwaitWatch(t, done)
+
+	reqs := env.mat.requests()
+	if len(reqs) != 1 || reqs[0].ProjectID != "" || reqs[0].BranchID != "" || reqs[0].WithoutBrief {
+		t.Errorf("Materialise got %+v, want one call with no project", reqs)
+	}
+	if got.ContextRef != "" {
+		t.Errorf("contextRef = %q, want the Materialiser's \"\"", got.ContextRef)
+	}
+}
+
+// A record with ProjectID "" is ambiguous: outside every project, or an
+// enumeration failure at create. So restart re-locates it, before Materialise
+// and so before the destroy (review I2).
+func TestRestartRelocatesARecordWithNoProject(t *testing.T) {
+	t.Run("found", func(t *testing.T) {
+		env := sessionsNewEnv(t)
+		sessionsStubReady(t, nil)
+		done := sessionsWatchDone(t)
+		sessionsSeed(t, env.st, sessionsStarting("s-0000000b"))
+		sessionsDecodeOne(t, env.do(t, http.MethodPost, "/v1/sessions/s-0000000b/restart", ""), http.StatusOK)
+		sessionsAwaitWatch(t, done)
+
+		if reqs := env.mat.requests(); len(reqs) != 1 || reqs[0].ProjectID != "p-8c1d0e42" || reqs[0].BranchID != "b-8c1d0e42-evidence-upload" {
+			t.Errorf("Materialise got %+v, want the re-located ids", reqs)
+		}
+		after, err := env.st.Get("s-0000000b")
+		if err != nil || after.ProjectID != "p-8c1d0e42" || after.BranchID != "b-8c1d0e42-evidence-upload" {
+			t.Errorf("record ids = %q, %q (err %v), want the re-located ids written", after.ProjectID, after.BranchID, err)
+		}
+	})
+	t.Run("enumeration fails", func(t *testing.T) {
+		env := sessionsNewEnv(t)
+		sessionsSeed(t, env.st, sessionsStarting("s-0000000b"))
+		env.loc.err = errSessionsEnumerate
+		p := sessionsProblem(t, env.do(t, http.MethodPost, "/v1/sessions/s-0000000b/restart", ""), http.StatusConflict)
+
+		if p.Error != httpx.CodeBriefNotWritten || p.Details["reason"] != BriefReasonProjectUnknown {
+			t.Errorf("problem = %+v, want brief_not_written, project_unknown", p)
+		}
+		if n := env.be.destroyCount(); n != 0 {
+			t.Errorf("destroys = %d, want 0: the old sandbox stays alive", n)
+		}
+		if n := len(env.mat.requests()); n != 0 {
+			t.Errorf("Materialise was called %d times, want 0", n)
+		}
+		if after, _ := env.st.Get("s-0000000b"); after.SandboxID != "s-0000000b" {
+			t.Errorf("record sandbox = %q, want it unchanged", after.SandboxID)
+		}
+	})
+	t.Run("a clean miss", func(t *testing.T) {
+		env := sessionsNewEnv(t)
+		sessionsStubReady(t, nil)
+		done := sessionsWatchDone(t)
+		sessionsSeed(t, env.st, sessionsStarting("s-0000000b"))
+		env.loc.worktrees = map[string][]project.Worktree{}
+		sessionsDecodeOne(t, env.do(t, http.MethodPost, "/v1/sessions/s-0000000b/restart", ""), http.StatusOK)
+		sessionsAwaitWatch(t, done)
+
+		if reqs := env.mat.requests(); len(reqs) != 1 || reqs[0].ProjectID != "" || reqs[0].BranchID != "" {
+			t.Errorf("Materialise got %+v, want one call with no project", reqs)
+		}
+		if after, _ := env.st.Get("s-0000000b"); after.ProjectID != "" || after.BranchID != "" {
+			t.Errorf("record ids = %q, %q, want them still \"\"", after.ProjectID, after.BranchID)
+		}
+	})
+}
+
+func TestRestartWithoutBriefStartsDespiteAnUnknownProject(t *testing.T) {
+	env := sessionsNewEnv(t)
+	sessionsStubReady(t, nil)
+	done := sessionsWatchDone(t)
+	sessionsSeed(t, env.st, sessionsStarting("s-0000000b"))
+	env.loc.err = errSessionsEnumerate
+	env.mat.result = MaterialiseResult{ContextRef: "none:declined"}
+	sessionsDecodeOne(t, env.do(t, http.MethodPost, "/v1/sessions/s-0000000b/restart", `{"withoutBrief":true}`), http.StatusOK)
+	sessionsAwaitWatch(t, done)
+
+	if reqs := env.mat.requests(); len(reqs) != 1 || reqs[0].ProjectID != "" || !reqs[0].WithoutBrief {
+		t.Errorf("Materialise got %+v, want one call with ProjectID \"\" and WithoutBrief", reqs)
+	}
+	if after, _ := env.st.Get("s-0000000b"); after.ContextRef != "none:declined" {
+		t.Errorf("record contextRef = %q, want none:declined: a second 409 leaves the person only Retry", after.ContextRef)
+	}
+}
+
+// A record that already names a project is not re-located (plan re-review b02
+// M-1): with enumeration broken, it still restarts with its own ids.
+func TestRestartDoesNotRelocateARecordThatNamesAProject(t *testing.T) {
+	env := sessionsNewEnv(t)
+	sessionsStubReady(t, nil)
+	done := sessionsWatchDone(t)
+	s := sessionsStarting("s-0000000b")
+	s.ProjectID, s.BranchID = "p-8c1d0e42", "b-8c1d0e42-evidence-upload"
+	sessionsSeed(t, env.st, s)
+	env.loc.err = errSessionsEnumerate
+	sessionsDecodeOne(t, env.do(t, http.MethodPost, "/v1/sessions/s-0000000b/restart", ""), http.StatusOK)
+	sessionsAwaitWatch(t, done)
+
+	if reqs := env.mat.requests(); len(reqs) != 1 || reqs[0].ProjectID != "p-8c1d0e42" || reqs[0].BranchID != "b-8c1d0e42-evidence-upload" {
+		t.Errorf("Materialise got %+v, want the recorded ids: a restart that re-locates every record turns a broken enumeration into project_unknown", reqs)
 	}
 }

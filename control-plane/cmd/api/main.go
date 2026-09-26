@@ -145,6 +145,8 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		ConversationsDir: cfg.ConversationsDir,
 		GitIdentity:      gitIdentity,
 		CABundle:         cfg.CABundle,
+		// Interim until phase 4 task 14 wires contextwrite and deletes it.
+		Materialiser: newMaterialiserUntilTask14(log),
 	})
 	if err != nil {
 		return fmt.Errorf("build the HTTP surface: %w", err)

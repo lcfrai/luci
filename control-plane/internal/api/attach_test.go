@@ -176,6 +176,16 @@ func (b *attachBackend) destroyCount() int {
 // this file still builds when it is the only one in the package.
 type attachCatalogue struct{}
 
+// attachNoMaterialiser is this file's own Materialiser (phase 4 task 10,
+// review I1: package api cannot see api_test.go's builder). The relay starts
+// no process, so any call is a defect.
+type attachNoMaterialiser struct{ t *testing.T }
+
+func (m attachNoMaterialiser) Materialise(context.Context, MaterialiseRequest) (MaterialiseResult, error) {
+	m.t.Error("the attach relay called the Materialiser; it starts no process")
+	return MaterialiseResult{}, nil
+}
+
 func (attachCatalogue) Projects(context.Context) ([]project.Project, error)        { return nil, nil }
 func (attachCatalogue) Branches(context.Context, string) ([]project.Branch, error) { return nil, nil }
 
@@ -312,6 +322,8 @@ func attachNewFixture(t *testing.T, replay []byte, shape func(*registry.Session)
 		Log:          quiet,
 		// Required by New; the relay never creates a sandbox.
 		ConversationsDir: filepath.Join(t.TempDir(), "conversations"),
+		// Required by New (phase 4 task 10); the relay starts no process.
+		Materialiser: attachNoMaterialiser{t: t},
 	})
 	if err != nil {
 		t.Fatalf("api.New: %v", err)
