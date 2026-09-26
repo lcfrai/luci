@@ -243,6 +243,7 @@ func (f *Fake) RequestReassign(_ context.Context, issueID string, req hubapi.Req
 		map[string]any{"toUserId": req.ToUserID})
 	return w.renderIssue(is), nil
 }
+```
 
 ```go
 func (f *Fake) AnswerReassign(_ context.Context, issueID string, req hubapi.AnswerReassignRequest) (hubapi.IssueHead, error) {
@@ -813,3 +814,90 @@ function inputsOf(s: DeskSnapshot): inf.InformInputs {
 formatter, both **UNVERIFIED** names). `stood` turns a `Refusal` into a rejection carrying the
 server's `code` and `message`, which `failOf` reads (it is not an `ApiError`, so `failOf` gains one
 branch: an object with string `code` and `message` is read as they are).
+
+#### Interfaces — complete: the answer book, `answer.ts` part 2 (what "resolved" means to the zero)
+
+A row's answer is its own state, but the zero state counts answers across rows (decision 9), so
+the ok answer is also written to one per-visit book. Task 62's `Desk.tsx` ⚑ wraps its sections in
+`<AnswerBookProvider>` (one line; a fresh book per mount, because the frame unmounts on leave,
+task 62's test 5). `Desk.tsx` joins the file list.
+
+```tsx
+// desktop/src/components/desk/rows/answer.ts, appended (the file becomes answer.tsx).
+import { createContext, useContext, useState, useSyncExternalStore, type ReactNode } from "react";
+
+export interface AnswerBook {
+  has(itemId: string): boolean;
+  mark(itemId: string): void;
+  subscribe(fn: () => void): () => void;
+  version(): number;
+}
+export function createAnswerBook(): AnswerBook {
+  const ids = new Set<string>();
+  const subs = new Set<() => void>();
+  let v = 0;
+  return {
+    has: (id) => ids.has(id),
+    mark: (id) => { if (!ids.has(id)) { ids.add(id); v += 1; subs.forEach((f) => f()); } },
+    subscribe: (fn) => { subs.add(fn); return () => subs.delete(fn); },
+    version: () => v,
+  };
+}
+const Ctx = createContext<AnswerBook | null>(null);
+export function AnswerBookProvider({ children }: { children: ReactNode }): JSX.Element {
+  const [book] = useState(createAnswerBook);
+  return <Ctx.Provider value={book}>{children}</Ctx.Provider>;
+}
+/** Outside a provider (a row rendered alone in a test) the book is a private one. */
+export function useAnswerBook(): AnswerBook {
+  const shared = useContext(Ctx);
+  const [own] = useState(createAnswerBook);
+  const book = shared ?? own;
+  useSyncExternalStore(book.subscribe, book.version);
+  return book;
+}
+/** The rows' state: an ok answer also marks the book. InformRow and ReassignDecide above read
+ *  `const [answer, setAnswer] = useRowAnswer(item.id);` in place of their `useState` line; task
+ *  63's and 64's NEEDS YOU rows take the same hook (UNVERIFIED until their parts land). */
+export function useRowAnswer(itemId: string): [RowAnswer | null, (a: RowAnswer | null) => void] {
+  const book = useAnswerBook();
+  const [answer, set] = useState<RowAnswer | null>(null);
+  return [answer, (a) => { set(a); if (a?.kind === "ok") book.mark(itemId); }];
+}
+```
+
+`failOf` gains the branch decision 8's `stood` needs, after the `ApiError` line:
+
+```ts
+  if (typeof e === "object" && e !== null && typeof (e as { code?: unknown }).code === "string"
+      && typeof (e as { message?: unknown }).message === "string") {
+    const r = e as { code: string; message: string };
+    return { kind: "fail", seq, code: r.code, message: r.message };   // a Refusal, verbatim
+  }
+```
+
+#### Interfaces — complete: `desktop/src/components/desk/DeskZero.tsx` (task 62's file, filled)
+
+```tsx
+import type { DeskItem } from "./deskModel";                                   // task 62
+import { useAnswerBook } from "./rows/answer";
+import { zeroSentence, type ZeroFacts } from "../../work/desk/informs";
+
+export interface LandedFacts { alias: string; word: string; at: string }       // task 64's payload
+
+/** Mounted by the frame at the top of NEEDS YOU on every visit. Renders only when no NEEDS YOU
+ *  row of this snapshot is unanswered. Plain text: no role="status" and no aria-live, because
+ *  task 66 keeps exactly one live region per window and announces through it. */
+export function DeskZero(props: {
+  needs: readonly DeskItem<unknown>[];
+  landed: readonly DeskItem<LandedFacts>[];
+  live: ZeroFacts["live"];
+  time: (iso: string) => string;
+}): JSX.Element | null {
+  const book = useAnswerBook();
+  if (props.needs.some((i) => !book.has(i.id))) return null;
+  const newest = [...props.landed].sort((a, b) => b.arrivedAt.localeCompare(a.arrivedAt))[0];
+  const text = zeroSentence({ landed: newest ? newest.payload : null, live: props.live, time: props.time });
+  return <p className="desk-zero">{text}</p>;
+}
+```
