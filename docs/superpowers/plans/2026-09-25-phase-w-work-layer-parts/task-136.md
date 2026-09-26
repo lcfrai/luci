@@ -908,3 +908,274 @@ lists the assist's `serves` items above it with their why; on failure the text-m
 issue is in `triage`, and not otherwise. The Desk's DECIDED WITHOUT YOU (task 39's section,
 `task-39.md:257`, `:274`) receives `AppliedAssist` rows through the store task 64 fills it from
 (**UNVERIFIED**, no part): *"Labelled EP-150 bug · because EP-120 · Undo"*.
+
+#### The test rig — complete: `control-plane/internal/workassist/rig_test.go`
+
+Tasks 137-140 reuse it (`task-139.md:832-837` assumed exactly these members).
+
+```go
+package workassist
+
+// rig is a Service over hubclient's fake and two upstreams that answer like P6
+// task 16's fakeanthropic (x-fake-route: global|au, the Messages JSON shape) but
+// with a body the test sets, and that keep the request bodies in memory.
+// P6-16's own binary answers a fixed "fake <label> reply" and keeps hashes only
+// (its _captured), so the canned body and the capture must be the rig's.
+type rig struct {
+	t       *testing.T
+	hub     *hubclient.Fake
+	svc     *Service
+	mu      sync.Mutex
+	body    string            // the next reply's text block
+	seen    []string          // every request body, in order
+	labels  []string          // the x-fake-route of every answer, in order
+	sw      *fakeSwitch
+	logs    *bytes.Buffer
+}
+
+func newRig(t *testing.T) *rig {
+	r := &rig{t: t, hub: hubclient.NewFake(), sw: &fakeSwitch{on: true}, logs: &bytes.Buffer{}}
+	up := func(label string) string {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, q *http.Request) {
+			b, _ := io.ReadAll(q.Body)
+			r.mu.Lock()
+			r.seen, r.labels = append(r.seen, string(b)), append(r.labels, label)
+			text := r.body
+			r.mu.Unlock()
+			w.Header().Set("x-fake-route", label)
+			_ = json.NewEncoder(w).Encode(map[string]any{"type": "message", "role": "assistant",
+				"content": []map[string]string{{"type": "text", "text": text}}})
+		}))
+		t.Cleanup(srv.Close)
+		return srv.URL
+	}
+	routes := seedRoutes(r.hub) // "pj-global" → global, "pj-au" (data class au-only) → au
+	r.svc = &Service{Hub: r.hub, Switch: r.sw, Routes: routes, OrgID: "org-1", Model: "claude-haiku-4-5",
+		Gateway: DirectGateway{Base: map[dataclass.Route]string{"global": up("global"), "au": up("au")},
+			HTTP: &http.Client{Timeout: 5 * time.Second}},
+		Log: slog.New(slog.NewTextHandler(r.logs, nil))}
+	return r
+}
+
+func (r *rig) reply(text string) { r.mu.Lock(); r.body = text; r.mu.Unlock() }
+func (r *rig) switchOn()         { r.sw.on = false } // the kill switch ON: orchestrators false
+func (r *rig) prompts() []string { r.mu.Lock(); defer r.mu.Unlock(); return append([]string(nil), r.seen...) }
+func (r *rig) routes() []string  { r.mu.Lock(); defer r.mu.Unlock(); return append([]string(nil), r.labels...) }
+
+type fakeSwitch struct{ on bool; err error }
+
+func (f *fakeSwitch) GetAgentSwitch(context.Context, string) (hubapi.AgentSwitch, error) {
+	return hubapi.AgentSwitch{Orchestrators: f.on}, f.err
+}
+```
+
+`switchOn` turns the **kill switch** on, which is `orchestrators: false` (task 100's field is
+*agents allowed*). `seedRoutes` seeds two projects in the fake Hub and returns a
+`wire.RouteSource` over them (P6 task 13's `File` source over a temp `projects.json`); the seed
+names (`EP`, `EP-120`, `EP-131`, `EP-150`, label `bug`, brief *Upload*, criterion `C3`) are the
+fixtures every assist test shares. `hubclient.NewFake` and its seeding helpers are Phase H's and
+task 05's (**UNVERIFIED** names beyond `hubclient.Fake`, `hub/hubclient/fake.go` on `feat/hub`).
+
+#### Tests to write first — Go, `workassist/{assist,why,triage}_test.go`
+
+```go
+const ep150 = "is-0000000000000150" // seeded: "Resume upload fails on Safari", in pj-au
+
+func triage(t *testing.T, r *rig, id string) (TriageSuggestion, error) {
+	t.Helper()
+	return r.svc.Triage(context.Background(), HubTriageSource{Hub: r.hub}, TriageRequest{IssueID: id})
+}
+
+func TestAnItemWithNoWhyIsDropped(t *testing.T) { // kills "an unlinked suggestion"
+	r := newRig(t)
+	r.reply(`{"items":[{"property":"labels","value":"lb-bug","why":[]},
+	                   {"property":"priority","value":"high","why":[{"kind":"issue","key":"EP-999"}]}]}`)
+	s, _ := triage(t, r, ep150)
+	if len(s.Items) != 0 {
+		t.Errorf("items %+v: an empty why and a why naming an unlisted issue must both drop", s.Items)
+	}
+}
+
+func TestACriterionOnNoBriefIsDropped(t *testing.T) { // kills "a hallucinated serves"
+	r := newRig(t)
+	r.reply(`{"items":[{"property":"serves","value":"c99","why":[{"kind":"criterion","key":"c99"}]},
+	                   {"property":"serves","value":"c1","why":[{"kind":"criterion","key":"c1"}]}]}`)
+	s, _ := triage(t, r, ep150)
+	if len(s.Items) != 1 || !strings.HasSuffix(s.Items[0].Value, "#C3") {
+		t.Errorf("items %+v: want only c1, resolved to the seeded brief's C3", s.Items)
+	}
+}
+
+func TestStateIsNeverSuggested(t *testing.T) { // kills "a suggested fact move"
+	r := newRig(t)
+	r.reply(`{"items":[{"property":"state","value":"done","why":[{"kind":"issue","key":"EP-120"}]}]}`)
+	if s, _ := triage(t, r, ep150); len(s.Items) != 0 {
+		t.Errorf("a state item survived: %+v", s.Items)
+	}
+}
+
+func TestAnAUOnlyProjectGoesToAU(t *testing.T) { // kills "Global for AU data"
+	r := newRig(t)
+	r.reply(`{"items":[]}`)
+	s, err := triage(t, r, ep150)
+	if err != nil || s.Route != "au" || strings.Join(r.routes(), ",") != "au" {
+		t.Errorf("route %q, upstreams hit %v, err %v: want au only", s.Route, r.routes(), err)
+	}
+}
+
+func TestTheKillSwitchStopsTheCall(t *testing.T) { // kills "switch ignored"
+	r := newRig(t)
+	r.switchOn()
+	if _, err := triage(t, r, ep150); !errors.Is(err, ErrAssistsOff) || len(r.prompts()) != 0 {
+		t.Errorf("err %v, %d calls: want ErrAssistsOff and none", err, len(r.prompts()))
+	}
+	r.sw.on, r.sw.err = true, errors.New("hub down") // unreadable is off (decision 3)
+	if _, err := triage(t, r, ep150); !errors.Is(err, ErrAssistsOff) {
+		t.Errorf("an unreadable switch let the call through: %v", err)
+	}
+}
+
+func TestThePromptHoldsNoErasedText(t *testing.T) { // kills "erased text sent"
+	r := newRig(t)
+	eraseComment(r.hub, ep150, "SECRET-CANARY-IN-COMMENT") // an erased comment on the issue
+	eraseIssue(r.hub, "is-0000000000000131")               // EP-131, an example candidate
+	r.reply(`{"items":[]}`)
+	_, _ = triage(t, r, ep150)
+	p := strings.Join(r.prompts(), "\n")
+	if strings.Contains(p, "SECRET-CANARY") || strings.Contains(p, "EP-131") {
+		t.Errorf("the prompt carried erased text or an erased issue:\n%s", p)
+	}
+	if _, err := triage(t, r, "is-0000000000000131"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("an erased issue was triaged: %v", err)
+	}
+}
+
+func TestNoIssueTextIsLogged(t *testing.T) {
+	r := newRig(t)
+	r.reply(`{"items":[{"property":"labels","value":"lb-bug","why":[{"kind":"issue","key":"EP-120"}]}]}`)
+	_, _ = triage(t, r, ep150)
+	if l := r.logs.String(); strings.Contains(l, "Safari") || strings.Contains(l, "lb-bug") {
+		t.Errorf("the log holds issue or reply text: %s", l)
+	}
+}
+```
+
+Also: `TestAGatewayFailureIsErrGatewayDown` (the upstream answers 500, then the rig's `Gateway`
+is nil; both are `ErrGatewayDown` and no item is returned; kills "blank triage" at its source);
+`TestAnUnknownRouteMakesNoCall` (a project missing from the route source; kills "a Global
+fallback"); `TestAnUnparseableReplyKeepsNothing` (the reply `fake au reply`, P6-16's own text;
+kills "a crash on prose"); `TestKeepLinkedResolvesAndDedupes` (a why twice, and one naming
+another kind's key). In `api/workassist_test.go`: the route's four problem codes over a stub
+`Service`; a body with a title instead of an id is `400` with no Hub call; and the route is absent
+when `Deps.WorkAssist` is nil. In `cmd/api/config_test.go`: `fake` with a non-loopback upstream
+exits 1 naming `PANACEA_APP_WORK_ASSIST_UPSTREAM_AU`; `gateway` exits 1 naming gap 1's words.
+
+**One proof on phase 6's own fake.** `TestAURouteOnFakeAnthropic` (build tag `fakeanthropic`,
+run by the acceptance line below) builds `control-plane/cmd/fakeanthropic` into `t.TempDir()`,
+starts it twice (`-label global`, `-label au`, free ports), points a `DirectGateway` at them,
+triages `EP-150`, and asserts one request reached the `au` copy (its `GET /_captured` holds one
+entry, the `global` copy's none) and that the reply, P6-16's fixed text, left `items: []`.
+
+#### Tests to write first — the desktop
+
+- `desktop/src/work/assist.test.ts`: `renderable` is false for `why: []`, for a why with `key: ""`,
+  for `property: "state"` cast in, and for `revision` behind `head.headRevision` (kills "an unlinked
+  suggestion" and "a stale one applied"); `calibrationWords(null)` is `null` and
+  `calibrationWords({unchanged: 23, changed: 2, rejected: 0})` is `"23 unchanged, 2 changed, none
+  rejected"`, with no `of` and no `%` (kills "N of M"); `dialLevel` defaults to `show` and reads
+  back what `setDialLevel` wrote (over a `Map`-backed `Storage`).
+- `accept` on a fake `WorkClient`: a labels item makes exactly one `patchIssue` call, `{labels:
+  [...existing, value]}`, and no other write (kills "the system as author": the only writer is the
+  person's client, and the call count is one); a serves item makes one `writeIssueRevision` with
+  `baseRevision` the suggestion's; a stale revision makes no call and throws `StaleSuggestion`.
+- `autoApply`: with `labels` at `auto` and the issue unlabelled, one patch and one
+  `AppliedAssist`; with the issue already labelled, none (kills "over a person"); with `priority`
+  at `show`, none; and `ASSIST_PROPERTIES` has no `state`, so no dial row and no auto path exists
+  for it (kills "a suggested fact move").
+- `AssistSuggestion.test.tsx`: an item whose why is empty renders no `li` (kills "an unlinked
+  suggestion"); each why is an `a` with the rig's `href`; the text has no digit followed by `%`
+  and no `score`, `confidence` or `likely`; `failed` renders its words and nothing else;
+  `expectNoPrediction(container)` (task 20's, `desktop/src/test/expectNoPrediction`).
+- `AssistDial.test.tsx`: with `assistCalibration` rejecting `404`, the rendered text contains **no
+  digit at all** (kills "a confidence without its record"); with it resolving, the row reads
+  *"Label suggestions you answered: 23 unchanged, 2 changed, none rejected"*; the team row offers
+  two levels, the others three; clicking *Auto-apply* stores `auto`.
+- `TriageView.test.tsx` ⚑: with `assistTriage` rejecting `gateway_unavailable`, the criterion
+  picker still shows task 42's `matches: …` notes and the header says *"Suggestions unavailable:
+  the gateway did not answer"* (kills "blank triage"); with `assists_off`, the org words; one call
+  per `(issueId, headRevision)` however often the row regains focus.
+
+#### Steps
+
+- [ ] **Step 1: Sync and read.** P6 tasks 01, 03, 13 and 16 and tasks 42, 46, 100 and 124 are
+  merged into `feat/work-layer`; read each file this part names. Rename to their names where they
+  differ, and record each rename in the commit message; the decisions do not change.
+- [ ] **Step 2: The rig and the Go tests.** `go test ./internal/workassist/ ./internal/api/` fails
+  on every new test, for the missing symbol.
+- [ ] **Step 3: `assist.go`, `why.go`, `triage.go`.** The workassist tests pass.
+- [ ] **Step 4: `api/workassist.go`,** `Deps.WorkAssist`, the register call, the audit line; then
+  `cmd/api`'s three variables. The api and config tests pass.
+- [ ] **Step 5: The desktop wire and `assist.ts`.** Its tests pass.
+- [ ] **Step 6: `AssistSuggestion`, `AssistDial`, the three hosts.** Their tests pass.
+- [ ] **Step 7: Run the acceptance block,** then commit with `git add` for the new files and
+  `git commit -F <msgfile> -- <paths>`.
+
+#### Acceptance
+
+```bash
+cd control-plane && go test ./internal/workassist/ ./internal/api/ ./cmd/api/
+# expect: ok for each; the rows above among them
+cd control-plane && go vet ./internal/workassist/ ./internal/api/ && gofmt -l internal/workassist/ internal/api/
+# expect: no output
+cd control-plane && go test -tags fakeanthropic -run TestAURouteOnFakeAnthropic ./internal/workassist/
+# expect: ok (one request reached the au copy; none the global copy)
+cd control-plane && grep -n -E 'Log\.(Info|Warn|Error)\(' internal/workassist/*.go | grep -v _test | grep -E 'Title|Description|Text|reply|body|User'
+# expect: no output (decision 8)
+cd control-plane && grep -n -E '"state"' internal/workassist/triage.go
+# expect: no output (no property is named "state"; the prompt says "Never suggest a state." unquoted)
+cd desktop && npx vitest run src/work/assist.test.ts src/components/work
+# expect: assist 9 passed; AssistSuggestion 5 passed; AssistDial 4 passed; TriageView's rows plus 3 new passed
+cd desktop && npx tsc --noEmit
+# expect: exit 0
+```
+
+#### What this task does NOT claim
+
+- That suggestions are good. Nothing here measures how often they are right; the calibration
+  record (gap 2) will count how the person answered, which is not the same thing.
+- An assist class on the gateway, or assists in any deployment but local mode on the fakes
+  (decision 4, gap 1). Until phase 6 decides, the product's assists answer *"the gateway did not
+  answer"*, and that is shown, not hidden.
+- Spend attribution for an assist call (task 135 attributes session keys; an assist has none).
+- Accepting a `team` or `feature` suggestion: both need routes this part could not verify (gap 6);
+  they are shown with their why and their Accept says why it cannot write yet.
+- That the dial follows the person to another machine (gap 4), or that DECIDED WITHOUT YOU keeps
+  auto-applied rows across a restart: they live for the session.
+- Comment text, guidance or duplicates in the prompt: tasks 137 and 139.
+
+#### Gaps found while writing this part
+
+1. **No gateway path for a sessionless call (proposal to the phase 6 owner, not applied).** Add
+   `ClassAssist SessionClass = "assist"`: `MintRequest` with `SessionID` = `as-<person>-<project>`
+   and `PodAddr` = the control plane's own address, minted on first use and refreshed like a
+   session, its budget a slice of the person's (P6-D8), so the gatekeeper's pod binding and
+   keysmith's attribution both hold. `cmd/api`'s `PANACEA_APP_WORK_ASSIST=gateway` is reserved
+   for it. Until then assists run only against the fakes.
+2. **The calibration record does not exist (a Hub delta for the skeleton).** The person's write
+   needs an optional `assist {property, outcome: unchanged | changed | rejected}` datum, and the Hub
+   a read, `GET /v1/me/assist-calibration?property=` → `{property, unchanged, changed, rejected}`,
+   summing the caller's own data only. SW.20 does not carry it (task 114 names the same gap). It
+   should be its own Hub task after task 124, with a desktop line here to send the datum on
+   Accept, on a changed value, and on Dismiss.
+3. **SW.19's switch has no assists member.** Task 100's `AgentSwitch` is `{orchestrators, by, at,
+   reason}` (`task-100.md:314`); this part reads `orchestrators: false` as *assists off* too. If the
+   owner wants the two separable, `AgentSwitch` gains `assists` and `Complete` reads it.
+4. **The dial is per machine.** `localStorage` only; no Hub record holds a person's assist levels,
+   and no team default exists for the greyed inheritance AX §7 describes.
+5. **The file map has no row for the assists' control-plane side** (`workassist/`,
+   `api/workassist.go`); this part adds them, following task 24's layout.
+6. **Unverified reads and writes.** `Choices` needs task 84's team members, task 72's project
+   features and Phase H's `Teams`; `Criteria` needs phase 4's brief-content decoder; accepting
+   `team` and `feature` needs task 84's team move and task 83's feature assignment. None has a part
+   on this tree (2026-09-26).
+7. **`ProblemCode`'s line.** Task 138 cites `client.ts:59` for the union; it is `:40-48` today.
