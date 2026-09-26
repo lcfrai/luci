@@ -71,3 +71,106 @@ Eight decisions the scope left open, made here.
    else its `rl-` id (gap 3; the scope's *2026.09.25-2* is not a field the contract has). No
    description, comment, title or anyone else's request: whether the title may be added follows
    task 81's open question, and until it is answered the title is left out.
+
+#### Files
+
+- `control-plane/internal/hub/mailer/inbound.go` and `inbound_test.go` (new): `Inbox`,
+  `InboundMessage`, and the pure `CutReply`.
+- ⚑ `control-plane/internal/hub/mailer/graph.go`, `fake.go` (task 81): the read side (`Delta`) and
+  `Reply`; `graph.go` is tested against an `httptest` server only.
+- ⚑ `control-plane/internal/hub/mailer/mailer.go` (task 81): `Reply` joins the interface.
+- `control-plane/internal/hub/server/work_mail.go` (new): the intake-address and release-issues
+  routes, `passInbound`, `passShipped`.
+- `control-plane/internal/hub/store/work_mail.go` (new) and
+  `server/work_mail_integration_test.go` (new, `-tags integration`).
+- ⚑ `control-plane/internal/hub/server/janitor.go` (Hub task 24; tasks 77, 81, 121): `passInbound`
+  once per sweep before the per-org loop, and `passShipped` in the per-org transaction after task
+  121's passes, in task order.
+- ⚑ `control-plane/cmd/hub/config.go`: `PANACEA_APP_HUB_MAIL_INTAKE_MAILBOX`,
+  `PANACEA_APP_HUB_MAIL_TZ`.
+- ⚑ `control-plane/internal/hub/hubclient/work.go` (task 04; task 143's `WorkIntake`):
+  `RecordReleaseIssues`. ⚑ `control-plane/internal/deploy/ship/ship.go` (P7; task 131's delta):
+  one call after confirm (rule H2: phase 7's file wins).
+- ⚑ `hubapi/work_intake.go`, ⚑ `hubapi/workevents.go`, ⚑ `server/work_matrix_rows_integration_test.go`.
+
+#### The tables this task needs from task 145's migration (requirement; complete)
+
+```sql
+-- ── task 149 (in task 145's NNNN_work_w5.sql): mail intake and shipped notices ──────
+CREATE TABLE work_intake_settings (
+  team_id               text PRIMARY KEY,
+  org_id                text NOT NULL REFERENCES orgs (id),
+  address               text UNIQUE CHECK (address = lower(address) AND octet_length(address) <= 320),
+  announce_environments text[] NOT NULL DEFAULT ARRAY['production']
+                        CHECK (cardinality(announce_environments) <= 20),
+  updated_at            timestamptz NOT NULL,
+  updated_by            text NOT NULL,
+  FOREIGN KEY (org_id, team_id)    REFERENCES teams (org_id, id),
+  FOREIGN KEY (org_id, updated_by) REFERENCES users (org_id, id)
+);
+-- address is UNIQUE across every org: one mailbox, so one owner per alias (decision 1).
+
+CREATE TABLE work_release_issues (
+  org_id      text NOT NULL REFERENCES orgs (id),
+  release_id  text NOT NULL,
+  issue_id    text NOT NULL,
+  recorded_at timestamptz NOT NULL,
+  PRIMARY KEY (release_id, issue_id),
+  FOREIGN KEY (org_id, release_id) REFERENCES releases (org_id, id),
+  FOREIGN KEY (org_id, issue_id)   REFERENCES issues (org_id, id)
+);
+
+CREATE TABLE work_request_notices (
+  org_id      text NOT NULL REFERENCES orgs (id),
+  request_id  text NOT NULL,
+  environment text NOT NULL,
+  release_id  text NOT NULL,
+  channel     text NOT NULL CHECK (channel IN ('email', 'form', 'teams')),
+  state       text NOT NULL DEFAULT 'pending' CHECK (state IN ('pending', 'sent', 'failed')),
+  attempts    integer NOT NULL DEFAULT 0,
+  created_at  timestamptz NOT NULL,
+  sent_at     timestamptz,
+  PRIMARY KEY (request_id, environment),                       -- decision 7: once per environment
+  FOREIGN KEY (org_id, request_id) REFERENCES work_requests (org_id, id),
+  FOREIGN KEY (org_id, release_id) REFERENCES releases (org_id, id)
+);
+
+DO $$
+DECLARE t text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY['work_intake_settings', 'work_release_issues', 'work_request_notices'] LOOP
+    EXECUTE format('ALTER TABLE hub.%I ENABLE ROW LEVEL SECURITY', t);
+    EXECUTE format('ALTER TABLE hub.%I FORCE ROW LEVEL SECURITY', t);
+    EXECUTE format('CREATE POLICY org_isolation ON hub.%I TO hub_app
+                    USING (org_id = current_setting(''hub.org_id'', true))
+                    WITH CHECK (org_id = current_setting(''hub.org_id'', true))', t);
+  END LOOP;
+END $$;
+GRANT SELECT, INSERT ON work_intake_settings, work_release_issues, work_request_notices TO hub_app;
+GRANT UPDATE (address, announce_environments, updated_at, updated_by) ON work_intake_settings TO hub_app;
+GRANT UPDATE (state, attempts, sent_at) ON work_request_notices TO hub_app;
+
+-- The mailbox's own state: no org column, no RLS, the janitor's role only (decision 2).
+CREATE TABLE work_mail_cursor (
+  mailbox     text PRIMARY KEY,
+  delta_link  text NOT NULL CHECK (octet_length(delta_link) <= 4096),
+  updated_at  timestamptz NOT NULL
+);
+REVOKE ALL ON work_mail_cursor FROM PUBLIC, hub_app;
+GRANT SELECT, INSERT, UPDATE ON work_mail_cursor TO hub_janitor;
+
+-- intake_address_owner answers exactly one (org, team) pair for an address, and
+-- nothing else; the janitor calls it before it knows the org.
+CREATE FUNCTION intake_address_owner(p_address text, OUT org_id text, OUT team_id text)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = hub, pg_temp AS $$
+  SELECT s.org_id, s.team_id FROM work_intake_settings s WHERE s.address = lower(p_address)
+$$;
+REVOKE ALL ON FUNCTION intake_address_owner(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION intake_address_owner(text) TO hub_janitor;
+```
+
+`releases` is the Hub's table for §7's releases (Hub task 20's, **UNVERIFIED** name until it
+lands; it must carry a unique `(org_id, id)` for the composite keys, as `issues` does). The
+`work_request_notices` row is an **outbox**: `passShipped` inserts it `pending` in the same
+transaction that reads the release, and sends it after commit; the primary key is what makes
+*told twice* impossible even when two sweeps race.
