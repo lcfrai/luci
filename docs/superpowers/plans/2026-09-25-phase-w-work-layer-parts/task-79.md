@@ -153,8 +153,8 @@ Refusals, each with its code and the field it names:
 | a move to its own project | 400 `bad_request`, `field: "toProjectId"` |
 | a target the caller cannot read | 404 `project_not_found` (no leak); readable but not a member: 403 |
 
-A client that sends `rank` is refused, not ignored silently: task 72's `TestEveryRequestRefusesUnknownKeys`
-row `{"RankRequest": {"rank":"i"}}` (`task-72.md:1130`) already fixes this, so the scope's "ignored"
+A client that sends `rank` is refused, not ignored silently: task 72's `TestWorkPlanRequestsRejectUnknownFields`
+row `"RankRequest": {"rank":"i"}` (`task-72.md:1129-1130`) already fixes this, so the scope's "ignored"
 reads as "never used"; see *Corrections to the scope*.
 
 #### Rank (`store/work_plan_fields.go`, complete)
@@ -202,4 +202,81 @@ func rankBetween(lo, hi string) (string, bool) {
 	}
 	return "", false
 }
+
+// rankGridValue reads s's first rankGrid digits as a number, '0'-padded.
+func rankGridValue(s string) int64 {
+	var v int64
+	for i := 0; i < rankGrid; i++ {
+		d := int64(0)
+		if i < len(s) {
+			d = rankDigit(s[i])
+		}
+		v = v*rankBase + d
+	}
+	return v
+}
+
+// rankKey writes x as width digits and strips trailing '0's (x >= 1, so never "").
+// Stripping keeps order among keys of one width: a stripped key is a prefix of
+// its original and still sorts before every key that shared the prefix.
+func rankKey(x int64, width int) string {
+	b := make([]byte, width)
+	for i := width - 1; i >= 0; i-- {
+		b[i] = rankDigits[x%rankBase]
+		x /= rankBase
+	}
+	return strings.TrimRight(string(b), "0")
+}
+
+// rankAfter is the next grid step below lo, for a join at the bottom of the order.
+// lo < rankKey(g+1) because lo's value is below g+1 whatever its later digits.
+func rankAfter(lo string) (string, bool) {
+	if lo == "" {
+		return rankBetween("", "")
+	}
+	if g := rankGridValue(lo) + 1; g < rankGridSize {
+		return rankKey(g, rankGrid), true
+	}
+	return rankBetween(lo, "")
+}
+
+// rankBefore is the previous grid step above hi, for a join at the top.
+func rankBefore(hi string) (string, bool) {
+	if hi == "" {
+		return rankBetween("", "")
+	}
+	if g := rankGridValue(hi) - 1; g >= 1 {
+		return rankKey(g, rankGrid), true
+	}
+	return rankBetween("", hi)
+}
+
+// rankSpread returns n increasing keys over the key space's middle half, a quarter
+// left free at each end for joins. Width grows past the grid only while a gap
+// would be under rankMinGap steps: four digits hold 13,121 issues, five 472,391,
+// six 17,006,111 (36^w / 2 / 64 − 1).
+func rankSpread(n int) []string {
+	width, size := rankGrid, rankGridSize
+	for size/2/int64(n+1) < rankMinGap && width < 12 { // 36^12 < 2^63
+		width, size = width+1, size*rankBase
+	}
+	keys := make([]string, n)
+	for i := range keys {
+		keys[i] = rankKey(size/4+int64(i+1)*(size/2)/int64(n+1), width)
+	}
+	return keys
+}
 ```
+
+**The arithmetic behind decision (c).** `rankBetween` spends about one digit per five inserts at
+one spot: below a key the new digit runs `i`, `9`, `4`, `2`, `1` (the midpoints of 36, 18, 9, 4,
+2), then a new position opens. At the bottom, the first key `i` is grid value 839,808, leaving
+1,679,616 − 839,808 − 1 = 839,807 steps before `rankAfter` falls back to bisection. After a
+rebalance the free quarter at each end is 419,904 steps. **What was run:** a Python model of the
+four functions above (a transcription, not the Go; `scratchpad/rank.py` in the planning session,
+not committed) printed, on 2026-09-26: the first two keys `i` and `i001`; `rankBefore("i")` is
+`hzzz`; the first insert between them `i000i`; 200 inserts just below `i` rebalance **once, at
+insert 141**, with 142 keys, and end with the longest key at 14 characters and the order intact;
+`rankSpread(5)` is `c f i l o`; `rankSpread(13121)` is four digits wide and `rankSpread(13122)`
+five; and 839,807 bottom steps before the fallback. The Go test below re-proves the rebalance
+count and the order; the model is not evidence for the Go.
