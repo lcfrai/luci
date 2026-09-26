@@ -406,3 +406,136 @@ func (f *Fake) SubmitForm(_ context.Context, formID string, answers map[string]s
 
 `enterRequest` is `f.enter` then `w.in().requests[id]` and `w.needTeam(r.TeamID, me, RoleMember)`,
 a 404 `request_not_found` (task 146's code) when either fails; `errors` joins the import block.
+
+#### `fake_work_w5.go`, continued: the sync batch (complete)
+
+```go
+// ApplySyncBatch is callable only as the connection's own principal. Items go
+// through task 05's import body (decision 10); comments only in mode
+// in_and_comments, and in mode in a batch with any comment applies nothing.
+func (f *Fake) ApplySyncBatch(_ context.Context, connectionID string, batch hubapi.SyncBatch) (hubapi.SyncRun, error) {
+	w := f.w
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	me, err := f.enter("ApplySyncBatch", connectionID, batch)
+	if err != nil {
+		return hubapi.SyncRun{}, err
+	}
+	in := w.in()
+	c := in.trackers[connectionID]
+	switch {
+	case f.actor().Kind != hubapi.ActorIntegration || c == nil || in.principals[me] != connectionID:
+		return hubapi.SyncRun{}, problem(403, "forbidden", "Only this connection's principal syncs it.")
+	case c.State != hubapi.TrackerActive:
+		return hubapi.SyncRun{}, problem(403, "forbidden", "This connection is disconnected.")
+	case c.Mode == hubapi.TrackerIn && len(batch.Comments) > 0: // decision 4: before any item
+		return hubapi.SyncRun{}, problem(403, "forbidden", "This connection does not sync comments.", "field", "comments")
+	}
+	if fe := hubapi.ValidateImportBatch(hubapi.ImportBatch{Source: c.Source, Items: batch.Items}); fe != nil {
+		return hubapi.SyncRun{}, fieldProblem(fe) // task 15's validator, the W5 sources appended (task 143)
+	}
+	p := w.projects[c.ProjectID]
+	run := hubapi.SyncRun{ConnectionID: c.ID, At: w.stamp(), Errors: []hubapi.SyncError{}}
+	for _, it := range batch.Items {
+		key := [3]string{c.ProjectID, c.Source, it.ExternalID}
+		if w.soc().imports[key] != "" {
+			run.Existing++ // idempotent by (source, externalId): SW.6
+			continue
+		}
+		var unmatched []string
+		is := w.insertImported(me, p, c.Source, it, w.matchLabels(p.teamID, it.Labels, &unmatched))
+		w.soc().imports[key] = is.head.ID // triage, revision 1, written by the principal
+		run.Created++
+	}
+	for _, cm := range batch.Comments {
+		id := w.soc().imports[[3]string{c.ProjectID, c.Source, cm.ExternalID}]
+		if id == "" {
+			run.Errors = append(run.Errors, hubapi.SyncError{ExternalID: cm.ExternalID, Code: "not_linked"})
+			continue
+		}
+		w.insertExternalComment(me, id, c.Source, cm) // author cm.AuthorName; task 153's CommentExternal
+		run.CommentsIn++
+	}
+	// batch.Changes are the tracker's edits: shown in the sync log, applied never.
+	in.runs[c.ID] = append(in.runs[c.ID], run)
+	c.LastRunAt = &run.At
+	w.inEvent(me, "sync.run", c.TeamID, c.ProjectID, c.ID, map[string]any{
+		"created": run.Created, "existing": run.Existing, "commentsIn": run.CommentsIn})
+	return run, nil
+}
+```
+
+`insertExternalComment` writes task 05's comment record with `author` the external author's name
+and task 153's `CommentExternal` marker (`task-153.md:115-123`), appending task 05's
+`comment.created`; **UNVERIFIED** name, bound in Step 1. `not_linked` is a sync-run code on
+`SyncError`, never an HTTP status (task 143 decision 7). `insertImported` appends task 05's
+`issue.created` itself, so one batch appends one event per created issue, one per comment, and
+one `sync.run`: each of those is one write (decision 8 counts writes, not calls).
+
+#### `fake_work_w5.go`, continued: the key and app gate (complete)
+
+A revoked key must be refused on its **next call of any kind**, a W1 read included, so the gate
+cannot live in W5's methods alone. It is one line in H's `enter` (⚑ `fake.go`, a Phase H file:
+gap 3), which every W1-W5 method already calls first.
+
+```go
+// actorGate runs inside enter, before any read: a key must be live and in
+// date, an app approved. A person, agent, janitor, host or integration passes.
+func (f *Fake) actorGate() error {
+	a := f.actor()
+	in := f.w.in()
+	switch a.Kind {
+	case hubapi.ActorKey:
+		k := in.keys[a.KeyID]
+		if k == nil || k.RevokedAt != nil || k.ExpiresAt <= f.w.stamp() { // RFC 3339 UTC sorts
+			return inProblem(hubapi.CodeKeyRevoked, "This key is revoked or expired.")
+		}
+		now := f.w.stamp()
+		k.LastUsedAt = &now // a fact of the call, not an event (no write of the caller's)
+	case hubapi.ActorApp:
+		if ap := in.apps[a.AppID]; ap == nil || ap.State != "approved" {
+			return inProblem(hubapi.CodeAppNotApproved, "An admin has not approved this app.")
+		}
+	}
+	return nil
+}
+```
+
+```go
+// fake.go ⚑, enter: the one added line, after the caller is known
+if err := f.actorGate(); err != nil {
+	return "", err
+}
+```
+
+#### `fake_work_w5.go`, continued: the other methods, by rule
+
+Each method has H's shape (lock, `enter`, the read-and-role check, validate, write, one event) and
+the rule below; the code is the same one the Hub writes (`WorkIntakeCodeStatus`).
+
+| Methods | The rule the fake enforces | Refusal |
+|---|---|---|
+| `ListRequests`, `Request`, `IssueRequesters`, `RequestMessages` | team readers only; oldest first; no write, no event | 404 `request_not_found` |
+| `DeclineRequest` | `closeOpen`, then a reason of 1-500 characters | 409 `request_closed`, 400 `reason` |
+| `MarkImportant` | moves `important` only, open or closed; the quote, requester and answers untouched (decision 5) | — |
+| `EraseRequest` | admin only; blanks quote, requester and answers, keeps state and `issueId` (146 decision 7); `erased: 0` the second time | 403 `forbidden` |
+| `PutIntakeRules` | admin; list order is the precedence (`intake.Route`, first match wins); `version` +1; the set's `writtenBy` is the rule author | 400 per `ValidateIntakeRules` |
+| `CreateForm`, `PatchForm`, `ListForms`, `GetForm` | admin writes; `ValidateFormFields`; a closed form keeps its requests | 400 `fields[i]` |
+| `IntakeSettings`, `PutIntakeSettings`, `RecordReleaseIssues` | admin writes; task 149's validation | 400 |
+| `ConnectTracker` | admin; `ParseTrackerTarget`; one active connection per `(projectId, source)`; mints the principal (decision 11) | 409 `tracker_exists` |
+| `DisconnectTracker`, `ListTrackers`, `ListSyncRuns` | admin; a disconnected principal's next batch is 403 | — |
+| `ListOutsidePRLinks`, `CreateHostHook` | readers; admin mints a hook (`CreatedHostHook` carries its secret once) | — |
+| `CreateWebhook`, `RotateWebhookSecret` | admin; `ValidateCreateWebhook(r, hubapi.WebhookKinds())` | 422 `webhook_url_invalid`, 400 `kinds` |
+| `DisableWebhook`, `ListDeliveries`, `Redeliver` | admin; an unknown id | 404 `webhook_not_found` |
+| `BindTeams`, `ListTeamsBindings`, `UnbindTeams` | admin; one binding per subject | 409 `conflict` |
+| `RegisterApp`, `DecideApp`, `ListApps` | any member registers (`pending`); org admin decides | 403 `forbidden` |
+| `CreateAPIKey`, `ListAPIKeys`, `RevokeAPIKey` | `ValidateCreateAPIKey`; the secret returned once, stored as SHA-256; the owner or an admin revokes | 400 `expiresAt` |
+| `ListMCPConnectors`, `PutMCPConnector`, `DeleteMCPConnector` | org admin; task 161's URL checks | 403 `connector_not_allowed` |
+| `CreateLoop`, `PutLoopVersion` | the owner only; `ValidateLoopVersionBody`; decision 7's grid | 403 `loop_outside_grid`, `details.class` |
+| `RunLoopNow` | the loop's owner only; the current version's bound against the grid now | 403 `forbidden`, 403 `loop_outside_grid` |
+| `ListLoopVersions`, `ListLoopRuns` | team readers | — |
+| `GetTeamAgentPolicy`, `PutTeamAgentPolicy` | admin writes; `ValidateTeamAgentPolicy(p, harness.Catalogue())` | 403 `harness_not_allowed`, `details.harness` |
+
+`ValidateIntakeRules` is task 147's validator (**UNVERIFIED** name; `task-147.md:288-…`).
+`harness.Catalogue()` is read from the control plane's `harness` package, which `hubclient` may
+import (a leaf package, checked 2026-09-26 on this branch: **UNVERIFIED** until task 166 lands).
