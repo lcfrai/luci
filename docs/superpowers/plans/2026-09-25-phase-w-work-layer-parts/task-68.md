@@ -401,3 +401,71 @@ Part 1's imports gain `import type { BriefCriterion } from "../../work/suggestCr
 takes task 42's printed props (`task-42.md:137-142`); task 47 mounts it with `exclude` and a
 `Serve` callback instead (`task-47.md:436-440`), a clash between two earlier parts that this part
 does not settle (see the gap list).
+
+#### Interfaces — complete: `NewIssue.tsx`, part 3: the host, the verb and `openNewIssue`
+
+```tsx
+type Opener = (from: NewIssueFrom, anchor: DOMRect | null) => void;
+const openers: Opener[] = [];                // the newest mounted host answers, as task 53's registry
+
+/** For surfaces that are not list rows (task 59's palette, task 60's peek, P3-21's drawers).
+ *  Returns false when no host is mounted, and the caller then shows nothing. */
+export function openNewIssue(from: NewIssueFrom, near: HTMLElement | null): boolean {
+  const top = openers[openers.length - 1];
+  if (!top) return false;
+  top(from, near?.getBoundingClientRect() ?? null);
+  return true;
+}
+
+/** Registers `issue.create` for the lens and holds the one open composer. */
+export function useNewIssueVerb(): { from: NewIssueFrom; anchor: DOMRect | null; close(): void } | null {
+  const [open, setOpen] = useState<{ from: NewIssueFrom; anchor: DOMRect | null } | null>(null);
+  useVerb("issue.create", (row) => {                              // task 53 decision 3
+    const from = fromRow(row);
+    if (from) setOpen({ from, anchor: row.element?.getBoundingClientRect() ?? null });
+  });
+  useEffect(() => {
+    const me: Opener = (from, anchor) => setOpen({ from, anchor });
+    openers.push(me);
+    return () => { openers.splice(openers.indexOf(me), 1); };
+  }, []);
+  return open ? { ...open, close: () => setOpen(null) } : null;
+}
+
+export function NewIssueHost(props: { criteria: readonly BriefCriterion[] }): JSX.Element | null {
+  const open = useNewIssueVerb();
+  return open ? <NewIssue from={open.from} anchor={open.anchor} criteria={props.criteria} onClose={open.close} /> : null;
+}
+```
+
+**Mounts.** Task 40's `WorkLens.tsx` ⚑ and task 62's `Desk.tsx` ⚑ each render one
+`<NewIssueHost criteria={…} />` beside their lists, with the criteria list task 42's Triage hands
+its picker (task 42 prints the picker's prop, not its source; the mount passes the same value).
+Only one of the two lenses is on screen at a time, so the stack holds one host in practice; the
+stack exists so an unmount never leaves a dead opener.
+
+#### Interfaces — complete: the other entry points
+
+```tsx
+// desktop/src/components/work/Peek.tsx ⚑ (task 60) — SpanBody and HunkBody each gain
+//   onCreateIssue(ref: string): void
+// and one button beside "Comment on this" (task-60.md:346), with the same ref:
+<button type="button" className="pk-link"
+  onClick={() => p.onCreateIssue(f.ref)}>New issue from this</button>
+// and the Peek mounts them (task-60.md:306-310) with:
+//   onCreateIssue={(ref) => openNewIssue({ kind: "span", projectId: head.projectId, ref }, asideRef.current)}
+//   onCreateIssue={(ref) => openNewIssue({ kind: "hunk", projectId: head.projectId, ref }, asideRef.current)}
+// where asideRef is a ref this task adds on the peek's <aside className="pk">.
+
+// desktop/src/components/palette/commands.ts ⚑ — one Command (its interface is at `:10`); the
+// row shape task 59 adds for work verbs is UNVERIFIED (no task-59.md on the tree):
+//   { id: "work.newIssue", title: "New issue", chord: "C",
+//     run: () => openNewIssue({ kind: "list", projectId: state.workProjectId }, null) }
+// with `workProjectId` whatever task 59 reads for the lens's project; shown only when it is set.
+```
+
+`desktop/src/components/lens/files/` does not exist on this tree (checked 2026-09-26), so
+`SpanDrawer.tsx` and `PathDiff.tsx` get no edit in this task. When P3-21 lands on the sync base,
+each adds one *New issue from this* button calling `openNewIssue({ kind, projectId, ref }, el)`
+with the same ref its comment button passes; that edit is a line each and belongs to whichever
+of the two merges second.
