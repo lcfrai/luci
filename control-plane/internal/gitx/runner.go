@@ -250,10 +250,14 @@ func (x *Exec) once(ctx context.Context, c Call, argv, env []string) (Result, er
 }
 
 // inheritedDrop are the process-environment keys a child never inherits: the ones that choose
-// which repository git runs in (Exec pins or refuses them per call, §HGH H5), compared without
-// case because Windows' environment is case-insensitive.
+// which repository git runs in (Exec pins or refuses them per call, §HGH H5), and the ones git
+// reads ahead of an H1 -c pair (fix round 1, review M-8): GIT_ALLOW_PROTOCOL outranks every
+// protocol.*.allow key, GIT_ASKPASS (VS Code's terminals set it) and SSH_ASKPASS outrank
+// core.askPass=, and GIT_EXTERNAL_DIFF runs whatever it names. Compared without case, because
+// Windows' environment is case-insensitive. A Call.Env key is the caller's and is not dropped.
 var inheritedDrop = []string{"GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR", "GIT_INDEX_FILE",
-	"GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_OPTIONAL_LOCKS"}
+	"GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_OPTIONAL_LOCKS",
+	"GIT_ALLOW_PROTOCOL", "GIT_ASKPASS", "SSH_ASKPASS", "GIT_EXTERNAL_DIFF"}
 
 func envKeyIn(k string, keys []string) bool {
 	for _, want := range keys {

@@ -29,7 +29,9 @@ type Hardening struct {
 	LaneRoot   string   // Machine.CloneRoot(): Exec refuses any call that runs in it (R4.2)
 }
 
-// UntrustedConfig is a repository config key §HGH H3 refuses. It carries the key, never the value.
+// UntrustedConfig is a repository config key §HGH H3 refuses. It carries the key, never the value,
+// and shows a URL subsection's userinfo, query and fragment as "***": git writes the subsection into
+// the key, so url."https://oauth2:<pat>@host/".insteadOf lists its token there (fix round 1, I-1).
 // The API maps it to conflict + reason project_config_untrusted.
 type UntrustedConfig struct {
 	Dir   string
@@ -43,8 +45,9 @@ func (u *UntrustedConfig) Error() string {
 }
 
 // ErrCallShape is a Call Exec will not run: Args[0] starting with "-", Scope Unset, a Remote call
-// without RemoteURL, a Scope None call outside OwnedRoot whose Dir is not its NewLane, or a
-// NewLane set on a call that is not Scope None.
+// without RemoteURL, a Scope None call outside OwnedRoot whose Dir is not its NewLane, a
+// NewLane set on a call that is not Scope None, or a NewLane not strictly under a non-empty
+// Hardening.LaneRoot (fix round 1, review M-7).
 var ErrCallShape = errors.New("gitx: call shape refused")
 
 // ErrLaneDir is a call Exec refuses before it starts (ruling R4.2): its Dir, a `-C`,
@@ -52,7 +55,10 @@ var ErrCallShape = errors.New("gitx: call shape refused")
 // GIT_OBJECT_DIRECTORY or GIT_ALTERNATE_OBJECT_DIRECTORIES value lies at or under
 // Hardening.LaneRoot (either flag spelling, `=` or next argument; each list entry of the
 // alternates value). Each path is made absolute against Dir and cleaned (filepath.Clean) before
-// a filepath.Rel compare, which case-folds on Windows. The one exception is Dir == Call.NewLane
+// a filepath.Rel compare, which case-folds on Windows. A path that compare admits is still
+// refused when it, an ancestor of it, or an ancestor of its filepath.EvalSymlinks form is
+// LaneRoot's own directory (os.SameFile), so an 8.3 short name, a trailing-dot segment or a link
+// in an ancestor cannot name a lane (fix round 1, review M-6). The one exception is Dir == Call.NewLane
 // on a Scope None call. Exec checks it before ErrCallShape, so a lane path in a pinned Env key
 // is ErrLaneDir. A positional argument (`fetch <path>`) is not parsed here; task 24's
 // TestHostNeverRunsGitInALane pins that no call site passes one. A LaneRoot of "" checks
@@ -69,9 +75,18 @@ func (x *Exec) prefix(class Class, scope Scope, remoteURL string) []string {
 		"-c", "core.sshCommand=",
 		"-c", "protocol.allow=never",
 		"-c", "protocol.file.allow=always",
+		// Fix round 1 (review M-8): git reads protocol.<name>.allow before protocol.allow, so a
+		// config's protocol.ext.allow=always beat the default alone. Every named transport the
+		// phase does not use is pinned by name too; https is pinned either way.
+		"-c", "protocol.ext.allow=never",
+		"-c", "protocol.ssh.allow=never",
+		"-c", "protocol.git.allow=never",
+		"-c", "protocol.http.allow=never",
 	}
 	if class == Remote {
 		p = append(p, "-c", "protocol.https.allow=always")
+	} else {
+		p = append(p, "-c", "protocol.https.allow=never")
 	}
 	p = append(p,
 		"-c", "core.askPass=",
@@ -151,17 +166,59 @@ func samePath(a, b string) bool {
 
 var laneEnvKeys = []string{"GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR", "GIT_OBJECT_DIRECTORY"}
 
+// laneRoot is Hardening.LaneRoot as a spelling and as a location (review M-6).
+type laneRoot struct {
+	path string      // absolute and clean
+	fi   os.FileInfo // nil when the root cannot be stat'ed: the spelling compare alone applies
+}
+
+// holds is whether p, absolute and clean, lies at or under the root. The spelling compare comes
+// first; a path it admits is still held when p or an ancestor of p, or of p's EvalSymlinks form,
+// is the root's own directory. os.Stat follows a link and opens an 8.3 short name or a Win32
+// trailing-dot segment as the directory it names, so os.SameFile compares locations.
+func (r laneRoot) holds(p string) bool {
+	if under(r.path, p) {
+		return true
+	}
+	if r.fi == nil {
+		return false
+	}
+	if r.isAncestorOf(p) {
+		return true
+	}
+	if real, err := filepath.EvalSymlinks(p); err == nil && real != p {
+		return under(r.path, real) || r.isAncestorOf(real)
+	}
+	return false
+}
+
+func (r laneRoot) isAncestorOf(p string) bool {
+	for {
+		if fi, err := os.Stat(p); err == nil && os.SameFile(fi, r.fi) {
+			return true
+		}
+		parent := filepath.Dir(p)
+		if parent == p {
+			return false
+		}
+		p = parent
+	}
+}
+
 // guardLane is ruling R4.2: no host call runs in a lane clone, save the one R4.5 admits.
 func (x *Exec) guardLane(c Call) error {
 	if x.Hardening.LaneRoot == "" {
 		return nil
 	}
-	root := absDir(x.Hardening.LaneRoot)
+	root := laneRoot{path: absDir(x.Hardening.LaneRoot)}
+	if fi, err := os.Stat(root.path); err == nil {
+		root.fi = fi
+	}
 	base := absDir(c.Dir)
-	in := func(p string) bool { return under(root, absAgainst(base, p)) }
+	in := func(p string) bool { return root.holds(absAgainst(base, p)) }
 	refuse := func(what string) error { return fmt.Errorf("%w: %s", ErrLaneDir, what) }
 	newLane := c.Scope == None && c.NewLane != "" && samePath(c.Dir, c.NewLane)
-	if !newLane && under(root, base) {
+	if !newLane && root.holds(base) {
 		return refuse("Dir " + c.Dir)
 	}
 	for i, a := range c.Args {
@@ -187,6 +244,15 @@ func (x *Exec) guardLane(c Call) error {
 		}
 	}
 	return nil
+}
+
+// newLaneUnderRoot is review M-7: root is non-empty and lane lies under it, not at it.
+func newLaneUnderRoot(root, lane string) bool {
+	if root == "" {
+		return false
+	}
+	r, l := absDir(root), absDir(lane)
+	return under(r, l) && !samePath(r, l)
 }
 
 // pinnedEnv are the keys H5's layout pin owns; a Call naming one is ErrCallShape.
@@ -216,6 +282,10 @@ func (x *Exec) checkShape(c Call) error {
 		return shape("RemoteURL cannot be written into a -c key")
 	case c.NewLane != "" && c.Scope != None:
 		return shape("NewLane is set on a call that is not Scope None")
+	case c.NewLane != "" && !newLaneUnderRoot(h.LaneRoot, c.NewLane):
+		// review M-7: NewLane names the clone lanes.Create makes under CloneRoot, never some
+		// other directory, and with no LaneRoot there is no lane to create.
+		return shape("NewLane %s is not strictly under Hardening.LaneRoot %q", c.NewLane, h.LaneRoot)
 	}
 	for k := range c.Env {
 		if envKeyIn(k, pinnedEnv) {
@@ -259,10 +329,36 @@ func (x *Exec) checkConfig(ctx context.Context, c Call, pin []string) error {
 	for _, rec := range bytes.Split(res.Stdout, []byte{0}) {
 		key, _, _ := strings.Cut(string(rec), "\n")
 		if key != "" && refusedProjectKey(key, c.Class) {
-			return &UntrustedConfig{Dir: c.Dir, Key: key, Scope: Project}
+			return &UntrustedConfig{Dir: c.Dir, Key: redactKey(key), Scope: Project}
 		}
 	}
 	return nil
+}
+
+// redactKey is review I-1: git writes a URL subsection into the key, so a refused
+// url."https://oauth2:<pat>@host/".insteadOf lists its token in the key, which reaches Error(),
+// the API's details.key and every log line. The subsection (between the first and the last dot)
+// loses its userinfo, up to its LAST "@", and then its query and fragment, each shown as "***".
+// The last "@" anywhere, not only in the authority: a password holding an unencoded "/", "?" or
+// "#" still ends at the "@" before the host, and a path "@" only costs the host's spelling. The
+// section, the rest of the URL and the name stay, so the user can still find and move the key.
+func redactKey(key string) string {
+	first, last := strings.IndexByte(key, '.'), strings.LastIndexByte(key, '.')
+	if first < 0 || first == last {
+		return key
+	}
+	sub := key[first+1 : last]
+	scheme := ""
+	if i := strings.Index(sub, "://"); i >= 0 {
+		scheme, sub = sub[:i+3], sub[i+3:]
+	}
+	if i := strings.LastIndexByte(sub, '@'); i >= 0 {
+		sub = "***" + sub[i:]
+	}
+	if i := strings.IndexAny(sub, "?#"); i >= 0 {
+		sub = sub[:i+1] + "***"
+	}
+	return key[:first+1] + scheme + sub + key[last:]
 }
 
 // refusedProjectKey is H3's Project row. Section and key names compare lowercased; the
@@ -312,11 +408,14 @@ func MachineHardening(ctx context.Context, root string) (Hardening, error) {
 		return Hardening{}, err
 	}
 	h := x.Hardening
+	proxySet := false
 	for _, file := range []string{"--system", "--global"} {
 		// Exit 1 is "no such key" (and a missing file); anything else is a machine git
 		// that cannot read its own config, which the user must see at startup.
+		// --includes (review M-5 a): a named file does not follow [include] by default, and H1's
+		// credential.helper= reset would then clear an included helper on every Remote call.
 		res, err := x.Run(ctx, Call{Dir: root, Class: Read, Scope: None, OKExit: []int{1},
-			Args: []string{"config", file, "-z", "--get-regexp", `^credential\..*helper$`}})
+			Args: []string{"config", file, "--includes", "-z", "--get-regexp", `^credential\..*helper$`}})
 		if err != nil {
 			return Hardening{}, err
 		}
@@ -328,16 +427,20 @@ func MachineHardening(ctx context.Context, root string) (Hardening, error) {
 			h.Credential = append(h.Credential, key+"="+value)
 		}
 		res, err = x.Run(ctx, Call{Dir: root, Class: Read, Scope: None, OKExit: []int{1},
-			Args: []string{"config", file, "--get", "http.proxy"}})
+			Args: []string{"config", file, "--includes", "--get", "http.proxy"}})
 		if err != nil {
 			return Hardening{}, err
 		}
-		if p := strings.TrimSpace(string(res.Stdout)); res.ExitCode == 0 && p != "" {
-			h.Proxy = p // global is read last, so it wins, as it does in git
+		// Exit 0 is a set key, even an empty one (review M-5 b): `http.proxy =` is git's "no
+		// proxy at all" (http.c), so it wins over the system file and the environment. Global is
+		// read last, so it wins, as it does in git.
+		if res.ExitCode == 0 {
+			h.Proxy, proxySet = strings.TrimSpace(string(res.Stdout)), true
 		}
 	}
-	if h.Proxy == "" {
-		for _, k := range []string{"HTTPS_PROXY", "https_proxy", "ALL_PROXY"} {
+	if !proxySet {
+		// review M-5 c: all_proxy too, which curl reads (Linux; Windows' environment folds case).
+		for _, k := range []string{"HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy"} {
 			if v := os.Getenv(k); v != "" {
 				h.Proxy = v
 				break
