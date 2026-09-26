@@ -335,7 +335,7 @@ const (
 func ValidateRequester(r Requester) *FieldError {
 	switch r.Kind {
 	case RequesterPerson:
-		if !ValidID(PrefixUser, r.UserID) || r.Email != "" || r.DisplayName != "" {
+		if !strings.HasPrefix(r.UserID, "u-") || len(r.UserID) > 64 || r.Email != "" || r.DisplayName != "" {
 			return &FieldError{"requester", ErrBadEnvelope}
 		}
 	case RequesterEmail:
@@ -365,9 +365,11 @@ func validMailbox(s string) bool {
 }
 ```
 
-`FieldError`, `ErrBadEnvelope`, `AuthorHuman` and `ValidID` are task 03's and task 02's
-(`task-03.md:464`); `PrefixUser` is the Hub's `u-` (hub-contract `:105-112`, as cited in 05 §3.6).
-The file imports `net/mail` and `unicode/utf8`, both standard library. `ValidateQuote` is the only
+`FieldError` and `ErrBadEnvelope` are task 03's (`task-03.md:464`) and `AuthorHuman` task 02's.
+The user-id check is only a shape check (the Hub's `u-`, hub-contract `:105-112` as cited in 05
+§3.6); the store resolves the id against `users` in the caller's org and answers 400
+`field: requester` when it is not there, so the prefix test is never the authority. The file
+imports `net/mail`, `strings` and `unicode/utf8`, all standard library. `ValidateQuote` is the only
 check on the quote's text: an ask may be 40 KiB of pasted email, may start with whitespace and may
 hold a word a title check would refuse, and the requester's words are kept as they gave them.
 
@@ -420,3 +422,211 @@ caught. Its W1 count assertion (`len(WorkEventKinds) != 18`, `task-13.md:481`) i
 owns the W5 count, and this task adds six to it. `emitWorkErase` (`task-14.md:257-261`) accepts
 `request.erased` as a third erase kind, and Hub task 26's projection strips `reason` from it as it
 does from `issue.erased`.
+
+#### The store (`store/work_requests.go`, signatures complete)
+
+```go
+package store
+
+// RequestRow is one work_requests row. The server fills it; the store writes
+// what it is given and checks nothing a CHECK constraint already checks.
+type RequestRow struct {
+	ID, OrgID, TeamID  string
+	Channel            string
+	ChannelRef         string // "" for member and form; Message-ID or Teams id otherwise
+	RequesterKind      string
+	RequesterUserID    string // "" unless kind is person
+	RequesterEmail     string
+	RequesterName      string // stored for email and teams; "" for a person (read from users)
+	Quote              string
+	QuoteTrimmed       int
+	Answers            map[string]string
+	FormID             string
+	RuleID             string // "" when no rule matched (task 147)
+	RuleVersion        int
+	RuleAuthor         string
+	Route              hubapi.IntakeRoute
+	Important          bool
+	State              string
+	IssueID            string
+	DeclineReason      string
+	CreatedAt          time.Time
+	CreatedBy          string // "" when the janitor read it from mail
+	ClosedAt           *time.Time
+	ClosedBy           string
+	ErasedAt           *time.Time
+}
+
+// InsertRequest writes a new open request. A 23505 on work_requests_channel_once
+// is ErrRequestSeen: the same Message-ID or Teams message, delivered again.
+func InsertRequest(ctx context.Context, tx pgx.Tx, r RequestRow) error
+
+var ErrRequestSeen = errors.New("store: this channel reference already made a request")
+
+// RequestByChannelRef finds the request an earlier delivery made, for the
+// caller that wants to answer "already have it" (tasks 149, 157).
+func RequestByChannelRef(ctx context.Context, q Querier, teamID, channel, ref string) (RequestRow, bool, error)
+
+// LockRequest: SELECT … FROM work_requests WHERE id = $1 FOR UPDATE. Row-level
+// security scopes it to the org; the caller checks the team role.
+func LockRequest(ctx context.Context, tx pgx.Tx, id string) (RequestRow, bool, error)
+func RequestByID(ctx context.Context, q Querier, id string) (RequestRow, bool, error)
+
+// ListRequests reads one team's requests, newest first, by state when state
+// is not "": ORDER BY created_at DESC, id DESC, keyset-paged as task 08's list.
+func ListRequests(ctx context.Context, q Querier, teamID, state string, pr hubapi.PageRequest) (rows []RequestRow, next *string, err error)
+
+// CloseRequest moves an open request to accepted, linked or declined:
+//   UPDATE work_requests SET state = $2, issue_id = nullif($3, ''),
+//          decline_reason = $4, closed_at = $5, closed_by = $6
+//    WHERE id = $1 AND state = 'open' AND erased_at IS NULL
+// Zero rows is ErrRequestClosed; the caller has already told an erased one apart.
+func CloseRequest(ctx context.Context, tx pgx.Tx, id, state, issueID, reason, by string, at time.Time) error
+
+var ErrRequestClosed = errors.New("store: the request is no longer open")
+
+// SetRequestImportant: UPDATE … SET important = $2 WHERE id = $1 AND important <> $2.
+// changed is false when it already held the value; the handler then emits nothing.
+func SetRequestImportant(ctx context.Context, tx pgx.Tx, id string, important bool) (changed bool, err error)
+
+// RequestsOfIssue lists the requests joined to one issue, oldest first, for
+// GET /v1/issues/{issueId}/requests and for task 149's shipped pass.
+func RequestsOfIssue(ctx context.Context, q Querier, issueID string) ([]RequestRow, error)
+
+// EraseRequest: SELECT hub.erase_request($1). P0002 is ErrNotInOrg (task 14's).
+func EraseRequest(ctx context.Context, tx pgx.Tx, id string) (n int, erasedAt time.Time, err error)
+```
+
+The display name of a `person` requester is read by a join on `users` in every read, so a rename
+in Entra shows everywhere at once and erase need not reach it. A requester who is no longer in the
+org reads as the Hub reads any departed user (`hub-contract` §5's user row; its exact wording is
+**UNVERIFIED** until Hub task 05 lands).
+
+#### The routes (`server/work_requests.go`; `server/erase.go` ⚑)
+
+```go
+package server
+
+func (s *Server) registerWorkRequests() {
+	s.mux.HandleFunc("POST /v1/teams/{teamId}/requests", s.postRequest)            // member
+	s.mux.HandleFunc("GET /v1/teams/{teamId}/requests", s.listRequests)            // viewer; ?state=
+	s.mux.HandleFunc("GET /v1/requests/{requestId}", s.getRequest)                 // viewer
+	s.mux.HandleFunc("POST /v1/requests/{requestId}/accept", s.acceptRequest)      // member
+	s.mux.HandleFunc("POST /v1/requests/{requestId}/link", s.linkRequest)          // member
+	s.mux.HandleFunc("POST /v1/requests/{requestId}/decline", s.declineRequest)    // member
+	s.mux.HandleFunc("PUT /v1/requests/{requestId}/important", s.putImportant)     // member
+	s.mux.HandleFunc("GET /v1/issues/{issueId}/requests", s.issueRequests)         // viewer
+}
+
+// In Hub task 27's registerErase, beside task 14's two routes, which are not changed:
+//	mux.HandleFunc("POST /v1/requests/{requestId}/erase", s.eraseRequest)        // org admin
+
+// createRequest is the one way a request is made. The member route, the form
+// (148), the mail pass (149) and Teams (157) all call it inside their own
+// write transaction. It resolves a person requester in the org, calls the
+// router (task 147 replaces routeRequest's body; this task's body returns the
+// team's Triage with no rule), inserts, and appends request.created.
+func (s *Server) createRequest(ctx context.Context, tx *Tx, r store.RequestRow) (store.RequestRow, error) {
+	if r.RequesterKind == string(hubapi.RequesterPerson) {
+		ok, err := store.UserInOrg(ctx, tx, r.RequesterUserID) // H05's read; UNVERIFIED name
+		if err != nil {
+			return r, err
+		}
+		if !ok {
+			return r, Refuse(http.StatusBadRequest, "bad_request", map[string]any{"field": "requester"})
+		}
+	}
+	r.ID, r.OrgID, r.State, r.CreatedAt = ids.Wide(hubapi.PrefixRequest), tx.P.OrgID, string(hubapi.RequestOpen), tx.Now
+	if err := s.routeRequest(ctx, tx, &r); err != nil { // task 147
+		return r, err
+	}
+	if err := store.InsertRequest(ctx, tx, r); err != nil {
+		return r, err // ErrRequestSeen reaches the channel's caller, which answers "already have it"
+	}
+	return r, emitWork(tx, hubapi.EventRequestCreated, r.TeamID, "", r.ID, hubapi.RequestCreatedData{
+		Channel: r.Channel, RequesterKind: r.RequesterKind, RuleID: r.RuleID,
+		RuleVersion: int64(r.RuleVersion), RuleAuthor: r.RuleAuthor, Important: r.Important})
+}
+
+// routeRequest, this task's body: no rule, no suggestion. Task 147 replaces it.
+func (s *Server) routeRequest(ctx context.Context, tx *Tx, r *store.RequestRow) error { return nil }
+
+// requestFor finds a request under row-level security and checks the caller's
+// role in its team. Not in the org, or in a team the caller is not in, is 404
+// request_not_found; in the team below want is 403 forbidden.
+func requestFor(ctx context.Context, tx *Tx, id string, want hubapi.Role, lock bool) (store.RequestRow, error)
+```
+
+`emitWork` with `projectID ""` is task 13's rule for a `ScopeTeam` kind (`task-13.md:337-338`), so
+a request event reaches every reader of the team through `/v1/changes` and names only ids.
+`Refuse`, `Require`, `Decode`, `Forbidden`, `s.Read` and `s.Write` are Hub task 14's and 15's, as
+task 15 cites them (`task-15.md:414-418`). `store.UserInOrg` stands for whichever read Hub task 05
+gives for *this user id is a member of this org*; its name is **UNVERIFIED** until that lands.
+
+```go
+// acceptOne makes the issue a request becomes (decisions 2 and 4), inside the
+// accept handler's s.Write, after requestFor(member, lock) and the project check.
+func (s *Server) acceptOne(ctx context.Context, tx *Tx, rq store.RequestRow, projectID string,
+	in hubapi.AcceptRequestRequest) (hubapi.IssueRef, error) {
+	pol, err := store.TeamWorkPolicy(ctx, tx, rq.TeamID) // task 11's read; UNVERIFIED name
+	if err != nil {
+		return hubapi.IssueRef{}, err
+	}
+	content := hubapi.IssueRevisionContent{
+		Title:       hubapi.AuthoredText{Text: in.Title, Author: hubapi.AuthorHuman},
+		Description: hubapi.AuthoredText{Text: rq.Quote, Author: hubapi.AuthorHuman}, // byte for byte
+		Serves:      orEmpty(in.Serves), Implements: []string{}}
+	if err := hubapi.ValidateIssueRevisionContent(content); err != nil {
+		return hubapi.IssueRef{}, Refuse(http.StatusBadRequest, "bad_request", fieldOf(err, "title"))
+	}
+	if err := checkServes(ctx, tx, projectID, content.Serves, "serves"); err != nil { // task 08
+		return hubapi.IssueRef{}, err
+	}
+	n, err := store.NextIssueNumber(ctx, tx, tx.P.OrgID, projectID)
+	if err != nil {
+		return hubapi.IssueRef{}, err
+	}
+	id := ids.Wide(hubapi.PrefixIssue)
+	head := store.IssueRow{ID: id, OrgID: tx.P.OrgID, ProjectID: projectID, TeamID: rq.TeamID, Number: n,
+		State: pol.DefaultState, Priority: routedPriority(rq.Route), Source: hubapi.SourceIntake,
+		CreatedAt: tx.Now, UpdatedAt: tx.Now, CreatedBy: tx.P.UserID}
+	if len(content.Serves) == 0 {
+		head.NotTiedReason = hubapi.NotTiedSupport
+	}
+	env := hubapi.IssueRevisionEnvelope{V: 1, Kind: "issue-revision", IssueID: id, Revision: 1,
+		ProjectID: projectID, Content: content}
+	digest, canonical, err := hubapi.IssueRevisionDigest(env)
+	if err != nil {
+		return hubapi.IssueRef{}, err
+	}
+	if err := store.InsertIssue(ctx, tx, head); err != nil {
+		return hubapi.IssueRef{}, err
+	}
+	if err := store.InsertIssueRevision(ctx, tx, store.RevisionRow{OrgID: tx.P.OrgID, IssueID: id,
+		ProjectID: projectID, Revision: 1, Canonical: canonical, Digest: digest, WrittenAt: tx.Now,
+		WrittenBy: tx.P.UserID, Serves: content.Serves}); err != nil {
+		return hubapi.IssueRef{}, err
+	}
+	if err := store.MoveIssueHead(ctx, tx, id, 1, tx.Now); err != nil {
+		return hubapi.IssueRef{}, err
+	}
+	if err := store.SetHeadTitle(ctx, tx, id, in.Title); err != nil { // task 14
+		return hubapi.IssueRef{}, err
+	}
+	if err := emitWork(tx, hubapi.EventIssueCreated, rq.TeamID, projectID, id, hubapi.IssueCreatedData{
+		Number: int64(n), Key: hubapi.IssueKey{IssueID: id, Revision: 1}.String(), Digest: digest.String(),
+		State: string(pol.DefaultState), Source: string(hubapi.SourceIntake)}); err != nil {
+		return hubapi.IssueRef{}, err
+	}
+	return hubapi.IssueRef{IssueID: id, Number: n}, nil
+}
+```
+
+`orEmpty` turns a nil `serves` into `[]hubapi.Serve{}` so the canonical bytes say `[]`, as task 15
+does literally. `routedPriority` returns the route's suggested priority (task 147) or `none`.
+`fieldOf` maps task 02's content error to its JSON field (`title`, since the description is the
+quote and `ValidateQuote` already passed). **Labels suggested by a rule are not attached here**:
+the accept dialog shows them and the accepter adds them after, through task 11's label route, so
+every label on the issue is a person's act. Task 08's create also subscribes the creator (task 13's
+rule); accept calls the same subscribe step, so the accepter follows the issue they made. The
+requester is not subscribed: they are told of *shipped* by task 149, not of every change.
