@@ -451,7 +451,7 @@ func (a *API) handleIssueSpend(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteProblem(w, http.StatusServiceUnavailable, "spend_unavailable", "Spend is not available: the gateway did not answer.", nil)
 		return
 	}
-	writeJSON(w, http.StatusOK, IssueSpend{IssueID: id, PeriodStart: rows[0].PeriodStart,
+	httpx.WriteJSON(w, http.StatusOK, IssueSpend{IssueID: id, PeriodStart: rows[0].PeriodStart,
 		SpendUSD: rows[0].SpendUSD, Requests: rows[0].Requests})
 }
 ```
@@ -459,7 +459,8 @@ func (a *API) handleIssueSpend(w http.ResponseWriter, r *http.Request) {
 `a.usageReader()` is one line over task 21's `GatewayDeps.Usage` (`task-21.md:533-534`, the
 `Gateway *GatewayDeps` field at `:924`). Task 15 also names a `Deps.Gateway`, of type
 `GatewayLauncher` (`task-15.md:1476`); the two P6 parts disagree on that field (gap 2), so this
-part reads usage through the helper and never names the field twice. `writeJSON` is phase 2's helper (**UNVERIFIED** name). The route is a `GET` with no side effect;
+part reads usage through the helper and never names the field twice. `httpx.WriteJSON` is
+`control-plane/internal/httpx/problem.go:83`, on this tree. The route is a `GET` with no side effect;
 its `catalogReadOnlyRoutes` line reads: *"Reads one issue through the Hub and one usage row
 through keysmith. Nothing is written."*
 

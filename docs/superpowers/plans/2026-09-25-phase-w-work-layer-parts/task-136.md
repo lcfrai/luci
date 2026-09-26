@@ -563,3 +563,348 @@ project's briefs (`Briefs.List`, `hub/hubclient/hubclient.go:55` on `feat/hub`),
 head's current revision (`Brief`, `:57`) and decodes its criteria with phase 4's content decoder
 (**UNVERIFIED** name, gap 6). A brief the caller cannot read is not in the list the Hub returns,
 so its criteria never reach the prompt, and a `serves` naming one cannot survive `allowed`.
+
+#### Interfaces — complete: `control-plane/internal/api/workassist.go`
+
+```go
+package api
+
+// registerWorkAssist mounts every assist route. Tasks 137-140 each append one
+// register… call inside it; none adds a line to api.go.
+func (a *API) registerWorkAssist(rs *routes) {
+	if a.deps.WorkAssist == nil {
+		return // no service: the routes are absent, and the desktop reads 404 as "not built"
+	}
+	rs.HandleFunc("POST /v1/work/assist/triage", a.postWorkTriage)
+}
+
+func (a *API) postWorkTriage(w http.ResponseWriter, r *http.Request) {
+	var req workassist.TriageRequest
+	if !httpx.DecodeJSON(w, r, &req) {
+		return
+	}
+	if (wire.WorkRef{IssueID: req.IssueID}).Validate() != nil || req.IssueID == "" {
+		httpx.WriteProblem(w, http.StatusBadRequest, httpx.CodeBadRequest, "issueId is not an issue id", nil)
+		return
+	}
+	src := workassist.HubTriageSource{Hub: a.deps.WorkAssist.Hub}
+	res, err := a.deps.WorkAssist.Triage(r.Context(), src, req)
+	if err != nil {
+		a.assistProblem(w, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, res)
+}
+
+// assistProblem maps the service's sentinels, and nothing else leaks: an
+// unexpected error is 500 internal with no text from the request or the model.
+func (a *API) assistProblem(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, workassist.ErrAssistsOff):
+		httpx.WriteProblem(w, http.StatusServiceUnavailable, "assists_off", "Assists are off for this org.", nil)
+	case errors.Is(err, workassist.ErrGatewayDown):
+		httpx.WriteProblem(w, http.StatusBadGateway, "gateway_unavailable", "The gateway did not answer.", nil)
+	case errors.Is(err, workassist.ErrNotFound):
+		httpx.WriteProblem(w, http.StatusNotFound, "issue_not_found", "No such issue.", nil)
+	default:
+		httpx.WriteProblem(w, http.StatusInternalServerError, httpx.CodeInternal, "The assist failed.", nil)
+	}
+}
+
+// readable and readableTeam answer the Hub's own 404 when the caller cannot
+// read the project or team, and write nothing when they can (tasks 138, 139).
+func (a *API) readable(w http.ResponseWriter, r *http.Request, projectID string) bool {
+	if err := a.deps.WorkAssist.Readable(r.Context(), projectID); err != nil {
+		httpx.WriteProblem(w, http.StatusNotFound, httpx.CodeProjectNotFound, "No such project.", nil)
+		return false
+	}
+	return true
+}
+
+func (a *API) readableTeam(w http.ResponseWriter, r *http.Request, teamID string) bool {
+	if err := a.deps.WorkAssist.ReadableTeam(r.Context(), teamID); err != nil {
+		httpx.WriteProblem(w, http.StatusNotFound, "team_not_found", "No such team.", nil)
+		return false
+	}
+	return true
+}
+```
+
+`hubTriageSource` is exported as `HubTriageSource` for this file. `(*Service).Readable(ctx,
+projectID) error` reads the project through the relay (`Hub.Project`, Phase H) and
+`ReadableTeam(ctx, teamID) error` the team (`Hub.Team`), both **UNVERIFIED** method names;
+task 139's `readable(ctx, projectID)` is `Readable`. `httpx.CodeInternal` and
+`httpx.CodeProjectNotFound` are on this tree (`control-plane/internal/httpx/problem.go:51`,
+`:58`), as is `httpx.DecodeJSON` (`:125`). `assists_off`, `gateway_unavailable`,
+`issue_not_found` and `team_not_found` are string literals here, as task 24 writes the Hub's
+`issue_not_found`; adding them to `httpx`'s constants is phase 2's file and out of scope.
+`routes_audit_test.go` gains `"POST /v1/work/assist/triage"` in its POST list (task 24's test,
+`task-24.md:67`), so the no-side-effecting-GET check (§10a) holds.
+
+**`cmd/api` ⚑.** `PANACEA_APP_WORK_ASSIST` (`off` default, `fake`): `off` builds no service,
+and the routes are absent; `fake` builds `Service` with `DirectGateway{Base: {global:
+PANACEA_APP_WORK_ASSIST_UPSTREAM_GLOBAL, au: PANACEA_APP_WORK_ASSIST_UPSTREAM_AU}}` and exits 1,
+naming the variable, when either base is not `http://127.0.0.1:<port>` or `http://localhost:<port>`
+(decision 4: no direct path to a real provider). `PANACEA_APP_WORK_ASSIST_MODEL` defaults to
+`claude-haiku-4-5`. A third value, `gateway`, is reserved for gap 1 and refused today with
+*"PANACEA_APP_WORK_ASSIST=gateway needs phase 6's assist class"*. With `Deps.WorkAssist` absent
+the desktop gets `404` on the route and says *"Suggestions are not set up on this machine"*.
+
+#### Interfaces — complete: the desktop wire
+
+```ts
+// desktop/src/api/client.ts ⚑ — ProblemCode (:40-48) gains, before the client-raised pair:
+  | "assists_off" | "gateway_unavailable" | "issue_not_found" | "team_not_found"
+
+// desktop/src/api/work.ts ⚑ — appended to WORK_LOCAL (task 37, :301-307)
+  ["assistTriage", "POST", "/v1/work/assist/triage"],
+
+export type AssistProperty = "team" | "feature" | "assignee" | "labels" | "priority" | "serves";
+export const ASSIST_PROPERTIES: readonly AssistProperty[] =
+  ["team", "feature", "assignee", "labels", "priority", "serves"];   // no "state", ever
+export type WhyKind = "issue" | "criterion" | "comment" | "guidance";
+export interface Why { kind: WhyKind; key: string }
+export interface AssistItem { property: AssistProperty; value: string; why: Why[] }
+export interface TriageSuggestion {
+  issueId: string; revision: number; route: "global" | "au"; items: AssistItem[];
+}
+/** Gap 2's proposed Hub record, read when it exists; absent today. */
+export interface AssistCalibration {
+  property: AssistProperty; unchanged: number; changed: number; rejected: number;
+}
+
+// in WorkClient
+  /** Rejects with 503 assists_off, 502 gateway_unavailable, 404 issue_not_found. */
+  assistTriage(issueId: string): Promise<TriageSuggestion>;
+  /** Gap 2. Rejects with 404 until the Hub serves it; the dial then shows no number. */
+  assistCalibration(property: AssistProperty): Promise<AssistCalibration>;
+
+// in makeWorkClient
+    assistTriage: (issueId) => local("assistTriage", [], { issueId }),
+    assistCalibration: (property) =>
+      send("GET", relayPath(`/v1/me/assist-calibration`) + query([["property", property]])) as
+        Promise<AssistCalibration>,
+```
+
+`assistCalibration` goes through task 37's `relayPath` (the Hub's route, relayed), written as a
+direct `send` rather than a `WORK_RELAY` row because the row's Hub route does not exist: adding a
+row would make task 37's route-table test assert a route no Hub serves.
+
+#### Interfaces — complete: `desktop/src/work/assist.ts`
+
+```ts
+import type { AssistCalibration, AssistItem, AssistProperty, IssueHead, Why } from "../api/work";
+
+export type DialLevel = "hide" | "show" | "auto";
+/** AX §7's names, shown beside ours (decision 10). */
+export const DIAL_WORDS: Record<DialLevel, string> = {
+  hide: "Hide", show: "Show · propose and wait", auto: "Auto-apply · act and tell me",
+};
+
+const KEY = (p: AssistProperty) => `panacea.assist.${p}`;
+export function dialLevel(p: AssistProperty, store: Pick<Storage, "getItem"> = localStorage): DialLevel {
+  const v = store.getItem(KEY(p));
+  return v === "hide" || v === "auto" ? v : "show";
+}
+export function setDialLevel(p: AssistProperty, l: DialLevel, store: Pick<Storage, "setItem"> = localStorage): void {
+  store.setItem(KEY(p), l);
+}
+
+/** An item the desktop may draw: a why that names something, on this revision. */
+export function renderable(item: AssistItem, revision: number, head: IssueHead): boolean {
+  return item.why.length > 0 && item.why.every((w) => w.key !== "") &&
+         (item.property as string) !== "state" && head.headRevision === revision;
+}
+
+/** Empty on the head means a person has not set it (decision 12). */
+export function isEmpty(p: AssistProperty, head: IssueHead, serving: number, featureId: string | null): boolean {
+  switch (p) {
+    case "labels": return head.labels.length === 0;
+    case "assignee": return head.assignee === null;
+    case "priority": return head.priority === "none";
+    case "serves": return serving === 0;
+    case "feature": return featureId === null;
+    case "team": return false; // an issue always has a team: never auto-applied, only shown
+  }
+}
+
+/** "23 unchanged, 2 changed, none rejected"; null means no record, so no number (decision 11). */
+export function calibrationWords(c: AssistCalibration | null): string | null {
+  if (c === null) return null;
+  const n = (k: number, w: string) => (k === 0 ? `none ${w}` : `${k} ${w}`);
+  return `${n(c.unchanged, "unchanged")}, ${n(c.changed, "changed")}, ${n(c.rejected, "rejected")}`;
+}
+
+/** The why as words and links: "EP-120", "C3 of Upload brief", never a number. */
+export function whyLabel(w: Why, criterionName: (key: string) => string | undefined): string {
+  return w.kind === "criterion" ? (criterionName(w.key) ?? w.key) : w.key;
+}
+```
+
+`team` is never auto-applied: an issue always has one, so *empty* never holds, and moving an issue
+to another team moves it out of this person's triage. Its dial offers *Hide* and *Show* only.
+
+#### Interfaces — complete: `desktop/src/components/work/AssistSuggestion.tsx`
+
+```tsx
+import type { JSX } from "react";
+import type { AssistItem, IssueHead } from "../../api/work";
+import { renderable, whyLabel } from "../../work/assist";
+
+export type AssistState =
+  | { kind: "idle" } | { kind: "asking" }
+  | { kind: "ready"; revision: number; items: AssistItem[] }
+  | { kind: "failed"; words: string };   // "Suggestions unavailable: …"
+
+/** One property's suggestions beside its picker, in the agent class. Draws nothing it cannot link. */
+export function AssistSuggestion(props: {
+  state: AssistState; property: AssistItem["property"]; head: IssueHead;
+  valueName(value: string): string | undefined;           // the label's, person's, feature's name
+  criterionName(key: string): string | undefined;
+  href(w: AssistItem["why"][number]): string;               // task 44's links: issue, criterion
+  onAccept(item: AssistItem): void; onDismiss(item: AssistItem): void;
+}): JSX.Element | null {
+  const { state, property, head } = props;
+  if (state.kind === "failed") return <p className="as-note" role="status">{state.words}</p>;
+  if (state.kind !== "ready") return null;       // the global heartbeat shows "asking"; no spinner here
+  const mine = state.items.filter((i) => i.property === property && renderable(i, state.revision, head));
+  if (mine.length === 0) return null;
+  return (
+    <ul className="as-list" aria-label={`Suggested ${property}`}>
+      {mine.map((i) => {
+        const name = props.valueName(i.value);
+        if (name === undefined) return null;    // a value the replica cannot name is not drawn
+        return (
+          <li key={i.value} className="as-item author-agent">
+            <span className="as-value">Suggested: {name}</span>
+            <span className="as-why"> · because{" "}
+              {i.why.map((w, n) => (
+                <span key={w.kind + w.key}>{n > 0 && ", "}
+                  <a href={props.href(w)}>{whyLabel(w, props.criterionName)}</a></span>
+              ))}
+            </span>
+            <button type="button" className="as-accept" onClick={() => props.onAccept(i)}>Accept</button>
+            <button type="button" className="as-dismiss" onClick={() => props.onDismiss(i)}>Dismiss</button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+```
+
+`author-agent` is task 49's class for agent-authored text (`authorClass.ts`, **UNVERIFIED**
+class name; `desktop/src/components/editor/` does not exist on this tree yet). The *asking* state
+is one `StatusDot` in the Triage view's header on the shared heartbeat
+(`desktop/src/components/common/StatusDot.tsx`; DESIGN-SYSTEM: never a spinner per row); this
+component draws nothing while asking. `.as-*` rules join task 42's stylesheet: a 1px ring, no
+flat border, radius from the small-control step, `transition` on `opacity` only.
+
+#### Interfaces — complete: `desktop/src/components/work/AssistDial.tsx`
+
+```tsx
+import { useEffect, useState, type JSX } from "react";
+import { ASSIST_PROPERTIES, type AssistCalibration, type AssistProperty, type WorkClient } from "../../api/work";
+import { calibrationWords, dialLevel, setDialLevel, DIAL_WORDS, type DialLevel } from "../../work/assist";
+
+const NAME: Record<AssistProperty, string> = { team: "Team", feature: "Feature", assignee: "Assignee",
+  labels: "Label", priority: "Priority", serves: "Serves" };
+
+export function AssistDial(props: { client: WorkClient; store?: Storage }): JSX.Element {
+  const store = props.store ?? localStorage;
+  const [levels, setLevels] = useState(() =>
+    Object.fromEntries(ASSIST_PROPERTIES.map((p) => [p, dialLevel(p, store)])) as Record<AssistProperty, DialLevel>);
+  const [cal, setCal] = useState<Partial<Record<AssistProperty, AssistCalibration | null>>>({});
+  useEffect(() => {
+    for (const p of ASSIST_PROPERTIES)
+      props.client.assistCalibration(p).then((c) => setCal((m) => ({ ...m, [p]: c })),
+        () => setCal((m) => ({ ...m, [p]: null })));      // 404 today: no record, no number
+  }, [props.client]);
+  return (
+    <table className="ad-grid" aria-label="Assists">
+      <tbody>{ASSIST_PROPERTIES.map((p) => {
+        const offered: DialLevel[] = p === "team" ? ["hide", "show"] : ["hide", "show", "auto"];
+        const words = calibrationWords(cal[p] ?? null);
+        return (
+          <tr key={p}>
+            <th scope="row">{NAME[p]} suggestions</th>
+            <td><div role="radiogroup" aria-label={`${NAME[p]} suggestions`}>{offered.map((l) => (
+              <button key={l} type="button" role="radio" aria-checked={levels[p] === l}
+                onClick={() => { setDialLevel(p, l, store); setLevels((m) => ({ ...m, [p]: l })); }}>
+                {DIAL_WORDS[l]}</button>))}</div>
+              <p className="ad-record">{words === null
+                ? `No record yet of how you answered ${NAME[p].toLowerCase()} suggestions.`
+                : `${NAME[p]} suggestions you answered: ${words}`}</p></td>
+          </tr>);
+      })}</tbody>
+    </table>
+  );
+}
+```
+
+Discrete named buttons, never a slider (AX §7). The inherited default (*Show*) needs no greyed
+display here because the dial has one layer, the person's own (gap 4).
+
+#### Interfaces — complete: accept, auto-apply and Undo (`desktop/src/work/assist.ts`, continued)
+
+```ts
+import type { IssueRevisionContent, WorkClient } from "../api/work";
+
+/** The one write an Accept makes, as the person (decision 9). Team and feature are gap 6. */
+export async function accept(client: WorkClient, head: IssueHead, content: IssueRevisionContent,
+                             item: AssistItem, revision: number): Promise<void> {
+  if (head.headRevision !== revision) throw new StaleSuggestion();
+  switch (item.property) {
+    case "labels":   await client.patchIssue(head.id, { labels: [...new Set([...head.labels, item.value])] }); return;
+    case "priority": await client.patchIssue(head.id, { priority: item.value as IssueHead["priority"] }); return;
+    case "assignee": await client.patchIssue(head.id, { assigneeId: item.value }); return;
+    case "serves": {
+      const [briefKey, criterionId] = splitServe(item.value);
+      await client.writeIssueRevision(head.id, { baseRevision: revision,
+        content: { ...content, serves: [...content.serves, { briefKey, criterionId }] } });
+      return;
+    }
+    case "team": case "feature": throw new NoRouteYet(item.property);   // gap 6
+  }
+}
+
+/** One auto-applied value, kept for DECIDED WITHOUT YOU and its Undo, this session only. */
+export interface AppliedAssist {
+  issueId: string; alias: string; property: AssistProperty; value: string; before: string | null;
+  why: Why[]; at: string;   // the Hub's updatedAt from the write's answer, never a client clock
+}
+
+/** Auto-apply runs accept() only where the dial says so and a person has set nothing. */
+export async function autoApply(client: WorkClient, head: IssueHead, content: IssueRevisionContent,
+    s: TriageSuggestion, featureId: string | null, level: (p: AssistProperty) => DialLevel,
+    record: (a: AppliedAssist) => void): Promise<void> {
+  const once = new Set<AssistProperty>();
+  for (const i of s.items) {
+    if (once.has(i.property) || level(i.property) !== "auto" || !renderable(i, s.revision, head)) continue;
+    if (!isEmpty(i.property, head, content.serves.length, featureId)) continue;
+    once.add(i.property);                   // one value per property, then the person decides the rest
+    await accept(client, head, content, i, s.revision);
+    record({ issueId: head.id, alias: head.alias, property: i.property, value: i.value, before: null,
+             why: i.why, at: (await client.issue(head.id)).head.updatedAt });
+  }
+}
+```
+
+`StaleSuggestion` and `NoRouteYet` are two `Error` subclasses whose messages are the words the
+suggestion row shows (decision 9, gap 6). Auto-apply stops at the first write that throws, so a
+stale head applies nothing further. **Undo** writes `before` back as the person (`labels`
+without the value, priority `none`, assignee `null`, `serves` without the pair through a new
+revision) and removes the row; an Undo whose property the person has since changed reads *"You
+changed this since; nothing undone."* and writes nothing.
+
+**The hosts.** `TriageView.tsx` ⚑ (task 42): when an issue gains focus, it calls
+`client.assistTriage(id)` once per `(issueId, headRevision)`, holds the answer in component state,
+runs `autoApply`, and passes the state to an `AssistSuggestion` beside each picker; an
+`ApiError` with `assists_off` sets `failed` with *"Suggestions unavailable: assists are off for
+this org"*, `gateway_unavailable` *"…: the gateway did not answer"*, a bare 404 *"Suggestions
+are not set up on this machine"*. `CriterionPicker.tsx` ⚑ keeps `suggestCriteria` as it is and
+lists the assist's `serves` items above it with their why; on failure the text-match notes stay.
+`IssueHead.tsx` ⚑ (task 46) renders the same `AssistSuggestion` beside each field button while the
+issue is in `triage`, and not otherwise. The Desk's DECIDED WITHOUT YOU (task 39's section,
+`task-39.md:257`, `:274`) receives `AppliedAssist` rows through the store task 64 fills it from
+(**UNVERIFIED**, no part): *"Labelled EP-150 bug · because EP-120 · Undo"*.
