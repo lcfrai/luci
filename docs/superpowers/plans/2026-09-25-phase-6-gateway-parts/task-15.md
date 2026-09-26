@@ -1,8 +1,17 @@
-### Task 15: `gatewayclient` and the local control plane's launch
+### Tasks 15a and 15b: `gatewayclient` (15a) and the local control plane's launch (15b)
 
 This task is the launcher's side of the gateway for local mode: the one client every launcher uses to talk to keysmith, and the local control plane using it. A session starts exactly as it does today; beside it, the control plane mints the session's token, writes it where `panacea token` (task 14) reads it, refreshes it, and revokes it when the session ends. In the cloud the broker does the same through the same client (ask P8-1); this task does not build that.
 
 **The one thing this task must not get wrong is that session start never waits on a mint.** Panacea's `/key/generate` ran inside a request's shared 15-second context and took the next call down with it (skeleton pitfall 3). Here the sandbox is created, the session is recorded and answered `201`, and only then, in a goroutine with its own deadline, is the token minted. The one process that waits is `panacea token`, inside the sandbox, for at most 20 seconds.
+
+**Two tasks (review I-10).** The work was 3 hours across three packages in one piece; it is two, run by two agents in turn:
+
+| Task | Hours | Depends on | Writes | Tests | Steps |
+|---|---|---|---|---|---|
+| **15a** `gatewayclient` | 1.5 h | 03, 14 | `internal/gatewayclient/{client.go,refresh.go,client_test.go}` | 13 | every block marked **[15a]** |
+| **15b** the launch wiring | 2 h | 13, 15a | `backend` + `dockerbe` + `katabe`, `registry/session.go`, `api`, `cmd/api` | 7 new, `cmd/api`'s config rows, and phase 2's tests as the regression gate | every block marked **[15b]** |
+
+15a imports `backend.Mount` (phase 2's, already in the tree), `dataclass` (task 01), `wire` (task 03) and `httpx`, nothing of task 08 (a `package main` cannot be imported). Its tests run against a fake keysmith (step 1), so it codes keysmith's four routes from `task-08.md`'s interface list, as task 12's binding reader does, and does not wait for task 08b. That is what takes 08 → 15 off the critical path. The cost: the real client and the real keysmith first meet in task 23 (which waits for 15b and, through 18 and 17, for 08b); a drift in a path or a status code shows there, not here. 15b reads `routesource.NewFile` (task 13) in `cmd/api`. A block marked neither is read by both.
 
 Eight decisions where the skeleton is silent (the eighth from review I-4):
 
@@ -16,17 +25,17 @@ Eight decisions where the skeleton is silent (the eighth from review I-4):
 - **(h) The base URL is the image's, not a setting.** Task 14's fragment pins `ANTHROPIC_BASE_URL` to `gatewayclient.SandboxBaseURL`, `http://gatekeeper.panacea-gateway.svc.cluster.local:4000`, because a repository's `.claude/settings.json` could otherwise move it (review I-4; task 14 decision (e)). `Prepare` still puts the same value in the launch environment, so a shell in the sandbox (task 23's `curl`) and a drop-in the CLI fails to read (task 14's first "does not claim") both land on the gatekeeper. A second value would split the CLI from everything else, so `NewLauncher` refuses any other `BaseURL` and `cmd/api` refuses any other `PANACEA_APP_GATEWAY_BASE_URL`, naming the variable. Task 17 gives the gatekeeper this name as an alias on `panacea-app-gateway`; that network holds the gatekeeper alone, and LiteLLM, keysmith and Postgres sit on the internal `panacea-app-gateway-backend` (review I-6). So `cmd/api` also refuses any `PANACEA_APP_GATEWAY_NETWORK` but `panacea-app-gateway`: a sandbox on another of task 17's networks could call LiteLLM with its own key.
 
 **Files:**
-- `control-plane/internal/gatewayclient/client.go` — `Client`, `New`, `Mint`, `Refresh`, `RevokeSession`, `Usage`, `Problem`, `WriteToken` (new)
-- `control-plane/internal/gatewayclient/refresh.go` — `Refresher`, `Launcher`, `Prepare`, `Start`, `Stop`, `Resume` (new)
-- `control-plane/internal/gatewayclient/client_test.go` — the client and launcher tests (new)
-- `control-plane/internal/backend/backend.go` — `Spec.Network`, `Sandbox.NetworkAddr`, `LabelNetwork`, the network-name check in `ValidateSpec` (modified)
-- `control-plane/internal/backend/backend_test.go` — the network-name table (modified)
-- `control-plane/internal/backend/dockerbe/docker.go`, `docker_test.go` — join the network, label it, read the address back (modified)
-- `control-plane/internal/backend/katabe/kata.go`, `kata_test.go` — refuse `Network` (modified)
-- `control-plane/internal/registry/session.go` — the four gateway fields (modified)
-- `control-plane/internal/api/api.go` (`Deps.Gateway`), `control-plane/internal/api/sessions.go` (create, restart, delete, `sessionJSON`) (modified)
-- `control-plane/internal/api/sessions_gateway_test.go` (new), `control-plane/internal/api/sessions_test.go` (the fake backend reports a `NetworkAddr`, one field) (modified)
-- `control-plane/cmd/api/config.go`, `config_test.go`, `main.go` — the gateway variables, the `Launcher`, the resume loop (modified)
+- `control-plane/internal/gatewayclient/client.go` **[15a]** — `Client`, `New`, `Mint`, `Refresh`, `RevokeSession`, `Usage`, `Problem`, `WriteToken` (new)
+- `control-plane/internal/gatewayclient/refresh.go` **[15a]** — `Refresher`, `Launcher`, `Prepare`, `Start`, `Stop`, `Resume` (new)
+- `control-plane/internal/gatewayclient/client_test.go` **[15a]** — the client and launcher tests (new)
+- `control-plane/internal/backend/backend.go` **[15b]** — `Spec.Network`, `Sandbox.NetworkAddr`, `LabelNetwork`, the network-name check in `ValidateSpec` (modified)
+- `control-plane/internal/backend/backend_test.go` **[15b]** — the network-name table (modified)
+- `control-plane/internal/backend/dockerbe/docker.go`, `docker_test.go` **[15b]** — join the network, label it, read the address back (modified)
+- `control-plane/internal/backend/katabe/kata.go`, `kata_test.go` **[15b]** — refuse `Network` (modified)
+- `control-plane/internal/registry/session.go` **[15b]** — the four gateway fields (modified)
+- `control-plane/internal/api/api.go` (`Deps.Gateway`), `control-plane/internal/api/sessions.go` (create, restart, delete, `sessionJSON`) **[15b]** (modified)
+- `control-plane/internal/api/sessions_gateway_test.go` (new), `control-plane/internal/api/sessions_test.go` (the fake backend reports a `NetworkAddr`, one field) **[15b]** (modified)
+- `control-plane/cmd/api/config.go`, `config_test.go`, `main.go` **[15b]** — the gateway variables, the `Launcher`, the resume loop (modified)
 
 **Interfaces:**
 - Produces, package `gatewayclient`:
@@ -42,10 +51,10 @@ Eight decisions where the skeleton is silent (the eighth from review I-4):
 - Produces, package `backend`: `Spec.Network string` (docker only; `""` is the default bridge); `Sandbox.NetworkAddr netip.Addr` (docker only; the zero value when `Spec.Network` was empty); `LabelNetwork = "panacea-app.network"`.
 - Produces, the session wire shape (additive to phase 2's `sessionJSON`, `control-plane/internal/api/sessions.go:593-620`): `"gateway": "off"|"pending"|"on"|"error"`, `"gatewayError": "<one sentence>"`, `"gatewayRoute": "global"|"au"|""`.
 - Produces, `cmd/api` variables: `PANACEA_APP_GATEWAY_KEYSMITH_URL` (unset: the gateway is off), `_BASE_URL` (default `gatewayclient.SandboxBaseURL`, `http://gatekeeper.panacea-gateway.svc.cluster.local:4000`, the address **inside** the gateway network and the value task 14's fragment pins; any other value is refused, decision (h)), `_NETWORK` (default `panacea-app-gateway`, task 17's sandbox network, which holds the gatekeeper alone; any other value is refused, decision (h), because task 17's other networks hold LiteLLM), `_CALLER` (`file`, the default, or `oidc`: the person's own `panacea-app-gateway` realm token from the Hub sign-in, `OD-30`), `_CALLER_TOKEN_FILE` (required when on with `file`, refused with `oidc`), `_ROUTE_SOURCE` (required when on; `file:<path>` only until S6.1), `_MINT_TIMEOUT` (`20s`), `_REFRESH_AT` (`45m`, and below `55m`), `_OWNER` (`<tid>:<oid>`, default `local:developer`), `_TEAM` (default `local`).
-- Consumes: `wire.MintRequest`, `MintResponse`, `RefreshRequest`, `RevokeRequest`, `UsageRow`, `Owner`, `RouteSource`, `ErrRouteUnknown`, `ProjectInference.LiveRoute` (task 03; `Prepare` and the raise check read the route by it, so the refresher sees every raise keysmith retires on, re-review R-6); keysmith's `POST /v1/mint` (201), `POST /v1/refresh` (201), `POST /v1/revoke` (204), `GET /v1/usage?scope=&id=` (task 08); `routesource.NewFile` (task 13); `dataclass.Route` (task 01); `httpx.Problem` (`problem.go:26-34`).
+- Consumes: `wire.MintRequest`, `MintResponse`, `RefreshRequest`, `RevokeRequest`, `UsageRow`, `Owner`, `RouteSource`, `ErrRouteUnknown`, `ProjectInference.LiveRoute` (task 03; `Prepare` and the raise check read the route by it, so the refresher sees every raise keysmith retires on, re-review R-6); keysmith's `POST /v1/mint` (201), `POST /v1/refresh` (201), `POST /v1/revoke` (204), `GET /v1/usage?scope=&id=` (task 08's interface list, coded against a fake keysmith: 15a does not wait for 08b); `routesource.NewFile` (task 13, 15b's `cmd/api` only); `dataclass.Route` (task 01); `httpx.Problem` (`problem.go:26-34`).
 - Required by: task 17 (the compose network and the callers file this reads), task 21 (`Usage`, and the same `ROUTE_SOURCE` file), task 22 (renders `gateway`, `gatewayError`), task 23 (the whole local path), ask P8-1 (the broker uses this client).
 
-- [ ] **Step 1: Write the failing client tests**
+- [ ] **Step 1: Write the failing client tests** **[15a]**
 
 A fake keysmith records every request and answers from a script. Nothing here needs Docker.
 
@@ -546,7 +555,7 @@ func TestTheOIDCCredentialIsThePersonsGatewayToken(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Write the failing backend tests**
+- [ ] **Step 2: Write the failing backend tests** **[15b]**
 
 `control-plane/internal/backend/backend_test.go`, one table added:
 
@@ -622,7 +631,7 @@ func TestCreateRejectsANetworkAndCreatesNoPod(t *testing.T) {
 }
 ```
 
-- [ ] **Step 3: Write the failing API tests**
+- [ ] **Step 3: Write the failing API tests** **[15b]**
 
 In `control-plane/internal/api/sessions_test.go`, the fake backend (`sessions_test.go:399-429`) gains one field, `networkAddr netip.Addr`, and its `Create` sets `NetworkAddr: f.networkAddr` on the `backend.Sandbox` it returns. Nothing else in that file changes.
 
@@ -760,14 +769,26 @@ func TestGatewayOffLeavesTheSessionAsItWas(t *testing.T) {
 
 - [ ] **Step 4: Run the tests to verify they fail**
 
+**[15a]**
+
 ```bash
 cd control-plane
-go test ./internal/gatewayclient/ ./internal/backend/... ./internal/api/ 2>&1 | head -20
+go test ./internal/gatewayclient/ > /tmp/gc-red.txt 2>&1; echo "exit $?"; head -20 /tmp/gc-red.txt
 ```
 
-Expected: build failures naming this task's symbols: `undefined: New`, `undefined: NewLauncher`, `undefined: WriteToken` (gatewayclient); `spec.Network undefined`, `sb.NetworkAddr undefined`, `undefined: backend.LabelNetwork` (backend); `d.Gateway undefined`, `undefined: GatewayRecorder`, `s.Gateway undefined` (api). If one names `wire.MintRequest` or `routesource`, task 03 or 13 is not merged: stop.
+Expected: a non-zero exit and build failures naming `undefined: New`, `undefined: NewLauncher`, `undefined: WriteToken`. If one names `wire.MintRequest` or `dataclass`, task 03 or 01 is not merged: stop.
 
-- [ ] **Step 5: Write the client**
+**[15b]**
+
+```bash
+cd control-plane
+go test ./internal/gatewayclient/ -count=1 > /tmp/gc-15a.txt 2>&1; echo "15a exit $?"      # expect 0: 15a is merged
+go test ./internal/backend/... ./internal/api/ > /tmp/lw-red.txt 2>&1; echo "exit $?"; head -20 /tmp/lw-red.txt
+```
+
+Expected: `15a exit 0`, then a non-zero exit and build failures naming `spec.Network undefined`, `sb.NetworkAddr undefined`, `undefined: backend.LabelNetwork` (backend); `d.Gateway undefined`, `undefined: GatewayRecorder`, `s.Gateway undefined` (api). If `15a exit` is not `0`, or one names `gatewayclient` or `routesource`, task 15a or 13 is not merged: stop.
+
+- [ ] **Step 5: Write the client** **[15a]**
 
 No error this file returns quotes a reply body. A keysmith refusal becomes a `Problem` carrying the status and the **code** only (a code is checked against `^[a-z_]{1,40}$`, else `unknown`); the human sentence for it is chosen here, in `refresh.go`'s table, not taken from the wire. That is what `TestErrorsNeverCarryABody` pins, and it is why `gatewayError` on a session can never echo a token a broken keysmith put in a message.
 
@@ -1027,7 +1048,7 @@ func WriteToken(dir, token string) error {
 
 The `*PathError`s that `WriteToken` wraps name a path and an errno, never the token.
 
-- [ ] **Step 6: Write the launcher and the refresher**
+- [ ] **Step 6: Write the launcher and the refresher** **[15a]**
 
 One goroutine per session does everything after `Start`: mint, write, then refresh every `RefreshAt`, and at once when a Global-minted session's project rises to AU (checked every `RaiseCheck`, review C-1), until `Stop` cancels its context. Each refresh names the **new** generation, as task 03's `RefreshRequest` requires. A failed refresh keeps the current token (it is valid until its hour ends) and retries a minute later; the session's `gatewayError` says so, while `gateway` stays `on`.
 
@@ -1336,7 +1357,7 @@ func sentence(err error) string {
 
 `Generation: generation - 1` on a failed mint records the last generation that **did** land, so a later restart mints `GatewayGeneration + 1`, which is this same generation again, and keysmith's idempotency on `(session, generation)` (task 07) covers the case where the failed mint had in fact succeeded.
 
-- [ ] **Step 7: Extend the backend seam**
+- [ ] **Step 7: Extend the backend seam** **[15b]**
 
 `control-plane/internal/backend/backend.go`. Beside the other labels (`backend.go:84-88`):
 
@@ -1431,7 +1452,7 @@ A missing network is the daemon's error at `ContainerCreate` (`network panacea-a
 
 Both files add `net/netip` to their imports.
 
-- [ ] **Step 8: Record the gateway on the session, and launch with it**
+- [ ] **Step 8: Record the gateway on the session, and launch with it** **[15b]**
 
 `control-plane/internal/registry/session.go`, at the end of `Session` (after `ContextRef`, `session.go:104`):
 
@@ -1544,7 +1565,7 @@ func gatewayWire(s string) string {
 }
 ```
 
-- [ ] **Step 9: Configure and wire it in `cmd/api`**
+- [ ] **Step 9: Configure and wire it in `cmd/api`** **[15b]**
 
 `control-plane/cmd/api/config.go`. `Config` (`config.go:104`) gains `Gateway GatewayConfig`; `loadConfig` (`:165`) calls `loadGatewayConfig(raw, cfg.Backend)` after the backend is parsed and returns its error unchanged:
 
@@ -1670,52 +1691,75 @@ and `api.Deps{…}` gains `Gateway: launcher`. `fail`, `store` and `log` stand f
 
 - [ ] **Step 10: Run the tests to verify they pass**
 
+**[15a]**
+
 ```bash
 cd control-plane
-go test -race -count=1 ./internal/gatewayclient/                                   # expect: ok
-go test -count=1 -v ./internal/gatewayclient/ | grep -c '^--- PASS: Test'          # expect 13
-go test -race -count=1 ./internal/backend/... ./internal/registry/... ./internal/api/ ./cmd/api/   # expect: ok for each, phase 2's tests included
+go test -race -count=1 -v ./internal/gatewayclient/ > /tmp/gc-green.txt 2>&1; echo "exit $?"   # expect exit 0
+grep -c '^--- PASS: Test' /tmp/gc-green.txt; grep -c '^--- FAIL' /tmp/gc-green.txt             # expect 13, then 0
 ```
 
-The last line is the regression gate: every phase 2 session test runs with `Deps.Gateway` nil and must be unchanged.
+**[15b]**
+
+```bash
+cd control-plane
+go test -race -count=1 ./internal/gatewayclient/ ./internal/backend/... ./internal/registry/... ./internal/api/ ./cmd/api/ > /tmp/lw-green.txt 2>&1; echo "exit $?"
+grep -c '^ok' /tmp/lw-green.txt; grep -c '^FAIL\|^--- FAIL' /tmp/lw-green.txt
+```
+
+Expected: `exit 0`, one `ok` per package listed (phase 2's tests included), and `0`. This is the regression gate: every phase 2 session test runs with `Deps.Gateway` nil and must be unchanged, and 15a's thirteen still pass.
 
 - [ ] **Step 11: Kill twelve mutants by hand**
 
-| Edit | Test that must fail |
-|---|---|
-| `Start`: the `go func() { … }()` becomes a direct call | `TestStartReturnsBeforeTheMintLands` |
-| `do`: the retry re-marshals `in` with `Generation+1` (or `once` is called with a fresh body per attempt built from a counter) | `TestMintRetriesTheSameGenerationOnTimeoutAnd5xx` |
-| `WriteToken`: write `final` directly, no `token.tmp` | `TestWriteTokenIsNeverSeenHalfWritten` |
-| `handleSessionDelete`: the `Stop` block deleted | `TestDeleteStopsTheGateway` |
-| `Prepare`: `if route != dataclass.RouteGlobal` → `if route == dataclass.RouteAU` | `TestPrepareSetsTheEnvironmentByRoute` (the unknown row) |
-| `refreshLoop`: `Generation: gen + 1` → `Generation: gen` | `TestTheRefresherRefreshesThenStopsWithTheSession` |
-| `sleepUnlessRaised`: delete the `if raisedToAU(…) { return true }` block | `TestARaiseRefreshesAtOnce` (both rows; review C-1) |
-| `raisedToAU`: `r, err := pi.LiveRoute()` → `r, err := pi.Effective, error(nil)` | `TestARaiseRefreshesAtOnce/class` alone (re-review R-6) |
-| `bearer`: `c.tokens.Token(ctx, gatewayAudience)` → `c.tokens.Token(ctx, "panacea-app-hub")` | `TestTheOIDCCredentialIsThePersonsGatewayToken` (`OD-30`) |
-| `NewLauncher`: `case l.BaseURL != SandboxBaseURL:` → `case l.BaseURL == "":` | `TestNewLauncherRefusesAnyOtherBaseURL` (the two non-empty rows; review I-4) |
-| `loadGatewayConfig`: the `c.BaseURL != gatewayclient.SandboxBaseURL` block deleted | `config_test.go`'s `BASE_URL=http://gatekeeper:4000` row (decision (h)) |
-| `loadGatewayConfig`: the `c.Network != "panacea-app-gateway"` block deleted | `config_test.go`'s `NETWORK=panacea-app-gateway-backend` row (decision (h), review I-6; re-review M-5(a)) |
+Apply each edit alone, rerun the task's step 10 into its file, confirm a non-zero exit and that the named test is the one failing, and revert. Each task runs only the rows marked with its id: **[15a]** nine, **[15b]** three.
+
+| Task | Edit | Test that must fail |
+|---|---|---|
+| 15a | `Start`: the `go func() { … }()` becomes a direct call | `TestStartReturnsBeforeTheMintLands` |
+| 15a | `do`: the retry re-marshals `in` with `Generation+1` (or `once` is called with a fresh body per attempt built from a counter) | `TestMintRetriesTheSameGenerationOnTimeoutAnd5xx` |
+| 15a | `WriteToken`: write `final` directly, no `token.tmp` | `TestWriteTokenIsNeverSeenHalfWritten` |
+| 15b | `handleSessionDelete`: the `Stop` block deleted | `TestDeleteStopsTheGateway` |
+| 15a | `Prepare`: `if route != dataclass.RouteGlobal` → `if route == dataclass.RouteAU` | `TestPrepareSetsTheEnvironmentByRoute` (the unknown row) |
+| 15a | `refreshLoop`: `Generation: gen + 1` → `Generation: gen` | `TestTheRefresherRefreshesThenStopsWithTheSession` |
+| 15a | `sleepUnlessRaised`: delete the `if raisedToAU(…) { return true }` block | `TestARaiseRefreshesAtOnce` (both rows; review C-1) |
+| 15a | `raisedToAU`: `r, err := pi.LiveRoute()` → `r, err := pi.Effective, error(nil)` | `TestARaiseRefreshesAtOnce/class` alone (re-review R-6) |
+| 15a | `bearer`: `c.tokens.Token(ctx, gatewayAudience)` → `c.tokens.Token(ctx, "panacea-app-hub")` | `TestTheOIDCCredentialIsThePersonsGatewayToken` (`OD-30`) |
+| 15a | `NewLauncher`: `case l.BaseURL != SandboxBaseURL:` → `case l.BaseURL == "":` | `TestNewLauncherRefusesAnyOtherBaseURL` (the two non-empty rows; review I-4) |
+| 15b | `loadGatewayConfig`: the `c.BaseURL != gatewayclient.SandboxBaseURL` block deleted | `config_test.go`'s `BASE_URL=http://gatekeeper:4000` row (decision (h)) |
+| 15b | `loadGatewayConfig`: the `c.Network != "panacea-app-gateway"` block deleted | `config_test.go`'s `NETWORK=panacea-app-gateway-backend` row (decision (h), review I-6; re-review M-5(a)) |
 
 - [ ] **Step 12: Vet and format**
 
 ```bash
 cd control-plane
-go vet ./internal/gatewayclient/ ./internal/backend/... ./internal/api/ ./cmd/api/     # expect no output
-gofmt -l internal/gatewayclient/ internal/backend/ internal/registry/ internal/api/ cmd/api/   # expect no output
+go vet ./internal/gatewayclient/ && gofmt -l internal/gatewayclient/                    # [15a] expect no output
+go vet ./internal/backend/... ./internal/registry/... ./internal/api/ ./cmd/api/     # [15b] expect no output
+gofmt -l internal/backend/ internal/registry/ internal/api/ cmd/api/                 # [15b] expect no output
 ```
 
 `go vet`'s copylocks check is why `Launcher` holds its lock behind a pointer: `NewLauncher` takes the struct by value.
 
 - [ ] **Step 13: Commit**
 
+**[15a]**
+
 ```bash
-git add control-plane/internal/gatewayclient/client.go control-plane/internal/gatewayclient/refresh.go control-plane/internal/gatewayclient/client_test.go control-plane/internal/api/sessions_gateway_test.go
-git commit -F <message file> -- control-plane/internal/gatewayclient/ control-plane/internal/backend/backend.go control-plane/internal/backend/backend_test.go control-plane/internal/backend/dockerbe/docker.go control-plane/internal/backend/dockerbe/docker_test.go control-plane/internal/backend/katabe/kata.go control-plane/internal/backend/katabe/kata_test.go control-plane/internal/registry/session.go control-plane/internal/api/api.go control-plane/internal/api/sessions.go control-plane/internal/api/sessions_test.go control-plane/internal/api/sessions_gateway_test.go control-plane/cmd/api/config.go control-plane/cmd/api/config_test.go control-plane/cmd/api/main.go
+git add control-plane/internal/gatewayclient/client.go control-plane/internal/gatewayclient/refresh.go control-plane/internal/gatewayclient/client_test.go
+git commit -F <message file> -- control-plane/internal/gatewayclient/
 ```
 
-Message: `feat(gateway): the keysmith client and the local control plane's launch (phase 6 task 15)`, a body naming decisions (a) to (h), and the attribution line.
+Message: `feat(gateway): the keysmith client, the token file and the refresher (phase 6 task 15a)`, a body naming decisions (a), (d) to (f) and (h), and the attribution line.
 
-**Acceptance:** step 10 prints `ok`, `13`, and `ok` for every listed package; step 11's twelve edits each fail the named test; step 12 prints nothing. The end-to-end run, a real sandbox on the gateway network getting a token, is task 17's acceptance and task 23's proof, not this task's.
+**[15b]**
+
+```bash
+git add control-plane/internal/api/sessions_gateway_test.go
+git commit -F <message file> -- control-plane/internal/backend/backend.go control-plane/internal/backend/backend_test.go control-plane/internal/backend/dockerbe/docker.go control-plane/internal/backend/dockerbe/docker_test.go control-plane/internal/backend/katabe/kata.go control-plane/internal/backend/katabe/kata_test.go control-plane/internal/registry/session.go control-plane/internal/api/api.go control-plane/internal/api/sessions.go control-plane/internal/api/sessions_test.go control-plane/internal/api/sessions_gateway_test.go control-plane/cmd/api/config.go control-plane/cmd/api/config_test.go control-plane/cmd/api/main.go
+```
+
+Message: `feat(gateway): the local control plane's launch through the gateway (phase 6 task 15b)`, a body naming decisions (a) to (c), (g) and (h), and the attribution line.
+
+**Acceptance:** **[15a]** step 10 prints `exit 0`, `13` and `0`; step 11's nine 15a rows each fail the named test; step 12's 15a line prints nothing. **[15b]** step 10 prints `exit 0`, an `ok` for every listed package and `0`; step 11's three 15b rows each fail the named test; step 12's 15b lines print nothing. The end-to-end run, a real sandbox on the gateway network getting a token from the real keysmith, is task 23's proof, not this task's (task 17 mints by `curl`, `task-17.md:581`).
 
 **What this task does not claim:**
 
