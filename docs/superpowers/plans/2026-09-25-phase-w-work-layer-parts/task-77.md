@@ -296,3 +296,86 @@ cause but `stale_policy`. Registry rows: the three `cycle.*` and `team.cadence_s
 `ScopeTeam, VisibleToReaders`; `issue.cycle_set` and `issue.archived` are `ScopeProject,
 VisibleToReaders`; `closure.proposed` and `closure.answered` are `ScopeTeam, SubjectOnly` with
 `Subject` the assignee, because a proposal is one person's Desk item.
+
+#### `store/work_cycles.go` and `store/work_closure.go` (signatures complete)
+
+```go
+package store
+
+// Inside the caller's transaction, after hub.org_id and the org's audit head lock (task 11).
+// "day" arguments are UTC calendar days as time.Time at 00:00 UTC.
+
+func CadenceOf(ctx context.Context, q Querier, teamID string) (hubapi.Cadence, error) // LengthDays 0 when none
+func PutCadence(ctx context.Context, tx pgx.Tx, org string, c hubapi.Cadence, by string, at time.Time) (changed bool, err error)
+
+// DropUnreferencedSuffix deletes, highest number first, upcoming cycles of the team that have
+// not started and that no issue head references, stopping at the first referenced one
+// (decision (c)). It answers the numbers dropped.
+func DropUnreferencedSuffix(ctx context.Context, tx pgx.Tx, teamID string, today time.Time) ([]int, error)
+
+// EnsureCyclesAhead tops the team up to Ahead cycles that are upcoming or current (decision
+// (b)); numbers are max(number)+1. It answers the cycles made, in number order. A cadence with
+// LengthDays 0 makes none.
+func EnsureCyclesAhead(ctx context.Context, tx pgx.Tx, org, teamID string, today time.Time) ([]hubapi.Cycle, error)
+
+// NextCycleDates is the pure phase arithmetic EnsureCyclesAhead uses: the first cycle of the
+// cadence whose EndsOn >= after, starting no earlier than notBefore. Exported for the unit test.
+func NextCycleDates(c hubapi.Cadence, after, notBefore time.Time) (startsOn, endsOn time.Time)
+
+func CycleByID(ctx context.Context, q Querier, id string) (c hubapi.Cycle, ok bool, err error)
+func ListCycles(ctx context.Context, q Querier, teamID string, state *hubapi.CycleState, pr hubapi.PageRequest) (hubapi.Page[hubapi.Cycle], error)
+func CurrentCycle(ctx context.Context, q Querier, teamID string) (c hubapi.Cycle, ok bool, err error)
+
+// Neighbours are the cycles numbered n-1 and n+1, for the overlap check.
+func Neighbours(ctx context.Context, q Querier, teamID string, number int) (prev, next *hubapi.Cycle, err error)
+func PatchCycle(ctx context.Context, tx pgx.Tx, id string, name *string, startsOn, endsOn time.Time, at time.Time) (changed []string, err error)
+
+// StartDueCycles and CloseDueCycles are the janitor's walk (decision (d)).
+func StartDueCycles(ctx context.Context, tx pgx.Tx, teamID string, today time.Time) ([]hubapi.Cycle, error)
+func CloseDueCycles(ctx context.Context, tx pgx.Tx, teamID string, today time.Time) ([]hubapi.Cycle, error)
+
+// OpenIssuesIn answers the heads in the cycle whose state is not done, cancelled or duplicate.
+func OpenIssuesIn(ctx context.Context, q Querier, cycleID string) ([]IssueRef, error)
+type IssueRef struct{ ID, ProjectID string }
+
+// SetIssueCycle: UPDATE issue_heads SET cycle_id = $2, updated_at = $3 WHERE issue_id = $1.
+// The janitor calls it with bumpUpdated false, so a rollover does not make an issue look touched
+// (decision (f) reads updated_at).
+func SetIssueCycle(ctx context.Context, tx pgx.Tx, issueID, cycleID string, at time.Time, bumpUpdated bool) error
+
+// AppendScope writes one ScopeEntry; by "" is the janitor (null on the wire).
+func AppendScope(ctx context.Context, tx pgx.Tx, org, cycleID, issueID string, ch hubapi.ScopeChange, by string, at time.Time) error
+func ScopeLog(ctx context.Context, q Querier, cycleID string, pr hubapi.PageRequest) (hubapi.Page[hubapi.ScopeEntry], error)
+```
+
+```go
+// work_closure.go
+
+// StaleIssues answers the team's stale heads by assignee ("" for unassigned), each list by id,
+// under decision (f)'s rule; assignees with an open proposal are left out.
+func StaleIssues(ctx context.Context, q Querier, teamID string, p hubapi.TeamPlanPolicy, today time.Time) (map[string][]string, error)
+
+func InsertProposal(ctx context.Context, tx pgx.Tx, org, teamID string, p hubapi.ClosureProposal) error
+func ProposalByID(ctx context.Context, q Querier, id string) (p hubapi.ClosureProposal, teamID string, ok bool, err error)
+func MyProposals(ctx context.Context, q Querier, userID string, pr hubapi.PageRequest) (hubapi.Page[hubapi.ClosureProposal], error)
+
+// AnswerProposal sets answered_at and closed once; answered is false when it was already set.
+func AnswerProposal(ctx context.Context, tx pgx.Tx, id string, closed []string, at time.Time) (answered bool, err error)
+
+// ArchiveDue sets archived_at on closed heads older than the team's ArchiveAfterDays; it
+// answers the ids archived.
+func ArchiveDue(ctx context.Context, tx pgx.Tx, teamID string, days int, today time.Time) ([]IssueRef, error)
+
+// ExpireDrafts deletes drafts whose expires_at < now (task 80's table); it answers the count.
+func ExpireDrafts(ctx context.Context, tx pgx.Tx, now time.Time) (int, error)
+
+// The calendar token: InsertToken revokes the live one in the same statement pair.
+func InsertToken(ctx context.Context, tx pgx.Tx, org, userID string, hash []byte, at time.Time) error
+func RevokeToken(ctx context.Context, tx pgx.Tx, userID string, at time.Time) (revoked bool, err error)
+func TokenOwner(ctx context.Context, q Querier, hash []byte) (userID string, ok bool, err error) // live only
+```
+
+`ProposalByID` answers the team so the route can check the caller's membership; `MyProposals`
+reads by `assignee_id`, so a proposal is never listed to anyone else. The draft table is task 80's
+(`tasks-61-80.md:478`, task 74's migration); if task 80 names its expiry column differently, the
+query follows it.
