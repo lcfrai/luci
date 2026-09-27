@@ -196,6 +196,8 @@ func TestTheDefaultDirectoryIsTheSharedName(t *testing.T) {
 
 with propagation budgeted at **2 minutes**: 2 + 2 = 4 < 5, one minute of headroom. Propagation is zero at launch — the Secret exists before the pod starts, so the first token is there at mount time — and bites only on a refresh, which is the case this inequality is about.
 
+**What this test does not assert, and why (re-review b07-1, Minor 6).** It does not check `REFRESH_AT > Grace`. Neither value is rendered into anything this test can read — the fragment holds the helper TTL alone — so an assertion here could only compare two literals declared in this same file, which fails only when someone edits the literals and passes however wrong the shipped values are. The relation is enforced where both values live: task 07 refuses a keysmith whose `TTL <= Grace` at construction (`task-07.md:915-916`), and task 15 bounds `PANACEA_APP_GATEWAY_REFRESH_AT` to 1 m–55 m against the token's one-hour life (`task-15.md:1639`, `:1643`). This test keeps only the term it can read from the tree.
+
 **The propagation term is paid out of the helper TTL, never out of `Grace`.** Raising `Grace` widens how long every superseded key stays usable, on every refresh and on the raise retirement of task 07 decision (h); lowering the TTL costs one more file read. So if phase 8 measures propagation above the 2-minute budget, the fragment's TTL comes down until the inequality holds again, down to the test's 30-second floor. Only a measured propagation above `Grace` − 30 s forces `Grace` up, and that is one change in task 07's config, not a second clock.
 
 Create `sandboxd/cmd/panacea/fragment_test.go`:
@@ -218,8 +220,7 @@ const (
 	fragmentPath   = "../../../images/sandbox/managed-settings.gateway.json" // from sandboxd/cmd/panacea
 	dockerfilePath = "../../../images/sandbox/Dockerfile"
 	dropIn         = "/etc/claude-code/managed-settings.d/50-panacea-gateway.json"
-	refreshAt      = 45 * time.Minute // PANACEA_APP_GATEWAY_REFRESH_AT, skeleton shared names
-	grace          = 5 * time.Minute  // task 07's Grace
+	grace          = 5 * time.Minute // task 07's Grace
 	// propagation is how long the cloud takes to show the sandbox a token the
 	// broker has already written: a Secret volume refreshes on kubelet's sync
 	// period plus its cache TTL (review M-4). Zero locally, where the launcher
@@ -316,9 +317,6 @@ func TestTheHelperTTLPlusPropagationIsInsideTheRefreshGrace(t *testing.T) {
 	if err != nil || ttl < 30*time.Second || ttl+propagation >= grace {
 		t.Errorf("helper TTL %s + propagation %s: want 30s <= TTL, and TTL+propagation < the %s grace",
 			ttl, propagation, grace)
-	}
-	if refreshAt <= grace {
-		t.Errorf("refreshAt %s <= grace %s: a generation would be revoked before the next one is minted", refreshAt, grace)
 	}
 }
 
@@ -513,7 +511,7 @@ go test -count=1 ./cmd/panacea/                                          # expec
 go test -count=1 -v ./cmd/panacea/ | grep -c '^--- PASS: Test'           # expect 12
 ```
 
-- [ ] **Step 7: Kill nine mutants by hand**
+- [ ] **Step 7: Kill ten mutants by hand**
 
 | Edit | Test that must fail |
 |---|---|
