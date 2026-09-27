@@ -624,12 +624,11 @@ var FeedKinds = []string{"delegation.created", "delegation.renewed", "delegation
 type Feed struct {
 	hub    hubclient.OrgFeed
 	team   hubclient.Team
+	in     InUse // shared state: the one thing both replicas agree on
 	cache  *Cache
 	rev    Revoker
 	leader func() bool
 	now    func() time.Time
-
-	in     InUse             // shared state: the one place both replicas agree
 
 	mu     sync.Mutex
 	cursor map[string]string // org -> next; set by Rebuild or Refresh before the first Poll

@@ -3611,7 +3611,7 @@ launch. Both are now read from the one state the replicas share, Fleet's own sto
 
 | Change | Where |
 |---|---|
-| `Feed` holds task 10's `InUse`; `NewFeed(hub, team, in, cache, rev, leader, now)` | `task-11.md:632,640-644` |
+| `Feed` holds task 10's `InUse`; `NewFeed(hub, team, in, cache, rev, leader, now)` | `task-11.md:627,639-643` |
 | `Feed.Refresh` — every tick, both replicas: read `DelegationsInUse`, add unknown orgs head-first, fetch unknown delegations under themselves | `task-11.md:969-1000` |
 | `Feed.Resolve` — the read-through the outbox asks on a cache miss | `task-11.md:1002-1012` |
 | `delegation.Source`, `NewClient(cache, src, now)`, and `Ctx`'s one lookup before it refuses | `task-11.md:470-509` |
