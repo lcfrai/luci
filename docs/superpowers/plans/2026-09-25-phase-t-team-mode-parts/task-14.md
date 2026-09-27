@@ -1,8 +1,11 @@
 ### Task 14: OD-23 mechanism, part 2 — versioned layers, admin routes, audit, the version on agent start
 
-**Slice:** TM1-α. **Focused time:** 2.5 hours in the skeleton; **3 hours** as written, because the
-Hub audit needs a route task 01 does not have (below). **dependsOn:** 06 (the agent start carries
-`policy`), 12 (`server.Route`, the verbs `policy.org` and `policy.project`), 13 (`Render`, ST.4).
+**Slice:** TM1-α. **Focused time:** 2.5 hours in the skeleton; **3.5 hours** as written, because
+the Hub audit needs a route task 01 does not have and a read-back filter on one it does (below;
+b04 added the third half-hour, and S02-I11 separately says this part should be split — that
+finding is open and is not b04's). **dependsOn:** 06 (the agent start carries `policy`), 08
+(`hubclient.OrgFeed`, and `OrgEvent` on it), 12 (`server.Route`, the verbs `policy.org` and
+`policy.project`), 13 (`Render`, ST.4). **Not** 11: b04 took activation off the delegation feed.
 **Seams:** consumes ST.4; the `policy` object on agent start (ST.2, `hubapi.PolicyRef`).
 
 **Two kinds of version, and only one of them is what a pod mounts.** An admin writes a **layer**:
@@ -294,12 +297,35 @@ func (s *Store) Put(ctx context.Context, org, project string, author model.Owner
 func (s *Store) List(ctx context.Context, org, project string) ([]store.PolicyLayer, error) {
 	return s.s.PolicyLayers(ctx, org, project)
 }
+
+// Layer is one row by id, scoped: an id from another org or another project is
+// ErrNotFound, never someone else's layer.
+func (s *Store) Layer(ctx context.Context, org, project, id string) (store.PolicyLayer, error) {
+	ls, err := s.s.PolicyLayers(ctx, org, project)
+	if err != nil {
+		return store.PolicyLayer{}, err
+	}
+	for _, l := range ls {
+		if l.ID == id {
+			return l, nil
+		}
+	}
+	return store.PolicyLayer{}, store.ErrNotFound
+}
+
+// Pending is the sweep's read: every scope's layers still waiting for the Hub,
+// fleet-wide, written at or before `before`. Oldest first, capped by the store
+// at 200, so one slow Hub cannot make a pass unbounded.
+func (s *Store) Pending(ctx context.Context, before time.Time) ([]store.PolicyLayer, error) {
+	return s.s.PendingPolicyLayers(ctx, before)
+}
 ```
 
 ```go
-// Activate is the feed consumer's: the Hub has audited (org, project, id)
-// with digest. It re-validates first, because the other scope may have
-// changed since the Put: a layer valid then may not be valid now.
+// Activate is activateOne's, and only ever called once its caller has READ the
+// Hub's own policy.versioned for this id: the digest argument comes from that
+// event, never from a request body. It re-validates first, because the other
+// scope may have changed since the Put: a layer valid then may not be valid now.
 func (s *Store) Activate(ctx context.Context, org, project, id, digest string) error {
 	versions, err := s.s.PolicyLayers(ctx, org, project)
 	if err != nil {
@@ -747,8 +773,27 @@ the bytes are Fleet's and the Hub's job is *who, when, which digest*.
 Two consequences for task 08's route 78: its Fleet filter serves "team projects" events, and an
 org-scope `policy.versioned` has `projectId` null. `store/changes.go`'s Fleet kind list gains
 `policy.versioned` with the rule *served for the org regardless of project*; the conformance row
-`team/policy-versioned-reaches-fleet` pins it for both scopes. And the `data` carries `orgId`,
-because task 11's `Feed.Also` hands a consumer the event, not the org it polled.
+`team/policy-versioned-reaches-fleet` pins it for both scopes. The `data` carries `orgId` and
+`seq` because `activateOne` verifies the whole scope, not just the digest.
+
+**Route 78 gains one optional query parameter, `subject=`, and that is how Fleet reads an event
+back (b04).** `GET /v1/orgs/{orgId}/changes?kinds=policy.versioned&subject=pv-…&limit=1` with
+`after` **empty** answers the org's whole history filtered to that one subject, so it is a by-id
+read wearing the feed's clothes: at most one row, no cursor, no `latest`. It is deliberately a
+parameter on route 78 rather than a new route, because route 78 already holds Fleet's
+no-delegation exemption (§5.10 rule 7, `task-01.md:345`) and task 01 calls route 88's the *second
+and last* (`task-01.md:700`); a third would need a third amendment and would widen the surface the
+stream lens watches. Task 08's `OrgFeed` gains the one method that uses it:
+
+```go
+// OrgEvent is a by-id read of one Fleet-feed event. ok is false when the org's
+// feed holds no such subject: not an error, the caller's whole question.
+OrgEvent(ctx context.Context, orgID, kind, subject string) (hubapi.Event, bool, error)
+```
+
+`subject=` without `kinds=` is 400 `bad_request` (a subject is only meaningful within a kind), and
+`subject=` with `after=latest` is 400 too, since `latest` means "nothing before now" and would
+always answer empty. Both refusals are the Hub's, in `server.go`'s query parse.
 
 ```go
 // control-plane/internal/hub/server/policyversions.go (the handler)
@@ -816,10 +861,15 @@ A replay is the Hub's idempotency (contract §1, `hub-contract.md:50-55`): the a
 `Idempotency-Key: <the pv id>`, so a retry after a lost response returns the stored 201 and writes
 no second event, and the same key with another digest is 422 `idempotency_mismatch`.
 
-**A client that dies between the two calls leaves a pending version, and that is recoverable.**
-Re-posting the same layer to Fleet returns the same pending version (200) with the same `audit`
-instructions, and sending those to the Hub activates it. Nothing is live in between, so a crash
-can delay a policy change but never apply one unaudited.
+**A client that dies between the calls costs at most 45 seconds, and nothing else.** Whichever
+step it died after, the pending row is still in Fleet's store and the sweep asks the Hub about it
+within `PolicySweepGrace + PolicySweepEvery`. Died before the Hub call: the Hub holds no event,
+`activateOne` returns `ErrNotAudited`, the sweep logs `policy version unaudited` with how long the
+row has been pending, and the layer correctly stays pending — no policy goes live unaudited, and
+re-posting the same layer to Fleet returns the same version (200) with the same two instructions.
+Died after the Hub call: the Hub holds the event, the sweep finds it, and the layer activates with
+no further client action. That second case is the one the old feed consumer could not serve at
+all, and is why b04 built the sweep rather than telling the admin to retry.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -845,6 +895,8 @@ writes and need no delegation, so a solo project still serves them.
 | store · `TestActivateRevalidates` | plant a pending project layer that breaks I10; `Activate` with its digest → `*RefusedError`, still pending | activation trusting the validation done at `Put` |
 | store · `TestActivateRefusesAnotherDigest` | `Activate` with a digest the row does not hold → `ErrDigestMismatch`, still pending | activating whatever id the Hub names |
 | store · `TestActivateIsOnce` | two activations: the second returns nil and `ActivatedAt` is the first's | a moving audit time |
+| store · `TestPendingIsFleetWideAndUnactivatedOnly` (b04) | layers in two orgs and two projects, one already active, one written after the cutoff: `Pending(before)` returns the other three, oldest first, and no active one, across **both** orgs | a sweep read scoped to one org, which would strand exactly the org S02-C4 is about |
+| store · `TestLayerIsScoped` (b04) | `Layer` with the right id under another org, and under another project of the same org → `ErrNotFound` both times | an activate route that reaches another scope's row by id |
 | store · `TestEffectiveAppendsOnlyWhenBytesChange` | `Effective` ×2 → version 1 both; activate an org layer → 2, `Layers` = [its id]; again → 2 | a new version per agent start |
 | store · `TestEffectiveRaceSettles` | 16 goroutines call `Effective` at once → one digest, one version, exactly one row appended | no `ErrConflict` retry, or a retry that appends a duplicate |
 | server · `TestAMemberCannotReadOrWritePolicy` | a project *member*'s `GET` and `POST` → 403 `required: "policy.project"` | the routes registered under a broader verb |
@@ -852,13 +904,19 @@ writes and need no delegation, so a solo project still serves them.
 | server · `TestRefusalIsNamedPerInvariant` | a project layer breaking I10 → 422, `details` = `{invariant: I10, class: worker, scope: project, project: pj-…}` | an error string where the admin's client needs a field |
 | server · `TestAnEnvelopeErrorIs422Layer` | `{"v":2}` → 422, `details.invariant = "layer"` | a malformed layer answered 500 |
 | server · `TestAnOversizedLayerIs413` | 64 KiB + 1 → 413, nothing stored | an unbounded read |
-| server · `TestPostCarriesTheAuditInstructions` | `audit.body` equals `{id, projectId: null, seq, digest}` of the new version | a client left to guess the Hub call |
-| server · `TestTheFeedActivatesAndNeverStalls` | a `policy.versioned` event → active; a second event with a wrong digest → the consumer returns nil and logs | a refusal returned to `Poll`, which re-reads the page forever |
+| server · `TestPostCarriesTheAuditInstructions` | `audit.body` equals `{id, projectId: null, seq, digest}` of the new version, **and** `activate.path` ends `/policy/<that id>/activate` on the right scope | a client left to guess either call |
+| server · `TestAnOrgPolicyPostedBeforeAnyLaunchActivates` (b04, S02-C4's own) | a `*policy.Store` and a `fakeOrgFeed` holding the event, and **no** `delegation.Feed` and no delegation anywhere: `POST` the org layer, then the activate route → 200 `state: "active"`, and `Effective` renders it. The same run with only the sweep, no activate call → active within one tick | activation reachable only through an org task 11 already polls, which in TM1-α's order is none |
+| server · `TestActivateWithoutTheHubEventIs409` | the fake holds no event: activate → 409 `not_audited`, `details.id`, the row still pending; then plant the event and activate again → 200 `active` | a version going live on Fleet's word alone |
+| server · `TestActivateRefusesAnEventNamingAnotherScope` | the fake's event carries the right id but `projectId` of another project, then the right project with `seq+1` → 409 both times, still pending | verifying the digest and nothing else, so a project layer activates under the org scope |
+| server · `TestThePendingSweepActivatesAfterAClientDies` | two layers pending, one younger than `PolicySweepGrace`; the fake holds both events; one sweep pass → only the older is active; a second pass after the clock moves → both, and a third pass makes no further store write | a sweep that fights a live client, or one that re-activates on every tick |
+| server · `TestASweepHubFailureLeavesThePending` | the fake returns an error: the pass logs, activates nothing, and the next pass with the fake healthy activates | a transport failure read as "no event", which would strand the layer |
 | hub · `TestFleetCannotRecordAPolicyVersion` | a Fleet token under a delegation → 403 `required: "desktop"` | Fleet auditing its own policy in a user's name |
 | hub · `TestTheScopeDecidesTheRole` | org scope: team admin → 403 `org_admin`; project scope: org admin not on the team → 403 `team_admin`; each right role → 201 | one role check for both scopes |
 | hub · `TestTheEventIsMetadataOnly` | the audit `data` keys are exactly `orgId, projectId, seq, digest` | the layer's bytes copied into the audit chain |
 | hub · `TestAReplayWritesNoSecondEvent` | two `POST`s with one `Idempotency-Key` → one event, the second answer has `Idempotent-Replay: true` | a double audit on retry |
+| hub · `TestSubjectReadsOneEvent` (b04) | route 78 with `kinds=policy.versioned&subject=pv-…` and `after` empty → exactly that event, whatever else is on the feed; an unknown subject → an empty page, 200 not 404; `subject=` with no `kinds` → 400; `subject=` with `after=latest` → 400 | a subject filter that still needs a cursor, which is the bug this fixes |
 | conformance · `team/policy-versioned-reaches-fleet` | both scopes appear on route 78 for the org | route 78's team-project filter dropping the org scope |
+| conformance · `team/policy-versioned-by-subject` (b04) | `Fleet.OrgEvent(org, "policy.versioned", pv)` finds a version recorded **before** Fleet ever polled that org | a read-back that starts from a cursor, so it cannot see the past |
 
 One test, complete — the property the design names (*"which policy governed this agent"*):
 
@@ -903,22 +961,29 @@ Run: `cd control-plane && go test ./internal/policy/ ./internal/fleet/server/ -c
 Expected before step 2: compile failures naming `NewStore`, `RegisterPolicy`,
 `store.PolicyLayer`.
 
-- [ ] **Step 2: Extend task 10's store** — the type, the four methods, `PolicyVersion.Layers`, both
-  implementations, the three `storetest` rows, and the migration. Run `go test
+- [ ] **Step 2: Extend task 10's store** — the type, the five methods (`PendingPolicyLayers` is
+  b04's, with a partial index on `(created_at)` where `activated_at IS NULL`, so the sweep's read
+  costs nothing on a fleet with no pending layer), `PolicyVersion.Layers`, both implementations,
+  the four `storetest` rows, and the migration. Run `go test
   ./internal/fleet/store/... -count=1` (with `PANACEA_APP_FLEET_TEST_PG_DSN` set, so `pgstore`
   runs the suite too). Expected: `ok` for `memstore` and `pgstore`, and the new rows among the
   passes. Commit: `feat(fleet/store): OD-23 layer versions, append-only, activated once`.
 
-- [ ] **Step 3: Write `policy/store.go`, then `server/policy.go`, then the `main.go` line**
-  `server.RegisterPolicy(srv, policy.NewStore(st, time.Now), feed)` after `server.New`, and
-  `"policy.versioned"` appended to `kinds`. Run step 1's command. Expected: `ok` twice. Commit:
+- [ ] **Step 3: Write `policy/store.go`, then `server/policy.go`, then the two `main.go` lines**
+  `pol := policy.NewStore(st, time.Now); server.RegisterPolicy(srv, pol, hub)` after `server.New`,
+  and `go server.SweepPendingPolicy(ctx, srv, pol, hub)` beside the other background loops. `hub`
+  is the `hubclient` Fleet view `main.go` already builds for the feed (`task-12.md:878-894`);
+  **nothing is appended to `kinds`** — activation does not ride the feed (b04). Run step 1's
+  command. Expected: `ok` twice. Commit:
   `feat(fleet): OD-23 versions and routes; a version is live only once the Hub audits it`.
 
 - [ ] **Step 4: The Hub delta**, on the merged Hub branch: `hubapi` types, the handler, the route
-  in `server.go`, `policy.versioned` in the audit kinds and Fleet's feed list, contract row 80
-  and §7.27 (the wire above, verbatim). Run `go test ./internal/hub/... -count=1`. Expected: `ok`,
-  and the conformance row passes against the fake and the real Hub. Commit:
-  `feat(hub): route 80, the policy.versioned audit event on Fleet's feed`.
+  in `server.go`, `policy.versioned` in the audit kinds and Fleet's feed list, route 78's
+  `subject=` filter in `store/changes.go` and its query parse (with the two 400s), `OrgEvent` on
+  task 08's `OrgFeed` and its fake, contract row 80 and §7.27 (the wire above, verbatim) and the
+  `subject=` parameter added to §7.26's route 78. Run `go test ./internal/hub/... -count=1`.
+  Expected: `ok`, and both conformance rows pass against the fake and the real Hub. Commit:
+  `feat(hub): route 80, policy.versioned, and a by-subject read of route 78`.
 
 - [ ] **Step 5: Acceptance**
 
@@ -926,24 +991,31 @@ Expected before step 2: compile failures naming `NewStore`, `RegisterPolicy`,
 cd control-plane
 go vet ./internal/policy/ ./internal/fleet/... ./internal/hub/...
 go test ./internal/policy/ ./internal/fleet/server/ ./internal/fleet/store/... ./internal/hub/... -count=1 -race
-grep -rn "outbox\." internal/policy internal/fleet/server/policy.go
+grep -rn "outbox\.\|delegation\.Feed\|\.Also(" internal/policy internal/fleet/server/policy.go
 ```
 
-Expected: `go vet` silent; every package `ok`; the `grep` prints nothing — the audit goes through
-the admin's own Hub call, not Fleet's outbox, and a future edit that routes it through the outbox
-(where it would need an exemption task 01 does not grant) shows up here. The end-to-end run —
-an admin posts a layer, calls route 80, and a new agent starts with the new `{version, digest}` —
-is **deferred to task 33**, which scripts it on the real cluster.
+Expected: `go vet` silent; every package `ok`; the `grep` prints nothing. Two future edits are
+caught there. `outbox.`: the audit goes through the admin's own Hub call, not Fleet's outbox,
+where it would need an exemption task 01 does not grant. `delegation.Feed` and `.Also(`: b04's
+rule, that activation never depends on the delegation feed's poll set — the whole of S02-C4 was
+one `Also` consumer in a file that had no business knowing the feed exists. The end-to-end run —
+an admin posts a layer, calls route 80, calls activate, and a new agent starts with the new
+`{version, digest}` — is **deferred to task 33**, which scripts it on the real cluster.
 
 **What this task does not claim.**
 - The skeleton's "through the outbox" is not built; the order above replaces it, for the reasons
-  given. Route 80 is a Hub delta this task adds; task 01's contract table does not have it yet.
+  given. Route 80 is a Hub delta this task adds; task 01's contract table does not have it yet,
+  and nor does it have route 78's `subject=` parameter (both are the same recorded gap).
 - No admin view. TM1-α's only client for these routes is task 33's script; a desktop surface for
   policy is not in this plan.
 - It puts nothing in a pod. Task 20 calls `Effective` and task 15 mounts `Body` and checks
   `Digest`; this task proves only that the right bytes and numbers are produced and stored.
-- A pending version never expires; one whose Hub call never comes stays pending and is listed as
-  such. A janitor for abandoned pending versions is not built.
+- A pending version never expires, and is never deleted. Since b04 it is also never *forgotten*:
+  the sweep re-asks the Hub about it every 30 s and logs `policy version unaudited` with its age,
+  so an abandoned one is visible in Fleet's logs and in the `GET`'s `state`/`createdAt`. What is
+  still not built is a **janitor** (nothing garbage-collects an abandoned row) and a **reason on
+  the row** when re-validation refuses at activation — the `GET` still shows only `pending`, which
+  is S02-M6 and is not b04's.
 - A rendered version records the layer ids it came from, not the gateway fragment's version: the
   fragment is pinned by task 13's test and changes only with an image build, and the digest covers
   it.
