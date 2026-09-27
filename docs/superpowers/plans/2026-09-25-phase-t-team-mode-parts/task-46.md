@@ -55,8 +55,8 @@ typed the words. Nobody may tombstone another person's record but an org admin.
 
 **Interfaces:**
 - Consumes:
-  - from task 01: rows 72 and 73, §7.23, the `note.created` §8 row (`task-01.md:563`), the team
-    matrix row "write a note (72)" (`:577`) and "read … notes (73)" (`:579`).
+  - from task 01: rows 72 and 73, §7.23, the `note.created` §8 row (`task-01.md:565`), the team
+    matrix row "write a note (72)" (`:617`) and "read … notes (73)" (`:620`).
   - from task 03: `Note`, `NoteTarget`, `NoteTargetKind`, `CreateNoteRequest`, `RouteNotesRead`,
     `PrefixNote` (`task-03.md:876-895`, `:394`, `:1124`); `HumanMessage` and `Message`, whose
     `Text` is a `*teamtext.Text` and `TombstonedAt` a `*string` (`:858-867`, `:737`).

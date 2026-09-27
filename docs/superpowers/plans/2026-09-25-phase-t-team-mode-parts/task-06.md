@@ -63,8 +63,8 @@ fields, so a body that sends one gets 400 `bad_request`.
 **Interfaces:**
 - Consumes:
   - from task 01: the contract §7.13 to §7.17, rows 46 to 59, the class route sets and the §8
-    rows (`task-01.md:234-248`, `:274-370`, `:487-496`). **Task 01 is authoritative for every
-    field, bound, code and kind; this part implements it.**
+    rows (`task-01.md:329-400`, `:259-272`, `:301-310`, `:541-574`) — one each, in that order.
+    **Task 01 is authoritative for every field, bound, code and kind; this part implements it.**
   - from task 03 (`hubapi/team.go`, `codes.go`): the Go types of those records and requests
     (`Delegation`, `CreateDelegationRequest`, `Task`, `CreateTaskRequest`, `PatchTaskRequest`,
     `AgentStart`, `AgentStartRequest`, `AgentEndRequest`, `LeaseEventRequest`, `LeaseEvent`,
@@ -104,7 +104,7 @@ Conventions are the Hub contract's §1 (timestamps RFC 3339 UTC to the milliseco
 `hubapi.ValidID`, unknown fields refused, problem bodies per §4). `{p}` is a `pj-…` id.
 
 **This section implements task 01's contract §7.13 to §7.17 and rows 46 to 59 of its §7.0 team
-table (`task-01.md:234-248`, `:301-370`); where anything below disagrees with task 01, task 01
+table (`task-01.md:329-400`, `:259-272`); where anything below disagrees with task 01, task 01
 wins.** Request free text is a plain string: the Hub bounds and cleans it (task 02), stamps the
 author class from the route (a Fleet route writes `agent`, a desk route `human`) and answers it as
 a `Text` object (`task-01.md:287-290`). Fleet mints every id here but `dl-…` and sends it as the
@@ -314,7 +314,7 @@ required with `resolved` and `accepted` and refused otherwise (400 `bad_request`
 One metadata-only event per changed record, in the write's transaction (contract §8). `data` holds
 **no** text: no title, no why-line, no glob list; only ids, enums and counts.
 
-The kinds and `data` are task 01's contract §8 rows (`task-01.md:487-496`), copied, not chosen
+The kinds and `data` are task 01's contract §8 rows (`task-01.md:541-574`), copied, not chosen
 here. **In the feed** is task 01's three-valued column: `yes` (the member feed and Fleet's),
 `fleet` (Fleet's feed only, the audit row's `fleet_feed` flag of task 04), `no`.
 

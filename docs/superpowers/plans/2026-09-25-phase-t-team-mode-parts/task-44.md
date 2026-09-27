@@ -60,7 +60,7 @@ poll + one fan-out call (`task-11.md:565-567`), asserted as ≤ 60 s.
 **Interfaces:**
 - Consumes:
   - task 01: §7.13's delegation record and `revokedReason` (`task-01.md:329-340`); the §8 row
-    `delegation.revoked`; `team.member_removed` on route 78's feed (`:500`).
+    `delegation.revoked`; `team.member_removed` on route 78's feed (`:512`).
   - task 03: `hubapi.RevokeReason` and its four values (`task-03.md:115-127`), `Delegation`.
   - task 04: the `delegations` table and the `revoke_reason` enum (`task-04.md:118`).
   - task 06: routes 48 and 49 (`task-06.md:132-146`), the delegation store.

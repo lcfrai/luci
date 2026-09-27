@@ -525,8 +525,18 @@ In that order, so each compiles before the next: `hubclient.go` and `context.go`
 complete); `client_team.go` (one line per method over Hub task 34's helpers); the fake, record by
 record, running the `team/` rows after each record lands; then `store.OrgChanges` and
 `server/orgchanges.go`. The store query is Hub task 26's with two changes: its `feed = true` and
-visibility clause together replaced by `((fleet_feed = true AND project mode = 'team') OR kind =
-'team.member_removed')`, bracketed so, because task 04's trigger leaves `fleet_feed = false` on
+visibility clause together replaced by, over `audit_events a`,
+
+```sql
+((a.fleet_feed = true AND EXISTS (SELECT 1 FROM projects p
+                                  WHERE p.id = a.project_id AND p.org_id = a.org_id
+                                    AND p.mode = 'team'))
+ OR a.kind = 'team.member_removed')
+```
+
+— the mode lives on `projects` (task 04's column), never on `audit_events`, which carries only
+`project_id` (`hub task-07a.md:412-428`), so the filter is a join and not a column reference
+(b01 round 3, re-review I-B). Bracketed so, because task 04's trigger leaves `fleet_feed = false` on
 `team.member_removed` (`task-04.md:259-260`: "by kind, not by this flag"), so ANDing the flag
 with the kind clause would hide every removal from Fleet (b01 round 2, re-review's passing note);
 and `kind = ANY($kinds)` when `kinds` is set.

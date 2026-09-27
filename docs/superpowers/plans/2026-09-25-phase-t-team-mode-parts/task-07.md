@@ -248,7 +248,7 @@ its `consumed` ids, so an auditor can cross-check a `human` directive against a 
 
 #### Events
 
-Task 01's §8 rows (`task-01.md:497-504`), copied. `data` never holds text; every delegated write's
+Task 01's §8 rows (`task-01.md:557-564`), copied. `data` never holds text; every delegated write's
 event is `v: 2`.
 
 | Kind | `subject` | `data` | In the feed |

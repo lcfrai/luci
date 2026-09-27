@@ -70,9 +70,9 @@ rewritten: one ratchet for solo and team projects.
 
 **Interfaces:**
 - Consumes:
-  - task 01: routes 74, 75, 79 and §7.24 (`task-01.md:285-290`, `:475-497`); the §8 rows
-    `team_policy.updated` and `team_policy.route_changed` (`:531-532`); the team §5.3 table and its
-    column legend (`:547-597`).
+  - task 01: routes 74, 75, 79 and §7.24 (`task-01.md:287-292`, `:480-500`); the §8 rows
+    `team_policy.updated` and `team_policy.route_changed` (`:566-567`); the team §5.3 table and its
+    column legend (`:593-621`).
   - task 03: `TeamPolicy`, `PutTeamPolicyRequest`, `RouteChangeRequest`, `Quotas`,
     `MessageBudgets`, `EscalationFloor` and its four values, `InferenceRoute`, `DataClass`,
     `RoutePolicyRead`, `AppRoleAuditor`, `AppRoleCompliance` (`task-03.md:279-285`, `:365-366`,
