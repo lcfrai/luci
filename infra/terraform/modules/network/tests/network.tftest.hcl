@@ -380,6 +380,14 @@ run "four_privatelink_zones_all_linked_without_registration" {
     condition     = keys(output.private_dns_zone_ids) == ["acr", "blob", "postgres", "vault"]
     error_message = "output.private_dns_zone_ids does not carry the four zone keys."
   }
+  # The keys alone left the values unpinned, so an id/name swap survived every run (round-3
+  # review I1). A consumer needs the id: task 07's private_dns_zone_group takes
+  # private_dns_zone_ids, and README's stack order passes .blob to bootstrap by hand. A zone
+  # name there fails only at apply against Azure, which this phase never runs.
+  assert {
+    condition     = alltrue([for k, v in output.private_dns_zone_ids : v == azurerm_private_dns_zone.this[k].id])
+    error_message = "output.private_dns_zone_ids carries something other than each zone's id (its name, say), so task 07's private endpoints and bootstrap's state endpoint would be handed a zone name where an id is required."
+  }
 }
 
 run "agents_subnet_is_delegated_to_devops_pools" {
@@ -434,23 +442,26 @@ run "the_state_path_refuses_destroy" {
 # "the_state_path_refuses_destroy"'s comment and the part rely on), and a consumer of vnet_name
 # (task 07) could race the VNet. A plan shows no ordering, so this run reads the text of every
 # .tf file in the module, comments stripped, as the run above does for main.tf alone.
+# What it pins is the DIRECT reference, which is narrower than "has an edge" (round-3 review
+# M2): routing the same reference through a local keeps the edge and still fails here, and a
+# legitimate seventh subnet fails the count. Both are deliberate edits to this run, not bugs.
 run "every_join_by_name_is_a_reference" {
   command = plan
   assert {
     condition     = length(regexall("(?m)^resource[ \\t]+\"azurerm_subnet\"[ \\t]", replace(replace(replace(join("\n", [for f in sort(fileset(path.module, "*.tf")) : file("${path.module}/${f}")]), "\r", ""), "/(?s)/\\*.*?\\*\\//", ""), "/(?m)(#|\\/\\/).*$/", ""))) == 6
-    error_message = "The module's .tf files do not hold exactly six azurerm_subnet blocks; this run's counts below assume six."
+    error_message = "The module's .tf files do not hold exactly six azurerm_subnet blocks; this run's counts below assume six, so a deliberate seventh subnet is a deliberate edit here."
   }
   assert {
     condition     = length(regexall("(?m)^[ \\t]*virtual_network_name[ \\t]*=", replace(replace(replace(join("\n", [for f in sort(fileset(path.module, "*.tf")) : file("${path.module}/${f}")]), "\r", ""), "/(?s)/\\*.*?\\*\\//", ""), "/(?m)(#|\\/\\/).*$/", ""))) == 6 && length(regexall("(?m)^[ \\t]*virtual_network_name[ \\t]*=[ \\t]*azurerm_virtual_network\\.this\\.name[ \\t]*$", replace(replace(replace(join("\n", [for f in sort(fileset(path.module, "*.tf")) : file("${path.module}/${f}")]), "\r", ""), "/(?s)/\\*.*?\\*\\//", ""), "/(?m)(#|\\/\\/).*$/", ""))) == 6
-    error_message = "A subnet names its VNet by something other than azurerm_virtual_network.this.name, so it has no edge to the VNet and can be created before it."
+    error_message = "A subnet's virtual_network_name is not written as the direct reference azurerm_virtual_network.this.name. A literal of equal value has no edge to the VNet and can be created before it; an indirection through a local keeps the edge and still fails here, because this run pins the direct form."
   }
   assert {
     condition     = length(regexall("(?m)^[ \\t]*private_dns_zone_name[ \\t]*=", replace(replace(replace(join("\n", [for f in sort(fileset(path.module, "*.tf")) : file("${path.module}/${f}")]), "\r", ""), "/(?s)/\\*.*?\\*\\//", ""), "/(?m)(#|\\/\\/).*$/", ""))) == 1 && length(regexall("(?m)^[ \\t]*private_dns_zone_name[ \\t]*=[ \\t]*azurerm_private_dns_zone\\.this\\[each\\.key\\]\\.name[ \\t]*$", replace(replace(replace(join("\n", [for f in sort(fileset(path.module, "*.tf")) : file("${path.module}/${f}")]), "\r", ""), "/(?s)/\\*.*?\\*\\//", ""), "/(?m)(#|\\/\\/).*$/", ""))) == 1
-    error_message = "The privatelink link names its zone by something other than azurerm_private_dns_zone.this[each.key].name, so a destroy need not remove the link before its zone."
+    error_message = "The privatelink link's private_dns_zone_name is not written as the direct reference azurerm_private_dns_zone.this[each.key].name. A literal loses the edge, so a destroy need not remove the link before its zone; an indirection keeps it and still fails here, because this run pins the direct form."
   }
   assert {
     condition     = can(regex("(?s)(?:^|\\n)output[ \\t]+\"vnet_name\"[ \\t]*\\{[^}]*?\\bvalue[ \\t]*=[ \\t]*azurerm_virtual_network\\.this\\.name[ \\t]*(?:\\n|\\})", replace(replace(replace(join("\n", [for f in sort(fileset(path.module, "*.tf")) : file("${path.module}/${f}")]), "\r", ""), "/(?s)/\\*.*?\\*\\//", ""), "/(?m)(#|\\/\\/).*$/", "")))
-    error_message = "output vnet_name is not azurerm_virtual_network.this.name, so a consumer that places anything in the VNet by name has no edge to it."
+    error_message = "output vnet_name is not written as the direct reference azurerm_virtual_network.this.name. A literal leaves a consumer that places anything in the VNet by name with no edge to it; an indirection keeps the edge and still fails here, because this run pins the direct form."
   }
   # The checks above read .tf files only; a .tf.json file could hold a subnet or an override
   # neither sees. This module is HCL only.
