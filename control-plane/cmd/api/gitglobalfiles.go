@@ -31,18 +31,25 @@ import (
 // there is the caller's question.
 func gitGlobalFilesResolver(host hostGit) func(context.Context) (api.GitGlobalFiles, error) {
 	return func(ctx context.Context) (api.GitGlobalFiles, error) {
-		ctx, cancel := host.budget(ctx)
-		defer cancel()
-
-		excludes, err := gitGlobalFile(ctx, host, "core.excludesFile", "ignore")
+		var out api.GitGlobalFiles
+		// One budget for the whole read — this is the read with the most gits,
+		// four, and the one whose failure is on record (progress.md:6602).
+		err := host.read(ctx, hostConfigReadBudget, func(ctx context.Context) error {
+			excludes, err := gitGlobalFile(ctx, host, "core.excludesFile", "ignore")
+			if err != nil {
+				return err
+			}
+			attributes, err := gitGlobalFile(ctx, host, "core.attributesFile", "attributes")
+			if err != nil {
+				return err
+			}
+			out = api.GitGlobalFiles{Excludes: excludes, Attributes: attributes}
+			return nil
+		})
 		if err != nil {
 			return api.GitGlobalFiles{}, err
 		}
-		attributes, err := gitGlobalFile(ctx, host, "core.attributesFile", "attributes")
-		if err != nil {
-			return api.GitGlobalFiles{}, err
-		}
-		return api.GitGlobalFiles{Excludes: excludes, Attributes: attributes}, nil
+		return out, nil
 	}
 }
 

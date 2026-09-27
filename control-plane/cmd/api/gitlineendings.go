@@ -44,32 +44,39 @@ func gitLineEndingsResolver(host hostGit) func(context.Context) (api.GitLineEndi
 // reads "native" as native.
 func gitLineEndingsResolverWith(host hostGit, native string) func(context.Context) (api.GitLineEndings, error) {
 	return func(ctx context.Context) (api.GitLineEndings, error) {
-		ctx, cancel := host.budget(ctx)
-		defer cancel()
-
-		scope, err := host.scope(ctx, "core.autocrlf")
-		if err != nil {
-			return api.GitLineEndings{}, fmt.Errorf("read core.autocrlf: %w", err)
-		}
-		autocrlf, err := host.config(ctx, scope, "--type=bool", "--default", "false", "core.autocrlf")
-		if err != nil {
-			raw, rawErr := host.config(ctx, scope, "core.autocrlf")
-			if rawErr != nil || !strings.EqualFold(raw, "input") {
-				return api.GitLineEndings{}, fmt.Errorf("read core.autocrlf: %w", err)
+		var out api.GitLineEndings
+		// One budget for the whole read, sized for the read; see
+		// hostConfigReadBudget.
+		err := host.read(ctx, hostConfigReadBudget, func(ctx context.Context) error {
+			scope, err := host.scope(ctx, "core.autocrlf")
+			if err != nil {
+				return fmt.Errorf("read core.autocrlf: %w", err)
 			}
-			autocrlf = "input"
-		}
-		eol, err := host.value(ctx, "core.eol", "--default", "native")
+			autocrlf, err := host.config(ctx, scope, "--type=bool", "--default", "false", "core.autocrlf")
+			if err != nil {
+				raw, rawErr := host.config(ctx, scope, "core.autocrlf")
+				if rawErr != nil || !strings.EqualFold(raw, "input") {
+					return fmt.Errorf("read core.autocrlf: %w", err)
+				}
+				autocrlf = "input"
+			}
+			eol, err := host.value(ctx, "core.eol", "--default", "native")
+			if err != nil {
+				return fmt.Errorf("read core.eol: %w", err)
+			}
+			switch strings.ToLower(eol) {
+			case "lf", "crlf":
+				eol = strings.ToLower(eol)
+			default:
+				eol = native
+			}
+			out = api.GitLineEndings{AutoCRLF: autocrlf, EOL: eol}
+			return nil
+		})
 		if err != nil {
-			return api.GitLineEndings{}, fmt.Errorf("read core.eol: %w", err)
+			return api.GitLineEndings{}, err
 		}
-		switch strings.ToLower(eol) {
-		case "lf", "crlf":
-			eol = strings.ToLower(eol)
-		default:
-			eol = native
-		}
-		return api.GitLineEndings{AutoCRLF: autocrlf, EOL: eol}, nil
+		return out, nil
 	}
 }
 

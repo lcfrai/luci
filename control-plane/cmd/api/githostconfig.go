@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/project"
 )
@@ -44,15 +45,56 @@ func newHostGit() (hostGit, error) {
 	return hostGit{run: run, root: root, getenv: os.Getenv}, nil
 }
 
-// budget bounds a WHOLE host-config read — every git one resolver runs — at
-// project.HostConfigTimeout, which is also each git's own bound. So one git
-// that stalls may spend the resolver's entire budget, and the rest then fail
-// at once against this deadline rather than each waiting out its own: a create
-// cannot hang for the sum of four or five bounds. The runner reports which
-// deadline it was, this one or the caller's, so the log says whether the read
-// was slow or the request already over (F2).
-func (h hostGit) budget(ctx context.Context) (context.Context, context.CancelFunc) {
-	return context.WithTimeout(ctx, project.HostConfigTimeout)
+// hostConfigReadBudget bounds a WHOLE host-config read — every git one
+// resolver runs — and it is a DIFFERENT decision from project.HostConfigTimeout,
+// which bounds ONE git. Review C-1: they were the same number, so the four
+// gits of a line-endings read shared 30 s and got 7.5 s each, below the 10 s
+// F2 proved too short. Six concurrent creates then turned a test the
+// pre-change bounds pass 3/3 into a failure — the change made the thing F2
+// complained about MORE likely, not less.
+//
+// Sized from the READ, and from two numbers it has to sit between:
+//
+//   - Above: before there was a budget the same read had 4 × 10 s, 5 × 10 s on
+//     its raw-autocrlf fallback. 60 s is more wall clock than it ever had, so
+//     no slow-but-succeeding read that used to finish now fails, and one git
+//     may stall its full 30 s with the 30 s the rest of the read used to have
+//     still in hand.
+//   - Below: it is NOT the arithmetic 5 × project.HostConfigTimeout (150 s),
+//     because POST /v1/sessions runs these reads in SEQUENCE — line endings,
+//     then global files, then the identity — and the cockpit abandons a create
+//     at 150 s in total (desktop/src/api/client.ts §4.8). 60 + 60 +
+//     hostIdentityReadBudget = 130 s, which leaves the create the rest.
+const hostConfigReadBudget = 60 * time.Second
+
+// hostIdentityReadBudget bounds the WHOLE identity read and is deliberately
+// NOT the budget above. Review I-3: the identity read's failure is not fatal —
+// internal/api's sessionGitIdentity logs a warning and starts the session with
+// an empty identity — so a stalled `git var GIT_AUTHOR_IDENT` must not make
+// the user wait the budget that exists because a failure destroys the create.
+// It is one git, its answer is thrown away on failure, and the same resolver
+// runs at startup before api.New (main.go), where it delays the control plane
+// coming up. So it gets the shorter wall clock, and inherits nothing from a
+// constant's name.
+const hostIdentityReadBudget = 10 * time.Second
+
+// read runs one host-config read under its own budget, and says whose deadline
+// ended it when one did. Review M-2: from project.ExecRunner's side this
+// budget IS the caller, so a spent budget and an HTTP request that was already
+// over produced the same sentence, and only GitError.Elapsed told them apart,
+// by inference. The distinction is made here, where it is knowable — the
+// budget's context is done and the request's is not — because F2's whole
+// complaint was an operator who could not tell a stalled host from anything
+// else.
+func (h hostGit) read(ctx context.Context, budget time.Duration, read func(context.Context) error) error {
+	inner, cancel := context.WithTimeout(ctx, budget)
+	defer cancel()
+
+	err := read(inner)
+	if err != nil && ctx.Err() == nil && inner.Err() != nil {
+		return fmt.Errorf("this host-config read spent its whole %s budget: %w", budget, err)
+	}
+	return err
 }
 
 // hostGitEnv is what a host-config git gets on top of this process's own

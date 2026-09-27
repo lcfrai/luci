@@ -1604,8 +1604,14 @@ exceeded. `errors.Is` answers for `context.DeadlineExceeded` and `context.Cancel
 There are now two bounds, because there are two situations: `project.GitTimeout`, 10 s,
 for enumeration behind the POLLED rail, where the next poll costs the user nothing;
 and `project.HostConfigTimeout`, 30 s, for a host-config git inside a create, which is
-not polled and whose failure destroys the create. A host-config read is bounded in
-TOTAL at `HostConfigTimeout` as well, so a create cannot hang for the sum of its gits.
+not polled and whose failure destroys the create. Amended 2026-09-28 (F2/F4 review C-1, I-3, M-3): a READ's budget is a
+separate decision from one git's bound, and sizing one from the other starved the
+read's last gits. Each read is bounded in total by its own constant — `cmd/api`'s
+`hostConfigReadBudget`, 60 s, for a read whose failure destroys the create (line
+endings, global files); `hostIdentityReadBudget`, 10 s, for the identity read, whose
+failure `sessionGitIdentity` tolerates; and `project`'s `branchReadBudget`, one
+`GitTimeout`, for the whole of `Scanner.Branches`. A read that spends its own budget
+says so, in words a spent HTTP request does not produce.
 `Scanner.Branches` tolerates a failed current-branch read only when the confirmation
 above proves HEAD unborn; any other failure is returned rather than silently dropping
 `IsHead`.

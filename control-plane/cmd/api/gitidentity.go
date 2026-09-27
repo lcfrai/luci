@@ -35,16 +35,24 @@ func gitIdentityResolver(name, email string, host hostGit) func(context.Context)
 		return func(context.Context) (api.GitIdentity, error) { return fixed, nil }
 	}
 	return func(ctx context.Context) (api.GitIdentity, error) {
-		ctx, cancel := host.budget(ctx)
-		defer cancel()
-
-		out, err := host.git(ctx, "var", "GIT_AUTHOR_IDENT")
+		var id api.GitIdentity
+		// The identity read's own budget, which is NOT the create-path one:
+		// this read's failure costs a warning and an empty identity, not the
+		// create. See hostIdentityReadBudget.
+		err := host.read(ctx, hostIdentityReadBudget, func(ctx context.Context) error {
+			out, err := host.git(ctx, "var", "GIT_AUTHOR_IDENT")
+			if err != nil {
+				return fmt.Errorf("%s: %w", gitIdentityMissing, err)
+			}
+			parsed, ok := parseGitIdent(string(out))
+			if !ok {
+				return fmt.Errorf("%s: git var GIT_AUTHOR_IDENT printed %q, which is not \"Name <email> time zone\"", gitIdentityMissing, strings.TrimSpace(string(out)))
+			}
+			id = parsed
+			return nil
+		})
 		if err != nil {
-			return api.GitIdentity{}, fmt.Errorf("%s: %w", gitIdentityMissing, err)
-		}
-		id, ok := parseGitIdent(string(out))
-		if !ok {
-			return api.GitIdentity{}, fmt.Errorf("%s: git var GIT_AUTHOR_IDENT printed %q, which is not \"Name <email> time zone\"", gitIdentityMissing, strings.TrimSpace(string(out)))
+			return api.GitIdentity{}, err
 		}
 		return id, nil
 	}

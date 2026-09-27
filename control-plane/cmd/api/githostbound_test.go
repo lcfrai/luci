@@ -40,6 +40,49 @@ func TestHostConfigGitIsBoundedForACreateAndNotForAPoll(t *testing.T) {
 	}
 }
 
+// cockpitCreateTimeout is CREATE_TIMEOUT_MS in desktop/src/api/client.ts: how
+// long the cockpit lets POST /v1/sessions run before it abandons the create.
+// Every host-config read runs inside it, in sequence, with the sandbox still
+// to be made afterwards.
+const cockpitCreateTimeout = 150 * time.Second
+
+// Review C-1. A READ's budget and ONE git's bound are two decisions and they
+// were one constant, so the four gits of a read shared
+// project.HostConfigTimeout and got 7.5 s each — below the 10 s F2 proved too
+// short. Six concurrent creates then turned a test the pre-change bounds pass
+// 3/3 into a failure: the change made F2's own complaint more likely. The
+// budget is sized from the READ, between the wall clock that read used to have
+// and what one create can afford.
+func TestAHostConfigReadsBudgetIsSizedFromTheReadAndNotFromOneGit(t *testing.T) {
+	if hostConfigReadBudget <= project.HostConfigTimeout {
+		t.Errorf("a whole read's budget is %s, no more than ONE git's bound %s, so the read's last git gets only what a single git's bound left it (C-1)",
+			hostConfigReadBudget, project.HostConfigTimeout)
+	}
+	// It may not take away wall clock the read had before there was a budget:
+	// the longest read is five gits, and each used to get project.GitTimeout.
+	if had := 5 * project.GitTimeout; hostConfigReadBudget < had {
+		t.Errorf("a whole read's budget is %s, less than the %s (5 × %s) the same gits had before the budget existed, so a slow read that used to finish now fails",
+			hostConfigReadBudget, had, project.GitTimeout)
+	}
+	// And a create runs three reads in sequence before it makes a sandbox.
+	if total := 2*hostConfigReadBudget + hostIdentityReadBudget; total >= cockpitCreateTimeout {
+		t.Errorf("the three host-config reads of one create can take %s, which is not less than the %s the cockpit gives the whole create",
+			total, cockpitCreateTimeout)
+	}
+}
+
+// Review I-3. The identity read's failure is not fatal — internal/api's
+// sessionGitIdentity logs a warning and starts the session with an empty
+// identity — so it must not make the user wait the budget that exists because
+// a failure destroys the create. It had that budget only from a constant's
+// name.
+func TestTheIdentityReadIsNotBoundedLikeAReadThatCanFailACreate(t *testing.T) {
+	if hostIdentityReadBudget >= hostConfigReadBudget {
+		t.Errorf("the identity read waits %s, as long as a read whose failure destroys the create (%s), for a value the create throws away on failure",
+			hostIdentityReadBudget, hostConfigReadBudget)
+	}
+}
+
 // deadlineRunner records the deadline each git is given.
 type deadlineRunner struct {
 	mu        sync.Mutex
@@ -60,38 +103,105 @@ func (r *deadlineRunner) Run(ctx context.Context, _ string, args ...string) ([]b
 
 var _ project.Runner = (*deadlineRunner)(nil)
 
+// hostConfigAnswer answers every git any of the three resolvers asks, so a
+// read reaches its end and every git it makes is recorded.
+func hostConfigAnswer(args []string) ([]byte, error) {
+	joined := strings.Join(args, " ")
+	switch {
+	case strings.Contains(joined, "--default "+hostGitUnset):
+		return []byte(hostGitUnset + "\n"), nil
+	case strings.Contains(joined, "GIT_AUTHOR_IDENT"):
+		return []byte("Someone <someone@example.com> 1790156728 +1000\n"), nil
+	}
+	return []byte("false\n"), nil
+}
+
 // Raising one git's bound to 30 s would let a create hang for the sum of the
 // four or five gits a resolver runs. It cannot: the resolver bounds the WHOLE
 // read once, and every git shares that one deadline.
-func TestAHostConfigReadIsBoundedInTotalAndNotPerGit(t *testing.T) {
-	r := &deadlineRunner{answer: func(args []string) ([]byte, error) {
-		if strings.Contains(strings.Join(args, " "), "--default "+hostGitUnset) {
-			return []byte(hostGitUnset + "\n"), nil
-		}
-		return []byte("false\n"), nil
-	}}
-	before := time.Now().Add(project.HostConfigTimeout)
+//
+// Review I-2: this was asserted for the line-endings read alone, so deleting
+// the budget from gitGlobalFilesResolver — the read with the MOST gits, and
+// the one whose failure is actually on record — left the whole cmd/api suite
+// green. Every resolver is asserted here, each against its own budget.
+func TestEveryHostConfigReadIsBoundedInTotalAndNotPerGit(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		budget time.Duration
+		gits   int
+		read   func(hostGit) error
+	}{
+		{"line endings", hostConfigReadBudget, 4, func(h hostGit) error {
+			_, err := gitLineEndingsResolverWith(h, "lf")(context.Background())
+			return err
+		}},
+		{"global files", hostConfigReadBudget, 4, func(h hostGit) error {
+			_, err := gitGlobalFilesResolver(h)(context.Background())
+			return err
+		}},
+		{"identity", hostIdentityReadBudget, 1, func(h hostGit) error {
+			_, err := gitIdentityResolver("", "", h)(context.Background())
+			return err
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := &deadlineRunner{answer: hostConfigAnswer}
+			before := time.Now().Add(tc.budget)
+			if err := tc.read(boundedHost(r)); err != nil {
+				t.Fatalf("resolve: %v", err)
+			}
+			after := time.Now().Add(tc.budget)
 
-	if _, err := gitLineEndingsResolverWith(boundedHost(r), "lf")(context.Background()); err != nil {
-		t.Fatalf("resolve: %v", err)
+			if len(r.deadlines) < tc.gits {
+				t.Fatalf("%d gits ran, want the %d this read makes", len(r.deadlines), tc.gits)
+			}
+			for i, d := range r.deadlines {
+				if d.IsZero() {
+					t.Fatalf("git %d ran with no deadline; the read is unbounded in total", i)
+				}
+				if d.Before(before) || d.After(after) {
+					t.Errorf("git %d has deadline %s, outside the one %s budget [%s, %s]",
+						i, d, tc.budget, before, after)
+				}
+				if !d.Equal(r.deadlines[0]) {
+					t.Errorf("git %d has its own deadline %s, not the read's %s: the bounds add up",
+						i, d, r.deadlines[0])
+				}
+			}
+		})
+	}
+}
+
+// Review M-2. githostconfig.go claimed the runner tells a spent budget from a
+// request that was already over. It cannot: from project.ExecRunner's side the
+// budget IS the caller, so both produced "the caller's deadline passed …
+// inside the 30s bound" and only GitError.Elapsed separated them, by
+// inference. The read makes the distinction itself, where it is knowable.
+func TestAHostConfigReadSaysWhenItWasItsOwnBudgetThatRanOut(t *testing.T) {
+	h := boundedHost(&deadlineRunner{answer: hostConfigAnswer})
+
+	spent := h.read(context.Background(), 20*time.Millisecond, func(ctx context.Context) error {
+		<-ctx.Done()
+		return ctx.Err()
+	})
+	if spent == nil {
+		t.Fatal("a read that outlasted its budget returned no error")
+	}
+	if !errors.Is(spent, context.DeadlineExceeded) {
+		t.Errorf("error %q does not wrap context.DeadlineExceeded", spent)
+	}
+	if msg := spent.Error(); !strings.Contains(msg, "spent its whole 20ms budget") {
+		t.Errorf("error = %q, want it to name the budget this read spent", msg)
 	}
 
-	after := time.Now().Add(project.HostConfigTimeout)
-	if len(r.deadlines) < 2 {
-		t.Fatalf("%d gits ran, want the several a line-endings read makes", len(r.deadlines))
+	over, cancel := context.WithCancel(context.Background())
+	cancel()
+	gone := h.read(over, time.Minute, func(ctx context.Context) error { return ctx.Err() })
+	if gone == nil {
+		t.Fatal("a read whose caller had already gone returned no error")
 	}
-	for i, d := range r.deadlines {
-		if d.IsZero() {
-			t.Fatalf("git %d ran with no deadline; the read is unbounded in total", i)
-		}
-		if d.Before(before) || d.After(after) {
-			t.Errorf("git %d has deadline %s, outside the one %s budget [%s, %s]",
-				i, d, project.HostConfigTimeout, before, after)
-		}
-		if !d.Equal(r.deadlines[0]) {
-			t.Errorf("git %d has its own deadline %s, not the read's %s: the bounds add up",
-				i, d, r.deadlines[0])
-		}
+	if msg := gone.Error(); strings.Contains(msg, "budget") {
+		t.Errorf("error = %q; the request was already over, and this read's budget is not what ended it", msg)
 	}
 }
 

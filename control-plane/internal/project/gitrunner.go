@@ -21,17 +21,24 @@ import (
 // HostConfigTimeout.
 const GitTimeout = 10 * time.Second
 
-// HostConfigTimeout bounds one git that reads the HOST's own config while a
-// create is in flight (cmd/api's hostGit). That git is not polled: it runs
-// once, inside POST /v1/sessions, with the user waiting, and its failure
-// destroys the whole create — the sandbox, the worktree and the intent. On
-// 2026-09-27 one such read exceeded 10 s on a quiet host and cost the phase 2
-// proof o2.resume, its only end-to-end proof that Resume forks a real
-// conversation. `git config --get` does no I/O worth 10 s; a read that slow is
-// a stalled process start (Windows on-access scanning is the one we have
-// measured), which clears in seconds. So this bound is sized to outlast a
-// stall rather than to keep a poll cheap, and the caller caps the TOTAL of its
-// reads separately, so a create cannot hang for the sum of them.
+// HostConfigTimeout bounds ONE git that reads the HOST's own config while a
+// create is in flight (cmd/api's hostGit). It is one git's bound and nothing
+// else: how long a READ of several gits may take is a different decision with
+// a different reason, and cmd/api's hostConfigReadBudget makes it. Sizing a
+// read from this number was review C-1 — four gits sharing 30 s give each 7.5 s,
+// below the 10 s F2 proved too short.
+//
+// That git is not polled: it runs once, inside POST /v1/sessions, with the
+// user waiting, and its failure destroys the whole create — the sandbox, the
+// worktree and the intent. On 2026-09-27 one such read exceeded 10 s on a
+// quiet host and cost the phase 2 proof o2.resume, its only end-to-end proof
+// that Resume forks a real conversation. `git config --get` does no I/O worth
+// 10 s; a read that slow is a process that has not started yet. WHY it has not
+// is UNVERIFIED — on-access virus scanning of a fresh git.exe is the
+// hypothesis, and nothing in the phase 2 evidence measures it. What the
+// evidence does show is a host-git that exceeded 10 s and a second one that
+// did not, seconds apart, so the stall is transient. So this bound is sized to
+// outlast a transient stall rather than to keep a poll cheap.
 const HostConfigTimeout = 30 * time.Second
 
 // gitWaitDelay is how long cmd.Wait waits after the deadline kill before it
