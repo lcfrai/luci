@@ -61,12 +61,21 @@ func serveSession(serve func() error, shutdown func(context.Context) error,
 	// hijacked connection, and net/http neither tracks nor waits for those. The
 	// linger below is therefore the whole of the time fanOut has to put its Exit
 	// frame on the wire before the process that writes it goes away.
-	ctx, cancel := context.WithTimeout(context.Background(), linger)
+	//
+	// ONE deadline, not two timers. Shutdown used to get a linger-long context
+	// and then the wait below started a fresh linger, so a /healthz in flight —
+	// the one non-hijacked request that makes Shutdown block — cost 2 x linger,
+	// twice what exitLinger's own comment promises and twice what the container
+	// stop timeout was sized against. The deadline is computed once and the wait
+	// takes what is left of it, so the post-exit window is exactly linger no
+	// matter how long Shutdown takes.
+	deadline := time.Now().Add(linger)
+	ctx, cancel := context.WithDeadline(context.Background(), deadline)
 	defer cancel()
 	if err := shutdown(ctx); err != nil {
 		slog.Warn("the listener did not shut down cleanly", "err", err)
 	}
-	timer := time.NewTimer(linger)
+	timer := time.NewTimer(time.Until(deadline))
 	defer timer.Stop()
 	<-timer.C
 	return nil
