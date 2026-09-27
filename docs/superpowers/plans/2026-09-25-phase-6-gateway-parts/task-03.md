@@ -756,6 +756,7 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
 **What this task does not claim:**
 
 - **Transport or authentication.** Who may call `POST /v1/mint`, and how, is task 08; how the gatekeeper reaches keysmith's `GET /v1/bindings/{keyHash}` is task 12. These are the bodies only.
+- **That `wire.UsageRow` is final.** Seam **S6.12**'s fallback, if task 18's P16 fails, adds LiteLLM's own `budget_reset_at` to the person and project rows so the cockpit stops printing a date the gateway does not obey. This part merges in wave 2 and task 18 runs in wave 8, so that field arrives here as an amendment to a merged type, filled by task 09's reader and served by task 21's `inferenceJSON` (re-review b06, Minor 2). Nothing is added until the probe runs.
 - **That LiteLLM addresses a key by the SHA-256 of its value.** `KeyID = HashToken(token)` is task 07's decision (f), on training knowledge; task 18's P11 and P12 measure it.
 - **That Claude Code treats `402 budget_exhausted` as terminal rather than retrying.** The mint path's `402` reaches a launcher, not the CLI; a budget exhausted mid-key is LiteLLM's own error, relayed by task 11. How the CLI shows either is task 23's item (5).
 - **That the broker (ask P8-1) or Fleet (seam S6.5) speak these shapes.** They are fixed here so those callers are written against them; neither exists yet.
