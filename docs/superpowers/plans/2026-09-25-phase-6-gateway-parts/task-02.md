@@ -1419,7 +1419,7 @@ and every group's UNVERIFIED price in model_info, in fixed notation so
 PyYAML reads a number (review I-5: an unpriced group spends US$0).
 The three outputs are checked in and a test fails on any hand edit.
 
-Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
 ```
 
 **Acceptance:** step 10 prints two `ok` lines; each row of step 11 turns its named test red and reverting turns it green; step 12 prints nothing and then the expected import lines; `git show --stat HEAD` lists the three generated files, the two packages and `control-plane/go.mod`, and no `go.sum`.

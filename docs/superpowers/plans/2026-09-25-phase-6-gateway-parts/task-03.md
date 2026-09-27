@@ -748,7 +748,7 @@ Thirteen problem codes with their statuses, none shared with httpx.
 HashToken is hex SHA-256; MessagesURL refuses a base that already ends
 in /v1/messages or has any path, query or credentials.
 
-Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
 ```
 
 **Acceptance:** step 4's eleven lines; each row of step 5 turns its test red and reverting turns it green; step 6 prints nothing and then the two lines.

@@ -1,6 +1,6 @@
 ### Task 19: Helm chart, NetworkPolicies, Key Vault CSI
 
-**The gateway on AKS, beside phase 8's workloads, with no route in from outside.** This task writes `deploy/charts/gateway`: LiteLLM, keysmith and the gatekeeper as three Deployments of two replicas, their Services, PDBs and service accounts, the Key Vault secrets as **files**, and the NetworkPolicies that make P6-D1 true in the cloud: a sandbox reaches the gatekeeper and nothing else here, and nothing but the gatekeeper and keysmith reaches LiteLLM. It renders; it is **never applied** in this phase. Applying it is phase 8's pipeline, once asks P8-1 to P8-5 are answered.
+**The gateway on AKS, beside phase 8's workloads, with no route in from outside.** This task writes `deploy/charts/gateway`: LiteLLM, keysmith and the gatekeeper as three Deployments of two replicas, their Services, PDBs and service accounts, the Key Vault secrets as **files**, and the NetworkPolicies that make P6-D1 true in the cloud: a sandbox reaches the gatekeeper and nothing else here, and nothing but the gatekeeper and keysmith reaches LiteLLM. It renders; it is **never applied** in this phase. Applying it is phase 8's pipeline, once asks P8-1 to P8-5 are answered. One policy here is also **phase 6's half of ask P8-6** (seam S6.11): `keysmith-ingress` is default-deny, so the Hub's cloud spend read stays refused at keysmith however much phase 8 opens — gap 1.
 
 **It follows phase 8's conventions, read from the env tree** (`.claude/worktrees/env/docs/superpowers/plans/2026-09-23-phase-8-own-environment-parts/`), so the two trees meet without a rename:
 - a cross-namespace peer is `namespaceSelector` `kubernetes.io/metadata.name: <ns>` **and** `podSelector` in one peer (`task-13.md:289-291`);
@@ -33,7 +33,7 @@
   - service accounts `litellm`, `keysmith`, `gatekeeper`, each annotated with its identity's client id
   - pod labels `app.kubernetes.io/name: {litellm|keysmith|gatekeeper}` and `app.kubernetes.io/part-of: panacea-gateway`, which phase 8's `netpolcover` and the Hub's ingress policy select on
 - Consumes: task 02's `files/litellm.config.yaml`; task 08b's and task 12's variables (08b's `config.go`; review I-10); task 17's image layout (`/usr/local/bin/{keysmith,gatekeeper}`); task 20's `role_arn`; phase 8's namespaces and labels above.
-- Consumed by: task 24's proving scripts (the Services and labels), phase 8's pipeline (the release, asks P8-1 to P8-5), seam S6.9 (`netpolcover`).
+- Consumed by: task 24's proving scripts (the Services and labels), phase 8's pipeline (the release, asks P8-1 to P8-5), seam S6.9 (`netpolcover`), seam S6.11 (`keysmith-ingress`'s third peer, ask H-5, gap 1).
 
 - [ ] **Step 1: Write the failing render test**
 
@@ -887,7 +887,7 @@ to LiteLLM; 443 out with IMDS, the Azure host address and RFC 1918 excepted.
 No HTTPRoute, no Ingress. render_test.sh checks all of it in both API-server
 modes. Rendered, never applied.
 
-Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
 ```
 
 **What this part asks of phase 8, beyond the skeleton's P8-1 to P8-5:**
@@ -895,6 +895,10 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
 - P8-3's sandbox egress rule targets exactly this chart's `gatekeeper` pods on 4000, and phase 8's `egress-internet` except list stays as it is, so a sandbox cannot reach LiteLLM or keysmith by address;
 - the `ClusterRoleBinding` of decision (c) is installed under whatever Q4 decides;
 - the four Key Vault secret names above, created by a human, never by a pipeline.
+
+**Gaps against the skeleton, for the orchestrator:**
+
+1. **`keysmith-ingress`'s peer list is not final, and the skeleton asked the wrong phase for the rest of it.** The policy rendered above admits exactly the broker's namespace pods and `app.kubernetes.io/name: gatekeeper` on 4100, under default deny. Seam S6.11 needs a **third** peer, `panacea-hub`, when ask H-5 is built and the Hub reads a cloud project's spend from keysmith's `GET /v1/usage`. The skeleton's ask P8-6 covers only phase 8's half — egress from `panacea-hub` and the token audience — so opening that alone leaves the Hub refused here, with a connection timeout no other part predicts. The peer, and the peer assertions in `render_test.sh`, are this file's to add **when H-5 exists and not before**: nothing in the cloud holds `usage` until then (task 08 gap 3), so a peer added now would be an open door to no caller.
 
 **What this task does NOT claim:**
 

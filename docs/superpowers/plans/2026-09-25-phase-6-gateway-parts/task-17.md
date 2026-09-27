@@ -649,7 +649,7 @@ every service's networks, no secret in the environment, no debug flag, and
 init.sh's idempotence; and that the test-database override keeps Postgres
 off the sandbox network.
 
-Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
 ```
 
 **What this task does NOT claim:**

@@ -807,7 +807,7 @@ Global (P6-D5). The Hub's project fields are fixed here, with the Hub's
 null-not-omitted rule, and decoded strictly on their own and leniently
 inside the Hub's larger project record.
 
-Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
 ```
 
 **What this task does not claim:**

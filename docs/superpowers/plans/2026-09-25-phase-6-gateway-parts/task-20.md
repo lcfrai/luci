@@ -348,7 +348,7 @@ Written and tested with mock_provider only; never applied. The account is
 owner question Q3, and the calling stack is phase 8's, fed by its
 aks_oidc_issuer_url output.
 
-Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
 ```
 
 **What the calling stack must do, for phase 8** (stated so that ask P8-5 has a concrete shape, not built here): configure the `aws` provider for `ap-southeast-2` with the owner's account (Q3) and its own OIDC-federated pipeline identity, never an access key; pass `aws_account_id` and `oidc_issuer_url = <foundation>.aks_oidc_issuer_url`; hand `role_arn` to the gateway chart as `bedrock.roleArn`; and switch off the account's Bedrock model-invocation logging, or keep it off, which task 24's P05 checks.

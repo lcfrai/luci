@@ -748,7 +748,7 @@ type, never a body, which can echo the key. Redirects are refused, keys
 are addressed by id after the mint, Ensure is create-then-update, and
 Health asks /health/readiness, never the model-calling /health.
 
-Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
 ```
 
 **Acceptance:** step 4's ten lines under `-race`; each row of step 5 turns its test red and reverting turns it green; step 6 prints nothing and then the three lines.

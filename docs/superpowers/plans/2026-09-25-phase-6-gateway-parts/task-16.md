@@ -803,7 +803,7 @@ value, no per-request log line; a canary test holds it to that.
 The event sequence is from training knowledge, UNVERIFIED until task 23 runs
 Claude Code against it.
 
-Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
 ```
 
 **What this task does NOT claim:**

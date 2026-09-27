@@ -716,7 +716,7 @@ unpriced model makes a budget probe UNKNOWN, never FAIL.
 
 Results: <one line per non-PASS probe and the part it changes>.
 
-Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
 ```
 
 **What this task does NOT claim:**

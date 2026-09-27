@@ -312,7 +312,7 @@ Commits `ef8ea2af` (skeleton), `f800c98a` (the four parts, written before the ag
 | Change | Where |
 |---|---|
 | Owner question **Q5**, with the built option, the rejected one, and the exact one-line change if the owner chooses the universal ratchet | `2026-09-25-phase-6-gateway.md:329` |
-| Task 01 decision (e): `Actor.Solo`, checked **after** the floor, `ErrNotMember` without `Member`, ignored by `CanReclassify` | `task-01.md:21`, type at `:36` and `:580`, rule at `:614` |
+| Task 01 decision (e): `Actor.Solo`, checked **after** the floor, `ErrNotMember` without `Member`, ignored by `CanReclassify` | `task-01.md:21`, type at `:36` and `:583-586` (`:580` is inside its doc comment; corrected in round 2), rule at `:614` |
 | Three new `CanChange` cases and three new `CanReclassify` cases, with the fixture `solo` | `task-01.md:199-203`, `:239-242`, `:63` |
 | Four new mutant rows, one per way `Solo` can be got wrong | `task-01.md:747-752` |
 | Task 21 decision (j): `const localProjectsAreSolo = true`, the actor becomes `localActor`, `PATCH` accepts `"global"` | `task-21.md:52`, `:591`, `:597`, `:21` |
@@ -335,3 +335,35 @@ Commits `ef8ea2af` (skeleton), `f800c98a` (the four parts, written before the ag
 **Declared, since the inputs do not cover it.** The panel does not gain a lowering control in this batch. I-2 is a finding about task 01's authorisation rule; drawing a new control would settle Q5 before the owner does, and a UI's look and copy are the owner's (OD-12). The API path is proven instead, by `curl`, in task 23 step 6.
 
 **Still unverified after b05:** every citation in this batch was checked in this tree (`05-design.md:151`, `:219`; `hub-contract.md:578` was re-read in the Hub worktree on 2026-09-25 and not re-read today). No phase 6 code exists, so all test and mutant counts remain plan figures.
+
+## Fix batch b05, round 2 (re-review `plan-rereview-b05-1.md`), 2026-09-28
+
+Round 1 verdict: **Needs fixes** — I-3 resolved at the root, I-2 resolved in the server rule, I-9 only
+partly, plus two Important and three Minor issues. All five are closed here, at the root, in plan
+documents only. Line numbers below are this tree's **after** the edits.
+
+| Round-1 issue | Root cause | Fix, and where |
+|---|---|---|
+| **Important 1.** I-9's network half was asked of the wrong phase: P8-6 told phase 8 to open a path keysmith itself refuses | keysmith's **ingress** is rendered by *this* phase's chart — `keysmith-ingress`, default-deny, two peers (`task-19.md:709-734`) — so no phase 8 change can admit the Hub, and nothing recorded that | P8-6 now names two halves in two trees (phase 8: egress + token audience; phase 6: the third peer) and what doing one alone costs — `2026-09-25-phase-6-gateway.md:317`. S6.11's task column gains **19** (`:300`). Task 19 gains its first "Gaps against the skeleton" entry (`task-19.md:901`), the summary sentence (`:3`) and a "consumed by" entry (`:36`). The task table's seam cell for 19 reads `S6.9, S6.11 (keysmith-ingress), P8-1 to P8-6` (`:182`), and the task 19 scope paragraph says the same (`:266`) |
+| **Important 2.** `canLowerRoute`'s formula offered *Move back to Global* where there is nothing to lower | `CanChange` returns `nil` at its raise-or-no-change branch (`task-01.md:606-608`, `if rt >= rf`), so the expression is true for a project already on Global **and** for an `au-only` project, whose `PATCH {"route":"global"}` is `409 conflict` (task 21 decision (c), `task-21.md:38`) | The field is now `route != dataclass.Floor(class) && dataclass.CanChange(class, route, Floor(class), actor) == nil`, with both halves named as load-bearing and the plain-English reading kept beside it — `task-22.md:718`. H-5 carries the same formula by reference and says it is always `false` on a Hub project (`2026-09-25-phase-6-gateway.md:308`). Task 25's row needs no change: it points at task 22 gap 5 rather than repeating the expression (`task-25.md:94`) |
+| **Minor 3.** Decision (j)'s seam is one process-wide constant; soloness is per project | `05-design.md` §2.3 (`:151-157`, re-read today): **Share** turns a solo project into a team project and *"a session left running locally keeps working"*, and nothing tells `FileInferenceStore` that it happened | A new does-not-claim bullet names the condition, the latency of the risk (Q4 keeps local mode development-only), and the fix whoever builds Share must make — the flag moves onto the stored record, it is not flipped — `task-21.md:1039`, with a pointer from decision (j) (`:52`) |
+| **Minor 4.** keysmith's `usage` route has no per-scope authorisation, and b05 gave it a second holder | The `kube` table authorises a caller per **route** (`task-08.md:2129`), so any holder reads any `scope`/`id`; in the cloud that holder is the Hub, whose callers are every viewer of every team | Recorded twice, where each reader looks: as residual 2 on seam S6.11 (`2026-09-25-phase-6-gateway.md:300`) and in task 08 gap 3 itself (`:2129`). H-5 now says its own rule is the only thing keeping one member's figure from another, and that the Hub must not pass a `scope=person` id taken from a query or body (`:308`) |
+| **Minor 5.** A planned commit block carried the wrong model in its trailer | Not a task 19 typo: **ten** parts hard-code `Claude Opus 5.5` (01, 02, 03, 04, 05, 16, 17, 18, 19, 20), written by that session. A hard-coded model name in a template is wrong whoever writes it — the phase 2 plan's rule is that the trailer names the model that *makes* the commit (`2026-09-18-phase-2-backend-and-cockpit.md:54-58`) | All ten now read `Claude Opus 5 (1M context)`, and the rule is recorded once as global constraint 10 (`2026-09-25-phase-6-gateway.md:115`), so an implementer on another model writes its own name instead of copying the block. The b05 map's `Actor` anchor is corrected to `:583-586` above |
+
+**Re-check of the batch's own findings, after these edits.**
+
+| Finding | Standing now | Evidence |
+|---|---|---|
+| **I-9** the cockpit's spend has no cloud path | **Resolved.** The read (H-5), the grant (task 08 gap 3), the egress and audience (P8-6, phase 8) and the ingress (task 19 gap 1) are each owned by a named part, and the two residuals a closer must carry are on the seam | skeleton `:300`, `:308`, `:317`, `:182`, `:266`; `task-19.md:3`, `:36`, `:901`; `task-08.md:2129`; `task-21.md:1053`; `task-22.md:708` |
+| **I-3** H-1 asked a member to raise through an admin route | **Resolved, unchanged by this round.** Re-verified in the Hub worktree today: route 15 `GET /v1/projects/{projectId}` is `V`, route 16 `PATCH` is `A`, so H-1's member route is new and route 16 stays one role check | `hub-contract.md:577`, `:578`; skeleton `:304` |
+| **I-2** the ratchet is universal; the design keeps a solo project's choice | **Resolved in the server rule and now in the deferred client half.** `CanChange` refuses a non-member before the floor branch, `CanReclassify` ignores `Solo`, the seam is one constant with Q5 asked, and the field the cockpit would need no longer offers an action that cannot succeed | `task-01.md:583-586`, `:603-617`; `task-21.md:52`, `:591`, `:597`, `:1039`; `task-22.md:718`; skeleton `:330` |
+
+**Declared, since the inputs do not cover it (rule 7).** Minor 5 was fixed programme-wide rather than in
+task 19 alone, and the trailer rule was written down once instead of ten times. Nothing was added to the
+owner's queue by this round: no new owner question, and the panel still draws no lowering control while
+Q5 is open.
+
+**Unverified after round 2.** No phase 6 code exists, so every test, mutant and hour remains a plan
+figure. `keysmith-ingress`'s behaviour under Cilium, and whether a third peer is all the Hub needs, is
+proven only when phase 8 applies the chart. Nothing was run: no control plane, no container, no image.
+Everything written stayed inside `.claude/worktrees/phase-6`; the Hub worktree was read, never written.

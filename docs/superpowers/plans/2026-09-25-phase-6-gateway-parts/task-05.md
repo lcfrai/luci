@@ -1096,7 +1096,7 @@ Migrate applies NNNN_name.sql files in order, once each, under an
 advisory lock; a gap or a repeat is an error. Adds jackc/pgx/v5 v5.7.1.
 Postgres suite: <run against task 17's database | not run: task 17 not merged>.
 
-Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
 ```
 
 **Acceptance:** step 7's first block without a database (and its second with one, or recorded as not run); each row of step 8 turns its test red and reverting turns it green; step 9 prints nothing and then the expected packages; `go.mod`'s `go 1.23` line is unchanged.
