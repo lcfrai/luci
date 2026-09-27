@@ -6,7 +6,7 @@ A sandbox's only credential is a one-hour LiteLLM virtual key that keysmith mint
 
 **Files:**
 - `control-plane/internal/keysmith/keysmith.go`: `AdminAPI`, `SpentReader`, `SpendRecorder`, `Deps`, `Service`, `New`, `Mint`, `Refresh`, `RevokeSession`, `ByKeyHash`, the error sentinels, `BudgetDuration`, `EnsureMemo` (new)
-- `control-plane/internal/keysmith/keysmith_test.go`: seventeen tests, at least one mutant each (new)
+- `control-plane/internal/keysmith/keysmith_test.go`: nineteen tests, at least one mutant each (new)
 
 **Interfaces:**
 - Produces:
@@ -47,6 +47,8 @@ The bound, after the first request following a raise: at most the route cache (�
 **(i) The team is the project's, not the caller's** (review I-7). `MintRequest.TeamID` is what the caller says, and the team budget (`Budgets.Limits`, `Spent`), the binding's `TeamID` and the key's `team` metadata, which task 09's ledger attributes by, all key on it. `mint` reads the project once, through `s.project`, which returns the live route and `ProjectInference.TeamID` (task 03 decision (h)). A non-empty source team that differs from the caller's refuses the mint with `ErrTeamMismatch`, an `ErrInvalid` (400 `bad_request`), before the budget read and before any LiteLLM call. A source with no teams gives `""`, and then the caller's team stands: that is task 13's `File` source only, local mode's `projects.json`. The Hub source refuses a record without a valid `teamId` (task 13 decision (f)), so in the cloud `""` never arrives. `Refresh` re-mints through `mint` with the binding's team, so a project whose team no longer matches stops refreshing: fail closed. Whether the owner is a member of that team is the caller's check (ask P8-1), because keysmith holds no user token.
 
 **(j) Every delete of a key records its spend first** (review M-3). Task 09's sweep reads each key's spend every 60 seconds and keeps the last figure a key ever showed, so a key deleted between two sweeps loses up to one sweep of spend — on **every** refresh and every revoke, which is every session, several times an hour. The team dimension is keysmith's own (P6-D8), so that loss is a budget that undercounts for the rest of the month. The fix is one read: `deleteKeys` takes bindings, calls `Deps.Recorder.RecordKey` for each, and only then calls `Admin.DeleteKeys`. One rule, no exceptions, because an exception is what an implementer gets wrong: the mint-rollback path (`generateThenBind`) records a key whose token was never returned, whose spend is therefore zero, and task 09's upsert never lowers a recorded figure, so a zero row changes no sum. A `RecordKey` that fails is reported and the delete proceeds — a key that cannot be read is still a key that must not stay usable. The read costs one `/key/info` call on task 04's own deadline, on a background context, never on the caller's.
+
+**`RecordKey` is bounded by task 09, not by this part** (re-review b06 round 1, Important 3). Every `deleteKeys` call site reaches it on `context.Background()` (`:992`, `:1056`) or `context.WithoutCancel(ctx)` (`:1021`, `:1071`, `:1210`, `:1227`), and `WithoutCancel` drops the parent's deadline too, so the context that arrives here has none. The `/key/info` read is bounded anyway — task 04 gives every admin call its own deadline — but `RecordKey`'s `Store.Upsert` is a database write, and a deadline-free write is held inside `s.lock(session)` (`:1291`, and the bound this costs other sessions is stated at `:1416`). A stalled Postgres would then park one goroutine per retry on the same stripe while keysmith answers `504 mint_timeout` and the caller retries. So `RecordKey` puts its own `context.WithTimeout(ctx, usage.RecordTimeout)` (5 s) around the whole read-and-file, in task 09 where the write lives: one place, and the sweep's own calls keep the sweep's context. Nothing in this part passes a deadline of its own.
 
 **Why keysmith retires rather than re-mints**, as the review words it: keysmith never holds a token after the mint reply (decision (f)) and cannot hand one to a sandbox. A key it minted on its own would be a key nobody holds, the one thing this task must not get wrong. **The re-mint belongs to the session's refresher.** Task 15's `Launcher` already holds `Routes`, and the cloud broker is ask P8-1. The refresher refreshes as soon as its project's route rises, and `Refresh` then mints on AU with `au/*` only (decision (d)). A refresher that does not do this leaves its session refused (`401 token_revoked`) from the end of `Grace` until its next refresh. That fails closed, never open. Gap 7 hands this to task 15 and to P8-1.
 
@@ -1351,7 +1353,7 @@ func scrub(kind error, what string, cause error, secrets ...string) error {
 cd control-plane && go test ./internal/keysmith/ -count=1 -race -v 2>&1 | grep -c '^--- PASS'
 ```
 
-Expected: `17`, and no `--- FAIL` line.
+Expected: `19`, and no `--- FAIL` line. Seventeen, plus decision (j)'s two.
 
 - [ ] **Step 6: Prove the mutants die**
 
@@ -1378,6 +1380,9 @@ Apply each edit alone, run `go test ./internal/keysmith/ -count=1`, confirm the 
 | in `mint`, delete the `if team != "" && team != sub.team { … }` block | `TestMintRefusesATeamThatIsNotTheProjects` (`budget_unknown`, want `ErrTeamMismatch`; review I-7) |
 | in `mint`, move that block below the `s.d.Spent.Spent` read | `TestMintRefusesATeamThatIsNotTheProjects` (`budget_unknown`, want `ErrTeamMismatch`) |
 | in `mint`, `team != "" && team != sub.team` → `team != sub.team` | `TestMintRefusesATeamThatIsNotTheProjects` (`p-noteam` refused, want a mint) |
+| in `deleteKeys`, delete the `s.d.Recorder.RecordKey` call and keep the `keys = append(...)` | `TestARevokedKeysSpendIsRecordedBeforeItsKeyIsDeleted` (log is `[delete:…]`, want `record:` first; review M-3) |
+| in `deleteKeys`, move the `RecordKey` call into a second loop **after** `s.d.Admin.DeleteKeys` | `TestARevokedKeysSpendIsRecordedBeforeItsKeyIsDeleted` (order `delete:`,`record:`, want the reverse: LiteLLM answers `404` once the key is gone) |
+| in `deleteKeys`, on a `RecordKey` error `return` instead of `s.d.Report(…)` | `TestAFailedSpendRecordStillDeletesTheKey` (no `delete:` entry: a key that cannot be read stays usable until its `TTL`) |
 
 - [ ] **Step 7: Vet and format**
 
@@ -1398,7 +1403,7 @@ git commit -F <message file> -- control-plane/internal/keysmith/keysmith.go cont
 
 Message: `feat(keysmith): mint, refresh and revoke, one live key per generation (phase 6 task 07)`, a body naming decisions (a) to (i), and the attribution line.
 
-**Acceptance:** step 5 prints `17` under `-race`; step 6's nineteen edits each fail the named test; step 7 prints nothing.
+**Acceptance:** step 5 prints `19` under `-race`; step 6's twenty-two edits each fail the named test, the last three of them decision (j)'s; step 7 prints nothing.
 
 **What this task does not claim:**
 
@@ -1408,7 +1413,7 @@ Message: `feat(keysmith): mint, refresh and revoke, one live key per generation 
 - **Exactly one LiteLLM key per generation at every instant.** Between a timed-out `GenerateKey` and the `kill` that follows it, a key may exist whose binding is already revoked. The gatekeeper refuses it (task 10), and nothing but the gatekeeper and keysmith can reach LiteLLM (P6-D1). In the fallback path, a key whose reply was lost has no binding at all until it expires at `TTL`.
 - **That a raise retires a Global-minted key nobody uses.** Decision (h) acts on a lookup, and only the gatekeeper looks a key up. A key that makes no request after the raise keeps its `global/*` groups until its refresh or its `TTL`. It has nothing to send them with, since only the gatekeeper and keysmith reach LiteLLM (P6-D1). Whether LiteLLM then refuses a body fallback outside an AU-minted key's `au/*` is task 18's P14.
 - **A lock across replicas.** Two replicas racing one generation converge through `ErrBusy`, `ErrSuperseded` and a retry, not through mutual exclusion.
-- **Freedom from head-of-line waiting.** A session's stripe is held across LiteLLM calls (up to task 04's 20-second deadline), so up to 1 in 64 other sessions' mints can wait behind a slow one.
+- **Freedom from head-of-line waiting.** A session's stripe is held across LiteLLM calls (up to task 04's 20-second deadline) and across decision (j)'s record (up to `usage.RecordTimeout`, 5 s), so up to 1 in 64 other sessions' mints can wait behind a slow one. Every one of those waits is bounded; none is deadline-free.
 
 **Gaps against the skeleton, for the orchestrator:**
 

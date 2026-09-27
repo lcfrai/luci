@@ -8,7 +8,7 @@ LiteLLM's own spend reports (tag and team reports) are not used, because those f
 
 **Files:**
 - `control-plane/internal/usage/usage.go`: `KeyRef`, `Record`, `Total`, `Store`, `KeySource`, `MemStore`, `PGStore`, `Reader`, `CacheTTL` (new)
-- `control-plane/internal/usage/sweep.go`: `KeyInfoer`, `Sweeper`, `DefaultEvery`, `DefaultLookback` (new)
+- `control-plane/internal/usage/sweep.go`: `KeyInfoer`, `Sweeper`, `record`, `RecordKey`, `DefaultEvery`, `DefaultLookback`, `RecordTimeout` (new)
 - `control-plane/internal/usage/usage_test.go`: the store suite on both stores, the reader and sweeper tests (new)
 - `control-plane/internal/binding/migrations/0002_key_spend.sql`: `keysmith.key_spend` and its indexes (new; task 05's `Migrate` runs it in order)
 
@@ -421,6 +421,42 @@ func TestRecordKeyFilesTheSpendASweepWouldMiss(t *testing.T) {
 	}
 }
 
+// deadlineStore records the deadline of the context its Upsert was given.
+type deadlineStore struct {
+	*MemStore
+	has bool
+	at  time.Time
+}
+
+func (s *deadlineStore) Upsert(ctx context.Context, r Record) error {
+	s.at, s.has = ctx.Deadline()
+	return s.MemStore.Upsert(ctx, r)
+}
+
+// Mutants killed: a RecordKey that passes its caller's context straight
+// through. keysmith calls it from deleteKeys on context.Background() and on
+// context.WithoutCancel(ctx) — neither carries a deadline — while holding that
+// session's stripe, so an unbounded Upsert parks a goroutine per retry
+// (task 07 decision (j), re-review b06 Important 3).
+func TestRecordKeyBoundsItsOwnDeadline(t *testing.T) {
+	now := time.Date(2026, 9, 25, 9, 0, 0, 0, time.UTC)
+	store := &deadlineStore{MemStore: NewMemStore()}
+	sw := &Sweeper{Keys: &fakeKeys{}, Admin: fakeInfo{hashOf("k1"): 1}, Store: store,
+		Clock: func() time.Time { return now }}
+	k := ref("k1", now.Add(-30*time.Minute))
+	b := wire.Binding{KeyHash: k.KeyHash, KeyID: k.KeyID, SessionID: k.SessionID, Owner: k.Owner,
+		TeamID: k.TeamID, ProjectID: k.ProjectID, CreatedAt: k.CreatedAt}
+	if err := sw.RecordKey(context.Background(), b); err != nil { // no deadline, as deleteKeys gives it
+		t.Fatal(err)
+	}
+	if !store.has {
+		t.Fatal("the store saw a context with no deadline; keysmith holds the session's stripe across this call")
+	}
+	if left := time.Until(store.at); left <= 0 || left > RecordTimeout {
+		t.Errorf("deadline in %v, want (0, %v]", left, RecordTimeout)
+	}
+}
+
 // Mutants killed: a lookback that misses keys that have just expired; spend
 // filed under the sweep's month instead of the key's (decision (a)); a NaN or
 // negative figure recorded.
@@ -821,6 +857,13 @@ type PriceReader interface {
 const (
 	DefaultEvery    = 60 * time.Second
 	DefaultLookback = 10 * time.Minute
+
+	// RecordTimeout bounds one RecordKey, read and write together. keysmith
+	// calls it from deleteKeys on a background or WithoutCancel context, both
+	// of which carry no deadline, and it calls it while holding that session's
+	// stripe (task 07 decision (j)). Without this bound a stalled database
+	// parks one goroutine per retry on the same stripe.
+	RecordTimeout = 5 * time.Second
 )
 
 // KeyInfoer is task 04's (*litellmadmin.Client).KeyInfo.
@@ -909,7 +952,15 @@ func (s *Sweeper) record(ctx context.Context, k KeyRef, now time.Time) error {
 // for it (task 07 decision (j), review M-3). It is keysmith's SpendRecorder.
 // The figure goes through the same never-lower upsert as the sweep's, so a
 // final read that LiteLLM answers late or low cannot take spend away.
+//
+// The caller's context carries no deadline: keysmith reaches deleteKeys on
+// context.Background() and on context.WithoutCancel(ctx), which drops the
+// parent's deadline, and it holds the session's stripe across the call. So
+// this bounds itself (RecordTimeout), read and write together. The sweep's own
+// calls go to record directly and keep the sweep's context.
 func (s *Sweeper) RecordKey(ctx context.Context, b wire.Binding) error {
+	ctx, cancel := context.WithTimeout(ctx, RecordTimeout)
+	defer cancel()
 	return s.record(ctx, KeyRef{KeyHash: b.KeyHash, KeyID: b.KeyID, SessionID: b.SessionID,
 		Owner: b.Owner, TeamID: b.TeamID, ProjectID: b.ProjectID, CreatedAt: b.CreatedAt}, s.clock())
 }
@@ -952,11 +1003,11 @@ func (s *Sweeper) report(err error) {
 
 ```bash
 cd control-plane
-go test ./internal/usage/ -count=1 -race -v 2>&1 | grep -c '^\s*--- PASS'   # expect 12 without a database
+go test ./internal/usage/ -count=1 -race -v 2>&1 | grep -c '^\s*--- PASS'   # expect 14 without a database
 go test ./internal/usage/ -count=1 -v 2>&1 | grep -c '^--- SKIP'            # expect 2, each naming PANACEA_APP_GATEWAY_TEST_DATABASE_URL
 ```
 
-With task 17's compose Postgres up and `PANACEA_APP_GATEWAY_TEST_DATABASE_URL` set to it, the first line prints `19` and the second `0`: the store suite's five cases run against real SQL, and `RecentKeys` against task 05's table.
+With task 17's compose Postgres up and `PANACEA_APP_GATEWAY_TEST_DATABASE_URL` set to it, the first line prints `21` and the second `0`: the store suite's five cases run against real SQL, and `RecentKeys` against task 05's table.
 
 - [ ] **Step 7: Prove the mutants die**
 
@@ -968,8 +1019,12 @@ Apply each edit alone, run `go test ./internal/usage/ -count=1`, confirm the nam
 | `column`: `wire.ScopeTeam: "team_id"` → `"project_id"` (and the `MemStore.Sum` map likewise) | `TestMemStoreSuite/each_scope…` |
 | `Reader.Spent`: `budget.PeriodStart(now)` → `time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)` | `TestSpentIsTheCurrentUTCMonth` |
 | `Reader.Spent`: `now.Add(CacheTTL)` → `now.Add(24 * time.Hour)` | `TestSpentIsCachedSixtySecondsAndFailsClosed` |
-| `Sweeper.Once`: `budget.PeriodStart(k.CreatedAt)` → `budget.PeriodStart(now)` | `TestSweepLookbackPeriodAndBadFigures` |
-| `Sweeper.Once`: on a `KeyInfo` error, `continue` → record `SpendUSD: 0` | `TestDeletedKeyKeepsItsSpend` (with a plain-overwrite store too) |
+| `record`: `budget.PeriodStart(k.CreatedAt)` → `budget.PeriodStart(now)` | `TestSweepLookbackPeriodAndBadFigures` |
+| `record`: on a `KeyInfo` error, return a `Record` with `SpendUSD: 0` instead of the error | `TestDeletedKeyKeepsItsSpend` (with a plain-overwrite store too) |
+| `record`: delete the `Store.Upsert` call and `return nil` | `TestRecordKeyFilesTheSpendASweepWouldMiss` (team spend 0, want 7: a read that files nothing; review M-3) |
+| `RecordKey`: `CreatedAt: b.CreatedAt` → `CreatedAt: s.clock()` | `TestRecordKeyFilesTheSpendASweepWouldMiss` (filed under the call's month, not the key's, so the month boundary double-counts) |
+| `RecordKey`: `return s.record(…)` → `_ = s.record(…); return nil` | `TestRecordKeyFilesTheSpendASweepWouldMiss` (the second call returns nil, so keysmith would report nothing for a spend it lost) |
+| `RecordKey`: delete the `context.WithTimeout(ctx, RecordTimeout)` pair | `TestRecordKeyBoundsItsOwnDeadline` (no deadline on the context the store sees; re-review b06 Important 3) |
 | `Sweeper.Once`: delete the `s.checkPrices(ctx)` call (review I-5) | `TestSweepReportsAnUnpricedGroup` |
 | `checkPrices`: delete `\|\| !(p.Output > 0)` | `TestSweepReportsAnUnpricedGroup` (`au/m` has no output price) |
 | `checkPrices`: the `s.Prices == nil` branch `return`s without reporting | `TestSweepReportsAnUnpricedGroup` (the nil reader) |
@@ -993,7 +1048,7 @@ git commit -F <message file> -- control-plane/internal/usage/ control-plane/inte
 
 Message: `feat(usage): the per-key spend sweep and the three-dimension reader (phase 6 task 09)`, a body naming decisions (a) to (g), and the attribution line.
 
-**Acceptance:** step 6 prints `12` and `2` without a database, and `19` and `0` with one; step 7's ten edits each fail the named test; step 8 prints nothing and then `ok`.
+**Acceptance:** step 6 prints `14` and `2` without a database, and `21` and `0` with one; step 7's fourteen edits each fail the named test; step 8 prints nothing and then `ok`.
 
 **What this task does not claim:**
 
