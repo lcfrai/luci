@@ -77,7 +77,8 @@ fields, so a body that sends one gets 400 `bad_request`.
      Fleet from the broker;
   2. `isExemptPath` = `isFeedPath(r) || isPrincipalPath(r)` — task 05's route-78 matcher is kept
      under its own name, because only route 78 sets `FleetFeed`, and route 88 gets the same
-     exact-segment matcher of its own;
+     exact-segment matcher of its own — `isPrincipalPath` is `GET` and segments exactly
+     `v1`, `principals`, never a prefix, so `/v1/principals/anything` is not exempt;
   3. `delegationHeader` gains the `Hub.DelegationReader` arm of §5.10 rule 10 — no header
      required, a header 400, every path but `GET /v1/delegations/{dl}` 403 before the route runs —
      and its two exempt-path cases are **narrowed to `AppRoleFleet`**, so the broker can never
@@ -849,9 +850,8 @@ case isExemptPath(r) && len(vals) > 0:
 	// task 05's, unchanged, and what task 08 asserts is the code and the field,
 	// never the sentence (`task-08.md:298`, route 78's wire; `:500`, row
 	// team/principal-needs-no-delegation, for route 88). Written out because an
-	// empty case body is not an
-	// elision in Go: it would fall out of the switch to `c.DelegationID =
-	// vals[0]` and serve the feed under a delegation.
+	// empty case body is not an elision in Go: it would fall out of the switch
+	// to `c.DelegationID = vals[0]` and serve the feed under a delegation.
 	return Refuse(400, hubapi.CodeBadRequest, "This route takes no delegation.",
 		map[string]string{"field": hubapi.HeaderDelegation})
 case isExemptPath(r):

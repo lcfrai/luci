@@ -57,7 +57,8 @@ and named the read it needed; b02 made it a route nobody has to invent:
   the **project's** `orgId`, team role, `orgAdmin`, `auditor`, `compliance`;
 - **task 06** builds it on the Hub, in one store statement that resolves the project first;
 - **task 08** gives it a client method, `hubclient.Team.Principal(ctx, tid, oid, projectID)`, and
-  **three** conformance rows (`task-08.md:497-500`; b02's other two are the broker's, for a total
+  **three** conformance rows (`task-08.md:498-500`; b02's other two are the broker's, `:501-502`,
+  for a total
   of five new rows and 38 altogether).
 
 `hubMembership` is therefore written against a **real** interface, not a proposal, and `Member`

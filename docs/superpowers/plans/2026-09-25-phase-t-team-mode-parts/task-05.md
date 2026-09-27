@@ -49,7 +49,7 @@ needs a third amendment. Task 06 owns route 88 and this helper's second case.
 exactly one app caller (`:622`), so every `AppOnly` branch below is Fleet's by construction. Task 06
 adds the broker as a second one and therefore owns, in this file, all four deltas that keep the two
 apart: `Claims.AppRole` and `Claims.BrokerRead`, `isExemptPath`, `delegationHeader`'s role arms and
-`resolveCaller`'s broker branch (`task-06.md:73-89` for the four-delta Files entry, `:812-886`
+`resolveCaller`'s broker branch (`task-06.md:73-89` for the four-delta Files entry, `:813-887`
 for the two written-out hunks; grep the heading **The gate that admits the broker** rather than
 trust the range). **Do not add a second
 `entra.AppCaller` here**, and do not copy an `AppOnly` check out of this file into a task that has

@@ -3558,3 +3558,46 @@ made sure it did not add a fourth claimant.
 
 **Unverified:** every file, test and line named above is planned text; no code exists on
 `feat/team-mode` for any of it. The line numbers are this commit's and were read on 2026-09-28.
+
+### Round 1 re-review (`.superpowers/sdd/team/plan-rereview-b02-1.md`), closed in round 2
+
+Its root was one thing: b02 created a **second app-only identity** and amended no gate, so the
+broker was refused 401 `delegation_required` before route 47 (C1) and admitted as Fleet on route
+78's org-wide feed (C2). The task that adds an identity now owns every check that read `AppOnly`
+and meant "Fleet".
+
+| Round-1 finding | Change | File:line |
+|---|---|---|
+| C1 — no task owns the gate that admits the broker | `auth.go`'s deltas are **four**, not two: `Claims.AppRole` + `Claims.BrokerRead`, `isExemptPath`, `delegationHeader`'s role arms, `resolveCaller`'s broker branch — with the two hunks written out | `parts/task-06.md:73-89`, `:813-887` |
+| C1 (restated) | task 05 says `AppOnly` means Fleet **only in task 05**, names the four deltas task 06 owns, and forbids a second `entra.AppCaller` there | `parts/task-05.md:47-57` |
+| C2 — every `AppOnly` check still meant "Fleet" | `delegationHeader`'s exempt-path cases narrowed to `AppRoleFleet`; a third, ungated role is 403, never admitted as Fleet | `parts/task-06.md:84-86`, `:841-845` |
+| C2 (restated) | route 78's caller rule is `c.AppRole == hubapi.AppRoleFleet`, "**not merely `AppOnly`**" | `parts/task-08.md:291-296` |
+| I1 — §4.2 contradicted §7.28 rules 3 and 4 | the `principal_not_found` row now restates rule 4; another org's user is 200 with three false flags | `parts/task-01.md:275` |
+| I2 — the positive half had no runnable witness | both halves of `team/principal-flags-are-the-projects-org` ask about `ProjectID`; the true flag is `Env.Auditor`, whose standing is in the project's own org | `parts/task-08.md:499` |
+| I3 — the b02 citations were not this commit's | re-derived by grep after round 1's own edits, at every site that copied the drift | `parts/task-05.md`, `-06`, `-17`, `-20`, `-60`; §7.13's broker fields are `task-01.md:401-406` |
+| I4 — repair-gap 2 open in a part b02 amended | task 17 named `entra/verify_test.go`, which the built package has not; both citations now name `appcaller_test.go` | `parts/task-17.md:110-112`, `:242` |
+| Minor 1 — "five" `Team.Principal` rows | three (`:498-500`); the broker's two are `:501-502`; 38 altogether | `parts/task-12.md:60-62` |
+| Minor 2 — "eight" b02 acceptance lines | nine new, plus the modified `NOT 15 TEAM SECTIONS` | `parts/task-01.md:900` |
+| Minor 3 — bare `"Hub.DelegationReader"` literals | `hubapi.AppRoleDelegationReader` beside the three task 03 already defines | `parts/task-03.md:367-370` |
+| Minor 4 — "task 05's **one** exempt route" | two since b02 | `parts/task-08.md:291-292` |
+
+### Found in round 2 while checking round 1's fix, and fixed with it
+
+1. **The hunk said it replaced Fleet's 401.** `// Replaces … and its `case len(vals) == 0``
+   would delete `delegation_required` and fall a headerless Fleet request through to `vals[0]`,
+   which panics on an empty slice. The comment now places the hunk **before** that case and says
+   every case from it down is kept unedited (`parts/task-06.md:819-828`).
+2. **An empty case body is not an elision in Go.** `case isExemptPath(r) && len(vals) > 0:` was
+   written as a comment with no body, which falls out of the switch to `c.DelegationID = vals[0]`
+   and serves the feed **under** a delegation. Written out (`parts/task-06.md:846-856`).
+3. **Two citations drifted again inside round 1's own edits**: `task-08.md:202-203` for the
+   exempt-route 400 (that is `TaskQuery.Values`; the rule is `:298`, the row `:500`) and
+   `task-06.md:800-856` for the hunks (`:813-887` after the later edits of the same round), both
+   corrected at `parts/task-05.md:42-43` and `:51-53`.
+4. **`isPrincipalPath` was named but never bounded.** Spelled out as `GET` and segments exactly
+   `v1`, `principals`, never a prefix (`parts/task-06.md:80-81`) — the same exactness `isBrokerPath`
+   carries, and the hole C2 was made of.
+
+**Unverified, round 2:** still planned text only. The line numbers above were re-derived by grep
+after this round's edits; any later edit moves them, so grep the quoted heading or sentence rather
+than trust the range.
