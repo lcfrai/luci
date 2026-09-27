@@ -498,14 +498,18 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
+	"time"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/fleet/delegation"
+	// NOT internal/fleet/delegation: b04 took activation off the feed, and
+	// step 5's grep fails if this edge comes back.
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/fleet/model"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/fleet/store"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubapi"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubclient"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/httpx"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/policy"
 )

@@ -3746,19 +3746,20 @@ asks the Hub about that one id. No cursor, no ordering, no org poll set to be ou
 | Change | Where |
 |---|---|
 | The five-step order: `POST` → route 80 → **Fleet activate** → the sweep; and the b04 paragraph naming the cursor as the root | `task-14.md:53-84` |
-| `POST …/policy/{pv}/activate`, org and project, registered beside the four | `task-14.md:534-539`, and the Produces row `:101` |
-| `activateOne` — one Hub question about one id, verifying org, project, seq **and** digest before `Activate` | `task-14.md:611-634` |
-| `activatePolicy` — the admin is **told**: 200 active, 409 `not_audited`, 422 `policy_refused` with the invariant, 503 on a Hub failure | `task-14.md:636-672` |
-| `SweepPendingPolicy`, every replica, 30 s tick / 15 s grace — the path that needs no live client | `task-14.md:674-709` |
+| `POST …/policy/{pv}/activate`, org and project, registered beside the four | `task-14.md:538-543`, and the Produces row `:101` |
+| `activateOne` — one Hub question about one id, verifying org, project, seq **and** digest before `Activate` | `task-14.md:615-637` |
+| `activatePolicy` — the admin is **told**: 200 active, 409 `not_audited`, 422 `policy_refused` with the invariant, 503 on a Hub failure | `task-14.md:639-676` |
+| `SweepPendingPolicy`, every replica, 30 s tick / 15 s grace — the path that needs no live client | `task-14.md:678-714` |
 | `policy.Store.Layer` (scoped by id) and `.Pending` (the sweep's fleet-wide read) | `task-14.md:302-321` |
-| `store.PendingPolicyLayers` and its partial index, in task 10's additions and in step 2 | `task-14.md:93`, `:964-970` |
-| Route 78 gains `subject=`; why it is a parameter and not a new route; the two 400s | `task-14.md:779-796` |
+| `store.PendingPolicyLayers` and its partial index, in task 10's additions and in step 2 | `task-14.md:93`, `:968-974` |
+| The import edge to `internal/fleet/delegation` is **gone** from `server/policy.go`, with a comment saying why and step 5's grep behind it | `task-14.md:505-512` |
+| Route 78 gains `subject=`; why it is a parameter and not a new route; the two 400s | `task-14.md:783-800` |
 | `OrgFeed.OrgEvent` on task 08's interface, with the reason in the comment | `task-08.md:150-160` |
 | Route 78's existing no-delegation exemption covers `OrgEvent`; the fake's row and the method count | `task-08.md:334-336`, `:404`, `:420`, `:516`, `:649-650` |
 | `Activate`'s comment: its digest comes from the Hub's own event, never a body | `task-14.md:325-328` |
-| The `POST` answer now carries **both** follow-up calls | `task-14.md:575-583` |
-| Nine test rows, including the finding's `TestAnOrgPolicyPostedBeforeAnyLaunchActivates` on one store with no `delegation.Feed` and no delegation, plus one conformance row in task 08 | `task-14.md:898-899`, `:907-912`, `:917`, `:919`; `task-08.md:516` |
-| Step 3 appends **nothing** to `kinds`; step 4 lists the `subject=` work; step 5's grep now fails on `delegation.Feed` or `.Also(` | `task-14.md:972-990`, `:994-1001` |
+| The `POST` answer now carries **both** follow-up calls | `task-14.md:579-587` |
+| Nine test rows, including the finding's `TestAnOrgPolicyPostedBeforeAnyLaunchActivates` on one store with no `delegation.Feed` and no delegation, plus one conformance row in task 08 | `task-14.md:902-903`, `:911-916`, `:921`, `:923`; `task-08.md:516` |
+| Step 3 appends **nothing** to `kinds`; step 4 lists the `subject=` work; step 5's grep now fails on `delegation.Feed` or `.Also(` | `task-14.md:976-994`, `:998-1005` |
 | Task 11's `Feed.Also` and `Orgs()` doc comments carry the two conditions, with the failure named | `task-11.md:682-692`, `:1159-1169` |
 | Task 11's prose and its "does not claim" bullet: a consumer triggered by a person does not belong on `Also` | `task-11.md:1180-1193`, `:1605-1610` |
 | Plan body: task 14's summary (which still said "through the outbox" and `policy.version`), its row, and task 11's boundary sentence | `2026-09-25-phase-t-team-mode.md:613-629`, `:325`, `:575-580` |
@@ -3790,7 +3791,7 @@ another dependency on agent-shaped machinery, which is the defect's own family.
 - **S02-M6** (a re-validation refusal at activation is invisible in the `GET`) is untouched for
   the sweep's path. The **route's** answer does now carry the invariant, so an admin who calls
   activate sees the refusal; one who relies on the sweep still sees only `pending`. The "does not
-  claim" bullet says so (`task-14.md:1013-1018`).
+  claim" bullet says so (`task-14.md:1017-1022`).
 - **S02-I11** (this part is two tasks and overruns its hours) is untouched and got slightly worse:
   the estimate is now 3.5 h, stated in the header with I11 named (`task-14.md:3-8`).
 - Task 33 posting no policy layer is **recorded**, not fixed: TM1-α as written verifies the
