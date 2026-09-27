@@ -94,7 +94,7 @@ run "sandbox_stdout_is_never_collected" {
     error_message = "panacea-sandboxes is not among the DCR's excluded namespaces: a sandbox's stdout belongs to the agent's process tree, not to us."
   }
   assert {
-    condition     = jsondecode(azurerm_monitor_data_collection_rule.container_insights.data_sources[0].extension[0].extension_json).dataCollectionSettings.namespaces == var.excluded_log_namespaces
+    condition     = tolist(jsondecode(azurerm_monitor_data_collection_rule.container_insights.data_sources[0].extension[0].extension_json).dataCollectionSettings.namespaces) == var.excluded_log_namespaces
     error_message = "The DCR's excluded namespaces are not exactly var.excluded_log_namespaces."
   }
   assert {
