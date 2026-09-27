@@ -1237,11 +1237,14 @@ helper turns the project team through `SetProjectMode` as its team's admin (b01 
 I-6). Every delegation the tests create (`dl-1`, `dl-2`, …) is on that project. The same
 `fakeClock`. A `recRevoker` records
 every `Revoke(d, why)` and `Resume(d)` with the fake time it was called at. `leader` is a
-`*atomic.Bool` the test flips.
+`*atomic.Bool` the test flips. A `memInUse` is the shared store both `Feed`s read: a slice of
+`Use` behind a mutex, with `add(Use)` for what a launch would have written and a counter of its
+reads. Tests that exercise the cache alone construct `NewClient(cache, nil, clk.Now)`; the two
+that exercise the read-through pass the `Feed`.
 
 | Test | What it proves | The mutant it kills |
 |---|---|---|
-| `TestCtxRefusesWithoutADelegation` | no cache entry → `ErrNoDelegation`, and the fake saw **no** request | calling the Hub without the header and letting it answer 401 |
+| `TestCtxRefusesWithoutADelegation` | no cache entry and a nil `Source` → `ErrNoDelegation`, and the fake saw **no** request | calling the Hub without the header and letting it answer 401 |
 | `TestCtxRefusesARouteTheDelegationDoesNotList` | a worker-class delegation and `messages.append` → `ErrRouteNotDelegated` | a route check that trusts the Hub alone, so a doomed call still leaves |
 | `TestAnExpiredEntryIsNeverUsed` | `ExpiresAt` one ms in the past, before any sweep → `ErrNoDelegation` | `Get` ignoring expiry until the sweeper runs |
 | `TestSenderSetsTheRowIdAsTheKeyAndTheDelegation` | the fake records `Idempotency-Key = it.ID` and `X-Panacea-Delegation = dl-…` for an `agents.start` | the hubclient's fresh key surviving; the header missing |
@@ -1254,6 +1257,9 @@ every `Revoke(d, why)` and `Resume(d)` with the fake time it was called at. `lea
 | `TestLeaderChangeCannotLoseARevocation` | leader A reads `revoked` and dies before `Revoke`; follower B advanced its cursor; B takes the lock, `Reset` + `Rebuild` → one `Revoke(Revoked)` | revocation by event only |
 | `TestRebuildIsGapless` | a fake hook commits `delegation.revoked` after `OrgChanges(latest)` returns and before `Delegation(id)` returns; the next `Poll` applies it | reading the head **after** the state |
 | `TestAdoptReadsTheHeadBeforeTheRecord` | the same hook on `Adopt`; the next `Poll` revokes | `Adopt` in the other order (a 24-hour window) |
+| `TestASecondFeedSeesADelegationAdoptedOnTheFirst` | below, and it is the S02-C1 test: two `Feed`s on one `memInUse` and one fake Hub, A follower, B leader; B never calls `Adopt`, yet B's `Client` resolves the key with no poll and B calls `Revoke(Revoked)` within 60 s of the Hub revoking it | `Adopt` as the only way an org or a delegation is learned: the replica that did not serve the launch dead-letters its every write and never sweeps its revocation |
+| `TestRefreshReadsOnlyTheDelegationsItDoesNotKnow` | one `Refresh`, then a second on the same `memInUse`: the fake saw exactly one `Delegation(dl-1)`; after `Drop`, a third makes one more | a per-tick re-read of every live delegation (one Hub call per agent per 10 s) |
+| `TestResolveNeverInventsALapsedDelegation` | `memInUse` still lists a `dl-…` the Hub answers 401 `delegation_expired` for → `Ctx` is `ErrNoDelegation` and the `Revoker` got `Lapsed` exactly once | a read-through that trusts Fleet's own store instead of the Hub's answer |
 | `TestRebuildPersistsNothing` | after `Rebuild`, the `InUse` fake saw only its one read, and no method of task 10's store that writes was called | Hub records drifting into Fleet's schema (`ADR-H1:467-474`) |
 | `TestEveryOpHasADeliverer` | `outbox.AllOps` ⊆ keys of `deliverers`, and every Op is in task 01's orchestrator route set | a new `Op` with no route |
 
@@ -1268,7 +1274,7 @@ func TestRevocationReachesTheRevokerInsideSixtySeconds(t *testing.T) {
 	rev := &recRevoker{now: clk.Now}
 	leader := &atomic.Bool{}
 	leader.Store(true)
-	f := NewFeed(hub, hub, NewCache(), rev, leader.Load, clk.Now)
+	f := NewFeed(hub, hub, &memInUse{}, NewCache(), rev, leader.Load, clk.Now)
 	if _, err := f.Adopt(ctx, "org-a", dl); err != nil {
 		t.Fatal(err)
 	}
@@ -1287,7 +1293,7 @@ func TestRevocationReachesTheRevokerInsideSixtySeconds(t *testing.T) {
 	if lag := rev.calls[0].at.Sub(revokedAt); lag > 60*time.Second {
 		t.Fatalf("revocation reached the Revoker after %s; §2.4 item 4 allows 60 s", lag)
 	}
-	if _, err := NewClient(f.cache, clk.Now).Ctx(ctx, Key{OrgID: "org-a",
+	if _, err := NewClient(f.cache, nil, clk.Now).Ctx(ctx, Key{OrgID: "org-a",
 		Owner: "us-alice", ProjectID: "pj-one", Class: "worker"}, "agents.start"); !errors.Is(err, ErrNoDelegation) {
 		t.Fatalf("Ctx after revocation = %v; want ErrNoDelegation", err)
 	}
@@ -1296,6 +1302,59 @@ func TestRevocationReachesTheRevokerInsideSixtySeconds(t *testing.T) {
 
 `hubclient.WithClock`, `SeedDelegation` and `RevokeDelegation` are fake-only helpers this test needs
 from task 08; if task 08's fake names them otherwise, rename here.
+
+The two-`Feed` test, complete, because one `Feed` cannot show the defect S02-C1 found:
+
+```go
+func TestASecondFeedSeesADelegationAdoptedOnTheFirst(t *testing.T) {
+	ctx := context.Background()
+	clk := newFakeClock(time.Date(2026, 9, 25, 9, 0, 0, 0, time.UTC))
+	hub, project := hubclient.FakeTeamProject(t)
+	dl := hub.SeedDelegation(t, "org-a", "us-alice", project, "worker")
+	shared := &memInUse{} // one Fleet store; two replicas read it
+
+	// A served the launch and is a follower. B is the feed leader and holds
+	// the outbox. Only A calls Adopt. Nothing but the store passes between.
+	revA, revB := &recRevoker{now: clk.Now}, &recRevoker{now: clk.Now}
+	a := NewFeed(hub, hub, shared, NewCache(), revA, func() bool { return false }, clk.Now)
+	b := NewFeed(hub, hub, shared, NewCache(), revB, func() bool { return true }, clk.Now)
+	if _, err := a.Adopt(ctx, "org-a", dl); err != nil {
+		t.Fatal(err)
+	}
+	k := Key{OrgID: "org-a", Owner: "us-alice", ProjectID: project, Class: "worker"}
+	shared.add(Use{ID: dl, Key: k}) // task 20's agent row, its one transaction
+
+	// B delivers that launch's first write without waiting for a poll tick.
+	if _, err := NewClient(b.cache, b, clk.Now).Ctx(ctx, k, "agents.start"); err != nil {
+		t.Fatalf("B cannot resolve a delegation A adopted: %v", err)
+	}
+
+	hub.RevokeDelegation(t, dl)
+	revokedAt := clk.Now()
+	for clk.Since() < 2*time.Minute && len(revB.calls) == 0 {
+		clk.Advance(PollEvery)
+		for _, f := range []*Feed{a, b} {
+			if err := f.Refresh(ctx); err != nil {
+				t.Fatal(err)
+			}
+			for _, org := range f.Orgs() {
+				if _, err := f.Poll(ctx, org, FeedKinds); err != nil {
+					t.Fatal(err)
+				}
+			}
+		}
+	}
+	if len(revA.calls) != 0 {
+		t.Fatalf("the follower called the Revoker: %+v", revA.calls)
+	}
+	if len(revB.calls) != 1 || revB.calls[0].why != Revoked || revB.calls[0].d.ID != dl {
+		t.Fatalf("leader calls %+v; want exactly one Revoked for %s", revB.calls, dl)
+	}
+	if lag := revB.calls[0].at.Sub(revokedAt); lag > 60*time.Second {
+		t.Fatalf("the replica that did not serve the launch revoked after %s; §2.4 item 4 allows 60 s", lag)
+	}
+}
+```
 
 Run: `cd control-plane && go test ./internal/fleet/delegation/ -count=1`. Expected: a compile
 failure naming `NewFeed`, `NewCache`, `Rebuild` and the rest.
@@ -1325,6 +1384,13 @@ the two adapters are the only files that know task 10's types.
 **What this task does not claim.**
 - Nothing here runs a loop. Task 12 owns the goroutines, the 500 ms delivery tick, the 10 s poll and
   sweep, and the advisory locks `fleet.outbox` and `fleet.feed`; this task proves the bodies.
+- **`Refresh` tracks exactly what Fleet's own store calls in use, and nothing else.** A delegation
+  no live agent row runs under is not tracked and needs no act: every effect the `Revoker` has —
+  sessions, sockets, leases — hangs off an agent row. The window between `Adopt` and that row is
+  covered by the adopting replica's own cache, and it cannot leak a write to the other replica,
+  because task 20 writes the agent row and that launch's first outbox row in **one** transaction
+  (`task-20.md:395-400`). If a later task ever enqueues a row before the agent row commits, this
+  invariant breaks and the other replica is back to dead-lettering; pin it where that write is.
 - The `Revoker`'s effects — sessions stopped or paused, sockets closed, leases withdrawn, cards
   marked — are tasks 20, 23 and 39, and closing a socket held by the **other** replica is task 39's
   fan-out. Task 44 proves member removal end to end against the real Hub.
