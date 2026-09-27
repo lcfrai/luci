@@ -468,6 +468,60 @@ func (r *Reaper) Sweep(ctx context.Context) error {
 		}
 	}
 
+	// Rule 3a, task 25's amendment to contract §5.3, and the rule F1 and F3
+	// both need: a record that is already `exited` whose sandbox is still on
+	// the daemon. Nothing else in the phase collects one. Rule 2 and rule 3
+	// skip exited records because exited is terminal, and rule 4 counts an
+	// exited record as tracking its sandbox, so the container it names is
+	// invisible to every other rule.
+	//
+	// F1's leak is the obvious one: a create the cockpit abandoned left a
+	// record exited — "the sandbox could not be created" — still naming a
+	// container `Created` an hour later. F3's is the bigger one and it is new
+	// as of task 25: now that sandboxd exits when its process does, EVERY
+	// session ends in a stopped container, and without this rule every one of
+	// them stays on disk for ever.
+	//
+	// NO CREATE GRACE, and that is deliberate rather than an omission. The two
+	// paths that mint a container both write `starting` to the record BEFORE
+	// they call backend.Create — create at sessions.go's step 4, restart in the
+	// write above its own Create — so a record cannot be `exited` while a
+	// create for it is in flight. Rule 4 needs the grace because a restart's
+	// container exists before its id is recorded; this rule keys on the record,
+	// which is the thing that is already terminal.
+	//
+	// It rewrites NOTHING. The record is the provenance — it is what says which
+	// container this was — and it is terminal already; markExited would refuse
+	// it anyway. One sweep of lag is built in and is not a defect: rule 3 above
+	// wrote `exited` after this sweep's snapshot was taken, so the session it
+	// just ended is collected by the next sweep, thirty seconds later.
+	for _, s := range sessions {
+		if s.Status != registry.StatusExited || s.SandboxID == "" || gone[s.SandboxID] {
+			continue
+		}
+		sb, alive := bySandbox[s.SandboxID]
+		if !alive {
+			continue
+		}
+		// Rule 1a owns every NonLoopback sandbox unconditionally, including the
+		// ones whose destroy failed, and says so in a security message this one
+		// would mislabel as routine litter. Same reason rule 4 skips them.
+		if sb.NonLoopback {
+			continue
+		}
+		if !r.owns(ctx, sb, tracked) {
+			continue
+		}
+		if err := r.be.Destroy(ctx, sb.ID); err != nil {
+			r.log.Warn("could not destroy a sandbox whose session has already exited; retrying next sweep",
+				"sandbox", sb.ID, "session", s.ID, "ref", sb.Ref, "err", err)
+			continue
+		}
+		gone[sb.ID] = true
+		r.log.Info("destroyed a sandbox because its session has already exited",
+			"sandbox", sb.ID, "session", s.ID, "ref", sb.Ref)
+	}
+
 	// Rule 4: ours, but no record. This is the crash-recovery path, and it is
 	// why task 11 writes the registry record BEFORE it creates the container.
 	for _, sb := range live {

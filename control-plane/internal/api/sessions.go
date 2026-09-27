@@ -20,6 +20,7 @@ import (
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/harness"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/httpx"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/ids"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/reaper"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/registry"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/worktree"
 )
@@ -785,6 +786,53 @@ func (a *API) sessionReadyTimeout() time.Duration {
 	return backend.ReadyTimeout
 }
 
+// sessionDestroyBudget bounds the cleanup of a sandbox a create failed to
+// finish. Short on purpose: it runs inside the request that is about to answer
+// with the failure, and a daemon that cannot destroy a container in ten seconds
+// is one the reaper's rule 3a should take instead of one this handler should
+// wait for.
+const sessionDestroyBudget = 10 * time.Second
+
+// sessionCreateContext detaches the sandbox create from the caller, and F1 is
+// why it exists (docs/verification/2026-09-27-phase-2-results.md).
+// handleSessionCreate ran backend.Create on r.Context(), so the cockpit's own
+// abort at DEFAULT_TIMEOUT_MS cancelled ContainerCreate or ContainerStart
+// mid-flight and left a container `Created` that no rule would take. A create
+// is not a read: it makes state outside this process, and state outside this
+// process must not be owned by a connection that is free to close.
+//
+// WithoutCancel rather than Background: the caller's values — a request id, a
+// deadline set by something upstream of the cockpit — stay, and only the
+// cancellation goes.
+//
+// Bounded rather than open-ended, and bounded by exactly reaper.CreateGraceFor:
+// that is how long the sweep spares a session whose create is still in flight,
+// so a create that runs past it is one the reaper has already stopped
+// protecting, and two numbers that must agree are derived from one function
+// rather than written down twice.
+func (a *API) sessionCreateContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.WithoutCancel(ctx), reaper.CreateGraceFor(a.sessionReadyTimeout()))
+}
+
+// destroyAfterFailedCreate removes whatever a failed create left behind. F1's
+// second part: backend.Create can fail after ContainerCreate has succeeded — a
+// start that fails, a sandbox that never answers /healthz, a deadline — and the
+// container it made is then named by a record that is about to become exited,
+// which is terminal and which every reaper rule but 3a skips.
+//
+// Its own context: the failure the caller is handling may BE createCtx's
+// deadline, and a Destroy on a context that is already done destroys nothing.
+// Best effort by design — the reaper's rule 3a is the backstop, and the log
+// line says so rather than pretending this was the last chance.
+func (a *API) destroyAfterFailedCreate(sandboxID, sessionID string) {
+	ctx, cancel := context.WithTimeout(context.Background(), sessionDestroyBudget)
+	defer cancel()
+	if err := a.deps.Backend.Destroy(ctx, sandboxID); err != nil && !errors.Is(err, backend.ErrNotFound) {
+		a.sessionLog().Warn("could not destroy the sandbox of a create that failed; the reaper will reclaim it",
+			"sessionId", sessionID, "sandbox", sandboxID, "err", err)
+	}
+}
+
 // handleSessionCreate is contract §5.1, in its order, and the order is the
 // point: resolve before creating so a bad id costs nothing, record before the
 // sandbox so a failure leaves evidence rather than an unnameable orphan.
@@ -979,8 +1027,10 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 5. The sandbox.
-	sb, err := a.deps.Backend.Create(ctx, backend.Spec{
+	// 5. The sandbox, on a context of its own: see sessionCreateContext (F1).
+	createCtx, endCreate := a.sessionCreateContext(ctx)
+	defer endCreate()
+	sb, err := a.deps.Backend.Create(createCtx, backend.Spec{
 		ID:          sessionID,
 		SessionID:   sessionID,
 		Image:       a.sessionImage(),
@@ -996,6 +1046,9 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		// The reason on the record is written for the user; the raw error goes
 		// to the log, because it can carry a host path.
 		a.sessionLog().Error("create the sandbox", "sessionId", sessionID, "err", err)
+		// Before the record goes terminal, because exited is what makes the
+		// container invisible to every rule but the reaper's 3a.
+		a.destroyAfterFailedCreate(sessionID, sessionID)
 		a.markSessionExited(sessionID, "the sandbox could not be created")
 		a.writeBackendProblem(w, r, "create the sandbox", err)
 		return
@@ -1666,7 +1719,11 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sb, err := a.deps.Backend.Create(ctx, backend.Spec{
+	// Its own context, for the same reason create's is: F1's abort cancels a
+	// restart's Docker calls exactly as it cancels a create's.
+	createCtx, endCreate := a.sessionCreateContext(ctx)
+	defer endCreate()
+	sb, err := a.deps.Backend.Create(createCtx, backend.Spec{
 		ID:          sandboxID,
 		SessionID:   sess.ID,
 		Image:       a.sessionImage(),
@@ -1680,6 +1737,7 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		a.sessionLog().Error("restart: create the sandbox", "sessionId", id, "err", err)
+		a.destroyAfterFailedCreate(sandboxID, id)
 		a.markSessionExited(id, "the sandbox could not be recreated")
 		a.writeBackendProblem(w, r, "create the sandbox", err)
 		return

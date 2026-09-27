@@ -446,7 +446,90 @@ func TestSweepMarksAStoppedSandboxExited(t *testing.T) {
 		t.Errorf("s-1 = (%q, %q), want (exited, \"process exited\")", s.Status, s.ExitReason)
 	}
 	if be.wasDestroyed("sb-1") {
-		t.Error("a stopped sandbox with a live record was destroyed; DELETE with purge owns that, not the reaper")
+		t.Error("a stopped sandbox with a live record was destroyed in the sweep that ended its session;" +
+			" rule 3a collects it on the next sweep, once the record is exited in the snapshot")
+	}
+}
+
+// Rule 3a, and it is the rule F1 and F3 both need.
+//
+// F3: rule 3 writes `exited` over the record and leaves the container on disk,
+// because rule 4 counts an exited record as tracking its sandbox. Before the
+// daemon exited with its process that was rare; now that every session ends in
+// a stopped container, it is every session.
+//
+// F1: a create the cockpit abandoned left a record `exited` — "the sandbox
+// could not be created" — still naming a container that was `Created` an hour
+// later, and no rule would take it (docs/verification/2026-09-27-phase-2-results.md).
+func TestSweepDestroysTheSandboxOfAnExitedSession(t *testing.T) {
+	t.Parallel()
+	store := newStore(t)
+	seed(t, store, registry.Session{
+		ID: "s-1", SandboxID: "sb-1",
+		Status: registry.StatusExited, ExitReason: "process exited",
+	})
+	be := &fakeBackend{sandboxes: []backend.Sandbox{managed("sb-1", backend.StateStopped)}}
+	r, logs := newReaper(t, store, be, 0, 0)
+
+	if err := r.Sweep(context.Background()); err != nil {
+		t.Fatalf("Sweep: %v", err)
+	}
+	if !be.wasDestroyed("sb-1") {
+		t.Error("the sandbox of an exited session was left behind; nothing else in the phase removes it")
+	}
+	// The record is the provenance: it is what says which container this was,
+	// and it is already terminal, so the sweep must not rewrite it.
+	s := get(t, store, "s-1")
+	if s.Status != registry.StatusExited || s.ExitReason != "process exited" || s.SandboxID != "sb-1" {
+		t.Errorf("s-1 = (%q, %q, %q), want (exited, \"process exited\", sb-1) unchanged",
+			s.Status, s.ExitReason, s.SandboxID)
+	}
+	if !strings.Contains(logs.String(), "its session has already exited") {
+		t.Errorf("the log does not say why the sandbox was destroyed; got %q", logs.String())
+	}
+}
+
+// F1's shape exactly: the container the cockpit's abort left half-made. It is
+// not stopped — it was created and never started — and the record went straight
+// to exited without one, so only a rule that keys on the RECORD can find it.
+func TestSweepReclaimsTheContainerAnAbandonedCreateLeftBehind(t *testing.T) {
+	t.Parallel()
+	store := newStore(t)
+	seed(t, store, registry.Session{
+		ID: "s-1", SandboxID: "s-1",
+		Status: registry.StatusExited, ExitReason: "the sandbox could not be created",
+	})
+	be := &fakeBackend{sandboxes: []backend.Sandbox{managed("s-1", backend.StateStarting)}}
+	r, _ := newReaper(t, store, be, 0, 0)
+
+	if err := r.Sweep(context.Background()); err != nil {
+		t.Fatalf("Sweep: %v", err)
+	}
+	if !be.wasDestroyed("s-1") {
+		t.Error("the container of a create that failed was left Created; this is F1's leak")
+	}
+}
+
+// A failed destroy is a retry, never a rewritten record: the container is still
+// there, and saying otherwise would lose the only id that can find it again.
+func TestSweepKeepsTheRecordOfAnExitedSessionWhoseSandboxWillNotDie(t *testing.T) {
+	t.Parallel()
+	store := newStore(t)
+	seed(t, store, registry.Session{
+		ID: "s-1", SandboxID: "sb-1",
+		Status: registry.StatusExited, ExitReason: "process exited",
+	})
+	be := &fakeBackend{
+		sandboxes:  []backend.Sandbox{managed("sb-1", backend.StateStopped)},
+		destroyErr: map[string]error{"sb-1": errors.New("daemon says no")},
+	}
+	r, _ := newReaper(t, store, be, 0, 0)
+
+	if err := r.Sweep(context.Background()); err != nil {
+		t.Fatalf("Sweep: %v", err)
+	}
+	if got := get(t, store, "s-1").SandboxID; got != "sb-1" {
+		t.Errorf("SandboxID = %q, want sb-1: the next sweep has to be able to find it", got)
 	}
 }
 
