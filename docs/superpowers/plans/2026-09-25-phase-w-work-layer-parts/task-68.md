@@ -469,3 +469,141 @@ stack exists so an unmount never leaves a dead opener.
 each adds one *New issue from this* button calling `openNewIssue({ kind, projectId, ref }, el)`
 with the same ref its comment button passes; that edit is a line each and belongs to whichever
 of the two merges second.
+
+#### Tests to write first, part 1 — `desktop/src/components/work/NewIssue.test.tsx`
+
+```tsx
+// Renders the Work lens with task 53's dispatcher live and a stubbed mutate (task 56), so the
+// key path is the real one. The fixtures are task 40's heads plus one Desk row for EP-142.
+
+// 1. `C` opens the composer only with list focus (05 §4.3 rule 1).
+//    focus a row, press C → the composer is on screen, anchored (a Popover, not a dialog);
+//    focus the filter input, press C → the input's value is "c" and no composer;
+//    mount task 26's terminal, focus it, press C → xterm saw the key and no composer.
+//    Mutant it kills: a `document.addEventListener("keydown")` in NewIssue, which steals the
+//    letter from every text field in the app.
+// 2. From a Desk row about EP-142, the create stands and a `relates` follows it.
+//    open from the row, type a title, Enter → mutate saw, in order, one `createIssue` op and
+//    then one `relation` op whose `from` is the new issue's id and `to` is EP-142's.
+//    Mutant: the relation dropped, so the created issue names nothing it came from.
+// 3. From a span, the ref travels as a reference and not as text.
+//    open with from = {kind:"span", ref:"session:s-1@2026-09-25T02:14:07Z"} → the request's
+//    `origin` is {kind:"span", ref: that string} and its `description.text` does not contain
+//    "session:" or any observed line from the span.
+//    Mutant: the ref pasted into the description, which makes the issue's text a copy that
+//    drifts from the record.
+// 4. The state is the team's. A team whose `defaultState` is "backlog" (replica fixture) →
+//    the request's `state` is "" and the ghost row paints `backlog`; a team whose default is
+//    `triage` paints `triage`. Mutant: "triage" hard-coded in the request.
+// 5. The body is mine. The request's `title.author` and `description.author` are both "H" and
+//    the composer's preview shows the `text·H` mark (task 46's AuthorClass).
+//    Mutant: no author class, so a human's words are indistinguishable from an agent's.
+// 6. A 422 keeps the composer open and leaves no ghost. mutate rejects with
+//    problems.classify → {status:422, detail:"title is required by this team's template"} →
+//    the composer is still on screen, shows that sentence verbatim, the title field still
+//    holds what was typed, and the list has no row with the local id.
+//    Mutant: the optimistic row stays, so a refused create looks created until the next sync.
+// 7. Serving is a visible choice. With nothing picked the composer shows `not tied · chore`;
+//    `N` cycles the four reasons; `T` opens task 42's CriterionPicker and picking c-91e2 puts
+//    it in `serves` and clears the reason. Mutant: `notTiedReason` sent without being shown.
+// 8. `expectNoPrediction(composer)`: no `~`, no `%`, no progressbar, no estimate.
+// 9. `Esc` closes and keeps nothing: reopening shows an empty title.
+```
+
+#### Tests to write first, part 2 — the op, the wire and the origin line
+
+```tsx
+// desktop/src/work/replica/ops.test.ts ⚑ (task 56's file, four rows added)
+// 10. `createIssue` is not undoable: `undoable(op)` is false and no Undo affordance is shown
+//     for it (decision 2). Mutant: undo offered, which would need a delete the Hub has not.
+// 11. applyLocal paints one ghost head with the local id and the team's default state, and
+//     the Hub's answer replaces it by id with no second row appearing at any point.
+//     Mutant: the ghost keyed by title, so the real head arrives as a duplicate row.
+// 12. `fieldsOf(createIssue)` is [], so task 56's field-level conflict rule never fires on a
+//     create. Mutant: ["title"], which would make two creates look like a conflict.
+
+// desktop/src/api/work.test.ts ⚑ (task 37's golden round-trip, two rows added)
+// 13. A `CreateIssueRequest` with an origin round-trips against the Go fixture copied by path
+//     from hubapi's golden file (not retyped): `origin.kind` and `origin.ref`, exactly those
+//     JSON names. Mutant: `originKind` flattened, which tsc alone would not catch.
+// 14. An `IssueHead` from a Hub that dropped the field parses with `origin === undefined` and
+//     is not an error (hub-contract §1: unknown and missing are both tolerated).
+
+// desktop/src/components/issue/IssueOriginLine.test.tsx
+// 15. With `origin.kind === "span"` the line reads *from a span in session s-1 at 02:14* and
+//     links to the session; with the field absent it reads *origin not recorded* and links
+//     nowhere. Mutant: a link built from the ref when the field is absent, i.e. a pretend link.
+```
+
+#### Steps
+
+- [ ] Add `IssueOrigin`, `CreateIssueRequest.origin` and `IssueHead.origin` to
+      `hubapi/work.go`, keep them in `fake_work.go`, and extend the Go golden fixture. Run
+      `go test ./internal/hub/...`; tasks 03 and 10's suites pass unchanged.
+- [ ] Mirror the three into `desktop/src/api/work.ts`; write tests 13 and 14 first. Mutants:
+      flatten to `originKind` (13); throw on a missing field (14).
+- [ ] Add the `createIssue` op to `ops.ts` with tests 10-12 first. Mutants: `undoable: true`
+      (10); key the ghost by title (11); `fieldsOf` returns `["title"]` (12).
+- [ ] Add `C` to task 53's `KEYMAP` in the `list` scope only. Write test 1, then `NewIssue.tsx`
+      part 1 and part 3 (`openNewIssue`, `useNewIssueVerb`) until it passes. Mutant: a
+      `document` listener.
+- [ ] Write the composer (part 2) and tests 4-9. Mutants: `"triage"` in the request (4); drop
+      the author class (5); leave the ghost on a refusal (6); hide the not-tied reason (7).
+- [ ] Write test 2 and the second op; then test 3 and the span and hunk entry points in
+      `Peek.tsx`. Mutants: drop the relation (2); paste the ref into the description (3).
+- [ ] Write `IssueOriginLine.tsx` and test 15, and mount it in task 46's issue head.
+- [ ] Add the *New issue* command to `commands.ts` once task 59 lands; if 59 is not merged,
+      leave the row out and say so in the commit, rather than guessing its shape.
+- [ ] Tasks 37, 42, 46, 53, 55, 56 and 60's suites still pass. Commit each file as it goes green.
+
+#### Acceptance
+
+```bash
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop test -- src/components/work/NewIssue.test.tsx src/work/replica/ops.test.ts src/components/issue/IssueOriginLine.test.tsx'
+# expected: 3 files, 15 tests, all passing
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop test'
+# expected: every suite passing, tasks 37, 42, 46, 53, 56 and 60 included
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop run typecheck'
+# expected: exit 0
+~/.claude/tools/claudezsh/claudezsh 'cd control-plane && go test ./internal/hub/...'
+# expected: ok, the golden fixtures updated in the same commit as the type
+~/.claude/tools/claudezsh/claudezsh 'grep -n "addEventListener" desktop/src/components/work/NewIssue.tsx'
+# expected: no output (decision 1: the verb reaches the composer through task 53's dispatcher)
+~/.claude/tools/claudezsh/claudezsh 'grep -nE "\"triage\"|.triage." desktop/src/components/work/NewIssue.tsx'
+# expected: no output (decision 3: the state is the team policy's)
+~/.claude/tools/claudezsh/claudezsh 'grep -n "role=\"dialog\"" desktop/src/components/work/NewIssue.tsx'
+# expected: no output (decision 8: a Popover beside the row, never a modal over the work)
+```
+
+#### What this task does NOT claim
+
+- **Templates.** A team template that prefills or requires fields is task 78 (W2) and task 89.
+- **The prefill deep link** (`panacea://work/new?title=…`): task 93.
+- **Drafts.** Nothing survives `Esc`; a draft that outlives the composer is task 80/92.
+- **Create from Discover's criteria.** W4 owns the criterion-first create.
+- **That the real Hub stores `origin`.** Decision 7 adds the field under WS0's rule; no WH task
+  owns the column or the route yet (gap 1), so against the built Hub the field is dropped and
+  the issue view says *origin not recorded*.
+- **The P3-21 surfaces.** `desktop/src/components/lens/files/` does not exist on this tree
+  (checked 2026-09-26); the two buttons are named and left for whichever plan merges second.
+- **A measured open time.** The composer's paint is not budgeted or recorded here.
+- **Visual acceptance:** the owner's eyes (CLAUDE.md, working agreements).
+- **Parity:** closes L-29 and L-9's create half; serves L-124. It does not close L-9's policy
+  half (the team policy editor is task 77).
+
+#### Gaps found while writing this part
+
+1. **`origin` has no Hub owner.** WS0's rule allows the added field, but no WH task in the
+   skeleton writes the column, the route's validation or the event. It needs one, and until it
+   exists the field is desktop-and-fake only.
+2. **No `task-59.md` on the tree** at this writing, so the palette row's shape (`Command.chord`
+   vs `Command.hint`) is **UNVERIFIED**; the scope for 59 says `hint`, this part's comment says
+   `chord`. Task 59 decides, and this part follows it.
+3. The skeleton's file map has no `components/issue/IssueOriginLine.tsx`; task 46's row should
+   gain it.
+4. **Withdrawing a create.** Decision 2 says a created issue is withdrawn by moving it to
+   `canceled`, but 05 names no `canceled` state in W1's set beyond the team's own; if the team
+   has no such state, a mis-created issue has no exit. Worth one sentence in 05 §3.
+5. `Popover.tsx:10`'s props are `{anchor, onClose, children}` (verified); it has no focus trap,
+   so the composer's own `Esc` and focus handling are this part's, and two popovers open at
+   once are not prevented anywhere.
