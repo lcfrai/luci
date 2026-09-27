@@ -1737,6 +1737,8 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		a.sessionLog().Error("restart: create the sandbox", "sessionId", id, "err", err)
+		// Pinned by TestARestartThatCannotCreateDestroysTheContainerItJustMade:
+		// deleting this line left the package green until that test existed.
 		a.destroyAfterFailedCreate(sandboxID, id)
 		a.markSessionExited(id, "the sandbox could not be recreated")
 		a.writeBackendProblem(w, r, "create the sandbox", err)

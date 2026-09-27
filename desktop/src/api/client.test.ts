@@ -627,6 +627,35 @@ describe("createClient — the create budget", () => {
     }
   });
 
+  // The budget was applied to restartSession in the same edit as createSession and tested on
+  // neither restart nor its server-side half: POST /v1/sessions/{id}/restart makes a container
+  // by the same three steps — ContainerCreate, ContainerStart, the wait for /healthz — so ten
+  // seconds is as wrong there as it was on a create, and a restart runs on a session the user is
+  // watching fail.
+  it("gives a restart the create budget, because a restart makes a container too", async () => {
+    vi.useFakeTimers();
+    try {
+      const outcomes: string[] = [];
+      const pending = createClient({ fetch: hangingFetch })
+        .restartSession("s-1")
+        .then(
+          () => outcomes.push("resolved"),
+          (e: ApiError) => outcomes.push(`${e.code}: ${e.message}`),
+        );
+
+      await vi.advanceTimersByTimeAsync(DEFAULT_TIMEOUT_MS + 1_000);
+      expect(outcomes).toEqual([]);
+
+      await vi.advanceTimersByTimeAsync(CREATE_TIMEOUT_MS);
+      await pending;
+      expect(outcomes).toHaveLength(1);
+      expect(outcomes[0]).toContain("timeout: ");
+      expect(outcomes[0]).toContain(`${CREATE_TIMEOUT_MS} ms`);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("obeys an explicit timeoutMs, on a create as on anything else", async () => {
     // A caller that names a budget means it. The longer create budget is the DEFAULT's
     // replacement, not an override of what the caller asked for.
