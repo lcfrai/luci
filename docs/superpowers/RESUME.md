@@ -61,6 +61,68 @@ lock in the old session's scratchpad was **stale and is released** — the first
 (PIDs 33984/34692, containers `s-6a855488`, `s-f44823fb`, `s-e19633bd`) no longer exists, so the
 three records it asks someone to DELETE cannot be deleted and need not be.
 
+## 0c. SUPERSEDES 0b — state at 2026-09-28 00:20
+
+**The phase 2 end-to-end proof RAN, in full, on a quiet host** (2026-09-27 22:14). 19 checks,
+**10 PASS, 9 FAIL**, harness exit 1. Its document is `docs/verification/2026-09-27-phase-2-results.md`,
+its run report `SDD/task-25-run4-report.md`, its raw evidence `SDD/e2e-run4/`, and an adversarial
+faithfulness review of the document is `SDD/task-25-review-2.md` (1 C, 1 I, 5 M). Full suites were
+green at the end of it: Go exit 0 (19 ok), npm test 34 files / 873 tests, typecheck 0. **That is the
+baseline any later change must beat.**
+
+Two things changed the picture:
+- **F5 is new and owns 5 of the 9 failures**: typed input draws no output, on a host that is NOT
+  loaded (1.0–1.8 s per git spawn throughout). Typing worked earlier in the same run and then
+  stopped; the first failure follows `c1.cap` putting eleven sessions on one branch, which run 1
+  saw too. Mechanism unknown and deliberately not guessed at.
+- **F2 killed `o2.resume`**, and the document first said otherwise. The run's one `level=ERROR`
+  line (22:08:42.762, the bare `exit status 1: `) sits inside `o2.resume`, not `d.cp-restart`.
+  So the only end-to-end proof of Resume (OC 2, seam SX.10) was lost to one flaky 10 s host-git
+  read on an idle machine. F2 is not a message defect; it loses a headline capability.
+- **F3 owns 3 more**: 634 `attach relay ended` lines in 11 minutes, which is why carries 1 and 9
+  are still unobserved rather than refuted. F1 did not fire (0 `context canceled`). F4 untested.
+
+### Running at 00:20 (4 workflows, this session `56a311e8-…`)
+
+| Task | Run | Script | Args | What |
+|---|---|---|---|---|
+| `w1yw8vduj` | `wf_6275d967-08f` | SS `phase2-defect-wave-wf_6275d967-08f.js` | none | main tree: F5 diagnose→fix, F2+F4→X-3, F1+F3, task 25 round 2, task 26, gate |
+| `wy1rxpivw` | `wf_e0e0b212-30e` | WS `wave-c-plan-finish.js` | `{"stream":"work"}` | work-layer plan; idempotent, relaunch fresh |
+| `w433wtx1x` | `wf_484551ac-ab6` | SS `team-planfix-continue-wf_484551ac-ab6.js` | none | team plan fix, b01 re-review onward |
+| `wgp4p04v8` | `wf_37c05186-777` | SS `p6-planfix-continue-wf_37c05186-777.js` | none | p6 plan fix b05→b08, then carry-index |
+
+### THE RULE THAT MATTERS MOST NOW
+
+**A build stream must never be relaunched fresh.** A fresh launch re-runs its gate — whose
+sync-merge pulls the now-moved `feat/phase-2-cockpit` into a half-finished fix round — and re-runs
+its triage, which regroups batch ids and can **rebuild already-approved tasks**. Run ids from
+session `2ce0c1a9-…` are dead and cannot be resumed. So each stream needs a *continuation* that
+skips gate and triage and starts at its named next unit.
+
+**The survey that makes this possible is
+`<scratchpad>/stream-survey.json`** (run `wzgi7wgco`, 2026-09-28 00:05). For all seven streams it
+records stage, approved task ids with their verdict lines, the exact next unit, what was in flight
+when it died, the uncommitted work and whether it is salvage, the verified continuation args, and
+the hazards. **Read it before resuming any stream.** Headlines:
+
+| Stream | Stage | Approved | Next unit | Uncommitted |
+|---|---|---|---|---|
+| p3 | build | 2 / 24 | `t03:fix-1` — only `go build` + `go vet` and the ledger line remain | none (clean) |
+| hub | build | 6 / 44 (05 carried) | `t07:fix-1` — 4 mutants, 2 files to commit | 2 files, salvage |
+| p4 | build | 9 / 23 | `t09:fix-1` | 5+ files, salvage |
+| p5 | build | 4 / 31 | `t04:fix-1` | 1 file, salvage |
+| p7 | build | 3 / 20 | `t04:fix-1` | 5+ files, salvage |
+| env | build | 5 / 35 | `t03:impl` round 3 | 2 files, salvage |
+| p6 | plan-fix | 0 / 27 | running now (`wgp4p04v8`) | 4 files, being committed |
+
+Every one died mid-fix-round with work on disk. **Finish the unit; never restart it.**
+
+**Held, and why:** the six build streams run Go `-race` and npm suites (p3 alone: lanes ~974 s,
+gitx ~1110 s). Three p3 runs were already VOIDED by host-kill artifacts under load
+(`exit 0xc0000142` "git could not start", `link.exe 0xc000013a`) — the same environmental
+fragility as the `vitest` forks-pool worker timing out after 60 s on an idle host. They start once
+the F5 diagnostic in `w1yw8vduj` has its answer, because F5 only reproduces on a quiet host.
+
 ## 1. What was running at shutdown (7 workflows)
 
 | Stream | Worktree / branch | Last run id | Script | args |
