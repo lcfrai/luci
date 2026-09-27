@@ -312,6 +312,19 @@ func TestInspectReportsTheExcludeLine(t *testing.T) {
 	}
 }
 
+// An old block in the UNTRACKED other candidate is not repository text: the
+// next start strips it, so Committed does not list it (mutation M11b).
+func TestAnUntrackedOtherCandidateIsNotCommitted(t *testing.T) {
+	e := newEnv(t)
+	e.write(contextwrite.AltFileName, block(idB, 2, "older"))
+	e.src.set(inh(doc(idA, 6, "x")), nil)
+	ins := e.inspect(e.req())
+	if ins.Path != e.path(contextwrite.FileName) || ins.State != contextwrite.StatePending {
+		t.Fatalf("Path %q State %q, want the target CLAUDE.md pending", ins.Path, ins.State)
+	}
+	wantEmptyLists(t, ins, true)
+}
+
 func TestInspectWithoutBriefExpectsNothing(t *testing.T) {
 	e := newEnv(t)
 	e.write(contextwrite.FileName, block(idA, 5, "old"))
