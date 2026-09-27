@@ -4,7 +4,7 @@ Phase 2's defining claims — scrollback survives a re-parent, and sessions surv
 restart — were **not observed** in this document's run: it stopped at its first check, `setup`,
 when the control plane killed a host-git read at its 10 s bound on a host saturated by other work.
 The image, its fail-closed start, token rejection and the harness flags were proven, and the day's
-runs found three product defects (F1-F3), reported to their owners and not fixed here.
+runs and Go suite found four product defects (F1-F4), reported to their owners and not fixed here.
 
 Run on the development machine (Windows 11) against Docker Desktop 29.4.3, image
 `panacea-app/sandbox:dev` (`sha256:243189316a3e…`) created `2026-09-23T06:52:05.425529555Z` from
@@ -20,7 +20,7 @@ timing.** Sampled as a session create feels it (five `git config` spawns, then o
 16-18 other `go.exe` processes running. On such a host a 10 s bound on one git call cannot hold
 (F2), and a 10 s client budget on a create cannot either (F1). Those are findings, recorded as
 observed; nothing was loosened, and no check was re-run until green (task 25's rule). A red here is
-not a verdict on the code on a normal host, and a green on a normal host would not undo F1-F3.
+not a verdict on the code on a normal host, and a green on a normal host would not undo F1-F4.
 
 **Ports.** The plan names 8730 (API), 1420 (Vite) and 9222 (CDP). On the orchestrator's rule for this
 shared machine this document's run used 8813 (API), 8814 (Vite, `--port 8814 --strictPort`,
@@ -137,14 +137,15 @@ which findings below bear on which item — is in the task's owner checklist in 
 ## Findings
 
 Each was measured in the day's control-plane logs and containers — F2 in this document's run,
-F1 and F3 in the earlier runs listed below. None is fixed here (task 25 reports; the task that
+F1 and F3 in the earlier runs listed below — except F4, which the Go suite found. None is fixed here (task 25 reports; the task that
 owns the file fixes).
 
 | # | What failed | Evidence | Owner |
 |---|---|---|---|
 | F1 | **A create the cockpit gives up on is cancelled half-made, and leaks a container.** The cockpit aborts `POST /v1/sessions` at `DEFAULT_TIMEOUT_MS` = 10 s (`desktop/src/api/client.ts:33`); under this load a create took about 15 s. The abort cancels the request context, which the create's Docker calls run on. | `dockerbe: start panacea-app-s-12993e6c: … context canceled` (08:09:58); `dockerbe: create panacea-app-s-e19633bd: … context canceled` (08:58:34); the cockpit's own text *"The control plane did not answer POST …/v1/sessions within 10000 ms."*; the record `exited` / *"the sandbox could not be created"* yet still naming `sandboxId s-e19633bd`, and that container `Created` more than an hour later, through a restart's startup sweep: the reaper counts an exited record as tracked (`reaper.go:372-377`) and rules 2 and 3 skip exited records (`:435`, `:459`). | `control-plane/internal/api/sessions.go` (a create must not run on the caller's context) with the reaper (task 13); the 10 s budget is `client.ts`'s (task 20) |
-| F2 | **A timed-out host-git call reads as `exit status 1:` with nothing after it.** `project.GitTimeout` = 10 s (`control-plane/internal/project/gitrunner.go:17`); on Windows the kill is `TerminateProcess(…, 1)`, so the timeout reports as a plain exit 1 with empty output and the cause is never named. | 10 such lines in the day's two control-plane logs (9 in the first stack's, 1 in this run's), plus one `exec: canceling Cmd: TerminateProcess: Access is denied.`; e.g. `git config --get --system --includes --default native core.eol …: exit status 1: ` and `git for-each-ref --format=%(refname:short) refs/heads …: exit status 1: `; the run's `setup` failed on the second (`GET …/branches -> 500`); load sampled beside it: five git spawns in 40.9 s. The Go suite hit it too, on the same host an hour later: `TestEveryHostGitRunsInADirectoryOfItsOwn` failed with five `line endings, 6 creates at once: read core.autocrlf: … exit status 1: ` lines (`githostconfig_reap_test.go:122`), on Go that passed the same suite at 07:10. | `gitrunner.go` (the error must say it timed out, and after how long); the 10 s bound itself is worth re-deciding with it |
+| F2 | **A timed-out host-git call reads as `exit status 1:` with nothing after it.** `project.GitTimeout` = 10 s (`control-plane/internal/project/gitrunner.go:17`); on Windows the kill is `TerminateProcess(…, 1)`, so the timeout reports as a plain exit 1 with empty output and the cause is never named. | 10 such lines in the day's two control-plane logs (9 in the first stack's, 1 in this run's), plus one `exec: canceling Cmd: TerminateProcess: Access is denied.`; e.g. `git config --get --system --includes --default native core.eol …: exit status 1: ` and `git for-each-ref --format=%(refname:short) refs/heads …: exit status 1: `; the run's `setup` failed on the second (`GET …/branches -> 500`); load sampled beside it: five git spawns in 40.9 s. The Go suite hit it too, on the same host an hour later: `TestEveryHostGitRunsInADirectoryOfItsOwn` failed with five `line endings, 6 creates at once: read core.autocrlf: … exit status 1: ` lines (`githostconfig_reap_test.go:122`), on Go that passed the same suite at 07:10. Run once more at 13:21-13:50 (exit 1; five git spawns 2.8-56.1 s beside it), `control-plane/cmd/api` failed three tests on the same reads (`gitglobalfiles_test.go:177`, `githostconfig_reap_test.go:42` and `:122`), and **three of the four errors read `context deadline exceeded: `**, one `exit status 1: `. Go returns a killed process's own non-zero status (`os/exec/exec.go:261-268`, go1.26.2), which is the bare exit 1 above; `context deadline exceeded` is a different path: a git that exited 0 as the kill landed, or one never started because its context had already expired. So the cause is sometimes named, never with its bound; which deadline those three met is unverified. | `gitrunner.go` (the error must say it timed out, and after how long); the 10 s bound itself is worth re-deciding with it |
 | F3 | **sandboxd outlives the process it runs, so an exited session never becomes `exited`.** | A shell that ran `exit`: 26 min later `ps -ef` in its container shows only `sandboxd` (PID 1), the container is `Up`, `GET /v1/sessions` says `running`. Every attach gets an Exit frame and close *"session ended"* (`sandboxd/internal/server/server.go:151-154`) and the cockpit reconnects, because its ladder stops only on `status === "exited"` (`desktop/src/api/attachRegistry.ts:503`): 312 `attach relay ended … session ended` lines in 7 min for that one session. `sandboxd/cmd/sandboxd/main.go:66` serves until killed; the reaper's rule 3 (Go contract §5.3, with §2.2's `StateStopped` = "exists, process ended") assumes the container stops when the process does. | sandboxd (task 5), against the reaper's rule 3 (task 13) |
+| F4 | **A failed `rev-parse` silently drops the checked-out branch's marker.** `Scanner.Branches` tolerates *every* failure of `git rev-parse --abbrev-ref HEAD` (`control-plane/internal/project/project.go:245-250`), though its comment gives one reason, a repository with no commits. So a timed-out rev-parse (F2's 10 s bound) returns the list with no branch `isHead`, and no error and no log line say why. | Found by the Go suite, not the harness: the 13:21-13:50 run (exit 1) failed `TestScannerAgainstARealRepositoryAndARealLinkedWorktree` (41.43 s) with `gitrunner_test.go:166: main is not marked IsHead in the primary worktree's repository`, on a repository that has commits. That rev-parse timed out is inferred, not observed: its error is thrown away, which is the defect. | `project.go` (the project enumeration, `44d6b27c`): tolerate only an unborn HEAD; return or log anything else |
 
 **The run's one FAIL is F2.** `setup`'s error is F2's second log line verbatim; its owner is
 `gitrunner.go`'s. **Carried as an open observation, not a finding:** in run 1 and the diagnostic
@@ -184,7 +185,7 @@ Listed so no red is hidden and no green is borrowed. None of these lines is clai
    SessionPicker.tsx's EFFORT_LABEL is a Record<Effort, string>, so a fifth level added to the
    catalogue alone renders a picker row labelled `undefined`.
 
-The run raised no further question for the owner: findings F1 to F3 above are engineering defects
+The run raised no further question for the owner: findings F1 to F4 above are engineering defects
 with a root-cause fix each, not product choices.
 
 ## False results caught
