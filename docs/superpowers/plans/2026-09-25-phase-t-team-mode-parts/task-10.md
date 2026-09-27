@@ -94,7 +94,7 @@ type Store interface {
 	Agents(ctx context.Context, org, project string) ([]model.Agent, error)
 	Leases(ctx context.Context, org, project string) ([]model.Lease, error)
 	// DelegationsInUse is every dl-… a live agent was started under, with its key
-	// fields, for task 11's rebuild and refresh (task-11.md:761-769). It is the
+	// fields, for task 11's rebuild and refresh (task-11.md:847-862). It is the
 	// set the feed ACTS on, so it stays live-only: a delegation no live agent
 	// runs under has nothing to stop and must never be resumed.
 	DelegationsInUse(ctx context.Context) ([]DelegationUse, error)
@@ -103,7 +103,7 @@ type Store interface {
 	// out under?" It is the most recently started agent row with that key,
 	// ENDED ROWS INCLUDED — `agents.end` is enqueued at the moment the agent
 	// ends, and a restart delivers a backlog whose agents are all ended, so a
-	// live-only read would dead-letter both (task-11.md:1004-1021). Not found
+	// live-only read would dead-letter both (task-11.md:1085-1107). Not found
 	// is (DelegationUse{}, false, nil), never an error.
 	DelegationForKey(ctx context.Context, org, owner, project string, class model.Class) (DelegationUse, bool, error)
 
@@ -202,7 +202,7 @@ type TurnClaim struct {
 	Until     time.Time
 }
 
-// DelegationUse is task 11's delegation.Use flattened (task-11.md:375-380, :761-764).
+// DelegationUse is task 11's delegation.Use flattened (task-11.md:386-392, :847-851).
 type DelegationUse struct {
 	ID        string // dl-…
 	OrgID     string
@@ -477,7 +477,7 @@ whole run, saying so, when it is unset**.
 | `TxRollsBackAll` | a `Tx` that puts an agent, appends an outbox row and then returns an error leaves neither | memstore mutating in place |
 | `AgentStatusAndEnd` | `SetStatus(waiting, human)` then `EndAgent(lapsed)`; `Agents` omits ended ones; `Agent` still finds it with `Exit = lapsed` | ended agents listed as live |
 | `DelegationsInUseLiveOnly` | two live agents under one `dl-…`, one ended under another; the result is the one live `dl-…` once | ended agents keep a delegation "in use", so rebuild renews a dead one |
-| `DelegationForKeyIncludesEndedAgents` | the same fixture: `DelegationForKey` of the ended agent's key answers its `dl-…`, `true` — the read the outbox uses is **not** the read the feed acts on | one live-only read serving both, so an ended agent's `agents.end` dead-letters on the other replica (task-11.md:1004-1021) |
+| `DelegationForKeyIncludesEndedAgents` | the same fixture: `DelegationForKey` of the ended agent's key answers its `dl-…`, `true` — the read the outbox uses is **not** the read the feed acts on | one live-only read serving both, so an ended agent's `agents.end` dead-letters on the other replica (task-11.md:1085-1107) |
 | `DelegationForKeyIsTheLatestAgent` | two agents on one key, started 10 min apart under `dl-1` then `dl-2`, the later one ended; the answer is `dl-2` | a first-row-wins read that sends a renewed key's backlog under the superseded `dl-…` |
 | `DelegationForKeyMissIsNotAnError` | a key with no agent row → `(DelegationUse{}, false, nil)` | a `sql.ErrNoRows` escaping as an error, which task 11 would classify transient and retry forever |
 | `PolicyVersionsAppendOnly` | `PutPolicy` v1, v2; `CurrentPolicy` is v2; `PutPolicy` v2 again → `ErrConflict`; project `""` and `pj-…` are separate scopes | versions overwritten |

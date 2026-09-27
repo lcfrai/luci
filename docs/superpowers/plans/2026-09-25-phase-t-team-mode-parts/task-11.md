@@ -78,12 +78,12 @@ own (task 10), and task 01's table has no thread list route either.
 
 **Interfaces:**
 - Produces:
-  - `outbox.Item`, `outbox.Op`, `outbox.State`, `outbox.Queue`, `outbox.Sender`, `outbox.Deliverer` with `New`, `(*Deliverer).RunOnce`, `(*Deliverer).Paused`, `(*Deliverer).Janitor`, `outbox.Gate`, `outbox.Classify`, `outbox.Enqueue`, `outbox.AllOps`, `outbox.PauseAfter` (10 min), `outbox.Retention` (24 h) — consumed by 06–07's payload shapes, 14, 20, 23–31 (every Fleet write), 12 (runs the loop)
-  - `delegation.Key`, `delegation.Delegation`, `delegation.Cache` with `Put`/`Get`/`Drop`/`Known`/`Expired`, `delegation.Source`, `delegation.Client` with `Ctx` (`NewClient(cache, src, now)`), `delegation.ErrNoDelegation`
-  - `delegation.Revoker`, `delegation.Reason` (`revoked`, `lapsed`), `delegation.Feed` with `Poll`, `Refresh`, `Resolve`, `Adopt`, `Orgs`, `Sweep`, `Reset`, `delegation.PollEvery` (10 s)
+  - `outbox.Item`, `outbox.Op`, `outbox.State`, `outbox.Queue`, `outbox.Sender`, `outbox.Deliverer` with `New`, `(*Deliverer).RunOnce`, `(*Deliverer).Paused`, `(*Deliverer).Janitor`, `outbox.Gate`, `outbox.Classify`, `outbox.Enqueue`, `outbox.AllOps`, `outbox.ErrTransientLocal`, `outbox.PauseAfter` (10 min), `outbox.Retention` (24 h) — consumed by 06–07's payload shapes, 14, 20, 23–31 (every Fleet write), 12 (runs the loop)
+  - `delegation.Key`, `delegation.Delegation`, `delegation.Cache` with `Put`/`Get`/`Drop`/`Known`/`Orgs`/`Expired`, `delegation.Source`, `delegation.Client` with `Ctx` (`NewClient(cache, src, now)`), `delegation.ErrNoDelegation`, `delegation.ErrResolveUnavailable` (wraps `outbox.ErrTransientLocal`)
+  - `delegation.Revoker`, `delegation.Reason` (`revoked`, `lapsed`), `delegation.Feed` with `Poll`, `Refresh`, `Resolve`, `Adopt`, `Orgs`, `Sweep`, `Reset`, `SetCursor`, `SetCursorIfAbsent`, `delegation.PollEvery` (10 s)
   - `delegation.HubState`, `delegation.Rebuild(ctx, *Feed, *HubState)`, `delegation.Use`, `delegation.InUse`
 - Consumes:
-  - task 10 — `store.Store` and its `Tx(ctx, func(store.Tx) error) error`; the outbox methods `OutboxHeads`, `OutboxMarkSent`, `OutboxMarkRetry`, `OutboxMarkDead`, `OutboxFailingSince`, `OutboxDeleteSentBefore`, `Tx.AppendOutbox(ctx, store.OutboxRow)`, `store.OutboxRow`, `Store.DelegationsInUse(ctx) ([]store.DelegationUse, error)` (`task-10.md:95-110,146-170,196-202`). Task 10 is built first and does not import `outbox` (`task-10.md:562-567`), so **this task's `store.go` files convert**: `outbox.StoreQueue`, `outbox.TxAppender` and `delegation.StoreInUse`, below
+  - task 10 — `store.Store` and its `Tx(ctx, func(store.Tx) error) error`; the outbox methods `OutboxHeads`, `OutboxMarkSent`, `OutboxMarkRetry`, `OutboxMarkDead`, `OutboxFailingSince`, `OutboxDeleteSentBefore`, `Tx.AppendOutbox(ctx, store.OutboxRow)`, `store.OutboxRow`, `Store.DelegationsInUse(ctx) ([]store.DelegationUse, error)` and `Store.DelegationForKey(ctx, org, owner, project string, class model.Class) (store.DelegationUse, bool, error)` — two reads because the feed and the outbox ask different questions, the first live-only, the second including ended agents (`task-10.md:90-128,160-179,205-212`). Task 10 is built first and does not import `outbox` (`task-10.md:562-567`), so **this task's `store.go` files convert**: `outbox.StoreQueue`, `outbox.TxAppender` and `delegation.StoreInUse`, below
   - task 08 — `hubclient.Team` (one method per task 06–07 route), `hubclient.OrgFeed` with `OrgChanges(ctx, org, after string, kinds []string, limit int) (hubapi.ChangesPage, error)` (the per-org twin of the built `Feed.Changes`, `hubclient.go:96-99`; `hubapi.Event` and `hubapi.ChangesPage` are built, `hubapi/types.go:536-551`), `Team.Delegation(ctx, id) (hubapi.Delegation, error)` (route 47, `delegations.read`), `Team.Tasks(ctx, projectID, hubapi.TaskQuery) (hubapi.Page[hubapi.Task], error)` (route 52; `TaskQuery{State []TaskState; hubapi.PageRequest}`, `task-08.md:101,137-139`, where task 08 names this change), `Team.Conflicts(ctx, projectID, hubapi.ConflictQuery) (hubapi.Page[hubapi.Conflict], error)` (route 59; `ConflictQuery{State string; hubapi.PageRequest}` from task 03), `hubclient.WithDelegation(ctx, dl string) context.Context`, `hubclient.WithIdempotencyKey(ctx, key string) context.Context`, and the fake's team half
   - task 09 — `model.Owner`, `model.Class`. **Assumed:** `model.Owner` is a string type holding the Hub user id (`us-…`), because every Hub team record names its owner that way (`task-06.md:105,111`); if task 09 makes it `(tid, oid)`, `FromHub` and the feed's decode are the two places that change
   - task 03 — `hubapi.Delegation` (`ID`, `OrgID`, `OwnerID`, `ProjectID`, `Class`, `Routes`, `ExpiresAt`, `RevokedAt`, as `task-06.md:105-107` shows the wire), the list types for tasks, threads and escalations, and the feed kinds `delegation.created`, `delegation.renewed`, `delegation.revoked`
@@ -467,6 +467,18 @@ func (c *Cache) Known(id string) bool {
 	return ok
 }
 
+// Orgs is pruneOrgs': every org this replica still holds an entry for,
+// expired ones included, because an expired entry is still owed a Sweep.
+func (c *Cache) Orgs() map[string]bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	out := make(map[string]bool, len(c.byK))
+	for k := range c.byK {
+		out[k.OrgID] = true
+	}
+	return out
+}
+
 // Expired returns every entry with ExpiresAt <= now: the lapsed. It removes
 // nothing — Get already refuses them — so a sweep whose Revoker call failed
 // sees the same entry next time, and a renewal (Put) replaces it in place.
@@ -794,10 +806,25 @@ func (f *Feed) Reset() {
 	f.mu.Unlock()
 }
 
-// SetCursor is Rebuild's: the head read before the lists, never after.
+// SetCursor is Rebuild's and Adopt's: the head read before the lists, never
+// after. Unconditional on purpose — Rebuild re-reads the whole state after the
+// head, so moving the cursor forward loses nothing.
 func (f *Feed) SetCursor(org, next string) {
 	f.mu.Lock()
 	f.cursor[org] = next
+	f.mu.Unlock()
+}
+
+// SetCursorIfAbsent is Refresh's. Refresh reads "is this org tracked", drops
+// the lock to read the Hub head, then writes; a concurrent Adopt of the same
+// org can commit its own head in that gap. Overwriting it would skip every
+// event between the two heads, which is exactly the hole "head first
+// everywhere" exists to close. Test and assign under one lock, older wins.
+func (f *Feed) SetCursorIfAbsent(org, next string) {
+	f.mu.Lock()
+	if _, ok := f.cursor[org]; !ok {
+		f.cursor[org] = next
+	}
 	f.mu.Unlock()
 }
 ```
@@ -827,6 +854,11 @@ type Use struct {
 // is read every tick, not only at start.
 type InUse interface {
 	DelegationsInUse(ctx context.Context) ([]Use, error)
+	// DelegationForKey is Resolve's, and only Resolve's: the latest agent row
+	// on a key, ENDED ROWS INCLUDED. The feed must not be given this set — a
+	// delegation with no live agent has nothing to stop and must never be
+	// resumed, which is what DelegationsInUseLiveOnly pins (task-10.md:479).
+	DelegationForKey(ctx context.Context, k Key) (Use, bool, error)
 }
 
 // HubState is the Hub-owned state Fleet reads from: memory only, rebuilt at
@@ -1003,7 +1035,9 @@ func (f *Feed) Refresh(ctx context.Context) error {
 		return fmt.Errorf("refresh: delegations in use: %w", err)
 	}
 	var unknown []Use
+	live := map[string]bool{}
 	for _, u := range uses {
+		live[u.Key.OrgID] = true
 		f.mu.Lock()
 		_, tracked := f.cursor[u.Key.OrgID]
 		_, acted := f.done[u.ID]
@@ -1013,25 +1047,93 @@ func (f *Feed) Refresh(ctx context.Context) error {
 			if err != nil {
 				return fmt.Errorf("refresh %s: feed head: %w", u.Key.OrgID, err)
 			}
-			f.SetCursor(u.Key.OrgID, head.Next)
+			// IfAbsent, not SetCursor: the read above and this write are not
+			// one critical section, so an Adopt of the same org racing this
+			// tick must not have its (older, therefore safe) cursor replaced
+			// by the head read after it. Losing the window between two heads
+			// is losing a delegation.revoked committed inside it.
+			f.SetCursorIfAbsent(u.Key.OrgID, head.Next)
 		}
 		if !acted && !f.cache.Known(u.ID) {
 			unknown = append(unknown, u)
 		}
 	}
+	f.pruneOrgs(live)
 	_, err = rebuildDelegations(ctx, f.team, f, unknown)
 	return err
+}
+
+// pruneOrgs drops the cursor of an org the in-use read no longer lists and
+// whose cache holds nothing. Without it Orgs only ever grows: one OrgChanges
+// call every PollEvery, for the life of the process, for every org this
+// replica ever saw — and since Refresh that is every org EITHER replica ever
+// served, so the cost is linear in customers, not in live ones. Keeping the
+// cache in the test is what makes it safe: Adopt caches the delegation before
+// task 20's transaction commits the agent row, so a tick landing in that
+// window sees no Use for the org but does see its entry, and holds the cursor.
+func (f *Feed) pruneOrgs(live map[string]bool) {
+	held := f.cache.Orgs()
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for org := range f.cursor {
+		if !live[org] && !held[org] {
+			delete(f.cursor, org)
+		}
+	}
 }
 
 // Resolve is the Client's read-through (Source): the outbox on the replica
 // that did not serve the launch asks here rather than dead-lettering a live
 // delegation it has not polled yet.
+//
+// It is a read of two rows, not a Refresh. Three reasons, each a defect this
+// shape closes:
+//
+//  1. It reads ForKey, not DelegationsInUse. That set is live-agents-only
+//     (task-10.md:96-99), but agents.end is enqueued at the instant the agent
+//     ends (task-20.md:188, :307, :340) and a restart delivers a backlog whose
+//     agents have all ended, so the row's delegation is routinely one no live
+//     agent runs under. The agent row survives the end and carries the dl-…
+//     (task-10.md:247), so ForKey answers where the in-use set cannot.
+//  2. It never calls rebuildDelegations, so it never reaches f.act. A Refresh
+//     here would let a cache miss inside the 500 ms delivery tick synchronously
+//     destroy sandboxes and withdraw leases, on the replica that holds both
+//     fleet.feed and fleet.outbox — the common case with two replicas and
+//     three roles. Acting is readFeed's, on its own goroutine.
+//  3. It moves no cursor, so the only writer of f.cursor outside a leader
+//     change stays the feed goroutine.
+//
+// Every failure wraps ErrResolveUnavailable; a miss is (false, nil).
 func (f *Feed) Resolve(ctx context.Context, k Key) (Delegation, bool, error) {
-	if err := f.Refresh(ctx); err != nil {
-		return Delegation{}, false, err
+	u, ok, err := f.in.DelegationForKey(ctx, k)
+	if err != nil {
+		return Delegation{}, false, fmt.Errorf("%w: for key: %w", ErrResolveUnavailable, err)
 	}
-	d, ok := f.cache.Get(k, f.now())
-	return d, ok, nil
+	if !ok {
+		return Delegation{}, false, nil // nothing was ever launched here
+	}
+	if d, hit := f.cache.Get(k, f.now()); hit && d.ID == u.ID {
+		return d, true, nil
+	}
+	// The Hub, not Fleet's store, decides whether it is still live: a revoked
+	// or expired one answers 401 and is a miss, not an error, and not an act.
+	hd, err := f.team.Delegation(hubclient.WithDelegation(ctx, u.ID), u.ID)
+	switch hubclient.Code(err) {
+	case "delegation_revoked", "delegation_expired":
+		return Delegation{}, false, nil
+	case "":
+		if err != nil {
+			return Delegation{}, false, fmt.Errorf("%w: %w", ErrResolveUnavailable, err)
+		}
+	default:
+		return Delegation{}, false, fmt.Errorf("%w: %w", ErrResolveUnavailable, err)
+	}
+	d := FromHub(hd)
+	if d.Key != k {
+		return Delegation{}, false, nil // the agent row named another owner's dl-…
+	}
+	f.cache.Put(d)
+	return d, true, nil
 }
 
 // Orgs is what task 12's feed loop polls, every PollEvery, after Refresh.
@@ -1157,6 +1259,14 @@ func (s StoreInUse) DelegationsInUse(ctx context.Context) ([]Use, error) {
 		out = append(out, Use{ID: r.ID, Key: Key{OrgID: r.OrgID, Owner: r.Owner, ProjectID: r.ProjectID, Class: r.Class}})
 	}
 	return out, err
+}
+
+func (s StoreInUse) DelegationForKey(ctx context.Context, k Key) (Use, bool, error) {
+	r, ok, err := s.S.DelegationForKey(ctx, k.OrgID, string(k.Owner), k.ProjectID, k.Class)
+	if err != nil || !ok {
+		return Use{}, false, err
+	}
+	return Use{ID: r.ID, Key: Key{OrgID: r.OrgID, Owner: r.Owner, ProjectID: r.ProjectID, Class: r.Class}}, true, nil
 }
 ```
 
