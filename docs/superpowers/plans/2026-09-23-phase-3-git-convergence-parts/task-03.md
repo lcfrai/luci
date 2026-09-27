@@ -142,7 +142,11 @@ type CreateRequest struct {
 	Name    string // "" derives "<last segment of Branch, slugged, ≤ 24>-<n>", lowest free n ≥ 1
 }
 
-// Creator makes lane clones on one machine.
+// Creator makes lane clones on one machine. Every create of its Store's lanes goes through one
+// Creator (task 04 builds one), because step 3 holds the create's name in the Creator from the
+// check to the end of Create: two creates at once in one project never clone under one name, a
+// derived name skips a name another create holds, and the loser of an explicit name is
+// ErrNameTaken before it clones (fix round 1, review I-1). A Creator is not copied after first use.
 type Creator struct {
 	Machine gitx.Machine
 	Store   Store
@@ -150,15 +154,21 @@ type Creator struct {
 	// Nonce gives step 3's directory suffix: nil means 6 lowercase hex from crypto/rand. Tests pin
 	// it to make a collision. It is never derived from the name, the time or a counter.
 	Nonce func() string
+
+	mu      sync.Mutex
+	pending map[string]map[string]bool // ProjectID → the names creates in flight hold
 }
 
 // Create, in this order, and the order is the point:
 //  0. fs, err := FSOf(c.Machine) (seam S8-P3.6): ErrNoMachineFS, and nothing on disk. Every
 //     filesystem touch below goes through fs; locally fs is LocalFS, the os calls themselves;
-//  1. validate Name (ErrBadName); derive it when empty;
+//  1. validate a non-empty Name (ErrBadName); an empty one is derived at step 3;
 //  2. `rev-parse --verify --quiet refs/heads/<Branch>^{commit}` in the project (Read) —
 //     ErrUnknownBranch, and nothing on disk;
-//  3. ErrNameTaken when the index has Name for this project. Path =
+//  3. under the Creator's lock (fix round 1, review I-1), a name is taken when the index has it
+//     for this project or another create in flight on this Creator holds it: an empty Name
+//     derives the lowest free n; a taken Name is ErrNameTaken. The name is then held until
+//     Create returns, after step 7 or the cleanup. Path =
 //     m.Join(m.CloneRoot(), ProjectID, Name+"-"+c.Nonce()), m = c.Machine (task 02's Join,
 //     P3A-1: a cloud machine's path stays slash-separated on a Windows control plane, so its
 //     MachineFS never meets `\machine\…`); when anything exists at Path (fs.Exists), draw
@@ -208,9 +218,12 @@ type Creator struct {
 //  6a. fs.Seal(ctx, Path): R4.5's window ends here, after the last NewLane write and before
 //     any session can resolve the lane. LocalFS's Seal does nothing; a cloud machine's closes
 //     machined's creating-set entry (env task 21). A Seal error is a Create failure;
-//  7. Store.Add.
-// A failure in 4-7 (6a included) removes Path with fs.RemoveTree(ctx, CloneRoot, Path) before
-// returning, so a failed create leaves no directory behind; a failure in 0-3 has touched nothing.
+//  7. Store.Add. Its ErrExists, when the index now has Name for this project (another writer on
+//     the same index), is ErrNameTaken, so task 04 answers 409 `name_taken`, not 500 (review I-1).
+// A failure in 4-7 (6a included) removes Path with fs.RemoveTree(context.WithoutCancel(ctx),
+// CloneRoot, Path) before returning, so a failed create leaves no directory behind, a cancelled
+// one included (LocalFS refuses every call under an ended ctx; review m-8); a failure in 0-3
+// has touched nothing.
 // Scopes, per task-02 §HGH H3: steps 2, 4, 4b's `rev-parse`, 5's `var` and 6's `--get` run in the
 // project with Scope Project. Steps 4a, 4b's `fetch`, 5 and 6's writes and CopyGeneratedHooks'
 // `ls-files` run with Dir
@@ -248,7 +261,7 @@ var NoFilterEnv map[string]string
 
 // CopyableHooksPath reports whether a project's local core.hooksPath is copied into a lane
 // clone: it is non-empty, relative (no leading `/` or `\`, no leading `~`), has no `..`
-// segment, and holds no `\`, no `:` and no CR or LF. The first three keep the value inside the
+// segment, and holds no `\`, no `:`, no NUL and no CR or LF. The first three keep the value inside the
 // lane's working tree, where the sandbox's git resolves it; the `\` refusal is because the
 // sandbox's Linux git reads `\` as part of a file name, so a Windows-style value would name no
 // directory there. The `:` refusal covers every drive form (`C:/hooks`, `C:hooks`) and an NTFS
@@ -298,8 +311,11 @@ func CopyableHooksPath(v string) bool
 // is a Create failure (step 6), so RemoveTree takes the clone with it.
 // Split by seam S8-P3.6: the guards and the copy (every Lstat, SameFile, the budget) are
 // FSOf(m).CopyGeneratedHooks; the `.git`-segment refusal runs here first, and the `ls-files`
-// check over m.Git() and the take-back through FSOf(m).RemoveTree(ctx, cloneTop, <cloneTop>/<rel>)
-// run here after it. Locally that is LocalFS, the same os calls as before the split.
+// check over m.Git() and the take-back through FSOf(m).RemoveTree(ctx, cloneTop, made)
+// run here after it. made is the first component of <cloneTop>/<rel> that FSOf(m).Exists
+// answered absent before the copy (<cloneTop>/<rel> when all exist), so the take-back, like
+// LocalFS's own cleanup of a copy that failed, removes the parents the copy created as well
+// (fix round 1, review m-4). Locally that is LocalFS, the same os calls as before the split.
 func CopyGeneratedHooks(ctx context.Context, m gitx.Machine, projectTop, cloneTop, rel string) (int, error)
 
 // RemoveTree deletes a directory tree that git wrote: the root refusal, then os.RemoveAll, with
@@ -587,8 +603,8 @@ Real git through `gitxtest` wherever the claim is about git; a fake `Source` for
 | `TestCreateCopiesARelativeHooksPath` (review I11) | project local `core.hooksPath=.husky/_` and a `.git/hooks/pre-commit` file: the clone's `config --local --get core.hooksPath` prints `.husky/_`, and the clone's `.git/hooks` holds only what `git clone` put there (no `pre-commit`). Then a table of project values, each a fresh create: `/abs/hooks`, `C:/hooks`, `C:hooks`, `\hooks`, `~/hooks`, `../x`, `a/../../x`, `.githooks\x` → lane created, clone has no `core.hooksPath`; `.githooks` → copied. Red first against step 6 removed | a husky lane running none of the project's hooks; a host path or an escape copied into a clone |
 | `TestCopyableHooksPath` | the same table as a pure function, plus `""` → false | a predicate that disagrees with Create's copy |
 | `TestCreateCopiesAGeneratedHooksDir` (review I11) | project local `core.hooksPath=.husky/_`, tracked `.husky/pre-commit`, and an ignored `.husky/_/` holding `.gitignore` (`*`), `h` and `pre-commit`: the clone's `.husky/_` holds the same three files byte-identical, `status --porcelain` in the clone prints nothing. Red first against CopyGeneratedHooks not called | a husky lane with the setting but no hooks, which runs nothing |
-| `TestCopyGeneratedHooksRefuses` | table, each → 0 files and nothing written: a tracked `.githooks/` (the clone's checked-out copy is byte-unchanged); a `.githooks/` tracked on the lane's `<Branch>` only and untracked in the project's checkout (the clone's copy is byte-unchanged); `rel` = `.git/hooks`, `.GIT/hooks` and `.git./hooks` (the clone's sample hooks are byte-unchanged); `.git./custom`, which the clone lacks (added at build: the clone's own `.git/hooks` makes the not-exist guard hold the rows before it); `.husky` a junction (Windows) or symlink to a temp directory; a symlink file inside `.husky/_`; a subdirectory inside it; 65 files; 1 MiB + 1 byte; an untracked `.githooks/` that no `.gitignore` covers (the clone has no `.githooks/` afterwards); the clone's `.husky` replaced by a junction to a temp directory (carried b03-2 Minor 3: the temp directory is empty afterwards) | a copy that reads outside the project's tree, reads `.git`, overwrites a hook the lane's branch tracks, or leaves a folder the agent's `git add -A` commits |
-| `TestCopyGeneratedHooksChecksTheOpenedFile` | through the unexported package variable `openForCopy` (a test-only seam, default `os.Open`): an opener that returns a different file than the path's Lstat named → 0 files, error names the path; one that returns a file larger than its Lstat size → at most 1 MiB read in total, and the copy is refused | a swap between check and open, or an uncapped read of a file an agent wrote |
+| `TestCopyGeneratedHooksRefuses` | table, each → 0 files and nothing written: a tracked `.githooks/` (the clone's checked-out copy is byte-unchanged); a `.githooks/` tracked on the lane's `<Branch>` only and untracked in the project's checkout (the clone's copy is byte-unchanged); `rel` = `.git/hooks`, `.GIT/hooks` and `.git./hooks` (the clone's sample hooks are byte-unchanged); `.git./custom`, which the clone lacks (added at build: the clone's own `.git/hooks` makes the not-exist guard hold the rows before it); `.husky` a junction (Windows) or symlink to a temp directory; a symlink file inside `.husky/_`; a subdirectory inside it; 65 files; 1 MiB + 1 byte; an untracked `.githooks/` that no `.gitignore` covers (the clone has no `.githooks/` afterwards); the same for `hooks/x` under a `hooks/` the clone lacks (fix round 1, review m-4: the clone has no `hooks/` afterwards, since the take-back removes from the first component the copy created); the clone's `.husky` replaced by a junction to a temp directory (carried b03-2 Minor 3: the temp directory is empty afterwards) | a copy that reads outside the project's tree, reads `.git`, overwrites a hook the lane's branch tracks, or leaves a folder the agent's `git add -A` commits |
+| `TestCopyGeneratedHooksChecksTheOpenedFile` | through the unexported package variable `openForCopy` (a test-only seam, default `os.Open`): an opener that returns a different file than the path's Lstat named → 0 files, error names the path, and neither `.husky/_` nor the `.husky` the copy created is left in the clone (fix round 1, review m-4); one that returns a file larger than its Lstat size → at most 1 MiB read in total, and the copy is refused | a swap between check and open, or an uncapped read of a file an agent wrote |
 | `TestCreateIsTheOnlyHostGitInTheLane` (ruling R4.5) | a real `gitx.Exec` with `Hardening.LaneRoot` = CloneRoot, `gitxtest.Spy` on it, a Runner wrapper that records each Call's `Dir` and `NewLane` beside the Spy's length, and a Store whose Add records the Spy's length; project with an identity, `core.hooksPath=.husky/_` and an ignored `.husky/_/`. Every Spawn whose `Dir` is Path or whose argv names Path, except step 4's `clone` (`Dir` the project, Path its last argv element, the destination git creates), comes from a Call with `NewLane == Path` and precedes the Add mark; no Spawn after the mark names Path. Red first against step 4a moved after Store.Add | a host git call in the lane after it is resolvable, so after a sandbox can have mounted it |
 | `TestCreateUnknownBranchTouchesNothing` | `Branch: "nope"` → ErrUnknownBranch, `<root>/<p>` has no entry | a half-made clone |
 | `TestCreateNeverReusesAnExistingDirectory` | Nonce pinned to `"aaaaaa"`: a file at `<root>/<p>/ui-aaaaaa` → ErrNameTaken after 4 draws and the file's bytes are unchanged; a Nonce that answers `"aaaaaa"` then `"bbbbbb"` → the lane is created at `ui-bbbbbb` | RemoveTree on a directory we did not make |
@@ -596,10 +612,16 @@ Real git through `gitxtest` wherever the claim is about git; a fake `Source` for
 | `TestCreateCleansUpAfterAFailedClone` | a Runner that fails the clone after creating Path → Path absent | leaving a broken clone for the catalog to list |
 | `TestCreateRefusesBadNames` | `""`→derived; `"../x"`, `"A"`, `"-x"`, 41 chars → ErrBadName | a name that escapes CloneRoot |
 | `TestCreateDerivesTheLowestFreeName` | branch `feat/upload`, lanes `upload-1` and `upload-3` exist → `upload-2` | a derived name colliding |
+| `TestCreateConcurrentDerivedNamesAreDistinct` (fix round 1, review I-1) | a Runner that holds the first create's clone until the second create returns; both `Name: ""` on `main` → the second is `main-2`, the first `main-1`, both nil, the store holds 2. Red first against the name checked from the index alone | two parallel "new worktree" requests, the second failing after a whole clone |
+| `TestCreateConcurrentSameNameClonesOnce` (fix round 1, review I-1) | the same hold; both `ui` → the second is ErrNameTaken with 1 clone run by then; the first is `ui`; 1 directory, 1 lane. Red first as above | the loser of a name paying a clone and answering 500 |
+| `TestCreateMapsAnIndexNameClashToErrNameTaken` (fix round 1, review I-1) | a Store whose Add first files a lane of the same project and name under another ID → ErrNameTaken, Path absent. Red first against Store.Add's error returned as is | another writer's clash answering 500 `git_failed` |
+| `TestCreateCleansUpWhenTheCallerCancels` (fix round 1, review m-8) | a Runner that cancels Create's ctx and fails the clone after it made Path → the clone's error, Path absent. A coverage row: it passes on the built code | the cleanup under the caller's ctx, which LocalFS refuses, leaving the half-made clone |
+| `TestCreateHandsTheRunnerACopyOfNoFilterEnv` (fix round 1, review m-9; not parallel) | a Runner that writes into each clone's `Call.Env` after it ran; two creates → `NoFilterEnv` unchanged, and the second clone's Env is the seven keys whole. A coverage row | the package's NoFilterEnv handed to the Runner, so one Runner's write strips LFS protection from every later clone |
 | `TestRemoveTreeDeletesReadOnlyObjects` | a real clone with every object file forced to 0o444 → RemoveTree succeeds and the path is gone. A regression pin: it passes with no walk (carried t01-D6) | none; RemoveTree's red first is the row below |
 | `TestRemoveTreeRefusesOutsideRoot` | `RemoveTree(root, filepath.Dir(root))`, root itself, a sibling, `root/../sibling` and `""` → error; a path under a junction in root → error; nothing deleted | a lane path that escaped the root, or a link inside it, deleting the user's disk |
 | `TestCreateGivesTheLaneTheProjectsUpstream` (carried b05-2 issue 1) | a bare remote, the project pushed with `-u`, a teammate's push, the project fetched, then Create → the clone's `refs/remotes/upstream/main` equals the project's `refs/remotes/origin/main`, `git merge --ff-only upstream/main` exits 0, and the clone's `remote.*` config names no remote of the project's | a lane created after the last refresh that cannot see a teammate's commits |
 | `TestCreateWithoutAnUpstreamHasNone` | no upstream configured → no `refs/remotes/upstream/*`, no error | a fetch of a missing ref failing every create of an unpushed branch |
+| `TestLocalFSRefusesAGitSegment` (fix round 1, review m-7) | `LocalFS{}.CopyGeneratedHooks` called directly, as env task 21's route calls it, with `sub/.git/custom` and `sub/.GIT/custom` over a project holding `sub/.git/custom/h0` → 0, nil, the clone empty. A nested `.git` is no project `.git` by SameFile, so only LocalFS's own segment refusal holds it. A coverage row | LocalFS without its own `.git`-segment refusal, which the package function's refusal hid |
 | `TestCopyGeneratedHooksRefusesTheShortNameOfDotGit` (Windows; carried b03-2 Minor 2) | `<GIT~1>/hooks`, the 8.3 name of `.git` → 0, nothing written; skips, saying so, where the volume has no 8.3 names | a copy of `.git/hooks` by another name |
 | `TestCatalogListsClonesAfterTheScannersWorktrees` | Source gives primary+linked; store has 2 lanes of p and 1 of q → p's list is primary, linked, then 2 clones with `Kind:"clone"`, `IsPrimary:false`, the right BranchID, and `Name` the lane's Name, not the nonce-suffixed directory name | clones missing from the rail |
 | `TestCatalogPathResolvesALaneFirst` | a lane id resolves to its path without calling Source.Path | a clone unreachable by session create |
@@ -643,7 +665,7 @@ logs each call with the Spy's length and the Store's Add mark; it reaches Create
 #### Acceptance
 
 ```
-go test ./control-plane/internal/lanes/ ./control-plane/internal/gitx/ -race -count=1   → PASS
+go test ./control-plane/internal/lanes/ ./control-plane/internal/gitx/ -race -count=1 -timeout 45m   → PASS
 go vet ./control-plane/internal/briefref/                                               → clean (no test files)
 go test ./control-plane/internal/project/ -count=1                                      → PASS, TestEveryGitCommandIsReadOnly unchanged
 go test ./control-plane/internal/registry/ ./control-plane/internal/statepath/ -count=1  → PASS

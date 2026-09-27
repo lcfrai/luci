@@ -116,7 +116,7 @@ func (LocalFS) CopyGeneratedHooks(ctx context.Context, projectTop, cloneTop, rel
 	if !ok {
 		return 0, nil
 	}
-	dst, ok := cloneHooksDir(cloneTop, segs)
+	dst, made, ok := cloneHooksDir(cloneTop, segs)
 	if !ok {
 		return 0, nil
 	}
@@ -128,7 +128,7 @@ func (LocalFS) CopyGeneratedHooks(ctx context.Context, projectTop, cloneTop, rel
 		return 0, fmt.Errorf("lanes: hooks directory %s: %w", dst, err)
 	}
 	if err := copyHookFiles(src, dst, files); err != nil {
-		_ = RemoveTree(cloneTop, dst) // dst did not exist before this call
+		_ = RemoveTree(cloneTop, made) // made, and all below it, did not exist before this call
 		return 0, err
 	}
 	return len(files), nil
@@ -155,10 +155,12 @@ func projectHooksDir(projectTop string, segs []string) (string, bool) {
 
 // cloneHooksDir is <cloneTop>/<segs> when it does not exist and every existing parent of it,
 // cloneTop included, is a real directory by Lstat (carried b03-2 Minor 3): a lane branch that
-// tracks a parent as a link must not route the copy, or its take-back, outside the clone.
-func cloneHooksDir(cloneTop string, segs []string) (string, bool) {
+// tracks a parent as a link must not route the copy, or its take-back, outside the clone. made
+// is its first component that does not exist, the top of what MkdirAll creates, so a failed
+// copy removes the parents it made as well (review m-4).
+func cloneHooksDir(cloneTop string, segs []string) (dst, made string, ok bool) {
 	if fi, err := os.Lstat(cloneTop); err != nil || !realDir(fi) {
-		return "", false
+		return "", "", false
 	}
 	p := cloneTop
 	for i, seg := range segs {
@@ -166,12 +168,12 @@ func cloneHooksDir(cloneTop string, segs []string) (string, bool) {
 		fi, err := os.Lstat(p)
 		switch {
 		case errors.Is(err, fs.ErrNotExist):
-			return filepath.Join(append([]string{cloneTop}, segs...)...), true
+			return filepath.Join(append([]string{cloneTop}, segs...)...), p, true
 		case err != nil, i == len(segs)-1, !realDir(fi):
-			return "", false // an Lstat error, a destination that exists, or a parent that is a link
+			return "", "", false // an Lstat error, a destination that exists, or a parent that is a link
 		}
 	}
-	return "", false
+	return "", "", false
 }
 
 type hookFile struct {

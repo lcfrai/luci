@@ -53,7 +53,7 @@ func TestASaveFailureRollsTheIndexBack(t *testing.T) {
 	}
 
 	// Replace the state directory with a regular file. os.MkdirAll then fails
-	// with ENOTDIR before writeAtomic reaches its temp file, on Windows exactly
+	// with ENOTDIR before statepath.WriteAtomic reaches its temp file, on Windows exactly
 	// as on Linux, which is the portable way to make every save fail — a chmod
 	// on the directory would be ignored on Windows.
 	if err := os.RemoveAll(dir); err != nil {

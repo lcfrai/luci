@@ -320,7 +320,7 @@ func (s *Scanner) parseWorktrees(p Project, out string) []Worktree {
 			}
 			cur = &Worktree{
 				Kind:      kind,
-				ID:      WorktreeID(path),
+				ID:        WorktreeID(path),
 				ProjectID: p.ID,
 				Name:      filepath.Base(path),
 				Path:      path,

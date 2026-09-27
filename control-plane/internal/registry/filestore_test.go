@@ -258,7 +258,7 @@ func TestSchemaVersionBelowOneIsQuarantined(t *testing.T) {
 }
 
 func TestLoadIgnoresALeftoverTempFile(t *testing.T) {
-	// A crash between writeAtomic's Write and its Rename leaves a temp file next
+	// A crash between statepath.WriteAtomic's Write and its Rename leaves a temp file next
 	// to an intact document. The next start must read the document and ignore
 	// the debris: the cost of the crash is the newest mutation, never the file.
 	dir := t.TempDir()

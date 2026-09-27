@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/gitx"
@@ -29,7 +30,11 @@ type CreateRequest struct {
 	Name    string // "" derives "<last segment of Branch, slugged, ≤ 24>-<n>", lowest free n ≥ 1
 }
 
-// Creator makes lane clones on one machine.
+// Creator makes lane clones on one machine. Every create of its Store's lanes goes through one
+// Creator (task 04 builds one), because step 3 holds the create's name in the Creator from the
+// check to the end of Create: two creates at once in one project never clone under one name, a
+// derived name skips a name another create holds, and the loser of an explicit name is
+// ErrNameTaken before it clones (fix round 1, review I-1). A Creator is not copied after first use.
 type Creator struct {
 	Machine gitx.Machine
 	Store   Store
@@ -37,6 +42,9 @@ type Creator struct {
 	// Nonce gives step 3's directory suffix: nil means 6 lowercase hex from crypto/rand. Tests pin
 	// it to make a collision. It is never derived from the name, the time or a counter.
 	Nonce func() string
+
+	mu      sync.Mutex
+	pending map[string]map[string]bool // ProjectID → the names creates in flight hold
 }
 
 // NoFetchURL and NoPushURL are a lane clone's origin (step 4a, review Minor 14). Each is a path
@@ -82,7 +90,10 @@ func cloneArgv(branch, src, dst string) []string {
 var nameRE = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,39}$`)
 
 // windowsDevice is a Win32 reserved device name. A lane directory is <Name>-<Nonce>, so only a
-// Name with a dot can reach one ("nul.x" makes "nul.x-aaaaaa", whose stem is NUL).
+// Name with a dot can reach one ("nul.x" makes "nul.x-aaaaaa", whose stem is NUL). validName
+// also refuses a bare "nul" or "con", whose directory "nul-aaaaaa" is no device: stricter than
+// it needs to be, and kept so, because a name that is a device name anywhere is refused
+// everywhere (review m-3).
 var windowsDevice = regexp.MustCompile(`^(con|prn|aux|nul|com[0-9]|lpt[0-9])$`)
 
 func validName(n string) bool {
@@ -136,10 +147,12 @@ func slugLast(branch string) string {
 
 // Create runs task 03's steps in this order, and the order is the point:
 //  0. FSOf(c.Machine) (seam S8-P3.6): ErrNoMachineFS, and nothing on disk;
-//  1. validate Name (ErrBadName), or derive it; a Branch git's revision syntax could read as
-//     more than a ref is ErrUnknownBranch before any git runs;
+//  1. validate a non-empty Name (ErrBadName); an empty one is derived at step 3; a Branch git's
+//     revision syntax could read as more than a ref is ErrUnknownBranch before any git runs;
 //  2. `rev-parse --verify --quiet refs/heads/<Branch>^{commit}` in the project: ErrUnknownBranch;
-//  3. ErrNameTaken when the index has Name for this project; Path = m.Join(m.CloneRoot(),
+//  3. reserve, under c.mu: a name is taken when the index has it for this project or another
+//     create in flight on c holds it; "" derives the lowest free n, a taken Name is ErrNameTaken,
+//     and the name is held until Create returns (review I-1). Path = m.Join(m.CloneRoot(),
 //     ProjectID, Name+"-"+Nonce()), drawn again while fs.Exists answers exists, at most 4 draws;
 //  4. cloneArgv in the project (LocalWrite, Scope Project), Call.Env a copy of NoFilterEnv;
 //     4a. origin's url and pushurl become NoFetchURL and NoPushURL (NewLane);
@@ -152,7 +165,8 @@ func slugLast(branch string) string {
 //  6. `config --local --get core.hooksPath` in the project; a value CopyableHooksPath accepts is
 //     written into the clone byte for byte (NewLane), then CopyGeneratedHooks;
 //     6a. fs.Seal(ctx, Path): R4.5's window ends after the last NewLane write;
-//  7. Store.Add.
+//  7. Store.Add. Its ErrExists, when the index now has Name for this project (another writer on
+//     the same index), is ErrNameTaken, which task 04 answers as 409 `name_taken` (review I-1).
 //
 // A failure in 4-7 removes Path with fs.RemoveTree(CloneRoot, Path), under a context that the
 // caller's cancel does not end; a failure in 0-3 has touched nothing. Steps 2, 4, 4b's and 5's
@@ -164,9 +178,8 @@ func (c *Creator) Create(ctx context.Context, req CreateRequest) (Lane, error) {
 	if err != nil {
 		return Lane{}, err
 	}
-	name, err := c.name(req)
-	if err != nil {
-		return Lane{}, err
+	if req.Name != "" && !validName(req.Name) {
+		return Lane{}, fmt.Errorf("%w: %q", ErrBadName, req.Name)
 	}
 	if !validBranch(req.Branch) {
 		return Lane{}, fmt.Errorf("%w: %q", ErrUnknownBranch, req.Branch)
@@ -180,6 +193,11 @@ func (c *Creator) Create(ctx context.Context, req CreateRequest) (Lane, error) {
 	if res.ExitCode != 0 {
 		return Lane{}, fmt.Errorf("%w: %q in %s", ErrUnknownBranch, req.Branch, p.ID)
 	}
+	name, release, err := c.reserve(p.ID, req.Branch, req.Name)
+	if err != nil {
+		return Lane{}, err
+	}
+	defer release() // after Store.Add or the cleanup below
 	path, err := c.draw(ctx, fsys, p.ID, name)
 	if err != nil {
 		return Lane{}, err
@@ -261,9 +279,22 @@ func (c *Creator) build(ctx context.Context, fsys gitx.MachineFS, req CreateRequ
 	l := Lane{ID: project.WorktreeID(path), ProjectID: p.ID, Branch: req.Branch, Name: name, Path: path,
 		MachineID: m.ID(), CreatedAt: now().UTC()}
 	if err := c.Store.Add(l); err != nil {
+		if errors.Is(err, ErrExists) && indexHas(c.Store, p.ID, name) {
+			return Lane{}, fmt.Errorf("%w: %q in %s: %w", ErrNameTaken, name, p.ID, err)
+		}
 		return Lane{}, err
 	}
 	return l, nil
+}
+
+// indexHas reports whether the index has a lane named name in the project.
+func indexHas(s Store, projectID, name string) bool {
+	for _, l := range s.ByProject(projectID) {
+		if l.Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 // Upstream is <branch>@{upstream} in the project when that is a remote-tracking ref, else "".
@@ -282,29 +313,48 @@ func Upstream(ctx context.Context, git gitx.Runner, projectPath, branch string) 
 	return up, nil
 }
 
-func (c *Creator) name(req CreateRequest) (string, error) {
-	if req.Name == "" {
-		taken := map[string]bool{}
-		for _, l := range c.Store.ByProject(req.Project.ID) {
-			taken[l.Name] = true
+// reserve is step 3's name, under c.mu, so the check and the hold are one step: a name is
+// taken when the index has it for the project or another create in flight on c holds it. An
+// empty name derives the lowest free n; a taken one is ErrNameTaken. release drops the hold;
+// Create defers it, so the name stays held through Store.Add or the cleanup (review I-1).
+func (c *Creator) reserve(projectID, branch, name string) (string, func(), error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	held := c.pending[projectID]
+	taken := make(map[string]bool, len(held))
+	for n := range held {
+		taken[n] = true
+	}
+	for _, l := range c.Store.ByProject(projectID) {
+		taken[l.Name] = true
+	}
+	if name == "" {
+		name = deriveName(branch, taken)
+	} else if taken[name] {
+		return "", nil, fmt.Errorf("%w: %q in %s", ErrNameTaken, name, projectID)
+	}
+	if held == nil {
+		if c.pending == nil {
+			c.pending = map[string]map[string]bool{}
 		}
-		return deriveName(req.Branch, taken), nil
+		held = map[string]bool{}
+		c.pending[projectID] = held
 	}
-	if !validName(req.Name) {
-		return "", fmt.Errorf("%w: %q", ErrBadName, req.Name)
-	}
-	return req.Name, nil
+	held[name] = true
+	return name, func() {
+		c.mu.Lock()
+		defer c.mu.Unlock()
+		delete(c.pending[projectID], name)
+		if len(c.pending[projectID]) == 0 {
+			delete(c.pending, projectID)
+		}
+	}, nil
 }
 
 // maxDraws bounds step 3's nonce draws.
 const maxDraws = 4
 
 func (c *Creator) draw(ctx context.Context, fsys gitx.MachineFS, projectID, name string) (string, error) {
-	for _, l := range c.Store.ByProject(projectID) {
-		if l.Name == name {
-			return "", fmt.Errorf("%w: %q in %s", ErrNameTaken, name, projectID)
-		}
-	}
 	nonce := c.Nonce
 	if nonce == nil {
 		nonce = defaultNonce
@@ -335,9 +385,11 @@ func deriveName(branch string, taken map[string]bool) string {
 
 // CopyableHooksPath reports whether a project's local core.hooksPath is copied into a lane
 // clone: it is non-empty, relative (no leading `/` or `\`, no leading `~`), has no `..`
-// segment, and holds no `\` and no `:`. The first three keep the value inside the lane's working
-// tree, where the sandbox's git resolves it; the sandbox's Linux git reads `\` as part of a file
-// name, so a Windows-style value would name no directory there. `:` refuses every drive form
+// segment, and holds no `\`, no `:`, no NUL and no CR or LF (review m-2). The first three keep
+// the value inside the lane's working tree, where the sandbox's git resolves it; the sandbox's
+// Linux git reads `\` as part of a file name, so a Windows-style value would name no directory
+// there. Step 6 reads the value as `config --get`'s one line, so a value holding NUL, CR or LF
+// is not read back intact. `:` refuses every drive form
 // (`C:/hooks`, `C:hooks`) and an NTFS stream name (`.git::$INDEX_ALLOCATION`, which Windows opens
 // as `.git`; carried b03-2 Minor 2). Husky writes `.husky/_`.
 func CopyableHooksPath(v string) bool {
@@ -360,13 +412,19 @@ func CopyableHooksPath(v string) bool {
 // are real directories, none of the project's is its .git by os.SameFile, the destination does
 // not exist, only regular files, at most 64 and 1 MiB, SameFile at open). After a copy,
 // `ls-files --others --exclude-standard -- <rel>` in the clone (NewLane) must print nothing;
-// otherwise FSOf(m).RemoveTree(cloneTop, <cloneTop>/<rel>) takes the copy back and it returns 0,
-// so a user's unignored `.githooks/` never reaches an agent's `git add -A`.
+// otherwise FSOf(m).RemoveTree(cloneTop, made) takes the copy back and it returns 0, so a user's
+// unignored `.githooks/` never reaches an agent's `git add -A`. made is the first component of
+// <cloneTop>/<rel> that did not exist before the copy (by fs.Exists), so the take-back removes
+// the parents the copy created as well (review m-4).
 func CopyGeneratedHooks(ctx context.Context, m gitx.Machine, projectTop, cloneTop, rel string) (int, error) {
 	if hasGitSegment(rel) {
 		return 0, nil
 	}
 	fsys, err := FSOf(m)
+	if err != nil {
+		return 0, err
+	}
+	made, err := firstMissing(ctx, fsys, m, cloneTop, rel)
 	if err != nil {
 		return 0, err
 	}
@@ -380,10 +438,28 @@ func CopyGeneratedHooks(ctx context.Context, m gitx.Machine, projectTop, cloneTo
 		return 0, err
 	}
 	if len(strings.TrimSpace(string(res.Stdout))) != 0 {
-		if err := fsys.RemoveTree(ctx, cloneTop, m.Join(cloneTop, rel)); err != nil {
+		if err := fsys.RemoveTree(ctx, cloneTop, made); err != nil {
 			return 0, err
 		}
 		return 0, nil
 	}
 	return n, nil
+}
+
+// firstMissing is the first component of <cloneTop>/<rel> that fs.Exists answers absent. When
+// every component exists (the copy then refuses its existing destination and copies nothing),
+// it is m.Join(cloneTop, rel), the path the take-back named before review m-4.
+func firstMissing(ctx context.Context, fsys gitx.MachineFS, m gitx.Machine, cloneTop, rel string) (string, error) {
+	p := cloneTop
+	for _, seg := range relSegments(rel) {
+		p = m.Join(p, seg)
+		exists, _, err := fsys.Exists(ctx, p)
+		if err != nil {
+			return "", err
+		}
+		if !exists {
+			return p, nil
+		}
+	}
+	return m.Join(cloneTop, rel), nil
 }
