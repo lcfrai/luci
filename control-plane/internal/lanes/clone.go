@@ -166,7 +166,7 @@ func slugLast(branch string) string {
 //     written into the clone byte for byte (NewLane), then CopyGeneratedHooks;
 //     6a. fs.Seal(ctx, Path): R4.5's window ends after the last NewLane write;
 //  7. Store.Add. Its ErrExists, when the index now has Name for this project (another writer on
-//     the same index), is ErrNameTaken, which task 04 answers as 409 `name_taken` (review I-1).
+//     the same index), is ErrNameTaken, which task 04 answers as 409 `conflict`, reason `name_taken` (review I-1).
 //
 // A failure in 4-7 removes Path with fs.RemoveTree(CloneRoot, Path), under a context that the
 // caller's cancel does not end; a failure in 0-3 has touched nothing. Steps 2, 4, 4b's and 5's

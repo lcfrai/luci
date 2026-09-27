@@ -127,6 +127,47 @@ func TestCreateConcurrentSameNameClonesOnce(t *testing.T) {
 	}
 }
 
+// TestCreateHoldsANamePerProject: a name held in one project does not take it in another.
+func TestCreateHoldsANamePerProject(t *testing.T) {
+	t.Parallel()
+	r := newRig(t, gitxtest.NewRepo(t))
+	other := gitxtest.NewRepo(t)
+	g := newGate(r.c.Machine.Git())
+	r.withRunner(g, nil)
+	first := holdFirst(t, r, g, "main", "ui")
+	l, err := r.c.Create(context.Background(), CreateRequest{Project: projectOf(other), Branch: "main", Name: "ui"})
+	g.open()
+	a := <-first
+	if err != nil || l.Name != "ui" || l.ProjectID != project.ProjectID(other.Dir) {
+		t.Errorf("ui in another project, while ui was mid-build here: %+v, %v; want ui, nil", l, err)
+	}
+	if a.err != nil || a.l.Name != "ui" {
+		t.Errorf("the first create: %+v, %v; want ui, nil", a.l, a.err)
+	}
+}
+
+// sameID is another writer whose Add first files a lane under the new lane's ID and another
+// name: the removed-lane residual step 3 accepts at its odds. That clash is no name clash.
+type sameID struct{ *FileStore }
+
+func (s sameID) Add(l Lane) error {
+	o := l
+	o.Name, o.Path = "other", l.Path+"-other"
+	if err := s.FileStore.Add(o); err != nil {
+		return err
+	}
+	return s.FileStore.Add(l)
+}
+
+func TestCreateKeepsAnIDClashErrExists(t *testing.T) {
+	t.Parallel()
+	r := newRig(t, gitxtest.NewRepo(t))
+	r.c.Store = sameID{r.store}
+	if _, err := r.create("main", "ui"); !errors.Is(err, ErrExists) || errors.Is(err, ErrNameTaken) {
+		t.Errorf("Store.Add's ID-only clash: err = %v, want ErrExists and not ErrNameTaken", err)
+	}
+}
+
 // otherWriter is a second writer on the same index: its Add first files a lane of the same
 // project and name under another ID, as a second Creator over this Store would.
 type otherWriter struct{ *FileStore }

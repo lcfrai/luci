@@ -219,7 +219,8 @@ type Creator struct {
 //     any session can resolve the lane. LocalFS's Seal does nothing; a cloud machine's closes
 //     machined's creating-set entry (env task 21). A Seal error is a Create failure;
 //  7. Store.Add. Its ErrExists, when the index now has Name for this project (another writer on
-//     the same index), is ErrNameTaken, so task 04 answers 409 `name_taken`, not 500 (review I-1).
+//     the same index), is ErrNameTaken, so task 04 answers 409 `conflict`, reason `name_taken`, not
+//     500 `git_failed` (review I-1). An ID-only clash stays ErrExists.
 // A failure in 4-7 (6a included) removes Path with fs.RemoveTree(context.WithoutCancel(ctx),
 // CloneRoot, Path) before returning, so a failed create leaves no directory behind, a cancelled
 // one included (LocalFS refuses every call under an ended ctx; review m-8); a failure in 0-3
@@ -615,6 +616,8 @@ Real git through `gitxtest` wherever the claim is about git; a fake `Source` for
 | `TestCreateConcurrentDerivedNamesAreDistinct` (fix round 1, review I-1) | a Runner that holds the first create's clone until the second create returns; both `Name: ""` on `main` → the second is `main-2`, the first `main-1`, both nil, the store holds 2. Red first against the name checked from the index alone | two parallel "new worktree" requests, the second failing after a whole clone |
 | `TestCreateConcurrentSameNameClonesOnce` (fix round 1, review I-1) | the same hold; both `ui` → the second is ErrNameTaken with 1 clone run by then; the first is `ui`; 1 directory, 1 lane. Red first as above | the loser of a name paying a clone and answering 500 |
 | `TestCreateMapsAnIndexNameClashToErrNameTaken` (fix round 1, review I-1) | a Store whose Add first files a lane of the same project and name under another ID → ErrNameTaken, Path absent. Red first against Store.Add's error returned as is | another writer's clash answering 500 `git_failed` |
+| `TestCreateKeepsAnIDClashErrExists` (fix round 1) | a Store whose Add first files a lane under the new lane's ID and another name → ErrExists, not ErrNameTaken | every ErrExists read as a name clash, so a WorktreeID collision tells the user to pick another name |
+| `TestCreateHoldsANamePerProject` (fix round 1) | the hold of I-1's rows on `ui` in project A; `ui` in project B meanwhile → created, nil | a hold that takes a name in every project |
 | `TestCreateCleansUpWhenTheCallerCancels` (fix round 1, review m-8) | a Runner that cancels Create's ctx and fails the clone after it made Path → the clone's error, Path absent. A coverage row: it passes on the built code | the cleanup under the caller's ctx, which LocalFS refuses, leaving the half-made clone |
 | `TestCreateHandsTheRunnerACopyOfNoFilterEnv` (fix round 1, review m-9; not parallel) | a Runner that writes into each clone's `Call.Env` after it ran; two creates → `NoFilterEnv` unchanged, and the second clone's Env is the seven keys whole. A coverage row | the package's NoFilterEnv handed to the Runner, so one Runner's write strips LFS protection from every later clone |
 | `TestRemoveTreeDeletesReadOnlyObjects` | a real clone with every object file forced to 0o444 → RemoveTree succeeds and the path is gone. A regression pin: it passes with no walk (carried t01-D6) | none; RemoveTree's red first is the row below |
