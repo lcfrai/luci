@@ -806,20 +806,26 @@ func (f *Feed) Reset() {
 	f.mu.Unlock()
 }
 
-// SetCursor is Rebuild's and Adopt's: the head read before the lists, never
-// after. Unconditional on purpose — Rebuild re-reads the whole state after the
-// head, so moving the cursor forward loses nothing.
+// SetCursor is Rebuild's, and Rebuild's only: the head read before the lists,
+// never after. Unconditional on purpose, and the reason is Rebuild-specific —
+// Rebuild re-reads the WHOLE org state after that head, so moving the cursor
+// forward skips only events the re-read has already applied. Nothing else in
+// this file re-reads the whole state, so nothing else may use this.
 func (f *Feed) SetCursor(org, next string) {
 	f.mu.Lock()
 	f.cursor[org] = next
 	f.mu.Unlock()
 }
 
-// SetCursorIfAbsent is Refresh's. Refresh reads "is this org tracked", drops
-// the lock to read the Hub head, then writes; a concurrent Adopt of the same
-// org can commit its own head in that gap. Overwriting it would skip every
-// event between the two heads, which is exactly the hole "head first
-// everywhere" exists to close. Test and assign under one lock, older wins.
+// SetCursorIfAbsent is Refresh's AND Adopt's — both of them, because the race
+// is symmetric. Each reads "is this org tracked", drops the lock to read the
+// Hub head, then writes, and since b03 they run on different goroutines
+// against one *Feed: Refresh on the feed loop, Adopt on a launch request.
+// Whichever writes second would otherwise overwrite the other's head and skip
+// every event between the two, which is exactly the hole "head first
+// everywhere" exists to close. Test and assign under one lock, older wins:
+// replaying events a Poll has already applied is free (Poll is idempotent and
+// `done` guards the repeats), losing one is not.
 func (f *Feed) SetCursorIfAbsent(org, next string) {
 	f.mu.Lock()
 	if _, ok := f.cursor[org]; !ok {
@@ -1008,7 +1014,12 @@ func (f *Feed) Adopt(ctx context.Context, org, id string) (Delegation, error) {
 		if err != nil {
 			return Delegation{}, err
 		}
-		f.SetCursor(org, head.Next)
+		// IfAbsent, not SetCursor, for the same reason Refresh uses it: this
+		// read and this write are not one atom, and Refresh's tick can track
+		// the org in the gap. Adopt does NOT re-read the org's state after
+		// its head — it reads one delegation record — so overwriting a
+		// cursor Refresh set would skip every event between the two heads.
+		f.SetCursorIfAbsent(org, head.Next)
 	}
 	hd, err := f.team.Delegation(hubclient.WithDelegation(ctx, id), id)
 	if err != nil {
@@ -1418,7 +1429,7 @@ those that exercise the read-through pass the `Feed`.
 | `TestAStoreFailureInResolveLeavesTheRowPending` | `memInUse.DelegationForKey` returns an error → `Classify` is `Transient`, the row is `pending` with `attempts` 1, not `dead` | one Postgres blip dead-lettering a queue (`ErrTransientLocal` dropped from the transient set) |
 | `TestResolveNeverCallsTheRevoker` | a `dl-…` the Hub calls revoked, resolved from the outbox goroutine while this `Feed` is leader → `recRevoker` saw nothing, and `Resolve` made exactly one store read and one Hub read | a read-through that runs `Refresh`, so delivery destroys sandboxes inside the 500 ms tick |
 | `TestRefreshPrunesAnOrgItNoLongerNeeds` | org A tracked, its only agent ends, `Drop` its entry, one `Refresh` → `Orgs()` omits A; with the entry still cached, `Orgs()` keeps it | a poll list that only grows, one `OrgChanges` per 10 s per org ever seen |
-| `TestConcurrentFirstTrackKeepsTheOlderCursor` | `Adopt` and `Refresh` race on an untracked org; the Hub head moves between them; the cursor is the earlier head, and the event committed between the two is polled | `SetCursor` overwriting in `Refresh`, which skips the window head-first exists to close |
+| `TestConcurrentFirstTrackKeepsTheOlderCursor` | run **both ways**: `Refresh` first then `Adopt`, and `Adopt` first then `Refresh`, on an untracked org whose Hub head moves between the two; either way the cursor is the earlier head, and the event committed between the two is polled | an unconditional `SetCursor` in *either* of them, which skips the window head-first exists to close — and the second order is the one a `SetCursorIfAbsent` in `Refresh` alone still loses |
 | `TestRebuildPersistsNothing` | after `Rebuild`, the `InUse` fake saw only its one read, and no method of task 10's store that writes was called | Hub records drifting into Fleet's schema (`ADR-H1:467-474`) |
 | `TestEveryOpHasADeliverer` | `outbox.AllOps` ⊆ keys of `deliverers`, and every Op is in task 01's orchestrator route set | a new `Op` with no route |
 
