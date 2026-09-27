@@ -30,7 +30,7 @@
 | **P12** | Does `/key/info` report per-key spend? | `info.spend > 0` within 60 s of a call | task 09's sweep needs another source (spend logs by key hash) |
 | **P13** | Does the Global path forward what the CLI sends, unchanged? | a top-level `zz_future_field`, `thinking`, and the `anthropic-beta` header all reach the fake from a model **without** `drop_params` | task 02's Global group, and the gatekeeper's docs-mandated pass-through (task 11) is undone downstream; a blocker for OD-20 raised to the owner |
 | **P14** | Can a body `fallbacks` on an `au/` group reach the Global upstream? | a call to `au/claude-opus-4-8` carrying `"fallbacks": ["global/claude-opus-4-8"]` and `"mock_testing_fallbacks": true`, made directly to LiteLLM with two production-shaped keys (an AU-minted key naming only `au/*`, and a Global-minted key naming both groups, which is what a raise leaves live), adds **no** request to `fakeanthropic-global` for either key, and adds none to `fakeanthropic-au` (so the mocked failure did fire). Both keys must mint (a key that did not is a FAIL) and both calls must reach the router (a status of 0, 401 or 403 is UNKNOWN), and the stack must be in task 17's fake mode (probe.sh exits 2 otherwise), so "nothing at either fake" is never a request that went nowhere or to the real provider | **blocker for OD-19's AU route**, raised to the owner like P06. A FAIL on the both-groups key alone means LiteLLM honours a body fallback within a key's models: task 11's `ControlFields` is then the only guard on the request, and task 07's decision (h) bounds how long such a key lives after a raise. A FAIL on the AU-only key means LiteLLM ignores the key's model list on a fallback, so decision (d) protects nothing |
-| **P15** | Does re-sending a user's or team's budget move its reset date? | create a user with `budget_duration: "30d"` and a budget, read `budget_reset_at` from `/user/info`, make the **same** `EnsureUser` call again (the one keysmith repeats every `EnsureMemo`, 10 minutes, task 07), read it again: PASS is unchanged | keysmith ensures a person or team at most **once per period** — `memoKey` gains the period, so the repeat stops — or P6-D8's person and project dimensions drop their native budget and move to keysmith's slice (P03's fallback). Without one of those a window that keeps sliding never elapses, LiteLLM's `spend` never zeroes, and a person refused once is refused for the rest of the engagement while the cockpit reads US$0.00 (review M-7) |
+| **P15** | Does re-sending a user's budget move its reset date, and does a window that elapses actually zero `spend`? | **two readings, both required** (re-review b06, Important 4). **(a) the slide:** create a user with `budget_duration: "30d"` and a budget, read `budget_reset_at` from `/user/info`, make the **same** `EnsureUser` call again (the one keysmith repeats every `EnsureMemo`, 10 minutes, task 07), read it again — PASS(a) is unchanged. **(b) the reset:** create **two** users with the shortest window the image accepts (try `"1m"`; if it refuses, `"1h"`, and record which), spend on each through a key of its own against task 17's fake upstream until `/user/info` shows `spend > 0` (the same reading P12 makes per key), then repeat `EnsureUser` on the **first** user every 10 s and leave the **second** alone. After the original window has passed, plus the image's `reset_budget` job interval (record the interval observed; allow two of them), read both: PASS(b) is **both** users at `spend == 0` with `budget_reset_at` moved. A second user that never resets means the image has no working reset at all and (a) is moot; a first that does not reset while the second does means the repeat itself suppresses the reset. Either of those, or a `spend` that stays 0 before the wait, is **UNKNOWN**, not PASS | **The two options are not interchangeable, and (b) is what chooses between them.** Option 1, keysmith ensures a person or team at most **once per period** (`memoKey` gains the period, so the repeat stops), is certain **only if PASS(b)**: keysmith's period is a UTC calendar month and LiteLLM's window is 30 days from creation, so the two drift by up to three days and the first ensure of a new month can still land *inside* the old window — if a repeat inside the window suppresses the reset, that one ensure suppresses it too, and the person is refused for a month at a time with the cockpit reading US$0.00 rather than forever. Option 2, P6-D8's person and project dimensions drop their native budget and move to keysmith's slice (P03's fallback), clears the failure whatever (b) reads, at the cost the seam records. So: PASS(a) — nothing to do. FAIL(a) with PASS(b) — option 1. FAIL(a) with FAIL or UNKNOWN(b) — option 2, and say why. Without one of them a window that keeps sliding never elapses, LiteLLM's `spend` never zeroes, and a person refused once is refused while the cockpit reads US$0.00 (review M-7, seam S6.12) |
 | **P16** | Does the pinned image accept a calendar-month budget window? | create a user with `budget_duration: "1mo"`, then read `budget_reset_at` from `/user/info`: PASS is accepted **and** a date at 00:00 UTC on the first of a month | the two clocks stand, and task 22's reset date for the person and the project comes from LiteLLM's own `budget_reset_at` rather than from keysmith's UTC month (seam **S6.12**). A PASS makes `keysmith.BudgetDuration` that value and there is one clock (review M-7) |
 
 **Files:**
@@ -267,6 +267,32 @@ def v_p14(results):
         return "UNKNOWN", f"mock_testing_fallbacks ignored, the au primary answered for {unfired}"
     return "PASS", "; ".join(f"{shape}: status {st}, nothing at either fake" for shape, _, _, st in results)
 
+def v_p15(before, after, b, window):
+    """(a) the slide, (b) the reset. b is None (not run) or
+    {"repeated": (spend before the wait, spend after, reset moved), "quiet": …}."""
+    if b is None:
+        rb = ("UNKNOWN", f"(b) not run (shortest window accepted: {window}); set GW_PROBE_SLOW=1")
+    elif not all(s0 for s0, _, _ in b.values()):
+        rb = ("UNKNOWN", "(b) spend stayed 0 before the wait: unpriced, so no reset is visible")
+    elif b["quiet"][1] or not b["quiet"][2]:
+        rb = ("UNKNOWN", "(b) the untouched window did not reset: this image resets nothing")
+    elif b["repeated"][1]:
+        rb = ("FAIL", "(b) the untouched window reset and the repeated one did not: the repeat suppresses it")
+    else:
+        rb = ("PASS", "(b) both windows reset, so stopping the repeat is enough")
+    if before is not None and before == after:
+        return "PASS", f"budget_reset_at unchanged by the repeat ({before}); {rb[1]}"
+    opt = "option 1, ensure once per period" if rb[0] == "PASS" else \
+          "option 2, drop the native person and project budgets (P03's fallback)"
+    return "FAIL", f"the repeat moved budget_reset_at {before} -> {after}; {rb[1]}; take {opt} (seam S6.12)"
+
+def v_p16(status, reset_at):
+    if status != 200:
+        return "FAIL", f"budget_duration '1mo' refused: HTTP {status}; the two clocks stand (seam S6.12)"
+    d = reset_at or ""
+    ok = d[8:10] == "01" and d[11:19] == "00:00:00"
+    return ("PASS" if ok else "FAIL"), f"budget_reset_at {d!r}, want the first of a month at 00:00 UTC"
+
 def v_upstreams(rows):
     """rows: (model_name, api_base) pairs from LiteLLM's /model/info. None when every
     global/ group goes to fakeanthropic-global and every au/ group to fakeanthropic-au,
@@ -363,6 +389,58 @@ def budget_probe(pid, master, run, user_usd, team_usd, key_usd):
         time.sleep(3)
     say(pid, *v_budget(refused, spend_of(master, k) or spend))
 
+RESET_JOB_S = 600   # LiteLLM's reset_budget job interval; UNVERIFIED, set from the image
+
+def user_info(master, uid):
+    st, b = call("GET", LL + "/user/info?user_id=" + urllib.request.quote(uid), master)
+    if st != 200:
+        return None, None
+    info = json.loads(b).get("user_info") or {}
+    return info.get("budget_reset_at"), float(info.get("spend") or 0)
+
+def ensure_user(master, uid, window):
+    """keysmith's EnsureUser (task 07): the same body, every EnsureMemo."""
+    body = {"user_id": uid, "max_budget": ROOMY, "budget_duration": window}
+    if call("POST", LL + "/user/new", master, body)[0] != 200:
+        call("POST", LL + "/user/update", master, body)
+
+def p15_reset(master, u, window):
+    """P15 reading (b): two users on the shortest window, one re-ensured every
+    10 s and one left alone, so a window that never resets is told apart from
+    one the repeat suppressed. Slow by construction: the window, then two runs
+    of the reset job."""
+    ids, team = {"repeated": u("p15r"), "quiet": u("p15q")}, u("p15t")
+    for uid in ids.values():
+        ensure_user(master, uid, window)
+        call("POST", LL + "/v1/messages", prod_key(master, uid, team, [MODEL]), msg(MODEL, "p15"))
+    stop = time.time() + 120                      # spend is written asynchronously
+    while time.time() < stop and not all(user_info(master, i)[1] for i in ids.values()):
+        time.sleep(3)
+    start = {n: user_info(master, i) for n, i in ids.items()}
+    stop = time.time() + 60 + 2 * RESET_JOB_S
+    while time.time() < stop:
+        ensure_user(master, ids["repeated"], window)
+        time.sleep(10)
+    end = {n: user_info(master, i) for n, i in ids.items()}
+    return {n: (start[n][1], end[n][1], end[n][0] != start[n][0]) for n in ids}
+
+def clock_probes(master, u):
+    """P15 and P16, the two budget clocks (review M-7, seam S6.12)."""
+    a = u("p15a")
+    ensure_user(master, a, "30d")
+    before = user_info(master, a)[0]
+    ensure_user(master, a, "30d")                 # the EnsureMemo repeat
+    after = user_info(master, a)[0]
+    window = next((w for w in ("1m", "1h")
+                   if call("POST", LL + "/user/new", master,
+                           {"user_id": u("p15w" + w), "budget_duration": w})[0] == 200), None)
+    b = p15_reset(master, u, window) if window == "1m" and os.environ.get("GW_PROBE_SLOW") else None
+    say("P15", *v_p15(before, after, b, window))
+    m = u("p16")
+    st = call("POST", LL + "/user/new", master,
+              {"user_id": m, "max_budget": ROOMY, "budget_duration": "1mo"})[0]
+    say("P16", *v_p16(st, user_info(master, m)[0] if st == 200 else None))
+
 def say(pid, verdict, evidence, *_):
     print(f"{pid} {verdict} {redact(evidence)}", flush=True)
 ```
@@ -446,6 +524,7 @@ def client(run, canary, tmp_master):
         time.sleep(3)
         s12 = spend_of(master, k12)
     say("P12", *v_p12(s12))
+    clock_probes(master, u)                   # P15 and P16, the two budget clocks
     tmp_probes(tmp_master)
     time.sleep(max(0, 70 - (time.time() - t02)))
     say("P02", *v_p02(first02, call("POST", LL + "/v1/messages", k02, msg(MODEL, "p02"))[0]))
@@ -635,10 +714,10 @@ P01 <verdict> <evidence>
 ---- summary
 P01 <verdict> <evidence>
 ...
-P14 <verdict> <evidence>
+P16 <verdict> <evidence>
 ```
 
-Fourteen summary lines, one per probe. A probe line that is missing means the client died; its traceback is on stderr and is fixed before the results are recorded.
+Sixteen summary lines, one per probe, P01 to P16. A probe line that is missing means the client died; its traceback is on stderr and is fixed before the results are recorded. P15's reading (b) runs only under `GW_PROBE_SLOW=1`, because it waits out a budget window and two runs of LiteLLM's reset job (`RESET_JOB_S`, 600 s assumed, **UNVERIFIED**); without it P15 reports reading (a) with (b) `UNKNOWN`, which seam S6.12 treats as "take option 2".
 
 - [ ] **Step 8: Record the results**
 
@@ -702,14 +781,16 @@ with `/tmp/msg-task18.txt` holding (the last paragraph written from the actual r
 ```text
 test(gateway): probe what the pinned LiteLLM actually does
 
-Fourteen probes against task 17's local stack, each PASS, FAIL or UNKNOWN
+Sixteen probes against task 17's local stack, each PASS, FAIL or UNKNOWN
 with evidence, recorded against the image digest: a caller-chosen key,
 duration expiry, user, team and key budgets (each on keysmith's key shape,
 one dimension exhausted at a time), no stored prompt or reply text, the
 api_base path form (the Panacea 405, measured), spoofed tags, unbuffered
 pings, drop_params, immediate key delete, per-key spend, pass-through of
-unknown fields and anthropic-beta on the Global path, and whether a body
-fallback on an au/ group can reach the Global upstream.
+unknown fields and anthropic-beta on the Global path, whether a body
+fallback on an au/ group can reach the Global upstream, and the two budget
+clocks: whether keysmith's ten-minute re-ensure slides LiteLLM's window,
+and whether the image takes a calendar-month one.
 
 The client runs inside the LiteLLM container, so LiteLLM stays unpublished
 and the master key never reaches a command line. Evidence is redacted of
