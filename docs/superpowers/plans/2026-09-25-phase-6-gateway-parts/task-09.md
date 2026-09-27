@@ -2,7 +2,7 @@
 
 LiteLLM enforces two of the three budget dimensions natively: the person (its user budget) and the project (its team budget, since `team_id` is the project, P6-D6). The **team** dimension has no LiteLLM tier this plan can rely on, so keysmith enforces it at mint from spend it records itself (P6-D8, task 06). This task records that spend: a sweep that reads each recent key's spend from LiteLLM every 60 seconds into `keysmith.key_spend`, and a reader that sums it per person, project and team for the current UTC month. The reader is task 07's `SpentReader` and the source of keysmith's `GET /v1/usage` (task 08).
 
-**The one thing this task must not get wrong is losing spend.** A key LiteLLM has deleted (revoked, superseded, or expired and cleaned up) can no longer be read, and a row that went to zero when its key vanished would hand that spend back to the team's budget. So a recorded spend **never decreases**: the upsert keeps the greater of the stored and the read figure, a read that fails leaves the row alone, and `key_spend` has no foreign key to `bindings`, so task 05's `DeleteExpired` cannot take spend with it.
+**The one thing this task must not get wrong is losing spend.** A key LiteLLM has deleted (revoked, superseded, or expired and cleaned up) can no longer be read, and a row that went to zero when its key vanished would hand that spend back to the team's budget. So a recorded spend **never decreases**: the upsert keeps the greater of the stored and the read figure, a read that fails leaves the row alone, and `key_spend` has no foreign key to `bindings`, so task 05's `DeleteExpired` cannot take spend with it. That rule has a second half the first draft missed (review M-3): the sweep runs every 60 seconds, so a key deleted between two sweeps keeps only what the last sweep saw, and keysmith deletes a key on every refresh and every revoke. `RecordKey` closes that window — keysmith calls it immediately before each `/key/delete` (task 07 decision (j)) — and it runs the same `record` the sweep runs, so there is one upsert path and one never-lower rule, not two that can drift.
 
 LiteLLM's own spend reports (tag and team reports) are not used, because those features may be enterprise-only in the pinned image (**UNVERIFIED** until task 18). `GET /key/info`'s `spend` is the one figure this task reads, through task 04's `KeyInfo` (`task-04.md`, `KeyInfo{Spend float64, …}` and `(*Client).KeyInfo(ctx, keyID)`); that it reports a key by the hash task 07 stores is task 18's P12.
 
@@ -18,7 +18,7 @@ LiteLLM's own spend reports (tag and team reports) are not used, because those f
   - `usage.KeySource` = `RecentKeys(ctx, expiringAfter time.Time) ([]KeyRef, error)`; `*usage.PGStore` implements it over `keysmith.bindings`
   - `usage.NewMemStore() *MemStore`, `usage.NewPGStore(*pgxpool.Pool) *PGStore`
   - `usage.NewReader(Store, budget.Policy, now func() time.Time) *Reader`; `(*Reader).Spent(ctx, wire.Owner, teamID, projectID string) (budget.Spent, error)` (task 07's `SpentReader`); `(*Reader).Rows(ctx, scope, id string) ([]wire.UsageRow, error)`, exactly one row, the current period's, with zero spend when nothing was spent (task 21's gap 6)
-  - `usage.Sweeper{Keys KeySource; Admin KeyInfoer; Store Store; Clock func() time.Time; Every, Lookback time.Duration; Report func(error); Prices PriceReader; Groups []string}` with `Once(ctx) (int, error)` and `Run(ctx)`; `usage.PriceReader`, `usage.ErrUnpriced` (decision (g))
+  - `usage.Sweeper{Keys KeySource; Admin KeyInfoer; Store Store; Clock func() time.Time; Every, Lookback time.Duration; Report func(error); Prices PriceReader; Groups []string}` with `Once(ctx) (int, error)`, `Run(ctx)` and `RecordKey(ctx, wire.Binding) error` (keysmith's `SpendRecorder`, task 07 decision (j)); `usage.PriceReader`, `usage.ErrUnpriced` (decision (g))
 - Consumes: `budget.Policy`, `budget.Spent`, `budget.PeriodStart` (task 06, committed); `wire.Owner` and `(Owner).UserID()`, `wire.UsageRow`, `wire.ScopePerson`, `ScopeProject`, `ScopeTeam` (task 03); `litellmadmin.KeyInfo`, `litellmadmin.GroupPrice` and `(*Client).ModelPrices` (task 04; the last two added by review I-5); `keysmith.bindings`' columns `key_hash`, `key_id`, `session_id`, `owner_tid`, `owner_oid`, `team_id`, `project_id`, `created_at`, `expires_at` and `binding.Migrate` (task 05's `0001_keysmith.sql`, read in `task-05.md`); `github.com/jackc/pgx/v5` (task 05 adds it).
 - Required by: task 07 (`Deps.Spent`), task 08 (`NewPGStore`, `NewReader`, `Sweeper`, `GET /v1/usage`), task 21 (the rows it shows).
 
@@ -395,6 +395,29 @@ func TestDeletedKeyKeepsItsSpend(t *testing.T) {
 	}
 	if got := sum(t, store, wire.ScopeTeam, "team-1", sep); got != 3 {
 		t.Errorf("team spend = %v, want the 3 recorded before the delete", got)
+	}
+}
+
+// Mutants killed: RecordKey that reads but does not file; one that files under
+// the call's month instead of the key's; one whose failure is swallowed, which
+// would tell keysmith the spend is safe when it is not (review M-3).
+func TestRecordKeyFilesTheSpendASweepWouldMiss(t *testing.T) {
+	now := time.Date(2026, 9, 25, 9, 0, 0, 0, time.UTC)
+	info := fakeInfo{hashOf("k1"): 7}
+	store := NewMemStore()
+	sw := &Sweeper{Keys: &fakeKeys{}, Admin: info, Store: store, Clock: func() time.Time { return now }}
+	k := ref("k1", now.Add(-30*time.Minute)) // never swept: Keys has no refs
+	b := wire.Binding{KeyHash: k.KeyHash, KeyID: k.KeyID, SessionID: k.SessionID, Owner: k.Owner,
+		TeamID: k.TeamID, ProjectID: k.ProjectID, CreatedAt: k.CreatedAt}
+	if err := sw.RecordKey(ctx, b); err != nil {
+		t.Fatal(err)
+	}
+	if got := sum(t, store, wire.ScopeTeam, "team-1", sep); got != 7 {
+		t.Errorf("team spend = %v, want 7 filed under the key's month", got)
+	}
+	delete(info, hashOf("k1"))
+	if err := sw.RecordKey(ctx, b); err == nil {
+		t.Error("RecordKey of a key LiteLLM no longer knows = nil; keysmith must be able to report it")
 	}
 }
 
@@ -857,24 +880,38 @@ func (s *Sweeper) Once(ctx context.Context) (int, error) {
 	}
 	n := 0
 	for _, k := range refs {
-		info, err := s.Admin.KeyInfo(ctx, k.KeyID)
-		if err != nil {
-			s.report(fmt.Errorf("usage: key info for session %s: %w", k.SessionID, err))
-			continue
-		}
-		if math.IsNaN(info.Spend) || math.IsInf(info.Spend, 0) || info.Spend < 0 {
-			s.report(fmt.Errorf("usage: session %s: LiteLLM reported spend %v; not recorded", k.SessionID, info.Spend))
-			continue
-		}
-		if err := s.Store.Upsert(ctx, Record{KeyHash: k.KeyHash, SessionID: k.SessionID, UserID: k.Owner.UserID(),
-			TeamID: k.TeamID, ProjectID: k.ProjectID, PeriodStart: budget.PeriodStart(k.CreatedAt),
-			SpendUSD: info.Spend, UpdatedAt: now}); err != nil {
+		if err := s.record(ctx, k, now); err != nil {
 			s.report(err)
 			continue
 		}
 		n++
 	}
 	return n, nil
+}
+
+// record reads one key's spend and files it. The sweep reports what it returns
+// and goes on to the next key; RecordKey returns it to keysmith.
+func (s *Sweeper) record(ctx context.Context, k KeyRef, now time.Time) error {
+	info, err := s.Admin.KeyInfo(ctx, k.KeyID)
+	if err != nil {
+		return fmt.Errorf("usage: key info for session %s: %w", k.SessionID, err)
+	}
+	if math.IsNaN(info.Spend) || math.IsInf(info.Spend, 0) || info.Spend < 0 {
+		return fmt.Errorf("usage: session %s: LiteLLM reported spend %v; not recorded", k.SessionID, info.Spend)
+	}
+	return s.Store.Upsert(ctx, Record{KeyHash: k.KeyHash, SessionID: k.SessionID, UserID: k.Owner.UserID(),
+		TeamID: k.TeamID, ProjectID: k.ProjectID, PeriodStart: budget.PeriodStart(k.CreatedAt),
+		SpendUSD: info.Spend, UpdatedAt: now})
+}
+
+// RecordKey files one key's spend at once, because its caller is about to
+// delete the key at LiteLLM and this is the last moment /key/info can answer
+// for it (task 07 decision (j), review M-3). It is keysmith's SpendRecorder.
+// The figure goes through the same never-lower upsert as the sweep's, so a
+// final read that LiteLLM answers late or low cannot take spend away.
+func (s *Sweeper) RecordKey(ctx context.Context, b wire.Binding) error {
+	return s.record(ctx, KeyRef{KeyHash: b.KeyHash, KeyID: b.KeyID, SessionID: b.SessionID,
+		Owner: b.Owner, TeamID: b.TeamID, ProjectID: b.ProjectID, CreatedAt: b.CreatedAt}, s.clock())
 }
 
 // Run sweeps at once, then every Every, until ctx ends.
@@ -975,3 +1012,4 @@ Message: `feat(usage): the per-key spend sweep and the three-dimension reader (p
 4. **No request count source.** If `Requests` matters to the cockpit, task 18 should find whether the pinned LiteLLM exposes one per key without an enterprise feature.
 5. **`Rows` returns the current period only, one row per call** (task 21's gap 6 asked for the zero-spend row; this delivers it).
 6. **The price check needs two hand-offs** (decision (g), review I-5). **Task 04** adds `(*Client).ModelPrices(ctx) (map[string]GroupPrice, error)` over `GET /model/info` (done in its part, fix batch b02). **Task 08** passes `Prices: <the task 04 client>` and `Groups: catalogue.Groups()` into the `Sweeper` it runs; without `Groups` the check is off, so task 08's wiring names both (done in its `run`, fix batch b02; the line has no test of its own).
+7. **`RecordKey` is this part's half of task 07 decision (j)** (review M-3). keysmith declares the interface (`keysmith.SpendRecorder`), this part implements it on `*Sweeper`, and **task 08** passes that same sweeper as `Deps.Recorder` where it already passes the reader as `Deps.Spent`. `Recorder` is required, so a wiring that forgets it fails at `keysmith.New` rather than losing spend quietly. Nothing else moves: this part still depends on 04 and 06, and task 07 on 04, 05 and 06.

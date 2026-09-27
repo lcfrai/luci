@@ -1960,10 +1960,14 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 	reader := usage.NewReader(spend, policy, nil)
 	// task 09 decisions (c) and (g): Prices and Groups turn on the check that
 	// LiteLLM prices every group above zero (review I-5).
-	go (&usage.Sweeper{Keys: spend, Admin: admin, Store: spend, Report: report,
-		Prices: admin, Groups: cat.Groups()}).Run(ctx)
+	sweeper := &usage.Sweeper{Keys: spend, Admin: admin, Store: spend, Report: report,
+		Prices: admin, Groups: cat.Groups()}
+	go sweeper.Run(ctx)
+	// Recorder is the same sweeper: keysmith reads a key's spend one last time
+	// before deleting it, so the 60-second sweep loses nothing on a refresh or
+	// a revoke (task 07 decision (j), task 09 gap 7, review M-3).
 	svc, err := keysmith.New(keysmith.Deps{Admin: admin, Store: store, Budgets: policy, Spent: reader,
-		Routes: routes, Groups: cat.Groups(), TTL: cfg.TokenTTL, BaseURL: cfg.BaseURL, Report: report})
+		Recorder: sweeper, Routes: routes, Groups: cat.Groups(), TTL: cfg.TokenTTL, BaseURL: cfg.BaseURL, Report: report})
 	if err != nil {
 		return fmt.Errorf("%w: %v", errConfig, err)
 	}
