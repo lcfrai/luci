@@ -333,3 +333,41 @@ func TestCopyHooksGoesThroughTheMachineFS(t *testing.T) {
 		t.Errorf("a .git rel reached the FS: %+v", got)
 	}
 }
+
+// existsFails is a MachineFS whose Exists cannot answer for one path, as a cloud machine's may
+// not. The copy then cannot know which parents it would make, so which its take-back may remove.
+type existsFails struct {
+	gitx.MachineFS
+	path string
+}
+
+func (e existsFails) Exists(ctx context.Context, p string) (bool, bool, error) {
+	if p == e.path {
+		return false, false, errors.New("existsFails: no answer")
+	}
+	return e.MachineFS.Exists(ctx, p)
+}
+
+// TestCopyHooksStopsWhenExistsCannotAnswer: Exists fails on a tracked parent of rel, so the copy
+// stops with that error. Read as "absent", the failure names the parent as made, and the
+// take-back of an unignored copy deletes the lane's tracked tools/ (fix round 1, mutant K13).
+func TestCopyHooksStopsWhenExistsCannotAnswer(t *testing.T) {
+	t.Parallel()
+	p := gitxtest.NewRepo(t)
+	p.Commit("tools", map[string]string{"tools/README": "tracked\n"})
+	r := newRig(t, p)
+	l := r.mustCreate("main", "tools")
+	huskyFiles(t, filepath.Join(p.Dir, "tools", "hooks"), 1, 4)
+	m := gitx.Local{Runner: r.c.Machine.Git(), Root: r.root,
+		Files: existsFails{MachineFS: LocalFS{}, path: filepath.Join(l.Path, "tools")}}
+	n, err := CopyGeneratedHooks(context.Background(), m, p.Dir, l.Path, "tools/hooks")
+	if n != 0 || err == nil {
+		t.Errorf("= %d, %v; want 0 and Exists' error", n, err)
+	}
+	if b, rerr := os.ReadFile(filepath.Join(l.Path, "tools", "README")); rerr != nil || string(b) != "tracked\n" {
+		t.Errorf("tools/README = %q, %v; want the tracked file intact", b, rerr)
+	}
+	if _, lerr := os.Lstat(filepath.Join(l.Path, "tools", "hooks")); !errors.Is(lerr, os.ErrNotExist) {
+		t.Errorf("tools/hooks after the refused copy: %v, want absent", lerr)
+	}
+}

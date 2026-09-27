@@ -146,6 +146,23 @@ func TestCreateHoldsANamePerProject(t *testing.T) {
 	}
 }
 
+// TestCreateRefusesAnIndexedNameBeforeItClones: a name the index already has for the project is
+// ErrNameTaken at step 3, before any clone. Step 7's map would answer ErrNameTaken too, but only
+// after a whole clone, the cost review I-1 names (fix round 1, mutant K10).
+func TestCreateRefusesAnIndexedNameBeforeItClones(t *testing.T) {
+	t.Parallel()
+	r := newRig(t, gitxtest.NewRepo(t))
+	r.mustCreate("main", "ui")
+	rec := &recorder{inner: r.c.Machine.Git()}
+	r.withRunner(rec, nil)
+	if _, err := r.create("main", "ui"); !errors.Is(err, ErrNameTaken) {
+		t.Errorf("a second ui in the project: err = %v, want ErrNameTaken", err)
+	}
+	if cloneRan(rec) {
+		t.Error("a clone ran for a name the index already had")
+	}
+}
+
 // sameID is another writer whose Add first files a lane under the new lane's ID and another
 // name: the removed-lane residual step 3 accepts at its odds. That clash is no name clash.
 type sameID struct{ *FileStore }
