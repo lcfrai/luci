@@ -1,8 +1,8 @@
 ### Task 21: Control-plane inference API
 
-The cockpit needs two things about a project's inference: what it runs on now, and how much it has spent against each budget. It also needs one action, raising the project to AU. This task gives the local control plane `GET` and `PATCH /v1/projects/{projectId}/inference` for that, and nothing else. The same shape will later be served by the Hub for cloud projects (ask H-1, seam S6.1); the desktop does not change when it is.
+The cockpit needs two things about a project's inference: what it runs on now, and how much it has spent against each budget. It also needs one action, raising the project to AU. This task gives the local control plane `GET` and `PATCH /v1/projects/{projectId}/inference` for that, and nothing else. The same shape will later be served by the Hub for cloud projects, `PATCH` through ask H-1 and `GET`, spend included, through ask H-5 (seams S6.1, S6.11); the desktop does not change when it is.
 
-**The one thing this task must not get wrong is who may loosen a route.** OD-24 is "tighten, never loosen" (`docs/superpowers/planning/2026-09-23-owner-decisions.md:140-152`), and task 01's `dataclass.CanChange` and `CanReclassify` are that rule. The local control plane has one caller, the person at this PC, and it calls both functions with `dataclass.Actor{Member: true}` and **never** with `Compliance: true`. There is no configuration, flag or header that changes that. So every lowering this API sees is `403 needs_compliance`, and every raise succeeds.
+**The one thing this task must not get wrong is who may loosen a route.** OD-24 is "tighten, never loosen" (`docs/superpowers/planning/2026-09-23-owner-decisions.md:140-152`), and task 01's `dataclass.CanChange` and `CanReclassify` are that rule. The local control plane has one caller, the person at this PC, and it calls both functions with `dataclass.Actor{Member: true, Solo: localProjectsAreSolo}` and **never** with `Compliance: true`. There is no configuration, flag or header that changes that. So every raise succeeds; a class loosening is `403 needs_compliance`; a route lowering below the class's floor is `409 conflict`; and a route lowering **to** the floor succeeds, because every local project is solo and the source design lets a solo project keep its owner's choice (decision (j), owner question Q5, review I-2).
 
 The second thing is **effective, never stored**. The panel shows the route the gatekeeper will actually apply, computed through `dataclass.Decide` (task 01), so an `au-only` class whose stored route says `global` shows `au`.
 
@@ -18,7 +18,7 @@ The second thing is **effective, never stored**. The panel shows the route the g
 **Interfaces:**
 - Produces:
   - `GET /v1/projects/{projectId}/inference` → `200 inferenceJSON` (below); `404 project_not_found`
-  - `PATCH /v1/projects/{projectId}/inference` with exactly one of `{"route": "au"}` or `{"dataClass": {"level": …, "residency": …}}` → `200 inferenceJSON` (the state after the write); `400 bad_request`, `400 invalid_json`, `403 needs_compliance`, `404 project_not_found`, `409 conflict`, `500 internal`
+  - `PATCH /v1/projects/{projectId}/inference` with exactly one of `{"route": "au" | "global"}` or `{"dataClass": {"level": …, "residency": …}}` → `200 inferenceJSON` (the state after the write); `400 bad_request`, `400 invalid_json`, `403 needs_compliance`, `404 project_not_found`, `409 conflict`, `500 internal`
   - Both are also served under `/api/v1/…` by the existing alias (`control-plane/internal/api/api.go:379`), with no extra line
   - `api.ProjectInferenceStore`, `api.UsageReader`, `api.GatewayDeps`, `api.NewFileInferenceStore`
 - Consumes:
@@ -48,6 +48,8 @@ The second thing is **effective, never stored**. The panel shows the route the g
 **(h) The store renames, so its readers must mount the directory.** `FileInferenceStore` writes `projects.json.tmp`, syncs it and renames it over `projects.json`, so no reader ever sees half a file. A container that bind-mounts the **file** keeps the old inode after a rename and never sees the change (the skeleton's own rule for the token directory, "Shared names"). So keysmith and the gatekeeper must mount the directory holding `projects.json`, and `ROUTE_SOURCE` names the file inside it. That is task 17's to honour (gap 3).
 
 **(i) The local person and team.** `routeChangedBy` is a `dataclass.User` whose `id` is `<tid>:<oid>`, the same string task 07 passes to `EnsureUser`; the usage calls ask for that person, this project, and the team task 15 mints for. Both come from `GatewayDeps`, which `cmd/api` fills from task 15's configuration (gap 2). With the gateway off, `routeChangedBy.id` is `"local"`.
+
+**(j) The local actor is a solo project's owner (review I-2, owner question Q5).** Every project `FileInferenceStore` holds is solo: `05-design.md` §2.3 (`:151-157`) defines solo as *on the local control plane*, and a shared project's route comes from the Hub (S6.1), which this control plane refuses to start with (decision (g)). The source design keeps a solo project's choice (`05-design.md:219`), so the actor is `dataclass.Actor{Member: true, Solo: localProjectsAreSolo}` with `const localProjectsAreSolo = true`, and task 01's decision (e) lets it lower the **route** to the floor and gives it nothing on the **class**. That constant is the seam: if the owner answers Q5 with the universal ratchet, it becomes `false`, `TestInferenceASoloRouteLoweringToTheFloorIsStored` is replaced by its old form (a route lowering is `403 needs_compliance`, and `projects.json` is not rewritten), and mutant 5 goes. It is a constant, not configuration, because a variable that lets a route lower would be the only runtime switch in this program that loosens anything.
 
 - [ ] **Step 1: Preflight**
 
@@ -233,22 +235,35 @@ func TestInferenceARaiseIsStoredAndTheNextGetShowsIt(t *testing.T) {
 	}
 }
 
-// Mutant: CanChange called with Actor{Compliance: true}, or not called at all.
-func TestInferenceARouteLoweringIsNeedsCompliance(t *testing.T) {
-	seed := infSeed(catalogTestProject, "internal", "any", "au")
-	h, path := infNew(t, nil, seed)
+// Decision (j), owner question Q5. Mutant: the local actor built without Solo,
+// which brings back the universal ratchet without the owner choosing it.
+func TestInferenceASoloRouteLoweringToTheFloorIsStored(t *testing.T) {
+	h, path := infNew(t, nil, infSeed(catalogTestProject, "internal", "any", "au"))
 	rec := catalogDo(t, h, "PATCH", infPath, `{"route":"global"}`, nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("a solo lowering to the floor = %d: %s", rec.Code, rec.Body)
+	}
+	if b := infDecode(t, rec.Body.String()); str(b.Route) != "global" || str(b.EffectiveRoute) != "global" {
+		t.Fatalf("route %s effective %s, want global and global", str(b.Route), str(b.EffectiveRoute))
+	}
+	raw, _ := os.ReadFile(path)
+	var file map[string]json.RawMessage
+	_ = json.Unmarshal(raw, &file)
+	if f, err := dataclass.DecodeFields(file[catalogTestProject]); err != nil || f.InferenceRoute != dataclass.RouteGlobal {
+		t.Fatalf("projects.json holds %s (%v); the gatekeeper reads the file, not this API", raw, err)
+	}
+}
+
+// Mutants: a class PATCH that skips CanReclassify, so a member lowers the level;
+// the local actor given Compliance; a refused change that still writes the file.
+func TestInferenceAClassLoweringIsNeedsCompliance(t *testing.T) {
+	seed := infSeed(catalogTestProject, "confidential", "any", "global")
+	h, path := infNew(t, nil, seed)
+	rec := catalogDo(t, h, "PATCH", infPath, `{"dataClass":{"level":"internal","residency":"any"}}`, nil)
 	infProblem(t, rec, http.StatusForbidden, wire.CodeNeedsCompliance)
 	if raw, _ := os.ReadFile(path); string(raw) != seed {
 		t.Fatalf("a refused lowering rewrote projects.json:\n%s", raw)
 	}
-}
-
-// Mutant: a class PATCH that skips CanReclassify, so a member lowers the level.
-func TestInferenceAClassLoweringIsNeedsCompliance(t *testing.T) {
-	h, _ := infNew(t, nil, infSeed(catalogTestProject, "confidential", "any", "global"))
-	rec := catalogDo(t, h, "PATCH", infPath, `{"dataClass":{"level":"internal","residency":"any"}}`, nil)
-	infProblem(t, rec, http.StatusForbidden, wire.CodeNeedsCompliance)
 }
 
 // Mutant: every CanChange error mapped to 403, sending the person to ask for a
@@ -568,11 +583,18 @@ type inferencePatch struct {
 // errUnclassified is a route PATCH on a project with no data class.
 var errUnclassified = errors.New("api: project has no data class")
 
-// member is the only actor this control plane ever acts as. THERE IS NO PATH
-// THAT BUILDS A COMPLIANCE ACTOR IN THIS PACKAGE: the local caller is the person
-// at this PC, and a lowering is the org compliance role's (ask H-4), which only
-// the Hub can establish.
-var member = dataclass.Actor{Member: true}
+// localProjectsAreSolo is owner question Q5's seam (decision (j)). Every project
+// this store holds is solo (05-design.md 2.3), and the source design lets a solo
+// project's owner lower its route to the floor (task 01 decision (e)). false is
+// the universal ratchet. A constant, never configuration: nothing at run time
+// may loosen a route.
+const localProjectsAreSolo = true
+
+// localActor is the only actor this control plane ever acts as. THERE IS NO
+// PATH THAT BUILDS A COMPLIANCE ACTOR IN THIS PACKAGE: the local caller is the
+// person at this PC, and a class loosening is the org compliance role's (ask
+// H-4), which only the Hub can establish.
+var localActor = dataclass.Actor{Member: true, Solo: localProjectsAreSolo}
 
 func personID(o wire.Owner) string { return o.TID + ":" + o.OID }
 ```
@@ -724,14 +746,14 @@ func (a *API) handleInferencePatch(w http.ResponseWriter, r *http.Request) {
 			return cur, errUnclassified
 		case p.Route != nil:
 			floor = dataclass.Floor(cur.DataClass)
-			if err := dataclass.CanChange(cur.DataClass, cur.InferenceRoute, wantRoute, member); err != nil {
+			if err := dataclass.CanChange(cur.DataClass, cur.InferenceRoute, wantRoute, localActor); err != nil {
 				return cur, err
 			}
 			cur.InferenceRoute = wantRoute
 		case !ok: // the first classification (decision (a))
 			cur = dataclass.ProjectInferenceFields{DataClass: wantClass, InferenceRoute: dataclass.Floor(wantClass)}
 		default: // a reclassification, and the stored route ratchets with it (decision (b))
-			if err := dataclass.CanReclassify(cur.DataClass, wantClass, member); err != nil {
+			if err := dataclass.CanReclassify(cur.DataClass, wantClass, localActor); err != nil {
 				return cur, err
 			}
 			cur.DataClass = wantClass
@@ -981,14 +1003,15 @@ go test ./control-plane/internal/api/ -race -count=1                            
 go test ./control-plane/cmd/api/ -race -count=1                                                            # expect ok
 ```
 
-- [ ] **Step 10: Kill four mutants by hand**
+- [ ] **Step 10: Kill five mutants by hand**
 
 Each edit, made alone and reverted, must turn exactly the named test red:
 
-1. `var member = dataclass.Actor{Member: true, Compliance: true}` → `TestInferenceARouteLoweringIsNeedsCompliance` and `TestInferenceAClassLoweringIsNeedsCompliance`.
+1. `var localActor = dataclass.Actor{Member: true, Solo: localProjectsAreSolo, Compliance: true}` → `TestInferenceAClassLoweringIsNeedsCompliance` (a route lowering to the floor succeeds either way, so the route test cannot see this one).
 2. In `inferenceBody`, `b.EffectiveRoute = &rt` in place of the `Effective()` call → `TestInferenceGetShowsTheEffectiveRouteNotTheStoredOne`.
 3. In `load`, `return map[string]json.RawMessage{}, nil` on a parse error → `TestInferenceAnUnreadableStoreIs500AndIsNotOverwritten`.
 4. Delete `s.mu.Lock()` and its `defer` from `Update` → `TestFileInferenceStoreDoesNotLoseAConcurrentUpdate` (under `-race`, a data race or a short count).
+5. `const localProjectsAreSolo = false` → `TestInferenceASoloRouteLoweringToTheFloorIsStored` (decision (j); this is also the owner's one-line change if Q5 goes the other way).
 
 - [ ] **Step 11: Vet, format, commit**
 
@@ -1006,13 +1029,15 @@ Message: `feat(api): project inference route and class, raise-only, with usage (
 **Acceptance:**
 
 1. Step 9 prints `16`, then `ok` twice.
-2. Step 10's four edits each fail the named test.
-This task has no by-hand acceptance against the real stack. That run needs task 17's stack, and 17 is not a dependency of this task: it sits in wave 7, a wave after this task's wave 6 (skeleton, wave list). It is task 23's: step 4 observes an unclassified project's `GET` (`"effectiveRoute":null`, `"gateway":"on"`, `"usageState":"ok"`, the first read of keysmith's `/v1/usage` through 15a's client) and the classify `PATCH`; step 6 observes the raise and the refused lowering (`needs_compliance`). Moved there by re-review B04-1. Steps 9 and 10 are this task's whole proof, on fakes.
+2. Step 10's five edits each fail the named test.
+This task has no by-hand acceptance against the real stack. That run needs task 17's stack, and 17 is not a dependency of this task: it sits in wave 7, a wave after this task's wave 6 (skeleton, wave list). It is task 23's: step 4 observes an unclassified project's `GET` (`"effectiveRoute":null`, `"gateway":"on"`, `"usageState":"ok"`, the first read of keysmith's `/v1/usage` through 15a's client) and the classify `PATCH`; step 6 observes the raise, the refused class loosening (`needs_compliance`) and the solo route lowering back to Global (`200`, decision (j)). Moved there by re-review B04-1. Steps 9 and 10 are this task's whole proof, on fakes.
 
 **What this task does not claim:**
 
 - **Team-project semantics.** In a team project any member's raise is announced to everyone (`05-design.md:219-222`); that is Fleet's, in team mode. Here the only caller is the person at this PC.
-- **A Hub store.** `ProjectInferenceStore` has one implementation. The Hub's (ask H-1, seam S6.1) is phase H's, and `ROUTE_SOURCE=hub` fails start-up rather than pretending.
+- **A Hub store.** `ProjectInferenceStore` has one implementation. The Hub's (ask H-1, seam S6.1) is phase H's, and `ROUTE_SOURCE=hub` fails start-up rather than pretending. A Hub store's actor must have `Solo` false, since a Hub project is a team project (decision (j)).
+- **A Hub project's spend.** For a project whose record is the Hub's, the Hub serves the `GET` with spend (seam S6.11, ask H-5); this part reads keysmith only for the projects in its own file store.
+- **That a solo project may go back to Global.** Decision (j) builds the source design's rule; whether it stands is owner question Q5.
 - **Tightening latency.** A raise is on disk when the PATCH returns. The gatekeeper sees it when task 13's `File` re-reads (modification time) and its `Cache` entry expires, so up to `ROUTE_CACHE_TTL` (30 s) later. Task 23 step 6 (its item 3) observes the whole path.
 - **That Docker Desktop shows a host rename inside a container on a directory bind mount promptly**, on Windows in particular. **UNVERIFIED**; task 23 step 6 is the observation.
 - **Usage accuracy.** The figures are keysmith's, at most 60 s old (task 09), and US dollars as LiteLLM prices them.
@@ -1024,6 +1049,6 @@ This task has no by-hand acceptance against the real stack. That run needs task 
 2. **Task 15 must expose the owner and team it mints for.** The local control plane mints as someone (`MintRequest.Owner`, `TeamID`); the skeleton names no variable for either. `GatewayDeps` takes both from wherever task 15 settles them. The usage "person" id must be `<tid>:<oid>`, the string task 07 passes to `EnsureUser`, and task 09 must key its person rollup the same way.
 3. **Task 17 must mount the directory holding `projects.json`, not the file** (decision (h)); this part assumes `deploy/local/gateway/projects/projects.json`. Its checked-in seed must be `{}` or entries in the four-key shape, because this store and task 13's `File` both decode each entry with `dataclass.DecodeFields`. Task 13's `File` should also compare size as well as modification time, since two writes inside one timestamp tick are otherwise one.
 4. **No code for "below the floor".** Task 03's list has none; this part uses phase 2's `409 conflict` with `details.floor` (decision (c)). A dedicated `below_floor` (409) in task 03's list would let the cockpit say it without parsing details.
-5. **keysmith's caller table has no `usage` route.** Task 08 maps broker → mint, refresh, revoke and gatekeeper → bindings. The local control plane's bearer-file line (task 17's `secrets/callers`) needs `mint refresh revoke usage`, and whoever reads usage in the cloud (the Hub, for task 22's cloud projects) needs a caller entry too.
+5. **keysmith's caller table has no `usage` route.** Task 08 maps broker → mint, refresh, revoke and gatekeeper → bindings. The local control plane's bearer-file line (task 17's `secrets/callers`) needs `mint refresh revoke usage`. The cloud half is resolved in fix batch b05 (review I-9) as seam S6.11: the Hub serves this part's `GET` shape for cloud projects and reads keysmith's `/v1/usage` itself, as a `kube` caller holding `usage` only (asks H-5 and P8-6). That caller line is added when S6.11 closes, not in this phase.
 6. **Task 09 should return a zero-spend current-period row.** A scope with no spend this month has no row here (decision (e)), so the cockpit cannot show its budget. If task 09's `Rows` returns the current period with `spendUsd: 0` and the budget, task 22 can say *"US$0.00 of US$1,000 this month"* instead of *"No spend this month"*.
 7. **`cmd/api/main.go`** is modified (step 8) and is not in the skeleton's file map.

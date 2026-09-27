@@ -105,13 +105,16 @@ In the cockpit, open the chip on P1, choose *Keep inference in Australia*, confi
 ```bash
 docker compose -f deploy/local/gateway/compose.yaml logs gatekeeper | grep '"session":"<S1>"' | tail -3
 cat deploy/local/gateway/projects/projects.json
-curl -s -X PATCH -d '{"route":"global"}' http://127.0.0.1:8730/v1/projects/<P1>/inference
-# expect {"error":"needs_compliance",...}: a raise is not lowered from here (task 21, re-review B04-1)
+curl -s -X PATCH -d '{"dataClass":{"level":"public","residency":"any"}}' http://127.0.0.1:8730/v1/projects/<P1>/inference
+# expect {"error":"needs_compliance",...}: a class is not loosened from here (task 21, re-review B04-1)
 curl -s http://127.0.0.1:8730/v1/projects/<P1>/inference
-# expect "effectiveRoute":"au" still
+# expect "effectiveRoute":"au" and the class still internal/any
+# last, after the reply and the log line are recorded:
+curl -s -X PATCH -d '{"route":"global"}' http://127.0.0.1:8730/v1/projects/<P1>/inference
+# expect 200, "route":"global": a solo project keeps its owner's choice (task 21 decision (j), owner question Q5)
 ```
 
-**Item 3 observed** when the reply reads `fake au reply`, the newest gatekeeper line for `S1` carries `"route":"au"`, `projects.json` shows P1 on `au`, and the `PATCH` back to `global` is `needs_compliance` with P1 still `au` after it. Record the seconds between the confirmation and the first AU line: that is the tightening latency task 13 bounds by 30 s, and the only place it is measured. If the reply is still `fake global reply` after 60 s, record it as **not observed** with the file's content, and look first at the mount (a file mounted in place of its directory never sees a rename, task 21's decision (h)).
+**Item 3 observed** when the reply reads `fake au reply`, the newest gatekeeper line for `S1` carries `"route":"au"`, `projects.json` shows P1 on `au`, the class `PATCH` is `needs_compliance` with P1 still `au` and still `internal`/`any` after it, and the route `PATCH` back to `global`, made last, is `200` (solo, Q5's built rule; if the owner has answered Q5 with the universal ratchet by then, expect `needs_compliance` instead). Record the seconds between the confirmation and the first AU line: that is the tightening latency task 13 bounds by 30 s, and the only place it is measured. If the reply is still `fake global reply` after 60 s, record it as **not observed** with the file's content, and look first at the mount (a file mounted in place of its directory never sees a rename, task 21's decision (h)).
 
 - [ ] **Step 7: Item 4, a stolen token is refused off its pod**
 
@@ -270,7 +273,7 @@ Task 18 verdicts relied on: <P01 … P12, each PASS / FAIL / UNKNOWN>
 |---|---|---|---|
 | 1 | Global reply through the gatekeeper, route=global | observed / not observed | step 5 |
 | 2 | Helper path; no credential in the environment | … | step 5 |
-| 3 | Raise to AU takes effect in the same session; latency <n> s; lowering refused `needs_compliance` | … | step 6 |
+| 3 | Raise to AU takes effect in the same session; latency <n> s; class loosening refused `needs_compliance`; solo route lowering `200` | … | step 6 |
 | 4 | Token replayed off-pod is 403 binding_mismatch; on-pod 200 | … | step 7 |
 | 5 | Budget: key-level refusal; mint-level budget_exhausted; panel sentence | … | step 11 |
 | 6 | Deleted session's token is 401 token_revoked within <n> s | … | step 10 |

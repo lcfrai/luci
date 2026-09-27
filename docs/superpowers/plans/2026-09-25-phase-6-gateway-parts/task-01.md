@@ -7,17 +7,18 @@ This task fixes the one decision every later task makes: **for this project, may
 Three rules come from the owner and are enforced here, not described:
 
 1. **The data class is set at creation, can be updated, and drives AU vs Global** (OD-24, `docs/superpowers/planning/2026-09-23-owner-decisions.md:152`). The route a project runs on is the **tighter** of the class's floor and the route someone chose. A class with `au-only` residency cannot run on Global, whatever the stored route says.
-2. **Tighten, never loosen** (OD-24). Any member may raise a project to AU. Lowering needs an org compliance role (ask H-4), and nobody may lower a project below its class's floor.
+2. **Tighten, never loosen** (OD-24). Any member may raise a project to AU. Lowering needs an org compliance role (ask H-4), and nobody may lower a project below its class's floor. One exception, from the source design and put to the owner as Q5: the owner of a **solo** project may lower its route to the floor (decision (e)).
 3. **Fail closed** (P6-D5, global constraint 6). The zero `Class` is invalid, never "public". An unknown level, residency or route is an error, never Global.
 
 **The level list is a proposal** (owner question Q1). `public`, `internal`, `confidential`, `restricted` are written as **one table** (`levels`), and nothing outside this file switches on a level's name: the only thing a level decides today is its rank, used by `CanReclassify`. Which levels force AU is also Q1's; until the owner answers, only `Residency` drives the floor. When KPMG's scheme arrives, the table changes and no other file does.
 
-Four decisions the skeleton leaves open, made here so no later part re-derives them:
+Five decisions the skeleton leaves open, made here so no later part re-derives them:
 
 - **(a) An unknown route is tighter than every known one inside `Tighter`.** `Tighter` returns a `Route`, not an error, because task 10 calls it on two values it has already validated. If a caller passes an unparsed value anyway, `Tighter` returns that value rather than `global`, so it reaches the next check (the catalogue's `Resolve`, task 02) and is refused there. Returning `global` would be the one path in the program that turns "unknown" into Global.
 - **(b) `Decide` refuses an empty chosen route.** The Hub always stores one (ask H-1 sets it to `Floor` at creation) and local mode's `projects.json` always carries one (task 13). A record with none is broken, and a broken record is refused (P6-D5), not defaulted.
 - **(c) A class change has its own check, `CanReclassify`.** The skeleton's `CanChange` covers the route only, but task 21 and ask H-1 also accept a `dataClass` change, and moving a project from `au-only` to `any` lowers its floor. `CanReclassify` applies the same ratchet: tightening (a higher level, or `any` → `au-only`) needs a member; loosening either needs compliance. This is additive; `CanChange` keeps the skeleton's signature. It is listed as a skeleton gap in the return.
 - **(d) The Hub wire shape follows the Hub's null rule.** The Hub contract says *"Fields are always present; a field that has no value is `null` … never omitted"* (`.claude/worktrees/hub/docs/superpowers/contracts/2026-09-23-hub-contract.md:614-615`), and its principal is `User` = `{id, displayName, email}` (`:618-619`). So `routeChangedBy` is a `*User` and `routeChangedAt` a `*time.Time`, both without `omitempty`, and both `null` until the first change.
+- **(e) A solo project's owner may lower the route to the floor (review I-2, owner question Q5).** `05-design.md` §2.5 (`:219-222`): *"A solo project keeps the user's choice. On a team project the route is project-wide … only an org-level compliance role may lower it."* A universal ratchet would leave a solo developer who pressed *Keep inference in Australia* unable to go back, since local mode has no compliance role (ask H-4). So `Actor` gains `Solo bool`, meaning *this member owns a solo project*. In `CanChange`, `Solo` passes the role check on a lowering, but only after the floor check, so an `au-only` project stays on AU for everyone; `Solo` without `Member` is `ErrNotMember`. `CanReclassify` ignores `Solo`: the class is a statement about the data, and loosening it lowers the floor, so it still needs compliance. Who sets `Solo` is the caller's: task 21 sets it for every local project (all of them are solo, `05-design.md` §2.3), and ask H-1's Hub never sets it (a Hub project is a team project). If the owner answers Q5 with the universal ratchet, task 21's constant changes and this file does not.
 
 **`DisallowUnknownFields`, and where it applies.** The skeleton asks for strict decoding of `ProjectInferenceFields`. That is right for the object on its own (a local `projects.json` entry, task 13's `File`) and wrong for the Hub's whole project record (route 15, `hub-contract.md:577`), which carries `id`, `teamId`, `name`, `remotes` and more (`:638-639`). So strictness lives at two levels: `Class.UnmarshalJSON` refuses an unknown key **inside** the `dataClass` object and validates both values; `DecodeFields` refuses an unknown key in a standalone fields object; and `FieldsFromRecord` reads the four fields out of a larger record, ignoring the record's other keys but still refusing an unknown or missing class or route. Task 13's `Hub` source uses `FieldsFromRecord`; its `File` source uses `DecodeFields`.
 
@@ -32,7 +33,7 @@ Four decisions the skeleton leaves open, made here so no later part re-derives t
   - `dataclass.Class{Level; Residency}`, JSON `{"level": …, "residency": …}`; `(Class) Validate() error`; `(*Class) UnmarshalJSON`
   - `dataclass.Route` with `RouteGlobal` (`"global"`), `RouteAU` (`"au"`); `ParseRoute(string) (Route, error)`; `(Route) Valid() bool`; `(*Route) UnmarshalJSON`
   - `dataclass.Floor(Class) Route`, `dataclass.Decide(Class, Route) (Route, error)`, `dataclass.Tighter(a, b Route) Route`
-  - `dataclass.Actor{Member, Compliance bool}`; `dataclass.CanChange(c Class, from, to Route, a Actor) error`; `dataclass.CanReclassify(from, to Class, a Actor) error`
+  - `dataclass.Actor{Member, Compliance, Solo bool}` (`Solo`, decision (e)); `dataclass.CanChange(c Class, from, to Route, a Actor) error`; `dataclass.CanReclassify(from, to Class, a Actor) error`
   - sentinels `ErrUnknownClass`, `ErrUnknownRoute`, `ErrNeedsCompliance`, `ErrBelowFloor`, `ErrNotMember`
   - `dataclass.User{ID, DisplayName, Email}` (the Hub's `User`), `dataclass.ProjectInferenceFields{DataClass; InferenceRoute; RouteChangedBy *User; RouteChangedAt *time.Time}`; `DecodeFields([]byte)`, `FieldsFromRecord([]byte)`
 - Consumes: the standard library only (`encoding/json`, `errors`, `fmt`, `bytes`, `time`).
@@ -59,6 +60,7 @@ var (
 	anywhere   = Class{Level: LevelInternal, Residency: ResidencyAny}
 	member     = Actor{Member: true}
 	compliance = Actor{Member: true, Compliance: true}
+	solo       = Actor{Member: true, Solo: true} // decision (e)
 )
 
 // Kills: Decide returning `chosen` unchanged, which lets an au-only project run on Global.
@@ -193,6 +195,12 @@ func TestCanChangeIsTheRatchet(t *testing.T) {
 		// Kills a missing floor check: even compliance cannot run an au-only project on Global.
 		{"compliance below the floor", auOnly, RouteAU, RouteGlobal, compliance, ErrBelowFloor},
 		{"member below the floor is told the floor", auOnly, RouteAU, RouteGlobal, member, ErrBelowFloor},
+		// Decision (e). Kills a Solo that is ignored: a solo developer could never undo a raise.
+		{"solo owner lowers an any project", anywhere, RouteAU, RouteGlobal, solo, nil},
+		// Kills a Solo checked before the floor: an au-only project would reach Global.
+		{"solo owner below the floor", auOnly, RouteAU, RouteGlobal, solo, ErrBelowFloor},
+		// Kills a membership check that counts Solo as membership.
+		{"solo without membership", anywhere, RouteAU, RouteGlobal, Actor{Solo: true}, ErrNotMember},
 		// Kills an actor check that only runs on the lowering branch.
 		{"nobody raises", anywhere, RouteGlobal, RouteAU, Actor{}, ErrNotMember},
 		{"unknown target", anywhere, RouteGlobal, "apac", member, ErrUnknownRoute},
@@ -228,6 +236,10 @@ func TestCanReclassifyTightensFreelyAndLoosensOnlyWithCompliance(t *testing.T) {
 		{"member loosens residency", intAU, anywhere, member, ErrNeedsCompliance},
 		{"level up, residency down", intAU, confAny, member, ErrNeedsCompliance},
 		{"compliance loosens residency", intAU, anywhere, compliance, nil},
+		// Decision (e). Kills Solo read as Compliance here: a solo owner would lower the floor itself.
+		{"solo owner loosens residency", intAU, anywhere, solo, ErrNeedsCompliance},
+		{"solo owner lowers the level", confAny, anywhere, solo, ErrNeedsCompliance},
+		{"solo owner tightens residency", anywhere, intAU, solo, nil},
 		{"to the zero class", anywhere, Class{}, compliance, ErrUnknownClass},
 		{"nobody", anywhere, confAny, Actor{}, ErrNotMember},
 	}
@@ -564,10 +576,14 @@ func Decide(c Class, chosen Route) (Route, error) {
 Who may change what, and the Hub wire shape:
 
 ```go
-// Actor is who is asking. Compliance is the org role of ask H-4.
+// Actor is who is asking. Compliance is the org role of ask H-4. Solo means
+// this member owns a solo project (decision (e), owner question Q5): it may
+// lower the route to the floor, and it counts for nothing without Member and
+// for nothing in CanReclassify.
 type Actor struct {
 	Member     bool
 	Compliance bool
+	Solo       bool
 }
 
 // CanChange applies OD-24's ratchet to a route change. The floor is checked
@@ -593,7 +609,9 @@ func CanChange(c Class, from, to Route, a Actor) error {
 	if floor, _ := routeRank(Floor(c)); rt < floor {
 		return fmt.Errorf("%w: class %s/%s runs on %q at least", ErrBelowFloor, c.Level, c.Residency, Floor(c))
 	}
-	if !a.Compliance {
+	// Only after the floor: Solo lowers a choice, never a floor. A Solo actor
+	// reaching here is a Member, since the check above refused one that is not.
+	if !a.Compliance && !a.Solo {
 		return ErrNeedsCompliance
 	}
 	return nil
@@ -726,8 +744,12 @@ Each of these edits must turn at least one test red; if one does not, the test i
 | `Validate` gains `if c == (Class{}) { return nil }` | `TestTheZeroClassIsInvalid` |
 | `Tighter`'s first `return a` becomes `return RouteGlobal` | `TestTighter` |
 | delete the `ErrBelowFloor` branch in `CanChange` | `TestCanChangeIsTheRatchet/compliance_below_the_floor` |
-| delete `if !a.Compliance { return ErrNeedsCompliance }` in `CanChange` | `TestCanChangeIsTheRatchet/member_lowers` |
+| delete `if !a.Compliance && !a.Solo { return ErrNeedsCompliance }` in `CanChange` | `TestCanChangeIsTheRatchet/member_lowers` |
+| `!a.Compliance && !a.Solo` in `CanChange` becomes `!a.Compliance` (decision (e) ignored) | `TestCanChangeIsTheRatchet/solo_owner_lowers_an_any_project` |
+| `CanChange` gains `if a.Solo && rt < rf { return nil }` before the floor check | `TestCanChangeIsTheRatchet/solo_owner_below_the_floor` |
+| the membership check becomes `!a.Member && !a.Compliance && !a.Solo` | `TestCanChangeIsTheRatchet/solo_without_membership` |
 | drop the residency half (`ft < ff`) of the condition in `CanReclassify` | `TestCanReclassifyTightensFreelyAndLoosensOnlyWithCompliance/member_loosens_residency` |
+| `!a.Compliance` in `CanReclassify` becomes `!a.Compliance && !a.Solo` | `TestCanReclassifyTightensFreelyAndLoosensOnlyWithCompliance/solo_owner_loosens_residency` |
 
 - [ ] **Step 6: Format, vet and run both modules**
 
@@ -776,7 +798,9 @@ chosen for it. Only residency "any" floors at Global, so a class nobody
 can parse floors at AU. Raising is open to any member; lowering needs
 the org compliance role and never goes below the floor, and the floor is
 checked first so nobody is told to ask for a role that cannot help.
-The same ratchet applies to a class change.
+A solo project's owner (Actor.Solo) may lower the route to the floor,
+as 05-design.md 2.5 says; that is owner question Q5. The same ratchet
+applies to a class change, where Solo counts for nothing.
 
 The zero class is invalid and every unparsed value is an error, never
 Global (P6-D5). The Hub's project fields are fixed here, with the Hub's
@@ -792,4 +816,5 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
 - How the Hub authorises a class or route change, audits it, or announces it. That is ask H-1 (and H-4 for the compliance role); this package only says whether a change is permitted to an actor already identified.
 - Which scans a class requires on the deploy side. That mapping is phase 7's (ask P7-1, seam S6.7); phase 6 owns only the enum.
 - That phase 4's create flow requires a class (ask P4-1, seam S6.8).
+- That a solo project may go back to Global. `Solo` builds the source design's rule (decision (e)); whether it stands is owner question Q5, and the answer changes task 21's constant, not this package.
 - That the Hub's `User` shape is final: it is read from the Hub contract at `hub-contract.md:618-619` on 2026-09-25, in another tree.
