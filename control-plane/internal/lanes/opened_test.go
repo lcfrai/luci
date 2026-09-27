@@ -57,6 +57,10 @@ func TestCopyGeneratedHooksChecksTheOpenedFile(t *testing.T) {
 		if _, err := os.Lstat(filepath.Join(cloneTop, ".husky", "_")); err == nil {
 			t.Error("the refused copy left files in the clone")
 		}
+		// review m-4: .husky did not exist before the copy, so the copy's cleanup removes it too.
+		if _, err := os.Lstat(filepath.Join(cloneTop, ".husky")); err == nil {
+			t.Error("the refused copy left the parent it created in the clone")
+		}
 	})
 	t.Run("larger than its Lstat", func(t *testing.T) {
 		projectTop, cloneTop := setup(t)

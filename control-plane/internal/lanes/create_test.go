@@ -1,11 +1,14 @@
 package lanes
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -98,6 +101,82 @@ func TestCreateCleansUpAfterAFailedClone(t *testing.T) {
 	}
 	if n := len(r.store.List()); n != 0 {
 		t.Errorf("the store holds %d lanes after a failed create", n)
+	}
+}
+
+// TestCreateCleansUpWhenTheCallerCancels: the caller's cancel lands while the clone runs, and the
+// clone fails after making Path. LocalFS refuses every call under an ended ctx, so the cleanup
+// must run under one the cancel does not end (task 03 review m-8).
+func TestCreateCleansUpWhenTheCallerCancels(t *testing.T) {
+	t.Parallel()
+	r := newRig(t, gitxtest.NewRepo(t))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	boom := errors.New("clone failed as the caller cancelled")
+	rec := &recorder{inner: r.c.Machine.Git(), fail: func(c gitx.Call) error {
+		if c.Args[0] == "clone" {
+			cancel()
+			return boom
+		}
+		return nil
+	}}
+	r.withRunner(rec, nil)
+	r.c.Nonce = func() string { return "dddddd" }
+	path := filepath.Join(r.root, project.ProjectID(r.proj.Dir), "ui-dddddd")
+	if _, err := r.c.Create(ctx, CreateRequest{Project: projectOf(r.proj), Branch: "main", Name: "ui"}); !errors.Is(err, boom) {
+		t.Fatalf("Create: err = %v, want the clone's failure", err)
+	}
+	if !cloneRan(rec) {
+		t.Fatal("the clone never ran, so this proves nothing")
+	}
+	if _, err := os.Lstat(path); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("%s survived a create its caller cancelled: %v", path, err)
+	}
+}
+
+// envRunner snapshots each clone call's Env as it arrives, then writes into the map it was
+// handed, as a careless Runner could.
+type envRunner struct {
+	inner gitx.Runner
+	mu    sync.Mutex
+	seen  []map[string]string
+}
+
+func (e *envRunner) Run(ctx context.Context, c gitx.Call) (gitx.Result, error) {
+	if c.Args[0] == "clone" {
+		snap := map[string]string{}
+		for k, v := range c.Env {
+			snap[k] = v
+		}
+		e.mu.Lock()
+		e.seen = append(e.seen, snap)
+		e.mu.Unlock()
+		res, err := e.inner.Run(ctx, c)
+		c.Env["GIT_CONFIG_COUNT"] = "0"
+		delete(c.Env, "GIT_CONFIG_KEY_1")
+		return res, err
+	}
+	return e.inner.Run(ctx, c)
+}
+
+// Not parallel: it asserts the package variable NoFilterEnv (task 03 review m-9).
+func TestCreateHandsTheRunnerACopyOfNoFilterEnv(t *testing.T) {
+	want := map[string]string{
+		"GIT_CONFIG_COUNT": "3",
+		"GIT_CONFIG_KEY_0": "filter.lfs.smudge", "GIT_CONFIG_VALUE_0": "",
+		"GIT_CONFIG_KEY_1": "filter.lfs.process", "GIT_CONFIG_VALUE_1": "",
+		"GIT_CONFIG_KEY_2": "filter.lfs.required", "GIT_CONFIG_VALUE_2": "false",
+	}
+	r := newRig(t, gitxtest.NewRepo(t))
+	e := &envRunner{inner: r.c.Machine.Git()}
+	r.withRunner(e, nil)
+	r.mustCreate("main", "a")
+	r.mustCreate("main", "b")
+	if !reflect.DeepEqual(NoFilterEnv, want) {
+		t.Errorf("NoFilterEnv after a Runner wrote into Call.Env = %v, want %v", NoFilterEnv, want)
+	}
+	if len(e.seen) != 2 || !reflect.DeepEqual(e.seen[1], want) {
+		t.Errorf("clone Envs = %v; want two, the second %v", e.seen, want)
 	}
 }
 

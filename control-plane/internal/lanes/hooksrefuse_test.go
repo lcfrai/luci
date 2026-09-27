@@ -117,6 +117,10 @@ func refuseRows() []refuseRow {
 		{name: "untracked and not ignored", rel: ".githooks",
 			before: func(t *testing.T, p *gitxtest.Repo) { huskyFiles(t, filepath.Join(p.Dir, ".githooks"), 2, 4) },
 			check:  absent(".githooks")},
+		// review m-4: the take-back removes the parent the copy created, not only <rel>.
+		{name: "untracked and not ignored, under a parent the clone lacks", rel: "hooks/x",
+			before: func(t *testing.T, p *gitxtest.Repo) { huskyFiles(t, filepath.Join(p.Dir, "hooks", "x"), 2, 4) },
+			check:  absent("hooks")},
 		// carried b03-2 Minor 3: the clone side's parent is a link (a host that makes links).
 		{name: "the clone's parent a directory link", rel: ".husky/_",
 			before: func(t *testing.T, p *gitxtest.Repo) {
@@ -162,5 +166,24 @@ func TestCopyGeneratedHooksRefuses(t *testing.T) {
 				row.check(t, p, l)
 			}
 		})
+	}
+}
+
+// TestLocalFSRefusesAGitSegment reaches LocalFS's own `.git`-segment refusal, which the package
+// CopyGeneratedHooks' refusal otherwise stands in front of (env task 21's route calls LocalFS
+// directly). A `.git` below the top is no project `.git` by os.SameFile, so only this refusal
+// holds it: a nested repository's, or a vendored one's (task 03 review m-7).
+func TestLocalFSRefusesAGitSegment(t *testing.T) {
+	t.Parallel()
+	for _, rel := range []string{"sub/.git/custom", "sub/.GIT/custom"} {
+		projectTop, cloneTop := t.TempDir(), t.TempDir()
+		huskyFiles(t, filepath.Join(projectTop, "sub", ".git", "custom"), 1, 4)
+		n, err := LocalFS{}.CopyGeneratedHooks(context.Background(), projectTop, cloneTop, rel)
+		if n != 0 || err != nil {
+			t.Errorf("LocalFS.CopyGeneratedHooks(%q) = %d, %v; want 0, nil", rel, n, err)
+		}
+		if ents, _ := os.ReadDir(cloneTop); len(ents) != 0 {
+			t.Errorf("%q: the clone holds %d entries after a refused copy", rel, len(ents))
+		}
 	}
 }
