@@ -462,6 +462,29 @@ describe("attachRegistry — 10 Hz batching and the pinned rule (§7.2)", () => 
     expect(vi.getTimerCount()).toBe(1);
   });
 
+  /** The 10 Hz bound itself, in LITERAL milliseconds. Every other test in this block advances
+   *  the clock BY `FLUSH_INTERVAL_MS`, so it passes at any value of that constant and at any
+   *  shape of timer — which is why two mutants survived the suite (review round 3, Minor 2):
+   *  the throttle turned into a debounce, and the constant moved 100 → 1000. This test holds
+   *  the wall clock fixed instead: one second of continuous output must reach the screen as
+   *  ten writes, spread through the second.
+   *
+   *  A DEBOUNCE renders nothing at all here — every chunk re-arms the timer and the burst never
+   *  stops — which is exactly the failure docs/DESIGN-SYSTEM.md's "log panes throttle to ~10Hz"
+   *  forbids: a build log that shows the user an empty pane until it finishes. */
+  it("renders ten times in a second of unbroken output, and does not wait for it to stop", () => {
+    acquireAttach(live(), { createTerm, readOnly: false });
+    socket().acceptOpen();
+    for (let elapsed = 0; elapsed < 1_000; elapsed += 10) {
+      socket().emitBinary(stdout(`t${elapsed} `));
+      vi.advanceTimersByTime(10);
+    }
+    expect(term.written.length).toBe(10);
+    // …and batching is not dropping: every chunk of the second is on the screen, in order.
+    expect(term.written.join("")).toBe(
+      Array.from({ length: 100 }, (_, i) => `t${i * 10} `).join(""));
+  });
+
   it("an empty stdout payload writes nothing and arms nothing", () => {
     acquireAttach(live(), { createTerm, readOnly: false });
     socket().acceptOpen();
