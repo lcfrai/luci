@@ -522,3 +522,140 @@ goes through task 13's `emitWork(tx, kind, teamID, projectID, subject, data)`
    `InsertIssueAlias(sourceProject, head.Number)`; `MoveIssueRow`.
 5. One `issue.moved {fromProjectId, fromNumber, toProjectId, toNumber, cleared}` under the target's
    team and project; 200 with `issueHead`, whose `movedFrom` is `LastAliasOf`.
+
+#### The matrix rows (`server/work_matrix_rows_integration_test.go` ⚑), complete
+
+Task 07's fixture gains `OtherProjectID` (project Q in the same org, Linus a member of both teams)
+and `RankPeerID` (a second issue in P, so `after` names a real neighbour). `wwrite` is task 07's
+member-writes shape; the move needs one shape of its own, because the target project's membership
+is the check and the six columns differ:
+
+```go
+// wmove: a member of BOTH teams writes; a member of only the source team is 403
+// (decision: ProjectRole on the target, task-08.md:333). Columns, in task 07's
+// order: viewer, member(source only), team admin, org admin, other team, sync.
+func wmove(p, path string, body func(*fixture) any) workRow {
+	return workRow{p, row{name: p, method: "POST", path: path, body: body,
+		want: [6]int{403, 403, 200, 403, 403, 403}, missing: "issue_not_found"}}
+}
+
+	"79": {
+		wwrite("PATCH /v1/issues/{issueId}/plan", "PATCH", "/v1/issues/{IssueID}/plan", 200, "issue_not_found",
+			func(*fixture) any { return map[string]any{"estimate": 5} }),
+		wwrite("POST /v1/issues/{issueId}/rank", "POST", "/v1/issues/{IssueID}/rank", 200, "issue_not_found",
+			func(f *fixture) any { return map[string]any{"after": f.RankPeerID} }),
+		wmove("POST /v1/issues/{issueId}/move", "/v1/issues/{IssueID}/move",
+			func(f *fixture) any { return map[string]any{"toProjectId": f.OtherProjectID} }),
+	},
+```
+
+`"79"` joins `workMatrixLive`. The org admin is 403 on all three: contract §5.2 keeps an org admin
+out of project content. The sync principal is 403 at the route and refused again in the database by
+task 74's guard, whose half is `TestTheSyncActorSetsNoPlanField`.
+
+#### Tests to write first, each with the mutant it kills
+
+`store/work_plan_fields_test.go` is a unit file with no build tag (the key functions are pure);
+the two integration files carry `//go:build integration`. P and Q are projects of teams TP and TQ;
+Linus is a member of both, Grace of TP only. Each test is seen failing before its code.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestRankKeysSortAsStrings` (unit) | 10,000 random `rankBetween(lo, hi)` calls → `lo < key < hi` by byte compare, and no key ends in the lowest digit | a key that sorts wrong, or one that cannot be bisected again |
+| `TestBottomRankSteps` (unit) | 100,000 `rankAfter` steps from the first key → every key ≤ 8 bytes and strictly increasing | bisection at the bottom, which grows a byte per five creates |
+| `TestRebalanceKeepsOrder` (unit) | a spread of 5,000 keys → `rankSpread` returns them in the same order, evenly, each ≤ 8 bytes | a rebalance that reorders the team |
+| `TestAnEstimateOffTheScaleIsRefused` | Fibonacci TP: `4` → 422 `estimate_off_scale` with `details.scale: "fibonacci"` and `details.value: 4`; `5` → 200; `0` → 422 until `estimateZero`, then 200; `null` → 200 on scale `none` | any integer accepted; zero always accepted |
+| `TestAScaleChangeRewritesNothing` | estimate `5` stored, `PUT /work-policy` to `linear` → the head still reads `5`, no event | a mass edit no person made (decision (a)) |
+| `TestADueDateCarriesNoTime` | `"2026-10-01T09:00:00Z"` → 422 `date_invalid` with `details.field: "dueOn"`; `"2026-10-01"` → 200; the response carries no colour field | timestamps accepted; colour on the wire (L-37) |
+| `TestAnUnchangedPatchWritesNothing` | `PATCH` with the stored values, then again with both fields absent → 200 twice, `/v1/changes` unchanged | an event per no-op (decision (b)) |
+| `TestRankSortsBetweenTheNeighbours` | `rank(C, after: A, before: B)` → a fresh `GET /issues?sort=rank` reads A, C, B; a `"rank"` key in the body → 400 `bad_request` | client-trusted rank; rank not persisted |
+| `TestRankTakesOrderNotAdjacency` | A, B, C, D; `rank(D, after: A, before: C)` → D between A and C, B undisturbed | adjacency demanded, which no drag can guarantee |
+| `TestFortyInsertsRebalanceOnce` | 40 inserts between one pair → the order holds, every key ≤ 32 bytes, exactly one row carries `issue.ranked{rebalance: true}` per moved issue and the dragged one `false` | a key past 32 characters; a rebalance with no events |
+| `TestAMoveRenumbersAndRedirects` | `move(EP-7 in P, Q)` → the same `is-` id, `number` the next in Q; `GET /projects/P/issues/by-number/7` → the moved issue with `movedFrom: {projectId: P, number: 7}`; a new issue in P gets 8, never 7 | 404 after a move; the number reused |
+| `TestAMoveClearsOnlyWhatItMust` | revisions, comments, `serves`, relations, priority, estimate and due date byte-equal after the move; team labels, `cycleId`, `subState` and `featureId` cleared; the assignee kept when a member of TQ and cleared when not; `issue.moved.cleared` names each | a move that drops `serves`, or keeps a cycle from another team |
+| `TestAMoveIsRefusedWhileBound` | `started` → 422 `state_not_allowed` with `details.cause: "move"`; `in_review` → the same; `landed` and `done` → 200 | a move out from under a live lane (decision (e)) |
+| `TestAMoveWithChildrenIsRefused` | one child, any state → 409 `children_open`, `details.open: 1`, nothing written | a parent split across projects (decision (f)) |
+| `TestAMoveNeedsBothTeams` | Grace (TP only) → 403; Linus → 200; an unknown target → 404 `project_not_found` | source membership alone |
+| `TestClosingABlockerRelaxesIt` | B blocks A; B → `done` → the row reads `relates`, one `issue.blocks_resolved`, actor Linus; a `todo` B keeps `blocks`; A closing leaves B's row alone | the relation deleted; `actor: null`; both directions rewritten (decision (h)) |
+| `TestABlockerWithARelatesRowIsDeleted` | a `relates` row already between the two → the `blocks` row is deleted, one event, no primary-key error | a collision on the key |
+| `TestEachWriteHasItsEvents` | each accepted write above writes exactly its listed kinds and no other, each under its own team and project | a silent write; a rebalance event under the wrong project |
+| `TestTheSyncActorSetsNoPlanField` | `hub.work_actor_kind = 'integration'`, `UPDATE issue_heads SET estimate` → `42501` | the database half of the sync rule |
+
+#### Steps
+
+- [ ] **Step 1: Check the base.** Task 74 merged with the SW.18 head columns, `issue_aliases`,
+  the loosened revision and attachment keys (decision (g)), the `UPDATE` grant on `issues` and its
+  `hub.work_cause` trigger, and the W1 rank backfill (decision (d)). If any is missing, it is
+  added to task 74 in that task's commit, not here; the two gaps are already reported below.
+- [ ] **Step 2: The unit tests and the keys.** `store/work_plan_fields_test.go`'s three key tests,
+  then `rankBetween`, `rankAfter`, `rankBefore` and `rankSpread`. They run in milliseconds and fix
+  the only arithmetic in the task.
+- [ ] **Step 3: The integration tests.** The sixteen above and the `"79"` matrix rows with the
+  fixture's two new ids. Run them: they fail, each naming its rule.
+- [ ] **Step 4: The code, in this order.** `hubapi`'s four kinds; the store's plan write, neighbour
+  read and rebalance; `PATCH /plan` and `POST /rank`; task 11's policy half; the move store and
+  route with the alias write; task 08's `by-number` alias read and `BottomRank` on create; task
+  10's resolved-blocker clause; `server.go`'s one registration line.
+- [ ] **Step 5: Green.** This task's suites, then task 08's, 10's, 11's and 13's unchanged (an
+  issue with no estimate, no due date, no alias and no `blocks` row takes none of the new paths),
+  then the matrix.
+- [ ] **Step 6: Commit by pathspec**, every file of *Files*, naming tasks 08, 10, 11 and 13 as
+  touched and listing the four kinds in the message.
+
+#### Acceptance
+
+```bash
+cd control-plane
+go test ./internal/hub/store/ -race -count=1 -run '^Test(RankKeysSortAsStrings|BottomRankSteps|RebalanceKeepsOrder)$' -v 2>&1 | grep -c '^--- PASS'   # 3
+export PANACEA_APP_HUB_TEST_DATABASE_URL='postgres://postgres@127.0.0.1:5433/postgres?sslmode=disable'
+go test ./internal/hub/server/ -tags integration -race -count=1 -v \
+  -run '^Test(AnEstimateOffTheScaleIsRefused|AScaleChangeRewritesNothing|ADueDateCarriesNoTime|AnUnchangedPatchWritesNothing|RankSortsBetweenTheNeighbours|RankTakesOrderNotAdjacency|FortyInsertsRebalanceOnce|AMoveRenumbersAndRedirects|AMoveClearsOnlyWhatItMust|AMoveIsRefusedWhileBound|AMoveWithChildrenIsRefused|AMoveNeedsBothTeams|ClosingABlockerRelaxesIt|ABlockerWithARelatesRowIsDeleted|EachWriteHasItsEvents|TheSyncActorSetsNoPlanField)$' \
+  2>&1 | grep -c '^--- PASS'                                                     # 16
+go test ./internal/hub/... -tags integration -race -count=1                      # every package ok
+go test ./internal/hub/server/ -tags integration -race -count=1 -run '^TestWorkMatrix$/79' -v 2>&1 | grep -c '^        --- PASS'   # 18 (3 routes x 6 principals)
+grep -rn '"rank"' internal/hub/server/*.go | grep -v _test.go | grep -c 'Decode\|json:'   # 0 (no route reads a rank from a body)
+grep -rn "issue_aliases" internal/hub --include=*.go | grep -v _test.go | grep -vc "store/work_move.go\|server/work_issues.go"   # 0
+```
+
+Expected: `3`, `16`, every package `ok`, `18`, `0`, `0`. None has been run; no file exists yet
+(OD-27), and the two `0`s are the point: the rank is never read from a client and the alias table
+is touched in exactly two files.
+
+#### What this task does not claim
+
+- **Not due-soon anywhere a person sees it.** `dueOn` leaves the Hub as a date. The colour, the
+  *due soon* band and the Desk row are tasks 89 and 94; the digest is task 81.
+- **Not a move between orgs or between teams outside one org.** `toProjectId` must name a project
+  of the caller's org; a cross-org move has no owner ruling and no route.
+- **Not rank across teams.** The order is one per team, spanning that team's projects. A view that
+  mixes two teams sorts by rank within each and by the view's secondary key between them (task 91).
+- **Not a measured rebalance.** The 8-byte and 32-byte bounds are arithmetic, and
+  `TestFortyInsertsRebalanceOnce` is a correctness test. Nobody has timed a rebalance of a team
+  with 10,000 issues, and no budget is claimed for it.
+- **Not the desktop.** Drag-to-rank, the estimate control, the due-date picker and the move dialog
+  are task 89. A green suite here is evidence about the Hub alone (OD-27).
+- **Not task 78's parent rule.** The move refuses a parent outright (decision (f)); moving a whole
+  tree is unbuilt and unasked.
+
+#### Corrections to the scope
+
+1. **Task 74 must loosen two W1 foreign keys** (decision (g)) and grant a guarded `UPDATE
+   (project_id, team_id, number)` on `issues`. Without it a move is `23503` and no Go code can fix
+   it. **Reported as a gap in task 74.**
+2. **Task 74 must backfill a rank for every W1 head** (decision (d)) and task 08's create must take
+   `store.BottomRank`, or a W1 issue sorts before or after everything at random. **Reported as a
+   gap in tasks 74 and 08.**
+3. **Rank neighbours are read as order, not adjacency** (decision (i)): the server checks
+   `rank(after) < rank(before)`, not that nothing sits between them. A drag in a filtered view can
+   never guarantee adjacency.
+4. **The matrix file is task 07's** `work_matrix_rows_integration_test.go`, not the scope's
+   `server/matrix_integration_test.go` (task 75's correction).
+5. **A fourth event kind.** The scope named the rank, plan and move events; the resolved-blocker
+   rule needs `issue.blocks_resolved` of its own, so the reader of `/v1/changes` can tell a
+   relation a person changed from one a close relaxed.
+6. **One extra refusal, `children_open` on a move** (decision (f)), which the scope did not
+   anticipate and task 78's parent rule requires.
+
+**Parity rows served:** the Hub halves of **L-14** (rank), **L-16** (estimates), **L-25** (the
+resolved blocker), **L-35** (move with redirect), **L-37** (due dates) and **L-103** (the
+rebalance). Task 89 closes them with the desktop; task 97 records them.
