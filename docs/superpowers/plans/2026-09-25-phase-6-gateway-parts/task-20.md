@@ -169,13 +169,13 @@ Expected: `terraform init` fails with `Terraform encountered problems while read
 
 - [ ] **Step 3: Write `versions.tf` and `variables.tf`**
 
-`versions.tf`. Terraform's range is phase 8's (`task-03.md:32`); `mock_provider` needs 1.7 or later, which the range already implies. A module takes a provider range and the calling root pins the exact version in its lock file:
+`versions.tf`. Terraform's range is phase 8's (`task-03.md:32`); `mock_provider` needs 1.7 or later, which the range already implies. The AWS provider takes a **pessimistic constraint on one major version**, the convention phase 8's own modules follow (`~> 4.81` at `.claude/worktrees/env/infra/scripts/guards_test.sh:50` and `:75`, with the exact version `4.81.0` in the calling root's lock file at `:140`; review M-8, both citations read on 2026-09-28). A range that spans a major version (`>= 5.70.0, < 7.0.0`) would let a fresh `init` in phase 8's pipeline take AWS 6.x on a day nobody chose it, and this module's `mock_provider` tests would not notice: they mock the provider rather than call it. The module still commits no lock file — the calling root owns the pin (step 5):
 
 ```hcl
 terraform {
   required_version = ">= 1.9.0, < 2.0.0"
   required_providers {
-    aws = { source = "hashicorp/aws", version = ">= 5.70.0, < 7.0.0" }
+    aws = { source = "hashicorp/aws", version = "~> 5.70" }
   }
 }
 ```
