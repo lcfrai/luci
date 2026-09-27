@@ -164,11 +164,11 @@ Slices: **A** the contract (pure Go, no I/O) · **B** keysmith · **C** gatekeep
 | 03 | Wire contracts, problem codes, `MessagesURL`, `HashToken` | A | 0.25 (2 h) | 01 | S6.3, S6.5 |
 | 04 | LiteLLM admin client on its own deadlines | B | 0.3 (2.5 h) | 03 | — |
 | 05 | Binding store: memory, Postgres, behaviour suite | B | 0.4 (3 h) | 03 | P8-4 |
-| 06 | Budgets: three dimensions, defaults on, the per-key slice | B | 0.25 (2 h) | 01, 03 | S6.2 |
-| 07 | keysmith core: mint, refresh, revoke | B | 0.4 (3 h) | 04, 05, 06 | — |
+| 06 | Budgets: three dimensions, defaults on, the per-key slice | B | 0.25 (2 h) | 01, 03 | S6.2, S6.12 |
+| 07 | keysmith core: mint, refresh, revoke | B | 0.4 (3 h) | 04, 05, 06 | S6.12 |
 | 08a | `cmd/keysmith` caller authentication: the caller table, bearer, `TokenReview`, the realm token and the issuer chain (review I-10) | B | 0.2 (1.5 h) | 03; **env 17 step 0 merged** (`internal/oidcauth`, cross-tree; OD-30 review-1 M5) | S6.5 |
 | 08b | `cmd/keysmith`: API, the owner check, config, fail-closed start, the wiring (review I-10) | B | 0.25 (2 h) | 02, 07, 08a, 09, 13 | S6.3 |
-| 09 | Usage rollup and the team-budget reader | B | 0.25 (2 h) | 04, 06 | S6.2 |
+| 09 | Usage rollup and the team-budget reader | B | 0.25 (2 h) | 04, 06 | S6.2, S6.12 |
 | 10 | gatekeeper authorisation | C | 0.3 (2.5 h) | 03, 05 | — |
 | 11 | gatekeeper proxy: allowlist, `model` rewrite, headers, streaming | C | 0.4 (3 h) | 02, 10 | S6.4 |
 | 12 | `cmd/gatekeeper`: wiring, `/v1/models`, `HEAD /api/hello`, body-free logs | C | 0.25 (2 h) | 11, 13 | — |
@@ -178,16 +178,16 @@ Slices: **A** the contract (pure Go, no I/O) · **B** keysmith · **C** gatekeep
 | 15b | The local control plane's launch: `backend` + `dockerbe` + `katabe`, `registry`, `api`, `cmd/api` (review I-10) | D | 0.25 (2 h) | 13, 15a | — |
 | 16 | Fake Anthropic upstream | E | 0.25 (2 h) | — | — |
 | 17 | Local stack on Docker Desktop | E | 0.3 (2.5 h) | 02, 08b, 12, 16 | — |
-| 18 | LiteLLM capability, ZDR and pitfall probe | E | 0.3 (2.5 h) | 17 | — |
+| 18 | LiteLLM capability, ZDR and pitfall probe | E | 0.4 (3 h) | 17 | S6.12 (P15, P16) |
 | 19 | Helm chart, NetworkPolicies, Key Vault CSI | F | 0.4 (3 h) | 02, 08b, 12 | S6.9, S6.11 (`keysmith-ingress`), P8-1 to P8-6 |
 | 20 | Bedrock federation module (AWS), never applied | F | 0.3 (2.5 h) | 02 | P8-5 |
 | 21 | Control-plane inference API | G | 0.3 (2.5 h) | 01, 09, 13, 15b | S6.1, S6.2 |
-| 22 | Cockpit inference panel | G | 0.4 (3 h) | 21 | S6.8 |
+| 22 | Cockpit inference panel | G | 0.4 (3 h) | 21 | S6.8, S6.12 |
 | 23 | Local end-to-end proof with unmodified Claude Code | H | 0.25 (2 h) | 15b, 18, 22 | — |
 | 24 | Cloud proving scripts, written and not run | H | 0.3 (2.5 h) | 19, 20 | S6.4, P8-2 |
 | 25 | Close the phase: `PROGRAM.md`, seams, asks, what stays unverified | H | 0.2 (1.5 h) | all | all |
 
-**Total: 62 focused hours, about 7.8 focused days** (review I-10 split 08 and 15, each 3 h, into 1.5 h + 2 h halves: +1 h). The critical path is 01 → 03 → 05 → 10 → 11 → 12 → 17 → 18 → 23 → 25 (23 h). It was 01 → 03 → 05 → 07 → 08 → 15 → 21 → 22 → 23 → 25 (25 h) before the split: 15a codes against a fake keysmith and no longer waits for 08, which leaves 08b 2.5 h of slack before 17 and the 21 → 22 branch 4.5 h before 23. The next-longest path is 01 → 03 → 05 → 10 → 11 → 12 → 19 → 24 → 25 (21.5 h). 08a waits on env 17 step 0 as well (cross-tree); it has 7 h of slack before it delays 17.
+**Total: 62.5 focused hours, about 7.8 focused days** (review I-10 split 08 and 15, each 3 h, into 1.5 h + 2 h halves: +1 h; review M-7 added task 18's P15 and P16: +0.5 h). The critical path is 01 → 03 → 05 → 10 → 11 → 12 → 17 → 18 → 23 → 25 (23.5 h), and task 18 is on it, so those two probes are the only half-hour this batch adds to the phase. It was 01 → 03 → 05 → 07 → 08 → 15 → 21 → 22 → 23 → 25 (25 h) before the split: 15a codes against a fake keysmith and no longer waits for 08, which leaves 08b 2.5 h of slack before 17 and the 21 → 22 branch 4.5 h before 23. The next-longest path is 01 → 03 → 05 → 10 → 11 → 12 → 19 → 24 → 25 (21.5 h). 08a waits on env 17 step 0 as well (cross-tree); it has 7 h of slack before it delays 17.
 
 **Waves for parallel execution** (a task starts when everything it depends on is merged; recomputed from the table above, review I-1 and I-10):
 
