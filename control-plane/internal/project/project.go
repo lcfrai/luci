@@ -242,11 +242,9 @@ func (s *Scanner) Branches(ctx context.Context, projectID string) ([]Branch, err
 	if err != nil {
 		return nil, fmt.Errorf("project: list branches of %s: %w", p.Name, err)
 	}
-	// A failure here is tolerated: a repository with no commits has no HEAD to
-	// resolve, and losing the IsHead marker is better than losing the list.
-	head := ""
-	if raw, err := s.git.Run(ctx, p.Path, "rev-parse", "--abbrev-ref", "HEAD"); err == nil {
-		head = strings.TrimSpace(string(raw))
+	head, err := s.head(ctx, p.Path)
+	if err != nil {
+		return nil, fmt.Errorf("project: resolve the checked-out branch of %s: %w", p.Name, err)
 	}
 
 	lines := strings.Split(strings.ReplaceAll(string(out), "\r\n", "\n"), "\n")
@@ -266,6 +264,36 @@ func (s *Scanner) Branches(ctx context.Context, projectID string) ([]Branch, err
 		branches = append(branches, b)
 	}
 	return branches, nil
+}
+
+// head is the branch checked out in dir, or "" when there is no branch name
+// to mark: an unborn HEAD, or a detached one, which rev-parse answers with the
+// literal "HEAD" and no branch matches.
+//
+// This used to tolerate EVERY failure of rev-parse, though its comment gave
+// exactly one reason — a repository with no commits. So a rev-parse killed by
+// GitTimeout returned the branch list with nothing marked IsHead, and no error
+// and no log line said why: a wrong fact, drawn confidently, which is worse
+// than a failure the rail can show (F4, the 2026-09-27 proof).
+//
+// Only an unborn HEAD is tolerated, and it is CONFIRMED rather than guessed
+// from git's prose, which is translated and reworded between versions:
+// `rev-parse --verify --quiet HEAD` exits non-zero and says NOTHING when HEAD
+// does not resolve, and prints on every other failure — no repository, a
+// broken object store, a killed process. A confirmation that itself times out
+// confirms nothing, so the original failure is returned.
+func (s *Scanner) head(ctx context.Context, dir string) (string, error) {
+	raw, err := s.git.Run(ctx, dir, "rev-parse", "--abbrev-ref", "HEAD")
+	if err == nil {
+		return strings.TrimSpace(string(raw)), nil
+	}
+	if _, confirm := s.git.Run(ctx, dir, "rev-parse", "--verify", "--quiet", "HEAD"); confirm != nil {
+		var ge *GitError
+		if errors.As(confirm, &ge) && !ge.TimedOut && !ge.Canceled && ge.Output() == "" {
+			return "", nil
+		}
+	}
+	return "", err
 }
 
 // Worktrees lists the repository's worktrees. It reports what git reports and

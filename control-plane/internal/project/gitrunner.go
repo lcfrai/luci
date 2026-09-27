@@ -3,6 +3,7 @@ package project
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -10,11 +11,108 @@ import (
 	"time"
 )
 
-// GitTimeout bounds one git invocation. Enumeration runs behind an HTTP
-// handler that the rail polls, so a git that blocks — a network remote, a
-// credential prompt, an index.lock held by another process — must fail rather
-// than hold a request open.
+// GitTimeout bounds one git invocation behind the POLLED rail. Enumeration
+// runs behind an HTTP handler the rail polls every few seconds, so a git that
+// blocks — a network remote, a credential prompt, an index.lock held by
+// another process — must fail rather than hold a request open: the next poll
+// asks again two seconds later and costs the user nothing.
+//
+// It is deliberately NOT the bound for a git on the create path. See
+// HostConfigTimeout.
 const GitTimeout = 10 * time.Second
+
+// HostConfigTimeout bounds one git that reads the HOST's own config while a
+// create is in flight (cmd/api's hostGit). That git is not polled: it runs
+// once, inside POST /v1/sessions, with the user waiting, and its failure
+// destroys the whole create — the sandbox, the worktree and the intent. On
+// 2026-09-27 one such read exceeded 10 s on a quiet host and cost the phase 2
+// proof o2.resume, its only end-to-end proof that Resume forks a real
+// conversation. `git config --get` does no I/O worth 10 s; a read that slow is
+// a stalled process start (Windows on-access scanning is the one we have
+// measured), which clears in seconds. So this bound is sized to outlast a
+// stall rather than to keep a poll cheap, and the caller caps the TOTAL of its
+// reads separately, so a create cannot hang for the sum of them.
+const HostConfigTimeout = 30 * time.Second
+
+// gitWaitDelay is how long cmd.Wait waits after the deadline kill before it
+// gives up on git's pipes. Without it the bound is a promise this runner
+// cannot keep: the 2026-09-27 evidence includes `exec: canceling Cmd:
+// TerminateProcess: Access is denied.`, and a kill that fails leaves Wait
+// blocked on a stdout/stderr pipe that no one will ever close, holding the
+// handler open forever — the exact failure GitTimeout exists to prevent.
+const gitWaitDelay = 2 * time.Second
+
+// GitError is what a git that did not succeed returns. It exists because the
+// flattened string it replaced could not tell a git that FAILED from a git
+// this runner KILLED: on Windows the deadline kill is TerminateProcess(…, 1)
+// and Go returns the killed process's own status (os/exec, go1.26.2), so a
+// timeout reached the log as `exit status 1: ` with nothing after the colon —
+// the same text a git that answered "no" would produce. Callers classify with
+// errors.Is against context.DeadlineExceeded and context.Canceled, and read
+// git's own streams from Stderr and Stdout.
+type GitError struct {
+	Args []string
+	Dir  string
+	// Err is what os/exec returned: the killed process's own exit status, or
+	// context's error when no process was started at all.
+	Err error
+	// Stderr and Stdout are git's, trimmed. On a kill they are usually empty.
+	Stderr string
+	Stdout string
+	// Timeout is the bound that was in force, named in the message so the
+	// reader knows which one to argue with.
+	Timeout time.Duration
+	// Elapsed is how long the git actually ran.
+	Elapsed time.Duration
+	// TimedOut: a deadline ended this git, not git itself.
+	TimedOut bool
+	// Canceled: the caller gave up.
+	Canceled bool
+	// Caller: the deadline or cancellation was the CALLER's, not this
+	// runner's bound — the rail supersedes a poll this way.
+	Caller bool
+}
+
+// Output is both of git's streams, stderr first, empty when git said nothing.
+// A git that fails quietly is a real signal: `rev-parse --verify --quiet HEAD`
+// says nothing when HEAD is unborn and prints on every other failure.
+func (e *GitError) Output() string {
+	return strings.TrimSpace(e.Stderr + "\n" + e.Stdout)
+}
+
+func (e *GitError) Error() string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "git %s in %s: ", strings.Join(e.Args, " "), e.Dir)
+	switch {
+	case e.TimedOut && e.Caller:
+		fmt.Fprintf(&b, "timed out: the caller's deadline passed after %s, inside the %s bound: ", e.Elapsed.Round(time.Millisecond), e.Timeout)
+	case e.TimedOut:
+		fmt.Fprintf(&b, "timed out after the %s bound (git ran %s): ", e.Timeout, e.Elapsed.Round(time.Millisecond))
+	case e.Canceled:
+		fmt.Fprintf(&b, "cancelled by the caller after %s: ", e.Elapsed.Round(time.Millisecond))
+	}
+	if e.Err != nil {
+		fmt.Fprintf(&b, "%v", e.Err)
+	}
+	// stderr first: on a failure git's own sentence is there, and stdout is
+	// usually empty. Both are included because a few subcommands diagnose on
+	// stdout, and an error naming nothing is useless.
+	return b.String() + ": " + e.Output()
+}
+
+func (e *GitError) Unwrap() error { return e.Err }
+
+// Is answers for the cause, which Err cannot: a killed git returns its own
+// exit status, so only this runner knows the deadline is what ended it.
+func (e *GitError) Is(target error) bool {
+	switch target {
+	case context.DeadlineExceeded:
+		return e.TimedOut
+	case context.Canceled:
+		return e.Canceled
+	}
+	return false
+}
 
 // ExecRunner is the production Runner: the only place in the product that
 // starts a git process.
@@ -52,11 +150,14 @@ func (r *ExecRunner) Run(ctx context.Context, dir string, args ...string) ([]byt
 	if timeout <= 0 {
 		timeout = GitTimeout
 	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
+	parent := ctx
+	ctx, cancel := context.WithTimeout(parent, timeout)
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, "git", args...)
 	cmd.Dir = dir
+	// The bound has to be real even when the kill is refused; see gitWaitDelay.
+	cmd.WaitDelay = gitWaitDelay
 	// Headless. A credential helper, an editor or a pager would block until
 	// the timeout, and on Windows the Git Credential Manager pops a window.
 	cmd.Env = append(os.Environ(),
@@ -71,13 +172,30 @@ func (r *ExecRunner) Run(ctx context.Context, dir string, args ...string) ([]byt
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
+	start := time.Now()
 	if err := cmd.Run(); err != nil {
-		// stderr first: on a failure git's own sentence is there, and stdout
-		// is usually empty. Both are included because a few subcommands
-		// diagnose on stdout, and an error naming nothing is useless.
-		detail := strings.TrimSpace(stderr.String() + "\n" + stdout.String())
-		return nil, fmt.Errorf("git %s in %s: %v: %s",
-			strings.Join(args, " "), dir, err, detail)
+		ge := &GitError{
+			Args:    args,
+			Dir:     dir,
+			Err:     err,
+			Stderr:  strings.TrimSpace(stderr.String()),
+			Stdout:  strings.TrimSpace(stdout.String()),
+			Timeout: timeout,
+			Elapsed: time.Since(start),
+		}
+		// What ended this git, asked of the contexts rather than of the exit
+		// status, which on Windows is the killed process's own. The caller's
+		// context is asked FIRST: the rail cancels a superseded poll, and
+		// that is not this runner's bound being exceeded.
+		switch {
+		case errors.Is(parent.Err(), context.Canceled):
+			ge.Canceled, ge.Caller = true, true
+		case errors.Is(parent.Err(), context.DeadlineExceeded):
+			ge.TimedOut, ge.Caller = true, true
+		case errors.Is(ctx.Err(), context.DeadlineExceeded):
+			ge.TimedOut = true
+		}
+		return nil, ge
 	}
 	return stdout.Bytes(), nil
 }
