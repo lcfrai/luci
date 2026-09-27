@@ -168,8 +168,8 @@ func TestMiddlewareAnswersPreflightBeforeTheMux(t *testing.T) {
 	}
 	for header, want := range map[string]string{
 		"Access-Control-Allow-Origin":  "http://tauri.localhost",
-		"Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
-		"Access-Control-Allow-Headers": "Content-Type",
+		"Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+		"Access-Control-Allow-Headers": "Content-Type, Idempotency-Key",
 		"Access-Control-Max-Age":       "600",
 	} {
 		if got := rec.Header().Get(header); got != want {
@@ -178,6 +178,67 @@ func TestMiddlewareAnswersPreflightBeforeTheMux(t *testing.T) {
 	}
 	if rec.Body.Len() != 0 {
 		t.Errorf("204 carried %d bytes of body", rec.Body.Len())
+	}
+}
+
+// preflight sends one preflight from an allowed origin and returns the recorder.
+func preflight(t *testing.T, method, reqHeaders string) *httptest.ResponseRecorder {
+	t.Helper()
+	p, _ := policy(t)
+	var reached bool
+	req := request(http.MethodOptions, "http://tauri.localhost")
+	req.Header.Set("Access-Control-Request-Method", method)
+	if reqHeaders != "" {
+		req.Header.Set("Access-Control-Request-Headers", reqHeaders)
+	}
+	rec := httptest.NewRecorder()
+	guard(t, p, &reached).ServeHTTP(rec, req)
+	if reached {
+		t.Error("the preflight reached the mux; it must be answered by the middleware")
+	}
+	return rec
+}
+
+// allows reports whether want is one of header's comma-separated entries,
+// compared case-insensitively after trimming. Membership, never equality: Hub
+// task C3 adds Authorization to corsHeaders, and a row that pinned the whole
+// string would be rewritten by whichever stream lands second - carrying the
+// other stream's entry away with it, the silent-override class.
+func allows(header, want string) bool {
+	for _, e := range strings.Split(header, ",") {
+		if strings.EqualFold(strings.TrimSpace(e), want) {
+			return true
+		}
+	}
+	return false
+}
+
+func TestPreflightAllowsPut(t *testing.T) {
+	// Phase 7 sends the cockpit's first PUT (connect, bind, the three
+	// governance writes). Every Tauri build is cross-origin to 127.0.0.1:8730,
+	// so the webview preflights each one. Without PUT here the request is
+	// refused before it is ever sent, while every Go and vitest test - which
+	// call handlers directly and mock fetch - stays green.
+	rec := preflight(t, http.MethodPut, "content-type")
+
+	if rec.Code != http.StatusNoContent {
+		t.Errorf("status = %d, want %d", rec.Code, http.StatusNoContent)
+	}
+	if got := rec.Header().Get("Access-Control-Allow-Methods"); !allows(got, http.MethodPut) {
+		t.Errorf("Access-Control-Allow-Methods = %q, want PUT to be one of its entries", got)
+	}
+}
+
+func TestPreflightAllowsIdempotencyKey(t *testing.T) {
+	// Ship, Rollback and Rebuild carry Idempotency-Key. The browser sends the
+	// requested headers lower-cased, so the answer is compared that way too.
+	rec := preflight(t, http.MethodPost, "content-type,idempotency-key")
+
+	if rec.Code != http.StatusNoContent {
+		t.Errorf("status = %d, want %d", rec.Code, http.StatusNoContent)
+	}
+	if got := rec.Header().Get("Access-Control-Allow-Headers"); !allows(got, "Idempotency-Key") {
+		t.Errorf("Access-Control-Allow-Headers = %q, want Idempotency-Key to be one of its entries", got)
 	}
 }
 

@@ -161,13 +161,27 @@ func LoopbackHost(hostHeader string) bool {
 	return ip != nil && ip.IsLoopback()
 }
 
-// The preflight answer. Methods is every verb contract 3.1 defines; Headers is
-// Content-Type alone, because the desktop sends no custom header and no
-// Authorization on this hop; 600 is ten minutes of not asking again, which is
-// the only thing a cached preflight is for.
+// The preflight answer.
+//
+// Methods is every verb the control plane routes, PUT included: phase 7's
+// writes - connect, bind and the three governance writes - are PUTs, and every
+// Tauri build is cross-origin to 127.0.0.1:8730, so the webview preflights each
+// one and a missing verb refuses it before the real request is ever sent.
+//
+// Headers is Content-Type, plus Idempotency-Key, which ship, rollback and
+// rebuild send, plus Authorization once the Hub's local caller key is in.
+//
+// 600 is ten minutes of not asking again, which is the only thing a cached
+// preflight is for.
+//
+// Both lists are shared by two streams. Whichever lands second ADDS its entry
+// to the list it finds and never pastes its own literal: pasting compiles and
+// silently drops the other stream's entry. TestPreflightAllowsPut and
+// TestPreflightAllowsIdempotencyKey test membership, not equality, so they hold
+// whichever order the streams land in.
 const (
-	corsMethods = "GET, POST, PATCH, DELETE, OPTIONS"
-	corsHeaders = "Content-Type"
+	corsMethods = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+	corsHeaders = "Content-Type, Idempotency-Key"
 	corsMaxAge  = "600"
 )
 
