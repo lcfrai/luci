@@ -694,4 +694,41 @@ describe("the named seams — docs/SEAMS.md", () => {
     expect(rows.length).toBe(new Set(rows).size); // one table row per seam, never two
     expect([...rows].sort()).toEqual(SEAMS.map((s) => s.id).sort());
   });
+
+  /** The manifest row is the index a later phase reads first, and until round 3 of task 25's
+   *  review the SX.10 row called `o2.resume`'s red "cause unattributed" eighty-two lines above
+   *  the note that attributes it to F2. The test above reads row IDS only, so nothing saw the
+   *  contradiction. These two read the prose. */
+  const PARAS = (): string[] => text(DOC).split(/\n\s*\n/);
+  const tags = (s: string): string[] => [...new Set([...s.matchAll(/\bF([1-9])\b/g)].map((m) => `F${m[1]}`))];
+
+  it("docs/SEAMS.md: a FAILED row names the same cause as the note that explains it", () => {
+    const rows = text(DOC).split("\n").filter((l) => l.startsWith("|") && /\*\*FAILED\*\*/.test(l));
+    expect(rows.length).toBeGreaterThan(0); // the day no row records a red, delete this
+    const prose = PARAS().filter((p) => !p.trimStart().startsWith("|"));
+    for (const row of rows) {
+      const id = /^\|\s*(S(?:X|\d+)\.\d+)\s*\|/.exec(row)?.[1] ?? row.slice(0, 40);
+      const checks = [...row.matchAll(/`([a-z0-9]+\.[a-z0-9-]+)`/g)].map((m) => m[1])
+        .filter((c) => !/\.(go|ts|tsx|mjs|md|json|jsonl|sh|ya?ml|py)$/.test(c));
+      for (const check of checks) {
+        const explained = prose.map((p) => (p.includes(check) ? tags(p) : [])).find((t) => t.length > 0);
+        if (explained === undefined) continue; // nothing here attributes it; the row may say so
+        expect(tags(row), `${id}: ${check} is attributed below, so the row must carry a cause`)
+          .not.toEqual([]);
+        expect(row, `${id}: ${check} is attributed below; the row may not call it unattributed`)
+          .not.toMatch(/unattributed/i);
+        for (const tag of tags(row)) expect(explained).toContain(tag);
+      }
+    }
+  });
+
+  it("docs/SEAMS.md: SX.10's note counts a cause only where a cause exists", () => {
+    const note = PARAS().find((p) => /Three runs/.test(p)) ?? "";
+    expect(note).not.toBe("");
+    // OO-1's red was closed on non-recurrence, which is absence of evidence, not a mechanism:
+    // counting it as a third cause would make the seam read "untested" rather than "failed".
+    expect(note).not.toMatch(/three\s+causes/i);
+    expect(note).toMatch(/Two have a cause/);
+    expect(note).toMatch(/not the same as being explained/);
+  });
 });
