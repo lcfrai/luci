@@ -410,6 +410,37 @@ describe("attachRegistry — 10 Hz batching and the pinned rule (§7.2)", () => 
     expect(slow.buffer.active.viewportY).toBe(slow.buffer.active.baseY);
   });
 
+  /** F5 fix round 2, the mutant the round-1 review NAMED and the suite still did not kill:
+   *  latch `pinned` to false on the first scroll-up ("don't fight the user") and every test
+   *  above still passes, because not one of them ever scrolls back down. The rule is
+   *  `viewportY >= baseY` measured per write, so the transition false -> true is a branch of
+   *  its own, and it is the branch a real user reaches: scroll up to read, scroll back down,
+   *  expect the pane to resume following. Without this test that carry has no pin at all —
+   *  `c4.pinned` is red for an unrelated harness defect (F5). */
+  it("output scrolls again once the user has scrolled back down", () => {
+    acquireAttach(live(), { createTerm, readOnly: false });
+    socket().acceptOpen();
+    socket().emitBinary(stdout("a\nb\nc\nd\ne\n"));
+    vi.advanceTimersByTime(FLUSH_INTERVAL_MS);
+    expect(term.scrolledToBottom).toBe(1);
+
+    term.scrollUp(3);
+    socket().emitBinary(stdout("f\n"));
+    vi.advanceTimersByTime(FLUSH_INTERVAL_MS);
+    expect(term.scrolledToBottom).toBe(1);   // frozen, as the test above pins
+
+    // The user scrolls back down by hand: xterm re-pins the viewport. `scrollUp(0)` and not
+    // `scrollToBottom()`, because the user's own gesture must not touch the counter the
+    // assertion below reads — that counter is the registry's writes, not the user's.
+    term.scrollUp(0);
+    expect(term.buffer.active.viewportY).toBe(term.buffer.active.baseY);
+
+    socket().emitBinary(stdout("g\n"));
+    vi.advanceTimersByTime(FLUSH_INTERVAL_MS);
+    expect(term.scrolledToBottom).toBe(2);   // pinned again: this write follows
+    expect(term.buffer.active.viewportY).toBe(term.buffer.active.baseY);
+  });
+
   it("writes the end banner after the output that preceded it", () => {
     acquireAttach(live(), { createTerm, readOnly: false });
     socket().acceptOpen();
