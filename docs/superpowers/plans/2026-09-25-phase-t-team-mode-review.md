@@ -3688,7 +3688,11 @@ why), `:1564-1584` (the "does not claim" bullet that was carrying the `Revoker`'
 and why sharing one `*Feed` between two goroutines is safe only while `Resolve` is a read),
 `task-12.md:109` (Consumes), `task-39.md:51-53`, and the plan body's task 11 summary
 (`2026-09-25-phase-t-team-mode.md:561-578`), whose 11-minute scope test now says "ended agents and
-all" — the case it was silently failing.
+all" — the case it was silently failing. Task 10's three cross-references back into task 11
+(`task-10.md:97`, `:106`, `:480`) were re-pointed after the same shift. One stale citation is
+**not** b03's and is left alone, named here so the next reader does not re-find it:
+`task-08.md:235` and `:674` cite `task-11.md:888` for `ConflictQuery{State: "open"}`, which is now
+a mutex in the `HubState` adapter; it was stale before this batch.
 
 **Six test rows added, one corrected** (`task-11.md:1434-1439`, `:1433`):
 `TestAnEndedAgentsLastWriteResolvesOnTheOtherReplica`, `TestARestartBacklogOfEndedAgentsDelivers`,
