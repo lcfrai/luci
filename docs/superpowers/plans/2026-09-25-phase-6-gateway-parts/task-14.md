@@ -186,7 +186,15 @@ func TestTheDefaultDirectoryIsTheSharedName(t *testing.T) {
 
 - [ ] **Step 2: Write the failing fragment and image tests**
 
-**One value differs from the skeleton, deliberately: the helper TTL is `120000` (2 minutes), not `300000`.** Task 07 refreshes at `REFRESH_AT` (45 minutes) and revokes the previous generation `Grace` (5 minutes) later. The CLI keeps presenting the old token until it next runs the helper, which is up to one helper TTL after the new token lands. With a 5-minute TTL that is exactly the grace, so a request at the boundary is a `401`; the TTL must be strictly below the grace, with room for the CLI's own scheduling. Two minutes costs one file read per two minutes per session. The test states the inequality, so a later change to either side fails here.
+**One value differs from the skeleton, deliberately: the helper TTL is `120000` (2 minutes), not `300000`.** Task 07 refreshes at `REFRESH_AT` (45 minutes) and revokes the previous generation `Grace` (5 minutes) later. The CLI keeps presenting the old token until it next runs the helper, which is up to one helper TTL after the new token **lands in the file the helper reads**. Two minutes costs one file read per two minutes per session.
+
+**The inequality has three terms, not two (review M-4).** Locally the launcher renames the file in the mounted directory and the sandbox sees it at once, so propagation is zero and `TTL < Grace` is the whole of it. **In the cloud it is not**: the broker writes the token into a Secret mounted as that directory (ask P8-1), and kubelet refreshes a mounted Secret on its sync period plus its cache TTL — about 1–2 minutes (training knowledge, **UNVERIFIED**, and **UNVERIFIED at all inside a Kata microVM**, which is why P8-1 hands the measurement to phase 8's task 32). So the rule this test pins is
+
+> **helper TTL + token propagation < `Grace`**
+
+with propagation budgeted at **2 minutes**: 2 + 2 = 4 < 5, one minute of headroom. Propagation is zero at launch — the Secret exists before the pod starts, so the first token is there at mount time — and bites only on a refresh, which is the case this inequality is about.
+
+**The propagation term is paid out of the helper TTL, never out of `Grace`.** Raising `Grace` widens how long every superseded key stays usable, on every refresh and on the raise retirement of task 07 decision (h); lowering the TTL costs one more file read. So if phase 8 measures propagation above the 2-minute budget, the fragment's TTL comes down until the inequality holds again, down to the test's 30-second floor. Only a measured propagation above `Grace` − 30 s forces `Grace` up, and that is one change in task 07's config, not a second clock.
 
 Create `sandboxd/cmd/panacea/fragment_test.go`:
 
@@ -210,6 +218,13 @@ const (
 	dropIn         = "/etc/claude-code/managed-settings.d/50-panacea-gateway.json"
 	refreshAt      = 45 * time.Minute // PANACEA_APP_GATEWAY_REFRESH_AT, skeleton shared names
 	grace          = 5 * time.Minute  // task 07's Grace
+	// propagation is how long the cloud takes to show the sandbox a token the
+	// broker has already written: a Secret volume refreshes on kubelet's sync
+	// period plus its cache TTL (review M-4). Zero locally, where the launcher
+	// renames the file in the mounted directory. UNVERIFIED, and UNVERIFIED at
+	// all inside Kata: ask P8-1 measures it, and this budget is what the phase
+	// assumes until it does.
+	propagation = 2 * time.Minute
 )
 
 func repoFile(t *testing.T, p string) string {
@@ -288,14 +303,20 @@ func TestTheFragmentCarriesNoCredentialAndNoLoginRestriction(t *testing.T) {
 	}
 }
 
-// Kills a helper TTL at or past the grace: the CLI would present a revoked token.
-func TestTheHelperTTLIsInsideTheRefreshGrace(t *testing.T) {
+// Kills a helper TTL at or past the grace, and kills the two-term inequality
+// that forgot the cloud's Secret propagation (review M-4). Either way the CLI
+// presents a revoked token on the first request after a refresh.
+func TestTheHelperTTLPlusPropagationIsInsideTheRefreshGrace(t *testing.T) {
 	var f struct{ Env map[string]string }
 	_ = json.Unmarshal([]byte(repoFile(t, fragmentPath)), &f)
 	ms, err := strconv.Atoi(f.Env["CLAUDE_CODE_API_KEY_HELPER_TTL_MS"])
 	ttl := time.Duration(ms) * time.Millisecond
-	if err != nil || ttl < 30*time.Second || ttl >= grace || refreshAt+ttl >= refreshAt+grace {
-		t.Errorf("helper TTL %s: want 30s <= TTL < the %s grace", ttl, grace)
+	if err != nil || ttl < 30*time.Second || ttl+propagation >= grace {
+		t.Errorf("helper TTL %s + propagation %s: want 30s <= TTL, and TTL+propagation < the %s grace",
+			ttl, propagation, grace)
+	}
+	if refreshAt <= grace {
+		t.Errorf("refreshAt %s <= grace %s: a generation would be revoked before the next one is minted", refreshAt, grace)
 	}
 }
 
@@ -497,7 +518,8 @@ go test -count=1 -v ./cmd/panacea/ | grep -c '^--- PASS: Test'           # expec
 | `run`: `io.WriteString(stdout, tok)` → `fmt.Fprintln(stdout, tok)` | `TestTheTokenIsPrintedAloneAndAtOnce` |
 | `waitForToken`: `c.Sleep(pollEvery)` loop replaced by a single `readToken(path)` | `TestATokenWrittenLateIsPrinted` |
 | `readToken`: the printable-ASCII loop deleted | `TestAMalformedTokenIsRefusedWithoutEcho` (the space, newline, NUL, control and non-ASCII rows) |
-| fragment: `"120000"` → `"300000"` | `TestTheFragmentIsExactlyTheGatewayKeys`, `TestTheHelperTTLIsInsideTheRefreshGrace` |
+| fragment: `"120000"` → `"300000"` | `TestTheFragmentIsExactlyTheGatewayKeys`, `TestTheHelperTTLPlusPropagationIsInsideTheRefreshGrace` |
+| the test: `ttl+propagation >= grace` → `ttl >= grace` (the two-term inequality, review M-4) | the same test, at `"180000"`: 3 min is inside a 5 min grace and outside it once the cloud's 2 min are counted |
 | fragment: the `ANTHROPIC_BASE_URL` line deleted (the pre-I-4 fragment) | `TestTheFragmentIsExactlyTheGatewayKeys`, `TestTheFragmentPinsTheGatekeeperAsTheOnlyEndpoint` |
 | fragment: `…cluster.local:4000"` → `…cluster.local:4000/v1/messages"` (the Panacea 405) | the same two |
 | fragment: `"CLAUDE_CODE_USE_BEDROCK": "0"` → `"1"` | the same two |
@@ -540,7 +562,7 @@ Message: `feat(sandbox): panacea token and the gateway managed-settings drop-in 
 
 **Gaps against the skeleton, for the orchestrator:**
 
-1. **The helper TTL is `120000`, not the skeleton's `300000`** (step 2 explains): a 5-minute TTL equals task 07's 5-minute `Grace`, so a request at the refresh boundary could present a revoked token. Either this value stays below `Grace`, or task 07 raises `Grace`; the test here pins the inequality.
+1. **The helper TTL is `120000`, not the skeleton's `300000`, and the inequality has a third term** (step 2 explains): a 5-minute TTL equals task 07's 5-minute `Grace`, so a request at the refresh boundary could present a revoked token. The rule is **helper TTL + token propagation < `Grace`** (review M-4), with propagation zero locally and budgeted at 2 minutes in the cloud, where the token arrives through a Secret volume. The test pins all three terms. The propagation term is paid out of the TTL, down to a 30-second floor; only a measured propagation above `Grace` − 30 s raises `Grace`, which is task 07's config. **Ask P8-1 measures it** — kubelet's sync period plus cache TTL is training knowledge and **UNVERIFIED**, and **UNVERIFIED at all inside Kata**.
 2. **S6.6 inherits a constraint.** The base `managed-settings.json` must not set `forceLoginOrgUUID`, or `forceLoginMethod` to `claudeai` or `console`: the docs block `apiKeyHelper` at startup under either. `05-design.md:249-250` already leaves `forceLoginMethod` unset; `forceLoginOrgUUID` is new, and a file derived from KPMG's tenant policy may carry it.
 3. The fragment is a **drop-in** at `/etc/claude-code/managed-settings.d/50-panacea-gateway.json`, not a file "at the managed-settings path" (decision (a)); the path is now verified.
 4. The "JSON test beside the fragment" lives in `sandboxd/cmd/panacea/fragment_test.go`, because `images/` has no Go module and the repository has no JSON test runner.

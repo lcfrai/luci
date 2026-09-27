@@ -116,7 +116,7 @@ Append to the plan, after "Open risks", a section `## At close: what stays unver
 | U8 | `GET /v1/models`'s field set as the CLI reads it; the helper refreshed at `CLAUDE_CODE_API_KEY_HELPER_TTL_MS`; the fake's SSE sequence accepted by the CLI | tasks 02, 14, 16 | task 23's items 1 and 8 |
 | U9 | The Linux managed-settings path; the settings-reference and server-managed-settings facts cited from `05-design.md`, not re-read | task 14, the skeleton's docs table | task 14's own reading, task 23's item 2 |
 | U10 | `CLAUDE_CODE_SKIP_BEDROCK_AUTH`'s name | seam S6.4 | whoever builds S6.4 |
-| U11 | A Kata pod seeing an updated Secret volume (the token refresh) | ask P8-1 | phase 8's proving list |
+| U11 | A Kata pod seeing an updated Secret volume (the token refresh), **and how long it takes** — kubelet's sync period plus cache TTL, about 1–2 min from training knowledge and unmeasured inside Kata, is the propagation term of `helper TTL + propagation < Grace` (review M-4, `task-14.md` gap 1) | ask P8-1, task 14 | phase 8's proving list; over the 2-minute budget, the fragment's TTL comes down to a 30-second floor before `Grace` goes up |
 | U12 | LiteLLM logging in to Postgres with an Entra token | ask P8-4 | phase 8's decision |
 | U13 | The tenant accepting the workload-identity exchange that reads the Hub | task 13, ask H-3 | phase H |
 | U14 | Docker Desktop showing a host rename inside a container on a directory mount, on Windows | task 21 | task 23's item 3 |
