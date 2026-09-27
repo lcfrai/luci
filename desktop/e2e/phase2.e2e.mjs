@@ -14,6 +14,9 @@
 import { execFileSync, spawn } from "node:child_process";
 import { openSync, readFileSync } from "node:fs";
 import { chromium } from "playwright";
+// The defect-6 rule is pure and lives apart, so desktop/src/e2eDefect6.test.ts can pin it
+// without a browser (review round 1, Important 1).
+import { tileKeptSize } from "./defect6.mjs";
 
 const APP = process.env.PANACEA_E2E_APP ?? "http://localhost:1420";
 const API = process.env.PANACEA_E2E_API ?? "http://127.0.0.1:8730";
@@ -689,16 +692,16 @@ check("d.reload", "durability: the cockpit restarts and every live session re-at
   }
   const layoutAfter = await h.page.$eval(`[role="group"][aria-label="Layout"] button[aria-pressed="true"]`, (b) => b.textContent);
   if (layoutAfter !== layoutBefore) throw new Error(`layout ${layoutBefore} came back as ${layoutAfter}`);
-  let tile = null;
-  if (ctx.resizedTile !== undefined) {
+  // Defect 6 is measured or the check fails; it is never skipped into a PASS. The half that
+  // held leads the error, so a defect-6 failure cannot hide the re-attach result.
+  const measure = async (id) => {
     await flipTo(h, "Canvas");
-    tile = await h.page.$eval(`[data-cv-tile="${ctx.resizedTile.id}"]`, (el) => el.getBoundingClientRect().toJSON());
-    if (Math.abs(tile.width - ctx.resizedTile.width) > 1 || Math.abs(tile.height - ctx.resizedTile.height) > 1) {
-      throw new Error(`defect 6: the resized tile came back ${tile.width}x${tile.height}, was ${ctx.resizedTile.width}x${ctx.resizedTile.height}`);
-    }
-    await flipTo(h, layoutBefore);
-  }
-  return { reattached: live.length, layout: layoutAfter, tileKeptSize: tile !== null };
+    return h.page.$eval(`[data-cv-tile="${id}"]`, (el) => el.getBoundingClientRect().toJSON());
+  };
+  const held = `${live.length} re-attached, layout ${layoutAfter}`;
+  const defect6 = await tileKeptSize(ctx.resizedTile, measure, held);
+  await flipTo(h, layoutBefore);
+  return { reattached: live.length, layout: layoutAfter, tileKeptSize: true, defect6 };
 });
 
 check("d.cp-restart", "durability: the control plane restarts; sessions and containers survive; the cockpit re-attaches unaided", async (h) => {

@@ -143,8 +143,12 @@ The Go tests in the manifest's SX.10 entry prove the argv, the resolution and th
 observation in its results document the proof that the agent remembers. Task 25's results
 document, `docs/verification/2026-09-27-phase-2-results.md`, records `o2.resume` as NOT RUN — the
 run stopped at `setup` — and the step-18 observation as PENDING OWNER (OD-12), so neither proves
-anything here yet. An earlier run the same day, recorded there and not claimed, failed
-`o2.resume` downstream of a create cancelled half-made (finding F1), not on resume itself. **This is a Phase 8 seam as well as a resume one**: a
+anything here yet. Two earlier runs the same day, both recorded there and neither claimed, failed `o2.resume` in
+two different places: run 1 failed it downstream of a create cancelled half-made (finding F1),
+not on resume itself, while the diagnostic run got through every mechanical step — the
+`--session-id` minted, the transcript seeded, the source session destroyed — and then failed in
+the resume UI, with no `Resume` menu item within 30 s (open observation OO-1 in that document).
+So nothing here is evidence that resume works, and one observation is open against the UI step. **This is a Phase 8 seam as well as a resume one**: a
 Kata pod's home is an `emptyDir` (`docs/verification/2026-09-17-phase-1-results.md:67`), which
 dies with the pod exactly as a container's home did, so Phase 8 must carry the fix's persistence
 into pods — or resume breaks again on the first cloud machine.

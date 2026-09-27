@@ -1208,16 +1208,21 @@ check("d.reload", "durability: the cockpit restarts and every live session re-at
   }
   const layoutAfter = await h.page.$eval(`[role="group"][aria-label="Layout"] button[aria-pressed="true"]`, (b) => b.textContent);
   if (layoutAfter !== layoutBefore) throw new Error(`layout ${layoutBefore} came back as ${layoutAfter}`);
-  let tile = null;
-  if (ctx.resizedTile !== undefined) {
+  // AMENDED by the fix round of 2026-09-27 (review round 1, Important 1). The block written
+  // here first — `if (ctx.resizedTile !== undefined) { … }` — skipped defect 6 whenever
+  // `c5.resize` had not passed, and still returned ok, with `tileKeptSize: false`. That field
+  // read as "the tile lost its size" and meant "nobody looked", and two runs on 2026-09-27
+  // printed exactly that PASS (`e2e-results-run1.jsonl:18`, `diag-full.out:14`). A check whose
+  // description names defect 6 must measure it or fail. The rule is now pure, in
+  // `desktop/e2e/defect6.mjs`, pinned by `desktop/src/e2eDefect6.test.ts`.
+  const measure = async (id) => {
     await flipTo(h, "Canvas");
-    tile = await h.page.$eval(`[data-cv-tile="${ctx.resizedTile.id}"]`, (el) => el.getBoundingClientRect().toJSON());
-    if (Math.abs(tile.width - ctx.resizedTile.width) > 1 || Math.abs(tile.height - ctx.resizedTile.height) > 1) {
-      throw new Error(`defect 6: the resized tile came back ${tile.width}x${tile.height}, was ${ctx.resizedTile.width}x${ctx.resizedTile.height}`);
-    }
-    await flipTo(h, layoutBefore);
-  }
-  return { reattached: live.length, layout: layoutAfter, tileKeptSize: tile !== null };
+    return h.page.$eval(`[data-cv-tile="${id}"]`, (el) => el.getBoundingClientRect().toJSON());
+  };
+  const held = `${live.length} re-attached, layout ${layoutAfter}`;
+  const defect6 = await tileKeptSize(ctx.resizedTile, measure, held);
+  await flipTo(h, layoutBefore);
+  return { reattached: live.length, layout: layoutAfter, tileKeptSize: true, defect6 };
 });
 
 check("d.cp-restart", "durability: the control plane restarts; sessions and containers survive; the cockpit re-attaches unaided", async (h) => {
