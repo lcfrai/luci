@@ -881,7 +881,7 @@ delegation; the Hub records lease changes but does not second-guess them) and en
 8. (b02, S02-C5) `TestBrokerReachesOnlyRoute47`, `TestBrokerReadsARevokedDelegation` and
    `TestFleetSeesNoOwnerTidOnRoute47` pass, and
    `grep -n 'ownerTid' control-plane/internal/hub/server/delegations.go` shows it set inside the
-   broker branch only. Gap S17-1 (`task-17.md:394-400`) is then closed, and task 17's tests can
+   broker branch only. Gap S17-1 (`task-17.md:397-409`) is then closed, and task 17's tests can
    leave their `DelegationSource` fake for the real Hub.
 
 #### What this task does not claim

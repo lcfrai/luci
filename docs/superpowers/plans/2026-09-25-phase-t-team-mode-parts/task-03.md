@@ -60,7 +60,7 @@ stand; one v2 vector is added.
 - `team_test.go` — enums, goldens, strict decoding, never-omit, contract keys, class sets,
   grammars, the time-layout pin (new)
 - `keys.go` — twelve `Prefix` constants appended to the const block (modified)
-- `codes.go` — fifteen `Code` constants appended, in §4.2's order (modified)
+- `codes.go` — sixteen `Code` constants appended (the sixteenth is fix batch b02's), in §4.2's order (modified)
 - `envelope.go` — `AuditEnvelope.Via`, `.DelegationID`; `Canonical` and `ParseAuditEnvelope` for v2
   (modified)
 - `envelope_test.go` — the v2 golden vector and its three refusals (modified)
@@ -70,7 +70,7 @@ stand; one v2 vector is added.
 - `types_test.go` — `"mode":"solo"` in the §7.1 `Project` example (modified, fix batch b01)
 
 **Interfaces:**
-- Produces: everything in the `team.go` blocks below, verbatim; the twelve prefixes; the fifteen
+- Produces: everything in the `team.go` blocks below, verbatim; the twelve prefixes; the sixteen
   codes; `AuditEnvelope.Via`, `AuditEnvelope.DelegationID`, `ViaFleet`; and Block 7 in
   `types.go`: `Project.Mode`, `ProjectMode` (`ProjectModeSolo`, `ProjectModeTeam`),
   `SetProjectModeRequest` (fix batch b01, X-C1; task 06's route 87, task 08's
@@ -1449,7 +1449,7 @@ Run them: `go test -count=1 -run 'TestVector|TestAudit|TestParseAudit' ./interna
 `TestParseAuditEnvelopeRoundTrips`, `envelope_test.go:62-517`). Expected: `ok`. The existing
 vector tests are in that run on purpose: a v1 byte that moved fails them, not the new ones.
 
-- [ ] **Step 4: The twelve prefixes and the fifteen codes**
+- [ ] **Step 4: The twelve prefixes and the sixteen codes**
 
 Append to `keys.go`, **after** the existing `const (…)` block of ten, a second block. A separate
 block leaves the ten existing lines byte-for-byte as they are: `gofmt` aligns each block on its
@@ -1503,6 +1503,10 @@ const (
 	CodeTextRefused        = "text_refused"         // 422, details.field, details.rule
 	CodeGlobRefused        = "glob_refused"         // 422, details.field, details.index, details.rule
 	CodeBreadthExceeded    = "breadth_exceeded"     // 422, details.field, details.index
+	// Fix batch b02 (S02-C2): route 88's only code, appended LAST so no line
+	// above it moves. codes.go must declare its codes in contract §4.2's table
+	// order (keys_test.go:530-625), and task 01 appends this row last too.
+	CodePrincipalNotFound = "principal_not_found" // 404
 )
 
 // details.reason on a 401 delegation_revoked: the delegation's own
@@ -1521,11 +1525,11 @@ Decision (c)'s edits, and nothing else in the file. `33` is asserted in **two** 
 | Where (`keys_test.go`, read 2026-09-25) | From | To |
 |---|---|---|
 | `:495-498`, `TestHubCodesNeverShadowAControlPlaneCode`: the comment and `len(own) != 33` | `38 codes, the five shared plus the Hub's 33`; `33` twice in the check | `53 codes, the five shared plus the Hub's 48`; `48` |
-| `:562-563`, `TestHubCodesAreContractSection42s`: `len(wantOwn) != 33` and its message | `33` | `48` |
+| `:562-563`, `TestHubCodesAreContractSection42s`: `len(wantOwn) != 33` and its message | `33` | `49` (b02 added a sixteenth code) |
 | `:757-758`, `TestPrefixesAndReasonsAreTheContracts`: `!= 10` twice, "ten of each" | `10`, `ten` | `22`, `twenty-two` |
 
 The `:495-496` comment also says *"The desktop's HubProblemCode (task 38) is the 33 without
-project_not_found."* Change it to *"… is the 48 without project_not_found; the fifteen team codes
+project_not_found."* Change it to *"… is the 49 without project_not_found; the sixteen team codes
 are not in it yet."* (No Phase T part adds them; see "does not claim".)
 
 Then append twelve rows to `prefixEntity` (`:719-730`), after `"PrefixEvidence"`, each value
@@ -1591,7 +1595,7 @@ Then kill six mutants by hand, one at a time, each reverted before the next:
 ~/.claude/tools/claudezsh/claudezsh 'git add control-plane/internal/hub/hubapi/team.go control-plane/internal/hub/hubapi/team_test.go && git commit -F .superpowers/sdd/team/msg/t03.txt -- control-plane/internal/hub/hubapi'
 ```
 
-Subject: `feat(hubapi): team-record wire types, twelve id prefixes, fifteen codes, audit v2
+Subject: `feat(hubapi): team-record wire types, twelve id prefixes, sixteen codes, audit v2
 (Phase T task 03)`; body: the six mutants killed by hand and the three moved counts; last line
 the `Co-Authored-By` line.
 
@@ -1611,5 +1615,5 @@ the `Co-Authored-By` line.
   (Hub task 27, `task-27.md:55`) calls `ParseAuditEnvelope`, so it reads v2 with no change of its
   own; its check that `orgId`, `seq`, `at` and `event` match the row is unchanged.
 - **That the desktop knows the new codes.** The desktop's Hub problem union (Hub task 38's
-  `HubProblemCode`) is not touched here, and no Phase T part adds the fifteen to it: task 52's part
+  `HubProblemCode`) is not touched here, and no Phase T part adds the sixteen to it: task 52's part
   does not name it (grep, 2026-09-25). A gap, raised in this task's return.

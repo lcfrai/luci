@@ -34,9 +34,15 @@ optional claim (**UNVERIFIED** for our registration), and the three facts suffic
 straight after `Validate`: a desktop token carrying `X-Panacea-Delegation` is 403 `forbidden`,
 `required: "fleet"`; an app-only token without it is 401 `delegation_required`; a header that is
 not a `dl-` id is 401 `delegation_revoked`, `reason: "unknown"`, the answer an unknown id gets, so
-the format is no oracle. **One route is exempt by exact match**: `GET` on a path whose segments are
-exactly `v1`, `orgs`, one id, `changes`. There Fleet must send **no** header (400 `bad_request`,
-`field: "X-Panacea-Delegation"`, `task-08.md:202-203`), because the feed is not an owner's act.
+the format is no oracle. **Two routes are exempt by exact match** (fix batch b02, S02-C2, so the
+helper is `isExemptPath`, not `isFeedPath`): `GET` on a path whose segments are exactly `v1`,
+`orgs`, one id, `changes` (route 78, the feed), and `GET` on the single segment `v1`, `principals`
+(route 88, the principal read). On either, Fleet must send **no** header (400 `bad_request`,
+`field: "X-Panacea-Delegation"`, `task-08.md:202-203`), because neither is an owner's act: the
+feed is per-org, and the principal read is what tells Fleet who an owner *is*, before any
+delegation is in hand. **These two and no others** — §5.10 rule 2 names them both, and a third
+needs a third amendment. Task 06 owns route 88 and this helper's second case, and also adds
+`Claims.AppRole` so a handler can tell Fleet from the broker (`task-06.md:57-65`).
 
 **(c) The delegation is resolved where the principal is: the first statement of the
 transaction.** Hub task 14's `Write` and `Read` begin with `store.ResolvePrincipal`
