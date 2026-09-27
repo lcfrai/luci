@@ -3609,45 +3609,104 @@ forgot a step. It was that two maps which must describe the *fleet* — `Feed.cu
 `Cache` — were one replica's memory, filled only by whichever replica happened to serve the
 launch. Both are now read from the one state the replicas share, Fleet's own store.
 
+Line numbers in this table were **re-derived at round 2** (below), after the round-2 edits moved
+every one of them; four were also one line short at the start and one named the wrong row, which
+was round 1's M1. Grep the quoted name, not the range.
+
 | Change | Where |
 |---|---|
-| `Feed` holds task 10's `InUse`; `NewFeed(hub, team, in, cache, rev, leader, now)` | `task-11.md:627,639-643` |
-| `Feed.Refresh` — every tick, both replicas: read `DelegationsInUse`, add unknown orgs head-first, fetch unknown delegations under themselves | `task-11.md:969-1000` |
-| `Feed.Resolve` — the read-through the outbox asks on a cache miss | `task-11.md:1002-1012` |
-| `delegation.Source`, `NewClient(cache, src, now)`, and `Ctx`'s one lookup before it refuses | `task-11.md:470-509` |
-| `Cache.Known(id)` — a delegation waiting for its sweep is read once, not once a tick | `task-11.md:444-452` |
-| `Rebuild(ctx, *Feed, *HubState)` — reads the Feed's own store and clients, so rebuild and refresh cannot be pointed at two different ones | `task-11.md:846-853` |
-| Why, in prose, including the outbox and the sweep consequences the finding named | `task-11.md:1031-1046` |
-| `Adopt` is the serving replica's fast path, not the only path | `task-11.md:941-945` |
-| `Sweep` now covers the whole fleet, stated | `task-11.md:713-717` |
-| Test harness: `memInUse`, and `NewClient(cache, nil, clk.Now)` for the cache-only tests | `task-11.md:1244-1248` |
-| Three test rows, the first of them the two-`Feed` test the finding asked for | `task-11.md:1264-1266` |
-| `TestASecondFeedSeesADelegationAdoptedOnTheFirst`, complete: one `memInUse`, one fake Hub, A adopts and is follower, B is leader and holds the outbox; B resolves the key with no poll, B calls `Revoke(Revoked)` within 60 s, A calls nothing | `task-11.md:1313-1360` |
-| The boundary, written down: `Refresh` tracks what the store calls in use, which is safe only because task 20 writes the agent row and that launch's first outbox row in one transaction (`task-20.md:395-400`) | `task-11.md:1391-1397` |
-| `fleetd` builds the feed *before* the outbox and passes it as the `Client`'s `Source`; `NewFeed` takes `delegation.StoreInUse{S: st}`; `rebuild` is `Rebuild(c, feed, state)` | `task-12.md:869-882` |
-| `readFeed` refreshes before it polls, and logs rather than stops when the store read fails | `task-12.md:892-895,911-914` |
-| The two-replica narrative, and the provides list | `task-12.md:38-46`, `:100` |
-| Task 39's "every replica's `Cache` drops a revoked delegation within one poll" now has a reason, and the spurious-close hazard a per-replica cache would have created is named | `task-39.md:45-52` |
+| `Feed` holds task 10's `InUse`; `NewFeed(hub, team, in, cache, rev, leader, now)` | `task-11.md:664,676-680` |
+| `Feed.Refresh` — every tick, both replicas: read `DelegationsInUse`, add unknown orgs head-first, fetch unknown delegations under themselves | `task-11.md:1025-1064` |
+| `Feed.Resolve` — the read-through the outbox asks on a cache miss | `task-11.md:1085-1137` |
+| `delegation.Source`, `NewClient(cache, src, now)`, and `Ctx`'s one lookup before it refuses | `task-11.md:498-525` |
+| `Cache.Known(id)` — a delegation waiting for its sweep is read once, not once a tick | `task-11.md:460-467` |
+| `Rebuild(ctx, *Feed, *HubState)` — reads the Feed's own store and clients, so rebuild and refresh cannot be pointed at two different ones | `task-11.md:902-910` |
+| Why, in prose, including the outbox and the sweep consequences the finding named | `task-11.md:1157-1184` |
+| `Adopt` is the serving replica's fast path, not the only path | `task-11.md:1000-1002`, `:1179` |
+| `Sweep` now covers the whole fleet, stated | `task-11.md:750-754` |
+| Test harness: `memInUse`, and `NewClient(cache, nil, clk.Now)` for the cache-only tests | `task-11.md:1389-1396` |
+| The two-`Feed` test's row (round 1's M1: the old range named `TestRebuildPersistsNothing`, which is not b03's) | `task-11.md:1413` |
+| `TestASecondFeedSeesADelegationAdoptedOnTheFirst`, complete: one `memInUse`, one fake Hub, A adopts and is follower, B is leader and holds the outbox; B resolves the key with no poll, B calls `Revoke(Revoked)` within 60 s, A calls nothing | `task-11.md:1468-1515` |
+| The boundary, written down: task 20 writes the agent row and that launch's first outbox row in one transaction (`task-20.md:395-400`) | `task-11.md:1554-1559` |
+| `fleetd` builds the feed *before* the outbox and passes it as the `Client`'s `Source`; `NewFeed` takes `delegation.StoreInUse{S: st}`; `rebuild` is `Rebuild(c, feed, state)` | `task-12.md:878-894` |
+| `readFeed` refreshes before it polls, and logs rather than stops when the store read fails | `task-12.md:904-907,923-926` |
+| The two-replica narrative, and the provides list | `task-12.md:38-55`, `:109` |
+| Task 39's "every replica's `Cache` drops a revoked delegation within one poll" now has a reason, and the spurious-close hazard a per-replica cache would have created is named | `task-39.md:46-57` |
 
 **Why `Refresh` and not a new `delegation_use` row.** The finding offered either. `DelegationsInUse`
 already exists, is already shared, and is already the thing `Rebuild` trusts after a leader change
-(`task-11.md:846-853`); a second row would be a second truth to keep in step with the agent rows.
+(`task-11.md:902-910`); a second row would be a second truth to keep in step with the agent rows.
 The cost is one store query per replica per 10 s tick and no Hub call when nothing changed
 (`TestRefreshReadsOnlyTheDelegationsItDoesNotKnow`).
 
 **Deliberately not fixed here.** The Hub, not Fleet's store, stays the authority on whether a
 delegation is live: `Refresh` re-reads every unknown id under itself, so a revoked or lapsed one is
-acted on rather than resurrected (`TestResolveNeverInventsALapsedDelegation`). What a *terminal*
+acted on rather than resurrected, and `Resolve` re-reads the one id it was given and calls a 401
+a miss (`TestResolveNeverInventsALapsedDelegation`; round 2 removed that test's assertion that
+`Resolve` calls the `Revoker`, because `Resolve` no longer acts at all). What a *terminal*
 write does when its own delegation has just been revoked is S02-I1's, untouched: `Resolve` returns
 "none", `Classify` still calls that Permanent, and the row still dies. b03 only makes
 `ErrNoDelegation` mean "shared state has none either" instead of "this replica has not heard yet",
 which is the precondition I1's fix needs.
 
 **Observed while here, recorded not charged.** The complete 60 s test builds
-`hubclient.NewFake(hubclient.WithClock(clk.Now))` (`task-11.md:1276`) while the paragraph above it
-requires `hubclient.FakeTeamProject(t)`, never a bare `NewFake` (`:1238`), and task 08's signature
+`hubclient.NewFake(hubclient.WithClock(clk.Now))` (`task-11.md:1431`) while the paragraph above it
+requires `hubclient.FakeTeamProject(t)`, never a bare `NewFake` (`:1383`), and task 08's signature
 takes no options and returns two values (`task-08.md:377`). It pre-dates b03; the new test uses
 `FakeTeamProject`. Whoever closes S02-I1 or the b01 fake work should reconcile that one line.
 
 **Unverified, b03:** planned text only — no Go compiles, nothing runs. Line numbers were
 re-derived by grep after these edits; grep the quoted name rather than trust a range.
+
+## Fix batch b03 round 2 (2026-09-28): the re-review's six
+
+Round 1's re-review (`.superpowers/sdd/team/plan-rereview-b03-1.md`) called b03 "Needs fixes":
+two critical, two important, two minor. All six are answered below at their root, and the root
+turned out to be one mistake made twice — **one store read was being asked two different
+questions**.
+
+**The root.** `DelegationsInUse` is live-agents-only by design: it is the set the feed *acts* on,
+and a delegation no live agent runs under has nothing to stop and must never be resumed
+(`task-10.md:479`, `DelegationsInUseLiveOnly`). b03 then handed that same read to the outbox's
+`Source`. But the outbox's question is not "what should I sweep", it is "what did this queued row
+go out under" — and that is routinely an **ended** agent's delegation, because `Stop` ends the
+agent and enqueues `agents.end` in one breath (`task-20.md:188`, `:340`) and a restart after an
+outage delivers a backlog whose agents have all ended. So the two callers now take two reads.
+
+| Finding | Fix | Where |
+|---|---|---|
+| **C1** an ended agent's last write, and any restart backlog, still dead-letters on the replica that never cached the delegation | `Store.DelegationForKey` — the latest agent row on a key, **ended rows included** — with the index that serves it, the `StoreInUse` adapter and three store test rows; `Feed.Resolve` reads it instead of `DelegationsInUse` | `task-10.md:101-108`, `:258-261`, `:480-482`; `task-11.md:855-862`, `:1085-1137`, `:1275-1281`, `:1416` |
+| **C2** `Ctx`'s `Source` error was dead-lettered while its comment promised a retry | `outbox.ErrTransientLocal` added to `Classify`'s transient set; `delegation.ErrResolveUnavailable` wraps it and every `Resolve` failure wraps that. The sentinel lives in `outbox` because `delegation` imports `outbox` (`Sender` takes an `outbox.Item`) and the reverse would cycle | `task-11.md:240-266`, `:408-417`, `:498-516`, `:529-540` (`Ctx`'s comment now matches what `Classify` does) |
+| **I1** `Resolve` ran a whole `Refresh`, so the 500 ms delivery tick could reach `Revoke`/`Resume` | `Resolve` is now two reads and a `Put`: one store row, at most one Hub read of that one id, no `rebuildDelegations`, no `f.act`. A 401 is a miss, not an act | `task-11.md:1085-1137` |
+| **I2** `Refresh`'s tracked-check and `SetCursor` were check-then-act on two goroutines | `SetCursorIfAbsent` tests and assigns under one lock; `Refresh` uses it. `SetCursor` stays unconditional for `Rebuild` and `Adopt`, which read the head before the state. And I1's fix removes the second goroutine entirely | `task-11.md:816-826`, `:1049-1055` |
+| **M1** four b03 citations one line short, one naming the wrong row | every "Where" in the b03 table re-derived after the round-2 edits, with the two-`Feed` test's row given its own line (`:1413`) instead of a range ending on `TestRebuildPersistsNothing` | `review.md:3612-3635` |
+| **M2** nothing pruned `Feed.cursor`, so the poll list grew with every org either replica ever served | `pruneOrgs` drops a cursor when the in-use read no longer lists the org **and** the cache holds no entry for it; the cache clause is what protects the window between `Adopt` and task 20's commit, and is why task 39's socket sweep is unaffected | `task-11.md:1062-1083`, `task-39.md:51-53` |
+
+**Restated, by grep, not by assumption.** `task-11.md:1157-1184` (which read each caller takes and
+why), `:1546-1566` (the "does not claim" bullet that was carrying the `Revoker`'s claim and the
+`Source`'s in one sentence, now three bullets), `task-12.md:42-55` and `:885-887` (the two paths,
+and why sharing one `*Feed` between two goroutines is safe only while `Resolve` is a read),
+`task-12.md:109` (Consumes), `task-39.md:51-53`, and the plan body's task 11 summary
+(`2026-09-25-phase-t-team-mode.md:561-578`), whose 11-minute scope test now says "ended agents and
+all" — the case it was silently failing.
+
+**Six test rows added, one corrected** (`task-11.md:1416-1421`, `:1411`):
+`TestAnEndedAgentsLastWriteResolvesOnTheOtherReplica`, `TestARestartBacklogOfEndedAgentsDelivers`,
+`TestAStoreFailureInResolveLeavesTheRowPending`, `TestResolveNeverCallsTheRevoker`,
+`TestRefreshPrunesAnOrgItNoLongerNeeds`, `TestConcurrentFirstTrackKeepsTheOlderCursor`; and
+`TestResolveNeverInventsALapsedDelegation` no longer asserts a `Revoker` call, because `Resolve`
+no longer makes one. `memInUse` (`task-11.md:1389-1396`) now serves both of task 10's reads as
+task 10 defines them, counts them separately, and can fail one on demand.
+
+**Still open, and named rather than hidden.** S02-I1 is untouched: a *terminal* write whose own
+delegation has just been revoked resolves to nothing, `Classify` calls that Permanent, and the row
+dies. What b03 round 1 could not honestly claim, round 2 can: `ErrNoDelegation` now means "no
+agent row on this key names a live delegation", which is the precondition I1's fix needs. Round
+1's own note stands too — the complete 60 s test still builds a bare `NewFake` (`task-11.md:1431`)
+against the paragraph at `:1383`; it pre-dates b03 and belongs to S02-I1 or the b01 fake work.
+
+**Unverified, b03 round 2:** planned text only. No Go compiled, no test run, no control plane,
+container or image started, in line with this stream's worktree rules. Every line number above was
+re-derived by `grep -n` against the worktree after the round-2 commits; ranges drift, so grep the
+quoted name. That C1 and C2 would have failed at runtime remains reasoning about planned code, not
+a measurement.
