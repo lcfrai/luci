@@ -598,7 +598,7 @@ const (
 	CodeTokenRevoked       = "token_revoked"       // 401 at or past RevokedAt
 	CodeBindingMismatch    = "binding_mismatch"    // 403 source address is not the bound pod
 	CodeCallerForbidden    = "caller_forbidden"    // 403 keysmith caller not allowed this route
-	CodeNeedsCompliance    = "needs_compliance"    // 403 a lowering by a non-compliance actor
+	CodeNeedsCompliance    = "needs_compliance"    // 403 a loosening by neither compliance nor a solo owner
 	CodeModelNotOffered    = "model_not_offered"   // 400 model is not a public catalogue id
 	CodePathNotAllowed     = "path_not_allowed"    // 404 not /v1/messages or /v1/messages/count_tokens
 	CodeBudgetExhausted    = "budget_exhausted"    // 402 a dimension has nothing left (details: dimension)

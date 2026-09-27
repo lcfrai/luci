@@ -1024,7 +1024,7 @@ git commit -F <message file> -- control-plane/internal/api/inference.go control-
   control-plane/cmd/api/config.go control-plane/cmd/api/config_test.go control-plane/cmd/api/main.go
 ```
 
-Message: `feat(api): project inference route and class, raise-only, with usage (phase 6 task 21)`, a body naming decisions (a) to (i), and the attribution line.
+Message: `feat(api): project inference route and class, ratcheted, with usage (phase 6 task 21)`, a body naming decisions (a) to (j), and the attribution line.
 
 **Acceptance:**
 

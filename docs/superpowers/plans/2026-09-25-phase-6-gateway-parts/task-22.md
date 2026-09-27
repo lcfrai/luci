@@ -1,6 +1,6 @@
 ### Task 22: Cockpit inference panel
 
-A person should be able to see, at a glance and without opening anything, where the selected project's inference goes: **Global** or **AU**. One click shows why (the data class), how much has been spent against each budget, and the only action this surface offers: *Keep inference in Australia*. Nothing on it can lower a route. That is task 21's rule, and it is also this surface's: a control that is always refused is a control that should not be drawn.
+A person should be able to see, at a glance and without opening anything, where the selected project's inference goes: **Global** or **AU**. One click shows why (the data class), how much has been spent against each budget, and the only action this surface offers: *Keep inference in Australia*. Nothing on it lowers a route — **and since fix batch b05 that is this surface's own rule, not a restatement of the server's.** Task 21's decision (j) lets a **solo** project's owner lower the route to the class's floor, so `PATCH {"route":"global"}` on a local project now returns `200`, not `403`. Whether a person should be offered that is owner question Q5, and while Q5 is open this panel does not draw a control the owner has not ruled on; task 23 step 6 exercises the API path by `curl` instead. If the owner answers Q5 with the design's rule, this task gains a *Move back to Global* action gated on a new server field (gap 5), never on a guess about who is asking.
 
 **The two things this task must not get wrong.** First, the chip changes **only on the server's answer**: an optimistic flip to AU that the server then refuses would tell the person their data is staying in Australia when it is not. Second, a budget is **words and figures in `tabular-nums`**, never a bar, gauge or badge (`docs/DESIGN-SYSTEM.md`, "Designing for many live processes"; the skeleton's global constraint 8). A bar invites the eye to judge "nearly full"; the sentence says what happens when it is.
 
@@ -27,7 +27,7 @@ Read `docs/DESIGN-SYSTEM.md` before writing any of this. The rules that bite her
 
 **(b) Unclassified is its own state, with no action.** Task 21's decision (a) makes a local project unclassified until it has a data class, and its sessions then fail closed (`503 route_unknown`). The chip reads **Not classified**; the popover says *"No data class yet. Sessions on this project can't use org inference until one is set."* The raise is not offered: task 21 answers it `409`. Setting the class belongs to the create flow (ask P4-1, seam S6.8), and task 23 sets it by `curl`. Whether local mode needs a class picker here instead is gap 2.
 
-**(c) One confirmation, inline, because the act is one-way.** The design system prefers optimistic mutation with an Undo window over confirm dialogs (`docs/DESIGN-SYSTEM.md`, "Interaction standards"). This is the case that rule does not cover: there is no undo, by design (OD-24). So the action expands in place into one sentence and two buttons: *"Keep this project's inference in Australia? Moving it back needs your organisation's compliance role."* with **Keep in Australia** and **Cancel**. No modal, no scrim.
+**(c) One confirmation, inline, because the act is one-way.** The design system prefers optimistic mutation with an Undo window over confirm dialogs (`docs/DESIGN-SYSTEM.md`, "Interaction standards"). This is the case that rule does not cover: there is no undo **on this surface**, by design (OD-24). So the action expands in place into one sentence and two buttons: *"Keep this project's inference in Australia? Nothing on this panel moves it back."* with **Keep in Australia** and **Cancel**. No modal, no scrim. The sentence stops short of *"needs your organisation's compliance role"*, which fix batch b05 made untrue for a solo project (task 21 decision (j)): it states what this panel does, which is true whichever way the owner answers Q5. The wording is the owner's to accept (OD-12).
 
 **(d) The panel owns its state; the store gains types only.** The route is fetched when the selected project changes and again each time the popover opens, and replaced by the PATCH's answer. There is no poll: a route changes only when someone acts, and the spend figure is at most 60 s old at source anyway (task 09). Nothing here adds a timer, so the one-heartbeat rule has nothing to share.
 
@@ -95,13 +95,13 @@ export interface ProjectInference {
   usage: UsageRow[];
 }
 
-/** Exactly one key. There is no way to spell a lowering the server would accept from here. */
+/** Exactly one key, and the route is only ever the raise. */
 export type InferencePatch = { route: "au" } | { dataClass: DataClass };
 ```
 
-`InferencePatch` types a route of `"au"` only. The server refuses a lowering anyway (task 21); the type makes the desktop unable to ask.
+`InferencePatch` types a route of `"au"` only. The server would accept `{"route":"global"}` on a solo project (task 21 decision (j)); the type is this surface's rule, that the desktop does not ask while owner question Q5 is open, expressed where a reviewer cannot miss it.
 
-In `desktop/src/api/client.ts`, add `| "needs_compliance"` to `ProblemCode` after `"non_loopback_publish"` (`client.ts:45`), with the comment `// 403 phase 6: a lowering needs the org compliance role`. `classify` (`desktop/src/api/problems.ts:37`) needs no change: it is "server-said", and its comment's "EIGHTEEN members" becomes "NINETEEN". Add to `CockpitClient` (`client.ts:132-168`):
+In `desktop/src/api/client.ts`, add `| "needs_compliance"` to `ProblemCode` after `"non_loopback_publish"` (`client.ts:45`), with the comment `// 403 phase 6: loosening a data class, or a team project's route, needs the org compliance role`. `classify` (`desktop/src/api/problems.ts:37`) needs no change: it is "server-said", and its comment's "EIGHTEEN members" becomes "NINETEEN". Add to `CockpitClient` (`client.ts:132-168`):
 
 ```ts
   /** Phase 6 task 21. */
@@ -209,7 +209,7 @@ describe("InferencePanel", () => {
     await openPanel();
     await userEvent.click(screen.getByRole("button", { name: "Keep inference in Australia" }));
     expect(patchInference).not.toHaveBeenCalled();
-    expect(screen.getByText(/Moving it back needs your organisation's compliance role/)).toBeTruthy();
+    expect(screen.getByText(/Nothing on this panel moves it back/)).toBeTruthy();
     await userEvent.click(screen.getByRole("button", { name: "Keep in Australia" }));
     await waitFor(() => expect(patchInference).toHaveBeenCalledWith("p-1", { route: "au" }));
     await screen.findByRole("button", { name: "Inference for engagement-portal: AU" });
@@ -219,7 +219,7 @@ describe("InferencePanel", () => {
   it("keeps the chip on Global when the PATCH fails, and shows the server's sentence", async () => {
     getInference.mockResolvedValue(inference());
     patchInference.mockRejectedValue(
-      new ApiError("needs_compliance", "Only your organisation's compliance role can lower this project's route or data class.", 403),
+      new ApiError("needs_compliance", "Only your organisation's compliance role can loosen this project's data class.", 403),
     );
     render(<InferencePanel />);
     await openPanel();
@@ -495,7 +495,7 @@ export function InferencePanel(): JSX.Element | null {
           )}
           {eff === "global" && confirming && (
             <div className="inf-confirm">
-              <p>Keep this project's inference in Australia? Moving it back needs your organisation's compliance role.</p>
+              <p>Keep this project's inference in Australia? Nothing on this panel moves it back.</p>
               <button type="button" className="inf-action" disabled={busy} onClick={() => void raise()}>
                 Keep in Australia
               </button>
@@ -715,3 +715,4 @@ Message: `feat(desktop): inference chip and panel, raise-only, spend in words (p
 2. **Local projects cannot be classified from the cockpit.** The skeleton offers one action, and classification is ask P4-1's create flow. Local projects have no create flow (task 21's decision (a)), so until phase 4 exists they are classified by `curl` (task 23). A class picker shown only for unclassified projects would be one more control here; it is an owner call, not built.
 3. **`UsageRow`'s JSON keys are assumed** (`spendUsd`, `budgetUsd`, `periodStart`, …) because task 03's part is not written yet. Step 1 reads the real ones; this file follows task 03.
 4. **The exhausted sentence names the project** whichever dimension is exhausted. For the person or team dimension the true effect is wider (every project of that person or team). The skeleton's wording is kept; the owner may want one sentence per dimension.
+5. **Task 21's `GET` does not say whether this caller may lower the route** (fix batch b05, review I-2, owner question Q5). Decision (j) lets a solo project's owner lower to the floor, and `localProjectsAreSolo` is a server-side constant no wire field carries, so the desktop cannot tell a project it may lower from one it may not. While Q5 is open that costs nothing, because this panel draws no lowering control either way. If the owner answers Q5 with the design's rule, task 21's `inferenceJSON` should gain one boolean — `canLowerRoute`, computed as `dataclass.CanChange(class, route, Floor(class), actor) == nil`, and served `false` by the Hub for a team project (ask H-5) — and this task gains a low-emphasis *Move back to Global* action shown only when it is true. The desktop must never infer the right from the route or the class itself: that would be the cockpit re-deriving an authorisation rule task 01 owns.
