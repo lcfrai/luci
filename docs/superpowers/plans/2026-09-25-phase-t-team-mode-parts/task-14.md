@@ -54,35 +54,55 @@ need a second exemption from the delegation rule, which task 01 reserves for a s
    from the token like every other user write;
 3. the Hub writes audit event `policy.versioned` (metadata only: id, scope, project, seq, digest)
    and puts it on Fleet's feed;
-4. Fleet's feed consumer (task 11's `Feed.Also`) sees it and marks the layer **active**, if the
-   digest matches the pending row's.
+4. the same client `POST`s Fleet's **activate** route for that `pv-…`; Fleet reads the event
+   **back from the Hub by id** (route 78 filtered to `subject=pv-…`, below) and marks the layer
+   **active** if what the Hub holds matches the pending row;
+5. independently, a **pending sweep** in Fleet asks the Hub the same question, every
+   `PolicySweepEvery` (30 s), about every layer pending longer than 15 s. Step 4 is the fast
+   path, not the only one.
 
 Only active layers render. **No policy governs any agent unless the Hub holds its audit event and
 its author**, which is a stronger statement than an outbox could make, and needs no exemption.
+
+**Activation is a pull, and that is fix batch b04's root-cause change (S02-C4).** Steps 4 and 5
+replace a feed consumer (`Feed.Also` on `policy.versioned`) that could not fire in TM1-α's own
+order. Task 11's `Feed` polls only the orgs in its cursor map, and an org gets a cursor from
+`Rebuild`, `Refresh` or `Adopt` — all three read task 10's `DelegationsInUse`, i.e. **orgs with
+live agents** (`task-11.md:858-868`, `:1151-1160`). TM1-α's admin sets the org policy *before*
+anyone launches, so at `POST` time no replica polls that org at all, and the first launch's cursor
+is set to the org's head, which is already past `policy.versioned`. The layer would have stayed
+pending forever, `Effective` would have kept rendering the defaults, and OD-23 would have put
+nothing in any sandbox — TM1-α's gate — with nobody told. A pull has no such window: Fleet holds
+the pending row and asks the Hub about **that one id**, so there is no cursor, no ordering and no
+org-set to be outside of.
+
 This is a deviation from the skeleton, recorded as a gap: route 80 is not in task 01's §7.0 team
-table, whose last row is 79 (`task-01.md:290`). The admin's client in TM1-α is task 33's script;
-**no admin view for policy is in this plan** (task 67 is quotas only), which is a second gap.
+table, whose last team row is 79 (`task-01.md:347`; rows 87 and 88, added by fix batches b01 and
+b02, are in the amendment at `task-01.md:699-700`). The admin's client in TM1-α is task 33's
+script; **no admin view for policy is in this plan** (task 67 is quotas only), which is a second
+gap.
 
 **Files:**
 - `control-plane/internal/policy/store.go` — `Store`, `Put`, `List`, `Activate`, `Effective`, `LayerDigest` (new)
 - `control-plane/internal/policy/store_test.go` — on task 10's `memstore` (new)
-- `control-plane/internal/fleet/server/policy.go` — `RegisterPolicy`: the four Fleet routes, `ActivateOnFeed` (new)
-- `control-plane/internal/fleet/server/policy_test.go` — roles, refusals, idempotence, activation (new)
-- `control-plane/internal/fleet/store/store.go`, `memstore/memstore.go`, `pgstore/pgstore.go`, `storetest/suite.go` — `PolicyLayer`, `Tx.AppendPolicyLayer`, `Tx.ActivatePolicyLayer`, `Store.PolicyLayers`, `Store.CurrentPolicyLayer`, `Store.PolicyProjects`, and `PolicyVersion.Layers` (modified; task 10's files)
+- `control-plane/internal/fleet/server/policy.go` — `RegisterPolicy`: the six Fleet routes, `sweepPending` (new)
+- `control-plane/internal/fleet/server/policy_test.go` — roles, refusals, idempotence, activation, the sweep (new)
+- `control-plane/internal/fleet/store/store.go`, `memstore/memstore.go`, `pgstore/pgstore.go`, `storetest/suite.go` — `PolicyLayer`, `Tx.AppendPolicyLayer`, `Tx.ActivatePolicyLayer`, `Store.PolicyLayers`, `Store.CurrentPolicyLayer`, `Store.PolicyProjects`, `Store.PendingPolicyLayers` (the sweep's read: every scope's layers with `activated_at IS NULL` and `created_at <= cutoff`, fleet-wide, capped at 200, oldest first) and `PolicyVersion.Layers` (modified; task 10's files)
 - `control-plane/internal/fleet/store/migrations/00NN_policy_layers.sql` — numbered after the last migration at merge (tasks 19, 28 and 29 also add them, `task-10.md:571-572`) (new)
-- `control-plane/cmd/fleetd/main.go` — one line, `server.RegisterPolicy(srv, pol, feed)` (modified)
-- Hub delta, after `feat/hub`'s sync-merge: `control-plane/internal/hub/server/policyversions.go` and its test, one row in `hubapi/team.go` (`PolicyVersionRequest`, `PolicyVersionRecord`), the feed kind `policy.versioned` in `store/changes.go`'s Fleet list, and route 80 in the contract's §7.0 team table (new / modified; **UNVERIFIED until merge**: the Hub server package is Hub task 14's, unbuilt on 2026-09-25)
+- `control-plane/cmd/fleetd/main.go` — two lines, `server.RegisterPolicy(srv, pol, hub)` and `go server.SweepPendingPolicy(ctx, srv, pol, hub)` (modified)
+- Hub delta, after `feat/hub`'s sync-merge: `control-plane/internal/hub/server/policyversions.go` and its test, one row in `hubapi/team.go` (`PolicyVersionRequest`, `PolicyVersionRecord`), the feed kind `policy.versioned` in `store/changes.go`'s Fleet list, the optional `subject=` filter on route 78 (`hub/store/changes.go`'s `OrgChanges`, `hub/server/server.go`'s query parse) with `hubclient.OrgFeed.OrgEvent` beside it in task 08 (`task-08.md:151-152`), and route 80 in the contract's §7.0 team table (new / modified; **UNVERIFIED until merge**: the Hub server package is Hub task 14's, unbuilt on 2026-09-25)
 
 **Interfaces:**
 - Produces:
-  - `policy.Store` with `NewStore(s store.Store, now func() time.Time) *Store`, `(*Store).Put(ctx, org, project string, author model.Owner, doc []byte) (store.PolicyLayer, bool, error)` (`bool` = created), `List(ctx, org, project) ([]store.PolicyLayer, error)`, `Activate(ctx, org, project, id, digest string) error`, `Effective(ctx, org, project string, class model.Class) (store.PolicyVersion, error)`, `policy.LayerDigest(doc) (string, error)`, `policy.ErrNotPending`, `*policy.RefusedError{Project string; Err error}`
-  - Fleet routes: `GET`/`POST /v1/orgs/{org}/policy` (`VerbOrgPolicy`), `GET`/`POST /v1/projects/{p}/policy` (`VerbProjectPolicy`); code `policy_refused` (422)
-  - Hub route 80 and audit/feed kind `policy.versioned`
+  - `policy.Store` with `NewStore(s store.Store, now func() time.Time) *Store`, `(*Store).Put(ctx, org, project string, author model.Owner, doc []byte) (store.PolicyLayer, bool, error)` (`bool` = created), `List(ctx, org, project) ([]store.PolicyLayer, error)`, `Activate(ctx, org, project, id, digest string) error`, `Layer(ctx, org, project, id string) (store.PolicyLayer, error)`, `Pending(ctx, before time.Time) ([]store.PolicyLayer, error)`, `Effective(ctx, org, project string, class model.Class) (store.PolicyVersion, error)`, `policy.LayerDigest(doc) (string, error)`, `policy.ErrNotPending`, `policy.ErrDigestMismatch`, `*policy.RefusedError{Project string; Err error}`
+  - Fleet routes: `GET`/`POST /v1/orgs/{org}/policy` and `POST /v1/orgs/{org}/policy/{pv}/activate` (`VerbOrgPolicy`), the same three under `/v1/projects/{p}/policy` (`VerbProjectPolicy`); codes `policy_refused` (422) and `not_audited` (409)
+  - `server.SweepPendingPolicy(ctx, *Server, *policy.Store, hubclient.OrgFeed)`, `server.PolicySweepEvery` (30 s), `server.PolicySweepGrace` (15 s)
+  - Hub route 80, audit/feed kind `policy.versioned`, and route 78's optional `subject=` filter
 - Consumes:
   - task 13 — `policy.Render`, `policy.Layers`, `policy.Layer`, `policy.ParseLayer`, `policy.Digest`, `*policy.InvariantError`, `policy.ScopeOrg`, `policy.ScopeProject`, `policy.MaxLayerBytes`
   - task 10 — `store.Store`, `store.Tx`, `Store.Tx(ctx, fn)`, `Store.CurrentPolicy`, `Tx.PutPolicy`, `store.PolicyVersion` (`task-10.md:204-214`), `store.ErrConflict`, `store.ErrNotFound`, `memstore.New`
   - task 12 — `server.Server.Route`, `server.Handler`, `server.Principal`, `server.VerbOrgPolicy`, `server.VerbProjectPolicy`, `httpx.WriteProblem`
-  - task 11 — `(*delegation.Feed).Also`, and the kind added to `main.go`'s `kinds`
+  - task 08 — `hubclient.OrgFeed`, and its `OrgEvent(ctx, org, kind, subject string) (hubapi.Event, bool, error)` (route 78 with `subject=`, `after` empty, `limit=1`; Fleet's token, **no delegation** — §5.10 rule 7, the exemption route 78 already holds, so activation adds no new one). **Not** task 11's `Feed`: see b04's note above
   - task 06 — the Hub write shape: `server.RequireDesktop(p)` (`task-06.md:355`), the §10.6 transaction, one audit event per write
   - Hub, built — `ids.Wide` (`internal/ids/ids.go:61`), `hubapi.Me.OrgAdmin` (`hubapi/types.go:209-213`)
 - Consumed by: task 20 (`Effective` at every agent start; its `Version` and `Digest` go into the agent start's `policy`, its `Body` into task 15's Secret), task 33 (the scripted policy change), task 41.
@@ -466,9 +486,13 @@ import (
 
 const CodePolicyRefused = "policy_refused" // 422
 
-// RegisterPolicy adds OD-23's four routes and the feed consumer that
-// activates a version once the Hub has audited it.
-func RegisterPolicy(s *Server, pol *policy.Store, feed *delegation.Feed) {
+// RegisterPolicy adds OD-23's six routes. Activation is a PULL: nothing here
+// waits to be told. The admin's client calls the activate route once route 80
+// has answered, and SweepPendingPolicy asks the same question on a timer for
+// the client that never did. Neither touches task 11's Feed, whose poll set is
+// orgs with live agents only — the org whose policy this is may have none
+// (b04, S02-C4).
+func RegisterPolicy(s *Server, pol *policy.Store, hub hubclient.OrgFeed) {
 	s.Route("GET /v1/orgs/{org}/policy", VerbOrgPolicy, func(w http.ResponseWriter, r *http.Request, p Principal) {
 		listPolicy(w, r, pol, p.OrgID, "")
 	})
@@ -481,7 +505,12 @@ func RegisterPolicy(s *Server, pol *policy.Store, feed *delegation.Feed) {
 	s.Route("POST /v1/projects/{p}/policy", VerbProjectPolicy, func(w http.ResponseWriter, r *http.Request, p Principal) {
 		putPolicy(w, r, s.log, pol, p, p.ProjectID)
 	})
-	feed.Also(func(ctx context.Context, ev hubapi.Event) error { return activateOn(ctx, s.log, pol, ev) })
+	s.Route("POST /v1/orgs/{org}/policy/{pv}/activate", VerbOrgPolicy, func(w http.ResponseWriter, r *http.Request, p Principal) {
+		activatePolicy(w, r, s.log, pol, hub, p.OrgID, "", r.PathValue("pv"))
+	})
+	s.Route("POST /v1/projects/{p}/policy/{pv}/activate", VerbProjectPolicy, func(w http.ResponseWriter, r *http.Request, p Principal) {
+		activatePolicy(w, r, s.log, pol, hub, p.OrgID, p.ProjectID, r.PathValue("pv"))
+	})
 }
 
 func putPolicy(w http.ResponseWriter, r *http.Request, log *slog.Logger, pol *policy.Store, p Principal, project string) {
@@ -519,6 +548,13 @@ func putPolicy(w http.ResponseWriter, r *http.Request, log *slog.Logger, pol *po
 	out := view(l, false)
 	out["audit"] = map[string]any{"method": "POST", "path": "/v1/orgs/{orgId}/policy-versions",
 		"body": map[string]any{"id": l.ID, "projectId": nullable(l.Project), "seq": l.Seq, "digest": l.Digest}}
+	// Both steps, so a client cannot do the first and not know about the second.
+	scope := "/v1/orgs/{orgId}"
+	if l.Project != "" {
+		scope = "/v1/projects/{projectId}"
+	}
+	out["activate"] = map[string]any{"method": "POST", "path": scope + "/policy/" + l.ID + "/activate",
+		"after": "the audit call above answers 201"}
 	writeJSON(w, status, out)
 }
 
@@ -540,26 +576,111 @@ func listPolicy(w http.ResponseWriter, r *http.Request, pol *policy.Store, org, 
 	writeJSON(w, http.StatusOK, map[string]any{"items": items, "current": current})
 }
 
-// activateOn is the feed consumer. Only a store failure is returned (so the
-// page is re-read); a refusal is logged and dropped, or the feed would stall.
-func activateOn(ctx context.Context, log *slog.Logger, pol *policy.Store, ev hubapi.Event) error {
-	if ev.Kind != "policy.versioned" {
-		return nil
+const CodeNotAudited = "not_audited" // 409
+
+// ErrNotAudited: the Hub holds no policy.versioned for this id, or holds one
+// naming another scope or seq. Either way the layer stays pending.
+var ErrNotAudited = errors.New("the Hub holds no matching audit event")
+
+// activateOne is the whole of activation, and both callers use it. It asks the
+// Hub ONE question about ONE id — route 78 with subject=, after empty, limit 1
+// — so it needs no cursor, no ordering and no org poll set. That is the b04
+// change: the old feed consumer could only hear about orgs task 11 was already
+// polling, and an org whose admin writes policy before anyone launches is not
+// one of them (S02-C4).
+func activateOne(ctx context.Context, pol *policy.Store, hub hubclient.OrgFeed, l store.PolicyLayer) error {
+	ev, ok, err := hub.OrgEvent(ctx, l.Org, "policy.versioned", l.ID)
+	if err != nil {
+		return err // transient: the sweep retries, the route answers 503
+	}
+	if !ok {
+		return ErrNotAudited
 	}
 	org, _ := ev.Data["orgId"].(string)
 	project, _ := ev.Data["projectId"].(string) // absent or null for the org scope
 	digest, _ := ev.Data["digest"].(string)
-	err := pol.Activate(ctx, org, project, ev.Subject, digest)
-	var re *policy.RefusedError
-	switch {
-	case err == nil:
-		log.Info("policy version active", "id", ev.Subject, "org", org, "project", project)
-		return nil
-	case errors.Is(err, policy.ErrNotPending), errors.Is(err, policy.ErrDigestMismatch), errors.As(err, &re):
-		log.Warn("policy version not activated", "id", ev.Subject, "err", err)
-		return nil
+	seq, _ := ev.Data["seq"].(float64) // JSON numbers decode as float64
+	if org != l.Org || project != l.Project || int(seq) != l.Seq {
+		return fmt.Errorf("%w: %s names %s/%s seq %d", ErrNotAudited, l.ID, org, project, int(seq))
 	}
-	return err
+	return pol.Activate(ctx, l.Org, l.Project, l.ID, digest) // re-validates, then writes
+}
+
+// activatePolicy is the admin's client's fast path, and the one place the
+// admin is TOLD: the answer names the outcome instead of leaving a version
+// pending in silence.
+func activatePolicy(w http.ResponseWriter, r *http.Request, log *slog.Logger, pol *policy.Store,
+	hub hubclient.OrgFeed, org, project, id string) {
+	l, err := pol.Layer(r.Context(), org, project, id)
+	if errors.Is(err, store.ErrNotFound) {
+		httpx.WriteProblem(w, http.StatusNotFound, "not_found", "No such policy version.", nil)
+		return
+	} else if err != nil {
+		log.Error("policy activate read", "id", id, "err", err)
+		httpx.WriteProblem(w, http.StatusInternalServerError, httpx.CodeInternal, "Something went wrong.", nil)
+		return
+	}
+	var re *policy.RefusedError
+	var ie *policy.InvariantError
+	switch err = activateOne(r.Context(), pol, hub, l); {
+	case err == nil, errors.Is(err, policy.ErrNotPending): // already active: idempotent
+	case errors.Is(err, ErrNotAudited), errors.Is(err, policy.ErrDigestMismatch):
+		httpx.WriteProblem(w, http.StatusConflict, CodeNotAudited,
+			"The Hub has not audited this version. POST the audit body to /v1/orgs/{orgId}/policy-versions, then call this again.",
+			map[string]string{"id": id})
+		return
+	case errors.As(err, &re) && errors.As(err, &ie):
+		httpx.WriteProblem(w, http.StatusUnprocessableEntity, CodePolicyRefused, err.Error(), map[string]string{
+			"invariant": ie.Invariant, "class": string(ie.Class), "scope": string(ie.Scope), "project": re.Project})
+		return
+	default:
+		log.Error("policy activate", "id", id, "err", err)
+		httpx.WriteProblem(w, http.StatusServiceUnavailable, "unavailable", "Try again.", nil)
+		return
+	}
+	if l, err = pol.Layer(r.Context(), org, project, id); err != nil {
+		httpx.WriteProblem(w, http.StatusInternalServerError, httpx.CodeInternal, "Something went wrong.", nil)
+		return
+	}
+	writeJSON(w, http.StatusOK, view(l, false))
+}
+
+const (
+	PolicySweepEvery = 30 * time.Second
+	PolicySweepGrace = 15 * time.Second // a live client gets to finish its own call first
+)
+
+// SweepPendingPolicy is the path that does not need the admin's client to be
+// alive: a crash between route 80 and the activate call, a lost response, or a
+// replica restart all heal here within PolicySweepEvery. EVERY replica runs it
+// — pol.Activate is idempotent (TestActivateIsOnce), a pending layer is rare,
+// so a leader gate would buy nothing and would tie policy to task 12's election.
+func SweepPendingPolicy(ctx context.Context, s *Server, pol *policy.Store, hub hubclient.OrgFeed) {
+	t := time.NewTicker(PolicySweepEvery)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+		}
+		ls, err := pol.Pending(ctx, time.Now().Add(-PolicySweepGrace))
+		if err != nil {
+			s.log.Error("policy sweep", "err", err)
+			continue
+		}
+		for _, l := range ls {
+			switch err := activateOne(ctx, pol, hub, l); {
+			case err == nil:
+				s.log.Info("policy version active", "id", l.ID, "org", l.Org, "project", l.Project, "by", "sweep")
+			case errors.Is(err, policy.ErrNotPending): // another replica got there first
+			case errors.Is(err, ErrNotAudited):
+				s.log.Warn("policy version unaudited", "id", l.ID, "pendingFor", time.Since(l.CreatedAt))
+			default:
+				s.log.Warn("policy version not activated", "id", l.ID, "err", err)
+			}
+		}
+	}
 }
 
 func view(l store.PolicyLayer, withDoc bool) map[string]any {
