@@ -290,11 +290,16 @@ variables {
 ```
 
 As built: 27 runs. A list attribute compares with `tolist([...])` and tags with `tomap({...})`:
-a tuple or object literal never equals a list or map. Each id in the last column is defined, one
-row per mutant, in `.superpowers/sdd/env/task-03-report.md` (the round-3 table, "What it
-changes"). That is the only surviving definition: the harnesses that produced them lived in
-session temp directories (`t03r2/`, `t03r3/`, `t03r3k/mutants.py`), there is no `scratchpad/` in
-this repo, and one of the three went with its killed session (round-3 review M1).
+a tuple or object literal never equals a list or map. Each id in the last column is defined by that
+column itself, here in this file — one clause per mutant, with the two accepted survivors in
+"As built" section 9 — so a reader needs nothing outside the repo to resolve one. The harnesses
+that produced them are gone: they lived in session temp directories (`t03r2/`, `t03r3/`,
+`t03r3k/mutants.py`), there is no `scratchpad/` in this repo, and one of the three went with its
+killed session (round-3 review M1). The per-round pass/fail tables are in
+`.superpowers/sdd/env/task-03-report.md`, which is a **local stream artefact, not in the repo**
+(`.superpowers/sdd/.gitignore` is `*`), so a fresh clone has the definitions but not those
+tables. Round 4 corrected M1 by pointing the ids at that report; it is the committed column that
+has to carry them, and it does.
 
 | Run | Asserts | Mutant it kills |
 |---|---|---|
@@ -359,11 +364,14 @@ bash infra/scripts/guards.sh        # guards: 10 of 10 passed
   destroy or replace of the three protected resources, and nothing else (a portal delete, or
   a destroy of the resource group, is outside Terraform's plan).
 
-#### As built (2026-09-26)
+#### As built (2026-09-26; rounds 3 and 4, 2026-09-28)
 
-**Commits.** `7667862b` red; `9386dbc0` green; `804fbb88` round-1 killers; `cce77676` round-2
-killer (FG1, FV1); then the VNet `prevent_destroy` red and fix, and this part (listed in
-`.superpowers/sdd/env/task-03-report.md`).
+**Commits**, the durable record — `git log` holds them, the report does not have to:
+`7667862b` red; `9386dbc0` green; `804fbb88` round-1 killers; `cce77676` round-2 killer (FG1,
+FV1); `824eb14f` the VNet `prevent_destroy` red and `19553d81` its fix; `ab984d7b` the endpoint
+subnet's comment; `312be719` this part as built; `099459f4` round 3's two killers and
+`63dc64e8` their text; `8bdac2cb` round 4's zone-output assert (review I1) and `cd897329` its
+text (I1, M1, M2, M3).
 
 **Departures from the part as first written. Each fixes a root cause:**
 1. Step 1's red is at `test`, not at `validate`. `terraform validate` passes a test file that
