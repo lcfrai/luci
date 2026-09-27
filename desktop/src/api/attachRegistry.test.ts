@@ -34,6 +34,23 @@ let term: FakeTerm;
  *  transcription of FakeTerm drifted — fix the fake, never widen the interface. */
 const createTerm = (): TermLike => { term = new FakeTerm(); return term; };
 
+/** A terminal that parses ASYNCHRONOUSLY, as real xterm does: `write` returns immediately and
+ *  the data reaches the buffer — moving baseY — only when the deferred parse runs, which is
+ *  also when the callback fires. FakeTerm does both synchronously inside `write`, which is
+ *  right for every other test here and wrong for exactly one property: that the pinned scroll
+ *  happens in the callback and not inline. It lives here, not in the shared fake, for the same
+ *  reason `sentFrame` does — shared shape §3.3 keeps `fakes.ts` task 14's. */
+class AsyncParseTerm extends FakeTerm {
+  override write(data: string | Uint8Array, callback?: () => void) {
+    const text = typeof data === "string" ? data : new TextDecoder().decode(data);
+    this.written.push(text);
+    setTimeout(() => {
+      this.buffer.active.baseY += text.split("\n").length - 1;
+      callback?.();
+    }, 0);
+  }
+}
+
 /** The newest socket the stub client handed out. */
 const socket = (): FakeWebSocket => FakeWebSocket.last()!;
 
@@ -345,6 +362,52 @@ describe("attachRegistry — 10 Hz batching and the pinned rule (§7.2)", () => 
 
     expect(term.scrolledToBottom).toBe(1);   // still only the first flush
     expect(term.buffer.active.viewportY).toBe(parked);
+  });
+
+  /** F5 fix round 1, mutant M1. The rule is `viewportY >= baseY`, and the test above parks the
+   *  viewport THREE rows up, so a one-row tolerance (`>= baseY - 1`) is invisible to it and
+   *  survives the suite. One row up is scrolled up: a user reading the line above the newest
+   *  must not be yanked back to the bottom by the next write. That is §7.2's whole promise at
+   *  its boundary, and the e2e check that would have caught it (`c4.pinned`) is red for an
+   *  unrelated harness defect, so the boundary has to be pinned here. */
+  it("output does not scroll a pane the user has scrolled up by exactly one row", () => {
+    acquireAttach(live(), { createTerm, readOnly: false });
+    socket().acceptOpen();
+    socket().emitBinary(stdout("a\nb\nc\nd\ne\n"));
+    vi.advanceTimersByTime(FLUSH_INTERVAL_MS);
+    expect(term.scrolledToBottom).toBe(1);
+
+    term.scrollUp(1);
+    const parked = term.buffer.active.viewportY;
+    expect(parked).toBe(term.buffer.active.baseY - 1);   // exactly one row, not three
+    socket().emitBinary(stdout("f\n"));
+    vi.advanceTimersByTime(FLUSH_INTERVAL_MS);
+
+    expect(term.scrolledToBottom).toBe(1);   // still only the first flush
+    expect(term.buffer.active.viewportY).toBe(parked);
+  });
+
+  /** F5 fix round 1, mutant M2. `flush` scrolls from the write CALLBACK, not inline after
+   *  `write` returns, because real xterm parses on its own schedule: the data is not in the
+   *  buffer when `write` returns, so an inline `scrollToBottom()` scrolls to the OLD bottom and
+   *  the pane sits one chunk short. FakeTerm advances baseY and calls back synchronously, so it
+   *  cannot tell the two apart — both land after baseY moved — and the inline mutant survives.
+   *  AsyncParseTerm defers both to a timer, which is the ordering real xterm has. */
+  it("scrolls a pinned pane from the write callback, not before the write has landed", () => {
+    let slow!: AsyncParseTerm;
+    const createSlowTerm = (): TermLike => { slow = new AsyncParseTerm(); return slow; };
+    acquireAttach(live(), { createTerm: createSlowTerm, readOnly: false });
+    socket().acceptOpen();
+    socket().emitBinary(stdout("a\nb\nc\n"));
+
+    vi.advanceTimersByTime(FLUSH_INTERVAL_MS);   // the registry flushes: term.write(chunk, cb)
+    expect(slow.written).toEqual(["a\nb\nc\n"]);
+    expect(slow.buffer.active.baseY).toBe(0);    // not parsed yet, exactly as xterm would be
+
+    vi.advanceTimersByTime(1);                   // the parse lands: baseY moves, then cb fires
+    expect(slow.buffer.active.baseY).toBe(3);
+    expect(slow.scrolledToBottom).toBe(1);
+    expect(slow.buffer.active.viewportY).toBe(slow.buffer.active.baseY);
   });
 
   it("writes the end banner after the output that preceded it", () => {
