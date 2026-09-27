@@ -40,8 +40,19 @@ func newHostGit() (hostGit, error) {
 	if err != nil {
 		return hostGit{}, fmt.Errorf("find the directory host git runs in: %w", err)
 	}
-	run := &project.ExecRunner{Timeout: project.GitTimeout, Env: hostGitEnv(root)}
+	run := &project.ExecRunner{Timeout: project.HostConfigTimeout, Env: hostGitEnv(root)}
 	return hostGit{run: run, root: root, getenv: os.Getenv}, nil
+}
+
+// budget bounds a WHOLE host-config read — every git one resolver runs — at
+// project.HostConfigTimeout, which is also each git's own bound. So one git
+// that stalls may spend the resolver's entire budget, and the rest then fail
+// at once against this deadline rather than each waiting out its own: a create
+// cannot hang for the sum of four or five bounds. The runner reports which
+// deadline it was, this one or the caller's, so the log says whether the read
+// was slow or the request already over (F2).
+func (h hostGit) budget(ctx context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(ctx, project.HostConfigTimeout)
 }
 
 // hostGitEnv is what a host-config git gets on top of this process's own

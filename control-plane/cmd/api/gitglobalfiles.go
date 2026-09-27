@@ -31,6 +31,9 @@ import (
 // there is the caller's question.
 func gitGlobalFilesResolver(host hostGit) func(context.Context) (api.GitGlobalFiles, error) {
 	return func(ctx context.Context) (api.GitGlobalFiles, error) {
+		ctx, cancel := host.budget(ctx)
+		defer cancel()
+
 		excludes, err := gitGlobalFile(ctx, host, "core.excludesFile", "ignore")
 		if err != nil {
 			return api.GitGlobalFiles{}, err

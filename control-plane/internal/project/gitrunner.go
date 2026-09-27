@@ -142,9 +142,10 @@ func NewExecRunner() *ExecRunner { return &ExecRunner{Timeout: GitTimeout} }
 // derived id to match, while rev-parse --abbrev-ref HEAD would return
 // "warning: …\nmain" and match no branch, so nothing would be flagged IsHead.
 //
-// On FAILURE it returns both streams in the error, stderr first. Without that
-// the rail shows "exit status 128" and the user has nothing to act on; with it
-// the error carries git's own sentence, e.g. "fatal: not a git repository".
+// On FAILURE it returns a *GitError carrying both streams, stderr first, and
+// what ended the git. Without that the rail shows "exit status 128" and the
+// user has nothing to act on; with it the error carries git's own sentence,
+// e.g. "fatal: not a git repository", or says the bound killed it.
 func (r *ExecRunner) Run(ctx context.Context, dir string, args ...string) ([]byte, error) {
 	timeout := r.Timeout
 	if timeout <= 0 {

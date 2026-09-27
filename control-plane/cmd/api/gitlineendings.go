@@ -44,6 +44,9 @@ func gitLineEndingsResolver(host hostGit) func(context.Context) (api.GitLineEndi
 // reads "native" as native.
 func gitLineEndingsResolverWith(host hostGit, native string) func(context.Context) (api.GitLineEndings, error) {
 	return func(ctx context.Context) (api.GitLineEndings, error) {
+		ctx, cancel := host.budget(ctx)
+		defer cancel()
+
 		scope, err := host.scope(ctx, "core.autocrlf")
 		if err != nil {
 			return api.GitLineEndings{}, fmt.Errorf("read core.autocrlf: %w", err)

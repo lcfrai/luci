@@ -1592,10 +1592,23 @@ hold a `worktreeId` across a reboot.
 | is this directory a repo | presence of a `.git` file or directory (no subprocess) |
 | branches | `git for-each-ref --format=%(refname:short) refs/heads` |
 | current branch | `git rev-parse --abbrev-ref HEAD` |
+| is HEAD unborn (only when the line above fails) | `git rev-parse --verify --quiet HEAD` |
 | worktrees | `git worktree list --porcelain` |
 
-`Runner`'s production implementation runs `exec.CommandContext` with a 10-second
-timeout and returns the combined output on failure so the error names the git message.
+`Runner`'s production implementation runs `exec.CommandContext` and returns both of
+git's streams on failure so the error names the git message. Amended 2026-09-28 (F2,
+F4): the failure is a `*project.GitError`, which also says what ENDED the git — on
+Windows a deadline kill is `TerminateProcess(…, 1)` and Go returns the killed
+process's own exit status, so the two were indistinguishable — and names the bound it
+exceeded. `errors.Is` answers for `context.DeadlineExceeded` and `context.Canceled`.
+There are now two bounds, because there are two situations: `project.GitTimeout`, 10 s,
+for enumeration behind the POLLED rail, where the next poll costs the user nothing;
+and `project.HostConfigTimeout`, 30 s, for a host-config git inside a create, which is
+not polled and whose failure destroys the create. A host-config read is bounded in
+TOTAL at `HostConfigTimeout` as well, so a create cannot hang for the sum of its gits.
+`Scanner.Branches` tolerates a failed current-branch read only when the confirmation
+above proves HEAD unborn; any other failure is returned rather than silently dropping
+`IsHead`.
 Scanning is depth-1 under `root`: subdirectories of `root` that contain `.git`. Deeper
 recursion over a developer's whole disk is how a rail takes 40 seconds to paint.
 
