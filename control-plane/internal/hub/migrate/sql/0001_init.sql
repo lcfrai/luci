@@ -483,6 +483,25 @@ CREATE TRIGGER brief_revisions_guard BEFORE UPDATE OR DELETE ON brief_revisions
 CREATE TRIGGER brief_revisions_no_truncate BEFORE TRUNCATE ON brief_revisions
   FOR EACH STATEMENT EXECUTE FUNCTION forbid_change();
 
+-- Fix round 1, m5 (task 07 review): an archived brief takes no new revision. Its head is
+-- frozen (guard_brief), so such a revision would never be read as the head, but it would
+-- still put content under a brief that is frozen, or erased (erasure archives, and briefs'
+-- CHECK keeps it so). The Hub refuses the write first, 409 brief_archived (tasks 04, 19);
+-- this is the database's own stop, and it holds for the owner too. A plain read is enough:
+-- every Hub write takes its org's audit head lock first (contract §10.6), archiving
+-- included, so an archive cannot commit between this read and the insert's commit.
+-- TestAnArchivedBriefTakesNoRevision pins it.
+CREATE FUNCTION guard_revision_insert() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM hub.briefs b WHERE b.id = NEW.brief_id AND b.archived_at IS NOT NULL) THEN
+    RAISE EXCEPTION 'hub: brief % is archived; it takes no new revision', NEW.brief_id
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER brief_revisions_no_insert_when_archived BEFORE INSERT ON brief_revisions
+  FOR EACH ROW EXECUTE FUNCTION guard_revision_insert();
+
 -- ── a head moves forward one revision at a time, onto a revision that exists ──
 CREATE FUNCTION guard_brief() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
@@ -555,10 +574,21 @@ CREATE TRIGGER releases_guard BEFORE UPDATE OR DELETE ON releases
 -- after BEFORE triggers have run. TestAuditAppendChecksTheOrgFirst pins the check: with B's
 -- head held by another session, the check returns 42501 at once, where a trigger without it
 -- blocks on that lock.
+-- Fix round 1, I1 (task 07 review): as the owner, this function must run only as
+-- audit_events' own trigger. Every role may create a TEMP table, and CREATE TRIGGER asks
+-- only that its caller own the table and may EXECUTE the function, so with PUBLIC's
+-- default EXECUTE hub_app could attach it to a table of its own and move any org's head
+-- with no event. PUBLIC's EXECUTE is revoked below, and the function refuses any other
+-- table itself, so a later stray GRANT does not reopen it. The real trigger still fires
+-- for hub_app: Postgres checks EXECUTE at CREATE TRIGGER, not when the trigger fires.
+-- TestAuditAppendRunsOnlyOnAuditEvents pins both layers.
 CREATE FUNCTION audit_append() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = hub, pg_temp AS $$
 DECLARE h hub.audit_heads%ROWTYPE;
 BEGIN
+  IF TG_RELID IS DISTINCT FROM 'hub.audit_events'::regclass THEN
+    RAISE EXCEPTION 'hub: audit_append runs only on hub.audit_events' USING ERRCODE = 'insufficient_privilege';
+  END IF;
   IF NEW.org_id IS DISTINCT FROM current_setting('hub.org_id', true) THEN
     RAISE EXCEPTION 'hub: audit event for org %, not this session''s', NEW.org_id
       USING ERRCODE = 'insufficient_privilege';
@@ -572,6 +602,7 @@ BEGIN
 END $$;
 CREATE TRIGGER audit_events_append BEFORE INSERT ON audit_events
   FOR EACH ROW EXECUTE FUNCTION audit_append();
+REVOKE ALL ON FUNCTION audit_append() FROM PUBLIC;
 
 -- ── the five functions hub_app calls that run as the owner (contract §10.4; ─────
 -- ── the contract's three, and A18's org_ids and A19's lock_audit_head) ──────────

@@ -775,3 +775,47 @@ func TestHubAppGrantsAreExactlyTheList(t *testing.T) {
 		t.Errorf("PUBLIC holds %d table privileges in hub (%v); want 0", public, err)
 	}
 }
+
+// fix round 1, m1 (task 07 review): D9 and D10 (carried/task-07a.md) key a
+// Panacea run, a Panacea deployment and a session link per Hub project, not
+// per org. Each key is taken twice in one org: in a second project, which is
+// allowed, and again in the first, which is refused 23505. So a key widened to
+// the org (mutants RS-1, DK-1, SL-1) and a key dropped go red.
+func TestPanaceaKeysAndSessionLinksArePerProject(t *testing.T) {
+	_, _, app, a, _ := seeded(t)
+	// A second project in A's org, with A's design key approved in it too.
+	a2 := *a
+	cv := strings.TrimSuffix(strings.TrimPrefix(a.DesignKey, "design:"), "@1")
+	if err := inOrg(t, app, a.Org, true, func(tx pgx.Tx) error {
+		a2.Project = mustIns(t, tx, "projects", base(t, tx, "projects", a))["id"].(string)
+		mustIns(t, tx, "project_blobs", base(t, tx, "project_blobs", &a2).with("digest", a.Blob))
+		mustIns(t, tx, "design_approvals", base(t, tx, "design_approvals", &a2).with("design_key", a.DesignKey, "canvas_id", cv))
+		return nil
+	}); err != nil {
+		t.Fatalf("seed a second project: %v", err)
+	}
+	insert := func(s *orgSeed, commit bool, table string, r trow) error {
+		return inOrg(t, app, s.Org, commit, func(tx pgx.Tx) error { _, err := ins(ctxT(t), tx, table, r); return err })
+	}
+	run, dep, sess := "run-"+hx(t, 4), "dp-"+hx(t, 4), "s-"+hx(t, 4)
+	confirm := "state = 'confirmed', pipeline_run = '" + run + "', confirmed_at = now()"
+	for _, s := range []*orgSeed{a, &a2} { // both panacea_project pp-a
+		r := release(t, app, s)
+		if err := move(t, app, s, r["id"], confirm); err != nil {
+			t.Errorf("confirm Panacea run %s in project %s: %v", run, s.Project, err)
+		}
+		if err := insert(s, true, "release_deployments", base(t, app, "release_deployments", s).with(
+			"release_id", r["id"], "deployment_id", dep)); err != nil {
+			t.Errorf("join Panacea deployment %s in project %s: %v", dep, s.Project, err)
+		}
+		if err := insert(s, true, "session_links", base(t, app, "session_links", s).with("session_id", sess)); err != nil {
+			t.Errorf("link session %s to %s in project %s: %v", sess, s.DesignKey, s.Project, err)
+		}
+	}
+	again := release(t, app, a)
+	wantCode(t, move(t, app, a, again["id"], confirm), "23505", "the same Panacea run confirmed twice in one project")
+	wantCode(t, insert(a, false, "release_deployments", base(t, app, "release_deployments", a).with(
+		"release_id", again["id"], "deployment_id", dep)), "23505", "the same Panacea deployment joined twice in one project")
+	wantCode(t, insert(a, false, "session_links", base(t, app, "session_links", a).with("session_id", sess)),
+		"23505", "the same session linked to the same design twice in one project")
+}

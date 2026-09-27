@@ -202,6 +202,60 @@ func TestAnArchivedBriefIsFrozen(t *testing.T) {
 	}
 }
 
+// fix round 1, m5 (task 07 review): an archived brief takes no new revision,
+// so no content lands under a brief once it is frozen, or once it is erased
+// (erasure archives, and a CHECK keeps it so). The Hub's 409 brief_archived
+// (tasks 04, 19) is the route's check; this is the database's, and it holds
+// for the owner too. A live brief still takes revisions: the seed's revision 1
+// and TestAHeadMovesOneStepOntoARealRevision's revision 2 go in beside it.
+func TestAnArchivedBriefTakesNoRevision(t *testing.T) {
+	_, owner, app, a, _ := seeded(t)
+	ref := "refs/heads/feat-" + hx(t, 4)
+	br := base(t, app, "briefs", a).with("branch_ref", ref)
+	id := br["id"].(string)
+	err := inOrg(t, app, a.Org, true, func(tx pgx.Tx) error {
+		ctx := ctxT(t)
+		for _, step := range []func() error{
+			func() error { _, err := ins(ctx, tx, "briefs", br); return err },
+			func() error {
+				_, err := ins(ctx, tx, "brief_revisions", revision(t, a, id, 1, "branch", ref))
+				return err
+			},
+			func() error {
+				_, err := tx.Exec(ctx, "UPDATE hub.briefs SET head_revision = 1 WHERE id = $1", id)
+				return err
+			},
+			func() error {
+				_, err := tx.Exec(ctx, "UPDATE hub.briefs SET archived_at = now() WHERE id = $1", id)
+				return err
+			},
+		} {
+			if err := step(); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("seed an archived branch brief: %v", err)
+	}
+	add := func(conn *pgx.Conn, org string, r trow) error {
+		return inOrg(t, conn, org, false, func(tx pgx.Tx) error { _, err := ins(ctxT(t), tx, "brief_revisions", r); return err })
+	}
+	wantRefused(t, add(app, a.Org, revision(t, a, id, 2, "branch", ref)), "42501", "is archived",
+		"hub_app adds revision 2 to an archived brief")
+	wantRefused(t, add(owner, "", revision(t, a, id, 2, "branch", ref)), "42501", "is archived",
+		"the owner adds revision 2 to an archived brief")
+	if err := inOrg(t, app, a.Org, true, func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctxT(t), "SELECT hub.erase_brief($1)", a.Brief)
+		return err
+	}); err != nil {
+		t.Fatalf("erase the seed's brief: %v", err)
+	}
+	wantRefused(t, add(app, a.Org, revision(t, a, a.Brief, 2, "project", "")), "42501", "is archived",
+		"hub_app adds content to an erased brief")
+}
+
 func TestAPinNeverMoves(t *testing.T) {
 	_, owner, app, a, _ := seeded(t)
 	pin := "UPDATE hub.releases SET pin_brief_revision = 2 WHERE id = $1"
@@ -281,6 +335,12 @@ func TestTheEnvironmentIsSetOnce(t *testing.T) {
 		t.Fatalf("abandon: %v", err)
 	}
 	wantRefused(t, move(t, app, a, ab["id"], "environment = 'feat-x'"), "42501", "set once", "an abandoned run learns an environment")
+	// fix round 1, m2: expired is the rule's other refused state (mutant RS-2).
+	ex := release(t, app, a, "environment", nil)
+	if err := move(t, app, a, ex["id"], "state = 'expired', expired_at = now()"); err != nil {
+		t.Fatalf("expire: %v", err)
+	}
+	wantRefused(t, move(t, app, a, ex["id"], "environment = 'feat-x'"), "42501", "set once", "an expired run learns an environment")
 	rs := release(t, app, a) // reserved, environment 'prod'
 	wantRefused(t, move(t, app, a, rs["id"], "environment = 'feat-x'"), "42501", "set once", "a reserved run's prod -> feat-x")
 }
@@ -673,15 +733,79 @@ func TestHubAppExecutesExactlyTheOwnerFunctions(t *testing.T) {
 	if err != nil || strings.Join(got, ",") != want {
 		t.Errorf("hub_app executes %v (%v), want %s", got, err, want)
 	}
+	// Every function that runs as the owner, by the catalog, not by a list of
+	// names: a seventh must be reviewed here before it lands (fix round 1, I1).
+	rows, err = conn.Query(ctxT(t), `SELECT proname::text FROM pg_proc
+		WHERE pronamespace = 'hub'::regnamespace AND prosecdef ORDER BY 1`)
+	if err == nil {
+		got, err = pgx.CollectRows(rows, pgx.RowTo[string])
+	}
+	definers := "audit_append,ensure_org,erase_brief,lock_audit_head,org_ids,resolve_principal"
+	if err != nil || strings.Join(got, ",") != definers {
+		t.Errorf("SECURITY DEFINER functions in hub: %v (%v), want %s", got, err, definers)
+	}
+	// PUBLIC executes none of them, audit_append included: Postgres grants
+	// PUBLIC EXECUTE on every new function (task 07 review, I1).
 	var public []string
 	rows, err = conn.Query(ctxT(t), `SELECT p.proname::text FROM pg_proc p
 		CROSS JOIN LATERAL aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
-		WHERE p.pronamespace = 'hub'::regnamespace AND a.grantee = 0 AND a.privilege_type = 'EXECUTE'
-		  AND p.proname IN ('ensure_org', 'resolve_principal', 'erase_brief', 'lock_audit_head', 'org_ids')`)
+		WHERE p.pronamespace = 'hub'::regnamespace AND p.prosecdef
+		  AND a.grantee = 0 AND a.privilege_type = 'EXECUTE' ORDER BY 1`)
 	if err == nil {
 		public, err = pgx.CollectRows(rows, pgx.RowTo[string])
 	}
 	if err != nil || len(public) != 0 {
 		t.Errorf("PUBLIC executes %v (%v), want none of the owner functions", public, err)
+	}
+}
+
+// I1 (task 07 review): audit_append runs as the owner, so it must run only as
+// audit_events' own trigger. Every role may create a TEMP table, and CREATE
+// TRIGGER asks only that the caller own the table and may EXECUTE the
+// function; attached to a table of hub_app's, the function would move any
+// org's head with no event. Two layers stop it. PUBLIC may not execute the
+// function, so hub_app cannot attach it; and the function refuses any table
+// but hub.audit_events, should a later GRANT hand EXECUTE out again.
+func TestAuditAppendRunsOnlyOnAuditEvents(t *testing.T) {
+	d, owner, app, _, b := seeded(t)
+	ctx := ctxT(t)
+	seqB, hashB := head(t, owner, b)
+	forged := make([]byte, 32)
+	for i := range forged {
+		forged[i] = 0xff
+	}
+	// The TEMP table takes audit_events' own name, so a check of the name
+	// alone, not the relation, would let it through.
+	attach := func(tx pgx.Tx) error {
+		for _, s := range []string{
+			"CREATE TEMP TABLE audit_events (org_id text, seq bigint, prev_hash bytea, hash bytea) ON COMMIT DROP",
+			"CREATE TRIGGER forged_append BEFORE INSERT ON pg_temp.audit_events FOR EACH ROW EXECUTE FUNCTION hub.audit_append()",
+			// B's next step, chained right: only the table is wrong.
+			fmt.Sprintf("INSERT INTO pg_temp.audit_events VALUES ('%s', %d, '\\x%x', '\\x%x')", b.Org, seqB+1, hashB, forged),
+		} {
+			if _, err := tx.Exec(ctx, s); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	// Layer 1: hub_app, in B's own session, committed if it gets that far.
+	wantRefused(t, inOrg(t, app, b.Org, true, attach), "42501", "permission denied for function hub.audit_append",
+		"hub_app attaches audit_append to a TEMP table")
+	// Layer 2: a stray GRANT to hub_app, in the administrator's transaction,
+	// rolled back so the grant never outlives the test.
+	tx := begin(t, ctx, adminConn(t, d), "")
+	for _, s := range []string{"GRANT EXECUTE ON FUNCTION hub.audit_append() TO hub_app", "SET LOCAL ROLE hub_app"} {
+		if _, err := tx.Exec(ctx, s); err != nil {
+			t.Fatalf("%s: %v", s, err)
+		}
+	}
+	if _, err := tx.Exec(ctx, "SELECT set_config('hub.org_id', $1, true)", b.Org); err != nil {
+		t.Fatal(err)
+	}
+	wantRefused(t, attach(tx), "42501", "runs only on hub.audit_events", "with EXECUTE granted, audit_append on a TEMP table")
+	tx.Rollback(ctx)
+	if seq, h := head(t, owner, b); seq != seqB || string(h) != string(hashB) {
+		t.Errorf("B's head moved with no event: %d %x, was %d %x", seq, h, seqB, hashB)
 	}
 }
