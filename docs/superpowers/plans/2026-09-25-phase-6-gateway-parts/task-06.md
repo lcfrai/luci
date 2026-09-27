@@ -521,7 +521,7 @@ Message: `feat(budget): three dimensions on by default and the per-key slice (ph
 - **That `SessionCapUSD` caps a session's lifetime.** It caps **each key**. A session refreshes every 45 minutes (`REFRESH_AT`), and each refresh mints a fresh slice, so an eight-hour session can spend up to about eleven caps, bounded by the three dimensions. The gap list below names the change that would make it a lifetime cap.
 - **That LiteLLM's resets line up with the UTC month.** keysmith computes every remainder from task 09's calendar-month rollup. LiteLLM's own `budget_duration` resets on its own schedule (relative to creation, from training knowledge, **UNVERIFIED**), so its native budgets are an independent bound whose window may differ from ours.
 - **That the proposed figures are right.** `Proposed` is owner question Q2.
-- **A Hub-backed `Policy`.** That is ask H-2, seam S6.2; `Layered.Primary` is where it plugs in.
+- **A Hub-backed `Policy`.** That is ask H-2, seam S6.2; `Layered.Primary` is where it plugs in. Note for whoever builds it (review M-2): `Limits` takes **no person**, so the person figure is one per-team limit applied to each member and no id crosses this boundary. A per-person figure would change this signature, and would then have to name a person the way keysmith does — `<tid>:<oid>` (`wire.Owner.UserID()`, task 03 `:384`), never the Hub's `User.id` (`u-…`, `hub-contract.md:618`). The Hub holds that mapping already (`hub.users.entra_oid` with `orgs.entra_tenant_id`, `hub-contract.md:1953-1973`); H-2 in the skeleton carries the ask.
 
 **Gaps against the skeleton, for the orchestrator:**
 
