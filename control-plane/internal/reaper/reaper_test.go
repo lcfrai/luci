@@ -538,6 +538,54 @@ func TestSweepReclaimsTheContainerAnAbandonedCreateLeftBehind(t *testing.T) {
 	}
 }
 
+// Rule 3a's NonLoopback guard, on the one path that reaches it. A successful
+// rule-1a destroy lands in `gone` and rule 3a skips the sandbox for that reason
+// alone, so the guard is only load-bearing when 1a's destroy FAILED — and
+// deleting it left the package green until this test existed.
+//
+// What fails without it: a sandbox that is still published on the LAN, whose
+// session happens to be exited, is destroyed here instead and logged Info as
+// "its session has already exited". That is a live security defect relabelled
+// as routine litter — the same mislabelling rule 4's own comment says the
+// distinct messages exist to prevent — and the operator never learns the port
+// was exposed.
+func TestSweepDoesNotRelabelAnExposedSandboxAsAnExitedSessionsLitter(t *testing.T) {
+	t.Parallel()
+	store := newStore(t)
+	seed(t, store, registry.Session{
+		ID: "s-1", SandboxID: "sb-1",
+		Status: registry.StatusExited, ExitReason: "process exited",
+	})
+	exposed := managed("sb-1", backend.StateStopped)
+	exposed.Endpoint = ""
+	exposed.NonLoopback = true
+	be := &fakeBackend{
+		sandboxes:  []backend.Sandbox{exposed},
+		destroyErr: map[string]error{"sb-1": errors.New("daemon says no")},
+	}
+	r, logs := newReaper(t, store, be, 0, 0)
+
+	if err := r.Sweep(context.Background()); err != nil {
+		t.Fatalf("Sweep: %v", err)
+	}
+	line := logs.String()
+	if !strings.Contains(line, "still reachable from the LAN") {
+		t.Errorf("rule 1a did not report the sandbox it could not take off the LAN:\n%s", line)
+	}
+	// Both of rule 3a's messages, its success and its retry, and neither of
+	// rule 1a's: the substring is the shortest one that spans the two. Matching
+	// only the Info form is how the first draft of this test let the mutant
+	// through — the deleted guard sends this sandbox down rule 3a's FAILURE
+	// path, which is worded differently.
+	if strings.Contains(line, "session has already exited") {
+		t.Errorf("rule 3a claimed a sandbox that is still published off 127.0.0.1, "+
+			"which files a security defect under routine litter:\n%s", line)
+	}
+	if !strings.Contains(line, offendingHost) {
+		t.Errorf("the operator is not told where the port is still published:\n%s", line)
+	}
+}
+
 // A failed destroy is a retry, never a rewritten record: the container is still
 // there, and saying otherwise would lose the only id that can find it again.
 func TestSweepKeepsTheRecordOfAnExitedSessionWhoseSandboxWillNotDie(t *testing.T) {

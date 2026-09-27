@@ -486,9 +486,10 @@ func (r *Reaper) Sweep(ctx context.Context) error {
 	// paths that mint a container both write `starting` to the record BEFORE
 	// they call backend.Create — create at sessions.go's step 4, restart in the
 	// write above its own Create — so a record cannot be `exited` while a
-	// create for it is in flight. Rule 4 needs the grace because a restart's
-	// container exists before its id is recorded; this rule keys on the record,
-	// which is the thing that is already terminal.
+	// create for it is in flight. Rule 4's grace is for the opposite direction,
+	// a backend that reports a container this control plane has not recorded
+	// (see rule 4 below); this rule keys on the RECORD, which is the thing that
+	// is already terminal, so there is nothing for a grace to wait for.
 	//
 	// It rewrites NOTHING. The record is the provenance — it is what says which
 	// container this was — and it is terminal already; markExited would refuse
@@ -503,9 +504,12 @@ func (r *Reaper) Sweep(ctx context.Context) error {
 		if !alive {
 			continue
 		}
-		// Rule 1a owns every NonLoopback sandbox unconditionally, including the
-		// ones whose destroy failed, and says so in a security message this one
-		// would mislabel as routine litter. Same reason rule 4 skips them.
+		// Rule 1a owns every NonLoopback sandbox THIS INSTANCE owns — it is
+		// gated on the same owns() as the line below, and a foreign one is
+		// another reaper's — including the ones whose destroy failed, and says
+		// so in a security message this rule would mislabel as routine litter.
+		// Same reason rule 4 skips them. Pinned by
+		// TestSweepDoesNotRelabelAnExposedSandboxAsAnExitedSessionsLitter.
 		if sb.NonLoopback {
 			continue
 		}
@@ -528,7 +532,7 @@ func (r *Reaper) Sweep(ctx context.Context) error {
 		if sb.Labels[backend.LabelManaged] != "true" {
 			continue
 		}
-		// Rule 1a owns every NonLoopback sandbox unconditionally, whether its
+		// Rule 1a owns every NonLoopback sandbox this instance owns, whether its
 		// destroy SUCCEEDED or failed, and this line and not the gone set is
 		// what says so. gone records successes only, so on the failure path an
 		// exposed sandbox that no record claims would otherwise be destroyed a
@@ -558,14 +562,18 @@ func (r *Reaper) Sweep(ctx context.Context) error {
 				continue
 			}
 		}
-		// Ruling 9's hazard from the sandbox side. POST /v1/sessions writes its
-		// record first, so its containers are never orphans — but
-		// POST /v1/sessions/{id}/restart mints a fresh sandbox id, calls
-		// backend.Create, and writes that id to the record only afterwards, so
-		// in between the container is managed, live and matched by nothing.
-		// Waiting one sweep costs nothing; destroying costs a running agent. A
-		// backend that reports no creation time gets no grace, which is the old
-		// behaviour and the safe direction for a container nothing can date.
+		// Ruling 9's hazard from the sandbox side, and it is now defence in depth
+		// rather than a live window. This comment used to say restart writes its
+		// sandbox id only after backend.Create; it has not done that since task
+		// 13 — sessions.go's restart writes `starting` and the new id BEFORE its
+		// Create, exactly as create does — and Sweep lists containers (above)
+		// before it reads records, so a container in `live` always has its
+		// record in `tracked`. What the grace still covers is a backend that can
+		// report a container this control plane has not recorded: a Create that
+		// registers the container and then fails to return it, say. Waiting one
+		// sweep costs nothing; destroying costs a running agent. A backend that
+		// reports no creation time gets no grace, which is the old behaviour and
+		// the safe direction for a container nothing can date.
 		if !sb.CreatedAt.IsZero() && now.Sub(sb.CreatedAt) < r.createGrace {
 			continue
 		}
