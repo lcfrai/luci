@@ -817,7 +817,14 @@ narrowing the broker reads route 78, the org-wide feed of every team project.
 
 ```go
 // (3) delegationHeader: the two app-only identities, told apart by role.
-//     Replaces task 05's `case isFeedPath(r) …` pair and its `case len(vals) == 0`.
+//     These four cases REPLACE task 05's `case isFeedPath(r) …` pair, in its
+//     place — straight after `case !c.AppOnly:` and straight BEFORE task 05's
+//     `case len(vals) == 0:`. Every case from `len(vals) == 0` down is KEPT
+//     unedited (`task-05.md:267-276`): it is Fleet's 401 `delegation_required`,
+//     the 400 on two headers and the 401 `delegation_revoked` on a malformed id,
+//     and the two role arms above are what make it Fleet's alone. Deleting it
+//     instead would drop Fleet's 401 and fall a headerless request through to
+//     `vals[0]`, which panics on an empty slice.
 case c.AppRole == hubapi.AppRoleDelegationReader:
 	// §5.10 rule 10. Checked here, before the mux, so no handler can forget it.
 	if len(vals) > 0 {
@@ -836,7 +843,17 @@ case c.AppRole != hubapi.AppRoleFleet:
 	return Refuse(403, hubapi.CodeForbidden, "Only Fleet may call this.",
 		map[string]string{"required": "fleet"})
 case isExemptPath(r) && len(vals) > 0:
-	// …task 05's 400, unchanged; reached only by AppRoleFleet now.
+	// Task 05's 400 (`task-05.md:261-263`), widened from isFeedPath to
+	// isExemptPath, its sentence generalised because route 88 now shares it,
+	// and reached only by AppRoleFleet. The code and `details.field` are
+	// task 05's, unchanged, and what task 08 asserts is the code and the field,
+	// never the sentence (`task-08.md:298`, route 78's wire; `:500`, row
+	// team/principal-needs-no-delegation, for route 88). Written out because an
+	// empty case body is not an
+	// elision in Go: it would fall out of the switch to `c.DelegationID =
+	// vals[0]` and serve the feed under a delegation.
+	return Refuse(400, hubapi.CodeBadRequest, "This route takes no delegation.",
+		map[string]string{"field": hubapi.HeaderDelegation})
 case isExemptPath(r):
 	c.FleetFeed = isFeedPath(r) // route 88 sets no feed principal; route 78 does
 	return nil

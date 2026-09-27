@@ -39,7 +39,8 @@ task writes the first matcher, `isFeedPath`, and task 06 adds `isPrincipalPath` 
 `isExemptPath` wrapper over the pair): `GET` on a path whose segments are exactly `v1`,
 `orgs`, one id, `changes` (route 78, the feed), and `GET` on the single segment `v1`, `principals`
 (route 88, the principal read). On either, Fleet must send **no** header (400 `bad_request`,
-`field: "X-Panacea-Delegation"`, `task-08.md:202-203`), because neither is an owner's act: the
+`field: "X-Panacea-Delegation"`, `task-08.md:298` for route 78 and `:500` for route 88; both
+re-derived by grep on 2026-09-28, the ranges before them were drifted), because neither is an owner's act: the
 feed is per-org, and the principal read is what tells Fleet who an owner *is*, before any
 delegation is in hand. **These two and no others** — §5.10 rule 2 names them both, and a third
 needs a third amendment. Task 06 owns route 88 and this helper's second case.
@@ -48,7 +49,9 @@ needs a third amendment. Task 06 owns route 88 and this helper's second case.
 exactly one app caller (`:622`), so every `AppOnly` branch below is Fleet's by construction. Task 06
 adds the broker as a second one and therefore owns, in this file, all four deltas that keep the two
 apart: `Claims.AppRole` and `Claims.BrokerRead`, `isExemptPath`, `delegationHeader`'s role arms and
-`resolveCaller`'s broker branch (`task-06.md:73-88`, `:800-856`). **Do not add a second
+`resolveCaller`'s broker branch (`task-06.md:73-89` for the four-delta Files entry, `:812-886`
+for the two written-out hunks; grep the heading **The gate that admits the broker** rather than
+trust the range). **Do not add a second
 `entra.AppCaller` here**, and do not copy an `AppOnly` check out of this file into a task that has
 one: without that gate the broker is refused 401 `delegation_required` before any route, and is
 admitted as Fleet on route 78 (b02 round 1, C1 and C2).
