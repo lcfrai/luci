@@ -3728,3 +3728,76 @@ container or image started, in line with this stream's worktree rules. Every lin
 re-derived by `grep -n` against the worktree after the round-2 commits; ranges drift, so grep the
 quoted name. That C1 and C2 would have failed at runtime remains reasoning about planned code, not
 a measurement.
+
+## Fix batch b04 (2026-09-28): S02-C4
+
+**S02-C4 (Critical) — fixed at the root.** The root was not that `activateOn` missed a case. It
+was that a thing triggered by a **person** was delivered on a channel whose reach is **agents**.
+Task 11's `Feed` polls the orgs in its cursor map; every writer of that map (`Rebuild`, `Refresh`,
+`Adopt`) starts from task 10's `DelegationsInUse`, which is live agents, and `pruneOrgs` drops an
+org when the last one ends. TM1-α's order is *admin writes the org policy, then people launch*, so
+at `POST` time no replica polled the org at all, and the first launch's cursor was set to a head
+already past `policy.versioned`. The layer stayed pending forever, `Effective` kept rendering the
+defaults, OD-23 put nothing in any sandbox — TM1-α's gate — and nobody was told.
+
+So activation stopped being a push and became a **pull**: Fleet holds the pending row, so Fleet
+asks the Hub about that one id. No cursor, no ordering, no org poll set to be outside of.
+
+| Change | Where |
+|---|---|
+| The five-step order: `POST` → route 80 → **Fleet activate** → the sweep; and the b04 paragraph naming the cursor as the root | `task-14.md:53-84` |
+| `POST …/policy/{pv}/activate`, org and project, registered beside the four | `task-14.md:534-539`, and the Produces row `:101` |
+| `activateOne` — one Hub question about one id, verifying org, project, seq **and** digest before `Activate` | `task-14.md:611-634` |
+| `activatePolicy` — the admin is **told**: 200 active, 409 `not_audited`, 422 `policy_refused` with the invariant, 503 on a Hub failure | `task-14.md:636-672` |
+| `SweepPendingPolicy`, every replica, 30 s tick / 15 s grace — the path that needs no live client | `task-14.md:674-709` |
+| `policy.Store.Layer` (scoped by id) and `.Pending` (the sweep's fleet-wide read) | `task-14.md:302-321` |
+| `store.PendingPolicyLayers` and its partial index, in task 10's additions and in step 2 | `task-14.md:93`, `:964-970` |
+| Route 78 gains `subject=`; why it is a parameter and not a new route; the two 400s | `task-14.md:779-796` |
+| `OrgFeed.OrgEvent` on task 08's interface, with the reason in the comment | `task-08.md:150-160` |
+| Route 78's existing no-delegation exemption covers `OrgEvent`; the fake's row and the method count | `task-08.md:334-336`, `:404`, `:420`, `:516`, `:649-650` |
+| `Activate`'s comment: its digest comes from the Hub's own event, never a body | `task-14.md:325-328` |
+| The `POST` answer now carries **both** follow-up calls | `task-14.md:575-583` |
+| Nine test rows, including the finding's `TestAnOrgPolicyPostedBeforeAnyLaunchActivates` on one store with no `delegation.Feed` and no delegation, plus one conformance row in task 08 | `task-14.md:898-899`, `:907-912`, `:917`, `:919`; `task-08.md:516` |
+| Step 3 appends **nothing** to `kinds`; step 4 lists the `subject=` work; step 5's grep now fails on `delegation.Feed` or `.Also(` | `task-14.md:972-990`, `:994-1001` |
+| Task 11's `Feed.Also` and `Orgs()` doc comments carry the two conditions, with the failure named | `task-11.md:682-692`, `:1159-1169` |
+| Task 11's prose and its "does not claim" bullet: a consumer triggered by a person does not belong on `Also` | `task-11.md:1180-1193`, `:1605-1610` |
+| Plan body: task 14's summary (which still said "through the outbox" and `policy.version`), its row, and task 11's boundary sentence | `2026-09-25-phase-t-team-mode.md:613-629`, `:325`, `:575-580` |
+| Task 33: recorded, not resolved — no step in TM1-α posts a layer, so this admin path is never run end to end there | `task-33.md:288-296` |
+
+**Why the pull and not option (2).** The finding offered either. Option (2) — `Feed.Orgs()` also
+tracks orgs with a pending layer, from a Fleet-own cursor — keeps activation on the feed, so it
+keeps the coupling that caused the defect and adds a second meaning to one map, which is exactly
+the mistake fix batch b03 round 2 had to undo one batch earlier (`review.md:3665-3675`). It also
+leaves the `Adopt`-vs-`Refresh` cursor race to reason about for a second kind of event. The pull
+has one caller, one question and no state.
+
+**Why route 78 and not a new Hub route.** `activateOne` needs a by-id read as Fleet with no
+delegation. Task 01 calls route 88's exemption the *second and last* (`task-01.md:700`), so a new
+route would need a third amendment and would widen the un-delegated surface the stream lens
+watches. Route 78 already holds that exemption (§5.10 rule 7, `task-01.md:345`) and answers the
+question with one optional parameter. `subject=` with no `kinds=`, and `subject=` with
+`after=latest`, are both 400 — the second because `latest` would make the read always empty,
+which is this bug wearing a disguise.
+
+**Why the sweep runs on every replica.** `pol.Activate` is idempotent (`TestActivateIsOnce`), a
+pending layer is rare, and the alternative is tying policy to task 12's `fleet.feed` election —
+another dependency on agent-shaped machinery, which is the defect's own family.
+
+**Deliberately not fixed here, and named rather than hidden.**
+- **S02-M5** (the Hub records whoever calls route 80, not the author Fleet stored) is untouched.
+  `activateOne` now reads the Hub's record, so `recordedBy` is *available* where it was not
+  before, which is the precondition M5's fix needs; comparing it with `Author` is still not done.
+- **S02-M6** (a re-validation refusal at activation is invisible in the `GET`) is untouched for
+  the sweep's path. The **route's** answer does now carry the invariant, so an admin who calls
+  activate sees the refusal; one who relies on the sweep still sees only `pending`. The "does not
+  claim" bullet says so (`task-14.md:1013-1018`).
+- **S02-I11** (this part is two tasks and overruns its hours) is untouched and got slightly worse:
+  the estimate is now 3.5 h, stated in the header with I11 named (`task-14.md:3-8`).
+- Task 33 posting no policy layer is **recorded**, not fixed: TM1-α as written verifies the
+  rendered default and never exercises the three-call admin path.
+
+**Unverified, b04:** planned text only. No Go compiled, no test run, no control plane, container
+or image started, in line with this stream's worktree rules. Every line number above was derived
+by `grep -n` against the worktree after the b04 commits; ranges drift, so grep the quoted name.
+That the old consumer would have failed at runtime is reasoning about planned code and about task
+11's cursor rules as written, not a measurement.
