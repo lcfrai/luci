@@ -681,6 +681,13 @@ func NewFeed(hub hubclient.OrgFeed, team hubclient.Team, in InUse, c *Cache, rev
 
 // Also registers another consumer of the same poll (the kinds it needs must
 // be in the kinds list task 12 passes to Poll).
+//
+// Two conditions, both easy to miss and both fatal when missed. (1) Delivery is
+// limited to Orgs() — orgs with a live agent; see its comment. (2) Delivery
+// starts at the org's cursor, which for an org first tracked at launch is that
+// launch's head, so an event written BEFORE the first agent started is never
+// delivered even after the org joins the poll. An event that must be acted on
+// regardless of whether anyone is working is not a job for Also.
 func (f *Feed) Also(fn func(context.Context, hubapi.Event) error) { f.also = append(f.also, fn) }
 
 // Poll reads one page of org's feed and applies it. The cursor moves only
@@ -1148,6 +1155,17 @@ func (f *Feed) Resolve(ctx context.Context, k Key) (Delegation, bool, error) {
 }
 
 // Orgs is what task 12's feed loop polls, every PollEvery, after Refresh.
+//
+// READ THIS BEFORE ADDING A CONSUMER. Orgs is the orgs with a cursor, and a
+// cursor is set only by Rebuild, Refresh and Adopt — all three from task 10's
+// DelegationsInUse. So Orgs is "orgs with a LIVE AGENT", never "orgs Fleet
+// serves", and pruneOrgs drops one the moment the last agent ends. An org that
+// has never launched is not in this list and never will be until it does, so
+// NOTHING that must happen for such an org may hang off this poll. Task 14's
+// policy activation did, and a policy written before anyone in the org launched
+// was never activated and nobody was told (fix batch b04, S02-C4); it now reads
+// the Hub by id instead. If your consumer's trigger is an admin action rather
+// than an agent's, use a direct read, not Also.
 func (f *Feed) Orgs() []string {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -1158,6 +1176,21 @@ func (f *Feed) Orgs() []string {
 	return out
 }
 ```
+
+**The poll set is agents, not orgs, and that is a boundary other tasks must respect (b04).** Every
+writer of `f.cursor` — `Rebuild`, `Refresh`, `Adopt` — starts from task 10's `DelegationsInUse`,
+so `Orgs()` means *orgs with a live agent* and `pruneOrgs` removes one as soon as the last agent
+ends and its cache entry goes. That is exactly right for this task, whose whole subject is
+delegations, which only exist because an agent is running. It is exactly wrong for anything
+triggered by a **person**. An admin writing org policy, changing a quota or removing a member does
+not need an agent to be running, and may well be the first thing that ever happens in the org. Two
+properties follow, and neither is fixable by adding a kind to the list: an org with no live agent
+is polled **not at all**, and an org first tracked by `Adopt` is polled **from that launch's
+head**, so anything written earlier is behind the cursor forever. Task 14 hung OD-23's policy
+activation off `Feed.Also` and hit both at once — the policy TM1-α's admin writes before anyone
+launches was never activated, `Effective` kept rendering the defaults, and nothing reached any
+sandbox (S02-C4). It now reads the Hub by id and does not touch this feed. **A consumer whose
+trigger is a person, not an agent, does not belong on `Also`.**
 
 **Head first everywhere, because the other order has a hole.** Had `Adopt` read the delegation and
 then the head, a revocation committed between the two reads would sit before the cursor and never
@@ -1569,6 +1602,12 @@ the two adapters are the only files that know task 10's types.
   `DelegationForKey`, which keeps ended rows, and the two reads are deliberately different sets.
   Conflating them is S02-C1 round 2, and `TestAnEndedAgentsLastWriteResolvesOnTheOtherReplica`
   is what keeps them apart.
+- **`Feed.Also` is not a general Hub-event bus, and `Orgs()` is not "the orgs Fleet serves"**
+  (b04, S02-C4). Both are bounded by live agents, and an org first tracked at launch is polled
+  from that launch's head, so an event written before it is never delivered. This task claims
+  delivery only for the three `FeedKinds`, whose subjects are delegations, which exist only while
+  an agent does. A consumer triggered by a person rather than an agent gets nothing here and must
+  read the Hub directly — that is what task 14 now does for OD-23 policy activation.
 - **The window between `Adopt` and the agent row cannot leak a write to the other replica**,
   because task 20 writes the agent row and that launch's first outbox row in **one** transaction
   (`task-20.md:395-400`). If a later task ever enqueues a row before the agent row commits, this

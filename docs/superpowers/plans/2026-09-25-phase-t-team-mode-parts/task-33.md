@@ -285,6 +285,15 @@ checked by pid, `task-18.md:59-61`), **UNVERIFIED on a Kata pod** until this scr
   starts a turn; the operator deletes the pod when the runner's log line for `turn.begin` appears
   (read with `kubectl logs`, the runner's own log, never the PTY). **M6**: as
   `task-27.md:651-667`, compared with the snapshot, plus the `ot-…` `exit: "lost"` record.
+- **The policy this run checks is the rendered default, not one this script writes.** What the
+  four pods mount is task 13's defaults plus phase 6's gateway fragment plus task 41's product
+  layer, with **no org and no project layer**, because `50-policy.sh`
+  verifies the file in force and **no step here posts a layer**. So OD-23's admin path — Fleet
+  `POST /v1/orgs/{org}/policy`, then Hub route 80 as the admin, then Fleet
+  `POST …/policy/{pv}/activate`, all three (`task-14.md:44-70`) — is **not** exercised end to end
+  by TM1-α as written. Recorded by fix batch b04 while fixing S02-C4, not resolved: a run that
+  does change policy must make all three calls in that order, and a script that stops after the
+  first two leaves the version pending until the 30 s sweep finds it.
 - **`50-policy.sh`** (operator, then laptop): in each of the four pods, `sha256sum
   /etc/claude-code/managed-settings.json` against `PANACEA_APP_POLICY_SHA256` and the agent
   start's `policy.digest` (task 14); the environment and mounted-secret key names (**M8**: names

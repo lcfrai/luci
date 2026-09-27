@@ -322,7 +322,7 @@ fragment and **S6.3** the mint API (phase 6); **S6.2** budgets; **P8-D4** and **
 | 11 | Fleet as a delegated Hub caller: outbox, delegation client, feed, rebuild | TM1-α | 0.375 (3 h) | 08, 10 | ST.3 |
 | 12 | `cmd/fleetd`: config, Entra per request, role-to-verb, singleton loops | TM1-α | 0.375 (3 h) | 01, 06, 08 (b02: the principal read), 10, 11, P8-16 | — |
 | 13 | OD-23 mechanism, part 1: layers, merge, invariants, digest, minimal defaults | TM1-α | 0.375 (3 h) | — (P6-14's fragment once merged) | ST.4, S6.6 |
-| 14 | OD-23 mechanism, part 2: versioned store, admin routes, audit, version on agent start | TM1-α | 0.3 (2.5 h) | 06, 12, 13 | ST.4 |
+| 14 | OD-23 mechanism, part 2: versioned store, admin routes, audit, version on agent start | TM1-α | 0.4 (3.5 h) | 06, 08, 12, 13 | ST.4 |
 | 15 | Phase 8 delta: sandbox classes (task 14b), the policy mount, `sandboxd`'s digest check | TM1-α | 0.375 (3 h) | 13, P8-14, P8-15 | ST.4 |
 | 16 | Phase 8 delta: `sandboxd` `/control`, the in-pod socket, the `team.json` snapshot | TM1-α | 0.375 (3 h) | 09 | ST.1 |
 | 17 | Phase 8 delta: the broker's second caller, the control relay, pod source addresses | TM1-α | 0.375 (3 h) | 06 (b02: route 47's broker caller), 16, P8-17, P8-18 | ST.3, P8-D4 |
@@ -572,7 +572,11 @@ removed*) within 60 seconds; `rebuild.go` reloads Hub-owned state into memory at
 persists no Hub record, `ADR-H1:467-474`). The outbox reads a **different** row of that same
 store — the latest agent on the key, ended ones included — because a launch's last write is its
 `agents.end` and a restart's backlog is all ended agents; that read never acts, so delivery can
-never destroy a sandbox, and a failure of it is transient, so one store blip kills no queue.
+never destroy a sandbox, and a failure of it is transient, so one store blip kills no queue. The
+poll set is therefore **orgs with a live agent**, never "orgs Fleet serves", and an org first
+tracked at a launch is polled from that launch's head: a consumer whose trigger is a person
+rather than an agent gets nothing from `Feed.Also` and must read the Hub directly, which is why
+task 14's policy activation does (fix batch b04, S02-C4).
 Tests on task 08's fake: a Hub outage of 11 minutes pauses negotiation and loses no write, ended
 agents and all; a revocation reaches the `Revoker` inside 60 s of fake time, on the replica that
 did **not** serve the launch, proven with two `Feed`s over one store.
@@ -610,11 +614,19 @@ is **UNVERIFIED** (§7.3).
 task 10's store: append-only versions `pv-…` per org and per project, each with author, time,
 bytes and digest; `cp/internal/fleet/server/policy.go`: `GET`/`POST /v1/orgs/{org}/policy` (org
 admin) and `/v1/projects/{p}/policy` (team admin), a `POST` creating version n+1 after `Render`
-succeeds for every class. Each version writes a metadata-only Hub audit event `policy.version`
-(id, scope, digest, author) through the outbox, and every agent-start record (task 06) carries the
-rendered digest, so *"which policy governed this agent"* is answerable from the Hub. Tests: a
-member's `POST` is 403; a layer that fails `Render` creates no version; the same bytes twice give
-one digest. Does not deliver files into pods (task 15).
+succeeds for every class. A version is stored **pending** and governs nothing until the Hub holds
+its metadata-only audit event `policy.versioned` (id, scope, seq, digest), written by **the
+admin's own client** on Hub route 80 — not through Fleet's outbox, which would need a delegation
+an admin editing policy does not hold (`task-14.md:44-70`). Fleet then **pulls**: the client calls
+`POST …/policy/{pv}/activate`, Fleet reads that event back by id (route 78 with `subject=`) and
+activates only on a match, and a 30 s `SweepPendingPolicy` asks the same question for any client
+that died in between. Activation deliberately does **not** ride task 11's feed: that feed polls
+orgs with live agents, and TM1-α's admin writes the org policy before anyone launches, so the
+layer would have stayed pending forever (fix batch b04, S02-C4). Every agent-start record (task
+06) carries the rendered digest, so *"which policy governed this agent"* is answerable from the
+Hub. Tests: a member's `POST` is 403; a layer that fails `Render` creates no version; the same
+bytes twice give one digest; a policy posted before any launch still activates. Does not deliver
+files into pods (task 15).
 
 **15 — Phase 8 delta: sandbox classes and the policy mount.** Extends `cp/internal/sandbox/manager.go`
 on `feat/env` (built, task 14, `Spec` at `:69-83`) with `Spec.Class` and `Spec.PolicyFile`:

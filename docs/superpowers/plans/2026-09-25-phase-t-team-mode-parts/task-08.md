@@ -149,6 +149,14 @@ type Team interface {
 // only. after is a decimal seq or "latest"; kinds nil means every kind.
 type OrgFeed interface {
 	OrgChanges(ctx context.Context, orgID, after string, kinds []string, limit int) (hubapi.ChangesPage, error)
+
+	// OrgEvent is a BY-ID read of one Fleet-feed event: route 78 with
+	// subject=, after empty, limit 1. It is not a poll and holds no cursor, so
+	// it sees an event written long before Fleet ever polled this org — which
+	// is why activation uses it and not the feed (task 14, fix batch b04,
+	// S02-C4). ok false means the org's feed holds no such subject; that is
+	// the caller's answer, not an error.
+	OrgEvent(ctx context.Context, orgID, kind, subject string) (hubapi.Event, bool, error)
 }
 
 type Hub interface {
@@ -323,7 +331,9 @@ who escalated what, which §3.4 forbids.
 
 // FakeFleet is Fleet's workload identity. It is never a user and is never
 // provisioned (task-01.md:127-129); a view built by AsFleet acts as the owner of the
-// delegation its context names, or, with none, may call OrgChanges only.
+// delegation its context names, or, with none, may call OrgChanges and
+// OrgEvent only — both are route 78, so both sit under the ONE exemption it
+// already holds (§5.10 rule 7); b04 added no new one.
 var FakeFleet = FakeUser{ID: "fleet", DisplayName: "Fleet"}
 
 // FakeVera is a viewer of the fake's team, and FakeAudrey an org auditor in no team,
@@ -391,7 +401,7 @@ guarded by the existing `mu`.
 
 | Rule | Fake behaviour | Source |
 |---|---|---|
-| Fleet names a delegation | a Fleet view with no `WithDelegation` gets 401 `delegation_required` on every method but `OrgChanges` and `Principal`; with one on either of those two, 400 | task 01 §5.10 rule 2, both exemptions (b02) |
+| Fleet names a delegation | a Fleet view with no `WithDelegation` gets 401 `delegation_required` on every method but `OrgChanges`, `OrgEvent` and `Principal`; with one on any of those three, 400 | task 01 §5.10 rule 2, both exemptions (b02); `OrgEvent` is route 78's own, not a third (b04) |
 | the principal read is the project's | `Principal` answers the **project's** `orgId`, its role for that user, and the three flags as held in that org: a user with `Auditor` in another org gets three false flags and `role` `""` | contract §7.28 rules 1 to 3 (b02) |
 | the broker reads one route | a broker view reaches `Delegation` only, on any delegation of its org whatever its state, and gets `OwnerTID`/`OwnerOID`; every other method → 403 `required: "fleet"` | §5.10 rule 10 (b02) |
 | a live delegation | revoked → 401 `delegation_revoked`; past `expiresAt` → 401 `delegation_expired`; unknown → 401 `delegation_revoked`, `reason: unknown` | `task-01.md:118-124`, `:207-210` |
@@ -407,6 +417,7 @@ guarded by the existing `mu`.
 | bounds and hygiene | `teamtext.Bound` and `Clean` on every text field, `ValidGlob` on every glob, the same 422 codes | task 02 |
 | idempotency | a repeated id with an equal body replays; with a different body, 409 `conflict` | `task-01.md:185-187` |
 | the org feed | every team write appends an event with task 01's flags; `OrgChanges` serves `fleet_feed` events of `team` projects and `team.member_removed`; the cursor and `latest` rules as route 78 | route 78 |
+| the org feed, by subject (b04) | `OrgEvent(org, kind, subject)` is route 78 with `subject=`, `after` empty, `limit=1`: it answers that one event **whenever it was written**, including before Fleet first polled the org, and `ok=false` with 200 for an unknown subject; `subject=` with no `kinds`, or with `after=latest`, is 400 | route 78 |
 
 The fake does **not** keep what needs Postgres: RLS across orgs (the fake has one org), the
 append-only triggers (the fake has no update method to call), the `CHECK` bounds (Go's are the
@@ -502,6 +513,7 @@ drift silently (the real Hub has tasks 06 and 07's own tests).
 | `team/broker-reaches-one-route` (b02) | every other `Team` method on the broker view → 403 `forbidden`, `required: "fleet"`, `Broker.OrgChanges` included; `Broker.Delegation` of another **org's** delegation → 404 `route_not_found` | the broker admitted as a second Fleet, which would give a pod-level component the whole team API |
 | `team-feed/fleet-only-no-delegation` | `Fleet.OrgChanges` → 200; under `WithDelegation` → 400; `Member.OrgChanges` → 403 `fleet` | the delegation exemption applied to every route |
 | `team-feed/other-org-is-404` | `Fleet.OrgChanges` on a made-up `org-…` → 404 `route_not_found` | org taken from the path |
+| `team-feed/by-subject-reads-the-past` (b04) | write an event, poll to `next` so the cursor is past it, then `Fleet.OrgEvent(org, kind, subject)` → that event, `ok` true; an unknown subject → `ok` false and no error; `Fleet.OrgEvent` on another org's subject → `ok` false | a by-subject read implemented on top of a cursor, which would answer nothing for exactly the events activation needs (S02-C4) |
 | `team-feed/team-projects-only` (restated, b01 round 2, re-review I-5) | poll to `next`; a task in `ProjectID` through `Fleet.CreateTask`; then `AppendEvent(SoloProjectID, "task.created")`, because route 46 now refuses a delegation there so no route can write it; the next `Fleet.OrgChanges` holds the first `task.created` and not the second | the mode filter missing (the clause stays as defence in depth: a future `fleet_feed` kind on a solo project must not reach Fleet) |
 | `team-feed/fleet-kinds-not-in-member-feed` | after an escalation, `Fleet.OrgChanges` has `escalation.created`; `Member.Changes` does not; `task.created` is in both | the flags swapped |
 | `team-feed/revocation-within-one-poll` | poll to `next`; `RevokeDelegation`; the next `OrgChanges(after=next)` holds `delegation.revoked` with `subject` = the id | the revocation written to the member feed only (the scope's test) |
@@ -634,7 +646,8 @@ git commit -F .superpowers/sdd/team/msg/t08.txt -- control-plane/internal/hub
 1. Step 5's three commands pass as described; the conformance run lists 38 team rows (29, plus fix
    batch b01's four, plus fix batch b02's five).
 2. `grep -c '^	[A-Z][A-Za-z]*(ctx' control-plane/internal/hub/hubclient/hubclient.go` rises by exactly
-   28 (27 `Team` methods — `Principal` is b02's — and `OrgChanges`) over the merged Hub's count.
+   29 (27 `Team` methods — `Principal` is b02's — plus `OrgChanges` and `OrgEvent`, b04's) over
+   the merged Hub's count.
 3. `var _ hubclient.Hub = (*hubclient.Fake)(nil)` and `var _ hubclient.Hub = (*hubclient.Client)(nil)`
    compile. `Client` is the built HTTP type (`client.go:17`, a stub until Hub task 33); neither
    assertion exists on `feat/hub` as read on 2026-09-25, so this task adds both to
