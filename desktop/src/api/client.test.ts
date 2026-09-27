@@ -2,7 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 import {
   ApiError,
   createClient,
+  CREATE_TIMEOUT_MS,
   DEFAULT_BASE_URL,
+  DEFAULT_TIMEOUT_MS,
   type ProblemCode,
 } from "./client";
 import { FakeWebSocket } from "../test/fakes";
@@ -570,5 +572,69 @@ describe("createClient — the attach socket", () => {
     expect(FakeWebSocket.instances).toHaveLength(1);
     expect(FakeWebSocket.instances[0].url).toBe("ws://127.0.0.1:8730/v1/sessions/s-1/attach");
     expect(socket.binaryType).toBe("arraybuffer");
+  });
+});
+
+describe("createClient — the create budget", () => {
+  // F1 (docs/verification/2026-09-27-phase-2-results.md). The cockpit aborted POST /v1/sessions
+  // at DEFAULT_TIMEOUT_MS while the control plane was still making the container, and the abort
+  // cancelled the create's Docker calls: a record exited half-made, a container left behind.
+  // The fix is server-side — a create no longer runs on the caller's context — and this is the
+  // other half of the same finding: ten seconds was never a create's budget. On the 2026-09-27
+  // run a create that PASSED took 24.3 s.
+  //
+  // The number is the control plane's own. A create is ContainerCreate plus ContainerStart plus
+  // the wait for /healthz, which the server bounds at reaper.CreateGraceFor(ReadyTimeout) =
+  // 2 x 60 s; past that the reaper stops sparing it, so a longer client budget would only be
+  // waiting for something already being collected.
+  it("lets a create run past DEFAULT_TIMEOUT_MS and times out on its own budget", async () => {
+    vi.useFakeTimers();
+    try {
+      const outcomes: string[] = [];
+      const pending = createClient({ fetch: hangingFetch })
+        .createSession({ worktreeId: "w-4a77b1c9" })
+        .then(
+          () => outcomes.push("resolved"),
+          (e: ApiError) => outcomes.push(`${e.code}: ${e.message}`),
+        );
+
+      await vi.advanceTimersByTimeAsync(DEFAULT_TIMEOUT_MS + 1_000);
+      expect(outcomes).toEqual([]);
+
+      await vi.advanceTimersByTimeAsync(CREATE_TIMEOUT_MS);
+      await pending;
+      expect(outcomes).toHaveLength(1);
+      expect(outcomes[0]).toContain("timeout: ");
+      expect(outcomes[0]).toContain(`${CREATE_TIMEOUT_MS} ms`);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("leaves every other verb on DEFAULT_TIMEOUT_MS", async () => {
+    vi.useFakeTimers();
+    try {
+      const outcomes: string[] = [];
+      const pending = createClient({ fetch: hangingFetch })
+        .listMachines()
+        .then(() => outcomes.push("resolved"), (e: ApiError) => outcomes.push(e.code));
+
+      await vi.advanceTimersByTimeAsync(DEFAULT_TIMEOUT_MS + 1);
+      await pending;
+      expect(outcomes).toEqual(["timeout"]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("obeys an explicit timeoutMs, on a create as on anything else", async () => {
+    // A caller that names a budget means it. The longer create budget is the DEFAULT's
+    // replacement, not an override of what the caller asked for.
+    const err = await createClient({ fetch: hangingFetch, timeoutMs: 5 })
+      .createSession({ worktreeId: "w-4a77b1c9" })
+      .catch((e: unknown) => e as ApiError);
+
+    expect((err as ApiError).code).toBe("timeout");
+    expect((err as ApiError).message).toContain("within 5 ms");
   });
 });

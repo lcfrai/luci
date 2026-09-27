@@ -32,6 +32,26 @@ export const DEFAULT_BASE_URL = "http://127.0.0.1:8730";
 /** Per-request. /attach is not a fetch and is unaffected. */
 export const DEFAULT_TIMEOUT_MS = 10_000;
 
+/** The budget for the two verbs that make a container — POST /v1/sessions and
+ *  POST /v1/sessions/{id}/restart — and for nothing else.
+ *
+ *  WHY IT IS NOT DEFAULT_TIMEOUT_MS. Finding F1: a create is ContainerCreate plus
+ *  ContainerStart plus the wait for the sandbox to answer /healthz, and on the 2026-09-27 run a
+ *  create that PASSED took 24.3 s against a 10 s budget — it passed on where the abort landed,
+ *  not on being inside it. Raising the number is NOT the fix for F1 and was not treated as one:
+ *  the create no longer runs on the caller's context, a failed create destroys what it made, and
+ *  the reaper reclaims a container whose record is exited. This is the separate defect the same
+ *  measurement exposed, which is a client that gives up while the server is working normally.
+ *
+ *  WHY THIS NUMBER. It is the control plane's own budget, not a guess:
+ *  reaper.CreateGraceFor(backend.ReadyTimeout) = 2 x 60 s is both how long the create's detached
+ *  context lives and how long the reaper spares a session whose create is in flight. Past it the
+ *  server has stopped working on the create, so a client that waited longer would be waiting for
+ *  something already being collected. The extra 30 s carries the two registry writes and the
+ *  reply. Change this only with the Go side (control-plane/internal/api/sessions.go's
+ *  sessionCreateContext) in the same edit. */
+export const CREATE_TIMEOUT_MS = 150_000;
+
 /** The sixteen codes the control plane emits — Go contract §3.2's fifteen plus the
  *  non_loopback_publish that Group C's ruling 7 added — and the two the client raises itself.
  *
@@ -236,13 +256,16 @@ function parseJson<T>(reply: Reply): T {
 export function createClient(opts?: ClientOptions): CockpitClient {
   const baseUrl = resolveBaseUrl(opts?.baseUrl);
   const timeoutMs = opts?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  // An explicit budget is the caller's and applies to every verb, a create included: a test that
+  // says 5 ms means 5 ms. CREATE_TIMEOUT_MS replaces the DEFAULT, nothing else.
+  const createTimeoutMs = opts?.timeoutMs ?? CREATE_TIMEOUT_MS;
   // Wrapped, not passed by reference: an extracted platform fetch throws
   // "TypeError: Illegal invocation" in a Chromium webview, and never in a test.
   const doFetch =
     opts?.fetch ??
     ((input: RequestInfo | URL, init?: RequestInit): Promise<Response> => globalThis.fetch(input, init));
 
-  async function send(method: Method, route: string, body?: unknown): Promise<Reply> {
+  async function send(method: Method, route: string, body?: unknown, budgetMs = timeoutMs): Promise<Reply> {
     // KNOWN ASYMMETRY, harmless today and written down so it is found rather than discovered.
     // This concatenates, so a baseUrl carrying a path KEEPS it: "http://h/console" + "/v1/machines"
     // → "http://h/console/v1/machines". attachUrl resolves against the base instead and therefore
@@ -256,11 +279,11 @@ export function createClient(opts?: ClientOptions): CockpitClient {
     // client's timeout from any other abort, and §4.2 keeps them two separate codes.
     let timedOut = false;
     const timer =
-      timeoutMs > 0
+      budgetMs > 0
         ? setTimeout(() => {
             timedOut = true;
             controller.abort();
-          }, timeoutMs)
+          }, budgetMs)
         : undefined;
     try {
       const res = await doFetch(url, {
@@ -281,7 +304,7 @@ export function createClient(opts?: ClientOptions): CockpitClient {
     } catch (cause) {
       if (cause instanceof ApiError) throw cause;
       if (timedOut) {
-        throw new ApiError("timeout", `The control plane did not answer ${method} ${url} within ${timeoutMs} ms.`, 0);
+        throw new ApiError("timeout", `The control plane did not answer ${method} ${url} within ${budgetMs} ms.`, 0);
       }
       throw new ApiError("network_unavailable", `The control plane could not be reached at ${url}.`, 0, {
         cause: String(cause),
@@ -299,7 +322,7 @@ export function createClient(opts?: ClientOptions): CockpitClient {
   // A local const rather than a property read, so resumeSession and forkSession call it
   // without `this` — the returned object is a literal and has no stable receiver.
   const createSession = async (req: CreateSessionRequest): Promise<Session> =>
-    parseJson<Session>(await send("POST", "/v1/sessions", req));
+    parseJson<Session>(await send("POST", "/v1/sessions", req, createTimeoutMs));
 
   return {
     baseUrl,
@@ -335,7 +358,9 @@ export function createClient(opts?: ClientOptions): CockpitClient {
       }
       return parseJson<Session>(await send("PATCH", sessionPath(id), { title: trimmed }));
     },
-    restartSession: async (id) => parseJson<Session>(await send("POST", `${sessionPath(id)}/restart`)),
+    // The same Docker work as a create, so the same budget (F1).
+    restartSession: async (id) =>
+      parseJson<Session>(await send("POST", `${sessionPath(id)}/restart`, undefined, createTimeoutMs)),
     killSession: async (id) => parseJson<Session>(await send("DELETE", sessionPath(id))),
     purgeSession: async (id) => {
       // 204 and no body. A res.json() here throws SyntaxError out of a catch written for
