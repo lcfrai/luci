@@ -3456,10 +3456,13 @@ moved 274 numbers (252, 3 and 19) and 39 were read by hand: the 4 fuzzy ranges, 
 ### Fix batch b01, round 3 (2026-09-27): the re-review's open issues
 
 Input: `.superpowers/sdd/team/plan-rereview-b01-2.md` (I-A Important, I-B and I-C Minor; it
-confirmed S01-C1 stale and X-C1 resolved, and all eight of round 1's issues closed). Every edit
-below is **in place**: no part's line count moves, so no inbound citation drifts and no re-anchor
-pass is needed. Checked after the fact: only one citation in the whole plan pointed below an
-insertion point, and it is one of this round's own.
+confirmed S01-C1 stale and X-C1 resolved, and all eight of round 1's issues closed). Every
+citation edit is in place; four parts gained lines (`task-44.md` +13, `task-08.md` +10,
+`task-14.md` +8, `task-45.md` +5), so I-3's drift problem was checked, not assumed: every
+`task-NN.md:` citation in the 69 parts, the skeleton, this review and `repair-gaps.md` pointing
+below an insertion point was listed by grep. Eleven were affected, all of them in this review;
+each was re-anchored by comparing the old line's text at `f4b6a7d5` against the new one, and
+every comparison matched. The parts themselves had none.
 
 | Issue | Fix | Where |
 |---|---|---|
