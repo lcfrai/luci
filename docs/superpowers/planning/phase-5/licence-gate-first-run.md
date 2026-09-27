@@ -5,7 +5,9 @@ step 4). **Rule:** `OD-11` rule 3 — dependencies are MIT, Apache-2.0, BSD or I
 excluded. **Run:** 2026-09-26, Windows 11, go1.26.2, node v24.15.0, npm 11.12.1, cargo 1.98.1, in
 the phase-5 worktree, whose `desktop/node_modules` and `canvas/editor/node_modules` are real
 installs (a junctioned `node_modules` is refused, exit 2). Command:
-`go run ./tools/licencegate -root .` at commit `5829820` (the output below, verbatim).
+`go run ./tools/licencegate -root .`. The first run was at commit `5829820`; the output below is
+verbatim from the re-run at commit `358f7b2` (fix round 1, 19:14–19:56), which lists every Go
+target under both `GOOS` values and so reports one module more.
 
 ## Result
 
@@ -15,7 +17,7 @@ dependencies.
 
 | Ecosystem | Enforced | Pass | Fail | Reported (would fail, not enforced) |
 |---|---|---|---|---|
-| Go (`canvas`, `control-plane/cmd`, `sandboxd/cmd`) | 57 modules | 57 | 0 | 0 |
+| Go (`canvas`, `control-plane/cmd`, `sandboxd/cmd`) | 58 modules | 58 | 0 | 0 |
 | npm `desktop` | 10 (production closure) | 10 | 0 | 6 (dev tooling) |
 | npm `canvas/editor` | 1 (`react`, imported by `src/probe.tsx`) | 1 | 0 | 6 (dev tooling) |
 | Cargo `desktop/src-tauri` | 0 (`CargoEnforced` false, OQ-P5-2) | — | — | 26 of 262 crates |
@@ -122,6 +124,7 @@ PASS go github.com/google/uuid v1.6.0 BSD-3-Clause — BSD-3-Clause is allowed (
 PASS go github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 BSD-3-Clause — BSD-3-Clause is allowed (production, from control-plane)
 PASS go github.com/emicklei/go-restful/v3 v3.11.0 MIT — MIT is allowed (production, from control-plane)
 PASS go github.com/google/go-cmp v0.6.0 BSD-3-Clause — BSD-3-Clause is allowed (production, from control-plane)
+PASS go github.com/creack/pty v1.1.24 MIT — MIT is allowed (production, from sandboxd)
 PASS npm @tauri-apps/api 2.11.1 Apache-2.0 OR MIT — Apache-2.0 OR MIT is allowed (production, from desktop)
 PASS npm @tauri-apps/plugin-opener 2.5.5 MIT OR Apache-2.0 — MIT OR Apache-2.0 is allowed (production, from desktop)
 PASS npm @types/react 19.3.0 MIT — MIT is allowed (production, from desktop)
@@ -172,7 +175,7 @@ REPORT cargo zerovec 0.11.8 Unicode-3.0 — reached by tauri 2.11.5 → url 2.5.
 REPORT cargo zerovec-derive 0.11.6 Unicode-3.0 — reached by tauri 2.11.5 → url 2.5.8 → idna 1.1.0 → idna_adapter 1.2.2 → icu_normalizer 2.3.0 → zerovec 0.11.8 (proc-macro) (from desktop/src-tauri)
 REPORT cargo zlib-rs 0.6.8 Zlib — reached by tauri 2.11.5 → tauri-macros 2.6.3 → tauri-codegen 2.6.3 → png 0.17.16 → flate2 1.1.10 (from desktop/src-tauri)
 cargo: 262 crates scanned, reported only (CargoEnforced false, OQ-P5-2); 26 would fail
-licencegate: 68 enforced (68 pass, 0 excepted, 0 fail), 38 reported; exit 0
+licencegate: 69 enforced (69 pass, 0 excepted, 0 fail), 38 reported; exit 0
 ```
 
 ## The done-when (spec §9.1 item 13)
@@ -181,16 +184,27 @@ licencegate: 68 enforced (68 pass, 0 excepted, 0 fail), 38 reported; exit 0
 `FAIL npm mpl-fixture 1.0.0 MPL-2.0 — MPL-2.0 is not MIT, Apache-2.0, BSD or ISC (OD-11 rule 3)
 (production, from desktop)` and exits 1; `TestMain_repoWithMPL` runs the same with the real runner.
 
-## What the first runs found in the gate itself (fixed in task 04)
+## What the first runs found in the gate itself (fixed in task 04 and its fix round 1)
 
 1. npm prints an optional peer dependency that is not installed as `{}` (desktop's
    `@vitejs/plugin-react` → `@rolldown/plugin-babel`). The first run exited 2 on it; it is now
    skipped, since nothing is installed to ship.
 2. npm redacts UUIDs in what it prints (`@npmcli/redact` 4.0.0: a UUID becomes `***`), so node
-   paths under a UUID-named directory (this program's scratchpad) name nothing. The gate now
-   restores each `***` element from the one directory entry that redacts to it.
+   paths under a UUID-named directory (this program's scratchpad) name nothing. Task 04 restored
+   each `***` element from the one directory entry that redacts to it; that still exited 2 under
+   the scratchpad, whose parent holds several session-UUID directories (review I1). Since fix
+   round 1 the gate restores a path from the places it already knows unredacted, the project
+   directory and each link target its `package-lock.json` names, and reads the filesystem only
+   for a path under none of them; two look-alikes there, or two known places that redact alike
+   and do not nest, are exit 2.
 3. `yoke-derive`, `zerofrom-derive` and `zerovec-derive` list `[proc-macro]` plus `[example]` or
    `[test]` targets; the `(proc-macro)` mark now ignores targets that never link.
+4. *(Fix round 1, review I2.)* The Go modules were listed under the host's `GOOS` alone, so a run
+   on Windows never saw `github.com/creack/pty` (sandboxd, Linux) and the `ubuntu-latest` CI agent
+   would never see `github.com/Microsoft/go-winio` (the control plane, Windows). Every shipped
+   root is now listed under windows/amd64 and linux/amd64, each with cgo off and on, and the
+   modules unioned: 58 modules, where each platform alone lists 57. The table and the verbatim
+   output above are the re-run's, which is why `github.com/creack/pty` appears in them.
 
 ## Not claimed
 

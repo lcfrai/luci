@@ -555,8 +555,10 @@ Expected: a table of every enforced dependency, the `REPORT` lines (among them `
 cssparser 0.36.0 MPL-2.0 — …` and the other crates of step 4's table, or one `REPORT cargo: not
 scanned: …` line), then `exit 0` — or `exit 1` with each real violation named in the first-run
 report. The Cargo lines never change the exit code while `CargoEnforced` is false.
-*As measured by task 04 (2026-09-26, the phase-5 worktree with real installs):* exit 0; 68 enforced
-(57 Go modules, 10 `desktop` production packages, and `react` imported by
+*As measured by task 04 and re-measured after fix round 1 (2026-09-26, the phase-5 worktree with
+real installs, commit `358f7b2`):* exit 0; 69 enforced
+(58 Go modules — the union over windows/amd64 and linux/amd64, where either platform alone lists
+57 — 10 `desktop` production packages, and `react` imported by
 `canvas/editor/src/probe.tsx`), all pass; 38 reported: per npm project `lightningcss` and its
 Windows binary (`MPL-2.0`), two `@csstools` packages (`MIT-0`), `lru-cache` (`BlueOak-1.0.0`) and
 `mdn-data` (`CC0-1.0`), all dev tooling; and 26 Cargo crates, exactly step 4's table and counts.
