@@ -561,3 +561,107 @@ parent deadline is Go's documented behaviour, not measured here.
 
 **Plan quality after round 2: the four Importants and three Minors are closed at their root. No
 new owner question, no new control, nothing added to the owner's queue.**
+
+## Fix batch b07 (M-4, M-5, M-6, M-8), 2026-09-28
+
+Four Minors, grouped by the parts they touch. Every anchor below was read after the edit. No code
+exists for phase 6, so nothing was run: no control plane, no container, no image, no test suite.
+The main tree and the sibling worktrees were not touched.
+
+**M-4 — the grace inequality forgets the cloud's Secret propagation.** Fixed at the root: the
+inequality itself had two terms and needed three, so the third is named, given a constant, carried
+in the test, and handed to the ask that can measure it.
+
+| Change | File:line |
+|---|---|
+| The three-term rule stated, with the local-vs-cloud difference and the propagation budget | `task-14.md:193` |
+| `propagation = 2 * time.Minute`, with why it is UNVERIFIED and who measures it | `task-14.md:229` |
+| The test renamed and rewritten to `ttl+propagation >= grace`, plus a new `refreshAt > grace` guard | `task-14.md:311` |
+| Mutant row: reverting to the two-term inequality must fail at a 3-minute TTL | `task-14.md:524` |
+| Gap 1 restated with the third term and the payment rule | `task-14.md:567` |
+| Ask P8-1 owns the measurement; both it and the Kata question go to task 32's proving list | `2026-09-25-phase-6-gateway.md:313` |
+| The skeleton's task 14 summary carries the rule | `2026-09-25-phase-6-gateway.md:252` |
+| U11 carries the figure and the fallback | `task-25.md:119` |
+
+**The ruling taken, and declared** (rule 7 — the review offered two options and the inputs do not
+choose): **the propagation term is paid out of the helper TTL, never out of `Grace`.** Raising
+`Grace` widens how long every superseded key stays usable, on every refresh and on the raise
+retirement of task 07 decision (h); lowering the TTL costs one more file read. A measured
+propagation over 2 minutes lowers the fragment's TTL to a 30-second floor, and only a measurement
+above `Grace` − 30 s raises `Grace`. 2 + 2 = 4 < 5 today, with a minute of headroom. Also stated,
+so the next reader does not widen the rule further than it needs: propagation is zero at launch,
+because the Secret exists before the pod starts, and bites only on a refresh.
+
+**M-5 — `panacea token` waits 20 s; a retried mint takes up to about 61 s.** Fixed at the root: the
+defect is not either number, it is that nobody chose between them. The choice is now made in both
+parts, and the assumption it rests on is observed rather than assumed.
+
+| Change | File:line |
+|---|---|
+| Decision (d): the wait covers one attempt, not the budget; the accepted failure is one request | `task-14.md:19`, `:20` |
+| "Does not claim" now covers the CLI's helper timeout **and** its recovery | `task-14.md:558` |
+| Decision (f): the ≈61 s budget named, and why it is neither cut nor matched by the wait | `task-15.md:23` |
+| Task 23 item 11, which observes the recovery without needing a slow mint | `task-23.md:255` |
+| Item 11 in the record table, and "ten items" → "eleven items" | `task-23.md:302`, `:3` |
+| Pitfall 3's rule cell carries the reconciliation | `2026-09-25-phase-6-gateway.md:102` |
+| The skeleton's task 14, task 15 and task 23 summaries | `2026-09-25-phase-6-gateway.md:252`, `:254`, `:278` |
+| U8 carries the CLI timeout and the recovery | `task-25.md:116` |
+
+**Chosen, and declared:** the review's second option, with the gap closed. The wait is *not* raised
+to 61 s, because the docs do not state the CLI's own helper timeout (`task-14.md:8`), so a longer
+wait may simply be killed and the person waits three times as long for the same message. The
+budget is *not* cut to fit the wait, because the retry exists for a transient 5xx, which returns in
+well under a second and lands inside the wait with 19 s to spare. Only the all-timeouts path
+exceeds it, and it costs the session's first request. That acceptance rested on an undocumented
+assumption — that the CLI recovers on the next message — so item 11 now removes the token file
+mid-session, requires the next message to fail and the one after the file is restored to be
+answered in the same session, and records the failure's wait as the measured lower bound on the
+CLI's helper timeout. A third failure is a finding against decision (d), with both remedies named.
+
+**M-6 — P06 proves ZDR on the success path only.** Fixed as the review asked, with one honest
+substitution: the fake cannot be told to echo a prompt, so P06b makes the upstream **unreachable**
+instead, and the untested axis is written down rather than glossed.
+
+| Change | File:line |
+|---|---|
+| P06b in the probe table | `task-18.md:25` |
+| Four blockers, not three, and P06b among them | `task-18.md:5` |
+| Provenance: what P06 missed and why the exception path is the likelier leak | `task-18.md:13` |
+| Exit bullet, and the driver's header comment | `task-18.md:44`, `:642` |
+| `v_p06b`, which reports UNKNOWN on a 2xx or a 0 (kills a vacuous PASS) | `task-18.md:197` |
+| Five self-test cases, a 45-case count and a named mutant on the guard | `task-18.md:88`, `:749` |
+| The `p06b` client function, and why it is not part of `client` | `task-18.md:553` |
+| Entry points `p06b` and `verdict-p06b` | `task-18.md:600` |
+| The driver's stop / call / start / search block, and the EXIT trap that restores the fake | `task-18.md:722`, `:679` |
+| Summary greps widened to `P06b`; seventeen lines; the results document's `## P06b`; step 9's routing | `task-18.md:737`, `:770`, `:797`, `:824` |
+| "Does not claim": P06b covers an unreachable upstream, not an error **body** | `task-18.md:866` |
+| The follow-up that would cover it, and U1 | `task-25.md:90`, `:109` |
+| The skeleton's task 18 summary and its FAIL routing | `2026-09-25-phase-6-gateway.md:262` |
+
+**The substitution, declared.** The review asked for a fake upstream "told to answer `400` echoing
+the prompt". Task 16's fake never echoes input (`task-16.md:614`) and emulates no provider error
+(its "does not claim"), and it is started by task 17's compose with no such flag, so no
+per-request knob exists. Stopping the container is per-run, needs no change to task 16, and
+exercises the exception path the review named as the likelier leak. The error-body axis is a
+`-fail-with` flag on the fake and a re-run, recorded as a follow-up in task 25 — not claimed here.
+
+**M-8 — the AWS provider range spans a major version.** Fixed as the review asked.
+
+| Change | File:line |
+|---|---|
+| `>= 5.70.0, < 7.0.0` → `~> 5.70` | `task-20.md:178` |
+| Why, with phase 8's convention cited and the `mock_provider` blind spot named | `task-20.md:172` |
+
+Phase 8's citations were re-read on 2026-09-28 before being written: `~> 4.81` at
+`.claude/worktrees/env/infra/scripts/guards_test.sh:50` and `:75`, and the lock-file pin `4.81.0`
+at `:140`. The version string appears nowhere else in the plan — the skeleton and the other 24
+parts grep clean.
+
+**Hours.** Task 18 goes 3 h → 3.5 h (P06b) and task 23 goes 2 h → 2.25 h (item 11); both are on the
+critical path, so the total is **63.25 h** and the critical path **24.25 h**
+(`2026-09-25-phase-6-gateway.md:181`, `:186`, `:190`).
+
+**Unverified, and named as such.** No phase 6 code exists, so every count in this batch is a plan
+figure. The Secret propagation delay, the CLI's helper timeout and its recovery after a failed
+helper are all UNVERIFIED and now carried by U11, U8 and task 23's item 11. No owner question was
+raised and no seam was drawn: both rulings are in the plan's own gift.
