@@ -1,6 +1,7 @@
-### Task 06: Hub routes, part 1: delegations, tasks, agents, lease events, conflicts
+### Task 06: Hub routes, part 1: delegations, tasks, agents, lease events, conflicts, the principal read
 
-**Slice TM1-α. Depends on: 05, H14, H17. About 3.5 hours (route 87 added by fix batch b01).
+**Slice TM1-α. Depends on: 05, H14, H17. About 4 hours (route 87 added by fix batch b01; route 88
+and route 47's broker caller by fix batch b02, reviews S02-C2 and S02-C5).
 Seams: ST.2 (defines the routes), ST.3 (creates the delegation record task 05 authenticates).**
 
 This task gives the Hub its first team writes. It is a **delta on the Hub branch**, built on
@@ -34,6 +35,8 @@ fields, so a body that sends one gets 400 `bad_request`.
 | routes 50, 51, 53, 54, 56, 57, 58 (task, agent, lease event, conflict writes) | **Fleet under a delegation** only; a desktop token is 403 `forbidden`, `required: "fleet"` (`task-01.md:581-583`) | these records are written by an Orchestrator through `panacea` or by Fleet's forecaster (§3.3 "Written by") |
 | routes 47, 52, 55, 59 (reads) | the desktop, or Fleet under a delegation listing the read | the team strip is visible to every project role (§3.4 row 1) |
 | route 87 (a project's mode, fix batch b01) | the **desktop** of the project's team `admin` only; no route name | turning a project to team is a human act, one way, behind the audit gate |
+| route 88 (the principal read, fix batch b02) | **Fleet, with no delegation** — §5.10 rule 2's second and last exemption (`task-01.md`, amendment (b)). A desktop token is 403 `forbidden`, `required: "fleet"`; a Fleet token carrying the header is 400 `bad_request` | it is what tells Fleet *who a caller is*, so it is called before a delegation is in hand. Without it no Fleet route authorises at all (task 12's `Membership`, review S02-C2) |
+| route 47, third caller (fix batch b02) | also **the broker**, app-only, role `Hub.DelegationReader`, §5.10 rule 9: no delegation header, any delegation of its own org, revoked or expired included, and **no other route** | the broker must derive a pod's owner label itself rather than take Fleet's word for it (`task-17.md:47-54`, gap S17-1, review S02-C5) |
 
 **Files:**
 - `control-plane/internal/hub/server/delegations.go` + `delegations_integration_test.go` (new)
@@ -58,12 +61,29 @@ fields, so a body that sends one gets 400 `bad_request`.
 - `control-plane/internal/hub/server/projects_integration_test.go` (Hub task 17's file):
   `TestProjectReadsCarryMode` (modify: one test; fix batch b01 round 2)
 - `control-plane/cmd/hub/config.go` + `config_test.go`: `PANACEA_APP_HUB_TEAM_MODE_UNSTREAMED`,
-  refused unless `PANACEA_APP_HUB_ENV` is `local` or `dev` (modify; fix batch b01)
+  refused unless `PANACEA_APP_HUB_ENV` is `local` or `dev` (modify; fix batch b01); and
+  `PANACEA_APP_HUB_BROKER_CLIENT_ID`, a start-up error when it equals
+  `PANACEA_APP_HUB_FLEET_CLIENT_ID`, appended to `entra.Config.AppCallers` as
+  `{ClientID: broker, Role: "Hub.DelegationReader"}` beside Fleet's (modify; fix batch b02)
+- `control-plane/internal/hub/server/principals.go` + `principals_integration_test.go`: route 88,
+  contract §7.28 (new; fix batch b02, S02-C2)
+- `control-plane/internal/hub/store/principals.go`: `PrincipalFor(ctx, tx, tid, oid, projectID)`,
+  one statement joining the user, the project, its team and the org-role rows; it returns the
+  **project's** `orgId`, never the caller's (new; fix batch b02)
+- `control-plane/internal/hub/server/auth.go` (task 05's file): `Claims.AppRole`, the `Role` of the
+  `entra.AppCaller` that matched, so a handler can tell Fleet from the broker; and `isFeedPath`
+  becomes `isExemptPath`, which is true for route 78 **and** route 88 (modify: two small deltas;
+  fix batch b02). Task 05's `AppCallers` list already admits more than one identity
+  (`task-05.md:149-155`), so no shape of it changes
+- `control-plane/internal/entra/entra.go`: nothing. `AppCallers` is already a list (**verified**
+  in `task-05.md:145-156` on 2026-09-28); the broker is one more element
 
 **Interfaces:**
 - Consumes:
-  - from task 01: the contract §7.13 to §7.17, rows 46 to 59, the class route sets and the §8
-    rows (`task-01.md:329-400`, `:259-272`, `:301-310`, `:541-574`) — one each, in that order.
+  - from task 01: the contract §7.13 to §7.17, rows 46 to 59, 87 and 88, the class route sets, the
+    principal read §7.28 and the §8 rows (`task-01.md:386-464`, `:307-342`, `:358-367`,
+    `:581-620`, `:655-666`) — one each, in that order; line numbers re-read 2026-09-28, after fix
+    batch b02 moved them.
     **Task 01 is authoritative for every field, bound, code and kind; this part implements it.**
   - from task 03 (`hubapi/team.go`, `codes.go`): the Go types of those records and requests
     (`Delegation`, `CreateDelegationRequest`, `Task`, `CreateTaskRequest`, `PatchTaskRequest`,
@@ -710,6 +730,11 @@ func (s *Server) registerTeamPart1() {
 	s.mux.HandleFunc("DELETE /v1/delegations/{dl}", s.revokeDelegation)
 	// Route 87 (fix batch b01): desktop admin only, bare for the same reason.
 	s.mux.HandleFunc("POST /v1/projects/{p}/mode", s.setProjectMode)
+	// Route 88 (fix batch b02): Fleet only, and bare on purpose — it is the one
+	// Fleet route with no route name, because it is called before a delegation is
+	// known (§5.10 rule 2, the second and last exemption). RequireFleetNoDelegation
+	// is the whole gate; a desktop token never reaches the handler.
+	s.mux.HandleFunc("GET /v1/principals", s.getPrincipal)
 
 	// Fleet-reachable (routes 47, 50-59): each under its task 03 name.
 	d := func(pattern string, name hubapi.RouteName, h http.HandlerFunc) {
@@ -730,7 +755,40 @@ func (s *Server) registerTeamPart1() {
 ```
 
 Routes 46 to 59: ten writes and four reads; three bare, eleven named. Route 87 is one more bare
-write, outside `everyTeamWrite` (it writes no team record; its own tests cover it). `s.mux` is the name Hub
+write, outside `everyTeamWrite` (it writes no team record; its own tests cover it). Route 88 is a
+bare **read**, also outside `everyTeamWrite`.
+
+**Route 88, the principal read (fix batch b02, S02-C2).** `getPrincipal` runs under `s.Read`. It
+refuses anything but Fleet (`c.AppOnly && c.AppRole == "Hub.Fleet"`) with 403 `forbidden`,
+`details.required = "fleet"`, and a Fleet token that carried `X-Panacea-Delegation` with 400
+`bad_request` — task 05's `delegationHeader` cannot do the second for it, because on an exempt
+path that function returns nil, so the handler makes the check. It requires all three of `tid`,
+`oid` and `projectId` (400 `bad_request`, `details.field`), runs `hubapi.ValidID` on `projectId`
+before any query, and then makes **one** call, `store.PrincipalFor`. That statement resolves the
+project first and answers **the project's** `orgId`, its team role for that user, and the three
+org flags **as held in the project's org** — never the caller's, which is the whole of review
+S02-I6's rule and is why it is one statement and not three. An unprovisioned `(tid, oid)` is 404
+`principal_not_found`; an unknown project, another org's project, or one the user may not see is
+404 `route_not_found`, the same answer, so the route cannot be used to probe. The read emits §8's
+`principal.read`, audit only, subject the `u-…`, `data = {"projectId"}`. Mutants killed by Step 2:
+`orgId` taken from the token's org rather than the project's (`TestPrincipalOrgIsTheProjects`);
+the flags read in the caller's org (`TestAnAuditorOfAnotherOrgHasNoFlagsHere`); `principal_not_found`
+answered for an unknown project, which tells Fleet a project exists.
+
+**Route 47's third caller, the broker (fix batch b02, S02-C5).** `getDelegation` gains one branch
+before its owner check: when `c.AppOnly && c.AppRole == "Hub.DelegationReader"`, it serves **any**
+delegation of the org enrolled for the token's `tid`, `revokedAt` and `expiresAt` in any state,
+and the answer carries `ownerTid` and `ownerOid` (§7.13). Every other path, and every other
+route, answers that token 403 `forbidden`, `required: "fleet"` — task 05 makes that general, by
+routing a `Hub.DelegationReader` token to a single allowed pattern; this handler is the only
+consumer. The two extra fields are **omitted** for every other caller (`omitempty` on both, set
+only in the broker branch), so a member's or Fleet's answer is unchanged byte for byte. The read
+emits `delegation.read_by_broker`, audit only, with `actorUserId = ""` (the broker is not a
+principal). Mutants killed: the two fields returned to Fleet
+(`TestFleetSeesNoOwnerTidOnRoute47`); the broker admitted on route 52
+(`TestBrokerReachesOnlyRoute47`); a revoked delegation hidden from the broker
+(`TestBrokerReadsARevokedDelegation`), which would leave task 20's cleanup unable to find the pods
+it must delete. `s.mux` is the name Hub
 task 13's server uses (**UNVERIFIED until merge**; if the field differs, rename). A desktop call
 to a named route is unaffected: `Delegable` only puts the name in the context, and task 05 reads it
 only for an app-only token. Mutant killed by `TestEveryFleetRouteIsNamed` (Step 2): one `d(…)`
@@ -803,8 +861,8 @@ delegation; the Hub records lease changes but does not second-guess them) and en
 2. `grep -n 'json:"ownerUserId\|json:"actor\|json:"via\|json:"delegationId' control-plane/internal/hub/hubapi/team.go`
    shows `ownerUserId` only on record types (`Delegation`, `Task`, `Agent`) and none of the four on
    any `…Request` type; task 01's acceptance grep.
-3. `grep -c 's.mux.HandleFunc(' control-plane/internal/hub/server/delegations.go` prints `4` (routes
-   46, 48, 49 and 87) and `grep -c '^	d("' control-plane/internal/hub/server/delegations.go` prints `11`.
+3. `grep -c 's.mux.HandleFunc(' control-plane/internal/hub/server/delegations.go` prints `5` (routes
+   46, 48, 49, 87 and 88; b02 added 88) and `grep -c '^	d("' control-plane/internal/hub/server/delegations.go` prints `11`.
 4. `go test -tags integration ./internal/hub/server/ -run TestEveryTeamWriteIsOneEventWithNoText -v`
    passes, and a manual `SELECT data FROM hub.audit_events WHERE kind LIKE 'task.%'` on the test
    database shows ids, enums and counts only.
@@ -815,6 +873,16 @@ delegation; the Hub records lease changes but does not second-guess them) and en
    shows `mode` in the project-row reader's column list and in its scan, and
    `TestProjectReadsCarryMode` passes on the real Hub: routes 13, 15 and 16 answer `"mode":"team"`
    after route 87, and route 14 answers `"mode":"solo"`, never `""`.
+7. (b02, S02-C2) `go run ./cmd/fleetd` is no longer blocked on an unowned Hub read: route 88
+   exists, `TestPrincipalOrgIsTheProjects` and `TestAnAuditorOfAnotherOrgHasNoFlagsHere` pass, and
+   `grep -c 'SELECT' control-plane/internal/hub/store/principals.go` prints `1` — the project's
+   org, the role and the three flags come from one statement, so no code path can answer the
+   caller's org by mistake.
+8. (b02, S02-C5) `TestBrokerReachesOnlyRoute47`, `TestBrokerReadsARevokedDelegation` and
+   `TestFleetSeesNoOwnerTidOnRoute47` pass, and
+   `grep -n 'ownerTid' control-plane/internal/hub/server/delegations.go` shows it set inside the
+   broker branch only. Gap S17-1 (`task-17.md:394-400`) is then closed, and task 17's tests can
+   leave their `DelegationSource` fake for the real Hub.
 
 #### What this task does not claim
 
@@ -838,6 +906,13 @@ delegation; the Hub records lease changes but does not second-guess them) and en
 
 1. **The scope paragraph names no reads and no route 47.** Task 01's table gives task 06 routes
    47, 52, 55 and 59; this part builds them. The skeleton's scope for 06 should list them.
+1a. **Who owns the two Hub reads nobody owned. Resolved by fix batch b02** (reviews S02-C2 and
+   S02-C5): this task owns route 88 (the principal read, contract §7.28) and route 47's broker
+   caller. Task 12's `Membership` gap and task 17's gap S17-1 both close on it, so
+   `go run ./cmd/fleetd` and the broker's owner derivation stop depending on an unwritten route.
+   Two deltas land in **task 05's** file, named in Files above and owned here: `Claims.AppRole`,
+   and `isFeedPath` → `isExemptPath` over routes 78 and 88. The skeleton's Hub table carries both
+   rows.
 2. **Codes task 03 must carry.** Task 01 uses 409 `conflict` throughout; the Hub's `codes.go` as
    built has no such code, and the skeleton's task 03 list omits it. Task 01 names no 404 for a
    task, agent or conflict.
