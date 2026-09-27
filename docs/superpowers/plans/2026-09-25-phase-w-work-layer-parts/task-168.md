@@ -841,3 +841,219 @@ per team, and the policy itself is never cached here: an admin's `PUT` takes eff
 start. **Fail closed is a choice** this part makes for 166: a person signed out of the Hub, on a
 machine with `PANACEA_APP_HUB_URL` set, cannot start a session on a project with a GitHub or
 Azure DevOps remote until they sign in (gap 11 asks the owner).
+
+#### Tests to write first, part 1 — `hubclient/methods_work_intake_test.go` (the table, no server)
+
+```go
+// control-plane/internal/hub/hubclient/methods_work_intake_test.go
+// 1. Every route in both lists is well formed and unique.
+//    for each r in append(WorkIntakeRoutes, workIntakeHubOnly...):
+//      r.Method is one of GET PUT POST PATCH DELETE; r.Pattern begins "/v1/"; no duplicate
+//      (method, pattern) pair; every "{name}" segment is lower camel and non-empty.
+//    Mutant it kills: a copied row left with the pattern of the row above it.
+// 2. AllWorkRoutes() holds every W1, W2, W4 and W5 relayed pattern and NO hub-only one.
+//    want := len(task16Routes) + len(task82Routes) + len(task124Routes) + len(WorkIntakeRoutes)
+//    got  := len(AllWorkRoutes()); require.Equal(want, got)
+//    require.NotContains(patterns(AllWorkRoutes()), "/v1/work/sync-batches")  // decision 2
+//    Mutant: workIntakeHubOnly appended too, so the relay mounts ApplySyncBatch.
+// 3. The route parts win over task 143's proposed table (decision 1). One row per correction:
+//    routeOf("DecideApp").Pattern == "/v1/work/apps/{appId}/decision"
+//    routeOf("DisconnectTracker") == {DELETE, "/v1/trackers/{connectionId}"}
+//    routeOf("CreateHostHook") == {PUT, "/v1/projects/{projectId}/hooks/{host}"}
+//    routeOf("ListOutsidePRLinks").Pattern == "/v1/projects/{projectId}/outside-prs"
+//    routeOf("CreateAPIKey").Pattern == "/v1/work/apps/{appId}/api-keys"
+//    routeOf("GetTeamAgentPolicy").Pattern == "/v1/teams/{teamId}/work/agent-policy"
+//    Mutant: task 143's proposed path copied, which 404s against the built Hub.
+// 4. Host ingress, the Teams endpoint, the public form, /mcp and the exporter have no row
+//    in either list (decision 3): for each prefix, workRoute finds nothing.
+//    Mutant: /v1/hooks/{host} added "for symmetry", exposing Hub-facing ingress on loopback.
+// 5. ApplySyncBatch and RequestMessages over HTTP return ErrNoRoute, and ErrNoRoute is not
+//    ErrNotConfigured: errors.Is(err, ErrNoRoute) && !errors.Is(err, ErrNotConfigured).
+//    Mutant: ErrNotConfigured returned, so a caller reads "no Hub" and hides the surface.
+// 6. client_work_intake_stub.go is gone: a build of the package with the stub still present
+//    fails on a duplicate method set, so the test is the compile itself; the step list makes
+//    the delete part of the same commit (task-143.md:906-916).
+```
+
+#### Tests to write first, part 2 — the conformance rows over HTTP
+
+```go
+// control-plane/internal/hub/hubclient/conformance/work_intake_integration_test.go
+//go:build integration
+
+// TestWorkRowsW5_HTTP runs task 144's conformance.WorkRowsW5 against the HTTP client, the
+// same rows the fake passes (task-144.md:551-596). The harness is task 124's
+// (task-124.md:? — the W4 integration file), with three additions:
+//   env := hubtest.Start(t, hubtest.WithFakes(mail, host, teams, ingest))
+//   cl  := hubclient.New(env.URL, devissuer.Token(t, "u-dylan"), hubclient.WithHTTP(env.HTTP))
+//   sync := hubtest.SyncAs(env)        // decision 8: in-process, the sync principal has no token
+//   conformance.WorkRowsW5(t, conformance.Env{Client: cl, InProcess: sync, Clock: env.Clock})
+//
+// Rows that must pass here and are the reason the file exists:
+//   W5-02 create-request-twice with one Idempotency-Key returns the same requestId and the
+//         Hub writes one row (mutant: the key dropped on the retry, two requests filed).
+//   W5-05 accept returns an IssueRef whose number is the team's next (decision 5: no digest).
+//   W5-17 a 409 from the Hub arrives as hubclient.Error{Status:409, Code:"conflict"} with the
+//         Hub's details map intact (mutant: the client rewrites it to a bare error).
+//   W5-22 a second CreateAPIKey with the same name is 409, and the first response's secret is
+//         the only place the secret ever appears.
+//   W5-31 a loop run row is written once per fire, with its trigger and its result word.
+```
+
+Every row is task 144's, unchanged: the point of the file is that one body of rows passes twice,
+once against `NewFake()` and once against the Hub. A row that needs a fake host, mail or Teams
+takes it from `conformance.Env`, which task 144 already carries; no row here reaches the network.
+
+#### Tests to write first, part 3 — `api/work_intake_test.go` (the relay rules)
+
+```go
+// control-plane/internal/api/work_intake_test.go — httptest over the built router, a stub
+// hubclient behind it (task 16's pattern, task-16.md:592-640).
+// 1. Every WorkIntakeRoutes row is mounted under /v1/hub/work/… and reaches its method once.
+//    For each row: call the relay path, assert the stub saw exactly that method name and that
+//    the path parameters arrived in order. Mutant: two rows wired to the same method, so
+//    *important* marks a request accepted.
+// 2. Hub-facing ingress is 404 on the relay, all five:
+//    /v1/hub/work/hooks/github, /v1/hub/work/teams/messages, /v1/hub/work/forms/{slug}/submit,
+//    /v1/hub/work/mcp/read, /v1/hub/work/sentinel/export → 404, and the stub saw no call.
+//    Mutant: a catch-all proxy under /v1/hub/work/, which would publish the Hub's ingress.
+// 3. A Hub 409 passes through unchanged: the stub returns hubclient.Error{409, "conflict",
+//    details}; the relay's body is that code and those details and the status is 409.
+//    Mutant: the relay maps every hubclient.Error to 502.
+// 4. A created key's secret crosses once and is never logged: the stub answers
+//    CreatedAPIKey{Secret: "pnk_live_TESTSECRET"}; the response body holds it; the captured
+//    log (a slog handler into a buffer) does not, under any key, and neither does the access
+//    line. Mutant: the relay logs the body on 201 "for support".
+// 5. No header of the incoming request is copied to the Hub except the idempotency key
+//    (decision 7): the caller sends Authorization: Bearer local-caller-key, X-Panacea-Debug
+//    and Idempotency-Key: op-7; the stub's captured outbound headers hold op-7 and neither of
+//    the other two. Mutant: a header allow-list that passes Authorization through, which is
+//    hub-contract §9.4's local caller key leaving the machine.
+// 6. The four bodyless PUTs send {} and not an empty body (task 169's gap 8): MarkImportant,
+//    ClearImportant, EnableLoop, DisableLoop. Mutant: nil body, and the Hub's decoder 400s.
+// 7. A relay path whose row is hub-only is not mounted: /v1/hub/work/sync-batches → 404.
+```
+
+#### Tests to write first, part 4 — the agent policy and the end to end
+
+```go
+// control-plane/internal/api/agentpolicy_test.go
+// 1. A project with no Hub link: PolicyFor returns (nil, false, nil) and no Hub call.
+//    Mutant: an error, which would block every session on an unlinked project.
+// 2. A linked project: the team id passed to GetTeamAgentPolicy is link.Project.TeamID.
+//    Mutant: the project id passed as the team id, which 404s on every start.
+// 3. A Hub error returns (nil, true, err): found is true, so the caller fails closed
+//    (decision 9's choice, gap 11). Mutant: (nil, false, nil), which fails open.
+//
+// control-plane/internal/hub/work_intake_e2e_integration_test.go  //go:build integration
+// TestWorkIntakeE2E, one ordered story over one Hub, the fakes and devissuer. Each step
+// asserts a fact, and the step after it depends on that fact:
+//  1. A non-member posts the public form (148): the request exists, state "new".
+//  2. The first matching rule (149) routes it to triage; the event's author is the requester.
+//     Mutant: the rule engine writes the sync principal as the author.
+//  3. Dylan accepts it into an issue that serves c-91e2 (146): AcceptRequestResponse's
+//     IssueRef names the new issue and the request is "accepted", linked to it.
+//  4. The issue lands; a release is reserved and confirmed (W4's path); the mail fake holds one
+//     message to the requester whose body names the release. Mutant: mailed on land, not
+//     on ship, so the requester hears about work that is not out.
+//  5. A GitHub Issues item syncs in (150): it lands in triage as "not tied · imported", and a
+//     state move attempted as the sync principal is 403. Mutant: the sync principal may move
+//     state, so an outside tracker drives the Hub's facts.
+//  6. An outside PR whose body says "Fixes EP-142" links (154): the link exists; its merge,
+//     delivered by the host fake, writes landed with the mapped person as the author, and an
+//     unmapped author writes nothing. Mutant: landed written as the app.
+//  7. An outbound webhook fires (156): the delivery's HMAC verifies against the secret, and
+//     the payload holds ids, kinds and times and no title, description or comment text.
+//     Mutant: the issue's title in the payload, which is text leaving the tenant.
+//  8. An approved app reads through /mcp/read (161) and a write attempt is 403.
+//  9. A loop bound to accept fires once and logs one run with its result (162-163).
+// 10. A key over its limit is 429 with the rate headers set (160).
+// 11. The exporter posts the chain to the ingestion fake (167) and the fake's last body's
+//     digest chain verifies head to tail.
+```
+
+#### Steps
+
+- [ ] Write `methods_work_intake_test.go` tests 1-5, then the table and the 51 methods in
+      `methods_work_intake.go` until they pass; delete `client_work_intake_stub.go` in the same
+      commit. Mutants, one at a time, then revert: copy the row above (test 1); append
+      `workIntakeHubOnly` in `AllWorkRoutes` (test 2); restore task 143's proposed `DecideApp`
+      path (test 3); add a `/v1/hooks/{host}` row (test 4); return `ErrNotConfigured` (test 5).
+- [ ] Edit `methods_work.go`: `workRoute` searches both lists, `AllWorkRoutes()` appends only
+      `WorkIntakeRoutes`. Tasks 16, 82 and 124's suites still pass unchanged.
+- [ ] Write `api/work_intake_test.go`, then `intakeCalls()` in `work.go` until the seven pass.
+      Mutants: two rows on one method (test 1); a catch-all under `/v1/hub/work/` (test 2);
+      map every `hubclient.Error` to 502 (test 3); log the 201 body (test 4); copy
+      `Authorization` outbound (test 5); send a nil body on the four PUTs (test 6).
+- [ ] Add the W5 relay `GET`s to `catalogReadOnlyRoutes` in `routes_audit_test.go`; the audit
+      is green with no other edit.
+- [ ] Write `agentpolicy_test.go`, then `agentpolicy.go`, then the two lines in `main.go`.
+- [ ] Write `conformance/work_intake_integration_test.go`. Run it against a Hub started by
+      `hubtest.Start`. Every W5 row that passed against the fake passes here.
+- [ ] Write `work_intake_e2e_integration_test.go`, step by step, each step's assert before the
+      next step's call. Commit after each step's assert is green.
+
+#### Acceptance
+
+```bash
+~/.claude/tools/claudezsh/claudezsh 'cd control-plane && go test ./internal/hub/hubclient/... ./internal/api/...'
+# expected: ok for every package; no build error from the deleted stub
+~/.claude/tools/claudezsh/claudezsh 'cd control-plane && go test -tags integration ./internal/hub/... ./internal/hub/hubclient/conformance/...'
+# expected: ok, TestWorkRowsW5_HTTP and TestWorkIntakeE2E both PASS
+~/.claude/tools/claudezsh/claudezsh 'cd control-plane && go vet ./... && gofmt -l internal/hub internal/api'
+# expected: no output
+~/.claude/tools/claudezsh/claudezsh 'grep -rn "client_work_intake_stub" control-plane/'
+# expected: no output (the stub is deleted, decision in task 143)
+~/.claude/tools/claudezsh/claudezsh 'grep -nE "/v1/hooks/|teams/messages|/mcp|sentinel" control-plane/internal/hub/hubclient/methods_work_intake.go'
+# expected: no output (decision 3: nothing Hub-facing has a row)
+~/.claude/tools/claudezsh/claudezsh 'grep -nE "slog|log\\.|Printf" control-plane/internal/api/work.go'
+# expected: no line inside intakeCalls (decision 6: the relay logs no body)
+```
+
+#### What this task does NOT claim
+
+- **Any desktop surface.** 169-173 own the wire types, the panels and the admin screens; this
+  part stops at the relay's edge.
+- **A real host, tenant or workspace.** Every outside system in the end to end is a fake in the
+  test binary: GitHub, Azure DevOps, Teams, mail and the Sentinel ingestion endpoint.
+- **That the Hub's own routes are correct.** 146-167 each prove their own route; this part
+  proves the client reaches them and the relay passes them through.
+- **A measured latency.** The end to end records no timing; W5's numbers are task 174's.
+- **Rate limiting on the relay.** 429 comes from the Hub's key limiter (160); the control plane
+  adds no limiter of its own.
+- **That a running session re-reads its managed block after an agent policy changes** (OD-8:
+  nothing is typed into a CLI). The policy is read at session start.
+- **Parity:** closes no row alone; it is the proof path for the Hub halves of 146-167, recorded
+  by task 174.
+
+#### Gaps found while writing this part
+
+1. The skeleton's File map names no W5 end-to-end file and no `agentpolicy.go`; both names here
+   follow tasks 17, 82 and 124 and should be added to the map beside them.
+2. Task 143's `WorkIntake` interface names some parameters `projectId` and some `issueId` in its
+   prose while its Go signatures use `projectID` and `issueID`; this part uses the Go spelling
+   throughout. One of the two should be corrected in 143.
+3. Task 144's `conformance.WorkRowsW5` takes an `Env` whose `InProcess` member does not exist on
+   the tree (no `task-144.md` conformance `Env` printed with it); `hubtest.SyncAs` is this
+   part's name for the binding decision 4 needs, and is **UNVERIFIED** until 144 merges.
+4. `hubtest.Start` with fakes (`WithFakes`) is this part's assumption about the W5 test harness;
+   tasks 154-157 and 167 each build their own fake, and no part owns the shared harness. It
+   should be one file, owned by 146.
+5. Whether task 163's `RunLoopNow` accepts an empty `{requestId}` at all is **UNVERIFIED**: 163
+   prints the field but not its optionality.
+6. The idempotency key's carriage into H33's transport (`hubclient.WithIdempotencyKey`) and the
+   value's fit to 163's `8-64 [A-Za-z0-9._-]` are both **UNVERIFIED** until the H-plan merges.
+   If H33 names it differently, one line in `intakeCalls()` changes.
+7. No part states whether a W5 relay `GET` belongs in `catalogReadOnlyRoutes` or in the audit's
+   new-route list; this part puts the `GET`s in the read-only catalog, as task 124 did for W4.
+8. Task 169's four bodyless PUTs (`{}` not nil) are asserted here and there; the rule belongs in
+   the hub contract, §4.3, as one sentence.
+9. `AllWorkRoutes()` is named for the relay but now omits a list, which reads wrong. The
+   alternative is `RelayedWorkRoutes()` plus `AllWorkRoutes()` meaning all; renaming touches
+   tasks 16, 82, 124 and 169, so it is left as a note.
+10. `hubClient` and `hubLinks` in `cmd/api/main.go` are this part's names for H32's client and
+    H35's resolver; both are **UNVERIFIED** until the H-plan merges.
+11. **For the owner:** decision 9 fails closed, so a person signed out of the Hub on a machine
+    with `PANACEA_APP_HUB_URL` set cannot start a session on a project with a GitHub or Azure
+    DevOps remote. Fail open (start, and warn) is the other choice, and OD-20's local mode is
+    the reason to consider it.
