@@ -44,6 +44,15 @@ launch the other replica served resolves its delegation instead of dead-letterin
 the non-serving replica dead-letters that launch's whole Hub trail and never sweeps its
 revocation (review S02-C1).
 
+The two paths read **different rows on purpose**. `Refresh` takes `DelegationsInUse`, which is
+live-agents-only, because it is the set the feed acts on. `Resolve` takes `DelegationForKey`,
+which keeps ended agent rows, because `agents.end` is queued at the instant the agent ends and a
+restart delivers a backlog whose agents have all ended — the live-only read would dead-letter a
+launch's last write and falsify the 11-minute-outage scope test. And `Resolve` is a read: it runs
+no `Refresh`, so this goroutine — `deliverLoop`, on its 500 ms tick — can never reach the
+`Revoker` and destroy a sandbox, and never writes `cursor`, which stays `readFeed`'s alone
+(`task-11.md`, Resolve).
+
 **A bad value fails start with its name.** Every `PANACEA_APP_FLEET_*` variable is read once, in
 `loadConfig(getenv)`, phase 2's shape (`cmd/api/config.go:165`, `parseDuration` at `:421`); a
 missing required value or an unusable one is an error whose text begins with the variable's name,
@@ -97,7 +106,7 @@ with `Hub.Auditor` in another org arrives here with all three false and `role` `
   - phase 2, built — `httpx.WriteProblem(w, status, code, msg, details)` (`internal/httpx/problem.go:93`), `httpx.CodeInternal`
   - Hub, built — `hubapi.CodeUnauthenticated`, `hubapi.CodeForbidden` (`hubapi/codes.go:20-22`): Fleet answers auth failures with the Hub's two codes, so the desktop switches on one set; `hubapi.Role` (`types.go:20-25`); `hubclient.New(baseURL, scope, tokens, httpClient)` (`hubclient/client.go:21`, a stub until Hub tasks 33–34)
   - task 10 — `pgstore.Open(ctx, dsn string) (*pgstore.Store, error)` and `(*pgstore.Store).Pool() *pgxpool.Pool`, `pgstore.Migrate(ctx, pool) error`
-  - task 11 — `outbox.New`, `(*Deliverer).RunOnce`, `(*Deliverer).Janitor`; `delegation.NewCache`, `NewClient(cache, src, now)`, `NewFeed(hub, team, in, cache, rev, leader, now)`, `delegation.StoreInUse`, `Rebuild(ctx, *Feed, *HubState)`, `(*Feed).Poll`, `Refresh`, `Sweep`, `Reset`, `Orgs`, `FeedKinds`, `PollEvery`
+  - task 11 — `outbox.New`, `(*Deliverer).RunOnce`, `(*Deliverer).Janitor`; `delegation.NewCache`, `NewClient(cache, src, now)`, `NewFeed(hub, team, in, cache, rev, leader, now)`, `delegation.StoreInUse` (which now implements both of task 10's reads, `DelegationsInUse` and `DelegationForKey`), `Rebuild(ctx, *Feed, *HubState)`, `(*Feed).Poll`, `Refresh`, `Resolve`, `Sweep`, `Reset`, `Orgs`, `FeedKinds`, `PollEvery`
   - task 08 — `hubclient.Team.Principal(ctx, tid, oid, projectID string) (hubapi.Principal, error)` over `GET /v1/principals` (route 88, contract §7.28). **No longer proposed:** fix batch b02 gave it to tasks 01, 06 and 08, which this part now depends on. `hubapi.Principal` carries `UserID`, `OrgID` (the project's), `ProjectID`, `Role`, `OrgAdmin`, `Auditor`, `Compliance`
 
 **`control-plane/cmd/fleetd/config.go`, complete:**
@@ -873,6 +882,9 @@ func run(ctx context.Context, getenv func(string) string, stderr io.Writer) int 
 	// The feed is built before the outbox because it is the outbox's Source:
 	// a launch adopted on the other replica is resolved from Fleet's own
 	// store rather than waited a poll out (task-11.md, Refresh and Resolve).
+	// Sharing the *Feed* between the two goroutines is safe only because
+	// Resolve is a read — no act, no cursor write. If it ever runs Refresh
+	// again, deliverLoop is back to destroying sandboxes on its 500 ms tick.
 	feed := delegation.NewFeed(hub, hub, delegation.StoreInUse{S: st}, cache, revokers,
 		feedLock.Held, time.Now)
 	deliver := outbox.New(outbox.StoreQueue{S: st},

@@ -569,9 +569,13 @@ replicas hold what either one adopted rather than only the launches they served,
 consumes task 08's per-org subscription and, on a revoked or lapsed delegation, calls a
 `Revoker` interface (stop sessions, close sockets, withdraw leases, mark cards *ended: access
 removed*) within 60 seconds; `rebuild.go` reloads Hub-owned state into memory at start (Fleet
-persists no Hub record, `ADR-H1:467-474`). Tests on task 08's fake: a Hub outage of 11 minutes
-pauses negotiation and loses no write; a revocation reaches the `Revoker` inside 60 s of fake time,
-on the replica that did **not** serve the launch, proven with two `Feed`s over one store.
+persists no Hub record, `ADR-H1:467-474`). The outbox reads a **different** row of that same
+store — the latest agent on the key, ended ones included — because a launch's last write is its
+`agents.end` and a restart's backlog is all ended agents; that read never acts, so delivery can
+never destroy a sandbox, and a failure of it is transient, so one store blip kills no queue.
+Tests on task 08's fake: a Hub outage of 11 minutes pauses negotiation and loses no write, ended
+agents and all; a revocation reaches the `Revoker` inside 60 s of fake time, on the replica that
+did **not** serve the launch, proven with two `Feed`s over one store.
 
 **12 — `cmd/fleetd` chassis.** `cp/cmd/fleetd/{main.go,config.go}` (every `PANACEA_APP_FLEET_*`
 variable parsed once, a bad value fails start with its name) and `cp/internal/fleet/server`:
