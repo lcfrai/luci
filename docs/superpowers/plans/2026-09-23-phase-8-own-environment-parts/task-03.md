@@ -250,7 +250,11 @@ still holds another stack's endpoint (`InUseSubnetCannotBeDeleted`, training kno
 `main.tf` with `file()`, strips comments, and finds `prevent_destroy = true` inside the
 `lifecycle` block of each of the three resource blocks. As built (round 3), it also refuses any
 override file in the module: Terraform merges an override file's `lifecycle` into the block it
-names, so one could set all three false without touching `main.tf`.
+names, so one could set all three false without touching `main.tf`. **This is not a duplicate of
+guard G1** (round-3 review M3): G1 fails an override file **tracked by git**, and deliberately
+allows an untracked one (the runbook §2 `backend_override.tf`, which lives in `stacks/bootstrap`,
+not here). The assert's new ground is an **untracked** override file inside `modules/network` —
+which G1 lets through by design, and which is exactly what mutant OV1 is.
 
 **Why the NSG rules are this small.** AKS manages its own rules for LoadBalancer services, and an
 over-tight subnet NSG is the classic way to break node bootstrap. The rules above only add denies
@@ -286,9 +290,11 @@ variables {
 ```
 
 As built: 27 runs. A list attribute compares with `tolist([...])` and tags with `tomap({...})`:
-a tuple or object literal never equals a list or map. The ids in the last column are the
-mutation harness's (`scratchpad/env/t03r2/`, `t03r3/` and `t03r3k/mutants.py`; section "As
-built" below).
+a tuple or object literal never equals a list or map. Each id in the last column is defined, one
+row per mutant, in `.superpowers/sdd/env/task-03-report.md` (the round-3 table, "What it
+changes"). That is the only surviving definition: the harnesses that produced them lived in
+session temp directories (`t03r2/`, `t03r3/`, `t03r3k/mutants.py`), there is no `scratchpad/` in
+this repo, and one of the three went with its killed session (round-3 review M1).
 
 | Run | Asserts | Mutant it kills |
 |---|---|---|
@@ -309,7 +315,7 @@ built" below).
 | `ingress_cidrs_are_listed_once` | a repeated CIDR → `expect_failures` | the repeat check dropped: two rules of one name, refused at apply (C2) |
 | `private_endpoint_nsg_admits_only_the_vnet_on_443_and_5432` | exactly two rules: Allow TCP from `var.vnet_cidr`, source port `*`, to the endpoint subnet on 443 and 5432, below 4000; Deny all inbound at 4000; the subnet's `private_endpoint_network_policies == "Enabled"` | any source (PE1); port 22 too (PE2); the deny dropped (PE3) or at 4096 (PE4); endpoint policies off, so the NSG does not apply (PE5); allow to anywhere (PE6) |
 | `each_nsg_is_on_its_own_subnet` | `keys(azurerm_subnet_network_security_group_association.this) == ["apps", "private_endpoints", "sandbox", "system"]`, each joining its own NSG and subnet; the NSG names | the sandbox and apps NSGs swapped (AS1); the endpoint NSG left off (AS2) |
-| `four_privatelink_zones_all_linked_without_registration` | the zone map is exactly `acr`, `vault`, `postgres`, `blob` with their `privatelink.` names; four links, each `registration_enabled == false`, on this VNet and its own zone; `output.private_dns_zone_ids` has the four keys | a missing Postgres zone, so the Hub's database would not resolve (Z1); VM registration (Z2); every link on one zone (Z3); a misnamed zone (Z4); a zone id missing from the output (O2) |
+| `four_privatelink_zones_all_linked_without_registration` | the zone map is exactly `acr`, `vault`, `postgres`, `blob` with their `privatelink.` names; four links, each `registration_enabled == false`, on this VNet and its own zone; `output.private_dns_zone_ids` has the four keys, **and each value is that zone's `id`** (round 4) | a missing Postgres zone, so the Hub's database would not resolve (Z1); VM registration (Z2); every link on one zone (Z3); a misnamed zone (Z4); a zone id missing from the output (O2); **the output giving each zone's `name` where its `id` belongs (ZID1, round-3 review I1)** |
 | `agents_subnet_is_delegated_to_devops_pools` | `azurerm_subnet.agents.delegation[0]` is `devops-pools` → `Microsoft.DevOpsInfrastructure/pools`; no other subnet is delegated | the delegation removed (G1) or pointed elsewhere (G2); its name changed (DN) |
 | `the_state_path_refuses_destroy` | reads `main.tf` with `file()`, strips `/* */`, `#` and `//` comments, and finds `prevent_destroy = true` inside the `lifecycle` block of `azurerm_subnet.private_endpoints`, of `azurerm_private_dns_zone.this` (carried from task 02 re-review I1) and of `azurerm_virtual_network.this` (round 2); and (round 3) that the module holds no `*override.tf` or `*override.tf.json` file, since Terraform merges an override file into its block argument by argument, `lifecycle` included, so one could undo all three unseen | either set false (PD1, PD2); the line commented out (PD3) or in a block comment (PD4); the protection moved from the zone to its link (PD5); the VNet's set false (PD6), removed (PD7), in a block comment (PD8) or commented out with `//` (PD9); a `main_override.tf` (OV1) or an `override.tf.json` (OV2) setting the VNet's `prevent_destroy = false` |
 | `every_join_by_name_is_a_reference` | (round 3) reads every `.tf` file, comments stripped: six `azurerm_subnet` blocks, each `virtual_network_name = azurerm_virtual_network.this.name`; the one `private_dns_zone_name = azurerm_private_dns_zone.this[each.key].name`; `output "vnet_name"` is `azurerm_virtual_network.this.name`; no `.tf.json` file. A literal of equal value plans the same, so only the text shows the lost graph edge | a subnet naming its VNet by a literal: the endpoint subnet (ORD1), system (ORD1s), the firewall's (ORD1f), a seventh in another `.tf` file (MV1) or in a `.tf.json` (KS1); the link naming its zone by `each.value` (ORD2); `vnet_name` output as a literal (ORD3) |
@@ -381,7 +387,8 @@ killer (FG1, FV1); then the VNet `prevent_destroy` red and fix, and this part (l
    whose subnet holds another stack's endpoint is **UNVERIFIED**. The cost is the same as the
    subnet's: a literal, holding in dev too.
    - A mock plan cannot decide this either way: the mock provider models no forced replace. A
-     probe (`scratchpad/env/t03r2/probe`) applied, then planned a group change. That change
+     probe (round 2, in a session temp directory that no longer exists; recorded in
+     `.superpowers/sdd/env/task-03-report.md`) applied, then planned a group change. That change
      forces both protected resources, yet the plan came out clean.
    - The probe also showed that `terraform test`'s teardown destroys mock state past
      `prevent_destroy`, so the protection does not break the plan-only runs.
@@ -395,6 +402,23 @@ killer (FG1, FV1); then the VNet `prevent_destroy` red and fix, and this part (l
      Every planned value is unchanged, so every run passed, but the graph edge was gone: a
      subnet could be created before its VNet, a zone destroyed before its link, and task 07's
      consumer of `vnet_name` could race the VNet. New run `every_join_by_name_is_a_reference`.
-   - Neither pin proves an order: they pin the form that gives Terraform the edge. Only
+   - Neither pin proves an order, and the join pin is narrower than "has an edge": it pins the
+     **direct** reference. Routing the same reference through a local keeps the edge and still
+     fails (verified by the round-3 reviewer, `out/S2_LOCALREF.log`), as does a legitimate
+     seventh subnet against the `== 6` count. Both are deliberate edits to the run, and its
+     messages now say so rather than diagnosing a lost edge. Only
      `terraform graph` shows the order, and task 07 runs it on the foundation stack for the NAT
      associations' paths (`parts/task-07.md:640-647`), not for these edges.
+9. **`private_dns_zone_ids`'s values are pinned, not only its keys (round 4; round-3 review
+   I1).** The run asserted `keys(output.private_dns_zone_ids)` and nothing read the values, so
+   `k => z.name` in place of `k => z.id` survived all 27 runs (reviewer's `out/S1_ZONEIDS.log`,
+   re-run here as the red proof: `Failure! 26 passed, 1 failed`, rc 1, failing at that run
+   alone). A zone *name* where an *id* is required breaks task 07's
+   `private_dns_zone_group.private_dns_zone_ids` and the `.blob` that README's stack order
+   passes to bootstrap by hand — at apply against Azure, which this phase never runs, so no
+   other check in the phase would catch it. The fix is one assert, in the style of
+   `subnet_ids`': `alltrue([for k, v in output.private_dns_zone_ids : v ==
+   azurerm_private_dns_zone.this[k].id])`. Still 27 runs. The accepted survivors declared in
+   `.superpowers/sdd/env/task-03-report.md` are unchanged and remain those two only: O4 (the
+   outputs' review-m8 `depends_on`, which task 07 proves with `terraform graph`) and P2 (the NAT
+   gateway given zones, a choice rather than a defect).
