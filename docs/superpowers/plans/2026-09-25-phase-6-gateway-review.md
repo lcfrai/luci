@@ -367,3 +367,87 @@ Q5 is open.
 figure. `keysmith-ingress`'s behaviour under Cilium, and whether a third peer is all the Hub needs, is
 proven only when phase 8 applies the chart. Nothing was run: no control plane, no container, no image.
 Everything written stayed inside `.claude/worktrees/phase-6`; the Hub worktree was read, never written.
+
+## Fix batch b06 (M-1, M-2, M-3, M-7), 2026-09-28
+
+Six commits, plan documents only: M-1, M-2, M-3 in two, M-7, and the task table. No code exists in
+this phase, nothing was run, and the Hub worktree was read, never written. Line numbers below are
+this tree's **after** the edits.
+
+**M-1 — the skeleton contradicted task 07 on idempotency.** Fixed at the root: the skeleton now
+states the rule task 07 actually builds, in all three places it was wrong, and the parts' "gaps
+against the skeleton" that existed only because of it are marked closed rather than deleted.
+
+| Change | Where |
+|---|---|
+| Pitfall row 3 no longer says a mint is idempotent on `key_alias`. It names the mechanism: the retry revokes the binding it made before — a token the caller never received — and mints again, so at most one *live* key per `(session, generation)`, enforced by the partial index. It cites task 07 `:1312`, where nothing relies on alias uniqueness | `2026-09-25-phase-6-gateway.md:102` |
+| The file map row for `keysmith.go` said "idempotent on alias" | `:131` |
+| Task 05's scope: `ErrExists` on a second **unrevoked** `(session, generation)`; the migration's index is the partial one, with why a plain one refuses every retry; `Revoke`/`RevokeSession` take a future `at` and store `least(revoked_at, at)` (task 07 decision (c)); two tests added, one per rule | `:230` |
+| Task 05's opening and its gaps 1 and 2 said "the skeleton says otherwise"; they now record that b06 closed it | `task-05.md:7`, `:1114`, `:1115` |
+| Task 07's gap 1, the same | `task-07.md:1415` |
+
+**M-2 — attribution ids did not match the Hub's.** Fixed at the root: the mapping has an owner, and
+it already exists. Verified in the Hub worktree today — `hub.users.entra_oid` is unique with
+`org_id`, beside `orgs.entra_tenant_id`, in `resolve_principal`
+(`.claude/worktrees/hub/docs/superpowers/contracts/2026-09-23-hub-contract.md:1953-1973`), and
+`User.id` = `u-…` at `:618`. So H-2 asks for no second store.
+
+| Change | Where |
+|---|---|
+| H-2 names the id form, the owner, the evidence it already holds it, and **what needs the mapping and what does not**: `budget.Policy.Limits(ctx, teamID, projectID)` takes no person, so the person *limit* is one per-team figure and no id crosses that boundary; the mapping is needed by the one place a single person is named. Two lines asked: name each person by `tid`/`oid` as well as `User.id`, and take `tid`/`oid` from the caller's own token claims (`hub-contract.md:451-452`) when calling keysmith | `2026-09-25-phase-6-gateway.md:306` |
+| H-5 no longer says "who owns that mapping is review M-2, still open" | `:308` |
+| Task 06's does-not-claim, for whoever builds the Hub policy | `task-06.md:524` |
+| Task 22 gap 6, for whoever draws the panel: `UsageRow.id` is `<tid>:<oid>`, is never rendered (the label is the constant `"You"`, `:361`), and **the desktop never sends a person id** in either mode | `task-22.md:720` |
+
+**M-3 — up to 60 s of each deleted key's spend was lost.** Fixed at the root, as task 07 decision
+(j): every delete records first, with no exception.
+
+| Change | Where |
+|---|---|
+| Decision (j), including why the rule has no exception: the mint-rollback path records a key whose token was never returned, whose spend is zero, and the upsert never lowers | `task-07.md:49` |
+| `SpendRecorder`, `Deps.Recorder` (required), and `New`'s check | `task-07.md:806`, `:820`, `:873` |
+| `deleteKeys` takes bindings, records each, then deletes; a failed record is reported and the delete proceeds | `task-07.md:1237` |
+| The five call sites, the two `After` closures among them, which had captured a key id | `task-07.md:991`, `:1055`, `:1071`, `:1210`, `:1227` |
+| `fakeRecorder`, sharing `fakeAdmin`'s call log so **order** is provable, not co-occurrence | `task-07.md:191`, `:219`, `:98`, `:131` |
+| Two tests; the count moves from seventeen to nineteen | `task-07.md:582`, `:604`, `:68` |
+| Task 09: `Once`'s per-key body extracted into `record`, and `RecordKey` over the same path, so there is one upsert rule and not two that drift | `task-09.md:894`, `:912`, `:5`, `:21` |
+| Task 09's test for a key no sweep ever saw, filed under the key's own month, whose second call must return the error | `task-09.md:404` |
+| Task 08's wiring passes the sweeper as `Recorder` beside the reader it passes as `Spent` | `task-08.md:1963` |
+| The cross-task contract, in both parts' gaps, with "no dependency order moves" | `task-07.md:1423`, `task-09.md:1015` |
+| Skeleton: the `Deps` line, task 07's summary with three new mutants, task 09's summary and test, the file map row | `2026-09-25-phase-6-gateway.md:234`, `:238`, `:134` |
+
+**M-7 — two budget clocks, one sentence.** The review offered two options. Both are wrong on their
+own: setting LiteLLM's reset to the calendar boundary may not be possible in the pinned image, and
+reading `budget_reset_at` into the panel settles for two clocks forever. So the root option is
+**asked first** — seam S6.12 with a probe — and the fallback is written out behind it.
+
+| Change | Where |
+|---|---|
+| Seam **S6.12**, the two budget clocks: the built option (one clock, if P16 allows), the fallback (the person and project rows take LiteLLM's `budget_reset_at`; the team row keeps keysmith's month), and one rejected **in writing** — dropping LiteLLM's native budgets, which are the only *real-time* bound on those two dimensions, since keysmith's slice is computed at mint from a figure up to 60 s old | `2026-09-25-phase-6-gateway.md:301` |
+| Task 18 **P16**: does the pinned image accept a calendar-month `budget_duration`, and does `budget_reset_at` then land on the first of a month, UTC | `task-18.md:34` |
+| Task 18 **P15**, which the review did not ask for and which makes it urgent: keysmith re-sends each budget every `EnsureMemo` (10 minutes), and if `/user/update` moves `budget_reset_at`, LiteLLM's window never elapses, its `spend` never returns to zero, and a person refused once is refused for the rest of the engagement while the cockpit reads US$0.00. Its fallback is one field — `memoKey` gains the period | `task-18.md:33`, the fallback at `task-07.md:39` |
+| Task 07 decision (g): `BudgetDuration` is provisional, with both probes and the one-field fix named; the constant's own comment says it is not our month | `task-07.md:39`, `:783-786` |
+| Task 06's does-not-claim now says what the drift costs **the reader**, not only that the windows differ | `task-06.md:522` |
+| Task 22's does-not-claim: the panel's figures and date are keysmith's clock, *"can't start until 1 Oct"* is true of the refusal it can see, and the second refusal is one it cannot see. **The copy is unchanged**: it is the owner's (OD-12), and the fix is a probe, not a rewording | `task-22.md:711` |
+| Task 25's seam count, S6.1 to **S6.12**, with a note that this one closes inside the phase | `task-25.md:155` |
+| Probe list header and the id range; `Consumed by` gains tasks 22, 07 and 06 for the new probes | `task-18.md:13`, `:44`, `:662` |
+| Skeleton task 18 summary; seam cells on rows 06, 07, 09, 18, 22; task 18 2.5 h → 3 h; the total 62 → 62.5 and the critical path 23 h → 23.5 h, since task 18 is on it | `2026-09-25-phase-6-gateway.md:262`, `:167`, `:168`, `:171`, `:181`, `:185`, `:190` |
+
+**Declared, since the inputs do not cover it (rule 7).** Three rulings were taken rather than asked.
+(1) M-3's rule has **no exception** for the mint-rollback delete, even though that key's spend is
+provably zero: one rule an implementer cannot misread beats a correct exception they can. (2) M-7's
+root option is a probe, not a design change, because the alternative that removes the drift outright
+— dropping LiteLLM's native person and project budgets — would remove the only real-time bound on
+them and widen the overrun bound task 06 already states; that rejection is recorded on the seam.
+(3) M-2 needed no new owner question: the Hub already holds the mapping, so the finding resolves
+into ask H-2 rather than into task 25's follow-up table. Nothing was added to the owner's queue by
+this batch: no new owner question, and no control was drawn.
+
+**Unverified after b06.** No phase 6 code exists, so every test, mutant and hour is a plan figure.
+`budget_reset_at`'s behaviour on update and whether the pinned image accepts a monthly
+`budget_duration` are **UNVERIFIED** — that is precisely what P15 and P16 ask, and the seam stays
+open until they run. The Hub citations (`:451-452`, `:618`, `:1953-1973`) were read in the hub
+worktree on 2026-09-28. Nothing was run: no control plane, no container, no image, no test suite.
+Everything written stayed inside `.claude/worktrees/phase-6`.
+
+**One line was inserted into the skeleton, and it moves anchors.** Seam **S6.12** is a new row at `2026-09-25-phase-6-gateway.md:301`, so every skeleton anchor below it — the seam table tail, the Hub asks H-1 to H-5, the phase 8 asks and the owner questions — moved down by one. `plan-rereview-b05-2.md` already records seven b05-map anchors left short by constraint 10's insert at `:115`; after this batch those seven are short by **two**, not one. That is left for whoever closes the b05 round-2 minors, deliberately: correcting the b05 map here would touch a batch this run was told not to re-apply. Every anchor in the b06 tables above was read from this tree after the last commit.
