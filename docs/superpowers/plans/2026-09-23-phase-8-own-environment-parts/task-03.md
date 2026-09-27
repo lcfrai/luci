@@ -248,7 +248,9 @@ still holds another stack's endpoint (`InUseSubnetCannotBeDeleted`, training kno
 **UNVERIFIED**; even if it does, that does not cover the zones. A plan cannot show a
 `lifecycle` argument, so the test pins it the way bootstrap pins its provider lines: it reads
 `main.tf` with `file()`, strips comments, and finds `prevent_destroy = true` inside the
-`lifecycle` block of each of the three resource blocks.
+`lifecycle` block of each of the three resource blocks. As built (round 3), it also refuses any
+override file in the module: Terraform merges an override file's `lifecycle` into the block it
+names, so one could set all three false without touching `main.tf`.
 
 **Why the NSG rules are this small.** AKS manages its own rules for LoadBalancer services, and an
 over-tight subnet NSG is the classic way to break node bootstrap. The rules above only add denies
@@ -283,9 +285,10 @@ variables {
 }
 ```
 
-As built: 26 runs. A list attribute compares with `tolist([...])` and tags with `tomap({...})`:
-a tuple or object literal never equals a list or map. The ids in the last column are
-`scratchpad/env/t03/mutants.py`'s (section "As built" below).
+As built: 27 runs. A list attribute compares with `tolist([...])` and tags with `tomap({...})`:
+a tuple or object literal never equals a list or map. The ids in the last column are the
+mutation harness's (`scratchpad/env/t03r2/`, `t03r3/` and `t03r3k/mutants.py`; section "As
+built" below).
 
 | Run | Asserts | Mutant it kills |
 |---|---|---|
@@ -305,11 +308,12 @@ a tuple or object literal never equals a list or map. The ids in the last column
 | `ingress_cidrs_must_be_ipv4_cidrs` | `["203.0.113.0/24", "Internet"]` → `expect_failures` | the CIDR check dropped, so a service tag opens the edge (C1) |
 | `ingress_cidrs_are_listed_once` | a repeated CIDR → `expect_failures` | the repeat check dropped: two rules of one name, refused at apply (C2) |
 | `private_endpoint_nsg_admits_only_the_vnet_on_443_and_5432` | exactly two rules: Allow TCP from `var.vnet_cidr`, source port `*`, to the endpoint subnet on 443 and 5432, below 4000; Deny all inbound at 4000; the subnet's `private_endpoint_network_policies == "Enabled"` | any source (PE1); port 22 too (PE2); the deny dropped (PE3) or at 4096 (PE4); endpoint policies off, so the NSG does not apply (PE5); allow to anywhere (PE6) |
-| `each_nsg_is_on_its_own_subnet` | `keys(azurerm_subnet_network_security_group_association.this) == ["apps", "private_endpoints", "sandbox", "system"]`, each joining its own NSG and subnet; the NSG names | the sandbox and apps NSGs swapped (AS1); the endpoint NSG left off (AS2); the env hard-coded in a name (L5) |
+| `each_nsg_is_on_its_own_subnet` | `keys(azurerm_subnet_network_security_group_association.this) == ["apps", "private_endpoints", "sandbox", "system"]`, each joining its own NSG and subnet; the NSG names | the sandbox and apps NSGs swapped (AS1); the endpoint NSG left off (AS2) |
 | `four_privatelink_zones_all_linked_without_registration` | the zone map is exactly `acr`, `vault`, `postgres`, `blob` with their `privatelink.` names; four links, each `registration_enabled == false`, on this VNet and its own zone; `output.private_dns_zone_ids` has the four keys | a missing Postgres zone, so the Hub's database would not resolve (Z1); VM registration (Z2); every link on one zone (Z3); a misnamed zone (Z4); a zone id missing from the output (O2) |
 | `agents_subnet_is_delegated_to_devops_pools` | `azurerm_subnet.agents.delegation[0]` is `devops-pools` → `Microsoft.DevOpsInfrastructure/pools`; no other subnet is delegated | the delegation removed (G1) or pointed elsewhere (G2); its name changed (DN) |
-| `the_state_path_refuses_destroy` | reads `main.tf` with `file()`, strips `/* */`, `#` and `//` comments, and finds `prevent_destroy = true` inside the `lifecycle` block of `azurerm_subnet.private_endpoints`, of `azurerm_private_dns_zone.this` (carried from task 02 re-review I1) and of `azurerm_virtual_network.this` (round 2) | either set false (PD1, PD2); the line commented out (PD3) or in a block comment (PD4); the protection moved from the zone to its link (PD5); the VNet's set false (PD6), removed (PD7), in a block comment (PD8) or commented out with `//` (PD9) |
-| `names_region_group_and_tags_come_from_the_inputs` | `environment = "prod"`, `location = "australiasoutheast"`, another group and two tags: every name carries `prod`; every located resource takes the region; every resource the group; every taggable one the tags; the VNet outputs | the region (L1), group (L3) or env (L4) hard-coded; a resource left untagged (L2, L6); `vnet_id` giving the name (O5); the link name (LN) |
+| `the_state_path_refuses_destroy` | reads `main.tf` with `file()`, strips `/* */`, `#` and `//` comments, and finds `prevent_destroy = true` inside the `lifecycle` block of `azurerm_subnet.private_endpoints`, of `azurerm_private_dns_zone.this` (carried from task 02 re-review I1) and of `azurerm_virtual_network.this` (round 2); and (round 3) that the module holds no `*override.tf` or `*override.tf.json` file, since Terraform merges an override file into its block argument by argument, `lifecycle` included, so one could undo all three unseen | either set false (PD1, PD2); the line commented out (PD3) or in a block comment (PD4); the protection moved from the zone to its link (PD5); the VNet's set false (PD6), removed (PD7), in a block comment (PD8) or commented out with `//` (PD9); a `main_override.tf` (OV1) or an `override.tf.json` (OV2) setting the VNet's `prevent_destroy = false` |
+| `every_join_by_name_is_a_reference` | (round 3) reads every `.tf` file, comments stripped: six `azurerm_subnet` blocks, each `virtual_network_name = azurerm_virtual_network.this.name`; the one `private_dns_zone_name = azurerm_private_dns_zone.this[each.key].name`; `output "vnet_name"` is `azurerm_virtual_network.this.name`; no `.tf.json` file. A literal of equal value plans the same, so only the text shows the lost graph edge | a subnet naming its VNet by a literal: the endpoint subnet (ORD1), system (ORD1s), the firewall's (ORD1f), a seventh in another `.tf` file (MV1) or in a `.tf.json` (KS1); the link naming its zone by `each.value` (ORD2); `vnet_name` output as a literal (ORD3) |
+| `names_region_group_and_tags_come_from_the_inputs` | `environment = "prod"`, `location = "australiasoutheast"`, another group and two tags: every name carries `prod`; every located resource takes the region; every resource the group; every taggable one the tags; the VNet outputs | the region (L1), group (L3) or env (L4; L5 in an NSG's name) hard-coded; a resource left untagged (L2, L6); `vnet_id` giving the name (O5); the link name (LN) |
 | `firewall_subnet_takes_the_group_and_vnet_from_the_inputs` | `egress_mode = "firewall"`, `environment = "prod"`, another group: `azurerm_subnet.firewall[0]` is in that group and in `vnet-panacea-app-prod` (the run above is nat mode, where the firewall subnet does not exist) | the firewall subnet's group (FG1) or VNet (FV1) hard-coded to dev's (round 2's predicted survivors) |
 | `environment_must_be_dev_or_prod` / `egress_mode_must_be_nat_or_firewall` | `"test"`, `"none"` → `expect_failures` | a validation dropped (EV1, EG1) |
 
@@ -327,7 +331,7 @@ knowledge, UNVERIFIED). This way only the subnet ids carry the wait.
   infra/terraform/modules/network` fails at `test` (as built: not at `validate`, which passes a
   test file that names undeclared resources; task 02 found the same).
 - [x] **Step 2:** Write `main.tf` resource by resource, running the tests after each, until all
-  pass (as built: 26 runs, not ten).
+  pass (as built: 27 runs, not ten).
 - [x] **Step 3:** Write `outputs.tf`; `terraform fmt`; guards; commit.
 
 #### Acceptance
@@ -335,7 +339,7 @@ knowledge, UNVERIFIED). This way only the subnet ids carry the wait.
 ```bash
 bash infra/scripts/validate.sh infra/terraform/modules/network
 # validate: OK   infra/terraform/modules/network
-# validate: 1 ok, 0 failed          (terraform test: Success! 26 passed, 0 failed.)
+# validate: 1 ok, 0 failed          (terraform test: Success! 27 passed, 0 failed.)
 bash infra/scripts/guards.sh        # guards: 10 of 10 passed
 ```
 
@@ -365,7 +369,7 @@ killer (FG1, FV1); then the VNet `prevent_destroy` red and fix, and this part (l
    second, two rules share a name and Azure refuses them at apply.
 4. The NSGs are one `for_each` resource with inline rules. The part said four NSGs but not
    how.
-5. 26 runs, not ten.
+5. 27 runs, not ten.
 6. Carried I1: `prevent_destroy` on the endpoint subnet and on all four zones, pinned by a
    `file()` run.
 7. **`prevent_destroy` on the VNet too (found in round 2; a ruling, declared).** The carried
@@ -381,3 +385,16 @@ killer (FG1, FV1); then the VNet `prevent_destroy` red and fix, and this part (l
      forces both protected resources, yet the plan came out clean.
    - The probe also showed that `terraform test`'s teardown destroys mock state past
      `prevent_destroy`, so the protection does not break the plan-only runs.
+8. **Two text pins more (round 3; each kills a predicted survivor).** Both are the class a plan
+   cannot see, so each reads the module's text, as the `prevent_destroy` run does.
+   - An override file (OV1). `the_state_path_refuses_destroy` read only `main.tf`, and Terraform
+     merges `main_override.tf` or `override.tf.json` into the block it names, `lifecycle`
+     included (training knowledge; OV1 and OV2 confirm the effect: each left every run green
+     until the assert). The run now refuses any such file.
+   - A join by name written as a literal of equal value (ORD1, and ORD2, ORD3 of the same class).
+     Every planned value is unchanged, so every run passed, but the graph edge was gone: a
+     subnet could be created before its VNet, a zone destroyed before its link, and task 07's
+     consumer of `vnet_name` could race the VNet. New run `every_join_by_name_is_a_reference`.
+   - Neither pin proves an order: they pin the form that gives Terraform the edge. Only
+     `terraform graph` shows the order, and task 07 runs it on the foundation stack for the NAT
+     associations' paths (`parts/task-07.md:640-647`), not for these edges.
