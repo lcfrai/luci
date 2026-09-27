@@ -24,6 +24,7 @@ const LOADERS = import.meta.glob<string>(
     "../../desktop/src/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs,css}",
     "../../desktop/e2e/**/*.mjs",
     "../../docs/SEAMS.md",
+    "../../docs/verification/2026-09-27-phase-2-results.md",
     "../../docs/superpowers/contracts/2026-09-18-phase-2-ui-contract.md",
     "../../docs/superpowers/contracts/2026-09-18-phase-2-go-contract.md",
     "../../docs/superpowers/plans/phase-2-parts/task-*.md",
@@ -55,6 +56,7 @@ function text(rel: string): string {
 }
 
 const DOC = "docs/SEAMS.md";
+const RESULTS = "docs/verification/2026-09-27-phase-2-results.md";
 const FENCE = "`".repeat(3);
 
 /** Comments blanked, strings kept whole, newlines kept — for `absent` anchors and the tree rules.
@@ -611,7 +613,7 @@ describe("the named seams — docs/SEAMS.md", () => {
   // the test that names it reports it; the generous timeout is for a saturated machine, where
   // Vite's first transform of a hundred raw modules can outlast the default hook timeout.
   beforeAll(async () => {
-    const named = new Set<string>([DOC, UI_CONTRACT, "desktop/src/store/types.ts", GO_CONTRACT, KATA]);
+    const named = new Set<string>([DOC, RESULTS, UI_CONTRACT, "desktop/src/store/types.ts", GO_CONTRACT, KATA]);
     for (const seam of SEAMS) {
       for (const a of seam.anchors) named.add(a.file);
       for (const t of seam.tests ?? []) {
@@ -811,8 +813,10 @@ describe("the named seams — docs/SEAMS.md", () => {
       const checks = [...row.matchAll(/`([a-z0-9]+\.[a-z0-9-]+)`/g)].map((m) => m[1])
         .filter((c) => !/\.(go|ts|tsx|mjs|md|json|jsonl|sh|ya?ml|py)$/.test(c));
       for (const check of checks) {
-        const explained = prose.map((p) => (p.includes(check) ? tags(p) : [])).find((t) => t.length > 0);
-        if (explained === undefined) continue; // nothing here attributes it; the row may say so
+        // Round 3's Minor 4: `.find` read only the FIRST attributing paragraph, so a second one
+        // naming a different finding was invisible. Every paragraph that names the check counts.
+        const explained = [...new Set(prose.flatMap((p) => (p.includes(check) ? tags(p) : [])))];
+        if (explained.length === 0) continue; // nothing here attributes it; the row may say so
         expect(tags(row), `${id}: ${check} is attributed below, so the row must carry a cause`)
           .not.toEqual([]);
         expect(row, `${id}: ${check} is attributed below; the row may not call it unattributed`)
@@ -830,5 +834,139 @@ describe("the named seams — docs/SEAMS.md", () => {
     expect(note).not.toMatch(/three\s+causes/i);
     expect(note).toMatch(/Two have a cause/);
     expect(note).toMatch(/not the same as being explained/);
+  });
+
+  /** Round 3's I-1, I-2 and Minor 1. The run document's own guards live in the git-ignored SDD
+   *  workspace (`e2e-run4/step20/`), so a reader who reaches this branch from `main` finds the
+   *  obligation and no artifact. Three review rounds named one class — a claim about causation
+   *  or an instant, written OUTSIDE the one table a guard reads — and each round killed one
+   *  named mutant and left the class open. These four rules need nothing but the document, so
+   *  they survive the workspace they were measured in and run in `npm test`. */
+  describe("the run document — docs/verification/2026-09-27-phase-2-results.md", () => {
+    type Verdict = { result: string; tag: string | null };
+    /** *The checks* is where a verdict and its finding are authoritative. Every other block in
+     *  the document is read against this map, which is what "document-wide" means here. */
+    const CHECKS = (): Map<string, Verdict> => {
+      const out = new Map<string, Verdict>();
+      const all = text(RESULTS).split("\n");
+      const start = all.findIndex((l) => l.trim() === "## The checks");
+      let end = all.findIndex((l, i) => i > start && l.startsWith("## "));
+      if (end < 0) end = all.length;
+      for (const line of all.slice(start + 1, end)) {
+        if (!line.startsWith("|") || /^\|\s*-/.test(line)) continue;
+        const cells = line.split("|").slice(1, -1).map((c) => c.trim());
+        const id = /^`([^`]+)`$/.exec(cells[0] ?? "")?.[1];
+        const result = cells.find((c) => /^(PASS|FAIL|NOT RUN)$/.test(c));
+        if (id === undefined || result === undefined) continue;
+        const rowTags = tags(cells[cells.length - 1] ?? ""); // `.at` is ES2022; this tsconfig is not
+        out.set(id, { result, tag: rowTags.length === 1 ? (rowTags[0] ?? null) : null });
+      }
+      return out;
+    };
+    /** A paragraph, a single table row, or a single list item — never a whole table and never a
+     *  whole list, because two rows of one table, and two items of one list, speak about two
+     *  different checks. `What is still unproven` is one paragraph of ten numbered items. */
+    const BLOCKS = (): string[] => {
+      const out: string[] = [];
+      const ITEM = /^\s*(?:\d+\.|[-*])\s/;
+      for (const para of text(RESULTS).split(/\n\s*\n/)) {
+        if (para.trimStart().startsWith("|")) {
+          for (const row of para.split("\n")) {
+            if (row.startsWith("|") && !/^\|\s*-/.test(row)) out.push(row);
+          }
+          continue;
+        }
+        let item: string[] = [];
+        for (const line of para.split("\n")) {
+          if (ITEM.test(line) && item.length) { out.push(item.join("\n")); item = []; }
+          item.push(line);
+        }
+        if (item.length) out.push(item.join("\n"));
+      }
+      return out;
+    };
+    /** "That failure is F2's, **not F1's**" asserts one finding and denies another. */
+    const claimed = (s: string): string[] => tags(s.replace(/\b(?:not|nor|neither)\s+F[1-9]('s)?/gi, " "));
+    const idsIn = (s: string): string[] =>
+      [...new Set([...s.matchAll(/`([a-z0-9]+\.[a-z0-9-]+)`/g)].map((m) => m[1]))];
+    const flat = (): string => text(RESULTS).replace(/\s+/g, " ");
+    const secs = (hms: string): number => {
+      const [h, m, s] = hms.split(":").map(Number);
+      return (h ?? 0) * 3600 + (m ?? 0) * 60 + (s ?? 0);
+    };
+
+    // I-1. Mutants MZA ("F2's one line is inside `d.cp-restart`" — a check that PASSED) and MZE
+    // (OO-1's "That failure is F1's") each reinstate round 2's Critical in one edit, and both
+    // survived all nine workspace rules: rule 7 reads only the Findings TABLE, rule 6 only
+    // *The checks*. This rule reads the whole document.
+    it("a block that names one check and a finding agrees with The checks", () => {
+      const checks = CHECKS();
+      expect(checks.size).toBe(19);
+      let read = 0;
+      for (const block of BLOCKS()) {
+        const named = idsIn(block).filter((id) => checks.has(id));
+        const tagged = claimed(block);
+        if (named.length !== 1 || tagged.length === 0) continue;
+        const id = named[0] as string;
+        const v = checks.get(id) as Verdict;
+        read++;
+        for (const tag of tagged) {
+          expect(v.result, `a block names \`${id}\` and ${tag}; the run PASSED that check`).toBe("FAIL");
+          expect(tag, `a block attributes \`${id}\` to ${tag}; The checks says ${v.tag}`).toBe(v.tag);
+        }
+      }
+      expect(read).toBeGreaterThanOrEqual(3); // the day no prose attributes a red, delete this
+    });
+
+    // I-2. Mutant MZD edited the worktree id INSIDE F2's verbatim `err="…"` quote, from
+    // `w-41581457` to `w-48e94ad6` — a real worktree of this run, belonging to a check that
+    // PASSED. The quote is the whole of anchor 1 and the only tie between the 500 and the
+    // session `o2.resume` resumed from; no workspace rule compares any quoted byte against the
+    // log, and rule 8 reaches into that quote only for its three-decimal instant. The document
+    // states the same id three ways, so it can be held to its own account without the log.
+    it("F2's verbatim error line quotes the worktree its attribution names", () => {
+      const doc = flat();
+      const quoted = /for worktree (w-[0-9a-f]+) failed/.exec(doc)?.[1];
+      const anchor = /Its worktree `(w-[0-9a-f]+)`/.exec(doc)?.[1];
+      const other = /on a \*different\* worktree `(w-[0-9a-f]+)`/.exec(doc)?.[1];
+      expect(quoted, "F2's row must quote the failing worktree").toMatch(/^w-[0-9a-f]+$/);
+      expect(anchor, "anchor 1 must name the worktree it reads that quote for").toBe(quoted);
+      expect(other, "anchor 1 must name the worktree it rules OUT").toMatch(/^w-[0-9a-f]+$/);
+      expect(other, "the ruled-out worktree cannot be the one the 500 names").not.toBe(quoted);
+    });
+
+    // I-1, mutant MZB: anchor 2's window is derived in the document from two numbers the
+    // document also carries, and its conclusion is one verb — "excludes 22:08:42". Flipping it
+    // to "includes" makes the anchor self-refuting and survives every workspace rule, because
+    // rule 8 matches three decimals and `22:08:42` has none. Arithmetic is not an opinion.
+    it("a window that says it excludes or includes an instant is right about it", () => {
+      const claims = [...flat().matchAll(
+        /(\d{2}:\d{2}:\d{2})[–-](\d{2}:\d{2}:\d{2}),? (excludes|includes) (\d{2}:\d{2}:\d{2})/g,
+      )];
+      expect(claims.length).toBeGreaterThanOrEqual(1);
+      for (const [all, from, to, verb, at] of claims) {
+        const inside = secs(at as string) >= secs(from as string) && secs(at as string) <= secs(to as string);
+        expect(inside, `"${all}" is false: ${at} is ${inside ? "inside" : "outside"} ${from}-${to}`)
+          .toBe(verb === "includes");
+      }
+    });
+
+    // Minor 1, mutant MZC: anchor 4's start window is derived by subtracting a duration the
+    // document prints from a window the document prints, and two minutes of drift there would
+    // put `o2.resume`'s start before `d.cp-restart`'s and break anchor 4 in silence. Rule 8
+    // deliberately does not match a derived instant — right for a READ value, and unnecessary
+    // here, because both inputs of the subtraction are on the page. Tolerance is one second:
+    // the document rounds, 71,171 ms is 71.171 s.
+    it("the derived start window is the thrown window minus the check's own duration", () => {
+      const m = /≈(\d{2}:\d{2}:\d{2})[–-](\d{2}:\d{2}:\d{2})[^≈]{0,200}?≈(\d{2}:\d{2}:\d{2})[–-](\d{2}:\d{2}:\d{2}) once its own ([\d,]+) ms is subtracted/
+        .exec(flat());
+      expect(m, "anchor 4 must state the throw window, the start window and the duration").not.toBeNull();
+      const [, threwFrom, threwTo, fromS, toS, ms] = m as RegExpExecArray;
+      const took = Number((ms as string).replace(/,/g, "")) / 1000;
+      expect(Math.abs(secs(threwFrom as string) - took - secs(fromS as string)))
+        .toBeLessThanOrEqual(1);
+      expect(Math.abs(secs(threwTo as string) - took - secs(toS as string)))
+        .toBeLessThanOrEqual(1);
+    });
   });
 });

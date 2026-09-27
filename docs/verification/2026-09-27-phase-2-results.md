@@ -10,7 +10,10 @@ restarting under a live cockpit, and git in a sandbox on a primary worktree. Wha
 observed: scrollback across a re-parent, the Canvas cap boundary, the exit row, pinned scroll, the
 10 Hz flush under load, Retry attach, detach, resume end to end, and a live terminal in the native
 window. Nine reds, five product defects (F1-F5), none fixed here, and every red attributed to one
-of them.
+of them — but "attributed" is not uniform: four of the nine name a finding with a mechanism, and
+the other five carry F5, whose own row says **Not asserted: the mechanism** and whose owner is
+**Unassigned**. For those five, the finding names a symptom class this document defined from
+those very failures, not a cause.
 
 Run on the development machine (Windows 11) against Docker Desktop 29.4.3, image
 `panacea-app/sandbox:dev`
@@ -429,9 +432,19 @@ defaults instead of adding to them.
    `$!`; `taskkill //PID <desktop.exe> //T //F` for the native window; then release the Docker
    lock.
 
-**Guards on this document.** Step 20's anchored list is in `task-25.md`. Three checks read this
-document against `results.jsonl` and must stay with it: `doc-vs-run.mjs` (every check in *The
-checks* matches the run's own line, and no PASS is printed for a check the run did not pass);
-a tables check (no row of *Phase 1, re-proven* or *Carry disposition* may say PASS for a check the
-run did not pass, and the summary row's arithmetic must match the run); and a rule that a NOT RUN
-row's *Observed* cell is an em dash and nothing else.
+**Guards on this document, and where each of them lives.** Step 20's anchored list is in
+`task-25.md`. The scripts that read this document against the run are in the git-ignored SDD
+workspace (`e2e-run4/step20/`) — **workspace evidence, which will not survive this branch**, the
+same caveat as the `Edg/…` string above. So the rules that need nothing but this document are
+**committed** instead, in `desktop/src/seams.test.ts` (*"the run document"*), where `npm test`
+runs them: a paragraph, table row or list item that names one check and asserts a finding must
+agree with that check's row in *The checks*; F2's verbatim `err=` quote must name the worktree its
+attribution reads it for; a window that says it *excludes* or *includes* an instant must be right
+about it; and anchor 4's derived start window must equal its thrown window minus the check's own
+duration. The two workspace scripts: `doc-vs-run.mjs` (every check in *The checks* matches the
+run's own line in `results.jsonl`, and no PASS is printed for a check the run did not pass); and
+`tables-vs-run.mjs`, **eleven** rules, which takes the run's control-plane log as a **required**
+third argument and exits 2 without it, because a guard that skips when its evidence is absent is
+not a guard. Three of its eleven read that log: an instant written to three decimals must be in it
+verbatim, F3's three counts and its percentage are recomputed from it, and every quoted `err=`,
+`msg=` and `time=` fragment must be a substring of it.
