@@ -419,6 +419,45 @@ run "the_state_path_refuses_destroy" {
     condition     = can(regex("lifecycle\\s*\\{[^}]*prevent_destroy\\s*=\\s*true\\b", try(regex("(?s)(?:^|\\n)resource\\s+\"azurerm_virtual_network\"\\s+\"this\"\\s*\\{(.*?)\\n\\}", replace(replace(replace(file("${path.module}/main.tf"), "\r", ""), "/(?s)/\\*.*?\\*\\//", ""), "/(?m)(#|\\/\\/).*$/", ""))[0], "")))
     error_message = "azurerm_virtual_network.this has no lifecycle { prevent_destroy = true }: a VNet replace that leaves the endpoint subnet's own arguments alone would take the state path with it."
   }
+  # The asserts above read main.tf's text, and Terraform merges an override file into the
+  # matching block argument by argument, lifecycle included, so one could undo all three
+  # unseen (task 03 round-3 predicted survivor OV1). This module has no override file.
+  assert {
+    condition     = length(setunion(fileset(path.module, "*override.tf"), fileset(path.module, "*override.tf.json"))) == 0
+    error_message = "modules/network has an override file; it can undo main.tf's prevent_destroy without changing main.tf."
+  }
+}
+
+# A join by name must be a reference, never a literal of equal value (task 03 round 3, ORD1-3).
+# The literal plans the same value, so every run above passes, but the graph edge is gone:
+# a subnet could be created before its VNet, a zone destroyed before its link (the order
+# "the_state_path_refuses_destroy"'s comment and the part rely on), and a consumer of vnet_name
+# (task 07) could race the VNet. A plan shows no ordering, so this run reads the text of every
+# .tf file in the module, comments stripped, as the run above does for main.tf alone.
+run "every_join_by_name_is_a_reference" {
+  command = plan
+  assert {
+    condition     = length(regexall("(?m)^resource[ \\t]+\"azurerm_subnet\"[ \\t]", replace(replace(replace(join("\n", [for f in sort(fileset(path.module, "*.tf")) : file("${path.module}/${f}")]), "\r", ""), "/(?s)/\\*.*?\\*\\//", ""), "/(?m)(#|\\/\\/).*$/", ""))) == 6
+    error_message = "The module's .tf files do not hold exactly six azurerm_subnet blocks; this run's counts below assume six."
+  }
+  assert {
+    condition     = length(regexall("(?m)^[ \\t]*virtual_network_name[ \\t]*=", replace(replace(replace(join("\n", [for f in sort(fileset(path.module, "*.tf")) : file("${path.module}/${f}")]), "\r", ""), "/(?s)/\\*.*?\\*\\//", ""), "/(?m)(#|\\/\\/).*$/", ""))) == 6 && length(regexall("(?m)^[ \\t]*virtual_network_name[ \\t]*=[ \\t]*azurerm_virtual_network\\.this\\.name[ \\t]*$", replace(replace(replace(join("\n", [for f in sort(fileset(path.module, "*.tf")) : file("${path.module}/${f}")]), "\r", ""), "/(?s)/\\*.*?\\*\\//", ""), "/(?m)(#|\\/\\/).*$/", ""))) == 6
+    error_message = "A subnet names its VNet by something other than azurerm_virtual_network.this.name, so it has no edge to the VNet and can be created before it."
+  }
+  assert {
+    condition     = length(regexall("(?m)^[ \\t]*private_dns_zone_name[ \\t]*=", replace(replace(replace(join("\n", [for f in sort(fileset(path.module, "*.tf")) : file("${path.module}/${f}")]), "\r", ""), "/(?s)/\\*.*?\\*\\//", ""), "/(?m)(#|\\/\\/).*$/", ""))) == 1 && length(regexall("(?m)^[ \\t]*private_dns_zone_name[ \\t]*=[ \\t]*azurerm_private_dns_zone\\.this\\[each\\.key\\]\\.name[ \\t]*$", replace(replace(replace(join("\n", [for f in sort(fileset(path.module, "*.tf")) : file("${path.module}/${f}")]), "\r", ""), "/(?s)/\\*.*?\\*\\//", ""), "/(?m)(#|\\/\\/).*$/", ""))) == 1
+    error_message = "The privatelink link names its zone by something other than azurerm_private_dns_zone.this[each.key].name, so a destroy need not remove the link before its zone."
+  }
+  assert {
+    condition     = can(regex("(?s)(?:^|\\n)output[ \\t]+\"vnet_name\"[ \\t]*\\{[^}]*?\\bvalue[ \\t]*=[ \\t]*azurerm_virtual_network\\.this\\.name[ \\t]*(?:\\n|\\})", replace(replace(replace(join("\n", [for f in sort(fileset(path.module, "*.tf")) : file("${path.module}/${f}")]), "\r", ""), "/(?s)/\\*.*?\\*\\//", ""), "/(?m)(#|\\/\\/).*$/", "")))
+    error_message = "output vnet_name is not azurerm_virtual_network.this.name, so a consumer that places anything in the VNet by name has no edge to it."
+  }
+  # The checks above read .tf files only; a .tf.json file could hold a subnet or an override
+  # neither sees. This module is HCL only.
+  assert {
+    condition     = length(fileset(path.module, "*.tf.json")) == 0
+    error_message = "modules/network has a .tf.json file, which this run's text checks do not read."
+  }
 }
 
 # Every value here differs from the file-level defaults, so a name, region, group or tag set
