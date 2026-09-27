@@ -705,7 +705,7 @@ Message: `feat(desktop): inference chip and panel, raise-only, spend in words (p
 
 - **Visual acceptance.** jsdom renders no layout, and the corporate network blocks headless screenshots. The owner's eyes decide.
 - **That the spend figure is current.** It is what task 21 returned when the popover opened, which is keysmith's figure at most 60 s old (task 09).
-- **A cloud project.** The desktop calls the local control plane. For a Hub project the same shape comes from the Hub (ask H-1, seam S6.1), and which base URL serves it is phase H's.
+- **A cloud project.** The desktop calls the local control plane. For a Hub project the same shape comes from the Hub: the `GET`, spend included, through ask H-5 (seam S6.11, review I-9), the `PATCH` through ask H-1's new member-role route (seam S6.1, review I-3). Which base URL serves them is phase H's.
 - **Team-project announcements** of a raise (`05-design.md:219-222`), which are Fleet's.
 - **That `level` strings read well to a person.** They are rendered verbatim (`internal, any`) until owner question Q1 names KPMG's scheme and its wording.
 

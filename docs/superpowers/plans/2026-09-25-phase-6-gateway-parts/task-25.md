@@ -84,13 +84,14 @@ Read every part's "Gaps against the skeleton" section (`grep -n '^\*\*Gaps again
 | A repository's `.claude/settings.json` can move `ANTHROPIC_BASE_URL` | review I-4 | follow-up inside phase 6 | *closed in the plan by review I-4 (fix batch b03)*: task 14's fragment pins the endpoint, proxy and provider-switch keys, turns telemetry export off (`CLAUDE_CODE_ENABLE_TELEMETRY` `"0"`) and project hooks off (`allowManagedHooksOnly`, re-review R-1); task 23's item 10 is the check. Still open, and named in task 14 "does not claim": any `env` key the fragment does not pin, and a project MCP server or plugin, which are seam S6.6's to close |
 | No problem code for "below the floor" or "budget policy unreadable" | task 21 gap 4, task 06 gap 1 | follow-up inside phase 6 | task 03: `below_floor` (409), `budget_unknown` (503) |
 | keysmith's rows omit a zero-spend current period | task 21 gap 6 | follow-up inside phase 6 | task 09 |
-| Phase 8's proving list should carry P02 and P03 | task 24 gap 1 | **new ask P8-6** | "Task 32 runs phase 6's P02 and P03 in the same human-path session as S50" |
-| P03 writes a temporary smoke-only egress policy in `panacea-sandboxes` | task 24 gap 2 | **new ask P8-7** | "Phase 8 accepts it, or supplies its own probe path" |
+| Phase 8's proving list should carry P02 and P03 | task 24 gap 1 | **new ask P8-7** | "Task 32 runs phase 6's P02 and P03 in the same human-path session as S50" |
+| P03 writes a temporary smoke-only egress policy in `panacea-sandboxes` | task 24 gap 2 | **new ask P8-8** | "Phase 8 accepts it, or supplies its own probe path" |
 | Chart labels the scripts assume | task 24 gap 3 | follow-up inside phase 6 | task 19 |
-| Whether local projects get a class picker in the cockpit | task 22 gap 2 | **new owner question Q5** | until then, classification is by `curl` or phase 4's create flow (P4-1) |
-| Whether the CLI should see `budget_exhausted` rather than LiteLLM's own budget error | task 23 gap 1 | **new owner question Q6** | a second proxy edit if yes |
-| Whether "Budget reached" should name the dimension's real reach (a person's or team's budget stops every project) | task 22 gap 4 | **new owner question Q7** | wording only |
-| The top bar has no project name | task 22 gap 1 | **new owner question Q8** (phase 2 design) | the chip carries the name in its label |
+| Whether local projects get a class picker in the cockpit | task 22 gap 2 | **new owner question Q6** | until then, classification is by `curl` or phase 4's create flow (P4-1) |
+| Whether the CLI should see `budget_exhausted` rather than LiteLLM's own budget error | task 23 gap 1 | **new owner question Q7** | a second proxy edit if yes |
+| Whether "Budget reached" should name the dimension's real reach (a person's or team's budget stops every project) | task 22 gap 4 | **new owner question Q8** | wording only |
+| The top bar has no project name | task 22 gap 1 | **new owner question Q9** (phase 2 design) | the chip carries the name in its label |
+| A *Move back to Global* control, and the `canLowerRoute` field it needs, if the owner answers Q5 with the design's rule | task 22 gap 5 | **carried by Q5** | no new id: the skeleton's Q5 already asks it, and this row records where the answer lands |
 
 A later part's gap not in this table is added the same way. A gap whose fix has landed is written as *closed by `<commit>`*, not deleted, so the record shows it was found.
 
@@ -150,8 +151,8 @@ In the commit body and in the plan's "Owner questions", one entry: **Stale lines
 
 **What this task does not claim:**
 
-- **That any ask has been accepted.** H-1 to H-4, P8-1 to P8-7, P7-1 and P4-1 are requests. Each phase that owns one decides.
-- **That any seam is closed.** S6.1 to S6.10 stay open; this task lists them.
+- **That any ask has been accepted.** H-1 to H-5, P8-1 to P8-8, P7-1 and P4-1 are requests. Each phase that owns one decides.
+- **That any seam is closed.** S6.1 to S6.11 stay open; this task lists them.
 - **That the cloud path works.** The programme text says the cloud proofs have not run, and the new open risk says what they must show.
 - **That the unverified register is complete.** It is complete for what the parts wrote down. A claim nobody marked cannot be harvested by a grep.
 
@@ -160,4 +161,4 @@ In the commit body and in the plan's "Owner questions", one entry: **Stale lines
 1. **The skeleton's re-scope note names task 20 for this rewrite**; step 6 corrects it to task 25.
 2. **`docs/FUNCTIONAL-SPEC.md:42` is stale** and is not in the skeleton's list; it is added to the owner's list rather than edited (decision (a)).
 3. **The root `CLAUDE.md` line the skeleton calls stale is already current** in this tree; only phase 8's worktree copy is stale.
-4. **New ask and question ids** (P8-6, P8-7, Q5 to Q8) are proposed in step 5; if another part has already used any of those ids, renumber here.
+4. **New ask and question ids** (P8-7, P8-8, Q6 to Q9) are proposed in step 5; if another part has already used any of those ids, renumber here. They were P8-6, P8-7 and Q5 to Q8 until fix batch b05, when the skeleton took `P8-6` (the Hub reaches keysmith, seam S6.11) and `Q5` (may a solo project go back to Global); this rule is what renumbered them. Read the skeleton's ask and question lists before writing, not this sentence: the last id in each is the one to count from.
