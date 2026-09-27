@@ -5,7 +5,7 @@ A sandbox's only credential is a one-hour LiteLLM virtual key that keysmith mint
 **The one thing this task must not get wrong is a key nobody holds.** Panacea's lesson is that a mint can time out *after* LiteLLM has made the key (`~/Projects/Panacea/services/panacea-api/handlers/llm_env_keys.go:120`, the `/key/generate` call, verified 2026-09-25). The caller then retries. If the retry simply mints again, the first key is live, budgeted and held by no one. So a retried generation **revokes whatever that generation already has live** before it mints, and a mint that fails half-way revokes its own binding before it returns. After any sequence of retries, a generation has at most one live binding, and it is the one whose token the caller last received.
 
 **Files:**
-- `control-plane/internal/keysmith/keysmith.go`: `AdminAPI`, `SpentReader`, `Deps`, `Service`, `New`, `Mint`, `Refresh`, `RevokeSession`, `ByKeyHash`, the error sentinels, `BudgetDuration`, `EnsureMemo` (new)
+- `control-plane/internal/keysmith/keysmith.go`: `AdminAPI`, `SpentReader`, `SpendRecorder`, `Deps`, `Service`, `New`, `Mint`, `Refresh`, `RevokeSession`, `ByKeyHash`, the error sentinels, `BudgetDuration`, `EnsureMemo` (new)
 - `control-plane/internal/keysmith/keysmith_test.go`: seventeen tests, at least one mutant each (new)
 
 **Interfaces:**
@@ -46,6 +46,8 @@ The bound, after the first request following a raise: at most the route cache (�
 
 **(i) The team is the project's, not the caller's** (review I-7). `MintRequest.TeamID` is what the caller says, and the team budget (`Budgets.Limits`, `Spent`), the binding's `TeamID` and the key's `team` metadata, which task 09's ledger attributes by, all key on it. `mint` reads the project once, through `s.project`, which returns the live route and `ProjectInference.TeamID` (task 03 decision (h)). A non-empty source team that differs from the caller's refuses the mint with `ErrTeamMismatch`, an `ErrInvalid` (400 `bad_request`), before the budget read and before any LiteLLM call. A source with no teams gives `""`, and then the caller's team stands: that is task 13's `File` source only, local mode's `projects.json`. The Hub source refuses a record without a valid `teamId` (task 13 decision (f)), so in the cloud `""` never arrives. `Refresh` re-mints through `mint` with the binding's team, so a project whose team no longer matches stops refreshing: fail closed. Whether the owner is a member of that team is the caller's check (ask P8-1), because keysmith holds no user token.
 
+**(j) Every delete of a key records its spend first** (review M-3). Task 09's sweep reads each key's spend every 60 seconds and keeps the last figure a key ever showed, so a key deleted between two sweeps loses up to one sweep of spend — on **every** refresh and every revoke, which is every session, several times an hour. The team dimension is keysmith's own (P6-D8), so that loss is a budget that undercounts for the rest of the month. The fix is one read: `deleteKeys` takes bindings, calls `Deps.Recorder.RecordKey` for each, and only then calls `Admin.DeleteKeys`. One rule, no exceptions, because an exception is what an implementer gets wrong: the mint-rollback path (`generateThenBind`) records a key whose token was never returned, whose spend is therefore zero, and task 09's upsert never lowers a recorded figure, so a zero row changes no sum. A `RecordKey` that fails is reported and the delete proceeds — a key that cannot be read is still a key that must not stay usable. The read costs one `/key/info` call on task 04's own deadline, on a background context, never on the caller's.
+
 **Why keysmith retires rather than re-mints**, as the review words it: keysmith never holds a token after the mint reply (decision (f)) and cannot hand one to a sandbox. A key it minted on its own would be a key nobody holds, the one thing this task must not get wrong. **The re-mint belongs to the session's refresher.** Task 15's `Launcher` already holds `Routes`, and the cloud broker is ask P8-1. The refresher refreshes as soon as its project's route rises, and `Refresh` then mints on AU with `au/*` only (decision (d)). A refresher that does not do this leaves its session refused (`401 token_revoked`) from the end of `Grace` until its next refresh. That fails closed, never open. Gap 7 hands this to task 15 and to P8-1.
 
 - [ ] **Step 1: Preflight**
@@ -63,7 +65,7 @@ Every `MISSING` line is a dependency not merged yet (tasks 01, 03, 04, 05, 06); 
 
 - [ ] **Step 2: Write the failing tests**
 
-Seventeen tests. The store is task 05's real memory store, not a fake, so the idempotency tests exercise the uniqueness rule the Postgres store also passes (`bindingtest`). LiteLLM, the route source, the spend reader and the clock are fakes. `After` is captured, so the grace-period delete runs when the test says, not on a timer.
+Nineteen tests (seventeen, plus the two decision (j) adds). The store is task 05's real memory store, not a fake, so the idempotency tests exercise the uniqueness rule the Postgres store also passes (`bindingtest`). LiteLLM, the route source, the spend reader, the spend recorder and the clock are fakes. `After` is captured, so the grace-period delete runs when the test says, not on a timer.
 
 Create `control-plane/internal/keysmith/keysmith_test.go`:
 
@@ -93,6 +95,7 @@ type fakeAdmin struct {
 	mu        sync.Mutex
 	generated []litellmadmin.GenerateKeyRequest
 	deleted   [][]string
+	log       []string // "record:<keyID>" then "delete:<keyID>", in order (decision (j))
 	users     int
 	teams     int
 	genErr    error                                   // GenerateKey fails with this
@@ -125,6 +128,9 @@ func (f *fakeAdmin) DeleteKeys(_ context.Context, keys []string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.deleted = append(f.deleted, append([]string(nil), keys...))
+	for _, k := range keys {
+		f.log = append(f.log, "delete:"+k)
+	}
 	return nil
 }
 
@@ -172,9 +178,28 @@ var (
 type rig struct {
 	svc   *Service
 	admin *fakeAdmin
+	rec   *fakeRecorder
 	store binding.Store
 	now   time.Time
 	later []scheduled // After calls, run by the test
+}
+
+// fakeRecorder is task 09's *usage.Sweeper in the tests. It appends to the
+// fakeAdmin's own call log, so a test can assert that the record of a key's
+// final spend happened BEFORE its delete (decision (j)), not merely that both
+// happened. err makes a failed record a reported failure, never a lost delete.
+type fakeRecorder struct {
+	admin *fakeAdmin
+	err   error
+	keys  []string // key hashes recorded, in order
+}
+
+func (f *fakeRecorder) RecordKey(_ context.Context, b wire.Binding) error {
+	f.admin.mu.Lock()
+	f.keys = append(f.keys, b.KeyHash)
+	f.admin.log = append(f.admin.log, "record:"+b.KeyID)
+	f.admin.mu.Unlock()
+	return f.err
 }
 
 // scheduled is one After call. The delay is kept so a test can prove a delete
@@ -191,8 +216,9 @@ func newRig(t *testing.T, mut ...func(*Deps)) *rig {
 		t.Fatal(err)
 	}
 	r := &rig{admin: &fakeAdmin{}, store: binding.NewMemStore(), now: t0}
+	r.rec = &fakeRecorder{admin: r.admin} // shares the fake's log, so order is provable
 	d := Deps{
-		Admin: r.admin, Store: r.store, Budgets: pol, Spent: spentFake{},
+		Admin: r.admin, Store: r.store, Budgets: pol, Spent: spentFake{}, Recorder: r.rec,
 		Routes: routes{
 			"p-global": {ProjectID: "p-global", TeamID: "team-1", DataClass: anyRes, Route: dataclass.RouteGlobal, Effective: dataclass.RouteGlobal},
 			// The record says global; the class forces AU. keysmith must not trust the record.
@@ -550,6 +576,46 @@ func TestRevokeSessionRevokesEveryGeneration(t *testing.T) {
 	}
 }
 
+// Mutants killed: no final read at all (task 09's sweep then loses up to 60 s
+// of every revoked key's spend); a read AFTER the delete, which LiteLLM answers
+// 404 to, so the figure is lost just as surely.
+func TestARevokedKeysSpendIsRecordedBeforeItsKeyIsDeleted(t *testing.T) {
+	r := newRig(t)
+	ctx := context.Background()
+	one, err := r.svc.Mint(ctx, mintReq("p-global", 1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.svc.RevokeSession(ctx, wire.RevokeRequest{SessionID: "s-1"}); err != nil {
+		t.Fatal(err)
+	}
+	id := wire.HashToken(one.Token)
+	if want := []string{"record:" + id, "delete:" + id}; !slices.Equal(r.admin.log, want) {
+		t.Errorf("call order = %v, want %v: the spend must be read while the key still exists", r.admin.log, want)
+	}
+	if !slices.Contains(r.rec.keys, id) {
+		t.Errorf("recorded %v, want the revoked key %s", r.rec.keys, id)
+	}
+}
+
+// Mutants killed: a delete that a failed record skips (the key would stay
+// usable at LiteLLM until its TTL); a record failure returned instead of
+// reported (RevokeSession would fail for a bookkeeping error).
+func TestAFailedSpendRecordStillDeletesTheKey(t *testing.T) {
+	r := newRig(t)
+	ctx := context.Background()
+	if _, err := r.svc.Mint(ctx, mintReq("p-global", 1)); err != nil {
+		t.Fatal(err)
+	}
+	r.rec.err = errors.New("key/info: 503")
+	if _, err := r.svc.RevokeSession(ctx, wire.RevokeRequest{SessionID: "s-1"}); err != nil {
+		t.Fatalf("RevokeSession = %v, want nil: a bookkeeping failure is reported, not returned", err)
+	}
+	if len(r.admin.deleted) == 0 {
+		t.Error("the key was not deleted after the record failed")
+	}
+}
+
 // Mutants killed, in the fallback for task 18's P01 failing: a caller-chosen
 // key still sent; the binding made for a different key than LiteLLM's.
 func TestFallbackBindsTheKeyLiteLLMChose(t *testing.T) {
@@ -735,14 +801,22 @@ type SpentReader interface {
 	Spent(ctx context.Context, owner wire.Owner, teamID, projectID string) (budget.Spent, error)
 }
 
+// SpendRecorder files one key's spend before its LiteLLM key is deleted, so the
+// 60-second sweep's blind spot is not lost (decision (j)); task 09's
+// *usage.Sweeper. It reads /key/info itself: keysmith holds no spend figure.
+type SpendRecorder interface {
+	RecordKey(ctx context.Context, b wire.Binding) error
+}
+
 // Deps is everything a Service needs. Clock, Rand, After, Report, TTL and
 // Grace have defaults; the rest are required.
 type Deps struct {
-	Admin   AdminAPI
-	Store   binding.Store
-	Budgets budget.Policy
-	Spent   SpentReader
-	Routes  wire.RouteSource
+	Admin    AdminAPI
+	Store    binding.Store
+	Budgets  budget.Policy
+	Spent    SpentReader
+	Recorder SpendRecorder // required: decision (j); nil would lose spend silently
+	Routes   wire.RouteSource
 	Groups  []string // every LiteLLM model group: "global/<id>" and "au/<id>" (task 02)
 	Clock   func() time.Time
 	Rand    io.Reader
@@ -793,8 +867,9 @@ type Service struct {
 }
 
 func New(d Deps) (*Service, error) {
-	if d.Admin == nil || d.Store == nil || d.Budgets == nil || d.Spent == nil || d.Routes == nil {
-		return nil, errors.New("keysmith: Admin, Store, Budgets, Spent and Routes are all required")
+	if d.Admin == nil || d.Store == nil || d.Budgets == nil || d.Spent == nil ||
+		d.Recorder == nil || d.Routes == nil {
+		return nil, errors.New("keysmith: Admin, Store, Budgets, Spent, Recorder and Routes are all required")
 	}
 	var global, au bool
 	for _, g := range d.Groups {
@@ -911,8 +986,8 @@ func (s *Service) Refresh(ctx context.Context, req wire.RefreshRequest) (wire.Mi
 			s.d.Report(fmt.Errorf("keysmith: dating the revocation of session %s generation %d (it still expires at %s): %w",
 				prev.SessionID, prev.Generation, prev.ExpiresAt.Format(time.RFC3339), err))
 		}
-		keyID := prev.KeyID
-		s.d.After(s.d.Grace, func() { s.deleteKeys(context.Background(), []string{keyID}) })
+		old := prev // the whole binding: the delete records its spend first (decision (j))
+		s.d.After(s.d.Grace, func() { s.deleteKeys(context.Background(), old) })
 	}
 	return resp, nil
 }
@@ -934,14 +1009,14 @@ func (s *Service) RevokeSession(ctx context.Context, req wire.RevokeRequest) (in
 	if err != nil {
 		return 0, fmt.Errorf("%w: %v", ErrStore, err)
 	}
-	var keys []string
+	var live []wire.Binding
 	for _, b := range all {
 		if now.Before(b.ExpiresAt) {
-			keys = append(keys, b.KeyID)
+			live = append(live, b)
 		}
 	}
-	if len(keys) > 0 {
-		s.deleteKeys(context.WithoutCancel(ctx), keys)
+	if len(live) > 0 {
+		s.deleteKeys(context.WithoutCancel(ctx), live...)
 	}
 	return n, nil
 }
@@ -975,8 +1050,8 @@ func (s *Service) ByKeyHash(ctx context.Context, keyHash string) (wire.Binding, 
 		return b, nil // the next lookup tries again; the gatekeeper still sends it on AU
 	}
 	b.RevokedAt = &retire
-	keyID := b.KeyID
-	s.d.After(s.d.Grace, func() { s.deleteKeys(context.Background(), []string{keyID}) })
+	retired := b // the whole binding: the delete records its spend first (decision (j))
+	s.d.After(s.d.Grace, func() { s.deleteKeys(context.Background(), retired) })
 	return b, nil
 }
 
@@ -991,7 +1066,7 @@ func (s *Service) supersede(ctx context.Context, all []wire.Binding, gen int) er
 		if err := s.d.Store.Revoke(ctx, b.KeyHash, now); err != nil {
 			return fmt.Errorf("%w: revoking the superseded key: %v", ErrStore, err)
 		}
-		s.deleteKeys(context.WithoutCancel(ctx), []string{b.KeyID})
+		s.deleteKeys(context.WithoutCancel(ctx), b)
 	}
 	return nil
 }
@@ -1130,7 +1205,7 @@ func (s *Service) generateThenBind(ctx context.Context, req litellmadmin.Generat
 	b.KeyHash = wire.HashToken(token)
 	b.KeyID = b.KeyHash
 	if err := s.d.Store.Put(ctx, *b); err != nil {
-		s.deleteKeys(context.WithoutCancel(ctx), []string{b.KeyID})
+		s.deleteKeys(context.WithoutCancel(ctx), *b) // spend is zero here; decision (j) keeps the one rule
 		if errors.Is(err, binding.ErrExists) {
 			return "", ErrBusy
 		}
@@ -1147,10 +1222,28 @@ func (s *Service) kill(ctx context.Context, b wire.Binding) {
 	if err := s.d.Store.Revoke(bg, b.KeyHash, s.d.Clock()); err != nil {
 		s.d.Report(fmt.Errorf("keysmith: revoking session %s generation %d: %w", b.SessionID, b.Generation, err))
 	}
-	s.deleteKeys(bg, []string{b.KeyID})
+	s.deleteKeys(bg, b)
 }
 
-func (s *Service) deleteKeys(ctx context.Context, keys []string) {
+// deleteKeys records each key's final spend, then deletes them. The record
+// comes first and has no exception (decision (j)): task 09's sweep runs every
+// 60 seconds and keeps only the last figure a key showed, so a delete without a
+// final read loses up to a minute of every refreshed and every revoked key's
+// spend, and the team dimension is keysmith's own to enforce. A record that
+// fails is reported and the delete goes ahead: a key that cannot be read is
+// still a key that must not stay usable.
+func (s *Service) deleteKeys(ctx context.Context, bs ...wire.Binding) {
+	keys := make([]string, 0, len(bs))
+	for _, b := range bs {
+		if err := s.d.Recorder.RecordKey(ctx, b); err != nil {
+			s.d.Report(fmt.Errorf("keysmith: recording the final spend of session %s generation %d before deleting its key: %w",
+				b.SessionID, b.Generation, err))
+		}
+		keys = append(keys, b.KeyID)
+	}
+	if len(keys) == 0 {
+		return
+	}
 	if err := s.d.Admin.DeleteKeys(ctx, keys); err != nil {
 		s.d.Report(scrub(ErrAdmin, "delete keys", err))
 	}
@@ -1325,3 +1418,4 @@ Message: `feat(keysmith): mint, refresh and revoke, one live key per generation 
 6. **The skeleton's file map names a `Revoke`** besides `RevokeSession`. With `wire.RevokeRequest{SessionID}` the only revoke on the wire, a single-key revoke is internal (`kill`, `supersede`) and not exported.
 7. **The re-mint on a raise is the refresher's (decision (h), review C-1).** keysmith retires a raised Global-minted key `Grace` after its first lookup, but only a caller can deliver the new key. Three hand-offs follow; fix batch b01 made the first two in their parts. **Task 15:** the `Launcher`'s refresh loop re-reads its project's route every `RaiseCheck` (one minute) while the key was minted on Global, and refreshes at once when the route is AU (done: `sleepUnlessRaised`, `TestARaiseRefreshesAtOnce`, its gap 7). **Task 08:** its `apiDeps.Bindings` is wired to the `*keysmith.Service`, not to the store (done in its `run`, its gap 8; the one line has no test of its own). **Ask P8-1:** the cloud broker refreshes on a raise the same way. Without these, a raise leaves the session refused from the end of `Grace` to its next scheduled refresh. That fails closed, but it is a usability failure the owner would see.
 8. **The team comes from the project (decision (i), review I-7).** Task 03 adds `ProjectInference.TeamID` (its decision (h)), task 13's `Hub` source fills it from the record's `teamId` and refuses a record without one (its decision (f)), and `mint` refuses a caller whose `TeamID` differs. **Ask P8-1** adds that the broker checks the owner's membership of the project's team in the Hub before it mints, since keysmith holds no user token. The skeleton's P6-D6 mint had no such check.
+9. **`Deps.Recorder` is new and required (decision (j), review M-3).** Two parts must match it. **Task 09** implements `RecordKey(ctx, wire.Binding) error` on `*usage.Sweeper`: one `KeyInfo` read, one `Upsert`, the period from `budget.PeriodStart(b.CreatedAt)`, and the same never-lower rule the sweep uses. **Task 08** passes that sweeper as `Recorder` where it already passes the reader as `Spent`; keysmith declares the interface, so nothing imports `usage` that did not already. Neither task's dependency order changes: 07 still depends on 04, 05 and 06, and 09 on 04 and 06.
