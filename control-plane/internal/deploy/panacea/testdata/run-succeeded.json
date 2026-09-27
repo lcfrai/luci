@@ -1,0 +1,13 @@
+{
+  "_source": "GET /api/v1/projects/engagement-portal/pipelines/engagement-portal-deploy-7k2xq, handlers/projects.go:3611, models.PipelineRunStatus (models/models.go:2385-2410) as GetPipelineRun builds it (clients/pipeline.go:1064-1160): Succeeded, derivePipelineStatus of a condition whose status is True (clients/pipeline.go:2073-2076), with its duration from startTime and completionTime (:1134-1140). The run cancel-already.json answers for",
+  "data": {
+    "name": "engagement-portal-deploy-7k2xq",
+    "pipeline": "panacea-deploy",
+    "projectName": "engagement-portal",
+    "projectNamespace": "tenant-engagement-portal",
+    "status": "Succeeded",
+    "startTime": "2026-09-23T10:00:04Z",
+    "duration": "4m12s",
+    "completedSteps": ["fetch-source", "detect-env", "build-image", "deploy"]
+  }
+}

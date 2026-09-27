@@ -19,6 +19,11 @@ var _ deploy.Actor = (*Client)(nil)
 // step 6's "Accepted, no run" abandons the reservation on it.
 const noRunNamed = "Panacea accepted the deploy but did not name the run"
 
+// notStartedSentence is Cancel's own sentence for a run Panacea would not cancel because it had
+// not started (review t04 I2): plain text, no internal detail, and it says the build goes on.
+const notStartedSentence = "The build had not started yet, so Panacea could not stop it, and it will go ahead. " +
+	"Try Cancel again in a few seconds."
+
 // Ship posts P/deploy (routes.go:1286), a shipRequestDTO, and reads TriggerDeploy's 202
 // dataDTO[shipResponseDTO] (handlers/projects.go:2998-3005). It refuses before any request a
 // commit that is not 40 lowercase hex (a symbolic ref would ship whatever the branch holds at

@@ -304,8 +304,19 @@ func TestFakeShipAdvanceCancel(t *testing.T) {
 	if second.Run == res.Run {
 		t.Fatalf("two Ships named one run %q", second.Run)
 	}
+	// A run accepted but not started cannot be cancelled yet: Panacea answers already_completed
+	// for a run with no condition and stops nothing (handlers/projects.go:3669). The refusal is
+	// KindConflict with a sentence, and moves nothing (review t04 I2).
+	cr, err := f.Cancel(ctx, proj, second.Run)
+	if e := (*deploy.Error)(nil); !errors.As(err, &e) || e.Kind != deploy.KindConflict || e.Message == "" || cr != (deploy.CancelResult{}) {
+		t.Fatalf("Cancel of a pending run = (%+v, %v), want KindConflict with a sentence", cr, err)
+	}
+	if rp, _ := f.Run(ctx, proj, second.Run); rp.Build != deploy.BuildPending {
+		t.Fatalf("a refused Cancel moved the pending run to %q", rp.Build)
+	}
+	f.Advance(proj, second.Run, deploy.BuildRunning)
 	if cr, err := f.Cancel(ctx, proj, second.Run); err != nil || cr.Outcome != deploy.Cancelled {
-		t.Fatalf("Cancel of a pending run = (%+v, %v), want Cancelled", cr, err)
+		t.Fatalf("Cancel of a running run = (%+v, %v), want Cancelled", cr, err)
 	}
 	if rp, _ := f.Run(ctx, proj, second.Run); rp.Build != deploy.BuildFailed {
 		t.Errorf("a cancelled run reads %q, want failed (the target does not tell them apart)", rp.Build)

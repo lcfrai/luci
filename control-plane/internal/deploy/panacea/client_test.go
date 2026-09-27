@@ -642,8 +642,12 @@ func TestCAFileAddsRoot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BuildHTTPClient(ca): %v", err)
 	}
+	// The cloned DefaultTransport's 10 s TLSHandshakeTimeout, not the client's 30 s, is the limit
+	// that fits the review's failure at 11.87 s (review t04 M5; unverified, because Error() never
+	// prints Cause). The test raises it on its own transport only; production keeps 10 s.
+	withCA.Transport.(*http.Transport).TLSHandshakeTimeout = 30 * time.Second
 	if v, err := Version(context.Background(), withCA, srv.URL); err != nil || v != "v1.163.0" {
-		t.Fatalf("through the CA file: %q, %v; want v1.163.0", v, err)
+		t.Fatalf("through the CA file: %q, %v (cause: %v); want v1.163.0", v, err, errors.Unwrap(err))
 	}
 	plain, err := BuildHTTPClient("", 30*time.Second)
 	if err != nil {

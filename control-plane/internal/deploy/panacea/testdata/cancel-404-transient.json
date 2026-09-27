@@ -1,0 +1,4 @@
+{
+  "_source": "POST /api/v1/projects/engagement-portal/pipelines/engagement-portal-deploy-9f3kq/cancel when the live Kubernetes Get fails for a reason that is not absence: CancelDeploy answers 404 \"pipeline run not found: \"+err.Error() for ANY error of GetPipelineRun (handlers/projects.go:3657-3661), whose error is \"getting PipelineRun: %w\" of the dynamic client's Get (clients/pipeline.go:1064-1068). The Get's text is a stand-in API-server timeout (review t04 M2)",
+  "error": "pipeline run not found: getting PipelineRun: Get \"https://10.0.0.1:443/apis/tekton.dev/v1/namespaces/tekton-pipelines/pipelineruns/engagement-portal-deploy-9f3kq\": dial tcp 10.0.0.1:443: i/o timeout"
+}

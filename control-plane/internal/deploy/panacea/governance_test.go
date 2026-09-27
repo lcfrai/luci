@@ -48,13 +48,18 @@ func TestSetAutoDeployDecodesPut(t *testing.T) {
 
 // TestSetAutoDeployAnswerWithoutTheWrite kills trusting a PUT answer that does not hold the
 // value written: Panacea writes *body.Enabled (:4194), so null or the other bool is an answer
-// this code does not know, KindUnavailable with the 200 received (re-review M-4).
+// this code does not know, KindUnavailable with the 200 received (re-review M-4). It is logged at
+// warn with the branch and the value sent: the built error is the only trace of the answer
+// (review t04 M4, named survivor RV2).
 func TestSetAutoDeployAnswerWithoutTheWrite(t *testing.T) {
 	for _, enabled := range []string{"null", "false"} {
 		rs := serveRecorded(t, map[string]fixture{"PUT " + branchP + "/auto-deploy": {
 			body: `{"data":{"branch":"feat/x","enabled":` + enabled + `,"projectDefault":true,"effective":true,"isProductionBranch":false}}`}})
 		_, err := rs.c.SetAutoDeploy(context.Background(), project, "feat/x", true)
 		wantKind(t, err, deploy.KindUnavailable, 200, "")
+		if !warnedWith(rs.log.String(), " branch=feat/x ", " sent=true ") {
+			t.Errorf("enabled %s: no warn line names the branch and the value sent:\n%s", enabled, rs.log.String())
+		}
 	}
 }
 
@@ -193,8 +198,28 @@ func TestPostureMintedTokenReturnedNotLogged(t *testing.T) {
 }
 
 // TestPasswordOnlyForPasswordMode kills sending a stale password field Panacea might persist, or
-// a rotation outside bypass-token: each is sent only with its own mode (project_security.go:681-691).
+// a rotation outside bypass-token (project_security.go:681-691). A change that carries either
+// with another mode is refused before any request, as the Fake refuses it (review t04 I1 item 5:
+// the connector used to drop it and save the rest, so the two disagreed, and a stray password
+// with "none" went public in silence). A change without them sends exactly its mode's fields.
 func TestPasswordOnlyForPasswordMode(t *testing.T) {
+	stray := serveRecorded(t, nil)
+	for _, ch := range []deploy.PostureChange{
+		{Mode: deploy.PostureKPMGSSO, Password: "x"},
+		{Mode: deploy.PostureKPMGSSO, RotateBypassToken: true},
+		{Mode: deploy.PostureBypassToken, Password: "x"},
+		{Mode: deploy.PosturePassword, Password: "s3cret", RotateBypassToken: true},
+		{Mode: deploy.PosturePublic, Password: "x"},
+		{Mode: deploy.PosturePassword}, // Panacea would 400 it (project_security.go:766-770)
+	} {
+		_, err := stray.c.SetPosture(context.Background(), project, "feat/x", ch)
+		if deploy.KindOf(err) != deploy.KindRejected {
+			t.Errorf("SetPosture(mode %s, password %t, rotate %t) = %v, want KindRejected", ch.Mode, ch.Password != "", ch.RotateBypassToken, err)
+		}
+	}
+	if n := len(stray.requests()); n != 0 {
+		t.Errorf("%d requests for changes refused before sending, want 0", n)
+	}
 	ok := func(mode string) fixture {
 		return fixture{body: `{"message":"access mode set to ` + mode + ` for engagement-portal@feat/x","data":{"branch":"feat/x","env":"feat-x","accessMode":"` + mode + `","enforced":true}}`}
 	}
@@ -202,10 +227,9 @@ func TestPasswordOnlyForPasswordMode(t *testing.T) {
 		change deploy.PostureChange
 		want   string
 	}{
-		{deploy.PostureChange{Mode: deploy.PostureKPMGSSO, Password: "x"}, `{"accessMode":"kpmg-sso"}`},
-		{deploy.PostureChange{Mode: deploy.PostureKPMGSSO, RotateBypassToken: true}, `{"accessMode":"kpmg-sso"}`},
-		{deploy.PostureChange{Mode: deploy.PostureBypassToken, Password: "x"}, `{"accessMode":"bypass-token"}`},
-		{deploy.PostureChange{Mode: deploy.PosturePassword, Password: "s3cret", RotateBypassToken: true}, `{"accessMode":"password","password":"s3cret"}`},
+		{deploy.PostureChange{Mode: deploy.PostureKPMGSSO}, `{"accessMode":"kpmg-sso"}`},
+		{deploy.PostureChange{Mode: deploy.PostureBypassToken}, `{"accessMode":"bypass-token"}`},
+		{deploy.PostureChange{Mode: deploy.PosturePassword, Password: "s3cret"}, `{"accessMode":"password","password":"s3cret"}`},
 		{deploy.PostureChange{Mode: deploy.PosturePublic}, `{"accessMode":"none"}`},
 	} {
 		rs := serveRecorded(t, map[string]fixture{"PUT " + branchP + "/access": ok(string(c.change.Mode))})

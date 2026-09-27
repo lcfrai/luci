@@ -1,0 +1,4 @@
+{
+  "_source": "POST /api/v1/projects/engagement-portal/deploy when the project read fails for a reason that is not absence: TriggerDeploy answers 404 \"project not found: \"+err.Error() for ANY error of K8s.GetProject (handlers/projects.go:2953-2957), which is a live Get of the namespace tenant-<name> wrapped as \"project not found: %w\" (clients/kubernetes.go:1528-1533), hence the doubled prefix. The Get's text is a stand-in API-server timeout (review t04 M2)",
+  "error": "project not found: project not found: Get \"https://10.0.0.1:443/api/v1/namespaces/tenant-engagement-portal\": dial tcp 10.0.0.1:443: i/o timeout"
+}

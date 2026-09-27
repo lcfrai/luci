@@ -686,7 +686,8 @@ func TestScansMapping(t *testing.T) {
 }
 
 // TestRunMapping reads both recorded runs, and keeps Panacea's IDOR answer a not-found
-// (handlers/projects.go:3598-3601).
+// (handlers/projects.go:3598-3601), with the connector's own sentence: the route's other 404
+// embeds err.Error() of a live Get, and the connector does not parse which came (review t04 M2).
 func TestRunMapping(t *testing.T) {
 	const P = "GET /api/v1/projects/engagement-portal/pipelines/"
 	rs := serveRecorded(t, map[string]fixture{
@@ -709,7 +710,7 @@ func TestRunMapping(t *testing.T) {
 		t.Errorf("Run(failed) = (%+v, %v)\nwant %+v", got, err, want)
 	}
 	_, err = rs.c.Run(ctx, project, "other-project-run")
-	wantKind(t, err, deploy.KindNotFound, 404, "pipeline run not found for this project")
+	wantKind(t, err, deploy.KindNotFound, 404, "Panacea did not find run other-project-run in this project.")
 }
 
 // TestEnvironmentsMapping: replicas is present only when the namespace was read
@@ -824,8 +825,9 @@ func TestRecordedBodiesNameTheirSource(t *testing.T) {
 	for _, e := range entries {
 		loadFixture(t, e.Name())
 	}
-	if len(entries) < 50 {
-		t.Errorf("testdata holds %d files, want task 03's 24 plus task 04's 26 (its 21, the four grant 500s, the stale clear)", len(entries))
+	if len(entries) < 55 {
+		t.Errorf("testdata holds %d files, want task 03's 24 plus task 04's 31 (its 21, the four grant 500s, the stale clear; "+
+			"fix round 1's unstarted cancel, its two re-reads and two transient 404s)", len(entries))
 	}
 }
 

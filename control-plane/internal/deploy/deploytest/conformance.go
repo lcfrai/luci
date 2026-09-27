@@ -69,6 +69,11 @@ func Conformance(t *testing.T, h Harness) {
 		{"RollbackSourceIsArgument", rowRollbackSourceIsArgument},
 		{"CancelFinishedIsNotAnError", rowCancelFinishedIsNotAnError},
 		{"GrantDeveloperRoundTrips", rowGrantDeveloperRoundTrips},
+		// Task 04, fix round 1 (review t04 I1, I2).
+		{"CancelUnstartedIsRefused", rowCancelUnstartedIsRefused},
+		{"BypassTokenSaveRotates", rowBypassTokenSaveRotates},
+		{"PostureSaveDropsOtherMaterial", rowPostureSaveDropsOtherMaterial},
+		{"PostureStrayMaterialRefused", rowPostureStrayMaterialRefused},
 	}
 	for _, r := range rows {
 		t.Run(r.name, func(t *testing.T) {
@@ -393,5 +398,101 @@ func rowGrantDeveloperRoundTrips(t *testing.T, d deploy.Deployer, _ Seeder) {
 	i := slices.IndexFunc(grants, func(g deploy.AccessGrant) bool { return g.Grantee == who })
 	if i < 0 || grants[i].Role != deploy.RoleDeveloper || grants[i].Legacy || grants[i].Group != who {
 		t.Errorf("after Grant(developer), Access = %+v, want %s as a developer on a person's row", grants, who)
+	}
+}
+
+// CancelUnstartedIsRefused kills an undo in a run's first seconds reported as done (review t04
+// I2). Panacea cancels only a Pending or Running run (handlers/projects.go:3669), and a run Tekton
+// has not yet given a condition reads Unknown (clients/pipeline.go:1097-1100), the domain's
+// BuildPending: it answers already_completed and stops nothing, and the build goes on to deploy.
+// So Cancel of a pending run is KindConflict, never AlreadyFinished and never Cancelled, and the
+// run is still pending after it.
+func rowCancelUnstartedIsRefused(t *testing.T, d deploy.Deployer, s Seeder) {
+	ctx := context.Background()
+	s.Deployment(confProject, deploy.Deployment{ID: "d-queued", Environment: "feat-x", Branch: "feat-x",
+		Commit: confCommit, Build: deploy.BuildPending, CreatedAt: confBase})
+	res, err := d.Cancel(ctx, confProject, "d-queued")
+	if k := deploy.KindOf(err); k != deploy.KindConflict {
+		t.Errorf("Cancel of a run that has not started = (%+v, %v), want KindConflict: nothing was stopped", res, err)
+	}
+	if rp, err := d.Run(ctx, confProject, "d-queued"); err != nil || rp.Build != deploy.BuildPending {
+		t.Errorf("after a refused Cancel, Run = (%+v, %v), want the run still pending", rp, err)
+	}
+}
+
+// BypassTokenSaveRotates kills a bypass-token save that keeps the old token (review t04 I1).
+// Panacea mints a fresh token on every bypass-token save with no supplied token, whether or not
+// rotateBypassTokens is set, and stores only it (handlers/project_security.go:786-797, :803); the
+// connector never supplies one. So each save returns exactly one new token, a second save returns
+// a different one, and the count stays 1: the old token stops working.
+func rowBypassTokenSaveRotates(t *testing.T, d deploy.Deployer, _ Seeder) {
+	ctx := context.Background()
+	const branch = "feat/x"
+	first, err := d.SetPosture(ctx, confProject, branch, deploy.PostureChange{Mode: deploy.PostureBypassToken})
+	if err != nil || len(first.BypassTokens) != 1 || first.BypassTokens[0] == "" {
+		t.Fatalf("SetPosture(bypass-token) with no rotation = (%+v, %v), want exactly one minted token", first, err)
+	}
+	second, err := d.SetPosture(ctx, confProject, branch, deploy.PostureChange{Mode: deploy.PostureBypassToken})
+	if err != nil || len(second.BypassTokens) != 1 || second.BypassTokens[0] == first.BypassTokens[0] {
+		t.Errorf("a second bypass-token save = (%+v, %v), want one new token, not the first again", second, err)
+	}
+	rotated, err := d.SetPosture(ctx, confProject, branch, deploy.PostureChange{Mode: deploy.PostureBypassToken, RotateBypassToken: true})
+	if err != nil || len(rotated.BypassTokens) != 1 {
+		t.Errorf("a rotation = (%+v, %v), want exactly one minted token", rotated, err)
+	}
+	if p, err := d.Posture(ctx, confProject, branch); err != nil || p.BypassTokenCount != 1 || p.Mode != deploy.PostureBypassToken {
+		t.Errorf("Posture after three bypass-token saves = (%+v, %v), want bypass-token with exactly 1 token", p, err)
+	}
+}
+
+// PostureSaveDropsOtherMaterial kills a save that keeps the other mode's material: Panacea's
+// writeAccessMode keeps the password only for password and the token hashes only for
+// bypass-token, deleting each otherwise (handlers/access_mode.go:202-216). So a switch away from
+// either reads no password and no token.
+func rowPostureSaveDropsOtherMaterial(t *testing.T, d deploy.Deployer, _ Seeder) {
+	ctx := context.Background()
+	const branch = "feat/y"
+	if _, err := d.SetPosture(ctx, confProject, branch, deploy.PostureChange{Mode: deploy.PosturePassword, Password: "a-shared-secret"}); err != nil {
+		t.Fatalf("SetPosture(password): %v", err)
+	}
+	if p, err := d.Posture(ctx, confProject, branch); err != nil || !p.PasswordSet || p.BypassTokenCount != 0 {
+		t.Errorf("Posture after a password save = (%+v, %v), want a password and no token", p, err)
+	}
+	if _, err := d.SetPosture(ctx, confProject, branch, deploy.PostureChange{Mode: deploy.PostureBypassToken}); err != nil {
+		t.Fatalf("SetPosture(bypass-token): %v", err)
+	}
+	if p, err := d.Posture(ctx, confProject, branch); err != nil || p.PasswordSet || p.BypassTokenCount != 1 {
+		t.Errorf("Posture after a bypass-token save = (%+v, %v), want no password and 1 token", p, err)
+	}
+	if _, err := d.SetPosture(ctx, confProject, branch, deploy.PostureChange{Mode: deploy.PostureKPMGSSO}); err != nil {
+		t.Fatalf("SetPosture(kpmg-sso): %v", err)
+	}
+	if p, err := d.Posture(ctx, confProject, branch); err != nil || p.PasswordSet || p.BypassTokenCount != 0 {
+		t.Errorf("Posture after a kpmg-sso save = (%+v, %v), want no password and no token", p, err)
+	}
+}
+
+// PostureStrayMaterialRefused kills an implementation that drops what the change should not
+// carry and saves the rest, where another refuses it (review t04 I1 item 5): a password with any
+// mode but password, a password mode with none, and a rotation with any mode but bypass-token are
+// each KindRejected, and the branch's mode is unchanged.
+func rowPostureStrayMaterialRefused(t *testing.T, d deploy.Deployer, s Seeder) {
+	ctx := context.Background()
+	const branch = "feat/z"
+	s.PostureWord(confProject, branch, string(deploy.PosturePanaceaSSO))
+	for _, c := range []deploy.PostureChange{
+		{Mode: deploy.PosturePublic, Password: "a-shared-secret"},
+		{Mode: deploy.PostureBypassToken, Password: "a-shared-secret"},
+		{Mode: deploy.PosturePassword},
+		{Mode: deploy.PostureKPMGSSO, RotateBypassToken: true},
+		{Mode: deploy.PosturePassword, Password: "a-shared-secret", RotateBypassToken: true},
+	} {
+		if res, err := d.SetPosture(ctx, confProject, branch, c); deploy.KindOf(err) != deploy.KindRejected {
+			t.Errorf("SetPosture(mode %s, password %t, rotate %t) = (%+v, %v), want KindRejected",
+				c.Mode, c.Password != "", c.RotateBypassToken, res, err)
+		}
+	}
+	if p, err := d.Posture(ctx, confProject, branch); err != nil || p.ModeRaw != string(deploy.PosturePanaceaSSO) {
+		t.Errorf("Posture after refused changes = (%+v, %v), want panacea-sso unchanged", p, err)
 	}
 }

@@ -3,6 +3,8 @@ package panacea
 import (
 	"context"
 	"encoding/json"
+	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -206,12 +208,15 @@ func TestRollbackRefusalsVerbatim(t *testing.T) {
 
 // TestCancelOutcomes kills an error toast for an undo that raced the build's end
 // (already_completed, handlers/projects.go:3669-3674), and a word this code does not know read
-// as either outcome.
+// as either outcome. already_completed is confirmed by one re-read of the run (review t04 I2):
+// here it has finished, so the answer is AlreadyFinished with Panacea's sentence. The unknown
+// word is logged at warn, naming the run and the word (review t04 M4, named survivor RV1).
 func TestCancelOutcomes(t *testing.T) {
 	const run = "engagement-portal-deploy-9f3kq"
 	rs := serveRecorded(t, map[string]fixture{
 		"POST " + actsP + "/pipelines/" + run + "/cancel": {file: "cancel-cancelled.json"},
 		"POST " + actsP + "/pipelines/r-done/cancel":      {file: "cancel-already.json"},
+		"GET " + actsP + "/pipelines/r-done":              {file: "run-succeeded.json"},
 		"POST " + actsP + "/pipelines/r-odd/cancel":       {body: `{"data":{"status":"paused","message":"?"}}`},
 	})
 	ctx := context.Background()
@@ -227,6 +232,104 @@ func TestCancelOutcomes(t *testing.T) {
 	wantKind(t, err, deploy.KindUnavailable, 200, "")
 	if got != (deploy.CancelResult{}) {
 		t.Errorf("an unknown cancel word read as %+v", got)
+	}
+	want := []string{"POST " + actsP + "/pipelines/" + run + "/cancel", "POST " + actsP + "/pipelines/r-done/cancel",
+		"GET " + actsP + "/pipelines/r-done", "POST " + actsP + "/pipelines/r-odd/cancel"}
+	if got := rs.requests(); !slices.Equal(got, want) {
+		t.Errorf("requests = %q\nwant       %q", got, want)
+	}
+	if !warnedWith(rs.log.String(), " run=r-odd ", " word=paused ") {
+		t.Errorf("no warn line names the run and the unknown word:\n%s", rs.log.String())
+	}
+}
+
+// warnedWith reports whether one level=WARN line of log holds every part.
+func warnedWith(log string, parts ...string) bool {
+	for _, line := range strings.Split(log, "\n") {
+		if !strings.Contains(line, "level=WARN") {
+			continue
+		}
+		all := true
+		for _, p := range parts {
+			all = all && strings.Contains(line, p)
+		}
+		if all {
+			return true
+		}
+	}
+	return false
+}
+
+// TestCancelUnstartedIsNotFinished kills an undo in a run's first seconds reported as the benign
+// AlreadyFinished (review t04 I2). CancelDeploy cancels only Pending or Running
+// (handlers/projects.go:3669), and a run Tekton has not yet given a condition reads "Unknown"
+// (clients/pipeline.go:1097-1100), so Panacea answers already_completed and nothing is stopped.
+// Cancel re-reads the run through Run, a structured read, not Panacea's sentence: still pending,
+// or started since, is KindConflict with notStartedSentence; a word this code does not know, or a
+// re-read that fails, is KindUnavailable. Each is Status 200, the cancel's answer, and is logged
+// at warn naming the run. The cancel is sent once, never retried.
+func TestCancelUnstartedIsNotFinished(t *testing.T) {
+	const cancel = "POST " + actsP + "/pipelines/r-new/cancel"
+	for _, c := range []struct {
+		name    string
+		run     fixture
+		kind    deploy.Kind
+		message string
+	}{
+		{"not started", fixture{file: "run-unstarted.json"}, deploy.KindConflict, notStartedSentence},
+		{"started since", fixture{file: "run-running.json"}, deploy.KindConflict, notStartedSentence},
+		{"unknown word", fixture{body: `{"data":{"name":"r-new","status":"Paused"}}`}, deploy.KindUnavailable, ""},
+		{"re-read fails", fixture{body: `{"error":"upstream connect error"}`, status: 503}, deploy.KindUnavailable, ""},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			rs := serveRecorded(t, map[string]fixture{
+				cancel:                             {file: "cancel-unstarted.json"},
+				"GET " + actsP + "/pipelines/r-new": c.run,
+			})
+			got, err := rs.c.Cancel(context.Background(), project, "r-new")
+			wantKind(t, err, c.kind, 200, c.message)
+			if got != (deploy.CancelResult{}) {
+				t.Errorf("a cancel that stopped nothing read as %+v", got)
+			}
+			reqs := rs.requests()
+			if len(reqs) < 2 || reqs[0] != cancel || slices.Index(reqs[1:], cancel) >= 0 || reqs[1] != "GET "+actsP+"/pipelines/r-new" {
+				t.Errorf("requests = %q, want the cancel once, then the run's re-read", reqs)
+			}
+			if !warnedWith(rs.log.String(), " run=r-new ") {
+				t.Errorf("no warn line names the run:\n%s", rs.log.String())
+			}
+		})
+	}
+}
+
+// TestNotFoundIsTheConnectorsSentence kills showing Panacea's 404 sentence for Ship, Cancel and
+// Run (review t04 M2). TriggerDeploy (handlers/projects.go:2953-2957), CancelDeploy (:3657-3661)
+// and GetPipelineRunStatus (:3588-3592) answer 404 with err.Error() of a live Kubernetes Get for
+// ANY error, so an API-server timeout reaches the user as "not found" holding an internal
+// address. Each keeps KindNotFound and the 404, takes the connector's own sentence, and logs
+// Panacea's at warn. The IDOR sentence (:3600, :3664) is replaced too: the connector does not
+// parse which one came (plan 7P-12).
+func TestNotFoundIsTheConnectorsSentence(t *testing.T) {
+	rs := serveRecorded(t, map[string]fixture{
+		"POST " + actsP + "/deploy":               {file: "ship-404-transient.json", status: 404},
+		"POST " + actsP + "/pipelines/r-1/cancel": {file: "cancel-404-transient.json", status: 404},
+		"GET " + actsP + "/pipelines/r-1":         {body: `{"error":"pipeline run not found for this project"}`, status: 404},
+	})
+	ctx := context.Background()
+	_, err := rs.c.Ship(ctx, project, deploy.ShipRequest{Branch: "feat/x", Commit: commit40})
+	wantKind(t, err, deploy.KindNotFound, 404, "Panacea did not find the project engagement-portal.")
+	_, err = rs.c.Cancel(ctx, project, "r-1")
+	wantKind(t, err, deploy.KindNotFound, 404, "Panacea did not find run r-1 in this project.")
+	_, err = rs.c.Run(ctx, project, "r-1")
+	wantKind(t, err, deploy.KindNotFound, 404, "Panacea did not find run r-1 in this project.")
+	log := rs.log.String()
+	for _, f := range []string{"ship-404-transient.json", "cancel-404-transient.json"} {
+		if s := fixtureSentence(t, f); !warnedWith(log, strconv.Quote(s)) {
+			t.Errorf("no warn line carries Panacea's sentence %q:\n%s", s, log)
+		}
+	}
+	if !warnedWith(log, strconv.Quote("pipeline run not found for this project")) {
+		t.Errorf("no warn line carries the run read's sentence:\n%s", log)
 	}
 }
 

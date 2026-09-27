@@ -1,0 +1,10 @@
+{
+  "_source": "GET /api/v1/projects/engagement-portal/pipelines/engagement-portal-deploy-4h8zd, handlers/projects.go:3611 writeJSON(models.APIResponse{Data: status}) of models.PipelineRunStatus as GetPipelineRun builds it (clients/pipeline.go:1064-1160) for a run with no status.conditions yet: Status keeps its starting \"Unknown\" (:1099) and no startTime is read (:1129-1131), the labels, params and pipelineRef are the run's own (:1102-1127)",
+  "data": {
+    "name": "engagement-portal-deploy-4h8zd",
+    "pipeline": "panacea-deploy",
+    "projectName": "engagement-portal",
+    "projectNamespace": "tenant-engagement-portal",
+    "status": "Unknown"
+  }
+}

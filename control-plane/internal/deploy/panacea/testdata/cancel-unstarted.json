@@ -1,0 +1,7 @@
+{
+  "_source": "POST /api/v1/projects/engagement-portal/pipelines/engagement-portal-deploy-4h8zd/cancel of a run Tekton has not yet given a condition: pipelineRunStatusFromUnstructured starts Status at \"Unknown\" and changes it only when status.conditions has an entry (clients/pipeline.go:1097-1100, :1143-1152), and CancelDeploy cancels only Pending or Running (handlers/projects.go:3669), so it writes already_completed with \"Pipeline run is already \"+status.Status (:3670-3673). Nothing was cancelled (found t04, review I2)",
+  "data": {
+    "status": "already_completed",
+    "message": "Pipeline run is already Unknown"
+  }
+}
