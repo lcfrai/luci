@@ -176,6 +176,27 @@ func TestExcludeLineJoinsAFileWithNoFinalNewline(t *testing.T) {
 	}
 }
 
+// A CRLF exclude file (an editor's re-save on Windows) already holding the
+// line is left alone: git ignores the trailing "\r", so the line is present,
+// and a second copy per start would grow the file (mutation P2).
+func TestExcludeLineInACRLFFileIsFound(t *testing.T) {
+	e := newEnv(t)
+	const crlf = "*.log\r\n/CLAUDE.md\r\n"
+	if err := os.MkdirAll(filepath.Dir(e.git.excludePath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(e.git.excludePath, []byte(crlf), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	e.src.set(inh(doc(idA, 6, "x")), nil)
+	if _, err := e.materialise(e.req()); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(e.git.excludePath); string(b) != crlf {
+		t.Fatalf("exclude = %q, want it unchanged: the line is already there", b)
+	}
+}
+
 func TestExcludeFailureWritesNoBlock(t *testing.T) {
 	for _, row := range []struct {
 		name  string
