@@ -1090,8 +1090,8 @@ func (f *Feed) pruneOrgs(live map[string]bool) {
 // shape closes:
 //
 //  1. It reads ForKey, not DelegationsInUse. That set is live-agents-only
-//     (task-10.md:96-99), but agents.end is enqueued at the instant the agent
-//     ends (task-20.md:188, :307, :340) and a restart delivers a backlog whose
+//     (task-10.md:96-100), but Stop ends the agent and enqueues agents.end in
+//     one breath (task-20.md:188, :340) and a restart delivers a backlog whose
 //     agents have all ended, so the row's delegation is routinely one no live
 //     agent runs under. The agent row survives the end and carries the dl-…
 //     (task-10.md:247), so ForKey answers where the in-use set cannot.
@@ -1163,9 +1163,20 @@ launch — which is neither the feed leader nor the outbox holder more often tha
 launch's whole Hub trail would be dead-lettered; and if it held `fleet-feed`, nobody would poll
 that org or hold a cache entry to sweep, so a revocation would wait for the next leader change
 rather than the 60 s §2.4 item 4 promises. So the org set and the delegation set are read from
-**Fleet's own store** — `DelegationsInUse`, which task 10 already shares between the replicas —
-by `Refresh`, at the top of every tick, on both replicas, and by `Resolve` on a cache miss in the
-outbox. `Adopt` stays as the serving replica's fast path, not as the only path. Tasks 19, 20 and
+**Fleet's own store**, which task 10 already shares between the replicas, by `Refresh` at the top
+of every tick on both replicas, and by `Resolve` on a cache miss in the outbox.
+
+**The two of them read different rows, because they ask different questions.** `Refresh` reads
+`DelegationsInUse`, which is live-agents-only, because it is the set the feed **acts** on and a
+delegation with no live agent has nothing to stop and must never be resumed (`task-10.md:479`).
+`Resolve` reads `DelegationForKey`, which includes **ended** agent rows, because the rows it is
+resolving for are routinely an ended agent's: `Stop` ends the agent and enqueues `agents.end` in
+one breath (`task-20.md:188`, and `:340` for the revocation that does it to every agent of a
+delegation at once), and a restart after a Hub outage delivers a backlog whose
+agents have all ended while the queue waited. Had `Resolve` shared the live-only read, a launch's
+**last** write would still dead-letter on the other replica, and the §2.2 scope test — an 11-minute
+Hub outage loses no write — would fail for exactly the case the outage creates. `Adopt` stays as
+the serving replica's fast path, not as the only path. Tasks 19, 20 and
 39 read this same `Cache` to decide whether a delegation is live (`task-19.md:225`,
 `task-20.md:133`, `task-39.md:174`); task 39's socket sweep closes a socket whose delegation is
 "gone from its cache" (`task-39.md:45-49`), which without `Refresh` would close every socket of
@@ -1173,7 +1184,7 @@ every launch this replica did not serve.
 `TestASecondFeedSeesADelegationAdoptedOnTheFirst` is the two-`Feed` test that pins it.
 
 **The two adapters to task 10's store, complete.** Task 10 is built first and cannot import
-these packages, so it keeps its own row types (`task-10.md:146-170,196-202`) and these files
+these packages, so it keeps its own row types (`task-10.md:160-179,205-212`) and these files
 convert, field for field. They are the only files here that import `internal/fleet/store`.
 
 `control-plane/internal/fleet/outbox/store.go`:
@@ -1375,10 +1386,14 @@ helper turns the project team through `SetProjectMode` as its team's admin (b01 
 I-6). Every delegation the tests create (`dl-1`, `dl-2`, …) is on that project. The same
 `fakeClock`. A `recRevoker` records
 every `Revoke(d, why)` and `Resume(d)` with the fake time it was called at. `leader` is a
-`*atomic.Bool` the test flips. A `memInUse` is the shared store both `Feed`s read: a slice of
-`Use` behind a mutex, with `add(Use)` for what a launch would have written and a counter of its
-reads. Tests that exercise the cache alone construct `NewClient(cache, nil, clk.Now)`; the two
-that exercise the read-through pass the `Feed`.
+`*atomic.Bool` the test flips. A `memInUse` is the shared store both `Feed`s read: agent rows behind a mutex,
+each with a `live` flag, `add(Use)` for what a launch would have written and `end(id)` for what
+`Stop` would have. It serves task 10's two reads as task 10 defines them —
+`DelegationsInUse` returns the **live** rows only, `DelegationForKey` the latest row on a key
+whether live or ended (`task-10.md:96-108`) — and counts each read separately, so a test can
+assert that `Resolve` did not sweep. `failNext` makes the next read return an error, for the
+transient test. Tests that exercise the cache alone construct `NewClient(cache, nil, clk.Now)`;
+those that exercise the read-through pass the `Feed`.
 
 | Test | What it proves | The mutant it kills |
 |---|---|---|
@@ -1397,7 +1412,13 @@ that exercise the read-through pass the `Feed`.
 | `TestAdoptReadsTheHeadBeforeTheRecord` | the same hook on `Adopt`; the next `Poll` revokes | `Adopt` in the other order (a 24-hour window) |
 | `TestASecondFeedSeesADelegationAdoptedOnTheFirst` | below, and it is the S02-C1 test: two `Feed`s on one `memInUse` and one fake Hub, A follower, B leader; B never calls `Adopt`, yet B's `Client` resolves the key with no poll and B calls `Revoke(Revoked)` within 60 s of the Hub revoking it | `Adopt` as the only way an org or a delegation is learned: the replica that did not serve the launch dead-letters its every write and never sweeps its revocation |
 | `TestRefreshReadsOnlyTheDelegationsItDoesNotKnow` | one `Refresh`, then a second on the same `memInUse`: the fake saw exactly one `Delegation(dl-1)`; after `Drop`, a third makes one more | a per-tick re-read of every live delegation (one Hub call per agent per 10 s) |
-| `TestResolveNeverInventsALapsedDelegation` | `memInUse` still lists a `dl-…` the Hub answers 401 `delegation_expired` for → `Ctx` is `ErrNoDelegation` and the `Revoker` got `Lapsed` exactly once | a read-through that trusts Fleet's own store instead of the Hub's answer |
+| `TestResolveNeverInventsALapsedDelegation` | `DelegationForKey` still answers a `dl-…` the Hub answers 401 `delegation_expired` for → `Ctx` is `ErrNoDelegation`, and that is `Classify` Permanent | a read-through that trusts Fleet's own store instead of the Hub's answer |
+| `TestAnEndedAgentsLastWriteResolvesOnTheOtherReplica` | the S02-C1 round-2 test: `memInUse` holds one ended agent, so `DelegationsInUse` is **empty** and `DelegationForKey` answers; B's `Client` resolves and the fake receives the `agents.end` | `Resolve` sharing the feed's live-only read, so a launch's last write dies on the replica that did not serve it |
+| `TestARestartBacklogOfEndedAgentsDelivers` | a fresh `Feed` (nothing cached, `Rebuild` finds no live agent) over a `memInUse` of three ended agents and three pending rows: all three deliver, none is marked `dead` | the 11-minute-outage scope test passing only while the agents outlive the outage |
+| `TestAStoreFailureInResolveLeavesTheRowPending` | `memInUse.DelegationForKey` returns an error → `Classify` is `Transient`, the row is `pending` with `attempts` 1, not `dead` | one Postgres blip dead-lettering a queue (`ErrTransientLocal` dropped from the transient set) |
+| `TestResolveNeverCallsTheRevoker` | a `dl-…` the Hub calls revoked, resolved from the outbox goroutine while this `Feed` is leader → `recRevoker` saw nothing, and `Resolve` made exactly one store read and one Hub read | a read-through that runs `Refresh`, so delivery destroys sandboxes inside the 500 ms tick |
+| `TestRefreshPrunesAnOrgItNoLongerNeeds` | org A tracked, its only agent ends, `Drop` its entry, one `Refresh` → `Orgs()` omits A; with the entry still cached, `Orgs()` keeps it | a poll list that only grows, one `OrgChanges` per 10 s per org ever seen |
+| `TestConcurrentFirstTrackKeepsTheOlderCursor` | `Adopt` and `Refresh` race on an untracked org; the Hub head moves between them; the cursor is the earlier head, and the event committed between the two is polled | `SetCursor` overwriting in `Refresh`, which skips the window head-first exists to close |
 | `TestRebuildPersistsNothing` | after `Rebuild`, the `InUse` fake saw only its one read, and no method of task 10's store that writes was called | Hub records drifting into Fleet's schema (`ADR-H1:467-474`) |
 | `TestEveryOpHasADeliverer` | `outbox.AllOps` ⊆ keys of `deliverers`, and every Op is in task 01's orchestrator route set | a new `Op` with no route |
 
@@ -1523,12 +1544,25 @@ the two adapters are the only files that know task 10's types.
 - Nothing here runs a loop. Task 12 owns the goroutines, the 500 ms delivery tick, the 10 s poll and
   sweep, and the advisory locks `fleet.outbox` and `fleet.feed`; this task proves the bodies.
 - **`Refresh` tracks exactly what Fleet's own store calls in use, and nothing else.** A delegation
-  no live agent row runs under is not tracked and needs no act: every effect the `Revoker` has —
-  sessions, sockets, leases — hangs off an agent row. The window between `Adopt` and that row is
-  covered by the adopting replica's own cache, and it cannot leak a write to the other replica,
+  no live agent row runs under is not **acted** on: every effect the `Revoker` has — sessions,
+  sockets, leases — hangs off an agent row, so there is nothing left to stop and a `Resume` for it
+  would be a lie. That is a statement about the `Revoker` only. It is **not** a statement about the
+  `Source`: an ended agent still owes the Hub its `agents.end`, so `Resolve` reads
+  `DelegationForKey`, which keeps ended rows, and the two reads are deliberately different sets.
+  Conflating them is S02-C1 round 2, and `TestAnEndedAgentsLastWriteResolvesOnTheOtherReplica`
+  is what keeps them apart.
+- **The window between `Adopt` and the agent row cannot leak a write to the other replica**,
   because task 20 writes the agent row and that launch's first outbox row in **one** transaction
   (`task-20.md:395-400`). If a later task ever enqueues a row before the agent row commits, this
   invariant breaks and the other replica is back to dead-lettering; pin it where that write is.
+  `pruneOrgs` leans on the same window from the other side: it keeps an org whose cache still
+  holds an entry, which is exactly what `Adopt` put there before the transaction committed.
+- **`Resolve` reads; it never acts.** No `Revoker` call, no `Resume`, no cursor move, so the
+  delivery goroutine cannot destroy a sandbox and the feed goroutine stays the only writer of
+  `cursor` outside a leader change. A `Source` error is therefore always Fleet's own failure, never
+  a verdict on the row, which is why every one of them wraps `ErrResolveUnavailable` and
+  `Classify` calls it `Transient`. A `Source` that returns a bare error is a bug: it would
+  dead-letter a row a retry would have delivered.
 - The `Revoker`'s effects — sessions stopped or paused, sockets closed, leases withdrawn, cards
   marked — are tasks 20, 23 and 39, and closing a socket held by the **other** replica is task 39's
   fan-out. Task 44 proves member removal end to end against the real Hub.
