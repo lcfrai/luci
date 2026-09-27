@@ -161,7 +161,7 @@ Slices: **A** the contract (pure Go, no I/O) · **B** keysmith · **C** gatekeep
 |---|---|---|---|---|---|
 | 01 | Data class, route and the ratchet | A | 0.25 (2 h) | — | S6.1, S6.7, S6.8 |
 | 02 | Model catalogue and the generated LiteLLM config | A | 0.3 (2.5 h) | — | — |
-| 03 | Wire contracts, problem codes, `MessagesURL`, `HashToken` | A | 0.25 (2 h) | 01 | S6.3, S6.5 |
+| 03 | Wire contracts, problem codes, `MessagesURL`, `HashToken` | A | 0.25 (2 h) | 01 | S6.3, S6.5, S6.12 |
 | 04 | LiteLLM admin client on its own deadlines | B | 0.3 (2.5 h) | 03 | — |
 | 05 | Binding store: memory, Postgres, behaviour suite | B | 0.4 (3 h) | 03 | P8-4 |
 | 06 | Budgets: three dimensions, defaults on, the per-key slice | B | 0.25 (2 h) | 01, 03 | S6.2, S6.12 |
@@ -181,7 +181,7 @@ Slices: **A** the contract (pure Go, no I/O) · **B** keysmith · **C** gatekeep
 | 18 | LiteLLM capability, ZDR and pitfall probe | E | 0.4 (3 h) | 17 | S6.12 (P15, P16) |
 | 19 | Helm chart, NetworkPolicies, Key Vault CSI | F | 0.4 (3 h) | 02, 08b, 12 | S6.9, S6.11 (`keysmith-ingress`), P8-1 to P8-6 |
 | 20 | Bedrock federation module (AWS), never applied | F | 0.3 (2.5 h) | 02 | P8-5 |
-| 21 | Control-plane inference API | G | 0.3 (2.5 h) | 01, 09, 13, 15b | S6.1, S6.2 |
+| 21 | Control-plane inference API | G | 0.3 (2.5 h) | 01, 09, 13, 15b | S6.1, S6.2, S6.12 |
 | 22 | Cockpit inference panel | G | 0.4 (3 h) | 21 | S6.8, S6.12 |
 | 23 | Local end-to-end proof with unmodified Claude Code | H | 0.25 (2 h) | 15b, 18, 22 | — |
 | 24 | Cloud proving scripts, written and not run | H | 0.3 (2.5 h) | 19, 20 | S6.4, P8-2 |

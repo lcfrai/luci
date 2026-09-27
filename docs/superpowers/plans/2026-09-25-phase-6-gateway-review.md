@@ -370,9 +370,11 @@ Everything written stayed inside `.claude/worktrees/phase-6`; the Hub worktree w
 
 ## Fix batch b06 (M-1, M-2, M-3, M-7), 2026-09-28
 
-Six commits, plan documents only: M-1, M-2, M-3 in two, M-7, and the task table. No code exists in
-this phase, nothing was run, and the Hub worktree was read, never written. Line numbers below are
-this tree's **after** the edits.
+Seven commits, plan documents only: M-1, M-2, M-3 in two, M-7, and the task table
+(`613de282`, `eb5dfbbd`, `4be0c437`, `f98b0135`, `0de431fa`, `653dd959`, `df90266d`). No code exists
+in this phase, nothing was run, and the Hub worktree was read, never written. Line numbers below
+were this tree's at `df90266d`; **round 2 moved the task 07 and task 09 anchors**, and the
+corrected ones are in round 2's table at the end of this section — read that first.
 
 **M-1 — the skeleton contradicted task 07 on idempotency.** Fixed at the root: the skeleton now
 states the rule task 07 actually builds, in all three places it was wrong, and the parts' "gaps
@@ -407,7 +409,7 @@ it already exists. Verified in the Hub worktree today — `hub.users.entra_oid` 
 | Decision (j), including why the rule has no exception: the mint-rollback path records a key whose token was never returned, whose spend is zero, and the upsert never lowers | `task-07.md:49` |
 | `SpendRecorder`, `Deps.Recorder` (required), and `New`'s check | `task-07.md:806`, `:820`, `:873` |
 | `deleteKeys` takes bindings, records each, then deletes; a failed record is reported and the delete proceeds | `task-07.md:1237` |
-| The five call sites, the two `After` closures among them, which had captured a key id | `task-07.md:991`, `:1055`, `:1071`, `:1210`, `:1227` |
+| The **six** call sites, the two `After` closures among them, which had captured a key id. The sixth is `RevokeSession`, the revoke path M-3 was raised about | `task-07.md:994`, `:1023`, `:1058`, `:1073`, `:1212`, `:1229` (round-2 anchors) |
 | `fakeRecorder`, sharing `fakeAdmin`'s call log so **order** is provable, not co-occurrence | `task-07.md:191`, `:219`, `:98`, `:131` |
 | Two tests; the count moves from seventeen to nineteen | `task-07.md:582`, `:604`, `:68` |
 | Task 09: `Once`'s per-key body extracted into `record`, and `RecordKey` over the same path, so there is one upsert rule and not two that drift | `task-09.md:894`, `:912`, `:5`, `:21` |
@@ -451,3 +453,111 @@ worktree on 2026-09-28. Nothing was run: no control plane, no container, no imag
 Everything written stayed inside `.claude/worktrees/phase-6`.
 
 **One line was inserted into the skeleton, and it moves anchors.** Seam **S6.12** is a new row at `2026-09-25-phase-6-gateway.md:301`, so every skeleton anchor below it — the seam table tail, the Hub asks H-1 to H-5, the phase 8 asks and the owner questions — moved down by one. `plan-rereview-b05-2.md` already records seven b05-map anchors left short by constraint 10's insert at `:115`; after this batch those seven are short by **two**, not one. That is left for whoever closes the b05 round-2 minors, deliberately: correcting the b05 map here would touch a batch this run was told not to re-apply. Every anchor in the b06 tables above was read from this tree after the last commit.
+
+### Round 2, 2026-09-28 — the four Importants and three Minors of `plan-rereview-b06-1.md`
+
+Three commits, plan documents only. Nothing was run: no control plane, no container, no image, no
+test suite. The main tree and the sibling worktrees were not touched. Anchors below were read from
+this tree after the last of the three.
+
+**Important 1 — task 07's gate passed with M-3's two tests missing.** Step 5 said `17`, the files
+list said `seventeen`, and the step-6 table had no edit for either decision-(j) test, so an
+implementer could skip `deleteKeys`' recorder loop, write seventeen tests, see `17`, watch every
+mutant die, and merge a keysmith that loses spend on every refresh.
+
+| Change | Where |
+|---|---|
+| `seventeen tests` → `nineteen tests` | `task-07.md:9` |
+| `Expected: 17` → `19`, and it says which two are the addition | `:1356` |
+| Three mutant rows: the `RecordKey` call deleted; the record moved below `Admin.DeleteKeys`; a record error `return`ed instead of reported | `:1383`-`:1385` |
+| Acceptance: `19` under `-race`, twenty-two edits | `:1406` |
+
+**Important 2 — task 09's gate, one test short.** `TestRecordKeyFilesTheSpendASweepWouldMiss` needs
+no database and appeared in neither count nor the mutant table, though its own comment claims three
+mutants. A `RecordKey` written as a second upsert path filing under `PeriodStart(now)` would have
+passed.
+
+| Change | Where |
+|---|---|
+| Counts: `12`/`19` → `14`/`21` (13 from b06's test, 14 with Important 3's), in the step-6 command, the database paragraph and the acceptance | `task-09.md:1006`, `:1010`, `:1051` |
+| Three rows for that test's three claimed mutants: `record` files nothing; `RecordKey` uses the call's month; `RecordKey` swallows the error | `:1024`-`:1026` |
+| Two rows still said `Sweeper.Once` for code b06 moved into `record` | `:1022`, `:1023` |
+
+**Important 3 — the new record ran with no deadline, inside the session stripe.** `deleteKeys` is
+reached on `context.Background()` and on `context.WithoutCancel(ctx)`, and `WithoutCancel` drops the
+parent's deadline, so both forms are deadline-free. The `/key/info` half is bounded by task 04; the
+`Store.Upsert` half was not. Fixed at the root — in task 09, where the write lives, so the sweep and
+keysmith cannot drift into two rules.
+
+| Change | Where |
+|---|---|
+| `RecordTimeout = 5 * time.Second`, with why the caller cannot supply one | `task-09.md:861`-`:866` |
+| `RecordKey` wraps itself in `context.WithTimeout`; the sweep's own calls go to `record` and keep the sweep's context | `:954`-`:964` |
+| `deadlineStore` and `TestRecordKeyBoundsItsOwnDeadline`, which reads the deadline the store was given, plus its mutant row | `:425`, `:441`, `:1027` |
+| Decision (j) says which half task 04 bounds and which it does not, and names all six call sites | `task-07.md:51` |
+| The head-of-line bound now counts the record, and states that every wait is bounded | `task-07.md:1416` |
+
+**Important 4 — P15's first fallback need not close the failure P15 names.** Ensuring once per
+period stops the repeat *within* a period, but keysmith's period is a UTC calendar month and
+LiteLLM's window is 30 days from creation: the two drift by up to three days, so the first ensure
+of a new month can still land inside the old window and push `budget_reset_at` out before the reset
+fires. The person is then refused for a month at a time with the cockpit reading US$0.00 — the same
+failure, slower. P15 could not tell the difference either, because its PASS read `budget_reset_at`
+and never `spend`.
+
+| Change | Where |
+|---|---|
+| P15 gets reading **(b)**: two users on the shortest window the image accepts, one re-ensured every 10 s and one left alone, both read for `spend == 0` after the window plus two runs of the reset job. A quiet user that never resets, or a `spend` that was 0 before the wait, is UNKNOWN, not PASS | `task-18.md:33` |
+| The consequence cell routes the branch: PASS(a) nothing; FAIL(a)+PASS(b) option 1; FAIL(a) with FAIL **or UNKNOWN**(b) option 2, dropping the native person and project budgets | `task-18.md:33` |
+| S6.12's rejection of option 2 is narrowed to the clock-alignment question, and P15's branch is stated: on FAIL or UNKNOWN(b) option 2 is taken despite the wider overrun bound, because a person refused while the panel reads US$0.00 is worse | `2026-09-25-phase-6-gateway.md:301` |
+
+**Found in the M-7 re-check, and fixed: b06 added P15 and P16 to the table and to nothing else.**
+The client program emitted P01 to P14, the summary line count said fourteen, and the results
+template already said "P01 to P16". The two probes the whole seam turns on could not have run, so
+the seam would have been closed on a reading nobody took — the same failure class as Important 1,
+one part further on. `v_p15`, `v_p16`, `user_info`, `ensure_user`, `p15_reset` and `clock_probes`
+are written (`task-18.md:270`, `:289`, `:394`-`:449`, `:527`), the counts say sixteen (`:720`,
+`:784`), and reading (b) sits behind `GW_PROBE_SLOW=1` because it waits out a budget window and two
+runs of a reset job whose interval is **UNVERIFIED** (`RESET_JOB_S`, 600 s assumed). Without the
+flag P15 reports (a) with (b) `UNKNOWN`, which the seam reads as "take option 2": the default run
+fails closed, never open.
+
+**Minor 1 — the pitfall row cited `newToken()`.** `2026-09-25-phase-6-gateway.md:102` now cites
+`task 07 :1412`, the "does not claim" list where the statement actually is, and says what `:1312`
+is, so the next reader does not re-check the wrong line. The round-1 map row above is corrected by
+the same edit.
+
+**Minor 2 — S6.12 omitted the parts its own fallback edits.** The cell listed 06, 07, 09, 18, 22
+while its fallback routes `budget_reset_at` through `wire.UsageRow` — task 03's type, filled by task
+09's reader, served by task 21's `inferenceJSON`, and absent from all three.
+
+| Change | Where |
+|---|---|
+| Task list → `03, 06, 07, 09, 18, 21, 22`; the cell says the fallback is one field in four parts, three of them merged in waves 2, 4 and 6 while task 18 runs in wave 8 | `2026-09-25-phase-6-gateway.md:301` |
+| The task table's seam column for tasks 03 and 21 | `:164`, `:184` |
+| A "does not claim" line in each of the three merged parts, so an implementer reading only their part knows the amendment is coming | `task-03.md:759`, `task-09.md:1055`, `task-21.md:1038` |
+
+**Minor 3 — the b06 map miscounted itself.** "Six commits" → seven, with the seven hashes named;
+"the five call sites" → six, the sixth being `RevokeSession`, with round-2 anchors. Round 2 moved
+task 07's and task 09's line numbers, so the round-1 header now points here, and these are the
+corrected anchors for every row above that cites those two files:
+
+| Round-1 anchor | Now | What is there |
+|---|---|---|
+| `task-07.md:49` | `:49` | decision (j) |
+| `task-07.md:806`, `:820`, `:873` | `:811`, `:822`, `:875` | `SpendRecorder`, `Deps.Recorder`, `New`'s check |
+| `task-07.md:1237` | `:1239` | `deleteKeys` |
+| `task-07.md:191`, `:219`, `:98`, `:131` | `:193`, `:199`, `:100`, `:133` | `fakeRecorder` and the `fakeAdmin` log it shares |
+| `task-07.md:582`, `:604`, `:68` | `:584`, `:606`, `:70` | the two decision-(j) tests, and the count |
+| `task-09.md:894`, `:912` | `:937`, `:961` | `record`, `RecordKey` |
+| `task-09.md:5`, `:21`, `:404`, `task-08.md:1963` | unchanged | unmoved by round 2 |
+
+**Unverified after round 2.** Still no phase 6 code, so every count, mutant and hour is a plan
+figure: `19`, `14`/`21`, twenty-two and fourteen edits are what the parts now *claim*, and only a
+build proves them. `RESET_JOB_S`, whether the pinned image accepts `"1m"` or `"1mo"` as a
+`budget_duration`, and whether a repeat suppresses a reset are exactly what P15 and P16 ask and
+remain **UNVERIFIED** — the seam stays open until they run. `context.WithoutCancel` dropping the
+parent deadline is Go's documented behaviour, not measured here.
+
+**Plan quality after round 2: the four Importants and three Minors are closed at their root. No
+new owner question, no new control, nothing added to the owner's queue.**
