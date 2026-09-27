@@ -31,6 +31,7 @@ import (
 	"time"
 
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/deploy/connection"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/httpx"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/project"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/registry"
@@ -175,6 +176,17 @@ type Deps struct {
 	// named by NODE_EXTRA_CA_CERTS. "" mounts nothing and sets nothing. cmd/api
 	// has already refused a path that is missing or holds no certificate.
 	CABundle string
+
+	// DeployConnection is phase 7's Panacea credential and address, and the
+	// Deployer every deploy route calls through. It is NOT validated by New:
+	// nil disables every phase 7 route with 409 deploy_not_connected rather
+	// than failing the whole surface, so phase 2's wiring tests are unchanged
+	// and a cockpit with no Panacea still runs sessions.
+	//
+	// In the product it is never nil - cmd/api treats a connection.New failure
+	// as fatal at startup - so "Connect to Panacea first." never answers a
+	// user's own attempt to connect.
+	DeployConnection *connection.Manager
 }
 
 // GitIdentity is one person's commit identity: both fields, or neither.
@@ -339,6 +351,12 @@ func New(d Deps) (*API, error) {
 	a.registerCatalog(guarded)
 	a.registerSessions(guarded)
 	a.registerAttach(guarded)
+	// Phase 7's connection surface, registered whether or not Deps.
+	// DeployConnection is wired: the routes answer 409 deploy_not_connected
+	// when it is not, because a surface that disappears when unconfigured
+	// answers 404, and the cockpit reads a 404 as "this control plane is too
+	// old" rather than "this cockpit has no Panacea".
+	a.registerDeployConnection(guarded)
 	// Task 12 added a.registerAttach(guarded) on the line above. One line, taking
 	// *routes, and in the SAME step that defines the method it names: a call
 	// added ahead of its definition leaves this file uncompilable for every

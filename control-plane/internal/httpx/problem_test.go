@@ -64,6 +64,48 @@ func TestAllSixteenErrorCodesHaveTheirContractString(t *testing.T) {
 	}
 }
 
+// TestPhase7ErrorCodesHaveTheirContractString pins the codes phase 7's deploy
+// surface adds, for the reason the sixteen above are pinned: the desktop
+// switches on the string, so a typo here is a branch that never matches rather
+// than a compile error. It is a second test rather than eleven more rows in the
+// first, because that one's name states a count contract 3.2 fixed.
+func TestPhase7ErrorCodesHaveTheirContractString(t *testing.T) {
+	for code, want := range map[string]string{
+		CodeUpstreamUnavailable:         "upstream_unavailable",
+		CodeDeployNotConnected:          "deploy_not_connected",
+		CodeDeployTokenRejected:         "deploy_token_rejected",
+		CodeDeployForbidden:             "deploy_forbidden",
+		CodeDeployNotFound:              "deploy_not_found",
+		CodeDeployConflict:              "deploy_conflict",
+		CodeDeployRejected:              "deploy_rejected",
+		CodeDeployNotBound:              "deploy_not_bound",
+		CodeDeployEnvironmentInvalid:    "deploy_environment_invalid",
+		CodeDeployEnvironmentUnreadable: "deploy_environment_unreadable",
+		CodeDeployPrecondition:          "deploy_precondition",
+	} {
+		if code != want {
+			t.Errorf("code = %q, want %q", code, want)
+		}
+	}
+}
+
+// TestWriteProblemDetailsCarriesNumbersAndBools is the reason Details is
+// map[string]any: the desktop reads details.status === 0 to tell "Panacea never
+// answered, so your Ship may have started" from "nothing was sent". A status
+// spelled as a string never matches that, and no === would ever fail loudly.
+func TestWriteProblemDetailsCarriesNumbersAndBools(t *testing.T) {
+	rec := httptest.NewRecorder()
+	WriteProblemDetails(rec, http.StatusServiceUnavailable, CodeUpstreamUnavailable,
+		"Panacea did not answer, so the cockpit cannot tell whether it acted.",
+		map[string]any{"upstream": "panacea", "status": 0, "reserved": true})
+
+	want := `{"error":"upstream_unavailable","message":"Panacea did not answer, so the cockpit cannot tell whether it acted.",` +
+		`"details":{"reserved":true,"status":0,"upstream":"panacea"}}` + "\n"
+	if got := rec.Body.String(); got != want {
+		t.Errorf("body =\n\t%q\nwant\n\t%q", got, want)
+	}
+}
+
 func TestWriteProblemOmitsEmptyDetails(t *testing.T) {
 	// Contract 3.2: "details is omitted when empty." Not null, omitted: the
 	// desktop's model types it as optional and null would be a third state.

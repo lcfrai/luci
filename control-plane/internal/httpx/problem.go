@@ -30,7 +30,14 @@ type Problem struct {
 	// a file path outside the user's own projects, or a Go error chain.
 	Message string `json:"message"`
 	// Details carries structured context, e.g. {"id": "s-3f2a91c0"}.
-	Details map[string]string `json:"details,omitempty"`
+	//
+	// The value type is any and not string because phase 7 puts an upstream HTTP
+	// status in here and the desktop compares it with ===. A status spelled
+	// "503" never equals 503, and nothing about that failure is loud: the
+	// comparison simply never matches. WriteProblem still takes the
+	// map[string]string every earlier caller passes, so only a caller that needs
+	// a number reaches for WriteProblemDetails.
+	Details map[string]any `json:"details,omitempty"`
 }
 
 // The complete set of error codes: contract 3.2's fifteen, plus the
@@ -58,6 +65,25 @@ const (
 	CodeInternal           = "internal"             // 500 message is generic, detail goes to the log
 	CodeNonLoopbackPublish = "non_loopback_publish" // 500 sandbox port bound off loopback (task 12)
 	CodeBackendUnavailable = "backend_unavailable"  // 503 no Docker daemon, no kubeconfig
+
+	// Phase 7's deploy surface. They are deploy_* rather than reuses of the
+	// codes above because the cockpit's answer differs: "conflict" sends a user
+	// to look at their own session, while "deploy_conflict" is Panacea's refusal
+	// and carries Panacea's own sentence. upstream_unavailable is the one
+	// general code among them - a remote this process depends on could not be
+	// reached - and it names which remote in details.upstream, because the Hub
+	// and Panacea are both remotes and the two have different answers.
+	CodeUpstreamUnavailable         = "upstream_unavailable"          // 503 a remote the control plane depends on is unreachable; details.upstream
+	CodeDeployNotConnected          = "deploy_not_connected"          // 409 no Panacea address or token is stored
+	CodeDeployTokenRejected         = "deploy_token_rejected"         // 409 Panacea answered 401 to the stored token
+	CodeDeployForbidden             = "deploy_forbidden"              // 403 Panacea refused the act for this user
+	CodeDeployNotFound              = "deploy_not_found"              // 404 Panacea has no such project, run or deployment
+	CodeDeployConflict              = "deploy_conflict"               // 409 Panacea refused because of its current state
+	CodeDeployRejected              = "deploy_rejected"               // 422 Panacea refused the request, or the address is not Panacea
+	CodeDeployNotBound              = "deploy_not_bound"              // 409 the local project has no Panacea project (task 06)
+	CodeDeployEnvironmentInvalid    = "deploy_environment_invalid"    // 409 Panacea's environment for the branch breaks the Hub's 7.9 rule (task 09)
+	CodeDeployEnvironmentUnreadable = "deploy_environment_unreadable" // 409 Panacea did not name the branch's environment (task 09)
+	CodeDeployPrecondition          = "deploy_precondition"           // 409 Ship's local precondition failed; details.reason (task 09)
 )
 
 // internalBody is the one response this package can always send. It is a
@@ -89,8 +115,26 @@ func WriteJSON(w http.ResponseWriter, status int, v any) {
 	writeBytes(w, status, buf.Bytes())
 }
 
-// WriteProblem writes a Problem.
+// WriteProblem writes a Problem whose details are all strings, which is every
+// caller before phase 7.
+//
+// A nil or empty map is passed straight through as nil rather than copied into
+// an empty one: omitempty drops both, and the copy would allocate for nothing.
 func WriteProblem(w http.ResponseWriter, status int, code, msg string, details map[string]string) {
+	var d map[string]any
+	if len(details) > 0 {
+		d = make(map[string]any, len(details))
+		for k, v := range details {
+			d[k] = v
+		}
+	}
+	WriteJSON(w, status, Problem{Error: code, Message: msg, Details: d})
+}
+
+// WriteProblemDetails is WriteProblem for a caller whose details are not all
+// strings - phase 7's upstream status, which the desktop compares as a number,
+// and its "reserved" flag, which it compares as a bool.
+func WriteProblemDetails(w http.ResponseWriter, status int, code, msg string, details map[string]any) {
 	WriteJSON(w, status, Problem{Error: code, Message: msg, Details: details})
 }
 

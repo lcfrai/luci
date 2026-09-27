@@ -45,6 +45,8 @@ var catalogReadOnlyRoutes = map[string]string{
 		"destroys one, or touches the registry.",
 	"GET /v1/sessions/{id}": "One Store.Get. An exited session stays readable — the transcript is the " +
 		"artifact — and reading it changes nothing about the record or the sandbox.",
+	"GET /v1/deploy/connection": "Returns Manager.Status(), a cached struct; it performs no network " +
+		"call and writes nothing. The token is never in it.",
 }
 
 // catalogUpgradeGatedRoutes is the third category: a route that IS a GET, DOES
