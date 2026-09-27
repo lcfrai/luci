@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/deploy/panacea"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/httpx"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/registry"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/statepath"
@@ -61,6 +62,17 @@ const (
 	// proxy, without which Claude Code cannot reach its API from any sandbox on
 	// such a network. Unset mounts nothing and sets nothing.
 	envCABundle = "PANACEA_APP_CA_BUNDLE"
+
+	// Phase 7's three. envPanaceaURL LOCKS the address: set it and the connect
+	// form shows it read-only, because on a managed machine which Panacea the
+	// cockpit talks to is an administrator's decision and not a per-user one.
+	// envPanaceaCAFile is read by THIS process's HTTP client and is not mounted
+	// into any sandbox - that is envCABundle's job, and the two are separate
+	// because a network needs its proxy root in the sandbox whether or not
+	// Panacea is reached through it.
+	envPanaceaURL     = "PANACEA_APP_PANACEA_URL"
+	envPanaceaCAFile  = "PANACEA_APP_PANACEA_CA_FILE"
+	envPanaceaTimeout = "PANACEA_APP_PANACEA_TIMEOUT"
 
 	// envStateDir is statepath's own constant, not a second spelling of it.
 	// statepath.Dir reads this variable (contract §2.7) and this file reports
@@ -111,6 +123,13 @@ type Config struct {
 	// under, derived from StateDir beside the registry. Absolute always: it
 	// becomes a bind mount's host path.
 	ConversationsDir string
+	// DeployStateDir is where phase 7 keeps the Panacea address it was given,
+	// derived from StateDir beside the two above. It is derived HERE rather
+	// than by calling statepath.Dir at use time, because contract §4 keeps
+	// every environment read in this file: a second reader would answer a
+	// different directory the moment one of them was called before the
+	// variable was set.
+	DeployStateDir string
 	ProjectsDir      string // "" means no projects, and therefore no worktrees
 	AllowedOrigins   []string
 	IdleAfter        time.Duration // 0 disables idle derivation
@@ -133,6 +152,14 @@ type Config struct {
 	// CABundle is an absolute path to a file loadConfig has read and found to
 	// hold at least one PEM certificate, or "" for none.
 	CABundle string
+
+	// PanaceaURL is PANACEA_APP_PANACEA_URL after panacea.ParseOrigin, or "" to
+	// let the user choose the address. PanaceaCAFile is an absolute path to a
+	// PEM file with at least one certificate, or "". PanaceaTimeout bounds each
+	// attempt against Panacea; it defaults to panacea.DefaultTimeout.
+	PanaceaURL     string
+	PanaceaCAFile  string
+	PanaceaTimeout time.Duration
 
 	// Warnings are the complaints that must not stop the process. They are
 	// collected rather than printed because the logger does not exist yet —
@@ -278,9 +305,11 @@ func loadConfig(getenv func(string) string) (Config, error) {
 	if cfg.StateDir != "" {
 		cfg.SessionsPath = filepath.Join(cfg.StateDir, "sessions", "sessions.json")
 		cfg.ConversationsDir = filepath.Join(cfg.StateDir, "conversations")
+		cfg.DeployStateDir = filepath.Join(cfg.StateDir, "deploy")
 	} else {
 		cfg.SessionsPath = registry.DefaultPath()
 		cfg.ConversationsDir = statepath.Dir("conversations")
+		cfg.DeployStateDir = statepath.Dir("deploy")
 	}
 	// The registry is happy with a relative path and a bind mount is not: a
 	// relative PANACEA_APP_STATE_DIR would otherwise fail every session create
@@ -307,6 +336,26 @@ func loadConfig(getenv func(string) string) (Config, error) {
 		if err := validateCABundle(cfg.CABundle); err != nil {
 			return Config{}, err
 		}
+	}
+
+	// Phase 7. The address is parsed here rather than at the first connect so
+	// that a typo stops the process at startup, beside the variable that caused
+	// it, rather than answering a user's connect with a sentence about an
+	// administrator's setting.
+	if url := raw(envPanaceaURL); url != "" {
+		origin, err := panacea.ParseOrigin(url)
+		if err != nil {
+			return Config{}, fmt.Errorf("%s: %w", envPanaceaURL, err)
+		}
+		cfg.PanaceaURL = origin
+	}
+	if cfg.PanaceaCAFile = raw(envPanaceaCAFile); cfg.PanaceaCAFile != "" {
+		if err := validatePanaceaCAFile(cfg.PanaceaCAFile); err != nil {
+			return Config{}, err
+		}
+	}
+	if cfg.PanaceaTimeout, err = parseDuration(envPanaceaTimeout, raw(envPanaceaTimeout), panacea.DefaultTimeout); err != nil {
+		return Config{}, err
 	}
 
 	if err := validateAddr(&cfg); err != nil {
@@ -378,19 +427,58 @@ func validateCABundle(path string) error {
 	if err != nil {
 		return fmt.Errorf("%s=%q cannot be read: %w", envCABundle, path, err)
 	}
+	if hasPEMCertificate(data) {
+		return nil
+	}
+	return fmt.Errorf("%s=%q %w", envCABundle, path, errCABundleNoCertificate)
+}
+
+// hasPEMCertificate reports whether data holds at least one PEM block x509 can
+// parse as a certificate. It is one function rather than a loop in each
+// validator because the rule is the thing worth sharing: "any PEM block" would
+// accept a private key or a CSR, both of which are valid PEM and trust nothing.
+func hasPEMCertificate(data []byte) bool {
 	for rest := data; ; {
 		var block *pem.Block
 		if block, rest = pem.Decode(rest); block == nil {
-			break
+			return false
 		}
 		if block.Type != "CERTIFICATE" {
 			continue
 		}
 		if _, err := x509.ParseCertificate(block.Bytes); err == nil {
-			return nil
+			return true
 		}
 	}
-	return fmt.Errorf("%s=%q %w", envCABundle, path, errCABundleNoCertificate)
+}
+
+// validatePanaceaCAFile is the startup check on PANACEA_APP_PANACEA_CA_FILE. It
+// is the same rule as validateCABundle and DELIBERATELY not the same function:
+// the sentences differ because the files differ. That bundle is mounted into
+// every sandbox; this one is read by this process's own HTTP client, so "it is
+// mounted into every sandbox" would be untrue here and would send an operator
+// looking in the wrong place.
+func validatePanaceaCAFile(path string) error {
+	if !filepath.IsAbs(path) {
+		return fmt.Errorf("%s=%q is not an absolute path; the control plane reads it from whatever directory it was started in, so give the full path to the PEM file", envPanaceaCAFile, path)
+	}
+	info, err := os.Stat(path)
+	switch {
+	case errors.Is(err, fs.ErrNotExist):
+		return fmt.Errorf("%s=%q: no such file. Export the certificate chain your Panacea is served with as PEM to that path, or unset the variable", envPanaceaCAFile, path)
+	case err != nil:
+		return fmt.Errorf("%s=%q cannot be read: %w", envPanaceaCAFile, path, err)
+	case info.IsDir():
+		return fmt.Errorf("%s=%q is a directory; it must name one PEM file", envPanaceaCAFile, path)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("%s=%q cannot be read: %w", envPanaceaCAFile, path, err)
+	}
+	if !hasPEMCertificate(data) {
+		return fmt.Errorf("%s: no certificate in %s", envPanaceaCAFile, path)
+	}
+	return nil
 }
 
 // The four refusals of validateCABundle, each the rest of the sentence after

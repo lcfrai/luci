@@ -124,6 +124,18 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		log.Warn("no git identity", "err", err)
 	}
 
+	// Phase 7's Panacea connection. A failure here is FATAL and the listener
+	// never opens: every deploy route would otherwise answer "Connect to
+	// Panacea first." to a user who is trying to do exactly that, and no
+	// sentence in the cockpit could be acted on. connection.New fails only on a
+	// Config it cannot use - a state directory that cannot be made, an origin
+	// file that cannot be read for a reason other than not existing. A
+	// malformed origin file is not one of those: it is ignored and logged.
+	panaceaConn, err := newConnection(cfg, log)
+	if err != nil {
+		return fmt.Errorf("build the Panacea connection: %w", err)
+	}
+
 	// api.New returns (*API, error): it validates every dependency it cannot
 	// default and names the nil one, because a wiring mistake should stop the
 	// process here with a sentence rather than panic on the first request.
@@ -147,6 +159,7 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		GitLineEndings:   gitLineEndingsResolver(gitRunner),
 		GitGlobalFiles:   gitGlobalFilesResolver(gitRunner),
 		CABundle:         cfg.CABundle,
+		DeployConnection: panaceaConn,
 	})
 	if err != nil {
 		return fmt.Errorf("build the HTTP surface: %w", err)
@@ -168,6 +181,11 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- srv.Serve(ln) }()
+	// The first Check runs AFTER the listener is up and in a goroutine: it makes
+	// two requests to Panacea, and a cockpit must not wait on a VPN that is not
+	// up yet before it answers anything. Until it returns the status is
+	// "connected, unchecked", which is what a stored key means.
+	go panaceaConn.Check(ctx)
 	log.Info("control plane listening",
 		"addr", ln.Addr().String(),
 		"backend", be.Kind(),
