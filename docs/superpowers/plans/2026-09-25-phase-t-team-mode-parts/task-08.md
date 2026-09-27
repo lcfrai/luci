@@ -36,6 +36,10 @@ approximated.
 **Files:**
 - `control-plane/internal/hub/hubapi/teamquery.go` + `teamquery_test.go`: `TaskQuery`,
   `AgentQuery`, `ConflictQuery` (new; task 03 does not define them)
+- `control-plane/internal/hub/hubapi/principal.go`: `Principal{UserID, OrgID, ProjectID, Role,
+  OrgAdmin, Auditor, Compliance}`, route 88's answer, contract §7.28, and `Delegation`'s two
+  broker-only fields `OwnerTID`/`OwnerOID` (`json:",omitempty"`) — task 03 defines neither (new;
+  fix batch b02). It holds no name, no mail address and no free text: §7.28 rule 5
 - `control-plane/internal/hub/hubclient/hubclient.go`: `Team`, `OrgFeed`, `Hub` (modify)
 - `control-plane/internal/hub/hubclient/context.go`: `WithDelegation`, `WithIdempotencyKey`,
   `DelegationFrom`, `IdempotencyKeyFrom` (new)
@@ -57,11 +61,14 @@ approximated.
   same list tasks 06 and 07 consume, plus `TaskQuery`, `AgentQuery`, `ConflictQuery`); tasks 06 and
   07's handlers; task 04's `fleet_feed` flag and a project's `mode`; task 05's exempt route and
   Fleet principal; Hub task 26's `store.Changes`; Hub task 33's transport (`c.do`).
-- Produces: the interfaces below, complete; `hubclient.NewFake().AsFleet()`; the conformance
-  groups `GroupTeam` and `GroupTeamFeed`.
+- Produces: the interfaces below, complete; `hubclient.NewFake().AsFleet()` and
+  `.AsBroker()` (b02); `hubapi.Principal` and `Delegation`'s two broker-only fields (b02); the
+  conformance groups `GroupTeam` and `GroupTeamFeed`.
 - Required by: task 11 (every call it makes, `task-11.md:86`), task 12 (`/readyz` calls
-  `OrgChanges` with `after=latest`), tasks 20 to 31 (their tests use the fake), task 21 and
-  task 52 (the desktop's delegation, escalation-answer and human-message calls).
+  `OrgChanges` with `after=latest`, **and every Fleet route's `authorize` calls `Principal`** —
+  b02, S02-C2: without it task 12 does not build), tasks 20 to 31 (their tests use the fake),
+  task 21 and task 52 (the desktop's delegation, escalation-answer and human-message calls), and
+  phase 8's broker through `Delegation` with `OwnerTID`/`OwnerOID` (b02, S02-C5; `task-17.md:51`).
 
 #### The interfaces — complete
 
@@ -79,7 +86,10 @@ approximated.
 // subjectID is the record id in the path, or "" for a create whose path has none.
 type Team interface {
 	// Desktop: routes 46, 48, 49. Route 47 (Delegation) also Fleet, under the
-	// delegation it reads (delegations.read, task-06.md's route 47).
+	// delegation it reads (delegations.read, task-06.md's route 47), and also the
+	// broker as itself (app-only, Hub.DelegationReader, ADR-H1 §5.10 rule 9; fix
+	// batch b02, S02-C5). Only the broker's answer carries OwnerTID and OwnerOID;
+	// both are omitempty, so a member's and Fleet's answers are unchanged.
 	CreateDelegation(ctx context.Context, req hubapi.CreateDelegationRequest) (hubapi.Delegation, error)
 	Delegation(ctx context.Context, delegationID string) (hubapi.Delegation, error)
 	RenewDelegation(ctx context.Context, delegationID string) (hubapi.Delegation, error)
@@ -99,6 +109,16 @@ type Team interface {
 	AppendLeaseEvent(ctx context.Context, projectID, leaseID string, req hubapi.LeaseEventRequest) (hubapi.LeaseEvent, error)
 	CreateConflict(ctx context.Context, projectID, _ string, req hubapi.CreateConflictRequest) (hubapi.Conflict, error)
 	PatchConflict(ctx context.Context, projectID, conflictID string, req hubapi.PatchConflictRequest) (hubapi.Conflict, error)
+
+	// Fleet, with NO delegation: route 88, contract §7.28 (fix batch b02, S02-C2).
+	// The one Fleet read called before a delegation is in hand, and the only source
+	// of a caller's standing: every Fleet route's authorize() is built on it
+	// (task-12.md's Membership). orgID in the answer is the PROJECT's org, never
+	// the caller's, and the three flags are that org's; a caller who compares them
+	// with its own token has misread §7.28. Under WithDelegation it is 400.
+	// An unprovisioned (tid, oid) is principal_not_found; an unknown, another
+	// org's, or an unseeable project is route_not_found, the same answer.
+	Principal(ctx context.Context, tid, oid, projectID string) (hubapi.Principal, error)
 
 	// Reads: routes 52, 55, 59.
 	Tasks(ctx context.Context, projectID string, q hubapi.TaskQuery) (hubapi.Page[hubapi.Task], error)
@@ -308,8 +328,17 @@ var (
 	FakeAudrey = FakeUser{ID: "u-00000000000000a5", DisplayName: "Audrey Example", Email: "audrey@example.test", Auditor: true}
 )
 
+// FakeBroker is the sandbox broker's workload identity (fix batch b02, S02-C5).
+// Like Fleet it is never a user and never provisioned, but it names no delegation
+// and reaches route 47 alone: every other method answers 403 forbidden,
+// required "fleet" (ADR-H1 §5.10 rule 9).
+var FakeBroker = FakeUser{ID: "broker", DisplayName: "Broker"}
+
 // AsFleet returns a view acting as Fleet.
 func (f *Fake) AsFleet() *Fake { return &Fake{w: f.w, as: FakeFleet} }
+
+// AsBroker returns a view acting as the broker (b02).
+func (f *Fake) AsBroker() *Fake { return &Fake{w: f.w, as: FakeBroker} }
 
 // SetProjectMode is Team's route 87 on the fake, with the real route's rules
 // (fix batch b01, X-C1): Fleet's view → 403 forbidden, required "route"; not an
@@ -357,7 +386,9 @@ guarded by the existing `mu`.
 
 | Rule | Fake behaviour | Source |
 |---|---|---|
-| Fleet names a delegation | a Fleet view with no `WithDelegation` gets 401 `delegation_required` on every method but `OrgChanges`; with one on `OrgChanges`, 400 | task 01 §5.10 rule 2 |
+| Fleet names a delegation | a Fleet view with no `WithDelegation` gets 401 `delegation_required` on every method but `OrgChanges` and `Principal`; with one on either of those two, 400 | task 01 §5.10 rule 2, both exemptions (b02) |
+| the principal read is the project's | `Principal` answers the **project's** `orgId`, its role for that user, and the three flags as held in that org: a user with `Auditor` in another org gets three false flags and `role` `""` | contract §7.28 rules 1 to 3 (b02) |
+| the broker reads one route | a broker view reaches `Delegation` only, on any delegation of its org whatever its state, and gets `OwnerTID`/`OwnerOID`; every other method → 403 `required: "fleet"` | §5.10 rule 9 (b02) |
 | a live delegation | revoked → 401 `delegation_revoked`; past `expiresAt` → 401 `delegation_expired`; unknown → 401 `delegation_revoked`, `reason: unknown` | `task-01.md:118-124`, `:207-210` |
 | the route is listed | a method whose route name the delegation lacks → 403 `forbidden` | rule 2 |
 | a desktop never names one | a desktop view with `WithDelegation` → 403 `required: "fleet"` | rule 2 |
@@ -398,6 +429,13 @@ const (
 //	OrgID           string
 //	Fleet           hubclient.Hub     // Fleet's workload identity; its delegation comes from ctx
 //	Auditor         hubclient.Hub     // an org auditor in no team
+//	Broker          hubclient.Hub     // the sandbox broker (app-only, Hub.DelegationReader,
+//	                                  // §5.10 rule 9): route 47 and nothing else (b02, S02-C5)
+//	OtherOrgProjectID string          // a project of a SECOND org, and OtherOrgAuditor, a user
+//	OtherOrgAuditor func() hubclient.Hub // with Hub.Auditor there and nothing here. Without a
+//	                                  // second org the principal rows cannot be written at all:
+//	                                  // "the flags are the project's org" has no other witness
+//	                                  // (b02, S02-C2 and review S02-I6)
 //	RemoveMember    func(userID string) // Admin removing a member of T, as Teams.RemoveMember
 //	AppendEvent     func(projectID, kind string) // test-only: one audit event of kind on
 //	                                  // projectID, flags from the kind, no route (b01 r2, I-5).
@@ -450,6 +488,11 @@ drift silently (the real Hub has tasks 06 and 07's own tests).
 | `team/mode-is-the-admins-one-way` (b01) | on `SoloProjectID`: `Member.SetProjectMode` → 403 `required: "admin"`; `Fleet.SetProjectMode` → 403 `required: "route"`; `Admin`, `solo` → 400 `details.field = "mode"`; `Admin`, `team` → 200 `Mode == team`; again → 200, and one `project.mode_set` in `Admin.Changes`; then read back (b01 round 2, re-review I-1): `Member.Project(SoloProjectID).Mode == team` (route 15) and `Member.ProjectForRepo(SoloRepoKey)` → `ok`, `Mode == team` (route 13), and before the call both were `solo`, never `""` | the fake's route 87 skips the role or the one-way check; on the real Hub, the project-row reader of routes 13 and 15 not selecting `mode` (task 06) |
 | `team/mode-waits-for-the-audit-gate` (b01) | `ShutTeamModeGate()`; `Admin.SetProjectMode(SoloProjectID, team)` → 503, `details.reason = "audit_not_streaming"`; `CreateDelegation` on it → 409 `not_team_project` (skipped on the real Hub: its gate is start-up configuration; task 06's `TestProjectModeWaitsForTheAuditGate` covers it) | the fake writes the mode with the gate shut |
 | `team/delegation-needs-a-team-project` (b01) | `Member.CreateDelegation` on `SoloProjectID` → 409 `conflict`, `details.reason = "not_team_project"` | the fake delegates on any project, so no fake test needs route 87 |
+| `team/principal-org-is-the-projects` (b02) | `Fleet.Principal(Member.TID, Member.OID, ProjectID)` with no `WithDelegation` → 200, `OrgID == ProjectOrgID`, `Role == "member"`; the same for `Admin` → `Role == "admin"`; a provisioned user of the org who is on no team of `ProjectID` → 200, `Role == ""`, three false flags | the fake answers the **caller's** org, which is review S02-I6's hole: an org-A auditor then passes on an org-B project |
+| `team/principal-flags-are-the-projects-org` (b02) | a user with `Auditor` in org A, asked about a project of org B → `Auditor == false` and `Role == ""`; asked about a project of org A they may see → `Auditor == true` | the flag read off the user, not off the (user, org) pair |
+| `team/principal-needs-no-delegation` (b02) | `Fleet.Principal` under `WithDelegation` → 400; `Member.Principal` → 403 `required: "fleet"`; an unprovisioned `(tid, oid)` → 404 `principal_not_found`; a made-up `pj-…`, and a real one of another org → 404 `route_not_found` in both cases, the same code and the same details | the fake answers `principal_not_found` for an unknown project, which tells Fleet whether a project exists |
+| `team/broker-reads-any-delegation` (b02) | `Broker.Delegation(dl)` for Member's, Admin's, a revoked one and an expired one → 200 each, `OwnerTID`/`OwnerOID` set and equal to that owner's; `Member.Delegation(own)` and `Fleet.Delegation(own)` → 200 with both fields empty | the broker refused a revoked delegation, so task 20's cleanup cannot find the pods to delete; or the two fields served to Fleet |
+| `team/broker-reaches-one-route` (b02) | every other `Team` method on the broker view → 403 `forbidden`, `required: "fleet"`, `Broker.OrgChanges` included; `Broker.Delegation` of another **org's** delegation → 404 `route_not_found` | the broker admitted as a second Fleet, which would give a pod-level component the whole team API |
 | `team-feed/fleet-only-no-delegation` | `Fleet.OrgChanges` → 200; under `WithDelegation` → 400; `Member.OrgChanges` → 403 `fleet` | the delegation exemption applied to every route |
 | `team-feed/other-org-is-404` | `Fleet.OrgChanges` on a made-up `org-…` → 404 `route_not_found` | org taken from the path |
 | `team-feed/team-projects-only` (restated, b01 round 2, re-review I-5) | poll to `next`; a task in `ProjectID` through `Fleet.CreateTask`; then `AppendEvent(SoloProjectID, "task.created")`, because route 46 now refuses a delegation there so no route can write it; the next `Fleet.OrgChanges` holds the first `task.created` and not the second | the mode filter missing (the clause stays as defence in depth: a future `fleet_feed` kind on a solo project must not reach Fleet) |
@@ -581,15 +624,20 @@ git commit -F .superpowers/sdd/team/msg/t08.txt -- control-plane/internal/hub
 
 #### Acceptance
 
-1. Step 5's three commands pass as described; the conformance run lists 33 team rows (29, plus fix batch b01's four).
+1. Step 5's three commands pass as described; the conformance run lists 38 team rows (29, plus fix
+   batch b01's four, plus fix batch b02's five).
 2. `grep -c '^	[A-Z][A-Za-z]*(ctx' control-plane/internal/hub/hubclient/hubclient.go` rises by exactly
-   27 (26 `Team` methods and `OrgChanges`) over the merged Hub's count.
+   28 (27 `Team` methods — `Principal` is b02's — and `OrgChanges`) over the merged Hub's count.
 3. `var _ hubclient.Hub = (*hubclient.Fake)(nil)` and `var _ hubclient.Hub = (*hubclient.Client)(nil)`
    compile. `Client` is the built HTTP type (`client.go:17`, a stub until Hub task 33); neither
    assertion exists on `feat/hub` as read on 2026-09-25, so this task adds both to
    `hubclient_test.go`.
 4. `team-feed/revocation-within-one-poll` passes on both implementations: the scope's "a revoked
    delegation appears on the feed within one poll".
+5. (b02, S02-C2) `team/principal-org-is-the-projects` passes on both implementations, and
+   `Env` carries a `Broker` view and a second org whose project the conformance rows name — without
+   the second org, rows 2 and 5 cannot be written at all. `hubclient.Team.Principal` exists, so
+   task 12's `hubMembership` compiles against the real interface rather than a proposal.
 
 #### What this task does not claim
 
