@@ -63,10 +63,15 @@ exactly, so a later role added to `id-hub` fails the plan.
   `PANACEA_APP_HUB_TEAM_MODE_UNSTREAMED` survives only beside the `fake` sink: with `off` it no
   longer opens the gate, and `loadConfig` still refuses it outside `local` and `dev`.
   Every harness that turns a project team already sets **both**
-  `PANACEA_APP_HUB_TEAM_MODE_UNSTREAMED=true` and `PANACEA_APP_HUB_AUDIT_SINK=fake` (task 06's
-  `teamWorld`, task 08's real-Hub conformance `newEnv`, task 43's Z5 harness, task 33's cluster
-  Hub; fix batch b01 round 2, re-review I-4), so the swap leaves them green. This task's Step 5
-  proves it: after the swap it runs those three suites' `go test -tags integration` and they pass.
+  `PANACEA_APP_HUB_TEAM_MODE_UNSTREAMED=true` and `PANACEA_APP_HUB_AUDIT_SINK=fake`. The full
+  list, and it is closed — a seventh must add itself here: task 06's `teamWorld`, task 08's
+  real-Hub conformance `newEnv`, task 43's Z5 harness, task 33's cluster Hub, **task 44's leaver
+  world** (`task-44.md:310-321`) and **task 14's `TestFleetCannotRecordAPolicyVersion`**, which
+  reuses `teamWorld` (`task-14.md:707-715`); the last two are fix batch b01 round 3, re-review
+  I-A, the rest round 2's I-4. So the swap leaves them green. This task's Step 5 proves it: after
+  the swap it runs `go test -tags integration ./internal/hub/...`, which is every one of those Go
+  suites, and they pass. Task 33's cluster Hub is not a Go suite; its `05-team-mode.sh` sets the
+  same two variables (`task-33.md:79`).
 
 **Files:**
 - `control-plane/internal/hub/auditsink/record.go` + `record_test.go` — `EventRecord`,
@@ -667,8 +672,8 @@ Hub contract (`2026-09-23-hub-contract.md`):
 - [ ] **Step 4: Migration and store.** `00NN_audit_stream.sql`, `store/auditstream.go`. (20 min)
 - [ ] **Step 5: Loops.** `auditstream_integration_test.go` fails; `server/auditstream.go`,
   `config.go`, `serve.go`; it passes. Then the `teamModeGate` swap, and
-  `go test -tags integration ./internal/hub/... -count=1` (tasks 06, 08 and 43's suites, whose
-  harnesses set the flag beside sink `fake`) stays green (re-review I-4). (35 min)
+  `go test -tags integration ./internal/hub/... -count=1` (tasks 06, 08, 43, 44 and 14's suites,
+  whose harnesses set the flag beside sink `fake`) stays green (re-review I-4, I-A). (35 min)
 - [ ] **Step 6: The `anchor` check.** The five verify tests fail, then pass. (25 min)
 - [ ] **Step 7: Terraform.** `hubaudit.tf`, the outputs, `versions.tf`, the workloads entries, both
   tests; `terraform test` in both directories; `bash infra/scripts/role-allowlist.sh`. (20 min)
@@ -685,7 +690,7 @@ cd control-plane && go test -tags integration ./internal/hub/server/ -run 'TestE
 cd control-plane && go test -tags integration ./cmd/hub/ -run 'TestAnchor|TestAConsistent|TestARewrite|TestATruncated|TestAHubThat' -count=1 -v 2>&1 | grep -c '^--- PASS'
 # 5
 cd control-plane && go test -tags integration ./internal/hub/... -count=1 > /tmp/t45-hub.txt 2>&1; echo rc=$?
-# rc=0: tasks 06, 08 and 43's team harnesses still turn P team after the gate swap (b01, I-4)
+# rc=0: tasks 06, 08, 43, 44 and 14's team harnesses still turn P team after the swap (b01 I-4, I-A)
 cd infra/terraform/modules/observability && terraform init -backend=false >/dev/null && terraform test
 # Success! … passed, 0 failed.
 cd infra/terraform/stacks/workloads && terraform init -backend=false >/dev/null && terraform test

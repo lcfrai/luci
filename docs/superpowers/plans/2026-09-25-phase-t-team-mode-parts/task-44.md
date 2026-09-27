@@ -307,6 +307,19 @@ with team project P and solo project S. The Hub tests run on Hub task 06's integ
 (`-tags integration`, a real Postgres); the Fleet unit tests on task 10's fake store; the chain test
 on both.
 
+**P becomes a team project the way every other suite makes one: Grace calls route 87**
+(`POST /v1/projects/{p}/mode`, task 06's, fix batch b01 X-C1) in the setup — never by SQL. Since
+b01, route 46 answers 409 `conflict` `not_team_project` on a solo project
+(`task-06.md:134-138`), so the delegations these tests open with cannot exist until P is `team`.
+Route 87 is behind the audit gate, so this harness is started with
+`PANACEA_APP_HUB_TEAM_MODE_UNSTREAMED=true` **and** `PANACEA_APP_HUB_AUDIT_SINK=fake`, with
+`PANACEA_APP_HUB_ENV=local` — task 06's `teamWorld` rule (`task-06.md:552-558`,
+`task-45.md:65-69`), so that task 45's gate swap leaves this suite green. S stays `solo`: no row
+below puts a delegation on it (route 46 would refuse), and it is the contrast that proves removal
+touches team projects only — the out-of-scope rule at the end of this part. The second team, U,
+whose project `TestRemovalRevokesOnlyThatTeamsProjects` uses, needs route 87 as well. Reuse task
+06's `teamWorld` where the people line up rather than building a second world.
+
 **Hub, `server/leaver_integration_test.go`:**
 
 | Test | Asserts | Mutant it kills |
