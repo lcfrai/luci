@@ -7,12 +7,59 @@ It is the fastest correct path back. Last time, rebuilding state from transcript
 
 ```
 cd C:\Users\au-dev-dmackie1\Projects\PanaceaApp
-claude --resume 2ce0c1a9-63c3-42f2-bf4e-e6ba45d14fab
+claude --resume 56a311e8-629e-4437-9e39-3cb2f503917f
 ```
+
+(The session before it was `2ce0c1a9-63c3-42f2-bf4e-e6ba45d14fab`, which ended at about 18:10 on
+2026-09-27. A fresh session **cannot** `resumeFromRunId` another session's run, so every run id
+below from that session is dead; section 0b names the live one.)
 
 Then type: **Continue — read docs/superpowers/RESUME.md**.
 (If that session id will not resume, run `claude --continue` in the same folder, or start a fresh
 `claude` there and say the same thing. Step 3 covers the fresh-session case.)
+
+## 0b. CURRENT at 2026-09-27 21:00 — one run, phase 2 close-out continuation
+
+Everything else is still PAUSED by OD-31 until phase 2 is in the owner's hands.
+
+| Run | scriptPath | args | What it does |
+|---|---|---|---|
+| `wf_a990237b-582` (task `wozma9i5q`) | the session's `workflows/scripts/phase2-closeout-continuation-wf_a990237b-582.js` | none | three file-disjoint chains in the main tree, then a gate |
+
+Its chains, all on `feat/phase-2-cockpit` in the main tree, partitioned by file so they do not
+collide (the partition is in the script's COMMON, rule 5):
+- **Harness** — task 25 fix round 1 (review `task-25-review.md`: 0 C, 2 I, 8 M) then review-2;
+  then task 26's residual I1 + m1–m5 (`task-26-review-3.md`, left OPEN after 3 rounds) then
+  review-4. Owns `desktop/**` except `src/api/client.ts`, `docs/verification/**`, `docs/SEAMS.md`,
+  task-25.md and task-26.md.
+- **HostGit** — F2 + F4, then security X-3. Owns `control-plane/internal/project/**`.
+- **Lifecycle** — F1 + F3. Owns `control-plane/internal/api/**`, `internal/reaper/**`,
+  `sandboxd/**`, `desktop/src/api/client.ts`.
+- **Gate** — after all three: the full Go suite, the desktop suite, typecheck, and a host-load
+  sample, one at a time, nothing else running. Writes `SDD/closeout-gate.md` and rules on whether
+  step 19 can be attempted.
+
+**What is left after it**, in order:
+1. **Step 19**, task 25's end-to-end run: once, on a quiet host, with Docker, a real control
+   plane, Vite and the native window. It takes the machine over (a headed browser and a Tauri
+   window), so it wants the owner not using it. The recipe is
+   `docs/verification/2026-09-27-phase-2-results.md` § *Reproducing this*.
+2. The results document rewritten from that run, then task 25's final review.
+3. The **final whole-branch review** (the close-out script's last agent, never reached).
+4. Create `main`, merge phase 2, then sync each stream branch from it.
+5. Then restart at most 4 streams, per OD-31 (section 3c-00).
+
+**State of the day's work, 2026-09-27.** Task 26: 3 rounds, left OPEN (0 C, 1 I, 5 M). Task 25:
+implemented, its end-to-end run stopped at its first check (`setup`) on a host saturated by the
+other streams, and its review is 0 C, 2 I, 8 M. Four product defects F1–F4 are recorded in the
+results document with owners and were **not** fixed that day; the run above fixes them. The
+18 NOT RUN checks are still the bulk of what phase 2 has not proven.
+
+**Damage check done at 20:50, 2026-09-27:** Docker Desktop down, nothing listening on 8810–8815,
+no orphan `go`/`api`/`node`/`python`, no task `.output` over 500 MB, C: 30 GB free. The Docker
+lock in the old session's scratchpad was **stale and is released** — the first holder's stack
+(PIDs 33984/34692, containers `s-6a855488`, `s-f44823fb`, `s-e19633bd`) no longer exists, so the
+three records it asks someone to DELETE cannot be deleted and need not be.
 
 ## 1. What was running at shutdown (7 workflows)
 
