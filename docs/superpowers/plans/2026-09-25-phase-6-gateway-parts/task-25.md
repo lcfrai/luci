@@ -152,7 +152,7 @@ In the commit body and in the plan's "Owner questions", one entry: **Stale lines
 **What this task does not claim:**
 
 - **That any ask has been accepted.** H-1 to H-5, P8-1 to P8-8, P7-1 and P4-1 are requests. Each phase that owns one decides.
-- **That any seam is closed.** S6.1 to S6.11 stay open; this task lists them.
+- **That any seam is closed.** S6.1 to S6.12 stay open; this task lists them. S6.12, the two budget clocks, is fix batch b06's (review M-7): it closes on task 18's P15 and P16, inside this phase, not on another team.
 - **That the cloud path works.** The programme text says the cloud proofs have not run, and the new open risk says what they must show.
 - **That the unverified register is complete.** It is complete for what the parts wrote down. A claim nobody marked cannot be harvested by a grep.
 

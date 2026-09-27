@@ -36,7 +36,7 @@ A sandbox's only credential is a one-hour LiteLLM virtual key that keysmith mint
 
 **(f) `KeyID` is `wire.HashToken(token)`.** It is what keysmith passes to `DeleteKeys` and what task 09 passes to `KeyInfo`, so keysmith never stores a raw token. That LiteLLM names a key by the hex SHA-256 of its value, and accepts that name on `/key/delete` and `/key/info`, is training knowledge, **UNVERIFIED** until task 18's P11 and P12.
 
-**(g) LiteLLM user and team budgets use `budget_duration: "30d"`**, the value Panacea runs in its pinned LiteLLM (`services/panacea-api/handlers/llm_env_keys.go:270`, verified 2026-09-25). Task 06 already records that LiteLLM's window is independent of our UTC month.
+**(g) LiteLLM user and team budgets use `budget_duration: "30d"`**, the value Panacea runs in its pinned LiteLLM (`services/panacea-api/handlers/llm_env_keys.go:270`, verified 2026-09-25). Task 06 already records that LiteLLM's window is independent of our UTC month. **That is two clocks on one sum, and this constant is provisional** (review M-7, seam S6.12). Task 18's **P16** asks whether the pinned image accepts a calendar-month duration; a PASS makes that the value here and there is one clock. Task 18's **P15** asks what `ensure` does to the window: this service re-sends the same figure every `EnsureMemo` (10 minutes), and if `/user/update` moves `budget_reset_at`, LiteLLM's window never elapses, its `spend` never returns to zero, and a person refused once is refused for good while the cockpit reads US$0.00. If P15 fails, `memoKey` gains the period (`budget.PeriodStart(now)`) so the ensure happens once per person per month, not once per ten minutes — a one-field change kept here rather than in a gap, because the failure it prevents is silent.
 
 **(h) A raise retires every Global-minted key within one refresh's grace** (review C-1). Decision (d) narrows an AU-minted key to `au/*`, but a key minted while its project was Global names every `global/*` group. Until now it kept them until its scheduled refresh, up to about 50 minutes after a raise. A body fallback that got past task 11, or a gatekeeper bug, could then take an AU project's request out of Australia on that key.
 
@@ -780,7 +780,9 @@ import (
 )
 
 // BudgetDuration is LiteLLM's reset window for the user and team budgets
-// keysmith ensures: the value Panacea runs (decision (g)).
+// keysmith ensures: the value Panacea runs (decision (g)). It is NOT our UTC
+// calendar month, so two clocks bound one sum until task 18's P16 says the
+// pinned image accepts a monthly one (seam S6.12, review M-7).
 const BudgetDuration = "30d"
 
 // EnsureMemo is how long a successful EnsureUser or EnsureTeam is remembered.
