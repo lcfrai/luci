@@ -284,3 +284,54 @@ Line numbers are as of commit `e254c44`. Commits: `780663c` (B04-1), `e254c44` (
 - Skeleton said a missing master key "exits 1". It now says `2`, phase 2's status for a configuration refusal (`:235`). Task 08's decision (a) (`:56`) and gap 2 (`:2128`) say the conflict is resolved.
 - `task-19.md:35` uses task 17's image paths without depending on 17. Left as is: it uses names only, no digests, and 19 and 17 now share wave 7, so it does not block scheduling.
 - Still unverified: no phase 6 code exists, so every test and mutant count is a plan figure.
+
+## Fix batch b05 (I-9, I-3, I-2), 2026-09-26
+
+Commits `ef8ea2af` (skeleton), `f800c98a` (the four parts, written before the agent was killed and judged coherent before committing), `d52229db` (restatement), `9719998d` (id collision and the Hub `GET`).
+
+**I-9 — no cloud path for the cockpit's spend figures.** Fixed at its root: the phase now names who reads usage in the cloud, and grants it nowhere until that reader exists.
+
+| Change | Where |
+|---|---|
+| Seam **S6.11**, the cloud usage read. Built option: the **Hub pulls** keysmith's `GET /v1/usage` as a `kube` caller holding `usage` only. Rejected in writing: keysmith pushing into the Hub, and the broker relaying | `2026-09-25-phase-6-gateway.md:299` |
+| Ask **H-5**, `GET /v1/projects/{projectId}/inference` at the Hub, role `V`, task 21's `inferenceJSON` field for field, person = the caller, team = the record's | `2026-09-25-phase-6-gateway.md:307` |
+| Ask **P8-6**, the Hub's pods reach keysmith and its projected token gets audience `keysmith` | `2026-09-25-phase-6-gateway.md:316` |
+| Task 08 gap 3 resolved: the built-in `kube` table gains `hub … usage` **when H-5 is built, not before** | `task-08.md:2129` |
+| Task 21's opening names H-5 for the cloud `GET`; gap 5's cloud half resolved to S6.11; a new "does not claim" for a Hub project's spend | `task-21.md:3`, `:1052`, `:1039` |
+| Task 22's cloud paragraph splits the Hub `GET` (H-5) from the Hub `PATCH` (H-1) | `task-22.md:708` |
+
+**I-3 — ask H-1 asks a member to raise through an admin route.** Fixed: H-1 now asks for a **new member-role route**, not a field-level exception on route 16.
+
+| Change | Where |
+|---|---|
+| H-1 rewritten: route 16 is role `A` (`hub-contract.md:578`, re-verified), so the ask is `PATCH /v1/projects/{projectId}/inference`, role `M`, with task 21's body and refusals; route 16 refuses both fields, so there is one writer. Reason recorded: one role check, and one path the desktop calls in both modes | `2026-09-25-phase-6-gateway.md:303` |
+| Task 25's "does not claim" counts H-1 to **H-5** and S6.1 to **S6.11** | `task-25.md:154` |
+
+**I-2 — the ratchet is universal; the source design keeps a solo project's choice.** The review offered either the design's rule or an owner question. Both: the design's rule is **built behind a seam**, and Q5 asks whether it stands.
+
+| Change | Where |
+|---|---|
+| Owner question **Q5**, with the built option, the rejected one, and the exact one-line change if the owner chooses the universal ratchet | `2026-09-25-phase-6-gateway.md:329` |
+| Task 01 decision (e): `Actor.Solo`, checked **after** the floor, `ErrNotMember` without `Member`, ignored by `CanReclassify` | `task-01.md:21`, type at `:36` and `:580`, rule at `:614` |
+| Three new `CanChange` cases and three new `CanReclassify` cases, with the fixture `solo` | `task-01.md:199-203`, `:239-242`, `:63` |
+| Four new mutant rows, one per way `Solo` can be got wrong | `task-01.md:747-752` |
+| Task 21 decision (j): `const localProjectsAreSolo = true`, the actor becomes `localActor`, `PATCH` accepts `"global"` | `task-21.md:52`, `:591`, `:597`, `:21` |
+| `TestInferenceASoloRouteLoweringToTheFloorIsStored` replaces the old refusal test; the class test keeps the file-not-rewritten assertion; step 10 kills **five** mutants | `task-21.md:240`, `:1006`, `:1014` |
+| Task 23 step 6 observes the class loosening refused **and then** the solo route lowering accepted, in that order, and the verdict table follows | `task-23.md:114`, `:117`, `:276` |
+
+**Restatement (section 3D) — every fact the four parts changed, changed wherever else it appeared.**
+
+| Fact that moved | Restated at |
+|---|---|
+| "The server refuses every lowering" — task 22 asserted it three times and showed a confirmation reading *"Moving it back needs your organisation's compliance role"*, untrue for a solo project. The panel stays raise-only as **its own** rule while Q5 is open; the sentence becomes *"Nothing on this panel moves it back"*, true either way | `task-22.md:3`, `:30`, `:102`, `:104`, `:212`, `:222`, `:498` |
+| The desktop cannot tell a project it may lower from one it may not: new task 22 gap 5, naming the `canLowerRoute` field and the *Move back to Global* action that wait on Q5 | `task-22.md:718`, recorded in task 25 at `:94` |
+| `needs_compliance` is no longer "a lowering by a non-compliance actor" | `task-03.md:601` |
+| Task 21's commit message said "raise-only" and "decisions (a) to (i)" | `task-21.md:1027` |
+| PROGRAM.md's phase 6 paragraph said lowering always needs compliance | `task-25.md:45` |
+| The skeleton's task 22 summary said the confirmation names the compliance role | `2026-09-25-phase-6-gateway.md:273` |
+| **Id collision the skeleton half caused:** the skeleton took `P8-6` and `Q5`, both already proposed by task 25's step 5 for other things. Task 25's own rule ("if another part has already used any of those ids, renumber here") applied: `P8-7`, `P8-8`, `Q6` to `Q9` | `task-25.md:87-88`, `:90-93`, `:164` |
+| Incidental, found by the same grep: the skeleton's task 21 summary omitted `usageState`, which task 21 decision (d) and task 22 both carry | `2026-09-25-phase-6-gateway.md:271` |
+
+**Declared, since the inputs do not cover it.** The panel does not gain a lowering control in this batch. I-2 is a finding about task 01's authorisation rule; drawing a new control would settle Q5 before the owner does, and a UI's look and copy are the owner's (OD-12). The API path is proven instead, by `curl`, in task 23 step 6.
+
+**Still unverified after b05:** every citation in this batch was checked in this tree (`05-design.md:151`, `:219`; `hub-contract.md:578` was re-read in the Hub worktree on 2026-09-25 and not re-read today). No phase 6 code exists, so all test and mutant counts remain plan figures.
