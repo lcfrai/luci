@@ -87,6 +87,7 @@ Read every part's "Gaps against the skeleton" section (`grep -n '^\*\*Gaps again
 | Phase 8's proving list should carry P02 and P03 | task 24 gap 1 | **new ask P8-7** | "Task 32 runs phase 6's P02 and P03 in the same human-path session as S50" |
 | P03 writes a temporary smoke-only egress policy in `panacea-sandboxes` | task 24 gap 2 | **new ask P8-8** | "Phase 8 accepts it, or supplies its own probe path" |
 | Chart labels the scripts assume | task 24 gap 3 | follow-up inside phase 6 | task 19 |
+| P06b proves ZDR on an **unreachable** upstream; an upstream that answers an error **with a body** is a second failure path, and this stack can make none | review M-6, task 18 "does not claim" | follow-up inside phase 6 | task 16: a `-fail-with <status>` flag whose message is fixed text, so the fake still echoes no input; then task 18 re-runs P06b through it and searches for that fixed text as well as the canary |
 | Whether local projects get a class picker in the cockpit | task 22 gap 2 | **new owner question Q6** | until then, classification is by `curl` or phase 4's create flow (P4-1) |
 | Whether the CLI should see `budget_exhausted` rather than LiteLLM's own budget error | task 23 gap 1 | **new owner question Q7** | a second proxy edit if yes |
 | Whether "Budget reached" should name the dimension's real reach (a person's or team's budget stops every project) | task 22 gap 4 | **new owner question Q8** | wording only |
@@ -105,7 +106,7 @@ Append to the plan, after "Open risks", a section `## At close: what stays unver
 
 | # | Unverified | Where it is assumed | Settled by |
 |---|---|---|---|
-| U1 | The pinned LiteLLM version, and that it honours every rendered config key (`store_prompts_in_spend_logs`, `turn_off_message_logging`, `drop_params`) | tasks 02, 17 | task 18's record, P06 and P10 |
+| U1 | The pinned LiteLLM version, and that it honours every rendered config key (`store_prompts_in_spend_logs`, `turn_off_message_logging`, `drop_params`) | tasks 02, 17 | task 18's record, P06, **P06b** (the same keys on the failure path, review M-6) and P10 |
 | U2 | A caller-chosen `key` on `/key/generate`; `duration` expiry; user, team and key budgets; `/key/delete` at once; `/key/info` spend | tasks 04, 07, 09 | task 18's P01 to P05, P11, P12 |
 | U3 | Which of LiteLLM's features are enterprise-only in the pinned image | tasks 06, 08b, 09 | task 18's record |
 | U4 | Every concrete Bedrock `au.` inference-profile id, and that the profiles span only Sydney and Melbourne | tasks 02, 20 | listing the account's profiles at the first cloud run (task 24 gap 6) |

@@ -2,15 +2,15 @@
 
 **Measure what the pinned LiteLLM actually does, before anything in the cloud depends on it.** Tasks 02, 04, 07, 09 and 11 each rest on a LiteLLM behaviour that this plan knows only from LiteLLM's documentation as remembered, or from Panacea's incident record: that a caller may choose a virtual key's value, that `duration` expires a key, that user, team and key budgets bite, that no prompt text is stored, which path a given `api_base` produces, whether a body or header can re-attribute spend, whether SSE is relayed unbuffered. Open risk 3 names this. This task writes one script, `probe.sh`, that asks the running local stack (task 17) each question and prints `PASS`, `FAIL` or `UNKNOWN` with its evidence, and one results document that records the answers **against the pinned image digest**. A new digest means a new run.
 
-**A FAIL is a finding, not a broken build.** Each probe names the decision it tests and that decision's fallback, so a FAIL routes straight to the part that changes. Three FAILs stop the phase and go to the owner, and the script exits 3 on each: **P06** (prompt or response text stored by LiteLLM), which breaks OD-19's zero data retention on our side; **P13** (the Global path loses what the CLI sends), which breaks OD-20; and **P14** (a body fallback on an `au/` group reaches the Global upstream), which breaks OD-19's AU route (review C-1).
+**A FAIL is a finding, not a broken build.** Each probe names the decision it tests and that decision's fallback, so a FAIL routes straight to the part that changes. Four FAILs stop the phase and go to the owner, and the script exits 3 on each: **P06** and **P06b** (prompt or response text stored by LiteLLM — on the success path and on the upstream-failure path respectively, review M-6), which break OD-19's zero data retention on our side; **P13** (the Global path loses what the CLI sends), which breaks OD-20; and **P14** (a body fallback on an `au/` group reaches the Global upstream), which breaks OD-19's AU route (review C-1).
 
 **Where the probes run.** LiteLLM publishes no port (task 17, P6-D1), and that stays true for the probe. The client half runs **inside the LiteLLM container**, with `docker compose exec -T litellm python3 -`: the image already carries Python (task 17's step 5 checks), so no probe image is pulled, and the master key is read from `/run/secrets/master_key` in that container, never passed on a command line. The database half runs `pg_dump` and `psql` inside the Postgres container. P07, P10 and P13 need LiteLLM configs the stack does not run, so the script starts a **throwaway LiteLLM** from the same digest, `gw-probe-litellm` on `:4011`, with no database and a throwaway master key, loaded by `docker cp` (a bind mount of a Git Bash temp path is unreliable on Docker Desktop for Windows), and removes it on exit.
 
-**Evidence never includes a key or a body.** The client redacts every `sk-…` string and truncates every error to 160 characters; it prints statuses, counts, timings, field names and the fake's `/_captured` path and key lists (task 16), which hold no value. The canary for P06 is a fresh random string per run.
+**Evidence never includes a key or a body.** The client redacts every `sk-…` string and truncates every error to 160 characters; it prints statuses, counts, timings, field names and the fake's `/_captured` path and key lists (task 16), which hold no value. The canary for P06 is a fresh random string per run, and P06b takes a second, different one, so neither probe can read the other’s hit.
 
 **Pricing is a precondition, not a probe.** P03 to P05 and P12 need LiteLLM to put a non-zero cost on a call to the fake. LiteLLM prices from its own model-cost table by model name (training knowledge, **UNVERIFIED**), and task 16's fake echoes the requested id. If the pinned table does not know the public id, spend stays `0`, budgets can never bite, and those probes report **UNKNOWN (unpriced)** rather than a false PASS. Task 02 now renders an explicit per-token price into every group's `model_info` on every target (its decision (f), review I-5), so an unpriced result here means the pinned LiteLLM does not read those `model_info` keys: record which keys it does read, and task 02 moves the prices (its "does not claim" list). The script checks spend before it judges any budget. The operator also writes into the evidence file whether the `/model/info` answer the fake-mode gate reads shows every group's `model_info.input_cost_per_token` and `output_cost_per_token` above zero: that is the shape task 04's `ModelPrices` and task 09's price check assume (**UNVERIFIED** until then).
 
-**Probes, and what each FAIL changes.** P01 to P12 are the skeleton's; **P13 is added here**, because OD-20's "the cloud tracks the latest CLI" depends on it and no other probe covers it. **P14 is added by review C-1**: task 11 drops LiteLLM's body control fields (`proxy.ControlFields`), and P14 asks whether LiteLLM itself would keep an AU request in Australia if one got through. **P15 and P16 are added by review M-7**, the two budget clocks: keysmith sums a UTC calendar month while LiteLLM's own budgets run `"30d"` from creation, and nothing in the plan asked whether that window can be made the calendar's (P16) or whether keysmith's own ten-minute re-ensure keeps pushing it away (P15). Neither is a blocker: each names the part that changes.
+**Probes, and what each FAIL changes.** P01 to P12 are the skeleton's; **P13 is added here**, because OD-20's "the cloud tracks the latest CLI" depends on it and no other probe covers it. **P14 is added by review C-1**: task 11 drops LiteLLM's body control fields (`proxy.ControlFields`), and P14 asks whether LiteLLM itself would keep an AU request in Australia if one got through. **P15 and P16 are added by review M-7**, the two budget clocks: keysmith sums a UTC calendar month while LiteLLM's own budgets run `"30d"` from creation, and nothing in the plan asked whether that window can be made the calendar's (P16) or whether keysmith's own ten-minute re-ensure keeps pushing it away (P15). Neither is a blocker: each names the part that changes. **P06b is added by review M-6**: P06 proved ZDR on the **success** path only, and LiteLLM's own failure logging — the exception it prints, and any error row it writes — is the likelier leak, because an exception handler is where a library reaches for the request that caused it. P06b is the same search after a call LiteLLM could not complete, and it is a blocker on the same terms as P06.
 
 **Every budget probe mints the production key shape** (review I-8). keysmith always mints a key with `user_id` **and** `team_id` and a `max_budget` slice (task 07, `mint`). A probe key missing either would ask a question production never asks: LiteLLM may apply a user's budget only to that user's personal keys (training knowledge, **UNVERIFIED**). So P03 to P05 each mint `user_id` + `team_id` + `max_budget` + `models`, and exhaust **one dimension at a time**. The dimension under test is at 1e-9 and the other two are at US$1,000, which one probe call cannot reach. So a budget refusal can only come from the dimension under test.
 
@@ -22,6 +22,7 @@
 | **P04** | Does a team `max_budget` bite on a key that also belongs to a user? | as P03, with the team at 1e-9 and the user at US$1,000 | P6-D8's project dimension moves to keysmith |
 | **P05** | Does a key `max_budget` bite on a key with a user and a team? | as P03, with the key at 1e-9 and the user and team at US$1,000 | P6-D8's per-key slice becomes advisory; tasks 06 and 09 state a larger overrun bound |
 | **P06** | Is prompt or response text stored? | after a canary call, the canary and the fake's reply text appear **nowhere** in a full `pg_dump` of the gateway database and in no line of LiteLLM's stdout, **and** the call's spend row exists | **blocker for OD-19**, raised to the owner; task 02's ZDR keys are wrong for this image |
+| **P06b** | Is prompt text stored when the upstream call **fails**? (review M-6) | with `fakeanthropic-global` stopped, a second fresh canary call returns a non-2xx **from LiteLLM** (a status of 0 is UNKNOWN: LiteLLM itself was not reached, so nothing was handled), and that canary appears **nowhere** in a full `pg_dump` of the gateway database and in no line of LiteLLM's stdout | **blocker for OD-19**, on P06's terms and raised to the owner with it: LiteLLM's exception path keeps the prompt, so task 02's ZDR keys do not cover failures, and nothing in this phase can make the gateway forget a body it has already written |
 | **P07** | Which path reaches the upstream for each `api_base` form? | exactly the form whose recorded path is `/v1/messages` is named; both is also a PASS | task 02's `apiBaseForm`; `host` needs this result as its `apiBaseEvidence` (`…-litellm-probe.md#p07`) |
 | **P08** | Can a body `metadata.tags` or an `x-litellm-tags` header change attribution? | neither spoofed tag appears on the spend row, and its user and team are the key's | task 11 also drops `metadata.tags` from the body (the header is already dropped) |
 | **P09** | Are SSE pings relayed unbuffered? | at least one `ping` arrives, and the first arrives ≥ 1.5 s before `message_stop` | the gatekeeper cannot fix LiteLLM's buffering; raised as open risk, with long-think sessions at risk of the CLI's 300 s abort |
@@ -40,7 +41,7 @@
 **Interfaces:**
 - Produces:
   - `bash deploy/local/gateway/probe.sh --self-test` → `PASS: probe self-test (<n> cases)`, no Docker needed
-  - `bash deploy/local/gateway/probe.sh` → one line per probe, `P<nn> PASS|FAIL|UNKNOWN <evidence>`, in id order, plus a header line `digest <repo@sha256:…>`; exit 0 unless P06, P13 or P14 is `FAIL` (exit 3), or the stack is not up or not in task 17's fake mode (exit 2, checked through `/model/info` before any probe runs)
+  - `bash deploy/local/gateway/probe.sh` → one line per probe, `P<nn> PASS|FAIL|UNKNOWN <evidence>`, in id order, plus a header line `digest <repo@sha256:…>`; exit 0 unless P06, P06b, P13 or P14 is `FAIL` (exit 3), or the stack is not up or not in task 17's fake mode (exit 2, checked through `/model/info` before any probe runs)
   - the results document, whose `#p07` anchor task 02's loader accepts as `apiBaseEvidence` (task 02, `models.yaml`'s `litellm.apiBaseForm`)
 - Consumes: task 17's running stack (`docker compose` in `deploy/local/gateway`, the secrets, the internal network `panacea-app-gateway-backend`, where LiteLLM, Postgres and the fakes live and no sandbox is (task 17, review I-6), services `litellm`, `postgres`, `fakeanthropic-global`, and `fakeanthropic-au` for P14, `task-17.md:47`); task 16's `GET /_captured` record fields `seq`, `path`, `headerNames`, `bodyKeys`; task 02's rendered group names `global/claude-opus-4-8` (the public id the docs use as their example) and `au/claude-opus-4-8` (`task-02.md:103`); task 11's `proxy.ControlFields`, of which P14 sends two.
 - Consumed by: task 02 (`apiBaseForm`, pricing), task 07 (P01, P02, P11, P14, P15, P16), task 09 (P12), task 11 (P08, P14), task 06 (P03 to P05, P15, P16), task 22 (P16, the reset date it prints), task 23 (the digest it runs against), task 25 (what stays **UNVERIFIED**).
@@ -83,6 +84,12 @@ def self_test():
         ("p06 prompt stored", v_p06(1, 2, 0, 0)[0], "FAIL"),
         ("p06 reply stored", v_p06(1, 0, 1, 0)[0], "FAIL"),
         ("p06 stdout", v_p06(1, 0, 0, 1)[0], "FAIL"),
+        # P06b: a 2xx or a 0 means the failure path never ran (kills a vacuous PASS).
+        ("p06b clean", v_p06b(500, 0, 0)[0], "PASS"),
+        ("p06b no failure", v_p06b(200, 0, 0)[0], "UNKNOWN"),
+        ("p06b unreached", v_p06b(0, 0, 0)[0], "UNKNOWN"),
+        ("p06b prompt stored", v_p06b(500, 1, 0)[0], "FAIL"),
+        ("p06b stdout", v_p06b(503, 0, 3)[0], "FAIL"),
         # P07: the Panacea 405 (bare host posted verbatim) picks the full form.
         ("p07 panacea", v_p07("/v1/messages", "/")[2], "full"),
         ("p07 appends", v_p07("/v1/messages/v1/messages", "/v1/messages")[2], "host"),
@@ -186,6 +193,16 @@ def v_p06(rows, prompt_hits, reply_hits, log_hits):
         return "FAIL", (f"canary in db {prompt_hits}x, reply text in db {reply_hits}x, "
                         f"canary in stdout {log_hits}x: BLOCKER for OD-19")
     return "PASS", "spend row present; canary and reply text in no table and no log line"
+
+def v_p06b(status, prompt_hits, log_hits):
+    """P06b (review M-6): the same search after a call LiteLLM could not complete."""
+    if status == 0 or 200 <= status < 300:
+        return "UNKNOWN", (f"status {status}: LiteLLM did not answer an error, so its "
+                           "failure path never ran and there is nothing to judge")
+    if prompt_hits or log_hits:
+        return "FAIL", (f"after a {status}: canary in db {prompt_hits}x, canary in "
+                        f"stdout {log_hits}x: BLOCKER for OD-19")
+    return "PASS", f"upstream down, LiteLLM answered {status}; canary in no table and no log line"
 
 def v_p07(full_path, host_path):
     ok_full, ok_host = full_path == "/v1/messages", host_path == "/v1/messages"
@@ -314,7 +331,7 @@ def v_upstreams(rows):
 
 - [ ] **Step 4: Write the client, the half that runs inside the LiteLLM container**
 
-Below the verdicts. `client(run, canary)` prints one `P<nn>` line per probe it owns and a `DATA` line for each probe the host finishes (P06, P08).
+Below the verdicts. `client(run, canary)` prints one `P<nn>` line per probe it owns and a `DATA` line for each probe the host finishes (P06, P08); P06b is its own mode, below, because the driver has to stop the upstream around it.
 
 ```python
 LL = "http://127.0.0.1:4001"                 # the stack's LiteLLM, from inside its container
@@ -530,6 +547,19 @@ def client(run, canary, tmp_master):
     say("P02", *v_p02(first02, call("POST", LL + "/v1/messages", k02, msg(MODEL, "p02"))[0]))
 ```
 
+**P06b is its own entry point, not part of `client`** (review M-6). The driver has to stop `fakeanthropic-global` around this one call and start it again afterwards, and it cannot do that while `client` is mid-run inside the LiteLLM container. It is a second `docker compose exec`, made after every other probe has reported, so a deployment cooldown LiteLLM may enter after a failed upstream poisons nothing:
+
+```python
+def p06b(run, canary_b):
+    """P06b: the ZDR search on the failure path. probe.sh has stopped the
+    upstream, so LiteLLM answers from its own exception path. Nothing here
+    reads a body: the canary goes in, and the host greps for it afterwards."""
+    master = open("/run/secrets/master_key").read().strip()
+    _, k = key(master, user_id=f"probe-{run}-p06b", models=[MODEL])
+    st = call("POST", LL + "/v1/messages", k, msg(MODEL, f"say {canary_b}"), timeout=120)[0]
+    print(f"DATA P06b status={st}", flush=True)
+```
+
 The throwaway LiteLLM's three probes, and the entry point, close the program. The fake records a request it refuses too (task 16), with its body keys and header names, so P10 and P13 are judged even when P07 shows a form that misses `/v1/messages`.
 
 ```python
@@ -567,8 +597,12 @@ if __name__ == "__main__":
         print("OK" if st == 200 and not v_upstreams(rows) else f"status {st}: {v_upstreams(rows)}")
     elif mode == "client":
         client(sys.argv[2], sys.argv[3], sys.argv[4])
+    elif mode == "p06b":                      # review M-6; the upstream is down
+        p06b(sys.argv[2], sys.argv[3])
     elif mode == "verdict-p06":
         say("P06", *v_p06(*map(int, sys.argv[2:6])))
+    elif mode == "verdict-p06b":
+        say("P06b", *v_p06b(*map(int, sys.argv[2:5])))
     elif mode == "verdict-p08":
         row, want_user, want_team = sys.argv[2], sys.argv[3], sys.argv[4]
         if not row:
@@ -605,7 +639,7 @@ general_settings:
 # probe.sh [--self-test]: what the pinned LiteLLM actually does (phase 6, task 18).
 # Runs against task 17's stack; prints "P<nn> PASS|FAIL|UNKNOWN <evidence>".
 # Never prints a key or a body. Exit 0; 2 if the stack is not up or not in fake mode;
-# 3 if P06, P13 or P14 FAILs.
+# 3 if P06, P06b, P13 or P14 FAILs.
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 cd "$here"
@@ -641,7 +675,9 @@ run="$(rnd 6)"
 canary="canary-$(rnd 12)"
 tmpkey="sk-probe-throwaway-$(rnd 16)"
 out="$(mktemp)"
-trap 'docker rm -f gw-probe-litellm >/dev/null 2>&1 || true; rm -f "$out"' EXIT
+trap 'docker rm -f gw-probe-litellm >/dev/null 2>&1 || true;
+      docker compose start fakeanthropic-global >/dev/null 2>&1 || true;
+      rm -f "$out"' EXIT   # P06b stops the fake; it comes back however the run ends
 pq() { docker compose exec -T postgres psql -U gateway -d gateway -At "$@"; }
 
 # The throwaway LiteLLM: same digest, no database, config passed in the environment.
@@ -683,9 +719,23 @@ for _ in $(seq 1 30); do
 done
 emit_py | python3 - verdict-p08 "$row" "$u08" "$t08" | tee -a "$out"
 
+# P06b (review M-6): the same search on the failure path. The upstream is stopped
+# around one call, so LiteLLM answers from its own exception path; this runs last,
+# after every other probe has reported, so a cooldown on that deployment costs
+# nothing, and the EXIT trap starts the fake again however the run ends.
+canary_b="canaryb-$(rnd 12)"
+docker compose stop fakeanthropic-global >/dev/null
+emit_py | docker compose exec -T litellm python3 - p06b "$run" "$canary_b" | tee -a "$out" || true
+docker compose start fakeanthropic-global >/dev/null
+st06b="$(sed -n 's/^DATA P06b status=//p' "$out" | tail -1)"
+sleep 5                                  # LiteLLM writes its failure record after the reply
+b_db="$(docker compose exec -T postgres pg_dump -U gateway gateway | grep -c -F -- "$canary_b" || true)"
+b_log="$(docker compose logs --no-color litellm 2>&1 | grep -c -F -- "$canary_b" || true)"
+emit_py | python3 - verdict-p06b "${st06b:-0}" "$b_db" "$b_log" | tee -a "$out"
+
 echo "---- summary"
-grep -E '^P[0-9]{2} ' "$out" | sort
-if grep -qE '^P(06|13|14) FAIL' "$out"; then exit 3; fi
+grep -E '^P[0-9]{2}b? ' "$out" | sort
+if grep -qE '^P(06b?|13|14) FAIL' "$out"; then exit 3; fi
 ```
 
 A row count of `0` because the table name is wrong would make P06 `UNKNOWN`, never `PASS` (the self-test's `p06 no row` case), and `spendlog-columns <none>` in the output says why.
@@ -696,7 +746,7 @@ A row count of `0` because the table name is wrong would make P06 `UNKNOWN`, nev
 ~/.claude/tools/claudezsh/claudezsh 'bash deploy/local/gateway/probe.sh --self-test'
 ```
 
-Expected: `PASS: probe self-test (40 cases)`. Then change `v_p06`'s first test to `if rows < 0:` and re-run: it must fail with `FAIL: p06 no row: got 'PASS', want 'UNKNOWN'`. Restore it. A P06 that passes with no spend row would declare zero retention on a LiteLLM that logged nothing at all. Do the same for P14: change `v_p14`'s `if unfired:` to `if False:` and re-run. It must fail with `FAIL: p14 never fired: got 'PASS', want 'UNKNOWN'`. Restore it. A P14 that passes when LiteLLM ignored `mock_testing_fallbacks` would clear the AU route on a fallback that never ran. Then change `v_p14`'s `if refused:` to `if False:`: it must fail with `FAIL: p14 unauthorised: got 'PASS', want 'UNKNOWN'`. Restore it. Then change `v_upstreams`'s `host != want[prefix]` to `False`: it must fail with `FAIL: upstreams real global: got True, want False`. Restore it. The first would clear the AU route on a request LiteLLM refused before routing; the second would run every probe against the real provider (re-review R-2).
+Expected: `PASS: probe self-test (45 cases)`. Then change `v_p06`'s first test to `if rows < 0:` and re-run: it must fail with `FAIL: p06 no row: got 'PASS', want 'UNKNOWN'`. Restore it. A P06 that passes with no spend row would declare zero retention on a LiteLLM that logged nothing at all. Do the same for `v_p06b`: change its `if status == 0 or 200 <= status < 300:` to `if False:` and re-run. It must fail with `FAIL: p06b no failure: got 'PASS', want 'UNKNOWN'`. Restore it. A P06b that passes on a `200` would clear the failure path on a call that succeeded — the exact shape of the gap review M-6 found in P06. Do the same for P14: change `v_p14`'s `if unfired:` to `if False:` and re-run. It must fail with `FAIL: p14 never fired: got 'PASS', want 'UNKNOWN'`. Restore it. A P14 that passes when LiteLLM ignored `mock_testing_fallbacks` would clear the AU route on a fallback that never ran. Then change `v_p14`'s `if refused:` to `if False:`: it must fail with `FAIL: p14 unauthorised: got 'PASS', want 'UNKNOWN'`. Restore it. Then change `v_upstreams`'s `host != want[prefix]` to `False`: it must fail with `FAIL: upstreams real global: got True, want False`. Restore it. The first would clear the AU route on a request LiteLLM refused before routing; the second would run every probe against the real provider (re-review R-2).
 
 - [ ] **Step 7: Run the probe against the stack**
 
@@ -717,7 +767,7 @@ P01 <verdict> <evidence>
 P16 <verdict> <evidence>
 ```
 
-Sixteen summary lines, one per probe, P01 to P16. A probe line that is missing means the client died; its traceback is on stderr and is fixed before the results are recorded. P15's reading (b) runs only under `GW_PROBE_SLOW=1`, because it waits out a budget window and two runs of LiteLLM's reset job (`RESET_JOB_S`, 600 s assumed, **UNVERIFIED**); without it P15 reports reading (a) with (b) `UNKNOWN`, which seam S6.12 treats as "take option 2".
+Seventeen summary lines, one per probe: P01 to P16, and P06b (review M-6), which sorts directly after P06. A probe line that is missing means the client died; its traceback is on stderr and is fixed before the results are recorded. P15's reading (b) runs only under `GW_PROBE_SLOW=1`, because it waits out a budget window and two runs of LiteLLM's reset job (`RESET_JOB_S`, 600 s assumed, **UNVERIFIED**); without it P15 reports reading (a) with (b) `UNKNOWN`, which seam S6.12 treats as "take option 2".
 
 - [ ] **Step 8: Record the results**
 
@@ -738,11 +788,15 @@ upstream (zero spend). Results hold for this digest only; a new digest is a new 
 | Id | Verdict | Evidence | Consequence |
 |---|---|---|---|
 | P01 | <v> | <evidence> | <"none" or the fallback adopted, with the part it changes> |
-| … one row per probe, P01 to P16 … |
+| … one row per probe, P01 to P16, and P06b after P06 … |
 
 ## P06
 
 <The three counts and the row count. PASS keeps OD-19's own-store half; FAIL stops the phase and is raised to the owner.>
+
+## P06b
+
+<The status LiteLLM answered with the upstream down, and the two counts. PASS extends OD-19's own-store half to the failure path; FAIL stops the phase with P06's and is raised in the same note. UNKNOWN means the call never failed at LiteLLM, and the probe is re-run — it has judged nothing.>
 
 ## P07
 
@@ -767,7 +821,7 @@ Bedrock, Kata, AKS, a real Anthropic upstream, and LiteLLM's behaviour under loa
 
 - [ ] **Step 9: Route each FAIL and UNKNOWN**
 
-For each non-PASS row, the "Consequence" cell names the part and the change, from the probe table at the top of this task. Two of them edit a file this task does not own and are therefore **recorded here and made by that part's owner**: an `apiBaseForm: host` result (task 02's `models.yaml`, with `apiBaseEvidence` pointing at `#p07`), and an `UNKNOWN (unpriced)` on P03 to P05 or P12 (task 02 already renders a price into every group's `model_info`, its decision (f), so this result means the pinned LiteLLM reads prices from other keys: task 02 moves them where the evidence says, then this probe is re-run). A P06, P13 or P14 FAIL is written to the owner as a blocker in the words of the row, and task 23 does not start until the owner answers.
+For each non-PASS row, the "Consequence" cell names the part and the change, from the probe table at the top of this task. Two of them edit a file this task does not own and are therefore **recorded here and made by that part's owner**: an `apiBaseForm: host` result (task 02's `models.yaml`, with `apiBaseEvidence` pointing at `#p07`), and an `UNKNOWN (unpriced)` on P03 to P05 or P12 (task 02 already renders a price into every group's `model_info`, its decision (f), so this result means the pinned LiteLLM reads prices from other keys: task 02 moves them where the evidence says, then this probe is re-run). A P06, P06b, P13 or P14 FAIL is written to the owner as a blocker in the words of the row, and task 23 does not start until the owner answers.
 
 - [ ] **Step 10: Commit**
 
@@ -808,7 +862,8 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
 - **Anything about Kata or AKS**, including whether the gatekeeper sees a pod's own source address (task 24's P03).
 - **Behaviour under load.** One call per probe. Budget overrun under concurrency is bounded on paper (tasks 06 and 09), not measured.
 - **That a PASS holds for any other digest.** LiteLLM changes quickly; task 17's pin and this document move together.
-- **That P06's PASS is the whole of ZDR.** It covers LiteLLM's database and stdout. The upstreams' retention terms are the org's contracts (owner question Q3), and the gatekeeper's and keysmith's logs are tasks 12 and 08's canary tests.
+- **That P06's and P06b's PASS are the whole of ZDR.** They cover LiteLLM's database and stdout, on the success path and on one failure path. The upstreams' retention terms are the org's contracts (owner question Q3), and the gatekeeper's and keysmith's logs are tasks 12 and 08's canary tests.
+- **That P06b covers every way a call can fail.** It makes the upstream **unreachable**, which is the connection-error path. An upstream that answers a 4xx or 5xx **with a body** is a second path, and this stack cannot produce one: task 16's fake never echoes input and emulates no provider error (`task-16.md:614`, and its own "does not claim"), so no error body carrying a canary exists to look for. If P06b PASSes, that second path is the follow-up in task 25's table — a `-fail-with` flag on the fake, and a re-run — not a claim made here.
 - **That the admin paths and spend-log names are right.** They are LiteLLM's API as remembered; a wrong one shows as `FAIL` or `UNKNOWN` with its status, which tells task 04 what to change, but this task does not correct task 04 itself.
 - **That `/model/info` shows each group's `api_base`.** The fake-mode gate reads `litellm_params.api_base` from it (training knowledge of LiteLLM, **UNVERIFIED** against the pinned image). If the image hides the field, the gate fails closed: probe.sh exits 2 with `no api_base` on every run, and the fix is to read the same pairs from the container's `/app/config.yaml`, never to drop the gate.
 - **That P14 covers every way out of Australia.** It sends two of task 11's twenty-four `ControlFields` (`fallbacks`, `mock_testing_fallbacks`) straight to LiteLLM, and forces the primary to fail with LiteLLM's own mock. It measures neither a real upstream failure, nor `context_window_fallbacks`, nor the other twenty-two names (the Bedrock credential fields included). The gatekeeper's drop of all twenty-four is task 11's unit tests, not a probe.
