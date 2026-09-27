@@ -314,18 +314,18 @@ fragment and **S6.3** the mint API (phase 6); **S6.2** budgets; **P8-D4** and **
 | 03 | Hub wire types for team records; id prefixes and codes | TM1-α | 0.3 (2.5 h) | 01, 02, H01–H03 | ST.2 |
 | 04 | Hub migration: team tables, RLS, append-only guards, tombstone columns | TM1-α | 0.375 (3 h) | 03, H06, H07a, H07b | ST.2 |
 | 05 | Hub delegated-caller authentication; `devissuer` client-credentials grant | TM1-α | 0.375 (3 h) | 04, H11–H13 | ST.3 |
-| 06 | Hub routes, part 1: delegations, tasks, agents, lease events, conflicts; route 87, a project's mode (b01) | TM1-α | 0.4375 (3.5 h) | 05, H14, H17 | ST.2, ST.3 |
+| 06 | Hub routes, part 1: delegations, tasks, agents, lease events, conflicts; route 87, a project's mode (b01); route 88, the principal read, and route 47's broker caller (b02) | TM1-α | 0.5 (4 h) | 05, H14, H17 | ST.2, ST.3 |
 | 07 | Hub routes, part 2: threads, messages, escalations, directives, turns, human messages | TM1-α | 0.375 (3 h) | 06 | ST.2 |
 | 08 | Hub feed kinds, Fleet's per-org subscription; `hubclient` team methods, fake, conformance | TM1-α | 0.375 (3 h) | 07, H26, H33, H34 | ST.2 |
 | 09 | Fleet model and the `panacea` control wire v1 | TM1-α | 0.3 (2.5 h) | 02 | ST.1 |
 | 10 | Fleet's Postgres schema and `Store` | TM1-α | 0.375 (3 h) | 09 | — |
 | 11 | Fleet as a delegated Hub caller: outbox, delegation client, feed, rebuild | TM1-α | 0.375 (3 h) | 08, 10 | ST.3 |
-| 12 | `cmd/fleetd`: config, Entra per request, role-to-verb, singleton loops | TM1-α | 0.375 (3 h) | 10, 11, P8-16 | — |
+| 12 | `cmd/fleetd`: config, Entra per request, role-to-verb, singleton loops | TM1-α | 0.375 (3 h) | 01, 06, 08 (b02: the principal read), 10, 11, P8-16 | — |
 | 13 | OD-23 mechanism, part 1: layers, merge, invariants, digest, minimal defaults | TM1-α | 0.375 (3 h) | — (P6-14's fragment once merged) | ST.4, S6.6 |
 | 14 | OD-23 mechanism, part 2: versioned store, admin routes, audit, version on agent start | TM1-α | 0.3 (2.5 h) | 06, 12, 13 | ST.4 |
 | 15 | Phase 8 delta: sandbox classes (task 14b), the policy mount, `sandboxd`'s digest check | TM1-α | 0.375 (3 h) | 13, P8-14, P8-15 | ST.4 |
 | 16 | Phase 8 delta: `sandboxd` `/control`, the in-pod socket, the `team.json` snapshot | TM1-α | 0.375 (3 h) | 09 | ST.1 |
-| 17 | Phase 8 delta: the broker's second caller, the control relay, pod source addresses | TM1-α | 0.375 (3 h) | 16, P8-17, P8-18 | ST.3, P8-D4 |
+| 17 | Phase 8 delta: the broker's second caller, the control relay, pod source addresses | TM1-α | 0.375 (3 h) | 06 (b02: route 47's broker caller), 16, P8-17, P8-18 | ST.3, P8-D4 |
 | 18 | The `panacea` verbs in the sandbox binary | TM1-α | 0.3 (2.5 h) | 16, P6-14 | ST.1 |
 | 19 | Fleet's control streams and verb dispatch | TM1-α | 0.375 (3 h) | 12, 17 | ST.1 |
 | 20 | Fleet sessions over the broker; `ag-…` ids; gateway tokens with team tags | TM1-α | 0.375 (3 h) | 11, 14, 15, 19, P6-15, P8-22 | S6.3, S8.1 |
@@ -426,8 +426,14 @@ for Fleet, team projects only; (e) `devissuer` gains a client-credentials grant.
 §7.13 onward: every record of §3.3 that lives in the Hub (delegation, task, agent start/end, lease
 state change, conflict, thread, message, escalation, directive, orchestrator turn, human message,
 note, team policy, usage roll-up) with its route, fields, bounds, author class, audit event name
-and feed kind, plus §5.3 matrix rows. States the trusted-deputy risk (§2.4 item 5) in the ADR's
-risk list. Acceptance: every design field in §3.3 appears once; a grep for `actor` in a request body
+and feed kind, plus §5.3 matrix rows. **Fix batch b02** adds (f) a **second** app-only identity in
+§5.10 rule 1, the sandbox broker (role `Hub.DelegationReader`), held by **rule 10** to route 47
+alone — rule 9 is left reserved and empty for task 66's gateway caller, which has already drafted
+its text against that number — and route 47's answer to that caller alone carrying `ownerTid` and
+`ownerOid` (§7.13); and (g) a **second** named delegation exemption in rule 2, `GET /v1/principals`,
+**row 88** and new **§7.28**, whose answer's `orgId` and three org flags are the **project's** org,
+never the caller's. §7.27 and rows 80 to 86 are other tasks' (14, 46, 49), which is why b02 took
+88 and §7.28. States the trusted-deputy risk (§2.4 item 5) in the ADR's risk list. Acceptance: every design field in §3.3 appears once; a grep for `actor` in a request body
 schema returns nothing. Does not claim the Hub accepts any of it; tasks 03–08 build it.
 
 **02 — `teamtext`.** `cp/internal/teamtext`, standard library only, used by the Hub deltas and
@@ -493,6 +499,17 @@ Task 21 wraps it as a local route, task 56's Share calls it, task 33's E5 runs i
 Hub task 17's `store/projects.go` project-row reader selects `mode`, so routes 13 to 16 answer
 `"mode":"solo"` or `"team"`, never `""` (`TestProjectReadsCarryMode`); every team harness sets
 `PANACEA_APP_HUB_AUDIT_SINK=fake` beside the dev flag, so task 45's gate still opens for it.
+**Fix batch b02 (S02-C2, S02-C5):** also the two Hub reads no task owned. **Route 88**,
+`GET /v1/principals?tid=&oid=&projectId=`, contract §7.28 — Fleet with **no delegation**, §5.10
+rule 2's second and last exemption, the read every Fleet route's `authorize` is built on (task
+12). Its `orgId` is the **project's** org and its three flags are that org's, so an auditor of
+another org arrives with `role` `""` and all three false; an unprovisioned `(tid, oid)` is 404
+`principal_not_found`, an unknown or unseeable project 404 `route_not_found`. And **route 47's
+third caller**, the broker (app-only, role `Hub.DelegationReader`, §5.10 rule 10): route 47 and
+nothing else, any delegation of its own org whatever its state, and to that caller alone the
+answer carries `ownerTid` and `ownerOid` — gap S17-1 closed, so task 17's broker derives a pod's
+owner label itself instead of taking Fleet's word. Both reads are audited (`principal.read`,
+`delegation.read_by_broker`), on neither feed.
 
 **07 — Hub routes, part 2.** Threads (`POST`, `PATCH` state and round count), messages
 (append-only, kind and typed fields per §6.2, text ≤ 600), escalations (`POST` by Fleet under the
@@ -509,7 +526,11 @@ answered by someone else is 403. Does not implement notes (task 46).
 identity, team projects only. Extends `cp/internal/hub/hubclient` (Hub tasks 04–05, built): a
 `Team` interface with one method per task 06–07 route, the fake's team half with every observable
 rule of those routes, and conformance rows that run against the fake and the real Hub. The fake is
-what Fleet's tests use. Tests: the conformance suite; a revoked delegation appears on the feed
+what Fleet's tests use. **Fix batch b02:** also `Team.Principal` over route 88 (S02-C2), which
+task 12 was written against as a proposal and is now real; `hubapi.Principal`; an `AsBroker()`
+view and `Delegation`'s two broker-only fields (S02-C5); and five conformance rows, for which
+`Env` gains a **second org** — "the principal answer's flags are the project's org" has no other
+witness. Tests: the conformance suite, 38 team rows; a revoked delegation appears on the feed
 within one poll. Does not deliver anything from Fleet (task 11).
 
 **09 — Fleet model and the `panacea` control wire v1.** `cp/internal/fleet/model` (`Class`
@@ -548,7 +569,10 @@ the mux, phase 2's problem body, `/healthz`, `/readyz` (Postgres and Hub reachab
 `authz.go`: every route validates an Entra token with phase 8's `internal/entra` (built on
 `feat/env`, task 16), audience Fleet, `azp` the desktop's client id, principal `(tid, oid)`;
 membership and role come from the Hub (cached ≤ 60 s) and are checked against §3.4's table per
-request. Singleton loops (outbox delivery, deadline sweeper, feed consumer) take a Postgres
+request. **Fix batch b02 (S02-C2):** that Hub read is route 88, `GET /v1/principals`, contract
+§7.28, built by tasks 01, 06 and 08 — it was a gap this task raised and nobody owned, so `go run
+./cmd/fleetd` did not build. `Member.OrgID` is the **project's** org from §7.28's answer, and
+every org-level grant is bound to it. Singleton loops (outbox delivery, deadline sweeper, feed consumer) take a Postgres
 advisory lock so two replicas never both run one. Tests: a viewer's launch is 403; a token for
 another audience is 401; two `fleetd` processes on one database run one feed consumer.
 
@@ -608,8 +632,12 @@ for an owner **only** under a live delegation, which the broker checks against t
 object keeps its owner label (P8-D4). A second relay kind, `control`, joins attach (phase 8 task
 18) and reaches `sandboxd`'s `/control` on 8080 (P8-D12's ingress rule, unchanged). The broker
 records each pod's source address at ready and exposes it to phase 6's keysmith for token binding
-(P6-D7). Tests: Fleet without a delegation is 403; a delegation for Alice cannot list Bob's pods; a
-revoked delegation fails within the cache window; the audit line names the delegation.
+(P6-D7). **Fix batch b02 (S02-C5):** the broker reads route 47 **as itself**, an app-only caller
+with role `Hub.DelegationReader` on that one route (§5.10 rule 10), and the answer to it alone
+carries `ownerTid` and `ownerOid`, which is what `OwnerLabelValue` takes. Gap S17-1 is closed, and
+task 06 owns both halves. Tests: Fleet without a delegation is 403; a delegation for Alice cannot
+list Bob's pods; a revoked delegation fails within the cache window; the audit line names the
+delegation.
 
 **18 — The `panacea` verbs in the sandbox binary.** Extends phase 6's `sbx/cmd/panacea/main.go`
 (task 14, `token` only, **UNVERIFIED until merge**) with `sbx/internal/panaceacli`: `team`,

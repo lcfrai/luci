@@ -1266,7 +1266,7 @@ Reviewer: adversarial plan reviewer, section 03. Parts read one at a time agains
 
 ### S03-M7 (Minor): "nothing else sets it" contradicts the scope's second source of `waitingOn: human`, and one citation is off
 **Where:** docs/superpowers/plans/2026-09-25-phase-t-team-mode-parts/task-24.md:30, 209-210
-**Problem:** Step 4 says the `waitingOn: human` flag is set by `report blocked --on human` "and nothing else", but the scope (skeleton:676-677) and §3.3 give the cloud hook's `Notification` as the other source (task 34 or 35). Separately, `task-01.md:271` (route 66's row) is cited for "the Orchestrator's route set is every route"; that sentence is at task-01.md:293.
+**Problem:** Step 4 says the `waitingOn: human` flag is set by `report blocked --on human` "and nothing else", but the scope (skeleton:676-677) and §3.3 give the cloud hook's `Notification` as the other source (task 34 or 35). Separately, `task-01.md:273` (route 66's row) is cited for "the Orchestrator's route set is every route"; that sentence is at task-01.md:297.
 **How to fix:** Say "nothing else in this task sets it; the hook's `Notification` is task 34/35's", and cite `task-01.md:293`.
 
 ## Task 25: tier-P forecaster
@@ -3486,3 +3486,75 @@ was found by grepping `§8 row`, `§7.24` and `§5.3` citations into `task-01.md
 target; parts that cite task 01 without naming a section were not swept, so the class may have
 survivors.
 
+
+## Fix batch b02 (2026-09-28): S02-C2, S02-C5
+
+Both findings are the same defect twice: a Hub **read** that several tasks depend on and no task
+owns. They are one batch because both land in task 01's amendment, task 06's handlers and task 08's
+conformance. Neither was moot; both were live on 2026-09-28 (`grep` for "principals", `ownerTid`,
+`Hub.DelegationReader` across the parts found only the two gap statements themselves).
+
+### S02-C2 — the principal read
+
+| Change | File:line |
+|---|---|
+| Amendment (b): **two** exemptions, and this is the second amendment its own text demanded | `task-01.md:29-39` |
+| §5.10 rule 2: the second exempt route by name; a Fleet token naming a delegation there is 400 | `task-01.md:153-162` |
+| §7.0 **row 88**, `GET /v1/principals?tid=&oid=&projectId=` | `task-01.md:346` |
+| New **§7.28**, with rule 1 pinning `orgId` to the **project's** org and rule 3 the flags to that org | `task-01.md:587-626` |
+| §4.2 code `principal_not_found`, sixteenth, appended last so nothing renumbers | `task-01.md:273` |
+| §8 event `principal.read`, audit only, on neither feed | `task-01.md:684` |
+| Acceptance: row 88, §7.28's two pinned rules, the event | `task-01.md:860-871` |
+| Task 06 owns the handler, the one-statement store read and the three mutants | `task-06.md:761-777` |
+| Task 06 registers it bare, Fleet-only | `task-06.md:732-737` |
+| Task 06 acceptance item 7 | `task-06.md:876-880` |
+| `Team.Principal`, no longer a proposal | `task-08.md:113-121` |
+| `hubapi.Principal` and its file | `task-08.md:39-42` |
+| Three conformance rows, and `Env` gains a **second org** without which they cannot be written | `task-08.md:491-493`, `:431-438` |
+| Task 12: `dependsOn` 01, 06, 08; the gap paragraph becomes the owned route | `task-12.md:3-8`, `:47-64` |
+| Task 12 Step 4 no longer says "stop here"; a stubbed `Membership` is named an authorisation bypass | `task-12.md:1192-1198` |
+| Skeleton: task 01, 06, 08 and 12 scopes, and 12's `dependsOn` row | `2026-09-25-phase-t-team-mode.md:429-437`, `:502-515`, `:529-534`, `:572-576`, `:323` |
+
+### S02-C5 — the broker as a caller of route 47
+
+| Change | File:line |
+|---|---|
+| Amendment (e): the broker is a third identity, read-only, one route | `task-01.md:53-68` |
+| §5.10 rule 1: two app-only callers, neither holding the other's role | `task-01.md:143-152` |
+| §5.10 **rule 10** (not 9 — see the ruling below) | `task-01.md:197-208` |
+| §5.10 rule 9 left **reserved and empty** for task 66's gateway caller | `task-01.md:193-196` |
+| §7.0 row 47 gains the broker as a third caller | `task-01.md:312` |
+| §7.13: `ownerTid`/`ownerOid`, to that caller alone, `omitempty` for every other | `task-01.md:399-404` |
+| §12.2 `PANACEA_APP_HUB_BROKER_CLIENT_ID` | `task-01.md:293` |
+| §8 event `delegation.read_by_broker`, actor `""` | `task-01.md:685` |
+| §7.25 restated: the gateway's rule stays 9 | `task-01.md:575-578` |
+| Task 06 owns the branch and its three mutants | `task-06.md:778-794` |
+| Task 06 acceptance item 8 | `task-06.md:881-886` |
+| Task 08: `AsBroker()`, `FakeBroker`, two conformance rows, the `Broker` env view | `task-08.md:331-341`, `:494-495`, `:432-435` |
+| Task 17: gap S17-1 marked **CLOSED**, decision 3 restated, `dependsOn` gains 06 | `task-17.md:394-406`, `:48-57`, `:3-5` |
+| Tasks 20 and 60, which both leaned on S17-1 | `task-20.md:62-63`, `:537-538`; `task-60.md:376-379`, `:465-466` |
+| Skeleton: task 01, 06 and 17 scopes, and 17's `dependsOn` row | `2026-09-25-phase-t-team-mode.md:429-437`, `:502-515`, `:635-640`, `:328` |
+
+### Two rulings this batch had to make, and declares
+
+1. **Row 88 and §7.28, not the row 80 and §7.27 the finding proposed.** Rows 80 to 86 and §7.27 are
+   all already claimed: 80 and §7.27 by task 14 (`task-14.md:620`), 81 to 83 by task 46
+   (`task-46.md:109-110`), 84 to 86 by task 49 (`task-49.md:137,150,156`). Recorded in the note
+   under §7.0's table (`task-01.md:349-357`).
+2. **The broker is §5.10 rule 10, and rule 9 is reserved.** The finding said "rule 9", but task 66
+   has already drafted rule 9's contract text, its `auth.go` hunk and ~22 references for the
+   gateway caller. Renumbering a drafted rule across a part outside this batch is the churn this
+   program keeps paying for, so b02 took 10 and left 9 empty with a reason and an acceptance check
+   (`RULE 9 NOT RESERVED`).
+
+### Found while fixing, recorded and NOT resolved (not this batch's findings)
+
+**Route 80 is claimed three times and §7.27 twice.** Task 14 takes `POST
+/v1/orgs/{orgId}/policy-versions` as row 80 in a new §7.27 (`task-14.md:620`); task 66 takes
+`GET /v1/orgs/{orgId}/quotas` as row 80 in a §7.27 of its own (`task-66.md:156`) **and** row 81,
+which task 46 also takes (`task-46.md:109`); task 52 proposes row 80 for a third thing
+(`task-52.md:1188`). Whichever lands second must take a free row (89 onward) and say so. b02 only
+made sure it did not add a fourth claimant.
+
+**Unverified:** every file, test and line named above is planned text; no code exists on
+`feat/team-mode` for any of it. The line numbers are this commit's and were read on 2026-09-28.
