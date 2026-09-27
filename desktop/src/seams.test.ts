@@ -18,7 +18,10 @@ import { beforeAll, describe, expect, it } from "vitest";
 const LOADERS = import.meta.glob<string>(
   [
     "../../control-plane/**/*.go",
-    "../../desktop/src/**/*.{ts,tsx,css}",
+    // Every module extension Vite bundles, not just .ts/.tsx: a `new WebSocket(u)` in a .mts
+    // under desktop/src passed S5.1 because the glob never loaded it (review 3 m4, TS-U3).
+    // None exist today, so widening costs nothing and the row's "anywhere in code" becomes true.
+    "../../desktop/src/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs,css}",
     "../../desktop/e2e/**/*.mjs",
     "../../docs/SEAMS.md",
     "../../docs/superpowers/contracts/2026-09-18-phase-2-ui-contract.md",
@@ -54,21 +57,68 @@ function text(rel: string): string {
 const DOC = "docs/SEAMS.md";
 const FENCE = "`".repeat(3);
 
-/** Comments blanked, newlines kept — for `absent` anchors only. The same rule and the same
- *  naivety as defects.test.tsx's codeOnly: it also blanks a // inside a string, which is why
- *  no `absent` anchor below is run over a file whose strings carry a URL. Go and TypeScript
- *  share both comment forms, so one function serves both. */
-function codeOnly(source: string): string {
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, (block) => block.replace(/[^\n]/g, " "))
-    .replace(/\/\/[^\n]*/g, "");
+/** Comments blanked, strings kept whole, newlines kept — for `absent` anchors and the tree rules.
+ *  Rounds 1 to 3 shared defects.test.tsx's one-line stripper, which blanks from any `//` to the
+ *  end of the line, strings included. That is not safe here, and the claim that it was is what
+ *  review 3's I1 disproved: `client.ts:30` is `DEFAULT_BASE_URL = "http://127.0.0.1:8730"`, so
+ *  the URL's own `//` hid the rest of that line from S8.6's `absent` (mutant M-AUTH), and a
+ *  `"ws://…"` hid a `new WebSocket(u)` beside it from S5.1 (mutant TS-U1). A hidden match is a
+ *  silent pass, and this is the shared helper, so it reached every seam.
+ *  So: walk the source once, skip over '…', "…" and backtick strings honouring \ escapes, and
+ *  blank only the line and block comments found outside them. Go and TypeScript share both
+ *  comment forms and all three quotes, so one function serves both; the one difference is the
+ *  backtick — a raw string in Go, where a trailing \ is literal, a template literal in
+ *  TypeScript, where \` is an escape — so `rel`'s extension picks. A quote that never closes
+ *  ends at its line, as it does in both languages, so a stray apostrophe (a regex literal's,
+ *  say) costs one line rather than the rest of the file.
+ *  defects.test.tsx still carries the naive version. It is outside task 26; carried to its
+ *  owner in task-26-report.md's round 3 section, not fixed here. */
+function codeOnly(source: string, rel = ""): string {
+  const rawBacktick = rel.endsWith(".go");
+  let out = "";
+  let i = 0;
+  while (i < source.length) {
+    const c = source[i];
+    if (c === "/" && source[i + 1] === "/") {
+      while (i < source.length && source[i] !== "\n") i++;
+      continue;
+    }
+    if (c === "/" && source[i + 1] === "*") {
+      const end = source.indexOf("*/", i + 2);
+      const stop = end === -1 ? source.length : end + 2;
+      out += source.slice(i, stop).replace(/[^\n]/g, " ");
+      i = stop;
+      continue;
+    }
+    if (c !== "'" && c !== '"' && c !== "`") {
+      out += c;
+      i++;
+      continue;
+    }
+    const escapes = c !== "`" || !rawBacktick;
+    out += c;
+    i++;
+    while (i < source.length) {
+      const d = source[i];
+      if (escapes && d === "\\") {
+        out += source.slice(i, i + 2);
+        i += 2;
+        continue;
+      }
+      out += d;
+      i++;
+      if (d === c || (d === "\n" && c !== "`")) break;
+    }
+  }
+  return out;
 }
 
 /** Non-test sources under a directory — TypeScript, or Go for a control-plane rule —
  *  repo-relative and forward-slashed. */
 function sourcesUnder(dir: string): string[] {
   const isSource = (f: string): boolean =>
-    (/\.tsx?$/.test(f) && !/\.test\.tsx?$/.test(f)) || (/\.go$/.test(f) && !/_test\.go$/.test(f));
+    (/\.[mc]?[jt]sx?$/.test(f) && !/\.test\.[mc]?[jt]sx?$/.test(f)) ||
+    (/\.go$/.test(f) && !/_test\.go$/.test(f));
   return [...FILES.keys()]
     .filter((f) => f.startsWith(`${dir}/`) && isSource(f))
     .filter((f) => !f.startsWith("desktop/src/test/"))
@@ -89,6 +139,10 @@ interface TreeRule {
   absent: RegExp;
   /** except in these files. */
   except: string[];
+  /** and, when given, in these files only — for a rule whose exemptions are only true where the
+   *  thing they exempt lives (S8.7's two relay files). A rule with `only` and a rule that
+   *  `except`s the same list together cover the tree once each. */
+  only?: string[];
 }
 
 interface SeamTest {
@@ -98,7 +152,11 @@ interface SeamTest {
    *  waits; the day it appears the entry FAILS until `pending` is deleted here and docs/SEAMS.md
    *  cites what that task proved. Task 26 ran before task 25 (docs/superpowers/RESUME.md's
    *  close-out order), so the first pending entry was task 25's harness. The waiting task's plan
-   *  must say to clear it; the "hands every pending entry" test below fails until it does. */
+   *  must say to clear it, and — since it therefore edits this file and docs/SEAMS.md — must also
+   *  name both of them in its `git commit … --` path list and in its pre-flight "is dirty" check,
+   *  so another agent's uncommitted edit cannot ride in on `git commit -- <path>` (review 2 I1,
+   *  restated at SEAMS.md:15-19). The "hands every pending entry" test below fails until all
+   *  three are there. */
   pending?: string;
 }
 
@@ -449,22 +507,44 @@ const SEAMS: Seam[] = [
       // *websocket.Conn) error` with its own copy loop passed every rule above (task 26 review 2
       // m2, mutant G-R1). So a connection type (`*websocket.Conn`, or any package's `Conn`, such as
       // the `net.Conn` that websocket.NetConn returns) in code, as a parameter, a func literal's, a
-      // field, a var or an element type, trips it everywhere but RelayHooked's parameters, its
-      // copyMessages loop and relayAttached, the handler that calls it. A result, `(*websocket.Conn,
-      // error)` from Dial and both Attach, does not. A relay whose connections are never named by
-      // type (two `:=` locals, inferred) is invisible to it, which the S8.7 row says.
+      // field, a var or an element type, trips it. Two rules, because the exemptions differ by file.
+      // A result — `(*websocket.Conn, error)`, from Dial and all three Attach — does not trip, and
+      // that exemption is anchored on what makes a result a result: the parameter list's closing `)`
+      // in front of it. Round 2 anchored it on `(*` alone, which a type assertion, `a.(*websocket
+      // .Conn)`, also ends in, so a relay over two asserted connections passed (review 3 m1, G-U3).
+      // The three by-name exemptions are RelayHooked's own parameters, its copyMessages loop and
+      // relayAttached, the handler that calls it. Those are true of the two files they live in and
+      // false everywhere else, so they are keyed on the FILE now rather than on the spelling: a
+      // `copyMessages := func(dst, src *websocket.Conn, …)` relay loop in any other package was
+      // exempt by name alone (review 3 m2, G-U4). A relay whose connections are never named by type
+      // (two `:=` locals, inferred) is invisible to both, which the S8.7 row says.
       {
         dir: "control-plane",
         absent:
-          /(?<!\bfunc RelayHooked\([^)]*|\bcopyMessages := func\([^)]*|\bfunc \(a \*API\) relayAttached\([^)]*|\(\*?)\b\w+\.Conn\b/,
+          /(?<!\bfunc RelayHooked\([^)]*|\bcopyMessages := func\([^)]*|\bfunc \(a \*API\) relayAttached\([^)]*|\)\s*\(\*?)\b\w+\.Conn\b/,
         except: [],
+        only: ["control-plane/internal/proxy/proxy.go", "control-plane/internal/api/attach.go"],
+      },
+      {
+        dir: "control-plane",
+        absent: /(?<!\)\s*\(\*?)\b\w+\.Conn\b/,
+        except: ["control-plane/internal/proxy/proxy.go", "control-plane/internal/api/attach.go"],
       },
       // And by what a relay moves: messages. One whose connections are typed by a local interface
       // (fix round 2's predicted survivor G-X1, which survived the rule above) names the message
       // type in that interface; one that wraps them as streams names websocket.NetConn and a
       // message kind. No control-plane code names any of the four today: RelayHooked's loop infers
       // its `typ`. Phase 8 writing its own frame with a named kind trips it, loudly.
-      { dir: "control-plane", absent: /\b\w+\.(?:MessageType|MessageBinary|MessageText|NetConn)\b/, except: [] },
+      // And the relay that names neither: `httputil.NewSingleHostReverseProxy(pod).ServeHTTP(w, r)`
+      // has no connection, no message and no local at all, and has forwarded a WebSocket upgrade
+      // since Go 1.12 — the first thing a Phase 8 author reaching a pod over HTTP would write, and
+      // it passed every rule above (review 3 m3, G-U2). `httputil` and a hand-rolled `Hijack()` are
+      // the two ways to that shape; the control plane names neither today.
+      {
+        dir: "control-plane",
+        absent: /\b\w+\.(?:MessageType|MessageBinary|MessageText|NetConn)\b|\bhttputil\.|\.Hijack\(/,
+        except: [],
+      },
     ],
   },
   /* The six mounts after the worktree, in four seams, each refused by katabe's `len(spec.Mounts) > 0`
@@ -566,7 +646,7 @@ describe("the named seams — docs/SEAMS.md", () => {
         if (a.present !== undefined && !a.present.test(source)) {
           moved.push(`${seam.id} (${seam.name}): ${a.file} lost ${a.present}`);
         }
-        if (a.absent !== undefined && a.absent.test(codeOnly(source))) {
+        if (a.absent !== undefined && a.absent.test(codeOnly(source, a.file))) {
           moved.push(`${seam.id} (${seam.name}): ${a.file} gained ${a.absent}`);
         }
       }
@@ -659,13 +739,33 @@ describe("the named seams — docs/SEAMS.md", () => {
     expect(header(lines.slice(open + 1, close).join("\n") + "\n")).toBe(header(text(KATA)));
   });
 
+  it("codeOnly reads past a string's //, so every absent anchor and tree rule sees the whole line", () => {
+    // Review 3's I1: the shared stripper blanked from any `//` to the end of the line, strings
+    // included, so client.ts:30's own URL hid the rest of that line from S8.6's /Authorization/
+    // (mutant M-AUTH) and a `"ws://…"` hid a `new WebSocket(u)` beside it from S5.1 (TS-U1).
+    // A hidden match is a silent pass, so the blind spot reached all 32 seams. This pins the
+    // line S8.6 actually reads, and both languages' quoting, since one helper serves both.
+    const client = "desktop/src/api/client.ts";
+    const line = codeOnly(text(client), client).split("\n").find((l) => l.includes("DEFAULT_BASE_URL"));
+    expect(line).toBe('export const DEFAULT_BASE_URL = "http://127.0.0.1:8730";');
+
+    const afterUrl = codeOnly('const u = "ws://h/a"; const s = new WebSocket(u); // gone\n', "x.ts");
+    expect(afterUrl).toContain("new WebSocket(u)");
+    expect(afterUrl).not.toContain("gone");
+    // A backtick is a raw string in Go, where a trailing \ is literal and closes nothing…
+    expect(codeOnly("a := `C:\\` // gone\n", "x.go")).not.toContain("gone");
+    // …and a template literal in TypeScript, where \` is an escape and does not close it.
+    expect(codeOnly("const s = `a\\`b`; // gone\n", "x.ts")).not.toContain("gone");
+  });
+
   it("keeps every tree-wide tripwire", () => {
     const tripped: string[] = [];
     for (const seam of SEAMS) {
       for (const rule of seam.trees ?? []) {
         for (const file of sourcesUnder(rule.dir)) {
           if (rule.except.includes(file)) continue;
-          if (rule.absent.test(codeOnly(text(file)))) {
+          if (rule.only !== undefined && !rule.only.includes(file)) continue;
+          if (rule.absent.test(codeOnly(text(file), file))) {
             tripped.push(`${seam.id} (${seam.name}): ${file} matches ${rule.absent}`);
           }
         }
