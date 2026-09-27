@@ -61,7 +61,7 @@ Neither exists on any branch on 2026-09-25; both are **UNVERIFIED until merge**.
    `Streams.Send` (task 16 step 6b), never `Push`, so it never touches Postgres.
 7. **The tags are the mint request's fields.** `Owner{TID, OID}` is the delegation owner's (Gap S17-1,
    **closed by fix batch b02**: route 47's answer to the broker carries `ownerTid` and `ownerOid`,
-   `task-01.md:395-400`), `TeamID` and `ProjectID` from the delegation's project,
+   `task-01.md:401-406`), `TeamID` and `ProjectID` from the delegation's project,
    `AgentID` the `ag-…`, `SessionClass` the class, `PodAddr` the broker's recorded source (task 17
    decision 9), and for a peer-triggered Orchestrator turn `Counterpart`, the other owner, which phase
    6's `MintRequest` does not have yet (*Gap S20-2*). Route is not sent: keysmith decides it from the

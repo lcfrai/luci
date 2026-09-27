@@ -93,9 +93,11 @@ fields, so a body that sends one gets 400 `bad_request`.
 **Interfaces:**
 - Consumes:
   - from task 01: the contract §7.13 to §7.17, rows 46 to 59, 87 and 88, the class route sets, the
-    principal read §7.28 and the §8 rows (`task-01.md:386-464`, `:307-342`, `:358-367`,
-    `:581-620`, `:655-666`) — one each, in that order; line numbers re-read 2026-09-28, after fix
-    batch b02 moved them.
+    principal read §7.28 and the §8 rows (`task-01.md:392-471`; rows `:313-326` with `:347` and
+    `:348`; `:363-372`; `:589-628`; the §8 table from `:663`) — one each, in that order. Every
+    anchor re-derived by grep at `feat/team-mode` on 2026-09-28, **after** b02 round 1's edits:
+    b02's first pass copied ranges from before its own, which is the drift round 1's I3 named, so
+    grep the heading rather than trust a range that looks close.
     **Task 01 is authoritative for every field, bound, code and kind; this part implements it.**
   - from task 03 (`hubapi/team.go`, `codes.go`): the Go types of those records and requests
     (`Delegation`, `CreateDelegationRequest`, `Task`, `CreateTaskRequest`, `PatchTaskRequest`,
@@ -957,7 +959,7 @@ delegation; the Hub records lease changes but does not second-guess them) and en
    proves 403, because route 78's exemption is where an ungated broker would land (b02 round 1,
    C2) — and
    `grep -n 'ownerTid' control-plane/internal/hub/server/delegations.go` shows it set inside the
-   broker branch only. Gap S17-1 (`task-17.md:397-409`) is then closed, and task 17's tests can
+   broker branch only. Gap S17-1 (`task-17.md:401-416`) is then closed, and task 17's tests can
    leave their `DelegationSource` fake for the real Hub.
 
 #### What this task does not claim

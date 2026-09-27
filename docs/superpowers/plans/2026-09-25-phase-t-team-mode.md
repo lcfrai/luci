@@ -314,7 +314,7 @@ fragment and **S6.3** the mint API (phase 6); **S6.2** budgets; **P8-D4** and **
 | 03 | Hub wire types for team records; id prefixes and codes | TM1-α | 0.3 (2.5 h) | 01, 02, H01–H03 | ST.2 |
 | 04 | Hub migration: team tables, RLS, append-only guards, tombstone columns | TM1-α | 0.375 (3 h) | 03, H06, H07a, H07b | ST.2 |
 | 05 | Hub delegated-caller authentication; `devissuer` client-credentials grant | TM1-α | 0.375 (3 h) | 04, H11–H13 | ST.3 |
-| 06 | Hub routes, part 1: delegations, tasks, agents, lease events, conflicts; route 87, a project's mode (b01); route 88, the principal read, and route 47's broker caller (b02) | TM1-α | 0.5 (4 h) | 05, H14, H17 | ST.2, ST.3 |
+| 06 | Hub routes, part 1: delegations, tasks, agents, lease events, conflicts; route 87, a project's mode (b01); route 88, the principal read, route 47's broker caller and the four `auth.go` deltas that gate it (b02) | TM1-α | 0.5 (4 h) | 05, H14, H17 | ST.2, ST.3 |
 | 07 | Hub routes, part 2: threads, messages, escalations, directives, turns, human messages | TM1-α | 0.375 (3 h) | 06 | ST.2 |
 | 08 | Hub feed kinds, Fleet's per-org subscription; `hubclient` team methods, fake, conformance | TM1-α | 0.375 (3 h) | 07, H26, H33, H34 | ST.2 |
 | 09 | Fleet model and the `panacea` control wire v1 | TM1-α | 0.3 (2.5 h) | 02 | ST.1 |
@@ -428,7 +428,9 @@ state change, conflict, thread, message, escalation, directive, orchestrator tur
 note, team policy, usage roll-up) with its route, fields, bounds, author class, audit event name
 and feed kind, plus §5.3 matrix rows. **Fix batch b02** adds (f) a **second** app-only identity in
 §5.10 rule 1, the sandbox broker (role `Hub.DelegationReader`), held by **rule 10** to route 47
-alone — rule 9 is left reserved and empty for task 66's gateway caller, which has already drafted
+alone — every other path 403 before the route runs, **rule 2's exemptions included**, tested by
+role and never by "is this token app-only" (b02 round 1, C2) — rule 9 is left reserved and empty
+for task 66's gateway caller, which has already drafted
 its text against that number — and route 47's answer to that caller alone carrying `ownerTid` and
 `ownerOid` (§7.13); and (g) a **second** named delegation exemption in rule 2, `GET /v1/principals`,
 **row 88** and new **§7.28**, whose answer's `orgId` and three org flags are the **project's** org,
@@ -509,7 +511,12 @@ third caller**, the broker (app-only, role `Hub.DelegationReader`, §5.10 rule 1
 nothing else, any delegation of its own org whatever its state, and to that caller alone the
 answer carries `ownerTid` and `ownerOid` — gap S17-1 closed, so task 17's broker derives a pod's
 owner label itself instead of taking Fleet's word. Both reads are audited (`principal.read`,
-`delegation.read_by_broker`), on neither feed.
+`delegation.read_by_broker`), on neither feed. **The gate comes with the identity** (b02 round 1,
+C1 and C2): this task, not task 05, owns the **four** `auth.go` deltas that tell the two app-only
+callers apart — `Claims.AppRole` and `Claims.BrokerRead`, `isExemptPath`, `delegationHeader`'s
+role arms and `resolveCaller`'s broker branch. Task 05 wrote `AppOnly` when it had one meaning;
+until those four land the broker is refused 401 `delegation_required` before route 47 and is
+admitted as a second Fleet on route 78, the org-wide feed.
 
 **07 — Hub routes, part 2.** Threads (`POST`, `PATCH` state and round count), messages
 (append-only, kind and typed fields per §6.2, text ≤ 600), escalations (`POST` by Fleet under the

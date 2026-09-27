@@ -876,9 +876,11 @@ built test that sends one to prove it is ignored.
 1. `task-06.md:480-482`'s `fleetP` builds `DelegationView{Class: hubapi.AgentRole, Routes:
    []string}`; this part's fields are task 03's `hubapi.DelegationClass` and
    `[]hubapi.RouteName`. Task 06 renames mechanically, as its `:440` allows.
-2. `task-17.md:107` and `:236` put its three `entra` tests in `verify_test.go`, which the built package
+2. `task-17.md` put its three `entra` tests in `verify_test.go`, which the built package
    does not have (`entra_test.go`, `testkey_test.go`). They are this part's `appcaller_test.go`,
-   so task 17 adds none.
+   so task 17 adds none. **Closed in fix batch b02 round 1 (I4):** task 17 now names
+   `appcaller_test.go` in both places and says this part writes it (`task-17.md:110-113`,
+   `:242-243`).
 3. **No real-tenant check of an app-only token.** Hub task 43's R-4 checks a delegated token's
    claim names only. Phase T task 43, or whichever part carries the real-tenant checklist, needs a
    row: Fleet's token from Entra has `azp`, `oid`, `roles ∋ Hub.Fleet` and no `scp`.
@@ -888,7 +890,7 @@ built test that sends one to prove it is ignored.
    Still open: `task-66.md:143`'s gateway-caller rule says "a token whose `idtyp` is
    `app`"; it should read "a token with no `scp`", or the Hub and its contract disagree. That rule
    stays **§5.10 rule 9**: fix batch b02 left rule 9 reserved and empty for task 66 and gave the
-   broker rule 10 (`task-01.md:189-204`), so no drafted text of task 66's renumbers.
+   broker rule 10 (`task-01.md:189-207`), so no drafted text of task 66's renumbers.
 6. Task 07's `Principal.Auditor` must be false under a delegation, as `OrgAdmin` is (decision e);
    its part says only "from the token's `Hub.Auditor` app role".
 7. Decision (c)'s order answers a revoked **and** expired delegation `delegation_expired`, so a

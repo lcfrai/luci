@@ -375,7 +375,7 @@ owner, so one owner's delegation can never write into another owner's lane names
 computes it from the owner the verified delegation names, in `model.Owner`'s spelling (task 09);
 that the delegation answer carries that spelling was task 17's gap S17-1 (`task-17.md:48-57`),
 **closed by fix batch b02**: `ownerTid` and `ownerOid` are in route 47's answer to the broker
-(`task-01.md:395-400`), built by task 06. What stays **UNVERIFIED** is only that the two ids match
+(`task-01.md:401-406`), built by task 06. What stays **UNVERIFIED** is only that the two ids match
 `model.Owner`'s spelling character for character, which task 09's type settles at merge. The broker: checks the delegation's project is `{projectId}` and that
 `machine` is the delegation owner's (`403 forbidden` otherwise, never `404`, so a guess learns
 nothing); asks that machine's `machined` for the bundle (kind `lane`: the lane runner's `Bundle` op

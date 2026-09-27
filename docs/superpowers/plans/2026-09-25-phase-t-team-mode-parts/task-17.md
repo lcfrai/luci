@@ -404,7 +404,9 @@ lower number means a row was not written, not that it was skipped: none of them 
   `Hub.DelegationReader`); **rule 10** holds it to route 47 and nothing else, on any delegation of
   its own org, revoked or expired included, with no delegation header; **row 47** of §7.0 names it
   as a third caller; and **§7.13** gives that caller alone `ownerTid` and `ownerOid`
-  (`task-01.md:143-152`, `:193-204`, `:308`, `:395-400`; line numbers read 2026-09-28). Task 06
+  (`task-01.md:143-150`, `:193-207`, `:314`, `:401-406`; every anchor re-derived by grep at
+  `feat/team-mode` after fix batch b02 round 1, 2026-09-28 — the batch's first pass cited ranges
+  from before its own edits, which is what round 1's I3 caught). Task 06
   builds the branch and the three tests
   (`TestBrokerReachesOnlyRoute47`, `TestBrokerReadsARevokedDelegation`,
   `TestFleetSeesNoOwnerTidOnRoute47`); task 08 gives the fake an `AsBroker()` view and two
