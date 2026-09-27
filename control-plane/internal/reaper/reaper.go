@@ -689,6 +689,14 @@ func (r *Reaper) markExited(id, reason string) {
 		s.Status = registry.StatusExited
 		s.ExitReason = reason
 		s.AttachCount = 0 // nothing is connected to a process that has ended
+		// The same clearing the API's own exit path does (sessions.go's
+		// markSessionExited), and for the same two reasons: the port is about to
+		// go back to the OS and may belong to another container within seconds,
+		// and a token for a sandbox that is about to be destroyed is only a
+		// liability. SandboxID stays — it is the provenance, and rule 3a needs
+		// it to find the container.
+		s.Endpoint = ""
+		s.AttachToken = ""
 		return nil
 	})
 	r.reportUpdate(id, err)

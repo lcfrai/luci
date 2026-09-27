@@ -451,6 +451,34 @@ func TestSweepMarksAStoppedSandboxExited(t *testing.T) {
 	}
 }
 
+// Rule 3, the other half of what it writes. A record that keeps its endpoint and
+// its attach token after the process ended names a port the OS is free to hand
+// to another container within seconds, and holds a secret for a sandbox that is
+// about to be destroyed — the reason the API's own exit path clears both
+// (sessions.go's markSessionExited). Rule 3 left them. That was rare before F3
+// was fixed and is now the way EVERY session ends.
+func TestSweepClearsTheEndpointAndTokenOfASessionItEnds(t *testing.T) {
+	t.Parallel()
+	store := newStore(t)
+	seed(t, store, registry.Session{
+		ID: "s-1", SandboxID: "sb-1", Status: registry.StatusRunning,
+		Endpoint: "127.0.0.1:49711", AttachToken: "tok-abc",
+	})
+	be := &fakeBackend{sandboxes: []backend.Sandbox{managed("sb-1", backend.StateStopped)}}
+	r, _ := newReaper(t, store, be, 0, 0)
+
+	if err := r.Sweep(context.Background()); err != nil {
+		t.Fatalf("Sweep: %v", err)
+	}
+	s := get(t, store, "s-1")
+	if s.Endpoint != "" || s.AttachToken != "" {
+		t.Errorf("endpoint/token = %q/%q after the session exited, want both empty", s.Endpoint, s.AttachToken)
+	}
+	if s.SandboxID != "sb-1" {
+		t.Errorf("sandboxId = %q, want sb-1: it is the provenance, and rule 3a needs it", s.SandboxID)
+	}
+}
+
 // Rule 3a, and it is the rule F1 and F3 both need.
 //
 // F3: rule 3 writes `exited` over the record and leaves the container on disk,

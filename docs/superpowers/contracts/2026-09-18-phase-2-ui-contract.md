@@ -1060,7 +1060,9 @@ export interface ClientOptions {
   /** Injected for the same reason. jsdom's WebSocket opens a real socket. */
   webSocket?: (url: string) => WebSocket;
   /** Per-request timeout. 0 disables. Defaults to 10_000; /attach is not a fetch and is
-   *  unaffected. */
+   *  unaffected. AMENDED by task 25 (F1): the default for the two verbs that make a
+   *  container — createSession and restartSession — is CREATE_TIMEOUT_MS, not this. An
+   *  explicit timeoutMs still applies to every verb. See the amendment at the end of §4. */
   timeoutMs?: number;
 }
 
@@ -1386,6 +1388,29 @@ briefly *wrong* rather than merely stale. `replaceSessions` skips ids held in
 which is the point: a check here would leak store state into a fetch loop, and every deferred verb
 added later would have to remember it. *Added 2026-09-23 by task 22.*
 ---
+
+### 4.8 AMENDED by task 25 (2026-09-28): a create gets its own budget
+
+`export const CREATE_TIMEOUT_MS = 150_000`, used by `createSession` and `restartSession` and by
+nothing else. Every other verb keeps `DEFAULT_TIMEOUT_MS = 10_000`, and an explicit
+`opts.timeoutMs` still wins everywhere — `CREATE_TIMEOUT_MS` replaces the DEFAULT, not the
+caller's choice.
+
+**Why, and what this is not.** Finding F1 in `docs/verification/2026-09-27-phase-2-results.md`: the
+cockpit aborted `POST /v1/sessions` at 10 s while the control plane was still making the
+container, and the abort cancelled the create's Docker calls, leaving a record `exited` half-made
+and a container behind. **Raising the number is not the fix for that and was not treated as one.**
+The fix is three server-side changes — the create runs on its own context, a failed create
+destroys what it made, and the reaper's new rule 3a reclaims the container of an exited record.
+This is the separate defect the same measurement exposed: on the 2026-09-27 quiet-host run a
+create that PASSED took 24.3 s, so 10 s was never a create's budget and it passed on where the
+abort landed.
+
+**Why 150 s.** It is the control plane's own number plus the reply.
+`reaper.CreateGraceFor(backend.ReadyTimeout)` = 2 × 60 s is both how long the create's detached
+context lives and how long the sweep spares a session whose create is in flight; past it the
+server has stopped working on the create. Change it only together with
+`control-plane/internal/api/sessions.go`'s `sessionCreateContext`.
 
 ## 5. The token layer — `desktop/src/styles/tokens.css`
 

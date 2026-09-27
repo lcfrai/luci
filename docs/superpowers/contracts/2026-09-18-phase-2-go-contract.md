@@ -2548,6 +2548,9 @@ One sweep, in order:
    `ExitReason = "sandbox disappeared"`.
 3. For every session present in `live` whose backend `State` is `StateStopped`:
    `Status = StatusExited`, `ExitReason = "process exited"`.
+3a. ADDED by task 25 (F1 and F3). For every session whose status **is** `exited` and whose
+   `SandboxID` is still in `live`, is ours and is not `NonLoopback`: `backend.Destroy`, log at
+   info, **and change nothing on the record**. See the amendment below this list.
 4. For every live sandbox with `LabelManaged == "true"` whose `LabelSandboxID` matches
    no registry record: `backend.Destroy`, log at info with the sandbox id. This is the
    crash-recovery path, and it is why the record is written before the container.
@@ -2563,6 +2566,35 @@ One sweep, in order:
 7. Refresh `backendReady = true`.
 
 Every state change goes through `store.Update`, never `Get` then `Create`.
+
+AMENDED by task 25's F1 and F3 fix (2026-09-28, `docs/verification/2026-09-27-phase-2-results.md`).
+**Rule 3a, and what an exited session is.**
+
+Nothing collected the container of a session that had already exited. Rules 2 and 3 skip an
+exited record because `exited` is terminal (§5.6), and rule 4 builds its tracked set from every
+record with a `SandboxID`, exited included, so it read that container as claimed. Two defects met
+there. F1: a create the cockpit abandoned left a record `exited` — "the sandbox could not be
+created" — still naming a container `Created` an hour later. F3: `sandboxd` now exits when its
+process does, so **every** session ends in a stopped container, and without rule 3a every one of
+them would stay on disk.
+
+Rule 3a takes no create grace, and that is a decision rather than an omission: both paths that
+mint a container — `POST /v1/sessions` step 4 and `POST /v1/sessions/{id}/restart` — write
+`starting` to the record **before** they call `backend.Create`, so a record cannot be `exited`
+while a create for it is in flight. Rule 4 needs its grace because a restart's container exists
+before its id is recorded; rule 3a keys on the record, which is already terminal.
+
+It rewrites nothing. The record is the provenance — it is what says which container this was —
+and `markExited` refuses an already-exited record anyway. One sweep of lag is built in: rule 3
+writes `exited` after this sweep's snapshot was taken, so the session it just ended is collected
+by the next sweep.
+
+**What an exited session must look like to `GET /v1/sessions`** (asked by task 25, answered here
+so it is one fact rather than four): `status: "exited"`, a non-empty `exitReason`, `endpoint`
+empty and no attach token, and `sandboxId` still named. The id stays because it is the only thing
+that can find the container again — rule 3a needs it, and so does anyone reading a log. It is not
+a claim that the container exists: `exited` is what says it does not, or will not for longer than
+one sweep.
 
 AMENDED by the reaper-scope fix (2026-09-24, `task-25-26-reconcile.md` item 11). **Rule 4 destroyed
 other control planes' sandboxes.** Every control plane on a daemon sees every managed container,
