@@ -2587,8 +2587,11 @@ them would stay on disk.
 Rule 3a takes no create grace, and that is a decision rather than an omission: both paths that
 mint a container — `POST /v1/sessions` step 4 and `POST /v1/sessions/{id}/restart` — write
 `starting` to the record **before** they call `backend.Create`, so a record cannot be `exited`
-while a create for it is in flight. Rule 4 needs its grace because a restart's container exists
-before its id is recorded; rule 3a keys on the record, which is already terminal.
+while a create for it is in flight. Rule 4's grace is for the opposite direction — a backend that
+reports a container this control plane has not recorded — and not, as the first draft of this
+paragraph and `reaper.go`'s own comment both said, because a restart records its sandbox id after
+creating it. It has not done that since task 13. Rule 3a keys on the record, which is already
+terminal, so there is nothing for a grace to wait for.
 
 It rewrites nothing. The record is the provenance — it is what says which container this was —
 and `markExited` refuses an already-exited record anyway. One sweep of lag is built in: rule 3
@@ -2601,6 +2604,32 @@ empty and no attach token, and `sandboxId` still named. The id stays because it 
 that can find the container again — rule 3a needs it, and so does anyone reading a log. It is not
 a claim that the container exists: `exited` is what says it does not, or will not for longer than
 one sweep.
+
+AMENDED by the f1-f3 fix round (2026-09-28, review `SDD/f1-f3-review.md` I-1). **§4:
+`PANACEA_APP_REAP_INTERVAL` now has a maximum of 45s as well as its 5s minimum, and the maximum
+belongs to the cockpit.**
+
+F3 coupled two numbers that had never met. `sandboxd` now exits with its process, so the sandbox
+stops answering `/attach` the instant the session ends and the handshake fails — 409
+`sandbox_not_running`, raised before `websocket.Accept` — instead of opening and closing on an
+Exit frame. That is what ends the reconnect storm, and it is also what stops the cockpit's attach
+ladder resetting its clock: `attachRegistry.ts` stamps `ladderStartedAt` once and gives up
+`RETRY_BUDGET_MS = 60s` later. `giveUp` re-reads the session, and **if the record still says
+`running` the pane lands in `failed`** — terminal, no exit reason, and no Restart offered, because
+Restart is the answer to `exited`. A session that merely finished presents as an attach failure.
+
+The record is moved to `exited` by rule 3, which runs on the sweep, so the sweep has to get there
+first. `cmd/api` clamps and warns, symmetrically with the minimum: `maxReapInterval = 45s` against
+the cockpit's 60s, which leaves the session poll and the render. `PANACEA_APP_REAP_INTERVAL=2m`
+was accepted before this and made `failed` the outcome of **every** session that ended.
+
+What the bound does NOT cover, stated so it is not read as closed: a missed or failed sweep. 2 x
+45s, and 2 x the 30s default, are both past 60s, and rule 1 changes nothing on a `List` error.
+That hole closes only when the relay marks the session exited on the Exit frame it already sees
+(task 25 handoff #2), which takes the window to ~0. Until then the cockpit's `RETRY_BUDGET_MS` and
+the server's sweep cadence are one fact in two trees: `cmd/api/config.go`'s
+`cockpitAttachRetryBudget` restates `desktop/src/api/attachRegistry.ts`'s `RETRY_BUDGET_MS`, and
+neither can see the other at build time.
 
 AMENDED by the reaper-scope fix (2026-09-24, `task-25-26-reconcile.md` item 11). **Rule 4 destroyed
 other control planes' sandboxes.** Every control plane on a daemon sees every managed container,
@@ -2668,9 +2697,14 @@ AMENDED by task 26 (2026-09-26): `Relay` no longer exists, so the block above is
 `RelayHooked` came to be, not what `proxy.go` holds. Task 26 re-proved `Relay` had no production
 caller (open carry 12) and deleted it; `RelayHooked` is the one relay, its doc comment says so,
 and `desktop/src/seams.test.ts` fails on each form of a second relay in the control plane that
-seam S8.7's row in `docs/SEAMS.md` lists, and that row names the one form it cannot see (AMENDED
-by task 26's fix round 2, 2026-09-27: this said "if another relay appears", wider than the rules). The same holds for `// proxy.Relay already takes *websocket.Conn.` in §2.2's
-block: `backend.go:9` now names `proxy.RelayHooked`.
+seam S8.7's row in `docs/SEAMS.md` lists, and that row names the forms it cannot see (AMENDED by
+task 26's fix round 2, 2026-09-27: this said "if another relay appears", wider than the rules;
+and by its fix round 3, 2026-09-28: the `Conn` rules now exempt a result by the parameter list's
+closing paren rather than by `(*`, hold the three by-name exemptions to `proxy.go` and
+`attach.go` only, and trip on a standard-library relay — `httputil.`, `.Hijack(` — so the row's
+blind spot is an inferred-locals relay that also avoids those two). The same holds for
+`// proxy.Relay already takes *websocket.Conn.` in §2.2's block: `backend.go:9` now names
+`proxy.RelayHooked`.
 
 The attach handler passes `OnUpstream` that records `time.Now()` into a local variable
 and, **at most once every two seconds**, flushes it to the registry via

@@ -78,12 +78,12 @@ test ! -e docs/SEAMS.md && test ! -e desktop/src/seams.test.ts \
 # (d) The Kata create-path gap is as the preamble states it. Both halves. Since the resume fix
 #     and the git + CA fix, the create path builds its mounts in ONE function, sessionMounts:
 #     the worktree first, then up to six more, in four Phase 8 seams (S8.8-S8.11).
-grep -cE '^\tmounts := \[\]backend\.Mount\{\{HostPath: worktreePath, ContainerPath: sessionWorkDir\}\}$' \
+grep -cE '^[[:space:]]+mounts := \[\]backend\.Mount\{\{HostPath: worktreePath, ContainerPath: sessionWorkDir\}\}$' \
   control-plane/internal/api/sessions.go                                    # 1
-grep -cE '^\t\tMounts:\s+sandboxMounts,$'      control-plane/internal/api/sessions.go         # 2 — create and restart
-grep -cE '^\t\tmounts = append\(mounts, ' control-plane/internal/api/sessions.go               # 6 — S8.8 (2), S8.9, S8.10, S8.11 (2)
-grep -cE '^\tif len\(spec\.Mounts\) > 0 \{$'   control-plane/internal/backend/katabe/kata.go   # 1
-grep -cE '^\tif spec\.WorkDir != "" \{$'       control-plane/internal/backend/katabe/kata.go   # 1
+grep -cE '^[[:space:]]+Mounts:\s+sandboxMounts,$'  control-plane/internal/api/sessions.go     # 2 — create and restart
+grep -cE '^[[:space:]]+mounts = append\(mounts, ' control-plane/internal/api/sessions.go      # 6 — S8.8 (2), S8.9, S8.10, S8.11 (2)
+grep -cE '^[[:space:]]+if len\(spec\.Mounts\) > 0 \{$' control-plane/internal/backend/katabe/kata.go  # 1
+grep -cE '^[[:space:]]+if spec\.WorkDir != "" \{$'     control-plane/internal/backend/katabe/kata.go  # 1
 grep -c  'is a configuration change and not a rewrite' control-plane/internal/backend/katabe/kata.go   # 1 — step 5 corrects it
 
 # (e) proxy.Relay has exactly one caller, and it is a test. Step 5 re-runs this at deletion.
@@ -107,7 +107,7 @@ grep -cE '^RUN mkdir -p /home/dev/\.claude/projects$' images/sandbox/Dockerfile 
 
 **The declaration that makes the conversation store outlive its sandbox is a mount**, and the Resume fix put it in `sessionMounts` (`control-plane/internal/api/sessions.go`): `mounts = append(mounts, backend.Mount{HostPath: conversationStore, ContainerPath: sessionConversationDir})`, with `const sessionConversationDir = "/home/dev/.claude/projects"`. The image makes the mount point with `RUN mkdir -p /home/dev/.claude/projects` (`images/sandbox/Dockerfile`), so `~/.claude` stays owned by `dev`. Step 2's `SX.10` entry anchors both, and step 6's `SX.10` row names both. Re-derived at `a38c268`; the entry carries no line number, because this file has moved under every fix since.
 
-`grep -E` does not understand `\t` on every platform, and on this machine it does not; if (d) prints `0` for a line you can see in the file, re-run it with `LC_ALL=C.UTF-8 grep -cP` (plain `grep -P` refuses this machine's default locale: *"-P supports only unibyte and UTF-8 locales"*) before concluding anything. Every (d) count above was checked at `a38c268` with the same JavaScript regexes `seams.test.ts` uses. **If (b) finds `phase={5}` twice**, task 23's fix has not landed — do not make it here; the orchestrator was explicit that it is task 23's. **If (d) finds either Kata line genuinely gone**, somebody has started Phase 8's worktree delivery, and seam S8.3 below must be rewritten from the code as it now stands before anything else is written. **If (g) shows the resume fix absent** (it found it present at `a38c268`), stop: `SX.10` would pin the broken mechanism the fix replaces, and the manifest would go red the day the fix lands.
+`grep -E` does not understand `\t` on every platform, and on this machine it does not — AMENDED by task 26's fix round 3 (2026-09-28): every leading tab in (d) above and in step 8 is now `[[:space:]]+`, because the `\t` form printed `0` on this machine for all five lines while `[[:space:]]+` prints the counts shown (re-checked at `a948c874`; round 1's m7). `\s`, a GNU extension, does work here and is kept. If a count still prints `0` for a line you can see in the file, re-run it with `LC_ALL=C.UTF-8 grep -cP` (plain `grep -P` refuses this machine's default locale: *"-P supports only unibyte and UTF-8 locales"*) before concluding anything. Every (d) count above was checked at `a38c268` with the same JavaScript regexes `seams.test.ts` uses. **If (b) finds `phase={5}` twice**, task 23's fix has not landed — do not make it here; the orchestrator was explicit that it is task 23's. **If (d) finds either Kata line genuinely gone**, somebody has started Phase 8's worktree delivery, and seam S8.3 below must be rewritten from the code as it now stands before anything else is written. **If (g) shows the resume fix absent** (it found it present at `a38c268`), stop: `SX.10` would pin the broken mechanism the fix replaces, and the manifest would go red the day the fix lands.
 
 - [ ] **Step 2: Write the failing seam manifest**
 
@@ -1171,7 +1171,7 @@ grep -cE '^func RelayHooked\('                control-plane/internal/proxy/proxy
 
 # katabe's header now says what Phase 8 must build, and the refusal it describes is intact.
 grep -c  'is a configuration change and not a rewrite' control-plane/internal/backend/katabe/kata.go   # 0
-grep -cE '^\tif len\(spec\.Mounts\) > 0 \{$'   control-plane/internal/backend/katabe/kata.go         # 1
+grep -cE '^[[:space:]]+if len\(spec\.Mounts\) > 0 \{$' control-plane/internal/backend/katabe/kata.go   # 1
 
 # Nothing this task wrote still carries a placeholder from the plan. SX.10's row names the
 # resume fix's declarations itself now; the grep stays, so a row copied from an older plan fails.
