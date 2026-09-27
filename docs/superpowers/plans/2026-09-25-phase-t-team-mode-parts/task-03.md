@@ -364,6 +364,10 @@ const (
 	AppRoleFleet      = "Hub.Fleet"
 	AppRoleAuditor    = "Hub.Auditor"
 	AppRoleCompliance = "Hub.Compliance"
+	// AppRoleDelegationReader is the sandbox broker: §5.10 rule 10's one
+	// route and nothing else (fix batch b02, S02-C5). Task 06 configures it
+	// and gates it; no bare "Hub.DelegationReader" literal is written.
+	AppRoleDelegationReader = "Hub.DelegationReader"
 )
 
 // RouteName is what a delegation lists (contract §7.0, team routes table).

@@ -64,17 +64,29 @@ fields, so a body that sends one gets 400 `bad_request`.
   refused unless `PANACEA_APP_HUB_ENV` is `local` or `dev` (modify; fix batch b01); and
   `PANACEA_APP_HUB_BROKER_CLIENT_ID`, a start-up error when it equals
   `PANACEA_APP_HUB_FLEET_CLIENT_ID`, appended to `entra.Config.AppCallers` as
-  `{ClientID: broker, Role: "Hub.DelegationReader"}` beside Fleet's (modify; fix batch b02)
+  `{ClientID: broker, Role: hubapi.AppRoleDelegationReader}` (task 03) beside Fleet's (modify; fix batch b02)
 - `control-plane/internal/hub/server/principals.go` + `principals_integration_test.go`: route 88,
   contract §7.28 (new; fix batch b02, S02-C2)
 - `control-plane/internal/hub/store/principals.go`: `PrincipalFor(ctx, tx, tid, oid, projectID)`,
   one statement joining the user, the project, its team and the org-role rows; it returns the
   **project's** `orgId`, never the caller's (new; fix batch b02)
-- `control-plane/internal/hub/server/auth.go` (task 05's file): `Claims.AppRole`, the `Role` of the
-  `entra.AppCaller` that matched, so a handler can tell Fleet from the broker; and `isFeedPath`
-  becomes `isExemptPath`, which is true for route 78 **and** route 88 (modify: two small deltas;
-  fix batch b02). Task 05's `AppCallers` list already admits more than one identity
-  (`task-05.md:149-155`), so no shape of it changes
+- `control-plane/internal/hub/server/auth.go` (task 05's file): **four** deltas, not two — this
+  task adds the second app-only identity, so it owns every check that until now read `AppOnly` and
+  meant "Fleet" (modify; fix batch b02, round 1 re-review C1 and C2):
+  1. `Claims.AppRole`, the `Role` of the `entra.AppCaller` that matched, so a handler can tell
+     Fleet from the broker;
+  2. `isExemptPath` = `isFeedPath(r) || isPrincipalPath(r)` — task 05's route-78 matcher is kept
+     under its own name, because only route 78 sets `FleetFeed`, and route 88 gets the same
+     exact-segment matcher of its own;
+  3. `delegationHeader` gains the `Hub.DelegationReader` arm of §5.10 rule 10 — no header
+     required, a header 400, every path but `GET /v1/delegations/{dl}` 403 before the route runs —
+     and its two exempt-path cases are **narrowed to `AppRoleFleet`**, so the broker can never
+     become `FleetFeed` (the hole C2 names: route 78's "Fleet's workload identity only" had no
+     mechanism but `AppOnly`);
+  4. `resolveCaller` gains the broker branch: **no principal**, tenancy from the token's own `tid`.
+  Task 05's `AppCallers` list already admits more than one identity (`task-05.md:149-155`), so no
+  shape of it changes, and task 05's own `AppOnly ⇒ Fleet` reading is sound until this task runs:
+  `task-05.md:622` configures exactly one caller
 - `control-plane/internal/entra/entra.go`: nothing. `AppCallers` is already a list (**verified**
   in `task-05.md:145-156` on 2026-09-28); the broker is one more element
 
@@ -759,7 +771,7 @@ write, outside `everyTeamWrite` (it writes no team record; its own tests cover i
 bare **read**, also outside `everyTeamWrite`.
 
 **Route 88, the principal read (fix batch b02, S02-C2).** `getPrincipal` runs under `s.Read`. It
-refuses anything but Fleet (`c.AppOnly && c.AppRole == "Hub.Fleet"`) with 403 `forbidden`,
+refuses anything but Fleet (`c.AppOnly && c.AppRole == hubapi.AppRoleFleet`) with 403 `forbidden`,
 `details.required = "fleet"`, and a Fleet token that carried `X-Panacea-Delegation` with 400
 `bad_request` — task 05's `delegationHeader` cannot do the second for it, because on an exempt
 path that function returns nil, so the handler makes the check. It requires all three of `tid`,
@@ -776,12 +788,12 @@ the flags read in the caller's org (`TestAnAuditorOfAnotherOrgHasNoFlagsHere`); 
 answered for an unknown project, which tells Fleet a project exists.
 
 **Route 47's third caller, the broker (fix batch b02, S02-C5).** `getDelegation` gains one branch
-before its owner check: when `c.AppOnly && c.AppRole == "Hub.DelegationReader"`, it serves **any**
+before its owner check: when `c.AppOnly && c.AppRole == hubapi.AppRoleDelegationReader`, it serves **any**
 delegation of the org enrolled for the token's `tid`, `revokedAt` and `expiresAt` in any state,
 and the answer carries `ownerTid` and `ownerOid` (§7.13). Every other path, and every other
-route, answers that token 403 `forbidden`, `required: "fleet"` — task 05 makes that general, by
-routing a `Hub.DelegationReader` token to a single allowed pattern; this handler is the only
-consumer. The two extra fields are **omitted** for every other caller (`omitempty` on both, set
+route, answers that token 403 `forbidden`, `required: "fleet"` — **the gate below, in this task's
+`auth.go` deltas, is what makes that true**; this handler is its only consumer and never its
+enforcement. The two extra fields are **omitted** for every other caller (`omitempty` on both, set
 only in the broker branch), so a member's or Fleet's answer is unchanged byte for byte. The read
 emits `delegation.read_by_broker`, audit only, with `actorUserId = ""` (the broker is not a
 principal). Mutants killed: the two fields returned to Fleet
@@ -794,6 +806,66 @@ to a named route is unaffected: `Delegable` only puts the name in the context, a
 only for an app-only token. Mutant killed by `TestEveryFleetRouteIsNamed` (Step 2): one `d(…)`
 line written as a bare `HandleFunc`, which answers Fleet 403 `required: "route"` on a route its
 delegation lists.
+
+**The gate that admits the broker, and admits it nowhere else (b02 round 1, C1 and C2).** Task 05
+wrote `delegationHeader` when `AppOnly` had one meaning; this task gives it a second, so the two
+named hunks below land in `auth.go` with it. Without hunk (3) the broker is refused **401
+`delegation_required`** at step 3b and never reaches route 47 at all; without its `AppRoleFleet`
+narrowing the broker reads route 78, the org-wide feed of every team project.
+
+```go
+// (3) delegationHeader: the two app-only identities, told apart by role.
+//     Replaces task 05's `case isFeedPath(r) …` pair and its `case len(vals) == 0`.
+case c.AppRole == hubapi.AppRoleDelegationReader:
+	// §5.10 rule 10. Checked here, before the mux, so no handler can forget it.
+	if len(vals) > 0 {
+		return Refuse(400, hubapi.CodeBadRequest, "The broker takes no delegation.",
+			map[string]string{"field": hubapi.HeaderDelegation})
+	}
+	if !isBrokerPath(r) {
+		return Refuse(403, hubapi.CodeForbidden, "Only Fleet may call this.",
+			map[string]string{"required": "fleet"})
+	}
+	c.BrokerRead = true
+	return nil
+case c.AppRole != hubapi.AppRoleFleet:
+	// A third app-only role, configured and ungated, is refused rather than
+	// admitted as Fleet. Task 66's Hub.Gateway lands as its own case (rule 9).
+	return Refuse(403, hubapi.CodeForbidden, "Only Fleet may call this.",
+		map[string]string{"required": "fleet"})
+case isExemptPath(r) && len(vals) > 0:
+	// …task 05's 400, unchanged; reached only by AppRoleFleet now.
+case isExemptPath(r):
+	c.FleetFeed = isFeedPath(r) // route 88 sets no feed principal; route 78 does
+	return nil
+
+// isBrokerPath is rule 10's one allowed pattern: GET, and the segments are
+// exactly "v1", "delegations", one non-empty id. Never a prefix match, and
+// never `/v1/delegations` itself (route 51's list is Fleet's).
+func isBrokerPath(r *http.Request) bool {
+	if r.Method != http.MethodGet {
+		return false
+	}
+	s := strings.Split(strings.TrimPrefix(r.URL.Path, "/"), "/")
+	return len(s) == 3 && s[0] == "v1" && s[1] == "delegations" && s[2] != ""
+}
+
+// (4) resolveCaller: the broker is no principal. Its tenancy is its own tid's
+//     org (rule 6's ordinary case), so a cross-org read is 404 route_not_found
+//     on the same statement that serves a member's.
+case c.BrokerRead:
+	org, err := store.FleetOrg(ctx, tx, c.TenantID)
+	if err != nil {
+		return Principal{}, false, err // ErrNotEnrolled → 403
+	}
+	return Principal{OrgID: org, TenantID: c.TenantID}, false, nil
+```
+
+`Claims.BrokerRead` is the fifth `Claims` field (beside task 05's three and `AppRole`); it exists
+so `resolveCaller`, which has no `*http.Request`, can tell the caller apart without re-parsing a
+path. `userKey` gains `case c.BrokerRead: return "broker/" + c.TenantID`, so the broker's polling
+cannot drain a member's bucket. Two more tests in Step 2: `TestBrokerWithAHeaderIs400` and
+`TestAnUngatedAppRoleIsRefused` (a configured third role reaching route 52 → 403, not 200).
 
 **The three reads** (routes 52, 55, 59) are what task 11's `rebuild.go` reloads after a Fleet
 restart. They are the Hub's usual page shape (`hubapi.Page[T]`, `?limit=` 1–200 and `?after=`,
@@ -910,9 +982,11 @@ delegation; the Hub records lease changes but does not second-guess them) and en
    S02-C5): this task owns route 88 (the principal read, contract §7.28) and route 47's broker
    caller. Task 12's `Membership` gap and task 17's gap S17-1 both close on it, so
    `go run ./cmd/fleetd` and the broker's owner derivation stop depending on an unwritten route.
-   Two deltas land in **task 05's** file, named in Files above and owned here: `Claims.AppRole`,
-   and `isFeedPath` → `isExemptPath` over routes 78 and 88. The skeleton's Hub table carries both
-   rows.
+   **Four** deltas land in **task 05's** file, named in Files above and owned here: `Claims.AppRole`
+   and `Claims.BrokerRead`; `isExemptPath` over routes 78 and 88; `delegationHeader`'s role arms;
+   and `resolveCaller`'s broker branch. The last two are the gate — a second app-only identity and
+   the check that tells it from Fleet must land together, or the broker is 401 before route 47 and
+   Fleet-shaped on route 78 (b02 round 1, C1 and C2). The skeleton's Hub table carries both rows.
 2. **Codes task 03 must carry.** Task 01 uses 409 `conflict` throughout; the Hub's `codes.go` as
    built has no such code, and the skeleton's task 03 list omits it. Task 01 names no 404 for a
    task, agent or conflict.
