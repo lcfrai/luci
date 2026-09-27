@@ -70,8 +70,8 @@ own (task 10), and task 01's table has no thread list route either.
 **Files:**
 - `control-plane/internal/fleet/outbox/outbox.go` — `Item`, `Queue`, `Sender`, `Deliverer`, `Gate`, the backoff and classify rules (new)
 - `control-plane/internal/fleet/outbox/outbox_test.go` — order, idempotency key, transient vs permanent, the 11-minute outage, the janitor (new)
-- `control-plane/internal/fleet/delegation/client.go` — `Key`, `Delegation`, `Cache`, `Client`, `ErrNoDelegation` (new)
-- `control-plane/internal/fleet/delegation/feed.go` — `Revoker`, `Feed`, the 10-second poll and the expiry sweep (new)
+- `control-plane/internal/fleet/delegation/client.go` — `Key`, `Delegation`, `Cache`, `Source`, `Client`, `ErrNoDelegation` (new)
+- `control-plane/internal/fleet/delegation/feed.go` — `Revoker`, `Feed`, the 10-second poll, the per-tick `Refresh` from shared state and the expiry sweep (new)
 - `control-plane/internal/fleet/delegation/rebuild.go` — `HubState`, `Rebuild` (new)
 - `control-plane/internal/fleet/delegation/delegation_test.go` — the cache, the header, revocation by feed and by clock, the gapless rebuild (new)
 - `control-plane/internal/fleet/outbox/store.go`, `control-plane/internal/fleet/delegation/store.go` — the two adapters to task 10's row types (new; task 10's handoff, `task-10.md:562-567`)
@@ -79,9 +79,9 @@ own (task 10), and task 01's table has no thread list route either.
 **Interfaces:**
 - Produces:
   - `outbox.Item`, `outbox.Op`, `outbox.State`, `outbox.Queue`, `outbox.Sender`, `outbox.Deliverer` with `New`, `(*Deliverer).RunOnce`, `(*Deliverer).Paused`, `(*Deliverer).Janitor`, `outbox.Gate`, `outbox.Classify`, `outbox.Enqueue`, `outbox.AllOps`, `outbox.PauseAfter` (10 min), `outbox.Retention` (24 h) — consumed by 06–07's payload shapes, 14, 20, 23–31 (every Fleet write), 12 (runs the loop)
-  - `delegation.Key`, `delegation.Delegation`, `delegation.Cache` with `Put`/`Get`/`Drop`/`Expired`, `delegation.Client` with `Ctx`, `delegation.ErrNoDelegation`
-  - `delegation.Revoker`, `delegation.Reason` (`revoked`, `lapsed`), `delegation.Feed` with `Poll`, `delegation.PollEvery` (10 s)
-  - `delegation.HubState`, `delegation.Rebuild`
+  - `delegation.Key`, `delegation.Delegation`, `delegation.Cache` with `Put`/`Get`/`Drop`/`Known`/`Expired`, `delegation.Source`, `delegation.Client` with `Ctx` (`NewClient(cache, src, now)`), `delegation.ErrNoDelegation`
+  - `delegation.Revoker`, `delegation.Reason` (`revoked`, `lapsed`), `delegation.Feed` with `Poll`, `Refresh`, `Resolve`, `Adopt`, `Orgs`, `Sweep`, `Reset`, `delegation.PollEvery` (10 s)
+  - `delegation.HubState`, `delegation.Rebuild(ctx, *Feed, *HubState)`, `delegation.Use`, `delegation.InUse`
 - Consumes:
   - task 10 — `store.Store` and its `Tx(ctx, func(store.Tx) error) error`; the outbox methods `OutboxHeads`, `OutboxMarkSent`, `OutboxMarkRetry`, `OutboxMarkDead`, `OutboxFailingSince`, `OutboxDeleteSentBefore`, `Tx.AppendOutbox(ctx, store.OutboxRow)`, `store.OutboxRow`, `Store.DelegationsInUse(ctx) ([]store.DelegationUse, error)` (`task-10.md:95-110,146-170,196-202`). Task 10 is built first and does not import `outbox` (`task-10.md:562-567`), so **this task's `store.go` files convert**: `outbox.StoreQueue`, `outbox.TxAppender` and `delegation.StoreInUse`, below
   - task 08 — `hubclient.Team` (one method per task 06–07 route), `hubclient.OrgFeed` with `OrgChanges(ctx, org, after string, kinds []string, limit int) (hubapi.ChangesPage, error)` (the per-org twin of the built `Feed.Changes`, `hubclient.go:96-99`; `hubapi.Event` and `hubapi.ChangesPage` are built, `hubapi/types.go:536-551`), `Team.Delegation(ctx, id) (hubapi.Delegation, error)` (route 47, `delegations.read`), `Team.Tasks(ctx, projectID, hubapi.TaskQuery) (hubapi.Page[hubapi.Task], error)` (route 52; `TaskQuery{State []TaskState; hubapi.PageRequest}`, `task-08.md:101,137-139`, where task 08 names this change), `Team.Conflicts(ctx, projectID, hubapi.ConflictQuery) (hubapi.Page[hubapi.Conflict], error)` (route 59; `ConflictQuery{State string; hubapi.PageRequest}` from task 03), `hubclient.WithDelegation(ctx, dl string) context.Context`, `hubclient.WithIdempotencyKey(ctx, key string) context.Context`, and the fake's team half
@@ -441,6 +441,16 @@ func (c *Cache) Drop(id string) (Delegation, bool) {
 	return d, true
 }
 
+// Known is Refresh's: an entry Get refuses as expired is still known, so a
+// delegation waiting for the next Sweep is read from the Hub once, not once
+// per tick.
+func (c *Cache) Known(id string) bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	_, ok := c.byID[id]
+	return ok
+}
+
 // Expired returns every entry with ExpiresAt <= now: the lapsed. It removes
 // nothing — Get already refuses them — so a sweep whose Revoker call failed
 // sees the same entry next time, and a renewal (Put) replaces it in place.
@@ -457,18 +467,38 @@ func (c *Cache) Expired(now time.Time) []Delegation {
 	return out
 }
 
+// Source resolves a key this replica has no entry for, from shared state. A
+// launch adopted on the other replica is a row in Fleet's own store before
+// its first Hub write is (both are in task 20's one transaction), so the
+// outbox never has to wait a poll tick to learn it. *Feed implements it; a
+// nil Source is memory only, which is what the cache-only tests construct.
+type Source interface {
+	Resolve(ctx context.Context, k Key) (Delegation, bool, error)
+}
+
 // Client attaches the owner's delegation to a call's context.
 type Client struct {
 	cache *Cache
+	src   Source
 	now   func() time.Time
 }
 
-func NewClient(c *Cache, now func() time.Time) *Client { return &Client{cache: c, now: now} }
+func NewClient(c *Cache, src Source, now func() time.Time) *Client {
+	return &Client{cache: c, src: src, now: now}
+}
 
 // Ctx returns ctx carrying k's live dl-…, checked locally against route so a
 // doomed call never leaves the process. The Hub checks both again (task 05).
+// A miss asks the Source once: ErrNoDelegation then means "shared state has
+// none either", not "this replica has not heard yet".
 func (c *Client) Ctx(ctx context.Context, k Key, route string) (context.Context, error) {
 	d, ok := c.cache.Get(k, c.now())
+	if !ok && c.src != nil {
+		var err error
+		if d, ok, err = c.src.Resolve(ctx, k); err != nil {
+			return ctx, err // transport: the row retries, it does not die
+		}
+	}
 	if !ok {
 		return ctx, ErrNoDelegation
 	}
@@ -599,15 +629,17 @@ type Feed struct {
 	leader func() bool
 	now    func() time.Time
 
+	in     InUse             // shared state: the one place both replicas agree
+
 	mu     sync.Mutex
-	cursor map[string]string // org -> next; set by Rebuild before the first Poll
+	cursor map[string]string // org -> next; set by Rebuild or Refresh before the first Poll
 	done   map[string]Reason // dl id -> the last act the Revoker completed for it
 	also   []func(context.Context, hubapi.Event) error
 }
 
-func NewFeed(hub hubclient.OrgFeed, team hubclient.Team, c *Cache, rev Revoker,
+func NewFeed(hub hubclient.OrgFeed, team hubclient.Team, in InUse, c *Cache, rev Revoker,
 	leader func() bool, now func() time.Time) *Feed {
-	return &Feed{hub: hub, team: team, cache: c, rev: rev, leader: leader, now: now,
+	return &Feed{hub: hub, team: team, in: in, cache: c, rev: rev, leader: leader, now: now,
 		cursor: map[string]string{}, done: map[string]Reason{}}
 }
 
@@ -681,6 +713,8 @@ func (f *Feed) apply(ctx context.Context, org string, ev hubapi.Event) error {
 
 // Sweep lapses every expired delegation. It runs every PollEvery on every
 // replica, independent of Poll, so a feed that is down cannot keep one alive.
+// Refresh has already put every in-use delegation in this replica's cache, so
+// the sweep covers the whole fleet, not only the launches this replica served.
 func (f *Feed) Sweep(ctx context.Context) error {
 	for _, d := range f.cache.Expired(f.now()) {
 		if err := f.act(ctx, d, Lapsed); err != nil {
@@ -764,7 +798,9 @@ type Use struct {
 	Key Key
 }
 
-// InUse is the slice of task 10's Store that Rebuild reads.
+// InUse is the slice of task 10's Store that Rebuild and Refresh read. It is
+// the only state both replicas share about which delegations are live, so it
+// is read every tick, not only at start.
 type InUse interface {
 	DelegationsInUse(ctx context.Context) ([]Use, error)
 }
@@ -809,10 +845,12 @@ func (s *HubState) Task(project, id string) (hubapi.Task, bool) {
 
 // Rebuild is gapless: for each org it reads the feed head, then the state,
 // then sets the cursor to the head it read first. It is safe to call again:
-// task 12 calls it at start on every replica and on becoming leader.
-func Rebuild(ctx context.Context, in InUse, hub hubclient.OrgFeed, team hubclient.Team,
-	f *Feed, s *HubState) error {
-	uses, err := in.DelegationsInUse(ctx)
+// task 12 calls it at start on every replica and on becoming leader. It
+// takes the Feed and reads the Feed's own InUse and clients, so Rebuild and
+// Refresh can never be pointed at two different stores.
+func Rebuild(ctx context.Context, f *Feed, s *HubState) error {
+	hub, team := f.hub, f.team
+	uses, err := f.in.DelegationsInUse(ctx)
 	if err != nil {
 		return fmt.Errorf("rebuild: delegations in use: %w", err)
 	}
@@ -903,6 +941,8 @@ func rebuildProject(ctx context.Context, team hubclient.Team, s *HubState, proje
 // Adopt is task 20's entry at launch; org comes from the caller's
 // authenticated membership (task 12), never from the request body. Head
 // first, record second, as in Rebuild. A launch never waits for the feed.
+// It is this replica's fast path only: the other replica learns the same
+// launch from Refresh, which reads the store the launch wrote.
 func (f *Feed) Adopt(ctx context.Context, org, id string) (Delegation, error) {
 	f.mu.Lock()
 	_, tracked := f.cursor[org]
@@ -926,7 +966,51 @@ func (f *Feed) Adopt(ctx context.Context, org, id string) (Delegation, error) {
 	return d, nil
 }
 
-// Orgs is what task 12's feed loop polls, every PollEvery.
+// Refresh makes the tracked orgs and the live delegations shared state
+// instead of replica memory. Task 12 calls it at the top of every tick,
+// before Orgs: it reads task 10's DelegationsInUse — Fleet's own Postgres,
+// the one thing both replicas see — and learns every org and every dl-… a
+// launch on the other replica adopted. Head first for a new org, as in
+// Adopt. Only ids the cache does not know are read, so a steady fleet costs
+// one store query per tick and no Hub call.
+func (f *Feed) Refresh(ctx context.Context) error {
+	uses, err := f.in.DelegationsInUse(ctx)
+	if err != nil {
+		return fmt.Errorf("refresh: delegations in use: %w", err)
+	}
+	var unknown []Use
+	for _, u := range uses {
+		f.mu.Lock()
+		_, tracked := f.cursor[u.Key.OrgID]
+		_, acted := f.done[u.ID]
+		f.mu.Unlock()
+		if !tracked {
+			head, err := f.hub.OrgChanges(ctx, u.Key.OrgID, "latest", FeedKinds, 1)
+			if err != nil {
+				return fmt.Errorf("refresh %s: feed head: %w", u.Key.OrgID, err)
+			}
+			f.SetCursor(u.Key.OrgID, head.Next)
+		}
+		if !acted && !f.cache.Known(u.ID) {
+			unknown = append(unknown, u)
+		}
+	}
+	_, err = rebuildDelegations(ctx, f.team, f, unknown)
+	return err
+}
+
+// Resolve is the Client's read-through (Source): the outbox on the replica
+// that did not serve the launch asks here rather than dead-lettering a live
+// delegation it has not polled yet.
+func (f *Feed) Resolve(ctx context.Context, k Key) (Delegation, bool, error) {
+	if err := f.Refresh(ctx); err != nil {
+		return Delegation{}, false, err
+	}
+	d, ok := f.cache.Get(k, f.now())
+	return d, ok, nil
+}
+
+// Orgs is what task 12's feed loop polls, every PollEvery, after Refresh.
 func (f *Feed) Orgs() []string {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -943,6 +1027,20 @@ then the head, a revocation committed between the two reads would sit before the
 be applied, and the delegation would stay cached as live until its expiry, up to 24 hours. Reading
 the head first puts that revocation after the cursor, so the next `Poll` applies it.
 `TestAdoptReadsTheHeadBeforeTheRecord` pins the order with a fake that revokes between the calls.
+
+**Neither the tracked orgs nor the live delegations may live in one replica's memory.** There are
+two `fleetd` replicas (task 32) and three roles, and `Adopt` runs on whichever one served the
+launch — which is neither the feed leader nor the outbox holder more often than by chance. Were
+`cursor` and the `Cache` filled by `Adopt` alone, the other replica would learn the org only from
+`Rebuild`, at its start and when it takes `fleet-feed`. Until then: its outbox would answer
+`ErrNoDelegation` for every write of that launch and `Classify` would call that Permanent, so the
+launch's whole Hub trail would be dead-lettered; and if it held `fleet-feed`, nobody would poll
+that org or hold a cache entry to sweep, so a revocation would wait for the next leader change
+rather than the 60 s §2.4 item 4 promises. So the org set and the delegation set are read from
+**Fleet's own store** — `DelegationsInUse`, which task 10 already shares between the replicas —
+by `Refresh`, at the top of every tick, on both replicas, and by `Resolve` on a cache miss in the
+outbox. `Adopt` stays as the serving replica's fast path, not as the only path.
+`TestASecondFeedSeesADelegationAdoptedOnTheFirst` is the two-`Feed` test that pins it.
 
 **The two adapters to task 10's store, complete.** Task 10 is built first and cannot import
 these packages, so it keeps its own row types (`task-10.md:146-170,196-202`) and these files
