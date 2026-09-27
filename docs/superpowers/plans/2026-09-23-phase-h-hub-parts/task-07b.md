@@ -315,7 +315,7 @@ tested by calling them directly. "Refused" means the statement returns a `*pgcon
 | `TestAuditAppendChecksTheOrgFirst` | orgs A and B; B's head read beforehand as the owner. Connection 2 goes **first**: as `hub_app`, `BEGIN`, `set_config('hub.org_id', B, true)`, `SELECT * FROM hub.lock_audit_head()`, and it holds that lock. Connection 1, as `hub_app`: `BEGIN`, `set_config('hub.org_id', A, true)`, `SET LOCAL lock_timeout = '2s'`, `INSERT` an event with `org_id` = B, correctly chained on B's head → `42501` **and** a message containing `not this session's`, returned at once. Both roll back; B's head is unchanged (review M11, A19; re-review b07-1 N1) | an `audit_append` without its org check: running as the owner, it bypasses row-level security, reaches `FOR UPDATE` on B's head, blocks behind connection 2, and returns `55P03` (`lock_not_available`) after the timeout. The message assertion matters: a `WITH CHECK` refusal is also `42501`, but its message is `new row violates row-level security policy`, so `Code` alone cannot tell the check from the policy |
 | `TestTheHeadLockNeedsTheFunction` | as `hub_app` with `hub.org_id` = A, three transactions on one connection. First, in its own `BEGIN … ROLLBACK`: `SELECT seq, hash FROM hub.audit_heads WHERE org_id = A FOR UPDATE` → `42501` (no `UPDATE` privilege). Then a fresh `BEGIN`: `SELECT seq, hash FROM hub.lock_audit_head()` → A's head; while that transaction is open, a second connection as the owner runs the same row `FOR UPDATE NOWAIT` → `55P03`; the first `COMMIT`s, and the second's `NOWAIT` → ok. Last, a fresh transaction with `hub.org_id` unset: `lock_audit_head()` → `P0002`. One transaction for all three would fail the second statement `25P02` (aborted), not return A's head (review M11, A19; re-review b07-1 m1) | a lock that no longer locks: `lock_audit_head` without `FOR UPDATE`, so two writers read one head and one gets `40001` from the trigger instead of waiting its turn |
 | `TestOrgIdsListsEveryOrgAndOnlyIds` | orgs A and B; as `hub_app` with `hub.org_id` unset: `SELECT id FROM hub.orgs` → zero rows; `SELECT * FROM hub.org_ids()` → exactly A's and B's ids, in id order, and the result has one column (review M10, A18) | an `org_ids` that returns `display_name` or `entra_tenant_id`; the janitor or `hub verify` reading `orgs` directly and walking no org at all |
-| `TestHubAppExecutesExactlyTheOwnerFunctions` | `information_schema.role_routine_grants` for `hub_app` in schema `hub` = `ensure_org`, `resolve_principal`, `erase_brief`, `lock_audit_head`, `org_ids`, and no other; `PUBLIC` holds `EXECUTE` on none of them | an owner function left executable by `PUBLIC` (Postgres's default on `CREATE FUNCTION`), or a sixth one nobody reviewed |
+| `TestHubAppExecutesExactlyTheOwnerFunctions` | `information_schema.role_routine_grants` for `hub_app` in schema `hub` = `ensure_org`, `resolve_principal`, `erase_brief`, `lock_audit_head`, `org_ids`, and no other; `PUBLIC` holds `EXECUTE` on none of them. *Fix round 1 (I1):* the `SECURITY DEFINER` functions in `hub`, read from `pg_proc.prosecdef`, are exactly these five and `audit_append`, and `PUBLIC` executes none of the six | an owner function left executable by `PUBLIC` (Postgres's default on `CREATE FUNCTION`), or a sixth one nobody reviewed. The first form checked five names and missed `audit_append`, the sixth (review I1) |
 
 #### Steps
 
@@ -385,7 +385,10 @@ grep -cE "^LANGUAGE .*SECURITY DEFINER" control-plane/internal/hub/migrate/sql/0
 
 #### As built, the mutation rounds (OD-31 scope: tenancy, permissions, immutable records, the ledger)
 
-Runner `scratchpad/hub/t07b-mut.py`; logs and summaries in `task-07-evidence/mut-{a,b,r2,r3}/`.
+Runner `scratchpad/hub/t07b-mut.py`, copied to `task-07-evidence/mutants07b.py`; logs and summaries
+in `task-07-evidence/mut-{a,b,r2,r3,r4}/` (round 4's are in `mut-r4/`; fix round 1, m6). Two summary
+lines, `mut-a` PS-2 and `mut-r2` PS-1, say KILLED where the log shows only a create-database
+timeout; both are annotated in place as no result (fix round 1, m7).
 Each verdict was checked against its log. A `--- FAIL` caused by `hubtest: create database …
 deadline exceeded` (machine load) counts as no result, not a kill.
 
@@ -419,3 +422,36 @@ deadline exceeded` (machine load) counts as no result, not a kill.
   column `x` that no tuple names), KILLED (`releases.x appears 0 times`).
 - **No live survivor.** Not run (OD-31): mutants of `resolve_principal`'s refresh rule
   (`last_seen_at`, not a security property).
+
+#### As built, fix round 1 (2026-09-27; review `task-07-review.md`, I1 and m1-m7)
+
+- **I1, `audit_append` executable by `PUBLIC`.** It is `SECURITY DEFINER`, and the `REVOKE` above
+  named only the five callable functions. Every role may create a `TEMP` table, and `CREATE TRIGGER`
+  checks only table ownership and `EXECUTE`, so `hub_app` could attach the owner's function to a
+  table of its own and move any org's head with no event. Red on HEAD 7ea11387: B's head went
+  1 → 2 with hash `ff…ff` and no `audit_events` row. Fixed at both ends. After the
+  `audit_events_append` trigger, 0001 gains `REVOKE ALL ON FUNCTION audit_append() FROM PUBLIC;`.
+  The real trigger still fires for `hub_app`, because Postgres checks `EXECUTE` at `CREATE TRIGGER`,
+  not at fire time. `audit_append`'s first statement now refuses any table but `hub.audit_events`
+  (`TG_RELID`, `42501`), so a later stray `GRANT` does not reopen it.
+- **m5, fixed in the database, not only noted.** `brief_revisions` had no `INSERT` guard, so
+  content could land under an archived or erased brief. A new invoker trigger,
+  `brief_revisions_no_insert_when_archived` (`guard_revision_insert()`), refuses it `42501` for every
+  role. Erased implies archived (briefs' CHECK). A plain read is race-free: every Hub write takes its
+  org's audit head lock first (contract §10.6), archiving included. `SECURITY DEFINER` count stays 6.
+- **Tests.** `TestHubAppExecutesExactlyTheOwnerFunctions` (row 318, amended) reads the
+  `prosecdef` functions from the catalog. New: `TestAuditAppendRunsOnlyOnAuditEvents` (both I1
+  layers; the `TEMP` table takes `audit_events`' own name, so a check of the name alone fails),
+  `TestAnArchivedBriefTakesNoRevision` (m5), and `TestPanaceaKeysAndSessionLinksArePerProject`
+  (m1, in schema_integration_test.go: D9's and D10's three keys). `TestTheEnvironmentIsSetOnce`
+  gains the `expired` row (m2).
+- **m3 and m4 are carried, not fixed here.** Binding approvals, links, evidence, rollbacks and joins
+  to their project in the database is a schema change beyond this part. They went to
+  carried/task-19, -22, -23, -24 and -25 as Go checks with a test row each. m6 and m7 are wording:
+  the runner and log paths above, and two evidence lines annotated as no result.
+- **Not claimed:** that `hub_app` cannot create a `TEMP` table. That is a database-level privilege
+  (`TEMPORARY ON DATABASE`), and the database is not the migration's, so it is left to provisioning.
+  With `EXECUTE` gone, a `TEMP` table reaches no owner function. Shown on postgres:16-alpine only;
+  Azure Flexible Server is unverified.
+- **Contract:** build departures for task 44a/44b (carried/task-44.md): the `REVOKE`, the
+  `TG_RELID` check and the new trigger.
