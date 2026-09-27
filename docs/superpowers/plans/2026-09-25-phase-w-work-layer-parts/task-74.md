@@ -576,3 +576,18 @@ here.
 **L-14**, **L-16**, **L-17**, **L-18**, **L-20**, **L-21**, **L-23**, **L-25**, **L-26**,
 **L-33**, **L-35**, **L-37**, **L-60**, **L-61**, **L-63**, **L-93**-**L-99** and **L-105**,
 closed by tasks 75-81 with the desktop and recorded by task 97.
+
+#### Addendum, after reading task 77's part
+
+8. **The janitor's actor kind is `janitor`, not `integration`.** Task 77 (`task-77.md:147-163`)
+   widens this file's head guard with `current_setting('hub.work_actor_kind') = 'janitor'` and
+   three permitted writes (`cycle_id`, `archived_at`, and a stale `cancelled`). `guard_issue_head_
+   columns` above is written with that branch named `janitor`; `integration` keeps task 07's
+   blanket refusal, so a sync principal writes no head column at all. The implementer writes the
+   guard once, here, in the shape task 77 replaces — task 77's `CREATE OR REPLACE` then only adds
+   `archived_at` and the stale close.
+9. **Task 77 appends to this file too** (`calendar_tokens`, `archived_at`), as task 78 does. Three
+   tasks write one migration; the number is taken once, here, and neither 77 nor 78 takes another.
+10. **Task 77's part also writes `issue_heads`** (`task-77.md:105`). Same gap as correction 1: the
+    table is `issues`. Three parts now carry the wrong name, which is why it is reported rather
+    than quietly fixed.
