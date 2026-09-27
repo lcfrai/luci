@@ -563,3 +563,25 @@ grep -c "CREATE POLICY" control-plane/internal/hub/migrate/sql/0001_init.sql    
   grants alone until task 07b. Until then the owner can change any of them, and so can `hub_app`
   where it holds a column grant.
 
+#### As built (2026-09-27, commit bab30e90)
+
+Written from the commit message and `task-07-evidence/{red,green}-07a.txt`; the agent that built it
+died before recording it here.
+
+- **Carried from task 05 (`carried/task-07a.md`), both built:** `session_links`'
+  `UNIQUE (project_id, created_by, session_id, design_key)` (D9); and D10, the Panacea keys per Hub
+  project: `releases` gains `UNIQUE (org_id, project_id, id)`, `releases_one_per_run` is on
+  `(project_id, panacea_project, pipeline_run)`, `release_deployments` gains `project_id NOT NULL`,
+  links `(org_id, project_id, release_id)` to `releases (org_id, project_id, id)`, and its
+  `UNIQUE` is `(project_id, panacea_project, deployment_id)`. Build departures for task 44b.
+- **Test departures:** `hub_app`'s grants are read from the ACLs (`aclexplode` of `relacl` and
+  `attacl`), not `information_schema.column_privileges`, which also lists a table-level grant per
+  column. The cross-org test derives one case per catalog key (41) and accepts a refusal by a key
+  sharing a column with the one under test; the catalog test holds each key's shape alone.
+- **Red:** 9 of the 10 FAIL on the 3-line stub; `TestMigrationAppliesAndReappliesClean` passed on
+  it too (it tests the runner, not the tables). **Green:** migrate and hubtest `ok`, vet exit 0.
+- **Pinned:** `current_setting('hub.org_id', true)` after a committed transaction-local
+  `set_config` is `''` on the reused connection, not NULL.
+- **Contract:** stale as step 1 foresaw (§10.5 still grants `UPDATE (seq, hash)` on
+  `audit_heads`, hub-contract.md:2023); this SQL wins. Task 44b carries it.
+

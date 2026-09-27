@@ -350,3 +350,72 @@ grep -cE "^LANGUAGE .*SECURITY DEFINER" control-plane/internal/hub/migrate/sql/0
   sets `hub.org_id` before it appends**, and an append without it is refused `42501`. No task
   appends as the owner today (07a's seed appends as `hub_app` with `hub.org_id` set); a repair
   script or a future seed must set it too (re-review b07-1 m7).
+
+#### As built (2026-09-27, commits 97254f75, 86332241)
+
+- **SQL:** the block above, appended after 07a's grants. It differs from the part in comments
+  only (`task-07-evidence/bytediff-07b.txt`): "(from knowledge)" dropped twice, since the tests pin
+  those facts now, and `audit_append`'s "grants below" reads "grants above" (07a's grants precede
+  it). No statement differs. `Latest()` stays 1.
+- **Contract:** stale as step 1 foresaw. hub-contract.md:1890's `audit_append` is not
+  `SECURITY DEFINER`, :2023 still grants `UPDATE (seq, hash)` on `audit_heads`, and
+  `lock_audit_head` and `org_ids` are absent. This SQL wins; task 44a's acceptance
+  (`grep -c "UPDATE (seq, hash)"` = 0) catches the contract. Its `erase_brief` already leaves
+  `idempotency_keys` alone.
+- **Added beyond the file list (97254f75):** `sql/.gitattributes` (`*.sql text eol=lf`) and
+  `embed_test.go` (`TestEmbeddedMigrationsAreLF`, a unit test). A migration's digest is of its
+  bytes, and with `core.autocrlf=true` a Windows checkout would embed CRLF where a Linux build embeds
+  LF: one commit with two digests, and each build's database `ErrEdited` to the other.
+- **Test fix:** `TestTheAuditChainIsGaplessAndHashed` chained its events on the tip as `hub_app`
+  saw it outside any transaction, where no `hub.org_id` is set and no event is visible. It was
+  refused `40001` (seq 1 on zeros). It reads the tip as the owner now.
+- **Rows beyond the table** (for the mutants below): `TestAHeadMovesOneStepOntoARealRevision` moves
+  1 → 3 onto a real revision 3, and 2 → 1 (PS-1), and has the owner change a brief's project, scope,
+  `created_by` and `created_at` (M19). `TestOnlyEraseBriefCanEraseARevision` has the owner un-erase
+  and re-date an erased brief (PS-2).
+- **Red:** 17 of the 18 FAIL on 07a's SQL (`task-07-evidence/red-07b.txt`).
+  `TestANullEnvironmentReleaseConfirmsAbandonsAndExpires` passes red, as it must: it asserts the
+  guard does not over-refuse, and it kills only a guard that does (M10).
+- **Acceptance:** 40 `--- PASS`, not 38: task 06 has 11 (its fix round added one), plus 07a's 10,
+  07b's 18 and `TestEmbeddedMigrationsAreLF`. `SECURITY DEFINER` count 6.
+- **The Postgres order the part asked for:** with `audit_append`'s org check removed (M01), the
+  insert fails `55P03` after 2.03 s, not `42501`. The `BEFORE` trigger ran first and reached B's
+  lock, so row-level security's `WITH CHECK` comes after `BEFORE` triggers. The check is load-bearing,
+  not only defence in depth. With the check, the refusal takes 13-27 ms.
+
+#### As built, the mutation rounds (OD-31 scope: tenancy, permissions, immutable records, the ledger)
+
+Runner `scratchpad/hub/t07b-mut.py`; logs and summaries in `task-07-evidence/mut-{a,b,r2,r3}/`.
+Each verdict was checked against its log. A `--- FAIL` caused by `hubtest: create database …
+deadline exceeded` (machine load) counts as no result, not a kill.
+
+- **Predicted survivors, named before any run:** PS-1, guard_brief's one-step rule dropped
+  (`NOT IN (OLD, OLD+1)` → `< OLD`); PS-2, guard_brief's `erased_at` freeze dropped.
+- **Round 1** (the part's tests; baseline 40 PASS): PS-1 **SURVIVED** (40 PASS). PS-2 had no result
+  (one create-database timeout); round 2's full run shows it too survives every part row.
+  KILLED on assertions: M01 (`audit_append` without its org check: `55P03` after 2.03 s),
+  M02 (`erase_brief` without `org_id = v_org`: both refusals nil), M03 (`lock_audit_head` without
+  `FOR UPDATE`: the owner's `NOWAIT` succeeds), M04 (no `REVOKE … FROM PUBLIC`), M05 (`org_ids`
+  returns `display_name` too), M06 (`guard_revision` without its `current_user` check: the
+  administrator erases), M07 (`audit_events` off the append-only list), M09 (`OLD` list reordered),
+  M11 (a set environment may change), M12 (no `prev_hash` check), M13 (the head never advances),
+  M15 (`ensure_org` conflicts on `id`, `23505`), M17 (the archived freeze dropped: un-archive and
+  re-archive pass). KILLED in the seed, by the mutant refusing the seed's own writes: M10
+  (`NEW.state <> 'reserved'`: the seed's confirm is refused), M14 (`audit_append` not
+  `SECURITY DEFINER`: `permission denied for table audit_heads`, which also shows A19's revoked
+  grant holds), M16 (`resolve_principal` without its unknown-tenant return: `23502`). M08 as run
+  dropped `pin_brief_revision` from the `NEW` list only, and Postgres refuses the unequal rows
+  itself (`42601`); round 4 runs the intended form. M18 (a revision `DELETE` allowed) is refused
+  `23503` by a design approval's foreign key, not `42501`: killed on the code. Under M18 the
+  owner could delete a revision that nothing references; the guard is what stops that.
+- **Round 2** (git archive 86332241, the new rows in): PS-2 KILLED (the owner's un-erase and
+  re-date, `TestOnlyEraseBriefCanEraseARevision`, the other 39 PASS); M19 (guard_brief's identity
+  tuple dropped, named before its run) KILLED on `scope` and `created_at` (`project` and
+  `created_by` also fail, but on an FK and a NOT NULL, not the guard; the other 39 PASS). PS-1 had no
+  result (a timeout). **Round 3:** PS-1 KILLED (1 → 3 onto a real revision 3).
+- **Round 4** (86332241): M08b, `pin_brief_revision` dropped from both lists, KILLED
+  (`TestReleaseGuardCoversEveryColumn`: it appears 0 times; `TestAPinNeverMoves`: the owner's move is
+  refused only by the pin's foreign key, `23503`). M08c, the part's named mutant (`releases` gains a
+  column `x` that no tuple names), KILLED (`releases.x appears 0 times`).
+- **No live survivor.** Not run (OD-31): mutants of `resolve_principal`'s refresh rule
+  (`last_seen_at`, not a security property).
