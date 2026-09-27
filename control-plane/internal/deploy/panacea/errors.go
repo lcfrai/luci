@@ -3,6 +3,7 @@ package panacea
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -119,4 +120,25 @@ func redact(body []byte, token string) []byte {
 		body = bytes.ReplaceAll(body, []byte(token), []byte("[redacted]"))
 	}
 	return pncToken.ReplaceAll(body, []byte("pnc_[redacted]"))
+}
+
+// ownNotFound replaces Panacea's 404 sentence with the connector's own, and logs Panacea's at
+// warn with the fields the caller names. It is for the three routes whose 404 is written for ANY
+// error of a live Kubernetes Get, not for absence alone: TriggerDeploy
+// (handlers/projects.go:2953-2957), CancelDeploy (:3657-3661) and GetPipelineRunStatus
+// (:3588-3592) each answer "…not found: "+err.Error(), so an API-server timeout or a 403 reaches
+// the user as "not found" carrying an internal address. Everything else is untouched: the kind,
+// the status and the cause all stay, and a non-404 passes through, so the status table
+// (mapStatus) still owns every other answer. The connector parses nothing to decide, so plan
+// 7P-12's single parsed sentence stays single, and an IDOR 404 (:3600, :3664) is answered the
+// same way on purpose: which of the two came is not knowable without parsing (review t04 M2).
+func (c *Client) ownNotFound(op string, err error, own string, args ...any) error {
+	var e *deploy.Error
+	if !errors.As(err, &e) || e.Kind != deploy.KindNotFound {
+		return err
+	}
+	c.log.Warn("panacea answered 404 with a sentence that may hold internal detail; the user is shown the connector's",
+		append([]any{"op", op, "status", e.Status, "panacea_message", e.Message}, args...)...)
+	e.Message = own
+	return e
 }

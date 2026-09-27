@@ -52,7 +52,7 @@ type cancelResponseDTO struct {
 // Its ID is the deployment rolled back TO (clients/kubernetes.go:5982, :6030).
 type rollbackResponseDTO = deploymentDTO
 
-// autoDeployDTO mirrors GetBranchAutoDeploy's data (handlers/projects.go:4136-4142) and
+// autoDeployDTO mirrors GetBranchAutoDeploy's data (handlers/projects.go:4136-4143) and
 // SetBranchAutoDeploy's (:4192-4198): the same five keys in a data envelope. On the PUT,
 // enabled is the bool just written (*body.Enabled, :4194), never null (review M6).
 type autoDeployDTO struct {
@@ -90,22 +90,25 @@ type setPostureDTO struct {
 // setPostureResponseDTO mirrors SetBranchAccessMode's data (handlers/project_security.go:824-845).
 // The envelope's message is carried only when enforced is true ("access mode set to …", :835).
 // When enforced is false Panacea's sentence embeds the reconcile error's err.Error() (:818-821,
-// :837-839), so it is logged at warn and never carried; SetPosture writes notEnforcedSentence.
+// :837-839), so it is logged at warn and never carried; SetPosture writes notEnforcedSentence
+// (governance.go). BypassTokens is present whenever one was minted, enforced or not: bypass-token
+// with no supplied token always mints (:786-797), and it is returned ONCE (:830-833).
 type setPostureResponseDTO struct {
 	Branch       string   `json:"branch"`
 	Env          string   `json:"env"`
 	AccessMode   string   `json:"accessMode"`
 	Enforced     bool     `json:"enforced"`
-	BypassTokens []string `json:"bypassTokens"` // present only when minted; returned ONCE (:830-833)
+	BypassTokens []string `json:"bypassTokens"`
 }
 
 // notEnforcedSentence is the connector's own not-enforced message (review M7, re-review M-5).
 // mode is the wire word this call sent (string(mode): "kpmg-sso", "panacea-sso", "bypass-token",
 // "password", "none"), the same word the cockpit's radio names; branch is the name the caller
 // passed, verbatim. Plain text: no backticks, no quotes. For ("bypass-token", "feat/fix(ui)"):
-//   Access mode saved as bypass-token for feat/fix(ui), but not yet enforced: the route could not
-//   be updated, so traffic still meets the previous mode. Re-apply, and do not treat the new mode
-//   as active until it succeeds.
+//
+//	Access mode saved as bypass-token for feat/fix(ui), but not yet enforced: the route could not
+//	be updated, so traffic still meets the previous mode. Re-apply, and do not treat the new mode
+//	as active until it succeeds.
 func notEnforcedSentence(mode deploy.PostureMode, branch string) string
 
 // accessBindingDTO mirrors models.AccessBinding (models/models.go:2004-2015) as ListProjectAccess
@@ -130,7 +133,7 @@ type urlPrefixDTO struct {
 	Prefix string `json:"prefix"`
 }
 
-// urlPrefixResponseDTO mirrors SetBranchURLPrefix's data (handlers/projects.go:4364-4371).
+// urlPrefixResponseDTO mirrors SetBranchURLPrefix's data (handlers/projects.go:4365-4371).
 type urlPrefixResponseDTO struct {
 	Branch string `json:"branch"`
 	Prefix string `json:"prefix"`
@@ -138,7 +141,8 @@ type urlPrefixResponseDTO struct {
 }
 
 // clearURLPrefixDTO mirrors ClearBranchURLPrefix's data {branch, routeReverted}
-// (handlers/projects.go:4448-4451). Built t04: see the ClearURLPrefix row below.
+// (handlers/projects.go:4448-4451). RouteReverted is a pointer: an answer without it has not
+// confirmed the revert, and reads as not reverted.
 type clearURLPrefixDTO struct {
 	Branch        string `json:"branch"`
 	RouteReverted *bool  `json:"routeReverted"`
@@ -202,7 +206,11 @@ one legacy group binding shaped as Panacea's own test pins it, `{"group":"projec
 `grant-500-blank.json` (`:182`), `grant-500-resolve.json` (`:186` wrapping `:989`) and
 `grant-500-admin-token.json` (`:177`), each as `access.go:57` writes it, and one for the
 ClearURLPrefix row: `urlprefix-clear-stale.json` (`routeReverted: false`, the message of
-`projects.go:4445-4446` with a stand-in reconcile error). That makes 26 new files, 50 in all. `posture-set-not-enforced.json` also carries a minted `bypassTokens`. The
+`projects.go:4445-4446` with a stand-in reconcile error). Fix round 1 adds five more:
+`cancel-unstarted.json` (`already_completed`, *"Pipeline run is already Unknown"*),
+`run-unstarted.json` and `run-succeeded.json` (the two re-reads `Cancel` now makes), and
+`cancel-404-transient.json` and `ship-404-transient.json` (a 404 written for a Kubernetes timeout,
+review M2). That makes 31 new files, 55 in all. `posture-set-not-enforced.json` also carries a minted `bypassTokens`. The
 reason is that bypass-token with no supplied token always mints one (`project_security.go:786-797`),
 enforced or not, so `SetPosture` carries it in both cases.
 
@@ -223,6 +231,11 @@ test those routes. Rollback refuses a row with no image, as Panacea does (`:1575
 | `RollbackSourceIsArgument` | `Rollback(p, "d1").SourceDeploymentID == "d1"` for warm and cold | a connector that reports a new id, which task 10 would send to the Hub and 409 |
 | `CancelFinishedIsNotAnError` | cancelling a succeeded run → `AlreadyFinished`, `err == nil` | an error toast for an undo that raced the build's end |
 | `GrantDeveloperRoundTrips` | `Grant(RoleDeveloper)` then `Access` → that grantee with `RoleDeveloper` | sending `"developer"` where Panacea's writer spells `"editor"`. Read from source at t04, so no longer "unverified whether it would be refused": it is **not** refused. `AddProjectAccess` builds `"project-<name>-"+role` unchecked (`clients/keycloak.go:192`), and `roleFromProjectGroupName` lists every suffix except `-owner` and `-editor` as `viewer` (`:503-512`), so the developer reads back as a viewer. `panaceatest` copies that rule, so the row kills the mutant over the connector. Never tried live |
+
+| `CancelUnstartedIsRefused` (fix round 1, review I2) | a run seeded `BuildPending` → `Cancel` is `KindConflict`, never `AlreadyFinished` and never `Cancelled`, and `Run` still reads pending after it | an undo in a run's first seconds reported as done while the build deploys. Red over both sides at `e890685b`: the Fake cancelled such a run, the connector read Panacea's `already_completed` as `AlreadyFinished` |
+| `BypassTokenSaveRotates` (fix round 1, review I1) | two plain `SetPosture(bypass-token)` saves → each returns exactly one token and the second differs from the first; `Posture` then reads `BypassTokenCount == 1` | a Fake that keeps the old token, so task 11's lens promises a shared link that Panacea has already invalidated. Red over the Fake only: `panaceatest` already copies the rule |
+| `PostureSaveDropsOtherMaterial` (fix round 1) | password save → `PasswordSet`, no token; bypass-token save → no password, 1 token; kpmg-sso save → neither | a Fake that accumulates both modes' material, where `writeAccessMode` deletes each (`handlers/access_mode.go:202-216`). Red over the Fake only |
+| `PostureStrayMaterialRefused` (fix round 1, review I1 item 5) | a password with any mode but password, the password mode with none, and a rotation with any mode but bypass-token are each `KindRejected`, and the branch's mode is unchanged | the connector dropping the stray field and saving the rest, where the Fake refused it: a caller's `password` mode with no password went public in silence. Red over the connector only |
 
 #### Tests to write first
 
@@ -292,9 +305,13 @@ grep -niE '(secretscan|dast|sast|checks|iacscan|scascan|licensescan|modelscan|nu
 - That an undo lands in a run's first seconds (found t04, for tasks 09 and 10). `CancelDeploy`
   cancels only a `Pending` or `Running` run (`projects.go:3669`). A run with no condition yet reads
   `Unknown` (`clients/pipeline.go`, `pipelineRunStatusFromUnstructured`), so Panacea answers
-  `already_completed`, *"Pipeline run is already Unknown"*, and `Cancel` reads that as
-  `AlreadyFinished`. The Fake cancels such a run. `panaceatest` copies Panacea's rule
-  (`TestCancelRoute`).
+  `already_completed` and stops nothing. **Closed at the root in fix round 1 (review I2):** what is
+  still not claimed is that the cancel WORKED, not that the caller is told. `Cancel` no longer takes
+  `already_completed` at its word — it re-reads the run once through its own `Run`, a retried read,
+  and answers `KindConflict` with `notStartedSentence` (status 200) for a run that is not terminal,
+  `KindUnavailable` for a state word it does not know or a re-read that failed, and
+  `AlreadyFinished` only for a terminal run. The Fake refuses a `BuildPending` cancel the same way.
+  Nothing parses Panacea's sentence (7P-12). `panaceatest` copies Panacea's rule (`TestCancelRoute`).
 - That a cleared URL prefix has stopped serving. Found t04 and closed at the root: a 200 with
   `routeReverted: false` (`projects.go:4427-4451`, at Panacea `1d9199772`) is now
   `URLPrefixCleared.RouteReverted false` with the connector's sentence, the same
@@ -302,6 +319,20 @@ grep -niE '(secretscan|dast|sast|checks|iacscan|scascan|licensescan|modelscan|nu
   `ClearURLPrefix` returns that result (task 01's interface amended), and the Fake gains
   `SetURLRouteReverts`. What this task does not do is show it: task 11's `DELETE {P}/url-prefix`
   is planned as a bare 204, and must carry `routeReverted` and the sentence to the lens.
+- That a SET URL prefix is serving (review t04 M3). `SetBranchURLPrefix` stamps the host
+  annotation and reconciles, both best-effort, and answers `200 "url prefix set"` with the new host
+  even when both fail (`projects.go:4347-4361`, `:4365-4371`). There is no `routeReverted`-like
+  field on this route, so the connector cannot tell: `deploy.URLPrefix.Host` is CLAIMED, and a lens
+  must say claimed, not live. Unlike the clear, the root fix is Panacea's, not ours. Carried to
+  task 11.
+- That Panacea's 404 on `Ship`, `Cancel` or `Run` means absence (review t04 M2). All three write
+  `"…not found: "+err.Error()` for ANY error of a live Kubernetes `Get`
+  (`projects.go:2953-2957`, `:3657-3661`, `:3588-3592`), so an API-server timeout or a 403 arrives
+  as a 404 holding an internal address. The kind stays `KindNotFound` — the connector does not
+  guess a better one — but the sentence shown is the connector's own and Panacea's is logged at
+  warn (`ownNotFound`, `errors.go`). Whether Panacea should answer 503 for a transient failure is
+  Panacea's question, not this program's; the rule is carried plan-wide because it also reaches
+  t02's status table and t03's `Run`.
 - `panaceatest`'s `PUT B/access` starts every write from no password and no tokens, as
   `writeAccessMode` deletes the other mode's material (`handlers/access_mode.go:202-216`; found
   t04, `TestBranchAccessPut`).

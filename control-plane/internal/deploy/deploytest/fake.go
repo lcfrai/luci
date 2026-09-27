@@ -181,6 +181,13 @@ func rejected(method, format string, a ...any) error {
 	return &deploy.Error{Kind: deploy.KindRejected, Op: opName(method), Status: 400, Message: fmt.Sprintf(format, a...)}
 }
 
+// conflict is the Fake's refusal of an act the target will not do in the state it is in. Status
+// 200 is the target's: Panacea answers a cancel it will not perform with a 200 whose word says so
+// (handlers/projects.go:3669-3674), so the Fake's seam for it carries the same status.
+func conflict(method, format string, a ...any) error {
+	return &deploy.Error{Kind: deploy.KindConflict, Op: opName(method), Status: 200, Message: fmt.Sprintf(format, a...)}
+}
+
 func mustMethod(caller, method string) {
 	if !methods[method] {
 		panic(fmt.Sprintf("deploytest: %s(%q): not a Deployer method name", caller, method))
@@ -793,8 +800,14 @@ func (f *Fake) nextRun(pr *project) string {
 	}
 }
 
-// Cancel of an unfinished run moves it, and its Deployment, to BuildFailed (the target does not
-// tell cancelled from failed). A finished run answers AlreadyFinished, not an error.
+// Cancel of a RUNNING run moves it, and its Deployment, to BuildFailed (the target does not tell
+// cancelled from failed). A finished run answers AlreadyFinished, not an error. A run that has
+// been accepted and has not started (BuildPending) is REFUSED, KindConflict with a sentence, and
+// nothing moves: Panacea cancels only a Pending or Running Tekton run
+// (handlers/projects.go:3669) and a run with no condition yet reads "Unknown"
+// (clients/pipeline.go:1097-1100), which is this domain's BuildPending, so the cancel stops
+// nothing and the build goes on. Answering it as done here is the seam the connector's own
+// re-read closes (review t04 I2).
 func (f *Fake) Cancel(ctx context.Context, p deploy.ProjectRef, run string) (deploy.CancelResult, error) {
 	if err := f.enter(ctx, "Cancel", string(p), run); err != nil {
 		return deploy.CancelResult{}, err
@@ -812,6 +825,10 @@ func (f *Fake) Cancel(ctx context.Context, p deploy.ProjectRef, run string) (dep
 	}
 	if rp.Build.Terminal() {
 		return deploy.CancelResult{Outcome: deploy.AlreadyFinished, Message: fmt.Sprintf("Run %s has already finished.", run)}, nil
+	}
+	if rp.Build == deploy.BuildPending {
+		return deploy.CancelResult{}, conflict("Cancel",
+			"Run %s had not started yet, so it could not be stopped, and it will go ahead. Try again in a few seconds.", run)
 	}
 	pr.setBuild(run, deploy.BuildFailed, now)
 	return deploy.CancelResult{Outcome: deploy.Cancelled, Message: fmt.Sprintf("Run %s cancelled.", run)}, nil
@@ -907,6 +924,14 @@ func (pr *project) postureOf(branch string) deploy.Posture {
 // any mode but password (or password without one), a token rotation with any mode but
 // bypass-token. The password is never recorded, stored or echoed: only PasswordSet moves.
 // SetPostureEnforced(false) saves the mode and answers Enforced false.
+//
+// A save keeps only its own mode's material, because Panacea's writeAccessMode keeps the password
+// only for password and the token hashes only for bypass-token and deletes each otherwise
+// (handlers/access_mode.go:202-216). EVERY bypass-token save mints a fresh token and leaves
+// exactly one, whether or not RotateBypassToken is set: the connector supplies no token, and with
+// none supplied the handler mints and replaces every stored hash
+// (handlers/project_security.go:786-797, :803). So RotateBypassToken changes nothing the caller
+// can observe, and the old token stops working on every save (review t04 I1).
 func (f *Fake) SetPosture(ctx context.Context, p deploy.ProjectRef, branch string, c deploy.PostureChange) (deploy.PostureResult, error) {
 	if err := f.enter(ctx, "SetPosture", string(p), branch, string(c.Mode)); err != nil {
 		return deploy.PostureResult{}, err
@@ -928,14 +953,14 @@ func (f *Fake) SetPosture(ctx context.Context, p deploy.ProjectRef, branch strin
 	}
 	ps := pr.postures[branch]
 	ps.ModeRaw = string(c.Mode)
-	if c.Password != "" {
-		ps.PasswordSet = true
-	}
+	ps.PasswordSet = c.Password != ""
 	var tokens []string
-	if c.RotateBypassToken {
+	if c.Mode == deploy.PostureBypassToken {
 		f.tokenSeq++
 		tokens = []string{fmt.Sprintf("bypass-%d", f.tokenSeq)}
-		ps.BypassTokenCount++
+		ps.BypassTokenCount = 1
+	} else {
+		ps.BypassTokenCount = 0
 	}
 	pr.postures[branch] = ps
 	res := deploy.PostureResult{Posture: pr.postureOf(branch), Enforced: !pr.notEnforced[branch], BypassTokens: tokens}

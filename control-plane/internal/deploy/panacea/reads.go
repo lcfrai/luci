@@ -254,9 +254,12 @@ func completedAt(created time.Time, duration string) time.Time {
 	return created.Add(d)
 }
 
-// Run reads GET P/pipelines/{run} (routes.go:1290), a dataDTO[pipelineRunDTO]. Its 404 is
-// KindNotFound with Panacea's sentence: it is also the cross-project IDOR answer
-// (handlers/projects.go:3595-3601).
+// Run reads GET P/pipelines/{run} (routes.go:1290), a dataDTO[pipelineRunDTO]. Its 404 stays
+// KindNotFound and takes the connector's own sentence, Panacea's logged at warn: the route writes
+// "pipeline run not found: "+err.Error() for ANY error of a live Kubernetes Get
+// (handlers/projects.go:3588-3592, clients/pipeline.go:1064-1068), so an API-server timeout would
+// otherwise reach the user as "not found" holding an internal address, and the cross-project IDOR
+// answer (:3595-3601) is not told from it without parsing (review t04 M2).
 func (c *Client) Run(ctx context.Context, p deploy.ProjectRef, run string) (deploy.RunProgress, error) {
 	P, err := projectPath("run", p)
 	if err != nil {
@@ -268,7 +271,8 @@ func (c *Client) Run(ctx context.Context, p deploy.ProjectRef, run string) (depl
 	}
 	var dto dataDTO[pipelineRunDTO]
 	if err := c.get(ctx, "run", P+"/pipelines/"+r, &dto); err != nil {
-		return deploy.RunProgress{}, err
+		return deploy.RunProgress{}, c.ownNotFound("run", err, "Panacea did not find run "+run+" in this project.",
+			"project", string(p), "run", run)
 	}
 	d := dto.Data
 	name := d.Name

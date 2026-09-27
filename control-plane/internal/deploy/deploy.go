@@ -427,6 +427,14 @@ type PostureChange struct {
 	// Password is sent only when Mode is PosturePassword. It is never logged, stored or echoed.
 	Password string
 	// RotateBypassToken asks the target to mint a fresh token (Mode PostureBypassToken only).
+	//
+	// It changes NOTHING on Panacea, and a caller must not read it as a choice: the connector
+	// supplies no token, and a bypass-token save with none supplied mints a fresh token and
+	// replaces every stored hash whether or not this is set (handlers/project_security.go:786-797,
+	// :803). So EVERY bypass-token save is a rotation, and every link already shared with the old
+	// token stops working the moment it is saved. A caller that saves or re-applies bypass-token
+	// must tell the user that, and must show the one token the save returns: it is returned once
+	// and cannot be read back (review t04 I1).
 	RotateBypassToken bool
 }
 
@@ -476,6 +484,11 @@ type GrantRequest struct {
 	Role    AccessRole
 }
 
+// URLPrefix is SetURLPrefix's outcome and the branch's current prefix. Host is CLAIMED, not
+// known to be serving: Panacea stamps the host annotation and reconciles, both best-effort, and
+// answers 200 with the new host even when both fail (handlers/projects.go:4347-4361, :4365-4371).
+// There is no routeReverted-like field to read on this route, so the connector cannot tell, and a
+// lens must say the prefix is claimed rather than live (review t04 M3).
 type URLPrefix struct {
 	Branch string
 	Prefix string

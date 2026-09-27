@@ -130,8 +130,10 @@ type Governor interface {
 	// (keycloak.go:245-268). A legacy row revoked by its Grantee is a silent 200 no-op (review M30).
 	Revoke(ctx context.Context, p ProjectRef, group string) error
 	SetURLPrefix(ctx context.Context, p ProjectRef, branch, prefix string) (URLPrefix, error)
-	// Amended by task 04 (found t04): was `... string) error`. Panacea can release the prefix and
-	// answer 200 with routeReverted false (handlers/projects.go:4427-4451).
+	// ClearURLPrefix releases the branch's prefix. The target can release it and still fail to
+	// revert the live route (Panacea answers 200 with routeReverted false,
+	// handlers/projects.go:4427-4451), so the branch keeps serving at its old host:
+	// URLPrefixCleared.RouteReverted says which (found t04).
 	ClearURLPrefix(ctx context.Context, p ProjectRef, branch string) (URLPrefixCleared, error)
 }
 
@@ -438,6 +440,14 @@ type PostureChange struct {
 	// Password is sent only when Mode is PosturePassword. It is never logged, stored or echoed.
 	Password string
 	// RotateBypassToken asks the target to mint a fresh token (Mode PostureBypassToken only).
+	//
+	// It changes NOTHING on Panacea, and a caller must not read it as a choice: the connector
+	// supplies no token, and a bypass-token save with none supplied mints a fresh token and
+	// replaces every stored hash whether or not this is set (handlers/project_security.go:786-797,
+	// :803). So EVERY bypass-token save is a rotation, and every link already shared with the old
+	// token stops working the moment it is saved. A caller that saves or re-applies bypass-token
+	// must tell the user that, and must show the one token the save returns: it is returned once
+	// and cannot be read back (review t04 I1).
 	RotateBypassToken bool
 }
 
@@ -487,21 +497,29 @@ type GrantRequest struct {
 	Role    AccessRole
 }
 
+// URLPrefix is SetURLPrefix's outcome and the branch's current prefix. Host is CLAIMED, not
+// known to be serving: Panacea stamps the host annotation and reconciles, both best-effort, and
+// answers 200 with the new host even when both fail (handlers/projects.go:4347-4361, :4365-4371).
+// There is no routeReverted-like field to read on this route, so the connector cannot tell, and a
+// lens must say the prefix is claimed rather than live (review t04 M3).
 type URLPrefix struct {
 	Branch string
 	Prefix string
 	Host   string
 }
 
-// URLPrefixCleared is ClearURLPrefix's outcome (added by task 04, found t04). RouteReverted is
-// false when the target released the prefix but has not confirmed the live route reverted, so
-// the branch may still serve at its old host; Message is the target's sentence only when it
-// holds no internal error text, as PostureResult.Message. The Fake's SetURLRouteReverts(false)
-// seeds the not-reverted target.
+// URLPrefixCleared is ClearURLPrefix's outcome.
 type URLPrefixCleared struct {
-	Branch        string
+	Branch string
+	// RouteReverted is false when the target RELEASED the prefix but has not confirmed the live
+	// route reverted, so the branch may still serve at its old host. The lens must say so, as it
+	// does for a posture saved but not enforced: a clear drawn as done while the old host still
+	// answers is the same silent-override class.
 	RouteReverted bool
-	Message       string
+	// Message is a sentence about the outcome. It is the target's own only when that sentence
+	// holds no internal error text; Panacea's not-reverted sentence embeds one, so the connector
+	// writes that one itself (task 04).
+	Message string
 }
 ```
 

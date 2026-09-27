@@ -30,7 +30,11 @@ const notStartedSentence = "The build had not started yet, so Panacea could not 
 // clone time) and an empty branch. noCache is sent only as true: nil and false both leave
 // Panacea's default (models/models.go:2349-2352). Its 402s, the budget and risk gates
 // (projects.go:2856, :2916-2918), are KindConflict with the sentence by the status table
-// (errors.go); its 500 (:2991) is KindUnavailable with none.
+// (errors.go); its 500 (:2991) is KindUnavailable with none. Its 404 answers ANY error of
+// K8s.GetProject, a live namespace Get, as "project not found: "+err.Error()
+// (projects.go:2953-2957, clients/kubernetes.go:1528-1533), so an API-server timeout arrives as
+// a 404 holding an internal address: the kind stays KindNotFound and the sentence is the
+// connector's own, Panacea's logged at warn (review t04 M2).
 func (c *Client) Ship(ctx context.Context, p deploy.ProjectRef, req deploy.ShipRequest) (deploy.ShipResult, error) {
 	const op = "ship"
 	if req.Branch == "" || !deploy.ValidCommit(req.Commit) {
@@ -48,7 +52,8 @@ func (c *Client) Ship(ctx context.Context, p deploy.ProjectRef, req deploy.ShipR
 	}
 	var dto dataDTO[shipResponseDTO]
 	if err := c.do(ctx, op, http.MethodPost, P+"/deploy", body, &dto, http.StatusAccepted); err != nil {
-		return deploy.ShipResult{}, err
+		return deploy.ShipResult{}, c.ownNotFound(op, err, "Panacea did not find the project "+string(p)+".",
+			"project", string(p), "branch", req.Branch)
 	}
 	if dto.Data.PipelineRun == "" {
 		c.log.Warn(noRunNamed, "op", op, "project", string(p), "branch", req.Branch, "commit", req.Commit,
@@ -60,11 +65,16 @@ func (c *Client) Ship(ctx context.Context, p deploy.ProjectRef, req deploy.ShipR
 }
 
 // Cancel posts P/pipelines/{run}/cancel (routes.go:1291) and reads CancelDeploy's
-// dataDTO[cancelResponseDTO] (handlers/projects.go:3669-3687): "cancelled" is Cancelled,
-// "already_completed" is AlreadyFinished, not an error, each with Panacea's sentence. CancelDeploy
-// cancels only a Pending or Running run (:3669), so a run with no condition yet ("Unknown",
-// clients/pipeline.go GetPipelineRun) also answers already_completed. Any other word is
-// KindUnavailable with the 200 received. Its 404 (:3660, :3664) keeps Panacea's sentence.
+// dataDTO[cancelResponseDTO] (handlers/projects.go:3669-3687): "cancelled" is Cancelled with
+// Panacea's sentence, and any word this code does not know is KindUnavailable with the 200
+// received. "already_completed" is NOT taken at its word: CancelDeploy cancels only a Pending or
+// Running run (:3669) and pipelineRunStatusFromUnstructured starts every run at "Unknown" until
+// Tekton writes a condition (clients/pipeline.go:1097-1100), so a Cancel in a run's first seconds
+// stops nothing and says already_completed while the build goes on to deploy. One re-read of the
+// run confirms it (cancelAlreadyCompleted). Its 404 (:3660, :3664) answers ANY error of a live
+// GetPipelineRun as "pipeline run not found: "+err.Error() (:3657-3661,
+// clients/pipeline.go:1064-1068), so the kind stays KindNotFound and the sentence is the
+// connector's own, Panacea's logged at warn (review t04 M2).
 func (c *Client) Cancel(ctx context.Context, p deploy.ProjectRef, run string) (deploy.CancelResult, error) {
 	const op = "cancel"
 	P, err := projectPath(op, p)
@@ -77,18 +87,57 @@ func (c *Client) Cancel(ctx context.Context, p deploy.ProjectRef, run string) (d
 	}
 	var dto dataDTO[cancelResponseDTO]
 	if err := c.do(ctx, op, http.MethodPost, P+"/pipelines/"+r+"/cancel", nil, &dto, http.StatusOK); err != nil {
-		return deploy.CancelResult{}, err
+		return deploy.CancelResult{}, c.ownNotFound(op, err, "Panacea did not find run "+run+" in this project.",
+			"project", string(p), "run", run)
 	}
 	switch dto.Data.Status {
 	case "cancelled":
 		return deploy.CancelResult{Outcome: deploy.Cancelled, Message: dto.Data.Message}, nil
 	case "already_completed":
-		return deploy.CancelResult{Outcome: deploy.AlreadyFinished, Message: dto.Data.Message}, nil
+		return c.cancelAlreadyCompleted(ctx, p, run, dto.Data.Message)
 	}
 	c.log.Warn("panacea answered a cancel with a word this code does not know", "op", op, "project", string(p),
 		"run", run, "word", dto.Data.Status, "status", http.StatusOK)
 	return deploy.CancelResult{}, &deploy.Error{Kind: deploy.KindUnavailable, Op: op, Status: http.StatusOK,
 		Cause: fmt.Errorf("panacea: POST %s/pipelines/%s/cancel answered 200 with status %q", P, r, dto.Data.Status)}
+}
+
+// cancelAlreadyCompleted confirms Panacea's already_completed with ONE re-read of the run through
+// the connector's own Run (GET P/pipelines/{run}, a retried READ, so re-reading is safe where
+// re-sending the cancel would not be). It reads structure, never Panacea's sentence, so plan
+// 7P-12's single parsed sentence stays single:
+//
+//	terminal (Succeeded, Failed, historical) → AlreadyFinished with Panacea's sentence, no error
+//	pending or running                       → KindConflict, Status 200, notStartedSentence
+//	a state word this code does not know     → KindUnavailable, Status 200
+//	the re-read failed                       → KindUnavailable, Status 200
+//
+// The Status is the cancel's own 200 throughout: that is the answer this error is about. Every
+// outcome but the terminal one is logged at warn, naming the run: the build is still going and
+// nothing stopped it (review t04 I2).
+func (c *Client) cancelAlreadyCompleted(ctx context.Context, p deploy.ProjectRef, run, sentence string) (deploy.CancelResult, error) {
+	const op = "cancel"
+	rp, err := c.Run(ctx, p, run)
+	if err != nil {
+		c.log.Warn("panacea refused a cancel as already finished and the run could not be re-read", "op", op,
+			"project", string(p), "run", run, "status", http.StatusOK, "cause", err.Error())
+		return deploy.CancelResult{}, &deploy.Error{Kind: deploy.KindUnavailable, Op: op, Status: http.StatusOK,
+			Cause: fmt.Errorf("panacea: a cancel of %q answered already_completed and the run could not be re-read: %w", run, err)}
+	}
+	if rp.Build.Terminal() {
+		return deploy.CancelResult{Outcome: deploy.AlreadyFinished, Message: sentence}, nil
+	}
+	if rp.Build == deploy.BuildUnknown {
+		c.log.Warn("panacea refused a cancel as already finished for a run in a state this code does not know", "op", op,
+			"project", string(p), "run", run, "state", rp.BuildRaw, "status", http.StatusOK)
+		return deploy.CancelResult{}, &deploy.Error{Kind: deploy.KindUnavailable, Op: op, Status: http.StatusOK,
+			Cause: fmt.Errorf("panacea: a cancel of %q answered already_completed for a run reading %q", run, rp.BuildRaw)}
+	}
+	c.log.Warn("panacea refused a cancel of a run that has not finished; nothing was stopped", "op", op,
+		"project", string(p), "run", run, "state", rp.BuildRaw, "status", http.StatusOK)
+	return deploy.CancelResult{}, &deploy.Error{Kind: deploy.KindConflict, Op: op, Status: http.StatusOK,
+		Message: notStartedSentence,
+		Cause:   fmt.Errorf("panacea: a cancel of %q answered already_completed while the run reads %q", run, rp.BuildRaw)}
 }
 
 // Rollback posts P/deployments/{id}/rollback (routes.go:1026) and reads Rollback's

@@ -283,7 +283,7 @@ func TestCancelUnstartedIsNotFinished(t *testing.T) {
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			rs := serveRecorded(t, map[string]fixture{
-				cancel:                             {file: "cancel-unstarted.json"},
+				cancel:                              {file: "cancel-unstarted.json"},
 				"GET " + actsP + "/pipelines/r-new": c.run,
 			})
 			got, err := rs.c.Cancel(context.Background(), project, "r-new")

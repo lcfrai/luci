@@ -111,10 +111,16 @@ func notEnforcedSentence(mode deploy.PostureMode, branch string) string {
 		"be updated, so traffic still meets the previous mode. Re-apply, and do not treat the new mode as active until it succeeds."
 }
 
-// SetPosture puts a setPostureDTO to B/access (routes.go:1431). A mode outside the five is refused
-// before any request (Panacea would 400 it, project_security.go:718-722). The password is sent
-// only with PosturePassword and a rotation only with PostureBypassToken, whatever else the change
-// holds. Enforced is carried through. Message is Panacea's envelope message when enforced is true
+// SetPosture puts a setPostureDTO to B/access (routes.go:1431). Three changes are refused before
+// any request, as KindRejected, because the domain says they are never sent and the Fake refuses
+// them too (review t04 I1 item 5: dropping the stray field and saving the rest made a caller's
+// "password" with no password go public in silence): a mode outside the five (Panacea would 400
+// it, project_security.go:718-722), a password with any mode but password or the password mode
+// without one (:766-770), and a rotation with any mode but bypass-token. What is sent is
+// therefore exactly the change, never a filtered copy of it. Enforced is carried through.
+// A bypass-token save ROTATES on Panacea whether or not RotateBypassToken is set: with no
+// supplied token the handler mints one and replaces every stored hash (:786-797, :803), so the
+// old token stops working on every save, and a caller re-applying the mode must say so. Message is Panacea's envelope message when enforced is true
 // (:835); when it is false Panacea's sentence embeds reconcileErr, an err.Error() (:818-821,
 // :836-839), so it is logged at warn and Message is notEnforcedSentence, built from the
 // structured enforced and the mode and branch this call sent. BypassTokens is whatever Panacea
@@ -127,17 +133,19 @@ func (c *Client) SetPosture(ctx context.Context, p deploy.ProjectRef, branch str
 		return deploy.PostureResult{}, &deploy.Error{Kind: deploy.KindRejected, Op: op,
 			Cause: fmt.Errorf("panacea: access mode %q is not one of the five", ch.Mode)}
 	}
+	if (ch.Password != "") != (ch.Mode == deploy.PosturePassword) {
+		return deploy.PostureResult{}, &deploy.Error{Kind: deploy.KindRejected, Op: op,
+			Cause: fmt.Errorf("panacea: a password is sent with, and only with, the password mode, not %q", ch.Mode)}
+	}
+	if ch.RotateBypassToken && ch.Mode != deploy.PostureBypassToken {
+		return deploy.PostureResult{}, &deploy.Error{Kind: deploy.KindRejected, Op: op,
+			Cause: fmt.Errorf("panacea: a bypass token is rotated only in the bypass-token mode, not %q", ch.Mode)}
+	}
 	path, err := branchPath(op, p, branch, "access")
 	if err != nil {
 		return deploy.PostureResult{}, err
 	}
-	body := setPostureDTO{AccessMode: string(ch.Mode)}
-	if ch.Mode == deploy.PosturePassword {
-		body.Password = ch.Password
-	}
-	if ch.Mode == deploy.PostureBypassToken {
-		body.RotateBypassTokens = ch.RotateBypassToken
-	}
+	body := setPostureDTO{AccessMode: string(ch.Mode), Password: ch.Password, RotateBypassTokens: ch.RotateBypassToken}
 	var dto dataDTO[setPostureResponseDTO]
 	if err := c.doWith(ctx, noBodyLog, op, http.MethodPut, path, body, &dto, http.StatusOK); err != nil {
 		return deploy.PostureResult{}, err
