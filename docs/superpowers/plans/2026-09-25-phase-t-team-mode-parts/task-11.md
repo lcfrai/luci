@@ -1164,6 +1164,13 @@ then the head, a revocation committed between the two reads would sit before the
 be applied, and the delegation would stay cached as live until its expiry, up to 24 hours. Reading
 the head first puts that revocation after the cursor, so the next `Poll` applies it.
 `TestAdoptReadsTheHeadBeforeTheRecord` pins the order with a fake that revokes between the calls.
+The same hole opens sideways, and that is what `SetCursorIfAbsent` closes: `Refresh` and `Adopt`
+each read "is this org tracked", drop the lock to read the head, then write, and they run on
+different goroutines — the feed loop and a launch request. Whichever wrote second would overwrite
+the other's head and skip the events between them, so both test and assign under one lock and the
+**older** cursor wins; replaying what a `Poll` already applied is free, losing an event is not.
+`SetCursor` stays unconditional for `Rebuild` alone, because `Rebuild` re-reads the whole org state
+after its head. `TestConcurrentFirstTrackKeepsTheOlderCursor` runs both orders.
 
 **Neither the tracked orgs nor the live delegations may live in one replica's memory.** There are
 two `fleetd` replicas (task 32) and three roles, and `Adopt` runs on whichever one served the
