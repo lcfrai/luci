@@ -35,6 +35,15 @@ goes back to trying. The feed's *reading* role runs on every replica (task 11: e
 cache current), and only its acting role is a singleton; on acquiring `fleet-feed` the replica
 calls `Feed.Reset` then `Rebuild`, which is how a leader change cannot lose a revocation.
 
+**What each replica reads is shared, not what it happened to serve.** A launch is adopted on
+whichever replica served the request, which is neither loop holder more often than by chance. So
+`readFeed` calls `Feed.Refresh` at the top of every tick: it reads task 10's `DelegationsInUse`,
+the one state both replicas see, and learns the orgs and delegations this replica never adopted
+(`task-11.md`, Refresh). The same `Feed` is the outbox `Client`'s `Source`, so a write of a
+launch the other replica served resolves its delegation instead of dead-lettering. Without both,
+the non-serving replica dead-letters that launch's whole Hub trail and never sweeps its
+revocation (review S02-C1).
+
 **A bad value fails start with its name.** Every `PANACEA_APP_FLEET_*` variable is read once, in
 `loadConfig(getenv)`, phase 2's shape (`cmd/api/config.go:165`, `parseDuration` at `:421`); a
 missing required value or an unusable one is an error whose text begins with the variable's name,
@@ -88,7 +97,7 @@ with `Hub.Auditor` in another org arrives here with all three false and `role` `
   - phase 2, built — `httpx.WriteProblem(w, status, code, msg, details)` (`internal/httpx/problem.go:93`), `httpx.CodeInternal`
   - Hub, built — `hubapi.CodeUnauthenticated`, `hubapi.CodeForbidden` (`hubapi/codes.go:20-22`): Fleet answers auth failures with the Hub's two codes, so the desktop switches on one set; `hubapi.Role` (`types.go:20-25`); `hubclient.New(baseURL, scope, tokens, httpClient)` (`hubclient/client.go:21`, a stub until Hub tasks 33–34)
   - task 10 — `pgstore.Open(ctx, dsn string) (*pgstore.Store, error)` and `(*pgstore.Store).Pool() *pgxpool.Pool`, `pgstore.Migrate(ctx, pool) error`
-  - task 11 — `outbox.New`, `(*Deliverer).RunOnce`, `(*Deliverer).Janitor`; `delegation.NewCache`, `NewClient`, `NewFeed`, `Rebuild`, `(*Feed).Poll`, `Sweep`, `Reset`, `Orgs`, `FeedKinds`, `PollEvery`
+  - task 11 — `outbox.New`, `(*Deliverer).RunOnce`, `(*Deliverer).Janitor`; `delegation.NewCache`, `NewClient(cache, src, now)`, `NewFeed(hub, team, in, cache, rev, leader, now)`, `delegation.StoreInUse`, `Rebuild(ctx, *Feed, *HubState)`, `(*Feed).Poll`, `Refresh`, `Sweep`, `Reset`, `Orgs`, `FeedKinds`, `PollEvery`
   - task 08 — `hubclient.Team.Principal(ctx, tid, oid, projectID string) (hubapi.Principal, error)` over `GET /v1/principals` (route 88, contract §7.28). **No longer proposed:** fix batch b02 gave it to tasks 01, 06 and 08, which this part now depends on. `hubapi.Principal` carries `UserID`, `OrgID` (the project's), `ProjectID`, `Role`, `OrgAdmin`, `Auditor`, `Compliance`
 
 **`control-plane/cmd/fleetd/config.go`, complete:**
@@ -858,16 +867,19 @@ func run(ctx context.Context, getenv func(string) string, stderr io.Writer) int 
 	}
 
 	cache := delegation.NewCache()
-	deliver := outbox.New(outbox.StoreQueue{S: st}, delegation.Sender{Client: delegation.NewClient(cache, time.Now), Hub: hub}, time.Now)
 	feedLock := server.NewSingleton(st.Pool(), "feed", log)
 	outboxLock := server.NewSingleton(st.Pool(), "outbox", log)
 	revokers := &fanout{log: log} // tasks 20, 23, 39 add theirs: revokers.add(r)
-	feed := delegation.NewFeed(hub, hub, cache, revokers, feedLock.Held, time.Now)
+	// The feed is built before the outbox because it is the outbox's Source:
+	// a launch adopted on the other replica is resolved from Fleet's own
+	// store rather than waited a poll out (task-11.md, Refresh and Resolve).
+	feed := delegation.NewFeed(hub, hub, delegation.StoreInUse{S: st}, cache, revokers,
+		feedLock.Held, time.Now)
+	deliver := outbox.New(outbox.StoreQueue{S: st},
+		delegation.Sender{Client: delegation.NewClient(cache, feed, time.Now), Hub: hub}, time.Now)
 	state := delegation.NewHubState()
 	kinds := slices.Clone(delegation.FeedKinds) // tasks 22-25 append their kinds
-	rebuild := func(c context.Context) error {
-		return delegation.Rebuild(c, delegation.StoreInUse{S: st}, hub, hub, feed, state)
-	}
+	rebuild := func(c context.Context) error { return delegation.Rebuild(c, feed, state) }
 
 	go readFeed(ctx, log, srv, feed, rebuild, kinds)
 	go feedLock.Run(ctx, func(c context.Context) error { feed.Reset(); return rebuild(c) },
@@ -878,7 +890,9 @@ func run(ctx context.Context, getenv func(string) string, stderr io.Writer) int 
 }
 
 // readFeed is the feed's reading role, on every replica: rebuild until it
-// succeeds once, mark ready, then poll every tracked org and sweep.
+// succeeds once, mark ready, then refresh the tracked orgs from Fleet's own
+// store, poll every one of them, and sweep. Refresh comes first every tick
+// because Orgs would otherwise hold only the launches this replica served.
 func readFeed(ctx context.Context, log *slog.Logger, srv *server.Server, feed *delegation.Feed,
 	rebuild func(context.Context) error, kinds []string) {
 	for {
@@ -895,6 +909,9 @@ func readFeed(ctx context.Context, log *slog.Logger, srv *server.Server, feed *d
 		}
 	}
 	for sleep(ctx, delegation.PollEvery) {
+		if err := feed.Refresh(ctx); err != nil {
+			log.Warn("feed refresh", "err", err) // the known orgs are still polled
+		}
 		for _, org := range feed.Orgs() {
 			for more := true; more; {
 				var err error
