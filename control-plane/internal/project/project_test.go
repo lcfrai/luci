@@ -455,7 +455,7 @@ func TestEveryGitCommandIsReadOnly(t *testing.T) {
 		"rev-parse --abbrev-ref HEAD":                       true,
 		// Only on the failure path: the unborn-HEAD confirmation (F4).
 		"rev-parse --verify --quiet HEAD": true,
-		"worktree list --porcelain":                         true,
+		"worktree list --porcelain":       true,
 	}
 	calls := g.recorded()
 	if len(calls) == 0 {

@@ -82,6 +82,58 @@ func TestExecRunnerSaysACancelledCallerIsNotATimeout(t *testing.T) {
 	}
 }
 
+// Review M-1. WHOSE deadline ended the git is the other half of ruling (a),
+// and nothing read it: deleting GitError.Caller left the package green, and
+// with it dies the one sentence that tells an operator the read was not slow —
+// the request was already over before git started. A bound that ended a git
+// this runner started is a different fact and reads differently.
+func TestExecRunnerSaysWhoseDeadlineEndedTheGit(t *testing.T) {
+	requireGit(t)
+
+	expired, cancelExpired := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+	defer cancelExpired()
+	gaveUp, cancelNow := context.WithCancel(context.Background())
+	cancelNow()
+
+	// A bound this runner would never reach, so the caller's context is the
+	// only thing that can end these two gits.
+	caller := &project.ExecRunner{Timeout: 42 * time.Second}
+	for _, tc := range []struct {
+		name string
+		ctx  context.Context
+		want string
+	}{
+		{"the caller's deadline passed", expired, "the caller's deadline passed"},
+		{"the caller gave up", gaveUp, "cancelled by the caller"},
+	} {
+		_, err := caller.Run(tc.ctx, t.TempDir(), "rev-parse", "--abbrev-ref", "HEAD")
+		var ge *project.GitError
+		if !errors.As(err, &ge) {
+			t.Fatalf("%s: error %v is not a *project.GitError", tc.name, err)
+		}
+		if !ge.Caller {
+			t.Errorf("%s: GitError.Caller is false, so the message cannot say whose deadline it was", tc.name)
+		}
+		if msg := ge.Error(); !strings.Contains(msg, tc.want) {
+			t.Errorf("%s: error = %q, want %q in it", tc.name, msg, tc.want)
+		}
+	}
+
+	// Our own bound is not the caller's, and must not say it was.
+	ours := &project.ExecRunner{Timeout: time.Nanosecond}
+	_, err := ours.Run(context.Background(), t.TempDir(), "rev-parse", "--abbrev-ref", "HEAD")
+	var ge *project.GitError
+	if !errors.As(err, &ge) {
+		t.Fatalf("our own bound: error %v is not a *project.GitError", err)
+	}
+	if ge.Caller {
+		t.Errorf("our own bound: GitError.Caller is true, but the caller handed in a context that never ends")
+	}
+	if msg := ge.Error(); !strings.Contains(msg, "timed out after the 1ns bound") {
+		t.Errorf("our own bound: error = %q, want the bound this runner set named", msg)
+	}
+}
+
 // The other half of F2: a git that FAILED must still report git's own
 // sentence, unchanged, and must not read as a timeout.
 func TestExecRunnerKeepsGitsOwnFailureDistinctFromATimeout(t *testing.T) {

@@ -75,6 +75,48 @@ func TestBranchesReportsARevParseThatGitItselfRefused(t *testing.T) {
 	}
 }
 
+// Review I-1. A CANCELLED confirmation confirms nothing either, and it is the
+// ordinary path rather than an exotic one: the rail cancels a superseded poll
+// as a matter of course, and both gits of the read then die the same way with
+// nothing on either stream. Without head()'s `&& !ge.Canceled` guard the
+// silence of a cancelled git reads as "HEAD is unborn", so Branches answers
+// with the full branch list and nothing marked IsHead — F4 exactly, restored,
+// on a request whose reader has already gone. Deleting that guard left the
+// whole package green before this test existed.
+func TestBranchesReportsACancelledConfirmationInsteadOfCallingItAnUnbornHead(t *testing.T) {
+	root := t.TempDir()
+	dir := makeRepo(t, root, "panacea")
+
+	// Both gits die the way a cancelled git dies on Windows: the corpse's own
+	// exit status, and nothing on either stream.
+	cancelled := func(args ...string) *project.GitError {
+		return &project.GitError{
+			Args:     args,
+			Dir:      dir,
+			Err:      errors.New("exit status 1"),
+			Timeout:  10 * time.Second,
+			Elapsed:  120 * time.Millisecond,
+			Canceled: true,
+			Caller:   true,
+		}
+	}
+	g := newFakeGit()
+	g.reply(dir, "main\nfeat/ready-flag\n", headRefs, "--format=%(refname:short)", "refs/heads")
+	g.fail(dir, cancelled("rev-parse", "--abbrev-ref", "HEAD"), "rev-parse", "--abbrev-ref", "HEAD")
+	g.fail(dir, cancelled("rev-parse", "--verify", "--quiet", "HEAD"), "rev-parse", "--verify", "--quiet", "HEAD")
+
+	got, err := branchesOf(t, root, dir, g)
+	if err == nil {
+		t.Fatalf("Branches with a cancelled confirmation = %#v, nil; want the error", got)
+	}
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("error %q does not wrap context.Canceled", err)
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		t.Errorf("error %q reads as a timeout, but the caller cancelled", err)
+	}
+}
+
 // The one tolerated reason, and it stays tolerated: HEAD names a branch that
 // has no commit yet. `rev-parse --verify --quiet HEAD` is how that is
 // confirmed rather than guessed from git's prose — it exits non-zero and says

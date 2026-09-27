@@ -20,6 +20,18 @@ import (
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/worktree"
 )
 
+// branchReadBudget bounds the WHOLE of Branches — its for-each-ref, its
+// rev-parse --abbrev-ref and F4's confirmation — at one GitTimeout, rather
+// than letting three gits each take their own and add up to 30 s.
+//
+// GitTimeout's own reason is that a blocked enumeration git must fail rather
+// than hold a request open, and that reason is about the REQUEST, so the
+// request is what carries the bound. The reader is gone by then either way:
+// the cockpit abandons GET /v1/projects/{id}/branches at DEFAULT_TIMEOUT_MS =
+// 10 s (desktop/src/api/client.ts) and the rail asks again two seconds later.
+// F4 added the third git and review M-3 caught that it did not add the budget.
+const branchReadBudget = GitTimeout
+
 // ErrUnknownProject is returned for a project id under no configured root. The
 // contract leaves the error unnamed; task 10 needs a sentinel to map to
 // 404 project_not_found without matching on message text.
@@ -238,6 +250,9 @@ func (s *Scanner) Branches(ctx context.Context, projectID string) ([]Branch, err
 	if err != nil {
 		return nil, err
 	}
+	// One budget for every git of this read; see branchReadBudget.
+	ctx, cancel := context.WithTimeout(ctx, branchReadBudget)
+	defer cancel()
 	out, err := s.git.Run(ctx, p.Path, "for-each-ref", "--format=%(refname:short)", "refs/heads")
 	if err != nil {
 		return nil, fmt.Errorf("project: list branches of %s: %w", p.Name, err)
